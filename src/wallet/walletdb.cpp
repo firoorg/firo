@@ -1116,68 +1116,32 @@ DBErrors CWalletDB::ZapWalletTx(CWallet* pwallet, std::vector<CWalletTx>& vWtx)
 
 void ThreadFlushWalletDB()
 {
-    // Make this thread recognisable as the wallet flushing thread
-    RenameThread("firo-wallet");
-
-    static bool fOneThread;
-    if (fOneThread)
+    static std::atomic<bool> fOneThread;
+    if (fOneThread.exchange(true)) {
         return;
-    fOneThread = true;
-    if (!GetBoolArg("-flushwallet", DEFAULT_FLUSHWALLET))
+    }
+    if (!GetBoolArg("-flushwallet", DEFAULT_FLUSHWALLET)) {
         return;
+    }
 
-    CWalletDBWrapper& dbh = pwalletMain->GetDBHandle();
+    for (CWalletRef pwallet : vpwallets) {
+        CWalletDBWrapper& dbh = pwallet->GetDBHandle();
 
-    static unsigned int nLastSeen = dbh.GetUpdateCounter();
-    static unsigned int nLastFlushed = dbh.GetUpdateCounter();
-    static int64_t nLastWalletUpdate = GetTime();
-    int64_t nLastWalletUpdate = GetTime();
-    while (true)
-    {
-        MilliSleep(500);
+        unsigned int nUpdateCounter = dbh.nUpdateCounter;
 
-        if (nLastSeen != dbh.GetUpdateCounter())
-        {
-            nLastSeen = dbh.GetUpdateCounter();
-            nLastWalletUpdate = GetTime();
+        if (dbh.nLastSeen != nUpdateCounter) {
+            dbh.nLastSeen = nUpdateCounter;
+            dbh.nLastWalletUpdate = GetTime();
         }
 
-        if (nLastFlushed != dbh.GetUpdateCounter() && GetTime() - nLastWalletUpdate >= 2)
-        {
-            TRY_LOCK(bitdb.cs_db,lockDb);
-            if (lockDb)
-            {
-                // Don't do this if any databases are in use
-                int nRefCount = 0;
-                std::map<std::string, int>::iterator mi = bitdb.mapFileUseCount.begin();
-                while (mi != bitdb.mapFileUseCount.end())
-                {
-                    nRefCount += (*mi).second;
-                    mi++;
-                }
-
-                if (nRefCount == 0)
-                {
-                    boost::this_thread::interruption_point();
-                    const std::string& strFile = pwalletMain->strWalletFile;
-                    std::map<std::string, int>::iterator _mi = bitdb.mapFileUseCount.find(strFile);
-                    if (_mi != bitdb.mapFileUseCount.end())
-                    {
-                        LogPrint("db", "Flushing %s\n", strFile);
-                        nLastFlushed = CWalletDB::GetUpdateCounter();
-                        int64_t nStart = GetTimeMillis();
-
-                        // Flush wallet file so it's self contained
-                        bitdb.CloseDb(strFile);
-                        bitdb.CheckpointLSN(strFile);
-
-                        bitdb.mapFileUseCount.erase(_mi++);
-                        LogPrint("db", "Flushed %s %dms\n", strFile, GetTimeMillis() - nStart);
-                    }
-                }
+        if (dbh.nLastFlushed != nUpdateCounter && GetTime() - dbh.nLastWalletUpdate >= 2) {
+            if (CDB::PeriodicFlush(dbh)) {
+                dbh.nLastFlushed = nUpdateCounter;
             }
         }
     }
+
+    fOneThread = false;
 }
 
 // This should be called carefully:

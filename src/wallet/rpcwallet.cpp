@@ -43,7 +43,8 @@ static CCriticalSection cs_nWalletUnlockTime;
 
 CWallet *GetWalletForJSONRPCRequest(const JSONRPCRequest& request)
 {
-    return pwalletMain;
+    // TODO: Some way to access secondary wallets
+    return vpwallets.empty() ? nullptr : vpwallets[0];
 }
 
 std::string HelpRequiringPassphrase(CWallet * const pwallet)
