@@ -1,0 +1,48 @@
+---
+name: "zcoin"
+suites:
+- "precise"
+architectures:
+- "i386"
+- "amd64"
+packages:
+- "qt4-qmake"
+- "libqt4-dev"
+- "git-core"
+- "unzip"
+- "pkg-config"
+- "libpng12-dev"
+reference_datetime: "2011-01-30 00:00:00"
+remotes:
+- "url": "file:///home/bushido/zcoin"
+  "dir": "zcoin"
+  "commit": "master"
+files:
+- "zcoin-deps-linux32-gitian-r2.zip"
+- "zcoin-deps-linux64-gitian-r2.zip"
+- "boost-linux32-1.55.0-gitian-r1.zip"
+- "boost-linux64-1.55.0-gitian-r1.zip"
+script: |
+  INSTDIR="$HOME/install"
+  export LIBRARY_PATH="$INSTDIR/lib"
+  #
+  mkdir -p $INSTDIR
+  cd $INSTDIR
+  unzip ../build/zcoin-deps-linux${GBUILD_BITS}-gitian-r2.zip
+  unzip ../build/boost-linux${GBUILD_BITS}-1.55.0-gitian-r1.zip
+  cd ..
+  #
+  cd build/zcoin
+  mkdir -p $OUTDIR/src
+  git archive HEAD | tar -x -C $OUTDIR/src
+  cp $OUTDIR/src/doc/README.md $OUTDIR
+  cp $OUTDIR/src/COPYING $OUTDIR
+  cd src
+  mkdir obj/libzerocoin
+  make -f makefile.unix STATIC=1 OPENSSL_INCLUDE_PATH="$INSTDIR/include" OPENSSL_LIB_PATH="$INSTDIR/lib" BOOST_LIB_SUFFIX="-mt" $MAKEOPTS zcoind USE_UPNP=0 DEBUGFLAGS= USE_SSE2=1
+  mkdir -p $OUTDIR/bin/$GBUILD_BITS
+  install -s zcoind $OUTDIR/bin/$GBUILD_BITS
+  cd ..
+  qmake INCLUDEPATH="$INSTDIR/include" LIBS="-L$INSTDIR/lib" BOOST_LIB_SUFFIX="-mt" RELEASE=1 USE_QRCODE=1 USE_SSE2=1 USE_UPNP=1 zcoin.pro
+  make $MAKEOPTS
+  install zcoin-qt $OUTDIR/bin/$GBUILD_BITS
