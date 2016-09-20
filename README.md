@@ -3,19 +3,19 @@ ZCoin integration/staging tree
 
 http://zcoin.tech/
 
-Copyright (c) 2009 - 2014 Bitcoin Developers
+Copyright (c) 2009 - 2016 Bitcoin Developers
 
 Copyright (c) 2015 - 2016 ZCoin Developers
 
 What is ZCoin?
 ----------------
 
-ZCoin is firstever cryptocurrency intrgrated Zerocoin extention ( http://zerocoin.org ) to make transactions in Blockchain truly anonymity.
+ZCoin is the implementation of the Zerocoin protocol ( http://zerocoin.org ) gurunteeing true financial anonymity.
 
  - 10 minute block targets
- - 8.4 million total coins
- - 10 coins per block
- - 5 block retarget using BRNDF with a 36 block lookback
+ - 21 million total coins
+ - 50 coins per block
+ - Retarget using BRNDF with a 36 block lookback
 
 For more information, as well as an immediately useable, binary version of
 the zcoin client sofware, see https://github.com/ZCoinOfficial/zcoin/releases.
