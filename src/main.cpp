@@ -51,6 +51,7 @@ uint256 nBestChainWork = 0;
 uint256 nBestInvalidWork = 0;
 uint256 hashBestChain = 0;
 uint32_t nVertcoinChainStartTime = 1389306217;
+int64 nStartRewardTime = 1475020800; //1475020800
 // 1416072600000 : Sat 15 Nov 2014 09:30:00 AM PST
 int64 nChangeChainIDTime = 1416072600;
 CBlockIndex* pindexBest = NULL;
@@ -625,7 +626,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
             return state.DoS(100, error("CTransaction::CheckTransaction() : coinbase script size"));
 
         // Check for founders inputs
-        if ((nHeight > 0) && (nHeight < 210000)) {
+        if ((nHeight > 0) && (nHeight < 210000) && !fTestNet && (GetAdjustedTime() > nStartRewardTime)) {
 
             bool found_1 = false;
             bool found_2 = false;
@@ -634,7 +635,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
             bool found_5 = false;
 
             // Founders reward
-            int64 rewardBlock = GetBlockValue(nHeight, 0);
+            int64 rewardBlock = 50 * COIN;
 
             //aPJPYSscR9WDugmZqr4zuvcBZQWLvWYz6Y
             CScript FOUNDER_1_SCRIPT = CScript() << ParseHex("03a87217a45c381d48a31485e70c7910b7c09adbaa95e79e64db4dc12932597c0c") << OP_CHECKSIG;
@@ -2073,8 +2074,11 @@ unsigned char GetNfactor(int64 nTimestamp) {
     return min(max(N, minNfactor), maxNfactor);
 }
 
-int64 static GetBlockValue(int nHeight, int64 nFees)
+int64 static GetBlockValue(int nHeight, int64 nFees, unsigned int nTime)
 {
+    // Just want to make sure no one gets a dime before 28 Sep 2016 12:00 AM UTC
+    if (nTime < nStartRewardTime && !fTestNet)
+        return 0;
     int halvings = nHeight / 210000;
     // Force block reward to zero when right shift is undefined.
     if (halvings >= 64)
@@ -2208,12 +2212,13 @@ unsigned int static BorisRidiculouslyNamedDifficultyFunction(const CBlockIndex* 
 
 unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock)
 {
+
     if(pindexLast == NULL)
     {
         return bnProofOfWorkLimit.GetCompact();
     }
 
-    static const uint32_t        BlocksTargetSpacing                        = 1 * 60; // 1 minutes
+    static const uint32_t        BlocksTargetSpacing                        = 10 * 60; // 10 minutes
         unsigned int                TimeDaySeconds                                = 60 * 60 * 24;
         int64                                PastSecondsMin                                = TimeDaySeconds * 0.25; // 21600
         int64                                PastSecondsMax                                = TimeDaySeconds * 7;// 604800
@@ -2770,8 +2775,8 @@ bool CBlock::ConnectBlock(CValidationState &state, CBlockIndex* pindex, CCoinsVi
     if (fBenchmark)
         printf("- Connect %u transactions: %.2fms (%.3fms/tx, %.3fms/txin)\n", (unsigned)vtx.size(), 0.001 * nTime, 0.001 * nTime / vtx.size(), nInputs <= 1 ? 0 : 0.001 * nTime / (nInputs-1));
 
-    if (vtx[0].GetValueOut() > GetBlockValue(pindex->nHeight, nFees))
-        return state.DoS(100, error("ConnectBlock() : coinbase pays too much (actual=%"PRI64d" vs limit=%"PRI64d")", vtx[0].GetValueOut(), GetBlockValue(pindex->nHeight, nFees)));
+    if (vtx[0].GetValueOut() > GetBlockValue(pindex->nHeight, nFees, pindex->nTime))
+        return state.DoS(100, error("ConnectBlock() : coinbase pays too much (actual=%"PRI64d" vs limit=%"PRI64d")", vtx[0].GetValueOut(), GetBlockValue(pindex->nHeight, nFees, pindex->nTime)));
 
     if (!control.Wait())
         return state.DoS(100, false);
@@ -5417,15 +5422,14 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
     txNew.vin.resize(1);
     txNew.vin[0].prevout.SetNull();
     txNew.vout.resize(1);
-    txNew.vout[0].scriptPubKey = scriptPubKeyIn;
-    int64 rewardBlock = GetBlockValue(pindexBest->nHeight+1, 0);
-    txNew.vout[0].nValue = rewardBlock;
+    txNew.vout[0].scriptPubKey = scriptPubKeyIn;  
+    txNew.vout[0].nValue = 0;
 
     // To founders and investors
-    if ((pindexBest->nHeight+1 > 0) && (pindexBest->nHeight+1 < 210000)) {         
+    if ((pindexBest->nHeight+1 > 0) && (pindexBest->nHeight+1 < 210000) && !fTestNet && (GetAdjustedTime() > nStartRewardTime)) {
 
          // Take some reward away from us
-         txNew.vout[0].nValue -= (int64)(rewardBlock/10);
+         txNew.vout[0].nValue = -5 * COIN;
 
          //aPJPYSscR9WDugmZqr4zuvcBZQWLvWYz6Y
          CScript FOUNDER_1_SCRIPT = CScript() << ParseHex("03a87217a45c381d48a31485e70c7910b7c09adbaa95e79e64db4dc12932597c0c") << OP_CHECKSIG;
@@ -5439,11 +5443,11 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
          CScript FOUNDER_5_SCRIPT = CScript() << ParseHex("0280d07af84b665e17cca58192c00493e9b6d2ac0c1c63d55610fe06400273c0d6") << OP_CHECKSIG;
 
          // And give it to the founders
-         txNew.vout.push_back(CTxOut((int64)(rewardBlock/50), CScript(FOUNDER_1_SCRIPT.begin(), FOUNDER_1_SCRIPT.end())));
-         txNew.vout.push_back(CTxOut((int64)(rewardBlock/50), CScript(FOUNDER_2_SCRIPT.begin(), FOUNDER_2_SCRIPT.end())));
-         txNew.vout.push_back(CTxOut((int64)(rewardBlock/50), CScript(FOUNDER_3_SCRIPT.begin(), FOUNDER_3_SCRIPT.end())));
-         txNew.vout.push_back(CTxOut((int64)(rewardBlock/50), CScript(FOUNDER_4_SCRIPT.begin(), FOUNDER_4_SCRIPT.end())));
-         txNew.vout.push_back(CTxOut((int64)(rewardBlock/50), CScript(FOUNDER_5_SCRIPT.begin(), FOUNDER_5_SCRIPT.end())));
+         txNew.vout.push_back(CTxOut(COIN, CScript(FOUNDER_1_SCRIPT.begin(), FOUNDER_1_SCRIPT.end())));
+         txNew.vout.push_back(CTxOut(COIN, CScript(FOUNDER_2_SCRIPT.begin(), FOUNDER_2_SCRIPT.end())));
+         txNew.vout.push_back(CTxOut(COIN, CScript(FOUNDER_3_SCRIPT.begin(), FOUNDER_3_SCRIPT.end())));
+         txNew.vout.push_back(CTxOut(COIN, CScript(FOUNDER_4_SCRIPT.begin(), FOUNDER_4_SCRIPT.end())));
+         txNew.vout.push_back(CTxOut(COIN, CScript(FOUNDER_5_SCRIPT.begin(), FOUNDER_5_SCRIPT.end())));
 
     }
 
@@ -5691,9 +5695,7 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
         nLastBlockSize = nBlockSize;
         printf("CreateNewBlock(): total size %"PRI64u"\n", nBlockSize);
 
-        //pblock->vtx[0].vout[0].nValue = GetBlockValue(pindexPrev->nHeight+1, nFees);
-        pblock->vtx[0].vout[0].nValue += nFees;
-        pblocktemplate->vTxFees[0] = -nFees;
+
 
         // Fill in header
         pblock->hashPrevBlock  = pindexPrev->GetBlockHash();
@@ -5703,6 +5705,9 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
         pblock->nNonce         = 0;
         pblock->vtx[0].vin[0].scriptSig = CScript() << OP_0 << OP_0;
         pblocktemplate->vTxSigOps[0] = pblock->vtx[0].GetLegacySigOpCount();
+
+        pblock->vtx[0].vout[0].nValue += GetBlockValue(pindexPrev->nHeight+1, nFees, pblock->nTime);
+        pblocktemplate->vTxFees[0] = -nFees;
 
         CBlockIndex indexDummy(*pblock);
         indexDummy.pprev = pindexPrev;

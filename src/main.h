@@ -196,7 +196,7 @@ bool VerifySignature(const CCoins& txFrom, const CTransaction& txTo, unsigned in
 /** Abort with a message */
 bool AbortNode(const std::string &msg);
 /** Get block reward */
-int64 static GetBlockValue(int nHeight, int64 nFees);
+int64 static GetBlockValue(int nHeight, int64 nFees, unsigned int nTime);
 
 
 
