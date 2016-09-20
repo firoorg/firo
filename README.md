@@ -10,7 +10,7 @@ Copyright (c) 2015 - 2016 ZCoin Developers
 What is ZCoin?
 ----------------
 
-ZCoin is the implementation of the Zerocoin protocol ( http://zerocoin.org ) gurunteeing true financial anonymity.
+ZCoin is the implementation of the Zerocoin protocol ( http://zerocoin.org ) guaranteeing true financial anonymity.
 
  - 10 minute block targets
  - 21 million total coins
