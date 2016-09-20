@@ -532,7 +532,7 @@ bool AppInit2(boost::thread_group& threadGroup)
 #endif
     // ********************************************************* Step 2: parameter interactions
 
-    // fTestNet = GetBoolArg("-testnet");
+    fTestNet = GetBoolArg("-testnet");
     // fTestNet = true;
 
     fBloomFilters = GetBoolArg("-bloomfilters", true);

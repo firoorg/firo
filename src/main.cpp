@@ -619,11 +619,6 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
         vInOutPoints.insert(txin.prevout);
     }
 
-
-
-
-
-
     if (IsCoinBase())
     {
         if (vin[0].scriptSig.size() < 2 || vin[0].scriptSig.size() > 100)
