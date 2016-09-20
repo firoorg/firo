@@ -71,16 +71,14 @@ Installation
 
 The following instructions are for running on Testnet based on Ubuntu 16.04
 
-sudo add-apt-repository ppa:bitcoin/bitcoin
-sudo apt-get update
-sudo apt-get install libdb4.8-dev libdb4.8++-dev
-
-sudo apt-get install build-essential libtool autotools-dev automake pkg-config libssl-dev libevent-dev bsdmainutils
-sudo apt-get install libboost-all-dev
-sudo apt-get install libminiupnpc-dev
-
-git clone https://github.com/zcoinofficial/zcoin.git
-cd zcoin/src
-make -f makefile.unix
-./zcoind --daemon
-add "testnet=1" into ~/.zcoin/zcoin.conf
+    sudo add-apt-repository ppa:bitcoin/bitcoin
+    sudo apt-get update
+    sudo apt-get install libdb4.8-dev libdb4.8++-dev
+    sudo apt-get install build-essential libtool autotools-dev automake pkg-config libssl-dev libevent-dev bsdmainutils
+    sudo apt-get install libboost-all-dev
+    sudo apt-get install libminiupnpc-dev
+    git clone https://github.com/zcoinofficial/zcoin.git
+    cd zcoin/src
+    make -f makefile.unix
+    ./zcoind --daemon
+    add "testnet=1" into ~/.zcoin/zcoin.conf
