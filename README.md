@@ -3,19 +3,19 @@ ZCoin integration/staging tree
 
 http://zcoin.tech/
 
-Copyright (c) 2009 - 2014 Bitcoin Developers
+Copyright (c) 2009 - 2016 Bitcoin Developers
 
 Copyright (c) 2015 - 2016 ZCoin Developers
 
 What is ZCoin?
 ----------------
 
-ZCoin is firstever cryptocurrency intrgrated Zerocoin extention ( http://zerocoin.org ) to make transactions in Blockchain truly anonymity.
+ZCoin is the implementation of the Zerocoin protocol ( http://zerocoin.org ) guaranteeing true financial anonymity.
 
  - 10 minute block targets
- - 8.4 million total coins
- - 10 coins per block
- - 5 block retarget using BRNDF with a 36 block lookback
+ - 21 million total coins
+ - 50 coins per block
+ - Retarget using BRNDF with a 36 block lookback
 
 For more information, as well as an immediately useable, binary version of
 the zcoin client sofware, see https://github.com/ZCoinOfficial/zcoin/releases.
@@ -66,3 +66,19 @@ Unit tests for the GUI code are in `src/qt/test/`. To compile and run them:
     make -f Makefile.test
     ./zcoin-qt_test
 
+Installation
+-------
+
+The following instructions are for running on Testnet based on Ubuntu 16.04
+
+    sudo add-apt-repository ppa:bitcoin/bitcoin
+    sudo apt-get update
+    sudo apt-get install libdb4.8-dev libdb4.8++-dev
+    sudo apt-get install build-essential libtool autotools-dev automake pkg-config libssl-dev libevent-dev bsdmainutils
+    sudo apt-get install libboost-all-dev
+    sudo apt-get install libminiupnpc-dev
+    git clone https://github.com/zcoinofficial/zcoin.git
+    cd zcoin/src
+    make -f makefile.unix
+    ./zcoind --daemon
+    add "testnet=1" into ~/.zcoin/zcoin.conf
