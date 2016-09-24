@@ -122,7 +122,7 @@ Value getnewaddress(const Array& params, bool fHelp)
         throw JSONRPCError(RPC_WALLET_KEYPOOL_RAN_OUT, "Error: Keypool ran out, please call keypoolrefill first");
     CKeyID keyID = newKey.GetID();
 
-    printf("newKey %s\n", newKey.GetHash().GetHex().c_str());
+    //printf("newKey %s\n", newKey.GetHash().GetHex().c_str());
 
     pwalletMain->SetAddressBookName(keyID, strAccount);
 

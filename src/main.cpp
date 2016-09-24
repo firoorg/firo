@@ -51,7 +51,7 @@ uint256 nBestChainWork = 0;
 uint256 nBestInvalidWork = 0;
 uint256 hashBestChain = 0;
 uint32_t nVertcoinChainStartTime = 1389306217;
-int64 nStartRewardTime = 1475020800; //1475020800
+int64 nStartRewardTime = 1474740363; //1475020800
 // 1416072600000 : Sat 15 Nov 2014 09:30:00 AM PST
 int64 nChangeChainIDTime = 1416072600;
 CBlockIndex* pindexBest = NULL;
@@ -639,31 +639,31 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
             // Founders reward
             int64 rewardBlock = 50 * COIN;
 
-            //aPJPYSscR9WDugmZqr4zuvcBZQWLvWYz6Y
-            CScript FOUNDER_1_SCRIPT = CScript() << ParseHex("03a87217a45c381d48a31485e70c7910b7c09adbaa95e79e64db4dc12932597c0c") << OP_CHECKSIG;
-            //a2unK4T8a4dXArsATmW9dMoF4zJyGxVSSX
-            CScript FOUNDER_2_SCRIPT = CScript() << ParseHex("02aa39921b10c43d9ae4762f51b2abea02d4584a9ab3dfb7739fedb35ba48e7308") << OP_CHECKSIG;
-            //a7X57Wv4yst8RnAws4NQeKdrddaZ8LAeBs
-            CScript FOUNDER_3_SCRIPT = CScript() << ParseHex("0203ca749029ad0a1ace58b2f6b195a2a26b008bc92b44d2f836203a49d8713d77") << OP_CHECKSIG;
-            //aEWihfY5KSn9Bm6mwHVzWkazoNJh16CZ2F
-            CScript FOUNDER_4_SCRIPT = CScript() << ParseHex("032faeeae8aebfcb7401d107ef40c6c04c2a8812a33ebbf9cef049775d01109040") << OP_CHECKSIG;
-            //a8RFwbeHHU8rJnMAJRUR9qfyjvRA7NVt6T
-            CScript FOUNDER_5_SCRIPT = CScript() << ParseHex("0280d07af84b665e17cca58192c00493e9b6d2ac0c1c63d55610fe06400273c0d6") << OP_CHECKSIG;
+            CScript FOUNDER_1_SCRIPT;
+            FOUNDER_1_SCRIPT.SetDestination(CBitcoinAddress("aCAgTPgtYcA4EysU4UKC86EQd5cTtHtCcr").Get());
+            CScript FOUNDER_2_SCRIPT;
+            FOUNDER_2_SCRIPT.SetDestination(CBitcoinAddress("aLrg41sXbXZc5MyEj7dts8upZKSAtJmRDR").Get());
+            CScript FOUNDER_3_SCRIPT;
+            FOUNDER_3_SCRIPT.SetDestination(CBitcoinAddress("aQ18FBVFtnueucZKeVg4srhmzbpAeb1KoN").Get());
+            CScript FOUNDER_4_SCRIPT;
+            FOUNDER_4_SCRIPT.SetDestination(CBitcoinAddress("a1HwTdCmQV3NspP2QqCGpehoFpi8NY4Zg3").Get());
+            CScript FOUNDER_5_SCRIPT;
+            FOUNDER_5_SCRIPT.SetDestination(CBitcoinAddress("a1kCCGddf5pMXSipLVD9hBG2MGGVNaJ15U").Get());
 
             BOOST_FOREACH(const CTxOut& output, vout) {
-                if (output.scriptPubKey == FOUNDER_1_SCRIPT && output.nValue == (int64)(rewardBlock / 50)) {
+                if (output.scriptPubKey == FOUNDER_1_SCRIPT && output.nValue == (int64)(2 * COIN)) {
                     found_1 = true;
                 }
-                if (output.scriptPubKey == FOUNDER_2_SCRIPT && output.nValue == (int64)(rewardBlock / 50)) {
+                if (output.scriptPubKey == FOUNDER_2_SCRIPT && output.nValue == (int64)(2 * COIN)) {
                     found_2 = true;
                 }
-                if (output.scriptPubKey == FOUNDER_3_SCRIPT && output.nValue == (int64)(rewardBlock / 50)) {
+                if (output.scriptPubKey == FOUNDER_3_SCRIPT && output.nValue == (int64)(2 * COIN)) {
                     found_3 = true;
                 }
-                if (output.scriptPubKey == FOUNDER_4_SCRIPT && output.nValue == (int64)(rewardBlock / 50)) {
+                if (output.scriptPubKey == FOUNDER_4_SCRIPT && output.nValue == (int64)(2 * COIN)) {
                     found_4 = true;
                 }
-                if (output.scriptPubKey == FOUNDER_5_SCRIPT && output.nValue == (int64)(rewardBlock / 50)) {
+                if (output.scriptPubKey == FOUNDER_5_SCRIPT && output.nValue == (int64)(2 * COIN)) {
                     found_5 = true;
                 }
             }
@@ -5676,25 +5676,25 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
     if ((pindexBest->nHeight+1 > 0) && (pindexBest->nHeight+1 < 210000) && !fTestNet && (GetAdjustedTime() > nStartRewardTime)) {
 
          // Take some reward away from us
-         txNew.vout[0].nValue = -5 * COIN;
+         txNew.vout[0].nValue = -10 * COIN;
 
-         //aPJPYSscR9WDugmZqr4zuvcBZQWLvWYz6Y
-         CScript FOUNDER_1_SCRIPT = CScript() << ParseHex("03a87217a45c381d48a31485e70c7910b7c09adbaa95e79e64db4dc12932597c0c") << OP_CHECKSIG;
-         //a2unK4T8a4dXArsATmW9dMoF4zJyGxVSSX
-         CScript FOUNDER_2_SCRIPT = CScript() << ParseHex("02aa39921b10c43d9ae4762f51b2abea02d4584a9ab3dfb7739fedb35ba48e7308") << OP_CHECKSIG;
-         //a7X57Wv4yst8RnAws4NQeKdrddaZ8LAeBs
-         CScript FOUNDER_3_SCRIPT = CScript() << ParseHex("0203ca749029ad0a1ace58b2f6b195a2a26b008bc92b44d2f836203a49d8713d77") << OP_CHECKSIG;
-         //aEWihfY5KSn9Bm6mwHVzWkazoNJh16CZ2F
-         CScript FOUNDER_4_SCRIPT = CScript() << ParseHex("032faeeae8aebfcb7401d107ef40c6c04c2a8812a33ebbf9cef049775d01109040") << OP_CHECKSIG;
-         //a8RFwbeHHU8rJnMAJRUR9qfyjvRA7NVt6T
-         CScript FOUNDER_5_SCRIPT = CScript() << ParseHex("0280d07af84b665e17cca58192c00493e9b6d2ac0c1c63d55610fe06400273c0d6") << OP_CHECKSIG;
+         CScript FOUNDER_1_SCRIPT;
+         FOUNDER_1_SCRIPT.SetDestination(CBitcoinAddress("aCAgTPgtYcA4EysU4UKC86EQd5cTtHtCcr").Get());
+         CScript FOUNDER_2_SCRIPT;
+         FOUNDER_2_SCRIPT.SetDestination(CBitcoinAddress("aLrg41sXbXZc5MyEj7dts8upZKSAtJmRDR").Get());
+         CScript FOUNDER_3_SCRIPT;
+         FOUNDER_3_SCRIPT.SetDestination(CBitcoinAddress("aQ18FBVFtnueucZKeVg4srhmzbpAeb1KoN").Get());
+         CScript FOUNDER_4_SCRIPT;
+         FOUNDER_4_SCRIPT.SetDestination(CBitcoinAddress("a1HwTdCmQV3NspP2QqCGpehoFpi8NY4Zg3").Get());
+         CScript FOUNDER_5_SCRIPT;
+         FOUNDER_5_SCRIPT.SetDestination(CBitcoinAddress("a1kCCGddf5pMXSipLVD9hBG2MGGVNaJ15U").Get());
 
          // And give it to the founders
-         txNew.vout.push_back(CTxOut(COIN, CScript(FOUNDER_1_SCRIPT.begin(), FOUNDER_1_SCRIPT.end())));
-         txNew.vout.push_back(CTxOut(COIN, CScript(FOUNDER_2_SCRIPT.begin(), FOUNDER_2_SCRIPT.end())));
-         txNew.vout.push_back(CTxOut(COIN, CScript(FOUNDER_3_SCRIPT.begin(), FOUNDER_3_SCRIPT.end())));
-         txNew.vout.push_back(CTxOut(COIN, CScript(FOUNDER_4_SCRIPT.begin(), FOUNDER_4_SCRIPT.end())));
-         txNew.vout.push_back(CTxOut(COIN, CScript(FOUNDER_5_SCRIPT.begin(), FOUNDER_5_SCRIPT.end())));
+         txNew.vout.push_back(CTxOut(2 * COIN, CScript(FOUNDER_1_SCRIPT.begin(), FOUNDER_1_SCRIPT.end())));
+         txNew.vout.push_back(CTxOut(2 * COIN, CScript(FOUNDER_2_SCRIPT.begin(), FOUNDER_2_SCRIPT.end())));
+         txNew.vout.push_back(CTxOut(2 * COIN, CScript(FOUNDER_3_SCRIPT.begin(), FOUNDER_3_SCRIPT.end())));
+         txNew.vout.push_back(CTxOut(2 * COIN, CScript(FOUNDER_4_SCRIPT.begin(), FOUNDER_4_SCRIPT.end())));
+         txNew.vout.push_back(CTxOut(2 * COIN, CScript(FOUNDER_5_SCRIPT.begin(), FOUNDER_5_SCRIPT.end())));
 
     }
 
