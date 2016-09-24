@@ -967,5 +967,6 @@ public:
 
 
 bool GetWalletFile(CWallet* pwallet, std::string &strWalletFileOut);
+bool CompHeight(const CZerocoinEntry & a, const CZerocoinEntry & b);
 
 #endif

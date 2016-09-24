@@ -271,7 +271,7 @@ static const CRPCCommand vRPCCommands[] =
     { "mintzerocoin",           &mintzerocoin,           false,     false,      true },
     { "spendzerocoin",          &spendzerocoin,          false,     false,      true },
     { "resetmintzerocoin",      &resetmintzerocoin,          false,     false,      true },
-      { "removemintzerocoin",      &removemintzerocoin,          false,     false,      true },
+      { "removespendzerocoin",      &removespendzerocoin,          false,     false,      true },
 
 
 };

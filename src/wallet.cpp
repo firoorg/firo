@@ -20,6 +20,7 @@ using namespace std;
 
 bool bSpendZeroConfChange = true;
 
+
 //////////////////////////////////////////////////////////////////////////////
 //
 // mapWallet
@@ -1693,15 +1694,37 @@ bool CWallet::CreateZerocoinSpendTransaction(int64 nValue, libzerocoin::CoinDeno
             // 1. Selection a private coin that doesn't be used in wallet
             list<CZerocoinEntry> listPubCoin;
             CWalletDB(strWalletFile).ListPubCoin(listPubCoin);
+            listPubCoin.sort(CompHeight);
             CZerocoinEntry zerocoinSelected;
             bool selectedPubcoin = false;
+
+            // GET MIN ID
+            int currentId = INT_MAX;
+            BOOST_FOREACH(const CZerocoinEntry& minIdPubcoin, listPubCoin) {
+                if (minIdPubcoin.id < currentId
+                        && minIdPubcoin.denomination == denomination
+                        && minIdPubcoin.IsUsed == false
+                        && minIdPubcoin.randomness != 0
+                        && minIdPubcoin.serialNumber != 0
+                        && minIdPubcoin.id != -1
+                        && minIdPubcoin.nHeight != -1
+                        && minIdPubcoin.nHeight != INT_MAX
+                        && minIdPubcoin.nHeight >= 1
+                        && minIdPubcoin.nHeight + 6 <= nBestHeight) {
+                    currentId = minIdPubcoin.id;
+                }
+            }
+
             BOOST_FOREACH(const CZerocoinEntry& zerocoinItem, listPubCoin){
                 if(zerocoinItem.IsUsed == false
                         && zerocoinItem.denomination == denomination
                         && zerocoinItem.randomness != 0
                         && zerocoinItem.serialNumber != 0
+                        && zerocoinItem.id == currentId
                         && zerocoinItem.nHeight != -1
-                        && zerocoinItem.nHeight + 6 < nBestHeight){
+                        && zerocoinItem.nHeight != INT_MAX
+                        && zerocoinItem.nHeight >= 1
+                        && zerocoinItem.nHeight + 6 <= nBestHeight){
                     zerocoinSelected = zerocoinItem;
                     selectedPubcoin = true;
                     break;
@@ -1726,19 +1749,22 @@ bool CWallet::CreateZerocoinSpendTransaction(int64 nValue, libzerocoin::CoinDeno
             }
 
 
-            // 3. Compute Accomulator by yourself by getting at least 100 pubcoins from wallet, but it must not include the public coin of the selected private coin
+            // 3. Compute Accomulator by yourself by getting at least 9 pubcoins from wallet, but it must not include the public coin of the selected private coin
             int countUseablePubcoin = 0;
             BOOST_FOREACH(const CZerocoinEntry& zerocoinItem, listPubCoin){
                 // Count pubcoins in same block
                 if(zerocoinItem.value  != zerocoinSelected.value
                         && zerocoinItem.id == zerocoinSelected.id
                         && zerocoinItem.nHeight + 6 < nBestHeight
+                        && zerocoinItem.nHeight >= 1
+                        && zerocoinItem.nHeight != INT_MAX
                         && zerocoinItem.denomination == denomination
                         && zerocoinItem.nHeight != -1){
                     libzerocoin::PublicCoin pubCoinTemp(ZCParams, zerocoinItem.value, denomination);
                     if(pubCoinTemp.validate()){
                         countUseablePubcoin++;
-                        printf("COIN NO: %d PUBCOIN ID: %d\n", countUseablePubcoin, zerocoinItem.id);
+                        //if(countUseablePubcoin == 9) break;
+                        printf("COIN NO: %d PUBCOIN ID: %d HEIGHT: %d\n", countUseablePubcoin, zerocoinItem.id, zerocoinItem.nHeight);
                         accumulator += pubCoinTemp;
                     }
                 }
@@ -1875,8 +1901,8 @@ bool CWallet::CreateZerocoinSpendTransaction(int64 nValue, libzerocoin::CoinDeno
                     pubCoinTx.denomination = zerocoinSelected.denomination;
                     pubCoinTx.id = zerocoinSelected.id;
                     pubCoinTx.IsUsed = true;
-                    pubCoinTx.randomness = 0;
-                    pubCoinTx.serialNumber = 0;
+                    pubCoinTx.randomness = zerocoinSelected.randomness;
+                    pubCoinTx.serialNumber = zerocoinSelected.serialNumber;
                     pubCoinTx.value = zerocoinSelected.value;
                     CWalletDB(strWalletFile).WriteZerocoinEntry(pubCoinTx);
                     pwalletMain->NotifyZerocoinChanged(pwalletMain, zerocoinSelected.value.GetHex(), "Used", CT_UPDATED);
@@ -2122,9 +2148,38 @@ string CWallet::SpendZerocoin(int64 nValue, libzerocoin::CoinDenomination denomi
         return strError;
     }
 
-    if (!CommitZerocoinSpendTransaction(wtxNew, reservekey))
-        return _("Error: The transaction was rejected! This might happen if some of the coins in your wallet were already spent, such as if you used a copy of wallet.dat and coins were spent in the copy but not marked as spent here.");
+    if (!CommitZerocoinSpendTransaction(wtxNew, reservekey)){
+        CZerocoinEntry pubCoinTx;
+        list<CZerocoinEntry> listPubCoin;
+        listPubCoin.clear();
 
+        CWalletDB walletdb(pwalletMain->strWalletFile);
+        walletdb.ListPubCoin(listPubCoin);
+        BOOST_FOREACH(const CZerocoinEntry& pubCoinItem, listPubCoin) {
+            if(zcSelectedValue == pubCoinItem.value){
+                pubCoinTx.id = pubCoinItem.id;
+                pubCoinTx.IsUsed = false; // having error, so set to false, to be able to use again
+                pubCoinTx.value = pubCoinItem.value;
+                pubCoinTx.nHeight = pubCoinItem.nHeight;
+                pubCoinTx.randomness = pubCoinItem.randomness;
+                pubCoinTx.serialNumber = pubCoinItem.serialNumber;
+                pubCoinTx.denomination = pubCoinItem.denomination;
+                CWalletDB(strWalletFile).WriteZerocoinEntry(pubCoinTx);
+                pwalletMain->NotifyZerocoinChanged(pwalletMain, pubCoinItem.value.GetHex(), "New", CT_UPDATED);
+            }
+        }
+
+
+        CZerocoinSpendEntry entry;
+        entry.coinSerial = coinSerial;
+        entry.hashTx = txHash;
+        entry.pubCoin = zcSelectedValue;
+        if(!CWalletDB(strWalletFile).EarseCoinSpendSerialEntry(entry)){
+            return _("Error: It cannot delete coin serial number in wallet");
+        }
+
+        return _("Error: The transaction was rejected! This might happen if some of the coins in your wallet were already spent, such as if you used a copy of wallet.dat and coins were spent in the copy but not marked as spent here.");
+    }
     return "";
 }
 
@@ -2219,6 +2274,8 @@ bool GetWalletFile(CWallet* pwallet, string &strWalletFileOut)
     strWalletFileOut = pwallet->strWalletFile;
     return true;
 }
+
+bool CompHeight(const CZerocoinEntry & a, const CZerocoinEntry & b) { return a.nHeight < b.nHeight; }
 
 //
 // Mark old keypool keys as used,

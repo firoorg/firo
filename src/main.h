@@ -61,7 +61,7 @@ static const int64 DUST_HARD_LIMIT = 1000;   // 0.00001 zVert mininput
 static const int64 MAX_MONEY = 21000000 * COIN;
 inline bool MoneyRange(int64 nValue) { return (nValue >= 0 && nValue <= MAX_MONEY); }
 /** Coinbase transaction outputs can only be spent after this number of new blocks (network rule) */
-static const int COINBASE_MATURITY = 5;
+static const int COINBASE_MATURITY = 100;
 /** Threshold for nLockTime: below this value it is interpreted as block number, otherwise as UNIX timestamp. */
 static const unsigned int LOCKTIME_THRESHOLD = 500000000; // Tue Nov  5 00:53:20 1985 UTC
 /** Maximum number of script-checking threads allowed */
@@ -696,7 +696,7 @@ void UpdateCoins(const CTransaction& tx, CValidationState &state, CCoinsViewCach
     void UpdateCoins(CValidationState &state, CCoinsViewCache &view, CTxUndo &txundo, int nHeight, const uint256 &txhash) const;
 
     // Context-independent validity checks
-    bool CheckTransaction(CValidationState &state, uint256 hashTx, bool isVerifyDB, int nHeight = -1) const;
+    bool CheckTransaction(CValidationState &state, uint256 hashTx, bool isVerifyDB, int nHeight = INT_MAX) const;
 
     // Try to accept this transaction into the memory pool
     bool AcceptToMemoryPool(CValidationState &state, bool fCheckInputs=true, bool fLimitFree = true, bool* pfMissingInputs=NULL, bool fRejectInsaneFee = false);

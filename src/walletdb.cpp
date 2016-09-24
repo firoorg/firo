@@ -58,6 +58,11 @@ bool CWalletDB::WriteCoinSpendSerialEntry(const CZerocoinSpendEntry& zerocoinSpe
     return Write(make_pair(string("zcserial"), zerocoinSpend.coinSerial), zerocoinSpend, true);
 }
 
+bool CWalletDB::EarseCoinSpendSerialEntry(const CZerocoinSpendEntry& zerocoinSpend)
+{
+    return Erase(make_pair(string("zcserial"), zerocoinSpend.coinSerial));
+}
+
 bool CWalletDB::WriteZerocoinAccumulator(libzerocoin::Accumulator accumulator, libzerocoin::CoinDenomination denomination)
 {
     return Write(make_pair(std::string("zcaccumulator"), denomination), accumulator);
@@ -77,6 +82,8 @@ bool CWalletDB::EarseZerocoinEntry(const CZerocoinEntry& zerocoin)
 {
     return Erase(make_pair(string("zerocoin"), zerocoin.value));
 }
+
+
 
 void CWalletDB::ListPubCoin(std::list<CZerocoinEntry>& listPubCoin)
 {
@@ -314,6 +321,27 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
             CWalletTx wtx;
             ssValue >> wtx;
             CValidationState state;
+
+            // Reset Zerocoin Mint
+            list<CZerocoinEntry> listPubCoin = list<CZerocoinEntry>();
+            CWalletDB walletdb(pwallet->strWalletFile);
+            walletdb.ListPubCoin(listPubCoin);
+
+            BOOST_FOREACH(const CZerocoinEntry& pubCoinItem, listPubCoin) {
+
+                CZerocoinEntry pubCoinTx;
+                pubCoinTx.value = pubCoinItem.value;
+                pubCoinTx.id = -1;
+                pubCoinTx.randomness = pubCoinItem.randomness;
+                pubCoinTx.denomination = pubCoinItem.denomination;
+                pubCoinTx.serialNumber = pubCoinItem.serialNumber;
+                pubCoinTx.nHeight = -1;
+                pubCoinTx.IsUsed = pubCoinItem.IsUsed;
+                printf("FORK# RESET PUBCOIN ID: %d DENOMINATION: %d\n", pubCoinTx.id, pubCoinTx.denomination);
+                walletdb.WriteZerocoinEntry(pubCoinTx);
+
+            }
+
             if (wtx.CheckTransaction(state, wtx.GetHash(), false) && (wtx.GetHash() == hash) && state.IsValid())
                 wtx.BindWallet(pwallet);
             else

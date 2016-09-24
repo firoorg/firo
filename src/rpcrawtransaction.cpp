@@ -547,7 +547,7 @@ Value sendrawtransaction(const Array& params, bool fHelp)
     try {
         ssData >> tx;
     }
-    catch (std::exception &e) {
+    catch (std::exception &e) {        
         throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "TX decode failed");
     }
     uint256 hashTx = tx.GetHash();

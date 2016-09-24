@@ -1703,7 +1703,6 @@ Value mintzerocoin(const Array& params, bool fHelp)
             }
             zerocoinTx.randomness = newCoin.getRandomness();
             zerocoinTx.serialNumber = newCoin.getSerialNumber();
-            zerocoinTx.nHeight = nBestHeight;
             walletdb.WriteZerocoinEntry(zerocoinTx);
 
             return pubCoin.getValue().GetHex();
@@ -1792,22 +1791,18 @@ Value resetmintzerocoin(const Array& params, bool fHelp)
     return Value::null;
 }
 
-Value removemintzerocoin(const Array& params, bool fHelp)
+Value removespendzerocoin(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() != 0)
         throw runtime_error(
-            "removemintzerocoin"
+            "removemintzerocoin <txid>\n"
             + HelpRequiringPassphrase());
 
-    list<CZerocoinEntry> listPubcoin;
-    CWalletDB walletdb(pwalletMain->strWalletFile);
-    walletdb.ListPubCoin(listPubcoin);
+    uint256 hash;
+    hash.SetHex(params[0].get_str());
 
-    //printf("list publiccoin size = %d\n", listPubcoin.size());
-
-    BOOST_FOREACH(const CZerocoinEntry& zerocoinItem, listPubcoin){
-        walletdb.EarseZerocoinEntry(zerocoinItem);
-    }
+    BOOST_FOREACH(CWallet* pwallet, setpwalletRegistered)
+        pwallet->EraseFromWallet(hash);
 
     return Value::null;
 }
