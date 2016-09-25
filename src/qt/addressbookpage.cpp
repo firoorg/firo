@@ -225,10 +225,12 @@ void AddressBookPage::onEditAction()
 void AddressBookPage::on_zerocoinMintButton_clicked()
 {
 
+    std::string stringError;
+    if(!model->zerocoinMint(stringError)){
+        QString t = tr(stringError.c_str());
 
-    if(!model->zerocoinMint()){
         QMessageBox::critical(this, tr("Error"),
-            tr("You cannot mint zerocoin !!"),
+            tr("You cannot mint zerocoin because %1").arg(t),
             QMessageBox::Ok, QMessageBox::Ok);
     }
 

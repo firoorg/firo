@@ -1347,8 +1347,8 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, int64> >& vecSend,
 
                 // Check that enough fee is included
                 int64 nPayFee = nTransactionFee * (1 + (int64)nBytes / 1000);
-            //    bool fAllowFree = CTransaction::AllowFree(dPriority); // No free TXs in zVert
-               bool fAllowFree = false;					// No free TXs in zVert
+                bool fAllowFree = CTransaction::AllowFree(dPriority); // No free TXs in XZC
+               //bool fAllowFree = false;					// No free TXs in XZC
                int64 nMinFee = wtxNew.GetMinFee(1, fAllowFree, GMF_SEND);
                if (nFeeRet < max(nPayFee, nMinFee))
                {
@@ -1367,7 +1367,7 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, int64> >& vecSend,
    return true;
 }
 
-bool CWallet::CreateZerocoinMintModel(){
+bool CWallet::CreateZerocoinMintModel(string &stringError){
 
     if(!fFileBacked)
         return false;
@@ -1408,9 +1408,9 @@ bool CWallet::CreateZerocoinMintModel(){
          // Wallet comments
         CWalletTx wtx;
 
-        string strError = MintZerocoin(scriptSerializedCoin, nAmount, wtx);
+        stringError = MintZerocoin(scriptSerializedCoin, nAmount, wtx);
 
-        if (strError != "")
+        if (stringError != "")
             return false;
 
 
@@ -1617,8 +1617,8 @@ bool CWallet::CreateZerocoinMintTransaction(const vector<pair<CScript, int64> >&
 
                // Check that enough fee is included
                int64 nPayFee = nTransactionFee * (1 + (int64)nBytes / 1000);
-           //    bool fAllowFree = CTransaction::AllowFree(dPriority); // No free TXs in zVert
-              bool fAllowFree = false;					// No free TXs in zVert
+           //    bool fAllowFree = CTransaction::AllowFree(dPriority); // No free TXs in XZC
+                bool fAllowFree = false;					// No free TXs in XZC
                 int64 nMinFee = wtxNew.GetMinFee(1, fAllowFree, GMF_SEND);
                 if (nFeeRet < max(nPayFee, nMinFee))
                 {
@@ -2103,12 +2103,12 @@ string CWallet::MintZerocoin(CScript pubCoin, int64 nValue, CWalletTx& wtxNew, b
         printf("MintZerocoin() : %s", strError.c_str());
         return strError;
     }
+
     string strError;
     if (!CreateZerocoinMintTransaction(pubCoin, nValue, wtxNew, reservekey, nFeeRequired, strError))
     {
         if (nValue + nFeeRequired > GetBalance())
-            strError = strprintf(_("Error: This transaction requires a transaction fee of at least %s because of its amount, complexity, or use of recently received funds!"), FormatMoney(nFeeRequired).c_str());
-        printf("MintZerocoin() : %s\n", strError.c_str());
+            return strprintf(_("Error: This transaction requires a transaction fee of at least %s because of its amount, complexity, or use of recently received funds!"), FormatMoney(nFeeRequired).c_str());
         return strError;
     }
 

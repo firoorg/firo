@@ -64,9 +64,9 @@ bool fBenchmark = false;
 bool fTxIndex = false;
 unsigned int nCoinCacheSize = 5000;
 
-/** Fees smaller than this (in montoshi) are considered zero fee (for transaction creation) */
+/** Fees smaller than this (in ztoshi) are considered zero fee (for transaction creation) */
 int64 CTransaction::nMinTxFee = 1000000; // 0.01 zcoin
-/** Fees smaller than this (in montoshi) are considered zero fee (for relaying) */
+/** Fees smaller than this (in ztoshi) are considered zero fee (for relaying) */
 int64 CTransaction::nMinRelayTxFee = 1000000; // 0.01 zcoin
 
 CMedianFilter<int> cPeerBlockCounts(8, 0); // Amount of blocks that other nodes claim to have
@@ -628,7 +628,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
             return state.DoS(100, error("CTransaction::CheckTransaction() : coinbase script size"));
 
         // Check for founders inputs
-        if ((nHeight > 0) && (nHeight < 210000) && !fTestNet && (GetAdjustedTime() > nStartRewardTime)) {
+        if ((nHeight > 0) && (nHeight < 210000)) {
 
             bool found_1 = false;
             bool found_2 = false;
@@ -636,19 +636,27 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
             bool found_4 = false;
             bool found_5 = false;
 
-            // Founders reward
-            int64 rewardBlock = 50 * COIN;
-
             CScript FOUNDER_1_SCRIPT;
-            FOUNDER_1_SCRIPT.SetDestination(CBitcoinAddress("aCAgTPgtYcA4EysU4UKC86EQd5cTtHtCcr").Get());
             CScript FOUNDER_2_SCRIPT;
-            FOUNDER_2_SCRIPT.SetDestination(CBitcoinAddress("aLrg41sXbXZc5MyEj7dts8upZKSAtJmRDR").Get());
             CScript FOUNDER_3_SCRIPT;
-            FOUNDER_3_SCRIPT.SetDestination(CBitcoinAddress("aQ18FBVFtnueucZKeVg4srhmzbpAeb1KoN").Get());
             CScript FOUNDER_4_SCRIPT;
-            FOUNDER_4_SCRIPT.SetDestination(CBitcoinAddress("a1HwTdCmQV3NspP2QqCGpehoFpi8NY4Zg3").Get());
             CScript FOUNDER_5_SCRIPT;
-            FOUNDER_5_SCRIPT.SetDestination(CBitcoinAddress("a1kCCGddf5pMXSipLVD9hBG2MGGVNaJ15U").Get());
+
+            if(!fTestNet && (GetAdjustedTime() > nStartRewardTime)){
+                FOUNDER_1_SCRIPT.SetDestination(CBitcoinAddress("aCAgTPgtYcA4EysU4UKC86EQd5cTtHtCcr").Get());
+                FOUNDER_2_SCRIPT.SetDestination(CBitcoinAddress("aLrg41sXbXZc5MyEj7dts8upZKSAtJmRDR").Get());
+                FOUNDER_3_SCRIPT.SetDestination(CBitcoinAddress("aQ18FBVFtnueucZKeVg4srhmzbpAeb1KoN").Get());
+                FOUNDER_4_SCRIPT.SetDestination(CBitcoinAddress("a1HwTdCmQV3NspP2QqCGpehoFpi8NY4Zg3").Get());
+                FOUNDER_5_SCRIPT.SetDestination(CBitcoinAddress("a1kCCGddf5pMXSipLVD9hBG2MGGVNaJ15U").Get());
+            }else if(!fTestNet && (GetAdjustedTime() <= nStartRewardTime)){
+                return state.DoS(100, error("CTransaction::CheckTransaction() : transaction is too early"));
+            }else{
+                FOUNDER_1_SCRIPT.SetDestination(CBitcoinAddress("TCE4hvs2UTDjYriey7R9qBkbvUAYxWmZni").Get());
+                FOUNDER_2_SCRIPT.SetDestination(CBitcoinAddress("TPyA7d3fribqxXm9uJU61S76Lzuj7F8jLz").Get());
+                FOUNDER_3_SCRIPT.SetDestination(CBitcoinAddress("TXatvpS15EvejVuJVC2rgD73rSaQz8JiX6").Get());
+                FOUNDER_4_SCRIPT.SetDestination(CBitcoinAddress("TJMpFjtDi8s5AM3GyW41QshH2NNmKgrGNq").Get());
+                FOUNDER_5_SCRIPT.SetDestination(CBitcoinAddress("TTtLk1iapn8QebamQcb8GEh1MNq8agYcVk").Get());
+            }
 
             BOOST_FOREACH(const CTxOut& output, vout) {
                 if (output.scriptPubKey == FOUNDER_1_SCRIPT && output.nValue == (int64)(2 * COIN)) {
@@ -1952,11 +1960,7 @@ int CMerkleTx::GetBlocksToMaturity() const
 {
     if (!IsCoinBase())
         return 0;
-    if (!fTestNet){
-        return max(0, (COINBASE_MATURITY+20) - GetDepthInMainChain());
-    }else{
-        return max(0, 5 - GetDepthInMainChain());
-    }
+    return max(0, (COINBASE_MATURITY+20) - GetDepthInMainChain());
 }
 
 
@@ -5673,21 +5677,32 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
     txNew.vout[0].nValue = 0;
 
     // To founders and investors
-    if ((pindexBest->nHeight+1 > 0) && (pindexBest->nHeight+1 < 210000) && !fTestNet && (GetAdjustedTime() > nStartRewardTime)) {
+    if ((pindexBest->nHeight+1 > 0) && (pindexBest->nHeight+1 < 210000)) {
 
          // Take some reward away from us
          txNew.vout[0].nValue = -10 * COIN;
 
          CScript FOUNDER_1_SCRIPT;
-         FOUNDER_1_SCRIPT.SetDestination(CBitcoinAddress("aCAgTPgtYcA4EysU4UKC86EQd5cTtHtCcr").Get());
          CScript FOUNDER_2_SCRIPT;
-         FOUNDER_2_SCRIPT.SetDestination(CBitcoinAddress("aLrg41sXbXZc5MyEj7dts8upZKSAtJmRDR").Get());
          CScript FOUNDER_3_SCRIPT;
-         FOUNDER_3_SCRIPT.SetDestination(CBitcoinAddress("aQ18FBVFtnueucZKeVg4srhmzbpAeb1KoN").Get());
          CScript FOUNDER_4_SCRIPT;
-         FOUNDER_4_SCRIPT.SetDestination(CBitcoinAddress("a1HwTdCmQV3NspP2QqCGpehoFpi8NY4Zg3").Get());
          CScript FOUNDER_5_SCRIPT;
-         FOUNDER_5_SCRIPT.SetDestination(CBitcoinAddress("a1kCCGddf5pMXSipLVD9hBG2MGGVNaJ15U").Get());
+
+         if(!fTestNet && (GetAdjustedTime() > nStartRewardTime)){
+             FOUNDER_1_SCRIPT.SetDestination(CBitcoinAddress("aCAgTPgtYcA4EysU4UKC86EQd5cTtHtCcr").Get());
+             FOUNDER_2_SCRIPT.SetDestination(CBitcoinAddress("aLrg41sXbXZc5MyEj7dts8upZKSAtJmRDR").Get());
+             FOUNDER_3_SCRIPT.SetDestination(CBitcoinAddress("aQ18FBVFtnueucZKeVg4srhmzbpAeb1KoN").Get());
+             FOUNDER_4_SCRIPT.SetDestination(CBitcoinAddress("a1HwTdCmQV3NspP2QqCGpehoFpi8NY4Zg3").Get());
+             FOUNDER_5_SCRIPT.SetDestination(CBitcoinAddress("a1kCCGddf5pMXSipLVD9hBG2MGGVNaJ15U").Get());
+         }else if(!fTestNet && (GetAdjustedTime() <= nStartRewardTime)){
+             throw std::runtime_error("CreateNewBlock() : Create new block too early");
+         }else{
+             FOUNDER_1_SCRIPT.SetDestination(CBitcoinAddress("TCE4hvs2UTDjYriey7R9qBkbvUAYxWmZni").Get());
+             FOUNDER_2_SCRIPT.SetDestination(CBitcoinAddress("TPyA7d3fribqxXm9uJU61S76Lzuj7F8jLz").Get());
+             FOUNDER_3_SCRIPT.SetDestination(CBitcoinAddress("TXatvpS15EvejVuJVC2rgD73rSaQz8JiX6").Get());
+             FOUNDER_4_SCRIPT.SetDestination(CBitcoinAddress("TJMpFjtDi8s5AM3GyW41QshH2NNmKgrGNq").Get());
+             FOUNDER_5_SCRIPT.SetDestination(CBitcoinAddress("TTtLk1iapn8QebamQcb8GEh1MNq8agYcVk").Get());
+         }
 
          // And give it to the founders
          txNew.vout.push_back(CTxOut(2 * COIN, CScript(FOUNDER_1_SCRIPT.begin(), FOUNDER_1_SCRIPT.end())));
