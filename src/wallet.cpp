@@ -1021,6 +1021,58 @@ void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, const
     }
 }
 
+void CWallet::ListAvailableCoinsMintCoins(vector<COutput>& vCoins, bool fOnlyConfirmed) const
+{
+    vCoins.clear();
+
+    {
+        LOCK(cs_wallet);
+        list<CZerocoinEntry> listPubCoin = list<CZerocoinEntry>();
+        CWalletDB walletdb(pwalletMain->strWalletFile);
+        walletdb.ListPubCoin(listPubCoin);
+
+        for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
+        {
+            const CWalletTx* pcoin = &(*it).second;
+
+            if (!pcoin->IsFinal())
+                continue;
+
+            if (fOnlyConfirmed && !pcoin->IsConfirmed())
+                continue;
+
+            if (pcoin->IsCoinBase() && pcoin->GetBlocksToMaturity() > 0)
+                continue;
+
+            int nDepth = pcoin->GetDepthInMainChain();
+            if (nDepth < 0)
+                continue;
+
+            for (unsigned int i = 0; i < pcoin->vout.size(); i++) {
+                if (pcoin->vout[i].scriptPubKey.IsZerocoinMint()){
+
+                    CTxOut txout = pcoin->vout[i];
+                    vector<unsigned char> vchZeroMint;
+                    vchZeroMint.insert(vchZeroMint.end(), txout.scriptPubKey.begin() + 6, txout.scriptPubKey.begin() + txout.scriptPubKey.size());
+
+                    CBigNum pubCoin;
+                    pubCoin.setvch(vchZeroMint);
+
+                    // CHECKING PROCESS
+                    BOOST_FOREACH(const CZerocoinEntry& pubCoinItem, listPubCoin) {
+                        if (pubCoinItem.value == pubCoin && pubCoinItem.IsUsed == false &&
+                            pubCoinItem.randomness != 0 && pubCoinItem.serialNumber != 0)
+                        {
+                            vCoins.push_back(COutput(pcoin, i, nDepth));
+                        }
+                    }
+
+                }
+            }
+        }
+    }
+}
+
 static void ApproximateBestSubset(vector<pair<int64, pair<const CWalletTx*,unsigned int> > >vValue, int64 nTotalLower, int64 nTargetValue,
                                   vector<char>& vfBest, int64& nBest, int iterations = 1000)
 {
