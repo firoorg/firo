@@ -4,7 +4,6 @@ ZCoin integration/staging tree
 http://zcoin.tech/
 
 Copyright (c) 2009 - 2016 Bitcoin Developers
-
 Copyright (c) 2015 - 2016 ZCoin Developers
 
 What is ZCoin?
@@ -15,7 +14,7 @@ ZCoin is the implementation of the Zerocoin protocol ( http://zerocoin.org ) gua
  - 10 minute block targets
  - 21 million total coins
  - 50 coins per block
- - Retarget using BRNDF with a 36 block lookback
+ - Retarget using BRNDF every 6 blocks
 
 For more information, as well as an immediately useable, binary version of
 the zcoin client sofware, see https://github.com/ZCoinOfficial/zcoin/releases.
@@ -69,8 +68,27 @@ Unit tests for the GUI code are in `src/qt/test/`. To compile and run them:
 Installation
 -------
 
-The following instructions are for running on Testnet based on Ubuntu 16.04
+The following instructions are for running on Mainnet based on Ubuntu 16.04
 
+GUI
+
+    sudo apt-get install software-properties-common
+    sudo add-apt-repository ppa:bitcoin/bitcoin
+    sudo apt-get update
+    sudo apt-get install libdb4.8-dev libdb4.8++-dev
+    sudo apt-get install build-essential libtool autotools-dev automake pkg-config libssl-dev libevent-dev bsdmainutils
+    sudo apt-get install libboost-all-dev
+    sudo apt-get install libminiupnpc-dev
+    sudo apt-get install libqt4-dev libprotobuf-dev protobuf-compiler
+    git clone https://github.com/zcoinofficial/zcoin.git
+    cd zcoin
+    qmake Makefile zcoin.pro
+    make -f Makefile
+    ./zcoin-qt
+    
+Daemon
+
+    sudo apt-get install software-properties-common
     sudo add-apt-repository ppa:bitcoin/bitcoin
     sudo apt-get update
     sudo apt-get install libdb4.8-dev libdb4.8++-dev
@@ -81,4 +99,5 @@ The following instructions are for running on Testnet based on Ubuntu 16.04
     cd zcoin/src
     make -f makefile.unix
     ./zcoind --daemon
-    add "testnet=1" into ~/.zcoin/zcoin.conf
+    put "rpcuser=YOURUSERNAMEEVERUWANT
+	 rpcpassword=YOURPASSWORDEVERYOUWANT" in ~/.zcoin/zcoin.conf
