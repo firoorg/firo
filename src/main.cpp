@@ -2162,8 +2162,8 @@ int64 static GetBlockValue(int nHeight, int64 nFees, unsigned int nTime)
 }
 
 static const int64 nTargetTimespan = 60 * 60; // 60 minutes between retargets
-static const int64 nTargetSpacing = 1 * 60; // 1 minute blocks
-static const int64 nInterval = nTargetTimespan / nTargetSpacing; // retargets every 60 blocks
+static const int64 nTargetSpacing = 10 * 60; // 10 minute blocks
+static const int64 nInterval = nTargetTimespan / nTargetSpacing; // retargets every 6 blocks
 
 //
 // minimum amount of work that could possibly be required nTime after
@@ -2180,8 +2180,8 @@ unsigned int ComputeMinWork(unsigned int nBase, int64 nTime)
     bnResult.SetCompact(nBase);
     while (nTime > 0 && bnResult < bnProofOfWorkLimit)
     {
-        // Maximum 400% adjustment...
-        bnResult *= 4;
+        // Maximum 25600% adjustment...
+        bnResult *= 256;
         // ... in best-case exactly 4-times-normal target time
         nTime -= nTargetTimespan*4;
     }
