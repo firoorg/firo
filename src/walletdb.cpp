@@ -322,26 +322,6 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
             ssValue >> wtx;
             CValidationState state;
 
-            // Reset Zerocoin Mint
-            list<CZerocoinEntry> listPubCoin = list<CZerocoinEntry>();
-            CWalletDB walletdb(pwallet->strWalletFile);
-            walletdb.ListPubCoin(listPubCoin);
-
-            BOOST_FOREACH(const CZerocoinEntry& pubCoinItem, listPubCoin) {
-
-                CZerocoinEntry pubCoinTx;
-                pubCoinTx.value = pubCoinItem.value;
-                pubCoinTx.id = -1;
-                pubCoinTx.randomness = pubCoinItem.randomness;
-                pubCoinTx.denomination = pubCoinItem.denomination;
-                pubCoinTx.serialNumber = pubCoinItem.serialNumber;
-                pubCoinTx.nHeight = -1;
-                pubCoinTx.IsUsed = pubCoinItem.IsUsed;
-                printf("FORK# RESET PUBCOIN ID: %d DENOMINATION: %d\n", pubCoinTx.id, pubCoinTx.denomination);
-                walletdb.WriteZerocoinEntry(pubCoinTx);
-
-            }
-
             if (wtx.CheckTransaction(state, wtx.GetHash(), false) && (wtx.GetHash() == hash) && state.IsValid())
                 wtx.BindWallet(pwallet);
             else
