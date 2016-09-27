@@ -82,7 +82,7 @@ GUI
     sudo apt-get install libqt4-dev libprotobuf-dev protobuf-compiler
     git clone https://github.com/zcoinofficial/zcoin.git
     cd zcoin
-    qmake Makefile zcoin.pro
+    qmake -spec /usr/share/qt4/mkspecs/linux-g++-64 -o Makefile zcoin.pro
     make -f Makefile
     ./zcoin-qt
     
