@@ -1028,7 +1028,7 @@ bool AppInit2(boost::thread_group& threadGroup)
 
         // Reset Zerocoin Mint
         list<CZerocoinEntry> listPubCoin = list<CZerocoinEntry>();
-        CWalletDB walletdb(pwalletMain->strWalletFile);
+        CWalletDB walletdb(pwalletMain->strWalletFile,"cr+");
         walletdb.ListPubCoin(listPubCoin);
 
         BOOST_FOREACH(const CZerocoinEntry& pubCoinItem, listPubCoin) {

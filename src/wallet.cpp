@@ -2243,6 +2243,7 @@ DBErrors CWallet::LoadWallet(bool& fFirstRunRet)
         return DB_LOAD_OK;
     fFirstRunRet = false;
     DBErrors nLoadWalletRet = CWalletDB(strWalletFile,"cr+").LoadWallet(this);
+
     if (nLoadWalletRet == DB_NEED_REWRITE)
     {
         if (CDB::Rewrite(strWalletFile, "\x04pool"))
