@@ -79,7 +79,7 @@ GUI
     sudo apt-get install build-essential libtool autotools-dev automake pkg-config libssl-dev libevent-dev bsdmainutils
     sudo apt-get install libboost-all-dev
     sudo apt-get install libminiupnpc-dev
-    sudo apt-get install libqt4-dev libprotobuf-dev protobuf-compiler
+    sudo apt-get install qt4-default libqt4-dev libprotobuf-dev protobuf-compiler
     git clone https://github.com/zcoinofficial/zcoin.git
     cd zcoin
     qmake -spec /usr/share/qt4/mkspecs/linux-g++-64 -o Makefile zcoin.pro
