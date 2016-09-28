@@ -2307,7 +2307,13 @@ unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBl
 
     // 9/29/2016 - Reset to Lyra2(2,32768,256) due to ASIC KnC Miner Scrypt
     // 36 block look back, reset to mininmun diff
-    if(pindexLast->nHeight + 1 >= 280 && pindexLast->nHeight + 1 <= 315){
+    if(!fTestNet && pindexLast->nHeight + 1 >= 500 && pindexLast->nHeight + 1 <= 535){
+
+        return bnProofOfWorkLimit.GetCompact();
+
+    }
+
+    if(fTestNet && pindexLast->nHeight + 1 >= 138 && pindexLast->nHeight + 1 <= 173){
 
         return bnProofOfWorkLimit.GetCompact();
 
@@ -6250,7 +6256,11 @@ void static ScryptMiner(CWallet *pwallet)
             char scratchpad[scrypt_scratpad_size_current_block];
             loop
             {
-                if( pindexPrev->nHeight + 1 >= 280){
+                if( !fTestNet && pindexPrev->nHeight + 1 >= 500){
+                    LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, 32768, 256);
+                    printf("thash: %s\n", thash.ToString().c_str());
+                    printf("hashTarget: %s\n", hashTarget.ToString().c_str());
+                }else if(fTestNet && pindexPrev->nHeight + 1 >= 138){
                     LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, 32768, 256);
                     printf("thash: %s\n", thash.ToString().c_str());
                     printf("hashTarget: %s\n", hashTarget.ToString().c_str());

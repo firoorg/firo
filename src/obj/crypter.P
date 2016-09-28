@@ -1,4 +1,0 @@
-obj/crypter.o: crypter.cpp crypter.h allocators.h key.h serialize.h \
- version.h clientversion.h uint256.h hash.h
-crypter.cpp crypter.h allocators.h key.h serialize.h :
- version.h clientversion.h uint256.h hash.h :
