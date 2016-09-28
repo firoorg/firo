@@ -18,7 +18,6 @@
 #include "fixed.h"
 #include <stdint.h>
 
-
 using namespace std;
 using namespace boost;
 using namespace numeric;
@@ -88,6 +87,7 @@ int64 nHPSTimerStart = 0;
 // Settings
 int64 nTransactionFee = 0;
 int64 nMinimumInputValue = DUST_HARD_LIMIT;
+
 
 
 
@@ -2304,6 +2304,15 @@ unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBl
             return bnProofOfWorkLimit.GetCompact();
         }
     }*/
+
+    // 9/29/2016 - Reset to Lyra2(2,32768,256) due to ASIC KnC Miner Scrypt
+    // 36 block look back, reset to mininmun diff
+    if(pindexLast->nHeight + 1 >= 280 && pindexLast->nHeight + 1 <= 315){
+
+        return bnProofOfWorkLimit.GetCompact();
+
+    }
+
     
    	if ((pindexLast->nHeight+1) % nInterval != 0) // Retarget every nInterval blocks 
     {
@@ -2743,7 +2752,7 @@ void ThreadScriptCheck() {
 
 bool CBlock::ConnectBlock(CValidationState &state, CBlockIndex* pindex, CCoinsViewCache &view, bool fJustCheck)
 {
-    LastHeight = pindex->nHeight - 1;
+    LastHeight = pindex->nHeight;
 
     // Check it again in case a previous version let a bad block in
     if (!CheckBlock(state, pindex->nHeight, !fJustCheck, !fJustCheck, false))
@@ -3340,13 +3349,14 @@ bool CBlockHeader::CheckProofOfWork(int nHeight) const
             if (!auxpow->Check(GetHash(), GetChainID()))
                 return error("CheckProofOfWork() : AUX POW is not valid");
             // Check proof of work matches claimed amount
-            if (!::CheckProofOfWork(auxpow->GetParentBlockHash(), nBits))
+            if (!::CheckProofOfWork(auxpow->GetParentBlockHash(nHeight), nBits))
                 return error("CheckProofOfWork() : AUX proof of work failed");
         } 
         else
         {
+
             // Check proof of work matches claimed amount
-            if (!::CheckProofOfWork(GetPoWHash(), nBits))
+            if (!::CheckProofOfWork(GetPoWHash(nHeight), nBits))
                 return error("CheckProofOfWork() : proof of work failed - 1");
         }
     }
@@ -3358,7 +3368,7 @@ bool CBlockHeader::CheckProofOfWork(int nHeight) const
         }
 
         // Check if proof of work marches claimed amount
-        if (!::CheckProofOfWork(GetPoWHash(), nBits))
+        if (!::CheckProofOfWork(GetPoWHash(nHeight), nBits))
             return error("CheckProofOfWork() : proof of work failed - 2");
     }
     return true;
@@ -3486,9 +3496,24 @@ bool CBlock::CheckBlock(CValidationState &state, int nHeight, bool fCheckPOW, bo
             return error("CheckBlock() : 15 August maxlocks violation");
     }
 
-    // Check proof of work matches claimed amount
-    if (fCheckPOW && !CheckProofOfWork(nHeight))
-        return state.DoS(50, error("CheckBlock() : proof of work failed"));
+    CBlockIndex* pindexPrev = NULL;
+    if (GetHash() != hashGenesisBlock)
+    {
+        int nHeightCheckPoW = 0;
+        map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hashPrevBlock);
+        pindexPrev = (*mi).second;
+        if (mi != mapBlockIndex.end())
+        {
+            if (pindexPrev != NULL)
+            {
+                nHeightCheckPoW = pindexPrev->nHeight+1;
+                // Check proof of work matches claimed amount
+                if (fCheckPOW && !CheckProofOfWork(nHeightCheckPoW))
+                    return state.DoS(50, error("CheckBlock() : proof of work failed"));
+            }
+        }
+    }
+
 
     // Check timestamp
     if (GetBlockTime() > GetAdjustedTime() + 2 * 60 * 60)
@@ -6068,7 +6093,7 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
         nHeight = pindexPrev->nHeight+1;
     }
 
-    uint256 hash = pblock->GetPoWHash();
+    uint256 hash = pblock->GetPoWHash(nHeight);
     uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
 
     CAuxPow *auxpow = pblock->auxpow.get();
@@ -6077,14 +6102,14 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
         if (!auxpow->Check(pblock->GetHash(), pblock->GetChainID()))
             return error("AUX POW is not valid");
 
-        if (auxpow->GetParentBlockHash() > hashTarget)
-            return error("AUX POW parent hash %s is not under target %s", auxpow->GetParentBlockHash().GetHex().c_str(), hashTarget.GetHex().c_str());
+        if (auxpow->GetParentBlockHash(nHeight) > hashTarget)
+            return error("AUX POW parent hash %s is not under target %s", auxpow->GetParentBlockHash(nHeight).GetHex().c_str(), hashTarget.GetHex().c_str());
 
         //// debug print
         printf("ZCoinMiner:\n");
         printf("AUX proof-of-work found  \n     our hash: %s   \n  parent hash: %s  \n       target: %s\n",
                 hash.GetHex().c_str(),
-                auxpow->GetParentBlockHash().GetHex().c_str(),
+                auxpow->GetParentBlockHash(nHeight).GetHex().c_str(),
                 hashTarget.GetHex().c_str());
 
     }
@@ -6141,7 +6166,7 @@ std::string CDiskBlockIndex::ToString() const
     str += strprintf("\n                hashBlock=%s, hashPrev=%s, hashParentBlock=%s)",
         GetBlockHash().ToString().c_str(),
         hashPrev.ToString().c_str(),
-        (auxpow.get() != NULL) ? auxpow->GetParentBlockHash().ToString().substr(0,20).c_str() : "-");
+        (auxpow.get() != NULL) ? auxpow->GetParentBlockHash(nHeight).ToString().substr(0,20).c_str() : "-");
     return str;
 }
 
@@ -6225,8 +6250,13 @@ void static ScryptMiner(CWallet *pwallet)
             char scratchpad[scrypt_scratpad_size_current_block];
             loop
             {
-                scrypt_N_1_1_256_sp_generic(BEGIN(pblock->nVersion), BEGIN(thash), scratchpad, GetNfactor(pblock->nTime));
-
+                if( pindexPrev->nHeight + 1 >= 280){
+                    LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, 32768, 256);
+                    printf("thash: %s\n", thash.ToString().c_str());
+                    printf("hashTarget: %s\n", hashTarget.ToString().c_str());
+                }else{
+                    scrypt_N_1_1_256_sp_generic(BEGIN(pblock->nVersion), BEGIN(thash), scratchpad, GetNfactor(pblock->nTime));
+                }
 
 
                 if (thash <= hashTarget)
@@ -6323,6 +6353,8 @@ void GenerateBitcoins(bool fGenerate, CWallet* pwallet)
     for (int i = 0; i < nThreads; i++)
         minerThreads->create_thread(boost::bind(&ScryptMiner, pwallet));
 }
+
+
 
 // Amount compression:
 // * If the amount is 0, output 0

@@ -9,8 +9,8 @@
 #include "sync.h"
 #include "net.h"
 #include "script.h"
-#include "Lyra2.h"
 #include "scrypt.h"
+#include "Lyra2.h"
 #include "libzerocoin/Zerocoin.h"
 #include "db.h"
 
@@ -61,7 +61,7 @@ static const int64 DUST_HARD_LIMIT = 1000;   // 0.00001 XZC mininput
 static const int64 MAX_MONEY = 21000000 * COIN;
 inline bool MoneyRange(int64 nValue) { return (nValue >= 0 && nValue <= MAX_MONEY); }
 /** Coinbase transaction outputs can only be spent after this number of new blocks (network rule) */
-static const int COINBASE_MATURITY = 100;
+static const int COINBASE_MATURITY = 1;
 /** Threshold for nLockTime: below this value it is interpreted as block number, otherwise as UNIX timestamp. */
 static const unsigned int LOCKTIME_THRESHOLD = 500000000; // Tue Nov  5 00:53:20 1985 UTC
 /** Maximum number of script-checking threads allowed */
@@ -197,8 +197,6 @@ bool VerifySignature(const CCoins& txFrom, const CTransaction& txTo, unsigned in
 bool AbortNode(const std::string &msg);
 /** Get block reward */
 int64 static GetBlockValue(int nHeight, int64 nFees, unsigned int nTime);
-
-
 
 bool GetWalletFile(CWallet* pwallet, std::string &strWalletFileOut);
 
@@ -1355,12 +1353,15 @@ public:
         return nVersion / BLOCK_VERSION_CHAIN_START;
     }
 
-    uint256 GetPoWHash() const
+    uint256 GetPoWHash(int height) const
     {
         uint256 thash;
 
-        scrypt_N_1_1_256(BEGIN(nVersion), BEGIN(thash), GetNfactor(nTime));
-
+        if( height >= 280){
+            LYRA2(BEGIN(thash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, 32768, 256);
+        }else{
+            scrypt_N_1_1_256(BEGIN(nVersion), BEGIN(thash), GetNfactor(nTime));
+        }
 
         return thash;
     }
@@ -1542,7 +1543,7 @@ public:
         }
 
         // Check the header
-        if (!::CheckProofOfWork(GetPoWHash(), nBits))
+        if (!::CheckProofOfWork(GetPoWHash(LastHeight + 1), nBits))
             return error("CBlock::ReadFromDisk() : errors in block header");
 
         return true;
@@ -1555,7 +1556,7 @@ public:
         printf("CBlock(hash=%s, input=%s, PoW=%s, ver=%d, hashPrevBlock=%s, hashMerkleRoot=%s, nTime=%u, nBits=%08x, nNonce=%u, vtx=%"PRIszu")\n",
             GetHash().ToString().c_str(),
             HexStr(BEGIN(nVersion),BEGIN(nVersion)+80,false).c_str(),
-            GetPoWHash().ToString().c_str(),
+            GetPoWHash(LastHeight + 1).ToString().c_str(),
             nVersion,
             hashPrevBlock.ToString().c_str(),
             hashMerkleRoot.ToString().c_str(),

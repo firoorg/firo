@@ -1,0 +1,4 @@
+obj/scrypt.o: scrypt.cpp scrypt.h util.h uint256.h netbase.h serialize.h \
+ allocators.h version.h clientversion.h compat.h
+scrypt.cpp scrypt.h util.h uint256.h netbase.h serialize.h :
+ allocators.h version.h clientversion.h compat.h :
