@@ -212,6 +212,8 @@ HEADERS += src/qt/bitcoingui.h \
     src/ui_interface.h \
     src/qt/rpcconsole.h \
     src/scrypt.h \
+    src/Lyra2.h \
+    src/Sponge.h \
     src/version.h \
     src/netbase.h \
     src/clientversion.h \
@@ -230,9 +232,7 @@ HEADERS += src/qt/bitcoingui.h \
     src/libzerocoin/Params.h \
     src/libzerocoin/SerialNumberSignatureOfKnowledge.h \
     src/libzerocoin/SpendMetaData.h \
-    src/libzerocoin/Zerocoin.h \
-    src/Lyra2.h \
-    src/Sponge.h
+    src/libzerocoin/Zerocoin.h
 
 
 
@@ -258,8 +258,6 @@ SOURCES += src/qt/bitcoin.cpp \
     src/netbase.cpp \
     src/key.cpp \
     src/script.cpp \
-    src/Lyra2.c \
-    src/Sponge.c \
     src/main.cpp \
     src/init.cpp \
     src/net.cpp \
@@ -305,6 +303,8 @@ SOURCES += src/qt/bitcoin.cpp \
     src/qt/paymentserver.cpp \
     src/qt/rpcconsole.cpp \
     src/scrypt.cpp \
+    src/Lyra2.c \
+    src/Sponge.c \
     src/noui.cpp \
     src/leveldb.cpp \
     src/txdb.cpp \
