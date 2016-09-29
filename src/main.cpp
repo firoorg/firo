@@ -3327,15 +3327,15 @@ bool CBlock::AddToBlockIndex(CValidationState &state, const CDiskBlockPos &pos)
 int GetAuxPowStartBlock()
 {
     if (fTestNet)
-        return 1;
+        return 138;
     else
-        return 1;
+        return 500;
 }
 
 int GetOurChainID()
 {
 
-    return 0x0001; // 98
+    return 0x0001; // We are the first :)
 
 }
 
