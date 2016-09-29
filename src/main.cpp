@@ -6306,7 +6306,7 @@ void static ScryptMiner(CWallet *pwallet)
                         if (GetTime() - nLogTime > 30 * 60)
                         {
                             nLogTime = GetTime();
-                            printf("hashmeter %6.0f khash/s\n", dHashesPerSec/1000.0);
+                            printf("hashmeter %f hash/s\n", dHashesPerSec);
                         }
                     }
                 }
