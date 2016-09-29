@@ -6257,12 +6257,12 @@ void static ScryptMiner(CWallet *pwallet)
             {
                 if( !fTestNet && pindexPrev->nHeight + 1 >= 500){
                     LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, pindexPrev->nHeight + 1, 256);
-                    printf("thash: %s\n", thash.ToString().c_str());
-                    printf("hashTarget: %s\n", hashTarget.ToString().c_str());
+                    //printf("thash: %s\n", thash.ToString().c_str());
+                    //printf("hashTarget: %s\n", hashTarget.ToString().c_str());
                 }else if(fTestNet && pindexPrev->nHeight + 1 >= 138){
                     LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, pindexPrev->nHeight + 1, 256);
-                    printf("thash: %s\n", thash.ToString().c_str());
-                    printf("hashTarget: %s\n", hashTarget.ToString().c_str());
+                    //printf("thash: %s\n", thash.ToString().c_str());
+                    //printf("hashTarget: %s\n", hashTarget.ToString().c_str());
                 }else{
                     scrypt_N_1_1_256_sp_generic(BEGIN(pblock->nVersion), BEGIN(thash), scratchpad, GetNfactor(pblock->nTime));
                 }
