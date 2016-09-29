@@ -9,8 +9,8 @@
 #include "sync.h"
 #include "net.h"
 #include "script.h"
-#include "Lyra2.h"
 #include "scrypt.h"
+#include "Lyra2.h"
 #include "libzerocoin/Zerocoin.h"
 #include "db.h"
 
@@ -197,8 +197,6 @@ bool VerifySignature(const CCoins& txFrom, const CTransaction& txTo, unsigned in
 bool AbortNode(const std::string &msg);
 /** Get block reward */
 int64 static GetBlockValue(int nHeight, int64 nFees, unsigned int nTime);
-
-
 
 bool GetWalletFile(CWallet* pwallet, std::string &strWalletFileOut);
 
@@ -1355,12 +1353,17 @@ public:
         return nVersion / BLOCK_VERSION_CHAIN_START;
     }
 
-    uint256 GetPoWHash() const
+    uint256 GetPoWHash(int height) const
     {
         uint256 thash;
 
-        scrypt_N_1_1_256(BEGIN(nVersion), BEGIN(thash), GetNfactor(nTime));
-
+        if( !fTestNet && height >= 500){
+            LYRA2(BEGIN(thash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, 32768, 256);
+        }else if(fTestNet && height >= 138){
+            LYRA2(BEGIN(thash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, 32768, 256);
+        }else{
+            scrypt_N_1_1_256(BEGIN(nVersion), BEGIN(thash), GetNfactor(nTime));
+        }
 
         return thash;
     }
@@ -1542,7 +1545,7 @@ public:
         }
 
         // Check the header
-        if (!::CheckProofOfWork(GetPoWHash(), nBits))
+        if (!::CheckProofOfWork(GetPoWHash(LastHeight + 1), nBits))
             return error("CBlock::ReadFromDisk() : errors in block header");
 
         return true;
@@ -1555,7 +1558,7 @@ public:
         printf("CBlock(hash=%s, input=%s, PoW=%s, ver=%d, hashPrevBlock=%s, hashMerkleRoot=%s, nTime=%u, nBits=%08x, nNonce=%u, vtx=%"PRIszu")\n",
             GetHash().ToString().c_str(),
             HexStr(BEGIN(nVersion),BEGIN(nVersion)+80,false).c_str(),
-            GetPoWHash().ToString().c_str(),
+            GetPoWHash(LastHeight + 1).ToString().c_str(),
             nVersion,
             hashPrevBlock.ToString().c_str(),
             hashMerkleRoot.ToString().c_str(),
