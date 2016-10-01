@@ -69,37 +69,5 @@ Unit tests for the GUI code are in `src/qt/test/`. To compile and run them:
 Installation
 -------
 
-The following instructions are for running on Mainnet based on Ubuntu 16.04
-
-GUI
-
-    sudo apt-get install software-properties-common
-    sudo add-apt-repository ppa:bitcoin/bitcoin
-    sudo apt-get update
-    sudo apt-get install libdb4.8-dev libdb4.8++-dev
-    sudo apt-get install build-essential libtool autotools-dev automake pkg-config libssl-dev libevent-dev bsdmainutils
-    sudo apt-get install libboost-all-dev
-    sudo apt-get install libminiupnpc-dev
-    sudo apt-get install qt4-default libqt4-dev libprotobuf-dev protobuf-compiler
-    git clone https://github.com/zcoinofficial/zcoin.git
-    cd zcoin
-    qmake -spec /usr/share/qt4/mkspecs/linux-g++-64 -o Makefile zcoin.pro
-    make -f Makefile
-    ./zcoin-qt
-    
-Daemon
-
-    sudo apt-get install software-properties-common
-    sudo add-apt-repository ppa:bitcoin/bitcoin
-    sudo apt-get update
-    sudo apt-get install libdb4.8-dev libdb4.8++-dev
-    sudo apt-get install build-essential libtool autotools-dev automake pkg-config libssl-dev libevent-dev bsdmainutils
-    sudo apt-get install libboost-all-dev
-    sudo apt-get install libminiupnpc-dev
-    git clone https://github.com/zcoinofficial/zcoin.git
-    cd zcoin/src
-    make -f makefile.unix
-    ./zcoind --daemon
-    put "rpcuser=YOURUSERNAMEEVERUWANT
-	 rpcpassword=YOURPASSWORDEVERYOUWANT" in ~/.zcoin/zcoin.conf
+Please see details in Wiki section
 
