@@ -1791,7 +1791,7 @@ Value resetmintzerocoin(const Array& params, bool fHelp)
     return Value::null;
 }
 
-Value removespendzerocoin(const Array& params, bool fHelp)
+Value removemintzerocoin(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() != 0)
         throw runtime_error(
