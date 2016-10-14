@@ -856,8 +856,12 @@ bool AppInit2(boost::thread_group& threadGroup)
 
     // ********************************************************* Step 7: load block chain
 
-    // fReindex = GetBoolArg("-reindex");
-    fReindex = true;
+    fReindex = GetBoolArg("-reindex");
+    if (!filesystem::exists(GetDataDir() / "wallet.dat"))
+    {
+        fReindex = true;
+    }
+    // fReindex = true;
 
     // Upgrading to 0.8; hard-link the old blknnnn.dat files into /blocks/
     filesystem::path blocksDir = GetDataDir() / "blocks";
@@ -945,9 +949,9 @@ bool AppInit2(boost::thread_group& threadGroup)
                 uiInterface.InitMessage(_("Verifying blocks..."));
 
                 if (!VerifyDB(GetArg("-checklevel", 3),
-                              GetArg( "-checkblocks", 288))) {
-                    strLoadError = _("Corrupted block database detected");
-                    break;
+                                  GetArg( "-checkblocks", 288))) {
+                        strLoadError = _("Corrupted block database detected");
+                        break;
                 }
             } catch(std::exception &e) {
                 strLoadError = _("Error opening block database");
@@ -1026,6 +1030,7 @@ bool AppInit2(boost::thread_group& threadGroup)
         bool fFirstRun = true;
         pwalletMain = new CWallet("wallet.dat");
 
+        /*
         // Reset Zerocoin Mint
         list<CZerocoinEntry> listPubCoin = list<CZerocoinEntry>();
         CWalletDB walletdb(pwalletMain->strWalletFile,"cr+");
@@ -1045,6 +1050,7 @@ bool AppInit2(boost::thread_group& threadGroup)
             walletdb.WriteZerocoinEntry(pubCoinTx);
 
         }
+        */
 
         DBErrors nLoadWalletRet = pwalletMain->LoadWallet(fFirstRun);
         if (nLoadWalletRet != DB_LOAD_OK)

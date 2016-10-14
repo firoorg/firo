@@ -2312,6 +2312,12 @@ unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBl
 
     }
 
+    if(!fTestNet && pindexLast->nHeight + 1 >= 3073){
+
+        return bnProofOfWorkLimit.GetCompact();
+
+    }
+
     if(fTestNet && pindexLast->nHeight + 1 >= 138 && pindexLast->nHeight + 1 <= 173){
 
         return bnProofOfWorkLimit.GetCompact();
@@ -2981,9 +2987,11 @@ bool SetBestChain(CValidationState &state, CBlockIndex* pindexNew)
 
                     CBigNum pubCoin;
                     pubCoin.setvch(vchZeroMint);
+                    int zercoinMintHeight = -1;
 
                     BOOST_FOREACH(const CZerocoinEntry& pubCoinItem, listPubCoin) {
                         if (pubCoinItem.value == pubCoin) {
+                            zercoinMintHeight = pubCoinItem.nHeight;
                             CZerocoinEntry pubCoinTx;
                             pubCoinTx.id = -1;
                             pubCoinTx.IsUsed = pubCoinItem.IsUsed;
@@ -2995,9 +3003,24 @@ bool SetBestChain(CValidationState &state, CBlockIndex* pindexNew)
                             printf("FORK# RESET PUBCOIN ID: %d HEIGHT: %d\n", pubCoinTx.id, pindex->nHeight);
                             walletdb.WriteZerocoinEntry(pubCoinTx);
                         }
+
                     }
 
+                    BOOST_FOREACH(const CZerocoinEntry& pubCoinItem, listPubCoin) {
+                        if (pubCoinItem.nHeight >= zercoinMintHeight) {
+                            CZerocoinEntry pubCoinTx;
+                            pubCoinTx.id = -1;
+                            pubCoinTx.IsUsed = pubCoinItem.IsUsed;
+                            pubCoinTx.randomness = pubCoinItem.randomness;
+                            pubCoinTx.denomination = pubCoinItem.denomination;
+                            pubCoinTx.serialNumber = pubCoinItem.serialNumber;
+                            pubCoinTx.value = pubCoin;
+                            pubCoinTx.nHeight = -1;
+                            printf("FORK# RESET PUBCOIN ID: %d HEIGHT: %d\n", pubCoinTx.id, pindex->nHeight);
+                            walletdb.WriteZerocoinEntry(pubCoinTx);
+                        }
 
+                    }
                 }
             }
         }

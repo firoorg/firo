@@ -1,0 +1,28 @@
+obj/bitcoinrpc.o: bitcoinrpc.cpp init.h wallet.h main.h bignum.h util.h \
+ uint256.h netbase.h serialize.h allocators.h version.h clientversion.h \
+ compat.h sync.h threadsafety.h net.h mruset.h limitedmap.h protocol.h \
+ addrman.h hash.h bloom.h script.h keystore.h crypter.h key.h scrypt.h \
+ Lyra2.h libzerocoin/Zerocoin.h libzerocoin/../serialize.h \
+ libzerocoin/../bignum.h libzerocoin/../hash.h libzerocoin/Params.h \
+ libzerocoin/Coin.h libzerocoin/Commitment.h libzerocoin/Accumulator.h \
+ libzerocoin/AccumulatorProofOfKnowledge.h libzerocoin/CoinSpend.h \
+ libzerocoin/SerialNumberSignatureOfKnowledge.h \
+ libzerocoin/SpendMetaData.h libzerocoin/../uint256.h \
+ libzerocoin/ParamGeneration.h db.h ui_interface.h walletdb.h base58.h \
+ bitcoinrpc.h json/json_spirit_reader_template.h json/json_spirit_value.h \
+ json/json_spirit_error_position.h json/json_spirit_writer_template.h \
+ json/json_spirit_utils.h
+bitcoinrpc.cpp init.h wallet.h main.h bignum.h util.h :
+ uint256.h netbase.h serialize.h allocators.h version.h clientversion.h :
+ compat.h sync.h threadsafety.h net.h mruset.h limitedmap.h protocol.h :
+ addrman.h hash.h bloom.h script.h keystore.h crypter.h key.h scrypt.h :
+ Lyra2.h libzerocoin/Zerocoin.h libzerocoin/../serialize.h :
+ libzerocoin/../bignum.h libzerocoin/../hash.h libzerocoin/Params.h :
+ libzerocoin/Coin.h libzerocoin/Commitment.h libzerocoin/Accumulator.h :
+ libzerocoin/AccumulatorProofOfKnowledge.h libzerocoin/CoinSpend.h :
+ libzerocoin/SerialNumberSignatureOfKnowledge.h :
+ libzerocoin/SpendMetaData.h libzerocoin/../uint256.h :
+ libzerocoin/ParamGeneration.h db.h ui_interface.h walletdb.h base58.h :
+ bitcoinrpc.h json/json_spirit_reader_template.h json/json_spirit_value.h :
+ json/json_spirit_error_position.h json/json_spirit_writer_template.h :
+ json/json_spirit_utils.h :
