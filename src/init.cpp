@@ -1030,27 +1030,28 @@ bool AppInit2(boost::thread_group& threadGroup)
         bool fFirstRun = true;
         pwalletMain = new CWallet("wallet.dat");
 
-        /*
-        // Reset Zerocoin Mint
-        list<CZerocoinEntry> listPubCoin = list<CZerocoinEntry>();
-        CWalletDB walletdb(pwalletMain->strWalletFile,"cr+");
-        walletdb.ListPubCoin(listPubCoin);
+        if(fReindex){
+            // Reset Zerocoin Mint
+            list<CZerocoinEntry> listPubCoin = list<CZerocoinEntry>();
+            CWalletDB walletdb(pwalletMain->strWalletFile,"cr+");
+            walletdb.ListPubCoin(listPubCoin);
 
-        BOOST_FOREACH(const CZerocoinEntry& pubCoinItem, listPubCoin) {
+            BOOST_FOREACH(const CZerocoinEntry& pubCoinItem, listPubCoin) {
 
-            CZerocoinEntry pubCoinTx;
-            pubCoinTx.value = pubCoinItem.value;
-            pubCoinTx.id = -1;
-            pubCoinTx.randomness = pubCoinItem.randomness;
-            pubCoinTx.denomination = pubCoinItem.denomination;
-            pubCoinTx.serialNumber = pubCoinItem.serialNumber;
-            pubCoinTx.nHeight = -1;
-            pubCoinTx.IsUsed = pubCoinItem.IsUsed;
-            printf("FORK# RESET PUBCOIN ID: %d DENOMINATION: %d\n", pubCoinTx.id, pubCoinTx.denomination);
-            walletdb.WriteZerocoinEntry(pubCoinTx);
+                CZerocoinEntry pubCoinTx;
+                pubCoinTx.value = pubCoinItem.value;
+                pubCoinTx.id = -1;
+                pubCoinTx.randomness = pubCoinItem.randomness;
+                pubCoinTx.denomination = pubCoinItem.denomination;
+                pubCoinTx.serialNumber = pubCoinItem.serialNumber;
+                pubCoinTx.nHeight = -1;
+                pubCoinTx.IsUsed = pubCoinItem.IsUsed;
+                printf("FORK# RESET PUBCOIN ID: %d DENOMINATION: %d\n", pubCoinTx.id, pubCoinTx.denomination);
+                walletdb.WriteZerocoinEntry(pubCoinTx);
 
+            }
         }
-        */
+
 
         DBErrors nLoadWalletRet = pwalletMain->LoadWallet(fFirstRun);
         if (nLoadWalletRet != DB_LOAD_OK)

@@ -1793,7 +1793,7 @@ Value resetmintzerocoin(const Array& params, bool fHelp)
 
 Value removetxmempool(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() != 0)
+    if (fHelp || params.size() != 1)
         throw runtime_error(
             "removetxmempool <txid>\n"
             + HelpRequiringPassphrase());
