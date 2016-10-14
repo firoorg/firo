@@ -1,0 +1,4 @@
+zcoin-qt
+build/*
+src/obj/*
+src/zcoind

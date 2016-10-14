@@ -2282,8 +2282,6 @@ unsigned int static BorisRidiculouslyNamedDifficultyFunction(const CBlockIndex* 
 
 unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock)
 {
-    return bnProofOfWorkLimit.GetCompact();
-
     if(pindexLast == NULL)
     {
         return bnProofOfWorkLimit.GetCompact();
@@ -2983,9 +2981,11 @@ bool SetBestChain(CValidationState &state, CBlockIndex* pindexNew)
 
                     CBigNum pubCoin;
                     pubCoin.setvch(vchZeroMint);
+                    int zercoinMintHeight = -1;
 
                     BOOST_FOREACH(const CZerocoinEntry& pubCoinItem, listPubCoin) {
                         if (pubCoinItem.value == pubCoin) {
+                            zercoinMintHeight = pubCoinItem.nHeight;
                             CZerocoinEntry pubCoinTx;
                             pubCoinTx.id = -1;
                             pubCoinTx.IsUsed = pubCoinItem.IsUsed;
@@ -2997,9 +2997,24 @@ bool SetBestChain(CValidationState &state, CBlockIndex* pindexNew)
                             printf("FORK# RESET PUBCOIN ID: %d HEIGHT: %d\n", pubCoinTx.id, pindex->nHeight);
                             walletdb.WriteZerocoinEntry(pubCoinTx);
                         }
+
                     }
 
+                    BOOST_FOREACH(const CZerocoinEntry& pubCoinItem, listPubCoin) {
+                        if (pubCoinItem.nHeight >= zercoinMintHeight) {
+                            CZerocoinEntry pubCoinTx;
+                            pubCoinTx.id = -1;
+                            pubCoinTx.IsUsed = pubCoinItem.IsUsed;
+                            pubCoinTx.randomness = pubCoinItem.randomness;
+                            pubCoinTx.denomination = pubCoinItem.denomination;
+                            pubCoinTx.serialNumber = pubCoinItem.serialNumber;
+                            pubCoinTx.value = pubCoin;
+                            pubCoinTx.nHeight = -1;
+                            printf("FORK# RESET PUBCOIN ID: %d HEIGHT: %d\n", pubCoinTx.id, pindex->nHeight);
+                            walletdb.WriteZerocoinEntry(pubCoinTx);
+                        }
 
+                    }
                 }
             }
         }
@@ -6258,11 +6273,11 @@ void static ScryptMiner(CWallet *pwallet)
             loop
             {
                 if( !fTestNet && pindexPrev->nHeight + 1 >= 500){
-                    LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, 262144, 256);
-                    printf("thash: %s\n", thash.ToString().c_str());
-                    printf("hashTarget: %s\n", hashTarget.ToString().c_str());
+                    LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, pindexPrev->nHeight + 1, 256);
+                    //printf("thash: %s\n", thash.ToString().c_str());
+                    //printf("hashTarget: %s\n", hashTarget.ToString().c_str());
                 }else if(fTestNet && pindexPrev->nHeight + 1 >= 138){
-                    LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, 262144, 256);
+                    LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, pindexPrev->nHeight + 1, 256);
                     //printf("thash: %s\n", thash.ToString().c_str());
                     //printf("hashTarget: %s\n", hashTarget.ToString().c_str());
                 }else{
