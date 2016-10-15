@@ -237,9 +237,11 @@ public:
     }
     bool IsMine(const CTransaction& tx) const
     {
-        BOOST_FOREACH(const CTxOut& txout, tx.vout)
-            if (IsMine(txout) && txout.nValue >= nMinimumInputValue)
+        BOOST_FOREACH(const CTxOut& txout, tx.vout){
+            if (IsMine(txout) && txout.nValue >= nMinimumInputValue){
                 return true;
+            }
+        }
         return false;
     }
     bool IsFromMe(const CTransaction& tx) const

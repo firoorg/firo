@@ -524,12 +524,14 @@ bool CWallet::AddToWalletIfInvolvingMe(const uint256 &hash, const CTransaction& 
         {
             CWalletTx wtx(this,tx);
             // Get merkle branch if transaction was found in a block
-            if (pblock)
+            if (pblock){
                 wtx.SetMerkleBranch(pblock);
+            }
             return AddToWallet(wtx);
         }
-        else
+        else{
             WalletUpdateSpent(tx);
+        }
     }
     return false;
 }

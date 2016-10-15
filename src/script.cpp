@@ -1164,10 +1164,7 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, vector<vector<unsi
     if (scriptPubKey.IsZerocoinMint())
     {
         typeRet = TX_ZEROCOINMINT;
-        if(scriptPubKey.size() > 150) return false;
-        vector<unsigned char> hashBytes(scriptPubKey.begin()+2, scriptPubKey.end());
-        vSolutionsRet.push_back(hashBytes);
-        return true;
+        return false;
     }
 
     // Scan templates
@@ -1423,7 +1420,6 @@ bool IsMine(const CKeyStore &keystore, const CScript& scriptPubKey)
     case TX_NONSTANDARD:
     case TX_NULL_DATA:
     case TX_ZEROCOINMINT:
-        return false;
     case TX_PUBKEY:
         keyID = CPubKey(vSolutions[0]).GetID();
         return keystore.HaveKey(keyID);
@@ -1782,7 +1778,8 @@ bool CScript::IsPayToScriptHash() const
 bool CScript::IsZerocoinMint() const
 {
     // Extra-fast test for Zerocoin Mint CScripts:
-    return (this->at(0) == OP_ZEROCOINMINT);
+    return (this->size() > 0 &&
+            this->at(0) == OP_ZEROCOINMINT);
 }
 
 bool CScript::IsZerocoinSpend() const

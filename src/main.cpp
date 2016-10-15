@@ -836,7 +836,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                 // VERIFY COINSPEND TX
                                 int countPubcoin = 0;
                                 BOOST_FOREACH(const CZerocoinEntry& pubCoinItem, listPubCoin) {
-                                    printf("denomination = %d, id = %d, pubcoinId = %d height = %d\n", pubCoinItem.denomination, pubCoinItem.id, pubcoinId, pubCoinItem.nHeight);
+                                    //printf("denomination = %d, id = %d, pubcoinId = %d height = %d\n", pubCoinItem.denomination, pubCoinItem.id, pubcoinId, pubCoinItem.nHeight);
 
                                     if (pubCoinItem.denomination == libzerocoin::ZQ_LOVELACE && pubCoinItem.id == pubcoinId && pubCoinItem.nHeight != -1) {
                                         printf("## denomination = %d, id = %d, pubcoinId = %d height = %d\n", pubCoinItem.denomination, pubCoinItem.id, pubcoinId, pubCoinItem.nHeight);
@@ -860,7 +860,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                     int countPubcoin = 0;
                                     printf("PROCESS REVERSE\n");
                                     BOOST_REVERSE_FOREACH(const CZerocoinEntry& pubCoinItem, listPubCoin) {
-                                        printf("denomination = %d, id = %d, pubcoinId = %d height = %d\n", pubCoinItem.denomination, pubCoinItem.id, pubcoinId, pubCoinItem.nHeight);
+                                        //printf("denomination = %d, id = %d, pubcoinId = %d height = %d\n", pubCoinItem.denomination, pubCoinItem.id, pubcoinId, pubCoinItem.nHeight);
                                         if (pubCoinItem.denomination == libzerocoin::ZQ_LOVELACE && pubCoinItem.id == pubcoinId && pubCoinItem.nHeight != -1) {
                                             printf("## denomination = %d, id = %d, pubcoinId = %d height = %d\n", pubCoinItem.denomination, pubCoinItem.id, pubcoinId, pubCoinItem.nHeight);
                                             libzerocoin::PublicCoin pubCoinTemp(ZCParams, pubCoinItem.value, libzerocoin::ZQ_LOVELACE);
@@ -951,7 +951,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                     }
                                 }
                                 else {
-                                    printf("isVerifyDB = %d\n", isVerifyDB);
+                                    //printf("isVerifyDB = %d\n", isVerifyDB);
                                     return state.DoS(100, error("CTransaction::CheckTransaction() : COINSPEND TX IN ZQ_LOVELACE DID NOT VERIFY!"));
                                 }
                                 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1018,8 +1018,9 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                     int countPubcoin = 0;
                                     printf("PROCESS REVERSE\n");
                                     BOOST_REVERSE_FOREACH(const CZerocoinEntry& pubCoinItem, listPubCoin) {
-                                        printf("pubCoinItem.denomination = %d, pubCoinItem.id = %d, pubcoinId = %d \n", pubCoinItem.denomination, pubCoinItem.id, pubcoinId);
+                                        //printf("pubCoinItem.denomination = %d, pubCoinItem.id = %d, pubcoinId = %d \n", pubCoinItem.denomination, pubCoinItem.id, pubcoinId);
                                         if (pubCoinItem.denomination == libzerocoin::ZQ_GOLDWASSER && pubCoinItem.id == pubcoinId && pubCoinItem.nHeight != -1) {
+                                            printf("## denomination = %d, id = %d, pubcoinId = %d height = %d\n", pubCoinItem.denomination, pubCoinItem.id, pubcoinId, pubCoinItem.nHeight);
                                             libzerocoin::PublicCoin pubCoinTemp(ZCParams, pubCoinItem.value, libzerocoin::ZQ_GOLDWASSER);
                                             if (!pubCoinTemp.validate()) {
                                                 return state.DoS(100, error("CTransaction::CheckTransaction() : Error: Public Coin for Accumulator is not valid !!!"));
@@ -1174,8 +1175,9 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                     int countPubcoin = 0;
                                     printf("PROCESS REVERSE\n");
                                     BOOST_REVERSE_FOREACH(const CZerocoinEntry& pubCoinItem, listPubCoin) {
-                                        printf("pubCoinItem.denomination = %d, pubCoinItem.id = %d, pubcoinId = %d \n", pubCoinItem.denomination, pubCoinItem.id, pubcoinId);
+                                        //printf("pubCoinItem.denomination = %d, pubCoinItem.id = %d, pubcoinId = %d \n", pubCoinItem.denomination, pubCoinItem.id, pubcoinId);
                                         if (pubCoinItem.denomination == libzerocoin::ZQ_RACKOFF && pubCoinItem.id == pubcoinId && pubCoinItem.nHeight != -1) {
+                                            printf("## denomination = %d, id = %d, pubcoinId = %d height = %d\n", pubCoinItem.denomination, pubCoinItem.id, pubcoinId, pubCoinItem.nHeight);
                                             libzerocoin::PublicCoin pubCoinTemp(ZCParams, pubCoinItem.value, libzerocoin::ZQ_RACKOFF);
                                             if (!pubCoinTemp.validate()) {
                                                 return state.DoS(100, error("CTransaction::CheckTransaction() : Error: Public Coin for Accumulator is not valid !!!"));
@@ -1330,8 +1332,9 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                     int countPubcoin = 0;
                                     printf("PROCESS REVERSE\n");
                                     BOOST_REVERSE_FOREACH(const CZerocoinEntry& pubCoinItem, listPubCoin) {
-                                        printf("pubCoinItem.denomination = %d, pubCoinItem.id = %d, pubcoinId = %d \n", pubCoinItem.denomination, pubCoinItem.id, pubcoinId);
+                                        //printf("pubCoinItem.denomination = %d, pubCoinItem.id = %d, pubcoinId = %d \n", pubCoinItem.denomination, pubCoinItem.id, pubcoinId);
                                         if (pubCoinItem.denomination == libzerocoin::ZQ_PEDERSEN && pubCoinItem.id == pubcoinId && pubCoinItem.nHeight != -1) {
+                                            printf("## denomination = %d, id = %d, pubcoinId = %d height = %d\n", pubCoinItem.denomination, pubCoinItem.id, pubcoinId, pubCoinItem.nHeight);
                                             libzerocoin::PublicCoin pubCoinTemp(ZCParams, pubCoinItem.value, libzerocoin::ZQ_PEDERSEN);
                                             if (!pubCoinTemp.validate()) {
                                                 return state.DoS(100, error("CTransaction::CheckTransaction() : Error: Public Coin for Accumulator is not valid !!!"));
@@ -1486,8 +1489,9 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                     int countPubcoin = 0;
                                     printf("PROCESS REVERSE\n");
                                     BOOST_REVERSE_FOREACH(const CZerocoinEntry& pubCoinItem, listPubCoin) {
-                                        printf("pubCoinItem.denomination = %d, pubCoinItem.id = %d, pubcoinId = %d \n", pubCoinItem.denomination, pubCoinItem.id, pubcoinId);
+                                        //printf("pubCoinItem.denomination = %d, pubCoinItem.id = %d, pubcoinId = %d \n", pubCoinItem.denomination, pubCoinItem.id, pubcoinId);
                                         if (pubCoinItem.denomination == libzerocoin::ZQ_PEDERSEN && pubCoinItem.id == pubcoinId && pubCoinItem.nHeight != -1) {
+                                            printf("## denomination = %d, id = %d, pubcoinId = %d height = %d\n", pubCoinItem.denomination, pubCoinItem.id, pubcoinId, pubCoinItem.nHeight);
                                             libzerocoin::PublicCoin pubCoinTemp(ZCParams, pubCoinItem.value, libzerocoin::ZQ_PEDERSEN);
                                             if (!pubCoinTemp.validate()) {
                                                 return state.DoS(100, error("CTransaction::CheckTransaction() : Error: Public Coin for Accumulator is not valid !!!"));
@@ -2994,14 +2998,14 @@ bool SetBestChain(CValidationState &state, CBlockIndex* pindexNew)
                             pubCoinTx.serialNumber = pubCoinItem.serialNumber;
                             pubCoinTx.value = pubCoin;
                             pubCoinTx.nHeight = -1;
-                            printf("FORK# RESET PUBCOIN ID: %d HEIGHT: %d\n", pubCoinTx.id, pindex->nHeight);
+                            printf("- Disconnect Reset Pubcoin Id: %d Height: %d\n", pubCoinTx.id, pindex->nHeight);
                             walletdb.WriteZerocoinEntry(pubCoinTx);
                         }
 
                     }
 
                     BOOST_FOREACH(const CZerocoinEntry& pubCoinItem, listPubCoin) {
-                        if (pubCoinItem.nHeight >= zercoinMintHeight) {
+                        if (pubCoinItem.nHeight > zercoinMintHeight) {
                             CZerocoinEntry pubCoinTx;
                             pubCoinTx.id = -1;
                             pubCoinTx.IsUsed = pubCoinItem.IsUsed;
@@ -3010,7 +3014,7 @@ bool SetBestChain(CValidationState &state, CBlockIndex* pindexNew)
                             pubCoinTx.serialNumber = pubCoinItem.serialNumber;
                             pubCoinTx.value = pubCoin;
                             pubCoinTx.nHeight = -1;
-                            printf("FORK# RESET PUBCOIN ID: %d HEIGHT: %d\n", pubCoinTx.id, pindex->nHeight);
+                            printf("- Disconnect Reset Pubcoin Id: %d Height: %d\n", pubCoinTx.id, pindex->nHeight);
                             walletdb.WriteZerocoinEntry(pubCoinTx);
                         }
 
@@ -3067,6 +3071,7 @@ bool SetBestChain(CValidationState &state, CBlockIndex* pindexNew)
         list<CZerocoinEntry> listPubCoin = list<CZerocoinEntry>();
         CWalletDB walletdb(pwalletMain->strWalletFile);
         walletdb.ListPubCoin(listPubCoin);
+
         BOOST_FOREACH(const CTransaction& tx, block.vtx){
             // Check Mint Zerocoin Transaction
             BOOST_FOREACH(const CTxOut txout, tx.vout) {
@@ -3076,6 +3081,7 @@ bool SetBestChain(CValidationState &state, CBlockIndex* pindexNew)
 
                     CBigNum pubCoin;
                     pubCoin.setvch(vchZeroMint);
+                    int zercoinMintHeight = -1;
 
                     BOOST_FOREACH(const CZerocoinEntry& pubCoinItem, listPubCoin) {
                         if (pubCoinItem.value == pubCoin) {
@@ -3089,8 +3095,26 @@ bool SetBestChain(CValidationState &state, CBlockIndex* pindexNew)
                             pubCoinTx.value = pubCoinItem.value;
                             pubCoinTx.nHeight = -1;
                             walletdb.WriteZerocoinEntry(pubCoinTx);
-                            printf("RESET PUBCOIN ID: %d HEIGHT: %d\n", pubCoinTx.id, pindex->nHeight);
+                            printf("- Connect Reset Pubcoin Id: %d Height: %d\n", pubCoinTx.id, pindex->nHeight);
+                            zercoinMintHeight = pindex->nHeight;
                         }
+                    }
+
+
+                    BOOST_FOREACH(const CZerocoinEntry& pubCoinItem, listPubCoin) {
+                        if (pubCoinItem.nHeight > zercoinMintHeight) {
+                            CZerocoinEntry pubCoinTx;
+                            pubCoinTx.id = -1;
+                            pubCoinTx.IsUsed = pubCoinItem.IsUsed;
+                            pubCoinTx.randomness = pubCoinItem.randomness;
+                            pubCoinTx.denomination = pubCoinItem.denomination;
+                            pubCoinTx.serialNumber = pubCoinItem.serialNumber;
+                            pubCoinTx.value = pubCoin;
+                            pubCoinTx.nHeight = -1;
+                            printf("- Connect Reset Pubcoin Id: %d Height: %d\n", pubCoinTx.id, pubCoinItem.nHeight);
+                            walletdb.WriteZerocoinEntry(pubCoinTx);
+                        }
+
                     }
 
 
@@ -3122,6 +3146,7 @@ bool SetBestChain(CValidationState &state, CBlockIndex* pindexNew)
         list<CZerocoinEntry> listPubCoin = list<CZerocoinEntry>();
         CWalletDB walletdb(pwalletMain->strWalletFile);
         walletdb.ListPubCoin(listPubCoin);
+
         BOOST_FOREACH(const CTransaction& tx, block.vtx){
             // Check Mint Zerocoin Transaction
             BOOST_FOREACH(const CTxOut txout, tx.vout) {
@@ -3175,6 +3200,8 @@ bool SetBestChain(CValidationState &state, CBlockIndex* pindexNew)
                             walletdb.WriteZerocoinEntry(pubCoinTx);
                         }
                     }
+
+
 
 
                 }
