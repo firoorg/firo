@@ -2316,6 +2316,12 @@ unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBl
 
     }
 
+    if(!fTestNet && pindexLast->nHeight + 1 >= 3356){
+
+        return bnProofOfWorkLimit.GetCompact();
+
+    }
+
     if(fTestNet && pindexLast->nHeight + 1 >= 138 && pindexLast->nHeight + 1 <= 173){
 
         return bnProofOfWorkLimit.GetCompact();
