@@ -1048,7 +1048,7 @@ bool AppInit2(boost::thread_group& threadGroup)
                 pubCoinTx.serialNumber = pubCoinItem.serialNumber;
                 pubCoinTx.nHeight = -1;
                 pubCoinTx.IsUsed = pubCoinItem.IsUsed;
-                //printf("- Reindex Pubcoin Id: %d Denomination: %d\n", pubCoinTx.id, pubCoinTx.denomination);
+                printf("- Reindex Pubcoin Id: %d Denomination: %d\n", pubCoinTx.id, pubCoinTx.denomination);
                 walletdb.WriteZerocoinEntry(pubCoinTx);
 
             }
@@ -1056,15 +1056,14 @@ bool AppInit2(boost::thread_group& threadGroup)
 
             CBlockIndex* pindexRecur = pindexGenesisBlock;
             {
-                list<CZerocoinEntry> listPubCoinInLoop = list<CZerocoinEntry>();
-                CWalletDB walletdbInLoop(pwalletMain->strWalletFile);
-                walletdbInLoop.ListPubCoin(listPubCoinInLoop);
-
                 while (pindexRecur)
                 {
                     CBlock blockRecur;
                     blockRecur.ReadFromDisk(pindexRecur);
 
+                    list<CZerocoinEntry> listPubCoinInLoop = list<CZerocoinEntry>();
+                    CWalletDB walletdbInLoop(pwalletMain->strWalletFile);
+                    walletdbInLoop.ListPubCoin(listPubCoinInLoop);
 
                     BOOST_FOREACH(const CTransaction& tx, blockRecur.vtx){
                             // Check Mint Zerocoin Transaction
@@ -1075,7 +1074,7 @@ bool AppInit2(boost::thread_group& threadGroup)
 
                                     CBigNum pubCoin;
                                     pubCoin.setvch(vchZeroMint);
-                                    //printf("FOUND MINT ZEROCOIN AT HEIGHT = %d\n", pindexRecur->nHeight);
+                                    printf("FOUND MINT ZEROCOIN AT HEIGHT = %d\n", pindexRecur->nHeight);
 
                                     BOOST_FOREACH(const CZerocoinEntry& pubCoinItem, listPubCoinInLoop) {
                                         if (pubCoinItem.value == pubCoin) {
@@ -1083,7 +1082,7 @@ bool AppInit2(boost::thread_group& threadGroup)
                                             CZerocoinEntry pubCoinTx;
 
                                             // PUBCOIN IS IN DB, BUT NOT UPDATE ID
-                                            //printf("UPDATING\n");
+                                            printf("UPDATING\n");
                                             // GET MAX ID
                                             int currentId = 1;
                                             BOOST_FOREACH(const CZerocoinEntry& maxIdPubcoin, listPubCoinInLoop) {
@@ -1097,7 +1096,7 @@ bool AppInit2(boost::thread_group& threadGroup)
                                             BOOST_FOREACH(const CZerocoinEntry& countItemPubcoin, listPubCoinInLoop) {
                                                 if (currentId == countItemPubcoin.id && countItemPubcoin.denomination == pubCoinItem.denomination) {
                                                     countExistingItems++;
-                                                    //printf("pubCoinItem.id = %d denomination =  %d\n", countItemPubcoin.id, countItemPubcoin.denomination);
+                                                    printf("pubCoinItem.id = %d denomination =  %d\n", countItemPubcoin.id, countItemPubcoin.denomination);
                                                 }
                                             }
 
@@ -1116,7 +1115,7 @@ bool AppInit2(boost::thread_group& threadGroup)
                                             pubCoinTx.serialNumber = pubCoinItem.serialNumber;
                                             pubCoinTx.value = pubCoinItem.value;
                                             pubCoinTx.nHeight = pindexRecur->nHeight;
-                                            //printf("REORG PUBCOIN ID: %d HEIGHT: %d DENOMINATION: %d\n", pubCoinTx.id, pubCoinTx.nHeight,pubCoinItem.denomination);
+                                            printf("REORG PUBCOIN ID: %d HEIGHT: %d DENOMINATION: %d\n", pubCoinTx.id, pubCoinTx.nHeight,pubCoinItem.denomination);
                                             walletdbInLoop.WriteZerocoinEntry(pubCoinTx);
                                         }
                                     }
