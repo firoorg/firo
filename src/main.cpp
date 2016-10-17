@@ -2316,12 +2316,6 @@ unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBl
 
     }
 
-    // Regression Testing
-    if(!fTestNet && pindexLast->nHeight + 1 >= 3514){
-
-        return bnProofOfWorkLimit.GetCompact();
-
-    }
 
     if(fTestNet && pindexLast->nHeight + 1 >= 138 && pindexLast->nHeight + 1 <= 173){
 
@@ -4268,7 +4262,7 @@ bool InitBlockIndex() {
             block.nBits    = startBits;
         }
 
-        //// debug print(!fTestnet
+        //// debug print
         uint256 hash = block.GetHash();
 
         printf("block.GetHash = %s\n", hash.ToString().c_str());
