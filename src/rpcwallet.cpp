@@ -1804,7 +1804,18 @@ Value removetxmempool(const Array& params, bool fHelp)
     if (pwalletMain->IsLocked())
         throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Error: Please enter the wallet passphrase with walletpassphrase first.");
 
-    pwalletMain->EraseFromWallet(hash);
+
+    LOCK(cs_main);
+    {
+        LOCK(mempool.cs);
+        if (mempool.exists(hash))
+        {
+            CTransaction tx;
+            tx = mempool.lookup(hash);
+            mempool.remove(tx);
+            return Value::null;
+        }
+    }
 
     return Value::null;
 }
