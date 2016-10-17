@@ -1787,7 +1787,8 @@ bool CScript::IsZerocoinMint() const
 
 bool CScript::IsZerocoinSpend() const
 {
-    return (this->at(0) == OP_ZEROCOINSPEND);
+    return (this->size() > 0 &&
+            this->at(0) == OP_ZEROCOINSPEND);
 }
 
 bool CScript::HasCanonicalPushes() const
