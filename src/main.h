@@ -36,7 +36,7 @@ static const unsigned int MAX_BLOCK_SIZE_GEN = MAX_BLOCK_SIZE/4;         // 500K
 /** Default for -blockmaxsize, maximum size for mined blocks **/
 static const unsigned int DEFAULT_BLOCK_MAX_SIZE = 500000;
 /** Default for -blockprioritysize, maximum space for zero/low-fee transactions **/
-static const unsigned int DEFAULT_BLOCK_PRIORITY_SIZE = 17000; // ZOMG
+static const unsigned int DEFAULT_BLOCK_PRIORITY_SIZE = 50000; // 50KB
 /** The maximum size for transactions we're willing to relay/mine */
 static const unsigned int MAX_STANDARD_TX_SIZE = 300000;
 /** The maximum allowed number of signature check operations in a block (network rule) */

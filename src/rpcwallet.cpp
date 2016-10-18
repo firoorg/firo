@@ -1791,18 +1791,49 @@ Value resetmintzerocoin(const Array& params, bool fHelp)
     return Value::null;
 }
 
-Value removemintzerocoin(const Array& params, bool fHelp)
+Value removetxmempool(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() != 0)
+    if (fHelp || params.size() != 1)
         throw runtime_error(
-            "removemintzerocoin <txid>\n"
+            "removetxmempool <txid>\n"
             + HelpRequiringPassphrase());
 
     uint256 hash;
     hash.SetHex(params[0].get_str());
 
-    BOOST_FOREACH(CWallet* pwallet, setpwalletRegistered)
-        pwallet->EraseFromWallet(hash);
+    if (pwalletMain->IsLocked())
+        throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Error: Please enter the wallet passphrase with walletpassphrase first.");
+
+
+    LOCK(cs_main);
+    {
+        LOCK(mempool.cs);
+        if (mempool.exists(hash))
+        {
+            CTransaction tx;
+            tx = mempool.lookup(hash);
+            mempool.remove(tx);
+            return Value::null;
+        }
+    }
+
+    return Value::null;
+}
+
+Value removetxwallet(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 1)
+        throw runtime_error(
+            "removetxwallet <txid>\n"
+            + HelpRequiringPassphrase());
+
+    uint256 hash;
+    hash.SetHex(params[0].get_str());
+
+    if (pwalletMain->IsLocked())
+        throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Error: Please enter the wallet passphrase with walletpassphrase first.");
+
+    pwalletMain->EraseFromWallet(hash);
 
     return Value::null;
 }

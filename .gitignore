@@ -1,3 +1,4 @@
 zcoin-qt
-src/obj/*
 build/*
+src/obj/*
+src/zcoind

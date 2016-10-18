@@ -1423,7 +1423,6 @@ bool IsMine(const CKeyStore &keystore, const CScript& scriptPubKey)
     case TX_NONSTANDARD:
     case TX_NULL_DATA:
     case TX_ZEROCOINMINT:
-        return false;
     case TX_PUBKEY:
         keyID = CPubKey(vSolutions[0]).GetID();
         return keystore.HaveKey(keyID);
@@ -1782,12 +1781,14 @@ bool CScript::IsPayToScriptHash() const
 bool CScript::IsZerocoinMint() const
 {
     // Extra-fast test for Zerocoin Mint CScripts:
-    return (this->at(0) == OP_ZEROCOINMINT);
+    return (this->size() > 0 &&
+            this->at(0) == OP_ZEROCOINMINT);
 }
 
 bool CScript::IsZerocoinSpend() const
 {
-    return (this->at(0) == OP_ZEROCOINSPEND);
+    return (this->size() > 0 &&
+            this->at(0) == OP_ZEROCOINSPEND);
 }
 
 bool CScript::HasCanonicalPushes() const
