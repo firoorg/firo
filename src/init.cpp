@@ -1129,7 +1129,7 @@ bool AppInit2(boost::thread_group& threadGroup)
             }
 
         }
-        */
+
 
 
         DBErrors nLoadWalletRet = pwalletMain->LoadWallet(fFirstRun);
