@@ -190,6 +190,7 @@ extern json_spirit::Value mintzerocoin(const json_spirit::Array& params, bool fH
 extern json_spirit::Value spendzerocoin(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value resetmintzerocoin(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value removetxmempool(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value removetxwallet(const json_spirit::Array& params, bool fHelp);
 
 
 extern json_spirit::Value getrawtransaction(const json_spirit::Array& params, bool fHelp); // in rcprawtransaction.cpp
