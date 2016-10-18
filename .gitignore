@@ -1,5 +1,4 @@
 zcoin-qt
 build/*
 !build/.gitkeep
-src/obj/*
 src/zcoind
