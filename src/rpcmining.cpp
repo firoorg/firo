@@ -503,7 +503,7 @@ Value getblocktemplate(const Array& params, bool fHelp)
         uint256 txHash = tx.GetHash();
         setTxIndex[txHash] = i++;
 
-        if (tx.IsCoinBase() || tx.IsZerocoinSpend())
+        if (tx.IsCoinBase())
             continue;
 
         Object entry;
