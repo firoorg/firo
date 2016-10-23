@@ -507,7 +507,7 @@ Value getblocktemplate(const Array& params, bool fHelp)
         if (tx.IsCoinBase())
             continue;
 
-        if (tx.IsZerocoinSpend() && COUNT_SPEND_ZC_TX > 1){
+        if (COUNT_SPEND_ZC_TX > 1 && tx.IsZerocoinSpend()){
             continue;
         }else{
             COUNT_SPEND_ZC_TX++;
