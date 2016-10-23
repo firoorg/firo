@@ -26,7 +26,7 @@ Value GetNetworkHashPS(int lookup, int height) {
 
     // If lookup is -1, then use blocks since last difficulty change.
     if (lookup <= 0)
-        lookup = pb->nHeight % 2016 + 1;
+        lookup = pb->nHeight % 6 + 1;
 
     // If lookup is larger than chain, then set it to chain length.
     if (lookup > pb->nHeight)
@@ -498,6 +498,7 @@ Value getblocktemplate(const Array& params, bool fHelp)
     Array transactions;
     map<uint256, int64_t> setTxIndex;
     int i = 0;
+    unsigned int COUNT_SPEND_ZC_TX = 0;
     BOOST_FOREACH (CTransaction& tx, pblock->vtx)
     {
         uint256 txHash = tx.GetHash();
@@ -505,6 +506,12 @@ Value getblocktemplate(const Array& params, bool fHelp)
 
         if (tx.IsCoinBase())
             continue;
+
+        if (COUNT_SPEND_ZC_TX > 1 && tx.IsZerocoinSpend()){
+            continue;
+        }else{
+            COUNT_SPEND_ZC_TX++;
+        }
 
         Object entry;
 
