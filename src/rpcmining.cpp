@@ -499,6 +499,7 @@ Value getblocktemplate(const Array& params, bool fHelp)
     map<uint256, int64_t> setTxIndex;
     int i = 0;
     unsigned int COUNT_SPEND_ZC_TX = 0;
+    unsigned int MAX_SPEND_ZC_TX_PER_BLOCK = 1;
     BOOST_FOREACH (CTransaction& tx, pblock->vtx)
     {
         uint256 txHash = tx.GetHash();
@@ -507,9 +508,14 @@ Value getblocktemplate(const Array& params, bool fHelp)
         if (tx.IsCoinBase())
             continue;
 
-        if (COUNT_SPEND_ZC_TX > 1 && tx.IsZerocoinSpend()){
-            continue;
-        }else{
+        // https://github.com/zcoinofficial/zcoin/pull/26
+        // make order independence
+        // and easy to read for other people
+        if (tx.IsZerocoinSpend()) {
+            if (COUNT_SPEND_ZC_TX >= MAX_SPEND_ZC_TX_PER_BLOCK) {
+                continue;
+            }
+
             COUNT_SPEND_ZC_TX++;
         }
 
