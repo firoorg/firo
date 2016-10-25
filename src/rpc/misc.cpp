@@ -74,7 +74,9 @@ UniValue getinfo(const JSONRPCRequest& request)
         );
 
 #ifdef ENABLE_WALLET
-    LOCK2(cs_main, pwalletMain ? &pwalletMain->cs_wallet : NULL);
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+
+    LOCK2(cs_main, pwallet ? &pwallet->cs_wallet : NULL);
 #else
     LOCK(cs_main);
 #endif
@@ -86,9 +88,9 @@ UniValue getinfo(const JSONRPCRequest& request)
     obj.push_back(Pair("version", CLIENT_VERSION));
     obj.push_back(Pair("protocolversion", PROTOCOL_VERSION));
 #ifdef ENABLE_WALLET
-    if (pwalletMain) {
-        obj.push_back(Pair("walletversion", pwalletMain->GetVersion()));
-        obj.push_back(Pair("balance",       ValueFromAmount(pwalletMain->GetBalance())));
+    if (pwallet) {
+        obj.push_back(Pair("walletversion", pwallet->GetVersion()));
+        obj.push_back(Pair("balance",       ValueFromAmount(pwallet->GetBalance())));
     }
 #endif
     obj.push_back(Pair("blocks",        (int)chainActive.Height()));
@@ -99,11 +101,11 @@ UniValue getinfo(const JSONRPCRequest& request)
     obj.push_back(Pair("difficulty",    (double)GetDifficulty()));
     obj.push_back(Pair("testnet",       Params().NetworkIDString() == CBaseChainParams::TESTNET));
 #ifdef ENABLE_WALLET
-    if (pwalletMain) {
-        obj.push_back(Pair("keypoololdest", pwalletMain->GetOldestKeyPoolTime()));
-        obj.push_back(Pair("keypoolsize",   (int)pwalletMain->GetKeyPoolSize()));
+    if (pwallet) {
+        obj.push_back(Pair("keypoololdest", pwallet->GetOldestKeyPoolTime()));
+        obj.push_back(Pair("keypoolsize",   (int)pwallet->GetKeyPoolSize()));
     }
-    if (pwalletMain && pwalletMain->IsCrypted())
+    if (pwallet && pwallet->IsCrypted())
         obj.push_back(Pair("unlocked_until", nWalletUnlockTime));
     obj.push_back(Pair("paytxfee",      ValueFromAmount(payTxFee.GetFeePerK())));
     obj.push_back(Pair("mininput",      ValueFromAmount(nMinimumInputValue)));
@@ -182,7 +184,9 @@ UniValue validateaddress(const JSONRPCRequest& request)
         );
 
 #ifdef ENABLE_WALLET
-    LOCK2(cs_main, pwalletMain ? &pwalletMain->cs_wallet : NULL);
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+
+    LOCK2(cs_main, pwallet ? &pwallet->cs_wallet : NULL);
 #else
     LOCK(cs_main);
 #endif
@@ -202,16 +206,16 @@ UniValue validateaddress(const JSONRPCRequest& request)
         ret.push_back(Pair("scriptPubKey", HexStr(scriptPubKey.begin(), scriptPubKey.end())));
 
 #ifdef ENABLE_WALLET
-        isminetype mine = pwalletMain ? IsMine(*pwalletMain, dest) : ISMINE_NO;
+        isminetype mine = pwallet ? IsMine(*pwallet, dest) : ISMINE_NO;
         ret.push_back(Pair("ismine", (mine & ISMINE_SPENDABLE) ? true : false));
         ret.push_back(Pair("iswatchonly", (mine & ISMINE_WATCH_ONLY) ? true: false));
-        UniValue detail = boost::apply_visitor(DescribeAddressVisitor(), dest);
+        UniValue detail = boost::apply_visitor(DescribeAddressVisitor(pwallet), dest);
         ret.pushKVs(detail);
-        if (pwalletMain && pwalletMain->mapAddressBook.count(dest))
-            ret.push_back(Pair("account", pwalletMain->mapAddressBook[dest].name));
+        if (pwallet && pwallet->mapAddressBook.count(dest))
+            ret.push_back(Pair("account", pwallet->mapAddressBook[dest].name));
         CKeyID keyID;
-        if (pwalletMain) {
-            const auto& meta = pwalletMain->mapKeyMetadata;
+        if (pwallet) {
+            const auto& meta = pwallet->mapKeyMetadata;
             auto it = address.GetKeyID(keyID) ? meta.find(keyID) : meta.end();
             if (it == meta.end()) {
                 it = meta.find(CScriptID(scriptPubKey));
@@ -333,6 +337,12 @@ UniValue znsync(const JSONRPCRequest& request)
 
 UniValue createmultisig(const JSONRPCRequest& request)
 {
+#ifdef ENABLE_WALLET
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+#else
+    CWallet * const pwallet = NULL;
+#endif
+
     if (request.fHelp || request.params.size() < 2 || request.params.size() > 2)
     {
         string msg = "createmultisig nrequired [\"key\",...]\n"
@@ -363,7 +373,7 @@ UniValue createmultisig(const JSONRPCRequest& request)
     }
 
     // Construct using pay-to-script-hash:
-    CScript inner = _createmultisig_redeemScript(request.params);
+    CScript inner = _createmultisig_redeemScript(pwallet, request.params);
     CScriptID innerID(inner);
     CBitcoinAddress address(innerID);
 

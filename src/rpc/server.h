@@ -211,7 +211,13 @@ extern UniValue znodelist(const JSONRPCRequest &request);
 extern UniValue znodebroadcast(const JSONRPCRequest &request);
 extern UniValue znsync(const JSONRPCRequest &request);
 
-extern void EnsureWalletIsUnlocked();
+#ifdef ENABLE_WALLET
+// New code should accessing the wallet should be under the ../wallet/ directory
+CWallet *GetWalletForJSONRPCRequest(const JSONRPCRequest&);
+std::string HelpRequiringPassphrase(CWallet *);
+void EnsureWalletIsUnlocked(CWallet *);
+bool EnsureWalletIsAvailable(CWallet *, bool avoidException);
+#endif
 
 bool StartRPC();
 void InterruptRPC();
