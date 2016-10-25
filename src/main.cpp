@@ -5839,6 +5839,9 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
     unsigned int nBlockMinSize = GetArg("-blockminsize", 0);
     nBlockMinSize = std::min(nBlockMaxSize, nBlockMinSize);
 
+    unsigned int COUNT_SPEND_ZC_TX = 0;
+    unsigned int MAX_SPEND_ZC_TX_PER_BLOCK = 1;
+
     // Collect memory pool transactions into the block
     int64 nFees = 0;
     {
@@ -5861,7 +5864,7 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
         vector<TxPriority> vecPriority;
         vecPriority.reserve(mempool.mapTx.size());
 
-        printf("mempool.mapTx.size() = %d\n", mempool.mapTx.size());
+        // printf("mempool.mapTx.size() = %d\n", mempool.mapTx.size());
 
         for (map<uint256, CTransaction>::iterator mi = mempool.mapTx.begin(); mi != mempool.mapTx.end(); ++mi)
         {
@@ -5871,6 +5874,11 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
 
             if (tx.IsZerocoinSpend())
             {
+
+                if (COUNT_SPEND_ZC_TX >= MAX_SPEND_ZC_TX_PER_BLOCK) {
+                    continue;
+                }
+
                 //mempool.countZCSpend--;
                 // Size limits
                 unsigned int nTxSize = ::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION);
@@ -5899,6 +5907,7 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
                 ++nBlockTx;
                 nBlockSigOps += nTxSigOps;
                 nFees += nTxFees;
+                COUNT_SPEND_ZC_TX++;
                 continue;
             }
 
