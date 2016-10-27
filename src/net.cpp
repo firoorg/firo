@@ -1085,7 +1085,8 @@ void ThreadMapPort()
 #else
     /* miniupnpc 1.6 */
     int error = 0;
-    devlist = upnpDiscover(2000, multicastif, minissdpdpath, 0, 0, &error);
+    // remove the 2 if you have trouble compiling - I had to add it for miniupnpc 2.0
+    devlist = upnpDiscover(2000, multicastif, minissdpdpath, 0, 0, 2, &error);
 #endif
 
     struct UPNPUrls urls;

@@ -309,7 +309,7 @@ void scrypt_detect_sse2(unsigned int cpuid_edx)
 
 void scrypt_N_1_1_256(const char *input, char *output, unsigned char Nfactor)
 {
-	char scratchpad[((1 << (Nfactor + 1)) * 128 ) + 63];
+	char *scratchpad = (char *) malloc((((1 << (Nfactor + 1)) * 128 ) + 63  ) * sizeof (char));
 #if defined(USE_SSE2)
         // Detection would work, but in cases where we KNOW it always has SSE2,
         // it is faster to use directly than to use a function pointer or conditional.
@@ -324,4 +324,5 @@ void scrypt_N_1_1_256(const char *input, char *output, unsigned char Nfactor)
         // Generic scrypt
         scrypt_N_1_1_256_sp_generic(input, output, scratchpad, Nfactor);
 #endif
+  free(scratchpad);
 }
