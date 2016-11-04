@@ -1357,7 +1357,9 @@ public:
     {
         uint256 thash;
 
-        if( !fTestNet && height >= 500){
+        if( !fTestNet && height >= 8192){
+            LYRA2(BEGIN(thash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, 8192, 256);
+        }else if( !fTestNet && height >= 500){
             LYRA2(BEGIN(thash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, height, 256);
         }else if(fTestNet && height >= 138){
             LYRA2(BEGIN(thash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, height, 256);
