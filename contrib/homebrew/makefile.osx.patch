@@ -22,7 +22,7 @@ index bef0ef3..07ef8d3 100644
  
  LIBPATHS= \
   -L"$(DEPSDIR)/lib" \
-- -L"$(DEPSDIR)/lib/db48"
+- -L"$(DEPSDIR)/opt/berkeley-db4/lib"
 + -L"$(DB4DIR)/lib" \
 + -L"$(OPENSSLDIR)/lib"
  
