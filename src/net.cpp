@@ -1194,16 +1194,16 @@ void MapPort(bool)
 // The first name is used as information source for addrman.
 // The second name should resolve to a list of seed addresses.
 static const char *strMainNetDNSSeed[][2] = {
-    {"sf1.zcoin.tech", "sf1.zcoin.tech"},
-    {"sf2.zcoin.tech", "sf2.zcoin.tech"},
-    {"london.zcoin.tech", "london.zcoin.tech"},
-    {"singapore.zcoin.tech", "singapore.zcoin.tech"},
-    {"nyc.zcoin.tech", "nyc.zcoin.tech"},
+    {"sf1.zcoin.finance", "sf1.zcoin.finance"},
+    {"sf2.zcoin.finance", "sf2.zcoin.finance"},
+    {"london.zcoin.finance", "london.zcoin.finance"},
+    {"singapore.zcoin.finance", "singapore.zcoin.finance"},
+    {"nyc.zcoin.finance", "nyc.zcoin.finance"},
     {NULL, NULL}
 };
 
 static const char *strTestNetDNSSeed[][2] = {
-    {"beta.zcoin.tech", "beta.zcoin.tech"},
+    {"beta.zcoin.finance", "beta.zcoin.finance"},
     {NULL, NULL}
 };
 
@@ -1252,27 +1252,7 @@ void ThreadDNSAddressSeed()
 
 unsigned int pnSeed[] =
 {
-    0x3fe9e2bc, 0x30efe2bc, 0xdb68aa6b, 0xaf83b992, 0x816cbd43, 0x196bf3a2,
-    0xa9631f32, 0xa949aa6b, 0x2218e455, 0x9a3c555f, 0x46a8f1c0, 0x94108abc,
-    0xe822ea5b, 0x5525d1b2, 0xf4930905, 0x523c7155, 0x4a8ef3a2, 0xedd40ab0,
-    0x40c5ffad, 0x72185fc0, 0x6f8faa6b, 0x36b79ac3, 0xb1f6c780, 0x128e5542,
-    0x3ec9d431, 0xf120ea5b, 0x89431bc6, 0xf27f0fc6, 0xa4d9e2bc, 0x536d624f,
-    0x0a2d08cc, 0x1466d35f, 0x060b2b43, 0xc409ba32, 0x4dc4ec57, 0xa2dbaa6b,
-    0x49115443, 0x686e8ad5, 0xee495536, 0x44bce2bc, 0x7f03555f, 0xdbd4ba36,
-    0x2fc45336, 0x689463c0, 0x5cc7aa6b, 0x2b311aad, 0x31fae3bc, 0xc0216751,
-    0x0bb08618, 0x14110467, 0xd7afbc36, 0x47c4aa6b, 0x0c2d306c, 0x7712e162,
-    0x3a2becad, 0x0e2d306c, 0x5a1e5b4a, 0xe2ba986b, 0x0c5247c6, 0x8fd4c04a,
-    0xa786d0d9, 0x90411e51, 0xd0b51fb0, 0xbea663c0, 0x091c6f5f, 0xc90b1256,
-    0xf6ccd459, 0x33c759db, 0x06090da2, 0xfc67b94c, 0x145fe405, 0x2bc8615d,
-    0x11e9b746, 0x13543025, 0xb5b94846, 0x113e9632, 0x6bfdb158, 0xfb98e65e,
-    0xe2b8397a, 0x6b911ead, 0x326d1e32, 0x50bf5046, 0xcaca87dc, 0x0bace25b,
-    0xdcc2c447, 0x2591fd3e, 0x88b990c6, 0x0fdca73b, 0x22f6f460, 0x86b1e2bc,
-    0x15e30e18, 0xb9c44705, 0x3729644b, 0xfba8a7b8, 0x4e049ab8, 0xe340bb18,
-    0xdfb30d6c, 0x45205743, 0xc6e96c5c, 0x7d591a52, 0x385ece4a, 0x9894b548,
-    0xa9fe186d, 0xce07698e, 0xca406a18, 0x9b262f48, 0xeac35b54, 0xca8e4132,
-    0x12af60d4, 0x964315d5, 0xe6c5cf70, 0x6a7f2c42, 0xc1490218, 0x107ef547,
-    0x60611c6c, 0x8d9a9544, 0xf79fa945, 0xcc0102bc, 0x0745f545, 0xdb9b8248,
-    0xaf5dad80, 0x2560b65f, 0x3124464d, 0x7fe00dda, 0x51e6e362, 0x9e4bfc18
+    0x34bb2958, 0x34b22272, 0x284c48d2
 };
 
 void DumpAddresses()
