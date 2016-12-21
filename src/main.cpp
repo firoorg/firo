@@ -649,7 +649,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                    FOUNDER_3_SCRIPT.SetDestination(CBitcoinAddress("aQ18FBVFtnueucZKeVg4srhmzbpAeb1KoN").Get());
                 }else{
                    FOUNDER_2_SCRIPT.SetDestination(CBitcoinAddress("aHu897ivzmeFuLNB6956X6gyGeVNHUBRgD").Get());
-                   FOUNDER_3_SCRIPT.SetDestination(CBitcoinAddress("aL6toodJu2aXkAWqMVbp42ySfcYGgVMJk4").Get());
+                   FOUNDER_3_SCRIPT.SetDestination(CBitcoinAddress("aQ18FBVFtnueucZKeVg4srhmzbpAeb1KoN").Get());
                 }
                 FOUNDER_4_SCRIPT.SetDestination(CBitcoinAddress("a1HwTdCmQV3NspP2QqCGpehoFpi8NY4Zg3").Get());
                 FOUNDER_5_SCRIPT.SetDestination(CBitcoinAddress("a1kCCGddf5pMXSipLVD9hBG2MGGVNaJ15U").Get());
@@ -5806,7 +5806,7 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
                 FOUNDER_3_SCRIPT.SetDestination(CBitcoinAddress("aQ18FBVFtnueucZKeVg4srhmzbpAeb1KoN").Get());
              }else{
                 FOUNDER_2_SCRIPT.SetDestination(CBitcoinAddress("aHu897ivzmeFuLNB6956X6gyGeVNHUBRgD").Get());
-                FOUNDER_3_SCRIPT.SetDestination(CBitcoinAddress("aL6toodJu2aXkAWqMVbp42ySfcYGgVMJk4").Get());
+                FOUNDER_3_SCRIPT.SetDestination(CBitcoinAddress("aQ18FBVFtnueucZKeVg4srhmzbpAeb1KoN").Get());
              }
              FOUNDER_4_SCRIPT.SetDestination(CBitcoinAddress("a1HwTdCmQV3NspP2QqCGpehoFpi8NY4Zg3").Get());
              FOUNDER_5_SCRIPT.SetDestination(CBitcoinAddress("a1kCCGddf5pMXSipLVD9hBG2MGGVNaJ15U").Get());
