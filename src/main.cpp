@@ -3236,13 +3236,12 @@ bool SetBestChain(CValidationState &state, CBlockIndex* pindexNew)
                             walletdb.WriteZerocoinEntry(pubCoinTx);
                         }
                     }
-
-
-
-
                 }
             }
+
         }
+
+        walletdb.WriteCalculatedZCBlock(pindex->nHeight);
     }
 
     // Flush changes to global coin state
