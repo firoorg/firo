@@ -1,5 +1,7 @@
-zcoin: Qt4 GUI for zcoin
+zcoin: Qt GUI for zcoin
 ===============================
+
+Modified by Aizen Sou (aizen0sou@gmail.com) @ 2017
 
 Build instructions
 ===================
@@ -52,31 +54,38 @@ Mac OS X
 
 - Download and install the `Qt Mac OS X SDK`_. It is recommended to also install Apple's Xcode with UNIX tools.
 
-- Download and install either `MacPorts`_ or `HomeBrew`_.
-
-- Execute the following commands in a terminal to get the dependencies using MacPorts:
-
-::
-
-	sudo port selfupdate
-	sudo port install boost db48 miniupnpc
+- Download and install `HomeBrew`_.
 
 - Execute the following commands in a terminal to get the dependencies using HomeBrew:
 
 ::
 
 	brew update
-	brew install boost miniupnpc openssl berkeley-db4
+    brew install automake berkeley-db4 libtool boost --c++11 miniupnpc openssl pkg-config --c++11 qt5
 
-- If using HomeBrew,  edit `zcoin-qt.pro` to account for library location differences. There's a diff in `contrib/homebrew/bitcoin-qt-pro.patch` that shows what you need to change, or you can just patch by doing
+- Make sure to enfore linking qmake in the Terminal.app
 
-        patch -p1 < contrib/homebrew/bitcoin.qt.pro.patch
+::
+
+    brew link qt5 --force
 
 - Open the zcoin-qt.pro file in Qt Creator and build as normal (cmd-B)
 
 .. _`Qt Mac OS X SDK`: http://qt-project.org/downloads/
-.. _`MacPorts`: http://www.macports.org/install.php
 .. _`HomeBrew`: http://mxcl.github.io/homebrew/
+
+- Or using Terminal with:
+
+::
+
+    qmake "RELEASE=1" zcoin.pro
+    make
+
+- After that you could deploy the app with
+
+::
+
+    contrib/macdeploy/macdeployqtplus zcoin-qt.app -dmg -fancy contrib/macdeploy/fancy.plist -verbose 2
 
 
 Build configuration options

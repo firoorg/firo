@@ -1262,7 +1262,7 @@ void DumpAddresses()
     CAddrDB adb;
     adb.Write(addrman);
 
-    printf("Flushed %d addresses to peers.dat  %"PRI64d"ms\n",
+    printf("Flushed %d addresses to peers.dat  %" PRI64d"ms\n",
            addrman.size(), GetTimeMillis() - nStart);
 }
 

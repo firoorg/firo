@@ -5,7 +5,7 @@ https://zcoin.finance/
 
  Copyright (c) 2009 - 2016 Bitcoin Developers
  
- Copyright (c) 2015 - 2016 ZCoin Developers
+ Copyright (c) 2015 - 2017 ZCoin Developers
 
 What is ZCoin?
 ----------------
