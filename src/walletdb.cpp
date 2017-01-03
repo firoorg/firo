@@ -83,6 +83,17 @@ bool CWalletDB::EarseZerocoinEntry(const CZerocoinEntry& zerocoin)
     return Erase(make_pair(string("zerocoin"), zerocoin.value));
 }
 
+// Check Calculated Blocked for Zerocoin
+bool CWalletDB::ReadCalculatedZCBlock(int& hight)
+{
+    hight = 0;
+    return Read(std::string("calculatedzcblock"), hight);
+}
+
+bool CWalletDB::WriteCalculatedZCBlock(int hight)
+{
+    return Write(std::string("calculatedzcblock"), hight);
+}
 
 
 void CWalletDB::ListPubCoin(std::list<CZerocoinEntry>& listPubCoin)
