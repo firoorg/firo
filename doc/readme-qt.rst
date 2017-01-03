@@ -49,6 +49,35 @@ An executable named `zcoin-qt` will be built.
 
 .. _`Qt Creator`: http://qt-project.org/downloads/
 
+
+Ubuntu => 14.04
+-------
+
+First you have to install the dependencies
+Qt4 dependencies :
+
+::
+
+    sudo apt-get install -y build-essential libssl-dev libboost-all-dev libqt4-dev libprotobuf-dev protobuf-compiler libqrencode-dev software-properties-common
+
+
+Qt5 dependencies:
+
+::
+
+    sudo apt-get install -y libqt5gui5 libqt5core5a libqt5dbus5 qttools5-dev qttools5-dev-tools
+
+
+then execute the following:
+
+::
+
+    qmake "RELEASE=1"
+    make
+
+
+
+
 Mac OS X
 --------
 
