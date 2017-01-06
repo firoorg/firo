@@ -16,6 +16,7 @@
 #include "utilstrencodings.h"
 #ifdef ENABLE_WALLET
 #include "znode-sync.h"
+#include "wallet/rpcwallet.h"
 #include "wallet/wallet.h"
 #include "wallet/walletdb.h"
 #endif
@@ -234,6 +235,9 @@ UniValue validateaddress(const JSONRPCRequest& request)
     }
     return ret;
 }
+
+// Needed even with !ENABLE_WALLET, to pass (ignored) pointers around
+class CWallet;
 
 /**
  * Used by addmultisigaddress / createmultisig:

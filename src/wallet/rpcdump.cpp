@@ -17,6 +17,8 @@
 #include "core_io.h"
 #include "authhelper.h"
 
+#include "rpcwallet.h"
+
 #include <fstream>
 #include <stdint.h>
 
