@@ -3,6 +3,7 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include "db.h"
 #include "txdb.h"
 #include "walletdb.h"
 #include "bitcoinrpc.h"
@@ -715,7 +716,7 @@ bool AppInit2(boost::thread_group& threadGroup)
         {
             // try moving the database env out of the way
             boost::filesystem::path pathDatabase = GetDataDir() / "database";
-            boost::filesystem::path pathDatabaseBak = GetDataDir() / strprintf("database.%"PRI64d".bak", GetTime());
+            boost::filesystem::path pathDatabaseBak = GetDataDir() / strprintf("database.%" PRI64d".bak", GetTime());
             try {
                 boost::filesystem::rename(pathDatabase, pathDatabaseBak);
                 printf("Moved old %s to %s. Retrying.\n", pathDatabase.string().c_str(), pathDatabaseBak.string().c_str());
@@ -987,7 +988,7 @@ bool AppInit2(boost::thread_group& threadGroup)
         printf("Shutdown requested. Exiting.\n");
         return false;
     }
-    printf(" block index %15"PRI64d"ms\n", GetTimeMillis() - nStart);
+    printf(" block index %15" PRI64d"ms\n", GetTimeMillis() - nStart);
 
     if (GetBoolArg("-printblockindex") || GetBoolArg("-printblocktree"))
     {
@@ -1030,26 +1031,35 @@ bool AppInit2(boost::thread_group& threadGroup)
         bool fFirstRun = true;
         pwalletMain = new CWallet("wallet.dat");
 
+
+
+
         if (filesystem::exists(GetDataDir() / "wallet.dat"))
         {
             // Zerocoin reorg, calculate new height and id
             list<CZerocoinEntry> listPubCoin = list<CZerocoinEntry>();
             CWalletDB walletdb(pwalletMain->strWalletFile);
+            int lastCalculatedZCBlock = 0;
+            walletdb.ReadCalculatedZCBlock(lastCalculatedZCBlock);
             walletdb.ListPubCoin(listPubCoin);
 
             // RECURSIVE, SET NEW ID
             BOOST_FOREACH(const CZerocoinEntry& pubCoinItem, listPubCoin) {
 
-                CZerocoinEntry pubCoinTx;
-                pubCoinTx.value = pubCoinItem.value;
-                pubCoinTx.id = -1;
-                pubCoinTx.randomness = pubCoinItem.randomness;
-                pubCoinTx.denomination = pubCoinItem.denomination;
-                pubCoinTx.serialNumber = pubCoinItem.serialNumber;
-                pubCoinTx.nHeight = -1;
-                pubCoinTx.IsUsed = pubCoinItem.IsUsed;
-                //printf("- Reindex Pubcoin Id: %d Denomination: %d\n", pubCoinTx.id, pubCoinTx.denomination);
-                walletdb.WriteZerocoinEntry(pubCoinTx);
+                if(pubCoinItem.nHeight < lastCalculatedZCBlock){
+                    continue;
+                }else{
+                    CZerocoinEntry pubCoinTx;
+                    pubCoinTx.value = pubCoinItem.value;
+                    pubCoinTx.id = -1;
+                    pubCoinTx.randomness = pubCoinItem.randomness;
+                    pubCoinTx.denomination = pubCoinItem.denomination;
+                    pubCoinTx.serialNumber = pubCoinItem.serialNumber;
+                    pubCoinTx.nHeight = -1;
+                    pubCoinTx.IsUsed = pubCoinItem.IsUsed;
+                    //printf("- Reindex Pubcoin Id: %d Denomination: %d\n", pubCoinTx.id, pubCoinTx.denomination);
+                    walletdb.WriteZerocoinEntry(pubCoinTx);
+                }
 
             }
 
@@ -1057,74 +1067,83 @@ bool AppInit2(boost::thread_group& threadGroup)
             {
                 while (pindexRecur)
                 {
-                    CBlock blockRecur;
-                    blockRecur.ReadFromDisk(pindexRecur);
+                    //walletdb.ReadCalculatedZCBlock(lastCalculatedZCBlock);
+                    //printf("- lastCalculatedZCBlock: %d\n", lastCalculatedZCBlock);
+                    //printf("PROCESS BLOCK = %d\n", pindexRecur->nHeight);
+                    if(pindexRecur->nHeight < lastCalculatedZCBlock){
+                        pindexRecur = pindexRecur->pnext;
+                        continue;
+                    }else{
+                        CBlock blockRecur;
+                        blockRecur.ReadFromDisk(pindexRecur);
 
-                    list<CZerocoinEntry> listPubCoinInLoop = list<CZerocoinEntry>();
-                    CWalletDB walletdbInLoop(pwalletMain->strWalletFile);
-                    walletdbInLoop.ListPubCoin(listPubCoinInLoop);
+                        list<CZerocoinEntry> listPubCoinInLoop = list<CZerocoinEntry>();
+                        CWalletDB walletdbInLoop(pwalletMain->strWalletFile);
+                        walletdbInLoop.ListPubCoin(listPubCoinInLoop);
 
-                    BOOST_FOREACH(const CTransaction& tx, blockRecur.vtx){
-                            // Check Mint Zerocoin Transaction
-                            BOOST_FOREACH(const CTxOut txout, tx.vout) {
-                                if (!txout.scriptPubKey.empty() && txout.scriptPubKey.IsZerocoinMint()) {
-                                    vector<unsigned char> vchZeroMint;
-                                    vchZeroMint.insert(vchZeroMint.end(), txout.scriptPubKey.begin() + 6, txout.scriptPubKey.begin() + txout.scriptPubKey.size());
+                        BOOST_FOREACH(const CTransaction& tx, blockRecur.vtx){
+                                // Check Mint Zerocoin Transaction
+                                BOOST_FOREACH(const CTxOut txout, tx.vout) {
+                                    if (!txout.scriptPubKey.empty() && txout.scriptPubKey.IsZerocoinMint()) {
+                                        vector<unsigned char> vchZeroMint;
+                                        vchZeroMint.insert(vchZeroMint.end(), txout.scriptPubKey.begin() + 6, txout.scriptPubKey.begin() + txout.scriptPubKey.size());
 
-                                    CBigNum pubCoin;
-                                    pubCoin.setvch(vchZeroMint);
-                                    //printf("FOUND MINT ZEROCOIN AT HEIGHT = %d\n", pindexRecur->nHeight);
+                                        CBigNum pubCoin;
+                                        pubCoin.setvch(vchZeroMint);
+                                        printf("FOUND MINT ZEROCOIN AT HEIGHT = %d\n", pindexRecur->nHeight);
 
-                                    BOOST_FOREACH(const CZerocoinEntry& pubCoinItem, listPubCoinInLoop) {
-                                        if (pubCoinItem.value == pubCoin) {
+                                        BOOST_FOREACH(const CZerocoinEntry& pubCoinItem, listPubCoinInLoop) {
+                                            if (pubCoinItem.value == pubCoin) {
 
-                                            CZerocoinEntry pubCoinTx;
+                                                CZerocoinEntry pubCoinTx;
 
-                                            // PUBCOIN IS IN DB, BUT NOT UPDATE ID
-                                            //printf("UPDATING\n");
-                                            // GET MAX ID
-                                            int currentId = 1;
-                                            BOOST_FOREACH(const CZerocoinEntry& maxIdPubcoin, listPubCoinInLoop) {
-                                                if (maxIdPubcoin.id > currentId && maxIdPubcoin.denomination == pubCoinItem.denomination) {
-                                                    currentId = maxIdPubcoin.id;
+                                                // PUBCOIN IS IN DB, BUT NOT UPDATE ID
+                                                //printf("UPDATING\n");
+                                                // GET MAX ID
+                                                int currentId = 1;
+                                                BOOST_FOREACH(const CZerocoinEntry& maxIdPubcoin, listPubCoinInLoop) {
+                                                    if (maxIdPubcoin.id > currentId && maxIdPubcoin.denomination == pubCoinItem.denomination) {
+                                                        currentId = maxIdPubcoin.id;
+                                                    }
                                                 }
-                                            }
 
-                                            // FIND HOW MANY OF MAX ID
-                                            unsigned int countExistingItems = 0;
-                                            BOOST_FOREACH(const CZerocoinEntry& countItemPubcoin, listPubCoinInLoop) {
-                                                if (currentId == countItemPubcoin.id && countItemPubcoin.denomination == pubCoinItem.denomination) {
-                                                    countExistingItems++;
-                                                    //printf("pubCoinItem.id = %d denomination =  %d\n", countItemPubcoin.id, countItemPubcoin.denomination);
+                                                // FIND HOW MANY OF MAX ID
+                                                unsigned int countExistingItems = 0;
+                                                BOOST_FOREACH(const CZerocoinEntry& countItemPubcoin, listPubCoinInLoop) {
+                                                    if (currentId == countItemPubcoin.id && countItemPubcoin.denomination == pubCoinItem.denomination) {
+                                                        countExistingItems++;
+                                                        //printf("pubCoinItem.id = %d denomination =  %d\n", countItemPubcoin.id, countItemPubcoin.denomination);
+                                                    }
                                                 }
-                                            }
 
-                                            // IF IT IS NOT 10 -> ADD MORE
-                                            if (countExistingItems < 10) {
-                                                pubCoinTx.id = currentId;
-                                            }
-                                            else {// ELSE INCREASE 1 -> ADD
-                                                currentId += 1;
-                                                pubCoinTx.id = currentId;
-                                            }
+                                                // IF IT IS NOT 10 -> ADD MORE
+                                                if (countExistingItems < 10) {
+                                                    pubCoinTx.id = currentId;
+                                                }
+                                                else {// ELSE INCREASE 1 -> ADD
+                                                    currentId += 1;
+                                                    pubCoinTx.id = currentId;
+                                                }
 
-                                            pubCoinTx.IsUsed = pubCoinItem.IsUsed;
-                                            pubCoinTx.randomness = pubCoinItem.randomness;
-                                            pubCoinTx.denomination = pubCoinItem.denomination;
-                                            pubCoinTx.serialNumber = pubCoinItem.serialNumber;
-                                            pubCoinTx.value = pubCoinItem.value;
-                                            pubCoinTx.nHeight = pindexRecur->nHeight;
-                                            //printf("REORG PUBCOIN ID: %d HEIGHT: %d DENOMINATION: %d\n", pubCoinTx.id, pubCoinTx.nHeight,pubCoinItem.denomination);
-                                            walletdbInLoop.WriteZerocoinEntry(pubCoinTx);
+                                                pubCoinTx.IsUsed = pubCoinItem.IsUsed;
+                                                pubCoinTx.randomness = pubCoinItem.randomness;
+                                                pubCoinTx.denomination = pubCoinItem.denomination;
+                                                pubCoinTx.serialNumber = pubCoinItem.serialNumber;
+                                                pubCoinTx.value = pubCoinItem.value;
+                                                pubCoinTx.nHeight = pindexRecur->nHeight;
+                                                //printf("REORG PUBCOIN ID: %d HEIGHT: %d DENOMINATION: %d\n", pubCoinTx.id, pubCoinTx.nHeight,pubCoinItem.denomination);
+                                                walletdbInLoop.WriteZerocoinEntry(pubCoinTx);
+                                            }
                                         }
-                                    }
 
+                                    }
                                 }
-                            }
                         }
 
-                    //printf("PROCESS BLOCK = %d\n", pindexRecur->nHeight);
-                    pindexRecur = pindexRecur->pnext;
+                        //printf("PROCESS BLOCK = %d\n", pindexRecur->nHeight);
+                        walletdb.WriteCalculatedZCBlock(pindexRecur->nHeight);
+                        pindexRecur = pindexRecur->pnext;
+                    }
                 }
             }
 
@@ -1187,7 +1206,7 @@ bool AppInit2(boost::thread_group& threadGroup)
         }
 
         printf("%s", strErrors.str().c_str());
-        printf(" wallet      %15"PRI64d"ms\n", GetTimeMillis() - nStart);
+        printf(" wallet      %15" PRI64d"ms\n", GetTimeMillis() - nStart);
 
         RegisterWallet(pwalletMain);
 
@@ -1210,7 +1229,7 @@ bool AppInit2(boost::thread_group& threadGroup)
             printf("Rescanning last %i blocks (from block %i)...\n", pindexBest->nHeight - pindexRescan->nHeight, pindexRescan->nHeight);
             nStart = GetTimeMillis();
             pwalletMain->ScanForWalletTransactions(pindexRescan, true);
-            printf(" rescan      %15"PRI64d"ms\n", GetTimeMillis() - nStart);
+            printf(" rescan      %15" PRI64d"ms\n", GetTimeMillis() - nStart);
             pwalletMain->SetBestChain(CBlockLocator(pindexBest));
             nWalletDBUpdated++;
         }
@@ -1243,7 +1262,7 @@ bool AppInit2(boost::thread_group& threadGroup)
             printf("Invalid or missing peers.dat; recreating\n");
     }
 
-    printf("Loaded %i addresses from peers.dat  %"PRI64d"ms\n",
+    printf("Loaded %i addresses from peers.dat  %" PRI64d"ms\n",
            addrman.size(), GetTimeMillis() - nStart);
 
     // ********************************************************* Step 11: start node
@@ -1257,11 +1276,11 @@ bool AppInit2(boost::thread_group& threadGroup)
     RandAddSeedPerfmon();
 
     //// debug print
-    printf("mapBlockIndex.size() = %"PRIszu"\n",   mapBlockIndex.size());
+    printf("mapBlockIndex.size() = %" PRIszu"\n",   mapBlockIndex.size());
     printf("nBestHeight = %d\n",                   nBestHeight);
-    printf("setKeyPool.size() = %"PRIszu"\n",      pwalletMain ? pwalletMain->setKeyPool.size() : 0);
-    printf("mapWallet.size() = %"PRIszu"\n",       pwalletMain ? pwalletMain->mapWallet.size() : 0);
-    printf("mapAddressBook.size() = %"PRIszu"\n",  pwalletMain ? pwalletMain->mapAddressBook.size() : 0);
+    printf("setKeyPool.size() = %" PRIszu"\n",      pwalletMain ? pwalletMain->setKeyPool.size() : 0);
+    printf("mapWallet.size() = %" PRIszu"\n",       pwalletMain ? pwalletMain->mapWallet.size() : 0);
+    printf("mapAddressBook.size() = %" PRIszu"\n",  pwalletMain ? pwalletMain->mapAddressBook.size() : 0);
 
     StartNode(threadGroup);
 
