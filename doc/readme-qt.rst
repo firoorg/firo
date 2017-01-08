@@ -76,6 +76,11 @@ then execute the following:
     make
 
 
+If you have trouble with the taskbar doesn't show up in Ubuntu (It's an Unity's specific bug), you could try to fix it with giving this below command in the terminal to restart Unity
+-------
+::
+
+    initctl restart unity-panel-service
 
 
 Mac OS X
