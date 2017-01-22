@@ -3214,7 +3214,7 @@ bool SetBestChain(CValidationState &state, CBlockIndex* pindexNew)
                                 if (currentId == countItemPubcoin.id && countItemPubcoin.denomination == pubCoinItem.denomination) {
                                     countExistingItems++;
                                 }
-                                printf("pubCoinItem.id = %d\n", countItemPubcoin.id);
+                                //printf("pubCoinItem.id = %d\n", countItemPubcoin.id);
                             }
 
                             // IF IT IS NOT 10 -> ADD MORE
@@ -6438,6 +6438,8 @@ void static ScryptMiner(CWallet *pwallet)
 
 void GenerateBitcoins(bool fGenerate, CWallet* pwallet)
 {
+    /* disable wallet mining
+     *
     static boost::thread_group* minerThreads = NULL;
 
     int nThreads = GetArg("-genproclimit", -1);
@@ -6457,6 +6459,7 @@ void GenerateBitcoins(bool fGenerate, CWallet* pwallet)
     minerThreads = new boost::thread_group();
     for (int i = 0; i < nThreads; i++)
         minerThreads->create_thread(boost::bind(&ScryptMiner, pwallet));
+        */
 }
 
 
