@@ -84,15 +84,15 @@ bool CWalletDB::EarseZerocoinEntry(const CZerocoinEntry& zerocoin)
 }
 
 // Check Calculated Blocked for Zerocoin
-bool CWalletDB::ReadCalculatedZCBlock(int& hight)
+bool CWalletDB::ReadCalculatedZCBlock(int& height)
 {
-    hight = 0;
-    return Read(std::string("calculatedzcblock"), hight);
+    height = 0;
+    return Read(std::string("calculatedzcblock"), height);
 }
 
-bool CWalletDB::WriteCalculatedZCBlock(int hight)
+bool CWalletDB::WriteCalculatedZCBlock(int height)
 {
-    return Write(std::string("calculatedzcblock"), hight);
+    return Write(std::string("calculatedzcblock"), height);
 }
 
 

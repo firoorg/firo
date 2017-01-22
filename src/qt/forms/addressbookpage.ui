@@ -136,6 +136,9 @@
       </widget>
      </item>
      <item>
+      <widget class="QComboBox" name="zerocoinAmount"/>
+     </item>
+     <item>
       <widget class="QPushButton" name="zerocoinMintButton">
        <property name="text">
         <string>Mint Zerocoin</string>

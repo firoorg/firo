@@ -199,8 +199,8 @@ public:
     std::string SendMoneyToDestination(const CTxDestination &address, int64 nValue, CWalletTx& wtxNew, bool fAskFee=false);
     std::string MintZerocoin(CScript pubCoin, int64 nValue, CWalletTx& wtxNew, bool fAskFee=false);
     std::string SpendZerocoin(int64 nValue, libzerocoin::CoinDenomination denomination, CWalletTx& wtxNew, CBigNum& coinSerial, uint256& txHash, CBigNum& zcSelectedValue, bool& zcSelectedIsUsed);
-    bool CreateZerocoinMintModel(string &stringError);
-    bool CreateZerocoinSpendModel(string &stringError);
+    bool CreateZerocoinMintModel(string &stringError, string denomAmount);
+    bool CreateZerocoinSpendModel(string &stringError, string denomAmount);
 
 
     bool NewKeyPool();

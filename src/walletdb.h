@@ -165,8 +165,8 @@ public:
     bool WriteZerocoinAccumulator(libzerocoin::Accumulator accumulator, libzerocoin::CoinDenomination denomination);
     bool ReadZerocoinAccumulator(libzerocoin::Accumulator& accumulator, libzerocoin::CoinDenomination denomination);
 
-    bool ReadCalculatedZCBlock(int& hight);
-    bool WriteCalculatedZCBlock(int hight);
+    bool ReadCalculatedZCBlock(int& height);
+    bool WriteCalculatedZCBlock(int height);
 
     DBErrors ReorderTransactions(CWallet*);
     DBErrors LoadWallet(CWallet* pwallet);
