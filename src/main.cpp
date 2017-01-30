@@ -6347,7 +6347,7 @@ void static ZcoinMiner(CWallet *pwallet)
 //            char scratchpad[scrypt_scratpad_size_current_block];
             loop
             {
-                if( !fTestNet && pindexPrev->nHeight + 1 >= 20000){
+                if ( (fTestNet && pindexPrev->nHeight+1 >= 0) || (!fTestNet && pindexPrev->nHeight + 1 >= 20000) ){
                     lyra2z_hash(BEGIN(pblock->nVersion), BEGIN(thash));
                     printf("thash: %s\n", thash.ToString().c_str());
                     printf("hashTarget: %s\n", hashTarget.ToString().c_str());
