@@ -6290,7 +6290,7 @@ CBlockHeader CBlockIndex::GetBlockHeader() const
     return block;
 }
 
-void static ScryptMiner(CWallet *pwallet)
+void static ZcoinMiner(CWallet *pwallet)
 {
     printf("ZCoinMiner started\n");
     SetThreadPriority(THREAD_PRIORITY_LOWEST);
@@ -6343,30 +6343,28 @@ void static ScryptMiner(CWallet *pwallet)
             unsigned int nHashesDone = 0;
 
             uint256 thash;
-            unsigned long int scrypt_scratpad_size_current_block = ((1 << (GetNfactor(pblock->nTime) + 1)) * 128 ) + 63;
-            char scratchpad[scrypt_scratpad_size_current_block];
+//            unsigned long int scrypt_scratpad_size_current_block = ((1 << (GetNfactor(pblock->nTime) + 1)) * 128 ) + 63;
+//            char scratchpad[scrypt_scratpad_size_current_block];
             loop
             {
-                if( !fTestNet && pindexPrev->nHeight + 1 >= 8192){
+                if( !fTestNet && pindexPrev->nHeight + 1 >= 20000){
+                    lyra2z_hash(BEGIN(pblock->nVersion), BEGIN(thash));
+                    printf("thash: %s\n", thash.ToString().c_str());
+                    printf("hashTarget: %s\n", hashTarget.ToString().c_str());
+                }else if( !fTestNet && pindexPrev->nHeight + 1 >= 8192){
                     LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, 8192, 256);
-                    //printf("thash: %s\n", thash.ToString().c_str());
-                    //printf("hashTarget: %s\n", hashTarget.ToString().c_str());
                 }else if( !fTestNet && pindexPrev->nHeight + 1 >= 500){
                     LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, pindexPrev->nHeight + 1, 256);
-                    //printf("thash: %s\n", thash.ToString().c_str());
-                    //printf("hashTarget: %s\n", hashTarget.ToString().c_str());
                 }else if(fTestNet && pindexPrev->nHeight + 1 >= 138){
                     LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, pindexPrev->nHeight + 1, 256);
-                    //printf("thash: %s\n", thash.ToString().c_str());
-                    //printf("hashTarget: %s\n", hashTarget.ToString().c_str());
                 }else{
                     scrypt_N_1_1_256_sp_generic(BEGIN(pblock->nVersion), BEGIN(thash), scratchpad, GetNfactor(pblock->nTime));
                 }
 
-
                 if (thash <= hashTarget)
                 {
                     // Found a solution
+                    printf("Found a solution. Hash: %s", thash.GetHex().c_str());
                     SetThreadPriority(THREAD_PRIORITY_NORMAL);
                     CheckWork(pblock, *pwallet, reservekey);
                     SetThreadPriority(THREAD_PRIORITY_LOWEST);
@@ -6431,15 +6429,14 @@ void static ScryptMiner(CWallet *pwallet)
     } }
     catch (boost::thread_interrupted)
     {
-        printf("ScryptMiner terminated\n");
+        printf("ZcoinMiner terminated\n");
         throw;
     }
 }
 
 void GenerateBitcoins(bool fGenerate, CWallet* pwallet)
 {
-    /* disable wallet mining
-     *
+
     static boost::thread_group* minerThreads = NULL;
 
     int nThreads = GetArg("-genproclimit", -1);
@@ -6458,8 +6455,8 @@ void GenerateBitcoins(bool fGenerate, CWallet* pwallet)
 
     minerThreads = new boost::thread_group();
     for (int i = 0; i < nThreads; i++)
-        minerThreads->create_thread(boost::bind(&ScryptMiner, pwallet));
-        */
+        minerThreads->create_thread(boost::bind(&ZcoinMiner, pwallet));
+
 }
 
 

@@ -10,7 +10,8 @@
 #include "net.h"
 #include "script.h"
 #include "scrypt.h"
-#include "Lyra2.h"
+#include "Lyra2Z/Lyra2Z.h"
+#include "Lyra2Z/Lyra2.h"
 #include "libzerocoin/Zerocoin.h"
 #include "db.h"
 
@@ -1357,7 +1358,9 @@ public:
     {
         uint256 thash;
 
-        if( !fTestNet && height >= 8192){
+        if(!fTestNet && height >= 20000) {
+            lyra2z_hash(BEGIN(nVersion), BEGIN(thash));
+        } else if( !fTestNet && height >= 8192){
             LYRA2(BEGIN(thash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, 8192, 256);
         }else if( !fTestNet && height >= 500){
             LYRA2(BEGIN(thash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, height, 256);
