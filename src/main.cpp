@@ -6343,8 +6343,7 @@ void static ZcoinMiner(CWallet *pwallet)
             unsigned int nHashesDone = 0;
 
             uint256 thash;
-//            unsigned long int scrypt_scratpad_size_current_block = ((1 << (GetNfactor(pblock->nTime) + 1)) * 128 ) + 63;
-//            char scratchpad[scrypt_scratpad_size_current_block];
+
             loop
             {
                 if ( (fTestNet && pindexPrev->nHeight+1 >= 0) || (!fTestNet && pindexPrev->nHeight + 1 >= 20000) ){
@@ -6358,6 +6357,8 @@ void static ZcoinMiner(CWallet *pwallet)
                 }else if(fTestNet && pindexPrev->nHeight + 1 >= 138){
                     LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, pindexPrev->nHeight + 1, 256);
                 }else{
+                    unsigned long int scrypt_scratpad_size_current_block = ((1 << (GetNfactor(pblock->nTime) + 1)) * 128 ) + 63;
+                    char scratchpad[scrypt_scratpad_size_current_block];
                     scrypt_N_1_1_256_sp_generic(BEGIN(pblock->nVersion), BEGIN(thash), scratchpad, GetNfactor(pblock->nTime));
                 }
 
