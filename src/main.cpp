@@ -860,6 +860,12 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                     }
                                 }
 
+                                // It does not have this mint coins id, still sync
+                                if(countPubcoin == 0){
+                                    return state.DoS(0, error("CTransaction::CheckTransaction() : Error: Node does not have mint zerocoin to verify, please wait until "));
+
+                                }
+
                                 if(!passVerify){
                                     int countPubcoin = 0;
                                     printf("PROCESS REVERSE\n");
@@ -881,6 +887,12 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                                 }
                                             }
                                         }
+                                    }
+
+                                    // It does not have this mint coins id, still sync
+                                    if(countPubcoin == 0){
+                                        return state.DoS(0, error("CTransaction::CheckTransaction() : Error: Node does not have mint zerocoin to verify, please wait until "));
+
                                     }
                                 }
 
@@ -1018,6 +1030,12 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                     }
                                 }
 
+                                // It does not have this mint coins id, still sync
+                                if(countPubcoin == 0){
+                                    return state.DoS(0, error("CTransaction::CheckTransaction() : Error: Node does not have mint zerocoin to verify, please wait until "));
+
+                                }
+
                                 if(!passVerify){
                                     int countPubcoin = 0;
                                     printf("PROCESS REVERSE\n");
@@ -1040,6 +1058,13 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                             }
                                         }
                                     }
+
+                                    // It does not have this mint coins id, still sync
+                                    if(countPubcoin == 0){
+                                        return state.DoS(0, error("CTransaction::CheckTransaction() : Error: Node does not have mint zerocoin to verify, please wait until "));
+
+                                    }
+
                                 }
 
                                 if (passVerify) {
@@ -1175,6 +1200,12 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                     }
                                 }
 
+                                // It does not have this mint coins id, still sync
+                                if(countPubcoin == 0){
+                                    return state.DoS(0, error("CTransaction::CheckTransaction() : Error: Node does not have mint zerocoin to verify, please wait until "));
+
+                                }
+
                                 if(!passVerify){
                                     int countPubcoin = 0;
                                     printf("PROCESS REVERSE\n");
@@ -1196,6 +1227,12 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                                 }
                                             }
                                         }
+                                    }
+
+                                    // It does not have this mint coins id, still sync
+                                    if(countPubcoin == 0){
+                                        return state.DoS(0, error("CTransaction::CheckTransaction() : Error: Node does not have mint zerocoin to verify, please wait until "));
+
                                     }
                                 }
 
@@ -1332,6 +1369,12 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                     }
                                 }
 
+                                // It does not have this mint coins id, still sync
+                                if(countPubcoin == 0){
+                                    return state.DoS(0, error("CTransaction::CheckTransaction() : Error: Node does not have mint zerocoin to verify, please wait until "));
+
+                                }
+
                                 if(!passVerify){
                                     int countPubcoin = 0;
                                     printf("PROCESS REVERSE\n");
@@ -1353,6 +1396,12 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                                 }
                                             }
                                         }
+                                    }
+
+                                    // It does not have this mint coins id, still sync
+                                    if(countPubcoin == 0){
+                                        return state.DoS(0, error("CTransaction::CheckTransaction() : Error: Node does not have mint zerocoin to verify, please wait until "));
+
                                     }
                                 }
 
@@ -1489,6 +1538,12 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                     }
                                 }
 
+                                // It does not have this mint coins id, still sync
+                                if(countPubcoin == 0){
+                                    return state.DoS(0, error("CTransaction::CheckTransaction() : Error: Node does not have mint zerocoin to verify, please wait until "));
+
+                                }
+
                                 if(!passVerify){
                                     int countPubcoin = 0;
                                     printf("PROCESS REVERSE\n");
@@ -1510,6 +1565,12 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                                 }
                                             }
                                         }
+                                    }
+
+                                    // It does not have this mint coins id, still sync
+                                    if(countPubcoin == 0){
+                                        return state.DoS(0, error("CTransaction::CheckTransaction() : Error: Node does not have mint zerocoin to verify, please wait until "));
+
                                     }
                                 }
 
