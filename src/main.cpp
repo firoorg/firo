@@ -50,9 +50,7 @@ uint256 nBestChainWork = 0;
 uint256 nBestInvalidWork = 0;
 uint256 hashBestChain = 0;
 uint32_t nVertcoinChainStartTime = 1389306217;
-int64 nStartRewardTime = 1475020800; //1475020800
-// 1416072600000 : Sat 15 Nov 2014 09:30:00 AM PST
-int64 nChangeChainIDTime = 1416072600;
+int64 nStartRewardTime = 1475020800; // 09/28/2016 @ 12:00am (UTC)
 CBlockIndex* pindexBest = NULL;
 set<CBlockIndex*, CBlockIndexWorkComparator> setBlockIndexValid; // may contain all CBlockIndex*'s that have validness >=BLOCK_VALID_TRANSACTIONS, and must contain those who aren't failed
 int64 nTimeBestReceived = 0;
@@ -2302,8 +2300,7 @@ unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBl
         uint32_t                                PastBlocksMin                                = PastSecondsMin / BlocksTargetSpacing; // 36 blocks
         uint32_t                                PastBlocksMax                                = PastSecondsMax / BlocksTargetSpacing; // 1008 blocks
         
-    /*if (fTestNet)
-    {
+/*    if (fTestNet) {
     // If the new block's timestamp is more than nTargetSpacing*16
     // then allow mining of a min-difficulty block.
         if (pblock->nTime > pindexLast->nTime + nTargetSpacing*16)
@@ -4229,6 +4226,7 @@ bool LoadBlockIndex()
         pchMessageStart[2] = 0xbe;
         pchMessageStart[3] = 0xea;
         hashGenesisBlock = uint256("0x7ac038c193c2158c428c59f9ae0c02a07115141c6e9dc244ae96132e99b4e642");
+//        hashGenesisBlock = uint256("0x6c88eb567e5ea876b7082c16a07041bf6c1eb0cb42389323f73a908f9f32b2af");
     }
 
     //
@@ -4259,19 +4257,19 @@ bool InitBlockIndex() {
         CTransaction txNew;
         vector<unsigned char> extraNonce(4);
         unsigned int startBits;
-        
+        startBits = 0x1e0ffff0;
+
         if(fTestNet) {
             extraNonce[0] = 0x08;
             extraNonce[1] = 0x00;
             extraNonce[2] = 0x00;
             extraNonce[3] = 0x00;
-            startBits = 0x1e0ffff0;
+
         } else {
             extraNonce[0] = 0x82;
             extraNonce[1] = 0x3f;
             extraNonce[2] = 0x00;
             extraNonce[3] = 0x00;
-            startBits = 0x1e0ffff0;
         }
 
         txNew.vin.resize(1);
@@ -4285,23 +4283,23 @@ bool InitBlockIndex() {
         block.hashPrevBlock = 0;
         block.hashMerkleRoot = block.BuildMerkleTree();
         block.nVersion = 2;
-        block.nTime    = 1414776286;
+        block.nTime    = 1414776286; // 10/31/2014 @ 5:24pm (UTC)
         block.nBits    = startBits;
         block.nNonce   = 142392;
 
         if (fTestNet)
         {
+//            block.nTime    = 1485946800; // 1-Feb-2017 12:00:00 UTC
             block.nTime    = 1414776313;
             block.nNonce   = 1620571;
-            block.nBits    = startBits;
         }
 
         //// debug print
         uint256 hash = block.GetHash();
-
         printf("block.GetHash = %s\n", hash.ToString().c_str());
         printf("hashGenesisBlock = %s\n", hashGenesisBlock.ToString().c_str());
         printf("block.hashMerkleRoot = %s\n", block.hashMerkleRoot.ToString().c_str());
+
         uint256 genMerkleRoot;
         if(fTestNet)
             genMerkleRoot.SetHex("0x25b361d60bc7a66b311e72389bf5d9add911c735102bcb6425f63aceeff5b7b8");
@@ -6316,7 +6314,7 @@ void static ZcoinMiner(CWallet *pwallet)
         CBlock *pblock = &pblocktemplate->block;
         IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);
 
-        printf("Running ScryptMiner with %" PRIszu" transactions in block (%u bytes)\n", pblock->vtx.size(),
+        printf("Running ZcoinMiner with %" PRIszu" transactions in block (%u bytes)\n", pblock->vtx.size(),
                ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
 
         //
@@ -6341,22 +6339,23 @@ void static ZcoinMiner(CWallet *pwallet)
         loop
         {
             unsigned int nHashesDone = 0;
-
             uint256 thash;
 
             loop
             {
-                if ( (fTestNet && pindexPrev->nHeight+1 >= 0) || (!fTestNet && pindexPrev->nHeight + 1 >= 20000) ){
+                if ( (!fTestNet && pindexPrev->nHeight + 1 >= 20500) ) {
+                    lyra2z_hash(BEGIN(pblock->nVersion), BEGIN(thash));
+                } else if (fTestNet && pindexPrev->nHeight + 1 >= 3) { // for testnet
                     lyra2z_hash(BEGIN(pblock->nVersion), BEGIN(thash));
                     printf("thash: %s\n", thash.ToString().c_str());
                     printf("hashTarget: %s\n", hashTarget.ToString().c_str());
-                }else if( !fTestNet && pindexPrev->nHeight + 1 >= 8192){
+                } else if( !fTestNet && pindexPrev->nHeight + 1 >= 8192){
                     LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, 8192, 256);
-                }else if( !fTestNet && pindexPrev->nHeight + 1 >= 500){
+                } else if( !fTestNet && pindexPrev->nHeight + 1 >= 500){
                     LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, pindexPrev->nHeight + 1, 256);
-                }else if(fTestNet && pindexPrev->nHeight + 1 >= 138){
-                    LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, pindexPrev->nHeight + 1, 256);
-                }else{
+//                }else if(fTestNet && pindexPrev->nHeight + 1 >= 138){
+//                    LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, pindexPrev->nHeight + 1, 256);
+                } else{
                     unsigned long int scrypt_scratpad_size_current_block = ((1 << (GetNfactor(pblock->nTime) + 1)) * 128 ) + 63;
                     char scratchpad[scrypt_scratpad_size_current_block];
                     scrypt_N_1_1_256_sp_generic(BEGIN(pblock->nVersion), BEGIN(thash), scratchpad, GetNfactor(pblock->nTime));
