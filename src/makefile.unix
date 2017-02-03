@@ -157,8 +157,10 @@ OBJS= \
     obj/libzerocoin/Params.o \
     obj/libzerocoin/SerialNumberSignatureOfKnowledge.o \
     obj/libzerocoin/SpendMetaData.o \
-    obj/Lyra2.o \
-    obj/Sponge.o
+    Lyra2Z/blake.o \
+    Lyra2Z/Lyra2.o \
+    Lyra2Z/Lyra2Z.o \
+    Lyra2Z/Sponge.o
 
 
 
@@ -217,6 +219,9 @@ obj/%.o: %.cpp
 	      -e '/^$$/ d' -e 's/$$/ :/' < $(@:%.o=%.d) >> $(@:%.o=%.P); \
 	  rm -f $(@:%.o=%.d)
 
+Lyra2Z/%.o: Lyra2Z/%.c
+	$(CC) -c -O3 -o $@ $<
+
 zcoind: $(OBJS:obj/%=obj/%)
 	$(LINK) $(xCXXFLAGS) -o $@ $^ $(xLDFLAGS) $(LIBS)
 
@@ -234,6 +239,7 @@ test_zcoin: $(TESTOBJS) $(filter-out obj/init.o,$(OBJS:obj/%=obj/%))
 
 clean:
 	-rm -f zcoind test_zcoin
+	-rm -f Lyra2Z/*.o
 	-rm -f obj/*.o
 	-rm -f obj-test/*.o
 	-rm -f obj/*.P
