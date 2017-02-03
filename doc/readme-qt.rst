@@ -1,5 +1,7 @@
-zcoin: Qt4 GUI for zcoin
+zcoin: Qt GUI for zcoin
 ===============================
+
+Modified by Aizen Sou (aizen0sou@gmail.com) @ 2017
 
 Build instructions
 ===================
@@ -47,36 +49,77 @@ An executable named `zcoin-qt` will be built.
 
 .. _`Qt Creator`: http://qt-project.org/downloads/
 
+
+Ubuntu => 14.04
+-------
+
+First you have to install the dependencies
+Qt4 dependencies :
+
+::
+
+    sudo apt-get install -y build-essential libssl-dev libboost-all-dev libqt4-dev libprotobuf-dev protobuf-compiler libqrencode-dev software-properties-common
+
+
+Qt5 dependencies:
+
+::
+
+    sudo apt-get install -y libqt5gui5 libqt5core5a libqt5dbus5 qttools5-dev qttools5-dev-tools
+
+
+then execute the following:
+
+::
+
+    qmake "RELEASE=1"
+    make
+
+
+If you have trouble with the taskbar doesn't show up in Ubuntu (It's an Unity's specific bug), you could try to fix it with giving this below command in the terminal to restart Unity
+-------
+::
+
+    initctl restart unity-panel-service
+
+
 Mac OS X
 --------
 
 - Download and install the `Qt Mac OS X SDK`_. It is recommended to also install Apple's Xcode with UNIX tools.
 
-- Download and install either `MacPorts`_ or `HomeBrew`_.
-
-- Execute the following commands in a terminal to get the dependencies using MacPorts:
-
-::
-
-	sudo port selfupdate
-	sudo port install boost db48 miniupnpc
+- Download and install `HomeBrew`_.
 
 - Execute the following commands in a terminal to get the dependencies using HomeBrew:
 
 ::
 
 	brew update
-	brew install boost miniupnpc openssl berkeley-db4
+    brew install automake berkeley-db4 libtool boost --c++11 miniupnpc openssl pkg-config --c++11 qt5
 
-- If using HomeBrew,  edit `zcoin-qt.pro` to account for library location differences. There's a diff in `contrib/homebrew/bitcoin-qt-pro.patch` that shows what you need to change, or you can just patch by doing
+- Make sure to enfore linking qmake in the Terminal.app
 
-        patch -p1 < contrib/homebrew/bitcoin.qt.pro.patch
+::
+
+    brew link qt5 --force
 
 - Open the zcoin-qt.pro file in Qt Creator and build as normal (cmd-B)
 
 .. _`Qt Mac OS X SDK`: http://qt-project.org/downloads/
-.. _`MacPorts`: http://www.macports.org/install.php
 .. _`HomeBrew`: http://mxcl.github.io/homebrew/
+
+- Or using Terminal with:
+
+::
+
+    qmake "RELEASE=1" zcoin.pro
+    make
+
+- After that you could deploy the app with
+
+::
+
+    contrib/macdeploy/macdeployqtplus zcoin-qt.app -dmg -fancy contrib/macdeploy/fancy.plist -verbose 2
 
 
 Build configuration options

@@ -1421,10 +1421,32 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, int64> >& vecSend,
    return true;
 }
 
-bool CWallet::CreateZerocoinMintModel(string &stringError){
+bool CWallet::CreateZerocoinMintModel(string &stringError, string denomAmount){
 
     if(!fFileBacked)
         return false;
+
+    int64 nAmount = 0;
+    libzerocoin::CoinDenomination denomination;
+    // Amount
+    if(denomAmount == "1"){
+        denomination = libzerocoin::ZQ_LOVELACE;
+        nAmount = roundint64(1 * COIN);
+    }else if(denomAmount == "10"){
+        denomination = libzerocoin::ZQ_GOLDWASSER;
+        nAmount = roundint64(10 * COIN);
+    }else if(denomAmount == "25"){
+        denomination = libzerocoin::ZQ_RACKOFF;
+        nAmount = roundint64(25 * COIN);
+    }else if(denomAmount == "50"){
+        denomination = libzerocoin::ZQ_PEDERSEN;
+        nAmount = roundint64(50 * COIN);
+    }else if(denomAmount == "100"){
+        denomination = libzerocoin::ZQ_WILLIAMSON;
+        nAmount = roundint64(100 * COIN);
+    }else{
+
+    }
 
     // zerocoin init
     CBigNum bnTrustedModulus;
@@ -1439,12 +1461,7 @@ bool CWallet::CreateZerocoinMintModel(string &stringError){
     // new zerocoin. It stores all the private values inside the
     // PrivateCoin object. This includes the coin secrets, which must be
     // stored in a secure location (wallet) at the client.
-
-    // fix denomination for UI
-    libzerocoin::CoinDenomination denomination = libzerocoin::ZQ_LOVELACE;
-
     libzerocoin::PrivateCoin newCoin(ZCParams, denomination);
-
 
     // Get a copy of the 'public' portion of the coin. You should
     // embed this into a Zerocoin 'MINT' transaction along with a series
@@ -1455,9 +1472,6 @@ bool CWallet::CreateZerocoinMintModel(string &stringError){
     if(pubCoin.validate())
     {
         CScript scriptSerializedCoin = CScript() << OP_ZEROCOINMINT << pubCoin.getValue().getvch().size() << pubCoin.getValue();
-
-        // Amount fixed value
-        int64 nAmount = roundint64(1 * COIN);
 
          // Wallet comments
         CWalletTx wtx;
@@ -1486,15 +1500,31 @@ bool CWallet::CreateZerocoinMintModel(string &stringError){
 
 }
 
-bool CWallet::CreateZerocoinSpendModel(string &stringError){
+bool CWallet::CreateZerocoinSpendModel(string &stringError, string denomAmount){
     if(!fFileBacked)
         return false;
 
-    // Amount fixed value
-    int64 nAmount = roundint64(1 * COIN);
+    int64 nAmount = 0;
+    libzerocoin::CoinDenomination denomination;
+    // Amount
+    if(denomAmount == "1"){
+        denomination = libzerocoin::ZQ_LOVELACE;
+        nAmount = roundint64(1 * COIN);
+    }else if(denomAmount == "10"){
+        denomination = libzerocoin::ZQ_GOLDWASSER;
+        nAmount = roundint64(10 * COIN);
+    }else if(denomAmount == "25"){
+        denomination = libzerocoin::ZQ_RACKOFF;
+        nAmount = roundint64(25 * COIN);
+    }else if(denomAmount == "50"){
+        denomination = libzerocoin::ZQ_PEDERSEN;
+        nAmount = roundint64(50 * COIN);
+    }else if(denomAmount == "100"){
+        denomination = libzerocoin::ZQ_WILLIAMSON;
+        nAmount = roundint64(100 * COIN);
+    }else{
 
-    // fix denomination for UI
-    libzerocoin::CoinDenomination denomination = libzerocoin::ZQ_LOVELACE;
+    }
 
     // Wallet comments
     CWalletTx wtx;
@@ -2291,7 +2321,7 @@ void CWallet::PrintWallet(const CBlock& block)
         if (mapWallet.count(block.vtx[0].GetHash()))
         {
             CWalletTx& wtx = mapWallet[block.vtx[0].GetHash()];
-            printf("    mine:  %d  %d  %"PRI64d"", wtx.GetDepthInMainChain(), wtx.GetBlocksToMaturity(), wtx.GetCredit());
+            printf("    mine:  %d  %d  %" PRI64d"", wtx.GetDepthInMainChain(), wtx.GetBlocksToMaturity(), wtx.GetCredit());
         }
     }
     printf("\n");
@@ -2355,7 +2385,7 @@ bool CWallet::NewKeyPool()
             walletdb.WritePool(nIndex, CKeyPool(GenerateNewKey()));
             setKeyPool.insert(nIndex);
         }
-        printf("CWallet::NewKeyPool wrote %"PRI64d" new keys\n", nKeys);
+        printf("CWallet::NewKeyPool wrote %" PRI64d" new keys\n", nKeys);
     }
     return true;
 }
@@ -2380,7 +2410,7 @@ bool CWallet::TopUpKeyPool()
             if (!walletdb.WritePool(nEnd, CKeyPool(GenerateNewKey())))
                 throw runtime_error("TopUpKeyPool() : writing generated key failed");
             setKeyPool.insert(nEnd);
-            printf("keypool added key %"PRI64d", size=%"PRIszu"\n", nEnd, setKeyPool.size());
+            printf("keypool added key %" PRI64d", size=%" PRIszu"\n", nEnd, setKeyPool.size());
         }
     }
     return true;
@@ -2409,7 +2439,7 @@ void CWallet::ReserveKeyFromKeyPool(int64& nIndex, CKeyPool& keypool)
         if (!HaveKey(keypool.vchPubKey.GetID()))
             throw runtime_error("ReserveKeyFromKeyPool() : unknown key in key pool");
         assert(keypool.vchPubKey.IsValid());
-        printf("keypool reserve %"PRI64d"\n", nIndex);
+        printf("keypool reserve %" PRI64d"\n", nIndex);
     }
 }
 
@@ -2436,7 +2466,7 @@ void CWallet::KeepKey(int64 nIndex)
         CWalletDB walletdb(strWalletFile);
         walletdb.ErasePool(nIndex);
     }
-    printf("keypool keep %"PRI64d"\n", nIndex);
+    printf("keypool keep %" PRI64d"\n", nIndex);
 }
 
 void CWallet::ReturnKey(int64 nIndex)
@@ -2446,7 +2476,7 @@ void CWallet::ReturnKey(int64 nIndex)
         LOCK(cs_wallet);
         setKeyPool.insert(nIndex);
     }
-    printf("keypool return %"PRI64d"\n", nIndex);
+    printf("keypool return %" PRI64d"\n", nIndex);
 }
 
 bool CWallet::GetKeyFromPool(CPubKey& result, bool fAllowReuse)

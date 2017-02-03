@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>ZCoin - Debug window</string>
+   <string>Zcoin - Debug window</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout_2">
    <item>
@@ -36,7 +36,7 @@
           </font>
          </property>
          <property name="text">
-          <string>ZCoin Core</string>
+          <string>Zcoin Core</string>
          </property>
         </widget>
        </item>

@@ -155,11 +155,11 @@ int main(int argc, char *argv[])
     // Application identification (must be set before OptionsModel is initialized,
     // as it is used to locate QSettings)
     QApplication::setOrganizationName("zcoin");
-    QApplication::setOrganizationDomain("zcoin.tech");
+    QApplication::setOrganizationDomain("zcoin.io");
     if(GetBoolArg("-testnet")) // Separate UI settings for testnet
-        QApplication::setApplicationName("ZCoin-Qt-Testnet");
+        QApplication::setApplicationName("Zcoin-Testnet");
     else
-        QApplication::setApplicationName("ZCoin-Qt");
+        QApplication::setApplicationName("Zcoin");
 
     // ... then GUI settings:
     OptionsModel optionsModel;
