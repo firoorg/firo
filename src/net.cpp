@@ -1203,11 +1203,7 @@ static const char *strMainNetDNSSeed[][2] = {
 };
 
 static const char *strTestNetDNSSeed[][2] = {
-<<<<<<< HEAD
     {"beta1.zcoin.io", "beta2.zcoin.io"},
-=======
-    {"beta.zcoin.io", "beta.zcoin.io"},
->>>>>>> dev
     {NULL, NULL}
 };
 
