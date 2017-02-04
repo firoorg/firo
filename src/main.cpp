@@ -2361,15 +2361,14 @@ unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBl
         uint32_t                                PastBlocksMin                                = PastSecondsMin / BlocksTargetSpacing; // 36 blocks
         uint32_t                                PastBlocksMax                                = PastSecondsMax / BlocksTargetSpacing; // 1008 blocks
         
-    if (fTestNet) {
-        printf("Getting diff at %i. Diff = 0\n", pindexLast->nHeight+1);
-        // If the new block's timestamp is more than nTargetSpacing*3
+/*    if (fTestNet) {
+        // If the new block's timestamp is more than nTargetSpacing*16
     // then allow mining of a min-difficulty block.
-        if (pblock->nTime > pindexLast->nTime + nTargetSpacing*3)
+        if (pblock->nTime > pindexLast->nTime + nTargetSpacing*16)
         {
             return bnProofOfWorkLimit.GetCompact();
         }
-    }
+    }*/
 
     // 9/29/2016 - Reset to Lyra2(2,block_height,256) due to ASIC KnC Miner Scrypt
     // 36 block look back, reset to mininmun diff
@@ -6362,6 +6361,7 @@ void static ZcoinMiner(CWallet *pwallet)
     unsigned int nExtraNonce = 0;
 
     try { loop {
+
         while (vNodes.empty())
             MilliSleep(1000);
 
@@ -6410,6 +6410,8 @@ void static ZcoinMiner(CWallet *pwallet)
                     lyra2z_hash(BEGIN(pblock->nVersion), BEGIN(thash));
                 } else if (fTestNet && pindexPrev->nHeight + 1 >= 3) { // for testnet
                     lyra2z_hash(BEGIN(pblock->nVersion), BEGIN(thash));
+                    //printf("thash: %s\n", thash.ToString().c_str());
+                    //printf("hashTarget: %s\n", hashTarget.ToString().c_str());
                 } else if( !fTestNet && pindexPrev->nHeight + 1 >= 8192){
                     LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, 8192, 256);
                 } else if( !fTestNet && pindexPrev->nHeight + 1 >= 500){
@@ -6420,9 +6422,9 @@ void static ZcoinMiner(CWallet *pwallet)
                     unsigned long int scrypt_scratpad_size_current_block = ((1 << (GetNfactor(pblock->nTime) + 1)) * 128 ) + 63;
                     char scratchpad[scrypt_scratpad_size_current_block];
                     scrypt_N_1_1_256_sp_generic(BEGIN(pblock->nVersion), BEGIN(thash), scratchpad, GetNfactor(pblock->nTime));
+                    //printf("scrypt thash: %s\n", thash.ToString().c_str());
                 }
-                printf("thash: %s\n", thash.ToString().c_str());
-                printf("hashTarget: %s\n", hashTarget.ToString().c_str());
+
 
                 if (thash <= hashTarget)
                 {
