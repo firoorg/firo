@@ -2361,14 +2361,13 @@ unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBl
         uint32_t                                PastBlocksMin                                = PastSecondsMin / BlocksTargetSpacing; // 36 blocks
         uint32_t                                PastBlocksMax                                = PastSecondsMax / BlocksTargetSpacing; // 1008 blocks
         
-/*    if (fTestNet) {
-        // If the new block's timestamp is more than nTargetSpacing*16
-    // then allow mining of a min-difficulty block.
-        if (pblock->nTime > pindexLast->nTime + nTargetSpacing*16)
-        {
+    if (fTestNet) {
+        // If the new block's timestamp is more than nTargetSpacing*6
+    // then allow mining of a min-difficulty block
+        if (pblock->nTime > pindexLast->nTime + nTargetSpacing*6) {
             return bnProofOfWorkLimit.GetCompact();
         }
-    }*/
+    }
 
     // 9/29/2016 - Reset to Lyra2(2,block_height,256) due to ASIC KnC Miner Scrypt
     // 36 block look back, reset to mininmun diff
