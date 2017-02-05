@@ -757,7 +757,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
 
                     // CHECKING PROCESS
                     BOOST_FOREACH(const CZerocoinEntry& pubCoinItem, listPubCoin) {
-                        if (pubCoinItem.value == pubCoin)
+                        if (pubCoinItem.value == pubCoin && pubCoinItem.denomination == denomination)
                         {
                             isAlreadyStored = true;
                         }
@@ -831,6 +831,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
 
                                 // CHECK PUBCOIN ID
                                 int pubcoinId = txin.nSequence;
+                                printf("====================== pubcoinId = %d\n", pubcoinId);
                                 if (pubcoinId < 1 && pubcoinId == INT_MAX) { // IT BEGINS WITH 1
                                     return state.DoS(100, error("CTransaction::CheckTransaction() : Error: nSequence is not correct format"));
                                 }
@@ -838,7 +839,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                 // VERIFY COINSPEND TX
                                 int countPubcoin = 0;
                                 BOOST_FOREACH(const CZerocoinEntry& pubCoinItem, listPubCoin) {
-                                    //printf("denomination = %d, id = %d, pubcoinId = %d height = %d\n", pubCoinItem.denomination, pubCoinItem.id, pubcoinId, pubCoinItem.nHeight);
+                                    printf("denomination = %d, id = %d, pubcoinId = %d height = %d\n", pubCoinItem.denomination, pubCoinItem.id, pubcoinId, pubCoinItem.nHeight);
 
                                     if (pubCoinItem.denomination == libzerocoin::ZQ_LOVELACE && pubCoinItem.id == pubcoinId && pubCoinItem.nHeight != -1) {
                                         printf("## denomination = %d, id = %d, pubcoinId = %d height = %d\n", pubCoinItem.denomination, pubCoinItem.id, pubcoinId, pubCoinItem.nHeight);
@@ -3189,7 +3190,7 @@ bool SetBestChain(CValidationState &state, CBlockIndex* pindexNew)
                             pubCoinTx.value = pubCoinItem.value;
                             pubCoinTx.nHeight = -1;
                             walletdb.WriteZerocoinEntry(pubCoinTx);
-                            printf("- Connect Reset Pubcoin Id: %d Height: %d\n", pubCoinTx.id, pindex->nHeight);
+                            printf("- Connect Reset Pubcoin Denomination: %d Pubcoin Id: %d Height: %d\n", pubCoinTx.denomination, pubCoinTx.id, pindex->nHeight);
                             zercoinMintHeight = pindex->nHeight;
                         }
                     }
@@ -3205,7 +3206,7 @@ bool SetBestChain(CValidationState &state, CBlockIndex* pindexNew)
                             pubCoinTx.serialNumber = pubCoinItem.serialNumber;
                             pubCoinTx.value = pubCoin;
                             pubCoinTx.nHeight = -1;
-                            printf("- Connect Reset Pubcoin Id: %d Height: %d\n", pubCoinTx.id, pubCoinItem.nHeight);
+                            printf("- Connect Reset Pubcoin Denomination: %d Pubcoin Id: %d Height: %d\n", pubCoinTx.denomination, pubCoinTx.id, pindex->nHeight);
                             walletdb.WriteZerocoinEntry(pubCoinTx);
                         }
 
@@ -3272,7 +3273,7 @@ bool SetBestChain(CValidationState &state, CBlockIndex* pindexNew)
                                 if (currentId == countItemPubcoin.id && countItemPubcoin.denomination == pubCoinItem.denomination) {
                                     countExistingItems++;
                                 }
-                                //printf("pubCoinItem.id = %d\n", countItemPubcoin.id);
+                                printf("pubCoinItem.id = %d\n", countItemPubcoin.id);
                             }
 
                             // IF IT IS NOT 10 -> ADD MORE
@@ -3290,7 +3291,7 @@ bool SetBestChain(CValidationState &state, CBlockIndex* pindexNew)
                             pubCoinTx.serialNumber = pubCoinItem.serialNumber;
                             pubCoinTx.value = pubCoinItem.value;
                             pubCoinTx.nHeight = pindex->nHeight;
-                            printf("REORG PUBCOIN ID: %d HEIGHT: %d\n", pubCoinTx.id, pubCoinTx.nHeight);
+                            printf("REORG PUBCOIN DENOMINATION: %d PUBCOIN ID: %d HEIGHT: %d\n", pubCoinTx.denomination, pubCoinTx.id, pubCoinTx.nHeight);
                             walletdb.WriteZerocoinEntry(pubCoinTx);
                         }
                     }
