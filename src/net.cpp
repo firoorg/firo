@@ -1203,7 +1203,7 @@ static const char *strMainNetDNSSeed[][2] = {
 };
 
 static const char *strTestNetDNSSeed[][2] = {
-    {"beta.zcoin.io", "beta.zcoin.io"},
+    {"beta1.zcoin.io", "beta2.zcoin.io"},
     {NULL, NULL}
 };
 

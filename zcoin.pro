@@ -1,7 +1,7 @@
 TEMPLATE = app
 TARGET = zcoin-qt
 macx:TARGET = "zcoin-qt"
-VERSION = 0.8.7.1
+VERSION = 0.8.7.3
 INCLUDEPATH += src src/json src/qt
 QT += core gui network
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
@@ -212,8 +212,11 @@ HEADERS += src/qt/bitcoingui.h \
     src/ui_interface.h \
     src/qt/rpcconsole.h \
     src/scrypt.h \
-    src/Lyra2.h \
-    src/Sponge.h \
+    src/Lyra2Z/Lyra2.h \
+    src/Lyra2Z/Lyra2Z.h \
+    src/Lyra2Z/sph_blake.h \
+    src/Lyra2Z/sph_types.h \
+    src/Lyra2Z/Sponge.h \
     src/version.h \
     src/netbase.h \
     src/clientversion.h \
@@ -303,8 +306,10 @@ SOURCES += src/qt/bitcoin.cpp \
     src/qt/paymentserver.cpp \
     src/qt/rpcconsole.cpp \
     src/scrypt.cpp \
-    src/Lyra2.c \
-    src/Sponge.c \
+    src/Lyra2Z/blake.c \
+    src/Lyra2Z/Lyra2.c \
+    src/Lyra2Z/Lyra2Z.c \
+    src/Lyra2Z/Sponge.c \
     src/noui.cpp \
     src/leveldb.cpp \
     src/txdb.cpp \
