@@ -2375,8 +2375,8 @@ unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBl
     if(!fTestNet && pindexLast->nHeight + 1 >= 500 && pindexLast->nHeight + 1 <= 535){
         return bnProofOfWorkLimit.GetCompact();
     }
-    // reset to minimum diff at testnet after scrypt_n, 36 block look back
-    if(fTestNet && pindexLast->nHeight + 1 >= 80 && pindexLast->nHeight + 1 <= 115){
+    // reset to minimum diff at testnet after scrypt_n, 6 block look back
+    if(fTestNet && pindexLast->nHeight + 1 >= 80 && pindexLast->nHeight + 1 <= 85){
         return bnProofOfWorkLimit.GetCompact();
     }
 
@@ -2386,7 +2386,7 @@ unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBl
         return bnNew.GetCompact();
     }
 
-    if (fTestNet && pindexLast->nHeight + 1 == 120) {
+    if (fTestNet && pindexLast->nHeight + 1 == 90) {
         CBigNum bnNew;
         bnNew.SetCompact((pindexLast->nBits)*100);
         printf("Lyra2Z HF - Before: %08x %.8f\n", pindexLast->nBits, GetDifficultyHelper(pindexLast->nBits));
@@ -6421,7 +6421,7 @@ void static ZcoinMiner(CWallet *pwallet)
                     LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, 8192, 256);
                 } else if( !fTestNet && pindexPrev->nHeight + 1 >= 500){
                     LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, pindexPrev->nHeight + 1, 256);
-                } else if (fTestNet && pindexPrev->nHeight + 1 >= 120) { // testnet
+                } else if (fTestNet && pindexPrev->nHeight + 1 >= 90) { // testnet
                     lyra2z_hash(BEGIN(pblock->nVersion), BEGIN(thash));
                 }else if(fTestNet && pindexPrev->nHeight + 1 >= 80){ // testnet
                     LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, 8192, 256);
