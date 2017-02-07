@@ -757,7 +757,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
 
                     // CHECKING PROCESS
                     BOOST_FOREACH(const CZerocoinEntry& pubCoinItem, listPubCoin) {
-                        if (pubCoinItem.value == pubCoin)
+                        if (pubCoinItem.value == pubCoin && pubCoinItem.denomination == denomination)
                         {
                             isAlreadyStored = true;
                         }
@@ -831,6 +831,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
 
                                 // CHECK PUBCOIN ID
                                 int pubcoinId = txin.nSequence;
+                                //printf("====================== pubcoinId = %d\n", pubcoinId);
                                 if (pubcoinId < 1 && pubcoinId == INT_MAX) { // IT BEGINS WITH 1
                                     return state.DoS(100, error("CTransaction::CheckTransaction() : Error: nSequence is not correct format"));
                                 }
@@ -2240,8 +2241,8 @@ unsigned int ComputeMinWork(unsigned int nBase, int64 nTime)
 {
     // Testnet has min-difficulty blocks
     // after nTargetSpacing*16 time between blocks:
-    //if (fTestNet && nTime > nTargetSpacing*16)
-    //    return bnProofOfWorkLimit.GetCompact();
+    if (fTestNet && nTime > nTargetSpacing*3)
+        return bnProofOfWorkLimit.GetCompact();
 
     CBigNum bnResult;
     bnResult.SetCompact(nBase);
@@ -2361,14 +2362,13 @@ unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBl
         uint32_t                                PastBlocksMin                                = PastSecondsMin / BlocksTargetSpacing; // 36 blocks
         uint32_t                                PastBlocksMax                                = PastSecondsMax / BlocksTargetSpacing; // 1008 blocks
         
-/*    if (fTestNet) {
-    // If the new block's timestamp is more than nTargetSpacing*16
-    // then allow mining of a min-difficulty block.
-        if (pblock->nTime > pindexLast->nTime + nTargetSpacing*16)
-        {
+    if (fTestNet) {
+        // If the new block's timestamp is more than nTargetSpacing*6
+    // then allow mining of a min-difficulty block
+        if (pblock->nTime > pindexLast->nTime + nTargetSpacing*6) {
             return bnProofOfWorkLimit.GetCompact();
         }
-    }*/
+    }
 
     // 9/29/2016 - Reset to Lyra2(2,block_height,256) due to ASIC KnC Miner Scrypt
     // 36 block look back, reset to mininmun diff
@@ -2378,11 +2378,12 @@ unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBl
 
     }
 
+    /*
     if(fTestNet && pindexLast->nHeight + 1 >= 138 && pindexLast->nHeight + 1 <= 173){
 
         return bnProofOfWorkLimit.GetCompact();
 
-    }
+    }*/
 
     
    	if ((pindexLast->nHeight+1) % nInterval != 0) // Retarget every nInterval blocks 
@@ -3189,7 +3190,7 @@ bool SetBestChain(CValidationState &state, CBlockIndex* pindexNew)
                             pubCoinTx.value = pubCoinItem.value;
                             pubCoinTx.nHeight = -1;
                             walletdb.WriteZerocoinEntry(pubCoinTx);
-                            printf("- Connect Reset Pubcoin Id: %d Height: %d\n", pubCoinTx.id, pindex->nHeight);
+                            printf("- Connect Reset Pubcoin Denomination: %d Pubcoin Id: %d Height: %d\n", pubCoinTx.denomination, pubCoinTx.id, pindex->nHeight);
                             zercoinMintHeight = pindex->nHeight;
                         }
                     }
@@ -3205,7 +3206,7 @@ bool SetBestChain(CValidationState &state, CBlockIndex* pindexNew)
                             pubCoinTx.serialNumber = pubCoinItem.serialNumber;
                             pubCoinTx.value = pubCoin;
                             pubCoinTx.nHeight = -1;
-                            printf("- Connect Reset Pubcoin Id: %d Height: %d\n", pubCoinTx.id, pubCoinItem.nHeight);
+                            printf("- Connect Reset Pubcoin Denomination: %d Pubcoin Id: %d Height: %d\n", pubCoinTx.denomination, pubCoinTx.id, pindex->nHeight);
                             walletdb.WriteZerocoinEntry(pubCoinTx);
                         }
 
@@ -3272,7 +3273,7 @@ bool SetBestChain(CValidationState &state, CBlockIndex* pindexNew)
                                 if (currentId == countItemPubcoin.id && countItemPubcoin.denomination == pubCoinItem.denomination) {
                                     countExistingItems++;
                                 }
-                                //printf("pubCoinItem.id = %d\n", countItemPubcoin.id);
+                                printf("pubCoinItem.id = %d\n", countItemPubcoin.id);
                             }
 
                             // IF IT IS NOT 10 -> ADD MORE
@@ -3290,7 +3291,7 @@ bool SetBestChain(CValidationState &state, CBlockIndex* pindexNew)
                             pubCoinTx.serialNumber = pubCoinItem.serialNumber;
                             pubCoinTx.value = pubCoinItem.value;
                             pubCoinTx.nHeight = pindex->nHeight;
-                            printf("REORG PUBCOIN ID: %d HEIGHT: %d\n", pubCoinTx.id, pubCoinTx.nHeight);
+                            printf("REORG PUBCOIN DENOMINATION: %d PUBCOIN ID: %d HEIGHT: %d\n", pubCoinTx.denomination, pubCoinTx.id, pubCoinTx.nHeight);
                             walletdb.WriteZerocoinEntry(pubCoinTx);
                         }
                     }
@@ -6360,6 +6361,7 @@ void static ZcoinMiner(CWallet *pwallet)
     unsigned int nExtraNonce = 0;
 
     try { loop {
+
         while (vNodes.empty())
             MilliSleep(1000);
 
@@ -6406,21 +6408,23 @@ void static ZcoinMiner(CWallet *pwallet)
             {
                 if ( (!fTestNet && pindexPrev->nHeight + 1 >= 20500) ) {
                     lyra2z_hash(BEGIN(pblock->nVersion), BEGIN(thash));
-                } else if (fTestNet && pindexPrev->nHeight + 1 >= 3) { // for testnet
+                } else if (fTestNet && pindexPrev->nHeight + 1 >= 500) { // for testnet
                     lyra2z_hash(BEGIN(pblock->nVersion), BEGIN(thash));
-                    printf("thash: %s\n", thash.ToString().c_str());
-                    printf("hashTarget: %s\n", hashTarget.ToString().c_str());
+                    //printf("lyra2z thash: %s\n", thash.ToString().c_str());
                 } else if( !fTestNet && pindexPrev->nHeight + 1 >= 8192){
                     LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, 8192, 256);
                 } else if( !fTestNet && pindexPrev->nHeight + 1 >= 500){
                     LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, pindexPrev->nHeight + 1, 256);
-//                }else if(fTestNet && pindexPrev->nHeight + 1 >= 138){
-//                    LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, pindexPrev->nHeight + 1, 256);
+                }else if(fTestNet && pindexPrev->nHeight + 1 >= 138){
+                    LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, pindexPrev->nHeight + 1, 256);
+                    printf("LYRA2 thash: %s\n", thash.ToString().c_str());
                 } else{
                     unsigned long int scrypt_scratpad_size_current_block = ((1 << (GetNfactor(pblock->nTime) + 1)) * 128 ) + 63;
                     char scratchpad[scrypt_scratpad_size_current_block];
                     scrypt_N_1_1_256_sp_generic(BEGIN(pblock->nVersion), BEGIN(thash), scratchpad, GetNfactor(pblock->nTime));
+                    printf("scrypt thash: %s\n", thash.ToString().c_str());
                 }
+                //printf("hashTarget: %s\n", hashTarget.ToString().c_str());
 
                 if (thash <= hashTarget)
                 {

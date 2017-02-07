@@ -1044,7 +1044,7 @@ bool AppInit2(boost::thread_group& threadGroup)
             // RECURSIVE, SET NEW ID
             BOOST_FOREACH(const CZerocoinEntry& pubCoinItem, listPubCoin) {
 
-                if(pubCoinItem.nHeight < lastCalculatedZCBlock){
+                if(!fReindex && pubCoinItem.nHeight < lastCalculatedZCBlock){
                     continue;
                 }else{
                     CZerocoinEntry pubCoinTx;
@@ -1065,11 +1065,12 @@ bool AppInit2(boost::thread_group& threadGroup)
             {
                 while (pindexRecur)
                 {
-                    //printf("PROCESS BLOCK = %d\n", pindexRecur->nHeight);
-                    if(pindexRecur->nHeight < lastCalculatedZCBlock){
+
+                    if(!fReindex && (pindexRecur->nHeight < lastCalculatedZCBlock)){
                         pindexRecur = pindexRecur->pnext;
                         continue;
                     }else{
+                        printf("PROCESS BLOCK = %d\n", pindexRecur->nHeight);
                         CBlock blockRecur;
                         blockRecur.ReadFromDisk(pindexRecur);
 
