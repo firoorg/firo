@@ -2364,30 +2364,38 @@ unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBl
         
     if (fTestNet) {
         // If the new block's timestamp is more than nTargetSpacing*6
-    // then allow mining of a min-difficulty block
+        // then allow mining of a min-difficulty block
         if (pblock->nTime > pindexLast->nTime + nTargetSpacing*6) {
             return bnProofOfWorkLimit.GetCompact();
         }
     }
 
     // 9/29/2016 - Reset to Lyra2(2,block_height,256) due to ASIC KnC Miner Scrypt
-    // 36 block look back, reset to mininmun diff
+    // 36 block look back, reset to mininmum diff
     if(!fTestNet && pindexLast->nHeight + 1 >= 500 && pindexLast->nHeight + 1 <= 535){
-
         return bnProofOfWorkLimit.GetCompact();
-
+    }
+    // reset to minimum diff at testnet after scrypt_n, 36 block look back
+    if(fTestNet && pindexLast->nHeight + 1 >= 80 && pindexLast->nHeight + 1 <= 115){
+        return bnProofOfWorkLimit.GetCompact();
     }
 
     // 02/11/2017 - Increase diff to match with new hashrates of Lyra2Z algo
-    if ((!fTestNet && pindexLast->nHeight + 1 == 20500) || (fTestNet && pindexLast->nHeight + 1 == 100) ) {
-        CBigNum bnNew = CBigNum().SetCompact((pindexLast->nBits)*15000);
-        //printf("Lyra2Z HARDFORK - Before: %08x  %s\n", pindexLast->nBits, CBigNum().SetCompact(pindexLast->nBits).getuint256().ToString().c_str());
-        //printf("Lyra2Z HARDFORK - After:  %08x  %s\n", bnNew.GetCompact(), bnNew.getuint256().ToString().c_str());
+    if( !fTestNet && pindexLast->nHeight + 1 == 20500)  {
+        CBigNum bnNew = CBigNum().SetCompact((pindexLast->nBits)*1000);
         return bnNew.GetCompact();
     }
 
-    
-   	if ((pindexLast->nHeight+1) % nInterval != 0) // Retarget every nInterval blocks 
+    if (fTestNet && pindexLast->nHeight + 1 == 120) {
+        CBigNum bnNew;
+        bnNew.SetCompact((pindexLast->nBits)*100);
+        printf("Lyra2Z HF - Before: %08x %.8f\n", pindexLast->nBits, GetDifficultyHelper(pindexLast->nBits));
+        printf("Lyra2Z HF - After: %08x %.8f\n", bnNew.GetCompact(), GetDifficultyHelper(bnNew.GetCompact()));
+        return bnNew.GetCompact();
+    }
+
+
+   	if ((pindexLast->nHeight+1) % nInterval != 0) // Retarget every nInterval blocks
     {
         return pindexLast->nBits;
     }
@@ -6413,12 +6421,10 @@ void static ZcoinMiner(CWallet *pwallet)
                     LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, 8192, 256);
                 } else if( !fTestNet && pindexPrev->nHeight + 1 >= 500){
                     LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, pindexPrev->nHeight + 1, 256);
-                } else if (fTestNet && pindexPrev->nHeight + 1 >= 100) { // testnet
+                } else if (fTestNet && pindexPrev->nHeight + 1 >= 120) { // testnet
                     lyra2z_hash(BEGIN(pblock->nVersion), BEGIN(thash));
-                    //printf("height %d - lyra2z thash: %s\n", pindexPrev->nHeight, thash.ToString().c_str());
                 }else if(fTestNet && pindexPrev->nHeight + 1 >= 80){ // testnet
-                    LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, pindexPrev->nHeight + 1, 256);
-                    //printf("height %d - LYRA2 thash: %s\n", pindexPrev->nHeight, thash.ToString().c_str());
+                    LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, 8192, 256);
                 } else{
                     unsigned long int scrypt_scratpad_size_current_block = ((1 << (GetNfactor(pblock->nTime) + 1)) * 128 ) + 63;
                     char scratchpad[scrypt_scratpad_size_current_block];

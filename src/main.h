@@ -1364,10 +1364,10 @@ public:
             LYRA2(BEGIN(thash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, 8192, 256);
         }else if( !fTestNet && height >= 500){
             LYRA2(BEGIN(thash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, height, 256);
-        } else if (fTestNet && height >= 100) { // testnet
+        } else if (fTestNet && height >= 120) { // testnet
             lyra2z_hash(BEGIN(nVersion), BEGIN(thash));
         }else if(fTestNet && height >= 80){ // testnet
-            LYRA2(BEGIN(thash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, height, 256);
+            LYRA2(BEGIN(thash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, 8192, 256);
         }else{
             scrypt_N_1_1_256(BEGIN(nVersion), BEGIN(thash), GetNfactor(nTime));
         }
