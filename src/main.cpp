@@ -2379,7 +2379,7 @@ unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBl
     }
 
     // 02/11/2017 - Increase diff to match with new hashrates of Lyra2Z algo
-    if ((!fTestNet && pindexLast->nHeight + 1 == 20502) || (fTestNet && pindexLast->nHeight + 1 == 102) ) {
+    if ((!fTestNet && pindexLast->nHeight + 1 == 20500) || (fTestNet && pindexLast->nHeight + 1 == 100) ) {
         CBigNum bnNew = CBigNum().SetCompact((pindexLast->nBits)*15000);
         printf("Lyra2Z HARDFORK - Before: %08x  %s\n", pindexLast->nBits, CBigNum().SetCompact(pindexLast->nBits).getuint256().ToString().c_str());
         printf("Lyra2Z HARDFORK - After:  %08x  %s\n", bnNew.GetCompact(), bnNew.getuint256().ToString().c_str());
