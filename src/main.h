@@ -1364,7 +1364,7 @@ public:
             LYRA2(BEGIN(thash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, 8192, 256);
         }else if( !fTestNet && height >= 500){
             LYRA2(BEGIN(thash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, height, 256);
-        } else if (fTestNet && height >= 140) { // testnet
+        } else if (fTestNet && height >= 120) { // testnet
             lyra2z_hash(BEGIN(nVersion), BEGIN(thash));
         }else if(fTestNet && height >= 80){ // testnet
             LYRA2(BEGIN(thash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, 8192, 256);
