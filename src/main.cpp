@@ -831,7 +831,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
 
                                 // CHECK PUBCOIN ID
                                 int pubcoinId = txin.nSequence;
-                                printf("====================== pubcoinId = %d\n", pubcoinId);
+                                //printf("====================== pubcoinId = %d\n", pubcoinId);
                                 if (pubcoinId < 1 && pubcoinId == INT_MAX) { // IT BEGINS WITH 1
                                     return state.DoS(100, error("CTransaction::CheckTransaction() : Error: nSequence is not correct format"));
                                 }
@@ -839,7 +839,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                 // VERIFY COINSPEND TX
                                 int countPubcoin = 0;
                                 BOOST_FOREACH(const CZerocoinEntry& pubCoinItem, listPubCoin) {
-                                    printf("denomination = %d, id = %d, pubcoinId = %d height = %d\n", pubCoinItem.denomination, pubCoinItem.id, pubcoinId, pubCoinItem.nHeight);
+                                    //printf("denomination = %d, id = %d, pubcoinId = %d height = %d\n", pubCoinItem.denomination, pubCoinItem.id, pubcoinId, pubCoinItem.nHeight);
 
                                     if (pubCoinItem.denomination == libzerocoin::ZQ_LOVELACE && pubCoinItem.id == pubcoinId && pubCoinItem.nHeight != -1) {
                                         printf("## denomination = %d, id = %d, pubcoinId = %d height = %d\n", pubCoinItem.denomination, pubCoinItem.id, pubcoinId, pubCoinItem.nHeight);
@@ -6408,23 +6408,23 @@ void static ZcoinMiner(CWallet *pwallet)
             {
                 if ( (!fTestNet && pindexPrev->nHeight + 1 >= 20500) ) {
                     lyra2z_hash(BEGIN(pblock->nVersion), BEGIN(thash));
-                } else if (fTestNet && pindexPrev->nHeight + 1 >= 3) { // for testnet
+                } else if (fTestNet && pindexPrev->nHeight + 1 >= 500) { // for testnet
                     lyra2z_hash(BEGIN(pblock->nVersion), BEGIN(thash));
-                    //printf("thash: %s\n", thash.ToString().c_str());
-                    //printf("hashTarget: %s\n", hashTarget.ToString().c_str());
+                    //printf("lyra2z thash: %s\n", thash.ToString().c_str());
                 } else if( !fTestNet && pindexPrev->nHeight + 1 >= 8192){
                     LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, 8192, 256);
                 } else if( !fTestNet && pindexPrev->nHeight + 1 >= 500){
                     LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, pindexPrev->nHeight + 1, 256);
-//                }else if(fTestNet && pindexPrev->nHeight + 1 >= 138){
-//                    LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, pindexPrev->nHeight + 1, 256);
+                }else if(fTestNet && pindexPrev->nHeight + 1 >= 138){
+                    LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, pindexPrev->nHeight + 1, 256);
+                    printf("LYRA2 thash: %s\n", thash.ToString().c_str());
                 } else{
                     unsigned long int scrypt_scratpad_size_current_block = ((1 << (GetNfactor(pblock->nTime) + 1)) * 128 ) + 63;
                     char scratchpad[scrypt_scratpad_size_current_block];
                     scrypt_N_1_1_256_sp_generic(BEGIN(pblock->nVersion), BEGIN(thash), scratchpad, GetNfactor(pblock->nTime));
-                    //printf("scrypt thash: %s\n", thash.ToString().c_str());
+                    printf("scrypt thash: %s\n", thash.ToString().c_str());
                 }
-
+                //printf("hashTarget: %s\n", hashTarget.ToString().c_str());
 
                 if (thash <= hashTarget)
                 {
