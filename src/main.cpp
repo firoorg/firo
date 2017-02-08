@@ -2381,20 +2381,15 @@ unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBl
     }
 
     // 02/11/2017 - Increase diff to match with new hashrates of Lyra2Z algo
-    if( !fTestNet && pindexLast->nHeight + 1 == 20500)  {
-        CBigNum bnNew = CBigNum().SetCompact((pindexLast->nBits)*1000);
-        return bnNew.GetCompact();
-    }
-
-    if (fTestNet && pindexLast->nHeight + 1 == 90) {
+    if ( (!fTestNet && pindexLast->nHeight + 1 == 20500) || (fTestNet && pindexLast->nHeight + 1 == 90) ) {
         CBigNum bnNew;
         bnNew.SetCompact(pindexLast->nBits);
-        bnNew *= 10;
+        bnNew /= 10000; // increase the diff by 10000x since the new hashrate is approx. 100000 times higher
         printf("Lyra2Z HF - Before: %08x %.8f\n", pindexLast->nBits, GetDifficultyHelper(pindexLast->nBits));
         printf("Lyra2Z HF - After: %08x %.8f\n", bnNew.GetCompact(), GetDifficultyHelper(bnNew.GetCompact()));
+        if (bnNew > bnProofOfWorkLimit) { bnNew = bnProofOfWorkLimit; } // safe threshold
         return bnNew.GetCompact();
     }
-
 
    	if ((pindexLast->nHeight+1) % nInterval != 0) // Retarget every nInterval blocks
     {
