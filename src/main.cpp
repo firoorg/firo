@@ -2248,8 +2248,8 @@ unsigned int ComputeMinWork(unsigned int nBase, int64 nTime)
     bnResult.SetCompact(nBase);
     while (nTime > 0 && bnResult < bnProofOfWorkLimit)
     {
-        // Maximum 1500000% adjustment...
-        bnResult *= 15000;
+        // Maximum 2000000% adjustment...
+        bnResult *= 20000;
         // ... in best-case exactly 4-times-normal target time
         nTime -= nTargetTimespan*4;
     }
@@ -2384,7 +2384,7 @@ unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBl
     if ( (!fTestNet && pindexLast->nHeight + 1 == 20500) || (fTestNet && pindexLast->nHeight + 1 == 90) ) {
         CBigNum bnNew;
         bnNew.SetCompact(pindexLast->nBits);
-        bnNew /= 10000; // increase the diff by 10000x since the new hashrate is approx. 100000 times higher
+        bnNew /= 20000; // increase the diff by 20000x since the new hashrate is approx. 20000 times higher
         printf("Lyra2Z HF - Before: %08x %.8f\n", pindexLast->nBits, GetDifficultyHelper(pindexLast->nBits));
         printf("Lyra2Z HF - After: %08x %.8f\n", bnNew.GetCompact(), GetDifficultyHelper(bnNew.GetCompact()));
         if (bnNew > bnProofOfWorkLimit) { bnNew = bnProofOfWorkLimit; } // safe threshold
