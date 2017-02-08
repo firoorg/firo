@@ -2388,7 +2388,8 @@ unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBl
 
     if (fTestNet && pindexLast->nHeight + 1 == 90) {
         CBigNum bnNew;
-        bnNew.SetCompact((pindexLast->nBits)*100);
+        bnNew.SetCompact(pindexLast->nBits);
+        bnNew *= 10;
         printf("Lyra2Z HF - Before: %08x %.8f\n", pindexLast->nBits, GetDifficultyHelper(pindexLast->nBits));
         printf("Lyra2Z HF - After: %08x %.8f\n", bnNew.GetCompact(), GetDifficultyHelper(bnNew.GetCompact()));
         return bnNew.GetCompact();
