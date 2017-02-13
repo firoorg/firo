@@ -1484,7 +1484,7 @@ bool CWallet::CreateZerocoinMintModel(string &stringError, string denomAmount){
 
         CZerocoinEntry zerocoinTx;
         zerocoinTx.IsUsed = false;
-        zerocoinTx.denomination = 1;
+        zerocoinTx.denomination = denomination;
         zerocoinTx.value = pubCoin.getValue();
         zerocoinTx.randomness = newCoin.getRandomness();
         zerocoinTx.serialNumber = newCoin.getSerialNumber();
