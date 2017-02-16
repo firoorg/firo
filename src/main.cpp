@@ -1521,6 +1521,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                 BOOST_FOREACH(const CZerocoinEntry& pubCoinItem, listPubCoin) {
 
                                     if (pubCoinItem.denomination == libzerocoin::ZQ_WILLIAMSON && pubCoinItem.id == pubcoinId && pubCoinItem.nHeight != -1) {
+                                        printf("## denomination = %d, id = %d, pubcoinId = %d height = %d\n", pubCoinItem.denomination, pubCoinItem.id, pubcoinId, pubCoinItem.nHeight);
                                         libzerocoin::PublicCoin pubCoinTemp(ZCParams, pubCoinItem.value, libzerocoin::ZQ_WILLIAMSON);
                                         if (!pubCoinTemp.validate()) {
                                             return state.DoS(100, error("CTransaction::CheckTransaction() : Error: Public Coin for Accumulator is not valid !!!"));
@@ -1548,9 +1549,9 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                     printf("PROCESS REVERSE\n");
                                     BOOST_REVERSE_FOREACH(const CZerocoinEntry& pubCoinItem, listPubCoin) {
                                         //printf("pubCoinItem.denomination = %d, pubCoinItem.id = %d, pubcoinId = %d \n", pubCoinItem.denomination, pubCoinItem.id, pubcoinId);
-                                        if (pubCoinItem.denomination == libzerocoin::ZQ_PEDERSEN && pubCoinItem.id == pubcoinId && pubCoinItem.nHeight != -1) {
+                                        if (pubCoinItem.denomination == libzerocoin::ZQ_WILLIAMSON && pubCoinItem.id == pubcoinId && pubCoinItem.nHeight != -1) {
                                             printf("## denomination = %d, id = %d, pubcoinId = %d height = %d\n", pubCoinItem.denomination, pubCoinItem.id, pubcoinId, pubCoinItem.nHeight);
-                                            libzerocoin::PublicCoin pubCoinTemp(ZCParams, pubCoinItem.value, libzerocoin::ZQ_PEDERSEN);
+                                            libzerocoin::PublicCoin pubCoinTemp(ZCParams, pubCoinItem.value, libzerocoin::ZQ_WILLIAMSON);
                                             if (!pubCoinTemp.validate()) {
                                                 return state.DoS(100, error("CTransaction::CheckTransaction() : Error: Public Coin for Accumulator is not valid !!!"));
                                             }
