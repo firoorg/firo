@@ -772,7 +772,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                         pubCoinTx.value = pubCoin;
                         pubCoinTx.randomness = 0;
                         pubCoinTx.serialNumber = 0;
-                        pubCoinTx.nHeight = -1;https://github.com/zcoinofficial/zcoin.git
+                        pubCoinTx.nHeight = -1;
                         printf("INSERT PUBCOIN ID: %d\n", pubCoinTx.id);
                         walletdb.WriteZerocoinEntry(pubCoinTx);
                     }
