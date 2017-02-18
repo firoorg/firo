@@ -1055,7 +1055,7 @@ bool AppInit2(boost::thread_group& threadGroup)
                     pubCoinTx.serialNumber = pubCoinItem.serialNumber;
                     pubCoinTx.nHeight = -1;
                     pubCoinTx.IsUsed = pubCoinItem.IsUsed;
-                    printf("- Reindex Pubcoin Id: %d Denomination: %d\n", pubCoinTx.id, pubCoinTx.denomination);
+                    //printf("- Reindex Pubcoin Id: %d Denomination: %d\n", pubCoinTx.id, pubCoinTx.denomination);
                     walletdb.WriteZerocoinEntry(pubCoinTx);
                 }
 
@@ -1109,7 +1109,7 @@ bool AppInit2(boost::thread_group& threadGroup)
                                                 BOOST_FOREACH(const CZerocoinEntry& countItemPubcoin, listPubCoinInLoop) {
                                                     if (currentId == countItemPubcoin.id && countItemPubcoin.denomination == pubCoinItem.denomination) {
                                                         countExistingItems++;
-                                                        printf("pubCoinItem.id = %d denomination =  %d\n", countItemPubcoin.id, countItemPubcoin.denomination);
+                                                        //printf("pubCoinItem.id = %d denomination =  %d\n", countItemPubcoin.id, countItemPubcoin.denomination);
                                                     }
                                                 }
 

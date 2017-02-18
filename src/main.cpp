@@ -831,7 +831,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
 
                                 // CHECK PUBCOIN ID
                                 int pubcoinId = txin.nSequence;
-                                printf("====================== pubcoinId = %d\n", pubcoinId);
+                                //printf("====================== pubcoinId = %d\n", pubcoinId);
                                 if (pubcoinId < 1 && pubcoinId == INT_MAX) { // IT BEGINS WITH 1
                                     return state.DoS(100, error("CTransaction::CheckTransaction() : Error: nSequence is not correct format"));
                                 }
@@ -839,7 +839,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                 // VERIFY COINSPEND TX
                                 int countPubcoin = 0;
                                 BOOST_FOREACH(const CZerocoinEntry& pubCoinItem, listPubCoin) {
-                                    printf("denomination = %d, id = %d, pubcoinId = %d height = %d\n", pubCoinItem.denomination, pubCoinItem.id, pubcoinId, pubCoinItem.nHeight);
+                                    //printf("denomination = %d, id = %d, pubcoinId = %d height = %d\n", pubCoinItem.denomination, pubCoinItem.id, pubcoinId, pubCoinItem.nHeight);
 
                                     if (pubCoinItem.denomination == libzerocoin::ZQ_LOVELACE && pubCoinItem.id == pubcoinId && pubCoinItem.nHeight != -1) {
                                         printf("## denomination = %d, id = %d, pubcoinId = %d height = %d\n", pubCoinItem.denomination, pubCoinItem.id, pubcoinId, pubCoinItem.nHeight);
@@ -1521,6 +1521,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                 BOOST_FOREACH(const CZerocoinEntry& pubCoinItem, listPubCoin) {
 
                                     if (pubCoinItem.denomination == libzerocoin::ZQ_WILLIAMSON && pubCoinItem.id == pubcoinId && pubCoinItem.nHeight != -1) {
+                                        printf("## denomination = %d, id = %d, pubcoinId = %d height = %d\n", pubCoinItem.denomination, pubCoinItem.id, pubcoinId, pubCoinItem.nHeight);
                                         libzerocoin::PublicCoin pubCoinTemp(ZCParams, pubCoinItem.value, libzerocoin::ZQ_WILLIAMSON);
                                         if (!pubCoinTemp.validate()) {
                                             return state.DoS(100, error("CTransaction::CheckTransaction() : Error: Public Coin for Accumulator is not valid !!!"));
@@ -1548,9 +1549,9 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                     printf("PROCESS REVERSE\n");
                                     BOOST_REVERSE_FOREACH(const CZerocoinEntry& pubCoinItem, listPubCoin) {
                                         //printf("pubCoinItem.denomination = %d, pubCoinItem.id = %d, pubcoinId = %d \n", pubCoinItem.denomination, pubCoinItem.id, pubcoinId);
-                                        if (pubCoinItem.denomination == libzerocoin::ZQ_PEDERSEN && pubCoinItem.id == pubcoinId && pubCoinItem.nHeight != -1) {
+                                        if (pubCoinItem.denomination == libzerocoin::ZQ_WILLIAMSON && pubCoinItem.id == pubcoinId && pubCoinItem.nHeight != -1) {
                                             printf("## denomination = %d, id = %d, pubcoinId = %d height = %d\n", pubCoinItem.denomination, pubCoinItem.id, pubcoinId, pubCoinItem.nHeight);
-                                            libzerocoin::PublicCoin pubCoinTemp(ZCParams, pubCoinItem.value, libzerocoin::ZQ_PEDERSEN);
+                                            libzerocoin::PublicCoin pubCoinTemp(ZCParams, pubCoinItem.value, libzerocoin::ZQ_WILLIAMSON);
                                             if (!pubCoinTemp.validate()) {
                                                 return state.DoS(100, error("CTransaction::CheckTransaction() : Error: Public Coin for Accumulator is not valid !!!"));
                                             }
@@ -2240,16 +2241,16 @@ static const int64 nInterval = nTargetTimespan / nTargetSpacing; // retargets ev
 unsigned int ComputeMinWork(unsigned int nBase, int64 nTime)
 {
     // Testnet has min-difficulty blocks
-    // after nTargetSpacing*16 time between blocks:
-    //if (fTestNet && nTime > nTargetSpacing*16)
-    //    return bnProofOfWorkLimit.GetCompact();
+    // after nTargetSpacing*6 time between blocks:
+    if (fTestNet && nTime > nTargetSpacing*6)
+        return bnProofOfWorkLimit.GetCompact();
 
     CBigNum bnResult;
     bnResult.SetCompact(nBase);
     while (nTime > 0 && bnResult < bnProofOfWorkLimit)
     {
-        // Maximum 25600% adjustment...
-        bnResult *= 256;
+        // Maximum 2000000% adjustment...
+        bnResult *= 20000;
         // ... in best-case exactly 4-times-normal target time
         nTime -= nTargetTimespan*4;
     }
@@ -2362,31 +2363,36 @@ unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBl
         uint32_t                                PastBlocksMin                                = PastSecondsMin / BlocksTargetSpacing; // 36 blocks
         uint32_t                                PastBlocksMax                                = PastSecondsMax / BlocksTargetSpacing; // 1008 blocks
         
-/*    if (fTestNet) {
-    // If the new block's timestamp is more than nTargetSpacing*16
-    // then allow mining of a min-difficulty block.
-        if (pblock->nTime > pindexLast->nTime + nTargetSpacing*16)
-        {
+    if (fTestNet) {
+        // If the new block's timestamp is more than nTargetSpacing*6
+        // then allow mining of a min-difficulty block
+        if (pblock->nTime > pindexLast->nTime + nTargetSpacing*6) {
             return bnProofOfWorkLimit.GetCompact();
         }
-    }*/
+    }
 
     // 9/29/2016 - Reset to Lyra2(2,block_height,256) due to ASIC KnC Miner Scrypt
-    // 36 block look back, reset to mininmun diff
+    // 36 block look back, reset to mininmum diff
     if(!fTestNet && pindexLast->nHeight + 1 >= 500 && pindexLast->nHeight + 1 <= 535){
-
         return bnProofOfWorkLimit.GetCompact();
-
+    }
+    // reset to minimum diff at testnet after scrypt_n, 6 block look back
+    if(fTestNet && pindexLast->nHeight + 1 >= 80 && pindexLast->nHeight + 1 <= 85){
+        return bnProofOfWorkLimit.GetCompact();
     }
 
-    if(fTestNet && pindexLast->nHeight + 1 >= 138 && pindexLast->nHeight + 1 <= 173){
-
-        return bnProofOfWorkLimit.GetCompact();
-
+    // 02/11/2017 - Increase diff to match with new hashrates of Lyra2Z algo
+    if ( (!fTestNet && pindexLast->nHeight + 1 == 20500) || (fTestNet && pindexLast->nHeight + 1 == 90) ) {
+        CBigNum bnNew;
+        bnNew.SetCompact(pindexLast->nBits);
+        bnNew /= 20000; // increase the diff by 20000x since the new hashrate is approx. 20000 times higher
+        printf("Lyra2Z HF - Before: %08x %.8f\n", pindexLast->nBits, GetDifficultyHelper(pindexLast->nBits));
+        printf("Lyra2Z HF - After: %08x %.8f\n", bnNew.GetCompact(), GetDifficultyHelper(bnNew.GetCompact()));
+        if (bnNew > bnProofOfWorkLimit) { bnNew = bnProofOfWorkLimit; } // safe threshold
+        return bnNew.GetCompact();
     }
 
-    
-   	if ((pindexLast->nHeight+1) % nInterval != 0) // Retarget every nInterval blocks 
+   	if ((pindexLast->nHeight+1) % nInterval != 0) // Retarget every nInterval blocks
     {
         return pindexLast->nBits;
     }
@@ -3464,7 +3470,7 @@ bool CBlock::AddToBlockIndex(CValidationState &state, const CDiskBlockPos &pos)
 int GetAuxPowStartBlock()
 {
     if (fTestNet)
-        return 138;
+        return 66;
     else
         return 500;
 }
@@ -5907,7 +5913,7 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
     nBlockMinSize = std::min(nBlockMaxSize, nBlockMinSize);
 
     unsigned int COUNT_SPEND_ZC_TX = 0;
-    unsigned int MAX_SPEND_ZC_TX_PER_BLOCK = 1;
+    unsigned int MAX_SPEND_ZC_TX_PER_BLOCK = 0;
 
     // Collect memory pool transactions into the block
     int64 nFees = 0;
@@ -6361,6 +6367,7 @@ void static ZcoinMiner(CWallet *pwallet)
     unsigned int nExtraNonce = 0;
 
     try { loop {
+
         while (vNodes.empty())
             MilliSleep(1000);
 
@@ -6407,20 +6414,20 @@ void static ZcoinMiner(CWallet *pwallet)
             {
                 if ( (!fTestNet && pindexPrev->nHeight + 1 >= 20500) ) {
                     lyra2z_hash(BEGIN(pblock->nVersion), BEGIN(thash));
-                } else if (fTestNet && pindexPrev->nHeight + 1 >= 3) { // for testnet
-                    lyra2z_hash(BEGIN(pblock->nVersion), BEGIN(thash));
-                    printf("thash: %s\n", thash.ToString().c_str());
-                    printf("hashTarget: %s\n", hashTarget.ToString().c_str());
                 } else if( !fTestNet && pindexPrev->nHeight + 1 >= 8192){
                     LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, 8192, 256);
                 } else if( !fTestNet && pindexPrev->nHeight + 1 >= 500){
                     LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, pindexPrev->nHeight + 1, 256);
-//                }else if(fTestNet && pindexPrev->nHeight + 1 >= 138){
-//                    LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, pindexPrev->nHeight + 1, 256);
+                } else if (fTestNet && pindexPrev->nHeight + 1 >= 90) { // testnet
+                    lyra2z_hash(BEGIN(pblock->nVersion), BEGIN(thash));
+                }else if(fTestNet && pindexPrev->nHeight + 1 >= 80){ // testnet
+                    LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, 8192, 256);
                 } else{
                     unsigned long int scrypt_scratpad_size_current_block = ((1 << (GetNfactor(pblock->nTime) + 1)) * 128 ) + 63;
                     char scratchpad[scrypt_scratpad_size_current_block];
                     scrypt_N_1_1_256_sp_generic(BEGIN(pblock->nVersion), BEGIN(thash), scratchpad, GetNfactor(pblock->nTime));
+                    //printf("scrypt thash: %s\n", thash.ToString().c_str());
+                    //printf("hashTarget: %s\n", hashTarget.ToString().c_str());
                 }
 
                 if (thash <= hashTarget)
