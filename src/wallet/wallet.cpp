@@ -7038,7 +7038,7 @@ CWallet* CWallet::CreateWalletFromFile(const std::string walletFile)
         walletInstance->ScanForWalletTransactions(pindexRescan, true, fRecoverMnemonic);
         LogPrintf(" rescan      %15dms\n", GetTimeMillis() - nStart);
         walletInstance->SetBestChain(chainActive.GetLocator());
-        CWalletDB::IncrementUpdateCounter();
+        walletInstance->dbw->IncrementUpdateCounter();
 
         // Restore wallet transaction metadata after -zapwallettxes=1
         if (GetBoolArg("-zapwallettxes", false))

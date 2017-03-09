@@ -186,8 +186,31 @@ public:
 /** Access to the wallet database */
 class CWalletDB : public CDB
 {
+private:
+    template <typename K, typename T>
+    bool WriteIC(const K& key, const T& value, bool fOverwrite = true)
+    {
+        if (!batch.Write(key, value, fOverwrite)) {
+            return false;
+        }
+        m_dbw.IncrementUpdateCounter();
+        return true;
+    }
+
+    template <typename K>
+    bool EraseIC(const K& key)
+    {
+        if (!batch.Erase(key)) {
+            return false;
+        }
+        m_dbw.IncrementUpdateCounter();
+        return true;
+    }
+
 public:
-    CWalletDB(const std::string& strFilename, const char* pszMode = "r+", bool fFlushOnClose = true) : CDB(strFilename, pszMode, fFlushOnClose)
+    CWalletDB(CWalletDBWrapper& dbw, const char* pszMode = "r+", bool _fFlushOnClose = true) :
+        batch(dbw, pszMode, _fFlushOnClose),
+        m_dbw(dbw)
     {
     }
 
@@ -316,9 +339,6 @@ public:
     bool WriteHDChain(const CHDChain& chain);
     bool WriteMnemonic(const MnemonicContainer& mnContainer);
 
-    static void IncrementUpdateCounter();
-    static unsigned int GetUpdateCounter();    
-
 #ifdef ENABLE_ELYSIUM
 
 public:
@@ -434,6 +454,19 @@ public:
     {
         return Erase(std::make_pair(std::string("exodus_mint_id_v1"), k));
     }
+    //! Begin a new transaction
+    bool TxnBegin();
+    //! Commit current transaction
+    bool TxnCommit();
+    //! Abort current transaction
+    bool TxnAbort();
+    //! Read wallet version
+    bool ReadVersion(int& nVersion);
+    //! Write wallet version
+    bool WriteVersion(int nVersion);
+private:
+    CDB batch;
+    CWalletDBWrapper& m_dbw;
 
     template<class K, class V>
     bool ReadElysiumMintV1(const K& k, V& v)

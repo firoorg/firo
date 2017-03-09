@@ -24,8 +24,6 @@
 #include <boost/foreach.hpp>
 #include <boost/thread.hpp>
 
-static std::atomic<unsigned int> nWalletDBUpdateCounter;
-
 //
 // CWalletDB
 //
@@ -1128,20 +1126,23 @@ void ThreadFlushWalletDB()
     if (!GetBoolArg("-flushwallet", DEFAULT_FLUSHWALLET))
         return;
 
-    unsigned int nLastSeen = CWalletDB::GetUpdateCounter();
-    unsigned int nLastFlushed = CWalletDB::GetUpdateCounter();
+    CWalletDBWrapper& dbh = pwalletMain->GetDBHandle();
+
+    static unsigned int nLastSeen = dbh.GetUpdateCounter();
+    static unsigned int nLastFlushed = dbh.GetUpdateCounter();
+    static int64_t nLastWalletUpdate = GetTime();
     int64_t nLastWalletUpdate = GetTime();
     while (true)
     {
         MilliSleep(500);
 
-        if (nLastSeen != CWalletDB::GetUpdateCounter())
+        if (nLastSeen != dbh.GetUpdateCounter())
         {
-            nLastSeen = CWalletDB::GetUpdateCounter();
+            nLastSeen = dbh.GetUpdateCounter();
             nLastWalletUpdate = GetTime();
         }
 
-        if (nLastFlushed != CWalletDB::GetUpdateCounter() && GetTime() - nLastWalletUpdate >= 2)
+        if (nLastFlushed != dbh.GetUpdateCounter() && GetTime() - nLastWalletUpdate >= 2)
         {
             TRY_LOCK(bitdb.cs_db,lockDb);
             if (lockDb)
@@ -1686,16 +1687,6 @@ bool CWalletDB::UnarchiveSigmaMint(const uint256& hashPubcoin, CSigmaEntry& sigm
         return error("%s : failed to erase archived sigma mint", __func__);
 
     return true;
-}
-
-void CWalletDB::IncrementUpdateCounter()
-{
-    nWalletDBUpdateCounter++;
-}
-
-unsigned int CWalletDB::GetUpdateCounter()
-{
-    return nWalletDBUpdateCounter;
 }
 
 std::unordered_map<uint256, CSparkMintMeta> CWalletDB::ListSparkMints()

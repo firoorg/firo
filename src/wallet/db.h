@@ -87,6 +87,56 @@ public:
 
 extern CDBEnv bitdb;
 
+/** An instance of this class represents one database.
+ * For BerkeleyDB this is just a (env, strFile) tuple.
+ **/
+class CWalletDBWrapper
+{
+    friend class CDB;
+public:
+    /** Create dummy DB handle */
+    CWalletDBWrapper(): env(nullptr)
+    {
+    }
+
+    /** Create DB handle to real database */
+    CWalletDBWrapper(CDBEnv *env_in, const std::string &strFile_in):
+        env(env_in), strFile(strFile_in)
+    {
+    }
+
+    /** Rewrite the entire database on disk, with the exception of key pszSkip if non-zero
+     */
+    bool Rewrite(const char* pszSkip=nullptr);
+
+    /** Back up the entire database to a file.
+     */
+    bool Backup(const std::string& strDest);
+
+    /** Get a name for this database, for debugging etc.
+     */
+    std::string GetName() const { return strFile; }
+
+    /** Make sure all changes are flushed to disk.
+     */
+    void Flush(bool shutdown);
+
+    void IncrementUpdateCounter();
+    unsigned int GetUpdateCounter();
+
+private:
+    /** BerkeleyDB specific */
+    CDBEnv *env;
+    std::string strFile;
+    std::atomic<unsigned int> nUpdateCounter;
+
+    /** Return whether this database handle is a dummy for testing.
+     * Only to be used at a low level, application should ideally not care
+     * about this.
+     */
+    bool IsDummy() { return env == nullptr; }
+};
+
 
 /** RAII class that provides access to a Berkeley database */
 class CDB
