@@ -10,7 +10,7 @@
 
 // Copyright year (2009-this)
 // Todo: update this when changing our copyright comments in the source
-const int ABOUTDIALOG_COPYRIGHT_YEAR = 2014;
+const int ABOUTDIALOG_COPYRIGHT_YEAR = 2017;
 
 AboutDialog::AboutDialog(QWidget *parent) :
     QDialog(parent),
@@ -20,12 +20,12 @@ AboutDialog::AboutDialog(QWidget *parent) :
 
     // Set current copyright year
     ui->copyrightLabel->setText(tr("Copyright") +
-               QString(" &copy; 2009-%1 ").arg(COPYRIGHT_YEAR) +
+               QString(" &copy; 2009-2014 ").arg(COPYRIGHT_YEAR) +
                tr("The Bitcoin developers") + QString("<br>") +
                tr("Copyright") + QString(" &copy; ") +
-               tr("2011-%1 The Vertcoin developers").arg(ABOUTDIALOG_COPYRIGHT_YEAR) + QString("<br>") +
-               tr("Copyright") + QString(" &copy; ") +
-               tr("%1 The ZCoin developers").arg(ABOUTDIALOG_COPYRIGHT_YEAR));
+               tr("2011-2014 The Vertcoin developers").arg(ABOUTDIALOG_COPYRIGHT_YEAR) + QString("<br>") +
+               tr("Copyright") + QString(" &copy; 2014-%1") +
+               tr("The Zcoin developers").arg(ABOUTDIALOG_COPYRIGHT_YEAR));
 }
 
 void AboutDialog::setModel(ClientModel *model)
