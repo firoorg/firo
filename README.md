@@ -18,7 +18,7 @@ ZCoin is the implementation of the Zerocoin protocol ( http://zerocoin.org ) gua
  - Retarget using BRNDF every 6 blocks
 
 For more information, as well as an immediately useable, binary version of
-the zcoin client sofware, see https://github.com/ZCoinOfficial/zcoin/releases.
+the zcoin client sofware, see https://github.com/zcoinofficial/zcoin/releases.
 
 License
 -------
@@ -37,7 +37,7 @@ development team members simply pulls it.
 
 If it is a *more complicated or potentially controversial* change, then the patch
 submitter will be asked to start a discussion (if they haven't already) on the
-[Slack : ZCoin General Channel](https://zcoinofficial.slack.com). You can get invite from here http://invite.zcoin.io:3000/
+[Slack : ZCoin General Channel](https://zcoinofficial.slack.com). You can get invite from here http://invite.zcoin.io
 
 The patch will be accepted if there is broad consensus that it is a good thing.
 Developers should expect to rework and resubmit patches if the code doesn't
