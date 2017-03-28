@@ -627,6 +627,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
 
         // Check for founders inputs
         if ((nHeight > 0) && (nHeight < 210000)) {
+            int64 founder_coins = nHeight < 2000 ? 2 : 1;
 
             bool found_1 = false;
             bool found_2 = false;
@@ -661,19 +662,19 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
             }
 
             BOOST_FOREACH(const CTxOut& output, vout) {
-                if (output.scriptPubKey == FOUNDER_1_SCRIPT && output.nValue == (int64)(2 * COIN)) {
+                if (output.scriptPubKey == FOUNDER_1_SCRIPT && output.nValue == (int64)(founder_coins * COIN)) {
                     found_1 = true;
                 }
-                if (output.scriptPubKey == FOUNDER_2_SCRIPT && output.nValue == (int64)(2 * COIN)) {
+                if (output.scriptPubKey == FOUNDER_2_SCRIPT && output.nValue == (int64)(founder_coins * COIN)) {
                     found_2 = true;
                 }
-                if (output.scriptPubKey == FOUNDER_3_SCRIPT && output.nValue == (int64)(2 * COIN)) {
+                if (output.scriptPubKey == FOUNDER_3_SCRIPT && output.nValue == (int64)(founder_coins * COIN)) {
                     found_3 = true;
                 }
-                if (output.scriptPubKey == FOUNDER_4_SCRIPT && output.nValue == (int64)(2 * COIN)) {
+                if (output.scriptPubKey == FOUNDER_4_SCRIPT && output.nValue == (int64)(founder_coins * COIN)) {
                     found_4 = true;
                 }
-                if (output.scriptPubKey == FOUNDER_5_SCRIPT && output.nValue == (int64)(2 * COIN)) {
+                if (output.scriptPubKey == FOUNDER_5_SCRIPT && output.nValue == (int64)(founder_coins * COIN)) {
                     found_5 = true;
                 }
             }
@@ -5863,6 +5864,7 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
 
     // To founders and investors
     if ((pindexBest->nHeight+1 > 0) && (pindexBest->nHeight+1 < 210000)) {
+         int64 founder_coins = pindexBest->nHeight+1 < 2000 ? 2 : 1;
 
          // Take some reward away from us
          txNew.vout[0].nValue = -10 * COIN;
@@ -5894,11 +5896,11 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
          }
 
          // And give it to the founders
-         txNew.vout.push_back(CTxOut(2 * COIN, CScript(FOUNDER_1_SCRIPT.begin(), FOUNDER_1_SCRIPT.end())));
-         txNew.vout.push_back(CTxOut(2 * COIN, CScript(FOUNDER_2_SCRIPT.begin(), FOUNDER_2_SCRIPT.end())));
-         txNew.vout.push_back(CTxOut(2 * COIN, CScript(FOUNDER_3_SCRIPT.begin(), FOUNDER_3_SCRIPT.end())));
-         txNew.vout.push_back(CTxOut(2 * COIN, CScript(FOUNDER_4_SCRIPT.begin(), FOUNDER_4_SCRIPT.end())));
-         txNew.vout.push_back(CTxOut(2 * COIN, CScript(FOUNDER_5_SCRIPT.begin(), FOUNDER_5_SCRIPT.end())));
+         txNew.vout.push_back(CTxOut(founder_coins * COIN, CScript(FOUNDER_1_SCRIPT.begin(), FOUNDER_1_SCRIPT.end())));
+         txNew.vout.push_back(CTxOut(founder_coins * COIN, CScript(FOUNDER_2_SCRIPT.begin(), FOUNDER_2_SCRIPT.end())));
+         txNew.vout.push_back(CTxOut(founder_coins * COIN, CScript(FOUNDER_3_SCRIPT.begin(), FOUNDER_3_SCRIPT.end())));
+         txNew.vout.push_back(CTxOut(founder_coins * COIN, CScript(FOUNDER_4_SCRIPT.begin(), FOUNDER_4_SCRIPT.end())));
+         txNew.vout.push_back(CTxOut(founder_coins * COIN, CScript(FOUNDER_5_SCRIPT.begin(), FOUNDER_5_SCRIPT.end())));
 
     }
 
