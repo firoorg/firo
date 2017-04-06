@@ -13,12 +13,16 @@
 #include "ui_interface.h"
 #include "checkqueue.h"
 #include "argon2/argon2.h"
+#include "argon2/blake2/blake2.h"
+#include "argon2/blake2/blake2-impl.h"
+#include "argon2/blake2/blamka-round-opt.h"
 #include "merkletree/sha.h"
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
 #include "fixed.h"
 #include <stdint.h>
+#include <emmintrin.h>
 
 using namespace std;
 using namespace boost;
@@ -3494,6 +3498,67 @@ int GetOurChainID()
 
 }
 
+unsigned trailing_zeros(char str[64]) {
+    int i, d;
+    d = 0;
+    for (i = 63; i > 0; i--) {
+        if (str[i] == '0') {
+            d++;
+        }
+        else {
+            break;
+        }
+    }
+    return d;
+}
+
+static void store_block(void *output, const block *src) {
+    unsigned i;
+    for (i = 0; i < ARGON2_QWORDS_IN_BLOCK; ++i) {
+        store64((uint8_t *)output + i * sizeof(src->v[i]), src->v[i]);
+    }
+}
+
+
+void fill_block(__m128i *state, const block *ref_block, block *next_block,
+    int with_xor) {
+    __m128i block_XY[ARGON2_OWORDS_IN_BLOCK];
+    unsigned int i;
+
+    if (with_xor) {
+        for (i = 0; i < ARGON2_OWORDS_IN_BLOCK; i++) {
+            state[i] = _mm_xor_si128(
+                state[i], _mm_loadu_si128((const __m128i *)ref_block->v + i));
+            block_XY[i] = _mm_xor_si128(
+                state[i], _mm_loadu_si128((const __m128i *)next_block->v + i));
+        }
+    }
+    else {
+        for (i = 0; i < ARGON2_OWORDS_IN_BLOCK; i++) {
+            block_XY[i] = state[i] = _mm_xor_si128(
+                state[i], _mm_loadu_si128((const __m128i *)ref_block->v + i));
+        }
+    }
+
+    for (i = 0; i < 8; ++i) {
+        BLAKE2_ROUND(state[8 * i + 0], state[8 * i + 1], state[8 * i + 2],
+            state[8 * i + 3], state[8 * i + 4], state[8 * i + 5],
+            state[8 * i + 6], state[8 * i + 7]);
+    }
+
+    for (i = 0; i < 8; ++i) {
+        BLAKE2_ROUND(state[8 * 0 + i], state[8 * 1 + i], state[8 * 2 + i],
+            state[8 * 3 + i], state[8 * 4 + i], state[8 * 5 + i],
+            state[8 * 6 + i], state[8 * 7 + i]);
+    }
+
+    for (i = 0; i < ARGON2_OWORDS_IN_BLOCK; i++) {
+        state[i] = _mm_xor_si128(state[i], block_XY[i]);
+        _mm_storeu_si128((__m128i *)next_block->v + i, state[i]);
+    }
+}
+
+
 bool CBlockHeader::CheckProofOfWork(int nHeight) const
 {
     if (nHeight >= GetAuxPowStartBlock())
@@ -3511,17 +3576,27 @@ bool CBlockHeader::CheckProofOfWork(int nHeight) const
             uint8_t Y_CLIENT[71][32];
             memset(&Y_CLIENT[0], 0, sizeof(Y_CLIENT));
             // Step 7 : Y_CLIENT(0) = H(resultMerkelRoot, N)
-            mt_hash_t resultMerkleRootClient;
             SHA256Context ctx_client;
             SHA256Context *pctx_client = &ctx_client;
-            int ret;
+            int ret, i;
+            mt_hash_t resultMerkleRoot;
+            mt_t *mt = mt_create();
 
-            ret = mt_get_root(mt, resultMerkleRootClient);
+            BOOST_FOREACH(const uint256& hash, elementsInMerkleRoot)
+            {                
+                mt_add(mt, hash, HASH_LENGTH);
+            }
+
+            ret = mt_get_root(mt, resultMerkleRoot);
+
+            if(MT_SUCCESS != ret){
+                return ret;
+            }
             ret = SHA256Reset(pctx_client);
             if (shaSuccess != ret){
                 return ret;
             }
-            ret = SHA256Input(pctx_client, resultMerkleRootClient, HASH_LENGTH);
+            ret = SHA256Input(pctx_client, resultMerkleRoot, HASH_LENGTH);
             if (shaSuccess != ret){
                 return ret;
             }
@@ -6506,33 +6581,33 @@ void static ZcoinMiner(CWallet *pwallet)
 
     try { loop {
 
-        while (vNodes.empty())
-            MilliSleep(1000);
+            while (vNodes.empty())
+                MilliSleep(1000);
 
-        //
-        // Create new block
-        //
-        unsigned int nTransactionsUpdatedLast = nTransactionsUpdated;
-        CBlockIndex* pindexPrev = pindexBest;
+            //
+            // Create new block
+            //
+            unsigned int nTransactionsUpdatedLast = nTransactionsUpdated;
+            CBlockIndex* pindexPrev = pindexBest;
 
-        auto_ptr<CBlockTemplate> pblocktemplate(CreateNewBlockWithKey(reservekey));
-        if (!pblocktemplate.get())
-            return;
-        CBlock *pblock = &pblocktemplate->block;
-        IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);
+            auto_ptr<CBlockTemplate> pblocktemplate(CreateNewBlockWithKey(reservekey));
+            if (!pblocktemplate.get())
+                return;
+            CBlock *pblock = &pblocktemplate->block;
+            IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);
 
-        printf("Running ZcoinMiner with %" PRIszu" transactions in block (%u bytes)\n", pblock->vtx.size(),
-               ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
+            printf("Running ZcoinMiner with %" PRIszu" transactions in block (%u bytes)\n", pblock->vtx.size(),
+                   ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
 
-        // Start Merkel Tree Proof of Work
-        if((!fTestNet && pindexPrev->nHeight + 1 >= 30000)
-            || (fTestNet && pindexPrev->nHeight + 1 >= 200)){
+            // Start Merkel Tree Proof of Work
+            if((!fTestNet && pindexPrev->nHeight + 1 >= 30000)
+                    || (fTestNet && pindexPrev->nHeight + 1 >= 200)){
 
-            #define TEST_OUTLEN 32
-            #define TEST_PWDLEN 32
-            #define TEST_SALTLEN 16
-            #define TEST_SECRETLEN 8
-            #define TEST_ADLEN 12
+#define TEST_OUTLEN 32
+#define TEST_PWDLEN 32
+#define TEST_SALTLEN 16
+#define TEST_SECRETLEN 8
+#define TEST_ADLEN 12
                 argon2_context context;
                 argon2_context *pContext = &context;
 
@@ -6558,7 +6633,7 @@ void static ZcoinMiner(CWallet *pwallet)
 
                 context.out = out;
                 context.outlen = TEST_OUTLEN;
-                context.version = version;
+                context.version = ARGON2_VERSION_NUMBER;
                 context.pwd = pwd;
                 context.pwdlen = TEST_PWDLEN;
                 context.salt = salt;
@@ -6575,74 +6650,70 @@ void static ZcoinMiner(CWallet *pwallet)
                 context.free_cbk = myown_deallocator;
                 context.flags = ARGON2_DEFAULT_FLAGS;
 
-            #undef TEST_OUTLEN
-            #undef TEST_PWDLEN
-            #undef TEST_SALTLEN
-            #undef TEST_SECRETLEN
-            #undef TEST_ADLEN
+#undef TEST_OUTLEN
+#undef TEST_PWDLEN
+#undef TEST_SALTLEN
+#undef TEST_SECRETLEN
+#undef TEST_ADLEN
 
                 /* 1. Validate all inputs */
-                    int result = validate_inputs(context);
-                    uint32_t memory_blocks, segment_length;
-                    argon2_instance_t instance;
+                int result = validate_inputs(&context);
+                uint32_t memory_blocks, segment_length;
+                argon2_instance_t instance;
 
-                    if (ARGON2_OK != result) {
-                        return result;
-                    }
+                if (ARGON2_OK != result) {
+                    return result;
+                }
 
-                    if (Argon2_d != type && Argon2_i != type && Argon2_id != type) {
-                        return ARGON2_INCORRECT_TYPE;
-                    }
+                /* 2. Align memory size */
+                /* Minimum memory_blocks = 8L blocks, where L is the number of lanes */
+                memory_blocks = context.m_cost;
 
-                    /* 2. Align memory size */
-                    /* Minimum memory_blocks = 8L blocks, where L is the number of lanes */
-                    memory_blocks = context->m_cost;
+                if (memory_blocks < 2 * ARGON2_SYNC_POINTS * context.lanes) {
+                    memory_blocks = 2 * ARGON2_SYNC_POINTS * context.lanes;
+                }
 
-                    if (memory_blocks < 2 * ARGON2_SYNC_POINTS * context->lanes) {
-                        memory_blocks = 2 * ARGON2_SYNC_POINTS * context->lanes;
-                    }
+                segment_length = memory_blocks / (context.lanes * ARGON2_SYNC_POINTS);
+                /* Ensure that all segments have equal length */
+                memory_blocks = segment_length * (context.lanes * ARGON2_SYNC_POINTS);
 
-                    segment_length = memory_blocks / (context->lanes * ARGON2_SYNC_POINTS);
-                    /* Ensure that all segments have equal length */
-                    memory_blocks = segment_length * (context->lanes * ARGON2_SYNC_POINTS);
+                instance.version = context.version;
+                instance.memory = NULL;
+                instance.passes = context.t_cost;
+                instance.memory_blocks = memory_blocks;
+                instance.segment_length = segment_length;
+                instance.lane_length = segment_length * ARGON2_SYNC_POINTS;
+                instance.lanes = context.lanes;
+                instance.threads = context.threads;
+                instance.type = Argon2_d;
 
-                    instance.version = context->version;
-                    instance.memory = NULL;
-                    instance.passes = context->t_cost;
-                    instance.memory_blocks = memory_blocks;
-                    instance.segment_length = segment_length;
-                    instance.lane_length = segment_length * ARGON2_SYNC_POINTS;
-                    instance.lanes = context->lanes;
-                    instance.threads = context->threads;
-                    instance.type = Argon2_d;
-
-                    /* 3. Initialization: Hashing inputs, allocating memory, filling first
+                /* 3. Initialization: Hashing inputs, allocating memory, filling first
                     * blocks
                     */
-                    result = initialize(&instance, context);
+                result = initialize(&instance, &context);
 
-                    if (ARGON2_OK != result) {
-                        return result;
-                    }
+                if (ARGON2_OK != result) {
+                    return result;
+                }
 
-                    /* 4. Filling memory */
-                    result = fill_memory_blocks(&instance);
+                /* 4. Filling memory */
+                result = fill_memory_blocks(&instance);
 
-                    if (ARGON2_OK != result) {
-                        return result;
-                    }
+                if (ARGON2_OK != result) {
+                    return result;
+                }
 
-                    // Step 1 : Compute F(I) and store its T blocks X[1], X[2], ..., X[T] in the memory
-                    if (instance != NULL) {
-                        while (true){
+                // Step 1 : Compute F(I) and store its T blocks X[1], X[2], ..., X[T] in the memory
+                if (&instance != NULL) {
+                    while (true){
                         // Step 2 : Compute the root Φ of the Merkle hash tree
                         mt_t *mt = mt_create();
                         int i;
 
-                        for (i = 0; i < instance->memory_blocks/1024; ++i){
+                        for (i = 0; i < instance.memory_blocks/1024; ++i){
                             block blockhash;
                             uint8_t blockhash_bytes[ARGON2_BLOCK_SIZE];
-                            copy_block(&blockhash, &instance->memory[i]);
+                            copy_block(&blockhash, &instance.memory[i]);
                             store_block(&blockhash_bytes, &blockhash);
                             // hash each block with sha256
                             SHA256Context ctx;
@@ -6663,248 +6734,249 @@ void static ZcoinMiner(CWallet *pwallet)
                             }
                             // add element to merkel tree
                             mt_add(mt, hashBlock, HASH_LENGTH);
-                         }
+                        }
 
-                         // Step 3 : Select nonce N
-                         pblock->nNonce += 1;
-                         //nNonce += 1;
-                         uint8_t Y[71][32];
-                         memset(&Y[0], 0, sizeof(Y));
+                        // Step 3 : Select nonce N
+                        pblock->nNonce += 1;
+                        //nNonce += 1;
+                        uint8_t Y[71][32];
+                        memset(&Y[0], 0, sizeof(Y));
 
-                         // Step 4 : Y0 = H(resultMerkelRoot, N)
-                         mt_hash_t resultMerkleRoot;
-                         SHA256Context ctx;
-                         SHA256Context *pctx = &ctx;
-                         int ret;
+                        // Step 4 : Y0 = H(resultMerkelRoot, N)
+                        mt_hash_t resultMerkleRoot;
+                        SHA256Context ctx;
+                        SHA256Context *pctx = &ctx;
+                        int ret;
 
-                         ret = mt_get_root(mt, resultMerkleRoot);
-                         ret = SHA256Reset(pctx);
-                         if (shaSuccess != ret){
+                        ret = mt_get_root(mt, resultMerkleRoot);
+                        ret = SHA256Reset(pctx);
+                        if (shaSuccess != ret){
                             return ret;
-                         }
-                         ret = SHA256Input(pctx, resultMerkleRoot, HASH_LENGTH);
-                         if (shaSuccess != ret){
+                        }
+                        ret = SHA256Input(pctx, resultMerkleRoot, HASH_LENGTH);
+                        if (shaSuccess != ret){
                             return ret;
-                         }
-                         ret = SHA256Input(pctx, &nNonce, 1);
-                         if (shaSuccess != ret){
+                        }
+                        ret = SHA256Input(pctx, &nExtraNonce, 1);
+                        if (shaSuccess != ret){
                             return ret;
-                         }
-                         ret = SHA256Result(pctx, (uint8_t*)Y[0]);
-                         if (shaSuccess != ret){
+                        }
+                        ret = SHA256Result(pctx, (uint8_t*)Y[0]);
+                        if (shaSuccess != ret){
                             return ret;
-                         }
-                         // Step 5 : For 1 <= j <= L
-                         //I(j) = Y(j - 1) mod T;
-                         //Y(j) = H(Y(j - 1), X[I(j)])
+                        }
+                        // Step 5 : For 1 <= j <= L
+                        //I(j) = Y(j - 1) mod T;
+                        //Y(j) = H(Y(j - 1), X[I(j)])
 
-                         uint8_t L = 70;
-                         block_with_offset blockhash_in_blockchain[140];
-                         bool init_blocks = false;
-                         bool unmatch_block = false;
-                         for (uint8_t j = 1; j <= L; j++) {
-                             uint32_t ij = *Y[j - 1] % 2048;
+                        uint8_t L = 70;
+                        block_with_offset blockhash_in_blockchain[140];
+                        bool init_blocks = false;
+                        bool unmatch_block = false;
+                        for (uint8_t j = 1; j <= L; j++) {
+                            uint32_t ij = *Y[j - 1] % 2048;
 
-                             if (ij == 0 || ij == 1) {
+                            if (ij == 0 || ij == 1) {
                                 init_blocks = true;
                                 break;
-                             }
+                            }
 
-                             blockhash_in_blockchain[(j * 2) - 1].offset = instance->memory[ij].prev_block;
-                             copy_block(&blockhash_in_blockchain[(j * 2) - 1].memory, &instance->memory[instance->memory[ij].prev_block]);
-                             blockhash_in_blockchain[(j * 2) - 1].memory.prev_block = instance->memory[instance->memory[ij].prev_block].prev_block;
-                             blockhash_in_blockchain[(j * 2) - 1].memory.ref_block = instance->memory[instance->memory[ij].prev_block].ref_block;
-                             // ref block
-                             blockhash_in_blockchain[(j * 2) - 2].offset = instance->memory[ij].ref_block;
-                             copy_block(&blockhash_in_blockchain[(j * 2) - 2].memory, &instance->memory[instance->memory[ij].ref_block]);
-                             blockhash_in_blockchain[(j * 2) - 2].memory.prev_block = instance->memory[instance->memory[ij].ref_block].prev_block;
-                             blockhash_in_blockchain[(j * 2) - 2].memory.ref_block = instance->memory[instance->memory[ij].ref_block].ref_block;
+                            blockhash_in_blockchain[(j * 2) - 1].offset = instance.memory[ij].prev_block;
+                            copy_block(&blockhash_in_blockchain[(j * 2) - 1].memory, &instance.memory[instance.memory[ij].prev_block]);
+                            blockhash_in_blockchain[(j * 2) - 1].memory.prev_block = instance.memory[instance.memory[ij].prev_block].prev_block;
+                            blockhash_in_blockchain[(j * 2) - 1].memory.ref_block = instance.memory[instance.memory[ij].prev_block].ref_block;
+                            // ref block
+                            blockhash_in_blockchain[(j * 2) - 2].offset = instance.memory[ij].ref_block;
+                            copy_block(&blockhash_in_blockchain[(j * 2) - 2].memory, &instance.memory[instance.memory[ij].ref_block]);
+                            blockhash_in_blockchain[(j * 2) - 2].memory.prev_block = instance.memory[instance.memory[ij].ref_block].prev_block;
+                            blockhash_in_blockchain[(j * 2) - 2].memory.ref_block = instance.memory[instance.memory[ij].ref_block].ref_block;
 
-                             block X_IJ;
-                             __m128i state_test[64];
-                             memset(state_test, 0, sizeof(state_test));
-                             memcpy(state_test, &blockhash_in_blockchain[(j * 2) - 1].memory.v, ARGON2_BLOCK_SIZE);
-                             fill_block(state_test, &blockhash_in_blockchain[(j * 2) - 2].memory, &X_IJ, 0);
-                             X_IJ.prev_block = instance->memory[ij].prev_block;
-                             X_IJ.ref_block = instance->memory[ij].ref_block;
+                            block X_IJ;
+                            __m128i state_test[64];
+                            memset(state_test, 0, sizeof(state_test));
+                            memcpy(state_test, &blockhash_in_blockchain[(j * 2) - 1].memory.v, ARGON2_BLOCK_SIZE);
+                            fill_block(state_test, &blockhash_in_blockchain[(j * 2) - 2].memory, &X_IJ, 0);
+                            X_IJ.prev_block = instance.memory[ij].prev_block;
+                            X_IJ.ref_block = instance.memory[ij].ref_block;
 
-                             block blockhash;
-                             uint8_t blockhash_bytes[ARGON2_BLOCK_SIZE];
-                             copy_block(&blockhash, &instance->memory[ij]);
+                            block blockhash;
+                            uint8_t blockhash_bytes[ARGON2_BLOCK_SIZE];
+                            copy_block(&blockhash, &instance.memory[ij]);
 
-                             int countIndex;
-                             for (countIndex = 0; countIndex < 128; countIndex++) {
-                                if (X_IJ.v[countIndex] != instance->memory[ij].v[countIndex]) {
+                            int countIndex;
+                            for (countIndex = 0; countIndex < 128; countIndex++) {
+                                if (X_IJ.v[countIndex] != instance.memory[ij].v[countIndex]) {
                                     unmatch_block = true;
                                     break;
                                 }
-                             }
+                            }
 
 
-                             store_block(&blockhash_bytes, &blockhash);
-                             ret = SHA256Reset(pctx);
-                             if (shaSuccess != ret){
+                            store_block(&blockhash_bytes, &blockhash);
+                            ret = SHA256Reset(pctx);
+                            if (shaSuccess != ret){
                                 return ret;
-                             }
+                            }
 
-                             ret = SHA256Input(pctx,(uint8_t*)Y[j-1],HASH_LENGTH);
-                             if (shaSuccess != ret){
+                            ret = SHA256Input(pctx,(uint8_t*)Y[j-1],HASH_LENGTH);
+                            if (shaSuccess != ret){
                                 return ret;
-                             }
-                             ret = SHA256Input(pctx, blockhash_bytes, ARGON2_BLOCK_SIZE);
-                             if (shaSuccess != ret){
+                            }
+                            ret = SHA256Input(pctx, blockhash_bytes, ARGON2_BLOCK_SIZE);
+                            if (shaSuccess != ret){
                                 return ret;
-                             }
-                             ret = SHA256Result(pctx, (uint8_t*)Y[j]);
-                             if (shaSuccess != ret){
+                            }
+                            ret = SHA256Result(pctx, (uint8_t*)Y[j]);
+                            if (shaSuccess != ret){
                                 return ret;
-                             }
-                          }
+                            }
+                        }
 
-                         if (init_blocks) {
+                        if (init_blocks) {
                             continue;
-                         }
+                        }
 
-                         if (unmatch_block) {
+                        if (unmatch_block) {
                             continue;
-                         }
+                        }
 
-                         uint8_t d = pblock->nBits;
+                        uint8_t d = pblock->nBits;
 
-                         char hex_tmp[64];
-                         int n;
-                         for (n = 0; n < 32; n++) {
+                        char hex_tmp[64];
+                        int n;
+                        for (n = 0; n < 32; n++) {
                             sprintf(&hex_tmp[n * 2], "%02x", Y[L][n]);
-                         }
+                        }
 
-                          // Step 6 : If Y(L) had d trailing zeros, then (resultMerkelroot, N, Y(L))
-                         if (trailing_zeros(hex_tmp) != d) {
+                        // Step 6 : If Y(L) had d trailing zeros, then (resultMerkelroot, N, Y(L))
+                        if (trailing_zeros(hex_tmp) != d) {
                             continue;
-                         }else{
-                             // Found a solution
-                             printf("Found a solution. Hash:");
-                             for (n = 0; n < 32; n++) {
-                                printf("%02x", Y[t][n]);
-                             }
-                             printf("\n");
-                             SetThreadPriority(THREAD_PRIORITY_LOWEST);
-                             break;
-                         }
-                    }
-
-
-        }
-
-        //
-        // Pre-build hash buffers
-        //
-        char pmidstatebuf[32+16]; char* pmidstate = alignup<16>(pmidstatebuf);
-        char pdatabuf[128+16];    char* pdata     = alignup<16>(pdatabuf);
-        char phash1buf[64+16];    char* phash1    = alignup<16>(phash1buf);
-
-        FormatHashBuffers(pblock, pmidstate, pdata, phash1);
-
-        unsigned int& nBlockTime = *(unsigned int*)(pdata + 64 + 4);
-        unsigned int& nBlockBits = *(unsigned int*)(pdata + 64 + 8);
-        //unsigned int& nBlockNonce = *(unsigned int*)(pdata + 64 + 12);
-
-
-        //
-        // Search
-        //
-        int64 nStart = GetTime();
-        uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
-        loop
-        {
-            unsigned int nHashesDone = 0;
-            uint256 thash;
-
-            loop
-            {
-                if ( (!fTestNet && pindexPrev->nHeight + 1 >= 20500) ) {
-                    lyra2z_hash(BEGIN(pblock->nVersion), BEGIN(thash));
-                } else if( !fTestNet && pindexPrev->nHeight + 1 >= 8192){
-                    LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, 8192, 256);
-                } else if( !fTestNet && pindexPrev->nHeight + 1 >= 500){
-                    LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, pindexPrev->nHeight + 1, 256);
-                } else if(fTestNet && pindexPrev->nHeight + 1 >= 90) { // testnet
-                    lyra2z_hash(BEGIN(pblock->nVersion), BEGIN(thash));
-                } else if(fTestNet && pindexPrev->nHeight + 1 >= 80){ // testnet
-                    LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, 8192, 256);
-                } else {
-                    unsigned long int scrypt_scratpad_size_current_block = ((1 << (GetNfactor(pblock->nTime) + 1)) * 128 ) + 63;
-                    char scratchpad[scrypt_scratpad_size_current_block];
-                    scrypt_N_1_1_256_sp_generic(BEGIN(pblock->nVersion), BEGIN(thash), scratchpad, GetNfactor(pblock->nTime));
-                    //printf("scrypt thash: %s\n", thash.ToString().c_str());
-                    //printf("hashTarget: %s\n", hashTarget.ToString().c_str());
-                }
-
-                if (thash <= hashTarget)
-                {
-                    // Found a solution
-                    printf("Found a solution. Hash: %s", thash.GetHex().c_str());
-                    SetThreadPriority(THREAD_PRIORITY_NORMAL);
-                    CheckWork(pblock, *pwallet, reservekey);
-                    SetThreadPriority(THREAD_PRIORITY_LOWEST);
-                    break;
-                }
-                pblock->nNonce += 1;
-                nHashesDone += 1;
-                if ((pblock->nNonce & 0xFF) == 0)
-                    break;
-            }
-
-            // Meter hashes/sec
-            static int64 nHashCounter;
-            if (nHPSTimerStart == 0)
-            {
-                nHPSTimerStart = GetTimeMillis();
-                nHashCounter = 0;
-            }
-            else
-                nHashCounter += nHashesDone;
-            if (GetTimeMillis() - nHPSTimerStart > 4000)
-            {
-                static CCriticalSection cs;
-                {
-                    LOCK(cs);
-                    if (GetTimeMillis() - nHPSTimerStart > 4000)
-                    {
-                        dHashesPerSec = 1000.0 * nHashCounter / (GetTimeMillis() - nHPSTimerStart);
-                        nHPSTimerStart = GetTimeMillis();
-                        nHashCounter = 0;
-                        static int64 nLogTime;
-                        if (GetTime() - nLogTime > 30 * 60)
-                        {
-                            nLogTime = GetTime();
-                            printf("hashmeter %f hash/s\n", dHashesPerSec);
+                        }else{
+                            // Found a solution
+                            printf("Found a solution. Hash:");
+                            for (n = 0; n < 32; n++) {
+                                printf("%02x", Y[70][n]);
+                            }
+                            printf("\n");
+                            SetThreadPriority(THREAD_PRIORITY_LOWEST);
+                            break;
                         }
                     }
+
+
                 }
-            }
 
-            // Check for stop or if block needs to be rebuilt
-            boost::this_thread::interruption_point();
-            if (vNodes.empty())
-                break;
-            if (pblock->nNonce >= 0xffff0000)
-                break;
-            if (nTransactionsUpdated != nTransactionsUpdatedLast && GetTime() - nStart > 60)
-                break;
-            if (pindexPrev != pindexBest)
-                break;
+                //
+                // Pre-build hash buffers
+                //
+                char pmidstatebuf[32+16]; char* pmidstate = alignup<16>(pmidstatebuf);
+                char pdatabuf[128+16];    char* pdata     = alignup<16>(pdatabuf);
+                char phash1buf[64+16];    char* phash1    = alignup<16>(phash1buf);
 
-            // Update nTime every few seconds
-            pblock->UpdateTime(pindexPrev);
-            nBlockTime = ByteReverse(pblock->nTime);
-            if (fTestNet)
-            {
-                // Changing pblock->nTime can change work required on testnet:
-                nBlockBits = ByteReverse(pblock->nBits);
-                hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
-            }
-        }
-    } }
+                FormatHashBuffers(pblock, pmidstate, pdata, phash1);
+
+                unsigned int& nBlockTime = *(unsigned int*)(pdata + 64 + 4);
+                unsigned int& nBlockBits = *(unsigned int*)(pdata + 64 + 8);
+                //unsigned int& nBlockNonce = *(unsigned int*)(pdata + 64 + 12);
+
+
+                //
+                // Search
+                //
+                int64 nStart = GetTime();
+                uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
+                loop
+                {
+                    unsigned int nHashesDone = 0;
+                    uint256 thash;
+
+                    loop
+                    {
+                        if ( (!fTestNet && pindexPrev->nHeight + 1 >= 20500) ) {
+                            lyra2z_hash(BEGIN(pblock->nVersion), BEGIN(thash));
+                        } else if( !fTestNet && pindexPrev->nHeight + 1 >= 8192){
+                            LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, 8192, 256);
+                        } else if( !fTestNet && pindexPrev->nHeight + 1 >= 500){
+                            LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, pindexPrev->nHeight + 1, 256);
+                        } else if(fTestNet && pindexPrev->nHeight + 1 >= 90) { // testnet
+                            lyra2z_hash(BEGIN(pblock->nVersion), BEGIN(thash));
+                        } else if(fTestNet && pindexPrev->nHeight + 1 >= 80){ // testnet
+                            LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, 8192, 256);
+                        } else {
+                            unsigned long int scrypt_scratpad_size_current_block = ((1 << (GetNfactor(pblock->nTime) + 1)) * 128 ) + 63;
+                            char scratchpad[scrypt_scratpad_size_current_block];
+                            scrypt_N_1_1_256_sp_generic(BEGIN(pblock->nVersion), BEGIN(thash), scratchpad, GetNfactor(pblock->nTime));
+                            //printf("scrypt thash: %s\n", thash.ToString().c_str());
+                            //printf("hashTarget: %s\n", hashTarget.ToString().c_str());
+                        }
+
+                        if (thash <= hashTarget)
+                        {
+                            // Found a solution
+                            printf("Found a solution. Hash: %s", thash.GetHex().c_str());
+                            SetThreadPriority(THREAD_PRIORITY_NORMAL);
+                            CheckWork(pblock, *pwallet, reservekey);
+                            SetThreadPriority(THREAD_PRIORITY_LOWEST);
+                            break;
+                        }
+                        pblock->nNonce += 1;
+                        nHashesDone += 1;
+                        if ((pblock->nNonce & 0xFF) == 0)
+                            break;
+                    }
+
+                    // Meter hashes/sec
+                    static int64 nHashCounter;
+                    if (nHPSTimerStart == 0)
+                    {
+                        nHPSTimerStart = GetTimeMillis();
+                        nHashCounter = 0;
+                    }
+                    else
+                        nHashCounter += nHashesDone;
+                    if (GetTimeMillis() - nHPSTimerStart > 4000)
+                    {
+                        static CCriticalSection cs;
+                        {
+                            LOCK(cs);
+                            if (GetTimeMillis() - nHPSTimerStart > 4000)
+                            {
+                                dHashesPerSec = 1000.0 * nHashCounter / (GetTimeMillis() - nHPSTimerStart);
+                                nHPSTimerStart = GetTimeMillis();
+                                nHashCounter = 0;
+                                static int64 nLogTime;
+                                if (GetTime() - nLogTime > 30 * 60)
+                                {
+                                    nLogTime = GetTime();
+                                    printf("hashmeter %f hash/s\n", dHashesPerSec);
+                                }
+                            }
+                        }
+                    }
+
+                    // Check for stop or if block needs to be rebuilt
+                    boost::this_thread::interruption_point();
+                    if (vNodes.empty())
+                        break;
+                    if (pblock->nNonce >= 0xffff0000)
+                        break;
+                    if (nTransactionsUpdated != nTransactionsUpdatedLast && GetTime() - nStart > 60)
+                        break;
+                    if (pindexPrev != pindexBest)
+                        break;
+
+                    // Update nTime every few seconds
+                    pblock->UpdateTime(pindexPrev);
+                    nBlockTime = ByteReverse(pblock->nTime);
+                    if (fTestNet)
+                    {
+                        // Changing pblock->nTime can change work required on testnet:
+                        nBlockBits = ByteReverse(pblock->nBits);
+                        hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
+                    }
+                }
+            } }
+    }
     catch (boost::thread_interrupted)
     {
         printf("ZcoinMiner terminated\n");

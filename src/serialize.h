@@ -21,6 +21,8 @@
 
 #include "allocators.h"
 #include "version.h"
+#include "argon2/core.h"
+#include "merkletree/merkletree.h"
 
 typedef long long  int64;
 typedef unsigned long long  uint64;
@@ -116,6 +118,53 @@ inline unsigned int GetSerializeSize(int64 a,          int, int=0) { return size
 inline unsigned int GetSerializeSize(uint64 a,         int, int=0) { return sizeof(a); }
 inline unsigned int GetSerializeSize(float a,          int, int=0) { return sizeof(a); }
 inline unsigned int GetSerializeSize(double a,         int, int=0) { return sizeof(a); }
+
+// argon2 block with offset
+unsigned int GetSerializeSize(const block_with_offset data, int, int=0){
+    return sizeof(block_with_offset);
+}
+
+template<typename Stream> inline void Serialize(Stream& s, block_with_offset a, int, int=0)
+{
+    int i;
+    for(i = 0; i < ARGON2_QWORDS_IN_BLOCK; i++){
+        WRITEDATA(s, a.memory.v[i]);
+    }
+    WRITEDATA(s, a.memory.prev_block);
+    WRITEDATA(s, a.memory.ref_block);
+}
+
+template<typename Stream> inline void Unserialize(Stream& s, block_with_offset& a, int, int=0)
+{
+    int i;
+    for(i = 0; i < ARGON2_QWORDS_IN_BLOCK; i++){
+        READDATA(s, a.memory.v[i]);
+    }
+    READDATA(s, a.memory.prev_block);
+    READDATA(s, a.memory.ref_block);
+}
+
+// merkel tree
+unsigned int GetSerializeSize(const mt_hash_t data, int, int=0){
+    return sizeof(uint8_t) * HASH_LENGTH;
+}
+
+template<typename Stream> inline void Serialize(Stream& s, const mt_hash_t a, int, int=0)
+{
+    int i;
+    for(i = 0; i < HASH_LENGTH; i++){
+        WRITEDATA(s, a[i]);
+    }
+}
+
+template<typename Stream> inline void Unserialize(Stream& s, mt_hash_t& a, int, int=0)
+{
+    int i;
+    for(i = 0; i < HASH_LENGTH; i++){
+        READDATA(s, a[i]);
+    }
+}
+
 
 template<typename Stream> inline void Serialize(Stream& s, char a,           int, int=0) { WRITEDATA(s, a); }
 template<typename Stream> inline void Serialize(Stream& s, signed char a,    int, int=0) { WRITEDATA(s, a); }

@@ -1334,7 +1334,7 @@ public:
     unsigned int nNonce;
     boost::shared_ptr<CAuxPow> auxpow;
     block_with_offset blockhashInBlockchain[140];
-    mt_hash_t resultMerkleRoot;
+    std::vector<uint256> elementsInMerkleRoot;
 
 
     CBlockHeader()
@@ -1353,8 +1353,8 @@ public:
         READWRITE(nNonce);
 
         if(nVersion == 3){
-            READWRITE(blockhashInBlockchain);
-            READWRITE(resultMerkleRoot);
+            nSerSize += SerReadWrite(s, *(block_with_offset*)blockhashInBlockchain, nType, nVersion, ser_action);
+            READWRITE(elementsInMerkleRoot);
         }
 
         nSerSize += ReadWriteAuxPow(s, auxpow, nType, nVersion, ser_action);
@@ -1471,7 +1471,7 @@ public:
 
         if(nVersion == 3){
             memcpy(&block.blockhashInBlockchain, blockhashInBlockchain, 140 * sizeof(block_with_offset) );
-            memcpy(&block.resultMerkleRoot, resultMerkleRoot, sizeof(mt_hash_t) );
+            block.elementsInMerkleRoot = elementsInMerkleRoot;
         }
 
         return block;
@@ -1970,6 +1970,7 @@ public:
         READWRITE(nTime);
         READWRITE(nBits);
         READWRITE(nNonce);
+
         ReadWriteAuxPow(s, auxpow, nType, this->nVersion, ser_action);
     )
 
