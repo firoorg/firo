@@ -3505,20 +3505,134 @@ bool CBlockHeader::CheckProofOfWork(int nHeight) const
         if (!fTestNet && nHeight != INT_MAX && GetChainID() != GetOurChainID())
             return error("CheckProofOfWork() : block does not have our chain ID");
 
-        if (auxpow.get() != NULL)
-        {
-            if (!auxpow->Check(GetHash(), GetChainID()))
-                return error("CheckProofOfWork() : AUX POW is not valid");
-            // Check proof of work matches claimed amount
-            if (!::CheckProofOfWork(auxpow->GetParentBlockHash(nHeight), nBits))
-                return error("CheckProofOfWork() : AUX proof of work failed");
-        } 
-        else
-        {
+        // Enable MTP
+        // TODO: should we check block height and testnet or just version ?
+        if (CURRENT_VERSION >= 3){
+            uint8_t Y_CLIENT[71][32];
+            memset(&Y_CLIENT[0], 0, sizeof(Y_CLIENT));
+            // Step 7 : Y_CLIENT(0) = H(resultMerkelRoot, N)
+            mt_hash_t resultMerkleRootClient;
+            SHA256Context ctx_client;
+            SHA256Context *pctx_client = &ctx_client;
+            int ret;
 
-            // Check proof of work matches claimed amount
-            if (!::CheckProofOfWork(GetPoWHash(nHeight), nBits))
-                return error("CheckProofOfWork() : proof of work failed - 1");
+            ret = mt_get_root(mt, resultMerkleRootClient);
+            ret = SHA256Reset(pctx_client);
+            if (shaSuccess != ret){
+                return ret;
+            }
+            ret = SHA256Input(pctx_client, resultMerkleRootClient, HASH_LENGTH);
+            if (shaSuccess != ret){
+                return ret;
+            }
+            ret = SHA256Input(pctx_client, &nNonce, 1);
+            if (shaSuccess != ret){
+                 return ret;
+            }
+            ret = SHA256Result(pctx_client, (uint8_t*)Y_CLIENT[0]);
+            if (shaSuccess != ret){
+                 return ret;
+            }
+            // Step 8 : Verify all block
+            for (i = 0; i < 140; ++i)
+            {
+                block blockhash;
+                copy_block(&blockhash, &blockhashInBlockchain[i].memory);
+                uint8_t blockhash_bytes[ARGON2_BLOCK_SIZE];
+                store_block(&blockhash_bytes, &blockhash);
+                // hash each block with sha256
+                SHA256Context ctx;
+                SHA256Context *pctx = &ctx;
+                uint8_t hashBlock[32];
+                int ret;
+                ret = SHA256Reset(pctx);
+                if (shaSuccess != ret)
+                {
+                    return ret;
+                }
+                ret = SHA256Input(pctx, blockhash_bytes, ARGON2_BLOCK_SIZE);
+                if (shaSuccess != ret)
+                {
+                    return ret;
+                }
+                ret = SHA256Result(pctx, (uint8_t*)hashBlock);
+                if (shaSuccess != ret)
+                {
+                    return ret;
+                }
+                if (mt_verify(mt, hashBlock, HASH_LENGTH, blockhashInBlockchain[i].offset) == MT_ERR_ROOT_MISMATCH) {
+                    return error("CheckProofOfWork() : Root mismatch error!");
+                }
+            }
+
+            uint8_t L = 70;
+            // Step 9 : Compute Y(L) from
+            for (uint8_t j = 1; j <= L; j++) {
+
+                // X[I(j)] = F(X[i(j)-1], X[i(j)-2])
+                block X_IJ;
+                __m128i state_test[64];
+                memcpy(state_test, &blockhashInBlockchain[(j * 2) - 1].memory.v, ARGON2_BLOCK_SIZE);
+                fill_block(state_test, &blockhashInBlockchain[(j * 2) - 2].memory, &X_IJ, 0);
+
+                //Y(j) = H(Y(j - 1), X[I(j)])
+                block blockhash_client_tmp;
+                uint8_t blockhash_bytes_client_tmp[ARGON2_BLOCK_SIZE];
+                copy_block(&blockhash_client_tmp, &X_IJ);
+                store_block(&blockhash_bytes_client_tmp, &blockhash_client_tmp);
+                SHA256Context ctx_client_yl;
+                SHA256Context *pctx_client_yl = &ctx_client_yl;
+
+                ret = SHA256Reset(pctx_client_yl);
+                if (shaSuccess != ret)
+                {
+                    return ret;
+                }
+                ret = SHA256Input(pctx_client_yl, (uint8_t*)Y_CLIENT[j - 1], HASH_LENGTH);
+                if (shaSuccess != ret)
+                {
+                    return ret;
+                }
+                ret = SHA256Input(pctx_client_yl, blockhash_bytes_client_tmp, ARGON2_BLOCK_SIZE);
+                if (shaSuccess != ret)
+                {
+                    return ret;
+                }
+                ret = SHA256Result(pctx_client_yl, (uint8_t*)Y_CLIENT[j]);
+                if (shaSuccess != ret)
+                {
+                    return ret;
+                }
+            }
+
+            // Step 10 : Check Y(L) had d tralling zeros then agree
+            char hex_tmp[64];
+            int n;
+            for (n = 0; n < 32; n++) {
+                sprintf(&hex_tmp[n * 2], "%02x", Y_CLIENT[L][n]);
+            }
+
+            if (trailing_zeros(hex_tmp) != nBits) {
+                return error("CheckProofOfWork() : proof of work failed - mtp");
+            }
+
+        }else{
+
+            if (auxpow.get() != NULL)
+            {
+                if (!auxpow->Check(GetHash(), GetChainID()))
+                    return error("CheckProofOfWork() : AUX POW is not valid");
+                // Check proof of work matches claimed amount
+                if (!::CheckProofOfWork(auxpow->GetParentBlockHash(nHeight), nBits))
+                    return error("CheckProofOfWork() : AUX proof of work failed");
+            }
+            else
+            {
+
+                // Check proof of work matches claimed amount
+                if (!::CheckProofOfWork(GetPoWHash(nHeight), nBits))
+                    return error("CheckProofOfWork() : proof of work failed - 1");
+            }
         }
     }
     else
