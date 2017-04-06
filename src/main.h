@@ -13,6 +13,9 @@
 #include "Lyra2Z/Lyra2Z.h"
 #include "Lyra2Z/Lyra2.h"
 #include "libzerocoin/Zerocoin.h"
+#include "merkletree/merkletree.h"
+#include "argon2/argon2.h"
+#include "argon2/core.h"
 #include "db.h"
 
 #include <list>
@@ -1321,7 +1324,7 @@ class CBlockHeader
 {
 public:
     // header
-    static const int CURRENT_VERSION=2;
+    static const int CURRENT_VERSION = 2;
     int LastHeight;
     int nVersion;
     uint256 hashPrevBlock;
@@ -1330,6 +1333,9 @@ public:
     unsigned int nBits;
     unsigned int nNonce;
     boost::shared_ptr<CAuxPow> auxpow;
+    block_with_offset blockhashInBlockchain[140];
+    mt_hash_t resultMerkleRoot;
+
 
     CBlockHeader()
     {
@@ -1345,6 +1351,11 @@ public:
         READWRITE(nTime);
         READWRITE(nBits);
         READWRITE(nNonce);
+
+        if(nVersion == 3){
+            READWRITE(blockhashInBlockchain);
+            READWRITE(resultMerkleRoot);
+        }
 
         nSerSize += ReadWriteAuxPow(s, auxpow, nType, nVersion, ser_action);
     )
@@ -1379,7 +1390,14 @@ public:
 
     void SetNull()
     {
-        nVersion = CBlockHeader::CURRENT_VERSION | (GetOurChainID() * BLOCK_VERSION_CHAIN_START);
+        if(LastHeight > 30000 && !fTestNet){
+           nVersion = 3 | (GetOurChainID() * BLOCK_VERSION_CHAIN_START);
+        }else if(LastHeight > 200 && fTestNet){
+           nVersion = 3 | (GetOurChainID() * BLOCK_VERSION_CHAIN_START);
+        }else{
+           nVersion = CBlockHeader::CURRENT_VERSION  | (GetOurChainID() * BLOCK_VERSION_CHAIN_START);
+        }
+
         hashPrevBlock = 0;
         hashMerkleRoot = 0;
         nTime = 0;
@@ -1406,6 +1424,7 @@ public:
 
     void UpdateTime(const CBlockIndex* pindexPrev);
 };
+
 
 class CBlock : public CBlockHeader
 {
@@ -1449,6 +1468,12 @@ public:
         block.nTime          = nTime;
         block.nBits          = nBits;
         block.nNonce         = nNonce;
+
+        if(nVersion == 3){
+            memcpy(&block.blockhashInBlockchain, blockhashInBlockchain, 140 * sizeof(block_with_offset) );
+            memcpy(&block.resultMerkleRoot, resultMerkleRoot, sizeof(mt_hash_t) );
+        }
+
         return block;
     }
 
@@ -1606,10 +1631,6 @@ public:
     // if dbp is provided, the file is known to already reside on disk
     bool AcceptBlock(CValidationState &state, CDiskBlockPos *dbp = NULL);
 };
-
-
-
-
 
 class CBlockFileInfo
 {

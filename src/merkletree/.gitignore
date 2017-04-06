@@ -1,0 +1,5 @@
+/mt-test
+*.o
+.depend
+*.a
+*.exe
