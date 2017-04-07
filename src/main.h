@@ -1390,7 +1390,7 @@ public:
     {
         if(LastHeight > 30000 && !fTestNet){
            nVersion = 3 | (GetOurChainID() * BLOCK_VERSION_CHAIN_START);
-        }else if(LastHeight > 200 && fTestNet){
+        }else if(LastHeight > 40 && fTestNet){
            nVersion = 3 | (GetOurChainID() * BLOCK_VERSION_CHAIN_START);
         }else{
            nVersion = CBlockHeader::CURRENT_VERSION  | (GetOurChainID() * BLOCK_VERSION_CHAIN_START);

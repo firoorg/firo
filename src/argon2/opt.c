@@ -187,6 +187,8 @@ void fill_segment(const argon2_instance_t *instance,
         } else {
             if(0 == position.pass) {
                 fill_block(state, ref_block, curr_block, 0);
+                curr_block->ref_block = instance->lane_length * ref_lane + ref_index;
+                curr_block->prev_block = prev_offset;
             } else {
                 fill_block(state, ref_block, curr_block, 1);
             }

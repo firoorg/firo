@@ -265,7 +265,7 @@ static int fill_memory_blocks_st(argon2_instance_t *instance) {
 }
 
 #if !defined(ARGON2_NO_THREADS)
-
+/*
 #ifdef _WIN32
 static unsigned __stdcall fill_segment_thr(void *thread_data)
 #else
@@ -276,7 +276,7 @@ static void *fill_segment_thr(void *thread_data)
     fill_segment(my_data->instance_ptr, my_data->pos);
     argon2_thread_exit();
     return 0;
-}
+}*/
 
 /* Multi-threaded version for p > 1 case */
 static int fill_memory_blocks_mt(argon2_instance_t *instance) {

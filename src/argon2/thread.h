@@ -18,6 +18,8 @@
 #ifndef ARGON2_THREAD_H
 #define ARGON2_THREAD_H
 
+
+
 #if !defined(ARGON2_NO_THREADS)
 
 /*
@@ -38,6 +40,10 @@ typedef uintptr_t argon2_thread_handle_t;
 #include <pthread.h>
 typedef void *(*argon2_thread_func_t)(void *);
 typedef pthread_t argon2_thread_handle_t;
+#endif
+
+#if defined(__cplusplus)
+extern "C" {
 #endif
 
 /* Creates a thread
@@ -62,6 +68,10 @@ int argon2_thread_join(argon2_thread_handle_t handle);
  * argon2_thread_create.
 */
 void argon2_thread_exit(void);
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif /* ARGON2_NO_THREADS */
 #endif

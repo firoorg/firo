@@ -19,6 +19,7 @@
 #define ARGON2_CORE_H
 
 #include "argon2.h"
+#include "thread.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -240,6 +241,19 @@ void fill_segment(const argon2_instance_t *instance,
  * @return ARGON2_OK if successful, @context->state
  */
 int fill_memory_blocks(argon2_instance_t *instance);
+
+
+#ifdef _WIN32
+static unsigned __stdcall fill_segment_thr(void *thread_data)
+#else
+static void *fill_segment_thr(void *thread_data)
+#endif
+{
+    argon2_thread_data *my_data = thread_data;
+    fill_segment(my_data->instance_ptr, my_data->pos);
+    argon2_thread_exit();
+    return 0;
+}
 
 #if defined(__cplusplus)
 }
