@@ -120,7 +120,7 @@ inline unsigned int GetSerializeSize(float a,          int, int=0) { return size
 inline unsigned int GetSerializeSize(double a,         int, int=0) { return sizeof(a); }
 
 // argon2 block with offset
-unsigned int GetSerializeSize(const block_with_offset data, int, int=0){
+inline unsigned int GetSerializeSize(const block_with_offset data, int, int=0){
     return sizeof(block_with_offset);
 }
 
@@ -145,23 +145,27 @@ template<typename Stream> inline void Unserialize(Stream& s, block_with_offset& 
 }
 
 // merkel tree
-unsigned int GetSerializeSize(const mt_hash_t data, int, int=0){
-    return sizeof(uint8_t) * HASH_LENGTH;
+inline unsigned int GetSerializeSize(const uint8_t data[2048][32], int, int=0){
+    return sizeof(uint8_t) * 2048 * 32;
 }
 
-template<typename Stream> inline void Serialize(Stream& s, const mt_hash_t a, int, int=0)
+template<typename Stream> inline void Serialize(Stream& s, const uint8_t a[2048][32], int, int=0)
 {
-    int i;
-    for(i = 0; i < HASH_LENGTH; i++){
-        WRITEDATA(s, a[i]);
+    int i,j;
+    for(i = 0; i < 2048; i++){
+        for(j = 0; j < 32; j++){
+            WRITEDATA(s, a[i][j]);
+        }
     }
 }
 
-template<typename Stream> inline void Unserialize(Stream& s, mt_hash_t& a, int, int=0)
+template<typename Stream> inline void Unserialize(Stream& s, uint8_t a[2048][32], int, int=0)
 {
-    int i;
-    for(i = 0; i < HASH_LENGTH; i++){
-        READDATA(s, a[i]);
+    int i,j;
+    for(i = 0; i < 2048; i++){
+        for(j = 0; j < 32; j++){
+            READDATA(s, a[i][j]);
+        }
     }
 }
 

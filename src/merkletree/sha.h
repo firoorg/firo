@@ -10,6 +10,10 @@
  * The definitions used in FIPS-180-2 are as follows:
  */
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #ifndef USE_MODIFIED_MACROS
 #define SHA_Ch(x,y,z)        (((x) & (y)) ^ ((~(x)) & (z)))
 #define SHA_Maj(x,y,z)       (((x) & (y)) ^ ((x) & (z)) ^ ((y) & (z)))
@@ -103,10 +107,10 @@ enum {
 /*
  *  These constants are used in the USHA (unified sha) functions.
  */
-typedef enum SHAversion {
+/*typedef enum SHAversion {
     SHA1, SHA224, SHA256, SHA384, SHA512
 } SHAversion;
-
+*/
 /*
  *  This structure will hold context information for the SHA-1
  *  hashing operation.
@@ -249,5 +253,9 @@ extern int SHA512FinalBits(SHA512Context *, const uint8_t bits,
                            unsigned int bitcount);
 extern int SHA512Result(SHA512Context *,
                         uint8_t Message_Digest[SHA512HashSize]);
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif /* _SHA_H_ */

@@ -12,17 +12,17 @@
 #include "auxpow.h"
 #include "ui_interface.h"
 #include "checkqueue.h"
-#include "argon2/argon2.h"
-#include "argon2/blake2/blake2.h"
-#include "argon2/blake2/blake2-impl.h"
-#include "argon2/blake2/blamka-round-opt.h"
-#include "merkletree/sha.h"
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
 #include "fixed.h"
 #include <stdint.h>
 #include <emmintrin.h>
+#include "argon2/argon2.h"
+#include "argon2/blake2/blake2.h"
+#include "argon2/blake2/blake2-impl.h"
+#include "argon2/blake2/blamka-round-opt.h"
+#include "merkletree/sha.h"
 
 using namespace std;
 using namespace boost;
@@ -3582,9 +3582,8 @@ bool CBlockHeader::CheckProofOfWork(int nHeight) const
             mt_hash_t resultMerkleRoot;
             mt_t *mt = mt_create();
 
-            BOOST_FOREACH(const uint256& hash, elementsInMerkleRoot)
-            {                
-                mt_add(mt, hash, HASH_LENGTH);
+            for(i = 0; i < 2048; i++){
+                mt_add(mt, elementsInMerkleRoot[i], HASH_LENGTH);
             }
 
             ret = mt_get_root(mt, resultMerkleRoot);
@@ -3600,7 +3599,7 @@ bool CBlockHeader::CheckProofOfWork(int nHeight) const
             if (shaSuccess != ret){
                 return ret;
             }
-            ret = SHA256Input(pctx_client, &nNonce, 1);
+            ret = SHA256Input(pctx_client, (uint8_t*)nNonce, 1);
             if (shaSuccess != ret){
                  return ret;
             }
@@ -6757,7 +6756,7 @@ void static ZcoinMiner(CWallet *pwallet)
                         if (shaSuccess != ret){
                             return ret;
                         }
-                        ret = SHA256Input(pctx, &nExtraNonce, 1);
+                        ret = SHA256Input(pctx, (uint8_t*)nExtraNonce, 1);
                         if (shaSuccess != ret){
                             return ret;
                         }

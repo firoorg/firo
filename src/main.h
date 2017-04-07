@@ -13,9 +13,6 @@
 #include "Lyra2Z/Lyra2Z.h"
 #include "Lyra2Z/Lyra2.h"
 #include "libzerocoin/Zerocoin.h"
-#include "merkletree/merkletree.h"
-#include "argon2/argon2.h"
-#include "argon2/core.h"
 #include "db.h"
 
 #include <list>
@@ -1334,7 +1331,7 @@ public:
     unsigned int nNonce;
     boost::shared_ptr<CAuxPow> auxpow;
     block_with_offset blockhashInBlockchain[140];
-    std::vector<uint256> elementsInMerkleRoot;
+    uint8_t elementsInMerkleRoot[2048][32];
 
 
     CBlockHeader()
@@ -1355,6 +1352,7 @@ public:
         if(nVersion == 3){
             nSerSize += SerReadWrite(s, *(block_with_offset*)blockhashInBlockchain, nType, nVersion, ser_action);
             READWRITE(elementsInMerkleRoot);
+
         }
 
         nSerSize += ReadWriteAuxPow(s, auxpow, nType, nVersion, ser_action);
@@ -1471,7 +1469,7 @@ public:
 
         if(nVersion == 3){
             memcpy(&block.blockhashInBlockchain, blockhashInBlockchain, 140 * sizeof(block_with_offset) );
-            block.elementsInMerkleRoot = elementsInMerkleRoot;
+            memcpy(&block.elementsInMerkleRoot, elementsInMerkleRoot, 2048 * 32 * sizeof(uint8_t) );
         }
 
         return block;

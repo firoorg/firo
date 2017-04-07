@@ -7,7 +7,7 @@
 
 #include <deque>
 #include <set>
-#include "db/dbformat.h"
+#include "dbformat.h"
 #include "db/log_writer.h"
 #include "db/snapshot.h"
 #include "leveldb/db.h"
