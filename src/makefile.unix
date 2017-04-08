@@ -104,10 +104,10 @@ DEBUGFLAGS=-g
 
 # CXXFLAGS can be specified on the make command line, so we use xCXXFLAGS that only
 # adds some defaults in front. Unfortunately, CXXFLAGS=... $(CXXFLAGS) does not work.
-xCXXFLAGS=-O2 -pthread -Wall -Wextra -Wformat -Wformat-security -Wno-unused-parameter \
+xCXXFLAGS=-O2 -pthread -Wall -Wextra -Wformat -Wformat-security -Wno-unused-parameter -Wstack-protector -fpermissive\
     $(DEBUGFLAGS) $(DEFS) $(HARDENING) $(CXXFLAGS)
 
-xCFLAGS=-O2 -pthread -Wall -Wextra -Wformat -Wformat-security -Wno-unused-parameter \
+xCFLAGS=-O2 -pthread -Wall -Wextra -Wformat -Wformat-security -Wno-unused-parameter -Wstack-protector -fpermissive\
     $(DEBUGFLAGS) $(DEFS) $(HARDENING) $(CFLAGS)
 
 # LDFLAGS can be specified on the make command line, so we use xLDFLAGS that only
@@ -160,7 +160,17 @@ OBJS= \
     Lyra2Z/blake.o \
     Lyra2Z/Lyra2.o \
     Lyra2Z/Lyra2Z.o \
-    Lyra2Z/Sponge.o
+    Lyra2Z/Sponge.o \
+    argon2/argon2.o \
+    argon2/core.o \
+    argon2/blake2/blake2b.o \
+    argon2/encoding.o \
+    argon2/opt.o \
+    argon2/thread.o \
+    merkletree/mt_arr_list.o \
+    merkletree/mt_crypto.o \
+    merkletree/mt_impl.o \
+    merkletree/sha224-256.o
 
 
 
