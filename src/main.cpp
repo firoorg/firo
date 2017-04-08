@@ -2375,11 +2375,7 @@ unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBl
         return bnProofOfWorkLimit.GetCompact();
     }
 
-    if(fTestNet && pindexLast->nHeight + 1 <= 40){
-        return bnProofOfWorkLimit.GetCompact();
-    }else{
-        return 1;
-    }
+    return bnProofOfWorkLimit.GetCompact();
 
     static const uint32_t        BlocksTargetSpacing                        = 10 * 60; // 10 minutes
         unsigned int                TimeDaySeconds                                = 60 * 60 * 24;
@@ -3495,7 +3491,7 @@ bool CBlock::AddToBlockIndex(CValidationState &state, const CDiskBlockPos &pos)
 int GetAuxPowStartBlock()
 {
     if (fTestNet)
-        return 66;
+        return 1;
     else
         return 500;
 }
@@ -3581,21 +3577,29 @@ bool CBlockHeader::CheckProofOfWork(int nHeight) const
 
         // Enable MTP
         // TODO: should we check block height and testnet or just version ?
-        if (CURRENT_VERSION >= 3){
+        if (fTestNet && nHeight >= 40){
             uint8_t Y_CLIENT[71][32];
             memset(&Y_CLIENT[0], 0, sizeof(Y_CLIENT));
-            // Step 7 : Y_CLIENT(0) = H(resultMerkelRoot, N)
+            printf("Step 7 : Y_CLIENT(0) = H(resultMerkelRoot, N)\n");
             SHA256Context ctx_client;
             SHA256Context *pctx_client = &ctx_client;
-            int ret, i;
+            int ret, i, k;
             mt_hash_t resultMerkleRoot;
             mt_t *mt = mt_create();
 
+            printf("Step 7.1 : get data from elementsInMerkleRoot[i]\n");
             for(i = 0; i < 2048; i++){
                 mt_add(mt, elementsInMerkleRoot[i], HASH_LENGTH);
             }
 
+            printf("Step 7.2 : get resultMerkleRoot\n");
             ret = mt_get_root(mt, resultMerkleRoot);
+            printf("Step 7.2 : resultMerkleRoot = 0x");
+            for(i = 0; i < 32; i++){
+                printf("%02x", resultMerkleRoot[i]);
+            }
+
+            printf("\n");
 
             if(MT_SUCCESS != ret){
                 return ret;
@@ -3608,7 +3612,12 @@ bool CBlockHeader::CheckProofOfWork(int nHeight) const
             if (shaSuccess != ret){
                 return ret;
             }
-            ret = SHA256Input(pctx_client, (uint8_t*)nNonce, 1);
+
+            uint8_t nNonceInBlock[2];
+            memcpy(nNonceInBlock, (uint8_t*)&nNonce, sizeof(unsigned int));
+
+
+            ret = SHA256Input(pctx_client, nNonceInBlock, 1);
             if (shaSuccess != ret){
                  return ret;
             }
@@ -3616,7 +3625,7 @@ bool CBlockHeader::CheckProofOfWork(int nHeight) const
             if (shaSuccess != ret){
                  return ret;
             }
-            // Step 8 : Verify all block
+            printf("Step 8 : Verify all block\n");
             for (i = 0; i < 140; ++i)
             {
                 block blockhash;
@@ -3643,12 +3652,20 @@ bool CBlockHeader::CheckProofOfWork(int nHeight) const
                 {
                     return ret;
                 }
+
+                printf("hashBlock[%d] = ", i);
+                for(k = 0; k < 32; k++){
+                    printf("%02x", hashBlock[k]);
+                }
+                printf(", offset = %zu", blockhashInBlockchain[i].offset);
+                printf("\n");
                 if (mt_verify(mt, hashBlock, HASH_LENGTH, blockhashInBlockchain[i].offset) == MT_ERR_ROOT_MISMATCH) {
                     return error("CheckProofOfWork() : Root mismatch error!");
                 }
             }
 
             uint8_t L = 70;
+            printf("Step 9 : Compute Y(L) from\n");
             // Step 9 : Compute Y(L) from
             for (uint8_t j = 1; j <= L; j++) {
 
@@ -3688,6 +3705,8 @@ bool CBlockHeader::CheckProofOfWork(int nHeight) const
                 }
             }
 
+
+            printf("Step 10 : Check Y(L) had d tralling zeros then agree\n");
             // Step 10 : Check Y(L) had d tralling zeros then agree
             char hex_tmp[64];
             int n;
@@ -3696,7 +3715,8 @@ bool CBlockHeader::CheckProofOfWork(int nHeight) const
             }
 
             printf("nBits = %d\n", nBits);
-            if (trailing_zeros(hex_tmp) != nBits) {
+            if (trailing_zeros(hex_tmp) != 1) {
+            //if (trailing_zeros(hex_tmp) != nBits) {
                 return error("CheckProofOfWork() : proof of work failed - mtp");
             }
 
@@ -3962,13 +3982,13 @@ bool CBlock::AcceptBlock(CValidationState &state, CDiskBlockPos *dbp)
             return state.DoS(100, error("AcceptBlock() : forked chain older than last checkpoint (height %d)", nHeight));
 
         // Reject block.nVersion=2 when reach at block height = 30000 in realnet and block height = 200;
-        if ((!fTestNet && nHeight >= 30000) && ((nVersion&0xff) < 3)){
+        /*if ((!fTestNet && nHeight >= 30000) && ((nVersion&0xff) < 3)){
             return state.Invalid(error("AcceptBlock() : rejected nVersion=2 block"));
         }
 
         if ((fTestNet && nHeight >= 40) && ((nVersion&0xff) < 3)){
             return state.Invalid(error("AcceptBlock() : rejected nVersion=2 block"));
-        }
+        }*/
 
         // Reject block.nVersion=1 blocks when 95% (75% on testnet) of the network has upgraded:
         if ((nVersion&0xff) < 2)
@@ -4744,6 +4764,7 @@ bool LoadExternalBlockFile(FILE* fileIn, CDiskBlockPos *dbp)
                     if (dbp)
                         dbp->nPos = nBlockPos;
                     CValidationState state;
+                    printf("I-1\n");
                     if (ProcessBlock(state, NULL, &block, dbp))
                         nLoaded++;
                     if (state.IsError())
@@ -5492,6 +5513,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         pfrom->AddInventoryKnown(inv);
 
         CValidationState state;
+        printf("I-2\n");
         if (ProcessBlock(state, pfrom, &block) || state.CorruptionPossible())
             mapAlreadyAskedFor.erase(inv);
         int nDoS = 0;
@@ -6529,6 +6551,7 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
 
         // Process this block the same as if we had received it from another node
         CValidationState state;
+        printf("I-3\n");
         if (!ProcessBlock(state, NULL, pblock))
             return error("ZCoinMiner : ProcessBlock, block not accepted");
     }
@@ -6575,6 +6598,10 @@ CBlockHeader CBlockIndex::GetBlockHeader() const
     block.nTime          = nTime;
     block.nBits          = nBits;
     block.nNonce         = nNonce;
+    if(block.CURRENT_VERSION == 3){
+        memcpy(&block.blockhashInBlockchain, blockhashInBlockchain, 140 * sizeof(block_with_offset) );
+        memcpy(&block.elementsInMerkleRoot, elementsInMerkleRoot, 2048 * 32 * sizeof(uint8_t) );
+    }
     return block;
 }
 
@@ -6611,53 +6638,57 @@ void static ZcoinMiner(CWallet *pwallet)
             // Start Merkel Tree Proof of Work
             if((!fTestNet && pindexPrev->nHeight + 1 >= 30000)
                     || (fTestNet && pindexPrev->nHeight + 1 >= 40)){
-
+                loop
+                {
+                    int64 nStart = GetTime();
+                    printf("ZCoinMiner time: %s\n", DateTimeStrFormat("%Y-%m-%d %H:%M:%S", GetTime()).c_str());
+                    bool isFound = false;
 #define TEST_OUTLEN 32
 #define TEST_PWDLEN 32
 #define TEST_SALTLEN 16
 #define TEST_SECRETLEN 8
 #define TEST_ADLEN 12
-                argon2_context context;
-                argon2_context *pContext = &context;
+                    argon2_context context;
+                    argon2_context *pContext = &context;
 
-                unsigned char out[TEST_OUTLEN];
-                unsigned char pwd[TEST_PWDLEN];
-                unsigned char salt[TEST_SALTLEN];
-                unsigned char secret[TEST_SECRETLEN];
-                unsigned char ad[TEST_ADLEN];
-                const allocate_fptr myown_allocator = NULL;
-                const deallocate_fptr myown_deallocator = NULL;
+                    unsigned char out[TEST_OUTLEN];
+                    unsigned char pwd[TEST_PWDLEN];
+                    unsigned char salt[TEST_SALTLEN];
+                    unsigned char secret[TEST_SECRETLEN];
+                    unsigned char ad[TEST_ADLEN];
+                    const allocate_fptr myown_allocator = NULL;
+                    const deallocate_fptr myown_deallocator = NULL;
 
-                unsigned t_cost = 1;
-                unsigned m_cost = 2097152;
-                unsigned lanes = 4;
+                    unsigned t_cost = 1;
+                    unsigned m_cost = 2097152;
+                    unsigned lanes = 4;
 
 
-                memset(pContext,0,sizeof(argon2_context));
-                memset(&out[0], 0, sizeof(out));
-                memset(&pwd[0], 1, TEST_OUTLEN);
-                memset(&salt[0], 2, TEST_SALTLEN);
-                memset(&secret[0], 3, TEST_SECRETLEN);
-                memset(&ad[0], 4, TEST_ADLEN);
+                    memset(pContext,0,sizeof(argon2_context));
+                    memset(&out[0], 0, sizeof(out));
+                    memset(&pwd[0], pindexPrev->nHeight + 1, TEST_OUTLEN);
+                    memset(&salt[0], 2, TEST_SALTLEN);
+                    memset(&secret[0], 3, TEST_SECRETLEN);
+                    memset(&ad[0], 4, TEST_ADLEN);
 
-                context.out = out;
-                context.outlen = TEST_OUTLEN;
-                context.version = ARGON2_VERSION_NUMBER;
-                context.pwd = pwd;
-                context.pwdlen = TEST_PWDLEN;
-                context.salt = salt;
-                context.saltlen = TEST_SALTLEN;
-                context.secret = secret;
-                context.secretlen = TEST_SECRETLEN;
-                context.ad = ad;
-                context.adlen = TEST_ADLEN;
-                context.t_cost = t_cost;
-                context.m_cost = m_cost;
-                context.lanes = lanes;
-                context.threads = lanes;
-                context.allocate_cbk = myown_allocator;
-                context.free_cbk = myown_deallocator;
-                context.flags = ARGON2_DEFAULT_FLAGS;
+                    context.out = out;
+                    context.outlen = TEST_OUTLEN;
+                    context.version = ARGON2_VERSION_NUMBER;
+                    context.pwd = pwd;
+                    context.pwdlen = TEST_PWDLEN;
+                    context.salt = salt;
+                    context.saltlen = TEST_SALTLEN;
+                    context.secret = secret;
+                    context.secretlen = TEST_SECRETLEN;
+                    context.ad = ad;
+                    context.adlen = TEST_ADLEN;
+                    context.t_cost = t_cost;
+                    context.m_cost = m_cost;
+                    context.lanes = lanes;
+                    context.threads = lanes;
+                    context.allocate_cbk = myown_allocator;
+                    context.free_cbk = myown_deallocator;
+                    context.flags = ARGON2_DEFAULT_FLAGS;
 
 #undef TEST_OUTLEN
 #undef TEST_PWDLEN
@@ -6665,318 +6696,397 @@ void static ZcoinMiner(CWallet *pwallet)
 #undef TEST_SECRETLEN
 #undef TEST_ADLEN
 
-                printf("1. Validate all inputs \n");
-                /* 1. Validate all inputs */
-                int result = validate_inputs(&context);
-                uint32_t memory_blocks, segment_length;
-                argon2_instance_t instance;
+                    printf("1. Validate all inputs \n");
+                    /* 1. Validate all inputs */
+                    int result = validate_inputs(&context);
+                    uint32_t memory_blocks, segment_length;
+                    argon2_instance_t instance;
 
-                if (ARGON2_OK != result) {
-                    return result;
-                }
+                    if (ARGON2_OK != result) {
+                        return result;
+                    }
 
-                printf("2. Align memory size \n");
-                /* 2. Align memory size */
-                /* Minimum memory_blocks = 8L blocks, where L is the number of lanes */
-                memory_blocks = context.m_cost;
+                    printf("2. Align memory size \n");
+                    /* 2. Align memory size */
+                    /* Minimum memory_blocks = 8L blocks, where L is the number of lanes */
+                    memory_blocks = context.m_cost;
 
-                if (memory_blocks < 2 * ARGON2_SYNC_POINTS * context.lanes) {
-                    memory_blocks = 2 * ARGON2_SYNC_POINTS * context.lanes;
-                }
+                    if (memory_blocks < 2 * ARGON2_SYNC_POINTS * context.lanes) {
+                        memory_blocks = 2 * ARGON2_SYNC_POINTS * context.lanes;
+                    }
 
-                segment_length = memory_blocks / (context.lanes * ARGON2_SYNC_POINTS);
-                /* Ensure that all segments have equal length */
-                memory_blocks = segment_length * (context.lanes * ARGON2_SYNC_POINTS);
+                    segment_length = memory_blocks / (context.lanes * ARGON2_SYNC_POINTS);
+                    /* Ensure that all segments have equal length */
+                    memory_blocks = segment_length * (context.lanes * ARGON2_SYNC_POINTS);
 
-                instance.version = context.version;
-                instance.memory = NULL;
-                instance.passes = context.t_cost;
-                instance.memory_blocks = memory_blocks;
-                instance.segment_length = segment_length;
-                instance.lane_length = segment_length * ARGON2_SYNC_POINTS;
-                instance.lanes = context.lanes;
-                instance.threads = context.threads;
-                instance.type = Argon2_d;
+                    instance.version = context.version;
+                    instance.memory = NULL;
+                    instance.passes = context.t_cost;
+                    instance.memory_blocks = memory_blocks;
+                    instance.segment_length = segment_length;
+                    instance.lane_length = segment_length * ARGON2_SYNC_POINTS;
+                    instance.lanes = context.lanes;
+                    instance.threads = context.threads;
+                    instance.type = Argon2_d;
 
-                printf("3. Initialization: Hashing inputs, allocating memory, filling first blocks\n");
-                /* 3. Initialization: Hashing inputs, allocating memory, filling first
+                    printf("3. Initialization: Hashing inputs, allocating memory, filling first blocks\n");
+                    /* 3. Initialization: Hashing inputs, allocating memory, filling first
                     * blocks
                     */
-                result = initialize(&instance, &context);
+                    result = initialize(&instance, &context);
 
-                if (ARGON2_OK != result) {
-                    return result;
-                }
+                    if (ARGON2_OK != result) {
+                        printf("result = %d\n", result);
+                        return result;
+                    }
 
-                printf("4. Filling memory \n");
-                /* 4. Filling memory */
+                    printf("4. Filling memory \n");
+                    /* 4. Filling memory */
 
 
-                uint32_t r, s;
-                argon2_thread_handle_t *thread = NULL;
-                argon2_thread_data *thr_data = NULL;
-                int rc = ARGON2_OK;
+                    uint32_t r, s;
+                    argon2_thread_handle_t *thread = NULL;
+                    argon2_thread_data *thr_data = NULL;
+                    int rc = ARGON2_OK;
 
-                /* 1. Allocating space for threads */
-                thread = calloc(instance.lanes, sizeof(argon2_thread_handle_t));
-                if (thread == NULL) {
-                    rc = ARGON2_MEMORY_ALLOCATION_ERROR;
-                    goto fail;
-                }
+                    /* 1. Allocating space for threads */
+                    thread = calloc(instance.lanes, sizeof(argon2_thread_handle_t));
+                    if (thread == NULL) {
+                        rc = ARGON2_MEMORY_ALLOCATION_ERROR;
+                        goto fail;
+                    }
 
-                thr_data = calloc(instance.lanes, sizeof(argon2_thread_data));
-                if (thr_data == NULL) {
-                    rc = ARGON2_MEMORY_ALLOCATION_ERROR;
-                    goto fail;
-                }
+                    thr_data = calloc(instance.lanes, sizeof(argon2_thread_data));
+                    if (thr_data == NULL) {
+                        rc = ARGON2_MEMORY_ALLOCATION_ERROR;
+                        goto fail;
+                    }
 
-                for (r = 0; r < instance.passes; ++r) {
-                    for (s = 0; s < ARGON2_SYNC_POINTS; ++s) {
-                        uint32_t l;
 
-                        /* 2. Calling threads */
-                        for (l = 0; l < instance.lanes; ++l) {
-                            argon2_position_t position;
+                    for (r = 0; r < instance.passes; ++r) {
+                        for (s = 0; s < ARGON2_SYNC_POINTS; ++s) {
+                            uint32_t l;
 
-                            /* 2.1 Join a thread if limit is exceeded */
-                            if (l >= instance.threads) {
-                                if (argon2_thread_join(thread[l - instance.threads])) {
+                            /* 2. Calling threads */
+                            for (l = 0; l < instance.lanes; ++l) {
+                                argon2_position_t position;
+
+                                /* 2.1 Join a thread if limit is exceeded */
+                                if (l >= instance.threads) {
+                                    if (argon2_thread_join(thread[l - instance.threads])) {
+                                        rc = ARGON2_THREAD_FAIL;
+                                        goto fail;
+                                    }
+                                }
+
+                                /* 2.2 Create thread */
+                                position.pass = r;
+                                position.lane = l;
+                                position.slice = (uint8_t)s;
+                                position.index = 0;
+                                thr_data[l].instance_ptr =
+                                        &instance; /* preparing the thread input */
+                                memcpy(&(thr_data[l].pos), &position,
+                                       sizeof(argon2_position_t));
+                                if (argon2_thread_create(&thread[l], &fill_segment_thr,
+                                                         (void *)&thr_data[l])) {
+                                    rc = ARGON2_THREAD_FAIL;
+                                    goto fail;
+                                }
+
+                                /* fill_segment(instance, position); */
+                                /*Non-thread equivalent of the lines above */
+                            }
+
+                            /* 3. Joining remaining threads */
+                            for (l = instance.lanes - instance.threads; l < instance.lanes;
+                                 ++l) {
+                                if (argon2_thread_join(thread[l])) {
                                     rc = ARGON2_THREAD_FAIL;
                                     goto fail;
                                 }
                             }
-
-                            /* 2.2 Create thread */
-                            position.pass = r;
-                            position.lane = l;
-                            position.slice = (uint8_t)s;
-                            position.index = 0;
-                            thr_data[l].instance_ptr =
-                                &instance; /* preparing the thread input */
-                            memcpy(&(thr_data[l].pos), &position,
-                                   sizeof(argon2_position_t));
-                            if (argon2_thread_create(&thread[l], &fill_segment_thr,
-                                                     (void *)&thr_data[l])) {
-                                rc = ARGON2_THREAD_FAIL;
-                                goto fail;
-                            }
-
-                            /* fill_segment(instance, position); */
-                            /*Non-thread equivalent of the lines above */
                         }
 
-                        /* 3. Joining remaining threads */
-                        for (l = instance.lanes - instance.threads; l < instance.lanes;
-                             ++l) {
-                            if (argon2_thread_join(thread[l])) {
-                                rc = ARGON2_THREAD_FAIL;
-                                goto fail;
-                            }
-                        }
-                    }
+                        printf("Step 1 : Compute F(I) and store its T blocks X[1], X[2], ..., X[T] in the memory \n");
+                        // Step 1 : Compute F(I) and store its T blocks X[1], X[2], ..., X[T] in the memory
+                        if (&instance != NULL) {
+                            while (true){
+                                printf("Step 2 : Compute the root Φ of the Merkle hash tree \n");
+                                // Step 2 : Compute the root Φ of the Merkle hash tree
+                                mt_t *mt = mt_create();
+                                int i;
 
-                    printf("Step 1 : Compute F(I) and store its T blocks X[1], X[2], ..., X[T] in the memory \n");
-                    // Step 1 : Compute F(I) and store its T blocks X[1], X[2], ..., X[T] in the memory
-                    if (&instance != NULL) {
-                        while (true){
-                            printf("Step 2 : Compute the root Φ of the Merkle hash tree \n");
-                            // Step 2 : Compute the root Φ of the Merkle hash tree
-                            mt_t *mt = mt_create();
-                            int i;
+                                for (i = 0; i < instance.memory_blocks/1024; ++i){
+                                    block blockhash;
+                                    uint8_t blockhash_bytes[ARGON2_BLOCK_SIZE];
+                                    copy_block(&blockhash, &instance.memory[i]);
+                                    store_block(&blockhash_bytes, &blockhash);
+                                    // hash each block with sha256
+                                    SHA256Context ctx;
+                                    SHA256Context *pctx = &ctx;
+                                    uint8_t hashBlock[32];
+                                    int ret;
+                                    ret = SHA256Reset(pctx);
+                                    if (shaSuccess != ret){
+                                        return ret;
+                                    }
+                                    ret = SHA256Input(pctx, blockhash_bytes, ARGON2_BLOCK_SIZE);
+                                    if (shaSuccess != ret){
+                                        return ret;
+                                    }
+                                    ret = SHA256Result(pctx, (uint8_t*)hashBlock);
+                                    if (shaSuccess != ret){
+                                        return ret;
+                                    }
+                                    // add element to merkel tree
+                                    mt_add(mt, hashBlock, HASH_LENGTH);
+                                    // add element to blockchain header
+                                    memcpy(pblock->elementsInMerkleRoot[i], hashBlock, sizeof(uint8_t) * 32);
+                                }
 
-                            for (i = 0; i < instance.memory_blocks/1024; ++i){
-                                block blockhash;
-                                uint8_t blockhash_bytes[ARGON2_BLOCK_SIZE];
-                                copy_block(&blockhash, &instance.memory[i]);
-                                store_block(&blockhash_bytes, &blockhash);
-                                // hash each block with sha256
+                                printf("Step 3 : Select nonce N \n");
+                                // Step 3 : Select nonce N
+                                pblock->nNonce += 1;
+                                //nNonce += 1;
+                                uint8_t Y[71][32];
+                                memset(&Y[0], 0, sizeof(Y));
+
+                                printf("Step 4 : Y0 = H(resultMerkelRoot, N) \n");
+                                // Step 4 : Y0 = H(resultMerkelRoot, N)
+                                mt_hash_t resultMerkleRoot;
                                 SHA256Context ctx;
                                 SHA256Context *pctx = &ctx;
-                                uint8_t hashBlock[32];
                                 int ret;
+
+                                printf("Step 4.1 : resultMerkleRoot \n");
+                                ret = mt_get_root(mt, resultMerkleRoot);
+
+                                printf("Step 4.1 : resultMerkleRoot = 0x");
+                                for(i = 0; i < 32; i++){
+                                    printf("%02x", resultMerkleRoot[i]);
+                                }
+
+
+                                if(MT_SUCCESS != ret){
+                                    return ret;
+                                }
+
+                                printf("Step 4.2 : SHA256Reset \n");
                                 ret = SHA256Reset(pctx);
                                 if (shaSuccess != ret){
                                     return ret;
                                 }
-                                ret = SHA256Input(pctx, blockhash_bytes, ARGON2_BLOCK_SIZE);
+
+                                printf("Step 4.3 : SHA256Input resultMerkleRoot\n");
+                                ret = SHA256Input(pctx, resultMerkleRoot, HASH_LENGTH);
                                 if (shaSuccess != ret){
                                     return ret;
                                 }
-                                ret = SHA256Result(pctx, (uint8_t*)hashBlock);
+
+                                uint8_t nNonce[2];
+                                memcpy(nNonce, (uint8_t*)&pblock->nNonce, sizeof(unsigned int));
+
+                                printf("Step 4.3 : SHA256Input nNonce\n");
+                                ret = SHA256Input(pctx, nNonce, 1);
                                 if (shaSuccess != ret){
                                     return ret;
                                 }
-                                // add element to merkel tree
-                                mt_add(mt, hashBlock, HASH_LENGTH);
-                            }
 
-                            printf("Step 3 : Select nonce N \n");
-                            // Step 3 : Select nonce N
-                            pblock->nNonce += 1;
-                            //nNonce += 1;
-                            uint8_t Y[71][32];
-                            memset(&Y[0], 0, sizeof(Y));
-
-                            printf("Step 4 : Y0 = H(resultMerkelRoot, N) \n");
-                            // Step 4 : Y0 = H(resultMerkelRoot, N)
-                            mt_hash_t resultMerkleRoot;
-                            SHA256Context ctx;
-                            SHA256Context *pctx = &ctx;
-                            int ret;
-
-                            printf("Step 4.1 : resultMerkleRoot \n");
-                            ret = mt_get_root(mt, resultMerkleRoot);
-                            if(MT_SUCCESS != ret){
-                                return ret;
-                            }
-
-                            printf("Step 4.2 : SHA256Reset \n");
-                            ret = SHA256Reset(pctx);
-                            if (shaSuccess != ret){
-                                return ret;
-                            }
-
-                            printf("Step 4.3 : SHA256Input resultMerkleRoot\n");
-                            ret = SHA256Input(pctx, resultMerkleRoot, HASH_LENGTH);
-                            if (shaSuccess != ret){
-                                return ret;
-                            }
-
-                            uint8_t nNonce[2];
-                            memcpy(nNonce, (uint8_t*)&pblock->nNonce, sizeof(unsigned int));
-
-                            printf("Step 4.3 : SHA256Input nNonce\n");
-                            ret = SHA256Input(pctx, nNonce, 1);
-                            if (shaSuccess != ret){
-                                return ret;
-                            }
-
-                            printf("Step 4.4 : SHA256Result\n");
-                            ret = SHA256Result(pctx, (uint8_t*)Y[0]);
-                            if (shaSuccess != ret){
-                                return ret;
-                            }
-
-                            printf("Step 5 : For 1 <= j <= L \n");
-                            // Step 5 : For 1 <= j <= L
-                            //I(j) = Y(j - 1) mod T;
-                            //Y(j) = H(Y(j - 1), X[I(j)])
-
-                            uint8_t L = 70;
-                            block_with_offset blockhash_in_blockchain[140];
-                            bool init_blocks = false;
-                            bool unmatch_block = false;
-                            uint8_t j;
-                            for (j = 1; j <= L; j++) {
-                                uint32_t ij = *Y[j - 1] % 2048;
-
-                                if (ij == 0 || ij == 1) {
-                                    init_blocks = true;
-                                    break;
+                                printf("Step 4.4 : SHA256Result\n");
+                                ret = SHA256Result(pctx, (uint8_t*)Y[0]);
+                                if (shaSuccess != ret){
+                                    return ret;
                                 }
 
-                                blockhash_in_blockchain[(j * 2) - 1].offset = instance.memory[ij].prev_block;
-                                copy_block(&blockhash_in_blockchain[(j * 2) - 1].memory, &instance.memory[instance.memory[ij].prev_block]);
-                                blockhash_in_blockchain[(j * 2) - 1].memory.prev_block = instance.memory[instance.memory[ij].prev_block].prev_block;
-                                blockhash_in_blockchain[(j * 2) - 1].memory.ref_block = instance.memory[instance.memory[ij].prev_block].ref_block;
-                                // ref block
-                                blockhash_in_blockchain[(j * 2) - 2].offset = instance.memory[ij].ref_block;
-                                copy_block(&blockhash_in_blockchain[(j * 2) - 2].memory, &instance.memory[instance.memory[ij].ref_block]);
-                                blockhash_in_blockchain[(j * 2) - 2].memory.prev_block = instance.memory[instance.memory[ij].ref_block].prev_block;
-                                blockhash_in_blockchain[(j * 2) - 2].memory.ref_block = instance.memory[instance.memory[ij].ref_block].ref_block;
+                                printf("Step 5 : For 1 <= j <= L \n");
+                                // Step 5 : For 1 <= j <= L
+                                //I(j) = Y(j - 1) mod T;
+                                //Y(j) = H(Y(j - 1), X[I(j)])
 
-                                block X_IJ;
-                                __m128i state_test[64];
-                                memset(state_test, 0, sizeof(state_test));
-                                memcpy(state_test, &blockhash_in_blockchain[(j * 2) - 1].memory.v, ARGON2_BLOCK_SIZE);
-                                fill_block(state_test, &blockhash_in_blockchain[(j * 2) - 2].memory, &X_IJ, 0);
-                                X_IJ.prev_block = instance.memory[ij].prev_block;
-                                X_IJ.ref_block = instance.memory[ij].ref_block;
+                                uint8_t L = 70;
+                                //block_with_offset blockhash_in_blockchain[140];
+                                bool init_blocks = false;
+                                bool unmatch_block = false;
+                                uint8_t j;
+                                for (j = 1; j <= L; j++) {
+                                    uint32_t ij = *Y[j - 1] % 2048;
 
-                                block blockhash;
-                                uint8_t blockhash_bytes[ARGON2_BLOCK_SIZE];
-                                copy_block(&blockhash, &instance.memory[ij]);
-
-                                int countIndex;
-                                for (countIndex = 0; countIndex < 128; countIndex++) {
-                                    if (X_IJ.v[countIndex] != instance.memory[ij].v[countIndex]) {
-                                        unmatch_block = true;
+                                    if (ij == 0 || ij == 1) {
+                                        init_blocks = true;
                                         break;
+                                    }
+
+                                    pblock->blockhashInBlockchain[(j * 2) - 1].offset = instance.memory[ij].prev_block;
+                                    copy_block(&pblock->blockhashInBlockchain[(j * 2) - 1].memory, &instance.memory[instance.memory[ij].prev_block]);
+                                    pblock->blockhashInBlockchain[(j * 2) - 1].memory.prev_block = instance.memory[instance.memory[ij].prev_block].prev_block;
+                                    pblock->blockhashInBlockchain[(j * 2) - 1].memory.ref_block = instance.memory[instance.memory[ij].prev_block].ref_block;
+                                    // ref block
+                                    pblock->blockhashInBlockchain[(j * 2) - 2].offset = instance.memory[ij].ref_block;
+                                    copy_block(&pblock->blockhashInBlockchain[(j * 2) - 2].memory, &instance.memory[instance.memory[ij].ref_block]);
+                                    pblock->blockhashInBlockchain[(j * 2) - 2].memory.prev_block = instance.memory[instance.memory[ij].ref_block].prev_block;
+                                    pblock->blockhashInBlockchain[(j * 2) - 2].memory.ref_block = instance.memory[instance.memory[ij].ref_block].ref_block;
+
+                                    block X_IJ;
+                                    __m128i state_test[64];
+                                    memset(state_test, 0, sizeof(state_test));
+                                    memcpy(state_test, &pblock->blockhashInBlockchain[(j * 2) - 1].memory.v, ARGON2_BLOCK_SIZE);
+                                    fill_block(state_test, &pblock->blockhashInBlockchain[(j * 2) - 2].memory, &X_IJ, 0);
+                                    X_IJ.prev_block = instance.memory[ij].prev_block;
+                                    X_IJ.ref_block = instance.memory[ij].ref_block;
+
+                                    block blockhash;
+                                    uint8_t blockhash_bytes[ARGON2_BLOCK_SIZE];
+                                    copy_block(&blockhash, &instance.memory[ij]);
+
+                                    int countIndex;
+                                    for (countIndex = 0; countIndex < 128; countIndex++) {
+                                        if (X_IJ.v[countIndex] != instance.memory[ij].v[countIndex]) {
+                                            unmatch_block = true;
+                                            break;
+                                        }
+                                    }
+
+
+                                    store_block(&blockhash_bytes, &blockhash);
+                                    ret = SHA256Reset(pctx);
+                                    if (shaSuccess != ret){
+                                        return ret;
+                                    }
+
+                                    ret = SHA256Input(pctx,(uint8_t*)Y[j-1],HASH_LENGTH);
+                                    if (shaSuccess != ret){
+                                        return ret;
+                                    }
+                                    ret = SHA256Input(pctx, blockhash_bytes, ARGON2_BLOCK_SIZE);
+                                    if (shaSuccess != ret){
+                                        return ret;
+                                    }
+                                    ret = SHA256Result(pctx, (uint8_t*)Y[j]);
+                                    if (shaSuccess != ret){
+                                        return ret;
                                     }
                                 }
 
-
-                                store_block(&blockhash_bytes, &blockhash);
-                                ret = SHA256Reset(pctx);
-                                if (shaSuccess != ret){
-                                    return ret;
+                                if (init_blocks) {
+                                    printf("Step 5.1 : init_blocks \n");
+                                    continue;
                                 }
 
-                                ret = SHA256Input(pctx,(uint8_t*)Y[j-1],HASH_LENGTH);
-                                if (shaSuccess != ret){
-                                    return ret;
+                                if (unmatch_block) {
+                                    printf("Step 5.2 : unmatch_block \n");
+                                    continue;
                                 }
-                                ret = SHA256Input(pctx, blockhash_bytes, ARGON2_BLOCK_SIZE);
-                                if (shaSuccess != ret){
-                                    return ret;
-                                }
-                                ret = SHA256Result(pctx, (uint8_t*)Y[j]);
-                                if (shaSuccess != ret){
-                                    return ret;
-                                }
-                            }
 
-                            if (init_blocks) {
-                                printf("Step 5.1 : init_blocks \n");
-                                continue;
-                            }
+                                //unsigned int d = pblock->nBits;
+                                unsigned int d = 1;
 
-                            if (unmatch_block) {
-                                printf("Step 5.2 : unmatch_block \n");
-                                continue;
-                            }
-
-                            unsigned int d = pblock->nBits;
-
-                            char hex_tmp[64];
-                            int n;
-                            for (n = 0; n < 32; n++) {
-                                printf("%02x", Y[L][n]);
-                                sprintf(&hex_tmp[n * 2], "%02x", Y[L][n]);
-                            }
-                            printf("\n");
-
-                            printf("nBits = %d\n", d);
-                            printf("Step 6 : If Y(L) had d trailing zeros, then (resultMerkelroot, N, Y(L)) \n");
-                            // Step 6 : If Y(L) had d trailing zeros, then (resultMerkelroot, N, Y(L))
-                            if (trailing_zeros(hex_tmp) != d) {
-                                continue;
-                            }else{
-                                // Found a solution
-                                printf("Found a solution. Hash:");
+                                char hex_tmp[64];
+                                int n;
                                 for (n = 0; n < 32; n++) {
-                                    printf("%02x", Y[70][n]);
+                                    printf("%02x", Y[L][n]);
+                                    sprintf(&hex_tmp[n * 2], "%02x", Y[L][n]);
                                 }
                                 printf("\n");
-                                SetThreadPriority(THREAD_PRIORITY_LOWEST);
-                                break;
+
+                                printf("nBits = %d\n", d);
+                                printf("Step 6 : If Y(L) had d trailing zeros, then (resultMerkelroot, N, Y(L)) \n");
+                                // Step 6 : If Y(L) had d trailing zeros, then (resultMerkelroot, N, Y(L))
+                                if (trailing_zeros(hex_tmp) != d) {
+                                    continue;
+                                }else{
+                                    // Found a solution
+                                    printf("Found a solution. Hash:");
+                                    for (n = 0; n < 32; n++) {
+                                        printf("%02x", Y[70][n]);
+                                    }
+                                    printf("\n");
+
+                                    CBlockIndex* pindexPrev = NULL;
+                                    int nHeight = 0;
+                                    if (pblock->GetHash() != hashGenesisBlock)
+                                    {
+                                        map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(pblock->hashPrevBlock);
+                                        pindexPrev = (*mi).second;
+                                        nHeight = pindexPrev->nHeight+1;
+                                    }
+
+
+                                    //// debug print
+                                    pblock->print();
+                                    printf("generated %s\n", FormatMoney(pblock->vtx[0].vout[0].nValue).c_str());
+
+                                    // Found a solution
+                                    {
+                                        LOCK(cs_main);
+                                        if (pblock->hashPrevBlock != hashBestChain)
+                                            return error("ZCoinMiner : generated block is stale");
+
+                                        // Remove key from key pool
+                                        reservekey.KeepKey();
+
+                                        // Track how many getdata requests this block gets
+                                        {
+                                            LOCK(pwallet->cs_wallet);
+                                            pwallet->mapRequestCount[pblock->GetHash()] = 0;
+                                        }
+
+                                        // Process this block the same as if we had received it from another node
+                                        CValidationState state;
+                                        printf("I-4\n");
+                                        if (!ProcessBlock(state, NULL, pblock))
+                                            return error("ZCoinMiner : ProcessBlock, block not accepted");
+                                        isFound = true;
+                                        printf("O-1\n");
+                                    }
+                                    //SetThreadPriority(THREAD_PRIORITY_LOWEST);
+                                    //break;
+                                    printf("O-2\n");
+                                }
+
+                                printf("O-3\n");
+                                if(isFound) break;
                             }
+
+                            printf("O-4\n");
+                            if(isFound) break;
+
                         }
 
+                        printf("O-5\n");
+                        if(isFound) break;
 
                     }
-                }
 
-            fail:
-                if (thread != NULL) {
-                    free(thread);
-                }
-                if (thr_data != NULL) {
-                    free(thr_data);
-                }
-                return rc;
+                    printf("O-6\n");
+                    free_memory(&context, (uint8_t *)instance.memory,
+                                instance.memory_blocks, sizeof(block));
+
+                    // Check for stop or if block needs to be rebuilt
+                    boost::this_thread::interruption_point();
+                    if (vNodes.empty())
+                        break;
+                    if (pblock->nNonce >= 0xffff0000)
+                        break;
+                    if (nTransactionsUpdated != nTransactionsUpdatedLast && GetTime() - nStart > 60)
+                        break;
+                    if (pindexPrev != pindexBest)
+                        break;
+
+                    printf("O-7\n");
+fail:
+                    if (thread != NULL) {
+                        free(thread);
+                    }
+                    if (thr_data != NULL) {
+                        free(thr_data);
+                    }
+                    //return rc;
 
 
+                    printf("RUN AGAIN!!!!\n");
+                    if(isFound) break;
+                }
             }else{
 
                 //

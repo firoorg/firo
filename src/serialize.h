@@ -120,28 +120,35 @@ inline unsigned int GetSerializeSize(float a,          int, int=0) { return size
 inline unsigned int GetSerializeSize(double a,         int, int=0) { return sizeof(a); }
 
 // argon2 block with offset
-inline unsigned int GetSerializeSize(const block_with_offset data, int, int=0){
-    return sizeof(block_with_offset);
+inline unsigned int GetSerializeSize(const block_with_offset data[140], int, int=0){
+    return sizeof(block_with_offset) * 140;
 }
 
-template<typename Stream> inline void Serialize(Stream& s, block_with_offset a, int, int=0)
+template<typename Stream> inline void Serialize(Stream& s, const block_with_offset a[140], int, int=0)
 {
-    int i;
-    for(i = 0; i < ARGON2_QWORDS_IN_BLOCK; i++){
-        WRITEDATA(s, a.memory.v[i]);
+    int i, r;
+    for( r = 0; r < 140; r++){
+        for(i = 0; i < ARGON2_QWORDS_IN_BLOCK; i++){
+            WRITEDATA(s, a[r].memory.v[i]);
+        }
+        WRITEDATA(s, a[r].memory.prev_block);
+        WRITEDATA(s, a[r].memory.ref_block);
+        WRITEDATA(s, a[r].offset);
     }
-    WRITEDATA(s, a.memory.prev_block);
-    WRITEDATA(s, a.memory.ref_block);
 }
 
-template<typename Stream> inline void Unserialize(Stream& s, block_with_offset& a, int, int=0)
+template<typename Stream> inline void Unserialize(Stream& s, block_with_offset a[140], int, int=0)
 {
-    int i;
-    for(i = 0; i < ARGON2_QWORDS_IN_BLOCK; i++){
-        READDATA(s, a.memory.v[i]);
+    int i, r;
+    for( r = 0; r < 140; r++){
+        for(i = 0; i < ARGON2_QWORDS_IN_BLOCK; i++){
+            READDATA(s, a[r].memory.v[i]);
+        }
+        READDATA(s, a[r].memory.prev_block);
+        READDATA(s, a[r].memory.ref_block);
+        READDATA(s, a[r].offset);
     }
-    READDATA(s, a.memory.prev_block);
-    READDATA(s, a.memory.ref_block);
+
 }
 
 // merkel tree

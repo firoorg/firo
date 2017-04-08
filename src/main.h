@@ -1321,7 +1321,7 @@ class CBlockHeader
 {
 public:
     // header
-    static const int CURRENT_VERSION = 2;
+    static const int CURRENT_VERSION = 3;
     int LastHeight;
     int nVersion;
     uint256 hashPrevBlock;
@@ -1349,10 +1349,9 @@ public:
         READWRITE(nBits);
         READWRITE(nNonce);
 
-        if(nVersion == 3){
-            nSerSize += SerReadWrite(s, *(block_with_offset*)blockhashInBlockchain, nType, nVersion, ser_action);
+        if(this->CURRENT_VERSION == 3){
+            READWRITE(blockhashInBlockchain);
             READWRITE(elementsInMerkleRoot);
-
         }
 
         nSerSize += ReadWriteAuxPow(s, auxpow, nType, nVersion, ser_action);
@@ -1387,15 +1386,8 @@ public:
     void SetAuxPow(CAuxPow* pow);
 
     void SetNull()
-    {
-        if(LastHeight > 30000 && !fTestNet){
-           nVersion = 3 | (GetOurChainID() * BLOCK_VERSION_CHAIN_START);
-        }else if(LastHeight > 40 && fTestNet){
-           nVersion = 3 | (GetOurChainID() * BLOCK_VERSION_CHAIN_START);
-        }else{
-           nVersion = CBlockHeader::CURRENT_VERSION  | (GetOurChainID() * BLOCK_VERSION_CHAIN_START);
-        }
-
+    {        
+        nVersion = CBlockHeader::CURRENT_VERSION  | (GetOurChainID() * BLOCK_VERSION_CHAIN_START);
         hashPrevBlock = 0;
         hashMerkleRoot = 0;
         nTime = 0;
@@ -1467,7 +1459,7 @@ public:
         block.nBits          = nBits;
         block.nNonce         = nNonce;
 
-        if(nVersion == 3){
+        if(CURRENT_VERSION == 3){
             memcpy(&block.blockhashInBlockchain, blockhashInBlockchain, 140 * sizeof(block_with_offset) );
             memcpy(&block.elementsInMerkleRoot, elementsInMerkleRoot, 2048 * 32 * sizeof(uint8_t) );
         }
@@ -1575,8 +1567,10 @@ public:
         }
 
         // Check the header
-        if (!::CheckProofOfWork(GetPoWHash(LastHeight + 1), nBits))
-            return error("CBlock::ReadFromDisk() : errors in block header");
+        if(LastHeight + 1 < 40){ // Just skip for now in MTP due to it takes time to compute, have to find the better way to do
+            if (!::CheckProofOfWork(GetPoWHash(LastHeight + 1), nBits))
+                return error("CBlock::ReadFromDisk() : errors in block header");
+        }
 
         return true;
     }
@@ -1755,6 +1749,8 @@ public:
     unsigned int nTime;
     unsigned int nBits;
     unsigned int nNonce;
+    block_with_offset blockhashInBlockchain[140];
+    uint8_t elementsInMerkleRoot[2048][32];
 
 
     CBlockIndex()
@@ -1776,6 +1772,8 @@ public:
         nTime          = 0;
         nBits          = 0;
         nNonce         = 0;
+
+
     }
 
     CBlockIndex(CBlockHeader& block)
@@ -1797,6 +1795,11 @@ public:
         nTime          = block.nTime;
         nBits          = block.nBits;
         nNonce         = block.nNonce;
+
+        if(block.CURRENT_VERSION == 3){
+            memcpy(&blockhashInBlockchain, block.blockhashInBlockchain, 140 * sizeof(block_with_offset) );
+            memcpy(&elementsInMerkleRoot, block.elementsInMerkleRoot, 2048 * 32 * sizeof(uint8_t) );
+        }
     }
 
     IMPLEMENT_SERIALIZE
