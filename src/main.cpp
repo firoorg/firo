@@ -96,7 +96,6 @@ int64 nMinimumInputValue = DUST_HARD_LIMIT;
 
 
 
-
 //////////////////////////////////////////////////////////////////////////////
 //
 // dispatching functions
@@ -968,7 +967,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                             zccoinSpend.hashTx = hashTx;
                                             zccoinSpend.pubCoin = 0;
                                             zccoinSpend.id = pubcoinId;
-                                            if(nHeight > 22000 && nHeight < INT_MAX){
+                                            if(nHeight > HF_ZEROSPEND_FIX && nHeight < INT_MAX){
                                                 zccoinSpend.denomination = libzerocoin::ZQ_LOVELACE;
                                             }
                                             walletdb.WriteCoinSpendSerialEntry(zccoinSpend);
@@ -1141,7 +1140,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                             zccoinSpend.hashTx = hashTx;
                                             zccoinSpend.pubCoin = 0;
                                             zccoinSpend.id = pubcoinId;
-                                            if(nHeight > 22000 && nHeight < INT_MAX){
+                                            if(nHeight > HF_ZEROSPEND_FIX && nHeight < INT_MAX){
                                                 zccoinSpend.denomination = libzerocoin::ZQ_GOLDWASSER;
                                             }
                                             walletdb.WriteCoinSpendSerialEntry(zccoinSpend);
@@ -1312,7 +1311,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                             zccoinSpend.hashTx = hashTx;
                                             zccoinSpend.pubCoin = 0;
                                             zccoinSpend.id = pubcoinId;
-                                            if(nHeight > 22000 && nHeight < INT_MAX){
+                                            if(nHeight > HF_ZEROSPEND_FIX && nHeight < INT_MAX){
                                                 zccoinSpend.denomination = libzerocoin::ZQ_RACKOFF;
                                             }
                                             walletdb.WriteCoinSpendSerialEntry(zccoinSpend);
@@ -1483,7 +1482,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                             zccoinSpend.hashTx = hashTx;
                                             zccoinSpend.pubCoin = 0;
                                             zccoinSpend.id = pubcoinId;
-                                            if(nHeight > 22000 && nHeight < INT_MAX){
+                                            if(nHeight > HF_ZEROSPEND_FIX && nHeight < INT_MAX){
                                                 zccoinSpend.denomination = libzerocoin::ZQ_PEDERSEN;
                                             }
                                             walletdb.WriteCoinSpendSerialEntry(zccoinSpend);
@@ -1655,7 +1654,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                             zccoinSpend.hashTx = hashTx;
                                             zccoinSpend.pubCoin = 0;
                                             zccoinSpend.id = pubcoinId;
-                                            if(nHeight > 22000 && nHeight < INT_MAX){
+                                            if(nHeight > HF_ZEROSPEND_FIX && nHeight < INT_MAX){
                                                 zccoinSpend.denomination = libzerocoin::ZQ_WILLIAMSON;
                                             }
                                             walletdb.WriteCoinSpendSerialEntry(zccoinSpend);
@@ -2375,14 +2374,12 @@ unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBl
         return bnProofOfWorkLimit.GetCompact();
     }
 
-    return bnProofOfWorkLimit.GetCompact();
-
-    static const uint32_t        BlocksTargetSpacing                        = 10 * 60; // 10 minutes
-        unsigned int                TimeDaySeconds                                = 60 * 60 * 24;
-        int64                                PastSecondsMin                                = TimeDaySeconds * 0.25; // 21600
-        int64                                PastSecondsMax                                = TimeDaySeconds * 7;// 604800
-        uint32_t                                PastBlocksMin                                = PastSecondsMin / BlocksTargetSpacing; // 36 blocks
-        uint32_t                                PastBlocksMax                                = PastSecondsMax / BlocksTargetSpacing; // 1008 blocks
+    static const uint32_t        BlocksTargetSpacing              = 10 * 60; // 10 minutes
+    const unsigned int           TimeDaySeconds                   = 60 * 60 * 24;
+    const int64                  PastSecondsMin                   = TimeDaySeconds * 0.25; // 21600
+    const int64                  PastSecondsMax                   = TimeDaySeconds * 7;// 604800
+    const uint32_t               PastBlocksMin                    = PastSecondsMin / BlocksTargetSpacing; // 36 blocks
+    const uint32_t               PastBlocksMax                    = PastSecondsMax / BlocksTargetSpacing; // 1008 blocks
         
     if (fTestNet) {
         // If the new block's timestamp is more than nTargetSpacing*6
@@ -2393,17 +2390,25 @@ unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBl
     }
 
     // 9/29/2016 - Reset to Lyra2(2,block_height,256) due to ASIC KnC Miner Scrypt
-    // 36 block look back, reset to mininmum diff
-    if(!fTestNet && pindexLast->nHeight + 1 >= 500 && pindexLast->nHeight + 1 <= 535){
+    // 36 blocks look back, reset to mininmum diff
+    if(!fTestNet && pindexLast->nHeight + 1 >= HF_LYRA2VAR_HEIGHT && pindexLast->nHeight + 1 <= (HF_LYRA2VAR_HEIGHT + 35)){
         return bnProofOfWorkLimit.GetCompact();
     }
-    // reset to minimum diff at testnet after scrypt_n, 6 block look back
-    if(fTestNet && pindexLast->nHeight + 1 >= 80 && pindexLast->nHeight + 1 <= 85){
+    // reset to minimum diff at testnet after scrypt_n, 6 blocks look back
+    if(fTestNet && pindexLast->nHeight + 1 >= HF_LYRA2VAR_HEIGHT_TESTNET && pindexLast->nHeight + 1 <= (HF_LYRA2VAR_HEIGHT_TESTNET + 5)){
+        return bnProofOfWorkLimit.GetCompact();
+    }
+
+    // reset to minimum diff at testnet for lyra2 with matrix height = 8192 until lyra2z
+    if(fTestNet && pindexLast->nHeight + 1 >= HF_LYRA2_HEIGHT_TESTNET && pindexLast->nHeight + 1 <= (HF_LYRA2Z_HEIGHT_TESTNET - 1)){
+        printf("Lyra2 with 8192 matrix height.\n");
         return bnProofOfWorkLimit.GetCompact();
     }
 
     // 02/11/2017 - Increase diff to match with new hashrates of Lyra2Z algo
-    if ( (!fTestNet && pindexLast->nHeight + 1 == 20500) || (fTestNet && pindexLast->nHeight + 1 == 90) ) {
+    if (!fTestNet && pindexLast->nHeight + 1 == HF_LYRA2Z_HEIGHT)
+    //     || (fTestNet && pindexLast->nHeight + 1 == HF_LYRA2Z_HEIGHT_TESTNET)  // skip on testnet for faster testing MTP
+    {
         CBigNum bnNew;
         bnNew.SetCompact(pindexLast->nBits);
         bnNew /= 20000; // increase the diff by 20000x since the new hashrate is approx. 20000 times higher
@@ -2413,8 +2418,12 @@ unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBl
         return bnNew.GetCompact();
     }
 
-   	if ((pindexLast->nHeight+1) % nInterval != 0) // Retarget every nInterval blocks
-    {
+    // 04/09/2017 - Reset diff on testnet for MTP, 6 blocks look back
+    if(fTestNet && pindexLast->nHeight + 1 >= HF_MTP_HEIGHT_TESTNET && pindexLast->nHeight + 1 <= HF_MTP_HEIGHT_TESTNET + 5) {
+        return bnProofOfWorkLimit.GetCompact();
+    }
+
+    if ((pindexLast->nHeight+1) % nInterval != 0) { // Retarget every nInterval blocks
         return pindexLast->nBits;
     }
         
@@ -2550,16 +2559,6 @@ void CBlockHeader::UpdateTime(const CBlockIndex* pindexPrev)
     if (fTestNet)
         nBits = GetNextWorkRequired(pindexPrev, this);
 }
-
-
-
-
-
-
-
-
-
-
 
 const CTxOut &CTransaction::GetOutputFor(const CTxIn& input, CCoinsViewCache& view)
 {
@@ -3577,7 +3576,7 @@ bool CBlockHeader::CheckProofOfWork(int nHeight) const
 
         // Enable MTP
         // TODO: should we check block height and testnet or just version ?
-        if (fTestNet && nHeight >= 40){
+        if (fTestNet && nHeight >= HF_MTP_HEIGHT_TESTNET){
             uint8_t Y_CLIENT[71][32];
             memset(&Y_CLIENT[0], 0, sizeof(Y_CLIENT));
             printf("Step 7 : Y_CLIENT(0) = H(resultMerkelRoot, N)\n");
@@ -3616,8 +3615,6 @@ bool CBlockHeader::CheckProofOfWork(int nHeight) const
             uint8_t nNonceInBlock[2];
             //memcpy(nNonceInBlock, (uint8_t*)&nNonce, sizeof(unsigned int));
             memcpy(nNonceInBlock, (uint8_t*)&nNonce, sizeof(nNonceInBlock));
-
-
 
             ret = SHA256Input(pctx_client, nNonceInBlock, 1);
             if (shaSuccess != ret){
@@ -3983,14 +3980,16 @@ bool CBlock::AcceptBlock(CValidationState &state, CDiskBlockPos *dbp)
         if (pcheckpoint && nHeight < pcheckpoint->nHeight)
             return state.DoS(100, error("AcceptBlock() : forked chain older than last checkpoint (height %d)", nHeight));
 
+        /*
         // Reject block.nVersion=2 when reach at block height = 30000 in realnet and block height = 200;
-        /*if ((!fTestNet && nHeight >= 30000) && ((nVersion&0xff) < 3)){
+        if ((!fTestNet && nHeight >= HF_MTP_HEIGHT) && ((nVersion&0xff) < 3)){
             return state.Invalid(error("AcceptBlock() : rejected nVersion=2 block"));
         }
 
-        if ((fTestNet && nHeight >= 40) && ((nVersion&0xff) < 3)){
+        if ((fTestNet && nHeight >= HF_MTP_HEIGHT_TESTNET) && ((nVersion&0xff) < 3)){
             return state.Invalid(error("AcceptBlock() : rejected nVersion=2 block"));
-        }*/
+        }
+        */
 
         // Reject block.nVersion=1 blocks when 95% (75% on testnet) of the network has upgraded:
         if ((nVersion&0xff) < 2)
@@ -4293,12 +4292,6 @@ uint256 CPartialMerkleTree::ExtractMatches(std::vector<uint256> &vMatch) {
         return 0;
     return hashMerkleRoot;
 }
-
-
-
-
-
-
 
 bool AbortNode(const std::string &strMessage) {
     strMiscWarning = strMessage;
@@ -5972,19 +5965,6 @@ bool SendMessages(CNode* pto, bool fSendTrickle)
     return true;
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 //////////////////////////////////////////////////////////////////////////////
 //
 // ZCoinMiner
@@ -6157,7 +6137,7 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
 
     unsigned int COUNT_SPEND_ZC_TX = 0;
     unsigned int MAX_SPEND_ZC_TX_PER_BLOCK = 0;
-    if(fTestNet || pindexBest->nHeight + 1 > 22000){
+    if(fTestNet || pindexBest->nHeight + 1 > HF_ZEROSPEND_FIX){
         MAX_SPEND_ZC_TX_PER_BLOCK = 1;
     }
 
@@ -6638,8 +6618,8 @@ void static ZcoinMiner(CWallet *pwallet)
                    ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
 
             // Start Merkel Tree Proof of Work
-            if((!fTestNet && pindexPrev->nHeight + 1 >= 30000)
-                    || (fTestNet && pindexPrev->nHeight + 1 >= 40)){
+            if((!fTestNet && pindexPrev->nHeight + 1 >= HF_MTP_HEIGHT)
+                    || (fTestNet && pindexPrev->nHeight + 1 >= HF_MTP_HEIGHT_TESTNET)){
                 loop
                 {
                     int64 nStart = GetTime();
@@ -6888,8 +6868,6 @@ void static ZcoinMiner(CWallet *pwallet)
 
                                 uint8_t nNonce[2];
 
-                                printf("debug memcpy\n");
-
                                 //memcpy(nNonce, (uint8_t*)&pblock->nNonce, sizeof(unsigned int));
                                 memcpy(nNonce, (uint8_t*)&pblock->nNonce, sizeof(nNonce));
 
@@ -6984,7 +6962,8 @@ void static ZcoinMiner(CWallet *pwallet)
                                     continue;
                                 }
 
-                                //unsigned int d = pblock->nBits;
+                                printf("Current nBits: %d", pblock->nBits);
+                                // TODO: testing with higher d
                                 unsigned int d = 1;
 
                                 char hex_tmp[64];
@@ -7091,10 +7070,9 @@ fail:
 
 
                     printf("RUN AGAIN!!!!\n");
-                    if(isFound) break;
+                    if (isFound) break;
                 }
-            }else{
-
+            } else{
                 //
                 // Pre-build hash buffers
                 //
@@ -7108,7 +7086,6 @@ fail:
                 unsigned int& nBlockBits = *(unsigned int*)(pdata + 64 + 8);
                 //unsigned int& nBlockNonce = *(unsigned int*)(pdata + 64 + 12);
 
-
                 //
                 // Search
                 //
@@ -7121,26 +7098,25 @@ fail:
 
                     loop
                     {
-                        if ( (!fTestNet && pindexPrev->nHeight + 1 >= 20500) ) {
+                        if (!fTestNet && pindexPrev->nHeight + 1 >= HF_LYRA2Z_HEIGHT) {
                             lyra2z_hash(BEGIN(pblock->nVersion), BEGIN(thash));
-                        } else if( !fTestNet && pindexPrev->nHeight + 1 >= 8192){
+                        } else if (!fTestNet && pindexPrev->nHeight + 1 >= HF_LYRA2_HEIGHT){
                             LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, 8192, 256);
-                        } else if( !fTestNet && pindexPrev->nHeight + 1 >= 500){
+                        } else if (!fTestNet && pindexPrev->nHeight + 1 >= HF_LYRA2VAR_HEIGHT){
                             LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, pindexPrev->nHeight + 1, 256);
-                        } else if(fTestNet && pindexPrev->nHeight + 1 >= 90) { // testnet
+                        } else if (fTestNet && pindexPrev->nHeight + 1 >= HF_LYRA2Z_HEIGHT_TESTNET) { // testnet
                             lyra2z_hash(BEGIN(pblock->nVersion), BEGIN(thash));
-                        } else if(fTestNet && pindexPrev->nHeight + 1 >= 80){ // testnet
+                        } else if (fTestNet && pindexPrev->nHeight + 1 >= HF_LYRA2_HEIGHT_TESTNET){ // testnet
                             LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, 8192, 256);
+                        } else if (fTestNet && pindexPrev->nHeight + 1 >= HF_LYRA2VAR_HEIGHT_TESTNET){ // testnet
+                            LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, pindexPrev->nHeight + 1, 256);
                         } else {
                             unsigned long int scrypt_scratpad_size_current_block = ((1 << (GetNfactor(pblock->nTime) + 1)) * 128 ) + 63;
                             char scratchpad[scrypt_scratpad_size_current_block];
                             scrypt_N_1_1_256_sp_generic(BEGIN(pblock->nVersion), BEGIN(thash), scratchpad, GetNfactor(pblock->nTime));
-                            //printf("scrypt thash: %s\n", thash.ToString().c_str());
-                            //printf("hashTarget: %s\n", hashTarget.ToString().c_str());
                         }
 
-                        if (thash <= hashTarget)
-                        {
+                        if (thash <= hashTarget) {
                             // Found a solution
                             printf("Found a solution. Hash: %s", thash.GetHex().c_str());
                             SetThreadPriority(THREAD_PRIORITY_NORMAL);

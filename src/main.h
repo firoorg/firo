@@ -67,6 +67,19 @@ static const int COINBASE_MATURITY = 100;
 static const unsigned int LOCKTIME_THRESHOLD = 500000000; // Tue Nov  5 00:53:20 1985 UTC
 /** Maximum number of script-checking threads allowed */
 static const int MAX_SCRIPTCHECK_THREADS = 16;
+
+// HF constants
+static const int HF_LYRA2VAR_HEIGHT = 500;
+static const int HF_LYRA2_HEIGHT = 8192;
+static const int HF_LYRA2Z_HEIGHT = 20500;
+static const int HF_MTP_HEIGHT = 31000;
+
+static const int HF_LYRA2VAR_HEIGHT_TESTNET = 20;
+static const int HF_LYRA2_HEIGHT_TESTNET = 40;
+static const int HF_LYRA2Z_HEIGHT_TESTNET = 44; // just for consistent purpose since the algo hash is so low
+static const int HF_MTP_HEIGHT_TESTNET = 60;
+
+static const int HF_ZEROSPEND_FIX = 22000;
 #ifdef USE_UPNP
 static const int fHaveUPnP = true;
 #else
@@ -389,7 +402,6 @@ public:
 
 
 
-
 /** An output of a transaction.  It contains the public key that the next input
  * must be able to sign with to claim it.
  */
@@ -455,8 +467,6 @@ public:
         printf("%s\n", ToString().c_str());
     }
 };
-
-
 
 enum GetMinFee_mode
 {
@@ -1366,17 +1376,19 @@ public:
     {
         uint256 thash;
 
-        if (!fTestNet && height >= 20500) {
+        if ( !fTestNet && height >= HF_LYRA2Z_HEIGHT) {
             lyra2z_hash(BEGIN(nVersion), BEGIN(thash));
-        } else if( !fTestNet && height >= 8192){
+        } else if ( !fTestNet && height >= HF_LYRA2_HEIGHT){
             LYRA2(BEGIN(thash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, 8192, 256);
-        }else if( !fTestNet && height >= 500){
+        } else if ( !fTestNet && height >= HF_LYRA2VAR_HEIGHT){
             LYRA2(BEGIN(thash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, height, 256);
-        } else if (fTestNet && height >= 90) { // testnet
+        } else if (fTestNet && height >= HF_LYRA2Z_HEIGHT_TESTNET) { // testnet
             lyra2z_hash(BEGIN(nVersion), BEGIN(thash));
-        }else if(fTestNet && height >= 80){ // testnet
+        } else if (fTestNet && height >= HF_LYRA2_HEIGHT_TESTNET){ // testnet
             LYRA2(BEGIN(thash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, 8192, 256);
-        }else{
+        } else if (fTestNet && height >= HF_LYRA2VAR_HEIGHT_TESTNET){ // testnet
+            LYRA2(BEGIN(thash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, height, 256);
+        } else{
             scrypt_N_1_1_256(BEGIN(nVersion), BEGIN(thash), GetNfactor(nTime));
         }
 
@@ -1567,7 +1579,9 @@ public:
         }
 
         // Check the header
-        if(LastHeight + 1 < 40){ // Just skip for now in MTP due to it takes time to compute, have to find the better way to do
+        // Just skip for now in MTP due to it takes time to compute,
+        // TODO: have to find the better way to check
+        if (fTestNet && LastHeight + 1 < HF_MTP_HEIGHT_TESTNET){
             if (!::CheckProofOfWork(GetPoWHash(LastHeight + 1), nBits))
                 return error("CBlock::ReadFromDisk() : errors in block header");
         }

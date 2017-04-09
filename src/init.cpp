@@ -693,8 +693,9 @@ bool AppInit2(boost::thread_group& threadGroup)
     std::ostringstream strErrors;
 
     if (fDaemon)
-        fprintf(stdout, "ZCoin server starting\n");
+        fprintf(stdout, "Zcoin server starting\n");
 
+    // TODO: multithreads
     if (nScriptCheckThreads) {
         printf("Using %u threads for script verification\n", nScriptCheckThreads);
         for (int i=0; i<nScriptCheckThreads-1; i++)
