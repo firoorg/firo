@@ -3614,7 +3614,9 @@ bool CBlockHeader::CheckProofOfWork(int nHeight) const
             }
 
             uint8_t nNonceInBlock[2];
-            memcpy(nNonceInBlock, (uint8_t*)&nNonce, sizeof(unsigned int));
+            //memcpy(nNonceInBlock, (uint8_t*)&nNonce, sizeof(unsigned int));
+            memcpy(nNonceInBlock, (uint8_t*)&nNonce, sizeof(nNonceInBlock));
+
 
 
             ret = SHA256Input(pctx_client, nNonceInBlock, 1);
@@ -6862,7 +6864,7 @@ void static ZcoinMiner(CWallet *pwallet)
                                 printf("Step 4.1 : resultMerkleRoot \n");
                                 ret = mt_get_root(mt, resultMerkleRoot);
 
-                                printf("Step 4.1 : resultMerkleRoot = 0x");
+                                printf("Step 4.1 : resultMerkleRoot = 0x ");
                                 for(i = 0; i < 32; i++){
                                     printf("%02x", resultMerkleRoot[i]);
                                 }
@@ -6872,7 +6874,7 @@ void static ZcoinMiner(CWallet *pwallet)
                                     return ret;
                                 }
 
-                                printf("Step 4.2 : SHA256Reset \n");
+                                printf(" -- Step 4.2 : SHA256Reset \n");
                                 ret = SHA256Reset(pctx);
                                 if (shaSuccess != ret){
                                     return ret;
@@ -6885,7 +6887,11 @@ void static ZcoinMiner(CWallet *pwallet)
                                 }
 
                                 uint8_t nNonce[2];
-                                memcpy(nNonce, (uint8_t*)&pblock->nNonce, sizeof(unsigned int));
+
+                                printf("debug memcpy\n");
+
+                                //memcpy(nNonce, (uint8_t*)&pblock->nNonce, sizeof(unsigned int));
+                                memcpy(nNonce, (uint8_t*)&pblock->nNonce, sizeof(nNonce));
 
                                 printf("Step 4.3 : SHA256Input nNonce\n");
                                 ret = SHA256Input(pctx, nNonce, 1);
