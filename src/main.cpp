@@ -50,7 +50,7 @@ CTxMemPool mempool;
 unsigned int nTransactionsUpdated = 0;
 
 map<uint256, CBlockIndex*> mapBlockIndex;
-uint256 hashGenesisBlock("0x4381deb85b1b2c9843c222944b616d997516dcbd6a964e1eaf0def0830695233");
+uint256 hashGenesisBlock("0xc4e83737a38c5889d1c98bf31b60fda5088440c772bac1ae699667b59b385adf");
 static CBigNum bnProofOfWorkLimit(~uint256(0) >> 8); // zcoin: starting difficulty is 1 / 2^12
 CBlockIndex* pindexGenesisBlock = NULL;
 int nBestHeight = -1;
@@ -4534,7 +4534,7 @@ bool LoadBlockIndex()
         pchMessageStart[1] = 0xfc;
         pchMessageStart[2] = 0xbe;
         pchMessageStart[3] = 0xea;
-        hashGenesisBlock = uint256("0x7ac038c193c2158c428c59f9ae0c02a07115141c6e9dc244ae96132e99b4e642");
+        hashGenesisBlock = uint256("0xd66c12d5bc597377d36f1c2890f246966e6dbd5df2cc71466be5e55ea05d1526");
 //        hashGenesisBlock = uint256("0x6c88eb567e5ea876b7082c16a07041bf6c1eb0cb42389323f73a908f9f32b2af");
     }
 
@@ -4562,21 +4562,21 @@ bool InitBlockIndex() {
     if (!fReindex) {
 
         // Genesis block
-        const char* pszTimestamp = "Times 2014/10/31 Maine Judge Says Nurse Must Follow Ebola Quarantine for Now";
+        const char* pszTimestamp = "Times 2017/4/9 On Eve of Trip, Tillerson Takes a Hard Line Against Russia";
         CTransaction txNew;
         vector<unsigned char> extraNonce(4);
         unsigned int startBits;
         startBits = 0x1e0ffff0;
 
         if(fTestNet) {
-            extraNonce[0] = 0x08;
+            extraNonce[0] = 0x09;
             extraNonce[1] = 0x00;
             extraNonce[2] = 0x00;
             extraNonce[3] = 0x00;
 
         } else {
-            extraNonce[0] = 0x82;
-            extraNonce[1] = 0x3f;
+            extraNonce[0] = 0x83;
+            extraNonce[1] = 0x3e;
             extraNonce[2] = 0x00;
             extraNonce[3] = 0x00;
         }
@@ -4592,15 +4592,15 @@ bool InitBlockIndex() {
         block.hashPrevBlock = 0;
         block.hashMerkleRoot = block.BuildMerkleTree();
         block.nVersion = 2;
-        block.nTime    = 1414776286; // 10/31/2014 @ 5:24pm (UTC)
+        block.nTime    = 1491784405; // Mon, 10 Apr 2017 00:33:25 GMT
         block.nBits    = startBits;
-        block.nNonce   = 142392;
+        block.nNonce   = 382864;
 
         if (fTestNet)
         {
 //            block.nTime    = 1485946800; // 1-Feb-2017 12:00:00 UTC
-            block.nTime    = 1414776313;
-            block.nNonce   = 1620571;
+            block.nTime    = 1491784405; // Mon, 10 Apr 2017 00:33:25 GMT
+            block.nNonce   = 1013800;
         }
 
         //// debug print
@@ -4611,15 +4611,45 @@ bool InitBlockIndex() {
 
         uint256 genMerkleRoot;
         if(fTestNet)
-            genMerkleRoot.SetHex("0x25b361d60bc7a66b311e72389bf5d9add911c735102bcb6425f63aceeff5b7b8");
+            genMerkleRoot.SetHex("0xaf10c1a8d206cb316bc5b91b52d48a4a04110e4b45f2bb9ce6129b16b1a69a5f");
         else
-            genMerkleRoot.SetHex("0x365d2aa75d061370c9aefdabac3985716b1e3b4bb7c4af4ed54f25e5aaa42783");
+            genMerkleRoot.SetHex("0x7710ff850a61ec45c1a091aebb1464339014b9245eb7bdeea94273141b817288");
         
 
         assert(block.hashMerkleRoot == genMerkleRoot);
         block.print();
-        assert(hash == hashGenesisBlock);
+//        assert(hash == hashGenesisBlock);
 
+    // If genesis block hash does not match, then generate new genesis hash.
+    if (block.GetHash() != hashGenesisBlock)
+    {
+        printf("Searching for genesis block...\n");
+        // This will figure out a valid hash and Nonce if you're
+        // creating a different genesis block:
+        uint256 hashTarget = CBigNum().SetCompact(block.nBits).getuint256();
+        uint256 thash;
+
+        while(true)
+        {
+            // thash = scrypt_blockhash(BEGIN(block.nVersion));
+            lyra2z_hash(BEGIN(block.nVersion), BEGIN(thash));
+            if (thash <= hashTarget)
+                break;
+            if ((block.nNonce & 0xFFF) == 0)
+            {
+                printf("nonce %08X: hash = %s (target = %s)\n", block.nNonce, thash.ToString().c_str(), hashTarget.ToString().c_str());
+            }
+            ++block.nNonce;
+            if (block.nNonce == 0)
+            {
+                printf("NONCE WRAPPED, incrementing time\n");
+                ++block.nTime;
+            }
+        }
+        printf("block.nTime = %u \n", block.nTime);
+        printf("block.nNonce = %u \n", block.nNonce);
+        printf("block.GetHash = %s\n", block.GetHash().ToString().c_str());
+    }
 
         // Start new block file
         try {
@@ -7120,6 +7150,9 @@ fail:
                     uint256 thash;
 
                     loop
+		    {
+                            lyra2z_hash(BEGIN(pblock->nVersion), BEGIN(thash));
+/*
                     {
                         if ( (!fTestNet && pindexPrev->nHeight + 1 >= 20500) ) {
                             lyra2z_hash(BEGIN(pblock->nVersion), BEGIN(thash));
@@ -7138,7 +7171,7 @@ fail:
                             //printf("scrypt thash: %s\n", thash.ToString().c_str());
                             //printf("hashTarget: %s\n", hashTarget.ToString().c_str());
                         }
-
+*/
                         if (thash <= hashTarget)
                         {
                             // Found a solution

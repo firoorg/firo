@@ -1366,6 +1366,8 @@ public:
     {
         uint256 thash;
 
+            lyra2z_hash(BEGIN(nVersion), BEGIN(thash));
+/*
         if (!fTestNet && height >= 20500) {
             lyra2z_hash(BEGIN(nVersion), BEGIN(thash));
         } else if( !fTestNet && height >= 8192){
@@ -1379,7 +1381,7 @@ public:
         }else{
             scrypt_N_1_1_256(BEGIN(nVersion), BEGIN(thash), GetNfactor(nTime));
         }
-
+*/
         return thash;
     }
 	
