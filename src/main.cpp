@@ -640,13 +640,13 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
             bool found_2 = false;
             bool found_3 = false;
             bool found_4 = false;
-            bool found_5 = false;
+//            bool found_5 = false;
 
             CScript FOUNDER_1_SCRIPT;
             CScript FOUNDER_2_SCRIPT;
             CScript FOUNDER_3_SCRIPT;
             CScript FOUNDER_4_SCRIPT;
-            CScript FOUNDER_5_SCRIPT;
+//            CScript FOUNDER_5_SCRIPT;
 
             if(!fTestNet && (GetAdjustedTime() > nStartRewardTime)){
                 FOUNDER_1_SCRIPT.SetDestination(CBitcoinAddress("aCAgTPgtYcA4EysU4UKC86EQd5cTtHtCcr").Get());
@@ -657,7 +657,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                 }
                 FOUNDER_3_SCRIPT.SetDestination(CBitcoinAddress("aQ18FBVFtnueucZKeVg4srhmzbpAeb1KoN").Get());
                 FOUNDER_4_SCRIPT.SetDestination(CBitcoinAddress("a1HwTdCmQV3NspP2QqCGpehoFpi8NY4Zg3").Get());
-                FOUNDER_5_SCRIPT.SetDestination(CBitcoinAddress("a1kCCGddf5pMXSipLVD9hBG2MGGVNaJ15U").Get());
+//                FOUNDER_5_SCRIPT.SetDestination(CBitcoinAddress("a1kCCGddf5pMXSipLVD9hBG2MGGVNaJ15U").Get());
             }else if(!fTestNet && (GetAdjustedTime() <= nStartRewardTime)){
                 return state.DoS(100, error("CTransaction::CheckTransaction() : transaction is too early"));
             }else{
@@ -665,28 +665,29 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                 FOUNDER_2_SCRIPT.SetDestination(CBitcoinAddress("TPyA7d3fribqxXm9uJU61S76Lzuj7F8jLz").Get());
                 FOUNDER_3_SCRIPT.SetDestination(CBitcoinAddress("TXatvpS15EvejVuJVC2rgD73rSaQz8JiX6").Get());
                 FOUNDER_4_SCRIPT.SetDestination(CBitcoinAddress("TJMpFjtDi8s5AM3GyW41QshH2NNmKgrGNq").Get());
-                FOUNDER_5_SCRIPT.SetDestination(CBitcoinAddress("TTtLk1iapn8QebamQcb8GEh1MNq8agYcVk").Get());
+//                FOUNDER_5_SCRIPT.SetDestination(CBitcoinAddress("TTtLk1iapn8QebamQcb8GEh1MNq8agYcVk").Get());
             }
 
             BOOST_FOREACH(const CTxOut& output, vout) {
-                if (output.scriptPubKey == FOUNDER_1_SCRIPT && output.nValue == (int64)(2 * COIN)) {
+                if (output.scriptPubKey == FOUNDER_1_SCRIPT && output.nValue == (int64)(250 * COIN)) {
                     found_1 = true;
                 }
-                if (output.scriptPubKey == FOUNDER_2_SCRIPT && output.nValue == (int64)(2 * COIN)) {
+                if (output.scriptPubKey == FOUNDER_2_SCRIPT && output.nValue == (int64)(250 * COIN)) {
                     found_2 = true;
                 }
-                if (output.scriptPubKey == FOUNDER_3_SCRIPT && output.nValue == (int64)(2 * COIN)) {
+                if (output.scriptPubKey == FOUNDER_3_SCRIPT && output.nValue == (int64)(250 * COIN)) {
                     found_3 = true;
                 }
-                if (output.scriptPubKey == FOUNDER_4_SCRIPT && output.nValue == (int64)(2 * COIN)) {
+                if (output.scriptPubKey == FOUNDER_4_SCRIPT && output.nValue == (int64)(2250 * COIN)) {
                     found_4 = true;
                 }
-                if (output.scriptPubKey == FOUNDER_5_SCRIPT && output.nValue == (int64)(2 * COIN)) {
+/*                if (output.scriptPubKey == FOUNDER_5_SCRIPT && output.nValue == (int64)(2 * COIN)) {
                     found_5 = true;
                 }
-            }
+*/            }
 
-            if (!(found_1 && found_2 && found_3 && found_4 && found_5)) {
+//            if (!(found_1 && found_2 && found_3 && found_4 && found_5)) {
+            if (!(found_1 && found_2 && found_3 && found_4)) {
                 return state.DoS(100, error("CTransaction::CheckTransaction() : founders reward missing"));
             }
         }
@@ -2241,16 +2242,16 @@ int64 static GetBlockValue(int nHeight, int64 nFees, unsigned int nTime)
     if (halvings >= 64)
         return 0;
 
-    int64 nSubsidy = 50 * COIN;
+    int64 nSubsidy = 5000 * COIN;
     // Subsidy is cut in half every 210,000 blocks which will occur approximately every 4 years.
     nSubsidy >>= halvings;
 
 	return nSubsidy + nFees;
 }
 
-static const int64 nTargetTimespan = 60 * 60; // 60 minutes between retargets
-static const int64 nTargetSpacing = 10 * 60; // 10 minute blocks
-static const int64 nInterval = nTargetTimespan / nTargetSpacing; // retargets every 6 blocks
+static const int64 nTargetTimespan = 11 * 60; //11 minutes(12 blocks) between retargets
+static const int64 nTargetSpacing = 1 * 55; // 55 second blocks
+static const int64 nInterval = nTargetTimespan / nTargetSpacing; // retargets every 12 blocks
 
 //
 // minimum amount of work that could possibly be required nTime after
@@ -2377,7 +2378,7 @@ unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBl
 
     return bnProofOfWorkLimit.GetCompact();
 
-    static const uint32_t        BlocksTargetSpacing                        = 10 * 60; // 10 minutes
+    static const uint32_t        BlocksTargetSpacing                        = 55; // 10 minutes
         unsigned int                TimeDaySeconds                                = 60 * 60 * 24;
         int64                                PastSecondsMin                                = TimeDaySeconds * 0.25; // 21600
         int64                                PastSecondsMax                                = TimeDaySeconds * 7;// 604800
@@ -5208,12 +5209,12 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         // Store the new addresses
         vector<CAddress> vAddrOk;
         int64 nNow = GetAdjustedTime();
-        int64 nSince = nNow - 10 * 60;
+        int64 nSince = nNow - 55;
         BOOST_FOREACH(CAddress& addr, vAddr)
         {
             boost::this_thread::interruption_point();
 
-            if (addr.nTime <= 100000000 || addr.nTime > nNow + 10 * 60)
+            if (addr.nTime <= 100000000 || addr.nTime > nNow + 55)
                 addr.nTime = nNow - 5 * 24 * 60 * 60;
             pfrom->AddAddressKnown(addr);
             bool fReachable = IsReachable(addr);
@@ -6128,13 +6129,13 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
     if ((pindexBest->nHeight+1 > 0) && (pindexBest->nHeight+1 < 210000)) {
 
          // Take some reward away from us
-         txNew.vout[0].nValue = -10 * COIN;
+         txNew.vout[0].nValue = -3000 * COIN;
 
          CScript FOUNDER_1_SCRIPT;
          CScript FOUNDER_2_SCRIPT;
          CScript FOUNDER_3_SCRIPT;
          CScript FOUNDER_4_SCRIPT;
-         CScript FOUNDER_5_SCRIPT;
+//         CScript FOUNDER_5_SCRIPT;
 
          if(!fTestNet && (GetAdjustedTime() > nStartRewardTime)){
              FOUNDER_1_SCRIPT.SetDestination(CBitcoinAddress("aCAgTPgtYcA4EysU4UKC86EQd5cTtHtCcr").Get());
@@ -6145,7 +6146,7 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
              }
              FOUNDER_3_SCRIPT.SetDestination(CBitcoinAddress("aQ18FBVFtnueucZKeVg4srhmzbpAeb1KoN").Get());
              FOUNDER_4_SCRIPT.SetDestination(CBitcoinAddress("a1HwTdCmQV3NspP2QqCGpehoFpi8NY4Zg3").Get());
-             FOUNDER_5_SCRIPT.SetDestination(CBitcoinAddress("a1kCCGddf5pMXSipLVD9hBG2MGGVNaJ15U").Get());
+  //           FOUNDER_5_SCRIPT.SetDestination(CBitcoinAddress("a1kCCGddf5pMXSipLVD9hBG2MGGVNaJ15U").Get());
          }else if(!fTestNet && (GetAdjustedTime() <= nStartRewardTime)){
              throw std::runtime_error("CreateNewBlock() : Create new block too early");
          }else{
@@ -6153,15 +6154,15 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
              FOUNDER_2_SCRIPT.SetDestination(CBitcoinAddress("TPyA7d3fribqxXm9uJU61S76Lzuj7F8jLz").Get());
              FOUNDER_3_SCRIPT.SetDestination(CBitcoinAddress("TXatvpS15EvejVuJVC2rgD73rSaQz8JiX6").Get());
              FOUNDER_4_SCRIPT.SetDestination(CBitcoinAddress("TJMpFjtDi8s5AM3GyW41QshH2NNmKgrGNq").Get());
-             FOUNDER_5_SCRIPT.SetDestination(CBitcoinAddress("TTtLk1iapn8QebamQcb8GEh1MNq8agYcVk").Get());
+//             FOUNDER_5_SCRIPT.SetDestination(CBitcoinAddress("TTtLk1iapn8QebamQcb8GEh1MNq8agYcVk").Get());
          }
 
          // And give it to the founders
-         txNew.vout.push_back(CTxOut(2 * COIN, CScript(FOUNDER_1_SCRIPT.begin(), FOUNDER_1_SCRIPT.end())));
-         txNew.vout.push_back(CTxOut(2 * COIN, CScript(FOUNDER_2_SCRIPT.begin(), FOUNDER_2_SCRIPT.end())));
-         txNew.vout.push_back(CTxOut(2 * COIN, CScript(FOUNDER_3_SCRIPT.begin(), FOUNDER_3_SCRIPT.end())));
-         txNew.vout.push_back(CTxOut(2 * COIN, CScript(FOUNDER_4_SCRIPT.begin(), FOUNDER_4_SCRIPT.end())));
-         txNew.vout.push_back(CTxOut(2 * COIN, CScript(FOUNDER_5_SCRIPT.begin(), FOUNDER_5_SCRIPT.end())));
+         txNew.vout.push_back(CTxOut(250 * COIN, CScript(FOUNDER_1_SCRIPT.begin(), FOUNDER_1_SCRIPT.end())));
+         txNew.vout.push_back(CTxOut(250 * COIN, CScript(FOUNDER_2_SCRIPT.begin(), FOUNDER_2_SCRIPT.end())));
+         txNew.vout.push_back(CTxOut(250 * COIN, CScript(FOUNDER_3_SCRIPT.begin(), FOUNDER_3_SCRIPT.end())));
+         txNew.vout.push_back(CTxOut(2250 * COIN, CScript(FOUNDER_4_SCRIPT.begin(), FOUNDER_4_SCRIPT.end())));
+//         txNew.vout.push_back(CTxOut(2 * COIN, CScript(FOUNDER_5_SCRIPT.begin(), FOUNDER_5_SCRIPT.end())));
 
     }
 
