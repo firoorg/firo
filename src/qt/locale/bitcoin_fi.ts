@@ -4,13 +4,13 @@
     <name>AboutDialog</name>
     <message>
         <location filename="../forms/aboutdialog.ui" line="+14"/>
-        <source>About zcoin</source>
-        <translation>Tietoa zcoinista</translation>
+        <source>About smartcash</source>
+        <translation>Tietoa smartcashista</translation>
     </message>
     <message>
         <location line="+39"/>
-        <source>&lt;b&gt;zcoin&lt;/b&gt; version</source>
-        <translation>&lt;b&gt;zcoin&lt;/b&gt; versio</translation>
+        <source>&lt;b&gt;smartcash&lt;/b&gt; version</source>
+        <translation>&lt;b&gt;smartcash&lt;/b&gt; versio</translation>
     </message>
     <message>
         <location line="+57"/>
@@ -35,7 +35,7 @@ Tämä ohjelma sisältää OpenSSL projektin OpenSSL työkalupakin (http://www.o
     </message>
     <message>
         <location line="+0"/>
-        <source>The zcoin developers</source>
+        <source>The smartcash developers</source>
         <translation type="unfinished"/>
     </message>
 </context>
@@ -68,8 +68,8 @@ Tämä ohjelma sisältää OpenSSL projektin OpenSSL työkalupakin (http://www.o
     </message>
     <message>
         <location filename="../addressbookpage.cpp" line="+63"/>
-        <source>These are your zcoin addresses for receiving payments. You may want to give a different one to each sender so you can keep track of who is paying you.</source>
-        <translation>Nämä ovat zcoin-osoitteesi joihin voit vastaanottaa maksuja. Voit haluta antaa jokaiselle maksajalle omansa, että pystyt seuraamaan keneltä maksut tulevat.</translation>
+        <source>These are your smartcash addresses for receiving payments. You may want to give a different one to each sender so you can keep track of who is paying you.</source>
+        <translation>Nämä ovat smartcash-osoitteesi joihin voit vastaanottaa maksuja. Voit haluta antaa jokaiselle maksajalle omansa, että pystyt seuraamaan keneltä maksut tulevat.</translation>
     </message>
     <message>
         <location filename="../forms/addressbookpage.ui" line="+14"/>
@@ -83,8 +83,8 @@ Tämä ohjelma sisältää OpenSSL projektin OpenSSL työkalupakin (http://www.o
     </message>
     <message>
         <location line="+11"/>
-        <source>Sign a message to prove you own a zcoin address</source>
-        <translation>Allekirjoita viesti todistaaksesi, että omistat zcoin-osoitteen</translation>
+        <source>Sign a message to prove you own a smartcash address</source>
+        <translation>Allekirjoita viesti todistaaksesi, että omistat smartcash-osoitteen</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -108,8 +108,8 @@ Tämä ohjelma sisältää OpenSSL projektin OpenSSL työkalupakin (http://www.o
     </message>
     <message>
         <location line="-44"/>
-        <source>Verify a message to ensure it was signed with a specified zcoin address</source>
-        <translation>Tarkista viestin allekirjoitus varmistaaksesi, että se allekirjoitettiin tietyllä zcoin-osoitteella</translation>
+        <source>Verify a message to ensure it was signed with a specified smartcash address</source>
+        <translation>Tarkista viestin allekirjoitus varmistaaksesi, että se allekirjoitettiin tietyllä smartcash-osoitteella</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -123,7 +123,7 @@ Tämä ohjelma sisältää OpenSSL projektin OpenSSL työkalupakin (http://www.o
     </message>
     <message>
         <location filename="../addressbookpage.cpp" line="-5"/>
-        <source>These are your zcoin addresses for sending payments. Always check the amount and the receiving address before sending coins.</source>
+        <source>These are your smartcash addresses for sending payments. Always check the amount and the receiving address before sending coins.</source>
         <translation type="unfinished"/>
     </message>
     <message>
@@ -249,7 +249,7 @@ Tämä ohjelma sisältää OpenSSL projektin OpenSSL työkalupakin (http://www.o
     </message>
     <message>
         <location line="+1"/>
-        <source>Warning: If you encrypt your wallet and lose your passphrase, you will &lt;b&gt;LOSE ALL OF YOUR zcoinS&lt;/b&gt;!</source>
+        <source>Warning: If you encrypt your wallet and lose your passphrase, you will &lt;b&gt;LOSE ALL OF YOUR smartcashS&lt;/b&gt;!</source>
         <translation>Varoitus: Jos salaat lompakkosi ja menetät tunnuslauseesi, &lt;b&gt;MENETÄT KAIKKI LITECOINISI&lt;/b&gt;!</translation>
     </message>
     <message>
@@ -276,8 +276,8 @@ Tämä ohjelma sisältää OpenSSL projektin OpenSSL työkalupakin (http://www.o
     </message>
     <message>
         <location line="-56"/>
-        <source>zcoin will close now to finish the encryption process. Remember that encrypting your wallet cannot fully protect your zcoins from being stolen by malware infecting your computer.</source>
-        <translation>zcoin sulkeutuu lopettaakseen salausprosessin. Muista, että salattukaan lompakko ei täysin suojaa sitä haittaohjelmien aiheuttamilta varkauksilta.</translation>
+        <source>smartcash will close now to finish the encryption process. Remember that encrypting your wallet cannot fully protect your smartcashs from being stolen by malware infecting your computer.</source>
+        <translation>smartcash sulkeutuu lopettaakseen salausprosessin. Muista, että salattukaan lompakko ei täysin suojaa sitä haittaohjelmien aiheuttamilta varkauksilta.</translation>
     </message>
     <message>
         <location line="+13"/>
@@ -361,7 +361,7 @@ Tämä ohjelma sisältää OpenSSL projektin OpenSSL työkalupakin (http://www.o
     <message>
         <location line="-14"/>
         <source>Show the list of addresses for receiving payments</source>
-        <translation>Näytä zcoinien vastaanottamiseen käytetyt osoitteet</translation>
+        <translation>Näytä smartcashien vastaanottamiseen käytetyt osoitteet</translation>
     </message>
     <message>
         <location line="+31"/>
@@ -375,8 +375,8 @@ Tämä ohjelma sisältää OpenSSL projektin OpenSSL työkalupakin (http://www.o
     </message>
     <message>
         <location line="+4"/>
-        <source>Show information about zcoin</source>
-        <translation>Näytä tietoa zcoin-projektista</translation>
+        <source>Show information about smartcash</source>
+        <translation>Näytä tietoa smartcash-projektista</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -420,13 +420,13 @@ Tämä ohjelma sisältää OpenSSL projektin OpenSSL työkalupakin (http://www.o
     </message>
     <message>
         <location line="-347"/>
-        <source>Send coins to a zcoin address</source>
-        <translation>Lähetä kolikoita zcoin-osoitteeseen</translation>
+        <source>Send coins to a smartcash address</source>
+        <translation>Lähetä kolikoita smartcash-osoitteeseen</translation>
     </message>
     <message>
         <location line="+49"/>
-        <source>Modify configuration options for zcoin</source>
-        <translation>Muuta zcoinin konfiguraatioasetuksia</translation>
+        <source>Modify configuration options for smartcash</source>
+        <translation>Muuta smartcashin konfiguraatioasetuksia</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -456,8 +456,8 @@ Tämä ohjelma sisältää OpenSSL projektin OpenSSL työkalupakin (http://www.o
     <message>
         <location line="-165"/>
         <location line="+530"/>
-        <source>zcoin</source>
-        <translation>zcoin</translation>
+        <source>smartcash</source>
+        <translation>smartcash</translation>
     </message>
     <message>
         <location line="-530"/>
@@ -481,8 +481,8 @@ Tämä ohjelma sisältää OpenSSL projektin OpenSSL työkalupakin (http://www.o
     </message>
     <message>
         <location line="+22"/>
-        <source>&amp;About zcoin</source>
-        <translation>&amp;Tietoa zcoinista</translation>
+        <source>&amp;About smartcash</source>
+        <translation>&amp;Tietoa smartcashista</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -492,7 +492,7 @@ Tämä ohjelma sisältää OpenSSL projektin OpenSSL työkalupakin (http://www.o
     <message>
         <location line="+1"/>
         <source>Show or hide the main Window</source>
-        <translation>Näytä tai piilota zcoin-ikkuna</translation>
+        <translation>Näytä tai piilota smartcash-ikkuna</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -501,13 +501,13 @@ Tämä ohjelma sisältää OpenSSL projektin OpenSSL työkalupakin (http://www.o
     </message>
     <message>
         <location line="+7"/>
-        <source>Sign messages with your zcoin addresses to prove you own them</source>
-        <translation>Allekirjoita viestisi omalla zcoin -osoitteellasi todistaaksesi, että omistat ne</translation>
+        <source>Sign messages with your smartcash addresses to prove you own them</source>
+        <translation>Allekirjoita viestisi omalla smartcash -osoitteellasi todistaaksesi, että omistat ne</translation>
     </message>
     <message>
         <location line="+2"/>
-        <source>Verify messages to ensure they were signed with specified zcoin addresses</source>
-        <translation>Varmista, että viestisi on allekirjoitettu määritetyllä zcoin -osoitteella</translation>
+        <source>Verify messages to ensure they were signed with specified smartcash addresses</source>
+        <translation>Varmista, että viestisi on allekirjoitettu määritetyllä smartcash -osoitteella</translation>
     </message>
     <message>
         <location line="+28"/>
@@ -537,13 +537,13 @@ Tämä ohjelma sisältää OpenSSL projektin OpenSSL työkalupakin (http://www.o
     </message>
     <message>
         <location line="+47"/>
-        <source>zcoin client</source>
-        <translation>zcoin-asiakas</translation>
+        <source>smartcash client</source>
+        <translation>smartcash-asiakas</translation>
     </message>
     <message numerus="yes">
         <location line="+141"/>
-        <source>%n active connection(s) to zcoin network</source>
-        <translation><numerusform>%n aktiivinen yhteys zcoin-verkkoon</numerusform><numerusform>%n aktiivista yhteyttä zcoin-verkkoon</numerusform></translation>
+        <source>%n active connection(s) to smartcash network</source>
+        <translation><numerusform>%n aktiivinen yhteys smartcash-verkkoon</numerusform><numerusform>%n aktiivista yhteyttä smartcash-verkkoon</numerusform></translation>
     </message>
     <message>
         <location line="+22"/>
@@ -656,8 +656,8 @@ Osoite: %4</translation>
     <message>
         <location line="-23"/>
         <location line="+23"/>
-        <source>URI can not be parsed! This can be caused by an invalid zcoin address or malformed URI parameters.</source>
-        <translation>URIa ei voitu jäsentää! Tämä voi johtua kelvottomasta zcoin-osoitteesta tai virheellisistä URI parametreista.</translation>
+        <source>URI can not be parsed! This can be caused by an invalid smartcash address or malformed URI parameters.</source>
+        <translation>URIa ei voitu jäsentää! Tämä voi johtua kelvottomasta smartcash-osoitteesta tai virheellisistä URI parametreista.</translation>
     </message>
     <message>
         <location line="+17"/>
@@ -671,8 +671,8 @@ Osoite: %4</translation>
     </message>
     <message>
         <location filename="../bitcoin.cpp" line="+111"/>
-        <source>A fatal error occurred. zcoin can no longer continue safely and will quit.</source>
-        <translation>Peruuttamaton virhe on tapahtunut. zcoin ei voi enää jatkaa turvallisesti ja sammutetaan.</translation>
+        <source>A fatal error occurred. smartcash can no longer continue safely and will quit.</source>
+        <translation>Peruuttamaton virhe on tapahtunut. smartcash ei voi enää jatkaa turvallisesti ja sammutetaan.</translation>
     </message>
 </context>
 <context>
@@ -737,8 +737,8 @@ Osoite: %4</translation>
     </message>
     <message>
         <location line="-5"/>
-        <source>The entered address &quot;%1&quot; is not a valid zcoin address.</source>
-        <translation>Antamasi osoite &quot;%1&quot; ei ole validi zcoin-osoite.</translation>
+        <source>The entered address &quot;%1&quot; is not a valid smartcash address.</source>
+        <translation>Antamasi osoite &quot;%1&quot; ei ole validi smartcash-osoite.</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -756,8 +756,8 @@ Osoite: %4</translation>
     <message>
         <location filename="../guiutil.cpp" line="+424"/>
         <location line="+12"/>
-        <source>zcoin</source>
-        <translation>zcoin</translation>
+        <source>smartcash</source>
+        <translation>smartcash</translation>
     </message>
     <message>
         <location line="-12"/>
@@ -819,13 +819,13 @@ Osoite: %4</translation>
     </message>
     <message>
         <location line="+31"/>
-        <source>Automatically start zcoin after logging in to the system.</source>
-        <translation>Käynnistä zcoin kirjautumisen yhteydessä.</translation>
+        <source>Automatically start smartcash after logging in to the system.</source>
+        <translation>Käynnistä smartcash kirjautumisen yhteydessä.</translation>
     </message>
     <message>
         <location line="+3"/>
-        <source>&amp;Start zcoin on system login</source>
-        <translation>&amp;Käynnistä zcoin kirjautumisen yhteydessä</translation>
+        <source>&amp;Start smartcash on system login</source>
+        <translation>&amp;Käynnistä smartcash kirjautumisen yhteydessä</translation>
     </message>
     <message>
         <location line="+35"/>
@@ -844,8 +844,8 @@ Osoite: %4</translation>
     </message>
     <message>
         <location line="+6"/>
-        <source>Automatically open the zcoin client port on the router. This only works when your router supports UPnP and it is enabled.</source>
-        <translation>Avaa zcoin-asiakasohjelman portti reitittimellä automaattisesti. Tämä toimii vain, jos reitittimesi tukee UPnP:tä ja se on käytössä.</translation>
+        <source>Automatically open the smartcash client port on the router. This only works when your router supports UPnP and it is enabled.</source>
+        <translation>Avaa smartcash-asiakasohjelman portti reitittimellä automaattisesti. Tämä toimii vain, jos reitittimesi tukee UPnP:tä ja se on käytössä.</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -854,8 +854,8 @@ Osoite: %4</translation>
     </message>
     <message>
         <location line="+7"/>
-        <source>Connect to the zcoin network through a SOCKS proxy (e.g. when connecting through Tor).</source>
-        <translation>Ota yhteys zcoin-verkkoon SOCKS-proxyn läpi (esimerkiksi kun haluat käyttää Tor-verkkoa).</translation>
+        <source>Connect to the smartcash network through a SOCKS proxy (e.g. when connecting through Tor).</source>
+        <translation>Ota yhteys smartcash-verkkoon SOCKS-proxyn läpi (esimerkiksi kun haluat käyttää Tor-verkkoa).</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -910,7 +910,7 @@ Osoite: %4</translation>
     <message>
         <location line="+7"/>
         <source>Minimize instead of exit the application when the window is closed. When this option is enabled, the application will be closed only after selecting Quit in the menu.</source>
-        <translation>Ikkunaa suljettaessa vain pienentää zcoin-ohjelman ikkunan lopettamatta itse ohjelmaa. Kun tämä asetus on valittuna, ohjelman voi sulkea vain valitsemalla Lopeta ohjelman valikosta.</translation>
+        <translation>Ikkunaa suljettaessa vain pienentää smartcash-ohjelman ikkunan lopettamatta itse ohjelmaa. Kun tämä asetus on valittuna, ohjelman voi sulkea vain valitsemalla Lopeta ohjelman valikosta.</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -929,23 +929,23 @@ Osoite: %4</translation>
     </message>
     <message>
         <location line="+13"/>
-        <source>The user interface language can be set here. This setting will take effect after restarting zcoin.</source>
-        <translation>Tässä voit määritellä käyttöliittymän kielen. Muutokset astuvat voimaan seuraavan kerran, kun zcoin käynnistetään.</translation>
+        <source>The user interface language can be set here. This setting will take effect after restarting smartcash.</source>
+        <translation>Tässä voit määritellä käyttöliittymän kielen. Muutokset astuvat voimaan seuraavan kerran, kun smartcash käynnistetään.</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>&amp;Unit to show amounts in:</source>
-        <translation>Yksikkö jona zcoin-määrät näytetään</translation>
+        <translation>Yksikkö jona smartcash-määrät näytetään</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>Choose the default subdivision unit to show in the interface and when sending coins.</source>
-        <translation>Valitse mitä yksikköä käytetään ensisijaisesti zcoin-määrien näyttämiseen.</translation>
+        <translation>Valitse mitä yksikköä käytetään ensisijaisesti smartcash-määrien näyttämiseen.</translation>
     </message>
     <message>
         <location line="+9"/>
-        <source>Whether to show zcoin addresses in the transaction list or not.</source>
-        <translation>Näytetäänkö zcoin-osoitteet rahansiirrot listassa vai ei.</translation>
+        <source>Whether to show smartcash addresses in the transaction list or not.</source>
+        <translation>Näytetäänkö smartcash-osoitteet rahansiirrot listassa vai ei.</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -996,8 +996,8 @@ Osoite: %4</translation>
     <message>
         <location line="-9"/>
         <location line="+9"/>
-        <source>This setting will take effect after restarting zcoin.</source>
-        <translation>Tämä asetus astuu voimaan seuraavalla kerralla, kun zcoin käynnistetään.</translation>
+        <source>This setting will take effect after restarting smartcash.</source>
+        <translation>Tämä asetus astuu voimaan seuraavalla kerralla, kun smartcash käynnistetään.</translation>
     </message>
     <message>
         <location line="+29"/>
@@ -1015,8 +1015,8 @@ Osoite: %4</translation>
     <message>
         <location line="+50"/>
         <location line="+166"/>
-        <source>The displayed information may be out of date. Your wallet automatically synchronizes with the zcoin network after a connection is established, but this process has not completed yet.</source>
-        <translation>Näytetyt tiedot eivät välttämättä ole ajantasalla. Lompakkosi synkronoituu zcoin-verkon kanssa automaattisesti yhteyden muodostamisen jälkeen, mutta synkronointi on vielä meneillään.</translation>
+        <source>The displayed information may be out of date. Your wallet automatically synchronizes with the smartcash network after a connection is established, but this process has not completed yet.</source>
+        <translation>Näytetyt tiedot eivät välttämättä ole ajantasalla. Lompakkosi synkronoituu smartcash-verkon kanssa automaattisesti yhteyden muodostamisen jälkeen, mutta synkronointi on vielä meneillään.</translation>
     </message>
     <message>
         <location line="-124"/>
@@ -1051,12 +1051,12 @@ Osoite: %4</translation>
     <message>
         <location line="-101"/>
         <source>Your current balance</source>
-        <translation>Tililläsi tällä hetkellä olevien zcoinien määrä</translation>
+        <translation>Tililläsi tällä hetkellä olevien smartcashien määrä</translation>
     </message>
     <message>
         <location line="+29"/>
         <source>Total of transactions that have yet to be confirmed, and do not yet count toward the current balance</source>
-        <translation>Niiden saapuvien rahansiirtojen määrä, joita zcoin-verkko ei vielä ole ehtinyt vahvistaa ja siten eivät vielä näy saldossa.</translation>
+        <translation>Niiden saapuvien rahansiirtojen määrä, joita smartcash-verkko ei vielä ole ehtinyt vahvistaa ja siten eivät vielä näy saldossa.</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="+116"/>
@@ -1069,7 +1069,7 @@ Osoite: %4</translation>
     <name>PaymentServer</name>
     <message>
         <location filename="../paymentserver.cpp" line="+107"/>
-        <source>Cannot start zcoin: click-to-pay handler</source>
+        <source>Cannot start smartcash: click-to-pay handler</source>
         <translation type="unfinished"/>
     </message>
 </context>
@@ -1219,8 +1219,8 @@ Osoite: %4</translation>
     </message>
     <message>
         <location line="+7"/>
-        <source>Show the zcoin help message to get a list with possible zcoin command-line options.</source>
-        <translation>Näytä zcoin komentoriviparametrien ohjesivu, jossa on listattuna mahdolliset komentoriviparametrit.</translation>
+        <source>Show the smartcash help message to get a list with possible smartcash command-line options.</source>
+        <translation>Näytä smartcash komentoriviparametrien ohjesivu, jossa on listattuna mahdolliset komentoriviparametrit.</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -1239,13 +1239,13 @@ Osoite: %4</translation>
     </message>
     <message>
         <location line="-104"/>
-        <source>zcoin - Debug window</source>
-        <translation>zcoin - Debug ikkuna</translation>
+        <source>smartcash - Debug window</source>
+        <translation>smartcash - Debug ikkuna</translation>
     </message>
     <message>
         <location line="+25"/>
-        <source>zcoin Core</source>
-        <translation>zcoin-ydin</translation>
+        <source>smartcash Core</source>
+        <translation>smartcash-ydin</translation>
     </message>
     <message>
         <location line="+279"/>
@@ -1254,7 +1254,7 @@ Osoite: %4</translation>
     </message>
     <message>
         <location line="+7"/>
-        <source>Open the zcoin debug log file from the current data directory. This can take a few seconds for large log files.</source>
+        <source>Open the smartcash debug log file from the current data directory. This can take a few seconds for large log files.</source>
         <translation>Avaa lokitiedosto nykyisestä data-kansiosta. Tämä voi viedä useamman sekunnin, jos lokitiedosto on iso.</translation>
     </message>
     <message>
@@ -1264,8 +1264,8 @@ Osoite: %4</translation>
     </message>
     <message>
         <location filename="../rpcconsole.cpp" line="-30"/>
-        <source>Welcome to the zcoin RPC console.</source>
-        <translation>Tervetuloa zcoin RPC konsoliin.</translation>
+        <source>Welcome to the smartcash RPC console.</source>
+        <translation>Tervetuloa smartcash RPC konsoliin.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -1290,7 +1290,7 @@ Osoite: %4</translation>
         <location line="+5"/>
         <location line="+5"/>
         <source>Send Coins</source>
-        <translation>Lähetä zcoineja</translation>
+        <translation>Lähetä smartcasheja</translation>
     </message>
     <message>
         <location line="+50"/>
@@ -1340,7 +1340,7 @@ Osoite: %4</translation>
     <message>
         <location line="+5"/>
         <source>Confirm send coins</source>
-        <translation>Hyväksy zcoinien lähettäminen</translation>
+        <translation>Hyväksy smartcashien lähettäminen</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -1360,7 +1360,7 @@ Osoite: %4</translation>
     <message>
         <location line="+5"/>
         <source>The amount to pay must be larger than 0.</source>
-        <translation>Maksettavan summan tulee olla suurempi kuin 0 zcoinia.</translation>
+        <translation>Maksettavan summan tulee olla suurempi kuin 0 smartcashia.</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -1385,7 +1385,7 @@ Osoite: %4</translation>
     <message>
         <location line="+5"/>
         <source>Error: The transaction was rejected. This might happen if some of the coins in your wallet were already spent, such as if you used a copy of wallet.dat and coins were spent in the copy but not marked as spent here.</source>
-        <translation>Virhe: Rahansiirto hylättiin.  Tämä voi tapahtua jos jotkin zcoineistasi on jo käytetty, esimerkiksi jos olet käyttänyt kopiota wallet.dat-lompakkotiedostosta ja zcoinit on merkitty käytetyksi vain kopiossa.</translation>
+        <translation>Virhe: Rahansiirto hylättiin.  Tämä voi tapahtua jos jotkin smartcasheistasi on jo käytetty, esimerkiksi jos olet käyttänyt kopiota wallet.dat-lompakkotiedostosta ja smartcashit on merkitty käytetyksi vain kopiossa.</translation>
     </message>
 </context>
 <context>
@@ -1448,8 +1448,8 @@ Osoite: %4</translation>
     </message>
     <message>
         <location filename="../sendcoinsentry.cpp" line="+1"/>
-        <source>Enter a zcoin address (e.g. MUVz3KZqgJdC3djwVCLD6ZMpDj5X1FqeKs)</source>
-        <translation>Anna zcoin-osoite (esim. MUVz3KZqgJdC3djwVCLD6ZMpDj5X1FqeKs)</translation>
+        <source>Enter a smartcash address (e.g. MUVz3KZqgJdC3djwVCLD6ZMpDj5X1FqeKs)</source>
+        <translation>Anna smartcash-osoite (esim. MUVz3KZqgJdC3djwVCLD6ZMpDj5X1FqeKs)</translation>
     </message>
 </context>
 <context>
@@ -1513,8 +1513,8 @@ Osoite: %4</translation>
     </message>
     <message>
         <location line="+21"/>
-        <source>Sign the message to prove you own this zcoin address</source>
-        <translation>Allekirjoita viesti todistaaksesi, että omistat tämän zcoin-osoitteen</translation>
+        <source>Sign the message to prove you own this smartcash address</source>
+        <translation>Allekirjoita viesti todistaaksesi, että omistat tämän smartcash-osoitteen</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -1549,8 +1549,8 @@ Osoite: %4</translation>
     </message>
     <message>
         <location line="+40"/>
-        <source>Verify the message to ensure it was signed with the specified zcoin address</source>
-        <translation>Tarkista viestin allekirjoitus varmistaaksesi, että se allekirjoitettiin tietyllä zcoin-osoitteella</translation>
+        <source>Verify the message to ensure it was signed with the specified smartcash address</source>
+        <translation>Tarkista viestin allekirjoitus varmistaaksesi, että se allekirjoitettiin tietyllä smartcash-osoitteella</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -1565,8 +1565,8 @@ Osoite: %4</translation>
     <message>
         <location filename="../signverifymessagedialog.cpp" line="+27"/>
         <location line="+3"/>
-        <source>Enter a zcoin address (e.g. MUVz3KZqgJdC3djwVCLD6ZMpDj5X1FqeKs)</source>
-        <translation>Anna zcoin-osoite (esim. MUVz3KZqgJdC3djwVCLD6ZMpDj5X1FqeKs)</translation>
+        <source>Enter a smartcash address (e.g. MUVz3KZqgJdC3djwVCLD6ZMpDj5X1FqeKs)</source>
+        <translation>Anna smartcash-osoite (esim. MUVz3KZqgJdC3djwVCLD6ZMpDj5X1FqeKs)</translation>
     </message>
     <message>
         <location line="-2"/>
@@ -1575,8 +1575,8 @@ Osoite: %4</translation>
     </message>
     <message>
         <location line="+3"/>
-        <source>Enter zcoin signature</source>
-        <translation>Syötä zcoin-allekirjoitus</translation>
+        <source>Enter smartcash signature</source>
+        <translation>Syötä smartcash-allekirjoitus</translation>
     </message>
     <message>
         <location line="+82"/>
@@ -1649,7 +1649,7 @@ Osoite: %4</translation>
     <name>SplashScreen</name>
     <message>
         <location filename="../splashscreen.cpp" line="+22"/>
-        <source>The zcoin developers</source>
+        <source>The smartcash developers</source>
         <translation type="unfinished"/>
     </message>
     <message>
@@ -1955,7 +1955,7 @@ Osoite: %4</translation>
     <message>
         <location line="+2"/>
         <source>Destination address of transaction.</source>
-        <translation>Rahansiirron kohteen zcoin-osoite</translation>
+        <translation>Rahansiirron kohteen smartcash-osoite</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -2137,7 +2137,7 @@ Osoite: %4</translation>
     <message>
         <location filename="../walletmodel.cpp" line="+193"/>
         <source>Send Coins</source>
-        <translation>Lähetä zcoineja</translation>
+        <translation>Lähetä smartcasheja</translation>
     </message>
 </context>
 <context>
@@ -2187,8 +2187,8 @@ Osoite: %4</translation>
     <name>bitcoin-core</name>
     <message>
         <location filename="../bitcoinstrings.cpp" line="+94"/>
-        <source>zcoin version</source>
-        <translation>zcoinin versio</translation>
+        <source>smartcash version</source>
+        <translation>smartcashin versio</translation>
     </message>
     <message>
         <location line="+102"/>
@@ -2197,8 +2197,8 @@ Osoite: %4</translation>
     </message>
     <message>
         <location line="-29"/>
-        <source>Send command to -server or zcoind</source>
-        <translation>Lähetä käsky palvelimelle tai zcoind:lle</translation>
+        <source>Send command to -server or smartcashd</source>
+        <translation>Lähetä käsky palvelimelle tai smartcashd:lle</translation>
     </message>
     <message>
         <location line="-23"/>
@@ -2217,13 +2217,13 @@ Osoite: %4</translation>
     </message>
     <message>
         <location line="+24"/>
-        <source>Specify configuration file (default: zcoin.conf)</source>
-        <translation>Määritä asetustiedosto (oletus: zcoin.conf)</translation>
+        <source>Specify configuration file (default: smartcash.conf)</source>
+        <translation>Määritä asetustiedosto (oletus: smartcash.conf)</translation>
     </message>
     <message>
         <location line="+3"/>
-        <source>Specify pid file (default: zcoind.pid)</source>
-        <translation>Määritä pid-tiedosto (oletus: zcoin.pid)</translation>
+        <source>Specify pid file (default: smartcashd.pid)</source>
+        <translation>Määritä pid-tiedosto (oletus: smartcash.pid)</translation>
     </message>
     <message>
         <location line="-1"/>
@@ -2300,13 +2300,13 @@ Osoite: %4</translation>
         <source>%s, you must set a rpcpassword in the configuration file:
 %s
 It is recommended you use the following random password:
-rpcuser=zcoinrpc
+rpcuser=smartcashrpc
 rpcpassword=%s
 (you do not need to remember this password)
 The username and password MUST NOT be the same.
 If the file does not exist, create it with owner-readable-only file permissions.
 It is also recommended to set alertnotify so you are notified of problems;
-for example: alertnotify=echo %%s | mail -s &quot;zcoin Alert&quot; admin@foo.com
+for example: alertnotify=echo %%s | mail -s &quot;smartcash Alert&quot; admin@foo.com
 </source>
         <translation type="unfinished"/>
     </message>
@@ -2322,7 +2322,7 @@ for example: alertnotify=echo %%s | mail -s &quot;zcoin Alert&quot; admin@foo.co
     </message>
     <message>
         <location line="+3"/>
-        <source>Cannot obtain a lock on data directory %s. zcoin is probably already running.</source>
+        <source>Cannot obtain a lock on data directory %s. smartcash is probably already running.</source>
         <translation type="unfinished"/>
     </message>
     <message>
@@ -2367,8 +2367,8 @@ for example: alertnotify=echo %%s | mail -s &quot;zcoin Alert&quot; admin@foo.co
     </message>
     <message>
         <location line="+3"/>
-        <source>Warning: Please check that your computer&apos;s date and time are correct! If your clock is wrong zcoin will not work properly.</source>
-        <translation>Varoitus: Tarkista että tietokoneesi kellonaika ja päivämäärä ovat paikkansapitäviä! zcoin ei toimi oikein väärällä päivämäärällä ja/tai kellonajalla.</translation>
+        <source>Warning: Please check that your computer&apos;s date and time are correct! If your clock is wrong smartcash will not work properly.</source>
+        <translation>Varoitus: Tarkista että tietokoneesi kellonaika ja päivämäärä ovat paikkansapitäviä! smartcash ei toimi oikein väärällä päivämäärällä ja/tai kellonajalla.</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -2617,8 +2617,8 @@ for example: alertnotify=echo %%s | mail -s &quot;zcoin Alert&quot; admin@foo.co
     </message>
     <message>
         <location line="+5"/>
-        <source>SSL options: (see the zcoin Wiki for SSL setup instructions)</source>
-        <translation>SSL asetukset (katso zcoin Wikistä tarkemmat SSL ohjeet)</translation>
+        <source>SSL options: (see the smartcash Wiki for SSL setup instructions)</source>
+        <translation>SSL asetukset (katso smartcash Wikistä tarkemmat SSL ohjeet)</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -2808,13 +2808,13 @@ TLSv1+HIGH:!SSLv2:!aNULL:!eNULL:!AH:!3DES:@STRENGTH)</translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>Error loading wallet.dat: Wallet requires newer version of zcoin</source>
-        <translation>Virhe ladattaessa wallet.dat-tiedostoa: Tarvitset uudemman version zcoinista</translation>
+        <source>Error loading wallet.dat: Wallet requires newer version of smartcash</source>
+        <translation>Virhe ladattaessa wallet.dat-tiedostoa: Tarvitset uudemman version smartcashista</translation>
     </message>
     <message>
         <location line="+93"/>
-        <source>Wallet needed to be rewritten: restart zcoin to complete</source>
-        <translation>Lompakko tarvitsee uudelleenkirjoittaa: käynnistä zcoin uudelleen</translation>
+        <source>Wallet needed to be rewritten: restart smartcash to complete</source>
+        <translation>Lompakko tarvitsee uudelleenkirjoittaa: käynnistä smartcash uudelleen</translation>
     </message>
     <message>
         <location line="-95"/>
@@ -2873,8 +2873,8 @@ TLSv1+HIGH:!SSLv2:!aNULL:!eNULL:!AH:!3DES:@STRENGTH)</translation>
     </message>
     <message>
         <location line="-25"/>
-        <source>Unable to bind to %s on this computer. zcoin is probably already running.</source>
-        <translation>Kytkeytyminen %s ei onnistu tällä tietokoneella. zcoin on todennäköisesti jo ajamassa.</translation>
+        <source>Unable to bind to %s on this computer. smartcash is probably already running.</source>
+        <translation>Kytkeytyminen %s ei onnistu tällä tietokoneella. smartcash on todennäköisesti jo ajamassa.</translation>
     </message>
     <message>
         <location line="+64"/>

@@ -6,7 +6,7 @@ Release Process
 ###update (commit) version in sources
 
 
-	zcoin-qt.pro
+	smartcash-qt.pro
 	contrib/verifysfbinaries/verify.sh
 	doc/README*
 	share/setup.nsi
@@ -24,7 +24,7 @@ Release Process
 
 ##perform gitian builds
 
- From a directory containing the zcoin source, gitian-builder and gitian.sigs
+ From a directory containing the smartcash source, gitian-builder and gitian.sigs
   
 	export SIGNER=(your gitian key, ie bluematt, sipa, etc)
 	export VERSION=0.8.7
@@ -42,62 +42,62 @@ Release Process
 	wget 'http://downloads.sourceforge.net/project/boost/boost/1.55.0/boost_1_55_0.tar.bz2'
 	wget 'http://download.qt-project.org/official_releases/qt/4.8/4.8.5/qt-everywhere-opensource-src-4.8.5.tar.gz'
 	cd ..
-	./bin/gbuild ../zcoin/contrib/gitian-descriptors/boost-win32.yml
+	./bin/gbuild ../smartcash/contrib/gitian-descriptors/boost-win32.yml
 	mv build/out/boost-win32-1.55.0-gitian2.zip inputs/
-	./bin/gbuild ../zcoin/contrib/gitian-descriptors/qt-win32.yml
+	./bin/gbuild ../smartcash/contrib/gitian-descriptors/qt-win32.yml
 	mv build/out/qt-win32-4.8.5-gitian-r1.zip inputs/
-	./bin/gbuild ../zcoin/contrib/gitian-descriptors/deps-win32.yml
-	mv build/out/zcoin-deps-0.0.5.zip inputs/
+	./bin/gbuild ../smartcash/contrib/gitian-descriptors/deps-win32.yml
+	mv build/out/smartcash-deps-0.0.5.zip inputs/
 
- Build zcoind and zcoin-qt on Linux32, Linux64, and Win32:
+ Build smartcashd and smartcash-qt on Linux32, Linux64, and Win32:
   
-	./bin/gbuild --commit zcoin=v${VERSION} ../zcoin/contrib/gitian-descriptors/gitian.yml
-	./bin/gsign --signer $SIGNER --release ${VERSION} --destination ../gitian.sigs/ ../zcoin/contrib/gitian-descriptors/gitian.yml
+	./bin/gbuild --commit smartcash=v${VERSION} ../smartcash/contrib/gitian-descriptors/gitian.yml
+	./bin/gsign --signer $SIGNER --release ${VERSION} --destination ../gitian.sigs/ ../smartcash/contrib/gitian-descriptors/gitian.yml
 	pushd build/out
-	zip -r zcoin-${VERSION}-linux-gitian.zip *
-	mv zcoin-${VERSION}-linux-gitian.zip ../../
+	zip -r smartcash-${VERSION}-linux-gitian.zip *
+	mv smartcash-${VERSION}-linux-gitian.zip ../../
 	popd
-	./bin/gbuild --commit zcoin=v${VERSION} ../zcoin/contrib/gitian-descriptors/gitian-win32.yml
-	./bin/gsign --signer $SIGNER --release ${VERSION}-win32 --destination ../gitian.sigs/ ../zcoin/contrib/gitian-descriptors/gitian-win32.yml
+	./bin/gbuild --commit smartcash=v${VERSION} ../smartcash/contrib/gitian-descriptors/gitian-win32.yml
+	./bin/gsign --signer $SIGNER --release ${VERSION}-win32 --destination ../gitian.sigs/ ../smartcash/contrib/gitian-descriptors/gitian-win32.yml
 	pushd build/out
-	zip -r zcoin-${VERSION}-win32-gitian.zip *
-	mv zcoin-${VERSION}-win32-gitian.zip ../../
+	zip -r smartcash-${VERSION}-win32-gitian.zip *
+	mv smartcash-${VERSION}-win32-gitian.zip ../../
 	popd
 
   Build output expected:
 
-  1. linux 32-bit and 64-bit binaries + source (zcoin-${VERSION}-linux-gitian.zip)
-  2. windows 32-bit binary, installer + source (zcoin-${VERSION}-win32-gitian.zip)
+  1. linux 32-bit and 64-bit binaries + source (smartcash-${VERSION}-linux-gitian.zip)
+  2. windows 32-bit binary, installer + source (smartcash-${VERSION}-win32-gitian.zip)
   3. Gitian signatures (in gitian.sigs/${VERSION}[-win32]/(your gitian key)/
 
 repackage gitian builds for release as stand-alone zip/tar/installer exe
 
 **Linux .tar.gz:**
 
-	unzip zcoin-${VERSION}-linux-gitian.zip -d zcoin-${VERSION}-linux
-	tar czvf zcoin-${VERSION}-linux.tar.gz zcoin-${VERSION}-linux
-	rm -rf zcoin-${VERSION}-linux
+	unzip smartcash-${VERSION}-linux-gitian.zip -d smartcash-${VERSION}-linux
+	tar czvf smartcash-${VERSION}-linux.tar.gz smartcash-${VERSION}-linux
+	rm -rf smartcash-${VERSION}-linux
 
 **Windows .zip and setup.exe:**
 
-	unzip zcoin-${VERSION}-win32-gitian.zip -d zcoin-${VERSION}-win32
-	mv zcoin-${VERSION}-win32/zcoin-*-setup.exe .
-	zip -r zcoin-${VERSION}-win32.zip bitcoin-${VERSION}-win32
-	rm -rf zcoin-${VERSION}-win32
+	unzip smartcash-${VERSION}-win32-gitian.zip -d smartcash-${VERSION}-win32
+	mv smartcash-${VERSION}-win32/smartcash-*-setup.exe .
+	zip -r smartcash-${VERSION}-win32.zip bitcoin-${VERSION}-win32
+	rm -rf smartcash-${VERSION}-win32
 
 **Perform Mac build:**
 
   OSX binaries are created on a dedicated 32-bit, OSX 10.6.8 machine.
-  zcoin 0.8.x is built with MacPorts.  0.9.x will be Homebrew only.
+  smartcash 0.8.x is built with MacPorts.  0.9.x will be Homebrew only.
 
-	qmake RELEASE=1 USE_UPNP=1 USE_QRCODE=1 zcoin-qt.pro
+	qmake RELEASE=1 USE_UPNP=1 USE_QRCODE=1 smartcash-qt.pro
 	make
 	export QTDIR=/opt/local/share/qt4  # needed to find translations/qt_*.qm files
 	T=$(contrib/qt_translations.py $QTDIR/translations src/qt/locale)
 	python2.7 share/qt/clean_mac_info_plist.py
-	python2.7 contrib/macdeploy/macdeployqtplus zcoin-Qt.app -add-qt-tr $T -dmg -fancy contrib/macdeploy/fancy.plist
+	python2.7 contrib/macdeploy/macdeployqtplus smartcash-Qt.app -add-qt-tr $T -dmg -fancy contrib/macdeploy/fancy.plist
 
- Build output expected: zcoin-Qt.dmg
+ Build output expected: smartcash-Qt.dmg
 
 ###Next steps:
 
@@ -108,7 +108,7 @@ repackage gitian builds for release as stand-alone zip/tar/installer exe
 
 * create SHA256SUMS for builds, and PGP-sign it
 
-* update zcoin.org version
+* update smartcash.org version
   make sure all OS download links go to the right versions
 
 * update forum version

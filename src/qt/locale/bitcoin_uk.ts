@@ -4,13 +4,13 @@
     <name>AboutDialog</name>
     <message>
         <location filename="../forms/aboutdialog.ui" line="+14"/>
-        <source>About zcoin</source>
-        <translation>Про zcoin</translation>
+        <source>About smartcash</source>
+        <translation>Про smartcash</translation>
     </message>
     <message>
         <location line="+39"/>
-        <source>&lt;b&gt;zcoin&lt;/b&gt; version</source>
-        <translation>Версія &lt;b&gt;zcoin&apos;a&lt;b&gt;</translation>
+        <source>&lt;b&gt;smartcash&lt;/b&gt; version</source>
+        <translation>Версія &lt;b&gt;smartcash&apos;a&lt;b&gt;</translation>
     </message>
     <message>
         <location line="+57"/>
@@ -34,7 +34,7 @@ This product includes software developed by the OpenSSL Project for use in the O
     </message>
     <message>
         <location line="+0"/>
-        <source>The zcoin developers</source>
+        <source>The smartcash developers</source>
         <translation type="unfinished"/>
     </message>
 </context>
@@ -67,7 +67,7 @@ This product includes software developed by the OpenSSL Project for use in the O
     </message>
     <message>
         <location filename="../addressbookpage.cpp" line="+63"/>
-        <source>These are your zcoin addresses for receiving payments. You may want to give a different one to each sender so you can keep track of who is paying you.</source>
+        <source>These are your smartcash addresses for receiving payments. You may want to give a different one to each sender so you can keep track of who is paying you.</source>
         <translation>Це ваші адреси для отримання платежів. Ви можете давати різні адреси різним людям, таким чином маючи можливість відслідкувати хто конкретно і скільки вам заплатив.</translation>
     </message>
     <message>
@@ -82,7 +82,7 @@ This product includes software developed by the OpenSSL Project for use in the O
     </message>
     <message>
         <location line="+11"/>
-        <source>Sign a message to prove you own a zcoin address</source>
+        <source>Sign a message to prove you own a smartcash address</source>
         <translation>Підпишіть повідомлення щоб довести, що ви є власником цієї адреси</translation>
     </message>
     <message>
@@ -107,8 +107,8 @@ This product includes software developed by the OpenSSL Project for use in the O
     </message>
     <message>
         <location line="-44"/>
-        <source>Verify a message to ensure it was signed with a specified zcoin address</source>
-        <translation>Перевірте повідомлення для впевненості, що воно підписано вказаною zcoin-адресою</translation>
+        <source>Verify a message to ensure it was signed with a specified smartcash address</source>
+        <translation>Перевірте повідомлення для впевненості, що воно підписано вказаною smartcash-адресою</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -122,7 +122,7 @@ This product includes software developed by the OpenSSL Project for use in the O
     </message>
     <message>
         <location filename="../addressbookpage.cpp" line="-5"/>
-        <source>These are your zcoin addresses for sending payments. Always check the amount and the receiving address before sending coins.</source>
+        <source>These are your smartcash addresses for sending payments. Always check the amount and the receiving address before sending coins.</source>
         <translation type="unfinished"/>
     </message>
     <message>
@@ -248,7 +248,7 @@ This product includes software developed by the OpenSSL Project for use in the O
     </message>
     <message>
         <location line="+1"/>
-        <source>Warning: If you encrypt your wallet and lose your passphrase, you will &lt;b&gt;LOSE ALL OF YOUR zcoinS&lt;/b&gt;!</source>
+        <source>Warning: If you encrypt your wallet and lose your passphrase, you will &lt;b&gt;LOSE ALL OF YOUR smartcashS&lt;/b&gt;!</source>
         <translation>УВАГА: Якщо ви зашифруєте гаманець і забудете пароль, ви &lt;b&gt;ВТРАТИТЕ ВСІ СВОЇ БІТКОІНИ&lt;/b&gt;!</translation>
     </message>
     <message>
@@ -275,7 +275,7 @@ This product includes software developed by the OpenSSL Project for use in the O
     </message>
     <message>
         <location line="-56"/>
-        <source>zcoin will close now to finish the encryption process. Remember that encrypting your wallet cannot fully protect your zcoins from being stolen by malware infecting your computer.</source>
+        <source>smartcash will close now to finish the encryption process. Remember that encrypting your wallet cannot fully protect your smartcashs from being stolen by malware infecting your computer.</source>
         <translation>Біткоін-клієнт буде закрито для завершення процесу шифрування. Пам&apos;ятайте, що шифрування гаманця не може повністю захистити ваші біткоіни від крадіжки, у випадку якщо ваш комп&apos;ютер буде інфіковано шкідливими програмами.</translation>
     </message>
     <message>
@@ -374,8 +374,8 @@ This product includes software developed by the OpenSSL Project for use in the O
     </message>
     <message>
         <location line="+4"/>
-        <source>Show information about zcoin</source>
-        <translation>Показати інформацію про zcoin</translation>
+        <source>Show information about smartcash</source>
+        <translation>Показати інформацію про smartcash</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -419,12 +419,12 @@ This product includes software developed by the OpenSSL Project for use in the O
     </message>
     <message>
         <location line="-347"/>
-        <source>Send coins to a zcoin address</source>
+        <source>Send coins to a smartcash address</source>
         <translation>Відправити монети на вказану адресу</translation>
     </message>
     <message>
         <location line="+49"/>
-        <source>Modify configuration options for zcoin</source>
+        <source>Modify configuration options for smartcash</source>
         <translation>Редагувати параметри</translation>
     </message>
     <message>
@@ -455,8 +455,8 @@ This product includes software developed by the OpenSSL Project for use in the O
     <message>
         <location line="-165"/>
         <location line="+530"/>
-        <source>zcoin</source>
-        <translation>zcoin</translation>
+        <source>smartcash</source>
+        <translation>smartcash</translation>
     </message>
     <message>
         <location line="-530"/>
@@ -480,8 +480,8 @@ This product includes software developed by the OpenSSL Project for use in the O
     </message>
     <message>
         <location line="+22"/>
-        <source>&amp;About zcoin</source>
-        <translation>&amp;Про zcoin</translation>
+        <source>&amp;About smartcash</source>
+        <translation>&amp;Про smartcash</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -500,13 +500,13 @@ This product includes software developed by the OpenSSL Project for use in the O
     </message>
     <message>
         <location line="+7"/>
-        <source>Sign messages with your zcoin addresses to prove you own them</source>
-        <translation>Підтвердіть, що Ви є власником повідомлення підписавши його Вашою zcoin-адресою </translation>
+        <source>Sign messages with your smartcash addresses to prove you own them</source>
+        <translation>Підтвердіть, що Ви є власником повідомлення підписавши його Вашою smartcash-адресою </translation>
     </message>
     <message>
         <location line="+2"/>
-        <source>Verify messages to ensure they were signed with specified zcoin addresses</source>
-        <translation>Перевірте повідомлення для впевненості, що воно підписано вказаною zcoin-адресою</translation>
+        <source>Verify messages to ensure they were signed with specified smartcash addresses</source>
+        <translation>Перевірте повідомлення для впевненості, що воно підписано вказаною smartcash-адресою</translation>
     </message>
     <message>
         <location line="+28"/>
@@ -536,12 +536,12 @@ This product includes software developed by the OpenSSL Project for use in the O
     </message>
     <message>
         <location line="+47"/>
-        <source>zcoin client</source>
-        <translation>zcoin-клієнт</translation>
+        <source>smartcash client</source>
+        <translation>smartcash-клієнт</translation>
     </message>
     <message numerus="yes">
         <location line="+141"/>
-        <source>%n active connection(s) to zcoin network</source>
+        <source>%n active connection(s) to smartcash network</source>
         <translation><numerusform>%n активне з&apos;єднання з мережею</numerusform><numerusform>%n активні з&apos;єднання з мережею</numerusform><numerusform>%n активних з&apos;єднань з мережею</numerusform></translation>
     </message>
     <message>
@@ -656,8 +656,8 @@ Address: %4
     <message>
         <location line="-23"/>
         <location line="+23"/>
-        <source>URI can not be parsed! This can be caused by an invalid zcoin address or malformed URI parameters.</source>
-        <translation>Неможливо обробити URI! Це може бути викликано неправильною zcoin-адресою, чи невірними параметрами URI.</translation>
+        <source>URI can not be parsed! This can be caused by an invalid smartcash address or malformed URI parameters.</source>
+        <translation>Неможливо обробити URI! Це може бути викликано неправильною smartcash-адресою, чи невірними параметрами URI.</translation>
     </message>
     <message>
         <location line="+17"/>
@@ -671,7 +671,7 @@ Address: %4
     </message>
     <message>
         <location filename="../bitcoin.cpp" line="+111"/>
-        <source>A fatal error occurred. zcoin can no longer continue safely and will quit.</source>
+        <source>A fatal error occurred. smartcash can no longer continue safely and will quit.</source>
         <translation type="unfinished"/>
     </message>
 </context>
@@ -737,8 +737,8 @@ Address: %4
     </message>
     <message>
         <location line="-5"/>
-        <source>The entered address &quot;%1&quot; is not a valid zcoin address.</source>
-        <translation>Введена адреса «%1» не є коректною адресою в мережі zcoin.</translation>
+        <source>The entered address &quot;%1&quot; is not a valid smartcash address.</source>
+        <translation>Введена адреса «%1» не є коректною адресою в мережі smartcash.</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -756,8 +756,8 @@ Address: %4
     <message>
         <location filename="../guiutil.cpp" line="+424"/>
         <location line="+12"/>
-        <source>zcoin</source>
-        <translation>zcoin</translation>
+        <source>smartcash</source>
+        <translation>smartcash</translation>
     </message>
     <message>
         <location line="-12"/>
@@ -819,12 +819,12 @@ Address: %4
     </message>
     <message>
         <location line="+31"/>
-        <source>Automatically start zcoin after logging in to the system.</source>
+        <source>Automatically start smartcash after logging in to the system.</source>
         <translation>Автоматично запускати гаманець при вході до системи.</translation>
     </message>
     <message>
         <location line="+3"/>
-        <source>&amp;Start zcoin on system login</source>
+        <source>&amp;Start smartcash on system login</source>
         <translation>&amp;Запускати гаманець при вході в систему</translation>
     </message>
     <message>
@@ -844,7 +844,7 @@ Address: %4
     </message>
     <message>
         <location line="+6"/>
-        <source>Automatically open the zcoin client port on the router. This only works when your router supports UPnP and it is enabled.</source>
+        <source>Automatically open the smartcash client port on the router. This only works when your router supports UPnP and it is enabled.</source>
         <translation>Автоматично відкривати порт для клієнту біткоін на роутері. Працює лише якщо ваш роутер підтримує UPnP і ця функція увімкнена.</translation>
     </message>
     <message>
@@ -854,8 +854,8 @@ Address: %4
     </message>
     <message>
         <location line="+7"/>
-        <source>Connect to the zcoin network through a SOCKS proxy (e.g. when connecting through Tor).</source>
-        <translation>Підключатись до мережі zcoin через SOCKS-проксі (наприклад при використанні Tor).</translation>
+        <source>Connect to the smartcash network through a SOCKS proxy (e.g. when connecting through Tor).</source>
+        <translation>Підключатись до мережі smartcash через SOCKS-проксі (наприклад при використанні Tor).</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -929,8 +929,8 @@ Address: %4
     </message>
     <message>
         <location line="+13"/>
-        <source>The user interface language can be set here. This setting will take effect after restarting zcoin.</source>
-        <translation>Встановлює мову інтерфейсу. Зміни набудуть чинності після перезапуску zcoin.</translation>
+        <source>The user interface language can be set here. This setting will take effect after restarting smartcash.</source>
+        <translation>Встановлює мову інтерфейсу. Зміни набудуть чинності після перезапуску smartcash.</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -944,7 +944,7 @@ Address: %4
     </message>
     <message>
         <location line="+9"/>
-        <source>Whether to show zcoin addresses in the transaction list or not.</source>
+        <source>Whether to show smartcash addresses in the transaction list or not.</source>
         <translation type="unfinished"/>
     </message>
     <message>
@@ -996,8 +996,8 @@ Address: %4
     <message>
         <location line="-9"/>
         <location line="+9"/>
-        <source>This setting will take effect after restarting zcoin.</source>
-        <translation>Цей параметр набуде чинності після перезапуску zcoin.</translation>
+        <source>This setting will take effect after restarting smartcash.</source>
+        <translation>Цей параметр набуде чинності після перезапуску smartcash.</translation>
     </message>
     <message>
         <location line="+29"/>
@@ -1015,8 +1015,8 @@ Address: %4
     <message>
         <location line="+50"/>
         <location line="+166"/>
-        <source>The displayed information may be out of date. Your wallet automatically synchronizes with the zcoin network after a connection is established, but this process has not completed yet.</source>
-        <translation>Показана інформація вже може бути застарілою. Ваш гаманець буде автоматично синхронізовано з мережею zcoin після встановлення підключення, але цей процес ще не завершено.</translation>
+        <source>The displayed information may be out of date. Your wallet automatically synchronizes with the smartcash network after a connection is established, but this process has not completed yet.</source>
+        <translation>Показана інформація вже може бути застарілою. Ваш гаманець буде автоматично синхронізовано з мережею smartcash після встановлення підключення, але цей процес ще не завершено.</translation>
     </message>
     <message>
         <location line="-124"/>
@@ -1069,7 +1069,7 @@ Address: %4
     <name>PaymentServer</name>
     <message>
         <location filename="../paymentserver.cpp" line="+107"/>
-        <source>Cannot start zcoin: click-to-pay handler</source>
+        <source>Cannot start smartcash: click-to-pay handler</source>
         <translation type="unfinished"/>
     </message>
 </context>
@@ -1219,8 +1219,8 @@ Address: %4
     </message>
     <message>
         <location line="+7"/>
-        <source>Show the zcoin help message to get a list with possible zcoin command-line options.</source>
-        <translation>Показати довідку zcoin для отримання переліку можливих параметрів командного рядка.</translation>
+        <source>Show the smartcash help message to get a list with possible smartcash command-line options.</source>
+        <translation>Показати довідку smartcash для отримання переліку можливих параметрів командного рядка.</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -1239,12 +1239,12 @@ Address: %4
     </message>
     <message>
         <location line="-104"/>
-        <source>zcoin - Debug window</source>
-        <translation>zcoin - Вікно зневадження</translation>
+        <source>smartcash - Debug window</source>
+        <translation>smartcash - Вікно зневадження</translation>
     </message>
     <message>
         <location line="+25"/>
-        <source>zcoin Core</source>
+        <source>smartcash Core</source>
         <translation type="unfinished"/>
     </message>
     <message>
@@ -1254,7 +1254,7 @@ Address: %4
     </message>
     <message>
         <location line="+7"/>
-        <source>Open the zcoin debug log file from the current data directory. This can take a few seconds for large log files.</source>
+        <source>Open the smartcash debug log file from the current data directory. This can take a few seconds for large log files.</source>
         <translation type="unfinished"/>
     </message>
     <message>
@@ -1264,8 +1264,8 @@ Address: %4
     </message>
     <message>
         <location filename="../rpcconsole.cpp" line="-30"/>
-        <source>Welcome to the zcoin RPC console.</source>
-        <translation>Вітаємо у консолі zcoin RPC.</translation>
+        <source>Welcome to the smartcash RPC console.</source>
+        <translation>Вітаємо у консолі smartcash RPC.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -1448,8 +1448,8 @@ Address: %4
     </message>
     <message>
         <location filename="../sendcoinsentry.cpp" line="+1"/>
-        <source>Enter a zcoin address (e.g. MUVz3KZqgJdC3djwVCLD6ZMpDj5X1FqeKs)</source>
-        <translation>Введіть адресу zcoin (наприклад MUVz3KZqgJdC3djwVCLD6ZMpDj5X1FqeKs)</translation>
+        <source>Enter a smartcash address (e.g. MUVz3KZqgJdC3djwVCLD6ZMpDj5X1FqeKs)</source>
+        <translation>Введіть адресу smartcash (наприклад MUVz3KZqgJdC3djwVCLD6ZMpDj5X1FqeKs)</translation>
     </message>
 </context>
 <context>
@@ -1472,7 +1472,7 @@ Address: %4
     <message>
         <location line="+18"/>
         <source>The address to sign the message with (e.g. MUVz3KZqgJdC3djwVCLD6ZMpDj5X1FqeKs)</source>
-        <translation>Введіть адресу zcoin (наприклад MUVz3KZqgJdC3djwVCLD6ZMpDj5X1FqeKs)</translation>
+        <translation>Введіть адресу smartcash (наприклад MUVz3KZqgJdC3djwVCLD6ZMpDj5X1FqeKs)</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -1513,7 +1513,7 @@ Address: %4
     </message>
     <message>
         <location line="+21"/>
-        <source>Sign the message to prove you own this zcoin address</source>
+        <source>Sign the message to prove you own this smartcash address</source>
         <translation>Підпишіть повідомлення щоб довести, що ви є власником цієї адреси</translation>
     </message>
     <message>
@@ -1545,12 +1545,12 @@ Address: %4
     <message>
         <location line="+21"/>
         <source>The address the message was signed with (e.g. MUVz3KZqgJdC3djwVCLD6ZMpDj5X1FqeKs)</source>
-        <translation>Введіть адресу zcoin (наприклад MUVz3KZqgJdC3djwVCLD6ZMpDj5X1FqeKs)</translation>
+        <translation>Введіть адресу smartcash (наприклад MUVz3KZqgJdC3djwVCLD6ZMpDj5X1FqeKs)</translation>
     </message>
     <message>
         <location line="+40"/>
-        <source>Verify the message to ensure it was signed with the specified zcoin address</source>
-        <translation>Перевірте повідомлення для впевненості, що воно підписано вказаною zcoin-адресою</translation>
+        <source>Verify the message to ensure it was signed with the specified smartcash address</source>
+        <translation>Перевірте повідомлення для впевненості, що воно підписано вказаною smartcash-адресою</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -1565,8 +1565,8 @@ Address: %4
     <message>
         <location filename="../signverifymessagedialog.cpp" line="+27"/>
         <location line="+3"/>
-        <source>Enter a zcoin address (e.g. MUVz3KZqgJdC3djwVCLD6ZMpDj5X1FqeKs)</source>
-        <translation>Введіть адресу zcoin (наприклад MUVz3KZqgJdC3djwVCLD6ZMpDj5X1FqeKs)</translation>
+        <source>Enter a smartcash address (e.g. MUVz3KZqgJdC3djwVCLD6ZMpDj5X1FqeKs)</source>
+        <translation>Введіть адресу smartcash (наприклад MUVz3KZqgJdC3djwVCLD6ZMpDj5X1FqeKs)</translation>
     </message>
     <message>
         <location line="-2"/>
@@ -1575,8 +1575,8 @@ Address: %4
     </message>
     <message>
         <location line="+3"/>
-        <source>Enter zcoin signature</source>
-        <translation>Введіть сигнатуру zcoin</translation>
+        <source>Enter smartcash signature</source>
+        <translation>Введіть сигнатуру smartcash</translation>
     </message>
     <message>
         <location line="+82"/>
@@ -1649,7 +1649,7 @@ Address: %4
     <name>SplashScreen</name>
     <message>
         <location filename="../splashscreen.cpp" line="+22"/>
-        <source>The zcoin developers</source>
+        <source>The smartcash developers</source>
         <translation type="unfinished"/>
     </message>
     <message>
@@ -2187,7 +2187,7 @@ Address: %4
     <name>bitcoin-core</name>
     <message>
         <location filename="../bitcoinstrings.cpp" line="+94"/>
-        <source>zcoin version</source>
+        <source>smartcash version</source>
         <translation>Версія</translation>
     </message>
     <message>
@@ -2197,7 +2197,7 @@ Address: %4
     </message>
     <message>
         <location line="-29"/>
-        <source>Send command to -server or zcoind</source>
+        <source>Send command to -server or smartcashd</source>
         <translation>Відправити команду серверу -server чи демону</translation>
     </message>
     <message>
@@ -2217,13 +2217,13 @@ Address: %4
     </message>
     <message>
         <location line="+24"/>
-        <source>Specify configuration file (default: zcoin.conf)</source>
-        <translation>Вкажіть файл конфігурації (типово: zcoin.conf)</translation>
+        <source>Specify configuration file (default: smartcash.conf)</source>
+        <translation>Вкажіть файл конфігурації (типово: smartcash.conf)</translation>
     </message>
     <message>
         <location line="+3"/>
-        <source>Specify pid file (default: zcoind.pid)</source>
-        <translation>Вкажіть pid-файл (типово: zcoind.pid)</translation>
+        <source>Specify pid file (default: smartcashd.pid)</source>
+        <translation>Вкажіть pid-файл (типово: smartcashd.pid)</translation>
     </message>
     <message>
         <location line="-1"/>
@@ -2300,13 +2300,13 @@ Address: %4
         <source>%s, you must set a rpcpassword in the configuration file:
 %s
 It is recommended you use the following random password:
-rpcuser=zcoinrpc
+rpcuser=smartcashrpc
 rpcpassword=%s
 (you do not need to remember this password)
 The username and password MUST NOT be the same.
 If the file does not exist, create it with owner-readable-only file permissions.
 It is also recommended to set alertnotify so you are notified of problems;
-for example: alertnotify=echo %%s | mail -s &quot;zcoin Alert&quot; admin@foo.com
+for example: alertnotify=echo %%s | mail -s &quot;smartcash Alert&quot; admin@foo.com
 </source>
         <translation type="unfinished"/>
     </message>
@@ -2322,7 +2322,7 @@ for example: alertnotify=echo %%s | mail -s &quot;zcoin Alert&quot; admin@foo.co
     </message>
     <message>
         <location line="+3"/>
-        <source>Cannot obtain a lock on data directory %s. zcoin is probably already running.</source>
+        <source>Cannot obtain a lock on data directory %s. smartcash is probably already running.</source>
         <translation type="unfinished"/>
     </message>
     <message>
@@ -2367,8 +2367,8 @@ for example: alertnotify=echo %%s | mail -s &quot;zcoin Alert&quot; admin@foo.co
     </message>
     <message>
         <location line="+3"/>
-        <source>Warning: Please check that your computer&apos;s date and time are correct! If your clock is wrong zcoin will not work properly.</source>
-        <translation>Увага: будь ласка, перевірте дату і час на своєму комп&apos;ютері. Якщо ваш годинник йде неправильно, zcoin може працювати некоректно.</translation>
+        <source>Warning: Please check that your computer&apos;s date and time are correct! If your clock is wrong smartcash will not work properly.</source>
+        <translation>Увага: будь ласка, перевірте дату і час на своєму комп&apos;ютері. Якщо ваш годинник йде неправильно, smartcash може працювати некоректно.</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -2617,8 +2617,8 @@ for example: alertnotify=echo %%s | mail -s &quot;zcoin Alert&quot; admin@foo.co
     </message>
     <message>
         <location line="+5"/>
-        <source>SSL options: (see the zcoin Wiki for SSL setup instructions)</source>
-        <translation>Параметри SSL: (див. zcoin Wiki для налаштування SSL)</translation>
+        <source>SSL options: (see the smartcash Wiki for SSL setup instructions)</source>
+        <translation>Параметри SSL: (див. smartcash Wiki для налаштування SSL)</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -2807,12 +2807,12 @@ for example: alertnotify=echo %%s | mail -s &quot;zcoin Alert&quot; admin@foo.co
     </message>
     <message>
         <location line="+1"/>
-        <source>Error loading wallet.dat: Wallet requires newer version of zcoin</source>
+        <source>Error loading wallet.dat: Wallet requires newer version of smartcash</source>
         <translation>Помилка при завантаженні wallet.dat: Гаманець потребує новішої версії Біткоін-клієнта</translation>
     </message>
     <message>
         <location line="+93"/>
-        <source>Wallet needed to be rewritten: restart zcoin to complete</source>
+        <source>Wallet needed to be rewritten: restart smartcash to complete</source>
         <translation>Потрібно перезаписати гаманець: перезапустіть Біткоін-клієнт для завершення</translation>
     </message>
     <message>
@@ -2872,7 +2872,7 @@ for example: alertnotify=echo %%s | mail -s &quot;zcoin Alert&quot; admin@foo.co
     </message>
     <message>
         <location line="-25"/>
-        <source>Unable to bind to %s on this computer. zcoin is probably already running.</source>
+        <source>Unable to bind to %s on this computer. smartcash is probably already running.</source>
         <translation>Неможливо прив&apos;язати до порту %s на цьому комп&apos;ютері. Можливо гаманець вже запущено.</translation>
     </message>
     <message>

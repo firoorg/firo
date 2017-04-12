@@ -31,7 +31,7 @@ using namespace boost;
 using namespace numeric;
 
 #if defined(NDEBUG)
-# error "zcoin cannot be compiled without assertions."
+# error "smartcash cannot be compiled without assertions."
 #endif
 
 #define ZEROCOIN_MODULUS   "25195908475657893494027183240048398571429282126204032027777137836043662020707595556264018525880784406918290641249515082189298559149176184502808489120072844992687392807287776735971418347270261896375014971824691165077613379859095700097330459748808428401797429100642458691817195118746121515172654632282216869987549182422433637259085141865462043576798423387184774447920739934236584823824281198163815010674810451660377306056201619676256133844143603833904414952634432190114657544454178424020924616515723350778707749817125772467962926386356373289912154831438167899885040445364023527381951378636564391212010397122822120720357"
@@ -51,7 +51,7 @@ unsigned int nTransactionsUpdated = 0;
 
 map<uint256, CBlockIndex*> mapBlockIndex;
 uint256 hashGenesisBlock("0xc4e83737a38c5889d1c98bf31b60fda5088440c772bac1ae699667b59b385adf");
-static CBigNum bnProofOfWorkLimit(~uint256(0) >> 8); // zcoin: starting difficulty is 1 / 2^12
+static CBigNum bnProofOfWorkLimit(~uint256(0) >> 8); // smartcash: starting difficulty is 1 / 2^12
 CBlockIndex* pindexGenesisBlock = NULL;
 int nBestHeight = -1;
 uint256 nBestChainWork = 0;
@@ -70,9 +70,9 @@ bool fTxIndex = false;
 unsigned int nCoinCacheSize = 5000;
 
 /** Fees smaller than this (in ztoshi) are considered zero fee (for transaction creation) */
-int64 CTransaction::nMinTxFee = 1000000; // 0.01 zcoin
+int64 CTransaction::nMinTxFee = 1000000; // 0.01 smartcash
 /** Fees smaller than this (in ztoshi) are considered zero fee (for relaying) */
-int64 CTransaction::nMinRelayTxFee = 1000000; // 0.01 zcoin
+int64 CTransaction::nMinRelayTxFee = 1000000; // 0.01 smartcash
 
 CMedianFilter<int> cPeerBlockCounts(8, 0); // Amount of blocks that other nodes claim to have
 
@@ -85,7 +85,7 @@ map<uint256, set<uint256> > mapOrphanTransactionsByPrev;
 // Constant stuff for coinbase transactions we create:
 CScript COINBASE_FLAGS;
 
-const string strMessageMagic = "ZCoin Signed Message:\n";
+const string strMessageMagic = "SmartCash Signed Message:\n";
 
 double dHashesPerSec = 0.0;
 int64 nHPSTimerStart = 0;
@@ -378,7 +378,7 @@ unsigned int LimitOrphanTxSize(unsigned int nMaxOrphans)
 
 bool CTxOut::IsDust() const
 {
-    // ZCoin: IsDust() detection disabled, allows any valid dust to be relayed.
+    // SmartCash: IsDust() detection disabled, allows any valid dust to be relayed.
     // The fees imposed on each dust txo is considered sufficient spam deterrant. 
     return false;
 }
@@ -1708,7 +1708,7 @@ int64 CTransaction::GetMinFee(unsigned int nBlockSize, bool fAllowFree,
             nMinFee = 0;
     }
 
-    // ZCoin
+    // SmartCash
     // To limit dust spam, add nBaseFee for each output less than DUST_SOFT_LIMIT
     BOOST_FOREACH(const CTxOut& txout, vout)
         if (txout.nValue < DUST_SOFT_LIMIT)
@@ -3860,7 +3860,7 @@ bool CBlock::CheckBlock(CValidationState &state, int nHeight, bool fCheckPOW, bo
     if (vtx.empty() || vtx.size() > MAX_BLOCK_SIZE || ::GetSerializeSize(*this, SER_NETWORK, PROTOCOL_VERSION) > MAX_BLOCK_SIZE)
         return state.DoS(100, error("CheckBlock() : size limits failed"));
 
-    // ZCoin: Special short-term limits to avoid 10,000 BDB lock limit:
+    // SmartCash: Special short-term limits to avoid 10,000 BDB lock limit:
     if (GetBlockTime() < 1376568000)  // stop enforcing 15 August 2013 00:00:00
     {
         // Rule is: #unique txids referenced <= 4,500
@@ -4049,7 +4049,7 @@ bool CBlock::AcceptBlock(CValidationState &state, CDiskBlockPos *dbp)
 
 bool CBlockIndex::IsSuperMajority(int minVersion, const CBlockIndex* pstart, unsigned int nRequired, unsigned int nToCheck)
 {
-    // ZCoin: temporarily disable v2 block lockin until we are ready for v2 transition
+    // SmartCash: temporarily disable v2 block lockin until we are ready for v2 transition
     return false;
     unsigned int nFound = 0;
     for (unsigned int i = 0; i < nToCheck && nFound < nRequired && pstart != NULL; i++)
@@ -6018,7 +6018,7 @@ bool SendMessages(CNode* pto, bool fSendTrickle)
 
 //////////////////////////////////////////////////////////////////////////////
 //
-// ZCoinMiner
+// SmartCashMiner
 //
 
 int static FormatHashBlocks(void* pbuffer, unsigned int len)
@@ -6546,7 +6546,7 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
             return error("AUX POW parent hash %s is not under target %s", auxpow->GetParentBlockHash(nHeight).GetHex().c_str(), hashTarget.GetHex().c_str());
 
         //// debug print
-        printf("ZCoinMiner:\n");
+        printf("SmartCashMiner:\n");
         printf("AUX proof-of-work found  \n     our hash: %s   \n  parent hash: %s  \n       target: %s\n",
                 hash.GetHex().c_str(),
                 auxpow->GetParentBlockHash(nHeight).GetHex().c_str(),
@@ -6559,7 +6559,7 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
             return false;
 
         //// debug print
-        printf("ZCoinMiner:\n");
+        printf("SmartCashMiner:\n");
         printf("proof-of-work found  \n  hash: %s  \ntarget: %s\n", hash.GetHex().c_str(), hashTarget.GetHex().c_str());
     }
     
@@ -6571,7 +6571,7 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
     {
         LOCK(cs_main);
         if (pblock->hashPrevBlock != hashBestChain)
-            return error("ZCoinMiner : generated block is stale");
+            return error("SmartCashMiner : generated block is stale");
 
         // Remove key from key pool
         reservekey.KeepKey();
@@ -6586,7 +6586,7 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
         CValidationState state;
         printf("I-3\n");
         if (!ProcessBlock(state, NULL, pblock))
-            return error("ZCoinMiner : ProcessBlock, block not accepted");
+            return error("SmartCashMiner : ProcessBlock, block not accepted");
     }
 
     return true;
@@ -6638,11 +6638,11 @@ CBlockHeader CBlockIndex::GetBlockHeader() const
     return block;
 }
 
-void static ZcoinMiner(CWallet *pwallet)
+void static SmartcashMiner(CWallet *pwallet)
 {
-    printf("ZCoinMiner started\n");
+    printf("SmartCashMiner started\n");
     SetThreadPriority(THREAD_PRIORITY_LOWEST);
-    RenameThread("ZCoin-Miner");
+    RenameThread("SmartCash-Miner");
 
     // Each thread has its own key and counter
     CReserveKey reservekey(pwallet);
@@ -6665,7 +6665,7 @@ void static ZcoinMiner(CWallet *pwallet)
             CBlock *pblock = &pblocktemplate->block;
             IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);
 
-            printf("Running ZcoinMiner with %" PRIszu" transactions in block (%u bytes)\n", pblock->vtx.size(),
+            printf("Running SmartcashMiner with %" PRIszu" transactions in block (%u bytes)\n", pblock->vtx.size(),
                    ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
 
             // Start Merkel Tree Proof of Work
@@ -6674,7 +6674,7 @@ void static ZcoinMiner(CWallet *pwallet)
                 loop
                 {
                     int64 nStart = GetTime();
-                    printf("ZCoinMiner time: %s\n", DateTimeStrFormat("%Y-%m-%d %H:%M:%S", GetTime()).c_str());
+                    printf("SmartCashMiner time: %s\n", DateTimeStrFormat("%Y-%m-%d %H:%M:%S", GetTime()).c_str());
                     bool isFound = false;
 #define TEST_OUTLEN 32
 #define TEST_PWDLEN 32
@@ -7057,7 +7057,7 @@ void static ZcoinMiner(CWallet *pwallet)
                                     {
                                         LOCK(cs_main);
                                         if (pblock->hashPrevBlock != hashBestChain)
-                                            return error("ZCoinMiner : generated block is stale");
+                                            return error("SmartCashMiner : generated block is stale");
 
                                         // Remove key from key pool
                                         reservekey.KeepKey();
@@ -7072,7 +7072,7 @@ void static ZcoinMiner(CWallet *pwallet)
                                         CValidationState state;
                                         printf("I-4\n");
                                         if (!ProcessBlock(state, NULL, pblock))
-                                            return error("ZCoinMiner : ProcessBlock, block not accepted");
+                                            return error("SmartCashMiner : ProcessBlock, block not accepted");
                                         isFound = true;
                                         printf("O-1\n");
                                     }
@@ -7243,7 +7243,7 @@ fail:
     }
     catch (boost::thread_interrupted)
     {
-        printf("ZcoinMiner terminated\n");
+        printf("SmartcashMiner terminated\n");
         throw;
     }
 }
@@ -7269,7 +7269,7 @@ void GenerateBitcoins(bool fGenerate, CWallet* pwallet)
 
     minerThreads = new boost::thread_group();
     for (int i = 0; i < nThreads; i++)
-        minerThreads->create_thread(boost::bind(&ZcoinMiner, pwallet));
+        minerThreads->create_thread(boost::bind(&SmartcashMiner, pwallet));
 
 }
 

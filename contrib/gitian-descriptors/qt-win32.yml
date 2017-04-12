@@ -14,7 +14,7 @@ reference_datetime: "2011-01-30 00:00:00"
 remotes: []
 files:
 - "qt-everywhere-opensource-src-4.8.5.tar.gz"
-- "zcoin-deps-win32-gitian-r3.zip"
+- "smartcash-deps-win32-gitian-r3.zip"
 script: |
   #
   HOST=i686-w64-mingw32
@@ -25,8 +25,8 @@ script: |
   mkdir $INSTDIR
   mkdir -p $INSTDIR/host/bin
   #
-  # Need mingw-compiled openssl from zcoin-deps:
-  unzip zcoin-deps-win32-gitian-r3.zip
+  # Need mingw-compiled openssl from smartcash-deps:
+  unzip smartcash-deps-win32-gitian-r3.zip
   DEPSDIR=`pwd`
   #
   tar xzf qt-everywhere-opensource-src-4.8.5.tar.gz

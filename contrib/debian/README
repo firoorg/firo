@@ -14,7 +14,7 @@ To install:
 
 If you build yourself, you will either need to modify the paths in
 the .desktop file or copy or symlink your bitcoin-qt binary to /usr/bin
-and the ../../share/pixmaps/zcoin128.png to /usr/share/pixmaps
+and the ../../share/pixmaps/smartcash128.png to /usr/share/pixmaps
 
 bitcoin-qt.protocol (KDE)
 

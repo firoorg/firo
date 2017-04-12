@@ -272,7 +272,7 @@ class CBitcoinAddress : public CBase58Data
 public:
     enum
     {
-        PUBKEY_ADDRESS = 82, // zcoin addresses start with M
+        PUBKEY_ADDRESS = 82, // smartcash addresses start with M
         SCRIPT_ADDRESS = 7,
         PUBKEY_ADDRESS_TEST = 65, // testnet keys start with T
         SCRIPT_ADDRESS_TEST = 178,

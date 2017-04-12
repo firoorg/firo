@@ -60,7 +60,7 @@ AddressBookPage::AddressBookPage(Mode mode, Tabs tab, QWidget *parent) :
     switch(tab)
     {
     case SendingTab:
-        ui->labelExplanation->setText(tr("These are your zcoin addresses for sending payments. Always check the amount and the receiving address before sending coins."));
+        ui->labelExplanation->setText(tr("These are your smartcash addresses for sending payments. Always check the amount and the receiving address before sending coins."));
         ui->deleteAddress->setVisible(true);
         ui->signMessage->setVisible(false);
         ui->zerocoinAmount->setVisible(false);
@@ -68,7 +68,7 @@ AddressBookPage::AddressBookPage(Mode mode, Tabs tab, QWidget *parent) :
         ui->zerocoinSpendButton->setVisible(false);
         break;
     case ReceivingTab:
-        ui->labelExplanation->setText(tr("These are your zcoin addresses for receiving payments. You may want to give a different one to each sender so you can keep track of who is paying you."));
+        ui->labelExplanation->setText(tr("These are your smartcash addresses for receiving payments. You may want to give a different one to each sender so you can keep track of who is paying you."));
         ui->deleteAddress->setVisible(false);
         ui->signMessage->setVisible(true);
         ui->zerocoinAmount->setVisible(false);
@@ -76,7 +76,7 @@ AddressBookPage::AddressBookPage(Mode mode, Tabs tab, QWidget *parent) :
         ui->zerocoinSpendButton->setVisible(false);
         break;
     case ZerocoinTab:
-        ui->labelExplanation->setText(tr("These are your private coins from mint zerocoin operation, You can perform spend zerocoin operation to redeem zcoin back from Zerocoin."));
+        ui->labelExplanation->setText(tr("These are your private coins from mint zerocoin operation, You can perform spend zerocoin operation to redeem smartcash back from Zerocoin."));
         ui->deleteAddress->setVisible(false);
         ui->signMessage->setVisible(false);
         ui->newAddress->setVisible(false);

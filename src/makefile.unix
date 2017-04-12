@@ -181,10 +181,10 @@ OBJS_SSE2= obj/scrypt-sse2.o
 OBJS += $(OBJS_SSE2)
 endif
 
-all: zcoind
+all: smartcashd
 
-test check: test_zcoin FORCE
-	./test_zcoin
+test check: test_smartcash FORCE
+	./test_smartcash
 
 #
 # LevelDB support
@@ -232,7 +232,7 @@ obj/%.o: %.cpp
 Lyra2Z/%.o: Lyra2Z/%.c
 	$(CC) -c -O3 -o $@ $<
 
-zcoind: $(OBJS:obj/%=obj/%)
+smartcashd: $(OBJS:obj/%=obj/%)
 	$(LINK) $(xCXXFLAGS) -o $@ $^ $(xLDFLAGS) $(LIBS)
 
 TESTOBJS := $(patsubst test/%.cpp,obj-test/%.o,$(wildcard test/*.cpp))
@@ -244,11 +244,11 @@ obj-test/%.o: test/%.cpp
 	      -e '/^$$/ d' -e 's/$$/ :/' < $(@:%.o=%.d) >> $(@:%.o=%.P); \
 	  rm -f $(@:%.o=%.d)
 
-test_zcoin: $(TESTOBJS) $(filter-out obj/init.o,$(OBJS:obj/%=obj/%))
+test_smartcash: $(TESTOBJS) $(filter-out obj/init.o,$(OBJS:obj/%=obj/%))
 	$(LINK) $(xCXXFLAGS) -o $@ $(LIBPATHS) $^ $(TESTLIBS) $(xLDFLAGS) $(LIBS)
 
 clean:
-	-rm -f zcoind test_zcoin
+	-rm -f smartcashd test_smartcash
 	-rm -f Lyra2Z/*.o
 	-rm -f obj/*.o
 	-rm -f obj-test/*.o

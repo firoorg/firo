@@ -1,5 +1,5 @@
 ---
-name: "zcoin-deps"
+name: "smartcash-deps"
 suites:
 - "precise"
 architectures:
@@ -98,4 +98,4 @@ script: |
   cd ..
   #
   cd $INSTALLPREFIX
-  zip -r $OUTDIR/zcoin-deps-win32-gitian-r3.zip include lib
+  zip -r $OUTDIR/smartcash-deps-win32-gitian-r3.zip include lib

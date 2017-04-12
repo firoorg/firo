@@ -28,11 +28,11 @@ SignVerifyMessageDialog::SignVerifyMessageDialog(QWidget *parent) :
 
 #if (QT_VERSION >= 0x040700)
     /* Do not move this to the XML file, Qt before 4.7 will choke on it */
-    ui->addressIn_SM->setPlaceholderText(tr("Enter a zcoin address (e.g. MUVz3KZqgJdC3djwVCLD6ZMpDj5X1FqeKs)"));
+    ui->addressIn_SM->setPlaceholderText(tr("Enter a smartcash address (e.g. MUVz3KZqgJdC3djwVCLD6ZMpDj5X1FqeKs)"));
     ui->signatureOut_SM->setPlaceholderText(tr("Click \"Sign Message\" to generate signature"));
 
-    ui->addressIn_VM->setPlaceholderText(tr("Enter a zcoin address (e.g. MUVz3KZqgJdC3djwVCLD6ZMpDj5X1FqeKs)"));
-    ui->signatureIn_VM->setPlaceholderText(tr("Enter zcoin signature"));
+    ui->addressIn_VM->setPlaceholderText(tr("Enter a smartcash address (e.g. MUVz3KZqgJdC3djwVCLD6ZMpDj5X1FqeKs)"));
+    ui->signatureIn_VM->setPlaceholderText(tr("Enter smartcash signature"));
 #endif
 
     GUIUtil::setupAddressWidget(ui->addressIn_SM, this);

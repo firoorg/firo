@@ -33,10 +33,10 @@
        <item>
         <widget class="QCheckBox" name="bitcoinAtStartup">
          <property name="toolTip">
-          <string>Automatically start zcoin after logging in to the system.</string>
+          <string>Automatically start smartcash after logging in to the system.</string>
          </property>
          <property name="text">
-          <string>&amp;Start zcoin on system login</string>
+          <string>&amp;Start smartcash on system login</string>
          </property>
         </widget>
        </item>
@@ -176,7 +176,7 @@
        <item>
         <widget class="QCheckBox" name="mapPortUpnp">
          <property name="toolTip">
-          <string>Automatically open the zcoin client port on the router. This only works when your router supports UPnP and it is enabled.</string>
+          <string>Automatically open the smartcash client port on the router. This only works when your router supports UPnP and it is enabled.</string>
          </property>
          <property name="text">
           <string>Map port using &amp;UPnP</string>
@@ -186,7 +186,7 @@
        <item>
         <widget class="QCheckBox" name="connectSocks">
          <property name="toolTip">
-          <string>Connect to the zcoin network through a SOCKS proxy (e.g. when connecting through Tor).</string>
+          <string>Connect to the smartcash network through a SOCKS proxy (e.g. when connecting through Tor).</string>
          </property>
          <property name="text">
           <string>&amp;Connect through SOCKS proxy:</string>
@@ -360,7 +360,7 @@
          <item>
           <widget class="QValueComboBox" name="lang">
            <property name="toolTip">
-            <string>The user interface language can be set here. This setting will take effect after restarting zcoin.</string>
+            <string>The user interface language can be set here. This setting will take effect after restarting smartcash.</string>
            </property>
           </widget>
          </item>
@@ -393,7 +393,7 @@
        <item>
         <widget class="QCheckBox" name="displayAddresses">
          <property name="toolTip">
-          <string>Whether to show zcoin addresses in the transaction list or not.</string>
+          <string>Whether to show smartcash addresses in the transaction list or not.</string>
          </property>
          <property name="text">
           <string>&amp;Display addresses in transaction list</string>

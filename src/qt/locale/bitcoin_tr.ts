@@ -4,13 +4,13 @@
     <name>AboutDialog</name>
     <message>
         <location filename="../forms/aboutdialog.ui" line="+14"/>
-        <source>About zcoin</source>
-        <translation>zcoin hakkında</translation>
+        <source>About smartcash</source>
+        <translation>smartcash hakkında</translation>
     </message>
     <message>
         <location line="+39"/>
-        <source>&lt;b&gt;zcoin&lt;/b&gt; version</source>
-        <translation>&lt;b&gt;zcoin&lt;/b&gt; sürüm</translation>
+        <source>&lt;b&gt;smartcash&lt;/b&gt; version</source>
+        <translation>&lt;b&gt;smartcash&lt;/b&gt; sürüm</translation>
     </message>
     <message>
         <location line="+57"/>
@@ -34,8 +34,8 @@ This product includes software developed by the OpenSSL Project for use in the O
     </message>
     <message>
         <location line="+0"/>
-        <source>The zcoin developers</source>
-        <translation>zcoin geliştiricileri</translation>
+        <source>The smartcash developers</source>
+        <translation>smartcash geliştiricileri</translation>
     </message>
 </context>
 <context>
@@ -67,8 +67,8 @@ This product includes software developed by the OpenSSL Project for use in the O
     </message>
     <message>
         <location filename="../addressbookpage.cpp" line="+63"/>
-        <source>These are your zcoin addresses for receiving payments. You may want to give a different one to each sender so you can keep track of who is paying you.</source>
-        <translation>Bunlar, ödeme almak için zcoin adresleridir. Kimin ödeme yaptığını izleyebilmek için her ödeme yollaması gereken kişiye değişik bir adres verebilirsiniz.</translation>
+        <source>These are your smartcash addresses for receiving payments. You may want to give a different one to each sender so you can keep track of who is paying you.</source>
+        <translation>Bunlar, ödeme almak için smartcash adresleridir. Kimin ödeme yaptığını izleyebilmek için her ödeme yollaması gereken kişiye değişik bir adres verebilirsiniz.</translation>
     </message>
     <message>
         <location filename="../forms/addressbookpage.ui" line="+14"/>
@@ -82,8 +82,8 @@ This product includes software developed by the OpenSSL Project for use in the O
     </message>
     <message>
         <location line="+11"/>
-        <source>Sign a message to prove you own a zcoin address</source>
-        <translation>Bir zcoin adresinin sizin olduğunu ispatlamak için mesaj imzalayın</translation>
+        <source>Sign a message to prove you own a smartcash address</source>
+        <translation>Bir smartcash adresinin sizin olduğunu ispatlamak için mesaj imzalayın</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -107,8 +107,8 @@ This product includes software developed by the OpenSSL Project for use in the O
     </message>
     <message>
         <location line="-44"/>
-        <source>Verify a message to ensure it was signed with a specified zcoin address</source>
-        <translation>Belirtilen zcoin adresi ile imzalandığını doğrulamak için bir mesajı kontrol et</translation>
+        <source>Verify a message to ensure it was signed with a specified smartcash address</source>
+        <translation>Belirtilen smartcash adresi ile imzalandığını doğrulamak için bir mesajı kontrol et</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -122,8 +122,8 @@ This product includes software developed by the OpenSSL Project for use in the O
     </message>
     <message>
         <location filename="../addressbookpage.cpp" line="-5"/>
-        <source>These are your zcoin addresses for sending payments. Always check the amount and the receiving address before sending coins.</source>
-        <translation>Bunlar ödeme yapmak için kullanacağınız zcoin adreslerinizdir. zcoin yollamadan önce meblağı ve alıcı adresini daima kontrol ediniz.</translation>
+        <source>These are your smartcash addresses for sending payments. Always check the amount and the receiving address before sending coins.</source>
+        <translation>Bunlar ödeme yapmak için kullanacağınız smartcash adreslerinizdir. smartcash yollamadan önce meblağı ve alıcı adresini daima kontrol ediniz.</translation>
     </message>
     <message>
         <location line="+13"/>
@@ -248,7 +248,7 @@ This product includes software developed by the OpenSSL Project for use in the O
     </message>
     <message>
         <location line="+1"/>
-        <source>Warning: If you encrypt your wallet and lose your passphrase, you will &lt;b&gt;LOSE ALL OF YOUR zcoinS&lt;/b&gt;!</source>
+        <source>Warning: If you encrypt your wallet and lose your passphrase, you will &lt;b&gt;LOSE ALL OF YOUR smartcashS&lt;/b&gt;!</source>
         <translation>Uyarı: Eğer cüzdanınızı şifrelerseniz ve parolanızı kaybederseniz, &lt;b&gt;TÜM BİTCOİNLERİNİZİ KAYBEDERSİNİZ&lt;/b&gt;!</translation>
     </message>
     <message>
@@ -275,8 +275,8 @@ This product includes software developed by the OpenSSL Project for use in the O
     </message>
     <message>
         <location line="-56"/>
-        <source>zcoin will close now to finish the encryption process. Remember that encrypting your wallet cannot fully protect your zcoins from being stolen by malware infecting your computer.</source>
-        <translation>Şifreleme işlemini tamamlamak için zcoin şimdi kapanacaktır. Cüzdanınızı şifrelemenin, zcoinlerinizin bilgisayara bulaşan kötücül bir yazılım tarafından çalınmaya karşı tamamen koruyamayacağını unutmayınız.</translation>
+        <source>smartcash will close now to finish the encryption process. Remember that encrypting your wallet cannot fully protect your smartcashs from being stolen by malware infecting your computer.</source>
+        <translation>Şifreleme işlemini tamamlamak için smartcash şimdi kapanacaktır. Cüzdanınızı şifrelemenin, smartcashlerinizin bilgisayara bulaşan kötücül bir yazılım tarafından çalınmaya karşı tamamen koruyamayacağını unutmayınız.</translation>
     </message>
     <message>
         <location line="+13"/>
@@ -374,8 +374,8 @@ This product includes software developed by the OpenSSL Project for use in the O
     </message>
     <message>
         <location line="+4"/>
-        <source>Show information about zcoin</source>
-        <translation>zcoin hakkında bilgi göster</translation>
+        <source>Show information about smartcash</source>
+        <translation>smartcash hakkında bilgi göster</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -419,13 +419,13 @@ This product includes software developed by the OpenSSL Project for use in the O
     </message>
     <message>
         <location line="-347"/>
-        <source>Send coins to a zcoin address</source>
-        <translation>Bir zcoin adresine zcoin yolla</translation>
+        <source>Send coins to a smartcash address</source>
+        <translation>Bir smartcash adresine smartcash yolla</translation>
     </message>
     <message>
         <location line="+49"/>
-        <source>Modify configuration options for zcoin</source>
-        <translation>zcoin seçeneklerinin yapılandırmasını değiştir</translation>
+        <source>Modify configuration options for smartcash</source>
+        <translation>smartcash seçeneklerinin yapılandırmasını değiştir</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -455,8 +455,8 @@ This product includes software developed by the OpenSSL Project for use in the O
     <message>
         <location line="-165"/>
         <location line="+530"/>
-        <source>zcoin</source>
-        <translation>zcoin</translation>
+        <source>smartcash</source>
+        <translation>smartcash</translation>
     </message>
     <message>
         <location line="-530"/>
@@ -480,8 +480,8 @@ This product includes software developed by the OpenSSL Project for use in the O
     </message>
     <message>
         <location line="+22"/>
-        <source>&amp;About zcoin</source>
-        <translation>zcoin &amp;Hakkında</translation>
+        <source>&amp;About smartcash</source>
+        <translation>smartcash &amp;Hakkında</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -500,13 +500,13 @@ This product includes software developed by the OpenSSL Project for use in the O
     </message>
     <message>
         <location line="+7"/>
-        <source>Sign messages with your zcoin addresses to prove you own them</source>
-        <translation>Mesajları adreslerin size ait olduğunu ispatlamak için zcoin adresleri ile imzala</translation>
+        <source>Sign messages with your smartcash addresses to prove you own them</source>
+        <translation>Mesajları adreslerin size ait olduğunu ispatlamak için smartcash adresleri ile imzala</translation>
     </message>
     <message>
         <location line="+2"/>
-        <source>Verify messages to ensure they were signed with specified zcoin addresses</source>
-        <translation>Belirtilen zcoin adresleri ile imzalandıklarından emin olmak için mesajları kontrol et</translation>
+        <source>Verify messages to ensure they were signed with specified smartcash addresses</source>
+        <translation>Belirtilen smartcash adresleri ile imzalandıklarından emin olmak için mesajları kontrol et</translation>
     </message>
     <message>
         <location line="+28"/>
@@ -536,13 +536,13 @@ This product includes software developed by the OpenSSL Project for use in the O
     </message>
     <message>
         <location line="+47"/>
-        <source>zcoin client</source>
-        <translation>zcoin istemcisi</translation>
+        <source>smartcash client</source>
+        <translation>smartcash istemcisi</translation>
     </message>
     <message numerus="yes">
         <location line="+141"/>
-        <source>%n active connection(s) to zcoin network</source>
-        <translation><numerusform>zcoin şebekesine %n faal bağlantı</numerusform><numerusform>zcoin şebekesine %n faal bağlantı</numerusform></translation>
+        <source>%n active connection(s) to smartcash network</source>
+        <translation><numerusform>smartcash şebekesine %n faal bağlantı</numerusform><numerusform>smartcash şebekesine %n faal bağlantı</numerusform></translation>
     </message>
     <message>
         <location line="+22"/>
@@ -656,8 +656,8 @@ Adres: %4
     <message>
         <location line="-23"/>
         <location line="+23"/>
-        <source>URI can not be parsed! This can be caused by an invalid zcoin address or malformed URI parameters.</source>
-        <translation>URI okunamadı! Sebebi geçersiz bir zcoin adresi veya hatalı URI parametreleri olabilir.</translation>
+        <source>URI can not be parsed! This can be caused by an invalid smartcash address or malformed URI parameters.</source>
+        <translation>URI okunamadı! Sebebi geçersiz bir smartcash adresi veya hatalı URI parametreleri olabilir.</translation>
     </message>
     <message>
         <location line="+17"/>
@@ -671,8 +671,8 @@ Adres: %4
     </message>
     <message>
         <location filename="../bitcoin.cpp" line="+111"/>
-        <source>A fatal error occurred. zcoin can no longer continue safely and will quit.</source>
-        <translation>Ciddi bir hata oluştu. zcoin artık güvenli bir şekilde işlemeye devam edemez ve kapanacaktır.</translation>
+        <source>A fatal error occurred. smartcash can no longer continue safely and will quit.</source>
+        <translation>Ciddi bir hata oluştu. smartcash artık güvenli bir şekilde işlemeye devam edemez ve kapanacaktır.</translation>
     </message>
 </context>
 <context>
@@ -737,8 +737,8 @@ Adres: %4
     </message>
     <message>
         <location line="-5"/>
-        <source>The entered address &quot;%1&quot; is not a valid zcoin address.</source>
-        <translation>Girilen &quot;%1&quot; adresi geçerli bir zcoin adresi değildir.</translation>
+        <source>The entered address &quot;%1&quot; is not a valid smartcash address.</source>
+        <translation>Girilen &quot;%1&quot; adresi geçerli bir smartcash adresi değildir.</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -756,8 +756,8 @@ Adres: %4
     <message>
         <location filename="../guiutil.cpp" line="+424"/>
         <location line="+12"/>
-        <source>zcoin</source>
-        <translation>zcoin</translation>
+        <source>smartcash</source>
+        <translation>smartcash</translation>
     </message>
     <message>
         <location line="-12"/>
@@ -819,13 +819,13 @@ Adres: %4
     </message>
     <message>
         <location line="+31"/>
-        <source>Automatically start zcoin after logging in to the system.</source>
-        <translation>Sistemde oturum açıldığında zcoin&apos;i otomatik olarak başlat.</translation>
+        <source>Automatically start smartcash after logging in to the system.</source>
+        <translation>Sistemde oturum açıldığında smartcash&apos;i otomatik olarak başlat.</translation>
     </message>
     <message>
         <location line="+3"/>
-        <source>&amp;Start zcoin on system login</source>
-        <translation>zcoin&apos;i sistem oturumuyla &amp;başlat</translation>
+        <source>&amp;Start smartcash on system login</source>
+        <translation>smartcash&apos;i sistem oturumuyla &amp;başlat</translation>
     </message>
     <message>
         <location line="+35"/>
@@ -844,8 +844,8 @@ Adres: %4
     </message>
     <message>
         <location line="+6"/>
-        <source>Automatically open the zcoin client port on the router. This only works when your router supports UPnP and it is enabled.</source>
-        <translation>Yönlendiricide zcoin istemci portlarını otomatik olarak açar. Bu, sadece yönlendiricinizin UPnP desteği bulunuyorsa ve etkinse çalışabilir.</translation>
+        <source>Automatically open the smartcash client port on the router. This only works when your router supports UPnP and it is enabled.</source>
+        <translation>Yönlendiricide smartcash istemci portlarını otomatik olarak açar. Bu, sadece yönlendiricinizin UPnP desteği bulunuyorsa ve etkinse çalışabilir.</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -854,8 +854,8 @@ Adres: %4
     </message>
     <message>
         <location line="+7"/>
-        <source>Connect to the zcoin network through a SOCKS proxy (e.g. when connecting through Tor).</source>
-        <translation>zcoin şebekesine SOCKS vekil sunucusu vasıtasıyla bağlan (mesela Tor ile bağlanıldığında).</translation>
+        <source>Connect to the smartcash network through a SOCKS proxy (e.g. when connecting through Tor).</source>
+        <translation>smartcash şebekesine SOCKS vekil sunucusu vasıtasıyla bağlan (mesela Tor ile bağlanıldığında).</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -929,8 +929,8 @@ Adres: %4
     </message>
     <message>
         <location line="+13"/>
-        <source>The user interface language can be set here. This setting will take effect after restarting zcoin.</source>
-        <translation>Kullanıcı arayüzünün dili burada belirtilebilir. Bu ayar zcoin tekrar başlatıldığında etkinleşecektir.</translation>
+        <source>The user interface language can be set here. This setting will take effect after restarting smartcash.</source>
+        <translation>Kullanıcı arayüzünün dili burada belirtilebilir. Bu ayar smartcash tekrar başlatıldığında etkinleşecektir.</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -940,12 +940,12 @@ Adres: %4
     <message>
         <location line="+13"/>
         <source>Choose the default subdivision unit to show in the interface and when sending coins.</source>
-        <translation>zcoin gönderildiğinde arayüzde gösterilecek varsayılan alt birimi seçiniz.</translation>
+        <translation>smartcash gönderildiğinde arayüzde gösterilecek varsayılan alt birimi seçiniz.</translation>
     </message>
     <message>
         <location line="+9"/>
-        <source>Whether to show zcoin addresses in the transaction list or not.</source>
-        <translation>Muamele listesinde zcoin adreslerinin gösterilip gösterilmeyeceklerini belirler.</translation>
+        <source>Whether to show smartcash addresses in the transaction list or not.</source>
+        <translation>Muamele listesinde smartcash adreslerinin gösterilip gösterilmeyeceklerini belirler.</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -996,8 +996,8 @@ Adres: %4
     <message>
         <location line="-9"/>
         <location line="+9"/>
-        <source>This setting will take effect after restarting zcoin.</source>
-        <translation>Bu ayarlar zcoin tekrar başlatıldığında etkinleşecektir.</translation>
+        <source>This setting will take effect after restarting smartcash.</source>
+        <translation>Bu ayarlar smartcash tekrar başlatıldığında etkinleşecektir.</translation>
     </message>
     <message>
         <location line="+29"/>
@@ -1015,7 +1015,7 @@ Adres: %4
     <message>
         <location line="+50"/>
         <location line="+166"/>
-        <source>The displayed information may be out of date. Your wallet automatically synchronizes with the zcoin network after a connection is established, but this process has not completed yet.</source>
+        <source>The displayed information may be out of date. Your wallet automatically synchronizes with the smartcash network after a connection is established, but this process has not completed yet.</source>
         <translation>Görüntülenen veriler zaman aşımına uğramış olabilir. Bağlantı kurulduğunda cüzdanınız otomatik olarak şebeke ile eşleşir ancak bu işlem henüz tamamlanmamıştır.</translation>
     </message>
     <message>
@@ -1069,8 +1069,8 @@ Adres: %4
     <name>PaymentServer</name>
     <message>
         <location filename="../paymentserver.cpp" line="+107"/>
-        <source>Cannot start zcoin: click-to-pay handler</source>
-        <translation>zcoin başlatılamadı: tıkla-ve-öde yöneticisi</translation>
+        <source>Cannot start smartcash: click-to-pay handler</source>
+        <translation>smartcash başlatılamadı: tıkla-ve-öde yöneticisi</translation>
     </message>
 </context>
 <context>
@@ -1219,8 +1219,8 @@ Adres: %4
     </message>
     <message>
         <location line="+7"/>
-        <source>Show the zcoin help message to get a list with possible zcoin command-line options.</source>
-        <translation>Mevcut zcoin komut satırı seçeneklerinin listesini içeren zcoin yardımını göster.</translation>
+        <source>Show the smartcash help message to get a list with possible smartcash command-line options.</source>
+        <translation>Mevcut smartcash komut satırı seçeneklerinin listesini içeren smartcash yardımını göster.</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -1239,13 +1239,13 @@ Adres: %4
     </message>
     <message>
         <location line="-104"/>
-        <source>zcoin - Debug window</source>
-        <translation>zcoin - Hata ayıklama penceresi</translation>
+        <source>smartcash - Debug window</source>
+        <translation>smartcash - Hata ayıklama penceresi</translation>
     </message>
     <message>
         <location line="+25"/>
-        <source>zcoin Core</source>
-        <translation>zcoin Çekirdeği</translation>
+        <source>smartcash Core</source>
+        <translation>smartcash Çekirdeği</translation>
     </message>
     <message>
         <location line="+279"/>
@@ -1254,8 +1254,8 @@ Adres: %4
     </message>
     <message>
         <location line="+7"/>
-        <source>Open the zcoin debug log file from the current data directory. This can take a few seconds for large log files.</source>
-        <translation>Güncel veri klasöründen zcoin hata ayıklama kütük dosyasını açar. Büyük kütük dosyaları için bu birkaç saniye alabilir.</translation>
+        <source>Open the smartcash debug log file from the current data directory. This can take a few seconds for large log files.</source>
+        <translation>Güncel veri klasöründen smartcash hata ayıklama kütük dosyasını açar. Büyük kütük dosyaları için bu birkaç saniye alabilir.</translation>
     </message>
     <message>
         <location line="+102"/>
@@ -1264,8 +1264,8 @@ Adres: %4
     </message>
     <message>
         <location filename="../rpcconsole.cpp" line="-30"/>
-        <source>Welcome to the zcoin RPC console.</source>
-        <translation>zcoin RPC konsoluna hoş geldiniz.</translation>
+        <source>Welcome to the smartcash RPC console.</source>
+        <translation>smartcash RPC konsoluna hoş geldiniz.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -1290,7 +1290,7 @@ Adres: %4
         <location line="+5"/>
         <location line="+5"/>
         <source>Send Coins</source>
-        <translation>zcoin yolla</translation>
+        <translation>smartcash yolla</translation>
     </message>
     <message>
         <location line="+50"/>
@@ -1448,8 +1448,8 @@ Adres: %4
     </message>
     <message>
         <location filename="../sendcoinsentry.cpp" line="+1"/>
-        <source>Enter a zcoin address (e.g. MUVz3KZqgJdC3djwVCLD6ZMpDj5X1FqeKs)</source>
-        <translation>zcoin adresi giriniz (mesela MUVz3KZqgJdC3djwVCLD6ZMpDj5X1FqeKs)</translation>
+        <source>Enter a smartcash address (e.g. MUVz3KZqgJdC3djwVCLD6ZMpDj5X1FqeKs)</source>
+        <translation>smartcash adresi giriniz (mesela MUVz3KZqgJdC3djwVCLD6ZMpDj5X1FqeKs)</translation>
     </message>
 </context>
 <context>
@@ -1513,8 +1513,8 @@ Adres: %4
     </message>
     <message>
         <location line="+21"/>
-        <source>Sign the message to prove you own this zcoin address</source>
-        <translation>Bu zcoin adresinin sizin olduğunu ispatlamak için mesajı imzalayın</translation>
+        <source>Sign the message to prove you own this smartcash address</source>
+        <translation>Bu smartcash adresinin sizin olduğunu ispatlamak için mesajı imzalayın</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -1549,8 +1549,8 @@ Adres: %4
     </message>
     <message>
         <location line="+40"/>
-        <source>Verify the message to ensure it was signed with the specified zcoin address</source>
-        <translation>Belirtilen zcoin adresi ile imzalandığını doğrulamak için mesajı kontrol et</translation>
+        <source>Verify the message to ensure it was signed with the specified smartcash address</source>
+        <translation>Belirtilen smartcash adresi ile imzalandığını doğrulamak için mesajı kontrol et</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -1565,8 +1565,8 @@ Adres: %4
     <message>
         <location filename="../signverifymessagedialog.cpp" line="+27"/>
         <location line="+3"/>
-        <source>Enter a zcoin address (e.g. MUVz3KZqgJdC3djwVCLD6ZMpDj5X1FqeKs)</source>
-        <translation>zcoin adresi giriniz (mesela MUVz3KZqgJdC3djwVCLD6ZMpDj5X1FqeKs)</translation>
+        <source>Enter a smartcash address (e.g. MUVz3KZqgJdC3djwVCLD6ZMpDj5X1FqeKs)</source>
+        <translation>smartcash adresi giriniz (mesela MUVz3KZqgJdC3djwVCLD6ZMpDj5X1FqeKs)</translation>
     </message>
     <message>
         <location line="-2"/>
@@ -1575,8 +1575,8 @@ Adres: %4
     </message>
     <message>
         <location line="+3"/>
-        <source>Enter zcoin signature</source>
-        <translation>zcoin imzası gir</translation>
+        <source>Enter smartcash signature</source>
+        <translation>smartcash imzası gir</translation>
     </message>
     <message>
         <location line="+82"/>
@@ -1649,8 +1649,8 @@ Adres: %4
     <name>SplashScreen</name>
     <message>
         <location filename="../splashscreen.cpp" line="+22"/>
-        <source>The zcoin developers</source>
-        <translation>zcoin geliştiricileri</translation>
+        <source>The smartcash developers</source>
+        <translation>smartcash geliştiricileri</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -1784,7 +1784,7 @@ Adres: %4
     <message>
         <location line="+3"/>
         <source>Generated coins must mature 120 blocks before they can be spent. When you generated this block, it was broadcast to the network to be added to the block chain. If it fails to get into the chain, its state will change to &quot;not accepted&quot; and it won&apos;t be spendable. This may occasionally happen if another node generates a block within a few seconds of yours.</source>
-        <translation>Oluşturulan zcoin&apos;lerin harcanabilmelerinden önce 120 blok beklemeleri gerekmektedir. Bu blok, oluşturduğunuzda blok zincirine eklenmesi için ağda yayınlandı. Zincire eklenmesi başarısız olursa, durumu &quot;kabul edilmedi&quot; olarak değiştirilecek ve harcanamayacaktır. Bu, bazen başka bir düğüm sizden birkaç saniye önce ya da sonra blok oluşturursa meydana gelebilir.</translation>
+        <translation>Oluşturulan smartcash&apos;lerin harcanabilmelerinden önce 120 blok beklemeleri gerekmektedir. Bu blok, oluşturduğunuzda blok zincirine eklenmesi için ağda yayınlandı. Zincire eklenmesi başarısız olursa, durumu &quot;kabul edilmedi&quot; olarak değiştirilecek ve harcanamayacaktır. Bu, bazen başka bir düğüm sizden birkaç saniye önce ya da sonra blok oluşturursa meydana gelebilir.</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -2137,7 +2137,7 @@ Adres: %4
     <message>
         <location filename="../walletmodel.cpp" line="+193"/>
         <source>Send Coins</source>
-        <translation>zcoin yolla</translation>
+        <translation>smartcash yolla</translation>
     </message>
 </context>
 <context>
@@ -2187,8 +2187,8 @@ Adres: %4
     <name>bitcoin-core</name>
     <message>
         <location filename="../bitcoinstrings.cpp" line="+94"/>
-        <source>zcoin version</source>
-        <translation>zcoin sürümü</translation>
+        <source>smartcash version</source>
+        <translation>smartcash sürümü</translation>
     </message>
     <message>
         <location line="+102"/>
@@ -2197,8 +2197,8 @@ Adres: %4
     </message>
     <message>
         <location line="-29"/>
-        <source>Send command to -server or zcoind</source>
-        <translation>-server ya da zcoind&apos;ye komut gönder</translation>
+        <source>Send command to -server or smartcashd</source>
+        <translation>-server ya da smartcashd&apos;ye komut gönder</translation>
     </message>
     <message>
         <location line="-23"/>
@@ -2217,13 +2217,13 @@ Adres: %4
     </message>
     <message>
         <location line="+24"/>
-        <source>Specify configuration file (default: zcoin.conf)</source>
-        <translation>Yapılandırma dosyası belirt (varsayılan: zcoin.conf)</translation>
+        <source>Specify configuration file (default: smartcash.conf)</source>
+        <translation>Yapılandırma dosyası belirt (varsayılan: smartcash.conf)</translation>
     </message>
     <message>
         <location line="+3"/>
-        <source>Specify pid file (default: zcoind.pid)</source>
-        <translation>Pid dosyası belirt (varsayılan: zcoind.pid)</translation>
+        <source>Specify pid file (default: smartcashd.pid)</source>
+        <translation>Pid dosyası belirt (varsayılan: smartcashd.pid)</translation>
     </message>
     <message>
         <location line="-1"/>
@@ -2300,24 +2300,24 @@ Adres: %4
         <source>%s, you must set a rpcpassword in the configuration file:
 %s
 It is recommended you use the following random password:
-rpcuser=zcoinrpc
+rpcuser=smartcashrpc
 rpcpassword=%s
 (you do not need to remember this password)
 The username and password MUST NOT be the same.
 If the file does not exist, create it with owner-readable-only file permissions.
 It is also recommended to set alertnotify so you are notified of problems;
-for example: alertnotify=echo %%s | mail -s &quot;zcoin Alert&quot; admin@foo.com
+for example: alertnotify=echo %%s | mail -s &quot;smartcash Alert&quot; admin@foo.com
 </source>
         <translation>%s, şu yapılandırma dosyasında rpc parolası belirtmeniz gerekir:
 %s
 Aşağıdaki rastgele oluşturulan parolayı kullanmanız tavsiye edilir:
-rpcuser=zcoinrpc
+rpcuser=smartcashrpc
 rpcpassword=%s
 (bu parolayı hatırlamanız gerekli değildir)
 Kullanıcı ismi ile parolanın FARKLI olmaları gerekir.
 Dosya mevcut değilse, sadece sahibi için okumayla sınırlı izin ile oluşturunuz.
 Sorunlar hakkında bildiri almak için alertnotify unsurunu ayarlamanız tavsiye edilir;
-mesela: alertnotify=echo %%s | mail -s &quot;zcoin Alert&quot; admin@foo.com
+mesela: alertnotify=echo %%s | mail -s &quot;smartcash Alert&quot; admin@foo.com
 </translation>
     </message>
     <message>
@@ -2332,8 +2332,8 @@ mesela: alertnotify=echo %%s | mail -s &quot;zcoin Alert&quot; admin@foo.com
     </message>
     <message>
         <location line="+3"/>
-        <source>Cannot obtain a lock on data directory %s. zcoin is probably already running.</source>
-        <translation>%s veri dizininde kilit elde edilemedi. zcoin muhtemelen hâlihazırda çalışmaktadır.</translation>
+        <source>Cannot obtain a lock on data directory %s. smartcash is probably already running.</source>
+        <translation>%s veri dizininde kilit elde edilemedi. smartcash muhtemelen hâlihazırda çalışmaktadır.</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -2363,7 +2363,7 @@ mesela: alertnotify=echo %%s | mail -s &quot;zcoin Alert&quot; admin@foo.com
     <message>
         <location line="+6"/>
         <source>This is a pre-release test build - use at your own risk - do not use for mining or merchant applications</source>
-        <translation>Bu yayın öncesi bir deneme sürümüdür - tüm riski siz üstlenmiş olursunuz - zcoin oluşturmak ya da ticari uygulamalar için kullanmayınız</translation>
+        <translation>Bu yayın öncesi bir deneme sürümüdür - tüm riski siz üstlenmiş olursunuz - smartcash oluşturmak ya da ticari uygulamalar için kullanmayınız</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -2377,8 +2377,8 @@ mesela: alertnotify=echo %%s | mail -s &quot;zcoin Alert&quot; admin@foo.com
     </message>
     <message>
         <location line="+3"/>
-        <source>Warning: Please check that your computer&apos;s date and time are correct! If your clock is wrong zcoin will not work properly.</source>
-        <translation>Uyarı: Lütfen bilgisayarınızın tarih ve saatinin doğru olup olmadığını kontrol ediniz! Saatiniz doğru değilse zcoin gerektiği gibi çalışamaz.</translation>
+        <source>Warning: Please check that your computer&apos;s date and time are correct! If your clock is wrong smartcash will not work properly.</source>
+        <translation>Uyarı: Lütfen bilgisayarınızın tarih ve saatinin doğru olup olmadığını kontrol ediniz! Saatiniz doğru değilse smartcash gerektiği gibi çalışamaz.</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -2518,7 +2518,7 @@ mesela: alertnotify=echo %%s | mail -s &quot;zcoin Alert&quot; admin@foo.com
     <message>
         <location line="+1"/>
         <source>Generate coins (default: 0)</source>
-        <translation>zcoin oluştur (varsayılan: 0)</translation>
+        <translation>smartcash oluştur (varsayılan: 0)</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -2627,8 +2627,8 @@ mesela: alertnotify=echo %%s | mail -s &quot;zcoin Alert&quot; admin@foo.com
     </message>
     <message>
         <location line="+5"/>
-        <source>SSL options: (see the zcoin Wiki for SSL setup instructions)</source>
-        <translation> SSL seçenekleri: (SSL kurulum bilgisi için zcoin vikisine bakınız)</translation>
+        <source>SSL options: (see the smartcash Wiki for SSL setup instructions)</source>
+        <translation> SSL seçenekleri: (SSL kurulum bilgisi için smartcash vikisine bakınız)</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -2817,13 +2817,13 @@ mesela: alertnotify=echo %%s | mail -s &quot;zcoin Alert&quot; admin@foo.com
     </message>
     <message>
         <location line="+1"/>
-        <source>Error loading wallet.dat: Wallet requires newer version of zcoin</source>
-        <translation>wallet.dat dosyasının yüklenmesinde hata oluştu: cüzdanın daha yeni bir zcoin sürümüne ihtiyacı var</translation>
+        <source>Error loading wallet.dat: Wallet requires newer version of smartcash</source>
+        <translation>wallet.dat dosyasının yüklenmesinde hata oluştu: cüzdanın daha yeni bir smartcash sürümüne ihtiyacı var</translation>
     </message>
     <message>
         <location line="+93"/>
-        <source>Wallet needed to be rewritten: restart zcoin to complete</source>
-        <translation>Cüzdanın tekrar yazılması gerekiyordu: işlemi tamamlamak için zcoin&apos;i yeniden başlatınız</translation>
+        <source>Wallet needed to be rewritten: restart smartcash to complete</source>
+        <translation>Cüzdanın tekrar yazılması gerekiyordu: işlemi tamamlamak için smartcash&apos;i yeniden başlatınız</translation>
     </message>
     <message>
         <location line="-95"/>
@@ -2882,8 +2882,8 @@ mesela: alertnotify=echo %%s | mail -s &quot;zcoin Alert&quot; admin@foo.com
     </message>
     <message>
         <location line="-25"/>
-        <source>Unable to bind to %s on this computer. zcoin is probably already running.</source>
-        <translation>Bu bilgisayarda %s unsuruna bağlanılamadı. zcoin muhtemelen hâlihazırda çalışmaktadır.</translation>
+        <source>Unable to bind to %s on this computer. smartcash is probably already running.</source>
+        <translation>Bu bilgisayarda %s unsuruna bağlanılamadı. smartcash muhtemelen hâlihazırda çalışmaktadır.</translation>
     </message>
     <message>
         <location line="+64"/>

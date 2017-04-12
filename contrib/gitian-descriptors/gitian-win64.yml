@@ -1,5 +1,5 @@
 ---
-name: "zcoin"
+name: "smartcash"
 suites:
 - "precise"
 architectures:
@@ -13,13 +13,13 @@ packages:
 - "faketime"
 reference_datetime: "2011-01-30 00:00:00"
 remotes:
-- "url": "file:///home/bushido/zcoin"
-  "dir": "zcoin"
+- "url": "file:///home/bushido/smartcash"
+  "dir": "smartcash"
   "commit": "master"
 files:
 - "qt-win32-4.8.5-gitian-r5.zip"
 - "boost-win32-1.55.0-gitian-r6.zip"
-- "zcoin-deps-win32-gitian-r3.zip"
+- "smartcash-deps-win32-gitian-r3.zip"
 script: |
   #
   STAGING=$HOME/staging
@@ -29,10 +29,10 @@ script: |
   cd $STAGING
   unzip ../build/qt-win32-4.8.5-gitian-r5.zip
   unzip ../build/boost-win32-1.55.0-gitian-r6.zip
-  unzip ../build/zcoin-deps-win32-gitian-r3.zip
+  unzip ../build/smartcash-deps-win32-gitian-r3.zip
   cd $HOME/build/
   #
-  cd zcoin
+  cd smartcash
   export PATH=$STAGING/host/bin:$PATH
   mkdir -p $OUTDIR/src
   git archive HEAD | tar -x -C $OUTDIR/src
@@ -42,20 +42,20 @@ script: |
   export FAKETIME=$REFERENCE_DATETIME
   export TZ=UTC
   ln -s $STAGING $HOME/qt
-  $HOME/staging/host/bin/qmake -spec unsupported/win32-g++-cross MINIUPNPC_LIB_PATH=$STAGING MINIUPNPC_INCLUDE_PATH=$STAGING BDB_LIB_PATH=$STAGING BDB_INCLUDE_PATH=$STAGING BOOST_LIB_PATH=$STAGING BOOST_INCLUDE_PATH=$STAGING BOOST_LIB_SUFFIX=-mt-s BOOST_THREAD_LIB_SUFFIX=_win32-mt-s OPENSSL_LIB_PATH=$STAGING OPENSSL_INCLUDE_PATH=$STAGING QRENCODE_LIB_PATH=$STAGING QRENCODE_INCLUDE_PATH=$STAGING USE_QRCODE=1 INCLUDEPATH=$STAGING DEFINES=BOOST_THREAD_USE_LIB BITCOIN_NEED_QT_PLUGINS=1 QMAKE_LRELEASE=lrelease QMAKE_CXXFLAGS=-frandom-seed=zcoin USE_BUILD_INFO=1 USE_SSE2=1 USE_UPNP=1 zcoin.pro
+  $HOME/staging/host/bin/qmake -spec unsupported/win32-g++-cross MINIUPNPC_LIB_PATH=$STAGING MINIUPNPC_INCLUDE_PATH=$STAGING BDB_LIB_PATH=$STAGING BDB_INCLUDE_PATH=$STAGING BOOST_LIB_PATH=$STAGING BOOST_INCLUDE_PATH=$STAGING BOOST_LIB_SUFFIX=-mt-s BOOST_THREAD_LIB_SUFFIX=_win32-mt-s OPENSSL_LIB_PATH=$STAGING OPENSSL_INCLUDE_PATH=$STAGING QRENCODE_LIB_PATH=$STAGING QRENCODE_INCLUDE_PATH=$STAGING USE_QRCODE=1 INCLUDEPATH=$STAGING DEFINES=BOOST_THREAD_USE_LIB BITCOIN_NEED_QT_PLUGINS=1 QMAKE_LRELEASE=lrelease QMAKE_CXXFLAGS=-frandom-seed=smartcash USE_BUILD_INFO=1 USE_SSE2=1 USE_UPNP=1 smartcash.pro
   make $MAKEOPTS
-  $HOST-strip release/zcoin-qt.exe
-  cp release/zcoin-qt.exe $OUTDIR/
+  $HOST-strip release/smartcash-qt.exe
+  cp release/smartcash-qt.exe $OUTDIR/
   #
   cd src
   mkdir obj/libzerocoin
   export LD_PRELOAD=/usr/lib/faketime/libfaketime.so.1
   export FAKETIME=$REFERENCE_DATETIME
   export TZ=UTC
-  make -f makefile.linux-mingw $MAKEOPTS DEPSDIR=$STAGING zcoind.exe USE_UPNP=1 DEBUGFLAGS="-frandom-seed=zcoin" USE_SSE2=1
-  $HOST-strip zcoind.exe
+  make -f makefile.linux-mingw $MAKEOPTS DEPSDIR=$STAGING smartcashd.exe USE_UPNP=1 DEBUGFLAGS="-frandom-seed=smartcash" USE_SSE2=1
+  $HOST-strip smartcashd.exe
   mkdir $OUTDIR/daemon
-  cp zcoind.exe $OUTDIR/daemon
+  cp smartcashd.exe $OUTDIR/daemon
   cd ..
   mkdir nsis
   git archive HEAD | tar -x -C nsis
@@ -64,4 +64,4 @@ script: |
   cp ../../release/* ../release/
   cp ../../src/*.exe .
   makensis ../share/setup.nsi
-  cp ../share/zcoin-*-win32-setup.exe $OUTDIR/
+  cp ../share/smartcash-*-win32-setup.exe $OUTDIR/
