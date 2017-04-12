@@ -661,16 +661,16 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
             }
 
             BOOST_FOREACH(const CTxOut& output, vout) {
-                if (output.scriptPubKey == FOUNDER_1_SCRIPT && output.nValue == (int64)(250 * COIN)) {
+                if (output.scriptPubKey == FOUNDER_1_SCRIPT && output.nValue == (int64)(300 * COIN)) {
                     found_1 = true;
                 }
-                if (output.scriptPubKey == FOUNDER_2_SCRIPT && output.nValue == (int64)(250 * COIN)) {
+                if (output.scriptPubKey == FOUNDER_2_SCRIPT && output.nValue == (int64)(300 * COIN)) {
                     found_2 = true;
                 }
-                if (output.scriptPubKey == FOUNDER_3_SCRIPT && output.nValue == (int64)(250 * COIN)) {
+                if (output.scriptPubKey == FOUNDER_3_SCRIPT && output.nValue == (int64)(300 * COIN)) {
                     found_3 = true;
                 }
-                if (output.scriptPubKey == FOUNDER_4_SCRIPT && output.nValue == (int64)(2250 * COIN)) {
+                if (output.scriptPubKey == FOUNDER_4_SCRIPT && output.nValue == (int64)(2100 * COIN)) {
                     found_4 = true;
                 }
             }
@@ -6166,10 +6166,10 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
          }
 
          // And give it to the founders
-         txNew.vout.push_back(CTxOut(250 * COIN, CScript(FOUNDER_1_SCRIPT.begin(), FOUNDER_1_SCRIPT.end())));
-         txNew.vout.push_back(CTxOut(250 * COIN, CScript(FOUNDER_2_SCRIPT.begin(), FOUNDER_2_SCRIPT.end())));
-         txNew.vout.push_back(CTxOut(250 * COIN, CScript(FOUNDER_3_SCRIPT.begin(), FOUNDER_3_SCRIPT.end())));
-         txNew.vout.push_back(CTxOut(2250 * COIN, CScript(FOUNDER_4_SCRIPT.begin(), FOUNDER_4_SCRIPT.end())));
+         txNew.vout.push_back(CTxOut(300 * COIN, CScript(FOUNDER_1_SCRIPT.begin(), FOUNDER_1_SCRIPT.end())));
+         txNew.vout.push_back(CTxOut(300 * COIN, CScript(FOUNDER_2_SCRIPT.begin(), FOUNDER_2_SCRIPT.end())));
+         txNew.vout.push_back(CTxOut(300 * COIN, CScript(FOUNDER_3_SCRIPT.begin(), FOUNDER_3_SCRIPT.end())));
+         txNew.vout.push_back(CTxOut(2100 * COIN, CScript(FOUNDER_4_SCRIPT.begin(), FOUNDER_4_SCRIPT.end())));
 
     }
 
