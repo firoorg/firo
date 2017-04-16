@@ -17,11 +17,11 @@
 namespace libzerocoin {
 
 enum  CoinDenomination {
-    ZQ_LOVELACE = 1,
-    ZQ_GOLDWASSER = 10,
-    ZQ_RACKOFF = 25,
-    ZQ_PEDERSEN = 50,
-    ZQ_WILLIAMSON = 100 // Malcolm J. Williamson,
+    ZQ_LOVELACE = 100,
+    ZQ_GOLDWASSER = 1000,
+    ZQ_RACKOFF = 2500,
+    ZQ_PEDERSEN = 5000,
+    ZQ_WILLIAMSON = 10000 // Malcolm J. Williamson,
                     // the scientist who actually invented
                     // Public key cryptography
 };
