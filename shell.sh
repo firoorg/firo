@@ -1,4 +1,4 @@
-cd ~/.zcoin/
+cd ~/.smartcash/
 rm -rf blocks/
 rm -rf chainstate/
 rm -rf db.log

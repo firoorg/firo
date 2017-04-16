@@ -5,7 +5,7 @@ https://SmartCash.CC
 
  Copyright (c) 2009 - 2016 Bitcoin Developers
  Copyright (c) 2015 - 2017 Zcoin Developers
-  Copyright (c) 2017 - 2017 SmartCash Developers
+ Copyright (c) 2017 - 2017 SmartCash Developers
 
 License
 -------
@@ -19,7 +19,7 @@ Development process
 Developers work in their own trees, then submit pull requests when they think
 their feature or bug fix is ready.
 
-If it is a simple/trivial/non-controversial change, then one of the zcoin
+If it is a simple/trivial/non-controversial change, then one of the smartcash
 development team members simply pulls it.
 
 If it is a *more complicated or potentially controversial* change, then the patch

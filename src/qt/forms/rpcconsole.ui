@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Zcoin - Debug window</string>
+   <string>Smartcash - Debug window</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout_2">
    <item>
@@ -36,7 +36,7 @@
           </font>
          </property>
          <property name="text">
-          <string>Zcoin Core</string>
+          <string>Smartcash Core</string>
          </property>
         </widget>
        </item>
@@ -322,7 +322,7 @@
        <item row="15" column="0">
         <widget class="QPushButton" name="openDebugLogfileButton">
          <property name="toolTip">
-          <string>Open the zcoin debug log file from the current data directory. This can take a few seconds for large log files.</string>
+          <string>Open the smartcash debug log file from the current data directory. This can take a few seconds for large log files.</string>
          </property>
          <property name="text">
           <string>&amp;Open</string>
@@ -348,7 +348,7 @@
        <item row="17" column="0">
         <widget class="QPushButton" name="showCLOptionsButton">
          <property name="toolTip">
-          <string>Show the zcoin help message to get a list with possible zcoin command-line options.</string>
+          <string>Show the smartcash help message to get a list with possible smartcash command-line options.</string>
          </property>
          <property name="text">
           <string>&amp;Show</string>

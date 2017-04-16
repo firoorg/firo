@@ -1,4 +1,4 @@
-Name zcoin
+Name smartcash
 
 RequestExecutionLevel highest
 SetCompressor /SOLID lzma
@@ -6,11 +6,11 @@ SetCompressor /SOLID lzma
 # General Symbol Definitions
 !define REGKEY "SOFTWARE\$(^Name)"
 !define VERSION 0.8.7.1
-!define COMPANY "ZCoin Project"
-!define URL http://zcoin.tech/
+!define COMPANY "SmartCash Project"
+!define URL http://smartcash.tech/
 
 # MUI Symbol Definitions
-!define MUI_ICON "../share/pixmaps/zcoin.ico"
+!define MUI_ICON "../share/pixmaps/smartcash.ico"
 !define MUI_WELCOMEFINISHPAGE_BITMAP "../share/pixmaps/nsis-wizard.bmp"
 !define MUI_HEADERIMAGE
 !define MUI_HEADERIMAGE_RIGHT
@@ -19,8 +19,8 @@ SetCompressor /SOLID lzma
 !define MUI_STARTMENUPAGE_REGISTRY_ROOT HKLM
 !define MUI_STARTMENUPAGE_REGISTRY_KEY ${REGKEY}
 !define MUI_STARTMENUPAGE_REGISTRY_VALUENAME StartMenuGroup
-!define MUI_STARTMENUPAGE_DEFAULTFOLDER zcoin
-!define MUI_FINISHPAGE_RUN $INSTDIR\zcoin-qt.exe
+!define MUI_STARTMENUPAGE_DEFAULTFOLDER smartcash
+!define MUI_FINISHPAGE_RUN $INSTDIR\smartcash-qt.exe
 !define MUI_UNICON "${NSISDIR}\Contrib\Graphics\Icons\modern-uninstall.ico"
 !define MUI_UNWELCOMEFINISHPAGE_BITMAP "../share/pixmaps/nsis-wizard.bmp"
 !define MUI_UNFINISHPAGE_NOAUTOCLOSE
@@ -45,14 +45,14 @@ Var StartMenuGroup
 !insertmacro MUI_LANGUAGE English
 
 # Installer attributes
-OutFile zcoin-${VERSION}-win32-setup.exe
-InstallDir $PROGRAMFILES\zcoin
+OutFile smartcash-${VERSION}-win32-setup.exe
+InstallDir $PROGRAMFILES\smartcash
 CRCCheck on
 XPStyle on
 BrandingText " "
 ShowInstDetails show
 VIProductVersion ${VERSION}
-VIAddVersionKey ProductName zcoin
+VIAddVersionKey ProductName smartcash
 VIAddVersionKey ProductVersion "${VERSION}"
 VIAddVersionKey CompanyName "${COMPANY}"
 VIAddVersionKey CompanyWebsite "${URL}"
@@ -66,16 +66,16 @@ ShowUninstDetails show
 Section -Main SEC0000
     SetOutPath $INSTDIR
     SetOverwrite on
-    File ../release/zcoin-qt.exe
+    File ../release/smartcash-qt.exe
     File /oname=COPYING.txt ../COPYING
     File /oname=readme.txt ../doc/README_windows.txt
     SetOutPath $INSTDIR\daemon
-    File ../src/zcoind.exe
+    File ../src/smartcashd.exe
     SetOutPath $INSTDIR
     WriteRegStr HKCU "${REGKEY}\Components" Main 1
 
     # Remove old wxwidgets-based-bitcoin executable and locales:
-    Delete /REBOOTOK $INSTDIR\zcoin.exe
+    Delete /REBOOTOK $INSTDIR\smartcash.exe
     RMDir /r /REBOOTOK $INSTDIR\locale
 SectionEnd
 
@@ -85,8 +85,8 @@ Section -post SEC0001
     WriteUninstaller $INSTDIR\uninstall.exe
     !insertmacro MUI_STARTMENU_WRITE_BEGIN Application
     CreateDirectory $SMPROGRAMS\$StartMenuGroup
-    CreateShortcut "$SMPROGRAMS\$StartMenuGroup\zcoin.lnk" $INSTDIR\zcoin-qt.exe
-    CreateShortcut "$SMPROGRAMS\$StartMenuGroup\Uninstall zcoin.lnk" $INSTDIR\uninstall.exe
+    CreateShortcut "$SMPROGRAMS\$StartMenuGroup\smartcash.lnk" $INSTDIR\smartcash-qt.exe
+    CreateShortcut "$SMPROGRAMS\$StartMenuGroup\Uninstall smartcash.lnk" $INSTDIR\uninstall.exe
     !insertmacro MUI_STARTMENU_WRITE_END
     WriteRegStr HKCU "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\$(^Name)" DisplayName "$(^Name)"
     WriteRegStr HKCU "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\$(^Name)" DisplayVersion "${VERSION}"
@@ -96,10 +96,10 @@ Section -post SEC0001
     WriteRegStr HKCU "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\$(^Name)" UninstallString $INSTDIR\uninstall.exe
     WriteRegDWORD HKCU "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\$(^Name)" NoModify 1
     WriteRegDWORD HKCU "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\$(^Name)" NoRepair 1
-    WriteRegStr HKCR "zcoin" "URL Protocol" ""
-    WriteRegStr HKCR "zcoin" "" "URL:zcoin"
-    WriteRegStr HKCR "zcoin\DefaultIcon" "" $INSTDIR\zcoin-qt.exe
-    WriteRegStr HKCR "zcoin\shell\open\command" "" '"$INSTDIR\zcoin-qt.exe" "%1"'
+    WriteRegStr HKCR "smartcash" "URL Protocol" ""
+    WriteRegStr HKCR "smartcash" "" "URL:smartcash"
+    WriteRegStr HKCR "smartcash\DefaultIcon" "" $INSTDIR\smartcash-qt.exe
+    WriteRegStr HKCR "smartcash\shell\open\command" "" '"$INSTDIR\smartcash-qt.exe" "%1"'
 SectionEnd
 
 # Macro for selecting uninstaller sections
@@ -117,7 +117,7 @@ done${UNSECTION_ID}:
 
 # Uninstaller sections
 Section /o -un.Main UNSEC0000
-    Delete /REBOOTOK $INSTDIR\zcoin-qt.exe
+    Delete /REBOOTOK $INSTDIR\smartcash-qt.exe
     Delete /REBOOTOK $INSTDIR\COPYING.txt
     Delete /REBOOTOK $INSTDIR\readme.txt
     RMDir /r /REBOOTOK $INSTDIR\daemon
@@ -126,9 +126,9 @@ SectionEnd
 
 Section -un.post UNSEC0001
     DeleteRegKey HKCU "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\$(^Name)"
-    Delete /REBOOTOK "$SMPROGRAMS\$StartMenuGroup\Uninstall zcoin.lnk"
-    Delete /REBOOTOK "$SMPROGRAMS\$StartMenuGroup\zcoin.lnk"
-    Delete /REBOOTOK "$SMSTARTUP\zcoin.lnk"
+    Delete /REBOOTOK "$SMPROGRAMS\$StartMenuGroup\Uninstall smartcash.lnk"
+    Delete /REBOOTOK "$SMPROGRAMS\$StartMenuGroup\smartcash.lnk"
+    Delete /REBOOTOK "$SMSTARTUP\smartcash.lnk"
     Delete /REBOOTOK $INSTDIR\uninstall.exe
     Delete /REBOOTOK $INSTDIR\debug.log
     Delete /REBOOTOK $INSTDIR\db.log
@@ -136,7 +136,7 @@ Section -un.post UNSEC0001
     DeleteRegValue HKCU "${REGKEY}" Path
     DeleteRegKey /IfEmpty HKCU "${REGKEY}\Components"
     DeleteRegKey /IfEmpty HKCU "${REGKEY}"
-    DeleteRegKey HKCR "zcoin"
+    DeleteRegKey HKCR "smartcash"
     RmDir /REBOOTOK $SMPROGRAMS\$StartMenuGroup
     RmDir /REBOOTOK $INSTDIR
     Push $R0

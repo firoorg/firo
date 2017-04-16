@@ -6,7 +6,7 @@ Mac OS X Daemon Build Instructions and Notes
 Notes
 -----
 
-See `doc/readme-qt.rst` for instructions on building zcoin-qt, the
+See `doc/readme-qt.rst` for instructions on building smartcash-qt, the
 graphical user interface.
 
 Tested on OS X 10.7 through 10.12 on Intel processors only. PPC is not
@@ -40,14 +40,14 @@ Or manually by
         cd /usr/local/include 
         ln -s ../opt/openssl/include/openssl .
         
-### Building `zcoind`
+### Building `smartcashd`
 
 1. Clone the github tree to get the source code and go into the directory.
 
-        git clone https://github.com/zcoinofficial/zcoin
-        cd zcoin
+        git clone https://github.com/smartcashofficial/smartcash
+        cd smartcash
 
-2.  Build zcoind:
+2.  Build smartcashd:
 
         cd src
         make -f makefile.osx
@@ -59,10 +59,10 @@ Or manually by
 Creating a release build
 ------------------------
 
-A zcoind binary is not included in the zcoin.app bundle. You can ignore
-this section if you are building `zcoind` for your own use.
+A smartcashd binary is not included in the smartcash.app bundle. You can ignore
+this section if you are building `smartcashd` for your own use.
 
-If you are building `zcoind` for others, your build machine should be set up
+If you are building `smartcashd` for others, your build machine should be set up
 as follows for maximum compatibility:
 
 All dependencies should be compiled with these flags:
@@ -81,30 +81,30 @@ As of December 2012, the `boost` port does not obey `macosx_deployment_target`.
 Download `http://gavinandresen-bitcoin.s3.amazonaws.com/boost_macports_fix.zip`
 for a fix. Some ports also seem to obey either `build_arch` or
 `macosx_deployment_target`, but not both at the same time. For example, building
-on an OS X 10.6 64-bit machine fails. Official release builds of zcoin are
+on an OS X 10.6 64-bit machine fails. Official release builds of smartcash are
 compiled on an OS X 10.6 32-bit machine to workaround that problem.
 
-Once dependencies are compiled, creating `zcoin.app` is easy:
+Once dependencies are compiled, creating `smartcash.app` is easy:
 
     make -f Makefile.osx RELEASE=1
 
 Running
 -------
 
-It's now available at `./zcoind`, provided that you are still in the `src`
+It's now available at `./smartcashd`, provided that you are still in the `src`
 directory. We have to first create the RPC configuration file, though.
 
-Run `./zcoind` to get the filename where it should be put, or just try these
+Run `./smartcashd` to get the filename where it should be put, or just try these
 commands:
 
-    echo -e "rpcuser=zcoinrpc\nrpcpassword=$(xxd -l 16 -p /dev/urandom)" > "/Users/${USER}/Library/Application Support/zcoin/zcoin.conf"
-    chmod 600 "/Users/${USER}/Library/Application Support/zcoin/zcoin.conf"
+    echo -e "rpcuser=smartcashrpc\nrpcpassword=$(xxd -l 16 -p /dev/urandom)" > "/Users/${USER}/Library/Application Support/smartcash/smartcash.conf"
+    chmod 600 "/Users/${USER}/Library/Application Support/smartcash/smartcash.conf"
 
 When next you run it, it will start downloading the blockchain, but it won't
 output anything while it's doing this. This process may take several hours.
 
 Other commands:
 
-    ./zcoind --help  # for a list of command-line options.
-    ./zcoind -daemon # to start the zcoin daemon.
-    ./zcoind help    # When the daemon is running, to get a list of RPC commands
+    ./smartcashd --help  # for a list of command-line options.
+    ./smartcashd -daemon # to start the smartcash daemon.
+    ./smartcashd help    # When the daemon is running, to get a list of RPC commands

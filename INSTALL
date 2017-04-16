@@ -1,9 +1,9 @@
-Building ZCoin
+Building SmartCash
 
-See doc/readme-qt.rst for instructions on building zcoin,
+See doc/readme-qt.rst for instructions on building smartcash,
 the intended-for-end-users, nice-graphical-interface, reference
-implementation of zcoin.
+implementation of smartcash.
 
-See doc/build-*.txt for instructions on building zcoind,
+See doc/build-*.txt for instructions on building smartcashd,
 the intended-for-services, no-graphical-interface, reference
-implementation of zcoin.
+implementation of smartcash.

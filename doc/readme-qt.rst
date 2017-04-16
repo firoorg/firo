@@ -1,4 +1,4 @@
-zcoin: Qt GUI for zcoin
+smartcash: Qt GUI for smartcash
 ===============================
 
 Modified by Aizen Sou (aizen0sou@gmail.com) @ 2017
@@ -43,9 +43,9 @@ then execute the following:
     qmake
     make
 
-Alternatively, install `Qt Creator`_ and open the `zcoin-qt.pro` file.
+Alternatively, install `Qt Creator`_ and open the `smartcash-qt.pro` file.
 
-An executable named `zcoin-qt` will be built.
+An executable named `smartcash-qt` will be built.
 
 .. _`Qt Creator`: http://qt-project.org/downloads/
 
@@ -103,7 +103,7 @@ Mac OS X
 
     brew link qt5 --force
 
-- Open the zcoin-qt.pro file in Qt Creator and build as normal (cmd-B)
+- Open the smartcash-qt.pro file in Qt Creator and build as normal (cmd-B)
 
 .. _`Qt Mac OS X SDK`: http://qt-project.org/downloads/
 .. _`HomeBrew`: http://mxcl.github.io/homebrew/
@@ -112,14 +112,14 @@ Mac OS X
 
 ::
 
-    qmake "RELEASE=1" zcoin.pro
+    qmake "RELEASE=1" smartcash.pro
     make
 
 - After that you could deploy the app with
 
 ::
 
-    contrib/macdeploy/macdeployqtplus zcoin-qt.app -dmg -fancy contrib/macdeploy/fancy.plist -verbose 2
+    contrib/macdeploy/macdeployqtplus smartcash-qt.app -dmg -fancy contrib/macdeploy/fancy.plist -verbose 2
 
 
 Build configuration options
@@ -128,7 +128,7 @@ Build configuration options
 UPnP port forwarding
 ---------------------
 
-To use UPnP for port forwarding behind a NAT router (recommended, as more connections overall allow for a faster and more stable zcoin experience), pass the following argument to qmake:
+To use UPnP for port forwarding behind a NAT router (recommended, as more connections overall allow for a faster and more stable smartcash experience), pass the following argument to qmake:
 
 ::
 
@@ -176,9 +176,9 @@ flag to qmake to control this:
 Berkely DB version warning
 ==========================
 
-A warning for people using the *static binary* version of zcoin on a Linux/UNIX-ish system (tl;dr: **Berkely DB databases are not forward compatible**).
+A warning for people using the *static binary* version of smartcash on a Linux/UNIX-ish system (tl;dr: **Berkely DB databases are not forward compatible**).
 
-The static binary version of zcoin is linked against libdb4.8 (see also `this Debian issue`_).
+The static binary version of smartcash is linked against libdb4.8 (see also `this Debian issue`_).
 
 Now the nasty thing is that databases from 5.X are not compatible with 4.X.
 
@@ -193,7 +193,7 @@ Ubuntu 11.10 warning
 ====================
 
 Ubuntu 11.10 has a package called 'qt-at-spi' installed by default.  At the time of writing, having that package
-installed causes zcoin-qt to crash intermittently.  The issue has been reported as `launchpad bug 857790`_, but
+installed causes smartcash-qt to crash intermittently.  The issue has been reported as `launchpad bug 857790`_, but
 isn't yet fixed.
 
 Until the bug is fixed, you can remove the qt-at-spi package to work around the problem, though this will presumably
