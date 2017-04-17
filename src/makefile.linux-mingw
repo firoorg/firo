@@ -14,7 +14,10 @@ INCLUDEPATHS= \
  -I"$(CURDIR)" \
  -I"$(CURDIR)"/obj \
  -I"$(DEPSDIR)/include" \
- -I"$(DEPSDIR)"
+ -I"$(DEPSDIR)" \
+ -I"/usr/include" \
+ -I"/usr/include/x86_64-linux-gnu"
+
 
 LIBPATHS= \
  -L"$(DEPSDIR)/lib"
