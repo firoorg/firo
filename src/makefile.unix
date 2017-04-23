@@ -170,7 +170,8 @@ OBJS= \
     merkletree/mt_arr_list.o \
     merkletree/mt_crypto.o \
     merkletree/mt_impl.o \
-    merkletree/sha224-256.o
+    merkletree/sha224-256.o  \
+    obj/mtp.o
 
 
 
