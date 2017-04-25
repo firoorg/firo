@@ -1401,8 +1401,8 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, int64> >& vecSend,
 
                 // Check that enough fee is included
                 int64 nPayFee = nTransactionFee * (1 + (int64)nBytes / 1000);
-                bool fAllowFree = CTransaction::AllowFree(dPriority); // No free TXs in XZC
-               //bool fAllowFree = false;					// No free TXs in XZC
+                bool fAllowFree = CTransaction::AllowFree(dPriority); // No free TXs in SMART
+               //bool fAllowFree = false;					// No free TXs in SMART
                int64 nMinFee = wtxNew.GetMinFee(1, fAllowFree, GMF_SEND);
                if (nFeeRet < max(nPayFee, nMinFee))
                {
@@ -1701,8 +1701,8 @@ bool CWallet::CreateZerocoinMintTransaction(const vector<pair<CScript, int64> >&
 
                // Check that enough fee is included
                int64 nPayFee = nTransactionFee * (1 + (int64)nBytes / 1000);
-           //    bool fAllowFree = CTransaction::AllowFree(dPriority); // No free TXs in XZC
-                bool fAllowFree = false;					// No free TXs in XZC
+           //    bool fAllowFree = CTransaction::AllowFree(dPriority); // No free TXs in SMART
+                bool fAllowFree = false;					// No free TXs in SMART
                 int64 nMinFee = wtxNew.GetMinFee(1, fAllowFree, GMF_SEND);
                 if (nFeeRet < max(nPayFee, nMinFee))
                 {

@@ -141,7 +141,7 @@
      <item>
       <widget class="QPushButton" name="zerocoinMintButton">
        <property name="text">
-        <string>Mint Zerocoin</string>
+       <string>Renew SmartCash</string>
        </property>
        <property name="icon">
         <iconset resource="../bitcoin.qrc">
