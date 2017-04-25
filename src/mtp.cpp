@@ -5,6 +5,7 @@
 #include "mtp.h"
 
 static const unsigned int d_mtp = 1;
+static const uint8_t L = 70;
 
 
 unsigned int trailing_zeros(char str[64]) {
@@ -87,7 +88,7 @@ argon2_context init_argon2d_param(const char* input) {
     const deallocate_fptr myown_deallocator = NULL;
 
     unsigned t_cost = 1;
-    unsigned m_cost = 2097152;
+    unsigned m_cost = 32768;
     unsigned lanes = 4;
 
     memset(pContext,0,sizeof(argon2_context));
@@ -268,8 +269,7 @@ int mtp_prover(CBlock *pblock, argon2_instance_t *instance, unsigned int d, char
     if (instance != NULL) {
         printf("Step 2 : Compute the root Φ of the Merkle hash tree \n");
         mt_t *mt = mt_create();
-        // TODO: remove 1024
-        for (int i = 0; i < instance->memory_blocks / 1024; ++i) {
+        for (int i = 0; i < instance->memory_blocks; ++i) {
             block blockhash;
             uint8_t blockhash_bytes[ARGON2_BLOCK_SIZE];
             copy_block(&blockhash, &instance->memory[i]);
@@ -300,7 +300,6 @@ int mtp_prover(CBlock *pblock, argon2_instance_t *instance, unsigned int d, char
         while (true) {
             printf("Step 3 : Select nonce N \n");
             pblock->nNonce += 1;
-            uint8_t L = 70;
             uint8_t Y[L + 1][32];
             memset(&Y[0], 0, sizeof(Y));
 
@@ -464,7 +463,6 @@ int mtp_prover(CBlock *pblock, argon2_instance_t *instance, unsigned int d, char
 
 bool mtp_verifier(unsigned int d, CBlock *pblock) {
 
-    uint8_t L = 70;
     uint8_t Y_CLIENT[L+1][32];
     memset(&Y_CLIENT[0], 0, sizeof(Y_CLIENT));
     printf("Step 7 : Y_CLIENT(0) = H(resultMerkelRoot, N)\n");
@@ -503,7 +501,7 @@ bool mtp_verifier(unsigned int d, CBlock *pblock) {
     }
 
     uint8_t nNonceInBlock[2];
-    memcpy(nNonceInBlock, (uint8_t*)&pblock->nNonce, sizeof(nNonceInBlock));
+    memcpy(nNonceInBlock, (uint8_t*) pblock->nNonce, sizeof(nNonceInBlock));
 
     ret = SHA256Input(pctx_client, nNonceInBlock, 1);
     if (shaSuccess != ret) {

@@ -18,14 +18,6 @@
 #include "fixed.h"
 #include <stdint.h>
 #include <emmintrin.h>
-#include "argon2/argon2.h"
-#include "argon2/core.h"
-#include "argon2/thread.h"
-#include "argon2/blake2/blake2.h"
-#include "argon2/blake2/blake2-impl.h"
-#include "argon2/blake2/blamka-round-opt.h"
-#include "merkletree/sha.h"
-#include "mtp.h"
 
 using namespace std;
 using namespace boost;
@@ -6443,6 +6435,7 @@ void static ZcoinMiner(CWallet *pwallet)
                             mtp_hash(BEGIN(thash), BEGIN(pblock->nVersion), d_mtp, pblock);
                             // TODO: compare with target
                             printf("Found MTP hash: %s\n", thash.GetHex().c_str());
+                            // TODO: verification should be after checking with target
                             mtp_verification = mtp_verifier(d_mtp, pblock);
                         } else if (!fTestNet && pindexPrev->nHeight + 1 >= HF_LYRA2_HEIGHT){
                             LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, 8192, 256);
