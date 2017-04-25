@@ -957,7 +957,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                             zccoinSpend.hashTx = hashTx;
                                             zccoinSpend.pubCoin = 0;
                                             zccoinSpend.id = pubcoinId;
-                                            if(nHeight > 22000 && nHeight < INT_MAX){
+                                            if(nHeight > 1 && nHeight < INT_MAX){
                                                 zccoinSpend.denomination = libzerocoin::ZQ_LOVELACE;
                                             }
                                             walletdb.WriteCoinSpendSerialEntry(zccoinSpend);
@@ -1130,7 +1130,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                             zccoinSpend.hashTx = hashTx;
                                             zccoinSpend.pubCoin = 0;
                                             zccoinSpend.id = pubcoinId;
-                                            if(nHeight > 22000 && nHeight < INT_MAX){
+                                            if(nHeight > 1 && nHeight < INT_MAX){
                                                 zccoinSpend.denomination = libzerocoin::ZQ_GOLDWASSER;
                                             }
                                             walletdb.WriteCoinSpendSerialEntry(zccoinSpend);
@@ -1301,7 +1301,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                             zccoinSpend.hashTx = hashTx;
                                             zccoinSpend.pubCoin = 0;
                                             zccoinSpend.id = pubcoinId;
-                                            if(nHeight > 22000 && nHeight < INT_MAX){
+                                            if(nHeight > 1 && nHeight < INT_MAX){
                                                 zccoinSpend.denomination = libzerocoin::ZQ_RACKOFF;
                                             }
                                             walletdb.WriteCoinSpendSerialEntry(zccoinSpend);
@@ -1472,7 +1472,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                             zccoinSpend.hashTx = hashTx;
                                             zccoinSpend.pubCoin = 0;
                                             zccoinSpend.id = pubcoinId;
-                                            if(nHeight > 22000 && nHeight < INT_MAX){
+                                            if(nHeight > 1 && nHeight < INT_MAX){
                                                 zccoinSpend.denomination = libzerocoin::ZQ_PEDERSEN;
                                             }
                                             walletdb.WriteCoinSpendSerialEntry(zccoinSpend);
@@ -1644,7 +1644,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                             zccoinSpend.hashTx = hashTx;
                                             zccoinSpend.pubCoin = 0;
                                             zccoinSpend.id = pubcoinId;
-                                            if(nHeight > 22000 && nHeight < INT_MAX){
+                                            if(nHeight > 1 && nHeight < INT_MAX){
                                                 zccoinSpend.denomination = libzerocoin::ZQ_WILLIAMSON;
                                             }
                                             walletdb.WriteCoinSpendSerialEntry(zccoinSpend);
@@ -6194,10 +6194,7 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
     nBlockMinSize = std::min(nBlockMaxSize, nBlockMinSize);
 
     unsigned int COUNT_SPEND_ZC_TX = 0;
-    unsigned int MAX_SPEND_ZC_TX_PER_BLOCK = 0;
-    if(fTestNet || pindexBest->nHeight + 1 > 22000){
-        MAX_SPEND_ZC_TX_PER_BLOCK = 1;
-    }
+    unsigned int MAX_SPEND_ZC_TX_PER_BLOCK = 1;
 
     // Collect memory pool transactions into the block
     int64 nFees = 0;
