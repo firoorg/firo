@@ -393,7 +393,7 @@
        <item>
         <widget class="QCheckBox" name="displayAddresses">
          <property name="toolTip">
-          <string>Whether to show smartcash addresses in the transaction list or not.</string>
+          <string>Whether to show SmartCash addresses in the transaction list or not.</string>
          </property>
          <property name="text">
           <string>&amp;Display addresses in transaction list</string>
@@ -404,9 +404,10 @@
         <widget class="QCheckBox" name="coinControlFeatures">
          <property name="toolTip">
           <string>Whether to show coin control features or not.</string>
+          <bool>true</bool>
          </property>
          <property name="text">
-          <string>Display coin &amp;control features (experts only!)</string>
+          <string>Display coin &amp;control features</string>
          </property>
         </widget>
        </item>

@@ -60,7 +60,7 @@ AddressBookPage::AddressBookPage(Mode mode, Tabs tab, QWidget *parent) :
     switch(tab)
     {
     case SendingTab:
-        ui->labelExplanation->setText(tr("These are your smartcash addresses for sending payments. Always check the amount and the receiving address before sending coins."));
+        ui->labelExplanation->setText(tr("These are your SmartCash addresses for sending payments. Always check the amount and the receiving address before sending coins."));
         ui->deleteAddress->setVisible(true);
         ui->signMessage->setVisible(false);
         ui->zerocoinAmount->setVisible(false);
@@ -68,7 +68,7 @@ AddressBookPage::AddressBookPage(Mode mode, Tabs tab, QWidget *parent) :
         ui->zerocoinSpendButton->setVisible(false);
         break;
     case ReceivingTab:
-        ui->labelExplanation->setText(tr("These are your smartcash addresses for receiving payments. You may want to give a different one to each sender so you can keep track of who is paying you."));
+        ui->labelExplanation->setText(tr("These are your SmartCash addresses for receiving payments. You may want to give a different one to each sender so you can keep track of who is paying you."));
         ui->deleteAddress->setVisible(false);
         ui->signMessage->setVisible(true);
         ui->zerocoinAmount->setVisible(false);
@@ -76,7 +76,7 @@ AddressBookPage::AddressBookPage(Mode mode, Tabs tab, QWidget *parent) :
         ui->zerocoinSpendButton->setVisible(false);
         break;
     case ZerocoinTab:
-        ui->labelExplanation->setText(tr("These are your private coins from mint zerocoin operation, You can perform spend zerocoin operation to redeem smartcash back from Zerocoin."));
+        ui->labelExplanation->setText(tr("These are your private coins from the Renew SmartCash operation.  Two inputs of the same size are required before you can redeem by selecting Spend SmartCash."));
         ui->deleteAddress->setVisible(false);
         ui->signMessage->setVisible(false);
         ui->newAddress->setVisible(false);
@@ -87,8 +87,8 @@ AddressBookPage::AddressBookPage(Mode mode, Tabs tab, QWidget *parent) :
         ui->zerocoinSpendButton->setVisible(true);
         ui->zerocoinAmount->addItem("100");
         ui->zerocoinAmount->addItem("1000");
-        ui->zerocoinAmount->addItem("2500");
-        ui->zerocoinAmount->addItem("5000");
+//        ui->zerocoinAmount->addItem("2500");
+//        ui->zerocoinAmount->addItem("5000");
         ui->zerocoinAmount->addItem("10000");
 
     }
@@ -172,7 +172,7 @@ void AddressBookPage::setModel(AddressTableModel *model)
     case ZerocoinTab:
         // Zerocoin filter
         proxyModel->setFilterRole(AddressTableModel::TypeRole);
-        proxyModel->setFilterFixedString(AddressTableModel::Zerocoin);
+        proxyModel->setFilterFixedString(AddressTableModel::Renew);
         break;
 
     }
@@ -238,7 +238,7 @@ void AddressBookPage::on_zerocoinMintButton_clicked() {
         QString t = tr(stringError.c_str());
 
         QMessageBox::critical(this, tr("Error"),
-            tr("You cannot mint zerocoin because %1").arg(t),
+            tr("You cannot Renew SmartCash because %1").arg(t),
             QMessageBox::Ok, QMessageBox::Ok);
     }
 
