@@ -404,7 +404,6 @@
         <widget class="QCheckBox" name="coinControlFeatures">
          <property name="toolTip">
           <string>Whether to show coin control features or not.</string>
-          <bool>true</bool>
          </property>
          <property name="text">
           <string>Display coin &amp;control features</string>
