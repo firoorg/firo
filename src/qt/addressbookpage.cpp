@@ -172,7 +172,7 @@ void AddressBookPage::setModel(AddressTableModel *model)
     case ZerocoinTab:
         // Zerocoin filter
         proxyModel->setFilterRole(AddressTableModel::TypeRole);
-        proxyModel->setFilterFixedString(AddressTableModel::Renew);
+        proxyModel->setFilterFixedString(AddressTableModel::Zerocoin);
         break;
 
     }
