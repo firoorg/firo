@@ -22,12 +22,10 @@ AboutDialog::AboutDialog(QWidget *parent) :
     ui->copyrightLabel->setText(tr("Copyright") +
                QString(" &copy; 2009-2014 ").arg(COPYRIGHT_YEAR) +
                tr("The Bitcoin developers") + QString("<br>") +
-               tr("Copyright") + QString(" &copy; ") +
-               tr("2011-2014 The Vertcoin developers").arg(ABOUTDIALOG_COPYRIGHT_YEAR) + QString("<br>") +
-               tr("Copyright") + QString(" &copy; 2014-%1") +
+               tr("Copyright") + QString(" &copy; 2014-2017 ") +
                tr("The Zcoin developers").arg(ABOUTDIALOG_COPYRIGHT_YEAR) + QString("<br>") +
-			   tr("Copyright") + QString(" &copy; 2017-%1") +
-			   tr("The Smartcash developers").arg(ABOUTDIALOG_COPYRIGHT_YEAR));
+	       tr("Copyright") + QString(" &copy; 2017 ") +
+	       tr("The SmartCash developers").arg(ABOUTDIALOG_COPYRIGHT_YEAR));
 }
 
 void AboutDialog::setModel(ClientModel *model)

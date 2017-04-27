@@ -87,9 +87,9 @@ AddressBookPage::AddressBookPage(Mode mode, Tabs tab, QWidget *parent) :
         ui->zerocoinSpendButton->setVisible(true);
         ui->zerocoinAmount->addItem("100");
         ui->zerocoinAmount->addItem("1000");
-//        ui->zerocoinAmount->addItem("2500");
-//        ui->zerocoinAmount->addItem("5000");
         ui->zerocoinAmount->addItem("10000");
+        ui->zerocoinAmount->addItem("100000");
+        ui->zerocoinAmount->addItem("1000000");
 
     }
 

@@ -189,8 +189,8 @@ void BitcoinGUI::createActions()
     receiveCoinsAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_3));
     tabGroup->addAction(receiveCoinsAction);
 
-    zerocoinAction = new QAction(QIcon(":/icons/zerocoin"), tr("&Zerocoin"), this);
-    zerocoinAction->setStatusTip(tr("Show the list of public coin that have been minted"));
+    zerocoinAction = new QAction(QIcon(":/icons/zerocoin"), tr("&Renew"), this);
+    zerocoinAction->setStatusTip(tr("Show the list of coins in the Renew operation"));
     zerocoinAction->setToolTip(zerocoinAction->statusTip());
     zerocoinAction->setCheckable(true);
     zerocoinAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_4));

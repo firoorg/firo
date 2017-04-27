@@ -91,7 +91,7 @@
         <cursorShape>IBeamCursor</cursorShape>
        </property>
        <property name="text">
-        <string notr="true">&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Copyright &amp;amp;copy; 2009-YYYY The Bitcoin developers&lt;/p&gt;&lt;p&gt;Copyright &amp;amp;copy; 2015-YYYY The Smartcash developers&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+        <string notr="true">&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Copyright &amp;amp;copy; 2009-YYYY The Bitcoin developers&lt;/p&gt;&lt;p&gt;Copyright &amp;amp;copy; 2017-YYYY The Smartcash developers&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
        </property>
        <property name="textFormat">
         <enum>Qt::RichText</enum>

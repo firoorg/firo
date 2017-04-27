@@ -1435,15 +1435,15 @@ bool CWallet::CreateZerocoinMintModel(string &stringError, string denomAmount){
     }else if(denomAmount == "1000"){
         denomination = libzerocoin::ZQ_GOLDWASSER;
         nAmount = roundint64(1000 * COIN);
-    }else if(denomAmount == "2500"){
-        denomination = libzerocoin::ZQ_RACKOFF;
-        nAmount = roundint64(2500 * COIN);
-    }else if(denomAmount == "5000"){
-        denomination = libzerocoin::ZQ_PEDERSEN;
-        nAmount = roundint64(5000 * COIN);
     }else if(denomAmount == "10000"){
-        denomination = libzerocoin::ZQ_WILLIAMSON;
+        denomination = libzerocoin::ZQ_RACKOFF;
         nAmount = roundint64(10000 * COIN);
+    }else if(denomAmount == "100000"){
+        denomination = libzerocoin::ZQ_PEDERSEN;
+        nAmount = roundint64(100000 * COIN);
+    }else if(denomAmount == "1000000"){
+        denomination = libzerocoin::ZQ_WILLIAMSON;
+        nAmount = roundint64(1000000 * COIN);
     }else{
 
     }
@@ -1513,15 +1513,15 @@ bool CWallet::CreateZerocoinSpendModel(string &stringError, string denomAmount){
     }else if(denomAmount == "1000"){
         denomination = libzerocoin::ZQ_GOLDWASSER;
         nAmount = roundint64(1000 * COIN);
-    }else if(denomAmount == "2500"){
-        denomination = libzerocoin::ZQ_RACKOFF;
-        nAmount = roundint64(2500 * COIN);
-    }else if(denomAmount == "5000"){
-        denomination = libzerocoin::ZQ_PEDERSEN;
-        nAmount = roundint64(5000 * COIN);
     }else if(denomAmount == "10000"){
-        denomination = libzerocoin::ZQ_WILLIAMSON;
+        denomination = libzerocoin::ZQ_RACKOFF;
         nAmount = roundint64(10000 * COIN);
+    }else if(denomAmount == "100000"){
+        denomination = libzerocoin::ZQ_PEDERSEN;
+        nAmount = roundint64(100000 * COIN);
+    }else if(denomAmount == "1000000"){
+        denomination = libzerocoin::ZQ_WILLIAMSON;
+        nAmount = roundint64(1000000 * COIN);
     }else{
 
     }

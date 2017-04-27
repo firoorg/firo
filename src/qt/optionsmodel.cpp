@@ -53,7 +53,7 @@ void OptionsModel::Init()
     nTransactionFee = settings.value("nTransactionFee").toLongLong();
     bSpendZeroConfChange = settings.value("bSpendZeroConfChange").toBool();
     language = settings.value("language", "").toString();
-    fCoinControlFeatures = settings.value("fCoinControlFeatures", false).toBool();
+    fCoinControlFeatures = settings.value("fCoinControlFeatures", true).toBool();
 
     // These are shared with core Bitcoin; we want
     // command-line options to override the GUI settings:
