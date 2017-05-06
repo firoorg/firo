@@ -123,6 +123,9 @@ DEFS += -DHAVE_BUILD_INFO
 obj/libzerocoin/%.o: libzerocoin/%.cpp $(HEADERS)
 	$(CXX) -c $(xCXXFLAGS) -o $@ $<
 
+obj/%.o: %.c
+        $(CC) -c -O3 -o $@ $<
+
 obj/%-sse2.o: %-sse2.cpp
 	$(CXX) -c $(xCXXFLAGS) -msse2 -mstackrealign -o $@ $<
 
