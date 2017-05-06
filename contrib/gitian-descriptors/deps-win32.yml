@@ -1,7 +1,7 @@
 ---
 name: "smartcash-deps"
 suites:
-- "precise"
+- "trusty"
 architectures:
 - "amd64"
 packages:
