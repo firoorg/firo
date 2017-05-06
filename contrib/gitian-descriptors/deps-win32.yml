@@ -14,7 +14,7 @@ packages:
 reference_datetime: "2011-01-30 00:00:00"
 remotes: []
 files:
-- "openssl-1.0.1j.tar.gz"
+- "openssl-1.0.2g.tar.gz"
 - "db-4.8.30.NC.tar.gz"
 - "miniupnpc-1.9.20140401.tar.gz"
 - "zlib-1.2.8.tar.gz"
