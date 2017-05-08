@@ -102,6 +102,20 @@ OBJS= \
     obj/libzerocoin/Params.o \
     obj/libzerocoin/SerialNumberSignatureOfKnowledge.o \
     obj/libzerocoin/SpendMetaData.o
+    Lyra2Z/blake.o \
+    Lyra2Z/Lyra2.o \
+    Lyra2Z/Lyra2Z.o \
+    Lyra2Z/Sponge.o \
+    argon2/argon2.o \
+    argon2/core.o \
+    argon2/blake2/blake2b.o \
+    argon2/encoding.o \
+    argon2/opt.o \
+    argon2/thread.o \
+    merkletree/mt_arr_list.o \
+    merkletree/mt_crypto.o \
+    merkletree/mt_impl.o \
+    merkletree/sha224-256.o
 
 ifdef USE_SSE2
 DEFS += -DUSE_SSE2
