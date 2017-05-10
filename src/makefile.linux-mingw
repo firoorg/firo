@@ -14,9 +14,7 @@ INCLUDEPATHS= \
  -I"$(CURDIR)" \
  -I"$(CURDIR)"/obj \
  -I"$(DEPSDIR)/include" \
- -I"$(DEPSDIR)" \
- -I"/usr/include" \
- -I"/usr/include/x86_64-linux-gnu"
+ -I"$(DEPSDIR)"
 
 
 LIBPATHS= \
@@ -101,7 +99,7 @@ OBJS= \
     obj/libzerocoin/ParamGeneration.o \
     obj/libzerocoin/Params.o \
     obj/libzerocoin/SerialNumberSignatureOfKnowledge.o \
-    obj/libzerocoin/SpendMetaData.o
+    obj/libzerocoin/SpendMetaData.o \
     Lyra2Z/blake.o \
     Lyra2Z/Lyra2.o \
     Lyra2Z/Lyra2Z.o \
