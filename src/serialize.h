@@ -21,8 +21,6 @@
 
 #include "allocators.h"
 #include "version.h"
-#include "argon2/core.h"
-#include "merkletree/merkletree.h"
 
 typedef long long  int64;
 typedef unsigned long long  uint64;
@@ -118,64 +116,6 @@ inline unsigned int GetSerializeSize(int64 a,          int, int=0) { return size
 inline unsigned int GetSerializeSize(uint64 a,         int, int=0) { return sizeof(a); }
 inline unsigned int GetSerializeSize(float a,          int, int=0) { return sizeof(a); }
 inline unsigned int GetSerializeSize(double a,         int, int=0) { return sizeof(a); }
-
-// argon2 block with offset
-inline unsigned int GetSerializeSize(const block_with_offset data[140], int, int=0){
-    return sizeof(block_with_offset) * 140;
-}
-
-template<typename Stream> inline void Serialize(Stream& s, const block_with_offset a[140], int, int=0)
-{
-    int i, r;
-    for( r = 0; r < 140; r++){
-        for(i = 0; i < ARGON2_QWORDS_IN_BLOCK; i++){
-            WRITEDATA(s, a[r].memory.v[i]);
-        }
-        WRITEDATA(s, a[r].memory.prev_block);
-        WRITEDATA(s, a[r].memory.ref_block);
-        WRITEDATA(s, a[r].offset);
-    }
-}
-
-template<typename Stream> inline void Unserialize(Stream& s, block_with_offset a[140], int, int=0)
-{
-    int i, r;
-    for( r = 0; r < 140; r++){
-        for(i = 0; i < ARGON2_QWORDS_IN_BLOCK; i++){
-            READDATA(s, a[r].memory.v[i]);
-        }
-        READDATA(s, a[r].memory.prev_block);
-        READDATA(s, a[r].memory.ref_block);
-        READDATA(s, a[r].offset);
-    }
-
-}
-
-// merkel tree
-inline unsigned int GetSerializeSize(const uint8_t data[2048][32], int, int=0){
-    return sizeof(uint8_t) * 2048 * 32;
-}
-
-template<typename Stream> inline void Serialize(Stream& s, const uint8_t a[2048][32], int, int=0)
-{
-    int i,j;
-    for(i = 0; i < 2048; i++){
-        for(j = 0; j < 32; j++){
-            WRITEDATA(s, a[i][j]);
-        }
-    }
-}
-
-template<typename Stream> inline void Unserialize(Stream& s, uint8_t a[2048][32], int, int=0)
-{
-    int i,j;
-    for(i = 0; i < 2048; i++){
-        for(j = 0; j < 32; j++){
-            READDATA(s, a[i][j]);
-        }
-    }
-}
-
 
 template<typename Stream> inline void Serialize(Stream& s, char a,           int, int=0) { WRITEDATA(s, a); }
 template<typename Stream> inline void Serialize(Stream& s, signed char a,    int, int=0) { WRITEDATA(s, a); }

@@ -147,20 +147,6 @@ HEADERS += src/qt/bitcoingui.h \
     src/qt/aboutdialog.h \
     src/qt/editaddressdialog.h \
     src/qt/bitcoinaddressvalidator.h \
-    src/argon2/argon2.h \
-    src/argon2/core.h \
-    src/argon2/encoding.h \
-    src/argon2/blake2/blake2.h \
-    src/argon2/blake2/blake2-impl.h \
-    src/argon2/blake2/blamka-round-opt.h \
-    src/argon2/genkat.h \
-    src/argon2/thread.h \
-    src/merkletree/merkletree.h \
-    src/merkletree/sha.h \
-    src/merkletree/mt_arr_list.h \
-    src/merkletree/mt_config.h \
-    src/merkletree/mt_crypto.h \
-    src/merkletree/mt_err.h \
     src/auxpow.h \
     src/alert.h \
     src/addrman.h \
@@ -320,16 +306,6 @@ SOURCES += src/qt/bitcoin.cpp \
     src/qt/paymentserver.cpp \
     src/qt/rpcconsole.cpp \
     src/scrypt.cpp \
-    src/argon2/argon2.c \
-    src/argon2/core.c \
-    src/argon2/blake2/blake2b.c \
-    src/argon2/encoding.c \
-    src/argon2/opt.c \
-    src/argon2/thread.c \
-    src/merkletree/mt_arr_list.c \
-    src/merkletree/mt_crypto.c \
-    src/merkletree/mt_impl.c \
-    src/merkletree/sha224-256.c \
     src/Lyra2Z/blake.c \
     src/Lyra2Z/Lyra2.c \
     src/Lyra2Z/Lyra2Z.c \
