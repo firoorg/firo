@@ -1738,9 +1738,6 @@ public:
     unsigned int nTime;
     unsigned int nBits;
     unsigned int nNonce;
-    block_with_offset blockhashInBlockchain[140];
-    uint8_t elementsInMerkleRoot[2048][32];
-
 
     CBlockIndex()
     {
@@ -1784,11 +1781,6 @@ public:
         nTime          = block.nTime;
         nBits          = block.nBits;
         nNonce         = block.nNonce;
-
-        if(block.CURRENT_VERSION == 3){
-            memcpy(&blockhashInBlockchain, block.blockhashInBlockchain, 140 * sizeof(block_with_offset) );
-            memcpy(&elementsInMerkleRoot, block.elementsInMerkleRoot, 2048 * 32 * sizeof(uint8_t) );
-        }
     }
 
     IMPLEMENT_SERIALIZE

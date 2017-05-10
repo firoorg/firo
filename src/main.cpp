@@ -3512,67 +3512,6 @@ int GetOurChainID()
 
 }
 
-unsigned int trailing_zeros(char str[64]) {
-    unsigned int i, d;
-    d = 0;
-    for (i = 63; i > 0; i--) {
-        if (str[i] == '0') {
-            d++;
-        }
-        else {
-            break;
-        }
-    }
-    return d;
-}
-
-static void store_block(void *output, const block *src) {
-    unsigned i;
-    for (i = 0; i < ARGON2_QWORDS_IN_BLOCK; ++i) {
-        store64((uint8_t *)output + i * sizeof(src->v[i]), src->v[i]);
-    }
-}
-
-
-void fill_block(__m128i *state, const block *ref_block, block *next_block,
-    int with_xor) {
-    __m128i block_XY[ARGON2_OWORDS_IN_BLOCK];
-    unsigned int i;
-
-    if (with_xor) {
-        for (i = 0; i < ARGON2_OWORDS_IN_BLOCK; i++) {
-            state[i] = _mm_xor_si128(
-                state[i], _mm_loadu_si128((const __m128i *)ref_block->v + i));
-            block_XY[i] = _mm_xor_si128(
-                state[i], _mm_loadu_si128((const __m128i *)next_block->v + i));
-        }
-    }
-    else {
-        for (i = 0; i < ARGON2_OWORDS_IN_BLOCK; i++) {
-            block_XY[i] = state[i] = _mm_xor_si128(
-                state[i], _mm_loadu_si128((const __m128i *)ref_block->v + i));
-        }
-    }
-
-    for (i = 0; i < 8; ++i) {
-        BLAKE2_ROUND(state[8 * i + 0], state[8 * i + 1], state[8 * i + 2],
-            state[8 * i + 3], state[8 * i + 4], state[8 * i + 5],
-            state[8 * i + 6], state[8 * i + 7]);
-    }
-
-    for (i = 0; i < 8; ++i) {
-        BLAKE2_ROUND(state[8 * 0 + i], state[8 * 1 + i], state[8 * 2 + i],
-            state[8 * 3 + i], state[8 * 4 + i], state[8 * 5 + i],
-            state[8 * 6 + i], state[8 * 7 + i]);
-    }
-
-    for (i = 0; i < ARGON2_OWORDS_IN_BLOCK; i++) {
-        state[i] = _mm_xor_si128(state[i], block_XY[i]);
-        _mm_storeu_si128((__m128i *)next_block->v + i, state[i]);
-    }
-}
-
-
 bool CBlockHeader::CheckProofOfWork(int nHeight) const
 {
     if (nHeight >= GetAuxPowStartBlock())
@@ -6617,7 +6556,7 @@ void static SmartcashMiner(CWallet *pwallet)
                         nBlockBits = ByteReverse(pblock->nBits);
                         hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
                     }
-                }
+
             }
         }
     }
