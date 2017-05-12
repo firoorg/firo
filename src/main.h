@@ -1321,7 +1321,7 @@ class CBlockHeader
 {
 public:
     // header
-    static const int CURRENT_VERSION = 3;
+    static const int CURRENT_VERSION = 2;
     int LastHeight;
     int nVersion;
     uint256 hashPrevBlock;
@@ -1556,8 +1556,7 @@ public:
         }
 
         // Check the header
-        if(LastHeight + 1 < 40){ // Just skip for now in MTP due to it takes time to compute, have to find the better way to do
-            if (!::CheckProofOfWork(GetPoWHash(LastHeight + 1), nBits))
+        if (!::CheckProofOfWork(GetPoWHash(LastHeight + 1), nBits))
                 return error("CBlock::ReadFromDisk() : errors in block header");
         }
 

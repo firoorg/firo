@@ -15,7 +15,7 @@ reference_datetime: "2011-01-30 00:00:00"
 remotes:
 - "url": "https://github.com/SmartCash/smartcash.git"
   "dir": "smartcash"
-  "commit": "test"
+  "commit": "master_lyra"
 files:
 - "qt-win32-4.8.5-gitian-r5.zip"
 - "boost-win32-1.55.0-gitian-r6.zip"
@@ -52,7 +52,7 @@ script: |
   export LD_PRELOAD=/usr/lib/faketime/libfaketime.so.1
   export FAKETIME=$REFERENCE_DATETIME
   export TZ=UTC
-  make CC=c99 -f makefile.linux-mingw $MAKEOPTS DEPSDIR=$STAGING smartcashd.exe USE_UPNP=1 DEBUGFLAGS="-frandom-seed=smartcash" USE_SSE2=1
+  make -f makefile.linux-mingw $MAKEOPTS DEPSDIR=$STAGING smartcashd.exe USE_UPNP=1 DEBUGFLAGS="-frandom-seed=smartcash" USE_SSE2=1
   $HOST-strip smartcashd.exe
   mkdir $OUTDIR/daemon
   cp smartcashd.exe $OUTDIR/daemon
