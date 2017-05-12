@@ -46,6 +46,7 @@ Release Process
        ./bin/make-base-vm --lxc --arch amd64 --suite trusty
 
  Build Windows 32bit QT wallet:
+ 
 	./bin/gbuild ../smartcash/contrib/gitian-descriptors/boost-win32.yml
 	mv build/out/boost-win32-1.55.0-gitian-r6.zip inputs/
         ./bin/gbuild ../smartcash/contrib/gitian-descriptors/deps-win32.yml
@@ -61,6 +62,7 @@ Release Process
 	cd ../../
 
  Build smartcashd and smartcash-qt on Linux32 and Linux64:
+ 
 	./bin/gbuild --commit smartcash=master_lyra ../smartcash/contrib/gitian-descriptors/boost-linux.yml
 	mv build/out/boost-linux32-1.55.0-gitian-r1.zip inputs/
 	mv build/out/boost-linux64-1.55.0-gitian-r1.zip inputs/
