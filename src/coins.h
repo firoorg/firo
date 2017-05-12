@@ -400,6 +400,9 @@ public:
 
     //! As we use CCoinsViews polymorphically, have a virtual destructor
     virtual ~CCoinsView() {}
+
+    //! Estimate database size (0 if not implemented)
+    virtual size_t EstimateSize() const { return 0; }
 };
 
 
@@ -417,6 +420,7 @@ public:
     void SetBackend(CCoinsView &viewIn);
     bool BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock);
     CCoinsViewCursor *Cursor() const;
+    size_t EstimateSize() const override;
 };
 
 
