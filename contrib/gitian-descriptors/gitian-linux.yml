@@ -14,9 +14,9 @@ packages:
 - "libpng12-dev"
 reference_datetime: "2011-01-30 00:00:00"
 remotes:
-- "url": "file:///home/bushido/smartcash"
+- "url": "http://github.com/SmartCash/smartcash.git"
   "dir": "smartcash"
-  "commit": "master"
+  "commit": "master_lyra"
 files:
 - "smartcash-deps-linux32-gitian-r2.zip"
 - "smartcash-deps-linux64-gitian-r2.zip"
@@ -38,7 +38,6 @@ script: |
   cp $OUTDIR/src/doc/README.md $OUTDIR
   cp $OUTDIR/src/COPYING $OUTDIR
   cd src
-  mkdir obj/libzerocoin
   make -f makefile.unix STATIC=1 OPENSSL_INCLUDE_PATH="$INSTDIR/include" OPENSSL_LIB_PATH="$INSTDIR/lib" BOOST_LIB_SUFFIX="-mt" $MAKEOPTS smartcashd USE_UPNP=0 DEBUGFLAGS= USE_SSE2=1
   mkdir -p $OUTDIR/bin/$GBUILD_BITS
   install -s smartcashd $OUTDIR/bin/$GBUILD_BITS
