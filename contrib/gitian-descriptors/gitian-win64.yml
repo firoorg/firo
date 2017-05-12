@@ -48,7 +48,6 @@ script: |
   cp release/smartcash-qt.exe $OUTDIR/
   #
   cd src
-  mkdir obj/libzerocoin
   export LD_PRELOAD=/usr/lib/faketime/libfaketime.so.1
   export FAKETIME=$REFERENCE_DATETIME
   export TZ=UTC
