@@ -4586,7 +4586,6 @@ bool LoadExternalBlockFile(FILE* fileIn, CDiskBlockPos *dbp)
                     if (dbp)
                         dbp->nPos = nBlockPos;
                     CValidationState state;
-                    printf("I-1\n");
                     if (ProcessBlock(state, NULL, &block, dbp))
                         nLoaded++;
                     if (state.IsError())
@@ -5335,7 +5334,6 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         pfrom->AddInventoryKnown(inv);
 
         CValidationState state;
-        printf("I-2\n");
         if (ProcessBlock(state, pfrom, &block) || state.CorruptionPossible())
             mapAlreadyAskedFor.erase(inv);
         int nDoS = 0;
@@ -6362,7 +6360,6 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
 
         // Process this block the same as if we had received it from another node
         CValidationState state;
-        printf("I-3\n");
         if (!ProcessBlock(state, NULL, pblock))
             return error("SmartCashMiner : ProcessBlock, block not accepted");
     }
@@ -6409,10 +6406,6 @@ CBlockHeader CBlockIndex::GetBlockHeader() const
     block.nTime          = nTime;
     block.nBits          = nBits;
     block.nNonce         = nNonce;
-    if(block.CURRENT_VERSION == 3){
-        memcpy(&block.blockhashInBlockchain, blockhashInBlockchain, 140 * sizeof(block_with_offset) );
-        memcpy(&block.elementsInMerkleRoot, elementsInMerkleRoot, 2048 * 32 * sizeof(uint8_t) );
-    }
     return block;
 }
 

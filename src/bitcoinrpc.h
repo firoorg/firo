@@ -174,7 +174,6 @@ extern json_spirit::Value createmultisig(const json_spirit::Array& params, bool 
 extern json_spirit::Value listreceivedbyaddress(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value listreceivedbyaccount(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value listtransactions(const json_spirit::Array& params, bool fHelp);
-extern json_spirit::Value listtransactions2(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value listaddressgroupings(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value listaccounts(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value listsinceblock(const json_spirit::Array& params, bool fHelp);
@@ -195,7 +194,6 @@ extern json_spirit::Value removetxwallet(const json_spirit::Array& params, bool 
 
 
 extern json_spirit::Value getrawtransaction(const json_spirit::Array& params, bool fHelp); // in rcprawtransaction.cpp
-extern json_spirit::Value getnormalizedtxid(const json_spirit::Array& params, bool fHelp); // in rcprawtransaction.cpp
 extern json_spirit::Value listunspent(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value listunspentmintzerocoins(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value lockunspent(const json_spirit::Array& params, bool fHelp);
