@@ -43,7 +43,7 @@ unsigned int nTransactionsUpdated = 0;
 
 map<uint256, CBlockIndex*> mapBlockIndex;
 uint256 hashGenesisBlock("0xc4e83737a38c5889d1c98bf31b60fda5088440c772bac1ae699667b59b385adf");
-static CBigNum bnProofOfWorkLimit(~uint256(0) >> 12); // smartcash: starting difficulty
+static CBigNum bnProofOfWorkLimit(~uint256(0) >> 20); // smartcash: starting difficulty
 CBlockIndex* pindexGenesisBlock = NULL;
 int nBestHeight = -1;
 uint256 nBestChainWork = 0;
