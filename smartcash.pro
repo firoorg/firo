@@ -235,8 +235,11 @@ HEADERS += src/qt/bitcoingui.h \
     src/libzerocoin/Params.h \
     src/libzerocoin/SerialNumberSignatureOfKnowledge.h \
     src/libzerocoin/SpendMetaData.h \
-    src/libzerocoin/Zerocoin.h
-
+    src/libzerocoin/Zerocoin.h \
+    src/hashblock.h \
+    src/sph_keccak.h \
+    src/sph_groestl.h \
+    src/sph_types.h
 
 
 SOURCES += src/qt/bitcoin.cpp \
@@ -323,7 +326,9 @@ SOURCES += src/qt/bitcoin.cpp \
     src/libzerocoin/Params.cpp \
     src/libzerocoin/SerialNumberSignatureOfKnowledge.cpp \
     src/libzerocoin/SpendMetaData.cpp
-
+    src/momentum.cpp \
+    src/groestl.c \
+    src/keccak.c
 
 RESOURCES += src/qt/bitcoin.qrc
 
