@@ -245,12 +245,12 @@ static const CRPCCommand vRPCCommands[] =
     { "signmessage",            &signmessage,            false,     false,      true },
     { "verifymessage",          &verifymessage,          false,     false,      false },
     { "getwork",                &getwork,                true,      false,      true },
-    { "getworkaux",             &getworkaux,             true,      false,      true },
+//    { "getworkaux",             &getworkaux,             true,      false,      true },
     { "getworkex",              &getworkex,              true,      false,      true },
     { "listaccounts",           &listaccounts,           false,     false,      true },
     { "settxfee",               &settxfee,               false,     false,      true },
     { "getblocktemplate",       &getblocktemplate,       true,      false,      false },
-    { "getauxblock",            &getauxblock,            true,      false,      true },
+//    { "getauxblock",            &getauxblock,            true,      false,      true },
     { "submitblock",            &submitblock,            false,     false,      false },
     { "setmininput",            &setmininput,            false,     false,      false },
     { "listsinceblock",         &listsinceblock,         false,     false,      true },
@@ -432,7 +432,7 @@ int ReadHTTPStatus(std::basic_istream<char>& stream, int &proto)
 int ReadHTTPHeaders(std::basic_istream<char>& stream, map<string, string>& mapHeadersRet)
 {
     int nLen = 0;
-    loop
+    while (true)
     {
         string str;
         std::getline(stream, str);
@@ -898,8 +898,8 @@ void JSONRequest::parse(const Value& valRequest)
     if (valMethod.type() != str_type)
         throw JSONRPCError(RPC_INVALID_REQUEST, "Method must be a string");
     strMethod = valMethod.get_str();
-    if (strMethod != "getwork" && strMethod != "getworkex" && strMethod != "getblocktemplate")
-        printf("ThreadRPCServer method=%s\n", strMethod.c_str());
+//    if (strMethod != "getwork" && strMethod != "getworkex" && strMethod != "getblocktemplate")
+//        printf("ThreadRPCServer method=%s\n", strMethod.c_str());
 
     // Parse params
     Value valParams = find_value(request, "params");

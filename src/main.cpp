@@ -9,7 +9,7 @@
 #include "txdb.h"
 #include "net.h"
 #include "init.h"
-#include "auxpow.h"
+//#include "auxpow.h"
 #include "ui_interface.h"
 #include "checkqueue.h"
 #include <boost/algorithm/string/replace.hpp>
@@ -43,13 +43,13 @@ unsigned int nTransactionsUpdated = 0;
 
 map<uint256, CBlockIndex*> mapBlockIndex;
 uint256 hashGenesisBlock("0xc4e83737a38c5889d1c98bf31b60fda5088440c772bac1ae699667b59b385adf");
-static CBigNum bnProofOfWorkLimit(~uint256(0) >> 20); // smartcash: starting difficulty
+static CBigNum bnProofOfWorkLimit(~uint256(0) >> 19); // smartcash: starting difficulty
 CBlockIndex* pindexGenesisBlock = NULL;
 int nBestHeight = -1;
 uint256 nBestChainWork = 0;
 uint256 nBestInvalidWork = 0;
 uint256 hashBestChain = 0;
-uint32_t nVertcoinChainStartTime = 1389306217;
+//uint32_t nVertcoinChainStartTime = 1389306217;
 int64 nStartRewardTime = 1475020800; // 09/28/2016 @ 12:00am (UTC)
 CBlockIndex* pindexBest = NULL;
 set<CBlockIndex*, CBlockIndexWorkComparator> setBlockIndexValid; // may contain all CBlockIndex*'s that have validness >=BLOCK_VALID_TRANSACTIONS, and must contain those who aren't failed
@@ -838,7 +838,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                         }
                                         countPubcoin++;
                                         accumulator += pubCoinTemp;
-                                        if (countPubcoin >= 2) { // MINIMUM REQUIREMENT IS 2 PUBCOINS
+                                        if (countPubcoin >= 1) { // MINIMUM REQUIREMENT IS 1 PUBCOINS (changed from 2 as the default)
                                             if (newSpend.Verify(accumulator, newMetadata)) {
                                                 printf("COIN SPEND TX DID VERIFY!\n");
                                                 passVerify = true;
@@ -1685,7 +1685,7 @@ int64 CTransaction::GetMinFee(unsigned int nBlockSize, bool fAllowFree,
         // * If we are creating a transaction we allow transactions up to 5,000 bytes
         //   to be considered safe and assume they can likely make it into this section.
         if (nBytes < (mode == GMF_SEND ? 5000 : (DEFAULT_BLOCK_PRIORITY_SIZE - 1000)))
-            nMinFee = 0;
+            nMinFee = 100000;
     }
 
     // SmartCash
@@ -2153,14 +2153,14 @@ CBlockIndex* FindBlockByHeight(int nHeight)
 
 bool CBlock::ReadFromDisk(const CBlockIndex* pindex)
 {
-    LastHeight = pindex->nHeight - 1;
+//    LastHeight = pindex->nHeight - 1;
     if (!ReadFromDisk(pindex->GetBlockPos()))
         return false;
     if (GetHash() != pindex->GetBlockHash())
         return error("CBlock::ReadFromDisk() : GetHash() doesn't match index");
     return true;
 }
-
+/*
 void CBlockHeader::SetAuxPow(CAuxPow* pow)
 {
     if (pow != NULL)
@@ -2169,7 +2169,7 @@ void CBlockHeader::SetAuxPow(CAuxPow* pow)
         nVersion &= ~BLOCK_VERSION_AUXPOW;
     auxpow.reset(pow);
 }
-
+*/
 uint256 static GetOrphanRoot(const CBlockHeader* pblock)
 {
     // Work back to the first block in the orphan chain
@@ -2177,7 +2177,7 @@ uint256 static GetOrphanRoot(const CBlockHeader* pblock)
         pblock = mapOrphanBlocks[pblock->hashPrevBlock];
     return pblock->GetHash();
 }
-
+/*
 const unsigned char minNfactor = 10;
 const unsigned char maxNfactor = 30;
 
@@ -2206,7 +2206,7 @@ unsigned char GetNfactor(int64 nTimestamp) {
 
     return min(max(N, minNfactor), maxNfactor);
 }
-
+*/
 int64 static GetBlockValue(int nHeight, int64 nFees, unsigned int nTime)
 {
     // Just want to make sure no one gets a dime before 28 Sep 2016 12:00 AM UTC
@@ -2256,9 +2256,9 @@ int64 static GetBlockValue(int nHeight, int64 nFees, unsigned int nTime)
 	return nSubsidy + nFees;
 }
 */
-static const int64 nTargetTimespan = 11 * 60; //11 minutes(12 blocks) between retargets
-static const int64 nTargetSpacing = 1 * 55; // 55 second blocks
-static const int64 nInterval = nTargetTimespan / nTargetSpacing; // retargets every 12 blocks
+static const int64 nTargetTimespan = 15; //1 minutes between retargets
+static const int64 nTargetSpacing = 15; // 55 second blocks
+static const int64 nInterval = nTargetTimespan / nTargetSpacing; // retargets every 1.09 blocks
 
 //
 // minimum amount of work that could possibly be required nTime after
@@ -2268,15 +2268,15 @@ unsigned int ComputeMinWork(unsigned int nBase, int64 nTime)
 {
     // Testnet has min-difficulty blocks
     // after nTargetSpacing*6 time between blocks:
-    if (fTestNet && nTime > nTargetSpacing*6)
-        return bnProofOfWorkLimit.GetCompact();
+//    if (fTestNet && nTime > nTargetSpacing*6)
+//        return bnProofOfWorkLimit.GetCompact();
 
     CBigNum bnResult;
     bnResult.SetCompact(nBase);
     while (nTime > 0 && bnResult < bnProofOfWorkLimit)
     {
-        // Maximum 2000000% adjustment...
-        bnResult *= 20000;
+        // Maximum 200% adjustment...
+        bnResult *= 2;
         // ... in best-case exactly 4-times-normal target time
         nTime -= nTargetTimespan*4;
     }
@@ -2359,7 +2359,7 @@ unsigned int static BorisRidiculouslyNamedDifficultyFunction(const CBlockIndex* 
     if (bnNew > bnProofOfWorkLimit) { bnNew = bnProofOfWorkLimit; }
     
       
-    // debug print
+/* debug print
     printf("Difficulty Retarget - Boris's Ridiculously Named Difficulty Function\n");
     printf("nHeight = %i\n", pindexLast->nHeight);
     printf("nPastBlocks = %u\n", nPastBlocks);
@@ -2370,10 +2370,9 @@ unsigned int static BorisRidiculouslyNamedDifficultyFunction(const CBlockIndex* 
     printf("Before: %08x %.8f\n", BlockLastSolved->nBits, GetDifficultyHelper(BlockLastSolved->nBits));
     printf("After: %08x %.8f\n", bnNew.GetCompact(), GetDifficultyHelper(bnNew.GetCompact()));
     printf("Ratio After/Before: %.8f\n", GetDifficultyHelper(bnNew.GetCompact()) / GetDifficultyHelper(BlockLastSolved->nBits));
-
+*/
     return bnNew.GetCompact();
 }
-
 
 unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock)
 {
@@ -2385,13 +2384,13 @@ unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBl
 
     return bnProofOfWorkLimit.GetCompact();
 
-    static const uint32_t        BlocksTargetSpacing                        = 55; // 55 Seconds
+    static const uint32_t        BlocksTargetSpacing                        = 15; // 55 Seconds
         unsigned int                TimeDaySeconds                                = 60 * 60 * 24; // 86400 Seconds
-        int64                                PastSecondsMin                                = TimeDaySeconds / 144; // 600 Seconds
-        int64                                PastSecondsMax                                = TimeDaySeconds / 2; // 12 Hours
+        int64                                PastSecondsMin                                = TimeDaySeconds / 2880; // 600 Seconds
+        int64                                PastSecondsMax                                = TimeDaySeconds / 20; // 12 Hours
         uint32_t                                PastBlocksMin                                = PastSecondsMin / BlocksTargetSpacing; // 36 blocks
         uint32_t                                PastBlocksMax                                = PastSecondsMax / BlocksTargetSpacing; // 1008 blocks
-        
+/*
     if (fTestNet) {
         // If the new block's timestamp is more than nTargetSpacing*6
         // then allow mining of a min-difficulty block
@@ -2399,6 +2398,7 @@ unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBl
             return bnProofOfWorkLimit.GetCompact();
         }
     }
+*/
 /*
     // 9/29/2016 - Reset to Lyra2(2,block_height,256) due to ASIC KnC Miner Scrypt
     // 36 block look back, reset to mininmum diff
@@ -2421,7 +2421,7 @@ unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBl
         return bnNew.GetCompact();
     }
 */
-   	if ((pindexLast->nHeight+1) % nInterval != 0) // Retarget every nInterval blocks
+  	if ((pindexLast->nHeight+1) % nInterval != 0) // Retarget every nInterval blocks
     {
         return pindexLast->nBits;
     }
@@ -2552,22 +2552,12 @@ bool ConnectBestBlock(CValidationState &state) {
 void CBlockHeader::UpdateTime(const CBlockIndex* pindexPrev)
 {
     nTime = max(pindexPrev->GetMedianTimePast()+1, GetAdjustedTime());
-    LastHeight = pindexPrev->nHeight;
+//    LastHeight = pindexPrev->nHeight;
 
     // Updating time can change work required on testnet:
     if (fTestNet)
         nBits = GetNextWorkRequired(pindexPrev, this);
 }
-
-
-
-
-
-
-
-
-
-
 
 const CTxOut &CTransaction::GetOutputFor(const CTxIn& input, CCoinsViewCache& view)
 {
@@ -2859,7 +2849,7 @@ void ThreadScriptCheck() {
 
 bool CBlock::ConnectBlock(CValidationState &state, CBlockIndex* pindex, CCoinsViewCache &view, bool fJustCheck)
 {
-    LastHeight = pindex->nHeight;
+//    LastHeight = pindex->nHeight;
 
     // Check it again in case a previous version let a bad block in
     if (!CheckBlock(state, pindex->nHeight, !fJustCheck, !fJustCheck, false))
@@ -3469,7 +3459,7 @@ bool CBlock::AddToBlockIndex(CValidationState &state, const CDiskBlockPos &pos)
     setBlockIndexValid.insert(pindexNew);
 
     /* write both the immutible data (CDiskBlockIndex) and the mutable data (BlockIndex) */
-    if (!pblocktree->WriteDiskBlockIndex(CDiskBlockIndex(pindexNew, this->auxpow)) || !pblocktree->WriteBlockIndex(*pindexNew))
+    if (!pblocktree->WriteDiskBlockIndex(CDiskBlockIndex(pindexNew)) || !pblocktree->WriteBlockIndex(*pindexNew))
         return state.Abort(_("Failed to write block index"));
 
     // New best?
@@ -3490,7 +3480,7 @@ bool CBlock::AddToBlockIndex(CValidationState &state, const CDiskBlockPos &pos)
     uiInterface.NotifyBlocksChanged();
     return true;
 }
-
+/*
 // to enable merged mining:
 // - set a block from which it will be enabled
 // - set a unique chain ID
@@ -3511,10 +3501,10 @@ int GetOurChainID()
     return 0x0001; // We are the first :)
 
 }
-
+*/
 bool CBlockHeader::CheckProofOfWork(int nHeight) const
 {
-    if (nHeight >= GetAuxPowStartBlock())
+/*    if (nHeight >= GetAuxPowStartBlock())
     {
         // Prevent same work from being submitted twice:
         // - this block must have our chain ID
@@ -3546,11 +3536,15 @@ bool CBlockHeader::CheckProofOfWork(int nHeight) const
         {
             return error("CheckProofOfWork() : AUX POW is not allowed at this block");
         }
-
+*/
         // Check if proof of work marches claimed amount
-        if (!::CheckProofOfWork(GetPoWHash(nHeight), nBits))
+        uint256 phash = GetPoWHash();
+        if (phash == 0)
+            return error("CheckProofOfWork() : Out of memory - 2");
+
+        if (!::CheckProofOfWork(phash, nBits))
             return error("CheckProofOfWork() : proof of work failed - 2");
-    }
+//    }
     return true;
 }
 
@@ -3758,7 +3752,7 @@ bool CBlock::AcceptBlock(CValidationState &state, CDiskBlockPos *dbp)
             return state.DoS(10, error("AcceptBlock() : prev block not found"));
         pindexPrev = (*mi).second;
         nHeight = pindexPrev->nHeight+1;
-        LastHeight = pindexPrev->nHeight;
+//        LastHeight = pindexPrev->nHeight;
 
         // Check proof of work
         if (nBits != GetNextWorkRequired(pindexPrev, this))
@@ -4373,7 +4367,8 @@ bool InitBlockIndex() {
 
         txNew.vin.resize(1);
         txNew.vout.resize(1);
-        txNew.vin[0].scriptSig = CScript() << startBits << CBigNum(4) << vector<unsigned char>((const unsigned char*)pszTimestamp, (const unsigned char*)pszTimestamp + strlen(pszTimestamp)) << extraNonce;
+//        txNew.vin[0].scriptSig = CScript() << startBits << CBigNum(4) << vector<unsigned char>((const unsigned char*)pszTimestamp, (const unsigned char*)pszTimestamp + strlen(pszTimestamp)) << extraNonce;
+	txNew.vin[0].scriptSig = CScript() << bnProofOfWorkLimit.GetCompact() << CBigNum(4) << vector<unsigned char>((const unsigned char*)pszTimestamp, (const unsigned char*)pszTimestamp + strlen(pszTimestamp)) << extraNonce;
         txNew.vout[0].nValue = 0 * COIN;
 
         txNew.vout[0].scriptPubKey = CScript();
@@ -6202,7 +6197,7 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
 
         // Fill in header
         pblock->hashPrevBlock  = pindexPrev->GetBlockHash();
-        pblock->LastHeight = pindexPrev->nHeight;
+//        pblock->LastHeight = pindexPrev->nHeight;
         pblock->UpdateTime(pindexPrev);
         pblock->nBits          = GetNextWorkRequired(pindexPrev, pblock);
         pblock->nNonce         = 0;
@@ -6309,10 +6304,15 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
         nHeight = pindexPrev->nHeight+1;
     }
 
-    uint256 hash = pblock->GetPoWHash(nHeight);
-    uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
+    uint256 hash = pblock->GetPoWHash();
+    if (hash == 0)
+        return error("CheckWork() : Out of memory");
 
-    CAuxPow *auxpow = pblock->auxpow.get();
+    uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
+    if (hash > hashTarget)
+        return false;
+
+/*    CAuxPow *auxpow = pblock->auxpow.get();
 
     if (auxpow != NULL) {
         if (!auxpow->Check(pblock->GetHash(), pblock->GetChainID()))
@@ -6320,11 +6320,12 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
 
         if (auxpow->GetParentBlockHash(nHeight) > hashTarget)
             return error("AUX POW parent hash %s is not under target %s", auxpow->GetParentBlockHash(nHeight).GetHex().c_str(), hashTarget.GetHex().c_str());
-
+*/
         //// debug print
         printf("SmartCashMiner:\n");
-        printf("AUX proof-of-work found  \n     our hash: %s   \n  parent hash: %s  \n       target: %s\n",
-                hash.GetHex().c_str(),
+        printf("proof-of-work found  \n  hash: %s  \target: %s\n", hash.GetHex().c_str(), hashTarget.GetHex().c_str());
+
+/*	hash.GetHex().c_str(),
                 auxpow->GetParentBlockHash(nHeight).GetHex().c_str(),
                 hashTarget.GetHex().c_str());
 
@@ -6333,11 +6334,11 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
     {
         if (hash > hashTarget)
             return false;
-
+*/
         //// debug print
         printf("SmartCashMiner:\n");
         printf("proof-of-work found  \n  hash: %s  \ntarget: %s\n", hash.GetHex().c_str(), hashTarget.GetHex().c_str());
-    }
+//    }
     
     //// debug print    
     pblock->print();
@@ -6366,7 +6367,7 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
 
     return true;
 }
-
+/*
 std::string CBlockIndex::ToString() const
 {
     return strprintf("CBlockIndex(pprev=%p, pnext=%p, nHeight=%d, merkle=%s, hashBlock=%s)",
@@ -6385,11 +6386,11 @@ std::string CDiskBlockIndex::ToString() const
         (auxpow.get() != NULL) ? auxpow->GetParentBlockHash(nHeight).ToString().substr(0,20).c_str() : "-");
     return str;
 }
-
+*/
 CBlockHeader CBlockIndex::GetBlockHeader() const
 {
     CBlockHeader block;
-
+/*
     if (nVersion & BLOCK_VERSION_AUXPOW) {
         CDiskBlockIndex diskblockindex;
         // auxpow is not in memory, load CDiskBlockHeader
@@ -6398,10 +6399,10 @@ CBlockHeader CBlockIndex::GetBlockHeader() const
         pblocktree->ReadDiskBlockIndex(*phashBlock, diskblockindex);
         block.auxpow = diskblockindex.auxpow;
     }
-
+*/
     block.nVersion       = nVersion;
     if (pprev)
-        block.hashPrevBlock = pprev->GetBlockHash();
+    block.hashPrevBlock = pprev->GetBlockHash();
     block.hashMerkleRoot = hashMerkleRoot;
     block.nTime          = nTime;
     block.nBits          = nBits;
@@ -6419,7 +6420,7 @@ void static SmartcashMiner(CWallet *pwallet)
     CReserveKey reservekey(pwallet);
     unsigned int nExtraNonce = 0;
 
-    try { loop {
+    try { while(true) {
 
             while (vNodes.empty())
                 MilliSleep(1000);
@@ -6457,12 +6458,12 @@ void static SmartcashMiner(CWallet *pwallet)
                 //
                 int64 nStart = GetTime();
                 uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
-                loop
+                while(true)
                 {
                     unsigned int nHashesDone = 0;
                     uint256 thash;
 
-                    loop
+                    while(true)
 		    {
                             lyra2z_hash(BEGIN(pblock->nVersion), BEGIN(thash));
 /*
@@ -6488,7 +6489,7 @@ void static SmartcashMiner(CWallet *pwallet)
                         if (thash <= hashTarget)
                         {
                             // Found a solution
-                            printf("Found a solution. Hash: %s", thash.GetHex().c_str());
+//                            printf("Found a solution. Hash: %s", thash.GetHex().c_str());
                             SetThreadPriority(THREAD_PRIORITY_NORMAL);
                             CheckWork(pblock, *pwallet, reservekey);
                             SetThreadPriority(THREAD_PRIORITY_LOWEST);
@@ -6520,7 +6521,7 @@ void static SmartcashMiner(CWallet *pwallet)
                                 nHPSTimerStart = GetTimeMillis();
                                 nHashCounter = 0;
                                 static int64 nLogTime;
-                                if (GetTime() - nLogTime > 30 * 60)
+                                if (GetTime() - nLogTime > 2 * 60)
                                 {
                                     nLogTime = GetTime();
                                     printf("hashmeter %f hash/s\n", dHashesPerSec);

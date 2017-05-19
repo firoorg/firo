@@ -5,7 +5,7 @@
 
 #include "main.h"
 #include "bitcoinrpc.h"
-#include "auxpow.h"
+//#include "auxpow.h"
 
 using namespace json_spirit;
 using namespace std;
@@ -53,7 +53,7 @@ Object blockToJSON(const CBlock& block, const CBlockIndex* blockindex)
 {
     Object result;
     result.push_back(Pair("hash", block.GetHash().GetHex()));
-    result.push_back(Pair("pow_hash", block.GetPoWHash(blockindex->nHeight).GetHex()));
+    result.push_back(Pair("pow_hash", block.GetPoWHash().GetHex()));
     CMerkleTx txGen(block.vtx[0]);
     txGen.SetMerkleBranch(&block);
     result.push_back(Pair("confirmations", (int)txGen.GetDepthInMainChain()));
@@ -61,7 +61,7 @@ Object blockToJSON(const CBlock& block, const CBlockIndex* blockindex)
     result.push_back(Pair("height", blockindex->nHeight));
     result.push_back(Pair("version", block.nVersion));
     result.push_back(Pair("merkleroot", block.hashMerkleRoot.GetHex()));
-    if (block.nVersion & BLOCK_VERSION_AUXPOW) {
+/*    if (block.nVersion & BLOCK_VERSION_AUXPOW) {
         // this block includes auxpow
         Object auxpow;
         auxpow.push_back(Pair("size", (int)::GetSerializeSize(*block.auxpow, SER_NETWORK, PROTOCOL_VERSION)));
@@ -95,6 +95,7 @@ Object blockToJSON(const CBlock& block, const CBlockIndex* blockindex)
         auxpow.push_back(Pair("parent_block", Value(parent_block)));
         result.push_back(Pair("auxpow", Value(auxpow)));
     }
+*/
     Array txs;
     BOOST_FOREACH(const CTransaction&tx, block.vtx)
         txs.push_back(tx.GetHash().GetHex());

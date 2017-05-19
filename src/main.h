@@ -26,7 +26,7 @@ class CReserveKey;
 class CAddress;
 class CInv;
 class CNode;
-class CAuxPow;
+//class CAuxPow;
 
 struct CBlockIndexWorkComparator;
 
@@ -103,7 +103,7 @@ extern bool fBenchmark;
 extern int nScriptCheckThreads;
 extern bool fTxIndex;
 extern unsigned int nCoinCacheSize;
-unsigned char GetNfactor(int64 nTimestamp);
+//unsigned char GetNfactor(int64 nTimestamp);
 // Settings
 extern int64 nTransactionFee;
 extern int64 nMinimumInputValue;
@@ -168,7 +168,7 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn);
 CBlockTemplate* CreateNewBlockWithKey(CReserveKey& reservekey);
 /** Modify the extranonce in a block */
 void IncrementExtraNonce(CBlock* pblock, CBlockIndex* pindexPrev, unsigned int& nExtraNonce);
-void IncrementExtraNonceWithAux(CBlock* pblock, CBlockIndex* pindexPrev, unsigned int& nExtraNonce, std::vector<unsigned char>& vchAux);
+//void IncrementExtraNonceWithAux(CBlock* pblock, CBlockIndex* pindexPrev, unsigned int& nExtraNonce, std::vector<unsigned char>& vchAux);
 /** Do mining precalculation */
 void FormatHashBuffers(CBlock* pblock, char* pmidstate, char* pdata, char* phash1);
 /** Check mined block */
@@ -183,7 +183,7 @@ int GetNumBlocksOfPeers();
 bool IsInitialBlockDownload();
 /** Format a string that describes several potential problems detected by the core */
 std::string GetWarnings(std::string strFor);
-int GetOurChainID();
+//int GetOurChainID();
 /** Retrieve a transaction (from memory pool, or from disk, if possible) */
 bool GetTransaction(const uint256 &hash, CTransaction &tx, uint256 &hashBlock, bool fAllowSlow = false);
 /** Connect/disconnect blocks until pindexNew is the new tip of the active block chain */
@@ -1187,7 +1187,7 @@ public:
     bool AcceptToMemoryPool(bool fCheckInputs=true, bool fLimitFree=true);
 };
 
-
+/*
 template <typename Stream>
 int ReadWriteAuxPow(Stream& s, const boost::shared_ptr<CAuxPow>& auxpow, int nType, int nVersion, CSerActionSerialize ser_action);
   
@@ -1209,7 +1209,7 @@ enum
     BLOCK_VERSION_CHAIN_START    = (1 << 16),
     BLOCK_VERSION_CHAIN_END      = (1 << 30),
 };
-
+*/
 
 
 
@@ -1322,14 +1322,14 @@ class CBlockHeader
 public:
     // header
     static const int CURRENT_VERSION = 2;
-    int LastHeight;
+//    int LastHeight;
     int nVersion;
     uint256 hashPrevBlock;
     uint256 hashMerkleRoot;
     unsigned int nTime;
     unsigned int nBits;
     unsigned int nNonce;
-    boost::shared_ptr<CAuxPow> auxpow;
+//    boost::shared_ptr<CAuxPow> auxpow;
 
     CBlockHeader()
     {
@@ -1346,15 +1346,15 @@ public:
         READWRITE(nBits);
         READWRITE(nNonce);
 
-        nSerSize += ReadWriteAuxPow(s, auxpow, nType, nVersion, ser_action);
+//        nSerSize += ReadWriteAuxPow(s, auxpow, nType, nVersion, ser_action);
     )
-
+/*
     int GetChainID() const
     {
         return nVersion / BLOCK_VERSION_CHAIN_START;
     }
-
-    uint256 GetPoWHash(int height) const
+*/
+    uint256 GetPoWHash() const
     {
         uint256 thash;
 
@@ -1377,11 +1377,11 @@ public:
         return thash;
     }
 	
-    void SetAuxPow(CAuxPow* pow);
+//    void SetAuxPow(CAuxPow* pow);
 
     void SetNull()
     {        
-        nVersion = CBlockHeader::CURRENT_VERSION  | (GetOurChainID() * BLOCK_VERSION_CHAIN_START);
+        nVersion = CBlockHeader::CURRENT_VERSION;
         hashPrevBlock = 0;
         hashMerkleRoot = 0;
         nTime = 0;
@@ -1556,7 +1556,7 @@ public:
         }
 
         // Check the header
-        if (!::CheckProofOfWork(GetPoWHash(LastHeight + 1), nBits))
+        if (!::CheckProofOfWork(GetPoWHash(), nBits))
             return error("CBlock::ReadFromDisk() : errors in block header");
 
         return true;
@@ -1569,7 +1569,7 @@ public:
         printf("CBlock(hash=%s, input=%s, PoW=%s, ver=%d, hashPrevBlock=%s, hashMerkleRoot=%s, nTime=%u, nBits=%08x, nNonce=%u, vtx=%" PRIszu")\n",
             GetHash().ToString().c_str(),
             HexStr(BEGIN(nVersion),BEGIN(nVersion)+80,false).c_str(),
-            GetPoWHash(LastHeight + 1).ToString().c_str(),
+            GetPoWHash().ToString().c_str(),
             nVersion,
             hashPrevBlock.ToString().c_str(),
             hashMerkleRoot.ToString().c_str(),
@@ -1883,15 +1883,14 @@ public:
     static bool IsSuperMajority(int minVersion, const CBlockIndex* pstart,
                                 unsigned int nRequired, unsigned int nToCheck);
 
-    std::string ToString() const; //moved code to main.cpp because new method required access to auxpow
-#if 0
+    std::string ToString() const
+
     {
         return strprintf("CBlockIndex(pprev=%p, pnext=%p, nHeight=%d, merkle=%s, hashBlock=%s)",
             pprev, pnext, nHeight,
             hashMerkleRoot.ToString().c_str(),
             GetBlockHash().ToString().c_str());
     }
-#endif
 
     void print() const
     {
@@ -1921,16 +1920,15 @@ public:
     uint256 hashPrev;
 
     // if this is an aux work block
-    boost::shared_ptr<CAuxPow> auxpow;
+//    boost::shared_ptr<CAuxPow> auxpow;
 
     CDiskBlockIndex() {
         hashPrev = 0;
-        auxpow.reset();
+//        auxpow.reset();
     }
 
-    explicit CDiskBlockIndex(CBlockIndex* pindex, boost::shared_ptr<CAuxPow> auxpow) : CBlockIndex(*pindex) {
+    explicit CDiskBlockIndex(CBlockIndex* pindex) : CBlockIndex(*pindex) {
         hashPrev = (pprev ? pprev->GetBlockHash() : 0);
-        this->auxpow = auxpow;
     }
 
     IMPLEMENT_SERIALIZE
@@ -1951,7 +1949,7 @@ public:
         READWRITE(nBits);
         READWRITE(nNonce);
 
-        ReadWriteAuxPow(s, auxpow, nType, this->nVersion, ser_action);
+//        ReadWriteAuxPow(s, auxpow, nType, this->nVersion, ser_action);
     )
 
     uint256 CalcBlockHash() const

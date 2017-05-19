@@ -7,7 +7,7 @@
 #include "db.h"
 #include "init.h"
 #include "bitcoinrpc.h"
-#include "auxpow.h"
+//#include "auxpow.h"
 
 using namespace json_spirit;
 using namespace std;
@@ -26,7 +26,7 @@ Value GetNetworkHashPS(int lookup, int height) {
 
     // If lookup is -1, then use blocks since last difficulty change.
     if (lookup <= 0)
-        lookup = pb->nHeight % 6 + 1;
+        lookup = pb->nHeight % 120 + 1;
 
     // If lookup is larger than chain, then set it to chain length.
     if (lookup > pb->nHeight)
@@ -389,12 +389,12 @@ Value getwork(const Array& params, bool fHelp)
     {
         // Parse parameters
         vector<unsigned char> vchData = ParseHex(params[0].get_str());
-        for(int i = 0; i < 4; i++)
+/*        for(int i = 0; i < 4; i++)
         {
             vchData.insert(vchData.begin(), 0);
         }
-
-        if (vchData.size() != 132)
+*/
+        if (vchData.size() != 128)
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter");
         CBlock* pdata = (CBlock*)&vchData[0];
         // Byte reverse
@@ -605,7 +605,7 @@ Value submitblock(const Array& params, bool fHelp)
 
     return Value::null;
 }
-
+/*
 Value getworkaux(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() < 1)
@@ -879,3 +879,4 @@ Value getauxblock(const Array& params, bool fHelp)
         }
     }
 }
+*/
