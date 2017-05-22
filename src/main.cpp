@@ -1730,6 +1730,9 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                     else {
                         return state.DoS(100, error("CTransaction::CheckTransaction() : Your spending txout value does not match"));
                     }
+
+                    walletdb.Flush();
+                    walletdb.Close();
                 }
 
             }
@@ -2906,6 +2909,12 @@ void ThreadScriptCheck() {
 
 bool CBlock::ConnectBlock(CValidationState &state, CBlockIndex* pindex, CCoinsViewCache &view, bool fJustCheck)
 {
+    BuildMerkleTree();
+
+    if(vMerkleTree.size() <= 0){
+        return false;
+    }
+
     LastHeight = pindex->nHeight;
 
     // Check it again in case a previous version let a bad block in
@@ -3490,6 +3499,12 @@ bool SetBestChain(CValidationState &state, CBlockIndex* pindexNew)
 
 bool CBlock::AddToBlockIndex(CValidationState &state, const CDiskBlockPos &pos)
 {
+    BuildMerkleTree();
+
+    if(vMerkleTree.size() <= 0){
+        return false;
+    }
+
     // Check for duplicate
     uint256 hash = GetHash();
     if (mapBlockIndex.count(hash))
@@ -3904,6 +3919,24 @@ bool ProcessBlock(CValidationState &state, CNode* pfrom, CBlock* pblock, CDiskBl
     if (mapOrphanBlocks.count(hash))
         return state.Invalid(error("ProcessBlock() : already have block (orphan) %s", hash.ToString().c_str()));
 
+    // If we don't already have its previous block, shunt it off to holding area until we get it
+    if (pblock->hashPrevBlock != 0 && !mapBlockIndex.count(pblock->hashPrevBlock))
+    {
+        printf("ProcessBlock: ORPHAN BLOCK, prev=%s\n", pblock->hashPrevBlock.ToString().c_str());
+
+        // Accept orphans as long as there is a node to request its parents from
+        if (pfrom) {
+            CBlock* pblock2 = new CBlock(*pblock);
+            mapOrphanBlocks.insert(make_pair(hash, pblock2));
+            mapOrphanBlocksByPrev.insert(make_pair(pblock2->hashPrevBlock, pblock2));
+
+            // Ask this guy to fill in what we're missing
+            pfrom->PushGetBlocks(pindexBest, GetOrphanRoot(pblock2));
+        }
+        return true;
+    }
+
+
     // Preliminary checks
     if (!pblock->CheckBlock(state, INT_MAX, true, true, false))
         return error("ProcessBlock() : CheckBlock FAILED");
@@ -3926,24 +3959,6 @@ bool ProcessBlock(CValidationState &state, CNode* pfrom, CBlock* pblock, CDiskBl
         {
             return state.DoS(100, error("ProcessBlock() : block with too little proof-of-work"));
         }
-    }
-
-
-    // If we don't already have its previous block, shunt it off to holding area until we get it
-    if (pblock->hashPrevBlock != 0 && !mapBlockIndex.count(pblock->hashPrevBlock))
-    {
-        printf("ProcessBlock: ORPHAN BLOCK, prev=%s\n", pblock->hashPrevBlock.ToString().c_str());
-
-        // Accept orphans as long as there is a node to request its parents from
-        if (pfrom) {
-            CBlock* pblock2 = new CBlock(*pblock);
-            mapOrphanBlocks.insert(make_pair(hash, pblock2));
-            mapOrphanBlocksByPrev.insert(make_pair(pblock2->hashPrevBlock, pblock2));
-
-            // Ask this guy to fill in what we're missing
-            pfrom->PushGetBlocks(pindexBest, GetOrphanRoot(pblock2));
-        }
-        return true;
     }
 
     // Store to disk
@@ -5344,7 +5359,6 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         printf("received block %s\n", block.GetHash().ToString().c_str());
         // block.print();
 
-
         CInv inv(MSG_BLOCK, block.GetHash());
         pfrom->AddInventoryKnown(inv);
 
@@ -5355,6 +5369,9 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         if (state.IsInvalid(nDoS))
             if (nDoS > 0)
                 pfrom->Misbehaving(nDoS);
+
+        // add more
+        pfrom->PushGetBlocks(pindexBest, uint256(0));
     }
 
 
