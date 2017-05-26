@@ -4,3 +4,10 @@ build/*
 src/zcoind
 Makefile
 zcoin.pro.user
+
+# Compilation and Qt preprocessor part
+*.qm
+
+
+# Resources cpp
+qrc_*.cpp

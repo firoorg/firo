@@ -5159,7 +5159,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         // Send the rest of the chain
         if (pindex)
             pindex = pindex->pnext;
-        int nLimit = 2500;
+        int nLimit = 500;
         printf("getblocks %d to %s limit %d\n", (pindex ? pindex->nHeight : -1), hashStop.ToString().c_str(), nLimit);
         for (; pindex; pindex = pindex->pnext)
         {
