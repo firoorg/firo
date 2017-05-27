@@ -19,6 +19,9 @@ using namespace std;
 #include <exception>
 #include "Zerocoin.h"
 
+// "Zerocoin.h" includes ../util.h, which redefines printf
+#undef printf
+
 #define DEFAULT_MODULUS_SIZE    3072
 #define MIN_MODULUS_SIZE        1026
 
