@@ -57,6 +57,7 @@ enum
     LOCAL_MAX
 };
 
+void AdvertiseLocal(CNode *pnode);
 void SetLimited(enum Network net, bool fLimited = true);
 bool IsLimited(enum Network net);
 bool IsLimited(const CNetAddr& addr);
@@ -68,6 +69,8 @@ bool GetLocal(CService &addr, const CNetAddr *paddrPeer = NULL);
 bool IsReachable(const CNetAddr &addr);
 void SetReachable(enum Network net, bool fFlag = true);
 CAddress GetLocalAddress(const CNetAddr *paddrPeer = NULL);
+int GetnScore(const CService& addr);
+bool IsPeerAddrLocalGood(CNode *pnode);
 
 
 extern bool fDiscover;
@@ -174,6 +177,7 @@ public:
     int64 nLastRecv;
     int64 nLastSendEmpty;
     int64 nTimeConnected;
+    int64 nNextLocalAddrSend;
     uint64 nBlocksRequested;
     CAddress addr;
     std::string addrName;
@@ -246,6 +250,7 @@ public:
         fClient = false; // set by version message
         fInbound = fInboundIn;
         fNetworkNode = false;
+        nNextLocalAddrSend = 0;
         fSuccessfullyConnected = false;
         fDisconnect = false;
         nRefCount = 0;
@@ -336,7 +341,9 @@ public:
         if (addr.IsValid() && !setAddrKnown.count(addr))
             vAddrToSend.push_back(addr);
     }
-
+    
+    void SetAddrLocal(const CService& addrLocalIn);
+    CService GetAddrLocal() const;
 
     void AddInventoryKnown(const CInv& inv)
     {
@@ -640,5 +647,8 @@ public:
 class CTransaction;
 void RelayTransaction(const CTransaction& tx, const uint256& hash);
 void RelayTransaction(const CTransaction& tx, const uint256& hash, const CDataStream& ss);
+
+/** Return a timestamp in the future (in microseconds) for exponentially distributed events. */
+int64_t PoissonNextSend(int64_t nNow, int average_interval_seconds);
 
 #endif
