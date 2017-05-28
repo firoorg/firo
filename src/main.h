@@ -75,6 +75,8 @@ static const int fHaveUPnP = false;
 
 /** "reject" message codes */
 static const unsigned char REJECT_DUPLICATE = 0x12;
+/** Average delay between local address broadcasts in seconds. */
+static const unsigned int AVG_LOCAL_ADDRESS_BROADCAST_INTERVAL = 5 * 60;
 
 extern CScript COINBASE_FLAGS;
 
