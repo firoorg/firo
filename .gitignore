@@ -11,3 +11,7 @@ zcoin.pro.user
 
 # Resources cpp
 qrc_*.cpp
+
+*.Release
+
+*.Debug

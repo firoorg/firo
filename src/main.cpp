@@ -3915,9 +3915,9 @@ bool ProcessBlock(CValidationState &state, CNode* pfrom, CBlock* pblock, CDiskBl
     // Check for duplicate
     uint256 hash = pblock->GetHash();
     if (mapBlockIndex.count(hash))
-        return state.Invalid(error("ProcessBlock() : already have block %d %s", mapBlockIndex[hash]->nHeight, hash.ToString().c_str()));
+        return true;//state.Invalid(error("ProcessBlock() : already have block %d %s", mapBlockIndex[hash]->nHeight, hash.ToString().c_str()));
     if (mapOrphanBlocks.count(hash))
-        return state.Invalid(error("ProcessBlock() : already have block (orphan) %s", hash.ToString().c_str()));
+        return true;//state.Invalid(error("ProcessBlock() : already have block (orphan) %s", hash.ToString().c_str()));
 
     // If we don't already have its previous block, shunt it off to holding area until we get it
     if (pblock->hashPrevBlock != 0 && !mapBlockIndex.count(pblock->hashPrevBlock))
@@ -4898,6 +4898,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         // Each connection can only send one version message
         if (pfrom->nVersion != 0)
         {
+            pfrom->PushMessage("reject", strCommand, REJECT_DUPLICATE, string("Duplicate version message"));
             pfrom->Misbehaving(1);
             return false;
         }
