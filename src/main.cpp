@@ -5161,8 +5161,9 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         uint256 hashStop;
         vRecv >> locator >> hashStop;
 
-        // Find the last block the caller has in the main chain
+        // Find the last block the caller has in the main chain        
         CBlockIndex* pindex = locator.GetBlockIndex();
+        SetBestChain(CBlockLocator(pindex));    
 
         // Send the rest of the chain
         if (pindex)
