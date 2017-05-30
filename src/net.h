@@ -5,6 +5,7 @@
 #ifndef BITCOIN_NET_H
 #define BITCOIN_NET_H
 
+#include <atomic>
 #include <deque>
 #include <boost/array.hpp>
 #include <boost/foreach.hpp>
@@ -30,6 +31,8 @@ extern int nBestHeight;
 
 inline unsigned int ReceiveFloodSize() { return 1000*GetArg("-maxreceivebuffer", 5*1000); }
 inline unsigned int SendBufferSize() { return 1000*GetArg("-maxsendbuffer", 1*1000); }
+
+typedef int NodeId;
 
 void AddOneShot(std::string strDest);
 bool RecvLine(SOCKET hSocket, std::string& strLine);
@@ -203,6 +206,8 @@ public:
     CCriticalSection cs_filter;
     CBloomFilter* pfilter;
     int nRefCount;
+    NodeId id;
+
 protected:
 
     // Denial-of-service detection/prevention
@@ -223,6 +228,10 @@ public:
     std::set<CAddress> setAddrKnown;
     bool fGetAddr;
     std::set<uint256> setKnown;
+
+    // Block and TXN accept times
+    std::atomic<int64_t> nLastBlockTime;
+    std::atomic<int64_t> nLastTXTime;
 
     // inventory based relay
     mruset<CInv> setInventoryKnown;
@@ -287,7 +296,10 @@ private:
     CNode(const CNode&);
     void operator=(const CNode&);
 public:
-
+    
+    NodeId GetId() const {
+      return id;
+    }
 
     int GetRefCount()
     {
