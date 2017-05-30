@@ -5378,8 +5378,9 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
             if (nDoS > 0)
                 pfrom->Misbehaving(nDoS);
 
-        // add more
-        pfrom->PushGetBlocks(pindexBest, uint256(0));
+        // Be shy and don't send version until we hear
+        if (pfrom->fInbound)
+            pfrom->PushVersion();
     }
 
 
