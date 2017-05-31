@@ -10,8 +10,8 @@
 #include "net.h"
 #include "script.h"
 #include "scrypt.h"
-#include "Lyra2Z/Lyra2Z.h"
-#include "Lyra2Z/Lyra2.h"
+//#include "Lyra2Z/Lyra2Z.h"
+//#include "Lyra2Z/Lyra2.h"
 #include "libzerocoin/Zerocoin.h"
 #include "db.h"
 
@@ -1358,7 +1358,9 @@ public:
     {
         uint256 thash;
 
-            lyra2z_hash(BEGIN(nVersion), BEGIN(thash));
+        //    lyra2z_hash(BEGIN(nVersion), BEGIN(thash));
+        HashKeccak(BEGIN(nVersion), END(nNonce));
+//	hash = block.GetHash();
 /*
         if (!fTestNet && height >= 20500) {
             lyra2z_hash(BEGIN(nVersion), BEGIN(thash));
@@ -1396,7 +1398,7 @@ public:
 
     uint256 GetHash() const
     {
-        return Hash(BEGIN(nVersion), END(nNonce));
+        return HashKeccak(BEGIN(nVersion), END(nNonce));
     }
 
     int64 GetBlockTime() const
@@ -1467,7 +1469,8 @@ public:
             for (int i = 0; i < nSize; i += 2)
             {
                 int i2 = std::min(i+1, nSize-1);
-                vMerkleTree.push_back(Hash(BEGIN(vMerkleTree[j+i]),  END(vMerkleTree[j+i]),
+//                vMerkleTree.push_back(Hash(BEGIN(vMerkleTree[j+i]),  END(vMerkleTree[j+i]),
+                vMerkleTree.push_back(Hash4(BEGIN(vMerkleTree[j+i]),  END(vMerkleTree[j+i]),
                                            BEGIN(vMerkleTree[j+i2]), END(vMerkleTree[j+i2])));
             }
             j += nSize;
@@ -1504,9 +1507,11 @@ public:
         BOOST_FOREACH(const uint256& otherside, vMerkleBranch)
         {
             if (nIndex & 1)
-                hash = Hash(BEGIN(otherside), END(otherside), BEGIN(hash), END(hash));
+//                hash = Hash(BEGIN(otherside), END(otherside), BEGIN(hash), END(hash));
+                hash = Hash4(BEGIN(otherside), END(otherside), BEGIN(hash), END(hash));
             else
-                hash = Hash(BEGIN(hash), END(hash), BEGIN(otherside), END(otherside));
+//                hash = Hash(BEGIN(hash), END(hash), BEGIN(otherside), END(otherside));
+                hash = Hash4(BEGIN(hash), END(hash), BEGIN(otherside), END(otherside));
             nIndex >>= 1;
         }
         return hash;

@@ -115,6 +115,7 @@ xCFLAGS=-O2 -pthread -Wall -Wextra -Wformat -Wformat-security -Wno-unused-parame
 xLDFLAGS=$(LDHARDENING) $(LDFLAGS)
 
 OBJS= \
+    cryptopp/libcryptopp.a \
     leveldb/libleveldb.a \
     obj/alert.o \
     obj/version.o \
@@ -147,6 +148,7 @@ OBJS= \
     obj/noui.o \
     obj/leveldb.o \
     obj/txdb.o \
+    obj/keccak.o \
     obj/libzerocoin/Accumulator.o \
     obj/libzerocoin/AccumulatorProofOfKnowledge.o \
     obj/libzerocoin/Coin.o \
@@ -155,11 +157,7 @@ OBJS= \
     obj/libzerocoin/ParamGeneration.o \
     obj/libzerocoin/Params.o \
     obj/libzerocoin/SerialNumberSignatureOfKnowledge.o \
-    obj/libzerocoin/SpendMetaData.o \
-    Lyra2Z/blake.o \
-    Lyra2Z/Lyra2.o \
-    Lyra2Z/Lyra2Z.o \
-    Lyra2Z/Sponge.o
+    obj/libzerocoin/SpendMetaData.o
 
 ifdef USE_SSE2
 DEFS += -DUSE_SSE2
@@ -215,8 +213,8 @@ obj/%.o: %.cpp
 	      -e '/^$$/ d' -e 's/$$/ :/' < $(@:%.o=%.d) >> $(@:%.o=%.P); \
 	  rm -f $(@:%.o=%.d)
 
-Lyra2Z/%.o: Lyra2Z/%.c
-	$(CC) -c -O3 -o $@ $<
+cryptopp/libcryptopp.a:
+	@$(MAKE) -C cryptopp static
 
 smartcashd: $(OBJS:obj/%=obj/%)
 	$(LINK) $(xCXXFLAGS) -o $@ $^ $(xLDFLAGS) $(LIBS)
@@ -235,12 +233,12 @@ test_smartcash: $(TESTOBJS) $(filter-out obj/init.o,$(OBJS:obj/%=obj/%))
 
 clean:
 	-rm -f smartcashd test_smartcash
-	-rm -f Lyra2Z/*.o
 	-rm -f obj/*.o
 	-rm -f obj-test/*.o
 	-rm -f obj/*.P
 	-rm -f obj-test/*.P
 	-rm -f obj/build.h
 	-cd leveldb && $(MAKE) clean || true
+	-cd cryptopp && $(MAKE) clean || true
 
 FORCE:

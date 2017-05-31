@@ -5,12 +5,15 @@
 #ifndef BITCOIN_KEY_H
 #define BITCOIN_KEY_H
 
+#include <stdexcept>
 #include <vector>
 
 #include "allocators.h"
 #include "serialize.h"
 #include "uint256.h"
 #include "hash.h"
+
+#include "schnorr.h"    // Integer Operations
 
 // secp256k1:
 // const unsigned int PRIVATE_KEY_SIZE = 279;
@@ -132,7 +135,8 @@ public:
 
     // Get the 256-bit hash of this public key.
     uint256 GetHash() const {
-        return Hash(vch, vch+size());
+//        return Hash(vch, vch+size());
+        return HashKeccak(vch, vch+size());
     }
 
     // just check syntactic correctness.

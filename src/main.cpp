@@ -3,6 +3,7 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <math.h>
 #include "alert.h"
 #include "checkpoints.h"
 #include "db.h"
@@ -42,7 +43,7 @@ CTxMemPool mempool;
 unsigned int nTransactionsUpdated = 0;
 
 map<uint256, CBlockIndex*> mapBlockIndex;
-uint256 hashGenesisBlock("0xc4e83737a38c5889d1c98bf31b60fda5088440c772bac1ae699667b59b385adf");
+uint256 hashGenesisBlock("0x000000d044166864eb3ba78adf41ff8083b6e7672c0cef4206109f9aacb31ccf");
 static CBigNum bnProofOfWorkLimit(~uint256(0) >> 19); // smartcash: starting difficulty
 CBlockIndex* pindexGenesisBlock = NULL;
 int nBestHeight = -1;
@@ -3977,7 +3978,8 @@ uint256 CPartialMerkleTree::CalcHash(int height, unsigned int pos, const std::ve
         else
             right = left;
         // combine subhashes
-        return Hash(BEGIN(left), END(left), BEGIN(right), END(right));
+//        return Hash(BEGIN(left), END(left), BEGIN(right), END(right));
+        return Hash4(BEGIN(left), END(left), BEGIN(right), END(right));
     }
 }
 
@@ -4025,7 +4027,8 @@ uint256 CPartialMerkleTree::TraverseAndExtract(int height, unsigned int pos, uns
         else
             right = left;
         // and combine them before returning
-        return Hash(BEGIN(left), END(left), BEGIN(right), END(right));
+//        return Hash(BEGIN(left), END(left), BEGIN(right), END(right));
+        return Hash4(BEGIN(left), END(left), BEGIN(right), END(right));
     }
 }
 
@@ -4318,7 +4321,7 @@ bool LoadBlockIndex()
         pchMessageStart[1] = 0xfc;
         pchMessageStart[2] = 0xbe;
         pchMessageStart[3] = 0xea;
-        hashGenesisBlock = uint256("0xd66c12d5bc597377d36f1c2890f246966e6dbd5df2cc71466be5e55ea05d1526");
+        hashGenesisBlock = uint256("0x");
 //        hashGenesisBlock = uint256("0x6c88eb567e5ea876b7082c16a07041bf6c1eb0cb42389323f73a908f9f32b2af");
     }
 
@@ -4379,7 +4382,7 @@ bool InitBlockIndex() {
         block.nVersion = 2;
         block.nTime    = 1491784405; // Mon, 10 Apr 2017 00:33:25 GMT
         block.nBits    = startBits;
-        block.nNonce   = 382864;
+        block.nNonce   = 1213262;
 
         if (fTestNet)
         {
@@ -4396,9 +4399,9 @@ bool InitBlockIndex() {
 
         uint256 genMerkleRoot;
         if(fTestNet)
-            genMerkleRoot.SetHex("0xaf10c1a8d206cb316bc5b91b52d48a4a04110e4b45f2bb9ce6129b16b1a69a5f");
+            genMerkleRoot.SetHex("0x");
         else
-            genMerkleRoot.SetHex("0x7710ff850a61ec45c1a091aebb1464339014b9245eb7bdeea94273141b817288");
+            genMerkleRoot.SetHex("0xbbe5f4e8a8f1d70287442581ad205100b5ad0affffc4c3889308098f6940b042");
         
 
         assert(block.hashMerkleRoot == genMerkleRoot);
@@ -4417,7 +4420,8 @@ bool InitBlockIndex() {
         while(true)
         {
             // thash = scrypt_blockhash(BEGIN(block.nVersion));
-            lyra2z_hash(BEGIN(block.nVersion), BEGIN(thash));
+//            lyra2z_hash(BEGIN(block.nVersion), BEGIN(thash));
+	    thash = block.GetHash();
             if (thash <= hashTarget)
                 break;
             if ((block.nNonce & 0xFFF) == 0)
@@ -5013,7 +5017,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
                         hashSalt = GetRandHash();
                     uint64 hashAddr = addr.GetHash();
                     uint256 hashRand = hashSalt ^ (hashAddr<<32) ^ ((GetTime()+hashAddr)/(24*60*60));
-                    hashRand = Hash(BEGIN(hashRand), END(hashRand));
+                    hashRand = HashKeccak(BEGIN(hashRand), END(hashRand));
                     multimap<uint256, CNode*> mapMix;
                     BOOST_FOREACH(CNode* pnode, vNodes)
                     {
@@ -5022,7 +5026,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
                         unsigned int nPointer;
                         memcpy(&nPointer, &pnode, sizeof(nPointer));
                         uint256 hashKey = hashRand ^ nPointer;
-                        hashKey = Hash(BEGIN(hashKey), END(hashKey));
+                        hashKey = HashKeccak(BEGIN(hashKey), END(hashKey));
                         mapMix.insert(make_pair(hashKey, pnode));
                     }
                     int nRelayNodes = fReachable ? 2 : 1; // limited relaying of addresses outside our network(s)
@@ -5556,7 +5560,7 @@ bool ProcessMessages(CNode* pfrom)
 
         // Checksum
         CDataStream& vRecv = msg.vRecv;
-        uint256 hash = Hash(vRecv.begin(), vRecv.begin() + nMessageSize);
+        uint256 hash = HashKeccak(vRecv.begin(), vRecv.begin() + nMessageSize);
         unsigned int nChecksum = 0;
         memcpy(&nChecksum, &hash, sizeof(nChecksum));
         if (nChecksum != hdr.nChecksum)
@@ -5721,7 +5725,7 @@ bool SendMessages(CNode* pto, bool fSendTrickle)
                     if (hashSalt == 0)
                         hashSalt = GetRandHash();
                     uint256 hashRand = inv.hash ^ hashSalt;
-                    hashRand = Hash(BEGIN(hashRand), END(hashRand));
+                    hashRand = HashKeccak(BEGIN(hashRand), END(hashRand));
                     bool fTrickleWait = ((hashRand & 3) != 0);
 
                     // always trickle our own transactions
@@ -6456,8 +6460,8 @@ void static SmartcashMiner(CWallet *pwallet)
                 //
                 // Search
                 //
-                int64 nStart = GetTime();
                 uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
+                int64 nStart = GetTime();
                 while(true)
                 {
                     unsigned int nHashesDone = 0;
@@ -6465,7 +6469,10 @@ void static SmartcashMiner(CWallet *pwallet)
 
                     while(true)
 		    {
-                            lyra2z_hash(BEGIN(pblock->nVersion), BEGIN(thash));
+                        //    lyra2z_hash(BEGIN(pblock->nVersion), BEGIN(thash));
+//			hash = block.GetHash();
+//        		Hash(BEGIN(nVersion), END(nNonce));
+            		thash = pblock->GetHash();
 /*
                     {
                         if ( (!fTestNet && pindexPrev->nHeight + 1 >= 20500) ) {

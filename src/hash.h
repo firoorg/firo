@@ -7,12 +7,15 @@
 
 #include "uint256.h"
 #include "serialize.h"
-
+#include "sph_keccak.h"
 #include <openssl/sha.h>
 #include <openssl/ripemd.h>
 #include <vector>
+#include <string>
+#include "schnorr.h"
 
 template<typename T1>
+/*
 inline uint256 Hash(const T1 pbegin, const T1 pend)
 {
     static unsigned char pblank[1];
@@ -22,6 +25,19 @@ inline uint256 Hash(const T1 pbegin, const T1 pend)
     SHA256((unsigned char*)&hash1, sizeof(hash1), (unsigned char*)&hash2);
     return hash2;
 }
+*/
+inline uint256 HashKeccak(const T1 pbegin, const T1 pend)
+{		 {
+    sph_keccak256_context ctx_keccak;
+    static unsigned char pblank[1];
+    uint256 hash;
+
+    sph_keccak256_init(&ctx_keccak);
+    sph_keccak256 (&ctx_keccak, (pbegin == pend ? pblank : static_cast<const void*>(&pbegin[0])), (pend - pbegin) * sizeof(pbegin[0]));
+    sph_keccak256_close(&ctx_keccak, static_cast<void*>(&hash));
+
+    return hash;
+}		 }
 
 class CHashWriter
 {
@@ -49,10 +65,11 @@ public:
     uint256 GetHash() {
         uint256 hash1;
         SHA256_Final((unsigned char*)&hash1, &ctx);
-        uint256 hash2;
+        return hash1;
+/*        uint256 hash2;
         SHA256((unsigned char*)&hash1, sizeof(hash1), (unsigned char*)&hash2);
         return hash2;
-    }
+*/    }
 
     template<typename T>
     CHashWriter& operator<<(const T& obj) {
@@ -64,7 +81,8 @@ public:
 
 
 template<typename T1, typename T2>
-inline uint256 Hash(const T1 p1begin, const T1 p1end,
+//inline uint256 Hash(const T1 p1begin, const T1 p1end,
+inline uint256 Hash4(const T1 p1begin, const T1 p1end,
                     const T2 p2begin, const T2 p2end)
 {
     static unsigned char pblank[1];

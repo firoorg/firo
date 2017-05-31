@@ -31,7 +31,8 @@ nFlags(nFlagsIn)
 {
 }
 
-inline unsigned int CBloomFilter::Hash(unsigned int nHashNum, const std::vector<unsigned char>& vDataToHash) const
+//inline unsigned int CBloomFilter::Hash(unsigned int nHashNum, const std::vector<unsigned char>& vDataToHash) const
+inline unsigned int CBloomFilter::Hash4(unsigned int nHashNum, const std::vector<unsigned char>& vDataToHash) const
 {
     // 0xFBA4C795 chosen as it guarantees a reasonable bit difference between nHashNum values.
     return MurmurHash3(nHashNum * 0xFBA4C795 + nTweak, vDataToHash) % (vData.size() * 8);
@@ -43,7 +44,8 @@ void CBloomFilter::insert(const vector<unsigned char>& vKey)
         return;
     for (unsigned int i = 0; i < nHashFuncs; i++)
     {
-        unsigned int nIndex = Hash(i, vKey);
+//        unsigned int nIndex = Hash(i, vKey);
+        unsigned int nIndex = Hash4(i, vKey);
         // Sets bit nIndex of vData
         vData[nIndex >> 3] |= bit_mask[7 & nIndex];
     }
@@ -72,7 +74,8 @@ bool CBloomFilter::contains(const vector<unsigned char>& vKey) const
         return false;
     for (unsigned int i = 0; i < nHashFuncs; i++)
     {
-        unsigned int nIndex = Hash(i, vKey);
+//        unsigned int nIndex = Hash(i, vKey);
+        unsigned int nIndex = Hash4(i, vKey);
         // Checks bit nIndex of vData
         if (!(vData[nIndex >> 3] & bit_mask[7 & nIndex]))
             return false;

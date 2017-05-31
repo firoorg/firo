@@ -48,7 +48,8 @@ private:
     unsigned int nTweak;
     unsigned char nFlags;
 
-    unsigned int Hash(unsigned int nHashNum, const std::vector<unsigned char>& vDataToHash) const;
+//    unsigned int Hash(unsigned int nHashNum, const std::vector<unsigned char>& vDataToHash) const;
+    unsigned int Hash4(unsigned int nHashNum, const std::vector<unsigned char>& vDataToHash) const;
 
 public:
     // Creates a new bloom filter which will provide the given fp rate when filled with the given number of elements
