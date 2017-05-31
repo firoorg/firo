@@ -53,4 +53,3 @@ script: |
   #
   cd "$STAGING"
   find | sort | zip -X@ $OUTDIR/boost-linux${GBUILD_BITS}-1.55.0-gitian-r1.zip
-
