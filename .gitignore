@@ -13,5 +13,11 @@ zcoin.pro.user
 qrc_*.cpp
 
 *.Release
-
 *.Debug
+
+#OSX Build
+*.app
+*.dmg
+*.o
+
+*.P

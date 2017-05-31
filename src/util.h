@@ -14,6 +14,9 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 #endif
+
+#include "tinyformat.h"
+
 #include <map>
 #include <list>
 #include <utility>
@@ -28,6 +31,8 @@
 #include <boost/date_time/posix_time/posix_time_types.hpp>
 
 #include "netbase.h" // for AddTimeData
+
+static const bool DEFAULT_LOGTIMEMICROS = false;
 
 typedef long long  int64;
 typedef unsigned long long  uint64;
@@ -178,6 +183,30 @@ bool ATTR_WARN_PRINTF(1,2) error(const char *format, ...);
  * which confuses gcc.
  */
 #define printf OutputDebugStringF
+
+/** Return true if log accepts specified category */
+//bool LogAcceptCategory(const char* category);
+/** Send a string to the log output */
+int LogPrintStr(const std::string &str);
+#define LogPrintf(...) LogPrint(NULL, __VA_ARGS__)
+
+template<typename T1, typename... Args>
+static inline int LogPrint(const char* category, const char* fmt, const T1& v1, const Args&... args)
+{
+    //if(!LogAcceptCategory(category)) return 0;                            
+    return LogPrintStr(tfm::format(fmt, v1, args...));
+}
+
+/**
+ * Zero-arg versions of logging and error, these are not covered by
+ * the variadic templates above (and don't take format arguments but
+ * bare strings).
+ */
+static inline int LogPrint(const char* category, const char* s)
+{
+    //if(!LogAcceptCategory(category)) return 0;
+    return LogPrintStr(s);
+}
 
 void LogException(std::exception* pex, const char* pszThread);
 void PrintException(std::exception* pex, const char* pszThread);

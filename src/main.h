@@ -44,6 +44,10 @@ static const unsigned int MAX_STANDARD_TX_SIZE = 300000;
 static const unsigned int MAX_BLOCK_SIGOPS = MAX_BLOCK_SIZE/50;
 /** The maximum number of orphan transactions kept in memory */
 static const unsigned int MAX_ORPHAN_TRANSACTIONS = 100;
+/** Expiration time for orphan transactions in seconds */
+static const int64_t ORPHAN_TX_EXPIRE_TIME = 20 * 60;
+/** Minimum time between orphan transactions expire time checks in seconds */
+static const int64_t ORPHAN_TX_EXPIRE_INTERVAL = 5 * 60;
 /** The maximum number of entries in an 'inv' protocol message */
 static const unsigned int MAX_INV_SZ = 500000;
 /** The maximum size of a blk?????.dat file (since 0.8) */
@@ -67,6 +71,10 @@ static const int COINBASE_MATURITY = 100;
 static const unsigned int LOCKTIME_THRESHOLD = 500000000; // Tue Nov  5 00:53:20 1985 UTC
 /** Maximum number of script-checking threads allowed */
 static const int MAX_SCRIPTCHECK_THREADS = 16;
+/** The maximum weight for transactions we're willing to relay/mine */
+static const unsigned int MAX_STANDARD_TX_WEIGHT = 400000;
+
+static const unsigned int DEFAULT_BANSCORE_THRESHOLD = 100;
 #ifdef USE_UPNP
 static const int fHaveUPnP = true;
 #else
@@ -487,6 +495,8 @@ public:
     {
         SetNull();
     }
+
+    CTransaction& operator=(const CTransaction& tx);
 
     IMPLEMENT_SERIALIZE
     (
