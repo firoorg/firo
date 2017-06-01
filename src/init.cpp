@@ -120,23 +120,21 @@ static CDSNotificationInterface* pdsNotificationInterface = NULL;
 #define MIN_CORE_FILEDESCRIPTORS 150
 #endif
 
-/** Used to pass flags to the Bind() function */
 enum BindFlags {
-    BF_NONE = 0,
-    BF_EXPLICIT = (1U << 0),
+    BF_NONE         = 0,
+    BF_EXPLICIT     = (1U << 0),
     BF_REPORT_ERROR = (1U << 1),
-    BF_WHITELIST = (1U << 2),
+    BF_WHITELIST    = (1U << 2),
 };
 
-static const char *FEE_ESTIMATES_FILENAME = "fee_estimates.dat";
-
+static const char* FEE_ESTIMATES_FILENAME="fee_estimates.dat";
 extern CTxPoolAggregate txpools;
 
 namespace fs = boost::filesystem;
 
 extern "C" {
-    int tor_main(int argc, char *argv[]);
-    void tor_cleanup(void);
+int tor_main(int argc, char *argv[]);
+void tor_cleanup(void);
 }
 
 
@@ -145,7 +143,6 @@ static char *convert_str(const std::string &s) {
     std::strcpy(pc, s.c_str());
     return pc;
 }
-
 //////////////////////////////////////////////////////////////////////////////
 //
 // Shutdown
@@ -365,17 +362,6 @@ static BOOL WINAPI consoleCtrlHandler(DWORD dwCtrlType)
 }
 #endif
 
-bool static Bind(CConnman& connman, const CService &addr, unsigned int flags) {
-    if (!(flags & BF_EXPLICIT) && IsLimited(addr))
-        return false;
-    std::string strError;
-    if (!connman.BindListenPort(addr, strError, (flags & BF_WHITELIST) != 0)) {
-        if (flags & BF_REPORT_ERROR)
-            return InitError(strError);
-        return false;
-    }
-    return true;
-}
 void OnRPCStarted()
 {
     uiInterface.NotifyBlockTip.connect(&RPCNotifyBlockChange);
@@ -978,9 +964,9 @@ void RunTor(){
 		clientTransportPlugin = "obfs4 exec obfs4proxy.exe";
 	}
 
-	fs::path tor_dir = GetDataDir() / "tor";
-	fs::create_directory(tor_dir);
-	fs::path log_file = tor_dir / "tor.log";
+    boost::filesystem::path tor_dir = GetDataDir() / "tor";
+    boost::filesystem::create_directory(tor_dir);
+    boost::filesystem::path log_file = tor_dir / "tor.log";
 
 	std::vector < std::string > argv;
 	argv.push_back("tor");
@@ -1170,6 +1156,10 @@ bool AppInitParameterInteraction()
                 (mapMultiArgs.count("-whitebind") ? mapMultiArgs.at("-whitebind").size() : 0), size_t(1));
     nUserMaxConnections = GetArg("-maxconnections", DEFAULT_MAX_PEER_CONNECTIONS);
     nMaxConnections = std::max(nUserMaxConnections, 0);
+
+    if (nBind != 0 && !GetBoolArg("-listen", DEFAULT_LISTEN)) {
+        return InitError("Cannot set -bind or -whitebind together with -listen=0");
+    }
 
     // Trim requested connection counts, to fit into system limitations
     nMaxConnections = std::max(std::min(nMaxConnections, (int)(FD_SETSIZE - nBind - MIN_CORE_FILEDESCRIPTORS - MAX_ADDNODE_CONNECTIONS)), 0);
@@ -1611,7 +1601,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
                 CService addrBind;
                 if (!Lookup(strBind.c_str(), addrBind, GetListenPort(), false))
                     return InitError(ResolveErrMsg("bind", strBind));
-                fBound |= Bind(connman, addrBind, (BF_EXPLICIT | BF_REPORT_ERROR));
+                fBound |= connman.Bind(addrBind, (BF_EXPLICIT | BF_REPORT_ERROR));
             }
         }
         if (mapMultiArgs.count("-whitebind")) {
@@ -1621,14 +1611,14 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
                     return InitError(ResolveErrMsg("whitebind", strBind));
                 if (addrBind.GetPort() == 0)
                     return InitError(strprintf(_("Need to specify a port with -whitebind: '%s'"), strBind));
-                fBound |= Bind(connman, addrBind, (BF_EXPLICIT | BF_REPORT_ERROR | BF_WHITELIST));
+                fBound |= connman.Bind(addrBind, (BF_EXPLICIT | BF_REPORT_ERROR | BF_WHITELIST));
             }
         }
         if (!mapMultiArgs.count("-bind") && !mapMultiArgs.count("-whitebind")) {
             struct in_addr inaddr_any;
             inaddr_any.s_addr = INADDR_ANY;
-            fBound |= Bind(connman, CService((in6_addr)IN6ADDR_ANY_INIT, GetListenPort()), BF_NONE);
-            fBound |= Bind(connman, CService(inaddr_any, GetListenPort()), !fBound ? BF_REPORT_ERROR : BF_NONE);
+            fBound |= connman.Bind(CService((in6_addr)IN6ADDR_ANY_INIT, GetListenPort()), BF_NONE);
+            fBound |= connman.Bind(CService(inaddr_any, GetListenPort()), !fBound ? BF_REPORT_ERROR : BF_NONE);
         }
         if (!fBound)
             return InitError(_("Failed to listen on any port. Use -listen=0 if you want this."));
@@ -2071,7 +2061,6 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     // Map ports with UPnP
     MapPort(GetBoolArg("-upnp", DEFAULT_UPNP));
 
-    std::string strNodeError;
     CConnman::Options connOptions;
     connOptions.nLocalServices = nLocalServices;
     connOptions.nRelevantServices = nRelevantServices;
@@ -2086,9 +2075,8 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     connOptions.nMaxOutboundTimeframe = nMaxOutboundTimeframe;
     connOptions.nMaxOutboundLimit = nMaxOutboundLimit;
-
-    if (!connman.Start(scheduler, strNodeError, connOptions))
-        return InitError(strNodeError);
+    if (!connman.Start(scheduler, connOptions))
+        return false;
 
     // Generate coins in the background
     GenerateBitcoins(GetBoolArg("-gen", DEFAULT_GENERATE), GetArg("-genproclimit", DEFAULT_GENERATE_THREADS),
