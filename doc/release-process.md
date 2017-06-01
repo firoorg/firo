@@ -33,21 +33,23 @@ Release Process
  Fetch and build inputs: (first time, or when dependency versions change)
 
 	mkdir -p inputs; cd inputs/
-	wget 'http://miniupnp.free.fr/files/download.php?file=miniupnpc-1.9.20140401.tar.gz' -O miniupnpc-1.9.20140401.tar.gz'
-	wget 'http://www.openssl.org/source/openssl-1.0.1g.tar.gz'
+	wget 'http://miniupnp.free.fr/files/download.php?file=miniupnpc-1.9.20140701.tar.gz' -O miniupnpc-1.9.20140401.tar.gz
+	wget 'http://www.openssl.org/source/openssl-1.0.2g.tar.gz'
 	wget 'http://download.oracle.com/berkeley-db/db-4.8.30.NC.tar.gz'
-	wget 'http://zlib.net/zlib-1.2.8.tar.gz'
+	wget 'https://www.zlib.net/fossils/zlib-1.2.8.tar.gz'
 	wget 'ftp://ftp.simplesystems.org/pub/libpng/png/src/history/libpng16/libpng-1.6.8.tar.gz'
 	wget 'http://fukuchi.org/works/qrencode/qrencode-3.4.3.tar.bz2'
 	wget 'http://downloads.sourceforge.net/project/boost/boost/1.55.0/boost_1_55_0.tar.bz2'
-	wget 'http://download.qt-project.org/official_releases/qt/4.8/4.8.5/qt-everywhere-opensource-src-4.8.5.tar.gz'
+	wget -q 'https://svn.boost.org/trac/boost/raw-attachment/ticket/7262/boost-mingw.patch' -O boost-mingw-gas-cross-compile-2013-03-03.patch
+	wget 'https://download.qt.io/archive/qt/4.8/4.8.5/qt-everywhere-opensource-src-4.8.5.tar.gz'
 	cd ..
-	./bin/gbuild ../zcoin/contrib/gitian-descriptors/boost-win32.yml
-	mv build/out/boost-win32-1.55.0-gitian2.zip inputs/
-	./bin/gbuild ../zcoin/contrib/gitian-descriptors/qt-win32.yml
-	mv build/out/qt-win32-4.8.5-gitian-r1.zip inputs/
-	./bin/gbuild ../zcoin/contrib/gitian-descriptors/deps-win32.yml
+	cd gitian-builder/
+	./bin/gbuild ../zcoin/contrib/gitian-descriptors/boost-win.yml
+	mv build/out/boost-win32-1.55.0-gitian-r6.zip inputs/
+	./bin/gbuild ../zcoin/contrib/gitian-descriptors/deps-win.yml
 	mv build/out/zcoin-deps-0.0.5.zip inputs/
+	./bin/gbuild ../zcoin/contrib/gitian-descriptors/qt-win.yml
+	mv build/out/qt-win32-4.8.5-gitian-r1.zip inputs/
 
  Build zcoind and zcoin-qt on Linux32, Linux64, and Win32:
   
