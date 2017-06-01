@@ -2257,8 +2257,8 @@ int64 static GetBlockValue(int nHeight, int64 nFees, unsigned int nTime)
 	return nSubsidy + nFees;
 }
 */
-static const int64 nTargetTimespan = 15; //1 minutes between retargets
-static const int64 nTargetSpacing = 15; // 55 second blocks
+static const int64 nTargetTimespan = 2 * 55; //1 minutes between retargets
+static const int64 nTargetSpacing = 55; // 55 second blocks
 static const int64 nInterval = nTargetTimespan / nTargetSpacing; // retargets every 1.09 blocks
 
 //
@@ -2385,10 +2385,10 @@ unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBl
 
     return bnProofOfWorkLimit.GetCompact();
 
-    static const uint32_t        BlocksTargetSpacing                        = 15; // 55 Seconds
+    static const uint32_t        BlocksTargetSpacing                        = 55; // 55 Seconds
         unsigned int                TimeDaySeconds                                = 60 * 60 * 24; // 86400 Seconds
-        int64                                PastSecondsMin                                = TimeDaySeconds / 2880; // 600 Seconds
-        int64                                PastSecondsMax                                = TimeDaySeconds / 20; // 12 Hours
+        int64                                PastSecondsMin                                = TimeDaySeconds * .005; // 7 minutes
+        int64                                PastSecondsMax                                = TimeDaySeconds * .07; // 1.7 Hours
         uint32_t                                PastBlocksMin                                = PastSecondsMin / BlocksTargetSpacing; // 36 blocks
         uint32_t                                PastBlocksMax                                = PastSecondsMax / BlocksTargetSpacing; // 1008 blocks
 /*
@@ -4996,12 +4996,12 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         // Store the new addresses
         vector<CAddress> vAddrOk;
         int64 nNow = GetAdjustedTime();
-        int64 nSince = nNow - 55;
+        int64 nSince = nNow - 10 * 60;
         BOOST_FOREACH(CAddress& addr, vAddr)
         {
             boost::this_thread::interruption_point();
 
-            if (addr.nTime <= 100000000 || addr.nTime > nNow + 55)
+            if (addr.nTime <= 100000000 || addr.nTime > nNow + 10 * 60)
                 addr.nTime = nNow - 5 * 24 * 60 * 60;
             pfrom->AddAddressKnown(addr);
             bool fReachable = IsReachable(addr);
@@ -5128,7 +5128,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         // Send the rest of the chain
         if (pindex)
             pindex = pindex->pnext;
-        int nLimit = 2500;
+        int nLimit = 500;
         printf("getblocks %d to %s limit %d\n", (pindex ? pindex->nHeight : -1), hashStop.ToString().c_str(), nLimit);
         for (; pindex; pindex = pindex->pnext)
         {
@@ -6136,7 +6136,7 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
             // Prioritize by fee once past the priority size or we run out of high-priority
             // transactions:
             if (!fSortedByFee &&
-                ((nBlockSize + nTxSize >= nBlockPrioritySize) || (dPriority < COIN * 576 / 250)))
+                ((nBlockSize + nTxSize >= nBlockPrioritySize) || (dPriority < COIN * 144 / 250)))
             {
                 fSortedByFee = true;
                 comparer = TxPriorityCompare(fSortedByFee);
