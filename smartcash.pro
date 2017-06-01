@@ -147,7 +147,6 @@ HEADERS += src/qt/bitcoingui.h \
     src/qt/aboutdialog.h \
     src/qt/editaddressdialog.h \
     src/qt/bitcoinaddressvalidator.h \
-    src/auxpow.h \
     src/alert.h \
     src/addrman.h \
     src/base58.h \
@@ -212,11 +211,6 @@ HEADERS += src/qt/bitcoingui.h \
     src/ui_interface.h \
     src/qt/rpcconsole.h \
     src/scrypt.h \
-    src/Lyra2Z/Lyra2.h \
-    src/Lyra2Z/Lyra2Z.h \
-    src/Lyra2Z/sph_blake.h \
-    src/Lyra2Z/sph_types.h \
-    src/Lyra2Z/Sponge.h \
     src/version.h \
     src/netbase.h \
     src/clientversion.h \
@@ -226,6 +220,8 @@ HEADERS += src/qt/bitcoingui.h \
     src/limitedmap.h \
     src/qt/macnotificationhandler.h \
     src/qt/splashscreen.h \
+    src/sph_keccak.h \
+    src/sph_types.h \
     src/libzerocoin/Accumulator.h \
     src/libzerocoin/AccumulatorProofOfKnowledge.h \
     src/libzerocoin/Coin.h \
@@ -235,11 +231,7 @@ HEADERS += src/qt/bitcoingui.h \
     src/libzerocoin/Params.h \
     src/libzerocoin/SerialNumberSignatureOfKnowledge.h \
     src/libzerocoin/SpendMetaData.h \
-    src/libzerocoin/Zerocoin.h \
-    src/hashblock.h \
-    src/sph_keccak.h \
-    src/sph_groestl.h \
-    src/sph_types.h
+    src/libzerocoin/Zerocoin.h
 
 
 SOURCES += src/qt/bitcoin.cpp \
@@ -255,7 +247,6 @@ SOURCES += src/qt/bitcoin.cpp \
     src/qt/aboutdialog.cpp \
     src/qt/editaddressdialog.cpp \
     src/qt/bitcoinaddressvalidator.cpp \
-    src/auxpow.cpp \
     src/alert.cpp \
     src/version.cpp \
     src/sync.cpp \
@@ -309,14 +300,11 @@ SOURCES += src/qt/bitcoin.cpp \
     src/qt/paymentserver.cpp \
     src/qt/rpcconsole.cpp \
     src/scrypt.cpp \
-    src/Lyra2Z/blake.c \
-    src/Lyra2Z/Lyra2.c \
-    src/Lyra2Z/Lyra2Z.c \
-    src/Lyra2Z/Sponge.c \
     src/noui.cpp \
     src/leveldb.cpp \
     src/txdb.cpp \
     src/qt/splashscreen.cpp \
+    src/keccak.c \
     src/libzerocoin/Accumulator.cpp \
     src/libzerocoin/AccumulatorProofOfKnowledge.cpp \
     src/libzerocoin/Coin.cpp \
@@ -326,9 +314,6 @@ SOURCES += src/qt/bitcoin.cpp \
     src/libzerocoin/Params.cpp \
     src/libzerocoin/SerialNumberSignatureOfKnowledge.cpp \
     src/libzerocoin/SpendMetaData.cpp
-    src/momentum.cpp \
-    src/groestl.c \
-    src/keccak.c
 
 RESOURCES += src/qt/bitcoin.qrc
 
