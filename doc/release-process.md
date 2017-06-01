@@ -41,13 +41,15 @@ Release Process
 	wget 'http://fukuchi.org/works/qrencode/qrencode-3.4.3.tar.bz2'
 	wget 'http://downloads.sourceforge.net/project/boost/boost/1.55.0/boost_1_55_0.tar.bz2'
 	wget -q 'https://svn.boost.org/trac/boost/raw-attachment/ticket/7262/boost-mingw.patch' -O boost-mingw-gas-cross-compile-2013-03-03.patch
-	wget 'https://download.qt.io/archive/qt/4.8/4.8.5/qt-everywhere-opensource-src-4.8.5.tar.gz'
+	wget 'http://download.qt.io/archive/qt/5.2/5.2.0/single/qt-everywhere-opensource-src-5.2.0.tar.gz'
+	wget 'ftp://ftp.fi.debian.org/gentoo/distfiles/protobuf-2.5.0.tar.bz2'
 	cd ..
 	cd gitian-builder/
 	./bin/gbuild ../zcoin/contrib/gitian-descriptors/boost-win.yml
 	mv build/out/boost-win32-1.55.0-gitian-r6.zip inputs/
 	./bin/gbuild ../zcoin/contrib/gitian-descriptors/deps-win.yml
-	mv build/out/zcoin-deps-0.0.5.zip inputs/
+	mv build/out/zcoin-deps-win32-gitian-r16.zip inputs/
+	mv build/out/zcoin-deps-win64-gitian-r16.zip inputs/
 	./bin/gbuild ../zcoin/contrib/gitian-descriptors/qt-win.yml
 	mv build/out/qt-win32-4.8.5-gitian-r1.zip inputs/
 
@@ -84,7 +86,7 @@ repackage gitian builds for release as stand-alone zip/tar/installer exe
 
 	unzip zcoin-${VERSION}-win32-gitian.zip -d zcoin-${VERSION}-win32
 	mv zcoin-${VERSION}-win32/zcoin-*-setup.exe .
-	zip -r zcoin-${VERSION}-win32.zip bitcoin-${VERSION}-win32
+	zip -r zcoin-${VERSION}-win32.zip zcoin-${VERSION}-win32
 	rm -rf zcoin-${VERSION}-win32
 
 **Perform Mac build:**
@@ -104,7 +106,7 @@ repackage gitian builds for release as stand-alone zip/tar/installer exe
 ###Next steps:
 
 * Code-sign Windows -setup.exe (in a Windows virtual machine) and
-  OSX Bitcoin-Qt.app (Note: only Gavin has the code-signing keys currently)
+  OSX zcoin-qt.app (Note: only Gavin has the code-signing keys currently)
 
 * upload builds to SourceForge
 

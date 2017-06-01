@@ -22,8 +22,8 @@ remotes:
 - "url": "https://github.com/zcoinofficial/zcoin.git"
   "dir": "zcoin"
 files:
-- "qt-win32-5.2.0-gitian-r3.zip"
-- "qt-win64-5.2.0-gitian-r3.zip"
+- "qt-win32-4.8.5-gitian-r3.zip"
+- "qt-win64-4.8.5-gitian-r3.zip"
 - "boost-win32-1.55.0-gitian-r6.zip"
 - "boost-win64-1.55.0-gitian-r6.zip"
 - "zcoin-deps-win32-gitian-r16.zip"
@@ -59,7 +59,7 @@ script: |
     mkdir -p $STAGING $BUILDDIR $BINDIR
     #
     cd $STAGING
-    unzip $INDIR/qt-win${BITS}-5.2.0-gitian-r3.zip
+    unzip $INDIR/qt-win${BITS}-4.8.5-gitian-r3.zip
     unzip $INDIR/boost-win${BITS}-1.55.0-gitian-r6.zip
     unzip $INDIR/zcoin-deps-win${BITS}-gitian-r16.zip
     unzip $INDIR/protobuf-win${BITS}-2.5.0-gitian-r4.zip
