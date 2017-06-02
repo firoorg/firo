@@ -1,7 +1,7 @@
 ---
 name: "qt"
 suites:
-- "precise"
+- "trusty"
 architectures:
 - "amd64"
 packages: 

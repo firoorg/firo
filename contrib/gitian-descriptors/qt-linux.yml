@@ -1,7 +1,7 @@
 ---
 name: "qt-linux"
 suites:
-- "precise"
+- "trusty"
 architectures:
 - "i386"
 - "amd64"

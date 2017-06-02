@@ -1,7 +1,7 @@
 ---
 name: "boost"
 suites:
-- "precise"
+- "trusty"
 architectures:
 - "i386"
 - "amd64"
