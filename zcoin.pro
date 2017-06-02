@@ -34,6 +34,8 @@ contains(RELEASE, 1) {
         # Linux: static link and extra security (see: https://wiki.debian.org/Hardening)
         LIBS += -Wl,-Bstatic -Wl,-z,relro -Wl,-z,now
     }
+
+    win32:LIBS += -Bstatic -lpthread
 }
 
 !win32 {
