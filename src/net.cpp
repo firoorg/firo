@@ -1114,7 +1114,7 @@ void ThreadMapPort()
 #elif defined UPNPDISCOVER_SUCCESS
     int error = 0;
     devlist = upnpDiscover(2000, multicastif, minissdpdpath, 0, 0, &error);
-#elif
+#else
     devlist = upnpDiscover(2000, multicastif, minissdpdpath, 0);
 #endif
 

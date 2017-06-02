@@ -14,7 +14,7 @@ packages:
 reference_datetime: "2011-01-30 00:00:00"
 remotes: []
 files:
-- "qt-everywhere-opensource-src-5.2.0.tar.gz"
+- "qt-everywhere-opensource-src-4.8.5.tar.gz"
 - "zcoin-deps-win32-gitian-r16.zip"
 - "zcoin-deps-win32-gitian-r16.zip"
 script: |

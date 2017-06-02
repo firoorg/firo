@@ -290,7 +290,7 @@ Setting up gitian images
 -------------------------
 
 Gitian needs virtual images of the operating system to build in.
-Currently this is Ubuntu Precise for both x86 architectures.
+Currently this is Ubuntu Trusty for both x86 architectures.
 These images will be copied and used every time that a build is started to
 make sure that the build is deterministic.
 Creating the images will take a while, but only has to be done once.
@@ -299,8 +299,8 @@ Execute the following as user `debian`:
 
 ```bash
 cd gitian-builder
-bin/make-base-vm --lxc --arch i386 --suite precise
-bin/make-base-vm --lxc --arch amd64 --suite precise
+bin/make-base-vm --lxc --arch i386 --suite trusty
+bin/make-base-vm --lxc --arch amd64 --suite trusty
 ```
 
 There will be a lot of warnings printed during build of the images. These can be ignored.
