@@ -23,14 +23,9 @@ remotes:
   "dir": "zcoin"
   "commit": "sync-fix-0.8.7.7"
 files:
-- "qt-win32-4.8.5-gitian-r3.zip"
-- "qt-win64-5.2.0-gitian-r3.zip"
+- "qt-win32-4.8.5-gitian-r7.zip"
 - "boost-win32-1.55.0-gitian-r6.zip"
-- "boost-win64-1.55.0-gitian-r6.zip"
 - "zcoin-deps-win32-gitian-r16.zip"
-- "zcoin-deps-win64-gitian-r16.zip"
-- "protobuf-win32-2.5.0-gitian-r4.zip"
-- "protobuf-win64-2.5.0-gitian-r4.zip"
 script: |
   # 
   INDIR=$HOME/build
@@ -50,7 +45,6 @@ script: |
   git archive HEAD | tar -x -C $OUTDIR/src
   cp $OUTDIR/src/doc/README_windows.txt $OUTDIR/readme.txt
   cp $OUTDIR/src/COPYING $OUTDIR/COPYING.txt
-  export LD_PRELOAD=/usr/lib/faketime/libfaketime.so.1
   export FAKETIME=$REFERENCE_DATETIME
   export TZ=UTC
   ln -s $STAGING $HOME/qt
