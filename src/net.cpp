@@ -1108,10 +1108,10 @@ void ThreadMapPort()
     char lanaddr[64];
 
 // see apiversions.txt in miniupnpc
- #if MINIUPNPC_API_VERSION >= 14
-     int error = 0;
-     devlist = upnpDiscover(2000, multicastif, minissdpdpath, 0, 0, 2, &error);
- #elif defined UPNPDISCOVER_SUCCESS
+#if MINIUPNPC_API_VERSION >= 14
+    int error = 0;
+    devlist = upnpDiscover(2000, multicastif, minissdpdpath, 0, 0, 2, &error);
+#elif defined UPNPDISCOVER_SUCCESS
     int error = 0;
     devlist = upnpDiscover(2000, multicastif, minissdpdpath, 0, 0, &error);
 #elif

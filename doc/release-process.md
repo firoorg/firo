@@ -47,11 +47,13 @@ Release Process
 	cd gitian-builder/
 	./bin/gbuild ../zcoin/contrib/gitian-descriptors/boost-win.yml
 	mv build/out/boost-win32-1.55.0-gitian-r6.zip inputs/
+	mv build/out/boost-win64-1.55.0-gitian-r6.zip inputs/
 	./bin/gbuild ../zcoin/contrib/gitian-descriptors/deps-win.yml
 	mv build/out/zcoin-deps-win32-gitian-r16.zip inputs/
 	mv build/out/zcoin-deps-win64-gitian-r16.zip inputs/
 	./bin/gbuild ../zcoin/contrib/gitian-descriptors/qt-win.yml
-	mv build/out/qt-win32-4.8.5-gitian-r1.zip inputs/
+	mv build/out/qt-win32-5.2.0-gitian-r1.zip inputs/
+	mv build/out/qt-win64-5.2.0-gitian-r1.zip inputs/
 
  Build zcoind and zcoin-qt on Linux32, Linux64, and Win32:
   
