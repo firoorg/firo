@@ -82,8 +82,8 @@ argon2_context init_argon2d_param(const char* input) {
     unsigned char out[TEST_OUTLEN];
     //unsigned char pwd[TEST_PWDLEN];
     //unsigned char salt[TEST_SALTLEN];
-    unsigned char secret[TEST_SECRETLEN];
-    unsigned char ad[TEST_ADLEN];
+    //unsigned char secret[TEST_SECRETLEN];
+    //unsigned char ad[TEST_ADLEN];
     const allocate_fptr myown_allocator = NULL;
     const deallocate_fptr myown_deallocator = NULL;
 
@@ -293,6 +293,7 @@ int mtp_prover(CBlock *pblock, argon2_instance_t *instance, unsigned int d, char
             }
             // add element to merkel tree
             mt_add(mt, blockhash_bytes, HASH_LENGTH);
+            // TODO: replace with more memory-efficient way
             // add element to blockchain header
             memcpy(pblock->elementsInMerkleRoot[i], hashBlock, sizeof(uint8_t) * 32);
         }
@@ -356,6 +357,7 @@ int mtp_prover(CBlock *pblock, argon2_instance_t *instance, unsigned int d, char
             bool init_blocks = false;
             bool unmatch_block = false;
             for (uint8_t j = 1; j <= L; j++) {
+                // TODO: to removed
                 uint32_t ij = *Y[j - 1] % 2048;
                 if (ij == 0 || ij == 1) {
                     init_blocks = true;
@@ -438,7 +440,7 @@ int mtp_prover(CBlock *pblock, argon2_instance_t *instance, unsigned int d, char
             printf("Step 6 : If Y(L) had d trailing zeros, then (resultMerkelroot, N, Y(L)) \n");
             //uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
             //printf("*** hashTarget: %d %s ***\n", hashTarget, hashTarget.GetHex().c_str());
-            if (trailing_zeros(hex_tmp) != d) {
+            if (trailing_zeros(hex_tmp) < d) {
                 continue;
             } else {
                 // Found a solution

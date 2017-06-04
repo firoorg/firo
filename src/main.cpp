@@ -18,6 +18,7 @@
 #include "fixed.h"
 #include <stdint.h>
 #include <emmintrin.h>
+#include "mtp.h"
 
 using namespace std;
 using namespace boost;
@@ -6432,6 +6433,8 @@ void static ZcoinMiner(CWallet *pwallet)
                         // Start Merkel Tree Proof of Work
                         } else if ( //(!fTestNet && pindexPrev->nHeight + 1 >= HF_MTP_HEIGHT) ||
                                               (fTestNet && pindexPrev->nHeight + 1 >= HF_MTP_HEIGHT_TESTNET)){
+                            // TODO: recalculate d to match current target
+                            //recalc_d(hashTarget);
                             mtp_hash(BEGIN(thash), BEGIN(pblock->nVersion), d_mtp, pblock);
                             // TODO: compare with target
                             printf("Found MTP hash: %s\n", thash.GetHex().c_str());

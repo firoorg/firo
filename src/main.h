@@ -14,7 +14,6 @@
 #include "Lyra2Z/Lyra2.h"
 #include "libzerocoin/Zerocoin.h"
 #include "db.h"
-#include "mtp.h"
 
 #include <list>
 
