@@ -43,9 +43,13 @@ static const unsigned int MAX_STANDARD_TX_SIZE = 300000;
 /** The maximum allowed number of signature check operations in a block (network rule) */
 static const unsigned int MAX_BLOCK_SIGOPS = MAX_BLOCK_SIZE/50;
 /** The maximum number of orphan transactions kept in memory */
-static const unsigned int MAX_ORPHAN_TRANSACTIONS = MAX_BLOCK_SIZE/100;
+static const unsigned int MAX_ORPHAN_TRANSACTIONS = 100;
+/** Expiration time for orphan transactions in seconds */
+static const int64_t ORPHAN_TX_EXPIRE_TIME = 20 * 60;
+/** Minimum time between orphan transactions expire time checks in seconds */
+static const int64_t ORPHAN_TX_EXPIRE_INTERVAL = 5 * 60;
 /** The maximum number of entries in an 'inv' protocol message */
-static const unsigned int MAX_INV_SZ = 50000;
+static const unsigned int MAX_INV_SZ = 500000;
 /** The maximum size of a blk?????.dat file (since 0.8) */
 static const unsigned int MAX_BLOCKFILE_SIZE = 0x8000000; // 128 MiB
 /** The pre-allocation chunk size for blk?????.dat files (since 0.8) */
@@ -67,12 +71,20 @@ static const int COINBASE_MATURITY = 100;
 static const unsigned int LOCKTIME_THRESHOLD = 500000000; // Tue Nov  5 00:53:20 1985 UTC
 /** Maximum number of script-checking threads allowed */
 static const int MAX_SCRIPTCHECK_THREADS = 16;
+/** The maximum weight for transactions we're willing to relay/mine */
+static const unsigned int MAX_STANDARD_TX_WEIGHT = 400000;
+
+static const unsigned int DEFAULT_BANSCORE_THRESHOLD = 100;
 #ifdef USE_UPNP
 static const int fHaveUPnP = true;
 #else
 static const int fHaveUPnP = false;
 #endif
 
+/** "reject" message codes */
+static const unsigned char REJECT_DUPLICATE = 0x12;
+/** Average delay between local address broadcasts in seconds. */
+static const unsigned int AVG_LOCAL_ADDRESS_BROADCAST_INTERVAL = 5 * 60;
 
 extern CScript COINBASE_FLAGS;
 
@@ -483,6 +495,8 @@ public:
     {
         SetNull();
     }
+
+    CTransaction& operator=(const CTransaction& tx);
 
     IMPLEMENT_SERIALIZE
     (

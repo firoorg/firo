@@ -63,14 +63,14 @@ bool CWalletDB::EarseCoinSpendSerialEntry(const CZerocoinSpendEntry& zerocoinSpe
     return Erase(make_pair(string("zcserial"), zerocoinSpend.coinSerial));
 }
 
-bool CWalletDB::WriteZerocoinAccumulator(libzerocoin::Accumulator accumulator, libzerocoin::CoinDenomination denomination)
+bool CWalletDB::WriteZerocoinAccumulator(libzerocoin::Accumulator accumulator, libzerocoin::CoinDenomination denomination, int pubcoinid)
 {
-    return Write(make_pair(std::string("zcaccumulator"), (unsigned int) denomination), accumulator);
+    return Write(boost::make_tuple(std::string("zcaccumulator"), (unsigned int) denomination, pubcoinid), accumulator);
 }
 
-bool CWalletDB::ReadZerocoinAccumulator(libzerocoin::Accumulator& accumulator, libzerocoin::CoinDenomination denomination)
+bool CWalletDB::ReadZerocoinAccumulator(libzerocoin::Accumulator& accumulator, libzerocoin::CoinDenomination denomination, int pubcoinid)
 {
-    return Read(make_pair(std::string("zcaccumulator"), (unsigned int) denomination), accumulator);
+    return Read(boost::make_tuple(std::string("zcaccumulator"), (unsigned int) denomination, pubcoinid), accumulator);
 }
 
 bool CWalletDB::WriteZerocoinEntry(const CZerocoinEntry& zerocoin)

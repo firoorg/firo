@@ -39,6 +39,11 @@ public:
         return true;
     }
 
+    void SetNull()
+    {
+        memset(pn, 0, sizeof(pn));
+    }
+
     const base_uint operator~() const
     {
         base_uint ret;
