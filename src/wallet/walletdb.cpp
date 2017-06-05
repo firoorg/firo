@@ -1261,6 +1261,19 @@ bool AutoBackupWallet (CWallet* wallet, std::string strWalletFile, std::string& 
 
     LogPrintf("Automatic wallet backups are disabled!\n");
     return false;
+//
+// Try to (very carefully!) recover wallet file if there is a problem.
+//
+bool CWalletDB::Recover(const std::string& filename, void *callbackDataIn, bool (*recoverKVcallback)(void* callbackData, CDataStream ssKey, CDataStream ssValue), std::string& out_backup_filename)
+{
+    return CDB::Recover(filename, callbackDataIn, recoverKVcallback, out_backup_filename);
+}
+
+bool CWalletDB::Recover(const std::string& filename, std::string& out_backup_filename)
+{
+    // recover without a key filter callback
+    // results in recovering all record types
+    return CWalletDB::Recover(filename, NULL, NULL, out_backup_filename);
 }
 
 //
