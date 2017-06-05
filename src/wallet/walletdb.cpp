@@ -80,11 +80,9 @@ bool CWalletDB::EraseTx(uint256 hash)
 
 bool CWalletDB::WriteKey(const CPubKey& vchPubKey, const CPrivKey& vchPrivKey, const CKeyMetadata& keyMeta)
 {
-    nWalletDBUpdateCounter++;
-
-    if (!Write(std::make_pair(std::string("keymeta"), vchPubKey),
-               keyMeta, false))
+    if (!WriteIC(std::make_pair(std::string("keymeta"), vchPubKey), keyMeta, false)) {
         return false;
+    }
 
     // hash pubkey/privkey to accelerate wallet load
     std::vector<unsigned char> vchKey;
@@ -102,12 +100,13 @@ bool CWalletDB::WriteCryptedKey(const CPubKey& vchPubKey,
     const bool fEraseUnencryptedKey = true;
     nWalletDBUpdateCounter++;
 
-    if (!Write(std::make_pair(std::string("keymeta"), vchPubKey),
-            keyMeta))
+    if (!WriteIC(std::make_pair(std::string("keymeta"), vchPubKey), keyMeta)) {
         return false;
+    }
 
-    if (!Write(std::make_pair(std::string("ckey"), vchPubKey), vchCryptedSecret, false))
+    if (!WriteIC(std::make_pair(std::string("ckey"), vchPubKey), vchCryptedSecret, false)) {
         return false;
+    }
     if (fEraseUnencryptedKey)
     {
         Erase(std::make_pair(std::string("key"), vchPubKey));
@@ -130,29 +129,22 @@ bool CWalletDB::WriteCScript(const uint160& hash, const CScript& redeemScript)
 
 bool CWalletDB::WriteWatchOnly(const CScript &dest, const CKeyMetadata& keyMeta)
 {
+<<<<<<< HEAD
     nWalletDBUpdateCounter++;
     if (!Write(std::make_pair(std::string("watchmeta"), *(const CScriptBase*)(&dest)), keyMeta))
         return false;
-    return Write(std::make_pair(std::string("watchs"), *(const CScriptBase*)(&dest)), '1');
+>>>>>>> c237bd750e... wallet: Update formatting
 }
 
 bool CWalletDB::EraseWatchOnly(const CScript &dest)
-{
-    nWalletDBUpdateCounter++;
-    if (!Erase(std::make_pair(std::string("watchmeta"), *(const CScriptBase*)(&dest))))
+    if (!EraseIC(std::make_pair(std::string("watchmeta"), *(const CScriptBase*)(&dest)))) {
         return false;
-    return Erase(std::make_pair(std::string("watchs"), *(const CScriptBase*)(&dest)));
-}
-
-bool CWalletDB::WriteBestBlock(const CBlockLocator& locator)
-{
-    nWalletDBUpdateCounter++;
-    Write(std::string("bestblock"), CBlockLocator()); // Write empty block locator so versions that require a merkle branch automatically rescan
+    }
+    return EraseIC(std::make_pair(std::string("watchs"), *(const CScriptBase*)(&dest)));
     return Write(std::string("bestblock_nomerkle"), locator);
 }
 
 bool CWalletDB::ReadBestBlock(CBlockLocator& locator)
-{
     if (Read(std::string("bestblock"), locator) && !locator.vHave.empty()) return true;
     return Read(std::string("bestblock_nomerkle"), locator);
 }
