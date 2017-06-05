@@ -1,7 +1,7 @@
 ---
 name: "osx-qt"
 suites:
-- "trusty"
+- "precise"
 architectures:
 - "i386"
 packages:

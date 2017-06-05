@@ -1,7 +1,7 @@
 ---
 name: "osx-depends"
 suites:
-- "trusty"
+- "precise"
 architectures:
 - "i386"
 packages:
