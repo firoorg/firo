@@ -230,7 +230,6 @@ public:
     std::set<uint256> setKnown;
 
     // Block and TXN accept times
-    std::atomic<int64_t> nLastBlockTime;
     std::atomic<int64_t> nLastTXTime;
 
     // inventory based relay
@@ -275,7 +274,7 @@ public:
         fRelayTxes = false;
         setInventoryKnown.max_size(SendBufferSize() / 1000);
         pfilter = new CBloomFilter();
-
+        nLastTXTime = 0;
         // Be shy and don't send version until we hear
         if (hSocket != INVALID_SOCKET && !fInbound)
             PushVersion();
