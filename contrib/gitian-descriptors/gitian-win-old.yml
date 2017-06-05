@@ -1,0 +1,55 @@
+---
+name: "zcoin"
+suites:
+- "trusty"
+architectures:
+- "amd64"
+packages:
+- "mingw-w64"
+- "g++-mingw-w64"
+- "git-core"
+- "unzip"
+- "nsis"
+- "faketime"
+- "autoconf2.13"
+- "libtool"
+- "automake"
+- "pkg-config"
+- "bsdmainutils"
+
+reference_datetime: "2013-06-01 00:00:00"
+remotes:
+- "url": "https://github.com/zcoinofficial/zcoin.git"
+  "dir": "zcoin"
+  "commit": "sync-fix-0.8.7.7"
+files:
+- "qt-win32-4.8.5-gitian-r7.zip"
+- "boost-win32-1.55.0-gitian-r6.zip"
+- "zcoin-deps-win32-gitian-r16.zip"
+script: |
+  # 
+  INDIR=$HOME/build
+  STAGING=$HOME/staging
+  HOST=i686-w64-mingw32
+  #
+  mkdir -p $STAGING
+  cd $STAGING
+  unzip $INDIR/qt-win32-4.8.5-gitian-r7.zip
+  unzip $INDIR/boost-win32-1.55.0-gitian-r6.zip
+  unzip $INDIR/zcoin-deps-win32-gitian-r16.zip
+  cd $HOME/build/
+  #
+  cd zcoin
+  export PATH=$STAGING/host/bin:$PATH
+  mkdir -p $OUTDIR/src
+  git archive HEAD | tar -x -C $OUTDIR/src
+  cp $OUTDIR/src/doc/README_windows.txt $OUTDIR/readme.txt
+  cp $OUTDIR/src/COPYING $OUTDIR/COPYING.txt
+  export FAKETIME=$REFERENCE_DATETIME
+  export TZ=UTC
+  ln -s $STAGING $HOME/qt
+  $HOME/staging/host/bin/qmake "RELEASE=1" -spec unsupported/win32-g++-cross MINIUPNPC_LIB_PATH=$STAGING MINIUPNPC_INCLUDE_PATH=$STAGING BDB_LIB_PATH=$STAGING BDB_INCLUDE_PATH=$STAGING BOOST_LIB_PATH=$STAGING BOOST_INCLUDE_PATH=$STAGING BOOST_LIB_SUFFIX=-mt-s BOOST_THREAD_LIB_SUFFIX=_win32-mt-s OPENSSL_LIB_PATH=$STAGING OPENSSL_INCLUDE_PATH=$STAGING QRENCODE_LIB_PATH=$STAGING QRENCODE_INCLUDE_PATH=$STAGING USE_QRCODE=1 INCLUDEPATH=$STAGING DEFINES=BOOST_THREAD_USE_LIB BITCOIN_NEED_QT_PLUGINS=1 QMAKE_CXXFLAGS=-frandom-seed=moneta USE_BUILD_INFO=1 USE_SSE2=1 USE_UPNP=1 zcoin.pro
+  make $MAKEOPTS
+  ls -la
+  $HOST-strip release/zcoin-qt.exe
+  cp release/zcoin-qt.exe $OUTDIR/

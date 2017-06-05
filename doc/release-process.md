@@ -62,7 +62,7 @@ Release Process
 	zip -r zcoin-${VERSION}-linux-gitian.zip *
 	mv zcoin-${VERSION}-linux-gitian.zip ../../
 	popd
-	./bin/gbuild --commit zcoin=v${VERSION} ../zcoin/contrib/gitian-descriptors/gitian-win32.yml
+	./bin/gbuild --commit zcoin=v${VERSION} ../zcoin/contrib/gitian-descriptors/gitian-win.yml
 	./bin/gsign --signer $SIGNER --release ${VERSION}-win32 --destination ../gitian.sigs/ ../zcoin/contrib/gitian-descriptors/gitian-win32.yml
 	pushd build/out
 	zip -r zcoin-${VERSION}-win32-gitian.zip *
