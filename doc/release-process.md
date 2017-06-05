@@ -51,6 +51,8 @@ Release Process
 	mv build/out/zcoin-*.zip inputs/
 	./bin/gbuild ../zcoin/contrib/gitian-descriptors/qt-win.yml
 	mv build/out/qt-*.zip inputs/
+	./bin/gbuild ../zcoin/contrib/gitian-descriptors/protobuf-win.yml
+	mv build/out/protobuf-*.zip inputs/
 
  Build zcoind and zcoin-qt on Linux32, Linux64, and Win32:
   
