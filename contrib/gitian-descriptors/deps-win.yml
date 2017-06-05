@@ -48,8 +48,8 @@ script: |
     mkdir -p $INSTALLPREFIX $BUILDDIR
     cd $BUILDDIR
     #
-    tar xzf $INDIR/openssl-1.0.1k.tar.gz
-    cd openssl-1.0.1k
+    tar xzf $INDIR/openssl-1.0.2g.tar.gz
+    cd openssl-1.0.2g
     if [ "$BITS" == "32" ]; then
       OPENSSL_TGT=mingw
     else
