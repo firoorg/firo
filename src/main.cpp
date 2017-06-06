@@ -4600,12 +4600,12 @@ bool LoadBlockIndex()
 
 
 bool InitBlockIndex() {
+    // Initialize global variables that cannot be constructed at startup.
+    recentRejects.reset(new CRollingBloomFilter(120000, 0.000001));
+
     // Check whether we're already initialized
     if (pindexGenesisBlock != NULL)
         return true;
-
-    // Initialize global variables that cannot be constructed at startup.
-    recentRejects.reset(new CRollingBloomFilter(120000, 0.000001));
 
     // Use the provided setting for -txindex in the new database
     fTxIndex = GetBoolArg("-txindex", false);
