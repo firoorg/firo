@@ -33,21 +33,26 @@ Release Process
  Fetch and build inputs: (first time, or when dependency versions change)
 
 	mkdir -p inputs; cd inputs/
-	wget 'http://miniupnp.free.fr/files/download.php?file=miniupnpc-1.9.20140401.tar.gz' -O miniupnpc-1.9.20140401.tar.gz'
-	wget 'http://www.openssl.org/source/openssl-1.0.1g.tar.gz'
+	wget 'http://miniupnp.free.fr/files/download.php?file=miniupnpc-1.9.20140401.tar.gz' -O miniupnpc-1.9.20140401.tar.gz
+	wget 'http://www.openssl.org/source/openssl-1.0.2g.tar.gz'
 	wget 'http://download.oracle.com/berkeley-db/db-4.8.30.NC.tar.gz'
-	wget 'http://zlib.net/zlib-1.2.8.tar.gz'
+	wget 'https://www.zlib.net/fossils/zlib-1.2.8.tar.gz'
 	wget 'ftp://ftp.simplesystems.org/pub/libpng/png/src/history/libpng16/libpng-1.6.8.tar.gz'
 	wget 'http://fukuchi.org/works/qrencode/qrencode-3.4.3.tar.bz2'
 	wget 'http://downloads.sourceforge.net/project/boost/boost/1.55.0/boost_1_55_0.tar.bz2'
-	wget 'http://download.qt-project.org/official_releases/qt/4.8/4.8.5/qt-everywhere-opensource-src-4.8.5.tar.gz'
+	wget -q 'https://svn.boost.org/trac/boost/raw-attachment/ticket/7262/boost-mingw.patch' -O boost-mingw-gas-cross-compile-2013-03-03.patch
+	wget 'http://download.qt.io/archive/qt/5.2/5.2.0/single/qt-everywhere-opensource-src-5.2.0.tar.gz'
+	wget 'ftp://ftp.fi.debian.org/gentoo/distfiles/protobuf-2.5.0.tar.bz2'
 	cd ..
-	./bin/gbuild ../zcoin/contrib/gitian-descriptors/boost-win32.yml
-	mv build/out/boost-win32-1.55.0-gitian2.zip inputs/
-	./bin/gbuild ../zcoin/contrib/gitian-descriptors/qt-win32.yml
-	mv build/out/qt-win32-4.8.5-gitian-r1.zip inputs/
-	./bin/gbuild ../zcoin/contrib/gitian-descriptors/deps-win32.yml
-	mv build/out/zcoin-deps-0.0.5.zip inputs/
+	cd gitian-builder/
+	./bin/gbuild ../zcoin/contrib/gitian-descriptors/boost-win.yml
+	mv build/out/boost-*.zip inputs/
+	./bin/gbuild ../zcoin/contrib/gitian-descriptors/deps-win.yml
+	mv build/out/zcoin-*.zip inputs/
+	./bin/gbuild ../zcoin/contrib/gitian-descriptors/qt-win.yml
+	mv build/out/qt-*.zip inputs/
+	./bin/gbuild ../zcoin/contrib/gitian-descriptors/protobuf-win.yml
+	mv build/out/protobuf-*.zip inputs/
 
  Build zcoind and zcoin-qt on Linux32, Linux64, and Win32:
   
@@ -57,7 +62,7 @@ Release Process
 	zip -r zcoin-${VERSION}-linux-gitian.zip *
 	mv zcoin-${VERSION}-linux-gitian.zip ../../
 	popd
-	./bin/gbuild --commit zcoin=v${VERSION} ../zcoin/contrib/gitian-descriptors/gitian-win32.yml
+	./bin/gbuild --commit zcoin=v${VERSION} ../zcoin/contrib/gitian-descriptors/gitian-win.yml
 	./bin/gsign --signer $SIGNER --release ${VERSION}-win32 --destination ../gitian.sigs/ ../zcoin/contrib/gitian-descriptors/gitian-win32.yml
 	pushd build/out
 	zip -r zcoin-${VERSION}-win32-gitian.zip *
@@ -82,7 +87,7 @@ repackage gitian builds for release as stand-alone zip/tar/installer exe
 
 	unzip zcoin-${VERSION}-win32-gitian.zip -d zcoin-${VERSION}-win32
 	mv zcoin-${VERSION}-win32/zcoin-*-setup.exe .
-	zip -r zcoin-${VERSION}-win32.zip bitcoin-${VERSION}-win32
+	zip -r zcoin-${VERSION}-win32.zip zcoin-${VERSION}-win32
 	rm -rf zcoin-${VERSION}-win32
 
 **Perform Mac build:**
@@ -102,7 +107,7 @@ repackage gitian builds for release as stand-alone zip/tar/installer exe
 ###Next steps:
 
 * Code-sign Windows -setup.exe (in a Windows virtual machine) and
-  OSX Bitcoin-Qt.app (Note: only Gavin has the code-signing keys currently)
+  OSX zcoin-qt.app (Note: only Gavin has the code-signing keys currently)
 
 * upload builds to SourceForge
 

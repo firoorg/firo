@@ -5,6 +5,7 @@
 #ifndef BITCOIN_UINT256_H
 #define BITCOIN_UINT256_H
 
+#include <assert.h>
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
@@ -578,6 +579,12 @@ public:
         for (int i = 2; i < WIDTH; i++)
             pn[i] = 0;
         return *this;
+    }
+
+    uint64_t GetLow64() const
+    {
+        assert(WIDTH >= 2);
+        return pn[0] | (uint64_t)pn[1] << 32;
     }
 
     explicit uint256(const std::string& str)

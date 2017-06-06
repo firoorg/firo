@@ -5,9 +5,17 @@
 #define BITCOIN_CHECKPOINT_H
 
 #include <map>
+#include <boost/unordered_map.hpp>
+#include "uint256.h"
 
-class uint256;
 class CBlockIndex;
+
+struct BlockHasher
+{
+    size_t operator()(const uint256& hash) const { return hash.GetLow64(); }
+};
+
+typedef boost::unordered_map<uint256, CBlockIndex*, BlockHasher> BlockMap;
 
 /** Block-chain checkpoints are compiled-in sanity checks.
  * They are updated every release or three.
@@ -21,7 +29,7 @@ namespace Checkpoints
     int GetTotalBlocksEstimate();
 
     // Returns last CBlockIndex* in mapBlockIndex that is a checkpoint
-    CBlockIndex* GetLastCheckpoint(const std::map<uint256, CBlockIndex*>& mapBlockIndex);
+    CBlockIndex* GetLastCheckpoint(BlockMap mapBlockIndex);
 
     double GuessVerificationProgress(CBlockIndex *pindex);
 }

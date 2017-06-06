@@ -1,5 +1,5 @@
 ---
-name: "zcoin-deps"
+name: "bitcoin"
 suites:
 - "precise"
 architectures:
