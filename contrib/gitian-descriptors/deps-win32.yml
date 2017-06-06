@@ -14,7 +14,7 @@ packages:
 reference_datetime: "2011-01-30 00:00:00"
 remotes: []
 files:
-- "openssl-1.0.2g.tar.gz"
+- "openssl-1.0.1i.tar.gz"
 - "db-4.8.30.NC.tar.gz"
 - "miniupnpc-1.9.20140401.tar.gz"
 - "zlib-1.2.8.tar.gz"
@@ -28,7 +28,7 @@ script: |
   export INSTALLPREFIX=$OUTDIR/staging/deps
   export HOST=i686-w64-mingw32
   # Integrity Check
-  echo "b784b1b3907ce39abf4098702dade6365522a253ad1552e267a9a0e89594aa33  openssl-1.0.2g.tar.gz"  | sha256sum -c
+  echo "3c179f46ca77069a6a0bac70212a9b3b838b2f66129cb52d568837fc79d8fcc7  openssl-1.0.1i.tar.gz"  | sha256sum -c
   echo "12edc0df75bf9abd7f82f821795bcee50f42cb2e5f76a6a281b85732798364ef  db-4.8.30.NC.tar.gz"    | sha256sum -c
   echo "d02670112125300f7a3d61421714d99105edd90190bf12542d16785f16f017aa  miniupnpc-1.9.20140401.tar.gz"   | sha256sum -c
   echo "36658cb768a54c1d4dec43c3116c27ed893e88b02ecfcb44f2166f9c0b7f2a0d  zlib-1.2.8.tar.gz"      | sha256sum -c
@@ -36,8 +36,8 @@ script: |
   echo "dfd71487513c871bad485806bfd1fdb304dedc84d2b01a8fb8e0940b50597a98  qrencode-3.4.3.tar.bz2" | sha256sum -c
   #
   mkdir -p $INSTALLPREFIX
-  tar xzf openssl-1.0.2g.tar.gz
-  cd openssl-1.0.2g
+  tar xzf openssl-1.0.1i.tar.gz
+  cd openssl-1.0.1i
   ./Configure --cross-compile-prefix=$HOST- mingw --openssldir=$INSTALLPREFIX
   make
   make install_sw
