@@ -58,6 +58,7 @@ LIBS += -l mingwthrd -l kernel32 -l user32 -l gdi32 -l comdlg32 -l winspool -l w
 HEADERS = $(wildcard *.h)
 
 OBJS= \
+    cryptopp/libcryptopp.a \
     leveldb/libleveldb.a \
     obj/alert.o \
     obj/version.o \
@@ -90,6 +91,7 @@ OBJS= \
     obj/bloom.o \
     obj/leveldb.o \
     obj/txdb.o \
+    obj/keccak.o \
     obj/libzerocoin/Accumulator.o \
     obj/libzerocoin/AccumulatorProofOfKnowledge.o \
     obj/libzerocoin/Coin.o \
@@ -98,11 +100,7 @@ OBJS= \
     obj/libzerocoin/ParamGeneration.o \
     obj/libzerocoin/Params.o \
     obj/libzerocoin/SerialNumberSignatureOfKnowledge.o \
-    obj/libzerocoin/SpendMetaData.o \
-    Lyra2Z/blake.o \
-    Lyra2Z/Lyra2.o \
-    Lyra2Z/Lyra2Z.o \
-    Lyra2Z/Sponge.o
+    obj/libzerocoin/SpendMetaData.o
 
 ifdef USE_SSE2
 DEFS += -DUSE_SSE2

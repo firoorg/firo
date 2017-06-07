@@ -79,6 +79,7 @@ CFLAGS += -Wall -Wextra -Wformat -Wformat-security -Wno-unused-parameter \
     $(DEBUGFLAGS) $(DEFS) $(INCLUDEPATHS) -Wno-deprecated
 
 OBJS= \
+    cryptopp/libcryptopp.a \
     leveldb/libleveldb.a \
     obj/alert.o \
     obj/version.o \
@@ -111,6 +112,7 @@ OBJS= \
     obj/noui.o \
     obj/leveldb.o \
     obj/txdb.o \
+    obj/keccak.o \
     obj/libzerocoin/Accumulator.o \
     obj/libzerocoin/AccumulatorProofOfKnowledge.o \
     obj/libzerocoin/Coin.o \
@@ -119,11 +121,7 @@ OBJS= \
     obj/libzerocoin/ParamGeneration.o \
     obj/libzerocoin/Params.o \
     obj/libzerocoin/SerialNumberSignatureOfKnowledge.o \
-    obj/libzerocoin/SpendMetaData.o \
-    Lyra2Z/blake.o \
-    Lyra2Z/Lyra2.o \
-    Lyra2Z/Lyra2Z.o \
-    Lyra2Z/Sponge.o
+    obj/libzerocoin/SpendMetaData.o
 
 ifdef USE_SSE2
 DEFS += -DUSE_SSE2
@@ -193,9 +191,6 @@ obj/%.o: %.cpp
 	  sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' \
 	      -e '/^$$/ d' -e 's/$$/ :/' < $(@:%.o=%.d) >> $(@:%.o=%.P); \
 	  rm -f $(@:%.o=%.d)
-
-Lyra2Z/%.o: Lyra2Z/%.c
-	$(CC) -c -O3 -o $@ $<
 
 smartcashd: $(OBJS:obj/%=obj/%)
 	$(CXX) $(CFLAGS) -o $@ $(LIBPATHS) $^ $(LIBS)
