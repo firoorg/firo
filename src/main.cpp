@@ -43,15 +43,15 @@ CTxMemPool mempool;
 unsigned int nTransactionsUpdated = 0;
 
 map<uint256, CBlockIndex*> mapBlockIndex;
-uint256 hashGenesisBlock("0x000000d044166864eb3ba78adf41ff8083b6e7672c0cef4206109f9aacb31ccf");
-static CBigNum bnProofOfWorkLimit(~uint256(0) >> 19); // smartcash: starting difficulty
+uint256 hashGenesisBlock("0x000007acc6970b812948d14ea5a0a13db0fdd07d5047c7e69101fa8b361e05a4");
+static CBigNum bnProofOfWorkLimit(~uint256(0) >> 20); // smartcash: starting difficulty
 CBlockIndex* pindexGenesisBlock = NULL;
 int nBestHeight = -1;
 uint256 nBestChainWork = 0;
 uint256 nBestInvalidWork = 0;
 uint256 hashBestChain = 0;
 //uint32_t nVertcoinChainStartTime = 1389306217;
-int64 nStartRewardTime = 1475020800; // 09/28/2016 @ 12:00am (UTC)
+int64 nStartRewardTime = 1496467978; // 09/28/2016 @ 12:00am (UTC)
 CBlockIndex* pindexBest = NULL;
 set<CBlockIndex*, CBlockIndexWorkComparator> setBlockIndexValid; // may contain all CBlockIndex*'s that have validness >=BLOCK_VALID_TRANSACTIONS, and must contain those who aren't failed
 int64 nTimeBestReceived = 0;
@@ -868,7 +868,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                             }
                                             countPubcoin++;
                                             accumulatorRev += pubCoinTemp;
-                                            if (countPubcoin >= 2) { // MINIMUM REQUIREMENT IS 2 PUBCOINS
+                                            if (countPubcoin >= 1) { // MINIMUM REQUIREMENT IS 1 PUBCOINS (changed from 2)
                                                 if (newSpend.Verify(accumulatorRev, newMetadata)) {
                                                     printf("COIN SPEND TX DID VERIFY!\n");
                                                     passVerify = true;
@@ -1011,7 +1011,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                         }
                                         countPubcoin++;
                                         accumulator += pubCoinTemp;
-                                        if (countPubcoin >= 2) { // MINIMUM REQUIREMENT IS 2 PUBCOINS
+                                        if (countPubcoin >= 1) { // MINIMUM REQUIREMENT IS 1 PUBCOINS (changed from default of 2)
                                             if (newSpend.Verify(accumulator, newMetadata)) {
                                                 printf("COIN SPEND TX DID VERIFY!\n");
                                                 passVerify = true;
@@ -1040,7 +1040,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                             }
                                             countPubcoin++;
                                             accumulatorRev += pubCoinTemp;
-                                            if (countPubcoin >= 2) { // MINIMUM REQUIREMENT IS 2 PUBCOINS
+                                            if (countPubcoin >= 1) { // MINIMUM REQUIREMENT IS 1 PUBCOINS (changed from 2 as default)
                                                 if (newSpend.Verify(accumulatorRev, newMetadata)) {
                                                     printf("COIN SPEND TX DID VERIFY!\n");
                                                     passVerify = true;
@@ -1183,7 +1183,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                         }
                                         countPubcoin++;
                                         accumulator += pubCoinTemp;
-                                        if (countPubcoin >= 2) { // MINIMUM REQUIREMENT IS 2 PUBCOINS
+                                        if (countPubcoin >= 1) { // MINIMUM REQUIREMENT IS 1 PUBCOINS (changed from default of 2)
                                             if (newSpend.Verify(accumulator, newMetadata)) {
                                                 printf("COIN SPEND TX DID VERIFY!\n");
                                                 passVerify = true;
@@ -1212,7 +1212,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                             }
                                             countPubcoin++;
                                             accumulatorRev += pubCoinTemp;
-                                            if (countPubcoin >= 2) { // MINIMUM REQUIREMENT IS 2 PUBCOINS
+                                            if (countPubcoin >= 1) { // MINIMUM REQUIREMENT IS 1 PUBCOINS (changed from default of 2)
                                                 if (newSpend.Verify(accumulatorRev, newMetadata)) {
                                                     printf("COIN SPEND TX DID VERIFY!\n");
                                                     passVerify = true;
@@ -1354,7 +1354,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                         }
                                         countPubcoin++;
                                         accumulator += pubCoinTemp;
-                                        if (countPubcoin >= 2) { // MINIMUM REQUIREMENT IS 2 PUBCOINS
+                                        if (countPubcoin >= 1) { // MINIMUM REQUIREMENT IS 1 PUBCOINS (changed from default of 2)
                                             if (newSpend.Verify(accumulator, newMetadata)) {
                                                 printf("COIN SPEND TX DID VERIFY!\n");
                                                 passVerify = true;
@@ -1383,7 +1383,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                             }
                                             countPubcoin++;
                                             accumulatorRev += pubCoinTemp;
-                                            if (countPubcoin >= 2) { // MINIMUM REQUIREMENT IS 2 PUBCOINS
+                                            if (countPubcoin >= 1) { // MINIMUM REQUIREMENT IS 1 PUBCOINS (changed from default of 2)
                                                 if (newSpend.Verify(accumulatorRev, newMetadata)) {
                                                     printf("COIN SPEND TX DID VERIFY!\n");
                                                     passVerify = true;
@@ -1526,7 +1526,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                         }
                                         countPubcoin++;
                                         accumulator += pubCoinTemp;
-                                        if (countPubcoin >= 2) { // MINIMUM REQUIREMENT IS 2 PUBCOINS
+                                        if (countPubcoin >= 1) { // MINIMUM REQUIREMENT IS 1 PUBCOINS (changed from default of 2)
                                             if (newSpend.Verify(accumulator, newMetadata)) {
                                                 printf("COIN SPEND TX DID VERIFY!\n");
                                                 passVerify = true;
@@ -1555,7 +1555,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                             }
                                             countPubcoin++;
                                             accumulatorRev += pubCoinTemp;
-                                            if (countPubcoin >= 2) { // MINIMUM REQUIREMENT IS 2 PUBCOINS
+                                            if (countPubcoin >= 1) { // MINIMUM REQUIREMENT IS 1 PUBCOINS (changed from default of 2)
                                                 if (newSpend.Verify(accumulatorRev, newMetadata)) {
                                                     printf("COIN SPEND TX DID VERIFY!\n");
                                                     passVerify = true;
@@ -2257,29 +2257,30 @@ int64 static GetBlockValue(int nHeight, int64 nFees, unsigned int nTime)
 	return nSubsidy + nFees;
 }
 */
-static const int64 nTargetTimespan = 2 * 55; //1 minutes between retargets
+static const int64 nTargetTimespan = 2 * 55; //1 minute 50 seconds between retargets
 static const int64 nTargetSpacing = 55; // 55 second blocks
-static const int64 nInterval = nTargetTimespan / nTargetSpacing; // retargets every 1.09 blocks
+static const int64 nInterval = nTargetTimespan / nTargetSpacing; // retargets every 2 blocks
 
 //
 // minimum amount of work that could possibly be required nTime after
 // minimum work required was nBase
 //
+
 unsigned int ComputeMinWork(unsigned int nBase, int64 nTime)
 {
     // Testnet has min-difficulty blocks
     // after nTargetSpacing*6 time between blocks:
-//    if (fTestNet && nTime > nTargetSpacing*6)
-//        return bnProofOfWorkLimit.GetCompact();
+    if (fTestNet && nTime > nTargetSpacing*2)
+        return bnProofOfWorkLimit.GetCompact();
 
     CBigNum bnResult;
     bnResult.SetCompact(nBase);
     while (nTime > 0 && bnResult < bnProofOfWorkLimit)
     {
-        // Maximum 200% adjustment...
-        bnResult *= 2;
+        // Maximum 400% adjustment...
+        bnResult *= 4;
         // ... in best-case exactly 4-times-normal target time
-        nTime -= nTargetTimespan*4;
+        nTime -= nTargetTimespan;
     }
     if (bnResult > bnProofOfWorkLimit)
         bnResult = bnProofOfWorkLimit;
@@ -2360,7 +2361,7 @@ unsigned int static BorisRidiculouslyNamedDifficultyFunction(const CBlockIndex* 
     if (bnNew > bnProofOfWorkLimit) { bnNew = bnProofOfWorkLimit; }
     
       
-/* debug print
+// debug print
     printf("Difficulty Retarget - Boris's Ridiculously Named Difficulty Function\n");
     printf("nHeight = %i\n", pindexLast->nHeight);
     printf("nPastBlocks = %u\n", nPastBlocks);
@@ -2371,7 +2372,7 @@ unsigned int static BorisRidiculouslyNamedDifficultyFunction(const CBlockIndex* 
     printf("Before: %08x %.8f\n", BlockLastSolved->nBits, GetDifficultyHelper(BlockLastSolved->nBits));
     printf("After: %08x %.8f\n", bnNew.GetCompact(), GetDifficultyHelper(bnNew.GetCompact()));
     printf("Ratio After/Before: %.8f\n", GetDifficultyHelper(bnNew.GetCompact()) / GetDifficultyHelper(BlockLastSolved->nBits));
-*/
+
     return bnNew.GetCompact();
 }
 
@@ -2383,12 +2384,12 @@ unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBl
         return bnProofOfWorkLimit.GetCompact();
     }
 
-    return bnProofOfWorkLimit.GetCompact();
+//    return bnProofOfWorkLimit.GetCompact();
 
     static const uint32_t        BlocksTargetSpacing                        = 55; // 55 Seconds
         unsigned int                TimeDaySeconds                                = 60 * 60 * 24; // 86400 Seconds
-        int64                                PastSecondsMin                                = TimeDaySeconds * .005; // 7 minutes
-        int64                                PastSecondsMax                                = TimeDaySeconds * .07; // 1.7 Hours
+        int64                                PastSecondsMin                                = TimeDaySeconds * .0005; // 7 minutes
+        int64                                PastSecondsMax                                = TimeDaySeconds * .007; // 1.7 Hours
         uint32_t                                PastBlocksMin                                = PastSecondsMin / BlocksTargetSpacing; // 36 blocks
         uint32_t                                PastBlocksMax                                = PastSecondsMax / BlocksTargetSpacing; // 1008 blocks
 /*
@@ -2415,12 +2416,12 @@ unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBl
     if ( (!fTestNet && pindexLast->nHeight + 1 == 20500) || (fTestNet && pindexLast->nHeight + 1 == 90) ) {
         CBigNum bnNew;
         bnNew.SetCompact(pindexLast->nBits);
-        bnNew /= 20000; // increase the diff by 20000x since the new hashrate is approx. 20000 times higher
+        bnNew /= 20000000; // increase the diff by 20000x since the new hashrate is approx. 20000 times higher
         printf("Lyra2Z HF - Before: %08x %.8f\n", pindexLast->nBits, GetDifficultyHelper(pindexLast->nBits));
         printf("Lyra2Z HF - After: %08x %.8f\n", bnNew.GetCompact(), GetDifficultyHelper(bnNew.GetCompact()));
         if (bnNew > bnProofOfWorkLimit) { bnNew = bnProofOfWorkLimit; } // safe threshold
         return bnNew.GetCompact();
-    }
+//    }
 */
   	if ((pindexLast->nHeight+1) % nInterval != 0) // Retarget every nInterval blocks
     {
@@ -3528,7 +3529,7 @@ bool CBlockHeader::CheckProofOfWork(int nHeight) const
           // Check proof of work matches claimed amount
             if (!::CheckProofOfWork(GetPoWHash(nHeight), nBits))
                 return error("CheckProofOfWork() : proof of work failed - 1");
-        }
+//        }
     }
     else
     {
@@ -3537,7 +3538,8 @@ bool CBlockHeader::CheckProofOfWork(int nHeight) const
         {
             return error("CheckProofOfWork() : AUX POW is not allowed at this block");
         }
-*/
+
+
         // Check if proof of work marches claimed amount
         uint256 phash = GetPoWHash();
         if (phash == 0)
@@ -3546,7 +3548,7 @@ bool CBlockHeader::CheckProofOfWork(int nHeight) const
         if (!::CheckProofOfWork(phash, nBits))
             return error("CheckProofOfWork() : proof of work failed - 2");
 //    }
-    return true;
+*/    return true;
 }
 
 bool FindBlockPos(CValidationState &state, CDiskBlockPos &pos, unsigned int nAddSize, unsigned int nHeight, uint64 nTime, bool fKnown = false)
@@ -4321,7 +4323,7 @@ bool LoadBlockIndex()
         pchMessageStart[1] = 0xfc;
         pchMessageStart[2] = 0xbe;
         pchMessageStart[3] = 0xea;
-        hashGenesisBlock = uint256("0x");
+        hashGenesisBlock = uint256("0x0000027235b5679bcd28c90d03d4bf1a9ba4c07c4efcc1c87d6c68cce25e6e5d");
 //        hashGenesisBlock = uint256("0x6c88eb567e5ea876b7082c16a07041bf6c1eb0cb42389323f73a908f9f32b2af");
     }
 
@@ -4349,7 +4351,7 @@ bool InitBlockIndex() {
     if (!fReindex) {
 
         // Genesis block
-        const char* pszTimestamp = "Times 2017/4/9 On Eve of Trip, Tillerson Takes a Hard Line Against Russia";
+        const char* pszTimestamp = "SmartCash, Communinty Driven Cash";
         CTransaction txNew;
         vector<unsigned char> extraNonce(4);
         unsigned int startBits;
@@ -4380,15 +4382,15 @@ bool InitBlockIndex() {
         block.hashPrevBlock = 0;
         block.hashMerkleRoot = block.BuildMerkleTree();
         block.nVersion = 2;
-        block.nTime    = 1491784405; // Mon, 10 Apr 2017 00:33:25 GMT
+        block.nTime    = 1496467978; // Mon, 10 Apr 2017 00:33:25 GMT
         block.nBits    = startBits;
-        block.nNonce   = 1213262;
+        block.nNonce   = 245887;
 
         if (fTestNet)
         {
 //            block.nTime    = 1485946800; // 1-Feb-2017 12:00:00 UTC
-            block.nTime    = 1491784405; // Mon, 10 Apr 2017 00:33:25 GMT
-            block.nNonce   = 1013800;
+            block.nTime    = 1496467978; // Mon, 10 Apr 2017 00:33:25 GMT
+            block.nNonce   = 420977;
         }
 
         //// debug print
@@ -4399,9 +4401,9 @@ bool InitBlockIndex() {
 
         uint256 genMerkleRoot;
         if(fTestNet)
-            genMerkleRoot.SetHex("0x");
+            genMerkleRoot.SetHex("0xb344094bc70d6a82c2c33f6d21005b78d83524b4f976b8eacf0e71ccc6488aee");
         else
-            genMerkleRoot.SetHex("0xbbe5f4e8a8f1d70287442581ad205100b5ad0affffc4c3889308098f6940b042");
+            genMerkleRoot.SetHex("0xb79187d8ce4d5ec398730dd34276248f1e7b09d98ca29b829e5e5e67ff21d462");
         
 
         assert(block.hashMerkleRoot == genMerkleRoot);
@@ -6309,8 +6311,8 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
     }
 
     uint256 hash = pblock->GetPoWHash();
-    if (hash == 0)
-        return error("CheckWork() : Out of memory");
+//    if (hash == 0)
+//        return error("CheckWork() : Out of memory");
 
     uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
     if (hash > hashTarget)
