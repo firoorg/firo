@@ -130,7 +130,7 @@ obj/%.o: %.cpp $(HEADERS)
 	$(CXX) -c $(xCXXFLAGS) -o $@ $<
 
 cryptopp/libcryptopp.a:
-        @$(MAKE) -C cryptopp static
+	@$(MAKE) -C cryptopp static
 
 smartcashd.exe: $(OBJS:obj/%=obj/%)
 	$(CXX) $(xCXXFLAGS) $(xLDFLAGS) -o $@ $(LIBPATHS) $^ $(LIBS)
