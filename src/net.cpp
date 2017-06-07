@@ -119,17 +119,47 @@ bool GetLocal(CService& addr, const CNetAddr *paddrPeer)
 }
 
 // get best local address for a particular peer as a CAddress
+// Otherwise, return the unroutable 0.0.0.0 but filled in with
+// the normal parameters, since the IP may be changed to a useful
+// one by discovery.
 CAddress GetLocalAddress(const CNetAddr *paddrPeer)
 {
-    CAddress ret(CService("0.0.0.0",0),0);
+    CAddress ret(CService(CNetAddr(),GetListenPort()));
     CService addr;
     if (GetLocal(addr, paddrPeer))
     {
         ret = CAddress(addr);
-        ret.nServices = nLocalServices;
-        ret.nTime = GetAdjustedTime();
     }
+    ret.nTime = GetAdjustedTime();
     return ret;
+}
+
+int GetnScore(const CService& addr)
+{
+    LOCK(cs_mapLocalHost);
+    if (mapLocalHost.count(addr) == LOCAL_NONE)
+        return 0;
+    return mapLocalHost[addr].nScore;
+}
+
+// Is our peer's addrLocal potentially useful as an external IP source?
+bool IsPeerAddrLocalGood(CNode *pnode)
+{
+    CService addrLocal = pnode->GetAddrLocal();
+    return fDiscover && pnode->addr.IsRoutable() && addrLocal.IsRoutable() &&
+           !IsLimited(addrLocal.GetNetwork());
+}
+
+CService CNode::GetAddrLocal() const {
+    //LOCK(cs_addrLocal);
+    return addrLocal;
+}
+
+void CNode::SetAddrLocal(const CService& addrLocalIn) {
+    //LOCK(cs_addrLocal);
+    if (!addrLocal.IsValid()) {    
+        addrLocal = addrLocalIn;
+    }
 }
 
 bool RecvLine(SOCKET hSocket, string& strLine)
@@ -182,21 +212,24 @@ bool RecvLine(SOCKET hSocket, string& strLine)
     }
 }
 
-// used when scores of local addresses may have changed
-// pushes better local address to peers
-void static AdvertizeLocal()
+// pushes our own address to a peer
+void AdvertiseLocal(CNode *pnode)
 {
-    LOCK(cs_vNodes);
-    BOOST_FOREACH(CNode* pnode, vNodes)
+    if (!fNoListen && pnode->fSuccessfullyConnected)
     {
-        if (pnode->fSuccessfullyConnected)
+        CAddress addrLocal = GetLocalAddress(&pnode->addr);
+        // If discovery is enabled, sometimes give our peer the address it
+        // tells us that it sees us as in case it has a better idea of our
+        // address than we do.
+        if (IsPeerAddrLocalGood(pnode) && (!addrLocal.IsRoutable() ||
+             GetRand((GetnScore(addrLocal) > LOCAL_MANUAL) ? 8:2) == 0))
         {
-            CAddress addrLocal = GetLocalAddress(&pnode->addr);
-            if (addrLocal.IsRoutable() && (CService)addrLocal != (CService)pnode->addrLocal)
-            {
-                pnode->PushAddress(addrLocal);
-                pnode->addrLocal = addrLocal;
-            }
+            addrLocal.SetIP(pnode->GetAddrLocal());
+        }
+        if (addrLocal.IsRoutable())
+        {
+            //printf("net", "AdvertiseLocal: advertising address %s\n", addrLocal.ToString());
+            pnode->PushAddress(addrLocal);
         }
     }
 }
@@ -233,8 +266,6 @@ bool AddLocal(const CService& addr, int nScore)
         }
         SetReachable(addr.GetNetwork());
     }
-
-    AdvertizeLocal();
 
     return true;
 }
@@ -273,9 +304,6 @@ bool SeenLocal(const CService& addr)
             return false;
         mapLocalHost[addr].nScore++;
     }
-
-    AdvertizeLocal();
-
     return true;
 }
 
@@ -1079,15 +1107,15 @@ void ThreadMapPort()
     struct UPNPDev * devlist = 0;
     char lanaddr[64];
 
-#ifndef UPNPDISCOVER_SUCCESS
-    /* miniupnpc 1.5 */
-    devlist = upnpDiscover(2000, multicastif, minissdpdpath, 0);
-#else
-    /* miniupnpc 1.6 */
+// see apiversions.txt in miniupnpc
+#if MINIUPNPC_API_VERSION >= 14
     int error = 0;
-    // remove the 2 if you have trouble compiling - I had to add it for miniupnpc 2.0
-    //devlist = upnpDiscover(2000, multicastif, minissdpdpath, 0, 0, 2, &error);
+    devlist = upnpDiscover(2000, multicastif, minissdpdpath, 0, 0, 2, &error);
+#elif defined UPNPDISCOVER_SUCCESS
+    int error = 0;
     devlist = upnpDiscover(2000, multicastif, minissdpdpath, 0, 0, &error);
+#else
+    devlist = upnpDiscover(2000, multicastif, minissdpdpath, 0);
 #endif
 
     struct UPNPUrls urls;
@@ -1252,7 +1280,30 @@ void ThreadDNSAddressSeed()
 
 unsigned int pnSeed[] =
 {
-    0x34bb2958, 0x34b22272, 0x284c48d2
+    0x34bb2958, 0x34b22272, 0x284c48d2, 0x010a8878,
+    0x010a8854, 0x68ed0421, 0x6e5001fa, 0x704a39c2,
+    0x714efdbe, 0x72d72ed0, 0x73ca9f1c, 0x73d7e9a2,
+    0x73d8b17e, 0x7596b911, 0x76be4d45, 0x7782e589,
+    0x77893560, 0x7789374c, 0x773150e0, 0x784d393f,
+    0x79db7b43, 0x7928763e, 0x7b740689, 0x7d6f8d02,
+    0x7d242fef, 0x0d5b2dfa, 0x8682ac58, 0x86c417ee,
+    0x88f3329f, 0x8b3be656, 0x8ce0749d, 0x904ced27,
+    0x9e457e9c, 0x9e45f85d, 0xac682d73, 0xadefd429,
+    0xae4c9ec2, 0xaf9157c8, 0xb0e28fc7, 0xb637d267,
+    0xb7595fb4, 0xb8a481ca, 0xb98d1b95, 0xb959f43f,
+    0xc2e40b90, 0xd5fe6742, 0xd86364ca, 0xd94f2e9f,
+    0xd94f2e9f, 0xdb837aee, 0xdc82eae2, 0xdca0c426,
+    0xdd0b1685, 0xdea11aeb, 0xde5c48ae, 0xdf49ea1c,
+    0x1b985be9, 0x1f0a9de8, 0x1f862769, 0x22c182dd,
+    0x22ca06ce, 0x22e083f8, 0x239c545a, 0x242f89ed,
+    0x253b180f, 0x276d7d49, 0x284c48d2, 0x2be98289,
+    0x2e00c010, 0x2e79c64a, 0x2ea6cc3e, 0x2f95241d,
+    0x2f3400c1, 0x2f5a1703, 0x31230c06, 0x34a60b6c,
+    0x34a90b6d, 0x34b22272, 0x34bb1634, 0x34bb2958,
+    0x34063da3, 0x3ba8a876, 0x3d64127d, 0x41be2593,
+    0x420bb276, 0x497840f9, 0x4ad058a2, 0x4e9d1850,
+    0x4e5e20c2, 0x5096a322, 0x54d03240, 0x54195ae4,
+    0x598e28dc, 0x5c3f39aa, 0x5d327298
 };
 
 void DumpAddresses()
@@ -1903,4 +1954,8 @@ void RelayTransaction(const CTransaction& tx, const uint256& hash, const CDataSt
         } else
             pnode->PushInventory(inv);
     }
+}
+
+int64_t PoissonNextSend(int64_t nNow, int average_interval_seconds) {
+    return nNow + (int64_t)(log1p(GetRand(1ULL << 48) * -0.0000000000000035527136788 /* -1/2^48 */) * average_interval_seconds * -1000000.0 + 0.5);
 }

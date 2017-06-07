@@ -21,7 +21,6 @@ script: |
   # Input Integrity Check
   echo "fff00023dd79486d444c8e29922f4072e1d451fc5a4d2b6075852ead7f2b7b52  boost_1_55_0.tar.bz2" | shasum -c
   echo "d2b7f6a1d7051faef3c9cf41a92fa3671d905ef1e1da920d07651a43299f6268  boost-mingw-gas-cross-compile-2013-03-03.patch" | shasum -c
-
   mkdir -p "$INSTALLPREFIX"
   tar xjf boost_1_55_0.tar.bz2
   cd boost_1_55_0

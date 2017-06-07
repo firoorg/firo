@@ -42,7 +42,7 @@ CBlockIndex *CCoinsViewDB::GetBestBlock() {
     uint256 hashBestChain;
     if (!db.Read('B', hashBestChain))
         return NULL;
-    std::map<uint256, CBlockIndex*>::iterator it = mapBlockIndex.find(hashBestChain);
+    BlockMap::iterator it = mapBlockIndex.find(hashBestChain);
     if (it == mapBlockIndex.end())
         return NULL;
     return it->second;
