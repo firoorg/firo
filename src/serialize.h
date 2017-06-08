@@ -22,7 +22,6 @@
 #include "allocators.h"
 #include "version.h"
 #include "argon2/core.h"
-#include "merkletree/merkletree.h"
 
 typedef long long  int64;
 typedef unsigned long long  uint64;
@@ -133,7 +132,7 @@ template<typename Stream> inline void Serialize(Stream& s, const block_with_offs
         }
         WRITEDATA(s, a[r].memory.prev_block);
         WRITEDATA(s, a[r].memory.ref_block);
-        WRITEDATA(s, a[r].offset);
+        WRITEDATA(s, a[r].proof);
     }
 }
 
@@ -146,36 +145,10 @@ template<typename Stream> inline void Unserialize(Stream& s, block_with_offset a
         }
         READDATA(s, a[r].memory.prev_block);
         READDATA(s, a[r].memory.ref_block);
-        READDATA(s, a[r].offset);
+        READDATA(s, a[r].proof);
     }
 
 }
-
-// merkel tree
-inline unsigned int GetSerializeSize(const uint8_t data[2048][32], int, int=0){
-    return sizeof(uint8_t) * 2048 * 32;
-}
-
-template<typename Stream> inline void Serialize(Stream& s, const uint8_t a[2048][32], int, int=0)
-{
-    int i,j;
-    for(i = 0; i < 2048; i++){
-        for(j = 0; j < 32; j++){
-            WRITEDATA(s, a[i][j]);
-        }
-    }
-}
-
-template<typename Stream> inline void Unserialize(Stream& s, uint8_t a[2048][32], int, int=0)
-{
-    int i,j;
-    for(i = 0; i < 2048; i++){
-        for(j = 0; j < 32; j++){
-            READDATA(s, a[i][j]);
-        }
-    }
-}
-
 
 template<typename Stream> inline void Serialize(Stream& s, char a,           int, int=0) { WRITEDATA(s, a); }
 template<typename Stream> inline void Serialize(Stream& s, signed char a,    int, int=0) { WRITEDATA(s, a); }

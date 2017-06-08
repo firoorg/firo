@@ -64,7 +64,7 @@ typedef struct block_ { uint64_t v[ARGON2_QWORDS_IN_BLOCK]; uint64_t prev_block;
 
 typedef struct block_with_offset_ {
     block memory;
-    uint64_t offset;
+    char* proof;
 } block_with_offset;
 
 

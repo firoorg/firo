@@ -6365,7 +6365,7 @@ CBlockHeader CBlockIndex::GetBlockHeader() const
     block.nNonce         = nNonce;
     if(block.CURRENT_VERSION == 3){
         memcpy(&block.blockhashInBlockchain, blockhashInBlockchain, 140 * sizeof(block_with_offset) );
-        memcpy(&block.elementsInMerkleRoot, elementsInMerkleRoot, 2048 * 32 * sizeof(uint8_t) );
+        block.mtpMerkleRoot = mtpMerkleRoot;
     }
     return block;
 }

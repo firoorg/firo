@@ -175,6 +175,7 @@ HEADERS += src/qt/bitcoingui.h \
     src/uint256.h \
     src/serialize.h \
     src/main.h \
+    src/mtp.h \
     src/net.h \
     src/key.h \
     src/db.h \
@@ -250,6 +251,73 @@ HEADERS += src/qt/bitcoingui.h \
     src/libzerocoin/SerialNumberSignatureOfKnowledge.h \
     src/libzerocoin/SpendMetaData.h \
     src/libzerocoin/Zerocoin.h \
+    src/argon2/blake2/blamka-round-ref.h \
+    src/leveldb/db/builder.h \
+    src/leveldb/db/db_impl.h \
+    src/leveldb/db/db_iter.h \
+    src/leveldb/db/dbformat.h \
+    src/leveldb/db/filename.h \
+    src/leveldb/db/log_format.h \
+    src/leveldb/db/log_reader.h \
+    src/leveldb/db/log_writer.h \
+    src/leveldb/db/memtable.h \
+    src/leveldb/db/skiplist.h \
+    src/leveldb/db/snapshot.h \
+    src/leveldb/db/table_cache.h \
+    src/leveldb/db/version_edit.h \
+    src/leveldb/db/version_set.h \
+    src/leveldb/db/write_batch_internal.h \
+    src/leveldb/helpers/memenv/memenv.h \
+    src/leveldb/include/leveldb/c.h \
+    src/leveldb/include/leveldb/cache.h \
+    src/leveldb/include/leveldb/comparator.h \
+    src/leveldb/include/leveldb/db.h \
+    src/leveldb/include/leveldb/env.h \
+    src/leveldb/include/leveldb/filter_policy.h \
+    src/leveldb/include/leveldb/iterator.h \
+    src/leveldb/include/leveldb/options.h \
+    src/leveldb/include/leveldb/slice.h \
+    src/leveldb/include/leveldb/status.h \
+    src/leveldb/include/leveldb/table.h \
+    src/leveldb/include/leveldb/table_builder.h \
+    src/leveldb/include/leveldb/write_batch.h \
+    src/leveldb/port/win/stdint.h \
+    src/leveldb/port/atomic_pointer.h \
+    src/leveldb/port/port.h \
+    src/leveldb/port/port_example.h \
+    src/leveldb/port/port_posix.h \
+    src/leveldb/port/port_win.h \
+    src/leveldb/port/thread_annotations.h \
+    src/leveldb/table/block.h \
+    src/leveldb/table/block_builder.h \
+    src/leveldb/table/filter_block.h \
+    src/leveldb/table/format.h \
+    src/leveldb/table/iterator_wrapper.h \
+    src/leveldb/table/merger.h \
+    src/leveldb/table/two_level_iterator.h \
+    src/leveldb/util/arena.h \
+    src/leveldb/util/coding.h \
+    src/leveldb/util/crc32c.h \
+    src/leveldb/util/hash.h \
+    src/leveldb/util/histogram.h \
+    src/leveldb/util/logging.h \
+    src/leveldb/util/mutexlock.h \
+    src/leveldb/util/posix_logger.h \
+    src/leveldb/util/random.h \
+    src/leveldb/util/testharness.h \
+    src/leveldb/util/testutil.h \
+    src/libmerkletree/binarytree.h \
+    src/libmerkletree/merkletree.h \
+    src/libzerocoin/bitcoin_bignum/allocators.h \
+    src/libzerocoin/bitcoin_bignum/bignum.h \
+    src/libzerocoin/bitcoin_bignum/clientversion.h \
+    src/libzerocoin/bitcoin_bignum/compat.h \
+    src/libzerocoin/bitcoin_bignum/hash.h \
+    src/libzerocoin/bitcoin_bignum/netbase.h \
+    src/libzerocoin/bitcoin_bignum/serialize.h \
+    src/libzerocoin/bitcoin_bignum/uint256.h \
+    src/libzerocoin/bitcoin_bignum/version.h \
+    src/fixed.h
 
 
 
@@ -276,6 +344,7 @@ SOURCES += src/qt/bitcoin.cpp \
     src/key.cpp \
     src/script.cpp \
     src/main.cpp \
+    src/mtp.cpp \
     src/init.cpp \
     src/net.cpp \
     src/bloom.cpp \
@@ -326,10 +395,6 @@ SOURCES += src/qt/bitcoin.cpp \
     src/argon2/encoding.c \
     src/argon2/opt.c \
     src/argon2/thread.c \
-    src/merkletree/mt_arr_list.c \
-    src/merkletree/mt_crypto.c \
-    src/merkletree/mt_impl.c \
-    src/merkletree/sha224-256.c \
     src/Lyra2Z/blake.c \
     src/Lyra2Z/Lyra2.c \
     src/Lyra2Z/Lyra2Z.c \
@@ -347,6 +412,7 @@ SOURCES += src/qt/bitcoin.cpp \
     src/libzerocoin/Params.cpp \
     src/libzerocoin/SerialNumberSignatureOfKnowledge.cpp \
     src/libzerocoin/SpendMetaData.cpp \
+
 
 
 RESOURCES += src/qt/bitcoin.qrc

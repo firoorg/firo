@@ -47,7 +47,7 @@
 #endif
 #include <stdint.h>
 #include <string>
-#include "port/atomic_pointer.h"
+#include "atomic_pointer.h"
 
 #ifndef PLATFORM_IS_LITTLE_ENDIAN
 #define PLATFORM_IS_LITTLE_ENDIAN (__BYTE_ORDER == __LITTLE_ENDIAN)

@@ -1341,7 +1341,7 @@ public:
     unsigned int nNonce;
     boost::shared_ptr<CAuxPow> auxpow;
     block_with_offset blockhashInBlockchain[140];
-    uint8_t elementsInMerkleRoot[2048][32];
+    uint256 mtpMerkleRoot;
 
 
     CBlockHeader()
@@ -1361,7 +1361,7 @@ public:
 
         if(this->CURRENT_VERSION == 3){
             READWRITE(blockhashInBlockchain);
-            READWRITE(elementsInMerkleRoot);
+            READWRITE(mtpMerkleRoot);
         }
 
         nSerSize += ReadWriteAuxPow(s, auxpow, nType, nVersion, ser_action);
@@ -1405,6 +1405,9 @@ public:
         nTime = 0;
         nBits = 0;
         nNonce = 0;
+        if(this->CURRENT_VERSION == 3){
+            mtpMerkleRoot = 0;
+        }
     }
 
     bool IsNull() const
@@ -1473,7 +1476,7 @@ public:
 
         if(CURRENT_VERSION == 3){
             memcpy(&block.blockhashInBlockchain, blockhashInBlockchain, 140 * sizeof(block_with_offset) );
-            memcpy(&block.elementsInMerkleRoot, elementsInMerkleRoot, 2048 * 32 * sizeof(uint8_t) );
+            block.mtpMerkleRoot = mtpMerkleRoot;
         }
 
         return block;
@@ -1764,7 +1767,7 @@ public:
     unsigned int nBits;
     unsigned int nNonce;
     block_with_offset blockhashInBlockchain[140];
-    uint8_t elementsInMerkleRoot[2048][32];
+    uint256 mtpMerkleRoot;
 
 
     CBlockIndex()
@@ -1812,7 +1815,7 @@ public:
 
         if(block.CURRENT_VERSION == 3){
             memcpy(&blockhashInBlockchain, block.blockhashInBlockchain, 140 * sizeof(block_with_offset) );
-            memcpy(&elementsInMerkleRoot, block.elementsInMerkleRoot, 2048 * 32 * sizeof(uint8_t) );
+            mtpMerkleRoot = block.mtpMerkleRoot;
         }
     }
 

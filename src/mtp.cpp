@@ -1,8 +1,8 @@
 //
 // Created by aizen on 4/9/17.
 //
-
 #include "mtp.h"
+#include "libmerkletree/merkletree.h"
 
 static const unsigned int d_mtp = 1;
 static const uint8_t L = 70;
@@ -88,7 +88,7 @@ argon2_context init_argon2d_param(const char* input) {
     const deallocate_fptr myown_deallocator = NULL;
 
     unsigned t_cost = 1;
-    unsigned m_cost = 32768;
+    unsigned m_cost = 2097152; // 2gb
     unsigned lanes = 4;
 
     memset(pContext,0,sizeof(argon2_context));
@@ -268,35 +268,24 @@ int mtp_prover(CBlock *pblock, argon2_instance_t *instance, unsigned int d, char
     // Step 1 : Compute F(I) and store its T blocks X[1], X[2], ..., X[T] in the memory
     if (instance != NULL) {
         printf("Step 2 : Compute the root Φ of the Merkle hash tree \n");
-        mt_t *mt = mt_create();
+        //mt_t *mt = mt_create();
+        vector<char*> leaves(2097152); // 2gb
         for (int i = 0; i < instance->memory_blocks; ++i) {
             block blockhash;
             uint8_t blockhash_bytes[ARGON2_BLOCK_SIZE];
             copy_block(&blockhash, &instance->memory[i]);
             store_block(&blockhash_bytes, &blockhash);
             // hash each block with sha256
-            SHA256Context ctx;
-            SHA256Context *pctx = &ctx;
+            SHA256_CTX ctx;
+            SHA256_Init(&ctx);
             uint8_t hashBlock[32];
-            int ret;
-            ret = SHA256Reset(pctx);
-            if (shaSuccess != ret) {
-                return ret;
-            }
-            ret = SHA256Input(pctx, blockhash_bytes, ARGON2_BLOCK_SIZE);
-            if (shaSuccess != ret) {
-                return ret;
-            }
-            ret = SHA256Result(pctx, (uint8_t *) hashBlock);
-            if (shaSuccess != ret) {
-                return ret;
-            }
+            SHA256_Update(&ctx, blockhash_bytes, ARGON2_BLOCK_SIZE);
+            SHA256_Final(hashBlock, &ctx);
             // add element to merkel tree
-            mt_add(mt, blockhash_bytes, HASH_LENGTH);
-            // TODO: replace with more memory-efficient way
-            // add element to blockchain header
-            memcpy(pblock->elementsInMerkleRoot[i], hashBlock, sizeof(uint8_t) * 32);
+            leaves.push_back(hashBlock);
         }
+
+        merkletree mtree = merkletree(leaves);
 
         while (true) {
             printf("Step 3 : Select nonce N \n");
@@ -305,50 +294,14 @@ int mtp_prover(CBlock *pblock, argon2_instance_t *instance, unsigned int d, char
             memset(&Y[0], 0, sizeof(Y));
 
             printf("Step 4 : Y0 = H(resultMerkelRoot, N) \n");
-            mt_hash_t resultMerkleRoot;
-            SHA256Context ctx;
-            SHA256Context *pctx = &ctx;
-
-            int ret;
-
-            printf("Step 4.1 : resultMerkleRoot \n");
-            ret = mt_get_root(mt, resultMerkleRoot);
-
-            printf("Step 4.1 : resultMerkleRoot = 0x ");
-            for (i = 0; i < 32; i++) {
-               printf("%02x", resultMerkleRoot[i]);
-            }
-            printf("\n");
-            if (MT_SUCCESS != ret) {
-               return ret;
-            }
-
-            printf("Step 4.2 : SHA256Reset \n");
-            ret = SHA256Reset(pctx);
-            if (shaSuccess != ret) {
-               return ret;
-            }
-
-            printf("Step 4.3 : SHA256Input resultMerkleRoot\n");
-            ret = SHA256Input(pctx, resultMerkleRoot, HASH_LENGTH);
-            if (shaSuccess != ret) {
-               return ret;
-            }
-
-            uint8_t nNonce[2];
-            memcpy(nNonce, (uint8_t * ) & pblock->nNonce, sizeof(nNonce));
-
-            printf("Step 4.4 : SHA256Input nNonce\n");
-            ret = SHA256Input(pctx, nNonce, 1);
-            if (shaSuccess != ret) {
-               return ret;
-            }
-
+            //mt_hash_t resultMerkleRoot;
+            SHA256_CTX ctx;
+            SHA256_Init(&ctx);
+            char* root = mtree.root();
+            SHA256_Update(&ctx, root, 32);
+            SHA256_Update(&ctx, pblock->nNonce, sizeof(unsigned int));
             printf("Step 4.5 : SHA256Result\n");
-            ret = SHA256Result(pctx, (uint8_t *) Y[0]);
-            if (shaSuccess != ret) {
-               return ret;
-            }
+            SHA256_Final(Y[0], &ctx);
 
             printf("Step 5 : For 1 <= j <= L \n");
             //I(j) = Y(j - 1) mod T;
@@ -357,23 +310,50 @@ int mtp_prover(CBlock *pblock, argon2_instance_t *instance, unsigned int d, char
             bool init_blocks = false;
             bool unmatch_block = false;
             for (uint8_t j = 1; j <= L; j++) {
-                // TODO: to removed
-                uint32_t ij = *Y[j - 1] % 2048;
+                uint32_t ij = *Y[j - 1] % 2097152;
                 if (ij == 0 || ij == 1) {
                     init_blocks = true;
                     break;
                 }
 
                 // previous block
-                pblock->blockhashInBlockchain[(j * 2) - 1].offset = instance->memory[ij].prev_block;
                 copy_block(&pblock->blockhashInBlockchain[(j * 2) - 1].memory, &instance->memory[instance->memory[ij].prev_block]);
                 pblock->blockhashInBlockchain[(j * 2) - 1].memory.prev_block = instance->memory[instance->memory[ij].prev_block].prev_block;
                 pblock->blockhashInBlockchain[(j * 2) - 1].memory.ref_block = instance->memory[instance->memory[ij].prev_block].ref_block;
+
+                block blockhash_previous;
+                uint8_t blockhash_bytes_previous[ARGON2_BLOCK_SIZE];
+                copy_block(&blockhash_previous, &instance->memory[instance->memory[ij].prev_block]);
+                store_block(&blockhash_bytes_previous, &blockhash_previous);
+
+                SHA256_CTX ctx_previous;
+                SHA256_Init(&ctx_previous);
+                SHA256_Update(&ctx_previous, blockhash_bytes_previous, ARGON2_BLOCK_SIZE);
+                char* t_previous;
+                SHA256_Final(t_previous, &ctx_previous);
+                vector<ProofNode> newproof = mtree.proof(t_previous);
+
+                pblock->blockhashInBlockchain[(j * 2) - 1].proof = serializeMTP(newproof);
+
                 // ref block
-                pblock->blockhashInBlockchain[(j * 2) - 2].offset = instance->memory[ij].ref_block;
                 copy_block(&pblock->blockhashInBlockchain[(j * 2) - 2].memory, &instance->memory[instance->memory[ij].ref_block]);
                 pblock->blockhashInBlockchain[(j * 2) - 2].memory.prev_block = instance->memory[instance->memory[ij].ref_block].prev_block;
                 pblock->blockhashInBlockchain[(j * 2) - 2].memory.ref_block = instance->memory[instance->memory[ij].ref_block].ref_block;
+
+
+                block blockhash_ref_block;
+                uint8_t blockhash_bytes_ref_block[ARGON2_BLOCK_SIZE];
+                copy_block(&blockhash_ref_block, &instance->memory[instance->memory[ij].ref_block]);
+                store_block(&blockhash_bytes_ref_block, &blockhash_ref_block);
+
+                SHA256_CTX ctx_ref;
+                SHA256_Init(&ctx_ref);
+                SHA256_Update(&ctx_ref, blockhash_bytes_ref_block, ARGON2_BLOCK_SIZE);
+                char* t_ref_block;
+                SHA256_Final(t_ref_block, &ctx_previous);
+                vector<ProofNode> newproof_ref = mtree.proof(t_ref_block);
+
+                pblock->blockhashInBlockchain[(j * 2) - 2].proof = serializeMTP(newproof_ref);
 
                 block X_IJ;
                 __m128i state_test[64];
@@ -396,22 +376,12 @@ int mtp_prover(CBlock *pblock, argon2_instance_t *instance, unsigned int d, char
                 }
 
                 store_block(&blockhash_bytes, &blockhash);
-                ret = SHA256Reset(pctx);
-                if (shaSuccess != ret) {
-                   return ret;
-                }
-                ret = SHA256Input(pctx, (uint8_t *) Y[j - 1], HASH_LENGTH);
-                if (shaSuccess != ret) {
-                   return ret;
-                }
-                ret = SHA256Input(pctx, blockhash_bytes, ARGON2_BLOCK_SIZE);
-                if (shaSuccess != ret) {
-                   return ret;
-                }
-                ret = SHA256Result(pctx, (uint8_t *) Y[j]);
-                if (shaSuccess != ret) {
-                   return ret;
-                }
+
+                SHA256_CTX ctx_yj;
+                SHA256_Init(&ctx_yj);
+                SHA256_Update(&ctx_yj, Y[j - 1], 32);
+                SHA256_Update(&ctx_yj, blockhash_bytes, ARGON2_BLOCK_SIZE);
+                SHA256_Final(Y[j], &ctx);
             }
 
             if (init_blocks) {
@@ -445,6 +415,7 @@ int mtp_prover(CBlock *pblock, argon2_instance_t *instance, unsigned int d, char
             } else {
                 // Found a solution
                 printf("Found a solution. Hash:");
+                pblock->mtpMerkleRoot = root;
                 for (n = 0; n < 32; n++) {
                    printf("%02x", Y[L][n]);
                 }
@@ -468,52 +439,12 @@ bool mtp_verifier(unsigned int d, CBlock *pblock) {
     uint8_t Y_CLIENT[L+1][32];
     memset(&Y_CLIENT[0], 0, sizeof(Y_CLIENT));
     printf("Step 7 : Y_CLIENT(0) = H(resultMerkelRoot, N)\n");
-    SHA256Context ctx_client;
-    SHA256Context *pctx_client = &ctx_client;
 
-    int ret, i, k;
-    mt_hash_t resultMerkleRoot;
-    mt_t *mt = mt_create();
-
-    printf("Step 7.1 : get data from elementsInMerkleRoot[i]\n");
-    for(i = 0; i < 2048; i++){
-        mt_add(mt, pblock->elementsInMerkleRoot[i], HASH_LENGTH);
-    }
-
-    printf("Step 7.2 : get resultMerkleRoot\n");
-    ret = mt_get_root(mt, resultMerkleRoot);
-    printf("Step 7.2 : resultMerkleRoot = 0x");
-    for(i = 0; i < 32; i++){
-        printf("%02x", resultMerkleRoot[i]);
-    }
-    printf("\n");
-
-    if(MT_SUCCESS != ret){
-        return ret;
-    }
-
-    ret = SHA256Reset(pctx_client);
-    if (shaSuccess != ret) {
-        return ret;
-    }
-
-    ret = SHA256Input(pctx_client, resultMerkleRoot, HASH_LENGTH);
-    if (shaSuccess != ret) {
-        return ret;
-    }
-
-    uint8_t nNonceInBlock[2];
-    memcpy(nNonceInBlock, (uint8_t*) pblock->nNonce, sizeof(nNonceInBlock));
-
-    ret = SHA256Input(pctx_client, nNonceInBlock, 1);
-    if (shaSuccess != ret) {
-        return ret;
-    }
-
-    ret = SHA256Result(pctx_client, (uint8_t*)Y_CLIENT[0]);
-    if (shaSuccess != ret) {
-        return ret;
-    }
+    SHA256_CTX ctx_client;
+    SHA256_Init(&ctx_client);
+    SHA256_Update(&ctx_client, &pblock->mtpMerkleRoot, 32);
+    SHA256_Update(&ctx_client, pblock->nNonce, sizeof(unsigned int));
+    SHA256_Final(Y_CLIENT[0], &ctx_client);
 
     printf("Y_CLIENT[0] = 0x");
     for (int n = 0; n < 32; n++) {
@@ -521,6 +452,7 @@ bool mtp_verifier(unsigned int d, CBlock *pblock) {
     }
     printf("\n");
 
+    int i = 0;
     printf("Step 8 : Verify all block\n");
     for (i = 0; i < L * 2; ++i) {
         block blockhash;
@@ -529,31 +461,23 @@ bool mtp_verifier(unsigned int d, CBlock *pblock) {
         store_block(&blockhash_bytes, &blockhash);
 
         // hash each block with sha256
-        SHA256Context ctx;
-        SHA256Context *pctx = &ctx;
         uint8_t hashBlock[32];
-        int ret;
-        ret = SHA256Reset(pctx);
-        if (shaSuccess != ret) {
-            return ret;
-        }
-        ret = SHA256Input(pctx, blockhash_bytes, ARGON2_BLOCK_SIZE);
-        if (shaSuccess != ret) {
-            return ret;
-        }
-        ret = SHA256Result(pctx, (uint8_t*)hashBlock);
-        if (shaSuccess != ret) {
-            return ret;
-        }
+        SHA256_CTX ctx;
+        SHA256_Init(&ctx);
+        SHA256_Update(&ctx, blockhash_bytes, ARGON2_BLOCK_SIZE);
+        SHA256_Final(hashBlock, &ctx);
 
         printf("hashBlock[%d] = ", i);
+        int k = 0;
         for(k = 0; k < 32; k++){
             printf("%02x", hashBlock[k]);
         }
-        printf(", offset = %zu", &pblock->blockhashInBlockchain[i].offset);
+
         printf("\n");
 
-        if (mt_verify(mt, blockhash_bytes, HASH_LENGTH, &pblock->blockhashInBlockchain[i].offset) == MT_ERR_ROOT_MISMATCH) {
+        char * mtpMerkleRoot;
+        memcpy(mtpMerkleRoot, &pblock->mtpMerkleRoot, 32);
+        if (verifyProof(hashBlock, mtpMerkleRoot, deserializeMTP(pblock->blockhashInBlockchain[i].proof))) {
             return error("CheckProofOfWork() : Root mismatch error!");
         }
     }
@@ -573,25 +497,12 @@ bool mtp_verifier(unsigned int d, CBlock *pblock) {
         uint8_t blockhash_bytes_client_tmp[ARGON2_BLOCK_SIZE];
         copy_block(&blockhash_client_tmp, &X_IJ);
         store_block(&blockhash_bytes_client_tmp, &blockhash_client_tmp);
-        SHA256Context ctx_client_yl;
-        SHA256Context *pctx_client_yl = &ctx_client_yl;
+        SHA256_CTX ctx_client_yl;
+        SHA256_Init(&ctx_client_yl);
+        SHA256_Update(&ctx_client_yl, Y_CLIENT[j - 1], 32);
+        SHA256_Update(&ctx_client_yl, blockhash_bytes_client_tmp, 32);
+        SHA256_Final(Y_CLIENT[j], &ctx_client_yl);
 
-        ret = SHA256Reset(pctx_client_yl);
-        if (shaSuccess != ret) {
-            return ret;
-        }
-        ret = SHA256Input(pctx_client_yl, (uint8_t*)Y_CLIENT[j - 1], HASH_LENGTH);
-        if (shaSuccess != ret) {
-            return ret;
-        }
-        ret = SHA256Input(pctx_client_yl, blockhash_bytes_client_tmp, HASH_LENGTH);
-        if (shaSuccess != ret) {
-            return ret;
-        }
-        ret = SHA256Result(pctx_client_yl, (uint8_t*)Y_CLIENT[j]);
-        if (shaSuccess != ret) {
-            return ret;
-        }
     }
 
     printf("Step 10 : Check Y(L) had d tralling zeros then agree\n");
