@@ -252,7 +252,7 @@ void AddressBookPage::on_zerocoinSpendButton_clicked() {
         QString t = tr(stringError.c_str());
 
         QMessageBox::critical(this, tr("Error"),
-            tr("You cannot Renew SmartCash because %1").arg(t),
+            tr("You cannot Reclaim SmartCash because %1").arg(t),
             QMessageBox::Ok, QMessageBox::Ok);
     }
 }
