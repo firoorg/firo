@@ -72,7 +72,7 @@ then execute the following:
 
 ::
 
-    qmake "RELEASE=1"
+    qmake "USE_UPNP=1" "USE_IPV6=1" "USE_QRCODE=1" "RELEASE=1"
     make
 
 
@@ -112,7 +112,7 @@ Mac OS X
 
 ::
 
-    qmake "RELEASE=1" smartcash.pro
+    qmake "USE_UPNP=1" "USE_IPV6=1" "USE_QRCODE=1" "RELEASE=1" smartcash.pro
     make
 
 - After that you could deploy the app with

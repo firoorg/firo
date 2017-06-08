@@ -1083,11 +1083,16 @@ void ThreadMapPort()
     /* miniupnpc 1.5 */
     devlist = upnpDiscover(2000, multicastif, minissdpdpath, 0);
 #else
-    /* miniupnpc 1.6 */
-    int error = 0;
-    // remove the 2 if you have trouble compiling - I had to add it for miniupnpc 2.0
-    //devlist = upnpDiscover(2000, multicastif, minissdpdpath, 0, 0, 2, &error);
-    devlist = upnpDiscover(2000, multicastif, minissdpdpath, 0, 0, &error);
+    // see apiversions.txt in miniupnpc
+    #if MINIUPNPC_API_VERSION >= 14
+        int error = 0;
+        devlist = upnpDiscover(2000, multicastif, minissdpdpath, 0, 0, 2, &error);
+    #elif defined UPNPDISCOVER_SUCCESS
+        int error = 0;
+        devlist = upnpDiscover(2000, multicastif, minissdpdpath, 0, 0, &error);
+    #else
+        devlist = upnpDiscover(2000, multicastif, minissdpdpath, 0);
+    #endif
 #endif
 
     struct UPNPUrls urls;

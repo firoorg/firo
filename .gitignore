@@ -1,6 +1,16 @@
-zcoin-qt
+smartcash-qt
 build/*
 !build/.gitkeep
 src/zcoind
 Makefile
-zcoin.pro.user
+smartcash.pro.user
+
+#QT
+*.qm
+.qmake.stash
+
+#OSX
+smartcash-qt.app
+
+# Resources cpp
+qrc_*.cpp
