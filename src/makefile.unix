@@ -167,10 +167,6 @@ OBJS= \
     argon2/encoding.o \
     argon2/opt.o \
     argon2/thread.o \
-    merkletree/mt_arr_list.o \
-    merkletree/mt_crypto.o \
-    merkletree/mt_impl.o \
-    merkletree/sha224-256.o  \
     obj/mtp.o
 
 
