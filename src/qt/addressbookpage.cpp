@@ -76,7 +76,7 @@ AddressBookPage::AddressBookPage(Mode mode, Tabs tab, QWidget *parent) :
         ui->zerocoinSpendButton->setVisible(false);
         break;
     case ZerocoinTab:
-        ui->labelExplanation->setText(tr("These are your private coins from the Renew SmartCash operation.  Two inputs of the same size are required before you can redeem by selecting Spend SmartCash."));
+        ui->labelExplanation->setText(tr("These are your private coins from the Renew SmartCash operation.  Please Renew two of the same amounts and wait at least 6 minutes before you select Reclaim."));
         ui->deleteAddress->setVisible(false);
         ui->signMessage->setVisible(false);
         ui->newAddress->setVisible(false);
@@ -252,7 +252,7 @@ void AddressBookPage::on_zerocoinSpendButton_clicked() {
         QString t = tr(stringError.c_str());
 
         QMessageBox::critical(this, tr("Error"),
-            tr("You cannot spend zerocoin because %1").arg(t),
+            tr("You cannot Renew SmartCash because %1").arg(t),
             QMessageBox::Ok, QMessageBox::Ok);
     }
 }

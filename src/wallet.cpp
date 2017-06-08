@@ -1794,7 +1794,7 @@ bool CWallet::CreateZerocoinSpendTransaction(int64 nValue, libzerocoin::CoinDeno
                         && minIdPubcoin.nHeight != -1
                         && minIdPubcoin.nHeight != INT_MAX
                         && minIdPubcoin.nHeight >= 1
-                        && minIdPubcoin.nHeight + 6 <= nBestHeight) {
+                        && minIdPubcoin.nHeight + 5 <= nBestHeight) {//was 6
                     currentId = minIdPubcoin.id;
                 }
             }
@@ -1808,7 +1808,7 @@ bool CWallet::CreateZerocoinSpendTransaction(int64 nValue, libzerocoin::CoinDeno
                         && zerocoinItem.nHeight != -1
                         && zerocoinItem.nHeight != INT_MAX
                         && zerocoinItem.nHeight >= 1
-                        && zerocoinItem.nHeight + 6 <= nBestHeight){
+                        && zerocoinItem.nHeight + 5 <= nBestHeight){// was 6
                     zerocoinSelected = zerocoinItem;
                     selectedPubcoin = true;
                     break;
@@ -1816,7 +1816,7 @@ bool CWallet::CreateZerocoinSpendTransaction(int64 nValue, libzerocoin::CoinDeno
             }
 
             if(!selectedPubcoin){
-                strFailReason = _("it has to have at least two mint coins with at least 7 confirmation in order to spend a coin");
+                strFailReason = _("you need to perform two equal Renew transactions and wait at least 6 minutes.  For example, if you Renew 100 SmartCash, you need to Renew another 100 SmartCash.");
                 return false;
             }
 
@@ -1828,7 +1828,7 @@ bool CWallet::CreateZerocoinSpendTransaction(int64 nValue, libzerocoin::CoinDeno
                 // If this returns false, don't accept the coin for any purpose!
                 // Any ZEROCOIN_MINT with an invalid coin should NOT be
                 // accepted as a valid transaction in the block chain.
-                strFailReason = _("the selected mint coin is an invalid coin");
+                strFailReason = _("the selected Renew coin is invalid");
                 return false;
             }
 
@@ -1839,7 +1839,7 @@ bool CWallet::CreateZerocoinSpendTransaction(int64 nValue, libzerocoin::CoinDeno
                 // Count pubcoins in same block
                 if(zerocoinItem.value  != zerocoinSelected.value
                         && zerocoinItem.id == zerocoinSelected.id
-                        && zerocoinItem.nHeight + 6 < nBestHeight
+                        && zerocoinItem.nHeight + 5 < nBestHeight//was 6
                         && zerocoinItem.nHeight >= 1
                         && zerocoinItem.nHeight != INT_MAX
                         && zerocoinItem.denomination == denomination
@@ -1857,7 +1857,7 @@ bool CWallet::CreateZerocoinSpendTransaction(int64 nValue, libzerocoin::CoinDeno
             printf("USEABLE PUBCOINS: %d\n", countUseablePubcoin);
 
             if(countUseablePubcoin < 1){ // You have to have at least two mint zerocoins.
-                strFailReason = _("at least two mint coins are using calculating accumulator");
+                strFailReason = _("you need to perform two equal Renew transactions.  For example, if you Renew 100 SmartCash, you need to Renew another 100 SmartCash before you can use Reclaim");
                 return false;
             }
 
@@ -1895,7 +1895,7 @@ bool CWallet::CreateZerocoinSpendTransaction(int64 nValue, libzerocoin::CoinDeno
             // This is a sanity check. The CoinSpend object should always verify,
             // but why not check before we put it onto the wire?
             if (!spend.Verify(accumulator, metaData)) {
-                strFailReason = _("the new spend coin transaction did not verify");
+                strFailReason = _("the Reclaim transaction did not verify.  Please try again.");
                 return false;
             }
 
@@ -1933,7 +1933,7 @@ bool CWallet::CreateZerocoinSpendTransaction(int64 nValue, libzerocoin::CoinDeno
             // Verify that the spend is valid with respect to the Accumulator
             // and the Metadata
             if (!newSpend.Verify(accumulator, newMetadata)) {
-                strFailReason = _("the new spend coin transaction did not verify");
+                strFailReason = _("the Reclaim transaction did not verify.  Please try again.");
                 return false;
             }
 
@@ -1966,7 +1966,7 @@ bool CWallet::CreateZerocoinSpendTransaction(int64 nValue, libzerocoin::CoinDeno
             unsigned int nBytes = ::GetSerializeSize(*(CTransaction*)&wtxNew, SER_NETWORK, PROTOCOL_VERSION);
             if (nBytes >= MAX_STANDARD_TX_SIZE)
             {
-                strFailReason = _("the transaction too large");
+                strFailReason = _("the transaction is too large");
                 return false;
             }
 
@@ -1990,7 +1990,7 @@ bool CWallet::CreateZerocoinSpendTransaction(int64 nValue, libzerocoin::CoinDeno
                     pubCoinTx.value = zerocoinSelected.value;
                     CWalletDB(strWalletFile).WriteZerocoinEntry(pubCoinTx);
                     pwalletMain->NotifyZerocoinChanged(pwalletMain, zerocoinSelected.value.GetHex(), "Used", CT_UPDATED);
-                    strFailReason = _("the coin spend has been used");
+                    strFailReason = _("Reclaim has been already been used");
                     return false;
                 }
             }
@@ -2007,7 +2007,7 @@ bool CWallet::CreateZerocoinSpendTransaction(int64 nValue, libzerocoin::CoinDeno
             entry.id = zerocoinSelected.id;
             entry.denomination = zerocoinSelected.denomination;
             if(!CWalletDB(strWalletFile).WriteCoinSpendSerialEntry(entry)){
-                strFailReason = _("it cannot write coin serial number into wallet");
+                strFailReason = _("it cannot write the coin serial number into the wallet");
             }
 
         }
@@ -2138,7 +2138,7 @@ string CWallet::SendMoney(CScript scriptPubKey, int64 nValue, CWalletTx& wtxNew,
     if (!CreateTransaction(scriptPubKey, nValue, wtxNew, reservekey, nFeeRequired, strError))
     {
         if (nValue + nFeeRequired > GetBalance())
-            strError = strprintf(_("Error: This transaction requires a transaction fee of at least %s because of its amount, complexity, or use of recently received funds!"), FormatMoney(nFeeRequired).c_str());
+            strError = strprintf(_("This transaction requires a transaction fee of at least %s because of its amount or complexity."), FormatMoney(nFeeRequired).c_str());
         printf("SendMoney() : %s\n", strError.c_str());
         return strError;
     }
@@ -2147,7 +2147,7 @@ string CWallet::SendMoney(CScript scriptPubKey, int64 nValue, CWalletTx& wtxNew,
         return "ABORTED";
 
     if (!CommitTransaction(wtxNew, reservekey))
-        return _("Error: The transaction was rejected! This might happen if some of the coins in your wallet were already spent, such as if you used a copy of wallet.dat and coins were spent in the copy but not marked as spent here.");
+        return _("the coin was already reclaimed.");
 
     return "";
 }
@@ -2221,7 +2221,7 @@ string CWallet::SpendZerocoin(int64 nValue, libzerocoin::CoinDenomination denomi
 
     if (IsLocked())
     {
-        string strError = _("Error: Wallet locked, unable to create transaction!");
+        string strError = _("Error: Wallet locked.  Please unlock your wallet first.");
         printf("SpendZerocoin() : %s", strError.c_str());
         return strError;
     }

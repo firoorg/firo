@@ -111,7 +111,7 @@ void PrivateCoin::mintCoin(const CoinDenomination denomination) {
 
 	// We only get here if we did not find a coin within
 	// MAX_COINMINT_ATTEMPTS. Throw an exception.
-	throw ZerocoinException("Unable to mint a new Zerocoin (too many attempts)");
+	throw ZerocoinException("Unable to Renew a coin (too many attempts)");
 }
 
 void PrivateCoin::mintCoinFast(const CoinDenomination denomination) {
@@ -157,7 +157,7 @@ void PrivateCoin::mintCoinFast(const CoinDenomination denomination) {
 		
 	// We only get here if we did not find a coin within
 	// MAX_COINMINT_ATTEMPTS. Throw an exception.
-	throw ZerocoinException("Unable to mint a new Zerocoin (too many attempts)");
+	throw ZerocoinException("Unable to Renew a coin (too many attempts)");
 }
 	
 const PublicCoin& PrivateCoin::getPublicCoin() const {
