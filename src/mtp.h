@@ -17,6 +17,6 @@
 #include "argon2/blake2/blake2-impl.h"
 #include "argon2/blake2/blamka-round-opt.h"
 
-void mtp_hash(char* output, const char* input, unsigned int d, CBlock *pblock);
+void mtp_hash(char* output, const char* input, uint256 hashTarget, CBlock *pblock);
 
-bool mtp_verifier(unsigned int d, CBlock *pblock);
+bool mtp_verifier(uint256 hashTarget, CBlock *pblock);

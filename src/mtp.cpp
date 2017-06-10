@@ -8,11 +8,26 @@ static const unsigned int d_mtp = 1;
 static const uint8_t L = 70;
 
 
-unsigned int trailing_zeros(char str[64]) {
+unsigned int trailing_zeros_little_endian(char str[64]) {
     unsigned int i, d;
     d = 0;
-    for (i = 63; i > 0; i--) {
+    for (i = 0; i < 64; i++) {
         if (str[i] == '0') {
+            d++;
+        }
+        else {
+            break;
+        }
+    }
+    return d;
+}
+
+unsigned int trailing_zeros_little_endian_uint256(uint256 hash) {
+    unsigned int i, d;
+    string temp = hash.GetHex();
+    d = 0;
+    for (i = 0; i < temp.size(); i++) {
+        if (temp[i] == '0') {
             d++;
         }
         else {
@@ -262,7 +277,7 @@ int argon2_ctx(argon2_context *context, argon2_instance_t *instance) {
 }
 
 
-int mtp_prover(CBlock *pblock, argon2_instance_t *instance, unsigned int d, char* output) {
+int mtp_prover(CBlock *pblock, argon2_instance_t *instance, uint256 hashTarget, char* output) {
     //internal_kat(instance, r); /* Print all memory blocks */
     printf("Step 1 : Compute F(I) and store its T blocks X[1], X[2], ..., X[T] in the memory \n");
     // Step 1 : Compute F(I) and store its T blocks X[1], X[2], ..., X[T] in the memory
@@ -271,6 +286,7 @@ int mtp_prover(CBlock *pblock, argon2_instance_t *instance, unsigned int d, char
         //mt_t *mt = mt_create();
         vector<char*> leaves(2097152); // 2gb
         for (int i = 0; i < instance->memory_blocks; ++i) {
+            printf("Step 2.1 : Round = %d -> Adding memory blocks from Argon2 to leaves of merkle tree\n", i);
             block blockhash;
             uint8_t blockhash_bytes[ARGON2_BLOCK_SIZE];
             copy_block(&blockhash, &instance->memory[i]);
@@ -281,10 +297,12 @@ int mtp_prover(CBlock *pblock, argon2_instance_t *instance, unsigned int d, char
             uint8_t hashBlock[32];
             SHA256_Update(&ctx, blockhash_bytes, ARGON2_BLOCK_SIZE);
             SHA256_Final(hashBlock, &ctx);
+
             // add element to merkel tree
             leaves.push_back(hashBlock);
         }
 
+        printf("Step 2.2 : Create merkle tree\n");
         merkletree mtree = merkletree(leaves);
 
         while (true) {
@@ -410,7 +428,7 @@ int mtp_prover(CBlock *pblock, argon2_instance_t *instance, unsigned int d, char
             printf("Step 6 : If Y(L) had d trailing zeros, then (resultMerkelroot, N, Y(L)) \n");
             //uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
             //printf("*** hashTarget: %d %s ***\n", hashTarget, hashTarget.GetHex().c_str());
-            if (trailing_zeros(hex_tmp) < d) {
+            if (trailing_zeros_little_endian(hex_tmp) < trailing_zeros_little_endian_uint256(hashTarget)) {
                 continue;
             } else {
                 // Found a solution
@@ -434,7 +452,7 @@ int mtp_prover(CBlock *pblock, argon2_instance_t *instance, unsigned int d, char
 }
 
 
-bool mtp_verifier(unsigned int d, CBlock *pblock) {
+bool mtp_verifier(uint256 hashTarget, CBlock *pblock) {
 
     uint8_t Y_CLIENT[L+1][32];
     memset(&Y_CLIENT[0], 0, sizeof(Y_CLIENT));
@@ -511,7 +529,7 @@ bool mtp_verifier(unsigned int d, CBlock *pblock) {
     for (int n = 0; n < 32; n++) {
         sprintf(&hex_tmp[n * 2], "%02x", Y_CLIENT[L][n]);
     }
-    if (trailing_zeros(hex_tmp) != d) {
+    if (trailing_zeros_little_endian(hex_tmp) < trailing_zeros_little_endian_uint256(hashTarget)) {
         return error("CheckProofOfWork() : proof of work failed - mtp");
     } else {
         return true;
@@ -520,10 +538,10 @@ bool mtp_verifier(unsigned int d, CBlock *pblock) {
 }
 
 //
-void mtp_hash(char* output, const char* input, unsigned int d, CBlock *pblock) {
+void mtp_hash(char* output, const char* input, uint256 hashTarget, CBlock *pblock) {
     argon2_context context = init_argon2d_param(input);
     argon2_instance_t instance;
     argon2_ctx(&context, &instance);
-    mtp_prover(pblock, &instance, d, output);
+    mtp_prover(pblock, &instance, hashTarget, output);
     free_memory(&context, (uint8_t *)instance.memory, instance.memory_blocks, sizeof(block));
 }

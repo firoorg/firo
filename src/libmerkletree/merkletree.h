@@ -50,8 +50,10 @@ vector<ProofNode> deserializeMTP(char* strdata) // Reads the given file and assi
 
 // combin and hash by sha256
 static void combin(char* leftData,char* rightData,char out_buff[65]){
+  printf("call combine function\n");
   //concat
-  char buff[strlen((const char*)leftData)+strlen((const char*)rightData)+1];
+  //char buff[strlen((const char*)leftData)+strlen((const char*)rightData)+1];
+  char * buff = (char*)malloc(strlen((const char*)leftData)+strlen((const char*)rightData)+1);
   memcpy(buff,leftData,strlen((const char*)leftData));
   memcpy(buff+strlen((const char*)leftData),rightData,strlen((const char*)rightData));
 	//printf("vs");
@@ -68,6 +70,8 @@ static void combin(char* leftData,char* rightData,char out_buff[65]){
     sprintf(out_buff + (i * 2), "%02x", hash[i]);
   }
   out_buff[65] = 0;
+
+  delete(buff);
 }
 
 bool verifyProof(char* leaf,char* expectedMerkleRoot,vector<ProofNode> proofArr){

@@ -6419,6 +6419,9 @@ void static ZcoinMiner(CWallet *pwallet)
                 //
                 int64 nStart = GetTime();
                 uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
+                uint256 hashTemp = CBigNum().SetCompact(0x18019eaf).getuint256();
+                printf("hashTarget : %s\n", hashTarget.GetHex().c_str());
+                printf("hashTemp : %s\n", hashTemp.GetHex().c_str());
                 loop
                 {
                     unsigned int nHashesDone = 0;
@@ -6435,11 +6438,11 @@ void static ZcoinMiner(CWallet *pwallet)
                                               (fTestNet && pindexPrev->nHeight + 1 >= HF_MTP_HEIGHT_TESTNET)){
                             // TODO: recalculate d to match current target
                             //recalc_d(hashTarget);
-                            mtp_hash(BEGIN(thash), BEGIN(pblock->nVersion), d_mtp, pblock);
+                            mtp_hash(BEGIN(thash), BEGIN(pblock->nVersion), hashTarget, pblock);
                             // TODO: compare with target
                             printf("Found MTP hash: %s\n", thash.GetHex().c_str());
                             // TODO: verification should be after checking with target
-                            mtp_verification = mtp_verifier(d_mtp, pblock);
+                            mtp_verification = mtp_verifier(hashTarget, pblock);
                         } else if (!fTestNet && pindexPrev->nHeight + 1 >= HF_LYRA2_HEIGHT){
                             LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, 8192, 256);
                         } else if (!fTestNet && pindexPrev->nHeight + 1 >= HF_LYRA2VAR_HEIGHT){
