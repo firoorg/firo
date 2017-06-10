@@ -1,4 +1,5 @@
 #include "binarytree.h"
+#include "../uint256.h"
 #include <string.h>
 #include <iostream>
 #include <openssl/sha.h>
@@ -6,22 +7,24 @@
 #define SHA256_LENGTH 64
 using namespace std;
 
+
 struct ProofNode{
-  char *left,*right,*parent;
+  uint256 left, right, parent;
   ProofNode():left(""),right(""),parent(""){}
-  ProofNode(char* _left,char* _right,char* _parent):left(_left),right(_right),parent(_parent){}
+  ProofNode(uint256 _left,uint256 _right,uint256 _parent):left(_left),right(_right),parent(_parent){}
 };
 
 // buff 
 char* serializeMTP(vector<ProofNode>& proof) // Writes the given OBJECT data to the given file name.
 {
-	char *buff = new char[proof.size()*SHA256_LENGTH*3+1];
-	buff[proof.size()*SHA256_LENGTH*3]=0;
-	for(int i =0;i<proof.size();i++){
-		memcpy(buff+SHA256_LENGTH*(3*i),proof[i].left,SHA256_LENGTH);
-		memcpy(buff+SHA256_LENGTH*(3*i + 1),proof[i].right,SHA256_LENGTH);
-		memcpy(buff+SHA256_LENGTH*(3*i + 2),proof[i].parent,SHA256_LENGTH);
-	}
+
+    char *buff = new char[proof.size()*SHA256_LENGTH*3+1];
+    buff[proof.size()*SHA256_LENGTH*3]=0;
+    for(int i =0;i<proof.size();i++){
+        memcpy(buff+SHA256_LENGTH*(3*i),proof[i].left.GetHex().c_str(),SHA256_LENGTH);
+        memcpy(buff+SHA256_LENGTH*(3*i + 1),proof[i].right.GetHex().c_str(),SHA256_LENGTH);
+        memcpy(buff+SHA256_LENGTH*(3*i + 2),proof[i].parent.GetHex().c_str(),SHA256_LENGTH);
+    }
     return buff;
 };
 
@@ -32,15 +35,17 @@ vector<ProofNode> deserializeMTP(char* strdata) // Reads the given file and assi
 	vector<ProofNode> proof(datalen/3/SHA256_LENGTH);
 		
 	for(int i = 0 ;i<proof.size();i++){
-		char *left = new char[SHA256_LENGTH+1],
+        /*char *left = new char[SHA256_LENGTH+1],
 		*right = new char[SHA256_LENGTH+1],
 		*parent = new char[SHA256_LENGTH+1];
 		left[SHA256_LENGTH] = 0;
 		right[SHA256_LENGTH] = 0;
-		parent[SHA256_LENGTH] = 0;
-        memcpy(left,strdata+SHA256_LENGTH*(3*i),SHA256_LENGTH);
-        memcpy(right,strdata+SHA256_LENGTH*(3*i + 1),SHA256_LENGTH);
-        memcpy(parent,strdata+SHA256_LENGTH*(3*i + 2),SHA256_LENGTH);
+        parent[SHA256_LENGTH] = 0;*/
+
+        uint256 left, right, parent;
+        memcpy(&left,strdata+SHA256_LENGTH*(3*i),SHA256_LENGTH);
+        memcpy(&right,strdata+SHA256_LENGTH*(3*i + 1),SHA256_LENGTH);
+        memcpy(&parent,strdata+SHA256_LENGTH*(3*i + 2),SHA256_LENGTH);
 		
 		proof[i] = ProofNode(left,right,parent);
 	}
@@ -48,81 +53,78 @@ vector<ProofNode> deserializeMTP(char* strdata) // Reads the given file and assi
 	return proof;
 };
 
-// combin and hash by sha256
-static void combin(char* leftData,char* rightData,char out_buff[65]){
-  printf("call combine function\n");
-  //concat
-  //char buff[strlen((const char*)leftData)+strlen((const char*)rightData)+1];
-  char * buff = (char*)malloc(strlen((const char*)leftData)+strlen((const char*)rightData)+1);
-  memcpy(buff,leftData,strlen((const char*)leftData));
-  memcpy(buff+strlen((const char*)leftData),rightData,strlen((const char*)rightData));
-	//printf("vs");
-  buff[strlen((const char*)leftData)+strlen((const char*)rightData)] = 0;
 
-  unsigned char hash[SHA256_DIGEST_LENGTH];
+
+// combin and hash by sha256
+uint256 combine(uint256 leftData,uint256 rightData){
+  uint256 hash1;
   SHA256_CTX sha256;
   SHA256_Init(&sha256);
-  SHA256_Update(&sha256, buff, strlen(buff));
-  SHA256_Final(hash, &sha256);
+  SHA256_Update(&sha256,&leftData, sizeof(uint256));
+  SHA256_Update(&sha256,&rightData,sizeof(uint256));
+  SHA256_Final((unsigned char*)&hash1, &sha256);
 
-  for(int i = 0; i < SHA256_DIGEST_LENGTH; i++)
-  {
-    sprintf(out_buff + (i * 2), "%02x", hash[i]);
-  }
-  out_buff[65] = 0;
-
-  delete(buff);
+  uint256 hash2;
+  SHA256((unsigned char*)&hash1, sizeof(hash1), (unsigned char*)&hash2);
+  printf("hash = %s\n", hash2.GetHex().c_str());
+  return hash2;
 }
 
-bool verifyProof(char* leaf,char* expectedMerkleRoot,vector<ProofNode> proofArr){
+bool verifyProof(uint256 leaf,uint256 expectedMerkleRoot,vector<ProofNode> proofArr){
   if(proofArr.size() ==0 ){
-    if( strcmp(leaf,expectedMerkleRoot)==0)
+    if( leaf != expectedMerkleRoot)
       return true;
     return false;
   }
 
   // the merkle root should be the parent of the last part
-  char* actualMekleRoot = proofArr[proofArr.size() -1].parent;
+  uint256 actualMekleRoot = proofArr[proofArr.size() -1].parent;
 
-  if( strcmp(actualMekleRoot,expectedMerkleRoot)!=0 )
+  if( actualMekleRoot != expectedMerkleRoot )
     return false;
 
-  char* prevParent = leaf;
-  for(int pIdx =0;pIdx<proofArr.size();pIdx++){
+  uint256 prevParent = leaf;
+  for(int pIdx = 0; pIdx < proofArr.size();pIdx++){
     ProofNode part = proofArr[pIdx];
 
-    if( strcmp(part.left,prevParent)!=0 && strcmp(part.right,prevParent)!=0)
+    if( (part.left != prevParent ) && (part.right != prevParent))
       return false;
-    char *parentData = new char[65];
-    combin(part.left,part.right,parentData);
+    uint256 parentData;
+    parentData = combine(part.left, part.right);
 
     // Parent in proof is incorrect
-    if( strcmp(parentData,part.parent) != 0 )
+    if( parentData != part.parent)
       return false;
 
     prevParent = parentData;
   }
 
-  return strcmp(prevParent,expectedMerkleRoot) == 0;
+  if(prevParent == expectedMerkleRoot){
+      return true;
+  }else{
+      return false;
+  }
+
 }
 
 class merkletree{
 public:
-  vector<char*> tree;
+  vector<uint256> tree;
 
   // declare function
   //vector<char*> computeTree(void (*combineFn)(char*,char*,char*),vector<char*> leaves);
 
   merkletree(){}
-  merkletree(vector<char*> leaves){
-    tree = computeTree(combin,leaves);
+
+  merkletree(vector<uint256> leaves){
+    tree = computeTree(combine,leaves);
   }
 
   size_t size(){return tree.size();}
-  char* root(){return tree[0];}
+  uint256 root(){return tree[0];}
 
   void calSHA256(char* inp,char out_buff[65]){
-    unsigned char hash[SHA256_DIGEST_LENGTH];
+    uint8_t hash[SHA256_DIGEST_LENGTH];
     SHA256_CTX sha256;
     SHA256_Init(&sha256);
     SHA256_Update(&sha256, inp, strlen(inp));
@@ -131,35 +133,39 @@ public:
     //char buffx[65];
     for(int i = 0; i < SHA256_DIGEST_LENGTH; i++)
     {
-      sprintf(out_buff + (i * 2), "%02x", hash[i]);
+      sprintf(out_buff[i * 2], "%02x", hash[i]);
     }
-    out_buff[65] = 0;
+    out_buff[64] = 0;
     //memcpy(out_buff,buffx,65);
   }
 
-
-
-  vector<char*> computeTree(void (*combineFn)(char*,char*,char*),vector<char*> leaves){
+  vector<uint256> computeTree(uint256 (*combineFn)(uint256, uint256),vector<uint256> leaves){
     // compute nodeCount and create vector<T> tree
     int nodeCount = leafCountToNodeCount(leaves.size());
     int delta = nodeCount - leaves.size();
-    vector<char*> tree(nodeCount);
+    vector<uint256> tree(nodeCount);
 
-    copy(leaves.begin(),leaves.end(),tree.begin()+delta);
+
+    for(int i = 0 ;i < leaves.size();i++){
+        tree[delta + i] = leaves[i];
+        printf("tree[%d + %d] = %s\n", delta , i, leaves.at(i).GetHex().c_str());
+    }
+
 
     int idx = nodeCount-1;
     while(idx > 0){
       int parent = (idx -1)/2;
-
-      //char*
-      tree[parent] = new char[65];
-      combineFn(tree[idx-1],tree[idx],tree[parent]);
-      //cout<<"pass "<<&tree[parent]<<'\n';
-
-      //tree[parent] = combinVal;
-
-      //printf("%s %s\n",combinVal,tree[parent]);
+      printf("parent = %d\n", parent);
+      uint256 hash1;
+      SHA256_CTX sha256;
+      SHA256_Init(&sha256);
+      SHA256_Update(&sha256,&tree[idx-1], sizeof(uint256));
+      SHA256_Update(&sha256,&tree[idx],sizeof(uint256));
+      SHA256_Final((unsigned char*)&hash1, &sha256);
+      SHA256((unsigned char*)&hash1, sizeof(hash1), (unsigned char*)&tree[parent]);
+      printf("hash return : %s\n", tree[parent].GetHex().c_str());
       idx-=2;
+      printf("idx = %d\n", idx);
     }
 
     return tree;
@@ -167,8 +173,9 @@ public:
 
 
 
-  vector<ProofNode> proof(char* leafData){
-    int idx = findLeaf(tree,leafData);
+
+  vector<ProofNode> proof(uint256 leafData){
+    int idx = findLeaf(tree, leafData);
     //printf("idx %d\n",idx);
     if(idx == -1)
       return vector<ProofNode>();
@@ -192,31 +199,31 @@ public:
 //	vector<ProofNode> proof;
     return proof;
   }
-	void pushleaf(char* leaf){
-		pushleafworker(combin,leaf);
+    void pushleaf(uint256 leaf){
+        pushleafworker(combine,leaf);
 	}
 
 
-	void pushleafworker(void (*combineFn)(char*,char*,char*),char* leaf){
+    void pushleafworker(void (*combineFn)(uint256*,uint256*,uint256*),uint256 leaf){
 
 		// push two
-		tree.push_back(new char[65]);
-		tree.push_back(new char[65]);
+        tree.push_back(uint256());
+        tree.push_back(uint256());
 
 		int pidx = getParent(tree,tree.size()-1);
 
 		// push parent and newleaf
-		memcpy(tree[tree.size()-2],tree[pidx],65);
-		memcpy(tree[tree.size()-1],leaf,65);;
+        tree[tree.size()-2] = tree[pidx];
+        tree[tree.size()-1] = leaf;
 
 		// climb up and compute
 		int idx = tree.size()-1;
 		while(idx > 0){
 			idx = getParent(tree,idx);
 			//cout<<&combineFn<<'\n';
-      char *buff = new char[65];
-      combineFn(tree[getLeft(tree,idx)],tree[getRight(tree,idx)],buff);
-      tree[idx] = buff;
+            uint256 buff;
+            combineFn(&tree[getLeft(tree,idx)],&tree[getRight(tree,idx)], &buff);
+            tree[idx] = buff;
 		}
 
 		// done!

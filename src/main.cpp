@@ -6438,7 +6438,7 @@ void static ZcoinMiner(CWallet *pwallet)
                                               (fTestNet && pindexPrev->nHeight + 1 >= HF_MTP_HEIGHT_TESTNET)){
                             // TODO: recalculate d to match current target
                             //recalc_d(hashTarget);
-                            mtp_hash(BEGIN(thash), BEGIN(pblock->nVersion), hashTarget, pblock);
+                            mtp_hash(&thash, BEGIN(pblock->nVersion), hashTarget, pblock);
                             // TODO: compare with target
                             printf("Found MTP hash: %s\n", thash.GetHex().c_str());
                             // TODO: verification should be after checking with target
@@ -6462,6 +6462,7 @@ void static ZcoinMiner(CWallet *pwallet)
                         if ((thash <= hashTarget) || (mtp_verification)) {
                             // Found a solution
                             printf("Found a solution. Hash: %s", thash.GetHex().c_str());
+                            exit(0);
                             SetThreadPriority(THREAD_PRIORITY_NORMAL);
                             CheckWork(pblock, *pwallet, reservekey);
                             SetThreadPriority(THREAD_PRIORITY_LOWEST);

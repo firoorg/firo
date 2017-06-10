@@ -110,7 +110,7 @@ int findLeaf(const vector<T>& tree,const T& leaf){
   int leafCount = nodeCountToLeafCount(tree.size());
   for(int i =0;i<leafCount;i++){
     int idx = tree.size() -1 -i;
-    if(strcmp(tree[idx],leaf)==0 )
+    if(tree[idx] ==leaf)
       return idx;
   }
   return -1;
