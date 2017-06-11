@@ -20,12 +20,12 @@
 		<key>Applications</key>
 		<array>
 			<integer>370</integer>
-			<integer>156</integer>
+			<integer>126</integer>
 		</array>
 		<key>zcoin-qt.app</key>
 		<array>
 			<integer>128</integer>
-			<integer>156</integer>
+			<integer>126</integer>
 		</array>
 	</dict>
 </dict>
