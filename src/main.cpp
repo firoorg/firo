@@ -3547,7 +3547,7 @@ bool SetBestChain(CValidationState &state, CBlockIndex* pindexNew)
                             // GET MAX ID
                             int currentId = 1;
                             BOOST_FOREACH(const CZerocoinEntry& maxIdPubcoin, listPubCoin) {
-                                if (maxIdPubcoin.id > currentId && maxIdPubcoin.denomination == pubCoinItem.denomination) {
+                                if (maxIdPubcoin.id > currentId && maxIdPubcoin.denomination == pubCoinItem.denomination && maxIdPubcoin.id > 0) {
                                     currentId = maxIdPubcoin.id;
                                 }
                             }
@@ -3555,7 +3555,7 @@ bool SetBestChain(CValidationState &state, CBlockIndex* pindexNew)
                             // FIND HOW MANY OF MAX ID
                             unsigned int countExistingItems = 0;
                             BOOST_FOREACH(const CZerocoinEntry& countItemPubcoin, listPubCoin) {
-                                if (currentId == countItemPubcoin.id && countItemPubcoin.denomination == pubCoinItem.denomination) {
+                                if (currentId == countItemPubcoin.id && countItemPubcoin.denomination == pubCoinItem.denomination && countItemPubcoin.id > 0) {
                                     countExistingItems++;
                                 }
                                 printf("pubCoinItem.id = %d\n", countItemPubcoin.id);
