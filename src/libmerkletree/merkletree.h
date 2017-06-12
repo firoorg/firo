@@ -1,5 +1,6 @@
 #include "binarytree.h"
 #include "../uint256.h"
+#include "../script.h"
 #include <string.h>
 #include <iostream>
 #include <openssl/sha.h>
@@ -17,40 +18,38 @@ struct ProofNode{
 // buff 
 char* serializeMTP(vector<ProofNode>& proof) // Writes the given OBJECT data to the given file name.
 {
-
-    char *buff = new char[proof.size()*SHA256_LENGTH*3+1];
-    buff[proof.size()*SHA256_LENGTH*3]=0;
-    for(int i =0;i<proof.size();i++){
-        memcpy(buff+SHA256_LENGTH*(3*i),proof[i].left.GetHex().c_str(),SHA256_LENGTH);
-        memcpy(buff+SHA256_LENGTH*(3*i + 1),proof[i].right.GetHex().c_str(),SHA256_LENGTH);
-        memcpy(buff+SHA256_LENGTH*(3*i + 2),proof[i].parent.GetHex().c_str(),SHA256_LENGTH);
+    char* result = (char*)malloc(proof.size() * SHA256_LENGTH * 3 + 1);
+    result[proof.size() * SHA256_LENGTH * 3 + 1] = 0;
+    for(int i = 0; i < proof.size(); i++){
+        memcpy(result+SHA256_LENGTH*(3*i), proof.at(i).left.GetHex().c_str(), SHA256_LENGTH);
+        memcpy(result+SHA256_LENGTH*(3*i + 1), proof.at(i).right.GetHex().c_str(), SHA256_LENGTH);
+        memcpy(result+SHA256_LENGTH*(3*i + 2), proof.at(i).parent.GetHex().c_str(), SHA256_LENGTH);
     }
-    return buff;
+    return result;
 };
 
 vector<ProofNode> deserializeMTP(char* strdata) // Reads the given file and assigns the data to the given OBJECT.
 {
-
     size_t datalen = strlen(strdata);
-	vector<ProofNode> proof(datalen/3/SHA256_LENGTH);
-		
-	for(int i = 0 ;i<proof.size();i++){
-        /*char *left = new char[SHA256_LENGTH+1],
-		*right = new char[SHA256_LENGTH+1],
-		*parent = new char[SHA256_LENGTH+1];
-		left[SHA256_LENGTH] = 0;
-		right[SHA256_LENGTH] = 0;
-        parent[SHA256_LENGTH] = 0;*/
+    vector<ProofNode> proof(datalen/3/SHA256_LENGTH);
 
-        uint256 left, right, parent;
-        memcpy(&left,strdata+SHA256_LENGTH*(3*i),SHA256_LENGTH);
-        memcpy(&right,strdata+SHA256_LENGTH*(3*i + 1),SHA256_LENGTH);
-        memcpy(&parent,strdata+SHA256_LENGTH*(3*i + 2),SHA256_LENGTH);
-		
-		proof[i] = ProofNode(left,right,parent);
-	}
+    for(int i = 0 ;i<proof.size();i++){
+       char *left = new char[SHA256_LENGTH+1],
+       *right = new char[SHA256_LENGTH+1],
+       *parent = new char[SHA256_LENGTH+1];
+       left[SHA256_LENGTH] = 0;
+       right[SHA256_LENGTH] = 0;
+       parent[SHA256_LENGTH] = 0;
+       memcpy(left,strdata+SHA256_LENGTH*(3*i),SHA256_LENGTH);
+       memcpy(right,strdata+SHA256_LENGTH*(3*i + 1),SHA256_LENGTH);
+       memcpy(parent,strdata+SHA256_LENGTH*(3*i + 2),SHA256_LENGTH);
+       uint256 v_left(left);
+       uint256 v_right(right);
+       uint256 v_parent(parent);
+       proof[i] = ProofNode(v_left,v_right,v_parent);
+    }
 
-	return proof;
+    return proof;
 };
 
 
@@ -92,12 +91,16 @@ bool verifyProof(uint256 leaf,uint256 expectedMerkleRoot,vector<ProofNode> proof
     uint256 parentData;
     parentData = combine(part.left, part.right);
 
+
     // Parent in proof is incorrect
     if( parentData != part.parent)
       return false;
 
     prevParent = parentData;
   }
+
+  printf("prevParent = %s\n", prevParent.GetHex().c_str());
+  printf("expectedMerkleRoot = %s\n", expectedMerkleRoot.GetHex().c_str());
 
   if(prevParent == expectedMerkleRoot){
       return true;

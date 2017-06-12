@@ -294,19 +294,10 @@ int mtp_prover(CBlock *pblock, argon2_instance_t *instance, uint256 hashTarget, 
             // hash each block with sha256
             SHA256_CTX ctx;
             SHA256_Init(&ctx);
-            uint8_t hashBlock[32];
+            uint256 hashBlock;
             SHA256_Update(&ctx, blockhash_bytes, ARGON2_BLOCK_SIZE);
-            SHA256_Final(hashBlock, &ctx);
-
-            string out_buff;
-            for(int j = 0; j < SHA256_DIGEST_LENGTH; j++)
-            {
-              printf("%02x", hashBlock[j]);
-              sprintf(&out_buff[j * 2], "%02x", hashBlock[j]);
-            }
-
-            uint256 output(out_buff);
-            leaves.push_back(output);
+            SHA256_Final((unsigned char*)&hashBlock, &ctx);
+            leaves.push_back(hashBlock);
             printf("\n");
 
         }
@@ -369,6 +360,8 @@ int mtp_prover(CBlock *pblock, argon2_instance_t *instance, uint256 hashTarget, 
                 vector<ProofNode> newproof = mtree.proof(t_previous);
 
                 pblock->blockhashInBlockchain[(j * 2) - 1].proof = serializeMTP(newproof);
+                // printf("newproof : %s\n", t_previous.GetHex().c_str());
+                // printf("serializeMTP(newproof) = %s\n", serializeMTP(newproof));
 
                 // ref block
                 copy_block(&pblock->blockhashInBlockchain[(j * 2) - 2].memory, &instance->memory[instance->memory[ij].ref_block]);
@@ -385,10 +378,12 @@ int mtp_prover(CBlock *pblock, argon2_instance_t *instance, uint256 hashTarget, 
                 SHA256_Init(&ctx_ref);
                 SHA256_Update(&ctx_ref, blockhash_bytes_ref_block, ARGON2_BLOCK_SIZE);
                 uint256 t_ref_block;
-                SHA256_Final((unsigned char*)&t_ref_block, &ctx_previous);
+                SHA256_Final((unsigned char*)&t_ref_block, &ctx_ref);
                 vector<ProofNode> newproof_ref = mtree.proof(t_ref_block);
 
                 pblock->blockhashInBlockchain[(j * 2) - 2].proof = serializeMTP(newproof_ref);
+                // printf("newproof_ref : %s\n", t_ref_block.GetHex().c_str());
+                // printf("serializeMTP(newproof_ref) = %s\n", serializeMTP(newproof_ref));
 
                 block X_IJ;
                 __m128i state_test[64];
@@ -493,8 +488,9 @@ bool mtp_verifier(uint256 hashTarget, CBlock *pblock) {
         mtpMerkelRoot.SetHex(pblock->mtpMerkleRoot.GetHex());
         printf("mtpMerkelRoot = %s\n", mtpMerkelRoot.GetHex().c_str());
 
-
-        if (verifyProof(hashBlock, mtpMerkelRoot, deserializeMTP(pblock->blockhashInBlockchain[i].proof))) {
+        printf("pblock->blockhashInBlockchain[i].proof = %s\n", pblock->blockhashInBlockchain[i].proof);
+        vector<ProofNode> result = deserializeMTP(pblock->blockhashInBlockchain[i].proof);
+        if (!verifyProof(hashBlock, mtpMerkelRoot, result)) {
             return error("CheckProofOfWork() : Root mismatch error!");
         }
     }
