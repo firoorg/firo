@@ -69,5 +69,5 @@ Unit tests for the GUI code are in `src/qt/test/`. To compile and run them:
 Installation
 -------
 
-Please see details in [Wiki](https://github.com/zcoinofficial/zcoin/wiki) section
+Please see details in [Wiki](https://github.com/zcoinofficial/zcoin/wiki/Installation) section
 
