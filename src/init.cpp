@@ -1071,6 +1071,8 @@ bool AppInit2(boost::thread_group& threadGroup)
                         continue;
                     }else{
                         printf("PROCESS BLOCK = %d\n", pindexRecur->nHeight);
+                        std::string blocksProcessed = "Loading wallet... " + std::to_string(pindexRecur->nHeight) + "/" + std::to_string(mapBlockIndex.size());
+                        uiInterface.InitMessage(blocksProcessed);
                         CBlock blockRecur;
                         blockRecur.ReadFromDisk(pindexRecur);
 
@@ -1099,7 +1101,7 @@ bool AppInit2(boost::thread_group& threadGroup)
                                                 // GET MAX ID
                                                 int currentId = 1;
                                                 BOOST_FOREACH(const CZerocoinEntry& maxIdPubcoin, listPubCoinInLoop) {
-                                                    if (maxIdPubcoin.id > currentId && maxIdPubcoin.denomination == pubCoinItem.denomination) {
+                                                    if (maxIdPubcoin.id > currentId && maxIdPubcoin.denomination == pubCoinItem.denomination && maxIdPubcoin.id > 0) {
                                                         currentId = maxIdPubcoin.id;
                                                     }
                                                 }
@@ -1107,7 +1109,7 @@ bool AppInit2(boost::thread_group& threadGroup)
                                                 // FIND HOW MANY OF MAX ID
                                                 unsigned int countExistingItems = 0;
                                                 BOOST_FOREACH(const CZerocoinEntry& countItemPubcoin, listPubCoinInLoop) {
-                                                    if (currentId == countItemPubcoin.id && countItemPubcoin.denomination == pubCoinItem.denomination) {
+                                                    if (currentId == countItemPubcoin.id && countItemPubcoin.denomination == pubCoinItem.denomination && countItemPubcoin.id > 0) {
                                                         countExistingItems++;
                                                         //printf("pubCoinItem.id = %d denomination =  %d\n", countItemPubcoin.id, countItemPubcoin.denomination);
                                                     }
