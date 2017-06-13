@@ -6462,7 +6462,6 @@ void static ZcoinMiner(CWallet *pwallet)
                         if ((thash <= hashTarget) || (mtp_verification)) {
                             // Found a solution
                             printf("Found a solution. Hash: %s", thash.GetHex().c_str());
-                            exit(0);
                             SetThreadPriority(THREAD_PRIORITY_NORMAL);
                             CheckWork(pblock, *pwallet, reservekey);
                             SetThreadPriority(THREAD_PRIORITY_LOWEST);

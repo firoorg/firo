@@ -65,7 +65,7 @@ uint256 combine(uint256 leftData,uint256 rightData){
 
   uint256 hash2;
   SHA256((unsigned char*)&hash1, sizeof(hash1), (unsigned char*)&hash2);
-  printf("hash = %s\n", hash2.GetHex().c_str());
+  //printf("hash = %s\n", hash2.GetHex().c_str());
   return hash2;
 }
 
@@ -99,8 +99,8 @@ bool verifyProof(uint256 leaf,uint256 expectedMerkleRoot,vector<ProofNode> proof
     prevParent = parentData;
   }
 
-  printf("prevParent = %s\n", prevParent.GetHex().c_str());
-  printf("expectedMerkleRoot = %s\n", expectedMerkleRoot.GetHex().c_str());
+  //printf("prevParent = %s\n", prevParent.GetHex().c_str());
+  //printf("expectedMerkleRoot = %s\n", expectedMerkleRoot.GetHex().c_str());
 
   if(prevParent == expectedMerkleRoot){
       return true;
@@ -151,14 +151,14 @@ public:
 
     for(int i = 0 ;i < leaves.size();i++){
         tree[delta + i] = leaves[i];
-        printf("tree[%d + %d] = %s\n", delta , i, leaves.at(i).GetHex().c_str());
+        //printf("tree[%d + %d] = %s\n", delta , i, leaves.at(i).GetHex().c_str());
     }
 
 
     int idx = nodeCount-1;
     while(idx > 0){
       int parent = (idx -1)/2;
-      printf("parent = %d\n", parent);
+      //printf("parent = %d\n", parent);
       uint256 hash1;
       SHA256_CTX sha256;
       SHA256_Init(&sha256);
@@ -166,9 +166,9 @@ public:
       SHA256_Update(&sha256,&tree[idx],sizeof(uint256));
       SHA256_Final((unsigned char*)&hash1, &sha256);
       SHA256((unsigned char*)&hash1, sizeof(hash1), (unsigned char*)&tree[parent]);
-      printf("hash return : %s\n", tree[parent].GetHex().c_str());
+      //printf("hash return : %s\n", tree[parent].GetHex().c_str());
       idx-=2;
-      printf("idx = %d\n", idx);
+      //printf("idx = %d\n", idx);
     }
 
     return tree;

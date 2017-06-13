@@ -302,10 +302,6 @@ int mtp_prover(CBlock *pblock, argon2_instance_t *instance, uint256 hashTarget, 
 
         }
 
-        for(int i = 0 ;i<leaves.size();i++){
-            printf("x leaves[%d] = %s\n", i , leaves.at(i).GetHex().c_str());
-        }
-
         printf("Step 2.2 : Create merkle tree\n");
         merkletree mtree = merkletree(leaves);
 
@@ -316,20 +312,18 @@ int mtp_prover(CBlock *pblock, argon2_instance_t *instance, uint256 hashTarget, 
             memset(&Y[0], 0, sizeof(Y));
 
             printf("Step 4 : Y0 = H(resultMerkelRoot, N) \n");
-            //mt_hash_t resultMerkleRoot;
-            SHA256_CTX ctx;
-            SHA256_Init(&ctx);
             uint256 root = mtree.root();
             printf("Merkel Root : %s\n", root.GetHex().c_str());
+            SHA256_CTX ctx;
+            SHA256_Init(&ctx);                        
             SHA256_Update(&ctx, &root, sizeof(uint256));            
             SHA256_Update(&ctx, &pblock->nNonce, sizeof(unsigned int));
-            printf("Step 4.5 : SHA256Result\n");
             SHA256_Final((unsigned char*)&Y[0], &ctx);
+            printf("Y[0] = %s\n", Y[0].GetHex().c_str());
 
             printf("Step 5 : For 1 <= j <= L \n");
             //I(j) = Y(j - 1) mod T;
             //Y(j) = H(Y(j - 1), X[I(j)])
-            //block_with_offset blockhashInBlockchain[140];
             bool init_blocks = false;
             bool unmatch_block = false;
             for (uint8_t j = 1; j <= L; j++) {
@@ -360,8 +354,6 @@ int mtp_prover(CBlock *pblock, argon2_instance_t *instance, uint256 hashTarget, 
                 vector<ProofNode> newproof = mtree.proof(t_previous);
 
                 pblock->blockhashInBlockchain[(j * 2) - 1].proof = serializeMTP(newproof);
-                // printf("newproof : %s\n", t_previous.GetHex().c_str());
-                // printf("serializeMTP(newproof) = %s\n", serializeMTP(newproof));
 
                 // ref block
                 copy_block(&pblock->blockhashInBlockchain[(j * 2) - 2].memory, &instance->memory[instance->memory[ij].ref_block]);
@@ -382,8 +374,6 @@ int mtp_prover(CBlock *pblock, argon2_instance_t *instance, uint256 hashTarget, 
                 vector<ProofNode> newproof_ref = mtree.proof(t_ref_block);
 
                 pblock->blockhashInBlockchain[(j * 2) - 2].proof = serializeMTP(newproof_ref);
-                // printf("newproof_ref : %s\n", t_ref_block.GetHex().c_str());
-                // printf("serializeMTP(newproof_ref) = %s\n", serializeMTP(newproof_ref));
 
                 block X_IJ;
                 __m128i state_test[64];
@@ -411,7 +401,7 @@ int mtp_prover(CBlock *pblock, argon2_instance_t *instance, uint256 hashTarget, 
                 SHA256_Init(&ctx_yj);
                 SHA256_Update(&ctx_yj, &Y[j - 1], sizeof(uint256));
                 SHA256_Update(&ctx_yj, blockhash_bytes, ARGON2_BLOCK_SIZE);
-                SHA256_Final((unsigned char*)&Y[j], &ctx);
+                SHA256_Final((unsigned char*)&Y[j], &ctx_yj);
             }
 
             if (init_blocks) {
@@ -424,47 +414,38 @@ int mtp_prover(CBlock *pblock, argon2_instance_t *instance, uint256 hashTarget, 
                 continue;
             }
 
-            //unsigned int d = d_mtp;
-
-            printf("Current nBits: %s\n", CBigNum().SetCompact(pblock->nBits).getuint256().GetHex().c_str());
-            printf("Current hash: %s\n", Y[L].GetHex().c_str());
+            //printf("Current nBits: %s\n", CBigNum().SetCompact(pblock->nBits).getuint256().GetHex().c_str());
+            //printf("Current hash: %s\n", Y[L].GetHex().c_str());
 
 
-            printf("Step 6 : If Y(L) had d trailing zeros, then (resultMerkelroot, N, Y(L)) \n");
-            //uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
-            //printf("*** hashTarget: %d %s ***\n", hashTarget, hashTarget.GetHex().c_str());
+            printf("Step 6 : If Y(L) had d trailing zeros, then send (resultMerkelroot, N, Y(L)) \n");
             if (trailing_zeros_little_endian(Y[L].GetHex().c_str()) < trailing_zeros_little_endian_uint256(hashTarget)) {
                 continue;
             } else {
                 // Found a solution
-                printf("Found a solution. Hash: %s\n", Y[L].GetHex().c_str());
-                printf("root = %s\n", root.GetHex().c_str());
+                printf("Y[L] = %s\n", Y[L].GetHex().c_str());
+                printf("Merkel Root = %s\n", root.GetHex().c_str());
                 pblock->mtpMerkleRoot = root;
-                printf("x pblock->mtpMerkleRoot = %s\n", pblock->mtpMerkleRoot.GetHex().c_str());
                 output->SetHex(Y[L].GetHex().c_str());
                 return 0;
-                //printf("O-2\n");
             }
-            //printf("O-3\n");
         }
-        //printf("O-4\n");
     }
-    //printf("O-5\n");
     return 1;
 }
 
 
 bool mtp_verifier(uint256 hashTarget, CBlock *pblock) {
 
-    uint256 Y_CLIENT[L+1];
-    printf("Step 7 : Y_CLIENT(0) = H(resultMerkelRoot, N)\n");
+    uint256 Y_CLIENT[L + 1];
 
+    printf("Step 7 : Y_CLIENT(0) = H(resultMerkelRoot, N)\n");
     SHA256_CTX ctx_client;
     SHA256_Init(&ctx_client);
     SHA256_Update(&ctx_client, &pblock->mtpMerkleRoot, sizeof(uint256));
     SHA256_Update(&ctx_client, &pblock->nNonce, sizeof(unsigned int));
     SHA256_Final((unsigned char*)&Y_CLIENT[0], &ctx_client);
-
+    printf("mtpMerkelRoot = %s\n", pblock->mtpMerkleRoot.GetHex().c_str());
     printf("Y_CLIENT[0] = %s\n", Y_CLIENT[0].GetHex().c_str());
 
     int i = 0;
@@ -482,13 +463,13 @@ bool mtp_verifier(uint256 hashTarget, CBlock *pblock) {
         SHA256_Update(&ctx, blockhash_bytes, ARGON2_BLOCK_SIZE);
         SHA256_Final((unsigned char*)&hashBlock, &ctx);
 
-        printf("hashBlock[%d] = %s\n", i, hashBlock.GetHex().c_str());
+        //printf("hashBlock[%d] = %s\n", i, hashBlock.GetHex().c_str());
 
         uint256 mtpMerkelRoot;
         mtpMerkelRoot.SetHex(pblock->mtpMerkleRoot.GetHex());
-        printf("mtpMerkelRoot = %s\n", mtpMerkelRoot.GetHex().c_str());
+        //printf("mtpMerkelRoot = %s\n", mtpMerkelRoot.GetHex().c_str());
 
-        printf("pblock->blockhashInBlockchain[i].proof = %s\n", pblock->blockhashInBlockchain[i].proof);
+        //printf("pblock->blockhashInBlockchain[i].proof = %s\n", pblock->blockhashInBlockchain[i].proof);
         vector<ProofNode> result = deserializeMTP(pblock->blockhashInBlockchain[i].proof);
         if (!verifyProof(hashBlock, mtpMerkelRoot, result)) {
             return error("CheckProofOfWork() : Root mismatch error!");
@@ -502,6 +483,7 @@ bool mtp_verifier(uint256 hashTarget, CBlock *pblock) {
         // X[I(j)] = F(X[i(j)-1], X[i(j)-2])
         block X_IJ;
         __m128i state_test[64];
+        memset(state_test, 0, sizeof(state_test));
         memcpy(state_test, &pblock->blockhashInBlockchain[(j * 2) - 1].memory.v, ARGON2_BLOCK_SIZE);
         fill_block(state_test, &pblock->blockhashInBlockchain[(j * 2) - 2].memory, &X_IJ, 0);
 
@@ -513,13 +495,13 @@ bool mtp_verifier(uint256 hashTarget, CBlock *pblock) {
         SHA256_CTX ctx_client_yl;
         SHA256_Init(&ctx_client_yl);
         SHA256_Update(&ctx_client_yl, &Y_CLIENT[j - 1], sizeof(uint256));
-        SHA256_Update(&ctx_client_yl, blockhash_bytes_client_tmp, 32);
+        SHA256_Update(&ctx_client_yl, blockhash_bytes_client_tmp, 1024);
         SHA256_Final((unsigned char*)&Y_CLIENT[j], &ctx_client_yl);
 
     }
 
     printf("Step 10 : Check Y(L) had d tralling zeros then agree\n");
-    printf("Y_CLIENT(L) = %s\n", Y_CLIENT[L].GetHex().c_str());
+    printf("Y_CLIENT[L] = %s\n", Y_CLIENT[L].GetHex().c_str());
 
     if (trailing_zeros_little_endian(Y_CLIENT[L].GetHex().c_str()) < trailing_zeros_little_endian_uint256(hashTarget)) {
         return error("CheckProofOfWork() : proof of work failed - mtp");
