@@ -5,9 +5,9 @@ SetCompressor /SOLID lzma
 
 # General Symbol Definitions
 !define REGKEY "SOFTWARE\$(^Name)"
-!define VERSION 0.8.7.1
+!define VERSION 0.8.7.8
 !define COMPANY "ZCoin Project"
-!define URL http://zcoin.tech/
+!define URL http://zcoin.io/
 
 # MUI Symbol Definitions
 !define MUI_ICON "../share/pixmaps/zcoin.ico"
