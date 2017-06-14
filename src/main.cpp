@@ -839,7 +839,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                         }
                                         countPubcoin++;
                                         accumulator += pubCoinTemp;
-                                        if (countPubcoin >= 1) { // MINIMUM REQUIREMENT IS 1 PUBCOINS (changed from 2 as the default)
+                                        if (countPubcoin >= 2) { // MINIMUM REQUIREMENT IS 2 PUBCOINS
                                             if (newSpend.Verify(accumulator, newMetadata)) {
                                                 printf("COIN SPEND TX DID VERIFY!\n");
                                                 passVerify = true;
@@ -868,7 +868,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                             }
                                             countPubcoin++;
                                             accumulatorRev += pubCoinTemp;
-                                            if (countPubcoin >= 1) { // MINIMUM REQUIREMENT IS 1 PUBCOINS (changed from 2)
+                                            if (countPubcoin >= 2) { // MINIMUM REQUIREMENT IS 2 PUBCOINS
                                                 if (newSpend.Verify(accumulatorRev, newMetadata)) {
                                                     printf("COIN SPEND TX DID VERIFY!\n");
                                                     passVerify = true;
@@ -1040,7 +1040,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                             }
                                             countPubcoin++;
                                             accumulatorRev += pubCoinTemp;
-                                            if (countPubcoin >= 1) { // MINIMUM REQUIREMENT IS 1 PUBCOINS (changed from 2 as default)
+                                            if (countPubcoin >= 2) { // MINIMUM REQUIREMENT IS 2 PUBCOINS
                                                 if (newSpend.Verify(accumulatorRev, newMetadata)) {
                                                     printf("COIN SPEND TX DID VERIFY!\n");
                                                     passVerify = true;
@@ -1183,7 +1183,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                         }
                                         countPubcoin++;
                                         accumulator += pubCoinTemp;
-                                        if (countPubcoin >= 1) { // MINIMUM REQUIREMENT IS 1 PUBCOINS (changed from default of 2)
+                                        if (countPubcoin >= 2) { // MINIMUM REQUIREMENT IS 2 PUBCOINS
                                             if (newSpend.Verify(accumulator, newMetadata)) {
                                                 printf("COIN SPEND TX DID VERIFY!\n");
                                                 passVerify = true;
@@ -1212,7 +1212,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                             }
                                             countPubcoin++;
                                             accumulatorRev += pubCoinTemp;
-                                            if (countPubcoin >= 1) { // MINIMUM REQUIREMENT IS 1 PUBCOINS (changed from default of 2)
+                                            if (countPubcoin >= 2) { // MINIMUM REQUIREMENT IS 2 PUBCOINS
                                                 if (newSpend.Verify(accumulatorRev, newMetadata)) {
                                                     printf("COIN SPEND TX DID VERIFY!\n");
                                                     passVerify = true;
@@ -1354,7 +1354,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                         }
                                         countPubcoin++;
                                         accumulator += pubCoinTemp;
-                                        if (countPubcoin >= 1) { // MINIMUM REQUIREMENT IS 1 PUBCOINS (changed from default of 2)
+                                        if (countPubcoin >= 2) { // MINIMUM REQUIREMENT IS 2 PUBCOINS
                                             if (newSpend.Verify(accumulator, newMetadata)) {
                                                 printf("COIN SPEND TX DID VERIFY!\n");
                                                 passVerify = true;
@@ -1383,7 +1383,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                             }
                                             countPubcoin++;
                                             accumulatorRev += pubCoinTemp;
-                                            if (countPubcoin >= 1) { // MINIMUM REQUIREMENT IS 1 PUBCOINS (changed from default of 2)
+                                            if (countPubcoin >= 2) { // MINIMUM REQUIREMENT IS 2 PUBCOINS
                                                 if (newSpend.Verify(accumulatorRev, newMetadata)) {
                                                     printf("COIN SPEND TX DID VERIFY!\n");
                                                     passVerify = true;
@@ -1526,7 +1526,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                         }
                                         countPubcoin++;
                                         accumulator += pubCoinTemp;
-                                        if (countPubcoin >= 1) { // MINIMUM REQUIREMENT IS 1 PUBCOINS (changed from default of 2)
+                                        if (countPubcoin >= 2) { // MINIMUM REQUIREMENT IS 2 PUBCOINS
                                             if (newSpend.Verify(accumulator, newMetadata)) {
                                                 printf("COIN SPEND TX DID VERIFY!\n");
                                                 passVerify = true;
@@ -1555,7 +1555,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                             }
                                             countPubcoin++;
                                             accumulatorRev += pubCoinTemp;
-                                            if (countPubcoin >= 1) { // MINIMUM REQUIREMENT IS 1 PUBCOINS (changed from default of 2)
+                                            if (countPubcoin >= 2) { // MINIMUM REQUIREMENT IS 2 PUBCOINS
                                                 if (newSpend.Verify(accumulatorRev, newMetadata)) {
                                                     printf("COIN SPEND TX DID VERIFY!\n");
                                                     passVerify = true;
@@ -4715,7 +4715,7 @@ bool static AlreadyHave(const CInv& inv)
 // The message start string is designed to be unlikely to occur in normal data.
 // The characters are rarely used upper ASCII, not valid as UTF-8, and produce
 // a large 4-byte int at any alignment.
-unsigned char pchMessageStart[4] = { 0xe3, 0xd9, 0xfe, 0xf1 };
+unsigned char pchMessageStart[4] = { 0x5c, 0xa1, 0xab, 0xle };
 
 
 void static ProcessGetData(CNode* pfrom)
