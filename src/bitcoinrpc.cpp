@@ -243,7 +243,7 @@ static const CRPCCommand vRPCCommands[] =
     { "listtransactions",       &listtransactions,       false,     false,      true },
     { "listaddressgroupings",   &listaddressgroupings,   false,     false,      true },
     { "signmessage",            &signmessage,            false,     false,      true },
-    { "verifymessage",          &verifymessage,          false,     false,      false },
+    { "verifymessage",          &verifymessage,          true,     false,      false },
     { "getwork",                &getwork,                true,      false,      true },
 //    { "getworkaux",             &getworkaux,             true,      false,      true },
     { "getworkex",              &getworkex,              true,      false,      true },
