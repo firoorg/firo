@@ -1000,7 +1000,7 @@ bool AppInit2(boost::thread_group& threadGroup)
     {
         string strMatch = mapArgs["-printblock"];
         int nFound = 0;
-        for (map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.begin(); mi != mapBlockIndex.end(); ++mi)
+        for (BlockMap::iterator mi = mapBlockIndex.begin(); mi != mapBlockIndex.end(); ++mi)
         {
             uint256 hash = (*mi).first;
             if (strncmp(hash.ToString().c_str(), strMatch.c_str(), strMatch.size()) == 0)
@@ -1099,7 +1099,7 @@ bool AppInit2(boost::thread_group& threadGroup)
                                                 // GET MAX ID
                                                 int currentId = 1;
                                                 BOOST_FOREACH(const CZerocoinEntry& maxIdPubcoin, listPubCoinInLoop) {
-                                                    if (maxIdPubcoin.id > currentId && maxIdPubcoin.denomination == pubCoinItem.denomination) {
+                                                    if (maxIdPubcoin.id > currentId && maxIdPubcoin.denomination == pubCoinItem.denomination && maxIdPubcoin.id > 0) {
                                                         currentId = maxIdPubcoin.id;
                                                     }
                                                 }
@@ -1107,7 +1107,7 @@ bool AppInit2(boost::thread_group& threadGroup)
                                                 // FIND HOW MANY OF MAX ID
                                                 unsigned int countExistingItems = 0;
                                                 BOOST_FOREACH(const CZerocoinEntry& countItemPubcoin, listPubCoinInLoop) {
-                                                    if (currentId == countItemPubcoin.id && countItemPubcoin.denomination == pubCoinItem.denomination) {
+                                                    if (currentId == countItemPubcoin.id && countItemPubcoin.denomination == pubCoinItem.denomination && countItemPubcoin.id > 0) {
                                                         countExistingItems++;
                                                         //printf("pubCoinItem.id = %d denomination =  %d\n", countItemPubcoin.id, countItemPubcoin.denomination);
                                                     }

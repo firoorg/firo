@@ -10,11 +10,13 @@
 #include "net.h"
 #include "script.h"
 #include "scrypt.h"
+#include "checkpoints.h"
 //#include "Lyra2Z/Lyra2Z.h"
 //#include "Lyra2Z/Lyra2.h"
 #include "libzerocoin/Zerocoin.h"
 #include "db.h"
 
+#include <boost/unordered_map.hpp>
 #include <list>
 
 class CWallet;
@@ -30,6 +32,8 @@ class CNode;
 
 struct CBlockIndexWorkComparator;
 
+/** Default for DEFAULT_WHITELISTFORCERELAY. */
+static const bool DEFAULT_WHITELISTFORCERELAY = true;
 /** The maximum allowed size for a serialized block, in bytes (network rule) */
 static const unsigned int MAX_BLOCK_SIZE = 2000000;                      // 2000KB block hard limit
 /** Obsolete: maximum size for mined blocks */
@@ -78,7 +82,7 @@ extern CScript COINBASE_FLAGS;
 
 
 extern CCriticalSection cs_main;
-extern std::map<uint256, CBlockIndex*> mapBlockIndex;
+extern BlockMap mapBlockIndex;
 extern std::set<CBlockIndex*, CBlockIndexWorkComparator> setBlockIndexValid;
 extern uint256 hashGenesisBlock;
 extern CBlockIndex* pindexGenesisBlock;
@@ -2067,7 +2071,7 @@ public:
 
     explicit CBlockLocator(uint256 hashBlock)
     {
-        std::map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hashBlock);
+        BlockMap::iterator mi = mapBlockIndex.find(hashBlock);
         if (mi != mapBlockIndex.end())
             Set((*mi).second);
     }
@@ -2118,7 +2122,7 @@ public:
         int nStep = 1;
         BOOST_FOREACH(const uint256& hash, vHave)
         {
-            std::map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hash);
+            BlockMap::iterator mi = mapBlockIndex.find(hash);
             if (mi != mapBlockIndex.end())
             {
                 CBlockIndex* pindex = (*mi).second;
@@ -2137,7 +2141,7 @@ public:
         // Find the first block the caller has in the main chain
         BOOST_FOREACH(const uint256& hash, vHave)
         {
-            std::map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hash);
+            BlockMap::iterator mi = mapBlockIndex.find(hash);
             if (mi != mapBlockIndex.end())
             {
                 CBlockIndex* pindex = (*mi).second;
@@ -2153,7 +2157,7 @@ public:
         // Find the first block the caller has in the main chain
         BOOST_FOREACH(const uint256& hash, vHave)
         {
-            std::map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(hash);
+            BlockMap::iterator mi = mapBlockIndex.find(hash);
             if (mi != mapBlockIndex.end())
             {
                 CBlockIndex* pindex = (*mi).second;

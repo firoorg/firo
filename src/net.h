@@ -5,6 +5,7 @@
 #ifndef BITCOIN_NET_H
 #define BITCOIN_NET_H
 
+#include <atomic>
 #include <deque>
 #include <boost/array.hpp>
 #include <boost/foreach.hpp>
@@ -220,6 +221,9 @@ public:
     bool fGetAddr;
     std::set<uint256> setKnown;
 
+    // Block and TXN accept times
+    std::atomic<int64_t> nLastTXTime;
+
     // inventory based relay
     mruset<CInv> setInventoryKnown;
     std::vector<CInv> vInventoryToSend;
@@ -261,7 +265,7 @@ public:
         fRelayTxes = false;
         setInventoryKnown.max_size(SendBufferSize() / 1000);
         pfilter = new CBloomFilter();
-
+        nLastTXTime = 0;
         // Be shy and don't send version until we hear
         if (hSocket != INVALID_SOCKET && !fInbound)
             PushVersion();
