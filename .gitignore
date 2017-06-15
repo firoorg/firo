@@ -21,3 +21,5 @@ qrc_*.cpp
 *.o
 
 *.P
+
+.qmake.stash

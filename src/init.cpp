@@ -1096,34 +1096,31 @@ bool AppInit2(boost::thread_group& threadGroup)
 
                                                 CZerocoinEntry pubCoinTx;
 
-                                                // PUBCOIN IS IN DB, BUT NOT UPDATE ID
-                                                //printf("UPDATING\n");
-                                                // GET MAX ID
+                                                // Get the current id
                                                 int currentId = 1;
-                                                BOOST_FOREACH(const CZerocoinEntry& maxIdPubcoin, listPubCoinInLoop) {
-                                                    if (maxIdPubcoin.id > currentId && maxIdPubcoin.denomination == pubCoinItem.denomination && maxIdPubcoin.id > 0) {
-                                                        currentId = maxIdPubcoin.id;
-                                                    }
-                                                }
-
-                                                // FIND HOW MANY OF MAX ID
                                                 unsigned int countExistingItems = 0;
-                                                BOOST_FOREACH(const CZerocoinEntry& countItemPubcoin, listPubCoinInLoop) {
-                                                    if (currentId == countItemPubcoin.id && countItemPubcoin.denomination == pubCoinItem.denomination && countItemPubcoin.id > 0) {
-                                                        countExistingItems++;
-                                                        //printf("pubCoinItem.id = %d denomination =  %d\n", countItemPubcoin.id, countItemPubcoin.denomination);
+                                                listPubCoinInLoop.sort(CompHeight);
+                                                BOOST_FOREACH(const CZerocoinEntry& pubCoinIdItem, listPubCoinInLoop) {
+                                                    if(pubCoinIdItem.id > 0){
+                                                        if(pubCoinIdItem.nHeight <= pindexRecur->nHeight){
+                                                            if(pubCoinIdItem.denomination == pubCoinItem.denomination){
+                                                                countExistingItems++;
+                                                                if(pubCoinIdItem.id > currentId){
+                                                                    currentId = pubCoinIdItem.id;
+                                                                    countExistingItems = 1;
+                                                                }                                                                
+                                                            }
+                                                        }else{
+                                                            break;
+                                                        }
                                                     }
                                                 }
 
-                                                // IF IT IS NOT 10 -> ADD MORE
-                                                if (countExistingItems < 10) {
-                                                    pubCoinTx.id = currentId;
-                                                }
-                                                else {// ELSE INCREASE 1 -> ADD
-                                                    currentId += 1;
-                                                    pubCoinTx.id = currentId;
+                                                if(countExistingItems > 9){
+                                                    currentId++;
                                                 }
 
+                                                pubCoinTx.id = currentId;
                                                 pubCoinTx.IsUsed = pubCoinItem.IsUsed;
                                                 pubCoinTx.randomness = pubCoinItem.randomness;
                                                 pubCoinTx.denomination = pubCoinItem.denomination;
