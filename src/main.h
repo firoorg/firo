@@ -15,6 +15,7 @@
 #include "libzerocoin/Zerocoin.h"
 #include "db.h"
 
+
 #include <list>
 
 class CWallet;
@@ -33,9 +34,9 @@ struct CBlockIndexWorkComparator;
 /** The maximum allowed size for a serialized block, in bytes (network rule) */
 static const unsigned int MAX_BLOCK_SIZE = 2000000;                      // 2000KB block hard limit
 /** Obsolete: maximum size for mined blocks */
-static const unsigned int MAX_BLOCK_SIZE_GEN = MAX_BLOCK_SIZE/4;         // 500KB  block soft limit
+static const unsigned int MAX_BLOCK_SIZE_GEN = MAX_BLOCK_SIZE/2;         // 500KB  block soft limit
 /** Default for -blockmaxsize, maximum size for mined blocks **/
-static const unsigned int DEFAULT_BLOCK_MAX_SIZE = 500000;
+static const unsigned int DEFAULT_BLOCK_MAX_SIZE = 1000000;
 /** Default for -blockprioritysize, maximum space for zero/low-fee transactions **/
 static const unsigned int DEFAULT_BLOCK_PRIORITY_SIZE = 50000; // 50KB
 /** The maximum size for transactions we're willing to relay/mine */
@@ -120,6 +121,8 @@ unsigned char GetNfactor(int64 nTimestamp);
 // Settings
 extern int64 nTransactionFee;
 extern int64 nMinimumInputValue;
+
+extern bool mtp_verifier(uint256 hashTarget, uint256 mtpMerkleRoot, unsigned int nNonce, block_with_offset blockhashInBlockchain[140], uint256 *yL);
 
 // Minimum disk space required - used in CheckDiskSpace()
 static const uint64 nMinDiskSpace = 52428800;
@@ -1359,7 +1362,10 @@ public:
         READWRITE(nBits);
         READWRITE(nNonce);
 
-        if(this->CURRENT_VERSION == 3){
+        if(fTestNet && this->LastHeight + 1 >= HF_MTP_HEIGHT_TESTNET){
+            READWRITE(blockhashInBlockchain);
+            READWRITE(mtpMerkleRoot);
+        }else if(!fTestNet && this->LastHeight + 1 >= HF_MTP_HEIGHT){
             READWRITE(blockhashInBlockchain);
             READWRITE(mtpMerkleRoot);
         }
@@ -1375,24 +1381,46 @@ public:
     uint256 GetPoWHash(int height) const
     {
         uint256 thash;
+        uint256 hashTarget = CBigNum().SetCompact(nBits).getuint256();
 
-        if ( !fTestNet && height >= HF_LYRA2Z_HEIGHT) {
+        printf("height : %d\n", height);
+        if (fTestNet && height >= HF_MTP_HEIGHT_TESTNET){
+            /*printf("hashTarget : %s\n", hashTarget.GetHex().c_str());
+            printf("mtpMerkleRoot : %s\n", mtpMerkleRoot.GetHex().c_str());
+            int i = 0;
+            for(i = 0; i < 140; i++){
+                printf("blockhashInBlockchain[%d].proof = %s\n", i, blockhashInBlockchain[i].proof);
+            }*/
+            mtp_verifier(hashTarget, mtpMerkleRoot, nNonce, blockhashInBlockchain,&thash);
+
+        } else if(!fTestNet && height >= HF_MTP_HEIGHT ){
+            mtp_verifier(hashTarget, mtpMerkleRoot, nNonce, blockhashInBlockchain,&thash);
+
+        }else if ( !fTestNet && height >= HF_LYRA2Z_HEIGHT && height < HF_MTP_HEIGHT) {
             lyra2z_hash(BEGIN(nVersion), BEGIN(thash));
-        } else if ( !fTestNet && height >= HF_LYRA2_HEIGHT){
+
+        } else if ( !fTestNet && height >= HF_LYRA2_HEIGHT && height < HF_MTP_HEIGHT){
             LYRA2(BEGIN(thash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, 8192, 256);
-        } else if ( !fTestNet && height >= HF_LYRA2VAR_HEIGHT){
+
+        } else if ( !fTestNet && height >= HF_LYRA2VAR_HEIGHT && height < HF_MTP_HEIGHT){
             LYRA2(BEGIN(thash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, height, 256);
-        } else if (fTestNet && height >= HF_LYRA2Z_HEIGHT_TESTNET) { // testnet
+
+        } else if (fTestNet && height >= HF_LYRA2Z_HEIGHT_TESTNET && height < HF_MTP_HEIGHT_TESTNET) { // testnet
             lyra2z_hash(BEGIN(nVersion), BEGIN(thash));
-        } else if (fTestNet && height >= HF_LYRA2_HEIGHT_TESTNET){ // testnet
+
+        } else if (fTestNet && height >= HF_LYRA2_HEIGHT_TESTNET && height < HF_MTP_HEIGHT_TESTNET){ // testnet
             LYRA2(BEGIN(thash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, 8192, 256);
-        } else if (fTestNet && height >= HF_LYRA2VAR_HEIGHT_TESTNET){ // testnet
+
+        } else if (fTestNet && height >= HF_LYRA2VAR_HEIGHT_TESTNET && height < HF_MTP_HEIGHT_TESTNET){ // testnet
             LYRA2(BEGIN(thash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, height, 256);
+
         } else{
             scrypt_N_1_1_256(BEGIN(nVersion), BEGIN(thash), GetNfactor(nTime));
+
         }
 
         return thash;
+
     }
 	
     void SetAuxPow(CAuxPow* pow);
@@ -1405,9 +1433,15 @@ public:
         nTime = 0;
         nBits = 0;
         nNonce = 0;
-        if(this->CURRENT_VERSION == 3){
+
+        //if(fTestNet && this->LastHeight + 1 >= HF_MTP_HEIGHT_TESTNET){
+            memset(blockhashInBlockchain,0, sizeof(block_with_offset)*140);
             mtpMerkleRoot = 0;
-        }
+        //}else if(!fTestNet && this->LastHeight + 1 >= HF_MTP_HEIGHT){
+        //    memset(blockhashInBlockchain,0, sizeof(blockhashInBlockchain));
+        //    mtpMerkleRoot = 0;
+        //}
+
     }
 
     bool IsNull() const
@@ -1474,9 +1508,19 @@ public:
         block.nBits          = nBits;
         block.nNonce         = nNonce;
 
-        if(CURRENT_VERSION == 3){
-            memcpy(&block.blockhashInBlockchain, blockhashInBlockchain, 140 * sizeof(block_with_offset) );
-            block.mtpMerkleRoot = mtpMerkleRoot;
+        if(fTestNet && block.LastHeight + 1 >= HF_MTP_HEIGHT_TESTNET){
+            int i = 0;
+            for(i = 0; i < 140; i++){
+                block.blockhashInBlockchain[i] = blockhashInBlockchain[i];
+            }
+            block.mtpMerkleRoot         = mtpMerkleRoot ;
+
+        }else if(!fTestNet && block.LastHeight + 1 >= HF_MTP_HEIGHT){
+            int i = 0;
+            for(i = 0; i < 140; i++){
+                block.blockhashInBlockchain[i] = blockhashInBlockchain[i];
+            }
+            block.mtpMerkleRoot          = mtpMerkleRoot;
         }
 
         return block;
@@ -1584,10 +1628,11 @@ public:
         // Check the header
         // Just skip for now in MTP due to it takes time to compute,
         // TODO: have to find the better way to check
-        if (fTestNet && LastHeight + 1 < HF_MTP_HEIGHT_TESTNET){
+        //if (fTestNet && LastHeight + 1 < HF_MTP_HEIGHT_TESTNET
+        //   || !fTestNet && LastHeight + 1 < HF_MTP_HEIGHT){
             if (!::CheckProofOfWork(GetPoWHash(LastHeight + 1), nBits))
-                return error("CBlock::ReadFromDisk() : errors in block header");
-        }
+                  return error("CBlock::ReadFromDisk() : errors in block header");
+        //}
 
         return true;
     }
@@ -1596,8 +1641,9 @@ public:
 
     void print() const
     {
-        printf("CBlock(hash=%s, input=%s, PoW=%s, ver=%d, hashPrevBlock=%s, hashMerkleRoot=%s, nTime=%u, nBits=%08x, nNonce=%u, vtx=%" PRIszu")\n",
+        printf("CBlock(hash=%s, height=%d, input=%s, PoW=%s, ver=%d, hashPrevBlock=%s, hashMerkleRoot=%s, nTime=%u, nBits=%08x, nNonce=%u, vtx=%" PRIszu")\n",
             GetHash().ToString().c_str(),
+            LastHeight + 1,
             HexStr(BEGIN(nVersion),BEGIN(nVersion)+80,false).c_str(),
             GetPoWHash(LastHeight + 1).ToString().c_str(),
             nVersion,
@@ -1614,6 +1660,19 @@ public:
         for (unsigned int i = 0; i < vMerkleTree.size(); i++)
             printf("%s ", vMerkleTree[i].ToString().c_str());
         printf("\n");
+
+        /*if(fTestNet && (LastHeight + 1) >= HF_MTP_HEIGHT_TESTNET){
+            printf("  xElement Proof: ");
+            for (unsigned int i = 0; i < 141; i++)
+                printf("%s ", blockhashInBlockchain[i].proof);
+            printf("\n");
+        }else if(!fTestNet && (LastHeight + 1) >= HF_MTP_HEIGHT){
+            printf("  xElement Proof: ");
+            for (unsigned int i = 0; i < 141; i++)
+                printf("%s ", blockhashInBlockchain[i].proof);
+            printf("\n");
+        }*/
+
     }
 
 
@@ -1790,7 +1849,8 @@ public:
         nBits          = 0;
         nNonce         = 0;
 
-
+        memset(blockhashInBlockchain, 0, sizeof(block_with_offset)*140);
+        mtpMerkleRoot = 0;
     }
 
     CBlockIndex(CBlockHeader& block)
@@ -1813,9 +1873,19 @@ public:
         nBits          = block.nBits;
         nNonce         = block.nNonce;
 
-        if(block.CURRENT_VERSION == 3){
-            memcpy(&blockhashInBlockchain, block.blockhashInBlockchain, 140 * sizeof(block_with_offset) );
-            mtpMerkleRoot = block.mtpMerkleRoot;
+        if(fTestNet && block.LastHeight + 1 >= HF_MTP_HEIGHT_TESTNET){
+            int i = 0;
+            for(i = 0; i < 140; i++){
+                blockhashInBlockchain[i] = block.blockhashInBlockchain[i];
+            }
+            mtpMerkleRoot         = block.mtpMerkleRoot ;
+
+        }else if(!fTestNet && block.LastHeight + 1 >= HF_MTP_HEIGHT){
+            int i = 0;
+            for(i = 0; i < 140; i++){
+                blockhashInBlockchain[i] = block.blockhashInBlockchain[i];
+            }
+            mtpMerkleRoot          = block.mtpMerkleRoot;
         }
     }
 
@@ -1989,6 +2059,14 @@ public:
         READWRITE(nBits);
         READWRITE(nNonce);
 
+        if(fTestNet && nHeight >= HF_MTP_HEIGHT_TESTNET){
+            READWRITE(blockhashInBlockchain);
+            READWRITE(mtpMerkleRoot);
+        }else if(!fTestNet && nHeight >= HF_MTP_HEIGHT){
+            READWRITE(blockhashInBlockchain);
+            READWRITE(mtpMerkleRoot);
+        }
+
         ReadWriteAuxPow(s, auxpow, nType, this->nVersion, ser_action);
     )
 
@@ -2001,6 +2079,22 @@ public:
         block.nTime           = nTime;
         block.nBits           = nBits;
         block.nNonce          = nNonce;
+
+        if(fTestNet && block.LastHeight + 1 >= HF_MTP_HEIGHT_TESTNET){
+            int i = 0;
+            for(i = 0; i < 140; i++){
+                block.blockhashInBlockchain[i] = blockhashInBlockchain[i];
+            }
+            block.mtpMerkleRoot          = mtpMerkleRoot;
+
+        }else if(!fTestNet && block.LastHeight + 1 >= HF_MTP_HEIGHT){
+            int i = 0;
+            for(i = 0; i < 140; i++){
+                block.blockhashInBlockchain[i] = blockhashInBlockchain[i];
+            }
+            block.mtpMerkleRoot          = mtpMerkleRoot;
+        }
+
         return block.GetHash();
     }
 

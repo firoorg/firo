@@ -118,34 +118,101 @@ inline unsigned int GetSerializeSize(uint64 a,         int, int=0) { return size
 inline unsigned int GetSerializeSize(float a,          int, int=0) { return sizeof(a); }
 inline unsigned int GetSerializeSize(double a,         int, int=0) { return sizeof(a); }
 
+
+//
+// Compact size
+//  size <  253        -- 1 byte
+//  size <= USHRT_MAX  -- 3 bytes  (253 + 2 bytes)
+//  size <= UINT_MAX   -- 5 bytes  (254 + 4 bytes)
+//  size >  UINT_MAX   -- 9 bytes  (255 + 8 bytes)
+//
+inline unsigned int GetSizeOfCompactSize(uint64 nSize)
+{
+    if (nSize < 253)             return sizeof(unsigned char);
+    else if (nSize <= std::numeric_limits<unsigned short>::max()) return sizeof(unsigned char) + sizeof(unsigned short);
+    else if (nSize <= std::numeric_limits<unsigned int>::max())  return sizeof(unsigned char) + sizeof(unsigned int);
+    else                         return sizeof(unsigned char) + sizeof(uint64);
+}
+
 // argon2 block with offset
 inline unsigned int GetSerializeSize(const block_with_offset data[140], int, int=0){
-    return sizeof(block_with_offset) * 140;
+    //return sizeof(block_with_offset) * 140;
+    unsigned int sizeData = 0;
+    int i =0 , r = 0, k = 0;
+    for( r = 0; r < 140; r++){
+        sizeData += sizeof(uint64_t) * ARGON2_QWORDS_IN_BLOCK; // v
+        sizeData += sizeof(uint64_t) * 2; // ref and prev
+        //sizeData += GetSizeOfCompactSize(2882); // compact
+        sizeData += sizeof(char) * 4034;
+    }
+
+     return sizeData;
 }
+
+
+
+
 
 template<typename Stream> inline void Serialize(Stream& s, const block_with_offset a[140], int, int=0)
 {
-    int i, r;
-    for( r = 0; r < 140; r++){
-        for(i = 0; i < ARGON2_QWORDS_IN_BLOCK; i++){
-            WRITEDATA(s, a[r].memory.v[i]);
+    if(a != NULL){
+        int i =0 , r = 0, k = 0;
+        for( r = 0; r < 140; r++){
+            for(i = 0; i < ARGON2_QWORDS_IN_BLOCK; i++){
+                WRITEDATA(s, a[r].memory.v[i]);
+            }
+            WRITEDATA(s, a[r].memory.prev_block);
+            WRITEDATA(s, a[r].memory.ref_block);
+            unsigned int c = 0;
+            char x[4034] = { 0 };
+            while(true){
+                 if(a[r].proof[c] != 0){
+                    x[c] = a[r].proof[c];
+                    c++;
+                 }else{
+                     break;
+                 }
+            }
+            //WriteCompactSize(s, 2882);
+            s.write((char*)&x[0], 4034 * sizeof(char));
+
+
+            /*while(true){
+                if(a[r].proof[k] != 0){
+                    WRITEDATA(s, a[r].proof[k]);
+                    k++;
+                }else{
+                    break;
+                }
+            }*/
         }
-        WRITEDATA(s, a[r].memory.prev_block);
-        WRITEDATA(s, a[r].memory.ref_block);
-        WRITEDATA(s, a[r].proof);
     }
 }
 
 template<typename Stream> inline void Unserialize(Stream& s, block_with_offset a[140], int, int=0)
 {
-    int i, r;
-    for( r = 0; r < 140; r++){
-        for(i = 0; i < ARGON2_QWORDS_IN_BLOCK; i++){
-            READDATA(s, a[r].memory.v[i]);
+    if(a != NULL){
+        int i = 0, r = 0, k = 0;
+        for( r = 0; r < 140; r++){
+
+            for(i = 0; i < ARGON2_QWORDS_IN_BLOCK; i++){
+                READDATA(s, a[r].memory.v[i]);
+            }
+            READDATA(s, a[r].memory.prev_block);
+            READDATA(s, a[r].memory.ref_block);
+            //READDATA(s, a[r].proof);
+            //unsigned int nSize = ReadCompactSize(s);
+            s.read((char*)&a[r].proof, 4034 * sizeof(char));
+            /*while(true){
+                if(a[r].proof[k] != 0){
+                    READDATA(s, a[r].proof[k]);
+                    k++;
+                }else{
+                    break;
+                }
+            }*/
+
         }
-        READDATA(s, a[r].memory.prev_block);
-        READDATA(s, a[r].memory.ref_block);
-        READDATA(s, a[r].proof);
     }
 
 }
@@ -187,20 +254,6 @@ template<typename Stream> inline void Unserialize(Stream& s, bool& a, int, int=0
 
 
 
-//
-// Compact size
-//  size <  253        -- 1 byte
-//  size <= USHRT_MAX  -- 3 bytes  (253 + 2 bytes)
-//  size <= UINT_MAX   -- 5 bytes  (254 + 4 bytes)
-//  size >  UINT_MAX   -- 9 bytes  (255 + 8 bytes)
-//
-inline unsigned int GetSizeOfCompactSize(uint64 nSize)
-{
-    if (nSize < 253)             return sizeof(unsigned char);
-    else if (nSize <= std::numeric_limits<unsigned short>::max()) return sizeof(unsigned char) + sizeof(unsigned short);
-    else if (nSize <= std::numeric_limits<unsigned int>::max())  return sizeof(unsigned char) + sizeof(unsigned int);
-    else                         return sizeof(unsigned char) + sizeof(uint64);
-}
 
 template<typename Stream>
 void WriteCompactSize(Stream& os, uint64 nSize)

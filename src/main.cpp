@@ -2167,6 +2167,13 @@ CBlockIndex* FindBlockByHeight(int nHeight)
 bool CBlock::ReadFromDisk(const CBlockIndex* pindex)
 {
     LastHeight = pindex->nHeight - 1;
+    /*mtpMerkleRoot.SetHex(pindex->mtpMerkleRoot.GetHex());
+    nNonce = pindex->nNonce;
+    int i = 0;
+    for(i = 0; i < 140; i++){
+        blockhashInBlockchain[i] = pindex->blockhashInBlockchain[i];
+    }*/
+
     if (!ReadFromDisk(pindex->GetBlockPos()))
         return false;
     if (GetHash() != pindex->GetBlockHash())
@@ -2845,7 +2852,7 @@ void ThreadScriptCheck() {
 
 bool CBlock::ConnectBlock(CValidationState &state, CBlockIndex* pindex, CCoinsViewCache &view, bool fJustCheck)
 {
-    LastHeight = pindex->nHeight;
+    LastHeight = pindex->nHeight - 1;
 
     // Check it again in case a previous version let a bad block in
     if (!CheckBlock(state, pindex->nHeight, !fJustCheck, !fJustCheck, false))
@@ -3452,10 +3459,19 @@ bool CBlock::AddToBlockIndex(CValidationState &state, const CDiskBlockPos &pos)
     pindexNew->nDataPos = pos.nPos;
     pindexNew->nUndoPos = 0;
     pindexNew->nStatus = BLOCK_VALID_TRANSACTIONS | BLOCK_HAVE_DATA;
+    int i = 0;
+    for(i = 0; i < 140; i++){
+        pindexNew->blockhashInBlockchain[i] = blockhashInBlockchain[i];
+    }
+    pindexNew->mtpMerkleRoot = mtpMerkleRoot;
+    pindexNew->nBits = nBits;
+    pindexNew->nNonce = nNonce;
+
     setBlockIndexValid.insert(pindexNew);
 
     /* write both the immutible data (CDiskBlockIndex) and the mutable data (BlockIndex) */
-    if (!pblocktree->WriteDiskBlockIndex(CDiskBlockIndex(pindexNew, this->auxpow)) || !pblocktree->WriteBlockIndex(*pindexNew))
+    if (!pblocktree->WriteDiskBlockIndex(CDiskBlockIndex(pindexNew, this->auxpow))
+            || !pblocktree->WriteBlockIndex(*pindexNew))
         return state.Abort(_("Failed to write block index"));
 
     // New best?
@@ -3639,6 +3655,8 @@ bool CBlock::CheckBlock(CValidationState &state, int nHeight, bool fCheckPOW, bo
     if (vtx.empty() || vtx.size() > MAX_BLOCK_SIZE || ::GetSerializeSize(*this, SER_NETWORK, PROTOCOL_VERSION) > MAX_BLOCK_SIZE)
         return state.DoS(100, error("CheckBlock() : size limits failed"));
 
+
+
     // ZCoin: Special short-term limits to avoid 10,000 BDB lock limit:
     if (GetBlockTime() < 1376568000)  // stop enforcing 15 August 2013 00:00:00
     {
@@ -3668,9 +3686,12 @@ bool CBlock::CheckBlock(CValidationState &state, int nHeight, bool fCheckPOW, bo
             if (pindexPrev != NULL)
             {
                 nHeightCheckPoW = pindexPrev->nHeight+1;
-                // Check proof of work matches claimed amount
-                if (fCheckPOW && !CheckProofOfWork(nHeightCheckPoW))
+                printf("nHeightCheckPoW = %d\n", pindexPrev->nHeight+1);
+
+                if (fCheckPOW && !CheckProofOfWork(nHeightCheckPoW)){
                     return state.DoS(50, error("CheckBlock() : proof of work failed"));
+                }
+
             }
         }
     }
@@ -6162,6 +6183,8 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
         pblock->UpdateTime(pindexPrev);
         pblock->nBits          = GetNextWorkRequired(pindexPrev, pblock);
         pblock->nNonce         = 0;
+        pblock->mtpMerkleRoot = uint256(0);
+        memset(pblock->blockhashInBlockchain, 0, sizeof(block_with_offset)*140);
         pblock->vtx[0].vin[0].scriptSig = CScript() << OP_0 << OP_0;
         pblocktemplate->vTxSigOps[0] = pblock->vtx[0].GetLegacySigOpCount();
 
@@ -6265,12 +6288,12 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
         nHeight = pindexPrev->nHeight+1;
     }
 
-    uint256 hash = pblock->GetPoWHash(nHeight);
     uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
-
     CAuxPow *auxpow = pblock->auxpow.get();
+    uint256 output;
 
     if (auxpow != NULL) {
+        uint256 hash = pblock->GetPoWHash(nHeight);
         if (!auxpow->Check(pblock->GetHash(), pblock->GetChainID()))
             return error("AUX POW is not valid");
 
@@ -6285,8 +6308,19 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
                 hashTarget.GetHex().c_str());
 
     }
-    else
-    {
+    else if(fTestNet && nHeight >= HF_MTP_HEIGHT_TESTNET){
+        printf("MTP Testnet\n");
+        if(!mtp_verifier(hashTarget, pblock, &output))
+            return false;
+    }
+    else if(!fTestNet && nHeight >= HF_MTP_HEIGHT){
+        printf("MTP\n");
+        if(!mtp_verifier(hashTarget, pblock, &output))
+            return false;
+    }
+    else{
+        printf("GetPoWHash\n");
+        uint256 hash = pblock->GetPoWHash(nHeight);
         if (hash > hashTarget)
             return false;
 
@@ -6296,7 +6330,7 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
     }
     
     //// debug print    
-    pblock->print();
+    // pblock->print();
     printf("generated %s\n", FormatMoney(pblock->vtx[0].vout[0].nValue).c_str());
 
     // Found a solution
@@ -6363,9 +6397,20 @@ CBlockHeader CBlockIndex::GetBlockHeader() const
     block.nTime          = nTime;
     block.nBits          = nBits;
     block.nNonce         = nNonce;
-    if(block.CURRENT_VERSION == 3){
-        memcpy(&block.blockhashInBlockchain, blockhashInBlockchain, 140 * sizeof(block_with_offset) );
-        block.mtpMerkleRoot = mtpMerkleRoot;
+
+    if(fTestNet && block.LastHeight + 1 >= HF_MTP_HEIGHT_TESTNET){
+        int i = 0;
+        for(i = 0; i < 140; i++){
+            block.blockhashInBlockchain[i] = blockhashInBlockchain[i];
+        }
+        block.mtpMerkleRoot         = mtpMerkleRoot ;
+
+    }else if(!fTestNet && block.LastHeight + 1 >= HF_MTP_HEIGHT){
+        int i = 0;
+        for(i = 0; i < 140; i++){
+            block.blockhashInBlockchain[i] = blockhashInBlockchain[i];
+        }
+        block.mtpMerkleRoot          = mtpMerkleRoot;
     }
     return block;
 }
@@ -6419,15 +6464,12 @@ void static ZcoinMiner(CWallet *pwallet)
                 //
                 int64 nStart = GetTime();
                 uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
-                uint256 hashTemp = CBigNum().SetCompact(0x18019eaf).getuint256();
                 printf("hashTarget : %s\n", hashTarget.GetHex().c_str());
-                printf("hashTemp : %s\n", hashTemp.GetHex().c_str());
                 loop
                 {
                     unsigned int nHashesDone = 0;
                     uint256 thash;
 
-                    bool mtp_verification = false;
                     loop
                     {
                         if (!fTestNet && pindexPrev->nHeight + 1 >= HF_LYRA2Z_HEIGHT) {
@@ -6435,14 +6477,8 @@ void static ZcoinMiner(CWallet *pwallet)
 
                         // Start Merkel Tree Proof of Work
                         } else if ( //(!fTestNet && pindexPrev->nHeight + 1 >= HF_MTP_HEIGHT) ||
-                                              (fTestNet && pindexPrev->nHeight + 1 >= HF_MTP_HEIGHT_TESTNET)){
-                            // TODO: recalculate d to match current target
-                            //recalc_d(hashTarget);
+                                              (fTestNet && pindexPrev->nHeight + 1 >= HF_MTP_HEIGHT_TESTNET)){                            
                             mtp_hash(&thash, BEGIN(pblock->nVersion), hashTarget, pblock);
-                            // TODO: compare with target
-                            printf("Found MTP hash: %s\n", thash.GetHex().c_str());
-                            // TODO: verification should be after checking with target
-                            mtp_verification = mtp_verifier(hashTarget, pblock);
                         } else if (!fTestNet && pindexPrev->nHeight + 1 >= HF_LYRA2_HEIGHT){
                             LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, 8192, 256);
                         } else if (!fTestNet && pindexPrev->nHeight + 1 >= HF_LYRA2VAR_HEIGHT){
@@ -6459,7 +6495,7 @@ void static ZcoinMiner(CWallet *pwallet)
                             scrypt_N_1_1_256_sp_generic(BEGIN(pblock->nVersion), BEGIN(thash), scratchpad, GetNfactor(pblock->nTime));
                         }
 
-                        if ((thash <= hashTarget) || (mtp_verification)) {
+                        if (thash <= hashTarget) {
                             // Found a solution
                             printf("Found a solution. Hash: %s", thash.GetHex().c_str());
                             SetThreadPriority(THREAD_PRIORITY_NORMAL);

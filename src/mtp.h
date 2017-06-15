@@ -19,4 +19,6 @@
 
 void mtp_hash(uint256* output, const char* input, uint256 hashTarget, CBlock *pblock);
 
-bool mtp_verifier(uint256 hashTarget, CBlock *pblock);
+bool mtp_verifier(uint256 hashTarget, CBlock *pblock, uint256 *yL);
+
+bool mtp_verifier(uint256 hashTarget, uint256 mtpMerkleRoot, unsigned int nNonce, block_with_offset blockhashInBlockchain[140], uint256 *yL);
