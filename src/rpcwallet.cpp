@@ -403,7 +403,7 @@ Value verifymessage(const Array& params, bool fHelp)
     ss << strMessage;
 
     CPubKey pubkey;
-    if (!pubkey.RecoverCompact(ss.GetHash(), vchSig))
+    if (!pubkey.RecoverCompact(HashKeccak(ss.begin(), ss.end()), vchSig))
         return false;
 
     return (pubkey.GetID() == keyID);
