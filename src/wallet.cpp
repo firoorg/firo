@@ -805,6 +805,8 @@ int CWallet::ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate)
         LOCK(cs_wallet);
         while (pindex)
         {
+            std::string blocksProcessed = "Rescanning... " + std::to_string(pindex->nHeight) + "/" + std::to_string(mapBlockIndex.size());
+            uiInterface.InitMessage(blocksProcessed);
             CBlock block;
             block.ReadFromDisk(pindex);
             BOOST_FOREACH(CTransaction& tx, block.vtx)
