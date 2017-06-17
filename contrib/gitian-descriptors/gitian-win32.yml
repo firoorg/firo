@@ -1,7 +1,7 @@
 ---
 name: "zcoin"
 suites:
-- "trusty"
+- "precise"
 architectures:
 - "amd64"
 packages:
@@ -13,9 +13,8 @@ packages:
 - "faketime"
 reference_datetime: "2011-01-30 00:00:00"
 remotes:
-- "url": "https://github.com/leoreinaux/zcoin"
+- "url": "https://github.com/zcoinofficial/zcoin.git"
   "dir": "zcoin"
-  "commit": "sync-fix-0.8.7.7"
 files:
 - "qt-win32-4.8.5-gitian-r7.zip"
 - "boost-win32-1.55.0-gitian-r6.zip"
@@ -42,28 +41,25 @@ script: |
   export FAKETIME=$REFERENCE_DATETIME
   export TZ=UTC
   ln -s $STAGING $HOME/qt
-  $HOME/staging/host/bin/qmake -spec unsupported/win32-g++-cross MINIUPNPC_LIB_PATH=$STAGING MINIUPNPC_INCLUDE_PATH=$STAGING BDB_LIB_PATH=$STAGING BDB_INCLUDE_PATH=$STAGING BOOST_LIB_PATH=$STAGING BOOST_INCLUDE_PATH=$STAGING BOOST_LIB_SUFFIX=-mt-s BOOST_THREAD_LIB_SUFFIX=_win32-mt-s OPENSSL_LIB_PATH=$STAGING OPENSSL_INCLUDE_PATH=$STAGING QRENCODE_LIB_PATH=$STAGING QRENCODE_INCLUDE_PATH=$STAGING USE_QRCODE=1 INCLUDEPATH=$STAGING DEFINES=BOOST_THREAD_USE_LIB BITCOIN_NEED_QT_PLUGINS=1 QMAKE_CXXFLAGS=-frandom-seed=moneta USE_BUILD_INFO=1 USE_SSE2=1 USE_UPNP=1 zcoin.pro
+  $HOME/staging/host/bin/qmake -spec unsupported/win32-g++-cross MINIUPNPC_LIB_PATH=$STAGING MINIUPNPC_INCLUDE_PATH=$STAGING BDB_LIB_PATH=$STAGING BDB_INCLUDE_PATH=$STAGING BOOST_LIB_PATH=$STAGING BOOST_INCLUDE_PATH=$STAGING BOOST_LIB_SUFFIX=-mt-s BOOST_THREAD_LIB_SUFFIX=_win32-mt-s OPENSSL_LIB_PATH=$STAGING OPENSSL_INCLUDE_PATH=$STAGING QRENCODE_LIB_PATH=$STAGING QRENCODE_INCLUDE_PATH=$STAGING USE_QRCODE=1 INCLUDEPATH=$STAGING DEFINES=BOOST_THREAD_USE_LIB BITCOIN_NEED_QT_PLUGINS=1 QMAKE_LRELEASE=lrelease QMAKE_CXXFLAGS=-frandom-seed=zcoin USE_BUILD_INFO=1 USE_SSE2=1
   make $MAKEOPTS
-  ls -la
   $HOST-strip release/zcoin-qt.exe
   cp release/zcoin-qt.exe $OUTDIR/
   #
-  #cd src
-  #mkdir obj/libzerocoin
-  #export LD_PRELOAD=/usr/lib/faketime/libfaketime.so.1
-  #export FAKETIME=$REFERENCE_DATETIME
-  #export TZ=UTC
-  #make -f makefile.linux-mingw $MAKEOPTS DEPSDIR=$STAGING monetad.exe USE_UPNP=1 DEBUGFLAGS="-frandom-seed=moneta" USE_SSE2=1
-  #$HOST-strip monetad.exe
-  #mkdir $OUTDIR/daemon
-  #cp monetad.exe $OUTDIR/daemon
-  #cd ..
-  #mkdir nsis
-  #git archive HEAD | tar -x -C nsis
-  #cd nsis/src
-  #mkdir ../release
-  #cp ../../release/* ../release/
-  #cp ../../src/*.exe .
-  #makensis ../share/setup.nsi
-  #cp ../share/moneta-*-win32-setup.exe $OUTDIR/
- 
+  cd src
+  export LD_PRELOAD=/usr/lib/faketime/libfaketime.so.1
+  export FAKETIME=$REFERENCE_DATETIME
+  export TZ=UTC
+  make -f makefile.linux-mingw $MAKEOPTS DEPSDIR=$STAGING zcoind.exe USE_UPNP=0 DEBUGFLAGS="-frandom-seed=zcoin" USE_SSE2=1
+  $HOST-strip zcoind.exe
+  mkdir $OUTDIR/daemon
+  cp zcoind.exe $OUTDIR/daemon
+  cd ..
+  mkdir nsis
+  git archive HEAD | tar -x -C nsis
+  cd nsis/src
+  mkdir ../release
+  cp ../../release/* ../release/
+  cp ../../src/*.exe .
+  makensis ../share/setup.nsi
+  cp ../share/zcoin-*-win32-setup.exe $OUTDIR/
