@@ -298,12 +298,15 @@ int mtp_prover(CBlock *pblock, argon2_instance_t *instance, uint256 hashTarget, 
             SHA256_Update(&ctx, blockhash_bytes, ARGON2_BLOCK_SIZE);
             SHA256_Final((unsigned char*)&hashBlock, &ctx);
             leaves.push_back(hashBlock);
+            clear_internal_memory(blockhash.v, ARGON2_BLOCK_SIZE);
+            clear_internal_memory(blockhash_bytes, ARGON2_BLOCK_SIZE);
             //printf("\n");
 
         }
 
         //printf("Step 2.2 : Create merkle tree\n");
         merkletree mtree = merkletree(leaves);
+        vector<uint256>().swap(leaves);
 
         while (true) {
             //printf("Step 3 : Select nonce N \n");
@@ -351,7 +354,11 @@ int mtp_prover(CBlock *pblock, argon2_instance_t *instance, uint256 hashTarget, 
                 SHA256_Update(&ctx_previous, blockhash_bytes_previous, ARGON2_BLOCK_SIZE);
                 uint256 t_previous;
                 SHA256_Final((unsigned char*)&t_previous, &ctx_previous);
+
+                clear_internal_memory(blockhash_previous.v, ARGON2_BLOCK_SIZE);
+                clear_internal_memory(blockhash_bytes_previous, ARGON2_BLOCK_SIZE);
                 vector<ProofNode> newproof = mtree.proof(t_previous);
+
 
                 /*char* y = serializeMTP(newproof);
                 unsigned int x = 0;
@@ -385,6 +392,8 @@ int mtp_prover(CBlock *pblock, argon2_instance_t *instance, uint256 hashTarget, 
                 uint256 t_ref_block;
                 SHA256_Final((unsigned char*)&t_ref_block, &ctx_ref);
                 vector<ProofNode> newproof_ref = mtree.proof(t_ref_block);
+                clear_internal_memory(blockhash_ref_block.v, ARGON2_BLOCK_SIZE);
+                clear_internal_memory(blockhash_bytes_ref_block, ARGON2_BLOCK_SIZE);
 
                 memcpy(pblock->blockhashInBlockchain[(j * 2) - 2].proof,serializeMTP(newproof_ref),4034);
 
@@ -416,6 +425,11 @@ int mtp_prover(CBlock *pblock, argon2_instance_t *instance, uint256 hashTarget, 
                 SHA256_Update(&ctx_yj, &Y[j - 1], sizeof(uint256));
                 SHA256_Update(&ctx_yj, blockhash_bytes, ARGON2_BLOCK_SIZE);
                 SHA256_Final((unsigned char*)&Y[j], &ctx_yj);
+                clear_internal_memory(blockhash.v, ARGON2_BLOCK_SIZE);
+                clear_internal_memory(blockhash_bytes, ARGON2_BLOCK_SIZE);
+
+                vector<ProofNode>().swap(newproof);
+                vector<ProofNode>().swap(newproof_ref);
             }
 
             if (init_blocks) {
@@ -432,6 +446,7 @@ int mtp_prover(CBlock *pblock, argon2_instance_t *instance, uint256 hashTarget, 
             //printf("Current hash: %s\n", Y[L].GetHex().c_str());
 
 
+
             //printf("Step 6 : If Y(L) had d trailing zeros, then send (resultMerkelroot, N, Y(L)) \n");
             if (Y[L] > hashTarget) {
                 continue;
@@ -441,9 +456,13 @@ int mtp_prover(CBlock *pblock, argon2_instance_t *instance, uint256 hashTarget, 
                 //printf("Merkel Root = %s\n", root.GetHex().c_str());
                 pblock->mtpMerkleRoot = root;
                 output->SetHex(Y[L].GetHex().c_str());
+                vector<uint256>().swap(mtree.tree);
                 return 0;
             }
         }
+
+
+        vector<uint256>().swap(mtree.tree);
     }
     return 1;
 }
@@ -476,6 +495,8 @@ bool mtp_verifier(uint256 hashTarget, CBlock *pblock, uint256 *yL) {
         SHA256_Init(&ctx);
         SHA256_Update(&ctx, blockhash_bytes, ARGON2_BLOCK_SIZE);
         SHA256_Final((unsigned char*)&hashBlock, &ctx);
+        clear_internal_memory(blockhash.v, ARGON2_BLOCK_SIZE);
+        clear_internal_memory(blockhash_bytes, ARGON2_BLOCK_SIZE);
 
         //printf("hashBlock[%d] = %s\n", i, hashBlock.GetHex().c_str());
 
@@ -511,7 +532,8 @@ bool mtp_verifier(uint256 hashTarget, CBlock *pblock, uint256 *yL) {
         SHA256_Update(&ctx_client_yl, &Y_CLIENT[j - 1], sizeof(uint256));
         SHA256_Update(&ctx_client_yl, blockhash_bytes_client_tmp, 1024);
         SHA256_Final((unsigned char*)&Y_CLIENT[j], &ctx_client_yl);
-
+        clear_internal_memory(blockhash_client_tmp.v, ARGON2_BLOCK_SIZE);
+        clear_internal_memory(blockhash_bytes_client_tmp, ARGON2_BLOCK_SIZE);
     }
 
     //printf("Step 10 : Check Y(L) had d tralling zeros then agree\n");
@@ -555,6 +577,9 @@ bool mtp_verifier(uint256 hashTarget, uint256 mtpMerkleRoot, unsigned int nNonce
         SHA256_Update(&ctx, blockhash_bytes, ARGON2_BLOCK_SIZE);
         SHA256_Final((unsigned char*)&hashBlock, &ctx);
 
+        clear_internal_memory(blockhash.v, ARGON2_BLOCK_SIZE);
+        clear_internal_memory(blockhash_bytes, ARGON2_BLOCK_SIZE);
+
         //printf("hashBlock[%d] = %s\n", i, hashBlock.GetHex().c_str());
 
         uint256 mtpMerkelRoot;
@@ -589,6 +614,8 @@ bool mtp_verifier(uint256 hashTarget, uint256 mtpMerkleRoot, unsigned int nNonce
         SHA256_Update(&ctx_client_yl, &Y_CLIENT[j - 1], sizeof(uint256));
         SHA256_Update(&ctx_client_yl, blockhash_bytes_client_tmp, 1024);
         SHA256_Final((unsigned char*)&Y_CLIENT[j], &ctx_client_yl);
+        clear_internal_memory(blockhash_client_tmp.v, ARGON2_BLOCK_SIZE);
+        clear_internal_memory(blockhash_bytes_client_tmp, ARGON2_BLOCK_SIZE);
 
     }
 
