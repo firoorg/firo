@@ -278,16 +278,20 @@ int mtp_prover(CBlock *pblock, argon2_instance_t *instance, uint256 hashTarget, 
 
         //printf("Step 2.2 : Create merkle tree\n");
         merkletree mtree = merkletree(leaves);
+        leaves.clear();
         vector<uint256>().swap(leaves);
+
+        uint256* Y = NULL;
+        Y = new uint256[L + 1];
+        uint256 root = mtree.root();
 
         while (true) {
             //printf("Step 3 : Select nonce N \n");
             pblock->nNonce += 1;
-            uint256 Y[L + 1];
             memset(&Y[0], 0, sizeof(Y));
 
             //printf("Step 4 : Y0 = H(resultMerkelRoot, N) \n");
-            uint256 root = mtree.root();
+
             //printf("Merkel Root : %s\n", root.GetHex().c_str());
             SHA256_CTX ctx;
             SHA256_Init(&ctx);                        
@@ -397,9 +401,11 @@ int mtp_prover(CBlock *pblock, argon2_instance_t *instance, uint256 hashTarget, 
                 SHA256_Update(&ctx_yj, &Y[j - 1], sizeof(uint256));
                 SHA256_Update(&ctx_yj, blockhash_bytes, ARGON2_BLOCK_SIZE);
                 SHA256_Final((unsigned char*)&Y[j], &ctx_yj);
+                clear_internal_memory(X_IJ.v, ARGON2_BLOCK_SIZE);
                 clear_internal_memory(blockhash.v, ARGON2_BLOCK_SIZE);
                 clear_internal_memory(blockhash_bytes, ARGON2_BLOCK_SIZE);
-
+                newproof.clear();
+                newproof_ref.clear();
                 vector<ProofNode>().swap(newproof);
                 vector<ProofNode>().swap(newproof_ref);
             }
@@ -420,7 +426,7 @@ int mtp_prover(CBlock *pblock, argon2_instance_t *instance, uint256 hashTarget, 
 
 
             //printf("Step 6 : If Y(L) had d trailing zeros, then send (resultMerkelroot, N, Y(L)) \n");
-            if (Y[L] > hashTarget) {
+            if (Y[L] > hashTarget) {                
                 continue;
             } else {
                 // Found a solution
@@ -428,12 +434,15 @@ int mtp_prover(CBlock *pblock, argon2_instance_t *instance, uint256 hashTarget, 
                 //printf("Merkel Root = %s\n", root.GetHex().c_str());
                 pblock->mtpMerkleRoot = root;
                 output->SetHex(Y[L].GetHex().c_str());
+                mtree.tree.clear();
                 vector<uint256>().swap(mtree.tree);
+                delete [] Y;
                 return 0;
             }
         }
 
-
+        delete [] Y;
+        mtree.tree.clear();
         vector<uint256>().swap(mtree.tree);
     }
     return 1;
@@ -609,5 +618,6 @@ void mtp_hash(uint256* output, const char* input, uint256 hashTarget, CBlock *pb
     argon2_instance_t instance;
     argon2_ctx(&context, &instance);
     mtp_prover(pblock, &instance, hashTarget, output);
-    free_memory(&context, (uint8_t *)instance.memory, instance.memory_blocks, sizeof(block));
+    finalize(&context, &instance);
+    //free_memory(&context, (uint8_t *)instance.memory, instance.memory_blocks, sizeof(block));
 }

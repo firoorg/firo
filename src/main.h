@@ -77,7 +77,7 @@ static const int HF_MTP_HEIGHT = 31000;
 
 static const int HF_LYRA2VAR_HEIGHT_TESTNET = 20;
 static const int HF_LYRA2_HEIGHT_TESTNET = 40;
-static const int HF_LYRA2Z_HEIGHT_TESTNET = 44; // just for consistent purpose since the algo hash is so low
+static const int HF_LYRA2Z_HEIGHT_TESTNET = 41; // just for consistent purpose since the algo hash is so low
 static const int HF_MTP_HEIGHT_TESTNET = 60;
 
 static const int HF_ZEROSPEND_FIX = 22000;
@@ -1362,10 +1362,7 @@ public:
         READWRITE(nBits);
         READWRITE(nNonce);
 
-        if(fTestNet && this->LastHeight + 1 >= HF_MTP_HEIGHT_TESTNET){
-            READWRITE(blockhashInBlockchain);
-            READWRITE(mtpMerkleRoot);
-        }else if(!fTestNet && this->LastHeight + 1 >= HF_MTP_HEIGHT){
+        if(CBlockHeader::CURRENT_VERSION == 3){
             READWRITE(blockhashInBlockchain);
             READWRITE(mtpMerkleRoot);
         }
@@ -1434,13 +1431,10 @@ public:
         nBits = 0;
         nNonce = 0;
 
-        //if(fTestNet && this->LastHeight + 1 >= HF_MTP_HEIGHT_TESTNET){
+        if(CBlockHeader::CURRENT_VERSION == 3){
             memset(blockhashInBlockchain,0, sizeof(block_with_offset)*140);
             mtpMerkleRoot = 0;
-        //}else if(!fTestNet && this->LastHeight + 1 >= HF_MTP_HEIGHT){
-        //    memset(blockhashInBlockchain,0, sizeof(blockhashInBlockchain));
-        //    mtpMerkleRoot = 0;
-        //}
+        }
 
     }
 
@@ -1508,19 +1502,12 @@ public:
         block.nBits          = nBits;
         block.nNonce         = nNonce;
 
-        if(fTestNet && block.LastHeight + 1 >= HF_MTP_HEIGHT_TESTNET){
+        if(CBlockHeader::CURRENT_VERSION == 3){
             int i = 0;
             for(i = 0; i < 140; i++){
                 block.blockhashInBlockchain[i] = blockhashInBlockchain[i];
             }
             block.mtpMerkleRoot         = mtpMerkleRoot ;
-
-        }else if(!fTestNet && block.LastHeight + 1 >= HF_MTP_HEIGHT){
-            int i = 0;
-            for(i = 0; i < 140; i++){
-                block.blockhashInBlockchain[i] = blockhashInBlockchain[i];
-            }
-            block.mtpMerkleRoot          = mtpMerkleRoot;
         }
 
         return block;

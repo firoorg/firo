@@ -3443,10 +3443,10 @@ bool CBlock::AddToBlockIndex(CValidationState &state, const CDiskBlockPos &pos)
         return state.Invalid(error("AddToBlockIndex() : %s already exists", hash.ToString().c_str()));
 
     uint256 hashMerkelRoot = hashMerkleRoot;
-    if(fTestNet && LastHeight >= HF_MTP_HEIGHT_TESTNET){
+    if(fTestNet && LastHeight + 1 >= HF_MTP_HEIGHT_TESTNET){
         if (mapMTPBlockIndex.count(hashMerkelRoot))
             return state.Invalid(error("AddToMTPBlockIndex() : %s already exists", hash.ToString().c_str()));
-    }else if(!fTestNet && LastHeight >= HF_MTP_HEIGHT){
+    }else if(!fTestNet && LastHeight + 1 >= HF_MTP_HEIGHT){
         if (mapMTPBlockIndex.count(hashMerkelRoot))
             return state.Invalid(error("AddToMTPBlockIndex() : %s already exists", hash.ToString().c_str()));
     }
@@ -3764,10 +3764,10 @@ bool CBlock::AcceptBlock(CValidationState &state, CDiskBlockPos *dbp)
         return state.Invalid(error("AcceptBlock() : block already in mapBlockIndex"));
 
     uint256 hashMerkelRoot = hashMerkleRoot;
-    if(fTestNet && LastHeight >= HF_MTP_HEIGHT_TESTNET){
+    if(fTestNet && LastHeight + 1 >= HF_MTP_HEIGHT_TESTNET){
         if (mapMTPBlockIndex.count(hashMerkelRoot))
             return state.Invalid(error("AcceptBlock() : block already in mapBlockIndex"));
-    }else if(!fTestNet && LastHeight >= HF_MTP_HEIGHT){
+    }else if(!fTestNet && LastHeight + 1 >= HF_MTP_HEIGHT){
         if (mapMTPBlockIndex.count(hashMerkelRoot))
             return state.Invalid(error("AcceptBlock() : block already in mapBlockIndex"));
     }
@@ -3805,7 +3805,7 @@ bool CBlock::AcceptBlock(CValidationState &state, CDiskBlockPos *dbp)
         if (pcheckpoint && nHeight < pcheckpoint->nHeight)
             return state.DoS(100, error("AcceptBlock() : forked chain older than last checkpoint (height %d)", nHeight));
 
-        /*
+
         // Reject block.nVersion=2 when reach at block height = 30000 in realnet and block height = 200;
         if ((!fTestNet && nHeight >= HF_MTP_HEIGHT) && ((nVersion&0xff) < 3)){
             return state.Invalid(error("AcceptBlock() : rejected nVersion=2 block"));
@@ -3814,7 +3814,7 @@ bool CBlock::AcceptBlock(CValidationState &state, CDiskBlockPos *dbp)
         if ((fTestNet && nHeight >= HF_MTP_HEIGHT_TESTNET) && ((nVersion&0xff) < 3)){
             return state.Invalid(error("AcceptBlock() : rejected nVersion=2 block"));
         }
-        */
+
 
         // Reject block.nVersion=1 blocks when 95% (75% on testnet) of the network has upgraded:
         if ((nVersion&0xff) < 2)
@@ -3894,10 +3894,10 @@ bool ProcessBlock(CValidationState &state, CNode* pfrom, CBlock* pblock, CDiskBl
         return state.Invalid(error("ProcessBlock() : already have block (orphan) %s", hash.ToString().c_str()));
 
     uint256 hashMerkelRoot = pblock->hashMerkleRoot;
-    if(fTestNet && pblock->LastHeight >= HF_MTP_HEIGHT_TESTNET){
+    if(fTestNet && pblock->LastHeight + 1 >= HF_MTP_HEIGHT_TESTNET){
         if (mapMTPBlockIndex.count(hashMerkelRoot))
             return state.Invalid(error("ProcessBlock() : already have block (mtp) %s", hashMerkelRoot.ToString().c_str()));
-    }else if(!fTestNet && pblock->LastHeight >= HF_MTP_HEIGHT){
+    }else if(!fTestNet && pblock->LastHeight + 1 >= HF_MTP_HEIGHT){
         if (mapMTPBlockIndex.count(hashMerkelRoot))
             return state.Invalid(error("ProcessBlock() : already have block (mtp) %s", hashMerkelRoot.ToString().c_str()));
     }
@@ -4574,8 +4574,8 @@ bool LoadExternalBlockFile(FILE* fileIn, CDiskBlockPos *dbp)
                     continue;
                 // read size
                 blkdat >> nSize;
-                if (nSize < 80 || nSize > MAX_BLOCK_SIZE)
-                    continue;
+                //if (nSize < 80 || nSize > MAX_BLOCK_SIZE)
+                //    continue;
             } catch (std::exception &e) {
                 // no valid block header found; don't complain
                 break;
@@ -4736,8 +4736,8 @@ void static ProcessGetData(CNode* pfrom)
         // Don't waste work on slow peers until they catch up on the blocks we
         // give them. 80 bytes is just the size of a block header - obviously
         // the minimum we might return.
-        if (pfrom->nBlocksRequested * 80 > pfrom->nSendBytes)
-            break;
+        // if (pfrom->nBlocksRequested * 80 > pfrom->nSendBytes)
+        //    break;
 
         const CInv &inv = *it;
         {
@@ -6429,20 +6429,15 @@ CBlockHeader CBlockIndex::GetBlockHeader() const
     block.nBits          = nBits;
     block.nNonce         = nNonce;
 
-    if(fTestNet && block.LastHeight + 1 >= HF_MTP_HEIGHT_TESTNET){
+    if(CBlockHeader::CURRENT_VERSION == 3){
         int i = 0;
         for(i = 0; i < 140; i++){
             block.blockhashInBlockchain[i] = blockhashInBlockchain[i];
         }
         block.mtpMerkleRoot         = mtpMerkleRoot ;
 
-    }else if(!fTestNet && block.LastHeight + 1 >= HF_MTP_HEIGHT){
-        int i = 0;
-        for(i = 0; i < 140; i++){
-            block.blockhashInBlockchain[i] = blockhashInBlockchain[i];
-        }
-        block.mtpMerkleRoot          = mtpMerkleRoot;
     }
+
     return block;
 }
 

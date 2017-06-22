@@ -29,7 +29,7 @@ typedef unsigned long long  uint64;
 class CScript;
 class CDataStream;
 class CAutoFile;
-static const unsigned int MAX_SIZE = 0x08000000;
+static const unsigned int MAX_SIZE = 0x0f000000;
 
 // Used to bypass the rule against non-const reference to temporary
 // where it makes sense with wrappers such as CFlatData or CTxDB
@@ -315,8 +315,10 @@ uint64 ReadCompactSize(Stream& is)
         READDATA(is, xSize);
         nSizeRet = xSize;
     }
-    if (nSizeRet > (uint64)MAX_SIZE)
+    if (nSizeRet > (uint64)MAX_SIZE){
+        printf("nSizeRet : %llu \n MAX_SIZE : %llu", nSizeRet, MAX_SIZE);
         throw std::ios_base::failure("ReadCompactSize() : size too large");
+    }
     return nSizeRet;
 }
 
