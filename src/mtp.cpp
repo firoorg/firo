@@ -8,37 +8,6 @@ static const unsigned int d_mtp = 1;
 static const uint8_t L = 70;
 static const unsigned int memory_cost = 2097152;
 
-
-unsigned int trailing_zeros_little_endian(char str[64]) {
-    unsigned int i, d;
-    d = 0;
-    for (i = 0; i < 64; i++) {
-        if (str[i] == '0') {
-            d++;
-        }
-        else {
-            break;
-        }
-    }
-    return d;
-}
-
-unsigned int trailing_zeros_little_endian_uint256(uint256 hash) {
-    unsigned int i, d;
-    string temp = hash.GetHex();
-    d = 0;
-    for (i = 0; i < temp.size(); i++) {
-        if (temp[i] == '0') {
-            d++;
-        }
-        else {
-            break;
-        }
-    }
-    return d;
-}
-
-
 static void store_block(void *output, const block *src) {
     unsigned i;
     for (i = 0; i < ARGON2_QWORDS_IN_BLOCK; ++i) {
@@ -82,6 +51,8 @@ void fill_block(__m128i *state, const block *ref_block, block *next_block, int w
         state[i] = _mm_xor_si128(state[i], block_XY[i]);
         _mm_storeu_si128((__m128i *)next_block->v + i, state[i]);
     }
+
+    clear_internal_memory(block_XY, ARGON2_OWORDS_IN_BLOCK);
 }
 
 
@@ -254,6 +225,7 @@ int argon2_ctx(argon2_context *context, argon2_instance_t *instance) {
     instance->lanes = context->lanes;
     instance->threads = context->threads;
     instance->type = Argon2_d;
+    //instance->type = Argon2_i;
 
     printf("3. Initializatio n: Hashing inputs, allocating memory, filling first blocks\n");
     /* 3. Initialization: Hashing inputs, allocating memory, filling first blocks */

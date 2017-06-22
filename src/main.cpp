@@ -44,6 +44,7 @@ CTxMemPool mempool;
 unsigned int nTransactionsUpdated = 0;
 
 map<uint256, CBlockIndex*> mapBlockIndex;
+map<uint256, CBlockIndex*> mapMTPBlockIndex;
 uint256 hashGenesisBlock("0x4381deb85b1b2c9843c222944b616d997516dcbd6a964e1eaf0def0830695233");
 static CBigNum bnProofOfWorkLimit(~uint256(0) >> 8); // zcoin: starting difficulty is 1 / 2^12
 CBlockIndex* pindexGenesisBlock = NULL;
@@ -3441,10 +3442,21 @@ bool CBlock::AddToBlockIndex(CValidationState &state, const CDiskBlockPos &pos)
     if (mapBlockIndex.count(hash))
         return state.Invalid(error("AddToBlockIndex() : %s already exists", hash.ToString().c_str()));
 
+    uint256 hashMerkelRoot = hashMerkleRoot;
+    if(fTestNet && LastHeight >= HF_MTP_HEIGHT_TESTNET){
+        if (mapMTPBlockIndex.count(hashMerkelRoot))
+            return state.Invalid(error("AddToMTPBlockIndex() : %s already exists", hash.ToString().c_str()));
+    }else if(!fTestNet && LastHeight >= HF_MTP_HEIGHT){
+        if (mapMTPBlockIndex.count(hashMerkelRoot))
+            return state.Invalid(error("AddToMTPBlockIndex() : %s already exists", hash.ToString().c_str()));
+    }
+
+
     // Construct new block index object
     CBlockIndex* pindexNew = new CBlockIndex(*this);
     assert(pindexNew);
     map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.insert(make_pair(hash, pindexNew)).first;
+    mapMTPBlockIndex.insert(make_pair(hashMerkelRoot, pindexNew));
     pindexNew->phashBlock = &((*mi).first);
     map<uint256, CBlockIndex*>::iterator miPrev = mapBlockIndex.find(hashPrevBlock);
     if (miPrev != mapBlockIndex.end())
@@ -3751,6 +3763,15 @@ bool CBlock::AcceptBlock(CValidationState &state, CDiskBlockPos *dbp)
     if (mapBlockIndex.count(hash))
         return state.Invalid(error("AcceptBlock() : block already in mapBlockIndex"));
 
+    uint256 hashMerkelRoot = hashMerkleRoot;
+    if(fTestNet && LastHeight >= HF_MTP_HEIGHT_TESTNET){
+        if (mapMTPBlockIndex.count(hashMerkelRoot))
+            return state.Invalid(error("AcceptBlock() : block already in mapBlockIndex"));
+    }else if(!fTestNet && LastHeight >= HF_MTP_HEIGHT){
+        if (mapMTPBlockIndex.count(hashMerkelRoot))
+            return state.Invalid(error("AcceptBlock() : block already in mapBlockIndex"));
+    }
+
     // Get prev block index
     CBlockIndex* pindexPrev = NULL;
     int nHeight = 0;
@@ -3866,11 +3887,20 @@ bool CBlockIndex::IsSuperMajority(int minVersion, const CBlockIndex* pstart, uns
 bool ProcessBlock(CValidationState &state, CNode* pfrom, CBlock* pblock, CDiskBlockPos *dbp)
 {
     // Check for duplicate
-    uint256 hash = pblock->GetHash();
+    uint256 hash = pblock->GetHash();    
     if (mapBlockIndex.count(hash))
         return state.Invalid(error("ProcessBlock() : already have block %d %s", mapBlockIndex[hash]->nHeight, hash.ToString().c_str()));
     if (mapOrphanBlocks.count(hash))
         return state.Invalid(error("ProcessBlock() : already have block (orphan) %s", hash.ToString().c_str()));
+
+    uint256 hashMerkelRoot = pblock->hashMerkleRoot;
+    if(fTestNet && pblock->LastHeight >= HF_MTP_HEIGHT_TESTNET){
+        if (mapMTPBlockIndex.count(hashMerkelRoot))
+            return state.Invalid(error("ProcessBlock() : already have block (mtp) %s", hashMerkelRoot.ToString().c_str()));
+    }else if(!fTestNet && pblock->LastHeight >= HF_MTP_HEIGHT){
+        if (mapMTPBlockIndex.count(hashMerkelRoot))
+            return state.Invalid(error("ProcessBlock() : already have block (mtp) %s", hashMerkelRoot.ToString().c_str()));
+    }
 
     // Preliminary checks
     if (!pblock->CheckBlock(state, INT_MAX, true, true, false))
@@ -4314,6 +4344,7 @@ bool VerifyDB(int nCheckLevel, int nCheckDepth)
 void UnloadBlockIndex()
 {
     mapBlockIndex.clear();
+    mapMTPBlockIndex.clear();
     setBlockIndexValid.clear();
     pindexGenesisBlock = NULL;
     nBestHeight = 0;
@@ -6309,17 +6340,17 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
 
     }
     else if(fTestNet && nHeight >= HF_MTP_HEIGHT_TESTNET){
-        printf("MTP Testnet\n");
+        printf("\n MTP Testnet\n");
         if(!mtp_verifier(hashTarget, pblock, &output))
             return false;
     }
     else if(!fTestNet && nHeight >= HF_MTP_HEIGHT){
-        printf("MTP\n");
+        printf("\n MTP\n");
         if(!mtp_verifier(hashTarget, pblock, &output))
             return false;
     }
     else{
-        printf("GetPoWHash\n");
+        printf("\n GetPoWHash\n");
         uint256 hash = pblock->GetPoWHash(nHeight);
         if (hash > hashTarget)
             return false;
@@ -6666,6 +6697,12 @@ public:
         for (; it2 != mapOrphanBlocks.end(); it2++)
             delete (*it2).second;
         mapOrphanBlocks.clear();
+
+        // mtp blocks
+        /*std::map<uint256, CBlockIndex*>::iterator it3 = mapMTPBlockIndex.begin();
+        for (; it3 != mapMTPBlockIndex.end(); it3++)
+            delete (*it3).second;
+        mapMTPBlockIndex.clear();*/
 
         // orphan transactions
         mapOrphanTransactions.clear();

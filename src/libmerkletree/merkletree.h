@@ -47,7 +47,13 @@ vector<ProofNode> deserializeMTP(char* strdata) // Reads the given file and assi
        uint256 v_right(right);
        uint256 v_parent(parent);
        proof[i] = ProofNode(v_left,v_right,v_parent);
+
+       delete[] left;
+       delete[] right;
+       delete[] parent;
     }
+
+
 
     return proof;
 };
