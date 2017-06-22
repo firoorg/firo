@@ -6495,7 +6495,7 @@ void static ZcoinMiner(CWallet *pwallet)
                 {
                     unsigned int nHashesDone = 0;
                     uint256 thash;
-
+                    bool mtpResult;
                     loop
                     {
                         if (!fTestNet && pindexPrev->nHeight + 1 >= HF_LYRA2Z_HEIGHT) {
@@ -6504,7 +6504,7 @@ void static ZcoinMiner(CWallet *pwallet)
                         // Start Merkel Tree Proof of Work
                         } else if ( //(!fTestNet && pindexPrev->nHeight + 1 >= HF_MTP_HEIGHT) ||
                                               (fTestNet && pindexPrev->nHeight + 1 >= HF_MTP_HEIGHT_TESTNET)){                            
-                            mtp_hash(&thash, BEGIN(pblock->nVersion), hashTarget, pblock);
+                            mtpResult = mtp_hash(&thash, BEGIN(pblock->nVersion), hashTarget, pblock);
                         } else if (!fTestNet && pindexPrev->nHeight + 1 >= HF_LYRA2_HEIGHT){
                             LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, 8192, 256);
                         } else if (!fTestNet && pindexPrev->nHeight + 1 >= HF_LYRA2VAR_HEIGHT){
@@ -6527,6 +6527,10 @@ void static ZcoinMiner(CWallet *pwallet)
                             SetThreadPriority(THREAD_PRIORITY_NORMAL);
                             CheckWork(pblock, *pwallet, reservekey);
                             SetThreadPriority(THREAD_PRIORITY_LOWEST);
+                            break;
+                        }
+
+                        if(!mtpResult){
                             break;
                         }
                         pblock->nNonce += 1;

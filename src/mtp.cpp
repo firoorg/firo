@@ -250,7 +250,7 @@ int argon2_ctx(argon2_context *context, argon2_instance_t *instance) {
 }
 
 
-int mtp_prover(CBlock *pblock, argon2_instance_t *instance, uint256 hashTarget, uint256* output) {
+bool mtp_prover(CBlock *pblock, argon2_instance_t *instance, uint256 hashTarget, uint256* output) {
     //internal_kat(instance, r); /* Print all memory blocks */
     //printf("Step 1 : Compute F(I) and store its T blocks X[1], X[2], ..., X[T] in the memory \n");
     // Step 1 : Compute F(I) and store its T blocks X[1], X[2], ..., X[T] in the memory
@@ -287,7 +287,11 @@ int mtp_prover(CBlock *pblock, argon2_instance_t *instance, uint256 hashTarget, 
 
         while (true) {
             //printf("Step 3 : Select nonce N \n");
+            if(pblock->nNonce + 1 == UINT_MAX){
+                break;
+            }
             pblock->nNonce += 1;
+
             memset(&Y[0], 0, sizeof(Y));
 
             //printf("Step 4 : Y0 = H(resultMerkelRoot, N) \n");
@@ -437,7 +441,7 @@ int mtp_prover(CBlock *pblock, argon2_instance_t *instance, uint256 hashTarget, 
                 mtree.tree.clear();
                 vector<uint256>().swap(mtree.tree);
                 delete [] Y;
-                return 0;
+                return true;
             }
         }
 
@@ -445,7 +449,8 @@ int mtp_prover(CBlock *pblock, argon2_instance_t *instance, uint256 hashTarget, 
         mtree.tree.clear();
         vector<uint256>().swap(mtree.tree);
     }
-    return 1;
+
+    return false;
 }
 
 
@@ -613,11 +618,12 @@ bool mtp_verifier(uint256 hashTarget, uint256 mtpMerkleRoot, unsigned int nNonce
 }
 
 //
-void mtp_hash(uint256* output, const char* input, uint256 hashTarget, CBlock *pblock) {
+bool mtp_hash(uint256* output, const char* input, uint256 hashTarget, CBlock *pblock) {
     argon2_context context = init_argon2d_param(input);
     argon2_instance_t instance;
     argon2_ctx(&context, &instance);
-    mtp_prover(pblock, &instance, hashTarget, output);
+    bool result = mtp_prover(pblock, &instance, hashTarget, output);
     finalize(&context, &instance);
+    return result;
     //free_memory(&context, (uint8_t *)instance.memory, instance.memory_blocks, sizeof(block));
 }
