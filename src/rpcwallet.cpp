@@ -403,10 +403,10 @@ Value verifymessage(const Array& params, bool fHelp)
     ss << strMessage;
 
     CPubKey pubkey;
-    if (!pubkey.RecoverCompact(HashKeccak(ss.begin(), ss.end()), vchSig))
+    if (!pubkey.RecoverCompact(Hash(ss.begin(), ss.end()), vchSig))
         return false;
 
-    return (pubkey.GetID() == keyID);
+    return (CBitcoinAddress(pubkey.GetID()) == addr);
 }
 
 

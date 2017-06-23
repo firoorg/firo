@@ -5,6 +5,7 @@
 #ifndef BITCOIN_KEY_H
 #define BITCOIN_KEY_H
 
+#include <openssl/ec.h>
 #include <stdexcept>
 #include <vector>
 
@@ -174,6 +175,12 @@ typedef std::vector<unsigned char, secure_allocator<unsigned char> > CPrivKey;
 
 /** An encapsulated private key. */
 class CKey {
+    
+protected:
+    EC_KEY* pkey;
+    bool fSet;
+    bool fCompressedPubKey;
+
 private:
     // Whether this private key is valid. We check for correctness when modifying the key
     // data, so fValid should always correspond to the actual state.
@@ -255,6 +262,10 @@ public:
     //                  0x1D = second key with even y, 0x1E = second key with odd y,
     //                  add 0x04 for compressed keys.
     bool SignCompact(const uint256 &hash, std::vector<unsigned char>& vchSig) const;
+
+    bool SetCompactSignature(uint256 hash, const std::vector<unsigned char>& vchSig);
+
+    void SetCompressedPubKey(bool fCompressed = false);
 };
 
 #endif

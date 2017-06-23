@@ -300,6 +300,44 @@ bool CKey::SetPrivKey(const CPrivKey &privkey, bool fCompressedIn) {
     return true;
 }
 
+void CKey::SetCompressedPubKey(bool fCompressed)
+{
+    EC_KEY_set_conv_form(pkey, fCompressed ? POINT_CONVERSION_COMPRESSED : POINT_CONVERSION_UNCOMPRESSED);
+    fCompressedPubKey = true;
+}
+
+// reconstruct public key from a compact signature
+// This is only slightly more CPU intensive than just verifying it.
+// If this function succeeds, the recovered public key is guaranteed to be valid
+// (the signature is a valid signature of the given data for that key)
+bool CKey::SetCompactSignature(uint256 hash, const std::vector<unsigned char>& vchSig)
+{
+    if (vchSig.size() != 65)
+        return false;
+    int nV = vchSig[0];
+    if (nV<27 || nV>=35)
+        return false;
+    ECDSA_SIG *sig = ECDSA_SIG_new();
+    BN_bin2bn(&vchSig[1],32,sig->r);
+    BN_bin2bn(&vchSig[33],32,sig->s);
+
+    EC_KEY_free(pkey);
+    pkey = EC_KEY_new_by_curve_name(NID_secp256k1);
+    if (nV >= 31)
+    {
+        SetCompressedPubKey();
+        nV -= 4;
+    }
+    if (ECDSA_SIG_recover_key_GFp(pkey, sig, (unsigned char*)&hash, sizeof(hash), nV - 27, 0) == 1)
+    {
+        fSet = true;
+        ECDSA_SIG_free(sig);
+        return true;
+    }
+    ECDSA_SIG_free(sig);
+    return false;
+}
+
 CPrivKey CKey::GetPrivKey() const {
     assert(fValid);
     CECKey key;

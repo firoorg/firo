@@ -15,7 +15,6 @@
 #include "schnorr.h"
 
 template<typename T1>
-/*
 inline uint256 Hash(const T1 pbegin, const T1 pend)
 {
     static unsigned char pblank[1];
@@ -25,7 +24,8 @@ inline uint256 Hash(const T1 pbegin, const T1 pend)
     SHA256((unsigned char*)&hash1, sizeof(hash1), (unsigned char*)&hash2);
     return hash2;
 }
-*/
+
+template<typename T1>
 inline uint256 HashKeccak(const T1 pbegin, const T1 pend)
 {		 {
     sph_keccak256_context ctx_keccak;
