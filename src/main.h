@@ -73,12 +73,12 @@ static const int MAX_SCRIPTCHECK_THREADS = 16;
 static const int HF_LYRA2VAR_HEIGHT = 500;
 static const int HF_LYRA2_HEIGHT = 8192;
 static const int HF_LYRA2Z_HEIGHT = 20500;
-static const int HF_MTP_HEIGHT = 31000;
+static const int HF_MTP_HEIGHT = 45000;
 
-static const int HF_LYRA2VAR_HEIGHT_TESTNET = 20;
-static const int HF_LYRA2_HEIGHT_TESTNET = 40;
-static const int HF_LYRA2Z_HEIGHT_TESTNET = 41; // just for consistent purpose since the algo hash is so low
-static const int HF_MTP_HEIGHT_TESTNET = 60;
+static const int HF_LYRA2VAR_HEIGHT_TESTNET = 10;
+static const int HF_LYRA2_HEIGHT_TESTNET = 20;
+static const int HF_LYRA2Z_HEIGHT_TESTNET = 21; // just for consistent purpose since the algo hash is so low
+static const int HF_MTP_HEIGHT_TESTNET = 30;
 
 static const int HF_ZEROSPEND_FIX = 22000;
 #ifdef USE_UPNP
