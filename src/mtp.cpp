@@ -271,8 +271,9 @@ bool mtp_prover(CBlock *pblock, argon2_instance_t *instance, uint256 hashTarget,
             SHA256_Final((unsigned char*)&hashBlock, &ctx);
             leaves.push_back(hashBlock);
             clear_internal_memory(blockhash.v, ARGON2_BLOCK_SIZE);
-            clear_internal_memory(blockhash_bytes, ARGON2_BLOCK_SIZE);
-            //printf("\n");
+            clear_internal_memory(blockhash_bytes, ARGON2_BLOCK_SIZE);            
+            blockhash.prev_block = NULL;
+            blockhash.ref_block = NULL;
 
         }
 
@@ -336,22 +337,10 @@ bool mtp_prover(CBlock *pblock, argon2_instance_t *instance, uint256 hashTarget,
                 SHA256_Final((unsigned char*)&t_previous, &ctx_previous);
 
                 clear_internal_memory(blockhash_previous.v, ARGON2_BLOCK_SIZE);
-                clear_internal_memory(blockhash_bytes_previous, ARGON2_BLOCK_SIZE);
+                clear_internal_memory(blockhash_bytes_previous, ARGON2_BLOCK_SIZE);                
+                blockhash_previous.prev_block = NULL;
+                blockhash_previous.ref_block = NULL;
                 vector<ProofNode> newproof = mtree.proof(t_previous);
-
-
-                /*char* y = serializeMTP(newproof);
-                unsigned int x = 0;
-                while(true){
-                    if(y[x] != 0){
-                        x++;
-                    }else{
-                        break;
-                    }
-                }
-
-
-                printf("x = %d\n", x);*/
 
                 memcpy(pblock->blockhashInBlockchain[(j * 2) - 1].proof, serializeMTP(newproof), 4034);
 
@@ -375,6 +364,9 @@ bool mtp_prover(CBlock *pblock, argon2_instance_t *instance, uint256 hashTarget,
                 clear_internal_memory(blockhash_ref_block.v, ARGON2_BLOCK_SIZE);
                 clear_internal_memory(blockhash_bytes_ref_block, ARGON2_BLOCK_SIZE);
 
+                blockhash_ref_block.prev_block = NULL;
+                blockhash_ref_block.ref_block = NULL;
+
                 memcpy(pblock->blockhashInBlockchain[(j * 2) - 2].proof,serializeMTP(newproof_ref),4034);
 
 
@@ -385,6 +377,8 @@ bool mtp_prover(CBlock *pblock, argon2_instance_t *instance, uint256 hashTarget,
                 fill_block(state_test, &pblock->blockhashInBlockchain[(j * 2) - 2].memory, &X_IJ, 0);
                 X_IJ.prev_block = instance->memory[ij].prev_block;
                 X_IJ.ref_block = instance->memory[ij].ref_block;
+                clear_internal_memory(state_test, sizeof(__m128i) * 64);
+
 
                 block blockhash;
                 uint8_t blockhash_bytes[ARGON2_BLOCK_SIZE];
@@ -408,6 +402,12 @@ bool mtp_prover(CBlock *pblock, argon2_instance_t *instance, uint256 hashTarget,
                 clear_internal_memory(X_IJ.v, ARGON2_BLOCK_SIZE);
                 clear_internal_memory(blockhash.v, ARGON2_BLOCK_SIZE);
                 clear_internal_memory(blockhash_bytes, ARGON2_BLOCK_SIZE);
+
+                X_IJ.prev_block = NULL;
+                X_IJ.ref_block = NULL;
+                blockhash.prev_block = NULL;
+                blockhash.ref_block = NULL;
+
                 newproof.clear();
                 newproof_ref.clear();
                 vector<ProofNode>().swap(newproof);
@@ -423,11 +423,6 @@ bool mtp_prover(CBlock *pblock, argon2_instance_t *instance, uint256 hashTarget,
                 //printf("Step 5.2 : unmatch_block \n");
                 continue;
             }
-
-            //printf("Current nBits: %s\n", CBigNum().SetCompact(pblock->nBits).getuint256().GetHex().c_str());
-            //printf("Current hash: %s\n", Y[L].GetHex().c_str());
-
-
 
             //printf("Step 6 : If Y(L) had d trailing zeros, then send (resultMerkelroot, N, Y(L)) \n");
             if (Y[L] > hashTarget) {                
