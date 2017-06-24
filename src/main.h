@@ -73,7 +73,7 @@ static const int MAX_SCRIPTCHECK_THREADS = 16;
 static const int HF_LYRA2VAR_HEIGHT = 500;
 static const int HF_LYRA2_HEIGHT = 8192;
 static const int HF_LYRA2Z_HEIGHT = 20500;
-static const int HF_MTP_HEIGHT = 45000;
+static const int HF_MTP_HEIGHT = 47500;
 
 static const int HF_LYRA2VAR_HEIGHT_TESTNET = 10;
 static const int HF_LYRA2_HEIGHT_TESTNET = 20;
