@@ -28,7 +28,7 @@ char* serializeMTP(vector<ProofNode>& proof) // Writes the given OBJECT data to 
     return result;
 };
 
-vector<ProofNode> deserializeMTP(char* strdata) // Reads the given file and assigns the data to the given OBJECT.
+vector<ProofNode> deserializeMTP(const char* strdata) // Reads the given file and assigns the data to the given OBJECT.
 {
     size_t datalen = strlen(strdata);
     vector<ProofNode> proof(datalen/3/SHA256_LENGTH);
@@ -61,7 +61,7 @@ vector<ProofNode> deserializeMTP(char* strdata) // Reads the given file and assi
 
 
 // combin and hash by sha256
-uint256 combine(uint256 leftData,uint256 rightData){
+uint256 combine(uint256 leftData,uint256 rightData, uint256 buff){
   uint256 hash1;
   SHA256_CTX sha256;
   SHA256_Init(&sha256);
@@ -95,7 +95,7 @@ bool verifyProof(uint256 leaf,uint256 expectedMerkleRoot,vector<ProofNode> proof
     if( (part.left != prevParent ) && (part.right != prevParent))
       return false;
     uint256 parentData;
-    parentData = combine(part.left, part.right);
+    parentData = combine(part.left, part.right,part.right);
 
 
     // Parent in proof is incorrect
@@ -148,7 +148,7 @@ public:
     //memcpy(out_buff,buffx,65);
   }
 
-  vector<uint256> computeTree(uint256 (*combineFn)(uint256, uint256),vector<uint256> leaves){
+  vector<uint256> computeTree(uint256 (*combineFn)(uint256, uint256, uint256),vector<uint256> leaves){
     // compute nodeCount and create vector<T> tree
     int nodeCount = leafCountToNodeCount(leaves.size());
     int delta = nodeCount - leaves.size();
@@ -213,7 +213,7 @@ public:
 	}
 
 
-  void pushleafworker(uint256 (*combineFn)(uint256*,uint256*,uint256*),uint256 leaf){
+  void pushleafworker(uint256 (*combineFn)(uint256,uint256,uint256),uint256 leaf){
 
 		// push two
         tree.push_back(uint256());
@@ -231,7 +231,7 @@ public:
 			idx = getParent(tree,idx);
 			//cout<<&combineFn<<'\n';
             uint256 buff;
-            combineFn(&tree[getLeft(tree,idx)],&tree[getRight(tree,idx)], &buff);
+            combineFn(tree[getLeft(tree,idx)],tree[getRight(tree,idx)], buff);
             tree[idx] = buff;
 		}
 
