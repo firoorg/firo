@@ -161,7 +161,7 @@ int fill_memory_blocks_mtp(argon2_instance_t *instance) {
                 position.index = 0;
                 thr_data[l].instance_ptr = instance; /* preparing the thread input */
                 memcpy(&(thr_data[l].pos), &position, sizeof(argon2_position_t));
-                if (argon2_thread_create(&thread[l], &fill_segment_thr, (void *) &thr_data[l])) {
+                if (argon2_thread_create(&thread[l], (void *) &fill_segment_thr, (void *) &thr_data[l])) {
                     rc = ARGON2_THREAD_FAIL;
                     goto fail;
                 }

@@ -4,3 +4,22 @@ build/*
 src/zcoind
 Makefile
 zcoin.pro.user
+
+# Compilation and Qt preprocessor part
+*.qm
+
+
+# Resources cpp
+qrc_*.cpp
+
+*.Release
+*.Debug
+
+#OSX Build
+*.app
+*.dmg
+*.o
+
+*.P
+
+.qmake.stash

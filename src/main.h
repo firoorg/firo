@@ -122,7 +122,7 @@ unsigned char GetNfactor(int64 nTimestamp);
 extern int64 nTransactionFee;
 extern int64 nMinimumInputValue;
 
-extern bool mtp_verifier(uint256 hashTarget, uint256 mtpMerkleRoot, unsigned int nNonce, block_with_offset blockhashInBlockchain[140], uint256 *yL);
+extern bool mtp_verifier(uint256 hashTarget, uint256 mtpMerkleRoot, unsigned int nNonce,const block_with_offset blockhashInBlockchain[140], uint256 *yL);
 
 // Minimum disk space required - used in CheckDiskSpace()
 static const uint64 nMinDiskSpace = 52428800;

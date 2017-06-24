@@ -142,7 +142,7 @@ public:
     //char buffx[65];
     for(int i = 0; i < SHA256_DIGEST_LENGTH; i++)
     {
-      sprintf(out_buff[i * 2], "%02x", hash[i]);
+      sprintf(&out_buff[i * 2], "%02x", hash[i]);
     }
     out_buff[64] = 0;
     //memcpy(out_buff,buffx,65);
@@ -204,16 +204,16 @@ public:
 //	printf("prooffIdx :%d \n",proofIdx);
 
 	proof.resize(proofIdx);
-
 //	vector<ProofNode> proof;
     return proof;
   }
-    void pushleaf(uint256 leaf){
+  
+  void pushleaf(uint256 leaf){
         pushleafworker(combine,leaf);
 	}
 
 
-    void pushleafworker(void (*combineFn)(uint256*,uint256*,uint256*),uint256 leaf){
+  void pushleafworker(uint256 (*combineFn)(uint256*,uint256*,uint256*),uint256 leaf){
 
 		// push two
         tree.push_back(uint256());
