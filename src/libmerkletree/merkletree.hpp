@@ -18,7 +18,7 @@ struct ProofNode{
 // buff 
 char* serializeMTP(vector<ProofNode>& proof); // Writes the given OBJECT data to the given file name.
 
-vector<ProofNode> deserializeMTP(char* strdata); // Reads the given file and assigns the data to the given OBJECT.
+vector<ProofNode> deserializeMTP(const char* strdata); // Reads the given file and assigns the data to the given OBJECT.
 
 // combin and hash by sha256
 uint256 combine(uint256 leftData,uint256 rightData); 

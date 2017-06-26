@@ -14,7 +14,7 @@ char* serializeMTP(vector<ProofNode>& proof) // Writes the given OBJECT data to 
 	return result;
 };
 
-vector<ProofNode> deserializeMTP(char* strdata) // Reads the given file and assigns the data to the given OBJECT.
+vector<ProofNode> deserializeMTP(const char* strdata) // Reads the given file and assigns the data to the given OBJECT.
 {
 	size_t datalen = strlen(strdata);
 	vector<ProofNode> proof(datalen / 3 / SHA256_LENGTH);
