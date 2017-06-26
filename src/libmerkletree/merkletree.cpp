@@ -1,10 +1,11 @@
 #include "merkletree.hpp"
+#include <cstdlib>
 
 // buff 
 
 char* serializeMTP(vector<ProofNode>& proof) // Writes the given OBJECT data to the given file name.
 {
-	char* result = (char*)malloc(proof.size() * SHA256_LENGTH * 3 + 1);
+	char* result = (char*)std::malloc(proof.size() * SHA256_LENGTH * 3 + 1);
 	result[proof.size() * SHA256_LENGTH * 3 + 1] = 0;
 	for (int i = 0; i < proof.size(); i++) {
 		memcpy(result + SHA256_LENGTH*(3 * i), proof.at(i).left.GetHex().c_str(), SHA256_LENGTH);
