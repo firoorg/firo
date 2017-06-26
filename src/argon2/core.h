@@ -246,7 +246,7 @@ int fill_memory_blocks(argon2_instance_t *instance);
 #ifdef _WIN32
 static unsigned __stdcall fill_segment_thr(void *thread_data)
 #else
-static void *fill_segment_thr(argon2_thread_data *thread_data)
+static void *fill_segment_thr(void *thread_data)
 #endif
 {
     argon2_thread_data *my_data = thread_data;

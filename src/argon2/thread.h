@@ -56,7 +56,7 @@ extern "C" {
  * created.
  */
 int argon2_thread_create(argon2_thread_handle_t *handle,
-                         void *func, void *args);
+                         argon2_thread_func_t *func, void *args);
 
 /* Waits for a thread to terminate
  * @param handle Handle to a thread created with argon2_thread_create.

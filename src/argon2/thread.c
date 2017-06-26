@@ -23,7 +23,7 @@
 #endif
 
 int argon2_thread_create(argon2_thread_handle_t *handle,
-                         void *func, void *args) {
+                         argon2_thread_func_t *func, void *args) {
     if (NULL == handle || func == NULL) {
         return -1;
     }

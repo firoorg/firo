@@ -155,12 +155,6 @@ HEADERS += src/qt/bitcoingui.h \
     src/argon2/blake2/blamka-round-opt.h \
     src/argon2/genkat.h \
     src/argon2/thread.h \
-    src/merkletree/merkletree.h \
-    src/merkletree/sha.h \
-    src/merkletree/mt_arr_list.h \
-    src/merkletree/mt_config.h \
-    src/merkletree/mt_crypto.h \
-    src/merkletree/mt_err.h \
     src/auxpow.h \
     src/alert.h \
     src/addrman.h \
@@ -252,8 +246,8 @@ HEADERS += src/qt/bitcoingui.h \
     src/libzerocoin/SpendMetaData.h \
     src/libzerocoin/Zerocoin.h \
     src/argon2/blake2/blamka-round-ref.h \
-    src/libmerkletree/binarytree.h \
-    src/libmerkletree/merkletree.h \
+    src/libmerkletree/binarytree.hpp \
+    src/libmerkletree/merkletree.hpp \
     src/fixed.h
 
 
@@ -349,6 +343,8 @@ SOURCES += src/qt/bitcoin.cpp \
     src/libzerocoin/Params.cpp \
     src/libzerocoin/SerialNumberSignatureOfKnowledge.cpp \
     src/libzerocoin/SpendMetaData.cpp \
+    src/libmerkletree/merkletree.cpp \
+    src/libmerkletree/binarytree.cpp \
 
 
 

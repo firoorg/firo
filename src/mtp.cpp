@@ -2,7 +2,7 @@
 // Created by aizen on 4/9/17.
 //
 #include "mtp.h"
-#include "libmerkletree/merkletree.h"
+#include "libmerkletree/merkletree.hpp"
 
 static const unsigned int d_mtp = 1;
 static const uint8_t L = 70;
