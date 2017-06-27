@@ -5917,10 +5917,24 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
     txNew.vout[0].scriptPubKey = scriptPubKeyIn;  
     txNew.vout[0].nValue = 0;
 
+    CBlock lastBLock;
+    lastBLock.ReadFromDisk(pindexBest);
+
+    int64 nFees = 0;
+    CCoinsViewCache view(*pcoinsTip, true);
+
+    for (unsigned int i=0; i<lastBLock.vtx.size(); i++)
+    {
+        const CTransaction &tx = lastBLock.vtx[i];
+        nFees += tx.GetValueIn(view)-tx.GetValueOut();
+    }
+
+
     // To founders and investors
     if ((pindexBest->nHeight+1 > 0) && (pindexBest->nHeight+1 < 143500)) {
 	// Take some reward away from us
-         txNew.vout[0].nValue = -0.6 * 5000 * COIN;
+        txNew.vout[0].nValue = -0.60 * (GetBlockValue(pindexBest->nHeight, nFees, pindexBest->nTime)) * COIN;     
+         //txNew.vout[0].nValue = -0.6 * 5000 * COIN;
 //	txNew.vout[0].nValue = (-0.6 * 5000 / (pindexBest->nHeight+10)) * COIN;
 //	txNew.vout[0].nValue = -0.6 * GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime) * COIN;
 //      int64 static blockv = GetBlockValue((pindexBest->nHeight+1), 0, pindexBest->nTime);
@@ -6009,7 +6023,7 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
     unsigned int MAX_SPEND_ZC_TX_PER_BLOCK = 1;
 
     // Collect memory pool transactions into the block
-    int64 nFees = 0;
+    nFees = 0;
     {
         LOCK2(cs_main, mempool.cs);
         CBlockIndex* pindexPrev = pindexBest;
