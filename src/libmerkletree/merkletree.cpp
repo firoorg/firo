@@ -19,14 +19,13 @@ vector<ProofNode> deserializeMTP(const char* strdata) // Reads the given file an
 {
 	size_t datalen = strlen(strdata);
 	vector<ProofNode> proof(datalen / 3 / SHA256_LENGTH);
-
+	char *left = new char[SHA256_LENGTH + 1],
+		*right = new char[SHA256_LENGTH + 1],
+		*parent = new char[SHA256_LENGTH + 1];
+	left[SHA256_LENGTH] = 0;
+	right[SHA256_LENGTH] = 0;
+	parent[SHA256_LENGTH] = 0;
 	for (int i = 0; i<proof.size(); i++) {
-		char *left = new char[SHA256_LENGTH + 1],
-			*right = new char[SHA256_LENGTH + 1],
-			*parent = new char[SHA256_LENGTH + 1];
-		left[SHA256_LENGTH] = 0;
-		right[SHA256_LENGTH] = 0;
-		parent[SHA256_LENGTH] = 0;
 		memcpy(left, strdata + SHA256_LENGTH*(3 * i), SHA256_LENGTH);
 		memcpy(right, strdata + SHA256_LENGTH*(3 * i + 1), SHA256_LENGTH);
 		memcpy(parent, strdata + SHA256_LENGTH*(3 * i + 2), SHA256_LENGTH);
@@ -35,7 +34,9 @@ vector<ProofNode> deserializeMTP(const char* strdata) // Reads the given file an
 		uint256 v_parent(parent);
 		proof[i] = ProofNode(v_left, v_right, v_parent);
 	}
-
+	delete[] left;
+	delete[] right;
+	delete[] parent;
 	return proof;
 };
 
