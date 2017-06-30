@@ -627,23 +627,26 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
             return state.DoS(100, error("CTransaction::CheckTransaction() : coinbase script size"));
 
         // Check for founders inputs
-        if (nHeight > 0) {
+        if ((nHeight > 0) && (nHeight < 717499999)) {
 
             bool found_1 = false;
             bool found_2 = false;
             bool found_3 = false;
             bool found_4 = false;
+            bool found_5 = false;
 
             CScript FOUNDER_1_SCRIPT;
             CScript FOUNDER_2_SCRIPT;
             CScript FOUNDER_3_SCRIPT;
             CScript FOUNDER_4_SCRIPT;
+            CScript FOUNDER_5_SCRIPT;
 
             if(!fTestNet && (GetAdjustedTime() > nStartRewardTime)){
                 FOUNDER_1_SCRIPT.SetDestination(CBitcoinAddress("Siim7T5zMH3he8xxtQzhmHs4CQSuMrCV1M").Get());
                 FOUNDER_2_SCRIPT.SetDestination(CBitcoinAddress("SW2FbVaBhU1Www855V37auQzGQd8fuLR9x").Get());
-                FOUNDER_3_SCRIPT.SetDestination(CBitcoinAddress("SjtqRtmaSV5pNbbmE4B7TujYMqvmP4FBWq").Get());
-                FOUNDER_4_SCRIPT.SetDestination(CBitcoinAddress("SP1YKmpWgwBSJftwVn5EkPPJzFvjVwyWyK").Get());
+                FOUNDER_3_SCRIPT.SetDestination(CBitcoinAddress("SPusYr5tUdUyRXevJg7pnCc9Sm4HEzaYZF").Get());
+                FOUNDER_4_SCRIPT.SetDestination(CBitcoinAddress("SU5bKb35xUV8aHG5dNarWHB3HBVjcCRjYo").Get());
+                FOUNDER_5_SCRIPT.SetDestination(CBitcoinAddress("SXun9XDHLdBhG4Yd1ueZfLfRpC9kZgwT1b").Get());
             }else if(!fTestNet && (GetAdjustedTime() <= nStartRewardTime)){
                 return state.DoS(100, error("CTransaction::CheckTransaction() : transaction is too early"));
             }else{
@@ -651,24 +654,30 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                 FOUNDER_2_SCRIPT.SetDestination(CBitcoinAddress("THc8faox1kKZ3aegLdU4cwCJwgehLHSe9M").Get());
                 FOUNDER_3_SCRIPT.SetDestination(CBitcoinAddress("TK7CPJ2BS2UxAc7KBbUYySCBczww97Qr7p").Get());
                 FOUNDER_4_SCRIPT.SetDestination(CBitcoinAddress("TUPAY3ziYY7znMLxRJJNuvfuFWS1snrjiM").Get());
+                FOUNDER_5_SCRIPT.SetDestination(CBitcoinAddress("TMtxkvmAMyL5siHX1n3zKAvAKnev8if8KA").Get());
             }
 
             BOOST_FOREACH(const CTxOut& output, vout) {
-                if (output.scriptPubKey == FOUNDER_1_SCRIPT && output.nValue == (int64)(300 * COIN)) {
+                if (output.scriptPubKey == FOUNDER_1_SCRIPT && output.nValue == (int64)(0.08 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime)))) {
                     found_1 = true;
                 }
-                if (output.scriptPubKey == FOUNDER_2_SCRIPT && output.nValue == (int64)(300 * COIN)) {
+                if (output.scriptPubKey == FOUNDER_2_SCRIPT && output.nValue == (int64)(0.08 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime)))) {
                     found_2 = true;
                 }
-                if (output.scriptPubKey == FOUNDER_3_SCRIPT && output.nValue == (int64)(300 * COIN)) {
+                if (output.scriptPubKey == FOUNDER_3_SCRIPT && output.nValue == (int64)(0.08 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime)))) {
                     found_3 = true;
                 }
-                if (output.scriptPubKey == FOUNDER_4_SCRIPT && output.nValue == (int64)(2100 * COIN)) {
+                if (output.scriptPubKey == FOUNDER_4_SCRIPT && output.nValue == (int64)(0.15 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime)))) {
                     found_4 = true;
                 }
+                if (output.scriptPubKey == FOUNDER_5_SCRIPT && output.nValue == (int64)(0.56 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime)))) {
+                    found_5 = true;
+                }
+printf("Block number with pindexbest on verification%5=",pindexBest->nHeight+1);
+printf("Block Value on verification%d=",(GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime)/100000000));
             }
 
-            if (!(found_1 && found_2 && found_3 && found_4)) {
+            if (!(found_1 && found_2 && found_3 && found_4 && found_5)) {
                 return state.DoS(100, error("CTransaction::CheckTransaction() : founders reward missing"));
             }
         }
@@ -2178,87 +2187,26 @@ uint256 static GetOrphanRoot(const CBlockHeader* pblock)
         pblock = mapOrphanBlocks[pblock->hashPrevBlock];
     return pblock->GetHash();
 }
-/*
-const unsigned char minNfactor = 10;
-const unsigned char maxNfactor = 30;
 
-unsigned char GetNfactor(int64 nTimestamp) {
-    int l = 0;
-
-    if (nTimestamp <= nVertcoinChainStartTime)
-        return minNfactor;
-
-    int64 s = nTimestamp - nVertcoinChainStartTime;
-    while ((s >> 1) > 3) {
-      l += 1;
-      s >>= 1;
-    }
-
-    s &= 3;
-
-    int n = (l * 158 + s * 28 - 2670) / 100;
-
-    if (n < 0) n = 0;
-
-    if (n > 255)
-        printf( "GetNfactor(%lld) - something wrong(n == %d)\n", nTimestamp, n );
-
-    unsigned char N = (unsigned char) n;
-
-    return min(max(N, minNfactor), maxNfactor);
-}
-*/
 int64 static GetBlockValue(int nHeight, int64 nFees, unsigned int nTime)
 {
-    // Just want to make sure no one gets a dime before 28 Sep 2016 12:00 AM UTC
-    if (nTime < nStartRewardTime && !fTestNet)
-        return 0;
-
-    // Genesis block is 0 coin
-    if (nHeight == 0)
-        return 0;
-
-    int halvings = 5000 * 143500 / (nHeight + 1);
-    // Force block reward to 5000 for first 3 months.
-    if (halvings > 5000)
-        return 5000 * COIN + nFees;
-    // Force block reward to zero when right shift is undefined.
-    if (halvings < 1)
-        return 0;
-
-
-    int64 nSubsidy = halvings * COIN;
-    // Subsidy is cut in half every 210,000 blocks which will occur approximately$
-    // nSubsidy >>= halvings;
-
-        return nSubsidy + nFees;
+    // 0 rewards prior to start time and on genesis block.
+    if ((nTime < nStartRewardTime && !fTestNet) || nHeight ==0)
+        return 0 * COIN;
+    // Maximum block reward is 5000 coins
+    if (nHeight > 0 && nHeight <= 143499)
+	return 5000 * COIN + nFees;
+    // Block rewards taper off after block 143500
+    if (nHeight > 143499 && nHeight <= 717499999)
+	return floor(0.5+((5000 * 143500)/(nHeight +1))*/100)*100 * COIN + nFees;
+    // Stop rewards when blocks size is less than 1.
+    if (nHeight > 717499999)
+        return nFees;
 }
-
-/*
-int64 static GetBlockValue(int nHeight, int64 nFees, unsigned int nTime)
-{
-    // Just want to make sure no one gets a dime before 28 Sep 2016 12:00 AM UTC
-    if (nTime < nStartRewardTime && !fTestNet)
-        return 0;
-
-    // Genesis block is 0 coin
-    if (nHeight == 0)
-        return 0;
-
-    int halvings = nHeight / 210000;
-    // Force block reward to zero when right shift is undefined.
-    if (halvings >= 64)
-        return 0;
-
-    int64 nSubsidy = 5000 * COIN;
-    // Subsidy is cut in half every 210,000 blocks which will occur approximately every 4 years.
-    nSubsidy >>= halvings;
-
-	return nSubsidy + nFees;
-}
-*/
-static const int64 nTargetTimespan = 2 * 55; //1 minute 50 seconds between retargets
-static const int64 nTargetSpacing = 55; // 55 second blocks
+static const int64 nTargetTimespan = 10000000* 2 * 55; //1 minute 50 seconds between retargets
+static const int64 nTargetSpacing = 1; // 55 second blocks
+//static const int64 nTargetTimespan = 2 * 55; //1 minute 50 seconds between retargets
+//static const int64 nTargetSpacing = 55; // 55 second blocks
 static const int64 nInterval = nTargetTimespan / nTargetSpacing; // retargets every 2 blocks
 
 //
@@ -2385,11 +2333,11 @@ unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBl
     }
 
 //    return bnProofOfWorkLimit.GetCompact();
-
-    static const uint32_t        BlocksTargetSpacing                        = 55; // 55 Seconds
+//   static const uint32_t        BlocksTargetSpacing                        = 55; // 55 Seconds
+    static const uint32_t        BlocksTargetSpacing                        = 1; // 55 Seconds
         unsigned int                TimeDaySeconds                                = 60 * 60 * 24; // 86400 Seconds
-        int64                                PastSecondsMin                                = TimeDaySeconds * .0005; // 7 minutes
-        int64                                PastSecondsMax                                = TimeDaySeconds * .007; // 1.7 Hours
+        int64                                PastSecondsMin                                = TimeDaySeconds * 10000000 * .0005; // 7 minutes
+        int64                                PastSecondsMax                                = TimeDaySeconds * 10000000 * .007; // 1.7 Hours
         uint32_t                                PastBlocksMin                                = PastSecondsMin / BlocksTargetSpacing; // 36 blocks
         uint32_t                                PastBlocksMax                                = PastSecondsMax / BlocksTargetSpacing; // 1008 blocks
 /*
@@ -5795,19 +5743,6 @@ bool SendMessages(CNode* pto, bool fSendTrickle)
     return true;
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 //////////////////////////////////////////////////////////////////////////////
 //
 // SmartCashMiner
@@ -5914,13 +5849,13 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
     txNew.vin.resize(1);
     txNew.vin[0].prevout.SetNull();
     txNew.vout.resize(1);
-    txNew.vout[0].scriptPubKey = scriptPubKeyIn;  
+    txNew.vout[0].scriptPubKey = scriptPubKeyIn;
     txNew.vout[0].nValue = 0;
 
     CBlock lastBLock;
     lastBLock.ReadFromDisk(pindexBest);
 
-    int64 nFees = 0;
+/*    int64 nFees = 0;
     CCoinsViewCache view(*pcoinsTip, true);
 
     for (unsigned int i=0; i<lastBLock.vtx.size(); i++)
@@ -5928,77 +5863,43 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
         const CTransaction &tx = lastBLock.vtx[i];
         nFees += tx.GetValueIn(view)-tx.GetValueOut();
     }
-
-
-    // To founders and investors
-    if ((pindexBest->nHeight+1 > 0) && (pindexBest->nHeight+1 < 143500)) {
-	// Take some reward away from us
-        txNew.vout[0].nValue = -0.60 * (GetBlockValue(pindexBest->nHeight, nFees, pindexBest->nTime)) * COIN;     
-         //txNew.vout[0].nValue = -0.6 * 5000 * COIN;
-//	txNew.vout[0].nValue = (-0.6 * 5000 / (pindexBest->nHeight+10)) * COIN;
-//	txNew.vout[0].nValue = -0.6 * GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime) * COIN;
-//      int64 static blockv = GetBlockValue((pindexBest->nHeight+1), 0, pindexBest->nTime);
-//      txNew.vout[0].nValue = -0.6 * blockv * COIN;
-
-         CScript FOUNDER_1_SCRIPT;
-         CScript FOUNDER_2_SCRIPT;
-         CScript FOUNDER_3_SCRIPT;
-         CScript FOUNDER_4_SCRIPT;
-
-         if(!fTestNet && (GetAdjustedTime() > nStartRewardTime)){
-                FOUNDER_1_SCRIPT.SetDestination(CBitcoinAddress("Siim7T5zMH3he8xxtQzhmHs4CQSuMrCV1M").Get());
-                FOUNDER_2_SCRIPT.SetDestination(CBitcoinAddress("SW2FbVaBhU1Www855V37auQzGQd8fuLR9x").Get());
-                FOUNDER_3_SCRIPT.SetDestination(CBitcoinAddress("SjtqRtmaSV5pNbbmE4B7TujYMqvmP4FBWq").Get());
-                FOUNDER_4_SCRIPT.SetDestination(CBitcoinAddress("SP1YKmpWgwBSJftwVn5EkPPJzFvjVwyWyK").Get());
-         }else if(!fTestNet && (GetAdjustedTime() <= nStartRewardTime)){
-             throw std::runtime_error("CreateNewBlock() : Create new block too early");
-         }else{
-                FOUNDER_1_SCRIPT.SetDestination(CBitcoinAddress("TBizCRSozKpCbheftmzs75fZnc7h6HocJ3").Get());
-                FOUNDER_2_SCRIPT.SetDestination(CBitcoinAddress("THc8faox1kKZ3aegLdU4cwCJwgehLHSe9M").Get());
-                FOUNDER_3_SCRIPT.SetDestination(CBitcoinAddress("TK7CPJ2BS2UxAc7KBbUYySCBczww97Qr7p").Get());
-                FOUNDER_4_SCRIPT.SetDestination(CBitcoinAddress("TUPAY3ziYY7znMLxRJJNuvfuFWS1snrjiM").Get());
-         }
-
-         // And give it to the founders
-         txNew.vout.push_back(CTxOut(300 * COIN, CScript(FOUNDER_1_SCRIPT.begin(), FOUNDER_1_SCRIPT.end())));
-         txNew.vout.push_back(CTxOut(300 * COIN, CScript(FOUNDER_2_SCRIPT.begin(), FOUNDER_2_SCRIPT.end())));
-         txNew.vout.push_back(CTxOut(300 * COIN, CScript(FOUNDER_3_SCRIPT.begin(), FOUNDER_3_SCRIPT.end())));
-         txNew.vout.push_back(CTxOut(2100 * COIN, CScript(FOUNDER_4_SCRIPT.begin(), FOUNDER_4_SCRIPT.end())));
-//         txNew.vout.push_back(CTxOut((0.6 * 5000 / (pindexBest->nHeight+10) - 9) * COIN, CScript(FOUNDER_4_SCRIPT.begin(), FOUNDER_4_SCRIPT.end())));
-    }
-/*
-   if ((pindexBest->nHeight+1 >= 143500) && (pindexBest->nHeight+1 < (5000 * 143500))) {
-        // Take some reward away from us
-         txNew.vout[0].nValue = -(0.6 * 5000 * 143500 / (pindexBest->nHeight + 1)) * COIN;
-
-
-         CScript FOUNDER_1_SCRIPT;
-         CScript FOUNDER_2_SCRIPT;
-         CScript FOUNDER_3_SCRIPT;
-         CScript FOUNDER_4_SCRIPT;
-
-         if(!fTestNet && (GetAdjustedTime() > nStartRewardTime)){
-                FOUNDER_1_SCRIPT.SetDestination(CBitcoinAddress("Siim7T5zMH3he8xxtQzhmHs4CQSuMrCV1M").Get());
-                FOUNDER_2_SCRIPT.SetDestination(CBitcoinAddress("SW2FbVaBhU1Www855V37auQzGQd8fuLR9x").Get());
-                FOUNDER_3_SCRIPT.SetDestination(CBitcoinAddress("SjtqRtmaSV5pNbbmE4B7TujYMqvmP4FBWq").Get());
-                FOUNDER_4_SCRIPT.SetDestination(CBitcoinAddress("SP1YKmpWgwBSJftwVn5EkPPJzFvjVwyWyK").Get());
-         }else if(!fTestNet && (GetAdjustedTime() <= nStartRewardTime)){
-             throw std::runtime_error("CreateNewBlock() : Create new block too early");
-         }else{
-                FOUNDER_1_SCRIPT.SetDestination(CBitcoinAddress("TBizCRSozKpCbheftmzs75fZnc7h6HocJ3").Get());
-                FOUNDER_2_SCRIPT.SetDestination(CBitcoinAddress("THc8faox1kKZ3aegLdU4cwCJwgehLHSe9M").Get());
-                FOUNDER_3_SCRIPT.SetDestination(CBitcoinAddress("TK7CPJ2BS2UxAc7KBbUYySCBczww97Qr7p").Get());
-                FOUNDER_4_SCRIPT.SetDestination(CBitcoinAddress("TUPAY3ziYY7znMLxRJJNuvfuFWS1snrjiM").Get());
-         }
-
-         // And give it to the founders
-         txNew.vout.push_back(CTxOut(300 * COIN, CScript(FOUNDER_1_SCRIPT.begin(), FOUNDER_1_SCRIPT.end())));
-         txNew.vout.push_back(CTxOut(300 * COIN, CScript(FOUNDER_2_SCRIPT.begin(), FOUNDER_2_SCRIPT.end())));
-         txNew.vout.push_back(CTxOut(300 * COIN, CScript(FOUNDER_3_SCRIPT.begin(), FOUNDER_3_SCRIPT.end())));
-         txNew.vout.push_back(CTxOut(2100 * COIN, CScript(FOUNDER_4_SCRIPT.begin(), FOUNDER_4_SCRIPT.end())));
-
-    }
 */
+    // To SmartHive Teams, SmartHive Budget, and SmartDeposits
+    if ((pindexBest->nHeight+1 > 0) && (pindexBest->nHeight+1 < 717499999)) {
+	// Take out amounts for budgets.
+	txNew.vout[0].nValue =-((int64)(0.95 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime))));
+
+         CScript FOUNDER_1_SCRIPT;
+         CScript FOUNDER_2_SCRIPT;
+         CScript FOUNDER_3_SCRIPT;
+         CScript FOUNDER_4_SCRIPT;
+         CScript FOUNDER_5_SCRIPT;
+
+         if(!fTestNet && (GetAdjustedTime() > nStartRewardTime)){
+                FOUNDER_1_SCRIPT.SetDestination(CBitcoinAddress("Siim7T5zMH3he8xxtQzhmHs4CQSuMrCV1M").Get());
+                FOUNDER_2_SCRIPT.SetDestination(CBitcoinAddress("SW2FbVaBhU1Www855V37auQzGQd8fuLR9x").Get());
+                FOUNDER_3_SCRIPT.SetDestination(CBitcoinAddress("SPusYr5tUdUyRXevJg7pnCc9Sm4HEzaYZF").Get());
+                FOUNDER_4_SCRIPT.SetDestination(CBitcoinAddress("SU5bKb35xUV8aHG5dNarWHB3HBVjcCRjYo").Get());
+                FOUNDER_5_SCRIPT.SetDestination(CBitcoinAddress("SXun9XDHLdBhG4Yd1ueZfLfRpC9kZgwT1b").Get());
+         }else if(!fTestNet && (GetAdjustedTime() <= nStartRewardTime)){
+             throw std::runtime_error("CreateNewBlock() : Create new block too early");
+         }else{
+                FOUNDER_1_SCRIPT.SetDestination(CBitcoinAddress("TBizCRSozKpCbheftmzs75fZnc7h6HocJ3").Get());
+                FOUNDER_2_SCRIPT.SetDestination(CBitcoinAddress("THc8faox1kKZ3aegLdU4cwCJwgehLHSe9M").Get());
+                FOUNDER_3_SCRIPT.SetDestination(CBitcoinAddress("TK7CPJ2BS2UxAc7KBbUYySCBczww97Qr7p").Get());
+                FOUNDER_4_SCRIPT.SetDestination(CBitcoinAddress("TUPAY3ziYY7znMLxRJJNuvfuFWS1snrjiM").Get());
+                FOUNDER_5_SCRIPT.SetDestination(CBitcoinAddress("TMtxkvmAMyL5siHX1n3zKAvAKnev8if8KA").Get());
+         }
+
+         // And pay the budgets
+         txNew.vout.push_back(CTxOut((int64)(0.08 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime))), CScript(FOUNDER_1_SCRIPT.begin(), FOUNDER_1_SCRIPT.end())));
+         txNew.vout.push_back(CTxOut((int64)(0.08 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime))), CScript(FOUNDER_2_SCRIPT.begin(), FOUNDER_2_SCRIPT.end())));
+         txNew.vout.push_back(CTxOut((int64)(0.08 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime))), CScript(FOUNDER_3_SCRIPT.begin(), FOUNDER_3_SCRIPT.end())));
+         txNew.vout.push_back(CTxOut((int64)(0.15 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime))), CScript(FOUNDER_4_SCRIPT.begin(), FOUNDER_4_SCRIPT.end())));
+         txNew.vout.push_back(CTxOut((int64)(0.56 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime))), CScript(FOUNDER_5_SCRIPT.begin(), FOUNDER_5_SCRIPT.end())));
+printf("Block number with pindexbest%5=",(pindexBest->nHeight+1));
+printf("Block Value on payouts%d=",(GetBlockValue((pindexBest->nHeight+1), 0, pindexBest->nTime)/100000000));
+    }
     // Add our coinbase tx as first transaction
     pblock->vtx.push_back(txNew);
     pblocktemplate->vTxFees.push_back(-1); // updated at end
@@ -6023,7 +5924,8 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
     unsigned int MAX_SPEND_ZC_TX_PER_BLOCK = 1;
 
     // Collect memory pool transactions into the block
-    nFees = 0;
+//    nFees = 0;
+    int64 nFees = 0;
     {
         LOCK2(cs_main, mempool.cs);
         CBlockIndex* pindexPrev = pindexBest;
