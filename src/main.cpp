@@ -2198,7 +2198,7 @@ int64 static GetBlockValue(int nHeight, int64 nFees, unsigned int nTime)
 	return 5000 * COIN + nFees;
     // Block rewards taper off after block 143500
     if (nHeight > 143499 && nHeight <= 717499999)
-	return floor(0.5+((5000 * 143500)/(nHeight +1))*/100)*100 * COIN + nFees;
+	return floor(0.5+((5000 * 143500)/(nHeight +1))/100)*100 * COIN + nFees;
     // Stop rewards when blocks size is less than 1.
     if (nHeight > 717499999)
         return nFees;
