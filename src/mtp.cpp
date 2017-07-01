@@ -4,7 +4,6 @@
 #include "mtp.h"
 #include "libmerkletree/merkletree.hpp"
 
-static const unsigned int d_mtp = 1;
 static const uint8_t L = 70;
 static const unsigned int memory_cost = 2097152;
 
@@ -16,7 +15,7 @@ static void store_block(void *output, const block *src) {
 }
 
 
-void fill_block(__m128i *state, const block *ref_block, block *next_block, int with_xor) {
+void fill_block(__m128i *state, const block *ref_block, block *next_block, int with_xor, uint32_t block_header[4]) {
     __m128i block_XY[ARGON2_OWORDS_IN_BLOCK];
     unsigned int i;
 
@@ -34,6 +33,8 @@ void fill_block(__m128i *state, const block *ref_block, block *next_block, int w
                     state[i], _mm_loadu_si128((const __m128i *)ref_block->v + i));
         }
     }
+    
+    memcpy(&state[8], block_header, sizeof(__m128i));
 
     for (i = 0; i < 8; ++i) {
         BLAKE2_ROUND(state[8 * i + 0], state[8 * i + 1], state[8 * i + 2],
@@ -254,6 +255,7 @@ bool mtp_prover(CBlock *pblock, argon2_instance_t *instance, uint256 hashTarget,
     //internal_kat(instance, r); /* Print all memory blocks */
     //printf("Step 1 : Compute F(I) and store its T blocks X[1], X[2], ..., X[T] in the memory \n");
     // Step 1 : Compute F(I) and store its T blocks X[1], X[2], ..., X[T] in the memory
+
     if (instance != NULL) {
         //printf("Step 2 : Compute the root Φ of the Merkle hash tree \n");
         //mt_t *mt = mt_create();
@@ -286,12 +288,12 @@ bool mtp_prover(CBlock *pblock, argon2_instance_t *instance, uint256 hashTarget,
         Y = new uint256[L + 1];
         uint256 root = mtree.root();
 
-        while (true) {
+        //while (true) {
             //printf("Step 3 : Select nonce N \n");
-            if(pblock->nNonce + 1 == UINT_MAX){
-                break;
-            }
-            pblock->nNonce += 1;
+            // if(pblock->nNonce + 1 == UINT_MAX){
+                //return false;
+            //}
+            //pblock->nNonce += 1;
 
             memset(&Y[0], 0, sizeof(Y));
 
@@ -372,9 +374,11 @@ bool mtp_prover(CBlock *pblock, argon2_instance_t *instance, uint256 hashTarget,
 
                 block X_IJ;
                 __m128i state_test[64];
+                uint32_t block_header[4];
                 memset(state_test, 0, sizeof(state_test));
                 memcpy(state_test, &pblock->blockhashInBlockchain[(j * 2) - 1].memory.v, ARGON2_BLOCK_SIZE);
-                fill_block(state_test, &pblock->blockhashInBlockchain[(j * 2) - 2].memory, &X_IJ, 0);
+                memcpy(block_header, &pblock->GetHash(), sizeof(__m128i));
+                fill_block(state_test, &pblock->blockhashInBlockchain[(j * 2) - 2].memory, &X_IJ, 0, block_header);
                 X_IJ.prev_block = instance->memory[ij].prev_block;
                 X_IJ.ref_block = instance->memory[ij].ref_block;
                 clear_internal_memory(state_test, sizeof(__m128i) * 64);
@@ -416,17 +420,38 @@ bool mtp_prover(CBlock *pblock, argon2_instance_t *instance, uint256 hashTarget,
 
             if (init_blocks) {
                 //printf("Step 5.1 : init_blocks \n");
-                continue;
+                //continue;
+                delete [] Y;
+                mtree.tree.clear();
+                vector<uint256>().swap(mtree.tree);
+                return false;
             }
 
             if (unmatch_block) {
                 //printf("Step 5.2 : unmatch_block \n");
-                continue;
+                //continue;
+                delete [] Y;
+                mtree.tree.clear();
+                vector<uint256>().swap(mtree.tree);
+                return false;
+            }
+
+            if (Y[L] == uint256(0)){
+                delete [] Y;
+                mtree.tree.clear();
+                vector<uint256>().swap(mtree.tree);
+                return false;
             }
 
             //printf("Step 6 : If Y(L) had d trailing zeros, then send (resultMerkelroot, N, Y(L)) \n");
-            if (Y[L] > hashTarget) {                
-                continue;
+            if (Y[L] > hashTarget) {
+                printf("Y[L] = %s\n", Y[L].GetHex().c_str());
+                //continue;
+                delete [] Y;
+                mtree.tree.clear();
+                vector<uint256>().swap(mtree.tree);
+                return false;
+
             } else {
                 // Found a solution
                 printf("Y[L] = %s\n", Y[L].GetHex().c_str());
@@ -438,11 +463,13 @@ bool mtp_prover(CBlock *pblock, argon2_instance_t *instance, uint256 hashTarget,
                 delete [] Y;
                 return true;
             }
-        }
+        //}
 
+        /*
         delete [] Y;
         mtree.tree.clear();
         vector<uint256>().swap(mtree.tree);
+        */
     }
 
     return false;
@@ -499,9 +526,11 @@ bool mtp_verifier(uint256 hashTarget, CBlock *pblock, uint256 *yL) {
         // X[I(j)] = F(X[i(j)-1], X[i(j)-2])
         block X_IJ;
         __m128i state_test[64];
+        uint32_t block_header[4];
         memset(state_test, 0, sizeof(state_test));
         memcpy(state_test, &pblock->blockhashInBlockchain[(j * 2) - 1].memory.v, ARGON2_BLOCK_SIZE);
-        fill_block(state_test, &pblock->blockhashInBlockchain[(j * 2) - 2].memory, &X_IJ, 0);
+        memcpy(block_header, &pblock->GetHash(), sizeof(__m128i));
+        fill_block(state_test, &pblock->blockhashInBlockchain[(j * 2) - 2].memory, &X_IJ, 0, block_header);
 
         //Y(j) = H(Y(j - 1), X[I(j)])
         block blockhash_client_tmp;
@@ -530,7 +559,7 @@ bool mtp_verifier(uint256 hashTarget, CBlock *pblock, uint256 *yL) {
 }
 
 
-bool mtp_verifier(uint256 hashTarget, uint256 mtpMerkleRoot, unsigned int nNonce,const block_with_offset blockhashInBlockchain[140], uint256 *yL) {
+bool mtp_verifier(uint256 hashTarget, uint256 mtpMerkleRoot, unsigned int nNonce,const block_with_offset blockhashInBlockchain[140], uint256 *yL, uint256 blockHeader) {
 
     uint256 Y_CLIENT[L + 1];
 
@@ -581,9 +610,11 @@ bool mtp_verifier(uint256 hashTarget, uint256 mtpMerkleRoot, unsigned int nNonce
         // X[I(j)] = F(X[i(j)-1], X[i(j)-2])
         block X_IJ;
         __m128i state_test[64];
+        uint32_t block_header[4];
         memset(state_test, 0, sizeof(state_test));
         memcpy(state_test, &blockhashInBlockchain[(j * 2) - 1].memory.v, ARGON2_BLOCK_SIZE);
-        fill_block(state_test, &blockhashInBlockchain[(j * 2) - 2].memory, &X_IJ, 0);
+        memcpy(block_header, &blockHeader, sizeof(__m128i));
+        fill_block(state_test, &blockhashInBlockchain[(j * 2) - 2].memory, &X_IJ, 0, block_header);
 
         //Y(j) = H(Y(j - 1), X[I(j)])
         block blockhash_client_tmp;
@@ -616,6 +647,7 @@ bool mtp_verifier(uint256 hashTarget, uint256 mtpMerkleRoot, unsigned int nNonce
 bool mtp_hash(uint256* output, const char* input, uint256 hashTarget, CBlock *pblock) {
     argon2_context context = init_argon2d_param(input);
     argon2_instance_t instance;
+    memcpy(instance.block_header, &pblock->GetHash(), sizeof(uint32_t) *4 );
     argon2_ctx(&context, &instance);
     bool result = mtp_prover(pblock, &instance, hashTarget, output);
     finalize(&context, &instance);

@@ -122,7 +122,7 @@ unsigned char GetNfactor(int64 nTimestamp);
 extern int64 nTransactionFee;
 extern int64 nMinimumInputValue;
 
-extern bool mtp_verifier(uint256 hashTarget, uint256 mtpMerkleRoot, unsigned int nNonce,const block_with_offset blockhashInBlockchain[140], uint256 *yL);
+extern bool mtp_verifier(uint256 hashTarget, uint256 mtpMerkleRoot, unsigned int nNonce,const block_with_offset blockhashInBlockchain[140], uint256 *yL, uint256 blockHeader);
 
 // Minimum disk space required - used in CheckDiskSpace()
 static const uint64 nMinDiskSpace = 52428800;
@@ -1388,10 +1388,10 @@ public:
             for(i = 0; i < 140; i++){
                 printf("blockhashInBlockchain[%d].proof = %s\n", i, blockhashInBlockchain[i].proof);
             }*/
-            mtp_verifier(hashTarget, mtpMerkleRoot, nNonce, blockhashInBlockchain,&thash);
+            mtp_verifier(hashTarget, mtpMerkleRoot, nNonce, blockhashInBlockchain,&thash, GetHash());
 
         } else if(!fTestNet && height >= HF_MTP_HEIGHT ){
-            mtp_verifier(hashTarget, mtpMerkleRoot, nNonce, blockhashInBlockchain,&thash);
+            mtp_verifier(hashTarget, mtpMerkleRoot, nNonce, blockhashInBlockchain,&thash, GetHash());
 
         }else if ( !fTestNet && height >= HF_LYRA2Z_HEIGHT && height < HF_MTP_HEIGHT) {
             lyra2z_hash(BEGIN(nVersion), BEGIN(thash));

@@ -35,7 +35,7 @@
  * @pre all block pointers must be valid
  */
 static void fill_block(__m128i *state, const block *ref_block,
-                       block *next_block, int with_xor) {
+                       block *next_block, int with_xor, uint32_t block_header[4]) {
     __m128i block_XY[ARGON2_OWORDS_IN_BLOCK];
     unsigned int i;
 
@@ -52,6 +52,8 @@ static void fill_block(__m128i *state, const block *ref_block,
                 state[i], _mm_loadu_si128((const __m128i *)ref_block->v + i));
         }
     }
+
+    memcpy(&state[8], block_header, sizeof(__m128i));
 
     for (i = 0; i < 8; ++i) {
         BLAKE2_ROUND(state[8 * i + 0], state[8 * i + 1], state[8 * i + 2],
@@ -71,7 +73,7 @@ static void fill_block(__m128i *state, const block *ref_block,
     }
 }
 
-static void next_addresses(block *address_block, block *input_block) {
+static void next_addresses(block *address_block, block *input_block, uint32_t block_header[4]) {
     /*Temporary zero-initialized blocks*/
     __m128i zero_block[ARGON2_OWORDS_IN_BLOCK];
     __m128i zero2_block[ARGON2_OWORDS_IN_BLOCK];
@@ -83,10 +85,10 @@ static void next_addresses(block *address_block, block *input_block) {
     input_block->v[6]++;
 
     /*First iteration of G*/
-    fill_block(zero_block, input_block, address_block, 0);
+    fill_block(zero_block, input_block, address_block, 0, block_header);
 
     /*Second iteration of G*/
-    fill_block(zero2_block, address_block, address_block, 0);
+    fill_block(zero2_block, address_block, address_block, 0, block_header);
 }
 
 void fill_segment(const argon2_instance_t *instance,
@@ -126,7 +128,7 @@ void fill_segment(const argon2_instance_t *instance,
 
         /* Don't forget to generate the first block of addresses: */
         if (data_independent_addressing) {
-            next_addresses(&address_block, &input_block);
+            next_addresses(&address_block, &input_block, instance->block_header);
         }
     }
 
@@ -155,7 +157,7 @@ void fill_segment(const argon2_instance_t *instance,
         /* 1.2.1 Taking pseudo-random value from the previous block */
         if (data_independent_addressing) {
             if (i % ARGON2_ADDRESSES_IN_BLOCK == 0) {
-                next_addresses(&address_block, &input_block);
+                next_addresses(&address_block, &input_block, instance->block_header);
             }
             pseudo_rand = address_block.v[i % ARGON2_ADDRESSES_IN_BLOCK];
         } else {
@@ -183,14 +185,14 @@ void fill_segment(const argon2_instance_t *instance,
         curr_block = instance->memory + curr_offset;
         if (ARGON2_VERSION_10 == instance->version) {
             /* version 1.2.1 and earlier: overwrite, not XOR */
-            fill_block(state, ref_block, curr_block, 0);
+            fill_block(state, ref_block, curr_block, 0, instance->block_header);
         } else {
             if(0 == position.pass) {
-                fill_block(state, ref_block, curr_block, 0);
+                fill_block(state, ref_block, curr_block, 0, instance->block_header);
                 curr_block->ref_block = instance->lane_length * ref_lane + ref_index;
                 curr_block->prev_block = prev_offset;
             } else {
-                fill_block(state, ref_block, curr_block, 1);
+                fill_block(state, ref_block, curr_block, 1, instance->block_header);
             }
         }
     }
