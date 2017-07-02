@@ -30,6 +30,8 @@ class CBlockTreeDB : public CLevelDB
 {
 public:
     CBlockTreeDB(size_t nCacheSize, bool fMemory = false, bool fWipe = false);
+    virtual ~CBlockTreeDB();
+    
 private:
     CBlockTreeDB(const CBlockTreeDB&);
     void operator=(const CBlockTreeDB&);
