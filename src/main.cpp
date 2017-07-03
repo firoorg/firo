@@ -2170,16 +2170,7 @@ bool CBlock::ReadFromDisk(const CBlockIndex* pindex)
         return error("CBlock::ReadFromDisk() : GetHash() doesn't match index");
     return true;
 }
-/*
-void CBlockHeader::SetAuxPow(CAuxPow* pow)
-{
-    if (pow != NULL)
-        nVersion |= BLOCK_VERSION_AUXPOW;
-    else
-        nVersion &= ~BLOCK_VERSION_AUXPOW;
-    auxpow.reset(pow);
-}
-*/
+
 uint256 static GetOrphanRoot(const CBlockHeader* pblock)
 {
     // Work back to the first block in the orphan chain
@@ -2203,10 +2194,8 @@ int64 static GetBlockValue(int nHeight, int64 nFees, unsigned int nTime)
     if (nHeight > 717499999)
         return nFees;
 }
-static const int64 nTargetTimespan = 10000000* 2 * 55; //1 minute 50 seconds between retargets
-static const int64 nTargetSpacing = 1; // 55 second blocks
-//static const int64 nTargetTimespan = 2 * 55; //1 minute 50 seconds between retargets
-//static const int64 nTargetSpacing = 55; // 55 second blocks
+static const int64 nTargetTimespan = 2 * 55; //1 minute 50 seconds between retargets
+static const int64 nTargetSpacing = 55; // 55 second blocks
 static const int64 nInterval = nTargetTimespan / nTargetSpacing; // retargets every 2 blocks
 
 //
@@ -2332,50 +2321,18 @@ unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBl
         return bnProofOfWorkLimit.GetCompact();
     }
 
-//    return bnProofOfWorkLimit.GetCompact();
-//   static const uint32_t        BlocksTargetSpacing                        = 55; // 55 Seconds
-    static const uint32_t        BlocksTargetSpacing                        = 1; // 55 Seconds
+   static const uint32_t        BlocksTargetSpacing                        = 55; // 55 Seconds
         unsigned int                TimeDaySeconds                                = 60 * 60 * 24; // 86400 Seconds
         int64                                PastSecondsMin                                = TimeDaySeconds * 10000000 * .0005; // 7 minutes
         int64                                PastSecondsMax                                = TimeDaySeconds * 10000000 * .007; // 1.7 Hours
         uint32_t                                PastBlocksMin                                = PastSecondsMin / BlocksTargetSpacing; // 36 blocks
         uint32_t                                PastBlocksMax                                = PastSecondsMax / BlocksTargetSpacing; // 1008 blocks
-/*
-    if (fTestNet) {
-        // If the new block's timestamp is more than nTargetSpacing*6
-        // then allow mining of a min-difficulty block
-        if (pblock->nTime > pindexLast->nTime + nTargetSpacing*6) {
-            return bnProofOfWorkLimit.GetCompact();
-        }
-    }
-*/
-/*
-    // 9/29/2016 - Reset to Lyra2(2,block_height,256) due to ASIC KnC Miner Scrypt
-    // 36 block look back, reset to mininmum diff
-    if(!fTestNet && pindexLast->nHeight + 1 >= 500 && pindexLast->nHeight + 1 <= 535){
-        return bnProofOfWorkLimit.GetCompact();
-    }
-    // reset to minimum diff at testnet after scrypt_n, 6 block look back
-    if(fTestNet && pindexLast->nHeight + 1 >= 80 && pindexLast->nHeight + 1 <= 85){
-        return bnProofOfWorkLimit.GetCompact();
-    }
 
-    // 02/11/2017 - Increase diff to match with new hashrates of Lyra2Z algo
-    if ( (!fTestNet && pindexLast->nHeight + 1 == 20500) || (fTestNet && pindexLast->nHeight + 1 == 90) ) {
-        CBigNum bnNew;
-        bnNew.SetCompact(pindexLast->nBits);
-        bnNew /= 20000000; // increase the diff by 20000x since the new hashrate is approx. 20000 times higher
-        printf("Lyra2Z HF - Before: %08x %.8f\n", pindexLast->nBits, GetDifficultyHelper(pindexLast->nBits));
-        printf("Lyra2Z HF - After: %08x %.8f\n", bnNew.GetCompact(), GetDifficultyHelper(bnNew.GetCompact()));
-        if (bnNew > bnProofOfWorkLimit) { bnNew = bnProofOfWorkLimit; } // safe threshold
-        return bnNew.GetCompact();
-//    }
-*/
   	if ((pindexLast->nHeight+1) % nInterval != 0) // Retarget every nInterval blocks
     {
         return pindexLast->nBits;
     }
-        
+ 
     return BorisRidiculouslyNamedDifficultyFunction(pindexLast, BlocksTargetSpacing, PastBlocksMin, PastBlocksMax);
 }
 
@@ -2502,7 +2459,6 @@ bool ConnectBestBlock(CValidationState &state) {
 void CBlockHeader::UpdateTime(const CBlockIndex* pindexPrev)
 {
     nTime = max(pindexPrev->GetMedianTimePast()+1, GetAdjustedTime());
-//    LastHeight = pindexPrev->nHeight;
 
     // Updating time can change work required on testnet:
     if (fTestNet)
@@ -2799,7 +2755,6 @@ void ThreadScriptCheck() {
 
 bool CBlock::ConnectBlock(CValidationState &state, CBlockIndex* pindex, CCoinsViewCache &view, bool fJustCheck)
 {
-//    LastHeight = pindex->nHeight;
 
     // Check it again in case a previous version let a bad block in
     if (!CheckBlock(state, pindex->nHeight, !fJustCheck, !fJustCheck, false))
@@ -3430,73 +3385,10 @@ bool CBlock::AddToBlockIndex(CValidationState &state, const CDiskBlockPos &pos)
     uiInterface.NotifyBlocksChanged();
     return true;
 }
-/*
-// to enable merged mining:
-// - set a block from which it will be enabled
-// - set a unique chain ID
-//   each merged minable scrypt_N_1_1_256 coin should have a different one
-//   (if two have the same ID, they can't be merge mined together)
-int GetAuxPowStartBlock()
-{
-    if (fTestNet)
-        return 1;
-    else
-        return 1;
-//        return 500;
-}
 
-int GetOurChainID()
-{
-
-    return 0x0001; // We are the first :)
-
-}
-*/
 bool CBlockHeader::CheckProofOfWork(int nHeight) const
 {
-/*    if (nHeight >= GetAuxPowStartBlock())
-    {
-        // Prevent same work from being submitted twice:
-        // - this block must have our chain ID
-        // - parent block must not have the same chain ID (see CAuxPow::Check)
-        // - index of this chain in chain merkle tree must be pre-determined (see CAuxPow::Check)
-        if (!fTestNet && nHeight != INT_MAX && GetChainID() != GetOurChainID())
-            return error("CheckProofOfWork() : block does not have our chain ID");
-
-	if (auxpow.get() != NULL)
-	{
-	if (!auxpow->Check(GetHash(), GetChainID()))
-	return error("CheckProofOfWork() : AUX POW is not valid");
-	// Check proof of work matches claimed amount
-	if (!::CheckProofOfWork(auxpow->GetParentBlockHash(nHeight), nBits))
-	return error("CheckProofOfWork() : AUX proof of work failed");
-	} 
-	else
- 	{
-
-          // Check proof of work matches claimed amount
-            if (!::CheckProofOfWork(GetPoWHash(nHeight), nBits))
-                return error("CheckProofOfWork() : proof of work failed - 1");
-//        }
-    }
-    else
-    {
-
-        if (auxpow.get() != NULL)
-        {
-            return error("CheckProofOfWork() : AUX POW is not allowed at this block");
-        }
-
-
-        // Check if proof of work marches claimed amount
-        uint256 phash = GetPoWHash();
-        if (phash == 0)
-            return error("CheckProofOfWork() : Out of memory - 2");
-
-        if (!::CheckProofOfWork(phash, nBits))
-            return error("CheckProofOfWork() : proof of work failed - 2");
-//    }
-*/    return true;
+    return true;
 }
 
 bool FindBlockPos(CValidationState &state, CDiskBlockPos &pos, unsigned int nAddSize, unsigned int nHeight, uint64 nTime, bool fKnown = false)
@@ -4324,7 +4216,6 @@ bool InitBlockIndex() {
 
         txNew.vin.resize(1);
         txNew.vout.resize(1);
-//        txNew.vin[0].scriptSig = CScript() << startBits << CBigNum(4) << vector<unsigned char>((const unsigned char*)pszTimestamp, (const unsigned char*)pszTimestamp + strlen(pszTimestamp)) << extraNonce;
 	txNew.vin[0].scriptSig = CScript() << bnProofOfWorkLimit.GetCompact() << CBigNum(4) << vector<unsigned char>((const unsigned char*)pszTimestamp, (const unsigned char*)pszTimestamp + strlen(pszTimestamp)) << extraNonce;
         txNew.vout[0].nValue = 0 * COIN;
 
@@ -4340,7 +4231,6 @@ bool InitBlockIndex() {
 
         if (fTestNet)
         {
-//            block.nTime    = 1485946800; // 1-Feb-2017 12:00:00 UTC
             block.nTime    = 1496467978; // Mon, 10 Apr 2017 00:33:25 GMT
             block.nNonce   = 420977;
         }
@@ -4373,8 +4263,6 @@ bool InitBlockIndex() {
 
         while(true)
         {
-            // thash = scrypt_blockhash(BEGIN(block.nVersion));
-//            lyra2z_hash(BEGIN(block.nVersion), BEGIN(thash));
 	    thash = block.GetHash();
             if (thash <= hashTarget)
                 break;
@@ -4423,9 +4311,6 @@ void PrintBlockTree()
     {
         CBlockIndex* pindex = (*mi).second;
         mapNext[pindex->pprev].push_back(pindex);
-        // test
-        //while (rand() % 3 == 0)
-        //    mapNext[pindex->pprev].push_back(pindex);
     }
 
     vector<pair<int, CBlockIndex*> > vStack;
@@ -4557,15 +4442,6 @@ bool LoadExternalBlockFile(FILE* fileIn, CDiskBlockPos *dbp)
     return nLoaded > 0;
 }
 
-
-
-
-
-
-
-
-
-
 //////////////////////////////////////////////////////////////////////////////
 //
 // CAlert
@@ -4621,13 +4497,6 @@ string GetWarnings(string strFor)
     assert(!"GetWarnings() : invalid parameter");
     return "error";
 }
-
-
-
-
-
-
-
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -5897,8 +5766,6 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
          txNew.vout.push_back(CTxOut((int64)(0.08 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime))), CScript(FOUNDER_3_SCRIPT.begin(), FOUNDER_3_SCRIPT.end())));
          txNew.vout.push_back(CTxOut((int64)(0.15 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime))), CScript(FOUNDER_4_SCRIPT.begin(), FOUNDER_4_SCRIPT.end())));
          txNew.vout.push_back(CTxOut((int64)(0.56 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime))), CScript(FOUNDER_5_SCRIPT.begin(), FOUNDER_5_SCRIPT.end())));
-printf("Block number with pindexbest%5=",(pindexBest->nHeight+1));
-printf("Block Value on payouts%d=",(GetBlockValue((pindexBest->nHeight+1), 0, pindexBest->nTime)/100000000));
     }
     // Add our coinbase tx as first transaction
     pblock->vtx.push_back(txNew);
