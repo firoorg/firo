@@ -1361,8 +1361,7 @@ public:
         READWRITE(nTime);
         READWRITE(nBits);
         READWRITE(nNonce);
-
-        if(CBlockHeader::CURRENT_VERSION == 3){
+        if(fTestNet || (!fTestNet && this->LastHeight + 1 >= HF_MTP_HEIGHT)){
             READWRITE(blockhashInBlockchain);
             READWRITE(mtpMerkleRoot);
         }
