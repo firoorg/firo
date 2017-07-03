@@ -1388,10 +1388,10 @@ public:
             for(i = 0; i < 140; i++){
                 printf("blockhashInBlockchain[%d].proof = %s\n", i, blockhashInBlockchain[i].proof);
             }*/
-            mtp_verifier(hashTarget, mtpMerkleRoot, nNonce, blockhashInBlockchain,&thash, GetHash());
+            mtp_verifier(hashTarget, mtpMerkleRoot, nNonce, blockhashInBlockchain,&thash, GetHashMTP());
 
         } else if(!fTestNet && height >= HF_MTP_HEIGHT ){
-            mtp_verifier(hashTarget, mtpMerkleRoot, nNonce, blockhashInBlockchain,&thash, GetHash());
+            mtp_verifier(hashTarget, mtpMerkleRoot, nNonce, blockhashInBlockchain,&thash, GetHashMTP());
 
         }else if ( !fTestNet && height >= HF_LYRA2Z_HEIGHT && height < HF_MTP_HEIGHT) {
             lyra2z_hash(BEGIN(nVersion), BEGIN(thash));
@@ -1446,6 +1446,11 @@ public:
     uint256 GetHash() const
     {
         return Hash(BEGIN(nVersion), END(nNonce));
+    }
+
+    uint256 GetHashMTP() const
+    {
+        return Hash(BEGIN(nVersion), END(nBits));
     }
 
     int64 GetBlockTime() const
