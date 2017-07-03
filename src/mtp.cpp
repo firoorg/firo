@@ -532,7 +532,7 @@ bool mtp_verifier(uint256 hashTarget, CBlock *pblock, uint256 *yL) {
     //printf("Step 10 : Check Y(L) had d tralling zeros then agree\n");
     printf("Y_CLIENT[L] = %s\n", Y_CLIENT[L].GetHex().c_str());
 
-    if (Y_CLIENT[L] > hashTarget) {
+    if ((Y_CLIENT[L] > hashTarget) || (Y_CLIENT[L] == uint256(0))) {
         return error("CheckProofOfWork() : proof of work failed - mtp");
     } else {
         yL->SetHex(Y_CLIENT[L].GetHex());
@@ -617,7 +617,7 @@ bool mtp_verifier(uint256 hashTarget, uint256 mtpMerkleRoot, unsigned int nNonce
     //printf("Step 10 : Check Y(L) had d tralling zeros then agree\n");
     printf("Y_CLIENT[L] = %s\n", Y_CLIENT[L].GetHex().c_str());
 
-    if (Y_CLIENT[L] > hashTarget) {
+    if ((Y_CLIENT[L] > hashTarget) || (Y_CLIENT[L] == uint256(0))) {
         return error("CheckProofOfWork() : proof of work failed - mtp");
     } else {
         yL->SetHex(Y_CLIENT[L].GetHex());
