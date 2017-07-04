@@ -16,7 +16,7 @@ reference_datetime: "2011-01-30 00:00:00"
 remotes:
 - "url": "http://github.com/SmartCash/smartcash.git"
   "dir": "smartcash"
-  "commit": "master_lyra"
+  "commit": "master_keccak"
 files:
 - "smartcash-deps-linux32-gitian-r2.zip"
 - "smartcash-deps-linux64-gitian-r2.zip"
