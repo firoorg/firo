@@ -288,12 +288,12 @@ bool mtp_prover(CBlock *pblock, argon2_instance_t *instance, uint256 hashTarget,
         Y = new uint256[L + 1];
         uint256 root = mtree.root();
 
-        //while (true) {
+        while (true) {
             //printf("Step 3 : Select nonce N \n");
-            // if(pblock->nNonce + 1 == UINT_MAX){
-                //return false;
-            //}
-            //pblock->nNonce += 1;
+            if(pblock->nNonce + 1 == UINT_MAX){
+                break;
+            }
+            pblock->nNonce += 1;
 
             memset(&Y[0], 0, sizeof(Y));
 
@@ -344,9 +344,11 @@ bool mtp_prover(CBlock *pblock, argon2_instance_t *instance, uint256 hashTarget,
                 blockhash_previous.ref_block = NULL;
                 vector<ProofNode> newproof = mtree.proof(t_previous);
 
+
                 char* buffer = serializeMTP(newproof);
                 memcpy(pblock->blockhashInBlockchain[(j * 2) - 1].proof, buffer, 4034);
                 free(buffer);
+
 
                 // ref block
                 copy_block(&pblock->blockhashInBlockchain[(j * 2) - 2].memory, &instance->memory[instance->memory[ij].ref_block]);
@@ -371,7 +373,6 @@ bool mtp_prover(CBlock *pblock, argon2_instance_t *instance, uint256 hashTarget,
                 blockhash_ref_block.prev_block = NULL;
                 blockhash_ref_block.ref_block = NULL;
 
-
                 char* buff = serializeMTP(newproof_ref);
                 memcpy(pblock->blockhashInBlockchain[(j * 2) - 2].proof, buff ,4034);
                 free(buff);                        
@@ -381,7 +382,7 @@ bool mtp_prover(CBlock *pblock, argon2_instance_t *instance, uint256 hashTarget,
                 uint32_t block_header[4];
                 memset(state_test, 0, sizeof(state_test));
                 memcpy(state_test, &pblock->blockhashInBlockchain[(j * 2) - 1].memory.v, ARGON2_BLOCK_SIZE);
-                memcpy(block_header, &pblock->GetHash(), sizeof(__m128i));
+                memcpy(block_header, &pblock->GetHashMTP(), sizeof(__m128i));
                 fill_block(state_test, &pblock->blockhashInBlockchain[(j * 2) - 2].memory, &X_IJ, 0, block_header);
                 X_IJ.prev_block = instance->memory[ij].prev_block;
                 X_IJ.ref_block = instance->memory[ij].ref_block;
@@ -424,38 +425,21 @@ bool mtp_prover(CBlock *pblock, argon2_instance_t *instance, uint256 hashTarget,
 
             if (init_blocks) {
                 //printf("Step 5.1 : init_blocks \n");
-                //continue;
-                delete [] Y;
-                mtree.tree.clear();
-                vector<uint256>().swap(mtree.tree);
-                return false;
+                continue;
             }
 
             if (unmatch_block) {
                 //printf("Step 5.2 : unmatch_block \n");
-                //continue;
-                delete [] Y;
-                mtree.tree.clear();
-                vector<uint256>().swap(mtree.tree);
-                return false;
+                continue;
             }
 
             if (Y[L] == uint256(0)){
-                delete [] Y;
-                mtree.tree.clear();
-                vector<uint256>().swap(mtree.tree);
-                return false;
+                continue;
             }
 
             //printf("Step 6 : If Y(L) had d trailing zeros, then send (resultMerkelroot, N, Y(L)) \n");
             if (Y[L] > hashTarget) {
-                printf("Y[L] = %s\n", Y[L].GetHex().c_str());
-                //continue;
-                delete [] Y;
-                mtree.tree.clear();
-                vector<uint256>().swap(mtree.tree);
-                return false;
-
+                continue;
             } else {
                 // Found a solution
                 printf("Y[L] = %s\n", Y[L].GetHex().c_str());
@@ -467,13 +451,13 @@ bool mtp_prover(CBlock *pblock, argon2_instance_t *instance, uint256 hashTarget,
                 delete [] Y;
                 return true;
             }
-        //}
+        }
 
-        /*
+
         delete [] Y;
         mtree.tree.clear();
         vector<uint256>().swap(mtree.tree);
-        */
+
     }
 
     return false;
@@ -533,7 +517,7 @@ bool mtp_verifier(uint256 hashTarget, CBlock *pblock, uint256 *yL) {
         uint32_t block_header[4];
         memset(state_test, 0, sizeof(state_test));
         memcpy(state_test, &pblock->blockhashInBlockchain[(j * 2) - 1].memory.v, ARGON2_BLOCK_SIZE);
-        memcpy(block_header, &pblock->GetHash(), sizeof(__m128i));
+        memcpy(block_header, &pblock->GetHashMTP(), sizeof(__m128i));
         fill_block(state_test, &pblock->blockhashInBlockchain[(j * 2) - 2].memory, &X_IJ, 0, block_header);
 
         //Y(j) = H(Y(j - 1), X[I(j)])
@@ -553,7 +537,7 @@ bool mtp_verifier(uint256 hashTarget, CBlock *pblock, uint256 *yL) {
     //printf("Step 10 : Check Y(L) had d tralling zeros then agree\n");
     printf("Y_CLIENT[L] = %s\n", Y_CLIENT[L].GetHex().c_str());
 
-    if (Y_CLIENT[L] > hashTarget) {
+    if ((Y_CLIENT[L] > hashTarget) || (Y_CLIENT[L] == uint256(0))) {
         return error("CheckProofOfWork() : proof of work failed - mtp");
     } else {
         yL->SetHex(Y_CLIENT[L].GetHex());
@@ -638,7 +622,7 @@ bool mtp_verifier(uint256 hashTarget, uint256 mtpMerkleRoot, unsigned int nNonce
     //printf("Step 10 : Check Y(L) had d tralling zeros then agree\n");
     printf("Y_CLIENT[L] = %s\n", Y_CLIENT[L].GetHex().c_str());
 
-    if (Y_CLIENT[L] > hashTarget) {
+    if ((Y_CLIENT[L] > hashTarget) || (Y_CLIENT[L] == uint256(0))) {
         return error("CheckProofOfWork() : proof of work failed - mtp");
     } else {
         yL->SetHex(Y_CLIENT[L].GetHex());
@@ -651,7 +635,7 @@ bool mtp_verifier(uint256 hashTarget, uint256 mtpMerkleRoot, unsigned int nNonce
 bool mtp_hash(uint256* output, const char* input, uint256 hashTarget, CBlock *pblock) {
     argon2_context context = init_argon2d_param(input);
     argon2_instance_t instance;
-    memcpy(instance.block_header, &pblock->GetHash(), sizeof(uint32_t) *4 );
+    memcpy(instance.block_header, &pblock->GetHashMTP(), sizeof(uint32_t) *4 );
     argon2_ctx(&context, &instance);
     bool result = mtp_prover(pblock, &instance, hashTarget, output);
     finalize(&context, &instance);
