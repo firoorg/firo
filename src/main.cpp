@@ -3542,33 +3542,32 @@ bool SetBestChain(CValidationState &state, CBlockIndex* pindexNew)
 
                             CZerocoinEntry pubCoinTx;
 
-                            // PUBCOIN IS IN DB, BUT NOT UPDATE ID
-                            printf("UPDATING\n");
-                            // GET MAX ID
+                                                // Get the current id
                             int currentId = 1;
-                            BOOST_FOREACH(const CZerocoinEntry& maxIdPubcoin, listPubCoin) {
-                                if (maxIdPubcoin.id > currentId && maxIdPubcoin.denomination == pubCoinItem.denomination) {
-                                    currentId = maxIdPubcoin.id;
-                                }
-                            }
-
-                            // FIND HOW MANY OF MAX ID
                             unsigned int countExistingItems = 0;
-                            BOOST_FOREACH(const CZerocoinEntry& countItemPubcoin, listPubCoin) {
-                                if (currentId == countItemPubcoin.id && countItemPubcoin.denomination == pubCoinItem.denomination) {
-                                    countExistingItems++;
+                            listPubCoin.sort(CompHeight);
+                            BOOST_FOREACH(const CZerocoinEntry& pubCoinIdItem, listPubCoin) {
+                                printf("denomination = %d, id = %d, height = %d\n", pubCoinIdItem.denomination, pubCoinIdItem.id, pubCoinIdItem.nHeight);
+                                if(pubCoinIdItem.id > 0){
+                                    if(pubCoinIdItem.nHeight <= pindex->nHeight){
+                                        if(pubCoinIdItem.denomination == pubCoinItem.denomination){
+                                            countExistingItems++;
+                                            if(pubCoinIdItem.id > currentId){
+                                                currentId = pubCoinIdItem.id;
+                                                countExistingItems = 1;
+                                            }                                                                
+                                        }
+                                    }else{
+                                        break;
+                                    }   
                                 }
-                                printf("pubCoinItem.id = %d\n", countItemPubcoin.id);
                             }
 
-                            // IF IT IS NOT 10 -> ADD MORE
-                            if (countExistingItems < 10) {
-                                pubCoinTx.id = currentId;
+                            if(countExistingItems > 9){
+                                currentId++;
                             }
-                            else {// ELSE INCREASE 1 -> ADD
-                                currentId += 1;
-                                pubCoinTx.id = currentId;
-                            }
+
+                            pubCoinTx.id = currentId;
 
                             pubCoinTx.IsUsed = pubCoinItem.IsUsed;
                             pubCoinTx.randomness = pubCoinItem.randomness;
