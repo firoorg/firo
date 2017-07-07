@@ -10,7 +10,6 @@
 #include "txdb.h"
 #include "net.h"
 #include "init.h"
-//#include "auxpow.h"
 #include "ui_interface.h"
 #include "checkqueue.h"
 #include <boost/algorithm/string/replace.hpp>
@@ -50,7 +49,6 @@ int nBestHeight = -1;
 uint256 nBestChainWork = 0;
 uint256 nBestInvalidWork = 0;
 uint256 hashBestChain = 0;
-//uint32_t nVertcoinChainStartTime = 1389306217;
 int64 nStartRewardTime = 1499789471; // 07/11/2017 @ 11:11am (CST)
 CBlockIndex* pindexBest = NULL;
 set<CBlockIndex*, CBlockIndexWorkComparator> setBlockIndexValid; // may contain all CBlockIndex*'s that have validness >=BLOCK_VALID_TRANSACTIONS, and must contain those who aren't failed
@@ -2323,8 +2321,8 @@ unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBl
 
    static const uint32_t        BlocksTargetSpacing                        = 55; // 55 Seconds
         unsigned int                TimeDaySeconds                                = 60 * 60 * 24; // 86400 Seconds
-        int64                                PastSecondsMin                                = TimeDaySeconds * 10000000 * .0005; // 7 minutes
-        int64                                PastSecondsMax                                = TimeDaySeconds * 10000000 * .007; // 1.7 Hours
+        int64                                PastSecondsMin                                = TimeDaySeconds * .0005; // 7 minutes
+        int64                                PastSecondsMax                                = TimeDaySeconds * .007; // 1.7 Hours
         uint32_t                                PastBlocksMin                                = PastSecondsMin / BlocksTargetSpacing; // 36 blocks
         uint32_t                                PastBlocksMax                                = PastSecondsMax / BlocksTargetSpacing; // 1008 blocks
 
