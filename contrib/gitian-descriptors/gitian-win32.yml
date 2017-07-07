@@ -17,7 +17,7 @@ remotes:
   "dir": "smartcash"
   "commit": "master"
 files:
-- "qt-win32-4.8.5-gitian-r5.zip"
+- "qt-win32-4.8.5-gitian-r6.zip"
 - "boost-win32-1.57.0-gitian-r6.zip"
 - "smartcash-deps-win32-gitian-r4.zip"
 script: |
@@ -38,7 +38,7 @@ script: |
   git archive HEAD | tar -x -C $OUTDIR/src
   cp $OUTDIR/src/doc/README_windows.txt $OUTDIR/readme.txt
   cp $OUTDIR/src/COPYING $OUTDIR/COPYING.txt
-  export LD_PRELOAD=/usr/lib/faketime/libfaketime.so.1
+  export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/faketime/libfaketime.so.1
   export FAKETIME=$REFERENCE_DATETIME
   export TZ=UTC
   ln -s $STAGING $HOME/qt
@@ -48,7 +48,7 @@ script: |
   cp release/smartcash-qt.exe $OUTDIR/
   #
   cd src
-  export LD_PRELOAD=/usr/lib/faketime/libfaketime.so.1
+  export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/faketime/libfaketime.so.1
   export FAKETIME=$REFERENCE_DATETIME
   export TZ=UTC
   make -f makefile.linux-mingw $MAKEOPTS DEPSDIR=$STAGING smartcashd.exe USE_UPNP=1 DEBUGFLAGS="-frandom-seed=smartcash" USE_SSE2=1

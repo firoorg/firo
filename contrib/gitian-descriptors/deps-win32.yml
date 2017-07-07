@@ -1,7 +1,7 @@
 ---
 name: "smartcash-deps"
 suites:
-- "trusty"
+- "precise"
 architectures:
 - "amd64"
 packages:
@@ -22,8 +22,9 @@ files:
 - "qrencode-3.4.4.tar.bz2"
 script: |
   #
-  OPTFLAGS='-O2'
-  export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/faketime/libfaketime.so.1
+  export LD_PRELOAD=/usr/lib/faketime/libfaketime.so.1
+  # for trusty
+  # export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/faketime/libfaketime.so.1
   export FAKETIME=$REFERENCE_DATETIME
   export TZ=UTC
   export INSTALLPREFIX=$OUTDIR/staging/deps
@@ -52,30 +53,30 @@ script: |
   make $MAKEOPTS library_build
   make install_lib install_include
   cd ../..
-  #from bitcoin 0.8
-  #tar xzf miniupnpc-1.6.tar.gz
-  #cd miniupnpc-1.6
-  #sed 's/dllwrap -k --driver-name gcc/$(DLLWRAP) -k --driver-name $(CC)/' -i Makefile.mingw
-  #sed 's|wingenminiupnpcstrings $< $@|./wingenminiupnpcstrings $< $@|' -i Makefile.mingw
-  #make -f Makefile.mingw DLLWRAP=i586-mingw32msvc-dllwrap CC=i586-mingw32msvc-gcc AR=i586-mingw32msvc-ar
-  #cd ..
-  #cv miniupnpc-1.6 miniupnpc
   #
   tar xzf miniupnpc-1.9.20140401.tar.gz
   cd miniupnpc-1.9.20140401
-  #
-  #  wingenminiupnpcstrings.o:	wingenminiupnpcstrings.c
-  #  miniupnpcstrings.h: miniupnpcstrings.h.in
-  #  	sed -e 's|OS/version|MSWindows/5.1.2600|' -e 's|MINIUPNPC_VERSION_STRING \"version\"|MINIUPNPC_VERSION_STRING \"VERSIONHERE\"|' \$< > \$@
-  #   minixml.o:	minixml.c minixml.h miniupnpcstrings.h
-  #  " | sed "s/VERSIONHERE/$(cat VERSION)/" | patch -p1
-  #  mkdir -p dll
-  #
-  make -f Makefile.mingw CC=$HOST-gcc AR=$HOST-ar libminiupnpc.a -upnpc-static
-  install -d $INSTALLPREFIX/include/miniupnpc
-  install *.h $INSTALLPREFIX/include/miniupnpc
-  install libminiupnpc.a  $INSTALLPREFIX/lib
-  cd ..
+  echo "
+  --- miniupnpc-1.9/Makefile.mingw.orig   2013-09-29 18:52:51.014087958 -1000
+  +++ miniupnpc-1.9/Makefile.mingw        2013-09-29 19:09:29.663318691 -1000
+  @@ -67,8 +67,8 @@
+   
+   wingenminiupnpcstrings.o:	wingenminiupnpcstrings.c
+   
+  -miniupnpcstrings.h: miniupnpcstrings.h.in wingenminiupnpcstrings
+  -	wingenminiupnpcstrings \$< \$@
+  +miniupnpcstrings.h: miniupnpcstrings.h.in 
+  +	sed -e 's|OS/version|MSWindows/5.1.2600|' -e 's|MINIUPNPC_VERSION_STRING \"version\"|MINIUPNPC_VERSION_STRING \"VERSIONHERE\"|' \$< > \$@
+   
+   minixml.o:	minixml.c minixml.h miniupnpcstrings.h
+   
+  " | sed "s/VERSIONHERE/$(cat VERSION)/" | patch -p1
+    mkdir -p dll
+    make -f Makefile.mingw CC=$HOST-gcc AR=$HOST-ar libminiupnpc.a
+    install -d $INSTALLPREFIX/include/miniupnpc
+    install *.h $INSTALLPREFIX/include/miniupnpc
+    install libminiupnpc.a  $INSTALLPREFIX/lib
+    cd ..
   #
   tar xzf zlib-1.2.8.tar.gz
   cd zlib-1.2.8
