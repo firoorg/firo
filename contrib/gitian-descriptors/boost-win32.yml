@@ -12,19 +12,19 @@ packages:
 reference_datetime: "2011-01-30 00:00:00"
 remotes: []
 files:
-- "boost_1_55_0.tar.bz2"
+- "boost_1_57_0.tar.bz2"
 - "boost-mingw-gas-cross-compile-2013-03-03.patch"
 script: |
   # Defines
   INSTALLPREFIX="$OUTDIR/staging/boost"
   HOST=i686-w64-mingw32
   # Input Integrity Check
-  echo "fff00023dd79486d444c8e29922f4072e1d451fc5a4d2b6075852ead7f2b7b52  boost_1_55_0.tar.bz2" | shasum -c
+  echo "910c8c022a33ccec7f088bd65d4f14b466588dda94ba2124e78b8c57db264967  boost_1_57_0.tar.bz2" | shasum -c
   echo "d2b7f6a1d7051faef3c9cf41a92fa3671d905ef1e1da920d07651a43299f6268  boost-mingw-gas-cross-compile-2013-03-03.patch" | shasum -c
 
   mkdir -p "$INSTALLPREFIX"
-  tar xjf boost_1_55_0.tar.bz2
-  cd boost_1_55_0
+  tar xjf boost_1_57_0.tar.bz2
+  cd boost_1_57_0
   GCCVERSION=$($HOST-g++ -E -dM $(mktemp --suffix=.h) | grep __VERSION__ | cut -d ' ' -f 3 | cut -d '"' -f 2)
   echo "using gcc : $GCCVERSION : $HOST-g++
         :
@@ -62,5 +62,5 @@ script: |
   cd "$INSTALLPREFIX"
   export LD_PRELOAD=/usr/lib/faketime/libfaketime.so.1
   export FAKETIME=$REFERENCE_DATETIME
-  zip -r boost-win32-1.55.0-gitian-r6.zip *
-  cp boost-win32-1.55.0-gitian-r6.zip $OUTDIR
+  zip -r boost-win32-1.57.0-gitian-r6.zip *
+  cp boost-win32-1.57.0-gitian-r6.zip $OUTDIR

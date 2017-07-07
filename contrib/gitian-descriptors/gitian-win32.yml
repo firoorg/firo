@@ -18,8 +18,8 @@ remotes:
   "commit": "master"
 files:
 - "qt-win32-4.8.5-gitian-r5.zip"
-- "boost-win32-1.55.0-gitian-r6.zip"
-- "smartcash-deps-win32-gitian-r3.zip"
+- "boost-win32-1.57.0-gitian-r6.zip"
+- "smartcash-deps-win32-gitian-r4.zip"
 script: |
   #
   STAGING=$HOME/staging
@@ -28,8 +28,8 @@ script: |
   mkdir -p $STAGING
   cd $STAGING
   unzip ../build/qt-win32-4.8.5-gitian-r5.zip
-  unzip ../build/boost-win32-1.55.0-gitian-r6.zip
-  unzip ../build/smartcash-deps-win32-gitian-r3.zip
+  unzip ../build/boost-win32-1.57.0-gitian-r6.zip
+  unzip ../build/smartcash-deps-win32-gitian-r4.zip
   cd $HOME/build/
   #
   cd smartcash
