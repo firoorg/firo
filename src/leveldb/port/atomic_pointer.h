@@ -97,14 +97,13 @@ inline void MemoryBarrier() {
 
 // ARM64 Linux
 #elif defined(ARCH_CPU_A64_FAMILY) && defined(__linux__)
-typedef void (*LinuxKernelMemoryBarrierFunc)(void);
 // With more affordable 64-bit ARM devices available in the market, it becomes
 // hard to expect device-specific memory barrier function universally available
 // in ARM64 kernel.
 //
 // Some device vendors completely omitted, and made regression to compiler
-// memory barrier. Few device vendors went out implementing the function With
-// CPU-specific instructions. Even from vendor to vendor, the used instructions
+// memory barrier. Few device vendors went out implementing the function with
+// CPU-specific instructions. Even from vendor to vendor, used instructions
 // are different, and one cannot expect unified ground like it is available in
 // 32-bit ARM device landscape.
 //
