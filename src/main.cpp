@@ -656,23 +656,21 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
             }
 
             BOOST_FOREACH(const CTxOut& output, vout) {
-                if (output.scriptPubKey == FOUNDER_1_SCRIPT && output.nValue == (int64)(0.08 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime)))) {
+                if (output.scriptPubKey == FOUNDER_1_SCRIPT && (output.nValue - (int64)(0.08 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime))) < 2 )) {
                     found_1 = true;
                 }
-                if (output.scriptPubKey == FOUNDER_2_SCRIPT && output.nValue == (int64)(0.08 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime)))) {
+                if (output.scriptPubKey == FOUNDER_2_SCRIPT && (output.nValue - (int64)(0.08 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime))) < 2 )) {
                     found_2 = true;
                 }
-                if (output.scriptPubKey == FOUNDER_3_SCRIPT && output.nValue == (int64)(0.08 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime)))) {
+                if (output.scriptPubKey == FOUNDER_3_SCRIPT && (output.nValue - (int64)(0.08 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime))) < 2 )) {
                     found_3 = true;
                 }
-                if (output.scriptPubKey == FOUNDER_4_SCRIPT && output.nValue == (int64)(0.15 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime)))) {
+                if (output.scriptPubKey == FOUNDER_4_SCRIPT && (output.nValue - (int64)(0.15 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime))) < 2 )) {
                     found_4 = true;
                 }
-                if (output.scriptPubKey == FOUNDER_5_SCRIPT && output.nValue == (int64)(0.56 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime)))) {
+                if (output.scriptPubKey == FOUNDER_5_SCRIPT && (output.nValue - (int64)(0.56 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime))) < 2 )) {
                     found_5 = true;
                 }
-printf("Block number with pindexbest on verification%5=",pindexBest->nHeight+1);
-printf("Block Value on verification%d=",(GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime)/100000000));
             }
 
             if (!(found_1 && found_2 && found_3 && found_4 && found_5)) {
@@ -1018,7 +1016,7 @@ printf("Block Value on verification%d=",(GetBlockValue(pindexBest->nHeight+1, 0,
                                         }
                                         countPubcoin++;
                                         accumulator += pubCoinTemp;
-                                        if (countPubcoin >= 1) { // MINIMUM REQUIREMENT IS 1 PUBCOINS (changed from default of 2)
+                                        if (countPubcoin >= 2) { // MINIMUM REQUIREMENT IS 2 PUBCOINS
                                             if (newSpend.Verify(accumulator, newMetadata)) {
                                                 printf("COIN SPEND TX DID VERIFY!\n");
                                                 passVerify = true;
