@@ -656,19 +656,19 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
             }
 
             BOOST_FOREACH(const CTxOut& output, vout) {
-                if (output.scriptPubKey == FOUNDER_1_SCRIPT && (output.nValue - (int64)(0.08 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime))) < 2 )) {
+                if (output.scriptPubKey == FOUNDER_1_SCRIPT && abs(output.nValue - (int64)(0.08 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime)))) < 2 ) {
                     found_1 = true;
                 }
-                if (output.scriptPubKey == FOUNDER_2_SCRIPT && (output.nValue - (int64)(0.08 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime))) < 2 )) {
+                if (output.scriptPubKey == FOUNDER_2_SCRIPT && abs(output.nValue - (int64)(0.08 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime)))) < 2 ) {
                     found_2 = true;
                 }
-                if (output.scriptPubKey == FOUNDER_3_SCRIPT && (output.nValue - (int64)(0.08 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime))) < 2 )) {
+                if (output.scriptPubKey == FOUNDER_3_SCRIPT && abs(output.nValue - (int64)(0.08 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime)))) < 2 ) {
                     found_3 = true;
                 }
-                if (output.scriptPubKey == FOUNDER_4_SCRIPT && (output.nValue - (int64)(0.15 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime))) < 2 )) {
+                if (output.scriptPubKey == FOUNDER_4_SCRIPT && abs(output.nValue - (int64)(0.15 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime)))) < 2 ) {
                     found_4 = true;
                 }
-                if (output.scriptPubKey == FOUNDER_5_SCRIPT && (output.nValue - (int64)(0.56 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime))) < 2 )) {
+                if (output.scriptPubKey == FOUNDER_5_SCRIPT && abs(output.nValue - (int64)(0.56 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime)))) < 2 ) {
                     found_5 = true;
                 }
             }
