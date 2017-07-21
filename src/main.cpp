@@ -844,7 +844,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                         }
                                         countPubcoin++;
                                         accumulator += pubCoinTemp;
-                                        if (countPubcoin >= 2) { // MINIMUM REQUIREMENT IS 2 PUBCOINS
+                                        if (countPubcoin > 0) { // MINIMUM REQUIREMENT IS 2 PUBCOINS
                                             if (newSpend.Verify(accumulator, newMetadata)) {
                                                 printf("COIN SPEND TX DID VERIFY!\n");
                                                 passVerify = true;
@@ -856,7 +856,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
 
                                 // It does not have this mint coins id, still sync
                                 if(countPubcoin == 0){
-                                    return state.DoS(0, error("CTransaction::CheckTransaction() : Error: Node does not have mint zerocoin to verify, please wait until "));
+                                    return state.DoS(0, error("CTransaction::CheckTransaction() : Error: Node does not have a Renewed SmartCash to verify., please wait until "));
 
                                 }
 
@@ -873,7 +873,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                             }
                                             countPubcoin++;
                                             accumulatorRev += pubCoinTemp;
-                                            if (countPubcoin >= 2) { // MINIMUM REQUIREMENT IS 2 PUBCOINS
+                                            if (countPubcoin > 0) { // MINIMUM REQUIREMENT IS 2 PUBCOINS
                                                 if (newSpend.Verify(accumulatorRev, newMetadata)) {
                                                     printf("COIN SPEND TX DID VERIFY!\n");
                                                     passVerify = true;
@@ -885,7 +885,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
 
                                     // It does not have this mint coins id, still sync
                                     if(countPubcoin == 0){
-                                        return state.DoS(0, error("CTransaction::CheckTransaction() : Error: Node does not have mint zerocoin to verify, please wait until "));
+                                        return state.DoS(0, error("CTransaction::CheckTransaction() : Error: Node does not have a Renewed SmartCash to verify., please wait until "));
 
                                     }
                                 }
@@ -1016,7 +1016,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                         }
                                         countPubcoin++;
                                         accumulator += pubCoinTemp;
-                                        if (countPubcoin >= 2) { // MINIMUM REQUIREMENT IS 2 PUBCOINS
+                                        if (countPubcoin > 0) { // MINIMUM REQUIREMENT IS 2 PUBCOINS
                                             if (newSpend.Verify(accumulator, newMetadata)) {
                                                 printf("COIN SPEND TX DID VERIFY!\n");
                                                 passVerify = true;
@@ -1028,7 +1028,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
 
                                 // It does not have this mint coins id, still sync
                                 if(countPubcoin == 0){
-                                    return state.DoS(0, error("CTransaction::CheckTransaction() : Error: Node does not have mint zerocoin to verify, please wait until "));
+                                    return state.DoS(0, error("CTransaction::CheckTransaction() : Error: Node does not have a Renewed SmartCash to verify., please wait until "));
 
                                 }
 
@@ -1045,7 +1045,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                             }
                                             countPubcoin++;
                                             accumulatorRev += pubCoinTemp;
-                                            if (countPubcoin >= 2) { // MINIMUM REQUIREMENT IS 2 PUBCOINS
+                                            if (countPubcoin > 0) { // MINIMUM REQUIREMENT IS 2 PUBCOINS
                                                 if (newSpend.Verify(accumulatorRev, newMetadata)) {
                                                     printf("COIN SPEND TX DID VERIFY!\n");
                                                     passVerify = true;
@@ -1057,7 +1057,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
 
                                     // It does not have this mint coins id, still sync
                                     if(countPubcoin == 0){
-                                        return state.DoS(0, error("CTransaction::CheckTransaction() : Error: Node does not have mint zerocoin to verify, please wait until "));
+                                        return state.DoS(0, error("CTransaction::CheckTransaction() : Error: Node does not have a Renewed SmartCash to verify., please wait until "));
 
                                     }
 
@@ -1188,7 +1188,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                         }
                                         countPubcoin++;
                                         accumulator += pubCoinTemp;
-                                        if (countPubcoin >= 2) { // MINIMUM REQUIREMENT IS 2 PUBCOINS
+                                        if (countPubcoin > 0) { // MINIMUM REQUIREMENT IS 2 PUBCOINS
                                             if (newSpend.Verify(accumulator, newMetadata)) {
                                                 printf("COIN SPEND TX DID VERIFY!\n");
                                                 passVerify = true;
@@ -1200,7 +1200,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
 
                                 // It does not have this mint coins id, still sync
                                 if(countPubcoin == 0){
-                                    return state.DoS(0, error("CTransaction::CheckTransaction() : Error: Node does not have mint zerocoin to verify, please wait until "));
+                                    return state.DoS(0, error("CTransaction::CheckTransaction() : Error: Node does not have a Renewed SmartCash to verify., please wait until "));
 
                                 }
 
@@ -1217,7 +1217,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                             }
                                             countPubcoin++;
                                             accumulatorRev += pubCoinTemp;
-                                            if (countPubcoin >= 2) { // MINIMUM REQUIREMENT IS 2 PUBCOINS
+                                            if (countPubcoin > 0) { // MINIMUM REQUIREMENT IS 2 PUBCOINS
                                                 if (newSpend.Verify(accumulatorRev, newMetadata)) {
                                                     printf("COIN SPEND TX DID VERIFY!\n");
                                                     passVerify = true;
@@ -1229,7 +1229,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
 
                                     // It does not have this mint coins id, still sync
                                     if(countPubcoin == 0){
-                                        return state.DoS(0, error("CTransaction::CheckTransaction() : Error: Node does not have mint zerocoin to verify, please wait until "));
+                                        return state.DoS(0, error("CTransaction::CheckTransaction() : Error: Node does not have a Renewed SmartCash to verify., please wait until "));
 
                                     }
                                 }
@@ -1359,7 +1359,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                         }
                                         countPubcoin++;
                                         accumulator += pubCoinTemp;
-                                        if (countPubcoin >= 2) { // MINIMUM REQUIREMENT IS 2 PUBCOINS
+                                        if (countPubcoin > 0) { // MINIMUM REQUIREMENT IS 1 PUBCOIN
                                             if (newSpend.Verify(accumulator, newMetadata)) {
                                                 printf("COIN SPEND TX DID VERIFY!\n");
                                                 passVerify = true;
@@ -1371,7 +1371,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
 
                                 // It does not have this mint coins id, still sync
                                 if(countPubcoin == 0){
-                                    return state.DoS(0, error("CTransaction::CheckTransaction() : Error: Node does not have mint zerocoin to verify, please wait until "));
+                                    return state.DoS(0, error("CTransaction::CheckTransaction() : Error: Node does not have a Renewed SmartCash to verify., please wait until "));
 
                                 }
 
@@ -1388,7 +1388,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                             }
                                             countPubcoin++;
                                             accumulatorRev += pubCoinTemp;
-                                            if (countPubcoin >= 2) { // MINIMUM REQUIREMENT IS 2 PUBCOINS
+                                            if (countPubcoin > 0) { // MINIMUM REQUIREMENT IS 1 PUBCOIN
                                                 if (newSpend.Verify(accumulatorRev, newMetadata)) {
                                                     printf("COIN SPEND TX DID VERIFY!\n");
                                                     passVerify = true;
@@ -1400,7 +1400,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
 
                                     // It does not have this mint coins id, still sync
                                     if(countPubcoin == 0){
-                                        return state.DoS(0, error("CTransaction::CheckTransaction() : Error: Node does not have mint zerocoin to verify, please wait until "));
+                                        return state.DoS(0, error("CTransaction::CheckTransaction() : Error: Node does not have a Renewed SmartCash to verify., please wait until "));
 
                                     }
                                 }
@@ -1531,7 +1531,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                         }
                                         countPubcoin++;
                                         accumulator += pubCoinTemp;
-                                        if (countPubcoin >= 2) { // MINIMUM REQUIREMENT IS 2 PUBCOINS
+                                        if (countPubcoin > 0) { // MINIMUM REQUIREMENT IS 1 PUBCOIN
                                             if (newSpend.Verify(accumulator, newMetadata)) {
                                                 printf("COIN SPEND TX DID VERIFY!\n");
                                                 passVerify = true;
@@ -1543,7 +1543,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
 
                                 // It does not have this mint coins id, still sync
                                 if(countPubcoin == 0){
-                                    return state.DoS(0, error("CTransaction::CheckTransaction() : Error: Node does not have mint zerocoin to verify, please wait until "));
+                                    return state.DoS(0, error("CTransaction::CheckTransaction() : Error: Node does not have a Renewed SmartCash to verify., please wait until "));
 
                                 }
 
@@ -1560,7 +1560,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                                             }
                                             countPubcoin++;
                                             accumulatorRev += pubCoinTemp;
-                                            if (countPubcoin >= 2) { // MINIMUM REQUIREMENT IS 2 PUBCOINS
+                                            if (countPubcoin > 0) { // MINIMUM REQUIREMENT IS 1 PUBCOIN
                                                 if (newSpend.Verify(accumulatorRev, newMetadata)) {
                                                     printf("COIN SPEND TX DID VERIFY!\n");
                                                     passVerify = true;
@@ -1572,7 +1572,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
 
                                     // It does not have this mint coins id, still sync
                                     if(countPubcoin == 0){
-                                        return state.DoS(0, error("CTransaction::CheckTransaction() : Error: Node does not have mint zerocoin to verify, please wait until "));
+                                        return state.DoS(0, error("CTransaction::CheckTransaction() : Error: Node does not have a Renewed SmartCash to verify., please wait until "));
 
                                     }
                                 }
