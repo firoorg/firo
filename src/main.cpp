@@ -654,7 +654,7 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                 FOUNDER_4_SCRIPT.SetDestination(CBitcoinAddress("TUPAY3ziYY7znMLxRJJNuvfuFWS1snrjiM").Get());
                 FOUNDER_5_SCRIPT.SetDestination(CBitcoinAddress("TMtxkvmAMyL5siHX1n3zKAvAKnev8if8KA").Get());
             }
-
+            if ((nHeight > 0) && (nHeight < 20000)) {
             BOOST_FOREACH(const CTxOut& output, vout) {
                 if (output.scriptPubKey == FOUNDER_1_SCRIPT && abs(output.nValue - (int64)(0.08 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime)))) < 2 ) {
                     found_1 = true;
@@ -671,10 +671,28 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
                 if (output.scriptPubKey == FOUNDER_5_SCRIPT && abs(output.nValue - (int64)(0.56 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime)))) < 2 ) {
                     found_5 = true;
                 }
+                if (!(found_1 && found_2 && found_3 && found_4 && found_5)) {
+                return state.DoS(100, error("CTransaction::CheckTransaction() : One of the SmartHive rewards is missing"));}
             }
-
-            if (!(found_1 && found_2 && found_3 && found_4 && found_5)) {
-                return state.DoS(100, error("CTransaction::CheckTransaction() : founders reward missing"));
+            if ((nHeight >= 20000) && (nHeight < 717499999)) {
+            BOOST_FOREACH(const CTxOut& output, vout) {
+                if ((nHeight+1)%100 >= 00 && (nHeight+1)%100 <= 07 && output.scriptPubKey == FOUNDER_1_SCRIPT && abs(output.nValue - (int64)(0.95 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime)))) < 2 ) {
+                    found_1 = true;
+                }
+                if ((nHeight+1)%100 >= 08 && (nHeight+1)%100 <= 15 && output.scriptPubKey == FOUNDER_2_SCRIPT && abs(output.nValue - (int64)(0.95 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime)))) < 2 ) {
+                    found_2 = true;
+                }
+                if ((nHeight+1)%100 >= 16 && (nHeight+1)%100 <= 23 && output.scriptPubKey == FOUNDER_3_SCRIPT && abs(output.nValue - (int64)(0.95 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime)))) < 2 ) {
+                    found_3 = true;
+                }
+                if ((nHeight+1)%100 >= 24 && (nHeight+1)%100 <= 39 && output.scriptPubKey == FOUNDER_4_SCRIPT && abs(output.nValue - (int64)(0.95 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime)))) < 2 ) {
+                    found_4 = true;
+                }
+                if ((nHeight+1)%100 >= 40 && (nHeight+1)%100 <= 99 && output.scriptPubKey == FOUNDER_5_SCRIPT && abs(output.nValue - (int64)(0.95 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime)))) < 2 ) {
+                    found_5 = true;
+                }
+                if (!(found_1 || found_2 || found_3 || found_4 || found_5)) {
+                return state.DoS(100, error("CTransaction::CheckTransaction() : One of the SmartHive rewards is missing"));}
             }
         }
     }
@@ -2185,7 +2203,7 @@ int64 static GetBlockValue(int nHeight, int64 nFees, unsigned int nTime)
 	return 5000 * COIN + nFees;
     // Block rewards taper off after block 143500
     if (nHeight > 143499 && nHeight <= 717499999)
-	return floor(0.5+((5000 * 143500)/(nHeight +1))/100)*100 * COIN + nFees;
+	return floor(0.5+((5000 * 143500)/(nHeight +1))) * COIN + nFees;
     // Stop rewards when blocks size is less than 1.
     if (nHeight > 717499999)
         return nFees;
@@ -5730,7 +5748,7 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
     }
 */
     // To SmartHive Teams, SmartHive Budget, and SmartDeposits
-    if ((pindexBest->nHeight+1 > 0) && (pindexBest->nHeight+1 < 717499999)) {
+    if ((pindexBest->nHeight+1 > 0) && (pindexBest->nHeight+1 < 20000)) {
 	// Take out amounts for budgets.
 	txNew.vout[0].nValue =-((int64)(0.95 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime))));
 
@@ -5757,12 +5775,27 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
          }
 
          // And pay the budgets
-         txNew.vout.push_back(CTxOut((int64)(0.08 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime))), CScript(FOUNDER_1_SCRIPT.begin(), FOUNDER_1_SCRIPT.end())));
-         txNew.vout.push_back(CTxOut((int64)(0.08 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime))), CScript(FOUNDER_2_SCRIPT.begin(), FOUNDER_2_SCRIPT.end())));
-         txNew.vout.push_back(CTxOut((int64)(0.08 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime))), CScript(FOUNDER_3_SCRIPT.begin(), FOUNDER_3_SCRIPT.end())));
-         txNew.vout.push_back(CTxOut((int64)(0.15 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime))), CScript(FOUNDER_4_SCRIPT.begin(), FOUNDER_4_SCRIPT.end())));
-         txNew.vout.push_back(CTxOut((int64)(0.56 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime))), CScript(FOUNDER_5_SCRIPT.begin(), FOUNDER_5_SCRIPT.end())));
+         if ((pindexBest->nHeight+1 > 0) && (pindexBest->nHeight+1 < 20000)) {
+            txNew.vout.push_back(CTxOut((int64)(0.08 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime))), CScript(FOUNDER_1_SCRIPT.begin(), FOUNDER_1_SCRIPT.end())));
+            txNew.vout.push_back(CTxOut((int64)(0.08 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime))), CScript(FOUNDER_2_SCRIPT.begin(), FOUNDER_2_SCRIPT.end())));
+            txNew.vout.push_back(CTxOut((int64)(0.08 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime))), CScript(FOUNDER_3_SCRIPT.begin(), FOUNDER_3_SCRIPT.end())));
+            txNew.vout.push_back(CTxOut((int64)(0.15 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime))), CScript(FOUNDER_4_SCRIPT.begin(), FOUNDER_4_SCRIPT.end())));
+            txNew.vout.push_back(CTxOut((int64)(0.56 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime))), CScript(FOUNDER_5_SCRIPT.begin(), FOUNDER_5_SCRIPT.end())));
+         }
+         if ((pindexBest->nHeight+1 >= 20000) && (pindexBest->nHeight+1 < 717499999)) {
+            if(((nHeight+1)%100 >= 00 && (nHeight+1)%100 <= 07){
+               txNew.vout.push_back(CTxOut((int64)(0.95 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime))), CScript(FOUNDER_1_SCRIPT.begin(), FOUNDER_1_SCRIPT.end())));}
+            if(((nHeight+1)%100 >= 08 && (nHeight+1)%100 <= 15){
+               txNew.vout.push_back(CTxOut((int64)(0.95 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime))), CScript(FOUNDER_2_SCRIPT.begin(), FOUNDER_2_SCRIPT.end())));}
+            if(((nHeight+1)%100 >= 16 && (nHeight+1)%100 <= 23){
+               txNew.vout.push_back(CTxOut((int64)(0.95 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime))), CScript(FOUNDER_3_SCRIPT.begin(), FOUNDER_3_SCRIPT.end())));}
+            if(((nHeight+1)%100 >= 24 && (nHeight+1)%100 <= 39){
+               txNew.vout.push_back(CTxOut((int64)(0.95 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime))), CScript(FOUNDER_4_SCRIPT.begin(), FOUNDER_4_SCRIPT.end())));}
+            if(((nHeight+1)%100 >= 40 && (nHeight+1)%100 <= 99){
+               txNew.vout.push_back(CTxOut((int64)(0.95 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime))), CScript(FOUNDER_5_SCRIPT.begin(), FOUNDER_5_SCRIPT.end())));}
+         }
     }
+
     // Add our coinbase tx as first transaction
     pblock->vtx.push_back(txNew);
     pblocktemplate->vTxFees.push_back(-1); // updated at end
