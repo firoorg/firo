@@ -1816,7 +1816,7 @@ bool CWallet::CreateZerocoinSpendTransaction(int64 nValue, libzerocoin::CoinDeno
             }
 
             if(!selectedPubcoin){
-                strFailReason = _("you need to perform two equal Renew transactions and wait at least 6 minutes.  For example, if you Renew 100 SmartCash, you need to Renew another 100 SmartCash.");
+                strFailReason = _("These are your private coins from the SmartCash Renew operation. Select an amount to Renew and then wait for at least 6 minutes before using Reclaim.");
                 return false;
             }
 
