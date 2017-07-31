@@ -677,19 +677,19 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
             }
             if ((nHeight >= 35000) && (nHeight < 717499999)) {
               BOOST_FOREACH(const CTxOut& output, vout) {
-                if ((nHeight+1 - 95 * float((pindexBest->nHeight+1)/95)) >= 0 && (nHeight+1 - 95 * float((pindexBest->nHeight+1)/95)) <= 7 && output.scriptPubKey == FOUNDER_1_SCRIPT && abs(output.nValue - (int64)(0.95 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime)))) < 2 ) {
+                if ((nHeight+1 - 95 * float((nHeight+1)/95)) >= 0 && (nHeight+1 - 95 * float((nHeight+1)/95)) <= 7 && output.scriptPubKey == FOUNDER_1_SCRIPT && abs(output.nValue - (int64)(0.95 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime)))) < 2 ) {
                     found_1 = true;
                 }
-                if ((nHeight+1 - 95 * float((pindexBest->nHeight+1)/95)) >= 8 && (nHeight+1 - 95 * float((pindexBest->nHeight+1)/95)) <= 15 && output.scriptPubKey == FOUNDER_2_SCRIPT && abs(output.nValue - (int64)(0.95 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime)))) < 2 ) {
+                if ((nHeight+1 - 95 * float((nHeight+1)/95)) >= 8 && (nHeight+1 - 95 * float((nHeight+1)/95)) <= 15 && output.scriptPubKey == FOUNDER_2_SCRIPT && abs(output.nValue - (int64)(0.95 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime)))) < 2 ) {
                     found_2 = true;
                 }
-                if ((nHeight+1 - 95 * float((pindexBest->nHeight+1)/95)) >= 16 && (nHeight+1 - 95 * float((pindexBest->nHeight+1)/95)) <= 23 && output.scriptPubKey == FOUNDER_3_SCRIPT && abs(output.nValue - (int64)(0.95 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime)))) < 2 ) {
+                if ((nHeight+1 - 95 * float((nHeight+1)/95)) >= 16 && (nHeight+1 - 95 * float((nHeight+1)/95)) <= 23 && output.scriptPubKey == FOUNDER_3_SCRIPT && abs(output.nValue - (int64)(0.95 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime)))) < 2 ) {
                     found_3 = true;
                 }
-                if ((nHeight+1 - 95 * float((pindexBest->nHeight+1)/95)) >= 24 && (nHeight+1 - 95 * float((pindexBest->nHeight+1)/95)) <= 38 && output.scriptPubKey == FOUNDER_4_SCRIPT && abs(output.nValue - (int64)(0.95 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime)))) < 2 ) {
+                if ((nHeight+1 - 95 * float((nHeight+1)/95)) >= 24 && (nHeight+1 - 95 * float((nHeight+1)/95)) <= 38 && output.scriptPubKey == FOUNDER_4_SCRIPT && abs(output.nValue - (int64)(0.95 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime)))) < 2 ) {
                     found_4 = true;
                 }
-                if ((nHeight+1 - 95 * float((pindexBest->nHeight+1)/95)) >= 39 && (nHeight+1 - 95 * float((pindexBest->nHeight+1)/95)) <= 94 && output.scriptPubKey == FOUNDER_5_SCRIPT && abs(output.nValue - (int64)(0.95 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime)))) < 2 ) {
+                if ((nHeight+1 - 95 * float((nHeight+1)/95)) >= 39 && (nHeight+1 - 95 * float((nHeight+1)/95)) <= 94 && output.scriptPubKey == FOUNDER_5_SCRIPT && abs(output.nValue - (int64)(0.95 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime)))) < 2 ) {
                     found_5 = true;
                 }
                 if (!(found_1 || found_2 || found_3 || found_4 || found_5)) {
