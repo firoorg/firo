@@ -36,6 +36,8 @@
 #define ARCH_CPU_X86_FAMILY 1
 #elif defined(__ARMEL__)
 #define ARCH_CPU_ARM_FAMILY 1
+#elif defined(__AARCH64EL__)
+#define ARCH_CPU_A64_FAMILY 1
 #elif defined(__ppc__) || defined(__powerpc__) || defined(__powerpc64__)
 #define ARCH_CPU_PPC_FAMILY 1
 #endif
@@ -90,6 +92,29 @@ typedef void (*LinuxKernelMemoryBarrierFunc)(void);
 //
 inline void MemoryBarrier() {
   (*(LinuxKernelMemoryBarrierFunc)0xffff0fa0)();
+}
+#define LEVELDB_HAVE_MEMORY_BARRIER
+
+// ARM64 Linux
+#elif defined(ARCH_CPU_A64_FAMILY) && defined(__linux__)
+// With more affordable 64-bit ARM devices available in the market, it becomes
+// hard to expect device-specific memory barrier function universally available
+// in ARM64 kernel.
+//
+// Some device vendors completely omitted, and made regression to compiler
+// memory barrier. Few device vendors went out implementing the function with
+// CPU-specific instructions. Even from vendor to vendor, used instructions
+// are different, and one cannot expect unified ground like it is available in
+// 32-bit ARM device landscape.
+//
+// A common trick used by aforementioned device vendors as well as for other
+// architectures is brought here that one can expect maximum compatibility
+// across various ARM64 devices. It also implies that there is a room for
+// improvment in the future as market matures and more device vendors provide
+// performant device-specific memory barrier functions in the kernel.
+//
+inline void MemoryBarrier() {
+  asm volatile ("": : :"memory");
 }
 #define LEVELDB_HAVE_MEMORY_BARRIER
 
@@ -216,6 +241,7 @@ class AtomicPointer {
 #undef LEVELDB_HAVE_MEMORY_BARRIER
 #undef ARCH_CPU_X86_FAMILY
 #undef ARCH_CPU_ARM_FAMILY
+#undef ARCH_CPU_A64_FAMILY
 #undef ARCH_CPU_PPC_FAMILY
 
 }  // namespace port

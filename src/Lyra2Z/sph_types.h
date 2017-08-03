@@ -1053,7 +1053,7 @@ typedef long long sph_s64;
 /*
  * ARM, little-endian.
  */
-#elif defined __arm__ && __ARMEL__
+#elif defined __arm__ && __ARMEL__ || __AARCH64EL__
 
 #define SPH_DETECT_LITTLE_ENDIAN     1
 
