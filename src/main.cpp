@@ -677,19 +677,22 @@ bool CTransaction::CheckTransaction(CValidationState &state, uint256 hashTx, boo
             }
             if ((nHeight >= 35000) && (nHeight < 717499999)) {
               BOOST_FOREACH(const CTxOut& output, vout) {
-                if ((nHeight+1 - 95 * float((nHeight+1)/95)) >= 0 && (nHeight+1 - 95 * float((nHeight+1)/95)) <= 7 && output.scriptPubKey == FOUNDER_1_SCRIPT && abs(output.nValue - (int64)(0.95 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime)))) < 2 ) {
+                int blockRotation = (nHeight+1 - 95 * float((nHeight+1)/95));
+                int64 reward = (int64)(0.95 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime)));
+                printf("CheckTransaction nHeight = %d block rotation = %d reward = %f nValue = %f \n", nHeight, blockRotation, reward, output.nValue);
+                if (blockRotation >= 0 && blockRotation <= 7 && output.scriptPubKey == FOUNDER_1_SCRIPT && abs(output.nValue - reward) < 2 ) {                    
                     found_1 = true;
                 }
-                if ((nHeight+1 - 95 * float((nHeight+1)/95)) >= 8 && (nHeight+1 - 95 * float((nHeight+1)/95)) <= 15 && output.scriptPubKey == FOUNDER_2_SCRIPT && abs(output.nValue - (int64)(0.95 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime)))) < 2 ) {
+                if (blockRotation >= 8 && blockRotation <= 15 && output.scriptPubKey == FOUNDER_2_SCRIPT && abs(output.nValue - reward) < 2 ) {
                     found_2 = true;
                 }
-                if ((nHeight+1 - 95 * float((nHeight+1)/95)) >= 16 && (nHeight+1 - 95 * float((nHeight+1)/95)) <= 23 && output.scriptPubKey == FOUNDER_3_SCRIPT && abs(output.nValue - (int64)(0.95 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime)))) < 2 ) {
+                if (blockRotation >= 16 && blockRotation <= 23 && output.scriptPubKey == FOUNDER_3_SCRIPT && abs(output.nValue - reward) < 2 ) {
                     found_3 = true;
                 }
-                if ((nHeight+1 - 95 * float((nHeight+1)/95)) >= 24 && (nHeight+1 - 95 * float((nHeight+1)/95)) <= 38 && output.scriptPubKey == FOUNDER_4_SCRIPT && abs(output.nValue - (int64)(0.95 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime)))) < 2 ) {
+                if (blockRotation >= 24 && blockRotation <= 38 && output.scriptPubKey == FOUNDER_4_SCRIPT && abs(output.nValue - reward) < 2 ) {
                     found_4 = true;
                 }
-                if ((nHeight+1 - 95 * float((nHeight+1)/95)) >= 39 && (nHeight+1 - 95 * float((nHeight+1)/95)) <= 94 && output.scriptPubKey == FOUNDER_5_SCRIPT && abs(output.nValue - (int64)(0.95 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime)))) < 2 ) {
+                if (blockRotation >= 39 && blockRotation <= 94 && output.scriptPubKey == FOUNDER_5_SCRIPT && abs(output.nValue - reward) < 2 ) {
                     found_5 = true;
                 }
                 if (!(found_1 || found_2 || found_3 || found_4 || found_5)) {
@@ -5785,16 +5788,23 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
             txNew.vout.push_back(CTxOut((int64)(0.56 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime))), CScript(FOUNDER_5_SCRIPT.begin(), FOUNDER_5_SCRIPT.end())));
          }
          if ((pindexBest->nHeight+1 >= 35000) && (pindexBest->nHeight+1 < 717499999)) {
-            if((pindexBest->nHeight+1 - 95 * float((pindexBest->nHeight+1)/95)) >= 0 && (pindexBest->nHeight+1 - 95 * float((pindexBest->nHeight+1)/95)) <= 7){
-               txNew.vout.push_back(CTxOut((int64)(0.95 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime))), CScript(FOUNDER_1_SCRIPT.begin(), FOUNDER_1_SCRIPT.end())));}
-            if((pindexBest->nHeight+1 - 95 * float((pindexBest->nHeight+1)/95)) >= 8 && (pindexBest->nHeight+1 - 95 * float((pindexBest->nHeight+1)/95)) <= 15){
-               txNew.vout.push_back(CTxOut((int64)(0.95 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime))), CScript(FOUNDER_2_SCRIPT.begin(), FOUNDER_2_SCRIPT.end())));}
-            if((pindexBest->nHeight+1 - 95 * float((pindexBest->nHeight+1)/95)) >= 16 && (pindexBest->nHeight+1 - 95 * float((pindexBest->nHeight+1)/95)) <= 23){
-               txNew.vout.push_back(CTxOut((int64)(0.95 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime))), CScript(FOUNDER_3_SCRIPT.begin(), FOUNDER_3_SCRIPT.end())));}
-            if((pindexBest->nHeight+1 - 95 * float((pindexBest->nHeight+1)/95)) >= 24 && (pindexBest->nHeight+1 - 95 * float((pindexBest->nHeight+1)/95)) <= 38){
-               txNew.vout.push_back(CTxOut((int64)(0.95 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime))), CScript(FOUNDER_4_SCRIPT.begin(), FOUNDER_4_SCRIPT.end())));}
-            if((pindexBest->nHeight+1 - 95 * float((pindexBest->nHeight+1)/95)) >= 39 && (pindexBest->nHeight+1 - 95 * float((pindexBest->nHeight+1)/95)) <= 94){
-               txNew.vout.push_back(CTxOut((int64)(0.95 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime))), CScript(FOUNDER_5_SCRIPT.begin(), FOUNDER_5_SCRIPT.end())));}
+            int blockRotation = (pindexBest->nHeight+1 - 95 * float((pindexBest->nHeight+1)/95));
+            int64 reward = (int64)(0.95 * (GetBlockValue(pindexBest->nHeight+1, 0, pindexBest->nTime)));
+            if(blockRotation >= 0 && blockRotation <= 7){
+               txNew.vout.push_back(CTxOut(reward, CScript(FOUNDER_1_SCRIPT.begin(), FOUNDER_1_SCRIPT.end())));
+            }
+            if(blockRotation >= 8 && blockRotation <= 15){
+               txNew.vout.push_back(CTxOut(reward, CScript(FOUNDER_2_SCRIPT.begin(), FOUNDER_2_SCRIPT.end())));
+            }
+            if(blockRotation >= 16 && blockRotation <= 23){
+               txNew.vout.push_back(CTxOut(reward, CScript(FOUNDER_3_SCRIPT.begin(), FOUNDER_3_SCRIPT.end())));
+            }
+            if(blockRotation >= 24 && blockRotation <= 38){
+               txNew.vout.push_back(CTxOut(reward, CScript(FOUNDER_4_SCRIPT.begin(), FOUNDER_4_SCRIPT.end())));
+            }
+            if(blockRotation >= 39 && blockRotation <= 94){
+               txNew.vout.push_back(CTxOut(reward, CScript(FOUNDER_5_SCRIPT.begin(), FOUNDER_5_SCRIPT.end())));
+            }
          }
     }
 
