@@ -1,100 +1,65 @@
-0.8.7.1 changes
-=============
-- Mac and Windows Official Gitian Builds: upgrade to openssl-1.0.1g for CVE-2014-0160
-- If you build from source, be sure that your openssl is patched for CVE-2014-0160.
-- Upgrade openssl, qt, miniupnpc, zlib, libpng, qrencode
-- Many bug fixes from Bitcoin 0.8.7rc stable branch
-    including transaction malleability mitigation backports from 0.9
+Bitcoin Core version 0.13.x is now available from:
 
-0.8.6.2 changes
-=============
+  <https://bitcoin.org/bin/bitcoin-core-0.13.x/>
 
-- Windows only: Fixes issue where network connectivity can fail.
+This is a new minor version release, including various bugfixes and
+performance improvements, as well as updated translations.
 
-- Cleanup of SSE2 scrypt detection.
+Please report bugs using the issue tracker at github:
 
-- Minor fixes:
-  - s/Bitcoin/smartcash/ in the Coin Control example
-  - Fix custom build on MacOS X 10.9
-  - Fix QT5 custom build
-  - Update Debian build instructions
-  - Update Homebrew build 
+  <https://github.com/bitcoin/bitcoin/issues>
 
-0.8.6.1 changes
-=============
+To receive security and update notifications, please subscribe to:
 
-- Coin Control - experts only GUI selection of inputs before you send a transaction
+  <https://bitcoincore.org/en/list/announcements/join/>
 
-- Disable Wallet - reduces memory requirements, helpful for miner or relay nodes
+Compatibility
+==============
 
-- 20x reduction in default mintxfee.
+Microsoft ended support for Windows XP on [April 8th, 2014](https://www.microsoft.com/en-us/WindowsForBusiness/end-of-xp-support),
+an OS initially released in 2001. This means that not even critical security
+updates will be released anymore. Without security updates, using a bitcoin
+wallet on a XP machine is irresponsible at least.
 
-- Up to 50% faster PoW validation, faster sync and reindexing.
+In addition to that, with 0.12.x there have been varied reports of Bitcoin Core
+randomly crashing on Windows XP. It is [not clear](https://github.com/bitcoin/bitcoin/issues/7681#issuecomment-217439891)
+what the source of these crashes is, but it is likely that upstream
+libraries such as Qt are no longer being tested on XP.
 
-- Peers older than protocol version 70002 are disconnected.  0.8.3.7 is the oldest compatible client.
+We do not have time nor resources to provide support for an OS that is
+end-of-life. From 0.13.0 on, Windows XP is no longer supported. Users are
+suggested to upgrade to a newer version of Windows, or install an alternative OS
+that is supported.
 
-- Internal miner added back to smartcash.  setgenerate now works, although it is generally a bad idea as it is significantly slower than external CPU miners.
+No attempt is made to prevent installing or running the software on Windows XP,
+you can still do so at your own risk, but do not expect it to work: do not
+report issues about Windows XP to the issue tracker.
 
-- New RPC commands: getbestblockhash and verifychain
+From 0.13.1 onwards OS X 10.7 is no longer supported. 0.13.0 was intended to work on 10.7+, 
+but severe issues with the libc++ version on 10.7.x keep it from running reliably. 
+0.13.1 now requires 10.8+, and will communicate that to 10.7 users, rather than crashing unexpectedly.
 
-- Improve fairness of the high priority transaction space per block
-
-- OSX block chain database corruption fixes
-  - Update leveldb to 1.13
-  - Use fcntl with `F_FULLSYNC` instead of fsync on OSX
-  - Use native Darwin memory barriers
-  - Replace use of mmap in leveldb for improved reliability (only on OSX)
-
-- Fix nodes forwarding transactions with empty vins and getting banned
-
-- Network code performance and robustness improvements
-
-- Additional debug.log logging for diagnosis of network problems, log timestamps by default
-
-- Fix rare GUI crash on send
-
-0.8.5.1 changes
+Notable changes
 ===============
 
-Workaround negative version numbers serialization bug.
+Example item
+-----------------------------------------------
 
-Fix out-of-bounds check (smartcash currently does not use this codepath, but we apply this
-patch just to match Bitcoin 0.8.5.)
+0.13.x Change log
+=================
 
-0.8.4.1 changes
-===============
+Detailed release notes follow. This overview includes changes that affect
+behavior, not code moves, refactors and string updates. For convenience in locating
+the code changes and accompanying discussion, both the pull request and
+git merge commit are mentioned.
 
-CVE-2013-5700 Bloom: filter crash issue - smartcash 0.8.3.7 disabled bloom by default so was 
-unaffected by this issue, but we include their patches anyway just in case folks want to 
-enable bloomfilter=1.
+[to be filled in at release]
 
-CVE-2013-4165: RPC password timing guess vulnerability
+Credits
+=======
 
-CVE-2013-4627: Better fix for the fill-memory-with-orphaned-tx attack
+Thanks to everyone who directly contributed to this release:
 
-Fix multi-block reorg transaction resurrection.
+[to be filled in at release]
 
-Fix non-standard disconnected transactions causing mempool orphans.  This bug could cause 
-nodes running with the -debug flag to crash, although it was lot less likely on smartcash 
-as we disabled IsDust() in 0.8.3.x.
-
-Mac OSX: use 'FD_FULLSYNC' with LevelDB, which will (hopefully!) prevent the database 
-corruption issues have experienced on OSX.
-
-Add height parameter to getnetworkhashps.
-
-Fix Norwegian and Swedish translations.
-
-Minor efficiency improvement in block peer request handling.
-
-
-0.8.3.7 changes
-===============
-
-Fix CVE-2013-4627 denial of service, a memory exhaustion attack that could crash low-memory nodes.
-
-Fix a regression that caused excessive writing of the peers.dat file.
-
-Add option for bloom filtering.
-
-Fix Hebrew translation.
+As well as everyone that helped translating on [Transifex](https://www.transifex.com/projects/p/bitcoin/).

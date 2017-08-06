@@ -1,5 +1,11 @@
-#ifndef COINCONTROLDIALOG_H
-#define COINCONTROLDIALOG_H
+// Copyright (c) 2011-2015 The Bitcoin Core developers
+// Distributed under the MIT software license, see the accompanying
+// file COPYING or http://www.opensource.org/licenses/mit-license.php.
+
+#ifndef BITCOIN_QT_COINCONTROLDIALOG_H
+#define BITCOIN_QT_COINCONTROLDIALOG_H
+
+#include "amount.h"
 
 #include <QAbstractButton>
 #include <QAction>
@@ -10,48 +16,67 @@
 #include <QString>
 #include <QTreeWidgetItem>
 
+class PlatformStyle;
+class WalletModel;
+
+class CCoinControl;
+class CTxMemPool;
+
 namespace Ui {
     class CoinControlDialog;
 }
-class WalletModel;
-class CCoinControl;
+
+#define ASYMP_UTF8 "\xE2\x89\x88"
+
+class CCoinControlWidgetItem : public QTreeWidgetItem
+{
+public:
+    CCoinControlWidgetItem(QTreeWidget *parent, int type = Type) : QTreeWidgetItem(parent, type) {}
+    CCoinControlWidgetItem(int type = Type) : QTreeWidgetItem(type) {}
+    CCoinControlWidgetItem(QTreeWidgetItem *parent, int type = Type) : QTreeWidgetItem(parent, type) {}
+
+    bool operator<(const QTreeWidgetItem &other) const;
+};
+
 
 class CoinControlDialog : public QDialog
 {
     Q_OBJECT
 
 public:
-    explicit CoinControlDialog(QWidget *parent = 0);
+    explicit CoinControlDialog(const PlatformStyle *platformStyle, QWidget *parent = 0);
     ~CoinControlDialog();
 
     void setModel(WalletModel *model);
-    
+
     // static because also called from sendcoinsdialog
     static void updateLabels(WalletModel*, QDialog*);
-    static QString getPriorityLabel(double);
-    
-    static QList<qint64> payAmounts;
+    static QString getPriorityLabel(double dPriority, double mempoolEstimatePriority);
+
+    static QList<CAmount> payAmounts;
     static CCoinControl *coinControl;
+    static bool fSubtractFeeFromAmount;
 
 private:
     Ui::CoinControlDialog *ui;
     WalletModel *model;
     int sortColumn;
     Qt::SortOrder sortOrder;
-    
+
     QMenu *contextMenu;
     QTreeWidgetItem *contextMenuItem;
     QAction *copyTransactionHashAction;
     QAction *lockAction;
     QAction *unlockAction;
-    
-    QString strPad(QString, int, QString);
+
+    const PlatformStyle *platformStyle;
+
     void sortView(int, Qt::SortOrder);
     void updateView();
-    
+
     enum
     {
-        COLUMN_CHECKBOX,
+        COLUMN_CHECKBOX = 0,
         COLUMN_AMOUNT,
         COLUMN_LABEL,
         COLUMN_ADDRESS,
@@ -60,11 +85,10 @@ private:
         COLUMN_PRIORITY,
         COLUMN_TXHASH,
         COLUMN_VOUT_INDEX,
-        COLUMN_AMOUNT_INT64,
-        COLUMN_PRIORITY_INT64
     };
-    
-private slots:
+    friend class CCoinControlWidgetItem;
+
+private Q_SLOTS:
     void showMenu(const QPoint &);
     void copyAmount();
     void copyLabel();
@@ -89,4 +113,4 @@ private slots:
     void updateLabelLocked();
 };
 
-#endif // COINCONTROLDIALOG_H
+#endif // BITCOIN_QT_COINCONTROLDIALOG_H

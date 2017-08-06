@@ -1,45 +1,77 @@
-smartcash 0.8.x BETA
-====================
-
-Copyright (c) 2009-2013 Bitcoin Developers
-Copyright (c) 2014 smartcash Developers
-
-Distributed under the MIT/X11 software license, see the accompanying
-file COPYING or http://www.opensource.org/licenses/mit-license.php.
-This product includes software developed by the OpenSSL Project for use in the [OpenSSL Toolkit](http://www.openssl.org/). This product includes
-cryptographic software written by Eric Young ([eay@cryptsoft.com](mailto:eay@cryptsoft.com)), and UPnP software written by Thomas Bernard.
-
-
-Intro
----------------------
-smartcash is is firstever cryptocurrency in the world that intrgrate Zerocoin extention ( http://zerocoin.org )
-to make transactions in Blockchain truly anonimity and merge mineable with Vertcoin
-and a free open source peer-to-peer electronic cash system that is
-completely decentralized, without the need for a central server or trusted
-parties.  Users hold the crypto keys to their own money and transact directly
-with each other, with the help of a P2P network to check for double-spending.
-
+Bitcoin Core 0.13.2
+=====================
 
 Setup
 ---------------------
-You need the Qt4 run-time libraries to run smartcash. On Debian or Ubuntu:
-	`sudo apt-get install libqtgui4`
+[Bitcoin Core](http://bitcoin.org/en/download) is the original Bitcoin client and it builds the backbone of the network. However, it downloads and stores the entire history of Bitcoin transactions (which is currently several GBs); depending on the speed of your computer and network connection, the synchronization process can take anywhere from a few hours to a day or more.
+
+Running
+---------------------
+The following are some helpful notes on how to run Bitcoin on your native platform.
+
+### Unix
 
 Unpack the files into a directory and run:
 
-- bin/32/smartcash-qt (GUI, 32-bit)
-- bin/32/smartcashd (headless, 32-bit)
-- bin/64/smartcash-qt (GUI, 64-bit)
-- bin/64/smartcashd (headless, 64-bit)
+- `bin/bitcoin-qt` (GUI) or
+- `bin/bitcoind` (headless)
 
-Other Pages
+### Windows
+
+Unpack the files into a directory, and then run bitcoin-qt.exe.
+
+### OS X
+
+Drag Bitcoin-Core to your applications folder, and then run Bitcoin-Core.
+
+### Need Help?
+
+* See the documentation at the [Bitcoin Wiki](https://en.bitcoin.it/wiki/Main_Page)
+for help and more information.
+* Ask for help on [#bitcoin](http://webchat.freenode.net?channels=bitcoin) on Freenode. If you don't have an IRC client use [webchat here](http://webchat.freenode.net?channels=bitcoin).
+* Ask for help on the [BitcoinTalk](https://bitcointalk.org/) forums, in the [Technical Support board](https://bitcointalk.org/index.php?board=4.0).
+
+Building
 ---------------------
+The following are developer notes on how to build Bitcoin on your native platform. They are not complete guides, but include notes on the necessary libraries, compile flags, etc.
+
+- [OS X Build Notes](build-osx.md)
 - [Unix Build Notes](build-unix.md)
-- [OSX Build Notes](build-osx.md)
-- [Windows Build Notes](build-msw.md)
-- [Coding Guidelines](coding.md)
-- [Release Process](release-process.md)
-- [Release Notes](release-notes.md)
+- [Windows Build Notes](build-windows.md)
+- [OpenBSD Build Notes](build-openbsd.md)
+- [Gitian Building Guide](gitian-building.md)
+
+Development
+---------------------
+The Bitcoin repo's [root README](/README.md) contains relevant information on the development process and automated testing.
+
+- [Developer Notes](developer-notes.md)
 - [Multiwallet Qt Development](multiwallet-qt.md)
-- [Unit Tests](unit-tests.md)
+- [Release Notes](release-notes.md)
+- [Release Process](release-process.md)
+- [Source Code Documentation (External Link)](https://dev.visucore.com/bitcoin/doxygen/)
 - [Translation Process](translation_process.md)
+- [Translation Strings Policy](translation_strings_policy.md)
+- [Unit Tests](unit-tests.md)
+- [Unauthenticated REST Interface](REST-interface.md)
+- [Shared Libraries](shared-libraries.md)
+- [BIPS](bips.md)
+- [Dnsseed Policy](dnsseed-policy.md)
+- [Benchmarking](benchmarking.md)
+
+### Resources
+* Discuss on the [BitcoinTalk](https://bitcointalk.org/) forums, in the [Development & Technical Discussion board](https://bitcointalk.org/index.php?board=6.0).
+* Discuss project-specific development on #bitcoin-core-dev on Freenode. If you don't have an IRC client use [webchat here](http://webchat.freenode.net/?channels=bitcoin-core-dev).
+* Discuss general Bitcoin development on #bitcoin-dev on Freenode. If you don't have an IRC client use [webchat here](http://webchat.freenode.net/?channels=bitcoin-dev).
+
+### Miscellaneous
+- [Assets Attribution](assets-attribution.md)
+- [Files](files.md)
+- [Tor Support](tor.md)
+- [Init Scripts (systemd/upstart/openrc)](init.md)
+
+License
+---------------------
+Distributed under the [MIT software license](http://www.opensource.org/licenses/mit-license.php).
+This product includes software developed by the OpenSSL Project for use in the [OpenSSL Toolkit](https://www.openssl.org/). This product includes
+cryptographic software written by Eric Young ([eay@cryptsoft.com](mailto:eay@cryptsoft.com)), and UPnP software written by Thomas Bernard.
