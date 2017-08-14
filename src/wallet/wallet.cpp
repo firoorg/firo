@@ -4161,19 +4161,18 @@ bool CWallet::InitLoadWallet() { std::string walletFile = GetArg("-wallet", DEFA
         {
             while (pindexRecur)
             {
-                if(!fReindex && (pindexRecur->nHeight < lastCalculatedZCBlock)){
+                if (!fReindex && (pindexRecur->nHeight < lastCalculatedZCBlock)){
                     pindexRecur = chainActive.Next(pindexRecur);
                     continue;
-                }else{
-                    printf("PROCESS BLOCK = %d\n", pindexRecur->nHeight);
+                } else{
+                    LogPrintf("PROCESS BLOCK = %d\n", pindexRecur->nHeight);
                     std::string blocksProcessed = "Loading wallet... " + std::to_string(pindexRecur->nHeight) + "/" + std::to_string(mapBlockIndex.size());
                     uiInterface.InitMessage(blocksProcessed);
                     CBlock blockRecur;
                     ReadBlockFromDisk(blockRecur, pindexRecur, Params().GetConsensus());
                     list<CZerocoinEntry> listPubCoinInLoop = list<CZerocoinEntry>();
-                    CWalletDB walletdbInLoop(pwalletMain->strWalletFile);
+                    CWalletDB walletdbInLoop(walletFile);
                     walletdbInLoop.ListPubCoin(listPubCoinInLoop);
-
                     BOOST_FOREACH(const CTransaction& tx, blockRecur.vtx){
                         // Check Mint Zerocoin Transaction
                         BOOST_FOREACH(const CTxOut txout, tx.vout) {
@@ -4219,7 +4218,7 @@ bool CWallet::InitLoadWallet() { std::string walletFile = GetArg("-wallet", DEFA
                                         pubCoinTx.serialNumber = pubCoinItem.serialNumber;
                                         pubCoinTx.value = pubCoinItem.value;
                                         pubCoinTx.nHeight = pindexRecur->nHeight;
-                                        //printf("REORG PUBCOIN ID: %d HEIGHT: %d DENOMINATION: %d\n", pubCoinTx.id, pubCoinTx.nHeight,pubCoinItem.denomination);
+                                        LogPrintf("REORG PUBCOIN ID: %d HEIGHT: %d DENOMINATION: %d\n", pubCoinTx.id, pubCoinTx.nHeight,pubCoinItem.denomination);
                                         walletdbInLoop.WriteZerocoinEntry(pubCoinTx);
                                     }
                                 }

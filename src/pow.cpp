@@ -69,8 +69,8 @@ unsigned int GetNextWorkRequired(const CBlockIndex *pindexLast, const CBlockHead
         CBigNum bnNew;
         bnNew.SetCompact(pindexLast->nBits);
         bnNew /= 20000; // increase the diff by 20000x since the new hashrate is approx. 20000 times higher
-        printf("Lyra2Z HF - Before: %08x %.8f\n", pindexLast->nBits, GetDifficultyHelper(pindexLast->nBits));
-        printf("Lyra2Z HF - After: %08x %.8f\n", bnNew.GetCompact(), GetDifficultyHelper(bnNew.GetCompact()));
+//        printf("Lyra2Z HF - Before: %08x %.8f\n", pindexLast->nBits, GetDifficultyHelper(pindexLast->nBits));
+//        printf("Lyra2Z HF - After: %08x %.8f\n", bnNew.GetCompact(), GetDifficultyHelper(bnNew.GetCompact()));
         if (bnNew > bnProofOfWorkLimit) { bnNew = bnProofOfWorkLimit; } // safe threshold
         return bnNew.GetCompact();
     }

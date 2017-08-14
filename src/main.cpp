@@ -3255,7 +3255,7 @@ bool static DisconnectTip(CValidationState &state, const CChainParams &chainpara
                         pubCoinTx.serialNumber = pubCoinItem.serialNumber;
                         pubCoinTx.value = pubCoin;
                         pubCoinTx.nHeight = -1;
-//                        LogPrintf("- Disconnect Reset Pubcoin Id: %d Height: %d\n", pubCoinTx.id, pindexDelete->nHeight);
+                        LogPrintf("- Disconnect Reset Pubcoin Id: %d Height: %d\n", pubCoinTx.id, pindexDelete->nHeight);
                         walletdb.WriteZerocoinEntry(pubCoinTx);
                     }
 
@@ -3271,7 +3271,7 @@ bool static DisconnectTip(CValidationState &state, const CChainParams &chainpara
                         pubCoinTx.serialNumber = pubCoinItem.serialNumber;
                         pubCoinTx.value = pubCoin;
                         pubCoinTx.nHeight = -1;
-//                        LogPrintf("- Disconnect Reset Pubcoin Id: %d Height: %d\n", pubCoinTx.id, pindexDelete->nHeight);
+                        LogPrintf("- Disconnect Reset Pubcoin Id: %d Height: %d\n", pubCoinTx.id, pindexDelete->nHeight);
                         walletdb.WriteZerocoinEntry(pubCoinTx);
                     }
 
@@ -3463,8 +3463,9 @@ bool static ConnectTipZC(CValidationState &state, const CChainParams &chainparam
  */
 bool static ReArrangeZcoinMint(CValidationState &state, const CChainParams &chainparams, CBlockIndex *pindexNew,
                                const CBlock *pblock) {
-    CBlock block;
+//    LogPrintf("[ReArrangeZcoinMint]\n");
     if (!pblock) {
+        CBlock block;
         if (!ReadBlockFromDisk(block, pindexNew, chainparams.GetConsensus()))
             return AbortNode(state, "Failed to read block");
         pblock = &block;
@@ -3474,9 +3475,12 @@ bool static ReArrangeZcoinMint(CValidationState &state, const CChainParams &chai
     CWalletDB walletdb(pwalletMain->strWalletFile);
     walletdb.ListPubCoin(listPubCoin);
 
-    BOOST_FOREACH(const CTransaction &tx, block.vtx){
+//    LogPrintf("[ReArrangeZcoinMint] block.ToString()=%s\n", pblock->ToString());
+
+    BOOST_FOREACH(const CTransaction &tx, pblock->vtx){
         // Check Mint Zerocoin Transaction
         BOOST_FOREACH(const CTxOut txout, tx.vout) {
+//            LogPrintf("[ReArrangeZcoinMint] txout.scriptPubKey.empty()=%d, txout.scriptPubKey.IsZerocoinMint()=%d\n", txout.scriptPubKey.empty(), txout.scriptPubKey.IsZerocoinMint());
             if (!txout.scriptPubKey.empty() && txout.scriptPubKey.IsZerocoinMint()) {
                 vector<unsigned char> vchZeroMint;
                 vchZeroMint.insert(vchZeroMint.end(), txout.scriptPubKey.begin() + 6, txout.scriptPubKey.begin() + txout.scriptPubKey.size());
@@ -3531,7 +3535,8 @@ bool static ReArrangeZcoinMint(CValidationState &state, const CChainParams &chai
 //        std::cout << "--## denomination = "<< pubCoinItem.denomination << ", id = " <<pubCoinItem.id <<
 //                  ", height = " << pubCoinItem.nHeight << std::endl;
 //    }
-//    walletdb.WriteCalculatedZCBlock(pindexNew->nHeight);
+
+    walletdb.WriteCalculatedZCBlock(pindexNew->nHeight);
     return true;
 }
 
@@ -3631,6 +3636,7 @@ static bool ActivateBestChainStep(CValidationState &state, const CChainParams &c
     //btzc: add zcoin code
     std::vector <CBlockIndex *> vpindexToConnectZC;
     bool fContinue = true;
+    LogPrintf("[ActivateBestChainStep] fContinue=%d, nHeight=%d, pindexMostWork->nHeight=%d\n", fContinue, nHeight, pindexMostWork->nHeight);
     while (fContinue && nHeight != pindexMostWork->nHeight) {
         // Don't iterate the entire list of potential improvements toward the best tip, as we likely only need
         // a few blocks along the way.
@@ -4784,6 +4790,7 @@ bool static LoadBlockIndexDB() {
     for (std::set<int>::iterator it = setBlkDataFiles.begin(); it != setBlkDataFiles.end(); it++) {
         CDiskBlockPos pos(*it, 0);
         if (CAutoFile(OpenBlockFile(pos, true), SER_DISK, CLIENT_VERSION).IsNull()) {
+//            LogPrintf("[LoadBlockIndexDB] -> Return false because: {CAutoFile(OpenBlockFile(pos, true), SER_DISK, CLIENT_VERSION).IsNull()}\n");
             return false;
         }
     }
@@ -4804,8 +4811,10 @@ bool static LoadBlockIndexDB() {
 
     // Load pointer to end of best chain
     BlockMap::iterator it = mapBlockIndex.find(pcoinsTip->GetBestBlock());
-    if (it == mapBlockIndex.end())
+    if (it == mapBlockIndex.end()) {
+        LogPrintf("[LoadBlockIndexDB] -> Return true because: {if (it == mapBlockIndex.end())}\n");
         return true;
+    }
     chainActive.SetTip(it->second);
 
     PruneBlockIndexCandidates();
@@ -4815,6 +4824,7 @@ bool static LoadBlockIndexDB() {
               DateTimeStrFormat("%Y-%m-%d %H:%M:%S", chainActive.Tip()->GetBlockTime()),
               Checkpoints::GuessVerificationProgress(chainparams.Checkpoints(), chainActive.Tip()));
 
+//    LogPrintf("[LoadBlockIndexDB] -> Return true: End of method");
     return true;
 }
 
