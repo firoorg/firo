@@ -74,6 +74,22 @@ AddressBookPage::AddressBookPage(const PlatformStyle *platformStyle, Mode mode, 
         ui->labelExplanation->setText(tr("These are your Zcoin addresses for receiving payments. It is recommended to use a new receiving address for each transaction."));
         ui->deleteAddress->setVisible(false);
         break;
+    case ZerocoinTab:
+        ui->labelExplanation->setText(tr("These are your private coins from mint zerocoin operation, You can perform spend zerocoin operation to redeem zcoin back from Zerocoin."));
+        ui->deleteAddress->setVisible(false);
+        ui->signMessage->setVisible(false);
+        ui->newAddress->setVisible(false);
+        ui->copyAddress->setVisible(false);
+        ui->verifyMessage->setVisible(false);
+        ui->zerocoinAmount->setVisible(true);
+        ui->zerocoinMintButton->setVisible(true);
+        ui->zerocoinSpendButton->setVisible(true);
+        ui->zerocoinAmount->addItem("1");
+        ui->zerocoinAmount->addItem("10");
+        ui->zerocoinAmount->addItem("25");
+        ui->zerocoinAmount->addItem("50");
+        ui->zerocoinAmount->addItem("100");
+        break;
     }
 
     // Context menu actions
@@ -85,8 +101,10 @@ AddressBookPage::AddressBookPage(const PlatformStyle *platformStyle, Mode mode, 
     // Build context menu
     contextMenu = new QMenu(this);
     contextMenu->addAction(copyAddressAction);
-    contextMenu->addAction(copyLabelAction);
-    contextMenu->addAction(editAction);
+    contextMenu->addAction(copyLabelAction);    
+    if(tab != ZerocoinTab){
+        contextMenu->addAction(editAction);
+    }
     if(tab == SendingTab)
         contextMenu->addAction(deleteAction);
     contextMenu->addSeparator();
@@ -129,6 +147,11 @@ void AddressBookPage::setModel(AddressTableModel *model)
         // Send filter
         proxyModel->setFilterRole(AddressTableModel::TypeRole);
         proxyModel->setFilterFixedString(AddressTableModel::Send);
+        break;
+    case ZerocoinTab:
+        // Zerocoin filter
+        proxyModel->setFilterRole(AddressTableModel::TypeRole);
+        proxyModel->setFilterFixedString(AddressTableModel::Zerocoin);
         break;
     }
     ui->tableView->setModel(proxyModel);
@@ -234,6 +257,8 @@ void AddressBookPage::selectionChanged()
             ui->deleteAddress->setEnabled(false);
             ui->deleteAddress->setVisible(false);
             deleteAction->setEnabled(false);
+            break;
+        case ZerocoinTab:
             break;
         }
         ui->copyAddress->setEnabled(true);

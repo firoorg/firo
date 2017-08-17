@@ -32,7 +32,8 @@ class AddressBookPage : public QDialog
 public:
     enum Tabs {
         SendingTab = 0,
-        ReceivingTab = 1
+        ReceivingTab = 1,
+        ZerocoinTab = 2
     };
 
     enum Mode {
@@ -82,6 +83,8 @@ private Q_SLOTS:
     void selectNewAddress(const QModelIndex &parent, int begin, int /*end*/);
 
 Q_SIGNALS:
+    void signMessage(QString addr);
+    void verifyMessage(QString addr);
     void sendCoins(QString addr);
 };
 

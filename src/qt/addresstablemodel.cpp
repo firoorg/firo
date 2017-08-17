@@ -17,12 +17,14 @@
 
 const QString AddressTableModel::Send = "S";
 const QString AddressTableModel::Receive = "R";
+const QString AddressTableModel::Zerocoin = "X";
 
 struct AddressTableEntry
 {
     enum Type {
         Sending,
         Receiving,
+        Zerocoin,
         Hidden /* QSortFilterProxyModel will filter these out */
     };
 
