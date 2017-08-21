@@ -59,7 +59,7 @@ WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
     usedSendingAddressesPage = new AddressBookPage(platformStyle, AddressBookPage::ForEditing, AddressBookPage::SendingTab, this);
     usedReceivingAddressesPage = new AddressBookPage(platformStyle, AddressBookPage::ForEditing, AddressBookPage::ReceivingTab, this);
 
-    zerocoinPage = new AddressBookPage(platformStyle, AddressBookPage::ForEditing, AddressBookPage::ZerocoinTab, this);
+    zerocoinPage = new AddressBookPage(platformStyle, AddressBookPage::ForEditing, AddressBookPage::ZerocoinTab);
 
     addWidget(overviewPage);
     addWidget(transactionsPage);
@@ -110,7 +110,7 @@ void WalletView::setClientModel(ClientModel *clientModel)
 
     overviewPage->setClientModel(clientModel);
     sendCoinsPage->setClientModel(clientModel);
-    //zerocoinPage->setClientModel(clientModel);
+    zerocoinPage->setClientModel(clientModel);
 }
 
 void WalletView::setWalletModel(WalletModel *walletModel)

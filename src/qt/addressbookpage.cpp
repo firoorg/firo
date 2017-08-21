@@ -10,6 +10,7 @@
 #include "ui_addressbookpage.h"
 
 #include "addresstablemodel.h"
+#include "clientmodel.h"
 #include "bitcoingui.h"
 #include "csvmodelwriter.h"
 #include "editaddressdialog.h"
@@ -25,10 +26,13 @@ AddressBookPage::AddressBookPage(const PlatformStyle *platformStyle, Mode mode, 
     QDialog(parent),
     ui(new Ui::AddressBookPage),
     model(0),
+    clientModel(0),
     mode(mode),
-    tab(tab)
+    tab(tab),
+    platformStyle(platformStyle)
 {
     ui->setupUi(this);
+    ui->showQRCode->setVisible(false);
 
     if (!platformStyle->getImagesOnButtons()) {
         ui->newAddress->setIcon(QIcon());
@@ -97,11 +101,13 @@ AddressBookPage::AddressBookPage(const PlatformStyle *platformStyle, Mode mode, 
     QAction *copyLabelAction = new QAction(tr("Copy &Label"), this);
     QAction *editAction = new QAction(tr("&Edit"), this);
     deleteAction = new QAction(ui->deleteAddress->text(), this);
+    QAction *showQRCodeAction = new QAction(ui->showQRCode->text(), this);
 
     // Build context menu
     contextMenu = new QMenu(this);
     contextMenu->addAction(copyAddressAction);
     contextMenu->addAction(copyLabelAction);    
+    contextMenu->addAction(showQRCodeAction);
     if(tab != ZerocoinTab){
         contextMenu->addAction(editAction);
     }
@@ -114,7 +120,7 @@ AddressBookPage::AddressBookPage(const PlatformStyle *platformStyle, Mode mode, 
     connect(copyLabelAction, SIGNAL(triggered()), this, SLOT(onCopyLabelAction()));
     connect(editAction, SIGNAL(triggered()), this, SLOT(onEditAction()));
     connect(deleteAction, SIGNAL(triggered()), this, SLOT(on_deleteAddress_clicked()));
-
+    connect(showQRCodeAction, SIGNAL(triggered()), this, SLOT(on_showQRCode_clicked()));
     connect(ui->tableView, SIGNAL(customContextMenuRequested(QPoint)), this, SLOT(contextualMenu(QPoint)));
 
     connect(ui->closeButton, SIGNAL(clicked()), this, SLOT(accept()));
@@ -123,6 +129,15 @@ AddressBookPage::AddressBookPage(const PlatformStyle *platformStyle, Mode mode, 
 AddressBookPage::~AddressBookPage()
 {
     delete ui;
+}
+
+void AddressBookPage::setClientModel(ClientModel *clientModel)
+{
+    this->clientModel = clientModel;
+
+    if (clientModel) {
+        connect(clientModel, SIGNAL(numBlocksChanged(int,QDateTime,double,bool)), this, SLOT(updateSmartFeeLabel()));
+    }
 }
 
 void AddressBookPage::setModel(AddressTableModel *model)
@@ -267,6 +282,33 @@ void AddressBookPage::selectionChanged()
     {
         ui->deleteAddress->setEnabled(false);
         ui->copyAddress->setEnabled(false);
+    }
+}
+
+void AddressBookPage::on_zerocoinMintButton_clicked() {
+    QString amount = ui->zerocoinAmount->currentText();
+    std::string denomAmount = amount.toStdString();
+    std::string stringError;
+    if(!model->zerocoinMint(stringError, denomAmount)){
+        QString t = tr(stringError.c_str());
+
+        QMessageBox::critical(this, tr("Error"),
+            tr("You cannot mint zerocoin because %1").arg(t),
+            QMessageBox::Ok, QMessageBox::Ok);
+    }
+
+}
+
+void AddressBookPage::on_zerocoinSpendButton_clicked() {
+    QString amount = ui->zerocoinAmount->currentText();
+    std::string denomAmount = amount.toStdString();
+    std::string stringError;
+    if(!model->zerocoinSpend(stringError, denomAmount)){
+        QString t = tr(stringError.c_str());
+
+        QMessageBox::critical(this, tr("Error"),
+            tr("You cannot spend zerocoin because %1").arg(t),
+            QMessageBox::Ok, QMessageBox::Ok);
     }
 }
 

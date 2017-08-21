@@ -7,6 +7,7 @@
 
 #include <QDialog>
 
+class ClientModel;
 class AddressTableModel;
 class OptionsModel;
 class PlatformStyle;
@@ -41,10 +42,11 @@ public:
         ForEditing  /**< Open address book for editing */
     };
 
-    explicit AddressBookPage(const PlatformStyle *platformStyle, Mode mode, Tabs tab, QWidget *parent);
+    explicit AddressBookPage(const PlatformStyle *platformStyle, Mode mode, Tabs tab, QWidget *parent = 0);
     ~AddressBookPage();
 
     void setModel(AddressTableModel *model);
+    void setClientModel(ClientModel *clientModel);
     const QString &getReturnValue() const { return returnValue; }
 
 public Q_SLOTS:
@@ -53,6 +55,7 @@ public Q_SLOTS:
 private:
     Ui::AddressBookPage *ui;
     AddressTableModel *model;
+    ClientModel *clientModel;
     Mode mode;
     Tabs tab;
     QString returnValue;
@@ -60,6 +63,7 @@ private:
     QMenu *contextMenu;
     QAction *deleteAction; // to be able to explicitly disable it
     QString newAddressToSelect;
+    const PlatformStyle *platformStyle;
 
 private Q_SLOTS:
     /** Delete currently selected address entry */
@@ -74,6 +78,10 @@ private Q_SLOTS:
     void onEditAction();
     /** Export button clicked */
     void on_exportButton_clicked();
+    /** Zerocoin Mint clicked */
+    void on_zerocoinMintButton_clicked();
+    /** Zerocoin Spend clicked */
+    void on_zerocoinSpendButton_clicked();
 
     /** Set button states based on selected tab and selection */
     void selectionChanged();
