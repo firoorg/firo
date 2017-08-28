@@ -8,6 +8,7 @@
 
 #include "crypto/ripemd160.h"
 #include "crypto/sha256.h"
+#include "crypto/sph_keccak.h"
 #include "prevector.h"
 #include "serialize.h"
 #include "uint256.h"
@@ -125,6 +126,20 @@ inline uint160 Hash160(const prevector<N, unsigned char>& vch)
 {
     return Hash160(vch.begin(), vch.end());
 }
+
+template<typename T1>
+inline uint256 HashKeccak(const T1 pbegin, const T1 pend)
+{        {
+    sph_keccak256_context ctx_keccak;
+    static unsigned char pblank[1];
+    uint256 hash;
+
+    sph_keccak256_init(&ctx_keccak);
+    sph_keccak256 (&ctx_keccak, (pbegin == pend ? pblank : static_cast<const void*>(&pbegin[0])), (pend - pbegin) * sizeof(pbegin[0]));
+    sph_keccak256_close(&ctx_keccak, static_cast<void*>(&hash));
+
+    return hash;
+}        }
 
 /** A writer stream (for serialization) that computes a 256-bit hash. */
 class CHashWriter
