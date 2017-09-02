@@ -247,6 +247,17 @@ public:
         assert(WIDTH >= 2);
         return pn[0] | (uint64_t)pn[1] << 32;
     }
+    template<typename Stream>
+    void Serialize(Stream& s, int nType, int nVersion) const
+    {
+        s.write((char*)pn, sizeof(pn));
+    }
+
+    template<typename Stream>
+    void Unserialize(Stream& s, int nType, int nVersion)
+    {
+        s.read((char*)pn, sizeof(pn));
+    }
 };
 
 /** 256-bit unsigned big integer. */

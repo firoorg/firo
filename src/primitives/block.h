@@ -64,6 +64,8 @@ public:
 
     uint256 GetHash() const
     {
+        std::cout << nVersion << "\n";
+        std::cout << nNonce;
         return HashKeccak(BEGIN(nVersion), END(nNonce));
     }
 

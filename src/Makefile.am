@@ -244,7 +244,7 @@ crypto_libbitcoin_crypto_a_SOURCES = \
   crypto/sha256.h \
   crypto/sha512.cpp \
   crypto/sha512.h \
-  crypto/keccak.c \
+  crypto/keccak.cpp \
   crypto/sph_keccak.h \
   crypto/sph_types.h
 
@@ -323,6 +323,30 @@ libbitcoin_util_a_SOURCES = \
   utilmoneystr.cpp \
   utilstrencodings.cpp \
   utiltime.cpp \
+  libzerocoin/bitcoin_bignum/allocators.h \
+  libzerocoin/bitcoin_bignum/bignum.h \
+  libzerocoin/bitcoin_bignum/compat.h \
+  libzerocoin/bitcoin_bignum/netbase.h \
+  libzerocoin/Accumulator.h \
+  libzerocoin/Accumulator.cpp \
+  libzerocoin/AccumulatorProofOfKnowledge.h \
+  libzerocoin/AccumulatorProofOfKnowledge.cpp \
+  libzerocoin/Coin.h \
+  libzerocoin/Coin.cpp \
+  libzerocoin/CoinSpend.h \
+  libzerocoin/CoinSpend.cpp \
+  libzerocoin/Commitment.h \
+  libzerocoin/Commitment.cpp \
+  libzerocoin/ParamGeneration.h \
+  libzerocoin/ParamGeneration.cpp \
+  libzerocoin/Params.h \
+  libzerocoin/Params.cpp \
+  libzerocoin/SerialNumberSignatureOfKnowledge.h \
+  libzerocoin/SerialNumberSignatureOfKnowledge.cpp \
+  libzerocoin/AccumulatorProofOfKnowledge.cpp \
+  libzerocoin/SpendMetaData.h \
+  libzerocoin/SpendMetaData.cpp \
+  libzerocoin/Zerocoin.h \
   $(BITCOIN_CORE_H)
 
 if GLIBC_BACK_COMPAT

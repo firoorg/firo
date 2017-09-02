@@ -12,6 +12,7 @@
 #include "prevector.h"
 #include "serialize.h"
 #include "uint256.h"
+#include "arith_uint256.h"
 #include "version.h"
 
 #include <vector>
@@ -164,6 +165,13 @@ public:
         ctx.Finalize((unsigned char*)&result);
         return result;
     }
+
+    arith_uint256 GetArith256Hash() {
+        uint256 result;
+        ctx.Finalize((unsigned char*)&result);
+        return UintToArith256(result);
+    }
+
 
     template<typename T>
     CHashWriter& operator<<(const T& obj) {

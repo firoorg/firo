@@ -185,6 +185,10 @@ enum opcodetype
     OP_PUBKEY = 0xfe,
 
     OP_INVALIDOPCODE = 0xff,
+
+    // zerocoin params
+    OP_ZEROCOINMINT = 0xc1,
+    OP_ZEROCOINSPEND = 0xc2,
 };
 
 const char* GetOpName(opcodetype opcode);
@@ -623,6 +627,12 @@ public:
     bool IsPayToScriptHash() const;
     bool IsPayToWitnessScriptHash() const;
     bool IsWitnessProgram(int& version, std::vector<unsigned char>& program) const;
+
+    //btzc: add check zerocoin function
+    bool IsZerocoinMint() const;
+    bool IsZerocoinSpend() const;
+    // Called by IsStandardTx.
+    bool HasCanonicalPushes() const;
 
     /** Called by IsStandardTx and P2SH/BIP62 VerifyScript (which makes it consensus-critical). */
     bool IsPushOnly(const_iterator pc) const;
