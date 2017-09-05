@@ -11,7 +11,7 @@
 /** The maximum allowed size for a serialized block, in bytes (only for buffer size limits) */
 static const unsigned int MAX_BLOCK_SERIALIZED_SIZE = 2000000;
 /** The maximum allowed weight for a block, see BIP 141 (network rule) */
-static const unsigned int MAX_BLOCK_WEIGHT = 4000000;
+static const unsigned int MAX_BLOCK_WEIGHT = 2000000;
 /** The maximum allowed size for a block excluding witness data, in bytes (network rule) */
 static const unsigned int MAX_BLOCK_BASE_SIZE = 1000000;
 /** The maximum allowed number of signature check operations in a block (network rule) */

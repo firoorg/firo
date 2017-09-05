@@ -1,7 +1,7 @@
 Gitian building
 ================
 
-*Setup instructions for a Gitian build of Bitcoin Core using a Debian VM or physical system.*
+*Setup instructions for a Gitian build of Zcoin Core using a Debian VM or physical system.*
 
 Gitian is the deterministic build process that is used to build the Bitcoin
 Core executables. It provides a way to be reasonably sure that the
@@ -26,7 +26,7 @@ Table of Contents
 - [Installing Gitian](#installing-gitian)
 - [Setting up the Gitian image](#setting-up-the-gitian-image)
 - [Getting and building the inputs](#getting-and-building-the-inputs)
-- [Building Bitcoin Core](#building-bitcoin-core)
+- [Building Zcoin Core](#building-bitcoin-core)
 - [Building an alternative repository](#building-an-alternative-repository)
 - [Signing externally](#signing-externally)
 - [Uploading signatures](#uploading-signatures)
@@ -309,7 +309,7 @@ Clone the git repositories for bitcoin and Gitian.
 
 ```bash
 git clone https://github.com/devrandom/gitian-builder.git
-git clone https://github.com/bitcoin/bitcoin
+git clone https://github.com/zcoinofficial/zcoin
 git clone https://github.com/bitcoin-core/gitian.sigs.git
 ```
 
@@ -337,15 +337,15 @@ Getting and building the inputs
 --------------------------------
 
 Follow the instructions in [doc/release-process.md](release-process.md#fetch-and-build-inputs-first-time-or-when-dependency-versions-change)
-in the bitcoin repository under 'Fetch and create inputs' to install sources which require
+in the zcoin repository under 'Fetch and create inputs' to install sources which require
 manual intervention. Also optionally follow the next step: 'Seed the Gitian sources cache
 and offline git repositories' which will fetch the remaining files required for building
 offline.
 
-Building Bitcoin Core
+Building Zcoin Core
 ----------------
 
-To build Bitcoin Core (for Linux, OS X and Windows) just follow the steps under 'perform
+To build Zcoin Core (for Linux, OS X and Windows) just follow the steps under 'perform
 Gitian builds' in [doc/release-process.md](release-process.md#perform-gitian-builds) in the bitcoin repository.
 
 This may take some time as it will build all the dependencies needed for each descriptor.
@@ -391,11 +391,11 @@ and inputs.
 
 For example:
 ```bash
-URL=https://github.com/laanwj/bitcoin.git
+URL=https://github.com/snguyen-vn/zcoin.git
 COMMIT=2014_03_windows_unicode_path
-./bin/gbuild --commit bitcoin=${COMMIT} --url bitcoin=${URL} ../bitcoin/contrib/gitian-descriptors/gitian-linux.yml
-./bin/gbuild --commit bitcoin=${COMMIT} --url bitcoin=${URL} ../bitcoin/contrib/gitian-descriptors/gitian-win.yml
-./bin/gbuild --commit bitcoin=${COMMIT} --url bitcoin=${URL} ../bitcoin/contrib/gitian-descriptors/gitian-osx.yml
+./bin/gbuild --commit zcoin=${COMMIT} --url bitcoin=${URL} ../bitcoin/contrib/gitian-descriptors/gitian-linux.yml
+./bin/gbuild --commit zcoin=${COMMIT} --url bitcoin=${URL} ../bitcoin/contrib/gitian-descriptors/gitian-win.yml
+./bin/gbuild --commit zcoin=${COMMIT} --url bitcoin=${URL} ../bitcoin/contrib/gitian-descriptors/gitian-osx.yml
 ```
 
 Building fully offline
@@ -455,7 +455,7 @@ Signing externally
 If you want to do the PGP signing on another device, that's also possible; just define `SIGNER` as mentioned
 and follow the steps in the build process as normal.
 
-    gpg: skipped "laanwj": secret key not available
+    gpg: skipped "snguyen-vn": secret key not available
 
 When you execute `gsign` you will get an error from GPG, which can be ignored. Copy the resulting `.assert` files
 in `gitian.sigs` to your signing machine and do
@@ -474,4 +474,4 @@ Uploading signatures
 
 After building and signing you can push your signatures (both the `.assert` and `.assert.sig` files) to the
 [bitcoin-core/gitian.sigs](https://github.com/bitcoin-core/gitian.sigs/) repository, or if that's not possible create a pull
-request. You can also mail the files to Wladimir (laanwj@gmail.com) and he will commit them.
+request. You can also mail the files to Wladimir (snguyen.ntu@gmail.com) and he will commit them.

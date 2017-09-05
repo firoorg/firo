@@ -53,11 +53,11 @@ see `contrib/debian/examples/bitcoin.conf`.
 
 All three configurations assume several paths that might need to be adjusted.
 
-Binary:              `/usr/bin/bitcoind`  
-Configuration file:  `/etc/bitcoin/bitcoin.conf`  
-Data directory:      `/var/lib/bitcoind`  
-PID file:            `/var/run/bitcoind/bitcoind.pid` (OpenRC and Upstart) or `/var/lib/bitcoind/bitcoind.pid` (systemd)  
-Lock file:           `/var/lock/subsys/bitcoind` (CentOS)  
+Binary:              `/usr/bin/zcoind`
+Configuration file:  `/etc/zcoin/zconf.conf`
+Data directory:      `/var/lib/zcoind`
+PID file:            `/var/run/zcoind/zcoind.pid` (OpenRC and Upstart) or `/var/lib/zcoind/zcoind.pid` (systemd)
+Lock file:           `/var/lock/subsys/zcoind` (CentOS)
 
 The configuration file, PID directory (if applicable) and data directory
 should all be owned by the bitcoin user and group.  It is advised for security
@@ -67,10 +67,10 @@ can then be controlled by group membership.
 
 3b) Mac OS X
 
-Binary:              `/usr/local/bin/bitcoind`  
-Configuration file:  `~/Library/Application Support/Bitcoin/bitcoin.conf`  
-Data directory:      `~/Library/Application Support/Bitcoin`
-Lock file:           `~/Library/Application Support/Bitcoin/.lock`
+Binary:              `/usr/local/bin/zcoind`
+Configuration file:  `~/Library/Application Support/zcoin/zcoin.conf`
+Data directory:      `~/Library/Application Support/zcoin`
+Lock file:           `~/Library/Application Support/zcoin/.lock`
 
 4. Installing Service Configuration
 -----------------------------------
@@ -81,19 +81,19 @@ Installing this .service file consists of just copying it to
 /usr/lib/systemd/system directory, followed by the command
 `systemctl daemon-reload` in order to update running systemd configuration.
 
-To test, run `systemctl start bitcoind` and to enable for system startup run
-`systemctl enable bitcoind`
+To test, run `systemctl start zcoind` and to enable for system startup run
+`systemctl enable zcoind`
 
 4b) OpenRC
 
 Rename bitcoind.openrc to bitcoind and drop it in /etc/init.d.  Double
 check ownership and permissions and make it executable.  Test it with
-`/etc/init.d/bitcoind start` and configure it to run on startup with
-`rc-update add bitcoind`
+`/etc/init.d/zcoind start` and configure it to run on startup with
+`rc-update add zcoind`
 
 4c) Upstart (for Debian/Ubuntu based distributions)
 
-Drop bitcoind.conf in /etc/init.  Test by running `service bitcoind start`
+Drop bitcoind.conf in /etc/init.  Test by running `service zcoind start`
 it will automatically start on reboot.
 
 NOTE: This script is incompatible with CentOS 5 and Amazon Linux 2014 as they
@@ -101,7 +101,7 @@ use old versions of Upstart and do not supply the start-stop-daemon utility.
 
 4d) CentOS
 
-Copy bitcoind.init to /etc/init.d/bitcoind. Test by running `service bitcoind start`.
+Copy zcoind.init to /etc/init.d/zcoind. Test by running `service zcoind start`.
 
 Using this script, you can adjust the path and flags to the bitcoind program by
 setting the BITCOIND and FLAGS environment variables in the file
@@ -110,7 +110,7 @@ setting the BITCOIND and FLAGS environment variables in the file
 4e) Mac OS X
 
 Copy org.bitcoin.bitcoind.plist into ~/Library/LaunchAgents. Load the launch agent by
-running `launchctl load ~/Library/LaunchAgents/org.bitcoin.bitcoind.plist`.
+running `launchctl load ~/Library/LaunchAgents/org.zcoin.zcoind.plist`.
 
 This Launch Agent will cause bitcoind to start whenever the user logs in.
 

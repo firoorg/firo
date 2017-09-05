@@ -22,7 +22,7 @@
 #include "precomputed_hash.h"
 
 
-unsigned char GetNfactor(int64_t nTimestamp){
+unsigned char GetNfactor(int64_t nTimestamp) {
     int l = 0;
     if (nTimestamp <= Params().GetConsensus().nChainStartTime)
         return Params().GetConsensus().nMinNFactor;
@@ -36,20 +36,18 @@ unsigned char GetNfactor(int64_t nTimestamp){
     int n = (l * 158 + s * 28 - 2670) / 100;
     if (n < 0) n = 0;
     if (n > 255)
-        printf( "GetNfactor(%lld) - something wrong(n == %d)\n", nTimestamp, n );
+        printf("GetNfactor(%lld) - something wrong(n == %d)\n", nTimestamp, n);
 
     unsigned char N = (unsigned char) n;
 
     return std::min(std::max(N, Params().GetConsensus().nMinNFactor), Params().GetConsensus().nMaxNFactor);
 }
 
-uint256 CBlockHeader::GetHash() const
-{
+uint256 CBlockHeader::GetHash() const {
     return SerializeHash(*this);
 }
 
-uint256 CBlockHeader::GetPoWHash(int nHeight) const
-{
+uint256 CBlockHeader::GetPoWHash(int nHeight) const {
 //    int64_t start = std::chrono::duration_cast<std::chrono::milliseconds>(
 //            std::chrono::system_clock::now().time_since_epoch()).count();
     bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
@@ -67,26 +65,20 @@ uint256 CBlockHeader::GetPoWHash(int nHeight) const
     }
     uint256 powHash;
     try {
-        if (!fTestNet && nHeight >= 20500)
-        {
+        if (!fTestNet && nHeight >= 20500) {
             lyra2z_hash(BEGIN(nVersion), BEGIN(powHash));
-        } else if (!fTestNet && nHeight >= 8192)
-        {
+        } else if (!fTestNet && nHeight >= 8192) {
             LYRA2(BEGIN(powHash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, 8192, 256);
-        } else if (!fTestNet && nHeight >= 500)
-        {
+        } else if (!fTestNet && nHeight >= 500) {
             LYRA2(BEGIN(powHash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, nHeight, 256);
-        } else if (fTestNet && nHeight >= 90)
-        { // testnet
+        } else if (fTestNet && nHeight >= 90) { // testnet
             lyra2z_hash(BEGIN(nVersion), BEGIN(powHash));
-        } else if (fTestNet && nHeight >= 80)
-        { // testnet
+        } else if (fTestNet && nHeight >= 80) { // testnet
             LYRA2(BEGIN(powHash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, 8192, 256);
-        } else
-        {
+        } else {
             scrypt_N_1_1_256(BEGIN(nVersion), BEGIN(powHash), GetNfactor(nTime));
         }
-    } catch(std::exception &e) {
+    } catch (std::exception &e) {
         LogPrintf("excepetion: %s", e.what());
     }
 //    int64_t end = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -97,28 +89,27 @@ uint256 CBlockHeader::GetPoWHash(int nHeight) const
     return powHash;
 }
 
-std::string CBlock::ToString() const
-{
+std::string CBlock::ToString() const {
     std::stringstream s;
-    s << strprintf("CBlock(hash=%s, ver=0x%08x, hashPrevBlock=%s, hashMerkleRoot=%s, nTime=%u, nBits=%08x, nNonce=%u, vtx=%u)\n",
-        GetHash().ToString(),
-        nVersion,
-        hashPrevBlock.ToString(),
-        hashMerkleRoot.ToString(),
-        nTime, nBits, nNonce,
-        vtx.size());
-    for (unsigned int i = 0; i < vtx.size(); i++)
-    {
+    s << strprintf(
+            "CBlock(hash=%s, ver=0x%08x, hashPrevBlock=%s, hashMerkleRoot=%s, nTime=%u, nBits=%08x, nNonce=%u, vtx=%u)\n",
+            GetHash().ToString(),
+            nVersion,
+            hashPrevBlock.ToString(),
+            hashMerkleRoot.ToString(),
+            nTime, nBits, nNonce,
+            vtx.size());
+    for (unsigned int i = 0; i < vtx.size(); i++) {
         s << "  " << vtx[i].ToString() << "\n";
     }
     return s.str();
 }
-
-int64_t GetBlockWeight(const CBlock& block)
-{
-    // This implements the weight = (stripped_size * 4) + witness_size formula,
-    // using only serialization with and without witness data. As witness_size
-    // is equal to total_size - stripped_size, this formula is identical to:
-    // weight = (stripped_size * 3) + total_size.
-    return ::GetSerializeSize(block, SER_NETWORK, PROTOCOL_VERSION | SERIALIZE_TRANSACTION_NO_WITNESS) * (WITNESS_SCALE_FACTOR - 1) + ::GetSerializeSize(block, SER_NETWORK, PROTOCOL_VERSION);
-}
+//int64_t GetBlockWeight(const CBlock& block)
+//{
+//    // This implements the weight = (stripped_size * 4) + witness_size formula,
+//    // using only serialization with and without witness data. As witness_size
+//    // is equal to total_size - stripped_size, this formula is identical to:
+//    // weight = (stripped_size * 3) + total_size.
+////    return ::GetSerializeSize(block, SER_NETWORK, PROTOCOL_VERSION | SERIALIZE_TRANSACTION_NO_WITNESS) * (WITNESS_SCALE_FACTOR - 1) + ::GetSerializeSize(block, SER_NETWORK, PROTOCOL_VERSION);
+//    return ::GetSerializeSize(block, SER_NETWORK, PROTOCOL_VERSION);
+//}

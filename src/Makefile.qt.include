@@ -242,6 +242,9 @@ RES_ICONS = \
   qt/res/icons/bitcoin.ico \
   qt/res/icons/bitcoin_testnet.ico \
   qt/res/icons/bitcoin.png \
+  qt/res/icons/zcoin.png \
+  qt/res/icons/zerocoin.png \
+  qt/res/icons/qrcode.png \
   qt/res/icons/chevron.png \
   qt/res/icons/clock1.png \
   qt/res/icons/clock2.png \
@@ -286,6 +289,9 @@ RES_ICONS = \
   qt/res/icons/tx_mined.png \
   qt/res/icons/warning.png \
   qt/res/icons/verify.png \
+  qt/res/images/about.png \
+  qt/res/images/splash.png \
+  qt/res/images/splash-testnet.png \
   qt/res/icons/transaction_abandoned.png
 
 BITCOIN_QT_BASE_CPP = \

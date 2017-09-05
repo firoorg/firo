@@ -4350,7 +4350,12 @@ bool ContextualCheckBlock(const CBlock &block, CValidationState &state, CBlockIn
     // large by filling up the coinbase witness, which doesn't change
     // the block hash, so we couldn't mark the block as permanently
     // failed).
-    if (GetBlockWeight(block) > MAX_BLOCK_WEIGHT) {
+//    if (GetBlockWeight(block) > MAX_BLOCK_WEIGHT) {
+//        return state.DoS(100, error("ContextualCheckBlock(): weight limit failed"), REJECT_INVALID, "bad-blk-weight");
+//    }
+
+    if (::GetSerializeSize(block, SER_DISK, CLIENT_VERSION) > MAX_BLOCK_WEIGHT) {
+        LogPrintf("Something new, something wrong!");
         return state.DoS(100, error("ContextualCheckBlock(): weight limit failed"), REJECT_INVALID, "bad-blk-weight");
     }
 

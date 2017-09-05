@@ -1,54 +1,12 @@
-Mac OS X Build Instructions and Notes
-====================================
-The commands in this guide should be executed in a Terminal application.
-The built-in one is located in `/Applications/Utilities/Terminal.app`.
-
-Preparation
------------
-Install the OS X command line tools:
-
-`xcode-select --install`
-
-When the popup appears, click `Install`.
-
-Then install [Homebrew](http://brew.sh).
-
-Dependencies
-----------------------
-
-    brew install automake berkeley-db4 libtool boost --c++11 miniupnpc openssl pkg-config homebrew/versions/protobuf260 --c++11 qt5 libevent
-
-NOTE: Building with Qt4 is still supported, however, could result in a broken UI. Building with Qt5 is recommended.
-
-Build Zcoin Core
-------------------------
-1.  Build Zcoin-core:
-
-    Configure and build the headless bitcoin binaries as well as the GUI (if Qt is found).
-
-    You can disable the GUI build by passing `--without-gui` to configure.
-        
-        ./autogen.sh
-        ./configure
-        make
-
-2.  It is recommended to build and run the unit tests:
-
-        make check
-
-3.  You can also create a .dmg that contains the .app bundle (optional):
-
-        make deploy
-
 UNIX BUILD NOTES
 ====================
-Some notes on how to build Bitcoin Core in Unix.
+Some notes on how to build Zcoin Core in Unix.
 
 (for OpenBSD specific instructions, see [build-openbsd.md](build-openbsd.md))
 
 Note
 ---------------------
-Always use absolute paths to configure and compile bitcoin and the dependencies,
+Always use absolute paths to configure and compile zcoin and the dependencies,
 for example, when specifying the path of the dependency:
 
 	../dist/configure --enable-cxx --disable-shared --with-pic --prefix=$BDB_PREFIX
@@ -66,7 +24,7 @@ make
 make install # optional
 ```
 
-This will build bitcoin-qt as well if the dependencies are met.
+This will build zcoin-qt as well if the dependencies are met.
 
 Dependencies
 ---------------------
@@ -164,7 +122,7 @@ libqrencode (optional) can be installed with:
 
     sudo apt-get install libqrencode-dev
 
-Once these are installed, they will be found by configure and a bitcoin-qt executable will be
+Once these are installed, they will be found by configure and a zcoin-qt executable will be
 built by default.
 
 Dependency Build Instructions: Fedora
@@ -187,7 +145,7 @@ libqrencode (optional) can be installed with:
 
 Notes
 -----
-The release is built with GCC and then "strip bitcoind" to strip the debug
+The release is built with GCC and then "strip zcoind" to strip the debug
 symbols, which reduces the executable size by about 90%.
 
 
@@ -208,10 +166,10 @@ Berkeley DB
 It is recommended to use Berkeley DB 4.8. If you have to build it yourself:
 
 ```bash
-BITCOIN_ROOT=$(pwd)
+ZCOIN_ROOT=$(pwd)
 
 # Pick some path to install BDB to, here we create a directory within the bitcoin directory
-BDB_PREFIX="${BITCOIN_ROOT}/db4"
+BDB_PREFIX="${ZCOIN_ROOT}/db4"
 mkdir -p $BDB_PREFIX
 
 # Fetch the source and verify that it is not tampered with
@@ -227,7 +185,7 @@ cd db-4.8.30.NC/build_unix/
 make install
 
 # Configure Bitcoin Core to use our own-built instance of BDB
-cd $BITCOIN_ROOT
+cd $ZCOIN_ROOT
 ./autogen.sh
 ./configure LDFLAGS="-L${BDB_PREFIX}/lib/" CPPFLAGS="-I${BDB_PREFIX}/include/" # (other args...)
 ```
@@ -245,7 +203,7 @@ If you need to build Boost yourself:
 
 Security
 --------
-To help make your bitcoin installation more secure by making certain attacks impossible to
+To help make your zcoin installation more secure by making certain attacks impossible to
 exploit even if a vulnerability is found, binaries are hardened by default.
 This can be disabled with:
 
@@ -269,7 +227,7 @@ Hardening enables the following features:
 
     To test that you have built PIE executable, install scanelf, part of paxutils, and use:
 
-    	scanelf -e ./bitcoin
+        scanelf -e ./zcoin
 
     The output should contain:
 
@@ -278,7 +236,7 @@ Hardening enables the following features:
 
 * Non-executable Stack
     If the stack is executable then trivial stack based buffer overflow exploits are possible if
-    vulnerable buffers are found. By default, bitcoin should be built with a non-executable stack
+    vulnerable buffers are found. By default, zcoin should be built with a non-executable stack
     but if one of the libraries it uses asks for an executable stack or someone makes a mistake
     and uses a compiler extension which requires an executable stack, it will silently build an
     executable without the non-executable stack protection.
