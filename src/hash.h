@@ -138,7 +138,7 @@ inline uint256 HashKeccak(const T1 pbegin, const T1 pend)
     sph_keccak256_init(&ctx_keccak);
     sph_keccak256 (&ctx_keccak, (pbegin == pend ? pblank : static_cast<const void*>(&pbegin[0])), (pend - pbegin) * sizeof(pbegin[0]));
     sph_keccak256_close(&ctx_keccak, static_cast<void*>(&hash));
-
+    printf("hash keccak hash = %s\n", hash.ToString().c_str());
     return hash;
 }        }
 

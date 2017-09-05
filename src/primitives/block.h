@@ -9,7 +9,7 @@
 #include "primitives/transaction.h"
 #include "serialize.h"
 #include "uint256.h"
-#include "util.h"
+#include "utilstrencodings.h"
 #include "hash.h"
 
 /** Nodes collect new transactions into a block, hash them into a hash tree,
@@ -64,9 +64,9 @@ public:
 
     uint256 GetHash() const
     {
-        std::cout << nVersion << "\n";
-        std::cout << nNonce;
-        return HashKeccak(BEGIN(nVersion), END(nNonce));
+        uint256 retorno = HashKeccak(BEGIN(nVersion), END(nNonce));
+        printf("nVersion = %d nNonce = %d hash = %s \n", nVersion, nNonce, retorno.ToString().c_str());
+        return retorno;
     }
 
     int64_t GetBlockTime() const
