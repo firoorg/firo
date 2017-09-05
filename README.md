@@ -14,7 +14,7 @@ Build
     You can disable the GUI build by passing `--without-gui` to configure.
         
         ./autogen.sh
-        CFLAGS=“-fPIC” CPPFLAGS=“-fPIC” ./configure
+        ./configure
         make
 
 2.  It is recommended to build and run the unit tests:
