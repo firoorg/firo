@@ -1,15 +1,36 @@
-
-Linux
-====================================
+Linux Build Instructions and Notes
+==================================
 
 Dependencies
 ----------------------
+1.  Update packages
+
+        sudo apt-get update && sudo apt-get upgrade
+
+2.  Install required packagages
+
+        sudo apt-get install build-essential libtool autotools-dev automake pkg-config libssl-dev libevent-dev bsdmainutils libboost-all-dev
+
+3.  Install Berkeley DB 4.8
+
+        sudo apt-get install software-properties-common
+        sudo add-apt-repository ppa:bitcoin/bitcoin
+        sudo apt-get update
+        sudo apt-get install libdb4.8-dev libdb4.8++-dev
+
+4.  Install QT 5
+
+        sudo apt-get install libminiupnpc-dev libzmq3-dev
+        sudo apt-get install libqt5gui5 libqt5core5a libqt5dbus5 qttools5-dev qttools5-dev-tools libprotobuf-dev protobuf-compiler libqrencode-dev
 
 Build
 ----------------------
-1.  Build Zcoin-core:
+1.  Clone the source:
+    git clone -b core_upgrade https://github.com/zcoinofficial/zcoin
 
-    Configure and build the headless bitcoin binaries as well as the GUI (if Qt is found).
+2.  Build Zcoin-core:
+
+    Configure and build the headless zcoin binaries as well as the GUI (if Qt is found).
 
     You can disable the GUI build by passing `--without-gui` to configure.
         
@@ -17,7 +38,7 @@ Build
         ./configure
         make
 
-2.  It is recommended to build and run the unit tests:
+3.  It is recommended to build and run the unit tests:
 
         make check
 
@@ -28,43 +49,11 @@ Build
 
 
 Mac OS X Build Instructions and Notes
-====================================
-The commands in this guide should be executed in a Terminal application.
-The built-in one is located in `/Applications/Utilities/Terminal.app`.
+=====================================
+See doc/build-osx.md for instructions on building on Mac OS X.
 
-Preparation
------------
-Install the OS X command line tools:
 
-`xcode-select --install`
 
-When the popup appears, click `Install`.
-
-Then install [Homebrew](http://brew.sh).
-
-Dependencies
-----------------------
-
-    brew install automake berkeley-db4 libtool boost --c++11 miniupnpc openssl pkg-config homebrew/versions/protobuf260 --c++11 qt5 libevent
-
-NOTE: Building with Qt4 is still supported, however, could result in a broken UI. Building with Qt5 is recommended.
-
-Build Zcoin Core
-----------------------
-1.  Build Zcoin-core:
-
-    Configure and build the headless bitcoin binaries as well as the GUI (if Qt is found).
-
-    You can disable the GUI build by passing `--without-gui` to configure.
-        
-        ./autogen.sh
-        ./configure
-        make
-
-2.  It is recommended to build and run the unit tests:
-
-        make check
-
-3.  You can also create a .dmg that contains the .app bundle (optional):
-
-        make deploy
+Windows (64/32 bit) Build Instructions and Notes
+=====================================
+See doc/build-windows.md for instructions on building on Windows 64/32 bit.
