@@ -1283,7 +1283,7 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx, CZerocoinEntry pubCoinTx
 
 //static libzerocoin::Params *ZCParams;
 bool CheckTransaction(const CTransaction &tx, CValidationState &state, uint256 hashTx,  bool isVerifyDB, int nHeight, bool isCheckWallet) {
-    LogPrintf("CheckTransaction nHeight=%s, isCheckWallet=%s, txHash=%s\n", nHeight, isCheckWallet, tx.GetHash().ToString());
+//    LogPrintf("CheckTransaction nHeight=%s, isCheckWallet=%s, txHash=%s\n", nHeight, isCheckWallet, tx.GetHash().ToString());
 //    LogPrintf("transaction = %s\n", tx.ToString());
     bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
     // Basic checks that don't depend on any context
@@ -2156,35 +2156,25 @@ CAmount GetBlockSubsidy(int nHeight, const Consensus::Params &consensusParams, i
 }
 
 bool IsInitialBlockDownload() {
-//    LogPrintf("IsInitialBlockDownload()\n");
     const CChainParams &chainParams = Params();
 
     // Once this function has returned false, it must remain false.
     static std::atomic<bool> latchToFalse{false};
     // Optimization: pre-test latch before taking the lock.
     if (latchToFalse.load(std::memory_order_relaxed))
-         LogPrintf("IsInitialBlockDownload.memory_order_relaxed() 1\n");
         return false;
-//    LogPrintf("IsInitialBlockDownload() 1\n");
     LOCK(cs_main);
     if (latchToFalse.load(std::memory_order_relaxed))
         return false;
     if (fImporting || fReindex)
-        LogPrintf("fImporting = %d, fReindex = %d\n", fImporting, fReindex);
         return true;
     if (chainActive.Tip() == NULL)
-        LogPrintf("chainActive.Tip().nHeight = %d\n", chainActive.Tip());
         return true;
     if (chainActive.Tip()->nChainWork < UintToArith256(chainParams.GetConsensus().nMinimumChainWork))
-        LogPrintf("chainActive.Tip()->nChainWork.ToString()                     = %d\n", chainActive.Tip()->nChainWork.ToString());
-        LogPrintf("UintToArith256(chainParams.GetConsensus().nMinimumChainWork) = %d\n", UintToArith256(chainParams.GetConsensus().nMinimumChainWork).ToString());
         return true;
     if (chainActive.Tip()->GetBlockTime() < (GetTime() - nMaxTipAge))
-        LogPrintf("chainActive.Tip()->GetBlockTime()                     = %d\n", chainActive.Tip()->GetBlockTime());
-        LogPrintf("(GetTime() - nMaxTipAge)                              = %d\n", (GetTime() - nMaxTipAge));
         return true;
     latchToFalse.store(true, std::memory_order_relaxed);
-    LogPrintf("IsInitialBlockDownload() 2\n");
     return false;
 }
 
@@ -3639,6 +3629,7 @@ static void PruneBlockIndexCandidates() {
  */
 static bool ActivateBestChainStep(CValidationState &state, const CChainParams &chainparams, CBlockIndex *pindexMostWork,
                                   const CBlock *pblock, bool &fInvalidFound) {
+    LogPrintf("ActivateBestChainStep()\n");
     AssertLockHeld(cs_main);
     const CBlockIndex *pindexOldTip = chainActive.Tip();
     const CBlockIndex *pindexFork = chainActive.FindFork(pindexMostWork);
@@ -4350,12 +4341,7 @@ bool ContextualCheckBlock(const CBlock &block, CValidationState &state, CBlockIn
     // large by filling up the coinbase witness, which doesn't change
     // the block hash, so we couldn't mark the block as permanently
     // failed).
-//    if (GetBlockWeight(block) > MAX_BLOCK_WEIGHT) {
-//        return state.DoS(100, error("ContextualCheckBlock(): weight limit failed"), REJECT_INVALID, "bad-blk-weight");
-//    }
-
-    if (::GetSerializeSize(block, SER_DISK, CLIENT_VERSION) > MAX_BLOCK_WEIGHT) {
-        LogPrintf("Something new, something wrong!");
+    if (GetBlockWeight(block) > MAX_BLOCK_WEIGHT) {
         return state.DoS(100, error("ContextualCheckBlock(): weight limit failed"), REJECT_INVALID, "bad-blk-weight");
     }
 
@@ -4508,7 +4494,7 @@ static bool IsSuperMajority(int minVersion, const CBlockIndex *pstart, unsigned 
 bool ProcessNewBlock(CValidationState &state, const CChainParams &chainparams, CNode *pfrom, const CBlock *pblock,
                      bool fForceProcessing, const CDiskBlockPos *dbp, bool fMayBanPeerIfInvalid) {
     int nHeight = getNHeight(pblock->GetBlockHeader());
-    LogPrintf("ProcessNewBlock nHeight=%s, blockHash:\n%s", nHeight, pblock->GetHash().ToString());
+    LogPrintf("ProcessNewBlock nHeight=%s, blockHash:%s\n", nHeight, pblock->GetHash().ToString());
     {
         LOCK(cs_main);
         bool fRequested = MarkBlockAsReceived(pblock->GetHash());
@@ -4529,8 +4515,11 @@ bool ProcessNewBlock(CValidationState &state, const CChainParams &chainparams, C
     }
 
     NotifyHeaderTip();
-    if (!ActivateBestChain(state, chainparams, pblock))
+    LogPrintf("ProcessNewBlock->ActivateBestChain\n");
+    if (!ActivateBestChain(state, chainparams, pblock)) {
+        LogPrintf("->failed\n");
         return error("%s: ActivateBestChain failed", __func__);
+    }
 
     return true;
 }
@@ -5718,8 +5707,8 @@ uint32_t GetFetchFlags(CNode *pfrom, CBlockIndex *pprev, const Consensus::Params
 
 bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, int64_t nTimeReceived,
                            const CChainParams &chainparams) {
-    LogPrintf("ProcessMessage, strCommand=%s\n", strCommand);
-    LogPrintf("net received: %s (%u bytes) peer=%d\n", SanitizeString(strCommand), vRecv.size(), pfrom->id);
+//    LogPrintf("ProcessMessage, strCommand=%s\n", strCommand);
+//    LogPrintf("net received: %s (%u bytes) peer=%d\n", SanitizeString(strCommand), vRecv.size(), pfrom->id);
     if (mapArgs.count("-dropmessagestest") && GetRand(atoi(mapArgs["-dropmessagestest"])) == 0) {
         LogPrintf("dropmessagestest DROPPING RECV MESSAGE\n");
         return true;
@@ -5767,8 +5756,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
             addrman.SetServices(pfrom->addr, pfrom->nServices);
         }
         if (pfrom->nServicesExpected & ~pfrom->nServices) {
-            LogPrint("net",
-                     "peer=%d does not offer the expected services (%08x offered, %08x expected); disconnecting\n",
+            LogPrint("net", "peer=%d does not offer the expected services (%08x offered, %08x expected); disconnecting\n",
                      pfrom->id, pfrom->nServices, pfrom->nServicesExpected);
             pfrom->PushMessage(NetMsgType::REJECT, strCommand, REJECT_NONSTANDARD,
                                strprintf("Expected to offer services %08x", pfrom->nServicesExpected));
@@ -6253,10 +6241,10 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
 
             pfrom->nLastTXTime = GetTime();
 
-            LogPrint("mempool", "AcceptToMemoryPool: peer=%d: accepted %s (poolsz %u txn, %u kB)\n",
-                     pfrom->id,
-                     tx.GetHash().ToString(),
-                     mempool.size(), mempool.DynamicMemoryUsage() / 1000);
+//            LogPrint("mempool", "AcceptToMemoryPool: peer=%d: accepted %s (poolsz %u txn, %u kB)\n",
+//                     pfrom->id,
+//                     tx.GetHash().ToString(),
+//                     mempool.size(), mempool.DynamicMemoryUsage() / 1000);
 
             // Recursively process any orphan transactions that depended on this one
             set <NodeId> setMisbehaving;
@@ -6281,7 +6269,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
                     if (setMisbehaving.count(fromPeer))
                         continue;
                     if (AcceptToMemoryPool(mempool, stateDummy, orphanTx, true, true, &fMissingInputs2)) {
-                        LogPrintf("Accepted orphan tx %s\n", orphanHash.ToString());
+//                        LogPrintf("Accepted orphan tx %s\n", orphanHash.ToString());
                         RelayTransaction(orphanTx);
                         for (unsigned int i = 0; i < orphanTx.vout.size(); i++) {
                             vWorkQueue.emplace_back(orphanHash, i);
@@ -6293,11 +6281,11 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
                             // Punish peer that gave us an invalid orphan tx
                             Misbehaving(fromPeer, nDos);
                             setMisbehaving.insert(fromPeer);
-                            LogPrint("mempool", "   invalid orphan tx %s\n", orphanHash.ToString());
+//                            LogPrint("mempool", "   invalid orphan tx %s\n", orphanHash.ToString());
                         }
                         // Has inputs but not accepted to mempool
                         // Probably non-standard or insufficient fee/priority
-                        LogPrint("mempool", "   removed orphan tx %s\n", orphanHash.ToString());
+//                        LogPrint("mempool", "   removed orphan tx %s\n", orphanHash.ToString());
                         vEraseQueue.push_back(orphanHash);
                         if (orphanTx.wit.IsNull() && !stateDummy.CorruptionPossible()) {
                             // Do not use rejection cache for witness transactions or
@@ -6317,10 +6305,10 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
             //&& !AlreadyHave(inv)
         } else if (tx.IsZerocoinSpend() && AcceptToMemoryPool(mempool, state, tx, false, true, &fMissingInputsZerocoin)) {
             RelayTransaction(tx);
-            LogPrint("mempool", "AcceptToMemoryPool: peer=%d: accepted %s (poolsz %u txn, %u kB)\n",
-                     pfrom->id,
-                     tx.GetHash().ToString(),
-                     mempool.size(), mempool.DynamicMemoryUsage() / 1000);
+//            LogPrint("mempool", "AcceptToMemoryPool: peer=%d: accepted %s (poolsz %u txn, %u kB)\n",
+//                     pfrom->id,
+//                     tx.GetHash().ToString(),
+//                     mempool.size(), mempool.DynamicMemoryUsage() / 1000);
 
         } else if (fMissingInputs) {
             bool fRejectedParents = false; // It may be the case that the orphans parents have all been rejected
@@ -6386,14 +6374,14 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
 
         CBlockIndex *pindex = NULL;
         CValidationState state;
-        LogPrintf("----- AcceptBlockHeader 1\n");
+//        LogPrintf("----- AcceptBlockHeader 1\n");
         if (!AcceptBlockHeader(cmpctblock.header, state, chainparams, &pindex)) {
-            LogPrintf("----- AcceptBlockHeader failed\n");
+//            LogPrintf("----- AcceptBlockHeader failed\n");
             int nDoS;
             if (state.IsInvalid(nDoS)) {
                 if (nDoS > 0)
                     Misbehaving(pfrom->GetId(), nDoS);
-                LogPrintf("Peer %d sent us invalid header via cmpctblock\n", pfrom->id);
+//                LogPrintf("Peer %d sent us invalid header via cmpctblock\n", pfrom->id);
                 return true;
             }
         }
@@ -6557,6 +6545,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
         CheckBlockIndex(chainparams.GetConsensus());
     } else if (strCommand == NetMsgType::BLOCKTXN && !fImporting && !fReindex) // Ignore blocks received while importing
     {
+        LogPrintf("ProcessMessages()-> strCommand=%s\n", strCommand);
         BlockTransactions resp;
         vRecv >> resp;
 
@@ -6576,7 +6565,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
         if (status == READ_STATUS_INVALID) {
             MarkBlockAsReceived(resp.blockhash); // Reset in-flight state in case of whitelist
             Misbehaving(pfrom->GetId(), 100);
-            LogPrintf("Peer %d sent us invalid compact block/non-matching block transactions\n", pfrom->id);
+//            LogPrintf("Peer %d sent us invalid compact block/non-matching block transactions\n", pfrom->id);
             return true;
         } else if (status == READ_STATUS_FAILED) {
             // Might have collided, fall back to getdata now :(
@@ -6653,12 +6642,12 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
                 nCount < MAX_BLOCKS_TO_ANNOUNCE) {
                 nodestate->nUnconnectingHeaders++;
                 pfrom->PushMessage(NetMsgType::GETHEADERS, chainActive.GetLocator(pindexBestHeader), uint256());
-                LogPrint("net",
-                         "received header %s: missing prev block %s, sending getheaders (%d) to end (peer=%d, nUnconnectingHeaders=%d)\n",
-                         headers[0].GetHash().ToString(),
-                         headers[0].hashPrevBlock.ToString(),
-                         pindexBestHeader->nHeight,
-                         pfrom->id, nodestate->nUnconnectingHeaders);
+//                LogPrint("net",
+//                         "received header %s: missing prev block %s, sending getheaders (%d) to end (peer=%d, nUnconnectingHeaders=%d)\n",
+//                         headers[0].GetHash().ToString(),
+//                         headers[0].hashPrevBlock.ToString(),
+//                         pindexBestHeader->nHeight,
+//                         pfrom->id, nodestate->nUnconnectingHeaders);
                 // Set hashLastUnknownBlock for this peer, so that if we
                 // eventually get the headers - even from a different peer -
                 // we can use this peer to download.
@@ -6670,7 +6659,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
                 return true;
             }
 
-            LogPrintf("ProcessMessage.AcceptBlockHeader() total %s blocks", headers.size());
+            LogPrintf("ProcessMessage.AcceptBlockHeader() total %s blocks\n", headers.size());
             CBlockIndex *pindexLast = NULL;
             BOOST_FOREACH(const CBlockHeader &header, headers) {
                 CValidationState state;
@@ -6781,26 +6770,47 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
         CBlock block;
         vRecv >> block;
         LogPrintf("ProcessMessage -> received block %s peer=%d\n", block.GetHash().ToString(), pfrom->id);
-        LogPrint("net", "received block %s peer=%d\n", block.GetHash().ToString(), pfrom->id);
+//        LogPrint("net", "received block %s peer=%d\n", block.GetHash().ToString(), pfrom->id);
         CValidationState state;
         // Process all blocks from whitelisted peers, even if not requested,
         // unless we're still syncing with the network.
         // Such an unrequested block may still be processed, subject to the
         // conditions in AcceptBlock().
         bool forceProcessing = pfrom->fWhitelisted && !IsInitialBlockDownload();
-        LogPrintf("--> ProcessNewBlock: ");
-        ProcessNewBlock(state, chainparams, pfrom, &block, forceProcessing, NULL, true);
-        int nDoS;
-        if (state.IsInvalid(nDoS)) {
-            assert(state.GetRejectCode() < REJECT_INTERNAL); // Blocks are never rejected with internal reject codes
-            pfrom->PushMessage(NetMsgType::REJECT, strCommand, (unsigned char) state.GetRejectCode(),
-                               state.GetRejectReason().substr(0, MAX_REJECT_MESSAGE_LENGTH), block.GetHash());
-            if (nDoS > 0) {
-                LOCK(cs_main);
-                Misbehaving(pfrom->GetId(), nDoS);
-            }
-        }
+        LogPrintf("forceProcessing=%s\n", forceProcessing);
+        int nHeight = getNHeight(block.GetBlockHeader());
 
+        if (nHeight > 0 && mapBlockData.count(nHeight) == 0) {
+//            LogPrintf("mapBlockData[]: nHeight=%s, block=%s", nHeight, block.GetHash().ToString());
+            mapBlockData[nHeight] = block;
+//            LogPrintf("mapBlockData[nHeight]: nHeight=%s, block=%s", nHeight, mapBlockData[nHeight].GetHash().ToString());
+        }
+        int currentHeight = chainActive.Height();
+        if (nHeight > currentHeight + 1) {
+            LogPrintf("Received faraway block nHeight=%s, currentHeight=%s\n", nHeight, currentHeight);
+        }
+        while (mapBlockData.count(currentHeight + 1) > 0) {
+            LogPrintf("Start process new block at nHeight=%s, currentHeight=%s\n", nHeight, currentHeight);
+//          LogPrintf("block=%s\n", mapBlockData[currentHeight+1].ToString());
+            bool status = ProcessNewBlock(state, chainparams, pfrom, &mapBlockData[currentHeight + 1],
+                                          forceProcessing, NULL, true);
+            int nDoS;
+            if (state.IsInvalid(nDoS)) {
+                assert(state.GetRejectCode() <
+                       REJECT_INTERNAL); // Blocks are never rejected with internal reject codes
+                pfrom->PushMessage(NetMsgType::REJECT, strCommand, (unsigned char) state.GetRejectCode(),
+                                   state.GetRejectReason().substr(0, MAX_REJECT_MESSAGE_LENGTH), block.GetHash());
+                if (nDoS > 0) {
+                    LOCK(cs_main);
+                    Misbehaving(pfrom->GetId(), nDoS);
+                }
+            }
+            if (!status) {
+                break;
+            }
+            mapBlockData.erase(currentHeight+1);
+            currentHeight++;
+        }
     } else if (strCommand == NetMsgType::GETADDR) {
         // This asymmetric behavior for inbound and outbound connections was introduced
         // to prevent a fingerprinting attack: an attacker can send specific fake addresses
@@ -7042,8 +7052,7 @@ bool ProcessMessages(CNode *pfrom) {
 
         // Scan for message start
         if (memcmp(msg.hdr.pchMessageStart, chainparams.MessageStart(), MESSAGE_START_SIZE) != 0) {
-            LogPrintf("PROCESSMESSAGE: INVALID MESSAGESTART %s peer=%d\n", SanitizeString(msg.hdr.GetCommand()),
-                      pfrom->id);
+            LogPrintf("PROCESSMESSAGE: INVALID MESSAGESTART %s peer=%d\n", SanitizeString(msg.hdr.GetCommand()), pfrom->id);
             fOk = false;
             break;
         }
@@ -7064,7 +7073,7 @@ bool ProcessMessages(CNode *pfrom) {
         uint256 hash = Hash(vRecv.begin(), vRecv.begin() + nMessageSize);
         unsigned int nChecksum = ReadLE32((unsigned char *) &hash);
         if (nChecksum != hdr.nChecksum) {
-            LogPrint("%s(%s, %u bytes): CHECKSUM ERROR nChecksum=%08x hdr.nChecksum=%08x\n", __func__,
+            LogPrintf("%s(%s, %u bytes): CHECKSUM ERROR nChecksum=%08x hdr.nChecksum=%08x\n", __func__,
                       SanitizeString(strCommand), nMessageSize, nChecksum, hdr.nChecksum);
             continue;
         }
@@ -7079,17 +7088,13 @@ bool ProcessMessages(CNode *pfrom) {
             pfrom->PushMessage(NetMsgType::REJECT, strCommand, REJECT_MALFORMED, string("error parsing message"));
             if (strstr(e.what(), "end of data")) {
                 // Allow exceptions from under-length message on vRecv
-                LogPrint(
-                        "%s(%s, %u bytes): Exception '%s' caught, normally caused by a message being shorter than its stated length\n",
-                        __func__, SanitizeString(strCommand), nMessageSize, e.what());
+                LogPrintf("%s(%s, %u bytes): Exception '%s' caught, normally caused by a message being shorter than its stated length\n", __func__, SanitizeString(strCommand), nMessageSize, e.what());
             } else if (strstr(e.what(), "size too large")) {
                 // Allow exceptions from over-long size
-                LogPrint("%s(%s, %u bytes): Exception '%s' caught\n", __func__, SanitizeString(strCommand),
-                          nMessageSize, e.what());
+                LogPrintf("%s(%s, %u bytes): Exception '%s' caught\n", __func__, SanitizeString(strCommand), nMessageSize, e.what());
             } else if (strstr(e.what(), "non-canonical ReadCompactSize()")) {
                 // Allow exceptions from non-canonical encoding
-                LogPrint("%s(%s, %u bytes): Exception '%s' caught\n", __func__, SanitizeString(strCommand),
-                          nMessageSize, e.what());
+                LogPrintf("%s(%s, %u bytes): Exception '%s' caught\n", __func__, SanitizeString(strCommand), nMessageSize, e.what());
             } else {
                 PrintExceptionContinue(&e, "ProcessMessages()");
             }
@@ -7104,8 +7109,7 @@ bool ProcessMessages(CNode *pfrom) {
         }
 
         if (!fRet)
-            LogPrint("%s(%s, %u bytes) FAILED peer=%d\n", __func__, SanitizeString(strCommand), nMessageSize,
-                      pfrom->id);
+            LogPrintf("%s(%s, %u bytes) FAILED peer=%d\n", __func__, SanitizeString(strCommand), nMessageSize, pfrom->id);
 
         break;
     }

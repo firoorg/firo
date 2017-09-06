@@ -26,7 +26,8 @@ Dependencies
 Build
 ----------------------
 1.  Clone the source:
-    git clone -b core_upgrade https://github.com/zcoinofficial/zcoin
+
+        git clone -b core_upgrade https://github.com/zcoinofficial/zcoin
 
 2.  Build Zcoin-core:
 
@@ -41,11 +42,6 @@ Build
 3.  It is recommended to build and run the unit tests:
 
         make check
-
-3.  You can also create a .dmg that contains the .app bundle (optional):
-
-        make deploy
-
 
 
 Mac OS X Build Instructions and Notes

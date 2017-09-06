@@ -36,7 +36,7 @@ unsigned char GetNfactor(int64_t nTimestamp) {
     int n = (l * 158 + s * 28 - 2670) / 100;
     if (n < 0) n = 0;
     if (n > 255)
-        printf("GetNfactor(%lld) - something wrong(n == %d)\n", nTimestamp, n);
+        LogPrintf("GetNfactor(%d) - something wrong(n == %d)\n", nTimestamp, n);
 
     unsigned char N = (unsigned char) n;
 
@@ -104,12 +104,11 @@ std::string CBlock::ToString() const {
     }
     return s.str();
 }
-//int64_t GetBlockWeight(const CBlock& block)
-//{
-//    // This implements the weight = (stripped_size * 4) + witness_size formula,
-//    // using only serialization with and without witness data. As witness_size
-//    // is equal to total_size - stripped_size, this formula is identical to:
-//    // weight = (stripped_size * 3) + total_size.
-////    return ::GetSerializeSize(block, SER_NETWORK, PROTOCOL_VERSION | SERIALIZE_TRANSACTION_NO_WITNESS) * (WITNESS_SCALE_FACTOR - 1) + ::GetSerializeSize(block, SER_NETWORK, PROTOCOL_VERSION);
-//    return ::GetSerializeSize(block, SER_NETWORK, PROTOCOL_VERSION);
-//}
+int64_t GetBlockWeight(const CBlock& block)
+{
+//     This implements the weight = (stripped_size * 4) + witness_size formula,
+//     using only serialization with and without witness data. As witness_size
+//     is equal to total_size - stripped_size, this formula is identical to:
+//     weight = (stripped_size * 3) + total_size.
+    return ::GetSerializeSize(block, SER_NETWORK, PROTOCOL_VERSION | SERIALIZE_TRANSACTION_NO_WITNESS) * (WITNESS_SCALE_FACTOR - 1) + ::GetSerializeSize(block, SER_NETWORK, PROTOCOL_VERSION);
+}

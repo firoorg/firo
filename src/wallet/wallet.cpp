@@ -719,8 +719,9 @@ void CWallet::MarkDirty() {
 }
 
 bool CWallet::AddToWallet(const CWalletTx &wtxIn, bool fFromLoadWallet, CWalletDB *pwalletdb) {
+    LogPrintf("CWallet::AddToWallet\n");
     uint256 hash = wtxIn.GetHash();
-    LogPrintf("CWallet::AddToWallet, hash=%s\n", hash.ToString());
+    LogPrintf("hash=%s\n", hash.ToString());
     if (fFromLoadWallet) {
         mapWallet[hash] = wtxIn;
         CWalletTx &wtx = mapWallet[hash];
@@ -846,7 +847,7 @@ bool CWallet::AddToWallet(const CWalletTx &wtxIn, bool fFromLoadWallet, CWalletD
  */
 bool CWallet::AddToWalletIfInvolvingMe(const CTransaction &tx, const CBlock *pblock, bool fUpdate) {
     {
-        LogPrintf("CWallet::AddToWalletIfInvolvingMe, tx=%s\n", tx.GetHash().ToString());
+//        LogPrintf("CWallet::AddToWalletIfInvolvingMe, tx=%s\n", tx.GetHash().ToString());
         AssertLockHeld(cs_wallet);
 //        if (!tx.IsZerocoinSpend() && pblock) {
 //            BOOST_FOREACH(const CTxIn &txin, tx.vin) {
@@ -880,7 +881,7 @@ bool CWallet::AddToWalletIfInvolvingMe(const CTransaction &tx, const CBlock *pbl
             return AddToWallet(wtx, false, &walletdb);
         }
     }
-//    LogPrintf("CWallet::AddToWalletIfInvolvingMe -> failed \n");
+//    LogPrintf("CWallet::AddToWalletIfInvolvingMe -> out false!\n");
     return false;
 }
 
@@ -1001,11 +1002,11 @@ void CWallet::MarkConflicted(const uint256 &hashBlock, const uint256 &hashTx) {
 }
 
 void CWallet::SyncTransaction(const CTransaction &tx, const CBlockIndex *pindex, const CBlock *pblock) {
-    LogPrintf("SyncTransaction()\n");
+//    LogPrintf("SyncTransaction()\n");
     LOCK2(cs_main, cs_wallet);
 
     if (!AddToWalletIfInvolvingMe(tx, pblock, true)) {
-//        LogPrintf("Not one of ours()\n");
+//        LogPrintf("Not mine!\n");
         return; // Not one of ours
     }
 
@@ -2577,7 +2578,6 @@ bool CWallet::CreateZerocoinMintModel(string &stringError, string denomAmount) {
         zerocoinTx.value = pubCoin.getValue();
         zerocoinTx.randomness = newCoin.getRandomness();
         zerocoinTx.serialNumber = newCoin.getSerialNumber();
-
         LogPrintf("CreateZerocoinMintModel() -> NotifyZerocoinChanged\n");
         LogPrintf("pubcoin=%s, isUsed=%s\n", zerocoinTx.value.GetHex(), zerocoinTx.IsUsed);
         LogPrintf("randomness=%s, serialNumber=%s\n", zerocoinTx.randomness, zerocoinTx.serialNumber);
