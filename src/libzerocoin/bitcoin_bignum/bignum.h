@@ -328,7 +328,7 @@ public:
     // and  0xc0de000000 is compact (0x0600c0de)
     // (0x05c0de00) would be -0x40de000000
     //
-    // Bitcoin only uses bn "compact" format for encoding difficulty
+    // Bitcoin only uses this "compact" format for encoding difficulty
     // targets, which are unsigned 256bit quantities.  Thus, all the
     // complexities of the sign bit and using base 256 are probably an
     // implementation accident.
@@ -363,7 +363,7 @@ public:
         else
         {
             CBigNum bn1;
-            BN_rshift(&bn1, &bn1, 8*(nSize-3));
+            BN_rshift(&bn1, bn, 8*(nSize-3));
             nCompact = BN_get_word(&bn1);
         }
         // The 0x00800000 bit denotes the sign.
@@ -492,7 +492,7 @@ public:
     }
 
     /**
-        * exponentiation with an int. bn^e
+        * exponentiation with an int. this^e
         * @param e the exponent as an int
         * @return
         */
@@ -501,7 +501,7 @@ public:
     }
 
     /**
-     * exponentiation bn^e
+     * exponentiation this^e
      * @param e the exponent
      * @return
      */
@@ -514,7 +514,7 @@ public:
     }
 
     /**
-     * modular multiplication: (bn * b) mod m
+     * modular multiplication: (this * b) mod m
      * @param b operand
      * @param m modulus
      */
@@ -528,7 +528,7 @@ public:
     }
 
     /**
-     * modular exponentiation: bn^e mod n
+     * modular exponentiation: this^e mod n
      * @param e exponent
      * @param m modulus
      */
@@ -549,8 +549,8 @@ public:
     }
 
     /**
-     * Calculates the inverse of bn element mod m.
-     * i.e. i such bn*i = 1 mod m
+     * Calculates the inverse of this element mod m.
+     * i.e. i such this*i = 1 mod m
      * @param m the modu
      * @return the inverse
      */
@@ -589,14 +589,14 @@ public:
     }
 
     /**
-     * Miller-Rabin primality test on bn element
+     * Miller-Rabin primality test on this element
      * @param checks: optional, the number of Miller-Rabin tests to run
      * 			 	default causes error rate of 2^-80.
      * @return true if prime
      */
     bool isPrime(const int checks=BN_prime_checks) const {
         CAutoBN_CTX pctx;
-        int ret = BN_is_prime(bn, checks, NULL, pctx, NULL);
+        int ret = BN_is_prime_ex(bn, checks, pctx, NULL);
         if(ret < 0){
             throw bignum_error("CBigNum::isPrime :BN_is_prime");
         }
