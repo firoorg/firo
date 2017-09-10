@@ -46,7 +46,7 @@ Update the following:
 
 Write release notes. git shortlog helps a lot, for example:
 
-    git shortlog --no-merges v(current version, e.g. 0.8.7.9)..v(new version, e.g. 0.13.2)
+    git shortlog --no-merges v(current version, e.g. 0.8.7.9)..v(new version, e.g. 0.13.2.x)
 
 (or ping @wumpus on IRC, he has specific tooling to generate the list of merged pulls
 and sort them into categories based on labels)
@@ -57,7 +57,7 @@ Generate list of authors:
 
 Tag version (or release candidate) in git
 
-    git tag -s v(new version, e.g. 0.13.2)
+    git tag -s v(new version, e.g. 0.13.2.x)
 
 ### Setup and perform Gitian builds
 
@@ -65,7 +65,7 @@ Setup Gitian descriptors:
 
     pushd ./zcoin
     export SIGNER=(your Gitian key, ie bluematt, sipa, etc)
-    export VERSION=(new version, e.g. 0.13.2)
+    export VERSION=(new version, e.g. 0.13.2.x)
     git fetch
     git checkout v${VERSION}
     popd

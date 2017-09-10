@@ -520,7 +520,7 @@ void CWallet::AddToSpends(const COutPoint &outpoint, const uint256 &wtxid) {
 void CWallet::AddToSpends(const uint256 &wtxid) {
     assert(mapWallet.count(wtxid));
     CWalletTx &thisTx = mapWallet[wtxid];
-    if (thisTx.IsCoinBase()) // Coinbases don't spend anything!
+    if (thisTx.IsCoinBase() || thisTx.IsZerocoinSpend()) // Coinbases don't spend anything!
         return;
 
     BOOST_FOREACH(
@@ -813,8 +813,8 @@ bool CWallet::AddToWallet(const CWalletTx &wtxIn, bool fFromLoadWallet, CWalletD
         }
 
         //// debug print
-//        LogPrint("AddToWallet %s  %s%s\n", wtxIn.GetHash().ToString(), (fInsertedNew ? "new" : ""),
-//                  (fUpdated ? "update" : ""));
+        LogPrintf("AddToWallet %s  %s%s\n", wtxIn.GetHash().ToString(), (fInsertedNew ? "new" : ""),
+                  (fUpdated ? "update" : ""));
 
         // Write to disk
         if (fInsertedNew || fUpdated)
@@ -1390,7 +1390,7 @@ void CWallet::ReacceptWalletTransactions() {
 
         LOCK(mempool.cs);
         CValidationState state;
-        wtx.AcceptToMemoryPool(false, maxTxFee, state, true);
+        wtx.AcceptToMemoryPool(false, maxTxFee, state, false);
     }
 }
 
@@ -1788,7 +1788,6 @@ void CWallet::AvailableCoins(vector <COutput> &vCoins, bool fOnlyConfirmed, cons
 //[zcoin]
 void CWallet::ListAvailableCoinsMintCoins(vector <COutput> &vCoins, bool fOnlyConfirmed) const {
     vCoins.clear();
-
     {
         LOCK(cs_wallet);
         list <CZerocoinEntry> listPubCoin = list<CZerocoinEntry>();
@@ -1832,11 +1831,11 @@ void CWallet::ListAvailableCoinsMintCoins(vector <COutput> &vCoins, bool fOnlyCo
                     LogPrintf("Pubcoin=%s\n", pubCoin.ToString());
                     // CHECKING PROCESS
                     BOOST_FOREACH(const CZerocoinEntry &pubCoinItem, listPubCoin) {
-                        LogPrintf("*******\n");
-                        LogPrintf("pubCoinItem.value=%s,\n", pubCoinItem.value.ToString());
-                        LogPrintf("pubCoinItem.IsUsed=%s\n, ", pubCoinItem.IsUsed);
-                        LogPrintf("pubCoinItem.randomness=%s\n, ", pubCoinItem.randomness);
-                        LogPrintf("pubCoinItem.serialNumber=%s\n, ", pubCoinItem.serialNumber);
+//                        LogPrintf("*******\n");
+//                        LogPrintf("pubCoinItem.value=%s,\n", pubCoinItem.value.ToString());
+//                        LogPrintf("pubCoinItem.IsUsed=%s\n, ", pubCoinItem.IsUsed);
+//                        LogPrintf("pubCoinItem.randomness=%s\n, ", pubCoinItem.randomness);
+//                        LogPrintf("pubCoinItem.serialNumber=%s\n, ", pubCoinItem.serialNumber);
                         if (pubCoinItem.value == pubCoin && pubCoinItem.IsUsed == false &&
                             pubCoinItem.randomness != 0 && pubCoinItem.serialNumber != 0) {
                             vCoins.push_back(COutput(pcoin, i, nDepth, true, true));
@@ -2384,7 +2383,8 @@ bool CWallet::CreateTransaction(const vector <CRecipient> &vecSend, CWalletTx &w
                         break;
                 }
                 int64_t nPayFee = payTxFee.GetFeePerK() * (1 + (int64_t) GetTransactionWeight(txNew) / 1000);
-                bool fAllowFree = AllowFree(dPriority);					// No free TXs in XZC
+                bool fAllowFree = AllowFree(dPriority);// No free TXs in XZC
+                LogPrintf("CreateTransaction: fAllowFree=%s\n", fAllowFree);
                 int64_t nMinFee = wtxNew.GetMinFee(1, fAllowFree, GMF_SEND);
 
                 int64_t nFeeNeeded = nPayFee;

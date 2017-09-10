@@ -5,7 +5,7 @@ Dependencies
 ----------------------
 1.  Update packages
 
-        sudo apt-get update && sudo apt-get upgrade
+        sudo apt-get update
 
 2.  Install required packagages
 
@@ -46,10 +46,10 @@ Build
 
 Mac OS X Build Instructions and Notes
 =====================================
-See doc/build-osx.md for instructions on building on Mac OS X.
+See (doc/build-osx.md) for instructions on building on Mac OS X.
 
 
 
 Windows (64/32 bit) Build Instructions and Notes
 =====================================
-See doc/build-windows.md for instructions on building on Windows 64/32 bit.
+See (doc/build-windows.md) for instructions on building on Windows 64/32 bit.

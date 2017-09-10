@@ -446,14 +446,14 @@ bool ReadKeyValue(CWallet *pwallet, CDataStream &ssKey, CDataStream &ssValue,
             CWalletTx wtx;
             ssValue >> wtx;
             CValidationState state;
-            LogPrintf("CheckTransaction wtx.GetHash()=%s, hash=%s, state.IsValid()=%s\n", wtx.GetHash().ToString(),
-                      hash.ToString(), state.IsValid());
-            if (!(CheckTransaction(wtx, state, wtx.GetHash(), false, INT_MAX, true) && (wtx.GetHash() == hash) &&
+//            LogPrintf("CheckTransaction wtx.GetHash()=%s, hash=%s, state.IsValid()=%s\n", wtx.GetHash().ToString(),
+//                      hash.ToString(), state.IsValid());
+            if (!(CheckTransaction(wtx, state, wtx.GetHash(), true, INT_MAX, false) && (wtx.GetHash() == hash) &&
                   state.IsValid())) {
-                LogPrintf("ReadKeyValue|CheckTransaction(), wtx.GetHash() = &s\n", wtx.GetHash().ToString());
+//                LogPrintf("ReadKeyValue|CheckTransaction(), wtx.GetHash() = &s\n", wtx.GetHash().ToString());
                 return false;
             }
-            LogPrintf("done ->readkeyvalue()\n");
+//            LogPrintf("done ->readkeyvalue()\n");
             // Undo serialize changes in 31600
             if (31404 <= wtx.fTimeReceivedIsTxTime && wtx.fTimeReceivedIsTxTime <= 31703) {
                 if (!ssValue.empty()) {
@@ -698,6 +698,7 @@ DBErrors CWalletDB::LoadWallet(CWallet *pwallet) {
                     result = DB_CORRUPT;
                 else {
                     // Leave other errors alone, if we try to fix them we might make things worse.
+                    LogPrintf("ReadKeyValue() failed, strType=%s\n", strType);
                     fNoncriticalErrors = true; // ... but do warn the user there is something wrong.
                     if (strType == "tx")
                         // Rescan if there is a bad transaction record:

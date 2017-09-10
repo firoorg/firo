@@ -336,22 +336,34 @@ void CTxMemPool::UpdateForRemoveFromMempool(const setEntries &entriesToRemove, b
 }
 
 void CTxMemPoolEntry::UpdateDescendantState(int64_t modifySize, CAmount modifyFee, int64_t modifyCount) {
+    LogPrintf("UpdateDescendantState()\n");
     nSizeWithDescendants += modifySize;
-    assert(int64_t(nSizeWithDescendants) > 0);
+//    assert(int64_t(nSizeWithDescendants) > 0);
     nModFeesWithDescendants += modifyFee;
     nCountWithDescendants += modifyCount;
-    assert(int64_t(nCountWithDescendants) > 0);
+//    assert(int64_t(nCountWithDescendants) > 0);
+    LogPrintf("modifyFee=%s\n", modifyFee);
+    LogPrintf("modifyCount=%s\n", modifyCount);
+    LogPrintf("nCountWithDescendants=%s\n", nCountWithDescendants);
+    LogPrintf("nSizeWithDescendants=%s\n", nSizeWithDescendants);
 }
 
-void
-CTxMemPoolEntry::UpdateAncestorState(int64_t modifySize, CAmount modifyFee, int64_t modifyCount, int modifySigOps) {
+void CTxMemPoolEntry::UpdateAncestorState(int64_t modifySize, CAmount modifyFee, int64_t modifyCount, int modifySigOps) {
+    LogPrintf("UpdateAncestorState()\n");
     nSizeWithAncestors += modifySize;
-    assert(int64_t(nSizeWithAncestors) > 0);
+    LogPrintf("modifySize=%s\n", modifySize);
+    LogPrintf("nSizeWithAncestors=%s\n", nSizeWithAncestors);
+//    assert(int64_t(nSizeWithAncestors) >= 0);
     nModFeesWithAncestors += modifyFee;
+    LogPrintf("modifyFee=%s\n", modifyFee);
+    LogPrintf("modifyCount=%s\n", modifyCount);
     nCountWithAncestors += modifyCount;
-    assert(int64_t(nCountWithAncestors) > 0);
+    LogPrintf("nCountWithAncestors=%s\n", nCountWithAncestors);
+//    assert(int64_t(nCountWithAncestors) >= 0);
     nSigOpCostWithAncestors += modifySigOps;
-    assert(int(nSigOpCostWithAncestors) >= 0);
+    LogPrintf("modifySigOps=%s\n", modifySigOps);
+    LogPrintf("nSigOpCostWithAncestors=%s\n", nSigOpCostWithAncestors);
+//    assert(int(nSigOpCostWithAncestors) >= 0);
 }
 
 CTxMemPool::CTxMemPool(const CFeeRate &_minReasonableRelayFee) :

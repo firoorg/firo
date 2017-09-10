@@ -1,5 +1,5 @@
-Building Zcoin
-==============
+Building Bitcoin
+================
 
 See doc/build-*.md for instructions on building the various
-elements of the Zcoin Core reference implementation of Zcoin.
+elements of the Bitcoin Core reference implementation of Bitcoin.

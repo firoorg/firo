@@ -96,7 +96,7 @@ int LogPrintStr(const std::string &str);
 template<typename T1, typename... Args>
 static inline int LogPrint(const char* category, const char* fmt, const T1& v1, const Args&... args)
 {
-    if(!LogAcceptCategory(category)) return 0;                            \
+    if(!LogAcceptCategory(category)) return 0;
     return LogPrintStr(tfm::format(fmt, v1, args...));
 }
 

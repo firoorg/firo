@@ -1085,7 +1085,7 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx, CZerocoinEntry pubCoinTx
     // Only one loop, we checked on the format before enter this case
     // Check vIn
     CWalletDB walletdb(pwalletMain->strWalletFile);
-    LogPrintf("CheckSpendZcoinTransaction, denomination=%d nHeight=%d\n", targetDenomination, nHeight);
+    LogPrintf("CheckSpendZcoinTransaction denomination=%d nHeight=%d\n", targetDenomination, nHeight);
 //    BOOST_FOREACH(const CZerocoinEntry &pubCoinItem, listPubCoin) {
 //        LogPrintf("## denomination = %d, id = %d, height = %d\n",pubCoinItem.denomination, pubCoinItem.id, pubCoinItem.nHeight);
 //    }
@@ -1115,22 +1115,22 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx, CZerocoinEntry pubCoinTx
 
             // VERIFY COINSPEND TX
             // used pre-computed accumulator
-            LogPrintf("accumulatorPrecomputed=%s\n", accumulatorPrecomputed.getValue().ToString());
+            LogPrint("CheckSpendZcoinTransaction", "accumulatorPrecomputed=%s\n", accumulatorPrecomputed.getValue().ToString());
             walletdb.ReadZerocoinAccumulator(accumulatorPrecomputed, targetDenomination, pubcoinId);
             if (newSpend.Verify(accumulatorPrecomputed, newMetadata)) {
-                LogPrintf("COIN SPEND TX DID VERIFY - accumulatorPrecomputed!\n");
+                LogPrint("CheckSpendZcoinTransaction", "COIN SPEND TX DID VERIFY - accumulatorPrecomputed!\n");
                 passVerify = true;
             }
             int countPubcoin = 0;
             if (!passVerify) {
                 LogPrintf("Check waterfall\n");
                 BOOST_FOREACH(const CZerocoinEntry &pubCoinItem, listPubCoin) {
-//                    LogPrintf("--denomination = %d, id = %d, pubcoinId = %d height = %d\n",
+//                    LogPrint("CheckSpendZcoinTransaction", "--denomination = %d, id = %d, pubcoinId = %d height = %d\n",
 //                              pubCoinItem.denomination, pubCoinItem.id, pubcoinId, pubCoinItem.nHeight);
                     if (pubCoinItem.denomination == targetDenomination &&
                         (pubCoinItem.id >= 0 && (uint32_t) pubCoinItem.id == pubcoinId) &&
                         pubCoinItem.nHeight != -1) {
-                        LogPrintf("--## denomination = %s, id = %s, pubcoinId = %s, height = %s\n", pubCoinItem.denomination, pubCoinItem.id, pubcoinId, pubCoinItem.nHeight);
+//                        LogPrint("CheckSpendZcoinTransaction", "--## denomination = %s, id = %s, pubcoinId = %s, height = %s\n", pubCoinItem.denomination, pubCoinItem.id, pubcoinId, pubCoinItem.nHeight);
                         libzerocoin::PublicCoin pubCoinTemp(ZCParams, pubCoinItem.value, targetDenomination);
                         if (!pubCoinTemp.validate()) {
                             return state.DoS(100, false, PUBLIC_COIN_FOR_ACCUMULATOR_INVALID,
@@ -1139,9 +1139,9 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx, CZerocoinEntry pubCoinTx
                         countPubcoin++;
                         accumulator += pubCoinTemp;
                         if (countPubcoin >= 2) { // MINIMUM REQUIREMENT IS 2 PUBCOINS
-                            LogPrintf("pubCoinTemp=%s\n", pubCoinTemp.getValue().ToString().substr(0,10));
-                            LogPrintf("accumulator=%s\n", accumulator.getValue().ToString().substr(0,10));
-                            LogPrintf("countPubcoin=%s\n", countPubcoin);
+//                            LogPrint("CheckSpendZcoinTransaction", "pubCoinTemp=%s\n", pubCoinTemp.getValue().ToString().substr(0,10));
+//                            LogPrint("CheckSpendZcoinTransaction", "accumulator=%s\n", accumulator.getValue().ToString().substr(0,10));
+//                            LogPrint("CheckSpendZcoinTransaction", "countPubcoin=%s\n", countPubcoin);
                             if (newSpend.Verify(accumulator, newMetadata)) {
                                 LogPrintf("COIN SPEND TX DID VERIFY - accumulator!\n");
                                 // store this accumulator
@@ -1157,23 +1157,23 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx, CZerocoinEntry pubCoinTx
 
                 // It does not have this mint coins id, still sync
                 if (countPubcoin == 0) {
-                    LogPrintf("Node does not have mint zerocoin to verify, please wait until\n");
+                    LogPrint("CheckSpendZcoinTransaction", "Node does not have mint zerocoin to verify, please wait until\n");
                     return state.DoS(0, false, NO_MINT_ZEROCOIN, "CTransaction::CheckTransaction() : Error: Node does not have mint zerocoin to verify, please wait until ");
                 }
             }
 
             if (!passVerify) {
                 int countPubcoin = 0;
-                LogPrintf("Check reverse\n");
+                LogPrint("CheckSpendZcoinTransaction", "Check reverse\n");
                 BOOST_REVERSE_FOREACH(const CZerocoinEntry &pubCoinItem, listPubCoin) {
 //                    LogPrintf("--denomination = %d, id = %d, pubcoinId = %d height = %d\n",
 //                              pubCoinItem.denomination, pubCoinItem.id, pubcoinId, pubCoinItem.nHeight);
                     if (pubCoinItem.denomination == targetDenomination &&
                         (pubCoinItem.id >= 0 && (uint32_t) pubCoinItem.id == pubcoinId) &&
                         pubCoinItem.nHeight != -1) {
-                        LogPrintf("--## denomination = %d, id = %d, pubcoinId = %d height = %d\n",
-                                  pubCoinItem.denomination, pubCoinItem.id, pubcoinId,
-                                  pubCoinItem.nHeight);
+//                        LogPrint("CheckSpendZcoinTransaction", "--## denomination = %d, id = %d, pubcoinId = %d height = %d\n",
+//                                  pubCoinItem.denomination, pubCoinItem.id, pubcoinId,
+//                                  pubCoinItem.nHeight);
                         libzerocoin::PublicCoin pubCoinTemp(ZCParams, pubCoinItem.value, targetDenomination);
                         if (!pubCoinTemp.validate()) {
                             return state.DoS(100,
@@ -1181,8 +1181,8 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx, CZerocoinEntry pubCoinTx
                         }
                         countPubcoin++;
                         accumulatorRev += pubCoinTemp;
-                        LogPrintf("accumulatorRev=%s\n", accumulatorRev.getValue().ToString());
-                        LogPrintf("countPubcoin=%s\n", countPubcoin);
+//                        LogPrint("CheckSpendZcoinTransaction", "accumulatorRev=%s\n", accumulatorRev.getValue().ToString());
+//                        LogPrint("CheckSpendZcoinTransaction", "countPubcoin=%s\n", countPubcoin);
                         if (countPubcoin >= 2) { // MINIMUM REQUIREMENT IS 2 PUBCOINS
                             if (newSpend.Verify(accumulatorRev, newMetadata)) {
                                 LogPrintf("COIN SPEND TX DID VERIFY - accumulatorRev!\n");
@@ -1241,8 +1241,8 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx, CZerocoinEntry pubCoinTx
                                     pubCoinTx.id = pubCoinItem.id;
                                     walletdb.WriteZerocoinEntry(pubCoinTx);
                                     // Update UI wallet
-                                    LogPrintf("CheckZerocoinSpendTransaction() -> NotifyZerocoinChanged\n");
-                                    LogPrintf("pubcoin=%s, isUsed=Used\n", pubCoinItem.value.GetHex());
+                                    LogPrintf("CheckSpendZcoinTransaction", "NotifyZerocoinChanged\n");
+                                    LogPrint("CheckSpendZcoinTransaction", "pubcoin=%s, isUsed=Used\n", pubCoinItem.value.GetHex());
                                     pwalletMain->NotifyZerocoinChanged(pwalletMain, pubCoinItem.value.GetHex(), "Used", CT_UPDATED);
                                     break;
                                 }
@@ -1283,7 +1283,7 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx, CZerocoinEntry pubCoinTx
 
 //static libzerocoin::Params *ZCParams;
 bool CheckTransaction(const CTransaction &tx, CValidationState &state, uint256 hashTx,  bool isVerifyDB, int nHeight, bool isCheckWallet) {
-//    LogPrintf("CheckTransaction nHeight=%s, isCheckWallet=%s, txHash=%s\n", nHeight, isCheckWallet, tx.GetHash().ToString());
+    LogPrintf("CheckTransaction nHeight=%s, isVerifyDB=%s, isCheckWallet=%s, txHash=%s\n", nHeight, isVerifyDB, isCheckWallet, tx.GetHash().ToString());
 //    LogPrintf("transaction = %s\n", tx.ToString());
     bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
     // Basic checks that don't depend on any context
@@ -1599,8 +1599,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool &pool, CValidationState &state, const C
                     if (!setConflicts.count(ptxConflicting->GetHash())) {
                         bool fReplacementOptOut = true;
                         if (fEnableReplacement) {
-                            BOOST_FOREACH(
-                            const CTxIn &txin, ptxConflicting->vin)
+                            BOOST_FOREACH(const CTxIn &txin, ptxConflicting->vin)
                             {
                                 if (txin.nSequence < std::numeric_limits < unsigned int > ::max() - 1)
                                 {
@@ -1756,7 +1755,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool &pool, CValidationState &state, const C
                 LogPrintf("cause by -> rate limited free transaction\n");
                 return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "rate limited free transaction");
             }
-            LogPrintf("mempool", "Rate limit dFreeCount: %g => %g\n", dFreeCount, dFreeCount + nSize);
+            LogPrint("mempool", "Rate limit dFreeCount: %g => %g\n", dFreeCount, dFreeCount + nSize);
             dFreeCount += nSize;
         }
 
@@ -1918,7 +1917,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool &pool, CValidationState &state, const C
 
         // Check against previous transactions
         // This is done last to help prevent CPU exhaustion denial-of-service attacks.
-        unsigned int scriptVerifyFlags = STANDARD_SCRIPT_VERIFY_FLAGS;
+        unsigned int scriptVerifyFlags = SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_STRICTENC;
         if (!Params().RequireStandard()) {
             scriptVerifyFlags = GetArg("-promiscuousmempoolflags", scriptVerifyFlags);
         }
@@ -1927,14 +1926,14 @@ bool AcceptToMemoryPoolWorker(CTxMemPool &pool, CValidationState &state, const C
             // SCRIPT_VERIFY_CLEANSTACK requires SCRIPT_VERIFY_WITNESS, so we
             // need to turn both off, and compare against just turning off CLEANSTACK
             // to see if the failure is specifically due to witness validation.
-            if (tx.wit.IsNull() && CheckInputs(tx, state, view, true,
-                                               scriptVerifyFlags &
-                                               ~(SCRIPT_VERIFY_WITNESS | SCRIPT_VERIFY_CLEANSTACK),
-                                               true, txdata) &&
-                !CheckInputs(tx, state, view, true, scriptVerifyFlags & ~SCRIPT_VERIFY_CLEANSTACK, true, txdata)) {
-                // Only the witness is missing, so the transaction itself may be fine.
-                state.SetCorruptionPossible();
-            }
+//            if (tx.wit.IsNull() && CheckInputs(tx, state, view, true,
+//                                               scriptVerifyFlags &
+//                                               ~(SCRIPT_VERIFY_WITNESS | SCRIPT_VERIFY_CLEANSTACK),
+//                                               true, txdata) &&
+//                !CheckInputs(tx, state, view, true, scriptVerifyFlags & ~SCRIPT_VERIFY_CLEANSTACK, true, txdata)) {
+//                // Only the witness is missing, so the transaction itself may be fine.
+//                state.SetCorruptionPossible();
+//            }
             LogPrintf("CheckInputs --> Failed!\n");
             return false;
         }
@@ -2374,8 +2373,7 @@ int GetSpendHeight(const CCoinsViewCache &inputs) {
 }
 
 namespace Consensus {
-    bool
-    CheckTxInputs(const CTransaction &tx, CValidationState &state, const CCoinsViewCache &inputs, int nSpendHeight) {
+    bool CheckTxInputs(const CTransaction &tx, CValidationState &state, const CCoinsViewCache &inputs, int nSpendHeight) {
         // This doesn't trigger the DoS code on purpose; if it did, it would make it easier
         // for an attacker to attempt to split the network.
         if (!inputs.HaveInputs(tx))
@@ -2424,8 +2422,11 @@ bool CheckInputs(const CTransaction &tx, CValidationState &state, const CCoinsVi
                  unsigned int flags, bool cacheStore, PrecomputedTransactionData &txdata,
                  std::vector <CScriptCheck> *pvChecks) {
     if (!tx.IsCoinBase() && !tx.IsZerocoinSpend()) {
-        if (!Consensus::CheckTxInputs(tx, state, inputs, GetSpendHeight(inputs)))
+
+        if (!Consensus::CheckTxInputs(tx, state, inputs, GetSpendHeight(inputs))) {
+            LogPrintf("CheckTxInputs() failed!\n");
             return false;
+        }
 
         if (pvChecks)
             pvChecks->reserve(tx.vin.size());
@@ -2452,7 +2453,7 @@ bool CheckInputs(const CTransaction &tx, CValidationState &state, const CCoinsVi
                     pvChecks->push_back(CScriptCheck());
                     check.swap(pvChecks->back());
                 } else if (!check()) {
-                    if (flags & STANDARD_NOT_MANDATORY_VERIFY_FLAGS) {
+                    if (flags & SCRIPT_VERIFY_STRICTENC) {
                         // Check whether the failure was caused by a
                         // non-mandatory script verification check, such as
                         // non-standard DER encodings or non-null dummy
@@ -2460,11 +2461,13 @@ bool CheckInputs(const CTransaction &tx, CValidationState &state, const CCoinsVi
                         // avoid splitting the network between upgraded and
                         // non-upgraded nodes.
                         CScriptCheck check2(*coins, tx, i,
-                                            flags & ~STANDARD_NOT_MANDATORY_VERIFY_FLAGS, cacheStore, &txdata);
-                        if (check2())
+                                            flags & (~SCRIPT_VERIFY_STRICTENC), cacheStore, &txdata);
+                        if (check2()) {
+                            LogPrintf("non-mandatory-script-verify-flag\n");
                             return state.Invalid(false, REJECT_NONSTANDARD,
                                                  strprintf("non-mandatory-script-verify-flag (%s)",
                                                            ScriptErrorString(check.GetScriptError())));
+                        }
                     }
                     // Failures of other flags indicate a transaction that is
                     // invalid in new blocks, e.g. a invalid P2SH. We DoS ban
@@ -2473,6 +2476,7 @@ bool CheckInputs(const CTransaction &tx, CValidationState &state, const CCoinsVi
                     // as to the correct behavior - we may want to continue
                     // peering with non-upgraded nodes even after soft-fork
                     // super-majority signaling has occurred.
+                    LogPrintf("mandatory-script-verify-flag-failed\n");
                     return state.DoS(100, false, REJECT_INVALID, strprintf("mandatory-script-verify-flag-failed (%s)",
                                                                            ScriptErrorString(check.GetScriptError())));
                 }
@@ -3513,7 +3517,7 @@ bool static ReArrangeZcoinMint(CValidationState &state, const CChainParams &chai
                         unsigned int countExistingItems = 0;
                         listPubCoin.sort(CompHeight);
                         BOOST_FOREACH(const CZerocoinEntry& pubCoinIdItem, listPubCoin) {
-                            LogPrintf("denomination = %d, id = %d, height = %d\n", pubCoinIdItem.denomination, pubCoinIdItem.id, pubCoinIdItem.nHeight);
+//                            LogPrintf("denomination = %d, id = %d, height = %d\n", pubCoinIdItem.denomination, pubCoinIdItem.id, pubCoinIdItem.nHeight);
                             if(pubCoinIdItem.id > 0){
                                 if(pubCoinIdItem.nHeight <= pindexNew->nHeight){
                                     if(pubCoinIdItem.denomination == pubCoinItem.denomination){
@@ -5191,7 +5195,7 @@ bool LoadExternalBlockFile(const CChainParams &chainparams, FILE *fileIn, CDiskB
                     }
                 } else if (hash != chainparams.GetConsensus().hashGenesisBlock &&
                            mapBlockIndex[hash]->nHeight % 1000 == 0) {
-                    LogPrintf("reindex", "Block Import: already had block %s at height %d\n", hash.ToString(),
+                    LogPrintf("Block Import: already had block %s at height %d\n", hash.ToString(),
                              mapBlockIndex[hash]->nHeight);
                 }
 
@@ -5217,7 +5221,7 @@ bool LoadExternalBlockFile(const CChainParams &chainparams, FILE *fileIn, CDiskB
                         uint256 hash = block.GetHash();
                         int nHeight = mapBlockIndex[hash]->nHeight;
                         if (ReadBlockFromDisk(block, it->second, nHeight, chainparams.GetConsensus())) {
-                            LogPrintf("reindex", "%s: Processing out of order child %s of %s\n", __func__,
+                            LogPrint("reindex", "%s: Processing out of order child %s of %s\n", __func__,
                                      block.GetHash().ToString(),
                                      head.ToString());
                             LOCK(cs_main);
@@ -5707,7 +5711,7 @@ uint32_t GetFetchFlags(CNode *pfrom, CBlockIndex *pprev, const Consensus::Params
 
 bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, int64_t nTimeReceived,
                            const CChainParams &chainparams) {
-//    LogPrintf("ProcessMessage, strCommand=%s\n", strCommand);
+    LogPrintf("ProcessMessage, strCommand=%s\n", strCommand);
 //    LogPrintf("net received: %s (%u bytes) peer=%d\n", SanitizeString(strCommand), vRecv.size(), pfrom->id);
     if (mapArgs.count("-dropmessagestest") && GetRand(atoi(mapArgs["-dropmessagestest"])) == 0) {
         LogPrintf("dropmessagestest DROPPING RECV MESSAGE\n");
@@ -5756,8 +5760,8 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
             addrman.SetServices(pfrom->addr, pfrom->nServices);
         }
         if (pfrom->nServicesExpected & ~pfrom->nServices) {
-            LogPrint("net", "peer=%d does not offer the expected services (%08x offered, %08x expected); disconnecting\n",
-                     pfrom->id, pfrom->nServices, pfrom->nServicesExpected);
+//            LogPrint("net", "peer=%d does not offer the expected services (%08x offered, %08x expected); disconnecting\n",
+//                     pfrom->id, pfrom->nServices, pfrom->nServicesExpected);
             pfrom->PushMessage(NetMsgType::REJECT, strCommand, REJECT_NONSTANDARD,
                                strprintf("Expected to offer services %08x", pfrom->nServicesExpected));
             pfrom->fDisconnect = true;
@@ -5766,7 +5770,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
 
         if (pfrom->nVersion < MIN_PEER_PROTO_VERSION) {
             // disconnect from peers older than this proto version
-            LogPrintf("peer=%d using obsolete version %i; disconnecting\n", pfrom->id, pfrom->nVersion);
+//            LogPrintf("peer=%d using obsolete version %i; disconnecting\n", pfrom->id, pfrom->nVersion);
             pfrom->PushMessage(NetMsgType::REJECT, strCommand, REJECT_OBSOLETE,
                                strprintf("Version must be %d or greater", MIN_PEER_PROTO_VERSION));
             pfrom->fDisconnect = true;
@@ -5794,7 +5798,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
 
         // Disconnect if we connected to ourself
         if (nNonce == nLocalHostNonce && nNonce > 1) {
-            LogPrintf("connected to self at %s, disconnecting\n", pfrom->addr.ToString());
+//            LogPrintf("connected to self at %s, disconnecting\n", pfrom->addr.ToString());
             pfrom->fDisconnect = true;
             return true;
         }
@@ -5853,10 +5857,10 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
         if (fLogIPs)
             remoteAddr = ", peeraddr=" + pfrom->addr.ToString();
 
-        LogPrintf("receive version message: %s: version %d, blocks=%d, us=%s, peer=%d%s\n",
-                  pfrom->cleanSubVer, pfrom->nVersion,
-                  pfrom->nStartingHeight, addrMe.ToString(), pfrom->id,
-                  remoteAddr);
+//        LogPrintf("receive version message: %s: version %d, blocks=%d, us=%s, peer=%d%s\n",
+//                  pfrom->cleanSubVer, pfrom->nVersion,
+//                  pfrom->nStartingHeight, addrMe.ToString(), pfrom->id,
+//                  remoteAddr);
 
         int64_t nTimeOffset = nTime - GetTime();
         pfrom->nTimeOffset = nTimeOffset;
@@ -6008,7 +6012,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
             boost::this_thread::interruption_point();
 
             bool fAlreadyHave = AlreadyHave(inv);
-            LogPrint("net", "got inv: %s  %s peer=%d\n", inv.ToString(), fAlreadyHave ? "have" : "new", pfrom->id);
+//            LogPrint("net", "got inv: %s  %s peer=%d\n", inv.ToString(), fAlreadyHave ? "have" : "new", pfrom->id);
 
             if (inv.type == MSG_TX) {
                 inv.type |= nFetchFlags;
@@ -6040,14 +6044,15 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
                         // later (within the same cs_main lock, though).
                         MarkBlockAsInFlight(pfrom->GetId(), inv.hash, chainparams.GetConsensus());
                     }
-                    LogPrint("net", "getheaders (%d) %s to peer=%d\n", pindexBestHeader->nHeight, inv.hash.ToString(),
-                             pfrom->id);
+//                    LogPrint("net", "getheaders (%d) %s to peer=%d\n", pindexBestHeader->nHeight, inv.hash.ToString(),
+//                             pfrom->id);
                 }
             } else {
                 pfrom->AddInventoryKnown(inv);
-                if (fBlocksOnly)
+                if (fBlocksOnly) {
                     LogPrint("net", "transaction (%s) inv sent in violation of protocol peer=%d\n", inv.hash.ToString(),
                              pfrom->id);
+                }
                 else if (!fAlreadyHave && !fImporting && !fReindex && !IsInitialBlockDownload())
                     pfrom->AskFor(inv);
             }
@@ -6072,11 +6077,13 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
             return error("message getdata size() = %u", vInv.size());
         }
 
-        if (fDebug || (vInv.size() != 1))
+        if (fDebug || (vInv.size() != 1)) {
             LogPrint("net", "received getdata (%u invsz) peer=%d\n", vInv.size(), pfrom->id);
+        }
 
-        if ((fDebug && vInv.size() > 0) || (vInv.size() == 1))
+        if ((fDebug && vInv.size() > 0) || (vInv.size() == 1)) {
             LogPrint("net", "received getdata for: %s peer=%d\n", vInv[0].ToString(), pfrom->id);
+        }
 
         pfrom->vRecvGetData.insert(pfrom->vRecvGetData.end(), vInv.begin(), vInv.end());
         ProcessGetData(pfrom, chainparams.GetConsensus());
@@ -6094,11 +6101,12 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
         if (pindex)
             pindex = chainActive.Next(pindex);
         int nLimit = 500;
-        LogPrint("net", "getblocks %d to %s limit %d from peer=%d\n", (pindex ? pindex->nHeight : -1),
-                 hashStop.IsNull() ? "end" : hashStop.ToString(), nLimit, pfrom->id);
+//        LogPrint("net", "getblocks %d to %s limit %d from peer=%d\n", (pindex ? pindex->nHeight : -1),
+//                 hashStop.IsNull() ? "end" : hashStop.ToString(), nLimit, pfrom->id);
         for (; pindex; pindex = chainActive.Next(pindex)) {
             if (pindex->GetBlockHash() == hashStop) {
-                LogPrint("net", "  getblocks stopping at %d %s\n", pindex->nHeight, pindex->GetBlockHash().ToString());
+                LogPrintf("getblocks stopping at %d %s\n", pindex->nHeight, pindex->GetBlockHash().ToString());
+//                LogPrint("net", "  getblocks stopping at %d %s\n", pindex->nHeight, pindex->GetBlockHash().ToString());
                 break;
             }
             // If pruning, don't inv blocks unless we have on disk and are likely to still have
@@ -6107,7 +6115,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
                     MIN_BLOCKS_TO_KEEP - 3600 / chainparams.GetConsensus().nPowTargetSpacing;
             if (fPruneMode && (!(pindex->nStatus & BLOCK_HAVE_DATA) ||
                                pindex->nHeight <= chainActive.Tip()->nHeight - nPrunedBlocksLikelyToHave)) {
-                LogPrint("net", " getblocks stopping, pruned or too old block at %d %s\n", pindex->nHeight,
+                LogPrintf("getblocks stopping, pruned or too old block at %d %s\n", pindex->nHeight,
                          pindex->GetBlockHash().ToString());
                 break;
             }
@@ -6129,7 +6137,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
 
         BlockMap::iterator it = mapBlockIndex.find(req.blockhash);
         if (it == mapBlockIndex.end() || !(it->second->nStatus & BLOCK_HAVE_DATA)) {
-            LogPrintf("Peer %d sent us a getblocktxn for a block we don't have", pfrom->id);
+//            LogPrintf("Peer %d sent us a getblocktxn for a block we don't have", pfrom->id);
             return true;
         }
 
@@ -6141,7 +6149,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
             // might maliciously send lots of getblocktxn requests to trigger
             // expensive disk reads, because it will require the peer to
             // actually receive all the data read from disk over the network.
-            LogPrint("net", "Peer %d sent us a getblocktxn for a block > %i deep", pfrom->id, MAX_BLOCKTXN_DEPTH);
+//            LogPrint("net", "Peer %d sent us a getblocktxn for a block > %i deep", pfrom->id, MAX_BLOCKTXN_DEPTH);
             CInv inv;
             inv.type = State(pfrom->GetId())->fWantsCmpctWitness ? MSG_WITNESS_BLOCK : MSG_BLOCK;
             inv.hash = req.blockhash;
@@ -6157,7 +6165,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
         for (size_t i = 0; i < req.indexes.size(); i++) {
             if (req.indexes[i] >= block.vtx.size()) {
                 Misbehaving(pfrom->GetId(), 100);
-                LogPrintf("Peer %d sent us a getblocktxn with out-of-bounds tx indices", pfrom->id);
+//                LogPrintf("Peer %d sent us a getblocktxn with out-of-bounds tx indices", pfrom->id);
                 return true;
             }
             resp.txn[i] = block.vtx[req.indexes[i]];
@@ -6171,7 +6179,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
 
         LOCK(cs_main);
         if (IsInitialBlockDownload() && !pfrom->fWhitelisted) {
-            LogPrint("net", "Ignoring getheaders from peer=%d because node is in initial block download\n", pfrom->id);
+//            LogPrint("net", "Ignoring getheaders from peer=%d because node is in initial block download\n", pfrom->id);
             return true;
         }
 
@@ -6193,8 +6201,8 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
         // we must use CBlocks, as CBlockHeaders won't include the 0x00 nTx count at the end
         vector <CBlock> vHeaders;
         int nLimit = MAX_HEADERS_RESULTS;
-        LogPrint("net", "getheaders %d to %s from peer=%d\n", (pindex ? pindex->nHeight : -1), hashStop.ToString(),
-                 pfrom->id);
+//        LogPrint("net", "getheaders %d to %s from peer=%d\n", (pindex ? pindex->nHeight : -1), hashStop.ToString(),
+//                 pfrom->id);
         for (; pindex; pindex = chainActive.Next(pindex)) {
             vHeaders.push_back(pindex->GetBlockHeader());
             if (--nLimit <= 0 || pindex->GetBlockHash() == hashStop)
@@ -6209,9 +6217,8 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
     } else if (strCommand == NetMsgType::TX) {
         // Stop processing the transaction early if
         // We are in blocks only mode and peer is either not whitelisted or whitelistrelay is off
-        LogPrintf("ProcessMessage() tx\n");
         if (!fRelayTxes && (!pfrom->fWhitelisted || !GetBoolArg("-whitelistrelay", DEFAULT_WHITELISTRELAY))) {
-            LogPrint("net", "transaction sent in violation of protocol peer=%d\n", pfrom->id);
+//            LogPrint("net", "transaction sent in violation of protocol peer=%d\n", pfrom->id);
             return true;
         }
 
@@ -6219,6 +6226,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
         vector <uint256> vEraseQueue;
         CTransaction tx;
         vRecv >> tx;
+        LogPrintf("ProcessMessage() txHash=%s\n", tx.GetHash().ToString());
 
         CInv inv(MSG_TX, tx.GetHash());
         pfrom->AddInventoryKnown(inv);
@@ -6233,7 +6241,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
         mapAlreadyAskedFor.erase(inv.hash);
         //&& !AlreadyHave(inv)
         if (!tx.IsZerocoinSpend()  && AcceptToMemoryPool(mempool, state, tx, true, true, &fMissingInputs)) {
-//            mempool.check(pcoinsTip);
+            mempool.check(pcoinsTip);
             RelayTransaction(tx);
             for (unsigned int i = 0; i < tx.vout.size(); i++) {
                 vWorkQueue.emplace_back(inv.hash, i);
@@ -6295,7 +6303,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
                             recentRejects->insert(orphanHash);
                         }
                     }
-//                    mempool.check(pcoinsTip);
+                    mempool.check(pcoinsTip);
                 }
             }
 
@@ -6336,14 +6344,14 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
                 if (nEvicted > 0)
                     LogPrint("mempool", "mapOrphan overflow, removed %u tx\n", nEvicted);
             } else {
-                LogPrint("mempool", "not keeping orphan with rejected parents %s\n", tx.GetHash().ToString());
+//                LogPrint("mempool", "not keeping orphan with rejected parents %s\n", tx.GetHash().ToString());
             }
         }
         int nDoS = 0;
         if (state.IsInvalid(nDoS)) {
-            LogPrint("mempoolrej", "%s from peer=%d was not accepted: %s\n", tx.GetHash().ToString(),
-                     pfrom->id,
-                     FormatStateMessage(state));
+//            LogPrint("mempoolrej", "%s from peer=%d was not accepted: %s\n", tx.GetHash().ToString(),
+//                     pfrom->id,
+//                     FormatStateMessage(state));
             if (state.GetRejectCode() < REJECT_INTERNAL) // Never send AcceptToMemoryPool's internal codes over P2P
                 pfrom->PushMessage(NetMsgType::REJECT, strCommand, (unsigned char) state.GetRejectCode(),
                                    state.GetRejectReason().substr(0, MAX_REJECT_MESSAGE_LENGTH), inv.hash);
@@ -6444,7 +6452,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
                 if (status == READ_STATUS_INVALID) {
                     MarkBlockAsReceived(pindex->GetBlockHash()); // Reset in-flight state in case of whitelist
                     Misbehaving(pfrom->GetId(), 100);
-                    LogPrintf("Peer %d sent us invalid compact block\n", pfrom->id);
+//                    LogPrintf("Peer %d sent us invalid compact block\n", pfrom->id);
                     return true;
                 } else if (status == READ_STATUS_FAILED) {
                     // Duplicate txindexes, the block is now in-flight, so just request it
@@ -6545,7 +6553,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
         CheckBlockIndex(chainparams.GetConsensus());
     } else if (strCommand == NetMsgType::BLOCKTXN && !fImporting && !fReindex) // Ignore blocks received while importing
     {
-        LogPrintf("ProcessMessages()-> strCommand=%s\n", strCommand);
+//        LogPrintf("ProcessMessages()-> strCommand=%s\n", strCommand);
         BlockTransactions resp;
         vRecv >> resp;
 
@@ -6555,7 +6563,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
         it = mapBlocksInFlight.find(resp.blockhash);
         if (it == mapBlocksInFlight.end() || !it->second.second->partialBlock ||
             it->second.first != pfrom->GetId()) {
-            LogPrint("net", "Peer %d sent us block transactions for block we weren't expecting\n", pfrom->id);
+//            LogPrint("net", "Peer %d sent us block transactions for block we weren't expecting\n", pfrom->id);
             return true;
         }
 
@@ -6696,8 +6704,8 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
                 // Headers message had its maximum size; the peer may have more headers.
                 // TODO: optimize: if pindexLast is an ancestor of chainActive.Tip or pindexBestHeader, continue
                 // from there instead.
-                LogPrint("net", "more getheaders (%d) to end to peer=%d (startheight:%d)\n", pindexLast->nHeight,
-                         pfrom->id, pfrom->nStartingHeight);
+//                LogPrint("net", "more getheaders (%d) to end to peer=%d (startheight:%d)\n", pindexLast->nHeight,
+//                         pfrom->id, pfrom->nStartingHeight);
                 pfrom->PushMessage(NetMsgType::GETHEADERS, chainActive.GetLocator(pindexLast), uint256());
             }
 
@@ -6725,9 +6733,9 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
                 // the main chain -- this shouldn't really happen.  Bail out on the
                 // direct fetch and rely on parallel download instead.
                 if (!chainActive.Contains(pindexWalk)) {
-                    LogPrint("net", "Large reorg, won't direct fetch to %s (%d)\n",
-                             pindexLast->GetBlockHash().ToString(),
-                             pindexLast->nHeight);
+//                    LogPrint("net", "Large reorg, won't direct fetch to %s (%d)\n",
+//                             pindexLast->GetBlockHash().ToString(),
+//                             pindexLast->nHeight);
                 } else {
                     vector <CInv> vGetData;
                     // Download as much as possible, from earliest to latest.
@@ -6910,12 +6918,12 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
         }
 
         if (!(sProblem.empty())) {
-            LogPrint("net", "pong peer=%d: %s, %x expected, %x received, %u bytes\n",
-                     pfrom->id,
-                     sProblem,
-                     pfrom->nPingNonceSent,
-                     nonce,
-                     nAvail);
+//            LogPrint("net", "pong peer=%d: %s, %x expected, %x received, %u bytes\n",
+//                     pfrom->id,
+//                     sProblem,
+//                     pfrom->nPingNonceSent,
+//                     nonce,
+//                     nAvail);
         }
         if (bPingFinished) {
             pfrom->nPingNonceSent = 0;
@@ -6992,14 +7000,14 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
                 LOCK(pfrom->cs_feeFilter);
                 pfrom->minFeeFilter = newFeeFilter;
             }
-            LogPrint("net", "received: feefilter of %s from peer=%d\n", CFeeRate(newFeeFilter).ToString(), pfrom->id);
+//            LogPrint("net", "received: feefilter of %s from peer=%d\n", CFeeRate(newFeeFilter).ToString(), pfrom->id);
         }
     } else if (strCommand == NetMsgType::NOTFOUND) {
         // We do not care about the NOTFOUND message, but logging an Unknown Command
         // message would be undesirable as we transmit it ourselves.
     } else {
         // Ignore unknown commands for extensibility
-        LogPrint("net", "Unknown command \"%s\" from peer=%d\n", SanitizeString(strCommand), pfrom->id);
+//        LogPrint("net", "Unknown command \"%s\" from peer=%d\n", SanitizeString(strCommand), pfrom->id);
     }
 
 
@@ -7052,7 +7060,8 @@ bool ProcessMessages(CNode *pfrom) {
 
         // Scan for message start
         if (memcmp(msg.hdr.pchMessageStart, chainparams.MessageStart(), MESSAGE_START_SIZE) != 0) {
-            LogPrintf("PROCESSMESSAGE: INVALID MESSAGESTART %s peer=%d\n", SanitizeString(msg.hdr.GetCommand()), pfrom->id);
+            LogPrintf("PROCESSMESSAGE: INVALID MESSAGESTART\n");
+//            LogPrintf("PROCESSMESSAGE: INVALID MESSAGESTART %s peer=%d\n", SanitizeString(msg.hdr.GetCommand()), pfrom->id);
             fOk = false;
             break;
         }
@@ -7060,7 +7069,8 @@ bool ProcessMessages(CNode *pfrom) {
         // Read header
         CMessageHeader &hdr = msg.hdr;
         if (!hdr.IsValid(chainparams.MessageStart())) {
-            LogPrintf("PROCESSMESSAGE: ERRORS IN HEADER %s peer=%d\n", SanitizeString(hdr.GetCommand()), pfrom->id);
+            LogPrintf("PROCESSMESSAGE: ERRORS IN HEADER\n");
+//            LogPrintf("PROCESSMESSAGE: ERRORS IN HEADER %s peer=%d\n", SanitizeString(hdr.GetCommand()), pfrom->id);
             continue;
         }
         string strCommand = hdr.GetCommand();
@@ -7073,8 +7083,9 @@ bool ProcessMessages(CNode *pfrom) {
         uint256 hash = Hash(vRecv.begin(), vRecv.begin() + nMessageSize);
         unsigned int nChecksum = ReadLE32((unsigned char *) &hash);
         if (nChecksum != hdr.nChecksum) {
-            LogPrintf("%s(%s, %u bytes): CHECKSUM ERROR nChecksum=%08x hdr.nChecksum=%08x\n", __func__,
-                      SanitizeString(strCommand), nMessageSize, nChecksum, hdr.nChecksum);
+            LogPrintf("CHECKSUM ERROR\n");
+//            LogPrintf("%s(%s, %u bytes): CHECKSUM ERROR nChecksum=%08x hdr.nChecksum=%08x\n", __func__,
+//                      SanitizeString(strCommand), nMessageSize, nChecksum, hdr.nChecksum);
             continue;
         }
 
@@ -7096,16 +7107,16 @@ bool ProcessMessages(CNode *pfrom) {
                 // Allow exceptions from non-canonical encoding
                 LogPrintf("%s(%s, %u bytes): Exception '%s' caught\n", __func__, SanitizeString(strCommand), nMessageSize, e.what());
             } else {
-                PrintExceptionContinue(&e, "ProcessMessages()");
+                PrintExceptionContinue(&e, "ProcessMessages() 1");
             }
         }
         catch (const boost::thread_interrupted &) {
             throw;
         }
         catch (const std::exception &e) {
-            PrintExceptionContinue(&e, "ProcessMessages()");
+            PrintExceptionContinue(&e, "ProcessMessages() 2");
         } catch (...) {
-            PrintExceptionContinue(NULL, "ProcessMessages()");
+            PrintExceptionContinue(NULL, "ProcessMessages() 3");
         }
 
         if (!fRet)
