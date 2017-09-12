@@ -382,7 +382,7 @@ void CBlockPolicyEstimator::processTransaction(const CTxMemPoolEntry& entry, boo
     // Want the priority of the tx at confirmation. However we don't know
     // what that will be and its too hard to continue updating it
     // so use starting priority as a proxy
-    double curPri = entry.GetPriority(txHeight);
+//    double curPri = entry.GetPriority(txHeight);
     mapMemPoolTxs[hash].blockHeight = txHeight;
 
     LogPrint("estimatefee", "Blockpolicy mempool tx %s \n", hash.ToString());
