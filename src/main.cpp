@@ -5776,6 +5776,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
             pfrom->PushMessage(NetMsgType::REJECT, strCommand, REJECT_DUPLICATE, string("Duplicate version message"));
             LOCK(cs_main);
             Misbehaving(pfrom->GetId(), 1);
+            LogPrintf("pfrom->nVersion = %s\n", pfrom->nVersion);
             return false;
         }
 
@@ -5790,7 +5791,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
             addrman.SetServices(pfrom->addr, pfrom->nServices);
         }
         if (pfrom->nServicesExpected & ~pfrom->nServices) {
-//            LogPrint("net", "peer=%d does not offer the expected services (%08x offered, %08x expected); disconnecting\n",
+//            LogPrintf("peer=%d does not offer the expected services (%08x offered, %08x expected); disconnecting\n",
 //                     pfrom->id, pfrom->nServices, pfrom->nServicesExpected);
             pfrom->PushMessage(NetMsgType::REJECT, strCommand, REJECT_NONSTANDARD,
                                strprintf("Expected to offer services %08x", pfrom->nServicesExpected));
@@ -5899,6 +5900,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
         // Must have a version message before anything else
         LOCK(cs_main);
         Misbehaving(pfrom->GetId(), 1);
+        LogPrintf("Must have a version message before anything else\n");
         return false;
     } else if (strCommand == NetMsgType::VERACK) {
         pfrom->SetRecvVersion(min(pfrom->nVersion, PROTOCOL_VERSION));

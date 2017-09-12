@@ -2179,7 +2179,7 @@ bool CWallet::CreateTransaction(const vector <CRecipient> &vecSend, CWalletTx &w
             std::vector <COutput> vAvailableCoins;
             AvailableCoins(vAvailableCoins, true, coinControl);
 
-            nFeeRet = 0;
+            nFeeRet = payTxFee.GetFeePerK();
             // Start with no fee and loop until there is enough fee
             while (true) {
                 nChangePosInOut = nChangePosRequest;
@@ -2194,8 +2194,7 @@ bool CWallet::CreateTransaction(const vector <CRecipient> &vecSend, CWalletTx &w
                     nValueToSelect += nFeeRet;
                 double dPriority = 0;
                 // vouts to the payees
-                BOOST_FOREACH(
-                const CRecipient &recipient, vecSend)
+                BOOST_FOREACH(const CRecipient &recipient, vecSend)
                 {
                     CTxOut txout(recipient.nAmount, recipient.scriptPubKey);
 
@@ -4540,7 +4539,7 @@ bool CWallet::ParameterInteraction() {
                     mapArgs["-maxtxfee"], ::minRelayTxFee.ToString()));
         }
     }
-    
+
     if (mapArgs.count("-mininput"))
     {
         if (!ParseMoney(mapArgs["-mininput"], nMinimumInputValue))
