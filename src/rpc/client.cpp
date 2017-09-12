@@ -105,6 +105,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "getmempoolancestors", 1 },
     { "getmempooldescendants", 1 },
     //[zcoin]
+    { "setmininput", 0 },
     { "mintzerocoin", 0 },
     { "spendzerocoin", 0 },
     { "setgenerate", 0 },

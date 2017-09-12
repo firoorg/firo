@@ -1,5 +1,5 @@
-#!/usr/bin/python
-# Copyright (c) 2014 Wladimir J. van der Laan
+#!/usr/bin/env python3
+# Copyright (c) 2014-2017 Wladimir J. van der Laan
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 '''
@@ -11,7 +11,7 @@ argument:
     nodes_main.txt
     nodes_test.txt
 
-These files must consist of lines in the format 
+These files must consist of lines in the format
 
     <ip>
     <ip>:<port>
@@ -31,7 +31,7 @@ The output will be two data structures with the peers in binary format:
 
 These should be pasted into `src/chainparamsseeds.h`.
 '''
-from __future__ import print_function, division
+
 from base64 import b32decode
 from binascii import a2b_hex
 import sys, os
@@ -49,7 +49,6 @@ def name_to_ipv6(addr):
             raise ValueError('Invalid onion %s' % s)
         return pchOnionCat + vchAddr
     elif '.' in addr: # IPv4
-        test = pchIPv4 + bytearray((int(x) for x in addr.split('.')))
         return pchIPv4 + bytearray((int(x) for x in addr.split('.')))
     elif ':' in addr: # IPv6
         sub = [[], []] # prefix, suffix
@@ -115,7 +114,7 @@ def process_nodes(g, f, structname, defaultport):
 def main():
     if len(sys.argv)<2:
         print(('Usage: %s <path_to_nodes_txt>' % sys.argv[0]), file=sys.stderr)
-        exit(1)
+        sys.exit(1)
     g = sys.stdout
     indir = sys.argv[1]
     g.write('#ifndef BITCOIN_CHAINPARAMSSEEDS_H\n')
@@ -128,15 +127,11 @@ def main():
     g.write(' * IPv4 as well as onion addresses are wrapped inside a IPv6 address accordingly.\n')
     g.write(' */\n')
     with open(os.path.join(indir,'nodes_main.txt'),'r') as f:
-        process_nodes(g, f, 'pnSeed6_main', 8333)
+        process_nodes(g, f, 'pnSeed6_main', 8168)
     g.write('\n')
     with open(os.path.join(indir,'nodes_test.txt'),'r') as f:
-        process_nodes(g, f, 'pnSeed6_test', 18333)
+        process_nodes(g, f, 'pnSeed6_test', 28168)
     g.write('#endif // BITCOIN_CHAINPARAMSSEEDS_H\n')
-            
+
 if __name__ == '__main__':
     main()
-
-test = name_to_ipv6('52.175.244.22')
-for number in test:
-    print(hex(number))

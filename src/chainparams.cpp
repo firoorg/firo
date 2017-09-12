@@ -262,7 +262,7 @@ public:
         vFixedSeeds.clear();
         vSeeds.clear();
         // nodes with support for servicebits filtering should be at the top
-        //btzc: zcoin test seeds
+        // zcoin test seeds
         vSeeds.push_back(CDNSSeedData("52.175.244.22", "52.175.244.22", false));
 
 //        vSeeds.push_back(CDNSSeedData("testnetbitcoin.jonasschnelli.ch", "testnet-seed.bitcoin.jonasschnelli.ch", true));

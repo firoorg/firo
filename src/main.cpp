@@ -95,6 +95,10 @@ CAmount maxTxFee = DEFAULT_TRANSACTION_MAXFEE;
 CTxMemPool mempool(::minRelayTxFee);
 FeeFilterRounder filterRounder(::minRelayTxFee);
 
+// Settings
+int64_t nTransactionFee = 0;
+int64_t nMinimumInputValue = DUST_HARD_LIMIT;
+
 struct IteratorComparator {
     template<typename I>
     bool operator()(const I &a, const I &b) {
@@ -1123,7 +1127,7 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx, CZerocoinEntry pubCoinTx
             }
             int countPubcoin = 0;
             if (!passVerify) {
-                LogPrintf("Check waterfall\n");
+//                LogPrintf("Check waterfall\n");
                 BOOST_FOREACH(const CZerocoinEntry &pubCoinItem, listPubCoin) {
 //                    LogPrint("CheckSpendZcoinTransaction", "--denomination = %d, id = %d, pubcoinId = %d height = %d\n",
 //                              pubCoinItem.denomination, pubCoinItem.id, pubcoinId, pubCoinItem.nHeight);
@@ -1164,7 +1168,7 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx, CZerocoinEntry pubCoinTx
 
             if (!passVerify) {
                 int countPubcoin = 0;
-                LogPrint("CheckSpendZcoinTransaction", "Check reverse\n");
+//                LogPrint("CheckSpendZcoinTransaction", "Check reverse\n");
                 BOOST_REVERSE_FOREACH(const CZerocoinEntry &pubCoinItem, listPubCoin) {
 //                    LogPrintf("--denomination = %d, id = %d, pubcoinId = %d height = %d\n",
 //                              pubCoinItem.denomination, pubCoinItem.id, pubcoinId, pubCoinItem.nHeight);
@@ -1709,36 +1713,43 @@ bool AcceptToMemoryPoolWorker(CTxMemPool &pool, CValidationState &state, const C
         CTxMemPoolEntry entry(tx, nFees, GetTime(), dPriority, chainActive.Height(), pool.HasNoInputsOf(tx),
                               inChainInputValue, fSpendsCoinbase, nSigOpsCost, lp);
 
+        // Don't accept it if it can't get into a block
+        int64_t txMinFee = tx.GetMinFee(1000, true, GMF_RELAY);
+        if (fLimitFree && nFees < txMinFee) {
+            LogPrintf("not enought fee, nFees=%d, txMinFee=%d\n", nFees, txMinFee);
+            return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "not enough fee", false, strprintf("nFees=%d, txMinFee=%d", nFees, txMinFee));
+        }
         unsigned int nSize = entry.GetTxSize();
+
 
         // Check that the transaction doesn't have an excessive number of
         // sigops, making it impossible to mine. Since the coinbase transaction
         // itself can contain sigops MAX_STANDARD_TX_SIGOPS is less than
         // MAX_BLOCK_SIGOPS; we still consider this an invalid rather than
         // merely non-standard transaction.
-        if (nSigOpsCost > MAX_STANDARD_TX_SIGOPS_COST) {
-            LogPrintf("cause by -> bad-txns-too-many-sigops\n");
-            return state.DoS(0, false, REJECT_NONSTANDARD, "bad-txns-too-many-sigops", false,
-                             strprintf("%d", nSigOpsCost));
-        }
-        CAmount mempoolRejectFee = pool.GetMinFee(GetArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000).GetFee(
-                nSize);
-        if (mempoolRejectFee > 0 && nModifiedFees < mempoolRejectFee) {
-            LogPrintf("cause by -> mempool min fee not met\n");
-            return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "mempool min fee not met", false,
-                             strprintf("%d < %d", nFees, mempoolRejectFee));
-        } else if (GetBoolArg("-relaypriority", DEFAULT_RELAYPRIORITY) &&
-                   nModifiedFees < ::minRelayTxFee.GetFee(nSize) &&
-                   !AllowFree(entry.GetPriority(chainActive.Height() + 1))) {
-            LogPrintf("cause by -> insufficient priority\n");
+//        if (nSigOpsCost > MAX_STANDARD_TX_SIGOPS_COST) {
+//            LogPrintf("cause by -> bad-txns-too-many-sigops\n");
+//            return state.DoS(0, false, REJECT_NONSTANDARD, "bad-txns-too-many-sigops", false,
+//                             strprintf("%d", nSigOpsCost));
+//        }
+//        CAmount mempoolRejectFee = pool.GetMinFee(GetArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000).GetFee(
+//                nSize);
+//        if (mempoolRejectFee > 0 && nModifiedFees < mempoolRejectFee) {
+//            LogPrintf("cause by -> mempool min fee not met\n");
+//            return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "mempool min fee not met", false,
+//                             strprintf("%d < %d", nFees, mempoolRejectFee));
+//        } else if (GetBoolArg("-relaypriority", DEFAULT_RELAYPRIORITY) &&
+//                   nModifiedFees < ::minRelayTxFee.GetFee(nSize) &&
+//                   !AllowFree(entry.GetPriority(chainActive.Height() + 1))) {
+//            LogPrintf("cause by -> insufficient priority\n");
             // Require that free transactions have sufficient priority to be mined in the next block.
-            return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "insufficient priority");
-        }
+//            return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "insufficient priority");
+//        }
 
         // Continuously rate-limit free (really, very-low-fee) transactions
         // This mitigates 'penny-flooding' -- sending thousands of free transactions just to
         // be annoying or make others' transactions take longer to confirm.
-        if (fLimitFree && nModifiedFees < ::minRelayTxFee.GetFee(nSize)) {
+        if (fLimitFree && nFees < CTransaction::nMinRelayTxFee) {
             static CCriticalSection csFreeLimiter;
             static double dFreeCount;
             static int64_t nLastTime;
@@ -1760,9 +1771,10 @@ bool AcceptToMemoryPoolWorker(CTxMemPool &pool, CValidationState &state, const C
         }
 
         if (nAbsurdFee && nFees > nAbsurdFee)
-            return state.Invalid(false,
-                                 REJECT_HIGHFEE, "absurdly-high-fee",
-                                 strprintf("%d > %d", nFees, nAbsurdFee));
+            return state.Invalid(false, REJECT_HIGHFEE, "absurdly-high-fee", strprintf("%d > %d", nFees, nAbsurdFee));
+
+        if (nAbsurdFee && nFees > CTransaction::nMinRelayTxFee * 1000)
+            return state.Invalid(false, REJECT_HIGHFEE, "insane fee", strprintf("%d > %d", nFees, CTransaction::nMinRelayTxFee * 1000));
 
         // Calculate in-mempool ancestors, up to a limit.
         CTxMemPool::setEntries setAncestors;
@@ -1918,9 +1930,9 @@ bool AcceptToMemoryPoolWorker(CTxMemPool &pool, CValidationState &state, const C
         // Check against previous transactions
         // This is done last to help prevent CPU exhaustion denial-of-service attacks.
         unsigned int scriptVerifyFlags = SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_STRICTENC;
-        if (!Params().RequireStandard()) {
-            scriptVerifyFlags = GetArg("-promiscuousmempoolflags", scriptVerifyFlags);
-        }
+//        if (!Params().RequireStandard()) {
+//            scriptVerifyFlags = GetArg("-promiscuousmempoolflags", scriptVerifyFlags);
+//        }
         PrecomputedTransactionData txdata(tx);
         if (!CheckInputs(tx, state, view, true, scriptVerifyFlags, true, txdata)) {
             // SCRIPT_VERIFY_CLEANSTACK requires SCRIPT_VERIFY_WITNESS, so we
@@ -1947,11 +1959,11 @@ bool AcceptToMemoryPoolWorker(CTxMemPool &pool, CValidationState &state, const C
         // There is a similar check in CreateNewBlock() to prevent creating
         // invalid blocks, however allowing such transactions into the mempool
         // can be exploited as a DoS attack.
-        if (!CheckInputs(tx, state, view, true, MANDATORY_SCRIPT_VERIFY_FLAGS, true, txdata)) {
-            return error(
-                    "%s: BUG! PLEASE REPORT THIS! ConnectInputs failed against MANDATORY but not STANDARD flags %s, %s",
-                    __func__, hash.ToString(), FormatStateMessage(state));
-        }
+//        if (!CheckInputs(tx, state, view, true, MANDATORY_SCRIPT_VERIFY_FLAGS, true, txdata)) {
+//            return error(
+//                    "%s: BUG! PLEASE REPORT THIS! ConnectInputs failed against MANDATORY but not STANDARD flags %s, %s",
+//                    __func__, hash.ToString(), FormatStateMessage(state));
+//        }
 
         // Remove conflicting transactions from the mempool
         BOOST_FOREACH(const CTxMemPool::txiter it, allConflicting)
@@ -2460,8 +2472,7 @@ bool CheckInputs(const CTransaction &tx, CValidationState &state, const CCoinsVi
                         // arguments; if so, don't trigger DoS protection to
                         // avoid splitting the network between upgraded and
                         // non-upgraded nodes.
-                        CScriptCheck check2(*coins, tx, i,
-                                            flags & (~SCRIPT_VERIFY_STRICTENC), cacheStore, &txdata);
+                        CScriptCheck check2(*coins, tx, i, flags & (~SCRIPT_VERIFY_STRICTENC), cacheStore, &txdata);
                         if (check2()) {
                             LogPrintf("non-mandatory-script-verify-flag\n");
                             return state.Invalid(false, REJECT_NONSTANDARD,
@@ -3395,6 +3406,7 @@ bool static ConnectTip(CValidationState &state, const CChainParams &chainparams,
              nTimeChainState * 0.000001);
     // Remove conflicting transactions from the mempool.
     list <CTransaction> txConflicted;
+//    LogPrint("ConnectTip", "pblock->ToString()=%s\n", pblock->ToString());
     mempool.removeForBlock(pblock->vtx, pindexNew->nHeight, txConflicted, !IsInitialBlockDownload());
     // Update chainActive & related variables.
     UpdateTip(pindexNew, chainparams);
@@ -3737,6 +3749,7 @@ static void NotifyHeaderTip() {
     }
 }
 
+
 /**
  * Make the best chain active, in multiple steps. The result is either failure
  * or an activated best chain. pblock is either NULL or a pointer to a block
@@ -3744,6 +3757,9 @@ static void NotifyHeaderTip() {
  */
 bool ActivateBestChain(CValidationState &state, const CChainParams &chainparams, const CBlock *pblock) {
     LogPrintf("ActivateBestChain()\n");
+//    if (pblock) {
+//        LogPrint("ActivateBestChain", "block=%s\n", pblock->ToString());
+//    }
     CBlockIndex *pindexMostWork = NULL;
     CBlockIndex *pindexNewTip = NULL;
     do {
@@ -4096,75 +4112,88 @@ bool CheckBlockHeader(const CBlockHeader &block, CValidationState &state, const 
 bool CheckBlock(const CBlock &block, CValidationState &state, const Consensus::Params &consensusParams, bool fCheckPOW,
                 bool fCheckMerkleRoot, int nHeight, bool isVerifyDB) {
     LogPrintf("CheckBlock() nHeight=%s, blockHash= %s, isVerifyDB = %s\n", nHeight, block.GetHash().ToString(), isVerifyDB);
-    // These are checks that are independent of context.
-    if (block.fChecked)
-        return true;
+    try {
+        // These are checks that are independent of context.
+        if (block.fChecked)
+            return true;
 
-    // Check that the header is valid (particularly PoW).  This is mostly
-    // redundant with the call in AcceptBlockHeader.
-    if (!CheckBlockHeader(block, state, consensusParams, fCheckPOW)) {
-        return false;
-    }
+        // Check that the header is valid (particularly PoW).  This is mostly
+        // redundant with the call in AcceptBlockHeader.
+        if (!CheckBlockHeader(block, state, consensusParams, fCheckPOW)) {
+            LogPrintf("CheckBlock - CheckBlockHeader -> failed!\n");
+            return false;
+        }
 
 //    LogPrintf("---fCheckMerkleRoot= %s\n", fCheckMerkleRoot);
-    // Check the merkle root.
-    if (fCheckMerkleRoot) {
-        bool mutated;
+        // Check the merkle root.
+        if (fCheckMerkleRoot) {
+            bool mutated;
 
-        uint256 hashMerkleRoot2 = BlockMerkleRoot(block, &mutated);
-//        LogPrintf("---hashMerkleRoot2=%s\n", hashMerkleRoot2.ToString());
-//        LogPrintf("---block.hashMerkleRoot=%s\n", block.hashMerkleRoot.ToString());
-        if (block.hashMerkleRoot != hashMerkleRoot2) {
-            return state.DoS(100, false, REJECT_INVALID, "bad-txnmrklroot", true, "hashMerkleRoot mismatch");
+            uint256 hashMerkleRoot2 = BlockMerkleRoot(block, &mutated);
+            if (block.hashMerkleRoot != hashMerkleRoot2) {
+                LogPrintf("CheckBlock - block.hashMerkleRoot != hashMerkleRoot2 -> failed!\n");
+                return state.DoS(100, false, REJECT_INVALID, "bad-txnmrklroot", true, "hashMerkleRoot mismatch");
+            }
+
+            // Check for merkle tree malleability (CVE-2012-2459): repeating sequences
+            // of transactions in a block without affecting the merkle root of a block,
+            // while still invalidating it.
+            if (mutated) {
+                LogPrintf("CheckBlock - mutated -> failed!\n");
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-duplicate", true, "duplicate transaction");
+            }
         }
 
-        // Check for merkle tree malleability (CVE-2012-2459): repeating sequences
-        // of transactions in a block without affecting the merkle root of a block,
-        // while still invalidating it.
-        if (mutated) {
-            return state.DoS(100, false, REJECT_INVALID, "bad-txns-duplicate", true, "duplicate transaction");
-        }
-    }
-
-    // All potential-corruption validation must be done before we do any
-    // transaction validation, as otherwise we may mark the header as invalid
-    // because we receive the wrong transactions for it.
-    // Note that witness malleability is checked in ContextualCheckBlock, so no
-    // checks that use witness data may be performed here.
-    // Size limits
-    if (block.vtx.empty() || block.vtx.size() > MAX_BLOCK_BASE_SIZE ||
-        ::GetSerializeSize(block, SER_NETWORK, PROTOCOL_VERSION | SERIALIZE_TRANSACTION_NO_WITNESS) >
-        MAX_BLOCK_BASE_SIZE)
-        return state.DoS(100, false, REJECT_INVALID, "bad-blk-length", false, "size limits failed");
-
-    // First transaction must be coinbase, the rest must not be
-    if (block.vtx.empty() || !block.vtx[0].IsCoinBase())
-        return state.DoS(100, false, REJECT_INVALID, "bad-cb-missing", false, "first tx is not coinbase");
-
-    for (unsigned int i = 1; i < block.vtx.size(); i++) {
-        if (block.vtx[i].IsCoinBase()) {
-            return state.DoS(100, false, REJECT_INVALID, "bad-cb-multiple", false, "more than one coinbase");
+        // All potential-corruption validation must be done before we do any
+        // transaction validation, as otherwise we may mark the header as invalid
+        // because we receive the wrong transactions for it.
+        // Note that witness malleability is checked in ContextualCheckBlock, so no
+        // checks that use witness data may be performed here.
+        // Size limits
+        if (block.vtx.empty() || block.vtx.size() > MAX_BLOCK_BASE_SIZE ||
+            ::GetSerializeSize(block, SER_NETWORK, PROTOCOL_VERSION) >
+            MAX_BLOCK_BASE_SIZE) {
+            LogPrintf("CheckBlock - size limits failed -> failed!\n");
+            return state.DoS(100, false, REJECT_INVALID, "bad-blk-length", false, "size limits failed");
         }
 
-    }
-    // Check transactions
-    BOOST_FOREACH(const CTransaction &tx, block.vtx)
-    if (!CheckTransaction(tx, state, tx.GetHash(), isVerifyDB, nHeight))
-        return state.Invalid(false, state.GetRejectCode(), state.GetRejectReason(),
-                             strprintf("Transaction check failed (tx hash %s) %s", tx.GetHash().ToString(),
-                                       state.GetDebugMessage()));
+        // First transaction must be coinbase, the rest must not be
+        if (block.vtx.empty() || !block.vtx[0].IsCoinBase()) {
+            LogPrintf("CheckBlock - first tx is not coinbase -> failed!\n");
+            return state.DoS(100, false, REJECT_INVALID, "bad-cb-missing", false, "first tx is not coinbase");
+        }
 
-    unsigned int nSigOps = 0;
-    BOOST_FOREACH(const CTransaction &tx, block.vtx)
-    {
-        nSigOps += GetLegacySigOpCount(tx);
-    }
-    if (nSigOps * WITNESS_SCALE_FACTOR > MAX_BLOCK_SIGOPS_COST)
-        return state.DoS(100, false, REJECT_INVALID, "bad-blk-sigops", false, "out-of-bounds SigOpCount");
+        for (unsigned int i = 1; i < block.vtx.size(); i++) {
+            if (block.vtx[i].IsCoinBase()) {
+                LogPrintf("CheckBlock - more than one coinbase -> failed!\n");
+                return state.DoS(100, false, REJECT_INVALID, "bad-cb-multiple", false, "more than one coinbase");
+            }
 
-    if (fCheckPOW && fCheckMerkleRoot)
-        block.fChecked = true;
-//    LogPrintf("---->CheckBlock success!\n");
+        }
+        // Check transactions
+        BOOST_FOREACH(const CTransaction &tx, block.vtx)
+        if (!CheckTransaction(tx, state, tx.GetHash(), isVerifyDB, nHeight)) {
+            return state.Invalid(false, state.GetRejectCode(), state.GetRejectReason(),
+                                 strprintf("Transaction check failed (tx hash %s) %s", tx.GetHash().ToString(),
+                                           state.GetDebugMessage()));
+        }
+
+        unsigned int nSigOps = 0;
+        BOOST_FOREACH(const CTransaction &tx, block.vtx)
+        {
+            nSigOps += GetLegacySigOpCount(tx);
+        }
+        if (nSigOps * WITNESS_SCALE_FACTOR > MAX_BLOCK_SIGOPS_COST)
+            return state.DoS(100, false, REJECT_INVALID, "bad-blk-sigops", false, "out-of-bounds SigOpCount");
+
+        if (fCheckPOW && fCheckMerkleRoot)
+            block.fChecked = true;
+        return true;
+    } catch (const std::exception &e) {
+        PrintExceptionContinue(&e, "CheckBlock() 1\n");
+    } catch (...) {
+        PrintExceptionContinue(NULL, "CheckBlock() 2\n");
+    }
     return true;
 }
 
@@ -4499,6 +4528,7 @@ bool ProcessNewBlock(CValidationState &state, const CChainParams &chainparams, C
                      bool fForceProcessing, const CDiskBlockPos *dbp, bool fMayBanPeerIfInvalid) {
     int nHeight = getNHeight(pblock->GetBlockHeader());
     LogPrintf("ProcessNewBlock nHeight=%s, blockHash:%s\n", nHeight, pblock->GetHash().ToString());
+//    LogPrint("ProcessNewBlock", "block=%s", pblock->ToString());
     {
         LOCK(cs_main);
         bool fRequested = MarkBlockAsReceived(pblock->GetHash());
@@ -6816,7 +6846,11 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
             if (!status) {
                 break;
             }
-            mapBlockData.erase(currentHeight+1);
+            int deleteHeight = currentHeight + 1 - 4;
+            while (deleteHeight > 0 && mapBlockData.count(deleteHeight) > 0) {
+                mapBlockData.erase(deleteHeight);
+                deleteHeight--;
+            }
             currentHeight++;
         }
     } else if (strCommand == NetMsgType::GETADDR) {

@@ -301,6 +301,22 @@ UniValue getaccount(const UniValue& params, bool fHelp)
     return strAccount;
 }
 
+UniValue setmininput(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() < 1 || params.size() > 1)
+        throw runtime_error(
+                "setmininput <amount>\n"
+                        "<amount> is a real and is rounded to the nearest 0.00000001");
+
+    // Amount
+    int64_t nAmount = 0;
+    if (params[0].get_real() != 0.0)
+        nAmount = AmountFromValue(params[0]);        // rejects 0.0 amounts
+
+    nMinimumInputValue = nAmount;
+    return true;
+}
+
 
 UniValue getaddressesbyaccount(const UniValue& params, bool fHelp)
 {
@@ -2894,6 +2910,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "walletpassphrasechange",   &walletpassphrasechange,   true  },
     { "wallet",             "walletpassphrase",         &walletpassphrase,         true  },
     { "wallet",             "removeprunedfunds",        &removeprunedfunds,        true  },
+    { "wallet",             "setmininput",              &setmininput,              false },
     { "wallet",             "listunspentmintzerocoins",             &listunspentmintzerocoins,             false },
     { "wallet",             "mintzerocoin",             &mintzerocoin,             false },
     { "wallet",             "spendzerocoin",            &spendzerocoin,            false },

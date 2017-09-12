@@ -1085,9 +1085,8 @@ CAmount CWallet::GetChange(const CTxOut &txout) const {
 }
 
 bool CWallet::IsMine(const CTransaction &tx) const {
-    BOOST_FOREACH(
-    const CTxOut &txout, tx.vout)
-    if (IsMine(txout))
+    BOOST_FOREACH(const CTxOut &txout, tx.vout)
+    if (IsMine(txout) && txout.nValue >= nMinimumInputValue)
         return true;
     return false;
 }
@@ -1406,6 +1405,7 @@ bool CWalletTx::RelayWalletTransaction(bool fCheckInputs) {
             return true;
         }
     }
+//    LogPrintf("CWalletTx::RelayWalletTransaction() --> invalid condition\n");
     return false;
 }
 
@@ -1773,7 +1773,7 @@ void CWallet::AvailableCoins(vector <COutput> &vCoins, bool fOnlyConfirmed, cons
             for (unsigned int i = 0; i < pcoin->vout.size(); i++) {
                 isminetype mine = IsMine(pcoin->vout[i]);
                 if (!(IsSpent(wtxid, i)) && mine != ISMINE_NO &&
-                    !IsLockedCoin((*it).first, i) && (pcoin->vout[i].nValue > 0 || fIncludeZeroValue) &&
+                    !IsLockedCoin((*it).first, i) && (pcoin->vout[i].nValue > nMinimumInputValue) &&
                     (!coinControl || !coinControl->HasSelected() || coinControl->fAllowOtherInputs ||
                      coinControl->IsSelected(COutPoint((*it).first, i))))
                     vCoins.push_back(COutput(pcoin, i, nDepth,
@@ -4540,6 +4540,13 @@ bool CWallet::ParameterInteraction() {
                     mapArgs["-maxtxfee"], ::minRelayTxFee.ToString()));
         }
     }
+    
+    if (mapArgs.count("-mininput"))
+    {
+        if (!ParseMoney(mapArgs["-mininput"], nMinimumInputValue))
+            return InitError(strprintf(_("Invalid amount for -mininput=<amount>: '%s'"), mapArgs["-mininput"].c_str()));
+    }
+
     nTxConfirmTarget = GetArg("-txconfirmtarget", DEFAULT_TX_CONFIRM_TARGET);
     bSpendZeroConfChange = GetBoolArg("-spendzeroconfchange", DEFAULT_SPEND_ZEROCONF_CHANGE);
     fSendFreeTransactions = GetBoolArg("-sendfreetransactions", DEFAULT_SEND_FREE_TRANSACTIONS);

@@ -336,33 +336,33 @@ void CTxMemPool::UpdateForRemoveFromMempool(const setEntries &entriesToRemove, b
 }
 
 void CTxMemPoolEntry::UpdateDescendantState(int64_t modifySize, CAmount modifyFee, int64_t modifyCount) {
-    LogPrintf("UpdateDescendantState()\n");
+//    LogPrintf("UpdateDescendantState()\n");
     nSizeWithDescendants += modifySize;
 //    assert(int64_t(nSizeWithDescendants) > 0);
     nModFeesWithDescendants += modifyFee;
     nCountWithDescendants += modifyCount;
 //    assert(int64_t(nCountWithDescendants) > 0);
-    LogPrintf("modifyFee=%s\n", modifyFee);
-    LogPrintf("modifyCount=%s\n", modifyCount);
-    LogPrintf("nCountWithDescendants=%s\n", nCountWithDescendants);
-    LogPrintf("nSizeWithDescendants=%s\n", nSizeWithDescendants);
+//    LogPrintf("modifyFee=%s\n", modifyFee);
+//    LogPrintf("modifyCount=%s\n", modifyCount);
+//    LogPrintf("nCountWithDescendants=%s\n", nCountWithDescendants);
+//    LogPrintf("nSizeWithDescendants=%s\n", nSizeWithDescendants);
 }
 
 void CTxMemPoolEntry::UpdateAncestorState(int64_t modifySize, CAmount modifyFee, int64_t modifyCount, int modifySigOps) {
-    LogPrintf("UpdateAncestorState()\n");
+//    LogPrintf("UpdateAncestorState()\n");
     nSizeWithAncestors += modifySize;
-    LogPrintf("modifySize=%s\n", modifySize);
-    LogPrintf("nSizeWithAncestors=%s\n", nSizeWithAncestors);
+//    LogPrintf("modifySize=%s\n", modifySize);
+//    LogPrintf("nSizeWithAncestors=%s\n", nSizeWithAncestors);
 //    assert(int64_t(nSizeWithAncestors) >= 0);
     nModFeesWithAncestors += modifyFee;
-    LogPrintf("modifyFee=%s\n", modifyFee);
-    LogPrintf("modifyCount=%s\n", modifyCount);
+//    LogPrintf("modifyFee=%s\n", modifyFee);
+//    LogPrintf("modifyCount=%s\n", modifyCount);
     nCountWithAncestors += modifyCount;
-    LogPrintf("nCountWithAncestors=%s\n", nCountWithAncestors);
+//    LogPrintf("nCountWithAncestors=%s\n", nCountWithAncestors);
 //    assert(int64_t(nCountWithAncestors) >= 0);
     nSigOpCostWithAncestors += modifySigOps;
-    LogPrintf("modifySigOps=%s\n", modifySigOps);
-    LogPrintf("nSigOpCostWithAncestors=%s\n", nSigOpCostWithAncestors);
+//    LogPrintf("modifySigOps=%s\n", modifySigOps);
+//    LogPrintf("nSigOpCostWithAncestors=%s\n", nSigOpCostWithAncestors);
 //    assert(int(nSigOpCostWithAncestors) >= 0);
 }
 
@@ -614,10 +614,10 @@ void CTxMemPool::removeConflicts(const CTransaction &tx, std::list <CTransaction
  */
 void CTxMemPool::removeForBlock(const std::vector <CTransaction> &vtx, unsigned int nBlockHeight,
                                 std::list <CTransaction> &conflicts, bool fCurrentEstimate) {
+    LogPrint("CTxMemPool", "removeForBlock\n");
     LOCK(cs);
     std::vector <CTxMemPoolEntry> entries;
-    BOOST_FOREACH(
-    const CTransaction &tx, vtx)
+    BOOST_FOREACH(const CTransaction &tx, vtx)
     {
         uint256 hash = tx.GetHash();
 
@@ -625,8 +625,7 @@ void CTxMemPool::removeForBlock(const std::vector <CTransaction> &vtx, unsigned 
         if (i != mapTx.end())
             entries.push_back(*i);
     }
-    BOOST_FOREACH(
-    const CTransaction &tx, vtx)
+    BOOST_FOREACH(const CTransaction &tx, vtx)
     {
         txiter it = mapTx.find(tx.GetHash());
         if (it != mapTx.end()) {

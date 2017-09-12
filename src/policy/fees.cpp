@@ -251,7 +251,7 @@ unsigned int TxConfirmStats::NewTx(unsigned int nBlockHeight, double val)
     unsigned int bucketindex = bucketMap.lower_bound(val)->second;
     unsigned int blockIndex = nBlockHeight % unconfTxs.size();
     unconfTxs[blockIndex][bucketindex]++;
-    LogPrint("estimatefee", "adding to %s, nBlockHeight=%s, fee=%s\n", dataTypeString, nBlockHeight, val);
+    LogPrint("estimatefee", "adding to %s, nBlockHeight=%s, fee=%s\n", dataTypeString, nBlockHeight, val/1000000);
     return bucketindex;
 }
 
@@ -356,15 +356,20 @@ void CBlockPolicyEstimator::processTransaction(const CTxMemPoolEntry& entry, boo
     if (txHeight < nBestSeenHeight) {
         // Ignore side chains and re-orgs; assuming they are random they don't
         // affect the estimate.  We'll potentially double count transactions in 1-block reorgs.
+        LogPrint("estimatefee", "processTransaction hash=%s failed (txHeight < nBestSeenHeight)\n", hash.ToString());
         return;
     }
 
     // Only want to be updating estimates when our blockchain is synced,
     // otherwise we'll miscalculate how many blocks its taking to get included.
-    if (!fCurrentEstimate)
+
+    if (!fCurrentEstimate) {
+        LogPrint("estimatefee", "fCurrentEstimate\n");
         return;
+    }
 
     if (!entry.WasClearAtEntry()) {
+        LogPrint("estimatefee", "entry.WasClearAtEntry()\n");
         // This transaction depends on other transactions in the mempool to
         // be included in a block before it will be able to be included, so
         // we shouldn't include it in our calculations
@@ -380,7 +385,8 @@ void CBlockPolicyEstimator::processTransaction(const CTxMemPoolEntry& entry, boo
     double curPri = entry.GetPriority(txHeight);
     mapMemPoolTxs[hash].blockHeight = txHeight;
 
-    LogPrint("estimatefee", "Blockpolicy mempool tx %s ", hash.ToString().substr(0,10));
+    LogPrint("estimatefee", "Blockpolicy mempool tx %s \n", hash.ToString());
+    LogPrint("estimatefee", "entry.GetFee()=  %s \n", entry.GetFee()/1000000);
     // Record this as a priority estimate
 //    if (entry.GetFee() == 0 || isPriDataPoint(feeRate, c) {
     if (entry.GetFee() == 0) {

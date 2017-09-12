@@ -86,6 +86,10 @@ static const unsigned int BLOCKFILE_CHUNK_SIZE = 0x1000000; // 16 MiB
 static const unsigned int UNDOFILE_CHUNK_SIZE = 0x100000; // 1 MiB
 /** Default for -blockprioritysize, maximum space for zero/low-fee transactions **/
 static const unsigned int DEFAULT_BLOCK_PRIORITY_SIZE = 50000; // 50KB
+/** Dust Soft Limit, allowed with additional fee per output */
+//static const int64_t DUST_SOFT_LIMIT = 100000; // 0.001 XZC
+/** Dust Hard Limit, ignored as wallet inputs (mininput default) */
+static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 XZC mininput
 
 /** Maximum number of script-checking threads allowed */
 static const int MAX_SCRIPTCHECK_THREADS = 16;
@@ -185,7 +189,11 @@ extern bool fRequireStandard;
 extern bool fCheckBlockIndex;
 extern bool fCheckpointsEnabled;
 //extern int nBestHeight;
-//extern int64_t nTransactionFee;
+
+// Settings
+extern int64_t nTransactionFee;
+extern int64_t nMinimumInputValue;
+
 extern size_t nCoinCacheUsage;
 /** A fee rate smaller than this is considered zero fee (for relaying, mining and transaction creation) */
 extern CFeeRate minRelayTxFee;
