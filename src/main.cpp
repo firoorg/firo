@@ -2110,7 +2110,6 @@ bool WriteBlockToDisk(const CBlock &block, CDiskBlockPos &pos, const CMessageHea
         return error("WriteBlockToDisk: ftell failed");
     pos.nPos = (unsigned int) fileOutPos;
     fileout << block;
-
     return true;
 }
 
@@ -2129,20 +2128,19 @@ bool ReadBlockFromDisk(CBlock &block, const CDiskBlockPos &pos, int nHeight, con
     catch (const std::exception &e) {
         return error("%s: Deserialize or I/O error - %s at %s", __func__, e.what(), pos.ToString());
     }
-
     // Check the header
     if (!CheckProofOfWork(block.GetPoWHash(nHeight), block.nBits, consensusParams))
         return error("ReadBlockFromDisk: Errors in block header at %s", pos.ToString());
-
     return true;
 }
 
 bool ReadBlockFromDisk(CBlock &block, const CBlockIndex *pindex, const Consensus::Params &consensusParams) {
     if (!ReadBlockFromDisk(block, pindex->GetBlockPos(), pindex->nHeight, consensusParams))
         return false;
-    if (block.GetHash() != pindex->GetBlockHash())
+    if (block.GetHash() != pindex->GetBlockHash()) {
         return error("ReadBlockFromDisk(CBlock&, CBlockIndex*): GetHash() doesn't match index for %s at %s",
                      pindex->ToString(), pindex->GetBlockPos().ToString());
+    }
     return true;
 }
 
@@ -3446,7 +3444,7 @@ bool static ConnectTipZC(CValidationState &state, const CChainParams &chainparam
     walletdb.ListPubCoin(listPubCoin);
 //    listPubCoin.sort(CompHeight);
 
-    BOOST_FOREACH(const CTransaction &tx, block.vtx){
+    BOOST_FOREACH(const CTransaction &tx, pblock->vtx){
         // Check Mint Zerocoin Transaction
         BOOST_FOREACH(const CTxOut txout, tx.vout) {
             if (!txout.scriptPubKey.empty() && txout.scriptPubKey.IsZerocoinMint()) {
@@ -3496,11 +3494,10 @@ bool static ConnectTipZC(CValidationState &state, const CChainParams &chainparam
  * Connect a new ZCblock to chainActive. pblock is either NULL or a pointer to a CBlock
  * corresponding to pindexNew, to bypass loading it again from disk.
  */
-bool static ReArrangeZcoinMint(CValidationState &state, const CChainParams &chainparams, CBlockIndex *pindexNew,
-                               const CBlock *pblock) {
+bool static ReArrangeZcoinMint(CValidationState &state, const CChainParams &chainparams, CBlockIndex *pindexNew, const CBlock *pblock) {
 //    LogPrintf("[ReArrangeZcoinMint]\n");
+    CBlock block;
     if (!pblock) {
-        CBlock block;
         if (!ReadBlockFromDisk(block, pindexNew, chainparams.GetConsensus()))
             return AbortNode(state, "Failed to read block");
         pblock = &block;
@@ -3510,42 +3507,42 @@ bool static ReArrangeZcoinMint(CValidationState &state, const CChainParams &chai
     CWalletDB walletdb(pwalletMain->strWalletFile);
     walletdb.ListPubCoin(listPubCoin);
 
-//    LogPrintf("[ReArrangeZcoinMint] block.ToString()=%s\n", pblock->ToString());
-
     BOOST_FOREACH(const CTransaction &tx, pblock->vtx){
         // Check Mint Zerocoin Transaction
         BOOST_FOREACH(const CTxOut txout, tx.vout) {
             if (!txout.scriptPubKey.empty() && txout.scriptPubKey.IsZerocoinMint()) {
                 vector<unsigned char> vchZeroMint;
-                vchZeroMint.insert(vchZeroMint.end(), txout.scriptPubKey.begin() + 6, txout.scriptPubKey.begin() + txout.scriptPubKey.size());
+                vchZeroMint.insert(vchZeroMint.end(), txout.scriptPubKey.begin() + 6,
+                                   txout.scriptPubKey.begin() + txout.scriptPubKey.size());
                 CBigNum pubCoin;
                 pubCoin.setvch(vchZeroMint);
 
-                BOOST_FOREACH(const CZerocoinEntry &pubCoinItem, listPubCoin) {
+                BOOST_FOREACH(
+                const CZerocoinEntry &pubCoinItem, listPubCoin) {
                     if (pubCoinItem.value == pubCoin) {
                         CZerocoinEntry pubCoinTx;
                         // PUBCOIN IS IN DB, BUT NOT UPDATE ID
                         int currentId = 1;
                         unsigned int countExistingItems = 0;
                         listPubCoin.sort(CompHeight);
-                        BOOST_FOREACH(const CZerocoinEntry& pubCoinIdItem, listPubCoin) {
+                        BOOST_FOREACH(const CZerocoinEntry &pubCoinIdItem, listPubCoin) {
 //                            LogPrintf("denomination = %d, id = %d, height = %d\n", pubCoinIdItem.denomination, pubCoinIdItem.id, pubCoinIdItem.nHeight);
-                            if(pubCoinIdItem.id > 0){
-                                if(pubCoinIdItem.nHeight <= pindexNew->nHeight){
-                                    if(pubCoinIdItem.denomination == pubCoinItem.denomination){
+                            if (pubCoinIdItem.id > 0) {
+                                if (pubCoinIdItem.nHeight <= pindexNew->nHeight) {
+                                    if (pubCoinIdItem.denomination == pubCoinItem.denomination) {
                                         countExistingItems++;
-                                        if(pubCoinIdItem.id > currentId){
+                                        if (pubCoinIdItem.id > currentId) {
                                             currentId = pubCoinIdItem.id;
                                             countExistingItems = 1;
                                         }
                                     }
-                                }else{
+                                } else {
                                     break;
                                 }
                             }
                         }
 
-                        if(countExistingItems > 9){
+                        if (countExistingItems > 9) {
                             currentId++;
                         }
                         pubCoinTx.id = currentId;
@@ -3556,14 +3553,14 @@ bool static ReArrangeZcoinMint(CValidationState &state, const CChainParams &chai
                         pubCoinTx.serialNumber = pubCoinItem.serialNumber;
                         pubCoinTx.value = pubCoinItem.value;
                         pubCoinTx.nHeight = pindexNew->nHeight;
-                        LogPrintf("REORG PUBCOIN DENOMINATION: %d PUBCOIN ID: %d HEIGHT: %d\n", pubCoinTx.denomination, pubCoinTx.id, pubCoinTx.nHeight);
+                        LogPrintf("REORG PUBCOIN DENOMINATION: %d PUBCOIN ID: %d HEIGHT: %d\n",
+                                  pubCoinTx.denomination, pubCoinTx.id, pubCoinTx.nHeight);
                         walletdb.WriteZerocoinEntry(pubCoinTx);
                     }
                 }
             }
         }
     }
-
     walletdb.WriteCalculatedZCBlock(pindexNew->nHeight);
     return true;
 }
@@ -4124,7 +4121,6 @@ bool CheckBlock(const CBlock &block, CValidationState &state, const Consensus::P
             return false;
         }
 
-//    LogPrintf("---fCheckMerkleRoot= %s\n", fCheckMerkleRoot);
         // Check the merkle root.
         if (fCheckMerkleRoot) {
             bool mutated;
@@ -4143,7 +4139,6 @@ bool CheckBlock(const CBlock &block, CValidationState &state, const Consensus::P
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-duplicate", true, "duplicate transaction");
             }
         }
-
         // All potential-corruption validation must be done before we do any
         // transaction validation, as otherwise we may mark the header as invalid
         // because we receive the wrong transactions for it.
@@ -4156,13 +4151,11 @@ bool CheckBlock(const CBlock &block, CValidationState &state, const Consensus::P
             LogPrintf("CheckBlock - size limits failed -> failed!\n");
             return state.DoS(100, false, REJECT_INVALID, "bad-blk-length", false, "size limits failed");
         }
-
         // First transaction must be coinbase, the rest must not be
         if (block.vtx.empty() || !block.vtx[0].IsCoinBase()) {
             LogPrintf("CheckBlock - first tx is not coinbase -> failed!\n");
             return state.DoS(100, false, REJECT_INVALID, "bad-cb-missing", false, "first tx is not coinbase");
         }
-
         for (unsigned int i = 1; i < block.vtx.size(); i++) {
             if (block.vtx[i].IsCoinBase()) {
                 LogPrintf("CheckBlock - more than one coinbase -> failed!\n");
@@ -4177,7 +4170,6 @@ bool CheckBlock(const CBlock &block, CValidationState &state, const Consensus::P
                                  strprintf("Transaction check failed (tx hash %s) %s", tx.GetHash().ToString(),
                                            state.GetDebugMessage()));
         }
-
         unsigned int nSigOps = 0;
         BOOST_FOREACH(const CTransaction &tx, block.vtx)
         {
