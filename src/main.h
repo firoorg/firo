@@ -17,9 +17,6 @@
 #include "script/script_error.h"
 #include "sync.h"
 #include "versionbits.h"
-//BTZC: add for zcoin
-#include "timedata.h"
-#include "chainparams.h"
 
 #include <algorithm>
 #include <exception>
@@ -29,7 +26,6 @@
 #include <string>
 #include <utility>
 #include <vector>
-#include "libzerocoin/Zerocoin.h"
 
 #include <boost/unordered_map.hpp>
 
@@ -86,10 +82,6 @@ static const unsigned int BLOCKFILE_CHUNK_SIZE = 0x1000000; // 16 MiB
 static const unsigned int UNDOFILE_CHUNK_SIZE = 0x100000; // 1 MiB
 /** Default for -blockprioritysize, maximum space for zero/low-fee transactions **/
 static const unsigned int DEFAULT_BLOCK_PRIORITY_SIZE = 50000; // 50KB
-/** Dust Soft Limit, allowed with additional fee per output */
-//static const int64_t DUST_SOFT_LIMIT = 100000; // 0.001 XZC
-/** Dust Hard Limit, ignored as wallet inputs (mininput default) */
-static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 XZC mininput
 
 /** Maximum number of script-checking threads allowed */
 static const int MAX_SCRIPTCHECK_THREADS = 16;
