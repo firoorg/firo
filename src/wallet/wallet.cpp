@@ -4235,6 +4235,10 @@ void ReIndexZerocoin(std::string strWalletFile) {
         list <CZerocoinEntry> listPubCoin = list<CZerocoinEntry>();
         CWalletDB walletdb(strWalletFile);
         walletdb.ListPubCoin(listPubCoin);
+//        BOOST_FOREACH(const CZerocoinEntry &pubCoinItem, listPubCoin) {
+//            walletdb.EraseZerocoinEntry(pubCoinItem);
+//        }
+
         BOOST_FOREACH(const CZerocoinEntry &pubCoinItem, listPubCoin) {
 //            walletdb.EraseZerocoinEntry(pubCoinItem);
             CZerocoinEntry pubCoinTx;
@@ -4248,6 +4252,14 @@ void ReIndexZerocoin(std::string strWalletFile) {
             LogPrintf("- Reindex Pubcoin Id: %d Denomination: %d\n", pubCoinTx.id, pubCoinTx.denomination);
             walletdb.WriteZerocoinEntry(pubCoinTx);
         }
+//        LogPrintf("RecheckZerocoin\n");
+//        CWalletDB walletdbNew(strWalletFile);
+//        listPubCoin.clear();
+//        walletdbNew.ListPubCoin(listPubCoin);
+//        BOOST_FOREACH(const CZerocoinEntry &pubCoinItem, listPubCoin) {
+//            walletdb.EraseZerocoinEntry(pubCoinItem);
+//            LogPrintf("- Exists Id: %d Denomination: %d Height: %d\n", pubCoinItem.id, pubCoinItem.denomination, pubCoinItem.nHeight);
+//        }
 
         std::list <CZerocoinSpendEntry> listCoinSpendSerial;
         walletdb.ListCoinSpendSerial(listCoinSpendSerial);

@@ -239,15 +239,13 @@ bool CTxMemPool::CalculateMemPoolAncestors(const CTxMemPoolEntry &entry, setEntr
 void CTxMemPool::UpdateAncestorsOf(bool add, txiter it, setEntries &setAncestors) {
     setEntries parentIters = GetMemPoolParents(it);
     // add or remove this tx as a child of each parent
-    BOOST_FOREACH(txiter
-    piter, parentIters) {
+    BOOST_FOREACH(txiter piter, parentIters) {
         UpdateChild(piter, it, add);
     }
     const int64_t updateCount = (add ? 1 : -1);
     const int64_t updateSize = updateCount * it->GetTxSize();
     const CAmount updateFee = updateCount * it->GetModifiedFee();
-    BOOST_FOREACH(txiter
-    ancestorIt, setAncestors) {
+    BOOST_FOREACH(txiter ancestorIt, setAncestors) {
         mapTx.modify(ancestorIt, update_descendant_state(updateSize, updateFee, updateCount));
     }
 }
@@ -268,8 +266,7 @@ void CTxMemPool::UpdateEntryForAncestors(txiter it, const setEntries &setAncesto
 
 void CTxMemPool::UpdateChildrenForRemoval(txiter it) {
     const setEntries &setMemPoolChildren = GetMemPoolChildren(it);
-    BOOST_FOREACH(txiter
-    updateIt, setMemPoolChildren) {
+    BOOST_FOREACH(txiter updateIt, setMemPoolChildren) {
         UpdateParent(updateIt, it, false);
     }
 }
@@ -285,22 +282,19 @@ void CTxMemPool::UpdateForRemoveFromMempool(const setEntries &entriesToRemove, b
         // Here we only update statistics and not data in mapLinks (which
         // we need to preserve until we're finished with all operations that
         // need to traverse the mempool).
-        BOOST_FOREACH(txiter
-        removeIt, entriesToRemove) {
+        BOOST_FOREACH(txiter removeIt, entriesToRemove) {
             setEntries setDescendants;
             CalculateDescendants(removeIt, setDescendants);
             setDescendants.erase(removeIt); // don't update state for self
             int64_t modifySize = -((int64_t) removeIt->GetTxSize());
             CAmount modifyFee = -removeIt->GetModifiedFee();
             int modifySigOps = -removeIt->GetSigOpCost();
-            BOOST_FOREACH(txiter
-            dit, setDescendants) {
+            BOOST_FOREACH(txiter dit, setDescendants) {
                 mapTx.modify(dit, update_ancestor_state(modifySize, modifyFee, -1, modifySigOps));
             }
         }
     }
-    BOOST_FOREACH(txiter
-    removeIt, entriesToRemove) {
+    BOOST_FOREACH(txiter removeIt, entriesToRemove) {
         setEntries setAncestors;
         const CTxMemPoolEntry &entry = *removeIt;
         std::string dummy;
@@ -329,8 +323,7 @@ void CTxMemPool::UpdateForRemoveFromMempool(const setEntries &entriesToRemove, b
     // After updating all the ancestor sizes, we can now sever the link between each
     // transaction being removed and any mempool children (ie, update setMemPoolParents
     // for each direct child of a transaction being removed).
-    BOOST_FOREACH(txiter
-    removeIt, entriesToRemove) {
+    BOOST_FOREACH(txiter removeIt, entriesToRemove) {
         UpdateChildrenForRemoval(removeIt);
     }
 }
@@ -468,26 +461,29 @@ bool CTxMemPool::addUnchecked(const uint256 &hash, const CTxMemPoolEntry &entry,
 
 void CTxMemPool::removeUnchecked(txiter it) {
     const uint256 hash = it->GetTx().GetHash();
-    BOOST_FOREACH(
-    const CTxIn &txin, it->GetTx().vin)
-    mapNextTx.erase(txin.prevout);
+    LogPrintf("removeUnchecked txHash=%s, IsZerocoinSpend()=%s\n", hash.ToString(), it->GetTx().IsZerocoinSpend());
+    if (!it->GetTx().IsZerocoinSpend()) {
+        BOOST_FOREACH(const CTxIn &txin, it->GetTx().vin)
+        mapNextTx.erase(txin.prevout);
+        if (vTxHashes.size() > 1) {
+            vTxHashes[it->vTxHashesIdx] = std::move(vTxHashes.back());
+            vTxHashes[it->vTxHashesIdx].second->vTxHashesIdx = it->vTxHashesIdx;
+            vTxHashes.pop_back();
+            if (vTxHashes.size() * 2 < vTxHashes.capacity())
+                vTxHashes.shrink_to_fit();
+        } else
+            vTxHashes.clear();
 
-    if (vTxHashes.size() > 1) {
-        vTxHashes[it->vTxHashesIdx] = std::move(vTxHashes.back());
-        vTxHashes[it->vTxHashesIdx].second->vTxHashesIdx = it->vTxHashesIdx;
-        vTxHashes.pop_back();
-        if (vTxHashes.size() * 2 < vTxHashes.capacity())
-            vTxHashes.shrink_to_fit();
-    } else
-        vTxHashes.clear();
+        totalTxSize -= it->GetTxSize();
+        cachedInnerUsage -= it->DynamicMemoryUsage();
+        cachedInnerUsage -= memusage::DynamicUsage(mapLinks[it].parents) + memusage::DynamicUsage(mapLinks[it].children);
+        minerPolicyEstimator->removeTx(hash);
+    }
 
-    totalTxSize -= it->GetTxSize();
-    cachedInnerUsage -= it->DynamicMemoryUsage();
-    cachedInnerUsage -= memusage::DynamicUsage(mapLinks[it].parents) + memusage::DynamicUsage(mapLinks[it].children);
     mapLinks.erase(it);
     mapTx.erase(it);
     nTransactionsUpdated++;
-    minerPolicyEstimator->removeTx(hash);
+    LogPrintf("removeUnchecked ->OK\n");
 }
 
 // Calculates descendants of entry that are not already in setDescendants, and adds to
@@ -542,12 +538,10 @@ void CTxMemPool::removeRecursive(const CTransaction &origTx, std::list <CTransac
             }
         }
         setEntries setAllRemoves;
-        BOOST_FOREACH(txiter
-        it, txToRemove) {
+        BOOST_FOREACH(txiter it, txToRemove) {
             CalculateDescendants(it, setAllRemoves);
         }
-        BOOST_FOREACH(txiter
-        it, setAllRemoves) {
+        BOOST_FOREACH(txiter it, setAllRemoves) {
             removed.push_back(it->GetTx());
         }
         RemoveStaged(setAllRemoves, false);
@@ -596,8 +590,7 @@ void CTxMemPool::removeConflicts(const CTransaction &tx, std::list <CTransaction
     // Remove transactions which depend on inputs of tx, recursively
     list <CTransaction> result;
     LOCK(cs);
-    BOOST_FOREACH(
-    const CTxIn &txin, tx.vin) {
+    BOOST_FOREACH(const CTxIn &txin, tx.vin) {
         auto it = mapNextTx.find(txin.prevout);
         if (it != mapNextTx.end()) {
             const CTransaction &txConflict = *it->second;
@@ -614,32 +607,37 @@ void CTxMemPool::removeConflicts(const CTransaction &tx, std::list <CTransaction
  */
 void CTxMemPool::removeForBlock(const std::vector <CTransaction> &vtx, unsigned int nBlockHeight,
                                 std::list <CTransaction> &conflicts, bool fCurrentEstimate) {
-    LogPrint("CTxMemPool", "removeForBlock\n");
-    LOCK(cs);
-    std::vector <CTxMemPoolEntry> entries;
-    BOOST_FOREACH(const CTransaction &tx, vtx)
-    {
-        uint256 hash = tx.GetHash();
+    try {
+        LOCK(cs);
+        std::vector <CTxMemPoolEntry> entries;
+        BOOST_FOREACH(const CTransaction &tx, vtx)
+        {
+            uint256 hash = tx.GetHash();
 
-        indexed_transaction_set::iterator i = mapTx.find(hash);
-        if (i != mapTx.end())
-            entries.push_back(*i);
-    }
-    BOOST_FOREACH(const CTransaction &tx, vtx)
-    {
-        txiter it = mapTx.find(tx.GetHash());
-        if (it != mapTx.end()) {
-            setEntries stage;
-            stage.insert(it);
-            RemoveStaged(stage, true);
+            indexed_transaction_set::iterator i = mapTx.find(hash);
+            if (i != mapTx.end())
+                entries.push_back(*i);
         }
-        removeConflicts(tx, conflicts);
-        ClearPrioritisation(tx.GetHash());
+        BOOST_FOREACH(const CTransaction &tx, vtx)
+        {
+            txiter it = mapTx.find(tx.GetHash());
+            if (it != mapTx.end()) {
+                setEntries stage;
+                stage.insert(it);
+                RemoveStaged(stage, true);
+            }
+            removeConflicts(tx, conflicts);
+            ClearPrioritisation(tx.GetHash());
+        }
+        // After the txs in the new block have been removed from the mempool, update policy estimates
+        minerPolicyEstimator->processBlock(nBlockHeight, entries, fCurrentEstimate);
+        lastRollingFeeUpdate = GetTime();
+        blockSinceLastRollingFeeBump = true;
+    } catch (const std::exception& e) {
+        PrintExceptionContinue(&e, "CTxMemPool::removeForBlock()");
+    } catch (...) {
+        PrintExceptionContinue(NULL, "CTxMemPool::removeForBlock()");
     }
-    // After the txs in the new block have been removed from the mempool, update policy estimates
-    minerPolicyEstimator->processBlock(nBlockHeight, entries, fCurrentEstimate);
-    lastRollingFeeUpdate = GetTime();
-    blockSinceLastRollingFeeBump = true;
 }
 
 void CTxMemPool::_clear() {
@@ -961,7 +959,11 @@ void CTxMemPool::ApplyDeltas(const uint256 hash, double &dPriorityDelta, CAmount
 
 void CTxMemPool::ClearPrioritisation(const uint256 hash) {
     LOCK(cs);
-    mapDeltas.erase(hash);
+    if (mapDeltas.count(hash) > 0) {
+        mapDeltas.erase(hash);
+    } else {
+        LogPrintf("ERROR: CTxMemPool::ClearPrioritisation trying to erase not existing hash!\n");
+    }
 }
 
 bool CTxMemPool::HasNoInputsOf(const CTransaction &tx) const {
@@ -1001,8 +1003,7 @@ size_t CTxMemPool::DynamicMemoryUsage() const {
 void CTxMemPool::RemoveStaged(setEntries &stage, bool updateDescendants) {
     AssertLockHeld(cs);
     UpdateForRemoveFromMempool(stage, updateDescendants);
-    BOOST_FOREACH(
-    const txiter &it, stage) {
+    BOOST_FOREACH(const txiter &it, stage) {
         removeUnchecked(it);
     }
 }

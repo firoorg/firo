@@ -1090,13 +1090,9 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx, CZerocoinEntry pubCoinTx
     // Check vIn
     CWalletDB walletdb(pwalletMain->strWalletFile);
     LogPrintf("CheckSpendZcoinTransaction denomination=%d nHeight=%d\n", targetDenomination, nHeight);
-//    BOOST_FOREACH(const CZerocoinEntry &pubCoinItem, listPubCoin) {
-//        LogPrintf("## denomination = %d, id = %d, height = %d\n",pubCoinItem.denomination, pubCoinItem.id, pubCoinItem.nHeight);
-//    }
     BOOST_FOREACH(const CTxIn &txin, tx.vin)
     {
         if (txin.scriptSig.IsZerocoinSpend()) {
-//            LogPrintf("Check TxIn hash=%s\n", txin.ToString());
             // Deserialize the CoinSpend intro a fresh object
             std::vector<char, zero_after_free_allocator<char> > dataTxIn;
             dataTxIn.insert(dataTxIn.end(), txin.scriptSig.begin() + 4, txin.scriptSig.end());
@@ -1119,22 +1115,16 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx, CZerocoinEntry pubCoinTx
 
             // VERIFY COINSPEND TX
             // used pre-computed accumulator
-            LogPrint("CheckSpendZcoinTransaction", "accumulatorPrecomputed=%s\n", accumulatorPrecomputed.getValue().ToString());
             walletdb.ReadZerocoinAccumulator(accumulatorPrecomputed, targetDenomination, pubcoinId);
             if (newSpend.Verify(accumulatorPrecomputed, newMetadata)) {
-                LogPrint("CheckSpendZcoinTransaction", "COIN SPEND TX DID VERIFY - accumulatorPrecomputed!\n");
                 passVerify = true;
             }
             int countPubcoin = 0;
             if (!passVerify) {
-//                LogPrintf("Check waterfall\n");
                 BOOST_FOREACH(const CZerocoinEntry &pubCoinItem, listPubCoin) {
-//                    LogPrint("CheckSpendZcoinTransaction", "--denomination = %d, id = %d, pubcoinId = %d height = %d\n",
-//                              pubCoinItem.denomination, pubCoinItem.id, pubcoinId, pubCoinItem.nHeight);
                     if (pubCoinItem.denomination == targetDenomination &&
                         (pubCoinItem.id >= 0 && (uint32_t) pubCoinItem.id == pubcoinId) &&
                         pubCoinItem.nHeight != -1) {
-//                        LogPrint("CheckSpendZcoinTransaction", "--## denomination = %s, id = %s, pubcoinId = %s, height = %s\n", pubCoinItem.denomination, pubCoinItem.id, pubcoinId, pubCoinItem.nHeight);
                         libzerocoin::PublicCoin pubCoinTemp(ZCParams, pubCoinItem.value, targetDenomination);
                         if (!pubCoinTemp.validate()) {
                             return state.DoS(100, false, PUBLIC_COIN_FOR_ACCUMULATOR_INVALID,
@@ -1142,10 +1132,9 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx, CZerocoinEntry pubCoinTx
                         }
                         countPubcoin++;
                         accumulator += pubCoinTemp;
+                        LogPrintf("countPubcoin=%s\n", countPubcoin);
+                        LogPrintf("accumulator=%s\n", accumulator.getValue().ToString());
                         if (countPubcoin >= 2) { // MINIMUM REQUIREMENT IS 2 PUBCOINS
-//                            LogPrint("CheckSpendZcoinTransaction", "pubCoinTemp=%s\n", pubCoinTemp.getValue().ToString().substr(0,10));
-//                            LogPrint("CheckSpendZcoinTransaction", "accumulator=%s\n", accumulator.getValue().ToString().substr(0,10));
-//                            LogPrint("CheckSpendZcoinTransaction", "countPubcoin=%s\n", countPubcoin);
                             if (newSpend.Verify(accumulator, newMetadata)) {
                                 LogPrintf("COIN SPEND TX DID VERIFY - accumulator!\n");
                                 // store this accumulator
@@ -1161,7 +1150,6 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx, CZerocoinEntry pubCoinTx
 
                 // It does not have this mint coins id, still sync
                 if (countPubcoin == 0) {
-                    LogPrint("CheckSpendZcoinTransaction", "Node does not have mint zerocoin to verify, please wait until\n");
                     return state.DoS(0, false, NO_MINT_ZEROCOIN, "CTransaction::CheckTransaction() : Error: Node does not have mint zerocoin to verify, please wait until ");
                 }
             }
@@ -1175,9 +1163,9 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx, CZerocoinEntry pubCoinTx
                     if (pubCoinItem.denomination == targetDenomination &&
                         (pubCoinItem.id >= 0 && (uint32_t) pubCoinItem.id == pubcoinId) &&
                         pubCoinItem.nHeight != -1) {
-//                        LogPrint("CheckSpendZcoinTransaction", "--## denomination = %d, id = %d, pubcoinId = %d height = %d\n",
-//                                  pubCoinItem.denomination, pubCoinItem.id, pubcoinId,
-//                                  pubCoinItem.nHeight);
+                        LogPrint("CheckSpendZcoinTransaction", "--## denomination = %d, id = %d, pubcoinId = %d height = %d\n",
+                                  pubCoinItem.denomination, pubCoinItem.id, pubcoinId,
+                                  pubCoinItem.nHeight);
                         libzerocoin::PublicCoin pubCoinTemp(ZCParams, pubCoinItem.value, targetDenomination);
                         if (!pubCoinTemp.validate()) {
                             return state.DoS(100,
@@ -1185,8 +1173,8 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx, CZerocoinEntry pubCoinTx
                         }
                         countPubcoin++;
                         accumulatorRev += pubCoinTemp;
-//                        LogPrint("CheckSpendZcoinTransaction", "accumulatorRev=%s\n", accumulatorRev.getValue().ToString());
-//                        LogPrint("CheckSpendZcoinTransaction", "countPubcoin=%s\n", countPubcoin);
+                        LogPrintf("countPubcoin=%s\n", countPubcoin);
+                        LogPrintf("accumulatorRev=%s\n", accumulatorRev.getValue().ToString());
                         if (countPubcoin >= 2) { // MINIMUM REQUIREMENT IS 2 PUBCOINS
                             if (newSpend.Verify(accumulatorRev, newMetadata)) {
                                 LogPrintf("COIN SPEND TX DID VERIFY - accumulatorRev!\n");
@@ -1199,7 +1187,6 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx, CZerocoinEntry pubCoinTx
 
                 // It does not have this mint coins id, still sync
                 if (countPubcoin == 0) {
-                    LogPrintf("Node does not have mint zerocoin to verify, please wait until\n");
                     return state.DoS(0, false, NO_MINT_ZEROCOIN, "CTransaction::CheckTransaction() : Error: Node does not have mint zerocoin to verify, please wait until ");
                 }
             }
@@ -1214,8 +1201,6 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx, CZerocoinEntry pubCoinTx
                     bool isAlreadyStored = false;
 
                     CBigNum serialNumber = newSpend.getCoinSerialNumber();
-//                    LogPrintf("serialNumber=%s\n", serialNumber.ToString());
-//                    LogPrintf("hashTx=%s\n", hashTx.ToString());
                     CWalletDB walletdb(pwalletMain->strWalletFile);
 
                     std::list <CZerocoinSpendEntry> listCoinSpendSerial;
@@ -1245,8 +1230,7 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx, CZerocoinEntry pubCoinTx
                                     pubCoinTx.id = pubCoinItem.id;
                                     walletdb.WriteZerocoinEntry(pubCoinTx);
                                     // Update UI wallet
-                                    LogPrintf("CheckSpendZcoinTransaction", "NotifyZerocoinChanged\n");
-                                    LogPrint("CheckSpendZcoinTransaction", "pubcoin=%s, isUsed=Used\n", pubCoinItem.value.GetHex());
+                                    // LogPrint("CheckSpendZcoinTransaction", "pubcoin=%s, isUsed=Used\n", pubCoinItem.value.GetHex());
                                     pwalletMain->NotifyZerocoinChanged(pwalletMain, pubCoinItem.value.GetHex(), "Used", CT_UPDATED);
                                     break;
                                 }
@@ -2166,7 +2150,6 @@ CAmount GetBlockSubsidy(int nHeight, const Consensus::Params &consensusParams, i
 
 bool IsInitialBlockDownload() {
     const CChainParams &chainParams = Params();
-
     // Once this function has returned false, it must remain false.
     static std::atomic<bool> latchToFalse{false};
     // Optimization: pre-test latch before taking the lock.
@@ -3165,7 +3148,6 @@ void static UpdateTip(CBlockIndex *pindexNew, const CChainParams &chainParams) {
     mempool.AddTransactionsUpdated(1);
 
     cvBlockChange.notify_all();
-
     static bool fWarned = false;
     std::vector <std::string> warningMessages;
     if (!IsInitialBlockDownload()) {

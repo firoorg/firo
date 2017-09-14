@@ -159,7 +159,7 @@ bool AppInit(int argc, char* argv[])
         InitLogging();
         InitParameterInteraction();
         fRet = AppInit2(threadGroup, scheduler);
-        LogPrintf("AppInit done!");
+        LogPrintf("AppInit done!\n");
     }
     catch (const std::exception& e) {
         PrintExceptionContinue(&e, "AppInit()");
