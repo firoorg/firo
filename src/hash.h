@@ -14,6 +14,7 @@
 #include "uint256.h"
 #include "arith_uint256.h"
 #include "version.h"
+#include <openssl/sha.h>
 
 #include <vector>
 
@@ -134,41 +135,61 @@ inline uint256 HashKeccak(const T1 pbegin, const T1 pend)
     sph_keccak256_context ctx_keccak;
     static unsigned char pblank[1];
     uint256 hash;
-
     sph_keccak256_init(&ctx_keccak);
     sph_keccak256 (&ctx_keccak, (pbegin == pend ? pblank : static_cast<const void*>(&pbegin[0])), (pend - pbegin) * sizeof(pbegin[0]));
     sph_keccak256_close(&ctx_keccak, static_cast<void*>(&hash));
-    printf("hash keccak hash = %s\n", hash.ToString().c_str());
     return hash;
 }        }
+
+template<typename T1, typename T2>
+inline uint256 Hash4(const T1 p1begin, const T1 p1end,
+                    const T2 p2begin, const T2 p2end)
+{
+    static unsigned char pblank[1];
+    uint256 hash1;
+    SHA256_CTX ctx;
+    SHA256_Init(&ctx);
+    SHA256_Update(&ctx, (p1begin == p1end ? pblank : (unsigned char*)&p1begin[0]), (p1end - p1begin) * sizeof(p1begin[0]));
+    SHA256_Update(&ctx, (p2begin == p2end ? pblank : (unsigned char*)&p2begin[0]), (p2end - p2begin) * sizeof(p2begin[0]));
+    SHA256_Final((unsigned char*)&hash1, &ctx);
+    uint256 hash2;
+    SHA256((unsigned char*)&hash1, sizeof(hash1), (unsigned char*)&hash2);
+    return hash2;
+}
 
 /** A writer stream (for serialization) that computes a 256-bit hash. */
 class CHashWriter
 {
 private:
-    CHash256 ctx;
+    SHA256_CTX ctx;
 
 public:
     int nType;
     int nVersion;
 
-    CHashWriter(int nTypeIn, int nVersionIn) : nType(nTypeIn), nVersion(nVersionIn) {}
+    void Init() {
+        SHA256_Init(&ctx);
+    }
+
+    CHashWriter(int nTypeIn, int nVersionIn) : nType(nTypeIn), nVersion(nVersionIn) {
+        Init();
+    }
 
     CHashWriter& write(const char *pch, size_t size) {
-        ctx.Write((const unsigned char*)pch, size);
+        SHA256_Update(&ctx, pch, size);
         return (*this);
     }
 
     // invalidates the object
     uint256 GetHash() {
-        uint256 result;
-        ctx.Finalize((unsigned char*)&result);
-        return result;
+        uint256 hash1;
+        SHA256_Final((unsigned char*)&hash1, &ctx);
+        return hash1;
     }
 
     arith_uint256 GetArith256Hash() {
         uint256 result;
-        ctx.Finalize((unsigned char*)&result);
+        SHA256_Final((unsigned char*)&result, &ctx);
         return UintToArith256(result);
     }
 

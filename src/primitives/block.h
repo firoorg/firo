@@ -8,7 +8,7 @@
 
 #include "primitives/transaction.h"
 #include "serialize.h"
-#include "uint256.h"
+#include "arith_uint256.h"
 #include "utilstrencodings.h"
 #include "hash.h"
 
@@ -23,12 +23,14 @@ class CBlockHeader
 {
 public:
     // header
-    int32_t nVersion;
+    static const int CURRENT_VERSION = 2;
+
+    int nVersion;
     uint256 hashPrevBlock;
     uint256 hashMerkleRoot;
-    uint32_t nTime;
-    uint32_t nBits;
-    uint32_t nNonce;
+    unsigned int nTime;
+    unsigned int nBits;
+    unsigned int nNonce;
 
     CBlockHeader()
     {
@@ -64,9 +66,7 @@ public:
 
     uint256 GetHash() const
     {
-        uint256 retorno = HashKeccak(BEGIN(nVersion), END(nNonce));
-        printf("nVersion = %d nNonce = %d hash = %s \n", nVersion, nNonce, retorno.ToString().c_str());
-        return retorno;
+        return HashKeccak(BEGIN(nVersion), END(nNonce));
     }
 
     int64_t GetBlockTime() const
@@ -84,6 +84,7 @@ public:
 
     // memory only
     mutable bool fChecked;
+    mutable std::vector<uint256> vMerkleTree;
 
     CBlock()
     {
@@ -124,6 +125,38 @@ public:
     }
 
     std::string ToString() const;
+
+    void print() const
+    {
+        printf("CBlock(hash=%s, input=%s, ver=%d, hashPrevBlock=%s, hashMerkleRoot=%s, nTime=%u, nBits=%08x, nNonce=%u)\n",
+            GetHash().ToString().c_str(),
+            HexStr(BEGIN(nVersion),BEGIN(nVersion)+80,false).c_str(),
+            nVersion,
+            hashPrevBlock.ToString().c_str(),
+            hashMerkleRoot.ToString().c_str(),
+            nTime, nBits, nNonce);        
+    }
+
+    uint256 BuildMerkleTree() const
+    {
+        vMerkleTree.clear();
+        for (unsigned int i = 0; i < vtx.size(); ++i){
+            vMerkleTree.push_back(vtx[i].GetHash());
+        }
+        int j = 0;
+        for (int nSize = vtx.size(); nSize > 1; nSize = (nSize + 1) / 2)
+        {
+            for (int i = 0; i < nSize; i += 2)
+            {
+                int i2 = std::min(i+1, nSize-1);
+//                vMerkleTree.push_back(Hash(BEGIN(vMerkleTree[j+i]),  END(vMerkleTree[j+i]),
+                vMerkleTree.push_back(Hash4(BEGIN(vMerkleTree[j+i]),  END(vMerkleTree[j+i]),
+                                           BEGIN(vMerkleTree[j+i2]), END(vMerkleTree[j+i2])));
+            }
+            j += nSize;
+        }
+        return (vMerkleTree.empty() ? uint256() : vMerkleTree.back());
+    }
 };
 
 /** Describes a place in the block chain to another node such that if the
