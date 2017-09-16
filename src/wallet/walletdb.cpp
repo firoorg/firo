@@ -252,6 +252,120 @@ void CWalletDB::ListAccountCreditDebit(const string& strAccount, list<CAccountin
     pcursor->close();
 }
 
+bool CWalletDB::WriteCoinSpendSerialEntry(const CZerocoinSpendEntry& zerocoinSpend)
+{
+    return Write(make_pair(string("zcserial"), zerocoinSpend.coinSerial), zerocoinSpend, true);
+}
+
+bool CWalletDB::EarseCoinSpendSerialEntry(const CZerocoinSpendEntry& zerocoinSpend)
+{
+    return Erase(make_pair(string("zcserial"), zerocoinSpend.coinSerial));
+}
+
+bool CWalletDB::WriteZerocoinAccumulator(libzerocoin::Accumulator accumulator, libzerocoin::CoinDenomination denomination, int pubcoinid)
+{
+    return Write(std::make_tuple(std::string("zcaccumulator"), (unsigned int) denomination, pubcoinid), accumulator);
+}
+
+bool CWalletDB::ReadZerocoinAccumulator(libzerocoin::Accumulator& accumulator, libzerocoin::CoinDenomination denomination, int pubcoinid)
+{
+    return Read(std::make_tuple(std::string("zcaccumulator"), (unsigned int) denomination, pubcoinid), accumulator);
+}
+
+bool CWalletDB::WriteZerocoinEntry(const CZerocoinEntry& zerocoin)
+{
+    return Write(make_pair(string("zerocoin"), zerocoin.value), zerocoin, true);
+}
+
+bool CWalletDB::EarseZerocoinEntry(const CZerocoinEntry& zerocoin)
+{
+    return Erase(make_pair(string("zerocoin"), zerocoin.value));
+}
+// Check Calculated Blocked for Zerocoin
+bool CWalletDB::ReadCalculatedZCBlock(int& height)
+{
+    height = 0;
+    return Read(std::string("calculatedzcblock"), height);
+}
+
+bool CWalletDB::WriteCalculatedZCBlock(int height)
+{
+    return Write(std::string("calculatedzcblock"), height);
+}
+
+void CWalletDB::ListPubCoin(std::list<CZerocoinEntry>& listPubCoin)
+{
+    Dbc* pcursor = GetCursor();
+    if (!pcursor)
+        throw runtime_error("CWalletDB::ListPubCoin() : cannot create DB cursor");
+    unsigned int fFlags = DB_SET_RANGE;
+    while (true) {
+        // Read next record
+        CDataStream ssKey(SER_DISK, CLIENT_VERSION);
+        if (fFlags == DB_SET_RANGE)
+            ssKey << make_pair(string("zerocoin"), CBigNum(0));
+        CDataStream ssValue(SER_DISK, CLIENT_VERSION);
+        int ret = ReadAtCursor(pcursor, ssKey, ssValue, fFlags);
+        fFlags = DB_NEXT;
+        if (ret == DB_NOTFOUND)
+            break;
+        else if (ret != 0)
+        {
+            pcursor->close();
+            throw runtime_error("CWalletDB::ListPubCoin() : error scanning DB");
+        }
+        // Unserialize
+        string strType;
+        ssKey >> strType;
+        if (strType != "zerocoin")
+            break;
+        CBigNum value;
+        ssKey >> value;
+        CZerocoinEntry zerocoinItem;
+        ssValue >> zerocoinItem;
+        listPubCoin.push_back(zerocoinItem);
+    }
+    pcursor->close();
+}
+
+void CWalletDB::ListCoinSpendSerial(std::list<CZerocoinSpendEntry>& listCoinSpendSerial)
+{
+    Dbc* pcursor = GetCursor();
+    if (!pcursor)
+        throw runtime_error("CWalletDB::ListCoinSpendSerial() : cannot create DB cursor");
+    unsigned int fFlags = DB_SET_RANGE;
+    while (true)
+    {
+        // Read next record
+        CDataStream ssKey(SER_DISK, CLIENT_VERSION);
+        if (fFlags == DB_SET_RANGE)
+            ssKey << make_pair(string("zcserial"), CBigNum(0));
+        CDataStream ssValue(SER_DISK, CLIENT_VERSION);
+        int ret = ReadAtCursor(pcursor, ssKey, ssValue, fFlags);
+        fFlags = DB_NEXT;
+        if (ret == DB_NOTFOUND)
+            break;
+        else if (ret != 0)
+        {
+            pcursor->close();
+            throw runtime_error("CWalletDB::ListCoinSpendSerial() : error scanning DB");
+        }
+
+        // Unserialize
+        string strType;
+        ssKey >> strType;
+        if (strType != "zcserial")
+            break;
+        CBigNum value;
+        ssKey >> value;
+        CZerocoinSpendEntry zerocoinSpendItem;
+        ssValue >> zerocoinSpendItem;
+        listCoinSpendSerial.push_back(zerocoinSpendItem);
+    }
+
+    pcursor->close();
+}
+
 DBErrors CWalletDB::ReorderTransactions(CWallet* pwallet)
 {
     LOCK(pwallet->cs_wallet);

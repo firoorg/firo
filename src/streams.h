@@ -64,11 +64,11 @@ class CDataStream
 {
 protected:
     typedef CSerializeData vector_type;
-    vector_type vch;
     unsigned int nReadPos;
 public:
     int nType;
     int nVersion;
+    vector_type vch;
 
     typedef vector_type::allocator_type   allocator_type;
     typedef vector_type::size_type        size_type;

@@ -7,6 +7,7 @@
 #define BITCOIN_WALLET_WALLET_H
 
 #include "amount.h"
+#include "../libzerocoin/bitcoin_bignum/bignum.h"
 #include "streams.h"
 #include "tinyformat.h"
 #include "ui_interface.h"
@@ -874,6 +875,12 @@ public:
     boost::signals2::signal<void (CWallet *wallet, const uint256 &hashTx,
             ChangeType status)> NotifyTransactionChanged;
 
+    /**
+     * Zerocoin entry changed.
+     * @note called with lock cs_wallet held.
+     */
+    boost::signals2::signal<void (CWallet *wallet, const std::string &pubCoin, const std::string &isUsed, ChangeType status)> NotifyZerocoinChanged;
+
     /** Show progress e.g. for rescan */
     boost::signals2::signal<void (const std::string &title, int nProgress)> ShowProgress;
 
@@ -964,5 +971,87 @@ public:
         READWRITE(vchPubKey);
     }
 };
+
+class CZerocoinEntry
+{
+public:
+    //public
+    Bignum value;
+    int denomination;
+    //private
+    Bignum randomness;
+    Bignum serialNumber;
+
+    bool IsUsed;
+    int nHeight;
+    int id;
+
+    CZerocoinEntry()
+    {
+        SetNull();
+    }
+
+    void SetNull()
+    {
+        IsUsed = false;
+        randomness = 0;
+        serialNumber = 0;
+        value = 0;
+        denomination = -1;
+        nHeight = -1;
+        id = -1;
+    }
+
+    ADD_SERIALIZE_METHODS;
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+        READWRITE(IsUsed);
+        READWRITE(randomness);
+        READWRITE(serialNumber);
+        READWRITE(value);
+        READWRITE(denomination);
+        READWRITE(nHeight);
+        READWRITE(id);
+    }
+
+};
+
+
+class CZerocoinSpendEntry
+{
+public:
+    Bignum coinSerial;
+    uint256 hashTx;
+    Bignum pubCoin;
+    int denomination;
+    int id;
+
+    CZerocoinSpendEntry()
+    {
+        SetNull();
+    }
+
+    void SetNull()
+    {
+        coinSerial = 0;
+//        hashTx =
+        pubCoin = 0;
+        denomination = 0;
+        id = 0;
+    }
+    ADD_SERIALIZE_METHODS;
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+        READWRITE(coinSerial);
+        READWRITE(hashTx);
+        READWRITE(pubCoin);
+        READWRITE(denomination);
+        READWRITE(id);
+    }
+};
+
+bool CompHeight(const CZerocoinEntry & a, const CZerocoinEntry & b);
 
 #endif // BITCOIN_WALLET_WALLET_H

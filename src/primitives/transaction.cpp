@@ -113,6 +113,26 @@ double CTransaction::ComputePriority(double dPriorityInputs, unsigned int nTxSiz
     return dPriorityInputs / nTxSize;
 }
 
+bool CTransaction::IsCoinBase() const
+{
+    return (vin.size() == 1 && vin[0].prevout.IsNull() && (vin[0].scriptSig[0] != OP_ZEROCOINSPEND) );
+}
+
+bool CTransaction::IsZerocoinSpend() const
+{
+    return (vin.size() == 1 && vin[0].prevout.IsNull() && (vin[0].scriptSig[0] == OP_ZEROCOINSPEND) && (vout.size() == 1) );
+}
+
+bool CTransaction::IsZerocoinMint(const CTransaction& tx) const
+{
+    for (std::vector<CTxOut>::const_iterator it(tx.vout.begin()); it != tx.vout.end(); ++it)
+    {
+        if (it -> scriptPubKey.IsZerocoinMint())
+            return true;
+    }
+    return false;
+}
+
 unsigned int CTransaction::CalculateModifiedSize(unsigned int nTxSize) const
 {
     // In order to avoid disincentivizing cleaning up the UTXO set we don't count

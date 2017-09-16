@@ -41,7 +41,7 @@ unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHead
         return pindexLast->nBits;
     }
 
-    return BorisRidiculouslyNamedDifficultyFunction(pindexLast, BlocksTargetSpacing, PastBlocksMin, PastBlocksMax, nProofOfWorkLimit);
+    return BorisRidiculouslyNamedDifficultyFunction(pindexLast, BlocksTargetSpacing, PastBlocksMin, PastBlocksMax);
 }
 
 double GetDifficultyHelper(unsigned int nBits) {
@@ -62,11 +62,11 @@ double GetDifficultyHelper(unsigned int nBits) {
     return dDiff;
 }
 
-unsigned int BorisRidiculouslyNamedDifficultyFunction(const CBlockIndex* pindexLast, uint32_t TargetBlocksSpacingSeconds, uint32_t PastBlocksMin, uint32_t PastBlocksMax, unsigned int nProofOfWorkLimit) {
+unsigned int BorisRidiculouslyNamedDifficultyFunction(const CBlockIndex* pindexLast, uint32_t TargetBlocksSpacingSeconds, uint32_t PastBlocksMin, uint32_t PastBlocksMax) {
  
         const CBlockIndex *BlockLastSolved = pindexLast;
         const CBlockIndex *BlockReading    = pindexLast;
-
+        CBigNum bnProofOfWorkLimit(ArithToUint256(~arith_uint256(0) >> 20));
         typedef numeric::Fixed<32, 32> fixed;
         
         uint32_t     nPastBlocks               = 0;
@@ -92,7 +92,6 @@ unsigned int BorisRidiculouslyNamedDifficultyFunction(const CBlockIndex* pindexL
                 
                 else                { bnPastTargetAverage = ((CBigNum().SetCompact(BlockReading->nBits) - bnPastTargetAveragePrev) / i) + bnPastTargetAveragePrev; }
                 bnPastTargetAveragePrev = bnPastTargetAverage;
-            
                 nActualSeconds                        = BlockLastSolved->GetBlockTime() - BlockReading->GetBlockTime();
                 nTargetSeconds                        = TargetBlocksSpacingSeconds * nPastBlocks;
                 nBlockTimeRatio                            = 1;
@@ -119,7 +118,6 @@ unsigned int BorisRidiculouslyNamedDifficultyFunction(const CBlockIndex* pindexL
     if (bnPastTargetAverage > (CBigNum().SetCompact(BlockLastSolved->nBits) * 2)) { bnPastTargetAverage = CBigNum().SetCompact(BlockLastSolved->nBits) * 2; }
     
     CBigNum bnNew(bnPastTargetAverage);
-    
     if (nActualSeconds != 0 && nTargetSeconds != 0) 
     {
         
@@ -130,22 +128,23 @@ unsigned int BorisRidiculouslyNamedDifficultyFunction(const CBlockIndex* pindexL
         bnNew /= nTargetSeconds;
     }
            
-    
-    if (bnNew > nProofOfWorkLimit) { bnNew = nProofOfWorkLimit; }
+    if (bnNew > bnProofOfWorkLimit) { 
+        bnNew = bnProofOfWorkLimit; 
+    }
     
       
-// debug print
-    printf("Difficulty Retarget: Height=%i Diff=%.8f Mean=%.1fs\n", pindexLast->nHeight, GetDifficultyHelper(bnNew.GetCompact()), TargetBlocksSpacingSeconds / nBlockTimeRatio.to_float());
-    printf("Difficulty Retarget - Boris's Ridiculously Named Difficulty Function\n");
-    printf("nHeight = %i\n", pindexLast->nHeight);
-    printf("nPastBlocks = %u\n", nPastBlocks);
-    printf("nBlockTimeRatio Target/Actual = %.4f\n", nBlockTimeRatio.to_float());
-    printf("Mean blocktime = %.1fs\n", TargetBlocksSpacingSeconds / nBlockTimeRatio.to_float());
-    printf("SlowBlocksLimit = %.4f\n", SlowBlocksLimit[nPastBlocks-1]);
-    printf("FastBlocksLimit = %.4f\n", FastBlocksLimit[nPastBlocks-1]);
-    printf("Before: %08x %.8f\n", BlockLastSolved->nBits, GetDifficultyHelper(BlockLastSolved->nBits));
-    printf("After: %08x %.8f\n", bnNew.GetCompact(), GetDifficultyHelper(bnNew.GetCompact()));
-    printf("Ratio After/Before: %.8f\n", GetDifficultyHelper(bnNew.GetCompact()) / GetDifficultyHelper(BlockLastSolved->nBits));
+    // debug print
+    // printf("Difficulty Retarget: Height=%i Diff=%.8f Mean=%.1fs\n", pindexLast->nHeight, GetDifficultyHelper(bnNew.GetCompact()), TargetBlocksSpacingSeconds / nBlockTimeRatio.to_float());
+    // printf("Difficulty Retarget - Boris's Ridiculously Named Difficulty Function\n");
+    // printf("nHeight = %i\n", pindexLast->nHeight);
+    // printf("nPastBlocks = %u\n", nPastBlocks);
+    // printf("nBlockTimeRatio Target/Actual = %.4f\n", nBlockTimeRatio.to_float());
+    // printf("Mean blocktime = %.1fs\n", TargetBlocksSpacingSeconds / nBlockTimeRatio.to_float());
+    // printf("SlowBlocksLimit = %.4f\n", SlowBlocksLimit[nPastBlocks-1]);
+    // printf("FastBlocksLimit = %.4f\n", FastBlocksLimit[nPastBlocks-1]);
+    // printf("Before: %08x %.8f\n", BlockLastSolved->nBits, GetDifficultyHelper(BlockLastSolved->nBits));
+    // printf("After: %08x %.8f\n", bnNew.GetCompact(), GetDifficultyHelper(bnNew.GetCompact()));
+    // printf("Ratio After/Before: %.8f\n", GetDifficultyHelper(bnNew.GetCompact()) / GetDifficultyHelper(BlockLastSolved->nBits));
 
     return bnNew.GetCompact();
 }
@@ -179,7 +178,7 @@ unsigned int CalculateNextWorkRequired(const CBlockIndex* pindexLast, int64_t nF
         return pindexLast->nBits;
     }
  
-    return BorisRidiculouslyNamedDifficultyFunction(pindexLast, BlocksTargetSpacing, PastBlocksMin, PastBlocksMax, nProofOfWorkLimit);
+    return BorisRidiculouslyNamedDifficultyFunction(pindexLast, BlocksTargetSpacing, PastBlocksMin, PastBlocksMax);
 }
 
 bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params& params)
@@ -190,8 +189,9 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
  
     bnTarget.SetCompact(nBits, &fNegative, &fOverflow);
     // Check range 
-    if (fNegative || bnTarget == 0 || fOverflow || bnTarget > UintToArith256(params.powLimit)) 
+    if (fNegative || bnTarget == 0 || fOverflow || bnTarget > UintToArith256(params.powLimit)){ 
         return false; 
+    }
 
     // Check proof of work matches claimed amount
     if (UintToArith256(hash) > bnTarget) 

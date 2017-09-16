@@ -17,6 +17,12 @@ static const unsigned char REJECT_NONSTANDARD = 0x40;
 static const unsigned char REJECT_DUST = 0x41;
 static const unsigned char REJECT_INSUFFICIENTFEE = 0x42;
 static const unsigned char REJECT_CHECKPOINT = 0x43;
+static const unsigned char REJECT_TRANSACTION_TOO_EARLY = 0x44;
+static const unsigned char REJECT_FOUNDER_REWARD_MISSING = 0x45;
+static const unsigned char PUBCOIN_NOT_VALIDATE = 0x46;
+static const unsigned char NSEQUENCE_INCORRECT = 0x47;
+static const unsigned char PUBLIC_COIN_FOR_ACCUMULATOR_INVALID = 0x48;
+static const unsigned char NO_MINT_ZEROCOIN = 0x49;
 
 /** Capture information about block/transaction validation */
 class CValidationState {
