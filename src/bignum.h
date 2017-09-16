@@ -9,10 +9,8 @@
 #include <vector>
 #include <openssl/bn.h>
 
-#include "../../uint256.h" // for uint64
-#include "../../arith_uint256.h"
-#include "../../version.h"
-#include "../../clientversion.h"
+#include "util.h" // for uint64
+
 /** Errors thrown by the bignum class */
 class bignum_error : public std::runtime_error
 {
@@ -84,15 +82,14 @@ public:
     CBigNum(signed char n)      { BN_init(this); if (n >= 0) setulong(n); else setint64(n); }
     CBigNum(short n)            { BN_init(this); if (n >= 0) setulong(n); else setint64(n); }
     CBigNum(int n)              { BN_init(this); if (n >= 0) setulong(n); else setint64(n); }
-//    CBigNum(long n)             { BN_init(this); if (n >= 0) setulong(n); else setint64(n); }
-    CBigNum(int64_t n)            { BN_init(this); setint64(n); }
+    CBigNum(long n)             { BN_init(this); if (n >= 0) setulong(n); else setint64(n); }
+    //CBigNum(int64_t n)            { BN_init(this); setint64(n); }
     CBigNum(unsigned char n)    { BN_init(this); setulong(n); }
     CBigNum(unsigned short n)   { BN_init(this); setulong(n); }
     CBigNum(unsigned int n)     { BN_init(this); setulong(n); }
-//    CBigNum(unsigned long n)    { BN_init(this); setulong(n); }
-    CBigNum(uint64_t n)           { BN_init(this); setuint64(n); }
-    explicit CBigNum(arith_uint256 n) { BN_init(this); setuint256(n); }
-    explicit CBigNum(uint256 n) { arith_uint256 m = UintToArith256(n); BN_init(this); setuint256(m); }
+    CBigNum(unsigned long n)    { BN_init(this); setulong(n); }
+    //CBigNum(uint64_t n)           { BN_init(this); setuint64(n); }
+    explicit CBigNum(uint256 n) { BN_init(this); setuint256(n); }
 
     explicit CBigNum(const std::vector<unsigned char>& vch)
     {
@@ -167,7 +164,7 @@ public:
 
         if (sn < (int64_t)0)
         {
-            // Since the minimum signed integer cannot be represented as positive so long as its type is signed,
+            // Since the minimum signed integer cannot be represented as positive so long as its type is signed, 
             // and it's not well-defined what happens if you make it unsigned before negating it,
             // we instead increment the negative integer by 1, convert it, then increment the (now positive) unsigned integer by 1 to compensate
             n = -(sn + 1);
@@ -230,7 +227,7 @@ public:
         BN_mpi2bn(pch, p - pch, this);
     }
 
-    void setuint256(arith_uint256 n)
+    void setuint256(uint256 n)
     {
         unsigned char pch[sizeof(n) + 6];
         unsigned char* p = pch + 4;
@@ -258,20 +255,20 @@ public:
         BN_mpi2bn(pch, p - pch, this);
     }
 
-   arith_uint256 getuint256() const
-   {
-       unsigned int nSize = BN_bn2mpi(this, NULL);
+    uint256 getuint256() const
+    {
+        unsigned int nSize = BN_bn2mpi(this, NULL);
         if (nSize < 4)
-            return arith_uint256();
+            return uint256();
         std::vector<unsigned char> vch(nSize);
         BN_bn2mpi(this, &vch[0]);
         if (vch.size() > 4)
             vch[4] &= 0x7f;
-        arith_uint256 n = arith_uint256();
+        uint256 n = uint256();
         for (unsigned int i = 0, j = vch.size()-1; i < sizeof(n) && j >= 4; i++, j--)
             ((unsigned char*)&n)[i] = vch[j];
         return n;
-   }
+    }
 
     void setvch(const std::vector<unsigned char>& vch)
     {
@@ -509,7 +506,7 @@ public:
         CAutoBN_CTX pctx;
         CBigNum ret;
         if (!BN_mod_mul(&ret, this, &b, &m, pctx))
-            throw bignum_error("CBigNum::mul_mod : BN_mod_mul failed");
+                throw bignum_error("CBigNum::mul_mod : BN_mod_mul failed");
 
         return ret;
     }
@@ -529,18 +526,18 @@ public:
             if (!BN_mod_exp(&ret, &inv, &posE, &m, pctx))
                 throw bignum_error("CBigNum::pow_mod: BN_mod_exp failed on negative exponent");
         }else
-        if (!BN_mod_exp(&ret, this, &e, &m, pctx))
-            throw bignum_error("CBigNum::pow_mod : BN_mod_exp failed");
+            if (!BN_mod_exp(&ret, this, &e, &m, pctx))
+                throw bignum_error("CBigNum::pow_mod : BN_mod_exp failed");
 
         return ret;
     }
 
-    /**
-     * Calculates the inverse of this element mod m.
-     * i.e. i such this*i = 1 mod m
-     * @param m the modu
-     * @return the inverse
-     */
+   /**
+    * Calculates the inverse of this element mod m.
+    * i.e. i such this*i = 1 mod m
+    * @param m the modu
+    * @return the inverse
+    */
     CBigNum inverse(const CBigNum& m) const {
         CAutoBN_CTX pctx;
         CBigNum ret;
@@ -575,12 +572,12 @@ public:
         return ret;
     }
 
-    /**
-     * Miller-Rabin primality test on this element
-     * @param checks: optional, the number of Miller-Rabin tests to run
-     * 			 	default causes error rate of 2^-80.
-     * @return true if prime
-     */
+   /**
+    * Miller-Rabin primality test on this element
+    * @param checks: optional, the number of Miller-Rabin tests to run
+    * 			 	default causes error rate of 2^-80.
+    * @return true if prime
+    */
     bool isPrime(const int checks=BN_prime_checks) const {
         CAutoBN_CTX pctx;
         int ret = BN_is_prime(this, checks, NULL, pctx, NULL);

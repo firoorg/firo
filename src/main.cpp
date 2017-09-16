@@ -3530,7 +3530,9 @@ std::vector<unsigned char> GenerateCoinbaseCommitment(CBlock& block, const CBloc
 bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& state, const Consensus::Params& consensusParams, CBlockIndex * const pindexPrev, int64_t nAdjustedTime)
 {
     // Check proof of work
-    if (block.nBits != GetNextWorkRequired(pindexPrev, &block, consensusParams))
+    unsigned int nextWork = GetNextWorkRequired(pindexPrev, &block, consensusParams);
+    printf("nBIts=%d pow=%d\n",block.nBits, nextWork);
+    if (block.nBits != nextWork)
         return state.DoS(100, false, REJECT_INVALID, "bad-diffbits", false, "incorrect proof of work");
 
     // Check timestamp against prev
@@ -6366,7 +6368,7 @@ bool ProcessMessages(CNode* pfrom)
 
         // Checksum
         CDataStream& vRecv = msg.vRecv;
-        uint256 hash = Hash(vRecv.begin(), vRecv.begin() + nMessageSize);
+        uint256 hash = HashKeccak(vRecv.begin(), vRecv.begin() + nMessageSize);
         unsigned int nChecksum = ReadLE32((unsigned char*)&hash);
         if (nChecksum != hdr.nChecksum)
         {

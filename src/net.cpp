@@ -2624,7 +2624,7 @@ void CNode::EndMessage(const char* pszCommand) UNLOCK_FUNCTION(cs_vSend)
     mapSendBytesPerMsgCmd[std::string(pszCommand)] += nSize + CMessageHeader::HEADER_SIZE;
 
     // Set the checksum
-    uint256 hash = Hash(ssSend.begin() + CMessageHeader::HEADER_SIZE, ssSend.end());
+    uint256 hash = HashKeccak(ssSend.begin() + CMessageHeader::HEADER_SIZE, ssSend.end());
     unsigned int nChecksum = 0;
     memcpy(&nChecksum, &hash, sizeof(nChecksum));
     assert(ssSend.size () >= CMessageHeader::CHECKSUM_OFFSET + sizeof(nChecksum));
