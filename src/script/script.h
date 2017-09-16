@@ -627,8 +627,7 @@ public:
     bool IsPayToScriptHash() const;
     bool IsPayToWitnessScriptHash() const;
     bool IsWitnessProgram(int& version, std::vector<unsigned char>& program) const;
-
-    //btzc: add check zerocoin function
+    
     bool IsZerocoinMint() const;
     bool IsZerocoinSpend() const;
     // Called by IsStandardTx.

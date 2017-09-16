@@ -67,6 +67,16 @@ inline std::string _(const char* psz)
     return rv ? (*rv) : psz;
 }
 
+inline int roundint(double d)
+{
+    return (int)(d > 0 ? d + 0.5 : d - 0.5);
+}
+
+inline int64_t roundint64(double d)
+{
+    return (int64_t)(d > 0 ? d + 0.5 : d - 0.5);
+}
+
 void SetupEnvironment();
 bool SetupNetworking();
 

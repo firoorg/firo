@@ -257,7 +257,7 @@ bool CWalletDB::WriteCoinSpendSerialEntry(const CZerocoinSpendEntry& zerocoinSpe
     return Write(make_pair(string("zcserial"), zerocoinSpend.coinSerial), zerocoinSpend, true);
 }
 
-bool CWalletDB::EarseCoinSpendSerialEntry(const CZerocoinSpendEntry& zerocoinSpend)
+bool CWalletDB::EraseCoinSpendSerialEntry(const CZerocoinSpendEntry& zerocoinSpend)
 {
     return Erase(make_pair(string("zcserial"), zerocoinSpend.coinSerial));
 }
@@ -488,7 +488,7 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
             CWalletTx wtx;
             ssValue >> wtx;
             CValidationState state;
-            if (!(CheckTransaction(wtx, state) && (wtx.GetHash() == hash) && state.IsValid()))
+            if (!(CheckTransaction(wtx, state, wtx.GetHash(), false, INT_MAX) && (wtx.GetHash() == hash) && state.IsValid()))
                 return false;
 
             // Undo serialize changes in 31600

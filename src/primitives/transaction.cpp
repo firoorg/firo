@@ -9,6 +9,19 @@
 #include "tinyformat.h"
 #include "utilstrencodings.h"
 
+/** Fees smaller than this (in ztoshi) are considered zero fee (for transaction creation) */
+int64_t CTransaction::nMinTxFee = 1000000; // 0.01 smart
+/** Fees smaller than this (in ztoshi) are considered zero fee (for relaying) */
+int64_t CTransaction::nMinRelayTxFee = 1000000; // 0.01 smart
+/** Default for -blockprioritysize, maximum space for zero/low-fee transactions **/
+static const unsigned int DEFAULT_BLOCK_PRIORITY_SIZE = 50000; // 50KB
+/** Dust Soft Limit, allowed with additional fee per output */
+static const int64_t DUST_SOFT_LIMIT = 100000; // 0.001 SMART
+/** The maximum allowed size for a serialized block, in bytes (network rule) */
+static const unsigned int MAX_BLOCK_SIZE = 2000000;                      // 2000KB block hard limit
+/** Obsolete: maximum size for mined blocks */
+static const unsigned int MAX_BLOCK_SIZE_GEN = MAX_BLOCK_SIZE/4;         // 500KB  block soft limit
+
 std::string COutPoint::ToString() const
 {
     return strprintf("COutPoint(%s, %u)", hash.ToString().substr(0,10), n);
@@ -70,6 +83,45 @@ uint256 CMutableTransaction::GetHash() const
 void CTransaction::UpdateHash() const
 {
     *const_cast<uint256*>(&hash) = SerializeHash(*this, SER_GETHASH, SERIALIZE_TRANSACTION_NO_WITNESS);
+}
+
+int64_t CTransaction::GetMinFee(unsigned int nBlockSize, bool fAllowFree, enum GetMinFee_mode mode) const
+{
+    // Base fee is either nMinTxFee or nMinRelayTxFee
+    int64_t nBaseFee = nMinTxFee;
+
+    unsigned int nBytes = ::GetSerializeSize(*this, SER_NETWORK, PROTOCOL_VERSION);
+    unsigned int nNewBlockSize = nBlockSize + nBytes;
+    int64_t nMinFee = (1 + (int64_t) nBytes / 1000) * nBaseFee;
+    if (fAllowFree)
+    {
+        // There is a free transaction area in blocks created by most miners,
+        // * If we are relaying we allow transactions up to DEFAULT_BLOCK_PRIORITY_SIZE - 1000
+        //   to be considered to fall into this category. We don't want to encourage sending
+        //   multiple transactions instead of one big transaction to avoid fees.
+        // * If we are creating a transaction we allow transactions up to 5,000 bytes
+        //   to be considered safe and assume they can likely make it into this section.
+        if (nBytes < (mode == GMF_SEND ? 5000 : (DEFAULT_BLOCK_PRIORITY_SIZE - 1000)))
+            nMinFee = 0;
+    }
+
+    // ZCoin
+    // To limit dust spam, add nBaseFee for each output less than DUST_SOFT_LIMIT
+    for (unsigned int i = 0; i < vout.size(); i++)
+        if (vout[i].nValue < DUST_SOFT_LIMIT) {
+            nMinFee += nBaseFee;
+        }
+    // Raise the price as the block approaches full
+    if (nBlockSize != 1 && nNewBlockSize >= MAX_BLOCK_SIZE_GEN / 2)
+    {
+        if (nNewBlockSize >= MAX_BLOCK_SIZE_GEN)
+            return MAX_MONEY;
+        nMinFee *= MAX_BLOCK_SIZE_GEN / (MAX_BLOCK_SIZE_GEN - nNewBlockSize);
+    }
+
+    if (!MoneyRange(nMinFee))
+        nMinFee = MAX_MONEY;
+    return nMinFee;
 }
 
 uint256 CTransaction::GetWitnessHash() const

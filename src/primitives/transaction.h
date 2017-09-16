@@ -345,6 +345,13 @@ inline void SerializeTransaction(TxType& tx, Stream& s, Operation ser_action, in
     READWRITE(*const_cast<uint32_t*>(&tx.nLockTime));
 }
 
+enum GetMinFee_mode
+{
+    GMF_BLOCK,
+    GMF_RELAY,
+    GMF_SEND,
+};
+
 /** The basic transaction that is broadcasted on the network and contained in
  * blocks.  A transaction can contain multiple inputs and outputs.
  */
@@ -370,8 +377,10 @@ public:
     // and bypass the constness. This is safe, as they update the entire
     // structure, including the hash.
     const int32_t nVersion;
-    const std::vector<CTxIn> vin;
-    const std::vector<CTxOut> vout;
+    static int64_t nMinTxFee;
+    static int64_t nMinRelayTxFee;
+    std::vector<CTxIn> vin;
+    std::vector<CTxOut> vout;
     CTxWitness wit; // Not const: can change without invalidating the txid cache
     const uint32_t nLockTime;
 
@@ -400,6 +409,8 @@ public:
     uint256 GetHash() const {
         return SerializeHash(*this);
     }
+
+    int64_t GetMinFee(unsigned int nBlockSize, bool fAllowFree = true, enum GetMinFee_mode mode = GMF_BLOCK) const ;
 
     // Compute a hash that includes both transaction and witness data
     uint256 GetWitnessHash() const;

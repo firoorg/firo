@@ -50,9 +50,7 @@ SerialNumberSignatureOfKnowledge::SerialNumberSignatureOfKnowledge(const Params*
 	// Openssl's rng is not thread safe, so we don't call it in a parallel loop,
 	// instead we generate the random values beforehand and run the calculations
 	// based on those values in parallel.
-#ifdef ZEROCOIN_THREADING
-	#pragma omp parallel for
-#endif
+
 	for(uint32_t i=0; i < params->zkp_iterations; i++) {
 		// compute g^{ {a^x b^r} h^v} mod p2
 		c[i] = challengeCalculation(coin.getSerialNumber(), r[i], v[i]);
@@ -67,9 +65,6 @@ SerialNumberSignatureOfKnowledge::SerialNumberSignatureOfKnowledge(const Params*
     this->hash = hasher.GetArith256Hash();
 	unsigned char *hashbytes =  (unsigned char*) &hash;
 
-#ifdef ZEROCOIN_THREADING
-	#pragma omp parallel for
-#endif
 	for(uint32_t i = 0; i < params->zkp_iterations; i++) {
 		int bit = i % 8;
 		int byte = i / 8;
@@ -111,9 +106,7 @@ bool SerialNumberSignatureOfKnowledge::Verify(const Bignum& coinSerialNumber, co
 
 	vector<CBigNum> tprime(params->zkp_iterations);
 	unsigned char *hashbytes = (unsigned char*) &this->hash;
-#ifdef ZEROCOIN_THREADING
-	#pragma omp parallel for
-#endif
+
 	for(uint32_t i = 0; i < params->zkp_iterations; i++) {
 		int bit = i % 8;
 		int byte = i / 8;
