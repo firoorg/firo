@@ -640,9 +640,11 @@ namespace {
                     return;
                 }
                 if (pindex->nStatus & BLOCK_HAVE_DATA || chainActive.Contains(pindex)) {
+
                     if (pindex->nChainTx)
                         state->pindexLastCommonBlock = pindex;
                 } else if (mapBlocksInFlight.count(pindex->GetBlockHash()) == 0) {
+//                } else  {
                     // The block is not already downloaded, and not yet in flight.
                     if (pindex->nHeight > nWindowEnd) {
                         // We reached the end of the window.
@@ -656,7 +658,8 @@ namespace {
                     if (vBlocks.size() == count) {
                         return;
                     }
-                } else if (waitingfor == -1) {
+                }
+                else if (waitingfor == -1) {
                     // This is the first already-in-flight block.
                     waitingfor = mapBlocksInFlight[pindex->GetBlockHash()].first;
                 }
@@ -1133,7 +1136,7 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx, CZerocoinEntry pubCoinTx
                         countPubcoin++;
                         accumulator += pubCoinTemp;
                         LogPrintf("countPubcoin=%s\n", countPubcoin);
-                        LogPrintf("accumulator=%s\n", accumulator.getValue().ToString());
+                        LogPrintf("accumulator=%s\n", accumulator.getValue().ToString().substr(0, 15));
                         if (countPubcoin >= 2) { // MINIMUM REQUIREMENT IS 2 PUBCOINS
                             if (newSpend.Verify(accumulator, newMetadata)) {
                                 LogPrintf("COIN SPEND TX DID VERIFY - accumulator!\n");
@@ -1607,7 +1610,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool &pool, CValidationState &state, const C
             }
         }
     }
-    if (fCheckInputs) {
+    if (!tx.IsZerocoinSpend() && fCheckInputs) {
         CCoinsView dummy;
         CCoinsViewCache view(&dummy);
         CAmount nValueIn = 0;
@@ -1632,8 +1635,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool &pool, CValidationState &state, const C
                 if (!pcoinsTip->HaveCoinsInCache(txin.prevout.hash))
                     vHashTxnToUncache.push_back(txin.prevout.hash);
                 if (!view.HaveCoins(txin.prevout.hash)) {
-                    if (pfMissingInputs)
-                        *pfMissingInputs = true;
+                    if (pfMissingInputs) *pfMissingInputs = true;
                     LogPrintf("cause by ->view.HaveCoins!\n");
                     return false; // fMissingInputs and !state.IsInvalid() is used to detect this condition, don't set state.Invalid()
                 }
@@ -3141,12 +3143,12 @@ void PruneAndFlush() {
 
 /** Update chainActive and related internal data structures. */
 void static UpdateTip(CBlockIndex *pindexNew, const CChainParams &chainParams) {
+    LogPrintf("UpdateTip() pindexNew.nHeight=%s\n", pindexNew->nHeight);
     chainActive.SetTip(pindexNew);
 
     // New best block
     nTimeBestReceived = GetTime();
     mempool.AddTransactionsUpdated(1);
-
     cvBlockChange.notify_all();
     static bool fWarned = false;
     std::vector <std::string> warningMessages;
@@ -3196,8 +3198,6 @@ void static UpdateTip(CBlockIndex *pindexNew, const CChainParams &chainParams) {
             pcoinsTip->DynamicMemoryUsage() * (1.0 / (1 << 20)), pcoinsTip->GetCacheSize());
     if (!warningMessages.empty())
         LogPrintf(" warning='%s'", boost::algorithm::join(warningMessages, ", "));
-    LogPrintf("\n");
-
 }
 
 /** Disconnect chainActive's tip. You probably want to call mempool.removeForReorg and manually re-limit mempool size after this, with cs_main held. */
@@ -3448,7 +3448,7 @@ bool static ConnectTipZC(CValidationState &state, const CChainParams &chainparam
                         pubCoinTx.value = pubCoinItem.value;
                         pubCoinTx.nHeight = -1;
                         walletdb.WriteZerocoinEntry(pubCoinTx);
-                        LogPrintf("- Pubcoin Connect Reset Pubcoin Denomination: %d Pubcoin Id: %d Height: %d\n", pubCoinTx.denomination, pubCoinTx.id, pubCoinItem.nHeight);
+                        LogPrintf("Pubcoin Connect Reset Pubcoin Denomination: %d Pubcoin Id: %d Height: %d\n", pubCoinTx.denomination, pubCoinTx.id, pubCoinItem.nHeight);
                         zerocoinMintHeight = pindexNew->nHeight;
                     }
                 }
@@ -3462,7 +3462,7 @@ bool static ConnectTipZC(CValidationState &state, const CChainParams &chainparam
                         pubCoinTx.serialNumber = pubCoinItem.serialNumber;
                         pubCoinTx.value = pubCoin;
                         pubCoinTx.nHeight = -1;
-                        LogPrintf("- Connect Reset Pubcoin Denomination: %d Pubcoin Id: %d Height: %d\n", pubCoinTx.denomination, pubCoinTx.id, pubCoinItem.nHeight);
+                        LogPrintf("Connect Reset Pubcoin Denomination: %d Pubcoin Id: %d Height: %d\n", pubCoinTx.denomination, pubCoinTx.id, pubCoinItem.nHeight);
                         walletdb.WriteZerocoinEntry(pubCoinTx);
                     }
                 }
@@ -3578,8 +3578,7 @@ static CBlockIndex *FindMostWorkChain() {
             bool fMissingData = !(pindexTest->nStatus & BLOCK_HAVE_DATA);
             if (fFailedChain || fMissingData) {
                 // Candidate chain is not usable (either invalid or missing data)
-                if (fFailedChain &&
-                    (pindexBestInvalid == NULL || pindexNew->nChainWork > pindexBestInvalid->nChainWork))
+                if (fFailedChain && (pindexBestInvalid == NULL || pindexNew->nChainWork > pindexBestInvalid->nChainWork))
                     pindexBestInvalid = pindexNew;
                 CBlockIndex *pindexFailed = pindexNew;
                 // Remove the entire chain from the set.
@@ -3631,8 +3630,10 @@ static bool ActivateBestChainStep(CValidationState &state, const CChainParams &c
     // Disconnect active blocks which are no longer in the best chain.
     bool fBlocksDisconnected = false;
     while (chainActive.Tip() && chainActive.Tip() != pindexFork) {
-        if (!DisconnectTip(state, chainparams))
+        if (!DisconnectTip(state, chainparams)) {
+            LogPrintf("DisconnectTip() -> Failed!\n");
             return false;
+        }
         fBlocksDisconnected = true;
     }
     int nHeight = pindexFork ? pindexFork->nHeight : -1;
@@ -3728,6 +3729,16 @@ static void NotifyHeaderTip() {
     }
 }
 
+int getNHeight(const CBlockHeader &block) {
+    CBlockIndex *pindexPrev = NULL;
+    int nHeight = 0;
+    BlockMap::iterator mi = mapBlockIndex.find(block.hashPrevBlock);
+    if (mi != mapBlockIndex.end()) {
+        pindexPrev = (*mi).second;
+        nHeight = pindexPrev->nHeight + 1;
+    }
+    return nHeight;
+}
 
 /**
  * Make the best chain active, in multiple steps. The result is either failure
@@ -3756,13 +3767,34 @@ bool ActivateBestChain(CValidationState &state, const CChainParams &chainparams,
                 pindexMostWork = FindMostWorkChain();
             }
 
+//            LogPrintf("chainActive.Tip()=%s\n", chainActive.Tip().ToString());
+
             // Whether we have anything to do at all.
-            if (pindexMostWork == NULL || pindexMostWork == chainActive.Tip())
-                return true;
+            if (pindexMostWork == NULL || pindexMostWork == chainActive.Tip()) {
+//                if (pindexMostWork == NULL) {
+//                    LogPrintf("pindexMostWork is NULL\n");
+//                } else {
+//                    LogPrintf("chainActive.Tip->nHeight=%s\n", chainActive.Tip()->nHeight);
+//                }
+//                if (pblock) {
+//                    int blockHeight = getNHeight(pblock->GetBlockHeader());
+//                    LogPrintf("pblock.Height=%s\n", blockHeight);
+//                    if (blockHeight != chainActive.Tip()->nHeight + 1) {
+//                        return true;
+//                    } else {
+//                        LogPrintf("Modify to continue \n");
+//                    }
+//                } else {
+                    return true;
+//                }
+
+            }
 
             bool fInvalidFound = false;
-            if (!ActivateBestChainStep(state, chainparams, pindexMostWork, pblock && pblock->GetHash() == pindexMostWork->GetBlockHash() ? pblock : NULL, fInvalidFound))
+            if (!ActivateBestChainStep(state, chainparams, pindexMostWork, pblock && pblock->GetHash() == pindexMostWork->GetBlockHash() ? pblock : NULL, fInvalidFound)) {
+                LogPrintf("ActivateBestChainStep --> Failed!\n");
                 return false;
+            }
 
             if (fInvalidFound) {
                 // Wipe cache, we may need another branch now.
@@ -4066,17 +4098,6 @@ bool FindUndoPos(CValidationState &state, int nFile, CDiskBlockPos &pos, unsigne
     }
 
     return true;
-}
-
-int getNHeight(const CBlockHeader &block) {
-    CBlockIndex *pindexPrev = NULL;
-    int nHeight = 0;
-    BlockMap::iterator mi = mapBlockIndex.find(block.hashPrevBlock);
-    if (mi != mapBlockIndex.end()) {
-        pindexPrev = (*mi).second;
-        nHeight = pindexPrev->nHeight + 1;
-    }
-    return nHeight;
 }
 
 //btzc: code from vertcoin, add
@@ -6246,7 +6267,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
         pfrom->setAskFor.erase(inv.hash);
         mapAlreadyAskedFor.erase(inv.hash);
         //&& !AlreadyHave(inv)
-        if (!tx.IsZerocoinSpend()  && AcceptToMemoryPool(mempool, state, tx, true, true, &fMissingInputs)) {
+        if (!tx.IsZerocoinSpend()  && AcceptToMemoryPool(mempool, state, tx, true, true, &fMissingInputs, false, 0, true)) {
             mempool.check(pcoinsTip);
             RelayTransaction(tx);
             for (unsigned int i = 0; i < tx.vout.size(); i++) {
@@ -6282,7 +6303,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
 
                     if (setMisbehaving.count(fromPeer))
                         continue;
-                    if (AcceptToMemoryPool(mempool, stateDummy, orphanTx, true, true, &fMissingInputs2)) {
+                    if (AcceptToMemoryPool(mempool, stateDummy, orphanTx, true, true, &fMissingInputs2, false, 0, true)) {
 //                        LogPrintf("Accepted orphan tx %s\n", orphanHash.ToString());
                         RelayTransaction(orphanTx);
                         for (unsigned int i = 0; i < orphanTx.vout.size(); i++) {
@@ -6317,7 +6338,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
                 EraseOrphanTx(hash);
             //btzc: zcoin condition
             //&& !AlreadyHave(inv)
-        } else if (tx.IsZerocoinSpend() && AcceptToMemoryPool(mempool, state, tx, false, true, &fMissingInputsZerocoin)) {
+        } else if (tx.IsZerocoinSpend() && AcceptToMemoryPool(mempool, state, tx, false, true, &fMissingInputsZerocoin, false, 0, true)) {
             RelayTransaction(tx);
 //            LogPrint("mempool", "AcceptToMemoryPool: peer=%d: accepted %s (poolsz %u txn, %u kB)\n",
 //                     pfrom->id,
@@ -6791,7 +6812,6 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
         // Such an unrequested block may still be processed, subject to the
         // conditions in AcceptBlock().
         bool forceProcessing = pfrom->fWhitelisted && !IsInitialBlockDownload();
-        LogPrintf("forceProcessing=%s\n", forceProcessing);
         int nHeight = getNHeight(block.GetBlockHeader());
 
         if (nHeight > 0 && mapBlockData.count(nHeight) == 0) {
@@ -7026,11 +7046,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
 
 // requires LOCK(cs_vRecvMsg)
 bool ProcessMessages(CNode *pfrom) {
-//    LogPrintf("ProcessMessages(), nStartingHeight=%s\n", pfrom->nStartingHeight);
     const CChainParams &chainparams = Params();
-    //if (fDebug)
-    //    LogPrintf("%s(%u messages)\n", __func__, pfrom->vRecvMsg.size());
-
     //
     // Message format
     //  (4) message start
@@ -7056,11 +7072,6 @@ bool ProcessMessages(CNode *pfrom) {
         // get next message
         CNetMessage &msg = *it;
 
-        //if (fDebug)
-        //    LogPrintf("%s(message %u msgsz, %u bytes, complete:%s)\n", __func__,
-        //            msg.hdr.nMessageSize, msg.vRecv.size(),
-        //            msg.complete() ? "Y" : "N");
-
         // end, if an incomplete message is found
         if (!msg.complete())
             break;
@@ -7071,7 +7082,6 @@ bool ProcessMessages(CNode *pfrom) {
         // Scan for message start
         if (memcmp(msg.hdr.pchMessageStart, chainparams.MessageStart(), MESSAGE_START_SIZE) != 0) {
             LogPrintf("PROCESSMESSAGE: INVALID MESSAGESTART\n");
-//            LogPrintf("PROCESSMESSAGE: INVALID MESSAGESTART %s peer=%d\n", SanitizeString(msg.hdr.GetCommand()), pfrom->id);
             fOk = false;
             break;
         }
@@ -7080,7 +7090,6 @@ bool ProcessMessages(CNode *pfrom) {
         CMessageHeader &hdr = msg.hdr;
         if (!hdr.IsValid(chainparams.MessageStart())) {
             LogPrintf("PROCESSMESSAGE: ERRORS IN HEADER\n");
-//            LogPrintf("PROCESSMESSAGE: ERRORS IN HEADER %s peer=%d\n", SanitizeString(hdr.GetCommand()), pfrom->id);
             continue;
         }
         string strCommand = hdr.GetCommand();

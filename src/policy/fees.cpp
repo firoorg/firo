@@ -13,8 +13,7 @@
 #include "txmempool.h"
 #include "util.h"
 
-void TxConfirmStats::Initialize(std::vector<double>& defaultBuckets,
-                                unsigned int maxConfirms, double _decay, std::string _dataTypeString)
+void TxConfirmStats::Initialize(std::vector<double>& defaultBuckets, unsigned int maxConfirms, double _decay, std::string _dataTypeString)
 {
     decay = _decay;
     dataTypeString = _dataTypeString;
@@ -385,8 +384,7 @@ void CBlockPolicyEstimator::processTransaction(const CTxMemPoolEntry& entry, boo
     double curPri = entry.GetPriority(txHeight);
     mapMemPoolTxs[hash].blockHeight = txHeight;
 
-    LogPrint("estimatefee", "Blockpolicy mempool tx %s \n", hash.ToString());
-    LogPrint("estimatefee", "entry.GetFee()=  %s \n", entry.GetFee()/1000000);
+    LogPrint("estimatefee", "entry.GetFee()=%s XZC\n", entry.GetFee()/100000000);
     // Record this as a priority estimate
 //    if (entry.GetFee() == 0 || isPriDataPoint(feeRate, c) {
     if (entry.GetFee() == 0) {
@@ -403,7 +401,6 @@ void CBlockPolicyEstimator::processTransaction(const CTxMemPoolEntry& entry, boo
 //    else {
 //        LogPrint("estimatefee", "not adding");
 //    }
-    LogPrint("estimatefee", "\n");
 }
 
 void CBlockPolicyEstimator::processBlockTx(unsigned int nBlockHeight, const CTxMemPoolEntry& entry)

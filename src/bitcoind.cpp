@@ -126,7 +126,7 @@ bool AppInit(int argc, char* argv[])
 
         if (fCommandLine)
         {
-            fprintf(stderr, "Error: There is no RPC client functionality in bitcoind anymore. Use the bitcoin-cli utility instead.\n");
+            fprintf(stderr, "Error: There is no RPC client functionality in zcoind anymore. Use the zcoin-cli utility instead.\n");
             exit(EXIT_FAILURE);
         }
 #ifndef WIN32

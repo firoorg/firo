@@ -34,7 +34,7 @@ pnSeed = [
     0x598e28dc, 0x5c3f39aa, 0x5d327298
 ]
 
-default_port = '18168'
+default_port = '8168'
 # ipv4 in ipv6 prefix
 pchIPv4 = bytearray([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff])
 

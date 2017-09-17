@@ -464,7 +464,7 @@ void CTxMemPool::removeUnchecked(txiter it) {
     LogPrintf("removeUnchecked txHash=%s, IsZerocoinSpend()=%s\n", hash.ToString(), it->GetTx().IsZerocoinSpend());
     if (!it->GetTx().IsZerocoinSpend()) {
         BOOST_FOREACH(const CTxIn &txin, it->GetTx().vin)
-        mapNextTx.erase(txin.prevout);
+            mapNextTx.erase(txin.prevout);
         if (vTxHashes.size() > 1) {
             vTxHashes[it->vTxHashesIdx] = std::move(vTxHashes.back());
             vTxHashes[it->vTxHashesIdx].second->vTxHashesIdx = it->vTxHashesIdx;
@@ -477,12 +477,12 @@ void CTxMemPool::removeUnchecked(txiter it) {
         totalTxSize -= it->GetTxSize();
         cachedInnerUsage -= it->DynamicMemoryUsage();
         cachedInnerUsage -= memusage::DynamicUsage(mapLinks[it].parents) + memusage::DynamicUsage(mapLinks[it].children);
-        minerPolicyEstimator->removeTx(hash);
     }
 
     mapLinks.erase(it);
     mapTx.erase(it);
     nTransactionsUpdated++;
+    minerPolicyEstimator->removeTx(hash);
     LogPrintf("removeUnchecked ->OK\n");
 }
 
@@ -959,11 +959,7 @@ void CTxMemPool::ApplyDeltas(const uint256 hash, double &dPriorityDelta, CAmount
 
 void CTxMemPool::ClearPrioritisation(const uint256 hash) {
     LOCK(cs);
-    if (mapDeltas.count(hash) > 0) {
-        mapDeltas.erase(hash);
-    } else {
-        LogPrintf("ERROR: CTxMemPool::ClearPrioritisation trying to erase not existing hash!\n");
-    }
+    mapDeltas.erase(hash);
 }
 
 bool CTxMemPool::HasNoInputsOf(const CTransaction &tx) const {

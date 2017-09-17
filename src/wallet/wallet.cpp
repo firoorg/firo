@@ -1394,7 +1394,6 @@ void CWallet::ReacceptWalletTransactions() {
 }
 
 bool CWalletTx::RelayWalletTransaction(bool fCheckInputs) {
-    LogPrintf("CWalletTx::RelayWalletTransaction()\n");
     assert(pwallet->GetBroadcastTransactions());
     if (!IsCoinBase() && !isAbandoned() && GetDepthInMainChain() == 0) {
         CValidationState state;
