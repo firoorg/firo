@@ -361,7 +361,7 @@ bool CheckInputs(const CTransaction& tx, CValidationState &state, const CCoinsVi
 void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, int nHeight);
 
 /** Context-independent validity checks */
-bool CheckTransaction(const CTransaction& tx, CValidationState& state, uint256 hashTx, bool isVerifyDB, int nHeight = INT_MAX);
+bool CheckTransaction(const CTransaction& tx, CValidationState& state, uint256 hashTx, bool isVerifyDB, int nHeight = INT_MAX, bool isCheckWalletTransaction = false);
 
 /**
  * Check if transaction is final and can be included in a block with the
