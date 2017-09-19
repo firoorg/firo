@@ -1466,7 +1466,7 @@ bool CheckTransaction(const CTransaction& tx, CValidationState& state, uint256 h
                                      "CTransaction::CheckTransaction() : PubCoin is not validate");
                 }
 
-                if (!isVerifyDB) {
+                if (!isVerifyDB && !isCheckWallet) {
                     // Check the pubCoinValue didn't alr`eady store in the wallet
                     CZerocoinEntry pubCoinTx;
                     list <CZerocoinEntry> listPubCoin = list<CZerocoinEntry>();
@@ -3270,6 +3270,8 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
                             pubCoinTx.value = pubCoinItem.value;
                             pubCoinTx.id = pubCoinItem.id;
                             walletdb.WriteZerocoinEntry(pubCoinTx);
+                            LogPrintf("DisconnectTip() -> NotifyZerocoinChanged\n");
+                            LogPrintf("pubcoin=%s, isUsed=New\n", pubCoinItem.value.GetHex());
                             pwalletMain->NotifyZerocoinChanged(pwalletMain, pubCoinItem.value.GetHex(), "New", CT_UPDATED);
                             walletdb.EraseCoinSpendSerialEntry(item);
                             pwalletMain->EraseFromWallet(item.hashTx);
@@ -3286,10 +3288,10 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
                 vchZeroMint.insert(vchZeroMint.end(), txout.scriptPubKey.begin() + 6, txout.scriptPubKey.begin() + txout.scriptPubKey.size());
                 CBigNum pubCoin;
                 pubCoin.setvch(vchZeroMint);
-                int zercoinMintHeight = -1;
+                int zerocoinMintHeight = -1;
                 BOOST_FOREACH(const CZerocoinEntry &pubCoinItem, listPubCoin) {
                     if (pubCoinItem.value == pubCoin) {
-                        zercoinMintHeight = pubCoinItem.nHeight;
+                        zerocoinMintHeight = pubCoinItem.nHeight;
                         CZerocoinEntry pubCoinTx;
                         pubCoinTx.id = -1;
                         pubCoinTx.IsUsed = pubCoinItem.IsUsed;
@@ -3298,14 +3300,14 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
                         pubCoinTx.serialNumber = pubCoinItem.serialNumber;
                         pubCoinTx.value = pubCoin;
                         pubCoinTx.nHeight = -1;
-                        LogPrintf("- Disconnect Reset Pubcoin Id: %d Height: %d\n", pubCoinTx.id, pindexDelete->nHeight);
+                        LogPrintf("- Pubcoin Disconnect Reset Pubcoin Id: %d Height: %d\n", pubCoinTx.id, pindexDelete->nHeight);
                         walletdb.WriteZerocoinEntry(pubCoinTx);
                     }
 
                 }
 
                 BOOST_FOREACH(const CZerocoinEntry &pubCoinItem, listPubCoin) {
-                    if (pubCoinItem.nHeight > zercoinMintHeight) {
+                    if (pubCoinItem.nHeight > zerocoinMintHeight) {
                         CZerocoinEntry pubCoinTx;
                         pubCoinTx.id = -1;
                         pubCoinTx.IsUsed = pubCoinItem.IsUsed;
@@ -3430,7 +3432,7 @@ bool static ConnectTip(CValidationState& state, const CChainParams& chainparams,
  * corresponding to pindexNew, to bypass loading it again from disk.
  */
 bool static ConnectTipZC(CValidationState &state, const CChainParams &chainparams, CBlockIndex *pindexNew, const CBlock *pblock) {
-    CBlock block;
+CBlock block;
     if (!pblock) {
         if (!ReadBlockFromDisk(block, pindexNew, chainparams.GetConsensus()))
             return AbortNode(state, "Failed to read block");
@@ -3441,7 +3443,7 @@ bool static ConnectTipZC(CValidationState &state, const CChainParams &chainparam
     CWalletDB walletdb(pwalletMain->strWalletFile);
     walletdb.ListPubCoin(listPubCoin);
 
-    BOOST_FOREACH(const CTransaction &tx, block.vtx){
+    BOOST_FOREACH(const CTransaction &tx, pblock->vtx){
         // Check Mint Zerocoin Transaction
         BOOST_FOREACH(const CTxOut txout, tx.vout) {
             if (!txout.scriptPubKey.empty() && txout.scriptPubKey.IsZerocoinMint()) {
@@ -3463,7 +3465,7 @@ bool static ConnectTipZC(CValidationState &state, const CChainParams &chainparam
                         pubCoinTx.value = pubCoinItem.value;
                         pubCoinTx.nHeight = -1;
                         walletdb.WriteZerocoinEntry(pubCoinTx);
-                        LogPrintf("- Connect Reset Pubcoin Denomination: %d Pubcoin Id: %d Height: %d\n", pubCoinTx.denomination, pubCoinTx.id, pindexNew->nHeight);
+                        LogPrintf("Pubcoin Connect Reset Pubcoin Denomination: %d Pubcoin Id: %d Height: %d\n", pubCoinTx.denomination, pubCoinTx.id, pubCoinItem.nHeight);
                         zerocoinMintHeight = pindexNew->nHeight;
                     }
                 }
@@ -3477,19 +3479,13 @@ bool static ConnectTipZC(CValidationState &state, const CChainParams &chainparam
                         pubCoinTx.serialNumber = pubCoinItem.serialNumber;
                         pubCoinTx.value = pubCoin;
                         pubCoinTx.nHeight = -1;
-                        LogPrintf("- Connect Reset Pubcoin Denomination: %d Pubcoin Id: %d Height: %d\n",
-                                  pubCoinTx.denomination, pubCoinTx.id, pindexNew->nHeight);
+                        LogPrintf("Connect Reset Pubcoin Denomination: %d Pubcoin Id: %d Height: %d\n", pubCoinTx.denomination, pubCoinTx.id, pubCoinItem.nHeight);
                         walletdb.WriteZerocoinEntry(pubCoinTx);
                     }
                 }
             }
         }
     }
-//    std::cout << "ConnectTipZC, nHeight= " << pindexNew->nHeight << std::endl;
-//    BOOST_FOREACH(const CZerocoinEntry &pubCoinItem, listPubCoin) {
-//        std::cout << "--## denomination = "<< pubCoinItem.denomination << ", id = " <<pubCoinItem.id <<
-//                  ", height = " << pubCoinItem.nHeight << std::endl;
-//    }
     return true;
 }
 
@@ -3499,9 +3495,8 @@ bool static ConnectTipZC(CValidationState &state, const CChainParams &chainparam
  */
 bool static ReArrangeZcoinMint(CValidationState &state, const CChainParams &chainparams, CBlockIndex *pindexNew,
                                const CBlock *pblock) {
-//    LogPrintf("[ReArrangeZcoinMint]\n");
+    CBlock block;
     if (!pblock) {
-        CBlock block;
         if (!ReadBlockFromDisk(block, pindexNew, chainparams.GetConsensus()))
             return AbortNode(state, "Failed to read block");
         pblock = &block;
@@ -3511,47 +3506,45 @@ bool static ReArrangeZcoinMint(CValidationState &state, const CChainParams &chai
     CWalletDB walletdb(pwalletMain->strWalletFile);
     walletdb.ListPubCoin(listPubCoin);
 
-//    LogPrintf("[ReArrangeZcoinMint] block.ToString()=%s\n", pblock->ToString());
-
     BOOST_FOREACH(const CTransaction &tx, pblock->vtx){
         // Check Mint Zerocoin Transaction
         BOOST_FOREACH(const CTxOut txout, tx.vout) {
-//            LogPrintf("[ReArrangeZcoinMint] txout.scriptPubKey.empty()=%d, txout.scriptPubKey.IsZerocoinMint()=%d\n", txout.scriptPubKey.empty(), txout.scriptPubKey.IsZerocoinMint());
             if (!txout.scriptPubKey.empty() && txout.scriptPubKey.IsZerocoinMint()) {
                 vector<unsigned char> vchZeroMint;
-                vchZeroMint.insert(vchZeroMint.end(), txout.scriptPubKey.begin() + 6, txout.scriptPubKey.begin() + txout.scriptPubKey.size());
+                vchZeroMint.insert(vchZeroMint.end(), txout.scriptPubKey.begin() + 6,
+                                   txout.scriptPubKey.begin() + txout.scriptPubKey.size());
                 CBigNum pubCoin;
                 pubCoin.setvch(vchZeroMint);
 
-                BOOST_FOREACH(const CZerocoinEntry &pubCoinItem, listPubCoin) {
+                BOOST_FOREACH(
+                const CZerocoinEntry &pubCoinItem, listPubCoin) {
                     if (pubCoinItem.value == pubCoin) {
                         CZerocoinEntry pubCoinTx;
                         // PUBCOIN IS IN DB, BUT NOT UPDATE ID
-//                        LogPrintf("UPDATING\n");
-                        // GET MAX ID
                         int currentId = 1;
-                        BOOST_FOREACH(const CZerocoinEntry &maxIdPubcoin, listPubCoin) {
-                            if (maxIdPubcoin.id > currentId && maxIdPubcoin.denomination == pubCoinItem.denomination) {
-                                currentId = maxIdPubcoin.id;
+                        unsigned int countExistingItems = 0;
+                        listPubCoin.sort(CompHeight);
+                        BOOST_FOREACH(const CZerocoinEntry &pubCoinIdItem, listPubCoin) {
+//                            LogPrintf("denomination = %d, id = %d, height = %d\n", pubCoinIdItem.denomination, pubCoinIdItem.id, pubCoinIdItem.nHeight);
+                            if (pubCoinIdItem.id > 0) {
+                                if (pubCoinIdItem.nHeight <= pindexNew->nHeight) {
+                                    if (pubCoinIdItem.denomination == pubCoinItem.denomination) {
+                                        countExistingItems++;
+                                        if (pubCoinIdItem.id > currentId) {
+                                            currentId = pubCoinIdItem.id;
+                                            countExistingItems = 1;
+                                        }
+                                    }
+                                } else {
+                                    break;
+                                }
                             }
                         }
 
-                        // FIND HOW MANY OF MAX ID
-                        unsigned int countExistingItems = 0;
-                        BOOST_FOREACH(const CZerocoinEntry &countItemPubcoin, listPubCoin) {
-                            if (currentId == countItemPubcoin.id && countItemPubcoin.denomination == pubCoinItem.denomination) {
-                                countExistingItems++;
-                            }
-//                            LogPrintf("Total pubCoinItem.id = %d\n", countItemPubcoin.id);
+                        if (countExistingItems > 9) {
+                            currentId++;
                         }
-                        //btzc: Hi there, Has problem here
-                        // IF IT IS NOT 10 -> ADD MORE
-                        if (countExistingItems < 10) {
-                            pubCoinTx.id = currentId;
-                        } else {// ELSE INCREASE 1 -> ADD
-                            currentId += 1;
-                            pubCoinTx.id = currentId;
-                        }
+                        pubCoinTx.id = currentId;
 
                         pubCoinTx.IsUsed = pubCoinItem.IsUsed;
                         pubCoinTx.randomness = pubCoinItem.randomness;
@@ -3559,19 +3552,14 @@ bool static ReArrangeZcoinMint(CValidationState &state, const CChainParams &chai
                         pubCoinTx.serialNumber = pubCoinItem.serialNumber;
                         pubCoinTx.value = pubCoinItem.value;
                         pubCoinTx.nHeight = pindexNew->nHeight;
-//                        LogPrintf("REORG PUBCOIN DENOMINATION: %d PUBCOIN ID: %d HEIGHT: %d\n", pubCoinTx.denomination, pubCoinTx.id, pubCoinTx.nHeight);
+                        LogPrintf("REORG PUBCOIN DENOMINATION: %d PUBCOIN ID: %d HEIGHT: %d\n",
+                                  pubCoinTx.denomination, pubCoinTx.id, pubCoinTx.nHeight);
                         walletdb.WriteZerocoinEntry(pubCoinTx);
                     }
                 }
             }
         }
     }
-//    std::cout << "ReArrangeZcoinMint, nHeight= " << pindexNew->nHeight << std::endl;
-//    BOOST_FOREACH(const CZerocoinEntry &pubCoinItem, listPubCoin) {
-//        std::cout << "--## denomination = "<< pubCoinItem.denomination << ", id = " <<pubCoinItem.id <<
-//                  ", height = " << pubCoinItem.nHeight << std::endl;
-//    }
-
     walletdb.WriteCalculatedZCBlock(pindexNew->nHeight);
     return true;
 }
@@ -3666,6 +3654,7 @@ static bool ActivateBestChainStep(CValidationState& state, const CChainParams& c
 
     // Build list of new blocks to connect.
     std::vector<CBlockIndex*> vpindexToConnect;
+    std::vector <CBlockIndex *> vpindexToConnectZC;
     bool fContinue = true;
     int nHeight = pindexFork ? pindexFork->nHeight : -1;
     while (fContinue && nHeight != pindexMostWork->nHeight) {
@@ -3673,10 +3662,12 @@ static bool ActivateBestChainStep(CValidationState& state, const CChainParams& c
         // a few blocks along the way.
         int nTargetHeight = std::min(nHeight + 32, pindexMostWork->nHeight);
         vpindexToConnect.clear();
+        vpindexToConnectZC.clear();
         vpindexToConnect.reserve(nTargetHeight - nHeight);
         CBlockIndex *pindexIter = pindexMostWork->GetAncestor(nTargetHeight);
         while (pindexIter && pindexIter->nHeight != nHeight) {
             vpindexToConnect.push_back(pindexIter);
+            vpindexToConnectZC.push_back(pindexIter);
             pindexIter = pindexIter->pprev;
         }
         nHeight = nTargetHeight;
@@ -3708,7 +3699,7 @@ static bool ActivateBestChainStep(CValidationState& state, const CChainParams& c
         BOOST_FOREACH(CBlockIndex * pindexConnect, vpindexToConnect){
             ConnectTipZC(state, chainparams, pindexConnect, pindexConnect == pindexMostWork ? pblock : NULL);
         }
-        BOOST_FOREACH(CBlockIndex * pindexConnect, vpindexToConnect){
+        BOOST_FOREACH(CBlockIndex * pindexConnect, vpindexToConnectZC){
             ReArrangeZcoinMint(state, chainparams, pindexConnect, pindexConnect == pindexMostWork ? pblock : NULL);
         }
     }

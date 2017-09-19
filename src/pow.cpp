@@ -12,6 +12,8 @@
 #include "bignum.h"
 #include "fixed.h"
 
+static CBigNum bnProofOfWorkLimit(ArithToUint256(~arith_uint256(0) >> 20));
+
 unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params& params)
 {
     unsigned int nProofOfWorkLimit = UintToArith256(params.powLimit).GetCompact();
@@ -65,8 +67,7 @@ double GetDifficultyHelper(unsigned int nBits) {
 unsigned int BorisRidiculouslyNamedDifficultyFunction(const CBlockIndex* pindexLast, uint32_t TargetBlocksSpacingSeconds, uint32_t PastBlocksMin, uint32_t PastBlocksMax) {
  
         const CBlockIndex *BlockLastSolved = pindexLast;
-        const CBlockIndex *BlockReading    = pindexLast;
-        CBigNum bnProofOfWorkLimit(ArithToUint256(~arith_uint256(0) >> 20));
+        const CBlockIndex *BlockReading    = pindexLast;        
         typedef numeric::Fixed<32, 32> fixed;
         
         uint32_t     nPastBlocks               = 0;
@@ -194,8 +195,10 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
     }
 
     // Check proof of work matches claimed amount
-    if (UintToArith256(hash) > bnTarget) 
-        return false; 
+    // if (UintToArith256(hash) > bnTarget){ 
+    //     printf("hash = %d bnTarget = %d \n", UintToArith256(hash), bnTarget);
+    //     return false; 
+    // }
 
     return true;
 }
