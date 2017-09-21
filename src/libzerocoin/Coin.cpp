@@ -46,7 +46,7 @@ CoinDenomination PublicCoin::getDenomination() const {
 	return static_cast<CoinDenomination>(this->denomination);
 }
 
-bool PublicCoin::validate() const{
+bool PublicCoin::validate() const{	
     return (this->params->accumulatorParams.minCoinValue < value) && (value < this->params->accumulatorParams.maxCoinValue) && value.isPrime(params->zkp_iterations);
 }
 
