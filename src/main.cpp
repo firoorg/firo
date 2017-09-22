@@ -87,7 +87,6 @@ size_t nCoinCacheUsage = 5000 * 300;
 uint64_t nPruneTarget = 0;
 int64_t nMaxTipAge = DEFAULT_MAX_TIP_AGE;
 bool fEnableReplacement = DEFAULT_ENABLE_REPLACEMENT;
-int64_t nStartRewardTime = 1499789471; // 07/11/2017 @ 11:11am (CST)
 
 
 CFeeRate minRelayTxFee = CFeeRate(DEFAULT_MIN_RELAY_TX_FEE);
@@ -1274,7 +1273,7 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx, CZerocoinEntry pubCoinTx
     return true;
 }
 
-int64_t static GetBlockValue(int nHeight, int64_t nFees, unsigned int nTime)
+int64_t GetBlockValue(int nHeight, int64_t nFees, unsigned int nTime)
 {
     bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
     int64_t value = 0 * COIN;

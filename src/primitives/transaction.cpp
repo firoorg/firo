@@ -105,7 +105,6 @@ int64_t CTransaction::GetMinFee(unsigned int nBlockSize, bool fAllowFree, enum G
             nMinFee = 0;
     }
 
-    // ZCoin
     // To limit dust spam, add nBaseFee for each output less than DUST_SOFT_LIMIT
     for (unsigned int i = 0; i < vout.size(); i++)
         if (vout[i].nValue < DUST_SOFT_LIMIT) {

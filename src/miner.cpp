@@ -6,6 +6,7 @@
 #include "miner.h"
 
 #include "amount.h"
+#include "base58.h"
 #include "chain.h"
 #include "chainparams.h"
 #include "coins.h"
@@ -124,43 +125,92 @@ void BlockAssembler::resetBlock()
 
 CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
 {
+    bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
     resetBlock();
-
     pblocktemplate.reset(new CBlockTemplate());
 
     if(!pblocktemplate.get())
         return NULL;
     pblock = &pblocktemplate->block; // pointer for convenience
 
+    nHeight = pindexBestHeader->nHeight + 1;
+
+    CTransaction coinbaseTx;
+    coinbaseTx.vin.resize(1);
+    coinbaseTx.vin[0].prevout.SetNull();
+    coinbaseTx.vin[0].scriptSig = CScript() << OP_0 << OP_0;
+    coinbaseTx.vout.resize(1);
+    coinbaseTx.vout[0].scriptPubKey = scriptPubKeyIn;
+    coinbaseTx.vout[0].nValue = 0;
+
+    if ((nHeight > 0) && (nHeight < 717499999)) {
+    // Take out amounts for budgets.
+    coinbaseTx.vout[0].nValue =-((int64_t)(0.95 * (GetBlockValue(nHeight, 0, pindexBestHeader->nTime))));
+
+         CScript FOUNDER_1_SCRIPT;
+         CScript FOUNDER_2_SCRIPT;
+         CScript FOUNDER_3_SCRIPT;
+         CScript FOUNDER_4_SCRIPT;
+         CScript FOUNDER_5_SCRIPT;
+
+         if(!fTestNet && (GetAdjustedTime() > nStartRewardTime)){
+                FOUNDER_1_SCRIPT = GetScriptForDestination(CBitcoinAddress("Siim7T5zMH3he8xxtQzhmHs4CQSuMrCV1M").Get());
+                FOUNDER_2_SCRIPT = GetScriptForDestination(CBitcoinAddress("SW2FbVaBhU1Www855V37auQzGQd8fuLR9x").Get());
+                FOUNDER_3_SCRIPT = GetScriptForDestination(CBitcoinAddress("SPusYr5tUdUyRXevJg7pnCc9Sm4HEzaYZF").Get());
+                FOUNDER_4_SCRIPT = GetScriptForDestination(CBitcoinAddress("SU5bKb35xUV8aHG5dNarWHB3HBVjcCRjYo").Get());
+                FOUNDER_5_SCRIPT = GetScriptForDestination(CBitcoinAddress("SXun9XDHLdBhG4Yd1ueZfLfRpC9kZgwT1b").Get());
+         }else if(!fTestNet && (GetAdjustedTime() <= nStartRewardTime)){
+             throw std::runtime_error("CreateNewBlock() : Create new block too early");
+         }else{
+                FOUNDER_1_SCRIPT = GetScriptForDestination(CBitcoinAddress("TBizCRSozKpCbheftmzs75fZnc7h6HocJ3").Get());
+                FOUNDER_2_SCRIPT = GetScriptForDestination(CBitcoinAddress("THc8faox1kKZ3aegLdU4cwCJwgehLHSe9M").Get());
+                FOUNDER_3_SCRIPT = GetScriptForDestination(CBitcoinAddress("TK7CPJ2BS2UxAc7KBbUYySCBczww97Qr7p").Get());
+                FOUNDER_4_SCRIPT = GetScriptForDestination(CBitcoinAddress("TUPAY3ziYY7znMLxRJJNuvfuFWS1snrjiM").Get());
+                FOUNDER_5_SCRIPT = GetScriptForDestination(CBitcoinAddress("TMtxkvmAMyL5siHX1n3zKAvAKnev8if8KA").Get());
+         }
+
+         // And pay the budgets
+         if ((nHeight > 0) && (nHeight < 90000)) {
+            coinbaseTx.vout.push_back(CTxOut((int64_t)(0.08 * (GetBlockValue(nHeight, 0, pindexBestHeader->nTime))), CScript(FOUNDER_1_SCRIPT.begin(), FOUNDER_1_SCRIPT.end())));
+            coinbaseTx.vout.push_back(CTxOut((int64_t)(0.08 * (GetBlockValue(nHeight, 0, pindexBestHeader->nTime))), CScript(FOUNDER_2_SCRIPT.begin(), FOUNDER_2_SCRIPT.end())));
+            coinbaseTx.vout.push_back(CTxOut((int64_t)(0.08 * (GetBlockValue(nHeight, 0, pindexBestHeader->nTime))), CScript(FOUNDER_3_SCRIPT.begin(), FOUNDER_3_SCRIPT.end())));
+            coinbaseTx.vout.push_back(CTxOut((int64_t)(0.15 * (GetBlockValue(nHeight, 0, pindexBestHeader->nTime))), CScript(FOUNDER_4_SCRIPT.begin(), FOUNDER_4_SCRIPT.end())));
+            coinbaseTx.vout.push_back(CTxOut((int64_t)(0.56 * (GetBlockValue(nHeight, 0, pindexBestHeader->nTime))), CScript(FOUNDER_5_SCRIPT.begin(), FOUNDER_5_SCRIPT.end())));
+         }
+         if ((nHeight >= 90000) && (nHeight < 717499999)) {
+            int blockRotation = nHeight - 95 * ((pindexBestHeader->nHeight+1)/95);
+            int64_t reward = (int64_t)(0.95 * (GetBlockValue(nHeight, 0, pindexBestHeader->nTime)));
+            if(blockRotation >= 0 && blockRotation <= 7){
+               coinbaseTx.vout.push_back(CTxOut(reward, CScript(FOUNDER_1_SCRIPT.begin(), FOUNDER_1_SCRIPT.end())));
+            }
+            if(blockRotation >= 8 && blockRotation <= 15){
+               coinbaseTx.vout.push_back(CTxOut(reward, CScript(FOUNDER_2_SCRIPT.begin(), FOUNDER_2_SCRIPT.end())));
+            }
+            if(blockRotation >= 16 && blockRotation <= 23){
+               coinbaseTx.vout.push_back(CTxOut(reward, CScript(FOUNDER_3_SCRIPT.begin(), FOUNDER_3_SCRIPT.end())));
+            }
+            if(blockRotation >= 24 && blockRotation <= 38){
+               coinbaseTx.vout.push_back(CTxOut(reward, CScript(FOUNDER_4_SCRIPT.begin(), FOUNDER_4_SCRIPT.end())));
+            }
+            if(blockRotation >= 39 && blockRotation <= 94){
+               coinbaseTx.vout.push_back(CTxOut(reward, CScript(FOUNDER_5_SCRIPT.begin(), FOUNDER_5_SCRIPT.end())));
+            }
+         }
+    }
+
     // Add dummy coinbase tx as first transaction
-    pblock->vtx.push_back(CTransaction());
+    pblock->vtx.push_back(coinbaseTx);
     pblocktemplate->vTxFees.push_back(-1); // updated at end
     pblocktemplate->vTxSigOpsCost.push_back(-1); // updated at end
+    pblocktemplate->vchCoinbaseCommitment = GenerateCoinbaseCommitment(*pblock, pindexBestHeader, chainparams.GetConsensus());
+    pblocktemplate->vTxFees[0] = -nFees;
+    GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION);
 
     LOCK2(cs_main, mempool.cs);
-    CBlockIndex* pindexPrev = chainActive.Tip();
-    nHeight = pindexPrev->nHeight + 1;
-
-    pblock->nVersion = ComputeBlockVersion(pindexPrev, chainparams.GetConsensus());
-    // -regtest only: allow overriding block.nVersion with
-    // -blockversion=N to test forking scenarios
-    if (chainparams.MineBlocksOnDemand())
-        pblock->nVersion = GetArg("-blockversion", pblock->nVersion);
-
     pblock->nTime = GetAdjustedTime();
-    const int64_t nMedianTimePast = pindexPrev->GetMedianTimePast();
-
-    nLockTimeCutoff = (STANDARD_LOCKTIME_VERIFY_FLAGS & LOCKTIME_MEDIAN_TIME_PAST)
-                       ? nMedianTimePast
-                       : pblock->GetBlockTime();
-
-    // Decide whether to include witness transactions
-    // This is only needed in case the witness softfork activation is reverted
-    // (which would require a very deep reorganization) or when
-    // -promiscuousmempoolflags is used.
-    // TODO: replace this with a call to main to assess validity of a mempool
-    // transaction (which in most cases can be a no-op).
-    fIncludeWitness = IsWitnessEnabled(pindexPrev, chainparams.GetConsensus());
+    const int64_t nMedianTimePast = pindexBestHeader->GetMedianTimePast();
+    nLockTimeCutoff = (STANDARD_LOCKTIME_VERIFY_FLAGS & LOCKTIME_MEDIAN_TIME_PAST) ? nMedianTimePast : pblock->GetBlockTime();
+    fIncludeWitness = IsWitnessEnabled(pindexBestHeader, chainparams.GetConsensus());
 
     addPriorityTxs();
     addPackageTxs();
@@ -169,30 +219,16 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
     nLastBlockSize = nBlockSize;
     nLastBlockWeight = nBlockWeight;
 
-    // Create coinbase transaction.
-    CMutableTransaction coinbaseTx;
-    coinbaseTx.vin.resize(1);
-    coinbaseTx.vin[0].prevout.SetNull();
-    coinbaseTx.vout.resize(1);
-    coinbaseTx.vout[0].scriptPubKey = scriptPubKeyIn;
-    coinbaseTx.vout[0].nValue = nFees + GetBlockSubsidy(nHeight, chainparams.GetConsensus());
-    coinbaseTx.vin[0].scriptSig = CScript() << nHeight << OP_0;
-    pblock->vtx[0] = coinbaseTx;
-    pblocktemplate->vchCoinbaseCommitment = GenerateCoinbaseCommitment(*pblock, pindexPrev, chainparams.GetConsensus());
-    pblocktemplate->vTxFees[0] = -nFees;
-
-    uint64_t nSerializeSize = GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION);
-    LogPrintf("CreateNewBlock(): total size: %u block weight: %u txs: %u fees: %ld sigops %d\n", nSerializeSize, GetBlockWeight(*pblock), nBlockTx, nFees, nBlockSigOpsCost);
-
     // Fill in header
-    pblock->hashPrevBlock  = pindexPrev->GetBlockHash();
-    UpdateTime(pblock, chainparams.GetConsensus(), pindexPrev);
-    pblock->nBits          = GetNextWorkRequired(pindexPrev, pblock, chainparams.GetConsensus());
+    pblock->hashPrevBlock  = pindexBestHeader->GetBlockHash();
+    UpdateTime(pblock, chainparams.GetConsensus(), pindexBestHeader);
+    pblock->nBits          = GetNextWorkRequired(pindexBestHeader, pblock, chainparams.GetConsensus());
     pblock->nNonce         = 0;
-    pblocktemplate->vTxSigOpsCost[0] = WITNESS_SCALE_FACTOR * GetLegacySigOpCount(pblock->vtx[0]);
+    pblocktemplate->vTxSigOpsCost[0] = GetLegacySigOpCount(pblock->vtx[0]);
+    pblock->vtx[0].vout[0].nValue += nFees + GetBlockSubsidy(nHeight, chainparams.GetConsensus());
 
     CValidationState state;
-    if (!TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false)) {
+    if (!TestBlockValidity(state, chainparams, *pblock, pindexBestHeader, false, false)) {
         throw std::runtime_error(strprintf("%s: TestBlockValidity failed: %s", __func__, FormatStateMessage(state)));
     }
 
