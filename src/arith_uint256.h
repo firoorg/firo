@@ -247,6 +247,10 @@ public:
         assert(WIDTH >= 2);
         return pn[0] | (uint64_t)pn[1] << 32;
     }
+    uint64_t Get64(int n=0) const
+    {
+        return pn[2*n] | (uint64_t)pn[2*n+1] << 32;
+    }
     template<typename Stream>
     void Serialize(Stream& s, int nType, int nVersion) const
     {

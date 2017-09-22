@@ -5862,17 +5862,22 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
                     LOCK(cs_vNodes);
                     // Use deterministic randomness to send to the same nodes for 24 hours
                     // at a time so the addrKnowns of the chosen nodes prevent repeats
-                    static const uint64_t salt0 = GetRand(std::numeric_limits<uint64_t>::max());
-                    static const uint64_t salt1 = GetRand(std::numeric_limits<uint64_t>::max());
+                    static arith_uint256 hashSalt;
+                    if (hashSalt == 0)
+                        hashSalt = UintToArith256(GetRandHash());
                     uint64_t hashAddr = addr.GetHash();
+                    arith_uint256 hashRand = hashSalt ^ (hashAddr<<32) ^ ((GetTime()+hashAddr)/(24*60*60));
+                    hashRand = UintToArith256(HashKeccak(BEGIN(hashRand), END(hashRand)));
                     multimap<uint64_t, CNode*> mapMix;
-                    const CSipHasher hasher = CSipHasher(salt0, salt1).Write(hashAddr << 32).Write((GetTime() + hashAddr) / (24*60*60));
                     BOOST_FOREACH(CNode* pnode, vNodes)
                     {
                         if (pnode->nVersion < CADDR_TIME_VERSION)
                             continue;
-                        uint64_t hashKey = CSipHasher(hasher).Write(pnode->id).Finalize();
-                        mapMix.insert(make_pair(hashKey, pnode));
+                        unsigned int nPointer;
+                        memcpy(&nPointer, &pnode, sizeof(nPointer));
+                        arith_uint256 hashKey = hashRand ^ nPointer;
+                        hashKey = UintToArith256(HashKeccak(BEGIN(hashKey), END(hashKey)));
+                        mapMix.insert(make_pair(hashKey.Get64(), pnode));
                     }
                     int nRelayNodes = fReachable ? 2 : 1; // limited relaying of addresses outside our network(s)
                     for (multimap<uint64_t, CNode*>::iterator mi = mapMix.begin(); mi != mapMix.end() && nRelayNodes-- > 0; ++mi)

@@ -4,23 +4,40 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "addrman.h"
-
+#include "arith_uint256.h"
 #include "hash.h"
 #include "serialize.h"
 #include "streams.h"
 
 int CAddrInfo::GetTriedBucket(const uint256& nKey) const
 {
-    uint64_t hash1 = (CHashWriter(SER_GETHASH, 0) << nKey << GetKey()).GetHash().GetCheapHash();
-    uint64_t hash2 = (CHashWriter(SER_GETHASH, 0) << nKey << GetGroup() << (hash1 % ADDRMAN_TRIED_BUCKETS_PER_GROUP)).GetHash().GetCheapHash();
+    CDataStream ss1(SER_GETHASH, 0);
+    std::vector<unsigned char> vchKey = GetKey();
+    ss1 << nKey << vchKey;
+//    uint64 hash1 = Hash(ss1.begin(), ss1.end()).Get64();
+    uint64_t hash1 = UintToArith256(HashKeccak(ss1.begin(), ss1.end())).Get64();
+
+    CDataStream ss2(SER_GETHASH, 0);
+    std::vector<unsigned char> vchGroupKey = GetGroup();
+    ss2 << nKey << vchGroupKey << (hash1 % ADDRMAN_TRIED_BUCKETS_PER_GROUP);
+//    uint64 hash2 = Hash(ss2.begin(), ss2.end()).Get64();
+    uint64_t hash2 = UintToArith256(HashKeccak(ss2.begin(), ss2.end())).Get64();
     return hash2 % ADDRMAN_TRIED_BUCKET_COUNT;
 }
 
 int CAddrInfo::GetNewBucket(const uint256& nKey, const CNetAddr& src) const
 {
+    CDataStream ss1(SER_GETHASH, 0);
+    std::vector<unsigned char> vchGroupKey = GetGroup();
     std::vector<unsigned char> vchSourceGroupKey = src.GetGroup();
-    uint64_t hash1 = (CHashWriter(SER_GETHASH, 0) << nKey << GetGroup() << vchSourceGroupKey).GetHash().GetCheapHash();
-    uint64_t hash2 = (CHashWriter(SER_GETHASH, 0) << nKey << vchSourceGroupKey << (hash1 % ADDRMAN_NEW_BUCKETS_PER_SOURCE_GROUP)).GetHash().GetCheapHash();
+    ss1 << nKey << vchGroupKey << vchSourceGroupKey;
+//    uint64 hash1 = Hash(ss1.begin(), ss1.end()).Get64();
+    uint64_t hash1 = UintToArith256(HashKeccak(ss1.begin(), ss1.end())).Get64();
+
+    CDataStream ss2(SER_GETHASH, 0);
+    ss2 << nKey << vchSourceGroupKey << (hash1 % ADDRMAN_NEW_BUCKETS_PER_SOURCE_GROUP);
+//    uint64 hash2 = Hash(ss2.begin(), ss2.end()).Get64();
+    uint64_t hash2 = UintToArith256(HashKeccak(ss2.begin(), ss2.end())).Get64();
     return hash2 % ADDRMAN_NEW_BUCKET_COUNT;
 }
 
