@@ -17,22 +17,27 @@
 
 const QString AddressTableModel::Send = "S";
 const QString AddressTableModel::Receive = "R";
+const QString AddressTableModel::Zerocoin = "X";
 
 struct AddressTableEntry
 {
     enum Type {
         Sending,
         Receiving,
+        Zerocoin,
         Hidden /* QSortFilterProxyModel will filter these out */
     };
 
     Type type;
     QString label;
     QString address;
+    QString pubcoin;
 
     AddressTableEntry() {}
     AddressTableEntry(Type type, const QString &label, const QString &address):
         type(type), label(label), address(address) {}
+    AddressTableEntry(Type type, const QString &pubcoin):
+            type(type), pubcoin(pubcoin) {}
 };
 
 struct AddressTableEntryLessThan
@@ -92,6 +97,20 @@ public:
                                   QString::fromStdString(strName),
                                   QString::fromStdString(address.ToString())));
             }
+            //[zcoin] add load pubcoin
+            std::list<CZerocoinEntry> listPubcoin;
+            CWalletDB(wallet->strWalletFile).ListPubCoin(listPubcoin);
+            BOOST_FOREACH(const CZerocoinEntry& item, listPubcoin)
+            {
+                if(item.randomness != 0 && item.serialNumber != 0){
+                    const std::string& pubCoin = item.value.GetHex();
+                    const std::string& isUsed = item.IsUsed ? "Used" : "New";
+                    cachedAddressTable.append(AddressTableEntry(AddressTableEntry::Zerocoin,
+                                                                QString::fromStdString(isUsed),
+                                                                QString::fromStdString(pubCoin)));
+                }
+
+            }
         }
         // qLowerBound() and qUpperBound() require our cachedAddressTable list to be sorted in asc order
         // Even though the map is already sorted this re-sorting step is needed because the originating map
@@ -144,6 +163,42 @@ public:
             parent->endRemoveRows();
             break;
         }
+    }
+    //[zcoin] updateEntry
+    void updateEntry(const QString &pubCoin, const QString &isUsed, int status)
+    {
+        // Find address / label in model
+        QList<AddressTableEntry>::iterator lower = qLowerBound(
+                cachedAddressTable.begin(), cachedAddressTable.end(), pubCoin, AddressTableEntryLessThan());
+        QList<AddressTableEntry>::iterator upper = qUpperBound(
+                cachedAddressTable.begin(), cachedAddressTable.end(), pubCoin, AddressTableEntryLessThan());
+        int lowerIndex = (lower - cachedAddressTable.begin());
+        bool inModel = (lower != upper);
+        AddressTableEntry::Type newEntryType = AddressTableEntry::Zerocoin;
+
+        switch(status)
+        {
+            case CT_NEW:
+                if(inModel)
+                {
+                    qWarning() << "Warning: AddressTablePriv::updateEntry: Got CT_NOW, but entry is already in model";
+                }
+                parent->beginInsertRows(QModelIndex(), lowerIndex, lowerIndex);
+                cachedAddressTable.insert(lowerIndex, AddressTableEntry(newEntryType, isUsed, pubCoin));
+                parent->endInsertRows();
+                break;
+            case CT_UPDATED:
+                if(!inModel)
+                {
+                    qWarning() << "Warning: AddressTablePriv::updateEntry: Got CT_UPDATED, but entry is not in model";
+                    break;
+                }
+                lower->type = newEntryType;
+                lower->label = isUsed;
+                parent->emitDataChanged(lowerIndex);
+                break;
+        }
+
     }
 
     int size()
@@ -230,6 +285,8 @@ QVariant AddressTableModel::data(const QModelIndex &index, int role) const
             return Send;
         case AddressTableEntry::Receiving:
             return Receive;
+        case AddressTableEntry::Zerocoin:
+            return Zerocoin;
         default: break;
         }
     }
@@ -341,6 +398,12 @@ void AddressTableModel::updateEntry(const QString &address,
     // Update address book model from Bitcoin core
     priv->updateEntry(address, label, isMine, purpose, status);
 }
+//[zcoin] AddressTableModel.updateEntry()
+void AddressTableModel::updateEntry(const QString &pubCoin, const QString &isUsed, int status)
+{
+    // Update stealth address book model from Bitcoin core
+    priv->updateEntry(pubCoin, isUsed, status);
+}
 
 QString AddressTableModel::addRow(const QString &type, const QString &label, const QString &address)
 {
@@ -451,4 +514,27 @@ int AddressTableModel::lookupAddress(const QString &address) const
 void AddressTableModel::emitDataChanged(int idx)
 {
     Q_EMIT dataChanged(index(idx, 0, QModelIndex()), index(idx, columns.length()-1, QModelIndex()));
+}
+
+bool AddressTableModel::zerocoinMint(string &stringError, string denomAmount)
+{
+    WalletModel::UnlockContext ctx(walletModel->requestUnlock());
+    if(!ctx.isValid())
+    {
+        // Unlock wallet failed or was cancelled
+        return false;
+    }
+    return wallet->CreateZerocoinMintModel(stringError, denomAmount);
+}
+
+bool AddressTableModel::zerocoinSpend(string &stringError, string denomAmount)
+{
+    WalletModel::UnlockContext ctx(walletModel->requestUnlock());
+    if(!ctx.isValid())
+    {
+        // Unlock wallet failed or was cancelled
+        return false;
+    }
+
+    return wallet->CreateZerocoinSpendModel(stringError, denomAmount);
 }

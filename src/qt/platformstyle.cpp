@@ -92,7 +92,7 @@ PlatformStyle::PlatformStyle(const QString &name, bool imagesOnButtons, bool col
             colorbase = colorHighlightBg;
         else
             colorbase = colorHighlightFg;
-        singleColor = colorbase;
+        singleColor = QColor(244,181,23);//colorbase;
     }
     // Determine text color
     textColor = QColor(QApplication::palette().color(QPalette::WindowText));
