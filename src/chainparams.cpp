@@ -210,7 +210,7 @@ public:
         consensus.nChainStartTime = 1389306217;
         consensus.BIP34Height = 21111;
         consensus.BIP34Hash = uint256S("0x0000000023b3a96d3484e5abb3755c413e7d41500f8e2a5c3f0dd01299cd8ef8");
-            consensus.powLimit = uint256S("00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+        consensus.powLimit = uint256S("00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.nPowTargetTimespan = 60 * 60; // 60 minutes between retargets
         consensus.nPowTargetSpacing = 10 * 60; // 10 minute blocks
         consensus.fPowAllowMinDifficultyBlocks = true;
@@ -232,7 +232,7 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].nTimeout = 1493596800; // May 1st 2017
 
         // The best chain should have at least this much work.
-        consensus.nMinimumChainWork = uint256S("0x00000000000000000000000000000000000000000000001b3fcc3e766e365e4b");
+        consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000708f98bf623f02e");
 
         pchMessageStart[0] = 0xcf;
         pchMessageStart[1] = 0xfc;

@@ -2229,9 +2229,7 @@ bool CWallet::CreateTransaction(const vector <CRecipient> &vecSend, CWalletTx &w
                     strFailReason = _("Insufficient funds");
                     return false;
                 }
-                BOOST_FOREACH(PAIRTYPE(
-                const CWalletTx*, unsigned
-                int) pcoin, setCoins)
+                BOOST_FOREACH(PAIRTYPE(const CWalletTx*, unsigned int) pcoin, setCoins)
                 {
                     CAmount nCredit = pcoin.first->vout[pcoin.second].nValue;
                     //The coin age after the next block (depth+1) is used instead of the current,
@@ -2382,6 +2380,7 @@ bool CWallet::CreateTransaction(const vector <CRecipient> &vecSend, CWalletTx &w
                 }
                 int64_t nPayFee = payTxFee.GetFeePerK() * (1 + (int64_t) GetTransactionWeight(txNew) / 1000);
                 bool fAllowFree = AllowFree(dPriority);// No free TXs in XZC
+                fAllowFree = true;// Allow free for send
                 LogPrintf("CreateTransaction: fAllowFree=%s\n", fAllowFree);
                 int64_t nMinFee = wtxNew.GetMinFee(1, fAllowFree, GMF_SEND);
 

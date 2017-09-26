@@ -236,7 +236,6 @@ UniValue generatetoaddress(const UniValue& params, bool fHelp)
 
 UniValue setgenerate(const UniValue& params, bool fHelp)
 {
-    LogPrintf("setgenerate 1\n");
     if (fHelp || params.size() < 1 || params.size() > 2)
         throw runtime_error(
                 "setgenerate generate ( genproclimit )\n"
@@ -259,13 +258,10 @@ UniValue setgenerate(const UniValue& params, bool fHelp)
 
     if (Params().MineBlocksOnDemand())
         throw JSONRPCError(RPC_METHOD_NOT_FOUND, "Use the generate method instead of setgenerate on this network");
-    LogPrintf("setgenerate 2\n");
     bool fGenerate = true;
 
-    LogPrintf("setgenerate 3\n");
     if (params.size() > 0)
         fGenerate = params[0].get_bool();
-    LogPrintf("setgenerate 4\n");
     int nGenProcLimit = GetArg("genproclimit", DEFAULT_GENERATE_THREADS);
     if (params.size() > 1)
     {
@@ -273,7 +269,6 @@ UniValue setgenerate(const UniValue& params, bool fHelp)
         if (nGenProcLimit == 0)
             fGenerate = false;
     }
-    LogPrintf("setgenerate 5\n");
 
     mapArgs["gen"] = (fGenerate ? "1" : "0");
     mapArgs ["genproclimit"] = itostr(nGenProcLimit);
@@ -622,7 +617,8 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
     pblock->nNonce = 0;
 
     // NOTE: If at some point we support pre-segwit miners post-segwit-activation, this needs to take segwit support into consideration
-    const bool fPreSegWit = (THRESHOLD_ACTIVE != VersionBitsState(pindexPrev, consensusParams, Consensus::DEPLOYMENT_SEGWIT, versionbitscache));
+//    const bool fPreSegWit = (THRESHOLD_ACTIVE != VersionBitsState(pindexPrev, consensusParams, Consensus::DEPLOYMENT_SEGWIT, versionbitscache));
+    const bool fPreSegWit = false;
 
     UniValue aCaps(UniValue::VARR); aCaps.push_back("proposal");
 

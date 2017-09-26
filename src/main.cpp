@@ -1135,8 +1135,7 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx, CZerocoinEntry pubCoinTx
                         }
                         countPubcoin++;
                         accumulator += pubCoinTemp;
-                        LogPrintf("countPubcoin=%s\n", countPubcoin);
-                        LogPrintf("accumulator=%s\n", accumulator.getValue().ToString().substr(0, 15));
+                        LogPrintf("count=%s, accumulator=%s\n", countPubcoin, accumulator.getValue().ToString().substr(0, 15));
                         if (countPubcoin >= 2) { // MINIMUM REQUIREMENT IS 2 PUBCOINS
                             if (newSpend.Verify(accumulator, newMetadata)) {
                                 LogPrintf("COIN SPEND TX DID VERIFY - accumulator!\n");
@@ -1176,8 +1175,7 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx, CZerocoinEntry pubCoinTx
                         }
                         countPubcoin++;
                         accumulatorRev += pubCoinTemp;
-                        LogPrintf("countPubcoin=%s\n", countPubcoin);
-                        LogPrintf("accumulatorRev=%s\n", accumulatorRev.getValue().ToString());
+                        LogPrintf("count=%s, accumulatorRev=%s\n", countPubcoin, accumulatorRev.getValue().ToString().substr(0, 15));
                         if (countPubcoin >= 2) { // MINIMUM REQUIREMENT IS 2 PUBCOINS
                             if (newSpend.Verify(accumulatorRev, newMetadata)) {
                                 LogPrintf("COIN SPEND TX DID VERIFY - accumulatorRev!\n");
@@ -1700,9 +1698,11 @@ bool AcceptToMemoryPoolWorker(CTxMemPool &pool, CValidationState &state, const C
                               inChainInputValue, fSpendsCoinbase, nSigOpsCost, lp);
 
         // Don't accept it if it can't get into a block
-        int64_t txMinFee = tx.GetMinFee(1000, true, GMF_RELAY);
+        // TODO: Temporarily disable this condition (by setting txMinFee = 0) to accept zero-fee TX (from old 0.8 client)
+        // int64_t txMinFee = tx.GetMinFee(1000, true, GMF_RELAY);
+        int64_t txMinFee = 0;
         if (fLimitFree && nFees < txMinFee) {
-            LogPrintf("not enought fee, nFees=%d, txMinFee=%d\n", nFees, txMinFee);
+            LogPrintf("not enough fee, nFees=%d, txMinFee=%d\n", nFees, txMinFee);
             return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "not enough fee", false, strprintf("nFees=%d, txMinFee=%d", nFees, txMinFee));
         }
         unsigned int nSize = entry.GetTxSize();
@@ -2164,10 +2164,15 @@ bool IsInitialBlockDownload() {
         return true;
     if (chainActive.Tip() == NULL)
         return true;
-    if (chainActive.Tip()->nChainWork < UintToArith256(chainParams.GetConsensus().nMinimumChainWork))
-        return true;
-    if (chainActive.Tip()->GetBlockTime() < (GetTime() - nMaxTipAge))
-        return true;
+//    LogPrintf("chainActive.Tip()->nChainWork=%s\n", chainActive.Tip()->nChainWork.ToString());
+//    LogPrintf("chainParams.GetConsensus().nMinimumChainWork=%s\n", chainParams.GetConsensus().nMinimumChainWork.ToString());
+//    LogPrintf("chainActive.Tip()->nChainWork < UintToArith256(chainParams.GetConsensus().nMinimumChainWork)=%s\n", chainActive.Tip()->nChainWork < UintToArith256(chainParams.GetConsensus().nMinimumChainWork));
+//    if (chainActive.Tip()->nChainWork < UintToArith256(chainParams.GetConsensus().nMinimumChainWork))
+//        return true;
+//    LogPrintf("chainActive.Tip()->GetBlockTime()=%s\n", chainActive.Tip()->GetBlockTime());
+//    LogPrintf("GetTime() - nMaxTipAge=%s\n", GetTime() - nMaxTipAge);
+//    if (chainActive.Tip()->GetBlockTime() < (GetTime() - nMaxTipAge))
+//        return true;
     latchToFalse.store(true, std::memory_order_relaxed);
     return false;
 }
@@ -3767,27 +3772,9 @@ bool ActivateBestChain(CValidationState &state, const CChainParams &chainparams,
                 pindexMostWork = FindMostWorkChain();
             }
 
-//            LogPrintf("chainActive.Tip()=%s\n", chainActive.Tip().ToString());
-
             // Whether we have anything to do at all.
             if (pindexMostWork == NULL || pindexMostWork == chainActive.Tip()) {
-//                if (pindexMostWork == NULL) {
-//                    LogPrintf("pindexMostWork is NULL\n");
-//                } else {
-//                    LogPrintf("chainActive.Tip->nHeight=%s\n", chainActive.Tip()->nHeight);
-//                }
-//                if (pblock) {
-//                    int blockHeight = getNHeight(pblock->GetBlockHeader());
-//                    LogPrintf("pblock.Height=%s\n", blockHeight);
-//                    if (blockHeight != chainActive.Tip()->nHeight + 1) {
-//                        return true;
-//                    } else {
-//                        LogPrintf("Modify to continue \n");
-//                    }
-//                } else {
                     return true;
-//                }
-
             }
 
             bool fInvalidFound = false;
@@ -4314,7 +4301,7 @@ bool ContextualCheckBlock(const CBlock &block, CValidationState &state, CBlockIn
 
     // Enforce block.nVersion=2 rule that the coinbase starts with serialized block height
     // if 750 of the last 1,000 blocks are version 2 or greater (51/100 if testnet):
-    if (!fTestNet && block.nVersion >= 2 && IsSuperMajority(2, pindexPrev, consensusParams.nMajorityEnforceBlockUpgrade, consensusParams)) {
+    if ((block.nVersion&0xff) >= 2 && IsSuperMajority(2, pindexPrev, consensusParams.nMajorityEnforceBlockUpgrade, consensusParams)) {
         CScript expect = CScript() << nHeight;
         if (block.vtx[0].vin[0].scriptSig.size() < expect.size() || !std::equal(expect.begin(), expect.end(), block.vtx[0].vin[0].scriptSig.begin())) {
             return state.DoS(100, false, REJECT_INVALID, "bad-cb-height", false, "block height mismatch in coinbase");
@@ -4570,8 +4557,8 @@ bool TestBlockValidity(CValidationState &state, const CChainParams &chainparams,
 //    std::cout << "TestBlockValidity->CheckBlock() nHeight=" << indexDummy.nHeight << std::endl;
     if (!CheckBlock(block, state, chainparams.GetConsensus(), fCheckPOW, fCheckMerkleRoot, indexDummy.nHeight, false))
         return error("%s: Consensus::CheckBlock: %s", __func__, FormatStateMessage(state));
-    if (!ContextualCheckBlock(block, state, pindexPrev))
-        return error("%s: Consensus::ContextualCheckBlock: %s", __func__, FormatStateMessage(state));
+//    if (!ContextualCheckBlock(block, state, pindexPrev))
+//        return error("%s: Consensus::ContextualCheckBlock: %s", __func__, FormatStateMessage(state));
     if (!ConnectBlock(block, state, &indexDummy, viewNew, chainparams, true))
         return false;
     assert(state.IsValid());
@@ -6268,7 +6255,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
         mapAlreadyAskedFor.erase(inv.hash);
         //&& !AlreadyHave(inv)
         if (!tx.IsZerocoinSpend()  && AcceptToMemoryPool(mempool, state, tx, true, true, &fMissingInputs, false, 0, true)) {
-            mempool.check(pcoinsTip);
+//            mempool.check(pcoinsTip);
             RelayTransaction(tx);
             for (unsigned int i = 0; i < tx.vout.size(); i++) {
                 vWorkQueue.emplace_back(inv.hash, i);
@@ -6330,7 +6317,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
                             recentRejects->insert(orphanHash);
                         }
                     }
-                    mempool.check(pcoinsTip);
+//                    mempool.check(pcoinsTip);
                 }
             }
 
@@ -6347,8 +6334,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
 
         } else if (fMissingInputs) {
             bool fRejectedParents = false; // It may be the case that the orphans parents have all been rejected
-            BOOST_FOREACH(
-            const CTxIn &txin, tx.vin) {
+            BOOST_FOREACH(const CTxIn &txin, tx.vin) {
                 if (recentRejects->contains(txin.prevout.hash)) {
                     fRejectedParents = true;
                     break;
@@ -6365,11 +6351,10 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
                 AddOrphanTx(tx, pfrom->GetId());
 
                 // DoS prevention: do not allow mapOrphanTransactions to grow unbounded
-                unsigned int nMaxOrphanTx = (unsigned int) std::max((int64_t) 0, GetArg("-maxorphantx",
-                                                                                        DEFAULT_MAX_ORPHAN_TRANSACTIONS));
+                unsigned int nMaxOrphanTx = (unsigned int) std::max((int64_t) 0, GetArg("-maxorphantx", DEFAULT_MAX_ORPHAN_TRANSACTIONS));
                 unsigned int nEvicted = LimitOrphanTxSize(nMaxOrphanTx);
-                if (nEvicted > 0)
-                    LogPrint("mempool", "mapOrphan overflow, removed %u tx\n", nEvicted);
+//                if (nEvicted > 0)
+//                    LogPrint("mempool", "mapOrphan overflow, removed %u tx\n", nEvicted);
             } else {
 //                LogPrint("mempool", "not keeping orphan with rejected parents %s\n", tx.GetHash().ToString());
             }
@@ -6813,25 +6798,12 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
         // conditions in AcceptBlock().
         bool forceProcessing = pfrom->fWhitelisted && !IsInitialBlockDownload();
         int nHeight = getNHeight(block.GetBlockHeader());
-
-        if (nHeight > 0 && mapBlockData.count(nHeight) == 0) {
-//            LogPrintf("mapBlockData[]: nHeight=%s, block=%s", nHeight, block.GetHash().ToString());
-            mapBlockData[nHeight] = block;
-//            LogPrintf("mapBlockData[nHeight]: nHeight=%s, block=%s", nHeight, mapBlockData[nHeight].GetHash().ToString());
-        }
-        int currentHeight = chainActive.Height();
-        if (nHeight > currentHeight + 1) {
-            LogPrintf("Received faraway block nHeight=%s, currentHeight=%s\n", nHeight, currentHeight);
-        }
-        while (mapBlockData.count(currentHeight + 1) > 0) {
-            LogPrintf("Start process new block at nHeight=%s, currentHeight=%s\n", nHeight, currentHeight);
-//          LogPrintf("block=%s\n", mapBlockData[currentHeight+1].ToString());
-            bool status = ProcessNewBlock(state, chainparams, pfrom, &mapBlockData[currentHeight + 1],
-                                          forceProcessing, NULL, true);
+        LogPrintf("ProcessMessage -> received block nHeight=%s\n", nHeight);
+        if (nHeight == 0) {
+            ProcessNewBlock(state, chainparams, pfrom, &block, forceProcessing, NULL, true);
             int nDoS;
             if (state.IsInvalid(nDoS)) {
-                assert(state.GetRejectCode() <
-                       REJECT_INTERNAL); // Blocks are never rejected with internal reject codes
+                assert(state.GetRejectCode() < REJECT_INTERNAL); // Blocks are never rejected with internal reject codes
                 pfrom->PushMessage(NetMsgType::REJECT, strCommand, (unsigned char) state.GetRejectCode(),
                                    state.GetRejectReason().substr(0, MAX_REJECT_MESSAGE_LENGTH), block.GetHash());
                 if (nDoS > 0) {
@@ -6839,15 +6811,43 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
                     Misbehaving(pfrom->GetId(), nDoS);
                 }
             }
-            if (!status) {
-                break;
+        } else {
+
+            if (nHeight >= 0 && mapBlockData.count(nHeight) == 0) {
+//            LogPrintf("mapBlockData[]: nHeight=%s, block=%s", nHeight, block.GetHash().ToString());
+                mapBlockData[nHeight] = block;
+//            LogPrintf("mapBlockData[nHeight]: nHeight=%s, block=%s", nHeight, mapBlockData[nHeight].GetHash().ToString());
             }
-            int deleteHeight = currentHeight + 1 - 4;
-            while (deleteHeight > 0 && mapBlockData.count(deleteHeight) > 0) {
-                mapBlockData.erase(deleteHeight);
-                deleteHeight--;
+            int currentHeight = chainActive.Height();
+            if (nHeight > currentHeight + 1) {
+                LogPrintf("Received faraway block nHeight=%s, currentHeight=%s\n", nHeight, currentHeight);
             }
-            currentHeight++;
+            while (mapBlockData.count(currentHeight + 1) > 0) {
+                LogPrintf("Start process new block at nHeight=%s, currentHeight=%s\n", nHeight, currentHeight);
+//          LogPrintf("block=%s\n", mapBlockData[currentHeight+1].ToString());
+                bool status = ProcessNewBlock(state, chainparams, pfrom, &mapBlockData[currentHeight + 1],
+                                              forceProcessing, NULL, true);
+                int nDoS;
+                if (state.IsInvalid(nDoS)) {
+                    assert(state.GetRejectCode() <
+                           REJECT_INTERNAL); // Blocks are never rejected with internal reject codes
+                    pfrom->PushMessage(NetMsgType::REJECT, strCommand, (unsigned char) state.GetRejectCode(),
+                                       state.GetRejectReason().substr(0, MAX_REJECT_MESSAGE_LENGTH), block.GetHash());
+                    if (nDoS > 0) {
+                        LOCK(cs_main);
+                        Misbehaving(pfrom->GetId(), nDoS);
+                    }
+                }
+                if (!status) {
+                    break;
+                }
+                int deleteHeight = currentHeight + 1 - 4;
+                while (deleteHeight > 0 && mapBlockData.count(deleteHeight) > 0) {
+                    mapBlockData.erase(deleteHeight);
+                    deleteHeight--;
+                }
+                currentHeight++;
+            }
         }
     } else if (strCommand == NetMsgType::GETADDR) {
         // This asymmetric behavior for inbound and outbound connections was introduced
@@ -7318,8 +7318,7 @@ bool SendMessages(CNode *pto) {
                 // Try to find first header that our peer doesn't have, and
                 // then send all headers past that one.  If we come across any
                 // headers that aren't on chainActive, give up.
-                BOOST_FOREACH(
-                const uint256 &hash, pto->vBlockHashesToAnnounce) {
+                BOOST_FOREACH(const uint256 &hash, pto->vBlockHashesToAnnounce) {
                     BlockMap::iterator mi = mapBlockIndex.find(hash);
                     assert(mi != mapBlockIndex.end());
                     CBlockIndex *pindex = mi->second;

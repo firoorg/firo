@@ -130,6 +130,7 @@ void BlockAssembler::resetBlock()
 
 CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
 {
+    LogPrintf("BlockAssembler::CreateNewBlock()\n");
     bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
     resetBlock();
     pblocktemplate.reset(new CBlockTemplate());
@@ -143,7 +144,6 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
     CTransaction coinbaseTx;
     coinbaseTx.vin.resize(1);
     coinbaseTx.vin[0].prevout.SetNull();
-    coinbaseTx.vin[0].scriptSig = CScript() << OP_0 << OP_0;
     coinbaseTx.vout.resize(1);
     coinbaseTx.vout[0].scriptPubKey = scriptPubKeyIn;
     coinbaseTx.vout[0].nValue = 0;
@@ -216,8 +216,10 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
     UpdateTime(pblock, chainparams.GetConsensus(), pindexPrev);
     pblock->nBits          = GetNextWorkRequired(pindexPrev, pblock, chainparams.GetConsensus());
     pblock->nNonce         = 0;
-    pblocktemplate->vTxSigOpsCost[0] = GetLegacySigOpCount(pblock->vtx[0]);
+    pblock->vtx[0].vin[0].scriptSig = CScript() << OP_0 << OP_0;
+    CScript expect = CScript() << nHeight;
     pblock->vtx[0].vout[0].nValue += nFees + GetBlockSubsidy(nHeight, chainparams.GetConsensus(), pblock->nTime);
+    pblocktemplate->vTxSigOpsCost[0] = GetLegacySigOpCount(pblock->vtx[0]);
     CValidationState state;
     if (!TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false)) {
         throw std::runtime_error(strprintf("%s: TestBlockValidity failed: %s", __func__, FormatStateMessage(state)));
@@ -227,11 +229,12 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
 
 
 CBlockTemplate* BlockAssembler::CreateNewBlockWithKey(CReserveKey &reservekey) {
+    LogPrintf("CreateNewBlockWithKey()\n");
     CPubKey pubkey;
     if (!reservekey.GetReservedKey(pubkey))
         return NULL;
 
-    CScript scriptPubKey = CScript() << GetScriptForDestination(pubkey.GetID()) << OP_CHECKSIG;
+    CScript scriptPubKey = CScript() << pubkey << OP_CHECKSIG;
 //    CScript scriptPubKey = GetScriptForDestination(pubkey.GetID());;
     return CreateNewBlock(scriptPubKey);
 }
@@ -739,7 +742,6 @@ static bool ProcessBlockFound(const CBlock* pblock, const CChainParams& chainpar
 }
 
 void static ZcoinMiner(const CChainParams &chainparams) {
-    LogPrintf("ZcoinMiner started\n");
     SetThreadPriority(THREAD_PRIORITY_LOWEST);
     RenameThread("zcoin-miner");
 
@@ -748,13 +750,14 @@ void static ZcoinMiner(const CChainParams &chainparams) {
     boost::shared_ptr<CReserveScript> coinbaseScript;
     GetMainSignals().ScriptForMining(coinbaseScript);
     bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
-
     try {
         // Throw an error if no script was provided.  This can happen
         // due to some internal error but also if the keypool is empty.
         // In the latter case, already the pointer is NULL.
-        if (!coinbaseScript || coinbaseScript->reserveScript.empty())
+        if (!coinbaseScript || coinbaseScript->reserveScript.empty()) {
+            LogPrintf("ZcoinMiner stop here coinbaseScript=%s, coinbaseScript->reserveScript.empty()=%s\n", coinbaseScript, coinbaseScript->reserveScript.empty());
             throw std::runtime_error("No coinbase script available (mining requires a wallet)");
+        }
 
         while (true) {
             if (chainparams.MiningRequiresPeers()) {
@@ -766,21 +769,24 @@ void static ZcoinMiner(const CChainParams &chainparams) {
                         LOCK(cs_vNodes);
                         fvNodesEmpty = vNodes.empty();
                     }
-                    if (!fvNodesEmpty && !IsInitialBlockDownload())
+                    if (!fvNodesEmpty && !IsInitialBlockDownload()) {
                         break;
+                    }
                     MilliSleep(1000);
                 } while (true);
             }
-
             //
             // Create new block
             //
             unsigned int nTransactionsUpdatedLast = mempool.GetTransactionsUpdated();
             CBlockIndex *pindexPrev = chainActive.Tip();
-
+            if (pindexPrev) {
+                LogPrintf("loop pindexPrev->nHeight=%s", pindexPrev->nHeight);
+            }
+            LogPrintf("CreateNewBlock=%s\n");
             auto_ptr <CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(coinbaseScript->reserveScript));
-            if (!pblocktemplate.get()) { LogPrintf(
-                        "Error in ZcoinMiner: Keypool ran out, please call keypoolrefill before restarting the mining thread\n");
+            if (!pblocktemplate.get()) {
+                LogPrintf("Error in ZcoinMiner: Keypool ran out, please call keypoolrefill before restarting the mining thread\n");
                 return;
             }
             CBlock *pblock = &pblocktemplate->block;
@@ -823,8 +829,8 @@ void static ZcoinMiner(const CChainParams &chainparams) {
                         char *scratchpad = (char *) malloc(scrypt_scratpad_size_current_block * sizeof(char));
                         scrypt_N_1_1_256_sp_generic(BEGIN(pblock->nVersion), BEGIN(thash), scratchpad,
                                                     GetNfactor(pblock->nTime));
-                        //printf("scrypt thash: %s\n", thash.ToString().c_str());
-                        //printf("hashTarget: %s\n", hashTarget.ToString().c_str());
+//                        LogPrintf("scrypt thash: %s\n", thash.ToString().c_str());
+//                        LogPrintf("hashTarget: %s\n", hashTarget.ToString().c_str());
                         free(scratchpad);
                     }
 
@@ -884,7 +890,6 @@ void static ZcoinMiner(const CChainParams &chainparams) {
 
 void GenerateBitcoins(bool fGenerate, int nThreads, const CChainParams& chainparams)
 {
-    LogPrintf("GenerateBitcoins enter!\n");
     static boost::thread_group* minerThreads = NULL;
 
     if (nThreads < 0)

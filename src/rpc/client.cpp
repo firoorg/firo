@@ -110,6 +110,8 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "spendzerocoin", 0 },
     { "setgenerate", 0 },
     { "setgenerate", 1 },
+    { "setmintzerocoinstatus", 2 },
+    { "setmintzerocoinstatus", 1 },
 };
 
 class CRPCConvertTable

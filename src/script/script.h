@@ -17,6 +17,7 @@
 #include <string.h>
 #include <string>
 #include <vector>
+#include <pubkey.h>
 
 // Maximum number of bytes pushable to the stack
 static const unsigned int MAX_SCRIPT_ELEMENT_SIZE = 520;
@@ -465,6 +466,14 @@ public:
             insert(end(), data, data + sizeof(data));
         }
         insert(end(), b.begin(), b.end());
+        return *this;
+    }
+
+    CScript& operator<<(const CPubKey& key)
+    {
+        assert(key.size() < OP_PUSHDATA1);
+        insert(end(), (unsigned char)key.size());
+        insert(end(), key.begin(), key.end());
         return *this;
     }
 

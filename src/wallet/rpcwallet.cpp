@@ -2598,6 +2598,10 @@ UniValue listunspentmintzerocoins(const UniValue &params, bool fHelp) {
                         "Results are an array of Objects, each of which has:\n"
                         "{txid, vout, scriptPubKey, amount, confirmations}");
 
+    if (pwalletMain->IsLocked())
+        throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED,
+                           "Error: Please enter the wallet passphrase with walletpassphrase first.");
+
     RPCTypeCheck(params, boost::assign::list_of(UniValue::VNUM)(UniValue::VNUM)(UniValue::VARR));
 
     int nMinDepth = 1;
@@ -2807,6 +2811,88 @@ UniValue resetmintzerocoin(const UniValue& params, bool fHelp) {
     return NullUniValue;
 }
 
+UniValue listmintzerocoins(const UniValue& params, bool fHelp) {
+    if (fHelp || params.size() != 0)
+        throw runtime_error(
+                "listmintzerocoins\n"
+                        "Results are an array of Objects, each of which has:\n"
+                        "{id, IsUsed, denomination, value, serialNumber, nHeight, randomness}");
+
+    list <CZerocoinEntry> listPubcoin;
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+    walletdb.ListPubCoin(listPubcoin);
+    UniValue results(UniValue::VARR);
+
+    BOOST_FOREACH(const CZerocoinEntry &zerocoinItem, listPubcoin){
+        if (zerocoinItem.randomness != 0 && zerocoinItem.serialNumber != 0) {
+            UniValue entry(UniValue::VOBJ);
+            entry.push_back(Pair("id", zerocoinItem.id));
+            entry.push_back(Pair("IsUsed", zerocoinItem.IsUsed));
+            entry.push_back(Pair("denomination", zerocoinItem.denomination));
+            entry.push_back(Pair("value", zerocoinItem.value.GetHex()));
+            entry.push_back(Pair("serialNumber", zerocoinItem.serialNumber.GetHex()));
+            entry.push_back(Pair("nHeight", zerocoinItem.nHeight));
+            entry.push_back(Pair("randomness", zerocoinItem.randomness.GetHex()));
+            results.push_back(entry);
+        }
+    }
+
+    return results;
+}
+
+UniValue setmintzerocoinstatus(const UniValue& params, bool fHelp) {
+    if (fHelp || params.size() != 2)
+        throw runtime_error(
+                "setmintzerocoinstatus \"coinserial\" <isused>(true/false)\n"
+                        "Set mintzerocoin IsUsed status to True or False\n"
+                        "Results are an array of one or no Objects, each of which has:\n"
+                        "{id, IsUsed, denomination, value, serialNumber, nHeight, randomness}");
+
+    CBigNum coinSerial;
+    coinSerial.SetHex(params[0].get_str());
+
+    bool fStatus = true;
+    fStatus = params[1].get_bool();
+
+    list <CZerocoinEntry> listPubcoin;
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+    walletdb.ListPubCoin(listPubcoin);
+
+    UniValue results(UniValue::VARR);
+
+    BOOST_FOREACH(const CZerocoinEntry &zerocoinItem, listPubcoin) {
+        if (zerocoinItem.serialNumber != 0) {
+            LogPrintf("zerocoinItem.serialNumber = %s\n", zerocoinItem.serialNumber.GetHex());
+            if (zerocoinItem.serialNumber == coinSerial) {
+                LogPrintf("setmintzerocoinstatus Found!\n");
+                CZerocoinEntry zerocoinTx;
+                zerocoinTx.id = zerocoinItem.id;
+                zerocoinTx.IsUsed = fStatus;
+                zerocoinTx.denomination = zerocoinItem.denomination;
+                zerocoinTx.value = zerocoinItem.value;
+                zerocoinTx.serialNumber = zerocoinItem.serialNumber;
+                zerocoinTx.nHeight = zerocoinItem.nHeight;
+                zerocoinTx.randomness = zerocoinItem.randomness;
+                pwalletMain->NotifyZerocoinChanged(pwalletMain, zerocoinTx.value.GetHex(), zerocoinTx.IsUsed ? "Used" : "New", CT_UPDATED);
+                walletdb.WriteZerocoinEntry(zerocoinTx);
+
+                UniValue entry(UniValue::VOBJ);
+                entry.push_back(Pair("id", zerocoinTx.id));
+                entry.push_back(Pair("IsUsed", zerocoinTx.IsUsed));
+                entry.push_back(Pair("denomination", zerocoinTx.denomination));
+                entry.push_back(Pair("value", zerocoinTx.value.GetHex()));
+                entry.push_back(Pair("serialNumber", zerocoinTx.serialNumber.GetHex()));
+                entry.push_back(Pair("nHeight", zerocoinTx.nHeight));
+                entry.push_back(Pair("randomness", zerocoinTx.randomness.GetHex()));
+                results.push_back(entry);
+                break;
+            }
+        }
+    }
+
+    return results;
+}
+
 UniValue removetxmempool(const UniValue &params, bool fHelp) {
     if (fHelp || params.size() != 1)
         throw runtime_error(
@@ -2819,7 +2905,6 @@ UniValue removetxmempool(const UniValue &params, bool fHelp) {
     if (pwalletMain->IsLocked())
         throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED,
                            "Error: Please enter the wallet passphrase with walletpassphrase first.");
-
 
     LOCK(cs_main);
     {
@@ -2915,6 +3000,8 @@ static const CRPCCommand commands[] =
     { "wallet",             "mintzerocoin",             &mintzerocoin,             false },
     { "wallet",             "spendzerocoin",            &spendzerocoin,            false },
     { "wallet",             "resetmintzerocoin",        &resetmintzerocoin,        false },
+    { "wallet",             "setmintzerocoinstatus",        &setmintzerocoinstatus,        false },
+    { "wallet",             "listmintzerocoins",        &listmintzerocoins,        false },
     { "wallet",             "removetxmempool",          &removetxmempool,          false },
     { "wallet",             "removetxwallet",           &removetxwallet,           false },
 };
