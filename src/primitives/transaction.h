@@ -195,9 +195,16 @@ public:
         return 3 * minRelayTxFee.GetFee(nSize);
     }
 
+    bool IsDust() const
+    {
+        // SmartCash: IsDust() detection disabled, allows any valid dust to be relayed.
+        // The fees imposed on each dust txo is considered sufficient spam deterrant. 
+        return false;
+    }
+
     bool IsDust(const CFeeRate &minRelayTxFee) const
     {
-        return (nValue < GetDustThreshold(minRelayTxFee));
+        return false;//(nValue < GetDustThreshold(minRelayTxFee));
     }
 
     friend bool operator==(const CTxOut& a, const CTxOut& b)
