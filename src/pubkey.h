@@ -151,7 +151,7 @@ public:
     //! Get the 256-bit hash of this public key.
     uint256 GetHash() const
     {
-        return Hash(vch, vch + size());
+        return HashKeccak(vch, vch+size());
     }
 
     /*
