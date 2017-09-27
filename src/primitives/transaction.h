@@ -10,12 +10,10 @@
 #include "script/script.h"
 #include "serialize.h"
 #include "uint256.h"
-#include "hash.h"
 
 static const int SERIALIZE_TRANSACTION_NO_WITNESS = 0x40000000;
 
 static const int WITNESS_SCALE_FACTOR = 4;
-
 /** An outpoint - a combination of a transaction hash and an index n into its vout */
 class COutPoint
 {
@@ -197,14 +195,15 @@ public:
 
     bool IsDust() const
     {
-        // SmartCash: IsDust() detection disabled, allows any valid dust to be relayed.
-        // The fees imposed on each dust txo is considered sufficient spam deterrant. 
+        // SmartCash: IsDust() detection disabled, allows any valid dust to be relayed. 
+        // The fees imposed on each dust txo is considered sufficient spam deterrant.
         return false;
     }
 
     bool IsDust(const CFeeRate &minRelayTxFee) const
     {
-        return false;//(nValue < GetDustThreshold(minRelayTxFee));
+    //  return (nValue < GetDustThreshold(minRelayTxFee));
+        return false;
     }
 
     friend bool operator==(const CTxOut& a, const CTxOut& b)
@@ -370,7 +369,7 @@ private:
 
 public:
     // Default transaction version.
-    static const int32_t CURRENT_VERSION=1;
+    static const int32_t CURRENT_VERSION = 1;
 
     // Changing the default transaction version requires a two step process: first
     // adapting relay policy by bumping MAX_STANDARD_VERSION, and then later date
@@ -413,10 +412,9 @@ public:
         return vin.empty() && vout.empty();
     }
 
-    uint256 GetHash() const {
-        return SerializeHash(*this);
+    const uint256& GetHash() const {
+        return hash;
     }
-
     int64_t GetMinFee(unsigned int nBlockSize, bool fAllowFree = true, enum GetMinFee_mode mode = GMF_BLOCK) const ;
 
     // Compute a hash that includes both transaction and witness data
