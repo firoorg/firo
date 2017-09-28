@@ -2812,19 +2812,26 @@ UniValue resetmintzerocoin(const UniValue& params, bool fHelp) {
 }
 
 UniValue listmintzerocoins(const UniValue& params, bool fHelp) {
-    if (fHelp || params.size() != 0)
+    if (fHelp || params.size() > 1)
         throw runtime_error(
-                "listmintzerocoins\n"
-                        "Results are an array of Objects, each of which has:\n"
+                "listmintzerocoins <all>(false/true)\n"
+                        "\nArguments:\n"
+                        "1. <all> (boolean, optional) false (default) to return own mintzerocoins. true to return every mintzerocoins.\n"
+                        "\nResults are an array of Objects, each of which has:\n"
                         "{id, IsUsed, denomination, value, serialNumber, nHeight, randomness}");
+
+    bool fAllStatus = false;
+    if (params.size() > 0) {
+        fAllStatus = params[0].get_bool();
+    }
 
     list <CZerocoinEntry> listPubcoin;
     CWalletDB walletdb(pwalletMain->strWalletFile);
     walletdb.ListPubCoin(listPubcoin);
     UniValue results(UniValue::VARR);
 
-    BOOST_FOREACH(const CZerocoinEntry &zerocoinItem, listPubcoin){
-        if (zerocoinItem.randomness != 0 && zerocoinItem.serialNumber != 0) {
+    BOOST_FOREACH(const CZerocoinEntry &zerocoinItem, listPubcoin) {
+        if (fAllStatus || zerocoinItem.IsUsed || (zerocoinItem.randomness != 0 && zerocoinItem.serialNumber != 0)) {
             UniValue entry(UniValue::VOBJ);
             entry.push_back(Pair("id", zerocoinItem.id));
             entry.push_back(Pair("IsUsed", zerocoinItem.IsUsed));
