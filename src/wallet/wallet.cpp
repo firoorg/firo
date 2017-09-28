@@ -2515,21 +2515,21 @@ bool CWallet::CreateZerocoinMintModel(string &stringError, string denomAmount) {
     int64_t nAmount = 0;
     libzerocoin::CoinDenomination denomination;
     // Amount
-    if (denomAmount == "1") {
+    if (denomAmount == "100") {
         denomination = libzerocoin::ZQ_LOVELACE;
-        nAmount = roundint64(1 * COIN);
-    } else if (denomAmount == "10") {
-        denomination = libzerocoin::ZQ_GOLDWASSER;
-        nAmount = roundint64(10 * COIN);
-    } else if (denomAmount == "25") {
-        denomination = libzerocoin::ZQ_RACKOFF;
-        nAmount = roundint64(25 * COIN);
-    } else if (denomAmount == "50") {
-        denomination = libzerocoin::ZQ_PEDERSEN;
-        nAmount = roundint64(50 * COIN);
-    } else if (denomAmount == "100") {
-        denomination = libzerocoin::ZQ_WILLIAMSON;
         nAmount = roundint64(100 * COIN);
+    } else if (denomAmount == "1000") {
+        denomination = libzerocoin::ZQ_GOLDWASSER;
+        nAmount = roundint64(1000 * COIN);
+    } else if (denomAmount == "10000") {
+        denomination = libzerocoin::ZQ_RACKOFF;
+        nAmount = roundint64(10000 * COIN);
+    } else if (denomAmount == "100000") {
+        denomination = libzerocoin::ZQ_PEDERSEN;
+        nAmount = roundint64(100000 * COIN);
+    } else if (denomAmount == "1000000") {
+        denomination = libzerocoin::ZQ_WILLIAMSON;
+        nAmount = roundint64(1000000 * COIN);
     } else {
         return false;
     }
@@ -2596,21 +2596,21 @@ bool CWallet::CreateZerocoinSpendModel(string &stringError, string denomAmount){
     int64_t nAmount = 0;
     libzerocoin::CoinDenomination denomination;
     // Amount
-    if(denomAmount == "1"){
+    if(denomAmount == "100"){
         denomination = libzerocoin::ZQ_LOVELACE;
-        nAmount = roundint64(1 * COIN);
-    }else if(denomAmount == "10"){
-        denomination = libzerocoin::ZQ_GOLDWASSER;
-        nAmount = roundint64(10 * COIN);
-    }else if(denomAmount == "25"){
-        denomination = libzerocoin::ZQ_RACKOFF;
-        nAmount = roundint64(25 * COIN);
-    }else if(denomAmount == "50"){
-        denomination = libzerocoin::ZQ_PEDERSEN;
-        nAmount = roundint64(50 * COIN);
-    }else if(denomAmount == "100"){
-        denomination = libzerocoin::ZQ_WILLIAMSON;
         nAmount = roundint64(100 * COIN);
+    }else if(denomAmount == "1000"){
+        denomination = libzerocoin::ZQ_GOLDWASSER;
+        nAmount = roundint64(1000 * COIN);
+    }else if(denomAmount == "10000"){
+        denomination = libzerocoin::ZQ_RACKOFF;
+        nAmount = roundint64(10000 * COIN);
+    }else if(denomAmount == "100000"){
+        denomination = libzerocoin::ZQ_PEDERSEN;
+        nAmount = roundint64(100000 * COIN);
+    }else if(denomAmount == "1000000"){
+        denomination = libzerocoin::ZQ_WILLIAMSON;
+        nAmount = roundint64(1000000 * COIN);
     }else{
         return false;
     }
@@ -3067,7 +3067,7 @@ bool CWallet::CreateZerocoinSpendTransaction(int64_t nValue, libzerocoin::CoinDe
             }
 
             if(!selectedPubcoin){
-                strFailReason = _("it has to have at least two mint coins with at least 7 confirmation in order to spend a coin");
+                strFailReason = _("it has to have at least one Renew transaction with at least 7 confirmation in order to reclaim a coin");
                 return false;
             }
 
@@ -3079,7 +3079,7 @@ bool CWallet::CreateZerocoinSpendTransaction(int64_t nValue, libzerocoin::CoinDe
                 // If this returns false, don't accept the coin for any purpose!
                 // Any ZEROCOIN_MINT with an invalid coin should NOT be
                 // accepted as a valid transaction in the block chain.
-                strFailReason = _("the selected mint coin is an invalid coin");
+                strFailReason = _("the selected renew coin is an invalid coin");
                 return false;
             }
 
@@ -3112,7 +3112,7 @@ bool CWallet::CreateZerocoinSpendTransaction(int64_t nValue, libzerocoin::CoinDe
             LogPrintf("USEABLE PUBCOINS: %d\n", countUseablePubcoin);
 
             if(countUseablePubcoin < 1){ // You have to have at least two mint zerocoins.
-                strFailReason = _("at least two mint coins with are using calculating accumulator");
+                strFailReason = _("at least one Renew transaction");
                 return false;
             }
 
