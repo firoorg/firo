@@ -4510,7 +4510,7 @@ bool ProcessNewBlock(CValidationState &state, const CChainParams &chainparams, C
                      bool fForceProcessing, const CDiskBlockPos *dbp, bool fMayBanPeerIfInvalid) {
     int nHeight = getNHeight(pblock->GetBlockHeader());
     LogPrintf("ProcessNewBlock nHeight=%s, blockHash:%s\n", nHeight, pblock->GetHash().ToString());
-//    LogPrint("ProcessNewBlock", "block=%s", pblock->ToString());
+    //    LogPrint("ProcessNewBlock", "block=%s", pblock->ToString());
     {
         LOCK(cs_main);
         bool fRequested = MarkBlockAsReceived(pblock->GetHash());
@@ -4519,6 +4519,9 @@ bool ProcessNewBlock(CValidationState &state, const CChainParams &chainparams, C
         // Store to disk
         CBlockIndex *pindex = NULL;
         bool fNewBlock = false;
+        if (nHeight > chainActive.Height() + 1) {
+            return true;
+        }
         bool ret = AcceptBlock(*pblock, state, chainparams, &pindex, fRequested, dbp, &fNewBlock);
         if (pindex && pfrom) {
             mapBlockSource[pindex->GetBlockHash()] = std::make_pair(pfrom->GetId(), fMayBanPeerIfInvalid);
@@ -6796,57 +6799,17 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
         // unless we're still syncing with the network.
         // Such an unrequested block may still be processed, subject to the
         // conditions in AcceptBlock().
-        bool forceProcessing = pfrom->fWhitelisted && !IsInitialBlockDownload();
         int nHeight = getNHeight(block.GetBlockHeader());
-        LogPrintf("ProcessMessage -> received block nHeight=%s\n", nHeight);
-        if (nHeight == 0) {
-            ProcessNewBlock(state, chainparams, pfrom, &block, forceProcessing, NULL, true);
-            int nDoS;
-            if (state.IsInvalid(nDoS)) {
-                assert(state.GetRejectCode() < REJECT_INTERNAL); // Blocks are never rejected with internal reject codes
-                pfrom->PushMessage(NetMsgType::REJECT, strCommand, (unsigned char) state.GetRejectCode(),
-                                   state.GetRejectReason().substr(0, MAX_REJECT_MESSAGE_LENGTH), block.GetHash());
-                if (nDoS > 0) {
-                    LOCK(cs_main);
-                    Misbehaving(pfrom->GetId(), nDoS);
-                }
-            }
-        } else {
-
-            if (nHeight >= 0 && mapBlockData.count(nHeight) == 0) {
-//            LogPrintf("mapBlockData[]: nHeight=%s, block=%s", nHeight, block.GetHash().ToString());
-                mapBlockData[nHeight] = block;
-//            LogPrintf("mapBlockData[nHeight]: nHeight=%s, block=%s", nHeight, mapBlockData[nHeight].GetHash().ToString());
-            }
-            int currentHeight = chainActive.Height();
-            if (nHeight > currentHeight + 1) {
-                LogPrintf("Received faraway block nHeight=%s, currentHeight=%s\n", nHeight, currentHeight);
-            }
-            while (mapBlockData.count(currentHeight + 1) > 0) {
-                LogPrintf("Start process new block at nHeight=%s, currentHeight=%s\n", nHeight, currentHeight);
-//          LogPrintf("block=%s\n", mapBlockData[currentHeight+1].ToString());
-                bool status = ProcessNewBlock(state, chainparams, pfrom, &mapBlockData[currentHeight + 1],
-                                              forceProcessing, NULL, true);
-                int nDoS;
-                if (state.IsInvalid(nDoS)) {
-                    assert(state.GetRejectCode() <
-                           REJECT_INTERNAL); // Blocks are never rejected with internal reject codes
-                    pfrom->PushMessage(NetMsgType::REJECT, strCommand, (unsigned char) state.GetRejectCode(),
-                                       state.GetRejectReason().substr(0, MAX_REJECT_MESSAGE_LENGTH), block.GetHash());
-                    if (nDoS > 0) {
-                        LOCK(cs_main);
-                        Misbehaving(pfrom->GetId(), nDoS);
-                    }
-                }
-                if (!status) {
-                    break;
-                }
-                int deleteHeight = currentHeight + 1 - 4;
-                while (deleteHeight > 0 && mapBlockData.count(deleteHeight) > 0) {
-                    mapBlockData.erase(deleteHeight);
-                    deleteHeight--;
-                }
-                currentHeight++;
+        bool forceProcessing = pfrom->fWhitelisted && !IsInitialBlockDownload();
+        ProcessNewBlock(state, chainparams, pfrom, &block, forceProcessing, NULL, true);
+        int nDoS;
+        if (state.IsInvalid(nDoS)) {
+            assert(state.GetRejectCode() < REJECT_INTERNAL); // Blocks are never rejected with internal reject codes
+            pfrom->PushMessage(NetMsgType::REJECT, strCommand, (unsigned char) state.GetRejectCode(),
+                               state.GetRejectReason().substr(0, MAX_REJECT_MESSAGE_LENGTH), block.GetHash());
+            if (nDoS > 0) {
+                LOCK(cs_main);
+                Misbehaving(pfrom->GetId(), nDoS);
             }
         }
     } else if (strCommand == NetMsgType::GETADDR) {
