@@ -54,14 +54,14 @@ static const bool DEFAULT_WHITELISTRELAY = true;
 static const bool DEFAULT_WHITELISTFORCERELAY = true;
 /** Default for -minrelaytxfee, minimum relay fee for transactions */
 //btzc: update zcoin fee
-static const unsigned int DEFAULT_MIN_RELAY_TX_FEE = CENT; //0.01 zcoin, 100 satoshi
+static const unsigned int DEFAULT_MIN_RELAY_TX_FEE = CENT / 100; //0.01 zcoin, 100 satoshi
 static const unsigned int MAX_STANDARD_TX_SIZE = 300000;
 //! -maxtxfee default
-static const CAmount DEFAULT_TRANSACTION_MAXFEE = CENT;
+static const CAmount DEFAULT_TRANSACTION_MAXFEE = 1000 * CENT;
 //! Discourage users to set fees higher than this amount (in satoshis) per kB
-static const CAmount HIGH_TX_FEE_PER_KB = 0.01 * COIN;
+static const CAmount HIGH_TX_FEE_PER_KB = 0.01 * CENT;
 //! -maxtxfee will warn if called with a higher fee than this amount (in satoshis)
-static const CAmount HIGH_MAX_TX_FEE = 100 * HIGH_TX_FEE_PER_KB;
+static const CAmount HIGH_MAX_TX_FEE = 1000 * DEFAULT_MIN_RELAY_TX_FEE;
 /** Default for -maxorphantx, maximum number of orphan transactions kept in memory */
 static const unsigned int DEFAULT_MAX_ORPHAN_TRANSACTIONS = 100;
 /** Expiration time for orphan transactions in seconds */

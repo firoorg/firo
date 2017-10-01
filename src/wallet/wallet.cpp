@@ -4518,18 +4518,17 @@ bool CWallet::ParameterInteraction() {
         CAmount nFeePerK = 0;
         if (!ParseMoney(mapArgs["-fallbackfee"], nFeePerK))
             return InitError(strprintf(_("Invalid amount for -fallbackfee=<amount>: '%s'"), mapArgs["-fallbackfee"]));
-        if (nFeePerK > HIGH_TX_FEE_PER_KB)
-            InitWarning(
-                    _("-fallbackfee is set very high! This is the transaction fee you may pay when fee estimates are not available."));
+//        if (nFeePerK > HIGH_TX_FEE_PER_KB)
+//            InitWarning(
+//                    _("-fallbackfee is set very high! This is the transaction fee you may pay when fee estimates are not available."));
         CWallet::fallbackFee = CFeeRate(nFeePerK);
     }
     if (mapArgs.count("-paytxfee")) {
         CAmount nFeePerK = 0;
         if (!ParseMoney(mapArgs["-paytxfee"], nFeePerK))
             return InitError(AmountErrMsg("paytxfee", mapArgs["-paytxfee"]));
-        if (nFeePerK > HIGH_TX_FEE_PER_KB)
-            InitWarning(
-                    _("-paytxfee is set very high! This is the transaction fee you will pay if you send a transaction."));
+//        if (nFeePerK > HIGH_TX_FEE_PER_KB)
+//            InitWarning(_("-paytxfee is set very high! This is the transaction fee you will pay if you send a transaction."));
         payTxFee = CFeeRate(nFeePerK, 1000);
         if (payTxFee < ::minRelayTxFee) {
             return InitError(strprintf(_("Invalid amount for -paytxfee=<amount>: '%s' (must be at least %s)"),
@@ -4540,8 +4539,8 @@ bool CWallet::ParameterInteraction() {
         CAmount nMaxFee = 0;
         if (!ParseMoney(mapArgs["-maxtxfee"], nMaxFee))
             return InitError(AmountErrMsg("maxtxfee", mapArgs["-maxtxfee"]));
-        if (nMaxFee > HIGH_MAX_TX_FEE)
-            InitWarning(_("-maxtxfee is set very high! Fees this large could be paid on a single transaction."));
+//        if (nMaxFee > HIGH_MAX_TX_FEE)
+//            InitWarning(_("-maxtxfee is set very high! Fees this large could be paid on a single transaction."));
         maxTxFee = nMaxFee;
         if (CFeeRate(maxTxFee, 1000) < ::minRelayTxFee) {
             return InitError(strprintf(

@@ -1658,10 +1658,10 @@ bool AcceptToMemoryPoolWorker(CTxMemPool &pool, CValidationState &state, const C
             // be mined yet.
             // Must keep pool.cs for this unless we change CheckSequenceLocks to take a
             // CoinsViewCache instead of create its own
-            if (!CheckSequenceLocks(tx, STANDARD_LOCKTIME_VERIFY_FLAGS, &lp)) {
-                LogPrintf("cause by -> non-BIP68-final!\n");
-                return state.DoS(0, false, REJECT_NONSTANDARD, "non-BIP68-final");
-            }
+//            if (!CheckSequenceLocks(tx, STANDARD_LOCKTIME_VERIFY_FLAGS, &lp)) {
+//                LogPrintf("cause by -> non-BIP68-final!\n");
+//                return state.DoS(0, false, REJECT_NONSTANDARD, "non-BIP68-final");
+//            }
         }
         // Check for non-standard pay-to-script-hash in inputs
         if (!fTestNet && fRequireStandard && !AreInputsStandard(tx, view)) {
@@ -1756,8 +1756,8 @@ bool AcceptToMemoryPoolWorker(CTxMemPool &pool, CValidationState &state, const C
             dFreeCount += nSize;
         }
 
-        if (nAbsurdFee && nFees > nAbsurdFee)
-            return state.Invalid(false, REJECT_HIGHFEE, "absurdly-high-fee", strprintf("%d > %d", nFees, nAbsurdFee));
+//        if (nAbsurdFee && nFees > nAbsurdFee)
+//            return state.Invalid(false, REJECT_HIGHFEE, "absurdly-high-fee", strprintf("%d > %d", nFees, nAbsurdFee));
 
         if (nAbsurdFee && nFees > CTransaction::nMinRelayTxFee * 1000)
             return state.Invalid(false, REJECT_HIGHFEE, "insane fee", strprintf("%d > %d", nFees, CTransaction::nMinRelayTxFee * 1000));
@@ -5726,8 +5726,6 @@ uint32_t GetFetchFlags(CNode *pfrom, CBlockIndex *pprev, const Consensus::Params
 
 bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, int64_t nTimeReceived,
                            const CChainParams &chainparams) {
-    LogPrintf("ProcessMessage, strCommand=%s\n", strCommand);
-//    LogPrintf("net received: %s (%u bytes) peer=%d\n", SanitizeString(strCommand), vRecv.size(), pfrom->id);
     if (mapArgs.count("-dropmessagestest") && GetRand(atoi(mapArgs["-dropmessagestest"])) == 0) {
         LogPrintf("dropmessagestest DROPPING RECV MESSAGE\n");
         return true;
@@ -6397,14 +6395,11 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
 
         CBlockIndex *pindex = NULL;
         CValidationState state;
-//        LogPrintf("----- AcceptBlockHeader 1\n");
         if (!AcceptBlockHeader(cmpctblock.header, state, chainparams, &pindex)) {
-//            LogPrintf("----- AcceptBlockHeader failed\n");
             int nDoS;
             if (state.IsInvalid(nDoS)) {
                 if (nDoS > 0)
                     Misbehaving(pfrom->GetId(), nDoS);
-//                LogPrintf("Peer %d sent us invalid header via cmpctblock\n", pfrom->id);
                 return true;
             }
         }
