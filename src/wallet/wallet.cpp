@@ -2135,7 +2135,6 @@ bool CWallet::CreateTransaction(const vector <CRecipient> &vecSend, CWalletTx &w
         strFailReason = _("Transaction amounts must be positive");
         return false;
     }
-
     wtxNew.fTimeReceivedIsTxTime = true;
     wtxNew.BindWallet(this);
     CMutableTransaction txNew;
@@ -2187,7 +2186,6 @@ bool CWallet::CreateTransaction(const vector <CRecipient> &vecSend, CWalletTx &w
                 txNew.wit.SetNull();
                 wtxNew.fFromMe = true;
 //                bool fFirst = true;
-
                 CAmount nValueToSelect = nValue;
                 if (nSubtractFeeFromAmount == 0)
                     nValueToSelect += nFeeRet;
@@ -2378,12 +2376,10 @@ bool CWallet::CreateTransaction(const vector <CRecipient> &vecSend, CWalletTx &w
                     if (dPriority >= dPriorityNeeded && AllowFree(dPriority))
                         break;
                 }
-                int64_t nPayFee = payTxFee.GetFeePerK() * (1 + (int64_t) GetTransactionWeight(txNew) / 1000);
+                int64_t nPayFee = payTxFee.GetFeePerK() * (1 + (int64_t) nBytes / 1000);
                 bool fAllowFree = AllowFree(dPriority);// No free TXs in XZC
                 fAllowFree = true;// Allow free for send
-                LogPrintf("CreateTransaction: fAllowFree=%s\n", fAllowFree);
                 int64_t nMinFee = wtxNew.GetMinFee(1, fAllowFree, GMF_SEND);
-
                 int64_t nFeeNeeded = nPayFee;
                 if (nFeeNeeded < nMinFee) {
                     nFeeNeeded = nMinFee;
