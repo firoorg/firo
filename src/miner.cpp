@@ -130,6 +130,328 @@ void BlockAssembler::resetBlock()
 
 CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
 {
+    // Create new block
+    LogPrintf("BlockAssembler::CreateNewBlock()\n");
+    bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
+    auto_ptr<CBlockTemplate> pblocktemplate(new CBlockTemplate());
+    if(!pblocktemplate.get())
+        return NULL;
+    CBlock *pblock = &pblocktemplate->block; // pointer for convenience
+    // Create coinbase tx
+    CTransaction txNew;
+    txNew.vin.resize(1);
+    txNew.vin[0].prevout.SetNull();
+    txNew.vout.resize(1);
+    txNew.vout[0].scriptPubKey = scriptPubKeyIn;
+    txNew.vout[0].nValue = 0;
+    CBlockIndex* pindexPrev = chainActive.Tip();
+    const int nHeight = pindexPrev->nHeight + 1;
+    // To founders and investors
+    if ((nHeight > 0) && (nHeight < 210000)) {
+        // Take some reward away from us
+        txNew.vout[0].nValue = -10 * COIN;
+
+        CScript FOUNDER_1_SCRIPT;
+        CScript FOUNDER_2_SCRIPT;
+        CScript FOUNDER_3_SCRIPT;
+        CScript FOUNDER_4_SCRIPT;
+        CScript FOUNDER_5_SCRIPT;
+
+        if (!fTestNet && (GetAdjustedTime() > nStartRewardTime)) {
+            FOUNDER_1_SCRIPT = GetScriptForDestination(CBitcoinAddress("aCAgTPgtYcA4EysU4UKC86EQd5cTtHtCcr").Get());
+            if (nHeight < 14000) {
+                FOUNDER_2_SCRIPT = GetScriptForDestination(CBitcoinAddress("aLrg41sXbXZc5MyEj7dts8upZKSAtJmRDR").Get());
+            } else {
+                FOUNDER_2_SCRIPT = GetScriptForDestination(CBitcoinAddress("aHu897ivzmeFuLNB6956X6gyGeVNHUBRgD").Get());
+            }
+            FOUNDER_3_SCRIPT = GetScriptForDestination(CBitcoinAddress("aQ18FBVFtnueucZKeVg4srhmzbpAeb1KoN").Get());
+            FOUNDER_4_SCRIPT = GetScriptForDestination(CBitcoinAddress("a1HwTdCmQV3NspP2QqCGpehoFpi8NY4Zg3").Get());
+            FOUNDER_5_SCRIPT = GetScriptForDestination(CBitcoinAddress("a1kCCGddf5pMXSipLVD9hBG2MGGVNaJ15U").Get());
+        } else if (!fTestNet && (GetAdjustedTime() <= nStartRewardTime)) {
+            throw std::runtime_error("CreateNewBlock() : Create new block too early");
+        } else {
+            FOUNDER_1_SCRIPT = GetScriptForDestination(CBitcoinAddress("TCE4hvs2UTDjYriey7R9qBkbvUAYxWmZni").Get());
+            FOUNDER_2_SCRIPT = GetScriptForDestination(CBitcoinAddress("TPyA7d3fribqxXm9uJU61S76Lzuj7F8jLz").Get());
+            FOUNDER_3_SCRIPT = GetScriptForDestination(CBitcoinAddress("TXatvpS15EvejVuJVC2rgD73rSaQz8JiX6").Get());
+            FOUNDER_4_SCRIPT = GetScriptForDestination(CBitcoinAddress("TJMpFjtDi8s5AM3GyW41QshH2NNmKgrGNq").Get());
+            FOUNDER_5_SCRIPT = GetScriptForDestination(CBitcoinAddress("TTtLk1iapn8QebamQcb8GEh1MNq8agYcVk").Get());
+        }
+
+        // And give it to the founders
+        txNew.vout.push_back(CTxOut(2 * COIN, CScript(FOUNDER_1_SCRIPT.begin(), FOUNDER_1_SCRIPT.end())));
+        txNew.vout.push_back(CTxOut(2 * COIN, CScript(FOUNDER_2_SCRIPT.begin(), FOUNDER_2_SCRIPT.end())));
+        txNew.vout.push_back(CTxOut(2 * COIN, CScript(FOUNDER_3_SCRIPT.begin(), FOUNDER_3_SCRIPT.end())));
+        txNew.vout.push_back(CTxOut(2 * COIN, CScript(FOUNDER_4_SCRIPT.begin(), FOUNDER_4_SCRIPT.end())));
+        txNew.vout.push_back(CTxOut(2 * COIN, CScript(FOUNDER_5_SCRIPT.begin(), FOUNDER_5_SCRIPT.end())));
+    }
+
+
+    // Add dummy coinbase tx as first transaction
+    pblock->vtx.push_back(CTransaction());
+    pblocktemplate->vTxFees.push_back(-1); // updated at end
+    pblocktemplate->vTxSigOpsCost.push_back(-1); // updated at end
+
+    // Largest block you're willing to create:
+    unsigned int nBlockMaxSize = GetArg("-blockmaxsize", DEFAULT_BLOCK_MAX_SIZE);
+    // Limit to between 1K and MAX_BLOCK_SIZE-1K for sanity:
+    nBlockMaxSize = std::max((unsigned int)1000, std::min((unsigned int)(MAX_BLOCK_SERIALIZED_SIZE - 1000), nBlockMaxSize));
+
+    // How much of the block should be dedicated to high-priority transactions,
+    // included regardless of the fees they pay
+    unsigned int nBlockPrioritySize = GetArg("-blockprioritysize", DEFAULT_BLOCK_PRIORITY_SIZE);
+    nBlockPrioritySize = std::min(nBlockMaxSize, nBlockPrioritySize);
+
+    // Minimum block size you want to create; block will be filled with free transactions
+    // until there are no more or the block reaches this size:
+    unsigned int nBlockMinSize = GetArg("-blockminsize", 0);
+    nBlockMinSize = std::min(nBlockMaxSize, nBlockMinSize);
+
+    unsigned int COUNT_SPEND_ZC_TX = 0;
+    unsigned int MAX_SPEND_ZC_TX_PER_BLOCK = 0;
+    if(fTestNet || nHeight > 22000){
+        MAX_SPEND_ZC_TX_PER_BLOCK = 1;
+    }
+
+    // Collect memory pool transactions into the block
+    CTxMemPool::setEntries inBlock;
+    CTxMemPool::setEntries waitSet;
+
+    // This vector will be sorted into a priority queue:
+    vector<TxCoinAgePriority> vecPriority;
+    TxCoinAgePriorityCompare pricomparer;
+    std::map<CTxMemPool::txiter, double, CTxMemPool::CompareIteratorByHash> waitPriMap;
+    typedef std::map<CTxMemPool::txiter, double, CTxMemPool::CompareIteratorByHash>::iterator waitPriIter;
+    double actualPriority = -1;
+
+    std::priority_queue<CTxMemPool::txiter, std::vector<CTxMemPool::txiter>, ScoreCompare> clearedTxs;
+    bool fPrintPriority = GetBoolArg("-printpriority", DEFAULT_PRINTPRIORITY);
+    uint64_t nBlockSize = 1000;
+    uint64_t nBlockTx = 0;
+    unsigned int nBlockSigOps = 100;
+    int lastFewTxs = 0;
+    CAmount nFees = 0;
+
+    {
+        LOCK2(cs_main, mempool.cs);
+        pblock->nTime = GetAdjustedTime();
+        const int64_t nMedianTimePast = pindexPrev->GetMedianTimePast();
+
+        pblock->nVersion = ComputeBlockVersion(pindexPrev, chainparams.GetConsensus());
+        // -regtest only: allow overriding block.nVersion with
+        // -blockversion=N to test forking scenarios
+        if (chainparams.MineBlocksOnDemand())
+            pblock->nVersion = GetArg("-blockversion", pblock->nVersion);
+
+        int64_t nLockTimeCutoff = (STANDARD_LOCKTIME_VERIFY_FLAGS & LOCKTIME_MEDIAN_TIME_PAST)
+                                  ? nMedianTimePast
+                                  : pblock->GetBlockTime();
+
+        bool fPriorityBlock = nBlockPrioritySize > 0;
+        if (fPriorityBlock) {
+            vecPriority.reserve(mempool.mapTx.size());
+            for (CTxMemPool::indexed_transaction_set::iterator mi = mempool.mapTx.begin();
+                 mi != mempool.mapTx.end(); ++mi)
+            {
+                double dPriority = mi->GetPriority(nHeight);
+                CAmount dummy;
+                mempool.ApplyDeltas(mi->GetTx().GetHash(), dPriority, dummy);
+                vecPriority.push_back(TxCoinAgePriority(dPriority, mi));
+            }
+            std::make_heap(vecPriority.begin(), vecPriority.end(), pricomparer);
+        }
+
+        CTxMemPool::indexed_transaction_set::nth_index<3>::type::iterator mi = mempool.mapTx.get<3>().begin();
+        CTxMemPool::txiter iter;
+
+        while (mi != mempool.mapTx.get<3>().end() || !clearedTxs.empty())
+        {
+            bool priorityTx = false;
+            if (fPriorityBlock && !vecPriority.empty()) { // add a tx from priority queue to fill the blockprioritysize
+                priorityTx = true;
+                iter = vecPriority.front().second;
+                actualPriority = vecPriority.front().first;
+                std::pop_heap(vecPriority.begin(), vecPriority.end(), pricomparer);
+                vecPriority.pop_back();
+            }
+            else if (clearedTxs.empty()) { // add tx with next highest score
+                iter = mempool.mapTx.project<0>(mi);
+                mi++;
+            }
+            else {  // try to add a previously postponed child tx
+                iter = clearedTxs.top();
+                clearedTxs.pop();
+            }
+
+            if (inBlock.count(iter))
+                continue; // could have been added to the priorityBlock
+
+            const CTransaction& tx = iter->GetTx();
+
+            bool fOrphan = false;
+            BOOST_FOREACH(CTxMemPool::txiter parent, mempool.GetMemPoolParents(iter))
+            {
+                if (!inBlock.count(parent)) {
+                    fOrphan = true;
+                    break;
+                }
+            }
+            if (fOrphan) {
+                if (priorityTx)
+                    waitPriMap.insert(std::make_pair(iter,actualPriority));
+                else
+                    waitSet.insert(iter);
+                continue;
+            }
+
+            unsigned int nTxSize = iter->GetTxSize();
+            if (fPriorityBlock &&
+                (nBlockSize + nTxSize >= nBlockPrioritySize || !AllowFree(actualPriority))) {
+                fPriorityBlock = false;
+                waitPriMap.clear();
+            }
+            if (!priorityTx &&
+                (iter->GetModifiedFee() < ::minRelayTxFee.GetFee(nTxSize) && nBlockSize >= nBlockMinSize)) {
+                break;
+            }
+            if (nBlockSize + nTxSize >= nBlockMaxSize) {
+                if (nBlockSize >  nBlockMaxSize - 100 || lastFewTxs > 50) {
+                    break;
+                }
+                // Once we're within 1000 bytes of a full block, only look at 50 more txs
+                // to try to fill the remaining space.
+                if (nBlockSize > nBlockMaxSize - 1000) {
+                    lastFewTxs++;
+                }
+                continue;
+            }
+            if (tx.IsCoinBase())
+                continue;
+
+            if (!IsFinalTx(tx, nHeight, nLockTimeCutoff))
+                continue;
+
+            if (tx.IsZerocoinSpend()) {
+                LogPrintf("try to include zerocoinspend tx=%s\n", tx.GetHash().ToString());
+                LogPrintf("COUNT_SPEND_ZC_TX =%s\n", COUNT_SPEND_ZC_TX);
+                LogPrintf("MAX_SPEND_ZC_TX_PER_BLOCK =%s\n", MAX_SPEND_ZC_TX_PER_BLOCK);
+                if (COUNT_SPEND_ZC_TX >= MAX_SPEND_ZC_TX_PER_BLOCK) {
+                    continue;
+                }
+
+                //mempool.countZCSpend--;
+                // Size limits
+                unsigned int nTxSize = ::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION);
+
+                LogPrintf("\n\n######################################\n");
+                LogPrintf("nBlockMaxSize = %d\n", nBlockMaxSize);
+                LogPrintf("nBlockSize = %d\n", nBlockSize);
+                LogPrintf("nTxSize = %d\n", nTxSize);
+                LogPrintf("nBlockSize + nTxSize  = %d\n", nBlockSize + nTxSize);
+                LogPrintf("nBlockSigOpsCost  = %d\n", nBlockSigOpsCost);
+                LogPrintf("GetLegacySigOpCount  = %d\n", GetLegacySigOpCount(tx));
+                LogPrintf("######################################\n\n\n");
+
+                if (nBlockSize + nTxSize >= nBlockMaxSize) {
+                    LogPrintf("failed by sized\n");
+                    continue;
+                }
+
+                // Legacy limits on sigOps:
+                unsigned int nTxSigOps = GetLegacySigOpCount(tx);
+                if (nBlockSigOpsCost + nTxSigOps >= MAX_BLOCK_SIGOPS_COST) {
+                    LogPrintf("failed by sized\n");
+                    continue;
+                }
+
+                int64_t nTxFees = 0;
+
+                pblock->vtx.push_back(tx);
+                pblocktemplate->vTxFees.push_back(nTxFees);
+                pblocktemplate->vTxSigOpsCost.push_back(nTxSigOps);
+                nBlockSize += nTxSize;
+                ++nBlockTx;
+                nBlockSigOpsCost += nTxSigOps;
+                nFees += nTxFees;
+                COUNT_SPEND_ZC_TX++;
+                continue;
+            }
+
+            unsigned int nTxSigOps = iter->GetSigOpCost();
+            if (nBlockSigOps + nTxSigOps >= MAX_BLOCK_SIGOPS_COST) {
+                if (nBlockSigOps > MAX_BLOCK_SIGOPS_COST - 2) {
+                    break;
+                }
+                continue;
+            }
+
+            CAmount nTxFees = iter->GetFee();
+            // Added
+            pblock->vtx.push_back(tx);
+            pblocktemplate->vTxFees.push_back(nTxFees);
+            pblocktemplate->vTxSigOpsCost.push_back(nTxSigOps);
+            nBlockSize += nTxSize;
+            ++nBlockTx;
+            nBlockSigOps += nTxSigOps;
+            nFees += nTxFees;
+
+            if (fPrintPriority)
+            {
+                double dPriority = iter->GetPriority(nHeight);
+                CAmount dummy;
+                mempool.ApplyDeltas(tx.GetHash(), dPriority, dummy);
+                LogPrintf("priority %.1f fee %s txid %s\n",
+                          dPriority , CFeeRate(iter->GetModifiedFee(), nTxSize).ToString(), tx.GetHash().ToString());
+            }
+
+            inBlock.insert(iter);
+
+            // Add transactions that depend on this one to the priority queue
+            BOOST_FOREACH(CTxMemPool::txiter child, mempool.GetMemPoolChildren(iter))
+            {
+                if (fPriorityBlock) {
+                    waitPriIter wpiter = waitPriMap.find(child);
+                    if (wpiter != waitPriMap.end()) {
+                        vecPriority.push_back(TxCoinAgePriority(wpiter->second,child));
+                        std::push_heap(vecPriority.begin(), vecPriority.end(), pricomparer);
+                        waitPriMap.erase(wpiter);
+                    }
+                }
+                else {
+                    if (waitSet.count(child)) {
+                        clearedTxs.push(child);
+                        waitSet.erase(child);
+                    }
+                }
+            }
+        }
+
+        nLastBlockTx = nBlockTx;
+        nLastBlockSize = nBlockSize;
+        LogPrintf("CreateNewBlock(): total size %u txs: %u fees: %ld sigops %d\n", nBlockSize, nBlockTx, nFees, nBlockSigOps);
+
+        // Compute final coinbase transaction.
+        txNew.vout[0].nValue += nFees + GetBlockSubsidy(nHeight, chainparams.GetConsensus());
+        txNew.vin[0].scriptSig = CScript() << nHeight << OP_0;
+        pblock->vtx[0] = txNew;
+        pblocktemplate->vTxFees[0] = -nFees;
+
+        // Fill in header
+        pblock->hashPrevBlock  = pindexPrev->GetBlockHash();
+        UpdateTime(pblock, chainparams.GetConsensus(), pindexPrev);
+        pblock->nBits          = GetNextWorkRequired(pindexPrev, pblock, chainparams.GetConsensus());
+        pblock->nNonce         = 0;
+        pblocktemplate->vTxSigOpsCost[0] = GetLegacySigOpCount(pblock->vtx[0]);
+
+        CValidationState state;
+        if (!TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false)) {
+            throw std::runtime_error(strprintf("%s: TestBlockValidity failed: %s", __func__, FormatStateMessage(state)));
+        }
+    }
+    return pblocktemplate.release();
+}
+
+CBlockTemplate* BlockAssembler::CreateNewBlock_(const CScript& scriptPubKeyIn)
+{
     LogPrintf("BlockAssembler::CreateNewBlock()\n");
     bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
     resetBlock();
@@ -139,7 +461,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
     pblock = &pblocktemplate->block; // pointer for convenience
 
     CBlockIndex* pindexPrev = chainActive.Tip();
-    nHeight = pindexPrev->nHeight + 1;
+    nHeight = pindexPrev->nHeight;
 
     CTransaction coinbaseTx;
     coinbaseTx.vin.resize(1);
@@ -191,7 +513,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
     pblock->vtx.push_back(coinbaseTx);
     pblocktemplate->vTxFees.push_back(-1); // updated at end
     pblocktemplate->vTxSigOpsCost.push_back(-1); // updated at end
-    pblocktemplate->vchCoinbaseCommitment = GenerateCoinbaseCommitment(*pblock, pindexPrev, chainparams.GetConsensus());
+//    pblocktemplate->vchCoinbaseCommitment = GenerateCoinbaseCommitment(*pblock, pindexPrev, chainparams.GetConsensus());
     pblocktemplate->vTxFees[0] = -nFees;
     GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION);
 
@@ -299,12 +621,26 @@ bool BlockAssembler::TestPackageTransactions(const CTxMemPool::setEntries& packa
 
 bool BlockAssembler::TestForBlock(CTxMemPool::txiter iter)
 {
+    LogPrintf("\nTestForBlock ######################################\n");
+    LogPrintf("nBlockMaxSize = %d\n", nBlockMaxSize);
+    LogPrintf("nBlockSize = %d\n", nBlockSize);
+    int nTxSize = ::GetSerializeSize(iter->GetTx(), SER_NETWORK, PROTOCOL_VERSION);
+    LogPrintf("nTxSize = %d\n", nTxSize);
+    LogPrintf("nBlockSize + nTxSize  = %d\n", nBlockSize + nTxSize);
+    LogPrintf("######################################\n\n\n");
+    LogPrintf("nBlockWeight = %d\n", nBlockWeight);
+    LogPrintf("iter->GetTxWeight() = %d\n", iter->GetTxWeight());
+    LogPrintf("nBlockWeight = %d\n", nBlockWeight);
+    LogPrintf("lastFewTxs = %d\n", lastFewTxs);
+    LogPrintf("######################################\n\n\n");
+
     if (nBlockWeight + iter->GetTxWeight() >= nBlockMaxWeight) {
         // If the block is so close to full that no more txs will fit
         // or if we've tried more than 50 times to fill remaining space
         // then flag that the block is finished
         if (nBlockWeight >  nBlockMaxWeight - 400 || lastFewTxs > 50) {
              blockFinished = true;
+             LogPrintf("\nTestForBlock -> FAIL: blockFinished = true\n");
              return false;
         }
         // Once we're within 4000 weight of a full block, only look at 50 more txs
@@ -312,6 +648,7 @@ bool BlockAssembler::TestForBlock(CTxMemPool::txiter iter)
         if (nBlockWeight > nBlockMaxWeight - 4000) {
             lastFewTxs++;
         }
+        LogPrintf("\nTestForBlock -> FAIL: nBlockWeight + iter->GetTxWeight() >= nBlockMaxWeight\n");
         return false;
     }
 
@@ -319,11 +656,13 @@ bool BlockAssembler::TestForBlock(CTxMemPool::txiter iter)
         if (nBlockSize + ::GetSerializeSize(iter->GetTx(), SER_NETWORK, PROTOCOL_VERSION) >= nBlockMaxSize) {
             if (nBlockSize >  nBlockMaxSize - 100 || lastFewTxs > 50) {
                  blockFinished = true;
+                 LogPrintf("\nTestForBlock -> FAIL: fNeedSizeAccounting: blockFinished = true\n");
                  return false;
             }
             if (nBlockSize > nBlockMaxSize - 1000) {
                 lastFewTxs++;
             }
+            LogPrintf("\nTestForBlock -> FAIL: fNeedSizeAccounting\n");
             return false;
         }
     }
@@ -333,19 +672,24 @@ bool BlockAssembler::TestForBlock(CTxMemPool::txiter iter)
         // flag that the block is finished
         if (nBlockSigOpsCost > MAX_BLOCK_SIGOPS_COST - 8) {
             blockFinished = true;
+            LogPrintf("\nTestForBlock -> FAIL: nBlockSigOpsCost: blockFinished = true\n");
             return false;
         }
         // Otherwise attempt to find another tx with fewer sigops
         // to put in the block.
+        LogPrintf("\nTestForBlock -> FAIL: nBlockSigOpsCost\n");
         return false;
     }
 
     // Must check that lock times are still valid
     // This can be removed once MTP is always enforced
     // as long as reorgs keep the mempool consistent.
-    if (!IsFinalTx(iter->GetTx(), nHeight, nLockTimeCutoff))
+    if (!IsFinalTx(iter->GetTx(), nHeight, nLockTimeCutoff)) {
+        LogPrintf("\nTestForBlock -> FAIL: !IsFinalTx()\n");
         return false;
+    }
 
+    LogPrintf("\nTestForBlock -> OK\n");
     return true;
 }
 
@@ -558,9 +902,9 @@ void BlockAssembler::addPriorityTxs()
     unsigned int nBlockPrioritySize = GetArg("-blockprioritysize", DEFAULT_BLOCK_PRIORITY_SIZE);
     nBlockPrioritySize = std::min(nBlockMaxSize, nBlockPrioritySize);
 
-    if (nBlockPrioritySize == 0) {
-        return;
-    }
+//    if (nBlockPrioritySize == 0) {
+//        return;
+//    }
 
     bool fSizeAccounting = fNeedSizeAccounting;
     fNeedSizeAccounting = true;

@@ -823,13 +823,18 @@ unsigned int LimitOrphanTxSize(unsigned int nMaxOrphans) EXCLUSIVE_LOCKS_REQUIRE
 bool IsFinalTx(const CTransaction &tx, int nBlockHeight, int64_t nBlockTime) {
     if (tx.nLockTime == 0)
         return true;
-    if ((int64_t) tx.nLockTime < ((int64_t) tx.nLockTime < LOCKTIME_THRESHOLD ? (int64_t) nBlockHeight : nBlockTime))
+    if ((int64_t) tx.nLockTime < ((int64_t) tx.nLockTime < LOCKTIME_THRESHOLD ? (int64_t) nBlockHeight : nBlockTime)) {
+        LogPrintf("IsFinalTx tx=%s --> OK\n", tx.GetHash().ToString());
         return true;
-    BOOST_FOREACH(
-    const CTxIn &txin, tx.vin) {
-        if (!(txin.nSequence == CTxIn::SEQUENCE_FINAL))
-            return false;
     }
+    BOOST_FOREACH(const CTxIn &txin, tx.vin) {
+        if (txin.nSequence != CTxIn::SEQUENCE_FINAL) {
+            LogPrintf("txin=%s\n", txin.ToString());
+            LogPrintf("IsFinalTx tx=%s --> FAILED\n", tx.GetHash().ToString());
+            return false;
+        }
+    }
+    LogPrintf("IsFinalTx tx=%s --> OK\n", tx.GetHash().ToString());
     return true;
 }
 
@@ -2151,7 +2156,7 @@ CAmount GetBlockSubsidy(int nHeight, const Consensus::Params &consensusParams, i
 }
 
 bool IsInitialBlockDownload() {
-    const CChainParams &chainParams = Params();
+//    const CChainParams &chainParams = Params();
     // Once this function has returned false, it must remain false.
     static std::atomic<bool> latchToFalse{false};
     // Optimization: pre-test latch before taking the lock.
@@ -2799,11 +2804,11 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
     // Now that the whole chain is irreversibly beyond that time it is applied to all blocks except the
     // two in the chain that violate it. This prevents exploiting the issue against nodes during their
     // initial block download.
-    bool fEnforceBIP30 = (!pindex->phashBlock) || // Enforce on CreateNewBlock invocations which don't have a hash.
-                         !((pindex->nHeight == 91842 && pindex->GetBlockHash() == uint256S(
-                                 "0x00000000000a4d0a398161ffc163c503763b1f4360639393e0e4c8e300e0caec")) ||
-                           (pindex->nHeight == 91880 && pindex->GetBlockHash() == uint256S(
-                                   "0x00000000000743f190a18c5577a3c2d2a1f610ae9601ac046a38084ccb7cd721")));
+//    bool fEnforceBIP30 = (!pindex->phashBlock) || // Enforce on CreateNewBlock invocations which don't have a hash.
+//                         !((pindex->nHeight == 91842 && pindex->GetBlockHash() == uint256S(
+//                                 "0x00000000000a4d0a398161ffc163c503763b1f4360639393e0e4c8e300e0caec")) ||
+//                           (pindex->nHeight == 91880 && pindex->GetBlockHash() == uint256S(
+//                                   "0x00000000000743f190a18c5577a3c2d2a1f610ae9601ac046a38084ccb7cd721")));
 
     // Once BIP34 activated it was not possible to create new duplicate coinbases and thus other than starting
     // with the 2 existing duplicate coinbase pairs, not possible to create overwriting txs.  But by the
@@ -2811,18 +2816,17 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
     // before the first had been spent.  Since those coinbases are sufficiently buried its no longer possible to create further
     // duplicate transactions descending from the known pairs either.
     // If we're on the known chain at height greater than where BIP34 activated, we can save the db accesses needed for the BIP30 check.
-    CBlockIndex *pindexBIP34height = pindex->pprev->GetAncestor(chainparams.GetConsensus().BIP34Height);
+//    CBlockIndex *pindexBIP34height = pindex->pprev->GetAncestor(chainparams.GetConsensus().BIP34Height);
     //Only continue to enforce if we're below BIP34 activation height or the block hash at that height doesn't correspond.
-    fEnforceBIP30 = fEnforceBIP30 && (!pindexBIP34height ||
-                                      !(pindexBIP34height->GetBlockHash() == chainparams.GetConsensus().BIP34Hash));
+//    fEnforceBIP30 = fEnforceBIP30 && (!pindexBIP34height ||
+//                                      !(pindexBIP34height->GetBlockHash() == chainparams.GetConsensus().BIP34Hash));
 
+    bool fEnforceBIP30 = true;
     if (fEnforceBIP30) {
-        BOOST_FOREACH(
-        const CTransaction &tx, block.vtx) {
+        BOOST_FOREACH(const CTransaction &tx, block.vtx) {
             const CCoins *coins = view.AccessCoins(tx.GetHash());
             if (coins && !coins->IsPruned())
-                return state.DoS(100, error("ConnectBlock(): tried to overwrite transaction"),
-                                 REJECT_INVALID, "bad-txns-BIP30");
+                return state.DoS(100, error("ConnectBlock(): tried to overwrite transaction"), REJECT_INVALID, "bad-txns-BIP30");
         }
     }
 
@@ -2954,6 +2958,10 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
              (unsigned) block.vtx.size(), 0.001 * (nTime3 - nTime2), 0.001 * (nTime3 - nTime2) / block.vtx.size(),
              nInputs <= 1 ? 0 : 0.001 * (nTime3 - nTime2) / (nInputs - 1), nTimeConnect * 0.000001);
     //btzc: Add time to check
+    LogPrintf("block=%s\n", block.ToString());
+    LogPrintf("nFees=%s\n", nFees);
+    LogPrintf("GetBlockSubsidy(pindex->nHeight, chainparams.GetConsensus(), pindex->nTime)=%s\n", GetBlockSubsidy(pindex->nHeight, chainparams.GetConsensus(), pindex->nTime));
+    LogPrintf("block.vtx[0].GetValueOut()=%s\n", block.vtx[0].GetValueOut());
     CAmount blockReward = nFees + GetBlockSubsidy(pindex->nHeight, chainparams.GetConsensus(), pindex->nTime);
     if (block.vtx[0].GetValueOut() > blockReward)
         return state.DoS(100, error("ConnectBlock(): coinbase pays too much (actual=%d vs limit=%d)",
@@ -4279,7 +4287,7 @@ bool ContextualCheckBlockHeader(const CBlockHeader &block, CValidationState &sta
 bool ContextualCheckBlock(const CBlock &block, CValidationState &state, CBlockIndex *const pindexPrev) {
     const int nHeight = pindexPrev == NULL ? 0 : pindexPrev->nHeight + 1;
     const Consensus::Params &consensusParams = Params().GetConsensus();
-    bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
+//    bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
 
     // Start enforcing BIP113 (Median Time Past) using versionbits logic.
     int nLockTimeFlags = 0;
@@ -4303,6 +4311,7 @@ bool ContextualCheckBlock(const CBlock &block, CValidationState &state, CBlockIn
     // if 750 of the last 1,000 blocks are version 2 or greater (51/100 if testnet):
     if ((block.nVersion&0xff) >= 2 && IsSuperMajority(2, pindexPrev, consensusParams.nMajorityEnforceBlockUpgrade, consensusParams)) {
         CScript expect = CScript() << nHeight;
+//        LogPrintf("block.vtx[0].vin[0].scriptSig.begin()=%s\n", block.vtx[0].vin[0].scriptSig.begin());
         if (block.vtx[0].vin[0].scriptSig.size() < expect.size() || !std::equal(expect.begin(), expect.end(), block.vtx[0].vin[0].scriptSig.begin())) {
             return state.DoS(100, false, REJECT_INVALID, "bad-cb-height", false, "block height mismatch in coinbase");
         }
@@ -4560,8 +4569,8 @@ bool TestBlockValidity(CValidationState &state, const CChainParams &chainparams,
 //    std::cout << "TestBlockValidity->CheckBlock() nHeight=" << indexDummy.nHeight << std::endl;
     if (!CheckBlock(block, state, chainparams.GetConsensus(), fCheckPOW, fCheckMerkleRoot, indexDummy.nHeight, false))
         return error("%s: Consensus::CheckBlock: %s", __func__, FormatStateMessage(state));
-//    if (!ContextualCheckBlock(block, state, pindexPrev))
-//        return error("%s: Consensus::ContextualCheckBlock: %s", __func__, FormatStateMessage(state));
+    if (!ContextualCheckBlock(block, state, pindexPrev))
+        return error("%s: Consensus::ContextualCheckBlock: %s", __func__, FormatStateMessage(state));
     if (!ConnectBlock(block, state, &indexDummy, viewNew, chainparams, true))
         return false;
     assert(state.IsValid());
@@ -6352,8 +6361,8 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
                 AddOrphanTx(tx, pfrom->GetId());
 
                 // DoS prevention: do not allow mapOrphanTransactions to grow unbounded
-                unsigned int nMaxOrphanTx = (unsigned int) std::max((int64_t) 0, GetArg("-maxorphantx", DEFAULT_MAX_ORPHAN_TRANSACTIONS));
-                unsigned int nEvicted = LimitOrphanTxSize(nMaxOrphanTx);
+//                unsigned int nMaxOrphanTx = (unsigned int) std::max((int64_t) 0, GetArg("-maxorphantx", DEFAULT_MAX_ORPHAN_TRANSACTIONS));
+//                unsigned int nEvicted = LimitOrphanTxSize(nMaxOrphanTx);
 //                if (nEvicted > 0)
 //                    LogPrint("mempool", "mapOrphan overflow, removed %u tx\n", nEvicted);
             } else {
@@ -6794,7 +6803,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
         // unless we're still syncing with the network.
         // Such an unrequested block may still be processed, subject to the
         // conditions in AcceptBlock().
-        int nHeight = getNHeight(block.GetBlockHeader());
+//        int nHeight = getNHeight(block.GetBlockHeader());
         bool forceProcessing = pfrom->fWhitelisted && !IsInitialBlockDownload();
         ProcessNewBlock(state, chainparams, pfrom, &block, forceProcessing, NULL, true);
         int nDoS;
