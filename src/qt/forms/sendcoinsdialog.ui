@@ -657,7 +657,7 @@
      </widget>
     </widget>
    </item>
-   <item>
+   <!-- <item>
     <widget class="QFrame" name="frameFee">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
@@ -1187,7 +1187,7 @@
       </item>
      </layout>
     </widget>
-   </item>
+   </item> -->
    <item>
     <layout class="QHBoxLayout" name="horizontalLayout">
      <item>

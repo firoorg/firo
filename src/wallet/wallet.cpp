@@ -2186,7 +2186,7 @@ bool CWallet::CreateTransaction(const vector <CRecipient> &vecSend, CWalletTx &w
                 txNew.vout.clear();
                 txNew.wit.SetNull();
                 wtxNew.fFromMe = true;
-//                bool fFirst = true;
+                bool fFirst = true;
 
                 CAmount nValueToSelect = nValue;
                 if (nSubtractFeeFromAmount == 0)
@@ -2197,16 +2197,16 @@ bool CWallet::CreateTransaction(const vector <CRecipient> &vecSend, CWalletTx &w
                 {
                     CTxOut txout(recipient.nAmount, recipient.scriptPubKey);
 
-//                    if (recipient.fSubtractFeeFromAmount) {
-//                        txout.nValue -=
-//                                nFeeRet / nSubtractFeeFromAmount; // Subtract fee equally from each selected recipient
-//
-//                        if (fFirst) // first receiver pays the remainder not divisible by output count
-//                        {
-//                            fFirst = false;
-//                            txout.nValue -= nFeeRet % nSubtractFeeFromAmount;
-//                        }
-//                    }
+                   if (recipient.fSubtractFeeFromAmount) {
+                       txout.nValue -=
+                               nFeeRet / nSubtractFeeFromAmount; // Subtract fee equally from each selected recipient
+
+                       if (fFirst) // first receiver pays the remainder not divisible by output count
+                       {
+                           fFirst = false;
+                           txout.nValue -= nFeeRet % nSubtractFeeFromAmount;
+                       }
+                   }
 
                     if (txout.IsDust(::minRelayTxFee)) {
                         if (recipient.fSubtractFeeFromAmount && nFeeRet > 0) {
