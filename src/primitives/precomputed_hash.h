@@ -1,6 +1,8 @@
-//
-// Created by Ngo Hoang on 8/11/17.
-//
+// Copyright (c) 2009-2010 Satoshi Nakamoto
+// Copyright (c) 2009-2015 The Bitcoin Core developers
+// Copyright (c) 2016-2017 The Zcoin Core developers
+// Distributed under the MIT software license, see the accompanying
+// file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 static map<int, uint256> mapPoWHash;
 
