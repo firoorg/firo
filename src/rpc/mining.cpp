@@ -262,7 +262,7 @@ UniValue setgenerate(const UniValue& params, bool fHelp)
 
     if (params.size() > 0)
         fGenerate = params[0].get_bool();
-    int nGenProcLimit = GetArg("genproclimit", DEFAULT_GENERATE_THREADS);
+    int nGenProcLimit = GetArg("-genproclimit", DEFAULT_GENERATE_THREADS);
     if (params.size() > 1)
     {
         nGenProcLimit = params[1].get_int();
@@ -270,8 +270,8 @@ UniValue setgenerate(const UniValue& params, bool fHelp)
             fGenerate = false;
     }
 
-    mapArgs["gen"] = (fGenerate ? "1" : "0");
-    mapArgs ["genproclimit"] = itostr(nGenProcLimit);
+    mapArgs["-gen"] = (fGenerate ? "1" : "0");
+    mapArgs ["-genproclimit"] = itostr(nGenProcLimit);
     GenerateBitcoins(fGenerate, nGenProcLimit, Params());
 
     return NullUniValue;

@@ -282,10 +282,13 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
                 clearedTxs.pop();
             }
 
-            if (inBlock.count(iter))
+            if (inBlock.count(iter)) {
+                LogPrintf("skip, due to exist!\n");
                 continue; // could have been added to the priorityBlock
+            }
 
             const CTransaction& tx = iter->GetTx();
+            LogPrintf("Trying to add tx=%s\n", tx.GetHash().ToString());
 
             bool fOrphan = false;
             BOOST_FOREACH(CTxMemPool::txiter parent, mempool.GetMemPoolParents(iter))
@@ -298,8 +301,8 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
             if (fOrphan) {
                 if (priorityTx)
                     waitPriMap.insert(std::make_pair(iter,actualPriority));
-                else
-                    waitSet.insert(iter);
+                else waitSet.insert(iter);
+                LogPrintf("skip tx=%s, due to fOrphan=%s\n", tx.GetHash().ToString(), fOrphan);
                 continue;
             }
 
@@ -309,12 +312,20 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
                 fPriorityBlock = false;
                 waitPriMap.clear();
             }
-            if (!priorityTx &&
-                (iter->GetModifiedFee() < ::minRelayTxFee.GetFee(nTxSize) && nBlockSize >= nBlockMinSize)) {
-                break;
-            }
+//            if (!priorityTx && (iter->GetModifiedFee() < ::minRelayTxFee.GetFee(nTxSize) && nBlockSize >= nBlockMinSize)) {
+//                LogPrintf("skip tx=%s\n", tx.GetHash().ToString());
+//                LogPrintf("iter->GetModifiedFee()=%s\n", iter->GetModifiedFee());
+//                LogPrintf("::minRelayTxFee.GetFee(nTxSize)=%s\n", ::minRelayTxFee.GetFee(nTxSize));
+//                LogPrintf("nBlockSize=%s\n", nBlockSize);
+//                LogPrintf("nBlockMinSize=%s\n", nBlockMinSize);
+//                LogPrintf("***********************************");
+//                break;
+//            }
             if (nBlockSize + nTxSize >= nBlockMaxSize) {
                 if (nBlockSize >  nBlockMaxSize - 100 || lastFewTxs > 50) {
+                    LogPrintf("stop due to size overweight", tx.GetHash().ToString());
+                    LogPrintf("nBlockSize=%s\n", nBlockSize);
+                    LogPrintf("nBlockMaxSize=%s\n", nBlockMaxSize);
                     break;
                 }
                 // Once we're within 1000 bytes of a full block, only look at 50 more txs
@@ -322,13 +333,20 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
                 if (nBlockSize > nBlockMaxSize - 1000) {
                     lastFewTxs++;
                 }
+                LogPrintf("skip tx=%s\n", tx.GetHash().ToString());
+                LogPrintf("nBlockSize=%s\n", nBlockSize);
+                LogPrintf("nBlockMaxSize=%s\n", nBlockMaxSize);
                 continue;
             }
-            if (tx.IsCoinBase())
+            if (tx.IsCoinBase()) {
+                LogPrintf("skip tx=%s, coinbase tx\n", tx.GetHash().ToString());
                 continue;
+            }
 
-            if (!IsFinalTx(tx, nHeight, nLockTimeCutoff))
+            if (!IsFinalTx(tx, nHeight, nLockTimeCutoff)) {
+                LogPrintf("skip tx=%s, not IsFinalTx\n", tx.GetHash().ToString());
                 continue;
+            }
 
             if (tx.IsZerocoinSpend()) {
                 LogPrintf("try to include zerocoinspend tx=%s\n", tx.GetHash().ToString());
@@ -375,15 +393,18 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
                 COUNT_SPEND_ZC_TX++;
                 continue;
             }
-
             unsigned int nTxSigOps = iter->GetSigOpCost();
+            LogPrintf("nTxSigOps=%s\n", nTxSigOps);
+            LogPrintf("nBlockSigOps=%s\n", nBlockSigOps);
+            LogPrintf("MAX_BLOCK_SIGOPS_COST=%s\n", MAX_BLOCK_SIGOPS_COST);
             if (nBlockSigOps + nTxSigOps >= MAX_BLOCK_SIGOPS_COST) {
                 if (nBlockSigOps > MAX_BLOCK_SIGOPS_COST - 2) {
+                    LogPrintf("stop due to cross fee\n", tx.GetHash().ToString());
                     break;
                 }
+                LogPrintf("skip tx=%s, nBlockSigOps + nTxSigOps >= MAX_BLOCK_SIGOPS_COST\n", tx.GetHash().ToString());
                 continue;
             }
-
             CAmount nTxFees = iter->GetFee();
             // Added
             pblock->vtx.push_back(tx);
@@ -393,7 +414,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
             ++nBlockTx;
             nBlockSigOps += nTxSigOps;
             nFees += nTxFees;
-
+            LogPrintf("added to block=%s\n", tx.GetHash().ToString());
             if (fPrintPriority)
             {
                 double dPriority = iter->GetPriority(nHeight);
