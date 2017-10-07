@@ -4,7 +4,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "primitives/transaction.h"
-
+#include "script/interpreter.h"
 #include "hash.h"
 #include "tinyformat.h"
 #include "utilstrencodings.h"
@@ -129,6 +129,11 @@ int64_t CTransaction::GetMinFee(unsigned int nBlockSize, bool fAllowFree, enum G
 uint256 CTransaction::GetWitnessHash() const
 {
     return SerializeHash(*this, SER_GETHASH, 0);
+}
+
+uint256 CTransaction::GetNormalizedHash() const
+{
+    return SignatureHash(CScript(), *this, 0, SIGHASH_ALL, 0, SIGVERSION_BASE);
 }
 
 CTransaction::CTransaction() : nVersion(CTransaction::CURRENT_VERSION), vin(), vout(), nLockTime(0) { }

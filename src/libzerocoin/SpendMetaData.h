@@ -39,7 +39,7 @@ public:
 	/**Contains the hash of the rest of transaction
 	 * spending a zerocoin (excluding the coinspend proof)
 	 */
-    arith_uint256 txHash; // The Hash of the rest of the transaction the spend proof is n.
+    uint256 txHash; // The Hash of the rest of the transaction the spend proof is n.
 	// Allows us to sign the transaction.
 	ADD_SERIALIZE_METHODS;
 	template <typename Stream, typename Operation>

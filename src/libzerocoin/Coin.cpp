@@ -11,9 +11,23 @@
  **/
 
 #include <stdexcept>
+#include <openssl/rand.h>
 #include "Zerocoin.h"
 
 namespace libzerocoin {
+secp256k1_context* init_ctx() {
+    secp256k1_context* ctx = secp256k1_context_create(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
+    unsigned char seed[32];
+    if (RAND_bytes(seed, sizeof(seed)) != 1) {
+        throw ZerocoinException("Unable to generate randomness for context");
+    }
+    if (secp256k1_context_randomize(ctx, seed) != 1) {
+        throw ZerocoinException("Unable to randomize context");
+    };
+    return ctx;
+}
+// global context
+secp256k1_context* ctx = init_ctx();
 
 //PublicCoin class
 PublicCoin::PublicCoin(const Params* p):
@@ -81,14 +95,53 @@ const Bignum& PrivateCoin::getRandomness() const {
 	return this->randomness;
 }
 
+const unsigned char* PrivateCoin::getEcdsaSeckey() const {
+     return this->ecdsaSeckey;
+}
+
+const unsigned int PrivateCoin::getVersion() const {
+     return this->version;
+}
+
 void PrivateCoin::mintCoin(const CoinDenomination denomination) {
 	// Repeat this process up to MAX_COINMINT_ATTEMPTS times until
 	// we obtain a prime number
 	for(uint32_t attempt = 0; attempt < MAX_COINMINT_ATTEMPTS; attempt++) {
 
-		// Generate a random serial number in the range 0...{q-1} where
-		// "q" is the order of the commitment group.
-		Bignum s = Bignum::randBignum(this->params->coinCommitmentGroup.groupOrder);
+		  Bignum s;
+
+			// Repeat this process up to MAX_COINMINT_ATTEMPTS times until
+			// we obtain a prime number
+			for(uint32_t attempt = 0; attempt < MAX_COINMINT_ATTEMPTS; attempt++) {
+		    if(this->version == 2){
+
+		        // Create a key pair
+		        secp256k1_pubkey pubkey;
+		        do {
+		            if (RAND_bytes(this->ecdsaSeckey, sizeof(this->ecdsaSeckey)) != 1) {
+		                throw ZerocoinException("Unable to generate randomness");
+		            }
+		        } while (!secp256k1_ec_pubkey_create(ctx, &pubkey, this->ecdsaSeckey));
+
+		        std::vector<unsigned char> pubkey_hash(32, 0);
+
+		        static const unsigned char one[32] = {
+		            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01
+		        };
+
+		        // We use secp256k1_ecdh instead of secp256k1_serialize_pubkey to avoid a timing channel.
+		        int ignored_ret = secp256k1_ecdh(ctx, &pubkey_hash[0], &pubkey, &one[0]);
+
+		        // Hash the public key in the group to obtain a serial number
+		        s = serialNumberFromSerializedPublicKey(pubkey_hash);
+		    }else{
+			// Generate a random serial number in the range 0...{q-1} where
+			// "q" is the order of the commitment group.
+		        s = Bignum::randBignum(this->params->coinCommitmentGroup.groupOrder);
+		    }
 
 		// Generate a Pedersen commitment to the serial number "s"
 		Commitment coin(&params->coinCommitmentGroup, s);
@@ -116,9 +169,37 @@ void PrivateCoin::mintCoin(const CoinDenomination denomination) {
 
 void PrivateCoin::mintCoinFast(const CoinDenomination denomination) {
 	
-	// Generate a random serial number in the range 0...{q-1} where
-	// "q" is the order of the commitment group.
-	Bignum s = Bignum::randBignum(this->params->coinCommitmentGroup.groupOrder);
+	Bignum s;
+
+	    if(this->version == 2){
+
+	        // Create a key pair
+	        secp256k1_pubkey pubkey;
+	        do {
+	            if (RAND_bytes(this->ecdsaSeckey, sizeof(this->ecdsaSeckey)) != 1) {
+	                throw ZerocoinException("Unable to generate randomness");
+	            }
+	        } while (!secp256k1_ec_pubkey_create(ctx, &pubkey, this->ecdsaSeckey));
+
+	        std::vector<unsigned char> pubkey_hash(32, 0);
+
+	        static const unsigned char one[32] = {
+	            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01
+	        };
+
+	        // We use secp256k1_ecdh instead of secp256k1_serialize_pubkey to avoid a timing channel.
+	        int ignored_ret = secp256k1_ecdh(ctx, &pubkey_hash[0], &pubkey, &one[0]);
+
+	        // Hash the public key in the group to obtain a serial number
+	        s = serialNumberFromSerializedPublicKey(pubkey_hash);
+	    }else{
+		// Generate a random serial number in the range 0...{q-1} where
+		// "q" is the order of the commitment group.
+	        s = Bignum::randBignum(this->params->coinCommitmentGroup.groupOrder);
+	    }
 	
 	// Generate a random number "r" in the range 0...{q-1}
 	Bignum r = Bignum::randBignum(this->params->coinCommitmentGroup.groupOrder);
@@ -162,6 +243,26 @@ void PrivateCoin::mintCoinFast(const CoinDenomination denomination) {
 	
 const PublicCoin& PrivateCoin::getPublicCoin() const {
 	return this->publicCoin;
+}
+
+
+const Bignum PrivateCoin::serialNumberFromSerializedPublicKey(const std::vector<unsigned char> &pub)  {
+        if (pub.size() != 33) {
+            throw ZerocoinException("Wrong public key size. You must check the size before calling this function.");
+        }
+
+        // We want the 160 least-significant bits of the pubkey to be the hash of the serial number.
+        // The remaining bits (incl. the sign bit) should be 0.
+        // Bignum reverses the bits when parsing a char vector (Bitcoin's hash byte order),
+        // so we put the hash at position 0 of the char vector.
+        // We need 1 additional byte to make sure that the sign bit is always 0.
+        std::vector<unsigned char> hash(160/8+1, 0);
+        std::string zpts(ZEROCOIN_PUBLICKEY_TO_SERIALNUMBER);
+        std::vector<unsigned char> pre(zpts.begin(), zpts.end());
+        std::copy(pub.begin(), pub.end(), std::back_inserter(pre));
+        RIPEMD160(&pre[0], pre.size(), &hash[0]);
+        Bignum s(hash);
+        return s;
 }
 
 } /* namespace libzerocoin */

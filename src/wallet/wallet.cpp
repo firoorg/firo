@@ -2546,6 +2546,10 @@ bool CWallet::CreateZerocoinMintModel(string &stringError, string denomAmount) {
     // stored in a secure location (wallet) at the client.
     libzerocoin::PrivateCoin newCoin(ZCParams, denomination);
 
+    if ((nBestHeight > 0) && (nBestHeight >= 55555)) {
+    	newCoin.setVersion(2);
+    }
+
     // Get a copy of the 'public' portion of the coin. You should
     // embed this into a Zerocoin 'MINT' transaction along with a series
     // of currency inputs totaling the assigned value of one zerocoin.
@@ -3132,6 +3136,17 @@ bool CWallet::CreateZerocoinSpendTransaction(int64_t nValue, libzerocoin::CoinDe
             arith_uint256 transactionHash = 0;
             arith_uint256 accumulatorID = 0;
 
+            CTxIn newTxIn;
+            newTxIn.nSequence = zerocoinSelected.id;
+            newTxIn.scriptSig = CScript();
+            newTxIn.prevout.SetNull();
+            wtxNew.vin.push_back(newTxIn);
+
+            if ((nBestHeight > 0) && (nBestHeight >= 55555)) {
+            	transactionHash = wtxNew.GetNormalizedHash();
+            	accumulatorID = zerocoinSelected.id;
+            }
+
             // Place "transactionHash" and "accumulatorBlockHash" into a new
             // SpendMetaData object.
             libzerocoin::SpendMetaData metaData(accumulatorID, transactionHash);
@@ -3192,16 +3207,12 @@ bool CWallet::CreateZerocoinSpendTransaction(int64_t nValue, libzerocoin::CoinDe
             std::vector<char, zero_after_free_allocator<char> > data;
             data = serializedCoinSpend2.vch;
 
-            CTxIn newTxIn;
-            newTxIn.nSequence = zerocoinSelected.id;
-            newTxIn.scriptSig = CScript() << OP_ZEROCOINSPEND << data.size();
-            newTxIn.scriptSig.insert(newTxIn.scriptSig.end(), data.begin(), data.end());
-
-            newTxIn.prevout.SetNull();
-            txNew.vin.push_back(newTxIn);
+            CScript tmp = CScript() << OP_ZEROCOINSPEND << data.size();
+            tmp.insert(tmp.end(), data.begin(), data.end());
+            wtxNew.vin[0].scriptSig = tmp;
 
             std::vector<char, zero_after_free_allocator<char> > dataTxIn;
-            dataTxIn.insert(dataTxIn.end(), newTxIn.scriptSig.begin() + 4, newTxIn.scriptSig.end());
+            dataTxIn.insert(dataTxIn.end(), tmp.begin() + 4, tmp.end());
 
             CDataStream serializedCoinSpendChecking(SER_NETWORK, PROTOCOL_VERSION);
             serializedCoinSpendChecking.vch = dataTxIn;

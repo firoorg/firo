@@ -1206,8 +1206,10 @@ libbitcoin_server_a-blockencodings.o: blockencodings.cpp \
  /usr/include/boost/signals2/detail/variadic_slot_invoker.hpp \
  /usr/include/boost/signals2/detail/signal_template.hpp \
  script/script_error.h versionbits.h timedata.h libzerocoin/Zerocoin.h \
- libzerocoin/../serialize.h libzerocoin/bitcoin_bignum/bignum.h \
- /usr/include/openssl/bn.h /usr/include/openssl/e_os2.h \
+ secp256k1/include/secp256k1.h secp256k1/include/secp256k1_recovery.h \
+ secp256k1/include/secp256k1.h libzerocoin/../serialize.h \
+ libzerocoin/bitcoin_bignum/bignum.h /usr/include/openssl/bn.h \
+ /usr/include/openssl/e_os2.h \
  /usr/include/x86_64-linux-gnu/openssl/opensslconf.h \
  /usr/include/openssl/ossl_typ.h /usr/include/openssl/crypto.h \
  /usr/include/openssl/stack.h /usr/include/openssl/safestack.h \
@@ -4008,6 +4010,12 @@ versionbits.h:
 timedata.h:
 
 libzerocoin/Zerocoin.h:
+
+secp256k1/include/secp256k1.h:
+
+secp256k1/include/secp256k1_recovery.h:
+
+secp256k1/include/secp256k1.h:
 
 libzerocoin/../serialize.h:
 

@@ -27,10 +27,11 @@
 using namespace std;
 namespace libzerocoin {
 
-/**A Signature of knowledge on the hash of metadata attesting that the signer knows the values
- *  necessary to open a commitment which contains a coin(which it self is of course a commitment)
- * with a given serial number.
- */
+/**A proof of knowledge that the signer knows the values
+  *  necessary to open a commitment which contains a coin(which it self is of course a commitment)
+  * with a given serial number.
+  * This is called "signature of knowledge" for historical reasons.
+  */
 class SerialNumberSignatureOfKnowledge {
 public:
 	SerialNumberSignatureOfKnowledge(const Params* p);

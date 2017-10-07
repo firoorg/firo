@@ -106,6 +106,13 @@ bool SerialNumberSignatureOfKnowledge::Verify(const Bignum& coinSerialNumber, co
 	Bignum b = params->coinCommitmentGroup.h;
 	Bignum g = params->serialNumberSoKCommitmentGroup.g;
 	Bignum h = params->serialNumberSoKCommitmentGroup.h;
+
+	// Make sure that the serial number has a unique representation
+	if (coinSerialNumber < 0 || coinSerialNumber >= params->coinCommitmentGroup.groupOrder){
+		return false;
+	}
+
+
 	CHashWriter hasher(0,0);
 	hasher << *params << valueOfCommitmentToCoin <<coinSerialNumber;
 

@@ -421,6 +421,9 @@ public:
     // Compute a hash that includes both transaction and witness data
     uint256 GetWitnessHash() const;
 
+    // Compute a hash without changing later in 0.8
+    uint256 GetNormalizedHash() const;
+
     // Return sum of txouts.
     CAmount GetValueOut() const;
     // GetValueIn() is a method on CCoinsViewCache, because

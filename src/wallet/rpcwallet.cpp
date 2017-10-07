@@ -2689,6 +2689,9 @@ UniValue mintzerocoin(const UniValue& params, bool fHelp)
     // PrivateCoin object. This includes the coin secrets, which must be
     // stored in a secure location (wallet) at the client.
     libzerocoin::PrivateCoin newCoin(ZCParams, denomination);
+    if ((nBestHeight > 0) && (nBestHeight >= 55555)) {
+    	newCoin.setVersion(2);
+    }
 
 
     // Get a copy of the 'public' portion of the coin. You should

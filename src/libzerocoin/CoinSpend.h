@@ -76,9 +76,13 @@ public:
 	 */
 	CoinDenomination getDenomination() const;
 
+	void setVersion(unsigned int nVersion){
+	        version = nVersion;
+	}
+
 	bool Verify(const Accumulator& a, const SpendMetaData &metaData) const;
 
-	ADD_SERIALIZE_METHODS;
+	;
 	template <typename Stream, typename Operation>
 	inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
 		READWRITE(denomination);
@@ -88,6 +92,11 @@ public:
 		READWRITE(accumulatorPoK);
 		READWRITE(serialNumberSoK);
 		READWRITE(commitmentPoK);
+		if(version == 2){
+			READWRITE(version);
+		    READWRITE(ecdsaPubkey);
+		    READWRITE(ecdsaSignature);
+		}
 	}
 
 private:
@@ -96,9 +105,12 @@ private:
 	// Denomination is stored as an INT because storing
 	// and enum raises amigiuities in the serialize code //FIXME if possible
 	int denomination;
+	unsigned int version = 0;
 	Bignum accCommitmentToCoinValue;
 	Bignum serialCommitmentToCoinValue;
 	Bignum coinSerialNumber;
+	std::vector<unsigned char> ecdsaSignature;
+	std::vector<unsigned char> ecdsaPubkey;
 	AccumulatorProofOfKnowledge accumulatorPoK;
 	SerialNumberSignatureOfKnowledge serialNumberSoK;
 	CommitmentProofOfKnowledge commitmentPoK;

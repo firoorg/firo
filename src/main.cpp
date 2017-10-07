@@ -1107,10 +1107,17 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx, CZerocoinEntry pubCoinTx
             CDataStream serializedCoinSpend(SER_NETWORK, PROTOCOL_VERSION);
             serializedCoinSpend.vch = dataTxIn;
             libzerocoin::CoinSpend newSpend(ZCParams, serializedCoinSpend);
+            if ((nHeight > 0) && (nHeight >= 55555)) {
+            	newSpend.setVersion(2);
+            }
             // Create a new metadata object to contain the hash of the received
             // ZEROCOIN_SPEND transaction. If we were a real client we'd actually
             // compute the hash of the received transaction here.
             libzerocoin::SpendMetaData newMetadata(0, 0);
+            if ((nHeight > 0) && (nHeight >= 55555)) {
+            	newMetadata.accumulatorId = txin.nSequence;
+            	newMetadata.txHash = tx.GetNormalizedHash();
+            }
             libzerocoin::Accumulator accumulator(ZCParams, targetDenomination);
             libzerocoin::Accumulator accumulatorRev(ZCParams, targetDenomination);
             libzerocoin::Accumulator accumulatorPrecomputed(ZCParams, targetDenomination);
@@ -1216,7 +1223,7 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx, CZerocoinEntry pubCoinTx
                             && item.denomination == targetDenomination
                             && (item.id >= 0 && (uint32_t) item.id == pubcoinId)
                             && item.hashTx != hashTx) {
-                            return state.DoS(100, error("CTransaction::CheckTransaction() : The CoinSpend serial has been used"));
+                            return state.DoS(0, error("CTransaction::CheckTransaction() : The CoinSpend serial has been used"));
                         } else if (item.coinSerial == serialNumber
                                    && item.hashTx == hashTx
                                    && item.denomination == targetDenomination
