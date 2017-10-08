@@ -208,7 +208,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
 
     unsigned int COUNT_SPEND_ZC_TX = 0;
     unsigned int MAX_SPEND_ZC_TX_PER_BLOCK = 0;
-    if(fTestNet || nHeight > 22){
+    if(fTestNet || nHeight > 22000){
         MAX_SPEND_ZC_TX_PER_BLOCK = 1;
     }
 
@@ -939,7 +939,7 @@ void BlockAssembler::addPriorityTxs()
 
     unsigned int COUNT_SPEND_ZC_TX = 0;
     unsigned int MAX_SPEND_ZC_TX_PER_BLOCK = 0;
-    if (nHeight + 1 > 22) {
+    if (nHeight + 1 > 22000) {
         MAX_SPEND_ZC_TX_PER_BLOCK = 1;
     }
 
@@ -1176,7 +1176,7 @@ void static ZcoinMiner(const CChainParams &chainparams) {
                 uint256 thash;
 
                 while (true) {
-                    if ((!fTestNet && pindexPrev->nHeight + 1 >= 20500)) {
+                    if ((!fTestNet && pindexPrev->nHeight + 1 >= 1)) {
                         lyra2z_hash(BEGIN(pblock->nVersion), BEGIN(thash));
                     } else if (!fTestNet && pindexPrev->nHeight + 1 >= 8192) {
                         LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, 8192, 256);
