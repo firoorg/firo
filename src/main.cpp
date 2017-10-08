@@ -1107,7 +1107,7 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx, CZerocoinEntry pubCoinTx
             CDataStream serializedCoinSpend(SER_NETWORK, PROTOCOL_VERSION);
             serializedCoinSpend.vch = dataTxIn;
             libzerocoin::CoinSpend newSpend(ZCParams, serializedCoinSpend);
-            if ((nHeight > 0) && (nHeight >= 55555)) {
+            if ((nHeight > 0) && (nHeight >= 55)) {
             	newSpend.setVersion(2);
             }
             // Create a new metadata object to contain the hash of the received
@@ -1115,7 +1115,7 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx, CZerocoinEntry pubCoinTx
             // compute the hash of the received transaction here.
             uint256 txHash = ArithToUint256(arith_uint256(0));
             libzerocoin::SpendMetaData newMetadata(0, txHash);
-            if ((nHeight > 0) && (nHeight >= 55555)) {
+            if ((nHeight > 0) && (nHeight >= 55)) {
             	newMetadata.accumulatorId = txin.nSequence;
             	newMetadata.txHash = tx.GetNormalizedHash();
             }
@@ -1268,7 +1268,7 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx, CZerocoinEntry pubCoinTx
                         zccoinSpend.hashTx = hashTx;
                         zccoinSpend.pubCoin = 0;
                         zccoinSpend.id = pubcoinId;
-                        if (nHeight > 22000 && nHeight < INT_MAX) {
+                        if (nHeight > 22 && nHeight < INT_MAX) {
                             zccoinSpend.denomination = targetDenomination;
                         }
 //                        LogPrintf("WriteCoinSpendSerialEntry, serialNumber=%s", serialNumber.ToString());
