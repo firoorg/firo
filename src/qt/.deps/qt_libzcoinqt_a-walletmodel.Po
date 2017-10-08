@@ -1179,6 +1179,8 @@ qt/qt_libzcoinqt_a-walletmodel.o: qt/walletmodel.cpp \
  /usr/include/boost/unordered/unordered_map_fwd.hpp net.h bloom.h \
  limitedmap.h random.h streams.h /usr/include/c++/5/atomic \
  script/script_error.h versionbits.h timedata.h libzerocoin/Zerocoin.h \
+ secp256k1/include/secp256k1.h secp256k1/include/secp256k1_recovery.h \
+ secp256k1/include/secp256k1.h secp256k1/include/secp256k1_ecdh.h \
  libzerocoin/../serialize.h libzerocoin/bitcoin_bignum/bignum.h \
  libzerocoin/bitcoin_bignum/../../uint256.h \
  libzerocoin/bitcoin_bignum/../../arith_uint256.h \
@@ -4056,6 +4058,14 @@ versionbits.h:
 timedata.h:
 
 libzerocoin/Zerocoin.h:
+
+secp256k1/include/secp256k1.h:
+
+secp256k1/include/secp256k1_recovery.h:
+
+secp256k1/include/secp256k1.h:
+
+secp256k1/include/secp256k1_ecdh.h:
 
 libzerocoin/../serialize.h:
 

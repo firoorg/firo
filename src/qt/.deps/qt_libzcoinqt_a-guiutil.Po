@@ -1187,6 +1187,8 @@ qt/qt_libzcoinqt_a-guiutil.o: qt/guiutil.cpp /usr/include/stdc-predef.h \
  /usr/include/boost/signals2/detail/variadic_slot_invoker.hpp \
  /usr/include/boost/signals2/detail/signal_template.hpp \
  script/script_error.h versionbits.h timedata.h libzerocoin/Zerocoin.h \
+ secp256k1/include/secp256k1.h secp256k1/include/secp256k1_recovery.h \
+ secp256k1/include/secp256k1.h secp256k1/include/secp256k1_ecdh.h \
  libzerocoin/../serialize.h libzerocoin/bitcoin_bignum/bignum.h \
  libzerocoin/bitcoin_bignum/../../uint256.h \
  libzerocoin/bitcoin_bignum/../../arith_uint256.h \
@@ -4084,6 +4086,14 @@ versionbits.h:
 timedata.h:
 
 libzerocoin/Zerocoin.h:
+
+secp256k1/include/secp256k1.h:
+
+secp256k1/include/secp256k1_recovery.h:
+
+secp256k1/include/secp256k1.h:
+
+secp256k1/include/secp256k1_ecdh.h:
 
 libzerocoin/../serialize.h:
 

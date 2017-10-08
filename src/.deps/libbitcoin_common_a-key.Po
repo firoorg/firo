@@ -650,7 +650,8 @@ libbitcoin_common_a-key.o: key.cpp /usr/include/stdc-predef.h key.h \
  /usr/include/boost/type_traits/is_signed.hpp \
  /usr/include/boost/atomic/detail/casts.hpp crypto/hmac_sha512.h \
  crypto/sha512.h random.h secp256k1/include/secp256k1.h \
- secp256k1/include/secp256k1_recovery.h secp256k1/include/secp256k1.h
+ secp256k1/include/secp256k1_recovery.h secp256k1/include/secp256k1.h \
+ secp256k1/include/secp256k1_ecdh.h
 
 /usr/include/stdc-predef.h:
 
@@ -2177,3 +2178,5 @@ secp256k1/include/secp256k1.h:
 secp256k1/include/secp256k1_recovery.h:
 
 secp256k1/include/secp256k1.h:
+
+secp256k1/include/secp256k1_ecdh.h:

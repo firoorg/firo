@@ -1084,6 +1084,8 @@ rpc/libbitcoin_server_a-rawtransaction.o: rpc/rawtransaction.cpp \
  /usr/include/boost/io/detail/quoted_manip.hpp \
  /usr/include/boost/io/ios_state.hpp /usr/include/boost/io_fwd.hpp \
  script/script_error.h versionbits.h timedata.h libzerocoin/Zerocoin.h \
+ secp256k1/include/secp256k1.h secp256k1/include/secp256k1_recovery.h \
+ secp256k1/include/secp256k1.h secp256k1/include/secp256k1_ecdh.h \
  libzerocoin/../serialize.h libzerocoin/bitcoin_bignum/bignum.h \
  /usr/include/openssl/bn.h /usr/include/openssl/e_os2.h \
  /usr/include/x86_64-linux-gnu/openssl/opensslconf.h \
@@ -3858,6 +3860,14 @@ versionbits.h:
 timedata.h:
 
 libzerocoin/Zerocoin.h:
+
+secp256k1/include/secp256k1.h:
+
+secp256k1/include/secp256k1_recovery.h:
+
+secp256k1/include/secp256k1.h:
+
+secp256k1/include/secp256k1_ecdh.h:
 
 libzerocoin/../serialize.h:
 

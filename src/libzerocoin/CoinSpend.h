@@ -101,7 +101,7 @@ public:
 
 private:
 	const Params *params;
-    const arith_uint256 signatureHash(const SpendMetaData &m) const;
+    const uint256 signatureHash(const SpendMetaData &m) const;
 	// Denomination is stored as an INT because storing
 	// and enum raises amigiuities in the serialize code //FIXME if possible
 	int denomination;

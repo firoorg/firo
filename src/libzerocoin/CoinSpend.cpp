@@ -130,11 +130,10 @@ bool CoinSpend::Verify(const Accumulator& a, const SpendMetaData &m) const {
 
 }
 
-const arith_uint256 CoinSpend::signatureHash(const SpendMetaData &m) const {
+const uint256 CoinSpend::signatureHash(const SpendMetaData &m) const {
 	CHashWriter h(0,0);
 	h << m << serialCommitmentToCoinValue << accCommitmentToCoinValue << commitmentPoK << accumulatorPoK;
-    arith_uint256 hx= UintToArith256(h.GetHash());
-    return hx;
+	return h.GetHash();
 }
 
 } /* namespace libzerocoin */

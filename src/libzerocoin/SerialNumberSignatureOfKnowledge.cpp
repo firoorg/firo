@@ -16,7 +16,7 @@ namespace libzerocoin {
 
 SerialNumberSignatureOfKnowledge::SerialNumberSignatureOfKnowledge(const Params* p): params(p) { }
 
-SerialNumberSignatureOfKnowledge::SerialNumberSignatureOfKnowledge(const Params* p, const PrivateCoin& coin, const Commitment& commitmentToCoin, arith_uint256 msghash)
+SerialNumberSignatureOfKnowledge::SerialNumberSignatureOfKnowledge(const Params* p, const PrivateCoin& coin, const Commitment& commitmentToCoin, uint256 msghash)
     :params(p), s_notprime(p->zkp_iterations), sprime(p->zkp_iterations) {
 
 	// Sanity check: verify that the order of the "accumulatedValueCommitmentGroup" is
@@ -101,7 +101,7 @@ inline Bignum SerialNumberSignatureOfKnowledge::challengeCalculation(const Bignu
 }
 
 bool SerialNumberSignatureOfKnowledge::Verify(const Bignum& coinSerialNumber, const Bignum& valueOfCommitmentToCoin,
-        const arith_uint256 msghash) const {
+        const uint256 msghash) const {
 	Bignum a = params->coinCommitmentGroup.g;
 	Bignum b = params->coinCommitmentGroup.h;
 	Bignum g = params->serialNumberSoKCommitmentGroup.g;

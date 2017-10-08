@@ -88,7 +88,9 @@ libzerocoin/libbitcoin_util_a-SpendMetaData.o: \
  /usr/include/asm-generic/errno.h /usr/include/asm-generic/errno-base.h \
  /usr/include/c++/5/bits/functional_hash.h \
  /usr/include/c++/5/bits/hash_bytes.h \
- /usr/include/c++/5/bits/basic_string.tcc libzerocoin/../serialize.h \
+ /usr/include/c++/5/bits/basic_string.tcc secp256k1/include/secp256k1.h \
+ secp256k1/include/secp256k1_recovery.h secp256k1/include/secp256k1.h \
+ secp256k1/include/secp256k1_ecdh.h libzerocoin/../serialize.h \
  libzerocoin/../compat/endian.h config/bitcoin-config.h compat/byteswap.h \
  /usr/include/byteswap.h /usr/include/c++/5/algorithm \
  /usr/include/c++/5/utility /usr/include/c++/5/bits/stl_relops.h \
@@ -468,6 +470,14 @@ libzerocoin/Zerocoin.h:
 /usr/include/c++/5/bits/hash_bytes.h:
 
 /usr/include/c++/5/bits/basic_string.tcc:
+
+secp256k1/include/secp256k1.h:
+
+secp256k1/include/secp256k1_recovery.h:
+
+secp256k1/include/secp256k1.h:
+
+secp256k1/include/secp256k1_ecdh.h:
 
 libzerocoin/../serialize.h:
 

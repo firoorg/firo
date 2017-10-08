@@ -1093,7 +1093,9 @@ qt/qt_libzcoinqt_a-splashscreen.o: qt/splashscreen.cpp \
  /usr/include/boost/thread/pthread/recursive_mutex.hpp \
  support/allocators/secure.h wallet/walletdb.h wallet/db.h sync.h \
  /usr/include/db_cxx.h /usr/include/db.h /usr/include/inttypes.h key.h \
- libzerocoin/Zerocoin.h libzerocoin/../serialize.h \
+ libzerocoin/Zerocoin.h secp256k1/include/secp256k1.h \
+ secp256k1/include/secp256k1_recovery.h secp256k1/include/secp256k1.h \
+ secp256k1/include/secp256k1_ecdh.h libzerocoin/../serialize.h \
  libzerocoin/bitcoin_bignum/bignum.h libzerocoin/../hash.h \
  libzerocoin/Params.h libzerocoin/Zerocoin.h libzerocoin/Coin.h \
  libzerocoin/Commitment.h libzerocoin/Accumulator.h \
@@ -3688,6 +3690,14 @@ sync.h:
 key.h:
 
 libzerocoin/Zerocoin.h:
+
+secp256k1/include/secp256k1.h:
+
+secp256k1/include/secp256k1_recovery.h:
+
+secp256k1/include/secp256k1.h:
+
+secp256k1/include/secp256k1_ecdh.h:
 
 libzerocoin/../serialize.h:
 

@@ -1113,7 +1113,8 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx, CZerocoinEntry pubCoinTx
             // Create a new metadata object to contain the hash of the received
             // ZEROCOIN_SPEND transaction. If we were a real client we'd actually
             // compute the hash of the received transaction here.
-            libzerocoin::SpendMetaData newMetadata(0, 0);
+            uint256 txHash = ArithToUint256(arith_uint256(0));
+            libzerocoin::SpendMetaData newMetadata(0, txHash);
             if ((nHeight > 0) && (nHeight >= 55555)) {
             	newMetadata.accumulatorId = txin.nSequence;
             	newMetadata.txHash = tx.GetNormalizedHash();

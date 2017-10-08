@@ -2546,7 +2546,7 @@ bool CWallet::CreateZerocoinMintModel(string &stringError, string denomAmount) {
     // stored in a secure location (wallet) at the client.
     libzerocoin::PrivateCoin newCoin(ZCParams, denomination);
 
-    if ((nBestHeight > 0) && (nBestHeight >= 55555)) {
+    if ((chainActive.Height() > 0) && (chainActive.Height() >= 55555)) {
     	newCoin.setVersion(2);
     }
 
@@ -3133,7 +3133,7 @@ bool CWallet::CreateZerocoinSpendTransaction(int64_t nValue, libzerocoin::CoinDe
             // assume you've formatted this transaction and placed the hash into
             // "transactionHash". We'll also assume "accumulatorHash" contains the
             // hash of the last block whose transactions are in the accumulator.*/
-            arith_uint256 transactionHash = 0;
+            uint256 transactionHash = ArithToUint256(0);
             arith_uint256 accumulatorID = 0;
 
             CTxIn newTxIn;
@@ -3142,7 +3142,7 @@ bool CWallet::CreateZerocoinSpendTransaction(int64_t nValue, libzerocoin::CoinDe
             newTxIn.prevout.SetNull();
             wtxNew.vin.push_back(newTxIn);
 
-            if ((nBestHeight > 0) && (nBestHeight >= 55555)) {
+            if ((chainActive.Height() > 0) && (chainActive.Height() >= 55555)) {
             	transactionHash = wtxNew.GetNormalizedHash();
             	accumulatorID = zerocoinSelected.id;
             }

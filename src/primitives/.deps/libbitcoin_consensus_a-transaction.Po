@@ -212,8 +212,9 @@ primitives/libbitcoin_consensus_a-transaction.o: \
  /usr/include/x86_64-linux-gnu/bits/posix2_lim.h \
  /usr/include/x86_64-linux-gnu/bits/xopen_lim.h pubkey.h hash.h \
  crypto/ripemd160.h crypto/sha256.h uint256.h /usr/include/c++/5/cstring \
- crypto/common.h arith_uint256.h version.h serialize.h uint256.h hash.h \
- tinyformat.h /usr/include/c++/5/cassert /usr/include/c++/5/iostream \
+ crypto/common.h arith_uint256.h version.h serialize.h uint256.h \
+ script/interpreter.h script/script_error.h hash.h tinyformat.h \
+ /usr/include/c++/5/cassert /usr/include/c++/5/iostream \
  /usr/include/c++/5/sstream /usr/include/c++/5/bits/sstream.tcc \
  utilstrencodings.h
 
@@ -788,6 +789,10 @@ version.h:
 serialize.h:
 
 uint256.h:
+
+script/interpreter.h:
+
+script/script_error.h:
 
 hash.h:
 

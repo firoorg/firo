@@ -29,7 +29,7 @@ public:
 	 * @param accumulatorId hash of block containing accumulator
 	 * @param txHash hash of transaction
 	 */
-    SpendMetaData(arith_uint256 accumulatorId, arith_uint256 txHash);
+    SpendMetaData(arith_uint256 accumulatorId, uint256 txHash);
 
 	/**
 	 * The hash of the block containing the accumulator CoinSpend
