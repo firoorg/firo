@@ -82,13 +82,24 @@ bool IsStandardTx(const CTransaction& tx, std::string& reason, const bool witnes
         // future-proofing. That's also enough to spend a 20-of-20
         // CHECKMULTISIG scriptPubKey, though such a scriptPubKey is not
         // considered standard.
-        if (txin.scriptSig.size() > 1650) {
+        if (txin.scriptSig.size() > 500 && !txin.scriptSig.IsZerocoinSpend()) {
             reason = "scriptsig-size";
             return false;
         }
-        if (!txin.scriptSig.IsPushOnly()) {
-            reason = "scriptsig-not-pushonly";
+        if (txin.scriptSig.IsZerocoinSpend() && txin.scriptSig.size() > 50000) {
+            reason = "scriptsig-size";
             return false;
+        }
+
+        if (!txin.scriptSig.IsZerocoinSpend()) {
+            if (!txin.scriptSig.IsPushOnly()) {
+                reason = "scriptsig-not-pushonly";
+                return false;
+            }
+            if (!txin.scriptSig.HasCanonicalPushes()) {
+                reason = "non-canonical-push";
+                return false;
+            }
         }
     }
 
