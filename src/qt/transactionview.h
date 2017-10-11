@@ -76,6 +76,7 @@ private:
     QDateTimeEdit *dateFrom;
     QDateTimeEdit *dateTo;
     QAction *abandonAction;
+    QAction *resendAction;
 
     QWidget *createDateRangeWidget();
 
@@ -99,6 +100,7 @@ private Q_SLOTS:
     void openThirdPartyTxUrl(QString url);
     void updateWatchOnlyColumn(bool fHaveWatchOnly);
     void abandonTx();
+    void rebroadcastTx();
 
 Q_SIGNALS:
     void doubleClicked(const QModelIndex&);

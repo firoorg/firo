@@ -203,6 +203,9 @@ public:
     bool transactionCanBeAbandoned(uint256 hash) const;
     bool abandonTransaction(uint256 hash) const;
 
+    bool transactionCanBeRebroadcast(uint256 hash) const;
+    bool rebroadcastTransaction(uint256 hash);
+
 private:
     CWallet *wallet;
     bool fHaveWatchOnly;
