@@ -133,6 +133,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
     // Create new block
     LogPrintf("BlockAssembler::CreateNewBlock()\n");
     bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
+    resetBlock();
     auto_ptr<CBlockTemplate> pblocktemplate(new CBlockTemplate());
     if(!pblocktemplate.get())
         return NULL;
