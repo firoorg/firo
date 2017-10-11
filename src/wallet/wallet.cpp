@@ -2975,7 +2975,7 @@ bool CWallet::CreateZerocoinSpendTransaction(int64_t nValue, libzerocoin::CoinDe
 
     wtxNew.BindWallet(this);
     CMutableTransaction txNew;
-    txNew.nLockTime = chainActive.Height();
+    txNew.nLockTime = 0;//chainActive.Height();
         if (GetRandInt(10) == 0)
             txNew.nLockTime = std::max(0, (int) txNew.nLockTime - GetRandInt(100));
     {
