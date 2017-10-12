@@ -17,12 +17,9 @@ libzerocoin/libbitcoin_util_a-Commitment.o: libzerocoin/Commitment.cpp \
  /usr/include/x86_64-linux-gnu/bits/select.h \
  /usr/include/x86_64-linux-gnu/bits/sigset.h \
  /usr/include/x86_64-linux-gnu/bits/time.h \
- /usr/include/x86_64-linux-gnu/bits/select2.h \
  /usr/include/x86_64-linux-gnu/sys/sysmacros.h \
  /usr/include/x86_64-linux-gnu/bits/pthreadtypes.h /usr/include/alloca.h \
- /usr/include/x86_64-linux-gnu/bits/stdlib-bsearch.h \
- /usr/include/x86_64-linux-gnu/bits/stdlib-float.h \
- /usr/include/x86_64-linux-gnu/bits/stdlib.h libzerocoin/Zerocoin.h \
+ /usr/include/x86_64-linux-gnu/bits/stdlib-float.h libzerocoin/Zerocoin.h \
  /usr/include/c++/5/stdexcept /usr/include/c++/5/exception \
  /usr/include/x86_64-linux-gnu/c++/5/bits/c++config.h \
  /usr/include/x86_64-linux-gnu/c++/5/bits/os_defines.h \
@@ -48,8 +45,7 @@ libzerocoin/libbitcoin_util_a-Commitment.o: libzerocoin/Commitment.cpp \
  /usr/include/c++/5/bits/postypes.h /usr/include/c++/5/cwchar \
  /usr/include/wchar.h /usr/include/stdio.h \
  /usr/lib/gcc/x86_64-linux-gnu/5/include/stdarg.h \
- /usr/include/x86_64-linux-gnu/bits/wchar.h \
- /usr/include/x86_64-linux-gnu/bits/wchar2.h /usr/include/c++/5/cstdint \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h /usr/include/c++/5/cstdint \
  /usr/lib/gcc/x86_64-linux-gnu/5/include/stdint.h /usr/include/stdint.h \
  /usr/include/c++/5/bits/allocator.h \
  /usr/include/x86_64-linux-gnu/c++/5/bits/c++allocator.h \
@@ -80,10 +76,9 @@ libzerocoin/libbitcoin_util_a-Commitment.o: libzerocoin/Commitment.cpp \
  /usr/include/c++/5/cstdio /usr/include/libio.h /usr/include/_G_config.h \
  /usr/include/x86_64-linux-gnu/bits/stdio_lim.h \
  /usr/include/x86_64-linux-gnu/bits/sys_errlist.h \
- /usr/include/x86_64-linux-gnu/bits/stdio.h \
- /usr/include/x86_64-linux-gnu/bits/stdio2.h /usr/include/c++/5/cerrno \
- /usr/include/errno.h /usr/include/x86_64-linux-gnu/bits/errno.h \
- /usr/include/linux/errno.h /usr/include/x86_64-linux-gnu/asm/errno.h \
+ /usr/include/c++/5/cerrno /usr/include/errno.h \
+ /usr/include/x86_64-linux-gnu/bits/errno.h /usr/include/linux/errno.h \
+ /usr/include/x86_64-linux-gnu/asm/errno.h \
  /usr/include/asm-generic/errno.h /usr/include/asm-generic/errno-base.h \
  /usr/include/c++/5/bits/functional_hash.h \
  /usr/include/c++/5/bits/hash_bytes.h \
@@ -106,10 +101,9 @@ libzerocoin/libbitcoin_util_a-Commitment.o: libzerocoin/Commitment.cpp \
  /usr/include/x86_64-linux-gnu/bits/inf.h \
  /usr/include/x86_64-linux-gnu/bits/nan.h \
  /usr/include/x86_64-linux-gnu/bits/mathdef.h \
- /usr/include/x86_64-linux-gnu/bits/mathcalls.h \
- /usr/include/x86_64-linux-gnu/bits/mathinline.h \
- /usr/include/c++/5/limits /usr/include/c++/5/bits/random.h \
- /usr/include/c++/5/vector /usr/include/c++/5/bits/stl_uninitialized.h \
+ /usr/include/x86_64-linux-gnu/bits/mathcalls.h /usr/include/c++/5/limits \
+ /usr/include/c++/5/bits/random.h /usr/include/c++/5/vector \
+ /usr/include/c++/5/bits/stl_uninitialized.h \
  /usr/include/c++/5/bits/stl_vector.h \
  /usr/include/c++/5/bits/stl_bvector.h /usr/include/c++/5/bits/vector.tcc \
  /usr/include/c++/5/bits/uniform_int_dist.h \
@@ -189,10 +183,10 @@ libzerocoin/libbitcoin_util_a-Commitment.o: libzerocoin/Commitment.cpp \
  /usr/include/c++/5/array /usr/include/c++/5/bits/uses_allocator.h \
  /usr/include/c++/5/bits/stl_multimap.h /usr/include/c++/5/set \
  /usr/include/c++/5/bits/stl_set.h /usr/include/c++/5/bits/stl_multiset.h \
- /usr/include/string.h /usr/include/x86_64-linux-gnu/bits/string3.h \
- libzerocoin/../prevector.h /usr/include/c++/5/iterator \
- /usr/include/c++/5/ostream /usr/include/c++/5/bits/ostream.tcc \
- /usr/include/c++/5/istream /usr/include/c++/5/bits/istream.tcc \
+ /usr/include/string.h libzerocoin/../prevector.h \
+ /usr/include/c++/5/iterator /usr/include/c++/5/ostream \
+ /usr/include/c++/5/bits/ostream.tcc /usr/include/c++/5/istream \
+ /usr/include/c++/5/bits/istream.tcc \
  /usr/include/c++/5/bits/stream_iterator.h /usr/include/c++/5/memory \
  /usr/include/c++/5/bits/stl_raw_storage_iter.h \
  /usr/include/c++/5/typeinfo /usr/include/c++/5/ext/concurrence.h \
@@ -280,19 +274,13 @@ libzerocoin/libbitcoin_util_a-Commitment.o: libzerocoin/Commitment.cpp \
 
 /usr/include/x86_64-linux-gnu/bits/time.h:
 
-/usr/include/x86_64-linux-gnu/bits/select2.h:
-
 /usr/include/x86_64-linux-gnu/sys/sysmacros.h:
 
 /usr/include/x86_64-linux-gnu/bits/pthreadtypes.h:
 
 /usr/include/alloca.h:
 
-/usr/include/x86_64-linux-gnu/bits/stdlib-bsearch.h:
-
 /usr/include/x86_64-linux-gnu/bits/stdlib-float.h:
-
-/usr/include/x86_64-linux-gnu/bits/stdlib.h:
 
 libzerocoin/Zerocoin.h:
 
@@ -363,8 +351,6 @@ libzerocoin/Zerocoin.h:
 /usr/lib/gcc/x86_64-linux-gnu/5/include/stdarg.h:
 
 /usr/include/x86_64-linux-gnu/bits/wchar.h:
-
-/usr/include/x86_64-linux-gnu/bits/wchar2.h:
 
 /usr/include/c++/5/cstdint:
 
@@ -446,10 +432,6 @@ libzerocoin/Zerocoin.h:
 
 /usr/include/x86_64-linux-gnu/bits/sys_errlist.h:
 
-/usr/include/x86_64-linux-gnu/bits/stdio.h:
-
-/usr/include/x86_64-linux-gnu/bits/stdio2.h:
-
 /usr/include/c++/5/cerrno:
 
 /usr/include/errno.h:
@@ -527,8 +509,6 @@ compat/byteswap.h:
 /usr/include/x86_64-linux-gnu/bits/mathdef.h:
 
 /usr/include/x86_64-linux-gnu/bits/mathcalls.h:
-
-/usr/include/x86_64-linux-gnu/bits/mathinline.h:
 
 /usr/include/c++/5/limits:
 
@@ -719,8 +699,6 @@ compat/byteswap.h:
 /usr/include/c++/5/bits/stl_multiset.h:
 
 /usr/include/string.h:
-
-/usr/include/x86_64-linux-gnu/bits/string3.h:
 
 libzerocoin/../prevector.h:
 

@@ -304,7 +304,7 @@ BREW =
 CC = gcc
 CCACHE = 
 CCDEPMODE = depmode=gcc3
-CFLAGS = -g -O2
+CFLAGS = -g -O2 -g3 -O0
 CLIENT_VERSION_BUILD = 8
 CLIENT_VERSION_IS_RELEASE = true
 CLIENT_VERSION_MAJOR = 0
@@ -317,13 +317,13 @@ COPYRIGHT_HOLDERS_SUBSTITUTION = Zcoin Core
 COPYRIGHT_YEAR = 2017
 CPP = gcc -E
 CPPFILT = /usr/bin/c++filt
-CPPFLAGS =  -DHAVE_BUILD_INFO -D__STDC_FORMAT_MACROS
+CPPFLAGS =  -DDEBUG -DDEBUG_LOCKORDER -DHAVE_BUILD_INFO -D__STDC_FORMAT_MACROS
 CRYPTO_CFLAGS = 
 CRYPTO_LIBS = -lcrypto
 CXX = g++ -std=c++11
 CXXCPP = g++ -std=c++11 -E
 CXXDEPMODE = depmode=gcc3
-CXXFLAGS = -g -O2 -Wall -Wextra -Wformat -Wformat-security -Wno-unused-parameter
+CXXFLAGS = -g -O2 -g3 -O0 -Wall -Wextra -Wformat -Wformat-security -Wno-unused-parameter
 CYGPATH_W = echo
 DEFS = -DHAVE_CONFIG_H
 DEPDIR = .deps
@@ -346,9 +346,9 @@ GENHTML =
 GENISOIMAGE = 
 GIT = /usr/bin/git
 GREP = /bin/grep
-HARDENED_CPPFLAGS =  -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2
-HARDENED_CXXFLAGS =  -Wstack-protector -fstack-protector-all
-HARDENED_LDFLAGS =  -Wl,-z,relro -Wl,-z,now -pie
+HARDENED_CPPFLAGS = 
+HARDENED_CXXFLAGS = 
+HARDENED_LDFLAGS = 
 HAVE_CXX11 = 1
 HEXDUMP = /usr/bin/hexdump
 IMAGEMAGICK_CONVERT = 
@@ -405,7 +405,7 @@ PACKAGE_URL = https://zcoin.io/
 PACKAGE_VERSION = 0.13.2
 PATH_SEPARATOR = :
 PIC_FLAGS = -fPIC
-PIE_FLAGS = -fPIE
+PIE_FLAGS = 
 PKG_CONFIG = /usr/bin/pkg-config
 PKG_CONFIG_LIBDIR = 
 PKG_CONFIG_PATH = 
@@ -433,7 +433,7 @@ QT_DBUS_LIBS = -lQtDBus -lQtXml -lQtCore
 QT_INCLUDES = -DQT_SHARED -I/usr/include/qt4 -I/usr/include/qt4/QtGui -I/usr/include/qt4 -I/usr/include/qt4/QtNetwork -I/usr/include/qt4 -I/usr/include/qt4/QtCore
 QT_LDFLAGS = 
 QT_LIBS = -lQtGui -lQtNetwork -lQtCore
-QT_PIE_FLAGS = -fPIE
+QT_PIE_FLAGS = 
 QT_SELECT = qt4
 QT_TEST_CFLAGS = -DQT_SHARED -I/usr/include/qt4 -I/usr/include/qt4/QtTest
 QT_TEST_INCLUDES = -DQT_SHARED -I/usr/include/qt4 -I/usr/include/qt4/QtTest

@@ -36,12 +36,9 @@ leveldb/util/leveldb_libleveldb_a-comparator.o: \
  /usr/include/x86_64-linux-gnu/bits/select.h \
  /usr/include/x86_64-linux-gnu/bits/sigset.h \
  /usr/include/x86_64-linux-gnu/bits/time.h \
- /usr/include/x86_64-linux-gnu/bits/select2.h \
  /usr/include/x86_64-linux-gnu/sys/sysmacros.h \
  /usr/include/x86_64-linux-gnu/bits/pthreadtypes.h /usr/include/alloca.h \
- /usr/include/x86_64-linux-gnu/bits/stdlib-bsearch.h \
  /usr/include/x86_64-linux-gnu/bits/stdlib-float.h \
- /usr/include/x86_64-linux-gnu/bits/stdlib.h \
  /usr/include/c++/5/bits/algorithmfwd.h \
  /usr/include/c++/5/bits/stl_heap.h /usr/include/c++/5/bits/stl_tempbuf.h \
  /usr/include/c++/5/bits/stl_construct.h /usr/include/c++/5/new \
@@ -61,14 +58,12 @@ leveldb/util/leveldb_libleveldb_a-comparator.o: \
  /usr/include/x86_64-linux-gnu/bits/inf.h \
  /usr/include/x86_64-linux-gnu/bits/nan.h \
  /usr/include/x86_64-linux-gnu/bits/mathdef.h \
- /usr/include/x86_64-linux-gnu/bits/mathcalls.h \
- /usr/include/x86_64-linux-gnu/bits/mathinline.h \
- /usr/include/c++/5/string /usr/include/c++/5/bits/stringfwd.h \
+ /usr/include/x86_64-linux-gnu/bits/mathcalls.h /usr/include/c++/5/string \
+ /usr/include/c++/5/bits/stringfwd.h \
  /usr/include/c++/5/bits/char_traits.h /usr/include/c++/5/bits/postypes.h \
  /usr/include/c++/5/cwchar /usr/include/wchar.h /usr/include/stdio.h \
  /usr/lib/gcc/x86_64-linux-gnu/5/include/stdarg.h \
- /usr/include/x86_64-linux-gnu/bits/wchar.h \
- /usr/include/x86_64-linux-gnu/bits/wchar2.h /usr/include/c++/5/cstdint \
+ /usr/include/x86_64-linux-gnu/bits/wchar.h /usr/include/c++/5/cstdint \
  /usr/lib/gcc/x86_64-linux-gnu/5/include/stdint.h /usr/include/stdint.h \
  /usr/include/c++/5/bits/allocator.h \
  /usr/include/x86_64-linux-gnu/c++/5/bits/c++allocator.h \
@@ -96,10 +91,9 @@ leveldb/util/leveldb_libleveldb_a-comparator.o: \
  /usr/include/libio.h /usr/include/_G_config.h \
  /usr/include/x86_64-linux-gnu/bits/stdio_lim.h \
  /usr/include/x86_64-linux-gnu/bits/sys_errlist.h \
- /usr/include/x86_64-linux-gnu/bits/stdio.h \
- /usr/include/x86_64-linux-gnu/bits/stdio2.h /usr/include/c++/5/cerrno \
- /usr/include/errno.h /usr/include/x86_64-linux-gnu/bits/errno.h \
- /usr/include/linux/errno.h /usr/include/x86_64-linux-gnu/asm/errno.h \
+ /usr/include/c++/5/cerrno /usr/include/errno.h \
+ /usr/include/x86_64-linux-gnu/bits/errno.h /usr/include/linux/errno.h \
+ /usr/include/x86_64-linux-gnu/asm/errno.h \
  /usr/include/asm-generic/errno.h /usr/include/asm-generic/errno-base.h \
  /usr/include/c++/5/bits/functional_hash.h \
  /usr/include/c++/5/bits/hash_bytes.h \
@@ -166,8 +160,7 @@ leveldb/util/leveldb_libleveldb_a-comparator.o: \
  /usr/include/c++/5/bits/random.tcc /usr/include/c++/5/numeric \
  /usr/include/c++/5/bits/stl_numeric.h \
  leveldb/include/leveldb/comparator.h leveldb/include/leveldb/slice.h \
- /usr/include/assert.h /usr/include/string.h \
- /usr/include/x86_64-linux-gnu/bits/string3.h leveldb/port/port.h \
+ /usr/include/assert.h /usr/include/string.h leveldb/port/port.h \
  leveldb/port/port_posix.h leveldb/port/atomic_pointer.h \
  /usr/include/c++/5/atomic /usr/include/c++/5/bits/atomic_base.h \
  leveldb/util/logging.h
@@ -268,19 +261,13 @@ leveldb/util/leveldb_libleveldb_a-comparator.o: \
 
 /usr/include/x86_64-linux-gnu/bits/time.h:
 
-/usr/include/x86_64-linux-gnu/bits/select2.h:
-
 /usr/include/x86_64-linux-gnu/sys/sysmacros.h:
 
 /usr/include/x86_64-linux-gnu/bits/pthreadtypes.h:
 
 /usr/include/alloca.h:
 
-/usr/include/x86_64-linux-gnu/bits/stdlib-bsearch.h:
-
 /usr/include/x86_64-linux-gnu/bits/stdlib-float.h:
-
-/usr/include/x86_64-linux-gnu/bits/stdlib.h:
 
 /usr/include/c++/5/bits/algorithmfwd.h:
 
@@ -330,8 +317,6 @@ leveldb/util/leveldb_libleveldb_a-comparator.o: \
 
 /usr/include/x86_64-linux-gnu/bits/mathcalls.h:
 
-/usr/include/x86_64-linux-gnu/bits/mathinline.h:
-
 /usr/include/c++/5/string:
 
 /usr/include/c++/5/bits/stringfwd.h:
@@ -349,8 +334,6 @@ leveldb/util/leveldb_libleveldb_a-comparator.o: \
 /usr/lib/gcc/x86_64-linux-gnu/5/include/stdarg.h:
 
 /usr/include/x86_64-linux-gnu/bits/wchar.h:
-
-/usr/include/x86_64-linux-gnu/bits/wchar2.h:
 
 /usr/include/c++/5/cstdint:
 
@@ -421,10 +404,6 @@ leveldb/util/leveldb_libleveldb_a-comparator.o: \
 /usr/include/x86_64-linux-gnu/bits/stdio_lim.h:
 
 /usr/include/x86_64-linux-gnu/bits/sys_errlist.h:
-
-/usr/include/x86_64-linux-gnu/bits/stdio.h:
-
-/usr/include/x86_64-linux-gnu/bits/stdio2.h:
 
 /usr/include/c++/5/cerrno:
 
@@ -583,8 +562,6 @@ leveldb/include/leveldb/slice.h:
 /usr/include/assert.h:
 
 /usr/include/string.h:
-
-/usr/include/x86_64-linux-gnu/bits/string3.h:
 
 leveldb/port/port.h:
 

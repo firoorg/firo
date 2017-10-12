@@ -19,16 +19,12 @@ crypto/crypto_libbitcoin_crypto_a-aes.o: crypto/aes.cpp \
  /usr/include/x86_64-linux-gnu/bits/select.h \
  /usr/include/x86_64-linux-gnu/bits/sigset.h \
  /usr/include/x86_64-linux-gnu/bits/time.h \
- /usr/include/x86_64-linux-gnu/bits/select2.h \
  /usr/include/x86_64-linux-gnu/sys/sysmacros.h \
  /usr/include/x86_64-linux-gnu/bits/pthreadtypes.h /usr/include/alloca.h \
- /usr/include/x86_64-linux-gnu/bits/stdlib-bsearch.h \
- /usr/include/x86_64-linux-gnu/bits/stdlib-float.h \
- /usr/include/x86_64-linux-gnu/bits/stdlib.h crypto/common.h \
+ /usr/include/x86_64-linux-gnu/bits/stdlib-float.h crypto/common.h \
  ../src/config/bitcoin-config.h compat/endian.h config/bitcoin-config.h \
  compat/byteswap.h /usr/include/byteswap.h /usr/include/assert.h \
- /usr/include/string.h /usr/include/x86_64-linux-gnu/bits/string3.h \
- crypto/ctaes/ctaes.c crypto/ctaes/ctaes.h
+ /usr/include/string.h crypto/ctaes/ctaes.c crypto/ctaes/ctaes.h
 
 /usr/include/stdc-predef.h:
 
@@ -86,19 +82,13 @@ crypto/ctaes/ctaes.h:
 
 /usr/include/x86_64-linux-gnu/bits/time.h:
 
-/usr/include/x86_64-linux-gnu/bits/select2.h:
-
 /usr/include/x86_64-linux-gnu/sys/sysmacros.h:
 
 /usr/include/x86_64-linux-gnu/bits/pthreadtypes.h:
 
 /usr/include/alloca.h:
 
-/usr/include/x86_64-linux-gnu/bits/stdlib-bsearch.h:
-
 /usr/include/x86_64-linux-gnu/bits/stdlib-float.h:
-
-/usr/include/x86_64-linux-gnu/bits/stdlib.h:
 
 crypto/common.h:
 
@@ -115,8 +105,6 @@ compat/byteswap.h:
 /usr/include/assert.h:
 
 /usr/include/string.h:
-
-/usr/include/x86_64-linux-gnu/bits/string3.h:
 
 crypto/ctaes/ctaes.c:
 

@@ -14,8 +14,7 @@ compat/libbitcoin_util_a-glibc_sanity.o: compat/glibc_sanity.cpp \
  /usr/include/x86_64-linux-gnu/bits/typesizes.h \
  /usr/include/x86_64-linux-gnu/bits/select.h \
  /usr/include/x86_64-linux-gnu/bits/sigset.h /usr/include/time.h \
- /usr/include/x86_64-linux-gnu/bits/time.h \
- /usr/include/x86_64-linux-gnu/bits/select2.h
+ /usr/include/x86_64-linux-gnu/bits/time.h
 
 /usr/include/stdc-predef.h:
 
@@ -54,5 +53,3 @@ config/bitcoin-config.h:
 /usr/include/time.h:
 
 /usr/include/x86_64-linux-gnu/bits/time.h:
-
-/usr/include/x86_64-linux-gnu/bits/select2.h:

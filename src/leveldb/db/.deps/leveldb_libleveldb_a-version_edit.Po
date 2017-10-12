@@ -53,14 +53,11 @@ leveldb/db/leveldb_libleveldb_a-version_edit.o: \
  /usr/lib/gcc/x86_64-linux-gnu/5/include/stdarg.h \
  /usr/include/x86_64-linux-gnu/bits/stdio_lim.h \
  /usr/include/x86_64-linux-gnu/bits/sys_errlist.h \
- /usr/include/x86_64-linux-gnu/bits/stdio.h \
- /usr/include/x86_64-linux-gnu/bits/stdio2.h \
  leveldb/include/leveldb/comparator.h /usr/include/c++/5/string \
  /usr/include/c++/5/bits/stringfwd.h \
  /usr/include/c++/5/bits/char_traits.h /usr/include/c++/5/bits/postypes.h \
  /usr/include/c++/5/cwchar /usr/include/x86_64-linux-gnu/bits/wchar.h \
- /usr/include/xlocale.h /usr/include/x86_64-linux-gnu/bits/wchar2.h \
- /usr/include/c++/5/cstdint \
+ /usr/include/xlocale.h /usr/include/c++/5/cstdint \
  /usr/lib/gcc/x86_64-linux-gnu/5/include/stdint.h /usr/include/stdint.h \
  /usr/include/c++/5/bits/localefwd.h \
  /usr/include/x86_64-linux-gnu/c++/5/bits/c++locale.h \
@@ -90,19 +87,15 @@ leveldb/db/leveldb_libleveldb_a-version_edit.o: \
  /usr/include/x86_64-linux-gnu/sys/select.h \
  /usr/include/x86_64-linux-gnu/bits/select.h \
  /usr/include/x86_64-linux-gnu/bits/sigset.h \
- /usr/include/x86_64-linux-gnu/bits/select2.h \
  /usr/include/x86_64-linux-gnu/sys/sysmacros.h /usr/include/alloca.h \
- /usr/include/x86_64-linux-gnu/bits/stdlib-bsearch.h \
  /usr/include/x86_64-linux-gnu/bits/stdlib-float.h \
- /usr/include/x86_64-linux-gnu/bits/stdlib.h /usr/include/c++/5/cstdio \
- /usr/include/c++/5/cerrno /usr/include/errno.h \
+ /usr/include/c++/5/cstdio /usr/include/c++/5/cerrno /usr/include/errno.h \
  /usr/include/x86_64-linux-gnu/bits/errno.h /usr/include/linux/errno.h \
  /usr/include/x86_64-linux-gnu/asm/errno.h \
  /usr/include/asm-generic/errno.h /usr/include/asm-generic/errno-base.h \
  /usr/include/c++/5/bits/basic_string.tcc leveldb/include/leveldb/db.h \
  leveldb/include/leveldb/iterator.h leveldb/include/leveldb/slice.h \
  /usr/include/assert.h /usr/include/string.h \
- /usr/include/x86_64-linux-gnu/bits/string3.h \
  leveldb/include/leveldb/status.h leveldb/include/leveldb/options.h \
  leveldb/include/leveldb/filter_policy.h \
  leveldb/include/leveldb/table_builder.h leveldb/util/coding.h \
@@ -249,10 +242,6 @@ leveldb/db/dbformat.h:
 
 /usr/include/x86_64-linux-gnu/bits/sys_errlist.h:
 
-/usr/include/x86_64-linux-gnu/bits/stdio.h:
-
-/usr/include/x86_64-linux-gnu/bits/stdio2.h:
-
 leveldb/include/leveldb/comparator.h:
 
 /usr/include/c++/5/string:
@@ -268,8 +257,6 @@ leveldb/include/leveldb/comparator.h:
 /usr/include/x86_64-linux-gnu/bits/wchar.h:
 
 /usr/include/xlocale.h:
-
-/usr/include/x86_64-linux-gnu/bits/wchar2.h:
 
 /usr/include/c++/5/cstdint:
 
@@ -349,17 +336,11 @@ leveldb/include/leveldb/comparator.h:
 
 /usr/include/x86_64-linux-gnu/bits/sigset.h:
 
-/usr/include/x86_64-linux-gnu/bits/select2.h:
-
 /usr/include/x86_64-linux-gnu/sys/sysmacros.h:
 
 /usr/include/alloca.h:
 
-/usr/include/x86_64-linux-gnu/bits/stdlib-bsearch.h:
-
 /usr/include/x86_64-linux-gnu/bits/stdlib-float.h:
-
-/usr/include/x86_64-linux-gnu/bits/stdlib.h:
 
 /usr/include/c++/5/cstdio:
 
@@ -388,8 +369,6 @@ leveldb/include/leveldb/slice.h:
 /usr/include/assert.h:
 
 /usr/include/string.h:
-
-/usr/include/x86_64-linux-gnu/bits/string3.h:
 
 leveldb/include/leveldb/status.h:
 

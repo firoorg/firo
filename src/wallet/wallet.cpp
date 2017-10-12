@@ -3140,7 +3140,9 @@ bool CWallet::CreateZerocoinSpendTransaction(int64_t nValue, libzerocoin::CoinDe
             newTxIn.nSequence = zerocoinSelected.id;
             newTxIn.scriptSig = CScript();
             newTxIn.prevout.SetNull();
-            wtxNew.vin.push_back(newTxIn);
+            LogPrintf("txNew.vin.size(): %d\n", txNew.vin.size());
+            txNew.vin.push_back(newTxIn);
+            LogPrintf("txNew.vin.size(): %d\n", txNew.vin.size());
 
             if ((chainActive.Height() > 0) && (chainActive.Height() >= 10000)) {
             	transactionHash = wtxNew.GetNormalizedHash();
@@ -3209,7 +3211,9 @@ bool CWallet::CreateZerocoinSpendTransaction(int64_t nValue, libzerocoin::CoinDe
 
             CScript tmp = CScript() << OP_ZEROCOINSPEND << data.size();
             tmp.insert(tmp.end(), data.begin(), data.end());
-            wtxNew.vin[0].scriptSig = tmp;
+            txNew.vin[0].scriptSig.clear();
+            txNew.vin[0].scriptSig.insert(txNew.vin[0].scriptSig.begin(), tmp.begin(), tmp.end());
+
 
             std::vector<char, zero_after_free_allocator<char> > dataTxIn;
             dataTxIn.insert(dataTxIn.end(), tmp.begin() + 4, tmp.end());

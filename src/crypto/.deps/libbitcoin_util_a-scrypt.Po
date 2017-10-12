@@ -17,12 +17,9 @@ crypto/libbitcoin_util_a-scrypt.o: crypto/scrypt.cpp \
  /usr/include/x86_64-linux-gnu/bits/select.h \
  /usr/include/x86_64-linux-gnu/bits/sigset.h \
  /usr/include/x86_64-linux-gnu/bits/time.h \
- /usr/include/x86_64-linux-gnu/bits/select2.h \
  /usr/include/x86_64-linux-gnu/sys/sysmacros.h \
  /usr/include/x86_64-linux-gnu/bits/pthreadtypes.h /usr/include/alloca.h \
- /usr/include/x86_64-linux-gnu/bits/stdlib-bsearch.h \
  /usr/include/x86_64-linux-gnu/bits/stdlib-float.h \
- /usr/include/x86_64-linux-gnu/bits/stdlib.h \
  /usr/lib/gcc/x86_64-linux-gnu/5/include/stdint.h /usr/include/stdint.h \
  /usr/include/x86_64-linux-gnu/bits/wchar.h util.h \
  config/bitcoin-config.h compat.h \
@@ -31,7 +28,6 @@ crypto/libbitcoin_util_a-scrypt.o: crypto/scrypt.cpp \
  /usr/include/x86_64-linux-gnu/bits/fcntl-linux.h \
  /usr/include/x86_64-linux-gnu/bits/uio.h \
  /usr/include/x86_64-linux-gnu/bits/stat.h \
- /usr/include/x86_64-linux-gnu/bits/fcntl2.h \
  /usr/include/x86_64-linux-gnu/sys/mman.h \
  /usr/include/x86_64-linux-gnu/bits/mman.h \
  /usr/include/x86_64-linux-gnu/bits/mman-linux.h \
@@ -43,8 +39,7 @@ crypto/libbitcoin_util_a-scrypt.o: crypto/scrypt.cpp \
  /usr/include/x86_64-linux-gnu/asm/socket.h \
  /usr/include/asm-generic/socket.h \
  /usr/include/x86_64-linux-gnu/asm/sockios.h \
- /usr/include/asm-generic/sockios.h \
- /usr/include/x86_64-linux-gnu/bits/socket2.h /usr/include/net/if.h \
+ /usr/include/asm-generic/sockios.h /usr/include/net/if.h \
  /usr/include/netinet/in.h /usr/include/x86_64-linux-gnu/bits/in.h \
  /usr/include/netinet/tcp.h /usr/include/arpa/inet.h \
  /usr/include/ifaddrs.h \
@@ -61,9 +56,8 @@ crypto/libbitcoin_util_a-scrypt.o: crypto/scrypt.cpp \
  /usr/include/x86_64-linux-gnu/bits/posix_opt.h \
  /usr/include/x86_64-linux-gnu/bits/environments.h \
  /usr/include/x86_64-linux-gnu/bits/confname.h /usr/include/getopt.h \
- /usr/include/x86_64-linux-gnu/bits/unistd.h /usr/include/errno.h \
- /usr/include/x86_64-linux-gnu/bits/errno.h /usr/include/linux/errno.h \
- /usr/include/x86_64-linux-gnu/asm/errno.h \
+ /usr/include/errno.h /usr/include/x86_64-linux-gnu/bits/errno.h \
+ /usr/include/linux/errno.h /usr/include/x86_64-linux-gnu/asm/errno.h \
  /usr/include/asm-generic/errno.h /usr/include/asm-generic/errno-base.h \
  tinyformat.h /usr/include/c++/5/cassert /usr/include/assert.h \
  /usr/include/c++/5/iostream \
@@ -75,7 +69,7 @@ crypto/libbitcoin_util_a-scrypt.o: crypto/scrypt.cpp \
  /usr/include/c++/5/bits/memoryfwd.h /usr/include/c++/5/bits/postypes.h \
  /usr/include/c++/5/cwchar /usr/include/wchar.h /usr/include/stdio.h \
  /usr/lib/gcc/x86_64-linux-gnu/5/include/stdarg.h \
- /usr/include/x86_64-linux-gnu/bits/wchar2.h /usr/include/c++/5/exception \
+ /usr/include/c++/5/exception \
  /usr/include/c++/5/bits/atomic_lockfree_defines.h \
  /usr/include/c++/5/bits/exception_ptr.h \
  /usr/include/c++/5/bits/exception_defines.h \
@@ -122,9 +116,7 @@ crypto/libbitcoin_util_a-scrypt.o: crypto/scrypt.cpp \
  /usr/include/c++/5/ext/string_conversions.h /usr/include/c++/5/cstdlib \
  /usr/include/c++/5/cstdio /usr/include/libio.h /usr/include/_G_config.h \
  /usr/include/x86_64-linux-gnu/bits/sys_errlist.h \
- /usr/include/x86_64-linux-gnu/bits/stdio.h \
- /usr/include/x86_64-linux-gnu/bits/stdio2.h /usr/include/c++/5/cerrno \
- /usr/include/c++/5/bits/functional_hash.h \
+ /usr/include/c++/5/cerrno /usr/include/c++/5/bits/functional_hash.h \
  /usr/include/c++/5/bits/hash_bytes.h \
  /usr/include/c++/5/bits/basic_string.tcc \
  /usr/include/c++/5/bits/locale_classes.tcc \
@@ -545,9 +537,8 @@ crypto/libbitcoin_util_a-scrypt.o: crypto/scrypt.cpp \
  /usr/include/x86_64-linux-gnu/bits/inf.h \
  /usr/include/x86_64-linux-gnu/bits/nan.h \
  /usr/include/x86_64-linux-gnu/bits/mathdef.h \
- /usr/include/x86_64-linux-gnu/bits/mathcalls.h \
- /usr/include/x86_64-linux-gnu/bits/mathinline.h \
- /usr/include/c++/5/limits /usr/include/c++/5/bits/random.h \
+ /usr/include/x86_64-linux-gnu/bits/mathcalls.h /usr/include/c++/5/limits \
+ /usr/include/c++/5/bits/random.h \
  /usr/include/c++/5/bits/uniform_int_dist.h \
  /usr/include/x86_64-linux-gnu/c++/5/bits/opt_random.h \
  /usr/lib/gcc/x86_64-linux-gnu/5/include/x86intrin.h \
@@ -611,7 +602,6 @@ crypto/libbitcoin_util_a-scrypt.o: crypto/scrypt.cpp \
  /usr/include/boost/functional/hash_fwd.hpp \
  /usr/include/boost/functional/hash/hash_fwd.hpp \
  /usr/include/c++/5/cstring /usr/include/string.h \
- /usr/include/x86_64-linux-gnu/bits/string3.h \
  /usr/include/boost/signals2/signal.hpp /usr/include/boost/function.hpp \
  /usr/include/boost/preprocessor/iterate.hpp \
  /usr/include/boost/preprocessor/iteration/iterate.hpp \
@@ -946,19 +936,13 @@ crypto/scrypt.h:
 
 /usr/include/x86_64-linux-gnu/bits/time.h:
 
-/usr/include/x86_64-linux-gnu/bits/select2.h:
-
 /usr/include/x86_64-linux-gnu/sys/sysmacros.h:
 
 /usr/include/x86_64-linux-gnu/bits/pthreadtypes.h:
 
 /usr/include/alloca.h:
 
-/usr/include/x86_64-linux-gnu/bits/stdlib-bsearch.h:
-
 /usr/include/x86_64-linux-gnu/bits/stdlib-float.h:
-
-/usr/include/x86_64-linux-gnu/bits/stdlib.h:
 
 /usr/lib/gcc/x86_64-linux-gnu/5/include/stdint.h:
 
@@ -984,8 +968,6 @@ compat.h:
 
 /usr/include/x86_64-linux-gnu/bits/stat.h:
 
-/usr/include/x86_64-linux-gnu/bits/fcntl2.h:
-
 /usr/include/x86_64-linux-gnu/sys/mman.h:
 
 /usr/include/x86_64-linux-gnu/bits/mman.h:
@@ -1009,8 +991,6 @@ compat.h:
 /usr/include/x86_64-linux-gnu/asm/sockios.h:
 
 /usr/include/asm-generic/sockios.h:
-
-/usr/include/x86_64-linux-gnu/bits/socket2.h:
 
 /usr/include/net/if.h:
 
@@ -1060,8 +1040,6 @@ compat.h:
 
 /usr/include/getopt.h:
 
-/usr/include/x86_64-linux-gnu/bits/unistd.h:
-
 /usr/include/errno.h:
 
 /usr/include/x86_64-linux-gnu/bits/errno.h:
@@ -1107,8 +1085,6 @@ tinyformat.h:
 /usr/include/stdio.h:
 
 /usr/lib/gcc/x86_64-linux-gnu/5/include/stdarg.h:
-
-/usr/include/x86_64-linux-gnu/bits/wchar2.h:
 
 /usr/include/c++/5/exception:
 
@@ -1229,10 +1205,6 @@ tinyformat.h:
 /usr/include/_G_config.h:
 
 /usr/include/x86_64-linux-gnu/bits/sys_errlist.h:
-
-/usr/include/x86_64-linux-gnu/bits/stdio.h:
-
-/usr/include/x86_64-linux-gnu/bits/stdio2.h:
 
 /usr/include/c++/5/cerrno:
 
@@ -2172,8 +2144,6 @@ utiltime.h:
 
 /usr/include/x86_64-linux-gnu/bits/mathcalls.h:
 
-/usr/include/x86_64-linux-gnu/bits/mathinline.h:
-
 /usr/include/c++/5/limits:
 
 /usr/include/c++/5/bits/random.h:
@@ -2309,8 +2279,6 @@ utiltime.h:
 /usr/include/c++/5/cstring:
 
 /usr/include/string.h:
-
-/usr/include/x86_64-linux-gnu/bits/string3.h:
 
 /usr/include/boost/signals2/signal.hpp:
 

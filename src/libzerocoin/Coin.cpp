@@ -250,26 +250,26 @@ const PublicCoin& PrivateCoin::getPublicCoin() const {
 
 
 const Bignum PrivateCoin::serialNumberFromSerializedPublicKey(const std::vector<unsigned char> &pub)  {
-        if (pub.size() != 33) {
-            throw ZerocoinException("Wrong public key size. You must check the size before calling this function.");
-        }
+	if (pub.size() != 33) {
+		throw ZerocoinException(
+				"Wrong public key size. You must check the size before calling this function.");
+	}
 
-
-        std::string zpts(ZEROCOIN_PUBLICKEY_TO_SERIALNUMBER);
-        std::vector<unsigned char> pre(zpts.begin(), zpts.end());
-        std::copy(pub.begin(), pub.end(), std::back_inserter(pre));
-        uint160 hash;
-        CRIPEMD160().Write(&pre[0], pre.size()).Finalize(hash.begin());
-        // We want the 160 least-significant bits of the pubkey to be the hash of the serial number.
-                // The remaining bits (incl. the sign bit) should be 0.
-                // Bignum reverses the bits when parsing a char vector (Bitcoin's hash byte order),
-                // so we put the hash at position 0 of the char vector.
-                // We need 1 additional byte to make sure that the sign bit is always 0.
-        std::vector<unsigned char> hash_vch(160/8+1, 0);
-        hash_vch.insert(hash_vch.end(), hash.begin(), hash.end());
-        //RIPEMD160(&pre[0], pre.size(), &hash[0]);
-        Bignum s(hash_vch);
-        return s;
+	std::string zpts(ZEROCOIN_PUBLICKEY_TO_SERIALNUMBER);
+	std::vector<unsigned char> pre(zpts.begin(), zpts.end());
+	std::copy(pub.begin(), pub.end(), std::back_inserter(pre));
+	uint160 hash;
+	CRIPEMD160().Write(&pre[0], pre.size()).Finalize(hash.begin());
+	// We want the 160 least-significant bits of the pubkey to be the hash of the serial number.
+	// The remaining bits (incl. the sign bit) should be 0.
+	// Bignum reverses the bits when parsing a char vector (Bitcoin's hash byte order),
+	// so we put the hash at position 0 of the char vector.
+	// We need 1 additional byte to make sure that the sign bit is always 0.
+	std::vector<unsigned char> hash_vch(160 / 8 + 1, 0);
+	hash_vch.insert(hash_vch.end(), hash.begin(), hash.end());
+	//RIPEMD160(&pre[0], pre.size(), &hash[0]);
+	Bignum s(hash_vch);
+	return s;
 }
 
 } /* namespace libzerocoin */

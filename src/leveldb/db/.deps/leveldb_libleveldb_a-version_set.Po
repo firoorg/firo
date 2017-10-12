@@ -44,7 +44,7 @@ leveldb/db/leveldb_libleveldb_a-version_set.o: leveldb/db/version_set.cc \
  /usr/lib/gcc/x86_64-linux-gnu/5/include/stdarg.h \
  /usr/include/x86_64-linux-gnu/bits/wchar.h \
  /usr/lib/gcc/x86_64-linux-gnu/5/include/stddef.h /usr/include/xlocale.h \
- /usr/include/x86_64-linux-gnu/bits/wchar2.h /usr/include/c++/5/cstdint \
+ /usr/include/c++/5/cstdint \
  /usr/lib/gcc/x86_64-linux-gnu/5/include/stdint.h /usr/include/stdint.h \
  /usr/include/c++/5/bits/localefwd.h \
  /usr/include/x86_64-linux-gnu/c++/5/bits/c++locale.h \
@@ -77,18 +77,14 @@ leveldb/db/leveldb_libleveldb_a-version_set.o: leveldb/db/version_set.cc \
  /usr/include/x86_64-linux-gnu/sys/select.h \
  /usr/include/x86_64-linux-gnu/bits/select.h \
  /usr/include/x86_64-linux-gnu/bits/sigset.h \
- /usr/include/x86_64-linux-gnu/bits/select2.h \
  /usr/include/x86_64-linux-gnu/sys/sysmacros.h /usr/include/alloca.h \
- /usr/include/x86_64-linux-gnu/bits/stdlib-bsearch.h \
  /usr/include/x86_64-linux-gnu/bits/stdlib-float.h \
- /usr/include/x86_64-linux-gnu/bits/stdlib.h /usr/include/c++/5/cstdio \
- /usr/include/libio.h /usr/include/_G_config.h \
+ /usr/include/c++/5/cstdio /usr/include/libio.h /usr/include/_G_config.h \
  /usr/include/x86_64-linux-gnu/bits/stdio_lim.h \
  /usr/include/x86_64-linux-gnu/bits/sys_errlist.h \
- /usr/include/x86_64-linux-gnu/bits/stdio.h \
- /usr/include/x86_64-linux-gnu/bits/stdio2.h /usr/include/c++/5/cerrno \
- /usr/include/errno.h /usr/include/x86_64-linux-gnu/bits/errno.h \
- /usr/include/linux/errno.h /usr/include/x86_64-linux-gnu/asm/errno.h \
+ /usr/include/c++/5/cerrno /usr/include/errno.h \
+ /usr/include/x86_64-linux-gnu/bits/errno.h /usr/include/linux/errno.h \
+ /usr/include/x86_64-linux-gnu/asm/errno.h \
  /usr/include/asm-generic/errno.h /usr/include/asm-generic/errno-base.h \
  /usr/include/c++/5/bits/functional_hash.h \
  /usr/include/c++/5/bits/hash_bytes.h \
@@ -103,8 +99,8 @@ leveldb/db/leveldb_libleveldb_a-version_set.o: leveldb/db/version_set.cc \
  leveldb/db/dbformat.h leveldb/include/leveldb/comparator.h \
  leveldb/include/leveldb/db.h leveldb/include/leveldb/iterator.h \
  leveldb/include/leveldb/slice.h /usr/include/assert.h \
- /usr/include/string.h /usr/include/x86_64-linux-gnu/bits/string3.h \
- leveldb/include/leveldb/status.h leveldb/include/leveldb/options.h \
+ /usr/include/string.h leveldb/include/leveldb/status.h \
+ leveldb/include/leveldb/options.h \
  leveldb/include/leveldb/filter_policy.h \
  leveldb/include/leveldb/table_builder.h leveldb/util/coding.h \
  leveldb/port/port.h leveldb/port/port_posix.h \
@@ -123,9 +119,8 @@ leveldb/db/leveldb_libleveldb_a-version_set.o: leveldb/db/version_set.cc \
  /usr/include/x86_64-linux-gnu/bits/inf.h \
  /usr/include/x86_64-linux-gnu/bits/nan.h \
  /usr/include/x86_64-linux-gnu/bits/mathdef.h \
- /usr/include/x86_64-linux-gnu/bits/mathcalls.h \
- /usr/include/x86_64-linux-gnu/bits/mathinline.h \
- /usr/include/c++/5/limits /usr/include/c++/5/bits/random.h \
+ /usr/include/x86_64-linux-gnu/bits/mathcalls.h /usr/include/c++/5/limits \
+ /usr/include/c++/5/bits/random.h \
  /usr/include/c++/5/bits/uniform_int_dist.h \
  /usr/include/x86_64-linux-gnu/c++/5/bits/opt_random.h \
  /usr/lib/gcc/x86_64-linux-gnu/5/include/x86intrin.h \
@@ -310,8 +305,6 @@ leveldb/db/version_set.h:
 
 /usr/include/xlocale.h:
 
-/usr/include/x86_64-linux-gnu/bits/wchar2.h:
-
 /usr/include/c++/5/cstdint:
 
 /usr/lib/gcc/x86_64-linux-gnu/5/include/stdint.h:
@@ -396,17 +389,11 @@ leveldb/db/version_set.h:
 
 /usr/include/x86_64-linux-gnu/bits/sigset.h:
 
-/usr/include/x86_64-linux-gnu/bits/select2.h:
-
 /usr/include/x86_64-linux-gnu/sys/sysmacros.h:
 
 /usr/include/alloca.h:
 
-/usr/include/x86_64-linux-gnu/bits/stdlib-bsearch.h:
-
 /usr/include/x86_64-linux-gnu/bits/stdlib-float.h:
-
-/usr/include/x86_64-linux-gnu/bits/stdlib.h:
 
 /usr/include/c++/5/cstdio:
 
@@ -417,10 +404,6 @@ leveldb/db/version_set.h:
 /usr/include/x86_64-linux-gnu/bits/stdio_lim.h:
 
 /usr/include/x86_64-linux-gnu/bits/sys_errlist.h:
-
-/usr/include/x86_64-linux-gnu/bits/stdio.h:
-
-/usr/include/x86_64-linux-gnu/bits/stdio2.h:
 
 /usr/include/c++/5/cerrno:
 
@@ -477,8 +460,6 @@ leveldb/include/leveldb/slice.h:
 /usr/include/assert.h:
 
 /usr/include/string.h:
-
-/usr/include/x86_64-linux-gnu/bits/string3.h:
 
 leveldb/include/leveldb/status.h:
 
@@ -539,8 +520,6 @@ leveldb/port/thread_annotations.h:
 /usr/include/x86_64-linux-gnu/bits/mathdef.h:
 
 /usr/include/x86_64-linux-gnu/bits/mathcalls.h:
-
-/usr/include/x86_64-linux-gnu/bits/mathinline.h:
 
 /usr/include/c++/5/limits:
 

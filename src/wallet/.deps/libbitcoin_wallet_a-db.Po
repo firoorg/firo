@@ -28,7 +28,7 @@ wallet/libbitcoin_wallet_a-db.o: wallet/db.cpp /usr/include/stdc-predef.h \
  /usr/lib/gcc/x86_64-linux-gnu/5/include/stdarg.h \
  /usr/include/x86_64-linux-gnu/bits/wchar.h \
  /usr/lib/gcc/x86_64-linux-gnu/5/include/stddef.h /usr/include/xlocale.h \
- /usr/include/x86_64-linux-gnu/bits/wchar2.h /usr/include/c++/5/cstdint \
+ /usr/include/c++/5/cstdint \
  /usr/lib/gcc/x86_64-linux-gnu/5/include/stdint.h /usr/include/stdint.h \
  /usr/include/c++/5/bits/allocator.h \
  /usr/include/x86_64-linux-gnu/c++/5/bits/c++allocator.h \
@@ -73,18 +73,14 @@ wallet/libbitcoin_wallet_a-db.o: wallet/db.cpp /usr/include/stdc-predef.h \
  /usr/include/x86_64-linux-gnu/sys/select.h \
  /usr/include/x86_64-linux-gnu/bits/select.h \
  /usr/include/x86_64-linux-gnu/bits/sigset.h \
- /usr/include/x86_64-linux-gnu/bits/select2.h \
  /usr/include/x86_64-linux-gnu/sys/sysmacros.h /usr/include/alloca.h \
- /usr/include/x86_64-linux-gnu/bits/stdlib-bsearch.h \
  /usr/include/x86_64-linux-gnu/bits/stdlib-float.h \
- /usr/include/x86_64-linux-gnu/bits/stdlib.h /usr/include/c++/5/cstdio \
- /usr/include/libio.h /usr/include/_G_config.h \
+ /usr/include/c++/5/cstdio /usr/include/libio.h /usr/include/_G_config.h \
  /usr/include/x86_64-linux-gnu/bits/stdio_lim.h \
  /usr/include/x86_64-linux-gnu/bits/sys_errlist.h \
- /usr/include/x86_64-linux-gnu/bits/stdio.h \
- /usr/include/x86_64-linux-gnu/bits/stdio2.h /usr/include/c++/5/cerrno \
- /usr/include/errno.h /usr/include/x86_64-linux-gnu/bits/errno.h \
- /usr/include/linux/errno.h /usr/include/x86_64-linux-gnu/asm/errno.h \
+ /usr/include/c++/5/cerrno /usr/include/errno.h \
+ /usr/include/x86_64-linux-gnu/bits/errno.h /usr/include/linux/errno.h \
+ /usr/include/x86_64-linux-gnu/asm/errno.h \
  /usr/include/asm-generic/errno.h /usr/include/asm-generic/errno-base.h \
  /usr/include/c++/5/bits/functional_hash.h \
  /usr/include/c++/5/bits/hash_bytes.h \
@@ -108,9 +104,8 @@ wallet/libbitcoin_wallet_a-db.o: wallet/db.cpp /usr/include/stdc-predef.h \
  /usr/include/x86_64-linux-gnu/bits/inf.h \
  /usr/include/x86_64-linux-gnu/bits/nan.h \
  /usr/include/x86_64-linux-gnu/bits/mathdef.h \
- /usr/include/x86_64-linux-gnu/bits/mathcalls.h \
- /usr/include/x86_64-linux-gnu/bits/mathinline.h \
- /usr/include/c++/5/limits /usr/include/c++/5/bits/random.h \
+ /usr/include/x86_64-linux-gnu/bits/mathcalls.h /usr/include/c++/5/limits \
+ /usr/include/c++/5/bits/random.h \
  /usr/include/c++/5/bits/uniform_int_dist.h \
  /usr/include/x86_64-linux-gnu/c++/5/bits/opt_random.h \
  /usr/lib/gcc/x86_64-linux-gnu/5/include/x86intrin.h \
@@ -189,10 +184,9 @@ wallet/libbitcoin_wallet_a-db.o: wallet/db.cpp /usr/include/stdc-predef.h \
  /usr/include/c++/5/array /usr/include/c++/5/bits/uses_allocator.h \
  /usr/include/c++/5/bits/stl_multimap.h /usr/include/c++/5/set \
  /usr/include/c++/5/bits/stl_set.h /usr/include/c++/5/bits/stl_multiset.h \
- /usr/include/string.h /usr/include/x86_64-linux-gnu/bits/string3.h \
- prevector.h /usr/include/c++/5/iterator /usr/include/c++/5/ostream \
- /usr/include/c++/5/bits/ostream.tcc /usr/include/c++/5/istream \
- /usr/include/c++/5/bits/istream.tcc \
+ /usr/include/string.h prevector.h /usr/include/c++/5/iterator \
+ /usr/include/c++/5/ostream /usr/include/c++/5/bits/ostream.tcc \
+ /usr/include/c++/5/istream /usr/include/c++/5/bits/istream.tcc \
  /usr/include/c++/5/bits/stream_iterator.h /usr/include/c++/5/memory \
  /usr/include/c++/5/bits/stl_raw_storage_iter.h \
  /usr/include/c++/5/typeinfo /usr/include/c++/5/ext/concurrence.h \
@@ -215,7 +209,6 @@ wallet/libbitcoin_wallet_a-db.o: wallet/db.cpp /usr/include/stdc-predef.h \
  /usr/include/x86_64-linux-gnu/bits/posix_opt.h \
  /usr/include/x86_64-linux-gnu/bits/environments.h \
  /usr/include/x86_64-linux-gnu/bits/confname.h /usr/include/getopt.h \
- /usr/include/x86_64-linux-gnu/bits/unistd.h \
  /usr/include/boost/config/select_platform_config.hpp \
  /usr/include/boost/config/platform/linux.hpp \
  /usr/include/boost/config/posix_features.hpp \
@@ -714,7 +707,6 @@ wallet/libbitcoin_wallet_a-db.o: wallet/db.cpp /usr/include/stdc-predef.h \
  /usr/include/x86_64-linux-gnu/bits/fcntl-linux.h \
  /usr/include/x86_64-linux-gnu/bits/uio.h \
  /usr/include/x86_64-linux-gnu/bits/stat.h \
- /usr/include/x86_64-linux-gnu/bits/fcntl2.h \
  /usr/include/x86_64-linux-gnu/sys/mman.h \
  /usr/include/x86_64-linux-gnu/bits/mman.h \
  /usr/include/x86_64-linux-gnu/bits/mman-linux.h \
@@ -726,8 +718,7 @@ wallet/libbitcoin_wallet_a-db.o: wallet/db.cpp /usr/include/stdc-predef.h \
  /usr/include/x86_64-linux-gnu/asm/socket.h \
  /usr/include/asm-generic/socket.h \
  /usr/include/x86_64-linux-gnu/asm/sockios.h \
- /usr/include/asm-generic/sockios.h \
- /usr/include/x86_64-linux-gnu/bits/socket2.h /usr/include/net/if.h \
+ /usr/include/asm-generic/sockios.h /usr/include/net/if.h \
  /usr/include/netinet/in.h /usr/include/x86_64-linux-gnu/bits/in.h \
  /usr/include/netinet/tcp.h /usr/include/arpa/inet.h \
  /usr/include/ifaddrs.h /usr/include/netdb.h /usr/include/rpc/netdb.h \
@@ -1187,8 +1178,6 @@ config/bitcoin-config.h:
 
 /usr/include/xlocale.h:
 
-/usr/include/x86_64-linux-gnu/bits/wchar2.h:
-
 /usr/include/c++/5/cstdint:
 
 /usr/lib/gcc/x86_64-linux-gnu/5/include/stdint.h:
@@ -1299,17 +1288,11 @@ config/bitcoin-config.h:
 
 /usr/include/x86_64-linux-gnu/bits/sigset.h:
 
-/usr/include/x86_64-linux-gnu/bits/select2.h:
-
 /usr/include/x86_64-linux-gnu/sys/sysmacros.h:
 
 /usr/include/alloca.h:
 
-/usr/include/x86_64-linux-gnu/bits/stdlib-bsearch.h:
-
 /usr/include/x86_64-linux-gnu/bits/stdlib-float.h:
-
-/usr/include/x86_64-linux-gnu/bits/stdlib.h:
 
 /usr/include/c++/5/cstdio:
 
@@ -1320,10 +1303,6 @@ config/bitcoin-config.h:
 /usr/include/x86_64-linux-gnu/bits/stdio_lim.h:
 
 /usr/include/x86_64-linux-gnu/bits/sys_errlist.h:
-
-/usr/include/x86_64-linux-gnu/bits/stdio.h:
-
-/usr/include/x86_64-linux-gnu/bits/stdio2.h:
 
 /usr/include/c++/5/cerrno:
 
@@ -1404,8 +1383,6 @@ compat/byteswap.h:
 /usr/include/x86_64-linux-gnu/bits/mathdef.h:
 
 /usr/include/x86_64-linux-gnu/bits/mathcalls.h:
-
-/usr/include/x86_64-linux-gnu/bits/mathinline.h:
 
 /usr/include/c++/5/limits:
 
@@ -1589,8 +1566,6 @@ compat/byteswap.h:
 
 /usr/include/string.h:
 
-/usr/include/x86_64-linux-gnu/bits/string3.h:
-
 prevector.h:
 
 /usr/include/c++/5/iterator:
@@ -1670,8 +1645,6 @@ threadsafety.h:
 /usr/include/x86_64-linux-gnu/bits/confname.h:
 
 /usr/include/getopt.h:
-
-/usr/include/x86_64-linux-gnu/bits/unistd.h:
 
 /usr/include/boost/config/select_platform_config.hpp:
 
@@ -2761,8 +2734,6 @@ compat.h:
 
 /usr/include/x86_64-linux-gnu/bits/stat.h:
 
-/usr/include/x86_64-linux-gnu/bits/fcntl2.h:
-
 /usr/include/x86_64-linux-gnu/sys/mman.h:
 
 /usr/include/x86_64-linux-gnu/bits/mman.h:
@@ -2786,8 +2757,6 @@ compat.h:
 /usr/include/x86_64-linux-gnu/asm/sockios.h:
 
 /usr/include/asm-generic/sockios.h:
-
-/usr/include/x86_64-linux-gnu/bits/socket2.h:
 
 /usr/include/net/if.h:
 
