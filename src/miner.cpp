@@ -208,7 +208,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
 
     unsigned int COUNT_SPEND_ZC_TX = 0;
     unsigned int MAX_SPEND_ZC_TX_PER_BLOCK = 0;
-    if(fTestNet || nHeight > 22000){
+    if(fTestNet || nHeight > 22){
         MAX_SPEND_ZC_TX_PER_BLOCK = 1;
     }
 
@@ -939,7 +939,7 @@ void BlockAssembler::addPriorityTxs()
 
     unsigned int COUNT_SPEND_ZC_TX = 0;
     unsigned int MAX_SPEND_ZC_TX_PER_BLOCK = 0;
-    if (nHeight + 1 > 22000) {
+    if (chainActive.Height() + 1 > 22) {
         MAX_SPEND_ZC_TX_PER_BLOCK = 1;
     }
 

@@ -2546,9 +2546,28 @@ bool CWallet::CreateZerocoinMintModel(string &stringError, string denomAmount) {
     // stored in a secure location (wallet) at the client.
     libzerocoin::PrivateCoin newCoin(ZCParams, denomination);
 
-    if ((chainActive.Height() > 0) && (chainActive.Height() >= 10000)) {
+    std::list <CZerocoinEntry> listPubCoin = std::list<CZerocoinEntry>();
+    CWalletDB walletdb(strWalletFile);
+    walletdb.ListPubCoin(listPubCoin);
+
+    int currentId = 0;
+
+    BOOST_FOREACH(const CZerocoinEntry &pubCoinIdItem, listPubCoin) {
+		//LogPrintf("denomination = %d, id = %d, height = %d\n", pubCoinIdItem.denomination, pubCoinIdItem.id, pubCoinIdItem.nHeight);
+		if (pubCoinIdItem.id > 0) {
+				if (pubCoinIdItem.denomination == denomination) {
+					if (pubCoinIdItem.id > currentId) {
+						currentId = pubCoinIdItem.id;
+					}
+				}
+		}
+    }
+
+
+    if (currentId >= 5) {
     	newCoin.setVersion(2);
     }
+
 
     // Get a copy of the 'public' portion of the coin. You should
     // embed this into a Zerocoin 'MINT' transaction along with a series
@@ -3144,7 +3163,7 @@ bool CWallet::CreateZerocoinSpendTransaction(int64_t nValue, libzerocoin::CoinDe
             txNew.vin.push_back(newTxIn);
             LogPrintf("txNew.vin.size(): %d\n", txNew.vin.size());
 
-            if ((chainActive.Height() > 0) && (chainActive.Height() >= 10000)) {
+            if (zerocoinSelected.id >= 5) {
             	transactionHash = wtxNew.GetNormalizedHash();
             	accumulatorID = zerocoinSelected.id;
             }

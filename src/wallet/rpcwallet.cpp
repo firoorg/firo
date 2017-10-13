@@ -2689,7 +2689,26 @@ UniValue mintzerocoin(const UniValue& params, bool fHelp)
     // PrivateCoin object. This includes the coin secrets, which must be
     // stored in a secure location (wallet) at the client.
     libzerocoin::PrivateCoin newCoin(ZCParams, denomination);
-    if ((chainActive.Height() > 0) && (chainActive.Height() >= 10000)) {
+
+    std::list <CZerocoinEntry> listPubCoin = std::list<CZerocoinEntry>();
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+    walletdb.ListPubCoin(listPubCoin);
+
+    int currentId = 0;
+
+    BOOST_FOREACH(const CZerocoinEntry &pubCoinIdItem, listPubCoin) {
+		//LogPrintf("denomination = %d, id = %d, height = %d\n", pubCoinIdItem.denomination, pubCoinIdItem.id, pubCoinIdItem.nHeight);
+		if (pubCoinIdItem.id > 0) {
+				if (pubCoinIdItem.denomination == denomination) {
+					if (pubCoinIdItem.id > currentId) {
+						currentId = pubCoinIdItem.id;
+					}
+				}
+		}
+    }
+
+
+    if (currentId >= 5) {
     	newCoin.setVersion(2);
     }
 

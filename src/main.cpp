@@ -1101,13 +1101,20 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx, CZerocoinEntry pubCoinTx
     BOOST_FOREACH(const CTxIn &txin, tx.vin)
     {
         if (txin.scriptSig.IsZerocoinSpend()) {
+
+        	uint32_t pubcoinId = txin.nSequence;
+        	if (pubcoinId < 1 || pubcoinId >= INT_MAX) { // IT BEGINS WITH 1
+        		return state.DoS(100, false, NSEQUENCE_INCORRECT,
+        	                                 "CTransaction::CheckTransaction() : Error: nSequence is not correct format");
+        	}
+
             // Deserialize the CoinSpend intro a fresh object
             std::vector<char, zero_after_free_allocator<char> > dataTxIn;
             dataTxIn.insert(dataTxIn.end(), txin.scriptSig.begin() + 4, txin.scriptSig.end());
             CDataStream serializedCoinSpend(SER_NETWORK, PROTOCOL_VERSION);
             serializedCoinSpend.vch = dataTxIn;
             libzerocoin::CoinSpend newSpend(ZCParams, serializedCoinSpend);
-            if ((nHeight > 0) && (nHeight >= 10000)) {
+            if ((pubcoinId > 0) && (pubcoinId >= 5)) {
             	newSpend.setVersion(2);
             }
             // Create a new metadata object to contain the hash of the received
@@ -1115,7 +1122,7 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx, CZerocoinEntry pubCoinTx
             // compute the hash of the received transaction here.
             uint256 txHash = ArithToUint256(arith_uint256(0));
             libzerocoin::SpendMetaData newMetadata(0, txHash);
-            if ((nHeight > 0) && (nHeight >= 10000)) {
+            if ((pubcoinId > 0) && (pubcoinId >= 5)) {
             	newMetadata.accumulatorId = txin.nSequence;
             	newMetadata.txHash = tx.GetNormalizedHash();
             }
@@ -1123,11 +1130,6 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx, CZerocoinEntry pubCoinTx
             libzerocoin::Accumulator accumulatorRev(ZCParams, targetDenomination);
             libzerocoin::Accumulator accumulatorPrecomputed(ZCParams, targetDenomination);
             bool passVerify = false;
-            uint32_t pubcoinId = txin.nSequence;
-            if (pubcoinId < 1 || pubcoinId >= INT_MAX) { // IT BEGINS WITH 1
-                return state.DoS(100, false, NSEQUENCE_INCORRECT,
-                                 "CTransaction::CheckTransaction() : Error: nSequence is not correct format");
-            }
 
             // VERIFY COINSPEND TX
             // used pre-computed accumulator
@@ -1268,7 +1270,7 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx, CZerocoinEntry pubCoinTx
                         zccoinSpend.hashTx = hashTx;
                         zccoinSpend.pubCoin = 0;
                         zccoinSpend.id = pubcoinId;
-                        if (nHeight > 22000 && nHeight < INT_MAX) {
+                        if (nHeight > 1 && nHeight < INT_MAX) {
                             zccoinSpend.denomination = targetDenomination;
                         }
 //                        LogPrintf("WriteCoinSpendSerialEntry, serialNumber=%s", serialNumber.ToString());
