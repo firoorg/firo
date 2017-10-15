@@ -138,7 +138,6 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
     CTransaction coinbaseTx;
     coinbaseTx.vin.resize(1);
     coinbaseTx.vin[0].prevout.SetNull();
-    coinbaseTx.vin[0].scriptSig = CScript() << OP_0 << OP_0;
     coinbaseTx.vout.resize(1);
     coinbaseTx.vout[0].scriptPubKey = scriptPubKeyIn;
     coinbaseTx.vout[0].nValue = 0;
@@ -224,11 +223,13 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
     UpdateTime(pblock, chainparams.GetConsensus(), pindexBestHeader);
     pblock->nBits          = GetNextWorkRequired(pindexBestHeader, pblock, chainparams.GetConsensus());
     pblock->nNonce         = 0;
+    pblock->vtx[0].vin[0].scriptSig = CScript() << OP_0 << OP_0;
     pblocktemplate->vTxSigOpsCost[0] = GetLegacySigOpCount(pblock->vtx[0]);
     pblock->vtx[0].vout[0].nValue += nFees + GetBlockSubsidy(nHeight, chainparams.GetConsensus());
+    pblocktemplate->vTxFees[0] = -nFees;
 
     CValidationState state;
-    if (!TestBlockValidity(state, chainparams, *pblock, pindexBestHeader, false, false)) {
+        if (!TestBlockValidity(state, chainparams, *pblock, pindexBestHeader, false, false)) {
         throw std::runtime_error(strprintf("%s: TestBlockValidity failed: %s", __func__, FormatStateMessage(state)));
     }
 

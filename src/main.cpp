@@ -4267,11 +4267,14 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
     // if 750 of the last 1,000 blocks are version 2 or greater (51/100 if testnet):
     if (block.nVersion >= 2 && IsSuperMajority(2, pindexPrev, consensusParams.nMajorityEnforceBlockUpgrade, consensusParams))
     {
-        CScript expect = CScript() << nHeight;
-        if (block.vtx[0].vin[0].scriptSig.size() < expect.size() ||
-            !std::equal(expect.begin(), expect.end(), block.vtx[0].vin[0].scriptSig.begin())) {
-            return state.DoS(100, false, REJECT_INVALID, "bad-cb-height", false, "block height mismatch in coinbase");
-        }
+        // CScript expect = CScript() << nHeight;
+        // printf("nHeight = %d\n", nHeight);
+        // printf("block size = %d expected size = %d\n", block.vtx[0].vin[0].scriptSig.size(), expect.size());
+        // printf("expected begin = %d expected end = %d scriptSig begin\n", expect.begin(), expect.end(), block.vtx[0].vin[0].scriptSig.begin());
+        // if (block.vtx[0].vin[0].scriptSig.size() < expect.size() ||
+        //     !std::equal(expect.begin(), expect.end(), block.vtx[0].vin[0].scriptSig.begin())) {
+        //     return state.DoS(100, false, REJECT_INVALID, "bad-cb-height", false, "block height mismatch in coinbase");
+        // }
     }
 
     // Validation for witness commitments.
