@@ -212,6 +212,9 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
     if(fTestNet || nHeight > 22000){
         MAX_SPEND_ZC_TX_PER_BLOCK = 1;
     }
+    if(fTestNet || nHeight > 58500){
+        MAX_SPEND_ZC_TX_PER_BLOCK = 5;
+    }
 
     // Collect memory pool transactions into the block
     CTxMemPool::setEntries inBlock;
@@ -942,6 +945,9 @@ void BlockAssembler::addPriorityTxs()
     unsigned int MAX_SPEND_ZC_TX_PER_BLOCK = 0;
     if (nHeight + 1 > 22000) {
         MAX_SPEND_ZC_TX_PER_BLOCK = 1;
+    }
+    if (nHeight + 1 > 58500) {
+        MAX_SPEND_ZC_TX_PER_BLOCK = 5;
     }
 
     vecPriority.reserve(mempool.mapTx.size());
