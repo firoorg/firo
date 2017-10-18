@@ -3064,7 +3064,7 @@ bool CWallet::CreateZerocoinSpendTransaction(int64_t nValue, libzerocoin::CoinDe
             }
 
             if(!selectedPubcoin){
-                strFailReason = _("it has to have at least two mint coins with at least 7 confirmation in order to spend a coin");
+                strFailReason = _("it has to have at least two mint coins with at least 6 confirmation in order to spend a coin");
                 return false;
             }
 
@@ -3089,7 +3089,7 @@ bool CWallet::CreateZerocoinSpendTransaction(int64_t nValue, libzerocoin::CoinDe
                 if(zerocoinItem.value  != zerocoinSelected.value
                         && zerocoinItem.id == zerocoinSelected.id
                         && chainActive.Height() > -1
-                        && zerocoinItem.nHeight + 6 < chainActive.Height()
+                        && zerocoinItem.nHeight + 6 <= chainActive.Height()
                         && zerocoinItem.nHeight >= 1
                         && zerocoinItem.nHeight != INT_MAX
                         && zerocoinItem.denomination == denomination
