@@ -1314,9 +1314,9 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, uint256 h
     if (tx.IsCoinBase()) {
         if (tx.vin[0].scriptSig.size() < 2 || tx.vin[0].scriptSig.size() > 100)
             return state.DoS(100, false, REJECT_INVALID, "bad-cb-length");
-        //BTZC: add ZCOIN code
         // Check for founders inputs
-        if ((nHeight > 0) && (nHeight < 210000)) {
+        // Ignore block 57157 while the miner did not include founder reward in the block
+        if ((nHeight > 0) && (nHeight < 210000) && (nHeight != 57157)) {
             bool found_1 = false;
             bool found_2 = false;
             bool found_3 = false;
@@ -4470,7 +4470,7 @@ static bool AcceptBlock(const CBlock &block, CValidationState &state, const CCha
         if (fTooFarAhead) return true;      // Block height is too high
     }
     if (fNewBlock) *fNewBlock = true;
-    if ((!CheckBlock(block, state, chainparams.GetConsensus(), GetAdjustedTime(), true, INT_MAX, false)) ||
+    if ((!CheckBlock(block, state, chainparams.GetConsensus(), GetAdjustedTime(), true, pindex->nHeight, false)) ||
         !ContextualCheckBlock(block, state, pindex->pprev)) {
         if (state.IsInvalid() && !state.CorruptionPossible()) {
             pindex->nStatus |= BLOCK_FAILED_VALID;
