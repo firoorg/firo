@@ -1387,7 +1387,7 @@ bool CheckTransaction(const CTransaction& tx, CValidationState& state, uint256 h
             if ((nHeight >= 90000) && (nHeight <= 717499999)) {
               BOOST_FOREACH(const CTxOut& output, tx.vout) {
                 int blockRotation = nHeight - 95 * (nHeight/95);
-                int64_t reward = (int64_t)(0.95 * (GetBlockValue(pindexBestHeader->nHeight+1, 0, pindexBestHeader->nTime)));
+                int64_t reward = (int64_t)(0.95 * (GetBlockValue(nHeight, 0, pindexBestHeader->nTime)));
                 if (blockRotation >= 0 && blockRotation <= 7 && output.scriptPubKey == FOUNDER_1_SCRIPT && abs(output.nValue - reward) < 2 ) {                    
                     found_1 = true;
                 }
