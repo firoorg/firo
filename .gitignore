@@ -1,0 +1,5 @@
+zcoin-qt
+build/*
+!build/.gitkeep
+src/zcoind
+/Makefile
