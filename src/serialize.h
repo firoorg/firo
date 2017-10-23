@@ -231,7 +231,7 @@ template<typename Stream> inline void Unserialize(Stream& s, bool& a, int, int=0
 
 
 inline unsigned int GetSerializeSize(const unsigned char a[32], int, int=0){
-	sizeof(unsigned char) * 32;
+    return sizeof(unsigned char) * 32;
 }
 
 template<typename Stream> inline void Serialize(Stream& s, const unsigned char a[32], int, int=0)
