@@ -36,7 +36,9 @@ double GetDifficultyHelper(unsigned int nBits) {
 //btzc, zcoin GetNextWorkRequired
 unsigned int GetNextWorkRequired(const CBlockIndex *pindexLast, const CBlockHeader *pblock, const Consensus::Params &params) {
 
-	return bnProofOfWorkLimit.GetCompact();
+	if(ENABLED_LOWEST_DIFF){
+		return bnProofOfWorkLimit.GetCompact();
+	}
 
 	if (pindexLast == NULL) {
         return bnProofOfWorkLimit.GetCompact();

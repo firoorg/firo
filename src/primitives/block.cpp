@@ -65,7 +65,7 @@ uint256 CBlockHeader::GetPoWHash(int nHeight) const {
     }
     uint256 powHash;
     try {
-        if (!fTestNet && nHeight >= 10) {
+        if (!fTestNet && nHeight >= LYRA2Z_HEIGHT) {
             lyra2z_hash(BEGIN(nVersion), BEGIN(powHash));
         } else if (!fTestNet && nHeight >= 8192) {
             LYRA2(BEGIN(powHash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, 8192, 256);

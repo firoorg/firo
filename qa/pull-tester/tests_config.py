@@ -3,8 +3,8 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-SRCDIR="/home/bushido/aaaa/zcoin"
-BUILDDIR="/home/bushido/aaaa/zcoin"
+SRCDIR="/home/bushido/tttx/zcoin"
+BUILDDIR="/home/bushido/tttx/zcoin"
 EXEEXT=""
 
 # These will turn into comments if they were disabled when configuring.

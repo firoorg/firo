@@ -1190,8 +1190,163 @@ qt/qt_libzcoinqt_a-walletmodel.o: qt/walletmodel.cpp \
  script/standard.h wallet/crypter.h wallet/walletdb.h wallet/db.h \
  clientversion.h version.h /usr/include/db_cxx.h /usr/include/db.h \
  /usr/include/inttypes.h key.h libzerocoin/Zerocoin.h wallet/rpcwallet.h \
- /usr/include/qt4/QtCore/QDebug /usr/include/qt4/QtCore/qdebug.h \
- /usr/include/qt4/QtCore/qtextstream.h \
+ txmempool.h /usr/include/boost/multi_index_container.hpp \
+ /usr/include/boost/detail/allocator_utilities.hpp \
+ /usr/include/boost/mpl/at.hpp /usr/include/boost/mpl/at_fwd.hpp \
+ /usr/include/boost/mpl/aux_/at_impl.hpp \
+ /usr/include/boost/mpl/contains.hpp \
+ /usr/include/boost/mpl/contains_fwd.hpp \
+ /usr/include/boost/mpl/aux_/contains_impl.hpp \
+ /usr/include/boost/mpl/find.hpp /usr/include/boost/mpl/size.hpp \
+ /usr/include/boost/mpl/aux_/size_impl.hpp \
+ /usr/include/boost/multi_index_container_fwd.hpp \
+ /usr/include/boost/multi_index/identity.hpp \
+ /usr/include/boost/multi_index/identity_fwd.hpp \
+ /usr/include/boost/multi_index/indexed_by.hpp \
+ /usr/include/boost/mpl/vector.hpp \
+ /usr/include/boost/mpl/limits/vector.hpp \
+ /usr/include/boost/mpl/vector/vector20.hpp \
+ /usr/include/boost/mpl/vector/vector10.hpp \
+ /usr/include/boost/mpl/vector/vector0.hpp \
+ /usr/include/boost/mpl/vector/aux_/at.hpp \
+ /usr/include/boost/mpl/vector/aux_/tag.hpp \
+ /usr/include/boost/mpl/aux_/config/typeof.hpp \
+ /usr/include/boost/mpl/vector/aux_/front.hpp \
+ /usr/include/boost/mpl/vector/aux_/push_front.hpp \
+ /usr/include/boost/mpl/vector/aux_/item.hpp \
+ /usr/include/boost/mpl/vector/aux_/pop_front.hpp \
+ /usr/include/boost/mpl/vector/aux_/push_back.hpp \
+ /usr/include/boost/mpl/vector/aux_/pop_back.hpp \
+ /usr/include/boost/mpl/pop_back_fwd.hpp \
+ /usr/include/boost/mpl/vector/aux_/back.hpp \
+ /usr/include/boost/mpl/back_fwd.hpp \
+ /usr/include/boost/mpl/vector/aux_/clear.hpp \
+ /usr/include/boost/mpl/vector/aux_/vector0.hpp \
+ /usr/include/boost/mpl/vector/aux_/iterator.hpp \
+ /usr/include/boost/mpl/plus.hpp \
+ /usr/include/boost/mpl/aux_/arithmetic_op.hpp \
+ /usr/include/boost/mpl/aux_/preprocessed/gcc/plus.hpp \
+ /usr/include/boost/mpl/minus.hpp \
+ /usr/include/boost/mpl/aux_/preprocessed/gcc/minus.hpp \
+ /usr/include/boost/mpl/vector/aux_/O1_size.hpp \
+ /usr/include/boost/mpl/vector/aux_/size.hpp \
+ /usr/include/boost/mpl/vector/aux_/empty.hpp \
+ /usr/include/boost/mpl/vector/aux_/begin_end.hpp \
+ /usr/include/boost/mpl/vector/aux_/include_preprocessed.hpp \
+ /usr/include/boost/mpl/vector/aux_/preprocessed/typeof_based/vector10.hpp \
+ /usr/include/boost/mpl/vector/aux_/preprocessed/typeof_based/vector20.hpp \
+ /usr/include/boost/mpl/aux_/preprocessed/gcc/vector.hpp \
+ /usr/include/boost/multi_index/ordered_index_fwd.hpp \
+ /usr/include/boost/multi_index/detail/ord_index_args.hpp \
+ /usr/include/boost/multi_index/tag.hpp \
+ /usr/include/boost/multi_index/detail/no_duplicate_tags.hpp \
+ /usr/include/boost/mpl/set/set0.hpp \
+ /usr/include/boost/mpl/set/aux_/at_impl.hpp \
+ /usr/include/boost/mpl/set/aux_/has_key_impl.hpp \
+ /usr/include/boost/mpl/set/aux_/tag.hpp \
+ /usr/include/boost/mpl/has_key_fwd.hpp \
+ /usr/include/boost/mpl/aux_/overload_names.hpp \
+ /usr/include/boost/mpl/aux_/ptr_to_ref.hpp \
+ /usr/include/boost/mpl/aux_/config/operators.hpp \
+ /usr/include/boost/mpl/set/aux_/clear_impl.hpp \
+ /usr/include/boost/mpl/set/aux_/set0.hpp \
+ /usr/include/boost/mpl/set/aux_/size_impl.hpp \
+ /usr/include/boost/mpl/set/aux_/empty_impl.hpp \
+ /usr/include/boost/mpl/set/aux_/insert_impl.hpp \
+ /usr/include/boost/mpl/insert_fwd.hpp \
+ /usr/include/boost/mpl/set/aux_/item.hpp /usr/include/boost/mpl/base.hpp \
+ /usr/include/boost/mpl/set/aux_/erase_impl.hpp \
+ /usr/include/boost/mpl/erase_fwd.hpp \
+ /usr/include/boost/mpl/set/aux_/erase_key_impl.hpp \
+ /usr/include/boost/mpl/erase_key_fwd.hpp \
+ /usr/include/boost/mpl/set/aux_/key_type_impl.hpp \
+ /usr/include/boost/mpl/key_type_fwd.hpp \
+ /usr/include/boost/mpl/set/aux_/value_type_impl.hpp \
+ /usr/include/boost/mpl/value_type_fwd.hpp \
+ /usr/include/boost/mpl/set/aux_/begin_end_impl.hpp \
+ /usr/include/boost/mpl/set/aux_/iterator.hpp \
+ /usr/include/boost/mpl/has_key.hpp \
+ /usr/include/boost/mpl/aux_/has_key_impl.hpp \
+ /usr/include/boost/preprocessor/facilities/intercept.hpp \
+ /usr/include/boost/multi_index/detail/access_specifier.hpp \
+ /usr/include/boost/multi_index/detail/adl_swap.hpp \
+ /usr/include/boost/multi_index/detail/base_type.hpp \
+ /usr/include/boost/multi_index/detail/index_base.hpp \
+ /usr/include/boost/multi_index/detail/copy_map.hpp \
+ /usr/include/boost/multi_index/detail/auto_space.hpp \
+ /usr/include/boost/multi_index/detail/do_not_copy_elements_tag.hpp \
+ /usr/include/boost/multi_index/detail/node_type.hpp \
+ /usr/include/boost/mpl/reverse_iter_fold.hpp \
+ /usr/include/boost/mpl/aux_/reverse_iter_fold_impl.hpp \
+ /usr/include/boost/mpl/aux_/preprocessed/gcc/reverse_iter_fold_impl.hpp \
+ /usr/include/boost/multi_index/detail/header_holder.hpp \
+ /usr/include/boost/multi_index/detail/index_node_base.hpp \
+ /usr/include/boost/archive/archive_exception.hpp \
+ /usr/include/boost/archive/detail/decl.hpp \
+ /usr/include/boost/archive/detail/abi_prefix.hpp \
+ /usr/include/boost/archive/detail/abi_suffix.hpp \
+ /usr/include/boost/serialization/access.hpp \
+ /usr/include/boost/serialization/pfto.hpp \
+ /usr/include/boost/multi_index/detail/is_index_list.hpp \
+ /usr/include/boost/multi_index/detail/vartempl_support.hpp \
+ /usr/include/boost/multi_index/detail/index_loader.hpp \
+ /usr/include/boost/serialization/nvp.hpp \
+ /usr/include/boost/serialization/level.hpp \
+ /usr/include/boost/serialization/level_enum.hpp \
+ /usr/include/boost/serialization/tracking.hpp \
+ /usr/include/boost/mpl/equal_to.hpp \
+ /usr/include/boost/mpl/aux_/preprocessed/gcc/equal_to.hpp \
+ /usr/include/boost/mpl/greater.hpp \
+ /usr/include/boost/mpl/aux_/preprocessed/gcc/greater.hpp \
+ /usr/include/boost/serialization/tracking_enum.hpp \
+ /usr/include/boost/serialization/type_info_implementation.hpp \
+ /usr/include/boost/serialization/traits.hpp \
+ /usr/include/boost/serialization/split_member.hpp \
+ /usr/include/boost/serialization/base_object.hpp \
+ /usr/include/boost/type_traits/is_polymorphic.hpp \
+ /usr/include/boost/serialization/force_include.hpp \
+ /usr/include/boost/serialization/void_cast_fwd.hpp \
+ /usr/include/boost/serialization/wrapper.hpp \
+ /usr/include/boost/multi_index/detail/index_saver.hpp \
+ /usr/include/boost/multi_index/detail/index_matcher.hpp \
+ /usr/include/boost/multi_index/detail/converter.hpp \
+ /usr/include/boost/multi_index/detail/has_tag.hpp \
+ /usr/include/boost/multi_index/detail/safe_mode.hpp \
+ /usr/include/boost/utility/base_from_member.hpp \
+ /usr/include/boost/multi_index/detail/archive_constructed.hpp \
+ /usr/include/boost/serialization/serialization.hpp \
+ /usr/include/boost/serialization/strong_typedef.hpp \
+ /usr/include/boost/multi_index/detail/serialization_version.hpp \
+ /usr/include/boost/serialization/version.hpp \
+ /usr/include/boost/mpl/comparison.hpp \
+ /usr/include/boost/mpl/not_equal_to.hpp \
+ /usr/include/boost/mpl/aux_/preprocessed/gcc/not_equal_to.hpp \
+ /usr/include/boost/mpl/less_equal.hpp \
+ /usr/include/boost/mpl/aux_/preprocessed/gcc/less_equal.hpp \
+ /usr/include/boost/mpl/greater_equal.hpp \
+ /usr/include/boost/mpl/aux_/preprocessed/gcc/greater_equal.hpp \
+ /usr/include/boost/serialization/collection_size_type.hpp \
+ /usr/include/boost/serialization/split_free.hpp \
+ /usr/include/boost/serialization/is_bitwise_serializable.hpp \
+ /usr/include/boost/multi_index/ordered_index.hpp \
+ /usr/include/boost/multi_index/detail/bidir_node_iterator.hpp \
+ /usr/include/boost/multi_index/detail/modify_key_adaptor.hpp \
+ /usr/include/boost/multi_index/detail/ord_index_node.hpp \
+ /usr/include/boost/multi_index/detail/uintptr_type.hpp \
+ /usr/include/boost/multi_index/detail/ord_index_ops.hpp \
+ /usr/include/boost/multi_index/detail/promotes_arg.hpp \
+ /usr/include/boost/multi_index/detail/unbounded.hpp \
+ /usr/include/boost/multi_index/detail/value_compare.hpp \
+ /usr/include/boost/multi_index/detail/duplicates_iterator.hpp \
+ /usr/include/boost/multi_index/hashed_index.hpp \
+ /usr/include/boost/multi_index/detail/bucket_array.hpp \
+ /usr/include/boost/multi_index/detail/hash_index_node.hpp \
+ /usr/include/boost/preprocessor/seq/elem.hpp \
+ /usr/include/boost/multi_index/detail/hash_index_iterator.hpp \
+ /usr/include/boost/multi_index/hashed_index_fwd.hpp \
+ /usr/include/boost/multi_index/detail/hash_index_args.hpp \
+ consensus/validation.h /usr/include/qt4/QtCore/QDebug \
+ /usr/include/qt4/QtCore/qdebug.h /usr/include/qt4/QtCore/qtextstream.h \
  /usr/include/qt4/QtCore/qcontiguouscache.h /usr/include/qt4/QtCore/QSet \
  /usr/include/qt4/QtCore/qset.h /usr/include/qt4/QtCore/QTimer \
  /usr/include/qt4/QtCore/qtimer.h /usr/include/qt4/QtCore/qbasictimer.h
@@ -4117,6 +4272,326 @@ key.h:
 libzerocoin/Zerocoin.h:
 
 wallet/rpcwallet.h:
+
+txmempool.h:
+
+/usr/include/boost/multi_index_container.hpp:
+
+/usr/include/boost/detail/allocator_utilities.hpp:
+
+/usr/include/boost/mpl/at.hpp:
+
+/usr/include/boost/mpl/at_fwd.hpp:
+
+/usr/include/boost/mpl/aux_/at_impl.hpp:
+
+/usr/include/boost/mpl/contains.hpp:
+
+/usr/include/boost/mpl/contains_fwd.hpp:
+
+/usr/include/boost/mpl/aux_/contains_impl.hpp:
+
+/usr/include/boost/mpl/find.hpp:
+
+/usr/include/boost/mpl/size.hpp:
+
+/usr/include/boost/mpl/aux_/size_impl.hpp:
+
+/usr/include/boost/multi_index_container_fwd.hpp:
+
+/usr/include/boost/multi_index/identity.hpp:
+
+/usr/include/boost/multi_index/identity_fwd.hpp:
+
+/usr/include/boost/multi_index/indexed_by.hpp:
+
+/usr/include/boost/mpl/vector.hpp:
+
+/usr/include/boost/mpl/limits/vector.hpp:
+
+/usr/include/boost/mpl/vector/vector20.hpp:
+
+/usr/include/boost/mpl/vector/vector10.hpp:
+
+/usr/include/boost/mpl/vector/vector0.hpp:
+
+/usr/include/boost/mpl/vector/aux_/at.hpp:
+
+/usr/include/boost/mpl/vector/aux_/tag.hpp:
+
+/usr/include/boost/mpl/aux_/config/typeof.hpp:
+
+/usr/include/boost/mpl/vector/aux_/front.hpp:
+
+/usr/include/boost/mpl/vector/aux_/push_front.hpp:
+
+/usr/include/boost/mpl/vector/aux_/item.hpp:
+
+/usr/include/boost/mpl/vector/aux_/pop_front.hpp:
+
+/usr/include/boost/mpl/vector/aux_/push_back.hpp:
+
+/usr/include/boost/mpl/vector/aux_/pop_back.hpp:
+
+/usr/include/boost/mpl/pop_back_fwd.hpp:
+
+/usr/include/boost/mpl/vector/aux_/back.hpp:
+
+/usr/include/boost/mpl/back_fwd.hpp:
+
+/usr/include/boost/mpl/vector/aux_/clear.hpp:
+
+/usr/include/boost/mpl/vector/aux_/vector0.hpp:
+
+/usr/include/boost/mpl/vector/aux_/iterator.hpp:
+
+/usr/include/boost/mpl/plus.hpp:
+
+/usr/include/boost/mpl/aux_/arithmetic_op.hpp:
+
+/usr/include/boost/mpl/aux_/preprocessed/gcc/plus.hpp:
+
+/usr/include/boost/mpl/minus.hpp:
+
+/usr/include/boost/mpl/aux_/preprocessed/gcc/minus.hpp:
+
+/usr/include/boost/mpl/vector/aux_/O1_size.hpp:
+
+/usr/include/boost/mpl/vector/aux_/size.hpp:
+
+/usr/include/boost/mpl/vector/aux_/empty.hpp:
+
+/usr/include/boost/mpl/vector/aux_/begin_end.hpp:
+
+/usr/include/boost/mpl/vector/aux_/include_preprocessed.hpp:
+
+/usr/include/boost/mpl/vector/aux_/preprocessed/typeof_based/vector10.hpp:
+
+/usr/include/boost/mpl/vector/aux_/preprocessed/typeof_based/vector20.hpp:
+
+/usr/include/boost/mpl/aux_/preprocessed/gcc/vector.hpp:
+
+/usr/include/boost/multi_index/ordered_index_fwd.hpp:
+
+/usr/include/boost/multi_index/detail/ord_index_args.hpp:
+
+/usr/include/boost/multi_index/tag.hpp:
+
+/usr/include/boost/multi_index/detail/no_duplicate_tags.hpp:
+
+/usr/include/boost/mpl/set/set0.hpp:
+
+/usr/include/boost/mpl/set/aux_/at_impl.hpp:
+
+/usr/include/boost/mpl/set/aux_/has_key_impl.hpp:
+
+/usr/include/boost/mpl/set/aux_/tag.hpp:
+
+/usr/include/boost/mpl/has_key_fwd.hpp:
+
+/usr/include/boost/mpl/aux_/overload_names.hpp:
+
+/usr/include/boost/mpl/aux_/ptr_to_ref.hpp:
+
+/usr/include/boost/mpl/aux_/config/operators.hpp:
+
+/usr/include/boost/mpl/set/aux_/clear_impl.hpp:
+
+/usr/include/boost/mpl/set/aux_/set0.hpp:
+
+/usr/include/boost/mpl/set/aux_/size_impl.hpp:
+
+/usr/include/boost/mpl/set/aux_/empty_impl.hpp:
+
+/usr/include/boost/mpl/set/aux_/insert_impl.hpp:
+
+/usr/include/boost/mpl/insert_fwd.hpp:
+
+/usr/include/boost/mpl/set/aux_/item.hpp:
+
+/usr/include/boost/mpl/base.hpp:
+
+/usr/include/boost/mpl/set/aux_/erase_impl.hpp:
+
+/usr/include/boost/mpl/erase_fwd.hpp:
+
+/usr/include/boost/mpl/set/aux_/erase_key_impl.hpp:
+
+/usr/include/boost/mpl/erase_key_fwd.hpp:
+
+/usr/include/boost/mpl/set/aux_/key_type_impl.hpp:
+
+/usr/include/boost/mpl/key_type_fwd.hpp:
+
+/usr/include/boost/mpl/set/aux_/value_type_impl.hpp:
+
+/usr/include/boost/mpl/value_type_fwd.hpp:
+
+/usr/include/boost/mpl/set/aux_/begin_end_impl.hpp:
+
+/usr/include/boost/mpl/set/aux_/iterator.hpp:
+
+/usr/include/boost/mpl/has_key.hpp:
+
+/usr/include/boost/mpl/aux_/has_key_impl.hpp:
+
+/usr/include/boost/preprocessor/facilities/intercept.hpp:
+
+/usr/include/boost/multi_index/detail/access_specifier.hpp:
+
+/usr/include/boost/multi_index/detail/adl_swap.hpp:
+
+/usr/include/boost/multi_index/detail/base_type.hpp:
+
+/usr/include/boost/multi_index/detail/index_base.hpp:
+
+/usr/include/boost/multi_index/detail/copy_map.hpp:
+
+/usr/include/boost/multi_index/detail/auto_space.hpp:
+
+/usr/include/boost/multi_index/detail/do_not_copy_elements_tag.hpp:
+
+/usr/include/boost/multi_index/detail/node_type.hpp:
+
+/usr/include/boost/mpl/reverse_iter_fold.hpp:
+
+/usr/include/boost/mpl/aux_/reverse_iter_fold_impl.hpp:
+
+/usr/include/boost/mpl/aux_/preprocessed/gcc/reverse_iter_fold_impl.hpp:
+
+/usr/include/boost/multi_index/detail/header_holder.hpp:
+
+/usr/include/boost/multi_index/detail/index_node_base.hpp:
+
+/usr/include/boost/archive/archive_exception.hpp:
+
+/usr/include/boost/archive/detail/decl.hpp:
+
+/usr/include/boost/archive/detail/abi_prefix.hpp:
+
+/usr/include/boost/archive/detail/abi_suffix.hpp:
+
+/usr/include/boost/serialization/access.hpp:
+
+/usr/include/boost/serialization/pfto.hpp:
+
+/usr/include/boost/multi_index/detail/is_index_list.hpp:
+
+/usr/include/boost/multi_index/detail/vartempl_support.hpp:
+
+/usr/include/boost/multi_index/detail/index_loader.hpp:
+
+/usr/include/boost/serialization/nvp.hpp:
+
+/usr/include/boost/serialization/level.hpp:
+
+/usr/include/boost/serialization/level_enum.hpp:
+
+/usr/include/boost/serialization/tracking.hpp:
+
+/usr/include/boost/mpl/equal_to.hpp:
+
+/usr/include/boost/mpl/aux_/preprocessed/gcc/equal_to.hpp:
+
+/usr/include/boost/mpl/greater.hpp:
+
+/usr/include/boost/mpl/aux_/preprocessed/gcc/greater.hpp:
+
+/usr/include/boost/serialization/tracking_enum.hpp:
+
+/usr/include/boost/serialization/type_info_implementation.hpp:
+
+/usr/include/boost/serialization/traits.hpp:
+
+/usr/include/boost/serialization/split_member.hpp:
+
+/usr/include/boost/serialization/base_object.hpp:
+
+/usr/include/boost/type_traits/is_polymorphic.hpp:
+
+/usr/include/boost/serialization/force_include.hpp:
+
+/usr/include/boost/serialization/void_cast_fwd.hpp:
+
+/usr/include/boost/serialization/wrapper.hpp:
+
+/usr/include/boost/multi_index/detail/index_saver.hpp:
+
+/usr/include/boost/multi_index/detail/index_matcher.hpp:
+
+/usr/include/boost/multi_index/detail/converter.hpp:
+
+/usr/include/boost/multi_index/detail/has_tag.hpp:
+
+/usr/include/boost/multi_index/detail/safe_mode.hpp:
+
+/usr/include/boost/utility/base_from_member.hpp:
+
+/usr/include/boost/multi_index/detail/archive_constructed.hpp:
+
+/usr/include/boost/serialization/serialization.hpp:
+
+/usr/include/boost/serialization/strong_typedef.hpp:
+
+/usr/include/boost/multi_index/detail/serialization_version.hpp:
+
+/usr/include/boost/serialization/version.hpp:
+
+/usr/include/boost/mpl/comparison.hpp:
+
+/usr/include/boost/mpl/not_equal_to.hpp:
+
+/usr/include/boost/mpl/aux_/preprocessed/gcc/not_equal_to.hpp:
+
+/usr/include/boost/mpl/less_equal.hpp:
+
+/usr/include/boost/mpl/aux_/preprocessed/gcc/less_equal.hpp:
+
+/usr/include/boost/mpl/greater_equal.hpp:
+
+/usr/include/boost/mpl/aux_/preprocessed/gcc/greater_equal.hpp:
+
+/usr/include/boost/serialization/collection_size_type.hpp:
+
+/usr/include/boost/serialization/split_free.hpp:
+
+/usr/include/boost/serialization/is_bitwise_serializable.hpp:
+
+/usr/include/boost/multi_index/ordered_index.hpp:
+
+/usr/include/boost/multi_index/detail/bidir_node_iterator.hpp:
+
+/usr/include/boost/multi_index/detail/modify_key_adaptor.hpp:
+
+/usr/include/boost/multi_index/detail/ord_index_node.hpp:
+
+/usr/include/boost/multi_index/detail/uintptr_type.hpp:
+
+/usr/include/boost/multi_index/detail/ord_index_ops.hpp:
+
+/usr/include/boost/multi_index/detail/promotes_arg.hpp:
+
+/usr/include/boost/multi_index/detail/unbounded.hpp:
+
+/usr/include/boost/multi_index/detail/value_compare.hpp:
+
+/usr/include/boost/multi_index/detail/duplicates_iterator.hpp:
+
+/usr/include/boost/multi_index/hashed_index.hpp:
+
+/usr/include/boost/multi_index/detail/bucket_array.hpp:
+
+/usr/include/boost/multi_index/detail/hash_index_node.hpp:
+
+/usr/include/boost/preprocessor/seq/elem.hpp:
+
+/usr/include/boost/multi_index/detail/hash_index_iterator.hpp:
+
+/usr/include/boost/multi_index/hashed_index_fwd.hpp:
+
+/usr/include/boost/multi_index/detail/hash_index_args.hpp:
+
+consensus/validation.h:
 
 /usr/include/qt4/QtCore/QDebug:
 

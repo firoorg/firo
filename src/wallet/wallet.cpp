@@ -2550,21 +2550,35 @@ bool CWallet::CreateZerocoinMintModel(string &stringError, string denomAmount) {
     CWalletDB walletdb(strWalletFile);
     walletdb.ListPubCoin(listPubCoin);
 
-    int currentId = 0;
+    int currentId = 1;
+    unsigned int countExistingItems = 0;
 
     BOOST_FOREACH(const CZerocoinEntry &pubCoinIdItem, listPubCoin) {
 		//LogPrintf("denomination = %d, id = %d, height = %d\n", pubCoinIdItem.denomination, pubCoinIdItem.id, pubCoinIdItem.nHeight);
 		if (pubCoinIdItem.id > 0) {
+			if(pubCoinIdItem.nHeight <= chainActive.Height()){
 				if (pubCoinIdItem.denomination == denomination) {
+					countExistingItems++;
 					if (pubCoinIdItem.id > currentId) {
 						currentId = pubCoinIdItem.id;
+						countExistingItems = 1;
 					}
 				}
+			}else{
+				break;
+			}
 		}
     }
 
+    if (countExistingItems > 9) {
+    	currentId++;
+    }
 
-    if (currentId >= 5) {
+    if (((denomination == libzerocoin::ZQ_LOVELACE) && (currentId >= ZC_V2_SWITCH_ID_1))
+    		|| ((denomination == libzerocoin::ZQ_GOLDWASSER) && (currentId >= ZC_V2_SWITCH_ID_10))
+    		|| ((denomination == libzerocoin::ZQ_RACKOFF) && (currentId >= ZC_V2_SWITCH_ID_25))
+    		|| ((denomination == libzerocoin::ZQ_PEDERSEN) && (currentId >= ZC_V2_SWITCH_ID_50))
+    		|| ((denomination == libzerocoin::ZQ_WILLIAMSON) && (currentId >= ZC_V2_SWITCH_ID_100))) {
     	newCoin.setVersion(2);
     }
 
@@ -3163,10 +3177,15 @@ bool CWallet::CreateZerocoinSpendTransaction(int64_t nValue, libzerocoin::CoinDe
             txNew.vin.push_back(newTxIn);
             LogPrintf("txNew.vin.size(): %d\n", txNew.vin.size());
 
-            if (zerocoinSelected.id >= 5) {
-            	transactionHash = wtxNew.GetNormalizedHash();
-            	accumulatorID = zerocoinSelected.id;
-            }
+            if (((denomination == libzerocoin::ZQ_LOVELACE) && (zerocoinSelected.id >= ZC_V2_SWITCH_ID_1))
+            		|| ((denomination == libzerocoin::ZQ_GOLDWASSER) && (zerocoinSelected.id >= ZC_V2_SWITCH_ID_10))
+            		|| ((denomination == libzerocoin::ZQ_RACKOFF) && (zerocoinSelected.id >= ZC_V2_SWITCH_ID_25))
+            		|| ((denomination == libzerocoin::ZQ_PEDERSEN) && (zerocoinSelected.id >= ZC_V2_SWITCH_ID_50))
+            		|| ((denomination == libzerocoin::ZQ_WILLIAMSON) && (zerocoinSelected.id >= ZC_V2_SWITCH_ID_100))) {
+                        	transactionHash = wtxNew.GetNormalizedHash();
+                        	accumulatorID = zerocoinSelected.id;
+                        }
+
 
             // Place "transactionHash" and "accumulatorBlockHash" into a new
             // SpendMetaData object.

@@ -10,11 +10,11 @@ SetCompressor /SOLID lzma
 !define URL https://zcoin.io/
 
 # MUI Symbol Definitions
-!define MUI_ICON "/home/bushido/aaaa/zcoin/share/pixmaps/bitcoin.ico"
-!define MUI_WELCOMEFINISHPAGE_BITMAP "/home/bushido/aaaa/zcoin/share/pixmaps/nsis-wizard.bmp"
+!define MUI_ICON "/home/bushido/tttx/zcoin/share/pixmaps/bitcoin.ico"
+!define MUI_WELCOMEFINISHPAGE_BITMAP "/home/bushido/tttx/zcoin/share/pixmaps/nsis-wizard.bmp"
 !define MUI_HEADERIMAGE
 !define MUI_HEADERIMAGE_RIGHT
-!define MUI_HEADERIMAGE_BITMAP "/home/bushido/aaaa/zcoin/share/pixmaps/nsis-header.bmp"
+!define MUI_HEADERIMAGE_BITMAP "/home/bushido/tttx/zcoin/share/pixmaps/nsis-header.bmp"
 !define MUI_FINISHPAGE_NOAUTOCLOSE
 !define MUI_STARTMENUPAGE_REGISTRY_ROOT HKLM
 !define MUI_STARTMENUPAGE_REGISTRY_KEY ${REGKEY}
@@ -22,7 +22,7 @@ SetCompressor /SOLID lzma
 !define MUI_STARTMENUPAGE_DEFAULTFOLDER "Zcoin Core"
 !define MUI_FINISHPAGE_RUN $INSTDIR\zcoin-qt
 !define MUI_UNICON "${NSISDIR}\Contrib\Graphics\Icons\modern-uninstall.ico"
-!define MUI_UNWELCOMEFINISHPAGE_BITMAP "/home/bushido/aaaa/zcoin/share/pixmaps/nsis-wizard.bmp"
+!define MUI_UNWELCOMEFINISHPAGE_BITMAP "/home/bushido/tttx/zcoin/share/pixmaps/nsis-wizard.bmp"
 !define MUI_UNFINISHPAGE_NOAUTOCLOSE
 
 # Included files
@@ -48,7 +48,7 @@ Var StartMenuGroup
 !insertmacro MUI_LANGUAGE English
 
 # Installer attributes
-OutFile /home/bushido/aaaa/zcoin/zcoin-${VERSION}-win-setup.exe
+OutFile /home/bushido/tttx/zcoin/zcoin-${VERSION}-win-setup.exe
 !if "" == "64"
 InstallDir $PROGRAMFILES64\Bitcoin
 !else
@@ -58,7 +58,7 @@ CRCCheck on
 XPStyle on
 BrandingText " "
 ShowInstDetails show
-VIProductVersion ${VERSION}.8
+VIProductVersion ${VERSION}.10
 VIAddVersionKey ProductName "Zcoin Core"
 VIAddVersionKey ProductVersion "${VERSION}"
 VIAddVersionKey CompanyName "${COMPANY}"
@@ -73,14 +73,14 @@ ShowUninstDetails show
 Section -Main SEC0000
     SetOutPath $INSTDIR
     SetOverwrite on
-    File /home/bushido/aaaa/zcoin/release/zcoin-qt
-    File /oname=COPYING.txt /home/bushido/aaaa/zcoin/COPYING
-    File /oname=readme.txt /home/bushido/aaaa/zcoin/doc/README_windows.txt
+    File /home/bushido/tttx/zcoin/release/zcoin-qt
+    File /oname=COPYING.txt /home/bushido/tttx/zcoin/COPYING
+    File /oname=readme.txt /home/bushido/tttx/zcoin/doc/README_windows.txt
     SetOutPath $INSTDIR\daemon
-    File /home/bushido/aaaa/zcoin/release/zcoind
-    File /home/bushido/aaaa/zcoin/release/zcoin-cli
+    File /home/bushido/tttx/zcoin/release/zcoind
+    File /home/bushido/tttx/zcoin/release/zcoin-cli
     SetOutPath $INSTDIR\doc
-    File /r /home/bushido/aaaa/zcoin/doc\*.*
+    File /r /home/bushido/tttx/zcoin/doc\*.*
     SetOutPath $INSTDIR
     WriteRegStr HKCU "${REGKEY}\Components" Main 1
 SectionEnd

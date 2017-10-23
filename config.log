@@ -3030,12 +3030,11 @@ config.status:1390: creating qa/pull-tester/run-bitcoind-for-test.sh
 config.status:1390: creating qa/pull-tester/tests_config.py
 config.status:1390: creating contrib/devtools/split-debug.sh
 config.status:1390: creating src/config/bitcoin-config.h
-config.status:1571: src/config/bitcoin-config.h is unchanged
 config.status:1650: executing depfiles commands
 config.status:1650: executing libtool commands
-configure:33055: === configuring in src/univalue (/home/bushido/aaaa/zcoin/src/univalue)
+configure:33055: === configuring in src/univalue (/home/bushido/tttx/zcoin/src/univalue)
 configure:33118: running /bin/bash ./configure --disable-option-checking '--prefix=/usr/local'  '--disable-hardening' '--enable-debug' '--disable-shared' '--with-pic' '--with-bignum=no' '--enable-module-recovery' '--enable-experimental' '--enable-module-ecdh' --cache-file=/dev/null --srcdir=.
-configure:33055: === configuring in src/secp256k1 (/home/bushido/aaaa/zcoin/src/secp256k1)
+configure:33055: === configuring in src/secp256k1 (/home/bushido/tttx/zcoin/src/secp256k1)
 configure:33118: running /bin/bash ./configure --disable-option-checking '--prefix=/usr/local'  '--disable-hardening' '--enable-debug' '--disable-shared' '--with-pic' '--with-bignum=no' '--enable-module-recovery' '--enable-experimental' '--enable-module-ecdh' --cache-file=/dev/null --srcdir=.
 configure:33137: result: Fixing libtool for -rpath problems.
 
@@ -3329,7 +3328,7 @@ pkg_cv_SSL_LIBS=-lssl
 ## Output variables. ##
 ## ----------------- ##
 
-ACLOCAL='${SHELL} /home/bushido/aaaa/zcoin/build-aux/missing aclocal-1.15'
+ACLOCAL='${SHELL} /home/bushido/tttx/zcoin/build-aux/missing aclocal-1.15'
 AMDEPBACKSLASH='\'
 AMDEP_FALSE='#'
 AMDEP_TRUE=''
@@ -3339,9 +3338,9 @@ AM_DEFAULT_V='$(AM_DEFAULT_VERBOSITY)'
 AM_DEFAULT_VERBOSITY='0'
 AM_V='$(V)'
 AR='/usr/bin/ar'
-AUTOCONF='${SHELL} /home/bushido/aaaa/zcoin/build-aux/missing autoconf'
-AUTOHEADER='${SHELL} /home/bushido/aaaa/zcoin/build-aux/missing autoheader'
-AUTOMAKE='${SHELL} /home/bushido/aaaa/zcoin/build-aux/missing automake-1.15'
+AUTOCONF='${SHELL} /home/bushido/tttx/zcoin/build-aux/missing autoconf'
+AUTOHEADER='${SHELL} /home/bushido/tttx/zcoin/build-aux/missing autoheader'
+AUTOMAKE='${SHELL} /home/bushido/tttx/zcoin/build-aux/missing automake-1.15'
 AWK='mawk'
 BDB_CPPFLAGS=''
 BDB_LIBS='-ldb_cxx-4.8'
@@ -3371,7 +3370,7 @@ CC='gcc'
 CCACHE=''
 CCDEPMODE='depmode=gcc3'
 CFLAGS='-g -O2 -g3 -O0'
-CLIENT_VERSION_BUILD='8'
+CLIENT_VERSION_BUILD='10'
 CLIENT_VERSION_IS_RELEASE='true'
 CLIENT_VERSION_MAJOR='0'
 CLIENT_VERSION_MINOR='13'
@@ -3465,7 +3464,7 @@ LUPDATE='/usr/bin/lupdate-qt4'
 MAINT=''
 MAINTAINER_MODE_FALSE='#'
 MAINTAINER_MODE_TRUE=''
-MAKEINFO='${SHELL} /home/bushido/aaaa/zcoin/build-aux/missing makeinfo'
+MAKEINFO='${SHELL} /home/bushido/tttx/zcoin/build-aux/missing makeinfo'
 MAKENSIS=''
 MANIFEST_TOOL=':'
 MINIUPNPC_CPPFLAGS=''
@@ -3604,7 +3603,7 @@ host_vendor='pc'
 htmldir='${docdir}'
 includedir='${prefix}/include'
 infodir='${datarootdir}/info'
-install_sh='${SHELL} /home/bushido/aaaa/zcoin/build-aux/install-sh'
+install_sh='${SHELL} /home/bushido/tttx/zcoin/build-aux/install-sh'
 libdir='${exec_prefix}/lib'
 libexecdir='${exec_prefix}/libexec'
 localedir='${datarootdir}/locale'
@@ -3702,7 +3701,7 @@ target_alias=''
 #define CLIENT_VERSION_MAJOR 0
 #define CLIENT_VERSION_MINOR 13
 #define CLIENT_VERSION_REVISION 2
-#define CLIENT_VERSION_BUILD 8
+#define CLIENT_VERSION_BUILD 10
 #define CLIENT_VERSION_IS_RELEASE true
 #define COPYRIGHT_YEAR 2017
 #define COPYRIGHT_HOLDERS "The %s developers"
