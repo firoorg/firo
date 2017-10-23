@@ -61,6 +61,8 @@ using namespace std;
 
 #define ZEROCOIN_MODULUS   "25195908475657893494027183240048398571429282126204032027777137836043662020707595556264018525880784406918290641249515082189298559149176184502808489120072844992687392807287776735971418347270261896375014971824691165077613379859095700097330459748808428401797429100642458691817195118746121515172654632282216869987549182422433637259085141865462043576798423387184774447920739934236584823824281198163815010674810451660377306056201619676256133844143603833904414952634432190114657544454178424020924616515723350778707749817125772467962926386356373289912154831438167899885040445364023527381951378636564391212010397122822120720357"
 
+// There were bugs before this block, don't do some checks on early blocks
+#define ZC_CHECK_BUG_FIXED_AT_BLOCK		58000
 
 /**
  * Global state
@@ -1270,7 +1272,8 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx, CZerocoinEntry pubCoinTx
                         zccoinSpend.hashTx = hashTx;
                         zccoinSpend.pubCoin = 0;
                         zccoinSpend.id = pubcoinId;
-                        if (nHeight > 1 && nHeight < INT_MAX) {
+                        bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
+                        if ((fTestNet || nHeight > ZC_CHECK_BUG_FIXED_AT_BLOCK) && nHeight < INT_MAX) {
                             zccoinSpend.denomination = targetDenomination;
                         }
 //                        LogPrintf("WriteCoinSpendSerialEntry, serialNumber=%s", serialNumber.ToString());
@@ -1325,8 +1328,7 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, uint256 h
         if (tx.vin[0].scriptSig.size() < 2 || tx.vin[0].scriptSig.size() > 100)
             return state.DoS(100, false, REJECT_INVALID, "bad-cb-length");
         // Check for founders inputs
-        // Ignore block 57157 while the miner did not include founder reward in the block
-        if ((nHeight > 0) && (nHeight < 210000) && (nHeight != 57157)) {
+        if ((nHeight > ZC_CHECK_BUG_FIXED_AT_BLOCK) && (nHeight < 210000)) {
             bool found_1 = false;
             bool found_2 = false;
             bool found_3 = false;

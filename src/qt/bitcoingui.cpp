@@ -258,92 +258,74 @@ BitcoinGUI::~BitcoinGUI()
 
 void BitcoinGUI::createActions()
 {
-    QActionGroup *tabGroup = new QActionGroup(this);
+	QActionGroup *tabGroup = new QActionGroup(this);
 
-    overviewAction = new QAction(platformStyle->SingleColorIcon(":/icons/overview"), tr("&Overview"), this);
-    overviewAction->setStatusTip(tr("Show general overview of wallet"));
-    overviewAction->setToolTip(overviewAction->statusTip());
-    overviewAction->setCheckable(true);
-    overviewAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_1));
-    tabGroup->addAction(overviewAction);
+	overviewAction = new QAction(platformStyle->SingleColorIcon(":/icons/overview"), tr("&Overview"), this);
+	overviewAction->setStatusTip(tr("Show general overview of wallet"));
+	overviewAction->setToolTip(overviewAction->statusTip());
+	overviewAction->setCheckable(true);
+	overviewAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_1));
+	tabGroup->addAction(overviewAction);
 
-    sendCoinsAction = new QAction(platformStyle->SingleColorIcon(":/icons/send"), tr("&Send"), this);
-    sendCoinsAction->setStatusTip(tr("Send coins to a Zcoin address"));
-    sendCoinsAction->setToolTip(sendCoinsAction->statusTip());
-    sendCoinsAction->setCheckable(true);
-    sendCoinsAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_2));
-    tabGroup->addAction(sendCoinsAction);
+	sendCoinsAction = new QAction(platformStyle->SingleColorIcon(":/icons/send"), tr("&Send"), this);
+	sendCoinsAction->setStatusTip(tr("Send coins to a Zcoin address"));
+	sendCoinsAction->setToolTip(sendCoinsAction->statusTip());
+	sendCoinsAction->setCheckable(true);
+	sendCoinsAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_2));
+	tabGroup->addAction(sendCoinsAction);
 
-    sendCoinsMenuAction = new QAction(platformStyle->TextColorIcon(":/icons/send"), sendCoinsAction->text(), this);
-    sendCoinsMenuAction->setStatusTip(sendCoinsAction->statusTip());
-    sendCoinsMenuAction->setToolTip(sendCoinsMenuAction->statusTip());
+	sendCoinsMenuAction = new QAction(platformStyle->TextColorIcon(":/icons/send"), sendCoinsAction->text(), this);
+	sendCoinsMenuAction->setStatusTip(sendCoinsAction->statusTip());
+	sendCoinsMenuAction->setToolTip(sendCoinsMenuAction->statusTip());
 
-    receiveCoinsAction = new QAction(platformStyle->SingleColorIcon(":/icons/receiving_addresses"), tr("&Receive"), this);
-    receiveCoinsAction->setStatusTip(tr("Request payments (generates QR codes and zcoin: URIs)"));
-    receiveCoinsAction->setToolTip(receiveCoinsAction->statusTip());
-    receiveCoinsAction->setCheckable(true);
-    receiveCoinsAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_3));
-    tabGroup->addAction(receiveCoinsAction);
+	receiveCoinsAction = new QAction(platformStyle->SingleColorIcon(":/icons/receiving_addresses"), tr("&Receive"), this);
+	receiveCoinsAction->setStatusTip(tr("Request payments (generates QR codes and zcoin: URIs)"));
+	receiveCoinsAction->setToolTip(receiveCoinsAction->statusTip());
+	receiveCoinsAction->setCheckable(true);
+	receiveCoinsAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_3));
+	tabGroup->addAction(receiveCoinsAction);
 
-    receiveCoinsMenuAction = new QAction(platformStyle->TextColorIcon(":/icons/receiving_addresses"), receiveCoinsAction->text(), this);
-    receiveCoinsMenuAction->setStatusTip(receiveCoinsAction->statusTip());
-    receiveCoinsMenuAction->setToolTip(receiveCoinsMenuAction->statusTip());
+	receiveCoinsMenuAction = new QAction(platformStyle->TextColorIcon(":/icons/receiving_addresses"), receiveCoinsAction->text(), this);
+	receiveCoinsMenuAction->setStatusTip(receiveCoinsAction->statusTip());
+	receiveCoinsMenuAction->setToolTip(receiveCoinsMenuAction->statusTip());
 
-    historyAction = new QAction(platformStyle->SingleColorIcon(":/icons/history"), tr("&Transactions"), this);
+	historyAction = new QAction(platformStyle->SingleColorIcon(":/icons/history"), tr("&Transactions"), this);
+	historyAction->setStatusTip(tr("Browse transaction history"));
+	historyAction->setToolTip(historyAction->statusTip());
+	historyAction->setCheckable(true);
+	historyAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_4));
+	tabGroup->addAction(historyAction);
 
-	zerocoinAction = new QAction(QIcon(":/icons/zerocoin"), tr("&Zerocoin"), this);
-    zerocoinAction->setStatusTip(tr("Show the list of public coin that have been minted"));
-    zerocoinAction->setToolTip(zerocoinAction->statusTip());
-    zerocoinAction->setCheckable(true);
-    zerocoinAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_4));
-    tabGroup->addAction(zerocoinAction);
+	zerocoinAction = new QAction(platformStyle->SingleColorIcon(":/icons/zerocoin"), tr("&Zerocoin"), this);
+	zerocoinAction->setStatusTip(tr("Show the list of public coin that have been minted"));
+	zerocoinAction->setToolTip(zerocoinAction->statusTip());
+	zerocoinAction->setCheckable(true);
+	zerocoinAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_5));
+	tabGroup->addAction(zerocoinAction);
 
-    historyAction = new QAction(QIcon(":/icons/history"), tr("&Transactions"), this);
-    historyAction->setStatusTip(tr("Browse transaction history"));
-    historyAction->setToolTip(historyAction->statusTip());
-    historyAction->setCheckable(true);
-    historyAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_5));
-    tabGroup->addAction(historyAction);
-
-    zerocoinAction = new QAction(platformStyle->SingleColorIcon(":/icons/zerocoin"), tr("&Zerocoin"), this);
-    zerocoinAction->setStatusTip(tr("Show the list of public coin that have been minted"));
-    zerocoinAction->setToolTip(zerocoinAction->statusTip());
-    zerocoinAction->setCheckable(true);
-    zerocoinAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_5));
-    tabGroup->addAction(zerocoinAction);
-
-    zerocoinMenuAction = new QAction(platformStyle->TextColorIcon(":/icons/zerocoin"), zerocoinAction->text(), this);
-    zerocoinMenuAction->setStatusTip(zerocoinAction->statusTip());
-    zerocoinMenuAction->setToolTip(zerocoinMenuAction->statusTip());
+	zerocoinMenuAction = new QAction(platformStyle->TextColorIcon(":/icons/zerocoin"), zerocoinAction->text(), this);
+	zerocoinMenuAction->setStatusTip(zerocoinAction->statusTip());
+	zerocoinMenuAction->setToolTip(zerocoinMenuAction->statusTip());
 
 
 
 #ifdef ENABLE_WALLET
-    // These showNormalIfMinimized are needed because Send Coins and Receive Coins
-    // can be triggered from the tray menu, and need to show the GUI to be useful.
-
-    addressBookAction = new QAction(QIcon(":/icons/address-book"), tr("&Addresses"), this);
-    addressBookAction->setStatusTip(tr("Edit the list of stored addresses and labels"));
-    addressBookAction->setToolTip(addressBookAction->statusTip());
-    addressBookAction->setCheckable(true);
-    addressBookAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_6));
-    tabGroup->addAction(addressBookAction);
-
-
-    connect(overviewAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
-    connect(overviewAction, SIGNAL(triggered()), this, SLOT(gotoOverviewPage()));
-    connect(sendCoinsAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
-    connect(sendCoinsAction, SIGNAL(triggered()), this, SLOT(gotoSendCoinsPage()));
-    connect(sendCoinsMenuAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
-    connect(sendCoinsMenuAction, SIGNAL(triggered()), this, SLOT(gotoSendCoinsPage()));
-    connect(receiveCoinsAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
-    connect(receiveCoinsAction, SIGNAL(triggered()), this, SLOT(gotoReceiveCoinsPage()));
-    connect(receiveCoinsMenuAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
-    connect(receiveCoinsMenuAction, SIGNAL(triggered()), this, SLOT(gotoReceiveCoinsPage()));
-    connect(historyAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
-    connect(historyAction, SIGNAL(triggered()), this, SLOT(gotoHistoryPage()));
-    connect(zerocoinAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
-    connect(zerocoinAction, SIGNAL(triggered()), this, SLOT(gotoZerocoinPage()));
+	// These showNormalIfMinimized are needed because Send Coins and Receive Coins
+	// can be triggered from the tray menu, and need to show the GUI to be useful.
+	connect(overviewAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
+	connect(overviewAction, SIGNAL(triggered()), this, SLOT(gotoOverviewPage()));
+	connect(sendCoinsAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
+	connect(sendCoinsAction, SIGNAL(triggered()), this, SLOT(gotoSendCoinsPage()));
+	connect(sendCoinsMenuAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
+	connect(sendCoinsMenuAction, SIGNAL(triggered()), this, SLOT(gotoSendCoinsPage()));
+	connect(receiveCoinsAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
+	connect(receiveCoinsAction, SIGNAL(triggered()), this, SLOT(gotoReceiveCoinsPage()));
+	connect(receiveCoinsMenuAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
+	connect(receiveCoinsMenuAction, SIGNAL(triggered()), this, SLOT(gotoReceiveCoinsPage()));
+	connect(historyAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
+	connect(historyAction, SIGNAL(triggered()), this, SLOT(gotoHistoryPage()));
+	connect(zerocoinAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
+	connect(zerocoinAction, SIGNAL(triggered()), this, SLOT(gotoZerocoinPage()));
 #endif // ENABLE_WALLET
 
     quitAction = new QAction(platformStyle->TextColorIcon(":/icons/quit"), tr("E&xit"), this);
