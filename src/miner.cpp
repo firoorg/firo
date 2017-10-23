@@ -133,6 +133,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
     // Create new block
     LogPrintf("BlockAssembler::CreateNewBlock()\n");
     bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
+    resetBlock();
     auto_ptr<CBlockTemplate> pblocktemplate(new CBlockTemplate());
     if(!pblocktemplate.get())
         return NULL;
@@ -210,6 +211,9 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
     unsigned int MAX_SPEND_ZC_TX_PER_BLOCK = 0;
     if(fTestNet || nHeight > 22){
         MAX_SPEND_ZC_TX_PER_BLOCK = 1;
+    }
+    if(fTestNet || nHeight > 58500){
+        MAX_SPEND_ZC_TX_PER_BLOCK = 5;
     }
 
     // Collect memory pool transactions into the block
@@ -941,6 +945,9 @@ void BlockAssembler::addPriorityTxs()
     unsigned int MAX_SPEND_ZC_TX_PER_BLOCK = 0;
     if (chainActive.Height() + 1 > 22) {
         MAX_SPEND_ZC_TX_PER_BLOCK = 1;
+    }
+    if (nHeight + 1 > 58500) {
+        MAX_SPEND_ZC_TX_PER_BLOCK = 5;
     }
 
     vecPriority.reserve(mempool.mapTx.size());
