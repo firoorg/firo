@@ -1,5 +1,5 @@
 ---
-name: "bitcoin-linux-0.13"
+name: "smartcash-linux-0.13"
 enable_cache: true
 suites:
 - "trusty"
@@ -28,8 +28,8 @@ packages:
 - "ca-certificates"
 - "python"
 remotes:
-- "url": "https://github.com/bitcoin/bitcoin.git"
-  "dir": "bitcoin"
+- "url": "https://github.com/smartcash/smartcash.git"
+  "dir": "smartcash"
 files: []
 script: |
 
