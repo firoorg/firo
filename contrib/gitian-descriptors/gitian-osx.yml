@@ -1,5 +1,5 @@
 ---
-name: "bitcoin-osx-0.13"
+name: "smartcash-osx-0.13"
 enable_cache: true
 suites:
 - "trusty"
@@ -28,8 +28,8 @@ packages:
 - "python-setuptools"
 - "fonts-tuffy"
 remotes:
-- "url": "https://github.com/bitcoin/bitcoin.git"
-  "dir": "bitcoin"
+- "url": "https://github.com/smartcash/smartcash.git"
+  "dir": "smartcash"
 files:
 - "MacOSX10.11.sdk.tar.gz"
 script: |
