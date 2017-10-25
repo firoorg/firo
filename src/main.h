@@ -167,11 +167,11 @@ static const bool DEFAULT_PEERBLOOMFILTERS = true;
 #define ZC_CHECK_BUG_FIXED_AT_BLOCK	60000
 
 // The mint id number to change to zerocoin v2
-#define ZC_V2_SWITCH_ID_1 75
-#define ZC_V2_SWITCH_ID_10 20
-#define ZC_V2_SWITCH_ID_25 10
-#define ZC_V2_SWITCH_ID_50 10
-#define ZC_V2_SWITCH_ID_100 20
+#define ZC_V2_SWITCH_ID_1 120
+#define ZC_V2_SWITCH_ID_10 30
+#define ZC_V2_SWITCH_ID_25 15
+#define ZC_V2_SWITCH_ID_50 15
+#define ZC_V2_SWITCH_ID_100 30
 
 // Block Height Lyra2Z
 #define LYRA2Z_HEIGHT 20500
