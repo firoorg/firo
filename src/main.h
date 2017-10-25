@@ -163,6 +163,28 @@ static std::map<int, CBlock> mapBlockData;
 
 static const bool DEFAULT_PEERBLOOMFILTERS = true;
 
+// There were bugs before this block, don't do some checks on early blocks
+#define ZC_CHECK_BUG_FIXED_AT_BLOCK	9000
+
+// The mint id number to change to zerocoin v2
+#define ZC_V2_SWITCH_ID_1 2
+#define ZC_V2_SWITCH_ID_10 2
+#define ZC_V2_SWITCH_ID_25 2
+#define ZC_V2_SWITCH_ID_50 2
+#define ZC_V2_SWITCH_ID_100 2
+
+// Block Height Lyra2Z
+#define LYRA2Z_HEIGHT 10
+
+// Block Height Limit Spend One TX Per Block
+#define OLD_LIMIT_SPEND_TXS 5
+
+// Add more spend txs per block at block height
+#define SWITCH_TO_MORE_SPEND_TXS 120
+
+// Enabled lowest diff for test local env
+#define ENABLED_LOWEST_DIFF true
+
 struct BlockHasher
 {
     size_t operator()(const uint256& hash) const { return hash.GetCheapHash(); }

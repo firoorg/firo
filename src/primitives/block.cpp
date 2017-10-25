@@ -5,6 +5,7 @@
 
 #include "primitives/block.h"
 
+#include "main.h"
 #include "hash.h"
 #include "tinyformat.h"
 #include "utilstrencodings.h"
