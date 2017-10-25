@@ -3194,15 +3194,29 @@ bool CWallet::CreateZerocoinSpendTransaction(int64_t nValue, libzerocoin::CoinDe
             // Construct the CoinSpend object. This acts like a signature on the
             // transaction.
             libzerocoin::PrivateCoin privateCoin(ZCParams, denomination);
+            if (((denomination == libzerocoin::ZQ_LOVELACE) && (zerocoinSelected.id >= ZC_V2_SWITCH_ID_1))
+                        		|| ((denomination == libzerocoin::ZQ_GOLDWASSER) && (zerocoinSelected.id >= ZC_V2_SWITCH_ID_10))
+                        		|| ((denomination == libzerocoin::ZQ_RACKOFF) && (zerocoinSelected.id >= ZC_V2_SWITCH_ID_25))
+                        		|| ((denomination == libzerocoin::ZQ_PEDERSEN) && (zerocoinSelected.id >= ZC_V2_SWITCH_ID_50))
+                        		|| ((denomination == libzerocoin::ZQ_WILLIAMSON) && (zerocoinSelected.id >= ZC_V2_SWITCH_ID_100))) {
+                                    	privateCoin.setVersion(2);
+                                    }
             privateCoin.setPublicCoin(pubCoinSelected);
             privateCoin.setRandomness(zerocoinSelected.randomness);
             privateCoin.setSerialNumber(zerocoinSelected.serialNumber);
             libzerocoin::CoinSpend spend(ZCParams, privateCoin, accumulator, witness, metaData);
+            if (((denomination == libzerocoin::ZQ_LOVELACE) && (zerocoinSelected.id >= ZC_V2_SWITCH_ID_1))
+                                   		|| ((denomination == libzerocoin::ZQ_GOLDWASSER) && (zerocoinSelected.id >= ZC_V2_SWITCH_ID_10))
+                                   		|| ((denomination == libzerocoin::ZQ_RACKOFF) && (zerocoinSelected.id >= ZC_V2_SWITCH_ID_25))
+                                   		|| ((denomination == libzerocoin::ZQ_PEDERSEN) && (zerocoinSelected.id >= ZC_V2_SWITCH_ID_50))
+                                   		|| ((denomination == libzerocoin::ZQ_WILLIAMSON) && (zerocoinSelected.id >= ZC_V2_SWITCH_ID_100))) {
+            									spend.setVersion(2);
+            }
 
             // This is a sanity check. The CoinSpend object should always verify,
             // but why not check before we put it onto the wire?
             if (!spend.Verify(accumulator, metaData)) {
-                strFailReason = _("the new spend coin transaction did not verify");
+                strFailReason = _("the spend coin transaction did not verify");
                 return false;
             }
 
@@ -3227,6 +3241,13 @@ bool CWallet::CreateZerocoinSpendTransaction(int64_t nValue, libzerocoin::CoinDe
 
             // Deserialize the CoinSpend intro a fresh object
             libzerocoin::CoinSpend newSpend(ZCParams, serializedCoinSpend);
+            if (((denomination == libzerocoin::ZQ_LOVELACE) && (zerocoinSelected.id >= ZC_V2_SWITCH_ID_1))
+                                               		|| ((denomination == libzerocoin::ZQ_GOLDWASSER) && (zerocoinSelected.id >= ZC_V2_SWITCH_ID_10))
+                                               		|| ((denomination == libzerocoin::ZQ_RACKOFF) && (zerocoinSelected.id >= ZC_V2_SWITCH_ID_25))
+                                               		|| ((denomination == libzerocoin::ZQ_PEDERSEN) && (zerocoinSelected.id >= ZC_V2_SWITCH_ID_50))
+                                               		|| ((denomination == libzerocoin::ZQ_WILLIAMSON) && (zerocoinSelected.id >= ZC_V2_SWITCH_ID_100))) {
+            	newSpend.setVersion(2);
+            }
 
             // Create a new metadata object to contain the hash of the received
             // ZEROCOIN_SPEND transaction. If we were a real client we'd actually
@@ -3240,7 +3261,7 @@ bool CWallet::CreateZerocoinSpendTransaction(int64_t nValue, libzerocoin::CoinDe
             // Verify that the spend is valid with respect to the Accumulator
             // and the Metadata
             if (!newSpend.Verify(accumulator, newMetadata)) {
-                strFailReason = _("the new spend coin transaction did not verify");
+                strFailReason = _("the newSpend coin transaction did not verify");
                 return false;
             }
 
@@ -3261,6 +3282,14 @@ bool CWallet::CreateZerocoinSpendTransaction(int64_t nValue, libzerocoin::CoinDe
 
             // Deserialize the CoinSpend intro a fresh object
             libzerocoin::CoinSpend newSpendChecking(ZCParams, serializedCoinSpendChecking);
+            if (((denomination == libzerocoin::ZQ_LOVELACE) && (zerocoinSelected.id >= ZC_V2_SWITCH_ID_1))
+                                                           		|| ((denomination == libzerocoin::ZQ_GOLDWASSER) && (zerocoinSelected.id >= ZC_V2_SWITCH_ID_10))
+                                                           		|| ((denomination == libzerocoin::ZQ_RACKOFF) && (zerocoinSelected.id >= ZC_V2_SWITCH_ID_25))
+                                                           		|| ((denomination == libzerocoin::ZQ_PEDERSEN) && (zerocoinSelected.id >= ZC_V2_SWITCH_ID_50))
+                                                           		|| ((denomination == libzerocoin::ZQ_WILLIAMSON) && (zerocoinSelected.id >= ZC_V2_SWITCH_ID_100))) {
+            	newSpendChecking.setVersion(2);
+            }
+
             if (!newSpendChecking.Verify(accumulator, newMetadata)) {
                 strFailReason = _("the transaction did not verify");
                 return false;
