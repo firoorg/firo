@@ -138,6 +138,8 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
 
     // Actions
     abandonAction = new QAction(tr("Abandon transaction"), this);
+    resendAction = new QAction(tr("Re-broadcast transaction"), this);
+
     QAction *copyAddressAction = new QAction(tr("Copy address"), this);
     QAction *copyLabelAction = new QAction(tr("Copy label"), this);
     QAction *copyAmountAction = new QAction(tr("Copy amount"), this);
@@ -158,6 +160,7 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     contextMenu->addSeparator();
     contextMenu->addAction(abandonAction);
     contextMenu->addAction(editLabelAction);
+    contextMenu->addAction(resendAction);
 
     mapperThirdPartyTxUrls = new QSignalMapper(this);
 
@@ -182,6 +185,7 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     connect(copyTxPlainText, SIGNAL(triggered()), this, SLOT(copyTxPlainText()));
     connect(editLabelAction, SIGNAL(triggered()), this, SLOT(editLabel()));
     connect(showDetailsAction, SIGNAL(triggered()), this, SLOT(showDetails()));
+    connect(resendAction, SIGNAL(triggered()), this, SLOT(rebroadcastTx()));
 }
 
 void TransactionView::setModel(WalletModel *model)
@@ -372,6 +376,7 @@ void TransactionView::contextualMenu(const QPoint &point)
     uint256 hash;
     hash.SetHex(selection.at(0).data(TransactionTableModel::TxHashRole).toString().toStdString());
     abandonAction->setEnabled(model->transactionCanBeAbandoned(hash));
+    resendAction->setEnabled(model->transactionCanBeRebroadcast(hash));
 
     if(index.isValid())
     {
@@ -395,6 +400,27 @@ void TransactionView::abandonTx()
 
     // Update the table
     model->getTransactionTableModel()->updateTransaction(hashQStr, CT_UPDATED, false);
+}
+
+void TransactionView::rebroadcastTx()
+{
+    if(!transactionView || !transactionView->selectionModel())
+        return;
+    QModelIndexList selection = transactionView->selectionModel()->selectedRows(0);
+
+    // get the hash from the TxHashRole (QVariant / QString)
+    uint256 hash;
+    QString hashQStr = selection.at(0).data(TransactionTableModel::TxHashRole).toString();
+    hash.SetHex(hashQStr.toStdString());
+
+    if (model->rebroadcastTransaction(hash))
+        Q_EMIT message(tr("Re-broadcast"), tr("Broadcast succeeded"), CClientUIInterface::MSG_INFORMATION);
+    else
+        Q_EMIT message(tr("Re-broadcast"), tr("There was an error trying to broadcast the message"),
+            CClientUIInterface::MSG_ERROR);
+
+    // Update the table
+    model->getTransactionTableModel()->updateTransaction(hashQStr, CT_UPDATED, true);
 }
 
 void TransactionView::copyAddress()

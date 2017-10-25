@@ -627,7 +627,7 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
     int i = 0;
     unsigned int COUNT_SPEND_ZC_TX = 0;
     unsigned int MAX_SPEND_ZC_TX_PER_BLOCK = 0;
-    if(chainActive.Height() + 1 > 22000){
+    if(chainActive.Height() + 1 > HF_ZEROSPEND_FIX){
         MAX_SPEND_ZC_TX_PER_BLOCK = 1;
     }
     BOOST_FOREACH (CTransaction& tx, pblock->vtx) {

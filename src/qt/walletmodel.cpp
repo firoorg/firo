@@ -18,6 +18,8 @@
 #include "ui_interface.h"
 #include "wallet/wallet.h"
 #include "wallet/walletdb.h" // for BackupWallet
+#include "txmempool.h"
+#include "consensus/validation.h"
 
 #include <stdint.h>
 
@@ -702,4 +704,41 @@ bool WalletModel::abandonTransaction(uint256 hash) const
 {
     LOCK2(cs_main, wallet->cs_wallet);
     return wallet->AbandonTransaction(hash);
+}
+
+bool WalletModel::transactionCanBeRebroadcast(uint256 hash) const
+{
+    LOCK2(cs_main, wallet->cs_wallet);
+    const CWalletTx *wtx = wallet->GetWalletTx(hash);
+    if (!wtx || wtx->isAbandoned() || wtx->GetDepthInMainChain() > 0)
+        return false;
+    return wtx->GetRequestCount() <= 0;
+}
+
+bool WalletModel::rebroadcastTransaction(uint256 hash)
+{
+    LOCK2(cs_main, wallet->cs_wallet);
+    CWalletTx *wtx = const_cast<CWalletTx*>(wallet->GetWalletTx(hash));
+
+    if (!wtx || wtx->isAbandoned() || wtx->GetDepthInMainChain() > 0)
+        return false;
+    if (wtx->GetRequestCount() > 0)
+        return false;
+
+    CCoinsViewCache &view = *pcoinsTip;
+    const CCoins* existingCoins = view.AccessCoins(hash);
+    bool fHaveMempool = mempool.exists(hash);
+    bool fHaveChain = existingCoins && existingCoins->nHeight < 1000000000;
+    if (!fHaveMempool && !fHaveChain) {
+        // push to local node and sync with wallets
+        CValidationState state;
+        bool fMissingInputs;
+        if (!AcceptToMemoryPool(mempool, state, (CTransaction)*wtx, true, false, &fMissingInputs, true, false, maxTxFee))
+            return false;
+    } else if (fHaveChain) {
+        return false;
+    }
+
+    RelayTransaction((CTransaction)*wtx);
+    return true;
 }

@@ -4667,3 +4667,4 @@ bool CMerkleTx::AcceptToMemoryPool(bool fLimitFree, CAmount nAbsurdFee, CValidat
 }
 
 bool CompHeight(const CZerocoinEntry & a, const CZerocoinEntry & b) { return a.nHeight < b.nHeight; }
+bool CompID(const CZerocoinEntry & a, const CZerocoinEntry & b) { return a.id < b.id; }

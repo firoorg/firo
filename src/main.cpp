@@ -824,7 +824,6 @@ bool IsFinalTx(const CTransaction &tx, int nBlockHeight, int64_t nBlockTime) {
     if (tx.nLockTime == 0)
         return true;
     if ((int64_t) tx.nLockTime < ((int64_t) tx.nLockTime < LOCKTIME_THRESHOLD ? (int64_t) nBlockHeight : nBlockTime)) {
-        LogPrintf("IsFinalTx tx=%s --> OK\n", tx.GetHash().ToString());
         return true;
     }
     BOOST_FOREACH(const CTxIn &txin, tx.vin) {
@@ -1260,7 +1259,7 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx, CZerocoinEntry pubCoinTx
                         zccoinSpend.hashTx = hashTx;
                         zccoinSpend.pubCoin = 0;
                         zccoinSpend.id = pubcoinId;
-                        if (nHeight > 22000 && nHeight < INT_MAX) {
+                        if (nHeight > HF_ZEROSPEND_FIX && nHeight < INT_MAX) {
                             zccoinSpend.denomination = targetDenomination;
                         }
 //                        LogPrintf("WriteCoinSpendSerialEntry, serialNumber=%s", serialNumber.ToString());
@@ -2958,10 +2957,6 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
              (unsigned) block.vtx.size(), 0.001 * (nTime3 - nTime2), 0.001 * (nTime3 - nTime2) / block.vtx.size(),
              nInputs <= 1 ? 0 : 0.001 * (nTime3 - nTime2) / (nInputs - 1), nTimeConnect * 0.000001);
     //btzc: Add time to check
-    LogPrintf("block=%s\n", block.ToString());
-    LogPrintf("nFees=%s\n", nFees);
-    LogPrintf("GetBlockSubsidy(pindex->nHeight, chainparams.GetConsensus(), pindex->nTime)=%s\n", GetBlockSubsidy(pindex->nHeight, chainparams.GetConsensus(), pindex->nTime));
-    LogPrintf("block.vtx[0].GetValueOut()=%s\n", block.vtx[0].GetValueOut());
     CAmount blockReward = nFees + GetBlockSubsidy(pindex->nHeight, chainparams.GetConsensus(), pindex->nTime);
     if (block.vtx[0].GetValueOut() > blockReward)
         return state.DoS(100, error("ConnectBlock(): coinbase pays too much (actual=%d vs limit=%d)",

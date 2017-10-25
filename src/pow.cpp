@@ -14,6 +14,7 @@
 #include "chainparams.h"
 #include "libzerocoin/bitcoin_bignum/bignum.h"
 #include "fixed.h"
+#include "consensus/consensus.h"
 
 static CBigNum bnProofOfWorkLimit(~arith_uint256(0) >> 8);
 
@@ -56,16 +57,23 @@ unsigned int GetNextWorkRequired(const CBlockIndex *pindexLast, const CBlockHead
 
     // 9/29/2016 - Reset to Lyra2(2,block_height,256) due to ASIC KnC Miner Scrypt
     // 36 block look back, reset to mininmum diff
-    if (!fTestNet && pindexLast->nHeight + 1 >= 500 && pindexLast->nHeight + 1 <= 535) {
+    if (!fTestNet && pindexLast->nHeight + 1 >= HF_LYRA2VAR_HEIGHT && pindexLast->nHeight + 1 <= (HF_LYRA2VAR_HEIGHT + 35)) {
         return bnProofOfWorkLimit.GetCompact();
     }
     // reset to minimum diff at testnet after scrypt_n, 6 block look back
-    if (fTestNet && pindexLast->nHeight + 1 >= 80 && pindexLast->nHeight + 1 <= 85) {
+    if (fTestNet && pindexLast->nHeight + 1 >= HF_LYRA2VAR_HEIGHT_TESTNET && pindexLast->nHeight + 1 <= (HF_LYRA2VAR_HEIGHT_TESTNET + 5)) {
         return bnProofOfWorkLimit.GetCompact();
     }
 
+    // reset to minimum diff at testnet for lyra2 with matrix height = 8192 until lyra2z
+    if(fTestNet && pindexLast->nHeight + 1 >= HF_LYRA2_HEIGHT_TESTNET && pindexLast->nHeight + 1 <= (HF_LYRA2Z_HEIGHT_TESTNET - 1)){
+        printf("Lyra2 with 8192 matrix height.\n");
+        return bnProofOfWorkLimit.GetCompact();
+    }
+
+
     // 02/11/2017 - Increase diff to match with new hashrates of Lyra2Z algo
-    if ((!fTestNet && pindexLast->nHeight + 1 == 20500) || (fTestNet && pindexLast->nHeight + 1 == 90)) {
+    if ((!fTestNet && pindexLast->nHeight + 1 == HF_LYRA2Z_HEIGHT) || (fTestNet && pindexLast->nHeight + 1 == HF_LYRA2Z_HEIGHT_TESTNET)) {
         CBigNum bnNew;
         bnNew.SetCompact(pindexLast->nBits);
         bnNew /= 20000; // increase the diff by 20000x since the new hashrate is approx. 20000 times higher
@@ -75,6 +83,12 @@ unsigned int GetNextWorkRequired(const CBlockIndex *pindexLast, const CBlockHead
         return bnNew.GetCompact();
     }
 
+    // 04/09/2017 - Reset diff on testnet for MTP, 6 blocks look back
+    /*
+    if(fTestNet && pindexLast->nHeight + 1 >= HF_MTP_HEIGHT_TESTNET && pindexLast->nHeight + 1 <= HF_MTP_HEIGHT_TESTNET + 5) {
+        return bnProofOfWorkLimit.GetCompact();
+    }*/
+    
     if ((pindexLast->nHeight + 1) % params.DifficultyAdjustmentInterval() != 0) // Retarget every nInterval blocks
     {
         return pindexLast->nBits;
@@ -83,6 +97,7 @@ unsigned int GetNextWorkRequired(const CBlockIndex *pindexLast, const CBlockHead
     return BorisRidiculouslyNamedDifficultyFunction(pindexLast, BlocksTargetSpacing, PastBlocksMin, PastBlocksMax);
 }
 
+/*
 unsigned int GetNextWorkRequired_Bitcoin(const CBlockIndex *pindexLast, const CBlockHeader *pblock,
                                          const Consensus::Params &params) {
     unsigned int nProofOfWorkLimit = UintToArith256(params.powLimit).GetCompact();
@@ -118,7 +133,7 @@ unsigned int GetNextWorkRequired_Bitcoin(const CBlockIndex *pindexLast, const CB
 
     return CalculateNextWorkRequired(pindexLast, pindexFirst->GetBlockTime(), params);
 }
-
+*/
 unsigned int CalculateNextWorkRequired(const CBlockIndex *pindexLast, int64_t nFirstBlockTime, const Consensus::Params &params) {
     if (params.fPowNoRetargeting)
         return pindexLast->nBits;

@@ -2847,6 +2847,45 @@ UniValue listmintzerocoins(const UniValue& params, bool fHelp) {
     return results;
 }
 
+
+UniValue listpubcoins(const UniValue& params, bool fHelp) {
+    if (fHelp || params.size() > 1)
+        throw runtime_error(
+                "listpubcoin <all>(1/10/25/50/100)\n"
+                        "\nArguments:\n"
+                        "1. <all> (int, optional) 1,10,25,50,100 (default) to return all pubcoin with denomination. empty to return all pubcoin.\n"
+                        "\nResults are an array of Objects, each of which has:\n"
+                        "{id, IsUsed, denomination, value, serialNumber, nHeight, randomness}");
+
+    int denomination = -1;
+    if (params.size() > 0) {
+        denomination = params[0].get_int();
+    }
+
+    list <CZerocoinEntry> listPubcoin;
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+    walletdb.ListPubCoin(listPubcoin);
+    UniValue results(UniValue::VARR);
+    listPubcoin.sort(CompID);
+
+    BOOST_FOREACH(const CZerocoinEntry &zerocoinItem, listPubcoin) {
+        if (zerocoinItem.id > 0 && (denomination < 0 || zerocoinItem.denomination == denomination)) {
+            UniValue entry(UniValue::VOBJ);
+            entry.push_back(Pair("id", zerocoinItem.id));
+            entry.push_back(Pair("IsUsed", zerocoinItem.IsUsed));
+            entry.push_back(Pair("denomination", zerocoinItem.denomination));
+            entry.push_back(Pair("value", zerocoinItem.value.GetHex()));
+            entry.push_back(Pair("serialNumber", zerocoinItem.serialNumber.GetHex()));
+            entry.push_back(Pair("nHeight", zerocoinItem.nHeight));
+            entry.push_back(Pair("randomness", zerocoinItem.randomness.GetHex()));
+            results.push_back(entry);
+        }
+    }
+
+    return results;
+}
+
+
 UniValue setmintzerocoinstatus(const UniValue& params, bool fHelp) {
     if (fHelp || params.size() != 2)
         throw runtime_error(
@@ -3009,6 +3048,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "resetmintzerocoin",        &resetmintzerocoin,        false },
     { "wallet",             "setmintzerocoinstatus",        &setmintzerocoinstatus,        false },
     { "wallet",             "listmintzerocoins",        &listmintzerocoins,        false },
+    { "wallet",             "listpubcoins",        &listpubcoins,        false },
     { "wallet",             "removetxmempool",          &removetxmempool,          false },
     { "wallet",             "removetxwallet",           &removetxwallet,           false },
 };

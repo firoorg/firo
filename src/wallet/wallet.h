@@ -1075,4 +1075,5 @@ public:
 };
 
 bool CompHeight(const CZerocoinEntry & a, const CZerocoinEntry & b);
+bool CompID(const CZerocoinEntry & a, const CZerocoinEntry & b);
 #endif // BITCOIN_WALLET_WALLET_H
