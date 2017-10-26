@@ -96,6 +96,7 @@ BITCOIN_CORE_H = \
   consensus/consensus.h \
   core_io.h \
   core_memusage.h \
+  fixed.h \
   httprpc.h \
   httpserver.h \
   indirectmap.h \
