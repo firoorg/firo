@@ -8,7 +8,6 @@
 #include "addrman.h"
 #include "arith_uint256.h"
 #include "base58.h"
-#include "bignum.h"
 #include "blockencodings.h"
 #include "chainparams.h"
 #include "checkpoints.h"
