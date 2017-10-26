@@ -136,7 +136,7 @@ private:
     PublicCoin publicCoin;
     Bignum randomness;
     Bignum serialNumber;
-    unsigned int version;
+    unsigned int version = 0;
     unsigned char ecdsaSeckey[32];
 
     /**
