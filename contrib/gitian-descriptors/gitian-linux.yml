@@ -1,5 +1,5 @@
 ---
-name: "smartcash-linux-0.13"
+name: "smartcash-linux-1.0"
 enable_cache: true
 suites:
 - "trusty"

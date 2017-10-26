@@ -1,5 +1,5 @@
 ---
-name: "smartcash-win-0.13"
+name: "smartcash-win-1.0"
 enable_cache: true
 suites:
 - "trusty"

@@ -1,5 +1,5 @@
 ---
-name: "smartcash-osx-0.13"
+name: "smartcash-osx-1.0"
 enable_cache: true
 suites:
 - "trusty"
