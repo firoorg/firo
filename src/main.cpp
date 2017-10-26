@@ -61,7 +61,6 @@ using namespace std;
 
 #define ZEROCOIN_MODULUS   "25195908475657893494027183240048398571429282126204032027777137836043662020707595556264018525880784406918290641249515082189298559149176184502808489120072844992687392807287776735971418347270261896375014971824691165077613379859095700097330459748808428401797429100642458691817195118746121515172654632282216869987549182422433637259085141865462043576798423387184774447920739934236584823824281198163815010674810451660377306056201619676256133844143603833904414952634432190114657544454178424020924616515723350778707749817125772467962926386356373289912154831438167899885040445364023527381951378636564391212010397122822120720357"
 
-
 /**
  * Global state
  */
@@ -1101,25 +1100,43 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx, CZerocoinEntry pubCoinTx
     BOOST_FOREACH(const CTxIn &txin, tx.vin)
     {
         if (txin.scriptSig.IsZerocoinSpend()) {
+
+        	uint32_t pubcoinId = txin.nSequence;
+        	if (pubcoinId < 1 || pubcoinId >= INT_MAX) { // IT BEGINS WITH 1
+        		return state.DoS(100, false, NSEQUENCE_INCORRECT,
+        	                                 "CTransaction::CheckTransaction() : Error: nSequence is not correct format");
+        	}
+
             // Deserialize the CoinSpend intro a fresh object
             std::vector<char, zero_after_free_allocator<char> > dataTxIn;
             dataTxIn.insert(dataTxIn.end(), txin.scriptSig.begin() + 4, txin.scriptSig.end());
             CDataStream serializedCoinSpend(SER_NETWORK, PROTOCOL_VERSION);
             serializedCoinSpend.vch = dataTxIn;
             libzerocoin::CoinSpend newSpend(ZCParams, serializedCoinSpend);
+            if ((pubcoinId > 0) && (((targetDenomination == libzerocoin::ZQ_LOVELACE) && (pubcoinId >= ZC_V2_SWITCH_ID_1))
+            		|| ((targetDenomination == libzerocoin::ZQ_GOLDWASSER) && (pubcoinId >= ZC_V2_SWITCH_ID_10))
+            		|| ((targetDenomination == libzerocoin::ZQ_RACKOFF) && (pubcoinId >= ZC_V2_SWITCH_ID_25))
+            		|| ((targetDenomination == libzerocoin::ZQ_PEDERSEN) && (pubcoinId >= ZC_V2_SWITCH_ID_50))
+            		|| ((targetDenomination == libzerocoin::ZQ_WILLIAMSON) && (pubcoinId >= ZC_V2_SWITCH_ID_100)))) {
+            	newSpend.setVersion(2);
+            }
             // Create a new metadata object to contain the hash of the received
             // ZEROCOIN_SPEND transaction. If we were a real client we'd actually
             // compute the hash of the received transaction here.
-            libzerocoin::SpendMetaData newMetadata(0, 0);
+            uint256 txHash = ArithToUint256(arith_uint256(0));
+            libzerocoin::SpendMetaData newMetadata(0, txHash);
+            if ((pubcoinId > 0) && (((targetDenomination == libzerocoin::ZQ_LOVELACE) && (pubcoinId >= ZC_V2_SWITCH_ID_1))
+            		|| ((targetDenomination == libzerocoin::ZQ_GOLDWASSER) && (pubcoinId >= ZC_V2_SWITCH_ID_10))
+            		|| ((targetDenomination == libzerocoin::ZQ_RACKOFF) && (pubcoinId >= ZC_V2_SWITCH_ID_25))
+            		|| ((targetDenomination == libzerocoin::ZQ_PEDERSEN) && (pubcoinId >= ZC_V2_SWITCH_ID_50))
+            		|| ((targetDenomination == libzerocoin::ZQ_WILLIAMSON) && (pubcoinId >= ZC_V2_SWITCH_ID_100)))) {
+            	newMetadata.accumulatorId = txin.nSequence;
+            	newMetadata.txHash = tx.GetNormalizedHash();
+            }
             libzerocoin::Accumulator accumulator(ZCParams, targetDenomination);
             libzerocoin::Accumulator accumulatorRev(ZCParams, targetDenomination);
             libzerocoin::Accumulator accumulatorPrecomputed(ZCParams, targetDenomination);
             bool passVerify = false;
-            uint32_t pubcoinId = txin.nSequence;
-            if (pubcoinId < 1 || pubcoinId >= INT_MAX) { // IT BEGINS WITH 1
-                return state.DoS(100, false, NSEQUENCE_INCORRECT,
-                                 "CTransaction::CheckTransaction() : Error: nSequence is not correct format");
-            }
 
             // VERIFY COINSPEND TX
             // used pre-computed accumulator
@@ -1216,7 +1233,7 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx, CZerocoinEntry pubCoinTx
                             && item.denomination == targetDenomination
                             && (item.id >= 0 && (uint32_t) item.id == pubcoinId)
                             && item.hashTx != hashTx) {
-                            return state.DoS(100, error("CTransaction::CheckTransaction() : The CoinSpend serial has been used"));
+                            return state.DoS(0, error("CTransaction::CheckTransaction() : The CoinSpend serial has been used"));
                         } else if (item.coinSerial == serialNumber
                                    && item.hashTx == hashTx
                                    && item.denomination == targetDenomination
@@ -1260,7 +1277,8 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx, CZerocoinEntry pubCoinTx
                         zccoinSpend.hashTx = hashTx;
                         zccoinSpend.pubCoin = 0;
                         zccoinSpend.id = pubcoinId;
-                        if (nHeight > 22000 && nHeight < INT_MAX) {
+                        bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
+                        if ((fTestNet || nHeight > ZC_CHECK_BUG_FIXED_AT_BLOCK) && nHeight < INT_MAX) {
                             zccoinSpend.denomination = targetDenomination;
                         }
 //                        LogPrintf("WriteCoinSpendSerialEntry, serialNumber=%s", serialNumber.ToString());
@@ -1314,9 +1332,8 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, uint256 h
     if (tx.IsCoinBase()) {
         if (tx.vin[0].scriptSig.size() < 2 || tx.vin[0].scriptSig.size() > 100)
             return state.DoS(100, false, REJECT_INVALID, "bad-cb-length");
-        //BTZC: add ZCOIN code
         // Check for founders inputs
-        if ((nHeight > 0) && (nHeight < 210000)) {
+        if ((nHeight > ZC_CHECK_BUG_FIXED_AT_BLOCK) && (nHeight < 210000)) {
             bool found_1 = false;
             bool found_2 = false;
             bool found_3 = false;
@@ -4470,7 +4487,7 @@ static bool AcceptBlock(const CBlock &block, CValidationState &state, const CCha
         if (fTooFarAhead) return true;      // Block height is too high
     }
     if (fNewBlock) *fNewBlock = true;
-    if ((!CheckBlock(block, state, chainparams.GetConsensus(), GetAdjustedTime(), true, INT_MAX, false)) ||
+    if ((!CheckBlock(block, state, chainparams.GetConsensus(), GetAdjustedTime(), true, pindex->nHeight, false)) ||
         !ContextualCheckBlock(block, state, pindex->pprev)) {
         if (state.IsInvalid() && !state.CorruptionPossible()) {
             pindex->nStatus |= BLOCK_FAILED_VALID;

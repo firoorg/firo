@@ -12,6 +12,8 @@
 
 #ifndef COIN_H_
 #define COIN_H_
+#include <secp256k1.h>
+#include <secp256k1_recovery.h>
 #include "bitcoin_bignum/bignum.h"
 #include "Params.h"
 namespace libzerocoin {
@@ -98,6 +100,9 @@ public:
     const PublicCoin& getPublicCoin() const;
     const Bignum& getSerialNumber() const;
     const Bignum& getRandomness() const;
+    const unsigned char* getEcdsaSeckey() const;
+    const unsigned int getVersion() const;
+    static const Bignum serialNumberFromSerializedPublicKey(const std::vector<unsigned char> &pub);
 
     void setPublicCoin(PublicCoin p){
         publicCoin = p;
@@ -110,13 +115,20 @@ public:
     void setSerialNumber(Bignum n){
         serialNumber = n;
     }
-    ADD_SERIALIZE_METHODS;
+
+    void setVersion(unsigned int nVersion){
+        version = nVersion;
+    };
 
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
         READWRITE(publicCoin);
         READWRITE(randomness);
         READWRITE(serialNumber);
+        if(version == 2){
+            READWRITE(version);
+            READWRITE(ecdsaSeckey);
+        }
     }
 
 private:
@@ -124,6 +136,8 @@ private:
     PublicCoin publicCoin;
     Bignum randomness;
     Bignum serialNumber;
+    unsigned int version = 0;
+    unsigned char ecdsaSeckey[32];
 
     /**
      * @brief Mint a new coin.

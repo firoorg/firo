@@ -147,6 +147,8 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
     txNew.vout[0].nValue = 0;
     CBlockIndex* pindexPrev = chainActive.Tip();
     const int nHeight = pindexPrev->nHeight + 1;
+
+
     // To founders and investors
     if ((nHeight > 0) && (nHeight < 210000)) {
         // Take some reward away from us
@@ -187,6 +189,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
     }
 
 
+
     // Add dummy coinbase tx as first transaction
     pblock->vtx.push_back(CTransaction());
     pblocktemplate->vTxFees.push_back(-1); // updated at end
@@ -209,10 +212,10 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
 
     unsigned int COUNT_SPEND_ZC_TX = 0;
     unsigned int MAX_SPEND_ZC_TX_PER_BLOCK = 0;
-    if(fTestNet || nHeight > 22000){
+    if(fTestNet || nHeight > OLD_LIMIT_SPEND_TXS){
         MAX_SPEND_ZC_TX_PER_BLOCK = 1;
     }
-    if(fTestNet || nHeight > 58500){
+    if(fTestNet || nHeight > SWITCH_TO_MORE_SPEND_TXS){
         MAX_SPEND_ZC_TX_PER_BLOCK = 5;
     }
 
@@ -943,10 +946,10 @@ void BlockAssembler::addPriorityTxs()
 
     unsigned int COUNT_SPEND_ZC_TX = 0;
     unsigned int MAX_SPEND_ZC_TX_PER_BLOCK = 0;
-    if (nHeight + 1 > 22000) {
+    if (chainActive.Height() + 1 > OLD_LIMIT_SPEND_TXS) {
         MAX_SPEND_ZC_TX_PER_BLOCK = 1;
     }
-    if (nHeight + 1 > 58500) {
+    if (nHeight + 1 > SWITCH_TO_MORE_SPEND_TXS) {
         MAX_SPEND_ZC_TX_PER_BLOCK = 5;
     }
 
@@ -1183,7 +1186,7 @@ void static ZcoinMiner(const CChainParams &chainparams) {
                 uint256 thash;
 
                 while (true) {
-                    if ((!fTestNet && pindexPrev->nHeight + 1 >= 20500)) {
+                    if ((!fTestNet && pindexPrev->nHeight + 1 >= LYRA2Z_HEIGHT)) {
                         lyra2z_hash(BEGIN(pblock->nVersion), BEGIN(thash));
                     } else if (!fTestNet && pindexPrev->nHeight + 1 >= 8192) {
                         LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, 8192, 256);

@@ -4,7 +4,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "pow.h"
-
+#include "main.h"
 #include "arith_uint256.h"
 #include "chain.h"
 #include "primitives/block.h"
@@ -35,7 +35,12 @@ double GetDifficultyHelper(unsigned int nBits) {
 
 //btzc, zcoin GetNextWorkRequired
 unsigned int GetNextWorkRequired(const CBlockIndex *pindexLast, const CBlockHeader *pblock, const Consensus::Params &params) {
-    if (pindexLast == NULL) {
+
+	if(ENABLED_LOWEST_DIFF){
+		return bnProofOfWorkLimit.GetCompact();
+	}
+
+	if (pindexLast == NULL) {
         return bnProofOfWorkLimit.GetCompact();
     }
 

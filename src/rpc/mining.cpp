@@ -627,11 +627,11 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
     int i = 0;
     unsigned int COUNT_SPEND_ZC_TX = 0;
     unsigned int MAX_SPEND_ZC_TX_PER_BLOCK = 0;
-    if(chainActive.Height() + 1 > 22000){
+    if(chainActive.Height() + 1 > OLD_LIMIT_SPEND_TXS){
         MAX_SPEND_ZC_TX_PER_BLOCK = 1;
     }
 
-    if(chainActive.Height() + 1 > 58500){
+    if(chainActive.Height() + 1 > SWITCH_TO_MORE_SPEND_TXS){
         MAX_SPEND_ZC_TX_PER_BLOCK = 5;
     }
     BOOST_FOREACH (CTransaction& tx, pblock->vtx) {
