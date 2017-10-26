@@ -9,7 +9,7 @@
 #include "chain.h"
 #include "primitives/block.h"
 #include "uint256.h"
-#include "bignum.h"
+#include "libzerocoin/bitcoin_bignum/bignum.h"
 #include "fixed.h"
 
 static CBigNum bnProofOfWorkLimit(ArithToUint256(~arith_uint256(0) >> 20));
