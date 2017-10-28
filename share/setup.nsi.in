@@ -50,9 +50,9 @@ Var StartMenuGroup
 # Installer attributes
 OutFile @abs_top_srcdir@/@PACKAGE_TARNAME@-${VERSION}-win@WINDOWS_BITS@-setup.exe
 !if "@WINDOWS_BITS@" == "64"
-InstallDir $PROGRAMFILES64\Smartcash
+InstallDir $PROGRAMFILES64\SmartCash
 !else
-InstallDir $PROGRAMFILES\Smartcash
+InstallDir $PROGRAMFILES\SmartCash
 !endif
 CRCCheck on
 XPStyle on
