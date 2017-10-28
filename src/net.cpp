@@ -1409,7 +1409,7 @@ void ThreadMapPort()
             }
         }
 
-        std::string strDesc = "Bitcoin " + FormatFullVersion();
+        std::string strDesc = "Smartcash " + FormatFullVersion();
 
         try {
             while (true) {
