@@ -1,4 +1,4 @@
-Bitcoin Core 0.13.2
+Smartcash Core 1.0.0
 =====================
 
 Setup
