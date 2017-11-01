@@ -457,8 +457,8 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
         LogPrintf("CreateNewBlock(): total size %u txs: %u fees: %ld sigops %d\n", nBlockSize, nBlockTx, nFees, nBlockSigOps);
 
         // Compute final coinbase transaction.
-        coinbaseTx.vout[0].nValue += nFees + GetBlockSubsidy(nHeight, chainparams.GetConsensus());
-        coinbaseTx.vin[0].scriptSig = CScript() << nHeight << OP_0;
+        //coinbaseTx.vout[0].nValue += nFees + GetBlockSubsidy(nHeight, chainparams.GetConsensus());
+        //coinbaseTx.vin[0].scriptSig = CScript() << nHeight << OP_0;
         pblock->vtx[0] = coinbaseTx;
         pblocktemplate->vTxFees[0] = -nFees;
 
