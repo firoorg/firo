@@ -610,46 +610,46 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
 
     UniValue aRules(UniValue::VARR);
     UniValue vbavailable(UniValue::VOBJ);
-    for (int i = 0; i < (int)Consensus::MAX_VERSION_BITS_DEPLOYMENTS; ++i) {
-        Consensus::DeploymentPos pos = Consensus::DeploymentPos(i);
-        ThresholdState state = VersionBitsState(pindexPrev, consensusParams, pos, versionbitscache);
-        switch (state) {
-            case THRESHOLD_DEFINED:
-            case THRESHOLD_FAILED:
-                // Not exposed to GBT at all
-                break;
-            case THRESHOLD_LOCKED_IN:
-                // Ensure bit is set in block version
-                pblock->nVersion |= VersionBitsMask(consensusParams, pos);
-                // FALL THROUGH to get vbavailable set...
-            case THRESHOLD_STARTED:
-            {
-                const struct BIP9DeploymentInfo& vbinfo = VersionBitsDeploymentInfo[pos];
-                vbavailable.push_back(Pair(gbt_vb_name(pos), consensusParams.vDeployments[pos].bit));
-                if (setClientRules.find(vbinfo.name) == setClientRules.end()) {
-                    if (!vbinfo.gbt_force) {
-                        // If the client doesn't support this, don't indicate it in the [default] version
-                        pblock->nVersion &= ~VersionBitsMask(consensusParams, pos);
-                    }
-                }
-                break;
-            }
-            case THRESHOLD_ACTIVE:
-            {
-                // Add to rules only
-                const struct BIP9DeploymentInfo& vbinfo = VersionBitsDeploymentInfo[pos];
-                aRules.push_back(gbt_vb_name(pos));
-                if (setClientRules.find(vbinfo.name) == setClientRules.end()) {
-                    // Not supported by the client; make sure it's safe to proceed
-                    if (!vbinfo.gbt_force) {
-                        // If we do anything other than throw an exception here, be sure version/force isn't sent to old clients
-                        throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("Support for '%s' rule requires explicit client support", vbinfo.name));
-                    }
-                }
-                break;
-            }
-        }
-    }
+    // for (int i = 0; i < (int)Consensus::MAX_VERSION_BITS_DEPLOYMENTS; ++i) {
+    //     Consensus::DeploymentPos pos = Consensus::DeploymentPos(i);
+    //     ThresholdState state = VersionBitsState(pindexPrev, consensusParams, pos, versionbitscache);
+    //     switch (state) {
+    //         case THRESHOLD_DEFINED:
+    //         case THRESHOLD_FAILED:
+    //             // Not exposed to GBT at all
+    //             break;
+    //         case THRESHOLD_LOCKED_IN:
+    //             // Ensure bit is set in block version
+    //             pblock->nVersion |= VersionBitsMask(consensusParams, pos);
+    //             // FALL THROUGH to get vbavailable set...
+    //         case THRESHOLD_STARTED:
+    //         {
+    //             const struct BIP9DeploymentInfo& vbinfo = VersionBitsDeploymentInfo[pos];
+    //             vbavailable.push_back(Pair(gbt_vb_name(pos), consensusParams.vDeployments[pos].bit));
+    //             if (setClientRules.find(vbinfo.name) == setClientRules.end()) {
+    //                 if (!vbinfo.gbt_force) {
+    //                     // If the client doesn't support this, don't indicate it in the [default] version
+    //                     pblock->nVersion &= ~VersionBitsMask(consensusParams, pos);
+    //                 }
+    //             }
+    //             break;
+    //         }
+    //         case THRESHOLD_ACTIVE:
+    //         {
+    //             // Add to rules only
+    //             const struct BIP9DeploymentInfo& vbinfo = VersionBitsDeploymentInfo[pos];
+    //             aRules.push_back(gbt_vb_name(pos));
+    //             if (setClientRules.find(vbinfo.name) == setClientRules.end()) {
+    //                 // Not supported by the client; make sure it's safe to proceed
+    //                 if (!vbinfo.gbt_force) {
+    //                     // If we do anything other than throw an exception here, be sure version/force isn't sent to old clients
+    //                     throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("Support for '%s' rule requires explicit client support", vbinfo.name));
+    //                 }
+    //             }
+    //             break;
+    //         }
+    //     }
+    // }
     result.push_back(Pair("version", pblock->nVersion));
     result.push_back(Pair("rules", aRules));
     result.push_back(Pair("vbavailable", vbavailable));

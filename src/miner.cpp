@@ -250,7 +250,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
         pblock->nTime = GetAdjustedTime();
         const int64_t nMedianTimePast = pindexBestHeader->GetMedianTimePast();
 
-        pblock->nVersion = ComputeBlockVersion(pindexBestHeader, chainparams.GetConsensus());
+        pblock->nVersion = 2;//ComputeBlockVersion(pindexBestHeader, chainparams.GetConsensus());
         // -regtest only: allow overriding block.nVersion with
         // -blockversion=N to test forking scenarios
         if (chainparams.MineBlocksOnDemand())
