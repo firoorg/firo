@@ -438,7 +438,7 @@
         <translation>Opsionet:</translation>
     </message>
     <message>
-        <source>Bitcoin Core</source>
+        <source>Smartcash Core</source>
         <translation>Berthama Bitcoin</translation>
     </message>
     <message>

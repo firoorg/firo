@@ -714,8 +714,8 @@
 <context>
     <name>bitcoin-core</name>
     <message>
-        <source>Bitcoin Core</source>
-        <translation>Bitcoin மையம்</translation>
+        <source>Smartcash Core</source>
+        <translation>Smartcash மையம்</translation>
     </message>
     <message>
         <source>(default: %u)</source>

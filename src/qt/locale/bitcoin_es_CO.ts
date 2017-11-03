@@ -126,7 +126,7 @@
         <translation>Abrir &amp;URL...</translation>
     </message>
     <message>
-        <source>Send coins to a Bitcoin address</source>
+        <source>Send coins to a Smartcash address</source>
         <translation>Enviando monedas a una dirección de Bitcoin</translation>
     </message>
     <message>
@@ -290,8 +290,8 @@
 <context>
     <name>bitcoin-core</name>
     <message>
-        <source>Bitcoin Core</source>
-        <translation>Bitcoin Core</translation>
+        <source>Smartcash Core</source>
+        <translation>Smartcash Core</translation>
     </message>
     <message>
         <source>Insufficient funds</source>
