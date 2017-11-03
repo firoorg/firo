@@ -14,8 +14,8 @@
 static const int HF_LYRA2VAR_HEIGHT = 500;
 static const int HF_LYRA2_HEIGHT = 8192;
 static const int HF_LYRA2Z_HEIGHT = 20500;
-static const int HF_ZNODE_HEIGHT = 55000;
-//static const int HF_MTP_HEIGHT = 60000;
+static const int HF_ZNODE_HEIGHT = 65000;
+//static const int HF_MTP_HEIGHT = 70000;
 
 static const int HF_LYRA2VAR_HEIGHT_TESTNET = 10;
 static const int HF_LYRA2_HEIGHT_TESTNET = 25; // for consistent purpose since the algo hash is so low

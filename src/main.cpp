@@ -677,11 +677,20 @@ bool GetNodeStateStats(NodeId nodeid, CNodeStateStats &stats) {
     stats.nMisbehavior = state->nMisbehavior;
     stats.nSyncHeight = state->pindexBestKnownBlock ? state->pindexBestKnownBlock->nHeight : -1;
     stats.nCommonHeight = state->pindexLastCommonBlock ? state->pindexLastCommonBlock->nHeight : -1;
-    BOOST_FOREACH(
-    const QueuedBlock &queue, state->vBlocksInFlight) {
+    BOOST_FOREACH(const QueuedBlock &queue, state->vBlocksInFlight) {
         if (queue.pindex)
             stats.vHeightInFlight.push_back(queue.pindex->nHeight);
     }
+    return true;
+}
+
+bool GetBlockHash(uint256& hashRet, int nBlockHeight)
+{
+    LOCK(cs_main);
+    if(chainActive.Tip() == NULL) return false;
+    if(nBlockHeight < -1 || nBlockHeight > chainActive.Height()) return false;
+    if(nBlockHeight == -1) nBlockHeight = chainActive.Height();
+    hashRet = chainActive[nBlockHeight]->GetBlockHash();
     return true;
 }
 
@@ -1315,7 +1324,7 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, uint256 h
             return state.DoS(100, false, REJECT_INVALID, "bad-cb-length");
         //BTZC: add ZCOIN code
         // Check for founders inputs
-        if ((nHeight > 0) && (nHeight < 210000)) {
+        if ((nHeight > 0) && (nHeight < 210000) && (nHeight != 57157)) {
             bool found_1 = false;
             bool found_2 = false;
             bool found_3 = false;
@@ -3417,6 +3426,60 @@ bool static ConnectTip(CValidationState &state, const CChainParams &chainparams,
     return true;
 }
 
+
+int GetUTXOHeight(const COutPoint& outpoint)
+{
+    LOCK(cs_main);
+    CCoins coins;
+    if(!pcoinsTip->GetCoins(outpoint.hash, coins) ||
+       (unsigned int)outpoint.n>=coins.vout.size() ||
+       coins.vout[outpoint.n].IsNull()) {
+        return -1;
+    }
+    return coins.nHeight;
+}
+
+int GetInputAge(const CTxIn &txin)
+{
+    CCoinsView viewDummy;
+    CCoinsViewCache view(&viewDummy);
+    {
+        LOCK(mempool.cs);
+        CCoinsViewMemPool viewMempool(pcoinsTip, mempool);
+        view.SetBackend(viewMempool); // temporarily switch cache backend to db+mempool view
+
+        const CCoins* coins = view.AccessCoins(txin.prevout.hash);
+
+        if (coins) {
+            if(coins->nHeight < 0) return 0;
+            return chainActive.Height() - coins->nHeight + 1;
+        } else {
+            return -1;
+        }
+    }
+}
+
+CAmount GetZnodePayment(int nHeight, CAmount blockValue)
+{
+    CAmount ret = blockValue/5; // start at 20%
+
+    int nMNPIBlock = Params().GetConsensus().nZnodePaymentsIncreaseBlock;
+    int nMNPIPeriod = Params().GetConsensus().nZnodePaymentsIncreasePeriod;
+
+    // mainnet:
+    if(nHeight > nMNPIBlock)                  ret += blockValue / 20; // 158000 - 25.0% - 2014-10-24
+    if(nHeight > nMNPIBlock+(nMNPIPeriod* 1)) ret += blockValue / 20; // 175280 - 30.0% - 2014-11-25
+    if(nHeight > nMNPIBlock+(nMNPIPeriod* 2)) ret += blockValue / 20; // 192560 - 35.0% - 2014-12-26
+    if(nHeight > nMNPIBlock+(nMNPIPeriod* 3)) ret += blockValue / 40; // 209840 - 37.5% - 2015-01-26
+    if(nHeight > nMNPIBlock+(nMNPIPeriod* 4)) ret += blockValue / 40; // 227120 - 40.0% - 2015-02-27
+    if(nHeight > nMNPIBlock+(nMNPIPeriod* 5)) ret += blockValue / 40; // 244400 - 42.5% - 2015-03-30
+    if(nHeight > nMNPIBlock+(nMNPIPeriod* 6)) ret += blockValue / 40; // 261680 - 45.0% - 2015-05-01
+    if(nHeight > nMNPIBlock+(nMNPIPeriod* 7)) ret += blockValue / 40; // 278960 - 47.5% - 2015-06-01
+    if(nHeight > nMNPIBlock+(nMNPIPeriod* 9)) ret += blockValue / 40; // 313520 - 50.0% - 2015-08-03
+
+    return ret;
+}
+
 /**
  * Connect a new ZCblock to chainActive. pblock is either NULL or a pointer to a CBlock
  * corresponding to pindexNew, to bypass loading it again from disk.
@@ -3479,6 +3542,51 @@ bool static ConnectTipZC(CValidationState &state, const CChainParams &chainparam
     }
     return true;
 }
+
+bool DisconnectBlocks(int blocks)
+{
+//    LOCK(cs_main);
+//
+//    CValidationState state;
+//    const CChainParams& chainparams = Params();
+//
+//    LogPrintf("DisconnectBlocks -- Got command to replay %d blocks\n", blocks);
+//    for(int i = 0; i < blocks; i++) {
+//        if(!DisconnectTip(state, chainparams.GetConsensus()) || !state.IsValid()) {
+//            return false;
+//        }
+//    }
+//
+//    return true;
+}
+
+void ReprocessBlocks(int nBlocks)
+{
+//    LOCK(cs_main);
+//
+//    std::map<uint256, int64_t>::iterator it = mapRejectedBlocks.begin();
+//    while(it != mapRejectedBlocks.end()){
+//        //use a window twice as large as is usual for the nBlocks we want to reset
+//        if((*it).second  > GetTime() - (nBlocks*60*5)) {
+//            BlockMap::iterator mi = mapBlockIndex.find((*it).first);
+//            if (mi != mapBlockIndex.end() && (*mi).second) {
+//
+//                CBlockIndex* pindex = (*mi).second;
+//                LogPrintf("ReprocessBlocks -- %s\n", (*it).first.ToString());
+//
+//                CValidationState state;
+//                ReconsiderBlock(state, pindex);
+//            }
+//        }
+//        ++it;
+//    }
+//
+//    DisconnectBlocks(nBlocks);
+//
+//    CValidationState state;
+//    ActivateBestChain(state, Params());
+}
+
 
 /**
  * Connect a new ZCblock to chainActive. pblock is either NULL or a pointer to a CBlock
@@ -4465,7 +4573,7 @@ static bool AcceptBlock(const CBlock &block, CValidationState &state, const CCha
         if (fTooFarAhead) return true;      // Block height is too high
     }
     if (fNewBlock) *fNewBlock = true;
-    if ((!CheckBlock(block, state, chainparams.GetConsensus(), GetAdjustedTime(), true, INT_MAX, false)) ||
+    if ((!CheckBlock(block, state, chainparams.GetConsensus(), GetAdjustedTime(), true, pindex->nHeight, false)) ||
         !ContextualCheckBlock(block, state, pindex->pprev)) {
         if (state.IsInvalid() && !state.CorruptionPossible()) {
             pindex->nStatus |= BLOCK_FAILED_VALID;

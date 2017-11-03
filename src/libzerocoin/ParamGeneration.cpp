@@ -249,8 +249,8 @@ namespace libzerocoin {
         // Calculate "p" and "q" and "domain_parameter_seed" from the
         // "seed" buffer above, using the procedure described in NIST
         // FIPS 186-3, Appendix A.1.2.
-        calculateGroupModulusAndOrder(seed, pLen, qLen, result.modulus,
-                                      result.groupOrder, &pSeed, &qSeed);
+        calculateGroupModulusAndOrder(seed, pLen, qLen, &(result.modulus),
+                                      &(result.groupOrder), &pSeed, &qSeed);
 
         // Calculate the generators "g", "h" using the process described in
         // NIST FIPS 186-3, Appendix A.2.3. This algorithm takes ("p", "q",
@@ -348,7 +348,7 @@ namespace libzerocoin {
 /// primes "p" and "q".
 
     void calculateGroupModulusAndOrder(arith_uint256 seed, uint32_t pLen, uint32_t qLen,
-                                       Bignum &resultModulus, Bignum &resultGroupOrder,
+                                       Bignum *resultModulus, Bignum *resultGroupOrder,
                                        arith_uint256 *resultPseed, arith_uint256 *resultQseed) {
         // Verify that the seed length is >= qLen
         if (qLen > (sizeof(seed)) * 8) {
@@ -365,7 +365,7 @@ namespace libzerocoin {
         // Result is the value "resultGroupOrder", "qseed" and "qgen_counter".
         arith_uint256 qseed;
         uint32_t qgen_counter;
-        resultGroupOrder = generateRandomPrime(qLen, seed, &qseed, &qgen_counter);
+        *resultGroupOrder = generateRandomPrime(qLen, seed, &qseed, &qgen_counter);
 
         // Using ⎡pLen / 2 + 1⎤ as the length and qseed as the input_seed, use the random prime
         // routine to obtain p0 , pseed, and pgen_counter. We pass exceptions upward.
@@ -388,7 +388,7 @@ namespace libzerocoin {
 
         // t = ⎡x / (2 * resultGroupOrder * p0)⎤.
         // TODO: we don't have a ceiling function
-        Bignum t = x / (Bignum(2) * resultGroupOrder * p0);
+        Bignum t = x / (Bignum(2) * (*resultGroupOrder) * p0);
 
         // Now loop until we find a valid prime "p" or we fail due to
         // pgen_counter exceeding ((4*pLen) + old_counter).
@@ -396,29 +396,29 @@ namespace libzerocoin {
             // If (2 * t * resultGroupOrder * p0 + 1) > 2^{pLen}, then
             // t = ⎡2^{pLen−1} / (2 * resultGroupOrder * p0)⎤.
             powerOfTwo = Bignum(2).pow(pLen);
-            Bignum prod = (Bignum(2) * t * resultGroupOrder * p0) + Bignum(1);
+            Bignum prod = (Bignum(2) * t * (*resultGroupOrder) * p0) + Bignum(1);
             if (prod > powerOfTwo) {
                 // TODO: implement a ceil function
-                t = Bignum(2).pow(pLen - 1) / (Bignum(2) * resultGroupOrder * p0);
+                t = Bignum(2).pow(pLen - 1) / (Bignum(2) * (*resultGroupOrder) * p0);
             }
 
             // Compute a candidate prime resultModulus = 2tqp0 + 1.
-            resultModulus = (Bignum(2) * t * resultGroupOrder * p0) + Bignum(1);
+            *resultModulus = (Bignum(2) * t * (*resultGroupOrder) * p0) + Bignum(1);
 
             // Verify that resultModulus is prime. First generate a pseudorandom integer "a".
             Bignum a = generateIntegerFromSeed(pLen, pseed, &iterations);
             pseed += iterations + 1;
 
             // Set a = 2 + (a mod (resultModulus–3)).
-            a = Bignum(2) + (a % (resultModulus - Bignum(3)));
+            a = Bignum(2) + (a % ((*resultModulus) - Bignum(3)));
 
             // Set z = a^{2 * t * resultGroupOrder} mod resultModulus
-            Bignum z = a.pow_mod(Bignum(2) * t * resultGroupOrder, resultModulus);
+            Bignum z = a.pow_mod(Bignum(2) * t * (*resultGroupOrder), (*resultModulus));
 
             // If GCD(z–1, resultModulus) == 1 AND (z^{p0} mod resultModulus == 1)
             // then we have found our result. Return.
-            if ((resultModulus.gcd(z - Bignum(1))).isOne() &&
-                (z.pow_mod(p0, resultModulus)).isOne()) {
+            if ((resultModulus->gcd(z - Bignum(1))).isOne() &&
+                (z.pow_mod(p0, (*resultModulus))).isOne()) {
                 // Success! Return the seeds and primes.
                 *resultPseed = pseed;
                 *resultQseed = qseed;

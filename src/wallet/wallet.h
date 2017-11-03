@@ -17,6 +17,7 @@
 #include "wallet/crypter.h"
 #include "wallet/walletdb.h"
 #include "wallet/rpcwallet.h"
+#include "../base58.h"
 
 #include <algorithm>
 #include <map>
@@ -83,6 +84,27 @@ enum WalletFeature
 
     FEATURE_HD = 130000, // Hierarchical key derivation after BIP32 (HD Wallet)
     FEATURE_LATEST = FEATURE_COMPRPUBKEY // HD is optional, use FEATURE_COMPRPUBKEY as latest version
+};
+
+enum AvailableCoinsType
+{
+    ALL_COINS = 1,
+    ONLY_DENOMINATED = 2,
+    ONLY_NOT1000IFMN = 3,
+    ONLY_NONDENOMINATED_NOT1000IFMN = 4,
+    ONLY_1000 = 5, // find znode outputs including locked ones (use with caution)
+    ONLY_PRIVATESEND_COLLATERAL = 6
+};
+
+struct CompactTallyItem
+{
+    CBitcoinAddress address;
+    CAmount nAmount;
+    std::vector<CTxIn> vecTxIn;
+    CompactTallyItem()
+    {
+        nAmount = 0;
+    }
 };
 
 
@@ -213,6 +235,10 @@ public:
      */
     int GetDepthInMainChain(const CBlockIndex* &pindexRet) const;
     int GetDepthInMainChain() const { const CBlockIndex *pindexRet; return GetDepthInMainChain(pindexRet); }
+
+    int GetDepthInMainChain(const CBlockIndex* &pindexRet, bool enableIX) const;
+    int GetDepthInMainChain(bool enableIX) const { const CBlockIndex *pindexRet; return GetDepthInMainChain(pindexRet, enableIX); }
+
     bool IsInMainChain() const { const CBlockIndex *pindexRet; return GetDepthInMainChain(pindexRet) > 0; }
     int GetBlocksToMaturity() const;
     /** Pass this transaction to the mempool. Fails if absolute fee exceeds absurd fee. */
@@ -382,6 +408,7 @@ public:
     CAmount GetAvailableCredit(bool fUseCache=true) const;
     CAmount GetImmatureWatchOnlyCredit(const bool& fUseCache=true) const;
     CAmount GetAvailableWatchOnlyCredit(const bool& fUseCache=true) const;
+    CAmount GetAnonymizedCredit(bool fUseCache=true) const;
     CAmount GetChange() const;
 
     void GetAmounts(std::list<COutputEntry>& listReceived,
@@ -599,6 +626,8 @@ public:
 
     std::set<int64_t> setKeyPool;
     std::map<CKeyID, CKeyMetadata> mapKeyMetadata;
+    //znode
+    int64_t nKeysLeftSinceAutoBackup;
 
     typedef std::map<unsigned int, CMasterKey> MasterKeyMap;
     MasterKeyMap mapMasterKeys;
@@ -664,6 +693,7 @@ public:
      * populate vCoins with vector of available COutputs.
      */
     void AvailableCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed=true, const CCoinControl *coinControl = NULL, bool fIncludeZeroValue=false) const;
+    void AvailableCoinsDash(std::vector<COutput>& vCoins, bool fOnlyConfirmed=true, const CCoinControl *coinControl = NULL, bool fIncludeZeroValue=false, AvailableCoinsType nCoinType=ALL_COINS, bool fUseInstantSend = false) const;
 
     /**
      * Shuffle and select coins until nTargetValue is reached while avoiding
@@ -672,6 +702,9 @@ public:
      * assembled
      */
     bool SelectCoinsMinConf(const CAmount& nTargetValue, int nConfMine, int nConfTheirs, uint64_t nMaxAncestors, std::vector<COutput> vCoins, std::set<std::pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet) const;
+    bool SelectCoinsByDenominations(int nDenom, CAmount nValueMin, CAmount nValueMax, std::vector<CTxIn>& vecTxInRet, std::vector<COutput>& vCoinsRet, CAmount& nValueRet, int nPrivateSendRoundsMin, int nPrivateSendRoundsMax);
+    bool SelectCoinsDark(CAmount nValueMin, CAmount nValueMax, std::vector<CTxIn>& vecTxInRet, CAmount& nValueRet, int nPrivateSendRoundsMin, int nPrivateSendRoundsMax) const;
+    bool SelectCoinsGrouppedByAddresses(std::vector<CompactTallyItem>& vecTallyRet, bool fSkipDenominated = true, bool fAnonymizable = true) const;
 
     bool IsSpent(const uint256& hash, unsigned int n) const;
 
@@ -680,6 +713,14 @@ public:
     void UnlockCoin(const COutPoint& output);
     void UnlockAllCoins();
     void ListLockedCoins(std::vector<COutPoint>& vOutpts);
+
+    // znode
+    /// Get 1000DASH output and keys which can be used for the Znode
+    bool GetZnodeVinAndKeys(CTxIn& txinRet, CPubKey& pubKeyRet, CKey& keyRet, std::string strTxHash = "", std::string strOutputIndex = "");
+    /// Extract txin information and keys from output
+    bool GetVinAndKeysFromOutput(COutput out, CTxIn& txinRet, CPubKey& pubKeyRet, CKey& keyRet);
+    bool HasCollateralInputs(bool fOnlyConfirmed = true) const;
+    int  CountInputsWithAmount(CAmount nInputAmount);
 
     /**
      * keystore implementation
@@ -745,7 +786,16 @@ public:
     CAmount GetWatchOnlyBalance() const;
     CAmount GetUnconfirmedWatchOnlyBalance() const;
     CAmount GetImmatureWatchOnlyBalance() const;
-
+    // znode
+    bool IsDenominated(const CTxIn &txin) const;
+    bool IsDenominatedAmount(CAmount nInputAmount) const;
+    bool IsCollateralAmount(CAmount nInputAmount) const;
+    CAmount GetAnonymizableBalance(bool fSkipDenominated = false) const;
+    CAmount GetAnonymizedBalance() const;
+//    double GetAverageAnonymizedRounds() const;
+//    CAmount GetNormalizedAnonymizedBalance() const;
+    CAmount GetNeedsToBeAnonymizedBalance(CAmount nMinBalance = 0) const;
+    CAmount GetDenominatedBalance(bool unconfirmed=false) const;
     /**
      * Insert additional inputs into the transaction by
      * calling CreateTransaction();
@@ -781,6 +831,9 @@ public:
     //end btzc:
 
     bool CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey);
+
+    bool CreateCollateralTransaction(CMutableTransaction& txCollateral, std::string& strReason);
+    bool ConvertList(std::vector<CTxIn> vecTxIn, std::vector<CAmount>& vecAmounts);
 
     bool AddAccountingEntry(const CAccountingEntry&, CWalletDB & pwalletdb);
 

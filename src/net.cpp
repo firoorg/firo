@@ -458,6 +458,72 @@ CNode* ConnectNode(CAddress addrConnect, const char *pszDest, bool fCountFailure
     return NULL;
 }
 
+CNode* ConnectNodeDash(CAddress addrConnect, const char *pszDest, bool fConnectToZnode)
+{
+    if (pszDest == NULL) {
+        // we clean znode connections in CZnodeMan::ProcessZnodeConnections()
+        // so should be safe to skip this and connect to local Hot MN on CActiveZnode::ManageState()
+        if (IsLocal(addrConnect) && !fConnectToZnode)
+            return NULL;
+
+        LOCK(cs_vNodes);
+        // Look for an existing connection
+        CNode* pnode = FindNode((CService)addrConnect);
+        if (pnode)
+        {
+            // we have existing connection to this node but it was not a connection to znode,
+            // change flag and add reference so that we can correctly clear it later
+            if(fConnectToZnode && !pnode->fZnode) {
+                pnode->AddRef();
+                pnode->fZnode = true;
+            }
+            return pnode;
+        }
+    }
+
+    /// debug print
+    LogPrint("net", "trying connection %s lastseen=%.1fhrs\n",
+             pszDest ? pszDest : addrConnect.ToString(),
+             pszDest ? 0.0 : (double)(GetAdjustedTime() - addrConnect.nTime)/3600.0);
+
+    // Connect
+    SOCKET hSocket;
+    bool proxyConnectionFailed = false;
+    if (pszDest ? ConnectSocketByName(addrConnect, hSocket, pszDest, Params().GetDefaultPort(), nConnectTimeout, &proxyConnectionFailed) :
+        ConnectSocket(addrConnect, hSocket, nConnectTimeout, &proxyConnectionFailed))
+    {
+        if (!IsSelectableSocket(hSocket)) {
+            LogPrintf("Cannot create connection: non-selectable socket created (fd >= FD_SETSIZE ?)\n");
+            CloseSocket(hSocket);
+            return NULL;
+        }
+
+        addrman.Attempt(addrConnect, fConnectToZnode);
+
+        // Add node
+//        CNode* pnode = new CNode(hSocket, addrConnect, pszDest ? pszDest : "", false, true);
+        CNode* pnode = new CNode(hSocket, addrConnect, pszDest ? pszDest : "", false);
+
+        pnode->nTimeConnected = GetTime();
+        if(fConnectToZnode) {
+            pnode->AddRef();
+            pnode->fZnode = true;
+        }
+
+        LOCK(cs_vNodes);
+        vNodes.push_back(pnode);
+
+        return pnode;
+    } else if (!proxyConnectionFailed) {
+        // If connecting to the node failed, and failure is not caused by a problem connecting to
+        // the proxy, mark this as an attempt.
+        addrman.Attempt(addrConnect, fConnectToZnode);
+    }
+
+    return NULL;
+}
+
+
 static void DumpBanlist()
 {
     CNode::SweepBanned(); // clean unused entries (if bantime has expired)
@@ -2204,6 +2270,15 @@ void RelayTransaction(const CTransaction& tx)
     }
 }
 
+void RelayInv(CInv &inv, const int minProtoVersion) {
+    LOCK(cs_vNodes);
+    BOOST_FOREACH(CNode* pnode, vNodes)
+    {
+        if (pnode->nVersion >= minProtoVersion)
+            pnode->PushInventory(inv);
+    }
+}
+
 void CNode::RecordBytesRecv(uint64_t bytes)
 {
     LOCK(cs_totalBytesRecv);
@@ -2511,6 +2586,8 @@ CNode::CNode(SOCKET hSocketIn, const CAddress& addrIn, const std::string& addrNa
     minFeeFilter = 0;
     lastSentFeeFilter = 0;
     nextSendTimeFeeFilter = 0;
+    // znode
+    fZnode = false;
 
     BOOST_FOREACH(const std::string &msg, getAllNetMessageTypes())
         mapRecvBytesPerMsgCmd[msg] = 0;
@@ -2753,4 +2830,24 @@ int64_t PoissonNextSend(int64_t nNow, int average_interval_seconds) {
     std::vector<unsigned char> vchNetGroup(ad.GetGroup());
 
     return CSipHasher(k0, k1).Write(&vchNetGroup[0], vchNetGroup.size()).Finalize();
+}
+
+std::vector<CNode*> CopyNodeVector()
+{
+    std::vector<CNode*> vecNodesCopy;
+    LOCK(cs_vNodes);
+    for(size_t i = 0; i < vNodes.size(); ++i) {
+        CNode* pnode = vNodes[i];
+        pnode->AddRef();
+        vecNodesCopy.push_back(pnode);
+    }
+    return vecNodesCopy;
+}
+
+void ReleaseNodeVector(const std::vector<CNode*>& vecNodes)
+{
+    for(size_t i = 0; i < vecNodes.size(); ++i) {
+        CNode* pnode = vecNodes[i];
+        pnode->Release();
+    }
 }

@@ -62,6 +62,14 @@
 #include <boost/interprocess/sync/file_lock.hpp>
 #include <boost/thread.hpp>
 #include <openssl/crypto.h>
+#include "activeznode.h"
+#include "darksend.h"
+#include "znode-payments.h"
+#include "znode-sync.h"
+#include "znodeman.h"
+#include "znodeconfig.h"
+#include "netfulfilledman.h"
+#include "spork.h"
 
 #if ENABLE_ZMQ
 #include "zmq/zmqnotificationinterface.h"
@@ -1619,8 +1627,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
 
     std::vector <boost::filesystem::path> vImportFiles;
     if (mapArgs.count("-loadblock")) {
-        BOOST_FOREACH(
-        const std::string &strFile, mapMultiArgs["-loadblock"])
+        BOOST_FOREACH(const std::string &strFile, mapMultiArgs["-loadblock"])
         vImportFiles.push_back(strFile);
     }
 
@@ -1656,7 +1663,35 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     // Generate coins in the background
     GenerateBitcoins(GetBoolArg("-gen", DEFAULT_GENERATE), GetArg("-genproclimit", DEFAULT_GENERATE_THREADS),
                      chainparams);
+// ********************************************************* Step 11a: setup PrivateSend
+    fZNode = GetBoolArg("-znode", false);
 
+    if((fZNode || znodeConfig.getCount() > -1) && fTxIndex == false) {
+        return InitError("Enabling Znode support requires turning on transaction indexing."
+                                 "Please add txindex=1 to your configuration and start with -reindex");
+    }
+
+    if(fZNode) {
+        LogPrintf("ZNODE:\n");
+
+        if(!GetArg("-znodeaddr", "").empty()) {
+            // Hot znode (either local or remote) should get its address in
+            // CActiveZnode::ManageState() automatically and no longer relies on znodeaddr.
+            return InitError(_("znodeaddr option is deprecated. Please use znode.conf to manage your remote znodes."));
+        }
+
+        std::string strZNodePrivKey = GetArg("-znodeprivkey", "");
+        if(!strZNodePrivKey.empty()) {
+            if(!darkSendSigner.GetKeysFromSecret(strZNodePrivKey, activeZnode.keyZnode, activeZnode.pubKeyZnode))
+                return InitError(_("Invalid znodeprivkey. Please see documenation."));
+
+            LogPrintf("  pubKeyZnode: %s\n", CBitcoinAddress(activeZnode.pubKeyZnode.GetID()).ToString());
+        } else {
+            return InitError(_("You must specify a znodeprivkey in the configuration. Please see documentation for help."));
+        }
+    }
+    LogPrintf("Using znode config file %s\n", GetZnodeConfigFile().string());
+//    fPrivateSendMultiSession = GetBoolArg("-privatesendmultisession", DEFAULT_PRIVATESEND_MULTISESSION);
 
     // ********************************************************* Step 12: finished
 

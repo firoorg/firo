@@ -37,7 +37,7 @@ arith_uint256 calculateGeneratorSeed(arith_uint256 seed, arith_uint256 pSeed, ar
 arith_uint256 calculateHash(arith_uint256 input);
 IntegerGroupParams  deriveIntegerGroupParams(arith_uint256 seed, uint32_t pLen, uint32_t qLen);
 IntegerGroupParams  deriveIntegerGroupFromOrder(Bignum &groupOrder);
-void calculateGroupModulusAndOrder(arith_uint256 seed, uint32_t pLen, uint32_t qLen, Bignum &resultModulus, Bignum &resultGroupOrder, arith_uint256 *resultPseed, arith_uint256 *resultQseed);
+void calculateGroupModulusAndOrder(arith_uint256 seed, uint32_t pLen, uint32_t qLen, Bignum *resultModulus, Bignum *resultGroupOrder, arith_uint256 *resultPseed, arith_uint256 *resultQseed);
 Bignum calculateGroupGenerator(arith_uint256 seed, arith_uint256 pSeed, arith_uint256 qSeed, Bignum modulus, Bignum groupOrder, uint32_t index);
 Bignum generateRandomPrime(uint32_t primeBitLen, arith_uint256 in_seed, arith_uint256 *out_seed, uint32_t *prime_gen_counter);
 Bignum generateIntegerFromSeed(uint32_t numBits, arith_uint256 seed, uint32_t *numIterations);

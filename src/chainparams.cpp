@@ -19,7 +19,8 @@
 #include "arith_uint256.h"
 
 
-static CBlock CreateGenesisBlock(const char *pszTimestamp, const CScript &genesisOutputScript, uint32_t nTime, uint32_t nNonce,
+static CBlock
+CreateGenesisBlock(const char *pszTimestamp, const CScript &genesisOutputScript, uint32_t nTime, uint32_t nNonce,
                    uint32_t nBits, int32_t nVersion, const CAmount &genesisReward,
                    std::vector<unsigned char> extraNonce) {
     CMutableTransaction txNew;
@@ -94,7 +95,7 @@ public:
         consensus.BIP34Height = 227931;
         consensus.BIP34Hash = uint256S("0x000000000000024b89b42a942fe0d9fea3bb44ab7bd1b19115dd6a759c0808b8");
         consensus.powLimit = uint256S("00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
-//            static const int64 nInterval = nTargetTimespan / nTargetSpacing;
+        //static const int64 nInterval = nTargetTimespan / nTargetSpacing;
         consensus.nPowTargetTimespan = 60 * 60; // 60 minutes between retargets
         consensus.nPowTargetSpacing = 10 * 60; // 10 minute blocks
         consensus.fPowAllowMinDifficultyBlocks = false;
@@ -116,14 +117,28 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].nTimeout = 1510704000; // November 15th, 2017.
 
         // The best chain should have at least this much work.
-//        consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000003418b3ccbe5e93bcb39b43");
         consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000708f98bf623f02e");
 
-            /**
-             * The message start string is designed to be unlikely to occur in normal data.
-             * The characters are rarely used upper ASCII, not valid as UTF-8, and produce
-           `  * a large 32-bit integer with any alignment.
-             */
+        // znode params
+        consensus.nZnodePaymentsStartBlock = 100000; // not true, but it's ok as long as it's less then nZnodePaymentsIncreaseBlock
+        consensus.nZnodePaymentsIncreaseBlock = 158000; // actual historical value
+        consensus.nZnodePaymentsIncreasePeriod = 576*30; // 17280 - actual historical value
+        consensus.nSuperblockStartBlock = 614820;
+        consensus.nBudgetPaymentsStartBlock = 328008; // actual historical value
+        consensus.nBudgetPaymentsCycleBlocks = 16616; // ~(60*24*30)/2.6, actual number of blocks per month is 200700 / 12 = 16725
+        consensus.nBudgetPaymentsWindowBlocks = 100;
+        nMaxTipAge = 6 * 60 * 60; // ~144 blocks behind -> 2 x fork detection time, was 24 * 60 * 60 in bitcoin
+
+        nPoolMaxTransactions = 3;
+        nFulfilledRequestExpireTime = 60*60; // fulfilled requests expire in 1 hour
+        strSporkPubKey = "04549ac134f694c0243f503e8c8a9a986f5de6610049c40b07816809b0d1d06a21b07be27b9bb555931773f62ba6cf35a25fd52f694d4e1106ccd237a7bb899fdd";
+        strZnodePaymentsPubKey = "04549ac134f694c0243f503e8c8a9a986f5de6610049c40b07816809b0d1d06a21b07be27b9bb555931773f62ba6cf35a25fd52f694d4e1106ccd237a7bb899fdd";
+
+        /**
+         * The message start string is designed to be unlikely to occur in normal data.
+         * The characters are rarely used upper ASCII, not valid as UTF-8, and produce
+       `  * a large 32-bit integer with any alignment.
+         */
         //btzc: update zcoin pchMessage
         pchMessageStart[0] = 0xe3;
         pchMessageStart[1] = 0xd9;
@@ -161,11 +176,18 @@ public:
         vSeeds.push_back(CDNSSeedData("singapore.zcoin.io", "singapore.zcoin.io", false));
         vSeeds.push_back(CDNSSeedData("nyc.zcoin.io", "nyc.zcoin.io", false));
         // Note that of those with the service bits flag, most only support a subset of possible options
-        base58Prefixes[PUBKEY_ADDRESS] = std::vector < unsigned char > (1, 82);
-        base58Prefixes[SCRIPT_ADDRESS] = std::vector < unsigned char > (1, 7);
-        base58Prefixes[SECRET_KEY] = std::vector < unsigned char > (1, 210);
-        base58Prefixes[EXT_PUBLIC_KEY] = boost::assign::list_of(0x04)(0x88)(0xB2)(0x1E).convert_to_container < std::vector < unsigned char > > ();
-        base58Prefixes[EXT_SECRET_KEY] = boost::assign::list_of(0x04)(0x88)(0xAD)(0xE4).convert_to_container < std::vector < unsigned char > > ();
+        base58Prefixes[PUBKEY_ADDRESS] = std::vector < unsigned
+        char > (1, 82);
+        base58Prefixes[SCRIPT_ADDRESS] = std::vector < unsigned
+        char > (1, 7);
+        base58Prefixes[SECRET_KEY] = std::vector < unsigned
+        char > (1, 210);
+        base58Prefixes[EXT_PUBLIC_KEY] =
+                boost::assign::list_of(0x04)(0x88)(0xB2)(0x1E).convert_to_container < std::vector < unsigned
+        char > > ();
+        base58Prefixes[EXT_SECRET_KEY] =
+                boost::assign::list_of(0x04)(0x88)(0xAD)(0xE4).convert_to_container < std::vector < unsigned
+        char > > ();
 
         vFixedSeeds = std::vector<SeedSpec6>(pnSeed6_main, pnSeed6_main + ARRAYLEN(pnSeed6_main));
 
@@ -233,6 +255,20 @@ public:
 
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000708f98bf623f02e");
+        // Maternode params
+        consensus.nZnodePaymentsStartBlock = 10000; // not true, but it's ok as long as it's less then n
+        consensus.nZnodePaymentsIncreaseBlock = 46000;
+        consensus.nZnodePaymentsIncreasePeriod = 576;
+        consensus.nSuperblockStartBlock = 61000;
+        consensus.nBudgetPaymentsStartBlock = 60000;
+        consensus.nBudgetPaymentsCycleBlocks = 50;
+        consensus.nBudgetPaymentsWindowBlocks = 10;
+        nMaxTipAge = 0x7fffffff; // allow mining on top of old blocks for testnet
+
+        nPoolMaxTransactions = 3;
+        nFulfilledRequestExpireTime = 5*60; // fulfilled requests expire in 5 minutes
+        strSporkPubKey = "046f78dcf911fbd61910136f7f0f8d90578f68d0b3ac973b5040fb7afb501b5939f39b108b0569dca71488f5bbf498d92e4d1194f6f941307ffd95f75e76869f0e";
+        strZnodePaymentsPubKey = "046f78dcf911fbd61910136f7f0f8d90578f68d0b3ac973b5040fb7afb501b5939f39b108b0569dca71488f5bbf498d92e4d1194f6f941307ffd95f75e76869f0e";
 
         pchMessageStart[0] = 0xcf;
         pchMessageStart[1] = 0xfc;
@@ -263,18 +299,27 @@ public:
         vSeeds.clear();
         // nodes with support for servicebits filtering should be at the top
         // zcoin test seeds
-        vSeeds.push_back(CDNSSeedData("52.175.244.22", "52.175.244.22", false));
+        vSeeds.push_back(CDNSSeedData("beta1.zcoin.io", "beta1.zcoin.io", false));
+        vSeeds.push_back(CDNSSeedData("beta2.zcoin.io", "beta2.zcoin.io", false));
+
 
 //        vSeeds.push_back(CDNSSeedData("testnetbitcoin.jonasschnelli.ch", "testnet-seed.bitcoin.jonasschnelli.ch", true));
 //        vSeeds.push_back(CDNSSeedData("petertodd.org", "seed.tbtc.petertodd.org", true));
 //        vSeeds.push_back(CDNSSeedData("bluematt.me", "testnet-seed.bluematt.me"));
 //        vSeeds.push_back(CDNSSeedData("bitcoin.schildbach.de", "testnet-seed.bitcoin.schildbach.de"));
 
-        base58Prefixes[PUBKEY_ADDRESS] = std::vector < unsigned char > (1, 65);
-        base58Prefixes[SCRIPT_ADDRESS] = std::vector < unsigned char > (1, 178);
-        base58Prefixes[SECRET_KEY] = std::vector < unsigned char > (1, 185);
-        base58Prefixes[EXT_PUBLIC_KEY] = boost::assign::list_of(0x04)(0x35)(0x87)(0xCF).convert_to_container < std::vector < unsigned char > > ();
-        base58Prefixes[EXT_SECRET_KEY] = boost::assign::list_of(0x04)(0x35)(0x83)(0x94).convert_to_container < std::vector < unsigned char > > ();
+        base58Prefixes[PUBKEY_ADDRESS] = std::vector < unsigned
+        char > (1, 65);
+        base58Prefixes[SCRIPT_ADDRESS] = std::vector < unsigned
+        char > (1, 178);
+        base58Prefixes[SECRET_KEY] = std::vector < unsigned
+        char > (1, 185);
+        base58Prefixes[EXT_PUBLIC_KEY] =
+                boost::assign::list_of(0x04)(0x35)(0x87)(0xCF).convert_to_container < std::vector < unsigned
+        char > > ();
+        base58Prefixes[EXT_SECRET_KEY] =
+                boost::assign::list_of(0x04)(0x35)(0x83)(0x94).convert_to_container < std::vector < unsigned
+        char > > ();
         vFixedSeeds = std::vector<SeedSpec6>(pnSeed6_test, pnSeed6_test + ARRAYLEN(pnSeed6_test));
 
         fMiningRequiresPeers = true;
@@ -287,9 +332,9 @@ public:
         checkpointData = (CCheckpointData) {
                 boost::assign::map_list_of
                         (0, uint256S("0x")),
-                        1414776313,
-                        0,
-                        100.0
+                1414776313,
+                0,
+                100.0
         };
 
     }
@@ -329,6 +374,9 @@ public:
 
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x00");
+        // Znode code
+        nFulfilledRequestExpireTime = 5*60; // fulfilled requests expire in 5 minutes
+        nMaxTipAge = 6 * 60 * 60; // ~144 blocks behind -> 2 x fork detection time, was 24 * 60 * 60 in bitcoin
 
         pchMessageStart[0] = 0xfa;
         pchMessageStart[1] = 0xbf;
@@ -374,11 +422,18 @@ public:
                 0,
                 0
         };
-        base58Prefixes[PUBKEY_ADDRESS] = std::vector < unsigned char > (1, 65);
-        base58Prefixes[SCRIPT_ADDRESS] = std::vector < unsigned char > (1, 178);
-        base58Prefixes[SECRET_KEY] = std::vector < unsigned char > (1, 239);
-        base58Prefixes[EXT_PUBLIC_KEY] = boost::assign::list_of(0x04)(0x35)(0x87)(0xCF).convert_to_container < std::vector < unsigned char > > ();
-        base58Prefixes[EXT_SECRET_KEY] = boost::assign::list_of(0x04)(0x35)(0x83)(0x94).convert_to_container < std::vector < unsigned char > > ();
+        base58Prefixes[PUBKEY_ADDRESS] = std::vector < unsigned
+        char > (1, 65);
+        base58Prefixes[SCRIPT_ADDRESS] = std::vector < unsigned
+        char > (1, 178);
+        base58Prefixes[SECRET_KEY] = std::vector < unsigned
+        char > (1, 239);
+        base58Prefixes[EXT_PUBLIC_KEY] =
+                boost::assign::list_of(0x04)(0x35)(0x87)(0xCF).convert_to_container < std::vector < unsigned
+        char > > ();
+        base58Prefixes[EXT_SECRET_KEY] =
+                boost::assign::list_of(0x04)(0x35)(0x83)(0x94).convert_to_container < std::vector < unsigned
+        char > > ();
     }
 
     void UpdateBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout) {
