@@ -1,0 +1,22 @@
+[Unit]
+Description=Smartcash's distributed currency daemon
+After=network.target
+
+[Service]
+User=smartcash
+Group=smartcash
+
+Type=forking
+PIDFile=/var/lib/smartcashd/smartcashd.pid
+ExecStart=/usr/bin/smartcashd -daemon -pid=/var/lib/smartcashd/smartcashd.pid \
+-conf=/etc/smartcash/smartcash.conf -datadir=/var/lib/smartcashd -disablewallet
+
+Restart=always
+PrivateTmp=true
+TimeoutStopSec=60s
+TimeoutStartSec=2s
+StartLimitInterval=120s
+StartLimitBurst=5
+
+[Install]
+WantedBy=multi-user.target
