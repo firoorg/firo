@@ -632,7 +632,7 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
     }
 
     if(chainActive.Height() + 1 > SWITCH_TO_MORE_SPEND_TXS){
-        MAX_SPEND_ZC_TX_PER_BLOCK = 5;
+        MAX_SPEND_ZC_TX_PER_BLOCK = 1;
     }
     BOOST_FOREACH (CTransaction& tx, pblock->vtx) {
         uint256 txHash = tx.GetHash();
