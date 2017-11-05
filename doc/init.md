@@ -54,23 +54,23 @@ see `contrib/debian/examples/smartcash.conf`.
 All three configurations assume several paths that might need to be adjusted.
 
 Binary:              `/usr/bin/smartcashd`  
-Configuration file:  `/etc/bitcoin/bitcoin.conf`  
+Configuration file:  `/etc/smartcash/smartcash.conf`  
 Data directory:      `/var/lib/smartcashd`  
 PID file:            `/var/run/smartcashd/smartcash.pid` (OpenRC and Upstart) or `/var/lib/smartcash/smartcash.pid` (systemd)  
 Lock file:           `/var/lock/subsys/smartcashd` (CentOS)  
 
 The configuration file, PID directory (if applicable) and data directory
-should all be owned by the bitcoin user and group.  It is advised for security
+should all be owned by the smartcash user and group.  It is advised for security
 reasons to make the configuration file and data directory only readable by the
-bitcoin user and group.  Access to bitcoin-cli and other smartcashd rpc clients
+smartcash user and group.  Access to smartcash-cli and other smartcashd rpc clients
 can then be controlled by group membership.
 
 3b) Mac OS X
 
 Binary:              `/usr/local/bin/smartcashd`  
-Configuration file:  `~/Library/Application Support/Bitcoin/bitcoin.conf`  
-Data directory:      `~/Library/Application Support/Bitcoin`
-Lock file:           `~/Library/Application Support/Bitcoin/.lock`
+Configuration file:  `~/Library/Application Support/Smartcash/smartcash.conf`  
+Data directory:      `~/Library/Application Support/Smartcash`
+Lock file:           `~/Library/Application Support/Smartcash/.lock`
 
 4. Installing Service Configuration
 -----------------------------------
@@ -109,14 +109,14 @@ setting the SMARTCASHD and FLAGS environment variables in the file
 
 4e) Mac OS X
 
-Copy org.bitcoin.smartcashd.plist into ~/Library/LaunchAgents. Load the launch agent by
-running `launchctl load ~/Library/LaunchAgents/org.bitcoin.smartcashd.plist`.
+Copy org.smartcash.smartcashd.plist into ~/Library/LaunchAgents. Load the launch agent by
+running `launchctl load ~/Library/LaunchAgents/org.smartcash.smartcashd.plist`.
 
 This Launch Agent will cause smartcashd to start whenever the user logs in.
 
 NOTE: This approach is intended for those wanting to run smartcashd as the current user.
-You will need to modify org.bitcoin.smartcashd.plist if you intend to use it as a
-Launch Daemon with a dedicated bitcoin user.
+You will need to modify org.smartcash.smartcashd.plist if you intend to use it as a
+Launch Daemon with a dedicated smartcash user.
 
 5. Auto-respawn
 -----------------------------------
