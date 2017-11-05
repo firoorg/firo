@@ -1,0 +1,33 @@
+# /etc/conf.d/smartcashd: config file for /etc/init.d/smartcashd
+
+# Config file location
+#SMARTCASHD_CONFIGFILE="/etc/smartcash/smartcash.conf"
+
+# What directory to write pidfile to?  (created and owned by $SMARTCASHD_USER)
+#SMARTCASHD_PIDDIR="/var/run/smartcashd"
+
+# What filename to give the pidfile
+#SMARTCASHD_PIDFILE="${SMARTCASHD_PIDDIR}/smartcashd.pid"
+
+# Where to write smartcashd data (be mindful that the blockchain is large)
+#SMARTCASHD_DATADIR="/var/lib/smartcashd"
+
+# User and group to own smartcashd process
+#SMARTCASHD_USER="smartcash"
+#SMARTCASHD_GROUP="smartcash"
+
+# Path to smartcashd executable
+#SMARTCASHD_BIN="/usr/bin/smartcashd"
+
+# Nice value to run smartcashd under
+#SMARTCASHD_NICE=0
+
+# Additional options (avoid -conf and -datadir, use flags above)
+SMARTCASHD_OPTS="-disablewallet"
+
+# The timeout in seconds OpenRC will wait for smartcashd to terminate
+# after a SIGTERM has been raised.
+# Note that this will be mapped as argument to start-stop-daemon's
+# '--retry' option, which means you can specify a retry schedule
+# here. For more information see man 8 start-stop-daemon.
+SMARTCASHD_SIGTERM_TIMEOUT=60

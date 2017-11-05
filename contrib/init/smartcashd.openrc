@@ -1,0 +1,92 @@
+#!/sbin/runscript
+
+# backward compatibility for existing gentoo layout 
+#
+if [ -d "/var/lib/smartcash/.smartcash" ]; then
+	SMARTCASHD_DEFAULT_DATADIR="/var/lib/smartcash/.smartcash"
+else
+	SMARTCASHD_DEFAULT_DATADIR="/var/lib/smartcashd"
+fi
+
+SMARTCASHD_CONFIGFILE=${SMARTCASHD_CONFIGFILE:-/etc/smartcash/smartcash.conf}
+SMARTCASHD_PIDDIR=${SMARTCASHD_PIDDIR:-/var/run/smartcashd}
+SMARTCASHD_PIDFILE=${SMARTCASHD_PIDFILE:-${SMARTCASHD_PIDDIR}/smartcashd.pid}
+SMARTCASHD_DATADIR=${SMARTCASHD_DATADIR:-${SMARTCASHD_DEFAULT_DATADIR}}
+SMARTCASHD_USER=${SMARTCASHD_USER:-${SMARTCASH_USER:-smartcash}}
+SMARTCASHD_GROUP=${SMARTCASHD_GROUP:-smartcash}
+SMARTCASHD_BIN=${SMARTCASHD_BIN:-/usr/bin/smartcashd}
+SMARTCASHD_NICE=${SMARTCASHD_NICE:-${NICELEVEL:-0}}
+SMARTCASHD_OPTS="${SMARTCASHD_OPTS:-${SMARTCASH_OPTS}}"
+
+name="Bitcoin Core Daemon"
+description="Bitcoin cryptocurrency P2P network daemon"
+
+command="/usr/bin/smartcashd"
+command_args="-pid=\"${SMARTCASHD_PIDFILE}\" \
+		-conf=\"${SMARTCASHD_CONFIGFILE}\" \
+		-datadir=\"${SMARTCASHD_DATADIR}\" \
+		-daemon \
+		${SMARTCASHD_OPTS}"
+
+required_files="${SMARTCASHD_CONFIGFILE}"
+start_stop_daemon_args="-u ${SMARTCASHD_USER} \
+			-N ${SMARTCASHD_NICE} -w 2000"
+pidfile="${SMARTCASHD_PIDFILE}"
+
+# The retry schedule to use when stopping the daemon. Could be either
+# a timeout in seconds or multiple signal/timeout pairs (like
+# "SIGKILL/180 SIGTERM/300")
+retry="${SMARTCASHD_SIGTERM_TIMEOUT}"
+
+depend() {
+	need localmount net
+}
+
+# verify
+# 1) that the datadir exists and is writable (or create it)
+# 2) that a directory for the pid exists and is writable
+# 3) ownership and permissions on the config file
+start_pre() {
+	checkpath \
+	-d \
+	--mode 0750 \
+	--owner "${SMARTCASHD_USER}:${SMARTCASHD_GROUP}" \
+	"${SMARTCASHD_DATADIR}"
+
+	checkpath \
+	-d \
+	--mode 0755 \
+	--owner "${SMARTCASHD_USER}:${SMARTCASHD_GROUP}" \
+	"${SMARTCASHD_PIDDIR}"
+
+	checkpath -f \
+	-o ${SMARTCASHD_USER}:${SMARTCASHD_GROUP} \
+	-m 0660 \
+	${SMARTCASHD_CONFIGFILE}
+
+	checkconfig || return 1
+}
+
+checkconfig()
+{
+	if ! grep -qs '^rpcpassword=' "${SMARTCASHD_CONFIGFILE}" ; then
+		eerror ""
+		eerror "ERROR: You must set a secure rpcpassword to run smartcashd."
+		eerror "The setting must appear in ${SMARTCASHD_CONFIGFILE}"
+		eerror ""
+		eerror "This password is security critical to securing wallets "
+		eerror "and must not be the same as the rpcuser setting."
+		eerror "You can generate a suitable random password using the following"
+		eerror "command from the shell:"
+		eerror ""
+		eerror "bash -c 'tr -dc a-zA-Z0-9 < /dev/urandom | head -c32 && echo'"
+		eerror ""
+		eerror "It is also recommended that you also set alertnotify so you are "
+		eerror "notified of problems:"
+		eerror ""
+		eerror "ie: alertnotify=echo %%s | mail -s \"Bitcoin Alert\"" \
+			"admin@foo.com"
+		eerror ""
+		return 1
+	fi
+}
