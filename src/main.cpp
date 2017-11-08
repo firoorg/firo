@@ -1278,7 +1278,7 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx, CZerocoinEntry pubCoinTx
                         zccoinSpend.pubCoin = 0;
                         zccoinSpend.id = pubcoinId;
                         bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
-                        if ((fTestNet || nHeight > ZC_CHECK_BUG_FIXED_AT_BLOCK) && nHeight < INT_MAX) {
+                        if (fTestNet || nHeight > ZC_CHECK_BUG_FIXED_AT_BLOCK) {
                             zccoinSpend.denomination = targetDenomination;
                         }
 //                        LogPrintf("WriteCoinSpendSerialEntry, serialNumber=%s", serialNumber.ToString());
@@ -4179,6 +4179,8 @@ bool CheckBlock(const CBlock &block, CValidationState &state, const Consensus::P
 
         }
         // Check transactions
+        if (nHeight == INT_MAX)
+            nHeight = getNHeight(block.GetBlockHeader());
         BOOST_FOREACH(const CTransaction &tx, block.vtx)
         if (!CheckTransaction(tx, state, tx.GetHash(), isVerifyDB, nHeight)) {
             return state.Invalid(false, state.GetRejectCode(), state.GetRejectReason(),
