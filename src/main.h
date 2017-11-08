@@ -164,7 +164,7 @@ static std::map<int, CBlock> mapBlockData;
 static const bool DEFAULT_PEERBLOOMFILTERS = true;
 
 // There were bugs before this block, don't do some checks on early blocks
-#define ZC_CHECK_BUG_FIXED_AT_BLOCK	60000
+#define ZC_CHECK_BUG_FIXED_AT_BLOCK	60500
 
 // The mint id number to change to zerocoin v2
 #define ZC_V2_SWITCH_ID_1 120
