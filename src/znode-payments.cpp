@@ -4,12 +4,11 @@
 
 #include "activeznode.h"
 #include "darksend.h"
-//#include "governance-classes.h"
 #include "znode-payments.h"
 #include "znode-sync.h"
 #include "znodeman.h"
-//#include "netfulfilledman.h"
-//#include "spork.h"
+#include "netfulfilledman.h"
+#include "spork.h"
 #include "util.h"
 
 #include <boost/lexical_cast.hpp>
@@ -49,15 +48,15 @@ bool IsBlockValueValid(const CBlock& block, int nBlockHeight, CAmount blockRewar
         if(nBlockHeight >= consensusParams.nBudgetPaymentsStartBlock &&
             nOffset < consensusParams.nBudgetPaymentsWindowBlocks) {
             // NOTE: make sure SPORK_13_OLD_SUPERBLOCK_FLAG is disabled when 12.1 starts to go live
-//            if(znodeSync.IsSynced() && !sporkManager.IsSporkActive(SPORK_13_OLD_SUPERBLOCK_FLAG)) {
-//                // no budget blocks should be accepted here, if SPORK_13_OLD_SUPERBLOCK_FLAG is disabled
-//                LogPrint("gobject", "IsBlockValueValid -- Client synced but budget spork is disabled, checking block value against block reward\n");
-//                if(!isBlockRewardValueMet) {
-//                    strErrorRet = strprintf("coinbase pays too much at height %d (actual=%d vs limit=%d), exceeded block reward, budgets are disabled",
-//                                            nBlockHeight, block.vtx[0].GetValueOut(), blockReward);
-//                }
-//                return isBlockRewardValueMet;
-//            }
+            if(znodeSync.IsSynced() && !sporkManager.IsSporkActive(SPORK_13_OLD_SUPERBLOCK_FLAG)) {
+                // no budget blocks should be accepted here, if SPORK_13_OLD_SUPERBLOCK_FLAG is disabled
+                LogPrint("gobject", "IsBlockValueValid -- Client synced but budget spork is disabled, checking block value against block reward\n");
+                if(!isBlockRewardValueMet) {
+                    strErrorRet = strprintf("coinbase pays too much at height %d (actual=%d vs limit=%d), exceeded block reward, budgets are disabled",
+                                            nBlockHeight, block.vtx[0].GetValueOut(), blockReward);
+                }
+                return isBlockRewardValueMet;
+            }
             LogPrint("gobject", "IsBlockValueValid -- WARNING: Skipping budget block value checks, accepting block\n");
             // TODO: reprocess blocks to make sure they are legit?
             return true;
@@ -98,7 +97,7 @@ bool IsBlockValueValid(const CBlock& block, int nBlockHeight, CAmount blockRewar
 
     // we are synced, let's try to check as much data as we can
 
-//    if(sporkManager.IsSporkActive(SPORK_9_SUPERBLOCKS_ENABLED)) {
+    if(sporkManager.IsSporkActive(SPORK_9_SUPERBLOCKS_ENABLED)) {
 ////        if(CSuperblockManager::IsSuperblockTriggered(nBlockHeight)) {
 ////            if(CSuperblockManager::IsValid(block.vtx[0], nBlockHeight, blockReward)) {
 ////                LogPrint("gobject", "IsBlockValueValid -- Valid superblock at height %d: %s", nBlockHeight, block.vtx[0].ToString());
@@ -117,14 +116,14 @@ bool IsBlockValueValid(const CBlock& block, int nBlockHeight, CAmount blockRewar
 //            strErrorRet = strprintf("coinbase pays too much at height %d (actual=%d vs limit=%d), exceeded block reward, no triggered superblock detected",
 //                                    nBlockHeight, block.vtx[0].GetValueOut(), blockReward);
 //        }
-//    } else {
+    } else {
 //        // should NOT allow superblocks at all, when superblocks are disabled
-//        LogPrint("gobject", "IsBlockValueValid -- Superblocks are disabled, no superblocks allowed\n");
-//        if(!isBlockRewardValueMet) {
-//            strErrorRet = strprintf("coinbase pays too much at height %d (actual=%d vs limit=%d), exceeded block reward, superblocks are disabled",
-//                                    nBlockHeight, block.vtx[0].GetValueOut(), blockReward);
-//        }
-//    }
+        LogPrint("gobject", "IsBlockValueValid -- Superblocks are disabled, no superblocks allowed\n");
+        if(!isBlockRewardValueMet) {
+            strErrorRet = strprintf("coinbase pays too much at height %d (actual=%d vs limit=%d), exceeded block reward, superblocks are disabled",
+                                    nBlockHeight, block.vtx[0].GetValueOut(), blockReward);
+        }
+    }
 
     // it MUST be a regular block
     return isBlockRewardValueMet;
@@ -152,21 +151,21 @@ bool IsBlockPayeeValid(const CTransaction& txNew, int nBlockHeight, CAmount bloc
         int nOffset = nBlockHeight % consensusParams.nBudgetPaymentsCycleBlocks;
         if(nBlockHeight >= consensusParams.nBudgetPaymentsStartBlock &&
             nOffset < consensusParams.nBudgetPaymentsWindowBlocks) {
-//            if(!sporkManager.IsSporkActive(SPORK_13_OLD_SUPERBLOCK_FLAG)) {
-//                // no budget blocks should be accepted here, if SPORK_13_OLD_SUPERBLOCK_FLAG is disabled
-//                LogPrint("gobject", "IsBlockPayeeValid -- ERROR: Client synced but budget spork is disabled and znode payment is invalid\n");
-//                return false;
-//            }
+            if(!sporkManager.IsSporkActive(SPORK_13_OLD_SUPERBLOCK_FLAG)) {
+                // no budget blocks should be accepted here, if SPORK_13_OLD_SUPERBLOCK_FLAG is disabled
+                LogPrint("gobject", "IsBlockPayeeValid -- ERROR: Client synced but budget spork is disabled and znode payment is invalid\n");
+                return false;
+            }
             // NOTE: this should never happen in real, SPORK_13_OLD_SUPERBLOCK_FLAG MUST be disabled when 12.1 starts to go live
             LogPrint("gobject", "IsBlockPayeeValid -- WARNING: Probably valid budget block, have no data, accepting\n");
             // TODO: reprocess blocks to make sure they are legit?
             return true;
         }
 
-//        if(sporkManager.IsSporkActive(SPORK_8_ZNODE_PAYMENT_ENFORCEMENT)) {
-//            LogPrintf("IsBlockPayeeValid -- ERROR: Invalid znode payment detected at height %d: %s", nBlockHeight, txNew.ToString());
-//            return false;
-//        }
+        if(sporkManager.IsSporkActive(SPORK_8_ZNODE_PAYMENT_ENFORCEMENT)) {
+            LogPrintf("IsBlockPayeeValid -- ERROR: Invalid znode payment detected at height %d: %s", nBlockHeight, txNew.ToString());
+            return false;
+        }
 
         LogPrintf("IsBlockPayeeValid -- WARNING: Znode payment enforcement is disabled, accepting any payee\n");
         return true;
@@ -175,7 +174,7 @@ bool IsBlockPayeeValid(const CTransaction& txNew, int nBlockHeight, CAmount bloc
     // superblocks started
     // SEE IF THIS IS A VALID SUPERBLOCK
 
-//    if(sporkManager.IsSporkActive(SPORK_9_SUPERBLOCKS_ENABLED)) {
+    if(sporkManager.IsSporkActive(SPORK_9_SUPERBLOCKS_ENABLED)) {
 ////        if(CSuperblockManager::IsSuperblockTriggered(nBlockHeight)) {
 ////            if(CSuperblockManager::IsValid(txNew, nBlockHeight, blockReward)) {
 ////                LogPrint("gobject", "IsBlockPayeeValid -- Valid superblock at height %d: %s", nBlockHeight, txNew.ToString());
@@ -188,10 +187,10 @@ bool IsBlockPayeeValid(const CTransaction& txNew, int nBlockHeight, CAmount bloc
 ////        }
 //        // continue validation, should pay MN
 //        LogPrint("gobject", "IsBlockPayeeValid -- No triggered superblock detected at height %d\n", nBlockHeight);
-//    } else {
-//        // should NOT allow superblocks at all, when superblocks are disabled
-//        LogPrint("gobject", "IsBlockPayeeValid -- Superblocks are disabled, no superblocks allowed\n");
-//    }
+    } else {
+        // should NOT allow superblocks at all, when superblocks are disabled
+        LogPrint("gobject", "IsBlockPayeeValid -- Superblocks are disabled, no superblocks allowed\n");
+    }
 
     // IF THIS ISN'T A SUPERBLOCK OR SUPERBLOCK IS INVALID, IT SHOULD PAY A ZNODE DIRECTLY
     if(mnpayments.IsTransactionValid(txNew, nBlockHeight)) {
@@ -199,10 +198,10 @@ bool IsBlockPayeeValid(const CTransaction& txNew, int nBlockHeight, CAmount bloc
         return true;
     }
 
-//    if(sporkManager.IsSporkActive(SPORK_8_ZNODE_PAYMENT_ENFORCEMENT)) {
-//        LogPrintf("IsBlockPayeeValid -- ERROR: Invalid znode payment detected at height %d: %s", nBlockHeight, txNew.ToString());
-//        return false;
-//    }
+    if(sporkManager.IsSporkActive(SPORK_8_ZNODE_PAYMENT_ENFORCEMENT)) {
+        LogPrintf("IsBlockPayeeValid -- ERROR: Invalid znode payment detected at height %d: %s", nBlockHeight, txNew.ToString());
+        return false;
+    }
 
     LogPrintf("IsBlockPayeeValid -- WARNING: Znode payment enforcement is disabled, accepting any payee\n");
     return true;
@@ -299,11 +298,9 @@ void CZnodePayments::FillBlockPayee(CMutableTransaction& txNew, int nBlockHeight
 }
 
 int CZnodePayments::GetMinZnodePaymentsProto() {
-//    return sporkManager.IsSporkActive(SPORK_10_ZNODE_PAY_UPDATED_NODES)
-//            ? MIN_ZNODE_PAYMENT_PROTO_VERSION_2
-//            : MIN_ZNODE_PAYMENT_PROTO_VERSION_1;
-
-    return MIN_ZNODE_PAYMENT_PROTO_VERSION_1;
+    return sporkManager.IsSporkActive(SPORK_10_ZNODE_PAY_UPDATED_NODES)
+            ? MIN_ZNODE_PAYMENT_PROTO_VERSION_2
+            : MIN_ZNODE_PAYMENT_PROTO_VERSION_1;
 }
 
 void CZnodePayments::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataStream& vRecv)
@@ -323,13 +320,13 @@ void CZnodePayments::ProcessMessage(CNode* pfrom, std::string& strCommand, CData
         int nCountNeeded;
         vRecv >> nCountNeeded;
 
-//        if(netfulfilledman.HasFulfilledRequest(pfrom->addr, NetMsgType::ZNODEPAYMENTSYNC)) {
-//            // Asking for the payments list multiple times in a short period of time is no good
-//            LogPrintf("ZNODEPAYMENTSYNC -- peer already asked me for the list, peer=%d\n", pfrom->id);
-//            Misbehaving(pfrom->GetId(), 20);
-//            return;
-//        }
-//        netfulfilledman.AddFulfilledRequest(pfrom->addr, NetMsgType::ZNODEPAYMENTSYNC);
+        if(netfulfilledman.HasFulfilledRequest(pfrom->addr, NetMsgType::ZNODEPAYMENTSYNC)) {
+            // Asking for the payments list multiple times in a short period of time is no good
+            LogPrintf("ZNODEPAYMENTSYNC -- peer already asked me for the list, peer=%d\n", pfrom->id);
+            Misbehaving(pfrom->GetId(), 20);
+            return;
+        }
+        netfulfilledman.AddFulfilledRequest(pfrom->addr, NetMsgType::ZNODEPAYMENTSYNC);
 
         Sync(pfrom);
         LogPrintf("ZNODEPAYMENTSYNC -- Sent Znode payment votes to peer %d\n", pfrom->id);

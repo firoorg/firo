@@ -19,8 +19,8 @@ static const int HF_ZNODE_HEIGHT = 65000;
 
 static const int HF_LYRA2VAR_HEIGHT_TESTNET = 10;
 static const int HF_LYRA2_HEIGHT_TESTNET = 25; // for consistent purpose since the algo hash is so low
-static const int HF_LYRA2Z_HEIGHT_TESTNET = 30; 
-static const int HF_ZNODE_HEIGHT_TESTNET = 1000; 
+static const int HF_LYRA2Z_HEIGHT_TESTNET = 30;
+static const int HF_ZNODE_HEIGHT_TESTNET = 500;
 //static const int HF_MTP_HEIGHT_TESTNET = 30;
 
 static const int HF_ZEROSPEND_FIX = 22000;
@@ -32,7 +32,7 @@ static const unsigned int MAX_BLOCK_WEIGHT = 2000000;
 /** The maximum allowed size for a block excluding witness data, in bytes (network rule) */
 static const unsigned int MAX_BLOCK_BASE_SIZE = 2000000;
 /** The maximum allowed number of signature check operations in a block (network rule) */
-static const int64_t MAX_BLOCK_SIGOPS_COST = 40000;
+static const int64_t MAX_BLOCK_SIGOPS_COST = 400000;
 /** Coinbase transaction outputs can only be spent after this number of new blocks (network rule) */
 static const int COINBASE_MATURITY = 100;
 

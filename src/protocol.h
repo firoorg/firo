@@ -261,6 +261,8 @@ extern const char *DSSIGNFINALTX;
 extern const char *DSCOMPLETE;
 extern const char *DSFINALTX;
 extern const char *TXLOCKVOTE;
+extern const char *DSTX;
+extern const char *TXLOCKREQUEST;
 
 
 };
@@ -354,6 +356,7 @@ enum GetDataMsg
     MSG_ZNODE_ANNOUNCE,
     MSG_ZNODE_PING,
     MSG_ZNODE_VERIFY,
+    MSG_TXLOCK_REQUEST,
     MSG_DSTX,
     DSQUEUE,
 };

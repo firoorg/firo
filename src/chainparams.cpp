@@ -19,8 +19,7 @@
 #include "arith_uint256.h"
 
 
-static CBlock
-CreateGenesisBlock(const char *pszTimestamp, const CScript &genesisOutputScript, uint32_t nTime, uint32_t nNonce,
+static CBlock CreateGenesisBlock(const char *pszTimestamp, const CScript &genesisOutputScript, uint32_t nTime, uint32_t nNonce,
                    uint32_t nBits, int32_t nVersion, const CAmount &genesisReward,
                    std::vector<unsigned char> extraNonce) {
     CMutableTransaction txNew;
@@ -176,18 +175,11 @@ public:
         vSeeds.push_back(CDNSSeedData("singapore.zcoin.io", "singapore.zcoin.io", false));
         vSeeds.push_back(CDNSSeedData("nyc.zcoin.io", "nyc.zcoin.io", false));
         // Note that of those with the service bits flag, most only support a subset of possible options
-        base58Prefixes[PUBKEY_ADDRESS] = std::vector < unsigned
-        char > (1, 82);
-        base58Prefixes[SCRIPT_ADDRESS] = std::vector < unsigned
-        char > (1, 7);
-        base58Prefixes[SECRET_KEY] = std::vector < unsigned
-        char > (1, 210);
-        base58Prefixes[EXT_PUBLIC_KEY] =
-                boost::assign::list_of(0x04)(0x88)(0xB2)(0x1E).convert_to_container < std::vector < unsigned
-        char > > ();
-        base58Prefixes[EXT_SECRET_KEY] =
-                boost::assign::list_of(0x04)(0x88)(0xAD)(0xE4).convert_to_container < std::vector < unsigned
-        char > > ();
+        base58Prefixes[PUBKEY_ADDRESS] = std::vector < unsigned char > (1, 82);
+        base58Prefixes[SCRIPT_ADDRESS] = std::vector < unsigned char > (1, 7);
+        base58Prefixes[SECRET_KEY] = std::vector < unsigned char > (1, 210);
+        base58Prefixes[EXT_PUBLIC_KEY] = boost::assign::list_of(0x04)(0x88)(0xB2)(0x1E).convert_to_container < std::vector < unsigned char > > ();
+        base58Prefixes[EXT_SECRET_KEY] = boost::assign::list_of(0x04)(0x88)(0xAD)(0xE4).convert_to_container < std::vector < unsigned char > > ();
 
         vFixedSeeds = std::vector<SeedSpec6>(pnSeed6_main, pnSeed6_main + ARRAYLEN(pnSeed6_main));
 
@@ -256,7 +248,7 @@ public:
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000708f98bf623f02e");
         // Maternode params
-        consensus.nZnodePaymentsStartBlock = 10000; // not true, but it's ok as long as it's less then n
+        consensus.nZnodePaymentsStartBlock = 100; // not true, but it's ok as long as it's less then n
         consensus.nZnodePaymentsIncreaseBlock = 46000;
         consensus.nZnodePaymentsIncreasePeriod = 576;
         consensus.nSuperblockStartBlock = 61000;
@@ -274,7 +266,7 @@ public:
         pchMessageStart[1] = 0xfc;
         pchMessageStart[2] = 0xbe;
         pchMessageStart[3] = 0xea;
-        nDefaultPort = 28168;
+        nDefaultPort = 18168;
         nPruneAfterHeight = 1000;
         /**
           * btzc: testnet params
@@ -299,8 +291,9 @@ public:
         vSeeds.clear();
         // nodes with support for servicebits filtering should be at the top
         // zcoin test seeds
-        vSeeds.push_back(CDNSSeedData("beta1.zcoin.io", "beta1.zcoin.io", false));
-        vSeeds.push_back(CDNSSeedData("beta2.zcoin.io", "beta2.zcoin.io", false));
+//        vSeeds.push_back(CDNSSeedData("beta1.zcoin.io", "beta1.zcoin.io", false));
+//        vSeeds.push_back(CDNSSeedData("beta2.zcoin.io", "beta2.zcoin.io", false));
+        vSeeds.push_back(CDNSSeedData("54.165.247.127", "54.165.247.127", false));
 
 
 //        vSeeds.push_back(CDNSSeedData("testnetbitcoin.jonasschnelli.ch", "testnet-seed.bitcoin.jonasschnelli.ch", true));
@@ -308,18 +301,11 @@ public:
 //        vSeeds.push_back(CDNSSeedData("bluematt.me", "testnet-seed.bluematt.me"));
 //        vSeeds.push_back(CDNSSeedData("bitcoin.schildbach.de", "testnet-seed.bitcoin.schildbach.de"));
 
-        base58Prefixes[PUBKEY_ADDRESS] = std::vector < unsigned
-        char > (1, 65);
-        base58Prefixes[SCRIPT_ADDRESS] = std::vector < unsigned
-        char > (1, 178);
-        base58Prefixes[SECRET_KEY] = std::vector < unsigned
-        char > (1, 185);
-        base58Prefixes[EXT_PUBLIC_KEY] =
-                boost::assign::list_of(0x04)(0x35)(0x87)(0xCF).convert_to_container < std::vector < unsigned
-        char > > ();
-        base58Prefixes[EXT_SECRET_KEY] =
-                boost::assign::list_of(0x04)(0x35)(0x83)(0x94).convert_to_container < std::vector < unsigned
-        char > > ();
+        base58Prefixes[PUBKEY_ADDRESS] = std::vector < unsigned char > (1, 65);
+        base58Prefixes[SCRIPT_ADDRESS] = std::vector < unsigned char > (1, 178);
+        base58Prefixes[SECRET_KEY] = std::vector < unsigned char > (1, 185);
+        base58Prefixes[EXT_PUBLIC_KEY] = boost::assign::list_of(0x04)(0x35)(0x87)(0xCF).convert_to_container < std::vector < unsigned char > > ();
+        base58Prefixes[EXT_SECRET_KEY] = boost::assign::list_of(0x04)(0x35)(0x83)(0x94).convert_to_container < std::vector < unsigned char > > ();
         vFixedSeeds = std::vector<SeedSpec6>(pnSeed6_test, pnSeed6_test + ARRAYLEN(pnSeed6_test));
 
         fMiningRequiresPeers = true;
@@ -332,9 +318,9 @@ public:
         checkpointData = (CCheckpointData) {
                 boost::assign::map_list_of
                         (0, uint256S("0x")),
-                1414776313,
-                0,
-                100.0
+                        1414776313,
+                        0,
+                        100.0
         };
 
     }
@@ -422,18 +408,11 @@ public:
                 0,
                 0
         };
-        base58Prefixes[PUBKEY_ADDRESS] = std::vector < unsigned
-        char > (1, 65);
-        base58Prefixes[SCRIPT_ADDRESS] = std::vector < unsigned
-        char > (1, 178);
-        base58Prefixes[SECRET_KEY] = std::vector < unsigned
-        char > (1, 239);
-        base58Prefixes[EXT_PUBLIC_KEY] =
-                boost::assign::list_of(0x04)(0x35)(0x87)(0xCF).convert_to_container < std::vector < unsigned
-        char > > ();
-        base58Prefixes[EXT_SECRET_KEY] =
-                boost::assign::list_of(0x04)(0x35)(0x83)(0x94).convert_to_container < std::vector < unsigned
-        char > > ();
+        base58Prefixes[PUBKEY_ADDRESS] = std::vector < unsigned char > (1, 65);
+        base58Prefixes[SCRIPT_ADDRESS] = std::vector < unsigned char > (1, 178);
+        base58Prefixes[SECRET_KEY] = std::vector < unsigned char > (1, 239);
+        base58Prefixes[EXT_PUBLIC_KEY] = boost::assign::list_of(0x04)(0x35)(0x87)(0xCF).convert_to_container < std::vector < unsigned char > > ();
+        base58Prefixes[EXT_SECRET_KEY] = boost::assign::list_of(0x04)(0x35)(0x83)(0x94).convert_to_container < std::vector < unsigned char > > ();
     }
 
     void UpdateBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout) {

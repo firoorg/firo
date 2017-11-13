@@ -9,12 +9,11 @@
 #include "znode-payments.h"
 #include "znode-sync.h"
 #include "znodeman.h"
-//#include "netfulfilledman.h"
+#include "netfulfilledman.h"
 #include "util.h"
 
 /** Znode manager */
 CZnodeMan mnodeman;
-//CNetFulfilledRequestManager netfulfilledman;
 
 const std::string CZnodeMan::SERIALIZATION_VERSION_STRING = "CZnodeMan-Version-4";
 
@@ -97,8 +96,7 @@ void CZnodeIndex::RebuildIndex()
     }
 }
 
-CZnodeMan::CZnodeMan()
-: cs(),
+CZnodeMan::CZnodeMan() : cs(),
   vZnodes(),
   mAskedUsForZnodeList(),
   mWeAskedForZnodeList(),
@@ -630,9 +628,9 @@ CZnode* CZnodeMan::FindRandomNotInVec(const std::vector<CTxIn> &vecToExclude, in
         vpZnodesShuffled.push_back(&mn);
     }
 
-//    InsecureRand insecureRand;
+    InsecureRand insecureRand;
     // shuffle pointers
-//    std::random_shuffle(vpZnodesShuffled.begin(), vpZnodesShuffled.end(), insecureRand);
+    std::random_shuffle(vpZnodesShuffled.begin(), vpZnodesShuffled.end(), insecureRand);
     bool fExclude;
 
     // loop through
@@ -1089,19 +1087,19 @@ void CZnodeMan::CheckSameAddr()
 
 bool CZnodeMan::SendVerifyRequest(const CAddress& addr, const std::vector<CZnode*>& vSortedByAddr)
 {
-//    if(netfulfilledman.HasFulfilledRequest(addr, strprintf("%s", NetMsgType::MNVERIFY)+"-request")) {
+    if(netfulfilledman.HasFulfilledRequest(addr, strprintf("%s", NetMsgType::MNVERIFY)+"-request")) {
         // we already asked for verification, not a good idea to do this too often, skip it
-//        LogPrint("znode", "CZnodeMan::SendVerifyRequest -- too many requests, skipping... addr=%s\n", addr.ToString());
-//        return false;
-//    }
+        LogPrint("znode", "CZnodeMan::SendVerifyRequest -- too many requests, skipping... addr=%s\n", addr.ToString());
+        return false;
+    }
 
-    CNode* pnode = ConnectNodeDash(addr, NULL, true);
+    CNode* pnode = ConnectNode(addr, NULL, false, true);
     if(pnode == NULL) {
         LogPrintf("CZnodeMan::SendVerifyRequest -- can't connect to node to verify it, addr=%s\n", addr.ToString());
         return false;
     }
 
-//    netfulfilledman.AddFulfilledRequest(addr, strprintf("%s", NetMsgType::MNVERIFY)+"-request");
+    netfulfilledman.AddFulfilledRequest(addr, strprintf("%s", NetMsgType::MNVERIFY)+"-request");
     // use random nonce, store it and require node to reply with correct one later
     CZnodeVerification mnv(addr, GetRandInt(999999), pCurrentBlockIndex->nHeight - 1);
     mWeAskedForVerification[addr] = mnv;
@@ -1120,12 +1118,12 @@ void CZnodeMan::SendVerifyReply(CNode* pnode, CZnodeVerification& mnv)
         return;
     }
 
-//    if(netfulfilledman.HasFulfilledRequest(pnode->addr, strprintf("%s", NetMsgType::MNVERIFY)+"-reply")) {
+    if(netfulfilledman.HasFulfilledRequest(pnode->addr, strprintf("%s", NetMsgType::MNVERIFY)+"-reply")) {
 //        // peer should not ask us that often
-//        LogPrintf("ZnodeMan::SendVerifyReply -- ERROR: peer already asked me recently, peer=%d\n", pnode->id);
-//        Misbehaving(pnode->id, 20);
-//        return;
-//    }
+        LogPrintf("ZnodeMan::SendVerifyReply -- ERROR: peer already asked me recently, peer=%d\n", pnode->id);
+        Misbehaving(pnode->id, 20);
+        return;
+    }
 
     uint256 blockHash;
     if(!GetBlockHash(blockHash, mnv.nBlockHeight)) {
@@ -1148,7 +1146,7 @@ void CZnodeMan::SendVerifyReply(CNode* pnode, CZnodeVerification& mnv)
     }
 
     pnode->PushMessage(NetMsgType::MNVERIFY, mnv);
-//    netfulfilledman.AddFulfilledRequest(pnode->addr, strprintf("%s", NetMsgType::MNVERIFY)+"-reply");
+    netfulfilledman.AddFulfilledRequest(pnode->addr, strprintf("%s", NetMsgType::MNVERIFY)+"-reply");
 }
 
 void CZnodeMan::ProcessVerifyReply(CNode* pnode, CZnodeVerification& mnv)
@@ -1156,11 +1154,11 @@ void CZnodeMan::ProcessVerifyReply(CNode* pnode, CZnodeVerification& mnv)
     std::string strError;
 
     // did we even ask for it? if that's the case we should have matching fulfilled request
-//    if(!netfulfilledman.HasFulfilledRequest(pnode->addr, strprintf("%s", NetMsgType::MNVERIFY)+"-request")) {
-//        LogPrintf("CZnodeMan::ProcessVerifyReply -- ERROR: we didn't ask for verification of %s, peer=%d\n", pnode->addr.ToString(), pnode->id);
-//        Misbehaving(pnode->id, 20);
-//        return;
-//    }
+    if(!netfulfilledman.HasFulfilledRequest(pnode->addr, strprintf("%s", NetMsgType::MNVERIFY)+"-request")) {
+        LogPrintf("CZnodeMan::ProcessVerifyReply -- ERROR: we didn't ask for verification of %s, peer=%d\n", pnode->addr.ToString(), pnode->id);
+        Misbehaving(pnode->id, 20);
+        return;
+    }
 
     // Received nonce for a known address must match the one we sent
     if(mWeAskedForVerification[pnode->addr].nonce != mnv.nonce) {
@@ -1186,11 +1184,11 @@ void CZnodeMan::ProcessVerifyReply(CNode* pnode, CZnodeVerification& mnv)
     }
 
 //    // we already verified this address, why node is spamming?
-//    if(netfulfilledman.HasFulfilledRequest(pnode->addr, strprintf("%s", NetMsgType::MNVERIFY)+"-done")) {
-//        LogPrintf("CZnodeMan::ProcessVerifyReply -- ERROR: already verified %s recently\n", pnode->addr.ToString());
-//        Misbehaving(pnode->id, 20);
-//        return;
-//    }
+    if(netfulfilledman.HasFulfilledRequest(pnode->addr, strprintf("%s", NetMsgType::MNVERIFY)+"-done")) {
+        LogPrintf("CZnodeMan::ProcessVerifyReply -- ERROR: already verified %s recently\n", pnode->addr.ToString());
+        Misbehaving(pnode->id, 20);
+        return;
+    }
 
     {
         LOCK(cs);
@@ -1207,7 +1205,7 @@ void CZnodeMan::ProcessVerifyReply(CNode* pnode, CZnodeVerification& mnv)
                     if(!it->IsPoSeVerified()) {
                         it->DecreasePoSeBanScore();
                     }
-//                    netfulfilledman.AddFulfilledRequest(pnode->addr, strprintf("%s", NetMsgType::MNVERIFY)+"-done");
+                    netfulfilledman.AddFulfilledRequest(pnode->addr, strprintf("%s", NetMsgType::MNVERIFY)+"-done");
 
                     // we can only broadcast it if we are an activated znode
                     if(activeZnode.vin == CTxIn()) continue;

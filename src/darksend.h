@@ -8,7 +8,7 @@
 #include "znode.h"
 #include "wallet/wallet.h"
 
-//class CDarksendPool;
+class CDarksendPool;
 class CDarkSendSigner;
 class CDarksendBroadcastTx;
 
@@ -36,11 +36,16 @@ static const int PRIVATESEND_KEYS_THRESHOLD_WARNING = 100;
 // Stop mixing completely, it's too dangerous to continue when we have only this many keys left
 static const int PRIVATESEND_KEYS_THRESHOLD_STOP    = 50;
 
+// The main object for accessing mixing
+extern CDarksendPool darkSendPool;
+// A helper object for signing messages from Znodes
+extern CDarkSendSigner darkSendSigner;
+
 extern int nPrivateSendRounds;
 extern int nPrivateSendAmount;
 extern int nLiquidityProvider;
 extern bool fEnablePrivateSend;
-//extern bool fPrivateSendMultiSession;
+extern bool fPrivateSendMultiSession;
 
 extern std::map<uint256, CDarksendBroadcastTx> mapDarksendBroadcastTxes;
 extern std::vector<CAmount> vecPrivateSendDenominations;
@@ -472,11 +477,6 @@ public:
 
     void UpdatedBlockTip(const CBlockIndex *pindex);
 };
-
-// The main object for accessing mixing
-extern CDarksendPool darkSendPool;
-// A helper object for signing messages from Znodes
-extern CDarkSendSigner darkSendSigner;
 
 void ThreadCheckDarkSendPool();
 

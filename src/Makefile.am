@@ -281,6 +281,7 @@ libbitcoin_consensus_a_SOURCES = \
   consensus/params.h \
   consensus/validation.h \
   hash.cpp \
+  flat-database.h \
   hash.h \
   prevector.h \
   crypto/scrypt.h \

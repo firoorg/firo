@@ -5,7 +5,7 @@
 
 #include "primitives/block.h"
 #include "consensus/consensus.h"
-
+#include "main.h"
 #include "hash.h"
 #include "tinyformat.h"
 #include "utilstrencodings.h"

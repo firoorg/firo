@@ -230,6 +230,26 @@ template<typename Stream> inline void Serialize(Stream& s, bool a, int, int=0)  
 template<typename Stream> inline void Unserialize(Stream& s, bool& a, int, int=0) { char f=ser_readdata8(s); a=f; }
 
 
+inline unsigned int GetSerializeSize(const unsigned char a[32], int, int=0){
+    return sizeof(unsigned char) * 32;
+}
+
+template<typename Stream> inline void Serialize(Stream& s, const unsigned char a[32], int, int=0)
+{
+    int r;
+    for( r = 0; r < 32; r++){
+        WRITEDATA(s, a[r]);
+    }
+}
+
+template<typename Stream> inline void Unserialize(Stream& s, unsigned char a[32], int, int=0)
+{
+    int r;
+    for( r = 0; r < 32; r++){
+        READDATA(s, a[r]);
+    }
+
+}
 
 
 

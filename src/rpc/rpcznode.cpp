@@ -1,7 +1,3 @@
-// Copyright (c) 2014-2017 The Dash Core developers
-// Distributed under the MIT/X11 software license, see the accompanying
-// file COPYING or http://www.opensource.org/licenses/mit-license.php.
-
 #include "activeznode.h"
 #include "darksend.h"
 #include "init.h"
@@ -143,8 +139,8 @@ UniValue znode(const UniValue &params, bool fHelp) {
 
         CService addr = CService(strAddress);
 
-//        CNode *pnode = ConnectNodeDash(CAddress(addr, NODE_NETWORK), NULL);
-//        if (!pnode)
+        CNode *pnode = ConnectNode(CAddress(addr, NODE_NETWORK), NULL);
+        if (!pnode)
             throw JSONRPCError(RPC_INTERNAL_ERROR, strprintf("Couldn't connect to znode %s", strAddress));
 
         return "successfully connected";
@@ -299,8 +295,7 @@ UniValue znode(const UniValue &params, bool fHelp) {
 
         UniValue resultsObj(UniValue::VOBJ);
 
-        BOOST_FOREACH(CZnodeConfig::CZnodeEntry
-        mne, znodeConfig.getEntries()) {
+        BOOST_FOREACH(CZnodeConfig::CZnodeEntry mne, znodeConfig.getEntries()) {
             std::string strError;
 
             CTxIn vin = CTxIn(uint256S(mne.getTxHash()), uint32_t(atoi(mne.getOutputIndex().c_str())));
@@ -372,7 +367,7 @@ UniValue znode(const UniValue &params, bool fHelp) {
     if (strCommand == "outputs") {
         // Find possible candidates
         std::vector <COutput> vPossibleCoins;
-        pwalletMain->AvailableCoinsDash(vPossibleCoins, true, NULL, false, ONLY_1000);
+        pwalletMain->AvailableCoins(vPossibleCoins, true, NULL, false, ONLY_1000);
 
         UniValue obj(UniValue::VOBJ);
         BOOST_FOREACH(COutput & out, vPossibleCoins)

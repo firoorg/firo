@@ -4,14 +4,13 @@
 
 #include "activeznode.h"
 #include "checkpoints.h"
-//#include "governance.h"
 #include "main.h"
 #include "znode.h"
 #include "znode-payments.h"
 #include "znode-sync.h"
 #include "znodeman.h"
-//#include "netfulfilledman.h"
-//#include "spork.h"
+#include "netfulfilledman.h"
+#include "spork.h"
 #include "util.h"
 
 class CZnodeSync;
@@ -193,7 +192,7 @@ void CZnodeSync::SwitchToNextAsset()
             if(!lockRecv) return;
 
             BOOST_FOREACH(CNode* pnode, vNodes) {
-//                netfulfilledman.AddFulfilledRequest(pnode->addr, "full-sync");
+                netfulfilledman.AddFulfilledRequest(pnode->addr, "full-sync");
             }
 
             break;
@@ -238,11 +237,10 @@ void CZnodeSync::ClearFulfilledRequests()
 
     BOOST_FOREACH(CNode* pnode, vNodes)
     {
-//        netfulfilledman.RemoveFulfilledRequest(pnode->addr, "spork-sync");
-//        netfulfilledman.RemoveFulfilledRequest(pnode->addr, "znode-list-sync");
-//        netfulfilledman.RemoveFulfilledRequest(pnode->addr, "znode-payment-sync");
-//        netfulfilledman.RemoveFulfilledRequest(pnode->addr, "governance-sync");
-//        netfulfilledman.RemoveFulfilledRequest(pnode->addr, "full-sync");
+        netfulfilledman.RemoveFulfilledRequest(pnode->addr, "spork-sync");
+        netfulfilledman.RemoveFulfilledRequest(pnode->addr, "znode-list-sync");
+        netfulfilledman.RemoveFulfilledRequest(pnode->addr, "znode-payment-sync");
+        netfulfilledman.RemoveFulfilledRequest(pnode->addr, "full-sync");
     }
 }
 
@@ -336,24 +334,24 @@ void CZnodeSync::ProcessTick()
 
         // NORMAL NETWORK MODE - TESTNET/MAINNET
         {
-//            if(netfulfilledman.HasFulfilledRequest(pnode->addr, "full-sync")) {
-//                // We already fully synced from this node recently,
-//                // disconnect to free this connection slot for another peer.
-//                pnode->fDisconnect = true;
-//                LogPrintf("CZnodeSync::ProcessTick -- disconnecting from recently synced peer %d\n", pnode->id);
-//                continue;
-//            }
-//
-//            // SPORK : ALWAYS ASK FOR SPORKS AS WE SYNC (we skip this mode now)
-//
-//            if(!netfulfilledman.HasFulfilledRequest(pnode->addr, "spork-sync")) {
-//                // only request once from each peer
-//                netfulfilledman.AddFulfilledRequest(pnode->addr, "spork-sync");
-//                // get current network sporks
-//                pnode->PushMessage(NetMsgType::GETSPORKS);
-//                LogPrintf("CZnodeSync::ProcessTick -- nTick %d nRequestedZnodeAssets %d -- requesting sporks from peer %d\n", nTick, nRequestedZnodeAssets, pnode->id);
-//                continue; // always get sporks first, switch to the next node without waiting for the next tick
-//            }
+            if(netfulfilledman.HasFulfilledRequest(pnode->addr, "full-sync")) {
+                // We already fully synced from this node recently,
+                // disconnect to free this connection slot for another peer.
+                pnode->fDisconnect = true;
+                LogPrintf("CZnodeSync::ProcessTick -- disconnecting from recently synced peer %d\n", pnode->id);
+                continue;
+            }
+
+            // SPORK : ALWAYS ASK FOR SPORKS AS WE SYNC (we skip this mode now)
+
+            if(!netfulfilledman.HasFulfilledRequest(pnode->addr, "spork-sync")) {
+                // only request once from each peer
+                netfulfilledman.AddFulfilledRequest(pnode->addr, "spork-sync");
+                // get current network sporks
+                pnode->PushMessage(NetMsgType::GETSPORKS);
+                LogPrintf("CZnodeSync::ProcessTick -- nTick %d nRequestedZnodeAssets %d -- requesting sporks from peer %d\n", nTick, nRequestedZnodeAssets, pnode->id);
+                continue; // always get sporks first, switch to the next node without waiting for the next tick
+            }
 
             // MNLIST : SYNC ZNODE LIST FROM OTHER CONNECTED CLIENTS
 
@@ -375,8 +373,8 @@ void CZnodeSync::ProcessTick()
                 }
 
                 // only request once from each peer
-//                if(netfulfilledman.HasFulfilledRequest(pnode->addr, "znode-list-sync")) continue;
-//                netfulfilledman.AddFulfilledRequest(pnode->addr, "znode-list-sync");
+                if(netfulfilledman.HasFulfilledRequest(pnode->addr, "znode-list-sync")) continue;
+                netfulfilledman.AddFulfilledRequest(pnode->addr, "znode-list-sync");
 
                 if (pnode->nVersion < mnpayments.GetMinZnodePaymentsProto()) continue;
                 nRequestedZnodeAttempt++;
@@ -419,8 +417,8 @@ void CZnodeSync::ProcessTick()
                 }
 
                 // only request once from each peer
-//                if(netfulfilledman.HasFulfilledRequest(pnode->addr, "znode-payment-sync")) continue;
-//                netfulfilledman.AddFulfilledRequest(pnode->addr, "znode-payment-sync");
+                if(netfulfilledman.HasFulfilledRequest(pnode->addr, "znode-payment-sync")) continue;
+                netfulfilledman.AddFulfilledRequest(pnode->addr, "znode-payment-sync");
 
                 if(pnode->nVersion < mnpayments.GetMinZnodePaymentsProto()) continue;
                 nRequestedZnodeAttempt++;
@@ -490,7 +488,7 @@ void CZnodeSync::ProcessTick()
 //                if (pnode->nVersion < MIN_GOVERNANCE_PEER_PROTO_VERSION) continue;
                 nRequestedZnodeAttempt++;
 
-                SendGovernanceSyncRequest(pnode);
+//                SendGovernanceSyncRequest(pnode);
 
                 ReleaseNodeVector(vNodesCopy);
                 return; //this will cause each peer to get one request each six seconds for the various assets we need

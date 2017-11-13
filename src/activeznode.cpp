@@ -202,12 +202,12 @@ void CActiveZnode::ManageStateInitial() {
 
     LogPrintf("CActiveZnode::ManageStateInitial -- Checking inbound connection to '%s'\n", service.ToString());
     //TODO
-//    if (!ConnectNodeDash(CAddress(service, NODE_NETWORK), NULL, true)) {
-//        nState = ACTIVE_ZNODE_NOT_CAPABLE;
-//        strNotCapableReason = "Could not connect to " + service.ToString();
-//        LogPrintf("CActiveZnode::ManageStateInitial -- %s: %s\n", GetStateString(), strNotCapableReason);
-//        return;
-//    }
+    if (!ConnectNode(CAddress(service, NODE_NETWORK), NULL, false, true)) {
+        nState = ACTIVE_ZNODE_NOT_CAPABLE;
+        strNotCapableReason = "Could not connect to " + service.ToString();
+        LogPrintf("CActiveZnode::ManageStateInitial -- %s: %s\n", GetStateString(), strNotCapableReason);
+        return;
+    }
 
     // Default to REMOTE
     eType = ZNODE_REMOTE;
@@ -223,7 +223,7 @@ void CActiveZnode::ManageStateInitial() {
         return;
     }
 
-    if (pwalletMain->GetBalance() < 1000 * COIN) {
+    if (pwalletMain->GetBalance() < ZNODE_COIN_REQUIRED * COIN) {
         LogPrintf("CActiveZnode::ManageStateInitial -- %s: Wallet balance is < 1000 DASH\n", GetStateString());
         return;
     }
@@ -309,7 +309,7 @@ void CActiveZnode::ManageStateLocal() {
         CZnodeBroadcast mnb;
         std::string strError;
         if (!CZnodeBroadcast::Create(vin, service, keyCollateral, pubKeyCollateral, keyZnode,
-                                          pubKeyZnode, strError, mnb)) {
+                                     pubKeyZnode, strError, mnb)) {
             nState = ACTIVE_ZNODE_NOT_CAPABLE;
             strNotCapableReason = "Error creating mastenode broadcast: " + strError;
             LogPrintf("CActiveZnode::ManageStateLocal -- %s: %s\n", GetStateString(), strNotCapableReason);

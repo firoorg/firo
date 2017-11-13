@@ -4,17 +4,17 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "pow.h"
-
+#include "main.h"
 #include "arith_uint256.h"
 #include "chain.h"
 #include "primitives/block.h"
+#include "consensus/consensus.h"
 #include "uint256.h"
 #include <iostream>
 #include "util.h"
 #include "chainparams.h"
 #include "libzerocoin/bitcoin_bignum/bignum.h"
 #include "fixed.h"
-#include "consensus/consensus.h"
 
 static CBigNum bnProofOfWorkLimit(~arith_uint256(0) >> 8);
 
@@ -34,9 +34,14 @@ double GetDifficultyHelper(unsigned int nBits) {
     return dDiff;
 }
 
-//btzc, zcoin GetNextWorkRequired
+// zcoin GetNextWorkRequired
 unsigned int GetNextWorkRequired(const CBlockIndex *pindexLast, const CBlockHeader *pblock, const Consensus::Params &params) {
-    if (pindexLast == NULL) {
+
+	if(ENABLED_LOWEST_DIFF){
+		return bnProofOfWorkLimit.GetCompact();
+	}
+
+	if (pindexLast == NULL) {
         return bnProofOfWorkLimit.GetCompact();
     }
 
@@ -50,27 +55,20 @@ unsigned int GetNextWorkRequired(const CBlockIndex *pindexLast, const CBlockHead
     if (fTestNet) {
         // If the new block's timestamp is more than nTargetSpacing*6
         // then allow mining of a min-difficulty block
-        if (pblock->nTime > pindexLast->nTime + params.nPowTargetTimespan * 6) {
+        if (pblock->nTime > pindexLast->nTime + params.nPowTargetTimespan * 1) {
             return bnProofOfWorkLimit.GetCompact();
         }
     }
 
     // 9/29/2016 - Reset to Lyra2(2,block_height,256) due to ASIC KnC Miner Scrypt
     // 36 block look back, reset to mininmum diff
-    if (!fTestNet && pindexLast->nHeight + 1 >= HF_LYRA2VAR_HEIGHT && pindexLast->nHeight + 1 <= (HF_LYRA2VAR_HEIGHT + 35)) {
+    if (!fTestNet && pindexLast->nHeight + 1 >= HF_LYRA2VAR_HEIGHT && pindexLast->nHeight + 1 <= HF_LYRA2VAR_HEIGHT + 36 - 1) {
         return bnProofOfWorkLimit.GetCompact();
     }
     // reset to minimum diff at testnet after scrypt_n, 6 block look back
-    if (fTestNet && pindexLast->nHeight + 1 >= HF_LYRA2VAR_HEIGHT_TESTNET && pindexLast->nHeight + 1 <= (HF_LYRA2VAR_HEIGHT_TESTNET + 5)) {
+    if (fTestNet && pindexLast->nHeight + 1 >= HF_LYRA2VAR_HEIGHT_TESTNET && pindexLast->nHeight + 1 <= HF_LYRA2VAR_HEIGHT_TESTNET + 6 - 1) {
         return bnProofOfWorkLimit.GetCompact();
     }
-
-    // reset to minimum diff at testnet for lyra2 with matrix height = 8192 until lyra2z
-    if(fTestNet && pindexLast->nHeight + 1 >= HF_LYRA2_HEIGHT_TESTNET && pindexLast->nHeight + 1 <= (HF_LYRA2Z_HEIGHT_TESTNET - 1)){
-        printf("Lyra2 with 8192 matrix height.\n");
-        return bnProofOfWorkLimit.GetCompact();
-    }
-
 
     // 02/11/2017 - Increase diff to match with new hashrates of Lyra2Z algo
     if ((!fTestNet && pindexLast->nHeight + 1 == HF_LYRA2Z_HEIGHT) || (fTestNet && pindexLast->nHeight + 1 == HF_LYRA2Z_HEIGHT_TESTNET)) {
@@ -83,12 +81,6 @@ unsigned int GetNextWorkRequired(const CBlockIndex *pindexLast, const CBlockHead
         return bnNew.GetCompact();
     }
 
-    // 04/09/2017 - Reset diff on testnet for MTP, 6 blocks look back
-    /*
-    if(fTestNet && pindexLast->nHeight + 1 >= HF_MTP_HEIGHT_TESTNET && pindexLast->nHeight + 1 <= HF_MTP_HEIGHT_TESTNET + 5) {
-        return bnProofOfWorkLimit.GetCompact();
-    }*/
-    
     if ((pindexLast->nHeight + 1) % params.DifficultyAdjustmentInterval() != 0) // Retarget every nInterval blocks
     {
         return pindexLast->nBits;

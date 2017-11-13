@@ -67,6 +67,7 @@ const char *MNGOVERNANCESYNC="govsync";
 const char *MNGOVERNANCEOBJECT="govobj";
 const char *MNGOVERNANCEOBJECTVOTE="govobjvote";
 const char *MNVERIFY="mnv";
+const char *TXLOCKREQUEST="ix";
 
 };
 
@@ -101,6 +102,7 @@ const static std::string allNetMessageTypes[] = {
     NetMsgType::GETBLOCKTXN,
     NetMsgType::BLOCKTXN,
     //znode
+    NetMsgType::TXLOCKREQUEST,
     NetMsgType::ZNODEPAYMENTVOTE,
     NetMsgType::SPORK,
     NetMsgType::GETSPORKS,

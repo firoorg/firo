@@ -23,10 +23,8 @@ using namespace std;
 #define DUMMY_TRANSACTION_HASH  0 // in real life these would be uint256 hashes
 #define DUMMY_ACCUMULATOR_ID    0 // in real life these would be uint256 hashes
 
-//
-// We generated this for testing only. Don't use it in production!
-//
-#define TUTORIAL_TEST_MODULUS   "a8852ebf7c49f01cd196e35394f3b74dd86283a07f57e0a262928e7493d4a3961d93d93c90ea3369719641d626d28b9cddc6d9307b9aabdbffc40b6d6da2e329d079b4187ff784b2893d9f53e9ab913a04ff02668114695b07d8ce877c4c8cac1b12b9beff3c51294ebe349eca41c24cd32a6d09dd1579d3947e5c4dcc30b2090b0454edb98c6336e7571db09e0fdafbd68d8f0470223836e90666a5b143b73b9cd71547c917bf24c0efc86af2eba046ed781d9acb05c80f007ef5a0a5dfca23236f37e698e8728def12554bc80f294f71c040a88eff144d130b24211016a97ce0f5fe520f477e555c9997683d762aff8bd1402ae6938dd5c994780b1bf6aa7239e9d8101630ecfeaa730d2bbc97d39beb057f016db2e28bf12fab4989c0170c2593383fd04660b5229adcd8486ba78f6cc1b558bcd92f344100dff239a8c00dbc4c2825277f24bdd04475bcc9a8c39fd895eff97c1967e434effcb9bd394e0577f4cf98c30d9e6b54cd47d6e447dcf34d67e48e4421691dbe4a7d9bd503abb9"
+//This modulus is the actual modulus used in Zcoin; it is RSA-2048 from the RSA Factoring Challenge.
+#define ZCOIN_MODULUS "c7970ceedcc3b0754490201a7aa613cd73911081c790f5f1a8726f463550bb5b7ff0db8e1ea1189ec72f93d1650011bd721aeeacc2acde32a04107f0648c2813a31f5b0b7765ff8b44b4b6ffc93384b646eb09c7cf5e8592d40ea33c80039f35b4f14a04b51f7bfd781be4d1673164ba8eb991c2c4d730bbbe35f592bdef524af7e8daefd26c66fc02c479af89d64d373f442709439de66ceb955f3ea37d5159f6135809f85334b5cb1813addc80cd05609f10ac6a95ad65872c909525bdad32bc729592642920f24c61dc5b3c3b7923e56b16a4d9d373d8721f24a3fc0f1b3131f55615172866bccc30f95054c824e733a5eb6817f7bc16399d48c6361cc7e5"
 
 //
 // The following routine exercises most of the core functions of
@@ -60,12 +58,11 @@ ZerocoinTutorial()
 		//                  the included 'paramgen' utility.
 		/********************************************************************/
 
-		// Load a test modulus from our hardcoded string (above)
-		Bignum testModulus;
-		testModulus.SetHex(std::string(TUTORIAL_TEST_MODULUS));
+		Bignum modulus;
+		modulus.SetHex(std::string(ZCOIN_MODULUS));
 
 		// Set up the Zerocoin Params object
-		libzerocoin::Params* params = new libzerocoin::Params(testModulus);
+		libzerocoin::Params* params = new libzerocoin::Params(modulus);
 
 		cout << "Successfully loaded parameters." << endl;
 

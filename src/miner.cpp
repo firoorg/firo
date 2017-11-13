@@ -30,7 +30,8 @@
 #include "crypto/scrypt.h"
 #include "crypto/Lyra2Z/Lyra2Z.h"
 #include "crypto/Lyra2Z/Lyra2.h"
-
+#include "znode-payments.h"
+#include "znode-sync.h"
 #include <algorithm>
 #include <boost/thread.hpp>
 #include <boost/tuple/tuple.hpp>
@@ -139,7 +140,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
         return NULL;
     CBlock *pblock = &pblocktemplate->block; // pointer for convenience
     // Create coinbase tx
-    CTransaction txNew;
+    CMutableTransaction txNew;
     txNew.vin.resize(1);
     txNew.vin[0].prevout.SetNull();
     txNew.vout.resize(1);
@@ -210,6 +211,9 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
     unsigned int COUNT_SPEND_ZC_TX = 0;
     unsigned int MAX_SPEND_ZC_TX_PER_BLOCK = 0;
     if(fTestNet || nHeight > HF_ZEROSPEND_FIX){
+        MAX_SPEND_ZC_TX_PER_BLOCK = 1;
+    }
+    if(fTestNet || nHeight > SWITCH_TO_MORE_SPEND_TXS){
         MAX_SPEND_ZC_TX_PER_BLOCK = 1;
     }
 
@@ -446,13 +450,17 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
                 }
             }
         }
+        CAmount blockReward = nFees + GetBlockSubsidy(nHeight, chainparams.GetConsensus());
+        // Update coinbase transaction with additional info about masternode and governance payments,
+        // get some info back to pass to getblocktemplate
+        FillBlockPayments(txNew, nHeight, blockReward, pblock->txoutZnode, pblock->voutSuperblock);
 
         nLastBlockTx = nBlockTx;
         nLastBlockSize = nBlockSize;
         LogPrintf("CreateNewBlock(): total size %u txs: %u fees: %ld sigops %d\n", nBlockSize, nBlockTx, nFees, nBlockSigOps);
 
         // Compute final coinbase transaction.
-        txNew.vout[0].nValue += nFees + GetBlockSubsidy(nHeight, chainparams.GetConsensus());
+        txNew.vout[0].nValue += blockReward;
         txNew.vin[0].scriptSig = CScript() << nHeight << OP_0;
         pblock->vtx[0] = txNew;
         pblocktemplate->vTxFees[0] = -nFees;
@@ -940,7 +948,10 @@ void BlockAssembler::addPriorityTxs()
 
     unsigned int COUNT_SPEND_ZC_TX = 0;
     unsigned int MAX_SPEND_ZC_TX_PER_BLOCK = 0;
-    if (nHeight + 1 > HF_ZEROSPEND_FIX) {
+    if (chainActive.Height() + 1 > HF_ZEROSPEND_FIX) {
+        MAX_SPEND_ZC_TX_PER_BLOCK = 1;
+    }
+    if (nHeight + 1 > SWITCH_TO_MORE_SPEND_TXS) {
         MAX_SPEND_ZC_TX_PER_BLOCK = 1;
     }
 
@@ -1182,14 +1193,14 @@ void static ZcoinMiner(const CChainParams &chainparams) {
                     } else if (!fTestNet && pindexPrev->nHeight + 1 >= HF_LYRA2_HEIGHT) {
                         LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, 8192, 256);
                     } else if (!fTestNet && pindexPrev->nHeight + 1 >= HF_LYRA2VAR_HEIGHT) {
-                        LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, pindexPrev->nHeight + 1, 256);
+                        LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2,
+                              pindexPrev->nHeight + 1, 256);
                     } else if (fTestNet && pindexPrev->nHeight + 1 >= HF_LYRA2Z_HEIGHT_TESTNET) { // testnet
                         lyra2z_hash(BEGIN(pblock->nVersion), BEGIN(thash));
                     } else if (fTestNet && pindexPrev->nHeight + 1 >= HF_LYRA2_HEIGHT_TESTNET) { // testnet
                         LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, 8192, 256);
                     } else if (fTestNet && pindexPrev->nHeight + 1 >= HF_LYRA2VAR_HEIGHT_TESTNET) { // testnet
                         LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, pindexPrev->nHeight + 1, 256);
-                    
                     } else {
                         unsigned long int scrypt_scratpad_size_current_block =
                                 ((1 << (GetNfactor(pblock->nTime) + 1)) * 128) + 63;

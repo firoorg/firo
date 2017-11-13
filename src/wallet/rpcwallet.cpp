@@ -2690,6 +2690,42 @@ UniValue mintzerocoin(const UniValue& params, bool fHelp)
     // stored in a secure location (wallet) at the client.
     libzerocoin::PrivateCoin newCoin(ZCParams, denomination);
 
+    std::list <CZerocoinEntry> listPubCoin = std::list<CZerocoinEntry>();
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+    walletdb.ListPubCoin(listPubCoin);
+
+    int currentId = 1;
+    unsigned int countExistingItems = 0;
+
+    BOOST_FOREACH(const CZerocoinEntry &pubCoinIdItem, listPubCoin) {
+		//LogPrintf("denomination = %d, id = %d, height = %d\n", pubCoinIdItem.denomination, pubCoinIdItem.id, pubCoinIdItem.nHeight);
+		if (pubCoinIdItem.id > 0) {
+			if(pubCoinIdItem.nHeight <= chainActive.Height()){
+				if (pubCoinIdItem.denomination == denomination) {
+					countExistingItems++;
+					if (pubCoinIdItem.id > currentId) {
+						currentId = pubCoinIdItem.id;
+						countExistingItems = 1;
+					}
+				}
+			}else{
+				break;
+			}
+		}
+    }
+
+    if (countExistingItems > 9) {
+    	currentId++;
+    }
+
+    if (((denomination == libzerocoin::ZQ_LOVELACE) && (currentId >= ZC_V2_SWITCH_ID_1))
+    		|| ((denomination == libzerocoin::ZQ_GOLDWASSER) && (currentId >= ZC_V2_SWITCH_ID_10))
+    		|| ((denomination == libzerocoin::ZQ_RACKOFF) && (currentId >= ZC_V2_SWITCH_ID_25))
+    		|| ((denomination == libzerocoin::ZQ_PEDERSEN) && (currentId >= ZC_V2_SWITCH_ID_50))
+    		|| ((denomination == libzerocoin::ZQ_WILLIAMSON) && (currentId >= ZC_V2_SWITCH_ID_100))) {
+    	newCoin.setVersion(2);
+    }
+
 
     // Get a copy of the 'public' portion of the coin. You should
     // embed this into a Zerocoin 'MINT' transaction along with a series

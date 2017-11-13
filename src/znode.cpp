@@ -638,7 +638,7 @@ bool CZnodeBroadcast::CheckOutpoint(int& nDos)
             LogPrint("znode", "CZnodeBroadcast::CheckOutpoint -- Failed to find Znode UTXO, znode=%s\n", vin.prevout.ToStringShort());
             return false;
         }
-        if(coins.vout[vin.prevout.n].nValue != 1000 * COIN) {
+        if(coins.vout[vin.prevout.n].nValue != ZNODE_COIN_REQUIRED * COIN) {
             LogPrint("znode", "CZnodeBroadcast::CheckOutpoint -- Znode UTXO should have 1000 DASH, znode=%s\n", vin.prevout.ToStringShort());
             return false;
         }
