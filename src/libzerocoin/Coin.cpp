@@ -99,7 +99,7 @@ const unsigned char* PrivateCoin::getEcdsaSeckey() const {
      return this->ecdsaSeckey;
 }
 
-const unsigned int PrivateCoin::getVersion() const {
+unsigned int PrivateCoin::getVersion() const {
      return this->version;
 }
 

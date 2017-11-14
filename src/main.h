@@ -173,6 +173,10 @@ static const bool DEFAULT_PEERBLOOMFILTERS = true;
 #define ZC_V2_SWITCH_ID_50 15
 #define ZC_V2_SWITCH_ID_100 30
 
+// Zerocoin V3 starting blocks
+#define ZC_V3_STARTING_BLOCK 65000
+#define ZC_V3_TESTNET_STARTING_BLOCK 10
+
 // Block Height Lyra2Z
 #define LYRA2Z_HEIGHT 20500
 

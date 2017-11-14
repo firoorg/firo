@@ -101,7 +101,7 @@ public:
     const Bignum& getSerialNumber() const;
     const Bignum& getRandomness() const;
     const unsigned char* getEcdsaSeckey() const;
-    const unsigned int getVersion() const;
+    unsigned int getVersion() const;
     static const Bignum serialNumberFromSerializedPublicKey(const std::vector<unsigned char> &pub);
 
     void setPublicCoin(PublicCoin p){

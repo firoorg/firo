@@ -11,6 +11,7 @@
 #include "pow.h"
 #include "tinyformat.h"
 #include "uint256.h"
+#include "libzerocoin/bitcoin_bignum/bignum.h"
 
 #include <vector>
 
@@ -201,6 +202,10 @@ public:
     //! (memory only) Sequential id assigned to distinguish order in which blocks are received.
     uint32_t nSequenceId;
 
+    //! Zecoroin V3 only, only blocks with height >= ZC_V3_STARTING_BLOCK
+    //! Accumulator updates. Contains only changes made by mints v3s in this block
+    map<int, CBigNum> accumulatorChanges;
+
     void SetNull()
     {
         phashBlock = NULL;
@@ -382,6 +387,9 @@ public:
         READWRITE(nTime);
         READWRITE(nBits);
         READWRITE(nNonce);
+
+        if (nVersion >= 131000)
+            READWRITE(accumulatorChanges);
     }
 
     uint256 GetBlockHash() const
