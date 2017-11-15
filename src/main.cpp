@@ -1410,136 +1410,140 @@ bool CheckTransaction(const CTransaction& tx, CValidationState& state, uint256 h
             }
         }
     } else {
-        BOOST_FOREACH(const CTxIn &txin, tx.vin)
-        if (txin.prevout.IsNull() && !txin.scriptSig.IsZerocoinSpend()) {
-            return state.DoS(10, false, REJECT_INVALID, "bad-txns-prevout-null");
-        }
-        bool zerocoinEnable = false;
-        if(zerocoinEnable){
-            // Check Mint Zerocoin Transaction
-            BOOST_FOREACH(const CTxOut &txout, tx.vout) {
-                if (!txout.scriptPubKey.empty() && txout.scriptPubKey.IsZerocoinMint()) {
-                    vector<unsigned char> vchZeroMint;
-                    vchZeroMint.insert(vchZeroMint.end(), txout.scriptPubKey.begin() + 6,
-                                       txout.scriptPubKey.begin() + txout.scriptPubKey.size());
-                    CBigNum pubCoin;
-                    pubCoin.setvch(vchZeroMint);
-                    libzerocoin::CoinDenomination denomination;
-                    if (txout.nValue == libzerocoin::ZQ_LOVELACE * COIN) {
-                        denomination = libzerocoin::ZQ_LOVELACE;
-                        libzerocoin::PublicCoin checkPubCoin(ZCParams, pubCoin, libzerocoin::ZQ_LOVELACE);
-                        if (!checkPubCoin.validate()) {
-                            return state.DoS(100, false, PUBCOIN_NOT_VALIDATE,
-                                             "CTransaction::CheckTransaction() : PubCoin is not validate");
-                        }
-                    } else if (txout.nValue == libzerocoin::ZQ_GOLDWASSER * COIN) {
-                        denomination = libzerocoin::ZQ_GOLDWASSER;
-                        libzerocoin::PublicCoin checkPubCoin(ZCParams, pubCoin, libzerocoin::ZQ_GOLDWASSER);
-                        if (!checkPubCoin.validate()) {
-                            return state.DoS(100, false, PUBCOIN_NOT_VALIDATE,
-                                             "CTransaction::CheckTransaction() : PubCoin is not validate");
-                        }
-                    } else if (txout.nValue == libzerocoin::ZQ_RACKOFF * COIN) {
-                        denomination = libzerocoin::ZQ_RACKOFF;
-                        libzerocoin::PublicCoin checkPubCoin(ZCParams, pubCoin, libzerocoin::ZQ_RACKOFF);
-                        if (!checkPubCoin.validate()) {
-                            return state.DoS(100, false, PUBCOIN_NOT_VALIDATE,
-                                             "CTransaction::CheckTransaction() : PubCoin is not validate");
-                        }
-                    } else if (txout.nValue == libzerocoin::ZQ_PEDERSEN * COIN) {
-                        denomination = libzerocoin::ZQ_PEDERSEN;
-                        libzerocoin::PublicCoin checkPubCoin(ZCParams, pubCoin, libzerocoin::ZQ_PEDERSEN);
-                        if (!checkPubCoin.validate()) {
-                            return state.DoS(100, false, PUBCOIN_NOT_VALIDATE,
-                                             "CTransaction::CheckTransaction() : PubCoin is not validate");
-                        }
-                    } else if (txout.nValue == libzerocoin::ZQ_WILLIAMSON * COIN) {
-                        denomination = libzerocoin::ZQ_WILLIAMSON;
-                        libzerocoin::PublicCoin checkPubCoin(ZCParams, pubCoin, libzerocoin::ZQ_WILLIAMSON);
-                        if (!checkPubCoin.validate()) {
-                            return state.DoS(100, false, PUBCOIN_NOT_VALIDATE,
-                                             "CTransaction::CheckTransaction() : PubCoin is not validate");
-                        }
-                    } else {
-                        return state.DoS(100, false, PUBCOIN_NOT_VALIDATE,
-                                         "CTransaction::CheckTransaction() : PubCoin is not validate");
-                    }
-
-                    if (!isVerifyDB && !isCheckWallet) {
-                        // Check the pubCoinValue didn't alr`eady store in the wallet
-                        CZerocoinEntry pubCoinTx;
-                        list <CZerocoinEntry> listPubCoin = list<CZerocoinEntry>();
-                        CWalletDB walletdb(pwalletMain->strWalletFile);
-                        walletdb.ListPubCoin(listPubCoin);
-                        bool isAlreadyStored = false;
-
-                        // CHECKING PROCESS
-                        BOOST_FOREACH(const CZerocoinEntry &pubCoinItem, listPubCoin) {
-                            if (pubCoinItem.value == pubCoin && pubCoinItem.denomination == denomination) {
-                                isAlreadyStored = true;
-                            }
-                        }
-                        // INSERT PROCESS
-                        if (!isAlreadyStored) {
-                            // TX DOES NOT INCLUDE IN DB
-                            LogPrintf("INSERTING\n");
-                            pubCoinTx.id = -1;
-                            pubCoinTx.denomination = denomination;
-                            pubCoinTx.value = pubCoin;
-                            pubCoinTx.randomness = 0;
-                            pubCoinTx.serialNumber = 0;
-                            pubCoinTx.nHeight = -1;
-                            LogPrintf("INSERT PUBCOIN ID: %d\n", pubCoinTx.id);
-                            walletdb.WriteZerocoinEntry(pubCoinTx);
-                        }
-                    }
-                }
-            }
         
-            // Check Spend Zerocoin Transaction
-            // (vin.size() == 1 && vin[0].prevout.IsNull() && (vin[0].scriptSig[0] == OP_ZEROCOINSPEND) );
-            if (tx.IsZerocoinSpend()) {
-                // Check vOut
-                // Only one loop, we checked on the format before enter this case
-                BOOST_FOREACH(const CTxOut &txout, tx.vout)
-                {
-                    CZerocoinEntry pubCoinTx;
-                    list <CZerocoinEntry> listPubCoin;
-                    if (!isVerifyDB) {
-                        CWalletDB walletdb(pwalletMain->strWalletFile);
-                        listPubCoin.clear();
-                        walletdb.ListPubCoin(listPubCoin);
-                        listPubCoin.sort(CompHeight);
-                        if (txout.nValue == libzerocoin::ZQ_LOVELACE * COIN) {
-                            // Check vIn
-                            if (!CheckSpendZcoinTransaction(tx, pubCoinTx, listPubCoin, libzerocoin::ZQ_LOVELACE, state, hashTx,isVerifyDB, nHeight, isCheckWallet)){
-                                return state.DoS(100, error("CTransaction::CheckTransaction() : COIN SPEND TX IN ZQ_LOVELACE DID NOT VERIFY!"));
-                            };
-                        } else if (txout.nValue == libzerocoin::ZQ_GOLDWASSER * COIN) {
-                            if (!CheckSpendZcoinTransaction(tx, pubCoinTx, listPubCoin, libzerocoin::ZQ_GOLDWASSER, state, hashTx, isVerifyDB, nHeight, isCheckWallet)){
-                                return state.DoS(100, error("CTr[ansaction::CheckTransaction() : COIN SPEND TX IN ZQ_GOLDWASSER DID NOT VERIFY!"));
-                            };
-                        } else if (txout.nValue == libzerocoin::ZQ_RACKOFF * COIN) {
-                            if (!CheckSpendZcoinTransaction(tx, pubCoinTx, listPubCoin, libzerocoin::ZQ_RACKOFF, state, hashTx, isVerifyDB, nHeight, isCheckWallet)){
-                                return state.DoS(100, error("CTransaction::CheckTransaction() : COIN SPEND TX IN ZQ_RACKOFF DID NOT VERIFY!"));
-                            };
-                         } else if (txout.nValue == libzerocoin::ZQ_PEDERSEN * COIN) {
-                            if (!CheckSpendZcoinTransaction(tx, pubCoinTx, listPubCoin, libzerocoin::ZQ_PEDERSEN, state, hashTx, isVerifyDB, nHeight, isCheckWallet)){
-                                return state.DoS(100, error("CTransaction::CheckTransaction() : COIN SPEND TX IN ZQ_PEDERSEN DID NOT VERIFY!"));
-                            };
-                        } else if (txout.nValue == libzerocoin::ZQ_WILLIAMSON * COIN) {
-                            if (!CheckSpendZcoinTransaction(tx, pubCoinTx, listPubCoin, libzerocoin::ZQ_WILLIAMSON, state, hashTx, isVerifyDB, nHeight, isCheckWallet)){
-                                return state.DoS(100, error("CTransaction::CheckTransaction() : COIN SPEND TX IN ZQ_WILLIAMSON DID NOT VERIFY!"));
-                            };
-                        } else {
-                            return state.DoS(100,error("CTransaction::CheckTransaction() : Your spending txout value does not match"));
-                        }
-                        walletdb.Flush();
-                        walletdb.Close();
-                    }
-                }
+        BOOST_FOREACH(const CTxIn &txin, tx.vin){
+            if (txin.prevout.IsNull() && !txin.scriptSig.IsZerocoinSpend()) {
+                return state.DoS(10, false, REJECT_INVALID, "bad-txns-prevout-null");
             }
         }
+
+        // bool zerocoinEnable = false;
+        // if (zerocoinEnable)
+        // {
+        //     // Check Mint Zerocoin Transaction
+        //     BOOST_FOREACH(const CTxOut &txout, tx.vout) {
+        //         if (!txout.scriptPubKey.empty() && txout.scriptPubKey.IsZerocoinMint()) {
+        //             vector<unsigned char> vchZeroMint;
+        //             vchZeroMint.insert(vchZeroMint.end(), txout.scriptPubKey.begin() + 6,
+        //                                txout.scriptPubKey.begin() + txout.scriptPubKey.size());
+        //             CBigNum pubCoin;
+        //             pubCoin.setvch(vchZeroMint);
+        //             libzerocoin::CoinDenomination denomination;
+        //             if (txout.nValue == libzerocoin::ZQ_LOVELACE * COIN) {
+        //                 denomination = libzerocoin::ZQ_LOVELACE;
+        //                 libzerocoin::PublicCoin checkPubCoin(ZCParams, pubCoin, libzerocoin::ZQ_LOVELACE);
+        //                 if (!checkPubCoin.validate()) {
+        //                     return state.DoS(100, false, PUBCOIN_NOT_VALIDATE,
+        //                                      "CTransaction::CheckTransaction() : PubCoin is not validate");
+        //                 }
+        //             } else if (txout.nValue == libzerocoin::ZQ_GOLDWASSER * COIN) {
+        //                 denomination = libzerocoin::ZQ_GOLDWASSER;
+        //                 libzerocoin::PublicCoin checkPubCoin(ZCParams, pubCoin, libzerocoin::ZQ_GOLDWASSER);
+        //                 if (!checkPubCoin.validate()) {
+        //                     return state.DoS(100, false, PUBCOIN_NOT_VALIDATE,
+        //                                      "CTransaction::CheckTransaction() : PubCoin is not validate");
+        //                 }
+        //             } else if (txout.nValue == libzerocoin::ZQ_RACKOFF * COIN) {
+        //                 denomination = libzerocoin::ZQ_RACKOFF;
+        //                 libzerocoin::PublicCoin checkPubCoin(ZCParams, pubCoin, libzerocoin::ZQ_RACKOFF);
+        //                 if (!checkPubCoin.validate()) {
+        //                     return state.DoS(100, false, PUBCOIN_NOT_VALIDATE,
+        //                                      "CTransaction::CheckTransaction() : PubCoin is not validate");
+        //                 }
+        //             } else if (txout.nValue == libzerocoin::ZQ_PEDERSEN * COIN) {
+        //                 denomination = libzerocoin::ZQ_PEDERSEN;
+        //                 libzerocoin::PublicCoin checkPubCoin(ZCParams, pubCoin, libzerocoin::ZQ_PEDERSEN);
+        //                 if (!checkPubCoin.validate()) {
+        //                     return state.DoS(100, false, PUBCOIN_NOT_VALIDATE,
+        //                                      "CTransaction::CheckTransaction() : PubCoin is not validate");
+        //                 }
+        //             } else if (txout.nValue == libzerocoin::ZQ_WILLIAMSON * COIN) {
+        //                 denomination = libzerocoin::ZQ_WILLIAMSON;
+        //                 libzerocoin::PublicCoin checkPubCoin(ZCParams, pubCoin, libzerocoin::ZQ_WILLIAMSON);
+        //                 if (!checkPubCoin.validate()) {
+        //                     return state.DoS(100, false, PUBCOIN_NOT_VALIDATE,
+        //                                      "CTransaction::CheckTransaction() : PubCoin is not validate");
+        //                 }
+        //             } else {
+        //                 return state.DoS(100, false, PUBCOIN_NOT_VALIDATE,
+        //                                  "CTransaction::CheckTransaction() : PubCoin is not validate");
+        //             }
+
+        //             if (!isVerifyDB && !isCheckWallet) {
+        //                 // Check the pubCoinValue didn't alr`eady store in the wallet
+        //                 CZerocoinEntry pubCoinTx;
+        //                 list <CZerocoinEntry> listPubCoin = list<CZerocoinEntry>();
+        //                 CWalletDB walletdb(pwalletMain->strWalletFile);
+        //                 walletdb.ListPubCoin(listPubCoin);
+        //                 bool isAlreadyStored = false;
+
+        //                 // CHECKING PROCESS
+        //                 BOOST_FOREACH(const CZerocoinEntry &pubCoinItem, listPubCoin) {
+        //                     if (pubCoinItem.value == pubCoin && pubCoinItem.denomination == denomination) {
+        //                         isAlreadyStored = true;
+        //                     }
+        //                 }
+        //                 // INSERT PROCESS
+        //                 if (!isAlreadyStored) {
+        //                     // TX DOES NOT INCLUDE IN DB
+        //                     LogPrintf("INSERTING\n");
+        //                     pubCoinTx.id = -1;
+        //                     pubCoinTx.denomination = denomination;
+        //                     pubCoinTx.value = pubCoin;
+        //                     pubCoinTx.randomness = 0;
+        //                     pubCoinTx.serialNumber = 0;
+        //                     pubCoinTx.nHeight = -1;
+        //                     LogPrintf("INSERT PUBCOIN ID: %d\n", pubCoinTx.id);
+        //                     walletdb.WriteZerocoinEntry(pubCoinTx);
+        //                 }
+        //             }
+        //         }
+        //     }
+        
+        //     // Check Spend Zerocoin Transaction
+        //     // (vin.size() == 1 && vin[0].prevout.IsNull() && (vin[0].scriptSig[0] == OP_ZEROCOINSPEND) );
+        //     if (tx.IsZerocoinSpend()) {
+        //         // Check vOut
+        //         // Only one loop, we checked on the format before enter this case
+        //         BOOST_FOREACH(const CTxOut &txout, tx.vout)
+        //         {
+        //             CZerocoinEntry pubCoinTx;
+        //             list <CZerocoinEntry> listPubCoin;
+        //             if (!isVerifyDB) {
+        //                 CWalletDB walletdb(pwalletMain->strWalletFile);
+        //                 listPubCoin.clear();
+        //                 walletdb.ListPubCoin(listPubCoin);
+        //                 listPubCoin.sort(CompHeight);
+        //                 if (txout.nValue == libzerocoin::ZQ_LOVELACE * COIN) {
+        //                     // Check vIn
+        //                     if (!CheckSpendZcoinTransaction(tx, pubCoinTx, listPubCoin, libzerocoin::ZQ_LOVELACE, state, hashTx,isVerifyDB, nHeight, isCheckWallet)){
+        //                         return state.DoS(100, error("CTransaction::CheckTransaction() : COIN SPEND TX IN ZQ_LOVELACE DID NOT VERIFY!"));
+        //                     };
+        //                 } else if (txout.nValue == libzerocoin::ZQ_GOLDWASSER * COIN) {
+        //                     if (!CheckSpendZcoinTransaction(tx, pubCoinTx, listPubCoin, libzerocoin::ZQ_GOLDWASSER, state, hashTx, isVerifyDB, nHeight, isCheckWallet)){
+        //                         return state.DoS(100, error("CTransaction::CheckTransaction() : COIN SPEND TX IN ZQ_GOLDWASSER DID NOT VERIFY!"));
+        //                     };
+        //                 } else if (txout.nValue == libzerocoin::ZQ_RACKOFF * COIN) {
+        //                     if (!CheckSpendZcoinTransaction(tx, pubCoinTx, listPubCoin, libzerocoin::ZQ_RACKOFF, state, hashTx, isVerifyDB, nHeight, isCheckWallet)){
+        //                         return state.DoS(100, error("CTransaction::CheckTransaction() : COIN SPEND TX IN ZQ_RACKOFF DID NOT VERIFY!"));
+        //                     };
+        //                  } else if (txout.nValue == libzerocoin::ZQ_PEDERSEN * COIN) {
+        //                     if (!CheckSpendZcoinTransaction(tx, pubCoinTx, listPubCoin, libzerocoin::ZQ_PEDERSEN, state, hashTx, isVerifyDB, nHeight, isCheckWallet)){
+        //                         return state.DoS(100, error("CTransaction::CheckTransaction() : COIN SPEND TX IN ZQ_PEDERSEN DID NOT VERIFY!"));
+        //                     };
+        //                 } else if (txout.nValue == libzerocoin::ZQ_WILLIAMSON * COIN) {
+        //                     if (!CheckSpendZcoinTransaction(tx, pubCoinTx, listPubCoin, libzerocoin::ZQ_WILLIAMSON, state, hashTx, isVerifyDB, nHeight, isCheckWallet)){
+        //                         return state.DoS(100, error("CTransaction::CheckTransaction() : COIN SPEND TX IN ZQ_WILLIAMSON DID NOT VERIFY!"));
+        //                     };
+        //                 } else {
+        //                     return state.DoS(100,error("CTransaction::CheckTransaction() : Your spending txout value does not match"));
+        //                 }
+        //                 walletdb.Flush();
+        //                 walletdb.Close();
+        //             }
+        //         }
+        //     }
+        // }
     }
     return true;
 }
