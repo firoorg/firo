@@ -388,7 +388,7 @@ public:
         READWRITE(nBits);
         READWRITE(nNonce);
 
-        if (nVersion >= 131000)
+        if (!(nType & SER_GETHASH) && nVersion >= 131000)
             READWRITE(accumulatorChanges);
     }
 
