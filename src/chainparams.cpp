@@ -134,6 +134,10 @@ public:
         vSeeds.push_back(CDNSSeedData("seed2.smrt.cash", "seed2.smrt.cash", false));
         vSeeds.push_back(CDNSSeedData("seed1.smartcash.org", "seed1.smartcash.org", false));
         vSeeds.push_back(CDNSSeedData("seed2.smartcash.org", "seed2.smartcash.org", false));
+        vSeeds.push_back(CDNSSeedData("seed.smartcash.cc", "seed.smartcash.cc", false));
+        vSeeds.push_back(CDNSSeedData("seed2.smartcash.cc", "seed2.smartcash.cc", false));
+        vSeeds.push_back(CDNSSeedData("seed3.smartcash.cc", "seed3.smartcash.cc", false));
+        vSeeds.push_back(CDNSSeedData("seed4.smartcash.cc", "seed4.smartcash.cc", false));
 
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,63);
         base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,18);
