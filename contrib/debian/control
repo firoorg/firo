@@ -50,7 +50,7 @@ Description: peer-to-peer network based digital currency - Qt GUI
  and issuing money are carried out collectively by the network. Bitcoin Core
  is the name of the open source software which enables the use of this currency.
  .
- This package provides Bitcoin-Qt, a GUI for Bitcoin based on Qt.
+ This package provides Smartcash-Qt, a GUI for Bitcoin based on Qt.
 
 Package: bitcoin-tx
 Architecture: any
