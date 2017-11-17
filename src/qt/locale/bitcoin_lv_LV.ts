@@ -218,11 +218,11 @@
         <translation>Ciļņu rīkjosla</translation>
     </message>
     <message>
-        <source>Request payments (generates QR codes and bitcoin: URIs)</source>
-        <translation>Pieprasīt maksājumus (izveido QR kodu un bitcoin: URIs)</translation>
+        <source>Request payments (generates QR codes and smartcash: URIs)</source>
+        <translation>Pieprasīt maksājumus (izveido QR kodu un smartcash: URIs)</translation>
     </message>
     <message>
-        <source>Open a bitcoin: URI or payment request</source>
+        <source>Open a smartcash: URI or payment request</source>
         <translation>Atvērt Smartcash URI vai maksājuma pieprasījumu</translation>
     </message>
     <message>
