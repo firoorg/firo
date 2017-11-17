@@ -1669,12 +1669,13 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
                      chainparams);
 
     // ********************************************************* Step 11a: setup PrivateSend
-    fZNode = GetBoolArg("-masternode", false);
+    fZNode = GetBoolArg("-znode", false);
 
+    LogPrintf("fZNode = %s\n", fZNode);
     LogPrintf("znodeConfig.getCount(): %s\n", znodeConfig.getCount());
 
     if ((fZNode || znodeConfig.getCount() > 0) && !fTxIndex) {
-        return InitError("Enabling Masternode support requires turning on transaction indexing."
+        return InitError("Enabling Znode support requires turning on transaction indexing."
                                  "Please add txindex=1 to your configuration and start with -reindex");
     }
 
@@ -1682,25 +1683,25 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
         LogPrintf("ZNODE:\n");
 
         if (!GetArg("-znodeaddr", "").empty()) {
-            // Hot masternode (either local or remote) should get its address in
-            // CActiveMasternode::ManageState() automatically and no longer relies on masternodeaddr.
+            // Hot Znode (either local or remote) should get its address in
+            // CActiveZnode::ManageState() automatically and no longer relies on Znodeaddr.
             return InitError(_("znodeaddr option is deprecated. Please use znode.conf to manage your remote znodes."));
         }
 
-        std::string strMasterNodePrivKey = GetArg("-masternodeprivkey", "");
-        if (!strMasterNodePrivKey.empty()) {
-            if (!darkSendSigner.GetKeysFromSecret(strMasterNodePrivKey, activeZnode.keyZnode,
+        std::string strZnodePrivKey = GetArg("-znodeprivkey", "");
+        if (!strZnodePrivKey.empty()) {
+            if (!darkSendSigner.GetKeysFromSecret(strZnodePrivKey, activeZnode.keyZnode,
                                                   activeZnode.pubKeyZnode))
                 return InitError(_("Invalid znodeprivkey. Please see documenation."));
 
             LogPrintf("  pubKeyZnode: %s\n", CBitcoinAddress(activeZnode.pubKeyZnode.GetID()).ToString());
         } else {
             return InitError(
-                    _("You must specify a masternodeprivkey in the configuration. Please see documentation for help."));
+                    _("You must specify a znodeprivkey in the configuration. Please see documentation for help."));
         }
     }
 
-    LogPrintf("Using masternode config file %s\n", GetZnodeConfigFile().string());
+    LogPrintf("Using Znode config file %s\n", GetZnodeConfigFile().string());
 
     if (GetBoolArg("-mnconflock", true) && pwalletMain && (znodeConfig.getCount() > 0)) {
         LOCK(pwalletMain->cs_wallet);
@@ -1737,10 +1738,10 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     nInstantSendDepth = GetArg("-instantsenddepth", DEFAULT_INSTANTSEND_DEPTH);
     nInstantSendDepth = std::min(std::max(nInstantSendDepth, 0), 60);
 
-    //lite mode disables all Masternode and Darksend related functionality
+    //lite mode disables all Znode and Darksend related functionality
     fLiteMode = GetBoolArg("-litemode", false);
     if (fZNode && fLiteMode) {
-        return InitError("You can not start a masternode in litemode");
+        return InitError("You can not start a znode in litemode");
     }
 
     LogPrintf("fLiteMode %d\n", fLiteMode);
@@ -1755,26 +1756,19 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     // LOAD SERIALIZED DAT FILES INTO DATA CACHES FOR INTERNAL USE
 
     uiInterface.InitMessage(_("Loading znode cache..."));
-    CFlatDB<CZnodeMan> flatdb1("mncache.dat", "magicMasternodeCache");
+    CFlatDB<CZnodeMan> flatdb1("mncache.dat", "magicZnodeCache");
     if (!flatdb1.Load(mnodeman)) {
         return InitError("Failed to load znode cache from mncache.dat");
     }
 
     if (mnodeman.size()) {
-        uiInterface.InitMessage(_("Loading masternode payment cache..."));
-        CFlatDB<CZnodePayments> flatdb2("mnpayments.dat", "magicMasternodePaymentsCache");
+        uiInterface.InitMessage(_("Loading Znode payment cache..."));
+        CFlatDB<CZnodePayments> flatdb2("mnpayments.dat", "magicZnodePaymentsCache");
         if (!flatdb2.Load(mnpayments)) {
             return InitError("Failed to load znode payments cache from mnpayments.dat");
         }
-
-//        uiInterface.InitMessage(_("Loading governance cache..."));
-//        CFlatDB<CGovernanceManager> flatdb3("governance.dat", "magicGovernanceCache");
-//        if(!flatdb3.Load(governance)) {
-//            return InitError("Failed to load governance cache from governance.dat");
-//        }
-//        governance.InitOnLoad();
     } else {
-        uiInterface.InitMessage(_("Masternode cache is empty, skipping payments and governance cache..."));
+        uiInterface.InitMessage(_("Znode cache is empty, skipping payments and governance cache..."));
     }
 
     uiInterface.InitMessage(_("Loading fulfilled requests cache..."));
@@ -1787,7 +1781,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
 
     // force UpdatedBlockTip to initialize pCurrentBlockIndex for DS, MN payments and budgets
     // but don't call it directly to prevent triggering of other listeners like zmq etc.
-    // GetMainSignals().UpdatedBlockTip(chainActive.Tip());
+//     GetMainSignals().UpdatedBlockTip(chainActive.Tip());
     mnodeman.UpdatedBlockTip(chainActive.Tip());
     darkSendPool.UpdatedBlockTip(chainActive.Tip());
     mnpayments.UpdatedBlockTip(chainActive.Tip());
