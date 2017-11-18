@@ -13,6 +13,7 @@
 #include "key.h"
 #include "keystore.h"
 #include "main.h"
+#include "zerocoin.h"
 #include "net.h"
 #include "policy/policy.h"
 #include "primitives/block.h"

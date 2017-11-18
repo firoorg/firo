@@ -86,10 +86,6 @@ static const unsigned int BLOCKFILE_CHUNK_SIZE = 0x1000000; // 16 MiB
 static const unsigned int UNDOFILE_CHUNK_SIZE = 0x100000; // 1 MiB
 /** Default for -blockprioritysize, maximum space for zero/low-fee transactions **/
 static const unsigned int DEFAULT_BLOCK_PRIORITY_SIZE = 50000; // 50KB
-/** Dust Soft Limit, allowed with additional fee per output */
-//static const int64_t DUST_SOFT_LIMIT = 100000; // 0.001 XZC
-/** Dust Hard Limit, ignored as wallet inputs (mininput default) */
-static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 XZC mininput
 
 /** Maximum number of script-checking threads allowed */
 static const int MAX_SCRIPTCHECK_THREADS = 16;
@@ -162,20 +158,6 @@ static const int MAX_UNCONNECTING_HEADERS = 10;
 static std::map<int, CBlock> mapBlockData;
 
 static const bool DEFAULT_PEERBLOOMFILTERS = true;
-
-// There were bugs before this block, don't do some checks on early blocks
-#define ZC_CHECK_BUG_FIXED_AT_BLOCK	61168
-
-// The mint id number to change to zerocoin v2
-#define ZC_V2_SWITCH_ID_1 120
-#define ZC_V2_SWITCH_ID_10 30
-#define ZC_V2_SWITCH_ID_25 15
-#define ZC_V2_SWITCH_ID_50 15
-#define ZC_V2_SWITCH_ID_100 30
-
-// Zerocoin V3 starting blocks
-#define ZC_V3_STARTING_BLOCK 65000
-#define ZC_V3_TESTNET_STARTING_BLOCK 10
 
 // Block Height Lyra2Z
 #define LYRA2Z_HEIGHT 20500
