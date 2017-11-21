@@ -244,6 +244,7 @@ extern const char *GETBLOCKTXN;
  */
 extern const char *BLOCKTXN;
 
+extern const char *TXLOCKVOTE;
 extern const char *SPORK;
 extern const char *GETSPORKS;
 extern const char *ZNODEPAYMENTVOTE;
@@ -357,6 +358,7 @@ enum GetDataMsg
     MSG_ZNODE_PING,
     MSG_ZNODE_VERIFY,
     MSG_TXLOCK_REQUEST,
+    MSG_TXLOCK_VOTE,
     MSG_DSTX,
     DSQUEUE,
 };
@@ -366,6 +368,7 @@ class CInv
 {
 public:
     CInv();
+    CInv(const std::string& strType, const uint256& hashIn);
     CInv(int typeIn, const uint256& hashIn);
 
     ADD_SERIALIZE_METHODS;
@@ -379,6 +382,7 @@ public:
 
     friend bool operator<(const CInv& a, const CInv& b);
 
+    bool IsKnownType() const;
     std::string GetCommand() const;
     std::string ToString() const;
 

@@ -18,6 +18,7 @@ bool CZnodeConfig::read(std::string& strErr) {
     int linenumber = 1;
     boost::filesystem::path pathZnodeConfigFile = GetZnodeConfigFile();
     boost::filesystem::ifstream streamConfig(pathZnodeConfigFile);
+    LogPrintf("pathZnodeConfigFile=%s\n", pathZnodeConfigFile);
 
     if (!streamConfig.good()) {
         FILE* configFile = fopen(pathZnodeConfigFile.string().c_str(), "a");
@@ -34,7 +35,7 @@ bool CZnodeConfig::read(std::string& strErr) {
     for(std::string line; std::getline(streamConfig, line); linenumber++)
     {
         if(line.empty()) continue;
-
+        LogPrintf("Read line=%s\n", line);
         std::istringstream iss(line);
         std::string comment, alias, ip, privKey, txHash, outputIndex;
 
@@ -43,7 +44,6 @@ bool CZnodeConfig::read(std::string& strErr) {
             iss.str(line);
             iss.clear();
         }
-
         if (!(iss >> alias >> ip >> privKey >> txHash >> outputIndex)) {
             iss.str(line);
             iss.clear();
@@ -65,6 +65,9 @@ bool CZnodeConfig::read(std::string& strErr) {
             return false;
         }
         int mainnetDefaultPort = Params(CBaseChainParams::MAIN).GetDefaultPort();
+        LogPrintf("mainnetDefaultPort=%s\n", mainnetDefaultPort);
+        LogPrintf("Params().NetworkIDString()=%s\n", Params().NetworkIDString());
+        LogPrintf("CBaseChainParams::MAIN=%s\n", CBaseChainParams::MAIN);
         if(Params().NetworkIDString() == CBaseChainParams::MAIN) {
             if(port != mainnetDefaultPort) {
                 strErr = _("Invalid port detected in znode.conf") + "\n" +

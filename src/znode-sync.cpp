@@ -52,6 +52,7 @@ bool CZnodeSync::IsBlockchainSynced(bool fBlockAccepted) {
 
     // if the last call to this function was more than 60 minutes ago (client was in sleep mode) reset the sync process
     if (GetTime() - nTimeLastProcess > 60 * 60) {
+        LogPrintf("CZnodeSync::IsBlockchainSynced time-check fBlockchainSynced=%s\n", fBlockchainSynced);
         Reset();
         fBlockchainSynced = false;
     }
@@ -115,7 +116,7 @@ bool CZnodeSync::IsBlockchainSynced(bool fBlockAccepted) {
     ReleaseNodeVector(vNodesCopy);
 
     // wait for at least one new block to be accepted
-    LogPrintf("fFirstBlockAccepted=%s", fFirstBlockAccepted);
+    LogPrintf("fFirstBlockAccepted=%s\n", fFirstBlockAccepted);
     if (!fFirstBlockAccepted) return false;
 
     // same as !IsInitialBlockDownload() but no cs_main needed here
@@ -127,7 +128,7 @@ bool CZnodeSync::IsBlockchainSynced(bool fBlockAccepted) {
     LogPrintf("pCurrentBlockIndex->nHeight=%s\n", pCurrentBlockIndex->nHeight);
     LogPrintf("GetTime() - nMaxBlockTime=%s\n", GetTime() - nMaxBlockTime);
     LogPrintf("Params().MaxTipAge()=%s\n", Params().MaxTipAge());
-    LogPrintf("fBlockchainSynced\n", fBlockchainSynced);
+    LogPrintf("fBlockchainSynced=%s\n", fBlockchainSynced);
 
     return fBlockchainSynced;
 }

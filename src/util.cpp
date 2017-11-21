@@ -567,6 +567,7 @@ boost::filesystem::path GetZnodeConfigFile()
 {
     boost::filesystem::path pathConfigFile(GetArg("-mnconf", "znode.conf"));
     if (!pathConfigFile.is_complete()) pathConfigFile = GetDataDir() / pathConfigFile;
+    LogPrintf("pathConfigFile=%s\n", pathConfigFile);
     return pathConfigFile;
 }
 

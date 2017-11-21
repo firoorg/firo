@@ -4837,6 +4837,8 @@ bool ProcessNewBlock(CValidationState &state, const CChainParams &chainparams, C
         return error("%s: ActivateBestChain failed", __func__);
     }
 
+    znodeSync.IsBlockchainSynced(true);
+
     return true;
 }
 
@@ -5850,6 +5852,44 @@ bool static AlreadyHave(const CInv &inv) EXCLUSIVE_LOCKS_REQUIRED(cs_main) {
         case MSG_BLOCK:
         case MSG_WITNESS_BLOCK:
             return mapBlockIndex.count(inv.hash);
+    /*
+        Dash Related Inventory Messages
+
+        --
+
+        We shouldn't update the sync times for each of the messages when we already have it.
+        We're going to be asking many nodes upfront for the full inventory list, so we'll get duplicates of these.
+        We want to only update the time on new hits, so that we can time out appropriately if needed.
+    */
+        case MSG_TXLOCK_REQUEST:
+            return instantsend.AlreadyHave(inv.hash);
+
+        case MSG_TXLOCK_VOTE:
+            return instantsend.AlreadyHave(inv.hash);
+
+        case MSG_SPORK:
+            return mapSporks.count(inv.hash);
+
+        case MSG_ZNODE_PAYMENT_VOTE:
+            return mnpayments.mapZnodePaymentVotes.count(inv.hash);
+
+        case MSG_ZNODE_PAYMENT_BLOCK:
+        {
+            BlockMap::iterator mi = mapBlockIndex.find(inv.hash);
+            return mi != mapBlockIndex.end() && mnpayments.mapZnodeBlocks.find(mi->second->nHeight) != mnpayments.mapZnodeBlocks.end();
+        }
+
+        case MSG_ZNODE_ANNOUNCE:
+            return mnodeman.mapSeenZnodeBroadcast.count(inv.hash) && !mnodeman.IsMnbRecoveryRequested(inv.hash);
+
+        case MSG_ZNODE_PING:
+            return mnodeman.mapSeenZnodePing.count(inv.hash);
+
+        case MSG_DSTX:
+            return mapDarksendBroadcastTxes.count(inv.hash);
+
+        case MSG_ZNODE_VERIFY:
+            return mnodeman.mapSeenZnodeVerification.count(inv.hash);
     }
     // Don't know what it is, just say we already got one
     return true;
@@ -7432,6 +7472,7 @@ bool ProcessMessages(CNode *pfrom) {
             continue;
         }
         string strCommand = hdr.GetCommand();
+        LogPrintf("ProcessMEssages() strCommand = %s\n", strCommand);
 
         // Message size
         unsigned int nMessageSize = hdr.nMessageSize;

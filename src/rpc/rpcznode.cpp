@@ -256,7 +256,6 @@ UniValue znode(const UniValue &params, bool fHelp) {
 
                 bool fResult = CZnodeBroadcast::Create(mne.getIp(), mne.getPrivKey(), mne.getTxHash(),
                                                             mne.getOutputIndex(), strError, mnb);
-
                 statusObj.push_back(Pair("result", fResult ? "successful" : "failed"));
                 if (fResult) {
                     mnodeman.UpdateZnodeList(mnb);
@@ -344,8 +343,7 @@ UniValue znode(const UniValue &params, bool fHelp) {
     if (strCommand == "list-conf") {
         UniValue resultObj(UniValue::VOBJ);
 
-        BOOST_FOREACH(CZnodeConfig::CZnodeEntry
-        mne, znodeConfig.getEntries()) {
+        BOOST_FOREACH(CZnodeConfig::CZnodeEntry mne, znodeConfig.getEntries()) {
             CTxIn vin = CTxIn(uint256S(mne.getTxHash()), uint32_t(atoi(mne.getOutputIndex().c_str())));
             CZnode *pmn = mnodeman.Find(vin);
 
