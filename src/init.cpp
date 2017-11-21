@@ -21,6 +21,7 @@
 #include "httprpc.h"
 #include "key.h"
 #include "main.h"
+#include "zerocoin.h"
 #include "miner.h"
 #include "net.h"
 #include "policy/policy.h"
@@ -1443,6 +1444,17 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
                 delete pblocktree;
 
                 pblocktree = new CBlockTreeDB(nBlockTreeDBCache, false, fReindex);
+	            
+	            if (!fReindex) {
+		            int nVersion = pblocktree->GetBlockIndexVersion();
+		            if (nVersion >= 0 && nVersion < ZC_ADVANCED_INDEX_VERSION) {
+			            // Index needs to be upgraded, force reindex
+/*			            delete pblocktree;
+			            fReindex = fReset = true;
+			            pblocktree = new CBlockTreeDB(nBlockTreeDBCache, false, fReindex); */
+		            }
+	            }
+	            
                 pcoinsdbview = new CCoinsViewDB(nCoinDBCache, false, fReindex || fReindexChainState);
                 pcoinscatcher = new CCoinsViewErrorCatcher(pcoinsdbview);
                 pcoinsTip = new CCoinsViewCache(pcoinscatcher);

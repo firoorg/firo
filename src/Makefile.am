@@ -158,7 +158,8 @@ BITCOIN_CORE_H = \
   zmq/zmqconfig.h\
   zmq/zmqnotificationinterface.h \
   zmq/zmqpublishnotifier.h \
-  zerocoin.h
+  zerocoin.h \
+  zerocoin_params.h
 
 obj/build.h: FORCE
 	@$(MKDIR_P) $(builddir)/obj

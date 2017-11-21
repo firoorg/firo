@@ -214,3 +214,19 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
 
     return true;
 }
+
+int CBlockTreeDB::GetBlockIndexVersion()
+{
+	boost::scoped_ptr<CDBIterator> pcursor(NewIterator());
+	pcursor->Seek(make_pair(DB_BLOCK_INDEX, uint256()));
+	while (pcursor->Valid()) {
+		boost::this_thread::interruption_point();
+		std::pair<char, uint256> key;
+		if (pcursor->GetKey(key) && key.first == DB_BLOCK_INDEX) {
+			CDiskBlockIndex diskindex;
+			if (pcursor->GetValue(diskindex))
+				return diskindex.nVersion;
+		}
+	}
+	return -1;
+}
