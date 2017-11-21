@@ -1230,7 +1230,7 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx, CZerocoinEntry pubCoinTx
                     walletdb.ListCoinSpendSerial(listCoinSpendSerial);
                     BOOST_FOREACH(const CZerocoinSpendEntry &item, listCoinSpendSerial) {
                         if (item.coinSerial == serialNumber
-                            && (nHeight > ZC_CHECK_BUG_FIXED_AT_BLOCK || item.denomination == targetDenomination)
+                            && nHeight > ZC_CHECK_BUG_FIXED_AT_BLOCK 
                             && (item.id >= 0 && (uint32_t) item.id == pubcoinId)
                             && item.hashTx != hashTx) {
                             return state.DoS(0, error("CTransaction::CheckTransaction() : The CoinSpend serial has been used"));
