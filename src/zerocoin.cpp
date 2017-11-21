@@ -63,6 +63,7 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx, CZerocoinEntry pubCoinTx
 					|| ((targetDenomination == libzerocoin::ZQ_WILLIAMSON) && (pubcoinId >= ZC_V2_SWITCH_ID_100)))) {
 				newSpend.setVersion(2);
 			}
+			
 			// Create a new metadata object to contain the hash of the received
 			// ZEROCOIN_SPEND transaction. If we were a real client we'd actually
 			// compute the hash of the received transaction here.
@@ -126,11 +127,11 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx, CZerocoinEntry pubCoinTx
 
 			if (!passVerify) {
 				int countPubcoin = 0;
-				//                LogPrint("CheckSpendZcoinTransaction", "Check reverse\n");
-				                BOOST_REVERSE_FOREACH(const CZerocoinEntry &pubCoinItem, listPubCoin) {
-					//                    LogPrintf("--denomination = %d, id = %d, pubcoinId = %d height = %d\n",
-					//                              pubCoinItem.denomination, pubCoinItem.id, pubcoinId, pubCoinItem.nHeight);
-					                    if(pubCoinItem.denomination == targetDenomination &&
+				// LogPrint("CheckSpendZcoinTransaction", "Check reverse\n");
+				BOOST_REVERSE_FOREACH(const CZerocoinEntry &pubCoinItem, listPubCoin) {
+					// LogPrintf("--denomination = %d, id = %d, pubcoinId = %d height = %d\n",
+					// pubCoinItem.denomination, pubCoinItem.id, pubcoinId, pubCoinItem.nHeight);
+					if(pubCoinItem.denomination == targetDenomination &&
 					                        (pubCoinItem.id >= 0 && (uint32_t) pubCoinItem.id == pubcoinId) &&
 					                        pubCoinItem.nHeight != -1) {
 						LogPrint("CheckSpendZcoinTransaction",
@@ -175,7 +176,7 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx, CZerocoinEntry pubCoinTx
 
 					CBigNum serialNumber = newSpend.getCoinSerialNumber();
 					CWalletDB walletdb(pwalletMain->strWalletFile);
-
+					
 					std::list <CZerocoinSpendEntry> listCoinSpendSerial;
 					walletdb.ListCoinSpendSerial(listCoinSpendSerial);
 					BOOST_FOREACH(const CZerocoinSpendEntry &item, listCoinSpendSerial) {
@@ -233,8 +234,8 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx, CZerocoinEntry pubCoinTx
 						if (fTestNet || nHeight > ZC_CHECK_BUG_FIXED_AT_BLOCK) {
 							zccoinSpend.denomination = targetDenomination;
 						}
-						//                        LogPrintf("WriteCoinSpendSerialEntry, serialNumber=%s", serialNumber.ToString());
-						                        walletdb.WriteCoinSpendSerialEntry(zccoinSpend);
+						// LogPrintf("WriteCoinSpendSerialEntry, serialNumber=%s", serialNumber.ToString());
+						walletdb.WriteCoinSpendSerialEntry(zccoinSpend);
 					}
 				}
 			}
@@ -478,9 +479,9 @@ void DisconnectTipZC(CBlock &block, CBlockIndex *pindexDelete) {
 	list <CZerocoinEntry> listPubCoin = list<CZerocoinEntry>();
 	CWalletDB walletdb(pwalletMain->strWalletFile);
 	walletdb.ListPubCoin(listPubCoin);
-	//    listPubCoin.sort(CompHeight);
+	// listPubCoin.sort(CompHeight);
 
-	    list <CZerocoinSpendEntry> listCoinSpendSerial;
+	list <CZerocoinSpendEntry> listCoinSpendSerial;
 	walletdb.ListCoinSpendSerial(listCoinSpendSerial);
 
 	BOOST_FOREACH(const CTransaction &tx, block.vtx) {
@@ -658,8 +659,8 @@ bool ReArrangeZcoinMint(CValidationState &state, const CChainParams &chainparams
 						unsigned int countExistingItems = 0;
 						listPubCoin.sort(CompHeight);
 						BOOST_FOREACH(const CZerocoinEntry &pubCoinIdItem, listPubCoin) {
-							//                            LogPrintf("denomination = %d, id = %d, height = %d\n", pubCoinIdItem.denomination, pubCoinIdItem.id, pubCoinIdItem.nHeight);
-							                            if(pubCoinIdItem.id > 0) {
+							//LogPrintf("denomination = %d, id = %d, height = %d\n", pubCoinIdItem.denomination, pubCoinIdItem.id, pubCoinIdItem.nHeight);
+							if(pubCoinIdItem.id > 0) {
 								if (pubCoinIdItem.nHeight <= pindexNew->nHeight) {
 									if (pubCoinIdItem.denomination == pubCoinItem.denomination) {
 										countExistingItems++;
@@ -710,4 +711,3 @@ int ZerocoinGetNHeight(const CBlockHeader &block) {
 	}
 	return nHeight;
 }
-

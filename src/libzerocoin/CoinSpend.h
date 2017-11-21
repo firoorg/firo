@@ -32,7 +32,9 @@ namespace libzerocoin {
 class CoinSpend {
 public:
 	template<typename Stream>
-    CoinSpend(const Params* p,  Stream& strm):denomination(ZQ_LOVELACE),
+    CoinSpend(const Params* p,  Stream& strm):
+		params(p),
+		denomination(ZQ_LOVELACE),
 		accumulatorPoK(&p->accumulatorParams),
 		serialNumberSoK(p),
 		commitmentPoK(&p->serialNumberSoKCommitmentGroup, &p->accumulatorParams.accumulatorPoKCommitmentGroup) {
@@ -80,6 +82,7 @@ public:
 	        version = nVersion;
 	}
 
+	bool HasValidSerial() const;
 	bool Verify(const Accumulator& a, const SpendMetaData &metaData) const;
 
 	ADD_SERIALIZE_METHODS;
