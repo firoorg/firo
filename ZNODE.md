@@ -65,13 +65,14 @@ Step 4. Update config files
     znodeprivkey=XXXXXXXXXXXXXXXXX  ## Replace with your znode private key
     externalIP=XXX.XXX.XXX.XXX ## Replace with your node external IP
 
-**4.2.**  Create file **znode.conf** (in 2 folders **~/.zcoin** and **~/.zcoin/testnet3**) contains the following info:
-    o LABEL: A one word name you make up to call your node (ex. ZN1)
-    o IP:PORT: Your masternode VPS's IP, and the port is always 18168.
-    o ZNODEPRIVKEY: This is the result of your "masternode genkey" from earlier.
-    o TRANSACTION HASH: The collateral tx. hash from the 1000 XZC deposit.
-    o INDEX: The Index is always 0 or 1.
-To get TRANSACTION HASH, run:
+**4.2.**  Create file **znode.conf** (in 2 folders **~/.zcoin** and **~/.zcoin/testnet3**) contains the following info:  
+
+    o LABEL: A one word name you make up to call your node (ex. ZN1)  
+    o IP:PORT: Your masternode VPS's IP, and the port is always 18168.  
+    o ZNODEPRIVKEY: This is the result of your "masternode genkey" from earlier.  
+    o TRANSACTION HASH: The collateral tx. hash from the 1000 XZC deposit.  
+    o INDEX: The Index is always 0 or 1.  
+To get TRANSACTION HASH, run:  
 
     zcoin-cli znode outputs
 The output will look like:
