@@ -16,15 +16,18 @@
 namespace libzerocoin {
 
 //Accumulator class
-Accumulator::Accumulator(const AccumulatorAndProofParams* p, const CoinDenomination d): params(p), denomination(d) {
+Accumulator::Accumulator(const AccumulatorAndProofParams* p, const Bignum &v, const CoinDenomination d): params(p), value(v), denomination(d) {
 	if (!(params->initialized)) {
 		throw ZerocoinException("Invalid parameters for accumulator");
 	}
 
-	this->value = this->params->accumulatorBase;
+    this->value = v;
 }
 
-Accumulator::Accumulator(const Params* p, const CoinDenomination d) {
+Accumulator::Accumulator(const AccumulatorAndProofParams* p, const CoinDenomination d): Accumulator(p, p->accumulatorBase, d) {}
+
+
+Accumulator::Accumulator(const Params* p, const Bignum &v, const CoinDenomination d) {
 	this->params = &(p->accumulatorParams);
 	this->denomination = d;
 
@@ -32,8 +35,10 @@ Accumulator::Accumulator(const Params* p, const CoinDenomination d) {
 		throw ZerocoinException("Invalid parameters for accumulator");
 	}
 
-	this->value = this->params->accumulatorBase;
+    this->value = v;
 }
+
+Accumulator::Accumulator(const Params* p, const CoinDenomination d) :Accumulator(p, p->accumulatorParams.accumulatorBase, d) {}
 
 void Accumulator::accumulate(const PublicCoin& coin) {
 	// Make sure we're initialized

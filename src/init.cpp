@@ -1446,12 +1446,12 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
                 pblocktree = new CBlockTreeDB(nBlockTreeDBCache, false, fReindex);
 	            
 	            if (!fReindex) {
-		            int nVersion = pblocktree->GetBlockIndexVersion();
-		            if (nVersion >= 0 && nVersion < ZC_ADVANCED_INDEX_VERSION) {
-			            // Index needs to be upgraded, force reindex
-/*			            delete pblocktree;
+                    // Check existing block index database version, reindex if needed
+                    if (pblocktree->GetBlockIndexVersion() < ZC_ADVANCED_INDEX_VERSION) {
+                        LogPrintf("Upgrade to new version of block index required, reindex forced\n");
+                        delete pblocktree;
 			            fReindex = fReset = true;
-			            pblocktree = new CBlockTreeDB(nBlockTreeDBCache, false, fReindex); */
+                        pblocktree = new CBlockTreeDB(nBlockTreeDBCache, false, fReindex);
 		            }
 	            }
 	            

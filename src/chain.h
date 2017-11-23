@@ -203,11 +203,14 @@ public:
     //! (memory only) Sequential id assigned to distinguish order in which blocks are received.
     uint32_t nSequenceId;
 
+    //! Public coin values of mints in this block
+    set<CBigNum> mintedPubCoins;
+
     //! Accumulator updates. Contains only changes made by mints in this block
-	//! Maps <denomination, id> to accumulator value (CBigNum)
-    map<pair<int,int>, CBigNum> accumulatorChanges;
+    //! Maps <denomination, id> to <accumulator value (CBigNum), number of such mints in this block>
+    map<pair<int,int>, pair<CBigNum,int>> accumulatorChanges;
 	
-	// !Values of coin serials spent in this block
+    //! Values of coin serials spent in this block
 	set<CBigNum> spentSerials;
 
     void SetNull()
@@ -358,6 +361,7 @@ class CDiskBlockIndex : public CBlockIndex
 {
 public:
     uint256 hashPrev;
+    int nDiskBlockVersion;
 
     CDiskBlockIndex() {
         hashPrev = uint256();
@@ -392,10 +396,13 @@ public:
         READWRITE(nBits);
         READWRITE(nNonce);
 
-	    if (!(nType & SER_GETHASH) && nVersion >= ZC_ADVANCED_INDEX_VERSION) {
+        if (!(nType & SER_GETHASH) && nVersion >= ZC_ADVANCED_INDEX_VERSION) {
+            READWRITE(mintedPubCoins);
 		    READWRITE(accumulatorChanges);
-		    READWRITE(spentSerials);
+            READWRITE(spentSerials);
 	    }
+
+        nDiskBlockVersion = nVersion;
     }
 
     uint256 GetBlockHash() const

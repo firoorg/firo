@@ -1080,7 +1080,7 @@ int64_t GetTransactionSigOpCost(const CTransaction &tx, const CCoinsViewCache &i
 
 
 //static libzerocoin::Params *ZCParams;
-bool CheckTransaction(const CTransaction &tx, CValidationState &state, uint256 hashTx,  bool isVerifyDB, int nHeight, bool isCheckWallet) {
+bool CheckTransaction(const CTransaction &tx, CValidationState &state, uint256 hashTx,  bool isVerifyDB, int nHeight, bool isCheckWallet, CZerocoinTxInfo *zerocoinTxInfo) {
     LogPrintf("CheckTransaction nHeight=%s, isVerifyDB=%s, isCheckWallet=%s, txHash=%s\n", nHeight, isVerifyDB, isCheckWallet, tx.GetHash().ToString());
 //    LogPrintf("transaction = %s\n", tx.ToString());
     bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
@@ -1126,7 +1126,7 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, uint256 h
 			    return state.DoS(10, false, REJECT_INVALID, "bad-txns-prevout-null");
 		    }
 	    }
-	    if (!CheckZerocoinTransaction(tx, state, hashTx, isVerifyDB, nHeight, isCheckWallet))
+        if (!CheckZerocoinTransaction(tx, state, hashTx, isVerifyDB, nHeight, isCheckWallet, zerocoinTxInfo))
 		    return false;
     }
     return true;
@@ -3070,8 +3070,6 @@ static bool ActivateBestChainStep(CValidationState &state, const CChainParams &c
     int nHeight = pindexFork ? pindexFork->nHeight : -1;
     // Build list of new blocks to connect.
     std::vector <CBlockIndex *> vpindexToConnect;
-    //btzc: add zcoin code
-    std::vector <CBlockIndex *> vpindexToConnectZC;
     bool fContinue = true;
 //    LogPrintf("[ActivateBestChainStep] fContinue=%d, nHeight=%d, pindexMostWork->nHeight=%d\n", fContinue, nHeight, pindexMostWork->nHeight);
     while (fContinue && nHeight != pindexMostWork->nHeight) {
@@ -3080,12 +3078,9 @@ static bool ActivateBestChainStep(CValidationState &state, const CChainParams &c
         int nTargetHeight = std::min(nHeight + 32, pindexMostWork->nHeight);
         vpindexToConnect.clear();
         vpindexToConnect.reserve(nTargetHeight - nHeight);
-        //btzc: add zcoin code
-        vpindexToConnectZC.clear();
         CBlockIndex *pindexIter = pindexMostWork->GetAncestor(nTargetHeight);
         while (pindexIter && pindexIter->nHeight != nHeight) {
             vpindexToConnect.push_back(pindexIter);
-            vpindexToConnectZC.push_back(pindexIter);
             pindexIter = pindexIter->pprev;
         }
         nHeight = nTargetHeight;
@@ -3116,10 +3111,6 @@ static bool ActivateBestChainStep(CValidationState &state, const CChainParams &c
         }
         BOOST_FOREACH(CBlockIndex * pindexConnect, vpindexToConnect){
 	        if (!ConnectTipZC(state, chainparams, pindexConnect, pindexConnect == pindexMostWork ? pblock : NULL))
-		        AbortNode(state, "Failed to read block");
-        }
-        BOOST_FOREACH(CBlockIndex * pindexConnect, vpindexToConnectZC){
-            if (!ReArrangeZcoinMint(state, chainparams, pindexConnect, pindexConnect == pindexMostWork ? pblock : NULL))
 		        AbortNode(state, "Failed to read block");
         }
     }
@@ -3573,12 +3564,16 @@ bool CheckBlock(const CBlock &block, CValidationState &state, const Consensus::P
         // Check transactions
         if (nHeight == INT_MAX)
             nHeight = ZerocoinGetNHeight(block.GetBlockHeader());
+        if (block.zerocoinTxInfo == NULL)
+            block.zerocoinTxInfo = new CZerocoinTxInfo();
         BOOST_FOREACH(const CTransaction &tx, block.vtx)
-        if (!CheckTransaction(tx, state, tx.GetHash(), isVerifyDB, nHeight)) {
+        if (!CheckTransaction(tx, state, tx.GetHash(), isVerifyDB, nHeight, false, block.zerocoinTxInfo)) {
             return state.Invalid(false, state.GetRejectCode(), state.GetRejectReason(),
                                  strprintf("Transaction check failed (tx hash %s) %s", tx.GetHash().ToString(),
                                            state.GetDebugMessage()));
         }
+        block.zerocoinTxInfo->fInfoIsComplete = true;
+
         unsigned int nSigOps = 0;
         BOOST_FOREACH(const CTransaction &tx, block.vtx)
         {
@@ -4261,6 +4256,7 @@ bool static LoadBlockIndexDB() {
     chainActive.SetTip(it->second);
 
     PruneBlockIndexCandidates();
+    ZerocoinBuildStateFromIndex(&chainActive);
 
     LogPrintf("%s: hashBestChain=%s height=%d date=%s progress=%f\n", __func__,
               chainActive.Tip()->GetBlockHash().ToString(), chainActive.Height(),

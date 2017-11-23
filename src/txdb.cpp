@@ -225,7 +225,7 @@ int CBlockTreeDB::GetBlockIndexVersion()
 		if (pcursor->GetKey(key) && key.first == DB_BLOCK_INDEX) {
 			CDiskBlockIndex diskindex;
 			if (pcursor->GetValue(diskindex))
-				return diskindex.nVersion;
+                return diskindex.nDiskBlockVersion;
 		}
 	}
 	return -1;
