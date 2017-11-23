@@ -27,7 +27,7 @@ Build
 ----------------------
 1.  Clone the source:
 
-        git clone -b core_upgrade https://github.com/zcoinofficial/zcoin
+        git clone -b znode https://github.com/zcoinofficial/zcoin
 
 2.  Build Zcoin-core:
 
