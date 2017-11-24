@@ -100,6 +100,7 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx, libzerocoin::CoinDenomin
                 libzerocoin::Accumulator accumulator(ZCParams,
                                                      index->accumulatorChanges[denominationAndId].first,
                                                      targetDenomination);
+                LogPrintf("CheckSpendZcoinTransaction: accumulator=%s\n", accumulator.getValue().ToString().substr(0,15));
                 passVerify = newSpend.Verify(accumulator, newMetadata);
             }
 
@@ -108,6 +109,30 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx, libzerocoin::CoinDenomin
             else
                 index = index->pprev;
         } while (!passVerify);
+
+        // Rare case: accumulator value contains some but NOT ALL coins from one block. In this case we will
+        // have to enumerate over coins manually. No optimization is really needed here because it's a rarity
+        if (!passVerify) {
+            // Build vector of coins sorted by the time of mint
+            index = coinGroup.lastBlock;
+            vector<CBigNum> pubCoins = index->mintedPubCoins[denominationAndId];
+            do {
+                index = index->pprev;
+                if (index->mintedPubCoins.count(denominationAndId) > 0)
+                    pubCoins.insert(pubCoins.begin(),
+                                    index->mintedPubCoins[denominationAndId].cbegin(),
+                                    index->mintedPubCoins[denominationAndId].cend());
+            } while (index != coinGroup.firstBlock);
+
+            libzerocoin::Accumulator accumulator(ZCParams, targetDenomination);
+            BOOST_FOREACH(const CBigNum &pubCoin, pubCoins) {
+                accumulator += libzerocoin::PublicCoin(ZCParams, pubCoin, (libzerocoin::CoinDenomination)targetDenomination);
+                LogPrintf("CheckSpendZcoinTransaction: accumulator=%s\n", accumulator.getValue().ToString().substr(0,15));
+                if ((passVerify = newSpend.Verify(accumulator, newMetadata)) == true)
+                    break;
+            }
+        }
+
 
         if (passVerify) {
             // Pull the serial number out of the CoinSpend object. If we
@@ -322,32 +347,34 @@ bool ConnectTipZC(CValidationState &state, const CChainParams &chainparams, CBlo
         // Update minted values and accumulators
         BOOST_FOREACH(const PAIRTYPE(int,CBigNum) &mint, pblock->zerocoinTxInfo->mints) {
             int denomination = mint.first;
-            int mintId = zerocoinState.AddMint(pindexNew, denomination, mint.second);
+            CBigNum oldAccValue = ZCParams->accumulatorParams.accumulatorBase;
+            int mintId = zerocoinState.AddMint(pindexNew, denomination, mint.second, oldAccValue);
             pair<int,int> denomAndId = make_pair(denomination, mintId);
 
-            pindexNew->mintedPubCoins.insert(mint.second);
+            pindexNew->mintedPubCoins[denomAndId].push_back(mint.second);
 
             CZerocoinState::CoinGroupInfo coinGroupInfo;
             zerocoinState.GetCoinGroupInfo(denomination, mintId, coinGroupInfo);
 
             libzerocoin::PublicCoin pubCoin(ZCParams, mint.second, (libzerocoin::CoinDenomination)denomination);
+            libzerocoin::Accumulator accumulator(ZCParams,
+                                                 oldAccValue,
+                                                 (libzerocoin::CoinDenomination)denomination);
+            accumulator += pubCoin;
 
             if (pindexNew->accumulatorChanges.count(denomAndId) > 0) {
                 pair<CBigNum,int> &accChange = pindexNew->accumulatorChanges[denomAndId];
-                libzerocoin::Accumulator accumulator(ZCParams, accChange.first, (libzerocoin::CoinDenomination)denomination);
-                accumulator += pubCoin;
                 accChange.first = accumulator.getValue();
                 accChange.second++;
             }
             else {
-                libzerocoin::Accumulator accumulator(ZCParams, (libzerocoin::CoinDenomination)denomination);
-                accumulator += pubCoin;
                 pindexNew->accumulatorChanges[denomAndId] = make_pair(accumulator.getValue(), 1);
             }
         }
     }
-
-    zerocoinState.AddBlock(pindexNew);
+    else {
+        zerocoinState.AddBlock(pindexNew);
+    }
 
     // TODO: notify the wallet
 	return true;
@@ -389,7 +416,8 @@ std::size_t CZerocoinState::CBigNumHash::operator ()(const CBigNum &bn) const no
 CZerocoinState::CZerocoinState() {
 }
 
-int CZerocoinState::AddMint(CBlockIndex *index, int denomination, const CBigNum &pubCoin) {
+int CZerocoinState::AddMint(CBlockIndex *index, int denomination, const CBigNum &pubCoin, CBigNum &previousAccValue) {
+
     int     mintId = 1;
 
     if (latestCoinIds[denomination] < 1)
@@ -397,10 +425,18 @@ int CZerocoinState::AddMint(CBlockIndex *index, int denomination, const CBigNum 
     else
         mintId = latestCoinIds[denomination];
 
+    // There is a limit of 10 coins per group but mints belonging to the same block must have the same id thus going
+    // beyond 10
     CoinGroupInfo &coinGroup = coinGroups[make_pair(denomination, mintId)];
-    if (coinGroup.nCoins < 10) {
-        coinGroup.nCoins++;
-        coinGroup.lastBlock = index;
+    if (coinGroup.nCoins < 10 || coinGroup.lastBlock == index) {
+        if (coinGroup.nCoins++ == 0) {
+            // first groups of coins for given denomination
+            coinGroup.firstBlock = coinGroup.lastBlock = index;
+        }
+        else {
+            previousAccValue = coinGroup.lastBlock->accumulatorChanges[make_pair(denomination,mintId)].first;
+            coinGroup.lastBlock = index;
+        }
     }
     else {
         latestCoinIds[denomination] = ++mintId;
@@ -429,8 +465,9 @@ void CZerocoinState::AddBlock(CBlockIndex *index) {
         coinGroup.nCoins += accUpdate.second.second;
     }
 
-    BOOST_FOREACH(const CBigNum &pubCoin, index->mintedPubCoins) {
-        mintedPubCoins.insert(pubCoin);
+    BOOST_FOREACH(const PAIRTYPE(PAIRTYPE(int,int),vector<CBigNum>) &pubCoins, index->mintedPubCoins) {
+        BOOST_FOREACH(const CBigNum &coin, pubCoins.second)
+            mintedPubCoins.insert(coin);
     }
 
     BOOST_FOREACH(const CBigNum &serial, index->spentSerials) {
@@ -465,8 +502,9 @@ void CZerocoinState::RemoveBlock(CBlockIndex *index) {
     }
 
     // roll back mints
-    BOOST_FOREACH(const CBigNum &pubCoin, index->mintedPubCoins) {
-        mintedPubCoins.erase(pubCoin);
+    BOOST_FOREACH(const PAIRTYPE(PAIRTYPE(int,int),vector<CBigNum>) &pubCoins, index->mintedPubCoins) {
+        BOOST_FOREACH(const CBigNum &coin, pubCoins.second)
+            mintedPubCoins.erase(coin);
     }
 
     // roll back spends

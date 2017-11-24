@@ -203,8 +203,9 @@ public:
     //! (memory only) Sequential id assigned to distinguish order in which blocks are received.
     uint32_t nSequenceId;
 
-    //! Public coin values of mints in this block
-    set<CBigNum> mintedPubCoins;
+    //! Public coin values of mints in this block, in order of appearance
+    //! Maps <denomination,id> to vector of public coins
+    map<pair<int,int>, vector<CBigNum>> mintedPubCoins;
 
     //! Accumulator updates. Contains only changes made by mints in this block
     //! Maps <denomination, id> to <accumulator value (CBigNum), number of such mints in this block>

@@ -75,8 +75,8 @@ private:
 public:
     CZerocoinState();
 
-    // Add mint, automatically assigning id to it. Returns id
-    int AddMint(CBlockIndex *index, int denomination, const CBigNum &pubCoin);
+    // Add mint, automatically assigning id to it. Returns id and previous accumulator value (if any)
+    int AddMint(CBlockIndex *index, int denomination, const CBigNum &pubCoin, CBigNum &previousAccValue);
     // Add serial to the list of used ones
     void AddSpend(const CBigNum &serial);
 
