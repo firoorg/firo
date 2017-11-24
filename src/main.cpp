@@ -2593,7 +2593,7 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
              (unsigned) block.vtx.size(), 0.001 * (nTime3 - nTime2), 0.001 * (nTime3 - nTime2) / block.vtx.size(),
              nInputs <= 1 ? 0 : 0.001 * (nTime3 - nTime2) / (nInputs - 1), nTimeConnect * 0.000001);
     //btzc: Add time to check
-    LogPrintf("block=%s\n", block.ToString());
+    //LogPrintf("block=%s\n", block.ToString());
     LogPrintf("nFees=%s\n", nFees);
     LogPrintf("GetBlockSubsidy(pindex->nHeight, chainparams.GetConsensus(), pindex->nTime)=%s\n", GetBlockSubsidy(pindex->nHeight, chainparams.GetConsensus(), pindex->nTime));
     LogPrintf("block.vtx[0].GetValueOut()=%s\n", block.vtx[0].GetValueOut());

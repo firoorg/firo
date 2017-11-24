@@ -155,7 +155,8 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx, libzerocoin::CoinDenomin
             }
         }
         else {
-            return false;
+            LogPrintf("CheckSpendZCoinTransaction: Problem verifying zerocoin spend in block %d\n", nHeight);
+            //return false;
         }
 	}
 	return true;
