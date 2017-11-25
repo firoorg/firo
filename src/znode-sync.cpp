@@ -45,6 +45,7 @@ bool CZnodeSync::CheckNodeHeight(CNode *pnode, bool fDisconnectStuckNodes) {
 }
 
 bool CZnodeSync::IsBlockchainSynced(bool fBlockAccepted) {
+    LogPrintf("CZnodeSync::IsBlockchainSynced, fBlockAccepted=%s\n", fBlockAccepted);
     static bool fBlockchainSynced = false;
     static int64_t nTimeLastProcess = GetTime();
     static int nSkipped = 0;
@@ -63,7 +64,7 @@ bool CZnodeSync::IsBlockchainSynced(bool fBlockAccepted) {
         // this should be only triggered while we are still syncing
         if (!IsSynced()) {
             // we are trying to download smth, reset blockchain sync status
-            if (fDebug) LogPrintf("CZnodeSync::IsBlockchainSynced -- reset\n");
+            LogPrintf("CZnodeSync::IsBlockchainSynced -- reset\n");
             fFirstBlockAccepted = true;
             fBlockchainSynced = false;
             nTimeLastProcess = GetTime();
@@ -81,20 +82,24 @@ bool CZnodeSync::IsBlockchainSynced(bool fBlockAccepted) {
 
     nTimeLastProcess = GetTime();
     nSkipped = 0;
-    LogPrintf("CZnodeSync::IsBlockchainSynced Synced\n");
-    if (fBlockchainSynced) return true;
+
+    if (fBlockchainSynced){
+        LogPrintf("CZnodeSync::IsBlockchainSynced Synced 1\n");
+        return true;
+    }
 
     if (fCheckpointsEnabled && pCurrentBlockIndex->nHeight < Checkpoints::GetTotalBlocksEstimate(Params().Checkpoints())) {
         LogPrintf("fCheckpointsEnabled=%s\n", fCheckpointsEnabled);
         LogPrintf("pCurrentBlockIndex->nHeight=%s\n", pCurrentBlockIndex->nHeight);
         LogPrintf("Checkpoints::GetTotalBlocksEstimate(Params().Checkpoints())=%s\n", Checkpoints::GetTotalBlocksEstimate(Params().Checkpoints()));
         LogPrintf("pCurrentBlockIndex->nHeight < Checkpoints::GetTotalBlocksEstimate(Params().Checkpoints())=%s\n", pCurrentBlockIndex->nHeight < Checkpoints::GetTotalBlocksEstimate(Params().Checkpoints()));
-        LogPrintf("CZnodeSync::IsBlockchainSynced not synced\n");
+        LogPrintf("CZnodeSync::IsBlockchainSynced not Synced 2\n");
         return false;
     }
 
     std::vector < CNode * > vNodesCopy = CopyNodeVector();
-
+    LogPrintf("vNodesCopy.size() = %s\n", vNodesCopy.size());
+    LogPrintf("ZNODE_SYNC_ENOUGH_PEERS = %s\n", ZNODE_SYNC_ENOUGH_PEERS);
     // We have enough peers and assume most of them are synced
     if (vNodesCopy.size() >= ZNODE_SYNC_ENOUGH_PEERS) {
         // Check to see how many of our peers are (almost) at the same height as we are
@@ -102,13 +107,17 @@ bool CZnodeSync::IsBlockchainSynced(bool fBlockAccepted) {
         BOOST_FOREACH(CNode * pnode, vNodesCopy)
         {
             // Make sure this peer is presumably at the same height
-            if (!CheckNodeHeight(pnode)) continue;
+            if (!CheckNodeHeight(pnode)) {
+                continue;
+            }
             nNodesAtSameHeight++;
+            LogPrintf("nNodesAtSameHeight=%s\n", nNodesAtSameHeight);
             // if we have decent number of such peers, most likely we are synced now
             if (nNodesAtSameHeight >= ZNODE_SYNC_ENOUGH_PEERS) {
                 LogPrintf("CZnodeSync::IsBlockchainSynced -- found enough peers on the same height as we are, done\n");
                 fBlockchainSynced = true;
                 ReleaseNodeVector(vNodesCopy);
+                LogPrintf("CZnodeSync::IsBlockchainSynced Synced 3\n");
                 return true;
             }
         }
@@ -124,11 +133,11 @@ bool CZnodeSync::IsBlockchainSynced(bool fBlockAccepted) {
     LogPrintf("nMaxBlockTime=%s\n", nMaxBlockTime);
     fBlockchainSynced = pindexBestHeader->nHeight - pCurrentBlockIndex->nHeight < 24 * 6 &&
                         GetTime() - nMaxBlockTime < Params().MaxTipAge();
-    LogPrintf("pindexBestHeader->nHeight=%s\n", pindexBestHeader->nHeight);
-    LogPrintf("pCurrentBlockIndex->nHeight=%s\n", pCurrentBlockIndex->nHeight);
-    LogPrintf("GetTime() - nMaxBlockTime=%s\n", GetTime() - nMaxBlockTime);
-    LogPrintf("Params().MaxTipAge()=%s\n", Params().MaxTipAge());
-    LogPrintf("fBlockchainSynced=%s\n", fBlockchainSynced);
+    LogPrintf("CZnodeSync::IsBlockchainSynced - pindexBestHeader->nHeight=%s\n", pindexBestHeader->nHeight);
+    LogPrintf("CZnodeSync::IsBlockchainSynced - pCurrentBlockIndex->nHeight=%s\n", pCurrentBlockIndex->nHeight);
+    LogPrintf("CZnodeSync::IsBlockchainSynced - GetTime() - nMaxBlockTime=%s\n", GetTime() - nMaxBlockTime);
+    LogPrintf("CZnodeSync::IsBlockchainSynced - Params().MaxTipAge()=%s\n", Params().MaxTipAge());
+    LogPrintf("CZnodeSync::IsBlockchainSynced - fBlockchainSynced=%s\n", fBlockchainSynced);
 
     return fBlockchainSynced;
 }
@@ -190,14 +199,24 @@ void CZnodeSync::SwitchToNextAsset() {
             nRequestedZnodeAssets = ZNODE_SYNC_MNW;
             LogPrintf("CZnodeSync::SwitchToNextAsset -- Starting %s\n", GetAssetName());
             break;
+
         case (ZNODE_SYNC_MNW):
             nTimeLastGovernanceItem = GetTime();
-            nRequestedZnodeAssets = ZNODE_SYNC_GOVERNANCE;
-            LogPrintf("CZnodeSync::SwitchToNextAsset -- Starting %s\n", GetAssetName());
-            break;
-        case (ZNODE_SYNC_GOVERNANCE):
             LogPrintf("CZnodeSync::SwitchToNextAsset -- Sync has finished\n");
             nRequestedZnodeAssets = ZNODE_SYNC_FINISHED;
+//            break;
+//        case (ZNODE_SYNC_GOVERNANCE):
+//            LogPrintf("CZnodeSync::SwitchToNextAsset -- Sync has finished\n");
+//            nRequestedZnodeAssets = ZNODE_SYNC_FINISHED;
+//
+//        case (ZNODE_SYNC_MNW):
+//            nTimeLastGovernanceItem = GetTime();
+//            nRequestedZnodeAssets = ZNODE_SYNC_GOVERNANCE;
+//            LogPrintf("CZnodeSync::SwitchToNextAsset -- Starting %s\n", GetAssetName());
+//            break;
+//        case (ZNODE_SYNC_GOVERNANCE):
+//            LogPrintf("CZnodeSync::SwitchToNextAsset -- Sync has finished\n");
+//            nRequestedZnodeAssets = ZNODE_SYNC_FINISHED;
 //            uiInterface.NotifyAdditionalDataSyncProgressChanged(1);
             //try to activate our znode if possible
             activeZnode.ManageState();
@@ -305,9 +324,8 @@ void CZnodeSync::ProcessTick() {
     LogPrintf("CZnodeSync::ProcessTick -- nTick %d nRequestedZnodeAssets %d nRequestedZnodeAttempt %d nSyncProgress %f\n", nTick, nRequestedZnodeAssets, nRequestedZnodeAttempt, nSyncProgress);
 //    uiInterface.NotifyAdditionalDataSyncProgressChanged(nSyncProgress);
 
-    // sporks synced but blockchain is not, wait until we're almost at a recent block to continue
-    if (Params().NetworkIDString() != CBaseChainParams::REGTEST &&
-        !IsBlockchainSynced() && nRequestedZnodeAssets > ZNODE_SYNC_SPORKS) {
+    LogPrintf("sporks synced but blockchain is not, wait until we're almost at a recent block to continue\n");
+    if (Params().NetworkIDString() != CBaseChainParams::REGTEST && !IsBlockchainSynced() && nRequestedZnodeAssets > ZNODE_SYNC_SPORKS) {
         LogPrintf("IsBlockchainSynced()=%s", IsBlockchainSynced());
         LogPrintf("nRequestedZnodeAssets > ZNODE_SYNC_SPORKS=%s", nRequestedZnodeAssets > ZNODE_SYNC_SPORKS);
         LogPrintf("CZnodeSync::ProcessTick -- nTick %d nRequestedZnodeAssets %d nRequestedZnodeAttempt %d -- blockchain is not synced yet\n", nTick, nRequestedZnodeAssets, nRequestedZnodeAttempt);
@@ -316,9 +334,9 @@ void CZnodeSync::ProcessTick() {
         nTimeLastGovernanceItem = GetTime();
         return;
     }
-
-    if (nRequestedZnodeAssets == ZNODE_SYNC_INITIAL ||
-        (nRequestedZnodeAssets == ZNODE_SYNC_SPORKS && IsBlockchainSynced())) {
+    LogPrintf("ProcessTick - nRequestedZnodeAssets == ZNODE_SYNC_SPORKS -> %s\n", nRequestedZnodeAssets == ZNODE_SYNC_SPORKS);
+    LogPrintf("ProcessTick - IsBlockchainSynced() =%s\n", IsBlockchainSynced());
+    if (nRequestedZnodeAssets == ZNODE_SYNC_INITIAL || (nRequestedZnodeAssets == ZNODE_SYNC_SPORKS && IsBlockchainSynced())) {
         SwitchToNextAsset();
     }
 
@@ -452,20 +470,20 @@ void CZnodeSync::ProcessTick() {
 
             // GOVOBJ : SYNC GOVERNANCE ITEMS FROM OUR PEERS
 
-            if (nRequestedZnodeAssets == ZNODE_SYNC_GOVERNANCE) {
-                LogPrint("gobject", "CZnodeSync::ProcessTick -- nTick %d nRequestedZnodeAssets %d nTimeLastGovernanceItem %lld GetTime() %lld diff %lld\n", nTick, nRequestedZnodeAssets, nTimeLastGovernanceItem, GetTime(), GetTime() - nTimeLastGovernanceItem);
-
-                // check for timeout first
-                if (GetTime() - nTimeLastGovernanceItem > ZNODE_SYNC_TIMEOUT_SECONDS) {
-                    LogPrintf("CZnodeSync::ProcessTick -- nTick %d nRequestedZnodeAssets %d -- timeout\n", nTick, nRequestedZnodeAssets);
-                    if (nRequestedZnodeAttempt == 0) {
-                        LogPrintf("CZnodeSync::ProcessTick -- WARNING: failed to sync %s\n", GetAssetName());
-                        // it's kind of ok to skip this for now, hopefully we'll catch up later?
-                    }
-                    SwitchToNextAsset();
-                    ReleaseNodeVector(vNodesCopy);
-                    return;
-                }
+//            if (nRequestedZnodeAssets == ZNODE_SYNC_GOVERNANCE) {
+//                LogPrint("gobject", "CZnodeSync::ProcessTick -- nTick %d nRequestedZnodeAssets %d nTimeLastGovernanceItem %lld GetTime() %lld diff %lld\n", nTick, nRequestedZnodeAssets, nTimeLastGovernanceItem, GetTime(), GetTime() - nTimeLastGovernanceItem);
+//
+//                // check for timeout first
+//                if (GetTime() - nTimeLastGovernanceItem > ZNODE_SYNC_TIMEOUT_SECONDS) {
+//                    LogPrintf("CZnodeSync::ProcessTick -- nTick %d nRequestedZnodeAssets %d -- timeout\n", nTick, nRequestedZnodeAssets);
+//                    if (nRequestedZnodeAttempt == 0) {
+//                        LogPrintf("CZnodeSync::ProcessTick -- WARNING: failed to sync %s\n", GetAssetName());
+//                        // it's kind of ok to skip this for now, hopefully we'll catch up later?
+//                    }
+//                    SwitchToNextAsset();
+//                    ReleaseNodeVector(vNodesCopy);
+//                    return;
+//                }
 
                 // only request obj sync once from each peer, then request votes on per-obj basis
 //                if(netfulfilledman.HasFulfilledRequest(pnode->addr, "governance-sync")) {
@@ -504,13 +522,13 @@ void CZnodeSync::ProcessTick() {
 //                netfulfilledman.AddFulfilledRequest(pnode->addr, "governance-sync");
 
 //                if (pnode->nVersion < MIN_GOVERNANCE_PEER_PROTO_VERSION) continue;
-                nRequestedZnodeAttempt++;
+//                nRequestedZnodeAttempt++;
 
 //                SendGovernanceSyncRequest(pnode);
 
-                ReleaseNodeVector(vNodesCopy);
-                return; //this will cause each peer to get one request each six seconds for the various assets we need
-            }
+//                ReleaseNodeVector(vNodesCopy);
+//                return; //this will cause each peer to get one request each six seconds for the various assets we need
+//            }
         }
     }
     // looped through all nodes, release them

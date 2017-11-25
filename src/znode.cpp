@@ -415,12 +415,14 @@ void CZnode::UpdateLastPaid(const CBlockIndex *pindex, int nMaxBlocksToScanBack)
 
 bool CZnodeBroadcast::Create(std::string strService, std::string strKeyZnode, std::string strTxHash, std::string strOutputIndex, std::string& strErrorRet, CZnodeBroadcast &mnbRet, bool fOffline)
 {
+    LogPrintf("CZnodeBroadcast::Create\n");
     CTxIn txin;
     CPubKey pubKeyCollateralAddressNew;
     CKey keyCollateralAddressNew;
     CPubKey pubKeyZnodeNew;
     CKey keyZnodeNew;
-
+    LogPrintf("fOffline=%s\n", fOffline);
+    LogPrintf("znodeSync.IsBlockchainSynced=%s\n", znodeSync.IsBlockchainSynced());
     //need correct blocks to send ping
     if(!fOffline && !znodeSync.IsBlockchainSynced()) {
         strErrorRet = "Sync in progress. Must wait until sync is complete to start Znode";

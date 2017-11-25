@@ -247,8 +247,7 @@ UniValue znode(const UniValue &params, bool fHelp) {
         UniValue statusObj(UniValue::VOBJ);
         statusObj.push_back(Pair("alias", strAlias));
 
-        BOOST_FOREACH(CZnodeConfig::CZnodeEntry
-        mne, znodeConfig.getEntries()) {
+        BOOST_FOREACH(CZnodeConfig::CZnodeEntry mne, znodeConfig.getEntries()) {
             if (mne.getAlias() == strAlias) {
                 fFound = true;
                 std::string strError;
@@ -261,6 +260,7 @@ UniValue znode(const UniValue &params, bool fHelp) {
                     mnodeman.UpdateZnodeList(mnb);
                     mnb.Relay();
                 } else {
+                    LogPrintf("Start-alias: errorMessage = %s\n", strError);
                     statusObj.push_back(Pair("errorMessage", strError));
                 }
                 mnodeman.NotifyZnodeUpdates();
@@ -272,6 +272,8 @@ UniValue znode(const UniValue &params, bool fHelp) {
             statusObj.push_back(Pair("result", "failed"));
             statusObj.push_back(Pair("errorMessage", "Could not find alias in config. Verify with list-conf."));
         }
+
+//        LogPrintf("start-alias: statusObj=%s\n", statusObj);
 
         return statusObj;
 

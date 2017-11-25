@@ -119,8 +119,8 @@ public:
         consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000708f98bf623f02e");
 
         // znode params
-        consensus.nZnodePaymentsStartBlock = 100000; // not true, but it's ok as long as it's less then nZnodePaymentsIncreaseBlock
-        consensus.nZnodePaymentsIncreaseBlock = 158000; // actual historical value
+        consensus.nZnodePaymentsStartBlock = 660000; // not true, but it's ok as long as it's less then nZnodePaymentsIncreaseBlock
+        consensus.nZnodePaymentsIncreaseBlock = 680000; // actual historical value
         consensus.nZnodePaymentsIncreasePeriod = 576*30; // 17280 - actual historical value
         consensus.nSuperblockStartBlock = 614820;
         consensus.nBudgetPaymentsStartBlock = 328008; // actual historical value
@@ -247,9 +247,9 @@ public:
 
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000708f98bf623f02e");
-        // Maternode params
+        // Znode params testnet
         consensus.nZnodePaymentsStartBlock = 100; // not true, but it's ok as long as it's less then n
-        consensus.nZnodePaymentsIncreaseBlock = 46000;
+        consensus.nZnodePaymentsIncreaseBlock = 110;
         consensus.nZnodePaymentsIncreasePeriod = 576;
         consensus.nSuperblockStartBlock = 61000;
         consensus.nBudgetPaymentsStartBlock = 60000;
@@ -266,7 +266,7 @@ public:
         pchMessageStart[1] = 0xfc;
         pchMessageStart[2] = 0xbe;
         pchMessageStart[3] = 0xea;
-        nDefaultPort = 18168;
+        nDefaultPort = 28168;
         nPruneAfterHeight = 1000;
         /**
           * btzc: testnet params

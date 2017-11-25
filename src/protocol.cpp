@@ -238,6 +238,8 @@ bool operator<(const CInv &a, const CInv &b) {
 }
 
 bool CInv::IsKnownType() const {
+    LogPrintf("type = %s\n", type);
+    LogPrintf("(int) ARRAYLEN(ppszTypeName) = %s\n", (int) ARRAYLEN(ppszTypeName));
     return (type >= 1 && type < (int) ARRAYLEN(ppszTypeName));
 }
 
@@ -258,16 +260,23 @@ bool CInv::IsKnownType() const {
 //    }
 //}
 
-std::string CInv::GetCommand() const {
-    if (!IsKnownType()) {
-        LogPrintf("CInv::GetCommand(): type=%d unknown type\n", type);
+//std::string CInv::GetCommand() const {
+//    if (!IsKnownType()) {
+//        LogPrintf("CInv::GetCommand(): type=%d unknown type\n", type);
+//        throw std::out_of_range(strprintf("CInv::GetCommand(): type=%d unknown type", type));
+//    }
+//    return ppszTypeName[type];
+//}
+
+const char* CInv::GetCommand() const
+{
+    if (!IsKnownType())
         throw std::out_of_range(strprintf("CInv::GetCommand(): type=%d unknown type", type));
-    }
-    return allNetMessageTypes[type];
+    return ppszTypeName[type];
 }
 
 std::string CInv::ToString() const {
-    return strprintf("%s %s", GetCommand(), hash.ToString());
+    return strprintf("%s", hash.ToString());
 }
 
 const std::vector <std::string> &getAllNetMessageTypes() {

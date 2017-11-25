@@ -5911,7 +5911,6 @@ void static ProcessGetData(CNode *pfrom, const Consensus::Params &consensusParam
         {
             boost::this_thread::interruption_point();
             it++;
-
             if (inv.type == MSG_BLOCK || inv.type == MSG_FILTERED_BLOCK || inv.type == MSG_CMPCT_BLOCK ||
                 inv.type == MSG_WITNESS_BLOCK) {
                 bool send = false;
@@ -6011,27 +6010,172 @@ void static ProcessGetData(CNode *pfrom, const Consensus::Params &consensusParam
                         pfrom->hashContinue.SetNull();
                     }
                 }
-            } else if (inv.type == MSG_TX || inv.type == MSG_WITNESS_TX) {
+            } else if (inv.IsKnownType()) {
                 // Send stream from relay memory
-                bool push = false;
-                auto mi = mapRelay.find(inv.hash);
-                if (mi != mapRelay.end()) {
-                    pfrom->PushMessageWithFlag(inv.type == MSG_TX ? SERIALIZE_TRANSACTION_NO_WITNESS : 0,
-                                               NetMsgType::TX, *mi->second);
-                    push = true;
-                } else if (pfrom->timeLastMempoolReq) {
-                    auto txinfo = mempool.info(inv.hash);
-                    // To protect privacy, do not answer getdata using the mempool when
-                    // that TX couldn't have been INVed in reply to a MEMPOOL request.
-                    if (txinfo.tx && txinfo.nTime <= pfrom->timeLastMempoolReq) {
-                        pfrom->PushMessageWithFlag(inv.type == MSG_TX ? SERIALIZE_TRANSACTION_NO_WITNESS : 0,
-                                                   NetMsgType::TX, *txinfo.tx);
-                        push = true;
+                bool pushed = false;
+                {
+                    CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+                    auto mi = mapRelay.find(inv.hash);
+                    if (mi != mapRelay.end()) {
+//                            ss += (*mi).second;
+                        pushed = true;
+                    }
+                    if(pushed) pfrom->PushMessage(inv.GetCommand(), ss);
+
+                }
+
+                if (!pushed && (inv.type == MSG_TX || inv.type == MSG_WITNESS_TX)) {
+                    if (pfrom->timeLastMempoolReq) {
+                        auto txinfo = mempool.info(inv.hash);
+                        // To protect privacy, do not answer getdata using the mempool when
+                        // that TX couldn't have been INVed in reply to a MEMPOOL request.
+                        if (txinfo.tx && txinfo.nTime <= pfrom->timeLastMempoolReq) {
+                            pfrom->PushMessageWithFlag(inv.type == MSG_TX ? SERIALIZE_TRANSACTION_NO_WITNESS : 0,
+                                                       NetMsgType::TX, *txinfo.tx);
+                        }
                     }
                 }
-                if (!push) {
-                    vNotFound.push_back(inv);
+
+                if (!pushed && inv.type == MSG_TXLOCK_REQUEST) {
+                    CTxLockRequest txLockRequest;
+                    if(instantsend.GetTxLockRequest(inv.hash, txLockRequest)) {
+                        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+                        ss.reserve(1000);
+                        ss << txLockRequest;
+                        pfrom->PushMessage(NetMsgType::TXLOCKREQUEST, ss);
+                        pushed = true;
+                    }
                 }
+
+                if (!pushed && inv.type == MSG_TXLOCK_VOTE) {
+                    CTxLockVote vote;
+                    if(instantsend.GetTxLockVote(inv.hash, vote)) {
+                        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+                        ss.reserve(1000);
+                        ss << vote;
+                        pfrom->PushMessage(NetMsgType::TXLOCKVOTE, ss);
+                        pushed = true;
+                    }
+                }
+
+                if (!pushed && inv.type == MSG_SPORK) {
+                    if(mapSporks.count(inv.hash)) {
+                        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+                        ss.reserve(1000);
+                        ss << mapSporks[inv.hash];
+                        pfrom->PushMessage(NetMsgType::SPORK, ss);
+                        pushed = true;
+                    }
+                }
+
+                if (!pushed && inv.type == MSG_ZNODE_PAYMENT_VOTE) {
+                    if(mnpayments.HasVerifiedPaymentVote(inv.hash)) {
+                        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+                        ss.reserve(1000);
+                        ss << mnpayments.mapZnodePaymentVotes[inv.hash];
+                        pfrom->PushMessage(NetMsgType::ZNODEPAYMENTVOTE, ss);
+                        pushed = true;
+                    }
+                }
+
+                if (!pushed && inv.type == MSG_ZNODE_PAYMENT_BLOCK) {
+                    BlockMap::iterator mi = mapBlockIndex.find(inv.hash);
+                    LOCK(cs_mapZnodeBlocks);
+                    if (mi != mapBlockIndex.end() && mnpayments.mapZnodeBlocks.count(mi->second->nHeight)) {
+                        BOOST_FOREACH(CZnodePayee& payee, mnpayments.mapZnodeBlocks[mi->second->nHeight].vecPayees) {
+                            std::vector<uint256> vecVoteHashes = payee.GetVoteHashes();
+                            BOOST_FOREACH(uint256& hash, vecVoteHashes) {
+                                if(mnpayments.HasVerifiedPaymentVote(hash)) {
+                                    CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+                                    ss.reserve(1000);
+                                    ss << mnpayments.mapZnodePaymentVotes[hash];
+                                    pfrom->PushMessage(NetMsgType::ZNODEPAYMENTVOTE, ss);
+                                }
+                            }
+                        }
+                        pushed = true;
+                    }
+                }
+
+                if (!pushed && inv.type == MSG_ZNODE_ANNOUNCE) {
+                    if(mnodeman.mapSeenZnodeBroadcast.count(inv.hash)){
+                        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+                        ss.reserve(1000);
+                        ss << mnodeman.mapSeenZnodeBroadcast[inv.hash].second;
+                        pfrom->PushMessage(NetMsgType::MNANNOUNCE, ss);
+                        pushed = true;
+                    }
+                }
+
+                if (!pushed && inv.type == MSG_ZNODE_PING) {
+                    if(mnodeman.mapSeenZnodePing.count(inv.hash)) {
+                        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+                        ss.reserve(1000);
+                        ss << mnodeman.mapSeenZnodePing[inv.hash];
+                        pfrom->PushMessage(NetMsgType::MNPING, ss);
+                        pushed = true;
+                    }
+                }
+
+                if (!pushed && inv.type == MSG_DSTX) {
+                    if(mapDarksendBroadcastTxes.count(inv.hash)) {
+                        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+                        ss.reserve(1000);
+                        ss << mapDarksendBroadcastTxes[inv.hash];
+                        pfrom->PushMessage(NetMsgType::DSTX, ss);
+                        pushed = true;
+                    }
+                }
+
+//                if (!pushed && inv.type == MSG_GOVERNANCE_OBJECT) {
+//                    LogPrint("net", "ProcessGetData -- MSG_GOVERNANCE_OBJECT: inv = %s\n", inv.ToString());
+//                    CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+//                    bool topush = false;
+//                    {
+//                        if(governance.HaveObjectForHash(inv.hash)) {
+//                            ss.reserve(1000);
+//                            if(governance.SerializeObjectForHash(inv.hash, ss)) {
+//                                topush = true;
+//                            }
+//                        }
+//                    }
+//                    LogPrint("net", "ProcessGetData -- MSG_GOVERNANCE_OBJECT: topush = %d, inv = %s\n", topush, inv.ToString());
+//                    if(topush) {
+//                        pfrom->PushMessage(NetMsgType::MNGOVERNANCEOBJECT, ss);
+//                        pushed = true;
+//                    }
+//                }
+//
+//                if (!pushed && inv.type == MSG_GOVERNANCE_OBJECT_VOTE) {
+//                    CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+//                    bool topush = false;
+//                    {
+//                        if(governance.HaveVoteForHash(inv.hash)) {
+//                            ss.reserve(1000);
+//                            if(governance.SerializeVoteForHash(inv.hash, ss)) {
+//                                topush = true;
+//                            }
+//                        }
+//                    }
+//                    if(topush) {
+//                        LogPrint("net", "ProcessGetData -- pushing: inv = %s\n", inv.ToString());
+//                        pfrom->PushMessage(NetMsgType::MNGOVERNANCEOBJECTVOTE, ss);
+//                        pushed = true;
+//                    }
+//                }
+
+                if (!pushed && inv.type == MSG_ZNODE_VERIFY) {
+                    if(mnodeman.mapSeenZnodeVerification.count(inv.hash)) {
+                        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+                        ss.reserve(1000);
+                        ss << mnodeman.mapSeenZnodeVerification[inv.hash];
+                        pfrom->PushMessage(NetMsgType::MNVERIFY, ss);
+                        pushed = true;
+                    }
+                }
+
+                if (!pushed)
+                    vNotFound.push_back(inv);
             }
 
             // Track requests for our stuff.
@@ -6071,6 +6215,8 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
         LogPrintf("dropmessagestest DROPPING RECV MESSAGE\n");
         return true;
     }
+
+    LogPrintf("ProcessMessage, strCommand=%s\n", strCommand);
 
 
     if (!(nLocalServices & NODE_BLOOM) &&
@@ -6423,7 +6569,9 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
 
         if (!vToFetch.empty())
             pfrom->PushMessage(NetMsgType::GETDATA, vToFetch);
+
     } else if (strCommand == NetMsgType::GETDATA) {
+        LogPrintf("ProcessMessage=%s\n", strCommand);
         vector <CInv> vInv;
         vRecv >> vInv;
         if (vInv.size() > MAX_INV_SZ) {
@@ -6431,13 +6579,12 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
             Misbehaving(pfrom->GetId(), 20);
             return error("message getdata size() = %u", vInv.size());
         }
-
         if (fDebug || (vInv.size() != 1)) {
             LogPrint("net", "received getdata (%u invsz) peer=%d\n", vInv.size(), pfrom->id);
         }
 
         if ((fDebug && vInv.size() > 0) || (vInv.size() == 1)) {
-            LogPrint("net", "received getdata for: %s peer=%d\n", vInv[0].ToString(), pfrom->id);
+            LogPrint("net", "received getdata for: peer=%d\n", pfrom->id);
         }
 
         pfrom->vRecvGetData.insert(pfrom->vRecvGetData.end(), vInv.begin(), vInv.end());
@@ -7472,7 +7619,7 @@ bool ProcessMessages(CNode *pfrom) {
             continue;
         }
         string strCommand = hdr.GetCommand();
-        LogPrintf("ProcessMEssages() strCommand = %s\n", strCommand);
+        LogPrintf("ProcessMessages() strCommand = %s\n", strCommand);
 
         // Message size
         unsigned int nMessageSize = hdr.nMessageSize;
@@ -7517,6 +7664,7 @@ bool ProcessMessages(CNode *pfrom) {
             throw;
         }
         catch (const std::exception &e) {
+            LogPrintf("Exception with strCommand=%s\n", strCommand);
             PrintExceptionContinue(&e, "ProcessMessages() 2");
         } catch (...) {
             PrintExceptionContinue(NULL, "ProcessMessages() 3");
