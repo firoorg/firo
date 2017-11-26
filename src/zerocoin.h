@@ -23,6 +23,8 @@ public:
     bool fInfoIsComplete;
 
     CZerocoinTxInfo(): fInfoIsComplete(false) {}
+    // finalize everything
+    void Complete();
 };
 
 bool CheckZerocoinFoundersInputs(const CTransaction &tx, CValidationState &state, int nHeight, bool fTestNet);
@@ -68,7 +70,7 @@ private:
     // Set of all used coin serials. Allows multiple entries for the same coin serial for historical reasons
     unordered_multiset<CBigNum,CBigNumHash> usedCoinSerials;
     // Set of all minted pubCoin values
-    unordered_set<CBigNum,CBigNumHash> mintedPubCoins;
+    unordered_multiset<CBigNum,CBigNumHash> mintedPubCoins;
     // Latest IDs of coins by denomination
     map<int, int> latestCoinIds;
 

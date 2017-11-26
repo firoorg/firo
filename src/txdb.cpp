@@ -200,6 +200,10 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
                 pindexNew->nStatus        = diskindex.nStatus;
                 pindexNew->nTx            = diskindex.nTx;
 
+                pindexNew->accumulatorChanges = diskindex.accumulatorChanges;
+                pindexNew->mintedPubCoins     = diskindex.mintedPubCoins;
+                pindexNew->spentSerials       = diskindex.spentSerials;
+
                 if (!CheckProofOfWork(pindexNew->GetBlockPoWHash(), pindexNew->nBits, Params().GetConsensus()))
                     return error("LoadBlockIndex(): CheckProofOfWork failed: %s", pindexNew->ToString());
 

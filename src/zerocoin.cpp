@@ -33,7 +33,14 @@ static libzerocoin::Params *ZCParams = new libzerocoin::Params(bnTrustedModulus)
 
 static CZerocoinState zerocoinState;
 
-bool CheckSpendZcoinTransaction(const CTransaction &tx, libzerocoin::CoinDenomination targetDenomination, CValidationState &state, uint256 hashTx, bool isVerifyDB, int nHeight, bool isCheckWallet, CZerocoinTxInfo *zerocoinTxInfo) {
+bool CheckSpendZcoinTransaction(const CTransaction &tx,
+                                libzerocoin::CoinDenomination targetDenomination,
+                                CValidationState &state,
+                                uint256 hashTx,
+                                bool isVerifyDB,
+                                int nHeight,
+                                bool isCheckWallet,
+                                CZerocoinTxInfo *zerocoinTxInfo) {
 
     // Check for inputs only, everything else was checked before
 	LogPrintf("CheckSpendZcoinTransaction denomination=%d nHeight=%d\n", targetDenomination, nHeight);
@@ -131,6 +138,18 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx, libzerocoin::CoinDenomin
                 if ((passVerify = newSpend.Verify(accumulator, newMetadata)) == true)
                     break;
             }
+
+            if (!passVerify) {
+                // One more time now in reverse direction. The only reason why it's required is compatibility with
+                // previous client versions
+                libzerocoin::Accumulator accumulator(ZCParams, targetDenomination);
+                BOOST_REVERSE_FOREACH(const CBigNum &pubCoin, pubCoins) {
+                    accumulator += libzerocoin::PublicCoin(ZCParams, pubCoin, (libzerocoin::CoinDenomination)targetDenomination);
+                    LogPrintf("CheckSpendZcoinTransaction: accumulatorRev=%s\n", accumulator.getValue().ToString().substr(0,15));
+                    if ((passVerify = newSpend.Verify(accumulator, newMetadata)) == true)
+                        break;
+                }
+            }
         }
 
 
@@ -155,11 +174,75 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx, libzerocoin::CoinDenomin
             }
         }
         else {
-            LogPrintf("CheckSpendZCoinTransaction: Problem verifying zerocoin spend in block %d\n", nHeight);
-            //return false;
+            LogPrintf("CheckSpendZCoinTransaction: verification failed at block %d\n", nHeight);
+            return false;
         }
 	}
 	return true;
+}
+
+bool CheckMintZcoinTransaction(const CTxOut &txout,
+                               CValidationState &state,
+                               CZerocoinTxInfo *zerocoinTxInfo) {
+
+    LogPrintf("CheckMintZcoinTransaction txHash = %s\n", txout.GetHash().ToString());
+    LogPrintf("nValue = %d\n", txout.nValue);
+
+    if (txout.scriptPubKey.size() < 6)
+        return state.DoS(100,
+            false,
+            PUBCOIN_NOT_VALIDATE,
+            "CTransaction::CheckTransaction() : PubCoin validation failed");
+
+    CBigNum pubCoin(vector<unsigned char>(txout.scriptPubKey.begin()+6, txout.scriptPubKey.end()));
+
+    bool hasCoin = zerocoinState.HasCoin(pubCoin);
+
+    if (!hasCoin && zerocoinTxInfo && !zerocoinTxInfo->fInfoIsComplete) {
+        BOOST_FOREACH(const PAIRTYPE(int,CBigNum) &mint, zerocoinTxInfo->mints) {
+            if (mint.second == pubCoin) {
+                hasCoin = true;
+                break;
+            }
+        }
+    }
+
+    if (hasCoin) {
+        /*return state.DoS(100,
+                         false,
+                         PUBCOIN_NOT_VALIDATE,
+                         "CheckZerocoinTransaction: duplicate mint");*/
+        LogPrintf("CheckMintZerocoinTransaction: double mint, tx=%s\n", txout.GetHash().ToString());
+    }
+
+    switch (txout.nValue) {
+    default:
+        return state.DoS(100,
+            false,
+            PUBCOIN_NOT_VALIDATE,
+            "CheckZerocoinTransaction : PubCoin denomination is invalid");
+
+    case libzerocoin::ZQ_LOVELACE*COIN:
+    case libzerocoin::ZQ_GOLDWASSER*COIN:
+    case libzerocoin::ZQ_RACKOFF*COIN:
+    case libzerocoin::ZQ_PEDERSEN*COIN:
+    case libzerocoin::ZQ_WILLIAMSON*COIN:
+        libzerocoin::CoinDenomination denomination = (libzerocoin::CoinDenomination)(txout.nValue / COIN);
+        libzerocoin::PublicCoin checkPubCoin(ZCParams, pubCoin, denomination);
+        if (!checkPubCoin.validate())
+            return state.DoS(100,
+                false,
+                PUBCOIN_NOT_VALIDATE,
+                "CheckZerocoinTransaction : PubCoin validation failed");
+
+        if (zerocoinTxInfo != NULL && !zerocoinTxInfo->fInfoIsComplete)
+            // Update public coin list in the info
+            zerocoinTxInfo->mints.push_back(make_pair(denomination, pubCoin));
+
+        break;
+    }
+
+    return true;
 }
 
 bool CheckZerocoinFoundersInputs(const CTransaction &tx, CValidationState &state, int nHeight, bool fTestNet) {
@@ -243,61 +326,8 @@ bool CheckZerocoinTransaction(const CTransaction &tx,
 	// Check Mint Zerocoin Transaction
 	BOOST_FOREACH(const CTxOut &txout, tx.vout) {
 		if (!txout.scriptPubKey.empty() && txout.scriptPubKey.IsZerocoinMint()) {
-			LogPrintf("CheckMintZcoinTransaction txHash = %s, isVerifyDB = %d\n", txout.GetHash().ToString(), isVerifyDB);
-			LogPrintf("nValue = %d\n", txout.nValue);
-
-            if (txout.scriptPubKey.size() < 6)
-                return state.DoS(100,
-                    false,
-                    PUBCOIN_NOT_VALIDATE,
-                    "CTransaction::CheckTransaction() : PubCoin validation failed");
-
-            CBigNum pubCoin(vector<unsigned char>(txout.scriptPubKey.begin()+6, txout.scriptPubKey.end()));
-
-            bool hasCoin = zerocoinState.HasCoin(pubCoin);
-
-            if (!hasCoin && zerocoinTxInfo && !zerocoinTxInfo->fInfoIsComplete) {
-                BOOST_FOREACH(const PAIRTYPE(int,CBigNum) &mint, zerocoinTxInfo->mints) {
-                    if (mint.second == pubCoin) {
-                        hasCoin = true;
-                        break;
-                    }
-                }
-            }
-
-            if (hasCoin)
-                return state.DoS(100,
-                                 false,
-                                 PUBCOIN_NOT_VALIDATE,
-                                 "CheckZerocoinTransaction: duplicate mint");
-
-            switch (txout.nValue) {
-            default:
-                return state.DoS(100,
-                    false,
-                    PUBCOIN_NOT_VALIDATE,
-                    "CheckZerocoinTransaction : PubCoin denomination is invalid");
-
-            case libzerocoin::ZQ_LOVELACE*COIN:
-            case libzerocoin::ZQ_GOLDWASSER*COIN:
-            case libzerocoin::ZQ_RACKOFF*COIN:
-            case libzerocoin::ZQ_PEDERSEN*COIN:
-            case libzerocoin::ZQ_WILLIAMSON*COIN:
-                libzerocoin::CoinDenomination denomination = (libzerocoin::CoinDenomination)(txout.nValue / COIN);
-                libzerocoin::PublicCoin checkPubCoin(ZCParams, pubCoin, denomination);
-                if (!checkPubCoin.validate())
-                    return state.DoS(100,
-                        false,
-                        PUBCOIN_NOT_VALIDATE,
-                        "CheckZerocoinTransaction : PubCoin validation failed");
-
-                if (zerocoinTxInfo != NULL && !zerocoinTxInfo->fInfoIsComplete)
-                    // Update public coin list in the info
-                    zerocoinTxInfo->mints.push_back(make_pair(denomination, pubCoin));
-
-                break;
-            }
-
+            if (!CheckMintZcoinTransaction(txout, state, zerocoinTxInfo))
+                return false;
 		}
 	}
 
@@ -315,7 +345,7 @@ bool CheckZerocoinTransaction(const CTransaction &tx,
                 case libzerocoin::ZQ_PEDERSEN*COIN:
                 case libzerocoin::ZQ_WILLIAMSON*COIN:
                     if(!CheckSpendZcoinTransaction(tx, (libzerocoin::CoinDenomination)(txout.nValue / COIN), state, hashTx, isVerifyDB, nHeight, isCheckWallet, zerocoinTxInfo))
-                        return state.DoS(100, error("CheckZerocoinTransaction : COIN SPEND TX DID NOT VERIFY!"));
+                        return false;
                     break;
 
                 default:
@@ -398,6 +428,23 @@ bool ZerocoinBuildStateFromIndex(CChain *chain) {
     for (CBlockIndex *blockIndex = chain->Genesis(); blockIndex; blockIndex=chain->Next(blockIndex))
         zerocoinState.AddBlock(blockIndex);
 	return true;
+}
+
+// CZerocoinTxInfo
+
+void CZerocoinTxInfo::Complete() {
+    // We need to sort mints lexicographically by value of BN_bn2mpi(pubCoin). That's the way old code
+    // works, we need to stick to it. Denomination doesn't matter but we will sort by it as well
+    sort(mints.begin(), mints.end(),
+         [](decltype(mints)::const_reference m1, decltype(mints)::const_reference m2)->bool {
+            CDataStream ds1(SER_DISK, CLIENT_VERSION), ds2(SER_DISK, CLIENT_VERSION);
+            ds1 << m1.second;
+            ds2 << m2.second;
+            return (m1.first < m2.first) || ((m1.first == m2.first) && (ds1.str() < ds2.str()));
+         });
+
+    // Mark this info as complete
+    fInfoIsComplete = true;
 }
 
 // CZerocoinState::CBigNumHash
@@ -486,19 +533,17 @@ void CZerocoinState::RemoveBlock(CBlockIndex *index) {
         assert(coinGroup.nCoins >= nMintsToForget);
 
         if ((coinGroup.nCoins -= nMintsToForget) == 0) {
-            // all the coins of this group has been erased, remove the group altogether
+            // all the coins of this group have been erased, remove the group altogether
             coinGroups.erase(accUpdate.first);
             // decrease pubcoin id for this denomination
             latestCoinIds[accUpdate.first.first]--;
         }
         else {
             // roll back lastBlock to previous position
-            for (int i=0; i<nMintsToForget; i++) {
-                do {
-                    assert(coinGroup.lastBlock != coinGroup.firstBlock);
-                    coinGroup.lastBlock = coinGroup.lastBlock->pprev;
-                } while (coinGroup.lastBlock->accumulatorChanges.count(accUpdate.first) == 0);
-            }
+            do {
+                assert(coinGroup.lastBlock != coinGroup.firstBlock);
+                coinGroup.lastBlock = coinGroup.lastBlock->pprev;
+            } while (coinGroup.lastBlock->accumulatorChanges.count(accUpdate.first) == 0);
         }
     }
 

@@ -203,7 +203,7 @@ public:
     //! (memory only) Sequential id assigned to distinguish order in which blocks are received.
     uint32_t nSequenceId;
 
-    //! Public coin values of mints in this block, in order of appearance
+    //! Public coin values of mints in this block, ordered by serialized value of public coin
     //! Maps <denomination,id> to vector of public coins
     map<pair<int,int>, vector<CBigNum>> mintedPubCoins;
 

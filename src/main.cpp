@@ -2970,6 +2970,9 @@ bool static ConnectTip(CValidationState &state, const CChainParams &chainparams,
         SyncWithWallets(tx, pindexNew, pblock);
     }
 
+    if (!ConnectTipZC(state, chainparams, pindexNew, pblock))
+        return false;
+
     int64_t nTime6 = GetTimeMicros();
     nTimePostConnect += nTime6 - nTime5;
     nTimeTotal += nTime6 - nTime1;
@@ -3108,10 +3111,6 @@ static bool ActivateBestChainStep(CValidationState &state, const CChainParams &c
                     break;
                 }
             }
-        }
-        BOOST_FOREACH(CBlockIndex * pindexConnect, vpindexToConnect){
-	        if (!ConnectTipZC(state, chainparams, pindexConnect, pindexConnect == pindexMostWork ? pblock : NULL))
-		        AbortNode(state, "Failed to read block");
         }
     }
 
@@ -3572,7 +3571,7 @@ bool CheckBlock(const CBlock &block, CValidationState &state, const Consensus::P
                                  strprintf("Transaction check failed (tx hash %s) %s", tx.GetHash().ToString(),
                                            state.GetDebugMessage()));
         }
-        block.zerocoinTxInfo->fInfoIsComplete = true;
+        block.zerocoinTxInfo->Complete();
 
         unsigned int nSigOps = 0;
         BOOST_FOREACH(const CTransaction &tx, block.vtx)
