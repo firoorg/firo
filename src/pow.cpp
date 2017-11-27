@@ -36,6 +36,7 @@ double GetDifficultyHelper(unsigned int nBits) {
 
 // zcoin GetNextWorkRequired
 unsigned int GetNextWorkRequired(const CBlockIndex *pindexLast, const CBlockHeader *pblock, const Consensus::Params &params) {
+    bool fTestNet = Params().NetworkIDString() == CBaseChainParams::TESTNET;
 
 	if(ENABLED_LOWEST_DIFF){
 		return bnProofOfWorkLimit.GetCompact();
@@ -51,7 +52,7 @@ unsigned int GetNextWorkRequired(const CBlockIndex *pindexLast, const CBlockHead
     int64_t PastSecondsMax = TimeDaySeconds * 7;// 604800
     uint32_t PastBlocksMin = PastSecondsMin / BlocksTargetSpacing; // 36 blocks
     uint32_t PastBlocksMax = PastSecondsMax / BlocksTargetSpacing; // 1008 blocks
-    bool fTestNet = Params().NetworkIDString() == CBaseChainParams::TESTNET;
+
     if (fTestNet) {
         // If the new block's timestamp is more than nTargetSpacing*6
         // then allow mining of a min-difficulty block

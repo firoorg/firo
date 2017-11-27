@@ -421,8 +421,6 @@ bool CZnodeBroadcast::Create(std::string strService, std::string strKeyZnode, st
     CKey keyCollateralAddressNew;
     CPubKey pubKeyZnodeNew;
     CKey keyZnodeNew;
-    LogPrintf("fOffline=%s\n", fOffline);
-    LogPrintf("znodeSync.IsBlockchainSynced=%s\n", znodeSync.IsBlockchainSynced());
     //need correct blocks to send ping
     if(!fOffline && !znodeSync.IsBlockchainSynced()) {
         strErrorRet = "Sync in progress. Must wait until sync is complete to start Znode";
@@ -603,7 +601,7 @@ bool CZnodeBroadcast::Update(CZnode* pmn, int& nDos)
         LogPrintf("CZnodeBroadcast::Update -- Got UPDATED Znode entry: addr=%s\n", addr.ToString());
         if(pmn->UpdateFromNewBroadcast((*this))) {
             pmn->Check();
-            Relay();
+            RelayZNode();
         }
         znodeSync.AddedZnodeList();
     }
@@ -730,8 +728,8 @@ bool CZnodeBroadcast::CheckSignature(int& nDos)
     return true;
 }
 
-void CZnodeBroadcast::Relay()
-{
+void CZnodeBroadcast::RelayZNode()
+{   LogPrintf("CZnodeBroadcast::RelayZNode\n");
     CInv inv(MSG_ZNODE_ANNOUNCE, GetHash());
     RelayInv(inv);
 }
@@ -794,7 +792,8 @@ bool CZnodePing::SimpleCheck(int& nDos)
     }
 
     {
-        LOCK(cs_main);
+//        LOCK(cs_main);
+        AssertLockHeld(cs_main);
         BlockMap::iterator mi = mapBlockIndex.find(blockHash);
         if (mi == mapBlockIndex.end()) {
             LogPrint("znode", "CZnodePing::SimpleCheck -- Znode ping is invalid, unknown block hash: znode=%s blockHash=%s\n", vin.prevout.ToStringShort(), blockHash.ToString());

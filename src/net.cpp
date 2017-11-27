@@ -2099,6 +2099,7 @@ void RelayTransaction(const CTransaction &tx) {
 
 void RelayInv(CInv &inv, const int minProtoVersion) {
     LOCK(cs_vNodes);
+    LogPrintf("RelayInv, vNodes.size()=%s\n", vNodes.size());
     BOOST_FOREACH(CNode * pnode, vNodes)
     {
         if (pnode->nVersion >= minProtoVersion)

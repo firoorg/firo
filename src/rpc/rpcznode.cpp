@@ -258,7 +258,7 @@ UniValue znode(const UniValue &params, bool fHelp) {
                 statusObj.push_back(Pair("result", fResult ? "successful" : "failed"));
                 if (fResult) {
                     mnodeman.UpdateZnodeList(mnb);
-                    mnb.Relay();
+                    mnb.RelayZNode();
                 } else {
                     LogPrintf("Start-alias: errorMessage = %s\n", strError);
                     statusObj.push_back(Pair("errorMessage", strError));
@@ -316,7 +316,7 @@ UniValue znode(const UniValue &params, bool fHelp) {
             if (fResult) {
                 nSuccessful++;
                 mnodeman.UpdateZnodeList(mnb);
-                mnb.Relay();
+                mnb.RelayZNode();
             } else {
                 nFailed++;
                 statusObj.push_back(Pair("errorMessage", strError));
@@ -775,7 +775,7 @@ UniValue znodebroadcast(const UniValue &params, bool fHelp) {
                     fResult = mnodeman.CheckMnbAndUpdateZnodeList(NULL, mnb, nDos);
                 } else {
                     mnodeman.UpdateZnodeList(mnb);
-                    mnb.Relay();
+                    mnb.RelayZNode();
                     fResult = true;
                 }
                 mnodeman.NotifyZnodeUpdates();

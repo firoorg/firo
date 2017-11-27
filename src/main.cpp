@@ -253,6 +253,7 @@ namespace {
     /** Relay map, protected by cs_main. */
     typedef std::map <uint256, std::shared_ptr<const CTransaction>> MapRelay;
     MapRelay mapRelay;
+    std::map<CInv, CDataStream> mapRelayInv;
     /** Expiration-time ordered list of (expire time, relay map entry) pairs, protected by cs_main). */
     std::deque <std::pair<int64_t, MapRelay::iterator>> vRelayExpiration;
 } // anon namespace
@@ -1349,8 +1350,7 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, uint256 h
 
     // Check for negative or overflow output values
     CAmount nValueOut = 0;
-    BOOST_FOREACH(
-    const CTxOut &txout, tx.vout)
+    BOOST_FOREACH(const CTxOut &txout, tx.vout)
     {
         if (txout.nValue < 0)
             return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-negative");
@@ -1387,46 +1387,88 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, uint256 h
             CScript FOUNDER_3_SCRIPT;
             CScript FOUNDER_4_SCRIPT;
             CScript FOUNDER_5_SCRIPT;
-
-            if (!fTestNet && GetAdjustedTime() > nStartRewardTime) {
-                FOUNDER_1_SCRIPT = GetScriptForDestination(CBitcoinAddress("aCAgTPgtYcA4EysU4UKC86EQd5cTtHtCcr").Get());
-                if (nHeight < 14000) {
-                    FOUNDER_2_SCRIPT = GetScriptForDestination(
-                            CBitcoinAddress("aLrg41sXbXZc5MyEj7dts8upZKSAtJmRDR").Get());
+            if (!fTestNet || nHeight < Params().GetConsensus().nZnodePaymentsStartBlock) {
+                if (!fTestNet && GetAdjustedTime() > nStartRewardTime) {
+                    FOUNDER_1_SCRIPT = GetScriptForDestination(CBitcoinAddress("aCAgTPgtYcA4EysU4UKC86EQd5cTtHtCcr").Get());
+                    if (nHeight < 14000) {
+                        FOUNDER_2_SCRIPT = GetScriptForDestination(
+                                CBitcoinAddress("aLrg41sXbXZc5MyEj7dts8upZKSAtJmRDR").Get());
+                    } else {
+                        FOUNDER_2_SCRIPT = GetScriptForDestination(
+                                CBitcoinAddress("aHu897ivzmeFuLNB6956X6gyGeVNHUBRgD").Get());
+                    }
+                    FOUNDER_3_SCRIPT = GetScriptForDestination(CBitcoinAddress("aQ18FBVFtnueucZKeVg4srhmzbpAeb1KoN").Get());
+                    FOUNDER_4_SCRIPT = GetScriptForDestination(CBitcoinAddress("a1HwTdCmQV3NspP2QqCGpehoFpi8NY4Zg3").Get());
+                    FOUNDER_5_SCRIPT = GetScriptForDestination(CBitcoinAddress("a1kCCGddf5pMXSipLVD9hBG2MGGVNaJ15U").Get());
+                } else if (!fTestNet && GetAdjustedTime() <= nStartRewardTime) {
+                    return state.DoS(100, false, REJECT_TRANSACTION_TOO_EARLY,
+                                     "CTransaction::CheckTransaction() : transaction is too early");
                 } else {
-                    FOUNDER_2_SCRIPT = GetScriptForDestination(
-                            CBitcoinAddress("aHu897ivzmeFuLNB6956X6gyGeVNHUBRgD").Get());
+                    FOUNDER_1_SCRIPT = GetScriptForDestination(CBitcoinAddress("TCE4hvs2UTDjYriey7R9qBkbvUAYxWmZni").Get());
+                    FOUNDER_2_SCRIPT = GetScriptForDestination(CBitcoinAddress("TPyA7d3fribqxXm9uJU61S76Lzuj7F8jLz").Get());
+                    FOUNDER_3_SCRIPT = GetScriptForDestination(CBitcoinAddress("TXatvpS15EvejVuJVC2rgD73rSaQz8JiX6").Get());
+                    FOUNDER_4_SCRIPT = GetScriptForDestination(CBitcoinAddress("TJMpFjtDi8s5AM3GyW41QshH2NNmKgrGNq").Get());
+                    FOUNDER_5_SCRIPT = GetScriptForDestination(CBitcoinAddress("TTtLk1iapn8QebamQcb8GEh1MNq8agYcVk").Get());
                 }
-                FOUNDER_3_SCRIPT = GetScriptForDestination(CBitcoinAddress("aQ18FBVFtnueucZKeVg4srhmzbpAeb1KoN").Get());
-                FOUNDER_4_SCRIPT = GetScriptForDestination(CBitcoinAddress("a1HwTdCmQV3NspP2QqCGpehoFpi8NY4Zg3").Get());
-                FOUNDER_5_SCRIPT = GetScriptForDestination(CBitcoinAddress("a1kCCGddf5pMXSipLVD9hBG2MGGVNaJ15U").Get());
-            } else if (!fTestNet && GetAdjustedTime() <= nStartRewardTime) {
-                return state.DoS(100, false, REJECT_TRANSACTION_TOO_EARLY,
-                                 "CTransaction::CheckTransaction() : transaction is too early");
-            } else {
-                FOUNDER_1_SCRIPT = GetScriptForDestination(CBitcoinAddress("TCE4hvs2UTDjYriey7R9qBkbvUAYxWmZni").Get());
-                FOUNDER_2_SCRIPT = GetScriptForDestination(CBitcoinAddress("TPyA7d3fribqxXm9uJU61S76Lzuj7F8jLz").Get());
-                FOUNDER_3_SCRIPT = GetScriptForDestination(CBitcoinAddress("TXatvpS15EvejVuJVC2rgD73rSaQz8JiX6").Get());
-                FOUNDER_4_SCRIPT = GetScriptForDestination(CBitcoinAddress("TJMpFjtDi8s5AM3GyW41QshH2NNmKgrGNq").Get());
-                FOUNDER_5_SCRIPT = GetScriptForDestination(CBitcoinAddress("TTtLk1iapn8QebamQcb8GEh1MNq8agYcVk").Get());
-            }
 
-            BOOST_FOREACH(
-            const CTxOut &output, tx.vout) {
-                if (output.scriptPubKey == FOUNDER_1_SCRIPT && output.nValue == (int64_t)(2 * COIN)) {
-                    found_1 = true;
+                BOOST_FOREACH(
+                const CTxOut &output, tx.vout) {
+                    if (output.scriptPubKey == FOUNDER_1_SCRIPT && output.nValue == (int64_t)(2 * COIN)) {
+                        found_1 = true;
+                    }
+                    if (output.scriptPubKey == FOUNDER_2_SCRIPT && output.nValue == (int64_t)(2 * COIN)) {
+                        found_2 = true;
+                    }
+                    if (output.scriptPubKey == FOUNDER_3_SCRIPT && output.nValue == (int64_t)(2 * COIN)) {
+                        found_3 = true;
+                    }
+                    if (output.scriptPubKey == FOUNDER_4_SCRIPT && output.nValue == (int64_t)(2 * COIN)) {
+                        found_4 = true;
+                    }
+                    if (output.scriptPubKey == FOUNDER_5_SCRIPT && output.nValue == (int64_t)(2 * COIN)) {
+                        found_5 = true;
+                    }
                 }
-                if (output.scriptPubKey == FOUNDER_2_SCRIPT && output.nValue == (int64_t)(2 * COIN)) {
-                    found_2 = true;
+            } else if (!fTestNet || nHeight >= Params().GetConsensus().nZnodePaymentsStartBlock) {
+                if (!fTestNet && GetAdjustedTime() > nStartRewardTime) {
+                    FOUNDER_1_SCRIPT = GetScriptForDestination(CBitcoinAddress("aCAgTPgtYcA4EysU4UKC86EQd5cTtHtCcr").Get());
+                    if (nHeight < 14000) {
+                        FOUNDER_2_SCRIPT = GetScriptForDestination(
+                                CBitcoinAddress("aLrg41sXbXZc5MyEj7dts8upZKSAtJmRDR").Get());
+                    } else {
+                        FOUNDER_2_SCRIPT = GetScriptForDestination(
+                                CBitcoinAddress("aHu897ivzmeFuLNB6956X6gyGeVNHUBRgD").Get());
+                    }
+                    FOUNDER_3_SCRIPT = GetScriptForDestination(CBitcoinAddress("aQ18FBVFtnueucZKeVg4srhmzbpAeb1KoN").Get());
+                    FOUNDER_4_SCRIPT = GetScriptForDestination(CBitcoinAddress("a1HwTdCmQV3NspP2QqCGpehoFpi8NY4Zg3").Get());
+                    FOUNDER_5_SCRIPT = GetScriptForDestination(CBitcoinAddress("a1kCCGddf5pMXSipLVD9hBG2MGGVNaJ15U").Get());
+                } else if (!fTestNet && GetAdjustedTime() <= nStartRewardTime) {
+                    return state.DoS(100, false, REJECT_TRANSACTION_TOO_EARLY,
+                                     "CTransaction::CheckTransaction() : transaction is too early");
+                } else {
+                    FOUNDER_1_SCRIPT = GetScriptForDestination(CBitcoinAddress("TCE4hvs2UTDjYriey7R9qBkbvUAYxWmZni").Get());
+                    FOUNDER_2_SCRIPT = GetScriptForDestination(CBitcoinAddress("TPyA7d3fribqxXm9uJU61S76Lzuj7F8jLz").Get());
+                    FOUNDER_3_SCRIPT = GetScriptForDestination(CBitcoinAddress("TXatvpS15EvejVuJVC2rgD73rSaQz8JiX6").Get());
+                    FOUNDER_4_SCRIPT = GetScriptForDestination(CBitcoinAddress("TJMpFjtDi8s5AM3GyW41QshH2NNmKgrGNq").Get());
+                    FOUNDER_5_SCRIPT = GetScriptForDestination(CBitcoinAddress("TTtLk1iapn8QebamQcb8GEh1MNq8agYcVk").Get());
                 }
-                if (output.scriptPubKey == FOUNDER_3_SCRIPT && output.nValue == (int64_t)(2 * COIN)) {
-                    found_3 = true;
-                }
-                if (output.scriptPubKey == FOUNDER_4_SCRIPT && output.nValue == (int64_t)(2 * COIN)) {
-                    found_4 = true;
-                }
-                if (output.scriptPubKey == FOUNDER_5_SCRIPT && output.nValue == (int64_t)(2 * COIN)) {
-                    found_5 = true;
+
+                BOOST_FOREACH(const CTxOut &output, tx.vout) {
+                    if (output.scriptPubKey == FOUNDER_1_SCRIPT && output.nValue == (int64_t)(1 * COIN)) {
+                        found_1 = true;
+                    }
+                    if (output.scriptPubKey == FOUNDER_2_SCRIPT && output.nValue == (int64_t)(1 * COIN)) {
+                        found_2 = true;
+                    }
+                    if (output.scriptPubKey == FOUNDER_3_SCRIPT && output.nValue == (int64_t)(1 * COIN)) {
+                        found_3 = true;
+                    }
+                    if (output.scriptPubKey == FOUNDER_4_SCRIPT && output.nValue == (int64_t)(1 * COIN)) {
+                        found_4 = true;
+                    }
+                    if (output.scriptPubKey == FOUNDER_5_SCRIPT && output.nValue == (int64_t)(3 * COIN)) {
+                        found_5 = true;
+                    }
                 }
             }
 
@@ -1436,15 +1478,13 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, uint256 h
             }
         }
     } else {
-        BOOST_FOREACH(
-        const CTxIn &txin, tx.vin)
+        BOOST_FOREACH(const CTxIn &txin, tx.vin)
         if (txin.prevout.IsNull() && !txin.scriptSig.IsZerocoinSpend()) {
             return state.DoS(10, false, REJECT_INVALID, "bad-txns-prevout-null");
         }
 
         // Check Mint Zerocoin Transaction
-        BOOST_FOREACH(
-        const CTxOut &txout, tx.vout) {
+        BOOST_FOREACH(const CTxOut &txout, tx.vout) {
             if (!txout.scriptPubKey.empty() && txout.scriptPubKey.IsZerocoinMint()) {
                 LogPrintf("CheckMintZcoinTransaction txHash = %s, isVerifyDB = %d\n", txout.GetHash().ToString(),
                           isVerifyDB);
@@ -3585,21 +3625,22 @@ int GetInputAge(const CTxIn &txin) {
 }
 
 CAmount GetZnodePayment(int nHeight, CAmount blockValue) {
-    CAmount ret = blockValue / 5; // start at 20%
-
-    int nMNPIBlock = Params().GetConsensus().nZnodePaymentsIncreaseBlock;
-    int nMNPIPeriod = Params().GetConsensus().nZnodePaymentsIncreasePeriod;
-
-    // mainnet:
-    if (nHeight > nMNPIBlock) ret += blockValue / 20; // 158000 - 25.0% - 2014-10-24
-    if (nHeight > nMNPIBlock + (nMNPIPeriod * 1)) ret += blockValue / 20; // 175280 - 30.0% - 2014-11-25
-    if (nHeight > nMNPIBlock + (nMNPIPeriod * 2)) ret += blockValue / 20; // 192560 - 35.0% - 2014-12-26
-    if (nHeight > nMNPIBlock + (nMNPIPeriod * 3)) ret += blockValue / 40; // 209840 - 37.5% - 2015-01-26
-    if (nHeight > nMNPIBlock + (nMNPIPeriod * 4)) ret += blockValue / 40; // 227120 - 40.0% - 2015-02-27
-    if (nHeight > nMNPIBlock + (nMNPIPeriod * 5)) ret += blockValue / 40; // 244400 - 42.5% - 2015-03-30
-    if (nHeight > nMNPIBlock + (nMNPIPeriod * 6)) ret += blockValue / 40; // 261680 - 45.0% - 2015-05-01
-    if (nHeight > nMNPIBlock + (nMNPIPeriod * 7)) ret += blockValue / 40; // 278960 - 47.5% - 2015-06-01
-    if (nHeight > nMNPIBlock + (nMNPIPeriod * 9)) ret += blockValue / 40; // 313520 - 50.0% - 2015-08-03
+//    CAmount ret = blockValue * 30/100 ; // start at 30%
+//    int nMNPIBlock = Params().GetConsensus().nZnodePaymentsStartBlock;
+////    int nMNPIBlock = Params().GetConsensus().nZnodePaymentsIncreaseBlock;
+//    int nMNPIPeriod = Params().GetConsensus().nZnodePaymentsIncreasePeriod;
+//
+//    // mainnet:
+//    if (nHeight > nMNPIBlock) ret += blockValue / 20; // 158000 - 25.0% - 2014-10-24
+//    if (nHeight > nMNPIBlock + (nMNPIPeriod * 1)) ret += blockValue / 20; // 175280 - 30.0% - 2014-11-25
+//    if (nHeight > nMNPIBlock + (nMNPIPeriod * 2)) ret += blockValue / 20; // 192560 - 35.0% - 2014-12-26
+//    if (nHeight > nMNPIBlock + (nMNPIPeriod * 3)) ret += blockValue / 40; // 209840 - 37.5% - 2015-01-26
+//    if (nHeight > nMNPIBlock + (nMNPIPeriod * 4)) ret += blockValue / 40; // 227120 - 40.0% - 2015-02-27
+//    if (nHeight > nMNPIBlock + (nMNPIPeriod * 5)) ret += blockValue / 40; // 244400 - 42.5% - 2015-03-30
+//    if (nHeight > nMNPIBlock + (nMNPIPeriod * 6)) ret += blockValue / 40; // 261680 - 45.0% - 2015-05-01
+//    if (nHeight > nMNPIBlock + (nMNPIPeriod * 7)) ret += blockValue / 40; // 278960 - 47.5% - 2015-06-01
+//    if (nHeight > nMNPIBlock + (nMNPIPeriod * 9)) ret += blockValue / 40; // 313520 - 50.0% - 2015-08-03
+    CAmount ret = 15; //15XZC
 
     return ret;
 }
@@ -3622,11 +3663,9 @@ ConnectTipZC(CValidationState &state, const CChainParams &chainparams, CBlockInd
     walletdb.ListPubCoin(listPubCoin);
 //    listPubCoin.sort(CompHeight);
 
-    BOOST_FOREACH(
-    const CTransaction &tx, pblock->vtx){
+    BOOST_FOREACH(const CTransaction &tx, pblock->vtx){
         // Check Mint Zerocoin Transaction
-        BOOST_FOREACH(
-        const CTxOut txout, tx.vout) {
+        BOOST_FOREACH(const CTxOut txout, tx.vout) {
             if (!txout.scriptPubKey.empty() && txout.scriptPubKey.IsZerocoinMint()) {
                 vector<unsigned char> vchZeroMint;
                 vchZeroMint.insert(vchZeroMint.end(), txout.scriptPubKey.begin() + 6,
@@ -3635,8 +3674,7 @@ ConnectTipZC(CValidationState &state, const CChainParams &chainparams, CBlockInd
                 CBigNum pubCoin;
                 pubCoin.setvch(vchZeroMint);
                 int zerocoinMintHeight = -1;
-                BOOST_FOREACH(
-                const CZerocoinEntry &pubCoinItem, listPubCoin) {
+                BOOST_FOREACH(const CZerocoinEntry &pubCoinItem, listPubCoin) {
                     if (pubCoinItem.value == pubCoin) {
 //                        zerocoinMintHeight = pubCoinItem.nHeight;
                         CZerocoinEntry pubCoinTx;
@@ -3653,8 +3691,7 @@ ConnectTipZC(CValidationState &state, const CChainParams &chainparams, CBlockInd
                         zerocoinMintHeight = pindexNew->nHeight;
                     }
                 }
-                BOOST_FOREACH(
-                const CZerocoinEntry &pubCoinItem, listPubCoin) {
+                BOOST_FOREACH(const CZerocoinEntry &pubCoinItem, listPubCoin) {
                     if (pubCoinItem.nHeight > zerocoinMintHeight) {
                         CZerocoinEntry pubCoinTx;
                         pubCoinTx.id = -1;
@@ -4440,6 +4477,36 @@ bool CheckBlock(const CBlock &block, CValidationState &state, const Consensus::P
             }
 
         }
+
+        // DASH : CHECK TRANSACTIONS FOR INSTANTSEND
+        if(sporkManager.IsSporkActive(SPORK_3_INSTANTSEND_BLOCK_FILTERING)) {
+            // We should never accept block which conflicts with completed transaction lock,
+            // that's why this is in CheckBlock unlike coinbase payee/amount.
+            // Require other nodes to comply, send them some data in case they are missing it.
+            BOOST_FOREACH(const CTransaction& tx, block.vtx) {
+                // skip coinbase, it has no inputs
+                if (tx.IsCoinBase()) continue;
+                // LOOK FOR TRANSACTION LOCK IN OUR MAP OF OUTPOINTS
+                BOOST_FOREACH(const CTxIn& txin, tx.vin) {
+                    uint256 hashLocked;
+                    if(instantsend.GetLockedOutPointTxHash(txin.prevout, hashLocked) && hashLocked != tx.GetHash()) {
+                        // Every node which relayed this block to us must invalidate it
+                        // but they probably need more data.
+                        // Relay corresponding transaction lock request and all its votes
+                        // to let other nodes complete the lock.
+                        instantsend.Relay(hashLocked);
+                        LOCK(cs_main);
+                        mapRejectedBlocks.insert(make_pair(block.GetHash(), GetTime()));
+                        return state.DoS(0, error("CheckBlock(DASH): transaction %s conflicts with transaction lock %s",
+                                                  tx.GetHash().ToString(), hashLocked.ToString()),
+                                         REJECT_INVALID, "conflict-tx-lock");
+                    }
+                }
+            }
+        } else {
+            LogPrintf("CheckBlock(DASH): spork is off, skipping transaction locking checks\n");
+        }
+
         // Check transactions
         BOOST_FOREACH(
         const CTransaction &tx, block.vtx)
@@ -5827,7 +5894,6 @@ std::string GetWarnings(const std::string &strFor) {
 // Messages
 //
 
-
 bool static AlreadyHave(const CInv &inv) EXCLUSIVE_LOCKS_REQUIRED(cs_main) {
     switch (inv.type) {
         case MSG_TX:
@@ -5897,10 +5963,12 @@ bool static AlreadyHave(const CInv &inv) EXCLUSIVE_LOCKS_REQUIRED(cs_main) {
 
 void static ProcessGetData(CNode *pfrom, const Consensus::Params &consensusParams) {
     std::deque<CInv>::iterator it = pfrom->vRecvGetData.begin();
+    LogPrintf("ProcessGetData 1\n");
 
     vector <CInv> vNotFound;
 
     LOCK(cs_main);
+    LogPrintf("ProcessGetData 2 after lock\n");
 
     while (it != pfrom->vRecvGetData.end()) {
         // Don't bother if send buffer is too full to respond anyway
@@ -6010,29 +6078,43 @@ void static ProcessGetData(CNode *pfrom, const Consensus::Params &consensusParam
                         pfrom->hashContinue.SetNull();
                     }
                 }
-            } else if (inv.IsKnownType()) {
-                // Send stream from relay memory
-                bool pushed = false;
-                {
-                    CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+            } else if (inv.type == MSG_TX || inv.type == MSG_WITNESS_TX) {
+                    // Send stream from relay memory
+                    bool push = false;
                     auto mi = mapRelay.find(inv.hash);
                     if (mi != mapRelay.end()) {
-//                            ss += (*mi).second;
-                        pushed = true;
-                    }
-                    if(pushed) pfrom->PushMessage(inv.GetCommand(), ss);
-
-                }
-
-                if (!pushed && (inv.type == MSG_TX || inv.type == MSG_WITNESS_TX)) {
-                    if (pfrom->timeLastMempoolReq) {
+                        pfrom->PushMessageWithFlag(inv.type == MSG_TX ? SERIALIZE_TRANSACTION_NO_WITNESS : 0,
+                                                   NetMsgType::TX, *mi->second);
+                        push = true;
+                    } else if (pfrom->timeLastMempoolReq) {
                         auto txinfo = mempool.info(inv.hash);
                         // To protect privacy, do not answer getdata using the mempool when
                         // that TX couldn't have been INVed in reply to a MEMPOOL request.
                         if (txinfo.tx && txinfo.nTime <= pfrom->timeLastMempoolReq) {
                             pfrom->PushMessageWithFlag(inv.type == MSG_TX ? SERIALIZE_TRANSACTION_NO_WITNESS : 0,
                                                        NetMsgType::TX, *txinfo.tx);
+                            push = true;
                         }
+                    }
+                    if (!push) {
+                        vNotFound.push_back(inv);
+                    }
+
+//            } else if (inv.IsKnownType()) {
+            } else {
+                LogPrintf("inv.type()=%s, inv.GetCommand=%s\n", inv.type, inv.GetCommand());
+                // Send stream from relay memory
+                bool pushed = false;
+                {
+                    CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+                    auto mi = mapRelay.find(inv.hash);
+                    if (mi != mapRelay.end()) {
+                        ss << (*mi).second;
+                        pushed = true;
+                    }
+                    if(pushed && inv.GetCommand()) {
+                        LogPrintf("pushed && inv.GetCommand()=%s\n", inv.GetCommand());
+                        pfrom->PushMessage(inv.GetCommand(), ss);
                     }
                 }
 
@@ -6098,6 +6180,7 @@ void static ProcessGetData(CNode *pfrom, const Consensus::Params &consensusParam
                 }
 
                 if (!pushed && inv.type == MSG_ZNODE_ANNOUNCE) {
+                    LogPrintf("MSG_ZNODE_ANNOUNCE\n");
                     if(mnodeman.mapSeenZnodeBroadcast.count(inv.hash)){
                         CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
                         ss.reserve(1000);
@@ -6126,43 +6209,6 @@ void static ProcessGetData(CNode *pfrom, const Consensus::Params &consensusParam
                         pushed = true;
                     }
                 }
-
-//                if (!pushed && inv.type == MSG_GOVERNANCE_OBJECT) {
-//                    LogPrint("net", "ProcessGetData -- MSG_GOVERNANCE_OBJECT: inv = %s\n", inv.ToString());
-//                    CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
-//                    bool topush = false;
-//                    {
-//                        if(governance.HaveObjectForHash(inv.hash)) {
-//                            ss.reserve(1000);
-//                            if(governance.SerializeObjectForHash(inv.hash, ss)) {
-//                                topush = true;
-//                            }
-//                        }
-//                    }
-//                    LogPrint("net", "ProcessGetData -- MSG_GOVERNANCE_OBJECT: topush = %d, inv = %s\n", topush, inv.ToString());
-//                    if(topush) {
-//                        pfrom->PushMessage(NetMsgType::MNGOVERNANCEOBJECT, ss);
-//                        pushed = true;
-//                    }
-//                }
-//
-//                if (!pushed && inv.type == MSG_GOVERNANCE_OBJECT_VOTE) {
-//                    CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
-//                    bool topush = false;
-//                    {
-//                        if(governance.HaveVoteForHash(inv.hash)) {
-//                            ss.reserve(1000);
-//                            if(governance.SerializeVoteForHash(inv.hash, ss)) {
-//                                topush = true;
-//                            }
-//                        }
-//                    }
-//                    if(topush) {
-//                        LogPrint("net", "ProcessGetData -- pushing: inv = %s\n", inv.ToString());
-//                        pfrom->PushMessage(NetMsgType::MNGOVERNANCEOBJECTVOTE, ss);
-//                        pushed = true;
-//                    }
-//                }
 
                 if (!pushed && inv.type == MSG_ZNODE_VERIFY) {
                     if(mnodeman.mapSeenZnodeVerification.count(inv.hash)) {
@@ -6488,6 +6534,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
             }
         }
     } else if (strCommand == NetMsgType::INV) {
+        LogPrintf("NetMsgType::INV\n");
         vector <CInv> vInv;
         vRecv >> vInv;
         if (vInv.size() > MAX_INV_SZ) {
@@ -6512,6 +6559,11 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
             CInv &inv = vInv[nInv];
 
             boost::this_thread::interruption_point();
+
+//            if(!inv.IsKnownType()) {
+//                LogPrint("net", "got inv of unknown type %d: %s peer=%d\n", inv.type, inv.hash.ToString(), pfrom->id);
+//                continue;
+//            }
 
             bool fAlreadyHave = AlreadyHave(inv);
 //            LogPrint("net", "got inv: %s  %s peer=%d\n", inv.ToString(), fAlreadyHave ? "have" : "new", pfrom->id);
@@ -6747,7 +6799,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
             nInvType = MSG_DSTX;
         }
 
-        CInv inv(MSG_TX, tx.GetHash());
+        CInv inv(nInvType, tx.GetHash());
         pfrom->AddInventoryKnown(inv);
 
         // Process custom logic, no matter if tx will be accepted to mempool later or not
@@ -7546,8 +7598,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
         // Ignore unknown commands for extensibility
         bool found = false;
         const std::vector <std::string> &allMessages = getAllNetMessageTypes();
-        BOOST_FOREACH(
-        const std::string msg, allMessages) {
+        BOOST_FOREACH(const std::string msg, allMessages) {
             if (msg == strCommand) {
                 found = true;
                 break;
@@ -7788,8 +7839,7 @@ bool SendMessages(CNode *pto) {
             state.fShouldBan = false;
         }
 
-        BOOST_FOREACH(
-        const CBlockReject &reject, state.rejects)
+        BOOST_FOREACH(const CBlockReject &reject, state.rejects)
         pto->PushMessage(NetMsgType::REJECT, (string) NetMsgType::BLOCK, reject.chRejectCode, reject.strRejectReason,
                          reject.hashBlock);
         state.rejects.clear();

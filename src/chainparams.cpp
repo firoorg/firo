@@ -248,9 +248,9 @@ public:
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000708f98bf623f02e");
         // Znode params testnet
-        consensus.nZnodePaymentsStartBlock = 100; // not true, but it's ok as long as it's less then n
-        consensus.nZnodePaymentsIncreaseBlock = 110;
-        consensus.nZnodePaymentsIncreasePeriod = 576;
+        consensus.nZnodePaymentsStartBlock = 640; // not true, but it's ok as long as it's less then n
+        consensus.nZnodePaymentsIncreaseBlock = 640;
+        consensus.nZnodePaymentsIncreasePeriod = 650;
         consensus.nSuperblockStartBlock = 61000;
         consensus.nBudgetPaymentsStartBlock = 60000;
         consensus.nBudgetPaymentsCycleBlocks = 50;

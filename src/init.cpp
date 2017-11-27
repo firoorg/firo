@@ -757,7 +757,8 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
     }
 
     // -loadblock=
-    BOOST_FOREACH(const boost::filesystem::path &path, vImportFiles) {
+    BOOST_FOREACH(
+    const boost::filesystem::path &path, vImportFiles) {
         FILE *file = fopen(path.string().c_str(), "rb");
         if (file) {
             LogPrintf("Importing blocks file %s...\n", path.string());
@@ -1708,7 +1709,8 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
         LogPrintf("Locking Znodes:\n");
         uint256 mnTxHash;
         int outputIndex;
-        BOOST_FOREACH(CZnodeConfig::CZnodeEntry mne, znodeConfig.getEntries()) {
+        BOOST_FOREACH(CZnodeConfig::CZnodeEntry
+        mne, znodeConfig.getEntries()) {
             mnTxHash.SetHex(mne.getTxHash());
             outputIndex = boost::lexical_cast<unsigned int>(mne.getOutputIndex());
             COutPoint outpoint = COutPoint(mnTxHash, outputIndex);
@@ -1781,7 +1783,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
 
     // force UpdatedBlockTip to initialize pCurrentBlockIndex for DS, MN payments and budgets
     // but don't call it directly to prevent triggering of other listeners like zmq etc.
-//     GetMainSignals().UpdatedBlockTip(chainActive.Tip());
+//    GetMainSignals().UpdatedBlockTip(chainActive.Tip());
     mnodeman.UpdatedBlockTip(chainActive.Tip());
     darkSendPool.UpdatedBlockTip(chainActive.Tip());
     mnpayments.UpdatedBlockTip(chainActive.Tip());

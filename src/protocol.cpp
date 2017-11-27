@@ -237,28 +237,37 @@ bool operator<(const CInv &a, const CInv &b) {
     return (a.type < b.type || (a.type == b.type && a.hash < b.hash));
 }
 
-bool CInv::IsKnownType() const {
-    LogPrintf("type = %s\n", type);
-    LogPrintf("(int) ARRAYLEN(ppszTypeName) = %s\n", (int) ARRAYLEN(ppszTypeName));
-    return (type >= 1 && type < (int) ARRAYLEN(ppszTypeName));
-}
-
-//std::string CInv::GetCommand() const
-//{
-//    std::string cmd;
-//    if (type & MSG_WITNESS_FLAG)
-//        cmd.append("witness-");
-//    int masked = type & MSG_TYPE_MASK;
-//    switch (masked)
-//    {
-//    case MSG_TX:             return cmd.append(NetMsgType::TX);
-//    case MSG_BLOCK:          return cmd.append(NetMsgType::BLOCK);
-//    case MSG_FILTERED_BLOCK: return cmd.append(NetMsgType::MERKLEBLOCK);
-//    case MSG_CMPCT_BLOCK:    return cmd.append(NetMsgType::CMPCTBLOCK);
-//    default:
-//        throw std::out_of_range(strprintf("CInv::GetCommand(): type=%d unknown type", type));
-//    }
+//bool CInv::IsKnownType() const {
+//    return (type >= 1 && type < (int) ARRAYLEN(ppszTypeName));
 //}
+
+const char* CInv::GetCommand() const
+{
+    std::string cmd;
+    if (type & MSG_WITNESS_FLAG)
+        cmd.append("witness-");
+    int masked = type & MSG_TYPE_MASK;
+    switch (masked)
+    {
+    case MSG_TX:             return NetMsgType::TX;
+    case MSG_BLOCK:          return NetMsgType::BLOCK;
+    case MSG_FILTERED_BLOCK: return NetMsgType::MERKLEBLOCK;
+    case MSG_CMPCT_BLOCK:    return NetMsgType::CMPCTBLOCK;
+    case MSG_TXLOCK_REQUEST:    return NetMsgType::TXLOCKREQUEST;
+    case MSG_TXLOCK_VOTE:    return NetMsgType::TXLOCKVOTE;
+    case MSG_SPORK:    return NetMsgType::SPORK;
+    case MSG_ZNODE_PAYMENT_VOTE:    return NetMsgType::ZNODEPAYMENTVOTE;
+    case MSG_ZNODE_PAYMENT_BLOCK:    return NetMsgType::ZNODEPAYMENTBLOCK;
+    case MSG_ZNODE_ANNOUNCE:    return NetMsgType::MNANNOUNCE;
+    case MSG_ZNODE_PING:    return NetMsgType::MNPING;
+    case MSG_DSTX:    return NetMsgType::DSTX;
+    case MSG_ZNODE_VERIFY:    return NetMsgType::MNVERIFY;
+    default:
+        LogPrintf("ERROR - UNKNOWN INV COMMAND");
+        return NULL;
+//        throw std::out_of_range(strprintf("CInv::GetCommand(): type=%d unknown type", type));
+    }
+}
 
 //std::string CInv::GetCommand() const {
 //    if (!IsKnownType()) {
@@ -268,15 +277,16 @@ bool CInv::IsKnownType() const {
 //    return ppszTypeName[type];
 //}
 
-const char* CInv::GetCommand() const
-{
-    if (!IsKnownType())
-        throw std::out_of_range(strprintf("CInv::GetCommand(): type=%d unknown type", type));
-    return ppszTypeName[type];
-}
+//const char* CInv::GetCommand() const
+//{
+//    if (!IsKnownType())
+//        throw std::out_of_range(strprintf("CInv::GetCommand(): type=%d unknown type", type));
+//    return ppszTypeName[type];
+//}
 
-std::string CInv::ToString() const {
-    return strprintf("%s", hash.ToString());
+std::string CInv::ToString() const
+{
+    return strprintf("%s %s", GetCommand(), hash.ToString());
 }
 
 const std::vector <std::string> &getAllNetMessageTypes() {

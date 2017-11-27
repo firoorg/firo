@@ -2062,6 +2062,8 @@ void CWallet::AvailableCoins(vector <COutput> &vCoins, bool fOnlyConfirmed, cons
                     found = !IsDenominatedAmount(pcoin->vout[i].nValue);
                     if (found && fZNode) found = pcoin->vout[i].nValue != ZNODE_COIN_REQUIRED * COIN; // do not use Hot MN funds
                 } else if (nCoinType == ONLY_1000) {
+                    LogPrintf("nCoinType = ONLY_1000\n");
+                    LogPrintf("pcoin->vout[i].nValue = %s\n", pcoin->vout[i].nValue);
                     found = pcoin->vout[i].nValue == ZNODE_COIN_REQUIRED * COIN;
                 } else if (nCoinType == ONLY_PRIVATESEND_COLLATERAL) {
                     found = IsCollateralAmount(pcoin->vout[i].nValue);
@@ -2071,16 +2073,36 @@ void CWallet::AvailableCoins(vector <COutput> &vCoins, bool fOnlyConfirmed, cons
                 if (!found) continue;
 
                 isminetype mine = IsMine(pcoin->vout[i]);
-
-                if (!(IsSpent(wtxid, i)) && mine != ISMINE_NO &&
-                    !IsLockedCoin((*it).first, i) && (pcoin->vout[i].nValue > nMinimumInputValue) &&
-                    (!coinControl || !coinControl->HasSelected() || coinControl->fAllowOtherInputs ||
-                     coinControl->IsSelected(COutPoint((*it).first, i))))
+                LogPrintf("!(IsSpent(wtxid, i)) = %s\n", !(IsSpent(wtxid, i)));
+                LogPrintf("mine != ISMINE_NO = %s\n", mine != ISMINE_NO);
+                LogPrintf("(!IsLockedCoin((*it).first, i) || nCoinType == ONLY_1000) = %s\n", (!IsLockedCoin((*it).first, i) || nCoinType == ONLY_1000));
+                LogPrintf("(pcoin->vout[i].nValue > nMinimumInputValue) = %s\n", (pcoin->vout[i].nValue > nMinimumInputValue));
+                LogPrintf("!coinControl = %s\n", (
+                        !coinControl ||
+                        !coinControl->HasSelected() ||
+                        coinControl->fAllowOtherInputs ||
+                        coinControl->IsSelected(COutPoint((*it).first, i))
+                ));
+//                LogPrintf("!coinControl->HasSelected() = %s\n", !coinControl->HasSelected());
+//                LogPrintf("coinControl->fAllowOtherInputs = %s\n", coinControl->fAllowOtherInputs);
+//                LogPrintf("coinControl->IsSelected(COutPoint((*it).first, i)) = %s\n", coinControl->IsSelected(COutPoint((*it).first, i)));
+                if (!(IsSpent(wtxid, i)) &&
+                        mine != ISMINE_NO &&
+                        (!IsLockedCoin((*it).first, i) || nCoinType == ONLY_1000) &&
+                        (pcoin->vout[i].nValue > nMinimumInputValue) &&
+                        (
+                                !coinControl ||
+                                !coinControl->HasSelected() ||
+                                coinControl->fAllowOtherInputs ||
+                                coinControl->IsSelected(COutPoint((*it).first, i))
+                        )
+                    ) {
                     vCoins.push_back(COutput(pcoin, i, nDepth,
                                              ((mine & ISMINE_SPENDABLE) != ISMINE_NO) ||
                                              (coinControl && coinControl->fAllowWatchOnly &&
                                               (mine & ISMINE_WATCH_SOLVABLE) != ISMINE_NO),
                                              (mine & (ISMINE_SPENDABLE | ISMINE_WATCH_SOLVABLE)) != ISMINE_NO));
+                }
             }
         }
     }
@@ -2655,9 +2677,8 @@ bool CWallet::CreateCollateralTransaction(CMutableTransaction &txCollateral, std
     //pay collateral charge in fees
     CTxOut txout = CTxOut(nValue - PRIVATESEND_COLLATERAL, scriptChange);
     txCollateral.vout.push_back(txout);
-
-    if (!SignSignature(*this, txinCollateral.prevPubKey, txCollateral, 0, NULL,
-                       int(SIGHASH_ALL | SIGHASH_ANYONECANPAY))) {
+    CAmount amount;
+    if (!SignSignature(*this, txinCollateral.prevPubKey, txCollateral, 0, amount, int(SIGHASH_ALL | SIGHASH_ANYONECANPAY))) {
         strReason = "Unable to sign collateral transaction!";
         return false;
     }
