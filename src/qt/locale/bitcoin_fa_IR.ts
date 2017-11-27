@@ -134,8 +134,8 @@
         <translation>رمز مربوط به رمزگذاریِ wallet را تغییر دهید</translation>
     </message>
     <message>
-        <source>Bitcoin</source>
-        <translation>bitcoin</translation>
+        <source>SmartCash</source>
+        <translation>SmartCash</translation>
     </message>
     <message>
         <source>Wallet</source>

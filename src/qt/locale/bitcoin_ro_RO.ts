@@ -155,7 +155,7 @@
     </message>
     <message>
         <source>Send coins to a Smartcash address</source>
-        <translation>Trimite monede către o adresă Bitcoin</translation>
+        <translation>Trimite monede către o adresă SmartCash</translation>
     </message>
     <message>
         <source>Backup wallet to another location</source>
@@ -178,8 +178,8 @@
         <translation>&amp;Verifică mesaj...</translation>
     </message>
     <message>
-        <source>Bitcoin</source>
-        <translation>Bitcoin</translation>
+        <source>SmartCash</source>
+        <translation>SmartCash</translation>
     </message>
     <message>
         <source>Wallet</source>
@@ -231,7 +231,7 @@
     </message>
     <message>
         <source>Request payments (generates QR codes and smartcash: URIs)</source>
-        <translation>Cereţi plăţi (generează coduri QR şi bitcoin-uri: URls)</translation>
+        <translation>Cereţi plăţi (generează coduri QR şi SmartCash-uri: URls)</translation>
     </message>
     <message>
         <source>Show the list of used sending addresses and labels</source>
@@ -251,7 +251,7 @@
     </message>
     <message numerus="yes">
         <source>%n active connection(s) to Smartcash network</source>
-        <translation><numerusform>%n conexiune activă către reţeaua Bitcoin</numerusform><numerusform>%n conexiuni active către reţeaua Bitcoin</numerusform><numerusform>%n de conexiuni active către reţeaua Bitcoin</numerusform></translation>
+        <translation><numerusform>%n conexiune activă către reţeaua SmartCash</numerusform><numerusform>%n conexiuni active către reţeaua SmartCash</numerusform><numerusform>%n de conexiuni active către reţeaua SmartCash</numerusform></translation>
     </message>
     <message>
         <source>No block source available...</source>
@@ -674,7 +674,7 @@
     </message>
     <message>
         <source>Automatically open the Smartcash client port on the router. This only works when your router supports UPnP and it is enabled.</source>
-        <translation>Deschide automat în router portul aferent clientului Bitcoin. Funcţionează doar dacă routerul duportă UPnP şi e activat.</translation>
+        <translation>Deschide automat în router portul aferent clientului SmartCash. Funcţionează doar dacă routerul duportă UPnP şi e activat.</translation>
     </message>
     <message>
         <source>Map port using &amp;UPnP</source>
@@ -742,7 +742,7 @@
     </message>
     <message>
         <source>Choose the default subdivision unit to show in the interface and when sending coins.</source>
-        <translation>Alegeţi subdiviziunea folosită la afişarea interfeţei şi la trimiterea de bitcoin.</translation>
+        <translation>Alegeţi subdiviziunea folosită la afişarea interfeţei şi la trimiterea de SmartCash.</translation>
     </message>
     <message>
         <source>Whether to show coin control features or not.</source>
@@ -1179,7 +1179,7 @@
     </message>
     <message>
         <source>An optional message to attach to the payment request, which will be displayed when the request is opened. Note: The message will not be sent with the payment over the Smartcash network.</source>
-        <translation>Un mesaj opţional de ataşat la cererea de plată, care va fi afişat cînd cererea este deschisă. Notă: Acest mesaj nu va fi trimis cu plata către reţeaua Bitcoin.</translation>
+        <translation>Un mesaj opţional de ataşat la cererea de plată, care va fi afişat cînd cererea este deschisă. Notă: Acest mesaj nu va fi trimis cu plata către reţeaua SmartCash.</translation>
     </message>
     <message>
         <source>An optional label to associate with the new receiving address.</source>
@@ -1431,7 +1431,7 @@
     </message>
     <message>
         <source>A message that was attached to the smartcash: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Smartcash network.</source>
-        <translation>un mesaj a fost ataşat la smartcash: URI care va fi stocat cu tranzacţia pentru referinţa dvs. Notă: Acest mesaj nu va fi trimis către reţeaua bitcoin.</translation>
+        <translation>un mesaj a fost ataşat la smartcash: URI care va fi stocat cu tranzacţia pentru referinţa dvs. Notă: Acest mesaj nu va fi trimis către reţeaua SmartCash.</translation>
     </message>
     <message>
         <source>Pay To:</source>
@@ -1500,7 +1500,7 @@
     </message>
     <message>
         <source>Sign the message to prove you own this Smartcash address</source>
-        <translation>Semnează mesajul pentru a dovedi ca deţineţi acestă adresă Bitcoin</translation>
+        <translation>Semnează mesajul pentru a dovedi ca deţineţi acestă adresă SmartCash</translation>
     </message>
     <message>
         <source>Sign &amp;Message</source>
@@ -1520,7 +1520,7 @@
     </message>
     <message>
         <source>The Smartcash address the message was signed with</source>
-        <translation>Introduceţi o adresă Bitcoin</translation>
+        <translation>Introduceţi o adresă SmartCash</translation>
     </message>
     <message>
         <source>Verify the message to ensure it was signed with the specified Smartcash address</source>
@@ -1613,7 +1613,7 @@
     </message>
     <message>
         <source>Smartcash Core</source>
-        <translation>Nucleul Bitcoin</translation>
+        <translation>Nucleul SmartCash</translation>
     </message>
     <message>
         <source>Bind to given address and always listen on it. Use [host]:port notation for IPv6</source>
