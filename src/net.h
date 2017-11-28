@@ -91,6 +91,9 @@ CNode* FindNode(const CSubNet& subNet);
 CNode* FindNode(const std::string& addrName);
 CNode* FindNode(const CService& ip);
 CNode* FindNode(const NodeId id); //TODO: Remove this
+
+CNode* ConnectNode(CAddress addrConnect, const char *pszDest = NULL, bool fCountFailure = false, bool fConnectToZnode = false);
+
 bool OpenNetworkConnection(const CAddress& addrConnect, bool fCountFailure, CSemaphoreGrant *grantOutbound = NULL, const char *strDest = NULL, bool fOneShot = false, bool fFeeler = false);
 void MapPort(bool fUseUPnP);
 unsigned short GetListenPort();
@@ -370,6 +373,8 @@ public:
     CBloomFilter* pfilter;
     int nRefCount;
     NodeId id;
+    // znode from dash
+    bool fZnode;
 
     const uint64_t nKeyedNetGroup;
 protected:
@@ -447,6 +452,7 @@ public:
     int64_t nextSendTimeFeeFilter;
 
     CNode(SOCKET hSocketIn, const CAddress &addrIn, const std::string &addrNameIn = "", bool fInboundIn = false);
+//    CNode(SOCKET hSocketIn, const CAddress &addrIn, const std::string &addrNameIn = "", bool fInboundIn = false, bool fNetworkNodeIn = false);
     ~CNode();
 
 private:
@@ -818,6 +824,7 @@ public:
 
 class CTransaction;
 void RelayTransaction(const CTransaction& tx);
+void RelayInv(CInv &inv, const int minProtoVersion = MIN_PEER_PROTO_VERSION);
 
 /** Access to the (IP) address database (peers.dat) */
 class CAddrDB
@@ -852,6 +859,9 @@ struct AddedNodeInfo
     bool fConnected;
     bool fInbound;
 };
+
+std::vector<CNode*> CopyNodeVector();
+void ReleaseNodeVector(const std::vector<CNode*>& vecNodes);
 
 std::vector<AddedNodeInfo> GetAddedNodeInfo();
 

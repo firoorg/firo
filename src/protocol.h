@@ -243,6 +243,29 @@ extern const char *GETBLOCKTXN;
  * @since protocol version 70014 as described by BIP 152
  */
 extern const char *BLOCKTXN;
+
+extern const char *TXLOCKVOTE;
+extern const char *SPORK;
+extern const char *GETSPORKS;
+extern const char *ZNODEPAYMENTVOTE;
+extern const char *ZNODEPAYMENTSYNC;
+extern const char *SYNCSTATUSCOUNT;
+extern const char *DSEG;
+extern const char *MNVERIFY;
+extern const char *MNPING;
+extern const char *MNANNOUNCE;
+extern const char *DSACCEPT;
+extern const char *DSQUEUE;
+extern const char *DSVIN;
+extern const char *DSSTATUSUPDATE;
+extern const char *DSSIGNFINALTX;
+extern const char *DSCOMPLETE;
+extern const char *DSFINALTX;
+extern const char *TXLOCKVOTE;
+extern const char *DSTX;
+extern const char *TXLOCKREQUEST;
+
+
 };
 
 /* Get a vector of all valid message types (see above) */
@@ -327,6 +350,17 @@ enum GetDataMsg
     MSG_WITNESS_BLOCK = MSG_BLOCK | MSG_WITNESS_FLAG,
     MSG_WITNESS_TX = MSG_TX | MSG_WITNESS_FLAG,
     MSG_FILTERED_WITNESS_BLOCK = MSG_FILTERED_BLOCK | MSG_WITNESS_FLAG,
+    MSG_SPORK,
+    MSG_ZNODE_PAYMENT_VOTE,
+    MSG_ZNODE_PAYMENT_BLOCK,
+    MSG_ZNODE_QUORUM, // not implemented
+    MSG_ZNODE_ANNOUNCE,
+    MSG_ZNODE_PING,
+    MSG_ZNODE_VERIFY,
+    MSG_TXLOCK_REQUEST,
+    MSG_TXLOCK_VOTE,
+    MSG_DSTX,
+    DSQUEUE,
 };
 
 /** inv message data */
@@ -334,6 +368,7 @@ class CInv
 {
 public:
     CInv();
+    CInv(const std::string& strType, const uint256& hashIn);
     CInv(int typeIn, const uint256& hashIn);
 
     ADD_SERIALIZE_METHODS;
@@ -347,7 +382,9 @@ public:
 
     friend bool operator<(const CInv& a, const CInv& b);
 
-    std::string GetCommand() const;
+//    bool IsKnownType() const;
+//    std::string GetCommand() const;
+    const char* GetCommand() const;
     std::string ToString() const;
 
     // TODO: make private (improves encapsulation)

@@ -4,7 +4,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "primitives/block.h"
-
+#include "consensus/consensus.h"
 #include "main.h"
 #include "hash.h"
 #include "tinyformat.h"
@@ -21,6 +21,7 @@
 #include <algorithm>
 #include <string>
 #include "precomputed_hash.h"
+
 
 
 unsigned char GetNfactor(int64_t nTimestamp) {
@@ -66,16 +67,18 @@ uint256 CBlockHeader::GetPoWHash(int nHeight) const {
     }
     uint256 powHash;
     try {
-        if (!fTestNet && nHeight >= LYRA2Z_HEIGHT) {
+        if (!fTestNet && nHeight >= HF_LYRA2Z_HEIGHT) {
             lyra2z_hash(BEGIN(nVersion), BEGIN(powHash));
-        } else if (!fTestNet && nHeight >= 8192) {
+        } else if (!fTestNet && nHeight >= HF_LYRA2_HEIGHT) {
             LYRA2(BEGIN(powHash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, 8192, 256);
-        } else if (!fTestNet && nHeight >= 500) {
+        } else if (!fTestNet && nHeight >= HF_LYRA2VAR_HEIGHT) {
             LYRA2(BEGIN(powHash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, nHeight, 256);
-        } else if (fTestNet && nHeight >= 90) { // testnet
+        } else if (fTestNet && nHeight >= HF_LYRA2Z_HEIGHT_TESTNET) { // testnet
             lyra2z_hash(BEGIN(nVersion), BEGIN(powHash));
-        } else if (fTestNet && nHeight >= 80) { // testnet
+        } else if (fTestNet && nHeight >= HF_LYRA2_HEIGHT_TESTNET) { // testnet
             LYRA2(BEGIN(powHash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, 8192, 256);
+        } else if (fTestNet && nHeight >= HF_LYRA2VAR_HEIGHT_TESTNET) { // testnet
+            LYRA2(BEGIN(powHash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, nHeight, 256);
         } else {
             scrypt_N_1_1_256(BEGIN(nVersion), BEGIN(powHash), GetNfactor(nTime));
         }

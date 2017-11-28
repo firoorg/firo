@@ -76,6 +76,7 @@ endif
 .PHONY: FORCE check-symbols check-security
 # bitcoin core #
 BITCOIN_CORE_H = \
+  activeznode.h \
   addrman.h \
   base58.h \
   bloom.h \
@@ -100,17 +101,26 @@ BITCOIN_CORE_H = \
   httprpc.h \
   httpserver.h \
   indirectmap.h \
+  darksend.h \
+  darksend-relay.h \
   init.h \
+  instantx.h \
   key.h \
   keystore.h \
   dbwrapper.h \
   limitedmap.h \
   main.h \
+  znode.h \
+  znode-payments.h \
+  znode-sync.h \
+  znodeman.h \
+  znodeconfig.h \
   memusage.h \
   merkleblock.h \
   miner.h \
   net.h \
   netbase.h \
+  netfulfilledman.h \
   noui.h \
   policy/fees.h \
   policy/policy.h \
@@ -182,6 +192,7 @@ libbitcoin_server_a_SOURCES = \
   merkleblock.cpp \
   miner.cpp \
   net.cpp \
+  netfulfilledman.cpp \
   noui.cpp \
   policy/fees.cpp \
   policy/policy.cpp \
@@ -192,6 +203,7 @@ libbitcoin_server_a_SOURCES = \
   rpc/misc.cpp \
   rpc/net.cpp \
   rpc/rawtransaction.cpp \
+  rpc/rpcznode.cpp \
   rpc/server.cpp \
   script/sigcache.cpp \
   script/ismine.cpp \
@@ -220,6 +232,14 @@ endif
 libbitcoin_wallet_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 libbitcoin_wallet_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_wallet_a_SOURCES = \
+  activeznode.cpp \
+  darksend.cpp \
+  znode.cpp \
+  instantx.cpp \
+  znode-payments.cpp \
+  znode-sync.cpp \
+  znodeconfig.cpp \
+  znodeman.cpp \
   wallet/crypter.cpp \
   wallet/db.cpp \
   wallet/rpcdump.cpp \
@@ -261,6 +281,7 @@ libbitcoin_consensus_a_SOURCES = \
   consensus/params.h \
   consensus/validation.h \
   hash.cpp \
+  flat-database.h \
   hash.h \
   prevector.h \
   crypto/scrypt.h \
@@ -278,6 +299,7 @@ libbitcoin_consensus_a_SOURCES = \
   script/script_error.cpp \
   script/script_error.h \
   serialize.h \
+  spork.h \
   tinyformat.h \
   uint256.cpp \
   uint256.h \
@@ -314,6 +336,7 @@ libbitcoin_common_a_SOURCES = \
   scheduler.cpp \
   script/sign.cpp \
   script/standard.cpp \
+  spork.cpp \
   $(BITCOIN_CORE_H)
 
 # util: shared between all executables.

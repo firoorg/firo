@@ -190,6 +190,13 @@ extern std::string HelpRequiringPassphrase();
 extern std::string HelpExampleCli(const std::string& methodname, const std::string& args);
 extern std::string HelpExampleRpc(const std::string& methodname, const std::string& args);
 
+extern UniValue getpoolinfo(const UniValue& params, bool fHelp);
+extern UniValue spork(const UniValue& params, bool fHelp);
+extern UniValue znode(const UniValue& params, bool fHelp);
+extern UniValue znodelist(const UniValue& params, bool fHelp);
+extern UniValue znodebroadcast(const UniValue& params, bool fHelp);
+extern UniValue mnsync(const UniValue& params, bool fHelp);
+
 extern void EnsureWalletIsUnlocked();
 
 bool StartRPC();

@@ -99,6 +99,11 @@ namespace boost {
 
 using namespace std;
 
+// znode fZnode
+bool fZNode = false;
+bool fLiteMode = false;
+int nWalletBackups = 10;
+
 const char * const BITCOIN_CONF_FILENAME = "zcoin.conf";
 const char * const BITCOIN_PID_FILENAME = "zcoind.pid";
 
@@ -485,6 +490,34 @@ static boost::filesystem::path pathCached;
 static boost::filesystem::path pathCachedNetSpecific;
 static CCriticalSection csPathCached;
 
+static boost::filesystem::path backupsDirCached;
+static CCriticalSection csBackupsDirCached;
+
+const boost::filesystem::path &GetBackupsDir()
+{
+    namespace fs = boost::filesystem;
+
+    LOCK(csBackupsDirCached);
+
+    fs::path &backupsDir = backupsDirCached;
+
+    if (!backupsDir.empty())
+        return backupsDir;
+
+    if (mapArgs.count("-walletbackupsdir")) {
+        backupsDir = fs::absolute(mapArgs["-walletbackupsdir"]);
+        // Path must exist
+        if (fs::is_directory(backupsDir)) return backupsDir;
+        // Fallback to default path if it doesn't
+        LogPrintf("%s: Warning: incorrect parameter -walletbackupsdir, path must exist! Using default path.\n", __func__);
+        strMiscWarning = _("Warning: incorrect parameter -walletbackupsdir, path must exist! Using default path.");
+    }
+    // Default path
+    backupsDir = GetDataDir() / "backups";
+
+    return backupsDir;
+}
+
 const boost::filesystem::path &GetDataDir(bool fNetSpecific)
 {
     namespace fs = boost::filesystem;
@@ -527,6 +560,14 @@ boost::filesystem::path GetConfigFile()
     if (!pathConfigFile.is_complete())
         pathConfigFile = GetDataDir(false) / pathConfigFile;
 
+    return pathConfigFile;
+}
+
+boost::filesystem::path GetZnodeConfigFile()
+{
+    boost::filesystem::path pathConfigFile(GetArg("-mnconf", "znode.conf"));
+    if (!pathConfigFile.is_complete()) pathConfigFile = GetDataDir() / pathConfigFile;
+    LogPrintf("pathConfigFile=%s\n", pathConfigFile);
     return pathConfigFile;
 }
 
