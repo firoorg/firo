@@ -168,7 +168,6 @@ public:
     BlockAssembler(const CChainParams& chainparams);
     /** Construct a new block template with coinbase to scriptPubKeyIn */
     CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn);
-    CBlockTemplate* CreateNewBlock_(const CScript& scriptPubKeyIn);
     CBlockTemplate* CreateNewBlockWithKey(CReserveKey& reservekey);
 
 private:

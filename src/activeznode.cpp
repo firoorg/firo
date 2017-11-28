@@ -233,9 +233,9 @@ void CActiveZnode::ManageStateInitial() {
     CKey keyCollateral;
 
     // If collateral is found switch to LOCAL mode
-//    if (pwalletMain->GetZnodeVinAndKeys(vin, pubKeyCollateral, keyCollateral)) {
-//        eType = ZNODE_LOCAL;
-//    }
+    if (pwalletMain->GetZnodeVinAndKeys(vin, pubKeyCollateral, keyCollateral)) {
+        eType = ZNODE_LOCAL;
+    }
 
     LogPrint("znode", "CActiveZnode::ManageStateInitial -- End status = %s, type = %s, pinger enabled = %d\n",
              GetStatus(), GetTypeString(), fPingerEnabled);

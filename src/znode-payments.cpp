@@ -207,7 +207,7 @@ bool IsBlockPayeeValid(const CTransaction& txNew, int nBlockHeight, CAmount bloc
     return true;
 }
 
-void FillBlockPayments(CMutableTransaction& txNew, int nBlockHeight, CAmount blockReward, CTxOut& txoutZnodeRet, std::vector<CTxOut>& voutSuperblockRet)
+void FillBlockPayments(CMutableTransaction& txNew, int nBlockHeight, CAmount znodePayment, CTxOut& txoutZnodeRet, std::vector<CTxOut>& voutSuperblockRet)
 {
     // only create superblocks if spork is enabled AND if superblock is actually triggered
     // (height should be validated inside)
@@ -219,9 +219,9 @@ void FillBlockPayments(CMutableTransaction& txNew, int nBlockHeight, CAmount blo
 //    }
 
     // FILL BLOCK PAYEE WITH ZNODE PAYMENT OTHERWISE
-    mnpayments.FillBlockPayee(txNew, nBlockHeight, blockReward, txoutZnodeRet);
-    LogPrint("mnpayments", "FillBlockPayments -- nBlockHeight %d blockReward %lld txoutZnodeRet %s txNew %s",
-                            nBlockHeight, blockReward, txoutZnodeRet.ToString(), txNew.ToString());
+    mnpayments.FillBlockPayee(txNew, nBlockHeight, znodePayment, txoutZnodeRet);
+    LogPrint("mnpayments", "FillBlockPayments -- nBlockHeight %d znodePayment %lld txoutZnodeRet %s txNew %s",
+                            nBlockHeight, znodePayment, txoutZnodeRet.ToString(), txNew.ToString());
 }
 
 std::string GetRequiredPaymentsString(int nBlockHeight)
@@ -261,7 +261,7 @@ bool CZnodePayments::CanVote(COutPoint outZnode, int nBlockHeight)
 *   Fill Znode ONLY payment block
 */
 
-void CZnodePayments::FillBlockPayee(CMutableTransaction& txNew, int nBlockHeight, CAmount blockReward, CTxOut& txoutZnodeRet)
+void CZnodePayments::FillBlockPayee(CMutableTransaction& txNew, int nBlockHeight, CAmount znodePayment, CTxOut& txoutZnodeRet)
 {
     // make sure it's not filled yet
     txoutZnodeRet = CTxOut();
@@ -281,11 +281,6 @@ void CZnodePayments::FillBlockPayee(CMutableTransaction& txNew, int nBlockHeight
         payee = GetScriptForDestination(winningNode->pubKeyCollateralAddress.GetID());
     }
 
-    // GET ZNODE PAYMENT VARIABLES SETUP
-    CAmount znodePayment = GetZnodePayment(nBlockHeight, blockReward);
-
-    // split reward between miner ...
-    txNew.vout[0].nValue -= znodePayment;
     // ... and znode
     txoutZnodeRet = CTxOut(znodePayment, payee);
     txNew.vout.push_back(txoutZnodeRet);

@@ -7,7 +7,7 @@ Prerequisites
 -------------
  - Ubuntu 16.04+
  - Libraries to build from zcoin source
- - Port 18618 is open
+ - Port **18618** is open
 
 Step 1. Build
 ----------------------
@@ -17,11 +17,11 @@ Step 1. Build
 
 **1.2.**  See [README.md](README.md) for instructions on building.
 
-Step 2. (Optional - only if firewall is running). Open port 18618
+Step 2. (Optional - only if firewall is running). Open port 28618
 ----------------------
 **2.1.**  Run:
 
-    sudo ufw allow 18618
+    sudo ufw allow 28618
     sudo ufw default allow outgoing
     sudo ufw enable
 

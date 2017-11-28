@@ -2102,8 +2102,11 @@ void RelayInv(CInv &inv, const int minProtoVersion) {
     LogPrintf("RelayInv, vNodes.size()=%s\n", vNodes.size());
     BOOST_FOREACH(CNode * pnode, vNodes)
     {
-        if (pnode->nVersion >= minProtoVersion)
+        LogPrintf("pnode->nVersion=%s\n", pnode->nVersion);
+        LogPrintf("minProtoVersion=%s\n", minProtoVersion);
+        if (pnode->nVersion >= minProtoVersion) {
             pnode->PushInventory(inv);
+        }
     }
 }
 

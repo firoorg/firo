@@ -152,8 +152,6 @@ std::string CZnodeSync::GetAssetName() {
             return "ZNODE_SYNC_LIST";
         case (ZNODE_SYNC_MNW):
             return "ZNODE_SYNC_MNW";
-        case (ZNODE_SYNC_GOVERNANCE):
-            return "ZNODE_SYNC_GOVERNANCE";
         case (ZNODE_SYNC_FAILED):
             return "ZNODE_SYNC_FAILED";
         case ZNODE_SYNC_FINISHED:
@@ -229,8 +227,6 @@ std::string CZnodeSync::GetSyncStatus() {
             return _("Synchronizing znodes...");
         case ZNODE_SYNC_MNW:
             return _("Synchronizing znode payments...");
-        case ZNODE_SYNC_GOVERNANCE:
-            return _("Synchronizing governance objects...");
         case ZNODE_SYNC_FAILED:
             return _("Synchronization failed");
         case ZNODE_SYNC_FINISHED:
@@ -338,7 +334,6 @@ void CZnodeSync::ProcessTick() {
             } else if (nRequestedZnodeAttempt < 6) {
                 int nMnCount = mnodeman.CountZnodes();
                 pnode->PushMessage(NetMsgType::ZNODEPAYMENTSYNC, nMnCount); //sync payment votes
-                SendGovernanceSyncRequest(pnode);
             } else {
                 nRequestedZnodeAssets = ZNODE_SYNC_FINISHED;
             }
@@ -513,7 +508,7 @@ void CZnodeSync::ProcessTick() {
     ReleaseNodeVector(vNodesCopy);
 }
 
-void CZnodeSync::SendGovernanceSyncRequest(CNode *pnode) {
+//void CZnodeSync::SendGovernanceSyncRequest(CNode *pnode) {
 //    if(pnode->nVersion >= GOVERNANCE_FILTER_PROTO_VERSION) {
 //        CBloomFilter filter;
 //        filter.clear();
@@ -523,7 +518,7 @@ void CZnodeSync::SendGovernanceSyncRequest(CNode *pnode) {
 //    else {
 //        pnode->PushMessage(NetMsgType::MNGOVERNANCESYNC, uint256());
 //    }
-}
+//}
 
 void CZnodeSync::UpdatedBlockTip(const CBlockIndex *pindex) {
     pCurrentBlockIndex = pindex;
