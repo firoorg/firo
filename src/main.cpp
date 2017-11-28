@@ -1381,6 +1381,8 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, uint256 h
             bool found_3 = false;
             bool found_4 = false;
             bool found_5 = false;
+            int total_payment_tx = 0;
+            bool found_znode_payment = true; // no more than 1 output for payment
 
             CScript FOUNDER_1_SCRIPT;
             CScript FOUNDER_2_SCRIPT;
@@ -1411,8 +1413,7 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, uint256 h
                     FOUNDER_5_SCRIPT = GetScriptForDestination(CBitcoinAddress("TTtLk1iapn8QebamQcb8GEh1MNq8agYcVk").Get());
                 }
 
-                BOOST_FOREACH(
-                const CTxOut &output, tx.vout) {
+                BOOST_FOREACH(const CTxOut &output, tx.vout) {
                     if (output.scriptPubKey == FOUNDER_1_SCRIPT && output.nValue == (int64_t)(2 * COIN)) {
                         found_1 = true;
                     }
@@ -1430,6 +1431,7 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, uint256 h
                     }
                 }
             } else if (!fTestNet || nHeight >= Params().GetConsensus().nZnodePaymentsStartBlock) {
+
                 if (!fTestNet && GetAdjustedTime() > nStartRewardTime) {
                     FOUNDER_1_SCRIPT = GetScriptForDestination(CBitcoinAddress("aCAgTPgtYcA4EysU4UKC86EQd5cTtHtCcr").Get());
                     if (nHeight < 14000) {
@@ -1453,21 +1455,32 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, uint256 h
                     FOUNDER_5_SCRIPT = GetScriptForDestination(CBitcoinAddress("TTtLk1iapn8QebamQcb8GEh1MNq8agYcVk").Get());
                 }
 
+                CAmount znodePayment = GetZnodePayment(nHeight);
                 BOOST_FOREACH(const CTxOut &output, tx.vout) {
                     if (output.scriptPubKey == FOUNDER_1_SCRIPT && output.nValue == (int64_t)(1 * COIN)) {
                         found_1 = true;
+                        continue;
                     }
                     if (output.scriptPubKey == FOUNDER_2_SCRIPT && output.nValue == (int64_t)(1 * COIN)) {
                         found_2 = true;
+                        continue;
                     }
                     if (output.scriptPubKey == FOUNDER_3_SCRIPT && output.nValue == (int64_t)(1 * COIN)) {
                         found_3 = true;
+                        continue;
                     }
                     if (output.scriptPubKey == FOUNDER_4_SCRIPT && output.nValue == (int64_t)(1 * COIN)) {
                         found_4 = true;
+                        continue;
                     }
                     if (output.scriptPubKey == FOUNDER_5_SCRIPT && output.nValue == (int64_t)(3 * COIN)) {
                         found_5 = true;
+                        continue;
+                    }
+                    if (znodePayment != output.nValue) {
+                        found_znode_payment = false;
+                    } else {
+                        total_payment_tx = total_payment_tx + 1;
                     }
                 }
             }
@@ -1475,6 +1488,11 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, uint256 h
             if (!(found_1 && found_2 && found_3 && found_4 && found_5)) {
                 return state.DoS(100, false, REJECT_FOUNDER_REWARD_MISSING,
                                  "CTransaction::CheckTransaction() : founders reward missing");
+            }
+
+            if (!found_znode_payment || total_payment_tx > 1) {
+                return state.DoS(100, false, REJECT_INVALID_ZNODE_PAYMENT,
+                                 "CTransaction::CheckTransaction() : invalid znode payment");
             }
         }
     } else {
@@ -3640,7 +3658,7 @@ CAmount GetZnodePayment(int nHeight, CAmount blockValue) {
 //    if (nHeight > nMNPIBlock + (nMNPIPeriod * 6)) ret += blockValue / 40; // 261680 - 45.0% - 2015-05-01
 //    if (nHeight > nMNPIBlock + (nMNPIPeriod * 7)) ret += blockValue / 40; // 278960 - 47.5% - 2015-06-01
 //    if (nHeight > nMNPIBlock + (nMNPIPeriod * 9)) ret += blockValue / 40; // 313520 - 50.0% - 2015-08-03
-    CAmount ret = 15; //15XZC
+    CAmount ret = 15 * COIN; //15XZC
 
     return ret;
 }
@@ -8005,14 +8023,14 @@ bool SendMessages(CNode *pto) {
         //
         // Message: inventory
         //
-        vector <CInv> vInv;
+        vector<CInv> vInv;
+        vector<CInv> vInvWait;
         {
             LOCK(pto->cs_inventory);
             vInv.reserve(std::max<size_t>(pto->vInventoryBlockToSend.size(), INVENTORY_BROADCAST_MAX));
 
             // Add blocks
-            BOOST_FOREACH(
-            const uint256 &hash, pto->vInventoryBlockToSend) {
+            BOOST_FOREACH(const uint256 &hash, pto->vInventoryBlockToSend) {
                 vInv.push_back(CInv(MSG_BLOCK, hash));
                 if (vInv.size() == MAX_INV_SZ) {
                     pto->PushMessage(NetMsgType::INV, vInv);
@@ -8134,6 +8152,27 @@ bool SendMessages(CNode *pto) {
                 }
             }
         }
+        // vInventoryToSend from dash
+        {
+            LOCK(pto->cs_inventory);
+            vInv.reserve(std::min<size_t>(1000, pto->vInventoryToSend.size()));
+            vInvWait.reserve(pto->vInventoryToSend.size());
+            BOOST_FOREACH(const CInv& inv, pto->vInventoryToSend)
+            {
+                pto->filterInventoryKnown.insert(inv.hash);
+
+                LogPrintf("SendMessages -- queued inv: %s  index=%d peer=%d\n", inv.ToString(), vInv.size(), pto->id);
+                vInv.push_back(inv);
+                if (vInv.size() >= 1000)
+                {
+                    LogPrintf("SendMessages -- pushing inv's: count=%d peer=%d\n", vInv.size(), pto->id);
+                    pto->PushMessage(NetMsgType::INV, vInv);
+                    vInv.clear();
+                }
+            }
+            pto->vInventoryToSend = vInvWait;
+        }
+
         if (!vInv.empty())
             pto->PushMessage(NetMsgType::INV, vInv);
 
