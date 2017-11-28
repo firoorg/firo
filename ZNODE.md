@@ -1,7 +1,7 @@
 Znode Build Instructions and Notes
 =============================
  - Version 0.1.5
- - Date: 23rd November 2017
+ - Date: 28 November 2017
 
 Prerequisites
 -------------
@@ -25,7 +25,7 @@ Step 2. (Optional - only if firewall is running). Open port 18618
     sudo ufw default allow outgoing
     sudo ufw enable
 
-Step 3. First run
+Step 3. First run on your Local Wallet
 ----------------------
 **3.0.**  Go to the checked out folder
 
@@ -51,7 +51,7 @@ Step 3. First run
 
     ./src/zcoin-cli stop
 
-Step 4. Update config files
+Step 4. In your VPS where you are hosting your Znode. Update config files
 ----------------------
 **4.1.**  Create file **zcoin.conf** (in folder **~/.zcoin**)
 
