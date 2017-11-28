@@ -221,6 +221,10 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
 
 int CBlockTreeDB::GetBlockIndexVersion()
 {
+    // Get random block index entry, check its version. The only reason for this function to exist
+    // is to check if the index is from previous version and needs to be rebuilt. Comparison of ANY
+    // record version to threshold value would be enough to decide if reindex is needed.
+
 	boost::scoped_ptr<CDBIterator> pcursor(NewIterator());
 	pcursor->Seek(make_pair(DB_BLOCK_INDEX, uint256()));
 	while (pcursor->Valid()) {

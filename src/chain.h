@@ -13,6 +13,7 @@
 #include "uint256.h"
 #include "libzerocoin/bitcoin_bignum/bignum.h"
 #include "zerocoin_params.h"
+#include "util.h"
 
 #include <vector>
 
@@ -234,6 +235,10 @@ public:
         nTime          = 0;
         nBits          = 0;
         nNonce         = 0;
+
+        mintedPubCoins.clear();
+        accumulatorChanges.clear();
+        spentSerials.clear();
     }
 
     CBlockIndex()
@@ -366,10 +371,13 @@ public:
 
     CDiskBlockIndex() {
         hashPrev = uint256();
+        // value doesn't really matter but we won't leave it uninitialized
+        nDiskBlockVersion = 0;
     }
 
     explicit CDiskBlockIndex(const CBlockIndex* pindex) : CBlockIndex(*pindex) {
         hashPrev = (pprev ? pprev->GetBlockHash() : uint256());
+        nDiskBlockVersion = 0;
     }
 
     ADD_SERIALIZE_METHODS;

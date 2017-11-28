@@ -514,6 +514,7 @@ void CZerocoinState::AddBlock(CBlockIndex *index) {
     }
 
     BOOST_FOREACH(const PAIRTYPE(PAIRTYPE(int,int),vector<CBigNum>) &pubCoins, index->mintedPubCoins) {
+        latestCoinIds[pubCoins.first.first] = pubCoins.first.second;
         BOOST_FOREACH(const CBigNum &coin, pubCoins.second)
             mintedPubCoins.insert(coin);
     }
