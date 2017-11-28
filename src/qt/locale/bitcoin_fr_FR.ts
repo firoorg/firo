@@ -167,7 +167,7 @@
     </message>
     <message>
         <source>Send coins to a Smartcash address</source>
-        <translation>Envoyer des pièces à une adresse Bitcoin</translation>
+        <translation>Envoyer des pièces à une adresse SmartCash</translation>
     </message>
     <message>
         <source>Backup wallet to another location</source>
@@ -190,8 +190,8 @@
         <translation>&amp;Vérification du message</translation>
     </message>
     <message>
-        <source>Bitcoin</source>
-        <translation>Bitcoin</translation>
+        <source>SmartCash</source>
+        <translation>SmartCash</translation>
     </message>
     <message>
         <source>Wallet</source>
@@ -255,7 +255,7 @@
     </message>
     <message numerus="yes">
         <source>%n active connection(s) to Smartcash network</source>
-        <translation><numerusform>%n connexion active au réseau Bitcoin</numerusform><numerusform>%n connexions actives au réseau Bitcoin</numerusform></translation>
+        <translation><numerusform>%n connexion active au réseau SmartCash</numerusform><numerusform>%n connexions actives au réseau SmartCash</numerusform></translation>
     </message>
     <message>
         <source>Indexing blocks on disk...</source>
