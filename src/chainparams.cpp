@@ -119,8 +119,8 @@ public:
         consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000708f98bf623f02e");
 
         // znode params
-        consensus.nZnodePaymentsStartBlock = 100000; // not true, but it's ok as long as it's less then nZnodePaymentsIncreaseBlock
-        consensus.nZnodePaymentsIncreaseBlock = 158000; // actual historical value
+        consensus.nZnodePaymentsStartBlock = 660000; // not true, but it's ok as long as it's less then nZnodePaymentsIncreaseBlock
+        consensus.nZnodePaymentsIncreaseBlock = 680000; // actual historical value
         consensus.nZnodePaymentsIncreasePeriod = 576*30; // 17280 - actual historical value
         consensus.nSuperblockStartBlock = 614820;
         consensus.nBudgetPaymentsStartBlock = 328008; // actual historical value
@@ -247,10 +247,10 @@ public:
 
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000708f98bf623f02e");
-        // Maternode params
-        consensus.nZnodePaymentsStartBlock = 100; // not true, but it's ok as long as it's less then n
-        consensus.nZnodePaymentsIncreaseBlock = 46000;
-        consensus.nZnodePaymentsIncreasePeriod = 576;
+        // Znode params testnet
+        consensus.nZnodePaymentsStartBlock = 640; // not true, but it's ok as long as it's less then n
+        consensus.nZnodePaymentsIncreaseBlock = 640;
+        consensus.nZnodePaymentsIncreasePeriod = 650;
         consensus.nSuperblockStartBlock = 61000;
         consensus.nBudgetPaymentsStartBlock = 60000;
         consensus.nBudgetPaymentsCycleBlocks = 50;
@@ -293,8 +293,7 @@ public:
         // zcoin test seeds
 //        vSeeds.push_back(CDNSSeedData("beta1.zcoin.io", "beta1.zcoin.io", false));
 //        vSeeds.push_back(CDNSSeedData("beta2.zcoin.io", "beta2.zcoin.io", false));
-        vSeeds.push_back(CDNSSeedData("54.165.247.127", "54.165.247.127", false));
-
+        vSeeds.push_back(CDNSSeedData("45.77.245.152", "45.77.245.152", false));
 
 //        vSeeds.push_back(CDNSSeedData("testnetbitcoin.jonasschnelli.ch", "testnet-seed.bitcoin.jonasschnelli.ch", true));
 //        vSeeds.push_back(CDNSSeedData("petertodd.org", "seed.tbtc.petertodd.org", true));

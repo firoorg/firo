@@ -48,12 +48,6 @@ namespace NetMsgType {
     const char *ZNODEPAYMENTVOTE = "mnw";
     const char *ZNODEPAYMENTBLOCK = "mnwb";
     const char *ZNODEPAYMENTSYNC = "mnget";
-    const char *MNBUDGETSYNC = "mnvs"; // depreciated since 12.1
-    const char *MNBUDGETVOTE = "mvote"; // depreciated since 12.1
-    const char *MNBUDGETPROPOSAL = "mprop"; // depreciated since 12.1
-    const char *MNBUDGETFINAL = "fbs"; // depreciated since 12.1
-    const char *MNBUDGETFINALVOTE = "fbvote"; // depreciated since 12.1
-    const char *MNQUORUM = "mn quorum"; // not implemented
     const char *MNANNOUNCE = "mnb";
     const char *MNPING = "mnp";
     const char *DSACCEPT = "dsa";
@@ -66,34 +60,10 @@ namespace NetMsgType {
     const char *DSQUEUE = "dsq";
     const char *DSEG = "dseg";
     const char *SYNCSTATUSCOUNT = "ssc";
-    const char *MNGOVERNANCESYNC = "govsync";
-    const char *MNGOVERNANCEOBJECT = "govobj";
-    const char *MNGOVERNANCEOBJECTVOTE = "govobjvote";
     const char *MNVERIFY = "mnv";
     const char *TXLOCKREQUEST = "ix";
 
 };
-static const char *ppszTypeName[] =
-    {
-        "ERROR", // Should never occur
-        NetMsgType::TX,
-        NetMsgType::BLOCK,
-        "filtered block", // Should never occur
-        // Dash message types
-        // NOTE: include non-implmented here, we must keep this list in sync with enum in protocol.h
-        NetMsgType::TXLOCKREQUEST,
-        NetMsgType::TXLOCKVOTE,
-        NetMsgType::SPORK,
-        NetMsgType::ZNODEPAYMENTVOTE,
-        NetMsgType::ZNODEPAYMENTBLOCK, // reusing, was MNSCANERROR previousely, was NOT used in 12.0, we need this for inv
-        NetMsgType::MNQUORUM, // not implemented
-        NetMsgType::MNANNOUNCE,
-        NetMsgType::MNPING,
-        NetMsgType::DSTX,
-        NetMsgType::MNGOVERNANCEOBJECT,
-        NetMsgType::MNGOVERNANCEOBJECTVOTE,
-        NetMsgType::MNVERIFY,
-    };
 
 /** All known message types. Keep this in the same order as the list of
  * messages above and in protocol.h.
@@ -128,9 +98,10 @@ const static std::string allNetMessageTypes[] = {
         //znode
         NetMsgType::TXLOCKREQUEST,
         NetMsgType::ZNODEPAYMENTVOTE,
+        NetMsgType::ZNODEPAYMENTBLOCK,
+        NetMsgType::ZNODEPAYMENTSYNC,
         NetMsgType::SPORK,
         NetMsgType::GETSPORKS,
-        NetMsgType::ZNODEPAYMENTSYNC,
         NetMsgType::MNANNOUNCE,
         NetMsgType::MNPING,
         NetMsgType::DSACCEPT,
@@ -143,9 +114,6 @@ const static std::string allNetMessageTypes[] = {
         NetMsgType::DSQUEUE,
         NetMsgType::DSEG,
         NetMsgType::SYNCSTATUSCOUNT,
-        NetMsgType::MNGOVERNANCESYNC,
-        NetMsgType::MNGOVERNANCEOBJECT,
-        NetMsgType::MNGOVERNANCEOBJECTVOTE,
         NetMsgType::MNVERIFY,
 
 };
@@ -220,53 +188,55 @@ CInv::CInv(int typeIn, const uint256 &hashIn) {
     hash = hashIn;
 }
 
-CInv::CInv(const std::string &strType, const uint256 &hashIn) {
-    unsigned int i;
-    for (i = 1; i < ARRAYLEN(ppszTypeName); i++) {
-        if (strType == ppszTypeName[i]) {
-            type = i;
-            break;
-        }
-    }
-    if (i == ARRAYLEN(ppszTypeName))
-        throw std::out_of_range(strprintf("CInv::CInv(string, uint256): unknown type '%s'", strType));
-    hash = hashIn;
-}
-
 bool operator<(const CInv &a, const CInv &b) {
     return (a.type < b.type || (a.type == b.type && a.hash < b.hash));
 }
 
-bool CInv::IsKnownType() const {
-    return (type >= 1 && type < (int) ARRAYLEN(ppszTypeName));
+const char* CInv::GetCommand() const
+{
+    std::string cmd;
+    if (type & MSG_WITNESS_FLAG)
+        cmd.append("witness-");
+    switch (type)
+    {
+        case MSG_TX:                    return NetMsgType::TX;
+        case MSG_BLOCK:                 return NetMsgType::BLOCK;
+        case MSG_FILTERED_BLOCK:        return NetMsgType::MERKLEBLOCK;
+        case MSG_CMPCT_BLOCK:           return NetMsgType::CMPCTBLOCK;
+        case MSG_TXLOCK_REQUEST:        return NetMsgType::TXLOCKREQUEST;
+        case MSG_TXLOCK_VOTE:           return NetMsgType::TXLOCKVOTE;
+        case MSG_SPORK:                 return NetMsgType::SPORK;
+        case MSG_ZNODE_PAYMENT_VOTE:    return NetMsgType::ZNODEPAYMENTVOTE;
+        case MSG_ZNODE_PAYMENT_BLOCK:   return NetMsgType::ZNODEPAYMENTBLOCK;
+        case MSG_ZNODE_ANNOUNCE:        return NetMsgType::MNANNOUNCE;
+        case MSG_ZNODE_PING:            return NetMsgType::MNPING;
+        case MSG_DSTX:                  return NetMsgType::DSTX;
+        case MSG_ZNODE_VERIFY:          return NetMsgType::MNVERIFY;
+        default: {
+            LogPrintf("ERROR - UNKNOWN INV COMMAND\n");
+            return "error";
+        }
+    //        throw std::out_of_range(strprintf("CInv::GetCommand(): type=%d unknown type", type));
+    }
 }
 
-//std::string CInv::GetCommand() const
-//{
-//    std::string cmd;
-//    if (type & MSG_WITNESS_FLAG)
-//        cmd.append("witness-");
-//    int masked = type & MSG_TYPE_MASK;
-//    switch (masked)
-//    {
-//    case MSG_TX:             return cmd.append(NetMsgType::TX);
-//    case MSG_BLOCK:          return cmd.append(NetMsgType::BLOCK);
-//    case MSG_FILTERED_BLOCK: return cmd.append(NetMsgType::MERKLEBLOCK);
-//    case MSG_CMPCT_BLOCK:    return cmd.append(NetMsgType::CMPCTBLOCK);
-//    default:
+//std::string CInv::GetCommand() const {
+//    if (!IsKnownType()) {
+//        LogPrintf("CInv::GetCommand(): type=%d unknown type\n", type);
 //        throw std::out_of_range(strprintf("CInv::GetCommand(): type=%d unknown type", type));
 //    }
+//    return ppszTypeName[type];
 //}
 
-std::string CInv::GetCommand() const {
-    if (!IsKnownType()) {
-        LogPrintf("CInv::GetCommand(): type=%d unknown type\n", type);
-        throw std::out_of_range(strprintf("CInv::GetCommand(): type=%d unknown type", type));
-    }
-    return allNetMessageTypes[type];
-}
+//const char* CInv::GetCommand() const
+//{
+//    if (!IsKnownType())
+//        throw std::out_of_range(strprintf("CInv::GetCommand(): type=%d unknown type", type));
+//    return ppszTypeName[type];
+//}
 
-std::string CInv::ToString() const {
+std::string CInv::ToString() const
+{
     return strprintf("%s %s", GetCommand(), hash.ToString());
 }
 

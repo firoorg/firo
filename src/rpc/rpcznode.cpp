@@ -196,6 +196,7 @@ UniValue znode(const UniValue &params, bool fHelp) {
                                        winner->lastPing.sigTime));
         obj.push_back(Pair("activeseconds", (winner->lastPing == CZnodePing()) ? 0 :
                                             (winner->lastPing.sigTime - winner->sigTime)));
+        obj.push_back(Pair("nBlockLastPaid", winner->nBlockLastPaid));
         return obj;
     }
 
@@ -247,8 +248,7 @@ UniValue znode(const UniValue &params, bool fHelp) {
         UniValue statusObj(UniValue::VOBJ);
         statusObj.push_back(Pair("alias", strAlias));
 
-        BOOST_FOREACH(CZnodeConfig::CZnodeEntry
-        mne, znodeConfig.getEntries()) {
+        BOOST_FOREACH(CZnodeConfig::CZnodeEntry mne, znodeConfig.getEntries()) {
             if (mne.getAlias() == strAlias) {
                 fFound = true;
                 std::string strError;
@@ -259,8 +259,9 @@ UniValue znode(const UniValue &params, bool fHelp) {
                 statusObj.push_back(Pair("result", fResult ? "successful" : "failed"));
                 if (fResult) {
                     mnodeman.UpdateZnodeList(mnb);
-                    mnb.Relay();
+                    mnb.RelayZNode();
                 } else {
+                    LogPrintf("Start-alias: errorMessage = %s\n", strError);
                     statusObj.push_back(Pair("errorMessage", strError));
                 }
                 mnodeman.NotifyZnodeUpdates();
@@ -272,6 +273,8 @@ UniValue znode(const UniValue &params, bool fHelp) {
             statusObj.push_back(Pair("result", "failed"));
             statusObj.push_back(Pair("errorMessage", "Could not find alias in config. Verify with list-conf."));
         }
+
+//        LogPrintf("start-alias: statusObj=%s\n", statusObj);
 
         return statusObj;
 
@@ -314,7 +317,7 @@ UniValue znode(const UniValue &params, bool fHelp) {
             if (fResult) {
                 nSuccessful++;
                 mnodeman.UpdateZnodeList(mnb);
-                mnb.Relay();
+                mnb.RelayZNode();
             } else {
                 nFailed++;
                 statusObj.push_back(Pair("errorMessage", strError));
@@ -773,7 +776,7 @@ UniValue znodebroadcast(const UniValue &params, bool fHelp) {
                     fResult = mnodeman.CheckMnbAndUpdateZnodeList(NULL, mnb, nDos);
                 } else {
                     mnodeman.UpdateZnodeList(mnb);
-                    mnb.Relay();
+                    mnb.RelayZNode();
                     fResult = true;
                 }
                 mnodeman.NotifyZnodeUpdates();

@@ -1244,7 +1244,8 @@ bool CDarksendPool::SignFinalTransaction(const CTransaction &finalTransactionNew
                 const CKeyStore &keystore = *pwalletMain;
 
                 LogPrint("privatesend", "CDarksendPool::SignFinalTransaction -- Signing my input %i\n", nMyInputIndex);
-                if (!SignSignature(keystore, prevPubKey, finalMutableTransaction, nMyInputIndex, NULL, int(SIGHASH_ALL | SIGHASH_ANYONECANPAY))) { // changes scriptSig
+                CAmount amount;
+                if (!SignSignature(keystore, prevPubKey, finalMutableTransaction, nMyInputIndex, amount, int(SIGHASH_ALL | SIGHASH_ANYONECANPAY))) { // changes scriptSig
                     LogPrint("privatesend", "CDarksendPool::SignFinalTransaction -- Unable to sign my own transaction!\n");
                     // not sure what to do here, it will timeout...?
                 }
