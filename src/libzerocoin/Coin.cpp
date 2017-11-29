@@ -171,7 +171,6 @@ void PrivateCoin::mintCoin(const CoinDenomination denomination) {
 }
 
 void PrivateCoin::mintCoinFast(const CoinDenomination denomination) {
-
 	Bignum s;
 
 	if(this->version == 2) {

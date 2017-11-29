@@ -70,6 +70,7 @@ public:
     void AddVoteHash(uint256 hashIn) { vecVoteHashes.push_back(hashIn); }
     std::vector<uint256> GetVoteHashes() { return vecVoteHashes; }
     int GetVoteCount() { return vecVoteHashes.size(); }
+    std::string ToString() const;
 };
 
 // Keep track of votes for payees from znodes

@@ -148,6 +148,8 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
     coinbaseTx.vout[0].nValue = 0;
     CBlockIndex* pindexPrev = chainActive.Tip();
     const int nHeight = pindexPrev->nHeight + 1;
+
+
     // To founders and investors
     // To founders and investors
     if ((nHeight + 1 > 0) && (nHeight + 1 < 210000)) {
@@ -1094,9 +1096,8 @@ void static ZcoinMiner(const CChainParams &chainparams) {
             unsigned int nTransactionsUpdatedLast = mempool.GetTransactionsUpdated();
             CBlockIndex *pindexPrev = chainActive.Tip();
             if (pindexPrev) {
-                LogPrintf("loop pindexPrev->nHeight=%s", pindexPrev->nHeight);
+                LogPrintf("loop pindexPrev->nHeight=%s\n", pindexPrev->nHeight);
             }
-            LogPrintf("CreateNewBlock=%s\n");
             auto_ptr <CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(coinbaseScript->reserveScript));
             if (!pblocktemplate.get()) {
                 LogPrintf("Error in ZcoinMiner: Keypool ran out, please call keypoolrefill before restarting the mining thread\n");

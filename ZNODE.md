@@ -7,7 +7,7 @@ Prerequisites
 -------------
  - Ubuntu 16.04+
  - Libraries to build from zcoin source
- - Port **18618** is open
+ - Port **28618** is open
 
 Step 1. Build
 ----------------------

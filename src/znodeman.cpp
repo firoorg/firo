@@ -167,7 +167,7 @@ void CZnodeMan::Check()
 {
     LOCK(cs);
 
-    LogPrint("znode", "CZnodeMan::Check -- nLastWatchdogVoteTime=%d, IsWatchdogActive()=%d\n", nLastWatchdogVoteTime, IsWatchdogActive());
+//    LogPrint("znode", "CZnodeMan::Check -- nLastWatchdogVoteTime=%d, IsWatchdogActive()=%d\n", nLastWatchdogVoteTime, IsWatchdogActive());
 
     BOOST_FOREACH(CZnode& mn, vZnodes) {
         mn.Check();
@@ -539,7 +539,6 @@ bool CZnodeMan::Has(const CTxIn& vin)
 //
 CZnode* CZnodeMan::GetNextZnodeInQueueForPayment(bool fFilterSigTime, int& nCount)
 {
-    LogPrintf("CZnodeMan::GetNextZnodeInQueueForPayment 1\n");
     if(!pCurrentBlockIndex) {
         nCount = 0;
         return NULL;
@@ -824,12 +823,11 @@ std::pair<CService, std::set<uint256> > CZnodeMan::PopScheduledMnbRequestConnect
 void CZnodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataStream& vRecv)
 {
 
-    LogPrintf("CZnodeMan::ProcessMessage, strCommand=%s\n", strCommand);
+//    LogPrint("znode", "CZnodeMan::ProcessMessage, strCommand=%s\n", strCommand);
     if(fLiteMode) return; // disable all Dash specific functionality
     if(!znodeSync.IsBlockchainSynced()) return;
 
     if (strCommand == NetMsgType::MNANNOUNCE) { //Znode Broadcast
-        LogPrintf("NetMsgType::MNANNOUNCE\n");
         CZnodeBroadcast mnb;
         vRecv >> mnb;
 
