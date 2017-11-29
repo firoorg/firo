@@ -2104,8 +2104,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool &pool, CValidationState &state, const C
 //        }
 
         // Remove conflicting transactions from the mempool
-        BOOST_FOREACH(
-        const CTxMemPool::txiter it, allConflicting)
+        BOOST_FOREACH(const CTxMemPool::txiter it, allConflicting)
         {
             LogPrint("mempool", "replacing tx %s with %s for %s BTC additional fees, %d delta bytes\n",
                      it->GetTx().GetHash().ToString(),
@@ -3329,6 +3328,10 @@ void PruneAndFlush() {
 void static UpdateTip(CBlockIndex *pindexNew, const CChainParams &chainParams) {
     LogPrintf("UpdateTip() pindexNew.nHeight=%s\n", pindexNew->nHeight);
     chainActive.SetTip(pindexNew);
+    mnodeman.UpdatedBlockTip(chainActive.Tip());
+    darkSendPool.UpdatedBlockTip(chainActive.Tip());
+    mnpayments.UpdatedBlockTip(chainActive.Tip());
+    znodeSync.UpdatedBlockTip(chainActive.Tip());
 
     // New best block
     nTimeBestReceived = GetTime();
@@ -4123,8 +4126,7 @@ bool ActivateBestChain(CValidationState &state, const CChainParams &chainparams,
                     BOOST_FOREACH(CNode * pnode, vNodes)
                     {
                         if (nNewHeight > (pnode->nStartingHeight != -1 ? pnode->nStartingHeight - 2000 : 0)) {
-                            BOOST_REVERSE_FOREACH(
-                            const uint256 &hash, vHashes) {
+                            BOOST_REVERSE_FOREACH(const uint256 &hash, vHashes) {
                                 pnode->PushBlockHash(hash);
                             }
                         }
@@ -6120,7 +6122,7 @@ void static ProcessGetData(CNode *pfrom, const Consensus::Params &consensusParam
 
 //            } else if (inv.IsKnownType()) {
             } else {
-                LogPrintf("inv.type()=%s, inv.GetCommand=%s\n", inv.type, inv.GetCommand());
+//                LogPrintf("inv.type()=%s, inv.GetCommand=%s\n", inv.type, inv.GetCommand());
                 // Send stream from relay memory
                 bool pushed = false;
                 {
@@ -6169,6 +6171,7 @@ void static ProcessGetData(CNode *pfrom, const Consensus::Params &consensusParam
                 }
 
                 if (!pushed && inv.type == MSG_ZNODE_PAYMENT_VOTE) {
+                    LogPrintf("ProcessGetData() -> MSG_ZNODE_PAYMENT_VOTE\n");
                     if(mnpayments.HasVerifiedPaymentVote(inv.hash)) {
                         CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
                         ss.reserve(1000);
@@ -6179,6 +6182,7 @@ void static ProcessGetData(CNode *pfrom, const Consensus::Params &consensusParam
                 }
 
                 if (!pushed && inv.type == MSG_ZNODE_PAYMENT_BLOCK) {
+                    LogPrintf("ProcessGetData() -> MSG_ZNODE_PAYMENT_BLOCK\n");
                     BlockMap::iterator mi = mapBlockIndex.find(inv.hash);
                     LOCK(cs_mapZnodeBlocks);
                     if (mi != mapBlockIndex.end() && mnpayments.mapZnodeBlocks.count(mi->second->nHeight)) {
@@ -6186,6 +6190,7 @@ void static ProcessGetData(CNode *pfrom, const Consensus::Params &consensusParam
                             std::vector<uint256> vecVoteHashes = payee.GetVoteHashes();
                             BOOST_FOREACH(uint256& hash, vecVoteHashes) {
                                 if(mnpayments.HasVerifiedPaymentVote(hash)) {
+                                    LogPrintf("ProcessGetData() ->MSG_ZNODE_PAYMENT_BLOCK -> ZNODEPAYMENTVOTE\n");
                                     CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
                                     ss.reserve(1000);
                                     ss << mnpayments.mapZnodePaymentVotes[hash];
@@ -7613,6 +7618,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
         // We do not care about the NOTFOUND message, but logging an Unknown Command
         // message would be undesirable as we transmit it ourselves.
     } else {
+        LogPrintf("Main.cpp ProcessMessage() strCommand=%s\n", strCommand);
         // Ignore unknown commands for extensibility
         bool found = false;
         const std::vector <std::string> &allMessages = getAllNetMessageTypes();

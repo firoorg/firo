@@ -486,8 +486,8 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
         // get some info back to pass to getblocktemplate
         if (nHeight >= chainparams.GetConsensus().nZnodePaymentsStartBlock) {
             CAmount znodePayment = GetZnodePayment(nHeight, blockReward);
-            FillBlockPayments(coinbaseTx, nHeight, znodePayment, pblock->txoutZnode, pblock->voutSuperblock);
             coinbaseTx.vout[0].nValue -= znodePayment;
+            FillBlockPayments(coinbaseTx, nHeight, znodePayment, pblock->txoutZnode, pblock->voutSuperblock);
         }
 
         nLastBlockTx = nBlockTx;
