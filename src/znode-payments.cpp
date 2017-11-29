@@ -300,6 +300,8 @@ int CZnodePayments::GetMinZnodePaymentsProto() {
 
 void CZnodePayments::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataStream& vRecv)
 {
+
+    LogPrintf("CZnodePayments::ProcessMessage strCommand=%s\n", strCommand);
     // Ignore any payments messages until znode list is synced
     if(!znodeSync.IsZnodeListSynced()) return;
 
@@ -462,6 +464,7 @@ bool CZnodePayments::IsScheduled(CZnode& mn, int nNotBlockHeight)
 
 bool CZnodePayments::AddPaymentVote(const CZnodePaymentVote& vote)
 {
+    LogPrintf("CZnodePayments::AddPaymentVote\n");
     uint256 blockHash = uint256();
     if(!GetBlockHash(blockHash, vote.nBlockHeight - 101)) return false;
 
@@ -532,7 +535,7 @@ bool CZnodeBlockPayees::HasPayeeWithVotes(CScript payeeIn, int nVotesReq)
         }
     }
 
-    LogPrint("mnpayments", "CZnodeBlockPayees::HasPayeeWithVotes -- ERROR: couldn't find any payee with %d+ votes\n", nVotesReq);
+//    LogPrint("mnpayments", "CZnodeBlockPayees::HasPayeeWithVotes -- ERROR: couldn't find any payee with %d+ votes\n", nVotesReq);
     return false;
 }
 
@@ -707,22 +710,37 @@ bool CZnodePaymentVote::IsValid(CNode* pnode, int nValidationHeight, std::string
 
 bool CZnodePayments::ProcessBlock(int nBlockHeight)
 {
+
+    LogPrintf("CZnodePayments::ProcessBlock nBlockHeight=%s\n", nBlockHeight);
+
     // DETERMINE IF WE SHOULD BE VOTING FOR THE NEXT PAYEE
 
-    if(fLiteMode || !fZNode) return false;
+    if(fLiteMode || !fZNode) {
+        LogPrintf("LogPrintf fZnode failed here 1\n");
+        return false;
+    }
 
     // We have little chances to pick the right winner if winners list is out of sync
     // but we have no choice, so we'll try. However it doesn't make sense to even try to do so
     // if we have not enough data about znodes.
-    if(!znodeSync.IsZnodeListSynced()) return false;
+    LogPrintf("LogPrintf fZnode failed here 2\n");
+    if(!znodeSync.IsZnodeListSynced()) {
+        LogPrintf("znodeSync.IsZnodeListSynced failed");
+        return false;
+    }
+
+    LogPrintf("LogPrintf fZnode failed here 3\n");
 
     int nRank = mnodeman.GetZnodeRank(activeZnode.vin, nBlockHeight - 101, GetMinZnodePaymentsProto(), false);
+    LogPrintf("nRank=%s\n", nRank);
 
+    LogPrintf("LogPrintf fZnode failed here 4\n");
     if (nRank == -1) {
         LogPrint("mnpayments", "CZnodePayments::ProcessBlock -- Unknown Znode\n");
         return false;
     }
 
+    LogPrintf("LogPrintf fZnode failed here 5\n");
     if (nRank > MNPAYMENTS_SIGNATURES_TOTAL) {
         LogPrint("mnpayments", "CZnodePayments::ProcessBlock -- Znode not in the top %d (%d)\n", MNPAYMENTS_SIGNATURES_TOTAL, nRank);
         return false;
@@ -773,7 +791,10 @@ bool CZnodePayments::ProcessBlock(int nBlockHeight)
 void CZnodePaymentVote::Relay()
 {
     // do not relay until synced
-    if (!znodeSync.IsWinnersListSynced()) return;
+    if (!znodeSync.IsWinnersListSynced()) {
+        LogPrintf("CZnodePaymentVote::Relay - znodeSync.IsWinnersListSynced() not sync\n");
+        return;
+    }
     CInv inv(MSG_ZNODE_PAYMENT_VOTE, GetHash());
     RelayInv(inv);
 }
@@ -842,6 +863,7 @@ void CZnodePayments::Sync(CNode* pnode)
 // Request low data/unknown payment blocks in batches directly from some node instead of/after preliminary Sync.
 void CZnodePayments::RequestLowDataPaymentBlocks(CNode* pnode)
 {
+    LogPrintf("CZnodePayments::RequestLowDataPaymentBlocks\n");
     if(!pCurrentBlockIndex) return;
 
     LOCK2(cs_main, cs_mapZnodeBlocks);
@@ -901,6 +923,7 @@ void CZnodePayments::RequestLowDataPaymentBlocks(CNode* pnode)
         // Low data block found, let's try to sync it
         uint256 hash;
         if(GetBlockHash(hash, it->first)) {
+            LogPrintf("MSG_ZNODE_PAYMENT_BLOCK\n");
             vToFetch.push_back(CInv(MSG_ZNODE_PAYMENT_BLOCK, hash));
         }
         // We should not violate GETDATA rules

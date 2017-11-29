@@ -196,6 +196,7 @@ UniValue znode(const UniValue &params, bool fHelp) {
                                        winner->lastPing.sigTime));
         obj.push_back(Pair("activeseconds", (winner->lastPing == CZnodePing()) ? 0 :
                                             (winner->lastPing.sigTime - winner->sigTime)));
+        obj.push_back(Pair("nBlockLastPaid", winner->nBlockLastPaid));
         return obj;
     }
 

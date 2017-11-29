@@ -353,6 +353,38 @@ std::string CZnode::GetStatus() const
     return GetStateString();
 }
 
+std::string CZnode::ToString() const
+{
+    /**
+     * obj.push_back(Pair("IP:port", winner->addr.ToString()));
+        obj.push_back(Pair("protocol", (int64_t) winner->nProtocolVersion));
+        obj.push_back(Pair("vin", winner->vin.prevout.ToStringShort()));
+        obj.push_back(Pair("payee", CBitcoinAddress(winner->pubKeyCollateralAddress.GetID()).ToString()));
+        obj.push_back(Pair("lastseen", (winner->lastPing == CZnodePing()) ? winner->sigTime :
+                                       winner->lastPing.sigTime));
+        obj.push_back(Pair("activeseconds", (winner->lastPing == CZnodePing()) ? 0 :
+                                            (winner->lastPing.sigTime - winner->sigTime)));
+     */
+
+    std::string str;
+    str += "{\nIP:port: ";
+    str += addr.ToString();
+    str += "\nprotocol: ";
+    str += std::to_string(nProtocolVersion);
+    str += "\nvin: ";
+    str += vin.prevout.ToStringShort();
+    str += "\npayee: ";
+    str += CBitcoinAddress(pubKeyCollateralAddress.GetID()).ToString();
+    str += "\nlastseen: ";
+    str += std::to_string(lastPing == CZnodePing() ? sigTime : lastPing.sigTime);
+    str += "\nactiveseconds: ";
+    str += std::to_string(lastPing == CZnodePing() ? lastPing.sigTime : sigTime);
+    str += "\nnBlockLastPaid: ";
+    str += std::to_string(nBlockLastPaid);
+    str += "\n}";
+    return str;
+}
+
 int CZnode::GetCollateralAge()
 {
     int nHeight;
@@ -376,22 +408,31 @@ int CZnode::GetCollateralAge()
 
 void CZnode::UpdateLastPaid(const CBlockIndex *pindex, int nMaxBlocksToScanBack)
 {
-    if(!pindex) return;
+    if(!pindex) {
+        LogPrintf("CZnode::UpdateLastPaid is NULL\n");
+        return;
+    }
 
     const CBlockIndex *BlockReading = pindex;
 
     CScript mnpayee = GetScriptForDestination(pubKeyCollateralAddress.GetID());
-    // LogPrint("znode", "CZnode::UpdateLastPaidBlock -- searching for block with payment to %s\n", vin.prevout.ToStringShort());
+    LogPrint("znode", "CZnode::UpdateLastPaidBlock -- searching for block with payment to %s\n", vin.prevout.ToStringShort());
 
     LOCK(cs_mapZnodeBlocks);
 
     for (int i = 0; BlockReading && BlockReading->nHeight > nBlockLastPaid && i < nMaxBlocksToScanBack; i++) {
+//        LogPrintf("mnpayments.mapZnodeBlocks.count(BlockReading->nHeight)=%s\n", mnpayments.mapZnodeBlocks.count(BlockReading->nHeight));
+//        LogPrintf("mnpayments.mapZnodeBlocks[BlockReading->nHeight].HasPayeeWithVotes(mnpayee, 2)=%s\n", mnpayments.mapZnodeBlocks[BlockReading->nHeight].HasPayeeWithVotes(mnpayee, 2));
         if(mnpayments.mapZnodeBlocks.count(BlockReading->nHeight) &&
             mnpayments.mapZnodeBlocks[BlockReading->nHeight].HasPayeeWithVotes(mnpayee, 2))
         {
+            LogPrintf("i=%s, BlockReading->nHeight=%s\n", i, BlockReading->nHeight);
             CBlock block;
             if(!ReadBlockFromDisk(block, BlockReading, Params().GetConsensus())) // shouldn't really happen
+            {
+                LogPrintf("ReadBlockFromDisk failed\n");
                 continue;
+            }
 
             CAmount nZnodePayment = GetZnodePayment(BlockReading->nHeight, block.vtx[0].GetValueOut());
 

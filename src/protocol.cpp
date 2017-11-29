@@ -98,9 +98,10 @@ const static std::string allNetMessageTypes[] = {
         //znode
         NetMsgType::TXLOCKREQUEST,
         NetMsgType::ZNODEPAYMENTVOTE,
+        NetMsgType::ZNODEPAYMENTBLOCK,
+        NetMsgType::ZNODEPAYMENTSYNC,
         NetMsgType::SPORK,
         NetMsgType::GETSPORKS,
-        NetMsgType::ZNODEPAYMENTSYNC,
         NetMsgType::MNANNOUNCE,
         NetMsgType::MNPING,
         NetMsgType::DSACCEPT,
@@ -194,23 +195,8 @@ bool operator<(const CInv &a, const CInv &b) {
 const char* CInv::GetCommand() const
 {
     std::string cmd;
-    LogPrintf("type=%s\n", type);
     if (type & MSG_WITNESS_FLAG)
         cmd.append("witness-");
-//    int masked = type & MSG_TYPE_MASK;
-//    LogPrintf("masked=%s\n", masked);
-//    LogPrintf("MSG_TX=%s\n", MSG_TX);
-//    LogPrintf("MSG_BLOCK=%s\n", MSG_BLOCK);
-//    LogPrintf("MSG_FILTERED_BLOCK=%s\n", MSG_FILTERED_BLOCK);
-//    LogPrintf("MSG_CMPCT_BLOCK=%s\n", MSG_CMPCT_BLOCK);
-//    LogPrintf("MSG_TXLOCK_REQUEST=%s\n", MSG_TXLOCK_REQUEST);
-//    LogPrintf("MSG_TXLOCK_VOTE=%s\n", MSG_TXLOCK_VOTE);
-//    LogPrintf("MSG_SPORK=%s\n", MSG_SPORK);
-//    LogPrintf("MSG_ZNODE_PAYMENT_VOTE=%s\n", MSG_ZNODE_PAYMENT_VOTE);
-//    LogPrintf("MSG_ZNODE_ANNOUNCE=%s\n", MSG_ZNODE_ANNOUNCE);
-//    LogPrintf("MSG_ZNODE_PING=%s\n", MSG_ZNODE_PING);
-//    LogPrintf("MSG_DSTX=%s\n", MSG_DSTX);
-//    LogPrintf("MSG_ZNODE_VERIFY=%s\n", MSG_ZNODE_VERIFY);
     switch (type)
     {
         case MSG_TX:                    return NetMsgType::TX;
@@ -228,7 +214,7 @@ const char* CInv::GetCommand() const
         case MSG_ZNODE_VERIFY:          return NetMsgType::MNVERIFY;
         default: {
             LogPrintf("ERROR - UNKNOWN INV COMMAND\n");
-            return NetMsgType::NOTFOUND;
+            return "error";
         }
     //        throw std::out_of_range(strprintf("CInv::GetCommand(): type=%d unknown type", type));
     }

@@ -541,7 +541,6 @@ CZnode* CZnodeMan::GetNextZnodeInQueueForPayment(bool fFilterSigTime, int& nCoun
 {
     LogPrintf("CZnodeMan::GetNextZnodeInQueueForPayment 1\n");
     if(!pCurrentBlockIndex) {
-        LogPrintf("CZnodeMan::GetNextZnodeInQueueForPayment pCurrentBlockIndex == NULL\n");
         nCount = 0;
         return NULL;
     }
@@ -550,7 +549,6 @@ CZnode* CZnodeMan::GetNextZnodeInQueueForPayment(bool fFilterSigTime, int& nCoun
 
 CZnode* CZnodeMan::GetNextZnodeInQueueForPayment(int nBlockHeight, bool fFilterSigTime, int& nCount)
 {
-    LogPrintf("CZnodeMan::GetNextZnodeInQueueForPayment 2\n");
     // Need LOCK2 here to ensure consistent locking order because the GetBlockHash call below locks cs_main
     LOCK2(cs_main,cs);
 
@@ -560,34 +558,48 @@ CZnode* CZnodeMan::GetNextZnodeInQueueForPayment(int nBlockHeight, bool fFilterS
     /*
         Make a vector with all of the last paid times
     */
-    LogPrintf("CZnodeMan::GetNextZnodeInQueueForPayment 2 - 1\n");
     LogPrintf("vZnodes.size()=%s\n", vZnodes.size());
     int nMnCount = CountEnabled();
+    int index = 0;
     BOOST_FOREACH(CZnode &mn, vZnodes)
     {
-        LogPrintf("CZnodeMan::GetNextZnodeInQueueForPayment 2 - 11\n");
-        if(!mn.IsValidForPayment()) continue;
-        LogPrintf("CZnodeMan::GetNextZnodeInQueueForPayment 2 - 22\n");
+        index += 1;
+        LogPrintf("index=%s, mn=%s\n", index, mn.ToString());
+        if(!mn.IsValidForPayment()) {
+            LogPrintf("Invalid payment!\n");
+            continue;
+        }
         // //check protocol version
-        if(mn.nProtocolVersion < mnpayments.GetMinZnodePaymentsProto()) continue;
-        LogPrintf("CZnodeMan::GetNextZnodeInQueueForPayment 2 - 33\n");
+        if(mn.nProtocolVersion < mnpayments.GetMinZnodePaymentsProto()) {
+            LogPrintf("Invalid nProtocolVersion!\n");
+            LogPrintf("mn.nProtocolVersion=%s!\n", mn.nProtocolVersion);
+            LogPrintf("mnpayments.GetMinZnodePaymentsProto=%s!\n", mnpayments.GetMinZnodePaymentsProto());
+            continue;
+        }
         //it's in the list (up to 8 entries ahead of current block to allow propagation) -- so let's skip it
-        if(mnpayments.IsScheduled(mn, nBlockHeight)) continue;
-        LogPrintf("CZnodeMan::GetNextZnodeInQueueForPayment 2 - 44\n");
+        if(mnpayments.IsScheduled(mn, nBlockHeight)){
+            LogPrintf("mnpayments.IsScheduled!\n");
+            continue;
+        }
         //it's too new, wait for a cycle
-        if(fFilterSigTime && mn.sigTime + (nMnCount*2.6*60) > GetAdjustedTime()) continue;
-        LogPrintf("CZnodeMan::GetNextZnodeInQueueForPayment 2 - 55\n");
+        if(fFilterSigTime && mn.sigTime + (nMnCount*2.6*60) > GetAdjustedTime()){
+            LogPrintf("it's too new, wait for a cycle!\n");
+            continue;
+        }
         //make sure it has at least as many confirmations as there are znodes
-        if(mn.GetCollateralAge() < nMnCount) continue;
+        if(mn.GetCollateralAge() < nMnCount) {
+            LogPrintf("mn.GetCollateralAge()=%s!\n", mn.GetCollateralAge());
+            LogPrintf("nMnCount=%s!\n", nMnCount);
+            continue;
+        }
 
         vecZnodeLastPaid.push_back(std::make_pair(mn.GetLastPaidBlock(), &mn));
     }
-    LogPrintf("CZnodeMan::GetNextZnodeInQueueForPayment 3\n");
     nCount = (int)vecZnodeLastPaid.size();
 
     //when the network is in the process of upgrading, don't penalize nodes that recently restarted
     if(fFilterSigTime && nCount < nMnCount/3) {
-        LogPrintf("CZnodeMan::GetNextZnodeInQueueForPayment 4, nMnCoun=%s, nCount=%s\n", nMnCount, nCount);
+        LogPrintf("Need Return, nCount=%s, nMnCount/3=%s\n", nCount, nMnCount/3);
         return GetNextZnodeInQueueForPayment(nBlockHeight, false, nCount);
     }
 
@@ -608,6 +620,8 @@ CZnode* CZnodeMan::GetNextZnodeInQueueForPayment(int nBlockHeight, bool fFilterS
     arith_uint256 nHighest = 0;
     BOOST_FOREACH (PAIRTYPE(int, CZnode*)& s, vecZnodeLastPaid){
         arith_uint256 nScore = s.second->CalculateScore(blockHash);
+        LogPrintf("node=%s\n", s.second->addr.ToString());
+        LogPrintf("nScore=%s, nHighest=%s\n", nScore.ToString(), nHighest.ToString());
         if(nScore > nHighest){
             nHighest = nScore;
             pBestZnode = s.second;
@@ -615,7 +629,6 @@ CZnode* CZnodeMan::GetNextZnodeInQueueForPayment(int nBlockHeight, bool fFilterS
         nCountTenth++;
         if(nCountTenth >= nTenthNetwork) break;
     }
-    LogPrintf("pBestZnode=OK\n");
     return pBestZnode;
 }
 
@@ -1510,17 +1523,20 @@ bool CZnodeMan::CheckMnbAndUpdateZnodeList(CNode* pfrom, CZnodeBroadcast mnb, in
 void CZnodeMan::UpdateLastPaid()
 {
     LOCK(cs);
-
     if(fLiteMode) return;
-    if(!pCurrentBlockIndex) return;
+    if(!pCurrentBlockIndex) {
+        LogPrintf("CZnodeMan::UpdateLastPaid, pCurrentBlockIndex=NULL\n");
+        return;
+    }
+    LogPrintf("CZnodeMan::UpdateLastPaid,pCurrentBlockIndex->nHeight=%s\n", pCurrentBlockIndex->nHeight);
 
     static bool IsFirstRun = true;
     // Do full scan on first run or if we are not a znode
     // (MNs should update this info on every block, so limited scan should be enough for them)
     int nMaxBlocksToScanBack = (IsFirstRun || !fZNode) ? mnpayments.GetStorageLimit() : LAST_PAID_SCAN_BLOCKS;
 
-    // LogPrint("mnpayments", "CZnodeMan::UpdateLastPaid -- nHeight=%d, nMaxBlocksToScanBack=%d, IsFirstRun=%s\n",
-    //                         pCurrentBlockIndex->nHeight, nMaxBlocksToScanBack, IsFirstRun ? "true" : "false");
+    LogPrint("mnpayments", "CZnodeMan::UpdateLastPaid -- nHeight=%d, nMaxBlocksToScanBack=%d, IsFirstRun=%s\n",
+                             pCurrentBlockIndex->nHeight, nMaxBlocksToScanBack, IsFirstRun ? "true" : "false");
 
     BOOST_FOREACH(CZnode& mn, vZnodes) {
         mn.UpdateLastPaid(pCurrentBlockIndex, nMaxBlocksToScanBack);
