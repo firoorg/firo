@@ -3245,7 +3245,7 @@ bool CWallet::CreateZerocoinMintModel(string &stringError, string denomAmount) {
     BOOST_FOREACH(const CZerocoinEntry &pubCoinIdItem, listPubCoin) {
 		//LogPrintf("denomination = %d, id = %d, height = %d\n", pubCoinIdItem.denomination, pubCoinIdItem.id, pubCoinIdItem.nHeight);
 		if (pubCoinIdItem.id > 0) {
-			if(pubCoinIdItem.nHeight <= chainActive.Height()){
+            if (pubCoinIdItem.nHeight <= chainActive.Height()) {
 				if (pubCoinIdItem.denomination == denomination) {
 					countExistingItems++;
 					if (pubCoinIdItem.id > currentId) {
@@ -3253,7 +3253,7 @@ bool CWallet::CreateZerocoinMintModel(string &stringError, string denomAmount) {
 						countExistingItems = 1;
 					}
 				}
-			}else{
+            } else{
 				break;
 			}
 		}
@@ -3797,7 +3797,7 @@ bool CWallet::CreateZerocoinSpendTransaction(int64_t nValue, libzerocoin::CoinDe
                 }
             }
 
-            if(!selectedPubcoin){
+            if (!selectedPubcoin){
                 strFailReason = _("it has to have at least two mint coins with at least 6 confirmation in order to spend a coin");
                 return false;
             }
@@ -3821,7 +3821,7 @@ bool CWallet::CreateZerocoinSpendTransaction(int64_t nValue, libzerocoin::CoinDe
             int countUseablePubcoin = 0;
             BOOST_FOREACH(const CZerocoinEntry &zerocoinItem, listPubCoin){
                 // Count pubcoins in same block
-                if(zerocoinItem.value  != zerocoinSelected.value
+                if (zerocoinItem.value != zerocoinSelected.value
                         && zerocoinItem.id == zerocoinSelected.id
                         && chainActive.Height() > -1
                         && zerocoinItem.nHeight + 6 <= chainActive.Height()

@@ -6176,7 +6176,6 @@ void static ProcessGetData(CNode *pfrom, const Consensus::Params &consensusParam
                 }
 
                 if (!pushed && inv.type == MSG_ZNODE_PAYMENT_BLOCK) {
-                    LogPrintf("ProcessGetData() -> MSG_ZNODE_PAYMENT_BLOCK\n");
                     BlockMap::iterator mi = mapBlockIndex.find(inv.hash);
                     LOCK(cs_mapZnodeBlocks);
                     if (mi != mapBlockIndex.end() && mnpayments.mapZnodeBlocks.count(mi->second->nHeight)) {
@@ -6184,7 +6183,6 @@ void static ProcessGetData(CNode *pfrom, const Consensus::Params &consensusParam
                             std::vector<uint256> vecVoteHashes = payee.GetVoteHashes();
                             BOOST_FOREACH(uint256& hash, vecVoteHashes) {
                                 if(mnpayments.HasVerifiedPaymentVote(hash)) {
-                                    LogPrintf("ProcessGetData() ->MSG_ZNODE_PAYMENT_BLOCK -> ZNODEPAYMENTVOTE\n");
                                     CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
                                     ss.reserve(1000);
                                     ss << mnpayments.mapZnodePaymentVotes[hash];
@@ -6197,7 +6195,6 @@ void static ProcessGetData(CNode *pfrom, const Consensus::Params &consensusParam
                 }
 
                 if (!pushed && inv.type == MSG_ZNODE_ANNOUNCE) {
-                    LogPrintf("MSG_ZNODE_ANNOUNCE\n");
                     if(mnodeman.mapSeenZnodeBroadcast.count(inv.hash)){
                         CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
                         ss.reserve(1000);
@@ -6279,7 +6276,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
         return true;
     }
 
-    LogPrintf("ProcessMessage, strCommand=%s\n", strCommand);
+    LogPrint("main", "ProcessMessage, strCommand=%s\n", strCommand);
 
 
     if (!(nLocalServices & NODE_BLOOM) &&
@@ -6551,7 +6548,6 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
             }
         }
     } else if (strCommand == NetMsgType::INV) {
-        LogPrintf("NetMsgType::INV\n");
         vector <CInv> vInv;
         vRecv >> vInv;
         if (vInv.size() > MAX_INV_SZ) {
@@ -7608,7 +7604,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
         // We do not care about the NOTFOUND message, but logging an Unknown Command
         // message would be undesirable as we transmit it ourselves.
     } else {
-        LogPrintf("Main.cpp ProcessMessage() strCommand=%s\n", strCommand);
+//        LogPrintf("Main.cpp ProcessMessage() strCommand=%s\n", strCommand);
         // Ignore unknown commands for extensibility
         bool found = false;
         const std::vector <std::string> &allMessages = getAllNetMessageTypes();
@@ -7684,7 +7680,6 @@ bool ProcessMessages(CNode *pfrom) {
             continue;
         }
         string strCommand = hdr.GetCommand();
-        LogPrintf("ProcessMessages() strCommand = %s\n", strCommand);
 
         // Message size
         unsigned int nMessageSize = hdr.nMessageSize;
