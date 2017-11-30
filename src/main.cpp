@@ -1461,11 +1461,11 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, uint256 h
                         found_3 = true;
                         continue;
                     }
-                    if (output.scriptPubKey == FOUNDER_4_SCRIPT && output.nValue == (int64_t)(1 * COIN)) {
+                    if (output.scriptPubKey == FOUNDER_4_SCRIPT && output.nValue == (int64_t)(3 * COIN)) {
                         found_4 = true;
                         continue;
                     }
-                    if (output.scriptPubKey == FOUNDER_5_SCRIPT && output.nValue == (int64_t)(3 * COIN)) {
+                    if (output.scriptPubKey == FOUNDER_5_SCRIPT && output.nValue == (int64_t)(1 * COIN)) {
                         found_5 = true;
                         continue;
                     }
