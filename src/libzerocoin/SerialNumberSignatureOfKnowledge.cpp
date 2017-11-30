@@ -12,6 +12,98 @@
 
 #include "Zerocoin.h"
 
+#ifdef ZEROCOIN_THREADING
+
+#include <thread>
+#include <functional>
+#include <future>
+#include <mutex>
+#include <condition_variable>
+#include <queue>
+#include <vector>
+
+namespace {
+
+// Simple thread pool class for using multiple cores effeciently
+
+static class ParallelOpThreadPool {
+private:
+    std::vector<std::thread>                threads;
+    std::queue<std::packaged_task<void()>>  taskQueue;
+    std::mutex                              taskQueueMutex;
+    std::condition_variable                 taskQueueCondition;
+
+    bool                                    shutdown;
+
+public:
+    ParallelOpThreadPool() : shutdown(false) {
+        int nHardwareThreads = std::thread::hardware_concurrency();
+
+        auto threadProc = [this]() {
+            for (;;) {
+                std::packaged_task<void()> job;
+                {
+                    std::unique_lock<std::mutex> lock(taskQueueMutex);
+
+                    taskQueueCondition.wait(lock, [this]{return !taskQueue.empty() || shutdown; });
+                    if (taskQueue.empty())
+                        break;
+                    job = std::move(taskQueue.front());
+                    taskQueue.pop();
+                }
+                job();
+            }
+        };
+
+        for (int i=0; i<nHardwareThreads; i++)
+            threads.emplace_back(threadProc);
+    }
+
+    ~ParallelOpThreadPool() {
+        taskQueueMutex.lock();
+        shutdown = true;
+        taskQueueCondition.notify_all();
+        taskQueueMutex.unlock();
+
+        for (std::thread &t: threads)
+            t.join();
+    }
+
+    // Post a task to the thread pool a return a future to wait for its completion
+    std::future<void> PostTask(std::function<void()> task) {
+        std::packaged_task<void()> packagedTask(std::move(task));
+        std::future<void> ret = packagedTask.get_future();
+
+        taskQueueMutex.lock();
+        taskQueue.emplace(std::move(packagedTask));
+        taskQueueCondition.notify_one();
+        taskQueueMutex.unlock();
+
+        return ret;
+    }
+
+} s_parallelOpThreadPool;
+
+}
+
+#else
+
+namespace {
+
+static class ParallelOpThreadPool {
+public:
+    std::future<void> PostTask(std::function<void()> task) {
+        task();
+        std::promise<void> promise;
+        promise.set_value();
+        return promise.get_future();
+    }
+} s_parallelOpThreadPool;
+
+}
+
+#endif
+
 namespace libzerocoin {
 
 SerialNumberSignatureOfKnowledge::SerialNumberSignatureOfKnowledge(const Params* p): params(p) { }
@@ -50,13 +142,19 @@ SerialNumberSignatureOfKnowledge::SerialNumberSignatureOfKnowledge(const Params*
 	// Openssl's rng is not thread safe, so we don't call it in a parallel loop,
 	// instead we generate the random values beforehand and run the calculations
 	// based on those values in parallel.
-#ifdef ZEROCOIN_THREADING
-	#pragma omp parallel for
-#endif
+
+    std::vector<std::future<void>> challenges;
+    challenges.reserve(params->zkp_iterations);
+
 	for(uint32_t i=0; i < params->zkp_iterations; i++) {
 		// compute g^{ {a^x b^r} h^v} mod p2
-		c[i] = challengeCalculation(coin.getSerialNumber(), r[i], v[i]);
+        challenges.push_back(s_parallelOpThreadPool.PostTask([=,&coin,&c,&r,&v](){
+            c[i] = challengeCalculation(coin.getSerialNumber(), r[i], v[i]);
+        }));
 	}
+    for (std::future<void> &f: challenges)
+        f.get();
+    challenges.clear();
 
 	// We can't hash data in parallel either
 	// because OPENMP cannot not guarantee loops
@@ -67,9 +165,6 @@ SerialNumberSignatureOfKnowledge::SerialNumberSignatureOfKnowledge(const Params*
     this->hash = hasher.GetArith256Hash();
 	unsigned char *hashbytes =  (unsigned char*) &hash;
 
-#ifdef ZEROCOIN_THREADING
-	#pragma omp parallel for
-#endif
 	for(uint32_t i = 0; i < params->zkp_iterations; i++) {
 		int bit = i % 8;
 		int byte = i / 8;
@@ -79,11 +174,16 @@ SerialNumberSignatureOfKnowledge::SerialNumberSignatureOfKnowledge(const Params*
 			s_notprime[i]       = r[i];
 			sprime[i]           = v[i];
 		} else {
-			s_notprime[i]       = r[i] - coin.getRandomness();
-			sprime[i]           = v[i] - (commitmentToCoin.getRandomness() *
+            challenges.push_back(s_parallelOpThreadPool.PostTask([this,i,&r,&v,&b,&commitmentToCoin,&coin]() {
+                s_notprime[i]   = r[i] - coin.getRandomness();
+                sprime[i]       = v[i] - (commitmentToCoin.getRandomness() *
 			                              b.pow_mod(r[i] - coin.getRandomness(), params->serialNumberSoKCommitmentGroup.groupOrder));
+            }));
 		}
-	}
+        for (std::future<void> &f: challenges)
+            f.get();
+        challenges.clear();
+    }
 }
 
 inline Bignum SerialNumberSignatureOfKnowledge::challengeCalculation(const Bignum& a_exp,const Bignum& b_exp,
@@ -118,22 +218,29 @@ bool SerialNumberSignatureOfKnowledge::Verify(const Bignum& coinSerialNumber, co
 
 	vector<CBigNum> tprime(params->zkp_iterations);
 	unsigned char *hashbytes = (unsigned char*) &this->hash;
-#ifdef ZEROCOIN_THREADING
-	#pragma omp parallel for
-#endif
+
+    std::vector<std::future<void>> challenges;
+    challenges.reserve(params->zkp_iterations);
+
 	for(uint32_t i = 0; i < params->zkp_iterations; i++) {
-		int bit = i % 8;
-		int byte = i / 8;
-		bool challenge_bit = ((hashbytes[byte] >> bit) & 0x01);
-		if(challenge_bit) {
-			tprime[i] = challengeCalculation(coinSerialNumber, s_notprime[i], sprime[i]);
-		} else {
-			Bignum exp = b.pow_mod(s_notprime[i], params->serialNumberSoKCommitmentGroup.groupOrder);
-			tprime[i] = ((valueOfCommitmentToCoin.pow_mod(exp, params->serialNumberSoKCommitmentGroup.modulus) % params->serialNumberSoKCommitmentGroup.modulus) *
-			             (h.pow_mod(sprime[i], params->serialNumberSoKCommitmentGroup.modulus) % params->serialNumberSoKCommitmentGroup.modulus)) %
-			            params->serialNumberSoKCommitmentGroup.modulus;
-		}
+        challenges.push_back(s_parallelOpThreadPool.PostTask([this,i,hashbytes,&b,&h,&tprime,&coinSerialNumber,&valueOfCommitmentToCoin]() {
+            int bit = i % 8;
+            int byte = i / 8;
+            bool challenge_bit = ((hashbytes[byte] >> bit) & 0x01);
+            if(challenge_bit) {
+                tprime[i] = challengeCalculation(coinSerialNumber, s_notprime[i], sprime[i]);
+            } else {
+                Bignum exp = b.pow_mod(s_notprime[i], params->serialNumberSoKCommitmentGroup.groupOrder);
+                tprime[i] = ((valueOfCommitmentToCoin.pow_mod(exp, params->serialNumberSoKCommitmentGroup.modulus) % params->serialNumberSoKCommitmentGroup.modulus) *
+                             (h.pow_mod(sprime[i], params->serialNumberSoKCommitmentGroup.modulus) % params->serialNumberSoKCommitmentGroup.modulus)) %
+                            params->serialNumberSoKCommitmentGroup.modulus;
+            }
+        }));
 	}
+
+    for (std::future<void> &f: challenges)
+        f.get();
+
 	for(uint32_t i = 0; i < params->zkp_iterations; i++) {
 		hasher << tprime[i];
 	}
