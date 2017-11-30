@@ -433,7 +433,7 @@ bool ZerocoinBuildStateFromIndex(CChain *chain) {
 // CZerocoinTxInfo
 
 void CZerocoinTxInfo::Complete() {
-    // We need to sort mints lexicographically by value of BN_bn2mpi(pubCoin). That's the way old code
+    // We need to sort mints lexicographically by serialized value of pubCoin. That's the way old code
     // works, we need to stick to it. Denomination doesn't matter but we will sort by it as well
     sort(mints.begin(), mints.end(),
          [](decltype(mints)::const_reference m1, decltype(mints)::const_reference m2)->bool {
