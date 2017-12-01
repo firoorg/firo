@@ -1704,7 +1704,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
 
     LogPrintf("Using Znode config file %s\n", GetZnodeConfigFile().string());
 
-    if (GetBoolArg("-mnconflock", true) && pwalletMain && (znodeConfig.getCount() > 0)) {
+    if (GetBoolArg("-znconflock", true) && pwalletMain && (znodeConfig.getCount() > 0)) {
         LOCK(pwalletMain->cs_wallet);
         LogPrintf("Locking Znodes:\n");
         uint256 mnTxHash;

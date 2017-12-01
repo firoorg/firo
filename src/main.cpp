@@ -6165,7 +6165,6 @@ void static ProcessGetData(CNode *pfrom, const Consensus::Params &consensusParam
                 }
 
                 if (!pushed && inv.type == MSG_ZNODE_PAYMENT_VOTE) {
-                    LogPrintf("ProcessGetData() -> MSG_ZNODE_PAYMENT_VOTE\n");
                     if(mnpayments.HasVerifiedPaymentVote(inv.hash)) {
                         CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
                         ss.reserve(1000);

@@ -272,11 +272,11 @@ static const CRPCCommand vRPCCommands[] =
     { "control",            "help",                   &help,                   true  },
     { "control",            "stop",                   &stop,                   true  },
         /* Dash features */
-    { "dash",               "znode",             &znode,             true  },
-    { "dash",               "mnsync",             &mnsync,             true  },
-    { "dash",               "znodelist",         &znodelist,         true  },
-    { "dash",               "znodebroadcast",    &znodebroadcast,    true  },
-    { "dash",               "getpoolinfo",            &getpoolinfo,            true  },
+    { "zcoin",               "znode",             &znode,             true  },
+    { "zcoin",               "znsync",             &znsync,             true  },
+    { "zcoin",               "znodelist",         &znodelist,         true  },
+    { "zcoin",               "znodebroadcast",    &znodebroadcast,    true  },
+    { "zcoin",               "getpoolinfo",            &getpoolinfo,            true  },
 };
 
 CRPCTable::CRPCTable()

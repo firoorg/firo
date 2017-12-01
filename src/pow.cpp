@@ -38,7 +38,7 @@ double GetDifficultyHelper(unsigned int nBits) {
 unsigned int GetNextWorkRequired(const CBlockIndex *pindexLast, const CBlockHeader *pblock, const Consensus::Params &params) {
     bool fTestNet = Params().NetworkIDString() == CBaseChainParams::TESTNET;
 
-	if(ENABLED_LOWEST_DIFF){
+	if(fTestNet && pindexLast->nHeight < 300){
 		return bnProofOfWorkLimit.GetCompact();
 	}
 

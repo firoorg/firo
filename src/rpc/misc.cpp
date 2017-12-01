@@ -279,11 +279,11 @@ CScript _createmultisig_redeemScript(const UniValue& params)
     return result;
 }
 
-UniValue mnsync(const UniValue& params, bool fHelp)
+UniValue znsync(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 1)
         throw runtime_error(
-                "mnsync [status|next|reset]\n"
+                "znsync [status|next|reset]\n"
                         "Returns the sync status, updates to the next step or resets it entirely.\n"
         );
 
