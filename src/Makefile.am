@@ -355,6 +355,8 @@ libbitcoin_util_a_SOURCES = \
   libzerocoin/CoinSpend.cpp \
   libzerocoin/Commitment.h \
   libzerocoin/Commitment.cpp \
+  libzerocoin/ParallelTasks.h \
+  libzerocoin/ParallelTasks.cpp \
   libzerocoin/ParamGeneration.h \
   libzerocoin/ParamGeneration.cpp \
   libzerocoin/Params.h \
