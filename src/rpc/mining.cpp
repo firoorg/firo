@@ -547,8 +547,8 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
     if (IsInitialBlockDownload())
         throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "Zcoin is downloading blocks...");
 
-//    if (!znodeSync.IsSynced())
-//        throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "Zcoin Core is syncing with network...");
+    if (!znodeSync.IsSynced())
+        throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "Zcoin Core is syncing with network...");
 
     static unsigned int nTransactionsUpdatedLast;
     if (!lpval.isNull())

@@ -290,12 +290,8 @@ public:
         vSeeds.clear();
         // nodes with support for servicebits filtering should be at the top
         // zcoin test seeds
-        vSeeds.push_back(CDNSSeedData("45.77.245.152", "45.77.245.152", false));
-//        vSeeds.push_back(CDNSSeedData("beta1.zcoin.io", "beta1.zcoin.io", false));
-//        vSeeds.push_back(CDNSSeedData("beta2.zcoin.io", "beta2.zcoin.io", false));
-//        vSeeds.push_back(CDNSSeedData("54.165.247.127", "54.165.247.127", false));
-//        vSeeds.push_back(CDNSSeedData("45.77.244.178", "45.77.244.178", false));
-//        vSeeds.push_back(CDNSSeedData("45.77.143.154", "45.77.143.154", false));
+        vSeeds.push_back(CDNSSeedData("beta1.zcoin.io", "beta1.zcoin.io", false));
+        vSeeds.push_back(CDNSSeedData("beta2.zcoin.io", "beta2.zcoin.io", false));
 
 //        vSeeds.push_back(CDNSSeedData("testnetbitcoin.jonasschnelli.ch", "testnet-seed.bitcoin.jonasschnelli.ch", true));
 //        vSeeds.push_back(CDNSSeedData("petertodd.org", "seed.tbtc.petertodd.org", true));
