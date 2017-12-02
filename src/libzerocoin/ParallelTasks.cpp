@@ -8,25 +8,32 @@
 #include <condition_variable>
 #include <queue>
 #include <vector>
+#include <list>
+#include <chrono>
+#include <algorithm>
 
 using namespace std;
 namespace libzerocoin {
 
 #ifdef ZEROCOIN_THREADING
 
+// Number of seconds before thread shuts down if idle
+constexpr static int secondsBeforeThreadShutdown = 10;
+
 // Simple thread pool class for using multiple cores effeciently
 
 static class ParallelOpThreadPool {
 private:
-    vector<thread>                threads;
+    list<thread>                  threads;
     queue<packaged_task<void()>>  taskQueue;
     mutex                         taskQueueMutex;
     condition_variable            taskQueueCondition;
 
     bool                          shutdown;
+    size_t                        numberOfThreads;
 
     void StartThreads() {
-        int nHardwareThreads = thread::hardware_concurrency();
+        // should be called with mutex aquired
 
         auto threadProc = [this]() {
             for (;;) {
@@ -34,9 +41,19 @@ private:
                 {
                     unique_lock<mutex> lock(taskQueueMutex);
 
-                    taskQueueCondition.wait(lock, [this]{return !taskQueue.empty() || shutdown; });
-                    if (taskQueue.empty())
+                    taskQueueCondition.wait_for(lock, chrono::seconds(secondsBeforeThreadShutdown),
+                                                [this] { return !taskQueue.empty() || shutdown; });
+                    if (taskQueue.empty()) {
+                        // Either timeout or shutdown. If it's a timeout we need to delete ourself from the thread list and detach the thread
+                        // In case of shutdown thread list will be empty and destructor will wait for this thread completion
+                        thread::id currentId = this_thread::get_id();
+                        auto pThread = find_if(threads.begin(), threads.end(), [=](const thread &t) { return t.get_id() == currentId; });
+                        if (pThread != threads.end()) {
+                            pThread->detach();
+                            threads.erase(pThread);
+                        }
                         break;
+                    }
                     job = move(taskQueue.front());
                     taskQueue.pop();
                 }
@@ -44,20 +61,29 @@ private:
             }
         };
 
-        for (int i=0; i<nHardwareThreads; i++)
+        // start missing threads
+        while(threads.size() < numberOfThreads)
             threads.emplace_back(threadProc);
     }
 
 public:
-    ParallelOpThreadPool() : shutdown(false) {}
+    ParallelOpThreadPool() : shutdown(false), numberOfThreads(thread::hardware_concurrency()) {}
 
     ~ParallelOpThreadPool() {
+        list<thread> threadsToJoin;
+
         taskQueueMutex.lock();
+
         shutdown = true;
         taskQueueCondition.notify_all();
+
+        // move the list to separate variable to wait for the shutdown process to complete
+        threadsToJoin.swap(threads);
+
         taskQueueMutex.unlock();
 
-        for (thread &t: threads)
+        // wait for all the threads
+        for (thread &t: threadsToJoin)
             t.join();
     }
 
@@ -68,8 +94,8 @@ public:
 
         taskQueueMutex.lock();
 
-        // lazy start threads on first request
-        if (threads.size() == 0)
+        // lazy start threads on first request or after shutdown
+        if (threads.size() < numberOfThreads)
             StartThreads();
 
         taskQueue.emplace(move(packagedTask));
