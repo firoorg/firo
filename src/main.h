@@ -183,8 +183,6 @@ static const bool DEFAULT_PEERBLOOMFILTERS = true;
 // Add more spend txs per block at block height
 #define SWITCH_TO_MORE_SPEND_TXS 60000
 
-// Enabled lowest diff for test local env
-#define ENABLED_LOWEST_DIFF false
 
 struct BlockHasher
 {

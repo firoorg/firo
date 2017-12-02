@@ -119,12 +119,12 @@ public:
 
         // znode params
         consensus.nZnodePaymentsStartBlock = 660000; // not true, but it's ok as long as it's less then nZnodePaymentsIncreaseBlock
-        consensus.nZnodePaymentsIncreaseBlock = 680000; // actual historical value
-        consensus.nZnodePaymentsIncreasePeriod = 576*30; // 17280 - actual historical value
-        consensus.nSuperblockStartBlock = 614820;
-        consensus.nBudgetPaymentsStartBlock = 328008; // actual historical value
-        consensus.nBudgetPaymentsCycleBlocks = 16616; // ~(60*24*30)/2.6, actual number of blocks per month is 200700 / 12 = 16725
-        consensus.nBudgetPaymentsWindowBlocks = 100;
+        //consensus.nZnodePaymentsIncreaseBlock = 680000; // actual historical value // not used for now, probably later
+        //consensus.nZnodePaymentsIncreasePeriod = 576*30; // 17280 - actual historical value // not used for now, probably later
+        //consensus.nSuperblockStartBlock = 614820;
+        //consensus.nBudgetPaymentsStartBlock = 328008; // actual historical value
+        //consensus.nBudgetPaymentsCycleBlocks = 16616; // ~(60*24*30)/2.6, actual number of blocks per month is 200700 / 12 = 16725
+        //consensus.nBudgetPaymentsWindowBlocks = 100;
         nMaxTipAge = 6 * 60 * 60; // ~144 blocks behind -> 2 x fork detection time, was 24 * 60 * 60 in bitcoin
 
         nPoolMaxTransactions = 3;
@@ -247,13 +247,13 @@ public:
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000708f98bf623f02e");
         // Znode params testnet
-        consensus.nZnodePaymentsStartBlock = 200; // not true, but it's ok as long as it's less then n
-        consensus.nZnodePaymentsIncreaseBlock = 200;
-        consensus.nZnodePaymentsIncreasePeriod = 210;
-        consensus.nSuperblockStartBlock = 61000;
-        consensus.nBudgetPaymentsStartBlock = 60000;
-        consensus.nBudgetPaymentsCycleBlocks = 50;
-        consensus.nBudgetPaymentsWindowBlocks = 10;
+        consensus.nZnodePaymentsStartBlock = 5200; // not true, but it's ok as long as it's less then n
+        //consensus.nZnodePaymentsIncreaseBlock = 360; // not used for now, probably later
+        //consensus.nZnodePaymentsIncreasePeriod = 650; // not used for now, probably later
+        //consensus.nSuperblockStartBlock = 61000;
+        //consensus.nBudgetPaymentsStartBlock = 60000;
+        //consensus.nBudgetPaymentsCycleBlocks = 50;
+        //consensus.nBudgetPaymentsWindowBlocks = 10;
         nMaxTipAge = 0x7fffffff; // allow mining on top of old blocks for testnet
 
         nPoolMaxTransactions = 3;
@@ -290,9 +290,12 @@ public:
         vSeeds.clear();
         // nodes with support for servicebits filtering should be at the top
         // zcoin test seeds
+        vSeeds.push_back(CDNSSeedData("45.77.245.152", "45.77.245.152", false));
 //        vSeeds.push_back(CDNSSeedData("beta1.zcoin.io", "beta1.zcoin.io", false));
 //        vSeeds.push_back(CDNSSeedData("beta2.zcoin.io", "beta2.zcoin.io", false));
-        vSeeds.push_back(CDNSSeedData("45.77.245.152", "45.77.245.152", false));
+//        vSeeds.push_back(CDNSSeedData("54.165.247.127", "54.165.247.127", false));
+//        vSeeds.push_back(CDNSSeedData("45.77.244.178", "45.77.244.178", false));
+//        vSeeds.push_back(CDNSSeedData("45.77.143.154", "45.77.143.154", false));
 
 //        vSeeds.push_back(CDNSSeedData("testnetbitcoin.jonasschnelli.ch", "testnet-seed.bitcoin.jonasschnelli.ch", true));
 //        vSeeds.push_back(CDNSSeedData("petertodd.org", "seed.tbtc.petertodd.org", true));

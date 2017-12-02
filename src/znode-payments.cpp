@@ -961,6 +961,6 @@ int CZnodePayments::GetStorageLimit() {
 void CZnodePayments::UpdatedBlockTip(const CBlockIndex *pindex) {
     pCurrentBlockIndex = pindex;
     LogPrint("mnpayments", "CZnodePayments::UpdatedBlockTip -- pCurrentBlockIndex->nHeight=%d\n", pCurrentBlockIndex->nHeight);
-
+    
     ProcessBlock(pindex->nHeight + 5);
 }
