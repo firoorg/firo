@@ -129,82 +129,33 @@ bool IsBlockValueValid(const CBlock &block, int nBlockHeight, CAmount blockRewar
 }
 
 bool IsBlockPayeeValid(const CTransaction &txNew, int nBlockHeight, CAmount blockReward) {
+    // we can only check znode payment /
+    const Consensus::Params &consensusParams = Params().GetConsensus();
+
+    if (nBlockHeight < consensusParams.nZnodePaymentsStartBlock) {
+        //there is no budget data to use to check anything, let's just accept the longest chain
+        if (fDebug) LogPrintf("IsBlockPayeeValid -- znode isn't start\n");
+        return true;
+    }
     if (!znodeSync.IsSynced()) {
         //there is no budget data to use to check anything, let's just accept the longest chain
         if (fDebug) LogPrintf("IsBlockPayeeValid -- WARNING: Client not synced, skipping block payee checks\n");
         return true;
     }
 
-    // we are still using budgets, but we have no data about them anymore,
-    // we can only check znode payment /
-    const Consensus::Params &consensusParams = Params().GetConsensus();
-
-//    if (nBlockHeight < consensusParams.nSuperblockStartBlock) {
+    //check for masternode payee
     if (mnpayments.IsTransactionValid(txNew, nBlockHeight)) {
         LogPrint("mnpayments", "IsBlockPayeeValid -- Valid znode payment at height %d: %s", nBlockHeight, txNew.ToString());
         return true;
     } else {
-        LogPrint("mnpayments", "IsBlockPayeeValid -- InValid znode payment at height %d: %s", nBlockHeight, txNew.ToString());
-        return false;
+        if(sporkManager.IsSporkActive(SPORK_8_ZNODE_PAYMENT_ENFORCEMENT)){
+            return false;
+        } else {
+            LogPrintf("ZNode payment enforcement is disabled, accepting block\n");
+            return true;
+        }
     }
 
-//    int nOffset = nBlockHeight % consensusParams.nBudgetPaymentsCycleBlocks;
-//    if (nBlockHeight >= consensusParams.nBudgetPaymentsStartBlock &&
-//        nOffset < consensusParams.nBudgetPaymentsWindowBlocks) {
-//        if (!sporkManager.IsSporkActive(SPORK_13_OLD_SUPERBLOCK_FLAG)) {
-//            // no budget blocks should be accepted here, if SPORK_13_OLD_SUPERBLOCK_FLAG is disabled
-//            LogPrint("gobject", "IsBlockPayeeValid -- ERROR: Client synced but budget spork is disabled and znode payment is invalid\n");
-//            return false;
-//        }
-//        // NOTE: this should never happen in real, SPORK_13_OLD_SUPERBLOCK_FLAG MUST be disabled when 12.1 starts to go live
-//        LogPrint("gobject", "IsBlockPayeeValid -- WARNING: Probably valid budget block, have no data, accepting\n");
-//        // TODO: reprocess blocks to make sure they are legit?
-//        return true;
-//    }
-
-//    if (sporkManager.IsSporkActive(SPORK_8_ZNODE_PAYMENT_ENFORCEMENT)) {
-//        LogPrintf("IsBlockPayeeValid -- ERROR: Invalid znode payment detected at height %d: %s", nBlockHeight, txNew.ToString());
-//        return false;
-//    }
-//
-//    LogPrintf("IsBlockPayeeValid -- WARNING: Znode payment enforcement is disabled, accepting any payee\n");
-//    return true;
-//    }
-
-    // superblocks started
-    // SEE IF THIS IS A VALID SUPERBLOCK
-
-//    if (sporkManager.IsSporkActive(SPORK_9_SUPERBLOCKS_ENABLED)) {
-////        if(CSuperblockManager::IsSuperblockTriggered(nBlockHeight)) {
-////            if(CSuperblockManager::IsValid(txNew, nBlockHeight, blockReward)) {
-////                LogPrint("gobject", "IsBlockPayeeValid -- Valid superblock at height %d: %s", nBlockHeight, txNew.ToString());
-////                return true;
-////            }
-////
-////            LogPrintf("IsBlockPayeeValid -- ERROR: Invalid superblock detected at height %d: %s", nBlockHeight, txNew.ToString());
-////            // should NOT allow such superblocks, when superblocks are enabled
-////            return false;
-////        }
-//        // continue validation, should pay MN
-//        LogPrint("gobject", "IsBlockPayeeValid -- No triggered superblock detected at height %d\n", nBlockHeight);
-//    } else {
-//        // should NOT allow superblocks at all, when superblocks are disabled
-//        LogPrint("gobject", "IsBlockPayeeValid -- Superblocks are disabled, no superblocks allowed\n");
-//    }
-
-    // IF THIS ISN'T A SUPERBLOCK OR SUPERBLOCK IS INVALID, IT SHOULD PAY A ZNODE DIRECTLY
-//    if (mnpayments.IsTransactionValid(txNew, nBlockHeight)) {
-//        LogPrint("mnpayments", "IsBlockPayeeValid -- Valid znode payment at height %d: %s", nBlockHeight, txNew.ToString());
-//        return true;
-//    }
-//
-//    if (sporkManager.IsSporkActive(SPORK_8_ZNODE_PAYMENT_ENFORCEMENT)) {
-//        LogPrintf("IsBlockPayeeValid -- ERROR: Invalid znode payment detected at height %d: %s", nBlockHeight, txNew.ToString());
-//        return false;
-//    }
-
-//    LogPrintf("IsBlockPayeeValid -- WARNING: Znode payment enforcement is disabled, accepting any payee\n");
-//    return true;
 }
 
 void FillBlockPayments(CMutableTransaction &txNew, int nBlockHeight, CAmount znodePayment, CTxOut &txoutZnodeRet, std::vector <CTxOut> &voutSuperblockRet) {

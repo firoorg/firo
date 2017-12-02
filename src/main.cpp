@@ -3111,8 +3111,8 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
         return state.DoS(100, error("ConnectBlock(): coinbase pays too much (actual=%d vs limit=%d)",
                                     block.vtx[0].GetValueOut(), blockReward),
                          REJECT_INVALID, "bad-cb-amount");
-    // DASH : MODIFIED TO CHECK MASTERNODE PAYMENTS AND SUPERBLOCKS
 
+    // ZNODE : MODIFIED TO CHECK MASTERNODE PAYMENTS AND SUPERBLOCKS
     // It's possible that we simply don't have enough data and this could fail
     // (i.e. block itself could be a correct one and we need to store it),
     // that's why this is in ConnectBlock. Could be the other way around however -
@@ -3121,15 +3121,15 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
     // TODO: resync data (both ways?) and try to reprocess this block later.
     std::string strError = "";
     if (!IsBlockValueValid(block, pindex->nHeight, blockReward, strError)) {
-        return state.DoS(0, error("ConnectBlock(DASH): %s", strError), REJECT_INVALID, "bad-cb-amount");
+        return state.DoS(0, error("ConnectBlock(): %s", strError), REJECT_INVALID, "bad-cb-amount");
     }
 
     if (!IsBlockPayeeValid(block.vtx[0], pindex->nHeight, blockReward)) {
         mapRejectedBlocks.insert(make_pair(block.GetHash(), GetTime()));
-        return state.DoS(0, error("ConnectBlock(DASH): couldn't find masternode or superblock payments"),
+        return state.DoS(0, error("ConnectBlock(): couldn't find masternode or superblock payments"),
                          REJECT_INVALID, "bad-cb-payee");
     }
-    // END DASH
+    // END ZNODE
 
     if (!control.Wait())
         return state.DoS(100, false);
