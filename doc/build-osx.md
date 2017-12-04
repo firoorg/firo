@@ -20,12 +20,18 @@ Dependencies
 
 NOTE: Building with Qt4 is still supported, however, could result in a broken UI. Building with Qt5 is recommended.
 
+In case you want to build the disk image with `make deploy` (.dmg / optional), you need RSVG
+
+      brew install librsvg
+      
 Build Zcoin Core
 ------------------------
 1.  Build Zcoin-core:
 
     Configure and build the headless bitcoin binaries as well as the GUI (if Qt is found).
-
+    
+    In case you want to build the disk image with `make deploy` (.dmg / optional), by passing `--with-gui` to configure.
+    
     You can disable the GUI build by passing `--without-gui` to configure.
         
         ./autogen.sh
@@ -34,11 +40,11 @@ Build Zcoin Core
 
 2.  It is recommended to build and run the unit tests:
 
-        make check
+       ` make check`
+        
+3.   You can also create a .dmg that contains the .app bundle (optional):
 
-3.  You can also create a .dmg that contains the .app bundle (optional):
-
-        make deploy
+       ` make deploy`
 
 
 Running
