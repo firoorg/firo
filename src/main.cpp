@@ -1416,7 +1416,12 @@ bool CheckTransaction(const CTransaction& tx, CValidationState& state, uint256 h
                 if (blockRotation >= 24 && blockRotation <= 38 && output.scriptPubKey == FOUNDER_4_SCRIPT && abs(output.nValue - reward) < 2 ) {
                     found_4 = true;
                 }
-                if (blockRotation >= 39 && blockRotation <= 94 && output.scriptPubKey == FOUNDER_5_SCRIPT && abs(output.nValue - reward) < 2 ) {
+            if (nHeight >= 250000) {
+                if (blockRotation >= 39 && blockRotation <= 84 && output.scriptPubKey == FOUNDER_5_SCRIPT && abs(output.nValue - reward) < 2 ) {
+                    found_5 = true;
+                }
+            if (nHeight < 250000) {
+                if (blockRotation >= 39 && blockRotation <= 94 && output.scriptPubKey == FOUNDER_5_SCRIPT && abs(outp$
                     found_5 = true;
                 }
               }
@@ -3483,11 +3488,11 @@ int GetInputAge(const CTxIn &txin)
  
 CAmount GetSmartnodePayment(int nHeight, CAmount blockValue) 
 { 
-    CAmount ret = blockValue/5; // start at 20% 
+    CAmount ret = blockValue/10; // start at 10% 
  
     int nMNPIBlock = Params().GetConsensus().nSmartnodePaymentsIncreaseBlock; 
     int nMNPIPeriod = Params().GetConsensus().nSmartnodePaymentsIncreasePeriod; 
- 
+/* 
     // mainnet: 
     if(nHeight > nMNPIBlock)                  ret += blockValue / 20; // 158000 - 25.0% - 2014-10-24 
     if(nHeight > nMNPIBlock+(nMNPIPeriod* 1)) ret += blockValue / 20; // 175280 - 30.0% - 2014-11-25 
@@ -3498,7 +3503,7 @@ CAmount GetSmartnodePayment(int nHeight, CAmount blockValue)
     if(nHeight > nMNPIBlock+(nMNPIPeriod* 6)) ret += blockValue / 40; // 261680 - 45.0% - 2015-05-01 
     if(nHeight > nMNPIBlock+(nMNPIPeriod* 7)) ret += blockValue / 40; // 278960 - 47.5% - 2015-06-01 
     if(nHeight > nMNPIBlock+(nMNPIPeriod* 9)) ret += blockValue / 40; // 313520 - 50.0% - 2015-08-03 
- 
+*/
     return ret; 
 } 
 

@@ -22,7 +22,7 @@ static const int SMARTNODE_MIN_MNP_SECONDS             =  10 * 60; //PRE_ENABLE_
 static const int SMARTNODE_EXPIRATION_SECONDS          =  65 * 60;
 static const int SMARTNODE_WATCHDOG_MAX_SECONDS        = 120 * 60;
 static const int SMARTNODE_NEW_START_REQUIRED_SECONDS  = 180 * 60;
-static const int SMARTNODE_COIN_REQUIRED  = 1000;
+static const int SMARTNODE_COIN_REQUIRED  = 10000;
 
 static const int SMARTNODE_POSE_BAN_MAX_SCORE          = 5;
 //
