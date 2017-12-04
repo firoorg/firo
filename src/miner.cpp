@@ -191,9 +191,14 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
             if(blockRotation >= 24 && blockRotation <= 38){
                coinbaseTx.vout.push_back(CTxOut(reward, CScript(FOUNDER_4_SCRIPT.begin(), FOUNDER_4_SCRIPT.end())));
             }
-            if(blockRotation >= 39 && blockRotation <= 94){
-               coinbaseTx.vout.push_back(CTxOut(reward, CScript(FOUNDER_5_SCRIPT.begin(), FOUNDER_5_SCRIPT.end())));
+	    if(nHeight >= 250000){
+               if(blockRotation >= 39 && blockRotation <= 84){
+                  coinbaseTx.vout.push_back(CTxOut(reward, CScript(FOUNDER_5_SCRIPT.begin(), FOUNDER_5_SCRIPT.end())));}
             }
+            if(nHeight < 250000){
+               if(blockRotation >= 39 && blockRotation <= 94){
+                  coinbaseTx.vout.push_back(CTxOut(reward, CScript(FOUNDER_5_SCRIPT.begin(), FOUNDER_5_SCRIPT.end())));}
+	    }
          }
     }
 

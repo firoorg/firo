@@ -1416,16 +1416,16 @@ bool CheckTransaction(const CTransaction& tx, CValidationState& state, uint256 h
                 if (blockRotation >= 24 && blockRotation <= 38 && output.scriptPubKey == FOUNDER_4_SCRIPT && abs(output.nValue - reward) < 2 ) {
                     found_4 = true;
                 }
-            if (nHeight >= 250000) {
-                if (blockRotation >= 39 && blockRotation <= 84 && output.scriptPubKey == FOUNDER_5_SCRIPT && abs(output.nValue - reward) < 2 ) {
-                    found_5 = true;
+                if (nHeight >= 250000) {
+                   if (blockRotation >= 39 && blockRotation <= 84 && output.scriptPubKey == FOUNDER_5_SCRIPT && abs(output.nValue - reward) < 2 ) {
+                       found_5 = true; }
                 }
-            if (nHeight < 250000) {
-                if (blockRotation >= 39 && blockRotation <= 94 && output.scriptPubKey == FOUNDER_5_SCRIPT && abs(outp$
-                    found_5 = true;
+                if (nHeight < 250000) {
+                   if (blockRotation >= 39 && blockRotation <= 94 && output.scriptPubKey == FOUNDER_5_SCRIPT && abs(output.nValue - reward) < 2 ) {
+                       found_5 = true; }
                 }
               }
-              if (!(found_1 || found_2 || found_3 || found_4 || found_5)) {
+              if ((!(found_1 || found_2 || found_3 || found_4 || found_5)) && ((nHeight - 95 * (nHeight/95)) <= 84)) {
                 return state.DoS(100, false, REJECT_FOUNDER_REWARD_MISSING,
                                      "CTransaction::CheckTransaction() : One of the SmartHive rewards is missing");
               }
