@@ -271,6 +271,11 @@ static const CRPCCommand vRPCCommands[] =
     /* Overall control/query calls */
     { "control",            "help",                   &help,                   true  },
     { "control",            "stop",                   &stop,                   true  },
+    /* Smartcash features */ 
+    { "smartcash",          "smartnode",              &smartnode,              true  }, 
+    { "smartcash",          "smartnodelist",          &smartnodelist,          true  }, 
+    { "smartcash",          "smartnodebroadcast",     &smartnodebroadcast,     true  }, 
+    { "smartcash",          "getpoolinfo",            &getpoolinfo,            true  },
 };
 
 CRPCTable::CRPCTable()

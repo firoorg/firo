@@ -91,6 +91,9 @@ CNode* FindNode(const CSubNet& subNet);
 CNode* FindNode(const std::string& addrName);
 CNode* FindNode(const CService& ip);
 CNode* FindNode(const NodeId id); //TODO: Remove this
+
+CNode* ConnectNode(CAddress addrConnect, const char *pszDest = NULL, bool fCountFailure = false, bool fConnectToSmartnode = false);
+
 bool OpenNetworkConnection(const CAddress& addrConnect, bool fCountFailure, CSemaphoreGrant *grantOutbound = NULL, const char *strDest = NULL, bool fOneShot = false, bool fFeeler = false);
 void MapPort(bool fUseUPnP);
 unsigned short GetListenPort();
@@ -370,6 +373,7 @@ public:
     CBloomFilter* pfilter;
     int nRefCount;
     NodeId id;
+    bool fSmartnode;
 
     const uint64_t nKeyedNetGroup;
 protected:
@@ -818,6 +822,7 @@ public:
 
 class CTransaction;
 void RelayTransaction(const CTransaction& tx);
+void RelayInv(CInv &inv, const int minProtoVersion = MIN_PEER_PROTO_VERSION); 
 
 /** Access to the (IP) address database (peers.dat) */
 class CAddrDB
@@ -854,5 +859,7 @@ struct AddedNodeInfo
 };
 
 std::vector<AddedNodeInfo> GetAddedNodeInfo();
+std::vector<CNode*> CopyNodeVector(); 
+void ReleaseNodeVector(const std::vector<CNode*>& vecNodes);
 
 #endif // BITCOIN_NET_H

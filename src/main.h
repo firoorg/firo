@@ -407,6 +407,12 @@ bool SequenceLocks(const CTransaction &tx, int flags, std::vector<int>* prevHeig
  */
 bool CheckSequenceLocks(const CTransaction &tx, int flags, LockPoints* lp = NULL, bool useExistingLockPoints = false);
 
+/** 
+ * Return true if hash can be found in chainActive at nBlockHeight height. 
+ * Fills hashRet with found hash, if no nBlockHeight is specified - chainActive.Height() is used. 
+ */ 
+bool GetBlockHash(uint256& hashRet, int nBlockHeight = -1); 
+
 /**
  * Closure representing one script verification
  * Note that this stores references to the spending transaction 
@@ -475,6 +481,16 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
  *  of problems. Note that in any case, coins may be modified. */
 bool DisconnectBlock(const CBlock& block, CValidationState& state, const CBlockIndex* pindex, CCoinsViewCache& coins, bool* pfClean = NULL);
 
+/** Reprocess a number of blocks to try and get on the correct chain again **/ 
+bool DisconnectBlocks(int blocks); 
+void ReprocessBlocks(int nBlocks); 
+ 
+int GetUTXOHeight(const COutPoint& outpoint); 
+int GetInputAge(const CTxIn &txin); 
+int GetInputAgeIX(const uint256 &nTXHash, const CTxIn &txin); 
+int GetIXConfirmations(const uint256 &nTXHash); 
+CAmount GetSmartnodePayment(int nHeight, CAmount blockValue);
+
 /** Check a block is completely valid from start to finish (only works on top of our current best block, with cs_main held) */
 bool TestBlockValidity(CValidationState& state, const CChainParams& chainparams, const CBlock& block, CBlockIndex* pindexPrev, bool fCheckPOW = true, bool fCheckMerkleRoot = true);
 
@@ -503,6 +519,9 @@ CBlockIndex* FindForkInGlobalIndex(const CChain& chain, const CBlockLocator& loc
 
 /** Mark a block as invalid. */
 bool InvalidateBlock(CValidationState& state, const CChainParams& chainparams, CBlockIndex *pindex);
+
+/** Remove invalidity status from a block and its descendants. */
+bool ReconsiderBlock(CValidationState& state, CBlockIndex *pindex);
 
 /** Remove invalidity status from a block and its descendants. */
 bool ResetBlockFailureFlags(CBlockIndex *pindex);

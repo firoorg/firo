@@ -27,6 +27,16 @@
 #include "rpc/register.h"
 #include "script/standard.h"
 #include "script/sigcache.h"
+#include "smartnode/activesmartnode.h" 
+#include "smartnode/darksend.h"
+#include "smartnode/flat-database.h" 
+#include "smartnode/instantx.h"
+#include "smartnode/netfulfilledman.h" 
+#include "smartnode/smartnodeconfig.h" 
+#include "smartnode/smartnodeman.h"
+#include "smartnode/smartnodepayments.h" 
+#include "smartnode/smartnodesync.h" 
+#include "smartnode/spork.h"
 #include "scheduler.h"
 #include "timedata.h"
 #include "txdb.h"
@@ -54,6 +64,7 @@
 #include <boost/filesystem.hpp>
 #include <boost/function.hpp>
 #include <boost/interprocess/sync/file_lock.hpp>
+#include <boost/lexical_cast.hpp>
 #include <boost/thread.hpp>
 #include <openssl/crypto.h>
 
@@ -1519,6 +1530,131 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
         StartTorControl(threadGroup, scheduler);
 
     StartNode(threadGroup, scheduler);
+
+    // ********************************************************* Step 11a: setup PrivateSend
+    fSmartNode = GetBoolArg("-smartnode", false);
+
+    LogPrintf("fSmartNode = %s\n", fSmartNode);
+    LogPrintf("smartnodeConfig.getCount(): %s\n", smartnodeConfig.getCount());
+
+    if ((fSmartNode || smartnodeConfig.getCount() > 0) && !fTxIndex) {
+        return InitError("Enabling Smartnode support requires turning on transaction indexing."
+                                 "Please add txindex=1 to your configuration and start with -reindex");
+    }
+
+    if (fSmartNode) {
+        LogPrintf("SMARTNODE:\n");
+
+        if (!GetArg("-smartnodeaddr", "").empty()) {
+            // Hot Smartnode (either local or remote) should get its address in
+            // CActiveSmartnode::ManageState() automatically and no longer relies on Smartnodeaddr.
+            return InitError(_("smartnodeaddr option is deprecated. Please use smartnode.conf to manage your remote smartnodes."));
+        }
+
+        std::string strSmartnodePrivKey = GetArg("-smartnodeprivkey", "");
+        if (!strSmartnodePrivKey.empty()) {
+            if (!darkSendSigner.GetKeysFromSecret(strSmartnodePrivKey, activeSmartnode.keySmartnode,
+                                                  activeSmartnode.pubKeySmartnode))
+                return InitError(_("Invalid smartnodeprivkey. Please see documenation."));
+
+            LogPrintf("  pubKeySmartnode: %s\n", CBitcoinAddress(activeSmartnode.pubKeySmartnode.GetID()).ToString());
+        } else {
+            return InitError(
+                    _("You must specify a smartnodeprivkey in the configuration. Please see documentation for help."));
+        }
+    }
+
+    LogPrintf("Using Smartnode config file %s\n", GetSmartnodeConfigFile().string());
+
+    if (GetBoolArg("-mnconflock", true) && pwalletMain && (smartnodeConfig.getCount() > 0)) {
+        LOCK(pwalletMain->cs_wallet);
+        LogPrintf("Locking Smartnodes:\n");
+        uint256 mnTxHash;
+        int outputIndex;
+        BOOST_FOREACH(CSmartnodeConfig::CSmartnodeEntry
+        mne, smartnodeConfig.getEntries()) {
+            mnTxHash.SetHex(mne.getTxHash());
+            outputIndex = boost::lexical_cast<unsigned int>(mne.getOutputIndex());
+            COutPoint outpoint = COutPoint(mnTxHash, outputIndex);
+            // don't lock non-spendable outpoint (i.e. it's already spent or it's not from this wallet at all)
+            if (pwalletMain->IsMine(CTxIn(outpoint)) != ISMINE_SPENDABLE) {
+                LogPrintf("  %s %s - IS NOT SPENDABLE, was not locked\n", mne.getTxHash(), mne.getOutputIndex());
+                continue;
+            }
+            pwalletMain->LockCoin(outpoint);
+            LogPrintf("  %s %s - locked successfully\n", mne.getTxHash(), mne.getOutputIndex());
+        }
+    }
+
+
+    nLiquidityProvider = GetArg("-liquidityprovider", nLiquidityProvider);
+    nLiquidityProvider = std::min(std::max(nLiquidityProvider, 0), 100);
+    darkSendPool.SetMinBlockSpacing(nLiquidityProvider * 15);
+
+    fEnablePrivateSend = GetBoolArg("-enableprivatesend", 0);
+    fPrivateSendMultiSession = GetBoolArg("-privatesendmultisession", DEFAULT_PRIVATESEND_MULTISESSION);
+    nPrivateSendRounds = GetArg("-privatesendrounds", DEFAULT_PRIVATESEND_ROUNDS);
+    nPrivateSendRounds = std::min(std::max(nPrivateSendRounds, 2), nLiquidityProvider ? 99999 : 16);
+    nPrivateSendAmount = GetArg("-privatesendamount", DEFAULT_PRIVATESEND_AMOUNT);
+    nPrivateSendAmount = std::min(std::max(nPrivateSendAmount, 2), 999999);
+
+    fEnableInstantSend = GetBoolArg("-enableinstantsend", 1);
+    nInstantSendDepth = GetArg("-instantsenddepth", DEFAULT_INSTANTSEND_DEPTH);
+    nInstantSendDepth = std::min(std::max(nInstantSendDepth, 0), 60);
+
+    //lite mode disables all Smartnode and Darksend related functionality
+    fLiteMode = GetBoolArg("-litemode", false);
+    if (fSmartNode && fLiteMode) {
+        return InitError("You can not start a smartnode in litemode");
+    }
+
+    LogPrintf("fLiteMode %d\n", fLiteMode);
+    LogPrintf("nInstantSendDepth %d\n", nInstantSendDepth);
+    LogPrintf("PrivateSend rounds %d\n", nPrivateSendRounds);
+    LogPrintf("PrivateSend amount %d\n", nPrivateSendAmount);
+
+    darkSendPool.InitDenominations();
+
+    // ********************************************************* Step 11b: Load cache data
+
+    // LOAD SERIALIZED DAT FILES INTO DATA CACHES FOR INTERNAL USE
+
+    uiInterface.InitMessage(_("Loading smartnode cache..."));
+    CFlatDB<CSmartnodeMan> flatdb1("mncache.dat", "magicSmartnodeCache");
+    if (!flatdb1.Load(mnodeman)) {
+        return InitError("Failed to load smartnode cache from mncache.dat");
+    }
+
+    if (mnodeman.size()) {
+        uiInterface.InitMessage(_("Loading Smartnode payment cache..."));
+        CFlatDB<CSmartnodePayments> flatdb2("mnpayments.dat", "magicSmartnodePaymentsCache");
+        if (!flatdb2.Load(mnpayments)) {
+            return InitError("Failed to load smartnode payments cache from mnpayments.dat");
+        }
+    } else {
+        uiInterface.InitMessage(_("Smartnode cache is empty, skipping payments and governance cache..."));
+    }
+
+    uiInterface.InitMessage(_("Loading fulfilled requests cache..."));
+    CFlatDB<CNetFulfilledRequestManager> flatdb4("netfulfilled.dat", "magicFulfilledCache");
+    if (!flatdb4.Load(netfulfilledman)) {
+        return InitError("Failed to load fulfilled requests cache from netfulfilled.dat");
+    }
+
+    // ********************************************************* Step 11c: update block tip in Dash modules
+
+    // force UpdatedBlockTip to initialize pCurrentBlockIndex for DS, MN payments and budgets
+    // but don't call it directly to prevent triggering of other listeners like zmq etc.
+//    GetMainSignals().UpdatedBlockTip(chainActive.Tip());
+    mnodeman.UpdatedBlockTip(chainActive.Tip());
+    darkSendPool.UpdatedBlockTip(chainActive.Tip());
+    mnpayments.UpdatedBlockTip(chainActive.Tip());
+    smartnodeSync.UpdatedBlockTip(chainActive.Tip());
+//    governance.UpdatedBlockTip(chainActive.Tip());
+
+    // ********************************************************* Step 11d: start dash-privatesend thread
+
+    threadGroup.create_thread(boost::bind(&ThreadCheckDarkSendPool));
 
     // ********************************************************* Step 12: finished
 

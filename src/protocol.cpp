@@ -39,6 +39,34 @@ const char *SENDCMPCT="sendcmpct";
 const char *CMPCTBLOCK="cmpctblock";
 const char *GETBLOCKTXN="getblocktxn";
 const char *BLOCKTXN="blocktxn";
+//smartnode 
+const char *SPORK="spork"; 
+const char *GETSPORKS="getsporks"; 
+const char *SMARTNODEPAYMENTVOTE="mnw"; 
+const char *SMARTNODEPAYMENTBLOCK="mnwb"; 
+const char *SMARTNODEPAYMENTSYNC="mnget"; 
+const char *MNBUDGETSYNC="mnvs"; // depreciated since 12.1 
+const char *MNBUDGETVOTE="mvote"; // depreciated since 12.1 
+const char *MNBUDGETPROPOSAL="mprop"; // depreciated since 12.1 
+const char *MNBUDGETFINAL="fbs"; // depreciated since 12.1 
+const char *MNBUDGETFINALVOTE="fbvote"; // depreciated since 12.1 
+const char *MNQUORUM="mn quorum"; // not implemented 
+const char *MNANNOUNCE="mnb"; 
+const char *MNPING="mnp"; 
+const char *DSACCEPT="dsa"; 
+const char *DSVIN="dsi"; 
+const char *DSFINALTX="dsf"; 
+const char *DSSIGNFINALTX="dss"; 
+const char *DSCOMPLETE="dsc"; 
+const char *DSSTATUSUPDATE="dssu"; 
+const char *DSTX="dstx"; 
+const char *DSQUEUE="dsq"; 
+const char *DSEG="dseg"; 
+const char *SYNCSTATUSCOUNT="ssc"; 
+const char *MNGOVERNANCESYNC="govsync"; 
+const char *MNGOVERNANCEOBJECT="govobj"; 
+const char *MNGOVERNANCEOBJECTVOTE="govobjvote"; 
+const char *MNVERIFY="mnv"; 
 };
 
 /** All known message types. Keep this in the same order as the list of
@@ -71,6 +99,27 @@ const static std::string allNetMessageTypes[] = {
     NetMsgType::CMPCTBLOCK,
     NetMsgType::GETBLOCKTXN,
     NetMsgType::BLOCKTXN,
+    //smartnode 
+    NetMsgType::SMARTNODEPAYMENTVOTE, 
+    NetMsgType::SPORK, 
+    NetMsgType::GETSPORKS, 
+    NetMsgType::SMARTNODEPAYMENTSYNC, 
+    NetMsgType::MNANNOUNCE, 
+    NetMsgType::MNPING, 
+    NetMsgType::DSACCEPT, 
+    NetMsgType::DSVIN, 
+    NetMsgType::DSFINALTX, 
+    NetMsgType::DSSIGNFINALTX, 
+    NetMsgType::DSCOMPLETE, 
+    NetMsgType::DSSTATUSUPDATE, 
+    NetMsgType::DSTX, 
+    NetMsgType::DSQUEUE, 
+    NetMsgType::DSEG, 
+    NetMsgType::SYNCSTATUSCOUNT, 
+    NetMsgType::MNGOVERNANCESYNC, 
+    NetMsgType::MNGOVERNANCEOBJECT, 
+    NetMsgType::MNGOVERNANCEOBJECTVOTE, 
+    NetMsgType::MNVERIFY, 
 };
 const static std::vector<std::string> allNetMessageTypesVec(allNetMessageTypes, allNetMessageTypes+ARRAYLEN(allNetMessageTypes));
 

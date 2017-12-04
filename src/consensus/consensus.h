@@ -18,6 +18,8 @@ static const unsigned int MAX_BLOCK_BASE_SIZE = 1000000;
 static const int64_t MAX_BLOCK_SIGOPS_COST = 160000;
 /** Coinbase transaction outputs can only be spent after this number of new blocks (network rule) */
 static const int COINBASE_MATURITY = 100;
+/** Smartnode start block*/
+static const int HF_SMARTNODE_HEIGHT = 250000;
 
 /** Flags for nSequence and nLockTime locks */
 enum {

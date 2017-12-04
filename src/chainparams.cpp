@@ -104,7 +104,20 @@ public:
 
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000000000000111111");
+        // smartnode params
+        consensus.nSmartnodePaymentsStartBlock = 660000; // not true, but it's ok as long as it's less then nSmartnodePaymentsIncreaseBlock
+        consensus.nSmartnodePaymentsIncreaseBlock = 680000; // actual historical value
+        consensus.nSmartnodePaymentsIncreasePeriod = 576*30; // 17280 - actual historical value
+        consensus.nSuperblockStartBlock = 614820;
+        consensus.nBudgetPaymentsStartBlock = 328008; // actual historical value
+        consensus.nBudgetPaymentsCycleBlocks = 16616; // ~(60*24*30)/2.6, actual number of blocks per month is 200700 / 12 = 16725
+        consensus.nBudgetPaymentsWindowBlocks = 100;
+        nMaxTipAge = 6 * 60 * 60; // ~144 blocks behind -> 2 x fork detection time, was 24 * 60 * 60 in bitcoin
 
+        nPoolMaxTransactions = 3;
+        nFulfilledRequestExpireTime = 60*60; // fulfilled requests expire in 1 hour
+        strSporkPubKey = "04549ac134f694c0243f503e8c8a9a986f5de6610049c40b07816809b0d1d06a21b07be27b9bb555931773f62ba6cf35a25fd52f694d4e1106ccd237a7bb899fdd";
+        strSmartnodePaymentsPubKey = "04549ac134f694c0243f503e8c8a9a986f5de6610049c40b07816809b0d1d06a21b07be27b9bb555931773f62ba6cf35a25fd52f694d4e1106ccd237a7bb899fdd";
         /**
          * The message start string is designed to be unlikely to occur in normal data.
          * The characters are rarely used upper ASCII, not valid as UTF-8, and produce

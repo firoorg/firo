@@ -41,6 +41,10 @@ public:
     boost::signals2::signal<std::string (const char* psz)> Translate;
 };
 
+extern bool fSmartNode; 
+extern bool fLiteMode; 
+extern int nWalletBackups; 
+
 extern std::map<std::string, std::string> mapArgs;
 extern std::map<std::string, std::vector<std::string> > mapMultiArgs;
 extern bool fDebug;
@@ -127,8 +131,10 @@ bool RenameOver(boost::filesystem::path src, boost::filesystem::path dest);
 bool TryCreateDirectory(const boost::filesystem::path& p);
 boost::filesystem::path GetDefaultDataDir();
 const boost::filesystem::path &GetDataDir(bool fNetSpecific = true);
+const boost::filesystem::path &GetBackupsDir(); 
 void ClearDatadirCache();
 boost::filesystem::path GetConfigFile();
+boost::filesystem::path GetSmartnodeConfigFile();
 #ifndef WIN32
 boost::filesystem::path GetPidFile();
 void CreatePidFile(const boost::filesystem::path &path, pid_t pid);

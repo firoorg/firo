@@ -62,6 +62,16 @@ struct Params {
     int64_t nPowTargetTimespan;
     int64_t DifficultyAdjustmentInterval() const { return nPowTargetTimespan / nPowTargetSpacing; }
     uint256 nMinimumChainWork;
+
+    int nInstantSendKeepLock; // in blocks
+    int nBudgetPaymentsStartBlock;
+    int nBudgetPaymentsCycleBlocks;
+    int nBudgetPaymentsWindowBlocks;
+    int nSmartnodeMinimumConfirmations;
+    int nSmartnodePaymentsStartBlock;
+    int nSmartnodePaymentsIncreaseBlock;
+    int nSmartnodePaymentsIncreasePeriod; // in blocks
+    int nSuperblockStartBlock;
 };
 } // namespace Consensus
 

@@ -128,6 +128,16 @@ BITCOIN_CORE_H = \
   script/sign.h \
   script/standard.h \
   script/ismine.h \
+  smartnode/activesmartnode.h \
+  smartnode/darksend.h \
+  smartnode/darksendrelay.h \
+  smartnode/instantx.h \
+  smartnode/netfulfilledman.h \
+  smartnode/smartnode.h \
+  smartnode/smartnodeconfig.h \
+  smartnode/smartnodeman.h \
+  smartnode/smartnodepayments.h \
+  smartnode/smartnodesync.h \
   streams.h \
   support/allocators/secure.h \
   support/allocators/zeroafterfree.h \
@@ -191,8 +201,10 @@ libbitcoin_server_a_SOURCES = \
   rpc/net.cpp \
   rpc/rawtransaction.cpp \
   rpc/server.cpp \
+  rpc/rpcsmartnode.cpp \
   script/sigcache.cpp \
   script/ismine.cpp \
+  smartnode/netfulfilledman.cpp \
   timedata.cpp \
   torcontrol.cpp \
   txdb.cpp \
@@ -217,6 +229,15 @@ endif
 libbitcoin_wallet_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 libbitcoin_wallet_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_wallet_a_SOURCES = \
+  smartnode/activesmartnode.cpp \
+  smartnode/darksend.cpp \
+  smartnode/darksendrelay.cpp \
+  smartnode/instantx.cpp \
+  smartnode/smartnode.cpp \
+  smartnode/smartnodeconfig.cpp \
+  smartnode/smartnodeman.cpp \
+  smartnode/smartnodepayments.cpp \
+  smartnode/smartnodesync.cpp \
   wallet/crypter.cpp \
   wallet/db.cpp \
   wallet/rpcdump.cpp \
@@ -277,6 +298,9 @@ libbitcoin_consensus_a_SOURCES = \
   script/script.h \
   script/script_error.cpp \
   script/script_error.h \
+  smartnode/flat-database.h \
+  smartnode/spork.cpp \
+  smartnode/spork.h \
   serialize.h \
   tinyformat.h \
   uint256.cpp \

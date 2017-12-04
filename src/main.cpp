@@ -29,6 +29,11 @@
 #include "script/script.h"
 #include "script/sigcache.h"
 #include "script/standard.h"
+#include "smartnode/darksend.h"
+#include "smartnode/instantx.h"
+#include "smartnode/smartnodeman.h"
+#include "smartnode/smartnodepayments.h"
+#include "smartnode/smartnodesync.h"
 #include "tinyformat.h"
 #include "txdb.h"
 #include "txmempool.h"
@@ -93,6 +98,8 @@ CAmount maxTxFee = DEFAULT_TRANSACTION_MAXFEE;
 
 CTxMemPool mempool(::minRelayTxFee);
 FeeFilterRounder filterRounder(::minRelayTxFee);
+
+map <uint256, int64_t> mapRejectedBlocks GUARDED_BY(cs_main);
 
 int64_t nTransactionFee = 0;
 int64_t nMinimumInputValue = DUST_HARD_LIMIT;
@@ -666,6 +673,16 @@ bool GetNodeStateStats(NodeId nodeid, CNodeStateStats &stats) {
             stats.vHeightInFlight.push_back(queue.pindex->nHeight);
     }
     return true;
+}
+
+bool GetBlockHash(uint256& hashRet, int nBlockHeight) 
+{ 
+    LOCK(cs_main); 
+    if(chainActive.Tip() == NULL) return false; 
+    if(nBlockHeight < -1 || nBlockHeight > chainActive.Height()) return false; 
+    if(nBlockHeight == -1) nBlockHeight = chainActive.Height(); 
+    hashRet = chainActive[nBlockHeight]->GetBlockHash(); 
+    return true; 
 }
 
 void RegisterNodeSignals(CNodeSignals& nodeSignals)
@@ -3432,6 +3449,59 @@ bool static ConnectTip(CValidationState& state, const CChainParams& chainparams,
     return true;
 }
 
+int GetUTXOHeight(const COutPoint& outpoint) 
+{ 
+    LOCK(cs_main); 
+    CCoins coins; 
+    if(!pcoinsTip->GetCoins(outpoint.hash, coins) || 
+       (unsigned int)outpoint.n>=coins.vout.size() || 
+       coins.vout[outpoint.n].IsNull()) { 
+        return -1; 
+    } 
+    return coins.nHeight; 
+} 
+ 
+int GetInputAge(const CTxIn &txin) 
+{ 
+    CCoinsView viewDummy; 
+    CCoinsViewCache view(&viewDummy); 
+    { 
+        LOCK(mempool.cs); 
+        CCoinsViewMemPool viewMempool(pcoinsTip, mempool); 
+        view.SetBackend(viewMempool); // temporarily switch cache backend to db+mempool view 
+ 
+        const CCoins* coins = view.AccessCoins(txin.prevout.hash); 
+ 
+        if (coins) { 
+            if(coins->nHeight < 0) return 0; 
+            return chainActive.Height() - coins->nHeight + 1; 
+        } else { 
+            return -1; 
+        } 
+    } 
+} 
+ 
+CAmount GetSmartnodePayment(int nHeight, CAmount blockValue) 
+{ 
+    CAmount ret = blockValue/5; // start at 20% 
+ 
+    int nMNPIBlock = Params().GetConsensus().nSmartnodePaymentsIncreaseBlock; 
+    int nMNPIPeriod = Params().GetConsensus().nSmartnodePaymentsIncreasePeriod; 
+ 
+    // mainnet: 
+    if(nHeight > nMNPIBlock)                  ret += blockValue / 20; // 158000 - 25.0% - 2014-10-24 
+    if(nHeight > nMNPIBlock+(nMNPIPeriod* 1)) ret += blockValue / 20; // 175280 - 30.0% - 2014-11-25 
+    if(nHeight > nMNPIBlock+(nMNPIPeriod* 2)) ret += blockValue / 20; // 192560 - 35.0% - 2014-12-26 
+    if(nHeight > nMNPIBlock+(nMNPIPeriod* 3)) ret += blockValue / 40; // 209840 - 37.5% - 2015-01-26 
+    if(nHeight > nMNPIBlock+(nMNPIPeriod* 4)) ret += blockValue / 40; // 227120 - 40.0% - 2015-02-27 
+    if(nHeight > nMNPIBlock+(nMNPIPeriod* 5)) ret += blockValue / 40; // 244400 - 42.5% - 2015-03-30 
+    if(nHeight > nMNPIBlock+(nMNPIPeriod* 6)) ret += blockValue / 40; // 261680 - 45.0% - 2015-05-01 
+    if(nHeight > nMNPIBlock+(nMNPIPeriod* 7)) ret += blockValue / 40; // 278960 - 47.5% - 2015-06-01 
+    if(nHeight > nMNPIBlock+(nMNPIPeriod* 9)) ret += blockValue / 40; // 313520 - 50.0% - 2015-08-03 
+ 
+    return ret; 
+} 
+
 /**
  * Connect a new ZCblock to chainActive. pblock is either NULL or a pointer to a CBlock
  * corresponding to pindexNew, to bypass loading it again from disk.
@@ -3492,6 +3562,48 @@ CBlock block;
         }
     }
     return true;
+}
+
+bool DisconnectBlocks(int blocks) {
+    LOCK(cs_main);
+
+    CValidationState state;
+    const CChainParams &chainparams = Params();
+
+    LogPrintf("DisconnectBlocks -- Got command to replay %d blocks\n", blocks);
+    for (int i = 0; i < blocks; i++) {
+        if (!DisconnectTip(state, chainparams) || !state.IsValid()) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void ReprocessBlocks(int nBlocks) {
+    LOCK(cs_main);
+
+    std::map<uint256, int64_t>::iterator it = mapRejectedBlocks.begin();
+    while (it != mapRejectedBlocks.end()) {
+        //use a window twice as large as is usual for the nBlocks we want to reset
+        if ((*it).second > GetTime() - (nBlocks * 60 * 5)) {
+            BlockMap::iterator mi = mapBlockIndex.find((*it).first);
+            if (mi != mapBlockIndex.end() && (*mi).second) {
+
+                CBlockIndex *pindex = (*mi).second;
+                LogPrintf("ReprocessBlocks -- %s\n", (*it).first.ToString());
+
+                CValidationState state;
+                ReconsiderBlock(state, pindex);
+            }
+        }
+        ++it;
+    }
+
+    DisconnectBlocks(nBlocks);
+
+    CValidationState state;
+    ActivateBestChain(state, Params());
 }
 
 /**
@@ -3871,6 +3983,40 @@ bool InvalidateBlock(CValidationState& state, const CChainParams& chainparams, C
     InvalidChainFound(pindex);
     mempool.removeForReorg(pcoinsTip, chainActive.Tip()->nHeight + 1, STANDARD_LOCKTIME_VERIFY_FLAGS);
     uiInterface.NotifyBlockTip(IsInitialBlockDownload(), pindex->pprev);
+    return true;
+}
+
+bool ReconsiderBlock(CValidationState &state, CBlockIndex *pindex) {
+    AssertLockHeld(cs_main);
+
+    int nHeight = pindex->nHeight;
+
+    // Remove the invalidity flag from this block and all its descendants.
+    BlockMap::iterator it = mapBlockIndex.begin();
+    while (it != mapBlockIndex.end()) {
+        if (!it->second->IsValid() && it->second->GetAncestor(nHeight) == pindex) {
+            it->second->nStatus &= ~BLOCK_FAILED_MASK;
+            setDirtyBlockIndex.insert(it->second);
+            if (it->second->IsValid(BLOCK_VALID_TRANSACTIONS) && it->second->nChainTx &&
+                setBlockIndexCandidates.value_comp()(chainActive.Tip(), it->second)) {
+                setBlockIndexCandidates.insert(it->second);
+            }
+            if (it->second == pindexBestInvalid) {
+                // Reset invalid block marker if it was pointing to one of those.
+                pindexBestInvalid = NULL;
+            }
+        }
+        it++;
+    }
+
+    // Remove the invalidity flag from all ancestors too.
+    while (pindex != NULL) {
+        if (pindex->nStatus & BLOCK_FAILED_MASK) {
+            pindex->nStatus &= ~BLOCK_FAILED_MASK;
+            setDirtyBlockIndex.insert(pindex);
+        }
+        pindex = pindex->pprev;
+    }
     return true;
 }
 
