@@ -1416,11 +1416,11 @@ bool CheckTransaction(const CTransaction& tx, CValidationState& state, uint256 h
                 if (blockRotation >= 24 && blockRotation <= 38 && output.scriptPubKey == FOUNDER_4_SCRIPT && abs(output.nValue - reward) < 2 ) {
                     found_4 = true;
                 }
-                if (nHeight >= 250000) {
+                if (nHeight >= HF_SMARTNODE_HEIGHT) {
                    if (blockRotation >= 39 && blockRotation <= 84 && output.scriptPubKey == FOUNDER_5_SCRIPT && abs(output.nValue - reward) < 2 ) {
                        found_5 = true; }
                 }
-                if (nHeight < 250000) {
+                if (nHeight < HF_SMARTNODE_HEIGHT) {
                    if (blockRotation >= 39 && blockRotation <= 94 && output.scriptPubKey == FOUNDER_5_SCRIPT && abs(output.nValue - reward) < 2 ) {
                        found_5 = true; }
                 }
