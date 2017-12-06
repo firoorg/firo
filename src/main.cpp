@@ -1373,8 +1373,7 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, uint256 h
             bool found_3 = false;
             bool found_4 = false;
             bool found_5 = false;
-            int total_payment_tx = 0;
-            bool found_znode_payment = true; // no more than 1 output for payment
+            int total_payment_tx = 0; // no more than 1 output for payment
             CScript FOUNDER_1_SCRIPT;
             CScript FOUNDER_2_SCRIPT;
             CScript FOUNDER_3_SCRIPT;
@@ -1468,9 +1467,7 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, uint256 h
                         found_5 = true;
                         continue;
                     }
-                    if (znodePayment != output.nValue) {
-                        found_znode_payment = false;
-                    } else {
+                    if (znodePayment == output.nValue) {
                         total_payment_tx = total_payment_tx + 1;
                     }
                 }
@@ -1481,7 +1478,7 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, uint256 h
                                  "CTransaction::CheckTransaction() : founders reward missing");
             }
 
-            if (!found_znode_payment || total_payment_tx > 1) {
+            if (total_payment_tx > 1) {
                 return state.DoS(100, false, REJECT_INVALID_ZNODE_PAYMENT,
                                  "CTransaction::CheckTransaction() : invalid znode payment");
             }
