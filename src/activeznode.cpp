@@ -224,7 +224,7 @@ void CActiveZnode::ManageStateInitial() {
     }
 
     if (pwalletMain->GetBalance() < ZNODE_COIN_REQUIRED * COIN) {
-        LogPrintf("CActiveZnode::ManageStateInitial -- %s: Wallet balance is < 1000 DASH\n", GetStateString());
+        LogPrintf("CActiveZnode::ManageStateInitial -- %s: Wallet balance is < 1000 XZC\n", GetStateString());
         return;
     }
 
@@ -257,6 +257,8 @@ void CActiveZnode::ManageStateRemote() {
         }
         if (service != infoMn.addr) {
             nState = ACTIVE_ZNODE_NOT_CAPABLE;
+            LogPrintf("service: %s\n", service.ToString());
+            LogPrintf("infoMn.addr: %s\n", infoMn.addr.ToString());
             strNotCapableReason = "Broadcasted IP doesn't match our external address. Make sure you issued a new broadcast if IP of this znode changed recently.";
             LogPrintf("CActiveZnode::ManageStateRemote -- %s: %s\n", GetStateString(), strNotCapableReason);
             return;

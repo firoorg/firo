@@ -119,7 +119,7 @@ bool AppInit(int argc, char* argv[])
             return false;
         }
 
-        // parse masternode.conf
+        // parse znode.conf
         std::string strErr;
         if(!znodeConfig.read(strErr)) {
             fprintf(stderr,"Error reading znode configuration file: %s\n", strErr.c_str());

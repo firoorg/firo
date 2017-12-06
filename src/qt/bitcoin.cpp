@@ -632,7 +632,7 @@ int main(int argc, char *argv[])
     std::string strErr;
     if(!znodeConfig.read(strErr)) {
         QMessageBox::critical(0, QObject::tr("Zcoin Core"),
-                              QObject::tr("Error reading masternode configuration file: %1").arg(strErr.c_str()));
+                              QObject::tr("Error reading znode configuration file: %1").arg(strErr.c_str()));
         return EXIT_FAILURE;
     }
 

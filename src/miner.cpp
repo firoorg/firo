@@ -484,7 +484,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
             }
         }
         CAmount blockReward = nFees + GetBlockSubsidy(nHeight, chainparams.GetConsensus());
-        // Update coinbase transaction with additional info about masternode and governance payments,
+        // Update coinbase transaction with additional info about znode and governance payments,
         // get some info back to pass to getblocktemplate
         if (nHeight >= chainparams.GetConsensus().nZnodePaymentsStartBlock) {
             CAmount znodePayment = GetZnodePayment(nHeight, blockReward);

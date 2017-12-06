@@ -1360,8 +1360,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     }
 
     if (mapArgs.count("-externalip")) {
-        BOOST_FOREACH(
-        const std::string &strAddr, mapMultiArgs["-externalip"]) {
+        BOOST_FOREACH(const std::string &strAddr, mapMultiArgs["-externalip"]) {
             CService addrLocal;
             if (Lookup(strAddr.c_str(), addrLocal, GetListenPort(), fNameLookup) && addrLocal.IsValid())
                 AddLocal(addrLocal, LOCAL_MANUAL);
@@ -1709,8 +1708,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
         LogPrintf("Locking Znodes:\n");
         uint256 mnTxHash;
         int outputIndex;
-        BOOST_FOREACH(CZnodeConfig::CZnodeEntry
-        mne, znodeConfig.getEntries()) {
+        BOOST_FOREACH(CZnodeConfig::CZnodeEntry mne, znodeConfig.getEntries()) {
             mnTxHash.SetHex(mne.getTxHash());
             outputIndex = boost::lexical_cast<unsigned int>(mne.getOutputIndex());
             COutPoint outpoint = COutPoint(mnTxHash, outputIndex);

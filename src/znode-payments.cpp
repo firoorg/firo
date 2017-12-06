@@ -143,7 +143,7 @@ bool IsBlockPayeeValid(const CTransaction &txNew, int nBlockHeight, CAmount bloc
         return true;
     }
 
-    //check for masternode payee
+    //check for znode payee
     if (mnpayments.IsTransactionValid(txNew, nBlockHeight)) {
         LogPrint("mnpayments", "IsBlockPayeeValid -- Valid znode payment at height %d: %s", nBlockHeight, txNew.ToString());
         return true;
@@ -155,7 +155,6 @@ bool IsBlockPayeeValid(const CTransaction &txNew, int nBlockHeight, CAmount bloc
             return true;
         }
     }
-
 }
 
 void FillBlockPayments(CMutableTransaction &txNew, int nBlockHeight, CAmount znodePayment, CTxOut &txoutZnodeRet, std::vector <CTxOut> &voutSuperblockRet) {
@@ -519,9 +518,13 @@ bool CZnodeBlockPayees::IsTransactionValid(const CTransaction &txNew) {
     // if we don't have at least MNPAYMENTS_SIGNATURES_REQUIRED signatures on a payee, approve whichever is the longest chain
     if (nMaxSignatures < MNPAYMENTS_SIGNATURES_REQUIRED) return true;
 
+    bool hasValidPayee = false;
+
     BOOST_FOREACH(CZnodePayee & payee, vecPayees)
     {
         if (payee.GetVoteCount() >= MNPAYMENTS_SIGNATURES_REQUIRED) {
+            hasValidPayee = true;
+
             BOOST_FOREACH(CTxOut txout, txNew.vout) {
                 if (payee.GetPayee() == txout.scriptPubKey && nZnodePayment == txout.nValue) {
                     LogPrint("mnpayments", "CZnodeBlockPayees::IsTransactionValid -- Found required payment\n");
@@ -540,6 +543,8 @@ bool CZnodeBlockPayees::IsTransactionValid(const CTransaction &txNew) {
             }
         }
     }
+
+    if (!hasValidPayee) return true;
 
     LogPrintf("CZnodeBlockPayees::IsTransactionValid -- ERROR: Missing required payment, possible payees: '%s', amount: %f XZC\n", strPayeesPossible, (float) nZnodePayment / COIN);
     return false;

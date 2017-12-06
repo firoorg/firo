@@ -34,6 +34,9 @@
 #include "ui_interface.h"
 #include "util.h"
 
+#include "znode-sync.h"
+#include "znodelist.h"
+
 #include <iostream>
 
 #include <QAction>
@@ -97,6 +100,7 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *platformStyle, const NetworkStyle *n
     signMessageAction(0),
     verifyMessageAction(0),
     aboutAction(0),
+    znodeAction(0),
     receiveCoinsAction(0),
     receiveCoinsMenuAction(0),
     optionsAction(0),
@@ -310,8 +314,20 @@ void BitcoinGUI::createActions()
 
 
 #ifdef ENABLE_WALLET
-	// These showNormalIfMinimized are needed because Send Coins and Receive Coins
-	// can be triggered from the tray menu, and need to show the GUI to be useful.
+    // These showNormalIfMinimized are needed because Send Coins and Receive Coins
+    // can be triggered from the tray menu, and need to show the GUI to be useful.
+    znodeAction = new QAction(platformStyle->SingleColorIcon(":/icons/znodes"), tr("&Znodes"), this);
+    znodeAction->setStatusTip(tr("Browse znodes"));
+    znodeAction->setToolTip(znodeAction->statusTip());
+    znodeAction->setCheckable(true);
+#ifdef Q_OS_MAC
+    znodeAction->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_5));
+#else
+    znodeAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_5));
+#endif
+    tabGroup->addAction(znodeAction);
+    connect(znodeAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
+    connect(znodeAction, SIGNAL(triggered()), this, SLOT(gotoZnodePage()));
 	connect(overviewAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
 	connect(overviewAction, SIGNAL(triggered()), this, SLOT(gotoOverviewPage()));
 	connect(sendCoinsAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
@@ -460,6 +476,7 @@ void BitcoinGUI::createToolBars()
         toolbar->addAction(receiveCoinsAction);
         toolbar->addAction(historyAction);
         toolbar->addAction(zerocoinAction);
+        toolbar->addAction(znodeAction);
         overviewAction->setChecked(true);
     }
 }
@@ -558,6 +575,7 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
     receiveCoinsMenuAction->setEnabled(enabled);
     historyAction->setEnabled(enabled);
     zerocoinAction->setEnabled(enabled);
+    znodeAction->setEnabled(enabled);
     encryptWalletAction->setEnabled(enabled);
     backupWalletAction->setEnabled(enabled);
     changePassphraseAction->setEnabled(enabled);
@@ -686,6 +704,13 @@ void BitcoinGUI::gotoHistoryPage()
 {
     historyAction->setChecked(true);
     if (walletFrame) walletFrame->gotoHistoryPage();
+}
+
+void BitcoinGUI::gotoZnodePage()
+{
+    QSettings settings;
+    znodeAction->setChecked(true);
+    if (walletFrame) walletFrame->gotoZnodePage();
 }
 
 void BitcoinGUI::gotoReceiveCoinsPage()
@@ -834,6 +859,34 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
 #ifdef ENABLE_WALLET
         if(walletFrame)
             walletFrame->showOutOfSyncWarning(true);
+#endif // ENABLE_WALLET
+    }
+
+    if(!znodeSync.IsBlockchainSynced())
+    {
+        QString timeBehindText = GUIUtil::formatNiceTimeOffset(secs);
+
+        progressBarLabel->setVisible(true);
+        progressBar->setFormat(tr("%1 behind").arg(timeBehindText));
+        progressBar->setMaximum(1000000000);
+        progressBar->setValue(nVerificationProgress * 1000000000.0 + 0.5);
+        progressBar->setVisible(true);
+
+        tooltip = tr("Catching up...") + QString("<br>") + tooltip;
+        if(count != prevBlocks)
+        {
+            labelBlocksIcon->setPixmap(platformStyle->SingleColorIcon(QString(
+                            ":/movies/spinner-%1").arg(spinnerFrame, 3, 10, QChar('0')))
+                                               .pixmap(STATUSBAR_ICONSIZE, STATUSBAR_ICONSIZE));
+            spinnerFrame = (spinnerFrame + 1) % SPINNER_FRAMES;
+        }
+        prevBlocks = count;
+
+#ifdef ENABLE_WALLET
+        if(walletFrame)
+        {
+            walletFrame->showOutOfSyncWarning(true);
+        }
 #endif // ENABLE_WALLET
 
         tooltip += QString("<br>");

@@ -100,7 +100,7 @@ CAmount maxTxFee = DEFAULT_TRANSACTION_MAXFEE;
 CTxMemPool mempool(::minRelayTxFee);
 FeeFilterRounder filterRounder(::minRelayTxFee);
 
-// Dash masternode
+// Dash znode
 map <uint256, int64_t> mapRejectedBlocks GUARDED_BY(cs_main);
 
 // Settings
@@ -1367,7 +1367,7 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, uint256 h
         if (tx.vin[0].scriptSig.size() < 2 || tx.vin[0].scriptSig.size() > 100)
             return state.DoS(100, false, REJECT_INVALID, "bad-cb-length");
         // Check for founders inputs
-        if ((nHeight > ZC_CHECK_BUG_FIXED_AT_BLOCK) && (nHeight < 210000)) {
+        if (((nHeight > ZC_CHECK_BUG_FIXED_AT_BLOCK) && (nHeight < 210000)) || (fTestNet && nHeight >= 7200)) {
             bool found_1 = false;
             bool found_2 = false;
             bool found_3 = false;
@@ -1375,13 +1375,12 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, uint256 h
             bool found_5 = false;
             int total_payment_tx = 0;
             bool found_znode_payment = true; // no more than 1 output for payment
-
             CScript FOUNDER_1_SCRIPT;
             CScript FOUNDER_2_SCRIPT;
             CScript FOUNDER_3_SCRIPT;
             CScript FOUNDER_4_SCRIPT;
             CScript FOUNDER_5_SCRIPT;
-            if (!fTestNet || nHeight < Params().GetConsensus().nZnodePaymentsStartBlock) {
+            if (nHeight < Params().GetConsensus().nZnodePaymentsStartBlock) {
                 if (!fTestNet && GetAdjustedTime() > nStartRewardTime) {
                     FOUNDER_1_SCRIPT = GetScriptForDestination(CBitcoinAddress("aCAgTPgtYcA4EysU4UKC86EQd5cTtHtCcr").Get());
                     if (nHeight < 14000) {
@@ -1422,7 +1421,7 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, uint256 h
                         found_5 = true;
                     }
                 }
-            } else if (!fTestNet || nHeight >= Params().GetConsensus().nZnodePaymentsStartBlock) {
+            } else {
 
                 if (!fTestNet && GetAdjustedTime() > nStartRewardTime) {
                     FOUNDER_1_SCRIPT = GetScriptForDestination(CBitcoinAddress("aCAgTPgtYcA4EysU4UKC86EQd5cTtHtCcr").Get());
@@ -1580,8 +1579,7 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, uint256 h
         if (tx.IsZerocoinSpend()) {
             // Check vOut
             // Only one loop, we checked on the format before enter this case
-            BOOST_FOREACH(
-            const CTxOut &txout, tx.vout)
+            BOOST_FOREACH(const CTxOut &txout, tx.vout)
             {
                 CZerocoinEntry pubCoinTx;
                 list <CZerocoinEntry> listPubCoin;
@@ -1601,7 +1599,7 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, uint256 h
                         if (!CheckSpendZcoinTransaction(tx, pubCoinTx, listPubCoin, libzerocoin::ZQ_GOLDWASSER, state,
                                                         hashTx, isVerifyDB, nHeight, isCheckWallet)) {
                             return state.DoS(100,
-                                             error("CTr[ansaction::CheckTransaction() : COIN SPEND TX IN ZQ_GOLDWASSER DID NOT VERIFY!"));
+                                             error("CTransaction::CheckTransaction() : COIN SPEND TX IN ZQ_GOLDWASSER DID NOT VERIFY!"));
                         };
                     } else if (txout.nValue == libzerocoin::ZQ_RACKOFF * COIN) {
                         if (!CheckSpendZcoinTransaction(tx, pubCoinTx, listPubCoin, libzerocoin::ZQ_RACKOFF, state,
@@ -3112,7 +3110,7 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
                                     block.vtx[0].GetValueOut(), blockReward),
                          REJECT_INVALID, "bad-cb-amount");
 
-    // ZNODE : MODIFIED TO CHECK MASTERNODE PAYMENTS AND SUPERBLOCKS
+    // ZNODE : MODIFIED TO CHECK ZNODE PAYMENTS AND SUPERBLOCKS
     // It's possible that we simply don't have enough data and this could fail
     // (i.e. block itself could be a correct one and we need to store it),
     // that's why this is in ConnectBlock. Could be the other way around however -
@@ -3126,7 +3124,7 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
 
     if (!IsBlockPayeeValid(block.vtx[0], pindex->nHeight, blockReward)) {
         mapRejectedBlocks.insert(make_pair(block.GetHash(), GetTime()));
-        return state.DoS(0, error("ConnectBlock(): couldn't find masternode or superblock payments"),
+        return state.DoS(0, error("ConnectBlock(): couldn't find znode or superblock payments"),
                          REJECT_INVALID, "bad-cb-payee");
     }
     // END ZNODE
@@ -4510,14 +4508,14 @@ bool CheckBlock(const CBlock &block, CValidationState &state, const Consensus::P
                         instantsend.Relay(hashLocked);
                         LOCK(cs_main);
                         mapRejectedBlocks.insert(make_pair(block.GetHash(), GetTime()));
-                        return state.DoS(0, error("CheckBlock(DASH): transaction %s conflicts with transaction lock %s",
+                        return state.DoS(0, error("CheckBlock(XZC): transaction %s conflicts with transaction lock %s",
                                                   tx.GetHash().ToString(), hashLocked.ToString()),
                                          REJECT_INVALID, "conflict-tx-lock");
                     }
                 }
             }
         } else {
-            LogPrintf("CheckBlock(DASH): spork is off, skipping transaction locking checks\n");
+            LogPrintf("CheckBlock(XZC): spork is off, skipping transaction locking checks\n");
         }
 
         // Check transactions
@@ -6830,13 +6828,13 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
 
             CZnode *pmn = mnodeman.Find(dstx.vin);
             if (pmn == NULL) {
-                LogPrint("privatesend", "DSTX -- Can't find masternode %s to verify %s\n",
+                LogPrint("privatesend", "DSTX -- Can't find znode %s to verify %s\n",
                          dstx.vin.prevout.ToStringShort(), hashTx.ToString());
                 return false;
             }
 
             if (!pmn->fAllowMixingTx) {
-                LogPrint("privatesend", "DSTX -- Masternode %s is sending too many transactions %s\n",
+                LogPrint("privatesend", "DSTX -- Znode %s is sending too many transactions %s\n",
                          dstx.vin.prevout.ToStringShort(), hashTx.ToString());
                 return true;
                 // TODO: Not an error? Could it be that someone is relaying old DSTXes
@@ -6848,7 +6846,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
                 return false;
             }
 
-            LogPrintf("DSTX -- Got Masternode transaction %s\n", hashTx.ToString());
+            LogPrintf("DSTX -- Got Znode transaction %s\n", hashTx.ToString());
             mempool.PrioritiseTransaction(hashTx, hashTx.ToString(), 1000, 0.1 * COIN);
             pmn->fAllowMixingTx = false;
         }

@@ -466,7 +466,7 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
             "      \"amount\": n                   (numeric) required amount to pay\n"
             "  },\n"
             "  \"znode_payments_started\" :  true|false, (boolean) true, if znode payments started\n"
-//            "  \"masternode_payments_enforced\" : true|false, (boolean) true, if masternode payments are enforced\n"
+//            "  \"znode_payments_enforced\" : true|false, (boolean) true, if znode payments are enforced\n"
             "}\n"
 
             "\nExamples:\n"

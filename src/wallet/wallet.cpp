@@ -2128,7 +2128,7 @@ bool CWallet::SelectCoinsDark(CAmount nValueMin, CAmount nValueMax, std::vector 
         if (out.tx->vout[out.i].nValue < nValueMin / 10) continue;
         //do not allow collaterals to be selected
         if (IsCollateralAmount(out.tx->vout[out.i].nValue)) continue;
-        if (fZNode && out.tx->vout[out.i].nValue == ZNODE_COIN_REQUIRED * COIN) continue; //masternode input
+        if (fZNode && out.tx->vout[out.i].nValue == ZNODE_COIN_REQUIRED * COIN) continue; //znode input
 
         if (nValueRet + out.tx->vout[out.i].nValue <= nValueMax) {
             CTxIn txin = CTxIn(out.tx->GetHash(), out.i);
@@ -2146,7 +2146,7 @@ bool CWallet::SelectCoinsDark(CAmount nValueMin, CAmount nValueMax, std::vector 
     return nValueRet >= nValueMin;
 }
 
-// masternode
+// znode
 bool CWallet::GetCollateralTxIn(CTxIn& txinRet, CAmount& nValueRet) const
 {
     vector<COutput> vCoins;
@@ -2176,7 +2176,7 @@ bool CWallet::GetZnodeVinAndKeys(CTxIn &txinRet, CPubKey &pubKeyRet, CKey &keyRe
     std::vector <COutput> vPossibleCoins;
     AvailableCoins(vPossibleCoins, true, NULL, false, ONLY_1000);
     if (vPossibleCoins.empty()) {
-        LogPrintf("CWallet::GetMasternodeVinAndKeys -- Could not locate any valid masternode vin\n");
+        LogPrintf("CWallet::GetZnodeVinAndKeys -- Could not locate any valid znode vin\n");
         return false;
     }
 
@@ -2191,7 +2191,7 @@ bool CWallet::GetZnodeVinAndKeys(CTxIn &txinRet, CPubKey &pubKeyRet, CKey &keyRe
     if (out.tx->GetHash() == txHash && out.i == nOutputIndex) // found it!
         return GetVinAndKeysFromOutput(out, txinRet, pubKeyRet, keyRet);
 
-    LogPrintf("CWallet::GetMasternodeVinAndKeys -- Could not locate specified masternode vin\n");
+    LogPrintf("CWallet::GetZnodeVinAndKeys -- Could not locate specified znode vin\n");
     return false;
 }
 
@@ -2620,7 +2620,7 @@ bool CWallet::SelectCoinsByDenominations(int nDenom, CAmount nValueMin, CAmount 
     InsecureRand insecureRand;
     BOOST_FOREACH(const COutput &out, vCoins)
     {
-        // masternode-like input should not be selected by AvailableCoins now anyway
+        // znode-like input should not be selected by AvailableCoins now anyway
         //if(out.tx->vout[out.i].nValue == 1000*COIN) continue;
         if (nValueRet + out.tx->vout[out.i].nValue <= nValueMax) {
 
@@ -2856,17 +2856,6 @@ bool CWallet::CreateTransaction(const vector <CRecipient> &vecSend, CWalletTx &w
                 {
                     CTxOut txout(recipient.nAmount, recipient.scriptPubKey);
 
-//                    if (recipient.fSubtractFeeFromAmount) {
-//                        txout.nValue -=
-//                                nFeeRet / nSubtractFeeFromAmount; // Subtract fee equally from each selected recipient
-//
-//                        if (fFirst) // first receiver pays the remainder not divisible by output count
-//                        {
-//                            fFirst = false;
-//                            txout.nValue -= nFeeRet % nSubtractFeeFromAmount;
-//                        }
-//                    }
-
                     if (txout.IsDust(::minRelayTxFee)) {
                         if (recipient.fSubtractFeeFromAmount && nFeeRet > 0) {
                             if (txout.nValue < 0)
@@ -2885,28 +2874,18 @@ bool CWallet::CreateTransaction(const vector <CRecipient> &vecSend, CWalletTx &w
                 CAmount nValueIn = 0;
                 if (!SelectCoins(vAvailableCoins, nValueToSelect, setCoins, nValueIn, coinControl)) {
                     if (nCoinType == ONLY_NOT1000IFMN) {
-                        strFailReason = _("Unable to locate enough funds for this transaction that are not equal 1000 DASH.");
+                        strFailReason = _("Unable to locate enough funds for this transaction that are not equal 1000 XZC.");
                     } else if (nCoinType == ONLY_NONDENOMINATED_NOT1000IFMN) {
-                        strFailReason = _("Unable to locate enough PrivateSend non-denominated funds for this transaction that are not equal 1000 DASH.");
+                        strFailReason = _("Unable to locate enough PrivateSend non-denominated funds for this transaction that are not equal 1000 XZC.");
                     } else if (nCoinType == ONLY_DENOMINATED) {
                         strFailReason = _("Unable to locate enough PrivateSend denominated funds for this transaction.");
                         strFailReason += _("PrivateSend uses exact denominated amounts to send funds, you might simply need to anonymize some more coins.");
                     } else if (nValueIn < nValueToSelect) {
                         strFailReason = _("Insufficient funds.");
                     }
-                    if (fUseInstantSend) {
-                        if (nValueIn > sporkManager.GetSporkValue(SPORK_5_INSTANTSEND_MAX_VALUE) * COIN) {
-                            strFailReason += " " + strprintf(_("InstantSend doesn't support sending values that high yet. Transactions are currently limited to %1 DASH."),
-                                                             sporkManager.GetSporkValue(SPORK_5_INSTANTSEND_MAX_VALUE));
-                        } else {
-                            // could be not true but most likely that's the reason
-                            strFailReason += " " + strprintf(_("InstantSend requires inputs with at least %d confirmations, you might need to wait a few minutes and try again."),
-                                                             INSTANTSEND_CONFIRMATIONS_REQUIRED);
-                        }
-                    }
-
                     return false;
                 }
+
                 BOOST_FOREACH(PAIRTYPE(const CWalletTx*, unsigned int) pcoin, setCoins)
                 {
                     CAmount nCredit = pcoin.first->vout[pcoin.second].nValue;
@@ -3020,8 +2999,7 @@ bool CWallet::CreateTransaction(const vector <CRecipient> &vecSend, CWalletTx &w
                     const CScript &scriptPubKey = coin.first->vout[coin.second].scriptPubKey;
                     SignatureData sigdata;
                     if (sign)
-                        signSuccess = ProduceSignature(
-                                TransactionSignatureCreator(this, &txNewConst, nIn, coin.first->vout[coin.second].nValue, SIGHASH_ALL),
+                        signSuccess = ProduceSignature(TransactionSignatureCreator(this, &txNewConst, nIn, coin.first->vout[coin.second].nValue, SIGHASH_ALL),
                                 scriptPubKey, sigdata);
                     else
                         signSuccess = ProduceSignature(DummySignatureCreator(this), scriptPubKey, sigdata);
@@ -3081,28 +3059,6 @@ bool CWallet::CreateTransaction(const vector <CRecipient> &vecSend, CWalletTx &w
 
                 // Include more fee and try again.
                 nFeeRet = nFeeNeeded;
-                continue;
-
-
-//                CAmount nFeeNeeded = GetMinimumFee(nBytes, nTxConfirmTarget, mempool);
-//                if (coinControl && nFeeNeeded > 0 && coinControl->nMinimumTotalFee > nFeeNeeded) {
-//                    nFeeNeeded = coinControl->nMinimumTotalFee;
-//                }
-//                if (coinControl && coinControl->fOverrideFeeRate)
-//                    nFeeNeeded = coinControl->nFeeRate.GetFee(nBytes);
-
-                // If we made it here and we aren't even able to meet the relay fee on the next pass, give up
-                // because we must be at the maximum allowed fee.
-//                if (nFeeNeeded < ::minRelayTxFee.GetFee(nBytes)) {
-//                    strFailReason = _("Transaction too large for fee policy");
-//                    return false;
-//                }
-
-//                if (nFeeRet >= nFeeNeeded)
-//                    break; // Done, enough fee included.
-
-                // Include more fee and try again.
-//                nFeeRet = nFeeNeeded;
                 continue;
             }
         }
@@ -3403,6 +3359,7 @@ bool CWallet::CreateZerocoinMintTransaction(const vector <CRecipient> &vecSend, 
             std::vector <COutput> vAvailableCoins;
             AvailableCoins(vAvailableCoins, true, coinControl);
 
+
             nFeeRet = payTxFee.GetFeePerK();
             LogPrintf("nFeeRet=%s\n", nFeeRet);
             // Start with no fee and loop until there is enough fee
@@ -3452,7 +3409,9 @@ bool CWallet::CreateZerocoinMintTransaction(const vector <CRecipient> &vecSend, 
                 set <pair<const CWalletTx *, unsigned int>> setCoins;
                 CAmount nValueIn = 0;
                 if (!SelectCoins(vAvailableCoins, nValueToSelect, setCoins, nValueIn, coinControl)) {
-                    strFailReason = _("Insufficient funds");
+                    if (nValueIn < nValueToSelect) {
+                        strFailReason = _("Insufficient funds.");
+                    }
                     return false;
                 }
                 BOOST_FOREACH(PAIRTYPE(const CWalletTx*, unsigned int) pcoin, setCoins)
