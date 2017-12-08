@@ -3,6 +3,9 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#ifndef BITCOIN_VALIDATION_H
+#define BITCOIN_VALIDATION_H
+
 #include "amount.h"
 #include "chain.h"
 #include "coins.h"
@@ -25,3 +28,14 @@
 #include <boost/unordered_map.hpp>
 #include <boost/filesystem/path.hpp>
 
+
+
+struct BlockHasher
+{
+	size_t operator()(const uint256& hash) const { return hash.GetCheapHash(); }
+};
+
+typedef boost::unordered_map<uint256, CBlockIndex*, BlockHasher> BlockMap;
+extern BlockMap mapBlockIndex;
+
+#endif // BITCOIN_VALIDATION_H

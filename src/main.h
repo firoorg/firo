@@ -16,10 +16,13 @@
 #include "net.h"
 #include "script/script_error.h"
 #include "sync.h"
+#include "validation.h"
 #include "versionbits.h"
 //BTZC: add for zcoin
 #include "timedata.h"
 #include "chainparams.h"
+
+#include "coinsbyscript.h"
 
 #include <algorithm>
 #include <exception>
@@ -35,6 +38,7 @@
 
 class CBlockIndex;
 class CBlockTreeDB;
+class CBlockUndo;
 class CBloomFilter;
 class CChainParams;
 class CInv;
@@ -185,16 +189,11 @@ static const bool DEFAULT_PEERBLOOMFILTERS = true;
 // Enabled lowest diff for test local env
 #define ENABLED_LOWEST_DIFF false
 
-struct BlockHasher
-{
-    size_t operator()(const uint256& hash) const { return hash.GetCheapHash(); }
-};
+
 
 extern CScript COINBASE_FLAGS;
 extern CCriticalSection cs_main;
 extern CTxMemPool mempool;
-typedef boost::unordered_map<uint256, CBlockIndex*, BlockHasher> BlockMap;
-extern BlockMap mapBlockIndex;
 extern uint64_t nLastBlockTx;
 extern uint64_t nLastBlockSize;
 extern uint64_t nLastBlockWeight;
@@ -205,6 +204,7 @@ extern bool fImporting;
 extern bool fReindex;
 extern int nScriptCheckThreads;
 extern bool fTxIndex;
+
 extern bool fIsBareMultisigStd;
 extern bool fRequireStandard;
 extern bool fCheckBlockIndex;
@@ -501,17 +501,26 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
 bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& state, const Consensus::Params& consensusParams, CBlockIndex* pindexPrev, int64_t nAdjustedTime);
 bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIndex *pindexPrev);
 
+/** Context-independent validity checks */
+bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, bool fCheckPOW = true);
+bool CheckBlock(const CBlock& block, CValidationState& state, bool fCheckPOW = true, bool fCheckMerkleRoot = true);
+
+/** Context-dependent validity checks */
+bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& state, CBlockIndex *pindexPrev);
+bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIndex *pindexPrev);
+
+
 /** Apply the effects of this block (with given index) on the UTXO set represented by coins.
  *  Validity checks that depend on the UTXO set are also done; ConnectBlock()
  *  can fail if those validity checks fail (among other reasons). */
 bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pindex, CCoinsViewCache& coins,
-                  const CChainParams& chainparams, bool fJustCheck = false);
+                  const CChainParams& chainparams, CBlockUndo& blockUndo, bool fJustCheck = false);
 
 /** Undo the effects of this block (with given index) on the UTXO set represented by coins.
  *  In case pfClean is provided, operation will try to be tolerant about errors, and *pfClean
  *  will be true if no problems were found. Otherwise, the return value will be false in case
  *  of problems. Note that in any case, coins may be modified. */
-bool DisconnectBlock(const CBlock& block, CValidationState& state, const CBlockIndex* pindex, CCoinsViewCache& coins, bool* pfClean = NULL);
+bool DisconnectBlock(const CBlock& block, CValidationState& state, const CBlockIndex* pindex, CCoinsViewCache& coins, CBlockUndo& blockUndo, bool* pfClean = NULL);
 
 /** Check a block is completely valid from start to finish (only works on top of our current best block, with cs_main held) */
 bool TestBlockValidity(CValidationState& state, const CChainParams& chainparams, const CBlock& block, CBlockIndex* pindexPrev, bool fCheckPOW = true, bool fCheckMerkleRoot = true);
@@ -550,6 +559,10 @@ extern CChain chainActive;
 
 /** Global variable that points to the active CCoinsView (protected by cs_main) */
 extern CCoinsViewCache *pcoinsTip;
+
+/** Only used if -txoutindex */
+extern CCoinsViewByScriptDB *pcoinsByScriptDB;
+extern CCoinsViewByScript *pcoinsByScript;
 
 /** Global variable that points to the active block tree (protected by cs_main) */
 extern CBlockTreeDB *pblocktree;

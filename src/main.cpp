@@ -67,7 +67,7 @@ using namespace std;
 
 CCriticalSection cs_main;
 
-BlockMap mapBlockIndex;
+
 CChain chainActive;
 CBlockIndex *pindexBestHeader = NULL;
 int64_t nTimeBestReceived = 0;
@@ -91,7 +91,7 @@ bool fEnableReplacement = DEFAULT_ENABLE_REPLACEMENT;
 CFeeRate minRelayTxFee = CFeeRate(DEFAULT_MIN_RELAY_TX_FEE);
 CAmount maxTxFee = DEFAULT_TRANSACTION_MAXFEE;
 
-CTxMemPool mempool(::minRelayTxFee);
+CTxMemPool mempool(fTxOutIndex, ::minRelayTxFee);
 FeeFilterRounder filterRounder(::minRelayTxFee);
 
 // Settings
@@ -2624,7 +2624,7 @@ static bool ApplyTxInUndo(const CTxInUndo &undo, CCoinsViewCache &view, const CO
 }
 
 bool DisconnectBlock(const CBlock &block, CValidationState &state, const CBlockIndex *pindex, CCoinsViewCache &view,
-                     bool *pfClean) {
+                     CBlockUndo& blockUndo, bool *pfClean) {
     assert(pindex->GetBlockHash() == view.GetBestBlock());
 
     if (pfClean)
@@ -2632,7 +2632,6 @@ bool DisconnectBlock(const CBlock &block, CValidationState &state, const CBlockI
 
     bool fClean = true;
 
-    CBlockUndo blockUndo;
     CDiskBlockPos pos = pindex->GetUndoPos();
     if (pos.IsNull())
         return error("DisconnectBlock(): no undo data available");
@@ -2776,7 +2775,7 @@ static int64_t nTimeCallbacks = 0;
 static int64_t nTimeTotal = 0;
 
 bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pindex, CCoinsViewCache &view,
-                  const CChainParams &chainparams, bool fJustCheck) {
+                  const CChainParams &chainparams, CBlockUndo& blockundo, bool fJustCheck) {
     //btzc: zcoin code
 //    if (BlockMerkleBranch(block).size() <=0) {
 //        return false;
@@ -2896,8 +2895,6 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
     nTimeForks += nTime2 - nTime1;
     LogPrint("bench", "    - Fork checks: %.2fms [%.2fs]\n", 0.001 * (nTime2 - nTime1), nTimeForks * 0.000001);
 
-    CBlockUndo blockundo;
-
     CCheckQueueControl<CScriptCheck> control(fScriptChecks && nScriptCheckThreads ? &scriptcheckqueue : NULL);
 
     std::vector <uint256> vOrphanErase;
@@ -2985,24 +2982,38 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
              nInputs <= 1 ? 0 : 0.001 * (nTime3 - nTime2) / (nInputs - 1), nTimeConnect * 0.000001);
     //btzc: Add time to check
     LogPrintf("block=%s\n", block.ToString());
-    LogPrintf("nFees=%s\n", nFees);
-    LogPrintf("GetBlockSubsidy(pindex->nHeight, chainparams.GetConsensus(), pindex->nTime)=%s\n", GetBlockSubsidy(pindex->nHeight, chainparams.GetConsensus(), pindex->nTime));
-    LogPrintf("block.vtx[0].GetValueOut()=%s\n", block.vtx[0].GetValueOut());
-    CAmount blockReward = nFees + GetBlockSubsidy(pindex->nHeight, chainparams.GetConsensus(), pindex->nTime);
-    if (block.vtx[0].GetValueOut() > blockReward)
-        return state.DoS(100, error("ConnectBlock(): coinbase pays too much (actual=%d vs limit=%d)",
-                                    block.vtx[0].GetValueOut(), blockReward),
-                         REJECT_INVALID, "bad-cb-amount");
 
-    if (!control.Wait())
-        return state.DoS(100, false);
+    LogPrintf("nFees=%s\n", nFees);
+	CAmount subsidy = GetBlockSubsidy(pindex->nHeight, chainparams.GetConsensus(), pindex->nTime);
+	CAmount valOut = block.vtx[0].GetValueOut();
+    LogPrintf("GetBlockSubsidy(pindex->nHeight, chainparams.GetConsensus(), pindex->nTime)=%s\n", subsidy);
+    LogPrintf("block.vtx[0].GetValueOut()=%s\n", valOut);
+    CAmount blockReward = nFees + subsidy;
+	if (valOut > blockReward)
+	{
+		return state.DoS(100, error("ConnectBlock(): coinbase pays too much (actual=%d vs limit=%d)",
+			block.vtx[0].GetValueOut(), blockReward),
+			REJECT_INVALID, "bad-cb-amount");
+	}
+
+
+	if (!control.Wait())
+	{
+		return state.DoS(100, false); 
+	}
+
     int64_t nTime4 = GetTimeMicros();
+
     nTimeVerify += nTime4 - nTime2;
+
     LogPrint("bench", "    - Verify %u txins: %.2fms (%.3fms/txin) [%.2fs]\n", nInputs - 1, 0.001 * (nTime4 - nTime2),
              nInputs <= 1 ? 0 : 0.001 * (nTime4 - nTime2) / (nInputs - 1), nTimeVerify * 0.000001);
 
-    if (fJustCheck)
-        return true;
+
+	if (fJustCheck)
+	{
+		return true;
+	}
 
     // Write undo information to disk
     if (pindex->GetUndoPos().IsNull() || !pindex->IsValid(BLOCK_VALID_SCRIPTS)) {
@@ -3022,12 +3033,13 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
         setDirtyBlockIndex.insert(pindex);
     }
 
+
     if (fTxIndex)
         if (!pblocktree->WriteTxIndex(vPos))
             return AbortNode(state, "Failed to write transaction index");
-
+	
     // add this block to the view's block chain
-    view.SetBestBlock(pindex->GetBlockHash());
+    view.SetBestBlock(pindex->GetBlockHash());;
 
     int64_t nTime5 = GetTimeMicros();
     nTimeIndex += nTime5 - nTime4;
@@ -3155,6 +3167,13 @@ bool static FlushStateToDisk(CValidationState &state, FlushStateMode mode) {
             // Flush the chainstate (which may refer to block index entries).
             if (!pcoinsTip->Flush())
                 return AbortNode(state, "Failed to write to coin database");
+
+			if (fTxOutIndex) 
+			{
+				if (!pcoinsByScript->Flush())
+					return AbortNode(state, "Failed to write to coin database");
+			}
+
             nLastFlush = nNow;
         }
         if (fDoFullFlush || ((mode == FLUSH_STATE_ALWAYS || mode == FLUSH_STATE_PERIODIC) &&
@@ -3251,10 +3270,19 @@ bool static DisconnectTip(CValidationState &state, const CChainParams &chainpara
     // Apply the block atomically to the chain state.
     int64_t nStart = GetTimeMicros();
     {
+		CBlockUndo blockUndo;
         CCoinsViewCache view(pcoinsTip);
-        if (!DisconnectBlock(block, state, pindexDelete, view))
+        if (!DisconnectBlock(block, state, pindexDelete, view, blockUndo))
             return error("DisconnectTip(): DisconnectBlock %s failed", pindexDelete->GetBlockHash().ToString());
         assert(view.Flush());
+		try
+		{
+			UpdateAddressIndex(block, blockUndo, false);
+		}
+		catch(std::runtime_error& x)
+		{
+			return AbortNode(state, std::string("DisconnectTip() - ") + x.what());
+		}
     }
     LogPrint("bench", "- Disconnect block: %.2fms\n", (GetTimeMicros() - nStart) * 0.001);
     // Zerocoin reorg, set mint to height -1, id -1
@@ -3387,21 +3415,31 @@ bool static ConnectTip(CValidationState &state, const CChainParams &chainparams,
     assert(pindexNew->pprev == chainActive.Tip());
     // Read block from disk.
     int64_t nTime1 = GetTimeMicros();
-    CBlock block;
-    if (!pblock) {
-        if (!ReadBlockFromDisk(block, pindexNew, chainparams.GetConsensus()))
+    
+	const CBlock* pthisBlock;
+	CBlock blockNew;
+    if (!pblock) 
+	{
+		
+        if (!ReadBlockFromDisk(blockNew, pindexNew, chainparams.GetConsensus()))
             return AbortNode(state, "Failed to read block");
-        pblock = &block;
+		pthisBlock = &blockNew;
     }
+	else
+	{
+		pthisBlock = pblock;
+	}
+	const CBlock& blockConnecting = *pthisBlock;
     // Apply the block atomically to the chain state.
     int64_t nTime2 = GetTimeMicros();
     nTimeReadFromDisk += nTime2 - nTime1;
     int64_t nTime3;
 //    LogPrintf("bench", "  - Load block from disk: %.2fms [%.2fs]\n", (nTime2 - nTime1) * 0.001, nTimeReadFromDisk * 0.000001);
     {
+		CBlockUndo blockundo;
         CCoinsViewCache view(pcoinsTip);
-        bool rv = ConnectBlock(*pblock, state, pindexNew, view, chainparams);
-        GetMainSignals().BlockChecked(*pblock, state);
+        bool rv = ConnectBlock(blockConnecting, state, pindexNew, view, chainparams, blockundo);
+        GetMainSignals().BlockChecked(blockConnecting, state);
         if (!rv) {
             if (state.IsInvalid())
                 InvalidBlockFound(pindexNew, state);
@@ -3412,11 +3450,20 @@ bool static ConnectTip(CValidationState &state, const CChainParams &chainparams,
         nTimeConnectTotal += nTime3 - nTime2;
         LogPrint("bench", "  - Connect total: %.2fms [%.2fs]\n", (nTime3 - nTime2) * 0.001, nTimeConnectTotal * 0.000001);
         assert(view.Flush());
+		try
+		{
+			UpdateAddressIndex(blockConnecting, blockundo, true);
+		}
+		catch (std::runtime_error& x)
+		{
+			return AbortNode(state, std::string("ConnectTip() - ") + x.what());
+		}
     }
     int64_t nTime4 = GetTimeMicros();
     nTimeFlush += nTime4 - nTime3;
     LogPrint("bench", "  - Flush: %.2fms [%.2fs]\n", (nTime4 - nTime3) * 0.001, nTimeFlush * 0.000001);
     // Write the chain state to disk, if necessary.
+
     if (!FlushStateToDisk(state, FLUSH_STATE_IF_NEEDED))
         return false;
     int64_t nTime5 = GetTimeMicros();
@@ -3426,7 +3473,9 @@ bool static ConnectTip(CValidationState &state, const CChainParams &chainparams,
     // Remove conflicting transactions from the mempool.
     list <CTransaction> txConflicted;
 //    LogPrint("ConnectTip", "pblock->ToString()=%s\n", pblock->ToString());
-    mempool.removeForBlock(pblock->vtx, pindexNew->nHeight, txConflicted, !IsInitialBlockDownload());
+
+    mempool.removeForBlock(blockConnecting.vtx, pindexNew->nHeight, txConflicted, !IsInitialBlockDownload());
+
     // Update chainActive & related variables.
     UpdateTip(pindexNew, chainparams);
     // Tell wallet about transactions that went from mempool
@@ -3435,8 +3484,8 @@ bool static ConnectTip(CValidationState &state, const CChainParams &chainparams,
         SyncWithWallets(tx, pindexNew, NULL);
     }
     // ... and about transactions that got confirmed:
-    BOOST_FOREACH(const CTransaction &tx, pblock->vtx) {
-        SyncWithWallets(tx, pindexNew, pblock);
+    BOOST_FOREACH(const CTransaction &tx, blockConnecting.vtx) {
+        SyncWithWallets(tx, pindexNew, pthisBlock);
     }
 
     int64_t nTime6 = GetTimeMicros();
@@ -3445,6 +3494,7 @@ bool static ConnectTip(CValidationState &state, const CChainParams &chainparams,
     LogPrint("bench", "  - Connect postprocess: %.2fms [%.2fs]\n", (nTime6 - nTime5) * 0.001,
              nTimePostConnect * 0.000001);
     LogPrint("bench", "- Connect block: %.2fms [%.2fs]\n", (nTime6 - nTime1) * 0.001, nTimeTotal * 0.000001);
+
     return true;
 }
 
@@ -4587,6 +4637,7 @@ bool TestBlockValidity(CValidationState &state, const CChainParams &chainparams,
         return error("%s: CheckIndexAgainstCheckpoint(): %s", __func__, state.GetRejectReason().c_str());
 
     CCoinsViewCache viewNew(pcoinsTip);
+	CBlockUndo blockundo;
     CBlockIndex indexDummy(block);
     indexDummy.pprev = pindexPrev;
     indexDummy.nHeight = pindexPrev->nHeight + 1;
@@ -4599,7 +4650,7 @@ bool TestBlockValidity(CValidationState &state, const CChainParams &chainparams,
         return error("%s: Consensus::CheckBlock: %s", __func__, FormatStateMessage(state));
     if (!ContextualCheckBlock(block, state, pindexPrev))
         return error("%s: Consensus::ContextualCheckBlock: %s", __func__, FormatStateMessage(state));
-    if (!ConnectBlock(block, state, &indexDummy, viewNew, chainparams, true))
+    if (!ConnectBlock(block, state, &indexDummy, viewNew, chainparams, blockundo, true))
         return false;
     assert(state.IsValid());
 
@@ -4957,7 +5008,8 @@ bool CVerifyDB::VerifyDB(const CChainParams &chainparams, CCoinsView *coinsview,
         if (nCheckLevel >= 3 && pindex == pindexState &&
             (coins.DynamicMemoryUsage() + pcoinsTip->DynamicMemoryUsage()) <= nCoinCacheUsage) {
             bool fClean = true;
-            if (!DisconnectBlock(block, state, pindex, coins, &fClean))
+			CBlockUndo undo;
+            if (!DisconnectBlock(block, state, pindex, coins, undo, &fClean))
                 return error("VerifyDB(): *** irrecoverable inconsistency in block data at %d, hash=%s",
                              pindex->nHeight, pindex->GetBlockHash().ToString());
             pindexState = pindex->pprev;
@@ -4984,10 +5036,11 @@ bool CVerifyDB::VerifyDB(const CChainParams &chainparams, CCoinsView *coinsview,
                     chainActive.Height() - pindex->nHeight)) / (double) nCheckDepth * 50))));
             pindex = chainActive.Next(pindex);
             CBlock block;
+			CBlockUndo undo;
             if (!ReadBlockFromDisk(block, pindex, chainparams.GetConsensus()))
                 return error("VerifyDB(): *** ReadBlockFromDisk failed at %d, hash=%s", pindex->nHeight,
                              pindex->GetBlockHash().ToString());
-            if (!ConnectBlock(block, state, pindex, coins, chainparams))
+            if (!ConnectBlock(block, state, pindex, coins, chainparams, undo))
                 return error("VerifyDB(): *** found unconnectable block at %d, hash=%s", pindex->nHeight,
                              pindex->GetBlockHash().ToString());
         }

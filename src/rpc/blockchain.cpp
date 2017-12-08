@@ -4,11 +4,13 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "amount.h"
+#include "base58.h"
 #include "chain.h"
 #include "chainparams.h"
 #include "checkpoints.h"
 #include "coins.h"
 #include "consensus/validation.h"
+#include "coinstats.h"
 #include "main.h"
 #include "policy/policy.h"
 #include "primitives/transaction.h"
@@ -19,17 +21,23 @@
 #include "util.h"
 #include "utilstrencodings.h"
 #include "hash.h"
+#include "txdb.h"
+#include "dbwrapper.h"
+
 
 #include <stdint.h>
 
 #include <univalue.h>
 
+#include <boost/assign/list_of.hpp>
 #include <boost/thread/thread.hpp> // boost::thread::interrupt
 
 using namespace std;
 
 extern void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry);
 void ScriptPubKeyToJSON(const CScript& scriptPubKey, UniValue& out, bool fIncludeHex);
+void CoinsByScriptToJSON(const CCoinsByScript& coinsByScript, int nMinDepth, UniValue& vObjects, 
+		std::vector<std::pair<int, unsigned int>>& vSort, bool fIncludeHex, CUnspentTxBalance* balanceStat = nullptr);
 
 double GetDifficulty(const CBlockIndex* blockindex)
 {
@@ -616,60 +624,6 @@ UniValue getblock(const UniValue& params, bool fHelp)
     return blockToJSON(block, pblockindex);
 }
 
-struct CCoinsStats
-{
-    int nHeight;
-    uint256 hashBlock;
-    uint64_t nTransactions;
-    uint64_t nTransactionOutputs;
-    uint64_t nSerializedSize;
-    uint256 hashSerialized;
-    CAmount nTotalAmount;
-
-    CCoinsStats() : nHeight(0), nTransactions(0), nTransactionOutputs(0), nSerializedSize(0), nTotalAmount(0) {}
-};
-
-//! Calculate statistics about the unspent transaction output set
-static bool GetUTXOStats(CCoinsView *view, CCoinsStats &stats)
-{
-    boost::scoped_ptr<CCoinsViewCursor> pcursor(view->Cursor());
-
-    CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
-    stats.hashBlock = pcursor->GetBestBlock();
-    {
-        LOCK(cs_main);
-        stats.nHeight = mapBlockIndex.find(stats.hashBlock)->second->nHeight;
-    }
-    ss << stats.hashBlock;
-    CAmount nTotalAmount = 0;
-    while (pcursor->Valid()) {
-        boost::this_thread::interruption_point();
-        uint256 key;
-        CCoins coins;
-        if (pcursor->GetKey(key) && pcursor->GetValue(coins)) {
-            stats.nTransactions++;
-            ss << key;
-            for (unsigned int i=0; i<coins.vout.size(); i++) {
-                const CTxOut &out = coins.vout[i];
-                if (!out.IsNull()) {
-                    stats.nTransactionOutputs++;
-                    ss << VARINT(i+1);
-                    ss << out;
-                    nTotalAmount += out.nValue;
-                }
-            }
-            stats.nSerializedSize += 32 + pcursor->GetValueSize();
-            ss << VARINT(0);
-        } else {
-            return error("%s: unable to read value", __func__);
-        }
-        pcursor->Next();
-    }
-    stats.hashSerialized = ss.GetHash();
-    stats.nTotalAmount = nTotalAmount;
-    return true;
-}
-
 UniValue gettxoutsetinfo(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 0)
@@ -696,11 +650,13 @@ UniValue gettxoutsetinfo(const UniValue& params, bool fHelp)
 
     CCoinsStats stats;
     FlushStateToDisk();
-    if (GetUTXOStats(pcoinsTip, stats)) {
+    if (GetUTXOStats(pcoinsTip, pcoinsByScriptDB, stats)) {
         ret.push_back(Pair("height", (int64_t)stats.nHeight));
         ret.push_back(Pair("bestblock", stats.hashBlock.GetHex()));
         ret.push_back(Pair("transactions", (int64_t)stats.nTransactions));
         ret.push_back(Pair("txouts", (int64_t)stats.nTransactionOutputs));
+		ret.push_back(Pair("addresses", (int64_t)stats.nAddresses));
+		ret.push_back(Pair("utxoindex", (int64_t)stats.nAddressesOutputs));
         ret.push_back(Pair("bytes_serialized", (int64_t)stats.nSerializedSize));
         ret.push_back(Pair("hash_serialized", stats.hashSerialized.GetHex()));
         ret.push_back(Pair("total_amount", ValueFromAmount(stats.nTotalAmount)));
@@ -788,6 +744,147 @@ UniValue gettxout(const UniValue& params, bool fHelp)
     ret.push_back(Pair("coinbase", coins.fCoinBase));
 
     return ret;
+}
+
+UniValue getutxoindex(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() < 2 || params.size() > 4)
+        throw std::runtime_error(
+            "getutxoindex ( minconf [\"address\",...] count from )\n"
+            "\nReturns a list of unspent transaction outputs by address (or script).\n"
+            "The list is ordered by confirmations in descending order.\n"
+            "Note that passing minconf=0 will include the mempool.\n"
+			"\nTo use this function, you must start bitcoin with the -txoutindex parameter.\n"
+			"\nArguments:\n"
+			"1. minconf          (numeric) Minimum confirmations\n"
+			"2. \"addresses\"    (string) A json array of bitcoin addresses (or scripts); may also be a single value\n"
+			"    [\n"
+			"      \"address\"   (string) bitcoin address (or script)\n"
+           "      ,...\n"
+            "    ]\n"
+            "3. count            (numeric, optional, default=LONG_LONG_MAX-1) The number of outputs to analyse and return;\n"
+			"								0 means analyse all outputs, return none\n"
+            "4. from             (numeric, optional, default=0) The number of outputs to skip\n"
+            "\nResult\n"
+			"	\"balance\" : x.xxx,			(numeric) total of all transactions value\n"
+            "[                   (array of json object)\n"
+            "  {\n"
+            "    \"confirmations\" : n,        (numeric) The number of confirmations\n"
+            "    \"txid\" : \"txid\",          (string)  The transaction id \n"
+            "    \"vout\" : n,                 (numeric) The vout value\n"
+            "    \"value\" : x.xxx,            (numeric) The transaction value in btc\n"
+            "    \"scriptPubKey\" : {          (json object)\n"
+            "       \"asm\" : \"code\",        (string) \n"
+            "       \"hex\" : \"hex\",         (string) \n"
+            "       \"reqSigs\" : n,           (numeric) Number of required signatures\n"
+            "       \"type\" : \"pubkeyhash\", (string) The type, eg pubkeyhash\n"
+            "       \"addresses\" : [          (array of string) array of bitcoin addresses\n"
+            "          \"bitcoinaddress\"      (string) bitcoin address\n"
+            "          ,...\n"
+            "       ]\n"
+            "    },\n"
+            "    \"version\" : n,              (numeric) The transaction version\n"
+            "    \"coinbase\" : true|false     (boolean) Coinbase or not\n"
+            "    \"bestblockhash\" : \"hash\", (string)  The block hash of the best block\n"
+            "    \"bestblockheight\" : n,      (numeric) The block height of the best block\n"
+            "    \"bestblocktime\" : n,        (numeric) The block time of the best block\n"
+            "    \"blockhash\" : \"hash\",     (string)  The block hash of the block the tx is in (only if confirmations > 0)\n"
+            "    \"blockheight\" : n,          (numeric) The block height of the block the tx is in (only if confirmations > 0)\n"
+            "    \"blocktime\" : ttt,          (numeric) The block time in seconds since 1.1.1970 GMT (only if confirmations > 0)\n"
+            "  }\n"
+            "  ,...\n"
+            "]\n"
+            "\nExamples:\n"
+            + HelpExampleCli("getutxoindex", "6 \"[\\\"1PGFqEzfmQch1gKD3ra4k18PNj3tTUUSqg\\\",\\\"1LtvqCaApEdUGFkpKMM4MstjcaL4dKg8SP\\\"]\"")
+            + "\nAs a json rpc call\n"
+            + HelpExampleRpc("getutxoindex", "6, \"[\\\"1PGFqEzfmQch1gKD3ra4k18PNj3tTUUSqg\\\",\\\"1LtvqCaApEdUGFkpKMM4MstjcaL4dKg8SP\\\"]\"")
+        );
+
+	if (!fTxOutIndex)
+	{
+		throw JSONRPCError(RPC_METHOD_NOT_FOUND, "To use this function, you must start bitcoin with the -txoutindex parameter.");
+	}
+
+	UniValue vObjects(UniValue::VARR);
+    std::vector<std::pair<int, unsigned int> > vSort;
+    int nMinDepth = params[0].get_int();
+	UniValue inputs;
+	if (params[1].isArray())
+	{
+		inputs = params[1].get_array();
+	}
+	else //if(params[1].isStr())
+	{
+		inputs.setArray();
+		std::string address = params[1].get_str();
+		inputs.push_back(address);
+	}
+//	else if(params[1].isNum
+
+    int64_t nCount = LONG_LONG_MAX-1;
+	if (params.size() > 2)
+        nCount = params[2].get_int();
+    int nFrom = 0;
+    if (params.size() > 3)
+        nFrom = params[3].get_int();
+
+    if (nMinDepth < 0)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Negative minconf");
+    if (nCount < 0)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Negative count");
+    if (nFrom < 0)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Negative from");
+
+	CUnspentTxBalance balance;
+
+    for (unsigned int idx = 0; idx < inputs.size(); idx++) {
+        const UniValue& input = inputs[idx];
+        CScript script;
+        CBitcoinAddress address(input.get_str());
+        if (address.IsValid()) {
+            script = GetScriptForDestination(address.Get());
+        } else if (IsHex(input.get_str())) {
+            std::vector<unsigned char> data(ParseHex(input.get_str()));
+            script = CScript(data.begin(), data.end());
+        } else {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Bitcoin address or script: " + input.get_str());
+        }
+
+        CCoinsByScript coinsByScript;
+        pcoinsByScript->GetCoinsByScript(script, coinsByScript);
+
+        if (nMinDepth == 0)
+            mempool.GetCoinsByScript(script, coinsByScript);
+		CoinsByScriptToJSON(coinsByScript, nMinDepth, vObjects, vSort, true, &balance);
+    }
+
+
+
+    UniValue transactions(UniValue::VARR);
+   // sort(vSort.begin(), vSort.end());
+	for (size_t i = (size_t)nFrom; i < vSort.size(); i++)
+	{
+		if (i == (unsigned int)nCount + (unsigned int)nFrom && nCount != 0)
+            break;
+
+		transactions.push_back(vObjects[vSort[i].second]);
+    }
+
+	UniValue balanceStat(UniValue::VOBJ);
+	balanceStat.push_back(Pair("sumSent", ValueFromAmount(balance.sumSent)));
+	balanceStat.push_back(Pair("sumReceived", ValueFromAmount(balance.sumReceived)));
+	balanceStat.push_back(Pair("total", ValueFromAmount(balance.total)));
+
+	UniValue result(UniValue::VOBJ);
+	
+	result.push_back(Pair("balance", balanceStat));
+	result.push_back(Pair("transactionsNum", transactions.size()));
+	if (nCount != 0)
+	{
+		result.push_back(Pair("transactions", transactions));
+	}
+
+    return result;
 }
 
 UniValue verifychain(const UniValue& params, bool fHelp)
@@ -1203,6 +1300,7 @@ static const CRPCCommand commands[] =
     { "blockchain",         "getmempoolinfo",         &getmempoolinfo,         true  },
     { "blockchain",         "getrawmempool",          &getrawmempool,          true  },
     { "blockchain",         "gettxout",               &gettxout,               true  },
+	{ "blockchain",         "getutxoindex",           &getutxoindex,           true },
     { "blockchain",         "gettxoutsetinfo",        &gettxoutsetinfo,        true  },
     { "blockchain",         "verifychain",            &verifychain,            true  },
 
