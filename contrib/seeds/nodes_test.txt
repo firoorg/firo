@@ -1,4 +1,5 @@
 # List of fixed seed nodes for testnet
+198.245.51.138:19678
 
 # Onion nodes
 thfsmmn2jbitcoin.onion

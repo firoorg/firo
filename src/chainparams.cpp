@@ -169,7 +169,8 @@ public:
         checkpointData = (CCheckpointData) {
             boost::assign::map_list_of
             ( 0, uint256S("0x000007acc6970b812948d14ea5a0a13db0fdd07d5047c7e69101fa8b361e05a4"))
-            ( 75000, uint256S("0x000000000002ee203026137ebc460e1886e09b9fdb0e83697e5a74976088e75c")),            
+            ( 75000,  uint256S("0x000000000002ee203026137ebc460e1886e09b9fdb0e83697e5a74976088e75c"))
+            ( 170000, uint256S("0x000000000000670ff41fbb4ad819b48bfe1c35623f13297d3fbf9bf02abcd87c")),            
             1504618216, // * UNIX timestamp of last checkpoint block
             146731,   // * total number of transactions between genesis and last checkpoint
                         //   (the tx=... number in the SetBestChain debug.log lines)
@@ -237,12 +238,12 @@ public:
         vFixedSeeds.clear();
         vSeeds.clear();
         // nodes with support for servicebits filtering should be at the top
-        vSeeds.push_back(CDNSSeedData("testnet.smrt.cash", "testnet.smrt.cash", true));
         vSeeds.push_back(CDNSSeedData("testnet.smartcash.cc", "testnet.smartcash.cc", true));
+        vSeeds.push_back(CDNSSeedData("testnet.smrt.cash", "testnet.smrt.cash", true));        
 
-        base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,111);
-        base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,196);
-        base58Prefixes[SECRET_KEY] =     std::vector<unsigned char>(1,239);
+        base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,65);
+        base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,21);
+        base58Prefixes[SECRET_KEY] =     std::vector<unsigned char>(1,193);
         base58Prefixes[EXT_PUBLIC_KEY] = boost::assign::list_of(0x04)(0x35)(0x87)(0xCF).convert_to_container<std::vector<unsigned char> >();
         base58Prefixes[EXT_SECRET_KEY] = boost::assign::list_of(0x04)(0x35)(0x83)(0x94).convert_to_container<std::vector<unsigned char> >();
 
@@ -257,7 +258,7 @@ public:
 
         checkpointData = (CCheckpointData) {
             boost::assign::map_list_of
-            ( 546, uint256S("000000002a936ca763904c3c35fce2f3556c559c0214345d31b1bcebf76acb70")),
+            ( 0, uint256S("0x0000027235b5679bcd28c90d03d4bf1a9ba4c07c4efcc1c87d6c68cce25e6e5d")),
             1337966069,
             1488,
             300
