@@ -11,6 +11,7 @@
 #include "uint256.h"
 #include "libzerocoin/bitcoin_bignum/bignum.h"
 #include "fixed.h"
+#include "chainparams.h"
 
 static CBigNum bnProofOfWorkLimit(ArithToUint256(~arith_uint256(0) >> 20));
 
@@ -37,6 +38,15 @@ unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHead
     
     uint32_t              PastBlocksMin       = PastSecondsMin / BlocksTargetSpacing; // 2 blocks
     uint32_t              PastBlocksMax       = PastSecondsMax / BlocksTargetSpacing; // 785 blocks
+
+    bool fTestNet = Params().NetworkIDString() == CBaseChainParams::TESTNET;
+    if(fTestNet)
+    {
+        if((pindexLast->nTime - 1499790000) / 55 > pindexLast->nHeight)
+        {
+            return bnProofOfWorkLimit.GetCompact();
+        }
+    }
 
     if ((pindexLast->nHeight+1) % nInterval != 0) // Retarget every nInterval blocks
     {
