@@ -1,0 +1,32 @@
+{
+  "version": "0.2.1",
+  "tasks": [
+    {
+      "taskName": "task-zcoin",
+      "appliesTo": "/",
+      "type": "launch"
+    },
+    {
+      "taskName": "task-src",
+      "appliesTo": "src/",
+      "type": "launch"
+    },
+    {
+      "taskName": "task-src",
+      "appliesTo": "src/",
+      "type": "launch"
+    },
+    {
+      "taskName": "djdBuild",
+      "appliesTo": "src/",
+      "type": "remote",
+      "contextType": "build",
+      "command": "g++ main.cpp",
+      "remoteMachineName": "ubuntu",
+      "remoteCopyDirectory": "~/sample",
+      "remoteCopyMethod": "sftp",
+      "remoteWorkingDirectory": "~/sample/hello",
+      "remoteCopySourcesOutputVerbosity": "Verbose"
+    }
+  ]
+}
