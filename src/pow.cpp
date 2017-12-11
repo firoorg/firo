@@ -194,7 +194,7 @@ bool CheckProofOfWork(int nHeight, uint256 hash, unsigned int nBits, const Conse
         return false; 
     }
 
-    if (nHeigth >= 223855)
+    if (nHeight >= 223855)
     {
         // Check proof of work matches claimed amount
         if (UintToArith256(hash) > bnTarget){ 
