@@ -182,7 +182,7 @@ unsigned int CalculateNextWorkRequired(const CBlockIndex* pindexLast, int64_t nF
     return BorisRidiculouslyNamedDifficultyFunction(pindexLast, BlocksTargetSpacing, PastBlocksMin, PastBlocksMax);
 }
 
-bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params& params)
+bool CheckProofOfWork(int nHeight, uint256 hash, unsigned int nBits, const Consensus::Params& params)
 {
     bool fNegative; 
     bool fOverflow; 
@@ -194,11 +194,13 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
         return false; 
     }
 
-    // Check proof of work matches claimed amount
-    // if (UintToArith256(hash) > bnTarget){ 
-    //     printf("hash = %d bnTarget = %d \n", UintToArith256(hash), bnTarget);
-    //     return false; 
-    // }
+    if (nHeigth >= 223855)
+    {
+        // Check proof of work matches claimed amount
+        if (UintToArith256(hash) > bnTarget){ 
+            return false; 
+        }
+    }
 
     return true;
 }

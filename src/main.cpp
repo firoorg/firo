@@ -2130,6 +2130,17 @@ bool GetTransaction(const uint256 &hash, CTransaction &txOut, const Consensus::P
 // CBlock and CBlockIndex
 //
 
+int getNHeight(const CBlockHeader &block) {
+    CBlockIndex *pindexPrev = NULL;
+    int nHeight = 0;
+    BlockMap::iterator mi = mapBlockIndex.find(block.hashPrevBlock);
+    if (mi != mapBlockIndex.end()) {
+        pindexPrev = (*mi).second;
+        nHeight = pindexPrev->nHeight+1;
+	}
+	return nHeight;
+}
+
 bool WriteBlockToDisk(const CBlock& block, CDiskBlockPos& pos, const CMessageHeader::MessageStartChars& messageStart)
 {
     // Open history file to append
@@ -2169,7 +2180,8 @@ bool ReadBlockFromDisk(CBlock& block, const CDiskBlockPos& pos, const Consensus:
     }
 
     // Check the header
-    if (!CheckProofOfWork(block.GetHash(), block.nBits, consensusParams))
+    int nHeight = getNHeight(block);
+    if (!CheckProofOfWork(nHeight, block.GetHash(), block.nBits, consensusParams))
         return error("ReadBlockFromDisk: Errors in block header at %s", pos.ToString());
 
     return true;
@@ -4081,7 +4093,8 @@ bool FindUndoPos(CValidationState &state, int nFile, CDiskBlockPos &pos, unsigne
 bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW)
 {
     // Check proof of work matches claimed amount
-    if (fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits, consensusParams))
+	int nHeight = getNHeight(block);
+    if (fCheckPOW && !CheckProofOfWork(nHeight, block.GetHash(), block.nBits, consensusParams))
         return state.DoS(50, false, REJECT_INVALID, "high-hash", false, "proof of work failed");
 
     return true;
