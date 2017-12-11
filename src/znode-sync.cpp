@@ -186,31 +186,6 @@ void CZnodeSync::SwitchToNextAsset() {
             nTimeLastGovernanceItem = GetTime();
             LogPrintf("CZnodeSync::SwitchToNextAsset -- Sync has finished\n");
             nRequestedZnodeAssets = ZNODE_SYNC_FINISHED;
-//            break;
-//        case (ZNODE_SYNC_GOVERNANCE):
-//            LogPrintf("CZnodeSync::SwitchToNextAsset -- Sync has finished\n");
-//            nRequestedZnodeAssets = ZNODE_SYNC_FINISHED;
-//
-//        case (ZNODE_SYNC_MNW):
-//            nTimeLastGovernanceItem = GetTime();
-//            nRequestedZnodeAssets = ZNODE_SYNC_GOVERNANCE;
-//            LogPrintf("CZnodeSync::SwitchToNextAsset -- Starting %s\n", GetAssetName());
-//            break;
-//        case (ZNODE_SYNC_GOVERNANCE):
-//            LogPrintf("CZnodeSync::SwitchToNextAsset -- Sync has finished\n");
-//            nRequestedZnodeAssets = ZNODE_SYNC_FINISHED;
-//            uiInterface.NotifyAdditionalDataSyncProgressChanged(1);
-            //try to activate our znode if possible
-            activeZnode.ManageState();
-
-            TRY_LOCK(cs_vNodes, lockRecv);
-            if (!lockRecv) return;
-
-            BOOST_FOREACH(CNode * pnode, vNodes)
-            {
-                netfulfilledman.AddFulfilledRequest(pnode->addr, "full-sync");
-            }
-
             break;
     }
     nRequestedZnodeAttempt = 0;
@@ -302,7 +277,7 @@ void CZnodeSync::ProcessTick() {
     // INITIAL SYNC SETUP / LOG REPORTING
     double nSyncProgress = double(nRequestedZnodeAttempt + (nRequestedZnodeAssets - 1) * 8) / (8 * 4);
     LogPrintf("CZnodeSync::ProcessTick -- nTick %d nRequestedZnodeAssets %d nRequestedZnodeAttempt %d nSyncProgress %f\n", nTick, nRequestedZnodeAssets, nRequestedZnodeAttempt, nSyncProgress);
-//    uiInterface.NotifyAdditionalDataSyncProgressChanged(nSyncProgress);
+    uiInterface.NotifyAdditionalDataSyncProgressChanged(nSyncProgress);
 
     LogPrintf("sporks synced but blockchain is not, wait until we're almost at a recent block to continue\n");
     if (Params().NetworkIDString() != CBaseChainParams::REGTEST && !IsBlockchainSynced() && nRequestedZnodeAssets > ZNODE_SYNC_SPORKS) {

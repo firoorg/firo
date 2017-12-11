@@ -71,8 +71,8 @@ Step 4. In your VPS where you are hosting your Znode. Update config files
 
 **4.2.**  Create file **znode.conf** (in 2 folders **~/.zcoin** and **~/.zcoin/testnet3**) contains the following info:
  - LABEL: A one word name you make up to call your node (ex. ZN1)
- - IP:PORT: Your masternode VPS's IP, and the port is always 18168.
- - ZNODEPRIVKEY: This is the result of your "masternode genkey" from earlier.
+ - IP:PORT: Your znode VPS's IP, and the port is always 18168.
+ - ZNODEPRIVKEY: This is the result of your "znode genkey" from earlier.
  - TRANSACTION HASH: The collateral tx. hash from the 1000 XZC deposit.
  - INDEX: The Index is always 0 or 1.
 
