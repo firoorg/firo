@@ -224,7 +224,7 @@ void CActiveSmartnode::ManageStateInitial() {
     }
 
     if (pwalletMain->GetBalance() < SMARTNODE_COIN_REQUIRED * COIN) {
-        LogPrintf("CActiveSmartnode::ManageStateInitial -- %s: Wallet balance is < 1000 Smartcash\n", GetStateString());
+        LogPrintf("CActiveSmartnode::ManageStateInitial -- %s: Wallet balance is < 10000 Smartcash\n", GetStateString());
         return;
     }
 

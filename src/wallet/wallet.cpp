@@ -1784,15 +1784,15 @@ CAmount CWallet::GetDenominatedBalance(bool unconfirmed) const
     if(fLiteMode) return 0; 
  
     CAmount nTotal = 0; 
-    { 
-        LOCK2(cs_main, cs_wallet); 
-        for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it) 
-        { 
-            const CWalletTx* pcoin = &(*it).second; 
+//     { 
+//         LOCK2(cs_main, cs_wallet); 
+//         for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it) 
+//         { 
+//             const CWalletTx* pcoin = &(*it).second; 
  
-//            nTotal += pcoin->GetDenominatedCredit(unconfirmed); 
-        } 
-    } 
+// //            nTotal += pcoin->GetDenominatedCredit(unconfirmed); 
+//         } 
+//     } 
  
     return nTotal; 
 } 
@@ -2543,8 +2543,8 @@ bool CWallet::CreateCollateralTransaction(CMutableTransaction& txCollateral, std
     //pay collateral charge in fees 
     CTxOut txout = CTxOut(nValue - PRIVATESEND_COLLATERAL, scriptChange); 
     txCollateral.vout.push_back(txout); 
- 
-    if(!SignSignature(*this, txinCollateral.prevPubKey, txCollateral, 0, NULL, int(SIGHASH_ALL|SIGHASH_ANYONECANPAY))) { 
+    CAmount amount;
+    if(!SignSignature(*this, txinCollateral.prevPubKey, txCollateral, 0, amount, int(SIGHASH_ALL|SIGHASH_ANYONECANPAY))) { 
         strReason = "Unable to sign collateral transaction!"; 
         return false; 
     } 

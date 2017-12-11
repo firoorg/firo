@@ -883,7 +883,7 @@ bool CDarksendPool::IsInputScriptSigValid(const CTxIn &txin) {
 
     if (nTxInIndex >= 0) { //might have to do this one input at a time?
         txNew.vin[nTxInIndex].scriptSig = txin.scriptSig;
-        const CAmount &amount = txNew.vout[nTxInIndex].nValue;
+//        const CAmount &amount = txNew.vout[nTxInIndex].nValue;
         LogPrint("privatesend", "CDarksendPool::IsInputScriptSigValid -- verifying scriptSig %s\n", ScriptToAsmStr(txin.scriptSig).substr(0, 24));
 //        if(!VerifyScript(txNew.vin[nTxInIndex].scriptSig, sigPubKey, SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_STRICTENC, MutableTransactionSignatureChecker(&txNew, nTxInIndex, amount))) {
 //            LogPrint("privatesend", "CDarksendPool::IsInputScriptSigValid -- VerifyScript() failed on input %d\n", nTxInIndex);
@@ -1826,8 +1826,8 @@ bool CDarksendPool::MakeCollateralAmounts() {
 // Split up large inputs or create fee sized inputs
 bool CDarksendPool::MakeCollateralAmounts(const CompactTallyItem &tallyItem) {
     CWalletTx wtx;
-    CAmount nFeeRet = 0;
-    int nChangePosRet = -1;
+//    CAmount nFeeRet = 0;
+//    int nChangePosRet = -1;
     std::string strFail = "";
     std::vector <CRecipient> vecSend;
 
@@ -1859,7 +1859,7 @@ bool CDarksendPool::MakeCollateralAmounts(const CompactTallyItem &tallyItem) {
         // if we failed (most likeky not enough funds), try to use all coins instead -
         // MN-like funds should not be touched in any case and we can't mix denominated without collaterals anyway
         LogPrintf("CDarksendPool::MakeCollateralAmounts -- ONLY_NONDENOMINATED_NOT1000IFMN Error: %s\n", strFail);
-        CCoinControl *coinControlNull = NULL;
+//        CCoinControl *coinControlNull = NULL;
         //TODO
 //        fSuccess = pwalletMain->CreateTransaction(vecSend, wtx, reservekeyChange, nFeeRet, nChangePosRet, strFail, coinControlNull, true, ONLY_NOT1000IFMN);
         fSuccess = false;
@@ -1997,8 +1997,8 @@ bool CDarksendPool::CreateDenominated(const CompactTallyItem &tallyItem, bool fC
     coinControl.Select(txin.prevout);
 
     CWalletTx wtx;
-    CAmount nFeeRet = 0;
-    int nChangePosRet = -1;
+//    CAmount nFeeRet = 0;
+//    int nChangePosRet = -1;
     std::string strFail = "";
     // make our change address
     CReserveKey reservekeyChange(pwalletMain);

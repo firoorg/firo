@@ -660,7 +660,7 @@ bool CSmartnodeBroadcast::CheckOutpoint(int &nDos) {
             return false;
         }
         if (coins.vout[vin.prevout.n].nValue != SMARTNODE_COIN_REQUIRED * COIN) {
-            LogPrint("smartnode", "CSmartnodeBroadcast::CheckOutpoint -- Smartnode UTXO should have 1000 Smartcash, smartnode=%s\n", vin.prevout.ToStringShort());
+            LogPrint("smartnode", "CSmartnodeBroadcast::CheckOutpoint -- Smartnode UTXO should have 10000 Smartcash, smartnode=%s\n", vin.prevout.ToStringShort());
             return false;
         }
         if (chainActive.Height() - coins.nHeight + 1 < Params().GetConsensus().nSmartnodeMinimumConfirmations) {
@@ -683,7 +683,7 @@ bool CSmartnodeBroadcast::CheckOutpoint(int &nDos) {
     }
 
     // verify that sig time is legit in past
-    // should be at least not earlier than block when 1000 DASH tx got nSmartnodeMinimumConfirmations
+    // should be at least not earlier than block when 10000 SMART tx got nSmartnodeMinimumConfirmations
     uint256 hashBlock = uint256();
     CTransaction tx2;
     GetTransaction(vin.prevout.hash, tx2, Params().GetConsensus(), hashBlock, true);
@@ -691,7 +691,7 @@ bool CSmartnodeBroadcast::CheckOutpoint(int &nDos) {
         LOCK(cs_main);
         BlockMap::iterator mi = mapBlockIndex.find(hashBlock);
         if (mi != mapBlockIndex.end() && (*mi).second) {
-            CBlockIndex *pMNIndex = (*mi).second; // block for 1000 DASH tx -> 1 confirmation
+            CBlockIndex *pMNIndex = (*mi).second; // block for 10000 SMART tx -> 1 confirmation
             CBlockIndex *pConfIndex = chainActive[pMNIndex->nHeight + Params().GetConsensus().nSmartnodeMinimumConfirmations - 1]; // block where tx got nSmartnodeMinimumConfirmations
             if (pConfIndex->GetBlockTime() > sigTime) {
                 LogPrintf("CSmartnodeBroadcast::CheckOutpoint -- Bad sigTime %d (%d conf block is at %d) for Smartnode %s %s\n",

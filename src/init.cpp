@@ -1591,7 +1591,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     nLiquidityProvider = std::min(std::max(nLiquidityProvider, 0), 100);
     darkSendPool.SetMinBlockSpacing(nLiquidityProvider * 15);
 
-    fEnablePrivateSend = GetBoolArg("-enableprivatesend", 0);
+    fEnablePrivateSend = false;//GetBoolArg("-enableprivatesend", 0);
     fPrivateSendMultiSession = GetBoolArg("-privatesendmultisession", DEFAULT_PRIVATESEND_MULTISESSION);
     nPrivateSendRounds = GetArg("-privatesendrounds", DEFAULT_PRIVATESEND_ROUNDS);
     nPrivateSendRounds = std::min(std::max(nPrivateSendRounds, 2), nLiquidityProvider ? 99999 : 16);

@@ -42,7 +42,7 @@ unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHead
     bool fTestNet = Params().NetworkIDString() == CBaseChainParams::TESTNET;
     if(fTestNet)
     {
-        if((pindexLast->nTime - 1499790000) / 55 > pindexLast->nHeight)
+        if((pindexLast->nTime - 1499790000) / 55 > (unsigned)pindexLast->nHeight)
         {
             return bnProofOfWorkLimit.GetCompact();
         }

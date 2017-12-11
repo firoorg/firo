@@ -3490,8 +3490,8 @@ CAmount GetSmartnodePayment(int nHeight, CAmount blockValue)
 { 
     CAmount ret = blockValue/10; // start at 10% 
  
-    int nMNPIBlock = Params().GetConsensus().nSmartnodePaymentsIncreaseBlock; 
-    int nMNPIPeriod = Params().GetConsensus().nSmartnodePaymentsIncreasePeriod; 
+    //int nMNPIBlock = Params().GetConsensus().nSmartnodePaymentsIncreaseBlock; 
+    //int nMNPIPeriod = Params().GetConsensus().nSmartnodePaymentsIncreasePeriod; 
 /* 
     // mainnet: 
     if(nHeight > nMNPIBlock)                  ret += blockValue / 20; // 158000 - 25.0% - 2014-10-24 
