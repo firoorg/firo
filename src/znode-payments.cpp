@@ -684,7 +684,7 @@ bool CZnodePayments::ProcessBlock(int nBlockHeight) {
     // but we have no choice, so we'll try. However it doesn't make sense to even try to do so
     // if we have not enough data about znodes.
     if (!znodeSync.IsZnodeListSynced()) {
-        LogPrintf("znodeSync.IsZnodeListSynced failed");
+        LogPrintf("znodeSync.IsZnodeListSynced failed\n");
         return false;
     }
 

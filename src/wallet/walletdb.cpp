@@ -225,8 +225,6 @@ void CWalletDB::ListAccountCreditDebit(const string &strAccount, list <CAccounti
     pcursor->close();
 }
 
-
-//btzc: add zerocoin funtion here
 bool CWalletDB::WriteCoinSpendSerialEntry(const CZerocoinSpendEntry &zerocoinSpend) {
     return Write(make_pair(string("zcserial"), zerocoinSpend.coinSerial), zerocoinSpend, true);
 }
@@ -337,9 +335,6 @@ void CWalletDB::ListCoinSpendSerial(std::list <CZerocoinSpendEntry> &listCoinSpe
 
     pcursor->close();
 }
-
-//end #btzc
-
 
 DBErrors CWalletDB::ReorderTransactions(CWallet *pwallet) {
     LOCK(pwallet->cs_wallet);

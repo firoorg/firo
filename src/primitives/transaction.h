@@ -204,7 +204,6 @@ public:
 
     bool IsDust() const
     {
-        //btzc: zcoin disable dust
         return false;
     }
 
@@ -400,7 +399,6 @@ public:
     const int32_t nVersion;
     static int64_t nMinTxFee;
     static int64_t nMinRelayTxFee;
-    //btzc: remove const
     std::vector<CTxIn> vin;
     std::vector<CTxOut> vout;
     CTxWitness wit; // Not const: can change without invalidating the txid cache
@@ -450,7 +448,6 @@ public:
     // Compute modified tx size for priority calculation (optionally given tx size)
     unsigned int CalculateModifiedSize(unsigned int nTxSize=0) const;
 
-    //btzc: add zerocoin to coinbase
     bool IsCoinBase() const;
 
     bool IsZerocoinSpend() const;

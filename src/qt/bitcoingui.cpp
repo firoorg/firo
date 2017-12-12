@@ -899,6 +899,8 @@ void BitcoinGUI::setAdditionalDataSyncProgress(double nSyncProgress)
 
             progressBar->setFormat(tr("Synchronizing additional data: %p%"));
             progressBar->setMaximum(1000000000);
+            LogPrintf("nSyncProgress=%s\n", nSyncProgress);
+            LogPrintf("nSyncProgress * 1000000000.0 + 0.5=%s\n", nSyncProgress * 1000000000.0 + 0.5);
             progressBar->setValue(nSyncProgress * 1000000000.0 + 0.5);
         }
 

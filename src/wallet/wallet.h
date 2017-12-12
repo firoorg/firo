@@ -823,8 +823,8 @@ public:
      */
     bool CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet, int& nChangePosInOut,
                            std::string& strFailReason, const CCoinControl *coinControl = NULL, bool sign = true, AvailableCoinsType nCoinType = ALL_COINS, bool fUseInstantSend = false);
+
     /**
-     * btzc:
      * Add zerocoin Mint and Spend function
      */
     void ListAvailableCoinsMintCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed=true) const;
@@ -842,7 +842,6 @@ public:
     bool CreateZerocoinMintModel(string &stringError, string denomAmount);
     bool CreateZerocoinSpendModel(string &stringError, string denomAmount);
     bool SetZerocoinBook(const CZerocoinEntry& zerocoinEntry);
-    //end btzc:
 
     bool CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey);
 
@@ -963,7 +962,6 @@ public:
     boost::signals2::signal<void (CWallet *wallet, const uint256 &hashTx,
             ChangeType status)> NotifyTransactionChanged;
     /**
-     * btzc:
      * Zerocoin entry changed.
      * @note called with lock cs_wallet held.
      */

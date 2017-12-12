@@ -31,7 +31,6 @@ class CWallet;
 class CWalletTx;
 class uint160;
 class uint256;
-//btzc: add zerocoin entry
 class CZerocoinEntry;
 class CZerocoinSpendEntry;
 
@@ -172,7 +171,6 @@ public:
     CAmount GetAccountCreditDebit(const std::string& strAccount);
     void ListAccountCreditDebit(const std::string& strAccount, std::list<CAccountingEntry>& acentries);
 
-    //btzc: add zerocoin function method
     bool WriteZerocoinEntry(const CZerocoinEntry& zerocoin);
     bool EraseZerocoinEntry(const CZerocoinEntry& zerocoin);
     void ListPubCoin(std::list<CZerocoinEntry>& listPubCoin);
@@ -181,8 +179,7 @@ public:
     bool EraseCoinSpendSerialEntry(const CZerocoinSpendEntry& zerocoinSpend);
     bool WriteZerocoinAccumulator(libzerocoin::Accumulator accumulator, libzerocoin::CoinDenomination denomination, int pubcoinid);
     bool ReadZerocoinAccumulator(libzerocoin::Accumulator& accumulator, libzerocoin::CoinDenomination denomination, int pubcoinid);
-//    bool EraseZerocoinAccumulator(libzerocoin::Accumulator& accumulator, libzerocoin::CoinDenomination denomination, int pubcoinid);
-    //end #btzc
+    // bool EraseZerocoinAccumulator(libzerocoin::Accumulator& accumulator, libzerocoin::CoinDenomination denomination, int pubcoinid);
 
     bool ReadCalculatedZCBlock(int& height);
     bool WriteCalculatedZCBlock(int height);

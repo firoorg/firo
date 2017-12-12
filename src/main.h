@@ -17,7 +17,6 @@
 #include "script/script_error.h"
 #include "sync.h"
 #include "versionbits.h"
-//BTZC: add for zcoin
 #include "timedata.h"
 #include "chainparams.h"
 

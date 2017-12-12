@@ -248,6 +248,11 @@ void CZnodeSync::ProcessTick() {
 
     if (fDebug) LogPrintf("CZnodeSync::ProcessTick -- nTick %d nMnCount %d\n", nTick, nMnCount);
 
+    // INITIAL SYNC SETUP / LOG REPORTING
+    double nSyncProgress = double(nRequestedZnodeAttempt + (nRequestedZnodeAssets - 1) * 8) / (8 * 4);
+    LogPrint("ProcessTick", "CZnodeSync::ProcessTick -- nTick %d nRequestedZnodeAssets %d nRequestedZnodeAttempt %d nSyncProgress %f\n", nTick, nRequestedZnodeAssets, nRequestedZnodeAttempt, nSyncProgress);
+    uiInterface.NotifyAdditionalDataSyncProgressChanged(nSyncProgress);
+
     // RESET SYNCING INCASE OF FAILURE
     {
         if (IsSynced()) {
@@ -259,7 +264,6 @@ void CZnodeSync::ProcessTick() {
                 Reset();
             } else {
                 std::vector < CNode * > vNodesCopy = CopyNodeVector();
-//                governance.RequestGovernanceObjectVotes(vNodesCopy);
                 ReleaseNodeVector(vNodesCopy);
                 return;
             }
@@ -274,12 +278,6 @@ void CZnodeSync::ProcessTick() {
         }
     }
 
-    // INITIAL SYNC SETUP / LOG REPORTING
-    double nSyncProgress = double(nRequestedZnodeAttempt + (nRequestedZnodeAssets - 1) * 8) / (8 * 4);
-    LogPrintf("CZnodeSync::ProcessTick -- nTick %d nRequestedZnodeAssets %d nRequestedZnodeAttempt %d nSyncProgress %f\n", nTick, nRequestedZnodeAssets, nRequestedZnodeAttempt, nSyncProgress);
-    uiInterface.NotifyAdditionalDataSyncProgressChanged(nSyncProgress);
-
-    LogPrintf("sporks synced but blockchain is not, wait until we're almost at a recent block to continue\n");
     if (Params().NetworkIDString() != CBaseChainParams::REGTEST && !IsBlockchainSynced() && nRequestedZnodeAssets > ZNODE_SYNC_SPORKS) {
         nTimeLastZnodeList = GetTime();
         nTimeLastPaymentVote = GetTime();
@@ -416,84 +414,11 @@ void CZnodeSync::ProcessTick() {
                 return; //this will cause each peer to get one request each six seconds for the various assets we need
             }
 
-            // GOVOBJ : SYNC GOVERNANCE ITEMS FROM OUR PEERS
-
-//            if (nRequestedZnodeAssets == ZNODE_SYNC_GOVERNANCE) {
-//                LogPrint("gobject", "CZnodeSync::ProcessTick -- nTick %d nRequestedZnodeAssets %d nTimeLastGovernanceItem %lld GetTime() %lld diff %lld\n", nTick, nRequestedZnodeAssets, nTimeLastGovernanceItem, GetTime(), GetTime() - nTimeLastGovernanceItem);
-//
-//                // check for timeout first
-//                if (GetTime() - nTimeLastGovernanceItem > ZNODE_SYNC_TIMEOUT_SECONDS) {
-//                    LogPrintf("CZnodeSync::ProcessTick -- nTick %d nRequestedZnodeAssets %d -- timeout\n", nTick, nRequestedZnodeAssets);
-//                    if (nRequestedZnodeAttempt == 0) {
-//                        LogPrintf("CZnodeSync::ProcessTick -- WARNING: failed to sync %s\n", GetAssetName());
-//                        // it's kind of ok to skip this for now, hopefully we'll catch up later?
-//                    }
-//                    SwitchToNextAsset();
-//                    ReleaseNodeVector(vNodesCopy);
-//                    return;
-//                }
-
-                // only request obj sync once from each peer, then request votes on per-obj basis
-//                if(netfulfilledman.HasFulfilledRequest(pnode->addr, "governance-sync")) {
-//                    int nObjsLeftToAsk = governance.RequestGovernanceObjectVotes(pnode);
-//                    int nObjsLeftToAsk = governance.RequestGovernanceObjectVotes(pnode);
-//                    static int64_t nTimeNoObjectsLeft = 0;
-//                    // check for data
-//                    if(nObjsLeftToAsk == 0) {
-//                        static int nLastTick = 0;
-//                        static int nLastVotes = 0;
-//                        if(nTimeNoObjectsLeft == 0) {
-//                            // asked all objects for votes for the first time
-//                            nTimeNoObjectsLeft = GetTime();
-//                        }
-//                        // make sure the condition below is checked only once per tick
-//                        if(nLastTick == nTick) continue;
-//                        if(GetTime() - nTimeNoObjectsLeft > ZNODE_SYNC_TIMEOUT_SECONDS &&
-//                            governance.GetVoteCount() - nLastVotes < std::max(int(0.0001 * nLastVotes), ZNODE_SYNC_TICK_SECONDS)
-//                        ) {
-//                            // We already asked for all objects, waited for ZNODE_SYNC_TIMEOUT_SECONDS
-//                            // after that and less then 0.01% or ZNODE_SYNC_TICK_SECONDS
-//                            // (i.e. 1 per second) votes were recieved during the last tick.
-//                            // We can be pretty sure that we are done syncing.
-//                            LogPrintf("CZnodeSync::ProcessTick -- nTick %d nRequestedZnodeAssets %d -- asked for all objects, nothing to do\n", nTick, nRequestedZnodeAssets);
-//                            // reset nTimeNoObjectsLeft to be able to use the same condition on resync
-//                            nTimeNoObjectsLeft = 0;
-//                            SwitchToNextAsset();
-//                            ReleaseNodeVector(vNodesCopy);
-//                            return;
-//                        }
-//                        nLastTick = nTick;
-//                        nLastVotes = governance.GetVoteCount();
-//                    }
-//                    continue;
-//                }
-//                netfulfilledman.AddFulfilledRequest(pnode->addr, "governance-sync");
-
-//                if (pnode->nVersion < MIN_GOVERNANCE_PEER_PROTO_VERSION) continue;
-//                nRequestedZnodeAttempt++;
-
-//                SendGovernanceSyncRequest(pnode);
-
-//                ReleaseNodeVector(vNodesCopy);
-//                return; //this will cause each peer to get one request each six seconds for the various assets we need
-//            }
         }
     }
     // looped through all nodes, release them
     ReleaseNodeVector(vNodesCopy);
 }
-
-//void CZnodeSync::SendGovernanceSyncRequest(CNode *pnode) {
-//    if(pnode->nVersion >= GOVERNANCE_FILTER_PROTO_VERSION) {
-//        CBloomFilter filter;
-//        filter.clear();
-//
-//        pnode->PushMessage(NetMsgType::MNGOVERNANCESYNC, uint256(), filter);
-//    }
-//    else {
-//        pnode->PushMessage(NetMsgType::MNGOVERNANCESYNC, uint256());
-//    }
-//}
 
 void CZnodeSync::UpdatedBlockTip(const CBlockIndex *pindex) {
     pCurrentBlockIndex = pindex;

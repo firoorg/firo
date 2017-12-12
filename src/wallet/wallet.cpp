@@ -3146,9 +3146,6 @@ bool CWallet::EraseFromWallet(uint256 hash) {
     return true;
 }
 
-/**
-  btzc: add Zerocoin function
-  */
 bool CWallet::CreateZerocoinMintModel(string &stringError, string denomAmount) {
 
     if (!fFileBacked)
@@ -3266,9 +3263,6 @@ bool CWallet::CreateZerocoinMintModel(string &stringError, string denomAmount) {
     }
 }
 
-/**
- * btzc: CreateZerocoinSpendModel
- */
 bool CWallet::CreateZerocoinSpendModel(string &stringError, string denomAmount) {
     if (!fFileBacked)
         return false;
@@ -3312,7 +3306,7 @@ bool CWallet::CreateZerocoinSpendModel(string &stringError, string denomAmount) 
 
 }
 
-/** btzc: add zerocoin transaction
+/**
  * @brief CWallet::CreateZerocoinMintTransaction
  * @param vecSend
  * @param wtxNew
@@ -3641,7 +3635,6 @@ CWallet::CreateZerocoinMintTransaction(CScript pubCoin, int64_t nValue, CWalletT
 }
 
 /**
- * btzc:
  * @brief CWallet::CreateZerocoinSpendTransaction
  * @param nValue
  * @param denomination
@@ -3697,7 +3690,7 @@ bool CWallet::CreateZerocoinSpendTransaction(int64_t nValue, libzerocoin::CoinDe
             static CBigNum bnTrustedModulus;
             bool setParams = bnTrustedModulus.SetHexBool(ZEROCOIN_MODULUS);
             if (!setParams) {
-                LogPrintf("[btzc] bnTrustedModulus.SetHexBool(ZEROCOIN_MODULUS) failed");
+                LogPrintf("bnTrustedModulus.SetHexBool(ZEROCOIN_MODULUS) failed");
             }
 
             // Set up the Zerocoin Params object
@@ -4054,7 +4047,6 @@ bool CWallet::CommitZerocoinSpendTransaction(CWalletTx &wtxNew, CReserveKey &res
 }
 
 /**
- * btzc:
  * @brief CWallet::MintZerocoin
  * @param pubCoin
  * @param nValue
@@ -4109,7 +4101,6 @@ string CWallet::MintZerocoin(CScript pubCoin, int64_t nValue, CWalletTx &wtxNew,
 }
 
 /**
- * btzc: add spendZerocoin
  * @brief CWallet::SpendZerocoin
  * @param nValue
  * @param denomination
@@ -4177,13 +4168,6 @@ string CWallet::SpendZerocoin(int64_t nValue, libzerocoin::CoinDenomination deno
     }
     return "";
 }
-
-/** btzc:
- * @brief CompHeight
- * @param a
- * @param b
- * @return
- */
 
 bool CWallet::AddAccountingEntry(const CAccountingEntry &acentry, CWalletDB &pwalletdb) {
     if (!pwalletdb.WriteAccountingEntry_Backend(acentry))
@@ -4932,7 +4916,6 @@ std::string CWallet::GetWalletHelpString(bool showDebug) {
 
 void ReIndexZerocoin(std::string strWalletFile) {
     LogPrintf("ReIndexZerocoin\n");
-    //btzc: add zercoin wallet init
     // Zerocoin reorg, calculate new height and id
     list <CZerocoinEntry> listPubCoin = list<CZerocoinEntry>();
     CWalletDB walletdb(strWalletFile);

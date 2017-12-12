@@ -117,7 +117,6 @@ void BlockAssembler::resetBlock()
     // Reserve space for coinbase tx
     nBlockSize = 1000;
     nBlockWeight = 4000;
-    //btzc: update zcoin value
     nBlockSigOpsCost = 100;
     fIncludeWitness = false;
 
