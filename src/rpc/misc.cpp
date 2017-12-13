@@ -363,12 +363,12 @@ UniValue verifymessage(const UniValue& params, bool fHelp)
     if (fInvalid)
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Malformed base64 encoding");
 
-    CHashWriter ss(SER_GETHASH, 0);
+    CDataStream ss(SER_GETHASH, 0);
     ss << strMessageMagic;
     ss << strMessage;
 
     CPubKey pubkey;
-    if (!pubkey.RecoverCompact(ss.GetHash(), vchSig))
+    if (!pubkey.RecoverCompact(Hash(ss.begin(), ss.end()), vchSig))
         return false;
 
     return (pubkey.GetID() == keyID);
