@@ -6319,7 +6319,11 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
             return false;
         }
 
-        int nHeight = chainActive.Height();
+        int nHeight;
+        {
+            LOCK(cs_main);
+            nHeight = chainActive.Height();
+        }
         if ((nHeight + 1 < HF_ZNODE_HEIGHT && pfrom->nVersion < MIN_PEER_PROTO_VERSION) ||
                 (nHeight + 1 >= HF_ZNODE_HEIGHT && pfrom->nVersion < MIN_PEER_PROTO_VERSION_AFTER_ZNODE_PAYMENT_HF)) {
             // disconnect from peers older than this proto version
