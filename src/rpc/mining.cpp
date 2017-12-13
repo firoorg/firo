@@ -438,6 +438,10 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
 
             CBlockIndex* const pindexPrev = chainActive.Tip();
             // TestBlockValidity only supports blocks built on the current Tip
+            if (!(pindexPrev) || pindexPrev != chainActive.Tip())
+            {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "Smartcash is processing blocks...");
+            }
             if (block.hashPrevBlock != pindexPrev->GetBlockHash())
                 return "inconclusive-not-best-prevblk";
             CValidationState state;
