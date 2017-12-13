@@ -27,7 +27,7 @@ The output will be two data structures with the peers in binary format:
    }
    static SeedSpec6 pnSeed6_test[]={
    ...
-   }
+   }i
 
 These should be pasted into `src/chainparamsseeds.h`.
 '''
@@ -130,7 +130,7 @@ def main():
         process_nodes(g, f, 'pnSeed6_main', 8168)
     g.write('\n')
     with open(os.path.join(indir,'nodes_test.txt'),'r') as f:
-        process_nodes(g, f, 'pnSeed6_test', 28168)
+        process_nodes(g, f, 'pnSeed6_test', 18168)
     g.write('#endif // BITCOIN_CHAINPARAMSSEEDS_H\n')
 
 if __name__ == '__main__':

@@ -23,6 +23,7 @@ static const unsigned char PUBCOIN_NOT_VALIDATE = 0x46;
 static const unsigned char NSEQUENCE_INCORRECT = 0x47;
 static const unsigned char PUBLIC_COIN_FOR_ACCUMULATOR_INVALID = 0x48;
 static const unsigned char NO_MINT_ZEROCOIN = 0x49;
+static const unsigned char REJECT_INVALID_ZNODE_PAYMENT = 0x50;
 
 /** Capture information about block/transaction validation */
 class CValidationState {

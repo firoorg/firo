@@ -29,6 +29,7 @@
         <file alias="history">res/icons/history.png</file>
         <file alias="qrcode">res/icons/qrcode.png</file>
         <file alias="zerocoin">res/icons/zerocoin.png</file>
+        <file alias="znodes">res/icons/znodes.png</file>
         <file alias="overview">res/icons/overview.png</file>
         <file alias="export">res/icons/export.png</file>
         <file alias="synced">res/icons/synced.png</file>

@@ -11,6 +11,7 @@
 **/
 
 #include "Zerocoin.h"
+#include "ParallelTasks.h"
 
 namespace libzerocoin {
 
@@ -50,13 +51,16 @@ SerialNumberSignatureOfKnowledge::SerialNumberSignatureOfKnowledge(const Params*
 	// Openssl's rng is not thread safe, so we don't call it in a parallel loop,
 	// instead we generate the random values beforehand and run the calculations
 	// based on those values in parallel.
-#ifdef ZEROCOIN_THREADING
-	#pragma omp parallel for
-#endif
+
+    ParallelTasks challenges(params->zkp_iterations);
+
 	for(uint32_t i=0; i < params->zkp_iterations; i++) {
 		// compute g^{ {a^x b^r} h^v} mod p2
-		c[i] = challengeCalculation(coin.getSerialNumber(), r[i], v[i]);
+        challenges.Add([this, i, &coin, &c, &r, &v] {
+            c[i] = challengeCalculation(coin.getSerialNumber(), r[i], v[i]);
+        });
 	}
+    challenges.Wait();
 
 	// We can't hash data in parallel either
 	// because OPENMP cannot not guarantee loops
@@ -67,9 +71,7 @@ SerialNumberSignatureOfKnowledge::SerialNumberSignatureOfKnowledge(const Params*
     this->hash = hasher.GetArith256Hash();
 	unsigned char *hashbytes =  (unsigned char*) &hash;
 
-#ifdef ZEROCOIN_THREADING
-	#pragma omp parallel for
-#endif
+    challenges.Reset();
 	for(uint32_t i = 0; i < params->zkp_iterations; i++) {
 		int bit = i % 8;
 		int byte = i / 8;
@@ -79,11 +81,14 @@ SerialNumberSignatureOfKnowledge::SerialNumberSignatureOfKnowledge(const Params*
 			s_notprime[i]       = r[i];
 			sprime[i]           = v[i];
 		} else {
-			s_notprime[i]       = r[i] - coin.getRandomness();
-			sprime[i]           = v[i] - (commitmentToCoin.getRandomness() *
+            challenges.Add([this, i, &r, &v, &b, &commitmentToCoin, &coin] {
+                s_notprime[i]   = r[i] - coin.getRandomness();
+                sprime[i]       = v[i] - (commitmentToCoin.getRandomness() *
 			                              b.pow_mod(r[i] - coin.getRandomness(), params->serialNumberSoKCommitmentGroup.groupOrder));
+            });
 		}
-	}
+    }
+    challenges.Wait();
 }
 
 inline Bignum SerialNumberSignatureOfKnowledge::challengeCalculation(const Bignum& a_exp,const Bignum& b_exp,
@@ -118,22 +123,26 @@ bool SerialNumberSignatureOfKnowledge::Verify(const Bignum& coinSerialNumber, co
 
 	vector<CBigNum> tprime(params->zkp_iterations);
 	unsigned char *hashbytes = (unsigned char*) &this->hash;
-#ifdef ZEROCOIN_THREADING
-	#pragma omp parallel for
-#endif
+
+    ParallelTasks challenges(params->zkp_iterations);
+
 	for(uint32_t i = 0; i < params->zkp_iterations; i++) {
-		int bit = i % 8;
-		int byte = i / 8;
-		bool challenge_bit = ((hashbytes[byte] >> bit) & 0x01);
-		if(challenge_bit) {
-			tprime[i] = challengeCalculation(coinSerialNumber, s_notprime[i], sprime[i]);
-		} else {
-			Bignum exp = b.pow_mod(s_notprime[i], params->serialNumberSoKCommitmentGroup.groupOrder);
-			tprime[i] = ((valueOfCommitmentToCoin.pow_mod(exp, params->serialNumberSoKCommitmentGroup.modulus) % params->serialNumberSoKCommitmentGroup.modulus) *
-			             (h.pow_mod(sprime[i], params->serialNumberSoKCommitmentGroup.modulus) % params->serialNumberSoKCommitmentGroup.modulus)) %
-			            params->serialNumberSoKCommitmentGroup.modulus;
-		}
+        challenges.Add([this, i, hashbytes, &b, &h, &tprime, &coinSerialNumber, &valueOfCommitmentToCoin] {
+            int bit = i % 8;
+            int byte = i / 8;
+            bool challenge_bit = ((hashbytes[byte] >> bit) & 0x01);
+            if(challenge_bit) {
+                tprime[i] = challengeCalculation(coinSerialNumber, s_notprime[i], sprime[i]);
+            } else {
+                Bignum exp = b.pow_mod(s_notprime[i], params->serialNumberSoKCommitmentGroup.groupOrder);
+                tprime[i] = ((valueOfCommitmentToCoin.pow_mod(exp, params->serialNumberSoKCommitmentGroup.modulus) % params->serialNumberSoKCommitmentGroup.modulus) *
+                             (h.pow_mod(sprime[i], params->serialNumberSoKCommitmentGroup.modulus) % params->serialNumberSoKCommitmentGroup.modulus)) %
+                            params->serialNumberSoKCommitmentGroup.modulus;
+            }
+        });
 	}
+    challenges.Wait();
+
 	for(uint32_t i = 0; i < params->zkp_iterations; i++) {
 		hasher << tprime[i];
 	}
