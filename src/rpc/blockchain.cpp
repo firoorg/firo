@@ -650,7 +650,7 @@ UniValue gettxoutsetinfo(const UniValue& params, bool fHelp)
 
     CCoinsStats stats;
     FlushStateToDisk();
-    if (GetUTXOStats(pcoinsTip, pcoinsByScriptDB, stats)) {
+    if (GetUTXOStats(pcoinsTip, pCoinsViewByScriptDB, stats)) {
         ret.push_back(Pair("height", (int64_t)stats.nHeight));
         ret.push_back(Pair("bestblock", stats.hashBlock.GetHex()));
         ret.push_back(Pair("transactions", (int64_t)stats.nTransactions));
@@ -851,7 +851,7 @@ UniValue getutxoindex(const UniValue& params, bool fHelp)
         }
 
         CCoinsByScript coinsByScript;
-        pcoinsByScript->GetCoinsByScript(script, coinsByScript);
+        pCoinsViewByScript->GetCoinsByScript(script, coinsByScript);
 
         if (nMinDepth == 0)
             mempool.GetCoinsByScript(script, coinsByScript);
@@ -886,6 +886,78 @@ UniValue getutxoindex(const UniValue& params, bool fHelp)
 
     return result;
 }
+
+UniValue getunspentouts(const UniValue& params, bool fHelp)
+{
+	if (fHelp || params.size() < 1 || params.size()>1)
+		throw std::runtime_error(
+			"getunspentouts ( [\"address\",...] )\n"
+			"\nReturns a sum of unspent transaction outputs by address (or script).\n"
+			"\nArguments:\n"
+			"1. \"addresses\"    (string) A json array of zcoin addresses (or scripts); may also be a single value\n"
+			"    [\n"
+			"      \"address\"   (string) bitcoin address (or script)\n"
+			"      ,...\n"
+			"    ]\n"
+			"\nResult\n"
+			"1. \"balances\"    (string) A json array of balances for given zcoin addresses\n"
+			"    [\n"
+			"      \"balance\"   (string) total of all transactions value for corresponding input address\n"
+			"      ,...\n"
+			"    ]\n"
+			"\nExamples:\n"
+			+ HelpExampleCli("getunspentouts", "\"[\\\"1PGFqEzfmQch1gKD3ra4k18PNj3tTUUSqg\\\",\\\"1LtvqCaApEdUGFkpKMM4MstjcaL4dKg8SP\\\"]\"")
+			+ "\nAs a json rpc call\n"
+			+ HelpExampleRpc("getunspentouts", "\"[\\\"1PGFqEzfmQch1gKD3ra4k18PNj3tTUUSqg\\\",\\\"1LtvqCaApEdUGFkpKMM4MstjcaL4dKg8SP\\\"]\"")
+		);
+
+	UniValue inputs;
+	if (params[0].isArray())
+	{
+		inputs = params[0].get_array();
+	}
+	else //if(params[1].isStr())
+	{
+		inputs.setArray();
+		std::string address = params[0].get_str();
+		inputs.push_back(address);
+	}
+
+	std::vector<CAmount> balances;
+	balances.resize(inputs.size());
+
+	for (unsigned int idx = 0; idx < inputs.size(); idx++) {
+		const UniValue& input = inputs[idx];
+		CScript script;
+		CBitcoinAddress address(input.get_str());
+		if (address.IsValid()) {
+			script = GetScriptForDestination(address.Get());
+		}
+		else if (IsHex(input.get_str())) {
+			std::vector<unsigned char> data(ParseHex(input.get_str()));
+			script = CScript(data.begin(), data.end());
+		}
+		else {
+			throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid ZCoin address or script: " + input.get_str());
+		}
+
+		const uint160 scriptHash = uint160(Hash160(script.begin(), script.end()));
+		GetUTXOByScript_OnTheFly(GetCoinsViewDB(), scriptHash, balances[idx]);
+	}
+
+
+	UniValue result(UniValue::VOBJ);
+	UniValue jBalances(UniValue::VOBJ);
+	for (size_t i = 0; i < balances.size(); i++)
+	{
+		jBalances.push_back(Pair("balance", ValueFromAmount(balances[i])));
+	}
+
+	result.push_back(Pair("balances", jBalances));
+
+	return result;
+}
+
 
 UniValue verifychain(const UniValue& params, bool fHelp)
 {
@@ -1300,7 +1372,11 @@ static const CRPCCommand commands[] =
     { "blockchain",         "getmempoolinfo",         &getmempoolinfo,         true  },
     { "blockchain",         "getrawmempool",          &getrawmempool,          true  },
     { "blockchain",         "gettxout",               &gettxout,               true  },
+
 	{ "blockchain",         "getutxoindex",           &getutxoindex,           true },
+	{ "blockchain",         "getunspentouts",         &getunspentouts,         true },
+
+	
     { "blockchain",         "gettxoutsetinfo",        &gettxoutsetinfo,        true  },
     { "blockchain",         "verifychain",            &verifychain,            true  },
 

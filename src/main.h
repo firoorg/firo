@@ -561,8 +561,8 @@ extern CChain chainActive;
 extern CCoinsViewCache *pcoinsTip;
 
 /** Only used if -txoutindex */
-extern CCoinsViewByScriptDB *pcoinsByScriptDB;
-extern CCoinsViewByScript *pcoinsByScript;
+extern CCoinsViewByScriptDB *pCoinsViewByScriptDB;
+extern CCoinsViewByScript *pCoinsViewByScript;
 
 /** Global variable that points to the active block tree (protected by cs_main) */
 extern CBlockTreeDB *pblocktree;

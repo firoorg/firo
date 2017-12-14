@@ -3170,7 +3170,7 @@ bool static FlushStateToDisk(CValidationState &state, FlushStateMode mode) {
 
 			if (fTxOutIndex) 
 			{
-				if (!pcoinsByScript->Flush())
+				if (!pCoinsViewByScript->Flush())
 					return AbortNode(state, "Failed to write to coin database");
 			}
 
@@ -3277,7 +3277,7 @@ bool static DisconnectTip(CValidationState &state, const CChainParams &chainpara
         assert(view.Flush());
 		try
 		{
-			UpdateAddressIndex(block, blockUndo, false);
+			CoinsByScriptIndex_UpdateBlock(block, blockUndo, false);
 		}
 		catch(std::runtime_error& x)
 		{
@@ -3452,7 +3452,7 @@ bool static ConnectTip(CValidationState &state, const CChainParams &chainparams,
         assert(view.Flush());
 		try
 		{
-			UpdateAddressIndex(blockConnecting, blockundo, true);
+			CoinsByScriptIndex_UpdateBlock(blockConnecting, blockundo, true);
 		}
 		catch (std::runtime_error& x)
 		{

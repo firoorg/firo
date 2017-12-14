@@ -78,6 +78,8 @@ public:
     CCoinsViewCursor *Cursor() const;
 };
 
+extern CCoinsViewDB* GetCoinsViewDB();
+
 /** Specialization of CCoinsViewCursor to iterate over a CCoinsViewDB */
 class CCoinsViewDBCursor: public CCoinsViewCursor
 {

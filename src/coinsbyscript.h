@@ -111,8 +111,11 @@ public:
     bool ReadFlag(const std::string &name, bool &fValue);
     bool DeleteAllCoinsByScript();   // removes txoutindex
     bool GenerateAllCoinsByScript(CCoinsViewDB* coinsIn); // creates txoutindex
+
     CCoinsViewByScriptDBCursor *Cursor() const;
 };
+
+bool GetUTXOByScript_OnTheFly(CCoinsViewDB* coinsIn, const uint160& pubScriptHash, CAmount& balanceOut);
 
 struct CUnspentTxBalance
 {
@@ -123,10 +126,10 @@ struct CUnspentTxBalance
 
 
 extern bool fTxOutIndex;
-extern CCoinsViewByScriptDB *pcoinsByScriptDB;
-extern CCoinsViewByScript *pcoinsByScript;
+extern CCoinsViewByScriptDB *pCoinsViewByScriptDB;
+extern CCoinsViewByScript *pCoinsViewByScript;
 
-void UpdateAddressIndex(const CTxOut& txout, const COutPoint& outpoint, bool fInsert);
-void UpdateAddressIndex(const CBlock& block, CBlockUndo& blockundo, bool fConnect);
+void CoinsByScriptIndex_UpdateTx(const CTxOut& txout, const COutPoint& outpoint, bool fInsert);
+void CoinsByScriptIndex_UpdateBlock(const CBlock& block, CBlockUndo& blockundo, bool fBlockConnected);
 
 #endif // BITCOIN_COINSBYSCRIPT_H

@@ -684,7 +684,7 @@ static bool rest_getutxoindex(HTTPRequest* req, const std::string& strURIPart)
     {
         const CScript& script = scriptObj;
         CCoinsByScript coinsByScript;
-        pcoinsByScript->GetCoinsByScript(script, coinsByScript);
+        pCoinsViewByScript->GetCoinsByScript(script, coinsByScript);
 
         if (nMinDepth == 0)
             mempool.GetCoinsByScript(script, coinsByScript);

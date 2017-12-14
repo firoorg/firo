@@ -170,6 +170,11 @@ static CCoinsViewDB *pcoinsdbview = NULL;
 static CCoinsViewErrorCatcher *pcoinscatcher = NULL;
 static boost::scoped_ptr<ECCVerifyHandle> globalVerifyHandle;
 
+CCoinsViewDB* GetCoinsViewDB()
+{
+	return pcoinsdbview;
+}
+
 void Interrupt(boost::thread_group &threadGroup) {
     InterruptHTTPServer();
     InterruptHTTPRPC();
@@ -227,10 +232,10 @@ void Shutdown() {
         pcoinscatcher = NULL;
         delete pcoinsdbview;
         pcoinsdbview = NULL;
-		delete pcoinsByScript;
-		pcoinsByScript = NULL;
-		delete pcoinsByScriptDB;
-		pcoinsByScriptDB = NULL;
+		delete pCoinsViewByScript;
+		pCoinsViewByScript = NULL;
+		delete pCoinsViewByScriptDB;
+		pCoinsViewByScriptDB = NULL;
         delete pblocktree;
         pblocktree = NULL;
     }
@@ -1445,13 +1450,13 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
                 UnloadBlockIndex();
                 delete pcoinsTip;
                 delete pcoinsdbview;
-				delete pcoinsByScriptDB;
+				delete pCoinsViewByScriptDB;
                 delete pcoinscatcher;
                 delete pblocktree;
 
                 pblocktree = new CBlockTreeDB(nBlockTreeDBCache, false, fReindex);
                 pcoinsdbview = new CCoinsViewDB(nCoinDBCache, false, fReindex || fReindexChainState);
-				pcoinsByScriptDB = new CCoinsViewByScriptDB(nCoinDBCache, false, false);
+				pCoinsViewByScriptDB = new CCoinsViewByScriptDB(nCoinDBCache, false, false);
                 pcoinscatcher = new CCoinsViewErrorCatcher(pcoinsdbview);
                 pcoinsTip = new CCoinsViewCache(pcoinscatcher);
                 LogPrintf("fReindex = %s\n", fReindex);
@@ -1502,7 +1507,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
                 }
 
 				// Check -txoutindex
-				pcoinsByScriptDB->ReadFlag("txoutindex", fTxOutIndex);
+				pCoinsViewByScriptDB->ReadFlag("txoutindex", fTxOutIndex);
 				if (IsArgSet("-txoutindex"))
                 {
                     if (GetBoolArg("-txoutindex", false))
@@ -1510,18 +1515,18 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
                         // build index
                         if (!fTxOutIndex)
 						{
-                            if (!pcoinsByScriptDB->DeleteAllCoinsByScript())
+                            if (!pCoinsViewByScriptDB->DeleteAllCoinsByScript())
                             {
                                 strLoadError = _("Error deleting txoutindex");
                                 break;
                             }
-                            if (!pcoinsByScriptDB->GenerateAllCoinsByScript(pcoinsdbview))
+                            if (!pCoinsViewByScriptDB->GenerateAllCoinsByScript(pcoinsdbview))
                             {
                                 strLoadError = _("Error building txoutindex");
                                 break;
                             }
                             CCoinsStats stats;
-                            if (!GetUTXOStats(pcoinsTip, pcoinsByScriptDB, stats))
+                            if (!GetUTXOStats(pcoinsTip, pCoinsViewByScriptDB, stats))
                             {
                                 strLoadError = _("Error GetUTXOStats for txoutindex");
                                 break;
@@ -1531,7 +1536,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
                                 strLoadError = _("Error compare stats for txoutindex");
                                 break;
                             }
-                            pcoinsByScriptDB->WriteFlag("txoutindex", true);
+                            pCoinsViewByScriptDB->WriteFlag("txoutindex", true);
                             fTxOutIndex = true;
                         }
                     }
@@ -1540,8 +1545,8 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
                         if (fTxOutIndex)
                         {
                             // remove index
-                            pcoinsByScriptDB->DeleteAllCoinsByScript();
-                            pcoinsByScriptDB->WriteFlag("txoutindex", false);
+                            pCoinsViewByScriptDB->DeleteAllCoinsByScript();
+                            pCoinsViewByScriptDB->WriteFlag("txoutindex", false);
                             fTxOutIndex = false;
                         }
                     }
@@ -1551,7 +1556,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
 
                 // Init -txoutindex
                 if (fTxOutIndex)
-                    pcoinsByScript = new CCoinsViewByScript(pcoinsByScriptDB);
+                    pCoinsViewByScript = new CCoinsViewByScript(pCoinsViewByScriptDB);
 
 
 
