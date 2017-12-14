@@ -1,27 +1,28 @@
 Znode Build Instructions and Notes
 =============================
- - Version 0.1.5
- - Date: 28 November 2017
+ - Version 0.1.6
+ - Date: 14 December 2017
+ - More detailed guide available here: https://zcoin.io/zcoin-znode-setup-guide/
 
 Prerequisites
 -------------
  - Ubuntu 16.04+
  - Libraries to build from zcoin source
- - Port **18618** is open
+ - Port **8168** is open
 
 Step 1. Build
 ----------------------
 **1.1.**  Check out from source:
 
-    git clone -b znode https://github.com/zcoinofficial/zcoin
+    git clone https://github.com/zcoinofficial/zcoin
 
 **1.2.**  See [README.md](README.md) for instructions on building.
 
-Step 2. (Optional - only if firewall is running). Open port 18618
+Step 2. (Optional - only if firewall is running). Open port 8168
 ----------------------
 **2.1.**  Run:
 
-    sudo ufw allow 18618
+    sudo ufw allow 8168
     sudo ufw default allow outgoing
     sudo ufw enable
 
@@ -58,7 +59,6 @@ Step 4. In your VPS where you are hosting your Znode. Update config files
     rpcuser=username
     rpcpassword=password
     rpcallowip=127.0.0.1
-    testnet=1
     debug=1
     txindex=1
     daemon=1
@@ -67,7 +67,7 @@ Step 4. In your VPS where you are hosting your Znode. Update config files
     maxconnections=24
     znode=1
     znodeprivkey=XXXXXXXXXXXXXXXXX  ## Replace with your znode private key
-    externalIP=XXX.XXX.XXX.XXX ## Replace with your node external IP
+    externalip=XXX.XXX.XXX.XXX:8168 ## Replace with your node external IP
 
 **4.2.**  Create file **znode.conf** (in 2 folders **~/.zcoin** and **~/.zcoin/testnet3**) contains the following info:
  - LABEL: A one word name you make up to call your node (ex. ZN1)
