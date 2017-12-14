@@ -15,6 +15,7 @@
 #include "util.h"
 #include "utilstrencodings.h"
 #ifdef ENABLE_WALLET
+#include "znode-sync.h"
 #include "wallet/wallet.h"
 #include "wallet/walletdb.h"
 #endif
@@ -296,6 +297,44 @@ CScript _createmultisig_redeemScript(const UniValue& params)
 
     return result;
 }
+
+UniValue znsync(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() != 1)
+        throw runtime_error(
+                "znsync [status|next|reset]\n"
+                        "Returns the sync status, updates to the next step or resets it entirely.\n"
+        );
+
+    std::string strMode = params[0].get_str();
+
+    if(strMode == "status") {
+        UniValue objStatus(UniValue::VOBJ);
+        objStatus.push_back(Pair("AssetID", znodeSync.GetAssetID()));
+        objStatus.push_back(Pair("AssetName", znodeSync.GetAssetName()));
+        objStatus.push_back(Pair("Attempt", znodeSync.GetAttempt()));
+        objStatus.push_back(Pair("IsBlockchainSynced", znodeSync.IsBlockchainSynced()));
+        objStatus.push_back(Pair("IsZnodeListSynced", znodeSync.IsZnodeListSynced()));
+        objStatus.push_back(Pair("IsWinnersListSynced", znodeSync.IsWinnersListSynced()));
+        objStatus.push_back(Pair("IsSynced", znodeSync.IsSynced()));
+        objStatus.push_back(Pair("IsFailed", znodeSync.IsFailed()));
+        return objStatus;
+    }
+
+    if(strMode == "next")
+    {
+        znodeSync.SwitchToNextAsset();
+        return "sync updated to " + znodeSync.GetAssetName();
+    }
+
+    if(strMode == "reset")
+    {
+        znodeSync.Reset();
+        return "success";
+    }
+    return "failure";
+}
+
 
 UniValue createmultisig(const UniValue& params, bool fHelp)
 {
