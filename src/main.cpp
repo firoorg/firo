@@ -3567,6 +3567,7 @@ bool CheckBlock(const CBlock &block, CValidationState &state, const Consensus::P
             block.zerocoinTxInfo = new CZerocoinTxInfo();
         BOOST_FOREACH(const CTransaction &tx, block.vtx)
         if (!CheckTransaction(tx, state, tx.GetHash(), isVerifyDB, nHeight, false, block.zerocoinTxInfo)) {
+            LogPrintf("block=%s\n", block.ToString());
             return state.Invalid(false, state.GetRejectCode(), state.GetRejectReason(),
                                  strprintf("Transaction check failed (tx hash %s) %s", tx.GetHash().ToString(),
                                            state.GetDebugMessage()));

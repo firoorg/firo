@@ -161,6 +161,10 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
             if(!isVerifyDB && !isCheckWallet) {
                 CBigNum serial = newSpend.getCoinSerialNumber();
                 if (nHeight > ZC_CHECK_BUG_FIXED_AT_BLOCK &&
+                        // do not check for duplicates in case we've seen exact copy of this tx in this block before
+                        !(zerocoinTxInfo &&
+                            zerocoinTxInfo->zcTransactions.count(hashTx) > 0) &&
+                        // check for used serials both in zerocoinState and in other transactions of this block
                         (zerocoinState.IsUsedCoinSerial(serial) ||
                             // check for zerocoin transaction in the same block as well
                             (zerocoinTxInfo &&
@@ -168,9 +172,11 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
                                 zerocoinTxInfo->spentSerials.count(serial) > 0)))
                     return state.DoS(0, error("CTransaction::CheckTransaction() : The CoinSpend serial has been used"));
 
-                if (zerocoinTxInfo && !zerocoinTxInfo->fInfoIsComplete)
+                if (zerocoinTxInfo && !zerocoinTxInfo->fInfoIsComplete) {
                     // add spend information to the index
                     zerocoinTxInfo->spentSerials.insert(serial);
+                    zerocoinTxInfo->zcTransactions.insert(hashTx);
+                }
             }
         }
         else {
@@ -183,6 +189,7 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
 
 bool CheckMintZcoinTransaction(const CTxOut &txout,
                                CValidationState &state,
+                               uint256 hashTx,
                                CZerocoinTxInfo *zerocoinTxInfo) {
 
     LogPrintf("CheckMintZcoinTransaction txHash = %s\n", txout.GetHash().ToString());
@@ -235,9 +242,11 @@ bool CheckMintZcoinTransaction(const CTxOut &txout,
                 PUBCOIN_NOT_VALIDATE,
                 "CheckZerocoinTransaction : PubCoin validation failed");
 
-        if (zerocoinTxInfo != NULL && !zerocoinTxInfo->fInfoIsComplete)
+        if (zerocoinTxInfo != NULL && !zerocoinTxInfo->fInfoIsComplete) {
             // Update public coin list in the info
             zerocoinTxInfo->mints.push_back(make_pair(denomination, pubCoin));
+            zerocoinTxInfo->zcTransactions.insert(hashTx);
+        }
 
         break;
     }
@@ -326,7 +335,7 @@ bool CheckZerocoinTransaction(const CTransaction &tx,
 	// Check Mint Zerocoin Transaction
 	BOOST_FOREACH(const CTxOut &txout, tx.vout) {
 		if (!txout.scriptPubKey.empty() && txout.scriptPubKey.IsZerocoinMint()) {
-            if (!CheckMintZcoinTransaction(txout, state, zerocoinTxInfo))
+            if (!CheckMintZcoinTransaction(txout, state, hashTx, zerocoinTxInfo))
                 return false;
 		}
 	}

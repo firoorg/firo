@@ -14,6 +14,8 @@
 // index
 class CZerocoinTxInfo {
 public:
+    // all the zerocoin transactions encountered so far
+    set<uint256> zcTransactions;
     // <denomination, pubCoin> for all the mints
     vector<pair<int,CBigNum> > mints;
     // serial for every spend
