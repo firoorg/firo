@@ -88,6 +88,9 @@ CoinDenomination CoinSpend::getDenomination() const {
 }
 
 bool CoinSpend::Verify(const Accumulator& a, const SpendMetaData &m) const {
+    if (!HasValidSerial())
+        return false;
+
 	uint256 metahash = signatureHash(m);
 	// Verify both of the sub-proofs using the given meta-data
     int ret = (a.getDenomination() == this->denomination)
