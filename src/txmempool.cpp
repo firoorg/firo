@@ -360,7 +360,7 @@ void CTxMemPoolEntry::UpdateAncestorState(int64_t modifySize, CAmount modifyFee,
 }
 
 CTxMemPool::CTxMemPool(const CFeeRate &_minReasonableRelayFee) :
-        nTransactionsUpdated(0), fTxOutIndex(false)
+        nTransactionsUpdated(0), fUTXOIndex(false)
 {
     _clear(); //lock free clear
 
@@ -374,7 +374,7 @@ CTxMemPool::CTxMemPool(const CFeeRate &_minReasonableRelayFee) :
 }
 
 CTxMemPool::CTxMemPool(const bool& _fTxOutIndex, const CFeeRate& _minReasonableRelayFee) :
-    nTransactionsUpdated(0), fTxOutIndex(_fTxOutIndex)
+    nTransactionsUpdated(0), fUTXOIndex(_fTxOutIndex)
 {
 	_clear(); //lock free clear
 
@@ -481,7 +481,7 @@ bool CTxMemPool::addUnchecked(const uint256 &hash, const CTxMemPoolEntry &entry,
         vTxHashes.emplace_back(tx.GetWitnessHash(), newit);
         newit->vTxHashesIdx = vTxHashes.size() - 1;
 
-		if (fTxOutIndex)
+		if (fUTXOIndex)
 		{
 			for (unsigned int i = 0; i < tx.vout.size(); i++)
 			{
@@ -558,7 +558,7 @@ void CTxMemPool::removeRecursive(const CTransaction &origTx, std::list <CTransac
     {
         LOCK(cs);
 
-		if (fTxOutIndex)
+		if (fUTXOIndex)
         {
             for (unsigned int i = 0; i < origTx.vout.size(); i++)
             {

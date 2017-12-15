@@ -110,17 +110,17 @@ UniValue getinfo(const UniValue& params, bool fHelp)
 
 	bool txOutIndex=false;
 	std::string txOutBestBlock = "";
-	if (pCoinsViewByScriptDB && pCoinsViewByScript)
+	if (pCoinsByScriptViewDB && pCoinsByScriptView)
 	{
-		pCoinsViewByScriptDB->ReadFlag("txoutindex", txOutIndex);
+		pCoinsByScriptViewDB->ReadFlag("utxoindex", txOutIndex);
 	}
 	if (!txOutIndex)
 	{
-		txOutBestBlock = "(no index built; run the zcoin with -txoutindex)";
+		txOutBestBlock = "(no index built; run the zcoin with -utxoindex)";
 	}
 	else
 	{
-		txOutBestBlock = std::string(pCoinsViewByScript->GetBestBlock().GetHex());
+		txOutBestBlock = std::string(pCoinsByScriptView->GetBestBlock().GetHex());
 	}
 	obj.push_back(Pair("utxoindexbb", txOutBestBlock));
 

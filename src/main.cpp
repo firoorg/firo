@@ -97,7 +97,7 @@ bool fEnableReplacement = DEFAULT_ENABLE_REPLACEMENT;
 CFeeRate minRelayTxFee = CFeeRate(DEFAULT_MIN_RELAY_TX_FEE);
 CAmount maxTxFee = DEFAULT_TRANSACTION_MAXFEE;
 
-CTxMemPool mempool(fTxOutIndex, ::minRelayTxFee);
+CTxMemPool mempool(fUTXOIndex, ::minRelayTxFee);
 FeeFilterRounder filterRounder(::minRelayTxFee);
 
 // Dash znode
@@ -3291,9 +3291,9 @@ bool static FlushStateToDisk(CValidationState &state, FlushStateMode mode) {
             if (!pcoinsTip->Flush())
                 return AbortNode(state, "Failed to write to coin database");
 
-			if (fTxOutIndex) 
+			if (fUTXOIndex) 
 			{
-				if (!pCoinsViewByScript->Flush())
+				if (!pCoinsByScriptView->Flush())
 					return AbortNode(state, "Failed to write to coin database");
 			}
 

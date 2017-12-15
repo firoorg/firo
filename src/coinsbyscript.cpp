@@ -19,18 +19,23 @@ static const char DB_FLAG = 'F';
 static const char DB_BEST_BLOCK = 'B';
 
 
-bool fTxOutIndex = false;
-CCoinsViewByScriptDB *pCoinsViewByScriptDB = NULL;
-CCoinsViewByScript *pCoinsViewByScript = NULL;
+bool fUTXOIndex = false;
+CCoinsByScriptViewDB *pCoinsByScriptViewDB = NULL;
+CCoinsByScriptView *pCoinsByScriptView = NULL;
 
 
 
-CCoinsViewByScript::CCoinsViewByScript(CCoinsViewByScriptDB* viewIn) 
+CCoinsByScriptView::CCoinsByScriptView(CCoinsByScriptViewDB* viewIn) 
 	: base(viewIn) 
 { 
+	uint256 bestBlockHash;
+	if (base->ReadBestBlock(bestBlockHash))
+	{
+		SetBestBlock(bestBlockHash);
+	}
 }
 
-bool CCoinsViewByScript::GetCoinsByScript(const CScript &script, CCoinsByScript &coins) 
+bool CCoinsByScriptView::GetCoinsByScript(const CScript &script, CCoinsByScript &coins) 
 {
 
     const CScriptID key = CScriptID(script);
@@ -47,7 +52,7 @@ bool CCoinsViewByScript::GetCoinsByScript(const CScript &script, CCoinsByScript 
     return false;
 }
 
-CCoinsMapByScript::iterator CCoinsViewByScript::FetchCoinsByScript(const CScript &script, bool fRequireExisting) 
+CCoinsMapByScript::iterator CCoinsByScriptView::FetchCoinsByScript(const CScript &script, bool fRequireExisting) 
 {
     const CScriptID key = CScriptID(script);
     CCoinsMapByScript::iterator it = cacheCoinsByScript.find(key);
@@ -66,40 +71,40 @@ CCoinsMapByScript::iterator CCoinsViewByScript::FetchCoinsByScript(const CScript
     return cacheCoinsByScript.emplace_hint(it, key, tmp);
 }
 
-CCoinsByScript &CCoinsViewByScript::GetCoinsByScript(const CScript &script, bool fRequireExisting) 
+CCoinsByScript &CCoinsByScriptView::GetCoinsByScript(const CScript &script, bool fRequireExisting) 
 {
     CCoinsMapByScript::iterator it = FetchCoinsByScript(script, fRequireExisting);
     assert(it != cacheCoinsByScript.end());
     return it->second;
 }
 
-uint256 CCoinsViewByScript::GetBestBlock() const 
+uint256 CCoinsByScriptView::GetBestBlock() const 
 {
     return hashBlock;
 }
 
-void CCoinsViewByScript::SetBestBlock(const uint256 &hashBlockIn) 
+void CCoinsByScriptView::SetBestBlock(const uint256 &hashBlockIn) 
 {
     hashBlock = hashBlockIn;
 }
 
-bool CCoinsViewByScript::Flush() 
+bool CCoinsByScriptView::Flush() 
 {
     bool fOk = base->BatchWrite(this, hashBlock);
     return fOk;
 }
 
-CCoinsViewByScriptDB::CCoinsViewByScriptDB(size_t nCacheSize, bool fMemory, bool fWipe) 
+CCoinsByScriptViewDB::CCoinsByScriptViewDB(size_t nCacheSize, bool fMemory, bool fWipe) 
 	: db(GetDataDir() / "coinsbyscript", nCacheSize, fMemory, fWipe, true)
 {
 }
 
-bool CCoinsViewByScriptDB::GetCoinsByScriptID(const CScriptID &scriptID, CCoinsByScript &coins) const 
+bool CCoinsByScriptViewDB::GetCoinsByScriptID(const CScriptID &scriptID, CCoinsByScript &coins) const 
 {
     return db.Read(make_pair(DB_COINS_BYSCRIPT, scriptID), coins);
 }
 
-bool CCoinsViewByScriptDB::BatchWrite(CCoinsViewByScript* pcoinsViewByScriptIn, const uint256 &hashBlock) 
+bool CCoinsByScriptViewDB::BatchWrite(CCoinsByScriptView* pcoinsViewByScriptIn, const uint256 &hashBlock) 
 {
     CDBBatch batch(db);
     size_t count = 0;
@@ -124,25 +129,30 @@ bool CCoinsViewByScriptDB::BatchWrite(CCoinsViewByScript* pcoinsViewByScriptIn, 
     return db.WriteBatch(batch);
 }
 
-bool CCoinsViewByScriptDB::WriteFlag(const std::string &name, bool fValue) 
+bool CCoinsByScriptViewDB::WriteFlag(const std::string &name, bool fValue) 
 {
     return db.Write(std::make_pair(DB_FLAG, name), fValue ? '1' : '0');
 }
 
-bool CCoinsViewByScriptDB::ReadFlag(const std::string &name, bool &fValue) 
+bool CCoinsByScriptViewDB::ReadFlag(const std::string &name, bool &fValue)
 {
-    char ch;
+	char ch;
 	if (!db.Read(std::make_pair(DB_FLAG, name), ch))
 	{
 		return false;
 	}
-    fValue = ch == '1';
-    return true;
+	fValue = ch == '1';
+	return true;
 }
 
-CCoinsViewByScriptDBCursor *CCoinsViewByScriptDB::Cursor() const
+bool CCoinsByScriptViewDB::ReadBestBlock(uint256& bestBlock)
 {
-    CCoinsViewByScriptDBCursor *i = new CCoinsViewByScriptDBCursor(const_cast<CDBWrapper*>(&db)->NewIterator());
+	return db.Read(DB_BEST_BLOCK, bestBlock);
+}
+
+CCoinsByScriptViewDBCursor *CCoinsByScriptViewDB::Cursor() const
+{
+    CCoinsByScriptViewDBCursor *i = new CCoinsByScriptViewDBCursor(const_cast<CDBWrapper*>(&db)->NewIterator());
     /* It seems that there are no "const iterators" for LevelDB.  Since we
        only need read operations on it, use a const-cast to get around
        that restriction.  */
@@ -160,7 +170,7 @@ CCoinsViewByScriptDBCursor *CCoinsViewByScriptDB::Cursor() const
     return i;
 }
 
-bool CCoinsViewByScriptDBCursor::GetKey(CScriptID &key) const
+bool CCoinsByScriptViewDBCursor::GetKey(CScriptID &key) const
 {
     // Return cached key
     if (keyTmp.first == DB_COINS_BYSCRIPT) 
@@ -171,22 +181,22 @@ bool CCoinsViewByScriptDBCursor::GetKey(CScriptID &key) const
     return false;
 }
 
-bool CCoinsViewByScriptDBCursor::GetValue(CCoinsByScript &coins) const
+bool CCoinsByScriptViewDBCursor::GetValue(CCoinsByScript &coins) const
 {
     return pcursor->GetValue(coins);
 }
 
-unsigned int CCoinsViewByScriptDBCursor::GetValueSize() const
+unsigned int CCoinsByScriptViewDBCursor::GetValueSize() const
 {
     return pcursor->GetValueSize();
 }
 
-bool CCoinsViewByScriptDBCursor::Valid() const
+bool CCoinsByScriptViewDBCursor::Valid() const
 {
     return keyTmp.first == DB_COINS_BYSCRIPT;
 }
 
-void CCoinsViewByScriptDBCursor::Next()
+void CCoinsByScriptViewDBCursor::Next()
 {
     pcursor->Next();
 	if (!pcursor->Valid() || !pcursor->GetKey(keyTmp))
@@ -195,9 +205,9 @@ void CCoinsViewByScriptDBCursor::Next()
 	}
 }
 
-bool CCoinsViewByScriptDB::DeleteAllCoinsByScript()
+bool CCoinsByScriptViewDB::DeleteAllCoinsByScript()
 {
-    std::unique_ptr<CCoinsViewByScriptDBCursor> pcursor(Cursor());
+    std::unique_ptr<CCoinsByScriptViewDBCursor> pcursor(Cursor());
 
     std::vector<CScriptID> v;
     int64_t i = 0;
@@ -247,9 +257,9 @@ bool CCoinsViewByScriptDB::DeleteAllCoinsByScript()
     return true;
 }
 
-bool CCoinsViewByScriptDB::GenerateAllCoinsByScript(CCoinsViewDB* coinsIn)
+bool CCoinsByScriptViewDB::GenerateAllCoinsByScript(CCoinsViewDB* coinsIn)
 {
-    LogPrintf("Building address index for -txoutindex. Be patient...\n");
+    LogPrintf("Building address index for -utxoindex. Be patient...\n");
     int64_t nTxCount = coinsIn->CountCoins();
 
     std::unique_ptr<CCoinsViewCursor> pcursor(coinsIn->Cursor());
@@ -325,6 +335,11 @@ bool CCoinsViewByScriptDB::GenerateAllCoinsByScript(CCoinsViewDB* coinsIn)
        }
        db.WriteBatch(batch);
     }
+	uint256 bb = coinsIn->GetBestBlock();
+	if (!bb.IsNull())
+	{
+		db.Write(DB_BEST_BLOCK, bb);
+	}
     LogPrintf("Address index with %d outputs successfully built.\n", i);
     return true;
 }
@@ -381,7 +396,7 @@ void CoinsByScriptIndex_UpdateTx(const CTxOut& txout, const COutPoint& outpoint,
 	//return;
 	if (!txout.IsNull() && !txout.scriptPubKey.IsUnspendable())
 	{
-		CCoinsByScript &coinsByScript = pCoinsViewByScript->GetCoinsByScript(txout.scriptPubKey, !fInsert);
+		CCoinsByScript &coinsByScript = pCoinsByScriptView->GetCoinsByScript(txout.scriptPubKey, !fInsert);
 		if (fInsert)
 			coinsByScript.setCoins.insert(outpoint);
 		else
@@ -392,7 +407,7 @@ void CoinsByScriptIndex_UpdateTx(const CTxOut& txout, const COutPoint& outpoint,
 void CoinsByScriptIndex_UpdateBlock(const CBlock& block, CBlockUndo& blockundo, bool fBlockConnected)
 {
 	//return;
-	if (!fTxOutIndex)
+	if (!fUTXOIndex)
 		return;
 
 	assert(block.vtx.size() > 0);
@@ -476,5 +491,44 @@ void CoinsByScriptIndex_UpdateBlock(const CBlock& block, CBlockUndo& blockundo, 
 		}
 	}
 	*/
-	pCoinsViewByScript->SetBestBlock(block.GetHash());
+	pCoinsByScriptView->SetBestBlock(block.GetHash());
+}
+
+bool CoinsByScriptIndex_Rebuild(std::string& error)
+{
+	if (!pCoinsByScriptViewDB->DeleteAllCoinsByScript())
+	{
+		error = _("Error deleting utxoindex");
+		return false;
+	}
+	if (!pCoinsByScriptViewDB->GenerateAllCoinsByScript(GetCoinsViewDB()))
+	{
+		error = _("Error building utxoindex");
+		return false;
+	}
+/*	CCoinsStats stats;
+	if (!GetUTXOStats(pcoinsTip, pCoinsByScriptViewDB, stats))
+	{
+		error = _("Error GetUTXOStats for utxoindex");
+		return false;
+	}
+	if (stats.nTransactionOutputs != stats.nAddressesOutputs)
+	{
+		error = _("Error compare stats for utxoindex");
+		return false;
+	}*/
+	pCoinsByScriptViewDB->WriteFlag("utxoindex", true);
+	return true;
+}
+
+bool CoinsByScriptIndex_Delete(std::string& error)
+{
+	if (!pCoinsByScriptViewDB->DeleteAllCoinsByScript())
+	{
+		error = _("Error deleting utxoindex");
+		return false;
+	}
+	pCoinsByScriptViewDB->WriteFlag("utxoindex", false);
+	
+	return true;
 }

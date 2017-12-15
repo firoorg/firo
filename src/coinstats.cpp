@@ -15,7 +15,7 @@ extern CCriticalSection cs_main;
 
 
 //! Calculate statistics about the unspent transaction output set
-bool GetUTXOStats(CCoinsView *view, CCoinsViewByScriptDB *viewbyscriptdb, CCoinsStats &stats)
+bool GetUTXOStats(CCoinsView *view, CCoinsByScriptViewDB *viewbyscriptdb, CCoinsStats &stats)
 {
     std::unique_ptr<CCoinsViewCursor> pcursor(view->Cursor());
 
@@ -58,7 +58,7 @@ bool GetUTXOStats(CCoinsView *view, CCoinsViewByScriptDB *viewbyscriptdb, CCoins
     stats.hashSerialized = ss.GetHash();
     stats.nTotalAmount = nTotalAmount;
 
-    std::unique_ptr<CCoinsViewByScriptDBCursor> pcursordb(viewbyscriptdb->Cursor());
+    std::unique_ptr<CCoinsByScriptViewDBCursor> pcursordb(viewbyscriptdb->Cursor());
     while (pcursordb->Valid()) {
         boost::this_thread::interruption_point();
         CScriptID hash;

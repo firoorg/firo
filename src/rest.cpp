@@ -607,8 +607,8 @@ static bool rest_getutxoindex(HTTPRequest* req, const std::string& strURIPart)
 {
     if (!CheckWarmup(req))
         return false;
-    if (!fTxOutIndex)
-        return RESTERR(req, HTTP_BAD_REQUEST, "To use this function, you must start bitcoin with the -txoutindex parameter.");
+    if (!fUTXOIndex)
+        return RESTERR(req, HTTP_BAD_REQUEST, "To use this function, you must start bitcoin with the -utxoindex parameter.");
 
     std::string param;
     const RetFormat rf = ParseDataFormat(param, strURIPart);
@@ -684,7 +684,7 @@ static bool rest_getutxoindex(HTTPRequest* req, const std::string& strURIPart)
     {
         const CScript& script = scriptObj;
         CCoinsByScript coinsByScript;
-        pCoinsViewByScript->GetCoinsByScript(script, coinsByScript);
+        pCoinsByScriptView->GetCoinsByScript(script, coinsByScript);
 
         if (nMinDepth == 0)
             mempool.GetCoinsByScript(script, coinsByScript);

@@ -24,6 +24,6 @@ struct CCoinsStats
     CCoinsStats() {}
 };
 
-bool GetUTXOStats(CCoinsView *view, CCoinsViewByScriptDB *viewbyscriptdb, CCoinsStats &stats);
+bool GetUTXOStats(CCoinsView *view, CCoinsByScriptViewDB *viewbyscriptdb, CCoinsStats &stats);
 
 #endif // BITCOIN_COINSTATS_H

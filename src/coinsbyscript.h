@@ -14,7 +14,7 @@
 #include "undo.h"
 
 class CCoinsViewDB;
-class CCoinsViewByScriptDB;
+class CCoinsByScriptViewDB;
 class CScript;
 
 class CCoinsByScript
@@ -44,16 +44,16 @@ public:
 typedef std::map<CScriptID, CCoinsByScript> CCoinsMapByScript;
 
 /** Adds a memory cache for coins by address */
-class CCoinsViewByScript
+class CCoinsByScriptView
 {
 private:
-    CCoinsViewByScriptDB *base;
+    CCoinsByScriptViewDB *base;
 
     mutable uint256 hashBlock;
 
 public:
     CCoinsMapByScript cacheCoinsByScript; // accessed also from CCoinsViewByScriptDB
-    CCoinsViewByScript(CCoinsViewByScriptDB* baseIn);
+    CCoinsByScriptView(CCoinsByScriptViewDB* baseIn);
 
     bool GetCoinsByScript(const CScript &script, CCoinsByScript &coins);
 
@@ -75,10 +75,10 @@ private:
 };
 
 /** Cursor for iterating over a CCoinsViewByScriptDB */
-class CCoinsViewByScriptDBCursor 
+class CCoinsByScriptViewDBCursor 
 {
 public:
-    ~CCoinsViewByScriptDBCursor() {}
+    ~CCoinsByScriptViewDBCursor() {}
 
     bool GetKey(CScriptID &key) const;
     bool GetValue(CCoinsByScript &coins) const;
@@ -88,31 +88,33 @@ public:
     void Next();
 
 private:
-    CCoinsViewByScriptDBCursor(CDBIterator* pcursorIn):
+    CCoinsByScriptViewDBCursor(CDBIterator* pcursorIn):
         pcursor(pcursorIn) {}
     uint256 hashBlock;
     std::unique_ptr<CDBIterator> pcursor;
     std::pair<char, CScriptID> keyTmp;
 
-    friend class CCoinsViewByScriptDB;
+    friend class CCoinsByScriptViewDB;
 };
 
 /** coinsbyscript database (coinsbyscript/) */
-class CCoinsViewByScriptDB 
+class CCoinsByScriptViewDB 
 {
 protected:
     CDBWrapper db;
 public:
-    CCoinsViewByScriptDB(size_t nCacheSize, bool fMemory = false, bool fWipe = false);
+    CCoinsByScriptViewDB(size_t nCacheSize, bool fMemory = false, bool fWipe = false);
 
     bool GetCoinsByScriptID(const CScriptID &scriptID, CCoinsByScript &coins) const;
-    bool BatchWrite(CCoinsViewByScript* pcoinsViewByScriptIn, const uint256 &hashBlock);
+    bool BatchWrite(CCoinsByScriptView* pcoinsViewByScriptIn, const uint256 &hashBlock);
     bool WriteFlag(const std::string &name, bool fValue);
     bool ReadFlag(const std::string &name, bool &fValue);
-    bool DeleteAllCoinsByScript();   // removes txoutindex
-    bool GenerateAllCoinsByScript(CCoinsViewDB* coinsIn); // creates txoutindex
+	bool ReadBestBlock(uint256& bestBlock);
+    bool DeleteAllCoinsByScript();   // removes utxoindex
+    bool GenerateAllCoinsByScript(CCoinsViewDB* coinsIn); // creates utxoindex
 
-    CCoinsViewByScriptDBCursor *Cursor() const;
+
+    CCoinsByScriptViewDBCursor *Cursor() const;
 };
 
 bool GetUTXOByScript_OnTheFly(CCoinsViewDB* coinsIn, const uint160& pubScriptHash, CAmount& balanceOut);
@@ -125,11 +127,14 @@ struct CUnspentTxBalance
 };
 
 
-extern bool fTxOutIndex;
-extern CCoinsViewByScriptDB *pCoinsViewByScriptDB;
-extern CCoinsViewByScript *pCoinsViewByScript;
+extern bool fUTXOIndex;
+extern CCoinsByScriptViewDB *pCoinsByScriptViewDB;
+extern CCoinsByScriptView *pCoinsByScriptView;
 
 void CoinsByScriptIndex_UpdateTx(const CTxOut& txout, const COutPoint& outpoint, bool fInsert);
 void CoinsByScriptIndex_UpdateBlock(const CBlock& block, CBlockUndo& blockundo, bool fBlockConnected);
+
+bool CoinsByScriptIndex_Rebuild(std::string& error);
+bool CoinsByScriptIndex_Delete(std::string& error);
 
 #endif // BITCOIN_COINSBYSCRIPT_H

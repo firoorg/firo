@@ -413,8 +413,8 @@ private:
     CBlockPolicyEstimator* minerPolicyEstimator;
 
     uint64_t totalTxSize;      //!< sum of all mempool tx' byte sizes
-	const bool fTxOutIndex;
-	CCoinsMapByScript mapCoinsByScript; // only used if -txoutindex
+	const bool fUTXOIndex;
+	CCoinsMapByScript mapCoinsByScript; // only used if -utxoindex
     uint64_t cachedInnerUsage; //!< sum of dynamic memory usage of all the map elements (NOT the maps themselves)
 
     CFeeRate minReasonableRelayFee;

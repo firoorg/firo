@@ -650,7 +650,7 @@ UniValue gettxoutsetinfo(const UniValue& params, bool fHelp)
 
     CCoinsStats stats;
     FlushStateToDisk();
-    if (GetUTXOStats(pcoinsTip, pCoinsViewByScriptDB, stats)) {
+    if (GetUTXOStats(pcoinsTip, pCoinsByScriptViewDB, stats)) {
         ret.push_back(Pair("height", (int64_t)stats.nHeight));
         ret.push_back(Pair("bestblock", stats.hashBlock.GetHex()));
         ret.push_back(Pair("transactions", (int64_t)stats.nTransactions));
@@ -754,7 +754,7 @@ UniValue getutxoindex(const UniValue& params, bool fHelp)
             "\nReturns a list of unspent transaction outputs by address (or script).\n"
             "The list is ordered by confirmations in descending order.\n"
             "Note that passing minconf=0 will include the mempool.\n"
-			"\nTo use this function, you must start bitcoin with the -txoutindex parameter.\n"
+			"\nTo use this function, you must start zcoin with the -utxoindex parameter.\n"
 			"\nArguments:\n"
 			"1. minconf          (numeric) Minimum confirmations\n"
 			"2. \"addresses\"    (string) A json array of bitcoin addresses (or scripts); may also be a single value\n"
@@ -800,9 +800,9 @@ UniValue getutxoindex(const UniValue& params, bool fHelp)
             + HelpExampleRpc("getutxoindex", "6, \"[\\\"1PGFqEzfmQch1gKD3ra4k18PNj3tTUUSqg\\\",\\\"1LtvqCaApEdUGFkpKMM4MstjcaL4dKg8SP\\\"]\"")
         );
 
-	if (!fTxOutIndex)
+	if (!fUTXOIndex)
 	{
-		throw JSONRPCError(RPC_METHOD_NOT_FOUND, "To use this function, you must start bitcoin with the -txoutindex parameter.");
+		throw JSONRPCError(RPC_METHOD_NOT_FOUND, "To use this function, you must start zcoin with the -utxoindex parameter.");
 	}
 
 	UniValue vObjects(UniValue::VARR);
@@ -851,7 +851,7 @@ UniValue getutxoindex(const UniValue& params, bool fHelp)
         }
 
         CCoinsByScript coinsByScript;
-        pCoinsViewByScript->GetCoinsByScript(script, coinsByScript);
+        pCoinsByScriptView->GetCoinsByScript(script, coinsByScript);
 
         if (nMinDepth == 0)
             mempool.GetCoinsByScript(script, coinsByScript);
