@@ -557,7 +557,6 @@ CZnode* CZnodeMan::GetNextZnodeInQueueForPayment(int nBlockHeight, bool fFilterS
     /*
         Make a vector with all of the last paid times
     */
-    LogPrintf("vZnodes.size()=%s\n", vZnodes.size());
     int nMnCount = CountEnabled();
     int index = 0;
     BOOST_FOREACH(CZnode &mn, vZnodes)
@@ -619,8 +618,6 @@ CZnode* CZnodeMan::GetNextZnodeInQueueForPayment(int nBlockHeight, bool fFilterS
     arith_uint256 nHighest = 0;
     BOOST_FOREACH (PAIRTYPE(int, CZnode*)& s, vecZnodeLastPaid){
         arith_uint256 nScore = s.second->CalculateScore(blockHash);
-        LogPrintf("node=%s\n", s.second->addr.ToString());
-        LogPrintf("nScore=%s, nHighest=%s\n", nScore.ToString(), nHighest.ToString());
         if(nScore > nHighest){
             nHighest = nScore;
             pBestZnode = s.second;
@@ -1421,7 +1418,6 @@ void CZnodeMan::UpdateZnodeList(CZnodeBroadcast mnb)
             }
         }
     } catch (const std::exception &e) {
-        LogPrintf("UpdateZnodeList\n");
         PrintExceptionContinue(&e, "UpdateZnodeList");
     }
 }
@@ -1523,10 +1519,9 @@ void CZnodeMan::UpdateLastPaid()
     LOCK(cs);
     if(fLiteMode) return;
     if(!pCurrentBlockIndex) {
-        LogPrintf("CZnodeMan::UpdateLastPaid, pCurrentBlockIndex=NULL\n");
+        // LogPrintf("CZnodeMan::UpdateLastPaid, pCurrentBlockIndex=NULL\n");
         return;
     }
-    LogPrintf("CZnodeMan::UpdateLastPaid,pCurrentBlockIndex->nHeight=%s\n", pCurrentBlockIndex->nHeight);
 
     static bool IsFirstRun = true;
     // Do full scan on first run or if we are not a znode
@@ -1587,25 +1582,6 @@ bool CZnodeMan::IsWatchdogActive()
     // Check if any znodes have voted recently, otherwise return false
     return (GetTime() - nLastWatchdogVoteTime) <= ZNODE_WATCHDOG_MAX_SECONDS;
 }
-
-//bool CZnodeMan::AddGovernanceVote(const CTxIn& vin, uint256 nGovernanceObjectHash)
-//{
-//    LOCK(cs);
-//    CZnode* pMN = Find(vin);
-//    if(!pMN)  {
-//        return false;
-//    }
-//    pMN->AddGovernanceVote(nGovernanceObjectHash);
-//    return true;
-//}
-
-//void CZnodeMan::RemoveGovernanceObject(uint256 nGovernanceObjectHash)
-//{
-//    LOCK(cs);
-//    BOOST_FOREACH(CZnode& mn, vZnodes) {
-//        mn.RemoveGovernanceObject(nGovernanceObjectHash);
-//    }
-//}
 
 void CZnodeMan::CheckZnode(const CTxIn& vin, bool fForce)
 {

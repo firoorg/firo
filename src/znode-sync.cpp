@@ -63,7 +63,6 @@ bool CZnodeSync::IsBlockchainSynced(bool fBlockAccepted) {
         // this should be only triggered while we are still syncing
         if (!IsSynced()) {
             // we are trying to download smth, reset blockchain sync status
-            LogPrintf("CZnodeSync::IsBlockchainSynced -- reset\n");
             fFirstBlockAccepted = true;
             fBlockchainSynced = false;
             nTimeLastProcess = GetTime();
@@ -77,7 +76,7 @@ bool CZnodeSync::IsBlockchainSynced(bool fBlockAccepted) {
         }
     }
 
-    if (fDebug) LogPrintf("CZnodeSync::IsBlockchainSynced -- state before check: %ssynced, skipped %d times\n", fBlockchainSynced ? "" : "not ", nSkipped);
+    LogPrint("znode-sync", "CZnodeSync::IsBlockchainSynced -- state before check: %ssynced, skipped %d times\n", fBlockchainSynced ? "" : "not ", nSkipped);
 
     nTimeLastProcess = GetTime();
     nSkipped = 0;
@@ -91,8 +90,6 @@ bool CZnodeSync::IsBlockchainSynced(bool fBlockAccepted) {
     }
 
     std::vector < CNode * > vNodesCopy = CopyNodeVector();
-    LogPrintf("vNodesCopy.size() = %s\n", vNodesCopy.size());
-    LogPrintf("ZNODE_SYNC_ENOUGH_PEERS = %s\n", ZNODE_SYNC_ENOUGH_PEERS);
     // We have enough peers and assume most of them are synced
     if (vNodesCopy.size() >= ZNODE_SYNC_ENOUGH_PEERS) {
         // Check to see how many of our peers are (almost) at the same height as we are
@@ -104,7 +101,6 @@ bool CZnodeSync::IsBlockchainSynced(bool fBlockAccepted) {
                 continue;
             }
             nNodesAtSameHeight++;
-            LogPrintf("nNodesAtSameHeight=%s\n", nNodesAtSameHeight);
             // if we have decent number of such peers, most likely we are synced now
             if (nNodesAtSameHeight >= ZNODE_SYNC_ENOUGH_PEERS) {
                 LogPrintf("CZnodeSync::IsBlockchainSynced -- found enough peers on the same height as we are, done\n");

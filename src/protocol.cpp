@@ -213,27 +213,10 @@ const char* CInv::GetCommand() const
         case MSG_DSTX:                  return NetMsgType::DSTX;
         case MSG_ZNODE_VERIFY:          return NetMsgType::MNVERIFY;
         default: {
-            LogPrintf("ERROR - UNKNOWN INV COMMAND\n");
             return "error";
         }
-    //        throw std::out_of_range(strprintf("CInv::GetCommand(): type=%d unknown type", type));
     }
 }
-
-//std::string CInv::GetCommand() const {
-//    if (!IsKnownType()) {
-//        LogPrintf("CInv::GetCommand(): type=%d unknown type\n", type);
-//        throw std::out_of_range(strprintf("CInv::GetCommand(): type=%d unknown type", type));
-//    }
-//    return ppszTypeName[type];
-//}
-
-//const char* CInv::GetCommand() const
-//{
-//    if (!IsKnownType())
-//        throw std::out_of_range(strprintf("CInv::GetCommand(): type=%d unknown type", type));
-//    return ppszTypeName[type];
-//}
 
 std::string CInv::ToString() const
 {

@@ -4892,7 +4892,7 @@ static bool IsSuperMajority(int minVersion, const CBlockIndex *pstart, unsigned 
 bool ProcessNewBlock(CValidationState &state, const CChainParams &chainparams, CNode *pfrom, const CBlock *pblock,
                      bool fForceProcessing, const CDiskBlockPos *dbp, bool fMayBanPeerIfInvalid) {
     int nHeight = getNHeight(pblock->GetBlockHeader());
-    LogPrintf("ProcessNewBlock nHeight=%s, blockHash:%s\n", nHeight, pblock->GetHash().ToString());
+    LogPrint("ProcessNewBlock nHeight=%s, blockHash:%s\n", nHeight, pblock->GetHash().ToString());
     //    LogPrint("ProcessNewBlock", "block=%s", pblock->ToString());
     {
         LOCK(cs_main);
@@ -6641,7 +6641,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
             pfrom->PushMessage(NetMsgType::GETDATA, vToFetch);
 
     } else if (strCommand == NetMsgType::GETDATA) {
-        LogPrintf("ProcessMessage=%s\n", strCommand);
+        LogPrint("ProcessMessage=%s\n", strCommand);
         vector <CInv> vInv;
         vRecv >> vInv;
         if (vInv.size() > MAX_INV_SZ) {
@@ -6802,7 +6802,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
         int nInvType = MSG_TX;
         CTransaction tx;
 //        vRecv >> tx;
-        LogPrintf("ProcessMessage() txHash=%s\n", tx.GetHash().ToString());
+        // LogPrintf("ProcessMessage() txHash=%s\n", tx.GetHash().ToString());
 
         // Read data and assign inv type
         if (strCommand == NetMsgType::TX) {
