@@ -3029,8 +3029,18 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
     std::vector <PrecomputedTransactionData> txdata;
     txdata.reserve(
             block.vtx.size()); // Required so that pointers to individual PrecomputedTransactionData don't get invalidated
+
+    set<uint256> txIds;
+    bool fTestNet = Params().NetworkIDString() == CBaseChainParams::TESTNET;
+
     for (unsigned int i = 0; i < block.vtx.size(); i++) {
         const CTransaction &tx = block.vtx[i];
+
+        uint256 txHash = tx.GetHash();
+        if (txIds.count(txHash) > 0 && (fTestNet || pindex->nHeight >= HF_ZNODE_HEIGHT))
+            return state.DoS(100, error("ConnectBlock(): duplicate transactions in the same block"),
+                             REJECT_INVALID, "bad-txns-duplicatetxid");
+        txIds.insert(txHash);
 
         nInputs += tx.vin.size();
 
