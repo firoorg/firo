@@ -4892,7 +4892,7 @@ static bool IsSuperMajority(int minVersion, const CBlockIndex *pstart, unsigned 
 bool ProcessNewBlock(CValidationState &state, const CChainParams &chainparams, CNode *pfrom, const CBlock *pblock,
                      bool fForceProcessing, const CDiskBlockPos *dbp, bool fMayBanPeerIfInvalid) {
     int nHeight = getNHeight(pblock->GetBlockHeader());
-    LogPrint("ProcessNewBlock nHeight=%s, blockHash:%s\n", nHeight, pblock->GetHash().ToString());
+    LogPrint("ProcessNewBlock", "ProcessNewBlock nHeight=%s, blockHash:%s\n", nHeight, pblock->GetHash().ToString());
     //    LogPrint("ProcessNewBlock", "block=%s", pblock->ToString());
     {
         LOCK(cs_main);
@@ -6641,7 +6641,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
             pfrom->PushMessage(NetMsgType::GETDATA, vToFetch);
 
     } else if (strCommand == NetMsgType::GETDATA) {
-        LogPrint("ProcessMessage=%s\n", strCommand);
+        LogPrint("ProcessMessage", "ProcessMessage=%s\n", strCommand);
         vector <CInv> vInv;
         vRecv >> vInv;
         if (vInv.size() > MAX_INV_SZ) {
