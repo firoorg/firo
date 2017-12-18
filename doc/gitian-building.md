@@ -95,7 +95,7 @@ After creating the VM, we need to configure it.
 
 - Click `Ok` twice to save.
 
-Get the [Debian 8.x net installer](http://cdimage.debian.org/debian-cd/8.5.0/amd64/iso-cd/debian-8.5.0-amd64-netinst.iso) (a more recent minor version should also work, see also [Debian Network installation](https://www.debian.org/CD/netinst/)).
+Get the [Debian 8.x net installer](http://bttracker.debian.org:6969/stat) (Only available as a torrent - navigate to "debian-8.5.0-amd64-netinst.iso"). a more recent minor version should also work, see also [Debian Network installation](https://www.debian.org/CD/netinst/).
 This DVD image can be validated using a SHA256 hashing tool, for example on
 Unixy OSes by entering the following in a terminal:
 

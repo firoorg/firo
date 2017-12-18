@@ -3026,8 +3026,18 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
     std::vector <PrecomputedTransactionData> txdata;
     txdata.reserve(
             block.vtx.size()); // Required so that pointers to individual PrecomputedTransactionData don't get invalidated
+
+    set<uint256> txIds;
+    bool fTestNet = Params().NetworkIDString() == CBaseChainParams::TESTNET;
+
     for (unsigned int i = 0; i < block.vtx.size(); i++) {
         const CTransaction &tx = block.vtx[i];
+
+        uint256 txHash = tx.GetHash();
+        if (txIds.count(txHash) > 0 && (fTestNet || pindex->nHeight >= HF_ZNODE_HEIGHT))
+            return state.DoS(100, error("ConnectBlock(): duplicate transactions in the same block"),
+                             REJECT_INVALID, "bad-txns-duplicatetxid");
+        txIds.insert(txHash);
 
         nInputs += tx.vin.size();
 
@@ -4922,7 +4932,7 @@ static bool IsSuperMajority(int minVersion, const CBlockIndex *pstart, unsigned 
 bool ProcessNewBlock(CValidationState &state, const CChainParams &chainparams, CNode *pfrom, const CBlock *pblock,
                      bool fForceProcessing, const CDiskBlockPos *dbp, bool fMayBanPeerIfInvalid) {
     int nHeight = getNHeight(pblock->GetBlockHeader());
-    LogPrintf("ProcessNewBlock nHeight=%s, blockHash:%s\n", nHeight, pblock->GetHash().ToString());
+    LogPrint("ProcessNewBlock", "ProcessNewBlock nHeight=%s, blockHash:%s\n", nHeight, pblock->GetHash().ToString());
     //    LogPrint("ProcessNewBlock", "block=%s", pblock->ToString());
     {
         LOCK(cs_main);
@@ -6674,7 +6684,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
             pfrom->PushMessage(NetMsgType::GETDATA, vToFetch);
 
     } else if (strCommand == NetMsgType::GETDATA) {
-        LogPrintf("ProcessMessage=%s\n", strCommand);
+        LogPrint("ProcessMessage", "ProcessMessage=%s\n", strCommand);
         vector <CInv> vInv;
         vRecv >> vInv;
         if (vInv.size() > MAX_INV_SZ) {
@@ -6835,7 +6845,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
         int nInvType = MSG_TX;
         CTransaction tx;
 //        vRecv >> tx;
-        LogPrintf("ProcessMessage() txHash=%s\n", tx.GetHash().ToString());
+        // LogPrintf("ProcessMessage() txHash=%s\n", tx.GetHash().ToString());
 
         // Read data and assign inv type
         if (strCommand == NetMsgType::TX) {
