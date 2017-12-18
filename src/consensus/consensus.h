@@ -3,8 +3,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_CONSENSUS_CONSENSUS_H
-#define BITCOIN_CONSENSUS_CONSENSUS_H
+#ifndef SMARTCASH_CONSENSUS_CONSENSUS_H
+#define SMARTCASH_CONSENSUS_CONSENSUS_H
 
 #include <stdint.h>
 
@@ -19,7 +19,7 @@ static const int64_t MAX_BLOCK_SIGOPS_COST = 160000;
 /** Coinbase transaction outputs can only be spent after this number of new blocks (network rule) */
 static const int COINBASE_MATURITY = 100;
 /** Smartnode start block*/
-static const int HF_SMARTNODE_HEIGHT = 250000;
+static const int HF_SMARTNODE_HEIGHT = 275000;
 
 /** Flags for nSequence and nLockTime locks */
 enum {
@@ -30,4 +30,4 @@ enum {
     LOCKTIME_MEDIAN_TIME_PAST = (1 << 1),
 };
 
-#endif // BITCOIN_CONSENSUS_CONSENSUS_H
+#endif // SMARTCASH_CONSENSUS_CONSENSUS_H
