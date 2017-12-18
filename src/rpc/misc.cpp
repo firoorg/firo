@@ -110,11 +110,7 @@ UniValue getinfo(const UniValue& params, bool fHelp)
 
 	bool txOutIndex=false;
 	std::string txOutBestBlock = "";
-	if (pCoinsByScriptViewDB && pCoinsByScriptView)
-	{
-		pCoinsByScriptViewDB->ReadFlag("utxoindex", txOutIndex);
-	}
-	if (!txOutIndex)
+	if (!fUTXOIndex)
 	{
 		txOutBestBlock = "(no index built; run the zcoin with -utxoindex)";
 	}

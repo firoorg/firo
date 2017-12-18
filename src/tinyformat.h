@@ -910,9 +910,9 @@ std::string format(const char* fmt, const T1& v1, const Args&... args)
         format(oss, fmt, v1, args...);
         return oss.str();
     } catch (const std::exception &e) {
-        std::cout << "Exception at: " << fmt << std::endl;
+        std::cout << "Exception at: " << fmt << std::string(" -> ") + e.what() << std::endl;
     } catch (...) {
-        std::cout << "Exception at: " << fmt << std::endl;
+        std::cout << "Exception at: " << std::endl;
     }
     return "Exception happen!";
 }

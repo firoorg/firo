@@ -62,10 +62,10 @@ bool GetUTXOStats(CCoinsView *view, CCoinsByScriptViewDB *viewbyscriptdb, CCoins
     while (pcursordb->Valid()) {
         boost::this_thread::interruption_point();
         CScriptID hash;
-        CCoinsByScript coinsByScript;
+        unspentcoins_t coinsByScript;
         if (pcursordb->GetKey(hash) && pcursordb->GetValue(coinsByScript)) {
             stats.nAddresses++;
-            stats.nAddressesOutputs += coinsByScript.setCoins.size();
+            stats.nAddressesOutputs += coinsByScript.size();
         } else {
             return error("%s: unable to read value", __func__);
         }

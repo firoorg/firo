@@ -414,7 +414,7 @@ private:
 
     uint64_t totalTxSize;      //!< sum of all mempool tx' byte sizes
 	const bool fUTXOIndex;
-	CCoinsMapByScript mapCoinsByScript; // only used if -utxoindex
+	coinsbyscriptmap_t mapCoinsByScript; // only used if -utxoindex
     uint64_t cachedInnerUsage; //!< sum of dynamic memory usage of all the map elements (NOT the maps themselves)
 
     CFeeRate minReasonableRelayFee;
@@ -533,7 +533,7 @@ public:
     void pruneSpent(const uint256& hash, CCoins &coins);
     unsigned int GetTransactionsUpdated() const;
     void AddTransactionsUpdated(unsigned int n);
-	void GetCoinsByScript(const CScript& script, CCoinsByScript& coinsByScript) const;
+	void GetCoinsByScript(const CScript& script, unspentcoins_t& coinsByScript) const;
     /**
      * Check that none of this transactions inputs are in the mempool, and thus
      * the tx is not dependent on other mempool transactions to be included in a block.

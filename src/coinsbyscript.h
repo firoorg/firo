@@ -17,31 +17,12 @@ class CCoinsViewDB;
 class CCoinsByScriptViewDB;
 class CScript;
 
-class CCoinsByScript
-{
-public:
-    // unspent transaction outputs
-    std::set<COutPoint> setCoins;
+// unspent transaction outputs
+typedef std::set<COutPoint> unspentcoins_t;
 
-    // empty constructor
-    CCoinsByScript() { }
+typedef uint160 scripthash_t;
 
-    bool IsEmpty() const {
-        return (setCoins.empty());
-    }
-
-    void swap(CCoinsByScript &to) {
-        to.setCoins.swap(setCoins);
-    }
-
-    ADD_SERIALIZE_METHODS;
-    template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
-        READWRITE(setCoins);
-    }
-};
-
-typedef std::map<CScriptID, CCoinsByScript> CCoinsMapByScript;
+typedef std::map<scripthash_t, unspentcoins_t> coinsbyscriptmap_t;
 
 /** Adds a memory cache for coins by address */
 class CCoinsByScriptView
@@ -52,13 +33,13 @@ private:
     mutable uint256 hashBlock;
 
 public:
-    CCoinsMapByScript cacheCoinsByScript; // accessed also from CCoinsViewByScriptDB
+    coinsbyscriptmap_t cacheCoinsByScript; // accessed also from CCoinsViewByScriptDB
     CCoinsByScriptView(CCoinsByScriptViewDB* baseIn);
 
-    bool GetCoinsByScript(const CScript &script, CCoinsByScript &coins);
+    bool GetCoinsByScript(const CScript &scriptIn, unspentcoins_t &coinsOut);
 
-    // Return a modifiable reference to a CCoinsByScript.
-    CCoinsByScript &GetCoinsByScript(const CScript &script, bool fRequireExisting = true);
+    // Return a modifiable reference to a unspentcoins_t. Searches for 'script' in both cache and db
+    unspentcoins_t &GetCoinsByScript(const CScript &script, bool fRequireExisting = true);
 
     void SetBestBlock(const uint256 &hashBlock);
     uint256 GetBestBlock() const;
@@ -69,9 +50,6 @@ public:
      * If false is returned, the state of this cache (and its backing view) will be undefined.
      */
     bool Flush();
-
-private:
-    CCoinsMapByScript::iterator FetchCoinsByScript(const CScript &script, bool fRequireExisting);
 };
 
 /** Cursor for iterating over a CCoinsViewByScriptDB */
@@ -80,8 +58,8 @@ class CCoinsByScriptViewDBCursor
 public:
     ~CCoinsByScriptViewDBCursor() {}
 
-    bool GetKey(CScriptID &key) const;
-    bool GetValue(CCoinsByScript &coins) const;
+    bool GetKey(scripthash_t &keyOut) const;
+    bool GetValue(unspentcoins_t &coinsOut) const;
     unsigned int GetValueSize() const;
 
     bool Valid() const;
@@ -90,9 +68,8 @@ public:
 private:
     CCoinsByScriptViewDBCursor(CDBIterator* pcursorIn):
         pcursor(pcursorIn) {}
-    uint256 hashBlock;
     std::unique_ptr<CDBIterator> pcursor;
-    std::pair<char, CScriptID> keyTmp;
+    std::pair<char, scripthash_t> keyTmp;
 
     friend class CCoinsByScriptViewDB;
 };
@@ -105,27 +82,24 @@ protected:
 public:
     CCoinsByScriptViewDB(size_t nCacheSize, bool fMemory = false, bool fWipe = false);
 
-    bool GetCoinsByScriptID(const CScriptID &scriptID, CCoinsByScript &coins) const;
+    bool GetCoinsByScriptHash(const scripthash_t &scriptHash, unspentcoins_t &coins) const;
     bool BatchWrite(CCoinsByScriptView* pcoinsViewByScriptIn, const uint256 &hashBlock);
     bool WriteFlag(const std::string &name, bool fValue);
     bool ReadFlag(const std::string &name, bool &fValue);
 	bool ReadBestBlock(uint256& bestBlock);
+
+	CCoinsByScriptViewDBCursor *Cursor() const;
+
+
     bool DeleteAllCoinsByScript();   // removes utxoindex
     bool GenerateAllCoinsByScript(CCoinsViewDB* coinsIn); // creates utxoindex
 
 
-    CCoinsByScriptViewDBCursor *Cursor() const;
 };
 
-bool GetUTXOByScript_OnTheFly(CCoinsViewDB* coinsIn, const uint160& pubScriptHash, CAmount& balanceOut);
+scripthash_t GetScriptHash(const CScript& in);
 
-struct CUnspentTxBalance
-{
-	CAmount total = 0;
-	CAmount sumSent = 0;
-	CAmount sumReceived = 0;
-};
-
+bool GetUTXOByScript_OnTheFly(CCoinsViewDB* coinsIn, const scripthash_t& pubScriptHash, CAmount& balanceOut);
 
 extern bool fUTXOIndex;
 extern CCoinsByScriptViewDB *pCoinsByScriptViewDB;

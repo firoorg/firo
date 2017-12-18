@@ -36,8 +36,8 @@ using namespace std;
 
 extern void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry);
 void ScriptPubKeyToJSON(const CScript& scriptPubKey, UniValue& out, bool fIncludeHex);
-void CoinsByScriptToJSON(const CCoinsByScript& coinsByScript, int nMinDepth, UniValue& vObjects, 
-		std::vector<std::pair<int, unsigned int>>& vSort, bool fIncludeHex, CUnspentTxBalance* balanceStat = nullptr);
+void CoinsByScriptToJSON(const unspentcoins_t& coinsByScript, int nMinDepth, UniValue& vObjects, 
+		std::vector<std::pair<int, unsigned int>>& vSort, bool fIncludeHex, CAmount* balanceOut = nullptr);
 
 double GetDifficulty(const CBlockIndex* blockindex)
 {
@@ -835,7 +835,7 @@ UniValue getutxoindex(const UniValue& params, bool fHelp)
     if (nFrom < 0)
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Negative from");
 
-	CUnspentTxBalance balance;
+	CAmount balance = 0;
 
     for (unsigned int idx = 0; idx < inputs.size(); idx++) {
         const UniValue& input = inputs[idx];
@@ -850,7 +850,7 @@ UniValue getutxoindex(const UniValue& params, bool fHelp)
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Bitcoin address or script: " + input.get_str());
         }
 
-        CCoinsByScript coinsByScript;
+        unspentcoins_t coinsByScript;
         pCoinsByScriptView->GetCoinsByScript(script, coinsByScript);
 
         if (nMinDepth == 0)
@@ -870,14 +870,10 @@ UniValue getutxoindex(const UniValue& params, bool fHelp)
 		transactions.push_back(vObjects[vSort[i].second]);
     }
 
-	UniValue balanceStat(UniValue::VOBJ);
-	balanceStat.push_back(Pair("sumSent", ValueFromAmount(balance.sumSent)));
-	balanceStat.push_back(Pair("sumReceived", ValueFromAmount(balance.sumReceived)));
-	balanceStat.push_back(Pair("total", ValueFromAmount(balance.total)));
 
 	UniValue result(UniValue::VOBJ);
 	
-	result.push_back(Pair("balance", balanceStat));
+	result.push_back(Pair("balance", ValueFromAmount(balance)));
 	result.push_back(Pair("transactionsNum", transactions.size()));
 	if (nCount != 0)
 	{
@@ -941,8 +937,7 @@ UniValue getunspentouts(const UniValue& params, bool fHelp)
 			throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid ZCoin address or script: " + input.get_str());
 		}
 
-		const uint160 scriptHash = uint160(Hash160(script.begin(), script.end()));
-		GetUTXOByScript_OnTheFly(GetCoinsViewDB(), scriptHash, balances[idx]);
+		GetUTXOByScript_OnTheFly(GetCoinsViewDB(), GetScriptHash(script), balances[idx]);
 	}
 
 

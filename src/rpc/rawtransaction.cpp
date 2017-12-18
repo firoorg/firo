@@ -126,10 +126,10 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
     }
 }
 
-void CoinsByScriptToJSON(const CCoinsByScript& coinsByScript, int nMinDepth, UniValue& vObjects, 
-		std::vector<std::pair<int, unsigned int>>& vSort, bool fIncludeHex, CUnspentTxBalance* balanceStat)
+void CoinsByScriptToJSON(const unspentcoins_t& coinsByScript, int nMinDepth, UniValue& vObjects, 
+		std::vector<std::pair<int, unsigned int>>& vSort, bool fIncludeHex, CAmount* balanceOut)
 {
-    BOOST_FOREACH(const COutPoint &outpoint, coinsByScript.setCoins)
+    for(const COutPoint &outpoint : coinsByScript)
 	{
         CCoins coins;
         if (nMinDepth == 0)
@@ -167,18 +167,9 @@ void CoinsByScriptToJSON(const CCoinsByScript& coinsByScript, int nMinDepth, Uni
             o.push_back(Pair("vout", (int)outpoint.n));
 
 			CAmount coinValue = coins.vout[outpoint.n].nValue;
-			if (balanceStat)
+			if (balanceOut)
 			{
-				balanceStat->total += coinValue;
-				if (coinValue >= 0)
-				{
-					balanceStat->sumReceived += coinValue;
-				}
-				else
-				{
-					//negative  - negative = positive
-					balanceStat->sumSent -= coinValue;
-				}
+				*balanceOut += coinValue;
 			}
 			o.push_back(Pair("value", ValueFromAmount(coinValue)));
 

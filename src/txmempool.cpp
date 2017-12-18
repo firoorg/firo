@@ -409,13 +409,13 @@ unsigned int CTxMemPool::GetTransactionsUpdated() const {
     return nTransactionsUpdated;
 }
 
-void CTxMemPool::GetCoinsByScript(const CScript& script, CCoinsByScript& coinsByScript) const
+void CTxMemPool::GetCoinsByScript(const CScript& script, unspentcoins_t& coinsByScript) const
 {
 	LOCK(cs);
-    CCoinsMapByScript::const_iterator it = mapCoinsByScript.find(CScriptID(script));
+    coinsbyscriptmap_t::const_iterator it = mapCoinsByScript.find(GetScriptHash(script));
     if (it != mapCoinsByScript.end())
     {
-        coinsByScript.setCoins.insert(it->second.setCoins.begin(), it->second.setCoins.end());
+        coinsByScript.insert(it->second.begin(), it->second.end());
     }
 }
 
@@ -487,7 +487,7 @@ bool CTxMemPool::addUnchecked(const uint256 &hash, const CTxMemPoolEntry &entry,
 			{
 				if (!tx.vout[i].IsNull() && !tx.vout[i].scriptPubKey.IsUnspendable())
 				{
-					mapCoinsByScript[CScriptID(tx.vout[i].scriptPubKey)].setCoins.insert(COutPoint(hash, (uint32_t)i));
+					mapCoinsByScript[GetScriptHash(tx.vout[i].scriptPubKey)].insert(COutPoint(hash, (uint32_t)i));
 				}
 			}
 		}
@@ -565,11 +565,11 @@ void CTxMemPool::removeRecursive(const CTransaction &origTx, std::list <CTransac
                 if (origTx.vout[i].IsNull() || origTx.vout[i].scriptPubKey.IsUnspendable())
                     continue;
 
-                CCoinsMapByScript::iterator it = mapCoinsByScript.find(CScriptID(origTx.vout[i].scriptPubKey));
+                coinsbyscriptmap_t::iterator it = mapCoinsByScript.find(CScriptID(origTx.vout[i].scriptPubKey));
                 if (it != mapCoinsByScript.end())
                 {
-                    it->second.setCoins.erase(COutPoint(origTx.GetHash(), (uint32_t)i));
-                    if (it->second.setCoins.empty())
+                    it->second.erase(COutPoint(origTx.GetHash(), (uint32_t)i));
+                    if (it->second.empty())
                         mapCoinsByScript.erase(it);
                 }
             }

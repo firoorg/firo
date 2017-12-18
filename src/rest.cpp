@@ -66,8 +66,8 @@ extern UniValue mempoolInfoToJSON();
 extern UniValue mempoolToJSON(bool fVerbose = false);
 extern void ScriptPubKeyToJSON(const CScript& scriptPubKey, UniValue& out, bool fIncludeHex);
 extern UniValue blockheaderToJSON(const CBlockIndex* blockindex);
-extern void CoinsByScriptToJSON(const CCoinsByScript& coinsByScript, int nMinDepth, UniValue& vObjects, 
-		std::vector<std::pair<int, unsigned int>>& vSort, bool fIncludeHex, CUnspentTxBalance* balanceStat = nullptr);
+extern void CoinsByScriptToJSON(const unspentcoins_t& coinsByScript, int nMinDepth, UniValue& vObjects, 
+		std::vector<std::pair<int, unsigned int>>& vSort, bool fIncludeHex, CAmount* balanceOut = nullptr);
 
 static bool RESTERR(HTTPRequest* req, enum HTTPStatusCode status, string message)
 {
@@ -683,7 +683,7 @@ static bool rest_getutxoindex(HTTPRequest* req, const std::string& strURIPart)
     for(auto& scriptObj: vScripts)
     {
         const CScript& script = scriptObj;
-        CCoinsByScript coinsByScript;
+        unspentcoins_t coinsByScript;
         pCoinsByScriptView->GetCoinsByScript(script, coinsByScript);
 
         if (nMinDepth == 0)

@@ -1550,6 +1550,17 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
 								break;
 							}							
                         }
+						CCoinsStats stats;
+						if (!GetUTXOStats(pcoinsTip, pCoinsByScriptViewDB, stats))
+						{
+							strLoadError = _("Error GetUTXOStats for utxoindex");
+							break;
+						}
+						if (stats.nTransactionOutputs != stats.nAddressesOutputs)
+						{
+							strLoadError = _("Error compare stats for utxoindex");
+							break;
+						}
 						fUTXOIndex = true;
                     }
 					//force rebuilding the index
@@ -1558,6 +1569,17 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
 						uiInterface.InitMessage(_("Building utxoindex..."));
 						if (!CoinsByScriptIndex_Rebuild(strLoadError))
 						{
+							break;
+						}
+						CCoinsStats stats;
+						if (!GetUTXOStats(pcoinsTip, pCoinsByScriptViewDB, stats))
+						{
+							strLoadError = _("Error GetUTXOStats for utxoindex");
+							break;
+						}
+						if (stats.nTransactionOutputs != stats.nAddressesOutputs)
+						{
+							strLoadError = _("Error compare stats for utxoindex");
 							break;
 						}
 						fUTXOIndex = true;
