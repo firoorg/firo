@@ -1122,11 +1122,11 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx, CZerocoinEntry pubCoinTx
     {
         if (txin.scriptSig.IsZerocoinSpend()) {
 
-        	uint32_t pubcoinId = txin.nSequence;
-        	if (pubcoinId < 1 || pubcoinId >= INT_MAX) { // IT BEGINS WITH 1
-        		return state.DoS(100, false, NSEQUENCE_INCORRECT,
-        	                                 "CTransaction::CheckTransaction() : Error: nSequence is not correct format");
-        	}
+            uint32_t pubcoinId = txin.nSequence;
+            if (pubcoinId < 1 || pubcoinId >= INT_MAX) { // IT BEGINS WITH 1
+                return state.DoS(100, false, NSEQUENCE_INCORRECT,
+                                             "CTransaction::CheckTransaction() : Error: nSequence is not correct format");
+            }
 
             // Deserialize the CoinSpend intro a fresh object
             std::vector<char, zero_after_free_allocator<char> > dataTxIn;
@@ -1135,11 +1135,11 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx, CZerocoinEntry pubCoinTx
             serializedCoinSpend.vch = dataTxIn;
             libzerocoin::CoinSpend newSpend(ZCParams, serializedCoinSpend);
             if ((pubcoinId > 0) && (((targetDenomination == libzerocoin::ZQ_LOVELACE) && (pubcoinId >= ZC_V2_SWITCH_ID_1))
-            		|| ((targetDenomination == libzerocoin::ZQ_GOLDWASSER) && (pubcoinId >= ZC_V2_SWITCH_ID_10))
-            		|| ((targetDenomination == libzerocoin::ZQ_RACKOFF) && (pubcoinId >= ZC_V2_SWITCH_ID_25))
-            		|| ((targetDenomination == libzerocoin::ZQ_PEDERSEN) && (pubcoinId >= ZC_V2_SWITCH_ID_50))
-            		|| ((targetDenomination == libzerocoin::ZQ_WILLIAMSON) && (pubcoinId >= ZC_V2_SWITCH_ID_100)))) {
-            	newSpend.setVersion(2);
+                    || ((targetDenomination == libzerocoin::ZQ_GOLDWASSER) && (pubcoinId >= ZC_V2_SWITCH_ID_10))
+                    || ((targetDenomination == libzerocoin::ZQ_RACKOFF) && (pubcoinId >= ZC_V2_SWITCH_ID_25))
+                    || ((targetDenomination == libzerocoin::ZQ_PEDERSEN) && (pubcoinId >= ZC_V2_SWITCH_ID_50))
+                    || ((targetDenomination == libzerocoin::ZQ_WILLIAMSON) && (pubcoinId >= ZC_V2_SWITCH_ID_100)))) {
+                newSpend.setVersion(2);
             }
             // Create a new metadata object to contain the hash of the received
             // ZEROCOIN_SPEND transaction. If we were a real client we'd actually
@@ -1147,12 +1147,12 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx, CZerocoinEntry pubCoinTx
             uint256 txHash = ArithToUint256(arith_uint256(0));
             libzerocoin::SpendMetaData newMetadata(0, txHash);
             if ((pubcoinId > 0) && (((targetDenomination == libzerocoin::ZQ_LOVELACE) && (pubcoinId >= ZC_V2_SWITCH_ID_1))
-            		|| ((targetDenomination == libzerocoin::ZQ_GOLDWASSER) && (pubcoinId >= ZC_V2_SWITCH_ID_10))
-            		|| ((targetDenomination == libzerocoin::ZQ_RACKOFF) && (pubcoinId >= ZC_V2_SWITCH_ID_25))
-            		|| ((targetDenomination == libzerocoin::ZQ_PEDERSEN) && (pubcoinId >= ZC_V2_SWITCH_ID_50))
-            		|| ((targetDenomination == libzerocoin::ZQ_WILLIAMSON) && (pubcoinId >= ZC_V2_SWITCH_ID_100)))) {
-            	newMetadata.accumulatorId = txin.nSequence;
-            	newMetadata.txHash = tx.GetNormalizedHash();
+                    || ((targetDenomination == libzerocoin::ZQ_GOLDWASSER) && (pubcoinId >= ZC_V2_SWITCH_ID_10))
+                    || ((targetDenomination == libzerocoin::ZQ_RACKOFF) && (pubcoinId >= ZC_V2_SWITCH_ID_25))
+                    || ((targetDenomination == libzerocoin::ZQ_PEDERSEN) && (pubcoinId >= ZC_V2_SWITCH_ID_50))
+                    || ((targetDenomination == libzerocoin::ZQ_WILLIAMSON) && (pubcoinId >= ZC_V2_SWITCH_ID_100)))) {
+                newMetadata.accumulatorId = txin.nSequence;
+                newMetadata.txHash = tx.GetNormalizedHash();
             }
             libzerocoin::Accumulator accumulator(ZCParams, targetDenomination);
             libzerocoin::Accumulator accumulatorRev(ZCParams, targetDenomination);
@@ -3143,10 +3143,10 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
              nInputs <= 1 ? 0 : 0.001 * (nTime4 - nTime2) / (nInputs - 1), nTimeVerify * 0.000001);
 
 
-	if (fJustCheck)
-	{
-		return true;
-	}
+    if (fJustCheck)
+    {
+        return true;
+    }
 
     // Write undo information to disk
     if (pindex->GetUndoPos().IsNull() || !pindex->IsValid(BLOCK_VALID_SCRIPTS)) {
@@ -3170,7 +3170,7 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
     if (fTxIndex)
         if (!pblocktree->WriteTxIndex(vPos))
             return AbortNode(state, "Failed to write transaction index");
-	
+    
     // add this block to the view's block chain
     view.SetBestBlock(pindex->GetBlockHash());;
 
@@ -3301,11 +3301,11 @@ bool static FlushStateToDisk(CValidationState &state, FlushStateMode mode) {
             if (!pcoinsTip->Flush())
                 return AbortNode(state, "Failed to write to coin database");
 
-			if (fUTXOIndex) 
-			{
-				if (!pCoinsByScriptView->Flush())
-					return AbortNode(state, "Failed to write to coin database");
-			}
+            if (fUTXOIndex) 
+            {
+                if (!pCoinsByScriptView->Flush())
+                    return AbortNode(state, "Failed to write to coin database");
+            }
 
             nLastFlush = nNow;
         }
@@ -3409,19 +3409,19 @@ bool static DisconnectTip(CValidationState &state, const CChainParams &chainpara
     // Apply the block atomically to the chain state.
     int64_t nStart = GetTimeMicros();
     {
-		CBlockUndo blockUndo;
+        CBlockUndo blockUndo;
         CCoinsViewCache view(pcoinsTip);
         if (!DisconnectBlock(block, state, pindexDelete, view, blockUndo))
             return error("DisconnectTip(): DisconnectBlock %s failed", pindexDelete->GetBlockHash().ToString());
         assert(view.Flush());
-		try
-		{
-			CoinsByScriptIndex_UpdateBlock(block, blockUndo, false);
-		}
-		catch(std::runtime_error& x)
-		{
-			return AbortNode(state, std::string("DisconnectTip() - ") + x.what());
-		}
+        try
+        {
+            CoinsByScriptIndex_UpdateBlock(block, blockUndo, false);
+        }
+        catch(std::runtime_error& x)
+        {
+            return AbortNode(state, std::string("DisconnectTip() - ") + x.what());
+        }
     }
     LogPrint("bench", "- Disconnect block: %.2fms\n", (GetTimeMicros() - nStart) * 0.001);
     // Zerocoin reorg, set mint to height -1, id -1
@@ -3568,27 +3568,27 @@ ConnectTip(CValidationState &state, const CChainParams &chainparams, CBlockIndex
     // Read block from disk.
     int64_t nTime1 = GetTimeMicros();
     
-	const CBlock* pthisBlock;
-	CBlock blockNew;
+    const CBlock* pthisBlock;
+    CBlock blockNew;
     if (!pblock) 
-	{
-		
+    {
+        
         if (!ReadBlockFromDisk(blockNew, pindexNew, chainparams.GetConsensus()))
             return AbortNode(state, "Failed to read block");
-		pthisBlock = &blockNew;
+        pthisBlock = &blockNew;
     }
-	else
-	{
-		pthisBlock = pblock;
-	}
-	const CBlock& blockConnecting = *pthisBlock;
+    else
+    {
+        pthisBlock = pblock;
+    }
+    const CBlock& blockConnecting = *pthisBlock;
     // Apply the block atomically to the chain state.
     int64_t nTime2 = GetTimeMicros();
     nTimeReadFromDisk += nTime2 - nTime1;
     int64_t nTime3;
 //    LogPrintf("bench", "  - Load block from disk: %.2fms [%.2fs]\n", (nTime2 - nTime1) * 0.001, nTimeReadFromDisk * 0.000001);
     {
-		CBlockUndo blockundo;
+        CBlockUndo blockundo;
         CCoinsViewCache view(pcoinsTip);
         bool rv = ConnectBlock(blockConnecting, state, pindexNew, view, chainparams, blockundo);
         GetMainSignals().BlockChecked(blockConnecting, state);
@@ -3603,14 +3603,14 @@ ConnectTip(CValidationState &state, const CChainParams &chainparams, CBlockIndex
         LogPrint("bench", "  - Connect total: %.2fms [%.2fs]\n", (nTime3 - nTime2) * 0.001,
                  nTimeConnectTotal * 0.000001);
         assert(view.Flush());
-		try
-		{
-			CoinsByScriptIndex_UpdateBlock(blockConnecting, blockundo, true);
-		}
-		catch (std::runtime_error& x)
-		{
-			return AbortNode(state, std::string("ConnectTip() - ") + x.what());
-		}
+        try
+        {
+            CoinsByScriptIndex_UpdateBlock(blockConnecting, blockundo, true);
+        }
+        catch (std::runtime_error& x)
+        {
+            return AbortNode(state, std::string("ConnectTip() - ") + x.what());
+        }
     }
     int64_t nTime4 = GetTimeMicros();
     nTimeFlush += nTime4 - nTime3;
@@ -4976,7 +4976,7 @@ bool TestBlockValidity(CValidationState &state, const CChainParams &chainparams,
         return error("%s: CheckIndexAgainstCheckpoint(): %s", __func__, state.GetRejectReason().c_str());
 
     CCoinsViewCache viewNew(pcoinsTip);
-	CBlockUndo blockundo;
+    CBlockUndo blockundo;
     CBlockIndex indexDummy(block);
     indexDummy.pprev = pindexPrev;
     indexDummy.nHeight = pindexPrev->nHeight + 1;
@@ -5349,7 +5349,7 @@ bool CVerifyDB::VerifyDB(const CChainParams &chainparams, CCoinsView *coinsview,
         if (nCheckLevel >= 3 && pindex == pindexState &&
             (coins.DynamicMemoryUsage() + pcoinsTip->DynamicMemoryUsage()) <= nCoinCacheUsage) {
             bool fClean = true;
-			CBlockUndo undo;
+            CBlockUndo undo;
             if (!DisconnectBlock(block, state, pindex, coins, undo, &fClean))
                 return error("VerifyDB(): *** irrecoverable inconsistency in block data at %d, hash=%s",
                              pindex->nHeight, pindex->GetBlockHash().ToString());
@@ -5377,7 +5377,7 @@ bool CVerifyDB::VerifyDB(const CChainParams &chainparams, CCoinsView *coinsview,
                     chainActive.Height() - pindex->nHeight)) / (double) nCheckDepth * 50))));
             pindex = chainActive.Next(pindex);
             CBlock block;
-			CBlockUndo undo;
+            CBlockUndo undo;
             if (!ReadBlockFromDisk(block, pindex, chainparams.GetConsensus()))
                 return error("VerifyDB(): *** ReadBlockFromDisk failed at %d, hash=%s", pindex->nHeight,
                              pindex->GetBlockHash().ToString());

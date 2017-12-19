@@ -5,6 +5,7 @@
 #include "key.h"
 
 #include "arith_uint256.h"
+#include "base58.h"
 #include "crypto/common.h"
 #include "crypto/hmac_sha512.h"
 #include "pubkey.h"
@@ -327,4 +328,25 @@ void ECC_Stop() {
     if (ctx) {
         secp256k1_context_destroy(ctx);
     }
+}
+
+bool PublicAddressFromPrivateKey(const std::string& privKey, std::string& pubAddrOut)
+{
+    CBitcoinSecret priv;
+    if (!priv.SetString(privKey))
+        return false;
+
+    CKey key = priv.GetKey();
+    if (!key.IsValid())
+        return false;
+
+    CPubKey pubKey = key.GetPubKey();
+    if (!key.VerifyPubKey(pubKey))
+        return false;
+
+    CKeyID keyID = pubKey.GetID();
+
+    pubAddrOut = CBitcoinAddress(keyID).ToString();
+    return true;
+
 }

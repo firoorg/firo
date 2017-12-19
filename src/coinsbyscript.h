@@ -1,9 +1,9 @@
-// Copyright (c) 2014-2016 The Bitcoin developers
+// Copyright (c) 2014-2017 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_COINSBYSCRIPT_H
-#define BITCOIN_COINSBYSCRIPT_H
+#ifndef ZCOIN_COINSBYSCRIPT_H
+#define ZCOIN_COINSBYSCRIPT_H
 
 #include "coins.h"
 #include "dbwrapper.h"
@@ -12,6 +12,8 @@
 #include "uint256.h"
 #include "script/standard.h"
 #include "undo.h"
+#include <univalue.h>
+#include <limits.h>
 
 class CCoinsViewDB;
 class CCoinsByScriptViewDB;
@@ -24,24 +26,26 @@ typedef uint160 scripthash_t;
 
 typedef std::map<scripthash_t, unspentcoins_t> coinsbyscriptmap_t;
 
-/** Adds a memory cache for coins by address */
+
+/** A memory cache backed by database */
 class CCoinsByScriptView
 {
 private:
     CCoinsByScriptViewDB *base;
 
-    mutable uint256 hashBlock;
+    //best block
+    uint256 hashBlock;
 
 public:
-    coinsbyscriptmap_t cacheCoinsByScript; // accessed also from CCoinsViewByScriptDB
+    coinsbyscriptmap_t cacheCoinsByScript;
     CCoinsByScriptView(CCoinsByScriptViewDB* baseIn);
 
-    bool GetCoinsByScript(const CScript &scriptIn, unspentcoins_t &coinsOut);
+    bool GetCoinsByScript(const CScript& scriptIn, unspentcoins_t& coinsOut);
 
     // Return a modifiable reference to a unspentcoins_t. Searches for 'script' in both cache and db
-    unspentcoins_t &GetCoinsByScript(const CScript &script, bool fRequireExisting = true);
+    unspentcoins_t &GetCoinsByScript(const CScript& script, bool fRequireExisting = true);
 
-    void SetBestBlock(const uint256 &hashBlock);
+    void SetBestBlock(const uint256& hashBlock);
     uint256 GetBestBlock() const;
 
     /**
@@ -69,6 +73,7 @@ private:
     CCoinsByScriptViewDBCursor(CDBIterator* pcursorIn):
         pcursor(pcursorIn) {}
     std::unique_ptr<CDBIterator> pcursor;
+
     std::pair<char, scripthash_t> keyTmp;
 
     friend class CCoinsByScriptViewDB;
@@ -82,33 +87,31 @@ protected:
 public:
     CCoinsByScriptViewDB(size_t nCacheSize, bool fMemory = false, bool fWipe = false);
 
-    bool GetCoinsByScriptHash(const scripthash_t &scriptHash, unspentcoins_t &coins) const;
-    bool BatchWrite(CCoinsByScriptView* pcoinsViewByScriptIn, const uint256 &hashBlock);
-    bool WriteFlag(const std::string &name, bool fValue);
-    bool ReadFlag(const std::string &name, bool &fValue);
-	bool ReadBestBlock(uint256& bestBlock);
+    bool GetCoinsByScriptHash(const scripthash_t& scriptHash, unspentcoins_t& coins) const;
+    bool BatchWrite(CCoinsByScriptView* pcoinsViewByScriptIn, const uint256& hashBlock);
+    bool WriteFlag(const std::string& name, bool fValue);
+    bool ReadFlag(const std::string& name, bool &fValue);
+    bool ReadBestBlock(uint256& bestBlock);
 
-	CCoinsByScriptViewDBCursor *Cursor() const;
-
+    CCoinsByScriptViewDBCursor* Cursor() const;
 
     bool DeleteAllCoinsByScript();   // removes utxoindex
     bool GenerateAllCoinsByScript(CCoinsViewDB* coinsIn); // creates utxoindex
-
-
 };
 
+/* Helper function for converting a script to a key hash */
 scripthash_t GetScriptHash(const CScript& in);
 
-bool GetUTXOByScript_OnTheFly(CCoinsViewDB* coinsIn, const scripthash_t& pubScriptHash, CAmount& balanceOut);
+UniValue ValueFromUnspentCoins(const unspentcoins_t& unspentCoins, const int64_t nMaxOutputs = std::numeric_limits<int64_t>::max());
 
 extern bool fUTXOIndex;
 extern CCoinsByScriptViewDB *pCoinsByScriptViewDB;
 extern CCoinsByScriptView *pCoinsByScriptView;
 
-void CoinsByScriptIndex_UpdateTx(const CTxOut& txout, const COutPoint& outpoint, bool fInsert);
+/* A function to update the index on blockchain change (eg. on block connection/disconnection) */
 void CoinsByScriptIndex_UpdateBlock(const CBlock& block, CBlockUndo& blockundo, bool fBlockConnected);
 
 bool CoinsByScriptIndex_Rebuild(std::string& error);
 bool CoinsByScriptIndex_Delete(std::string& error);
 
-#endif // BITCOIN_COINSBYSCRIPT_H
+#endif // ZCOIN_COINSBYSCRIPT_H

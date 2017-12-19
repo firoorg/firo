@@ -413,8 +413,8 @@ private:
     CBlockPolicyEstimator* minerPolicyEstimator;
 
     uint64_t totalTxSize;      //!< sum of all mempool tx' byte sizes
-	const bool fUTXOIndex;
-	coinsbyscriptmap_t mapCoinsByScript; // only used if -utxoindex
+    const bool fUTXOIndex;
+    coinsbyscriptmap_t mapCoinsByScript; // only used if -utxoindex
     uint64_t cachedInnerUsage; //!< sum of dynamic memory usage of all the map elements (NOT the maps themselves)
 
     CFeeRate minReasonableRelayFee;
@@ -502,7 +502,7 @@ public:
      *  below which we would reasonably say a transaction has 0-effective-fee.
      */
     CTxMemPool(const CFeeRate& _minReasonableRelayFee);
-	CTxMemPool(const bool& _fTxOutIndex, const CFeeRate& _minReasonableRelayFee);
+    CTxMemPool(const bool& _fTxOutIndex, const CFeeRate& _minReasonableRelayFee);
     ~CTxMemPool();
 
     /**
@@ -533,7 +533,7 @@ public:
     void pruneSpent(const uint256& hash, CCoins &coins);
     unsigned int GetTransactionsUpdated() const;
     void AddTransactionsUpdated(unsigned int n);
-	void GetCoinsByScript(const CScript& script, unspentcoins_t& coinsByScript) const;
+    void GetCoinsByScript(const CScript& script, unspentcoins_t& coinsByScript) const;
     /**
      * Check that none of this transactions inputs are in the mempool, and thus
      * the tx is not dependent on other mempool transactions to be included in a block.

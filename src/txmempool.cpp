@@ -376,15 +376,15 @@ CTxMemPool::CTxMemPool(const CFeeRate &_minReasonableRelayFee) :
 CTxMemPool::CTxMemPool(const bool& _fTxOutIndex, const CFeeRate& _minReasonableRelayFee) :
     nTransactionsUpdated(0), fUTXOIndex(_fTxOutIndex)
 {
-	_clear(); //lock free clear
+    _clear(); //lock free clear
 
-	// Sanity checks off by default for performance, because otherwise
-	// accepting transactions becomes O(N^2) where N is the number
-	// of transactions in the pool
-	nCheckFrequency = 0;
+    // Sanity checks off by default for performance, because otherwise
+    // accepting transactions becomes O(N^2) where N is the number
+    // of transactions in the pool
+    nCheckFrequency = 0;
 
-	minerPolicyEstimator = new CBlockPolicyEstimator(_minReasonableRelayFee);
-	minReasonableRelayFee = _minReasonableRelayFee;
+    minerPolicyEstimator = new CBlockPolicyEstimator(_minReasonableRelayFee);
+    minReasonableRelayFee = _minReasonableRelayFee;
 }
 
 
@@ -411,7 +411,7 @@ unsigned int CTxMemPool::GetTransactionsUpdated() const {
 
 void CTxMemPool::GetCoinsByScript(const CScript& script, unspentcoins_t& coinsByScript) const
 {
-	LOCK(cs);
+    LOCK(cs);
     coinsbyscriptmap_t::const_iterator it = mapCoinsByScript.find(GetScriptHash(script));
     if (it != mapCoinsByScript.end())
     {
@@ -481,16 +481,16 @@ bool CTxMemPool::addUnchecked(const uint256 &hash, const CTxMemPoolEntry &entry,
         vTxHashes.emplace_back(tx.GetWitnessHash(), newit);
         newit->vTxHashesIdx = vTxHashes.size() - 1;
 
-		if (fUTXOIndex)
-		{
-			for (unsigned int i = 0; i < tx.vout.size(); i++)
-			{
-				if (!tx.vout[i].IsNull() && !tx.vout[i].scriptPubKey.IsUnspendable())
-				{
-					mapCoinsByScript[GetScriptHash(tx.vout[i].scriptPubKey)].insert(COutPoint(hash, (uint32_t)i));
-				}
-			}
-		}
+        if (fUTXOIndex)
+        {
+            for (unsigned int i = 0; i < tx.vout.size(); i++)
+            {
+                if (!tx.vout[i].IsNull() && !tx.vout[i].scriptPubKey.IsUnspendable())
+                {
+                    mapCoinsByScript[GetScriptHash(tx.vout[i].scriptPubKey)].insert(COutPoint(hash, (uint32_t)i));
+                }
+            }
+        }
     }
     nTransactionsUpdated++;
 
@@ -558,7 +558,7 @@ void CTxMemPool::removeRecursive(const CTransaction &origTx, std::list <CTransac
     {
         LOCK(cs);
 
-		if (fUTXOIndex)
+        if (fUTXOIndex)
         {
             for (unsigned int i = 0; i < origTx.vout.size(); i++)
             {
