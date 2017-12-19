@@ -1354,7 +1354,8 @@ bool CheckTransaction(const CTransaction& tx, CValidationState& state, uint256 h
             bool found_3 = false;
             bool found_4 = false;
             bool found_5 = false;
-
+            int total_payment_tx = 0;
+            bool found_smartnode_payment = true; // no more than 1 output for payment
             CScript FOUNDER_1_SCRIPT;
             CScript FOUNDER_2_SCRIPT;
             CScript FOUNDER_3_SCRIPT;
@@ -1394,13 +1395,12 @@ bool CheckTransaction(const CTransaction& tx, CValidationState& state, uint256 h
                         found_5 = true;
                     }
                 }
-
                 if (!(found_1 && found_2 && found_3 && found_4 && found_5)) {
                     return state.DoS(100, false, REJECT_FOUNDER_REWARD_MISSING,
                                      "CTransaction::CheckTransaction() : One of the SmartHive rewards is missing");
                 }
             }
-            if ((nHeight >= 90000) && (nHeight <= 717499999)) {
+            if ((nHeight >= 90000) && (nHeight < HF_SMARTNODE_HEIGHT)) {
               BOOST_FOREACH(const CTxOut& output, tx.vout) {
                 int blockRotation = nHeight - 95 * (nHeight/95);
                 int64_t reward = (int64_t)(0.95 * (GetBlockValue(nHeight, 0, pindexBestHeader->nTime)));
@@ -1416,19 +1416,49 @@ bool CheckTransaction(const CTransaction& tx, CValidationState& state, uint256 h
                 if (blockRotation >= 24 && blockRotation <= 38 && output.scriptPubKey == FOUNDER_4_SCRIPT && abs(output.nValue - reward) < 2 ) {
                     found_4 = true;
                 }
-                if (nHeight >= HF_SMARTNODE_HEIGHT) {
-                   if (blockRotation >= 39 && blockRotation <= 84 && output.scriptPubKey == FOUNDER_5_SCRIPT && abs(output.nValue - reward) < 2 ) {
+                if (blockRotation >= 39 && blockRotation <= 94 && output.scriptPubKey == FOUNDER_5_SCRIPT && abs(output.nValue - reward) < 2 ) {
                        found_5 = true; }
-                }
-                if (nHeight < HF_SMARTNODE_HEIGHT) {
-                   if (blockRotation >= 39 && blockRotation <= 94 && output.scriptPubKey == FOUNDER_5_SCRIPT && abs(output.nValue - reward) < 2 ) {
-                       found_5 = true; }
-                }
+	        }
               }
-              if ((!(found_1 || found_2 || found_3 || found_4 || found_5)) && ((nHeight - 95 * (nHeight/95)) <= 84)) {
+              if ((!(found_1 || found_2 || found_3 || found_4 || found_5)) {
                 return state.DoS(100, false, REJECT_FOUNDER_REWARD_MISSING,
-                                     "CTransaction::CheckTransaction() : One of the SmartHive rewards is missing");
+                                     "CTransaction::CheckTransaction() : One of the SmartHive Rewards is missing");
+	      }
+            }
+ 	    if ((nHeight >= HF_SMARTNODE_HEIGHT) && (nHeight <= 717499999)) {
+              BOOST_FOREACH(const CTxOut& output, tx.vout) {
+                int blockRotation = nHeight - 85 * (nHeight/85);
+                int64_t reward = (int64_t)(0.85 * (GetBlockValue(nHeight, 0, pindexBestHeader->nTime)));
+		smartnodePayment = reward / 10
+                if (blockRotation >= 0 && blockRotation <= 7 && output.scriptPubKey == FOUNDER_1_SCRIPT && abs(output.nValue - reward) < 2 ) {                    
+                    found_1 = true;
+                }
+                if (blockRotation >= 8 && blockRotation <= 15 && output.scriptPubKey == FOUNDER_2_SCRIPT && abs(output.nValue - reward) < 2 ) {
+                    found_2 = true;
+                }
+                if (blockRotation >= 16 && blockRotation <= 23 && output.scriptPubKey == FOUNDER_3_SCRIPT && abs(output.nValue - reward) < 2 ) {
+                    found_3 = true;
+                }
+                if (blockRotation >= 24 && blockRotation <= 38 && output.scriptPubKey == FOUNDER_4_SCRIPT && abs(output.nValue - reward) < 2 ) {
+                    found_4 = true;
+                }
+                if (blockRotation >= 39 && blockRotation <= 84 && output.scriptPubKey == FOUNDER_5_SCRIPT && abs(output.nValue - reward) < 2 ) {
+                    found_5 = true; 
+		}
+ 	        if (smartnodePayment != output.nValue) {
+                    found_smartnode_payment = false;
+                } else {
+                    total_payment_tx = total_payment_tx + 1;
+                }
               }
+              if ((!(found_1 || found_2 || found_3 || found_4 || found_5)) {
+                return state.DoS(100, false, REJECT_FOUNDER_REWARD_MISSING,
+                                     "CTransaction::CheckTransaction() : One of the SmartHive Rewards is missing");
+	      }
+              if (found_smartnode_payment || total_payment_tx > 1) {
+              return state.DoS(100, false, REJECT_INVALID_SMARTNODE_PAYMENT,
+                             "CTransaction::CheckTransaction() : Invalid SmartNode Payment");
+              }    
             }
         }
     } else {
