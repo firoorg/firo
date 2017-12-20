@@ -1429,7 +1429,7 @@ bool CheckTransaction(const CTransaction& tx, CValidationState& state, uint256 h
               BOOST_FOREACH(const CTxOut& output, tx.vout) {
                 int blockRotation = nHeight - 85 * (nHeight/85);
                 int64_t reward = (int64_t)(0.85 * (GetBlockValue(nHeight, 0, pindexBestHeader->nTime)));
-		smartnodePayment = reward / 10
+		int64_t smartnodePayment = reward / 10
                 if (blockRotation >= 0 && blockRotation <= 7 && output.scriptPubKey == FOUNDER_1_SCRIPT && abs(output.nValue - reward) < 2 ) {                    
                     found_1 = true;
                 }
@@ -1459,7 +1459,8 @@ bool CheckTransaction(const CTransaction& tx, CValidationState& state, uint256 h
               return state.DoS(100, false, REJECT_INVALID_SMARTNODE_PAYMENT,
                              "CTransaction::CheckTransaction() : Invalid SmartNode Payment");
               }    
-            }
+            } 
+          }
         }
     } else {
         
