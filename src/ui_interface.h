@@ -109,7 +109,7 @@ public:
     boost::signals2::signal<void (void)> BannedListChanged;
 
     /** Additional data sync progress changed */
-    boost::signals2::signal<void (double nSyncProgress)> NotifyAdditionalDataSyncProgressChanged;
+    boost::signals2::signal<void (int count, double nSyncProgress)> NotifyAdditionalDataSyncProgressChanged;
 };
 
 /** Show warning message **/

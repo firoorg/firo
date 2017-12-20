@@ -497,7 +497,7 @@ void BitcoinGUI::setClientModel(ClientModel *clientModel)
         setNumBlocks(clientModel->getNumBlocks(), clientModel->getLastBlockDate(), clientModel->getVerificationProgress(NULL), false);
         connect(clientModel, SIGNAL(numBlocksChanged(int,QDateTime,double,bool)), this, SLOT(setNumBlocks(int,QDateTime,double,bool)));
 
-        connect(clientModel, SIGNAL(additionalDataSyncProgressChanged(double)), this, SLOT(setAdditionalDataSyncProgress(double)));
+        connect(clientModel, SIGNAL(additionalDataSyncProgressChanged(int, double)), this, SLOT(setAdditionalDataSyncProgress(int, double)));
 
         // Receive and report messages from client model
         connect(clientModel, SIGNAL(message(QString,QString,unsigned int)), this, SLOT(message(QString,QString,unsigned int)));
@@ -801,6 +801,7 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
 
     tooltip = tr("Processed %n block(s) of transaction history.", "", count);
 
+
     if(!znodeSync.IsBlockchainSynced())
     {
         // Represent time from last generated block in human readable text
@@ -864,7 +865,7 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
 }
 
 
-void BitcoinGUI::setAdditionalDataSyncProgress(double nSyncProgress)
+void BitcoinGUI::setAdditionalDataSyncProgress(int count, double nSyncProgress)
 {
     if(!clientModel)
         return;
@@ -873,6 +874,7 @@ void BitcoinGUI::setAdditionalDataSyncProgress(double nSyncProgress)
     statusBar()->clearMessage();
 
     QString tooltip;
+    tooltip = tr("Processed %n block(s) of transaction history.", "", count);
 
     // Set icon state: spinning if catching up, tick otherwise
 
@@ -899,8 +901,6 @@ void BitcoinGUI::setAdditionalDataSyncProgress(double nSyncProgress)
 
             progressBar->setFormat(tr("Synchronizing additional data: %p%"));
             progressBar->setMaximum(1000000000);
-            LogPrintf("nSyncProgress=%s\n", nSyncProgress);
-            LogPrintf("nSyncProgress * 1000000000.0 + 0.5=%s\n", nSyncProgress * 1000000000.0 + 0.5);
             progressBar->setValue(nSyncProgress * 1000000000.0 + 0.5);
         }
 
