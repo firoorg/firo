@@ -130,7 +130,7 @@ unsigned int BorisRidiculouslyNamedDifficultyFunction(const CBlockIndex* pindexL
     CBigNum bnNew(bnPastTargetAverage);
     if (nActualSeconds != 0 && nTargetSeconds != 0) 
     {
-        
+        bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
         if ( nActualSeconds > 3 * nTargetSeconds ) { nActualSeconds = 3 * nTargetSeconds; } // Maximal difficulty decrease of /3 from constrained past average      
             if(fTestNet){
               if ( nActualSeconds < nTargetSeconds / 10 ) { nActualSeconds = nTargetSeconds / 1.01; } // Maximal difficulty increase of x3 from constrained past average

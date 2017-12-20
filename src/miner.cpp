@@ -20,6 +20,7 @@
 #include "pow.h"
 #include "primitives/transaction.h"
 #include "script/standard.h"
+#include "smartnode/smartnodepayments.h"
 #include "timedata.h"
 #include "txmempool.h"
 #include "util.h"
@@ -131,11 +132,11 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
 
     if(!pblocktemplate.get())
         return NULL;
-    pblock = &pblocktemplate->block; // pointer for convenience
+    CBlock *pblock = &pblocktemplate->block; // pointer for convenience
 
     nHeight = pindexBestHeader->nHeight + 1;
 
-    CTransaction coinbaseTx;
+    CMutableTransaction coinbaseTx;
     coinbaseTx.vin.resize(1);
     coinbaseTx.vin[0].prevout.SetNull();
     coinbaseTx.vout.resize(1);
@@ -192,13 +193,15 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
                coinbaseTx.vout.push_back(CTxOut(reward, CScript(FOUNDER_4_SCRIPT.begin(), FOUNDER_4_SCRIPT.end())));
             }
             if(blockRotation >= 39 && blockRotation <= 94){
-                  coinbaseTx.vout.push_back(CTxOut(reward, CScript(FOUNDER_5_SCRIPT.begin(), FOUNDER_5_SCRIPT.end())));}
+                  coinbaseTx.vout.push_back(CTxOut(reward, CScript(FOUNDER_5_SCRIPT.begin(), FOUNDER_5_SCRIPT.end())));
             }
          }
-	 if ((nHeight >= HF_SMARTNODE_HEIGHT) && (nHeight < 717499999)) {
+         
+         if ((nHeight >= HF_SMARTNODE_HEIGHT) && (nHeight < 717499999)) {
             int blockRotation = nHeight - 85 * ((pindexBestHeader->nHeight+1)/85);
             int64_t reward = (int64_t)(0.85 * (GetBlockValue(nHeight, 0, pindexBestHeader->nTime)));
-	    if(blockRotation >= 0 && blockRotation <= 7){
+            
+            if(blockRotation >= 0 && blockRotation <= 7){
                coinbaseTx.vout.push_back(CTxOut(reward, CScript(FOUNDER_1_SCRIPT.begin(), FOUNDER_1_SCRIPT.end())));
             }
             if(blockRotation >= 8 && blockRotation <= 15){
@@ -210,12 +213,13 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
             if(blockRotation >= 24 && blockRotation <= 38){
                coinbaseTx.vout.push_back(CTxOut(reward, CScript(FOUNDER_4_SCRIPT.begin(), FOUNDER_4_SCRIPT.end())));
             }
-	    if(blockRotation >= 39 && blockRotation <= 84){
-                  coinbaseTx.vout.push_back(CTxOut(reward, CScript(FOUNDER_5_SCRIPT.begin(), FOUNDER_5_SCRIPT.end())));}
+            if(blockRotation >= 39 && blockRotation <= 84){
+                  coinbaseTx.vout.push_back(CTxOut(reward, CScript(FOUNDER_5_SCRIPT.begin(), FOUNDER_5_SCRIPT.end())));
             }
-            CAmount smartnodePayment = reward/10
+            
+            CAmount smartnodePayment = reward/10;
             coinbaseTx.vout[0].nValue -= smartnodePayment;
-            FillBlockPayments(coinbaseTx, nHeight, smartnodePayment, pblock->txoutsmartnode, pblock->voutSuperblock);
+            FillBlockPayments(coinbaseTx, nHeight, smartnodePayment, pblock->txoutSmartnode, pblock->voutSuperblock);
         }
     }
 
