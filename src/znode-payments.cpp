@@ -227,7 +227,7 @@ void CZnodePayments::FillBlockPayee(CMutableTransaction &txNew, int nBlockHeight
 
     if (!mnpayments.GetBlockPayee(nBlockHeight, payee)) {
         // no znode detected...
-        LogPrintf("no znode detected...\n");
+        // LogPrintf("no znode detected...\n");
         foundMaxVotedPayee = false;
         int nCount = 0;
         CZnode *winningNode = mnodeman.GetNextZnodeInQueueForPayment(nBlockHeight, true, nCount);
@@ -287,7 +287,7 @@ void CZnodePayments::ProcessMessage(CNode *pfrom, std::string &strCommand, CData
         netfulfilledman.AddFulfilledRequest(pfrom->addr, NetMsgType::ZNODEPAYMENTSYNC);
 
         Sync(pfrom);
-        LogPrintf("ZNODEPAYMENTSYNC -- Sent Znode payment votes to peer %d\n", pfrom->id);
+        LogPrint("mnpayments", "ZNODEPAYMENTSYNC -- Sent Znode payment votes to peer %d\n", pfrom->id);
 
     } else if (strCommand == NetMsgType::ZNODEPAYMENTVOTE) { // Znode Payments Vote for the Winner
 
@@ -421,7 +421,7 @@ bool CZnodePayments::IsScheduled(CZnode &mn, int nNotBlockHeight) {
 }
 
 bool CZnodePayments::AddPaymentVote(const CZnodePaymentVote &vote) {
-    LogPrintf("CZnodePayments::AddPaymentVote\n");
+    LogPrint("znode-payments", "CZnodePayments::AddPaymentVote\n");
     uint256 blockHash = uint256();
     if (!GetBlockHash(blockHash, vote.nBlockHeight - 101)) return false;
 
@@ -472,9 +472,6 @@ bool CZnodeBlockPayees::GetBestPayee(CScript &payeeRet) {
     int nVotes = -1;
     BOOST_FOREACH(CZnodePayee & payee, vecPayees)
     {
-        LogPrintf("payee=%s\n", payee.ToString());
-        LogPrintf("payee.GetVoteCount()=%s\n", payee.GetVoteCount());
-        LogPrintf("nVotes=%s\n", nVotes);
         if (payee.GetVoteCount() > nVotes) {
             payeeRet = payee.GetPayee();
             nVotes = payee.GetVoteCount();
