@@ -62,7 +62,7 @@
 using namespace std;
 
 #if defined(NDEBUG)
-# error "Zcoin cannot be compiled without assertions."
+# error "Bitcoin cannot be compiled without assertions."
 #endif
 
 #define ZEROCOIN_MODULUS   "25195908475657893494027183240048398571429282126204032027777137836043662020707595556264018525880784406918290641249515082189298559149176184502808489120072844992687392807287776735971418347270261896375014971824691165077613379859095700097330459748808428401797429100642458691817195118746121515172654632282216869987549182422433637259085141865462043576798423387184774447920739934236584823824281198163815010674810451660377306056201619676256133844143603833904414952634432190114657544454178424020924616515723350778707749817125772467962926386356373289912154831438167899885040445364023527381951378636564391212010397122822120720357"
@@ -137,7 +137,7 @@ static void CheckBlockIndex(const Consensus::Params &consensusParams);
 /** Constant stuff for coinbase transactions we create: */
 CScript COINBASE_FLAGS;
 
-const string strMessageMagic = "Zcoin Signed Message:\n";
+const string strMessageMagic = "Bitcoin Signed Message:\n";
 
 // Internal stuff
 namespace {
@@ -3029,18 +3029,8 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
     std::vector <PrecomputedTransactionData> txdata;
     txdata.reserve(
             block.vtx.size()); // Required so that pointers to individual PrecomputedTransactionData don't get invalidated
-
-    set<uint256> txIds;
-    bool fTestNet = Params().NetworkIDString() == CBaseChainParams::TESTNET;
-
     for (unsigned int i = 0; i < block.vtx.size(); i++) {
         const CTransaction &tx = block.vtx[i];
-
-        uint256 txHash = tx.GetHash();
-        if (txIds.count(txHash) > 0 && (fTestNet || pindex->nHeight >= HF_ZNODE_HEIGHT))
-            return state.DoS(100, error("ConnectBlock(): duplicate transactions in the same block"),
-                             REJECT_INVALID, "bad-txns-duplicatetxid");
-        txIds.insert(txHash);
 
         nInputs += tx.vin.size();
 
@@ -4892,7 +4882,7 @@ static bool IsSuperMajority(int minVersion, const CBlockIndex *pstart, unsigned 
 bool ProcessNewBlock(CValidationState &state, const CChainParams &chainparams, CNode *pfrom, const CBlock *pblock,
                      bool fForceProcessing, const CDiskBlockPos *dbp, bool fMayBanPeerIfInvalid) {
     int nHeight = getNHeight(pblock->GetBlockHeader());
-    LogPrint("ProcessNewBlock", "ProcessNewBlock nHeight=%s, blockHash:%s\n", nHeight, pblock->GetHash().ToString());
+    LogPrintf("ProcessNewBlock nHeight=%s, blockHash:%s\n", nHeight, pblock->GetHash().ToString());
     //    LogPrint("ProcessNewBlock", "block=%s", pblock->ToString());
     {
         LOCK(cs_main);
@@ -6327,16 +6317,12 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
             return false;
         }
 
-        int nHeight;
-        {
-            LOCK(cs_main);
-            nHeight = chainActive.Height();
-        }
-        int minPeerVersion = (nHeight + 1 < HF_ZNODE_HEIGHT) ? MIN_PEER_PROTO_VERSION : MIN_PEER_PROTO_VERSION_AFTER_ZNODE_PAYMENT_HF;
-        if (pfrom->nVersion < minPeerVersion) {
+        int nHeight = chainActive.Height();
+        if ((nHeight + 1 < HF_ZNODE_HEIGHT && pfrom->nVersion < MIN_PEER_PROTO_VERSION) ||
+                (nHeight + 1 >= HF_ZNODE_HEIGHT && pfrom->nVersion < MIN_PEER_PROTO_VERSION_AFTER_ZNODE_PAYMENT_HF)) {
             // disconnect from peers older than this proto version
             // LogPrintf("peer=%d using obsolete version %i; disconnecting\n", pfrom->id, pfrom->nVersion);
-            pfrom->PushMessage(NetMsgType::REJECT, strCommand, REJECT_OBSOLETE, strprintf("Version must be %d or greater", minPeerVersion));
+            pfrom->PushMessage(NetMsgType::REJECT, strCommand, REJECT_OBSOLETE, strprintf("Version must be %d or greater", MIN_PEER_PROTO_VERSION));
             pfrom->fDisconnect = true;
             return false;
         }
@@ -6799,7 +6785,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
         int nInvType = MSG_TX;
         CTransaction tx;
 //        vRecv >> tx;
-        // LogPrintf("ProcessMessage() txHash=%s\n", tx.GetHash().ToString());
+//        LogPrintf("ProcessMessage() txHash=%s\n", tx.GetHash().ToString());
 
         // Read data and assign inv type
         if (strCommand == NetMsgType::TX) {
@@ -7287,7 +7273,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
                 return true;
             }
 
-            LogPrint("net", "ProcessMessage.AcceptBlockHeader() total %s blocks\n", headers.size());
+            LogPrintf("ProcessMessage.AcceptBlockHeader() total %s blocks\n", headers.size());
             CBlockIndex *pindexLast = NULL;
             BOOST_FOREACH(
             const CBlockHeader &header, headers) {
@@ -7398,7 +7384,8 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
     {
         CBlock block;
         vRecv >> block;
-        LogPrint("net", "received block %s peer=%d\n", block.GetHash().ToString(), pfrom->id);
+        LogPrintf("ProcessMessage -> received block %s peer=%d\n", block.GetHash().ToString(), pfrom->id);
+//        LogPrint("net", "received block %s peer=%d\n", block.GetHash().ToString(), pfrom->id);
         CValidationState state;
         // Process all blocks from whitelisted peers, even if not requested,
         // unless we're still syncing with the network.
@@ -8152,11 +8139,11 @@ bool SendMessages(CNode *pto) {
             {
                 pto->filterInventoryKnown.insert(inv.hash);
 
-                LogPrint("net", "SendMessages -- queued inv: %s  index=%d peer=%d\n", inv.ToString(), vInv.size(), pto->id);
+                LogPrintf("SendMessages -- queued inv: %s  index=%d peer=%d\n", inv.ToString(), vInv.size(), pto->id);
                 vInv.push_back(inv);
                 if (vInv.size() >= 1000)
                 {
-                    LogPrint("net", "SendMessages -- pushing inv's: count=%d peer=%d\n", vInv.size(), pto->id);
+                    LogPrintf("SendMessages -- pushing inv's: count=%d peer=%d\n", vInv.size(), pto->id);
                     pto->PushMessage(NetMsgType::INV, vInv);
                     vInv.clear();
                 }

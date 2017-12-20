@@ -562,32 +562,32 @@ CZnode* CZnodeMan::GetNextZnodeInQueueForPayment(int nBlockHeight, bool fFilterS
     BOOST_FOREACH(CZnode &mn, vZnodes)
     {
         index += 1;
-        // LogPrintf("index=%s, mn=%s\n", index, mn.ToString());
+        LogPrintf("index=%s, mn=%s\n", index, mn.ToString());
         if(!mn.IsValidForPayment()) {
-            // LogPrintf("Invalid payment!\n");
+            LogPrintf("Invalid payment!\n");
             continue;
         }
         // //check protocol version
         if(mn.nProtocolVersion < mnpayments.GetMinZnodePaymentsProto()) {
-            // LogPrintf("Invalid nProtocolVersion!\n");
-            // LogPrintf("mn.nProtocolVersion=%s!\n", mn.nProtocolVersion);
-            // LogPrintf("mnpayments.GetMinZnodePaymentsProto=%s!\n", mnpayments.GetMinZnodePaymentsProto());
+            LogPrintf("Invalid nProtocolVersion!\n");
+            LogPrintf("mn.nProtocolVersion=%s!\n", mn.nProtocolVersion);
+            LogPrintf("mnpayments.GetMinZnodePaymentsProto=%s!\n", mnpayments.GetMinZnodePaymentsProto());
             continue;
         }
         //it's in the list (up to 8 entries ahead of current block to allow propagation) -- so let's skip it
         if(mnpayments.IsScheduled(mn, nBlockHeight)){
-            // LogPrintf("mnpayments.IsScheduled!\n");
+            LogPrintf("mnpayments.IsScheduled!\n");
             continue;
         }
         //it's too new, wait for a cycle
         if(fFilterSigTime && mn.sigTime + (nMnCount * 2.6 * 60) > GetAdjustedTime()){
-            // LogPrintf("it's too new, wait for a cycle!\n");
+            LogPrintf("it's too new, wait for a cycle!\n");
             continue;
         }
         //make sure it has at least as many confirmations as there are znodes
         if(mn.GetCollateralAge() < nMnCount) {
-            // LogPrintf("mn.GetCollateralAge()=%s!\n", mn.GetCollateralAge());
-            // LogPrintf("nMnCount=%s!\n", nMnCount);
+            LogPrintf("mn.GetCollateralAge()=%s!\n", mn.GetCollateralAge());
+            LogPrintf("nMnCount=%s!\n", nMnCount);
             continue;
         }
 
@@ -597,7 +597,7 @@ CZnode* CZnodeMan::GetNextZnodeInQueueForPayment(int nBlockHeight, bool fFilterS
 
     //when the network is in the process of upgrading, don't penalize nodes that recently restarted
     if(fFilterSigTime && nCount < nMnCount / 3) {
-        // LogPrintf("Need Return, nCount=%s, nMnCount/3=%s\n", nCount, nMnCount/3);
+        LogPrintf("Need Return, nCount=%s, nMnCount/3=%s\n", nCount, nMnCount/3);
         return GetNextZnodeInQueueForPayment(nBlockHeight, false, nCount);
     }
 
@@ -783,7 +783,7 @@ void CZnodeMan::ProcessZnodeConnections()
     BOOST_FOREACH(CNode* pnode, vNodes) {
         if(pnode->fZnode) {
             if(darkSendPool.pSubmittedToZnode != NULL && pnode->addr == darkSendPool.pSubmittedToZnode->addr) continue;
-            // LogPrintf("Closing Znode connection: peer=%d, addr=%s\n", pnode->id, pnode->addr.ToString());
+            LogPrintf("Closing Znode connection: peer=%d, addr=%s\n", pnode->id, pnode->addr.ToString());
             pnode->fDisconnect = true;
         }
     }
@@ -1519,7 +1519,7 @@ void CZnodeMan::UpdateLastPaid()
     LOCK(cs);
     if(fLiteMode) return;
     if(!pCurrentBlockIndex) {
-        // LogPrintf("CZnodeMan::UpdateLastPaid, pCurrentBlockIndex=NULL\n");
+//        LogPrintf("CZnodeMan::UpdateLastPaid, pCurrentBlockIndex=NULL\n");
         return;
     }
 

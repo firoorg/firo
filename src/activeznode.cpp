@@ -257,8 +257,8 @@ void CActiveZnode::ManageStateRemote() {
         }
         if (service != infoMn.addr) {
             nState = ACTIVE_ZNODE_NOT_CAPABLE;
-            // LogPrintf("service: %s\n", service.ToString());
-            // LogPrintf("infoMn.addr: %s\n", infoMn.addr.ToString());
+            LogPrintf("service: %s\n", service.ToString());
+            LogPrintf("infoMn.addr: %s\n", infoMn.addr.ToString());
             strNotCapableReason = "Broadcasted IP doesn't match our external address. Make sure you issued a new broadcast if IP of this znode changed recently.";
             LogPrintf("CActiveZnode::ManageStateRemote -- %s: %s\n", GetStateString(), strNotCapableReason);
             return;

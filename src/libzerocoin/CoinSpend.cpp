@@ -23,19 +23,14 @@ CoinSpend::CoinSpend(const Params* p, const PrivateCoin& coin,
 	serialNumberSoK(p),
 	commitmentPoK(&p->serialNumberSoKCommitmentGroup, &p->accumulatorParams.accumulatorPoKCommitmentGroup),
 	    ecdsaPubkey(33, 0),
-	    ecdsaSignature(64, 0)
-{
+	    ecdsaSignature(64, 0) {
 
 	// Sanity check: let's verify that the Witness is valid with respect to
 	// the coin and Accumulator provided.
 	if (!(witness.VerifyWitness(a, coin.getPublicCoin()))) {
 		throw ZerocoinException("Accumulator witness does not verify");
 	}
-		    
-	if (!HasValidSerial()) {
-		throw ZerocoinException("Invalid serial # range"); 
-	}
-		    
+
 	// 1: Generate two separate commitments to the public coin (C), each under
 	// a different set of public parameters. We do this because the RSA accumulator
 	// has specific requirements for the commitment parameters that are not
@@ -88,9 +83,6 @@ CoinDenomination CoinSpend::getDenomination() const {
 }
 
 bool CoinSpend::Verify(const Accumulator& a, const SpendMetaData &m) const {
-    if (!HasValidSerial())
-        return false;
-
 	uint256 metahash = signatureHash(m);
 	// Verify both of the sub-proofs using the given meta-data
     int ret = (a.getDenomination() == this->denomination)
@@ -136,10 +128,6 @@ bool CoinSpend::Verify(const Accumulator& a, const SpendMetaData &m) const {
         return true;
     }
 
-}
-
-bool CoinSpend::HasValidSerial() const { 
-	return coinSerialNumber > 0 && coinSerialNumber < params->coinCommitmentGroup.groupOrder; 
 }
 
 const uint256 CoinSpend::signatureHash(const SpendMetaData &m) const {
