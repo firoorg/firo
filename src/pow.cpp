@@ -133,7 +133,7 @@ unsigned int BorisRidiculouslyNamedDifficultyFunction(const CBlockIndex* pindexL
         
         if ( nActualSeconds > 3 * nTargetSeconds ) { nActualSeconds = 3 * nTargetSeconds; } // Maximal difficulty decrease of /3 from constrained past average      
             if(fTestNet){
-              if ( nActualSeconds < nTargetSeconds / 1.1 ) { nActualSeconds = nTargetSeconds / 1.1; } // Maximal difficulty increase of x3 from constrained past average
+              if ( nActualSeconds < nTargetSeconds / 10 ) { nActualSeconds = nTargetSeconds / 1.01; } // Maximal difficulty increase of x3 from constrained past average
             }
             if(!fTestNet){
               if ( nActualSeconds < nTargetSeconds / 3 ) { nActualSeconds = nTargetSeconds / 3; } // Maximal difficulty increase of x3
