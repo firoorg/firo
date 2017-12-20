@@ -317,6 +317,7 @@ UniValue getaddressutxos(const UniValue& params, bool fHelp)
 
     UniValue jArrResult(UniValue::VARR);
 
+    LOCK(cs_main);
     for (const UniValue& input : jArrInputs.getValues())
     {
 
