@@ -1417,10 +1417,10 @@ bool CheckTransaction(const CTransaction& tx, CValidationState& state, uint256 h
                     found_4 = true;
                 }
                 if (blockRotation >= 39 && blockRotation <= 94 && output.scriptPubKey == FOUNDER_5_SCRIPT && abs(output.nValue - reward) < 2 ) {
-                       found_5 = true; }
+                    found_5 = true;
 	        }
               }
-              if ((!(found_1 || found_2 || found_3 || found_4 || found_5)) {
+              if (!(found_1 || found_2 || found_3 || found_4 || found_5)) {
                 return state.DoS(100, false, REJECT_FOUNDER_REWARD_MISSING,
                                      "CTransaction::CheckTransaction() : One of the SmartHive Rewards is missing");
 	      }
@@ -1429,7 +1429,7 @@ bool CheckTransaction(const CTransaction& tx, CValidationState& state, uint256 h
               BOOST_FOREACH(const CTxOut& output, tx.vout) {
                 int blockRotation = nHeight - 85 * (nHeight/85);
                 int64_t reward = (int64_t)(0.85 * (GetBlockValue(nHeight, 0, pindexBestHeader->nTime)));
-		int64_t smartnodePayment = reward / 10
+		int64_t smartnodePayment = reward / 10;
                 if (blockRotation >= 0 && blockRotation <= 7 && output.scriptPubKey == FOUNDER_1_SCRIPT && abs(output.nValue - reward) < 2 ) {                    
                     found_1 = true;
                 }
@@ -1451,7 +1451,7 @@ bool CheckTransaction(const CTransaction& tx, CValidationState& state, uint256 h
                     total_payment_tx = total_payment_tx + 1;
                 }
               }
-              if ((!(found_1 || found_2 || found_3 || found_4 || found_5)) {
+              if (!(found_1 || found_2 || found_3 || found_4 || found_5)) {
                 return state.DoS(100, false, REJECT_FOUNDER_REWARD_MISSING,
                                      "CTransaction::CheckTransaction() : One of the SmartHive Rewards is missing");
 	      }
