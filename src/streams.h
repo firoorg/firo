@@ -68,7 +68,6 @@ protected:
 public:
     int nType;
     int nVersion;
-    //btzc: switch vch from protected to public
     vector_type vch;
 
     typedef vector_type::allocator_type   allocator_type;

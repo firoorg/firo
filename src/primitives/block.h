@@ -40,8 +40,7 @@ public:
 
     static const int CURRENT_VERSION = 2;
 
-    //btzc
-//    uint32_t lastHeight;
+    // uint32_t lastHeight;
     uint256 powHash;
     int32_t isComputed;
 
@@ -115,6 +114,8 @@ public:
     std::vector<CTransaction> vtx;
 
     // memory only
+    mutable CTxOut txoutZnode; // znode payment
+    mutable std::vector<CTxOut> voutSuperblock; // superblock payment
     mutable bool fChecked;
 
     // memory only, zerocoin tx info
@@ -150,6 +151,8 @@ public:
         ZerocoinClean();
         CBlockHeader::SetNull();
         vtx.clear();
+        txoutZnode = CTxOut();
+        voutSuperblock.clear();
         fChecked = false;
     }
 

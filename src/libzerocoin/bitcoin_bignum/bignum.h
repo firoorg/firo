@@ -48,8 +48,7 @@ public:
 };
 
 
-/** C++ wrapper for BIGNUM (OpenSSL bignum) */
-class CBigNum
+/** C++ wrapper for BIGNUM (OpenSSL bignum) */class CBigNum
 {
 protected:
     BIGNUM	*bn;

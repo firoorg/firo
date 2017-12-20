@@ -13,7 +13,6 @@
  * client versioning and copyright year
  */
 
-//btzc: update client version
 //! These need to be macros, as clientversion.cpp's and bitcoin*-res.rc's voodoo requires it
 #define CLIENT_VERSION_MAJOR 0
 #define CLIENT_VERSION_MINOR 13
