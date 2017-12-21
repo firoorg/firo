@@ -299,7 +299,6 @@ libsmartcash_consensus_a_SOURCES = \
   script/script_error.cpp \
   script/script_error.h \
   smartnode/flat-database.h \
-  smartnode/spork.cpp \
   smartnode/spork.h \
   serialize.h \
   tinyformat.h \
@@ -327,6 +326,7 @@ libbitcoin_common_a_SOURCES = \
   scheduler.cpp \
   script/sign.cpp \
   script/standard.cpp \
+  smartnode/spork.cpp \
   $(BITCOIN_CORE_H)
 
 # util: shared between all executables.
