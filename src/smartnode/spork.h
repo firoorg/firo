@@ -118,6 +118,4 @@ public:
     bool SetPrivKey(std::string strPrivKey);
 };
 
-extern CSporkManager sporkManager;
-
 #endif
