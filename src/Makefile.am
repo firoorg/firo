@@ -205,6 +205,16 @@ libbitcoin_server_a_SOURCES = \
   script/sigcache.cpp \
   script/ismine.cpp \
   smartnode/netfulfilledman.cpp \
+  smartnode/activesmartnode.cpp \
+  smartnode/darksend.cpp \
+  smartnode/darksendrelay.cpp \
+  smartnode/instantx.cpp \
+  smartnode/smartnode.cpp \
+  smartnode/smartnodeconfig.cpp \
+  smartnode/smartnodeman.cpp \
+  smartnode/smartnodepayments.cpp \
+  smartnode/smartnodesync.cpp \
+  smartnode/spork.cpp \
   timedata.cpp \
   torcontrol.cpp \
   txdb.cpp \
@@ -229,15 +239,6 @@ endif
 libbitcoin_wallet_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 libbitcoin_wallet_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_wallet_a_SOURCES = \
-  smartnode/activesmartnode.cpp \
-  smartnode/darksend.cpp \
-  smartnode/darksendrelay.cpp \
-  smartnode/instantx.cpp \
-  smartnode/smartnode.cpp \
-  smartnode/smartnodeconfig.cpp \
-  smartnode/smartnodeman.cpp \
-  smartnode/smartnodepayments.cpp \
-  smartnode/smartnodesync.cpp \
   wallet/crypter.cpp \
   wallet/db.cpp \
   wallet/rpcdump.cpp \
@@ -326,7 +327,6 @@ libbitcoin_common_a_SOURCES = \
   scheduler.cpp \
   script/sign.cpp \
   script/standard.cpp \
-  smartnode/spork.cpp \
   $(BITCOIN_CORE_H)
 
 # util: shared between all executables.
