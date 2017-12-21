@@ -11,6 +11,7 @@
 #include "../util.h"
 
 class CSporkMessage;
+class CSporkManager;
 
 /*
     Don't ever reuse these IDs for other sporks
