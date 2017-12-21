@@ -216,8 +216,8 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
             if(blockRotation >= 39 && blockRotation <= 84){
                   coinbaseTx.vout.push_back(CTxOut(reward, CScript(FOUNDER_5_SCRIPT.begin(), FOUNDER_5_SCRIPT.end())));
             }
-            
-            CAmount smartnodePayment = reward/10;
+
+            CAmount smartnodePayment = reward/8.5;
             coinbaseTx.vout[0].nValue -= smartnodePayment;
             FillBlockPayments(coinbaseTx, nHeight, smartnodePayment, pblock->txoutSmartnode, pblock->voutSuperblock);
         }
