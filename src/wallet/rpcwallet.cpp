@@ -2698,32 +2698,32 @@ UniValue mintzerocoin(const UniValue& params, bool fHelp)
     unsigned int countExistingItems = 0;
 
     BOOST_FOREACH(const CZerocoinEntry &pubCoinIdItem, listPubCoin) {
-		//LogPrintf("denomination = %d, id = %d, height = %d\n", pubCoinIdItem.denomination, pubCoinIdItem.id, pubCoinIdItem.nHeight);
-		if (pubCoinIdItem.id > 0) {
-			if(pubCoinIdItem.nHeight <= chainActive.Height()){
-				if (pubCoinIdItem.denomination == denomination) {
-					countExistingItems++;
-					if (pubCoinIdItem.id > currentId) {
-						currentId = pubCoinIdItem.id;
-						countExistingItems = 1;
-					}
-				}
-			}else{
-				break;
-			}
-		}
+        //LogPrintf("denomination = %d, id = %d, height = %d\n", pubCoinIdItem.denomination, pubCoinIdItem.id, pubCoinIdItem.nHeight);
+        if (pubCoinIdItem.id > 0) {
+            if(pubCoinIdItem.nHeight <= chainActive.Height()){
+                if (pubCoinIdItem.denomination == denomination) {
+                    countExistingItems++;
+                    if (pubCoinIdItem.id > currentId) {
+                        currentId = pubCoinIdItem.id;
+                        countExistingItems = 1;
+                    }
+                }
+            }else{
+                break;
+            }
+        }
     }
 
     if (countExistingItems > 9) {
-    	currentId++;
+        currentId++;
     }
 
     if (((denomination == libzerocoin::ZQ_LOVELACE) && (currentId >= ZC_V2_SWITCH_ID_1))
-    		|| ((denomination == libzerocoin::ZQ_GOLDWASSER) && (currentId >= ZC_V2_SWITCH_ID_10))
-    		|| ((denomination == libzerocoin::ZQ_RACKOFF) && (currentId >= ZC_V2_SWITCH_ID_25))
-    		|| ((denomination == libzerocoin::ZQ_PEDERSEN) && (currentId >= ZC_V2_SWITCH_ID_50))
-    		|| ((denomination == libzerocoin::ZQ_WILLIAMSON) && (currentId >= ZC_V2_SWITCH_ID_100))) {
-    	newCoin.setVersion(2);
+            || ((denomination == libzerocoin::ZQ_GOLDWASSER) && (currentId >= ZC_V2_SWITCH_ID_10))
+            || ((denomination == libzerocoin::ZQ_RACKOFF) && (currentId >= ZC_V2_SWITCH_ID_25))
+            || ((denomination == libzerocoin::ZQ_PEDERSEN) && (currentId >= ZC_V2_SWITCH_ID_50))
+            || ((denomination == libzerocoin::ZQ_WILLIAMSON) && (currentId >= ZC_V2_SWITCH_ID_100))) {
+        newCoin.setVersion(2);
     }
 
 
@@ -3028,6 +3028,69 @@ extern UniValue importwallet(const UniValue& params, bool fHelp);
 extern UniValue importprunedfunds(const UniValue& params, bool fHelp);
 extern UniValue removeprunedfunds(const UniValue& params, bool fHelp);
 
+
+UniValue calculatepublickey(const UniValue& params, bool fHelp)
+{
+
+    if (fHelp || params.size() < 1 || params.size() > 3)
+        throw runtime_error(
+            "calculatepublickey \"zcoinprivkey\" \n"
+            "\nCalculates the public key for given private key\n"
+            "\nArguments:\n"
+            "1. \"zcoinprivkey\"   (string, required) The private key (e.g. output of dumpprivkey) \n"
+            "\nResults:\n"
+            "pubkey (string) - base58 public key"
+            "\nExamples:\n"
+            "\nCalculate public key from a private key\n"
+            + HelpExampleCli("calculatepublickey", "\"zcoinprivkey\"")
+        );
+
+    string strSecret = params[0].get_str();
+
+    CBitcoinSecret vchSecret;
+    bool fGood = vchSecret.SetString(strSecret);
+
+    if (!fGood) throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid private key encoding");
+
+    CKey key = vchSecret.GetKey();
+    if (!key.IsValid()) throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Private key outside allowed range");
+
+    CPubKey pubkey = key.GetPubKey();
+    assert(key.VerifyPubKey(pubkey));
+
+    return EncodeBase58(pubkey.begin(), pubkey.end());;
+}
+
+UniValue calculatepublicaddress(const UniValue& params, bool fHelp)
+{
+
+    if (fHelp || params.size() < 1 || params.size() > 3)
+        throw runtime_error(
+            "calculatepublicaddress \"zcoinpubkey\" \n"
+            "\nCalculates the zcoin address key for given public key\n"
+            "\nArguments:\n"
+            "1. \"zcoinpubkey\"   (string, required) The public key (base58) \n"
+            "\nResults:\n"
+            "address (string) - zcoin address"
+            "\nExamples:\n"
+            + HelpExampleCli("calculatepublicaddress", "\"zcoinpubkey\"")
+        );
+
+    string strPublic = params[0].get_str();
+    std::vector<unsigned char> pubChars;
+    if(!DecodeBase58(strPublic, pubChars))
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Cannot decode given public key");
+    //CPubKey pubkey = DecodeBase58
+
+    CPubKey pubkey(pubChars.begin(), pubChars.end());
+
+    CKeyID keyID = pubkey.GetID();
+
+    return CBitcoinAddress(keyID).ToString();
+}
+
+
+
 static const CRPCCommand commands[] =
 { //  category              name                        actor (function)           okSafeMode
     //  --------------------- ------------------------    -----------------------    ----------
@@ -3037,6 +3100,8 @@ static const CRPCCommand commands[] =
     { "wallet",             "addmultisigaddress",       &addmultisigaddress,       true  },
     { "wallet",             "addwitnessaddress",        &addwitnessaddress,        true  },
     { "wallet",             "backupwallet",             &backupwallet,             true  },
+    { "wallet",             "calculatepublickey",       &calculatepublickey,       true  },
+    { "wallet",             "calculatepublicaddress",   &calculatepublicaddress,   true  },
     { "wallet",             "dumpprivkey",              &dumpprivkey,              true  },
     { "wallet",             "dumpwallet",               &dumpwallet,               true  },
     { "wallet",             "encryptwallet",            &encryptwallet,            true  },

@@ -9,6 +9,7 @@
 #include "coins.h"
 #include "dbwrapper.h"
 #include "chain.h"
+#include "coinsbyscript.h"
 
 #include <map>
 #include <string>
@@ -73,8 +74,11 @@ public:
     bool HaveCoins(const uint256 &txid) const;
     uint256 GetBestBlock() const;
     bool BatchWrite(CCoinsMap &mapCoins, const uint256 &hashBlock);
+    int64_t CountCoins() const;
     CCoinsViewCursor *Cursor() const;
 };
+
+extern CCoinsViewDB* GetCoinsViewDB();
 
 /** Specialization of CCoinsViewCursor to iterate over a CCoinsViewDB */
 class CCoinsViewDBCursor: public CCoinsViewCursor

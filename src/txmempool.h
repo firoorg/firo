@@ -13,6 +13,7 @@
 #include "amount.h"
 #include "coins.h"
 #include "indirectmap.h"
+#include "coinsbyscript.h"
 #include "primitives/transaction.h"
 #include "sync.h"
 
@@ -224,7 +225,7 @@ struct mempoolentry_txid
 class CompareTxMemPoolEntryByDescendantScore
 {
 public:
-    bool operator()(const CTxMemPoolEntry& a, const CTxMemPoolEntry& b) const
+    bool operator()(const CTxMemPoolEntry& a, const CTxMemPoolEntry& b)
     {
         bool fUseADescendants = UseDescendantScore(a);
         bool fUseBDescendants = UseDescendantScore(b);
@@ -246,7 +247,7 @@ public:
     }
 
     // Calculate which score to use for an entry (avoiding division).
-    bool UseDescendantScore(const CTxMemPoolEntry &a) const
+    bool UseDescendantScore(const CTxMemPoolEntry &a)
     {
         double f1 = (double)a.GetModifiedFee() * a.GetSizeWithDescendants();
         double f2 = (double)a.GetModFeesWithDescendants() * a.GetTxSize();
@@ -261,7 +262,7 @@ public:
 class CompareTxMemPoolEntryByScore
 {
 public:
-    bool operator()(const CTxMemPoolEntry& a, const CTxMemPoolEntry& b) const
+    bool operator()(const CTxMemPoolEntry& a, const CTxMemPoolEntry& b)
     {
         double f1 = (double)a.GetModifiedFee() * b.GetTxSize();
         double f2 = (double)b.GetModifiedFee() * a.GetTxSize();
@@ -275,7 +276,7 @@ public:
 class CompareTxMemPoolEntryByEntryTime
 {
 public:
-    bool operator()(const CTxMemPoolEntry& a, const CTxMemPoolEntry& b) const
+    bool operator()(const CTxMemPoolEntry& a, const CTxMemPoolEntry& b)
     {
         return a.GetTime() < b.GetTime();
     }
@@ -284,7 +285,7 @@ public:
 class CompareTxMemPoolEntryByAncestorFee
 {
 public:
-    bool operator()(const CTxMemPoolEntry& a, const CTxMemPoolEntry& b) const
+    bool operator()(const CTxMemPoolEntry& a, const CTxMemPoolEntry& b)
     {
         double aFees = a.GetModFeesWithAncestors();
         double aSize = a.GetSizeWithAncestors();
@@ -412,6 +413,8 @@ private:
     CBlockPolicyEstimator* minerPolicyEstimator;
 
     uint64_t totalTxSize;      //!< sum of all mempool tx' byte sizes
+    const bool fUTXOIndex;
+    coinsbyscriptmap_t mapCoinsByScript; // only used if -utxoindex
     uint64_t cachedInnerUsage; //!< sum of dynamic memory usage of all the map elements (NOT the maps themselves)
 
     CFeeRate minReasonableRelayFee;
@@ -499,6 +502,7 @@ public:
      *  below which we would reasonably say a transaction has 0-effective-fee.
      */
     CTxMemPool(const CFeeRate& _minReasonableRelayFee);
+    CTxMemPool(const bool& _fTxOutIndex, const CFeeRate& _minReasonableRelayFee);
     ~CTxMemPool();
 
     /**
@@ -529,6 +533,7 @@ public:
     void pruneSpent(const uint256& hash, CCoins &coins);
     unsigned int GetTransactionsUpdated() const;
     void AddTransactionsUpdated(unsigned int n);
+    void GetCoinsByScript(const CScript& script, unspentcoins_t& coinsByScript) const;
     /**
      * Check that none of this transactions inputs are in the mempool, and thus
      * the tx is not dependent on other mempool transactions to be included in a block.

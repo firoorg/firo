@@ -12,6 +12,7 @@
 
 #include "addrman.h"
 #include "amount.h"
+#include "coinstats.h"
 #include "chain.h"
 #include "chainparams.h"
 #include "checkpoints.h"
@@ -162,9 +163,10 @@ public:
     bool GetCoins(const uint256 &txid, CCoins &coins) const {
         try {
             return CCoinsViewBacked::GetCoins(txid, coins);
-        } catch (const std::runtime_error &e) {
+        }
+        catch (const std::runtime_error &e) {
             uiInterface.ThreadSafeMessageBox(_("Error reading from database, shutting down."), "",
-                                             CClientUIInterface::MSG_ERROR);
+                CClientUIInterface::MSG_ERROR);
             LogPrintf("Error reading from database: %s\n", e.what());
             // Starting the shutdown sequence and returning false to the caller would be
             // interpreted as 'entry not found' (as opposed to unable to read data), and
@@ -179,6 +181,11 @@ public:
 static CCoinsViewDB *pcoinsdbview = NULL;
 static CCoinsViewErrorCatcher *pcoinscatcher = NULL;
 static boost::scoped_ptr<ECCVerifyHandle> globalVerifyHandle;
+
+CCoinsViewDB* GetCoinsViewDB()
+{
+    return pcoinsdbview;
+}
 
 void Interrupt(boost::thread_group &threadGroup) {
     InterruptHTTPServer();
@@ -237,6 +244,10 @@ void Shutdown() {
         pcoinscatcher = NULL;
         delete pcoinsdbview;
         pcoinsdbview = NULL;
+        delete pCoinsByScriptView;
+        pCoinsByScriptView = NULL;
+        delete pCoinsByScriptViewDB;
+        pCoinsByScriptViewDB = NULL;
         delete pblocktree;
         pblocktree = NULL;
     }
@@ -256,7 +267,8 @@ void Shutdown() {
 #ifndef WIN32
     try {
         boost::filesystem::remove(GetPidFile());
-    } catch (const boost::filesystem::filesystem_error &e) {
+    }
+    catch (const boost::filesystem::filesystem_error &e) {
         LogPrintf("%s: Unable to remove pidfile: %s\n", __func__, e.what());
     }
 #endif
@@ -315,20 +327,20 @@ std::string HelpMessage(HelpMessageMode mode) {
     strUsage += HelpMessageOpt("-?", _("Print this help message and exit"));
     strUsage += HelpMessageOpt("-version", _("Print version and exit"));
     strUsage += HelpMessageOpt("-alertnotify=<cmd>",
-                               _("Execute command when a relevant alert is received or we see a really long fork (%s in cmd is replaced by message)"));
+        _("Execute command when a relevant alert is received or we see a really long fork (%s in cmd is replaced by message)"));
     strUsage += HelpMessageOpt("-blocknotify=<cmd>",
-                               _("Execute command when the best block changes (%s in cmd is replaced by block hash)"));
+        _("Execute command when the best block changes (%s in cmd is replaced by block hash)"));
     if (showDebug)
         strUsage += HelpMessageOpt("-blocksonly", strprintf(_("Whether to operate in a blocks only mode (default: %u)"),
-                                                            DEFAULT_BLOCKSONLY));
+            DEFAULT_BLOCKSONLY));
     strUsage += HelpMessageOpt("-checkblocks=<n>",
-                               strprintf(_("How many blocks to check at startup (default: %u, 0 = all)"),
-                                         DEFAULT_CHECKBLOCKS));
+        strprintf(_("How many blocks to check at startup (default: %u, 0 = all)"),
+            DEFAULT_CHECKBLOCKS));
     strUsage += HelpMessageOpt("-checklevel=<n>",
-                               strprintf(_("How thorough the block verification of -checkblocks is (0-4, default: %u)"),
-                                         DEFAULT_CHECKLEVEL));
+        strprintf(_("How thorough the block verification of -checkblocks is (0-4, default: %u)"),
+            DEFAULT_CHECKLEVEL));
     strUsage += HelpMessageOpt("-conf=<file>",
-                               strprintf(_("Specify configuration file (default: %s)"), BITCOIN_CONF_FILENAME));
+        strprintf(_("Specify configuration file (default: %s)"), BITCOIN_CONF_FILENAME));
     if (mode == HMM_BITCOIND) {
 #ifndef WIN32
         strUsage += HelpMessageOpt("-daemon", _("Run in the background as a daemon and accept commands"));
@@ -336,103 +348,104 @@ std::string HelpMessage(HelpMessageMode mode) {
     }
     strUsage += HelpMessageOpt("-datadir=<dir>", _("Specify data directory"));
     strUsage += HelpMessageOpt("-dbcache=<n>",
-                               strprintf(_("Set database cache size in megabytes (%d to %d, default: %d)"), nMinDbCache,
-                                         nMaxDbCache, nDefaultDbCache));
+        strprintf(_("Set database cache size in megabytes (%d to %d, default: %d)"), nMinDbCache,
+            nMaxDbCache, nDefaultDbCache));
     if (showDebug)
         strUsage += HelpMessageOpt("-feefilter", strprintf(
-                "Tell other nodes to filter invs to us by our mempool min fee (default: %u)", DEFAULT_FEEFILTER));
+            "Tell other nodes to filter invs to us by our mempool min fee (default: %u)", DEFAULT_FEEFILTER));
     strUsage += HelpMessageOpt("-loadblock=<file>", _("Imports blocks from external blk000??.dat file on startup"));
     strUsage += HelpMessageOpt("-maxorphantx=<n>",
-                               strprintf(_("Keep at most <n> unconnectable transactions in memory (default: %u)"),
-                                         DEFAULT_MAX_ORPHAN_TRANSACTIONS));
+        strprintf(_("Keep at most <n> unconnectable transactions in memory (default: %u)"),
+            DEFAULT_MAX_ORPHAN_TRANSACTIONS));
     strUsage += HelpMessageOpt("-maxmempool=<n>",
-                               strprintf(_("Keep the transaction memory pool below <n> megabytes (default: %u)"),
-                                         DEFAULT_MAX_MEMPOOL_SIZE));
+        strprintf(_("Keep the transaction memory pool below <n> megabytes (default: %u)"),
+            DEFAULT_MAX_MEMPOOL_SIZE));
     strUsage += HelpMessageOpt("-mempoolexpiry=<n>", strprintf(
-            _("Do not keep transactions in the mempool longer than <n> hours (default: %u)"), DEFAULT_MEMPOOL_EXPIRY));
+        _("Do not keep transactions in the mempool longer than <n> hours (default: %u)"), DEFAULT_MEMPOOL_EXPIRY));
     strUsage += HelpMessageOpt("-par=<n>", strprintf(
-            _("Set the number of script verification threads (%u to %d, 0 = auto, <0 = leave that many cores free, default: %d)"),
-            -GetNumCores(), MAX_SCRIPTCHECK_THREADS, DEFAULT_SCRIPTCHECK_THREADS));
+        _("Set the number of script verification threads (%u to %d, 0 = auto, <0 = leave that many cores free, default: %d)"),
+        -GetNumCores(), MAX_SCRIPTCHECK_THREADS, DEFAULT_SCRIPTCHECK_THREADS));
 #ifndef WIN32
     strUsage += HelpMessageOpt("-pid=<file>", strprintf(_("Specify pid file (default: %s)"), BITCOIN_PID_FILENAME));
 #endif
     strUsage += HelpMessageOpt("-prune=<n>", strprintf(
-            _("Reduce storage requirements by pruning (deleting) old blocks. This mode is incompatible with -txindex and -rescan. "
-                      "Warning: Reverting this setting requires re-downloading the entire blockchain. "
-                      "(default: 0 = disable pruning blocks, >%u = target size in MiB to use for block files)"),
-            MIN_DISK_SPACE_FOR_BLOCK_FILES / 1024 / 1024));
+        _("Reduce storage requirements by pruning (deleting) old blocks. This mode is incompatible with -txindex and -rescan. "
+            "Warning: Reverting this setting requires re-downloading the entire blockchain. "
+            "(default: 0 = disable pruning blocks, >%u = target size in MiB to use for block files)"),
+        MIN_DISK_SPACE_FOR_BLOCK_FILES / 1024 / 1024));
     strUsage += HelpMessageOpt("-reindex-chainstate", _("Rebuild chain state from the currently indexed blocks"));
     strUsage += HelpMessageOpt("-reindex", _("Rebuild chain state and block index from the blk*.dat files on disk"));
 #ifndef WIN32
     strUsage += HelpMessageOpt("-sysperms",
-                               _("Create new files with system default permissions, instead of umask 077 (only effective with disabled wallet functionality)"));
+        _("Create new files with system default permissions, instead of umask 077 (only effective with disabled wallet functionality)"));
 #endif
     strUsage += HelpMessageOpt("-txindex", strprintf(
-            _("Maintain a full transaction index, used by the getrawtransaction rpc call (default: %u)"),
-            DEFAULT_TXINDEX));
+        _("Maintain a full transaction index, used by the getrawtransaction rpc call (default: %u)"),
+        DEFAULT_TXINDEX));
+    strUsage += HelpMessageOpt("-utxoindex", strprintf(_("Maintain an address to unspent outputs index (rpc: getutxoindex). The index is built on first use. (default: %u)"), 0));
 
     strUsage += HelpMessageGroup(_("Connection options:"));
     strUsage += HelpMessageOpt("-addnode=<ip>", _("Add a node to connect to and attempt to keep the connection open"));
     strUsage += HelpMessageOpt("-banscore=<n>",
-                               strprintf(_("Threshold for disconnecting misbehaving peers (default: %u)"),
-                                         DEFAULT_BANSCORE_THRESHOLD));
+        strprintf(_("Threshold for disconnecting misbehaving peers (default: %u)"),
+            DEFAULT_BANSCORE_THRESHOLD));
     strUsage += HelpMessageOpt("-bantime=<n>", strprintf(
-            _("Number of seconds to keep misbehaving peers from reconnecting (default: %u)"),
-            DEFAULT_MISBEHAVING_BANTIME));
+        _("Number of seconds to keep misbehaving peers from reconnecting (default: %u)"),
+        DEFAULT_MISBEHAVING_BANTIME));
     strUsage += HelpMessageOpt("-bind=<addr>",
-                               _("Bind to given address and always listen on it. Use [host]:port notation for IPv6"));
+        _("Bind to given address and always listen on it. Use [host]:port notation for IPv6"));
     strUsage += HelpMessageOpt("-connect=<ip>", _("Connect only to the specified node(s)"));
     strUsage += HelpMessageOpt("-discover",
-                               _("Discover own IP addresses (default: 1 when listening and no -externalip or -proxy)"));
+        _("Discover own IP addresses (default: 1 when listening and no -externalip or -proxy)"));
     strUsage += HelpMessageOpt("-dns", _("Allow DNS lookups for -addnode, -seednode and -connect") + " " +
-                                       strprintf(_("(default: %u)"), DEFAULT_NAME_LOOKUP));
+        strprintf(_("(default: %u)"), DEFAULT_NAME_LOOKUP));
     strUsage += HelpMessageOpt("-dnsseed",
-                               _("Query for peer addresses via DNS lookup, if low on addresses (default: 1 unless -connect)"));
+        _("Query for peer addresses via DNS lookup, if low on addresses (default: 1 unless -connect)"));
     strUsage += HelpMessageOpt("-externalip=<ip>", _("Specify your own public address"));
     strUsage += HelpMessageOpt("-forcednsseed",
-                               strprintf(_("Always query for peer addresses via DNS lookup (default: %u)"),
-                                         DEFAULT_FORCEDNSSEED));
+        strprintf(_("Always query for peer addresses via DNS lookup (default: %u)"),
+            DEFAULT_FORCEDNSSEED));
     strUsage += HelpMessageOpt("-listen", _("Accept connections from outside (default: 1 if no -proxy or -connect)"));
     strUsage += HelpMessageOpt("-listenonion", strprintf(_("Automatically create Tor hidden service (default: %d)"),
-                                                         DEFAULT_LISTEN_ONION));
+        DEFAULT_LISTEN_ONION));
     strUsage += HelpMessageOpt("-maxconnections=<n>",
-                               strprintf(_("Maintain at most <n> connections to peers (default: %u)"),
-                                         DEFAULT_MAX_PEER_CONNECTIONS));
+        strprintf(_("Maintain at most <n> connections to peers (default: %u)"),
+            DEFAULT_MAX_PEER_CONNECTIONS));
     strUsage += HelpMessageOpt("-maxreceivebuffer=<n>",
-                               strprintf(_("Maximum per-connection receive buffer, <n>*1000 bytes (default: %u)"),
-                                         DEFAULT_MAXRECEIVEBUFFER));
+        strprintf(_("Maximum per-connection receive buffer, <n>*1000 bytes (default: %u)"),
+            DEFAULT_MAXRECEIVEBUFFER));
     strUsage += HelpMessageOpt("-maxsendbuffer=<n>",
-                               strprintf(_("Maximum per-connection send buffer, <n>*1000 bytes (default: %u)"),
-                                         DEFAULT_MAXSENDBUFFER));
+        strprintf(_("Maximum per-connection send buffer, <n>*1000 bytes (default: %u)"),
+            DEFAULT_MAXSENDBUFFER));
     strUsage += HelpMessageOpt("-maxtimeadjustment", strprintf(
-            _("Maximum allowed median peer time offset adjustment. Local perspective of time may be influenced by peers forward or backward by this amount. (default: %u seconds)"),
-            DEFAULT_MAX_TIME_ADJUSTMENT));
+        _("Maximum allowed median peer time offset adjustment. Local perspective of time may be influenced by peers forward or backward by this amount. (default: %u seconds)"),
+        DEFAULT_MAX_TIME_ADJUSTMENT));
     strUsage += HelpMessageOpt("-onion=<ip:port>", strprintf(
-            _("Use separate SOCKS5 proxy to reach peers via Tor hidden services (default: %s)"), "-proxy"));
+        _("Use separate SOCKS5 proxy to reach peers via Tor hidden services (default: %s)"), "-proxy"));
     strUsage += HelpMessageOpt("-onlynet=<net>", _("Only connect to nodes in network <net> (ipv4, ipv6 or onion)"));
     strUsage += HelpMessageOpt("-permitbaremultisig",
-                               strprintf(_("Relay non-P2SH multisig (default: %u)"), DEFAULT_PERMIT_BAREMULTISIG));
+        strprintf(_("Relay non-P2SH multisig (default: %u)"), DEFAULT_PERMIT_BAREMULTISIG));
     strUsage += HelpMessageOpt("-peerbloomfilters", strprintf(
-            _("Support filtering of blocks and transaction with bloom filters (default: %u)"),
-            DEFAULT_PEERBLOOMFILTERS));
+        _("Support filtering of blocks and transaction with bloom filters (default: %u)"),
+        DEFAULT_PEERBLOOMFILTERS));
     strUsage += HelpMessageOpt("-port=<port>",
-                               strprintf(_("Listen for connections on <port> (default: %u or testnet: %u)"),
-                                         Params(CBaseChainParams::MAIN).GetDefaultPort(),
-                                         Params(CBaseChainParams::TESTNET).GetDefaultPort()));
+        strprintf(_("Listen for connections on <port> (default: %u or testnet: %u)"),
+            Params(CBaseChainParams::MAIN).GetDefaultPort(),
+            Params(CBaseChainParams::TESTNET).GetDefaultPort()));
     strUsage += HelpMessageOpt("-proxy=<ip:port>", _("Connect through SOCKS5 proxy"));
     strUsage += HelpMessageOpt("-proxyrandomize", strprintf(
-            _("Randomize credentials for every proxy connection. This enables Tor stream isolation (default: %u)"),
-            DEFAULT_PROXYRANDOMIZE));
+        _("Randomize credentials for every proxy connection. This enables Tor stream isolation (default: %u)"),
+        DEFAULT_PROXYRANDOMIZE));
     strUsage += HelpMessageOpt("-rpcserialversion", strprintf(
-            _("Sets the serialization of raw transaction or block hex returned in non-verbose mode, non-segwit(0) or segwit(1) (default: %d)"),
-            DEFAULT_RPC_SERIALIZE_VERSION));
+        _("Sets the serialization of raw transaction or block hex returned in non-verbose mode, non-segwit(0) or segwit(1) (default: %d)"),
+        DEFAULT_RPC_SERIALIZE_VERSION));
     strUsage += HelpMessageOpt("-seednode=<ip>", _("Connect to a node to retrieve peer addresses, and disconnect"));
     strUsage += HelpMessageOpt("-timeout=<n>",
-                               strprintf(_("Specify connection timeout in milliseconds (minimum: 1, default: %d)"),
-                                         DEFAULT_CONNECT_TIMEOUT));
+        strprintf(_("Specify connection timeout in milliseconds (minimum: 1, default: %d)"),
+            DEFAULT_CONNECT_TIMEOUT));
     strUsage += HelpMessageOpt("-torcontrol=<ip>:<port>",
-                               strprintf(_("Tor control port to use if onion listening enabled (default: %s)"),
-                                         DEFAULT_TOR_CONTROL));
+        strprintf(_("Tor control port to use if onion listening enabled (default: %s)"),
+            DEFAULT_TOR_CONTROL));
     strUsage += HelpMessageOpt("-torpassword=<pass>", _("Tor control port password (default: empty)"));
 #ifdef USE_UPNP
 #if USE_UPNP
@@ -442,20 +455,20 @@ std::string HelpMessage(HelpMessageMode mode) {
 #endif
 #endif
     strUsage += HelpMessageOpt("-whitebind=<addr>",
-                               _("Bind to given address and whitelist peers connecting to it. Use [host]:port notation for IPv6"));
+        _("Bind to given address and whitelist peers connecting to it. Use [host]:port notation for IPv6"));
     strUsage += HelpMessageOpt("-whitelist=<IP address or network>",
-                               _("Whitelist peers connecting from the given IP address (e.g. 1.2.3.4) or CIDR notated network (e.g. 1.2.3.0/24). Can be specified multiple times.") +
-                               " " +
-                               _("Whitelisted peers cannot be DoS banned and their transactions are always relayed, even if they are already in the mempool, useful e.g. for a gateway"));
+        _("Whitelist peers connecting from the given IP address (e.g. 1.2.3.4) or CIDR notated network (e.g. 1.2.3.0/24). Can be specified multiple times.") +
+        " " +
+        _("Whitelisted peers cannot be DoS banned and their transactions are always relayed, even if they are already in the mempool, useful e.g. for a gateway"));
     strUsage += HelpMessageOpt("-whitelistrelay", strprintf(
-            _("Accept relayed transactions received from whitelisted peers even when not relaying transactions (default: %d)"),
-            DEFAULT_WHITELISTRELAY));
+        _("Accept relayed transactions received from whitelisted peers even when not relaying transactions (default: %d)"),
+        DEFAULT_WHITELISTRELAY));
     strUsage += HelpMessageOpt("-whitelistforcerelay", strprintf(
-            _("Force relay of transactions from whitelisted peers even if they violate local relay policy (default: %d)"),
-            DEFAULT_WHITELISTFORCERELAY));
+        _("Force relay of transactions from whitelisted peers even if they violate local relay policy (default: %d)"),
+        DEFAULT_WHITELISTFORCERELAY));
     strUsage += HelpMessageOpt("-maxuploadtarget=<n>", strprintf(
-            _("Tries to keep outbound traffic under the given target (in MiB per 24h), 0 = no limit (default: %d)"),
-            DEFAULT_MAX_UPLOAD_TARGET));
+        _("Tries to keep outbound traffic under the given target (in MiB per 24h), 0 = no limit (default: %d)"),
+        DEFAULT_MAX_UPLOAD_TARGET));
 
 #ifdef ENABLE_WALLET
     strUsage += CWallet::GetWalletHelpString(showDebug);
@@ -473,117 +486,117 @@ std::string HelpMessage(HelpMessageMode mode) {
     strUsage += HelpMessageOpt("-uacomment=<cmt>", _("Append comment to the user agent string"));
     if (showDebug) {
         strUsage += HelpMessageOpt("-checkblockindex", strprintf(
-                "Do a full consistency check for mapBlockIndex, setBlockIndexCandidates, chainActive and mapBlocksUnlinked occasionally. Also sets -checkmempool (default: %u)",
-                Params(CBaseChainParams::MAIN).DefaultConsistencyChecks()));
+            "Do a full consistency check for mapBlockIndex, setBlockIndexCandidates, chainActive and mapBlocksUnlinked occasionally. Also sets -checkmempool (default: %u)",
+            Params(CBaseChainParams::MAIN).DefaultConsistencyChecks()));
         strUsage += HelpMessageOpt("-checkmempool=<n>", strprintf("Run checks every <n> transactions (default: %u)",
-                                                                  Params(CBaseChainParams::MAIN).DefaultConsistencyChecks()));
+            Params(CBaseChainParams::MAIN).DefaultConsistencyChecks()));
         strUsage += HelpMessageOpt("-checkpoints",
-                                   strprintf("Disable expensive verification for known chain history (default: %u)",
-                                             DEFAULT_CHECKPOINTS_ENABLED));
+            strprintf("Disable expensive verification for known chain history (default: %u)",
+                DEFAULT_CHECKPOINTS_ENABLED));
         strUsage += HelpMessageOpt("-disablesafemode",
-                                   strprintf("Disable safemode, override a real safe mode event (default: %u)",
-                                             DEFAULT_DISABLE_SAFEMODE));
+            strprintf("Disable safemode, override a real safe mode event (default: %u)",
+                DEFAULT_DISABLE_SAFEMODE));
         strUsage += HelpMessageOpt("-testsafemode", strprintf("Force safe mode (default: %u)", DEFAULT_TESTSAFEMODE));
         strUsage += HelpMessageOpt("-dropmessagestest=<n>", "Randomly drop 1 of every <n> network messages");
         strUsage += HelpMessageOpt("-fuzzmessagestest=<n>", "Randomly fuzz 1 of every <n> network messages");
         strUsage += HelpMessageOpt("-stopafterblockimport",
-                                   strprintf("Stop running after importing blocks from disk (default: %u)",
-                                             DEFAULT_STOPAFTERBLOCKIMPORT));
+            strprintf("Stop running after importing blocks from disk (default: %u)",
+                DEFAULT_STOPAFTERBLOCKIMPORT));
         strUsage += HelpMessageOpt("-limitancestorcount=<n>", strprintf(
-                "Do not accept transactions if number of in-mempool ancestors is <n> or more (default: %u)",
-                DEFAULT_ANCESTOR_LIMIT));
+            "Do not accept transactions if number of in-mempool ancestors is <n> or more (default: %u)",
+            DEFAULT_ANCESTOR_LIMIT));
         strUsage += HelpMessageOpt("-limitancestorsize=<n>", strprintf(
-                "Do not accept transactions whose size with all in-mempool ancestors exceeds <n> kilobytes (default: %u)",
-                DEFAULT_ANCESTOR_SIZE_LIMIT));
+            "Do not accept transactions whose size with all in-mempool ancestors exceeds <n> kilobytes (default: %u)",
+            DEFAULT_ANCESTOR_SIZE_LIMIT));
         strUsage += HelpMessageOpt("-limitdescendantcount=<n>", strprintf(
-                "Do not accept transactions if any ancestor would have <n> or more in-mempool descendants (default: %u)",
-                DEFAULT_DESCENDANT_LIMIT));
+            "Do not accept transactions if any ancestor would have <n> or more in-mempool descendants (default: %u)",
+            DEFAULT_DESCENDANT_LIMIT));
         strUsage += HelpMessageOpt("-limitdescendantsize=<n>", strprintf(
-                "Do not accept transactions if any ancestor would have more than <n> kilobytes of in-mempool descendants (default: %u).",
-                DEFAULT_DESCENDANT_SIZE_LIMIT));
+            "Do not accept transactions if any ancestor would have more than <n> kilobytes of in-mempool descendants (default: %u).",
+            DEFAULT_DESCENDANT_SIZE_LIMIT));
         strUsage += HelpMessageOpt("-bip9params=deployment:start:end",
-                                   "Use given start/end times for specified bip9 deployment (regtest-only)");
+            "Use given start/end times for specified bip9 deployment (regtest-only)");
     }
     string debugCategories = "addrman, alert, bench, cmpctblock, coindb, db, http, libevent, lock, mempool, mempoolrej, net, proxy, prune, rand, reindex, rpc, selectcoins, tor, zmq"; // Don't translate these and qt below
     if (mode == HMM_BITCOIN_QT)
         debugCategories += ", qt";
     strUsage += HelpMessageOpt("-debug=<category>", strprintf(
-            _("Output debugging information (default: %u, supplying <category> is optional)"), 0) + ". " +
-                                                    _("If <category> is not supplied or if <category> = 1, output all debugging information.") +
-                                                    _("<category> can be:") + " " + debugCategories + ".");
+        _("Output debugging information (default: %u, supplying <category> is optional)"), 0) + ". " +
+        _("If <category> is not supplied or if <category> = 1, output all debugging information.") +
+        _("<category> can be:") + " " + debugCategories + ".");
     if (showDebug)
         strUsage += HelpMessageOpt("-nodebug", "Turn off debugging messages, same as -debug=0");
     strUsage += HelpMessageOpt("-gen", strprintf(_("Generate coins (default: %u)"), DEFAULT_GENERATE));
     strUsage += HelpMessageOpt("-genproclimit=<n>", strprintf(
-            _("Set the number of threads for coin generation if enabled (-1 = all cores, default: %d)"),
-            DEFAULT_GENERATE_THREADS));
+        _("Set the number of threads for coin generation if enabled (-1 = all cores, default: %d)"),
+        DEFAULT_GENERATE_THREADS));
 
     strUsage += HelpMessageOpt("-help-debug", _("Show all debugging options (usage: --help -help-debug)"));
     strUsage += HelpMessageOpt("-logips",
-                               strprintf(_("Include IP addresses in debug output (default: %u)"), DEFAULT_LOGIPS));
+        strprintf(_("Include IP addresses in debug output (default: %u)"), DEFAULT_LOGIPS));
     strUsage += HelpMessageOpt("-logtimestamps", strprintf(_("Prepend debug output with timestamp (default: %u)"),
-                                                           DEFAULT_LOGTIMESTAMPS));
+        DEFAULT_LOGTIMESTAMPS));
     if (showDebug) {
         strUsage += HelpMessageOpt("-logtimemicros",
-                                   strprintf("Add microsecond precision to debug timestamps (default: %u)",
-                                             DEFAULT_LOGTIMEMICROS));
+            strprintf("Add microsecond precision to debug timestamps (default: %u)",
+                DEFAULT_LOGTIMEMICROS));
         strUsage += HelpMessageOpt("-mocktime=<n>", "Replace actual time with <n> seconds since epoch (default: 0)");
         strUsage += HelpMessageOpt("-limitfreerelay=<n>", strprintf(
-                "Continuously rate-limit free transactions to <n>*1000 bytes per minute (default: %u)",
-                DEFAULT_LIMITFREERELAY));
+            "Continuously rate-limit free transactions to <n>*1000 bytes per minute (default: %u)",
+            DEFAULT_LIMITFREERELAY));
         strUsage += HelpMessageOpt("-relaypriority", strprintf(
-                "Require high priority for relaying free or low-fee transactions (default: %u)",
-                DEFAULT_RELAYPRIORITY));
+            "Require high priority for relaying free or low-fee transactions (default: %u)",
+            DEFAULT_RELAYPRIORITY));
         strUsage += HelpMessageOpt("-maxsigcachesize=<n>",
-                                   strprintf("Limit size of signature cache to <n> MiB (default: %u)",
-                                             DEFAULT_MAX_SIG_CACHE_SIZE));
+            strprintf("Limit size of signature cache to <n> MiB (default: %u)",
+                DEFAULT_MAX_SIG_CACHE_SIZE));
         strUsage += HelpMessageOpt("-maxtipage=<n>", strprintf(
-                "Maximum tip age in seconds to consider node in initial block download (default: %u)",
-                DEFAULT_MAX_TIP_AGE));
+            "Maximum tip age in seconds to consider node in initial block download (default: %u)",
+            DEFAULT_MAX_TIP_AGE));
     }
     strUsage += HelpMessageOpt("-minrelaytxfee=<amt>", strprintf(
-            _("Fees (in %s/kB) smaller than this are considered zero fee for relaying, mining and transaction creation (default: %s)"),
-            CURRENCY_UNIT, FormatMoney(DEFAULT_MIN_RELAY_TX_FEE)));
+        _("Fees (in %s/kB) smaller than this are considered zero fee for relaying, mining and transaction creation (default: %s)"),
+        CURRENCY_UNIT, FormatMoney(DEFAULT_MIN_RELAY_TX_FEE)));
     strUsage += HelpMessageOpt("-maxtxfee=<amt>", strprintf(
-            _("Maximum total fees (in %s) to use in a single wallet transaction or raw transaction; setting this too low may abort large transactions (default: %s)"),
-            CURRENCY_UNIT, FormatMoney(DEFAULT_TRANSACTION_MAXFEE)));
+        _("Maximum total fees (in %s) to use in a single wallet transaction or raw transaction; setting this too low may abort large transactions (default: %s)"),
+        CURRENCY_UNIT, FormatMoney(DEFAULT_TRANSACTION_MAXFEE)));
     strUsage += HelpMessageOpt("-printtoconsole", _("Send trace/debug info to console instead of debug.log file"));
     if (showDebug) {
         strUsage += HelpMessageOpt("-printpriority",
-                                   strprintf("Log transaction priority and fee per kB when mining blocks (default: %u)",
-                                             DEFAULT_PRINTPRIORITY));
+            strprintf("Log transaction priority and fee per kB when mining blocks (default: %u)",
+                DEFAULT_PRINTPRIORITY));
     }
     strUsage += HelpMessageOpt("-shrinkdebugfile",
-                               _("Shrink debug.log file on client startup (default: 1 when no -debug)"));
+        _("Shrink debug.log file on client startup (default: 1 when no -debug)"));
 
     AppendParamsHelpMessages(strUsage, showDebug);
 
     strUsage += HelpMessageGroup(_("Node relay options:"));
     if (showDebug)
         strUsage += HelpMessageOpt("-acceptnonstdtxn",
-                                   strprintf("Relay and mine \"non-standard\" transactions (%sdefault: %u)",
-                                             "testnet/regtest only; ",
-                                             !Params(CBaseChainParams::TESTNET).RequireStandard()));
+            strprintf("Relay and mine \"non-standard\" transactions (%sdefault: %u)",
+                "testnet/regtest only; ",
+                !Params(CBaseChainParams::TESTNET).RequireStandard()));
     strUsage += HelpMessageOpt("-bytespersigop", strprintf(
-            _("Equivalent bytes per sigop in transactions for relay and mining (default: %u)"),
-            DEFAULT_BYTES_PER_SIGOP));
+        _("Equivalent bytes per sigop in transactions for relay and mining (default: %u)"),
+        DEFAULT_BYTES_PER_SIGOP));
     strUsage += HelpMessageOpt("-datacarrier", strprintf(_("Relay and mine data carrier transactions (default: %u)"),
-                                                         DEFAULT_ACCEPT_DATACARRIER));
+        DEFAULT_ACCEPT_DATACARRIER));
     strUsage += HelpMessageOpt("-datacarriersize", strprintf(
-            _("Maximum size of data in data carrier transactions we relay and mine (default: %u)"),
-            MAX_OP_RETURN_RELAY));
+        _("Maximum size of data in data carrier transactions we relay and mine (default: %u)"),
+        MAX_OP_RETURN_RELAY));
     strUsage += HelpMessageOpt("-mempoolreplacement",
-                               strprintf(_("Enable transaction replacement in the memory pool (default: %u)"),
-                                         DEFAULT_ENABLE_REPLACEMENT));
+        strprintf(_("Enable transaction replacement in the memory pool (default: %u)"),
+            DEFAULT_ENABLE_REPLACEMENT));
 
     strUsage += HelpMessageGroup(_("Block creation options:"));
     strUsage += HelpMessageOpt("-blockmaxweight=<n>",
-                               strprintf(_("Set maximum BIP141 block weight (default: %d)"), DEFAULT_BLOCK_MAX_WEIGHT));
+        strprintf(_("Set maximum BIP141 block weight (default: %d)"), DEFAULT_BLOCK_MAX_WEIGHT));
     strUsage += HelpMessageOpt("-blockmaxsize=<n>",
-                               strprintf(_("Set maximum block size in bytes (default: %d)"), DEFAULT_BLOCK_MAX_SIZE));
+        strprintf(_("Set maximum block size in bytes (default: %d)"), DEFAULT_BLOCK_MAX_SIZE));
     strUsage += HelpMessageOpt("-blockprioritysize=<n>", strprintf(
-            _("Set maximum size of high-priority/low-fee transactions in bytes (default: %d)"),
-            DEFAULT_BLOCK_PRIORITY_SIZE));
+        _("Set maximum size of high-priority/low-fee transactions in bytes (default: %d)"),
+        DEFAULT_BLOCK_PRIORITY_SIZE));
     if (showDebug)
         strUsage += HelpMessageOpt("-blockversion=<n>", "Override block version to test forking scenarios");
 
@@ -591,27 +604,27 @@ std::string HelpMessage(HelpMessageMode mode) {
     strUsage += HelpMessageOpt("-server", _("Accept command line and JSON-RPC commands"));
     strUsage += HelpMessageOpt("-rest", strprintf(_("Accept public REST requests (default: %u)"), DEFAULT_REST_ENABLE));
     strUsage += HelpMessageOpt("-rpcbind=<addr>",
-                               _("Bind to given address to listen for JSON-RPC connections. Use [host]:port notation for IPv6. This option can be specified multiple times (default: bind to all interfaces)"));
+        _("Bind to given address to listen for JSON-RPC connections. Use [host]:port notation for IPv6. This option can be specified multiple times (default: bind to all interfaces)"));
     strUsage += HelpMessageOpt("-rpccookiefile=<loc>", _("Location of the auth cookie (default: data dir)"));
     strUsage += HelpMessageOpt("-rpcuser=<user>", _("Username for JSON-RPC connections"));
     strUsage += HelpMessageOpt("-rpcpassword=<pw>", _("Password for JSON-RPC connections"));
     strUsage += HelpMessageOpt("-rpcauth=<userpw>",
-                               _("Username and hashed password for JSON-RPC connections. The field <userpw> comes in the format: <USERNAME>:<SALT>$<HASH>. A canonical python script is included in share/rpcuser. This option can be specified multiple times"));
+        _("Username and hashed password for JSON-RPC connections. The field <userpw> comes in the format: <USERNAME>:<SALT>$<HASH>. A canonical python script is included in share/rpcuser. This option can be specified multiple times"));
     strUsage += HelpMessageOpt("-rpcport=<port>",
-                               strprintf(_("Listen for JSON-RPC connections on <port> (default: %u or testnet: %u)"),
-                                         BaseParams(CBaseChainParams::MAIN).RPCPort(),
-                                         BaseParams(CBaseChainParams::TESTNET).RPCPort()));
+        strprintf(_("Listen for JSON-RPC connections on <port> (default: %u or testnet: %u)"),
+            BaseParams(CBaseChainParams::MAIN).RPCPort(),
+            BaseParams(CBaseChainParams::TESTNET).RPCPort()));
     strUsage += HelpMessageOpt("-rpcallowip=<ip>",
-                               _("Allow JSON-RPC connections from specified source. Valid for <ip> are a single IP (e.g. 1.2.3.4), a network/netmask (e.g. 1.2.3.4/255.255.255.0) or a network/CIDR (e.g. 1.2.3.4/24). This option can be specified multiple times"));
+        _("Allow JSON-RPC connections from specified source. Valid for <ip> are a single IP (e.g. 1.2.3.4), a network/netmask (e.g. 1.2.3.4/255.255.255.0) or a network/CIDR (e.g. 1.2.3.4/24). This option can be specified multiple times"));
     strUsage += HelpMessageOpt("-rpcthreads=<n>",
-                               strprintf(_("Set the number of threads to service RPC calls (default: %d)"),
-                                         DEFAULT_HTTP_THREADS));
+        strprintf(_("Set the number of threads to service RPC calls (default: %d)"),
+            DEFAULT_HTTP_THREADS));
     if (showDebug) {
         strUsage += HelpMessageOpt("-rpcworkqueue=<n>",
-                                   strprintf("Set the depth of the work queue to service RPC calls (default: %d)",
-                                             DEFAULT_HTTP_WORKQUEUE));
+            strprintf("Set the depth of the work queue to service RPC calls (default: %d)",
+                DEFAULT_HTTP_WORKQUEUE));
         strUsage += HelpMessageOpt("-rpcservertimeout=<n>", strprintf("Timeout during HTTP requests (default: %d)",
-                                                                      DEFAULT_HTTP_SERVER_TIMEOUT));
+            DEFAULT_HTTP_SERVER_TIMEOUT));
     }
 
     return strUsage;
@@ -622,21 +635,21 @@ std::string LicenseInfo() {
     const std::string URL_WEBSITE = "<https://bitcoincore.org>";
     // todo: remove urls from translations on next change
     return CopyrightHolders(strprintf(_("Copyright (C) %i-%i"), 2009, COPYRIGHT_YEAR) + " ") + "\n" +
-           "\n" +
-           strprintf(_("Please contribute if you find %s useful. "
-                               "Visit %s for further information about the software."),
-                     PACKAGE_NAME, URL_WEBSITE) +
-           "\n" +
-           strprintf(_("The source code is available from %s."),
-                     URL_SOURCE_CODE) +
-           "\n" +
-           "\n" +
-           _("This is experimental software.") + "\n" +
-           _("Distributed under the MIT software license, see the accompanying file COPYING or <http://www.opensource.org/licenses/mit-license.php>.") +
-           "\n" +
-           "\n" +
-           _("This product includes software developed by the OpenSSL Project for use in the OpenSSL Toolkit <https://www.openssl.org/> and cryptographic software written by Eric Young and UPnP software written by Thomas Bernard.") +
-           "\n";
+        "\n" +
+        strprintf(_("Please contribute if you find %s useful. "
+            "Visit %s for further information about the software."),
+            PACKAGE_NAME, URL_WEBSITE) +
+        "\n" +
+        strprintf(_("The source code is available from %s."),
+            URL_SOURCE_CODE) +
+        "\n" +
+        "\n" +
+        _("This is experimental software.") + "\n" +
+        _("Distributed under the MIT software license, see the accompanying file COPYING or <http://www.opensource.org/licenses/mit-license.php>.") +
+        "\n" +
+        "\n" +
+        _("This product includes software developed by the OpenSSL Project for use in the OpenSSL Toolkit <https://www.openssl.org/> and cryptographic software written by Eric Young and UPnP software written by Thomas Bernard.") +
+        "\n";
 }
 
 static void BlockNotifyCallback(bool initialSync, const CBlockIndex *pBlockIndex) {
@@ -708,7 +721,7 @@ void CleanupBlockRevFiles() {
     // start removing block files.
     int nContigCounter = 0;
     BOOST_FOREACH(
-    const PAIRTYPE(string, path) &item, mapBlockFiles) {
+        const PAIRTYPE(string, path) &item, mapBlockFiles) {
         if (atoi(item.first) == nContigCounter) {
             nContigCounter++;
             continue;
@@ -731,7 +744,7 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
             FILE *file = OpenBlockFile(pos, true);
             if (!file)
                 break; // This error is logged in OpenBlockFile
-            LogPrintf("Reindexing block file blk%05u.dat...\n", (unsigned int) nFile);
+            LogPrintf("Reindexing block file blk%05u.dat...\n", (unsigned int)nFile);
             LoadExternalBlockFile(chainparams, file, &pos);
             nFile++;
         }
@@ -751,19 +764,21 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
             LogPrintf("Importing bootstrap.dat...\n");
             LoadExternalBlockFile(chainparams, file);
             RenameOver(pathBootstrap, pathBootstrapOld);
-        } else {
+        }
+        else {
             LogPrintf("Warning: Could not open bootstrap file %s\n", pathBootstrap.string());
         }
     }
 
     // -loadblock=
     BOOST_FOREACH(
-    const boost::filesystem::path &path, vImportFiles) {
+        const boost::filesystem::path &path, vImportFiles) {
         FILE *file = fopen(path.string().c_str(), "rb");
         if (file) {
             LogPrintf("Importing blocks file %s...\n", path.string());
             LoadExternalBlockFile(chainparams, file);
-        } else {
+        }
+        else {
             LogPrintf("Warning: Could not open blocks file %s\n", path.string());
         }
     }
@@ -929,7 +944,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     // which is not correct. Can be removed, when GCCs winbase.h is fixed!
 #define PROCESS_DEP_ENABLE 0x00000001
 #endif
-    typedef BOOL (WINAPI *PSETPROCDEPPOL)(DWORD);
+    typedef BOOL(WINAPI *PSETPROCDEPPOL)(DWORD);
     PSETPROCDEPPOL setProcDEPPol = (PSETPROCDEPPOL)GetProcAddress(GetModuleHandleA("Kernel32.dll"), "SetProcessDEPPolicy");
     if (setProcDEPPol != NULL) setProcDEPPol(PROCESS_DEP_ENABLE);
 #endif
@@ -943,7 +958,8 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
         if (!GetBoolArg("-disablewallet", false))
             return InitError("-sysperms is not allowed in combination with enabled wallet functionality");
 #endif
-    } else {
+    }
+    else {
         umask(077);
     }
 
@@ -984,13 +1000,13 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
 
     // Make sure enough file descriptors are available
     int nBind = std::max(
-            (mapMultiArgs.count("-bind") ? mapMultiArgs.at("-bind").size() : 0) +
-            (mapMultiArgs.count("-whitebind") ? mapMultiArgs.at("-whitebind").size() : 0), size_t(1));
+        (mapMultiArgs.count("-bind") ? mapMultiArgs.at("-bind").size() : 0) +
+        (mapMultiArgs.count("-whitebind") ? mapMultiArgs.at("-whitebind").size() : 0), size_t(1));
     int nUserMaxConnections = GetArg("-maxconnections", DEFAULT_MAX_PEER_CONNECTIONS);
     nMaxConnections = std::max(nUserMaxConnections, 0);
 
     // Trim requested connection counts, to fit into system limitations
-    nMaxConnections = std::max(std::min(nMaxConnections, (int) (FD_SETSIZE - nBind - MIN_CORE_FILEDESCRIPTORS)), 0);
+    nMaxConnections = std::max(std::min(nMaxConnections, (int)(FD_SETSIZE - nBind - MIN_CORE_FILEDESCRIPTORS)), 0);
     int nFD = RaiseFileDescriptorLimit(nMaxConnections + MIN_CORE_FILEDESCRIPTORS);
     if (nFD < MIN_CORE_FILEDESCRIPTORS)
         return InitError(_("Not enough file descriptors available."));
@@ -998,7 +1014,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
 
     if (nMaxConnections < nUserMaxConnections)
         InitWarning(strprintf(_("Reducing -maxconnections from %d to %d, because of system limitations."),
-                              nUserMaxConnections, nMaxConnections));
+            nUserMaxConnections, nMaxConnections));
 
     // ********************************************************* Step 3: parameter-to-internal-flags
 
@@ -1014,7 +1030,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     // Check for -socks - as this is a privacy risk to continue, exit here
     if (mapArgs.count("-socks"))
         return InitError(
-                _("Unsupported argument -socks found. Setting SOCKS version isn't possible anymore, only SOCKS5 proxies are supported."));
+            _("Unsupported argument -socks found. Setting SOCKS version isn't possible anymore, only SOCKS5 proxies are supported."));
     // Check for -tor - as this is a privacy risk to continue, exit here
     if (GetBoolArg("-tor", false))
         return InitError(_("Unsupported argument -tor found, use -onion."));
@@ -1024,14 +1040,14 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
 
     if (GetBoolArg("-whitelistalwaysrelay", false))
         InitWarning(
-                _("Unsupported argument -whitelistalwaysrelay ignored, use -whitelistrelay and/or -whitelistforcerelay."));
+            _("Unsupported argument -whitelistalwaysrelay ignored, use -whitelistrelay and/or -whitelistforcerelay."));
 
     if (mapArgs.count("-blockminsize"))
         InitWarning("Unsupported argument -blockminsize ignored.");
 
     // Checkmempool and checkblockindex default to true in regtest mode
     int ratio = std::min<int>(std::max<int>(GetArg("-checkmempool", chainparams.DefaultConsistencyChecks() ? 1 : 0), 0),
-                              1000000);
+        1000000);
     if (ratio != 0) {
         mempool.setSanityCheck(1.0 / ratio);
     }
@@ -1060,11 +1076,11 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     if (nSignedPruneTarget < 0) {
         return InitError(_("Prune cannot be configured with a negative value."));
     }
-    nPruneTarget = (uint64_t) nSignedPruneTarget;
+    nPruneTarget = (uint64_t)nSignedPruneTarget;
     if (nPruneTarget) {
         if (nPruneTarget < MIN_DISK_SPACE_FOR_BLOCK_FILES) {
             return InitError(strprintf(_("Prune configured below the minimum of %d MiB.  Please use a higher number."),
-                                       MIN_DISK_SPACE_FOR_BLOCK_FILES / 1024 / 1024));
+                MIN_DISK_SPACE_FOR_BLOCK_FILES / 1024 / 1024));
         }
         LogPrintf("Prune configured to target %uMiB on disk for block and undo files.\n", nPruneTarget / 1024 / 1024);
         fPruneMode = true;
@@ -1098,7 +1114,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     fRequireStandard = !GetBoolArg("-acceptnonstdtxn", !Params().RequireStandard());
     if (Params().RequireStandard() && !fRequireStandard)
         return InitError(
-                strprintf("acceptnonstdtxn is not currently supported for %s chain", chainparams.NetworkIDString()));
+            strprintf("acceptnonstdtxn is not currently supported for %s chain", chainparams.NetworkIDString()));
     nBytesPerSigOp = GetArg("-bytespersigop", nBytesPerSigOp);
 
 #ifdef ENABLE_WALLET
@@ -1131,7 +1147,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
         std::vector <std::string> vstrReplacementModes;
         boost::split(vstrReplacementModes, strReplacementModeList, boost::is_any_of(","));
         fEnableReplacement = (std::find(vstrReplacementModes.begin(), vstrReplacementModes.end(), "fee") !=
-                              vstrReplacementModes.end());
+            vstrReplacementModes.end());
     }
 
     if (!mapMultiArgs["-bip9params"].empty()) {
@@ -1154,12 +1170,12 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
                 return InitError(strprintf("Invalid nTimeout (%s)", vDeploymentParams[2]));
             }
             bool found = false;
-            for (int i = 0; i < (int) Consensus::MAX_VERSION_BITS_DEPLOYMENTS; ++i) {
+            for (int i = 0; i < (int)Consensus::MAX_VERSION_BITS_DEPLOYMENTS; ++i) {
                 if (vDeploymentParams[0].compare(VersionBitsDeploymentInfo[i].name) == 0) {
                     UpdateRegtestBIP9Parameters(Consensus::DeploymentPos(i), nStartTime, nTimeout);
                     found = true;
                     LogPrintf("Setting BIP9 activation parameters for %s to start=%ld, timeout=%ld\n",
-                              vDeploymentParams[0], nStartTime, nTimeout);
+                        vDeploymentParams[0], nStartTime, nTimeout);
                     break;
                 }
             }
@@ -1190,11 +1206,12 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
         static boost::interprocess::file_lock lock(pathLockFile.string().c_str());
         if (!lock.try_lock())
             return InitError(strprintf(_("Cannot obtain a lock on data directory %s. %s is probably already running."),
-                                       strDataDir, _(PACKAGE_NAME)));
-    } catch (const boost::interprocess::interprocess_exception &e) {
+                strDataDir, _(PACKAGE_NAME)));
+    }
+    catch (const boost::interprocess::interprocess_exception &e) {
         return InitError(
-                strprintf(_("Cannot obtain a lock on data directory %s. %s is probably already running.") + " %s.",
-                          strDataDir, _(PACKAGE_NAME), e.what()));
+            strprintf(_("Cannot obtain a lock on data directory %s. %s is probably already running.") + " %s.",
+                strDataDir, _(PACKAGE_NAME), e.what()));
     }
 
 #ifndef WIN32
@@ -1251,7 +1268,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     // sanitize comments per BIP-0014, format user agent and check total size
     std::vector <string> uacomments;
     BOOST_FOREACH(string
-    cmt, mapMultiArgs["-uacomment"])
+        cmt, mapMultiArgs["-uacomment"])
     {
         if (cmt != SanitizeString(cmt, SAFE_CHARS_UA_COMMENT))
             return InitError(strprintf(_("User Agent comment (%s) contains unsafe characters."), cmt));
@@ -1260,14 +1277,14 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     strSubVersion = FormatSubVersion(CLIENT_NAME, CLIENT_VERSION, uacomments);
     if (strSubVersion.size() > MAX_SUBVERSION_LENGTH) {
         return InitError(strprintf(
-                _("Total length of network version string (%i) exceeds maximum length (%i). Reduce the number or size of uacomments."),
-                strSubVersion.size(), MAX_SUBVERSION_LENGTH));
+            _("Total length of network version string (%i) exceeds maximum length (%i). Reduce the number or size of uacomments."),
+            strSubVersion.size(), MAX_SUBVERSION_LENGTH));
     }
 
     if (mapArgs.count("-onlynet")) {
         std::set<enum Network> nets;
         BOOST_FOREACH(
-        const std::string &snet, mapMultiArgs["-onlynet"]) {
+            const std::string &snet, mapMultiArgs["-onlynet"]) {
             enum Network net = ParseNetwork(snet);
             if (net == NET_UNROUTABLE)
                 return InitError(strprintf(_("Unknown network specified in -onlynet: '%s'"), snet));
@@ -1282,7 +1299,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
 
     if (mapArgs.count("-whitelist")) {
         BOOST_FOREACH(
-        const std::string &net, mapMultiArgs["-whitelist"]) {
+            const std::string &net, mapMultiArgs["-whitelist"]) {
             CSubNet subnet(net);
             if (!subnet.IsValid())
                 return InitError(strprintf(_("Invalid netmask specified in -whitelist: '%s'"), net));
@@ -1314,7 +1331,8 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     if (onionArg != "") {
         if (onionArg == "0") { // Handle -noonion/-onion=0
             SetLimited(NET_TOR); // set onions as unreachable
-        } else {
+        }
+        else {
             proxyType addrOnion = proxyType(CService(onionArg, 9050), proxyRandomize);
             if (!addrOnion.IsValid())
                 return InitError(strprintf(_("Invalid -onion address: '%s'"), onionArg));
@@ -1333,14 +1351,14 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     if (fListen) {
         if (mapArgs.count("-bind") || mapArgs.count("-whitebind")) {
             BOOST_FOREACH(
-            const std::string &strBind, mapMultiArgs["-bind"]) {
+                const std::string &strBind, mapMultiArgs["-bind"]) {
                 CService addrBind;
                 if (!Lookup(strBind.c_str(), addrBind, GetListenPort(), false))
                     return InitError(ResolveErrMsg("bind", strBind));
                 fBound |= Bind(addrBind, (BF_EXPLICIT | BF_REPORT_ERROR));
             }
             BOOST_FOREACH(
-            const std::string &strBind, mapMultiArgs["-whitebind"]) {
+                const std::string &strBind, mapMultiArgs["-whitebind"]) {
                 CService addrBind;
                 if (!Lookup(strBind.c_str(), addrBind, 0, false))
                     return InitError(ResolveErrMsg("whitebind", strBind));
@@ -1348,7 +1366,8 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
                     return InitError(strprintf(_("Need to specify a port with -whitebind: '%s'"), strBind));
                 fBound |= Bind(addrBind, (BF_EXPLICIT | BF_REPORT_ERROR | BF_WHITELIST));
             }
-        } else {
+        }
+        else {
             struct in_addr inaddr_any;
             inaddr_any.s_addr = INADDR_ANY;
             fBound |= Bind(CService(in6addr_any, GetListenPort()), BF_NONE);
@@ -1369,8 +1388,8 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     }
 
     BOOST_FOREACH(
-    const std::string &strDest, mapMultiArgs["-seednode"])
-    AddOneShot(strDest);
+        const std::string &strDest, mapMultiArgs["-seednode"])
+        AddOneShot(strDest);
 
 #if ENABLE_ZMQ
     pzmqNotificationInterface = CZMQNotificationInterface::CreateWithArguments(mapArgs);
@@ -1401,7 +1420,8 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
                 boost::filesystem::create_hard_link(source, dest);
                 LogPrintf("Hardlinked %s -> %s\n", source.string(), dest.string());
                 linked = true;
-            } catch (const boost::filesystem::filesystem_error &e) {
+            }
+            catch (const boost::filesystem::filesystem_error &e) {
                 // Note: hardlink creation failing is not a disaster, it just means
                 // blocks will get re-downloaded from peers.
                 LogPrintf("Error hardlinking blk%04u.dat: %s\n", i, e.what());
@@ -1415,20 +1435,20 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
 
     // cache size calculations
     int64_t nTotalCache = (GetArg("-dbcache", nDefaultDbCache) << 20);
-//    nTotalCache = std::max(nTotalCache, nMinDbCache << 20); // total cache cannot be less than nMinDbCache
-//    nTotalCache = std::min(nTotalCache, nMaxDbCache << 20); // total cache cannot be greater than nMaxDbcache
+    //    nTotalCache = std::max(nTotalCache, nMinDbCache << 20); // total cache cannot be less than nMinDbCache
+    //    nTotalCache = std::min(nTotalCache, nMaxDbCache << 20); // total cache cannot be greater than nMaxDbcache
     if (nTotalCache < (1 << 22))
         nTotalCache = (1 << 22);
     int64_t nBlockTreeDBCache = nTotalCache / 8;
-//    nBlockTreeDBCache = std::min(nBlockTreeDBCache, (GetBoolArg("-txindex", DEFAULT_TXINDEX) ? nMaxBlockDBAndTxIndexCache : nMaxBlockDBCache) << 20);
+    //    nBlockTreeDBCache = std::min(nBlockTreeDBCache, (GetBoolArg("-txindex", DEFAULT_TXINDEX) ? nMaxBlockDBAndTxIndexCache : nMaxBlockDBCache) << 20);
     if (nBlockTreeDBCache > (1 << 21) && !GetBoolArg("-txindex", false))
         nBlockTreeDBCache = (1 << 21); // block tree db cache shouldn't be larger than 2 MiB
     nTotalCache -= nBlockTreeDBCache;
     int64_t nCoinDBCache = std::min(nTotalCache / 2,
-                                    (nTotalCache / 4) + (1 << 23)); // use 25%-50% of the remainder for disk cache
+        (nTotalCache / 4) + (1 << 23)); // use 25%-50% of the remainder for disk cache
     nCoinDBCache = std::min(nCoinDBCache, nMaxCoinsDBCache << 20); // cap total coins db cache
     nTotalCache -= nCoinDBCache;
-//    nCoinCacheUsage = nTotalCache; // the rest goes to in-memory cache
+    //    nCoinCacheUsage = nTotalCache; // the rest goes to in-memory cache
     nCoinCacheUsage = nTotalCache / 300;
     LogPrintf("Cache configuration:\n");
     LogPrintf("* Using %.1fMiB for block index database\n", nBlockTreeDBCache * (1.0 / 1024 / 1024));
@@ -1449,11 +1469,14 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
                 UnloadBlockIndex();
                 delete pcoinsTip;
                 delete pcoinsdbview;
+                delete pCoinsByScriptView;
+                delete pCoinsByScriptViewDB;
                 delete pcoinscatcher;
                 delete pblocktree;
 
                 pblocktree = new CBlockTreeDB(nBlockTreeDBCache, false, fReindex);
                 pcoinsdbview = new CCoinsViewDB(nCoinDBCache, false, fReindex || fReindexChainState);
+                pCoinsByScriptViewDB = new CCoinsByScriptViewDB(nCoinDBCache, false, false);
                 pcoinscatcher = new CCoinsViewErrorCatcher(pcoinsdbview);
                 pcoinsTip = new CCoinsViewCache(pcoinscatcher);
                 LogPrintf("fReindex = %s\n", fReindex);
@@ -1490,7 +1513,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
                 // in the past, but is now trying to run unpruned.
                 if (fHavePruned && !fPruneMode) {
                     strLoadError = _(
-                            "You need to rebuild the database using -reindex to go back to unpruned mode.  This will redownload the entire blockchain");
+                        "You need to rebuild the database using -reindex to go back to unpruned mode.  This will redownload the entire blockchain");
                     break;
                 }
 
@@ -1498,15 +1521,106 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
                     uiInterface.InitMessage(_("Rewinding blocks..."));
                     if (!RewindBlockIndex(chainparams)) {
                         strLoadError = _(
-                                "Unable to rewind the database to a pre-fork state. You will need to redownload the blockchain");
+                            "Unable to rewind the database to a pre-fork state. You will need to redownload the blockchain");
                         break;
                     }
                 }
 
+                // Check -utxoindex
+                if (IsArgSet("-utxoindex"))
+                {
+                    std::string arg_utxoindex;
+                    arg_utxoindex = GetArg("-utxoindex", "");
+                    //empty arg, just use the index; build it if necessary
+                    if (arg_utxoindex == "")
+                    {
+                        uint256 bestBlockHash;
+                        uint256 netBestBlockHash;
+                        bool bestBlockUpToDate = false;
+                        if (pCoinsByScriptViewDB->ReadBestBlock(bestBlockHash))
+                        {
+                            netBestBlockHash = chainActive.Tip()->GetBlockHash();
+                            LogPrintf("UTXO best block: %s\n",
+                                bestBlockHash.GetHex().c_str());
+                            LogPrintf("Network best block: %s\n",
+                                netBestBlockHash.GetHex().c_str());
+                            if (bestBlockHash == netBestBlockHash)
+                                bestBlockUpToDate = true;
+                        }
+
+                        if (!bestBlockUpToDate)
+                            LogPrintf("UTXO best block is not up to date. \n");
+
+                        if (!bestBlockUpToDate)
+                        {
+                            uiInterface.InitMessage(_("Building utxoindex..."));
+                            if (!CoinsByScriptIndex_Rebuild(strLoadError))
+                            {
+                                break;
+                            }
+                        }
+                        CCoinsStats stats;
+                        if (!GetUTXOStats(pcoinsTip, pCoinsByScriptViewDB, stats))
+                        {
+                            strLoadError = _("Error GetUTXOStats for utxoindex");
+                            break;
+                        }
+                        if (stats.nTransactionOutputs != stats.nAddressesOutputs)
+                        {
+                            strLoadError = _("Error compare stats for utxoindex");
+                            break;
+                        }
+                        fUTXOIndex = true;
+                    }
+                    //force rebuilding the index
+                    else if (arg_utxoindex == "rebuild")
+                    {
+                        uiInterface.InitMessage(_("Building utxoindex..."));
+                        if (!CoinsByScriptIndex_Rebuild(strLoadError))
+                        {
+                            break;
+                        }
+                        CCoinsStats stats;
+                        if (!GetUTXOStats(pcoinsTip, pCoinsByScriptViewDB, stats))
+                        {
+                            strLoadError = _("Error GetUTXOStats for utxoindex");
+                            break;
+                        }
+                        if (stats.nTransactionOutputs != stats.nAddressesOutputs)
+                        {
+                            strLoadError = _("Error compare stats for utxoindex");
+                            break;
+                        }
+                        fUTXOIndex = true;
+                    }
+                    //delete the index
+                    else if (arg_utxoindex == "delete")
+                    {
+                        if (fUTXOIndex)
+                        {
+                            uiInterface.InitMessage(_("Removing utxoindex..."));
+                            // remove index
+                            if (!CoinsByScriptIndex_Delete(strLoadError))
+                            {
+                                break;
+                            }
+                            fUTXOIndex = false;
+                        }
+                    }
+                }
+                //else if (fUTXOIndex)
+                //    return InitError(_("You need to provide -utxoindex. Do -utxoindex=0 to delete the index."));
+
+                // Init -utxoindex
+                if (fUTXOIndex)
+                    pCoinsByScriptView = new CCoinsByScriptView(pCoinsByScriptViewDB);
+
+
+
                 uiInterface.InitMessage(_("Verifying blocks..."));
                 if (fHavePruned && GetArg("-checkblocks", DEFAULT_CHECKBLOCKS) > MIN_BLOCKS_TO_KEEP) {
                     LogPrintf("Prune: pruned datadir may not have more than %d blocks; only checking available blocks",
-                              MIN_BLOCKS_TO_KEEP);
+                        MIN_BLOCKS_TO_KEEP);
                 }
 
                 {
@@ -1514,18 +1628,19 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
                     CBlockIndex *tip = chainActive.Tip();
                     if (tip && tip->nTime > GetAdjustedTime() + 2 * 60 * 60) {
                         strLoadError = _("The block database contains a block which appears to be from the future. "
-                                                 "This may be due to your computer's date and time being set incorrectly. "
-                                                 "Only rebuild the block database if you are sure that your computer's date and time are correct");
+                            "This may be due to your computer's date and time being set incorrectly. "
+                            "Only rebuild the block database if you are sure that your computer's date and time are correct");
                         break;
                     }
                 }
                 LogPrintf("CVerifyDB().VerifyDB...\n");
                 if (!CVerifyDB().VerifyDB(chainparams, pcoinsdbview, GetArg("-checklevel", DEFAULT_CHECKLEVEL),
-                                          GetArg("-checkblocks", DEFAULT_CHECKBLOCKS))) {
+                    GetArg("-checkblocks", DEFAULT_CHECKBLOCKS))) {
                     strLoadError = _("Corrupted block database detected");
                     break;
                 }
-            } catch (const std::exception &e) {
+            }
+            catch (const std::exception &e) {
                 if (fDebug) LogPrintf("%s\n", e.what());
                 strLoadError = _("Error opening block database");
                 break;
@@ -1538,17 +1653,19 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
             // first suggest a reindex
             if (!fReset) {
                 bool fRet = uiInterface.ThreadSafeQuestion(
-                        strLoadError + ".\n\n" + _("Do you want to rebuild the block database now?"),
-                        strLoadError + ".\nPlease restart with -reindex or -reindex-chainstate to recover.",
-                        "", CClientUIInterface::MSG_ERROR | CClientUIInterface::BTN_ABORT);
+                    strLoadError + ".\n\n" + _("Do you want to rebuild the block database now?"),
+                    strLoadError + ".\nPlease restart with -reindex or -reindex-chainstate to recover.",
+                    "", CClientUIInterface::MSG_ERROR | CClientUIInterface::BTN_ABORT);
                 if (fRet) {
                     fReindex = true;
                     fRequestShutdown = false;
-                } else {
+                }
+                else {
                     LogPrintf("Aborted block database rebuild. Exiting.\n");
                     return false;
                 }
-            } else {
+            }
+            else {
                 return InitError(strLoadError);
             }
         }
@@ -1577,7 +1694,8 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     if (fDisableWallet) {
         pwalletMain = NULL;
         LogPrintf("Wallet disabled!\n");
-    } else {
+    }
+    else {
         CWallet::InitLoadWallet();
         if (!pwalletMain)
             return false;
@@ -1620,7 +1738,8 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     // No locking, as this happens before any background thread is started.
     if (chainActive.Tip() == NULL) {
         uiInterface.NotifyBlockTip.connect(BlockNotifyGenesisWait);
-    } else {
+    }
+    else {
         fHaveGenesis = true;
     }
 
@@ -1630,8 +1749,8 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     std::vector <boost::filesystem::path> vImportFiles;
     if (mapArgs.count("-loadblock")) {
         BOOST_FOREACH(
-        const std::string &strFile, mapMultiArgs["-loadblock"])
-        vImportFiles.push_back(strFile);
+            const std::string &strFile, mapMultiArgs["-loadblock"])
+            vImportFiles.push_back(strFile);
     }
 
     threadGroup.create_thread(boost::bind(&ThreadImport, vImportFiles));
@@ -1654,9 +1773,9 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     LogPrintf("mapBlockIndex.size() = %u\n", mapBlockIndex.size());
     LogPrintf("nBestHeight = %d\n", chainActive.Height());
 #ifdef ENABLE_WALLET
-    LogPrintf("setKeyPool.size() = %u\n",      pwalletMain ? pwalletMain->setKeyPool.size() : 0);
-    LogPrintf("mapWallet.size() = %u\n",       pwalletMain ? pwalletMain->mapWallet.size() : 0);
-    LogPrintf("mapAddressBook.size() = %u\n",  pwalletMain ? pwalletMain->mapAddressBook.size() : 0);
+    LogPrintf("setKeyPool.size() = %u\n", pwalletMain ? pwalletMain->setKeyPool.size() : 0);
+    LogPrintf("mapWallet.size() = %u\n", pwalletMain ? pwalletMain->mapWallet.size() : 0);
+    LogPrintf("mapAddressBook.size() = %u\n", pwalletMain ? pwalletMain->mapAddressBook.size() : 0);
 #endif
 
     if (GetBoolArg("-listenonion", DEFAULT_LISTEN_ONION))
@@ -1665,7 +1784,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     StartNode(threadGroup, scheduler);
     // Generate coins in the background
     GenerateBitcoins(GetBoolArg("-gen", DEFAULT_GENERATE), GetArg("-genproclimit", DEFAULT_GENERATE_THREADS),
-                     chainparams);
+        chainparams);
 
     // ********************************************************* Step 11a: setup PrivateSend
     fZNode = GetBoolArg("-znode", false);
@@ -1675,7 +1794,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
 
     if ((fZNode || znodeConfig.getCount() > 0) && !fTxIndex) {
         return InitError("Enabling Znode support requires turning on transaction indexing."
-                                 "Please add txindex=1 to your configuration and start with -reindex");
+            "Please add txindex=1 to your configuration and start with -reindex");
     }
 
     if (fZNode) {
@@ -1690,13 +1809,14 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
         std::string strZnodePrivKey = GetArg("-znodeprivkey", "");
         if (!strZnodePrivKey.empty()) {
             if (!darkSendSigner.GetKeysFromSecret(strZnodePrivKey, activeZnode.keyZnode,
-                                                  activeZnode.pubKeyZnode))
+                activeZnode.pubKeyZnode))
                 return InitError(_("Invalid znodeprivkey. Please see documenation."));
 
             LogPrintf("  pubKeyZnode: %s\n", CBitcoinAddress(activeZnode.pubKeyZnode.GetID()).ToString());
-        } else {
+        }
+        else {
             return InitError(
-                    _("You must specify a znodeprivkey in the configuration. Please see documentation for help."));
+                _("You must specify a znodeprivkey in the configuration. Please see documentation for help."));
         }
     }
 
@@ -1766,7 +1886,8 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
         if (!flatdb2.Load(mnpayments)) {
             return InitError("Failed to load znode payments cache from mnpayments.dat");
         }
-    } else {
+    }
+    else {
         uiInterface.InitMessage(_("Znode cache is empty, skipping payments and governance cache..."));
     }
 
@@ -1785,9 +1906,9 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     darkSendPool.UpdatedBlockTip(chainActive.Tip());
     mnpayments.UpdatedBlockTip(chainActive.Tip());
     znodeSync.UpdatedBlockTip(chainActive.Tip());
-//    governance.UpdatedBlockTip(chainActive.Tip());
+    //    governance.UpdatedBlockTip(chainActive.Tip());
 
-    // ********************************************************* Step 11d: start dash-privatesend thread
+        // ********************************************************* Step 11d: start dash-privatesend thread
 
     threadGroup.create_thread(boost::bind(&ThreadCheckDarkSendPool));
 

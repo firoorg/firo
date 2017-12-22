@@ -3,8 +3,10 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include "base58.h"
 #include "chain.h"
 #include "chainparams.h"
+#include "coinsbyscript.h"
 #include "primitives/block.h"
 #include "primitives/transaction.h"
 #include "main.h"
@@ -24,6 +26,7 @@
 using namespace std;
 
 static const size_t MAX_GETUTXOS_OUTPOINTS = 15; //allow a max of 15 outpoints to be queried at once
+static const size_t MAX_GETUTXOINDEX_SCRIPTS = 15; //allow a max of 15 scripts to be queried at once
 
 enum RetFormat {
     RF_UNDEF,
@@ -598,6 +601,7 @@ static bool rest_getutxos(HTTPRequest* req, const std::string& strURIPart)
     // not reached
     return true; // continue to process further HTTP reqs on this cxn
 }
+
 
 static const struct {
     const char* prefix;

@@ -227,7 +227,7 @@ void CZnodePayments::FillBlockPayee(CMutableTransaction &txNew, int nBlockHeight
 
     if (!mnpayments.GetBlockPayee(nBlockHeight, payee)) {
         // no znode detected...
-        // LogPrintf("no znode detected...\n");
+        LogPrintf("no znode detected...\n");
         foundMaxVotedPayee = false;
         int nCount = 0;
         CZnode *winningNode = mnodeman.GetNextZnodeInQueueForPayment(nBlockHeight, true, nCount);
@@ -421,7 +421,7 @@ bool CZnodePayments::IsScheduled(CZnode &mn, int nNotBlockHeight) {
 }
 
 bool CZnodePayments::AddPaymentVote(const CZnodePaymentVote &vote) {
-    LogPrint("znode-payments", "CZnodePayments::AddPaymentVote\n");
+    LogPrintf("CZnodePayments::AddPaymentVote\n");
     uint256 blockHash = uint256();
     if (!GetBlockHash(blockHash, vote.nBlockHeight - 101)) return false;
 
@@ -681,6 +681,7 @@ bool CZnodePayments::ProcessBlock(int nBlockHeight) {
         return false;
     }
 
+
     int nRank = mnodeman.GetZnodeRank(activeZnode.vin, nBlockHeight - 101, GetMinZnodePaymentsProto(), false);
 
     if (nRank == -1) {
@@ -692,6 +693,7 @@ bool CZnodePayments::ProcessBlock(int nBlockHeight) {
         LogPrint("mnpayments", "CZnodePayments::ProcessBlock -- Znode not in the top %d (%d)\n", MNPAYMENTS_SIGNATURES_TOTAL, nRank);
         return false;
     }
+
 
     // LOCATE THE NEXT ZNODE WHICH SHOULD BE PAID
 
@@ -718,7 +720,6 @@ bool CZnodePayments::ProcessBlock(int nBlockHeight) {
     CBitcoinAddress address2(address1);
 
     // SIGN MESSAGE TO NETWORK WITH OUR ZNODE KEYS
-
     if (voteNew.Sign()) {
         if (AddPaymentVote(voteNew)) {
             voteNew.Relay();

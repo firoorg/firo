@@ -4,11 +4,13 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "amount.h"
+#include "base58.h"
 #include "chain.h"
 #include "chainparams.h"
 #include "checkpoints.h"
 #include "coins.h"
 #include "consensus/validation.h"
+#include "coinstats.h"
 #include "main.h"
 #include "policy/policy.h"
 #include "primitives/transaction.h"
@@ -19,11 +21,15 @@
 #include "util.h"
 #include "utilstrencodings.h"
 #include "hash.h"
+#include "txdb.h"
+#include "dbwrapper.h"
+
 
 #include <stdint.h>
 
 #include <univalue.h>
 
+#include <boost/assign/list_of.hpp>
 #include <boost/thread/thread.hpp> // boost::thread::interrupt
 
 using namespace std;
@@ -266,6 +272,123 @@ UniValue mempoolToJSON(bool fVerbose = false)
         return a;
     }
 }
+
+
+UniValue getaddressutxos(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() < 1 || params.size()>3)
+        throw std::runtime_error(
+            "getaddressutxos ( [\"address\",...] mempool maxoutputs)\n"
+            "\nReturns a set of unspent transaction outputs of given private key or public address.\n"
+            "\nArguments:\n"
+            "1. \"inputs\"    (string) A json array inputs; may also be a single value\n"
+            "    [\n"
+            "      \"input\"   (string) either: zcoin private key/zcoin public address/script hex\n"
+            "      ,...\n"
+            "    ]\n"
+            "2. \"mempool\"      (boolean, optional, default= true) if true, the mempool (unconfirmed) transactions are included\n"
+            "3. \"maxouputs\"    (numeric, optional, default= max_int64_t) maximum number of utxos to output per address\n"
+            "\nResult\n"
+            "1. \"results\"    (string) A json array of unspent transaction outputs for corresponding input \n"
+            "    [\n"
+            "      \"privkey\"   (string, optional) - copy of input (only if the input was a private key)\n"
+            "      \"pubaddr\"   (string, optional) - public address owning the funds (unless input was a script hex)\n"
+            "      \"scripthex\" (string, optional) - copy of input (only if the input was a script hex)\n"
+            "      \"outputs\"   (string) A json array of unspent txos\n"
+            "       [\n"
+            "         \"value\" (numeric) value of the output [XZC] \n"
+            "         \"txid\"  (numeric) transaction id of the output \n"
+            "         \"vout\"  (numeric) index of the output in transaction \n"
+            "       ]\n"
+            "      \"balance\"   (string) total of all outputs value\n"
+            "      ,...\n"
+            "    ]\n"
+            "\nExamples:\n"
+            + HelpExampleCli("getaddressutxos", "\"[\\\"1PGFqEzfmQch1gKD3ra4k18PNj3tTUUSqg\\\",\\\"1LtvqCaApEdUGFkpKMM4MstjcaL4dKg8SP\\\"]\"")
+            + "\nAs a json rpc call\n"
+            + HelpExampleRpc("getaddressutxos", "\"[\\\"1PGFqEzfmQch1gKD3ra4k18PNj3tTUUSqg\\\",\\\"1LtvqCaApEdUGFkpKMM4MstjcaL4dKg8SP\\\"]\"")
+        );
+
+    //
+    UniValue jArrInputs;
+    if (params[0].isArray()) {
+        jArrInputs = params[0].get_array();
+    }
+    else {
+        jArrInputs.setArray();
+        std::string address = params[0].get_str();
+        jArrInputs.push_back(address);
+    }
+	//
+	bool useMempool = true;
+	if (params.size() >= 2 && params[1].isBool())
+		useMempool = params[1].getBool();
+    //
+    int64_t nMaxOutputs = std::numeric_limits<int64_t>::max();
+    if (params.size() >= 3 && params[2].isNum())
+        nMaxOutputs = params[2].get_int64();
+
+
+    UniValue jArrResult(UniValue::VARR);
+
+    LOCK(cs_main);
+    for (const UniValue& input : jArrInputs.getValues())
+    {
+
+        //1. figure out which type of input has been specified..
+        UniValue record(UniValue::VOBJ);
+
+        std::string pubAddrFromPriv;
+        CBitcoinAddress pubAddrIn(input.get_str());
+
+        //..input might be either : zcoin private key/zcoin public address/script hash
+        bool isPrivKey = PublicAddressFromPrivateKey(input.get_str(), pubAddrFromPriv);
+        bool isPubAddr = pubAddrIn.IsValid();
+        bool isScript = IsHex(input.get_str());
+
+
+        CScript script;
+
+        if (isPrivKey) {
+            CBitcoinAddress pubAddr;
+            pubAddr.SetString(pubAddrFromPriv);
+            script = GetScriptForDestination(pubAddr.Get());
+
+            record.push_back(Pair("privkey", input.get_str()));
+            record.push_back(Pair("pubaddr", pubAddrFromPriv));
+        }
+        else if (isPubAddr) {
+            script = GetScriptForDestination(pubAddrIn.Get());
+
+            record.push_back(Pair("pubaddr", input.get_str()));
+        }
+        else if (isScript) {
+            std::vector<unsigned char> data(ParseHex(input.get_str()));
+            script = CScript(data.begin(), data.end());
+
+            record.push_back(Pair("scripthex", input.get_str()));
+        }
+        else {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid input: " + input.get_str());
+        }
+
+        unspentcoins_t coinsByScript;
+        pCoinsByScriptView->GetCoinsByScript(script, coinsByScript);
+
+        if (useMempool)
+            mempool.GetCoinsByScript(script, coinsByScript);
+
+        UniValue v = ValueFromUnspentCoins(coinsByScript, nMaxOutputs);
+        record.push_back(Pair("outputs", v["outputs"]));
+        record.push_back(Pair("balance", v["balance"]));
+        jArrResult.push_back(record);
+
+    }
+
+
+    return jArrResult;
+}
+
 
 UniValue getrawmempool(const UniValue& params, bool fHelp)
 {
@@ -616,60 +739,6 @@ UniValue getblock(const UniValue& params, bool fHelp)
     return blockToJSON(block, pblockindex);
 }
 
-struct CCoinsStats
-{
-    int nHeight;
-    uint256 hashBlock;
-    uint64_t nTransactions;
-    uint64_t nTransactionOutputs;
-    uint64_t nSerializedSize;
-    uint256 hashSerialized;
-    CAmount nTotalAmount;
-
-    CCoinsStats() : nHeight(0), nTransactions(0), nTransactionOutputs(0), nSerializedSize(0), nTotalAmount(0) {}
-};
-
-//! Calculate statistics about the unspent transaction output set
-static bool GetUTXOStats(CCoinsView *view, CCoinsStats &stats)
-{
-    boost::scoped_ptr<CCoinsViewCursor> pcursor(view->Cursor());
-
-    CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
-    stats.hashBlock = pcursor->GetBestBlock();
-    {
-        LOCK(cs_main);
-        stats.nHeight = mapBlockIndex.find(stats.hashBlock)->second->nHeight;
-    }
-    ss << stats.hashBlock;
-    CAmount nTotalAmount = 0;
-    while (pcursor->Valid()) {
-        boost::this_thread::interruption_point();
-        uint256 key;
-        CCoins coins;
-        if (pcursor->GetKey(key) && pcursor->GetValue(coins)) {
-            stats.nTransactions++;
-            ss << key;
-            for (unsigned int i=0; i<coins.vout.size(); i++) {
-                const CTxOut &out = coins.vout[i];
-                if (!out.IsNull()) {
-                    stats.nTransactionOutputs++;
-                    ss << VARINT(i+1);
-                    ss << out;
-                    nTotalAmount += out.nValue;
-                }
-            }
-            stats.nSerializedSize += 32 + pcursor->GetValueSize();
-            ss << VARINT(0);
-        } else {
-            return error("%s: unable to read value", __func__);
-        }
-        pcursor->Next();
-    }
-    stats.hashSerialized = ss.GetHash();
-    stats.nTotalAmount = nTotalAmount;
-    return true;
-}
-
 UniValue gettxoutsetinfo(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 0)
@@ -696,11 +765,13 @@ UniValue gettxoutsetinfo(const UniValue& params, bool fHelp)
 
     CCoinsStats stats;
     FlushStateToDisk();
-    if (GetUTXOStats(pcoinsTip, stats)) {
+    if (GetUTXOStats(pcoinsTip, pCoinsByScriptViewDB, stats)) {
         ret.push_back(Pair("height", (int64_t)stats.nHeight));
         ret.push_back(Pair("bestblock", stats.hashBlock.GetHex()));
         ret.push_back(Pair("transactions", (int64_t)stats.nTransactions));
         ret.push_back(Pair("txouts", (int64_t)stats.nTransactionOutputs));
+        ret.push_back(Pair("addresses", (int64_t)stats.nAddresses));
+        ret.push_back(Pair("utxoindex", (int64_t)stats.nAddressesOutputs));
         ret.push_back(Pair("bytes_serialized", (int64_t)stats.nSerializedSize));
         ret.push_back(Pair("hash_serialized", stats.hashSerialized.GetHex()));
         ret.push_back(Pair("total_amount", ValueFromAmount(stats.nTotalAmount)));
@@ -1189,6 +1260,7 @@ UniValue reconsiderblock(const UniValue& params, bool fHelp)
 static const CRPCCommand commands[] =
 { //  category              name                      actor (function)         okSafeMode
   //  --------------------- ------------------------  -----------------------  ----------
+    { "blockchain",         "getaddressutxos",        &getaddressutxos,        true  },
     { "blockchain",         "getblockchaininfo",      &getblockchaininfo,      true  },
     { "blockchain",         "getbestblockhash",       &getbestblockhash,       true  },
     { "blockchain",         "getblockcount",          &getblockcount,          true  },

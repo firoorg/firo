@@ -197,4 +197,6 @@ void ECC_Stop(void);
 /** Check that required EC support is available at runtime. */
 bool ECC_InitSanityCheck(void);
 
+bool PublicAddressFromPrivateKey(const std::string& privKey, std::string& pubAddrOut);
+
 #endif // BITCOIN_KEY_H
