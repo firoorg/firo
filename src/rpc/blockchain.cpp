@@ -278,26 +278,35 @@ UniValue getaddressutxos(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() < 1 || params.size()>3)
         throw std::runtime_error(
-            "getaddressutxos ( [\"address\",...] maxoutputs)\n"
+            "getaddressutxos ( [\"address\",...] mempool maxoutputs)\n"
             "\nReturns a set of unspent transaction outputs of given private key or public address.\n"
             "\nArguments:\n"
             "1. \"inputs\"    (string) A json array inputs; may also be a single value\n"
             "    [\n"
-            "      \"input\"   (string) either: zcoin private key/zcoin public address/script hash\n"
+            "      \"input\"   (string) either: zcoin private key/zcoin public address/script hex\n"
             "      ,...\n"
             "    ]\n"
             "2. \"mempool\"      (boolean, optional, default= true) if true, the mempool (unconfirmed) transactions are included\n"
             "3. \"maxouputs\"    (numeric, optional, default= max_int64_t) maximum number of utxos to output per address\n"
             "\nResult\n"
-            "1. \"balances\"    (string) A json array of balances \n"
+            "1. \"results\"    (string) A json array of unspent transaction outputs for corresponding input \n"
             "    [\n"
-            "      \"balance\"   (string) total of all transactions value for corresponding input [XZC]\n"
+            "      \"privkey\"   (string, optional) - copy of input (only if the input was a private key)\n"
+            "      \"pubaddr\"   (string, optional) - public address owning the funds (unless input was a script hex)\n"
+            "      \"scripthex\" (string, optional) - copy of input (only if the input was a script hex)\n"
+            "      \"outputs\"   (string) A json array of unspent txos\n"
+            "       [\n"
+            "         \"value\" (numeric) value of the output [XZC] \n"
+            "         \"txid\"  (numeric) transaction id of the output \n"
+            "         \"vout\"  (numeric) index of the output in transaction \n"
+            "       ]\n"
+            "      \"balance\"   (string) total of all outputs value\n"
             "      ,...\n"
             "    ]\n"
             "\nExamples:\n"
-            + HelpExampleCli("getunspentouts", "\"[\\\"1PGFqEzfmQch1gKD3ra4k18PNj3tTUUSqg\\\",\\\"1LtvqCaApEdUGFkpKMM4MstjcaL4dKg8SP\\\"]\"")
+            + HelpExampleCli("getaddressutxos", "\"[\\\"1PGFqEzfmQch1gKD3ra4k18PNj3tTUUSqg\\\",\\\"1LtvqCaApEdUGFkpKMM4MstjcaL4dKg8SP\\\"]\"")
             + "\nAs a json rpc call\n"
-            + HelpExampleRpc("getunspentouts", "\"[\\\"1PGFqEzfmQch1gKD3ra4k18PNj3tTUUSqg\\\",\\\"1LtvqCaApEdUGFkpKMM4MstjcaL4dKg8SP\\\"]\"")
+            + HelpExampleRpc("getaddressutxos", "\"[\\\"1PGFqEzfmQch1gKD3ra4k18PNj3tTUUSqg\\\",\\\"1LtvqCaApEdUGFkpKMM4MstjcaL4dKg8SP\\\"]\"")
         );
 
     //
@@ -371,7 +380,6 @@ UniValue getaddressutxos(const UniValue& params, bool fHelp)
 
         UniValue v = ValueFromUnspentCoins(coinsByScript, nMaxOutputs);
         record.push_back(Pair("outputs", v["outputs"]));
-        record.push_back(Pair("numoutputs", v["outputs"].size()));
         record.push_back(Pair("balance", v["balance"]));
         jArrResult.push_back(record);
 
