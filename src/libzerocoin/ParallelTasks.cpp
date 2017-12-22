@@ -32,38 +32,37 @@ private:
     bool                          shutdown;
     size_t                        numberOfThreads;
 
+    void ThreadProc() {
+        for (;;) {
+            packaged_task<void()> job;
+            {
+                unique_lock<mutex> lock(taskQueueMutex);
+
+                taskQueueCondition.wait_for(lock, chrono::seconds(secondsBeforeThreadShutdown),
+                                            [this] { return !taskQueue.empty() || shutdown; });
+                if (taskQueue.empty()) {
+                    // Either timeout or shutdown. If it's a timeout we need to delete ourself from the thread list and detach the thread
+                    // In case of shutdown thread list will be empty and destructor will wait for this thread completion
+                    thread::id currentId = this_thread::get_id();
+                    auto pThread = find_if(threads.begin(), threads.end(), [=](const thread &t) { return t.get_id() == currentId; });
+                    if (pThread != threads.end()) {
+                        pThread->detach();
+                        threads.erase(pThread);
+                    }
+                    break;
+                }
+                job = move(taskQueue.front());
+                taskQueue.pop();
+            }
+            job();
+        }
+    }
+
     void StartThreads() {
         // should be called with mutex aquired
-
-        auto threadProc = [this]() {
-            for (;;) {
-                packaged_task<void()> job;
-                {
-                    unique_lock<mutex> lock(taskQueueMutex);
-
-                    taskQueueCondition.wait_for(lock, chrono::seconds(secondsBeforeThreadShutdown),
-                                                [this] { return !taskQueue.empty() || shutdown; });
-                    if (taskQueue.empty()) {
-                        // Either timeout or shutdown. If it's a timeout we need to delete ourself from the thread list and detach the thread
-                        // In case of shutdown thread list will be empty and destructor will wait for this thread completion
-                        thread::id currentId = this_thread::get_id();
-                        auto pThread = find_if(threads.begin(), threads.end(), [=](const thread &t) { return t.get_id() == currentId; });
-                        if (pThread != threads.end()) {
-                            pThread->detach();
-                            threads.erase(pThread);
-                        }
-                        break;
-                    }
-                    job = move(taskQueue.front());
-                    taskQueue.pop();
-                }
-                job();
-            }
-        };
-
         // start missing threads
         while(threads.size() < numberOfThreads)
-            threads.emplace_back(threadProc);
+            threads.emplace_back(bind(&ParallelOpThreadPool::ThreadProc, this));
     }
 
 public:
@@ -129,7 +128,7 @@ ParallelTasks::ParallelTasks(int n) {
 }
 
 void ParallelTasks::Add(function<void()> task) {
-    tasks.push_back(s_parallelOpThreadPool.PostTask(task));
+    tasks.push_back(s_parallelOpThreadPool.PostTask(move(task)));
 }
 
 void ParallelTasks::Wait() {
