@@ -1429,7 +1429,6 @@ bool CheckTransaction(const CTransaction& tx, CValidationState& state, uint256 h
               BOOST_FOREACH(const CTxOut& output, tx.vout) {
                 int blockRotation = nHeight - 85 * (nHeight/85);
                 int64_t reward = (int64_t)(0.85 * (GetBlockValue(nHeight, 0, pindexBestHeader->nTime)));
-		int64_t smartnodePayment = reward / 8.5;
                 if (blockRotation >= 0 && blockRotation <= 7 && output.scriptPubKey == FOUNDER_1_SCRIPT && abs(output.nValue - reward) < 2 ) {                    
                     found_1 = true;
                 }
@@ -1444,8 +1443,9 @@ bool CheckTransaction(const CTransaction& tx, CValidationState& state, uint256 h
                 }
                 if (blockRotation >= 39 && blockRotation <= 84 && output.scriptPubKey == FOUNDER_5_SCRIPT && abs(output.nValue - reward) < 2 ) {
                     found_5 = true; 
-		        }
- 	            if (smartnodePayment != output.nValue) {
+		}
+	        int64_t smartnodePayment = (int64_t)(0.1 * (GetBlockValue(nHeight, 0, pindexBestHeader->nTime)));
+ 	        if (smartnodePayment != output.nValue) {
                     found_smartnode_payment = false;
                 } else {
                     total_payment_tx = total_payment_tx + 1;
