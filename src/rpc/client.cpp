@@ -86,6 +86,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "gettxoutproof", 0 },
     { "getaddressutxos", 0 },
     { "getaddressutxos", 1 },
+    { "getaddressutxos", 2 },
     { "lockunspent", 0 },
     { "lockunspent", 1 },
     { "importprivkey", 2 },

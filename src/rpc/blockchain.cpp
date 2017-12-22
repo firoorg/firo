@@ -276,7 +276,7 @@ UniValue mempoolToJSON(bool fVerbose = false)
 
 UniValue getaddressutxos(const UniValue& params, bool fHelp)
 {
-    if (fHelp || params.size() < 1 || params.size()>2)
+    if (fHelp || params.size() < 1 || params.size()>3)
         throw std::runtime_error(
             "getaddressutxos ( [\"address\",...] maxoutputs)\n"
             "\nReturns a set of unspent transaction outputs of given private key or public address.\n"
@@ -286,7 +286,8 @@ UniValue getaddressutxos(const UniValue& params, bool fHelp)
             "      \"input\"   (string) either: zcoin private key/zcoin public address/script hash\n"
             "      ,...\n"
             "    ]\n"
-            "2. \"maxouputs\"    (numeric, optional, default= max_int64_t) maximum number of utxos to output per address\n"
+            "2. \"mempool\"      (boolean, optional, default= true) if true, the mempool (unconfirmed) transactions are included\n"
+            "3. \"maxouputs\"    (numeric, optional, default= max_int64_t) maximum number of utxos to output per address\n"
             "\nResult\n"
             "1. \"balances\"    (string) A json array of balances \n"
             "    [\n"
@@ -309,10 +310,14 @@ UniValue getaddressutxos(const UniValue& params, bool fHelp)
         std::string address = params[0].get_str();
         jArrInputs.push_back(address);
     }
+	//
+	bool useMempool = true;
+	if (params.size() >= 2 && params[1].isBool())
+		useMempool = params[1].getBool();
     //
     int64_t nMaxOutputs = std::numeric_limits<int64_t>::max();
-    if (params.size() >= 2 && params[1].isNum())
-        nMaxOutputs = params[1].get_int64();
+    if (params.size() >= 3 && params[2].isNum())
+        nMaxOutputs = params[2].get_int64();
 
 
     UniValue jArrResult(UniValue::VARR);
@@ -358,15 +363,16 @@ UniValue getaddressutxos(const UniValue& params, bool fHelp)
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid input: " + input.get_str());
         }
 
-        //if (useIndex)
-        {
-            unspentcoins_t coinsByScript;
-            pCoinsByScriptView->GetCoinsByScript(script, coinsByScript);
-            UniValue v = ValueFromUnspentCoins(coinsByScript, nMaxOutputs);
-            record.push_back(Pair("outputs", v["outputs"]));
-            record.push_back(Pair("numoutputs", v["outputs"].size()));
-            record.push_back(Pair("balance", v["balance"]));
-        }
+        unspentcoins_t coinsByScript;
+        pCoinsByScriptView->GetCoinsByScript(script, coinsByScript);
+
+        if (useMempool)
+            mempool.GetCoinsByScript(script, coinsByScript);
+
+        UniValue v = ValueFromUnspentCoins(coinsByScript, nMaxOutputs);
+        record.push_back(Pair("outputs", v["outputs"]));
+        record.push_back(Pair("numoutputs", v["outputs"].size()));
+        record.push_back(Pair("balance", v["balance"]));
         jArrResult.push_back(record);
 
     }
