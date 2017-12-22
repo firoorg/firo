@@ -1371,11 +1371,11 @@ bool CheckTransaction(const CTransaction& tx, CValidationState& state, uint256 h
             }else if(!fTestNet && (GetAdjustedTime() <= nStartRewardTime)){
                 return state.DoS(100, error("CTransaction::CheckTransaction() : transaction is too early"));
             }else{
-                FOUNDER_1_SCRIPT = GetScriptForDestination(CBitcoinAddress("TBizCRSozKpCbheftmzs75fZnc7h6HocJ3").Get());
-                FOUNDER_2_SCRIPT = GetScriptForDestination(CBitcoinAddress("THc8faox1kKZ3aegLdU4cwCJwgehLHSe9M").Get());
-                FOUNDER_3_SCRIPT = GetScriptForDestination(CBitcoinAddress("TK7CPJ2BS2UxAc7KBbUYySCBczww97Qr7p").Get());
-                FOUNDER_4_SCRIPT = GetScriptForDestination(CBitcoinAddress("TUPAY3ziYY7znMLxRJJNuvfuFWS1snrjiM").Get());
-                FOUNDER_5_SCRIPT = GetScriptForDestination(CBitcoinAddress("TMtxkvmAMyL5siHX1n3zKAvAKnev8if8KA").Get());
+                FOUNDER_1_SCRIPT = GetScriptForDestination(CBitcoinAddress("TTpGqTr2PBeVx4vvNRJ9iTq4NwpTCbSSwy").Get());
+                FOUNDER_2_SCRIPT = GetScriptForDestination(CBitcoinAddress("THypUznpFaDHaE7PS6yAc4pHNjC2BnWzUv").Get());
+                FOUNDER_3_SCRIPT = GetScriptForDestination(CBitcoinAddress("TDJVZE5oCYYbJQyizU4FgB2KpnKVdebnxg").Get());
+                FOUNDER_4_SCRIPT = GetScriptForDestination(CBitcoinAddress("TSziXCdaBcPk3Dt94BbTH9BZDH18K6sWsc").Get());
+                FOUNDER_5_SCRIPT = GetScriptForDestination(CBitcoinAddress("TLn1PGAVccBBjF8JuhQmATCR8vxhmamJg8").Get());
             }
             if ((nHeight > 0) && (nHeight < 90000)) {
                 BOOST_FOREACH(const CTxOut &output, tx.vout) {
