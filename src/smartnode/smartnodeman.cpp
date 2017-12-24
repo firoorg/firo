@@ -1421,7 +1421,6 @@ void CSmartnodeMan::UpdateSmartnodeList(CSmartnodeBroadcast mnb)
             }
         }
     } catch (const std::exception &e) {
-        LogPrintf("UpdateSmartnodeList\n");
         PrintExceptionContinue(&e, "UpdateSmartnodeList");
     }
 }

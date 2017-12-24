@@ -16,6 +16,7 @@
 #include "networkstyle.h"
 #include "optionsmodel.h"
 #include "platformstyle.h"
+#include "../smartnode/smartnodeconfig.h"
 #include "splashscreen.h"
 #include "utilitydialog.h"
 #include "winshutdownmonitor.h"
@@ -625,6 +626,12 @@ int main(int argc, char *argv[])
     initTranslations(qtTranslatorBase, qtTranslator, translatorBase, translator);
 
 #ifdef ENABLE_WALLET
+    std::string strErr;
+    if(!smartnodeConfig.read(strErr)) {
+        QMessageBox::critical(0, QObject::tr("Smartcash Core"),
+                              QObject::tr("Error reading znode configuration file: %1").arg(strErr.c_str()));
+        return EXIT_FAILURE;
+    }
     /// 8. URI IPC sending
     // - Do this early as we don't want to bother initializing if we are just calling IPC
     // - Do this *after* setting up the data directory, as the data directory hash is used in the name

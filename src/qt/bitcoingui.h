@@ -108,11 +108,13 @@ private:
     QAction *backupWalletAction;
     QAction *changePassphraseAction;
     QAction *aboutQtAction;
+    QAction *smartnodeAction;
     QAction *openRPCConsoleAction;
     QAction *openAction;
     QAction *showHelpMessageAction;
     QAction *zerocoinAction;
     QAction *zerocoinMenuAction;
+
 
     QSystemTrayIcon *trayIcon;
     QMenu *trayIconMenu;
@@ -183,6 +185,8 @@ private Q_SLOTS:
     void gotoOverviewPage();
     /** Switch to history (transactions) page */
     void gotoHistoryPage();
+    /** Switch to smartnode page */
+    void gotoSmartnodePage();
     /** Switch to receive coins page */
     void gotoReceiveCoinsPage();
     /** Switch to send coins page */
