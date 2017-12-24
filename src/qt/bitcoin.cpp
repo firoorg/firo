@@ -20,6 +20,7 @@
 #include "splashscreen.h"
 #include "utilitydialog.h"
 #include "winshutdownmonitor.h"
+#include "smartnodeconfig.h"
 
 #ifdef ENABLE_WALLET
 #include "paymentserver.h"
