@@ -801,7 +801,6 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
 
     tooltip = tr("Processed %n block(s) of transaction history.", "", count);
 
-
     if(!znodeSync.IsBlockchainSynced())
     {
         // Represent time from last generated block in human readable text

@@ -38,6 +38,9 @@
 
 #define ZEROCOIN_MODULUS   "25195908475657893494027183240048398571429282126204032027777137836043662020707595556264018525880784406918290641249515082189298559149176184502808489120072844992687392807287776735971418347270261896375014971824691165077613379859095700097330459748808428401797429100642458691817195118746121515172654632282216869987549182422433637259085141865462043576798423387184774447920739934236584823824281198163815010674810451660377306056201619676256133844143603833904414952634432190114657544454178424020924616515723350778707749817125772467962926386356373289912154831438167899885040445364023527381951378636564391212010397122822120720357"
 
+// number of mint confirmations needed to spend coin
+#define ZC_MINT_CONFIRMATIONS   6
+
 using namespace std;
 
 CWallet *pwalletMain = NULL;
@@ -3726,7 +3729,7 @@ bool CWallet::CreateZerocoinSpendTransaction(int64_t nValue, libzerocoin::CoinDe
                     && minIdPubcoin.nHeight != INT_MAX
                     && minIdPubcoin.nHeight >= 1
                     && chainActive.Height() > -1
-                    && minIdPubcoin.nHeight + 6 <= chainActive.Height()
+                    && minIdPubcoin.nHeight + (ZC_MINT_CONFIRMATIONS-1) <= chainActive.Height()
                         ) {
                     currentId = minIdPubcoin.id;
                 }
@@ -3742,7 +3745,7 @@ bool CWallet::CreateZerocoinSpendTransaction(int64_t nValue, libzerocoin::CoinDe
                     && zerocoinItem.nHeight != INT_MAX
                     && zerocoinItem.nHeight >= 1
                     && chainActive.Height() > -1
-                    && zerocoinItem.nHeight + 6 <= chainActive.Height()
+                    && zerocoinItem.nHeight + (ZC_MINT_CONFIRMATIONS-1) <= chainActive.Height()
                         ) {
                     zerocoinSelected = zerocoinItem;
                     selectedPubcoin = true;
@@ -3777,7 +3780,7 @@ bool CWallet::CreateZerocoinSpendTransaction(int64_t nValue, libzerocoin::CoinDe
                 if (zerocoinItem.value != zerocoinSelected.value
                         && zerocoinItem.id == zerocoinSelected.id
                         && chainActive.Height() > -1
-                        && zerocoinItem.nHeight + 6 <= chainActive.Height()
+                        && zerocoinItem.nHeight + (ZC_MINT_CONFIRMATIONS-1) <= chainActive.Height()
                         && zerocoinItem.nHeight >= 1
                         && zerocoinItem.nHeight != INT_MAX
                         && zerocoinItem.denomination == denomination

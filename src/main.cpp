@@ -64,7 +64,7 @@
 using namespace std;
 
 #if defined(NDEBUG)
-# error "Bitcoin cannot be compiled without assertions."
+# error "Zcoin cannot be compiled without assertions."
 #endif
 
 /**
@@ -133,7 +133,7 @@ static void CheckBlockIndex(const Consensus::Params &consensusParams);
 /** Constant stuff for coinbase transactions we create: */
 CScript COINBASE_FLAGS;
 
-const string strMessageMagic = "Bitcoin Signed Message:\n";
+const string strMessageMagic = "Zcoin Signed Message:\n";
 
 // Internal stuff
 namespace {
@@ -2550,8 +2550,18 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
     std::vector <PrecomputedTransactionData> txdata;
     txdata.reserve(
             block.vtx.size()); // Required so that pointers to individual PrecomputedTransactionData don't get invalidated
+
+    set<uint256> txIds;
+    bool fTestNet = Params().NetworkIDString() == CBaseChainParams::TESTNET;
+
     for (unsigned int i = 0; i < block.vtx.size(); i++) {
         const CTransaction &tx = block.vtx[i];
+
+        uint256 txHash = tx.GetHash();
+        if (txIds.count(txHash) > 0 && (fTestNet || pindex->nHeight >= HF_ZNODE_HEIGHT))
+            return state.DoS(100, error("ConnectBlock(): duplicate transactions in the same block"),
+                             REJECT_INVALID, "bad-txns-duplicatetxid");
+        txIds.insert(txHash);
 
         nInputs += tx.vin.size();
 
@@ -5588,12 +5598,16 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
             return false;
         }
 
-        int nHeight = chainActive.Height();
-        if ((nHeight + 1 < HF_ZNODE_HEIGHT && pfrom->nVersion < MIN_PEER_PROTO_VERSION) ||
-                (nHeight + 1 >= HF_ZNODE_HEIGHT && pfrom->nVersion < MIN_PEER_PROTO_VERSION_AFTER_ZNODE_PAYMENT_HF)) {
+        int nHeight;
+        {
+            LOCK(cs_main);
+            nHeight = chainActive.Height();
+        }
+        int minPeerVersion = (nHeight + 1 < HF_ZNODE_HEIGHT) ? MIN_PEER_PROTO_VERSION : MIN_PEER_PROTO_VERSION_AFTER_ZNODE_PAYMENT_HF;
+        if (pfrom->nVersion < minPeerVersion) {
             // disconnect from peers older than this proto version
             // LogPrintf("peer=%d using obsolete version %i; disconnecting\n", pfrom->id, pfrom->nVersion);
-            pfrom->PushMessage(NetMsgType::REJECT, strCommand, REJECT_OBSOLETE, strprintf("Version must be %d or greater", MIN_PEER_PROTO_VERSION));
+            pfrom->PushMessage(NetMsgType::REJECT, strCommand, REJECT_OBSOLETE, strprintf("Version must be %d or greater", minPeerVersion));
             pfrom->fDisconnect = true;
             return false;
         }
@@ -6056,7 +6070,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
         int nInvType = MSG_TX;
         CTransaction tx;
 //        vRecv >> tx;
-//        LogPrintf("ProcessMessage() txHash=%s\n", tx.GetHash().ToString());
+        // LogPrintf("ProcessMessage() txHash=%s\n", tx.GetHash().ToString());
 
         // Read data and assign inv type
         if (strCommand == NetMsgType::TX) {
@@ -6544,7 +6558,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
                 return true;
             }
 
-            LogPrintf("ProcessMessage.AcceptBlockHeader() total %s blocks\n", headers.size());
+            LogPrint("net", "ProcessMessage.AcceptBlockHeader() total %s blocks\n", headers.size());
             CBlockIndex *pindexLast = NULL;
             BOOST_FOREACH(
             const CBlockHeader &header, headers) {
@@ -6655,8 +6669,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
     {
         CBlock block;
         vRecv >> block;
-        LogPrintf("ProcessMessage -> received block %s peer=%d\n", block.GetHash().ToString(), pfrom->id);
-//        LogPrint("net", "received block %s peer=%d\n", block.GetHash().ToString(), pfrom->id);
+        LogPrint("net", "received block %s peer=%d\n", block.GetHash().ToString(), pfrom->id);
         CValidationState state;
         // Process all blocks from whitelisted peers, even if not requested,
         // unless we're still syncing with the network.
@@ -7410,11 +7423,11 @@ bool SendMessages(CNode *pto) {
             {
                 pto->filterInventoryKnown.insert(inv.hash);
 
-                LogPrintf("SendMessages -- queued inv: %s  index=%d peer=%d\n", inv.ToString(), vInv.size(), pto->id);
+                LogPrint("net", "SendMessages -- queued inv: %s  index=%d peer=%d\n", inv.ToString(), vInv.size(), pto->id);
                 vInv.push_back(inv);
                 if (vInv.size() >= 1000)
                 {
-                    LogPrintf("SendMessages -- pushing inv's: count=%d peer=%d\n", vInv.size(), pto->id);
+                    LogPrint("net", "SendMessages -- pushing inv's: count=%d peer=%d\n", vInv.size(), pto->id);
                     pto->PushMessage(NetMsgType::INV, vInv);
                     vInv.clear();
                 }
