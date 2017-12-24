@@ -629,7 +629,7 @@ int main(int argc, char *argv[])
     std::string strErr;
     if(!smartnodeConfig.read(strErr)) {
         QMessageBox::critical(0, QObject::tr("Smartcash Core"),
-                              QObject::tr("Error reading znode configuration file: %1").arg(strErr.c_str()));
+                              QObject::tr("Error reading SmartNode configuration file: %1").arg(strErr.c_str()));
         return EXIT_FAILURE;
     }
     /// 8. URI IPC sending
