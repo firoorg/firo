@@ -206,7 +206,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
             coinbaseTx.vout[0].nValue =-((int64_t)(0.85 * (GetBlockValue(nHeight, 0, pindexBestHeader->nTime))));
             // And pay the budgets over 85 block rotation
             int blockRotation = nHeight - 85 * ((pindexBestHeader->nHeight+1)/85);
-            int64_t reward = (int64_t)(0.75 * (GetBlockValue(nHeight, 0, pindexBestHeader->nTime)));
+            int64_t reward = (int64_t)(0.85 * (GetBlockValue(nHeight, 0, pindexBestHeader->nTime)));
             if(blockRotation >= 0 && blockRotation <= 7){
                coinbaseTx.vout.push_back(CTxOut(reward, CScript(FOUNDER_1_SCRIPT.begin(), FOUNDER_1_SCRIPT.end())));
             }
