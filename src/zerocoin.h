@@ -97,6 +97,9 @@ public:
     // Query if there is a coin with given pubCoin value
     bool HasCoin(const CBigNum &pubCoin);
 
+    // Given denomination and id returns latest accumulator value and corresponding block hash
+    bool GetAccumulatorValue(int denomination, int id, CBigNum &accumulator, uint256 &blockHash);
+
     // Reset to initial values
     void Reset();
 };
