@@ -563,31 +563,40 @@ CZnode* CZnodeMan::GetNextZnodeInQueueForPayment(int nBlockHeight, bool fFilterS
     {
         index += 1;
         // LogPrintf("index=%s, mn=%s\n", index, mn.ToString());
-        if(!mn.IsValidForPayment()) {
-            // LogPrintf("Invalid payment!\n");
+        if (!mn.IsValidForPayment()) {
+            LogPrint("znodeman", "Znode, %s, addr(%s), not-qualified: 'not valid for payment'\n",
+                     mn.vin.prevout.ToStringShort(), CBitcoinAddress(mn.pubKeyCollateralAddress.GetID()).ToString());
             continue;
         }
         // //check protocol version
-        if(mn.nProtocolVersion < mnpayments.GetMinZnodePaymentsProto()) {
+        if (mn.nProtocolVersion < mnpayments.GetMinZnodePaymentsProto()) {
             // LogPrintf("Invalid nProtocolVersion!\n");
             // LogPrintf("mn.nProtocolVersion=%s!\n", mn.nProtocolVersion);
             // LogPrintf("mnpayments.GetMinZnodePaymentsProto=%s!\n", mnpayments.GetMinZnodePaymentsProto());
+            LogPrint("znodeman", "Znode, %s, addr(%s), not-qualified: 'invalid nProtocolVersion'\n",
+                     mn.vin.prevout.ToStringShort(), CBitcoinAddress(mn.pubKeyCollateralAddress.GetID()).ToString());
             continue;
         }
         //it's in the list (up to 8 entries ahead of current block to allow propagation) -- so let's skip it
-        if(mnpayments.IsScheduled(mn, nBlockHeight)){
+        if (mnpayments.IsScheduled(mn, nBlockHeight)) {
             // LogPrintf("mnpayments.IsScheduled!\n");
+            LogPrint("znodeman", "Znode, %s, addr(%s), not-qualified: 'IsScheduled'\n",
+                     mn.vin.prevout.ToStringShort(), CBitcoinAddress(mn.pubKeyCollateralAddress.GetID()).ToString());
             continue;
         }
         //it's too new, wait for a cycle
-        if(fFilterSigTime && mn.sigTime + (nMnCount * 2.6 * 60) > GetAdjustedTime()){
+        if (fFilterSigTime && mn.sigTime + (nMnCount * 2.6 * 60) > GetAdjustedTime()) {
             // LogPrintf("it's too new, wait for a cycle!\n");
+            LogPrint("znodeman", "Znode, %s, addr(%s), not-qualified: 'it's too new, wait for a cycle!', sigTime=%s, will be qualifed after=%s",
+                     mn.vin.prevout.ToStringShort(), CBitcoinAddress(mn.pubKeyCollateralAddress.GetID()).ToString(), DateTimeStrFormat("%Y-%m-%d %H:%M UTC", mn.sigTime).c_str(), DateTimeStrFormat("%Y-%m-%d %H:%M UTC", mn.sigTime + (nMnCount * 2.6 * 60)).c_str());
             continue;
         }
         //make sure it has at least as many confirmations as there are znodes
-        if(mn.GetCollateralAge() < nMnCount) {
+        if (mn.GetCollateralAge() < nMnCount) {
             // LogPrintf("mn.GetCollateralAge()=%s!\n", mn.GetCollateralAge());
             // LogPrintf("nMnCount=%s!\n", nMnCount);
+            LogPrint("znodeman", "Znode, %s, addr(%s), not-qualified: 'mn.GetCollateralAge() < nMnCount', CollateralAge=%d, nMnCount=%d\n",
+                     mn.vin.prevout.ToStringShort(), CBitcoinAddress(mn.pubKeyCollateralAddress.GetID()).ToString(), mn.GetCollateralAge(), nMnCount);
             continue;
         }
 

@@ -1771,9 +1771,9 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
 
     if (mnodeman.size()) {
         uiInterface.InitMessage(_("Loading Znode payment cache..."));
-        CFlatDB<CZnodePayments> flatdb2("zncache.dat", "magicZnodePaymentsCache");
+        CFlatDB<CZnodePayments> flatdb2("znpayments.dat", "magicZnodePaymentsCache");
         if (!flatdb2.Load(mnpayments)) {
-            return InitError("Failed to load znode payments cache from zncache.dat");
+            return InitError("Failed to load znode payments cache from znpayments.dat");
         }
     } else {
         uiInterface.InitMessage(_("Znode cache is empty, skipping payments and governance cache..."));
