@@ -213,6 +213,15 @@ void Shutdown() {
 #endif
     GenerateBitcoins(false, 0, Params());
     StopNode();
+
+    // STORE DATA CACHES INTO SERIALIZED DAT FILES
+    CFlatDB<CZnodeMan> flatdb1("zncache.dat", "magicZnodeCache");
+    flatdb1.Dump(mnodeman);
+    CFlatDB<CZnodePayments> flatdb2("znpayments.dat", "magicZnodePaymentsCache");
+    flatdb2.Dump(mnpayments);
+    CFlatDB<CNetFulfilledRequestManager> flatdb4("netfulfilled.dat", "magicFulfilledCache");
+    flatdb4.Dump(netfulfilledman);
+
     StopTorControl();
     UnregisterNodeSignals(GetNodeSignals());
 
@@ -1755,16 +1764,16 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     // LOAD SERIALIZED DAT FILES INTO DATA CACHES FOR INTERNAL USE
 
     uiInterface.InitMessage(_("Loading znode cache..."));
-    CFlatDB<CZnodeMan> flatdb1("mncache.dat", "magicZnodeCache");
+    CFlatDB<CZnodeMan> flatdb1("zncache.dat", "magicZnodeCache");
     if (!flatdb1.Load(mnodeman)) {
-        return InitError("Failed to load znode cache from mncache.dat");
+        return InitError("Failed to load znode cache from zncache.dat");
     }
 
     if (mnodeman.size()) {
         uiInterface.InitMessage(_("Loading Znode payment cache..."));
-        CFlatDB<CZnodePayments> flatdb2("mnpayments.dat", "magicZnodePaymentsCache");
+        CFlatDB<CZnodePayments> flatdb2("zncache.dat", "magicZnodePaymentsCache");
         if (!flatdb2.Load(mnpayments)) {
-            return InitError("Failed to load znode payments cache from mnpayments.dat");
+            return InitError("Failed to load znode payments cache from zncache.dat");
         }
     } else {
         uiInterface.InitMessage(_("Znode cache is empty, skipping payments and governance cache..."));

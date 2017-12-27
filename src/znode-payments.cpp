@@ -463,7 +463,7 @@ void CZnodeBlockPayees::AddPayee(const CZnodePaymentVote &vote) {
 
 bool CZnodeBlockPayees::GetBestPayee(CScript &payeeRet) {
     LOCK(cs_vecPayees);
-    LogPrintf("CZnodeBlockPayees::GetBestPayee, vecPayees.size()=%s\n", vecPayees.size());
+    LogPrint("CZnodeBlockPayees::GetBestPayee, vecPayees.size()=%s\n", vecPayees.size());
     if (!vecPayees.size()) {
         LogPrint("mnpayments", "CZnodeBlockPayees::GetBestPayee -- ERROR: couldn't find any payee\n");
         return false;
