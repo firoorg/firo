@@ -1445,9 +1445,8 @@ bool CheckTransaction(const CTransaction& tx, CValidationState& state, uint256 h
                     found_5 = true; 
 		}
 	        int64_t smartnodePayment = (int64_t)(0.1 * (GetBlockValue(nHeight, 0, pindexBestHeader->nTime)));
- 	        if (smartnodePayment != output.nValue) {
-                    found_smartnode_payment = false;
-                } else {
+ 	        if (smartnodePayment == output.nValue) {
+                    found_smartnode_payment = true;
                     total_payment_tx = total_payment_tx + 1;
                 }
               }
@@ -1457,9 +1456,9 @@ bool CheckTransaction(const CTransaction& tx, CValidationState& state, uint256 h
                                      "CTransaction::CheckTransaction() : One of the SmartHive Rewards is missing");
 	          }
               
-              if (found_smartnode_payment || total_payment_tx > 1) {
+              if (!found_smartnode_payment || total_payment_tx > 1) {
                 return state.DoS(100, false, REJECT_INVALID_SMARTNODE_PAYMENT,
-                             "CTransaction::CheckTransaction() : Invalid SmartNode Payment");
+                             "CTransaction::CheckTransaction() : SmartNode payment is invalid");
               }
 
             } 
