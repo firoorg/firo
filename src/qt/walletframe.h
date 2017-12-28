@@ -57,6 +57,8 @@ public Q_SLOTS:
     void gotoHistoryPage();
     /** Switch to smartnode page */
     void gotoSmartnodePage();
+    /** Switch to smartrewards page */
+    void gotoSmartrewardsPage();
     /** Switch to receive coins page */
     void gotoReceiveCoinsPage();
     /** Switch to send coins page */

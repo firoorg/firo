@@ -127,6 +127,13 @@ void WalletFrame::gotoSmartnodePage()
         i.value()->gotoSmartnodePage();
 }
 
+void WalletFrame::gotoSmartrewardsPage()
+{
+    QMap<QString, WalletView*>::const_iterator i;
+    for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i)
+        i.value()->gotoSmartrewardsPage();
+}
+
 void WalletFrame::gotoReceiveCoinsPage()
 {
     QMap<QString, WalletView*>::const_iterator i;
