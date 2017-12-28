@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>SmartRewardsList</class>
- <widget class="QWidget" name="SmartRewardsList">
+ <class>SmartrewardsList</class>
+ <widget class="QWidget" name="SmartrewardsList">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -33,15 +33,14 @@
      </property>
      <item>
       <widget class="QLabel" name="label">
-       <property name="text">
-        <string>SmartRewards</string>
+       <property name="layoutDirection">
+        <enum>Qt::LeftToRight</enum>
        </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QPushButton" name="pushButton">
        <property name="text">
-        <string>PushButton</string>
+        <string>Smartrewards</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignCenter</set>
        </property>
       </widget>
      </item>

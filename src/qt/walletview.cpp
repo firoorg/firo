@@ -60,6 +60,7 @@ WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
     usedReceivingAddressesPage = new AddressBookPage(platformStyle, AddressBookPage::ForEditing, AddressBookPage::ReceivingTab, this);
     zerocoinPage = new ZerocoinPage(platformStyle, ZerocoinPage::ForEditing, this);
     smartnodeListPage = new SmartnodeList(platformStyle);
+    smartrewardsListPage = new SmartrewardsList(platformStyle);
 
     addWidget(overviewPage);
     addWidget(transactionsPage);
@@ -67,6 +68,7 @@ WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
     addWidget(sendCoinsPage);
     addWidget(zerocoinPage);
     addWidget(smartnodeListPage);
+    addWidget(smartrewardsListPage);
 
     // Clicking on a transaction on the overview pre-selects the transaction on the transaction history page
     connect(overviewPage, SIGNAL(transactionClicked(QModelIndex)), transactionView, SLOT(focusTransaction(QModelIndex)));
@@ -112,6 +114,7 @@ void WalletView::setClientModel(ClientModel *clientModel)
     overviewPage->setClientModel(clientModel);
     sendCoinsPage->setClientModel(clientModel);
     smartnodeListPage->setClientModel(clientModel);
+    smartrewardsListPage->setClientModel(clientModel);
 }
 
 void WalletView::setWalletModel(WalletModel *walletModel)
@@ -127,6 +130,7 @@ void WalletView::setWalletModel(WalletModel *walletModel)
     usedReceivingAddressesPage->setModel(walletModel->getAddressTableModel());
     usedSendingAddressesPage->setModel(walletModel->getAddressTableModel());
     smartnodeListPage->setWalletModel(walletModel);
+    smartrewardsListPage->setWalletModel(walletModel);
 
     if (walletModel)
     {
@@ -186,7 +190,7 @@ void WalletView::gotoSmartnodePage()
 
 void WalletView::gotoSmartrewardsPage()
 {
-    setCurrentWidget(smartnodeListPage);
+    setCurrentWidget(smartrewardsListPage);
 }
 
 void WalletView::gotoReceiveCoinsPage()

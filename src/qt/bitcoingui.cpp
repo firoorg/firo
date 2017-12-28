@@ -35,6 +35,7 @@
 #include "util.h"
 
 #include "smartnodelist.h"
+#include "smartrewardslist.h"
 
 #include <iostream>
 
@@ -318,7 +319,7 @@ void BitcoinGUI::createActions()
     smartnodeAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_6));
     tabGroup->addAction(smartnodeAction);
 
-    smartrewardsAction = new QAction(platformStyle->SingleColorIcon(":/icons/smartrewards"), tr("&SmartRewards"), this);
+    smartrewardsAction = new QAction(platformStyle->SingleColorIcon(":/icons/smartrewards"), tr("&Smartrewards"), this);
     smartrewardsAction->setStatusTip(tr("Show eligible adresses for Smartrewards"));
     smartrewardsAction->setToolTip(smartrewardsAction->statusTip());
     smartrewardsAction->setCheckable(true);
@@ -331,7 +332,7 @@ void BitcoinGUI::createActions()
     connect(smartnodeAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
     connect(smartnodeAction, SIGNAL(triggered()), this, SLOT(gotoSmartnodePage()));
     connect(smartrewardsAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
-    connect(smartrewardsAction, SIGNAL(triggered()), this, SLOT(gotoSmartnodePage()));
+    connect(smartrewardsAction, SIGNAL(triggered()), this, SLOT(gotoSmartrewardsPage()));
     connect(overviewAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
     connect(overviewAction, SIGNAL(triggered()), this, SLOT(gotoOverviewPage()));
     connect(sendCoinsAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
