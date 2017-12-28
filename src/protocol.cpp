@@ -67,6 +67,8 @@ const char *MNGOVERNANCESYNC="govsync";
 const char *MNGOVERNANCEOBJECT="govobj"; 
 const char *MNGOVERNANCEOBJECTVOTE="govobjvote"; 
 const char *MNVERIFY="mnv"; 
+const char *TXLOCKREQUEST = "ix";
+const char *TXLOCKVOTE="txlvote";
 };
 
 /** All known message types. Keep this in the same order as the list of
@@ -210,12 +212,12 @@ bool operator<(const CInv& a, const CInv& b)
     return (a.type < b.type || (a.type == b.type && a.hash < b.hash));
 }
 
-std::string CInv::GetCommand() const
+const char* CInv::GetCommand() const
 {
     std::string cmd;
     if (type & MSG_WITNESS_FLAG)
         cmd.append("witness-");
-    int masked = type & MSG_TYPE_MASK;
+
     switch (type)
     {
     case MSG_TX:                        return NetMsgType::TX;

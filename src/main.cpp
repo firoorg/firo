@@ -1427,44 +1427,47 @@ bool CheckTransaction(const CTransaction& tx, CValidationState& state, uint256 h
 	          }
             }
  	        if ((nHeight >= HF_SMARTNODE_HEIGHT) && (nHeight <= 717499999)) {
-              BOOST_FOREACH(const CTxOut& output, tx.vout) {
-                int blockRotation = nHeight - 85 * (nHeight/85);
-                int64_t reward = (int64_t)(0.85 * (GetBlockValue(nHeight, 0, pindexBestHeader->nTime)));
-                if (blockRotation >= 0 && blockRotation <= 7 && output.scriptPubKey == FOUNDER_1_SCRIPT && abs(output.nValue - reward) < 2 ) {                    
-                    found_1 = true;
+                
+                BOOST_FOREACH(const CTxOut& output, tx.vout){
+                    int blockRotation = nHeight - 85 * (nHeight/85);
+                    int64_t reward = (int64_t)(0.85 * (GetBlockValue(nHeight, 0, pindexBestHeader->nTime)));
+                    if (blockRotation >= 0 && blockRotation <= 7 && output.scriptPubKey == FOUNDER_1_SCRIPT && abs(output.nValue - reward) < 2 ) {                    
+                        found_1 = true;
+                    }
+                    if (blockRotation >= 8 && blockRotation <= 15 && output.scriptPubKey == FOUNDER_2_SCRIPT && abs(output.nValue - reward) < 2 ) {
+                        found_2 = true;
+                    }
+                    if (blockRotation >= 16 && blockRotation <= 23 && output.scriptPubKey == FOUNDER_3_SCRIPT && abs(output.nValue - reward) < 2 ) {
+                        found_3 = true;
+                    }
+                    if (blockRotation >= 24 && blockRotation <= 38 && output.scriptPubKey == FOUNDER_4_SCRIPT && abs(output.nValue - reward) < 2 ) {
+                        found_4 = true;
+                    }
+                    if (blockRotation >= 39 && blockRotation <= 84 && output.scriptPubKey == FOUNDER_5_SCRIPT && abs(output.nValue - reward) < 2 ) {
+                        found_5 = true; 
+        	        }
+        	        
+                    int64_t smartnodePayment = (int64_t)(0.1 * (GetBlockValue(nHeight, 0, pindexBestHeader->nTime)));
+         	        if (smartnodePayment == output.nValue) {
+                            found_smartnode_payment = true;
+                            total_payment_tx = total_payment_tx + 1;
+                    }
                 }
-                if (blockRotation >= 8 && blockRotation <= 15 && output.scriptPubKey == FOUNDER_2_SCRIPT && abs(output.nValue - reward) < 2 ) {
-                    found_2 = true;
-                }
-                if (blockRotation >= 16 && blockRotation <= 23 && output.scriptPubKey == FOUNDER_3_SCRIPT && abs(output.nValue - reward) < 2 ) {
-                    found_3 = true;
-                }
-                if (blockRotation >= 24 && blockRotation <= 38 && output.scriptPubKey == FOUNDER_4_SCRIPT && abs(output.nValue - reward) < 2 ) {
-                    found_4 = true;
-                }
-                if (blockRotation >= 39 && blockRotation <= 84 && output.scriptPubKey == FOUNDER_5_SCRIPT && abs(output.nValue - reward) < 2 ) {
-                    found_5 = true; 
-		}
-	        int64_t smartnodePayment = (int64_t)(0.1 * (GetBlockValue(nHeight, 0, pindexBestHeader->nTime)));
- 	        if (smartnodePayment == output.nValue) {
-                    found_smartnode_payment = true;
-                    total_payment_tx = total_payment_tx + 1;
-                }
-              }
 
-              if (!(found_1 || found_2 || found_3 || found_4 || found_5)) {
-                return state.DoS(100, false, REJECT_FOUNDER_REWARD_MISSING,
-                                     "CTransaction::CheckTransaction() : One of the SmartHive Rewards is missing");
-              if ((nHeight >= HF_SMARTNODE_HEIGHT + 1000) && (!found_smartnode_payment || total_payment_tx > 1)) {
-                return state.DoS(100, false, REJECT_INVALID_SMARTNODE_PAYMENT,
-                             "CTransaction::CheckTransaction() : SmartNode payment is invalid");
-              }
-              
-              if (!found_smartnode_payment || total_payment_tx > 1) {
-                return state.DoS(100, false, REJECT_INVALID_SMARTNODE_PAYMENT,
-                             "CTransaction::CheckTransaction() : SmartNode payment is invalid");
-              }
+                  if (!(found_1 || found_2 || found_3 || found_4 || found_5)) {
+                    return state.DoS(100, false, REJECT_FOUNDER_REWARD_MISSING,
+                                         "CTransaction::CheckTransaction() : One of the SmartHive Rewards is missing");
+                  }
 
+                  if ((nHeight >= HF_SMARTNODE_HEIGHT + 1000) && (!found_smartnode_payment || total_payment_tx > 1)) {
+                    return state.DoS(100, false, REJECT_INVALID_SMARTNODE_PAYMENT,
+                                 "CTransaction::CheckTransaction() : SmartNode payment is invalid");
+                  }
+                  
+                  if (!found_smartnode_payment || total_payment_tx > 1) {
+                    return state.DoS(100, false, REJECT_INVALID_SMARTNODE_PAYMENT,
+                                 "CTransaction::CheckTransaction() : SmartNode payment is invalid");
+                  }
             } 
         }
         
@@ -1714,12 +1717,13 @@ bool AcceptToMemoryPoolWorker(CTxMemPool &pool, CValidationState &state, const C
             }
         }
     }
-    if (!tx.IsZerocoinSpend() && fCheckInputs) {
+    
+    {
         CCoinsView dummy;
         CCoinsViewCache view(&dummy);
         CAmount nValueIn = 0;
         LockPoints lp;
-//       {
+        {
             LOCK(pool.cs);
             CCoinsViewMemPool viewMemPool(pcoinsTip, pool);
             view.SetBackend(viewMemPool);
@@ -1769,7 +1773,9 @@ bool AcceptToMemoryPoolWorker(CTxMemPool &pool, CValidationState &state, const C
                 LogPrintf("cause by -> non-BIP68-final!\n");
                 return state.DoS(0, false, REJECT_NONSTANDARD, "non-BIP68-final");
             }
-        }
+        } //LOCK
+
+    if (!tx.IsZerocoinSpend() && fCheckInputs) {
         // Check for non-standard pay-to-script-hash in inputs
         if (!fTestNet && fRequireStandard && !AreInputsStandard(tx, view)) {
             LogPrintf("cause by -> AreInputsStandard\n");
@@ -2094,6 +2100,8 @@ bool AcceptToMemoryPoolWorker(CTxMemPool &pool, CValidationState &state, const C
         if (tx.IsZerocoinSpend()) {
             pool.countZCSpend++;
         }
+    }
+
     }
 
     SyncWithWallets(tx, NULL, NULL);
@@ -7385,9 +7393,8 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
         } else {
         // Ignore unknown commands for extensibility
         LogPrint("net", "Unknown command \"%s\" from peer=%d\n", SanitizeString(strCommand), pfrom->id);
+        }
     }
-
-
 
     return true;
 }
