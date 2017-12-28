@@ -3695,64 +3695,49 @@ bool CWallet::CreateZerocoinSpendTransaction(int64_t nValue, libzerocoin::CoinDe
             // Set up the Zerocoin Params object
             static libzerocoin::Params *ZCParams = new libzerocoin::Params(bnTrustedModulus);
 
-            libzerocoin::Accumulator accumulator(ZCParams, denomination);
-            // TODO: Create Zercoin spending transaction part
-            // 1. Selection a private coin that doesn't use in wallet
-            // 2. Get pubcoin from the private coin
-            // 3. Compute Accomulator by you self by getting pubcoins value from wallet, but it must not include the public coin of the private that we select
-            // 4. Generate withness with follwing stmt
-            // libzerocoin::AccumulatorWitness witness(params, accumulator, newCoin.getPublicCoin());
-            // Add the public half of "newCoin" to the Accumulator itself.
-            // accumulator += newCoin.getPublicCoin();
-            // 1. Selection a private coin that doesn't be used in wallet
+            // Select not yet used coin from the wallet with minimal possible id
+
             list <CZerocoinEntry> listPubCoin;
             CWalletDB(strWalletFile).ListPubCoin(listPubCoin);
             listPubCoin.sort(CompHeight);
             CZerocoinEntry zerocoinSelected;
-            bool selectedPubcoin = false;
+
+            CBigNum accumulatorValue;
+            uint256 blockHash;      // to be used in zerocoin spend v3
 
             // GET MIN ID
             int currentId = INT_MAX;
             BOOST_FOREACH(const CZerocoinEntry &minIdPubcoin, listPubCoin) {
-                if (minIdPubcoin.id < currentId
-                    && minIdPubcoin.denomination == denomination
+                if (minIdPubcoin.denomination == denomination
                     && minIdPubcoin.IsUsed == false
                     && minIdPubcoin.randomness != 0
                     && minIdPubcoin.serialNumber != 0
                     && minIdPubcoin.id != -1
-                    && minIdPubcoin.nHeight != -1
                     && minIdPubcoin.nHeight != INT_MAX
                     && minIdPubcoin.nHeight >= 1
-                    && chainActive.Height() > -1
                     && minIdPubcoin.nHeight + (ZC_MINT_CONFIRMATIONS-1) <= chainActive.Height()
-                        ) {
-                    currentId = minIdPubcoin.id;
-                }
-            }
 
-            BOOST_FOREACH(const CZerocoinEntry &zerocoinItem, listPubCoin){
-                if (zerocoinItem.IsUsed == false
-                    && zerocoinItem.denomination == denomination
-                    && zerocoinItem.randomness != 0
-                    && zerocoinItem.serialNumber != 0
-                    && zerocoinItem.id == currentId
-                    && zerocoinItem.nHeight != -1
-                    && zerocoinItem.nHeight != INT_MAX
-                    && zerocoinItem.nHeight >= 1
-                    && chainActive.Height() > -1
-                    && zerocoinItem.nHeight + (ZC_MINT_CONFIRMATIONS-1) <= chainActive.Height()
+                    // There should be at least 2 coins with same denomination and id with at least ZC_MINT_CONFIRMATIONS confirmations
+                    && CZerocoinState::GetZerocoinState()->GetAccumulatorValueForSpend(
+                            chainActive.Height()-(ZC_MINT_CONFIRMATIONS-1),
+                            denomination,
+                            minIdPubcoin.id,
+                            accumulatorValue,
+                            blockHash) > 1
                         ) {
-                    zerocoinSelected = zerocoinItem;
-                    selectedPubcoin = true;
+
+                    currentId = minIdPubcoin.id;
+                    zerocoinSelected = minIdPubcoin;
                     break;
                 }
             }
 
-            if (!selectedPubcoin){
+            if (currentId == INT_MAX){
                 strFailReason = _("it has to have at least two mint coins with at least 6 confirmation in order to spend a coin");
                 return false;
             }
 
+            libzerocoin::Accumulator accumulator(ZCParams, accumulatorValue, denomination);
             // 2. Get pubcoin from the private coin
             libzerocoin::PublicCoin pubCoinSelected(ZCParams, zerocoinSelected.value, denomination);
 
@@ -3762,41 +3747,6 @@ bool CWallet::CreateZerocoinSpendTransaction(int64_t nValue, libzerocoin::CoinDe
                 // Any ZEROCOIN_MINT with an invalid coin should NOT be
                 // accepted as a valid transaction in the block chain.
                 strFailReason = _("the selected mint coin is an invalid coin");
-                return false;
-            }
-
-            LogPrintf("listPubcoin.size()=%s\n", listPubCoin.size());
-            LogPrintf("Consider: zerocoinSelected.value=%s\n, zerocoinSelected.id=%s\n",
-                      zerocoinSelected.value.ToString(), zerocoinSelected.id);
-            // 3. Compute Accomulator by yourself by getting at least 9 pubcoins from wallet, but it must not include the public coin of the selected private coin
-            int countUseablePubcoin = 0;
-            BOOST_FOREACH(const CZerocoinEntry &zerocoinItem, listPubCoin){
-                // Count pubcoins in same block
-                if (zerocoinItem.value != zerocoinSelected.value
-                        && zerocoinItem.id == zerocoinSelected.id
-                        && chainActive.Height() > -1
-                        && zerocoinItem.nHeight + (ZC_MINT_CONFIRMATIONS-1) <= chainActive.Height()
-                        && zerocoinItem.nHeight >= 1
-                        && zerocoinItem.nHeight != INT_MAX
-                        && zerocoinItem.denomination == denomination
-                        && zerocoinItem.nHeight != -1){
-                    LogPrintf("VALID COIN - PUBCOIN ID: %d HEIGHT: %d\n", zerocoinItem.id, zerocoinItem.nHeight);
-
-                    libzerocoin::PublicCoin pubCoinTemp(ZCParams, zerocoinItem.value, denomination);
-                    if (pubCoinTemp.validate()) {
-                        countUseablePubcoin++;
-                        //if(countUseablePubcoin == 9) break;
-                        LogPrintf("USEABLE - COIN NO: %d PUBCOIN ID: %d HEIGHT: %d\n", countUseablePubcoin,
-                                  zerocoinItem.id, zerocoinItem.nHeight);
-                        accumulator += pubCoinTemp;
-                    }
-                }
-            }
-
-            LogPrintf("USEABLE PUBCOINS: %d\n", countUseablePubcoin);
-
-            if (countUseablePubcoin < 1) { // You have to have at least two mint zerocoins.
-                strFailReason = _("at least two mint coins with are using calculating accumulator");
                 return false;
             }
 
@@ -4913,146 +4863,6 @@ std::string CWallet::GetWalletHelpString(bool showDebug) {
     return strUsage;
 }
 
-void ReIndexZerocoin(std::string strWalletFile) {
-    LogPrintf("ReIndexZerocoin\n");
-    // Zerocoin reorg, calculate new height and id
-    list <CZerocoinEntry> listPubCoin = list<CZerocoinEntry>();
-    CWalletDB walletdb(strWalletFile);
-    int lastCalculatedZCBlock = 0;
-    walletdb.ReadCalculatedZCBlock(lastCalculatedZCBlock);
-    walletdb.ListPubCoin(listPubCoin);
-    LogPrintf("ListPubCoin.size()=%d\n", listPubCoin.size());
-
-    // RECURSIVE, SET NEW ID
-    LogPrintf("lastCalculatedZCBlock: %s\n", lastCalculatedZCBlock);
-    BOOST_FOREACH(
-    const CZerocoinEntry &pubCoinItem, listPubCoin) {
-        if (!fReindex && pubCoinItem.nHeight < lastCalculatedZCBlock) {
-            continue;
-        } else {
-            CZerocoinEntry pubCoinTx;
-            pubCoinTx.value = pubCoinItem.value;
-            pubCoinTx.id = -1;
-            pubCoinTx.randomness = pubCoinItem.randomness;
-            pubCoinTx.denomination = pubCoinItem.denomination;
-            pubCoinTx.serialNumber = pubCoinItem.serialNumber;
-            pubCoinTx.nHeight = -1;
-            pubCoinTx.IsUsed = pubCoinItem.IsUsed;
-            LogPrintf("- Reindex Pubcoin Id: %d Denomination: %d\n", pubCoinTx.id, pubCoinTx.denomination);
-            walletdb.WriteZerocoinEntry(pubCoinTx);
-        }
-
-    }
-    LogPrintf("chainActive nHeight= %s\n", chainActive.Height());
-    if (chainActive.Genesis() == NULL) {
-        LogPrintf("Nothing in Wallet!, genesis is null\n");
-        LogPrintf("Remove current zerocoin in wallet\n");
-        list <CZerocoinEntry> listPubCoin = list<CZerocoinEntry>();
-        CWalletDB walletdb(strWalletFile);
-        walletdb.ListPubCoin(listPubCoin);
-
-        BOOST_FOREACH(const CZerocoinEntry &pubCoinItem, listPubCoin) {
-            CZerocoinEntry pubCoinTx;
-            pubCoinTx.value = pubCoinItem.value;
-            pubCoinTx.id = -1;
-            pubCoinTx.randomness = pubCoinItem.randomness;
-            pubCoinTx.denomination = pubCoinItem.denomination;
-            pubCoinTx.serialNumber = pubCoinItem.serialNumber;
-            pubCoinTx.nHeight = -1;
-            pubCoinTx.IsUsed = pubCoinItem.IsUsed;
-            LogPrintf("- Reindex Pubcoin Id: %d Denomination: %d\n", pubCoinTx.id, pubCoinTx.denomination);
-            walletdb.WriteZerocoinEntry(pubCoinTx);
-        }
-
-        std::list <CZerocoinSpendEntry> listCoinSpendSerial;
-        walletdb.ListCoinSpendSerial(listCoinSpendSerial);
-        BOOST_FOREACH(const CZerocoinSpendEntry &item, listCoinSpendSerial) {
-            walletdb.EraseCoinSpendSerialEntry(item);
-        }
-    } else {
-        LogPrintf("chainActive.Genesis() nHeight= %s\n", chainActive.Genesis()->nHeight);
-        CBlockIndex *pindexRecur = chainActive.Genesis();
-        {
-            while (pindexRecur) {
-//                LogPrintf("Check: fReindex = %s, pindexRecur->nHeight = %s\n", fReindex, pindexRecur->nHeight);
-                if (!fReindex && (pindexRecur->nHeight < lastCalculatedZCBlock)) {
-                    pindexRecur = chainActive.Next(pindexRecur);
-                    continue;
-                } else {
-//                    LogPrintf("PROCESS BLOCK = %d\n", pindexRecur->nHeight);
-                    std::string blocksProcessed =
-                            "Loading wallet... " + std::to_string(pindexRecur->nHeight) + "/" +
-                            std::to_string(mapBlockIndex.size());
-                    uiInterface.InitMessage(blocksProcessed);
-                    CBlock blockRecur;
-                    ReadBlockFromDisk(blockRecur, pindexRecur, Params().GetConsensus());
-                    list <CZerocoinEntry> listPubCoinInLoop = list<CZerocoinEntry>();
-                    CWalletDB walletdbInLoop(pwalletMain->strWalletFile);
-                    walletdbInLoop.ListPubCoin(listPubCoinInLoop);
-                    BOOST_FOREACH(const CTransaction &tx, blockRecur.vtx){
-                        // Check Mint Zerocoin Transaction
-                        BOOST_FOREACH(const CTxOut txout, tx.vout) {
-                            if (!txout.scriptPubKey.empty() && txout.scriptPubKey.IsZerocoinMint()) {
-                                vector<unsigned char> vchZeroMint;
-                                vchZeroMint.insert(vchZeroMint.end(), txout.scriptPubKey.begin() + 6,
-                                                   txout.scriptPubKey.begin() + txout.scriptPubKey.size());
-                                CBigNum pubCoin;
-                                pubCoin.setvch(vchZeroMint);
-                                LogPrintf("FOUND MINT ZEROCOIN AT HEIGHT = %d\n", pindexRecur->nHeight);
-                                BOOST_FOREACH(const CZerocoinEntry &pubCoinItem, listPubCoinInLoop) {
-                                    if (pubCoinItem.value == pubCoin) {
-
-                                        CZerocoinEntry pubCoinTx;
-
-                                        // Get the current id
-                                        int currentId = 1;
-                                        unsigned int countExistingItems = 0;
-                                        listPubCoinInLoop.sort(CompHeight);
-                                        BOOST_FOREACH(const CZerocoinEntry &pubCoinIdItem, listPubCoinInLoop) {
-                                            if (pubCoinIdItem.id > 0) {
-                                                if (pubCoinIdItem.nHeight <= pindexRecur->nHeight) {
-                                                    if (pubCoinIdItem.denomination == pubCoinItem.denomination) {
-                                                        countExistingItems++;
-                                                        if (pubCoinIdItem.id > currentId) {
-                                                            currentId = pubCoinIdItem.id;
-                                                            countExistingItems = 1;
-                                                        }
-                                                    }
-                                                } else {
-                                                    break;
-                                                }
-                                            }
-                                        }
-
-                                        if (countExistingItems > 9) {
-                                            currentId++;
-                                        }
-                                        pubCoinTx.id = currentId;
-                                        pubCoinTx.randomness = pubCoinItem.randomness;
-                                        pubCoinTx.denomination = pubCoinItem.denomination;
-                                        pubCoinTx.serialNumber = pubCoinItem.serialNumber;
-                                        pubCoinTx.value = pubCoinItem.value;
-                                        pubCoinTx.nHeight = pindexRecur->nHeight;
-                                        LogPrintf("REORG PUBCOIN ID: %d HEIGHT: %d DENOMINATION: %d\n",
-                                                  pubCoinTx.id,
-                                                  pubCoinTx.nHeight, pubCoinItem.denomination);
-                                        walletdbInLoop.WriteZerocoinEntry(pubCoinTx);
-                                    }
-                                }
-
-                            }
-                        }
-                    }
-
-                    walletdb.WriteCalculatedZCBlock(pindexRecur->nHeight);
-//                    pindexRecur = chainActive.Next(pindexRecur);
-                    pindexRecur = chainActive.Next(pindexRecur);
-                }
-            }
-        }
-    }
-}
-
 
 bool CWallet::InitLoadWallet() {
     LogPrintf("InitLoadWallet()\n");
@@ -5097,11 +4907,6 @@ bool CWallet::InitLoadWallet() {
                     strprintf(_("Wallet needed to be rewritten: restart %s to complete"), _(PACKAGE_NAME)));
         } else
             return InitError(strprintf(_("Error loading %s"), walletFile));
-    }
-
-    if (boost::filesystem::exists(GetDataDir() / DEFAULT_WALLET_DAT)) {
-        ReIndexZerocoin(walletInstance->strWalletFile);
-        //Erase exists zerocoin
     }
 
     if (GetBoolArg("-upgradewallet", fFirstRun)) {

@@ -98,10 +98,14 @@ public:
     bool HasCoin(const CBigNum &pubCoin);
 
     // Given denomination and id returns latest accumulator value and corresponding block hash
-    bool GetAccumulatorValue(int denomination, int id, CBigNum &accumulator, uint256 &blockHash);
+    // Do not take into account coins with height more than maxHeight
+    // Returns number of coins satisfying conditions
+    int GetAccumulatorValueForSpend(int maxHeight, int denomination, int id, CBigNum &accumulator, uint256 &blockHash);
 
     // Reset to initial values
     void Reset();
+
+    static CZerocoinState *GetZerocoinState();
 };
 
 #endif

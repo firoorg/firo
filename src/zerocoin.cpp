@@ -636,20 +636,35 @@ bool CZerocoinState::HasCoin(const CBigNum &pubCoin) {
     return mintedPubCoins.count(pubCoin) != 0;
 }
 
-bool CZerocoinState::GetAccumulatorValue(int denomination, int id, CBigNum &accumulator, uint256 &blockHash) {
-    pair<int, int> denonAndId = pair<int, int>(denomination, id);
+int CZerocoinState::GetAccumulatorValueForSpend(int maxHeight, int denomination, int id, CBigNum &accumulator, uint256 &blockHash) {
+    pair<int, int> denomAndId = pair<int, int>(denomination, id);
 
-    if (coinGroups.count(denonAndId) == 0)
-        return false;
+    if (coinGroups.count(denomAndId) == 0)
+        return 0;
 
-    CoinGroupInfo coinGroup = coinGroups[denonAndId];
+    CoinGroupInfo coinGroup = coinGroups[denomAndId];
     CBlockIndex *lastBlock = coinGroup.lastBlock;
 
-    assert(lastBlock->accumulatorChanges.count(denonAndId) > 0);
-    accumulator = lastBlock->accumulatorChanges[denonAndId].first;
-    blockHash = lastBlock->GetBlockHash();
+    assert(lastBlock->accumulatorChanges.count(denomAndId) > 0);
 
-    return true;
+    int numberOfCoins = 0;
+    do {
+        if (lastBlock->accumulatorChanges.count(denomAndId) > 0) {
+            if (lastBlock->nHeight <= maxHeight) {
+                if (numberOfCoins == 0) {
+                    // latest block satisfying given conditions
+                    // remember accumulator value and block hash
+                    accumulator = lastBlock->accumulatorChanges[denomAndId].first;
+                    blockHash = lastBlock->GetBlockHash();
+                }
+                numberOfCoins += lastBlock->accumulatorChanges[denomAndId].second;
+            }
+        }
+        if (lastBlock != coinGroup.firstBlock)
+            lastBlock = lastBlock->pprev;
+    } while (lastBlock != coinGroup.firstBlock);
+
+    return numberOfCoins;
 }
 
 void CZerocoinState::Reset() {
@@ -657,4 +672,8 @@ void CZerocoinState::Reset() {
     usedCoinSerials.clear();
     mintedPubCoins.clear();
     latestCoinIds.clear();
+}
+
+CZerocoinState *CZerocoinState::GetZerocoinState() {
+    return &zerocoinState;
 }
