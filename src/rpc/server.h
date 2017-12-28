@@ -195,6 +195,7 @@ extern UniValue spork(const UniValue& params, bool fHelp);
 extern UniValue smartnode(const UniValue& params, bool fHelp); 
 extern UniValue smartnodelist(const UniValue& params, bool fHelp); 
 extern UniValue smartnodebroadcast(const UniValue& params, bool fHelp); 
+extern UniValue snsync(const UniValue& params, bool fHelp);
 
 extern void EnsureWalletIsUnlocked();
 

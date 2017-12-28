@@ -34,6 +34,7 @@
 #include "smartnode/smartnodeman.h"
 #include "smartnode/smartnodepayments.h"
 #include "smartnode/smartnodesync.h"
+#include "smartnode/spork.h"
 #include "tinyformat.h"
 #include "txdb.h"
 #include "txmempool.h"
@@ -1355,7 +1356,7 @@ bool CheckTransaction(const CTransaction& tx, CValidationState& state, uint256 h
             bool found_4 = false;
             bool found_5 = false;
             int total_payment_tx = 0;
-            bool found_smartnode_payment = true; // no more than 1 output for payment
+            bool found_smartnode_payment = false; // no more than 1 output for payment
             CScript FOUNDER_1_SCRIPT;
             CScript FOUNDER_2_SCRIPT;
             CScript FOUNDER_3_SCRIPT;
@@ -1426,41 +1427,47 @@ bool CheckTransaction(const CTransaction& tx, CValidationState& state, uint256 h
 	          }
             }
  	        if ((nHeight >= HF_SMARTNODE_HEIGHT) && (nHeight <= 717499999)) {
-              BOOST_FOREACH(const CTxOut& output, tx.vout) {
-                int blockRotation = nHeight - 85 * (nHeight/85);
-                int64_t reward = (int64_t)(0.85 * (GetBlockValue(nHeight, 0, pindexBestHeader->nTime)));
-                if (blockRotation >= 0 && blockRotation <= 7 && output.scriptPubKey == FOUNDER_1_SCRIPT && abs(output.nValue - reward) < 2 ) {                    
-                    found_1 = true;
+                
+                BOOST_FOREACH(const CTxOut& output, tx.vout){
+                    int blockRotation = nHeight - 85 * (nHeight/85);
+                    int64_t reward = (int64_t)(0.85 * (GetBlockValue(nHeight, 0, pindexBestHeader->nTime)));
+                    if (blockRotation >= 0 && blockRotation <= 7 && output.scriptPubKey == FOUNDER_1_SCRIPT && abs(output.nValue - reward) < 2 ) {                    
+                        found_1 = true;
+                    }
+                    if (blockRotation >= 8 && blockRotation <= 15 && output.scriptPubKey == FOUNDER_2_SCRIPT && abs(output.nValue - reward) < 2 ) {
+                        found_2 = true;
+                    }
+                    if (blockRotation >= 16 && blockRotation <= 23 && output.scriptPubKey == FOUNDER_3_SCRIPT && abs(output.nValue - reward) < 2 ) {
+                        found_3 = true;
+                    }
+                    if (blockRotation >= 24 && blockRotation <= 38 && output.scriptPubKey == FOUNDER_4_SCRIPT && abs(output.nValue - reward) < 2 ) {
+                        found_4 = true;
+                    }
+                    if (blockRotation >= 39 && blockRotation <= 84 && output.scriptPubKey == FOUNDER_5_SCRIPT && abs(output.nValue - reward) < 2 ) {
+                        found_5 = true; 
+        	        }
+        	        
+                    int64_t smartnodePayment = (int64_t)(0.1 * (GetBlockValue(nHeight, 0, pindexBestHeader->nTime)));
+         	        if (smartnodePayment == output.nValue) {
+                            found_smartnode_payment = true;
+                            total_payment_tx = total_payment_tx + 1;
+                    }
                 }
-                if (blockRotation >= 8 && blockRotation <= 15 && output.scriptPubKey == FOUNDER_2_SCRIPT && abs(output.nValue - reward) < 2 ) {
-                    found_2 = true;
-                }
-                if (blockRotation >= 16 && blockRotation <= 23 && output.scriptPubKey == FOUNDER_3_SCRIPT && abs(output.nValue - reward) < 2 ) {
-                    found_3 = true;
-                }
-                if (blockRotation >= 24 && blockRotation <= 38 && output.scriptPubKey == FOUNDER_4_SCRIPT && abs(output.nValue - reward) < 2 ) {
-                    found_4 = true;
-                }
-                if (blockRotation >= 39 && blockRotation <= 84 && output.scriptPubKey == FOUNDER_5_SCRIPT && abs(output.nValue - reward) < 2 ) {
-                    found_5 = true; 
-		}
-	        int64_t smartnodePayment = (int64_t)(0.1 * (GetBlockValue(nHeight, 0, pindexBestHeader->nTime)));
- 	        if (smartnodePayment == output.nValue) {
-                    found_smartnode_payment = true;
-                    total_payment_tx = total_payment_tx + 1;
-                }
-              }
 
-              if (!(found_1 || found_2 || found_3 || found_4 || found_5)) {
-                return state.DoS(100, false, REJECT_FOUNDER_REWARD_MISSING,
-                                     "CTransaction::CheckTransaction() : One of the SmartHive Rewards is missing");
-	          }
-              
-              if (!found_smartnode_payment || total_payment_tx > 1) {
-                return state.DoS(100, false, REJECT_INVALID_SMARTNODE_PAYMENT,
-                             "CTransaction::CheckTransaction() : SmartNode payment is invalid");
-              }
+                  if (!(found_1 || found_2 || found_3 || found_4 || found_5)) {
+                    return state.DoS(100, false, REJECT_FOUNDER_REWARD_MISSING,
+                                         "CTransaction::CheckTransaction() : One of the SmartHive Rewards is missing");
+                  }
 
+                  if ((nHeight >= HF_SMARTNODE_HEIGHT + 1000) && (!found_smartnode_payment || total_payment_tx > 1)) {
+                    return state.DoS(100, false, REJECT_INVALID_SMARTNODE_PAYMENT,
+                                 "CTransaction::CheckTransaction() : SmartNode payment is invalid");
+                  }
+                  
+                  if (!found_smartnode_payment || total_payment_tx > 1) {
+                    return state.DoS(100, false, REJECT_INVALID_SMARTNODE_PAYMENT,
+                                 "CTransaction::CheckTransaction() : SmartNode payment is invalid");
+                  }
             } 
         }
         
@@ -1710,7 +1717,8 @@ bool AcceptToMemoryPoolWorker(CTxMemPool &pool, CValidationState &state, const C
             }
         }
     }
-    if (!tx.IsZerocoinSpend() && fCheckInputs) {
+    
+    {
         CCoinsView dummy;
         CCoinsViewCache view(&dummy);
         CAmount nValueIn = 0;
@@ -1765,7 +1773,9 @@ bool AcceptToMemoryPoolWorker(CTxMemPool &pool, CValidationState &state, const C
                 LogPrintf("cause by -> non-BIP68-final!\n");
                 return state.DoS(0, false, REJECT_NONSTANDARD, "non-BIP68-final");
             }
-        }
+        } //LOCK
+
+    if (!tx.IsZerocoinSpend() && fCheckInputs) {
         // Check for non-standard pay-to-script-hash in inputs
         if (!fTestNet && fRequireStandard && !AreInputsStandard(tx, view)) {
             LogPrintf("cause by -> AreInputsStandard\n");
@@ -2090,6 +2100,8 @@ bool AcceptToMemoryPoolWorker(CTxMemPool &pool, CValidationState &state, const C
         if (tx.IsZerocoinSpend()) {
             pool.countZCSpend++;
         }
+    }
+
     }
 
     SyncWithWallets(tx, NULL, NULL);
@@ -3239,7 +3251,11 @@ void PruneAndFlush() {
 /** Update chainActive and related internal data structures. */
 void static UpdateTip(CBlockIndex *pindexNew, const CChainParams& chainParams) {
     chainActive.SetTip(pindexNew);
-
+    mnodeman.UpdatedBlockTip(chainActive.Tip());
+    darkSendPool.UpdatedBlockTip(chainActive.Tip());
+    mnpayments.UpdatedBlockTip(chainActive.Tip());
+    smartnodeSync.UpdatedBlockTip(chainActive.Tip());
+	
     // New best block
     nTimeBestReceived = GetTime();
     mempool.AddTransactionsUpdated(1);
@@ -3971,7 +3987,8 @@ bool ActivateBestChain(CValidationState &state, const CChainParams& chainparams,
                 // Relay inventory, but don't relay old inventory during initial block download.
                 {
                     LOCK(cs_vNodes);
-                    BOOST_FOREACH(CNode* pnode, vNodes) {
+                    BOOST_FOREACH(CNode* pnode, vNodes) 
+		    {
                         if (nNewHeight > (pnode->nStartingHeight != -1 ? pnode->nStartingHeight - 2000 : 0)) {
                             BOOST_REVERSE_FOREACH(const uint256& hash, vHashes) {
                                 pnode->PushBlockHash(hash);
@@ -5649,6 +5666,42 @@ bool static AlreadyHave(const CInv& inv) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
     case MSG_BLOCK:
     case MSG_WITNESS_BLOCK:
         return mapBlockIndex.count(inv.hash);
+     /*
+        SmartNode Related Inventory Messages
+        --
+        We shouldn't update the sync times for each of the messages when we already have it.
+        We're going to be asking many nodes upfront for the full inventory list, so we'll get duplicates of these.
+        We want to only update the time on new hits, so that we can time out appropriately if needed.
+    */
+        case MSG_TXLOCK_REQUEST:
+            return instantsend.AlreadyHave(inv.hash);
+
+        case MSG_TXLOCK_VOTE:
+            return instantsend.AlreadyHave(inv.hash);
+
+        case MSG_SPORK:
+            return mapSporks.count(inv.hash);
+
+        case MSG_SMARTNODE_PAYMENT_VOTE:
+            return mnpayments.mapSmartnodePaymentVotes.count(inv.hash);
+
+        case MSG_SMARTNODE_PAYMENT_BLOCK:
+        {
+            BlockMap::iterator mi = mapBlockIndex.find(inv.hash);
+            return mi != mapBlockIndex.end() && mnpayments.mapSmartnodeBlocks.find(mi->second->nHeight) != mnpayments.mapSmartnodeBlocks.end();
+        }
+
+        case MSG_SMARTNODE_ANNOUNCE:
+            return mnodeman.mapSeenSmartnodeBroadcast.count(inv.hash) && !mnodeman.IsMnbRecoveryRequested(inv.hash);
+
+        case MSG_SMARTNODE_PING:
+            return mnodeman.mapSeenSmartnodePing.count(inv.hash);
+
+        case MSG_DSTX:
+            return mapDarksendBroadcastTxes.count(inv.hash);
+
+        case MSG_SMARTNODE_VERIFY:
+            return mnodeman.mapSeenSmartnodeVerification.count(inv.hash);
     }
     // Don't know what it is, just say we already got one
     return true;
@@ -5788,7 +5841,129 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
                 }
                 if (!push) {
                     vNotFound.push_back(inv);
+                    }
+
+//            } else if (inv.IsKnownType()) {
+            } else {
+//                LogPrintf("inv.type()=%s, inv.GetCommand=%s\n", inv.type, inv.GetCommand());
+                // Send stream from relay memory
+                bool pushed = false;
+                {
+                    CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+                    auto mi = mapRelay.find(inv.hash);
+                    if (mi != mapRelay.end()) {
+                        ss << (*mi).second;
+                        pushed = true;
+                    }
+                    if(pushed && inv.GetCommand()) {
+                        LogPrintf("pushed && inv.GetCommand()=%s\n", inv.GetCommand());
+                        pfrom->PushMessage(inv.GetCommand(), ss);
+                    }
                 }
+
+                if (!pushed && inv.type == MSG_TXLOCK_REQUEST) {
+                    CTxLockRequest txLockRequest;
+                    if(instantsend.GetTxLockRequest(inv.hash, txLockRequest)) {
+                        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+                        ss.reserve(1000);
+                        ss << txLockRequest;
+                        pfrom->PushMessage(NetMsgType::TXLOCKREQUEST, ss);
+                        pushed = true;
+                    }
+                }
+
+                if (!pushed && inv.type == MSG_TXLOCK_VOTE) {
+                    CTxLockVote vote;
+                    if(instantsend.GetTxLockVote(inv.hash, vote)) {
+                        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+                        ss.reserve(1000);
+                        ss << vote;
+                        pfrom->PushMessage(NetMsgType::TXLOCKVOTE, ss);
+                        pushed = true;
+                    }
+                }
+
+                if (!pushed && inv.type == MSG_SPORK) {
+                    if(mapSporks.count(inv.hash)) {
+                        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+                        ss.reserve(1000);
+                        ss << mapSporks[inv.hash];
+                        pfrom->PushMessage(NetMsgType::SPORK, ss);
+                        pushed = true;
+                    }
+                }
+
+                if (!pushed && inv.type == MSG_SMARTNODE_PAYMENT_VOTE) {
+                    if(mnpayments.HasVerifiedPaymentVote(inv.hash)) {
+                        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+                        ss.reserve(1000);
+                        ss << mnpayments.mapSmartnodePaymentVotes[inv.hash];
+                        pfrom->PushMessage(NetMsgType::SMARTNODEPAYMENTVOTE, ss);
+                        pushed = true;
+                    }
+                }
+
+                if (!pushed && inv.type == MSG_SMARTNODE_PAYMENT_BLOCK) {
+                    BlockMap::iterator mi = mapBlockIndex.find(inv.hash);
+                    LOCK(cs_mapSmartnodeBlocks);
+                    if (mi != mapBlockIndex.end() && mnpayments.mapSmartnodeBlocks.count(mi->second->nHeight)) {
+                        BOOST_FOREACH(CSmartnodePayee& payee, mnpayments.mapSmartnodeBlocks[mi->second->nHeight].vecPayees) {
+                            std::vector<uint256> vecVoteHashes = payee.GetVoteHashes();
+                            BOOST_FOREACH(uint256& hash, vecVoteHashes) {
+                                if(mnpayments.HasVerifiedPaymentVote(hash)) {
+                                    CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+                                    ss.reserve(1000);
+                                    ss << mnpayments.mapSmartnodePaymentVotes[hash];
+                                    pfrom->PushMessage(NetMsgType::SMARTNODEPAYMENTVOTE, ss);
+                                }
+                            }
+                        }
+                        pushed = true;
+                    }
+                }
+
+                if (!pushed && inv.type == MSG_SMARTNODE_ANNOUNCE) {
+                    if(mnodeman.mapSeenSmartnodeBroadcast.count(inv.hash)){
+                        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+                        ss.reserve(1000);
+                        ss << mnodeman.mapSeenSmartnodeBroadcast[inv.hash].second;
+                        pfrom->PushMessage(NetMsgType::MNANNOUNCE, ss);
+                        pushed = true;
+                    }
+                }
+
+                if (!pushed && inv.type == MSG_SMARTNODE_PING) {
+                    if(mnodeman.mapSeenSmartnodePing.count(inv.hash)) {
+                        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+                        ss.reserve(1000);
+                        ss << mnodeman.mapSeenSmartnodePing[inv.hash];
+                        pfrom->PushMessage(NetMsgType::MNPING, ss);
+                        pushed = true;
+                    }
+                }
+
+                if (!pushed && inv.type == MSG_DSTX) {
+                    if(mapDarksendBroadcastTxes.count(inv.hash)) {
+                        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+                        ss.reserve(1000);
+                        ss << mapDarksendBroadcastTxes[inv.hash];
+                        pfrom->PushMessage(NetMsgType::DSTX, ss);
+                        pushed = true;
+                    }
+                }
+
+                if (!pushed && inv.type == MSG_SMARTNODE_VERIFY) {
+                    if(mnodeman.mapSeenSmartnodeVerification.count(inv.hash)) {
+                        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+                        ss.reserve(1000);
+                        ss << mnodeman.mapSeenSmartnodeVerification[inv.hash];
+                        pfrom->PushMessage(NetMsgType::MNVERIFY, ss);
+                        pushed = true;
+                    }
+                }
+
+                if (!pushed)
+                    vNotFound.push_back(inv);
             }
 
             // Track requests for our stuff.
@@ -7195,14 +7370,31 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
     else if (strCommand == NetMsgType::NOTFOUND) {
         // We do not care about the NOTFOUND message, but logging an Unknown Command
         // message would be undesirable as we transmit it ourselves.
-    }
+    } else {
+//        LogPrintf("Main.cpp ProcessMessage() strCommand=%s\n", strCommand);
+        // Ignore unknown commands for extensibility
+        bool found = false;
+        const std::vector <std::string> &allMessages = getAllNetMessageTypes();
+        BOOST_FOREACH(const std::string msg, allMessages) {
+            if (msg == strCommand) {
+                found = true;
+                break;
+            }
+        }
 
-    else {
+        if (found) {
+            //probably one the extensions
+            darkSendPool.ProcessMessage(pfrom, strCommand, vRecv);
+            mnodeman.ProcessMessage(pfrom, strCommand, vRecv);
+            mnpayments.ProcessMessage(pfrom, strCommand, vRecv);
+            instantsend.ProcessMessage(pfrom, strCommand, vRecv);
+            sporkManager.ProcessSpork(pfrom, strCommand, vRecv);
+            smartnodeSync.ProcessMessage(pfrom, strCommand, vRecv);
+        } else {
         // Ignore unknown commands for extensibility
         LogPrint("net", "Unknown command \"%s\" from peer=%d\n", SanitizeString(strCommand), pfrom->id);
+        }
     }
-
-
 
     return true;
 }
