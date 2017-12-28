@@ -16,7 +16,7 @@
 #include "networkstyle.h"
 #include "optionsmodel.h"
 #include "platformstyle.h"
-#include "../smartnode/smartnodeconfig.h"
+#include "smartnode/smartnodeconfig.h"
 #include "splashscreen.h"
 #include "utilitydialog.h"
 #include "winshutdownmonitor.h"
