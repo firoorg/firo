@@ -108,6 +108,7 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *platformStyle, const NetworkStyle *n
     changePassphraseAction(0),
     aboutQtAction(0),
     smartnodeAction(0),
+    smartrewardsAction(0),
     openRPCConsoleAction(0),
     openAction(0),
     showHelpMessageAction(0),
@@ -317,11 +318,20 @@ void BitcoinGUI::createActions()
     smartnodeAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_6));
     tabGroup->addAction(smartnodeAction);
 
+    smartrewardsAction = new QAction(platformStyle->SingleColorIcon(":/icons/smartrewards"), tr("&SmartRewards"), this);
+    smartrewardsAction->setStatusTip(tr("Show eligible adresses for Smartrewards"));
+    smartrewardsAction->setToolTip(smartrewardsAction->statusTip());
+    smartrewardsAction->setCheckable(true);
+    smartrewardsAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_7));
+    tabGroup->addAction(smartrewardsAction);
+
 #ifdef ENABLE_WALLET
     // These showNormalIfMinimized are needed because Send Coins and Receive Coins
     // can be triggered from the tray menu, and need to show the GUI to be useful.    
     connect(smartnodeAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
     connect(smartnodeAction, SIGNAL(triggered()), this, SLOT(gotoSmartnodePage()));
+    connect(smartrewardsAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
+    connect(smartrewardsAction, SIGNAL(triggered()), this, SLOT(gotoSmartnodePage()));
     connect(overviewAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
     connect(overviewAction, SIGNAL(triggered()), this, SLOT(gotoOverviewPage()));
     connect(sendCoinsAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
@@ -471,6 +481,7 @@ void BitcoinGUI::createToolBars()
         toolbar->addAction(historyAction);
         toolbar->addAction(zerocoinAction);
         toolbar->addAction(smartnodeAction);
+        toolbar->addAction(smartrewardsAction);
         overviewAction->setChecked(true);
     }
 }
@@ -570,6 +581,7 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
     historyAction->setEnabled(enabled);
     zerocoinAction->setEnabled(enabled);
     smartnodeAction->setEnabled(enabled);
+    smartrewardsAction->setEnabled(enabled);
     encryptWalletAction->setEnabled(enabled);
     backupWalletAction->setEnabled(enabled);
     changePassphraseAction->setEnabled(enabled);
@@ -705,6 +717,13 @@ void BitcoinGUI::gotoSmartnodePage()
     QSettings settings;
     smartnodeAction->setChecked(true);
     if (walletFrame) walletFrame->gotoSmartnodePage();
+}
+
+void BitcoinGUI::gotoSmartrewardsPage()
+{
+    QSettings settings;
+    smartrewardsAction->setChecked(true);
+    if (walletFrame) walletFrame->gotoSmartrewardsPage();
 }
 
 void BitcoinGUI::gotoReceiveCoinsPage()

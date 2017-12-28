@@ -184,6 +184,11 @@ void WalletView::gotoSmartnodePage()
     setCurrentWidget(smartnodeListPage);
 }
 
+void WalletView::gotoSmartrewardsPage()
+{
+    setCurrentWidget(smartnodeListPage);
+}
+
 void WalletView::gotoReceiveCoinsPage()
 {
     setCurrentWidget(receiveCoinsPage);
