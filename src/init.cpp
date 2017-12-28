@@ -1566,7 +1566,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     LogPrintf("Using Smartnode config file %s\n", GetSmartnodeConfigFile().string());
 
-    if (GetBoolArg("-mnconflock", true) && pwalletMain && (smartnodeConfig.getCount() > 0)) {
+    if (GetBoolArg("-snconflock", true) && pwalletMain && (smartnodeConfig.getCount() > 0)) {
         LOCK(pwalletMain->cs_wallet);
         LogPrintf("Locking Smartnodes:\n");
         uint256 mnTxHash;
