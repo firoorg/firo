@@ -33,7 +33,7 @@
 #include "smartnode/instantx.h"
 #include "smartnode/smartnodeman.h"
 #include "smartnode/smartnodepayments.h"
-#include "smartnode/smatnodesync.h"
+#include "smartnode/smartnodesync.h"
 #include "smartnode/spork.h"
 #include "tinyformat.h"
 #include "txdb.h"
