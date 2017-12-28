@@ -34,6 +34,7 @@
 #include "smartnode/smartnodeman.h"
 #include "smartnode/smartnodepayments.h"
 #include "smartnode/smartnodesync.h"
+#include "smartnode/sporks.h"
 #include "tinyformat.h"
 #include "txdb.h"
 #include "txmempool.h"
@@ -1355,7 +1356,7 @@ bool CheckTransaction(const CTransaction& tx, CValidationState& state, uint256 h
             bool found_4 = false;
             bool found_5 = false;
             int total_payment_tx = 0;
-            bool found_smartnode_payment = true; // no more than 1 output for payment
+            bool found_smartnode_payment = false; // no more than 1 output for payment
             CScript FOUNDER_1_SCRIPT;
             CScript FOUNDER_2_SCRIPT;
             CScript FOUNDER_3_SCRIPT;
@@ -1454,7 +1455,10 @@ bool CheckTransaction(const CTransaction& tx, CValidationState& state, uint256 h
               if (!(found_1 || found_2 || found_3 || found_4 || found_5)) {
                 return state.DoS(100, false, REJECT_FOUNDER_REWARD_MISSING,
                                      "CTransaction::CheckTransaction() : One of the SmartHive Rewards is missing");
-	          }
+              if ((nHeight >= HF_SMARTNODE_HEIGHT + 1000) && (!found_smartnode_payment || total_payment_tx > 1)) {
+                return state.DoS(100, false, REJECT_INVALID_SMARTNODE_PAYMENT,
+                             "CTransaction::CheckTransaction() : SmartNode payment is invalid");
+              }
               
               if (!found_smartnode_payment || total_payment_tx > 1) {
                 return state.DoS(100, false, REJECT_INVALID_SMARTNODE_PAYMENT,
