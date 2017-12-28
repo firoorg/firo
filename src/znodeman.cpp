@@ -534,6 +534,48 @@ bool CZnodeMan::Has(const CTxIn& vin)
     return (pMN != NULL);
 }
 
+char* CZnodeMan::GetNotQualifyReason(CZnode& mn, int nBlockHeight, bool fFilterSigTime, int nMnCount)
+{
+    if (!mn.IsValidForPayment()) {
+        char* reasonStr = new char[256];
+        sprintf(reasonStr, "false: 'not valid for payment'");
+        return reasonStr;
+    }
+    // //check protocol version
+    if (mn.nProtocolVersion < mnpayments.GetMinZnodePaymentsProto()) {
+        // LogPrintf("Invalid nProtocolVersion!\n");
+        // LogPrintf("mn.nProtocolVersion=%s!\n", mn.nProtocolVersion);
+        // LogPrintf("mnpayments.GetMinZnodePaymentsProto=%s!\n", mnpayments.GetMinZnodePaymentsProto());
+        char* reasonStr = new char[256];
+        sprintf(reasonStr, "false: 'Invalid nProtocolVersion', nProtocolVersion=%d", mn.nProtocolVersion);
+        return reasonStr;
+    }
+    //it's in the list (up to 8 entries ahead of current block to allow propagation) -- so let's skip it
+    if (mnpayments.IsScheduled(mn, nBlockHeight)) {
+        // LogPrintf("mnpayments.IsScheduled!\n");
+        char* reasonStr = new char[256];
+        sprintf(reasonStr, "false: 'is scheduled'");
+        return reasonStr;
+    }
+    //it's too new, wait for a cycle
+    if (fFilterSigTime && mn.sigTime + (nMnCount * 2.6 * 60) > GetAdjustedTime()) {
+        // LogPrintf("it's too new, wait for a cycle!\n");
+        char* reasonStr = new char[256];
+        sprintf(reasonStr, "false: 'too new', sigTime=%s, will be qualifed after=%s",
+                DateTimeStrFormat("%Y-%m-%d %H:%M UTC", mn.sigTime).c_str(), DateTimeStrFormat("%Y-%m-%d %H:%M UTC", mn.sigTime + (nMnCount * 2.6 * 60)).c_str());
+        return reasonStr;
+    }
+    //make sure it has at least as many confirmations as there are znodes
+    if (mn.GetCollateralAge() < nMnCount) {
+        // LogPrintf("mn.GetCollateralAge()=%s!\n", mn.GetCollateralAge());
+        // LogPrintf("nMnCount=%s!\n", nMnCount);
+        char* reasonStr = new char[256];
+        sprintf(reasonStr, "false: 'collateralAge < znCount', collateralAge=%d, znCount=%d", mn.GetCollateralAge(), nMnCount);
+        return reasonStr;
+    }
+    return NULL;
+}
+
 //
 // Deterministically select the oldest/best znode to pay on the network
 //
@@ -563,7 +605,7 @@ CZnode* CZnodeMan::GetNextZnodeInQueueForPayment(int nBlockHeight, bool fFilterS
     {
         index += 1;
         // LogPrintf("index=%s, mn=%s\n", index, mn.ToString());
-        if (!mn.IsValidForPayment()) {
+        /*if (!mn.IsValidForPayment()) {
             LogPrint("znodeman", "Znode, %s, addr(%s), not-qualified: 'not valid for payment'\n",
                      mn.vin.prevout.ToStringShort(), CBitcoinAddress(mn.pubKeyCollateralAddress.GetID()).ToString());
             continue;
@@ -587,7 +629,7 @@ CZnode* CZnodeMan::GetNextZnodeInQueueForPayment(int nBlockHeight, bool fFilterS
         //it's too new, wait for a cycle
         if (fFilterSigTime && mn.sigTime + (nMnCount * 2.6 * 60) > GetAdjustedTime()) {
             // LogPrintf("it's too new, wait for a cycle!\n");
-            LogPrint("znodeman", "Znode, %s, addr(%s), not-qualified: 'it's too new, wait for a cycle!', sigTime=%s, will be qualifed after=%s",
+            LogPrint("znodeman", "Znode, %s, addr(%s), not-qualified: 'it's too new, wait for a cycle!', sigTime=%s, will be qualifed after=%s\n",
                      mn.vin.prevout.ToStringShort(), CBitcoinAddress(mn.pubKeyCollateralAddress.GetID()).ToString(), DateTimeStrFormat("%Y-%m-%d %H:%M UTC", mn.sigTime).c_str(), DateTimeStrFormat("%Y-%m-%d %H:%M UTC", mn.sigTime + (nMnCount * 2.6 * 60)).c_str());
             continue;
         }
@@ -598,8 +640,13 @@ CZnode* CZnodeMan::GetNextZnodeInQueueForPayment(int nBlockHeight, bool fFilterS
             LogPrint("znodeman", "Znode, %s, addr(%s), not-qualified: 'mn.GetCollateralAge() < nMnCount', CollateralAge=%d, nMnCount=%d\n",
                      mn.vin.prevout.ToStringShort(), CBitcoinAddress(mn.pubKeyCollateralAddress.GetID()).ToString(), mn.GetCollateralAge(), nMnCount);
             continue;
+        }*/
+        char* reasonStr = GetNotQualifyReason(mn, nBlockHeight, fFilterSigTime, nMnCount);
+        if (reasonStr != NULL) {
+            LogPrint("znodeman", "Znode, %s, addr(%s), qualify %s\n",
+                     mn.vin.prevout.ToStringShort(), CBitcoinAddress(mn.pubKeyCollateralAddress.GetID()).ToString(), reasonStr);
+            continue;
         }
-
         vecZnodeLastPaid.push_back(std::make_pair(mn.GetLastPaidBlock(), &mn));
     }
     nCount = (int)vecZnodeLastPaid.size();

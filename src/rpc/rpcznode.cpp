@@ -446,7 +446,8 @@ UniValue znodelist(const UniValue &params, bool fHelp) {
     if (fHelp || (
             strMode != "activeseconds" && strMode != "addr" && strMode != "full" &&
             strMode != "lastseen" && strMode != "lastpaidtime" && strMode != "lastpaidblock" &&
-            strMode != "protocol" && strMode != "payee" && strMode != "rank" && strMode != "status")) {
+            strMode != "protocol" && strMode != "payee" && strMode != "rank" && strMode != "qualify" &&
+            strMode != "status")) {
         throw std::runtime_error(
                 "znodelist ( \"mode\" \"filter\" )\n"
                         "Get a list of znodes in different modes\n"
@@ -467,6 +468,7 @@ UniValue znodelist(const UniValue &params, bool fHelp) {
                         "                   partial match)\n"
                         "  protocol       - Print protocol of a znode (can be additionally filtered, exact match))\n"
                         "  rank           - Print rank of a znode based on current block\n"
+                        "  qualify        - Print qualify status of a znode based on current block\n"
                         "  status         - Print znode status: PRE_ENABLED / ENABLED / EXPIRED / WATCHDOG_EXPIRED / NEW_START_REQUIRED /\n"
                         "                   UPDATE_REQUIRED / POSE_BAN / OUTPOINT_SPENT (can be additionally filtered, partial match)\n"
         );
@@ -542,6 +544,20 @@ UniValue znodelist(const UniValue &params, bool fHelp) {
                     strOutpoint.find(strFilter) == std::string::npos)
                     continue;
                 obj.push_back(Pair(strOutpoint, strStatus));
+            } else if (strMode == "qualify") {
+                int nBlockHeight;
+                {
+                    LOCK(cs_main);
+                    CBlockIndex *pindex = chainActive.Tip();
+                    if (!pindex) return NullUniValue;
+
+                    nBlockHeight = pindex->nHeight;
+                }
+                int nMnCount = mnodeman.CountEnabled();
+                char* reasonStr = mnodeman.GetNotQualifyReason(mn, nBlockHeight, true, nMnCount);
+                std::string strOutpoint = mn.vin.prevout.ToStringShort();
+                if (strFilter != "" && strOutpoint.find(strFilter) == std::string::npos) continue;
+                obj.push_back(Pair(strOutpoint, (reasonStr != NULL) ? reasonStr : "true"));
             }
         }
     }
