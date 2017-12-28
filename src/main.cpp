@@ -1719,7 +1719,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool &pool, CValidationState &state, const C
         CCoinsViewCache view(&dummy);
         CAmount nValueIn = 0;
         LockPoints lp;
-        {
+//       {
             LOCK(pool.cs);
             CCoinsViewMemPool viewMemPool(pcoinsTip, pool);
             view.SetBackend(viewMemPool);
