@@ -581,7 +581,7 @@ CSmartnode* CSmartnodeMan::GetNextSmartnodeInQueueForPayment(int nBlockHeight, b
             continue;
         }
         //it's too new, wait for a cycle
-        if(fFilterSigTime && mn.sigTime + (nMnCount*2.6*60) > GetAdjustedTime()){
+        if(fFilterSigTime && mn.sigTime + (nMnCount * 2.6 * 60) > GetAdjustedTime()){
             LogPrintf("it's too new, wait for a cycle!\n");
             continue;
         }
@@ -597,7 +597,7 @@ CSmartnode* CSmartnodeMan::GetNextSmartnodeInQueueForPayment(int nBlockHeight, b
     nCount = (int)vecSmartnodeLastPaid.size();
 
     //when the network is in the process of upgrading, don't penalize nodes that recently restarted
-    if(fFilterSigTime && nCount < nMnCount/3) {
+    if(fFilterSigTime && nCount < nMnCount / 3) {
         LogPrintf("Need Return, nCount=%s, nMnCount/3=%s\n", nCount, nMnCount/3);
         return GetNextSmartnodeInQueueForPayment(nBlockHeight, false, nCount);
     }

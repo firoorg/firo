@@ -14,6 +14,7 @@
 #include "util.h"
 #include "utilstrencodings.h"
 #ifdef ENABLE_WALLET
+#include "smartnode/smartnodesync.h"
 #include "wallet/wallet.h"
 #include "wallet/walletdb.h"
 #endif
@@ -276,6 +277,44 @@ CScript _createmultisig_redeemScript(const UniValue& params)
 
     return result;
 }
+
+UniValue snsync(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() != 1)
+        throw runtime_error(
+                "snsync [status|next|reset]\n"
+                        "Returns the sync status, updates to the next step or resets it entirely.\n"
+        );
+
+    std::string strMode = params[0].get_str();
+
+    if(strMode == "status") {
+        UniValue objStatus(UniValue::VOBJ);
+        objStatus.push_back(Pair("AssetID", smartnodeSync.GetAssetID()));
+        objStatus.push_back(Pair("AssetName", smartnodeSync.GetAssetName()));
+        objStatus.push_back(Pair("Attempt", smartnodeSync.GetAttempt()));
+        objStatus.push_back(Pair("IsBlockchainSynced", smartnodeSync.IsBlockchainSynced()));
+        objStatus.push_back(Pair("IsMasternodeListSynced", smartnodeSync.IsZnodeListSynced()));
+        objStatus.push_back(Pair("IsWinnersListSynced", smartnodeSync.IsWinnersListSynced()));
+        objStatus.push_back(Pair("IsSynced", smartnodeSync.IsSynced()));
+        objStatus.push_back(Pair("IsFailed", smartnodeSync.IsFailed()));
+        return objStatus;
+    }
+
+    if(strMode == "next")
+    {
+        smartnodeSync.SwitchToNextAsset();
+        return "sync updated to " + smartnodeSync.GetAssetName();
+    }
+
+    if(strMode == "reset")
+    {
+        smartnodeSync.Reset();
+        return "success";
+    }
+    return "failure";
+}
+
 
 UniValue createmultisig(const UniValue& params, bool fHelp)
 {

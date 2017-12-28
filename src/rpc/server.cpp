@@ -273,6 +273,7 @@ static const CRPCCommand vRPCCommands[] =
     { "control",            "stop",                   &stop,                   true  },
     /* Smartcash features */ 
     { "smartcash",          "smartnode",              &smartnode,              true  }, 
+    { "smartcash",          "snsync",                 &snsync,                 true  },
     { "smartcash",          "smartnodelist",          &smartnodelist,          true  }, 
     { "smartcash",          "smartnodebroadcast",     &smartnodebroadcast,     true  }, 
     { "smartcash",          "getpoolinfo",            &getpoolinfo,            true  },
