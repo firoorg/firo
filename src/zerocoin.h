@@ -8,6 +8,7 @@
 #include "libzerocoin/Zerocoin.h"
 #include "zerocoin_params.h"
 #include <unordered_set>
+#include <unordered_map>
 #include <functional>
 
 // Zerocoin transaction info, added to the CBlock to ensure zerocoin mint/spend transactions got their info stored into
@@ -67,12 +68,18 @@ private:
         std::size_t operator()(const CBigNum &bn) const noexcept;
     };
 
+    struct CMintedCoinInfo {
+        int         denomination;
+        int         id;
+        int         nHeight;
+    };
+
     // Collection of coin groups. Map from <denomination,id> to CoinGroupInfo structure
     map<pair<int, int>, CoinGroupInfo> coinGroups;
     // Set of all used coin serials. Allows multiple entries for the same coin serial for historical reasons
     unordered_multiset<CBigNum,CBigNumHash> usedCoinSerials;
     // Set of all minted pubCoin values
-    unordered_multiset<CBigNum,CBigNumHash> mintedPubCoins;
+    unordered_multimap<CBigNum,CMintedCoinInfo,CBigNumHash> mintedPubCoins;
     // Latest IDs of coins by denomination
     map<int, int> latestCoinIds;
 
@@ -101,6 +108,12 @@ public:
     // Do not take into account coins with height more than maxHeight
     // Returns number of coins satisfying conditions
     int GetAccumulatorValueForSpend(int maxHeight, int denomination, int id, CBigNum &accumulator, uint256 &blockHash);
+
+    // Get witness
+    libzerocoin::AccumulatorWitness GetWitnessForSpend(CChain *chain, int maxHeight, int denomination, int id, const CBigNum &pubCoin);
+
+    // Return height of mint transaction and id of minted coin
+    int GetMintedCoinHeightAndId(const CBigNum &pubCoin, int denomination, int &id);
 
     // Reset to initial values
     void Reset();

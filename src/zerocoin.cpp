@@ -552,7 +552,11 @@ int CZerocoinState::AddMint(CBlockIndex *index, int denomination, const CBigNum 
         newCoinGroup.nCoins = 1;
     }
 
-    mintedPubCoins.insert(pubCoin);
+    CMintedCoinInfo coinInfo;
+    coinInfo.denomination = denomination;
+    coinInfo.id = mintId;
+    coinInfo.nHeight = index->nHeight;
+    mintedPubCoins.insert(pair<CBigNum,CMintedCoinInfo>(pubCoin, coinInfo));
 
     return mintId;
 }
@@ -574,8 +578,13 @@ void CZerocoinState::AddBlock(CBlockIndex *index) {
 
     BOOST_FOREACH(const PAIRTYPE(PAIRTYPE(int,int),vector<CBigNum>) &pubCoins, index->mintedPubCoins) {
         latestCoinIds[pubCoins.first.first] = pubCoins.first.second;
-        BOOST_FOREACH(const CBigNum &coin, pubCoins.second)
-            mintedPubCoins.insert(coin);
+        BOOST_FOREACH(const CBigNum &coin, pubCoins.second) {
+            CMintedCoinInfo coinInfo;
+            coinInfo.denomination = pubCoins.first.first;
+            coinInfo.id = pubCoins.first.second;
+            coinInfo.nHeight = index->nHeight;
+            mintedPubCoins.insert(pair<CBigNum,CMintedCoinInfo>(coin, coinInfo));
+        }
     }
 
     BOOST_FOREACH(const CBigNum &serial, index->spentSerials) {
@@ -609,8 +618,15 @@ void CZerocoinState::RemoveBlock(CBlockIndex *index) {
 
     // roll back mints
     BOOST_FOREACH(const PAIRTYPE(PAIRTYPE(int,int),vector<CBigNum>) &pubCoins, index->mintedPubCoins) {
-        BOOST_FOREACH(const CBigNum &coin, pubCoins.second)
-            mintedPubCoins.erase(coin);
+        BOOST_FOREACH(const CBigNum &coin, pubCoins.second) {
+            auto coins = mintedPubCoins.equal_range(coin);
+            auto coinIt = find_if(coins.first, coins.second, [=](const decltype(mintedPubCoins)::value_type &v) {
+                return v.second.denomination == pubCoins.first.first &&
+                        v.second.id == pubCoins.first.second;
+            });
+            assert(coinIt != mintedPubCoins.end());
+            mintedPubCoins.erase(coinIt);
+        }
     }
 
     // roll back spends
@@ -665,6 +681,60 @@ int CZerocoinState::GetAccumulatorValueForSpend(int maxHeight, int denomination,
     } while (lastBlock != coinGroup.firstBlock);
 
     return numberOfCoins;
+}
+
+libzerocoin::AccumulatorWitness CZerocoinState::GetWitnessForSpend(CChain *chain, int maxHeight, int denomination, int id, const CBigNum &pubCoin) {
+    libzerocoin::CoinDenomination d = (libzerocoin::CoinDenomination)denomination;
+    pair<int, int> denomAndId = pair<int, int>(denomination, id);
+
+    assert(coinGroups.count(denomAndId) > 0);
+
+    CoinGroupInfo coinGroup = coinGroups[denomAndId];
+
+    int coinId;
+    int mintHeight = GetMintedCoinHeightAndId(pubCoin, denomination, coinId);
+
+    assert(coinId == id);
+
+    // Find accumulator value preceding mint operation
+    CBlockIndex *mintBlock = (*chain)[mintHeight];
+    CBlockIndex *block = mintBlock;
+    libzerocoin::Accumulator accumulator(ZCParams, d);
+    if (block != coinGroup.firstBlock) {
+        do {
+            block = block->pprev;
+        } while (block->accumulatorChanges.count(denomAndId) == 0);
+        accumulator = libzerocoin::Accumulator(ZCParams, block->accumulatorChanges[denomAndId].first, d);
+    }
+
+    // Now add to the accumulator every coin minted since that moment except pubCoin
+    block = coinGroup.lastBlock;
+    do {
+        if (block->nHeight <= maxHeight && block->mintedPubCoins.count(denomAndId) > 0) {
+            vector<CBigNum> &pubCoins = block->mintedPubCoins[denomAndId];
+            for (const CBigNum &coin: pubCoins) {
+                if (block != mintBlock || coin != pubCoin)
+                    accumulator += libzerocoin::PublicCoin(ZCParams, coin, d);
+            }
+        }
+        if (block != mintBlock)
+            block = block->pprev;
+    } while (block != mintBlock);
+
+    return libzerocoin::AccumulatorWitness(ZCParams, accumulator, libzerocoin::PublicCoin(ZCParams, pubCoin, d));
+}
+
+int CZerocoinState::GetMintedCoinHeightAndId(const CBigNum &pubCoin, int denomination, int &id) {
+    auto coins = mintedPubCoins.equal_range(pubCoin);
+    auto coinIt = find_if(coins.first, coins.second,
+                          [=](const decltype(mintedPubCoins)::value_type &v) { return v.second.denomination == denomination; });
+
+    if (coinIt != mintedPubCoins.end()) {
+        id = coinIt->second.id;
+        return coinIt->second.nHeight;
+    }
+    else
+        return -1;
 }
 
 void CZerocoinState::Reset() {
