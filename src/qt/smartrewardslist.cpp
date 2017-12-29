@@ -1,27 +1,31 @@
+
+#if defined(HAVE_CONFIG_H)
+#include "config/bitcoin-config.h"
+#endif
+
 #include "smartrewardslist.h"
 #include "ui_smartrewardslist.h"
 
-
 #include "clientmodel.h"
 #include "init.h"
-#include "guiutil.h"
-#include "../smartnode/activesmartnode.h"
-#include "../smartnode/smartnodesync.h"
-#include "../smartnode/smartnodeconfig.h"
-#include "../smartnode/smartnodeman.h"
-#include "sync.h"
 #include "wallet/wallet.h"
 #include "walletmodel.h"
+#include "addresstablemodel.h"
+#include "bitcoingui.h"
+#include "csvmodelwriter.h"
+#include "editaddressdialog.h"
+#include "guiutil.h"
+#include "platformstyle.h"
 
-#include <QTimer>
+#include <QIcon>
+#include <QMenu>
 #include <QMessageBox>
-
+#include <QSortFilterProxyModel>
 
 SmartrewardsList::SmartrewardsList(const PlatformStyle *platformStyle, QWidget *parent) :
     QWidget(parent),
     ui(new Ui::SmartrewardsList),
-    clientModel(0),
-    walletModel(0)
+    model(0)
 {
     ui->setupUi(this);
 }
@@ -31,15 +35,17 @@ SmartrewardsList::~SmartrewardsList()
     delete ui;
 }
 
-void SmartrewardsList::setClientModel(ClientModel *model)
+void SmartrewardsList::setModel(AddressTableModel *model)
 {
-    this->clientModel = model;
-    if(model) {
+    this->model = model;
+    if(!model) {
        return;
     }
-}
 
-void SmartrewardsList::setWalletModel(WalletModel *model)
-{
-    this->walletModel = model;
+    proxyModel = new QSortFilterProxyModel(this);
+    proxyModel->setSourceModel(model);
+    proxyModel->setDynamicSortFilter(true);
+    proxyModel->setSortCaseSensitivity(Qt::CaseInsensitive);
+    proxyModel->setFilterCaseSensitivity(Qt::CaseInsensitive);
+
 }
