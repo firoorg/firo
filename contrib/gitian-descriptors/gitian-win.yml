@@ -33,7 +33,8 @@ script: |
   FAKETIME_PROGS="date makensis zip"
   HOST_CFLAGS="-O2 -g"
   HOST_CXXFLAGS="-O2 -g"
-
+  
+  export MAKEOPTS="-j32"
   export QT_RCC_TEST=1
   export GZIP="-9n"
   export TAR_OPTIONS="--mtime="$REFERENCE_DATE\\\ $REFERENCE_TIME""
