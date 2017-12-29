@@ -2,14 +2,18 @@
 #define PARALLELTASKS_H
 
 #include <vector>
-#include <future>
 #include <functional>
+
+#define BOOST_THREAD_PROVIDES_FUTURE
+
+
+#include <boost/thread/future.hpp>
 
 namespace libzerocoin {
 
 class ParallelTasks {
 private:
-    vector<std::future<void>> tasks;
+    vector<boost::future<void>> tasks;
 
 public:
     ParallelTasks(int n=0);
