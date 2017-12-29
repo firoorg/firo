@@ -217,7 +217,10 @@ public:
 
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000000000000000111");
-
+        // smartnode params
+        consensus.nSmartnodePaymentsStartBlock = HF_SMARTNODE_HEIGHT + 1000
+        nFulfilledRequestExpireTime = 60*30; // fulfilled requests expire in half hour
+            
         pchMessageStart[0] = 0xcf;
         pchMessageStart[1] = 0xfc;
         pchMessageStart[2] = 0xbe;
