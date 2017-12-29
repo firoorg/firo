@@ -16,6 +16,7 @@ FORMS += \
     ../src/qt/forms/sendcoinsentry.ui \
     ../src/qt/forms/signverifymessagedialog.ui \
     ../src/qt/forms/smartnodelist.ui \
+    ../src/qt/forms/smartrewardslist.ui \
     ../src/qt/forms/transactiondescdialog.ui \
     ../src/qt/forms/zerocoinpage.ui \
 

@@ -7,6 +7,7 @@
 
 #include "amount.h"
 #include "smartnodelist.h"
+#include "smartrewardslist.h"
 
 #include <QStackedWidget>
 
@@ -69,6 +70,7 @@ private:
     ZerocoinPage *zerocoinPage;
     TransactionView *transactionView;
     SmartnodeList *smartnodeListPage;
+    SmartrewardsList *smartrewardsListPage;
 
     QProgressDialog *progressDialog;
     const PlatformStyle *platformStyle;
