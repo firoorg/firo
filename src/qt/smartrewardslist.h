@@ -1,24 +1,26 @@
-#ifndef SMARTREWARDSLIST_H
-#define SMARTREWARDSLIST_H
+// Copyright (c) 2011-2015 The Smartcash Core developers
+// Distributed under the MIT software license, see the accompanying
+// file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "primitives/transaction.h"
-#include "platformstyle.h"
-#include "sync.h"
-#include "util.h"
+#ifndef BITCOIN_QT_SMARTREWARDSLIST_H
+#define BITCOIN_QT_SMARTREWARDSLIST_H
 
-#include <QMenu>
-#include <QTimer>
-#include <QWidget>
+#include <QDialog>
+
+class AddressTableModel;
+class OptionsModel;
+class PlatformStyle;
 
 namespace Ui {
     class SmartrewardsList;
 }
 
-class ClientModel;
-class WalletModel;
-
 QT_BEGIN_NAMESPACE
+class QItemSelection;
+class QMenu;
 class QModelIndex;
+class QSortFilterProxyModel;
+class QTableView;
 QT_END_NAMESPACE
 
 /** SmartrewardsList Manager page widget */
@@ -30,15 +32,15 @@ public:
     explicit SmartrewardsList(const PlatformStyle *platformStyle, QWidget *parent = 0);
     ~SmartrewardsList();
 
-    void setClientModel(ClientModel *clientModel);
-    void setWalletModel(WalletModel *walletModel);
-
-Q_SIGNALS:
+    void setModel(AddressTableModel *model);
+    const QString &getReturnValue() const { return returnValue; }
 
 private:
     Ui::SmartrewardsList *ui;
-    ClientModel *clientModel;
-    WalletModel *walletModel;
+    AddressTableModel *model;
+    QString returnValue;
+    QSortFilterProxyModel *proxyModel;
+    QMenu *contextMenu;
 
 };
 #endif // SMARTREWARDSLIST_H

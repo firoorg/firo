@@ -114,7 +114,6 @@ void WalletView::setClientModel(ClientModel *clientModel)
     overviewPage->setClientModel(clientModel);
     sendCoinsPage->setClientModel(clientModel);
     smartnodeListPage->setClientModel(clientModel);
-    smartrewardsListPage->setClientModel(clientModel);
 }
 
 void WalletView::setWalletModel(WalletModel *walletModel)
@@ -130,7 +129,7 @@ void WalletView::setWalletModel(WalletModel *walletModel)
     usedReceivingAddressesPage->setModel(walletModel->getAddressTableModel());
     usedSendingAddressesPage->setModel(walletModel->getAddressTableModel());
     smartnodeListPage->setWalletModel(walletModel);
-    smartrewardsListPage->setWalletModel(walletModel);
+    smartrewardsListPage->setModel(walletModel->getAddressTableModel());
 
     if (walletModel)
     {
