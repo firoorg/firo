@@ -60,12 +60,16 @@ void SmartrewardsList::setModel(WalletModel *model)
 
     ui->tableWidget->setAlternatingRowColors(true);
 
+    int nDisplayUnit = model->getOptionsModel()->getDisplayUnit();
+
     std::map<QString, std::vector<COutput> > mapCoins;
     model->listCoins(mapCoins);
 
     //ui->tableWidget->setRowCount(10);
-    //ui->tableWidget->setColumnCount(4);
-    //ui->tableWidget->setShowGrid(false);
+    ui->tableWidget->setColumnCount(4);
+    ui->tableWidget->setShowGrid(false);
+
+    int nNewRow = 0;
 
     BOOST_FOREACH(const PAIRTYPE(QString, std::vector<COutput>)& coins, mapCoins) {
 
@@ -74,37 +78,41 @@ void SmartrewardsList::setModel(WalletModel *model)
         if (sWalletLabel.isEmpty())
             sWalletLabel = tr("(no label)");
 
+        ui->tableWidget->insertRow(nNewRow);
+
+        CAmount nSum = 0;
+        double dPrioritySum = 0;
+        int nChildren = 0;
+        int nInputSum = 0;
+        BOOST_FOREACH(const COutput& out, coins.second) {
+            int nInputSize = 0;
+            nSum += out.tx->vout[out.i].nValue;
+            nChildren++;
+
+            // address
+            CTxDestination outputAddress;
+            QString sAddress = "";
+            if(ExtractDestination(out.tx->vout[out.i].scriptPubKey, outputAddress))
+            {
+                sAddress = QString::fromStdString(CBitcoinAddress(outputAddress).ToString());
+            }
+
+
+            ui->tableWidget->setItem(nNewRow, 0, new QTableWidgetItem(sWalletLabel));
+            ui->tableWidget->setItem(nNewRow, 1, new QTableWidgetItem(sWalletAddress));
+            ui->tableWidget->setItem(nNewRow, 2, new QTableWidgetItem(BitcoinUnits::format(nDisplayUnit, out.tx->vout[out.i].nValue)));
+
+        }
+
+        nNewRow++;
+        // amount
+        //itemOutput->setText(COLUMN_AMOUNT, );
+        //itemOutput->setData(COLUMN_AMOUNT, Qt::UserRole, QVariant((qlonglong)out.tx->vout[out.i].nValue)); // padding so that sorting works correctly
 
 
 
-        ui->tableWidget->setItem(0, 1, new QTableWidgetItem("Hello"));
     }
 
-
-   //ui->tableWidget->setItem(0, 1, new QTableWidgetItem("Hello"));
-
-//    proxyModel = new QSortFilterProxyModel(this);
-//    proxyModel->setSourceModel(model);
-//    proxyModel->setDynamicSortFilter(true);
-//    proxyModel->setSortCaseSensitivity(Qt::CaseInsensitive);
-//    proxyModel->setFilterCaseSensitivity(Qt::CaseInsensitive);
-
-//    // Receive filter
-//    proxyModel->setFilterRole(AddressTableModel::TypeRole);
-//    proxyModel->setFilterFixedString(AddressTableModel::Receive);
-
-//    ui->tableWidget->setModel(proxyModel);
-//    ui->tableWidget->sortByColumn(0, Qt::AscendingOrder);
-
-    // Set column widths
-//#if QT_VERSION < 0x050000
-//    ui->tableView->horizontalHeader()->setResizeMode(AddressTableModel::Label, QHeaderView::Stretch);
-//    ui->tableView->horizontalHeader()->setResizeMode(AddressTableModel::Address, QHeaderView::ResizeToContents);
-//#else
-//    ui->tableView->horizontalHeader()->setSectionResizeMode(AddressTableModel::Label, QHeaderView::Stretch);
-//    ui->tableView->horizontalHeader()->setSectionResizeMode(AddressTableModel::Address, QHeaderView::ResizeToContents);
-//#endif
-
-
+    //ui->tableWidget->setRowCount(nNewRow);
 
 }
