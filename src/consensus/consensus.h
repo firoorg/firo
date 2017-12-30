@@ -21,7 +21,6 @@ static const int COINBASE_MATURITY = 100;
 /** Smartnode start block*/
 static const int HF_SMARTNODE_HEIGHT = 275000;
 static const int HF_SMARTNODE_PAYMENT_START = HF_SMARTNODE_HEIGHT;
-
 /** Flags for nSequence and nLockTime locks */
 enum {
     /* Interpret sequence numbers as relative lock-time constraints. */

@@ -64,14 +64,14 @@ struct Params {
     uint256 nMinimumChainWork;
 
     int nInstantSendKeepLock; // in blocks
-    int nBudgetPaymentsStartBlock;
-    int nBudgetPaymentsCycleBlocks;
-    int nBudgetPaymentsWindowBlocks;
+ //   int nBudgetPaymentsStartBlock;
+  //  int nBudgetPaymentsCycleBlocks;
+ //   int nBudgetPaymentsWindowBlocks;
     int nSmartnodeMinimumConfirmations;
     int nSmartnodePaymentsStartBlock;
-    int nSmartnodePaymentsIncreaseBlock;
-    int nSmartnodePaymentsIncreasePeriod; // in blocks
-    int nSuperblockStartBlock;
+ //   int nSmartnodePaymentsIncreaseBlock;
+ //   int nSmartnodePaymentsIncreasePeriod; // in blocks
+ //   int nSuperblockStartBlock;
 };
 } // namespace Consensus
 

@@ -186,32 +186,8 @@ void CSmartnodeSync::SwitchToNextAsset() {
             nTimeLastGovernanceItem = GetTime();
             LogPrintf("CSmartnodeSync::SwitchToNextAsset -- Sync has finished\n");
             nRequestedSmartnodeAssets = SMARTNODE_SYNC_FINISHED;
-//            break;
-//        case (SMARTNODE_SYNC_GOVERNANCE):
-//            LogPrintf("CSmartnodeSync::SwitchToNextAsset -- Sync has finished\n");
-//            nRequestedSmartnodeAssets = SMARTNODE_SYNC_FINISHED;
-//
-//        case (SMARTNODE_SYNC_MNW):
-//            nTimeLastGovernanceItem = GetTime();
-//            nRequestedSmartnodeAssets = SMARTNODE_SYNC_GOVERNANCE;
-//            LogPrintf("CSmartnodeSync::SwitchToNextAsset -- Starting %s\n", GetAssetName());
-//            break;
-//        case (SMARTNODE_SYNC_GOVERNANCE):
-//            LogPrintf("CSmartnodeSync::SwitchToNextAsset -- Sync has finished\n");
-//            nRequestedSmartnodeAssets = SMARTNODE_SYNC_FINISHED;
-//            uiInterface.NotifyAdditionalDataSyncProgressChanged(1);
-            //try to activate our smartnode if possible
-            activeSmartnode.ManageState();
-
-            TRY_LOCK(cs_vNodes, lockRecv);
-            if (!lockRecv) return;
-
-            BOOST_FOREACH(CNode * pnode, vNodes)
-            {
-                netfulfilledman.AddFulfilledRequest(pnode->addr, "full-sync");
-            }
-
             break;
+ 
     }
     nRequestedSmartnodeAttempt = 0;
     nTimeAssetSyncStarted = GetTime();
@@ -302,9 +278,10 @@ void CSmartnodeSync::ProcessTick() {
     // INITIAL SYNC SETUP / LOG REPORTING
     double nSyncProgress = double(nRequestedSmartnodeAttempt + (nRequestedSmartnodeAssets - 1) * 8) / (8 * 4);
     LogPrintf("CSmartnodeSync::ProcessTick -- nTick %d nRequestedSmartnodeAssets %d nRequestedSmartnodeAttempt %d nSyncProgress %f\n", nTick, nRequestedSmartnodeAssets, nRequestedSmartnodeAttempt, nSyncProgress);
-//    uiInterface.NotifyAdditionalDataSyncProgressChanged(nSyncProgress);
+    uiInterface.NotifyAdditionalDataSyncProgressChanged(nSyncProgress);
 
     LogPrintf("sporks synced but blockchain is not, wait until we're almost at a recent block to continue\n");
+    
     if (Params().NetworkIDString() != CBaseChainParams::REGTEST && !IsBlockchainSynced() && nRequestedSmartnodeAssets > SMARTNODE_SYNC_SPORKS) {
         nTimeLastSmartnodeList = GetTime();
         nTimeLastPaymentVote = GetTime();
