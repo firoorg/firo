@@ -12,6 +12,7 @@ class CCoinControl
 {
 public:
     CTxDestination destChange;
+    bool fUseInstantSend;
     //! If false, allows unselected inputs, but requires all selected inputs be used
     bool fAllowOtherInputs;
     //! Includes watch only addresses which match the ISMINE_WATCH_SOLVABLE criteria
@@ -37,6 +38,7 @@ public:
         nMinimumTotalFee = 0;
         nFeeRate = CFeeRate(0);
         fOverrideFeeRate = false;
+        fUseInstantSend = false;
     }
 
     bool HasSelected() const

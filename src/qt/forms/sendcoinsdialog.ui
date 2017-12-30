@@ -726,7 +726,7 @@
       </widget>
      </item>
      <item>
-      <widget class="QCheckBox" name="checkInstantPay">
+      <widget class="QCheckBox" name="checkUseInstantSend">
        <property name="text">
         <string>InstantPay</string>
        </property>
