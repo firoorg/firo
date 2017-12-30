@@ -68,7 +68,16 @@ void SmartrewardsList::setModel(WalletModel *model)
     //ui->tableWidget->setShowGrid(false);
 
     BOOST_FOREACH(const PAIRTYPE(QString, std::vector<COutput>)& coins, mapCoins) {
-ui->tableWidget->setItem(0, 1, new QTableWidgetItem("Hello"));
+
+        QString sWalletAddress = coins.first;
+        QString sWalletLabel = model->getAddressTableModel()->labelForAddress(sWalletAddress);
+        if (sWalletLabel.isEmpty())
+            sWalletLabel = tr("(no label)");
+
+
+
+
+        ui->tableWidget->setItem(0, 1, new QTableWidgetItem("Hello"));
     }
 
 
