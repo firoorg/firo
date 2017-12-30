@@ -35,15 +35,14 @@ SmartrewardsList::SmartrewardsList(const PlatformStyle *platformStyle, QWidget *
     ui->setupUi(this);
 
     int columnAliasWidth = 200;
-    int columnAddressWidth = 250;
-    int columnAmountWidth = 160;
-    int columnSmartAmountWidth = 200;
-
+    int columnAddressWidth = 300;
+    int columnAmountWidth = 100;
+    int columnSmartAmountWidth = 100;
+    
     ui->tableWidget->setColumnWidth(0, columnAliasWidth);
     ui->tableWidget->setColumnWidth(1, columnAddressWidth);
-    ui->tableWidget->setColumnWidth(2, columnAmountWidth);
-    ui->tableWidget->setColumnWidth(3, columnSmartAmountWidth);
-
+    ui->tableWitableWidgetMySmartnodesdgetMySmartnodes->setColumnWidth(2, columnProtocolWidth);
+    ui->tableWidgetMySmartnodes->setColumnWidth(3, columnStatusWidth);
 }
 
 SmartrewardsList::~SmartrewardsList()
@@ -63,9 +62,9 @@ void SmartrewardsList::setModel(WalletModel *model)
     std::map<QString, std::vector<COutput> > mapCoins;
     model->listCoins(mapCoins);
 
-    //ui->tableWidget->setRowCount(10);
-    //ui->tableWidget->setColumnCount(4);
-    //ui->tableWidget->setShowGrid(false);
+    ui->tableWidget->setRowCount(10);
+    ui->tableWidget->setColumnCount(4);
+    ui->tableWidget->setShowGrid(false);
 
     BOOST_FOREACH(const PAIRTYPE(QString, std::vector<COutput>)& coins, mapCoins) {
 ui->tableWidget->setItem(0, 1, new QTableWidgetItem("Hello"));
