@@ -79,11 +79,11 @@ SmartrewardsList::~SmartrewardsList()
         ui->tableWidget->insertRow(nNewRow);
  
         CAmount nSum = 0;
-        double dPrioritySum = 0;
+        //double dPrioritySum = 0;
         int nChildren = 0;
-        int nInputSum = 0;
+        //int nInputSum = 0;
         BOOST_FOREACH(const COutput& out, coins.second) {
-            int nInputSize = 0;
+            //int nInputSize = 0;
             nSum += out.tx->vout[out.i].nValue;
             nChildren++;
  
