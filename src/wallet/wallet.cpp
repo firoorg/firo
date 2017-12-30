@@ -2665,7 +2665,6 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
                                 std::string& strFailReason, const CCoinControl* coinControl, bool sign, AvailableCoinsType nCoinType, bool fUseInstantSend)
 {
     LogPrintf("CreateTransaction()\n");
-    CAmount nFeePay = fUseInstantSend ? CTxLockRequest().GetMinFee() : 0;
     CAmount nValue = 0;
     int nChangePosRequest = nChangePosInOut;
     unsigned int nSubtractFeeFromAmount = 0;
@@ -2946,20 +2945,14 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
 //                    if (dPriorityNeeded > 0 && dPriority >= dPriorityNeeded)
 //                        break;
                 }
-                CAmount nFeeNeeded = max(nFeePay, GetMinimumFee(nBytes, nTxConfirmTarget, mempool));
-                if (coinControl && nFeeNeeded > 0 && coinControl->nMinimumTotalFee > nFeeNeeded) {
-                    nFeeNeeded = coinControl->nMinimumTotalFee;
-                }
-                if(fUseInstantSend) {
-                    nFeeNeeded = std::max(nFeeNeeded, CTxLockRequest(txNew).GetMinFee());
-                }
+                int64_t nPayFee = payTxFee.GetFeePerK() * (1 + (int64_t) GetTransactionWeight(txNew) / 1000);
+                bool fAllowFree = AllowFree(dPriority);// No free TXs in SMART
+                LogPrintf("CreateTransaction: fAllowFree=%s\n", fAllowFree);
+                int64_t nMinFee = wtxNew.GetMinFee(1, fAllowFree, GMF_SEND);
 
-                // If we made it here and we aren't even able to meet the relay fee on the next pass, give up
-                // because we must be at the maximum allowed fee.
-                if (nFeeNeeded < ::minRelayTxFee.GetFee(nBytes))
-                {
-                    strFailReason = _("Transaction too large for fee policy");
-                    return false;
+                int64_t nFeeNeeded = nPayFee;
+                if (nFeeNeeded < nMinFee) {
+                    nFeeNeeded = nMinFee;
                 }
 
                 if (nFeeRet >= nFeeNeeded)
@@ -2971,6 +2964,10 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
             }
         }
     }
+
+    if(fUseInstantSend){
+      nFeeRet += CTxLockRequest().GetMinFee();
+    }        
 
     if (GetBoolArg("-walletrejectlongchains", DEFAULT_WALLET_REJECT_LONG_CHAINS)) {
         // Lastly, ensure this tx will pass the mempool's chain limits
