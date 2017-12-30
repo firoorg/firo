@@ -26,6 +26,7 @@
 #include "util.h"
 #include "utilitydialog.h"
 
+#include "smartrewardslist.h"
 
 #ifdef ENABLE_WALLET
 #include "walletframe.h"
