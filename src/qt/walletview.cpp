@@ -129,7 +129,7 @@ void WalletView::setWalletModel(WalletModel *walletModel)
     usedReceivingAddressesPage->setModel(walletModel->getAddressTableModel());
     usedSendingAddressesPage->setModel(walletModel->getAddressTableModel());
     smartnodeListPage->setWalletModel(walletModel);
-    smartrewardsListPage->setModel(walletModel->getAddressTableModel());
+    smartrewardsListPage->setModel(walletModel);
 
     if (walletModel)
     {

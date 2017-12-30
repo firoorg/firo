@@ -7,7 +7,7 @@
 
 #include <QDialog>
 
-class AddressTableModel;
+class WalletModel;
 class OptionsModel;
 class PlatformStyle;
 
@@ -32,15 +32,23 @@ public:
     explicit SmartrewardsList(const PlatformStyle *platformStyle, QWidget *parent = 0);
     ~SmartrewardsList();
 
-    void setModel(AddressTableModel *model);
+    void setModel(WalletModel *model);
     const QString &getReturnValue() const { return returnValue; }
 
 private:
     Ui::SmartrewardsList *ui;
-    AddressTableModel *model;
+    WalletModel *model;
     QString returnValue;
     QSortFilterProxyModel *proxyModel;
     QMenu *contextMenu;
+
+    enum
+    {
+        COLUMN_AMOUNT,
+        COLUMN_LABEL,
+        COLUMN_ADDRESS,
+        COLUMN_DATE
+    };
 
 };
 #endif // SMARTREWARDSLIST_H
