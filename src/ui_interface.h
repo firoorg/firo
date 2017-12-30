@@ -105,6 +105,9 @@ public:
     /** Best header has changed */
     boost::signals2::signal<void (bool, const CBlockIndex *)> NotifyHeaderTip;
 
+    /** Additional data sync progress changed */
+    boost::signals2::signal<void (double nSyncProgress)> NotifyAdditionalDataSyncProgressChanged;
+
     /** Banlist did change. */
     boost::signals2::signal<void (void)> BannedListChanged;
 };

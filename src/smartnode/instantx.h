@@ -5,6 +5,7 @@
 #define INSTANTX_H
 
 #include "../net.h"
+#include "../utiltime.h"
 #include "primitives/transaction.h"
 
 class CTxLockVote;

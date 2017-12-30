@@ -21,6 +21,7 @@
 #include "script/script.h"
 #include "script/sign.h"
 #include "smartnode/darksend.h"
+#include "smartnode/instantx.h"
 #include "timedata.h"
 #include "txmempool.h"
 #include "util.h"
@@ -1394,7 +1395,7 @@ void CWallet::ReacceptWalletTransactions() {
     }
 }
 
-bool CWalletTx::RelayWalletTransaction(bool fCheckInputs) {
+bool CWalletTx::RelayWalletTransaction(bool fCheckInputs, std::string strCommand) {
     LogPrintf("CWalletTx::RelayWalletTransaction()\n");
     assert(pwallet->GetBroadcastTransactions());
     if (!IsCoinBase() && !isAbandoned() && GetDepthInMainChain() == 0) {
@@ -1402,6 +1403,9 @@ bool CWalletTx::RelayWalletTransaction(bool fCheckInputs) {
         /* GetDepthInMainChain already catches known conflicts. */
         if (InMempool() || AcceptToMemoryPool(false, maxTxFee, state, fCheckInputs)) {
             LogPrintf("Relaying wtx %s\n", GetHash().ToString());
+            if(strCommand == NetMsgType::TXLOCKREQUEST) {
+                instantsend.ProcessTxLockRequest(((CTxLockRequest)*this));
+            }
             RelayTransaction((CTransaction) * this);
             return true;
         }
@@ -1950,8 +1954,8 @@ void CWallet::AvailableCoins(vector <COutput> &vCoins, bool fOnlyConfirmed, cons
 
             int nDepth = pcoin->GetDepthInMainChain(false);
             // do not use IX for inputs that have less then INSTANTSEND_CONFIRMATIONS_REQUIRED blockchain confirmations
-//            if (fUseInstantSend && nDepth < INSTANTSEND_CONFIRMATIONS_REQUIRED)
-//                continue;
+            if (fUseInstantSend && nDepth < INSTANTSEND_CONFIRMATIONS_REQUIRED)
+                continue;
 
             // We should not consider coins which aren't at least in our mempool
             // It's possible for these to be conflicted via ancestors which we may never be able to detect
@@ -1960,24 +1964,19 @@ void CWallet::AvailableCoins(vector <COutput> &vCoins, bool fOnlyConfirmed, cons
 
             for (unsigned int i = 0; i < pcoin->vout.size(); i++) {
                 bool found = false;
-                if (nCoinType == ONLY_DENOMINATED) {
-                    found = IsDenominatedAmount(pcoin->vout[i].nValue);
-                } else if (nCoinType == ONLY_NOT1000IFMN) {
-                    found = !(fSmartNode && pcoin->vout[i].nValue == SMARTNODE_COIN_REQUIRED * COIN);
-                } else if (nCoinType == ONLY_NONDENOMINATED_NOT1000IFMN) {
-                    if (IsCollateralAmount(pcoin->vout[i].nValue)) continue; // do not use collateral amounts
-                    found = !IsDenominatedAmount(pcoin->vout[i].nValue);
-                    if (found && fSmartNode) found = pcoin->vout[i].nValue != SMARTNODE_COIN_REQUIRED * COIN; // do not use Hot MN funds
-                } else if (nCoinType == ONLY_1000) {
-                    LogPrintf("nCoinType = ONLY_1000\n");
-                    LogPrintf("pcoin->vout[i].nValue = %s\n", pcoin->vout[i].nValue);
-                    found = pcoin->vout[i].nValue == SMARTNODE_COIN_REQUIRED * COIN;
-                } else if (nCoinType == ONLY_PRIVATESEND_COLLATERAL) {
-                    found = IsCollateralAmount(pcoin->vout[i].nValue);
+                if(nCoinType == ONLY_DENOMINATED) {
+                    //found = CPrivateSend::IsDenominatedAmount(pcoin->vout[i].nValue);
+                } else if(nCoinType == ONLY_NONDENOMINATED) {
+                    //if (CPrivateSend::IsCollateralAmount(pcoin->vout[i].nValue)) continue; // do not use collateral amounts
+                    //found = !CPrivateSend::IsDenominatedAmount(pcoin->vout[i].nValue);
+                } else if(nCoinType == ONLY_1000) {
+                    found = pcoin->vout[i].nValue == 1000*COIN;
+                } else if(nCoinType == ONLY_PRIVATESEND_COLLATERAL) {
+                    //found = CPrivateSend::IsCollateralAmount(pcoin->vout[i].nValue);
                 } else {
                     found = true;
                 }
-                if (!found) continue;
+                if(!found) continue;
 
                 isminetype mine = IsMine(pcoin->vout[i]);
                 LogPrintf("!(IsSpent(wtxid, i)) = %s\n", !(IsSpent(wtxid, i)));
@@ -2018,13 +2017,13 @@ void CWallet::AvailableCoins(vector <COutput> &vCoins, bool fOnlyConfirmed, cons
  
 bool CWallet::SelectCoinsDark(CAmount nValueMin, CAmount nValueMax, std::vector<CTxIn>& vecTxInRet, CAmount& nValueRet, int nPrivateSendRoundsMin, int nPrivateSendRoundsMax) const 
 { 
-    CCoinControl *coinControl=NULL; 
+    //CCoinControl *coinControl=NULL; 
  
     vecTxInRet.clear(); 
     nValueRet = 0; 
  
     vector<COutput> vCoins; 
-    AvailableCoins(vCoins, true, coinControl, false, nPrivateSendRoundsMin < 0 ? ONLY_NONDENOMINATED_NOT1000IFMN : ONLY_DENOMINATED);
+    //AvailableCoins(vCoins, true, coinControl, false, nPrivateSendRoundsMin < 0 ? ONLY_NONDENOMINATED_NOT1000IFMN : ONLY_DENOMINATED);
  
     //order the array so largest nondenom are first, then denominations, then very small inputs. 
 //    sort(vCoins.rbegin(), vCoins.rend(), CompareByPriority()); 
@@ -2176,9 +2175,9 @@ void CWallet::ListAvailableCoinsMintCoins(vector <COutput> &vCoins, bool fOnlyCo
     }
 }
 
-static void ApproximateBestSubset(vector <pair<CAmount, pair<const CWalletTx *, unsigned int> >> vValue, const CAmount &nTotalLower,
-                      const CAmount &nTargetValue,
-                      vector<char> &vfBest, CAmount &nBest, int iterations = 1000) {
+static void ApproximateBestSubset(vector<pair<CAmount, pair<const CWalletTx*,unsigned int> > >vValue, const CAmount& nTotalLower, const CAmount& nTargetValue,
+                                  vector<char>& vfBest, CAmount& nBest, int iterations = 1000, bool fUseInstantSend = false)
+{
     vector<char> vfIncluded;
 
     vfBest.assign(vValue.size(), true);
@@ -2186,24 +2185,33 @@ static void ApproximateBestSubset(vector <pair<CAmount, pair<const CWalletTx *, 
 
     seed_insecure_rand();
 
-    for (int nRep = 0; nRep < iterations && nBest != nTargetValue; nRep++) {
+    for (int nRep = 0; nRep < iterations && nBest != nTargetValue; nRep++)
+    {
         vfIncluded.assign(vValue.size(), false);
         CAmount nTotal = 0;
         bool fReachedTarget = false;
-        for (int nPass = 0; nPass < 2 && !fReachedTarget; nPass++) {
-            for (unsigned int i = 0; i < vValue.size(); i++) {
+        for (int nPass = 0; nPass < 2 && !fReachedTarget; nPass++)
+        {
+            for (unsigned int i = 0; i < vValue.size(); i++)
+            {
+                if (fUseInstantSend && nTotal + vValue[i].first > sporkManager.GetSporkValue(SPORK_5_INSTANTSEND_MAX_VALUE)*COIN) {
+                    continue;
+                }
                 //The solver here uses a randomized algorithm,
                 //the randomness serves no real security purpose but is just
                 //needed to prevent degenerate behavior and it is important
                 //that the rng is fast. We do not use a constant random sequence,
                 //because there may be some privacy improvement by making
                 //the selection random.
-                if (nPass == 0 ? insecure_rand() & 1 : !vfIncluded[i]) {
+                if (nPass == 0 ? insecure_rand()&1 : !vfIncluded[i])
+                {
                     nTotal += vValue[i].first;
                     vfIncluded[i] = true;
-                    if (nTotal >= nTargetValue) {
+                    if (nTotal >= nTargetValue)
+                    {
                         fReachedTarget = true;
-                        if (nTotal < nBest) {
+                        if (nTotal < nBest)
+                        {
                             nBest = nTotal;
                             vfBest = vfIncluded;
                         }
@@ -2214,17 +2222,29 @@ static void ApproximateBestSubset(vector <pair<CAmount, pair<const CWalletTx *, 
             }
         }
     }
+
+    //Reduces the approximate best subset by removing any inputs that are smaller than the surplus of nTotal beyond nTargetValue. 
+    for (unsigned int i = 0; i < vValue.size(); i++)
+    {                        
+        if (vfBest[i] && (nBest - vValue[i].first) >= nTargetValue )
+        {
+            vfBest[i] = false;
+            nBest -= vValue[i].first;
+        }
+    }
 }
 
-bool CWallet::SelectCoinsMinConf(const CAmount &nTargetValue, const int nConfMine, const int nConfTheirs,
-                                 const uint64_t nMaxAncestors, vector <COutput> vCoins,
-                                 set <pair<const CWalletTx *, unsigned int>> &setCoinsRet, CAmount &nValueRet) const {
+bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, int nConfMine, int nConfTheirs, const uint64_t nMaxAncestors, vector<COutput> vCoins,
+                                 set<pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet, bool fUseInstantSend) const
+{
     setCoinsRet.clear();
     nValueRet = 0;
 
     // List of values less than target
     pair <CAmount, pair<const CWalletTx *, unsigned int>> coinLowestLarger;
-    coinLowestLarger.first = std::numeric_limits<CAmount>::max();
+    coinLowestLarger.first = fUseInstantSend
+                                        ? sporkManager.GetSporkValue(SPORK_5_INSTANTSEND_MAX_VALUE)*COIN
+                                        : std::numeric_limits<CAmount>::max();
     coinLowestLarger.second.first = NULL;
     vector <pair<CAmount, pair<const CWalletTx *, unsigned int> >> vValue;
     CAmount nTotalLower = 0;
@@ -2284,9 +2304,9 @@ bool CWallet::SelectCoinsMinConf(const CAmount &nTargetValue, const int nConfMin
     vector<char> vfBest;
     CAmount nBest;
 
-    ApproximateBestSubset(vValue, nTotalLower, nTargetValue, vfBest, nBest);
+    ApproximateBestSubset(vValue, nTotalLower, nTargetValue, vfBest, nBest, fUseInstantSend);
     if (nBest != nTargetValue && nTotalLower >= nTargetValue + MIN_CHANGE)
-        ApproximateBestSubset(vValue, nTotalLower, nTargetValue + MIN_CHANGE, vfBest, nBest);
+        ApproximateBestSubset(vValue, nTotalLower, nTargetValue + MIN_CHANGE, vfBest, nBest, fUseInstantSend);
 
     // If we have a bigger coin and (either the stochastic approximation didn't find a good solution,
     //                                   or the next bigger coin is closer), return the bigger coin
@@ -2311,10 +2331,10 @@ bool CWallet::SelectCoinsMinConf(const CAmount &nTargetValue, const int nConfMin
     return true;
 }
 
-bool CWallet::SelectCoins(const vector <COutput> &vAvailableCoins, const CAmount &nTargetValue,
-                          set <pair<const CWalletTx *, unsigned int>> &setCoinsRet, CAmount &nValueRet,
-                          const CCoinControl *coinControl) const {
-    vector <COutput> vCoins(vAvailableCoins);
+bool CWallet::SelectCoins(const CAmount& nTargetValue, set<pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet, const CCoinControl* coinControl, AvailableCoinsType nCoinType, bool fUseInstantSend) const
+{
+    vector<COutput> vCoins;
+    AvailableCoins(vCoins, true, coinControl, false, nCoinType, fUseInstantSend);
 
     // coin control -> return all selected outputs (we want all selected to go into the transaction for sure)
     if (coinControl && coinControl->HasSelected() && !coinControl->fAllowOtherInputs) {
@@ -2365,22 +2385,22 @@ bool CWallet::SelectCoins(const vector <COutput> &vAvailableCoins, const CAmount
     bool fRejectLongChains = GetBoolArg("-walletrejectlongchains", DEFAULT_WALLET_REJECT_LONG_CHAINS);
 
     bool res = nTargetValue <= nValueFromPresetInputs ||
-               SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, 1, 6, 0, vCoins, setCoinsRet, nValueRet) ||
-               SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, 1, 1, 0, vCoins, setCoinsRet, nValueRet) ||
+               SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, 1, 6, 0, vCoins, setCoinsRet, nValueRet, fUseInstantSend) ||
+               SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, 1, 1, 0, vCoins, setCoinsRet, nValueRet, fUseInstantSend) ||
                (bSpendZeroConfChange &&
-                SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, 0, 1, 2, vCoins, setCoinsRet, nValueRet)) ||
+                SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, 0, 1, 2, vCoins, setCoinsRet, nValueRet, fUseInstantSend)) ||
                (bSpendZeroConfChange && SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, 0, 1,
                                                            std::min((size_t) 4, nMaxChainLength / 3), vCoins,
-                                                           setCoinsRet, nValueRet)) ||
+                                                           setCoinsRet, nValueRet, fUseInstantSend)) ||
                (bSpendZeroConfChange &&
                 SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, 0, 1, nMaxChainLength / 2, vCoins,
-                                   setCoinsRet, nValueRet)) ||
+                                   setCoinsRet, nValueRet, fUseInstantSend)) ||
                (bSpendZeroConfChange &&
                 SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, 0, 1, nMaxChainLength, vCoins, setCoinsRet,
-                                   nValueRet)) ||
+                                   nValueRet, fUseInstantSend)) ||
                (bSpendZeroConfChange && !fRejectLongChains &&
                 SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, 0, 1, std::numeric_limits<uint64_t>::max(),
-                                   vCoins, setCoinsRet, nValueRet));
+                                   vCoins, setCoinsRet, nValueRet, fUseInstantSend));
 
     // because SelectCoinsMinConf clears the setCoinsRet, we now add the possible inputs to the coinset
     setCoinsRet.insert(setPresetCoins.begin(), setPresetCoins.end());
@@ -2640,11 +2660,11 @@ bool CWallet::SelectCoinsGrouppedByAddresses(std::vector<CompactTallyItem>& vecT
 } 
 
 
-bool CWallet::CreateTransaction(const vector <CRecipient> &vecSend, CWalletTx &wtxNew, CReserveKey &reservekey,
-                                CAmount &nFeeRet,
-                                int &nChangePosInOut, std::string &strFailReason, const CCoinControl *coinControl,
-                                bool sign) {
+bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet, int &nChangePosInOut,
+                                std::string& strFailReason, const CCoinControl* coinControl, bool sign, AvailableCoinsType nCoinType, bool fUseInstantSend)
+{
     LogPrintf("CreateTransaction()\n");
+    CAmount nFeePay = fUseInstantSend ? CTxLockRequest().GetMinFee() : 0;
     CAmount nValue = 0;
     int nChangePosRequest = nChangePosInOut;
     unsigned int nSubtractFeeFromAmount = 0;
@@ -2753,10 +2773,23 @@ bool CWallet::CreateTransaction(const vector <CRecipient> &vecSend, CWalletTx &w
                 // Choose coins to use
                 set <pair<const CWalletTx *, unsigned int>> setCoins;
                 CAmount nValueIn = 0;
-                if (!SelectCoins(vAvailableCoins, nValueToSelect, setCoins, nValueIn, coinControl)) {
-                    strFailReason = _("Insufficient funds");
+                if (!SelectCoins(nValueToSelect, setCoins, nValueIn, coinControl, nCoinType, fUseInstantSend))
+                {
+                    if (nValueIn < nValueToSelect) {
+                        strFailReason = _("Insufficient funds.");
+                        if (fUseInstantSend) {
+                            // could be not true but most likely that's the reason
+                            strFailReason += " " + strprintf(_("InstantSend requires inputs with at least %d confirmations, you might need to wait a few minutes and try again."), INSTANTSEND_CONFIRMATIONS_REQUIRED);
+                        }
+                    }
                     return false;
                 }
+
+                if (fUseInstantSend && nValueIn > sporkManager.GetSporkValue(SPORK_5_INSTANTSEND_MAX_VALUE)*COIN) {
+                    strFailReason += " " + strprintf(_("InstantSend doesn't support sending values that high yet. Transactions are currently limited to %1 DASH."), sporkManager.GetSporkValue(SPORK_5_INSTANTSEND_MAX_VALUE));
+                    return false;
+                }
+
                 BOOST_FOREACH(PAIRTYPE(const CWalletTx*, unsigned int) pcoin, setCoins)
                 {
                     CAmount nCredit = pcoin.first->vout[pcoin.second].nValue;
@@ -2899,21 +2932,33 @@ bool CWallet::CreateTransaction(const vector <CRecipient> &vecSend, CWalletTx &w
                 dPriority = wtxNew.ComputePriority(dPriority, nBytes);
 
                 // Can we complete this as a free transaction?
-                if (fSendFreeTransactions && nBytes <= MAX_FREE_TRANSACTION_CREATE_SIZE) {
+                // Note: InstantSend transaction can't be a free one
+                if (!fUseInstantSend && fSendFreeTransactions && nBytes <= MAX_FREE_TRANSACTION_CREATE_SIZE)
+                {
                     // Not enough fee: enough priority?
                     double dPriorityNeeded = mempool.estimateSmartPriority(nTxConfirmTarget);
                     // Require at least hard-coded AllowFree.
                     if (dPriority >= dPriorityNeeded && AllowFree(dPriority))
                         break;
-                }
-                int64_t nPayFee = payTxFee.GetFeePerK() * (1 + (int64_t) GetTransactionWeight(txNew) / 1000);
-                bool fAllowFree = AllowFree(dPriority);// No free TXs in SMART
-                LogPrintf("CreateTransaction: fAllowFree=%s\n", fAllowFree);
-                int64_t nMinFee = wtxNew.GetMinFee(1, fAllowFree, GMF_SEND);
 
-                int64_t nFeeNeeded = nPayFee;
-                if (nFeeNeeded < nMinFee) {
-                    nFeeNeeded = nMinFee;
+                    // Small enough, and priority high enough, to send for free
+//                    if (dPriorityNeeded > 0 && dPriority >= dPriorityNeeded)
+//                        break;
+                }
+                CAmount nFeeNeeded = max(nFeePay, GetMinimumFee(nBytes, nTxConfirmTarget, mempool));
+                if (coinControl && nFeeNeeded > 0 && coinControl->nMinimumTotalFee > nFeeNeeded) {
+                    nFeeNeeded = coinControl->nMinimumTotalFee;
+                }
+                if(fUseInstantSend) {
+                    nFeeNeeded = std::max(nFeeNeeded, CTxLockRequest(txNew).GetMinFee());
+                }
+
+                // If we made it here and we aren't even able to meet the relay fee on the next pass, give up
+                // because we must be at the maximum allowed fee.
+                if (nFeeNeeded < ::minRelayTxFee.GetFee(nBytes))
+                {
+                    strFailReason = _("Transaction too large for fee policy");
+                    return false;
                 }
 
                 if (nFeeRet >= nFeeNeeded)
@@ -2921,28 +2966,6 @@ bool CWallet::CreateTransaction(const vector <CRecipient> &vecSend, CWalletTx &w
 
                 // Include more fee and try again.
                 nFeeRet = nFeeNeeded;
-                continue;
-
-
-//                CAmount nFeeNeeded = GetMinimumFee(nBytes, nTxConfirmTarget, mempool);
-//                if (coinControl && nFeeNeeded > 0 && coinControl->nMinimumTotalFee > nFeeNeeded) {
-//                    nFeeNeeded = coinControl->nMinimumTotalFee;
-//                }
-//                if (coinControl && coinControl->fOverrideFeeRate)
-//                    nFeeNeeded = coinControl->nFeeRate.GetFee(nBytes);
-
-                // If we made it here and we aren't even able to meet the relay fee on the next pass, give up
-                // because we must be at the maximum allowed fee.
-//                if (nFeeNeeded < ::minRelayTxFee.GetFee(nBytes)) {
-//                    strFailReason = _("Transaction too large for fee policy");
-//                    return false;
-//                }
-
-//                if (nFeeRet >= nFeeNeeded)
-//                    break; // Done, enough fee included.
-
-                // Include more fee and try again.
-//                nFeeRet = nFeeNeeded;
                 continue;
             }
         }
@@ -2970,7 +2993,7 @@ bool CWallet::CreateTransaction(const vector <CRecipient> &vecSend, CWalletTx &w
 /**
  * Call after CreateTransaction unless you want to abort
  */
-bool CWallet::CommitTransaction(CWalletTx &wtxNew, CReserveKey &reservekey) {
+bool CWallet::CommitTransaction(CWalletTx &wtxNew, CReserveKey &reservekey, std::string strCommand) {
     {
         LOCK2(cs_main, cs_wallet);
         LogPrintf("CommitTransaction:\n%s", wtxNew.ToString());
@@ -3013,7 +3036,7 @@ bool CWallet::CommitTransaction(CWalletTx &wtxNew, CReserveKey &reservekey) {
                 // TODO: if we expect the failure to be long term or permanent, instead delete wtx from the wallet and return failure.
             } else {
                 LogPrintf("AcceptToMemoryPool success!\n");
-                wtxNew.RelayWalletTransaction();
+                wtxNew.RelayWalletTransaction(true,strCommand);
             }
         }
     }
@@ -3252,8 +3275,8 @@ bool CWallet::CreateZerocoinMintTransaction(const vector <CRecipient> &vecSend, 
 
                 // Choose coins to use
                 set <pair<const CWalletTx *, unsigned int>> setCoins;
-                CAmount nValueIn = 0;
-                if (!SelectCoins(vAvailableCoins, nValueToSelect, setCoins, nValueIn, coinControl)) {
+                CAmount nValueIn = 0;                
+                if (!SelectCoins(nValueToSelect, setCoins, nValueIn, coinControl)) {
                     strFailReason = _("Insufficient funds");
                     return false;
                 }

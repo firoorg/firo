@@ -1,4 +1,4 @@
-// Copyright (c) 2011-2015 The Bitcoin Core developers
+    // Copyright (c) 2011-2015 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -16,6 +16,7 @@
 #include "coincontrol.h"
 #include "init.h"
 #include "main.h" // For minRelayTxFee
+#include "../smartnode/instantx.h"
 #include "wallet/wallet.h"
 
 #include <boost/assign/list_of.hpp> // for 'map_list_of()'
@@ -528,6 +529,10 @@ void CoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog)
                 nBytesInputs += 148; // in all error cases, simply assume 148 here
         }
         else nBytesInputs += 148;
+
+        // Add inputs to calculate InstantSend Fee later
+        if(coinControl->fUseInstantSend)
+            txDummy.vin.push_back(CTxIn());
     }
 
     // calculation
@@ -559,6 +564,8 @@ void CoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog)
         if (nPayFee > 0 && coinControl->nMinimumTotalFee > nPayFee)
             nPayFee = coinControl->nMinimumTotalFee;
 
+        // InstantSend Fee
+        if (coinControl->fUseInstantSend) nPayFee = std::max(nPayFee, CTxLockRequest(txDummy).GetMinFee());
 
         // Allow free? (require at least hard-coded threshold and default to that if no estimate)
         double dPriorityNeeded = std::max(mempoolEstimatePriority, AllowFreeThreshold());

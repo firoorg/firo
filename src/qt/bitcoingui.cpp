@@ -12,6 +12,7 @@
 #include "clientmodel.h"
 #include "guiconstants.h"
 #include "guiutil.h"
+#include "init.h"
 #include "networkstyle.h"
 #include "notificator.h"
 #include "openuridialog.h"
@@ -19,6 +20,10 @@
 #include "optionsmodel.h"
 #include "platformstyle.h"
 #include "rpcconsole.h"
+#include "smartnodelist.h"
+#include "smartnode/smartnodesync.h"
+#include "ui_interface.h"
+#include "util.h"
 #include "utilitydialog.h"
 
 #include "smartrewardslist.h"
@@ -32,12 +37,10 @@
 #include "macdockiconhandler.h"
 #endif
 
-#include "init.h"
-#include "ui_interface.h"
-#include "util.h"
 
-#include "smartnode/smartnodelist.h"
-#include "smartnode/smartnodesync.h"
+
+
+
 
 #include <iostream>
 

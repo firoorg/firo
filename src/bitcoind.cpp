@@ -5,7 +5,6 @@
 
 #if defined(HAVE_CONFIG_H)
 #include "config/bitcoin-config.h"
-#include "smartnode/smartnodeconfig.h"
 #endif
 
 #include "chainparams.h"
@@ -17,6 +16,7 @@
 #include "util.h"
 #include "httpserver.h"
 #include "httprpc.h"
+#include "smartnode/smartnodeconfig.h"
 #include "utilstrencodings.h"
 
 #include <boost/algorithm/string/predicate.hpp>
