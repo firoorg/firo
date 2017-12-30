@@ -482,10 +482,11 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
 
     if (IsInitialBlockDownload())
         throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "Smartcash is downloading blocks...");
-    
-    if (!smartnodeSync.IsSynced())
-        throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "SmartCash is syncing with network...");
 
+//  Enable after smartnodes are active
+//    if (!smartnodeSync.IsSynced())
+//         throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "SmartCash is syncing with network...");
+        
     static unsigned int nTransactionsUpdatedLast;
 
     if (!lpval.isNull())
