@@ -1463,12 +1463,12 @@ bool CheckTransaction(const CTransaction& tx, CValidationState& state, uint256 h
                     return state.DoS(100, false, REJECT_INVALID_SMARTNODE_PAYMENT,
                                  "CTransaction::CheckTransaction() : SmartNode payment is invalid");
                   }
-                  
+/*                  
                   if (!found_smartnode_payment || total_payment_tx > 1) {
                     return state.DoS(100, false, REJECT_INVALID_SMARTNODE_PAYMENT,
                                  "CTransaction::CheckTransaction() : SmartNode payment is invalid");
                   }
-            } 
+*/            } 
         }
         
     } else {

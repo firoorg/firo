@@ -5,6 +5,7 @@
 
 #if defined(HAVE_CONFIG_H)
 #include "config/bitcoin-config.h"
+#include "smartnode/smartnodeconfig.h"
 #endif
 
 #include "chainparams.h"
@@ -118,6 +119,13 @@ bool AppInit(int argc, char* argv[])
             return false;
         }
 
+        // parse smartnode.conf
+        std::string strErr;
+        if(!smartnodeConfig.read(strErr)) {
+            fprintf(stderr,"Error reading smartnode configuration file: %s\n", strErr.c_str());
+            return false;
+        }
+        
         // Command-line RPC
         bool fCommandLine = false;
         for (int i = 1; i < argc; i++)
