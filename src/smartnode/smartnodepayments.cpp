@@ -129,11 +129,15 @@ bool IsBlockValueValid(const CBlock &block, int nBlockHeight, CAmount blockRewar
 }
 
 bool IsBlockPayeeValid(const CTransaction &txNew, int nBlockHeight, CAmount blockReward) {
+
+    // we only check smartnode payment /
     const Consensus::Params &consensusParams = Params().GetConsensus();
 
     if (nBlockHeight < consensusParams.nSmartnodePaymentsStartBlock) {
         //there is no budget data to use to check anything, let's just accept the longest chain
-        if (fDebug) LogPrintf("IsBlockPayeeValid -- smartnode isn't start\n");
+
+        if (fDebug) LogPrintf("IsBlockPayeeValid -- smartnodes haven't started\n");
+
         return true;
     }
     if (!smartnodeSync.IsSynced()) {
@@ -144,7 +148,7 @@ bool IsBlockPayeeValid(const CTransaction &txNew, int nBlockHeight, CAmount bloc
 
     //check for smartnode payee
     if (mnpayments.IsTransactionValid(txNew, nBlockHeight)) {
-        LogPrint("mnpayments", "IsBlockPayeeValid -- Valid smartnode payment at height %d: %s", nBlockHeight, txNew.ToString());
+        LogPrint("mnpayments", "IsBlockPayeeValid -- Valid SmartNode payment at height %d: %s", nBlockHeight, txNew.ToString());
         return true;
     } else {
         if(sporkManager.IsSporkActive(SPORK_8_SMARTNODE_PAYMENT_ENFORCEMENT)){
@@ -154,6 +158,65 @@ bool IsBlockPayeeValid(const CTransaction &txNew, int nBlockHeight, CAmount bloc
             return true;
         }
     }
+
+    //    int nOffset = nBlockHeight % consensusParams.nBudgetPaymentsCycleBlocks;
+    //    if (nBlockHeight >= consensusParams.nBudgetPaymentsStartBlock &&
+    //        nOffset < consensusParams.nBudgetPaymentsWindowBlocks) {
+    //        if (!sporkManager.IsSporkActive(SPORK_13_OLD_SUPERBLOCK_FLAG)) {
+                // no budget blocks should be accepted here, if SPORK_13_OLD_SUPERBLOCK_FLAG is disabled
+    //            LogPrint("gobject", "IsBlockPayeeValid -- ERROR: Client synced but budget spork is disabled and smartnode payment is invalid\n");
+    //            return false;
+    //        }
+            // NOTE: this should never happen in real, SPORK_13_OLD_SUPERBLOCK_FLAG MUST be disabled when 12.1 starts to go live
+    //        LogPrint("gobject", "IsBlockPayeeValid -- WARNING: Probably valid budget block, have no data, accepting\n");
+            // TODO: reprocess blocks to make sure they are legit?
+    //        return true;
+    //    }
+
+    //    if (sporkManager.IsSporkActive(SPORK_8_SMARTNODE_PAYMENT_ENFORCEMENT)) {
+    //        LogPrintf("IsBlockPayeeValid -- ERROR: Invalid smartnode payment detected at height %d: %s", nBlockHeight, txNew.ToString());
+     //       return false;
+     //   }
+
+     //   LogPrintf("IsBlockPayeeValid -- WARNING: Smartnode payment enforcement is disabled, accepting any payee\n");
+     //   return true;
+   // }
+
+    // superblocks started
+    // SEE IF THIS IS A VALID SUPERBLOCK
+//
+//    if (sporkManager.IsSporkActive(SPORK_9_SUPERBLOCKS_ENABLED)) {
+////        if(CSuperblockManager::IsSuperblockTriggered(nBlockHeight)) {
+////            if(CSuperblockManager::IsValid(txNew, nBlockHeight, blockReward)) {
+////                LogPrint("gobject", "IsBlockPayeeValid -- Valid superblock at height %d: %s", nBlockHeight, txNew.ToString());
+////                return true;
+////            }
+////
+////            LogPrintf("IsBlockPayeeValid -- ERROR: Invalid superblock detected at height %d: %s", nBlockHeight, txNew.ToString());
+////            // should NOT allow such superblocks, when superblocks are enabled
+////            return false;
+////        }
+//        // continue validation, should pay MN
+//        LogPrint("gobject", "IsBlockPayeeValid -- No triggered superblock detected at height %d\n", nBlockHeight);
+//    } else {
+        // should NOT allow superblocks at all, when superblocks are disabled
+//        LogPrint("gobject", "IsBlockPayeeValid -- Superblocks are disabled, no superblocks allowed\n");
+//    }
+
+    // IF THIS ISN'T A SUPERBLOCK OR SUPERBLOCK IS INVALID, IT SHOULD PAY A SMARTNODE DIRECTLY
+  //  if (mnpayments.IsTransactionValid(txNew, nBlockHeight)) {
+  //      LogPrint("mnpayments", "IsBlockPayeeValid -- Valid smartnode payment at height %d: %s", nBlockHeight, txNew.ToString());
+  //      return true;
+  //  }
+
+   // if (sporkManager.IsSporkActive(SPORK_8_SMARTNODE_PAYMENT_ENFORCEMENT)) {
+   //     LogPrintf("IsBlockPayeeValid -- ERROR: Invalid smartnode payment detected at height %d: %s", nBlockHeight, txNew.ToString());
+   //     return false;
+   // }
+
+   // LogPrintf("IsBlockPayeeValid -- WARNING: Smartnode payment enforcement is disabled, accepting any payee\n");
+   // return true;
+
 }
 
 void FillBlockPayments(CMutableTransaction &txNew, int nBlockHeight, CAmount smartnodePayment, CTxOut &txoutSmartnodeRet, std::vector <CTxOut> &voutSuperblockRet) {

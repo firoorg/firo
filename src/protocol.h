@@ -243,6 +243,8 @@ extern const char *GETBLOCKTXN;
  * @since protocol version 70014 as described by BIP 152
  */
 extern const char *BLOCKTXN;
+   
+extern const char *TXLOCKVOTE;    
 extern const char *SPORK; 
 extern const char *GETSPORKS; 
 extern const char *SMARTNODEPAYMENTVOTE; 
@@ -364,6 +366,7 @@ class CInv
 {
 public:
     CInv();
+  //  CInv(int typeIn, const uint256& hashIn);
     CInv(int typeIn, const uint256& hashIn);
 
     ADD_SERIALIZE_METHODS;

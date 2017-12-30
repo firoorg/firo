@@ -34,8 +34,8 @@
 #include "ui_interface.h"
 #include "util.h"
 
-#include "smartnodelist.h"
-#include "smartrewardslist.h"
+#include "smartnode/smartnodelist.h"
+#include "smartnode/smartnodesync.h"
 
 #include <iostream>
 
