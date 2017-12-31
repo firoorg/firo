@@ -22,6 +22,7 @@
 #include "script/sign.h"
 #include "smartnode/darksend.h"
 #include "smartnode/instantx.h"
+#include "smartnode/smartnode.h"
 #include "timedata.h"
 #include "txmempool.h"
 #include "util.h"
@@ -1403,10 +1404,10 @@ bool CWalletTx::RelayWalletTransaction(bool fCheckInputs, std::string strCommand
         /* GetDepthInMainChain already catches known conflicts. */
         if (InMempool() || AcceptToMemoryPool(false, maxTxFee, state, fCheckInputs)) {
             LogPrintf("Relaying wtx %s\n", GetHash().ToString());
+            RelayTransaction((CTransaction) * this);
             if(strCommand == NetMsgType::TXLOCKREQUEST) {
                 instantsend.ProcessTxLockRequest(((CTxLockRequest)*this));
             }
-            RelayTransaction((CTransaction) * this);
             return true;
         }
     }
