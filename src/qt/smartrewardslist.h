@@ -5,15 +5,28 @@
 #ifndef BITCOIN_QT_SMARTREWARDSLIST_H
 #define BITCOIN_QT_SMARTREWARDSLIST_H
 
-#include <QDialog>
+#include "primitives/transaction.h"
+#include "platformstyle.h"
+#include "sync.h"
+#include "util.h"
 
-class WalletModel;
-class OptionsModel;
-class PlatformStyle;
+#include <QDialog>
+#include <QMenu>
+#include <QTimer>
+#include <QWidget>
+
+#define SMARTREWARDS_DAY                                 25
+#define SMARTREWARDS_UTC_HOUR                            07
+//#define SMARTREWARDS_MINIMUM_AMOUNT            2000000000
+#define SMARTREWARDS_MINIMUM_AMOUNT            100000000000
 
 namespace Ui {
     class SmartrewardsList;
 }
+
+class WalletModel;
+class OptionsModel;
+class PlatformStyle;
 
 QT_BEGIN_NAMESPACE
 class QItemSelection;
