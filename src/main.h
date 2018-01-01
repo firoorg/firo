@@ -17,6 +17,8 @@
 #include "script/script_error.h"
 #include "sync.h"
 #include "versionbits.h"
+#include "timedata.h"
+#include "chainparams.h"
 
 #include <algorithm>
 #include <exception>
@@ -48,7 +50,7 @@ static const bool DEFAULT_WHITELISTRELAY = true;
 /** Default for DEFAULT_WHITELISTFORCERELAY. */
 static const bool DEFAULT_WHITELISTFORCERELAY = true;
 /** Default for -minrelaytxfee, minimum relay fee for transactions */
-static const unsigned int DEFAULT_MIN_RELAY_TX_FEE = 300000;
+static const unsigned int DEFAULT_MIN_RELAY_TX_FEE = CENT / 10;
 //! -maxtxfee default
 static const CAmount DEFAULT_TRANSACTION_MAXFEE = COIN;
 //! Discourage users to set fees higher than this amount (in satoshis) per kB
