@@ -28,7 +28,7 @@ extern CInstantSend instantsend;
 static const int INSTANTSEND_CONFIRMATIONS_REQUIRED = 2; // Was 6
 static const int DEFAULT_INSTANTSEND_DEPTH          = 2; // Was 5
 
-static const int MIN_INSTANTSEND_PROTO_VERSION      = 70206;
+static const int MIN_INSTANTSEND_PROTO_VERSION      = 90023;
 
 extern bool fEnableInstantSend;
 extern int nInstantSendDepth;
