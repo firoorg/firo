@@ -317,15 +317,15 @@ void BitcoinGUI::createActions()
     zerocoinMenuAction->setStatusTip(zerocoinAction->statusTip());
     zerocoinMenuAction->setToolTip(zerocoinMenuAction->statusTip());
 
-    smartnodeAction = new QAction(platformStyle->SingleColorIcon(":/icons/smartnodes"), tr("&Smartnodes"), this);
-    smartnodeAction->setStatusTip(tr("Browse Smartnodes"));
+    smartnodeAction = new QAction(platformStyle->SingleColorIcon(":/icons/smartnodes"), tr("&SmartNodes"), this);
+    smartnodeAction->setStatusTip(tr("Browse SmartNodes"));
     smartnodeAction->setToolTip(smartnodeAction->statusTip());
     smartnodeAction->setCheckable(true);
     smartnodeAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_6));
     tabGroup->addAction(smartnodeAction);
 
-    smartrewardsAction = new QAction(platformStyle->SingleColorIcon(":/icons/smartrewards"), tr("&Smartrewards"), this);
-    smartrewardsAction->setStatusTip(tr("Show eligible adresses for Smartrewards"));
+    smartrewardsAction = new QAction(platformStyle->SingleColorIcon(":/icons/smartrewards"), tr("&SmartRewards"), this);
+    smartrewardsAction->setStatusTip(tr("Show eligible addresses for SmartRewards"));
     smartrewardsAction->setToolTip(smartrewardsAction->statusTip());
     smartrewardsAction->setCheckable(true);
     smartrewardsAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_7));

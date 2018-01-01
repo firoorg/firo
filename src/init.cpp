@@ -1548,7 +1548,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
         if (!GetArg("-smartnodeaddr", "").empty()) {
             // Hot Smartnode (either local or remote) should get its address in
             // CActiveSmartnode::ManageState() automatically and no longer relies on Smartnodeaddr.
-            return InitError(_("smartnodeaddr option is deprecated. Please use smartnode.conf to manage your remote smartnodes."));
+            return InitError(_("smartnodeaddr option is deprecated. Please use smartnode.conf to manage your remote SmartNodes."));
         }
 
         std::string strSmartnodePrivKey = GetArg("-smartnodeprivkey", "");
@@ -1568,7 +1568,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     if (GetBoolArg("-snconflock", true) && pwalletMain && (smartnodeConfig.getCount() > 0)) {
         LOCK(pwalletMain->cs_wallet);
-        LogPrintf("Locking Smartnodes:\n");
+        LogPrintf("Locking SmartNodes:\n");
         uint256 mnTxHash;
         int outputIndex;
         BOOST_FOREACH(CSmartnodeConfig::CSmartnodeEntry

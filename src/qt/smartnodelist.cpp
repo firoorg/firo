@@ -113,12 +113,12 @@ void SmartnodeList::StartAlias(std::string strAlias)
             bool fSuccess = CSmartnodeBroadcast::Create(mne.getIp(), mne.getPrivKey(), mne.getTxHash(), mne.getOutputIndex(), strError, mnb);
 
             if(fSuccess) {
-                strStatusHtml += "<br>Successfully started smartnode.";
+                strStatusHtml += "<br>Successfully started SmartNode.";
                 mnodeman.UpdateSmartnodeList(mnb);
                 mnb.RelaySmartNode();
                 mnodeman.NotifySmartnodeUpdates();
             } else {
-                strStatusHtml += "<br>Failed to start smartnode.<br>Error: " + strError;
+                strStatusHtml += "<br>Failed to start SmartNode.<br>Error: " + strError;
             }
             break;
         }
@@ -166,7 +166,7 @@ void SmartnodeList::StartAll(std::string strCommand)
     pwalletMain->Lock();
 
     std::string returnObj;
-    returnObj = strprintf("Successfully started %d smartnodes, failed to start %d, total %d", nCountSuccessful, nCountFailed, nCountFailed + nCountSuccessful);
+    returnObj = strprintf("Successfully started %d SmartNodes, failed to start %d, total %d", nCountSuccessful, nCountFailed, nCountFailed + nCountSuccessful);
     if (nCountFailed > 0) {
         returnObj += strFailedHtml;
     }
@@ -339,8 +339,8 @@ void SmartnodeList::on_startButton_clicked()
     }
 
     // Display message box
-    QMessageBox::StandardButton retval = QMessageBox::question(this, tr("Confirm smartnode start"),
-        tr("Are you sure you want to start smartnode %1?").arg(QString::fromStdString(strAlias)),
+    QMessageBox::StandardButton retval = QMessageBox::question(this, tr("Confirm SmartNode start"),
+        tr("Are you sure you want to start SmartNode %1?").arg(QString::fromStdString(strAlias)),
         QMessageBox::Yes | QMessageBox::Cancel,
         QMessageBox::Cancel);
 
@@ -363,8 +363,8 @@ void SmartnodeList::on_startButton_clicked()
 void SmartnodeList::on_startAllButton_clicked()
 {
     // Display message box
-    QMessageBox::StandardButton retval = QMessageBox::question(this, tr("Confirm all smartnodes start"),
-        tr("Are you sure you want to start ALL smartnodes?"),
+    QMessageBox::StandardButton retval = QMessageBox::question(this, tr("Confirm all SmartNodes start"),
+        tr("Are you sure you want to start ALL SmartNodes?"),
         QMessageBox::Yes | QMessageBox::Cancel,
         QMessageBox::Cancel);
 
@@ -389,14 +389,14 @@ void SmartnodeList::on_startMissingButton_clicked()
 
     if(!smartnodeSync.IsSmartnodeListSynced()) {
         QMessageBox::critical(this, tr("Command is not available right now"),
-            tr("You can't use this command until smartnode list is synced"));
+            tr("You can't use this command until the SmartNode list is synced"));
         return;
     }
 
     // Display message box
     QMessageBox::StandardButton retval = QMessageBox::question(this,
-        tr("Confirm missing smartnodes start"),
-        tr("Are you sure you want to start MISSING smartnodes?"),
+        tr("Confirm missing SmartNodes start"),
+        tr("Are you sure you want to start MISSING SmartNodes?"),
         QMessageBox::Yes | QMessageBox::Cancel,
         QMessageBox::Cancel);
 

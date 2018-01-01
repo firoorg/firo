@@ -91,7 +91,7 @@ enum AvailableCoinsType
     ALL_COINS,
     ONLY_DENOMINATED,
     ONLY_NONDENOMINATED,
-    ONLY_1000, // find masternode outputs including locked ones (use with caution)
+    ONLY_10000, // find masternode outputs including locked ones (use with caution)
     ONLY_PRIVATESEND_COLLATERAL
 };
  
@@ -708,7 +708,7 @@ public:
     void ListLockedCoins(std::vector<COutPoint>& vOutpts);
 
     // smartnode 
-    /// Get 1000Smartcash output and keys which can be used for the Smartnode 
+    /// Get 10000 Smartcash output and keys which can be used for the Smartnode 
     bool GetSmartnodeVinAndKeys(CTxIn& txinRet, CPubKey& pubKeyRet, CKey& keyRet, std::string strTxHash = "", std::string strOutputIndex = ""); 
     /// Extract txin information and keys from output 
     bool GetVinAndKeysFromOutput(COutput out, CTxIn& txinRet, CPubKey& pubKeyRet, CKey& keyRet); 

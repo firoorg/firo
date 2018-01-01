@@ -38,7 +38,7 @@
        </property>
        <widget class="QWidget" name="tabMySmartnodes">
         <attribute name="title">
-         <string>My Smartnodes</string>
+         <string>My SmartNodes</string>
         </attribute>
         <layout class="QGridLayout" name="gridLayout_2">
          <item row="0" column="0">
@@ -191,7 +191,7 @@
        </widget>
        <widget class="QWidget" name="tabAllSmartnodes">
         <attribute name="title">
-         <string>All Smartnodes</string>
+         <string>All SmartNodes</string>
         </attribute>
         <layout class="QGridLayout" name="gridLayout">
          <item row="1" column="0">
