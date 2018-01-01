@@ -19,14 +19,15 @@ static const int PRIVATESEND_QUEUE_TIMEOUT          = 30;
 static const int PRIVATESEND_SIGNING_TIMEOUT        = 15;
 
 //! minimum peer version accepted by mixing pool
-static const int MIN_PRIVATESEND_PEER_PROTO_VERSION = 70206;
+static const int MIN_PRIVATESEND_PEER_PROTO_VERSION = 90023;
 
 static const CAmount PRIVATESEND_COLLATERAL         = 0.001 * COIN;
 static const CAmount PRIVATESEND_POOL_MAX           = 999.999 * COIN;
 static const int DENOMS_COUNT_MAX                   = 100;
 
-static const int DEFAULT_PRIVATESEND_ROUNDS         = 2;
-static const int DEFAULT_PRIVATESEND_AMOUNT         = 1000;
+//Disable until zerocoin integrated
+static const int DEFAULT_PRIVATESEND_ROUNDS         = 0;
+static const int DEFAULT_PRIVATESEND_AMOUNT         = 0;
 static const int DEFAULT_PRIVATESEND_LIQUIDITY      = 0;
 static const bool DEFAULT_PRIVATESEND_MULTISESSION  = false;
 
