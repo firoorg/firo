@@ -20,7 +20,7 @@
 #include "optionsmodel.h"
 #include "platformstyle.h"
 #include "rpcconsole.h"
-#include "smartnode/smartnodelist.h"
+#include "smartnodelist.h"
 #include "smartnode/smartnodesync.h"
 #include "ui_interface.h"
 #include "util.h"
