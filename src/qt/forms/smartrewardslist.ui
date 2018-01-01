@@ -68,7 +68,7 @@
        </column>
        <column>
         <property name="text">
-         <string>Eligible for Smartrewards</string>
+         <string>Eligible for SmartRewards</string>
         </property>
        </column>
       </widget>
