@@ -106,7 +106,7 @@ public:
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000000000000111111");
         // smartnode params
-        consensus.nSmartnodePaymentsStartBlock = HF_SMARTNODE_HEIGHT + 1000; // not true, but it's ok as long as it's less then nSmartnodePaymentsIncreaseBlock
+        consensus.nSmartnodePaymentsStartBlock = HF_SMARTNODE_HEIGHT; // not true, but it's ok as long as it's less then nSmartnodePaymentsIncreaseBlock
         //consensus.nSmartnodePaymentsIncreaseBlock = 680000; // actual historical value
         //consensus.nSmartnodePaymentsIncreasePeriod = 576*30; // 17280 - actual historical value
         //consensus.nSuperblockStartBlock = 614820;
