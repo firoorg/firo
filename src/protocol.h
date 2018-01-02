@@ -339,7 +339,7 @@ const uint32_t MSG_TYPE_MASK    = 0xffffffff >> 2;
 enum GetDataMsg
 {
     UNDEFINED = 0,
-    MSG_TX,
+    MSG_TX = 1,
     MSG_BLOCK,
     MSG_TYPE_MAX = MSG_BLOCK,
     // The following can only occur in getdata. Invs always use TX or BLOCK.
