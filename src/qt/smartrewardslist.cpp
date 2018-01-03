@@ -4,7 +4,7 @@
  
 #include "smartrewardslist.h"
 #include "ui_smartrewardslist.h"
- 
+
 #include "addresstablemodel.h"
 #include "bitcoinunits.h"
 #include "guiutil.h"
@@ -13,29 +13,17 @@
 #include "txmempool.h"
 #include "walletmodel.h"
 #include "coincontrol.h"
-#include "init.h"
-#include "main.h" // For minRelayTxFee
+//#include "init.h"
+//#include "main.h" // For minRelayTxFee
 #include "wallet/wallet.h"
  
 #include <boost/assign/list_of.hpp> // for 'map_list_of()'
  
-#include <QIcon>
 #include <QMenu>
 #include <QMessageBox>
 #include <QSortFilterProxyModel>
 #include <QTableWidget>
 #include <QTime>
-
-int GetTimeOffsetFromUtc()
-{
-#if QT_VERSION < 0x050200
-    const QDateTime dateTime1 = QDateTime::currentDateTime();
-    const QDateTime dateTime2 = QDateTime(dateTime1.date(), dateTime1.time(), Qt::UTC);
-    return dateTime1.secsTo(dateTime2);
-#else
-    return QDateTime::currentDateTime().offsetFromUtc();
-#endif
-}
 
 SmartrewardsList::SmartrewardsList(const PlatformStyle *platformStyle, QWidget *parent) :
     QWidget(parent),
@@ -44,16 +32,45 @@ SmartrewardsList::SmartrewardsList(const PlatformStyle *platformStyle, QWidget *
 {
     ui->setupUi(this);
  
-    int columnAliasWidth = 200;
-    int columnAddressWidth = 250;
-    int columnAmountWidth = 160;
-    int columnSmartAmountWidth = 200;
- 
-    ui->tableWidget->setColumnWidth(0, columnAliasWidth);
-    ui->tableWidget->setColumnWidth(1, columnAddressWidth);
-    ui->tableWidget->setColumnWidth(2, columnAmountWidth);
-    ui->tableWidget->setColumnWidth(3, columnSmartAmountWidth);
- 
+   //QMessageBox::information(this,"Hello","test");
+
+   QTableWidget *smartRewardsTable = ui->tableWidget;
+   //QTableWidget *smartRewardsTable = new QTableWidget(this);
+
+   smartRewardsTable->setAlternatingRowColors(true);
+   smartRewardsTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+   smartRewardsTable->setSelectionMode(QAbstractItemView::SingleSelection);
+   smartRewardsTable->setSortingEnabled(true);
+   smartRewardsTable->setColumnCount(4);
+   smartRewardsTable->setShowGrid(false);
+   smartRewardsTable->verticalHeader()->hide();
+
+   smartRewardsTable->setColumnWidth(0, 200);
+   smartRewardsTable->setColumnWidth(1, 250);
+   smartRewardsTable->setColumnWidth(2, 160);
+   smartRewardsTable->setColumnWidth(3, 200);
+
+   // Actions
+   smartRewardsTable->setContextMenuPolicy(Qt::CustomContextMenu);
+
+   QAction *copyAddressAction = new QAction(tr("Copy address"), this);
+   QAction *copyLabelAction = new QAction(tr("Copy label"), this);
+   QAction *copyAmountAction = new QAction(tr("Copy amount"), this);
+   QAction *copyEligibleAmountAction = new QAction(tr("Copy eligible amount"), this);
+
+   contextMenu = new QMenu(this);
+   contextMenu->addAction(copyLabelAction);
+   contextMenu->addAction(copyAddressAction);
+   contextMenu->addAction(copyAmountAction);
+   contextMenu->addAction(copyEligibleAmountAction);
+
+   // Connect actions
+   connect(smartRewardsTable, SIGNAL(customContextMenuRequested(QPoint)), this, SLOT(contextualMenu(QPoint)));
+   connect(copyAddressAction, SIGNAL(triggered()), this, SLOT(copyAddress()));
+   connect(copyLabelAction, SIGNAL(triggered()), this, SLOT(copyLabel()));
+   connect(copyAmountAction, SIGNAL(triggered()), this, SLOT(copyAmount()));
+   connect(copyAmountAction, SIGNAL(triggered()), this, SLOT(copyEligibleAmount()));
+
 }
  
 SmartrewardsList::~SmartrewardsList()
@@ -68,21 +85,16 @@ SmartrewardsList::~SmartrewardsList()
        return;
     }
 
-    ui->tableWidget->setAlternatingRowColors(true);
- 
     int nDisplayUnit = model->getOptionsModel()->getDisplayUnit();
  
     std::map<QString, std::vector<COutput> > mapCoins;
     model->listCoins(mapCoins);
  
-    ui->tableWidget->setColumnCount(4);
-    ui->tableWidget->setShowGrid(false);
- 
     int nNewRow = 0;
 
     //Smartrewards snapshot date
-    QDateTime lastSmartrewardsSnapshotDateTimeUtc = QDateTime::currentDateTime();
-    int currentDay = QDateTime::currentDateTimeUtc().toString("dd").toInt();
+    QDateTime lastSmartrewardsSnapshotDateTimeUtc = QDateTime::currentDateTimeUtc();
+    int currentDay = lastSmartrewardsSnapshotDateTimeUtc.toString("dd").toInt();
     if(currentDay < SMARTREWARDS_DAY){
        lastSmartrewardsSnapshotDateTimeUtc = lastSmartrewardsSnapshotDateTimeUtc.addMonths(-1);
     }
@@ -99,23 +111,13 @@ SmartrewardsList::~SmartrewardsList()
  
         ui->tableWidget->insertRow(nNewRow);
  
-        CAmount amountSum = 0;
-        CAmount smartRewardsSum = 0;
+        CAmount totalAmountSum = 0;
+        CAmount eligibleSmartrewardsSum = 0;
         CAmount txAmount = 0;
-        int nChildren = 0;
         BOOST_FOREACH(const COutput& out, coins.second) {
 
-            amountSum += out.tx->vout[out.i].nValue;
+            totalAmountSum += out.tx->vout[out.i].nValue;
             txAmount = out.tx->vout[out.i].nValue;
-            nChildren++;
- 
-            //address
-            CTxDestination outputAddress;
-            QString sAddress = "";
-            if(ExtractDestination(out.tx->vout[out.i].scriptPubKey, outputAddress))
-            {
-                sAddress = QString::fromStdString(CBitcoinAddress(outputAddress).ToString());
-            }
 
             //tx date
             int64_t nTimeTx = out.tx->GetTxTime();
@@ -124,16 +126,16 @@ SmartrewardsList::~SmartrewardsList()
 
             //check if the tx is after the snapshot date
             if(txDateTimeUtc < lastSmartrewardsSnapshotDateTimeUtc){
-                smartRewardsSum += txAmount;
+                eligibleSmartrewardsSum += txAmount;
             }
 
             ui->tableWidget->setItem(nNewRow, 0, new QTableWidgetItem(sWalletLabel));
             ui->tableWidget->setItem(nNewRow, 1, new QTableWidgetItem(sWalletAddress));
-            ui->tableWidget->setItem(nNewRow, 2, new QTableWidgetItem(BitcoinUnits::format(nDisplayUnit, amountSum)));
+            ui->tableWidget->setItem(nNewRow, 2, new QTableWidgetItem(BitcoinUnits::format(nDisplayUnit, totalAmountSum)));
 
             //check min eligible amount to rewards
-            if(amountSum >= SMARTREWARDS_MINIMUM_AMOUNT){
-                 ui->tableWidget->setItem(nNewRow, 3, new QTableWidgetItem(BitcoinUnits::format(nDisplayUnit, smartRewardsSum)));
+            if(totalAmountSum >= SMARTREWARDS_MINIMUM_AMOUNT * COIN){
+                 ui->tableWidget->setItem(nNewRow, 3, new QTableWidgetItem(BitcoinUnits::format(nDisplayUnit, eligibleSmartrewardsSum)));
             }else{
                  ui->tableWidget->setItem(nNewRow, 3, new QTableWidgetItem(BitcoinUnits::format(nDisplayUnit, 0)));
             }
@@ -145,3 +147,38 @@ SmartrewardsList::~SmartrewardsList()
 
 }
  
+ void SmartrewardsList::contextualMenu(const QPoint &point)
+ {
+     QModelIndex index =  ui->tableWidget->indexAt(point);
+     QModelIndexList selection =  ui->tableWidget->selectionModel()->selectedRows(0);
+     if (selection.empty())
+         return;
+
+     if(index.isValid())
+     {
+         contextMenu->exec(QCursor::pos());
+     }
+ }
+
+ void SmartrewardsList::copyLabel()
+ {
+     GUIUtil::copyEntryData(ui->tableWidget, 0);
+ }
+
+
+ void SmartrewardsList::copyAddress()
+ {
+     GUIUtil::copyEntryData(ui->tableWidget, 1);
+ }
+
+
+ void SmartrewardsList::copyAmount()
+ {
+     GUIUtil::copyEntryData(ui->tableWidget, 2);
+ }
+
+
+ void SmartrewardsList::copyEligibleAmount()
+ {
+     GUIUtil::copyEntryData(ui->tableWidget, 3);
+ }

@@ -17,12 +17,12 @@
 
 #define SMARTREWARDS_DAY                                 25
 #define SMARTREWARDS_UTC_HOUR                            07
-#define SMARTREWARDS_MINIMUM_AMOUNT            100000000000
+#define SMARTREWARDS_MINIMUM_AMOUNT                    1000
 
 //For testing
-//#define SMARTREWARDS_DAY                                 31
+//#define SMARTREWARDS_DAY                                 01
 //#define SMARTREWARDS_UTC_HOUR                            01
-//#define SMARTREWARDS_MINIMUM_AMOUNT              2000000000
+//#define SMARTREWARDS_MINIMUM_AMOUNT                      20
 
 namespace Ui {
     class SmartrewardsList;
@@ -31,6 +31,7 @@ namespace Ui {
 class WalletModel;
 class OptionsModel;
 class PlatformStyle;
+class QModelIndex;
 
 QT_BEGIN_NAMESPACE
 class QItemSelection;
@@ -50,22 +51,19 @@ public:
     ~SmartrewardsList();
 
     void setModel(WalletModel *model);
-    const QString &getReturnValue() const { return returnValue; }
 
 private:
     Ui::SmartrewardsList *ui;
     WalletModel *model;
-    QString returnValue;
-    QSortFilterProxyModel *proxyModel;
     QMenu *contextMenu;
 
-    enum
-    {
-        COLUMN_AMOUNT,
-        COLUMN_LABEL,
-        COLUMN_ADDRESS,
-        COLUMN_DATE
-    };
+public Q_SLOTS:
+    void contextualMenu(const QPoint &);
+    void copyAddress();
+    void copyLabel();
+    void copyAmount();
+    void copyEligibleAmount();
+    //void updateRewardsList();
 
 };
 #endif // SMARTREWARDSLIST_H
