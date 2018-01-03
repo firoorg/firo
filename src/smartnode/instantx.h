@@ -30,6 +30,10 @@ static const int DEFAULT_INSTANTSEND_DEPTH          = 2; // Was 5
 
 static const int MIN_INSTANTSEND_PROTO_VERSION      = 90023;
 
+// For how long we are going to accept votes/locks
+// after we saw the first one for a specific transaction
+static const int INSTANTSEND_LOCK_TIMEOUT_SECONDS   = 15;
+
 extern bool fEnableInstantSend;
 extern int nInstantSendDepth;
 extern int nCompleteTXLocks;
@@ -99,6 +103,7 @@ public:
 
     // remove expired entries from maps
     void CheckAndRemove();
+    bool IsTxLockCandidateTimedOut(const uint256& txHash);
     // verify if transaction lock timed out
     bool IsTxLockRequestTimedOut(const uint256& txHash);
 
@@ -221,10 +226,12 @@ class CTxLockCandidate
 {
 private:
     int nConfirmedHeight; // when corresponding tx is 0-confirmed or conflicted, nConfirmedHeight is -1
+    int64_t nTimeCreated;
 
 public:
     CTxLockCandidate(const CTxLockRequest& txLockRequestIn) :
         nConfirmedHeight(-1),
+        nTimeCreated(GetTime()),
         txLockRequest(txLockRequestIn),
         mapOutPointLocks()
         {}
@@ -243,6 +250,7 @@ public:
 
     void SetConfirmedHeight(int nConfirmedHeightIn) { nConfirmedHeight = nConfirmedHeightIn; }
     bool IsExpired(int nHeight) const;
+    bool IsTimedOut() const;
 
     void Relay() const;
 };

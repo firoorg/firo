@@ -745,6 +745,21 @@ int CInstantSend::GetTransactionLockSignatures(const uint256& txHash)
     return -1;
 }
 
+bool CInstantSend::IsTxLockCandidateTimedOut(const uint256& txHash)
+{
+    if(!fEnableInstantSend) return false;
+
+    LOCK(cs_instantsend);
+
+    std::map<uint256, CTxLockCandidate>::iterator itLockCandidate = mapTxLockCandidates.find(txHash);
+    if (itLockCandidate != mapTxLockCandidates.end()) {
+        return !itLockCandidate->second.IsAllOutPointsReady() &&
+                itLockCandidate->second.IsTimedOut();
+    }
+
+    return false;
+}
+
 bool CInstantSend::IsTxLockRequestTimedOut(const uint256& txHash)
 {
     if(!fEnableInstantSend) return false;
@@ -1148,6 +1163,11 @@ bool CTxLockCandidate::IsExpired(int nHeight) const
 {
     // Locks and votes expire nInstantSendKeepLock blocks after the block corresponding tx was included into.
     return (nConfirmedHeight != -1) && (nHeight - nConfirmedHeight > Params().GetConsensus().nInstantSendKeepLock);
+}
+
+bool CTxLockCandidate::IsTimedOut() const
+{
+    return GetTime() - nTimeCreated > INSTANTSEND_LOCK_TIMEOUT_SECONDS;
 }
 
 void CTxLockCandidate::Relay() const
