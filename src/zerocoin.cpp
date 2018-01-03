@@ -709,7 +709,7 @@ libzerocoin::AccumulatorWitness CZerocoinState::GetWitnessForSpend(CChain *chain
 
     // Now add to the accumulator every coin minted since that moment except pubCoin
     block = coinGroup.lastBlock;
-    do {
+    while(true) {
         if (block->nHeight <= maxHeight && block->mintedPubCoins.count(denomAndId) > 0) {
             vector<CBigNum> &pubCoins = block->mintedPubCoins[denomAndId];
             for (const CBigNum &coin: pubCoins) {
@@ -719,7 +719,9 @@ libzerocoin::AccumulatorWitness CZerocoinState::GetWitnessForSpend(CChain *chain
         }
         if (block != mintBlock)
             block = block->pprev;
-    } while (block != mintBlock);
+        else
+            break;
+    }
 
     return libzerocoin::AccumulatorWitness(ZCParams, accumulator, libzerocoin::PublicCoin(ZCParams, pubCoin, d));
 }
