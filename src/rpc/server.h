@@ -191,6 +191,7 @@ extern std::string HelpExampleCli(const std::string& methodname, const std::stri
 extern std::string HelpExampleRpc(const std::string& methodname, const std::string& args);
 
 extern UniValue getpoolinfo(const UniValue& params, bool fHelp); 
+extern UniValue instantsendtoaddress(const UniValue& params, bool fHelp);
 extern UniValue spork(const UniValue& params, bool fHelp); 
 extern UniValue smartnode(const UniValue& params, bool fHelp); 
 extern UniValue smartnodelist(const UniValue& params, bool fHelp); 
