@@ -141,20 +141,7 @@ bool CInstantSend::CreateTxLockCandidate(const CTxLockRequest& txLockRequest)
         BOOST_REVERSE_FOREACH(const CTxIn& txin, txLockRequest.vin) {
             txLockCandidate.AddOutPointLock(txin.prevout);
         }
-        mapTxLockCandidates.insert(std::make_pair(txHash, txLockCandidate));
-    } else if (!itLockCandidate->second.txLockRequest) {
-        // i.e. empty Transaction Lock Candidate was created earlier, let's update it with actual data
-        itLockCandidate->second.txLockRequest = txLockRequest;
-        if (itLockCandidate->second.IsTimedOut()) {
-            LogPrintf("CInstantSend::CreateTxLockCandidate -- timed out, txid=%s\n", txHash.ToString());
-            return false;
-        }
-        LogPrintf("CInstantSend::CreateTxLockCandidate -- update empty, txid=%s\n", txHash.ToString());
-
-        // all inputs should already be checked by txLockRequest.IsValid() above, just use them now
-        BOOST_REVERSE_FOREACH(const CTxIn& txin, txLockRequest.vin) {
-            itLockCandidate->second.AddOutPointLock(txin.prevout);
-        }    
+        mapTxLockCandidates.insert(std::make_pair(txHash, txLockCandidate));   
     } else {
         LogPrint("instantsend", "CInstantSend::CreateTxLockCandidate -- seen, txid=%s\n", txHash.ToString());
     }
@@ -276,7 +263,7 @@ bool CInstantSend::ProcessTxLockVote(CNode* pfrom, CTxLockVote& vote)
     }
     
     // relay valid vote asap
-    vote.Relay(connman);
+//    vote.Relay(connman);
 
     // Smartnodes will sometimes propagate votes before the transaction is known to the client,
     // will actually process only after the lock request itself has arrived
