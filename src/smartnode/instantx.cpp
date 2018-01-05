@@ -17,6 +17,7 @@
 #include "txmempool.h"
 #include "util.h"
 #include "consensus/validation.h"
+#include "validationinterface.h"
 
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/thread.hpp>
