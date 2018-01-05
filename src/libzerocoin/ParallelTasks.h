@@ -26,6 +26,14 @@ public:
 
     // clear all the tasks from the waiting list
     void Reset();
+
+    // helper class to put thread interruption on pause
+    class DoNotDisturb {
+    private:
+        boost::this_thread::disable_interruption dnd;
+    public:
+        DoNotDisturb() {}
+    };
 };
 
 }
