@@ -503,7 +503,7 @@ bool CInstantSend::ResolveConflicts(const CTxLockCandidate& txLockCandidate, int
             return false; // can't/shouldn't do anything
         } else if (mempool.mapNextTx.count(txin.prevout)) {
             // check if it's in mempool
-            hashConflicting = mempool.mapNextTx[txin.prevout].ptx->GetHash();
+//            hashConflicting = mempool.mapNextTx[txin.prevout].ptx->GetHash();
             if(txHash == hashConflicting) continue; // matches current, not a conflict, skip to next txin
             // conflicting with tx in mempool
             fMempoolConflict = true;
@@ -852,12 +852,12 @@ void CInstantSend::SyncTransaction(const CTransaction& tx, const CBlock* pblock)
         ++itOrphanVote;
     }
 }
-
-std::string CInstantSend::ToString()
-{
-    LOCK(cs_instantsend);
-    return strprintf("Lock Candidates: %llu, Votes %llu", mapTxLockCandidates.size(), mapTxLockVotes.size());
-}
+//
+//std::string CInstantSend::ToString()
+//{
+//    LOCK(cs_instantsend);
+//    return strprintf("Lock Candidates: %llu, Votes %llu", mapTxLockCandidates.size(), mapTxLockVotes.size());
+//}
 
 //
 // CTxLockRequest
