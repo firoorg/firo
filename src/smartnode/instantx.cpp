@@ -6,6 +6,7 @@
 #include "darksend.h"
 #include "instantx.h"
 #include "key.h"
+#include "main.cpp"
 #include "main.h"
 #include "smartnodesync.h"
 #include "smartnodeman.h"
