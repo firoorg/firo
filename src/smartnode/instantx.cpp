@@ -6,6 +6,7 @@
 #include "darksend.h"
 #include "instantx.h"
 #include "key.h"
+#include "validation.h"
 #include "main.h"
 #include "smartnodesync.h"
 #include "smartnodeman.h"
@@ -16,6 +17,7 @@
 #include "txmempool.h"
 #include "util.h"
 #include "consensus/validation.h"
+#include "validationinterface.h"
 
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/thread.hpp>
@@ -141,20 +143,7 @@ bool CInstantSend::CreateTxLockCandidate(const CTxLockRequest& txLockRequest)
         BOOST_REVERSE_FOREACH(const CTxIn& txin, txLockRequest.vin) {
             txLockCandidate.AddOutPointLock(txin.prevout);
         }
-        mapTxLockCandidates.insert(std::make_pair(txHash, txLockCandidate));
-    } else if (!itLockCandidate->second.txLockRequest) {
-        // i.e. empty Transaction Lock Candidate was created earlier, let's update it with actual data
-        itLockCandidate->second.txLockRequest = txLockRequest;
-        if (itLockCandidate->second.IsTimedOut()) {
-            LogPrintf("CInstantSend::CreateTxLockCandidate -- timed out, txid=%s\n", txHash.ToString());
-            return false;
-        }
-        LogPrintf("CInstantSend::CreateTxLockCandidate -- update empty, txid=%s\n", txHash.ToString());
-
-        // all inputs should already be checked by txLockRequest.IsValid() above, just use them now
-        BOOST_REVERSE_FOREACH(const CTxIn& txin, txLockRequest.vin) {
-            itLockCandidate->second.AddOutPointLock(txin.prevout);
-        }    
+        mapTxLockCandidates.insert(std::make_pair(txHash, txLockCandidate));   
     } else {
         LogPrint("instantsend", "CInstantSend::CreateTxLockCandidate -- seen, txid=%s\n", txHash.ToString());
     }
@@ -276,7 +265,7 @@ bool CInstantSend::ProcessTxLockVote(CNode* pfrom, CTxLockVote& vote)
     }
     
     // relay valid vote asap
-    vote.Relay(connman);
+//    vote.Relay(connman);
 
     // Smartnodes will sometimes propagate votes before the transaction is known to the client,
     // will actually process only after the lock request itself has arrived
@@ -864,6 +853,12 @@ void CInstantSend::SyncTransaction(const CTransaction& tx, const CBlock* pblock)
         ++itOrphanVote;
     }
 }
+//
+//std::string CInstantSend::ToString()
+//{
+//    LOCK(cs_instantsend);
+//    return strprintf("Lock Candidates: %llu, Votes %llu", mapTxLockCandidates.size(), mapTxLockVotes.size());
+//}
 
 std::string CInstantSend::ToString()
 {
