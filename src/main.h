@@ -19,6 +19,7 @@
 #include "versionbits.h"
 #include "timedata.h"
 #include "chainparams.h"
+#include "txmempool.h"
 
 #include <algorithm>
 #include <exception>
@@ -30,12 +31,14 @@
 #include <vector>
 
 #include <boost/unordered_map.hpp>
+#include <boost/filesystem/path.hpp>
 
 class CBlockIndex;
 class CBlockTreeDB;
 class CBloomFilter;
 class CChainParams;
 class CInv;
+class CConnman;
 class CScriptCheck;
 class CTxMemPool;
 class CValidationInterface;
@@ -50,7 +53,7 @@ static const bool DEFAULT_WHITELISTRELAY = true;
 /** Default for DEFAULT_WHITELISTFORCERELAY. */
 static const bool DEFAULT_WHITELISTFORCERELAY = true;
 /** Default for -minrelaytxfee, minimum relay fee for transactions */
-static const unsigned int DEFAULT_MIN_RELAY_TX_FEE = CENT / 10;
+static const unsigned int DEFAULT_MIN_RELAY_TX_FEE = CENT / 100;
 //! -maxtxfee default
 static const CAmount DEFAULT_TRANSACTION_MAXFEE = COIN;
 //! Discourage users to set fees higher than this amount (in satoshis) per kB
@@ -187,6 +190,9 @@ extern CAmount maxTxFee;
 /** If the tip is older than this (in seconds), the node is considered to be in initial block download. */
 extern int64_t nMaxTipAge;
 extern bool fEnableReplacement;
+
+extern bool fLargeWorkForkFound;
+extern bool fLargeWorkInvalidChainFound;
 
 /** Best header we've seen so far (used for getheaders queries' starting points). */
 extern CBlockIndex *pindexBestHeader;
