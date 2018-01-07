@@ -328,8 +328,9 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(WalletModelTransaction &tran
     {
         LOCK2(cs_main, wallet->cs_wallet);
         CWalletTx *newTx = transaction.getTransaction();
+        QList<SendCoinsRecipient> recipients = transaction.getRecipients();
 
-        Q_FOREACH(const SendCoinsRecipient &rcp, transaction.getRecipients())
+        Q_FOREACH(const SendCoinsRecipient &rcp, recipients)
         {
             if (rcp.paymentRequest.IsInitialized())
             {

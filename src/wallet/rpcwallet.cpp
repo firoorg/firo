@@ -13,6 +13,7 @@
 #include "netbase.h"
 #include "policy/rbf.h"
 #include "rpc/server.h"
+#include "smartnode/instantx.h"
 #include "timedata.h"
 #include "util.h"
 #include "utilmoneystr.h"
@@ -1673,7 +1674,7 @@ UniValue listaccounts(const UniValue& params, bool fHelp)
         string strSentAccount;
         list<COutputEntry> listReceived;
         list<COutputEntry> listSent;
-        int nDepth = wtx.GetDepthInMainChain();
+        int nDepth = wtx.GetDepthInMainChain(fAddLockConf);
         if (wtx.GetBlocksToMaturity() > 0 || nDepth < 0)
             continue;
         wtx.GetAmounts(listReceived, listSent, nFee, strSentAccount, includeWatchonly);

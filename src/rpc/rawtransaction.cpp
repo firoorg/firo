@@ -20,6 +20,7 @@
 #include "script/script_error.h"
 #include "script/sign.h"
 #include "script/standard.h"
+#include "smartnode/instantx.h"
 #include "txmempool.h"
 #include "uint256.h"
 #include "utilstrencodings.h"
