@@ -139,6 +139,7 @@ public:
     bool IsValid(bool fRequireUnspent = true) const;
     CAmount GetMinFee() const;
     int GetMaxSignatures() const;
+    bool IsTimedOut() const;
     
     explicit operator bool() const
     {
