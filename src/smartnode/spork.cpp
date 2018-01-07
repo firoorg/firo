@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "darksend.h"
+#include "../chainparams.h"
 #include "../main.h"
 #include "spork.h"
 
