@@ -381,7 +381,7 @@ CNode* FindNode(const NodeId nodeid)
             return (pnode);
     return NULL;
 }
-
+/*  Duplicate of line 471
 CNode *ConnectNode(CAddress addrConnect, const char *pszDest, bool fCountFailure, bool fConnectToSmartnode) {
     if (pszDest == NULL) {
         // we clean smartnode connections in CSmartnodeMan::ProcessSmartnodeConnections()
@@ -401,7 +401,7 @@ CNode *ConnectNode(CAddress addrConnect, const char *pszDest, bool fCountFailure
             return pnode;
         }
     }
-
+*/
     /// debug print
     LogPrint("net", "trying connection %s lastseen=%.1fhrs\n",
              pszDest ? pszDest : addrConnect.ToString(),
