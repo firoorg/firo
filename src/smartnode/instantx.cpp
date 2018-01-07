@@ -6,7 +6,6 @@
 #include "darksend.h"
 #include "instantx.h"
 #include "key.h"
-//#include "validation.h"
 #include "main.h"
 #include "smartnodesync.h"
 #include "smartnodeman.h"
@@ -44,7 +43,6 @@ CInstantSend instantsend;
 
 void CInstantSend::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataStream& vRecv)
 {
-    if(fLiteMode) return; // disable all Dash specific functionality
     if(!sporkManager.IsSporkActive(SPORK_2_INSTANTSEND_ENABLED)) return;
 
     // Ignore any InstantSend messages until smartnode list is synced
@@ -265,7 +263,7 @@ bool CInstantSend::ProcessTxLockVote(CNode* pfrom, CTxLockVote& vote)
     }
     
     // relay valid vote asap
-//    vote.Relay(connman);
+    vote.Relay(connman);
 
     // Smartnodes will sometimes propagate votes before the transaction is known to the client,
     // will actually process only after the lock request itself has arrived
@@ -504,7 +502,7 @@ bool CInstantSend::ResolveConflicts(const CTxLockCandidate& txLockCandidate, int
             return false; // can't/shouldn't do anything
         } else if (mempool.mapNextTx.count(txin.prevout)) {
             // check if it's in mempool
-//            hashConflicting = mempool.mapNextTx[txin.prevout].ptx->GetHash();
+            hashConflicting = mempool.mapNextTx[txin.prevout].ptx->GetHash();
             if(txHash == hashConflicting) continue; // matches current, not a conflict, skip to next txin
             // conflicting with tx in mempool
             fMempoolConflict = true;
@@ -853,12 +851,12 @@ void CInstantSend::SyncTransaction(const CTransaction& tx, const CBlock* pblock)
         ++itOrphanVote;
     }
 }
-//
-//std::string CInstantSend::ToString()
-//{
-//    LOCK(cs_instantsend);
-//    return strprintf("Lock Candidates: %llu, Votes %llu", mapTxLockCandidates.size(), mapTxLockVotes.size());
-//}
+
+std::string CInstantSend::ToString()
+{
+    LOCK(cs_instantsend);
+    return strprintf("Lock Candidates: %llu, Votes %llu", mapTxLockCandidates.size(), mapTxLockVotes.size());
+}
 
 //
 // CTxLockRequest
