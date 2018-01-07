@@ -196,8 +196,6 @@ public:
     bool IsValid(CNode* pnode) const;
     void SetConfirmedHeight(int nConfirmedHeightIn) { nConfirmedHeight = nConfirmedHeightIn; }
     bool IsExpired(int nHeight) const;
-    bool IsTimedOut() const;
-    bool IsFailed() const;
 
     bool Sign();
     bool CheckSignature() const;
