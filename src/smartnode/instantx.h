@@ -104,6 +104,7 @@ public:
 
     // remove expired entries from maps
     void CheckAndRemove();
+    bool IsTxLockCandidateTimedOut(const uint256& txHash);
     // verify if transaction lock timed out
     bool IsTxLockRequestTimedOut(const uint256& txHash);
 
@@ -126,8 +127,14 @@ private:
 public:
     static const int WARN_MANY_INPUTS       = 100;
 
-    CTxLockRequest() = default;
-    CTxLockRequest(const CTransaction& tx) : CTransaction(tx) {};
+    CTxLockRequest() :		 +    CTxLockRequest() = default;
+         CTransaction(),		 +    CTxLockRequest(const CTransaction& tx) : CTransaction(tx) {};
+         nTimeCreated(GetTime())		
+         {}		
+     CTxLockRequest(const CTransaction& tx) :		
+         CTransaction(tx),		
+         nTimeCreated(GetTime())		
+         {}
 
     bool IsValid(bool fRequireUnspent = true) const;
     CAmount GetMinFee() const;
