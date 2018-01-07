@@ -853,7 +853,7 @@ UniValue sendrawtransaction(const UniValue& params, bool fHelp)
             "\nArguments:\n"
             "1. \"hexstring\"    (string, required) The hex string of the raw transaction)\n"
             "2. allowhighfees    (boolean, optional, default=false) Allow high fees\n"
-            "3. instantsend    (boolean, optional, default=false) Use InstantSend to send this transaction\n"
+            "3. instantsend    (boolean, optional, default=false) Use InstantPay to send this transaction\n"
             "\nResult:\n"
             "\"hex\"             (string) The transaction hash in hex\n"
             "\nExamples:\n"
@@ -891,7 +891,7 @@ UniValue sendrawtransaction(const UniValue& params, bool fHelp)
     if (!fHaveMempool && !fHaveChain) {
         // push to local node and sync with wallets
         if (fInstantSend && !instantsend.ProcessTxLockRequest(tx)) {
-            throw JSONRPCError(RPC_TRANSACTION_ERROR, "Not a valid InstantSend transaction, see debug.log for more info");
+            throw JSONRPCError(RPC_TRANSACTION_ERROR, "Not a valid InstantPay transaction, see debug.log for more info");
         }
         CValidationState state;
         bool fMissingInputs;
