@@ -381,7 +381,7 @@ CNode* FindNode(const NodeId nodeid)
             return (pnode);
     return NULL;
 }
-/*  Duplicate of line 471
+
 CNode *ConnectNode(CAddress addrConnect, const char *pszDest, bool fCountFailure, bool fConnectToSmartnode) {
     if (pszDest == NULL) {
         // we clean smartnode connections in CSmartnodeMan::ProcessSmartnodeConnections()
@@ -467,7 +467,7 @@ CNode *ConnectNode(CAddress addrConnect, const char *pszDest, bool fCountFailure
 
     return NULL;
 }
-*/
+/*
 CNode* ConnectNode(CAddress addrConnect, const char *pszDest, bool fConnectToSmartnode) 
 { 
     if (pszDest == NULL) { 
@@ -530,7 +530,7 @@ CNode* ConnectNode(CAddress addrConnect, const char *pszDest, bool fConnectToSma
  
     return NULL; 
 } 
-
+*/
 static void DumpBanlist()
 {
     CNode::SweepBanned(); // clean unused entries (if bantime has expired)
