@@ -104,7 +104,6 @@ public:
 
     // remove expired entries from maps
     void CheckAndRemove();
-    bool IsTxLockCandidateTimedOut(const uint256& txHash);
     // verify if transaction lock timed out
     bool IsTxLockRequestTimedOut(const uint256& txHash);
 
@@ -112,6 +111,8 @@ public:
 
     void UpdatedBlockTip(const CBlockIndex *pindex);
     void SyncTransaction(const CTransaction& tx, const CBlock* pblock);
+    
+    std::string ToString();
 };
 
 class CTxLockRequest : public CTransaction
@@ -125,19 +126,17 @@ private:
 public:
     static const int WARN_MANY_INPUTS       = 100;
 
-    CTxLockRequest() :
-        CTransaction(),
-        nTimeCreated(GetTime())
-        {}
-    CTxLockRequest(const CTransaction& tx) :
-        CTransaction(tx),
-        nTimeCreated(GetTime())
-        {}
+    CTxLockRequest() = default;
+    CTxLockRequest(const CTransaction& tx) : CTransaction(tx) {};
 
     bool IsValid(bool fRequireUnspent = true) const;
     CAmount GetMinFee() const;
     int GetMaxSignatures() const;
-    bool IsTimedOut() const;
+    
+    explicit operator bool() const
+    {
+        return *this != CTxLockRequest();
+    }
 };
 
 class CTxLockVote
@@ -190,6 +189,8 @@ public:
     bool IsValid(CNode* pnode) const;
     void SetConfirmedHeight(int nConfirmedHeightIn) { nConfirmedHeight = nConfirmedHeightIn; }
     bool IsExpired(int nHeight) const;
+    bool IsTimedOut() const;
+    bool IsFailed() const;
 
     bool Sign();
     bool CheckSignature() const;
