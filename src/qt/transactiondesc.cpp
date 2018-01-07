@@ -57,11 +57,11 @@ QString TransactionDesc::FormatTxStatus(const CWalletTx& wtx)
         // InstantSend
         strTxStatus += " (";
         if(instantsend.IsLockedInstantSendTransaction(wtx.GetHash())) {
-            strTxStatus += tr("verified via InstantSend");
+            strTxStatus += tr("verified via InstantPay");
         } else if(!instantsend.IsTxLockCandidateTimedOut(wtx.GetHash())) {
-            strTxStatus += tr("InstantSend verification in progress - %1 of %2 signatures").arg(nSignatures).arg(nSignaturesMax);
+            strTxStatus += tr("InstantPay verification in progress - %1 of %2 signatures").arg(nSignatures).arg(nSignaturesMax);
         } else {
-            strTxStatus += tr("InstantSend verification failed");
+            strTxStatus += tr("InstantPay verification failed");
         }
         strTxStatus += ")";
 

@@ -468,7 +468,7 @@ CNode *ConnectNode(CAddress addrConnect, const char *pszDest, bool fCountFailure
     return NULL;
 }
 
-CNode* ConnectNodeDash(CAddress addrConnect, const char *pszDest, bool fConnectToSmartnode) 
+CNode* ConnectNode(CAddress addrConnect, const char *pszDest, bool fConnectToSmartnode) 
 { 
     if (pszDest == NULL) { 
         // we clean smartnode connections in CSmartnodeMan::ProcessSmartnodeConnections() 
@@ -1482,7 +1482,7 @@ void ThreadMapPort()
             }
         }
 
-        std::string strDesc = "Smartcash " + FormatFullVersion();
+        std::string strDesc = "SmartCash " + FormatFullVersion();
 
         try {
             while (true) {

@@ -184,7 +184,7 @@ bool parseBitcoinURI(const QUrl &uri, SendCoinsRecipient *out)
             rv.label = i->second;
             fShouldReturnFalse = false;
         }
-        if (i->first == "IS")
+        if (i->first == "IP")
         {
             if(i->second.compare(QString("1")) == 0)
                 rv.fUseInstantSend = true;
@@ -259,7 +259,7 @@ QString formatBitcoinURI(const SendCoinsRecipient &info)
 
     if(info.fUseInstantSend)
     {
-        ret += QString("%1IS=1").arg(paramCount == 0 ? "?" : "&");
+        ret += QString("%1IP=1").arg(paramCount == 0 ? "?" : "&");
         paramCount++;
     }
     

@@ -27,6 +27,8 @@ extern CInstantSend instantsend;
     (1000/2900.0)**5 = 0.004875397277841433
 */
 static const int INSTANTSEND_CONFIRMATIONS_REQUIRED = 2; // Was 6
+// Want to raise this to 11 (or security of 10 minutes of blocks) 
+// Multiple input mobile wallets are needed before this can work.
 static const int DEFAULT_INSTANTSEND_DEPTH          = 2; // Was 5
 
 static const int MIN_INSTANTSEND_PROTO_VERSION      = 90023;
