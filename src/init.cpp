@@ -770,6 +770,11 @@ void InitParameterInteraction()
         if (SoftSetBoolArg("-whitelistrelay", true))
             LogPrintf("%s: parameter interaction: -whitelistforcerelay=1 -> setting -whitelistrelay=1\n", __func__);
     }
+
+    if(!GetBoolArg("-enableinstantsend", fEnableInstantSend)){
+        if (SoftSetArg("-instantsenddepth", 0))
+            LogPrintf("%s: parameter interaction: -enableinstantsend=false -> setting -nInstantSendDepth=0\n", __func__);
+    }
 }
 
 static std::string ResolveErrMsg(const char * const optname, const std::string& strBind)
@@ -1564,6 +1569,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
         }
     }
 
+#ifdef ENABLE_WALLET
     LogPrintf("Using SmartNode config file %s\n", GetSmartnodeConfigFile().string());
 
     if (GetBoolArg("-snconflock", true) && pwalletMain && (smartnodeConfig.getCount() > 0)) {
@@ -1597,6 +1603,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     nPrivateSendRounds = std::min(std::max(nPrivateSendRounds, 2), nLiquidityProvider ? 99999 : 16);
     nPrivateSendAmount = GetArg("-privatesendamount", DEFAULT_PRIVATESEND_AMOUNT);
     nPrivateSendAmount = std::min(std::max(nPrivateSendAmount, 2), 999999);
+#endif // ENABLE_WALLET
 
     fEnableInstantSend = GetBoolArg("-enableinstantsend", 1);
     nInstantSendDepth = GetArg("-instantsenddepth", DEFAULT_INSTANTSEND_DEPTH);

@@ -247,6 +247,15 @@ bool LogAcceptCategory(const char* category)
             const vector<string>& categories = mapMultiArgs["-debug"];
             ptrCategory.reset(new set<string>(categories.begin(), categories.end()));
             // thread_specific_ptr automatically deletes the set when the thread ends.
+            if(ptrCategory->count(string("smartcash"))) {
+                ptrCategory->insert(string("privatesend"));
+                ptrCategory->insert(string("instantsend"));
+                ptrCategory->insert(string("masternode"));
+                ptrCategory->insert(string("spork"));
+                ptrCategory->insert(string("keepass"));
+                ptrCategory->insert(string("mnpayments"));
+                ptrCategory->insert(string("gobject"));
+            }
         }
         const set<string>& setCategories = *ptrCategory.get();
 
