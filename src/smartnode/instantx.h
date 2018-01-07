@@ -120,7 +120,7 @@ class CTxLockRequest : public CTransaction
 {
 private:
     static const int TIMEOUT_SECONDS        = 60;
-    static const CAmount MIN_FEE            = 0.002 * COIN;
+    static const CAmount MIN_FEE            = 0.001 * COIN;
 
     int64_t nTimeCreated;
 
@@ -197,6 +197,8 @@ public:
     bool IsValid(CNode* pnode) const;
     void SetConfirmedHeight(int nConfirmedHeightIn) { nConfirmedHeight = nConfirmedHeightIn; }
     bool IsExpired(int nHeight) const;
+    bool IsTimedOut() const;
+    bool IsFailed() const;
 
     bool Sign();
     bool CheckSignature() const;
