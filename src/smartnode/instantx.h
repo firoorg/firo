@@ -127,14 +127,14 @@ private:
 public:
     static const int WARN_MANY_INPUTS       = 100;
 
-    CTxLockRequest() :		 +    CTxLockRequest() = default;
-         CTransaction(),		 +    CTxLockRequest(const CTransaction& tx) : CTransaction(tx) {};
-         nTimeCreated(GetTime())		
-         {}		
-     CTxLockRequest(const CTransaction& tx) :		
-         CTransaction(tx),		
-         nTimeCreated(GetTime())		
-         {}
+    CTxLockRequest() :
+        CTransaction(),
+        nTimeCreated(GetTime())
+        {}
+    CTxLockRequest(const CTransaction& tx) :
+        CTransaction(tx),
+        nTimeCreated(GetTime())
+        {}
 
     bool IsValid(bool fRequireUnspent = true) const;
     CAmount GetMinFee() const;
