@@ -250,9 +250,8 @@ bool LogAcceptCategory(const char* category)
             if(ptrCategory->count(string("smartcash"))) {
                 ptrCategory->insert(string("privatesend"));
                 ptrCategory->insert(string("instantsend"));
-                ptrCategory->insert(string("masternode"));
+                ptrCategory->insert(string("smartnode"));
                 ptrCategory->insert(string("spork"));
-                ptrCategory->insert(string("keepass"));
                 ptrCategory->insert(string("mnpayments"));
                 ptrCategory->insert(string("gobject"));
             }
