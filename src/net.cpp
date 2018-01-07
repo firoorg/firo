@@ -401,7 +401,7 @@ CNode *ConnectNode(CAddress addrConnect, const char *pszDest, bool fCountFailure
             return pnode;
         }
     }
-*/
+
     /// debug print
     LogPrint("net", "trying connection %s lastseen=%.1fhrs\n",
              pszDest ? pszDest : addrConnect.ToString(),
@@ -467,7 +467,7 @@ CNode *ConnectNode(CAddress addrConnect, const char *pszDest, bool fCountFailure
 
     return NULL;
 }
-
+*/
 CNode* ConnectNode(CAddress addrConnect, const char *pszDest, bool fConnectToSmartnode) 
 { 
     if (pszDest == NULL) { 
