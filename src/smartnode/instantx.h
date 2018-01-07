@@ -118,7 +118,7 @@ class CTxLockRequest : public CTransaction
 {
 private:
     static const int TIMEOUT_SECONDS        = 60;
-    static const CAmount MIN_FEE            = 0.001 * COIN;
+    static const CAmount MIN_FEE            = 0.002 * COIN;
 
     int64_t nTimeCreated;
 
