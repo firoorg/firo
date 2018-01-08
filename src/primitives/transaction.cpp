@@ -10,9 +10,9 @@
 #include "utilstrencodings.h"
 
 /** Fees smaller than this (in ztoshi) are considered zero fee (for transaction creation) */
-int64_t CTransaction::nMinTxFee = 1000000; // 0.01 smart
+int64_t CTransaction::nMinTxFee = CENT / 10; // 0.001 smart
 /** Fees smaller than this (in ztoshi) are considered zero fee (for relaying) */
-int64_t CTransaction::nMinRelayTxFee = 1000000; // 0.01 smart
+int64_t CTransaction::nMinRelayTxFee = CENT / 10; // 0.001 smart
 /** Default for -blockprioritysize, maximum space for zero/low-fee transactions **/
 static const unsigned int DEFAULT_BLOCK_PRIORITY_SIZE = 50000; // 50KB
 /** Dust Soft Limit, allowed with additional fee per output */
