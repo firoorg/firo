@@ -2277,8 +2277,7 @@ instance_of_cnetcleanup;
 void RelayTransaction(const CTransaction& tx)
 {
     uint256 hash = tx.GetHash();
-    int nInv = static_cast<bool>(CPrivateSend::GetDSTX(hash)) ? MSG_DSTX :
-                (instantsend.HasTxLockRequest(hash) ? MSG_TXLOCK_REQUEST : MSG_TX);
+    int nInv = static_cast<bool>(instantsend.HasTxLockRequest(hash) ? MSG_TXLOCK_REQUEST : MSG_TX);
     CInv inv(nInv, hash);
 //    {
 //        LOCK(cs_mapRelay);
