@@ -244,7 +244,8 @@ extern const char *GETBLOCKTXN;
  */
 extern const char *BLOCKTXN;
    
-extern const char *TXLOCKVOTE;    
+extern const char *TXLOCKVOTE;
+extern const char *TXLOCKREQUEST;
 extern const char *SPORK; 
 extern const char *GETSPORKS; 
 extern const char *SMARTNODEPAYMENTVOTE; 
@@ -262,8 +263,6 @@ extern const char *DSSIGNFINALTX;
 extern const char *DSCOMPLETE; 
 extern const char *DSFINALTX; 
 extern const char *DSTX;
-extern const char *TXLOCKREQUEST;
-extern const char *TXLOCKVOTE;
 };
 
 /* Get a vector of all valid message types (see above) */
