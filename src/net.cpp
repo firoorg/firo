@@ -21,6 +21,10 @@
 #include "ui_interface.h"
 #include "utilstrencodings.h"
 
+#include "smartnode/instantx.h"
+#include "smartnode/smartnodesync.h"
+#include "smartnode/smartnodeman.h"
+
 #ifdef WIN32
 #include <string.h>
 #else
