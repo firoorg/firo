@@ -108,6 +108,7 @@ const static std::string allNetMessageTypes[] = {
     NetMsgType::GETSPORKS, 
     NetMsgType::SMARTNODEPAYMENTSYNC, 
     NetMsgType::TXLOCKREQUEST, 
+    NetMsgType::TXLOCKVOTE,
     NetMsgType::MNANNOUNCE, 
     NetMsgType::MNPING, 
     NetMsgType::DSACCEPT, 
