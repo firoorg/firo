@@ -1077,8 +1077,8 @@ bool CTxLockVote::Sign()
 
 void CTxLockVote::Relay() const
 {
-//    CInv inv(MSG_TXLOCK_VOTE, GetHash());
-//    RelayInv(inv);
+    CInv inv(MSG_TXLOCK_VOTE, GetHash());
+    RelayInv(inv);
 }
 
 bool CTxLockVote::IsExpired(int nHeight) const
