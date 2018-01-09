@@ -1421,7 +1421,7 @@ bool CheckTransaction(const CTransaction& tx, CValidationState& state, uint256 h
                     found_5 = true;
 	            }
 		// Burn option
-                if (blockRotation >= 39 && blockRotation <= 94 && output.scriptPubKey == FOUNDER_5_SCRIPT && abs(output.nValue - reward - 2000) < 2 ) {
+                if (blockRotation >= 39 && blockRotation <= 94 && output.scriptPubKey == FOUNDER_5_SCRIPT && abs(output.nValue - (reward - 200000000000)) < 2 ) {
                     found_5 = true;
 	            }
               }
