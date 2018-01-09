@@ -43,31 +43,31 @@ CInstantSend instantsend;
 
 void CInstantSend::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataStream& vRecv)
 {
-    if(!sporkManager.IsSporkActive(SPORK_2_INSTANTSEND_ENABLED)) return;
+//    if(!sporkManager.IsSporkActive(SPORK_2_INSTANTSEND_ENABLED)) return;
 
     // Ignore any InstantSend messages until smartnode list is synced
     if(!smartnodeSync.IsSmartnodeListSynced()) return;
 
     // NOTE: NetMsgType::TXLOCKREQUEST is handled via ProcessMessage() in main.cpp
 
-    if (strCommand == NetMsgType::TXLOCKVOTE) // InstantSend Transaction Lock Consensus Votes
-    {
-        if(pfrom->nVersion < MIN_INSTANTSEND_PROTO_VERSION) return;
-
-        CTxLockVote vote;
-        vRecv >> vote;
-
-        LOCK2(cs_main, cs_instantsend);
-
-        uint256 nVoteHash = vote.GetHash();
-
-        if(mapTxLockVotes.count(nVoteHash)) return;
-        mapTxLockVotes.insert(std::make_pair(nVoteHash, vote));
-
-        ProcessTxLockVote(pfrom, vote);
-
-        return;
-    }
+  //  if (strCommand == NetMsgType::TXLOCKVOTE) // InstantSend Transaction Lock Consensus Votes
+  //  {
+  //      if(pfrom->nVersion < MIN_INSTANTSEND_PROTO_VERSION) return;
+//
+  //      CTxLockVote vote;
+  //      vRecv >> vote;
+//
+  //      LOCK2(cs_main, cs_instantsend);
+//
+  //      uint256 nVoteHash = vote.GetHash();
+//
+  //      if(mapTxLockVotes.count(nVoteHash)) return;
+  //      mapTxLockVotes.insert(std::make_pair(nVoteHash, vote));
+//
+  //      ProcessTxLockVote(pfrom, vote);
+//
+ //       return;
+  //  }
 }
 
 bool CInstantSend::ProcessTxLockRequest(const CTxLockRequest& txLockRequest)
@@ -1075,17 +1075,17 @@ bool CTxLockVote::Sign()
     return true;
 }
 
-void CTxLockVote::Relay() const
-{
-    CInv inv(MSG_TXLOCK_VOTE, GetHash());
-    RelayInv(inv);
-}
+//void CTxLockVote::Relay() const
+//{
+ //   CInv inv(MSG_TXLOCK_VOTE, GetHash());
+ //   RelayInv(inv);
+//}
 
-bool CTxLockVote::IsExpired(int nHeight) const
-{
+//bool CTxLockVote::IsExpired(int nHeight) const
+//{
     // Locks and votes expire nInstantSendKeepLock blocks after the block corresponding tx was included into.
-    return (nConfirmedHeight != -1) && (nHeight - nConfirmedHeight > Params().GetConsensus().nInstantSendKeepLock);
-}
+//    return (nConfirmedHeight != -1) && (nHeight - nConfirmedHeight > Params().GetConsensus().nInstantSendKeepLock);
+//}
 
 //
 // COutPointLock
@@ -1171,16 +1171,16 @@ int CTxLockCandidate::CountVotes() const
     return nCountVotes;
 }
 
-bool CTxLockCandidate::IsExpired(int nHeight) const
-{
+//bool CTxLockCandidate::IsExpired(int nHeight) const
+//{
     // Locks and votes expire nInstantSendKeepLock blocks after the block corresponding tx was included into.
-    return (nConfirmedHeight != -1) && (nHeight - nConfirmedHeight > Params().GetConsensus().nInstantSendKeepLock);
-}
+//    return (nConfirmedHeight != -1) && (nHeight - nConfirmedHeight > Params().GetConsensus().nInstantSendKeepLock);
+//}
 
-bool CTxLockCandidate::IsTimedOut() const
-{
-    return GetTime() - nTimeCreated > INSTANTSEND_LOCK_TIMEOUT_SECONDS;
-}
+//bool CTxLockCandidate::IsTimedOut() const
+//{
+//    return GetTime() - nTimeCreated > INSTANTSEND_LOCK_TIMEOUT_SECONDS;
+//}
 
 void CTxLockCandidate::Relay() const
 {
