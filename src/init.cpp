@@ -1411,7 +1411,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
             // first suggest a reindex
             if (!fReset) {
                 bool fRet = uiInterface.ThreadSafeQuestion(
-                    strLoadError + ".\n\n" + _("Do you want to rebuild the block database now?  This can take a significan amount of time and is often faster to remove blocks and chainstate directories and restart wallet"),
+                    strLoadError + ".\n\n" + _("Do you want to rebuild the block database now?  This can take a significant amount of time and is often faster to remove blocks and chainstate directories and restart wallet"),
                     strLoadError + ".\nPlease restart with -reindex or -reindex-chainstate to recover.",
                     "", CClientUIInterface::MSG_ERROR | CClientUIInterface::BTN_ABORT);
                 if (fRet) {
