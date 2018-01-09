@@ -1397,7 +1397,7 @@ void CWallet::ReacceptWalletTransactions() {
 }
 
 bool CWalletTx::RelayWalletTransaction(bool fCheckInputs, std::string strCommand) {
-    LogPrintf("CWalletTx::RelayWalletTransaction()\n");
+    //LogPrintf("CWalletTx::RelayWalletTransaction()\n");
     assert(pwallet->GetBroadcastTransactions());
     if (!IsCoinBase() && !isAbandoned() && GetDepthInMainChain() == 0) {
         CValidationState state;
