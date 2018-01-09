@@ -759,7 +759,7 @@ bool CInstantSend::IsTxLockCandidateTimedOut(const uint256& txHash)
 
     std::map<uint256, CTxLockCandidate>::iterator itLockCandidate = mapTxLockCandidates.find(txHash);
     if (itLockCandidate != mapTxLockCandidates.end()) {
-        return !itLockCandidate->second.IsAllOutPointsReady() &&
+        return !itLockCandidate->second.IsAllOutPointsReady(); //&&
 //                itLockCandidate->second.IsTimedOut();
     }
 
