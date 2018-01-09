@@ -20,7 +20,7 @@ class CSporkManager;
 static const int SPORK_START                                            = 10001;
 static const int SPORK_END                                              = 10013;
 
-static const int SPORK_2_INSTANTSEND_ENABLED                            = 10001;
+static const int SPORK_2_INSTANTSEND_ENABLED                            = 0;
 static const int SPORK_3_INSTANTSEND_BLOCK_FILTERING                    = 10002;
 static const int SPORK_5_INSTANTSEND_MAX_VALUE                          = 10004;
 static const int SPORK_8_SMARTNODE_PAYMENT_ENFORCEMENT                 = 10007;

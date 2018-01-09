@@ -2694,7 +2694,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "importaddress",            &importaddress,            true  },
     { "wallet",             "importprunedfunds",        &importprunedfunds,        true  },
     { "wallet",             "importpubkey",             &importpubkey,             true  },
-    { "wallet",             "instantsendtoaddress",     &instantsendtoaddress,     false },
+//    { "wallet",             "instantsendtoaddress",     &instantsendtoaddress,     false },
     { "wallet",             "keypoolrefill",            &keypoolrefill,            true  },
     { "wallet",             "listaccounts",             &listaccounts,             false },
     { "wallet",             "listaddressgroupings",     &listaddressgroupings,     false },
