@@ -1081,11 +1081,11 @@ bool CTxLockVote::Sign()
  //   RelayInv(inv);
 //}
 
-bool CTxLockVote::IsExpired(int nHeight) const
-{
+//bool CTxLockVote::IsExpired(int nHeight) const
+//{
     // Locks and votes expire nInstantSendKeepLock blocks after the block corresponding tx was included into.
-    return (nConfirmedHeight != -1) && (nHeight - nConfirmedHeight > Params().GetConsensus().nInstantSendKeepLock);
-}
+//    return (nConfirmedHeight != -1) && (nHeight - nConfirmedHeight > Params().GetConsensus().nInstantSendKeepLock);
+//}
 
 //
 // COutPointLock
@@ -1171,16 +1171,16 @@ int CTxLockCandidate::CountVotes() const
     return nCountVotes;
 }
 
-bool CTxLockCandidate::IsExpired(int nHeight) const
-{
+//bool CTxLockCandidate::IsExpired(int nHeight) const
+//{
     // Locks and votes expire nInstantSendKeepLock blocks after the block corresponding tx was included into.
-    return (nConfirmedHeight != -1) && (nHeight - nConfirmedHeight > Params().GetConsensus().nInstantSendKeepLock);
-}
+//    return (nConfirmedHeight != -1) && (nHeight - nConfirmedHeight > Params().GetConsensus().nInstantSendKeepLock);
+//}
 
-bool CTxLockCandidate::IsTimedOut() const
-{
-    return GetTime() - nTimeCreated > INSTANTSEND_LOCK_TIMEOUT_SECONDS;
-}
+//bool CTxLockCandidate::IsTimedOut() const
+//{
+//    return GetTime() - nTimeCreated > INSTANTSEND_LOCK_TIMEOUT_SECONDS;
+//}
 
 void CTxLockCandidate::Relay() const
 {
