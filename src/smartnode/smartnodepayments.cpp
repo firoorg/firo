@@ -115,7 +115,7 @@ bool IsBlockValueValid(const CBlock &block, int nBlockHeight, CAmount blockRewar
 //            strErrorRet = strprintf("coinbase pays too much at height %d (actual=%d vs limit=%d), exceeded block reward, no triggered superblock detected",
 //                                    nBlockHeight, block.vtx[0].GetValueOut(), blockReward);
 //        }
-    } else {
+/*    } else {
 //        // should NOT allow superblocks at all, when superblocks are disabled
         LogPrint("gobject", "IsBlockValueValid -- Superblocks are disabled, no superblocks allowed\n");
         if (!isBlockRewardValueMet) {
@@ -123,7 +123,7 @@ bool IsBlockValueValid(const CBlock &block, int nBlockHeight, CAmount blockRewar
                                     nBlockHeight, block.vtx[0].GetValueOut(), blockReward);
         }
     }
-
+*/
     // it MUST be a regular block
     return isBlockRewardValueMet;
 }
