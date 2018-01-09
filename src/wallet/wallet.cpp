@@ -1984,7 +1984,7 @@ void CWallet::AvailableCoins(vector <COutput> &vCoins, bool fOnlyConfirmed, cons
                 //LogPrintf("mine != ISMINE_NO = %s\n", mine != ISMINE_NO);
                 //LogPrintf("(!IsLockedCoin((*it).first, i) || nCoinType == ONLY_10000) = %s\n", (!IsLockedCoin((*it).first, i) || nCoinType == ONLY_10000));
                 //LogPrintf("(pcoin->vout[i].nValue > nMinimumInputValue) = %s\n", (pcoin->vout[i].nValue > nMinimumInputValue));
-                //LogPrintf("!coinControl = %s\n", (
+                LogPrintf("!coinControl = %s\n", (
                         !coinControl ||
                         !coinControl->HasSelected() ||
                         coinControl->fAllowOtherInputs ||
