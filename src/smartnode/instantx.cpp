@@ -583,7 +583,7 @@ int64_t CInstantSend::GetAverageSmartnodeOrphanVoteTime()
 
     return total / mapSmartnodeOrphanVotes.size();
 }
-
+/*
 void CInstantSend::CheckAndRemove()
 {
     if(!smartnodeSync.IsSmartnodeListSynced()) return;
@@ -596,7 +596,7 @@ void CInstantSend::CheckAndRemove()
     while(itLockCandidate != mapTxLockCandidates.end()) {
         CTxLockCandidate &txLockCandidate = itLockCandidate->second;
         uint256 txHash = txLockCandidate.GetHash();
-//        if(txLockCandidate.IsExpired(pCurrentBlockIndex->nHeight)) {
+        if(txLockCandidate.IsExpired(pCurrentBlockIndex->nHeight)) {
             LogPrintf("CInstantSend::CheckAndRemove -- Removing expired Transaction Lock Candidate: txid=%s\n", txHash.ToString());
             std::map<COutPoint, COutPointLock>::iterator itOutpointLock = txLockCandidate.mapOutPointLocks.begin();
             while(itOutpointLock != txLockCandidate.mapOutPointLocks.end()) {
@@ -615,7 +615,7 @@ void CInstantSend::CheckAndRemove()
     // remove expired votes
     std::map<uint256, CTxLockVote>::iterator itVote = mapTxLockVotes.begin();
     while(itVote != mapTxLockVotes.end()) {
-  //      if(itVote->second.IsExpired(pCurrentBlockIndex->nHeight)) {
+        if(itVote->second.IsExpired(pCurrentBlockIndex->nHeight)) {
             LogPrint("instantsend", "CInstantSend::CheckAndRemove -- Removing expired vote: txid=%s  smartnode=%s\n",
                     itVote->second.GetTxHash().ToString(), itVote->second.GetSmartnodeOutpoint().ToStringShort());
             mapTxLockVotes.erase(itVote++);
@@ -649,7 +649,7 @@ void CInstantSend::CheckAndRemove()
         }
     }
 }
-
+*/
 bool CInstantSend::AlreadyHave(const uint256& hash)
 {
     LOCK(cs_instantsend);
