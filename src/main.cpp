@@ -4352,7 +4352,7 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
             return state.DoS(100, false, REJECT_INVALID, "bad-cb-multiple", false, "more than one coinbase");
 
     int nHeight = getNHeight(block);
-    if(nHeight < 270000){
+    if(nHeight < 266765){
         nHeight = INT_MAX;
     }
     // Check transactions
