@@ -242,7 +242,7 @@ void CInstantSend::Vote(CTxLockCandidate& txLockCandidate)
                 }
             }
 
-            vote.Relay();
+  //          vote.Relay();
         }
 
         ++itOutpointLock;
@@ -263,7 +263,7 @@ bool CInstantSend::ProcessTxLockVote(CNode* pfrom, CTxLockVote& vote)
     }
     
     // relay valid vote asap
-    vote.Relay();
+//    vote.Relay();
 
     // Smartnodes will sometimes propagate votes before the transaction is known to the client,
     // will actually process only after the lock request itself has arrived
@@ -359,7 +359,7 @@ bool CInstantSend::ProcessTxLockVote(CNode* pfrom, CTxLockVote& vote)
 
     TryToFinalizeLockCandidate(txLockCandidate);
 
-    vote.Relay();
+ //   vote.Relay();
 
     return true;
 }
@@ -596,7 +596,7 @@ void CInstantSend::CheckAndRemove()
     while(itLockCandidate != mapTxLockCandidates.end()) {
         CTxLockCandidate &txLockCandidate = itLockCandidate->second;
         uint256 txHash = txLockCandidate.GetHash();
-        if(txLockCandidate.IsExpired(pCurrentBlockIndex->nHeight)) {
+//        if(txLockCandidate.IsExpired(pCurrentBlockIndex->nHeight)) {
             LogPrintf("CInstantSend::CheckAndRemove -- Removing expired Transaction Lock Candidate: txid=%s\n", txHash.ToString());
             std::map<COutPoint, COutPointLock>::iterator itOutpointLock = txLockCandidate.mapOutPointLocks.begin();
             while(itOutpointLock != txLockCandidate.mapOutPointLocks.end()) {
@@ -615,7 +615,7 @@ void CInstantSend::CheckAndRemove()
     // remove expired votes
     std::map<uint256, CTxLockVote>::iterator itVote = mapTxLockVotes.begin();
     while(itVote != mapTxLockVotes.end()) {
-        if(itVote->second.IsExpired(pCurrentBlockIndex->nHeight)) {
+  //      if(itVote->second.IsExpired(pCurrentBlockIndex->nHeight)) {
             LogPrint("instantsend", "CInstantSend::CheckAndRemove -- Removing expired vote: txid=%s  smartnode=%s\n",
                     itVote->second.GetTxHash().ToString(), itVote->second.GetSmartnodeOutpoint().ToStringShort());
             mapTxLockVotes.erase(itVote++);
@@ -760,7 +760,7 @@ bool CInstantSend::IsTxLockCandidateTimedOut(const uint256& txHash)
     std::map<uint256, CTxLockCandidate>::iterator itLockCandidate = mapTxLockCandidates.find(txHash);
     if (itLockCandidate != mapTxLockCandidates.end()) {
         return !itLockCandidate->second.IsAllOutPointsReady() &&
-                itLockCandidate->second.IsTimedOut();
+//                itLockCandidate->second.IsTimedOut();
     }
 
     return false;
@@ -1115,14 +1115,14 @@ bool COutPointLock::HasSmartnodeVoted(const COutPoint& outpointSmartnodeIn) cons
     return mapSmartnodeVotes.count(outpointSmartnodeIn);
 }
 
-void COutPointLock::Relay() const
-{
-    std::map<COutPoint, CTxLockVote>::const_iterator itVote = mapSmartnodeVotes.begin();
-    while(itVote != mapSmartnodeVotes.end()) {
-        itVote->second.Relay();
-        ++itVote;
-    }
-}
+//void COutPointLock::Relay() const
+//{
+//    std::map<COutPoint, CTxLockVote>::const_iterator itVote = mapSmartnodeVotes.begin();
+//    while(itVote != mapSmartnodeVotes.end()) {
+//        itVote->second.Relay();
+//        ++itVote;
+//    }
+//}
 
 //
 // CTxLockCandidate
