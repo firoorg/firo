@@ -58,10 +58,6 @@ private:
 private Q_SLOTS:
     /** Export button clicked */
     void on_exportButton_clicked();
-    /** Zerocoin Mint clicked */
-    void on_zerocoinMintButton_clicked();
-    /** Zerocoin Spend clicked */
-    void on_zerocoinSpendButton_clicked();
 //    void on_showQRCode_clicked();
     /** Set button states based on selected tab and selection */
 //    void selectionChanged();

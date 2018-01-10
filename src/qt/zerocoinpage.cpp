@@ -109,32 +109,6 @@ void ZerocoinPage::setModel(AddressTableModel *model) {
 //    selectionChanged();
 }
 
-void ZerocoinPage::on_zerocoinMintButton_clicked() {
-    QString amount = ui->zerocoinAmount->currentText();
-    std::string denomAmount = amount.toStdString();
-    std::string stringError;
-    if(!model->zerocoinMint(stringError, denomAmount)){
-        QString t = tr(stringError.c_str());
-
-        QMessageBox::critical(this, tr("Error"),
-                              tr("You cannot renew because %1").arg(t),
-                              QMessageBox::Ok, QMessageBox::Ok);
-    }
-}
-
-void ZerocoinPage::on_zerocoinSpendButton_clicked() {
-    QString amount = ui->zerocoinAmount->currentText();
-    std::string denomAmount = amount.toStdString();
-    std::string stringError;
-    if(!model->zerocoinSpend(stringError, denomAmount)){
-        QString t = tr(stringError.c_str());
-
-        QMessageBox::critical(this, tr("Error"),
-                              tr("You cannot reclaim because %1").arg(t),
-                              QMessageBox::Ok, QMessageBox::Ok);
-    }
-}
-
 //void ZerocoinPage::on_showQRCode_clicked()
 //{
 //#ifdef USE_QRCODE

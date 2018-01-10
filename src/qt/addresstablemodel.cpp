@@ -515,26 +515,3 @@ void AddressTableModel::emitDataChanged(int idx)
 {
     Q_EMIT dataChanged(index(idx, 0, QModelIndex()), index(idx, columns.length()-1, QModelIndex()));
 }
-
-bool AddressTableModel::zerocoinMint(string &stringError, string denomAmount)
-{
-    WalletModel::UnlockContext ctx(walletModel->requestUnlock());
-    if(!ctx.isValid())
-    {
-        // Unlock wallet failed or was cancelled
-        return false;
-    }
-    return wallet->CreateZerocoinMintModel(stringError, denomAmount);
-}
-
-bool AddressTableModel::zerocoinSpend(string &stringError, string denomAmount)
-{
-    WalletModel::UnlockContext ctx(walletModel->requestUnlock());
-    if(!ctx.isValid())
-    {
-        // Unlock wallet failed or was cancelled
-        return false;
-    }
-
-    return wallet->CreateZerocoinSpendModel(stringError, denomAmount);
-}
