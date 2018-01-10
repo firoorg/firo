@@ -113,8 +113,8 @@ private:
     QAction *openRPCConsoleAction;
     QAction *openAction;
     QAction *showHelpMessageAction;
-    QAction *zerocoinAction;
-    QAction *zerocoinMenuAction;
+    //QAction *zerocoinAction;
+    //QAction *zerocoinMenuAction;
 
 
     QSystemTrayIcon *trayIcon;
@@ -197,7 +197,7 @@ private Q_SLOTS:
     /** Switch to send coins page */
     void gotoSendCoinsPage(QString addr = "");
     /** Switch to zerocoin page */
-    void gotoZerocoinPage();
+    //void gotoZerocoinPage();
 
     /** Show Sign/Verify Message dialog and switch to sign message tab */
     void gotoSignMessageTab(QString addr = "");

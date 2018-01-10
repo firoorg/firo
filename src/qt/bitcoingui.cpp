@@ -306,16 +306,16 @@ void BitcoinGUI::createActions()
     historyAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_4));
     tabGroup->addAction(historyAction);
 
-    zerocoinAction = new QAction(platformStyle->SingleColorIcon(":/icons/zerocoin"), tr("&Renew"), this);
-    zerocoinAction->setStatusTip(tr("Show the list of public coin that have been renewed"));
-    zerocoinAction->setToolTip(zerocoinAction->statusTip());
-    zerocoinAction->setCheckable(true);
-    zerocoinAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_5));
-    tabGroup->addAction(zerocoinAction);
+    // zerocoinAction = new QAction(platformStyle->SingleColorIcon(":/icons/zerocoin"), tr("&Renew"), this);
+    // zerocoinAction->setStatusTip(tr("Show the list of public coin that have been renewed"));
+    // zerocoinAction->setToolTip(zerocoinAction->statusTip());
+    // zerocoinAction->setCheckable(true);
+    // zerocoinAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_5));
+    // tabGroup->addAction(zerocoinAction);
 
-    zerocoinMenuAction = new QAction(platformStyle->TextColorIcon(":/icons/zerocoin"), zerocoinAction->text(), this);
-    zerocoinMenuAction->setStatusTip(zerocoinAction->statusTip());
-    zerocoinMenuAction->setToolTip(zerocoinMenuAction->statusTip());
+    // zerocoinMenuAction = new QAction(platformStyle->TextColorIcon(":/icons/zerocoin"), zerocoinAction->text(), this);
+    // zerocoinMenuAction->setStatusTip(zerocoinAction->statusTip());
+    // zerocoinMenuAction->setToolTip(zerocoinMenuAction->statusTip());
 
     smartnodeAction = new QAction(platformStyle->SingleColorIcon(":/icons/smartnodes"), tr("&SmartNodes"), this);
     smartnodeAction->setStatusTip(tr("Browse SmartNodes"));
@@ -350,8 +350,8 @@ void BitcoinGUI::createActions()
     connect(receiveCoinsMenuAction, SIGNAL(triggered()), this, SLOT(gotoReceiveCoinsPage()));
     connect(historyAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
     connect(historyAction, SIGNAL(triggered()), this, SLOT(gotoHistoryPage()));
-    connect(zerocoinAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
-    connect(zerocoinAction, SIGNAL(triggered()), this, SLOT(gotoZerocoinPage()));
+    //connect(zerocoinAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
+    //connect(zerocoinAction, SIGNAL(triggered()), this, SLOT(gotoZerocoinPage()));
 #endif // ENABLE_WALLET
 
     quitAction = new QAction(platformStyle->TextColorIcon(":/icons/quit"), tr("E&xit"), this);
@@ -485,7 +485,7 @@ void BitcoinGUI::createToolBars()
         toolbar->addAction(sendCoinsAction);
         toolbar->addAction(receiveCoinsAction);
         toolbar->addAction(historyAction);
-        toolbar->addAction(zerocoinAction);
+        //toolbar->addAction(zerocoinAction);
         toolbar->addAction(smartnodeAction);
         toolbar->addAction(smartrewardsAction);
         overviewAction->setChecked(true);
@@ -587,7 +587,7 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
     receiveCoinsAction->setEnabled(enabled);
     receiveCoinsMenuAction->setEnabled(enabled);
     historyAction->setEnabled(enabled);
-    zerocoinAction->setEnabled(enabled);
+    //zerocoinAction->setEnabled(enabled);
     smartnodeAction->setEnabled(enabled);
     smartrewardsAction->setEnabled(enabled);
     encryptWalletAction->setEnabled(enabled);
@@ -751,10 +751,10 @@ void BitcoinGUI::gotoSignMessageTab(QString addr)
     if (walletFrame) walletFrame->gotoSignMessageTab(addr);
 }
 
-void BitcoinGUI::gotoZerocoinPage()
-{
-    if (walletFrame) walletFrame->gotoZerocoinPage();
-}
+// void BitcoinGUI::gotoZerocoinPage()
+// {
+//     if (walletFrame) walletFrame->gotoZerocoinPage();
+// }
 
 void BitcoinGUI::gotoVerifyMessageTab(QString addr)
 {
