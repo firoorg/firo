@@ -407,6 +407,13 @@ if TARGET_WINDOWS
 endif
 qt_zcoin_qt_LDADD = qt/libzcoinqt.a $(LIBBITCOIN_SERVER)
 
+if ENABLE_WALLET
+qt_zcoin_qt_LDADD += $(LIBBITCOIN_WALLET)
+endif
+if ENABLE_ZMQ
+qt_zcoin_qt_LDADD += $(LIBBITCOIN_ZMQ) $(ZMQ_LIBS)
+endif
+
 qt_zcoin_qt_LDADD += tor/src/or/libtor.a \
 	tor/src/common/libor.a \
 	tor/src/common/libor-ctime.a \
@@ -417,13 +424,6 @@ qt_zcoin_qt_LDADD += tor/src/or/libtor.a \
 	tor/src/ext/ed25519/donna/libed25519_donna.a \
 	tor/src/ext/ed25519/ref10/libed25519_ref10.a \
 	tor/src/ext/keccak-tiny/libkeccak-tiny.a
-
-if ENABLE_WALLET
-qt_zcoin_qt_LDADD += $(LIBBITCOIN_WALLET)
-endif
-if ENABLE_ZMQ
-qt_zcoin_qt_LDADD += $(LIBBITCOIN_ZMQ) $(ZMQ_LIBS)
-endif
 qt_zcoin_qt_LDADD += $(LIBBITCOIN_CLI) $(LIBBITCOIN_COMMON) $(LIBBITCOIN_UTIL) $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO) $(LIBUNIVALUE) $(LIBLEVELDB) $(LIBMEMENV) \
   $(BOOST_LIBS) $(QT_LIBS) $(QT_DBUS_LIBS) $(QR_LIBS) $(PROTOBUF_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(LIBSECP256K1) $(ZLIB_LIBS) \
   $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS)

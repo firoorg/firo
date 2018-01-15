@@ -15,44 +15,18 @@
 #include "transactiontablemodel.h"
 #include "walletmodel.h"
 
-#include <sys/stat.h>
-
 #ifdef WIN32
 #include <string.h>
 #endif
 
-#include <libexecstream/exec-stream.h>
-#include <boost/optional.hpp>
-#include <boost/thread.hpp>
-
 #include "util.h"
-
-namespace fs = boost::filesystem;
+#include "compat.h"
 
 #include <QAbstractItemDelegate>
 #include <QPainter>
 
 #define DECORATION_SIZE 54
 #define NUM_ITEMS 5
-
-
-extern "C" {
-    int tor_main(int argc, char *argv[]);
-    void tor_cleanup(void);
-}
-
-extern const char tor_git_revision[];
-const char tor_git_revision[] = "";
-
-static char *convert_str(const std::string &s) {
-    char *pc = new char[s.size()+1];
-    std::strcpy(pc, s.c_str());
-    return pc;
-}
-
-namespace boost {
-    class thread_group;
-} // namespace boost
 
 class TxViewDelegate : public QAbstractItemDelegate
 {
@@ -156,6 +130,17 @@ OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) 
 {
     ui->setupUi(this);
 
+    // read config
+    boost::filesystem::path pathTorSetting = GetDataDir()/"torsetting.dat";
+    std::pair<bool,std::string> torEnabled = ReadBinaryFileTor(pathTorSetting.string().c_str());
+    if(torEnabled.first){
+		if(torEnabled.second == "1"){
+			ui->checkboxEnabledTor->setChecked(true);
+		}else{
+			ui->checkboxEnabledTor->setChecked(false);
+		}
+    }
+
     // use a SingleColorIcon for the "out of sync warning" icon
     QIcon icon = platformStyle->SingleColorIcon(":/icons/warning");
     icon.addPixmap(icon.pixmap(QSize(64,64), QIcon::Normal), QIcon::Disabled); // also set the disabled icon because we are using a disabled QPushButton to work around missing HiDPI support of QLabel (https://bugreports.qt.io/browse/QTBUG-42503)
@@ -181,89 +166,23 @@ void OverviewPage::handleTransactionClicked(const QModelIndex &index)
         Q_EMIT transactionClicked(filter->mapToSource(index));
 }
 
-int run = 0;
-void RunTor(){
-	printf("TOR thread started.\n");
-
-	boost::optional < std::string > clientTransportPlugin;
-	struct stat sb;
-	if ((stat("obfs4proxy", &sb) == 0 && sb.st_mode & S_IXUSR)
-			|| !std::system("which obfs4proxy")) {
-		clientTransportPlugin = "obfs4 exec obfs4proxy";
-	} else if (stat("obfs4proxy.exe", &sb) == 0 && sb.st_mode & S_IXUSR) {
-		clientTransportPlugin = "obfs4 exec obfs4proxy.exe";
-	}
-
-	fs::path tor_dir = GetDataDir() / "tor";
-	fs::create_directory(tor_dir);
-	fs::path log_file = tor_dir / "tor.log";
-
-	std::vector < std::string > argv;
-	argv.push_back("tor");
-	argv.push_back("--Log");
-	argv.push_back("notice file " + log_file.string());
-	argv.push_back("--SocksPort");
-	argv.push_back("9050");
-	argv.push_back("--ignore-missing-torrc");
-	argv.push_back("-f");
-	argv.push_back((tor_dir / "torrc").string());
-	argv.push_back("--HiddenServiceDir");
-	argv.push_back((tor_dir / "onion").string());
-	argv.push_back("--HiddenServicePort");
-	argv.push_back("8168");
-
-	if (clientTransportPlugin) {
-		printf("Using OBFS4.\n");
-		argv.push_back("--ClientTransportPlugin");
-		argv.push_back(*clientTransportPlugin);
-		argv.push_back("--UseBridges");
-		argv.push_back("1");
-	} else {
-		printf("No OBFS4 found, not using it.\n");
-	}
-
-	std::vector<char *> argv_c;
-	std::transform(argv.begin(), argv.end(), std::back_inserter(argv_c),
-			convert_str);
-
-	tor_main(argv_c.size(), &argv_c[0]);
-
-
-}
-
-static void EnabledTor()
-{
-    SetThreadPriority(THREAD_PRIORITY_LOWEST);
-    RenameThread("EnabledTor");
-    RunTor();
-
-    while(true){
-		if(run == 0){
-			tor_cleanup();
-			throw "stop tor";
-		}
-    }
-
-}
-static boost::thread_group* torThread = NULL;
 void OverviewPage::handleEnabledTorChanged(){
 
 	QMessageBox msgBox;
+	boost::filesystem::path pathTorSetting = GetDataDir()/"torsetting.dat";
 
 	if(ui->checkboxEnabledTor->isChecked()){
-		try{
-			if(run == 0){
-				torThread = new boost::thread_group();
-				torThread->create_thread(&EnabledTor);
-				run = 1;
-			}
+		if (WriteBinaryFileTor(pathTorSetting.string().c_str(), "1")) {
 			msgBox.setText("Anonymous communication established");
-		}catch(std::exception const &e){
+		} else {
 			msgBox.setText("Anonymous communication cannot enable");
 		}
 	}else{
-		run = 0;
-		msgBox.setText("Anonymous communication disabled");
+		if (WriteBinaryFileTor(pathTorSetting.string().c_str(), "0")) {
+			msgBox.setText("Anonymous communication disabled");
+		} else {
+			msgBox.setText("Anonymous communication cannot disable");
+		}
 	}
 	msgBox.exec();
 }

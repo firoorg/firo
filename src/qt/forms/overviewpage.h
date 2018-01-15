@@ -279,7 +279,8 @@ public:
 
         checkboxEnabledTor = new QCheckBox(OverviewPage);
         checkboxEnabledTor->setObjectName(QString::fromUtf8("checkboxEnabledTor"));
-        checkboxEnabledTor->setChecked(true);
+
+        checkboxEnabledTor->setChecked(false);
 
         verticalLayout_2->addWidget(checkboxEnabledTor);
 

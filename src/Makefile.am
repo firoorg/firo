@@ -34,7 +34,6 @@ LIBBITCOIN_CRYPTO=crypto/libbitcoin_crypto.a
 LIBBITCOINQT=qt/libzcoinqt.a
 LIBSECP256K1=secp256k1/libsecp256k1.la
 
-
 if ENABLE_ZMQ
 LIBBITCOIN_ZMQ=libbitcoin_zmq.a
 endif
@@ -432,7 +431,6 @@ zcoind_LDADD = \
   $(LIBMEMENV) \
   $(LIBSECP256K1)
 
-zcoind_LDADD += $(BOOST_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS) $(ZLIB_LIBS)
 zcoind_LDADD += tor/src/or/libtor.a \
 	tor/src/common/libor.a \
 	tor/src/common/libor-ctime.a \
@@ -443,6 +441,8 @@ zcoind_LDADD += tor/src/or/libtor.a \
 	tor/src/ext/ed25519/donna/libed25519_donna.a \
 	tor/src/ext/ed25519/ref10/libed25519_ref10.a \
 	tor/src/ext/keccak-tiny/libkeccak-tiny.a
+
+zcoind_LDADD += $(BOOST_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS) $(ZLIB_LIBS)
 
 # bitcoin-cli binary #
 zcoin_cli_SOURCES = bitcoin-cli.cpp

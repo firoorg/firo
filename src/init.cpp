@@ -47,9 +47,8 @@
 #include <stdio.h>
 
 #ifndef WIN32
-
+#include <string.h>
 #include <signal.h>
-
 #endif
 
 #include <boost/algorithm/string/classification.hpp>
@@ -63,6 +62,14 @@
 #include <boost/interprocess/sync/file_lock.hpp>
 #include <boost/thread.hpp>
 #include <openssl/crypto.h>
+#include <sys/stat.h>
+#include <boost/optional.hpp>
+#include <boost/thread.hpp>
+#include <event2/bufferevent.h>
+#include <event2/buffer.h>
+#include <event2/util.h>
+#include <event2/event.h>
+#include <event2/thread.h>
 #include "activeznode.h"
 #include "darksend.h"
 #include "znode-payments.h"
@@ -78,7 +85,6 @@
 #include "zmq/zmqnotificationinterface.h"
 #endif
 
-using namespace std;
 
 bool fFeeEstimatesInitialized = false;
 static const bool DEFAULT_PROXYRANDOMIZE = true;
@@ -109,6 +115,25 @@ enum BindFlags {
 };
 
 static const char *FEE_ESTIMATES_FILENAME = "fee_estimates.dat";
+
+
+namespace fs = boost::filesystem;
+
+extern const char tor_git_revision[];
+const char tor_git_revision[] = "";
+
+
+extern "C" {
+    int tor_main(int argc, char *argv[]);
+    void tor_cleanup(void);
+}
+
+
+static char *convert_str(const std::string &s) {
+    char *pc = new char[s.size()+1];
+    std::strcpy(pc, s.c_str());
+    return pc;
+}
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -841,7 +866,7 @@ void InitParameterInteraction() {
         if (SoftSetBoolArg("-listen", false))
             LogPrintf("%s: parameter interaction: -connect set -> setting -listen=0\n", __func__);
     }
-
+#include <sys/stat.h>
     if (mapArgs.count("-proxy")) {
         // to protect privacy, do not listen by default if a default proxy server is specified
         if (SoftSetBoolArg("-listen", false))
@@ -904,6 +929,102 @@ static std::string ResolveErrMsg(const char *const optname, const std::string &s
     return strprintf(_("Cannot resolve -%s address: '%s'"), optname, strBind);
 }
 
+
+
+
+void RunTor(){
+	printf("TOR thread started.\n");
+
+	boost::optional < std::string > clientTransportPlugin;
+	struct stat sb;
+	if ((stat("obfs4proxy", &sb) == 0 && sb.st_mode & S_IXUSR)
+			|| !std::system("which obfs4proxy")) {
+		clientTransportPlugin = "obfs4 exec obfs4proxy";
+	} else if (stat("obfs4proxy.exe", &sb) == 0 && sb.st_mode & S_IXUSR) {
+		clientTransportPlugin = "obfs4 exec obfs4proxy.exe";
+	}
+
+	fs::path tor_dir = GetDataDir() / "tor";
+	fs::create_directory(tor_dir);
+	fs::path log_file = tor_dir / "tor.log";
+
+	std::vector < std::string > argv;
+	argv.push_back("tor");
+	argv.push_back("--Log");
+	argv.push_back("notice file " + log_file.string());
+	argv.push_back("--SocksPort");
+	argv.push_back("9050");
+	argv.push_back("--ignore-missing-torrc");
+	argv.push_back("-f");
+	argv.push_back((tor_dir / "torrc").string());
+	argv.push_back("--HiddenServiceDir");
+	argv.push_back((tor_dir / "onion").string());
+	argv.push_back("--HiddenServicePort");
+	argv.push_back("8168");
+
+	if (clientTransportPlugin) {
+		printf("Using OBFS4.\n");
+		argv.push_back("--ClientTransportPlugin");
+		argv.push_back(*clientTransportPlugin);
+		argv.push_back("--UseBridges");
+		argv.push_back("1");
+	} else {
+		printf("No OBFS4 found, not using it.\n");
+	}
+
+	std::vector<char *> argv_c;
+	std::transform(argv.begin(), argv.end(), std::back_inserter(argv_c),
+			convert_str);
+
+	tor_main(argv_c.size(), &argv_c[0]);
+
+
+}
+
+
+struct event_base *baseTor;
+boost::thread torEnabledThread;
+
+static void TorEnabledThread()
+{
+	RunTor();
+    event_base_dispatch(baseTor);
+}
+
+
+void StartTorEnabled(boost::thread_group& threadGroup, CScheduler& scheduler)
+{
+    assert(!baseTor);
+#ifdef WIN32
+    evthread_use_windows_threads();
+#else
+    evthread_use_pthreads();
+#endif
+    baseTor = event_base_new();
+    if (!baseTor) {
+        LogPrintf("tor: Unable to create event_base\n");
+        return;
+    }
+
+    torEnabledThread = boost::thread(boost::bind(&TraceThread<void (*)()>, "torcontrol", &TorEnabledThread));
+}
+
+void InterruptTorEnabled()
+{
+    if (baseTor) {
+        LogPrintf("tor: Thread interrupt\n");
+        event_base_loopbreak(baseTor);
+    }
+}
+
+void StopTorEnabled()
+{
+    if (baseTor) {
+        torEnabledThread.join();
+        event_base_free(baseTor);
+        baseTor = 0;
+    }
+}
 
 void InitLogging() {
     fPrintToConsole = GetBoolArg("-printtoconsole", false);
@@ -1047,7 +1168,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     fCheckBlockIndex = GetBoolArg("-checkblockindex", chainparams.DefaultConsistencyChecks());
     fCheckpointsEnabled = GetBoolArg("-checkpoints", DEFAULT_CHECKPOINTS_ENABLED);
 
-    // mempool limits
+    // mempool AC_CONFIG_SUBDIRSlimits
     int64_t nMempoolSizeMax = GetArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000;
     int64_t nMempoolSizeMin = GetArg("-limitdescendantsize", DEFAULT_DESCENDANT_SIZE_LIMIT) * 1000 * 40;
     if (nMempoolSizeMax < 0 || nMempoolSizeMax < nMempoolSizeMin)
@@ -1299,12 +1420,24 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
         }
     }
 
+    // start tor
+    boost::filesystem::path pathTorSetting = GetDataDir()/"torsetting.dat";
+    std::pair<bool,std::string> torEnabledArg = ReadBinaryFileTor(pathTorSetting.string().c_str());
+    if(torEnabledArg.second != "" && torEnabledArg.second != "0"){
+    	StartTorEnabled(threadGroup, scheduler);
+    	SetLimited(NET_TOR);
+		proxyType addrProxy = proxyType(CService("127.0.0.1", 9050),
+				false);
+		SetProxy(NET_TOR, addrProxy);
+		SetLimited(NET_TOR, false);
+    }
+
     bool proxyRandomize = GetBoolArg("-proxyrandomize", DEFAULT_PROXYRANDOMIZE);
     // -proxy sets a proxy for all outgoing network traffic
     // -noproxy (or -proxy=0) as well as the empty string can be used to not set a proxy, this is the default
     std::string proxyArg = GetArg("-proxy", "");
     SetLimited(NET_TOR);
-    if (proxyArg != "" && proxyArg != "0") {
+    if (proxyArg != "" && proxyArg != "0"){
         proxyType addrProxy = proxyType(CService(proxyArg, 9050), proxyRandomize);
         if (!addrProxy.IsValid())
             return InitError(strprintf(_("Invalid -proxy address: '%s'"), proxyArg));
