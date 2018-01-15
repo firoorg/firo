@@ -587,8 +587,10 @@ void CZerocoinState::AddBlock(CBlockIndex *index) {
         }
     }
 
-    BOOST_FOREACH(const CBigNum &serial, index->spentSerials) {
-        usedCoinSerials.insert(serial);
+    if (index->nHeight > ZC_CHECK_BUG_FIXED_AT_BLOCK) {
+        BOOST_FOREACH(const CBigNum &serial, index->spentSerials) {
+           usedCoinSerials.insert(serial);
+        }
     }
 }
 

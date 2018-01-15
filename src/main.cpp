@@ -3011,6 +3011,10 @@ ConnectTip(CValidationState &state, const CChainParams &chainparams, CBlockIndex
     int64_t nTime4 = GetTimeMicros();
     nTimeFlush += nTime4 - nTime3;
     LogPrint("bench", "  - Flush: %.2fms [%.2fs]\n", (nTime4 - nTime3) * 0.001, nTimeFlush * 0.000001);
+
+    if (!ConnectTipZC(state, chainparams, pindexNew, pblock))
+        return false;
+
     // Write the chain state to disk, if necessary.
     if (!FlushStateToDisk(state, FLUSH_STATE_IF_NEEDED))
         return false;
@@ -3035,9 +3039,6 @@ ConnectTip(CValidationState &state, const CChainParams &chainparams, CBlockIndex
     const CTransaction &tx, pblock->vtx) {
         SyncWithWallets(tx, pindexNew, pblock);
     }
-
-    if (!ConnectTipZC(state, chainparams, pindexNew, pblock))
-        return false;
 
     int64_t nTime6 = GetTimeMicros();
     nTimePostConnect += nTime6 - nTime5;
