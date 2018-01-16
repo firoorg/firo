@@ -121,13 +121,15 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
             // Build vector of coins sorted by the time of mint
             index = coinGroup.lastBlock;
             vector<CBigNum> pubCoins = index->mintedPubCoins[denominationAndId];
-            do {
-                index = index->pprev;
-                if (index->mintedPubCoins.count(denominationAndId) > 0)
-                    pubCoins.insert(pubCoins.begin(),
-                                    index->mintedPubCoins[denominationAndId].cbegin(),
-                                    index->mintedPubCoins[denominationAndId].cend());
-            } while (index != coinGroup.firstBlock);
+            if (index != coinGroup.firstBlock) {
+                do {
+                    index = index->pprev;
+                    if (index->mintedPubCoins.count(denominationAndId) > 0)
+                        pubCoins.insert(pubCoins.begin(),
+                                        index->mintedPubCoins[denominationAndId].cbegin(),
+                                        index->mintedPubCoins[denominationAndId].cend());
+                } while (index != coinGroup.firstBlock);
+            }
 
             libzerocoin::Accumulator accumulator(ZCParams, targetDenomination);
             BOOST_FOREACH(const CBigNum &pubCoin, pubCoins) {
