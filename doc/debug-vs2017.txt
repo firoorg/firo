@@ -56,6 +56,10 @@ Building
     one
       export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
+    Also if WSL interop is enabled some parts might not get configured for cross-compilation and will ultimately fail.
+    Disable it for the WSL session:
+      sudo bash -c 'echo 0 > /proc/sys/fs/binfmt_misc/WSLInterop'
+
  7. Dependencies won't compile in a directory shared with Windows. We need to copy everything to the space private to
     WSL. Do not use .. here as it will lead you into different directory
       cp -r depends ~/zcoin-depends
