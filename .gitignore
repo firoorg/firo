@@ -105,6 +105,7 @@ linux-build
 win32-build
 test/config.ini
 test/cache/*
+src/test/buildenv.py
 
 !src/leveldb*/Makefile
 
