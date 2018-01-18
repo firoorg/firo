@@ -284,6 +284,8 @@ public:
 
     znode_info_t GetZnodeInfo(const CPubKey& pubKeyZnode);
 
+    char* GetNotQualifyReason(CZnode& mn, int nBlockHeight, bool fFilterSigTime, int nMnCount);
+
     /// Find an entry in the znode list that is next to be paid
     CZnode* GetNextZnodeInQueueForPayment(int nBlockHeight, bool fFilterSigTime, int& nCount);
     /// Same as above but use current block height
