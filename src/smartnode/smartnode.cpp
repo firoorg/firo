@@ -4,7 +4,6 @@
 
 #include "activesmartnode.h"
 #include "consensus/validation.h"
-#include "darksend.h"
 #include "init.h"
 //#include "governance.h"
 #include "smartnode.h"
@@ -12,100 +11,51 @@
 #include "smartnodesync.h"
 #include "smartnodeman.h"
 #include "util.h"
+#ifdef ENABLE_WALLET
+#include "wallet/wallet.h"
+#endif // ENABLE_WALLET
 
 #include <boost/lexical_cast.hpp>
 
 
 CSmartnode::CSmartnode() :
-        vin(),
-        addr(),
-        pubKeyCollateralAddress(),
-        pubKeySmartnode(),
-        lastPing(),
-        vchSig(),
-        sigTime(GetAdjustedTime()),
-        nLastDsq(0),
-        nTimeLastChecked(0),
-        nTimeLastPaid(0),
-        nTimeLastWatchdogVote(0),
-        nActiveState(SMARTNODE_ENABLED),
-        nCacheCollateralBlock(0),
-        nBlockLastPaid(0),
-        nProtocolVersion(PROTOCOL_VERSION),
-        nPoSeBanScore(0),
-        nPoSeBanHeight(0),
-        fAllowMixingTx(true),
-        fUnitTest(false) {}
+    smartnode_info_t{ SMARTNODE_ENABLED, PROTOCOL_VERSION, GetAdjustedTime()},
+    fAllowMixingTx(true)
+{}
 
-CSmartnode::CSmartnode(CService addrNew, CTxIn vinNew, CPubKey pubKeyCollateralAddressNew, CPubKey pubKeySmartnodeNew, int nProtocolVersionIn) :
-        vin(vinNew),
-        addr(addrNew),
-        pubKeyCollateralAddress(pubKeyCollateralAddressNew),
-        pubKeySmartnode(pubKeySmartnodeNew),
-        lastPing(),
-        vchSig(),
-        sigTime(GetAdjustedTime()),
-        nLastDsq(0),
-        nTimeLastChecked(0),
-        nTimeLastPaid(0),
-        nTimeLastWatchdogVote(0),
-        nActiveState(SMARTNODE_ENABLED),
-        nCacheCollateralBlock(0),
-        nBlockLastPaid(0),
-        nProtocolVersion(nProtocolVersionIn),
-        nPoSeBanScore(0),
-        nPoSeBanHeight(0),
-        fAllowMixingTx(true),
-        fUnitTest(false) {}
+CSmartnode::CSmartnode(CService addr, COutPoint outpoint, CPubKey pubKeyCollateralAddress, CPubKey pubKeySmartnode, int nProtocolVersionIn) :
+    smartnode_info_t{ SMARTNODE_ENABLED, nProtocolVersionIn, GetAdjustedTime(),
+                       outpoint, addr, pubKeyCollateralAddress, pubKeySmartnode},
+    fAllowMixingTx(true)
+{}
 
-CSmartnode::CSmartnode(const CSmartnode &other) :
-        vin(other.vin),
-        addr(other.addr),
-        pubKeyCollateralAddress(other.pubKeyCollateralAddress),
-        pubKeySmartnode(other.pubKeySmartnode),
-        lastPing(other.lastPing),
-        vchSig(other.vchSig),
-        sigTime(other.sigTime),
-        nLastDsq(other.nLastDsq),
-        nTimeLastChecked(other.nTimeLastChecked),
-        nTimeLastPaid(other.nTimeLastPaid),
-        nTimeLastWatchdogVote(other.nTimeLastWatchdogVote),
-        nActiveState(other.nActiveState),
-        nCacheCollateralBlock(other.nCacheCollateralBlock),
-        nBlockLastPaid(other.nBlockLastPaid),
-        nProtocolVersion(other.nProtocolVersion),
-        nPoSeBanScore(other.nPoSeBanScore),
-        nPoSeBanHeight(other.nPoSeBanHeight),
-        fAllowMixingTx(other.fAllowMixingTx),
-        fUnitTest(other.fUnitTest) {}
+CSmartnode::CSmartnode(const CSmartnode& other) :
+    smartnode_info_t{other},
+    lastPing(other.lastPing),
+    vchSig(other.vchSig),
+    nCollateralMinConfBlockHash(other.nCollateralMinConfBlockHash),
+    nBlockLastPaid(other.nBlockLastPaid),
+    nPoSeBanScore(other.nPoSeBanScore),
+    nPoSeBanHeight(other.nPoSeBanHeight),
+    fAllowMixingTx(other.fAllowMixingTx),
+    fUnitTest(other.fUnitTest)
+{}
 
-CSmartnode::CSmartnode(const CSmartnodeBroadcast &mnb) :
-        vin(mnb.vin),
-        addr(mnb.addr),
-        pubKeyCollateralAddress(mnb.pubKeyCollateralAddress),
-        pubKeySmartnode(mnb.pubKeySmartnode),
-        lastPing(mnb.lastPing),
-        vchSig(mnb.vchSig),
-        sigTime(mnb.sigTime),
-        nLastDsq(0),
-        nTimeLastChecked(0),
-        nTimeLastPaid(0),
-        nTimeLastWatchdogVote(mnb.sigTime),
-        nActiveState(mnb.nActiveState),
-        nCacheCollateralBlock(0),
-        nBlockLastPaid(0),
-        nProtocolVersion(mnb.nProtocolVersion),
-        nPoSeBanScore(0),
-        nPoSeBanHeight(0),
-        fAllowMixingTx(true),
-        fUnitTest(false) {}
+CSmartnode::CSmartnode(const CSmartnodeBroadcast& mnb) :
+    smartnode_info_t{ mnb.nActiveState, mnb.nProtocolVersion, mnb.sigTime,
+                       mnb.vin.prevout, mnb.addr, mnb.pubKeyCollateralAddress, mnb.pubKeySmartnode,
+                       mnb.sigTime /*nTimeLastWatchdogVote*/},
+    lastPing(mnb.lastPing),
+    vchSig(mnb.vchSig),
+    fAllowMixingTx(true)
+{}
 
-//CSporkManager sporkManager;
 //
 // When a new smartnode broadcast is sent, update our information
 //
-bool CSmartnode::UpdateFromNewBroadcast(CSmartnodeBroadcast &mnb) {
-    if (mnb.sigTime <= sigTime && !mnb.fRecovery) return false;
+bool CSmartnode::UpdateFromNewBroadcast(CSmartnodeBroadcast& mnb, CConnman& connman)
+{
+    if(mnb.sigTime <= sigTime && !mnb.fRecovery) return false;
 
     pubKeySmartnode = mnb.pubKeySmartnode;
     sigTime = mnb.sigTime;
@@ -116,16 +66,16 @@ bool CSmartnode::UpdateFromNewBroadcast(CSmartnodeBroadcast &mnb) {
     nPoSeBanHeight = 0;
     nTimeLastChecked = 0;
     int nDos = 0;
-    if (mnb.lastPing == CSmartnodePing() || (mnb.lastPing != CSmartnodePing() && mnb.lastPing.CheckAndUpdate(this, true, nDos))) {
+    if(mnb.lastPing == CSmartnodePing() || (mnb.lastPing != CSmartnodePing() && mnb.lastPing.CheckAndUpdate(this, true, nDos, connman))) {
         lastPing = mnb.lastPing;
         mnodeman.mapSeenSmartnodePing.insert(std::make_pair(lastPing.GetHash(), lastPing));
     }
     // if it matches our Smartnode privkey...
-    if (fSmartNode && pubKeySmartnode == activeSmartnode.pubKeySmartnode) {
+    if(fSmartNode && pubKeySmartnode == activeSmartnode.pubKeySmartnode) {
         nPoSeBanScore = -SMARTNODE_POSE_BAN_MAX_SCORE;
-        if (nProtocolVersion == PROTOCOL_VERSION) {
+        if(nProtocolVersion == PROTOCOL_VERSION) {
             // ... and PROTOCOL_VERSION, then we've been remotely activated ...
-            activeSmartnode.ManageState();
+            activeSmartnode.ManageState(connman);
         } else {
             // ... otherwise we need to reactivate our node, do not add it to the list and do not relay
             // but also do not ban the node we get this message from
@@ -141,43 +91,58 @@ bool CSmartnode::UpdateFromNewBroadcast(CSmartnodeBroadcast &mnb) {
 // the proof of work for that block. The further away they are the better, the furthest will win the election
 // and get paid this block
 //
-arith_uint256 CSmartnode::CalculateScore(const uint256 &blockHash) {
-    uint256 aux = ArithToUint256(UintToArith256(vin.prevout.hash) + vin.prevout.n);
-
+arith_uint256 CSmartnode::CalculateScore(const uint256& blockHash)
+{
+    // Deterministically calculate a "score" for a Smartnode based on any given (block)hash
     CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
-    ss << blockHash;
-    arith_uint256 hash2 = UintToArith256(ss.GetHash());
-
-    CHashWriter ss2(SER_GETHASH, PROTOCOL_VERSION);
-    ss2 << blockHash;
-    ss2 << aux;
-    arith_uint256 hash3 = UintToArith256(ss2.GetHash());
-
-    return (hash3 > hash2 ? hash3 - hash2 : hash2 - hash3);
+    ss << vin.prevout << nCollateralMinConfBlockHash << blockHash;
+    return UintToArith256(ss.GetHash());
 }
 
-void CSmartnode::Check(bool fForce) {
+CSmartnode::CollateralStatus CSmartnode::CheckCollateral(const COutPoint& outpoint)
+{
+    int nHeight;
+    return CheckCollateral(outpoint, nHeight);
+}
+
+CSmartnode::CollateralStatus CSmartnode::CheckCollateral(const COutPoint& outpoint, int& nHeightRet)
+{
+    AssertLockHeld(cs_main);
+
+    Coin coin;
+    if(!GetUTXOCoin(outpoint, coin)) {
+        return COLLATERAL_UTXO_NOT_FOUND;
+    }
+
+    if(coin.out.nValue != 1000 * COIN) {
+        return COLLATERAL_INVALID_AMOUNT;
+    }
+
+    nHeightRet = coin.nHeight;
+    return COLLATERAL_OK;
+}
+
+void CSmartnode::Check(bool fForce)
+{
     LOCK(cs);
 
-    if (ShutdownRequested()) return;
+    if(ShutdownRequested()) return;
 
-    if (!fForce && (GetTime() - nTimeLastChecked < SMARTNODE_CHECK_SECONDS)) return;
+    if(!fForce && (GetTime() - nTimeLastChecked < SMARTNODE_CHECK_SECONDS)) return;
     nTimeLastChecked = GetTime();
 
     LogPrint("smartnode", "CSmartnode::Check -- Smartnode %s is in %s state\n", vin.prevout.ToStringShort(), GetStateString());
 
     //once spent, stop doing the checks
-    if (IsOutpointSpent()) return;
+    if(IsOutpointSpent()) return;
 
     int nHeight = 0;
-    if (!fUnitTest) {
+    if(!fUnitTest) {
         TRY_LOCK(cs_main, lockMain);
-        if (!lockMain) return;
+        if(!lockMain) return;
 
-        CCoins coins;
-        if (!pcoinsTip->GetCoins(vin.prevout.hash, coins) ||
-            (unsigned int) vin.prevout.n >= coins.vout.size() ||
-            coins.vout[vin.prevout.n].IsNull()) {
+        CollateralStatus err = CheckCollateral(vin.prevout);
+        if (err == COLLATERAL_UTXO_NOT_FOUND) {
             nActiveState = SMARTNODE_OUTPOINT_SPENT;
             LogPrint("smartnode", "CSmartnode::Check -- Failed to find Smartnode UTXO, smartnode=%s\n", vin.prevout.ToStringShort());
             return;
@@ -186,14 +151,14 @@ void CSmartnode::Check(bool fForce) {
         nHeight = chainActive.Height();
     }
 
-    if (IsPoSeBanned()) {
-        if (nHeight < nPoSeBanHeight) return; // too early?
+    if(IsPoSeBanned()) {
+        if(nHeight < nPoSeBanHeight) return; // too early?
         // Otherwise give it a chance to proceed further to do all the usual checks and to change its state.
         // Smartnode still will be on the edge and can be banned back easily if it keeps ignoring mnverify
         // or connect attempts. Will require few mnverify messages to strengthen its position in mn list.
         LogPrintf("CSmartnode::Check -- Smartnode %s is unbanned and back in list now\n", vin.prevout.ToStringShort());
         DecreasePoSeBanScore();
-    } else if (nPoSeBanScore >= SMARTNODE_POSE_BAN_MAX_SCORE) {
+    } else if(nPoSeBanScore >= SMARTNODE_POSE_BAN_MAX_SCORE) {
         nActiveState = SMARTNODE_POSE_BAN;
         // ban for the whole payment cycle
         nPoSeBanHeight = nHeight + mnodeman.size();
@@ -204,14 +169,14 @@ void CSmartnode::Check(bool fForce) {
     int nActiveStatePrev = nActiveState;
     bool fOurSmartnode = fSmartNode && activeSmartnode.pubKeySmartnode == pubKeySmartnode;
 
-    // smartnode doesn't meet payment protocol requirements ...
+                   // smartnode doesn't meet payment protocol requirements ...
     bool fRequireUpdate = nProtocolVersion < mnpayments.GetMinSmartnodePaymentsProto() ||
-                          // or it's our own node and we just updated it to the new protocol but we are still waiting for activation ...
-                          (fOurSmartnode && nProtocolVersion < PROTOCOL_VERSION);
+                   // or it's our own node and we just updated it to the new protocol but we are still waiting for activation ...
+                   (fOurSmartnode && nProtocolVersion < PROTOCOL_VERSION);
 
-    if (fRequireUpdate) {
+    if(fRequireUpdate) {
         nActiveState = SMARTNODE_UPDATE_REQUIRED;
-        if (nActiveStatePrev != nActiveState) {
+        if(nActiveStatePrev != nActiveState) {
             LogPrint("smartnode", "CSmartnode::Check -- Smartnode %s is in %s state now\n", vin.prevout.ToStringShort(), GetStateString());
         }
         return;
@@ -220,216 +185,155 @@ void CSmartnode::Check(bool fForce) {
     // keep old smartnodes on start, give them a chance to receive updates...
     bool fWaitForPing = !smartnodeSync.IsSmartnodeListSynced() && !IsPingedWithin(SMARTNODE_MIN_MNP_SECONDS);
 
-    if (fWaitForPing && !fOurSmartnode) {
+    if(fWaitForPing && !fOurSmartnode) {
         // ...but if it was already expired before the initial check - return right away
-        if (IsExpired() || IsWatchdogExpired() || IsNewStartRequired()) {
+        if(IsExpired() || IsWatchdogExpired() || IsNewStartRequired()) {
             LogPrint("smartnode", "CSmartnode::Check -- Smartnode %s is in %s state, waiting for ping\n", vin.prevout.ToStringShort(), GetStateString());
             return;
         }
     }
 
     // don't expire if we are still in "waiting for ping" mode unless it's our own smartnode
-    if (!fWaitForPing || fOurSmartnode) {
+    if(!fWaitForPing || fOurSmartnode) {
 
-        if (!IsPingedWithin(SMARTNODE_NEW_START_REQUIRED_SECONDS)) {
+        if(!IsPingedWithin(SMARTNODE_NEW_START_REQUIRED_SECONDS)) {
             nActiveState = SMARTNODE_NEW_START_REQUIRED;
-            if (nActiveStatePrev != nActiveState) {
+            if(nActiveStatePrev != nActiveState) {
                 LogPrint("smartnode", "CSmartnode::Check -- Smartnode %s is in %s state now\n", vin.prevout.ToStringShort(), GetStateString());
             }
             return;
         }
 
         bool fWatchdogActive = smartnodeSync.IsSynced() && mnodeman.IsWatchdogActive();
-        bool fWatchdogExpired = (fWatchdogActive && ((GetTime() - nTimeLastWatchdogVote) > SMARTNODE_WATCHDOG_MAX_SECONDS));
+        bool fWatchdogExpired = (fWatchdogActive && ((GetAdjustedTime() - nTimeLastWatchdogVote) > SMARTNODE_WATCHDOG_MAX_SECONDS));
 
-//        LogPrint("smartnode", "CSmartnode::Check -- outpoint=%s, nTimeLastWatchdogVote=%d, GetTime()=%d, fWatchdogExpired=%d\n",
-//                vin.prevout.ToStringShort(), nTimeLastWatchdogVote, GetTime(), fWatchdogExpired);
+        LogPrint("smartnode", "CSmartnode::Check -- outpoint=%s, nTimeLastWatchdogVote=%d, GetAdjustedTime()=%d, fWatchdogExpired=%d\n",
+                vin.prevout.ToStringShort(), nTimeLastWatchdogVote, GetAdjustedTime(), fWatchdogExpired);
 
-        if (fWatchdogExpired) {
+        if(fWatchdogExpired) {
             nActiveState = SMARTNODE_WATCHDOG_EXPIRED;
-            if (nActiveStatePrev != nActiveState) {
+            if(nActiveStatePrev != nActiveState) {
                 LogPrint("smartnode", "CSmartnode::Check -- Smartnode %s is in %s state now\n", vin.prevout.ToStringShort(), GetStateString());
             }
             return;
         }
 
-        if (!IsPingedWithin(SMARTNODE_EXPIRATION_SECONDS)) {
+        if(!IsPingedWithin(SMARTNODE_EXPIRATION_SECONDS)) {
             nActiveState = SMARTNODE_EXPIRED;
-            if (nActiveStatePrev != nActiveState) {
+            if(nActiveStatePrev != nActiveState) {
                 LogPrint("smartnode", "CSmartnode::Check -- Smartnode %s is in %s state now\n", vin.prevout.ToStringShort(), GetStateString());
             }
             return;
         }
     }
 
-    if (lastPing.sigTime - sigTime < SMARTNODE_MIN_MNP_SECONDS) {
+    if(lastPing.sigTime - sigTime < SMARTNODE_MIN_MNP_SECONDS) {
         nActiveState = SMARTNODE_PRE_ENABLED;
-        if (nActiveStatePrev != nActiveState) {
+        if(nActiveStatePrev != nActiveState) {
             LogPrint("smartnode", "CSmartnode::Check -- Smartnode %s is in %s state now\n", vin.prevout.ToStringShort(), GetStateString());
         }
         return;
     }
 
     nActiveState = SMARTNODE_ENABLED; // OK
-    if (nActiveStatePrev != nActiveState) {
+    if(nActiveStatePrev != nActiveState) {
         LogPrint("smartnode", "CSmartnode::Check -- Smartnode %s is in %s state now\n", vin.prevout.ToStringShort(), GetStateString());
     }
 }
 
-bool CSmartnode::IsValidNetAddr() {
-    return IsValidNetAddr(addr);
-}
+bool CSmartnode::IsInputAssociatedWithPubkey()
+{
+    CScript payee;
+    payee = GetScriptForDestination(pubKeyCollateralAddress.GetID());
 
-bool CSmartnode::IsValidForPayment() {
-    if (nActiveState == SMARTNODE_ENABLED) {
-        return true;
+    CTransaction tx;
+    uint256 hash;
+    if(GetTransaction(vin.prevout.hash, tx, Params().GetConsensus(), hash, true)) {
+        BOOST_FOREACH(CTxOut out, tx.vout)
+            if(out.nValue == 1000*COIN && out.scriptPubKey == payee) return true;
     }
-//    if(!sporkManager.IsSporkActive(SPORK_14_REQUIRE_SENTINEL_FLAG) &&
-//       (nActiveState == SMARTNODE_WATCHDOG_EXPIRED)) {
-//        return true;
-//    }
 
     return false;
 }
 
-bool CSmartnode::IsValidNetAddr(CService addrIn) {
+bool CSmartnode::IsValidNetAddr()
+{
+    return IsValidNetAddr(addr);
+}
+
+bool CSmartnode::IsValidNetAddr(CService addrIn)
+{
     // TODO: regtest is fine with any addresses for now,
     // should probably be a bit smarter if one day we start to implement tests for this
     return Params().NetworkIDString() == CBaseChainParams::REGTEST ||
-           (addrIn.IsIPv4() && IsReachable(addrIn) && addrIn.IsRoutable());
+            (addrIn.IsIPv4() && IsReachable(addrIn) && addrIn.IsRoutable());
 }
 
-smartnode_info_t CSmartnode::GetInfo() {
-    smartnode_info_t info;
-    info.vin = vin;
-    info.addr = addr;
-    info.pubKeyCollateralAddress = pubKeyCollateralAddress;
-    info.pubKeySmartnode = pubKeySmartnode;
-    info.sigTime = sigTime;
-    info.nLastDsq = nLastDsq;
-    info.nTimeLastChecked = nTimeLastChecked;
-    info.nTimeLastPaid = nTimeLastPaid;
-    info.nTimeLastWatchdogVote = nTimeLastWatchdogVote;
+smartnode_info_t CSmartnode::GetInfo()
+{
+    smartnode_info_t info{*this};
     info.nTimeLastPing = lastPing.sigTime;
-    info.nActiveState = nActiveState;
-    info.nProtocolVersion = nProtocolVersion;
     info.fInfoValid = true;
     return info;
 }
 
-std::string CSmartnode::StateToString(int nStateIn) {
-    switch (nStateIn) {
-        case SMARTNODE_PRE_ENABLED:
-            return "PRE_ENABLED";
-        case SMARTNODE_ENABLED:
-            return "ENABLED";
-        case SMARTNODE_EXPIRED:
-            return "EXPIRED";
-        case SMARTNODE_OUTPOINT_SPENT:
-            return "OUTPOINT_SPENT";
-        case SMARTNODE_UPDATE_REQUIRED:
-            return "UPDATE_REQUIRED";
-        case SMARTNODE_WATCHDOG_EXPIRED:
-            return "WATCHDOG_EXPIRED";
-        case SMARTNODE_NEW_START_REQUIRED:
-            return "NEW_START_REQUIRED";
-        case SMARTNODE_POSE_BAN:
-            return "POSE_BAN";
-        default:
-            return "UNKNOWN";
+std::string CSmartnode::StateToString(int nStateIn)
+{
+    switch(nStateIn) {
+        case SMARTNODE_PRE_ENABLED:            return "PRE_ENABLED";
+        case SMARTNODE_ENABLED:                return "ENABLED";
+        case SMARTNODE_EXPIRED:                return "EXPIRED";
+        case SMARTNODE_OUTPOINT_SPENT:         return "OUTPOINT_SPENT";
+        case SMARTNODE_UPDATE_REQUIRED:        return "UPDATE_REQUIRED";
+        case SMARTNODE_WATCHDOG_EXPIRED:       return "WATCHDOG_EXPIRED";
+        case SMARTNODE_NEW_START_REQUIRED:     return "NEW_START_REQUIRED";
+        case SMARTNODE_POSE_BAN:               return "POSE_BAN";
+        default:                                return "UNKNOWN";
     }
 }
 
-std::string CSmartnode::GetStateString() const {
+std::string CSmartnode::GetStateString() const
+{
     return StateToString(nActiveState);
 }
 
-std::string CSmartnode::GetStatus() const {
+std::string CSmartnode::GetStatus() const
+{
     // TODO: return smth a bit more human readable here
     return GetStateString();
 }
 
-std::string CSmartnode::ToString() const {
-    std::string str;
-    str += "smartnode{";
-    str += addr.ToString();
-    str += " ";
-    str += std::to_string(nProtocolVersion);
-    str += " ";
-    str += vin.prevout.ToStringShort();
-    str += " ";
-    str += CBitcoinAddress(pubKeyCollateralAddress.GetID()).ToString();
-    str += " ";
-    str += std::to_string(lastPing == CSmartnodePing() ? sigTime : lastPing.sigTime);
-    str += " ";
-    str += std::to_string(lastPing == CSmartnodePing() ? 0 : lastPing.sigTime - sigTime);
-    str += " ";
-    str += std::to_string(nBlockLastPaid);
-    str += "}\n";
-    return str;
-}
-
-int CSmartnode::GetCollateralAge() {
-    int nHeight;
-    {
-        TRY_LOCK(cs_main, lockMain);
-        if (!lockMain || !chainActive.Tip()) return -1;
-        nHeight = chainActive.Height();
-    }
-
-    if (nCacheCollateralBlock == 0) {
-        int nInputAge = GetInputAge(vin);
-        if (nInputAge > 0) {
-            nCacheCollateralBlock = nHeight - nInputAge;
-        } else {
-            return nInputAge;
-        }
-    }
-
-    return nHeight - nCacheCollateralBlock;
-}
-
-void CSmartnode::UpdateLastPaid(const CBlockIndex *pindex, int nMaxBlocksToScanBack) {
-    if (!pindex) {
-        LogPrintf("CSmartnode::UpdateLastPaid pindex is NULL\n");
-        return;
-    }
+void CSmartnode::UpdateLastPaid(const CBlockIndex *pindex, int nMaxBlocksToScanBack)
+{
+    if(!pindex) return;
 
     const CBlockIndex *BlockReading = pindex;
 
     CScript mnpayee = GetScriptForDestination(pubKeyCollateralAddress.GetID());
-    LogPrint("smartnode", "CSmartnode::UpdateLastPaidBlock -- searching for block with payment to %s\n", vin.prevout.ToStringShort());
+    // LogPrint("smartnode", "CSmartnode::UpdateLastPaidBlock -- searching for block with payment to %s\n", vin.prevout.ToStringShort());
 
     LOCK(cs_mapSmartnodeBlocks);
 
     for (int i = 0; BlockReading && BlockReading->nHeight > nBlockLastPaid && i < nMaxBlocksToScanBack; i++) {
-//        LogPrintf("mnpayments.mapSmartnodeBlocks.count(BlockReading->nHeight)=%s\n", mnpayments.mapSmartnodeBlocks.count(BlockReading->nHeight));
-//        LogPrintf("mnpayments.mapSmartnodeBlocks[BlockReading->nHeight].HasPayeeWithVotes(mnpayee, 2)=%s\n", mnpayments.mapSmartnodeBlocks[BlockReading->nHeight].HasPayeeWithVotes(mnpayee, 2));
-        if (mnpayments.mapSmartnodeBlocks.count(BlockReading->nHeight) &&
-            mnpayments.mapSmartnodeBlocks[BlockReading->nHeight].HasPayeeWithVotes(mnpayee, 2)) {
-            LogPrintf("i=%s, BlockReading->nHeight=%s\n", i, BlockReading->nHeight);
+        if(mnpayments.mapSmartnodeBlocks.count(BlockReading->nHeight) &&
+            mnpayments.mapSmartnodeBlocks[BlockReading->nHeight].HasPayeeWithVotes(mnpayee, 2))
+        {
             CBlock block;
-            if (!ReadBlockFromDisk(block, BlockReading, Params().GetConsensus())) // shouldn't really happen
-            {
-                LogPrintf("ReadBlockFromDisk failed\n");
+            if(!ReadBlockFromDisk(block, BlockReading, Params().GetConsensus())) // shouldn't really happen
                 continue;
-            }
 
             CAmount nSmartnodePayment = GetSmartnodePayment(BlockReading->nHeight, block.vtx[0].GetValueOut());
 
             BOOST_FOREACH(CTxOut txout, block.vtx[0].vout)
-            if (mnpayee == txout.scriptPubKey && nSmartnodePayment == txout.nValue) {
-                nBlockLastPaid = BlockReading->nHeight;
-                nTimeLastPaid = BlockReading->nTime;
-                LogPrint("smartnode", "CSmartnode::UpdateLastPaidBlock -- searching for block with payment to %s -- found new %d\n", vin.prevout.ToStringShort(), nBlockLastPaid);
-                return;
-            }
+                if(mnpayee == txout.scriptPubKey && nSmartnodePayment == txout.nValue) {
+                    nBlockLastPaid = BlockReading->nHeight;
+                    nTimeLastPaid = BlockReading->nTime;
+                    LogPrint("smartnode", "CSmartnode::UpdateLastPaidBlock -- searching for block with payment to %s -- found new %d\n", vin.prevout.ToStringShort(), nBlockLastPaid);
+                    return;
+                }
         }
 
-        if (BlockReading->pprev == NULL) {
-            assert(BlockReading);
-            break;
-        }
+        if (BlockReading->pprev == NULL) { assert(BlockReading); break; }
         BlockReading = BlockReading->pprev;
     }
 
@@ -438,51 +342,47 @@ void CSmartnode::UpdateLastPaid(const CBlockIndex *pindex, int nMaxBlocksToScanB
     // LogPrint("smartnode", "CSmartnode::UpdateLastPaidBlock -- searching for block with payment to %s -- keeping old %d\n", vin.prevout.ToStringShort(), nBlockLastPaid);
 }
 
-bool CSmartnodeBroadcast::Create(std::string strService, std::string strKeySmartnode, std::string strTxHash, std::string strOutputIndex, std::string &strErrorRet, CSmartnodeBroadcast &mnbRet, bool fOffline) {
-    LogPrintf("CSmartnodeBroadcast::Create\n");
-    CTxIn txin;
+#ifdef ENABLE_WALLET
+bool CSmartnodeBroadcast::Create(std::string strService, std::string strKeySmartnode, std::string strTxHash, std::string strOutputIndex, std::string& strErrorRet, CSmartnodeBroadcast &mnbRet, bool fOffline)
+{
+    COutPoint outpoint;
     CPubKey pubKeyCollateralAddressNew;
     CKey keyCollateralAddressNew;
     CPubKey pubKeySmartnodeNew;
     CKey keySmartnodeNew;
+
+    auto Log = [&strErrorRet](std::string sErr)->bool
+    {
+        strErrorRet = sErr;
+        LogPrintf("CSmartnodeBroadcast::Create -- %s\n", strErrorRet);
+        return false;
+    };
+
     //need correct blocks to send ping
-    if (!fOffline && !smartnodeSync.IsBlockchainSynced()) {
-        strErrorRet = "Sync in progress. Must wait until sync is complete to start Smartnode";
-        LogPrintf("CSmartnodeBroadcast::Create -- %s\n", strErrorRet);
-        return false;
-    }
+    if (!fOffline && !smartnodeSync.IsBlockchainSynced())
+        return Log("Sync in progress. Must wait until sync is complete to start Smartnode");
 
-    //TODO
-    if (!darkSendSigner.GetKeysFromSecret(strKeySmartnode, keySmartnodeNew, pubKeySmartnodeNew)) {
-        strErrorRet = strprintf("Invalid smartnode key %s", strKeySmartnode);
-        LogPrintf("CSmartnodeBroadcast::Create -- %s\n", strErrorRet);
-        return false;
-    }
+    if (!CMessageSigner::GetKeysFromSecret(strKeySmartnode, keySmartnodeNew, pubKeySmartnodeNew))
+        return Log(strprintf("Invalid smartnode key %s", strKeySmartnode));
 
-    if (!pwalletMain->GetSmartnodeVinAndKeys(txin, pubKeyCollateralAddressNew, keyCollateralAddressNew, strTxHash, strOutputIndex)) {
-        strErrorRet = strprintf("Could not allocate txin %s:%s for smartnode %s", strTxHash, strOutputIndex, strService);
-        LogPrintf("CSmartnodeBroadcast::Create -- %s\n", strErrorRet);
-        return false;
-    }
+    if (!pwalletMain->GetSmartnodeOutpointAndKeys(outpoint, pubKeyCollateralAddressNew, keyCollateralAddressNew, strTxHash, strOutputIndex))
+        return Log(strprintf("Could not allocate outpoint %s:%s for smartnode %s", strTxHash, strOutputIndex, strService));
 
-    CService service = CService(strService);
+    CService service;
+    if (!Lookup(strService.c_str(), service, 0, false))
+        return Log(strprintf("Invalid address %s for smartnode.", strService));
     int mainnetDefaultPort = Params(CBaseChainParams::MAIN).GetDefaultPort();
     if (Params().NetworkIDString() == CBaseChainParams::MAIN) {
-        if (service.GetPort() != mainnetDefaultPort) {
-            strErrorRet = strprintf("Invalid port %u for smartnode %s, only %d is supported on mainnet.", service.GetPort(), strService, mainnetDefaultPort);
-            LogPrintf("CSmartnodeBroadcast::Create -- %s\n", strErrorRet);
-            return false;
-        }
-    } else if (service.GetPort() == mainnetDefaultPort) {
-        strErrorRet = strprintf("Invalid port %u for smartnode %s, %d is the only supported on mainnet.", service.GetPort(), strService, mainnetDefaultPort);
-        LogPrintf("CSmartnodeBroadcast::Create -- %s\n", strErrorRet);
-        return false;
-    }
+        if (service.GetPort() != mainnetDefaultPort)
+            return Log(strprintf("Invalid port %u for smartnode %s, only %d is supported on mainnet.", service.GetPort(), strService, mainnetDefaultPort));
+    } else if (service.GetPort() == mainnetDefaultPort)
+        return Log(strprintf("Invalid port %u for smartnode %s, %d is the only supported on mainnet.", service.GetPort(), strService, mainnetDefaultPort));
 
-    return Create(txin, CService(strService), keyCollateralAddressNew, pubKeyCollateralAddressNew, keySmartnodeNew, pubKeySmartnodeNew, strErrorRet, mnbRet);
+    return Create(outpoint, service, keyCollateralAddressNew, pubKeyCollateralAddressNew, keySmartnodeNew, pubKeySmartnodeNew, strErrorRet, mnbRet);
 }
 
-bool CSmartnodeBroadcast::Create(CTxIn txin, CService service, CKey keyCollateralAddressNew, CPubKey pubKeyCollateralAddressNew, CKey keySmartnodeNew, CPubKey pubKeySmartnodeNew, std::string &strErrorRet, CSmartnodeBroadcast &mnbRet) {
+bool CSmartnodeBroadcast::Create(const COutPoint& outpoint, const CService& service, const CKey& keyCollateralAddressNew, const CPubKey& pubKeyCollateralAddressNew, const CKey& keySmartnodeNew, const CPubKey& pubKeySmartnodeNew, std::string &strErrorRet, CSmartnodeBroadcast &mnbRet)
+{
     // wait for reindex and/or import to finish
     if (fImporting || fReindex) return false;
 
@@ -490,42 +390,39 @@ bool CSmartnodeBroadcast::Create(CTxIn txin, CService service, CKey keyCollatera
              CBitcoinAddress(pubKeyCollateralAddressNew.GetID()).ToString(),
              pubKeySmartnodeNew.GetID().ToString());
 
-
-    CSmartnodePing mnp(txin);
-    if (!mnp.Sign(keySmartnodeNew, pubKeySmartnodeNew)) {
-        strErrorRet = strprintf("Failed to sign ping, smartnode=%s", txin.prevout.ToStringShort());
+    auto Log = [&strErrorRet,&mnbRet](std::string sErr)->bool
+    {
+        strErrorRet = sErr;
         LogPrintf("CSmartnodeBroadcast::Create -- %s\n", strErrorRet);
         mnbRet = CSmartnodeBroadcast();
         return false;
-    }
+    };
 
-    mnbRet = CSmartnodeBroadcast(service, txin, pubKeyCollateralAddressNew, pubKeySmartnodeNew, PROTOCOL_VERSION);
+    CSmartnodePing mnp(outpoint);
+    if (!mnp.Sign(keySmartnodeNew, pubKeySmartnodeNew))
+        return Log(strprintf("Failed to sign ping, smartnode=%s", outpoint.ToStringShort()));
 
-    if (!mnbRet.IsValidNetAddr()) {
-        strErrorRet = strprintf("Invalid IP address, smartnode=%s", txin.prevout.ToStringShort());
-        LogPrintf("CSmartnodeBroadcast::Create -- %s\n", strErrorRet);
-        mnbRet = CSmartnodeBroadcast();
-        return false;
-    }
+    mnbRet = CSmartnodeBroadcast(service, outpoint, pubKeyCollateralAddressNew, pubKeySmartnodeNew, PROTOCOL_VERSION);
+
+    if (!mnbRet.IsValidNetAddr())
+        return Log(strprintf("Invalid IP address, smartnode=%s", outpoint.ToStringShort()));
 
     mnbRet.lastPing = mnp;
-    if (!mnbRet.Sign(keyCollateralAddressNew)) {
-        strErrorRet = strprintf("Failed to sign broadcast, smartnode=%s", txin.prevout.ToStringShort());
-        LogPrintf("CSmartnodeBroadcast::Create -- %s\n", strErrorRet);
-        mnbRet = CSmartnodeBroadcast();
-        return false;
-    }
+    if (!mnbRet.Sign(keyCollateralAddressNew))
+        return Log(strprintf("Failed to sign broadcast, smartnode=%s", outpoint.ToStringShort()));
 
     return true;
 }
+#endif // ENABLE_WALLET
 
-bool CSmartnodeBroadcast::SimpleCheck(int &nDos) {
+bool CSmartnodeBroadcast::SimpleCheck(int& nDos)
+{
     nDos = 0;
 
     // make sure addr is valid
-    if (!IsValidNetAddr()) {
+    if(!IsValidNetAddr()) {
         LogPrintf("CSmartnodeBroadcast::SimpleCheck -- Invalid addr, rejected: smartnode=%s  addr=%s\n",
-                  vin.prevout.ToStringShort(), addr.ToString());
+                    vin.prevout.ToStringShort(), addr.ToString());
         return false;
     }
 
@@ -537,12 +434,12 @@ bool CSmartnodeBroadcast::SimpleCheck(int &nDos) {
     }
 
     // empty ping or incorrect sigTime/unknown blockhash
-    if (lastPing == CSmartnodePing() || !lastPing.SimpleCheck(nDos)) {
+    if(lastPing == CSmartnodePing() || !lastPing.SimpleCheck(nDos)) {
         // one of us is probably forked or smth, just mark it as expired and check the rest of the rules
         nActiveState = SMARTNODE_EXPIRED;
     }
 
-    if (nProtocolVersion < mnpayments.GetMinSmartnodePaymentsProto()) {
+    if(nProtocolVersion < mnpayments.GetMinSmartnodePaymentsProto()) {
         LogPrintf("CSmartnodeBroadcast::SimpleCheck -- ignoring outdated Smartnode: smartnode=%s  nProtocolVersion=%d\n", vin.prevout.ToStringShort(), nProtocolVersion);
         return false;
     }
@@ -550,7 +447,7 @@ bool CSmartnodeBroadcast::SimpleCheck(int &nDos) {
     CScript pubkeyScript;
     pubkeyScript = GetScriptForDestination(pubKeyCollateralAddress.GetID());
 
-    if (pubkeyScript.size() != 25) {
+    if(pubkeyScript.size() != 25) {
         LogPrintf("CSmartnodeBroadcast::SimpleCheck -- pubKeyCollateralAddress has the wrong size\n");
         nDos = 100;
         return false;
@@ -559,30 +456,31 @@ bool CSmartnodeBroadcast::SimpleCheck(int &nDos) {
     CScript pubkeyScript2;
     pubkeyScript2 = GetScriptForDestination(pubKeySmartnode.GetID());
 
-    if (pubkeyScript2.size() != 25) {
+    if(pubkeyScript2.size() != 25) {
         LogPrintf("CSmartnodeBroadcast::SimpleCheck -- pubKeySmartnode has the wrong size\n");
         nDos = 100;
         return false;
     }
 
-    if (!vin.scriptSig.empty()) {
-        LogPrintf("CSmartnodeBroadcast::SimpleCheck -- Ignore Not Empty ScriptSig %s\n", vin.ToString());
+    if(!vin.scriptSig.empty()) {
+        LogPrintf("CSmartnodeBroadcast::SimpleCheck -- Ignore Not Empty ScriptSig %s\n",vin.ToString());
         nDos = 100;
         return false;
     }
 
     int mainnetDefaultPort = Params(CBaseChainParams::MAIN).GetDefaultPort();
-    if (Params().NetworkIDString() == CBaseChainParams::MAIN) {
-        if (addr.GetPort() != mainnetDefaultPort) return false;
-    } else if (addr.GetPort() == mainnetDefaultPort) return false;
+    if(Params().NetworkIDString() == CBaseChainParams::MAIN) {
+        if(addr.GetPort() != mainnetDefaultPort) return false;
+    } else if(addr.GetPort() == mainnetDefaultPort) return false;
 
     return true;
 }
 
-bool CSmartnodeBroadcast::Update(CSmartnode *pmn, int &nDos) {
+bool CSmartnodeBroadcast::Update(CSmartnode* pmn, int& nDos, CConnman& connman)
+{
     nDos = 0;
 
-    if (pmn->sigTime == sigTime && !fRecovery) {
+    if(pmn->sigTime == sigTime && !fRecovery) {
         // mapSeenSmartnodeBroadcast in CSmartnodeMan::CheckMnbAndUpdateSmartnodeList should filter legit duplicates
         // but this still can happen if we just started, which is ok, just do nothing here.
         return false;
@@ -590,22 +488,22 @@ bool CSmartnodeBroadcast::Update(CSmartnode *pmn, int &nDos) {
 
     // this broadcast is older than the one that we already have - it's bad and should never happen
     // unless someone is doing something fishy
-    if (pmn->sigTime > sigTime) {
+    if(pmn->sigTime > sigTime) {
         LogPrintf("CSmartnodeBroadcast::Update -- Bad sigTime %d (existing broadcast is at %d) for Smartnode %s %s\n",
-                  sigTime, pmn->sigTime, vin.prevout.ToStringShort(), addr.ToString());
+                      sigTime, pmn->sigTime, vin.prevout.ToStringShort(), addr.ToString());
         return false;
     }
 
     pmn->Check();
 
     // smartnode is banned by PoSe
-    if (pmn->IsPoSeBanned()) {
+    if(pmn->IsPoSeBanned()) {
         LogPrintf("CSmartnodeBroadcast::Update -- Banned by PoSe, smartnode=%s\n", vin.prevout.ToStringShort());
         return false;
     }
 
     // IsVnAssociatedWithPubkey is validated once in CheckOutpoint, after that they just need to match
-    if (pmn->pubKeyCollateralAddress != pubKeyCollateralAddress) {
+    if(pmn->pubKeyCollateralAddress != pubKeyCollateralAddress) {
         LogPrintf("CSmartnodeBroadcast::Update -- Got mismatched pubKeyCollateralAddress and vin\n");
         nDos = 33;
         return false;
@@ -617,23 +515,24 @@ bool CSmartnodeBroadcast::Update(CSmartnode *pmn, int &nDos) {
     }
 
     // if ther was no smartnode broadcast recently or if it matches our Smartnode privkey...
-    if (!pmn->IsBroadcastedWithin(SMARTNODE_MIN_MNB_SECONDS) || (fSmartNode && pubKeySmartnode == activeSmartnode.pubKeySmartnode)) {
+    if(!pmn->IsBroadcastedWithin(SMARTNODE_MIN_MNB_SECONDS) || (fSmartNode && pubKeySmartnode == activeSmartnode.pubKeySmartnode)) {
         // take the newest entry
         LogPrintf("CSmartnodeBroadcast::Update -- Got UPDATED Smartnode entry: addr=%s\n", addr.ToString());
-        if (pmn->UpdateFromNewBroadcast((*this))) {
+        if(pmn->UpdateFromNewBroadcast(*this, connman)) {
             pmn->Check();
-            RelaySmartNode();
+            Relay(connman);
         }
-        smartnodeSync.AddedSmartnodeList();
+        smartnodeSync.BumpAssetLastTime("CSmartnodeBroadcast::Update");
     }
 
     return true;
 }
 
-bool CSmartnodeBroadcast::CheckOutpoint(int &nDos) {
+bool CSmartnodeBroadcast::CheckOutpoint(int& nDos)
+{
     // we are a smartnode with the same vin (i.e. already activated) and this mnb is ours (matches our Smartnode privkey)
     // so nothing to do here for us
-    if (fSmartNode && vin.prevout == activeSmartnode.vin.prevout && pubKeySmartnode == activeSmartnode.pubKeySmartnode) {
+    if(fSmartNode && vin.prevout == activeSmartnode.outpoint && pubKeySmartnode == activeSmartnode.pubKeySmartnode) {
         return false;
     }
 
@@ -644,45 +543,48 @@ bool CSmartnodeBroadcast::CheckOutpoint(int &nDos) {
 
     {
         TRY_LOCK(cs_main, lockMain);
-        if (!lockMain) {
+        if(!lockMain) {
             // not mnb fault, let it to be checked again later
             LogPrint("smartnode", "CSmartnodeBroadcast::CheckOutpoint -- Failed to aquire lock, addr=%s", addr.ToString());
             mnodeman.mapSeenSmartnodeBroadcast.erase(GetHash());
             return false;
         }
 
-        CCoins coins;
-        if (!pcoinsTip->GetCoins(vin.prevout.hash, coins) ||
-            (unsigned int) vin.prevout.n >= coins.vout.size() ||
-            coins.vout[vin.prevout.n].IsNull()) {
+        int nHeight;
+        CollateralStatus err = CheckCollateral(vin.prevout, nHeight);
+        if (err == COLLATERAL_UTXO_NOT_FOUND) {
             LogPrint("smartnode", "CSmartnodeBroadcast::CheckOutpoint -- Failed to find Smartnode UTXO, smartnode=%s\n", vin.prevout.ToStringShort());
             return false;
         }
-        if (coins.vout[vin.prevout.n].nValue != SMARTNODE_COIN_REQUIRED * COIN) {
-            LogPrint("smartnode", "CSmartnodeBroadcast::CheckOutpoint -- Smartnode UTXO should have 10000 Smartcash, smartnode=%s\n", vin.prevout.ToStringShort());
+
+        if (err == COLLATERAL_INVALID_AMOUNT) {
+            LogPrint("smartnode", "CSmartnodeBroadcast::CheckOutpoint -- Smartnode UTXO should have 1000 DASH, smartnode=%s\n", vin.prevout.ToStringShort());
             return false;
         }
-        if (chainActive.Height() - coins.nHeight + 1 < Params().GetConsensus().nSmartnodeMinimumConfirmations) {
+
+        if(chainActive.Height() - nHeight + 1 < Params().GetConsensus().nSmartnodeMinimumConfirmations) {
             LogPrintf("CSmartnodeBroadcast::CheckOutpoint -- Smartnode UTXO must have at least %d confirmations, smartnode=%s\n",
-                      Params().GetConsensus().nSmartnodeMinimumConfirmations, vin.prevout.ToStringShort());
+                    Params().GetConsensus().nSmartnodeMinimumConfirmations, vin.prevout.ToStringShort());
             // maybe we miss few blocks, let this mnb to be checked again later
             mnodeman.mapSeenSmartnodeBroadcast.erase(GetHash());
             return false;
         }
+        // remember the hash of the block where smartnode collateral had minimum required confirmations
+        nCollateralMinConfBlockHash = chainActive[nHeight + Params().GetConsensus().nSmartnodeMinimumConfirmations - 1]->GetBlockHash();
     }
 
     LogPrint("smartnode", "CSmartnodeBroadcast::CheckOutpoint -- Smartnode UTXO verified\n");
 
-    // make sure the vout that was signed is related to the transaction that spawned the Smartnode
-    //  - this is expensive, so it's only done once per Smartnode
-    if (!darkSendSigner.IsVinAssociatedWithPubkey(vin, pubKeyCollateralAddress)) {
+    // make sure the input that was signed in smartnode broadcast message is related to the transaction
+    // that spawned the Smartnode - this is expensive, so it's only done once per Smartnode
+    if(!IsInputAssociatedWithPubkey()) {
         LogPrintf("CSmartnodeMan::CheckOutpoint -- Got mismatched pubKeyCollateralAddress and vin\n");
         nDos = 33;
         return false;
     }
 
     // verify that sig time is legit in past
-    // should be at least not earlier than block when 10000 SMART tx got nSmartnodeMinimumConfirmations
+    // should be at least not earlier than block when 1000 DASH tx got nSmartnodeMinimumConfirmations
     uint256 hashBlock = uint256();
     CTransaction tx2;
     GetTransaction(vin.prevout.hash, tx2, Params().GetConsensus(), hashBlock, true);
@@ -690,9 +592,9 @@ bool CSmartnodeBroadcast::CheckOutpoint(int &nDos) {
         LOCK(cs_main);
         BlockMap::iterator mi = mapBlockIndex.find(hashBlock);
         if (mi != mapBlockIndex.end() && (*mi).second) {
-            CBlockIndex *pMNIndex = (*mi).second; // block for 10000 SMART tx -> 1 confirmation
-            CBlockIndex *pConfIndex = chainActive[pMNIndex->nHeight + Params().GetConsensus().nSmartnodeMinimumConfirmations - 1]; // block where tx got nSmartnodeMinimumConfirmations
-            if (pConfIndex->GetBlockTime() > sigTime) {
+            CBlockIndex* pMNIndex = (*mi).second; // block for 1000 DASH tx -> 1 confirmation
+            CBlockIndex* pConfIndex = chainActive[pMNIndex->nHeight + Params().GetConsensus().nSmartnodeMinimumConfirmations - 1]; // block where tx got nSmartnodeMinimumConfirmations
+            if(pConfIndex->GetBlockTime() > sigTime) {
                 LogPrintf("CSmartnodeBroadcast::CheckOutpoint -- Bad sigTime %d (%d conf block is at %d) for Smartnode %s %s\n",
                           sigTime, Params().GetConsensus().nSmartnodeMinimumConfirmations, pConfIndex->GetBlockTime(), vin.prevout.ToStringShort(), addr.ToString());
                 return false;
@@ -703,22 +605,23 @@ bool CSmartnodeBroadcast::CheckOutpoint(int &nDos) {
     return true;
 }
 
-bool CSmartnodeBroadcast::Sign(CKey &keyCollateralAddress) {
+bool CSmartnodeBroadcast::Sign(const CKey& keyCollateralAddress)
+{
     std::string strError;
     std::string strMessage;
 
     sigTime = GetAdjustedTime();
 
-    strMessage = addr.ToString() + boost::lexical_cast<std::string>(sigTime) +
-                 pubKeyCollateralAddress.GetID().ToString() + pubKeySmartnode.GetID().ToString() +
-                 boost::lexical_cast<std::string>(nProtocolVersion);
+    strMessage = addr.ToString(false) + boost::lexical_cast<std::string>(sigTime) +
+                    pubKeyCollateralAddress.GetID().ToString() + pubKeySmartnode.GetID().ToString() +
+                    boost::lexical_cast<std::string>(nProtocolVersion);
 
-    if (!darkSendSigner.SignMessage(strMessage, vchSig, keyCollateralAddress)) {
+    if(!CMessageSigner::SignMessage(strMessage, vchSig, keyCollateralAddress)) {
         LogPrintf("CSmartnodeBroadcast::Sign -- SignMessage() failed\n");
         return false;
     }
 
-    if (!darkSendSigner.VerifyMessage(pubKeyCollateralAddress, vchSig, strMessage, strError)) {
+    if(!CMessageSigner::VerifyMessage(pubKeyCollateralAddress, vchSig, strMessage, strError)) {
         LogPrintf("CSmartnodeBroadcast::Sign -- VerifyMessage() failed, error: %s\n", strError);
         return false;
     }
@@ -726,18 +629,19 @@ bool CSmartnodeBroadcast::Sign(CKey &keyCollateralAddress) {
     return true;
 }
 
-bool CSmartnodeBroadcast::CheckSignature(int &nDos) {
+bool CSmartnodeBroadcast::CheckSignature(int& nDos)
+{
     std::string strMessage;
     std::string strError = "";
     nDos = 0;
 
-    strMessage = addr.ToString() + boost::lexical_cast<std::string>(sigTime) +
-                 pubKeyCollateralAddress.GetID().ToString() + pubKeySmartnode.GetID().ToString() +
-                 boost::lexical_cast<std::string>(nProtocolVersion);
+    strMessage = addr.ToString(false) + boost::lexical_cast<std::string>(sigTime) +
+                    pubKeyCollateralAddress.GetID().ToString() + pubKeySmartnode.GetID().ToString() +
+                    boost::lexical_cast<std::string>(nProtocolVersion);
 
     LogPrint("smartnode", "CSmartnodeBroadcast::CheckSignature -- strMessage: %s  pubKeyCollateralAddress address: %s  sig: %s\n", strMessage, CBitcoinAddress(pubKeyCollateralAddress.GetID()).ToString(), EncodeBase64(&vchSig[0], vchSig.size()));
 
-    if (!darkSendSigner.VerifyMessage(pubKeyCollateralAddress, vchSig, strMessage, strError)) {
+    if(!CMessageSigner::VerifyMessage(pubKeyCollateralAddress, vchSig, strMessage, strError)){
         LogPrintf("CSmartnodeBroadcast::CheckSignature -- Got bad Smartnode announce signature, error: %s\n", strError);
         nDos = 100;
         return false;
@@ -746,36 +650,43 @@ bool CSmartnodeBroadcast::CheckSignature(int &nDos) {
     return true;
 }
 
-void CSmartnodeBroadcast::RelaySmartNode() {
-    LogPrintf("CSmartnodeBroadcast::RelaySmartNode\n");
+void CSmartnodeBroadcast::Relay(CConnman& connman)
+{
+    // Do not relay until fully synced
+    if(!smartnodeSync.IsSynced()) {
+        LogPrint("smartnode", "CSmartnodeBroadcast::Relay -- won't relay until fully synced\n");
+        return;
+    }
+
     CInv inv(MSG_SMARTNODE_ANNOUNCE, GetHash());
-    RelayInv(inv);
+    connman.RelayInv(inv);
 }
 
-CSmartnodePing::CSmartnodePing(CTxIn &vinNew) {
+CSmartnodePing::CSmartnodePing(const COutPoint& outpoint)
+{
     LOCK(cs_main);
     if (!chainActive.Tip() || chainActive.Height() < 12) return;
 
-    vin = vinNew;
+    vin = CTxIn(outpoint);
     blockHash = chainActive[chainActive.Height() - 12]->GetBlockHash();
     sigTime = GetAdjustedTime();
-    vchSig = std::vector < unsigned
-    char > ();
 }
 
-bool CSmartnodePing::Sign(CKey &keySmartnode, CPubKey &pubKeySmartnode) {
+bool CSmartnodePing::Sign(const CKey& keySmartnode, const CPubKey& pubKeySmartnode)
+{
     std::string strError;
     std::string strSmartNodeSignMessage;
 
+    // TODO: add sentinel data
     sigTime = GetAdjustedTime();
     std::string strMessage = vin.ToString() + blockHash.ToString() + boost::lexical_cast<std::string>(sigTime);
 
-    if (!darkSendSigner.SignMessage(strMessage, vchSig, keySmartnode)) {
+    if(!CMessageSigner::SignMessage(strMessage, vchSig, keySmartnode)) {
         LogPrintf("CSmartnodePing::Sign -- SignMessage() failed\n");
         return false;
     }
 
-    if (!darkSendSigner.VerifyMessage(pubKeySmartnode, vchSig, strMessage, strError)) {
+    if(!CMessageSigner::VerifyMessage(pubKeySmartnode, vchSig, strMessage, strError)) {
         LogPrintf("CSmartnodePing::Sign -- VerifyMessage() failed, error: %s\n", strError);
         return false;
     }
@@ -783,12 +694,14 @@ bool CSmartnodePing::Sign(CKey &keySmartnode, CPubKey &pubKeySmartnode) {
     return true;
 }
 
-bool CSmartnodePing::CheckSignature(CPubKey &pubKeySmartnode, int &nDos) {
+bool CSmartnodePing::CheckSignature(CPubKey& pubKeySmartnode, int &nDos)
+{
+    // TODO: add sentinel data
     std::string strMessage = vin.ToString() + blockHash.ToString() + boost::lexical_cast<std::string>(sigTime);
     std::string strError = "";
     nDos = 0;
 
-    if (!darkSendSigner.VerifyMessage(pubKeySmartnode, vchSig, strMessage, strError)) {
+    if(!CMessageSigner::VerifyMessage(pubKeySmartnode, vchSig, strMessage, strError)) {
         LogPrintf("CSmartnodePing::CheckSignature -- Got bad Smartnode ping signature, smartnode=%s, error: %s\n", vin.prevout.ToStringShort(), strError);
         nDos = 33;
         return false;
@@ -796,7 +709,8 @@ bool CSmartnodePing::CheckSignature(CPubKey &pubKeySmartnode, int &nDos) {
     return true;
 }
 
-bool CSmartnodePing::SimpleCheck(int &nDos) {
+bool CSmartnodePing::SimpleCheck(int& nDos)
+{
     // don't ban by default
     nDos = 0;
 
@@ -807,7 +721,6 @@ bool CSmartnodePing::SimpleCheck(int &nDos) {
     }
 
     {
-//        LOCK(cs_main);
         AssertLockHeld(cs_main);
         BlockMap::iterator mi = mapBlockIndex.find(blockHash);
         if (mi == mapBlockIndex.end()) {
@@ -821,7 +734,8 @@ bool CSmartnodePing::SimpleCheck(int &nDos) {
     return true;
 }
 
-bool CSmartnodePing::CheckAndUpdate(CSmartnode *pmn, bool fFromNewBroadcast, int &nDos) {
+bool CSmartnodePing::CheckAndUpdate(CSmartnode* pmn, bool fFromNewBroadcast, int& nDos, CConnman& connman)
+{
     // don't ban by default
     nDos = 0;
 
@@ -834,7 +748,7 @@ bool CSmartnodePing::CheckAndUpdate(CSmartnode *pmn, bool fFromNewBroadcast, int
         return false;
     }
 
-    if (!fFromNewBroadcast) {
+    if(!fFromNewBroadcast) {
         if (pmn->IsUpdateRequired()) {
             LogPrint("smartnode", "CSmartnodePing::CheckAndUpdate -- smartnode protocol is outdated, smartnode=%s\n", vin.prevout.ToStringShort());
             return false;
@@ -873,10 +787,10 @@ bool CSmartnodePing::CheckAndUpdate(CSmartnode *pmn, bool fFromNewBroadcast, int
 
     // if we are still syncing and there was no known ping for this mn for quite a while
     // (NOTE: assuming that SMARTNODE_EXPIRATION_SECONDS/2 should be enough to finish mn list sync)
-    if (!smartnodeSync.IsSmartnodeListSynced() && !pmn->IsPingedWithin(SMARTNODE_EXPIRATION_SECONDS / 2)) {
+    if(!smartnodeSync.IsSmartnodeListSynced() && !pmn->IsPingedWithin(SMARTNODE_EXPIRATION_SECONDS/2)) {
         // let's bump sync timeout
         LogPrint("smartnode", "CSmartnodePing::CheckAndUpdate -- bumping sync timeout, smartnode=%s\n", vin.prevout.ToStringShort());
-        smartnodeSync.AddedSmartnodeList();
+        smartnodeSync.BumpAssetLastTime("CSmartnodePing::CheckAndUpdate");
     }
 
     // let's store this ping as the last one
@@ -890,41 +804,51 @@ bool CSmartnodePing::CheckAndUpdate(CSmartnode *pmn, bool fFromNewBroadcast, int
         mnodeman.mapSeenSmartnodeBroadcast[hash].second.lastPing = *this;
     }
 
-    pmn->Check(true); // force update, ignoring cache
-    if (!pmn->IsEnabled()) return false;
+    // force update, ignoring cache
+    pmn->Check(true);
+    // relay ping for nodes in ENABLED/EXPIRED/WATCHDOG_EXPIRED state only, skip everyone else
+    if (!pmn->IsEnabled() && !pmn->IsExpired() && !pmn->IsWatchdogExpired()) return false;
 
     LogPrint("smartnode", "CSmartnodePing::CheckAndUpdate -- Smartnode ping acceepted and relayed, smartnode=%s\n", vin.prevout.ToStringShort());
-    Relay();
+    Relay(connman);
 
     return true;
 }
 
-void CSmartnodePing::Relay() {
+void CSmartnodePing::Relay(CConnman& connman)
+{
+    // Do not relay until fully synced
+    if(!smartnodeSync.IsSynced()) {
+        LogPrint("smartnode", "CSmartnodePing::Relay -- won't relay until fully synced\n");
+        return;
+    }
+
     CInv inv(MSG_SMARTNODE_PING, GetHash());
-    RelayInv(inv);
+    connman.RelayInv(inv);
 }
 
-//void CSmartnode::AddGovernanceVote(uint256 nGovernanceObjectHash)
-//{
-//    if(mapGovernanceObjectsVotedOn.count(nGovernanceObjectHash)) {
-//        mapGovernanceObjectsVotedOn[nGovernanceObjectHash]++;
-//    } else {
-//        mapGovernanceObjectsVotedOn.insert(std::make_pair(nGovernanceObjectHash, 1));
-//    }
-//}
+void CSmartnode::AddGovernanceVote(uint256 nGovernanceObjectHash)
+{
+    if(mapGovernanceObjectsVotedOn.count(nGovernanceObjectHash)) {
+        mapGovernanceObjectsVotedOn[nGovernanceObjectHash]++;
+    } else {
+        mapGovernanceObjectsVotedOn.insert(std::make_pair(nGovernanceObjectHash, 1));
+    }
+}
 
-//void CSmartnode::RemoveGovernanceObject(uint256 nGovernanceObjectHash)
-//{
-//    std::map<uint256, int>::iterator it = mapGovernanceObjectsVotedOn.find(nGovernanceObjectHash);
-//    if(it == mapGovernanceObjectsVotedOn.end()) {
-//        return;
-//    }
-//    mapGovernanceObjectsVotedOn.erase(it);
-//}
+void CSmartnode::RemoveGovernanceObject(uint256 nGovernanceObjectHash)
+{
+    std::map<uint256, int>::iterator it = mapGovernanceObjectsVotedOn.find(nGovernanceObjectHash);
+    if(it == mapGovernanceObjectsVotedOn.end()) {
+        return;
+    }
+    mapGovernanceObjectsVotedOn.erase(it);
+}
 
-void CSmartnode::UpdateWatchdogVoteTime() {
+void CSmartnode::UpdateWatchdogVoteTime(uint64_t nVoteTime)
+{
     LOCK(cs);
-    nTimeLastWatchdogVote = GetTime();
+    nTimeLastWatchdogVote = (nVoteTime == 0) ? GetAdjustedTime() : nVoteTime;
 }
 
 /**
@@ -933,17 +857,17 @@ void CSmartnode::UpdateWatchdogVoteTime() {
 *   - When smartnode come and go on the network, we must flag the items they voted on to recalc it's cached flags
 *
 */
-//void CSmartnode::FlagGovernanceItemsAsDirty()
-//{
-//    std::vector<uint256> vecDirty;
-//    {
-//        std::map<uint256, int>::iterator it = mapGovernanceObjectsVotedOn.begin();
-//        while(it != mapGovernanceObjectsVotedOn.end()) {
-//            vecDirty.push_back(it->first);
-//            ++it;
-//        }
-//    }
-//    for(size_t i = 0; i < vecDirty.size(); ++i) {
-//        mnodeman.AddDirtyGovernanceObjectHash(vecDirty[i]);
-//    }
-//}
+void CSmartnode::FlagGovernanceItemsAsDirty()
+{
+    std::vector<uint256> vecDirty;
+    {
+        std::map<uint256, int>::iterator it = mapGovernanceObjectsVotedOn.begin();
+        while(it != mapGovernanceObjectsVotedOn.end()) {
+            vecDirty.push_back(it->first);
+            ++it;
+        }
+    }
+    for(size_t i = 0; i < vecDirty.size(); ++i) {
+        mnodeman.AddDirtyGovernanceObjectHash(vecDirty[i]);
+    }
+}

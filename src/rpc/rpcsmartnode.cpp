@@ -1,15 +1,21 @@
+// Copyright (c) 2014-2017 The Dash Core developers
+// Distributed under the MIT/X11 software license, see the accompanying
+// file COPYING or http://www.opensource.org/licenses/mit-license.php.
+
+#include "base58.h"
 #include "init.h"
 #include "main.h"
 #include "net.h"
+#include "netbase.h"
 #include "rpc/server.h"
 #include "smartnode/activesmartnode.h"
-#include "smartnode/darksend.h"
 #include "smartnode/smartnodeconfig.h"
 #include "smartnode/smartnodeman.h"
 #include "smartnode/smartnodepayments.h"
 #include "smartnode/smartnodesync.h"
 #include "util.h"
 #include "utilmoneystr.h"
+#include "wallet/wallet.h"
 
 #include <fstream>
 #include <iomanip>
@@ -17,112 +23,129 @@
 
 void EnsureWalletIsUnlocked();
 
-UniValue privatesend(const UniValue &params, bool fHelp) {
-    if (fHelp || params.size() != 1)
-        throw std::runtime_error(
-                "privatesend \"command\"\n"
-                        "\nArguments:\n"
-                        "1. \"command\"        (string or set of strings, required) The command to execute\n"
-                        "\nAvailable commands:\n"
-                        "  start       - Start mixing\n"
-                        "  stop        - Stop mixing\n"
-                        "  reset       - Reset mixing\n"
-        );
+// UniValue privatesend(const UniValue& params, bool fHelp)
+// {
+//     if (fHelp || params.size() != 1)
+//         throw std::runtime_error(
+//             "privatesend \"command\"\n"
+//             "\nArguments:\n"
+//             "1. \"command\"        (string or set of strings, required) The command to execute\n"
+//             "\nAvailable commands:\n"
+//             "  start       - Start mixing\n"
+//             "  stop        - Stop mixing\n"
+//             "  reset       - Reset mixing\n"
+//             );
 
-    if (params[0].get_str() == "start") {
-        {
-            LOCK(pwalletMain->cs_wallet);
-            EnsureWalletIsUnlocked();
-        }
+//     if(params[0].get_str() == "start") {
+//         {
+//             LOCK(pwalletMain->cs_wallet);
+//             EnsureWalletIsUnlocked();
+//         }
 
-        if (fSmartNode)
-            return "Mixing is not supported from smartnodes";
+//         if(fSmartNode)
+//             return "Mixing is not supported from smartnodes";
 
-        fEnablePrivateSend = true;
-        bool result = darkSendPool.DoAutomaticDenominating();
-        return "Mixing " +
-               (result ? "started successfully" : ("start failed: " + darkSendPool.GetStatus() + ", will retry"));
-    }
+//         privateSendClient.fEnablePrivateSend = true;
+//         bool result = privateSendClient.DoAutomaticDenominating(*g_connman);
+//         return "Mixing " + (result ? "started successfully" : ("start failed: " + privateSendClient.GetStatus() + ", will retry"));
+//     }
 
-    if (params[0].get_str() == "stop") {
-        fEnablePrivateSend = false;
-        return "Mixing was stopped";
-    }
+//     if(params[0].get_str() == "stop") {
+//         privateSendClient.fEnablePrivateSend = false;
+//         return "Mixing was stopped";
+//     }
 
-    if (params[0].get_str() == "reset") {
-        darkSendPool.ResetPool();
-        return "Mixing was reset";
-    }
+//     if(params[0].get_str() == "reset") {
+//         privateSendClient.ResetPool();
+//         return "Mixing was reset";
+//     }
 
-    return "Unknown command, please see \"help privatesend\"";
-}
+//     return "Unknown command, please see \"help privatesend\"";
+// }
 
-UniValue getpoolinfo(const UniValue &params, bool fHelp) {
-    if (fHelp || params.size() != 0)
-        throw std::runtime_error(
-                "getpoolinfo\n"
-                        "Returns an object containing mixing pool related information.\n");
+// UniValue getpoolinfo(const UniValue& params, bool fHelp)
+// {
+//     if (fHelp || params.size() != 0)
+//         throw std::runtime_error(
+//             "getpoolinfo\n"
+//             "Returns an object containing mixing pool related information.\n");
 
-    UniValue obj(UniValue::VOBJ);
-    obj.push_back(Pair("state", darkSendPool.GetStateString()));
-//    obj.push_back(Pair("mixing_mode",       fPrivateSendMultiSession ? "multi-session" : "normal"));
-    obj.push_back(Pair("queue", darkSendPool.GetQueueSize()));
-    obj.push_back(Pair("entries", darkSendPool.GetEntriesCount()));
-    obj.push_back(Pair("status", darkSendPool.GetStatus()));
+// #ifdef ENABLE_WALLET
+//     CPrivateSendBase* pprivateSendBase = fSmartNode ? (CPrivateSendBase*)&privateSendServer : (CPrivateSendBase*)&privateSendClient;
 
-    if (darkSendPool.pSubmittedToSmartnode) {
-        obj.push_back(Pair("outpoint", darkSendPool.pSubmittedToSmartnode->vin.prevout.ToStringShort()));
-        obj.push_back(Pair("addr", darkSendPool.pSubmittedToSmartnode->addr.ToString()));
-    }
+//     UniValue obj(UniValue::VOBJ);
+//     obj.push_back(Pair("state",             pprivateSendBase->GetStateString()));
+//     obj.push_back(Pair("mixing_mode",       (!fSmartNode && privateSendClient.fPrivateSendMultiSession) ? "multi-session" : "normal"));
+//     obj.push_back(Pair("queue",             pprivateSendBase->GetQueueSize()));
+//     obj.push_back(Pair("entries",           pprivateSendBase->GetEntriesCount()));
+//     obj.push_back(Pair("status",            privateSendClient.GetStatus()));
 
-    if (pwalletMain) {
-        obj.push_back(Pair("keys_left", pwalletMain->nKeysLeftSinceAutoBackup));
-        obj.push_back(Pair("warnings", pwalletMain->nKeysLeftSinceAutoBackup < PRIVATESEND_KEYS_THRESHOLD_WARNING
-                                       ? "WARNING: keypool is almost depleted!" : ""));
-    }
+//     smartnode_info_t mnInfo;
+//     if (privateSendClient.GetMixingSmartnodeInfo(mnInfo)) {
+//         obj.push_back(Pair("outpoint",      mnInfo.vin.prevout.ToStringShort()));
+//         obj.push_back(Pair("addr",          mnInfo.addr.ToString()));
+//     }
 
-    return obj;
-}
+//     if (pwalletMain) {
+//         obj.push_back(Pair("keys_left",     pwalletMain->nKeysLeftSinceAutoBackup));
+//         obj.push_back(Pair("warnings",      pwalletMain->nKeysLeftSinceAutoBackup < PRIVATESEND_KEYS_THRESHOLD_WARNING
+//                                                 ? "WARNING: keypool is almost depleted!" : ""));
+//     }
+// #else // ENABLE_WALLET
+//     UniValue obj(UniValue::VOBJ);
+//     obj.push_back(Pair("state",             privateSendServer.GetStateString()));
+//     obj.push_back(Pair("queue",             privateSendServer.GetQueueSize()));
+//     obj.push_back(Pair("entries",           privateSendServer.GetEntriesCount()));
+// #endif // ENABLE_WALLET
+
+//     return obj;
+// }
 
 
-UniValue smartnode(const UniValue &params, bool fHelp) {
+UniValue smartnode(const UniValue& params, bool fHelp)
+{
     std::string strCommand;
     if (params.size() >= 1) {
         strCommand = params[0].get_str();
     }
 
+#ifdef ENABLE_WALLET
     if (strCommand == "start-many")
         throw JSONRPCError(RPC_INVALID_PARAMETER, "DEPRECATED, please use start-all instead");
+#endif // ENABLE_WALLET
 
-    if (fHelp ||
-        (strCommand != "start" && strCommand != "start-alias" && strCommand != "start-all" &&
-         strCommand != "start-missing" &&
-         strCommand != "start-disabled" && strCommand != "list" && strCommand != "list-conf" && strCommand != "count" &&
-         strCommand != "debug" && strCommand != "current" && strCommand != "winner" && strCommand != "winners" &&
-         strCommand != "genkey" &&
-         strCommand != "connect" && strCommand != "outputs" && strCommand != "status"))
-        throw std::runtime_error(
+    if (fHelp  ||
+        (
+#ifdef ENABLE_WALLET
+            strCommand != "start-alias" && strCommand != "start-all" && strCommand != "start-missing" &&
+         strCommand != "start-disabled" && strCommand != "outputs" &&
+#endif // ENABLE_WALLET
+         strCommand != "list" && strCommand != "list-conf" && strCommand != "count" &&
+         strCommand != "debug" && strCommand != "current" && strCommand != "winner" && strCommand != "winners" && strCommand != "genkey" &&
+         strCommand != "connect" && strCommand != "status"))
+            throw std::runtime_error(
                 "smartnode \"command\"...\n"
-                        "Set of commands to execute smartnode related actions\n"
-                        "\nArguments:\n"
-                        "1. \"command\"        (string or set of strings, required) The command to execute\n"
-                        "\nAvailable commands:\n"
-                        "  count        - Print number of all known smartnodes (optional: 'ps', 'enabled', 'all', 'qualify')\n"
-                        "  current      - Print info on current smartnode winner to be paid the next block (calculated locally)\n"
-                        "  debug        - Print smartnode status\n"
-                        "  genkey       - Generate new smartnodeprivkey\n"
-                        "  outputs      - Print smartnode compatible outputs\n"
-                        "  start        - Start local Hot smartnode configured in smartcash.conf\n"
-                        "  start-alias  - Start single remote smartnode by assigned alias configured in smartnode.conf\n"
-                        "  start-<mode> - Start remote smartnodes configured in smartnode.conf (<mode>: 'all', 'missing', 'disabled')\n"
-                        "  status       - Print smartnode status information\n"
-                        "  list         - Print list of all known smartnodes (see smartnodelist for more info)\n"
-                        "  list-conf    - Print smartnode.conf in JSON format\n"
-                        "  winner       - Print info on next smartnode winner to vote for\n"
-                        "  winners      - Print list of smartnode winners\n"
-        );
+                "Set of commands to execute smartnode related actions\n"
+                "\nArguments:\n"
+                "1. \"command\"        (string or set of strings, required) The command to execute\n"
+                "\nAvailable commands:\n"
+                "  count        - Print number of all known smartnodes (optional: 'ps', 'enabled', 'all', 'qualify')\n"
+                "  current      - Print info on current smartnode winner to be paid the next block (calculated locally)\n"
+                "  genkey       - Generate new smartnodeprivkey\n"
+#ifdef ENABLE_WALLET
+                "  outputs      - Print smartnode compatible outputs\n"
+                "  start-alias  - Start single remote smartnode by assigned alias configured in smartnode.conf\n"
+                "  start-<mode> - Start remote smartnodes configured in smartnode.conf (<mode>: 'all', 'missing', 'disabled')\n"
+#endif // ENABLE_WALLET
+                "  status       - Print smartnode status information\n"
+                "  list         - Print list of all known smartnodes (see smartnodelist for more info)\n"
+                "  list-conf    - Print smartnode.conf in JSON format\n"
+                "  winner       - Print info on next smartnode winner to vote for\n"
+                "  winners      - Print list of smartnode winners\n"
+                );
 
-    if (strCommand == "list") {
+    if (strCommand == "list")
+    {
         UniValue newParams(UniValue::VARR);
         // forward params but skip "list"
         for (unsigned int i = 1; i < params.size(); i++) {
@@ -131,22 +154,27 @@ UniValue smartnode(const UniValue &params, bool fHelp) {
         return smartnodelist(newParams, fHelp);
     }
 
-    if (strCommand == "connect") {
+    if(strCommand == "connect")
+    {
         if (params.size() < 2)
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Smartnode address required");
 
         std::string strAddress = params[1].get_str();
 
-        CService addr = CService(strAddress);
+        CService addr;
+        if (!Lookup(strAddress.c_str(), addr, 0, false))
+            throw JSONRPCError(RPC_INTERNAL_ERROR, strprintf("Incorrect smartnode address %s", strAddress));
 
-        CNode *pnode = ConnectNode(CAddress(addr, NODE_NETWORK), NULL);
-        if (!pnode)
+        // TODO: Pass CConnman instance somehow and don't use global variable.
+        CNode *pnode = g_connman->ConnectNode(CAddress(addr, NODE_NETWORK), NULL);
+        if(!pnode)
             throw JSONRPCError(RPC_INTERNAL_ERROR, strprintf("Couldn't connect to smartnode %s", strAddress));
 
         return "successfully connected";
     }
 
-    if (strCommand == "count") {
+    if (strCommand == "count")
+    {
         if (params.size() > 2)
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Too many parameters");
 
@@ -155,84 +183,56 @@ UniValue smartnode(const UniValue &params, bool fHelp) {
 
         std::string strMode = params[1].get_str();
 
-        if (strMode == "ps")
-            return mnodeman.CountEnabled(MIN_PRIVATESEND_PEER_PROTO_VERSION);
+        // if (strMode == "ps")
+        //     return mnodeman.CountEnabled(MIN_PRIVATESEND_PEER_PROTO_VERSION);
 
         if (strMode == "enabled")
             return mnodeman.CountEnabled();
 
         int nCount;
-        mnodeman.GetNextSmartnodeInQueueForPayment(true, nCount);
+        smartnode_info_t mnInfo;
+        mnodeman.GetNextSmartnodeInQueueForPayment(true, nCount, mnInfo);
 
         if (strMode == "qualify")
             return nCount;
 
         if (strMode == "all")
-            return strprintf("Total: %d (PS Compatible: %d / Enabled: %d / Qualify: %d)",
-                             mnodeman.size(), mnodeman.CountEnabled(MIN_PRIVATESEND_PEER_PROTO_VERSION),
-                             mnodeman.CountEnabled(), nCount);
+            return strprintf("Total: %d ( Enabled: %d / Qualify: %d)",
+                //mnodeman.size(), mnodeman.CountEnabled(MIN_PRIVATESEND_PEER_PROTO_VERSION),
+                mnodeman.CountEnabled(), nCount);
     }
 
-    if (strCommand == "current" || strCommand == "winner") {
+    if (strCommand == "current" || strCommand == "winner")
+    {
         int nCount;
         int nHeight;
-        CSmartnode *winner = NULL;
+        smartnode_info_t mnInfo;
+        CBlockIndex* pindex = NULL;
         {
             LOCK(cs_main);
-            nHeight = chainActive.Height() + (strCommand == "current" ? 1 : 10);
+            pindex = chainActive.Tip();
         }
-        mnodeman.UpdateLastPaid();
-        winner = mnodeman.GetNextSmartnodeInQueueForPayment(nHeight, true, nCount);
-        if (!winner) return "unknown";
+        nHeight = pindex->nHeight + (strCommand == "current" ? 1 : 10);
+        mnodeman.UpdateLastPaid(pindex);
+
+        if(!mnodeman.GetNextSmartnodeInQueueForPayment(nHeight, true, nCount, mnInfo))
+            return "unknown";
 
         UniValue obj(UniValue::VOBJ);
 
-        obj.push_back(Pair("height", nHeight));
-        obj.push_back(Pair("IP:port", winner->addr.ToString()));
-        obj.push_back(Pair("protocol", (int64_t) winner->nProtocolVersion));
-        obj.push_back(Pair("vin", winner->vin.prevout.ToStringShort()));
-        obj.push_back(Pair("payee", CBitcoinAddress(winner->pubKeyCollateralAddress.GetID()).ToString()));
-        obj.push_back(Pair("lastseen", (winner->lastPing == CSmartnodePing()) ? winner->sigTime :
-                                       winner->lastPing.sigTime));
-        obj.push_back(Pair("activeseconds", (winner->lastPing == CSmartnodePing()) ? 0 :
-                                            (winner->lastPing.sigTime - winner->sigTime)));
-        obj.push_back(Pair("nBlockLastPaid", winner->nBlockLastPaid));
+        obj.push_back(Pair("height",        nHeight));
+        obj.push_back(Pair("IP:port",       mnInfo.addr.ToString()));
+        obj.push_back(Pair("protocol",      (int64_t)mnInfo.nProtocolVersion));
+        obj.push_back(Pair("outpoint",      mnInfo.vin.prevout.ToStringShort()));
+        obj.push_back(Pair("payee",         CBitcoinAddress(mnInfo.pubKeyCollateralAddress.GetID()).ToString()));
+        obj.push_back(Pair("lastseen",      mnInfo.nTimeLastPing));
+        obj.push_back(Pair("activeseconds", mnInfo.nTimeLastPing - mnInfo.sigTime));
         return obj;
     }
 
-    if (strCommand == "debug") {
-        if (activeSmartnode.nState != ACTIVE_SMARTNODE_INITIAL || !smartnodeSync.IsBlockchainSynced())
-            return activeSmartnode.GetStatus();
-
-        CTxIn vin;
-        CPubKey pubkey;
-        CKey key;
-
-        if (!pwalletMain || !pwalletMain->GetSmartnodeVinAndKeys(vin, pubkey, key))
-            throw JSONRPCError(RPC_INVALID_PARAMETER,
-                               "Missing smartnode input, please look at the documentation for instructions on smartnode creation");
-
-        return activeSmartnode.GetStatus();
-    }
-
-    if (strCommand == "start") {
-        if (!fSmartNode)
-            throw JSONRPCError(RPC_INTERNAL_ERROR, "You must set smartnode=1 in the configuration");
-
-        {
-            LOCK(pwalletMain->cs_wallet);
-            EnsureWalletIsUnlocked();
-        }
-
-        if (activeSmartnode.nState != ACTIVE_SMARTNODE_STARTED) {
-            activeSmartnode.nState = ACTIVE_SMARTNODE_INITIAL; // TODO: consider better way
-            activeSmartnode.ManageState();
-        }
-
-        return activeSmartnode.GetStatus();
-    }
-
-    if (strCommand == "start-alias") {
+#ifdef ENABLE_WALLET
+    if (strCommand == "start-alias")
+    {
         if (params.size() < 2)
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Please specify an alias");
 
@@ -249,47 +249,43 @@ UniValue smartnode(const UniValue &params, bool fHelp) {
         statusObj.push_back(Pair("alias", strAlias));
 
         BOOST_FOREACH(CSmartnodeConfig::CSmartnodeEntry mne, smartnodeConfig.getEntries()) {
-            if (mne.getAlias() == strAlias) {
+            if(mne.getAlias() == strAlias) {
                 fFound = true;
                 std::string strError;
                 CSmartnodeBroadcast mnb;
 
-                bool fResult = CSmartnodeBroadcast::Create(mne.getIp(), mne.getPrivKey(), mne.getTxHash(),
-                                                            mne.getOutputIndex(), strError, mnb);
+                bool fResult = CSmartnodeBroadcast::Create(mne.getIp(), mne.getPrivKey(), mne.getTxHash(), mne.getOutputIndex(), strError, mnb);
+
                 statusObj.push_back(Pair("result", fResult ? "successful" : "failed"));
-                if (fResult) {
-                    mnodeman.UpdateSmartnodeList(mnb);
-                    mnb.RelaySmartNode();
+                if(fResult) {
+                    mnodeman.UpdateSmartnodeList(mnb, *g_connman);
+                    mnb.Relay(*g_connman);
                 } else {
-                    LogPrintf("Start-alias: errorMessage = %s\n", strError);
                     statusObj.push_back(Pair("errorMessage", strError));
                 }
-                mnodeman.NotifySmartnodeUpdates();
+                mnodeman.NotifySmartnodeUpdates(*g_connman);
                 break;
             }
         }
 
-        if (!fFound) {
+        if(!fFound) {
             statusObj.push_back(Pair("result", "failed"));
             statusObj.push_back(Pair("errorMessage", "Could not find alias in config. Verify with list-conf."));
         }
-
-//        LogPrintf("start-alias: statusObj=%s\n", statusObj);
 
         return statusObj;
 
     }
 
-    if (strCommand == "start-all" || strCommand == "start-missing" || strCommand == "start-disabled") {
+    if (strCommand == "start-all" || strCommand == "start-missing" || strCommand == "start-disabled")
+    {
         {
             LOCK(pwalletMain->cs_wallet);
             EnsureWalletIsUnlocked();
         }
 
-        if ((strCommand == "start-missing" || strCommand == "start-disabled") &&
-            !smartnodeSync.IsSmartnodeListSynced()) {
-            throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD,
-                               "You can't use this command until smartnode list is synced");
+        if((strCommand == "start-missing" || strCommand == "start-disabled") && !smartnodeSync.IsSmartnodeListSynced()) {
+            throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "You can't use this command until smartnode list is synced");
         }
 
         int nSuccessful = 0;
@@ -300,15 +296,15 @@ UniValue smartnode(const UniValue &params, bool fHelp) {
         BOOST_FOREACH(CSmartnodeConfig::CSmartnodeEntry mne, smartnodeConfig.getEntries()) {
             std::string strError;
 
-            CTxIn vin = CTxIn(uint256S(mne.getTxHash()), uint32_t(atoi(mne.getOutputIndex().c_str())));
-            CSmartnode *pmn = mnodeman.Find(vin);
+            COutPoint outpoint = COutPoint(uint256S(mne.getTxHash()), uint32_t(atoi(mne.getOutputIndex().c_str())));
+            CSmartnode mn;
+            bool fFound = mnodeman.Get(outpoint, mn);
             CSmartnodeBroadcast mnb;
 
-            if (strCommand == "start-missing" && pmn) continue;
-            if (strCommand == "start-disabled" && pmn && pmn->IsEnabled()) continue;
+            if(strCommand == "start-missing" && fFound) continue;
+            if(strCommand == "start-disabled" && fFound && mn.IsEnabled()) continue;
 
-            bool fResult = CSmartnodeBroadcast::Create(mne.getIp(), mne.getPrivKey(), mne.getTxHash(),
-                                                        mne.getOutputIndex(), strError, mnb);
+            bool fResult = CSmartnodeBroadcast::Create(mne.getIp(), mne.getPrivKey(), mne.getTxHash(), mne.getOutputIndex(), strError, mnb);
 
             UniValue statusObj(UniValue::VOBJ);
             statusObj.push_back(Pair("alias", mne.getAlias()));
@@ -316,8 +312,8 @@ UniValue smartnode(const UniValue &params, bool fHelp) {
 
             if (fResult) {
                 nSuccessful++;
-                mnodeman.UpdateSmartnodeList(mnb);
-                mnb.RelaySmartNode();
+                mnodeman.UpdateSmartnodeList(mnb, *g_connman);
+                mnb.Relay(*g_connman);
             } else {
                 nFailed++;
                 statusObj.push_back(Pair("errorMessage", strError));
@@ -325,32 +321,34 @@ UniValue smartnode(const UniValue &params, bool fHelp) {
 
             resultsObj.push_back(Pair("status", statusObj));
         }
-        mnodeman.NotifySmartnodeUpdates();
+        mnodeman.NotifySmartnodeUpdates(*g_connman);
 
         UniValue returnObj(UniValue::VOBJ);
-        returnObj.push_back(Pair("overall",
-                                 strprintf("Successfully started %d smartnodes, failed to start %d, total %d",
-                                           nSuccessful, nFailed, nSuccessful + nFailed)));
+        returnObj.push_back(Pair("overall", strprintf("Successfully started %d smartnodes, failed to start %d, total %d", nSuccessful, nFailed, nSuccessful + nFailed)));
         returnObj.push_back(Pair("detail", resultsObj));
 
         return returnObj;
     }
+#endif // ENABLE_WALLET
 
-    if (strCommand == "genkey") {
+    if (strCommand == "genkey")
+    {
         CKey secret;
         secret.MakeNewKey(false);
 
         return CBitcoinSecret(secret).ToString();
     }
 
-    if (strCommand == "list-conf") {
+    if (strCommand == "list-conf")
+    {
         UniValue resultObj(UniValue::VOBJ);
 
         BOOST_FOREACH(CSmartnodeConfig::CSmartnodeEntry mne, smartnodeConfig.getEntries()) {
-            CTxIn vin = CTxIn(uint256S(mne.getTxHash()), uint32_t(atoi(mne.getOutputIndex().c_str())));
-            CSmartnode *pmn = mnodeman.Find(vin);
+            COutPoint outpoint = COutPoint(uint256S(mne.getTxHash()), uint32_t(atoi(mne.getOutputIndex().c_str())));
+            CSmartnode mn;
+            bool fFound = mnodeman.Get(outpoint, mn);
 
-            std::string strStatus = pmn ? pmn->GetStatus() : "MISSING";
+            std::string strStatus = fFound ? mn.GetStatus() : "MISSING";
 
             UniValue mnObj(UniValue::VOBJ);
             mnObj.push_back(Pair("alias", mne.getAlias()));
@@ -365,32 +363,33 @@ UniValue smartnode(const UniValue &params, bool fHelp) {
         return resultObj;
     }
 
+#ifdef ENABLE_WALLET
     if (strCommand == "outputs") {
         // Find possible candidates
-        std::vector <COutput> vPossibleCoins;
+        std::vector<COutput> vPossibleCoins;
         pwalletMain->AvailableCoins(vPossibleCoins, true, NULL, false, ONLY_10000);
 
         UniValue obj(UniValue::VOBJ);
-        BOOST_FOREACH(COutput & out, vPossibleCoins)
-        {
+        BOOST_FOREACH(COutput& out, vPossibleCoins) {
             obj.push_back(Pair(out.tx->GetHash().ToString(), strprintf("%d", out.i)));
         }
 
         return obj;
-
     }
+#endif // ENABLE_WALLET
 
-    if (strCommand == "status") {
+    if (strCommand == "status")
+    {
         if (!fSmartNode)
             throw JSONRPCError(RPC_INTERNAL_ERROR, "This is not a smartnode");
 
         UniValue mnObj(UniValue::VOBJ);
 
-        mnObj.push_back(Pair("vin", activeSmartnode.vin.ToString()));
+        mnObj.push_back(Pair("outpoint", activeSmartnode.outpoint.ToStringShort()));
         mnObj.push_back(Pair("service", activeSmartnode.service.ToString()));
 
         CSmartnode mn;
-        if (mnodeman.Get(activeSmartnode.vin, mn)) {
+        if(mnodeman.Get(activeSmartnode.outpoint, mn)) {
             mnObj.push_back(Pair("payee", CBitcoinAddress(mn.pubKeyCollateralAddress.GetID()).ToString()));
         }
 
@@ -398,12 +397,13 @@ UniValue smartnode(const UniValue &params, bool fHelp) {
         return mnObj;
     }
 
-    if (strCommand == "winners") {
+    if (strCommand == "winners")
+    {
         int nHeight;
         {
             LOCK(cs_main);
-            CBlockIndex *pindex = chainActive.Tip();
-            if (!pindex) return NullUniValue;
+            CBlockIndex* pindex = chainActive.Tip();
+            if(!pindex) return NullUniValue;
 
             nHeight = pindex->nHeight;
         }
@@ -424,9 +424,9 @@ UniValue smartnode(const UniValue &params, bool fHelp) {
 
         UniValue obj(UniValue::VOBJ);
 
-        for (int i = nHeight - nLast; i < nHeight + 20; i++) {
+        for(int i = nHeight - nLast; i < nHeight + 20; i++) {
             std::string strPayment = GetRequiredPaymentsString(i);
-            if (strFilter != "" && strPayment.find(strFilter) == std::string::npos) continue;
+            if (strFilter !="" && strPayment.find(strFilter) == std::string::npos) continue;
             obj.push_back(Pair(strprintf("%d", i), strPayment));
         }
 
@@ -436,7 +436,8 @@ UniValue smartnode(const UniValue &params, bool fHelp) {
     return NullUniValue;
 }
 
-UniValue smartnodelist(const UniValue &params, bool fHelp) {
+UniValue smartnodelist(const UniValue& params, bool fHelp)
+{
     std::string strMode = "status";
     std::string strFilter = "";
 
@@ -444,103 +445,126 @@ UniValue smartnodelist(const UniValue &params, bool fHelp) {
     if (params.size() == 2) strFilter = params[1].get_str();
 
     if (fHelp || (
-            strMode != "activeseconds" && strMode != "addr" && strMode != "full" &&
-            strMode != "lastseen" && strMode != "lastpaidtime" && strMode != "lastpaidblock" &&
-            strMode != "protocol" && strMode != "payee" && strMode != "rank" && strMode != "status")) {
+                strMode != "activeseconds" && strMode != "addr" && strMode != "full" && strMode != "info" &&
+                strMode != "lastseen" && strMode != "lastpaidtime" && strMode != "lastpaidblock" &&
+                strMode != "protocol" && strMode != "payee" && strMode != "pubkey" &&
+                strMode != "rank" && strMode != "status"))
+    {
         throw std::runtime_error(
                 "smartnodelist ( \"mode\" \"filter\" )\n"
-                        "Get a list of smartnodes in different modes\n"
-                        "\nArguments:\n"
-                        "1. \"mode\"      (string, optional/required to use filter, defaults = status) The mode to run list in\n"
-                        "2. \"filter\"    (string, optional) Filter results. Partial match by outpoint by default in all modes,\n"
-                        "                                    additional matches in some modes are also available\n"
-                        "\nAvailable modes:\n"
-                        "  activeseconds  - Print number of seconds smartnode recognized by the network as enabled\n"
-                        "                   (since latest issued \"smartnode start/start-many/start-alias\")\n"
-                        "  addr           - Print ip address associated with a smartnode (can be additionally filtered, partial match)\n"
-                        "  full           - Print info in format 'status protocol payee lastseen activeseconds lastpaidtime lastpaidblock IP'\n"
-                        "                   (can be additionally filtered, partial match)\n"
-                        "  lastpaidblock  - Print the last block height a node was paid on the network\n"
-                        "  lastpaidtime   - Print the last time a node was paid on the network\n"
-                        "  lastseen       - Print timestamp of when a smartnode was last seen on the network\n"
-                        "  payee          - Print Smartcash address associated with a smartnode (can be additionally filtered,\n"
-                        "                   partial match)\n"
-                        "  protocol       - Print protocol of a smartnode (can be additionally filtered, exact match))\n"
-                        "  rank           - Print rank of a smartnode based on current block\n"
-                        "  status         - Print smartnode status: PRE_ENABLED / ENABLED / EXPIRED / WATCHDOG_EXPIRED / NEW_START_REQUIRED /\n"
-                        "                   UPDATE_REQUIRED / POSE_BAN / OUTPOINT_SPENT (can be additionally filtered, partial match)\n"
-        );
+                "Get a list of smartnodes in different modes\n"
+                "\nArguments:\n"
+                "1. \"mode\"      (string, optional/required to use filter, defaults = status) The mode to run list in\n"
+                "2. \"filter\"    (string, optional) Filter results. Partial match by outpoint by default in all modes,\n"
+                "                                    additional matches in some modes are also available\n"
+                "\nAvailable modes:\n"
+                "  activeseconds  - Print number of seconds smartnode recognized by the network as enabled\n"
+                "                   (since latest issued \"smartnode start/start-many/start-alias\")\n"
+                "  addr           - Print ip address associated with a smartnode (can be additionally filtered, partial match)\n"
+                "  full           - Print info in format 'status protocol payee lastseen activeseconds lastpaidtime lastpaidblock IP'\n"
+                "                   (can be additionally filtered, partial match)\n"
+                "  info           - Print info in format 'status protocol payee lastseen activeseconds sentinelversion sentinelstate IP'\n"
+                "                   (can be additionally filtered, partial match)\n"
+                "  lastpaidblock  - Print the last block height a node was paid on the network\n"
+                "  lastpaidtime   - Print the last time a node was paid on the network\n"
+                "  lastseen       - Print timestamp of when a smartnode was last seen on the network\n"
+                "  payee          - Print Dash address associated with a smartnode (can be additionally filtered,\n"
+                "                   partial match)\n"
+                "  protocol       - Print protocol of a smartnode (can be additionally filtered, exact match)\n"
+                "  pubkey         - Print the smartnode (not collateral) public key\n"
+                "  rank           - Print rank of a smartnode based on current block\n"
+                "  status         - Print smartnode status: PRE_ENABLED / ENABLED / EXPIRED / WATCHDOG_EXPIRED / NEW_START_REQUIRED /\n"
+                "                   UPDATE_REQUIRED / POSE_BAN / OUTPOINT_SPENT (can be additionally filtered, partial match)\n"
+                );
     }
 
     if (strMode == "full" || strMode == "lastpaidtime" || strMode == "lastpaidblock") {
-        mnodeman.UpdateLastPaid();
+        CBlockIndex* pindex = NULL;
+        {
+            LOCK(cs_main);
+            pindex = chainActive.Tip();
+        }
+        mnodeman.UpdateLastPaid(pindex);
     }
 
     UniValue obj(UniValue::VOBJ);
     if (strMode == "rank") {
-        std::vector <std::pair<int, CSmartnode>> vSmartnodeRanks = mnodeman.GetSmartnodeRanks();
-        BOOST_FOREACH(PAIRTYPE(int, CSmartnode) & s, vSmartnodeRanks)
-        {
+        CSmartnodeMan::rank_pair_vec_t vSmartnodeRanks;
+        mnodeman.GetSmartnodeRanks(vSmartnodeRanks);
+        BOOST_FOREACH(PAIRTYPE(int, CSmartnode)& s, vSmartnodeRanks) {
             std::string strOutpoint = s.second.vin.prevout.ToStringShort();
-            if (strFilter != "" && strOutpoint.find(strFilter) == std::string::npos) continue;
+            if (strFilter !="" && strOutpoint.find(strFilter) == std::string::npos) continue;
             obj.push_back(Pair(strOutpoint, s.first));
         }
     } else {
-        std::vector <CSmartnode> vSmartnodes = mnodeman.GetFullSmartnodeVector();
-        BOOST_FOREACH(CSmartnode & mn, vSmartnodes)
-        {
-            std::string strOutpoint = mn.vin.prevout.ToStringShort();
+        std::map<COutPoint, CSmartnode> mapSmartnodes = mnodeman.GetFullSmartnodeMap();
+        for (auto& mnpair : mapSmartnodes) {
+            CSmartnode mn = mnpair.second;
+            std::string strOutpoint = mnpair.first.ToStringShort();
             if (strMode == "activeseconds") {
-                if (strFilter != "" && strOutpoint.find(strFilter) == std::string::npos) continue;
+                if (strFilter !="" && strOutpoint.find(strFilter) == std::string::npos) continue;
                 obj.push_back(Pair(strOutpoint, (int64_t)(mn.lastPing.sigTime - mn.sigTime)));
             } else if (strMode == "addr") {
                 std::string strAddress = mn.addr.ToString();
-                if (strFilter != "" && strAddress.find(strFilter) == std::string::npos &&
-                    strOutpoint.find(strFilter) == std::string::npos)
-                    continue;
+                if (strFilter !="" && strAddress.find(strFilter) == std::string::npos &&
+                    strOutpoint.find(strFilter) == std::string::npos) continue;
                 obj.push_back(Pair(strOutpoint, strAddress));
             } else if (strMode == "full") {
                 std::ostringstream streamFull;
                 streamFull << std::setw(18) <<
-                           mn.GetStatus() << " " <<
-                           mn.nProtocolVersion << " " <<
-                           CBitcoinAddress(mn.pubKeyCollateralAddress.GetID()).ToString() << " " <<
-                           (int64_t) mn.lastPing.sigTime << " " << std::setw(8) <<
-                           (int64_t)(mn.lastPing.sigTime - mn.sigTime) << " " << std::setw(10) <<
-                           mn.GetLastPaidTime() << " " << std::setw(6) <<
-                           mn.GetLastPaidBlock() << " " <<
-                           mn.addr.ToString();
+                               mn.GetStatus() << " " <<
+                               mn.nProtocolVersion << " " <<
+                               CBitcoinAddress(mn.pubKeyCollateralAddress.GetID()).ToString() << " " <<
+                               (int64_t)mn.lastPing.sigTime << " " << std::setw(8) <<
+                               (int64_t)(mn.lastPing.sigTime - mn.sigTime) << " " << std::setw(10) <<
+                               mn.GetLastPaidTime() << " "  << std::setw(6) <<
+                               mn.GetLastPaidBlock() << " " <<
+                               mn.addr.ToString();
                 std::string strFull = streamFull.str();
-                if (strFilter != "" && strFull.find(strFilter) == std::string::npos &&
-                    strOutpoint.find(strFilter) == std::string::npos)
-                    continue;
+                if (strFilter !="" && strFull.find(strFilter) == std::string::npos &&
+                    strOutpoint.find(strFilter) == std::string::npos) continue;
                 obj.push_back(Pair(strOutpoint, strFull));
+            } else if (strMode == "info") {
+                std::ostringstream streamInfo;
+                streamInfo << std::setw(18) <<
+                               mn.GetStatus() << " " <<
+                               mn.nProtocolVersion << " " <<
+                               CBitcoinAddress(mn.pubKeyCollateralAddress.GetID()).ToString() << " " <<
+                               (int64_t)mn.lastPing.sigTime << " " << std::setw(8) <<
+                               (int64_t)(mn.lastPing.sigTime - mn.sigTime) << " " <<
+                               SafeIntVersionToString(mn.lastPing.nSentinelVersion) << " "  <<
+                               (mn.lastPing.fSentinelIsCurrent ? "current" : "expired") << " " <<
+                               mn.addr.ToString();
+                std::string strInfo = streamInfo.str();
+                if (strFilter !="" && strInfo.find(strFilter) == std::string::npos &&
+                    strOutpoint.find(strFilter) == std::string::npos) continue;
+                obj.push_back(Pair(strOutpoint, strInfo));
             } else if (strMode == "lastpaidblock") {
-                if (strFilter != "" && strOutpoint.find(strFilter) == std::string::npos) continue;
+                if (strFilter !="" && strOutpoint.find(strFilter) == std::string::npos) continue;
                 obj.push_back(Pair(strOutpoint, mn.GetLastPaidBlock()));
             } else if (strMode == "lastpaidtime") {
-                if (strFilter != "" && strOutpoint.find(strFilter) == std::string::npos) continue;
+                if (strFilter !="" && strOutpoint.find(strFilter) == std::string::npos) continue;
                 obj.push_back(Pair(strOutpoint, mn.GetLastPaidTime()));
             } else if (strMode == "lastseen") {
-                if (strFilter != "" && strOutpoint.find(strFilter) == std::string::npos) continue;
-                obj.push_back(Pair(strOutpoint, (int64_t) mn.lastPing.sigTime));
+                if (strFilter !="" && strOutpoint.find(strFilter) == std::string::npos) continue;
+                obj.push_back(Pair(strOutpoint, (int64_t)mn.lastPing.sigTime));
             } else if (strMode == "payee") {
                 CBitcoinAddress address(mn.pubKeyCollateralAddress.GetID());
                 std::string strPayee = address.ToString();
-                if (strFilter != "" && strPayee.find(strFilter) == std::string::npos &&
-                    strOutpoint.find(strFilter) == std::string::npos)
-                    continue;
+                if (strFilter !="" && strPayee.find(strFilter) == std::string::npos &&
+                    strOutpoint.find(strFilter) == std::string::npos) continue;
                 obj.push_back(Pair(strOutpoint, strPayee));
             } else if (strMode == "protocol") {
-                if (strFilter != "" && strFilter != strprintf("%d", mn.nProtocolVersion) &&
-                    strOutpoint.find(strFilter) == std::string::npos)
-                    continue;
-                obj.push_back(Pair(strOutpoint, (int64_t) mn.nProtocolVersion));
+                if (strFilter !="" && strFilter != strprintf("%d", mn.nProtocolVersion) &&
+                    strOutpoint.find(strFilter) == std::string::npos) continue;
+                obj.push_back(Pair(strOutpoint, (int64_t)mn.nProtocolVersion));
+            } else if (strMode == "pubkey") {
+                if (strFilter !="" && strOutpoint.find(strFilter) == std::string::npos) continue;
+                obj.push_back(Pair(strOutpoint, HexStr(mn.pubKeySmartnode)));
             } else if (strMode == "status") {
                 std::string strStatus = mn.GetStatus();
-                if (strFilter != "" && strStatus.find(strFilter) == std::string::npos &&
-                    strOutpoint.find(strFilter) == std::string::npos)
-                    continue;
+                if (strFilter !="" && strStatus.find(strFilter) == std::string::npos &&
+                    strOutpoint.find(strFilter) == std::string::npos) continue;
                 obj.push_back(Pair(strOutpoint, strStatus));
             }
         }
@@ -548,7 +572,7 @@ UniValue smartnodelist(const UniValue &params, bool fHelp) {
     return obj;
 }
 
-bool DecodeHexVecMnb(std::vector <CSmartnodeBroadcast> &vecMnb, std::string strHexMnb) {
+bool DecodeHexVecMnb(std::vector<CSmartnodeBroadcast>& vecMnb, std::string strHexMnb) {
 
     if (!IsHex(strHexMnb))
         return false;
@@ -558,33 +582,42 @@ bool DecodeHexVecMnb(std::vector <CSmartnodeBroadcast> &vecMnb, std::string strH
     try {
         ssData >> vecMnb;
     }
-    catch (const std::exception &) {
+    catch (const std::exception&) {
         return false;
     }
 
     return true;
 }
 
-UniValue smartnodebroadcast(const UniValue &params, bool fHelp) {
+UniValue smartnodebroadcast(const UniValue& params, bool fHelp)
+{
     std::string strCommand;
     if (params.size() >= 1)
         strCommand = params[0].get_str();
 
-    if (fHelp ||
-        (strCommand != "create-alias" && strCommand != "create-all" && strCommand != "decode" && strCommand != "relay"))
+    if (fHelp  ||
+        (
+#ifdef ENABLE_WALLET
+            strCommand != "create-alias" && strCommand != "create-all" &&
+#endif // ENABLE_WALLET
+            strCommand != "decode" && strCommand != "relay"))
         throw std::runtime_error(
                 "smartnodebroadcast \"command\"...\n"
-                        "Set of commands to create and relay smartnode broadcast messages\n"
-                        "\nArguments:\n"
-                        "1. \"command\"        (string or set of strings, required) The command to execute\n"
-                        "\nAvailable commands:\n"
-                        "  create-alias  - Create single remote smartnode broadcast message by assigned alias configured in smartnode.conf\n"
-                        "  create-all    - Create remote smartnode broadcast messages for all smartnodes configured in smartnode.conf\n"
-                        "  decode        - Decode smartnode broadcast message\n"
-                        "  relay         - Relay smartnode broadcast message to the network\n"
-        );
+                "Set of commands to create and relay smartnode broadcast messages\n"
+                "\nArguments:\n"
+                "1. \"command\"        (string or set of strings, required) The command to execute\n"
+                "\nAvailable commands:\n"
+#ifdef ENABLE_WALLET
+                "  create-alias  - Create single remote smartnode broadcast message by assigned alias configured in smartnode.conf\n"
+                "  create-all    - Create remote smartnode broadcast messages for all smartnodes configured in smartnode.conf\n"
+#endif // ENABLE_WALLET
+                "  decode        - Decode smartnode broadcast message\n"
+                "  relay         - Relay smartnode broadcast message to the network\n"
+                );
 
-    if (strCommand == "create-alias") {
+#ifdef ENABLE_WALLET
+    if (strCommand == "create-alias")
+    {
         // wait for reindex and/or import to finish
         if (fImporting || fReindex)
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Wait for reindex and/or import to finish");
@@ -601,22 +634,20 @@ UniValue smartnodebroadcast(const UniValue &params, bool fHelp) {
         std::string strAlias = params[1].get_str();
 
         UniValue statusObj(UniValue::VOBJ);
-        std::vector <CSmartnodeBroadcast> vecMnb;
+        std::vector<CSmartnodeBroadcast> vecMnb;
 
         statusObj.push_back(Pair("alias", strAlias));
 
-        BOOST_FOREACH(CSmartnodeConfig::CSmartnodeEntry
-        mne, smartnodeConfig.getEntries()) {
-            if (mne.getAlias() == strAlias) {
+        BOOST_FOREACH(CSmartnodeConfig::CSmartnodeEntry mne, smartnodeConfig.getEntries()) {
+            if(mne.getAlias() == strAlias) {
                 fFound = true;
                 std::string strError;
                 CSmartnodeBroadcast mnb;
 
-                bool fResult = CSmartnodeBroadcast::Create(mne.getIp(), mne.getPrivKey(), mne.getTxHash(),
-                                                            mne.getOutputIndex(), strError, mnb, true);
+                bool fResult = CSmartnodeBroadcast::Create(mne.getIp(), mne.getPrivKey(), mne.getTxHash(), mne.getOutputIndex(), strError, mnb, true);
 
                 statusObj.push_back(Pair("result", fResult ? "successful" : "failed"));
-                if (fResult) {
+                if(fResult) {
                     vecMnb.push_back(mnb);
                     CDataStream ssVecMnb(SER_NETWORK, PROTOCOL_VERSION);
                     ssVecMnb << vecMnb;
@@ -628,7 +659,7 @@ UniValue smartnodebroadcast(const UniValue &params, bool fHelp) {
             }
         }
 
-        if (!fFound) {
+        if(!fFound) {
             statusObj.push_back(Pair("result", "not found"));
             statusObj.push_back(Pair("errorMessage", "Could not find alias in config. Verify with list-conf."));
         }
@@ -637,7 +668,8 @@ UniValue smartnodebroadcast(const UniValue &params, bool fHelp) {
 
     }
 
-    if (strCommand == "create-all") {
+    if (strCommand == "create-all")
+    {
         // wait for reindex and/or import to finish
         if (fImporting || fReindex)
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Wait for reindex and/or import to finish");
@@ -647,28 +679,26 @@ UniValue smartnodebroadcast(const UniValue &params, bool fHelp) {
             EnsureWalletIsUnlocked();
         }
 
-        std::vector <CSmartnodeConfig::CSmartnodeEntry> mnEntries;
+        std::vector<CSmartnodeConfig::CSmartnodeEntry> mnEntries;
         mnEntries = smartnodeConfig.getEntries();
 
         int nSuccessful = 0;
         int nFailed = 0;
 
         UniValue resultsObj(UniValue::VOBJ);
-        std::vector <CSmartnodeBroadcast> vecMnb;
+        std::vector<CSmartnodeBroadcast> vecMnb;
 
-        BOOST_FOREACH(CSmartnodeConfig::CSmartnodeEntry
-        mne, smartnodeConfig.getEntries()) {
+        BOOST_FOREACH(CSmartnodeConfig::CSmartnodeEntry mne, smartnodeConfig.getEntries()) {
             std::string strError;
             CSmartnodeBroadcast mnb;
 
-            bool fResult = CSmartnodeBroadcast::Create(mne.getIp(), mne.getPrivKey(), mne.getTxHash(),
-                                                        mne.getOutputIndex(), strError, mnb, true);
+            bool fResult = CSmartnodeBroadcast::Create(mne.getIp(), mne.getPrivKey(), mne.getTxHash(), mne.getOutputIndex(), strError, mnb, true);
 
             UniValue statusObj(UniValue::VOBJ);
             statusObj.push_back(Pair("alias", mne.getAlias()));
             statusObj.push_back(Pair("result", fResult ? "successful" : "failed"));
 
-            if (fResult) {
+            if(fResult) {
                 nSuccessful++;
                 vecMnb.push_back(mnb);
             } else {
@@ -682,20 +712,20 @@ UniValue smartnodebroadcast(const UniValue &params, bool fHelp) {
         CDataStream ssVecMnb(SER_NETWORK, PROTOCOL_VERSION);
         ssVecMnb << vecMnb;
         UniValue returnObj(UniValue::VOBJ);
-        returnObj.push_back(Pair("overall", strprintf(
-                "Successfully created broadcast messages for %d smartnodes, failed to create %d, total %d",
-                nSuccessful, nFailed, nSuccessful + nFailed)));
+        returnObj.push_back(Pair("overall", strprintf("Successfully created broadcast messages for %d smartnodes, failed to create %d, total %d", nSuccessful, nFailed, nSuccessful + nFailed)));
         returnObj.push_back(Pair("detail", resultsObj));
         returnObj.push_back(Pair("hex", HexStr(ssVecMnb.begin(), ssVecMnb.end())));
 
         return returnObj;
     }
+#endif // ENABLE_WALLET
 
-    if (strCommand == "decode") {
+    if (strCommand == "decode")
+    {
         if (params.size() != 2)
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Correct usage is 'smartnodebroadcast decode \"hexstring\"'");
 
-        std::vector <CSmartnodeBroadcast> vecMnb;
+        std::vector<CSmartnodeBroadcast> vecMnb;
 
         if (!DecodeHexVecMnb(vecMnb, params[1].get_str()))
             throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Smartnode broadcast message decode failed");
@@ -705,16 +735,14 @@ UniValue smartnodebroadcast(const UniValue &params, bool fHelp) {
         int nDos = 0;
         UniValue returnObj(UniValue::VOBJ);
 
-        BOOST_FOREACH(CSmartnodeBroadcast & mnb, vecMnb)
-        {
+        BOOST_FOREACH(CSmartnodeBroadcast& mnb, vecMnb) {
             UniValue resultObj(UniValue::VOBJ);
 
-            if (mnb.CheckSignature(nDos)) {
+            if(mnb.CheckSignature(nDos)) {
                 nSuccessful++;
-                resultObj.push_back(Pair("vin", mnb.vin.ToString()));
+                resultObj.push_back(Pair("outpoint", mnb.vin.prevout.ToStringShort()));
                 resultObj.push_back(Pair("addr", mnb.addr.ToString()));
-                resultObj.push_back(Pair("pubKeyCollateralAddress",
-                                         CBitcoinAddress(mnb.pubKeyCollateralAddress.GetID()).ToString()));
+                resultObj.push_back(Pair("pubKeyCollateralAddress", CBitcoinAddress(mnb.pubKeyCollateralAddress.GetID()).ToString()));
                 resultObj.push_back(Pair("pubKeySmartnode", CBitcoinAddress(mnb.pubKeySmartnode.GetID()).ToString()));
                 resultObj.push_back(Pair("vchSig", EncodeBase64(&mnb.vchSig[0], mnb.vchSig.size())));
                 resultObj.push_back(Pair("sigTime", mnb.sigTime));
@@ -722,11 +750,10 @@ UniValue smartnodebroadcast(const UniValue &params, bool fHelp) {
                 resultObj.push_back(Pair("nLastDsq", mnb.nLastDsq));
 
                 UniValue lastPingObj(UniValue::VOBJ);
-                lastPingObj.push_back(Pair("vin", mnb.lastPing.vin.ToString()));
+                lastPingObj.push_back(Pair("outpoint", mnb.lastPing.vin.prevout.ToStringShort()));
                 lastPingObj.push_back(Pair("blockHash", mnb.lastPing.blockHash.ToString()));
                 lastPingObj.push_back(Pair("sigTime", mnb.lastPing.sigTime));
-                lastPingObj.push_back(
-                        Pair("vchSig", EncodeBase64(&mnb.lastPing.vchSig[0], mnb.lastPing.vchSig.size())));
+                lastPingObj.push_back(Pair("vchSig", EncodeBase64(&mnb.lastPing.vchSig[0], mnb.lastPing.vchSig.size())));
 
                 resultObj.push_back(Pair("lastPing", lastPingObj));
             } else {
@@ -737,21 +764,20 @@ UniValue smartnodebroadcast(const UniValue &params, bool fHelp) {
             returnObj.push_back(Pair(mnb.GetHash().ToString(), resultObj));
         }
 
-        returnObj.push_back(Pair("overall", strprintf(
-                "Successfully decoded broadcast messages for %d smartnodes, failed to decode %d, total %d",
-                nSuccessful, nFailed, nSuccessful + nFailed)));
+        returnObj.push_back(Pair("overall", strprintf("Successfully decoded broadcast messages for %d smartnodes, failed to decode %d, total %d", nSuccessful, nFailed, nSuccessful + nFailed)));
 
         return returnObj;
     }
 
-    if (strCommand == "relay") {
+    if (strCommand == "relay")
+    {
         if (params.size() < 2 || params.size() > 3)
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "smartnodebroadcast relay \"hexstring\" ( fast )\n"
-                    "\nArguments:\n"
-                    "1. \"hex\"      (string, required) Broadcast messages hex string\n"
-                    "2. fast       (string, optional) If none, using safe method\n");
+            throw JSONRPCError(RPC_INVALID_PARAMETER,   "smartnodebroadcast relay \"hexstring\" ( fast )\n"
+                                                        "\nArguments:\n"
+                                                        "1. \"hex\"      (string, required) Broadcast messages hex string\n"
+                                                        "2. fast       (string, optional) If none, using safe method\n");
 
-        std::vector <CSmartnodeBroadcast> vecMnb;
+        std::vector<CSmartnodeBroadcast> vecMnb;
 
         if (!DecodeHexVecMnb(vecMnb, params[1].get_str()))
             throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Smartnode broadcast message decode failed");
@@ -762,27 +788,26 @@ UniValue smartnodebroadcast(const UniValue &params, bool fHelp) {
         UniValue returnObj(UniValue::VOBJ);
 
         // verify all signatures first, bailout if any of them broken
-        BOOST_FOREACH(CSmartnodeBroadcast & mnb, vecMnb)
-        {
+        BOOST_FOREACH(CSmartnodeBroadcast& mnb, vecMnb) {
             UniValue resultObj(UniValue::VOBJ);
 
-            resultObj.push_back(Pair("vin", mnb.vin.ToString()));
+            resultObj.push_back(Pair("outpoint", mnb.vin.prevout.ToStringShort()));
             resultObj.push_back(Pair("addr", mnb.addr.ToString()));
 
             int nDos = 0;
             bool fResult;
             if (mnb.CheckSignature(nDos)) {
                 if (fSafe) {
-                    fResult = mnodeman.CheckMnbAndUpdateSmartnodeList(NULL, mnb, nDos);
+                    fResult = mnodeman.CheckMnbAndUpdateSmartnodeList(NULL, mnb, nDos, *g_connman);
                 } else {
-                    mnodeman.UpdateSmartnodeList(mnb);
-                    mnb.RelaySmartNode();
+                    mnodeman.UpdateSmartnodeList(mnb, *g_connman);
+                    mnb.Relay(*g_connman);
                     fResult = true;
                 }
-                mnodeman.NotifySmartnodeUpdates();
+                mnodeman.NotifySmartnodeUpdates(*g_connman);
             } else fResult = false;
 
-            if (fResult) {
+            if(fResult) {
                 nSuccessful++;
                 resultObj.push_back(Pair(mnb.GetHash().ToString(), "successful"));
             } else {
@@ -793,12 +818,30 @@ UniValue smartnodebroadcast(const UniValue &params, bool fHelp) {
             returnObj.push_back(Pair(mnb.GetHash().ToString(), resultObj));
         }
 
-        returnObj.push_back(Pair("overall", strprintf(
-                "Successfully relayed broadcast messages for %d smartnodes, failed to relay %d, total %d", nSuccessful,
-                nFailed, nSuccessful + nFailed)));
+        returnObj.push_back(Pair("overall", strprintf("Successfully relayed broadcast messages for %d smartnodes, failed to relay %d, total %d", nSuccessful, nFailed, nSuccessful + nFailed)));
 
         return returnObj;
     }
 
     return NullUniValue;
+}
+
+UniValue sentinelping(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() != 1) {
+        throw std::runtime_error(
+            "sentinelping version\n"
+            "\nSentinel ping.\n"
+            "\nArguments:\n"
+            "1. version           (string, required) Sentinel version in the form \"x.x.x\"\n"
+            "\nResult:\n"
+            "state                (boolean) Ping result\n"
+            "\nExamples:\n"
+            + HelpExampleCli("sentinelping", "1.0.2")
+            + HelpExampleRpc("sentinelping", "1.0.2")
+        );
+    }
+
+    activeSmartnode.UpdateSentinelPing(StringVersionToInt(params[0].get_str()));
+    return true;
 }

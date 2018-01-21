@@ -218,6 +218,7 @@ std::string HelpMessageGroup(const std::string& message);
  */
 std::string HelpMessageOpt(const std::string& option, const std::string& message);
 
+void SetThreadPriority(int nPriority);
 /**
  * Return the number of physical cores available on the current system.
  * @note This does not count virtual cores, such as those provided by HyperThreading
@@ -256,5 +257,31 @@ template <typename Callable> void TraceThread(const char* name,  Callable func)
 }
 
 std::string CopyrightHolders(const std::string& strPrefix);
+
+/**
+ * @brief Converts version strings to 4-byte unsigned integer
+ * @param strVersion version in "x.x.x" format (decimal digits only)
+ * @return 4-byte unsigned integer, most significant byte is always 0
+ * Throws std::bad_cast if format doesn\t match.
+ */
+uint32_t StringVersionToInt(const std::string& strVersion);
+
+
+/**
+ * @brief Converts version as 4-byte unsigned integer to string
+ * @param nVersion 4-byte unsigned integer, most significant byte is always 0
+ * @return version string in "x.x.x" format (last 3 bytes as version parts)
+ * Throws std::bad_cast if format doesn\t match.
+ */
+std::string IntVersionToString(uint32_t nVersion);
+
+/**
+ * @brief Copy of the IntVersionToString, that returns "Invalid version" string
+ * instead of throwing std::bad_cast
+ * @param nVersion 4-byte unsigned integer, most significant byte is always 0
+ * @return version string in "x.x.x" format (last 3 bytes as version parts)
+ * or "Invalid version" if can't cast the given value
+ */
+std::string SafeIntVersionToString(uint32_t nVersion);
 
 #endif // BITCOIN_UTIL_H

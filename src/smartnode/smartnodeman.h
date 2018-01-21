@@ -6,93 +6,24 @@
 #define SMARTNODEMAN_H
 
 #include "smartnode.h"
-#include "../sync.h"
+#include "sync.h"
 
 using namespace std;
 
 class CSmartnodeMan;
+class CConnman;
 
 extern CSmartnodeMan mnodeman;
-
-/**
- * Provides a forward and reverse index between MN vin's and integers.
- *
- * This mapping is normally add-only and is expected to be permanent
- * It is only rebuilt if the size of the index exceeds the expected maximum number
- * of MN's and the current number of known MN's.
- *
- * The external interface to this index is provided via delegation by CSmartnodeMan
- */
-class CSmartnodeIndex
-{
-public: // Types
-    typedef std::map<CTxIn,int> index_m_t;
-
-    typedef index_m_t::iterator index_m_it;
-
-    typedef index_m_t::const_iterator index_m_cit;
-
-    typedef std::map<int,CTxIn> rindex_m_t;
-
-    typedef rindex_m_t::iterator rindex_m_it;
-
-    typedef rindex_m_t::const_iterator rindex_m_cit;
-
-private:
-    int                  nSize;
-
-    index_m_t            mapIndex;
-
-    rindex_m_t           mapReverseIndex;
-
-public:
-    CSmartnodeIndex();
-
-    int GetSize() const {
-        return nSize;
-    }
-
-    /// Retrieve smartnode vin by index
-    bool Get(int nIndex, CTxIn& vinSmartnode) const;
-
-    /// Get index of a smartnode vin
-    int GetSmartnodeIndex(const CTxIn& vinSmartnode) const;
-
-    void AddSmartnodeVIN(const CTxIn& vinSmartnode);
-
-    void Clear();
-
-    ADD_SERIALIZE_METHODS;
-
-    template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
-    {
-        READWRITE(mapIndex);
-        if(ser_action.ForRead()) {
-            RebuildIndex();
-        }
-    }
-
-private:
-    void RebuildIndex();
-
-};
 
 class CSmartnodeMan
 {
 public:
-    typedef std::map<CTxIn,int> index_m_t;
-
-    typedef index_m_t::iterator index_m_it;
-
-    typedef index_m_t::const_iterator index_m_cit;
+    typedef std::pair<arith_uint256, CSmartnode*> score_pair_t;
+    typedef std::vector<score_pair_t> score_pair_vec_t;
+    typedef std::pair<int, CSmartnode> rank_pair_t;
+    typedef std::vector<rank_pair_t> rank_pair_vec_t;
 
 private:
-    static const int MAX_EXPECTED_INDEX_SIZE = 30000;
-
-    /// Only allow 1 index rebuild per hour
-    static const int64_t MIN_INDEX_REBUILD_TIME = 3600;
-
     static const std::string SERIALIZATION_VERSION_STRING;
 
     static const int DSEG_UPDATE_SECONDS        = 3 * 60 * 60;
@@ -114,11 +45,11 @@ private:
     // critical section to protect the inner data structures
     mutable CCriticalSection cs;
 
-    // Keep track of current block index
-    const CBlockIndex *pCurrentBlockIndex;
+    // Keep track of current block height
+    int nCachedBlockHeight;
 
     // map to hold all MNs
-    std::vector<CSmartnode> vSmartnodes;
+    std::map<COutPoint, CSmartnode> mapSmartnodes;
     // who's asked for the Smartnode list and the last time
     std::map<CNetAddr, int64_t> mAskedUsForSmartnodeList;
     // who we asked for the Smartnode list and the last time
@@ -133,15 +64,6 @@ private:
     std::map<uint256, std::vector<CSmartnodeBroadcast> > mMnbRecoveryGoodReplies;
     std::list< std::pair<CService, uint256> > listScheduledMnbRequestConnections;
 
-    int64_t nLastIndexRebuildTime;
-
-    CSmartnodeIndex indexSmartnodes;
-
-    CSmartnodeIndex indexSmartnodesOld;
-
-    /// Set when index has been rebuilt, clear when read
-    bool fIndexRebuilt;
-
     /// Set when smartnodes are added, cleared when CGovernanceManager is notified
     bool fSmartnodesAdded;
 
@@ -153,6 +75,10 @@ private:
     int64_t nLastWatchdogVoteTime;
 
     friend class CSmartnodeSync;
+    /// Find an entry
+    CSmartnode* Find(const COutPoint& outpoint);
+
+    bool GetSmartnodeScores(const uint256& nBlockHash, score_pair_vec_t& vecSmartnodeScoresRet, int nMinProtocol = 0);
 
 public:
     // Keep track of all broadcasts I've seen
@@ -179,7 +105,7 @@ public:
             READWRITE(strVersion);
         }
 
-        READWRITE(vSmartnodes);
+        READWRITE(mapSmartnodes);
         READWRITE(mAskedUsForSmartnodeList);
         READWRITE(mWeAskedForSmartnodeList);
         READWRITE(mWeAskedForSmartnodeListEntry);
@@ -190,7 +116,6 @@ public:
 
         READWRITE(mapSeenSmartnodeBroadcast);
         READWRITE(mapSeenSmartnodePing);
-        READWRITE(indexSmartnodes);
         if(ser_action.ForRead() && (strVersion != SERIALIZATION_VERSION_STRING)) {
             Clear();
         }
@@ -202,14 +127,20 @@ public:
     bool Add(CSmartnode &mn);
 
     /// Ask (source) node for mnb
-    void AskForMN(CNode *pnode, const CTxIn &vin);
+    void AskForMN(CNode *pnode, const COutPoint& outpoint, CConnman& connman);
     void AskForMnb(CNode *pnode, const uint256 &hash);
+
+    bool PoSeBan(const COutPoint &outpoint);
+    bool AllowMixing(const COutPoint &outpoint);
+    bool DisallowMixing(const COutPoint &outpoint);
 
     /// Check all Smartnodes
     void Check();
 
     /// Check all Smartnodes and remove inactive
-    void CheckAndRemove();
+    void CheckAndRemove(CConnman& connman);
+    /// This is dummy overload to be used for dumping/loading mncache.dat
+    void CheckAndRemove() {}
 
     /// Clear Smartnode vector
     void Clear();
@@ -224,106 +155,53 @@ public:
     /// Count Smartnodes by network type - NET_IPV4, NET_IPV6, NET_TOR
     // int CountByIP(int nNetworkType);
 
-    void DsegUpdate(CNode* pnode);
-
-    /// Find an entry
-    CSmartnode* Find(const CScript &payee);
-    CSmartnode* Find(const CTxIn& vin);
-    CSmartnode* Find(const CPubKey& pubKeySmartnode);
+    void DsegUpdate(CNode* pnode, CConnman& connman);
 
     /// Versions of Find that are safe to use from outside the class
-    bool Get(const CPubKey& pubKeySmartnode, CSmartnode& smartnode);
-    bool Get(const CTxIn& vin, CSmartnode& smartnode);
+    bool Get(const COutPoint& outpoint, CSmartnode& smartnodeRet);
+    bool Has(const COutPoint& outpoint);
 
-    /// Retrieve smartnode vin by index
-    bool Get(int nIndex, CTxIn& vinSmartnode, bool& fIndexRebuiltOut) {
-        LOCK(cs);
-        fIndexRebuiltOut = fIndexRebuilt;
-        return indexSmartnodes.Get(nIndex, vinSmartnode);
-    }
-
-    bool GetIndexRebuiltFlag() {
-        LOCK(cs);
-        return fIndexRebuilt;
-    }
-
-    /// Get index of a smartnode vin
-    int GetSmartnodeIndex(const CTxIn& vinSmartnode) {
-        LOCK(cs);
-        return indexSmartnodes.GetSmartnodeIndex(vinSmartnode);
-    }
-
-    /// Get old index of a smartnode vin
-    int GetSmartnodeIndexOld(const CTxIn& vinSmartnode) {
-        LOCK(cs);
-        return indexSmartnodesOld.GetSmartnodeIndex(vinSmartnode);
-    }
-
-    /// Get smartnode VIN for an old index value
-    bool GetSmartnodeVinForIndexOld(int nSmartnodeIndex, CTxIn& vinSmartnodeOut) {
-        LOCK(cs);
-        return indexSmartnodesOld.Get(nSmartnodeIndex, vinSmartnodeOut);
-    }
-
-    /// Get index of a smartnode vin, returning rebuild flag
-    int GetSmartnodeIndex(const CTxIn& vinSmartnode, bool& fIndexRebuiltOut) {
-        LOCK(cs);
-        fIndexRebuiltOut = fIndexRebuilt;
-        return indexSmartnodes.GetSmartnodeIndex(vinSmartnode);
-    }
-
-    void ClearOldSmartnodeIndex() {
-        LOCK(cs);
-        indexSmartnodesOld.Clear();
-        fIndexRebuilt = false;
-    }
-
-    bool Has(const CTxIn& vin);
-
-    smartnode_info_t GetSmartnodeInfo(const CTxIn& vin);
-
-    smartnode_info_t GetSmartnodeInfo(const CPubKey& pubKeySmartnode);
+    bool GetSmartnodeInfo(const COutPoint& outpoint, smartnode_info_t& mnInfoRet);
+    bool GetSmartnodeInfo(const CPubKey& pubKeySmartnode, smartnode_info_t& mnInfoRet);
+    bool GetSmartnodeInfo(const CScript& payee, smartnode_info_t& mnInfoRet);
 
     /// Find an entry in the smartnode list that is next to be paid
-    CSmartnode* GetNextSmartnodeInQueueForPayment(int nBlockHeight, bool fFilterSigTime, int& nCount);
+    bool GetNextSmartnodeInQueueForPayment(int nBlockHeight, bool fFilterSigTime, int& nCountRet, smartnode_info_t& mnInfoRet);
     /// Same as above but use current block height
-    CSmartnode* GetNextSmartnodeInQueueForPayment(bool fFilterSigTime, int& nCount);
+    bool GetNextSmartnodeInQueueForPayment(bool fFilterSigTime, int& nCountRet, smartnode_info_t& mnInfoRet);
 
     /// Find a random entry
-    CSmartnode* FindRandomNotInVec(const std::vector<CTxIn> &vecToExclude, int nProtocolVersion = -1);
+    smartnode_info_t FindRandomNotInVec(const std::vector<COutPoint> &vecToExclude, int nProtocolVersion = -1);
 
-    std::vector<CSmartnode> GetFullSmartnodeVector() { return vSmartnodes; }
+    std::map<COutPoint, CSmartnode> GetFullSmartnodeMap() { return mapSmartnodes; }
 
-    std::vector<std::pair<int, CSmartnode> > GetSmartnodeRanks(int nBlockHeight = -1, int nMinProtocol=0);
-    int GetSmartnodeRank(const CTxIn &vin, int nBlockHeight, int nMinProtocol=0, bool fOnlyActive=true);
-    CSmartnode* GetSmartnodeByRank(int nRank, int nBlockHeight, int nMinProtocol=0, bool fOnlyActive=true);
+    bool GetSmartnodeRanks(rank_pair_vec_t& vecSmartnodeRanksRet, int nBlockHeight = -1, int nMinProtocol = 0);
+    bool GetSmartnodeRank(const COutPoint &outpoint, int& nRankRet, int nBlockHeight = -1, int nMinProtocol = 0);
 
-    void ProcessSmartnodeConnections();
+    void ProcessSmartnodeConnections(CConnman& connman);
     std::pair<CService, std::set<uint256> > PopScheduledMnbRequestConnection();
 
-    void ProcessMessage(CNode* pfrom, std::string& strCommand, CDataStream& vRecv);
+    void ProcessMessage(CNode* pfrom, std::string& strCommand, CDataStream& vRecv, CConnman& connman);
 
-    void DoFullVerificationStep();
+    void DoFullVerificationStep(CConnman& connman);
     void CheckSameAddr();
-    bool SendVerifyRequest(const CAddress& addr, const std::vector<CSmartnode*>& vSortedByAddr);
-    void SendVerifyReply(CNode* pnode, CSmartnodeVerification& mnv);
+    bool SendVerifyRequest(const CAddress& addr, const std::vector<CSmartnode*>& vSortedByAddr, CConnman& connman);
+    void SendVerifyReply(CNode* pnode, CSmartnodeVerification& mnv, CConnman& connman);
     void ProcessVerifyReply(CNode* pnode, CSmartnodeVerification& mnv);
     void ProcessVerifyBroadcast(CNode* pnode, const CSmartnodeVerification& mnv);
 
     /// Return the number of (unique) Smartnodes
-    int size() { return vSmartnodes.size(); }
+    int size() { return mapSmartnodes.size(); }
 
     std::string ToString() const;
 
     /// Update smartnode list and maps using provided CSmartnodeBroadcast
-    void UpdateSmartnodeList(CSmartnodeBroadcast mnb);
+    void UpdateSmartnodeList(CSmartnodeBroadcast mnb, CConnman& connman);
     /// Perform complete check and only then update list and maps
-    bool CheckMnbAndUpdateSmartnodeList(CNode* pfrom, CSmartnodeBroadcast mnb, int& nDos);
+    bool CheckMnbAndUpdateSmartnodeList(CNode* pfrom, CSmartnodeBroadcast mnb, int& nDos, CConnman& connman);
     bool IsMnbRecoveryRequested(const uint256& hash) { return mMnbRecoveryRequests.count(hash); }
 
-    void UpdateLastPaid();
-
-    void CheckAndRebuildSmartnodeIndex();
+    void UpdateLastPaid(const CBlockIndex* pindex);
 
     void AddDirtyGovernanceObjectHash(const uint256& nHash)
     {
@@ -340,18 +218,14 @@ public:
     }
 
     bool IsWatchdogActive();
-    void UpdateWatchdogVoteTime(const CTxIn& vin);
-    bool AddGovernanceVote(const CTxIn& vin, uint256 nGovernanceObjectHash);
+    void UpdateWatchdogVoteTime(const COutPoint& outpoint, uint64_t nVoteTime = 0);
+    bool AddGovernanceVote(const COutPoint& outpoint, uint256 nGovernanceObjectHash);
     void RemoveGovernanceObject(uint256 nGovernanceObjectHash);
 
-    void CheckSmartnode(const CTxIn& vin, bool fForce = false);
-    void CheckSmartnode(const CPubKey& pubKeySmartnode, bool fForce = false);
+    void CheckSmartnode(const CPubKey& pubKeySmartnode, bool fForce);
 
-    int GetSmartnodeState(const CTxIn& vin);
-    int GetSmartnodeState(const CPubKey& pubKeySmartnode);
-
-    bool IsSmartnodePingedWithin(const CTxIn& vin, int nSeconds, int64_t nTimeToCheckAt = -1);
-    void SetSmartnodeLastPing(const CTxIn& vin, const CSmartnodePing& mnp);
+    bool IsSmartnodePingedWithin(const COutPoint& outpoint, int nSeconds, int64_t nTimeToCheckAt = -1);
+    void SetSmartnodeLastPing(const COutPoint& outpoint, const CSmartnodePing& mnp);
 
     void UpdatedBlockTip(const CBlockIndex *pindex);
 
@@ -359,7 +233,7 @@ public:
      * Called to notify CGovernanceManager that the smartnode index has been updated.
      * Must be called while not holding the CSmartnodeMan::cs mutex
      */
-    void NotifySmartnodeUpdates();
+    void NotifySmartnodeUpdates(CConnman& connman);
 
 };
 

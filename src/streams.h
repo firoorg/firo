@@ -64,11 +64,11 @@ class CDataStream
 {
 protected:
     typedef CSerializeData vector_type;
+    vector_type vch;
     unsigned int nReadPos;
 public:
     int nType;
     int nVersion;
-    vector_type vch;
 
     typedef vector_type::allocator_type   allocator_type;
     typedef vector_type::size_type        size_type;
@@ -90,12 +90,10 @@ public:
         Init(nTypeIn, nVersionIn);
     }
 
-#if !defined(_MSC_VER) || _MSC_VER >= 1300
     CDataStream(const char* pbegin, const char* pend, int nTypeIn, int nVersionIn) : vch(pbegin, pend)
     {
         Init(nTypeIn, nVersionIn);
     }
-#endif
 
     CDataStream(const vector_type& vchIn, int nTypeIn, int nVersionIn) : vch(vchIn.begin(), vchIn.end())
     {
@@ -110,6 +108,13 @@ public:
     CDataStream(const std::vector<unsigned char>& vchIn, int nTypeIn, int nVersionIn) : vch(vchIn.begin(), vchIn.end())
     {
         Init(nTypeIn, nVersionIn);
+    }
+
+    template <typename... Args>
+    CDataStream(int nTypeIn, int nVersionIn, Args&&... args)
+    {
+        Init(nTypeIn, nVersionIn);
+        ::SerializeMany(*this, nType, nVersion, std::forward<Args>(args)...);
     }
 
     void Init(int nTypeIn, int nVersionIn)
@@ -154,10 +159,13 @@ public:
     void clear()                                     { vch.clear(); nReadPos = 0; }
     iterator insert(iterator it, const char& x=char()) { return vch.insert(it, x); }
     void insert(iterator it, size_type n, const char& x) { vch.insert(it, n, x); }
+    value_type* data()                               { return vch.data() + nReadPos; }
+    const value_type* data() const                   { return vch.data() + nReadPos; }
 
     void insert(iterator it, std::vector<char>::const_iterator first, std::vector<char>::const_iterator last)
     {
-        assert(last - first >= 0);
+        if (last == first) return;
+        assert(last - first > 0);
         if (it == vch.begin() + nReadPos && (unsigned int)(last - first) <= nReadPos)
         {
             // special case for inserting at the front when there's room
@@ -168,10 +176,10 @@ public:
             vch.insert(it, first, last);
     }
 
-#if !defined(_MSC_VER) || _MSC_VER >= 1300
     void insert(iterator it, const char* first, const char* last)
     {
-        assert(last - first >= 0);
+        if (last == first) return;
+        assert(last - first > 0);
         if (it == vch.begin() + nReadPos && (unsigned int)(last - first) <= nReadPos)
         {
             // special case for inserting at the front when there's room
@@ -181,7 +189,6 @@ public:
         else
             vch.insert(it, first, last);
     }
-#endif
 
     iterator erase(iterator it)
     {
@@ -252,6 +259,8 @@ public:
 
     CDataStream& read(char* pch, size_t nSize)
     {
+        if (nSize == 0) return (*this);
+
         // Read from the beginning of the buffer
         unsigned int nReadPosNext = nReadPos + nSize;
         if (nReadPosNext >= vch.size())

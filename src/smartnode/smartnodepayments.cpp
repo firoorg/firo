@@ -3,7 +3,6 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "activesmartnode.h"
-#include "darksend.h"
 #include "smartnodepayments.h"
 #include "smartnodesync.h"
 #include "smartnodeman.h"

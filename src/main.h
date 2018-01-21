@@ -322,6 +322,9 @@ int64_t GetBlockValue(int nHeight, int64_t nFees, unsigned int nTime);
 bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransaction &tx, bool fCheckInputs, bool fLimitFree,
                         bool* pfMissingInputs,  bool fOverrideMempoolLimit=false, const CAmount nAbsurdFee=0, bool isCheckWalletTransaction = false);
 
+bool GetUTXOCoin(const COutPoint& outpoint, Coin& coin);
+int GetUTXOConfirmations(const COutPoint& outpoint);
+
 /** Convert CValidationState to a human-readable message for logging */
 std::string FormatStateMessage(const CValidationState &state);
 

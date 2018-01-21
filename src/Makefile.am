@@ -75,6 +75,8 @@ endif
 .PHONY: FORCE check-symbols check-security
 # bitcoin core #
 BITCOIN_CORE_H = \
+  addrdb.h \
+  addressindex.h \
   addrman.h \
   base58.h \
   bloom.h \
@@ -108,8 +110,11 @@ BITCOIN_CORE_H = \
   main.h \
   memusage.h \
   merkleblock.h \
+  messagesigner.h \
   miner.h \
   net.h \
+  net_processing.h \
+  netaddress.h \
   netbase.h \
   noui.h \
   policy/fees.h \
@@ -129,8 +134,6 @@ BITCOIN_CORE_H = \
   script/standard.h \
   script/ismine.h \
   smartnode/activesmartnode.h \
-  smartnode/darksend.h \
-  smartnode/darksendrelay.h \
   smartnode/instantx.h \
   smartnode/netfulfilledman.h \
   smartnode/smartnode.h \
@@ -138,12 +141,14 @@ BITCOIN_CORE_H = \
   smartnode/smartnodeman.h \
   smartnode/smartnodepayments.h \
   smartnode/smartnodesync.h \
+  spentindex.h \
   streams.h \
   support/allocators/secure.h \
   support/allocators/zeroafterfree.h \
   support/cleanse.h \
   support/pagelocker.h \
   sync.h \
+  threadinterrupt.h \
   threadsafety.h \
   timedata.h \
   torcontrol.h \
@@ -177,6 +182,7 @@ libbitcoin_util_a-clientversion.$(OBJEXT): obj/build.h
 libbitcoin_server_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(MINIUPNPC_CPPFLAGS) $(EVENT_CFLAGS) $(EVENT_PTHREADS_CFLAGS)
 libbitcoin_server_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_server_a_SOURCES = \
+  addrdb.cpp \
   addrman.cpp \
   bloom.cpp \
   blockencodings.cpp \
@@ -206,8 +212,6 @@ libbitcoin_server_a_SOURCES = \
   script/ismine.cpp \
   smartnode/netfulfilledman.cpp \
   smartnode/activesmartnode.cpp \
-  smartnode/darksend.cpp \
-  smartnode/darksendrelay.cpp \
   smartnode/instantx.cpp \
   smartnode/smartnode.cpp \
   smartnode/smartnodeconfig.cpp \
@@ -241,8 +245,6 @@ libbitcoin_wallet_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_wallet_a_SOURCES = \
   smartnode/netfulfilledman.cpp \
   smartnode/activesmartnode.cpp \
-  smartnode/darksend.cpp \
-  smartnode/darksendrelay.cpp \
   smartnode/instantx.cpp \
   smartnode/smartnode.cpp \
   smartnode/smartnodeconfig.cpp \
@@ -333,6 +335,7 @@ libbitcoin_common_a_SOURCES = \
   core_write.cpp \
   key.cpp \
   keystore.cpp \
+  netaddress.cpp \
   netbase.cpp \
   protocol.cpp \
   scheduler.cpp \
@@ -360,6 +363,7 @@ libbitcoin_util_a_SOURCES = \
   util.cpp \
   hash.h \
   hash.cpp \
+  threadinterrupt.cpp \
   utilmoneystr.cpp \
   utilstrencodings.cpp \
   utiltime.cpp \

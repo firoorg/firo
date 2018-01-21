@@ -7,14 +7,11 @@
 
 #include "../key.h"
 #include "../main.h"
-#include "../net.h"
 #include "spork.h"
-#include "../timedata.h"
-#include "../utiltime.h"
 
 class CSmartnode;
 class CSmartnodeBroadcast;
-class CSmartnodePing;
+class CConnman;
 
 static const int SMARTNODE_CHECK_SECONDS               =   5;
 static const int SMARTNODE_MIN_MNB_SECONDS             =   5 * 60; //BROADCAST_TIME
@@ -25,27 +22,28 @@ static const int SMARTNODE_NEW_START_REQUIRED_SECONDS  = 180 * 60;
 static const int SMARTNODE_COIN_REQUIRED  = 10000;
 
 static const int SMARTNODE_POSE_BAN_MAX_SCORE          = 5;
+
 //
 // The Smartnode Ping Class : Contains a different serialize method for sending pings from smartnodes throughout the network
 //
 
+// sentinel version before sentinel ping implementation
+#define DEFAULT_SENTINEL_VERSION 0x010001
+
 class CSmartnodePing
 {
 public:
-    CTxIn vin;
-    uint256 blockHash;
-    int64_t sigTime; //mnb message times
-    std::vector<unsigned char> vchSig;
-    //removed stop
+    CTxIn vin{};
+    uint256 blockHash{};
+    int64_t sigTime{}; //mnb message times
+    std::vector<unsigned char> vchSig{};
+    bool fSentinelIsCurrent = false; // true if last sentinel ping was actual
+    // MSB is always 0, other 3 bits corresponds to x.x.x version scheme
+    uint32_t nSentinelVersion{DEFAULT_SENTINEL_VERSION};
 
-    CSmartnodePing() :
-        vin(),
-        blockHash(),
-        sigTime(0),
-        vchSig()
-        {}
+    CSmartnodePing() = default;
 
-    CSmartnodePing(CTxIn& vinNew);
+    CSmartnodePing(const COutPoint& outpoint);
 
     ADD_SERIALIZE_METHODS;
 
@@ -55,19 +53,14 @@ public:
         READWRITE(blockHash);
         READWRITE(sigTime);
         READWRITE(vchSig);
-    }
-
-    void swap(CSmartnodePing& first, CSmartnodePing& second) // nothrow
-    {
-        // enable ADL (not necessary in our case, but good practice)
-        using std::swap;
-
-        // by swapping the members of two classes,
-        // the two classes are effectively swapped
-        swap(first.vin, second.vin);
-        swap(first.blockHash, second.blockHash);
-        swap(first.sigTime, second.sigTime);
-        swap(first.vchSig, second.vchSig);
+        if(ser_action.ForRead() && (s.size() == 0))
+        {
+            fSentinelIsCurrent = false;
+            nSentinelVersion = DEFAULT_SENTINEL_VERSION;
+            return;
+        }
+        READWRITE(fSentinelIsCurrent);
+        READWRITE(nSentinelVersion);
     }
 
     uint256 GetHash() const
@@ -78,68 +71,65 @@ public:
         return ss.GetHash();
     }
 
-    bool IsExpired() { return GetTime() - sigTime > SMARTNODE_NEW_START_REQUIRED_SECONDS; }
+    bool IsExpired() const { return GetAdjustedTime() - sigTime > SMARTNODE_NEW_START_REQUIRED_SECONDS; }
 
-    bool Sign(CKey& keySmartnode, CPubKey& pubKeySmartnode);
+    bool Sign(const CKey& keySmartnode, const CPubKey& pubKeySmartnode);
     bool CheckSignature(CPubKey& pubKeySmartnode, int &nDos);
     bool SimpleCheck(int& nDos);
-    bool CheckAndUpdate(CSmartnode* pmn, bool fFromNewBroadcast, int& nDos);
-    void Relay();
-
-    CSmartnodePing& operator=(CSmartnodePing from)
-    {
-        swap(*this, from);
-        return *this;
-    }
-    friend bool operator==(const CSmartnodePing& a, const CSmartnodePing& b)
-    {
-        return a.vin == b.vin && a.blockHash == b.blockHash;
-    }
-    friend bool operator!=(const CSmartnodePing& a, const CSmartnodePing& b)
-    {
-        return !(a == b);
-    }
-
+    bool CheckAndUpdate(CSmartnode* pmn, bool fFromNewBroadcast, int& nDos, CConnman& connman);
+    void Relay(CConnman& connman);
 };
+
+inline bool operator==(const CSmartnodePing& a, const CSmartnodePing& b)
+{
+    return a.vin == b.vin && a.blockHash == b.blockHash;
+}
+inline bool operator!=(const CSmartnodePing& a, const CSmartnodePing& b)
+{
+    return !(a == b);
+}
 
 struct smartnode_info_t
 {
-    smartnode_info_t()
-        : vin(),
-          addr(),
-          pubKeyCollateralAddress(),
-          pubKeySmartnode(),
-          sigTime(0),
-          nLastDsq(0),
-          nTimeLastChecked(0),
-          nTimeLastPaid(0),
-          nTimeLastWatchdogVote(0),
-          nTimeLastPing(0),
-          nActiveState(0),
-          nProtocolVersion(0),
-          fInfoValid(false)
-        {}
+    // Note: all these constructors can be removed once C++14 is enabled.
+    // (in C++11 the member initializers wrongly disqualify this as an aggregate)
+    smartnode_info_t() = default;
+    smartnode_info_t(smartnode_info_t const&) = default;
 
-    CTxIn vin;
-    CService addr;
-    CPubKey pubKeyCollateralAddress;
-    CPubKey pubKeySmartnode;
-    int64_t sigTime; //mnb message time
-    int64_t nLastDsq; //the dsq count from the last dsq broadcast of this node
-    int64_t nTimeLastChecked;
-    int64_t nTimeLastPaid;
-    int64_t nTimeLastWatchdogVote;
-    int64_t nTimeLastPing;
-    int nActiveState;
-    int nProtocolVersion;
-    bool fInfoValid;
+    smartnode_info_t(int activeState, int protoVer, int64_t sTime) :
+        nActiveState{activeState}, nProtocolVersion{protoVer}, sigTime{sTime} {}
+
+    smartnode_info_t(int activeState, int protoVer, int64_t sTime,
+                      COutPoint const& outpoint, CService const& addr,
+                      CPubKey const& pkCollAddr, CPubKey const& pkMN,
+                      int64_t tWatchdogV = 0) :
+        nActiveState{activeState}, nProtocolVersion{protoVer}, sigTime{sTime},
+        vin{outpoint}, addr{addr},
+        pubKeyCollateralAddress{pkCollAddr}, pubKeySmartnode{pkMN},
+        nTimeLastWatchdogVote{tWatchdogV} {}
+
+    int nActiveState = 0;
+    int nProtocolVersion = 0;
+    int64_t sigTime = 0; //mnb message time
+
+    CTxIn vin{};
+    CService addr{};
+    CPubKey pubKeyCollateralAddress{};
+    CPubKey pubKeySmartnode{};
+    int64_t nTimeLastWatchdogVote = 0;
+
+    int64_t nLastDsq = 0; //the dsq count from the last dsq broadcast of this node
+    int64_t nTimeLastChecked = 0;
+    int64_t nTimeLastPaid = 0;
+    int64_t nTimeLastPing = 0; //* not in CMN
+    bool fInfoValid = false; //* not in CMN
 };
 
 //
-// The Smartnode Class. For managing the Darksend process. It contains the input of the 10000 SMART, signature to prove
+// The Smartnode Class. For managing the Darksend process. It contains the input of the 1000DRK, signature to prove
 // it's the one who own that ip address and code for calculating the payment election.
 //
-class CSmartnode
+class CSmartnode : public smartnode_info_t
 {
 private:
     // critical section to protect the inner data structures
@@ -157,25 +147,22 @@ public:
         SMARTNODE_POSE_BAN
     };
 
-    CTxIn vin;
-    CService addr;
-    CPubKey pubKeyCollateralAddress;
-    CPubKey pubKeySmartnode;
-    CSmartnodePing lastPing;
-    std::vector<unsigned char> vchSig;
-    int64_t sigTime; //mnb message time
-    int64_t nLastDsq; //the dsq count from the last dsq broadcast of this node
-    int64_t nTimeLastChecked;
-    int64_t nTimeLastPaid;
-    int64_t nTimeLastWatchdogVote;
-    int nActiveState;
-    int nCacheCollateralBlock;
-    int nBlockLastPaid;
-    int nProtocolVersion;
-    int nPoSeBanScore;
-    int nPoSeBanHeight;
-    bool fAllowMixingTx;
-    bool fUnitTest;
+    enum CollateralStatus {
+        COLLATERAL_OK,
+        COLLATERAL_UTXO_NOT_FOUND,
+        COLLATERAL_INVALID_AMOUNT
+    };
+
+
+    CSmartnodePing lastPing{};
+    std::vector<unsigned char> vchSig{};
+
+    uint256 nCollateralMinConfBlockHash{};
+    int nBlockLastPaid{};
+    int nPoSeBanScore{};
+    int nPoSeBanHeight{};
+    bool fAllowMixingTx{};
+    bool fUnitTest = false;
 
     // KEEP TRACK OF GOVERNANCE ITEMS EACH SMARTNODE HAS VOTE UPON FOR RECALCULATION
     std::map<uint256, int> mapGovernanceObjectsVotedOn;
@@ -183,7 +170,7 @@ public:
     CSmartnode();
     CSmartnode(const CSmartnode& other);
     CSmartnode(const CSmartnodeBroadcast& mnb);
-    CSmartnode(CService addrNew, CTxIn vinNew, CPubKey pubKeyCollateralAddressNew, CPubKey pubKeySmartnodeNew, int nProtocolVersionIn);
+    CSmartnode(CService addrNew, COutPoint outpointNew, CPubKey pubKeyCollateralAddressNew, CPubKey pubKeySmartnodeNew, int nProtocolVersionIn);
 
     ADD_SERIALIZE_METHODS;
 
@@ -202,7 +189,7 @@ public:
         READWRITE(nTimeLastPaid);
         READWRITE(nTimeLastWatchdogVote);
         READWRITE(nActiveState);
-        READWRITE(nCacheCollateralBlock);
+        READWRITE(nCollateralMinConfBlockHash);
         READWRITE(nBlockLastPaid);
         READWRITE(nProtocolVersion);
         READWRITE(nPoSeBanScore);
@@ -212,40 +199,13 @@ public:
         READWRITE(mapGovernanceObjectsVotedOn);
     }
 
-    void swap(CSmartnode& first, CSmartnode& second) // nothrow
-    {
-        // enable ADL (not necessary in our case, but good practice)
-        using std::swap;
-
-        // by swapping the members of two classes,
-        // the two classes are effectively swapped
-        swap(first.vin, second.vin);
-        swap(first.addr, second.addr);
-        swap(first.pubKeyCollateralAddress, second.pubKeyCollateralAddress);
-        swap(first.pubKeySmartnode, second.pubKeySmartnode);
-        swap(first.lastPing, second.lastPing);
-        swap(first.vchSig, second.vchSig);
-        swap(first.sigTime, second.sigTime);
-        swap(first.nLastDsq, second.nLastDsq);
-        swap(first.nTimeLastChecked, second.nTimeLastChecked);
-        swap(first.nTimeLastPaid, second.nTimeLastPaid);
-        swap(first.nTimeLastWatchdogVote, second.nTimeLastWatchdogVote);
-        swap(first.nActiveState, second.nActiveState);
-        swap(first.nCacheCollateralBlock, second.nCacheCollateralBlock);
-        swap(first.nBlockLastPaid, second.nBlockLastPaid);
-        swap(first.nProtocolVersion, second.nProtocolVersion);
-        swap(first.nPoSeBanScore, second.nPoSeBanScore);
-        swap(first.nPoSeBanHeight, second.nPoSeBanHeight);
-        swap(first.fAllowMixingTx, second.fAllowMixingTx);
-        swap(first.fUnitTest, second.fUnitTest);
-        swap(first.mapGovernanceObjectsVotedOn, second.mapGovernanceObjectsVotedOn);
-    }
-
     // CALCULATE A RANK AGAINST OF GIVEN BLOCK
     arith_uint256 CalculateScore(const uint256& blockHash);
 
-    bool UpdateFromNewBroadcast(CSmartnodeBroadcast& mnb);
+    bool UpdateFromNewBroadcast(CSmartnodeBroadcast& mnb, CConnman& connman);
 
+    static CollateralStatus CheckCollateral(const COutPoint& outpoint);
+    static CollateralStatus CheckCollateral(const COutPoint& outpoint, int& nHeightRet);
     void Check(bool fForce = false);
 
     bool IsBroadcastedWithin(int nSeconds) { return GetAdjustedTime() - sigTime < nSeconds; }
@@ -279,22 +239,34 @@ public:
                 nActiveStateIn == SMARTNODE_WATCHDOG_EXPIRED;
     }
 
-    bool IsValidForPayment();
+    bool IsValidForPayment()
+    {
+        if(nActiveState == SMARTNODE_ENABLED) {
+            return true;
+        }
+        if(!sporkManager.IsSporkActive(SPORK_14_REQUIRE_SENTINEL_FLAG) &&
+           (nActiveState == SMARTNODE_WATCHDOG_EXPIRED)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /// Is the input associated with collateral public key? (and there is 1000 DASH - checking if valid smartnode)
+    bool IsInputAssociatedWithPubkey();
 
     bool IsValidNetAddr();
     static bool IsValidNetAddr(CService addrIn);
 
     void IncreasePoSeBanScore() { if(nPoSeBanScore < SMARTNODE_POSE_BAN_MAX_SCORE) nPoSeBanScore++; }
     void DecreasePoSeBanScore() { if(nPoSeBanScore > -SMARTNODE_POSE_BAN_MAX_SCORE) nPoSeBanScore--; }
+    void PoSeBan() { nPoSeBanScore = SMARTNODE_POSE_BAN_MAX_SCORE; }
 
     smartnode_info_t GetInfo();
 
     static std::string StateToString(int nStateIn);
     std::string GetStateString() const;
     std::string GetStatus() const;
-    std::string ToString() const;
-
-    int GetCollateralAge();
 
     int GetLastPaidTime() { return nTimeLastPaid; }
     int GetLastPaidBlock() { return nBlockLastPaid; }
@@ -307,23 +279,32 @@ public:
 
     void RemoveGovernanceObject(uint256 nGovernanceObjectHash);
 
-    void UpdateWatchdogVoteTime();
+    void UpdateWatchdogVoteTime(uint64_t nVoteTime = 0);
 
-    CSmartnode& operator=(CSmartnode from)
+    CSmartnode& operator=(CSmartnode const& from)
     {
-        swap(*this, from);
+        static_cast<smartnode_info_t&>(*this)=from;
+        lastPing = from.lastPing;
+        vchSig = from.vchSig;
+        nCollateralMinConfBlockHash = from.nCollateralMinConfBlockHash;
+        nBlockLastPaid = from.nBlockLastPaid;
+        nPoSeBanScore = from.nPoSeBanScore;
+        nPoSeBanHeight = from.nPoSeBanHeight;
+        fAllowMixingTx = from.fAllowMixingTx;
+        fUnitTest = from.fUnitTest;
+        mapGovernanceObjectsVotedOn = from.mapGovernanceObjectsVotedOn;
         return *this;
     }
-    friend bool operator==(const CSmartnode& a, const CSmartnode& b)
-    {
-        return a.vin == b.vin;
-    }
-    friend bool operator!=(const CSmartnode& a, const CSmartnode& b)
-    {
-        return !(a.vin == b.vin);
-    }
-
 };
+
+inline bool operator==(const CSmartnode& a, const CSmartnode& b)
+{
+    return a.vin == b.vin;
+}
+inline bool operator!=(const CSmartnode& a, const CSmartnode& b)
+{
+    return !(a.vin == b.vin);
+}
 
 
 //
@@ -338,8 +319,8 @@ public:
 
     CSmartnodeBroadcast() : CSmartnode(), fRecovery(false) {}
     CSmartnodeBroadcast(const CSmartnode& mn) : CSmartnode(mn), fRecovery(false) {}
-    CSmartnodeBroadcast(CService addrNew, CTxIn vinNew, CPubKey pubKeyCollateralAddressNew, CPubKey pubKeySmartnodeNew, int nProtocolVersionIn) :
-        CSmartnode(addrNew, vinNew, pubKeyCollateralAddressNew, pubKeySmartnodeNew, nProtocolVersionIn), fRecovery(false) {}
+    CSmartnodeBroadcast(CService addrNew, COutPoint outpointNew, CPubKey pubKeyCollateralAddressNew, CPubKey pubKeySmartnodeNew, int nProtocolVersionIn) :
+        CSmartnode(addrNew, outpointNew, pubKeyCollateralAddressNew, pubKeySmartnodeNew, nProtocolVersionIn), fRecovery(false) {}
 
     ADD_SERIALIZE_METHODS;
 
@@ -365,48 +346,36 @@ public:
     }
 
     /// Create Smartnode broadcast, needs to be relayed manually after that
-    static bool Create(CTxIn vin, CService service, CKey keyCollateralAddressNew, CPubKey pubKeyCollateralAddressNew, CKey keySmartnodeNew, CPubKey pubKeySmartnodeNew, std::string &strErrorRet, CSmartnodeBroadcast &mnbRet);
+    static bool Create(const COutPoint& outpoint, const CService& service, const CKey& keyCollateralAddressNew, const CPubKey& pubKeyCollateralAddressNew, const CKey& keySmartnodeNew, const CPubKey& pubKeySmartnodeNew, std::string &strErrorRet, CSmartnodeBroadcast &mnbRet);
     static bool Create(std::string strService, std::string strKey, std::string strTxHash, std::string strOutputIndex, std::string& strErrorRet, CSmartnodeBroadcast &mnbRet, bool fOffline = false);
 
     bool SimpleCheck(int& nDos);
-    bool Update(CSmartnode* pmn, int& nDos);
+    bool Update(CSmartnode* pmn, int& nDos, CConnman& connman);
     bool CheckOutpoint(int& nDos);
 
-    bool Sign(CKey& keyCollateralAddress);
+    bool Sign(const CKey& keyCollateralAddress);
     bool CheckSignature(int& nDos);
-    void RelaySmartNode();
+    void Relay(CConnman& connman);
 };
 
 class CSmartnodeVerification
 {
 public:
-    CTxIn vin1;
-    CTxIn vin2;
-    CService addr;
-    int nonce;
-    int nBlockHeight;
-    std::vector<unsigned char> vchSig1;
-    std::vector<unsigned char> vchSig2;
+    CTxIn vin1{};
+    CTxIn vin2{};
+    CService addr{};
+    int nonce{};
+    int nBlockHeight{};
+    std::vector<unsigned char> vchSig1{};
+    std::vector<unsigned char> vchSig2{};
 
-    CSmartnodeVerification() :
-        vin1(),
-        vin2(),
-        addr(),
-        nonce(0),
-        nBlockHeight(0),
-        vchSig1(),
-        vchSig2()
-        {}
+    CSmartnodeVerification() = default;
 
     CSmartnodeVerification(CService addr, int nonce, int nBlockHeight) :
-        vin1(),
-        vin2(),
         addr(addr),
         nonce(nonce),
-        nBlockHeight(nBlockHeight),
-        vchSig1(),
-        vchSig2()
-        {}
+        nBlockHeight(nBlockHeight)
+    {}
 
     ADD_SERIALIZE_METHODS;
 
@@ -435,7 +404,7 @@ public:
     void Relay() const
     {
         CInv inv(MSG_SMARTNODE_VERIFY, GetHash());
-        RelayInv(inv);
+        g_connman->RelayInv(inv);
     }
 };
 

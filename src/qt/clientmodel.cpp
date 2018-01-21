@@ -123,6 +123,11 @@ void ClientModel::updateNumConnections(int numConnections)
     Q_EMIT numConnectionsChanged(numConnections);
 }
 
+void ClientModel::updateNetworkActive(bool networkActive)
+{
+    Q_EMIT networkActiveChanged(networkActive);
+}
+
 void ClientModel::updateAlert()
 {
     Q_EMIT alertsChanged(getStatusBarWarnings());
@@ -209,6 +214,12 @@ static void NotifyNumConnectionsChanged(ClientModel *clientmodel, int newNumConn
     // Too noisy: qDebug() << "NotifyNumConnectionsChanged: " + QString::number(newNumConnections);
     QMetaObject::invokeMethod(clientmodel, "updateNumConnections", Qt::QueuedConnection,
                               Q_ARG(int, newNumConnections));
+}
+
+static void NotifyNetworkActiveChanged(ClientModel *clientmodel, bool networkActive)
+{
+    QMetaObject::invokeMethod(clientmodel, "updateNetworkActive", Qt::QueuedConnection,
+                              Q_ARG(bool, networkActive));
 }
 
 static void NotifyAlertChanged(ClientModel *clientmodel)

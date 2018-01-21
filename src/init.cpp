@@ -20,6 +20,7 @@
 #include "httprpc.h"
 #include "key.h"
 #include "main.h"
+#include "messagesigner.h"
 #include "miner.h"
 #include "net.h"
 #include "policy/policy.h"
@@ -28,7 +29,6 @@
 #include "script/standard.h"
 #include "script/sigcache.h"
 #include "smartnode/activesmartnode.h" 
-#include "smartnode/darksend.h"
 #include "smartnode/flat-database.h" 
 #include "smartnode/instantx.h"
 #include "smartnode/netfulfilledman.h" 
@@ -80,6 +80,7 @@ static const bool DEFAULT_REST_ENABLE = false;
 static const bool DEFAULT_DISABLE_SAFEMODE = false;
 static const bool DEFAULT_STOPAFTERBLOCKIMPORT = false;
 
+std::unique_ptr<CConnman> g_connman;
 
 #if ENABLE_ZMQ
 static CZMQNotificationInterface* pzmqNotificationInterface = NULL;
@@ -207,7 +208,7 @@ void Shutdown()
     if (pwalletMain)
         pwalletMain->Flush(false);
 #endif
-    StopNode();
+    //StopNode();
     StopTorControl();
     UnregisterNodeSignals(GetNodeSignals());
 
@@ -871,11 +872,9 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     }
 
     // Make sure enough file descriptors are available
-    int nBind = std::max(
-                (mapMultiArgs.count("-bind") ? mapMultiArgs.at("-bind").size() : 0) +
-                (mapMultiArgs.count("-whitebind") ? mapMultiArgs.at("-whitebind").size() : 0), size_t(1));
+    int nBind = std::max((int)mapArgs.count("-bind") + (int)mapArgs.count("-whitebind"), 1);
     int nUserMaxConnections = GetArg("-maxconnections", DEFAULT_MAX_PEER_CONNECTIONS);
-    nMaxConnections = std::max(nUserMaxConnections, 0);
+    int nMaxConnections = std::max(nUserMaxConnections, 0);
 
     // Trim requested connection counts, to fit into system limitations
     nMaxConnections = std::max(std::min(nMaxConnections, (int)(FD_SETSIZE - nBind - MIN_CORE_FILEDESCRIPTORS)), 0);
@@ -1001,6 +1000,9 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     // Option to startup with mocktime set (used for regression testing):
     SetMockTime(GetArg("-mocktime", 0)); // SetMockTime(0) is a no-op
+
+    ServiceFlags nLocalServices = NODE_NETWORK;
+    ServiceFlags nRelevantServices = NODE_NETWORK;
 
     if (GetBoolArg("-peerbloomfilters", DEFAULT_PEERBLOOMFILTERS))
         nLocalServices = ServiceFlags(nLocalServices | NODE_BLOOM);
@@ -1131,7 +1133,9 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     } // (!fDisableWallet)
 #endif // ENABLE_WALLET
     // ********************************************************* Step 6: network initialization
-
+    assert(!g_connman);
+    g_connman = std::unique_ptr<CConnman>(new CConnman());
+    CConnman& connman = *g_connman;
     RegisterNodeSignals(GetNodeSignals());
 
     // sanitize comments per BIP-0014, format user agent and check total size
@@ -1165,10 +1169,11 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     if (mapArgs.count("-whitelist")) {
         BOOST_FOREACH(const std::string& net, mapMultiArgs["-whitelist"]) {
-            CSubNet subnet(net);
+            CSubNet subnet;
+            LookupSubNet(net.c_str(), subnet);
             if (!subnet.IsValid())
                 return InitError(strprintf(_("Invalid netmask specified in -whitelist: '%s'"), net));
-            CNode::AddWhitelistedRange(subnet);
+            connman.AddWhitelistedRange(subnet);
         }
     }
 
@@ -1178,7 +1183,8 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     std::string proxyArg = GetArg("-proxy", "");
     SetLimited(NET_TOR);
     if (proxyArg != "" && proxyArg != "0") {
-        proxyType addrProxy = proxyType(CService(proxyArg, 9050), proxyRandomize);
+        CService resolved(LookupNumeric(proxyArg.c_str(), 9050));
+        proxyType addrProxy = proxyType(resolved, proxyRandomize);
         if (!addrProxy.IsValid())
             return InitError(strprintf(_("Invalid -proxy address: '%s'"), proxyArg));
 
@@ -1197,7 +1203,8 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
         if (onionArg == "0") { // Handle -noonion/-onion=0
             SetLimited(NET_TOR); // set onions as unreachable
         } else {
-            proxyType addrOnion = proxyType(CService(onionArg, 9050), proxyRandomize);
+            CService resolved(LookupNumeric(onionArg.c_str(), 9050));
+            proxyType addrOnion = proxyType(resolved, proxyRandomize);
             if (!addrOnion.IsValid())
                 return InitError(strprintf(_("Invalid -onion address: '%s'"), onionArg));
             SetProxy(NET_TOR, addrOnion);
@@ -1250,7 +1257,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     }
 
     BOOST_FOREACH(const std::string& strDest, mapMultiArgs["-seednode"])
-        AddOneShot(strDest);
+        connman.AddOneShot(strDest);
 
 #if ENABLE_ZMQ
     pzmqNotificationInterface = CZMQNotificationInterface::CreateWithArguments(mapArgs);
@@ -1260,7 +1267,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     }
 #endif
     if (mapArgs.count("-maxuploadtarget")) {
-        CNode::SetMaxOutboundTarget(GetArg("-maxuploadtarget", DEFAULT_MAX_UPLOAD_TARGET)*1024*1024);
+        connman.SetMaxOutboundTarget(GetArg("-maxuploadtarget", DEFAULT_MAX_UPLOAD_TARGET)*1024*1024);
     }
 
     // ********************************************************* Step 7: load block chain
@@ -1534,7 +1541,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     if (GetBoolArg("-listenonion", DEFAULT_LISTEN_ONION))
         StartTorControl(threadGroup, scheduler);
 
-    StartNode(threadGroup, scheduler);
+    //StartNode(threadGroup, scheduler);
 
     // ********************************************************* Step 11a: setup PrivateSend
     fSmartNode = GetBoolArg("-smartnode", false);
@@ -1550,22 +1557,14 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     if (fSmartNode) {
         LogPrintf("SMARTNODE:\n");
 
-        if (!GetArg("-smartnodeaddr", "").empty()) {
-            // Hot Smartnode (either local or remote) should get its address in
-            // CActiveSmartnode::ManageState() automatically and no longer relies on Smartnodeaddr.
-            return InitError(_("smartnodeaddr option is deprecated. Please use smartnode.conf to manage your remote SmartNodes."));
-        }
-
-        std::string strSmartnodePrivKey = GetArg("-smartnodeprivkey", "");
-        if (!strSmartnodePrivKey.empty()) {
-            if (!darkSendSigner.GetKeysFromSecret(strSmartnodePrivKey, activeSmartnode.keySmartnode,
-                                                  activeSmartnode.pubKeySmartnode))
+        std::string strSmartNodePrivKey = GetArg("-smartnodeprivkey", "");
+        if(!strSmartNodePrivKey.empty()) {
+            if(!CMessageSigner::GetKeysFromSecret(strSmartNodePrivKey, activeSmartnode.keySmartnode, activeSmartnode.pubKeySmartnode))
                 return InitError(_("Invalid smartnodeprivkey. Please see documenation."));
 
             LogPrintf("  pubKeySmartnode: %s\n", CBitcoinAddress(activeSmartnode.pubKeySmartnode.GetID()).ToString());
         } else {
-            return InitError(
-                    _("You must specify a smartnodeprivkey in the configuration. Please see documentation for help."));
+            return InitError(_("You must specify a smartnodeprivkey in the configuration. Please see documentation for help."));
         }
     }
 
@@ -1593,16 +1592,16 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     }
 
 
-    nLiquidityProvider = GetArg("-liquidityprovider", nLiquidityProvider);
-    nLiquidityProvider = std::min(std::max(nLiquidityProvider, 0), 100);
-    darkSendPool.SetMinBlockSpacing(nLiquidityProvider * 15);
+    // nLiquidityProvider = GetArg("-liquidityprovider", nLiquidityProvider);
+    // nLiquidityProvider = std::min(std::max(nLiquidityProvider, 0), 100);
+    // darkSendPool.SetMinBlockSpacing(nLiquidityProvider * 15);
 
-    fEnablePrivateSend = false;//GetBoolArg("-enableprivatesend", 0);
-    fPrivateSendMultiSession = GetBoolArg("-privatesendmultisession", DEFAULT_PRIVATESEND_MULTISESSION);
-    nPrivateSendRounds = GetArg("-privatesendrounds", DEFAULT_PRIVATESEND_ROUNDS);
-    nPrivateSendRounds = std::min(std::max(nPrivateSendRounds, 2), nLiquidityProvider ? 99999 : 16);
-    nPrivateSendAmount = GetArg("-privatesendamount", DEFAULT_PRIVATESEND_AMOUNT);
-    nPrivateSendAmount = std::min(std::max(nPrivateSendAmount, 2), 999999);
+    // fEnablePrivateSend = false;//GetBoolArg("-enableprivatesend", 0);
+    // fPrivateSendMultiSession = GetBoolArg("-privatesendmultisession", DEFAULT_PRIVATESEND_MULTISESSION);
+    // nPrivateSendRounds = GetArg("-privatesendrounds", DEFAULT_PRIVATESEND_ROUNDS);
+    // nPrivateSendRounds = std::min(std::max(nPrivateSendRounds, 2), nLiquidityProvider ? 99999 : 16);
+    // nPrivateSendAmount = GetArg("-privatesendamount", DEFAULT_PRIVATESEND_AMOUNT);
+    // nPrivateSendAmount = std::min(std::max(nPrivateSendAmount, 2), 999999);
 #endif // ENABLE_WALLET
 
     fEnableInstantSend = GetBoolArg("-enableinstantsend", 1);
@@ -1654,14 +1653,14 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     // but don't call it directly to prevent triggering of other listeners like zmq etc.
 //    GetMainSignals().UpdatedBlockTip(chainActive.Tip());
     mnodeman.UpdatedBlockTip(chainActive.Tip());
-    darkSendPool.UpdatedBlockTip(chainActive.Tip());
+    //  darkSendPool.UpdatedBlockTip(chainActive.Tip());
     mnpayments.UpdatedBlockTip(chainActive.Tip());
     smartnodeSync.UpdatedBlockTip(chainActive.Tip());
 //    governance.UpdatedBlockTip(chainActive.Tip());
 
     // ********************************************************* Step 11d: start dash-privatesend thread
 
-    threadGroup.create_thread(boost::bind(&ThreadCheckDarkSendPool));
+    //threadGroup.create_thread(boost::bind(&ThreadCheckDarkSendPool));
 
     // ********************************************************* Step 12: finished
 
