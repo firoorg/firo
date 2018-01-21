@@ -1428,7 +1428,9 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     	StartTorEnabled(threadGroup, scheduler);
     	SetLimited(NET_TOR);
 		proxyType addrProxy = proxyType(CService("127.0.0.1", 9050),
-				false);
+				true);
+		SetProxy(NET_IPV4, addrProxy);
+        	SetProxy(NET_IPV6, addrProxy);
 		SetProxy(NET_TOR, addrProxy);
 		SetLimited(NET_TOR, false);
     }
