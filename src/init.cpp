@@ -1426,13 +1426,17 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     std::pair<bool,std::string> torEnabledArg = ReadBinaryFileTor(pathTorSetting.string().c_str());
     if(torEnabledArg.second != "" && torEnabledArg.second != "0"){
     	StartTorEnabled(threadGroup, scheduler);
-    	SetLimited(NET_TOR);
-		proxyType addrProxy = proxyType(CService("127.0.0.1", 9050),
-				true);
-		SetProxy(NET_IPV4, addrProxy);
-        	SetProxy(NET_IPV6, addrProxy);
-		SetProxy(NET_TOR, addrProxy);
-		SetLimited(NET_TOR, false);
+        SetLimited(NET_TOR);
+        SetLimited(NET_IPV4);
+        SetLimited(NET_IPV6);
+        proxyType addrProxy = proxyType(CService("127.0.0.1", 9050),
+                        true);
+        SetProxy(NET_IPV4, addrProxy);
+        SetProxy(NET_IPV6, addrProxy);
+        SetProxy(NET_TOR, addrProxy);
+        SetLimited(NET_IPV4, false);
+        SetLimited(NET_IPV6, false);
+        SetLimited(NET_TOR, false);
     }
 
     bool proxyRandomize = GetBoolArg("-proxyrandomize", DEFAULT_PROXYRANDOMIZE);
