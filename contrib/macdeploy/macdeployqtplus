@@ -765,7 +765,7 @@ if config.dmg is not None:
     
     if fancy is None:
         try:
-            runHDIUtil("create", dmg_name, srcfolder="dist", format="UDBZ", volname=volname, ov=True)
+            runHDIUtil("create", dmg_name, srcfolder="dist", format="UDBZ", volname=volname, ov=True, fs="HFS+")
         except subprocess.CalledProcessError as e:
             sys.exit(e.returncode)
     else:
@@ -780,7 +780,7 @@ if config.dmg is not None:
         if verbose >= 3:
             print("Creating temp image for modification...")
         try:
-            runHDIUtil("create", dmg_name + ".temp", srcfolder="dist", format="UDRW", size=size, volname=volname, ov=True)
+            runHDIUtil("create", dmg_name + ".temp", srcfolder="dist", format="UDRW", size=size, volname=volname, ov=True, fs="HFS+")
         except subprocess.CalledProcessError as e:
             sys.exit(e.returncode)
         
