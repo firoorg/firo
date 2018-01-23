@@ -13,7 +13,7 @@
 
 #include "base58.h"
 #include "keystore.h"
-#include "main.h"
+#include "validation.h"
 #include "sync.h"
 #include "../smartnode/instantx.h"
 #include "../smartnode/spork.h"

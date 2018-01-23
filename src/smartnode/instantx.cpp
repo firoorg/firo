@@ -5,7 +5,7 @@
 #include "activesmartnode.h"
 #include "instantx.h"
 #include "../key.h"
-#include "../main.h"
+#include "../validation.h"
 #include "smartnodesync.h"
 #include "smartnodeman.h"
 #include "../messagesigner.h"
@@ -51,7 +51,7 @@ void CInstantSend::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataSt
     if(fLiteMode) return; // disable all Dash specific functionality
     if(!sporkManager.IsSporkActive(SPORK_2_INSTANTSEND_ENABLED)) return;
 
-    // NOTE: NetMsgType::TXLOCKREQUEST is handled via ProcessMessage() in main.cpp
+    // NOTE: NetMsgType::TXLOCKREQUEST is handled via ProcessMessage() in validation.cpp
 
     if (strCommand == NetMsgType::TXLOCKVOTE) // InstantSend Transaction Lock Consensus Votes
     {

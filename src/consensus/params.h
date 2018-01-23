@@ -39,6 +39,19 @@ struct BIP9Deployment {
 struct Params {
     uint256 hashGenesisBlock;
     int nSubsidyHalvingInterval;
+    int nSmartnodePaymentsStartBlock;
+    int nSmartnodePaymentsIncreaseBlock;
+    int nSmartnodePaymentsIncreasePeriod; // in blocks
+    int nInstantSendKeepLock; // in blocks
+    int nBudgetPaymentsStartBlock;
+    int nBudgetPaymentsCycleBlocks;
+    int nBudgetPaymentsWindowBlocks;
+    int nBudgetProposalEstablishingTime; // in seconds
+    int nSuperblockStartBlock;
+    int nSuperblockCycle; // in blocks
+    int nGovernanceMinQuorum; // Min absolute vote count to trigger an action
+    int nGovernanceFilterElements;
+    int nSmartnodeMinimumConfirmations;
     /** Used to check majorities for block version upgrade */
     int nMajorityEnforceBlockUpgrade;
     int nMajorityRejectBlockOutdated;
@@ -62,16 +75,6 @@ struct Params {
     int64_t nPowTargetTimespan;
     int64_t DifficultyAdjustmentInterval() const { return nPowTargetTimespan / nPowTargetSpacing; }
     uint256 nMinimumChainWork;
-
-    int nInstantSendKeepLock; // in blocks
- //   int nBudgetPaymentsStartBlock;
-  //  int nBudgetPaymentsCycleBlocks;
- //   int nBudgetPaymentsWindowBlocks;
-    int nSmartnodeMinimumConfirmations;
-    int nSmartnodePaymentsStartBlock;
- //   int nSmartnodePaymentsIncreaseBlock;
- //   int nSmartnodePaymentsIncreasePeriod; // in blocks
- //   int nSuperblockStartBlock;
 };
 } // namespace Consensus
 

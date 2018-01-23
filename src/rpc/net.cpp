@@ -6,9 +6,10 @@
 
 #include "chainparams.h"
 #include "clientversion.h"
-#include "main.h"
+#include "validation.h"
 #include "net.h"
 #include "netbase.h"
+#include "net_processing.h"
 #include "protocol.h"
 #include "sync.h"
 #include "timedata.h"

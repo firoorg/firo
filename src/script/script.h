@@ -623,6 +623,9 @@ public:
      * pay-to-script-hash transactions:
      */
     unsigned int GetSigOpCount(const CScript& scriptSig) const;
+
+    bool IsPayToPublicKeyHash() const;
+
     bool IsNormalPaymentScript() const;
 
     bool IsPayToScriptHash() const;

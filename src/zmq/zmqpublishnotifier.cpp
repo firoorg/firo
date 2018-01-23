@@ -4,7 +4,7 @@
 
 #include "chainparams.h"
 #include "zmqpublishnotifier.h"
-#include "main.h"
+#include "validation.h"
 #include "util.h"
 #include "rpc/server.h"
 

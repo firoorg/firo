@@ -91,7 +91,7 @@ enum AvailableCoinsType
     ALL_COINS,
     ONLY_DENOMINATED,
     ONLY_NONDENOMINATED,
-    ONLY_10000, // find masternode outputs including locked ones (use with caution)
+    ONLY_10000, // find smartnode outputs including locked ones (use with caution)
     ONLY_PRIVATESEND_COLLATERAL
 };
  
@@ -624,9 +624,9 @@ public:
     std::set<int64_t> setKeyPool;
     std::map<CKeyID, CKeyMetadata> mapKeyMetadata;
     int64_t nKeysLeftSinceAutoBackup; 
-    typedef std::map<unsigned int, CMasterKey> MasterKeyMap;
-    MasterKeyMap mapMasterKeys;
-    unsigned int nMasterKeyMaxID;
+    typedef std::map<unsigned int, CMasterKey> SmartKeyMap;
+    SmartKeyMap mapSmartKeys;
+    unsigned int nSmartKeyMaxID;
 
     CWallet()
     {
@@ -652,7 +652,7 @@ public:
         nWalletVersion = FEATURE_BASE;
         nWalletMaxVersion = FEATURE_BASE;
         fFileBacked = false;
-        nMasterKeyMaxID = 0;
+        nSmartKeyMaxID = 0;
         pwalletdbEncryption = NULL;
         nOrderPosNext = 0;
         nNextResend = 0;
@@ -708,12 +708,19 @@ public:
     void ListLockedCoins(std::vector<COutPoint>& vOutpts);
 
     // smartnode 
-    /// Get 10000 Smartcash output and keys which can be used for the Smartnode 
-    bool GetSmartnodeVinAndKeys(CTxIn& txinRet, CPubKey& pubKeyRet, CKey& keyRet, std::string strTxHash = "", std::string strOutputIndex = ""); 
-    /// Extract txin information and keys from output 
-    bool GetVinAndKeysFromOutput(COutput out, CTxIn& txinRet, CPubKey& pubKeyRet, CKey& keyRet); 
-    bool HasCollateralInputs(bool fOnlyConfirmed = true) const; 
-    int  CountInputsWithAmount(CAmount nInputAmount); 
+    //bool SelectCoinsByDenominations(int nDenom, CAmount nValueMin, CAmount nValueMax, std::vector<CTxDSIn>& vecTxDSInRet, std::vector<COutput>& vCoinsRet, CAmount& nValueRet, int nPrivateSendRoundsMin, int nPrivateSendRoundsMax);
+    //bool GetCollateralTxDSIn(CTxDSIn& txdsinRet, CAmount& nValueRet) const;
+    //bool SelectCoinsDark(CAmount nValueMin, CAmount nValueMax, std::vector<CTxIn>& vecTxInRet, CAmount& nValueRet, int nPrivateSendRoundsMin, int nPrivateSendRoundsMax) const;
+
+    bool SelectCoinsGrouppedByAddresses(std::vector<CompactTallyItem>& vecTallyRet, bool fSkipDenominated = true, bool fAnonymizable = true, bool fSkipUnconfirmed = true) const;
+
+    /// Get 10000 SMART output and keys which can be used for the Smartnode
+    bool GetSmartnodeOutpointAndKeys(COutPoint& outpointRet, CPubKey& pubKeyRet, CKey& keyRet, std::string strTxHash = "", std::string strOutputIndex = "");
+    /// Extract txin information and keys from output
+    bool GetOutpointAndKeysFromOutput(const COutput& out, COutPoint& outpointRet, CPubKey& pubKeyRet, CKey& keyRet);
+
+    bool HasCollateralInputs(bool fOnlyConfirmed = true) const;
+    int  CountInputsWithAmount(CAmount nInputAmount);
 
     /**
      * keystore implementation
@@ -767,7 +774,7 @@ public:
 
     void MarkDirty();
     bool AddToWallet(const CWalletTx& wtxIn, bool fFromLoadWallet, CWalletDB* pwalletdb);
-    void SyncTransaction(const CTransaction& tx, const CBlockIndex *pindex, const CBlock* pblock);
+    void SyncTransaction(const CTransaction& tx, const CBlock* pblock);
     bool AddToWalletIfInvolvingMe(const CTransaction& tx, const CBlock* pblock, bool fUpdate);
     int ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate = false);
     void ReacceptWalletTransactions();
@@ -786,7 +793,10 @@ public:
     CAmount GetAnonymizableBalance(bool fSkipDenominated = false) const; 
     CAmount GetAnonymizedBalance() const; 
     CAmount GetNeedsToBeAnonymizedBalance(CAmount nMinBalance = 0) const; 
-    CAmount GetDenominatedBalance(bool unconfirmed=false) const; 
+    CAmount GetDenominatedBalance(bool unconfirmed=false) const;
+
+    bool GetBudgetSystemCollateralTX(CTransaction& tx, uint256 hash, CAmount amount, bool fUseInstantSend);
+    bool GetBudgetSystemCollateralTX(CWalletTx& tx, uint256 hash, CAmount amount, bool fUseInstantSend);
 
     /**
      * Insert additional inputs into the transaction by
@@ -860,7 +870,7 @@ public:
 
     bool DelAddressBook(const CTxDestination& address);
 
-    void UpdatedTransaction(const uint256 &hashTx);
+    bool UpdatedTransaction(const uint256 &hashTx);
 
     void Inventory(const uint256 &hash)
     {
@@ -958,10 +968,10 @@ public:
     const CHDChain& GetHDChain() { return hdChain; }
 
     /* Generates a new HD master key (will not be activated) */
-    CPubKey GenerateNewHDMasterKey();
+    CPubKey GenerateNewHDSmartKey();
 
     /* Set the current HD master key (will reset the chain child index counters) */
-    bool SetHDMasterKey(const CPubKey& key);
+    bool SetHDSmartKey(const CPubKey& key);
 };
 
 /** A key allocated from the key pool. */

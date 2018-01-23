@@ -19,7 +19,7 @@
 #include "httpserver.h"
 #include "httprpc.h"
 #include "key.h"
-#include "main.h"
+#include "validation.h"
 #include "messagesigner.h"
 #include "miner.h"
 #include "net.h"
@@ -155,9 +155,9 @@ class CCoinsViewErrorCatcher : public CCoinsViewBacked
 {
 public:
     CCoinsViewErrorCatcher(CCoinsView* view) : CCoinsViewBacked(view) {}
-    bool GetCoins(const uint256 &txid, CCoins &coins) const {
+    bool GetCoin(const COutPoint &outpoint, Coin &coin) const override {
         try {
-            return CCoinsViewBacked::GetCoins(txid, coins);
+            return CCoinsViewBacked::GetCoin(outpoint, coin);
         } catch(const std::runtime_error& e) {
             uiInterface.ThreadSafeMessageBox(_("Error reading from database, shutting down."), "", CClientUIInterface::MSG_ERROR);
             LogPrintf("Error reading from database: %s\n", e.what());
@@ -1649,14 +1649,10 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     // ********************************************************* Step 11c: update block tip in Dash modules
 
-    // force UpdatedBlockTip to initialize pCurrentBlockIndex for DS, MN payments and budgets
+    // force UpdatedBlockTip to initialize nCachedBlockHeight for DS, MN payments and budgets
     // but don't call it directly to prevent triggering of other listeners like zmq etc.
-//    GetMainSignals().UpdatedBlockTip(chainActive.Tip());
-    mnodeman.UpdatedBlockTip(chainActive.Tip());
-    //  darkSendPool.UpdatedBlockTip(chainActive.Tip());
-    mnpayments.UpdatedBlockTip(chainActive.Tip());
-    smartnodeSync.UpdatedBlockTip(chainActive.Tip());
-//    governance.UpdatedBlockTip(chainActive.Tip());
+    // GetMainSignals().UpdatedBlockTip(chainActive.Tip());
+    //pdsNotificationInterface->InitializeCurrentBlockTip();
 
     // ********************************************************* Step 11d: start dash-privatesend thread
 

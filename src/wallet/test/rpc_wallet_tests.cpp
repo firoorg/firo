@@ -6,7 +6,7 @@
 #include "rpc/client.h"
 
 #include "base58.h"
-#include "main.h"
+#include "validation.h"
 #include "wallet/wallet.h"
 
 #include "wallet/test/wallet_test_fixture.h"

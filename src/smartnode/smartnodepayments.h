@@ -8,7 +8,7 @@
 #include "../util.h"
 #include "../core_io.h"
 #include "../key.h"
-#include "../main.h"
+#include "../net_processing.h"
 #include "smartnode.h"
 #include "../utilstrencodings.h"
 
@@ -32,7 +32,7 @@ extern CCriticalSection cs_mapSmartnodePayeeVotes;
 
 extern CSmartnodePayments mnpayments;
 
-/// TODO: all 4 functions do not belong here really, they should be refactored/moved somewhere (main.cpp ?)
+/// TODO: all 4 functions do not belong here really, they should be refactored/moved somewhere (validation.cpp ?)
 bool IsBlockValueValid(const CBlock& block, int nBlockHeight, CAmount blockReward, std::string &strErrorRet);
 bool IsBlockPayeeValid(const CTransaction& txNew, int nBlockHeight, CAmount blockReward);
 void FillBlockPayments(CMutableTransaction& txNew, int nBlockHeight, CAmount blockReward, CTxOut& txoutSmartnodeRet, std::vector<CTxOut>& voutSuperblockRet);
@@ -70,7 +70,6 @@ public:
     void AddVoteHash(uint256 hashIn) { vecVoteHashes.push_back(hashIn); }
     std::vector<uint256> GetVoteHashes() { return vecVoteHashes; }
     int GetVoteCount() { return vecVoteHashes.size(); }
-    std::string ToString() const;
 };
 
 // Keep track of votes for payees from smartnodes
@@ -99,7 +98,7 @@ public:
 
     void AddPayee(const CSmartnodePaymentVote& vote);
     bool GetBestPayee(CScript& payeeRet);
-    bool HasPayeeWithVotes(CScript payeeIn, int nVotesReq);
+    bool HasPayeeWithVotes(const CScript& payeeIn, int nVotesReq);
 
     bool IsTransactionValid(const CTransaction& txNew);
 
@@ -123,8 +122,8 @@ public:
         vchSig()
         {}
 
-    CSmartnodePaymentVote(CTxIn vinSmartnode, int nBlockHeight, CScript payee) :
-        vinSmartnode(vinSmartnode),
+    CSmartnodePaymentVote(COutPoint outpointSmartnode, int nBlockHeight, CScript payee) :
+        vinSmartnode(outpointSmartnode),
         nBlockHeight(nBlockHeight),
         payee(payee),
         vchSig()
@@ -151,8 +150,8 @@ public:
     bool Sign();
     bool CheckSignature(const CPubKey& pubKeySmartnode, int nValidationHeight, int &nDos);
 
-    bool IsValid(CNode* pnode, int nValidationHeight, std::string& strError);
-    void Relay();
+    bool IsValid(CNode* pnode, int nValidationHeight, std::string& strError, CConnman& connman);
+    void Relay(CConnman& connman);
 
     bool IsVerified() { return !vchSig.empty(); }
     void MarkAsNotVerified() { vchSig.clear(); }
@@ -173,13 +172,14 @@ private:
     // ... but at least nMinBlocksToStore (payments blocks)
     const int nMinBlocksToStore;
 
-    // Keep track of current block index
-    const CBlockIndex *pCurrentBlockIndex;
+    // Keep track of current block height
+    int nCachedBlockHeight;
 
 public:
     std::map<uint256, CSmartnodePaymentVote> mapSmartnodePaymentVotes;
     std::map<int, CSmartnodeBlockPayees> mapSmartnodeBlocks;
     std::map<COutPoint, int> mapSmartnodesLastVote;
+    std::map<COutPoint, int> mapSmartnodesDidNotVote;
 
     CSmartnodePayments() : nStorageCoeff(1.25), nMinBlocksToStore(5000) {}
 
@@ -195,10 +195,11 @@ public:
 
     bool AddPaymentVote(const CSmartnodePaymentVote& vote);
     bool HasVerifiedPaymentVote(uint256 hashIn);
-    bool ProcessBlock(int nBlockHeight);
+    bool ProcessBlock(int nBlockHeight, CConnman& connman);
+    void CheckPreviousBlockVotes(int nPrevBlockHeight);
 
-    void Sync(CNode* node);
-    void RequestLowDataPaymentBlocks(CNode* pnode);
+    void Sync(CNode* node, CConnman& connman);
+    void RequestLowDataPaymentBlocks(CNode* pnode, CConnman& connman);
     void CheckAndRemove();
 
     bool GetBlockPayee(int nBlockHeight, CScript& payee);
@@ -208,7 +209,7 @@ public:
     bool CanVote(COutPoint outSmartnode, int nBlockHeight);
 
     int GetMinSmartnodePaymentsProto();
-    void ProcessMessage(CNode* pfrom, std::string& strCommand, CDataStream& vRecv);
+    void ProcessMessage(CNode* pfrom, std::string& strCommand, CDataStream& vRecv, CConnman& connman);
     std::string GetRequiredPaymentsString(int nBlockHeight);
     void FillBlockPayee(CMutableTransaction& txNew, int nBlockHeight, CAmount blockReward, CTxOut& txoutSmartnodeRet);
     std::string ToString() const;
@@ -219,7 +220,7 @@ public:
     bool IsEnoughData();
     int GetStorageLimit();
 
-    void UpdatedBlockTip(const CBlockIndex *pindex);
+    void UpdatedBlockTip(const CBlockIndex *pindex, CConnman& connman);
 };
 
 #endif

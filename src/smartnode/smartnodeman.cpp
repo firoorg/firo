@@ -5,6 +5,8 @@
 #include "activesmartnode.h"
 #include "../addrman.h"
 //#include "governance.h"
+#include "../messagesigner.h"
+#include "script/standard.h"
 #include "smartnodepayments.h"
 #include "smartnodesync.h"
 #include "smartnodeman.h"
@@ -694,11 +696,11 @@ void CSmartnodeMan::ProcessSmartnodeConnections(CConnman& connman)
     if(Params().NetworkIDString() == CBaseChainParams::REGTEST) return;
 
     connman.ForEachNode(CConnman::AllNodes, [](CNode* pnode) {
-#ifdef ENABLE_WALLET
-        if(pnode->fSmartnode && !privateSendClient.IsMixingSmartnode(pnode)) {
-#else
+//#ifdef ENABLE_WALLET
+//        if(pnode->fSmartnode && !privateSendClient.IsMixingSmartnode(pnode)) {
+//#else
         if(pnode->fSmartnode) {
-#endif // ENABLE_WALLET
+//#endif // ENABLE_WALLET
             LogPrintf("Closing Smartnode connection: peer=%d, addr=%s\n", pnode->id, pnode->addr.ToString());
             pnode->fDisconnect = true;
         }
@@ -1551,21 +1553,21 @@ void CSmartnodeMan::UpdatedBlockTip(const CBlockIndex *pindex)
 void CSmartnodeMan::NotifySmartnodeUpdates(CConnman& connman)
 {
     // Avoid double locking
-    bool fSmartnodesAddedLocal = false;
-    bool fSmartnodesRemovedLocal = false;
-    {
-        LOCK(cs);
-        fSmartnodesAddedLocal = fSmartnodesAdded;
-        fSmartnodesRemovedLocal = fSmartnodesRemoved;
-    }
+    // bool fSmartnodesAddedLocal = false;
+    // bool fSmartnodesRemovedLocal = false;
+    // {
+    //     LOCK(cs);
+    //     fSmartnodesAddedLocal = fSmartnodesAdded;
+    //     fSmartnodesRemovedLocal = fSmartnodesRemoved;
+    // }
 
-    if(fSmartnodesAddedLocal) {
-        governance.CheckSmartnodeOrphanObjects(connman);
-        governance.CheckSmartnodeOrphanVotes(connman);
-    }
-    if(fSmartnodesRemovedLocal) {
-        governance.UpdateCachesAndClean();
-    }
+    // if(fSmartnodesAddedLocal) {
+    //     governance.CheckSmartnodeOrphanObjects(connman);
+    //     governance.CheckSmartnodeOrphanVotes(connman);
+    // }
+    // if(fSmartnodesRemovedLocal) {
+    //     governance.UpdateCachesAndClean();
+    // }
 
     LOCK(cs);
     fSmartnodesAdded = false;

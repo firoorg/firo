@@ -6,7 +6,7 @@
 #include "base58.h"
 #include "clientversion.h"
 #include "init.h"
-#include "main.h"
+#include "validation.h"
 #include "net.h"
 #include "netbase.h"
 #include "rpc/server.h"
@@ -305,13 +305,14 @@ UniValue snsync(const UniValue& params, bool fHelp)
 
     if(strMode == "next")
     {
-        smartnodeSync.SwitchToNextAsset();
+        smartnodeSync.SwitchToNextAsset(*g_connman);
         return "sync updated to " + smartnodeSync.GetAssetName();
     }
 
     if(strMode == "reset")
     {
         smartnodeSync.Reset();
+        smartnodeSync.SwitchToNextAsset(*g_connman);
         return "success";
     }
     return "failure";

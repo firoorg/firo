@@ -15,7 +15,7 @@
 
 #include "coincontrol.h"
 #include "init.h"
-#include "main.h" // For minRelayTxFee
+#include "validation.h" // For minRelayTxFee
 #include "../smartnode/instantx.h"
 #include "wallet/wallet.h"
 

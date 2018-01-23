@@ -24,7 +24,7 @@ qt_test_test_bitcoin_qt_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(BITCOIN_
 
 qt_test_test_bitcoin_qt_SOURCES = \
   qt/test/compattests.cpp \
-  qt/test/test_main.cpp \
+  qt/test/test_validation.cpp \
   qt/test/uritests.cpp \
   $(TEST_QT_H)
 if ENABLE_WALLET

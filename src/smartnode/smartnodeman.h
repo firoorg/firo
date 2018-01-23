@@ -6,7 +6,7 @@
 #define SMARTNODEMAN_H
 
 #include "smartnode.h"
-#include "sync.h"
+#include "../sync.h"
 
 using namespace std;
 

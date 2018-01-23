@@ -6,7 +6,7 @@
 #define SMARTNODE_H
 
 #include "../key.h"
-#include "../main.h"
+#include "../validation.h"
 #include "spork.h"
 
 class CSmartnode;

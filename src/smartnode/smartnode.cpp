@@ -4,13 +4,14 @@
 
 #include "activesmartnode.h"
 #include "consensus/validation.h"
-#include "init.h"
+#include "../init.h"
+#include "../messagesigner.h"
 //#include "governance.h"
 #include "smartnode.h"
 #include "smartnodepayments.h"
 #include "smartnodesync.h"
 #include "smartnodeman.h"
-#include "util.h"
+#include "../util.h"
 #ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
 #endif // ENABLE_WALLET

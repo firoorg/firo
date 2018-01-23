@@ -8,7 +8,7 @@
 #include "uint256.h"
 #include "utilstrencodings.h"
 #include "test/test_bitcoin.h"
-#include "main.h"
+#include "validation.h"
 #include "consensus/validation.h"
 
 #include <vector>
