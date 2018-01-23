@@ -888,6 +888,8 @@ fi
 
 fi
 
+ac_configure_args="${ac_configure_args} --disable-shared"
+
 AM_CONDITIONAL([EMBEDDED_UNIVALUE],[test x$need_bundled_univalue = xyes])
 AC_SUBST(UNIVALUE_CFLAGS)
 AC_SUBST(UNIVALUE_LIBS)
