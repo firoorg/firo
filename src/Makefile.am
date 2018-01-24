@@ -78,6 +78,7 @@ BITCOIN_CORE_H = \
   addrdb.h \
   addressindex.h \
   addrman.h \
+  alert.h \
   base58.h \
   bloom.h \
   chain.h \
@@ -183,6 +184,7 @@ libbitcoin_server_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_server_a_SOURCES = \
   addrdb.cpp \
   addrman.cpp \
+  alert.cpp \
   bloom.cpp \
   chain.cpp \
   checkpoints.cpp \
