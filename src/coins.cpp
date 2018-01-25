@@ -260,7 +260,7 @@ double CCoinsViewCache::GetPriority(const CTransaction &tx, int nHeight, CAmount
     return tx.ComputePriority(dResult);
 }
 
-static const size_t MAX_OUTPUTS_PER_BLOCK = MaxBlockSize(true) /  ::GetSerializeSize(CTxOut(), SER_NETWORK, PROTOCOL_VERSION); // TODO: merge with similar definition in undo.h.
+static const size_t MAX_OUTPUTS_PER_BLOCK = MAX_BLOCK_SERIALIZED_SIZE /  ::GetSerializeSize(CTxOut(), SER_NETWORK, PROTOCOL_VERSION); // TODO: merge with similar definition in undo.h.
 
 const Coin& AccessByTxid(const CCoinsViewCache& view, const uint256& txid)
 {

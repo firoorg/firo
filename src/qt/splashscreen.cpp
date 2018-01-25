@@ -164,6 +164,18 @@ static void ShowProgress(SplashScreen *splash, const std::string &title, int nPr
     InitMessage(splash, title + strprintf("%d", nProgress) + "%");
 }
 
+void SplashScreen::setBreakAction(const std::function<void(void)> &action)
+{
+    breakAction = action;
+}
+
+static void SetProgressBreakAction(SplashScreen *splash, const std::function<void(void)> &action)
+{
+    QMetaObject::invokeMethod(splash, "setBreakAction",
+        Qt::QueuedConnection,
+        Q_ARG(std::function<void(void)>, action));
+}
+
 #ifdef ENABLE_WALLET
 static void ConnectWallet(SplashScreen *splash, CWallet* wallet)
 {

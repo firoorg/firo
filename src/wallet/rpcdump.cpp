@@ -13,8 +13,6 @@
 #include "util.h"
 #include "utiltime.h"
 #include "wallet.h"
-#include "merkleblock.h"
-#include "core_io.h"
 
 #include <fstream>
 #include <stdint.h>
@@ -252,102 +250,102 @@ UniValue importaddress(const UniValue& params, bool fHelp)
     return NullUniValue;
 }
 
-UniValue importprunedfunds(const UniValue& params, bool fHelp)
-{
-    if (!EnsureWalletIsAvailable(fHelp))
-        return NullUniValue;
+// UniValue importprunedfunds(const UniValue& params, bool fHelp)
+// {
+//     if (!EnsureWalletIsAvailable(fHelp))
+//         return NullUniValue;
 
-    // 0.13.x: Silently accept up to 3 params, but ignore the third:
-    if (fHelp || params.size() < 2 || params.size() > 3)
-        throw runtime_error(
-            "importprunedfunds\n"
-            "\nImports funds without rescan. Corresponding address or script must previously be included in wallet. Aimed towards pruned wallets. The end-user is responsible to import additional transactions that subsequently spend the imported outputs or rescan after the point in the blockchain the transaction is included.\n"
-            "\nArguments:\n"
-            "1. \"rawtransaction\" (string, required) A raw transaction in hex funding an already-existing address in wallet\n"
-            "2. \"txoutproof\"     (string, required) The hex output from gettxoutproof that contains the transaction\n"
-        );
+//     // 0.13.x: Silently accept up to 3 params, but ignore the third:
+//     if (fHelp || params.size() < 2 || params.size() > 3)
+//         throw runtime_error(
+//             "importprunedfunds\n"
+//             "\nImports funds without rescan. Corresponding address or script must previously be included in wallet. Aimed towards pruned wallets. The end-user is responsible to import additional transactions that subsequently spend the imported outputs or rescan after the point in the blockchain the transaction is included.\n"
+//             "\nArguments:\n"
+//             "1. \"rawtransaction\" (string, required) A raw transaction in hex funding an already-existing address in wallet\n"
+//             "2. \"txoutproof\"     (string, required) The hex output from gettxoutproof that contains the transaction\n"
+//         );
 
-    CTransaction tx;
-    if (!DecodeHexTx(tx, params[0].get_str()))
-        throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "TX decode failed");
-    uint256 hashTx = tx.GetHash();
-    CWalletTx wtx(pwalletMain,tx);
+//     CTransaction tx;
+//     if (!DecodeHexTx(tx, params[0].get_str()))
+//         throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "TX decode failed");
+//     uint256 hashTx = tx.GetHash();
+//     CWalletTx wtx(pwalletMain,tx);
 
-    CDataStream ssMB(ParseHexV(params[1], "proof"), SER_NETWORK, PROTOCOL_VERSION);
-    CMerkleBlock merkleBlock;
-    ssMB >> merkleBlock;
+//     CDataStream ssMB(ParseHexV(params[1], "proof"), SER_NETWORK, PROTOCOL_VERSION);
+//     CMerkleBlock merkleBlock;
+//     ssMB >> merkleBlock;
 
-    //Search partial merkle tree in proof for our transaction and index in valid block
-    vector<uint256> vMatch;
-    vector<unsigned int> vIndex;
-    unsigned int txnIndex = 0;
-    if (merkleBlock.txn.ExtractMatches(vMatch, vIndex) == merkleBlock.header.hashMerkleRoot) {
+//     //Search partial merkle tree in proof for our transaction and index in valid block
+//     vector<uint256> vMatch;
+//     vector<unsigned int> vIndex;
+//     unsigned int txnIndex = 0;
+//     if (merkleBlock.txn.ExtractMatches(vMatch, vIndex) == merkleBlock.header.hashMerkleRoot) {
 
-        LOCK(cs_main);
+//         LOCK(cs_main);
 
-        if (!mapBlockIndex.count(merkleBlock.header.GetHash()) || !chainActive.Contains(mapBlockIndex[merkleBlock.header.GetHash()]))
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found in chain");
+//         if (!mapBlockIndex.count(merkleBlock.header.GetHash()) || !chainActive.Contains(mapBlockIndex[merkleBlock.header.GetHash()]))
+//             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found in chain");
 
-        vector<uint256>::const_iterator it;
-        if ((it = std::find(vMatch.begin(), vMatch.end(), hashTx))==vMatch.end()) {
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Transaction given doesn't exist in proof");
-        }
+//         vector<uint256>::const_iterator it;
+//         if ((it = std::find(vMatch.begin(), vMatch.end(), hashTx))==vMatch.end()) {
+//             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Transaction given doesn't exist in proof");
+//         }
 
-        txnIndex = vIndex[it - vMatch.begin()];
-    }
-    else {
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Something wrong with merkleblock");
-    }
+//         txnIndex = vIndex[it - vMatch.begin()];
+//     }
+//     else {
+//         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Something wrong with merkleblock");
+//     }
 
-    wtx.nIndex = txnIndex;
-    wtx.hashBlock = merkleBlock.header.GetHash();
+//     wtx.nIndex = txnIndex;
+//     wtx.hashBlock = merkleBlock.header.GetHash();
 
-    LOCK2(cs_main, pwalletMain->cs_wallet);
+//     LOCK2(cs_main, pwalletMain->cs_wallet);
 
-    if (pwalletMain->IsMine(tx)) {
-        CWalletDB walletdb(pwalletMain->strWalletFile, "r+", false);
-        pwalletMain->AddToWallet(wtx, false, &walletdb);
-        return NullUniValue;
-    }
+//     if (pwalletMain->IsMine(tx)) {
+//         CWalletDB walletdb(pwalletMain->strWalletFile, "r+", false);
+//         pwalletMain->AddToWallet(wtx, false, &walletdb);
+//         return NullUniValue;
+//     }
 
-    throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No addresses in wallet correspond to included transaction");
-}
+//     throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No addresses in wallet correspond to included transaction");
+// }
 
-UniValue removeprunedfunds(const UniValue& params, bool fHelp)
-{
-    if (!EnsureWalletIsAvailable(fHelp))
-        return NullUniValue;
+// UniValue removeprunedfunds(const UniValue& params, bool fHelp)
+// {
+//     if (!EnsureWalletIsAvailable(fHelp))
+//         return NullUniValue;
 
-    if (fHelp || params.size() != 1)
-        throw runtime_error(
-            "removeprunedfunds \"txid\"\n"
-            "\nDeletes the specified transaction from the wallet. Meant for use with pruned wallets and as a companion to importprunedfunds. This will effect wallet balances.\n"
-            "\nArguments:\n"
-            "1. \"txid\"           (string, required) The hex-encoded id of the transaction you are deleting\n"
-            "\nExamples:\n"
-            + HelpExampleCli("removeprunedfunds", "\"a8d0c0184dde994a09ec054286f1ce581bebf46446a512166eae7628734ea0a5\"") +
-            "\nAs a JSON-RPC call\n"
-            + HelpExampleRpc("removprunedfunds", "\"a8d0c0184dde994a09ec054286f1ce581bebf46446a512166eae7628734ea0a5\"")
-        );
+//     if (fHelp || params.size() != 1)
+//         throw runtime_error(
+//             "removeprunedfunds \"txid\"\n"
+//             "\nDeletes the specified transaction from the wallet. Meant for use with pruned wallets and as a companion to importprunedfunds. This will effect wallet balances.\n"
+//             "\nArguments:\n"
+//             "1. \"txid\"           (string, required) The hex-encoded id of the transaction you are deleting\n"
+//             "\nExamples:\n"
+//             + HelpExampleCli("removeprunedfunds", "\"a8d0c0184dde994a09ec054286f1ce581bebf46446a512166eae7628734ea0a5\"") +
+//             "\nAs a JSON-RPC call\n"
+//             + HelpExampleRpc("removprunedfunds", "\"a8d0c0184dde994a09ec054286f1ce581bebf46446a512166eae7628734ea0a5\"")
+//         );
 
-    LOCK2(cs_main, pwalletMain->cs_wallet);
+//     LOCK2(cs_main, pwalletMain->cs_wallet);
 
-    uint256 hash;
-    hash.SetHex(params[0].get_str());
-    vector<uint256> vHash;
-    vHash.push_back(hash);
-    vector<uint256> vHashOut;
+//     uint256 hash;
+//     hash.SetHex(params[0].get_str());
+//     vector<uint256> vHash;
+//     vHash.push_back(hash);
+//     vector<uint256> vHashOut;
 
-    if(pwalletMain->ZapSelectTx(vHash, vHashOut) != DB_LOAD_OK) {
-        throw JSONRPCError(RPC_INTERNAL_ERROR, "Could not properly delete the transaction.");
-    }
+//     if(pwalletMain->ZapSelectTx(vHash, vHashOut) != DB_LOAD_OK) {
+//         throw JSONRPCError(RPC_INTERNAL_ERROR, "Could not properly delete the transaction.");
+//     }
 
-    if(vHashOut.empty()) {
-        throw JSONRPCError(RPC_INTERNAL_ERROR, "Transaction does not exist in wallet.");
-    }
+//     if(vHashOut.empty()) {
+//         throw JSONRPCError(RPC_INTERNAL_ERROR, "Transaction does not exist in wallet.");
+//     }
 
-    return NullUniValue;
-}
+//     return NullUniValue;
+// }
 
 UniValue importpubkey(const UniValue& params, bool fHelp)
 {
@@ -591,28 +589,56 @@ UniValue dumpwallet(const UniValue& params, bool fHelp)
     std::sort(vKeyBirth.begin(), vKeyBirth.end());
 
     // produce output
-    file << strprintf("# Wallet dump created by Smartcash %s\n", CLIENT_BUILD);
+    file << strprintf("# Wallet dump created by Dash Core %s (%s)\n", CLIENT_BUILD, CLIENT_DATE);
     file << strprintf("# * Created on %s\n", EncodeDumpTime(GetTime()));
     file << strprintf("# * Best block at time of backup was %i (%s),\n", chainActive.Height(), chainActive.Tip()->GetBlockHash().ToString());
     file << strprintf("#   mined on %s\n", EncodeDumpTime(chainActive.Tip()->GetBlockTime()));
     file << "\n";
 
-    // add the base58check encoded extended master if the wallet uses HD 
-    CKeyID masterKeyID = pwalletMain->GetHDChain().masterKeyID;
-    if (!masterKeyID.IsNull())
+    // add the base58check encoded extended master if the wallet uses HD
+    CHDChain hdChainCurrent;
+    if (pwalletMain->GetHDChain(hdChainCurrent))
     {
-        CKey key;
-        if (pwalletMain->GetKey(masterKeyID, key))
+
+        if (!pwalletMain->GetDecryptedHDChain(hdChainCurrent))
+            throw JSONRPCError(RPC_INTERNAL_ERROR, "Cannot decrypt HD chain");
+
+        SecureString ssMnemonic;
+        SecureString ssMnemonicPassphrase;
+        hdChainCurrent.GetMnemonic(ssMnemonic, ssMnemonicPassphrase);
+        file << "# mnemonic: " << ssMnemonic << "\n";
+        file << "# mnemonic passphrase: " << ssMnemonicPassphrase << "\n\n";
+
+        SecureVector vchSeed = hdChainCurrent.GetSeed();
+        file << "# HD seed: " << HexStr(vchSeed) << "\n\n";
+
+        CExtKey masterKey;
+        masterKey.SetMaster(&vchSeed[0], vchSeed.size());
+
+        CBitcoinExtKey b58extkey;
+        b58extkey.SetKey(masterKey);
+
+        file << "# extended private masterkey: " << b58extkey.ToString() << "\n";
+
+        CExtPubKey masterPubkey;
+        masterPubkey = masterKey.Neuter();
+
+        CBitcoinExtPubKey b58extpubkey;
+        b58extpubkey.SetKey(masterPubkey);
+        file << "# extended public masterkey: " << b58extpubkey.ToString() << "\n\n";
+
+        for (size_t i = 0; i < hdChainCurrent.CountAccounts(); ++i)
         {
-            CExtKey masterKey;
-            masterKey.SetMaster(key.begin(), key.size());
-
-            CBitcoinExtKey b58extkey;
-            b58extkey.SetKey(masterKey);
-
-            file << "# extended private masterkey: " << b58extkey.ToString() << "\n\n";
+            CHDAccount acc;
+            if(hdChainCurrent.GetAccount(i, acc)) {
+                file << "# external chain counter: " << acc.nExternalChainCounter << "\n";
+                file << "# internal chain counter: " << acc.nInternalChainCounter << "\n\n";
+            } else {
+                file << "# WARNING: ACCOUNT " << i << " IS MISSING!" << "\n\n";
+            }
         }
     }
+
     for (std::vector<std::pair<int64_t, CKeyID> >::const_iterator it = vKeyBirth.begin(); it != vKeyBirth.end(); it++) {
         const CKeyID &keyid = it->second;
         std::string strTime = EncodeDumpTime(it->first);
@@ -622,16 +648,12 @@ UniValue dumpwallet(const UniValue& params, bool fHelp)
             file << strprintf("%s %s ", CBitcoinSecret(key).ToString(), strTime);
             if (pwalletMain->mapAddressBook.count(keyid)) {
                 file << strprintf("label=%s", EncodeDumpString(pwalletMain->mapAddressBook[keyid].name));
-            } else if (keyid == masterKeyID) {
-                file << "hdmaster=1";
             } else if (setKeyPool.count(keyid)) {
                 file << "reserve=1";
-            } else if (pwalletMain->mapKeyMetadata[keyid].hdKeypath == "m") {
-                file << "inactivehdmaster=1";
             } else {
                 file << "change=1";
             }
-            file << strprintf(" # addr=%s%s\n", strAddr, (pwalletMain->mapKeyMetadata[keyid].hdKeypath.size() > 0 ? " hdkeypath="+pwalletMain->mapKeyMetadata[keyid].hdKeypath : ""));
+            file << strprintf(" # addr=%s%s\n", strAddr, (pwalletMain->mapHdPubKeys.count(keyid) ? " hdkeypath="+pwalletMain->mapHdPubKeys[keyid].GetKeyPath() : ""));
         }
     }
     file << "\n";

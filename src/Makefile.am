@@ -99,6 +99,7 @@ BITCOIN_CORE_H = \
   core_io.h \
   core_memusage.h \
   fixed.h \
+  hdchain.h \
   httprpc.h \
   httpserver.h \
   indirectmap.h \

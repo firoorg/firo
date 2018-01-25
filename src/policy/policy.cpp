@@ -50,9 +50,6 @@ bool IsStandard(const CScript& scriptPubKey, txnouttype& whichType, const bool w
                (!fAcceptDatacarrier || scriptPubKey.size() > nMaxDatacarrierBytes))
           return false;
 
-    else if (!witnessEnabled && (whichType == TX_WITNESS_V0_KEYHASH || whichType == TX_WITNESS_V0_SCRIPTHASH))
-        return false;
-
     return whichType != TX_NONSTANDARD;
 }
 
@@ -151,7 +148,7 @@ bool AreInputsStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs)
         {
             std::vector<std::vector<unsigned char> > stack;
             // convert the scriptSig into a stack, so we can inspect the redeemScript
-            if (!EvalScript(stack, tx.vin[i].scriptSig, SCRIPT_VERIFY_NONE, BaseSignatureChecker(), SIGVERSION_BASE))
+            if (!EvalScript(stack, tx.vin[i].scriptSig, SCRIPT_VERIFY_NONE, BaseSignatureChecker()))
                 return false;
             if (stack.empty())
                 return false;

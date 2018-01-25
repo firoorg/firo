@@ -7,6 +7,7 @@
 #define BITCOIN_WALLET_WALLETDB_H
 
 #include "amount.h"
+#include "hdchain.h"
 #include "primitives/transaction.h"
 #include "wallet/db.h"
 #include "key.h"
@@ -43,35 +44,6 @@ enum DBErrors
     DB_TOO_NEW,
     DB_LOAD_FAIL,
     DB_NEED_REWRITE
-};
-
-/* simple HD chain data model */
-class CHDChain
-{
-public:
-    uint32_t nExternalChainCounter;
-    CKeyID masterKeyID; //!< master key hash160
-
-    static const int CURRENT_VERSION = 1;
-    int nVersion;
-
-    CHDChain() { SetNull(); }
-    ADD_SERIALIZE_METHODS;
-    template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
-    {
-        READWRITE(this->nVersion);
-        nVersion = this->nVersion;
-        READWRITE(nExternalChainCounter);
-        READWRITE(masterKeyID);
-    }
-
-    void SetNull()
-    {
-        nVersion = CHDChain::CURRENT_VERSION;
-        nExternalChainCounter = 0;
-        masterKeyID.SetNull();
-    }
 };
 
 class CKeyMetadata
@@ -193,6 +165,8 @@ public:
 
     //! write the hdchain model (external chain child index counter)
     bool WriteHDChain(const CHDChain& chain);
+    bool WriteCryptedHDChain(const CHDChain& chain);
+    bool WriteHDPubKey(const CHDPubKey& hdPubKey, const CKeyMetadata& keyMeta);
 
 private:
     CWalletDB(const CWalletDB&);

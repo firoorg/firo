@@ -1644,7 +1644,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState &state, const C
 
     // Rather not work on nonstandard transactions (unless -testnet/-regtest)
     string reason;
-    if (!fTestNet && fRequireStandard && !IsStandardTx(tx, reason, witnessEnabled)) {
+    if (!fTestNet && fRequireStandard && !IsStandardTx(tx, reason)) {
         LogPrintf("cause by -> Not StandardTx\n");
         return state.DoS(0, false, REJECT_NONSTANDARD, reason);
     }
@@ -1760,11 +1760,6 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState &state, const C
         if (!fTestNet && fRequireStandard && !AreInputsStandard(tx, view)) {
             LogPrintf("cause by -> AreInputsStandard\n");
             return state.Invalid(false, REJECT_NONSTANDARD, "bad-txns-nonstandard-inputs");
-        }
-        // Check for non-standard witness in P2WSH
-        if (!tx.wit.IsNull() && fRequireStandard && !IsWitnessStandard(tx, view)) {
-            LogPrintf("cause by -> IsWitnessStandard\n");
-            return state.DoS(0, false, REJECT_NONSTANDARD, "bad-witness-nonstandard", true);
         }
         
         unsigned int nSigOps = GetLegacySigOpCount(tx);
@@ -2095,6 +2090,44 @@ bool GetTimestampIndex(const unsigned int &high, const unsigned int &low, std::v
 
     if (!pblocktree->ReadTimestampIndex(high, low, hashes))
         return error("Unable to get hashes for timestamps");
+
+    return true;
+}
+
+bool GetSpentIndex(CSpentIndexKey &key, CSpentIndexValue &value)
+{
+    if (!fSpentIndex)
+        return false;
+
+    if (mempool.getSpentIndex(key, value))
+        return true;
+
+    if (!pblocktree->ReadSpentIndex(key, value))
+        return false;
+
+    return true;
+}
+
+bool GetAddressIndex(uint160 addressHash, int type,
+                     std::vector<std::pair<CAddressIndexKey, CAmount> > &addressIndex, int start, int end)
+{
+    if (!fAddressIndex)
+        return error("address index not enabled");
+
+    if (!pblocktree->ReadAddressIndex(addressHash, type, addressIndex, start, end))
+        return error("unable to get txids for address");
+
+    return true;
+}
+
+bool GetAddressUnspent(uint160 addressHash, int type,
+                       std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > &unspentOutputs)
+{
+    if (!fAddressIndex)
+        return error("address index not enabled");
+
+    if (!pblocktree->ReadAddressUnspentIndex(addressHash, type, unspentOutputs))
+        return error("unable to get txids for address");
 
     return true;
 }
@@ -2469,8 +2502,7 @@ void UpdateCoins(const CTransaction& tx, CValidationState &state, CCoinsViewCach
 
 bool CScriptCheck::operator()() {
     const CScript &scriptSig = ptxTo->vin[nIn].scriptSig;
-    const CScriptWitness *witness = (nIn < ptxTo->wit.vtxinwit.size()) ? &ptxTo->wit.vtxinwit[nIn].scriptWitness : NULL;
-    if (!VerifyScript(scriptSig, scriptPubKey, witness, nFlags, CachingTransactionSignatureChecker(ptxTo, nIn, amount, cacheStore, *txdata), &error)) {
+    if (!VerifyScript(scriptSig, scriptPubKey, nFlags, CachingTransactionSignatureChecker(ptxTo, nIn, cacheStore), &error)) {
         return false;
     }
     return true;

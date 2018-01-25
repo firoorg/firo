@@ -31,8 +31,6 @@ const char* GetTxnOutputType(txnouttype t)
     case TX_SCRIPTHASH: return "scripthash";
     case TX_MULTISIG: return "multisig";
     case TX_NULL_DATA: return "nulldata";
-    case TX_WITNESS_V0_KEYHASH: return "witness_v0_keyhash";
-    case TX_WITNESS_V0_SCRIPTHASH: return "witness_v0_scripthash";
     case TX_ZEROCOINMINT: return "zerocoinmint";
     }
     return NULL;
@@ -76,22 +74,6 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, vector<vector<unsi
         vector<unsigned char> hashBytes(scriptPubKey.begin()+2, scriptPubKey.end());
         vSolutionsRet.push_back(hashBytes);
         return true;
-    }
-
-    int witnessversion;
-    std::vector<unsigned char> witnessprogram;
-    if (scriptPubKey.IsWitnessProgram(witnessversion, witnessprogram)) {
-        if (witnessversion == 0 && witnessprogram.size() == 20) {
-            typeRet = TX_WITNESS_V0_KEYHASH;
-            vSolutionsRet.push_back(witnessprogram);
-            return true;
-        }
-        if (witnessversion == 0 && witnessprogram.size() == 32) {
-            typeRet = TX_WITNESS_V0_SCRIPTHASH;
-            vSolutionsRet.push_back(witnessprogram);
-            return true;
-        }
-        return false;
     }
 
     // Provably prunable, data-carrying output

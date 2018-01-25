@@ -188,6 +188,7 @@ extern int nScriptCheckThreads;
 extern bool fTxIndex;
 extern bool fIsBareMultisigStd;
 extern bool fRequireStandard;
+extern unsigned int nBytesPerSigOp;
 extern bool fCheckBlockIndex;
 extern bool fCheckpointsEnabled;
 extern size_t nCoinCacheUsage;
@@ -472,6 +473,12 @@ public:
 };
 
 bool GetTimestampIndex(const unsigned int &high, const unsigned int &low, std::vector<uint256> &hashes);
+bool GetSpentIndex(CSpentIndexKey &key, CSpentIndexValue &value);
+bool GetAddressIndex(uint160 addressHash, int type,
+                     std::vector<std::pair<CAddressIndexKey, CAmount> > &addressIndex,
+                     int start = 0, int end = 0);
+bool GetAddressUnspent(uint160 addressHash, int type,
+                       std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > &unspentOutputs);
 
 /** Functions for disk access for blocks */
 bool WriteBlockToDisk(const CBlock& block, CDiskBlockPos& pos, const CMessageHeader::MessageStartChars& messageStart);

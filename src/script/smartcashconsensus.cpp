@@ -69,7 +69,7 @@ struct ECCryptoClosure
 ECCryptoClosure instance_of_eccryptoclosure;
 }
 
-static int verify_script(const unsigned char *scriptPubKey, unsigned int scriptPubKeyLen, CAmount amount,
+static int verify_script(const unsigned char *scriptPubKey, unsigned int scriptPubKeyLen,
                                     const unsigned char *txTo        , unsigned int txToLen,
                                     unsigned int nIn, unsigned int flags, smartcashconsensus_error* err)
 {
@@ -84,8 +84,8 @@ static int verify_script(const unsigned char *scriptPubKey, unsigned int scriptP
 
         // Regardless of the verification result, the tx did not error.
         set_error(err, smartcashconsensus_ERR_OK);
-        PrecomputedTransactionData txdata(tx);
-        return VerifyScript(tx.vin[nIn].scriptSig, CScript(scriptPubKey, scriptPubKey + scriptPubKeyLen), nIn < tx.wit.vtxinwit.size() ? &tx.wit.vtxinwit[nIn].scriptWitness : NULL, flags, TransactionSignatureChecker(&tx, nIn, amount, txdata), NULL);
+        
+        return VerifyScript(tx.vin[nIn].scriptSig, CScript(scriptPubKey, scriptPubKey + scriptPubKeyLen), flags, TransactionSignatureChecker(&tx, nIn), NULL);
     } catch (const std::exception&) {
         return set_error(err, smartcashconsensus_ERR_TX_DESERIALIZE); // Error deserializing
     }
@@ -95,21 +95,19 @@ int smartcashconsensus_verify_script_with_amount(const unsigned char *scriptPubK
                                     const unsigned char *txTo        , unsigned int txToLen,
                                     unsigned int nIn, unsigned int flags, smartcashconsensus_error* err)
 {
-    CAmount am(amount);
-    return ::verify_script(scriptPubKey, scriptPubKeyLen, am, txTo, txToLen, nIn, flags, err);
+    return ::verify_script(scriptPubKey, scriptPubKeyLen, txTo, txToLen, nIn, flags, err);
 }
 
 
 int smartcashconsensus_verify_script(const unsigned char *scriptPubKey, unsigned int scriptPubKeyLen,
-                                   const unsigned char *txTo        , unsigned int txToLen,
-                                   unsigned int nIn, unsigned int flags, smartcashconsensus_error* err)
+                                    const unsigned char *txTo        , unsigned int txToLen,
+                                    unsigned int nIn, unsigned int flags, smartcashconsensus_error* err)
 {
     if (flags & smartcashconsensus_SCRIPT_FLAGS_VERIFY_WITNESS) {
         return set_error(err, smartcashconsensus_ERR_AMOUNT_REQUIRED);
     }
 
-    CAmount am(0);
-    return ::verify_script(scriptPubKey, scriptPubKeyLen, am, txTo, txToLen, nIn, flags, err);
+    return ::verify_script(scriptPubKey, scriptPubKeyLen, txTo, txToLen, nIn, flags, err);
 }
 
 unsigned int smartcashconsensus_version()

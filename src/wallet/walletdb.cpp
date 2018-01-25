@@ -1247,9 +1247,30 @@ bool CWalletDB::EraseDestData(const std::string &address, const std::string &key
     return Erase(std::make_pair(std::string("destdata"), std::make_pair(address, key)));
 }
 
-
 bool CWalletDB::WriteHDChain(const CHDChain& chain)
 {
     nWalletDBUpdated++;
     return Write(std::string("hdchain"), chain);
+}
+
+bool CWalletDB::WriteCryptedHDChain(const CHDChain& chain)
+{
+    nWalletDBUpdated++;
+
+    if (!Write(std::string("chdchain"), chain))
+        return false;
+
+    Erase(std::string("hdchain"));
+
+    return true;
+}
+
+bool CWalletDB::WriteHDPubKey(const CHDPubKey& hdPubKey, const CKeyMetadata& keyMeta)
+{
+    nWalletDBUpdated++;
+
+    if (!Write(std::make_pair(std::string("keymeta"), hdPubKey.extPubKey.pubkey), keyMeta, false))
+        return false;
+
+    return Write(std::make_pair(std::string("hdpubkey"), hdPubKey.extPubKey.pubkey), hdPubKey, false);
 }

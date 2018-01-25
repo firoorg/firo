@@ -590,6 +590,11 @@ private:
     int64_t nLastResend;
     bool fBroadcastTransactions;
 
+    mutable bool fAnonymizableTallyCached;
+    mutable std::vector<CompactTallyItem> vecAnonymizableTallyCached;
+    mutable bool fAnonymizableTallyCachedNonDenom;
+    mutable std::vector<CompactTallyItem> vecAnonymizableTallyCachedNonDenom;
+
     /**
      * Used to keep track of spent outpoints, and
      * detect and report conflicts (double-spends or
@@ -605,8 +610,8 @@ private:
 
     void SyncMetaData(std::pair<TxSpends::iterator, TxSpends::iterator>);
 
-    /* the HD chain data model (external chain counters) */
-    CHDChain hdChain;
+    /* HD derive new child key (on internal or external chain) */
+    void DeriveNewChildKey(const CKeyMetadata& metadata, CKey& secretRet, uint32_t nAccountIndex, bool fInternal /*= false*/);
 
 public:
     /*
@@ -622,11 +627,11 @@ public:
     std::string strWalletFile;
 
     std::set<int64_t> setKeyPool;
-    std::map<CKeyID, CKeyMetadata> mapKeyMetadata;
-    int64_t nKeysLeftSinceAutoBackup; 
-    typedef std::map<unsigned int, CMasterKey> SmartKeyMap;
-    SmartKeyMap mapSmartKeys;
-    unsigned int nSmartKeyMaxID;
+    std::map<CKeyID, CKeyMetadata> mapKeyMetadata; 
+    
+    typedef std::map<unsigned int, CMasterKey> MasterKeyMap;
+    MasterKeyMap mapMasterKeys;
+    unsigned int nMasterKeyMaxID;
 
     CWallet()
     {
@@ -652,13 +657,17 @@ public:
         nWalletVersion = FEATURE_BASE;
         nWalletMaxVersion = FEATURE_BASE;
         fFileBacked = false;
-        nSmartKeyMaxID = 0;
+        nMasterKeyMaxID = 0;
         pwalletdbEncryption = NULL;
         nOrderPosNext = 0;
         nNextResend = 0;
         nLastResend = 0;
         nTimeFirstKey = 0;
         fBroadcastTransactions = false;
+        fAnonymizableTallyCached = false;
+        fAnonymizableTallyCachedNonDenom = false;
+        vecAnonymizableTallyCached.clear();
+        vecAnonymizableTallyCachedNonDenom.clear();
     }
 
     std::map<uint256, CWalletTx> mapWallet;
@@ -678,6 +687,9 @@ public:
     std::set<COutPoint> setLockedCoins;
 
     int64_t nTimeFirstKey;
+    int64_t nKeysLeftSinceAutoBackup;
+
+    std::map<CKeyID, CHDPubKey> mapHdPubKeys; //<! memory map of HD extended pubkeys
 
     const CWalletTx* GetWalletTx(const uint256& hash) const;
 
@@ -726,7 +738,17 @@ public:
      * keystore implementation
      * Generate a new key
      */
-    CPubKey GenerateNewKey();
+    CPubKey GenerateNewKey(uint32_t nAccountIndex, bool fInternal /*= false*/);
+    //! HaveKey implementation that also checks the mapHdPubKeys
+    bool HaveKey(const CKeyID &address) const;
+    //! GetPubKey implementation that also checks the mapHdPubKeys
+    bool GetPubKey(const CKeyID &address, CPubKey& vchPubKeyOut) const;
+    //! GetKey implementation that can derive a HD private key on the fly
+    bool GetKey(const CKeyID &address, CKey& keyOut) const;
+    //! Adds a HDPubKey into the wallet(database)
+    bool AddHDPubKey(const CExtPubKey &extPubKey, bool fInternal);
+    //! loads a HDPubKey into the wallets memory
+    bool LoadHDPubKey(const CHDPubKey &hdPubKey);
     //! Adds a key to the store, and saves it to disk.
     bool AddKeyPubKey(const CKey& key, const CPubKey &pubkey);
     //! Adds a key to the store, without saving it to disk (used by LoadWallet)
@@ -833,11 +855,13 @@ public:
     static CAmount GetRequiredFee(unsigned int nTxBytes);
 
     bool NewKeyPool();
+    size_t KeypoolCountExternalKeys();
+    size_t KeypoolCountInternalKeys();
     bool TopUpKeyPool(unsigned int kpSize = 0);
-    void ReserveKeyFromKeyPool(int64_t& nIndex, CKeyPool& keypool);
+    void ReserveKeyFromKeyPool(int64_t& nIndex, CKeyPool& keypool, bool fInternal);
     void KeepKey(int64_t nIndex);
-    void ReturnKey(int64_t nIndex);
-    bool GetKeyFromPool(CPubKey &key);
+    void ReturnKey(int64_t nIndex, bool fInternal);
+    bool GetKeyFromPool(CPubKey &key, bool fInternal /*= false*/);
     int64_t GetOldestKeyPoolTime();
     void GetAllReserveKeys(std::set<CKeyID>& setAddress) const;
 
@@ -963,15 +987,18 @@ public:
 
     bool BackupWallet(const std::string& strDest);
 
+    /**
+     * HD Wallet Functions
+     */
+
+    /* Returns true if HD is enabled */
+    bool IsHDEnabled();
+    /* Generates a new HD chain */
+    void GenerateNewHDChain();
     /* Set the HD chain model (chain child index counters) */
     bool SetHDChain(const CHDChain& chain, bool memonly);
-    const CHDChain& GetHDChain() { return hdChain; }
-
-    /* Generates a new HD master key (will not be activated) */
-    CPubKey GenerateNewHDSmartKey();
-
-    /* Set the current HD master key (will reset the chain child index counters) */
-    bool SetHDSmartKey(const CPubKey& key);
+    bool SetCryptedHDChain(const CHDChain& chain, bool memonly);
+    bool GetDecryptedHDChain(CHDChain& hdChainRet);
 };
 
 /** A key allocated from the key pool. */

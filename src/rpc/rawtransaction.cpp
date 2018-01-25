@@ -62,16 +62,13 @@ void ScriptPubKeyToJSON(const CScript& scriptPubKey, UniValue& out, bool fInclud
 
 void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
 {
-    entry.push_back(Pair("txid", tx.GetHash().GetHex()));
-    entry.push_back(Pair("hash", tx.GetWitnessHash().GetHex()));
+    uint256 txid = tx.GetHash();
+    entry.push_back(Pair("txid", txid.GetHex()));
     entry.push_back(Pair("size", (int)::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION)));
-    entry.push_back(Pair("vsize", (int)::GetVirtualTransactionSize(tx)));
     entry.push_back(Pair("version", tx.nVersion));
     entry.push_back(Pair("locktime", (int64_t)tx.nLockTime));
-
     UniValue vin(UniValue::VARR);
-    for (unsigned int i = 0; i < tx.vin.size(); i++) {
-        const CTxIn& txin = tx.vin[i];
+    BOOST_FOREACH(const CTxIn& txin, tx.vin) {
         UniValue in(UniValue::VOBJ);
         if (tx.IsCoinBase())
             in.push_back(Pair("coinbase", HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
@@ -82,15 +79,18 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
             o.push_back(Pair("asm", ScriptToAsmStr(txin.scriptSig, true)));
             o.push_back(Pair("hex", HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
             in.push_back(Pair("scriptSig", o));
-        }
-        if (!tx.wit.IsNull()) {
-            if (!tx.wit.vtxinwit[i].IsNull()) {
-                UniValue txinwitness(UniValue::VARR);
-                for (unsigned int j = 0; j < tx.wit.vtxinwit[i].scriptWitness.stack.size(); j++) {
-                    std::vector<unsigned char> item = tx.wit.vtxinwit[i].scriptWitness.stack[j];
-                    txinwitness.push_back(HexStr(item.begin(), item.end()));
+
+            // Add address and value info if spentindex enabled
+            CSpentIndexValue spentInfo;
+            CSpentIndexKey spentKey(txin.prevout.hash, txin.prevout.n);
+            if (GetSpentIndex(spentKey, spentInfo)) {
+                in.push_back(Pair("value", ValueFromAmount(spentInfo.satoshis)));
+                in.push_back(Pair("valueSat", spentInfo.satoshis));
+                if (spentInfo.addressType == 1) {
+                    in.push_back(Pair("address", CBitcoinAddress(CKeyID(spentInfo.addressHash)).ToString()));
+                } else if (spentInfo.addressType == 2)  {
+                    in.push_back(Pair("address", CBitcoinAddress(CScriptID(spentInfo.addressHash)).ToString()));
                 }
-                in.push_back(Pair("txinwitness", txinwitness));
             }
 
         }
@@ -103,10 +103,21 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
         const CTxOut& txout = tx.vout[i];
         UniValue out(UniValue::VOBJ);
         out.push_back(Pair("value", ValueFromAmount(txout.nValue)));
+        out.push_back(Pair("valueSat", txout.nValue));
         out.push_back(Pair("n", (int64_t)i));
         UniValue o(UniValue::VOBJ);
         ScriptPubKeyToJSON(txout.scriptPubKey, o, true);
         out.push_back(Pair("scriptPubKey", o));
+
+        // Add spent information if spentindex is enabled
+        CSpentIndexValue spentInfo;
+        CSpentIndexKey spentKey(txid, i);
+        if (GetSpentIndex(spentKey, spentInfo)) {
+            out.push_back(Pair("spentTxId", spentInfo.txid.GetHex()));
+            out.push_back(Pair("spentIndex", (int)spentInfo.inputIndex));
+            out.push_back(Pair("spentHeight", spentInfo.blockHeight));
+        }
+
         vout.push_back(out);
     }
     entry.push_back(Pair("vout", vout));
@@ -117,12 +128,14 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
         if (mi != mapBlockIndex.end() && (*mi).second) {
             CBlockIndex* pindex = (*mi).second;
             if (chainActive.Contains(pindex)) {
+                entry.push_back(Pair("height", pindex->nHeight));
                 entry.push_back(Pair("confirmations", 1 + chainActive.Height() - pindex->nHeight));
                 entry.push_back(Pair("time", pindex->GetBlockTime()));
                 entry.push_back(Pair("blocktime", pindex->GetBlockTime()));
-            }
-            else
+            } else {
+                entry.push_back(Pair("height", -1));
                 entry.push_back(Pair("confirmations", 0));
+            }
         }
     }
 }
@@ -241,92 +254,6 @@ UniValue gettxoutproof(const UniValue& params, bool fHelp)
             "2. \"block hash\"  (string, optional) If specified, looks for txid in the block with this hash\n"
             "\nResult:\n"
             "\"data\"           (string) A string that is a serialized, hex-encoded data for the proof.\n"
-        );
-
-    set<uint256> setTxids;
-    uint256 oneTxid;
-    UniValue txids = params[0].get_array();
-    for (unsigned int idx = 0; idx < txids.size(); idx++) {
-        const UniValue& txid = txids[idx];
-        if (txid.get_str().length() != 64 || !IsHex(txid.get_str()))
-            throw JSONRPCError(RPC_INVALID_PARAMETER, string("Invalid txid ")+txid.get_str());
-        uint256 hash(uint256S(txid.get_str()));
-        if (setTxids.count(hash))
-            throw JSONRPCError(RPC_INVALID_PARAMETER, string("Invalid parameter, duplicated txid: ")+txid.get_str());
-       setTxids.insert(hash);
-       oneTxid = hash;
-    }
-
-    LOCK(cs_main);
-
-    CBlockIndex* pblockindex = NULL;
-
-    uint256 hashBlock;
-    if (params.size() > 1)
-    {
-        hashBlock = uint256S(params[1].get_str());
-        if (!mapBlockIndex.count(hashBlock))
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
-        pblockindex = mapBlockIndex[hashBlock];
-    } else {
-        CCoins coins;
-        if (pcoinsTip->GetCoins(oneTxid, coins) && coins.nHeight > 0 && coins.nHeight <= chainActive.Height())
-            pblockindex = chainActive[coins.nHeight];
-    }
-
-    if (pblockindex == NULL)
-    {
-        CTransaction tx;
-        if (!GetTransaction(oneTxid, tx, Params().GetConsensus(), hashBlock, false) || hashBlock.IsNull())
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Transaction not yet in block");
-        if (!mapBlockIndex.count(hashBlock))
-            throw JSONRPCError(RPC_INTERNAL_ERROR, "Transaction index corrupt");
-        pblockindex = mapBlockIndex[hashBlock];
-    }
-
-    CBlock block;
-    if(!ReadBlockFromDisk(block, pblockindex, Params().GetConsensus()))
-        throw JSONRPCError(RPC_INTERNAL_ERROR, "Can't read block from disk");
-
-    unsigned int ntxFound = 0;
-    BOOST_FOREACH(const CTransaction&tx, block.vtx)
-        if (setTxids.count(tx.GetHash()))
-            ntxFound++;
-    if (ntxFound != setTxids.size())
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "(Not all) transactions not found in specified block");
-
-    CDataStream ssMB(SER_NETWORK, PROTOCOL_VERSION | SERIALIZE_TRANSACTION_NO_WITNESS);
-    CMerkleBlock mb(block, setTxids);
-    ssMB << mb;
-    std::string strHex = HexStr(ssMB.begin(), ssMB.end());
-    return strHex;
-}
-
-UniValue gettxoutproof(const UniValue& params, bool fHelp)
-{
-    if (fHelp || (params.size() != 1 && params.size() != 2))
-        throw runtime_error(
-            "gettxoutproof [\"txid\",...] ( blockhash )\n"
-            "\nReturns a hex-encoded proof that \"txid\" was included in a block.\n"
-            "\nNOTE: By default this function only works sometimes. This is when there is an\n"
-            "unspent output in the utxo for this transaction. To make it always work,\n"
-            "you need to maintain a transaction index, using the -txindex command line option or\n"
-            "specify the block in which the transaction is included in manually (by blockhash).\n"
-            "\nReturn the raw transaction data.\n"
-            "\nArguments:\n"
-            "1. \"txids\"       (string) A json array of txids to filter\n"
-            "    [\n"
-            "      \"txid\"     (string) A transaction hash\n"
-            "      ,...\n"
-            "    ]\n"
-            "2. \"block hash\"  (string, optional) If specified, looks for txid in the block with this hash\n"
-            "\nResult:\n"
-            "\"data\"           (string) A string that is a serialized, hex-encoded data for the proof.\n"
-
-            "\nExamples:\n"
-            + HelpExampleCli("gettxoutproof", "'[\"mytxid\",...]'")
-            + HelpExampleCli("gettxoutproof", "'[\"mytxid\",...]' \"blockhash\"")
-            + HelpExampleRpc("gettxoutproof", "[\"mytxid\",...], \"blockhash\"")
         );
 
     set<uint256> setTxids;
@@ -768,9 +695,7 @@ UniValue signrawtransaction(const UniValue& params, bool fHelp)
         view.SetBackend(viewMempool); // temporarily switch cache backend to db+mempool view
 
         BOOST_FOREACH(const CTxIn& txin, mergedTx.vin) {
-            const uint256& prevHash = txin.prevout.hash;
-            CCoins coins;
-            view.AccessCoins(prevHash); // this is certainly allowed to fail
+            view.AccessCoin(txin.prevout); // Load entries from viewChain into view; can fail.
         }
 
         view.SetBackend(viewDummy); // switch back to avoid locking mempool for too long
@@ -808,12 +733,7 @@ UniValue signrawtransaction(const UniValue& params, bool fHelp)
 
             UniValue prevOut = p.get_obj();
 
-            RPCTypeCheckObj(prevOut,
-                {
-                    {"txid", UniValueType(UniValue::VSTR)},
-                    {"vout", UniValueType(UniValue::VNUM)},
-                    {"scriptPubKey", UniValueType(UniValue::VSTR)},
-                });
+            RPCTypeCheckObj(prevOut, boost::assign::map_list_of("txid", UniValue::VSTR)("vout", UniValue::VNUM)("scriptPubKey", UniValue::VSTR));
 
             uint256 txid = ParseHashO(prevOut, "txid");
 
@@ -821,36 +741,29 @@ UniValue signrawtransaction(const UniValue& params, bool fHelp)
             if (nOut < 0)
                 throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "vout must be positive");
 
+            COutPoint out(txid, nOut);
             vector<unsigned char> pkData(ParseHexO(prevOut, "scriptPubKey"));
             CScript scriptPubKey(pkData.begin(), pkData.end());
 
             {
-                CCoinsModifier coins = view.ModifyCoins(txid);
-                if (coins->IsAvailable(nOut) && coins->vout[nOut].scriptPubKey != scriptPubKey) {
+                const Coin& coin = view.AccessCoin(out);
+                if (!coin.IsSpent() && coin.out.scriptPubKey != scriptPubKey) {
                     string err("Previous output scriptPubKey mismatch:\n");
-                    err = err + ScriptToAsmStr(coins->vout[nOut].scriptPubKey) + "\nvs:\n"+
+                    err = err + ScriptToAsmStr(coin.out.scriptPubKey) + "\nvs:\n"+
                         ScriptToAsmStr(scriptPubKey);
                     throw JSONRPCError(RPC_DESERIALIZATION_ERROR, err);
                 }
-                if ((unsigned int)nOut >= coins->vout.size())
-                    coins->vout.resize(nOut+1);
-                coins->vout[nOut].scriptPubKey = scriptPubKey;
-                coins->vout[nOut].nValue = 0;
-                if (prevOut.exists("amount")) {
-                    coins->vout[nOut].nValue = AmountFromValue(find_value(prevOut, "amount"));
-                }
+                Coin newcoin;
+                newcoin.out.scriptPubKey = scriptPubKey;
+                newcoin.out.nValue = 0;
+                newcoin.nHeight = 1;
+                view.AddCoin(out, std::move(newcoin), true);
             }
 
             // if redeemScript given and not using the local wallet (private keys
             // given), add redeemScript to the tempKeystore so it can be signed:
-            if (fGivenKeys && (scriptPubKey.IsPayToScriptHash() || scriptPubKey.IsPayToWitnessScriptHash())) {
-                RPCTypeCheckObj(prevOut,
-                    {
-                        {"txid", UniValueType(UniValue::VSTR)},
-                        {"vout", UniValueType(UniValue::VNUM)},
-                        {"scriptPubKey", UniValueType(UniValue::VSTR)},
-                        {"redeemScript", UniValueType(UniValue::VSTR)},
-                    });
+            if (fGivenKeys && scriptPubKey.IsPayToScriptHash()) {
+                RPCTypeCheckObj(prevOut, boost::assign::map_list_of("txid", UniValue::VSTR)("vout", UniValue::VNUM)("scriptPubKey", UniValue::VSTR)("redeemScript",UniValue::VSTR));
                 UniValue v = find_value(prevOut, "redeemScript");
                 if (!v.isNull()) {
                     vector<unsigned char> rsData(ParseHexV(v, "redeemScript"));
@@ -890,34 +803,27 @@ UniValue signrawtransaction(const UniValue& params, bool fHelp)
     // Script verification errors
     UniValue vErrors(UniValue::VARR);
 
-    // Use CTransaction for the constant parts of the
-    // transaction to avoid rehashing.
-    const CTransaction txConst(mergedTx);
     // Sign what we can:
     for (unsigned int i = 0; i < mergedTx.vin.size(); i++) {
         CTxIn& txin = mergedTx.vin[i];
-        const CCoins* coins = view.AccessCoins(txin.prevout.hash);
-        if (coins == NULL || !coins->IsAvailable(txin.prevout.n)) {
+        const Coin& coin = view.AccessCoin(txin.prevout);
+        if (coin.IsSpent()) {
             TxInErrorToJSON(txin, vErrors, "Input not found or already spent");
             continue;
         }
-        const CScript& prevPubKey = coins->vout[txin.prevout.n].scriptPubKey;
-        const CAmount& amount = coins->vout[txin.prevout.n].nValue;
+        const CScript& prevPubKey = coin.out.scriptPubKey;
 
-        SignatureData sigdata;
+        txin.scriptSig.clear();
         // Only sign SIGHASH_SINGLE if there's a corresponding output:
         if (!fHashSingle || (i < mergedTx.vout.size()))
-            ProduceSignature(MutableTransactionSignatureCreator(&keystore, &mergedTx, i, amount, nHashType), prevPubKey, sigdata);
+            SignSignature(keystore, prevPubKey, mergedTx, i, nHashType);
 
         // ... and merge in other signatures:
         BOOST_FOREACH(const CMutableTransaction& txv, txVariants) {
-            sigdata = CombineSignatures(prevPubKey, TransactionSignatureChecker(&txConst, i, amount), sigdata, DataFromTransaction(txv, i));
+            txin.scriptSig = CombineSignatures(prevPubKey, mergedTx, i, txin.scriptSig, txv.vin[i].scriptSig);
         }
-
-        UpdateTransaction(mergedTx, i, sigdata);
-
         ScriptError serror = SCRIPT_ERR_OK;
-        if (!VerifyScript(txin.scriptSig, prevPubKey, mergedTx.wit.vtxinwit.size() > i ? &mergedTx.wit.vtxinwit[i].scriptWitness : NULL, STANDARD_SCRIPT_VERIFY_FLAGS, TransactionSignatureChecker(&txConst, i, amount), &serror)) {
+        if (!VerifyScript(txin.scriptSig, prevPubKey, STANDARD_SCRIPT_VERIFY_FLAGS, MutableTransactionSignatureChecker(&mergedTx, i), &serror)) {
             TxInErrorToJSON(txin, vErrors, ScriptErrorString(serror));
         }
     }
@@ -957,8 +863,8 @@ UniValue sendrawtransaction(const UniValue& params, bool fHelp)
             + HelpExampleRpc("sendrawtransaction", "\"signedhex\"")
         );
 
-    LOCK(cs_main);
-    RPCTypeCheck(params, boost::assign::list_of(UniValue::VSTR)(UniValue::VBOOL));
+     LOCK(cs_main);
+    RPCTypeCheck(params, boost::assign::list_of(UniValue::VSTR)(UniValue::VBOOL)(UniValue::VBOOL));
 
     // parse hex string from parameter
     CTransaction tx;
@@ -966,26 +872,29 @@ UniValue sendrawtransaction(const UniValue& params, bool fHelp)
         throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "TX decode failed");
     uint256 hashTx = tx.GetHash();
 
-    CAmount nMaxRawTxFee = maxTxFee;
-    if (params.size() > 1 && params[1].get_bool())
-        nMaxRawTxFee = 0;
+    bool fOverrideFees = false;
+    if (params.size() > 1)
+        fOverrideFees = params[1].get_bool();
 
     bool fInstantSend = false;
     if (params.size() > 2)
         fInstantSend = params[2].get_bool();
 
     CCoinsViewCache &view = *pcoinsTip;
-    const CCoins* existingCoins = view.AccessCoins(hashTx);
+    bool fHaveChain = false;
+    for (size_t o = 0; !fHaveChain && o < tx.vout.size(); o++) {
+        const Coin& existingCoin = view.AccessCoin(COutPoint(hashTx, o));
+        fHaveChain = !existingCoin.IsSpent();
+    }
     bool fHaveMempool = mempool.exists(hashTx);
-    bool fHaveChain = existingCoins && existingCoins->nHeight < 1000000000;
     if (!fHaveMempool && !fHaveChain) {
         // push to local node and sync with wallets
         if (fInstantSend && !instantsend.ProcessTxLockRequest(tx, *g_connman)) {
-            throw JSONRPCError(RPC_TRANSACTION_ERROR, "Not a valid InstantPay transaction, see debug.log for more info");
+            throw JSONRPCError(RPC_TRANSACTION_ERROR, "Not a valid InstantSend transaction, see debug.log for more info");
         }
         CValidationState state;
         bool fMissingInputs;
-        if (!AcceptToMemoryPool(mempool, state, tx, true, false, &fMissingInputs, true, false, nMaxRawTxFee)) {
+        if (!AcceptToMemoryPool(mempool, state, tx, false, &fMissingInputs, false, !fOverrideFees)) {
             if (state.IsInvalid()) {
                 throw JSONRPCError(RPC_TRANSACTION_REJECTED, strprintf("%i: %s", state.GetRejectCode(), state.GetRejectReason()));
             } else {
@@ -998,6 +907,9 @@ UniValue sendrawtransaction(const UniValue& params, bool fHelp)
     } else if (fHaveChain) {
         throw JSONRPCError(RPC_TRANSACTION_ALREADY_IN_CHAIN, "transaction already in block chain");
     }
+    if(!g_connman)
+        throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
+
     g_connman->RelayTransaction(tx);
 
     return hashTx.GetHex();

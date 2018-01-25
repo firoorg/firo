@@ -61,10 +61,10 @@ enum
 /// the additional constraints specified by flags.
 /// If not NULL, err will contain an error/success code for the operation
 EXPORT_SYMBOL int smartcashconsensus_verify_script(const unsigned char *scriptPubKey, unsigned int scriptPubKeyLen,
-                                                 const unsigned char *txTo        , unsigned int txToLen,
-                                                 unsigned int nIn, unsigned int flags, smartcashconsensus_error* err);
+                                    const unsigned char *txTo        , unsigned int txToLen,
+                                    unsigned int nIn, unsigned int flags, smartcashconsensus_error* err);
 
-EXPORT_SYMBOL int smartcashconsensus_verify_script_with_amount(const unsigned char *scriptPubKey, unsigned int scriptPubKeyLen, int64_t amount,
+EXPORT_SYMBOL int smartcashconsensus_verify_script_with_amount(const unsigned char *scriptPubKey, unsigned int scriptPubKeyLen,
                                     const unsigned char *txTo        , unsigned int txToLen,
                                     unsigned int nIn, unsigned int flags, smartcashconsensus_error* err);
 

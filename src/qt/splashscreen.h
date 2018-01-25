@@ -34,6 +34,8 @@ public Q_SLOTS:
     /** Show message and progress */
     void showMessage(const QString &message, int alignment, const QColor &color);
 
+    /** Sets the break action */
+    void setBreakAction(const std::function<void(void)> &action);
 private:
     /** Connect core signals to splash screen */
     void subscribeToCoreSignals();
