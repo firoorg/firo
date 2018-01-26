@@ -371,7 +371,7 @@ public:
     CSemaphoreGrant grantOutbound;
     CCriticalSection cs_filter;
     CBloomFilter* pfilter;
-    int nRefCount;
+    std::atomic<int> nRefCount;
     NodeId id;
     // znode from dash
     bool fZnode;
@@ -482,8 +482,9 @@ public:
 
     int GetRefCount()
     {
-        assert(nRefCount >= 0);
-        return nRefCount;
+        int rc = nRefCount;
+        assert(rc >= 0);
+        return rc;
     }
 
     // requires LOCK(cs_vRecvMsg)
@@ -508,13 +509,13 @@ public:
 
     CNode* AddRef()
     {
-        nRefCount++;
+        ++nRefCount;
         return this;
     }
 
     void Release()
     {
-        nRefCount--;
+        --nRefCount;
     }
 
 
