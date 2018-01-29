@@ -8,6 +8,7 @@
 
 
 #include <boost/thread/future.hpp>
+#include <boost/thread.hpp>
 
 namespace libzerocoin {
 
