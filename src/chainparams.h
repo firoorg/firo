@@ -55,6 +55,7 @@ public:
 
     const Consensus::Params& GetConsensus() const { return consensus; }
     const CMessageHeader::MessageStartChars& MessageStart() const { return pchMessageStart; }
+    const std::vector<unsigned char>& AlertKey() const { return vAlertPubKey; }
     int GetDefaultPort() const { return nDefaultPort; }
 
     const CBlock& GenesisBlock() const { return genesis; }
@@ -73,10 +74,12 @@ public:
     std::string NetworkIDString() const { return strNetworkID; }
     const std::vector<CDNSSeedData>& DNSSeeds() const { return vSeeds; }
     const std::vector<unsigned char>& Base58Prefix(Base58Type type) const { return base58Prefixes[type]; }
+    int ExtCoinType() const { return nExtCoinType; }
     const std::vector<SeedSpec6>& FixedSeeds() const { return vFixedSeeds; }
     const CCheckpointData& Checkpoints() const { return checkpointData; }
 
     int64_t MaxTipAge() const { return nMaxTipAge; } 
+    int64_t DelayGetHeadersTime() const { return nDelayGetHeadersTime; }
     int PoolMaxTransactions() const { return nPoolMaxTransactions; } 
     int FulfilledRequestExpireTime() const { return nFulfilledRequestExpireTime; } 
     std::string SporkPubKey() const { return strSporkPubKey; } 
@@ -86,10 +89,13 @@ protected:
 
     Consensus::Params consensus;
     CMessageHeader::MessageStartChars pchMessageStart;
+    //! Raw pub key bytes for the broadcast alert signing key.
+    std::vector<unsigned char> vAlertPubKey;
     int nDefaultPort;
     uint64_t nPruneAfterHeight;
     std::vector<CDNSSeedData> vSeeds;
     std::vector<unsigned char> base58Prefixes[MAX_BASE58_TYPES];
+    int nExtCoinType;
     std::string strNetworkID;
     CBlock genesis;
     std::vector<SeedSpec6> vFixedSeeds;
@@ -100,7 +106,8 @@ protected:
     bool fTestnetToBeDeprecatedFieldRPC;
     CCheckpointData checkpointData;
     /** Smartnode params*/ 
-    long nMaxTipAge; 
+    long nMaxTipAge;
+    int64_t nDelayGetHeadersTime; 
     int nPoolMaxTransactions; 
     int nFulfilledRequestExpireTime; 
     std::string strSporkPubKey; 

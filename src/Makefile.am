@@ -80,6 +80,8 @@ BITCOIN_CORE_H = \
   addrman.h \
   alert.h \
   base58.h \
+  bip39.h \
+  bip39_english.h \
   bloom.h \
   chain.h \
   chainparams.h \
@@ -195,8 +197,10 @@ libbitcoin_server_a_SOURCES = \
   dbwrapper.cpp \
   validation.cpp \
   merkleblock.cpp \
+  messagesigner.cpp \
   miner.cpp \
   net.cpp \
+  net_processing.cpp \
   noui.cpp \
   policy/fees.cpp \
   policy/policy.cpp \
@@ -329,11 +333,13 @@ libbitcoin_common_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_common_a_SOURCES = \
   amount.cpp \
   base58.cpp \
+  bip39.cpp \
   chainparams.cpp \
   coins.cpp \
   compressor.cpp \
   core_read.cpp \
   core_write.cpp \
+  hdchain.cpp \
   key.cpp \
   keystore.cpp \
   netaddress.cpp \

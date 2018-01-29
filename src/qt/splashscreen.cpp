@@ -138,6 +138,16 @@ SplashScreen::~SplashScreen()
     unsubscribeFromCoreSignals();
 }
 
+bool SplashScreen::eventFilter(QObject * obj, QEvent * ev) {
+    if (ev->type() == QEvent::KeyPress) {
+        QKeyEvent *keyEvent = static_cast<QKeyEvent *>(ev);
+        if(keyEvent->text()[0] == 'q' && breakAction != nullptr) {
+            breakAction();
+        }
+    }
+    return QObject::eventFilter(obj, ev);
+}
+
 void SplashScreen::slotFinish(QWidget *mainWin)
 {
     Q_UNUSED(mainWin);
@@ -188,6 +198,7 @@ void SplashScreen::subscribeToCoreSignals()
     // Connect signals to client
     uiInterface.InitMessage.connect(boost::bind(InitMessage, this, _1));
     uiInterface.ShowProgress.connect(boost::bind(ShowProgress, this, _1, _2));
+    uiInterface.SetProgressBreakAction.connect(boost::bind(SetProgressBreakAction, this, _1));
 #ifdef ENABLE_WALLET
     uiInterface.LoadWallet.connect(boost::bind(ConnectWallet, this, _1));
 #endif

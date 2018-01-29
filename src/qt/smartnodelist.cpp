@@ -113,12 +113,12 @@ void SmartnodeList::StartAlias(std::string strAlias)
             bool fSuccess = CSmartnodeBroadcast::Create(mne.getIp(), mne.getPrivKey(), mne.getTxHash(), mne.getOutputIndex(), strError, mnb);
 
             if(fSuccess) {
-                strStatusHtml += "<br>Successfully started SmartNode.";
-                mnodeman.UpdateSmartnodeList(mnb);
-                mnb.RelaySmartNode();
-                mnodeman.NotifySmartnodeUpdates();
+                strStatusHtml += "<br>Successfully started smartnode.";
+                mnodeman.UpdateSmartnodeList(mnb, *g_connman);
+                mnb.Relay(*g_connman);
+                mnodeman.NotifySmartnodeUpdates(*g_connman);
             } else {
-                strStatusHtml += "<br>Failed to start SmartNode.<br>Error: " + strError;
+                strStatusHtml += "<br>Failed to start smartnode.<br>Error: " + strError;
             }
             break;
         }
@@ -149,15 +149,15 @@ void SmartnodeList::StartAll(std::string strCommand)
 
         COutPoint outpoint = COutPoint(uint256S(mne.getTxHash()), nOutputIndex);
 
-        if(strCommand == "start-missing" && mnodeman.Has(CTxIn(outpoint))) continue;
+        if(strCommand == "start-missing" && mnodeman.Has(outpoint)) continue;
 
         bool fSuccess = CSmartnodeBroadcast::Create(mne.getIp(), mne.getPrivKey(), mne.getTxHash(), mne.getOutputIndex(), strError, mnb);
 
         if(fSuccess) {
             nCountSuccessful++;
-            mnodeman.UpdateSmartnodeList(mnb);
-            mnb.RelaySmartNode();
-            mnodeman.NotifySmartnodeUpdates();
+            mnodeman.UpdateSmartnodeList(mnb, *g_connman);
+            mnb.Relay(*g_connman);
+            mnodeman.NotifySmartnodeUpdates(*g_connman);
         } else {
             nCountFailed++;
             strFailedHtml += "\nFailed to start " + mne.getAlias() + ". Error: " + strError;
@@ -166,7 +166,7 @@ void SmartnodeList::StartAll(std::string strCommand)
     pwalletMain->Lock();
 
     std::string returnObj;
-    returnObj = strprintf("Successfully started %d SmartNodes, failed to start %d, total %d", nCountSuccessful, nCountFailed, nCountFailed + nCountSuccessful);
+    returnObj = strprintf("Successfully started %d smartnodes, failed to start %d, total %d", nCountSuccessful, nCountFailed, nCountFailed + nCountSuccessful);
     if (nCountFailed > 0) {
         returnObj += strFailedHtml;
     }
@@ -196,8 +196,8 @@ void SmartnodeList::updateMySmartnodeInfo(QString strAlias, QString strAddr, con
         ui->tableWidgetMySmartnodes->insertRow(nNewRow);
     }
 
-    smartnode_info_t infoMn = mnodeman.GetSmartnodeInfo(CTxIn(outpoint));
-    bool fFound = infoMn.fInfoValid;
+    smartnode_info_t infoMn;
+    bool fFound = mnodeman.GetSmartnodeInfo(outpoint, infoMn);
 
     QTableWidgetItem *aliasItem = new QTableWidgetItem(strAlias);
     QTableWidgetItem *addrItem = new QTableWidgetItem(fFound ? QString::fromStdString(infoMn.addr.ToString()) : strAddr);
@@ -225,9 +225,9 @@ void SmartnodeList::updateMyNodeList(bool fForce)
     }
     static int64_t nTimeMyListUpdated = 0;
 
-    // automatically update my smartnode list only once in MY_MASTERNODELIST_UPDATE_SECONDS seconds,
+    // automatically update my smartnode list only once in MY_SMARTNODELIST_UPDATE_SECONDS seconds,
     // this update still can be triggered manually at any time via button click
-    int64_t nSecondsTillUpdate = nTimeMyListUpdated + MY_MASTERNODELIST_UPDATE_SECONDS - GetTime();
+    int64_t nSecondsTillUpdate = nTimeMyListUpdated + MY_SMARTNODELIST_UPDATE_SECONDS - GetTime();
     ui->secondsLabel->setText(QString::number(nSecondsTillUpdate));
 
     if(nSecondsTillUpdate > 0 && !fForce) return;
@@ -257,11 +257,11 @@ void SmartnodeList::updateNodeList()
 
     static int64_t nTimeListUpdated = GetTime();
 
-    // to prevent high cpu usage update only once in MASTERNODELIST_UPDATE_SECONDS seconds
-    // or MASTERNODELIST_FILTER_COOLDOWN_SECONDS seconds after filter was last changed
+    // to prevent high cpu usage update only once in SMARTNODELIST_UPDATE_SECONDS seconds
+    // or SMARTNODELIST_FILTER_COOLDOWN_SECONDS seconds after filter was last changed
     int64_t nSecondsToWait = fFilterUpdated
-                            ? nTimeFilterUpdated - GetTime() + MASTERNODELIST_FILTER_COOLDOWN_SECONDS
-                            : nTimeListUpdated - GetTime() + MASTERNODELIST_UPDATE_SECONDS;
+                            ? nTimeFilterUpdated - GetTime() + SMARTNODELIST_FILTER_COOLDOWN_SECONDS
+                            : nTimeListUpdated - GetTime() + SMARTNODELIST_UPDATE_SECONDS;
 
     if(fFilterUpdated) ui->countLabel->setText(QString::fromStdString(strprintf("Please wait... %d", nSecondsToWait)));
     if(nSecondsToWait > 0) return;
@@ -274,13 +274,12 @@ void SmartnodeList::updateNodeList()
     ui->tableWidgetSmartnodes->setSortingEnabled(false);
     ui->tableWidgetSmartnodes->clearContents();
     ui->tableWidgetSmartnodes->setRowCount(0);
-//    std::map<COutPoint, CSmartnode> mapSmartnodes = mnodeman.GetFullSmartnodeMap();
-    std::vector<CSmartnode> vSmartnodes = mnodeman.GetFullSmartnodeVector();
+    std::map<COutPoint, CSmartnode> mapSmartnodes = mnodeman.GetFullSmartnodeMap();
     int offsetFromUtc = GetOffsetFromUtc();
 
-    BOOST_FOREACH(CSmartnode & mn, vSmartnodes)
+    for(auto& mnpair : mapSmartnodes)
     {
-//        CSmartnode mn = mnpair.second;
+        CSmartnode mn = mnpair.second;
         // populate list
         // Address, Protocol, Status, Active Seconds, Last Seen, Pub Key
         QTableWidgetItem *addressItem = new QTableWidgetItem(QString::fromStdString(mn.addr.ToString()));
@@ -319,7 +318,7 @@ void SmartnodeList::on_filterLineEdit_textChanged(const QString &strFilterIn)
     strCurrentFilter = strFilterIn;
     nTimeFilterUpdated = GetTime();
     fFilterUpdated = true;
-    ui->countLabel->setText(QString::fromStdString(strprintf("Please wait... %d", MASTERNODELIST_FILTER_COOLDOWN_SECONDS)));
+    ui->countLabel->setText(QString::fromStdString(strprintf("Please wait... %d", SMARTNODELIST_FILTER_COOLDOWN_SECONDS)));
 }
 
 void SmartnodeList::on_startButton_clicked()

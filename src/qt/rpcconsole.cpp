@@ -2,10 +2,6 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#if defined(HAVE_CONFIG_H)
-#include "config/bitcoin-config.h"
-#endif
-
 #include "rpcconsole.h"
 #include "ui_debugwindow.h"
 
@@ -13,9 +9,9 @@
 #include "clientmodel.h"
 #include "guiutil.h"
 #include "platformstyle.h"
-#include "bantablemodel.h"
 
 #include "chainparams.h"
+#include "netbase.h"
 #include "rpc/server.h"
 #include "rpc/client.h"
 #include "util.h"
@@ -362,6 +358,9 @@ void RPCConsole::setClientModel(ClientModel *model)
         setNumBlocks(model->getNumBlocks(), model->getLastBlockDate(), model->getVerificationProgress(NULL), false);
         connect(model, SIGNAL(numBlocksChanged(int,QDateTime,double,bool)), this, SLOT(setNumBlocks(int,QDateTime,double,bool)));
 
+        updateNetworkState();
+        connect(model, SIGNAL(networkActiveChanged(bool)), this, SLOT(setNetworkActive(bool)));
+
         updateTrafficStats(model->getTotalBytesRecv(), model->getTotalBytesSent());
         connect(model, SIGNAL(bytesChanged(quint64,quint64)), this, SLOT(updateTrafficStats(quint64, quint64)));
 
@@ -582,6 +581,19 @@ void RPCConsole::message(int category, const QString &message, bool html)
         out += GUIUtil::HtmlEscape(message, false);
     out += "</td></tr></table>";
     ui->messagesWidget->append(out);
+}
+
+void RPCConsole::updateNetworkState()
+{
+    QString connections = QString::number(clientModel->getNumConnections()) + " (";
+    connections += tr("In:") + " " + QString::number(clientModel->getNumConnections(CONNECTIONS_IN)) + " / ";
+    connections += tr("Out:") + " " + QString::number(clientModel->getNumConnections(CONNECTIONS_OUT)) + ")";
+
+    if(!clientModel->getNetworkActive()) {
+        connections += " (" + tr("Network activity disabled") + ")";
+    }
+
+    ui->numberOfConnections->setText(connections);
 }
 
 void RPCConsole::setNumConnections(int count)
@@ -879,34 +891,46 @@ void RPCConsole::showBanTableContextMenu(const QPoint& point)
 
 void RPCConsole::disconnectSelectedNode()
 {
-    // Get currently selected peer address
-    QString strNode = GUIUtil::getEntryData(ui->peerWidget, 0, PeerTableModel::Address);
-    // Find the node, disconnect it and clear the selected node
-    if (CNode *bannedNode = FindNode(strNode.toStdString())) {
-        bannedNode->fDisconnect = true;
-        clearSelectedNode();
+    if(!g_connman)
+        return;
+    
+    // Get selected peer addresses
+    QList<QModelIndex> nodes = GUIUtil::getEntryData(ui->peerWidget, PeerTableModel::NetNodeId);
+    for(int i = 0; i < nodes.count(); i++)
+    {
+        // Get currently selected peer address
+        NodeId id = nodes.at(i).data().toInt();
+        // Find the node, disconnect it and clear the selected node
+        if(g_connman->DisconnectNode(id))
+            clearSelectedNode();
     }
 }
 
 void RPCConsole::banSelectedNode(int bantime)
 {
-    if (!clientModel)
+    if (!clientModel || !g_connman)
         return;
+    
+    // Get selected peer addresses
+    QList<QModelIndex> nodes = GUIUtil::getEntryData(ui->peerWidget, PeerTableModel::NetNodeId);
+    for(int i = 0; i < nodes.count(); i++)
+    {
+        // Get currently selected peer address
+        NodeId id = nodes.at(i).data().toInt();
 
     // Get currently selected peer address
-    QString strNode = GUIUtil::getEntryData(ui->peerWidget, 0, PeerTableModel::Address);
+    int detailNodeRow = clientModel->getPeerTableModel()->getRowByNodeId(id);
+    if(detailNodeRow < 0)
+        return;
+
     // Find possible nodes, ban it and clear the selected node
-    if (FindNode(strNode.toStdString())) {
-        std::string nStr = strNode.toStdString();
-        std::string addr;
-        int port = 0;
-        SplitHostPort(nStr, port, addr);
-
-        CNode::Ban(CNetAddr(addr), BanReasonManuallyAdded, bantime);
-
-        clearSelectedNode();
-        clientModel->getBanTableModel()->refresh();
+    const CNodeCombinedStats *stats = clientModel->getPeerTableModel()->getNodeStats(detailNodeRow);
+    if(stats) {
+        g_connman->Ban(stats->nodeStats.addr, BanReasonManuallyAdded, bantime);
     }
+    }
+    clearSelectedNode();
+    clientModel->getBanTableModel()->refresh();
 }
 
 void RPCConsole::unbanSelectedNode()
@@ -914,14 +938,20 @@ void RPCConsole::unbanSelectedNode()
     if (!clientModel)
         return;
 
-    // Get currently selected ban address
-    QString strNode = GUIUtil::getEntryData(ui->banlistWidget, 0, BanTableModel::Address);
-    CSubNet possibleSubnet(strNode.toStdString());
-
-    if (possibleSubnet.IsValid())
+    // Get selected ban addresses
+    QList<QModelIndex> nodes = GUIUtil::getEntryData(ui->banlistWidget, BanTableModel::Address);
+    for(int i = 0; i < nodes.count(); i++)
     {
-        CNode::Unban(possibleSubnet);
-        clientModel->getBanTableModel()->refresh();
+        // Get currently selected ban address
+        QString strNode = nodes.at(i).data().toString();
+        CSubNet possibleSubnet;
+
+        LookupSubNet(strNode.toStdString().c_str(), possibleSubnet);
+        if (possibleSubnet.IsValid() && g_connman)
+        {
+            g_connman->Unban(possibleSubnet);
+            clientModel->getBanTableModel()->refresh();
+        }
     }
 }
 

@@ -142,6 +142,9 @@ private:
     int consoleFontSize;
     QCompleter *autoCompleter;
     QThread thread;
+
+    /** Update UI with latest network info from model. */
+    void updateNetworkState();
 };
 
 #endif // BITCOIN_QT_RPCCONSOLE_H

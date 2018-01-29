@@ -1,5 +1,5 @@
-#ifndef MASTERNODELIST_H
-#define MASTERNODELIST_H
+#ifndef SMARTNODELIST_H
+#define SMARTNODELIST_H
 
 #include "primitives/transaction.h"
 #include "platformstyle.h"
@@ -10,9 +10,9 @@
 #include <QTimer>
 #include <QWidget>
 
-#define MY_MASTERNODELIST_UPDATE_SECONDS                 60
-#define MASTERNODELIST_UPDATE_SECONDS                    15
-#define MASTERNODELIST_FILTER_COOLDOWN_SECONDS            3
+#define MY_SMARTNODELIST_UPDATE_SECONDS                 60
+#define SMARTNODELIST_UPDATE_SECONDS                    15
+#define SMARTNODELIST_FILTER_COOLDOWN_SECONDS            3
 
 namespace Ui {
     class SmartnodeList;
@@ -74,4 +74,4 @@ private Q_SLOTS:
     void on_tableWidgetMySmartnodes_itemSelectionChanged();
     void on_UpdateButton_clicked();
 };
-#endif // MASTERNODELIST_H
+#endif // SMARTNODELIST_H

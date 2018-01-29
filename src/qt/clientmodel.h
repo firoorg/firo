@@ -8,6 +8,8 @@
 #include <QObject>
 #include <QDateTime>
 
+#include <atomic>
+
 class AddressTableModel;
 class BanTableModel;
 class OptionsModel;
@@ -51,7 +53,8 @@ public:
     //! Return number of connections, default is in- and outbound (total)
     int getNumConnections(unsigned int flags = CONNECTIONS_ALL) const;
     int getNumBlocks() const;
-
+    int getHeaderTipHeight() const;
+    int64_t getHeaderTipTime() const;
     //! Return number of transactions in the mempool
     long getMempoolSize() const;
     //! Return the dynamic memory usage of the mempool
@@ -67,6 +70,10 @@ public:
     bool inInitialBlockDownload() const;
     //! Return true if core is importing blocks
     enum BlockSource getBlockSource() const;
+    //! Return true if network activity in core is enabled
+    bool getNetworkActive() const;
+    //! Toggle network activity state in core
+    void setNetworkActive(bool active);
     //! Return warnings to be displayed in status bar
     QString getStatusBarWarnings() const;
 
@@ -76,6 +83,10 @@ public:
     QString formatClientStartupTime() const;
     QString dataDir() const;
 
+    // caches for the best header
+    mutable std::atomic<int> cachedBestHeaderHeight;
+    mutable std::atomic<int64_t> cachedBestHeaderTime;
+    
 private:
     OptionsModel *optionsModel;
     PeerTableModel *peerTableModel;
@@ -91,6 +102,7 @@ Q_SIGNALS:
     void numBlocksChanged(int count, const QDateTime& blockDate, double nVerificationProgress, bool header);
     void additionalDataSyncProgressChanged(double nSyncProgress);
     void mempoolSizeChanged(long count, size_t mempoolSizeInBytes);
+    void networkActiveChanged(bool networkActive);
     void alertsChanged(const QString &warnings);
     void bytesChanged(quint64 totalBytesIn, quint64 totalBytesOut);
 

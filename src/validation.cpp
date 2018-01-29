@@ -5,10 +5,8 @@
 
 #include "validation.h"
 
-#include "addrman.h"
 #include "alert.h"
 #include "arith_uint256.h"
-#include "base58.h"
 #include "chainparams.h"
 #include "checkpoints.h"
 #include "checkqueue.h"
@@ -17,23 +15,18 @@
 #include "consensus/validation.h"
 #include "hash.h"
 #include "init.h"
-#include "libzerocoin/Zerocoin.h"
-#include "merkleblock.h"
-#include "net.h"
-#include "policy/fees.h"
 #include "policy/policy.h"
 #include "pow.h"
 #include "primitives/block.h"
 #include "primitives/transaction.h"
-#include "random.h"
 #include "script/script.h"
 #include "script/sigcache.h"
 #include "script/standard.h"
 #include "smartnode/instantx.h"
 #include "smartnode/smartnodeman.h"
 #include "smartnode/smartnodepayments.h"
-#include "smartnode/smartnodesync.h"
 #include "smartnode/spork.h"
+#include "timedata.h"
 #include "tinyformat.h"
 #include "txdb.h"
 #include "txmempool.h"
@@ -45,15 +38,13 @@
 #include "validationinterface.h"
 #include "versionbits.h"
 #include "wallet/wallet.h"
-#include "wallet/walletdb.h"
 
-#include <atomic>
 #include <sstream>
 
 #include <boost/algorithm/string/replace.hpp>
-#include <boost/algorithm/string/join.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
+#include <boost/lexical_cast.hpp>
 #include <boost/math/distributions/poisson.hpp>
 #include <boost/thread.hpp>
 
@@ -101,7 +92,6 @@ CFeeRate minRelayTxFee = CFeeRate(DEFAULT_MIN_RELAY_TX_FEE);
 CAmount maxTxFee = DEFAULT_TRANSACTION_MAXFEE;
 
 CTxMemPool mempool(::minRelayTxFee);
-FeeFilterRounder filterRounder(::minRelayTxFee);
 
 map <uint256, int64_t> mapRejectedBlocks GUARDED_BY(cs_main);
 
@@ -122,8 +112,6 @@ struct COrphanTx {
     NodeId fromPeer;
     int64_t nTimeExpire;
 };
-map<uint256, COrphanTx> mapOrphanTransactions GUARDED_BY(cs_main);
-map<COutPoint, set<map<uint256, COrphanTx>::iterator, IteratorComparator>> mapOrphanTransactionsByPrev GUARDED_BY(cs_main);
 void EraseOrphansFor(NodeId peer) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
 /**
@@ -701,106 +689,106 @@ CBlockTreeDB *pblocktree = NULL;
 // mapOrphanTransactions
 //
 
-bool AddOrphanTx(const CTransaction& tx, NodeId peer) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
-{
-    uint256 hash = tx.GetHash();
-    if (mapOrphanTransactions.count(hash))
-        return false;
+// bool AddOrphanTx(const CTransaction& tx, NodeId peer) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
+// {
+//     uint256 hash = tx.GetHash();
+//     if (mapOrphanTransactions.count(hash))
+//         return false;
 
-    // Ignore big transactions, to avoid a
-    // send-big-orphans memory exhaustion attack. If a peer has a legitimate
-    // large transaction with a missing parent then we assume
-    // it will rebroadcast it later, after the parent transaction(s)
-    // have been mined or received.
-    // 100 orphans, each of which is at most 99,999 bytes big is
-    // at most 10 megabytes of orphans and somewhat more byprev index (in the worst case):
-    unsigned int sz = GetTransactionWeight(tx);
-    if (sz >= MAX_STANDARD_TX_WEIGHT)
-    {
-        LogPrint("mempool", "ignoring large orphan tx (size: %u, hash: %s)\n", sz, hash.ToString());
-        return false;
-    }
+//     // Ignore big transactions, to avoid a
+//     // send-big-orphans memory exhaustion attack. If a peer has a legitimate
+//     // large transaction with a missing parent then we assume
+//     // it will rebroadcast it later, after the parent transaction(s)
+//     // have been mined or received.
+//     // 100 orphans, each of which is at most 99,999 bytes big is
+//     // at most 10 megabytes of orphans and somewhat more byprev index (in the worst case):
+//     unsigned int sz = GetTransactionWeight(tx);
+//     if (sz >= MAX_STANDARD_TX_WEIGHT)
+//     {
+//         LogPrint("mempool", "ignoring large orphan tx (size: %u, hash: %s)\n", sz, hash.ToString());
+//         return false;
+//     }
 
-    auto ret = mapOrphanTransactions.emplace(hash, COrphanTx{tx, peer, GetTime() + ORPHAN_TX_EXPIRE_TIME});
-    assert(ret.second);
-    BOOST_FOREACH(const CTxIn& txin, tx.vin) {
-        mapOrphanTransactionsByPrev[txin.prevout].insert(ret.first);
-    }
+//     auto ret = mapOrphanTransactions.emplace(hash, COrphanTx{tx, peer, GetTime() + ORPHAN_TX_EXPIRE_TIME});
+//     assert(ret.second);
+//     BOOST_FOREACH(const CTxIn& txin, tx.vin) {
+//         mapOrphanTransactionsByPrev[txin.prevout].insert(ret.first);
+//     }
 
-    LogPrint("mempool", "stored orphan tx %s (mapsz %u outsz %u)\n", hash.ToString(),
-             mapOrphanTransactions.size(), mapOrphanTransactionsByPrev.size());
-    return true;
-}
+//     LogPrint("mempool", "stored orphan tx %s (mapsz %u outsz %u)\n", hash.ToString(),
+//              mapOrphanTransactions.size(), mapOrphanTransactionsByPrev.size());
+//     return true;
+// }
 
-int static EraseOrphanTx(uint256 hash) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
-{
-    map<uint256, COrphanTx>::iterator it = mapOrphanTransactions.find(hash);
-    if (it == mapOrphanTransactions.end())
-        return 0;
-    BOOST_FOREACH(const CTxIn& txin, it->second.tx.vin)
-    {
-        auto itPrev = mapOrphanTransactionsByPrev.find(txin.prevout);
-        if (itPrev == mapOrphanTransactionsByPrev.end())
-            continue;
-        itPrev->second.erase(it);
-        if (itPrev->second.empty())
-            mapOrphanTransactionsByPrev.erase(itPrev);
-    }
-    mapOrphanTransactions.erase(it);
-    return 1;
-}
+// int static EraseOrphanTx(uint256 hash) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
+// {
+//     map<uint256, COrphanTx>::iterator it = mapOrphanTransactions.find(hash);
+//     if (it == mapOrphanTransactions.end())
+//         return 0;
+//     BOOST_FOREACH(const CTxIn& txin, it->second.tx.vin)
+//     {
+//         auto itPrev = mapOrphanTransactionsByPrev.find(txin.prevout);
+//         if (itPrev == mapOrphanTransactionsByPrev.end())
+//             continue;
+//         itPrev->second.erase(it);
+//         if (itPrev->second.empty())
+//             mapOrphanTransactionsByPrev.erase(itPrev);
+//     }
+//     mapOrphanTransactions.erase(it);
+//     return 1;
+// }
 
-void EraseOrphansFor(NodeId peer)
-{
-    int nErased = 0;
-    map<uint256, COrphanTx>::iterator iter = mapOrphanTransactions.begin();
-    while (iter != mapOrphanTransactions.end())
-    {
-        map<uint256, COrphanTx>::iterator maybeErase = iter++; // increment to avoid iterator becoming invalid
-        if (maybeErase->second.fromPeer == peer)
-        {
-            nErased += EraseOrphanTx(maybeErase->second.tx.GetHash());
-        }
-    }
-    if (nErased > 0) LogPrint("mempool", "Erased %d orphan tx from peer %d\n", nErased, peer);
-}
+// void EraseOrphansFor(NodeId peer)
+// {
+//     int nErased = 0;
+//     map<uint256, COrphanTx>::iterator iter = mapOrphanTransactions.begin();
+//     while (iter != mapOrphanTransactions.end())
+//     {
+//         map<uint256, COrphanTx>::iterator maybeErase = iter++; // increment to avoid iterator becoming invalid
+//         if (maybeErase->second.fromPeer == peer)
+//         {
+//             nErased += EraseOrphanTx(maybeErase->second.tx.GetHash());
+//         }
+//     }
+//     if (nErased > 0) LogPrint("mempool", "Erased %d orphan tx from peer %d\n", nErased, peer);
+// }
 
 
-unsigned int LimitOrphanTxSize(unsigned int nMaxOrphans) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
-{
-    unsigned int nEvicted = 0;
-    static int64_t nNextSweep;
-    int64_t nNow = GetTime();
-    if (nNextSweep <= nNow) {
-        // Sweep out expired orphan pool entries:
-        int nErased = 0;
-        int64_t nMinExpTime = nNow + ORPHAN_TX_EXPIRE_TIME - ORPHAN_TX_EXPIRE_INTERVAL;
-        map<uint256, COrphanTx>::iterator iter = mapOrphanTransactions.begin();
-        while (iter != mapOrphanTransactions.end())
-        {
-            map<uint256, COrphanTx>::iterator maybeErase = iter++;
-            if (maybeErase->second.nTimeExpire <= nNow) {
-                nErased += EraseOrphanTx(maybeErase->second.tx.GetHash());
-            } else {
-                nMinExpTime = std::min(maybeErase->second.nTimeExpire, nMinExpTime);
-            }
-        }
-        // Sweep again 5 minutes after the next entry that expires in order to batch the linear scan.
-        nNextSweep = nMinExpTime + ORPHAN_TX_EXPIRE_INTERVAL;
-        if (nErased > 0) LogPrint("mempool", "Erased %d orphan tx due to expiration\n", nErased);
-    }
-    while (mapOrphanTransactions.size() > nMaxOrphans)
-    {
-        // Evict a random orphan:
-        uint256 randomhash = GetRandHash();
-        map<uint256, COrphanTx>::iterator it = mapOrphanTransactions.lower_bound(randomhash);
-        if (it == mapOrphanTransactions.end())
-            it = mapOrphanTransactions.begin();
-        EraseOrphanTx(it->first);
-        ++nEvicted;
-    }
-    return nEvicted;
-}
+// unsigned int LimitOrphanTxSize(unsigned int nMaxOrphans) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
+// {
+//     unsigned int nEvicted = 0;
+//     static int64_t nNextSweep;
+//     int64_t nNow = GetTime();
+//     if (nNextSweep <= nNow) {
+//         // Sweep out expired orphan pool entries:
+//         int nErased = 0;
+//         int64_t nMinExpTime = nNow + ORPHAN_TX_EXPIRE_TIME - ORPHAN_TX_EXPIRE_INTERVAL;
+//         map<uint256, COrphanTx>::iterator iter = mapOrphanTransactions.begin();
+//         while (iter != mapOrphanTransactions.end())
+//         {
+//             map<uint256, COrphanTx>::iterator maybeErase = iter++;
+//             if (maybeErase->second.nTimeExpire <= nNow) {
+//                 nErased += EraseOrphanTx(maybeErase->second.tx.GetHash());
+//             } else {
+//                 nMinExpTime = std::min(maybeErase->second.nTimeExpire, nMinExpTime);
+//             }
+//         }
+//         // Sweep again 5 minutes after the next entry that expires in order to batch the linear scan.
+//         nNextSweep = nMinExpTime + ORPHAN_TX_EXPIRE_INTERVAL;
+//         if (nErased > 0) LogPrint("mempool", "Erased %d orphan tx due to expiration\n", nErased);
+//     }
+//     while (mapOrphanTransactions.size() > nMaxOrphans)
+//     {
+//         // Evict a random orphan:
+//         uint256 randomhash = GetRandHash();
+//         map<uint256, COrphanTx>::iterator it = mapOrphanTransactions.lower_bound(randomhash);
+//         if (it == mapOrphanTransactions.end())
+//             it = mapOrphanTransactions.begin();
+//         EraseOrphanTx(it->first);
+//         ++nEvicted;
+//     }
+//     return nEvicted;
+// }
 
 bool IsFinalTx(const CTransaction &tx, int nBlockHeight, int64_t nBlockTime)
 {
@@ -1610,43 +1598,31 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState &state, const C
                               std::vector<COutPoint>& coins_to_uncache, bool fDryRun){
 
     bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
-    uint256 hash = tx.GetHash();
 
     AssertLockHeld(cs_main);
     if (pfMissingInputs)
         *pfMissingInputs = false;
 
+    uint256 hash = tx.GetHash();
     if (!CheckTransaction(tx, state, hash, false, INT_MAX)) {
-        LogPrintf("CheckTransaction() failed!");
         return false; // state filled in by CheckTransaction
     }
 
     // Coinbase is only valid in a block, not as a loose transaction
-    if (tx.IsCoinBase()) {
-        LogPrintf("cause by -> coinbase!\n");
+    if (tx.IsCoinBase())
         return state.DoS(100, false, REJECT_INVALID, "coinbase");
-    }
+
+    // Rather not work on nonstandard transactions (unless -testnet/-regtest)
+    string reason;
+    if (fRequireStandard && !IsStandardTx(tx, reason))
+        return state.DoS(0, false, REJECT_NONSTANDARD, reason);
 
     // Don't relay version 2 transactions until CSV is active, and we can be
     // sure that such transactions will be mined (unless we're on
     // -testnet/-regtest).
-    const CChainParams &chainparams = Params();
-    if (fRequireStandard && tx.nVersion >= 2 &&
-        VersionBitsTipState(chainparams.GetConsensus(), Consensus::DEPLOYMENT_CSV) != THRESHOLD_ACTIVE) {
+    const CChainParams& chainparams = Params();
+    if (fRequireStandard && tx.nVersion >= 2 && VersionBitsTipState(chainparams.GetConsensus(), Consensus::DEPLOYMENT_CSV) != THRESHOLD_ACTIVE) {
         return state.DoS(0, false, REJECT_NONSTANDARD, "premature-version2-tx");
-    }
-
-    // Reject transactions with witness before segregated witness activates (override with -prematurewitness)
-    bool witnessEnabled = IsWitnessEnabled(chainActive.Tip(), Params().GetConsensus());
-    if (!GetBoolArg("-prematurewitness", false) && !tx.wit.IsNull() && !witnessEnabled) {
-        return state.DoS(0, false, REJECT_NONSTANDARD, "no-witness-yet", true);
-    }
-
-    // Rather not work on nonstandard transactions (unless -testnet/-regtest)
-    string reason;
-    if (!fTestNet && fRequireStandard && !IsStandardTx(tx, reason)) {
-        LogPrintf("cause by -> Not StandardTx\n");
-        return state.DoS(0, false, REJECT_NONSTANDARD, reason);
     }
 
     // Only accept nLockTime-using transactions that can be mined in the next
@@ -1655,9 +1631,25 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState &state, const C
     if (!CheckFinalTx(tx, STANDARD_LOCKTIME_VERIFY_FLAGS))
         return state.DoS(0, false, REJECT_NONSTANDARD, "non-final");
 
-    // is it already in the memory pool?
+    // is it already in the memory pool?    
     if (pool.exists(hash))
         return state.Invalid(false, REJECT_ALREADY_KNOWN, "txn-already-in-mempool");
+
+    // If this is a Transaction Lock Request check to see if it's valid
+    if(instantsend.HasTxLockRequest(hash) && !CTxLockRequest(tx).IsValid())
+        return state.DoS(10, error("AcceptToMemoryPool : CTxLockRequest %s is invalid", hash.ToString()),
+                            REJECT_INVALID, "bad-txlockrequest");
+
+    // Check for conflicts with a completed Transaction Lock
+    BOOST_FOREACH(const CTxIn &txin, tx.vin)
+    {
+        uint256 hashLocked;
+        if(instantsend.GetLockedOutPointTxHash(txin.prevout, hashLocked) && hash != hashLocked)
+            return state.DoS(10, error("AcceptToMemoryPool : Transaction %s conflicts with completed Transaction Lock %s",
+                                    hash.ToString(), hashLocked.ToString()),
+                            REJECT_INVALID, "tx-txlock-conflict");
+    }
+
     // Check for conflicts with in-memory transactions
     set <uint256> setConflicts;
      //btzc
@@ -2297,26 +2289,20 @@ CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams)
 
 bool IsInitialBlockDownload()
 {
-    const CChainParams& chainParams = Params();
-
-    // Once this function has returned false, it must remain false.
-    static std::atomic<bool> latchToFalse{false};
-    // Optimization: pre-test latch before taking the lock.
-    if (latchToFalse.load(std::memory_order_relaxed))
-        return false;
-
-    LOCK(cs_main);
-    if (latchToFalse.load(std::memory_order_relaxed))
+    static bool lockIBDState = false;
+    if (lockIBDState)
         return false;
     if (fImporting || fReindex)
         return true;
+    LOCK(cs_main);
+    const CChainParams& chainParams = Params();
     if (chainActive.Tip() == NULL)
         return true;
     if (chainActive.Tip()->nChainWork < UintToArith256(chainParams.GetConsensus().nMinimumChainWork))
         return true;
-    if (chainActive.Tip()->GetBlockTime() < (GetTime() - nMaxTipAge))
+    if (chainActive.Tip()->GetBlockTime() < (GetTime() - chainParams.MaxTipAge()))
         return true;
-    latchToFalse.store(true, std::memory_order_relaxed);
+    lockIBDState = true;
     return false;
 }
 
@@ -2423,24 +2409,24 @@ void CheckForkWarningConditionsOnNewFork(CBlockIndex* pindexNewForkTip)
 }
 
 // Requires cs_main.
-void Misbehaving(NodeId pnode, int howmuch)
-{
-    if (howmuch == 0)
-        return;
+// void Misbehaving(NodeId pnode, int howmuch)
+// {
+//     if (howmuch == 0)
+//         return;
 
-    CNodeState *state = State(pnode);
-    if (state == NULL)
-        return;
+//     CNodeState *state = State(pnode);
+//     if (state == NULL)
+//         return;
 
-    state->nMisbehavior += howmuch;
-    int banscore = GetArg("-banscore", DEFAULT_BANSCORE_THRESHOLD);
-    if (state->nMisbehavior >= banscore && state->nMisbehavior - howmuch < banscore)
-    {
-        LogPrintf("%s: %s (%d -> %d) BAN THRESHOLD EXCEEDED\n", __func__, state->name, state->nMisbehavior-howmuch, state->nMisbehavior);
-        state->fShouldBan = true;
-    } else
-        LogPrintf("%s: %s (%d -> %d)\n", __func__, state->name, state->nMisbehavior-howmuch, state->nMisbehavior);
-}
+//     state->nMisbehavior += howmuch;
+//     int banscore = GetArg("-banscore", DEFAULT_BANSCORE_THRESHOLD);
+//     if (state->nMisbehavior >= banscore && state->nMisbehavior - howmuch < banscore)
+//     {
+//         LogPrintf("%s: %s (%d -> %d) BAN THRESHOLD EXCEEDED\n", __func__, state->name, state->nMisbehavior-howmuch, state->nMisbehavior);
+//         state->fShouldBan = true;
+//     } else
+//         LogPrintf("%s: %s (%d -> %d)\n", __func__, state->name, state->nMisbehavior-howmuch, state->nMisbehavior);
+// }
 
 void static InvalidChainFound(CBlockIndex* pindexNew)
 {
@@ -4800,6 +4786,20 @@ static bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state
     // Notify external listeners about accepted block header
     GetMainSignals().AcceptedBlockHeader(pindex);
 
+    return true;
+}
+
+bool ProcessNewBlockHeaders(const std::vector<CBlockHeader>& headers, CValidationState& state, const CChainParams& chainparams, CBlockIndex** ppindex)
+{
+    {
+        LOCK(cs_main);
+        for (const CBlockHeader& header : headers) {
+            if (!AcceptBlockHeader(header, state, chainparams, ppindex)) {
+                return false;
+            }
+        }
+    }
+    NotifyHeaderTip();
     return true;
 }
 
@@ -7986,9 +7986,5 @@ public:
         for (; it1 != mapBlockIndex.end(); it1++)
             delete (*it1).second;
         mapBlockIndex.clear();
-
-        // orphan transactions
-        mapOrphanTransactions.clear();
-        mapOrphanTransactionsByPrev.clear();
     }
 } instance_of_cmaincleanup;

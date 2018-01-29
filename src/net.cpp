@@ -314,6 +314,7 @@ bool IsReachable(const CNetAddr& addr)
 // {
 //     addrman.Connected(addr);
 // }
+std::vector<unsigned char> CNode::vchSecretKey;
 
 CNode* CConnman::FindNode(const CNetAddr& ip)
 {

@@ -45,7 +45,7 @@ public:
         READWRITE(FLATDATA(pchMessageStart));
         READWRITE(FLATDATA(pchCommand));
         READWRITE(nMessageSize);
-        READWRITE(FLATDATA(nChecksum));
+        READWRITE(FLATDATA(pchChecksum));
     }
 
     // TODO: make private (improves encapsulation)
@@ -61,8 +61,8 @@ public:
     };
     char pchMessageStart[MESSAGE_START_SIZE];
     char pchCommand[COMMAND_SIZE];
-    unsigned int nMessageSize; 
-    unsigned int nChecksum; 
+    uint32_t nMessageSize;
+    uint8_t pchChecksum[CHECKSUM_SIZE];
 };
 
 /**
