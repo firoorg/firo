@@ -100,6 +100,7 @@ BITCOIN_CORE_H = \
   consensus/consensus.h \
   core_io.h \
   core_memusage.h \
+  dsnotificationinterface.h \
   fixed.h \
   hdchain.h \
   httprpc.h \
@@ -191,6 +192,7 @@ libbitcoin_server_a_SOURCES = \
   bloom.cpp \
   chain.cpp \
   checkpoints.cpp \
+  dsnotificationinterface.cpp \
   httprpc.cpp \
   httpserver.cpp \
   init.cpp \
@@ -215,6 +217,7 @@ libbitcoin_server_a_SOURCES = \
   rpc/rpcsmartnode.cpp \
   script/sigcache.cpp \
   script/ismine.cpp \
+  sendalert.cpp \
   smartnode/netfulfilledman.cpp \
   smartnode/activesmartnode.cpp \
   smartnode/instantx.cpp \
