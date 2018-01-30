@@ -129,7 +129,7 @@ bool CAddrDB::Write(const CAddrMan& addr)
     CDataStream ssPeers(SER_DISK, CLIENT_VERSION);
     ssPeers << FLATDATA(Params().MessageStart());
     ssPeers << addr;
-    uint256 hash = Hash(ssPeers.begin(), ssPeers.end());
+    uint256 hash = HashKeccak(ssPeers.begin(), ssPeers.end());
     ssPeers << hash;
 
     // open temp output file, and associate with CAutoFile
@@ -187,7 +187,7 @@ bool CAddrDB::Read(CAddrMan& addr)
     CDataStream ssPeers(vchData, SER_DISK, CLIENT_VERSION);
 
     // verify stored checksum matches input data
-    uint256 hashTmp = Hash(ssPeers.begin(), ssPeers.end());
+    uint256 hashTmp = HashKeccak(ssPeers.begin(), ssPeers.end());
     if (hashIn != hashTmp)
         return error("%s: Checksum mismatch, data corrupted", __func__);
 

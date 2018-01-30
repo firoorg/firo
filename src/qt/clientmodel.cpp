@@ -36,14 +36,22 @@ ClientModel::ClientModel(OptionsModel *optionsModel, QObject *parent) :
     QObject(parent),
     optionsModel(optionsModel),
     peerTableModel(0),
+    cachedSmartnodeCountString(""),
     banTableModel(0),
     pollTimer(0)
 {
+    cachedBestHeaderHeight = -1;
+    cachedBestHeaderTime = -1;
     peerTableModel = new PeerTableModel(this);
     banTableModel = new BanTableModel(this);
     pollTimer = new QTimer(this);
     connect(pollTimer, SIGNAL(timeout()), this, SLOT(updateTimer()));
     pollTimer->start(MODEL_UPDATE_DELAY);
+
+    pollMnTimer = new QTimer(this);
+    connect(pollMnTimer, SIGNAL(timeout()), this, SLOT(updateMnTimer()));
+    // no need to update as frequent as data for balances/txes/blocks
+    pollMnTimer->start(MODEL_UPDATE_DELAY * 4);
 
     subscribeToCoreSignals();
 }
@@ -67,6 +75,19 @@ int ClientModel::getNumConnections(unsigned int flags) const
     if(g_connman)
          return g_connman->GetNodeCount(connections);
     return 0;
+}
+
+QString ClientModel::getSmartnodeCountString() const
+{
+    // return tr("Total: %1 (PS compatible: %2 / Enabled: %3) (IPv4: %4, IPv6: %5, TOR: %6)").arg(QString::number((int)mnodeman.size()))
+    // return tr("Total: %1 (PS compatible: %2 / Enabled: %3)")
+    return tr("Total: %1 (Enabled: %2)")
+            .arg(QString::number((int)mnodeman.size()))
+            //.arg(QString::number((int)mnodeman.CountEnabled(MIN_PRIVATESEND_PEER_PROTO_VERSION)))
+            .arg(QString::number((int)mnodeman.CountEnabled()));
+            // .arg(QString::number((int)mnodeman.CountByIP(NET_IPV4)))
+            // .arg(QString::number((int)mnodeman.CountByIP(NET_IPV6)))
+            // .arg(QString::number((int)mnodeman.CountByIP(NET_TOR)));
 }
 
 int ClientModel::getNumBlocks() const
@@ -153,6 +174,18 @@ void ClientModel::updateTimer()
     Q_EMIT bytesChanged(getTotalBytesRecv(), getTotalBytesSent());
 }
 
+void ClientModel::updateMnTimer()
+{
+    QString newSmartnodeCountString = getSmartnodeCountString();
+
+    if (cachedSmartnodeCountString != newSmartnodeCountString)
+    {
+        cachedSmartnodeCountString = newSmartnodeCountString;
+
+        Q_EMIT strSmartnodesChanged(cachedSmartnodeCountString);
+    }
+}
+
 void ClientModel::updateNumConnections(int numConnections)
 {
     Q_EMIT numConnectionsChanged(numConnections);
@@ -233,6 +266,11 @@ QString ClientModel::formatSubVersion() const
 bool ClientModel::isReleaseVersion() const
 {
     return CLIENT_VERSION_IS_RELEASE;
+}
+
+QString ClientModel::clientName() const
+{
+    return QString::fromStdString(CLIENT_NAME);
 }
 
 QString ClientModel::formatClientStartupTime() const

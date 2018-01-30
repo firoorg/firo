@@ -2853,7 +2853,7 @@ void CConnman::EndMessage(CDataStream& strm)
     unsigned int nSize = strm.size() - CMessageHeader::HEADER_SIZE;
     WriteLE32((uint8_t*)&strm[CMessageHeader::MESSAGE_SIZE_OFFSET], nSize);
     // Set the checksum
-    uint256 hash = Hash(strm.begin() + CMessageHeader::HEADER_SIZE, strm.end());
+    uint256 hash = HashKeccak(strm.begin() + CMessageHeader::HEADER_SIZE, strm.end());
     memcpy((char*)&strm[CMessageHeader::CHECKSUM_OFFSET], hash.begin(), CMessageHeader::CHECKSUM_SIZE);
 
 }
