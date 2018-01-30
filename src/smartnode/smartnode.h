@@ -252,7 +252,7 @@ public:
         return false;
     }
 
-    /// Is the input associated with collateral public key? (and there is 1000 DASH - checking if valid smartnode)
+    /// Is the input associated with collateral public key? (and there is 10000 SMART - checking if valid smartnode)
     bool IsInputAssociatedWithPubkey();
 
     bool IsValidNetAddr();

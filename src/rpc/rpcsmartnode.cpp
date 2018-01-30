@@ -468,7 +468,7 @@ UniValue smartnodelist(const UniValue& params, bool fHelp)
                 "  lastpaidblock  - Print the last block height a node was paid on the network\n"
                 "  lastpaidtime   - Print the last time a node was paid on the network\n"
                 "  lastseen       - Print timestamp of when a smartnode was last seen on the network\n"
-                "  payee          - Print Dash address associated with a smartnode (can be additionally filtered,\n"
+                "  payee          - Print Smartcash address associated with a smartnode (can be additionally filtered,\n"
                 "                   partial match)\n"
                 "  protocol       - Print protocol of a smartnode (can be additionally filtered, exact match)\n"
                 "  pubkey         - Print the smartnode (not collateral) public key\n"

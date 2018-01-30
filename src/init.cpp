@@ -11,48 +11,62 @@
 
 #include "addrman.h"
 #include "amount.h"
+#include "base58.h"
 #include "chain.h"
 #include "chainparams.h"
 #include "checkpoints.h"
 #include "compat/sanity.h"
 #include "consensus/validation.h"
-#include "dsnotificationinterface.h"
 #include "httpserver.h"
 #include "httprpc.h"
 #include "key.h"
 #include "validation.h"
-#include "messagesigner.h"
 #include "miner.h"
+#include "netbase.h"
 #include "net.h"
+#include "smartnode/netfulfilledman.h"
 #include "net_processing.h"
 #include "policy/policy.h"
 #include "rpc/server.h"
-#include "rpc/register.h"
 #include "script/standard.h"
 #include "script/sigcache.h"
-#include "smartnode/activesmartnode.h" 
-#include "smartnode/flat-database.h" 
-#include "smartnode/instantx.h"
-#include "smartnode/netfulfilledman.h" 
-#include "smartnode/smartnodeconfig.h" 
-#include "smartnode/smartnodeman.h"
-#include "smartnode/smartnodepayments.h" 
-#include "smartnode/smartnodesync.h" 
-#include "smartnode/spork.h"
 #include "scheduler.h"
-#include "timedata.h"
 #include "txdb.h"
 #include "txmempool.h"
 #include "torcontrol.h"
 #include "ui_interface.h"
 #include "util.h"
 #include "utilmoneystr.h"
+#include "utilstrencodings.h"
 #include "validationinterface.h"
 #ifdef ENABLE_WALLET
+#include "wallet/db.h"
 #include "wallet/wallet.h"
+#include "wallet/walletdb.h"
 #endif
+
+#include "smartnode/activesmartnode.h"
+#include "dsnotificationinterface.h"
+#include "smartnode/flat-database.h"
+//#include "governance.h"
+#include "smartnode/instantx.h"
+// #ifdef ENABLE_WALLET
+// #include "keepass.h"
+// #endif
+#include "smartnode/smartnodepayments.h"
+#include "smartnode/smartnodesync.h"
+#include "smartnode/smartnodeman.h"
+#include "smartnode/smartnodeconfig.h"
+#include "messagesigner.h"
+// #ifdef ENABLE_WALLET
+// #include "privatesend-client.h"
+// #endif // ENABLE_WALLET
+// #include "privatesend-server.h"
+#include "smartnode/spork.h"
+
 #include <stdint.h>
 #include <stdio.h>
+#include <memory>
 
 #ifndef WIN32
 #include <signal.h>
@@ -82,6 +96,7 @@ extern void ThreadSendAlert(CConnman& connman);
 CWallet* pwalletMain = NULL;
 #endif
 bool fFeeEstimatesInitialized = false;
+bool fRestartRequested = false;  // true: restart false: shutdown
 static const bool DEFAULT_PROXYRANDOMIZE = true;
 static const bool DEFAULT_REST_ENABLE = false;
 static const bool DEFAULT_DISABLE_SAFEMODE = false;
@@ -114,6 +129,7 @@ enum BindFlags {
 };
 
 static const char* FEE_ESTIMATES_FILENAME="fee_estimates.dat";
+CClientUIInterface uiInterface; // Declared but not defined in ui_interface.h
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -153,7 +169,7 @@ void StartShutdown()
 }
 bool ShutdownRequested()
 {
-    return fRequestShutdown;
+    return fRequestShutdown || fRestartRequested;
 }
 
 /**
@@ -191,11 +207,15 @@ void Interrupt(boost::thread_group& threadGroup)
     InterruptRPC();
     InterruptREST();
     InterruptTorControl();
+    if (g_connman)
+        g_connman->Interrupt();
     threadGroup.interrupt_all();
 }
 
-void Shutdown()
+void PrepareShutdown()
 {
+    fRequestShutdown = true; // Needed when we shutdown the wallet
+    fRestartRequested = true; // Needed when we restart the wallet
     LogPrintf("%s: In progress...\n", __func__);
     static CCriticalSection cs_Shutdown;
     TRY_LOCK(cs_Shutdown, lockShutdown);
@@ -206,9 +226,8 @@ void Shutdown()
     /// for example if the data directory was found to be locked.
     /// Be sure that anything that writes files or flushes caches only does this if the respective
     /// module was initialized.
-    RenameThread("bitcoin-shutoff");
+    RenameThread("dash-shutoff");
     mempool.AddTransactionsUpdated(1);
-
     StopHTTPRPC();
     StopREST();
     StopRPC();
@@ -217,8 +236,22 @@ void Shutdown()
     if (pwalletMain)
         pwalletMain->Flush(false);
 #endif
-    //StopNode();
-    StopTorControl();
+    //GenerateBitcoins(false, 0, Params(), *g_connman);
+    MapPort(false);
+    UnregisterValidationInterface(peerLogic.get());
+    peerLogic.reset();
+    g_connman.reset();
+
+    // STORE DATA CACHES INTO SERIALIZED DAT FILES
+    CFlatDB<CSmartnodeMan> flatdb1("sncache.dat", "magicSmartnodeCache");
+    flatdb1.Dump(mnodeman);
+    CFlatDB<CSmartnodePayments> flatdb2("snpayments.dat", "magicSmartnodePaymentsCache");
+    flatdb2.Dump(mnpayments);
+    //CFlatDB<CGovernanceManager> flatdb3("governance.dat", "magicGovernanceCache");
+    //flatdb3.Dump(governance);
+    CFlatDB<CNetFulfilledRequestManager> flatdb4("netfulfilled.dat", "magicFulfilledCache");
+    flatdb4.Dump(netfulfilledman);
+
     UnregisterNodeSignals(GetNodeSignals());
 
     if (fFeeEstimatesInitialized)
@@ -259,6 +292,12 @@ void Shutdown()
     }
 #endif
 
+    if (pdsNotificationInterface) {
+        UnregisterValidationInterface(pdsNotificationInterface);
+        delete pdsNotificationInterface;
+        pdsNotificationInterface = NULL;
+    }
+
 #ifndef WIN32
     try {
         boost::filesystem::remove(GetPidFile());
@@ -267,6 +306,16 @@ void Shutdown()
     }
 #endif
     UnregisterAllValidationInterfaces();
+}
+
+void Shutdown()
+{
+    // Shutdown part 1: prepare shutdown
+    if(!fRestartRequested){
+        PrepareShutdown();
+    }
+   // Shutdown part 2: Stop TOR thread and delete wallet instance
+    StopTorControl();
 #ifdef ENABLE_WALLET
     delete pwalletMain;
     pwalletMain = NULL;
@@ -287,6 +336,18 @@ void HandleSIGTERM(int)
 void HandleSIGHUP(int)
 {
     fReopenDebugLog = true;
+}
+
+bool static InitError(const std::string &str)
+{
+    uiInterface.ThreadSafeMessageBox(str, "", CClientUIInterface::MSG_ERROR);
+    return false;
+}
+
+bool static InitWarning(const std::string &str)
+{
+    uiInterface.ThreadSafeMessageBox(str, "", CClientUIInterface::MSG_WARNING);
+    return true;
 }
 
 bool static Bind(CConnman& connman, const CService &addr, unsigned int flags) {
@@ -533,21 +594,6 @@ static void BlockNotifyCallback(bool initialSync, const CBlockIndex *pBlockIndex
     boost::thread t(runCommand, strCmd); // thread runs free
 }
 
-//static bool fHaveGenesis = false;
-static boost::mutex cs_GenesisWait;
-static CConditionVariable condvar_GenesisWait;
-
-// static void BlockNotifyGenesisWait(bool, const CBlockIndex *pBlockIndex)
-// {
-//     if (pBlockIndex != NULL) {
-//         {
-//             boost::unique_lock<boost::mutex> lock_GenesisWait(cs_GenesisWait);
-//             fHaveGenesis = true;
-//         }
-//         condvar_GenesisWait.notify_all();
-//     }
-// }
-
 struct CImportingNow
 {
     CImportingNow() {
@@ -607,7 +653,7 @@ void CleanupBlockRevFiles()
 void ThreadImport(std::vector<boost::filesystem::path> vImportFiles)
 {
     const CChainParams& chainparams = Params();
-    RenameThread("smartcash-loadblk");
+    RenameThread("dash-loadblk");
     CImportingNow imp;
 
     // -reindex
@@ -716,6 +762,12 @@ void InitParameterInteraction()
             LogPrintf("%s: parameter interaction: -whitebind set -> setting -listen=1\n", __func__);
     }
 
+    if (GetBoolArg("-smartnode", false)) {
+        // smartnodes must accept connections from outside
+        if (SoftSetBoolArg("-listen", true))
+            LogPrintf("%s: parameter interaction: -smartnode=1 -> setting -listen=1\n", __func__);
+    }
+
     if (mapArgs.count("-connect") && mapMultiArgs["-connect"].size() > 0) {
         // when only connecting to trusted nodes, do not seed via DNS, or listen by default
         if (SoftSetBoolArg("-dnsseed", false))
@@ -785,6 +837,38 @@ void InitParameterInteraction()
         if (SoftSetArg("-instantsenddepth", 0))
             LogPrintf("%s: parameter interaction: -enableinstantsend=false -> setting -nInstantSendDepth=0\n", __func__);
     }
+
+#ifdef ENABLE_WALLET
+    // int nLiqProvTmp = GetArg("-liquidityprovider", DEFAULT_PRIVATESEND_LIQUIDITY);
+    // if (nLiqProvTmp > 0) {
+    //     mapArgs["-enableprivatesend"] = "1";
+    //     LogPrintf("%s: parameter interaction: -liquidityprovider=%d -> setting -enableprivatesend=1\n", __func__, nLiqProvTmp);
+    //     mapArgs["-privatesendrounds"] = "99999";
+    //     LogPrintf("%s: parameter interaction: -liquidityprovider=%d -> setting -privatesendrounds=99999\n", __func__, nLiqProvTmp);
+    //     mapArgs["-privatesendamount"] = "999999";
+    //     LogPrintf("%s: parameter interaction: -liquidityprovider=%d -> setting -privatesendamount=999999\n", __func__, nLiqProvTmp);
+    //     mapArgs["-privatesendmultisession"] = "0";
+    //     LogPrintf("%s: parameter interaction: -liquidityprovider=%d -> setting -privatesendmultisession=0\n", __func__, nLiqProvTmp);
+    // }
+
+    if (mapArgs.count("-hdseed") && IsHex(GetArg("-hdseed", "not hex")) && (mapArgs.count("-mnemonic") || mapArgs.count("-mnemonicpassphrase"))) {
+        mapArgs.erase("-mnemonic");
+        mapArgs.erase("-mnemonicpassphrase");
+        LogPrintf("%s: parameter interaction: can't use -hdseed and -mnemonic/-mnemonicpassphrase together, will prefer -seed\n", __func__);
+    }
+#endif // ENABLE_WALLET
+
+    // Make sure additional indexes are recalculated correctly in VerifyDB
+    // (we must reconnect blocks whenever we disconnect them for these indexes to work)
+    bool fAdditionalIndexes =
+        GetBoolArg("-addressindex", DEFAULT_ADDRESSINDEX) ||
+        GetBoolArg("-spentindex", DEFAULT_SPENTINDEX) ||
+        GetBoolArg("-timestampindex", DEFAULT_TIMESTAMPINDEX);
+
+    if (fAdditionalIndexes && GetArg("-checklevel", DEFAULT_CHECKLEVEL) < 4) {
+        mapArgs["-checklevel"] = "4";
+        LogPrintf("%s: parameter interaction: additional indexes -> setting -checklevel=4\n", __func__);
+    }
 }
 
 // static std::string ResolveErrMsg(const char * const optname, const std::string& strBind)
@@ -795,8 +879,10 @@ void InitParameterInteraction()
 void InitLogging()
 {
     fPrintToConsole = GetBoolArg("-printtoconsole", false);
+    fPrintToDebugLog = GetBoolArg("-printtodebuglog", true) && !fPrintToConsole;
     fLogTimestamps = GetBoolArg("-logtimestamps", DEFAULT_LOGTIMESTAMPS);
     fLogTimeMicros = GetBoolArg("-logtimemicros", DEFAULT_LOGTIMEMICROS);
+    fLogThreadNames = GetBoolArg("-logthreadnames", DEFAULT_LOGTHREADNAMES);
     fLogIPs = GetBoolArg("-logips", DEFAULT_LOGIPS);
 
     LogPrintf("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
@@ -1561,10 +1647,10 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
                              " or address book entries might be missing or incorrect."));
             }
             else if (nLoadWalletRet == DB_TOO_NEW)
-                strErrors << _("Error loading wallet.dat: Wallet requires newer version of Dash Core") << "\n";
+                strErrors << _("Error loading wallet.dat: Wallet requires newer version of Smartcash Core") << "\n";
             else if (nLoadWalletRet == DB_NEED_REWRITE)
             {
-                strErrors << _("Wallet needed to be rewritten: restart Dash Core to complete") << "\n";
+                strErrors << _("Wallet needed to be rewritten: restart Smartcash Core to complete") << "\n";
                 LogPrintf("%s", strErrors.str());
                 return InitError(strErrors.str());
             }
@@ -1854,14 +1940,14 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
         return InitError(_("Failed to load fulfilled requests cache from") + "\n" + (pathDB / strDBName).string());
     }
 
-    // ********************************************************* Step 11c: update block tip in Dash modules
+    // ********************************************************* Step 11c: update block tip in Smartcash modules
 
     // force UpdatedBlockTip to initialize nCachedBlockHeight for DS, MN payments and budgets
     // but don't call it directly to prevent triggering of other listeners like zmq etc.
     // GetMainSignals().UpdatedBlockTip(chainActive.Tip());
     pdsNotificationInterface->InitializeCurrentBlockTip();
 
-    // ********************************************************* Step 11d: start dash-privatesend thread
+    // ********************************************************* Step 11d: start smartcash-privatesend thread
 
     //threadGroup.create_thread(boost::bind(&ThreadCheckDarkSendPool));
 

@@ -737,7 +737,7 @@ std::pair<CService, std::set<uint256> > CSmartnodeMan::PopScheduledMnbRequestCon
 
 void CSmartnodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataStream& vRecv, CConnman& connman)
 {
-    if(fLiteMode) return; // disable all Dash specific functionality
+    if(fLiteMode) return; // disable all Smartcash specific functionality
 
     if (strCommand == NetMsgType::MNANNOUNCE) { //Smartnode Broadcast
 

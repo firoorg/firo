@@ -2,17 +2,12 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#if defined(HAVE_CONFIG_H)
-#include "config/bitcoin-config.h"
-#endif
-
 #include "bitcoingui.h"
 
 #include "bitcoinunits.h"
 #include "clientmodel.h"
 #include "guiconstants.h"
 #include "guiutil.h"
-#include "init.h"
 #include "modaloverlay.h"
 #include "networkstyle.h"
 #include "notificator.h"
@@ -21,13 +16,7 @@
 #include "optionsmodel.h"
 #include "platformstyle.h"
 #include "rpcconsole.h"
-#include "smartnodelist.h"
-#include "smartnode/smartnodesync.h"
-#include "ui_interface.h"
-#include "util.h"
 #include "utilitydialog.h"
-
-#include "smartrewardslist.h"
 
 #ifdef ENABLE_WALLET
 #include "walletframe.h"
@@ -38,10 +27,12 @@
 #include "macdockiconhandler.h"
 #endif
 
-
-
-
-
+#include "chainparams.h"
+#include "init.h"
+#include "ui_interface.h"
+#include "util.h"
+#include "smartnode/smartnodesync.h"
+#include "smartnodelist.h"
 
 #include <iostream>
 
@@ -54,7 +45,6 @@
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QMimeData>
-#include <QProgressBar>
 #include <QProgressDialog>
 #include <QSettings>
 #include <QShortcut>
@@ -160,7 +150,7 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *platformStyle, const NetworkStyle *n
 #endif
 
     rpcConsole = new RPCConsole(platformStyle, 0);
-    helpMessageDialog = new HelpMessageDialog(this, false);
+    helpMessageDialog = new HelpMessageDialog(this, HelpMessageDialog::cmdline);
 #ifdef ENABLE_WALLET
     if(enableWallet)
     {
@@ -690,7 +680,7 @@ void BitcoinGUI::aboutClicked()
     if(!clientModel)
         return;
 
-    HelpMessageDialog dlg(this, true);
+    HelpMessageDialog dlg(this, HelpMessageDialog::about);
     dlg.exec();
 }
 
