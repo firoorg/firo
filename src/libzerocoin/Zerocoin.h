@@ -34,6 +34,12 @@
 #define ZEROCOIN_SERIALNUMBER_PROOF         "SERIALNUMBER_PROOF"
 #define ZEROCOIN_PUBLICKEY_TO_SERIALNUMBER  "PUBLICKEY_TO_SERIALNUMBER"
 
+// Versions of zerocoin mint/spend transactions
+#define ZEROCOIN_TX_VERSION_1               1
+#define ZEROCOIN_TX_VERSION_2               2
+#define ZEROCOIN_TX_VERSION_1_5             15
+#define ZEROCOIN_TX_VERSION_3               30
+
 // Activate multithreaded mode for proof verification
 #define ZEROCOIN_THREADING 1
 

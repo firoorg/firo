@@ -59,7 +59,7 @@ CoinSpend::CoinSpend(const Params* p, const PrivateCoin& coin,
 	// 4. Proves that the coin is correct w.r.t. serial number and hidden coin secret
 	// (This proof is bound to the coin 'metadata', i.e., transaction hash)
 	uint256 metahash = signatureHash(m);
-    this->serialNumberSoK = SerialNumberSignatureOfKnowledge(p, coin, fullCommitmentToCoinUnderSerialParams, coin.getVersion()==3 ? metahash : uint256());
+    this->serialNumberSoK = SerialNumberSignatureOfKnowledge(p, coin, fullCommitmentToCoinUnderSerialParams, coin.getVersion()==ZEROCOIN_TX_VERSION_1_5 ? metahash : uint256());
 
 	if(coin.getVersion() == 2){
 	        // 5. Sign the transaction under the public key associate with the serial number.
@@ -96,7 +96,7 @@ bool CoinSpend::Verify(const Accumulator& a, const SpendMetaData &m) const {
     int ret = (a.getDenomination() == this->denomination)
                 && commitmentPoK.Verify(serialCommitmentToCoinValue, accCommitmentToCoinValue)
                 && accumulatorPoK.Verify(a, accCommitmentToCoinValue)
-                && serialNumberSoK.Verify(coinSerialNumber, serialCommitmentToCoinValue, this->version == 3 ? metahash : uint256());
+                && serialNumberSoK.Verify(coinSerialNumber, serialCommitmentToCoinValue, this->version == ZEROCOIN_TX_VERSION_1_5 ? metahash : uint256());
     if (!ret) {
             return false;
     }
