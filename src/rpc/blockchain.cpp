@@ -1130,6 +1130,7 @@ UniValue reconsiderblock(const UniValue& params, bool fHelp)
 
     std::string strHash = params[0].get_str();
     uint256 hash(uint256S(strHash));
+    CValidationState state;
 
     {
         LOCK(cs_main);
@@ -1137,11 +1138,12 @@ UniValue reconsiderblock(const UniValue& params, bool fHelp)
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
 
         CBlockIndex* pblockindex = mapBlockIndex[hash];
-        ResetBlockFailureFlags(pblockindex);
+        ReconsiderBlock(state, pblockindex);
     }
 
-    CValidationState state;
-    ActivateBestChain(state, Params());
+    if (state.IsValid()) {
+        ActivateBestChain(state, Params(), NULL);
+    }
 
     if (!state.IsValid()) {
         throw JSONRPCError(RPC_DATABASE_ERROR, state.GetRejectReason());

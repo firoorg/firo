@@ -623,7 +623,7 @@ int main(int argc, char *argv[])
     initTranslations(qtTranslatorBase, qtTranslator, translatorBase, translator);
 
 #ifdef ENABLE_WALLET
-    /// 7a. parse masternode.conf
+    /// 7a. parse smartnode.conf
     std::string strErr;
     if(!smartnodeConfig.read(strErr)) {
         QMessageBox::critical(0, QObject::tr("Smartcash Core"),
