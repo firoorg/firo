@@ -30,6 +30,22 @@ namespace libzerocoin {
  * and that it has a given serial number.
  */
 class CoinSpend {
+private:
+    template <typename Stream>
+    auto is_eof_helper(Stream &s, bool) -> decltype(s.eof()) {
+        return s.eof();
+    }
+
+    template <typename Stream>
+    bool is_eof_helper(Stream &s, int) {
+        return false;
+    }
+
+    template<typename Stream>
+    bool is_eof(Stream &s) {
+        return is_eof_helper(s, true);
+    }
+
 public:
 	template<typename Stream>
     CoinSpend(const Params* p,  Stream& strm):
@@ -95,8 +111,19 @@ public:
 		READWRITE(accumulatorPoK);
 		READWRITE(serialNumberSoK);
 		READWRITE(commitmentPoK);
-		if(version == 2){
-			READWRITE(version);
+
+        if (ser_action.ForRead()) {
+            if (is_eof(s))
+                version = ZEROCOIN_TX_VERSION_1;
+            else
+                READWRITE(version);
+        }
+        else {
+            if (version > ZEROCOIN_TX_VERSION_1)
+                READWRITE(version);
+        }
+
+        if(version == ZEROCOIN_TX_VERSION_2){
 		    READWRITE(ecdsaPubkey);
 		    READWRITE(ecdsaSignature);
 		}

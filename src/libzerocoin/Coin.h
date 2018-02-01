@@ -125,10 +125,20 @@ public:
         READWRITE(publicCoin);
         READWRITE(randomness);
         READWRITE(serialNumber);
-        if(version == 2){
-            READWRITE(version);
-            READWRITE(ecdsaSeckey);
+
+        if (ser_action.ForRead()) {
+            if (s.eof())
+                version = ZEROCOIN_TX_VERSION_1;
+            else
+                READWRITE(version);
         }
+        else {
+            if (version > ZEROCOIN_TX_VERSION_1)
+                READWRITE(version);
+        }
+
+        if(version == ZEROCOIN_TX_VERSION_2)
+            READWRITE(ecdsaSeckey);
     }
 
 private:
