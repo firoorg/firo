@@ -79,7 +79,7 @@ void CSmartnodeSync::SwitchToNextAsset(CConnman& connman)
             break;
         case(SMARTNODE_SYNC_MNW):
             LogPrintf("CSmartnodeSync::SwitchToNextAsset -- Completed %s in %llds\n", GetAssetName(), GetTime() - nTimeAssetSyncStarted);
-            nRequestedSmartnodeAssets = SMARTNODE_SYNC_GOVERNANCE;
+            nRequestedSmartnodeAssets = SMARTNODE_SYNC_FINISHED;
             LogPrintf("CSmartnodeSync::SwitchToNextAsset -- Starting %s\n", GetAssetName());
             break;
         case(SMARTNODE_SYNC_GOVERNANCE):

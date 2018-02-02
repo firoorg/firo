@@ -728,12 +728,9 @@
      <item>
       <widget class="QCheckBox" name="checkUseInstantSend">
        <property name="text">
-        <string>InstantPay(Disabled)</string>
+        <string>InstantPay</string>
        </property>
        <property name="checked">
-        <bool>false</bool>
-       </property>
-       <property name="enabled">
         <bool>false</bool>
        </property>
       </widget>

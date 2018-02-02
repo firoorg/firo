@@ -126,7 +126,7 @@ struct smartnode_info_t
 };
 
 //
-// The Smartnode Class. For managing the Darksend process. It contains the input of the 1000DRK, signature to prove
+// The Smartnode Class. For managing the Darksend process. It contains the input of the 10000 SMART, signature to prove
 // it's the one who own that ip address and code for calculating the payment election.
 //
 class CSmartnode : public smartnode_info_t
@@ -407,5 +407,7 @@ public:
         g_connman->RelayInv(inv);
     }
 };
+
+void ThreadSmartnode(CConnman& connman);
 
 #endif

@@ -2145,36 +2145,15 @@ void CWallet::AvailableCoins(vector <COutput> &vCoins, bool fOnlyConfirmed, cons
                 if(!found) continue;
 
                 isminetype mine = IsMine(pcoin->vout[i]);
-                //LogPrintf("!(IsSpent(wtxid, i)) = %s\n", !(IsSpent(wtxid, i)));
-                //LogPrintf("mine != ISMINE_NO = %s\n", mine != ISMINE_NO);
-                //LogPrintf("(!IsLockedCoin((*it).first, i) || nCoinType == ONLY_10000) = %s\n", (!IsLockedCoin((*it).first, i) || nCoinType == ONLY_10000));
-                //LogPrintf("(pcoin->vout[i].nValue > nMinimumInputValue) = %s\n", (pcoin->vout[i].nValue > nMinimumInputValue));
-                LogPrintf("!coinControl = %s\n", (
-                        !coinControl ||
-                        !coinControl->HasSelected() ||
-                        coinControl->fAllowOtherInputs ||
-                        coinControl->IsSelected(COutPoint((*it).first, i))
-                ));
-//                LogPrintf("!coinControl->HasSelected() = %s\n", !coinControl->HasSelected());
-//                LogPrintf("coinControl->fAllowOtherInputs = %s\n", coinControl->fAllowOtherInputs);
-//                LogPrintf("coinControl->IsSelected(COutPoint((*it).first, i)) = %s\n", coinControl->IsSelected(COutPoint((*it).first, i)));
-                if (!(IsSpent(wtxid, i)) &&
-                        mine != ISMINE_NO &&
-                        (!IsLockedCoin((*it).first, i) || nCoinType == ONLY_10000) &&
-                        (pcoin->vout[i].nValue > nMinimumInputValue) &&
-                        (
-                                !coinControl ||
-                                !coinControl->HasSelected() ||
-                                coinControl->fAllowOtherInputs ||
-                                coinControl->IsSelected(COutPoint((*it).first, i))
-                        )
-                    ) {
-                    vCoins.push_back(COutput(pcoin, i, nDepth,
-                                             ((mine & ISMINE_SPENDABLE) != ISMINE_NO) ||
-                                             (coinControl && coinControl->fAllowWatchOnly &&
-                                              (mine & ISMINE_WATCH_SOLVABLE) != ISMINE_NO),
-                                             (mine & (ISMINE_SPENDABLE | ISMINE_WATCH_SOLVABLE)) != ISMINE_NO));
-                }
+                if (!(IsSpent(wtxid, i)) && mine != ISMINE_NO &&
+                    (!IsLockedCoin((*it).first, i) || nCoinType == ONLY_10000) &&
+                    (pcoin->vout[i].nValue > 0 || fIncludeZeroValue) &&
+                    (!coinControl || !coinControl->HasSelected() || coinControl->fAllowOtherInputs || coinControl->IsSelected(COutPoint((*it).first, i))))
+                        vCoins.push_back(COutput(pcoin, i, nDepth,
+                                                 ((mine & ISMINE_SPENDABLE) != ISMINE_NO) ||
+                                                  (coinControl && coinControl->fAllowWatchOnly && (mine & ISMINE_WATCH_SOLVABLE) != ISMINE_NO),
+                                                 (mine & (ISMINE_SPENDABLE | ISMINE_WATCH_SOLVABLE)) != ISMINE_NO));
+                
             }
         }
     }

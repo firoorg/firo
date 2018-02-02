@@ -5,6 +5,7 @@
 #include "activesmartnode.h"
 #include "consensus/validation.h"
 #include "../init.h"
+#include "instantx.h"
 #include "../messagesigner.h"
 //#include "governance.h"
 #include "smartnode.h"
@@ -115,7 +116,7 @@ CSmartnode::CollateralStatus CSmartnode::CheckCollateral(const COutPoint& outpoi
         return COLLATERAL_UTXO_NOT_FOUND;
     }
 
-    if(coin.out.nValue != 1000 * COIN) {
+    if(coin.out.nValue != SMARTNODE_COIN_REQUIRED * COIN) {
         return COLLATERAL_INVALID_AMOUNT;
     }
 
@@ -251,7 +252,7 @@ bool CSmartnode::IsInputAssociatedWithPubkey()
     uint256 hash;
     if(GetTransaction(vin.prevout.hash, tx, Params().GetConsensus(), hash, true)) {
         BOOST_FOREACH(CTxOut out, tx.vout)
-            if(out.nValue == 1000*COIN && out.scriptPubKey == payee) return true;
+            if(out.nValue == SMARTNODE_COIN_REQUIRED*COIN && out.scriptPubKey == payee) return true;
     }
 
     return false;
@@ -870,5 +871,54 @@ void CSmartnode::FlagGovernanceItemsAsDirty()
     }
     for(size_t i = 0; i < vecDirty.size(); ++i) {
         mnodeman.AddDirtyGovernanceObjectHash(vecDirty[i]);
+    }
+}
+
+void ThreadSmartnode(CConnman& connman)
+{
+    if(fLiteMode) return; // disable all Dash specific functionality
+
+    static bool fOneThread;
+    if(fOneThread) return;
+    fOneThread = true;
+
+    // Make this thread recognisable as the PrivateSend thread
+    RenameThread("smartnode");
+
+    unsigned int nTick = 0;
+
+    while (true)
+    {
+        MilliSleep(1000);
+
+        // try to sync from all available nodes, one step at a time
+        smartnodeSync.ProcessTick(connman);
+
+        if(smartnodeSync.IsBlockchainSynced() && !ShutdownRequested()) {
+
+            nTick++;
+
+            // make sure to check all smartnodes first
+            mnodeman.Check();
+
+            // check if we should activate or ping every few minutes,
+            // slightly postpone first run to give net thread a chance to connect to some peers
+            if(nTick % SMARTNODE_MIN_MNP_SECONDS == 15)
+                activeSmartnode.ManageState(connman);
+
+            if(nTick % 60 == 0) {
+                mnodeman.ProcessSmartnodeConnections(connman);
+                mnodeman.CheckAndRemove(connman);
+                mnpayments.CheckAndRemove();
+                instantsend.CheckAndRemove();
+            }
+            if(fSmartNode && (nTick % (60 * 5) == 0)) {
+                mnodeman.DoFullVerificationStep(connman);
+            }
+
+            // if(nTick % (60 * 5) == 0) {
+            //     governance.DoMaintenance(connman);
+            // }
+        }
     }
 }

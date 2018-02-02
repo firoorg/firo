@@ -30,6 +30,7 @@ class WalletFrame;
 class WalletModel;
 class HelpMessageDialog;
 class ModalOverlay;
+class SmartnodeList;
 
 class CWallet;
 

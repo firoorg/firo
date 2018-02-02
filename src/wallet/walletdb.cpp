@@ -706,16 +706,45 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
                 return false;
             }
         }
-        else if (strType == "hdchain")
-        {
-            CHDChain chain;
-            ssValue >> chain;
-            if (!pwallet->SetHDChain(chain, true))
-            {
-                strErr = "Error reading wallet database: SetHDChain failed";
-                return false;
-            }
-        }
+        // else if (strType == "hdchain")
+        // {
+        //     CHDChain chain;
+        //     ssValue >> chain;
+        //     if (!pwallet->SetHDChain(chain, true))
+        //     {
+        //         strErr = "Error reading wallet database: SetHDChain failed";
+        //         return false;
+        //     }
+        // }
+        // else if (strType == "chdchain")
+        // {
+        //     CHDChain chain;
+        //     ssValue >> chain;
+        //     if (!pwallet->SetCryptedHDChain(chain, true))
+        //     {
+        //         strErr = "Error reading wallet database: SetHDCryptedChain failed";
+        //         return false;
+        //     }
+        // }
+        // else if (strType == "hdpubkey")
+        // {
+        //     CPubKey vchPubKey;
+        //     ssKey >> vchPubKey;
+
+        //     CHDPubKey hdPubKey;
+        //     ssValue >> hdPubKey;
+
+        //     if(vchPubKey != hdPubKey.extPubKey.pubkey)
+        //     {
+        //         strErr = "Error reading wallet database: CHDPubKey corrupt";
+        //         return false;
+        //     }
+        //     if (!pwallet->LoadHDPubKey(hdPubKey))
+        //     {
+        //         strErr = "Error reading wallet database: LoadHDPubKey failed";
+        //         return false;
+        //     }
+        // }
     } catch (...)
     {
         return false;
@@ -726,7 +755,8 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
 static bool IsKeyType(string strType)
 {
     return (strType== "key" || strType == "wkey" ||
-            strType == "mkey" || strType == "ckey");
+            strType == "mkey" || strType == "ckey" ||
+            strType == "hdchain" || strType == "chdchain");
 }
 
 DBErrors CWalletDB::LoadWallet(CWallet* pwallet)
@@ -772,6 +802,7 @@ DBErrors CWalletDB::LoadWallet(CWallet* pwallet)
             string strType, strErr;
             if (!ReadKeyValue(pwallet, ssKey, ssValue, wss, strType, strErr))
             {
+                LogPrintf("type %s\n", strType);
                 // losing keys is considered a catastrophic error, anything else
                 // we assume the user can live with:
                 if (IsKeyType(strType))
@@ -789,6 +820,10 @@ DBErrors CWalletDB::LoadWallet(CWallet* pwallet)
                 LogPrintf("%s\n", strErr);
         }
         pcursor->close();
+
+        // Store initial external keypool size since we mostly use external keys in mixing
+        pwallet->nKeysLeftSinceAutoBackup = pwallet->KeypoolCountExternalKeys();
+        LogPrintf("nKeysLeftSinceAutoBackup: %d\n", pwallet->nKeysLeftSinceAutoBackup);
     }
     catch (const boost::thread_interrupted&) {
         throw;
