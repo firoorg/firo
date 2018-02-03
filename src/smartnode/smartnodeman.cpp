@@ -518,7 +518,7 @@ bool CSmartnodeMan::GetNextSmartnodeInQueueForPayment(int nBlockHeight, bool fFi
         if(mnpayments.IsScheduled(mnpair.second, nBlockHeight)) continue;
 
         //it's too new, wait for a cycle
-        if(fFilterSigTime && mnpair.second.sigTime + (nMnCount*2.6*60) > GetAdjustedTime()) continue;
+        if(fFilterSigTime && mnpair.second.sigTime + (nMnCount*55) > GetAdjustedTime()) continue;
 
         //make sure it has at least as many confirmations as there are smartnodes
         if(GetUTXOConfirmations(mnpair.first) < nMnCount) continue;
