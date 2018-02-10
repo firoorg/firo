@@ -479,6 +479,14 @@ bool ZerocoinBuildStateFromIndex(CChain *chain) {
     zerocoinState.Reset();
     for (CBlockIndex *blockIndex = chain->Genesis(); blockIndex; blockIndex=chain->Next(blockIndex))
         zerocoinState.AddBlock(blockIndex);
+
+    // DEBUG
+    LogPrintf("Latest IDs are %d, %d, %d, %d, %d\n",
+              zerocoinState.latestCoinIds[1],
+               zerocoinState.latestCoinIds[10],
+            zerocoinState.latestCoinIds[25],
+            zerocoinState.latestCoinIds[50],
+            zerocoinState.latestCoinIds[100]);
 	return true;
 }
 

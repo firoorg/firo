@@ -18,6 +18,7 @@
 #include "wallet/walletdb.h"
 #include "wallet/rpcwallet.h"
 #include "../base58.h"
+#include "zerocoin_params.h"
 
 #include <algorithm>
 #include <map>
@@ -1061,6 +1062,22 @@ public:
 
 class CZerocoinEntry
 {
+private:
+    template <typename Stream>
+    auto is_eof_helper(Stream &s, bool) -> decltype(s.eof()) {
+        return s.eof();
+    }
+
+    template <typename Stream>
+    bool is_eof_helper(Stream &s, int) {
+        return false;
+    }
+
+    template<typename Stream>
+    bool is_eof(Stream &s) {
+        return is_eof_helper(s, true);
+    }
+
 public:
     //public
     Bignum value;
@@ -1068,6 +1085,7 @@ public:
     //private
     Bignum randomness;
     Bignum serialNumber;
+    vector<unsigned char> ecdsaSecretKey;
 
     bool IsUsed;
     int nHeight;
@@ -1089,6 +1107,11 @@ public:
         id = -1;
     }
 
+    bool IsCorrectV2Mint() const {
+        return value > 0 && randomness > 0 && serialNumber > 0 && serialNumber.bitSize() < 160 &&
+                ecdsaSecretKey.size() >= 32;
+    }
+
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
@@ -1100,6 +1123,18 @@ public:
         READWRITE(denomination);
         READWRITE(nHeight);
         READWRITE(id);
+        if (ser_action.ForRead()) {
+            if (!is_eof(s)) {
+                int nStoredVersion = 0;
+                READWRITE(nStoredVersion);
+                if (nStoredVersion >= ZC_ADVANCED_WALLETDB_MINT_VERSION)
+                    READWRITE(ecdsaSecretKey);
+            }
+        }
+        else {
+            READWRITE(nVersion);
+            READWRITE(ecdsaSecretKey);
+        }
     }
 
 };

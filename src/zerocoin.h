@@ -59,6 +59,7 @@ bool ZerocoinBuildStateFromIndex(CChain *chain);
  * State of minted/spent coins as extracted from the index
  */
 class CZerocoinState {
+friend bool ZerocoinBuildStateFromIndex(CChain *);
 public:
     // First and last block where mint (and hence accumulator update) with given denomination and id was seen
     struct CoinGroupInfo {

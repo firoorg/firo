@@ -14,11 +14,11 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 XZC mininput
 #define ZC_CHECK_DUPLICATE_MINT_AT_BLOCK    70000
 
 // The mint id number to change to zerocoin v2
-#define ZC_V2_SWITCH_ID_1 120
+#define ZC_V2_SWITCH_ID_1 165
 #define ZC_V2_SWITCH_ID_10 30
 #define ZC_V2_SWITCH_ID_25 15
 #define ZC_V2_SWITCH_ID_50 15
-#define ZC_V2_SWITCH_ID_100 30
+#define ZC_V2_SWITCH_ID_100 80
 
 // Zerocoin V1.5 starting blocks (main network and testnet)
 #define ZC_V1_5_STARTING_BLOCK              75000
@@ -29,6 +29,8 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 XZC mininput
 
 // Version of index that introduced storing accumulators and coin serials
 #define ZC_ADVANCED_INDEX_VERSION           130500
+// Version of wallet.db entry that introduced storing extra information for mints
+#define ZC_ADVANCED_WALLETDB_MINT_VERSION	130504
 
 // number of mint confirmations needed to spend coin
 #define ZC_MINT_CONFIRMATIONS               6

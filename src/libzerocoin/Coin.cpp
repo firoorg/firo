@@ -65,7 +65,8 @@ bool PublicCoin::validate() const{
 }
 
 //PrivateCoin class
-PrivateCoin::PrivateCoin(const Params* p, const CoinDenomination denomination): params(p), publicCoin(p) {
+PrivateCoin::PrivateCoin(const Params* p, CoinDenomination denomination, int version): params(p), publicCoin(p) {
+    this->version = version;
 	// Verify that the parameters are valid
 	if(this->params->initialized == false) {
 		throw ZerocoinException("Params are not initialized");
@@ -249,11 +250,6 @@ const PublicCoin& PrivateCoin::getPublicCoin() const {
 
 
 const Bignum PrivateCoin::serialNumberFromSerializedPublicKey(const std::vector<unsigned char> &pub)  {
-	if (pub.size() != 33) {
-		throw ZerocoinException(
-				"Wrong public key size. You must check the size before calling this function.");
-	}
-
 	std::string zpts(ZEROCOIN_PUBLICKEY_TO_SERIALNUMBER);
 	std::vector<unsigned char> pre(zpts.begin(), zpts.end());
 	std::copy(pub.begin(), pub.end(), std::back_inserter(pre));

@@ -96,7 +96,7 @@ public:
     PrivateCoin(const Params* p, Stream& strm): params(p), publicCoin(p) {
         strm >> *this;
     }
-    PrivateCoin(const Params* p,const CoinDenomination denomination = ZQ_LOVELACE);
+    PrivateCoin(const Params* p, CoinDenomination denomination = ZQ_LOVELACE, int version = ZEROCOIN_TX_VERSION_1);
     const PublicCoin& getPublicCoin() const;
     const Bignum& getSerialNumber() const;
     const Bignum& getRandomness() const;
