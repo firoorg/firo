@@ -3045,26 +3045,6 @@ bool CWallet::CreateTransaction(const vector <CRecipient> &vecSend, CWalletTx &w
                     if (dPriority >= dPriorityNeeded && AllowFree(dPriority))
                         break;
                 }
-//gf->
-//                int64_t nPayFee = payTxFee.GetFeePerK() * (1 + (int64_t) nBytes / 1000);
-//                bool fAllowFree = AllowFree(dPriority);// No free TXs in XZC
-//                fAllowFree = true;// Allow free for send
-//                int64_t nMinFee = wtxNew.GetMinFee(1, fAllowFree, GMF_SEND);
-//                int64_t nFeeNeeded = nPayFee;
-//                if (fUseInstantSend) {
-//                    nFeeNeeded = std::max(nFeeNeeded, CTxLockRequest(txNew).GetMinFee());
-//                }
-//                if (nFeeNeeded < nMinFee) {
-//                    nFeeNeeded = nMinFee;
-//                }
-
-// This is the original 0.13.2 Bitcoin code - and it works for the case where I need set
-// a fee by making the tx input(s) pay more by reducing the change output amount returned
-// by the calculated fee amount.
-
-// The Zcoin logic commented above I do not understand as I do not know the zcoin-specific 
-// design. So this is not a total fix. Rather a helper showing what is needed from the 
-// perspective of normal `fundrawtransaction` rpc calls   
  
                 CAmount nFeeNeeded = GetMinimumFee(nBytes, nTxConfirmTarget, mempool);
                 if (coinControl && nFeeNeeded > 0 && coinControl->nMinimumTotalFee > nFeeNeeded) {
@@ -3080,7 +3060,6 @@ bool CWallet::CreateTransaction(const vector <CRecipient> &vecSend, CWalletTx &w
                     strFailReason = _("Transaction too large for fee policy");
                     return false;
                 }
-//<-gf
 
                 if (nFeeRet >= nFeeNeeded)
                     break; // Done, enough fee included.
