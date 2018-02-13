@@ -3744,6 +3744,10 @@ bool CWallet::CreateZerocoinSpendTransaction(int64_t nValue, libzerocoin::CoinDe
             bool useVersion2 = IsZerocoinTxV2(denomination, coinId);
 
             if (useVersion2) {
+                if (!coinToUse.IsCorrectV2Mint()) {
+                    strFailReason = _("mint should be version 2");
+                    return false;
+                }
                 transactionHash = wtxNew.GetNormalizedHash();
                 accumulatorID = coinId;
              }
@@ -3775,6 +3779,7 @@ bool CWallet::CreateZerocoinSpendTransaction(int64_t nValue, libzerocoin::CoinDe
             privateCoin.setPublicCoin(pubCoinSelected);
             privateCoin.setRandomness(coinToUse.randomness);
             privateCoin.setSerialNumber(coinToUse.serialNumber);
+            privateCoin.setEcdsaSeckey(coinToUse.ecdsaSecretKey);
 
             libzerocoin::CoinSpend spend(ZCParams, privateCoin, accumulator, witness, metaData);
             spend.setVersion(txVersion);

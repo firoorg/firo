@@ -20,9 +20,15 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 XZC mininput
 #define ZC_V2_SWITCH_ID_50 15
 #define ZC_V2_SWITCH_ID_100 80
 
-// Zerocoin V1.5 starting blocks (main network and testnet)
-#define ZC_V1_5_STARTING_BLOCK              75000
-#define ZC_V1_5_TESTNET_STARTING_BLOCK      10
+// Same for testnet
+#define ZC_V2_TESTNET_SWITCH_ID_1 1
+#define ZC_V2_TESTNET_SWITCH_ID_10 1
+#define ZC_V2_TESTNET_SWITCH_ID_25 1
+#define ZC_V2_TESTNET_SWITCH_ID_50 1
+#define ZC_V2_TESTNET_SWITCH_ID_100 1
+
+#define ZC_V1_5_STARTING_BLOCK          80000
+#define ZC_V1_5_TESTNET_STARTING_BLOCK  1
 
 // Zerocoin coin id used in v3
 #define ZC_V3_SPEND_ID                      1000

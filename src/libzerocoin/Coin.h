@@ -120,6 +120,11 @@ public:
         version = nVersion;
     };
 
+    void setEcdsaSeckey(const vector<unsigned char> &seckey) {
+        if (seckey.size() == sizeof(ecdsaSeckey))
+            std::copy(seckey.cbegin(), seckey.cend(), &ecdsaSeckey[0]);
+    }
+
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
         READWRITE(publicCoin);

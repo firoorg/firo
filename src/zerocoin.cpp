@@ -69,8 +69,14 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
                                         SER_NETWORK, PROTOCOL_VERSION);
         libzerocoin::CoinSpend newSpend(ZCParams, serializedCoinSpend);
 
-        if (IsZerocoinTxV2(targetDenomination, pubcoinId))
-            newSpend.setVersion(2);
+        if (IsZerocoinTxV2(targetDenomination, pubcoinId)) {
+            // After threshold id all spends should be strictly version 2
+            if (newSpend.getVersion() != ZEROCOIN_TX_VERSION_2)
+                return state.DoS(100,
+                    false,
+                    NSEQUENCE_INCORRECT,
+                    "CTransaction::CheckTransaction() : Error: zerocoin spend should be version 2");
+        }
 
         // Create a new metadata object to contain the hash of the received
         // ZEROCOIN_SPEND transaction. If we were a real client we'd actually

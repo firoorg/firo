@@ -95,8 +95,12 @@ public:
 	CoinDenomination getDenomination() const;
 
 	void setVersion(unsigned int nVersion){
-	        version = nVersion;
+        version = nVersion;
 	}
+
+    int getVersion() const {
+        return version;
+    }
 
 	bool HasValidSerial() const;
 	bool Verify(const Accumulator& a, const SpendMetaData &metaData) const;
