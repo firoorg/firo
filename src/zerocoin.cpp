@@ -69,14 +69,14 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
                                         SER_NETWORK, PROTOCOL_VERSION);
         libzerocoin::CoinSpend newSpend(ZCParams, serializedCoinSpend);
 
-        if (IsZerocoinTxV2(targetDenomination, pubcoinId)) {
+        /*if (IsZerocoinTxV2(targetDenomination, pubcoinId)) {
             // After threshold id all spends should be strictly version 2
             if (newSpend.getVersion() != ZEROCOIN_TX_VERSION_2)
                 return state.DoS(100,
                     false,
                     NSEQUENCE_INCORRECT,
                     "CTransaction::CheckTransaction() : Error: zerocoin spend should be version 2");
-        }
+        }*/
 
         // Create a new metadata object to contain the hash of the received
         // ZEROCOIN_SPEND transaction. If we were a real client we'd actually
@@ -671,9 +671,10 @@ int CZerocoinState::GetAccumulatorValueForSpend(int maxHeight, int denomination,
     CBlockIndex *lastBlock = coinGroup.lastBlock;
 
     assert(lastBlock->accumulatorChanges.count(denomAndId) > 0);
+    assert(coinGroup.firstBlock->accumulatorChanges.count(denomAndId) > 0);
 
     int numberOfCoins = 0;
-    do {
+    for (;;) {
         if (lastBlock->accumulatorChanges.count(denomAndId) > 0) {
             if (lastBlock->nHeight <= maxHeight) {
                 if (numberOfCoins == 0) {
@@ -685,9 +686,12 @@ int CZerocoinState::GetAccumulatorValueForSpend(int maxHeight, int denomination,
                 numberOfCoins += lastBlock->accumulatorChanges[denomAndId].second;
             }
         }
-        if (lastBlock != coinGroup.firstBlock)
+
+        if (lastBlock == coinGroup.firstBlock)
+            break;
+        else
             lastBlock = lastBlock->pprev;
-    } while (lastBlock != coinGroup.firstBlock);
+    }
 
     return numberOfCoins;
 }

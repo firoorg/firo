@@ -253,18 +253,15 @@ const Bignum PrivateCoin::serialNumberFromSerializedPublicKey(const std::vector<
 	std::string zpts(ZEROCOIN_PUBLICKEY_TO_SERIALNUMBER);
 	std::vector<unsigned char> pre(zpts.begin(), zpts.end());
 	std::copy(pub.begin(), pub.end(), std::back_inserter(pre));
+
 	uint160 hash;
-	CRIPEMD160().Write(&pre[0], pre.size()).Finalize(hash.begin());
-	// We want the 160 least-significant bits of the pubkey to be the hash of the serial number.
-	// The remaining bits (incl. the sign bit) should be 0.
-	// Bignum reverses the bits when parsing a char vector (Bitcoin's hash byte order),
-	// so we put the hash at position 0 of the char vector.
-	// We need 1 additional byte to make sure that the sign bit is always 0.
-	std::vector<unsigned char> hash_vch(160 / 8 + 1, 0);
-	hash_vch.insert(hash_vch.end(), hash.begin(), hash.end());
-	//RIPEMD160(&pre[0], pre.size(), &hash[0]);
-	Bignum s(hash_vch);
-	return s;
+    CRIPEMD160().Write(pre.data(), pre.size()).Finalize(hash.begin());
+
+    // Use 160 bits of hash as coin serial. Bignum constuctor expects little-endian sequence of bytes,
+    // last zero byte is used to set sign bit to 0
+    std::vector<unsigned char> hash_vch(hash.begin(), hash.end());
+    hash_vch.push_back(0);
+    return Bignum(hash_vch);
 }
 
 } /* namespace libzerocoin */
