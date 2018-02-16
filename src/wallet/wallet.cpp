@@ -3621,9 +3621,6 @@ bool CWallet::CreateZerocoinSpendTransaction(int64_t nValue, libzerocoin::CoinDe
 
     wtxNew.BindWallet(this);
     CMutableTransaction txNew;
-    txNew.nLockTime = chainActive.Height();
-    if (GetRandInt(10) == 0)
-        txNew.nLockTime = std::max(0, (int) txNew.nLockTime - GetRandInt(100));
     {
         LOCK2(cs_main, cs_wallet);
         {
@@ -3715,46 +3712,23 @@ bool CWallet::CreateZerocoinSpendTransaction(int64_t nValue, libzerocoin::CoinDe
                 return false;
             }
 
-            // 4. Generate withness with follwing stmt
-            // libzerocoin::AccumulatorWitness witness(params, accumulator, newCoin.getPublicCoin());
-            // Add the public half of "newCoin" to the Accumulator itself.
-            // accumulator += newCoin.getPublicCoin();
-            libzerocoin::AccumulatorWitness witness = zerocoinState->GetWitnessForSpend(&chainActive, chainActive.Height()-(ZC_MINT_CONFIRMATIONS-1), denomination, coinId, coinToUse.value);
-
-            /*
-            // At this point we should generate a ZEROCOIN_SPEND transaction to
-            // send to the network. This network should include a set of outputs
-            // totalling to the value of one zerocoin (minus transaction fees).
-            //
-            // The format of this transaction is up to the implementer. Here we'll
-            // assume you've formatted this transaction and placed the hash into
-            // "transactionHash". We'll also assume "accumulatorHash" contains the
-            // hash of the last block whose transactions are in the accumulator.*/
-            uint256 transactionHash = ArithToUint256(0);
-            arith_uint256 accumulatorID = 0;
+            // 4. Get witness from the index
+            libzerocoin::AccumulatorWitness witness =
+                    zerocoinState->GetWitnessForSpend(&chainActive,
+                                                      chainActive.Height()-(ZC_MINT_CONFIRMATIONS-1),
+                                                      denomination, coinId,
+                                                      coinToUse.value);
 
             CTxIn newTxIn;
             newTxIn.nSequence = coinId;
             newTxIn.scriptSig = CScript();
             newTxIn.prevout.SetNull();
-            LogPrintf("txNew.vin.size(): %d\n", txNew.vin.size());
             txNew.vin.push_back(newTxIn);
-            LogPrintf("txNew.vin.size(): %d\n", txNew.vin.size());
 
             bool useVersion2 = IsZerocoinTxV2(denomination, coinId);
 
-            if (useVersion2) {
-                /*if (!coinToUse.IsCorrectV2Mint()) {
-                    strFailReason = _("mint should be version 2");
-                    return false;
-                }*/
-                transactionHash = wtxNew.GetNormalizedHash();
-                accumulatorID = coinId;
-             }
-
-            // Place "transactionHash" and "accumulatorBlockHash" into a new
-            // SpendMetaData object.
-            libzerocoin::SpendMetaData metaData(accumulatorID, transactionHash);
+            // We use incomplete transaction hash for now as a metadata
+            libzerocoin::SpendMetaData metaData(coinId, txNew.GetHash());
 
             // Construct the CoinSpend object. This acts like a signature on the
             // transaction.
@@ -3795,65 +3769,9 @@ bool CWallet::CreateZerocoinSpendTransaction(int64_t nValue, libzerocoin::CoinDe
             CDataStream serializedCoinSpend(SER_NETWORK, PROTOCOL_VERSION);
             serializedCoinSpend << spend;
 
-            CDataStream serializedCoinSpend2(SER_NETWORK, PROTOCOL_VERSION);
-            serializedCoinSpend2 << spend;
-
-
-            /********************************************************************/
-            // What is it:      Coin spend verification
-            // Who does it:     ALL PARTIES
-            // What it does:    Verifies that a CoinSpend signature is correct
-            //                  with respect to a ZEROCOIN_SPEND transaction hash.
-            //                  The client must also extract the serial number from
-            //                  the CoinSpend and verify that this serial number has
-            //                  not previously appeared in another ZEROCOIN_SPEND
-            //                  transaction.
-            /********************************************************************/
-
-            // Deserialize the CoinSpend intro a fresh object
-            libzerocoin::CoinSpend newSpend(ZCParams, serializedCoinSpend);
-            newSpend.setVersion(txVersion);
-
-            // Create a new metadata object to contain the hash of the received
-            // ZEROCOIN_SPEND transaction. If we were a real client we'd actually
-            // compute the hash of the received transaction here.
-            libzerocoin::SpendMetaData newMetadata(accumulatorID, transactionHash);
-
-            // If we were a real client we would now re-compute the Accumulator
-            // from the information given in the ZEROCOIN_SPEND transaction.
-            // For our purposes we'll just use the one we calculated above.
-            //
-            // Verify that the spend is valid with respect to the Accumulator
-            // and the Metadata
-            if (!newSpend.Verify(accumulator, newMetadata)) {
-                strFailReason = _("the newSpend coin transaction did not verify");
-                return false;
-            }
-
-            std::vector<char, zero_after_free_allocator<char> > data;
-            data = serializedCoinSpend2.vch;
-
-            CScript tmp = CScript() << OP_ZEROCOINSPEND << data.size();
-            tmp.insert(tmp.end(), data.begin(), data.end());
-            txNew.vin[0].scriptSig.clear();
-            txNew.vin[0].scriptSig.insert(txNew.vin[0].scriptSig.begin(), tmp.begin(), tmp.end());
-
-
-            std::vector<char, zero_after_free_allocator<char> > dataTxIn;
-            dataTxIn.insert(dataTxIn.end(), tmp.begin() + 4, tmp.end());
-
-            CDataStream serializedCoinSpendChecking(SER_NETWORK, PROTOCOL_VERSION);
-            serializedCoinSpendChecking.vch = dataTxIn;
-
-            // Deserialize the CoinSpend intro a fresh object
-            libzerocoin::CoinSpend newSpendChecking(ZCParams, serializedCoinSpendChecking);
-            newSpendChecking.setVersion(txVersion);
-
-            if (!newSpendChecking.Verify(accumulator, newMetadata)) {
-                strFailReason = _("the transaction did not verify");
-                return false;
-            }
-
+            CScript tmp = CScript() << OP_ZEROCOINSPEND << serializedCoinSpend.size();
+            tmp.insert(tmp.end(), serializedCoinSpend.begin(), serializedCoinSpend.end());
+            txNew.vin[0].scriptSig.assign(tmp.begin(), tmp.end());
 
             // Embed the constructed transaction data in wtxNew.
             *static_cast<CTransaction *>(&wtxNew) = CTransaction(txNew);

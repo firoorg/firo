@@ -78,14 +78,21 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
                     "CTransaction::CheckTransaction() : Error: zerocoin spend should be version 2");
         }*/
 
-        // Create a new metadata object to contain the hash of the received
-        // ZEROCOIN_SPEND transaction. If we were a real client we'd actually
-        // compute the hash of the received transaction here.
-        libzerocoin::SpendMetaData newMetadata(0, uint256());
-        if (pubcoinId > 0 && IsZerocoinTxV2(targetDenomination, pubcoinId)) {
-            newMetadata.accumulatorId = txin.nSequence;
-            newMetadata.txHash = tx.GetNormalizedHash();
+        uint256 txHashForMetadata;
+
+        if (newSpend.getVersion() > ZEROCOIN_TX_VERSION_2) {
+            // Obtain the hash of the transaction sans the zerocoin part
+            CMutableTransaction txTemp = tx;
+            BOOST_FOREACH(CTxIn &txTempIn, txTemp.vin) {
+                if (txTempIn.scriptSig.IsZerocoinSpend()) {
+                    txTempIn.scriptSig.clear();
+                    txTempIn.prevout.SetNull();
+                }
+            }
+            txHashForMetadata = txTemp.GetHash();
         }
+
+        libzerocoin::SpendMetaData newMetadata(txin.nSequence, txHashForMetadata);
 
         CZerocoinState::CoinGroupInfo coinGroup;
         if (!zerocoinState.GetCoinGroupInfo(targetDenomination, pubcoinId, coinGroup))

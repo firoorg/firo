@@ -102,35 +102,35 @@ bool CoinSpend::Verify(const Accumulator& a, const SpendMetaData &m) const {
     }
 
 
-    if(this->version != 2){
+    if (this->version != 2) {
         return ret;
-    }else{
-        int hashBits = 160;
-        Bignum hashMax(1);
-        hashMax <<= 160;
+    }
+    else {
         // Check if this is a coin that requires a signatures
-        if (coinSerialNumber < hashMax) {
-            // Check sizes
-            if (this->ecdsaPubkey.size() != 33 || this->ecdsaSignature.size() != 64) {
-                return false;
-            }
+        if (coinSerialNumber.bitSize() > 160)
+            return false;
 
-            // Recompute and compare hash of public key
-            if (coinSerialNumber != PrivateCoin::serialNumberFromSerializedPublicKey(ecdsaPubkey)) {
-                return false;
-            }
+        // Check sizes
+        if (this->ecdsaPubkey.size() != 33 || this->ecdsaSignature.size() != 64) {
+            return false;
+        }
 
-            // Verify signature
-            secp256k1_pubkey pubkey;
-            secp256k1_ecdsa_signature signature;
+        // Verify signature
+        secp256k1_pubkey pubkey;
+        secp256k1_ecdsa_signature signature;
 
-            if (!secp256k1_ec_pubkey_parse(ctx, &pubkey, &this->ecdsaPubkey[0], 33)) {
-                return false;
-            }
-            secp256k1_ecdsa_signature_parse_compact(ctx, &signature, &this->ecdsaSignature[0]);
-            if (!secp256k1_ecdsa_verify(ctx, &signature, metahash.begin(), &pubkey)) {
-                return false;
-            }
+        if (!secp256k1_ec_pubkey_parse(ctx, &pubkey, ecdsaPubkey.data(), 33)) {
+            return false;
+        }
+
+        // Recompute and compare hash of public key
+        if (coinSerialNumber != PrivateCoin::serialNumberFromSerializedPublicKey(ctx, &pubkey)) {
+            return false;
+        }
+
+        secp256k1_ecdsa_signature_parse_compact(ctx, &signature, ecdsaSignature.data());
+        if (!secp256k1_ecdsa_verify(ctx, &signature, metahash.begin(), &pubkey)) {
+            return false;
         }
 
         return true;

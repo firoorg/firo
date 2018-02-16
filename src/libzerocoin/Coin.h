@@ -102,7 +102,7 @@ public:
     const Bignum& getRandomness() const;
     const unsigned char* getEcdsaSeckey() const;
     unsigned int getVersion() const;
-    static const Bignum serialNumberFromSerializedPublicKey(const std::vector<unsigned char> &pub);
+    static const Bignum serialNumberFromSerializedPublicKey(secp256k1_context *ctx, secp256k1_pubkey *pubkey);
 
     void setPublicCoin(PublicCoin p){
         publicCoin = p;
@@ -142,7 +142,7 @@ public:
                 READWRITE(version);
         }
 
-        if(version == ZEROCOIN_TX_VERSION_2)
+        if (version == ZEROCOIN_TX_VERSION_2)
             READWRITE(ecdsaSeckey);
     }
 

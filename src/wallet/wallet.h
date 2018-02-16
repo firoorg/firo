@@ -1108,7 +1108,7 @@ public:
     }
 
     bool IsCorrectV2Mint() const {
-        return value > 0 && randomness > 0 && serialNumber > 0 && serialNumber.bitSize() < 160 &&
+        return value > 0 && randomness > 0 && serialNumber > 0 && serialNumber.bitSize() <= 160 &&
                 ecdsaSecretKey.size() >= 32;
     }
 
