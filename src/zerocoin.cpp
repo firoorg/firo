@@ -80,7 +80,7 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
 
         uint256 txHashForMetadata;
 
-        if (newSpend.getVersion() > ZEROCOIN_TX_VERSION_2) {
+        if (newSpend.getVersion() >= ZEROCOIN_TX_VERSION_2) {
             // Obtain the hash of the transaction sans the zerocoin part
             CMutableTransaction txTemp = tx;
             BOOST_FOREACH(CTxIn &txTempIn, txTemp.vin) {
