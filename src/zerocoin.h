@@ -42,10 +42,13 @@ public:
     // serial for every spend
     set<CBigNum> spentSerials;
 
+    // are there v1 spends in the block?
+    bool fHasSpendV1;
+
     // information about transactions in the block is complete
     bool fInfoIsComplete;
 
-    CZerocoinTxInfo(): fInfoIsComplete(false) {}
+    CZerocoinTxInfo(): fHasSpendV1(false), fInfoIsComplete(false) {}
     // finalize everything
     void Complete();
 };

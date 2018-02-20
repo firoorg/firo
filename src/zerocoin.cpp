@@ -69,18 +69,18 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
                                         SER_NETWORK, PROTOCOL_VERSION);
         libzerocoin::CoinSpend newSpend(ZCParams, serializedCoinSpend);
 
-        /*if (IsZerocoinTxV2(targetDenomination, pubcoinId)) {
+        if (IsZerocoinTxV2(targetDenomination, pubcoinId)) {
             // After threshold id all spends should be strictly version 2
             if (newSpend.getVersion() != ZEROCOIN_TX_VERSION_2)
                 return state.DoS(100,
                     false,
                     NSEQUENCE_INCORRECT,
                     "CTransaction::CheckTransaction() : Error: zerocoin spend should be version 2");
-        }*/
+        }
 
         uint256 txHashForMetadata;
 
-        if (newSpend.getVersion() >= ZEROCOIN_TX_VERSION_2) {
+        if (newSpend.getVersion() > ZEROCOIN_TX_VERSION_1) {
             // Obtain the hash of the transaction sans the zerocoin part
             CMutableTransaction txTemp = tx;
             BOOST_FOREACH(CTxIn &txTempIn, txTemp.vin) {
@@ -91,6 +91,8 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
             }
             txHashForMetadata = txTemp.GetHash();
         }
+
+        LogPrintf("CheckSpendZcoinTransaction: tx version=%d, tx metadata hash=%s\n", newSpend.getVersion(), txHashForMetadata.ToString());
 
         libzerocoin::SpendMetaData newMetadata(txin.nSequence, txHashForMetadata);
 
@@ -180,6 +182,9 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
                     // add spend information to the index
                     zerocoinTxInfo->spentSerials.insert(serial);
                     zerocoinTxInfo->zcTransactions.insert(hashTx);
+
+                    if (newSpend.getVersion() == ZEROCOIN_TX_VERSION_1)
+                        zerocoinTxInfo->fHasSpendV1 = true;
                 }
             }
         }
@@ -438,6 +443,17 @@ bool ConnectTipZC(CValidationState &state, const CChainParams &chainparams, CBlo
 
     // Add zerocoin transaction information to index
     if (pblock && pblock->zerocoinTxInfo) {
+        if (pblock->zerocoinTxInfo->fHasSpendV1) {
+            // Don't allow spend v1s after some point of time
+            int allowV1Height =
+                    chainparams.NetworkIDString() == CBaseChainParams::TESTNET ?
+                        ZC_V1_5_TESTNET_STARTING_BLOCK : ZC_V1_5_STARTING_BLOCK;
+            if (pindexNew->nHeight >= allowV1Height + ZC_V1_5_GRACEFUL_PERIOD) {
+                LogPrintf("ConnectTipZC: spend v1 is not allowed after block %d\n", allowV1Height);
+                return false;
+            }
+        }
+
         pindexNew->spentSerials = pblock->zerocoinTxInfo->spentSerials;
 
         // Update minted values and accumulators
@@ -466,13 +482,12 @@ bool ConnectTipZC(CValidationState &state, const CChainParams &chainparams, CBlo
             else {
                 pindexNew->accumulatorChanges[denomAndId] = make_pair(accumulator.getValue(), 1);
             }
-        }
+        }               
     }
     else {
         zerocoinState.AddBlock(pindexNew);
     }
 
-    // TODO: notify the wallet
 	return true;
 }
 
