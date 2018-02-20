@@ -3045,16 +3045,20 @@ bool CWallet::CreateTransaction(const vector <CRecipient> &vecSend, CWalletTx &w
                     if (dPriority >= dPriorityNeeded && AllowFree(dPriority))
                         break;
                 }
-                int64_t nPayFee = payTxFee.GetFeePerK() * (1 + (int64_t) nBytes / 1000);
-                bool fAllowFree = AllowFree(dPriority);// No free TXs in XZC
-                fAllowFree = true;// Allow free for send
-                int64_t nMinFee = wtxNew.GetMinFee(1, fAllowFree, GMF_SEND);
-                int64_t nFeeNeeded = nPayFee;
-                if (fUseInstantSend) {
-                    nFeeNeeded = std::max(nFeeNeeded, CTxLockRequest(txNew).GetMinFee());
+ 
+                CAmount nFeeNeeded = GetMinimumFee(nBytes, nTxConfirmTarget, mempool);
+                if (coinControl && nFeeNeeded > 0 && coinControl->nMinimumTotalFee > nFeeNeeded) {
+                    nFeeNeeded = coinControl->nMinimumTotalFee;
                 }
-                if (nFeeNeeded < nMinFee) {
-                    nFeeNeeded = nMinFee;
+                if (coinControl && coinControl->fOverrideFeeRate)
+                    nFeeNeeded = coinControl->nFeeRate.GetFee(nBytes);
+
+                // If we made it here and we aren't even able to meet the relay fee on the next pass, give up
+                // because we must be at the maximum allowed fee.
+                if (nFeeNeeded < ::minRelayTxFee.GetFee(nBytes))
+                {
+                    strFailReason = _("Transaction too large for fee policy");
+                    return false;
                 }
 
                 if (nFeeRet >= nFeeNeeded)
