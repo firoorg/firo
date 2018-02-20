@@ -94,10 +94,10 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
 
         LogPrintf("CheckSpendZcoinTransaction: tx version=%d, tx metadata hash=%s\n", newSpend.getVersion(), txHashForMetadata.ToString());
 
-        if (newSpend.getVersion() == ZEROCOIN_TX_VERSION_1) {
+        if (newSpend.getVersion() == ZEROCOIN_TX_VERSION_1 && nHeight == INT_MAX) {
             bool fTestNet = Params().NetworkIDString() == CBaseChainParams::TESTNET;
-            int txHeight = nHeight;
-            if (txHeight == INT_MAX) {
+            int txHeight;
+            {
                 LOCK(cs_main);
                 txHeight = chainActive.Height();
             }
