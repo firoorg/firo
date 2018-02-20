@@ -94,6 +94,21 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
 
         LogPrintf("CheckSpendZcoinTransaction: tx version=%d, tx metadata hash=%s\n", newSpend.getVersion(), txHashForMetadata.ToString());
 
+        if (newSpend.getVersion() == ZEROCOIN_TX_VERSION_1) {
+            bool fTestNet = Params().NetworkIDString() == CBaseChainParams::TESTNET;
+            int txHeight = nHeight;
+            if (txHeight == INT_MAX) {
+                LOCK(cs_main);
+                txHeight = chainActive.Height();
+            }
+            int allowedV1Height = fTestNet ? ZC_V1_5_TESTNET_STARTING_BLOCK : ZC_V1_5_STARTING_BLOCK;
+            if (txHeight >= allowedV1Height + ZC_V1_5_GRACEFUL_MEMPOOL_PERIOD) {
+                LogPrintf("CheckSpendZcoinTransaction: cannot allow spend v1 into mempool after block %d\n",
+                          allowedV1Height + ZC_V1_5_GRACEFUL_MEMPOOL_PERIOD);
+                return false;
+            }
+        }
+
         libzerocoin::SpendMetaData newMetadata(txin.nSequence, txHashForMetadata);
 
         CZerocoinState::CoinGroupInfo coinGroup;
