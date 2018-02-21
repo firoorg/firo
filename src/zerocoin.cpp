@@ -77,6 +77,11 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
                     NSEQUENCE_INCORRECT,
                     "CTransaction::CheckTransaction() : Error: zerocoin spend should be version 2");
         }
+        else {
+            // old spends are probably incorrect, force spend to version 1
+            if (newSpend.getVersion() == ZEROCOIN_TX_VERSION_2)
+                newSpend.setVersion(ZEROCOIN_TX_VERSION_1);
+        }
 
         uint256 txHashForMetadata;
 
