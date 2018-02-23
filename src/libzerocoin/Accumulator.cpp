@@ -56,13 +56,11 @@ void Accumulator::accumulate(const PublicCoin& coin, bool validateCoin) {
 		throw ZerocoinException(msg);
 	}
 
-	if(validateCoin) {
-		if(coin.validate()) {
-			// Compute new accumulator = "old accumulator"^{element} mod N
-			this->value = this->value.pow_mod(coin.getValue(), this->params->accumulatorModulus);
-		} else {
-			throw ZerocoinException("Coin is not valid");
-		}
+	if(!validateCoin || coin.validate()) {
+		// Compute new accumulator = "old accumulator"^{element} mod N
+		this->value = this->value.pow_mod(coin.getValue(), this->params->accumulatorModulus);
+	} else {
+		throw ZerocoinException("Coin is not valid");
 	}
 }
 

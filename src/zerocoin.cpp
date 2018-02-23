@@ -121,34 +121,32 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
         CBlockIndex *index = coinGroup.lastBlock;
         pair<int,int> denominationAndId = make_pair(targetDenomination, pubcoinId);
 		
-		bool testBlockHash = false;
-		uint256 accumulatorBlockHash;
+		bool spendHasBlockHash = false;
 		
 		// Zerocoin v2 transaction can cointain block hash of the last mint tx seen at the moment of spend. It speeds
 		// up verification
 		if (newSpend.getVersion() == ZEROCOIN_TX_VERSION_2 && !newSpend.getAccumulatorBlockHash().IsNull()) {
-			testBlockHash = true;
-			accumulatorBlockHash = newSpend.getAccumulatorBlockHash();
+			spendHasBlockHash = true;
+			uint256 accumulatorBlockHash = newSpend.getAccumulatorBlockHash();
+			
+			// find index for block with hash of accumulatorBlockHash or set index to the coinGroup.firstBlock if not found
+			while (index != coinGroup.firstBlock || index->GetBlockHash() != accumulatorBlockHash)
+				index = index->pprev;
 		}
 
         // Enumerate all the accumulator changes seen in the blockchain starting with the latest block
         // In most cases the latest accumulator value will be used for verification
         do {
-            if ((testBlockHash && index->GetBlockHash() == accumulatorBlockHash) ||
-					(!testBlockHash && index->accumulatorChanges.count(denominationAndId) > 0)) {
-						
+            if (index->accumulatorChanges.count(denominationAndId) > 0) {						
                 libzerocoin::Accumulator accumulator(ZCParams,
                                                      index->accumulatorChanges[denominationAndId].first,
                                                      targetDenomination);
                 LogPrintf("CheckSpendZcoinTransaction: accumulator=%s\n", accumulator.getValue().ToString().substr(0,15));
                 passVerify = newSpend.Verify(accumulator, newMetadata);
-						
-				// in case spend transaction contains block hash no need to look further
-				if (testBlockHash)
-					break;
             }
 
-            if (index == coinGroup.firstBlock)
+	        // if spend has block hash we don't need to look further
+			if (index == coinGroup.firstBlock || spendHasBlockHash)
                 break;
             else
                 index = index->pprev;
@@ -598,7 +596,7 @@ int CZerocoinState::AddMint(CBlockIndex *index, int denomination, const CBigNum 
     // There is a limit of 10 coins per group but mints belonging to the same block must have the same id thus going
     // beyond 10
     CoinGroupInfo &coinGroup = coinGroups[make_pair(denomination, mintId)];
-	int coinsPerId = IsZerocoinTxV2((libzerocoin::CoinDenomination)denomination, mintId) ? ZC_SPEND_V1_COINSPERID : ZC_SPEND_V2_COINSPERID;
+	int coinsPerId = IsZerocoinTxV2((libzerocoin::CoinDenomination)denomination, mintId) ? ZC_SPEND_V2_COINSPERID : ZC_SPEND_V1_COINSPERID;
     if (coinGroup.nCoins < coinsPerId || coinGroup.lastBlock == index) {
         if (coinGroup.nCoins++ == 0) {
             // first groups of coins for given denomination
