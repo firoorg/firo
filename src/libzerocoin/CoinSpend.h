@@ -80,7 +80,8 @@ public:
 	 * 			(i.e. the transaction hash)
 	 * @throw ZerocoinException if the process fails
 	 */
-	CoinSpend(const Params* p, const PrivateCoin& coin, Accumulator& a, const AccumulatorWitness& witness, const SpendMetaData& m);
+	CoinSpend(const Params* p, const PrivateCoin& coin, Accumulator& a, const AccumulatorWitness& witness,
+			const SpendMetaData& m, uint256 _accumulatorBlockHash=uint256());
 
 	/** Returns the serial number of the coin spend by this proof.
 	 *
@@ -101,6 +102,10 @@ public:
     int getVersion() const {
         return version;
     }
+	
+	uint256 getAccumulatorBlockHash() const {
+		return accumulatorBlockHash;
+	}
 
 	bool HasValidSerial() const;
 	bool Verify(const Accumulator& a, const SpendMetaData &metaData) const;
@@ -127,9 +132,11 @@ public:
                 READWRITE(version);
         }
 
-        if(version == ZEROCOIN_TX_VERSION_2){
+        if (version == ZEROCOIN_TX_VERSION_2) {
 		    READWRITE(ecdsaPubkey);
 		    READWRITE(ecdsaSignature);
+	        if (!(ser_action.ForRead() && is_eof(s)))
+				READWRITE(accumulatorBlockHash);
 		}
 	}
 
@@ -148,6 +155,7 @@ private:
 	AccumulatorProofOfKnowledge accumulatorPoK;
 	SerialNumberSignatureOfKnowledge serialNumberSoK;
 	CommitmentProofOfKnowledge commitmentPoK;
+	uint256 accumulatorBlockHash;
 };
 
 } /* namespace libzerocoin */

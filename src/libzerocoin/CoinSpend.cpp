@@ -15,15 +15,17 @@
 namespace libzerocoin {
 
 CoinSpend::CoinSpend(const Params* p, const PrivateCoin& coin,
-                     Accumulator& a, const AccumulatorWitness& witness, const SpendMetaData& m):
+                     Accumulator& a, const AccumulatorWitness& witness, const SpendMetaData& m,
+					uint256 _accumulatorBlockHash):
 	params(p),
 	denomination(coin.getPublicCoin().getDenomination()),
+	ecdsaPubkey(33, 0),
+	ecdsaSignature(64, 0),
 	coinSerialNumber((coin.getSerialNumber())),
 	accumulatorPoK(&p->accumulatorParams),
 	serialNumberSoK(p),
 	commitmentPoK(&p->serialNumberSoKCommitmentGroup, &p->accumulatorParams.accumulatorPoKCommitmentGroup),
-	    ecdsaPubkey(33, 0),
-	    ecdsaSignature(64, 0)
+	accumulatorBlockHash(_accumulatorBlockHash)
 {
 
 	// Sanity check: let's verify that the Witness is valid with respect to

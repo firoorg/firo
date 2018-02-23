@@ -102,10 +102,7 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
         if (newSpend.getVersion() == ZEROCOIN_TX_VERSION_1 && nHeight == INT_MAX) {
             bool fTestNet = Params().NetworkIDString() == CBaseChainParams::TESTNET;
             int txHeight;
-            {
-                LOCK(cs_main);
-                txHeight = chainActive.Height();
-            }
+            txHeight = chainActive.Height();
             int allowedV1Height = fTestNet ? ZC_V1_5_TESTNET_STARTING_BLOCK : ZC_V1_5_STARTING_BLOCK;
             if (txHeight >= allowedV1Height + ZC_V1_5_GRACEFUL_MEMPOOL_PERIOD) {
                 LogPrintf("CheckSpendZcoinTransaction: cannot allow spend v1 into mempool after block %d\n",
@@ -123,16 +120,32 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
         bool passVerify = false;
         CBlockIndex *index = coinGroup.lastBlock;
         pair<int,int> denominationAndId = make_pair(targetDenomination, pubcoinId);
+		
+		bool testBlockHash = false;
+		uint256 accumulatorBlockHash;
+		
+		// Zerocoin v2 transaction can cointain block hash of the last mint tx seen at the moment of spend. It speeds
+		// up verification
+		if (newSpend.getVersion() == ZEROCOIN_TX_VERSION_2 && !newSpend.getAccumulatorBlockHash().IsNull()) {
+			testBlockHash = true;
+			accumulatorBlockHash = newSpend.getAccumulatorBlockHash();
+		}
 
         // Enumerate all the accumulator changes seen in the blockchain starting with the latest block
         // In most cases the latest accumulator value will be used for verification
         do {
-            if (index->accumulatorChanges.count(denominationAndId) > 0) {
+            if ((testBlockHash && index->GetBlockHash() == accumulatorBlockHash) ||
+					(!testBlockHash && index->accumulatorChanges.count(denominationAndId) > 0)) {
+						
                 libzerocoin::Accumulator accumulator(ZCParams,
                                                      index->accumulatorChanges[denominationAndId].first,
                                                      targetDenomination);
                 LogPrintf("CheckSpendZcoinTransaction: accumulator=%s\n", accumulator.getValue().ToString().substr(0,15));
                 passVerify = newSpend.Verify(accumulator, newMetadata);
+						
+				// in case spend transaction contains block hash no need to look further
+				if (testBlockHash)
+					break;
             }
 
             if (index == coinGroup.firstBlock)
@@ -143,7 +156,8 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
 
         // Rare case: accumulator value contains some but NOT ALL coins from one block. In this case we will
         // have to enumerate over coins manually. No optimization is really needed here because it's a rarity
-        if (!passVerify) {
+		// This can't happen if spend is of version 2
+        if (!passVerify && newSpend.getVersion() != ZEROCOIN_TX_VERSION_2) {
             // Build vector of coins sorted by the time of mint
             index = coinGroup.lastBlock;
             vector<CBigNum> pubCoins = index->mintedPubCoins[denominationAndId];
@@ -584,7 +598,8 @@ int CZerocoinState::AddMint(CBlockIndex *index, int denomination, const CBigNum 
     // There is a limit of 10 coins per group but mints belonging to the same block must have the same id thus going
     // beyond 10
     CoinGroupInfo &coinGroup = coinGroups[make_pair(denomination, mintId)];
-    if (coinGroup.nCoins < 10 || coinGroup.lastBlock == index) {
+	int coinsPerId = IsZerocoinTxV2((libzerocoin::CoinDenomination)denomination, mintId) ? ZC_SPEND_V1_COINSPERID : ZC_SPEND_V2_COINSPERID;
+    if (coinGroup.nCoins < coinsPerId || coinGroup.lastBlock == index) {
         if (coinGroup.nCoins++ == 0) {
             // first groups of coins for given denomination
             coinGroup.firstBlock = coinGroup.lastBlock = index;

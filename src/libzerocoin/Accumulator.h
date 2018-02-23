@@ -59,7 +59,7 @@ public:
 	 * @throw		Zerocoin exception if the coin is not valid.
 	 *
 	 **/
-    void accumulate(const PublicCoin &coin);
+    void accumulate(const PublicCoin &coin, bool validateCoin=false);
 
 	CoinDenomination getDenomination() const;
 	/** Get the accumulator result

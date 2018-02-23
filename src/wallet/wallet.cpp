@@ -3180,12 +3180,23 @@ bool CWallet::CreateZerocoinMintModel(string &stringError, string denomAmount) {
 
     // Set up the Zerocoin Params object
     libzerocoin::Params *ZCParams = new libzerocoin::Params(bnTrustedModulus);
+	
+	int mintVersion = ZEROCOIN_TX_VERSION_1;
+	
+	// do not use v2 mint until certain moment when it would be understood by peers
+	{
+		LOCK(cs_main);
+		bool fTestNet = Params().NetworkIDString() == CBaseChainParams::TESTNET;
+		int allowedV1Height = fTestNet ? ZC_V1_5_TESTNET_STARTING_BLOCK : ZC_V1_5_STARTING_BLOCK;
+		if (chainActive.Height() >= allowedV1Height)
+			mintVersion = ZEROCOIN_TX_VERSION_2;
+	}
 
     // The following constructor does all the work of minting a brand
     // new zerocoin. It stores all the private values inside the
     // PrivateCoin object. This includes the coin secrets, which must be
     // stored in a secure location (wallet) at the client.
-    libzerocoin::PrivateCoin newCoin(ZCParams, denomination, ZEROCOIN_TX_VERSION_2);
+    libzerocoin::PrivateCoin newCoin(ZCParams, denomination, mintVersion);
 
     // Get a copy of the 'public' portion of the coin. You should
     // embed this into a Zerocoin 'MINT' transaction along with a series
@@ -3665,7 +3676,7 @@ bool CWallet::CreateZerocoinSpendTransaction(int64_t nValue, libzerocoin::CoinDe
             CZerocoinState *zerocoinState = CZerocoinState::GetZerocoinState();
 
             CBigNum accumulatorValue;
-            uint256 blockHash;      // to be used in zerocoin spend v3
+            uint256 accumulatorBlockHash;      // to be used in zerocoin spend v2
 
             int coinId = INT_MAX;
             int coinHeight;
@@ -3686,7 +3697,7 @@ bool CWallet::CreateZerocoinSpendTransaction(int64_t nValue, libzerocoin::CoinDe
                                     denomination,
                                     id,
                                     accumulatorValue,
-                                    blockHash) > 1
+                                    accumulatorBlockHash) > 1
                             ) {
                         coinId = id;
                         coinToUse = minIdPubcoin;
@@ -3757,7 +3768,7 @@ bool CWallet::CreateZerocoinSpendTransaction(int64_t nValue, libzerocoin::CoinDe
             privateCoin.setSerialNumber(coinToUse.serialNumber);
             privateCoin.setEcdsaSeckey(coinToUse.ecdsaSecretKey);
 
-            libzerocoin::CoinSpend spend(ZCParams, privateCoin, accumulator, witness, metaData);
+            libzerocoin::CoinSpend spend(ZCParams, privateCoin, accumulator, witness, metaData, accumulatorBlockHash);
             spend.setVersion(txVersion);
 
             // This is a sanity check. The CoinSpend object should always verify,

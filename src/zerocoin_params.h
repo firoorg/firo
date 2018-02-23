@@ -30,11 +30,13 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 XZC mininput
 #define ZC_V1_5_STARTING_BLOCK          77500
 #define ZC_V1_5_TESTNET_STARTING_BLOCK  34800
 
-#define ZC_V1_5_GRACEFUL_MEMPOOL_PERIOD	100
-#define ZC_V1_5_GRACEFUL_PERIOD		1000
+#define ZC_V1_5_GRACEFUL_MEMPOOL_PERIOD	500
+#define ZC_V1_5_GRACEFUL_PERIOD			1500
 
-// Zerocoin coin id used in v3
-#define ZC_V3_SPEND_ID                      1000
+// Number of coins per id in spend v1/v1.5
+#define ZC_SPEND_V1_COINSPERID			10
+// Number of coins per id in spend v2.0
+#define ZC_SPEND_V2_COINSPERID			10000
 
 // Version of index that introduced storing accumulators and coin serials
 #define ZC_ADVANCED_INDEX_VERSION           130500
