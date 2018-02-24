@@ -130,7 +130,7 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
 			uint256 accumulatorBlockHash = newSpend.getAccumulatorBlockHash();
 			
 			// find index for block with hash of accumulatorBlockHash or set index to the coinGroup.firstBlock if not found
-			while (index != coinGroup.firstBlock || index->GetBlockHash() != accumulatorBlockHash)
+			while (index != coinGroup.firstBlock && index->GetBlockHash() != accumulatorBlockHash)
 				index = index->pprev;
 		}
 
