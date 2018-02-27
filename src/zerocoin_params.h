@@ -14,11 +14,11 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 XZC mininput
 #define ZC_CHECK_DUPLICATE_MINT_AT_BLOCK    70000
 
 // The mint id number to change to zerocoin v2
-#define ZC_V2_SWITCH_ID_1 165
+#define ZC_V2_SWITCH_ID_1 175
 #define ZC_V2_SWITCH_ID_10 30
 #define ZC_V2_SWITCH_ID_25 15
 #define ZC_V2_SWITCH_ID_50 15
-#define ZC_V2_SWITCH_ID_100 80
+#define ZC_V2_SWITCH_ID_100 85
 
 // Same for testnet
 #define ZC_V2_TESTNET_SWITCH_ID_1 18
@@ -27,7 +27,7 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 XZC mininput
 #define ZC_V2_TESTNET_SWITCH_ID_50 4
 #define ZC_V2_TESTNET_SWITCH_ID_100 10
 
-#define ZC_V1_5_STARTING_BLOCK          77500
+#define ZC_V1_5_STARTING_BLOCK          78500
 #define ZC_V1_5_TESTNET_STARTING_BLOCK  37954
 
 #define ZC_V1_5_GRACEFUL_MEMPOOL_PERIOD	500
