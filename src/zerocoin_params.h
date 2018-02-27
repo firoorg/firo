@@ -21,7 +21,7 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 XZC mininput
 #define ZC_V2_SWITCH_ID_100 80
 
 // Same for testnet
-#define ZC_V2_TESTNET_SWITCH_ID_1 27
+#define ZC_V2_TESTNET_SWITCH_ID_1 18
 #define ZC_V2_TESTNET_SWITCH_ID_10 7
 #define ZC_V2_TESTNET_SWITCH_ID_25 5
 #define ZC_V2_TESTNET_SWITCH_ID_50 4

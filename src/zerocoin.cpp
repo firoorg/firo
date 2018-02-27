@@ -69,23 +69,35 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
                                         SER_NETWORK, PROTOCOL_VERSION);
         libzerocoin::CoinSpend newSpend(ZCParams, serializedCoinSpend);
 
+        int spendVersion = newSpend.getVersion();
+        if (spendVersion != ZEROCOIN_TX_VERSION_1 &&
+                spendVersion != ZEROCOIN_TX_VERSION_1_5 &&
+                spendVersion != ZEROCOIN_TX_VERSION_2) {
+            return state.DoS(100,
+                false,
+                NSEQUENCE_INCORRECT,
+                "CTransaction::CheckTransaction() : Error: incorrect spend transaction verion");
+        }
+
         if (IsZerocoinTxV2(targetDenomination, pubcoinId)) {
-            // After threshold id all spends should be strictly version 2
-            if (newSpend.getVersion() != ZEROCOIN_TX_VERSION_2)
+            // After threshold id all spends should be either version 1.5 or 2.0
+            if (spendVersion == ZEROCOIN_TX_VERSION_1)
                 return state.DoS(100,
                     false,
                     NSEQUENCE_INCORRECT,
-                    "CTransaction::CheckTransaction() : Error: zerocoin spend should be version 2");
+                    "CTransaction::CheckTransaction() : Error: zerocoin spend should be version 1.5 or 2.0");
         }
         else {
-            // old spends are probably incorrect, force spend to version 1
-            if (newSpend.getVersion() == ZEROCOIN_TX_VERSION_2)
+            // old spends v2.0s are probably incorrect, force spend to version 1
+            if (spendVersion == ZEROCOIN_TX_VERSION_2) {
+                spendVersion = ZEROCOIN_TX_VERSION_1;
                 newSpend.setVersion(ZEROCOIN_TX_VERSION_1);
+            }
         }
 
         uint256 txHashForMetadata;
 
-        if (newSpend.getVersion() > ZEROCOIN_TX_VERSION_1) {
+        if (spendVersion > ZEROCOIN_TX_VERSION_1) {
             // Obtain the hash of the transaction sans the zerocoin part
             CMutableTransaction txTemp = tx;
             BOOST_FOREACH(CTxIn &txTempIn, txTemp.vin) {
@@ -99,7 +111,7 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
 
         LogPrintf("CheckSpendZcoinTransaction: tx version=%d, tx metadata hash=%s\n", newSpend.getVersion(), txHashForMetadata.ToString());
 
-        if (newSpend.getVersion() == ZEROCOIN_TX_VERSION_1 && nHeight == INT_MAX) {
+        if (spendVersion == ZEROCOIN_TX_VERSION_1 && nHeight == INT_MAX) {
             bool fTestNet = Params().NetworkIDString() == CBaseChainParams::TESTNET;
             int txHeight;
             txHeight = chainActive.Height();
@@ -125,7 +137,7 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
 		
 		// Zerocoin v2 transaction can cointain block hash of the last mint tx seen at the moment of spend. It speeds
 		// up verification
-		if (newSpend.getVersion() == ZEROCOIN_TX_VERSION_2 && !newSpend.getAccumulatorBlockHash().IsNull()) {
+        if (spendVersion == ZEROCOIN_TX_VERSION_2 && !newSpend.getAccumulatorBlockHash().IsNull()) {
 			spendHasBlockHash = true;
 			uint256 accumulatorBlockHash = newSpend.getAccumulatorBlockHash();
 			
@@ -154,8 +166,8 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
 
         // Rare case: accumulator value contains some but NOT ALL coins from one block. In this case we will
         // have to enumerate over coins manually. No optimization is really needed here because it's a rarity
-		// This can't happen if spend is of version 2
-        if (!passVerify && newSpend.getVersion() != ZEROCOIN_TX_VERSION_2) {
+        // This can't happen if spend is of version 1.5 or 2.0
+        if (!passVerify && spendVersion == ZEROCOIN_TX_VERSION_1) {
             // Build vector of coins sorted by the time of mint
             index = coinGroup.lastBlock;
             vector<CBigNum> pubCoins = index->mintedPubCoins[denominationAndId];
@@ -493,6 +505,7 @@ bool ConnectTipZC(CValidationState &state, const CChainParams &chainparams, CBlo
             int denomination = mint.first;
             CBigNum oldAccValue = ZCParams->accumulatorParams.accumulatorBase;
             int mintId = zerocoinState.AddMint(pindexNew, denomination, mint.second, oldAccValue);
+            LogPrintf("ConnectTipZC: mint added denomination=%d, id=%d\n", denomination, mintId);
             pair<int,int> denomAndId = make_pair(denomination, mintId);
 
             pindexNew->mintedPubCoins[denomAndId].push_back(mint.second);

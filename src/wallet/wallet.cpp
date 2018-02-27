@@ -3747,8 +3747,9 @@ bool CWallet::CreateZerocoinSpendTransaction(int64_t nValue, libzerocoin::CoinDe
             libzerocoin::PrivateCoin privateCoin(ZCParams, denomination);
 
             int txVersion = ZEROCOIN_TX_VERSION_1;
-            if (useVersion2 && coinToUse.IsCorrectV2Mint()) {
-                txVersion = ZEROCOIN_TX_VERSION_2;
+            if (useVersion2) {
+                // Use version 2 if possible, for older mints stay with 1.5
+                txVersion = coinToUse.IsCorrectV2Mint() ? ZEROCOIN_TX_VERSION_2 : ZEROCOIN_TX_VERSION_1_5;
             }
             else {
                 bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
