@@ -135,9 +135,9 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
 		
 		bool spendHasBlockHash = false;
 		
-		// Zerocoin v2 transaction can cointain block hash of the last mint tx seen at the moment of spend. It speeds
+        // Zerocoin v1.5/v2 transaction can cointain block hash of the last mint tx seen at the moment of spend. It speeds
 		// up verification
-        if (spendVersion == ZEROCOIN_TX_VERSION_2 && !newSpend.getAccumulatorBlockHash().IsNull()) {
+        if (spendVersion > ZEROCOIN_TX_VERSION_1 && !newSpend.getAccumulatorBlockHash().IsNull()) {
 			spendHasBlockHash = true;
 			uint256 accumulatorBlockHash = newSpend.getAccumulatorBlockHash();
 			

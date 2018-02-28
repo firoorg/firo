@@ -135,9 +135,10 @@ public:
         if (version == ZEROCOIN_TX_VERSION_2) {
 		    READWRITE(ecdsaPubkey);
 		    READWRITE(ecdsaSignature);
-	        if (!(ser_action.ForRead() && is_eof(s)))
-				READWRITE(accumulatorBlockHash);
 		}
+        if (version > ZEROCOIN_TX_VERSION_1 && !(ser_action.ForRead() && is_eof(s)))
+            READWRITE(accumulatorBlockHash);
+
 	}
 
 private:
