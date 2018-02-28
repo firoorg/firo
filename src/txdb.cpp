@@ -200,6 +200,10 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
                 pindexNew->nStatus        = diskindex.nStatus;
                 pindexNew->nTx            = diskindex.nTx;
 
+                pindexNew->accumulatorChanges = diskindex.accumulatorChanges;
+                pindexNew->mintedPubCoins     = diskindex.mintedPubCoins;
+                pindexNew->spentSerials       = diskindex.spentSerials;
+
                 if (!CheckProofOfWork(pindexNew->GetBlockPoWHash(), pindexNew->nBits, Params().GetConsensus()))
                     return error("LoadBlockIndex(): CheckProofOfWork failed: %s", pindexNew->ToString());
 
@@ -213,4 +217,24 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
     }
 
     return true;
+}
+
+int CBlockTreeDB::GetBlockIndexVersion()
+{
+    // Get random block index entry, check its version. The only reason for this function to exist
+    // is to check if the index is from previous version and needs to be rebuilt. Comparison of ANY
+    // record version to threshold value would be enough to decide if reindex is needed.
+
+	boost::scoped_ptr<CDBIterator> pcursor(NewIterator());
+	pcursor->Seek(make_pair(DB_BLOCK_INDEX, uint256()));
+	while (pcursor->Valid()) {
+		boost::this_thread::interruption_point();
+		std::pair<char, uint256> key;
+		if (pcursor->GetKey(key) && key.first == DB_BLOCK_INDEX) {
+			CDiskBlockIndex diskindex;
+			if (pcursor->GetValue(diskindex))
+                return diskindex.nDiskBlockVersion;
+		}
+	}
+	return -1;
 }

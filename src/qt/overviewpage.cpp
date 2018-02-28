@@ -15,6 +15,13 @@
 #include "transactiontablemodel.h"
 #include "walletmodel.h"
 
+#ifdef WIN32
+#include <string.h>
+#endif
+
+#include "util.h"
+#include "compat.h"
+
 #include <QAbstractItemDelegate>
 #include <QPainter>
 
@@ -123,6 +130,17 @@ OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) 
 {
     ui->setupUi(this);
 
+    // read config
+    boost::filesystem::path pathTorSetting = GetDataDir()/"torsetting.dat";
+    std::pair<bool,std::string> torEnabled = ReadBinaryFileTor(pathTorSetting.string().c_str());
+    if(torEnabled.first){
+		if(torEnabled.second == "1"){
+			ui->checkboxEnabledTor->setChecked(true);
+		}else{
+			ui->checkboxEnabledTor->setChecked(false);
+		}
+    }
+
     // use a SingleColorIcon for the "out of sync warning" icon
     QIcon icon = platformStyle->SingleColorIcon(":/icons/warning");
     icon.addPixmap(icon.pixmap(QSize(64,64), QIcon::Normal), QIcon::Disabled); // also set the disabled icon because we are using a disabled QPushButton to work around missing HiDPI support of QLabel (https://bugreports.qt.io/browse/QTBUG-42503)
@@ -136,6 +154,7 @@ OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) 
     ui->listTransactions->setAttribute(Qt::WA_MacShowFocusRect, false);
 
     connect(ui->listTransactions, SIGNAL(clicked(QModelIndex)), this, SLOT(handleTransactionClicked(QModelIndex)));
+    connect(ui->checkboxEnabledTor, SIGNAL(toggled(bool)), this, SLOT(handleEnabledTorChanged()));
 
     // start with displaying the "out of sync" warnings
     showOutOfSyncWarning(true);
@@ -145,6 +164,27 @@ void OverviewPage::handleTransactionClicked(const QModelIndex &index)
 {
     if(filter)
         Q_EMIT transactionClicked(filter->mapToSource(index));
+}
+
+void OverviewPage::handleEnabledTorChanged(){
+
+	QMessageBox msgBox;
+	boost::filesystem::path pathTorSetting = GetDataDir()/"torsetting.dat";
+
+	if(ui->checkboxEnabledTor->isChecked()){
+		if (WriteBinaryFileTor(pathTorSetting.string().c_str(), "1")) {
+			msgBox.setText("Please restart the Zcoin wallet to route your connection to TOR to protect your IP address. \nSyncing your wallet might be slower with TOR.");
+		} else {
+			msgBox.setText("Anonymous communication cannot enable");
+		}
+	}else{
+		if (WriteBinaryFileTor(pathTorSetting.string().c_str(), "0")) {
+			msgBox.setText("Please restart the Zcoin wallet to disable route your connection to TOR to protect your IP address.");
+		} else {
+			msgBox.setText("Anonymous communication cannot disable");
+		}
+	}
+	msgBox.exec();
 }
 
 OverviewPage::~OverviewPage()

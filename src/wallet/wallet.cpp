@@ -13,6 +13,7 @@
 #include "key.h"
 #include "keystore.h"
 #include "main.h"
+#include "zerocoin.h"
 #include "net.h"
 #include "policy/policy.h"
 #include "primitives/block.h"
@@ -28,17 +29,13 @@
 #include "darksend.h"
 #include "instantx.h"
 #include "znode.h"
+#include "znode-sync.h"
 #include "random.h"
 
 #include <assert.h>
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/thread.hpp>
-
-#define ZEROCOIN_MODULUS   "25195908475657893494027183240048398571429282126204032027777137836043662020707595556264018525880784406918290641249515082189298559149176184502808489120072844992687392807287776735971418347270261896375014971824691165077613379859095700097330459748808428401797429100642458691817195118746121515172654632282216869987549182422433637259085141865462043576798423387184774447920739934236584823824281198163815010674810451660377306056201619676256133844143603833904414952634432190114657544454178424020924616515723350778707749817125772467962926386356373289912154831438167899885040445364023527381951378636564391212010397122822120720357"
-
-// number of mint confirmations needed to spend coin
-#define ZC_MINT_CONFIRMATIONS   6
 
 using namespace std;
 
@@ -3173,49 +3170,23 @@ bool CWallet::CreateZerocoinMintModel(string &stringError, string denomAmount) {
 
     // Set up the Zerocoin Params object
     libzerocoin::Params *ZCParams = new libzerocoin::Params(bnTrustedModulus);
+	
+	int mintVersion = ZEROCOIN_TX_VERSION_1;
+	
+	// do not use v2 mint until certain moment when it would be understood by peers
+	{
+		LOCK(cs_main);
+		bool fTestNet = Params().NetworkIDString() == CBaseChainParams::TESTNET;
+		int allowedV1Height = fTestNet ? ZC_V1_5_TESTNET_STARTING_BLOCK : ZC_V1_5_STARTING_BLOCK;
+		if (chainActive.Height() >= allowedV1Height)
+			mintVersion = ZEROCOIN_TX_VERSION_2;
+	}
 
     // The following constructor does all the work of minting a brand
     // new zerocoin. It stores all the private values inside the
     // PrivateCoin object. This includes the coin secrets, which must be
     // stored in a secure location (wallet) at the client.
-    libzerocoin::PrivateCoin newCoin(ZCParams, denomination);
-
-    std::list <CZerocoinEntry> listPubCoin = std::list<CZerocoinEntry>();
-    CWalletDB walletdb(strWalletFile);
-    walletdb.ListPubCoin(listPubCoin);
-
-    int currentId = 1;
-    unsigned int countExistingItems = 0;
-
-    BOOST_FOREACH(const CZerocoinEntry &pubCoinIdItem, listPubCoin) {
-		//LogPrintf("denomination = %d, id = %d, height = %d\n", pubCoinIdItem.denomination, pubCoinIdItem.id, pubCoinIdItem.nHeight);
-		if (pubCoinIdItem.id > 0) {
-            if (pubCoinIdItem.nHeight <= chainActive.Height()) {
-				if (pubCoinIdItem.denomination == denomination) {
-					countExistingItems++;
-					if (pubCoinIdItem.id > currentId) {
-						currentId = pubCoinIdItem.id;
-						countExistingItems = 1;
-					}
-				}
-            } else{
-				break;
-			}
-		}
-    }
-
-    if (countExistingItems > 9) {
-    	currentId++;
-    }
-
-    if (((denomination == libzerocoin::ZQ_LOVELACE) && (currentId >= ZC_V2_SWITCH_ID_1))
-    		|| ((denomination == libzerocoin::ZQ_GOLDWASSER) && (currentId >= ZC_V2_SWITCH_ID_10))
-    		|| ((denomination == libzerocoin::ZQ_RACKOFF) && (currentId >= ZC_V2_SWITCH_ID_25))
-    		|| ((denomination == libzerocoin::ZQ_PEDERSEN) && (currentId >= ZC_V2_SWITCH_ID_50))
-    		|| ((denomination == libzerocoin::ZQ_WILLIAMSON) && (currentId >= ZC_V2_SWITCH_ID_100))) {
-    	newCoin.setVersion(2);
-    }
-
+    libzerocoin::PrivateCoin newCoin(ZCParams, denomination, mintVersion);
 
     // Get a copy of the 'public' portion of the coin. You should
     // embed this into a Zerocoin 'MINT' transaction along with a series
@@ -3236,13 +3207,14 @@ bool CWallet::CreateZerocoinMintModel(string &stringError, string denomAmount) {
         if (stringError != "")
             return false;
 
-
+        const unsigned char *ecdsaSecretKey = newCoin.getEcdsaSeckey();
         CZerocoinEntry zerocoinTx;
         zerocoinTx.IsUsed = false;
         zerocoinTx.denomination = denomination;
         zerocoinTx.value = pubCoin.getValue();
         zerocoinTx.randomness = newCoin.getRandomness();
         zerocoinTx.serialNumber = newCoin.getSerialNumber();
+        zerocoinTx.ecdsaSecretKey = std::vector<unsigned char>(ecdsaSecretKey, ecdsaSecretKey+32);
         LogPrintf("CreateZerocoinMintModel() -> NotifyZerocoinChanged\n");
         LogPrintf("pubcoin=%s, isUsed=%s\n", zerocoinTx.value.GetHex(), zerocoinTx.IsUsed);
         LogPrintf("randomness=%s, serialNumber=%s\n", zerocoinTx.randomness, zerocoinTx.serialNumber);
@@ -3650,9 +3622,6 @@ bool CWallet::CreateZerocoinSpendTransaction(int64_t nValue, libzerocoin::CoinDe
 
     wtxNew.BindWallet(this);
     CMutableTransaction txNew;
-    txNew.nLockTime = chainActive.Height();
-    if (GetRandInt(10) == 0)
-        txNew.nLockTime = std::max(0, (int) txNew.nLockTime - GetRandInt(100));
     {
         LOCK2(cs_main, cs_wallet);
         {
@@ -3688,66 +3657,52 @@ bool CWallet::CreateZerocoinSpendTransaction(int64_t nValue, libzerocoin::CoinDe
             // Set up the Zerocoin Params object
             static libzerocoin::Params *ZCParams = new libzerocoin::Params(bnTrustedModulus);
 
-            libzerocoin::Accumulator accumulator(ZCParams, denomination);
-            // TODO: Create Zercoin spending transaction part
-            // 1. Selection a private coin that doesn't use in wallet
-            // 2. Get pubcoin from the private coin
-            // 3. Compute Accomulator by you self by getting pubcoins value from wallet, but it must not include the public coin of the private that we select
-            // 4. Generate withness with follwing stmt
-            // libzerocoin::AccumulatorWitness witness(params, accumulator, newCoin.getPublicCoin());
-            // Add the public half of "newCoin" to the Accumulator itself.
-            // accumulator += newCoin.getPublicCoin();
-            // 1. Selection a private coin that doesn't be used in wallet
+            // Select not yet used coin from the wallet with minimal possible id
+
             list <CZerocoinEntry> listPubCoin;
             CWalletDB(strWalletFile).ListPubCoin(listPubCoin);
             listPubCoin.sort(CompHeight);
-            CZerocoinEntry zerocoinSelected;
-            bool selectedPubcoin = false;
+            CZerocoinEntry coinToUse;
+            CZerocoinState *zerocoinState = CZerocoinState::GetZerocoinState();
 
-            // GET MIN ID
-            int currentId = INT_MAX;
+            CBigNum accumulatorValue;
+            uint256 accumulatorBlockHash;      // to be used in zerocoin spend v2
+
+            int coinId = INT_MAX;
+            int coinHeight;
+
             BOOST_FOREACH(const CZerocoinEntry &minIdPubcoin, listPubCoin) {
-                if (minIdPubcoin.id < currentId
-                    && minIdPubcoin.denomination == denomination
-                    && minIdPubcoin.IsUsed == false
-                    && minIdPubcoin.randomness != 0
-                    && minIdPubcoin.serialNumber != 0
-                    && minIdPubcoin.id != -1
-                    && minIdPubcoin.nHeight != -1
-                    && minIdPubcoin.nHeight != INT_MAX
-                    && minIdPubcoin.nHeight >= 1
-                    && chainActive.Height() > -1
-                    && minIdPubcoin.nHeight + (ZC_MINT_CONFIRMATIONS-1) <= chainActive.Height()
-                        ) {
-                    currentId = minIdPubcoin.id;
+                if (minIdPubcoin.denomination == denomination
+                        && minIdPubcoin.IsUsed == false
+                        && minIdPubcoin.randomness != 0
+                        && minIdPubcoin.serialNumber != 0) {
+
+                    int id;
+                    coinHeight = zerocoinState->GetMintedCoinHeightAndId(minIdPubcoin.value, minIdPubcoin.denomination, id);
+                    if (coinHeight > 0
+                            && id < coinId
+                            && coinHeight + (ZC_MINT_CONFIRMATIONS-1) <= chainActive.Height()
+                            && zerocoinState->GetAccumulatorValueForSpend(
+                                    chainActive.Height()-(ZC_MINT_CONFIRMATIONS-1),
+                                    denomination,
+                                    id,
+                                    accumulatorValue,
+                                    accumulatorBlockHash) > 1
+                            ) {
+                        coinId = id;
+                        coinToUse = minIdPubcoin;
+                    }
                 }
             }
 
-            BOOST_FOREACH(const CZerocoinEntry &zerocoinItem, listPubCoin){
-                if (zerocoinItem.IsUsed == false
-                    && zerocoinItem.denomination == denomination
-                    && zerocoinItem.randomness != 0
-                    && zerocoinItem.serialNumber != 0
-                    && zerocoinItem.id == currentId
-                    && zerocoinItem.nHeight != -1
-                    && zerocoinItem.nHeight != INT_MAX
-                    && zerocoinItem.nHeight >= 1
-                    && chainActive.Height() > -1
-                    && zerocoinItem.nHeight + (ZC_MINT_CONFIRMATIONS-1) <= chainActive.Height()
-                        ) {
-                    zerocoinSelected = zerocoinItem;
-                    selectedPubcoin = true;
-                    break;
-                }
-            }
-
-            if (!selectedPubcoin){
+            if (coinId == INT_MAX){
                 strFailReason = _("it has to have at least two mint coins with at least 6 confirmation in order to spend a coin");
                 return false;
             }
 
+            libzerocoin::Accumulator accumulator(ZCParams, accumulatorValue, denomination);
             // 2. Get pubcoin from the private coin
-            libzerocoin::PublicCoin pubCoinSelected(ZCParams, zerocoinSelected.value, denomination);
+            libzerocoin::PublicCoin pubCoinSelected(ZCParams, coinToUse.value, denomination);
 
             // Now make sure the coin is valid.
             if (!pubCoinSelected.validate()) {
@@ -3758,103 +3713,54 @@ bool CWallet::CreateZerocoinSpendTransaction(int64_t nValue, libzerocoin::CoinDe
                 return false;
             }
 
-            LogPrintf("listPubcoin.size()=%s\n", listPubCoin.size());
-            LogPrintf("Consider: zerocoinSelected.value=%s\n, zerocoinSelected.id=%s\n",
-                      zerocoinSelected.value.ToString(), zerocoinSelected.id);
-            // 3. Compute Accomulator by yourself by getting at least 9 pubcoins from wallet, but it must not include the public coin of the selected private coin
-            int countUseablePubcoin = 0;
-            BOOST_FOREACH(const CZerocoinEntry &zerocoinItem, listPubCoin){
-                // Count pubcoins in same block
-                if (zerocoinItem.value != zerocoinSelected.value
-                        && zerocoinItem.id == zerocoinSelected.id
-                        && chainActive.Height() > -1
-                        && zerocoinItem.nHeight + (ZC_MINT_CONFIRMATIONS-1) <= chainActive.Height()
-                        && zerocoinItem.nHeight >= 1
-                        && zerocoinItem.nHeight != INT_MAX
-                        && zerocoinItem.denomination == denomination
-                        && zerocoinItem.nHeight != -1){
-                    LogPrintf("VALID COIN - PUBCOIN ID: %d HEIGHT: %d\n", zerocoinItem.id, zerocoinItem.nHeight);
-
-                    libzerocoin::PublicCoin pubCoinTemp(ZCParams, zerocoinItem.value, denomination);
-                    if (pubCoinTemp.validate()) {
-                        countUseablePubcoin++;
-                        //if(countUseablePubcoin == 9) break;
-                        LogPrintf("USEABLE - COIN NO: %d PUBCOIN ID: %d HEIGHT: %d\n", countUseablePubcoin,
-                                  zerocoinItem.id, zerocoinItem.nHeight);
-                        accumulator += pubCoinTemp;
-                    }
-                }
-            }
-
-            LogPrintf("USEABLE PUBCOINS: %d\n", countUseablePubcoin);
-
-            if (countUseablePubcoin < 1) { // You have to have at least two mint zerocoins.
-                strFailReason = _("at least two mint coins with are using calculating accumulator");
-                return false;
-            }
-
-            // 4. Generate withness with follwing stmt
-            // libzerocoin::AccumulatorWitness witness(params, accumulator, newCoin.getPublicCoin());
-            // Add the public half of "newCoin" to the Accumulator itself.
-            // accumulator += newCoin.getPublicCoin();
-            libzerocoin::AccumulatorWitness witness(ZCParams, accumulator, pubCoinSelected);
-            accumulator += pubCoinSelected;
-
-            /*
-            // At this point we should generate a ZEROCOIN_SPEND transaction to
-            // send to the network. This network should include a set of outputs
-            // totalling to the value of one zerocoin (minus transaction fees).
-            //
-            // The format of this transaction is up to the implementer. Here we'll
-            // assume you've formatted this transaction and placed the hash into
-            // "transactionHash". We'll also assume "accumulatorHash" contains the
-            // hash of the last block whose transactions are in the accumulator.*/
-            uint256 transactionHash = ArithToUint256(0);
-            arith_uint256 accumulatorID = 0;
+            // 4. Get witness from the index
+            libzerocoin::AccumulatorWitness witness =
+                    zerocoinState->GetWitnessForSpend(&chainActive,
+                                                      chainActive.Height()-(ZC_MINT_CONFIRMATIONS-1),
+                                                      denomination, coinId,
+                                                      coinToUse.value);
 
             CTxIn newTxIn;
-            newTxIn.nSequence = zerocoinSelected.id;
+            newTxIn.nSequence = coinId;
             newTxIn.scriptSig = CScript();
             newTxIn.prevout.SetNull();
-            LogPrintf("txNew.vin.size(): %d\n", txNew.vin.size());
             txNew.vin.push_back(newTxIn);
-            LogPrintf("txNew.vin.size(): %d\n", txNew.vin.size());
 
-            if (((denomination == libzerocoin::ZQ_LOVELACE) && (zerocoinSelected.id >= ZC_V2_SWITCH_ID_1))
-            		|| ((denomination == libzerocoin::ZQ_GOLDWASSER) && (zerocoinSelected.id >= ZC_V2_SWITCH_ID_10))
-            		|| ((denomination == libzerocoin::ZQ_RACKOFF) && (zerocoinSelected.id >= ZC_V2_SWITCH_ID_25))
-            		|| ((denomination == libzerocoin::ZQ_PEDERSEN) && (zerocoinSelected.id >= ZC_V2_SWITCH_ID_50))
-            		|| ((denomination == libzerocoin::ZQ_WILLIAMSON) && (zerocoinSelected.id >= ZC_V2_SWITCH_ID_100))) {
-                        	transactionHash = wtxNew.GetNormalizedHash();
-                        	accumulatorID = zerocoinSelected.id;
-                        }
+            bool useVersion2 = IsZerocoinTxV2(denomination, coinId);
 
-
-            // Place "transactionHash" and "accumulatorBlockHash" into a new
-            // SpendMetaData object.
-            libzerocoin::SpendMetaData metaData(accumulatorID, transactionHash);
+            // We use incomplete transaction hash for now as a metadata
+            libzerocoin::SpendMetaData metaData(coinId, txNew.GetHash());
 
             // Construct the CoinSpend object. This acts like a signature on the
             // transaction.
             libzerocoin::PrivateCoin privateCoin(ZCParams, denomination);
-            if (((denomination == libzerocoin::ZQ_LOVELACE) && (zerocoinSelected.id >= ZC_V2_SWITCH_ID_1))
-                        		|| ((denomination == libzerocoin::ZQ_GOLDWASSER) && (zerocoinSelected.id >= ZC_V2_SWITCH_ID_10))
-                        		|| ((denomination == libzerocoin::ZQ_RACKOFF) && (zerocoinSelected.id >= ZC_V2_SWITCH_ID_25))
-                        		|| ((denomination == libzerocoin::ZQ_PEDERSEN) && (zerocoinSelected.id >= ZC_V2_SWITCH_ID_50))
-                        		|| ((denomination == libzerocoin::ZQ_WILLIAMSON) && (zerocoinSelected.id >= ZC_V2_SWITCH_ID_100))) {
-                                    	privateCoin.setVersion(2);
-                                    }
-            privateCoin.setPublicCoin(pubCoinSelected);
-            privateCoin.setRandomness(zerocoinSelected.randomness);
-            privateCoin.setSerialNumber(zerocoinSelected.serialNumber);
-            libzerocoin::CoinSpend spend(ZCParams, privateCoin, accumulator, witness, metaData);
-            if (((denomination == libzerocoin::ZQ_LOVELACE) && (zerocoinSelected.id >= ZC_V2_SWITCH_ID_1))
-                                   		|| ((denomination == libzerocoin::ZQ_GOLDWASSER) && (zerocoinSelected.id >= ZC_V2_SWITCH_ID_10))
-                                   		|| ((denomination == libzerocoin::ZQ_RACKOFF) && (zerocoinSelected.id >= ZC_V2_SWITCH_ID_25))
-                                   		|| ((denomination == libzerocoin::ZQ_PEDERSEN) && (zerocoinSelected.id >= ZC_V2_SWITCH_ID_50))
-                                   		|| ((denomination == libzerocoin::ZQ_WILLIAMSON) && (zerocoinSelected.id >= ZC_V2_SWITCH_ID_100))) {
-            									spend.setVersion(2);
+
+            int txVersion = ZEROCOIN_TX_VERSION_1;
+            if (useVersion2) {
+                // Use version 2 if possible, for older mints stay with 1.5
+                txVersion = coinToUse.IsCorrectV2Mint() ? ZEROCOIN_TX_VERSION_2 : ZEROCOIN_TX_VERSION_1_5;
             }
+            else {
+                bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
+                int nHeight;
+                {
+                    LOCK(cs_main);
+                    nHeight = chainActive.Height();
+                }
+                if ((!fTestNet && nHeight >= ZC_V1_5_STARTING_BLOCK) || (fTestNet && nHeight >= ZC_V1_5_TESTNET_STARTING_BLOCK))
+                    txVersion = ZEROCOIN_TX_VERSION_1_5;
+            }
+
+            LogPrintf("CreateZerocoinSpendTransation: tx version=%d, tx metadata hash=%s\n", txVersion, txNew.GetHash().ToString());
+
+            privateCoin.setVersion(txVersion);
+            privateCoin.setPublicCoin(pubCoinSelected);
+            privateCoin.setRandomness(coinToUse.randomness);
+            privateCoin.setSerialNumber(coinToUse.serialNumber);
+            privateCoin.setEcdsaSeckey(coinToUse.ecdsaSecretKey);
+
+            libzerocoin::CoinSpend spend(ZCParams, privateCoin, accumulator, witness, metaData, accumulatorBlockHash);
+            spend.setVersion(txVersion);
 
             // This is a sanity check. The CoinSpend object should always verify,
             // but why not check before we put it onto the wire?
@@ -3867,77 +3773,9 @@ bool CWallet::CreateZerocoinSpendTransaction(int64_t nValue, libzerocoin::CoinDe
             CDataStream serializedCoinSpend(SER_NETWORK, PROTOCOL_VERSION);
             serializedCoinSpend << spend;
 
-            CDataStream serializedCoinSpend2(SER_NETWORK, PROTOCOL_VERSION);
-            serializedCoinSpend2 << spend;
-
-
-            /********************************************************************/
-            // What is it:      Coin spend verification
-            // Who does it:     ALL PARTIES
-            // What it does:    Verifies that a CoinSpend signature is correct
-            //                  with respect to a ZEROCOIN_SPEND transaction hash.
-            //                  The client must also extract the serial number from
-            //                  the CoinSpend and verify that this serial number has
-            //                  not previously appeared in another ZEROCOIN_SPEND
-            //                  transaction.
-            /********************************************************************/
-
-            // Deserialize the CoinSpend intro a fresh object
-            libzerocoin::CoinSpend newSpend(ZCParams, serializedCoinSpend);
-            if (((denomination == libzerocoin::ZQ_LOVELACE) && (zerocoinSelected.id >= ZC_V2_SWITCH_ID_1))
-                                               		|| ((denomination == libzerocoin::ZQ_GOLDWASSER) && (zerocoinSelected.id >= ZC_V2_SWITCH_ID_10))
-                                               		|| ((denomination == libzerocoin::ZQ_RACKOFF) && (zerocoinSelected.id >= ZC_V2_SWITCH_ID_25))
-                                               		|| ((denomination == libzerocoin::ZQ_PEDERSEN) && (zerocoinSelected.id >= ZC_V2_SWITCH_ID_50))
-                                               		|| ((denomination == libzerocoin::ZQ_WILLIAMSON) && (zerocoinSelected.id >= ZC_V2_SWITCH_ID_100))) {
-            	newSpend.setVersion(2);
-            }
-
-            // Create a new metadata object to contain the hash of the received
-            // ZEROCOIN_SPEND transaction. If we were a real client we'd actually
-            // compute the hash of the received transaction here.
-            libzerocoin::SpendMetaData newMetadata(accumulatorID, transactionHash);
-
-            // If we were a real client we would now re-compute the Accumulator
-            // from the information given in the ZEROCOIN_SPEND transaction.
-            // For our purposes we'll just use the one we calculated above.
-            //
-            // Verify that the spend is valid with respect to the Accumulator
-            // and the Metadata
-            if (!newSpend.Verify(accumulator, newMetadata)) {
-                strFailReason = _("the newSpend coin transaction did not verify");
-                return false;
-            }
-
-            std::vector<char, zero_after_free_allocator<char> > data;
-            data = serializedCoinSpend2.vch;
-
-            CScript tmp = CScript() << OP_ZEROCOINSPEND << data.size();
-            tmp.insert(tmp.end(), data.begin(), data.end());
-            txNew.vin[0].scriptSig.clear();
-            txNew.vin[0].scriptSig.insert(txNew.vin[0].scriptSig.begin(), tmp.begin(), tmp.end());
-
-
-            std::vector<char, zero_after_free_allocator<char> > dataTxIn;
-            dataTxIn.insert(dataTxIn.end(), tmp.begin() + 4, tmp.end());
-
-            CDataStream serializedCoinSpendChecking(SER_NETWORK, PROTOCOL_VERSION);
-            serializedCoinSpendChecking.vch = dataTxIn;
-
-            // Deserialize the CoinSpend intro a fresh object
-            libzerocoin::CoinSpend newSpendChecking(ZCParams, serializedCoinSpendChecking);
-            if (((denomination == libzerocoin::ZQ_LOVELACE) && (zerocoinSelected.id >= ZC_V2_SWITCH_ID_1))
-                                                           		|| ((denomination == libzerocoin::ZQ_GOLDWASSER) && (zerocoinSelected.id >= ZC_V2_SWITCH_ID_10))
-                                                           		|| ((denomination == libzerocoin::ZQ_RACKOFF) && (zerocoinSelected.id >= ZC_V2_SWITCH_ID_25))
-                                                           		|| ((denomination == libzerocoin::ZQ_PEDERSEN) && (zerocoinSelected.id >= ZC_V2_SWITCH_ID_50))
-                                                           		|| ((denomination == libzerocoin::ZQ_WILLIAMSON) && (zerocoinSelected.id >= ZC_V2_SWITCH_ID_100))) {
-            	newSpendChecking.setVersion(2);
-            }
-
-            if (!newSpendChecking.Verify(accumulator, newMetadata)) {
-                strFailReason = _("the transaction did not verify");
-                return false;
-            }
-
+            CScript tmp = CScript() << OP_ZEROCOINSPEND << serializedCoinSpend.size();
+            tmp.insert(tmp.end(), serializedCoinSpend.begin(), serializedCoinSpend.end());
+            txNew.vin[0].scriptSig.assign(tmp.begin(), tmp.end());
 
             // Embed the constructed transaction data in wtxNew.
             *static_cast<CTransaction *>(&wtxNew) = CTransaction(txNew);
@@ -3959,17 +3797,17 @@ bool CWallet::CreateZerocoinSpendTransaction(int64_t nValue, libzerocoin::CoinDe
                 if (spend.getCoinSerialNumber() == item.coinSerial) {
                     // THIS SELECEDTED COIN HAS BEEN USED, SO UPDATE ITS STATUS
                     CZerocoinEntry pubCoinTx;
-                    pubCoinTx.nHeight = zerocoinSelected.nHeight;
-                    pubCoinTx.denomination = zerocoinSelected.denomination;
-                    pubCoinTx.id = zerocoinSelected.id;
+                    pubCoinTx.nHeight = coinHeight;
+                    pubCoinTx.denomination = coinToUse.denomination;
+                    pubCoinTx.id = coinId;
                     pubCoinTx.IsUsed = true;
-                    pubCoinTx.randomness = zerocoinSelected.randomness;
-                    pubCoinTx.serialNumber = zerocoinSelected.serialNumber;
-                    pubCoinTx.value = zerocoinSelected.value;
+                    pubCoinTx.randomness = coinToUse.randomness;
+                    pubCoinTx.serialNumber = coinToUse.serialNumber;
+                    pubCoinTx.value = coinToUse.value;
                     CWalletDB(strWalletFile).WriteZerocoinEntry(pubCoinTx);
                     LogPrintf("CreateZerocoinSpendTransaction() -> NotifyZerocoinChanged\n");
-                    LogPrintf("pubcoin=%s, isUsed=Used\n", zerocoinSelected.value.GetHex());
-                    pwalletMain->NotifyZerocoinChanged(pwalletMain, zerocoinSelected.value.GetHex(), "Used",
+                    LogPrintf("pubcoin=%s, isUsed=Used\n", coinToUse.value.GetHex());
+                    pwalletMain->NotifyZerocoinChanged(pwalletMain, coinToUse.value.GetHex(), "Used",
                                                        CT_UPDATED);
                     strFailReason = _("the coin spend has been used");
                     return false;
@@ -3979,19 +3817,26 @@ bool CWallet::CreateZerocoinSpendTransaction(int64_t nValue, libzerocoin::CoinDe
             coinSerial = spend.getCoinSerialNumber();
             txHash = wtxNew.GetHash();
             LogPrintf("txHash:\n%s", txHash.ToString());
-            zcSelectedValue = zerocoinSelected.value;
-            zcSelectedIsUsed = zerocoinSelected.IsUsed;
+            zcSelectedValue = coinToUse.value;
+            zcSelectedIsUsed = coinToUse.IsUsed;
 
             CZerocoinSpendEntry entry;
             entry.coinSerial = coinSerial;
             entry.hashTx = txHash;
             entry.pubCoin = zcSelectedValue;
-            entry.id = zerocoinSelected.id;
-            entry.denomination = zerocoinSelected.denomination;
+            entry.id = coinId;
+            entry.denomination = coinToUse.denomination;
             LogPrintf("WriteCoinSpendSerialEntry, serialNumber=%s\n", coinSerial.ToString());
             if (!CWalletDB(strWalletFile).WriteCoinSpendSerialEntry(entry)) {
                 strFailReason = _("it cannot write coin serial number into wallet");
             }
+
+            coinToUse.IsUsed = true;
+            coinToUse.id = coinId;
+            coinToUse.nHeight = coinHeight;
+            CWalletDB(strWalletFile).WriteZerocoinEntry(coinToUse);
+            pwalletMain->NotifyZerocoinChanged(pwalletMain, coinToUse.value.GetHex(), "Used",
+                                               CT_UPDATED);
         }
     }
 
@@ -4047,6 +3892,11 @@ bool CWallet::CommitZerocoinSpendTransaction(CWalletTx &wtxNew, CReserveKey &res
  * @return
  */
 string CWallet::MintZerocoin(CScript pubCoin, int64_t nValue, CWalletTx &wtxNew, bool fAskFee) {
+    // Do not allow mint to take place until fully synced
+    // Temporary measure: we can remove this limitation when well after spend v1.5 HF block
+    if (fImporting || fReindex || !znodeSync.IsBlockchainSynced())
+        return _("Not fully synced yet");
+
     LogPrintf("MintZerocoin: value = %s\n", nValue);
     // Check amount
     if (nValue <= 0)
@@ -4109,6 +3959,11 @@ string CWallet::SpendZerocoin(int64_t nValue, libzerocoin::CoinDenomination deno
     // Check amount
     if (nValue <= 0)
         return _("Invalid amount");
+
+    // Do not allow spend to take place until fully synced
+    // Temporary measure: we can remove this limitation when well after spend v1.5 HF block
+    if (fImporting || fReindex || !znodeSync.IsBlockchainSynced())
+        return _("Not fully synced yet");
 
     CReserveKey reservekey(this);
 
@@ -4906,146 +4761,6 @@ std::string CWallet::GetWalletHelpString(bool showDebug) {
     return strUsage;
 }
 
-void ReIndexZerocoin(std::string strWalletFile) {
-    LogPrintf("ReIndexZerocoin\n");
-    // Zerocoin reorg, calculate new height and id
-    list <CZerocoinEntry> listPubCoin = list<CZerocoinEntry>();
-    CWalletDB walletdb(strWalletFile);
-    int lastCalculatedZCBlock = 0;
-    walletdb.ReadCalculatedZCBlock(lastCalculatedZCBlock);
-    walletdb.ListPubCoin(listPubCoin);
-    LogPrintf("ListPubCoin.size()=%d\n", listPubCoin.size());
-
-    // RECURSIVE, SET NEW ID
-    LogPrintf("lastCalculatedZCBlock: %s\n", lastCalculatedZCBlock);
-    BOOST_FOREACH(
-    const CZerocoinEntry &pubCoinItem, listPubCoin) {
-        if (!fReindex && pubCoinItem.nHeight < lastCalculatedZCBlock) {
-            continue;
-        } else {
-            CZerocoinEntry pubCoinTx;
-            pubCoinTx.value = pubCoinItem.value;
-            pubCoinTx.id = -1;
-            pubCoinTx.randomness = pubCoinItem.randomness;
-            pubCoinTx.denomination = pubCoinItem.denomination;
-            pubCoinTx.serialNumber = pubCoinItem.serialNumber;
-            pubCoinTx.nHeight = -1;
-            pubCoinTx.IsUsed = pubCoinItem.IsUsed;
-            LogPrintf("- Reindex Pubcoin Id: %d Denomination: %d\n", pubCoinTx.id, pubCoinTx.denomination);
-            walletdb.WriteZerocoinEntry(pubCoinTx);
-        }
-
-    }
-    LogPrintf("chainActive nHeight= %s\n", chainActive.Height());
-    if (chainActive.Genesis() == NULL) {
-        LogPrintf("Nothing in Wallet!, genesis is null\n");
-        LogPrintf("Remove current zerocoin in wallet\n");
-        list <CZerocoinEntry> listPubCoin = list<CZerocoinEntry>();
-        CWalletDB walletdb(strWalletFile);
-        walletdb.ListPubCoin(listPubCoin);
-
-        BOOST_FOREACH(const CZerocoinEntry &pubCoinItem, listPubCoin) {
-            CZerocoinEntry pubCoinTx;
-            pubCoinTx.value = pubCoinItem.value;
-            pubCoinTx.id = -1;
-            pubCoinTx.randomness = pubCoinItem.randomness;
-            pubCoinTx.denomination = pubCoinItem.denomination;
-            pubCoinTx.serialNumber = pubCoinItem.serialNumber;
-            pubCoinTx.nHeight = -1;
-            pubCoinTx.IsUsed = pubCoinItem.IsUsed;
-            LogPrintf("- Reindex Pubcoin Id: %d Denomination: %d\n", pubCoinTx.id, pubCoinTx.denomination);
-            walletdb.WriteZerocoinEntry(pubCoinTx);
-        }
-
-        std::list <CZerocoinSpendEntry> listCoinSpendSerial;
-        walletdb.ListCoinSpendSerial(listCoinSpendSerial);
-        BOOST_FOREACH(const CZerocoinSpendEntry &item, listCoinSpendSerial) {
-            walletdb.EraseCoinSpendSerialEntry(item);
-        }
-    } else {
-        LogPrintf("chainActive.Genesis() nHeight= %s\n", chainActive.Genesis()->nHeight);
-        CBlockIndex *pindexRecur = chainActive.Genesis();
-        {
-            while (pindexRecur) {
-//                LogPrintf("Check: fReindex = %s, pindexRecur->nHeight = %s\n", fReindex, pindexRecur->nHeight);
-                if (!fReindex && (pindexRecur->nHeight < lastCalculatedZCBlock)) {
-                    pindexRecur = chainActive.Next(pindexRecur);
-                    continue;
-                } else {
-//                    LogPrintf("PROCESS BLOCK = %d\n", pindexRecur->nHeight);
-                    std::string blocksProcessed =
-                            "Loading wallet... " + std::to_string(pindexRecur->nHeight) + "/" +
-                            std::to_string(mapBlockIndex.size());
-                    uiInterface.InitMessage(blocksProcessed);
-                    CBlock blockRecur;
-                    ReadBlockFromDisk(blockRecur, pindexRecur, Params().GetConsensus());
-                    list <CZerocoinEntry> listPubCoinInLoop = list<CZerocoinEntry>();
-                    CWalletDB walletdbInLoop(pwalletMain->strWalletFile);
-                    walletdbInLoop.ListPubCoin(listPubCoinInLoop);
-                    BOOST_FOREACH(const CTransaction &tx, blockRecur.vtx){
-                        // Check Mint Zerocoin Transaction
-                        BOOST_FOREACH(const CTxOut txout, tx.vout) {
-                            if (!txout.scriptPubKey.empty() && txout.scriptPubKey.IsZerocoinMint()) {
-                                vector<unsigned char> vchZeroMint;
-                                vchZeroMint.insert(vchZeroMint.end(), txout.scriptPubKey.begin() + 6,
-                                                   txout.scriptPubKey.begin() + txout.scriptPubKey.size());
-                                CBigNum pubCoin;
-                                pubCoin.setvch(vchZeroMint);
-                                LogPrintf("FOUND MINT ZEROCOIN AT HEIGHT = %d\n", pindexRecur->nHeight);
-                                BOOST_FOREACH(const CZerocoinEntry &pubCoinItem, listPubCoinInLoop) {
-                                    if (pubCoinItem.value == pubCoin) {
-
-                                        CZerocoinEntry pubCoinTx;
-
-                                        // Get the current id
-                                        int currentId = 1;
-                                        unsigned int countExistingItems = 0;
-                                        listPubCoinInLoop.sort(CompHeight);
-                                        BOOST_FOREACH(const CZerocoinEntry &pubCoinIdItem, listPubCoinInLoop) {
-                                            if (pubCoinIdItem.id > 0) {
-                                                if (pubCoinIdItem.nHeight <= pindexRecur->nHeight) {
-                                                    if (pubCoinIdItem.denomination == pubCoinItem.denomination) {
-                                                        countExistingItems++;
-                                                        if (pubCoinIdItem.id > currentId) {
-                                                            currentId = pubCoinIdItem.id;
-                                                            countExistingItems = 1;
-                                                        }
-                                                    }
-                                                } else {
-                                                    break;
-                                                }
-                                            }
-                                        }
-
-                                        if (countExistingItems > 9) {
-                                            currentId++;
-                                        }
-                                        pubCoinTx.id = currentId;
-                                        pubCoinTx.randomness = pubCoinItem.randomness;
-                                        pubCoinTx.denomination = pubCoinItem.denomination;
-                                        pubCoinTx.serialNumber = pubCoinItem.serialNumber;
-                                        pubCoinTx.value = pubCoinItem.value;
-                                        pubCoinTx.nHeight = pindexRecur->nHeight;
-                                        LogPrintf("REORG PUBCOIN ID: %d HEIGHT: %d DENOMINATION: %d\n",
-                                                  pubCoinTx.id,
-                                                  pubCoinTx.nHeight, pubCoinItem.denomination);
-                                        walletdbInLoop.WriteZerocoinEntry(pubCoinTx);
-                                    }
-                                }
-
-                            }
-                        }
-                    }
-
-                    walletdb.WriteCalculatedZCBlock(pindexRecur->nHeight);
-//                    pindexRecur = chainActive.Next(pindexRecur);
-                    pindexRecur = chainActive.Next(pindexRecur);
-                }
-            }
-        }
-    }
-}
-
 
 bool CWallet::InitLoadWallet() {
     LogPrintf("InitLoadWallet()\n");
@@ -5090,11 +4805,6 @@ bool CWallet::InitLoadWallet() {
                     strprintf(_("Wallet needed to be rewritten: restart %s to complete"), _(PACKAGE_NAME)));
         } else
             return InitError(strprintf(_("Error loading %s"), walletFile));
-    }
-
-    if (boost::filesystem::exists(GetDataDir() / DEFAULT_WALLET_DAT)) {
-        ReIndexZerocoin(walletInstance->strWalletFile);
-        //Erase exists zerocoin
     }
 
     if (GetBoolArg("-upgradewallet", fFirstRun)) {

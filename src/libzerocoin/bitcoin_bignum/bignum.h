@@ -88,7 +88,7 @@ public:
 
     BIGNUM *operator &() const
     {
-	return bn;
+        return bn;
     }
 
     //CBigNum(char n) is not portable.  Use 'signed char' or 'unsigned char'.
@@ -703,6 +703,12 @@ public:
         const CBigNum ret = *this;
         --(*this);
         return ret;
+    }
+
+    vector<unsigned char> ToBytes() const {
+        vector<unsigned char> result(BN_num_bytes(bn));
+        BN_bn2bin(bn, result.data());
+        return result;
     }
 
 

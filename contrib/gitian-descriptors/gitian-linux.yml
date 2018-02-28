@@ -1,5 +1,5 @@
 ---
-name: "zcoin-linux-0.13.3.3"
+name: "zcoin-linux-0.13.5"
 enable_cache: true
 suites:
 - "trusty"

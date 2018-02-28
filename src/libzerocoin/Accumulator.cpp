@@ -16,15 +16,18 @@
 namespace libzerocoin {
 
 //Accumulator class
-Accumulator::Accumulator(const AccumulatorAndProofParams* p, const CoinDenomination d): params(p), denomination(d) {
+Accumulator::Accumulator(const AccumulatorAndProofParams* p, const Bignum &v, const CoinDenomination d): params(p), value(v), denomination(d) {
 	if (!(params->initialized)) {
 		throw ZerocoinException("Invalid parameters for accumulator");
 	}
 
-	this->value = this->params->accumulatorBase;
+    this->value = v;
 }
 
-Accumulator::Accumulator(const Params* p, const CoinDenomination d) {
+Accumulator::Accumulator(const AccumulatorAndProofParams* p, const CoinDenomination d): Accumulator(p, p->accumulatorBase, d) {}
+
+
+Accumulator::Accumulator(const Params* p, const Bignum &v, const CoinDenomination d) {
 	this->params = &(p->accumulatorParams);
 	this->denomination = d;
 
@@ -32,10 +35,12 @@ Accumulator::Accumulator(const Params* p, const CoinDenomination d) {
 		throw ZerocoinException("Invalid parameters for accumulator");
 	}
 
-	this->value = this->params->accumulatorBase;
+    this->value = v;
 }
 
-void Accumulator::accumulate(const PublicCoin& coin) {
+Accumulator::Accumulator(const Params* p, const CoinDenomination d) :Accumulator(p, p->accumulatorParams.accumulatorBase, d) {}
+
+void Accumulator::accumulate(const PublicCoin& coin, bool validateCoin) {
 	// Make sure we're initialized
 	if(!(this->value)) {
 		throw ZerocoinException("Accumulator is not initialized");
@@ -51,7 +56,7 @@ void Accumulator::accumulate(const PublicCoin& coin) {
 		throw ZerocoinException(msg);
 	}
 
-	if(coin.validate()) {
+	if(!validateCoin || coin.validate()) {
 		// Compute new accumulator = "old accumulator"^{element} mod N
 		this->value = this->value.pow_mod(coin.getValue(), this->params->accumulatorModulus);
 	} else {
@@ -68,7 +73,7 @@ const Bignum& Accumulator::getValue() const{
 }
 
 Accumulator& Accumulator::operator += (const PublicCoin& c) {
-	this->accumulate(c);
+	this->accumulate(c, false);
 	return *this;
 }
 

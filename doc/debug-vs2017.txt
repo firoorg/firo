@@ -1,0 +1,159 @@
+Debugging zcoin code using Visual Studio 2017
+---------------------------------------------
+
+Prerequisites:
+1. Windows 10 x64
+2. WSL/Ubuntu installed (go to https://msdn.microsoft.com/en-us/commandline/wsl/install_guide to learn how)
+3. Visual Studio 2017 (Community Edition is enough, Desktop development with C++ workload should be installed,
+   Linux development option is recommended)
+4. (optional) VisualGDB (install trial version from here https://visualgdb.com/download/)
+
+
+Building
+
+ 1. Launch Ubuntu shell (search for Bash in the "Type here to search" box)
+
+ 2. Upgrade outdated packages. This applies even if you just installed WSL.
+      sudo apt-get update
+      sudo apt-get dist-upgrade
+      sudo apt-get autoremove
+
+ 3. Install build tools
+      sudo apt-get install build-essential libtool autotools-dev automake pkg-config bsdmainutils git
+
+ 3. WSL filesystem is accessible from the rest of Windows world through directory
+      C:\Users\<username>\AppData\Local\lxss
+         (if installed by lxrun /install)
+    or app directory looking something like this (can be different on your machine)
+      C:\Users\<username>\AppData\Local\Packages\CanonicalGroupLimited.UbuntuonWindows_79rhkp1fndgsc\LocalState\rootfs
+         (if installed through Windows Store)
+    It is generally OK to read these files from generic Windows app but Unix file permissions are stored in extended
+    attributes which are not properly updated by usual applications. For example if you create a file/directory inside
+    WSL subsystem from Explorer it won't be visible by WSL program.
+
+    To share files between two worlds we need to create a directory for repository in your Windows home directory
+    and then create a link from the WSL to it.
+
+    From Explorer create a directory named
+      C:\Users\<username>\zcoin
+    From Ubuntu bash window create a link to it
+      ln -s /mnt/c/Users/<username>/zcoin zcoin 
+
+ 4. Clone git resository into newly created directory and go to the right branch
+      git clone https://github.com/zcoinofficial/zcoin.git
+      cd zcoin
+      git checkout core_upgrade
+    Configure git to always use LF and (optionally) specify your name/email. Global Windows git settings (if set)
+    won't be inherited if git is invoked from Ubuntu shell
+      git config core.autocrlf input
+      git config user.name "Your Name"
+      git config user.email "your.email"
+
+ 5. Install cross-compilation tools
+      sudo apt-get install g++-mingw-w64-i686 mingw-w64-i686-dev g++-mingw-w64-x86-64 mingw-w64-x86-64-dev curl
+
+ 6. Build fails when there are special symbols (space, parentheses etc) in path directories. Reset path to the simple 
+    one
+      export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+    Also if WSL interop is enabled some parts might not get configured for cross-compilation and will ultimately fail.
+    Disable it for the WSL session:
+      sudo bash -c 'echo 0 > /proc/sys/fs/binfmt_misc/WSLInterop'
+
+ 7. Dependencies won't compile in a directory shared with Windows. We need to copy everything to the space private to
+    WSL. Do not use .. here as it will lead you into different directory
+      cp -r depends ~/zcoin-depends
+
+ 8. Go to depends folder and build dependencies (you may wish to build only 32-bit or 64-bit version)
+      cd ~/zcoin-depends
+      make HOST=i686-w64-mingw32 -j4
+      make HOST=x86_64-w64-mingw32 -j4
+      cd ~/zcoin
+    It takes a while. You need to do it only once unless you delete zcoin-depends directory
+
+ 9. Generate configure script
+      ./autogen.sh
+    Now do either step 10 or step 11, not both. Add -Wno-deprecated-declarations to CXXFLAGS if you want to reduce
+    nonessential output
+
+10. Build 32-bit debug build (from the zcoin root directory)
+      make clean
+      ./configure --enable-debug --disable-hardening --disable-gcc-hardening --disable-linker-hardening --prefix=$HOME/zcoin-depends/i686-w64-mingw32
+      make -j4
+     
+11. Build 64-bit debug build (from the zcoin root directory)
+      make clean
+      ./configure "CXXFLAGS=-Og -g" "CFLAGS=-Og -g" LDFLAGS=-g --disable-hardening --disable-gcc-hardening --disable-linker-hardening --prefix=$HOME/zcoin-depends/x86_64-w64-mingw32
+      make -j4
+    Note that --enable-debug won't work here because of buggy mingw toolchain
+
+    If you want to compile release build replace ./configure command in steps 10 and 11 with these commands for
+    32-bit and 64-bit respectively
+      ./configure --prefix=$HOME/zcoin-depends/i686-w64-mingw32
+      ./configure --prefix=$HOME/zcoin-depends/x86_64-w64-mingw32
+
+
+Preparations for debugging
+
+  Visual Studio output window doesn't support UTF-8 encodind so we need to enable default 8-bit encoding in the
+  WSL subsystem
+    sudo sed -Ei 's/^#[[:space:]]+(en_US.ISO-8859-15.*)/\1/' /etc/locale.gen
+    sudo locale-gen
+
+  There are two options here. One involves using Visual Studio as a debugger only. It doesn't require any paid addons.
+  If you want to use Visual Studio as a fully fledged IDE for developing you'd want to go with non-free VisualGDB
+  plugin.
+
+
+Free option
+
+1. Install MinGW from here: http://www.msys2.org/
+   Download edition with the same bitness as your build. Then run it and update the package to the most recent
+   version
+     pacman -Suy
+   Do as told. Run the update again
+     pacman -Suy
+   Install gdb
+     pacman -S gdb
+ 
+2. Create a new project with Visual Studio. Select "General\Makefile project" as a project type (DO NOT create a
+   cross-platform Linux project).
+     Name: zcoin
+     Location: C:\Users\<username>\zcoin
+     Solution: Create new solution
+     Solution name: vsdebug
+
+   Then
+     Build command line: C:\Windows\SysNative\bash.exe -c "LANG=en_US.ISO-8859-15 make -C ~/zcoin -j4"
+     Clean command line: C:\Windows\SysNative\bash.exe -c "LANG=en_US.ISO-8859-15 make -C ~/zcoin clean"
+
+   Now you can build and clean the project from within Visual Studio
+
+3. Create an XML file C:\Users\<username>\zcoin\vsdebug\debug.xml
+   Replace all the paths with actual ones, adjust architecture if needed, set executable you want to debug and set
+   needed arguments for the program
+
+     <PipeLaunchOptions xmlns="http://schemas.microsoft.com/vstudio/MDDDebuggerOptions/2014" 
+        PipePath="C:\msys64\usr\bin\gdb.exe" 
+        PipeArguments="--interpreter=mi" 
+        ExePath="C:/Users/<username>/zcoin/src/zcoind.exe" ExeArguments="" 
+        TargetArchitecture="X64" 
+        WorkingDirectory="C:/Users/<username>/zcoin" 
+        AdditionalSOLibSearchPath=""> 
+     </PipeLaunchOptions>
+
+4. If you need to set a breakpoint before you launch debugger just open the source file (normal File\Open) and set
+   it there
+
+5. To launch a debugger you have to go to Command Window (View\Other Windows\Command Window) and issue a command
+     Debug.MIDebugLaunch /Executable:zcoin /OptionsFile:"C:\Users\<username>\zcoin\vsdebug\debug.xml"
+
+
+VisualGDB
+
+1. Launch Visual Studio 2017. If you installed VisualGDB there will be "Debug\Quick Debug with GDB" menu item. Choose it.
+   Select Taget="MinGW/Cygwin", Debugged program is "src\zcoin-cli.exe" in the directory mentioned above
+
+   GDB toolchain is either MinGW32 or MinGW64 depending on how you built the code
+
+2. Click on "Debug", you'll break on main() function, have fun
