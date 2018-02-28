@@ -496,6 +496,14 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
         pblock->vtx[0] = coinbaseTx;
         pblocktemplate->vTxFees[0] = -nFees;
 
+        // Adjust miner reward for block time deviation
+        float blockTimeDeviation = 100;
+        if (nHeight > 350000) {
+            int64_t lastBlockTime = pblock->nTime;
+            int64_t currentBlockTime = std::max(pindexPrev->GetMedianTimePast()+1, GetAdjustedTime());
+            blockTimeDeviation = ((currentBlockTime - lastBlockTime) / 0.55);
+        }
+        
         // Fill in header
         pblock->hashPrevBlock  = pindexPrev->GetBlockHash();
         UpdateTime(pblock, chainparams.GetConsensus(), pindexPrev);
@@ -503,7 +511,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
         pblock->nNonce         = 0;
         pblock->vtx[0].vin[0].scriptSig = CScript() << OP_0 << OP_0;
         pblocktemplate->vTxSigOpsCost[0] = GetLegacySigOpCount(pblock->vtx[0]);
-        pblock->vtx[0].vout[0].nValue += nFees + GetBlockSubsidy(nHeight, chainparams.GetConsensus());
+        pblock->vtx[0].vout[0].nValue += nFees + (GetBlockSubsidy(nHeight, chainparams.GetConsensus()) * (0.95 + 0.05 * blockTimeDeviation / 100));
         pblocktemplate->vTxFees[0] = -nFees;
 
         CValidationState state;

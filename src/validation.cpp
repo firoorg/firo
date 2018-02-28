@@ -3246,6 +3246,14 @@ static bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockInd
     int64_t nTime3 = GetTimeMicros(); nTimeConnect += nTime3 - nTime2;
     LogPrint("bench", "      - Connect %u transactions: %.2fms (%.3fms/tx, %.3fms/txin) [%.2fs]\n", (unsigned)block.vtx.size(), 0.001 * (nTime3 - nTime2), 0.001 * (nTime3 - nTime2) / block.vtx.size(), nInputs <= 1 ? 0 : 0.001 * (nTime3 - nTime2) / (nInputs-1), nTimeConnect * 0.000001);
 
+    // Adjust miner blockReward for block time deviation
+    float blockTimeDeviation = 100;
+    if (pindex->nHeight > 350000) {
+        int64_t lastBlockTime = pindex->pprev->GetBlockTime();
+        int64_t currentBlockTime = std::max(pindex->GetMedianTimePast()+1, GetAdjustedTime());
+        blockTimeDeviation = ((currentBlockTime - lastBlockTime) / 0.55);
+    }
+	
     // SMARTCASH : MODIFIED TO CHECK MASTERNODE PAYMENTS AND SUPERBLOCKS
 
     // It's possible that we simply don't have enough data and this could fail
@@ -3254,7 +3262,7 @@ static bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockInd
     // the peer who sent us this block is missing some data and wasn't able
     // to recognize that block is actually invalid.
     // TODO: resync data (both ways?) and try to reprocess this block later.
-    CAmount blockReward = nFees + GetBlockSubsidy(pindex->pprev->nHeight, chainparams.GetConsensus());
+    CAmount blockReward = nFees + (GetBlockSubsidy(pindex->pprev->nHeight, chainparams.GetConsensus()) * (0.95 + 0.05 * blockTimeDeviation / 100));
     // std::string strError = "";
     // if (!IsBlockValueValid(block, pindex->nHeight, blockReward, strError)) {
     //     return state.DoS(0, error("ConnectBlock(SMARTCASH): %s", strError), REJECT_INVALID, "bad-cb-amount");
