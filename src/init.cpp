@@ -241,12 +241,12 @@ void Shutdown() {
     StopNode();
 
     // STORE DATA CACHES INTO SERIALIZED DAT FILES
-    CFlatDB<CZnodeMan> flatdb1("zncache.dat", "magicZnodeCache");
-    flatdb1.Dump(mnodeman);
-    CFlatDB<CZnodePayments> flatdb2("znpayments.dat", "magicZnodePaymentsCache");
-    flatdb2.Dump(mnpayments);
-    CFlatDB<CNetFulfilledRequestManager> flatdb4("netfulfilled.dat", "magicFulfilledCache");
-    flatdb4.Dump(netfulfilledman);
+    // CFlatDB<CZnodeMan> flatdb1("zncache.dat", "magicZnodeCache");
+    // flatdb1.Dump(mnodeman);
+    // CFlatDB<CZnodePayments> flatdb2("znpayments.dat", "magicZnodePaymentsCache");
+    // flatdb2.Dump(mnpayments);
+    // CFlatDB<CNetFulfilledRequestManager> flatdb4("netfulfilled.dat", "magicFulfilledCache");
+    // flatdb4.Dump(netfulfilledman);
 
     StopTorControl();
     UnregisterNodeSignals(GetNodeSignals());
