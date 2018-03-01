@@ -1933,8 +1933,10 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
 
     // uiInterface.InitMessage(_("Loading fulfilled requests cache..."));
     CFlatDB<CNetFulfilledRequestManager> flatdb4("netfulfilled.dat", "magicFulfilledCache");
+	flatdb4.Load(netfulfilledman);
+	
     // if (!flatdb4.Load(netfulfilledman)) {
-    //     return InitError("Failed to load fulfilled requests cache from netfulfilled.dat");
+    //     LogPrint"Failed to load fulfilled requests cache from netfulfilled.dat");
     // }
 
     // ********************************************************* Step 11c: update block tip in Dash modules
