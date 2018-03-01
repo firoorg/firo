@@ -1929,13 +1929,13 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
         }
     } else {
         uiInterface.InitMessage(_("Znode cache is empty, skipping payments and governance cache..."));
-    }
-
-    uiInterface.InitMessage(_("Loading fulfilled requests cache..."));
-    CFlatDB<CNetFulfilledRequestManager> flatdb4("netfulfilled.dat", "magicFulfilledCache");
-    if (!flatdb4.Load(netfulfilledman)) {
-        return InitError("Failed to load fulfilled requests cache from netfulfilled.dat");
     } */
+
+    // uiInterface.InitMessage(_("Loading fulfilled requests cache..."));
+    CFlatDB<CNetFulfilledRequestManager> flatdb4("netfulfilled.dat", "magicFulfilledCache");
+    // if (!flatdb4.Load(netfulfilledman)) {
+    //     return InitError("Failed to load fulfilled requests cache from netfulfilled.dat");
+    // }
 
     // ********************************************************* Step 11c: update block tip in Dash modules
 
