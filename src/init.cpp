@@ -1914,8 +1914,8 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     // ********************************************************* Step 11b: Load cache data
 
     // LOAD SERIALIZED DAT FILES INTO DATA CACHES FOR INTERNAL USE
-
-    uiInterface.InitMessage(_("Loading znode cache..."));
+    // TODO: https://github.com/zcoinofficial/zcoin/issues/182
+    /* uiInterface.InitMessage(_("Loading znode cache..."));
     CFlatDB<CZnodeMan> flatdb1("zncache.dat", "magicZnodeCache");
     if (!flatdb1.Load(mnodeman)) {
         return InitError("Failed to load znode cache from zncache.dat");
@@ -1935,18 +1935,18 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     CFlatDB<CNetFulfilledRequestManager> flatdb4("netfulfilled.dat", "magicFulfilledCache");
     if (!flatdb4.Load(netfulfilledman)) {
         return InitError("Failed to load fulfilled requests cache from netfulfilled.dat");
-    }
+    } */
 
     // ********************************************************* Step 11c: update block tip in Dash modules
 
     // force UpdatedBlockTip to initialize pCurrentBlockIndex for DS, MN payments and budgets
     // but don't call it directly to prevent triggering of other listeners like zmq etc.
-//    GetMainSignals().UpdatedBlockTip(chainActive.Tip());
+    // GetMainSignals().UpdatedBlockTip(chainActive.Tip());
     mnodeman.UpdatedBlockTip(chainActive.Tip());
     darkSendPool.UpdatedBlockTip(chainActive.Tip());
     mnpayments.UpdatedBlockTip(chainActive.Tip());
     znodeSync.UpdatedBlockTip(chainActive.Tip());
-//    governance.UpdatedBlockTip(chainActive.Tip());
+    // governance.UpdatedBlockTip(chainActive.Tip());
 
     // ********************************************************* Step 11d: start dash-privatesend thread
 
