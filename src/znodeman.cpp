@@ -645,6 +645,7 @@ CZnode* CZnodeMan::GetNextZnodeInQueueForPayment(int nBlockHeight, bool fFilterS
         if (reasonStr != NULL) {
             LogPrint("znodeman", "Znode, %s, addr(%s), qualify %s\n",
                      mn.vin.prevout.ToStringShort(), CBitcoinAddress(mn.pubKeyCollateralAddress.GetID()).ToString(), reasonStr);
+            delete[] reasonStr;
             continue;
         }
         vecZnodeLastPaid.push_back(std::make_pair(mn.GetLastPaidBlock(), &mn));
