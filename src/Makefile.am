@@ -2,7 +2,7 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-DIST_SUBDIRS = secp256k1 univalue
+DIST_SUBDIRS = secp256k1 univalue tor
 SUBDIRS = tor
 
 AM_LDFLAGS = $(PTHREAD_CFLAGS) $(LIBTOOL_LDFLAGS) $(HARDENED_LDFLAGS)
@@ -367,8 +367,6 @@ libbitcoin_util_a_SOURCES = \
   utiltime.cpp \
   crypto/scrypt.cpp \
   primitives/block.cpp \
-  libexecstream/exec-stream.h \
-  libexecstream/exec-stream.cpp \
   libzerocoin/bitcoin_bignum/allocators.h \
   libzerocoin/bitcoin_bignum/bignum.h \
   libzerocoin/bitcoin_bignum/compat.h \
