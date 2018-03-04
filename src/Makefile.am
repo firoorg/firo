@@ -366,8 +366,6 @@ libbitcoin_util_a_SOURCES = \
   utiltime.cpp \
   crypto/scrypt.cpp \
   primitives/block.cpp \
-  libexecstream/exec-stream.h \
-  libexecstream/exec-stream.cpp \
   libzerocoin/bitcoin_bignum/allocators.h \
   libzerocoin/bitcoin_bignum/bignum.h \
   libzerocoin/bitcoin_bignum/compat.h \
