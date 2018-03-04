@@ -29,9 +29,21 @@ TOR_LIBS = tor/src/or/libtor.a \
 	tor/src/ext/ed25519/ref10/libed25519_ref10.a \
 	tor/src/ext/keccak-tiny/libkeccak-tiny.a
 
-$(TOR_LIBS): $(wildcard tor/src/or/*) $(wildcard tor/src/common/*) $(wildcard tor/src/trunnel/*) $(wildcard tor/src/ext/*)
-	$(AM_V_at)$(MAKE) $(AM_MAKEFLAGS) -C tor $(subst tor/,,$(TOR_LIBS))
+tor.timestamp: $(wildcard tor/src/or/*.c) $(wildcard tor/src/or/*.h) \
+		$(wildcard tor/src/common/*.c) $(wildcard tor/src/common/*.h) \
+		$(wildcard tor/src/trunnel/*.c) $(wildcard tor/src/trunnel/*.h) \
+		$(wildcard tor/src/ext/*.c) $(wildcard tor/src/ext/*.h)
+	@rm -f tor.timestamp.tmp
+	@touch tor.timestamp.tmp
+	$(AM_V_at)$(MAKE) $(AM_MAKEFLAGS) -C tor
+	@mv -f tor.timestamp.tmp tor.timestamp
 
+$(TOR_LIBS): tor.timestamp
+	@if test -f $@; then :; else \
+		rm -f tor.timestamp; \
+		$(MAKE) $(AM_MAKEFLAGS) tor.timestamp; \
+	fi
+	
 BITCOIN_CONFIG_INCLUDES=-I$(builddir)/config
 BITCOIN_INCLUDES=-I$(builddir) -I$(builddir)/obj $(BDB_CPPFLAGS) $(BOOST_CPPFLAGS) $(LEVELDB_CPPFLAGS) $(CRYPTO_CFLAGS) $(SSL_CFLAGS)
 
@@ -525,6 +537,7 @@ CLEANFILES += univalue/*.gcda univalue/*.gcno
 CLEANFILES += wallet/*.gcda wallet/*.gcno
 CLEANFILES += wallet/test/*.gcda wallet/test/*.gcno
 CLEANFILES += zmq/*.gcda zmq/*.gcno
+CLEANFILES += tor.timestamp tor.timestamp.tmp
 
 DISTCLEANFILES = obj/build.h
 
@@ -533,6 +546,7 @@ EXTRA_DIST = $(CTAES_DIST)
 clean-local:
 	-$(MAKE) -C secp256k1 clean
 	-$(MAKE) -C univalue clean
+	-$(MAKE) -C tor clean
 	-rm -f leveldb/*/*.gcda leveldb/*/*.gcno leveldb/helpers/memenv/*.gcda leveldb/helpers/memenv/*.gcno
 	-rm -f config.h
 	-rm -rf test/__pycache__
