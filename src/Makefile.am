@@ -18,6 +18,20 @@ else
 LIBUNIVALUE = $(UNIVALUE_LIBS)
 endif
 
+TOR_LIBS = tor/src/or/libtor.a \
+	tor/src/common/libor.a \
+	tor/src/common/libor-ctime.a \
+	tor/src/common/libor-crypto.a \
+	tor/src/common/libor-event.a \
+	tor/src/trunnel/libor-trunnel.a \
+	tor/src/common/libcurve25519_donna.a \
+	tor/src/ext/ed25519/donna/libed25519_donna.a \
+	tor/src/ext/ed25519/ref10/libed25519_ref10.a \
+	tor/src/ext/keccak-tiny/libkeccak-tiny.a
+
+$(TOR_LIBS): $(wildcard tor/src/or/*) $(wildcard tor/src/common/*) $(wildcard tor/src/trunnel/*) $(wildcard tor/src/ext/*)
+	$(AM_V_at)$(MAKE) $(AM_MAKEFLAGS) -C tor $(subst tor/,,$(TOR_LIBS))
+
 BITCOIN_CONFIG_INCLUDES=-I$(builddir)/config
 BITCOIN_INCLUDES=-I$(builddir) -I$(builddir)/obj $(BDB_CPPFLAGS) $(BOOST_CPPFLAGS) $(LEVELDB_CPPFLAGS) $(CRYPTO_CFLAGS) $(SSL_CFLAGS)
 
@@ -431,18 +445,8 @@ zcoind_LDADD = \
   $(LIBMEMENV) \
   $(LIBSECP256K1)
 
-zcoind_LDADD += tor/src/or/libtor.a \
-	tor/src/common/libor.a \
-	tor/src/common/libor-ctime.a \
-	tor/src/common/libor-crypto.a \
-	tor/src/common/libor-event.a \
-	tor/src/trunnel/libor-trunnel.a \
-	tor/src/common/libcurve25519_donna.a \
-	tor/src/ext/ed25519/donna/libed25519_donna.a \
-	tor/src/ext/ed25519/ref10/libed25519_ref10.a \
-	tor/src/ext/keccak-tiny/libkeccak-tiny.a
 
-zcoind_LDADD += $(BOOST_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS) -lz
+zcoind_LDADD += $(TOR_LIBS) $(BOOST_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS) -lz
 
 # bitcoin-cli binary #
 zcoin_cli_SOURCES = bitcoin-cli.cpp
