@@ -104,7 +104,15 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "setban", 3 },
     { "getmempoolancestors", 1 },
     { "getmempooldescendants", 1 },
-    //[zcoin]
+    { "getblockhashes", 0 },
+    { "getblockhashes", 1 },
+    { "getspentinfo", 0},
+    { "getaddresstxids", 0},
+    { "getaddressbalance", 0},
+    { "getaddressdeltas", 0},
+    { "getaddressutxos", 0},
+    { "getaddressmempool", 0},
+        //[zcoin]
     { "setmininput", 0 },
     { "mintzerocoin", 0 },
     { "spendzerocoin", 0 },
@@ -114,6 +122,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "setmintzerocoinstatus", 1 },
     { "listmintzerocoins", 0 },
     { "listpubcoins", 0 },
+
 };
 
 class CRPCConvertTable
