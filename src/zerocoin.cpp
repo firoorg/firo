@@ -109,7 +109,7 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
             txHashForMetadata = txTemp.GetHash();
         }
 
-        LogPrintf("CheckSpendZcoinTransaction: tx version=%d, tx metadata hash=%s\n", newSpend.getVersion(), txHashForMetadata.ToString());
+        LogPrintf("CheckSpendZcoinTransaction: tx version=%d, tx metadata hash=%s, serial=%s\n", newSpend.getVersion(), txHashForMetadata.ToString(), newSpend.getCoinSerialNumber().ToString());
 
         if (spendVersion == ZEROCOIN_TX_VERSION_1 && nHeight == INT_MAX) {
             bool fTestNet = Params().NetworkIDString() == CBaseChainParams::TESTNET;
@@ -208,20 +208,25 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
             // were a real Zerocoin client we would now check that the serial number
             // has not been spent before (in another ZEROCOIN_SPEND) transaction.
             // The serial number is stored as a Bignum.
-            if(!isVerifyDB && !isCheckWallet) {
-                CBigNum serial = newSpend.getCoinSerialNumber();
-                if (nHeight > ZC_CHECK_BUG_FIXED_AT_BLOCK &&
-                        // do not check for duplicates in case we've seen exact copy of this tx in this block before
-                        !(zerocoinTxInfo &&
-                            zerocoinTxInfo->zcTransactions.count(hashTx) > 0) &&
-                        // check for used serials both in zerocoinState and in other transactions of this block
-                        (zerocoinState.IsUsedCoinSerial(serial) ||
-                            // check for zerocoin transaction in the same block as well
-                            (zerocoinTxInfo &&
-                                !zerocoinTxInfo->fInfoIsComplete &&
-                                zerocoinTxInfo->spentSerials.count(serial) > 0)))
-                    return state.DoS(0, error("CTransaction::CheckTransaction() : The CoinSpend serial has been used"));
+            CBigNum serial = newSpend.getCoinSerialNumber();
+            if (nHeight > ZC_CHECK_BUG_FIXED_AT_BLOCK &&
+                    // do not check for duplicates in case we've seen exact copy of this tx in this block before
+                    !(zerocoinTxInfo &&
+                        zerocoinTxInfo->zcTransactions.count(hashTx) > 0) &&
+                    // check for used serials both in zerocoinState and in other transactions of this block
+                    (zerocoinState.IsUsedCoinSerial(serial) ||
+                        // check for zerocoin transaction in the same block as well
+                        (zerocoinTxInfo &&
+                            !zerocoinTxInfo->fInfoIsComplete &&
+                         zerocoinTxInfo->spentSerials.count(serial) > 0))) {
 
+                if (nHeight < ZC_V1_5_STARTING_BLOCK)
+                    LogPrintf("ZCSpend: height=%d, denomination=%d, serial=%s\n", nHeight, (int)newSpend.getDenomination(), newSpend.getCoinSerialNumber().ToString());
+                else
+                    return state.DoS(0, error("CTransaction::CheckTransaction() : The CoinSpend serial has been used"));
+            }
+
+            if(!isVerifyDB && !isCheckWallet) {
                 if (zerocoinTxInfo && !zerocoinTxInfo->fInfoIsComplete) {
                     // add spend information to the index
                     zerocoinTxInfo->spentSerials.insert(serial);
@@ -499,6 +504,11 @@ bool ConnectTipZC(CValidationState &state, const CChainParams &chainparams, CBlo
         }
 
         pindexNew->spentSerials = pblock->zerocoinTxInfo->spentSerials;
+        if (pindexNew->nHeight > ZC_CHECK_BUG_FIXED_AT_BLOCK) {
+            BOOST_FOREACH(const CBigNum &serial, pindexNew->spentSerials) {
+                zerocoinState.AddSpend(serial);
+            }
+        }
 
         // Update minted values and accumulators
         BOOST_FOREACH(const PAIRTYPE(int,CBigNum) &mint, pblock->zerocoinTxInfo->mints) {
@@ -664,7 +674,7 @@ void CZerocoinState::AddBlock(CBlockIndex *index) {
 
     if (index->nHeight > ZC_CHECK_BUG_FIXED_AT_BLOCK) {
         BOOST_FOREACH(const CBigNum &serial, index->spentSerials) {
-           usedCoinSerials.insert(serial);
+            usedCoinSerials.insert(serial);
         }
     }
 }
