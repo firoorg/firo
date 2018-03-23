@@ -43,11 +43,12 @@ $(TOR_LIBS): tor.timestamp
 		rm -f tor.timestamp; \
 		$(MAKE) $(AM_MAKEFLAGS) tor.timestamp; \
 	fi
-	
+
 BITCOIN_CONFIG_INCLUDES=-I$(builddir)/config
 BITCOIN_INCLUDES=-I$(builddir) -I$(builddir)/obj $(BDB_CPPFLAGS) $(BOOST_CPPFLAGS) $(LEVELDB_CPPFLAGS) $(CRYPTO_CFLAGS) $(SSL_CFLAGS)
 
 BITCOIN_INCLUDES += -I$(srcdir)/secp256k1/include
+BITCOIN_INCLUDES += -I$(srcdir)/secp256k1/src
 BITCOIN_INCLUDES += $(UNIVALUE_CFLAGS)
 
 LIBBITCOIN_SERVER=libbitcoin_server.a
@@ -197,7 +198,14 @@ BITCOIN_CORE_H = \
   zmq/zmqnotificationinterface.h \
   zmq/zmqpublishnotifier.h \
   zerocoin.h \
-  zerocoin_params.h
+  zerocoin_params.h \
+	sigma/GKEllipticCurve.hpp \
+	sigma/GKGroups.hpp \
+	sigma/GKInteger.hpp \
+	sigma/GKNumbers.hpp \
+	sigma/GKSchema.hpp \
+	sigma/GKZerocoin.hpp \
+	sigma/GKDebug.hpp
 
 obj/build.h: FORCE
 	@$(MKDIR_P) $(builddir)/obj
@@ -246,7 +254,11 @@ libbitcoin_server_a_SOURCES = \
   validationinterface.cpp \
   versionbits.cpp \
   zerocoin.cpp \
-  $(BITCOIN_CORE_H)
+	sigma/GKEllipticCurve.cpp \
+	sigma/GKGroups.cpp \
+	sigma/GKNumbers.cpp \
+	sigma/GKDebug.cpp \
+	$(BITCOIN_CORE_H)
 
 if ENABLE_ZMQ
 libbitcoin_zmq_a_CPPFLAGS = $(BITCOIN_INCLUDES) $(ZMQ_CFLAGS)
