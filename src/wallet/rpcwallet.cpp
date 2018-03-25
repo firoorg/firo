@@ -2584,8 +2584,8 @@ UniValue fundrawtransaction(const UniValue& params, bool fHelp)
     return result;
 }
 
-//[zcoin]: zerocoin section
-// zerocoin section
+//[vrtcoin]: verticalcoin section
+// verticalcoin section
 
 UniValue listunspentmintzerocoins(const UniValue &params, bool fHelp) {
     if (fHelp || params.size() > 2)
