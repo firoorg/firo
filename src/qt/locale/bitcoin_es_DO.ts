@@ -142,8 +142,8 @@
         <translation>Reindexando bloques en disco...</translation>
     </message>
     <message>
-        <source>Send coins to a Zcoin address</source>
-        <translation>Enviar monedas a una dirección Zcoin</translation>
+        <source>Send coins to a Verticalcoin address</source>
+        <translation>Enviar monedas a una dirección Verticalcoin</translation>
     </message>
     <message>
         <source>Backup wallet to another location</source>
@@ -166,8 +166,8 @@
         <translation>&amp;Verificar mensaje...</translation>
     </message>
     <message>
-        <source>Zcoin</source>
-        <translation>Zcoin</translation>
+        <source>Verticalcoin</source>
+        <translation>Verticalcoin</translation>
     </message>
     <message>
         <source>Wallet</source>
@@ -194,12 +194,12 @@
         <translation>Cifrar las claves privadas de su monedero</translation>
     </message>
     <message>
-        <source>Sign messages with your Zcoin addresses to prove you own them</source>
-        <translation>Firmar mensajes con sus direcciones Zcoin para demostrar la propiedad</translation>
+        <source>Sign messages with your Verticalcoin addresses to prove you own them</source>
+        <translation>Firmar mensajes con sus direcciones Verticalcoin para demostrar la propiedad</translation>
     </message>
     <message>
-        <source>Verify messages to ensure they were signed with specified Zcoin addresses</source>
-        <translation>Verificar mensajes comprobando que están firmados con direcciones Zcoin concretas</translation>
+        <source>Verify messages to ensure they were signed with specified Verticalcoin addresses</source>
+        <translation>Verificar mensajes comprobando que están firmados con direcciones Verticalcoin concretas</translation>
     </message>
     <message>
         <source>&amp;File</source>
@@ -219,7 +219,7 @@
     </message>
     <message>
         <source>Request payments (generates QR codes and zcoin: URIs)</source>
-        <translation>Solicitar pagos (genera codigo QR y URL's de Zcoin)</translation>
+        <translation>Solicitar pagos (genera codigo QR y URL's de Verticalcoin)</translation>
     </message>
     <message>
         <source>Show the list of used sending addresses and labels</source>
@@ -495,8 +495,8 @@
         <translation>Experto</translation>
     </message>
     <message>
-        <source>Automatically open the Zcoin client port on the router. This only works when your router supports UPnP and it is enabled.</source>
-        <translation>Abrir automáticamente el puerto del cliente Zcoin en el router. Esta opción solo funciona si el router admite UPnP y está activado.</translation>
+        <source>Automatically open the Verticalcoin client port on the router. This only works when your router supports UPnP and it is enabled.</source>
+        <translation>Abrir automáticamente el puerto del cliente Verticalcoin en el router. Esta opción solo funciona si el router admite UPnP y está activado.</translation>
     </message>
     <message>
         <source>Map port using &amp;UPnP</source>
@@ -590,8 +590,8 @@
         <translation>Desde</translation>
     </message>
     <message>
-        <source>The displayed information may be out of date. Your wallet automatically synchronizes with the Zcoin network after a connection is established, but this process has not completed yet.</source>
-        <translation>La información mostrada puede estar desactualizada. Su monedero se sincroniza automáticamente con la red Zcoin después de que se haya establecido una conexión, pero este proceso aún no se ha completado.</translation>
+        <source>The displayed information may be out of date. Your wallet automatically synchronizes with the Verticalcoin network after a connection is established, but this process has not completed yet.</source>
+        <translation>La información mostrada puede estar desactualizada. Su monedero se sincroniza automáticamente con la red Verticalcoin después de que se haya establecido una conexión, pero este proceso aún no se ha completado.</translation>
     </message>
     <message>
         <source>Your current spendable balance</source>
@@ -1021,8 +1021,8 @@
         <translation>Copiar la firma actual al portapapeles del sistema</translation>
     </message>
     <message>
-        <source>Sign the message to prove you own this Zcoin address</source>
-        <translation>Firmar el mensaje para demostrar que se posee esta dirección Zcoin</translation>
+        <source>Sign the message to prove you own this Verticalcoin address</source>
+        <translation>Firmar el mensaje para demostrar que se posee esta dirección Verticalcoin</translation>
     </message>
     <message>
         <source>Sign &amp;Message</source>
@@ -1041,8 +1041,8 @@
         <translation>&amp;Verificar mensaje</translation>
     </message>
     <message>
-        <source>Verify the message to ensure it was signed with the specified Zcoin address</source>
-        <translation>Verificar el mensaje para comprobar que fue firmado con la dirección Zcoin indicada</translation>
+        <source>Verify the message to ensure it was signed with the specified Verticalcoin address</source>
+        <translation>Verificar el mensaje para comprobar que fue firmado con la dirección Verticalcoin indicada</translation>
     </message>
     <message>
         <source>Verify &amp;Message</source>
@@ -1129,8 +1129,8 @@
         <translation>Aceptar conexiones desde el exterior (predeterminado: 1 si no -proxy o -connect)</translation>
     </message>
     <message>
-        <source>Zcoin Core</source>
-        <translation>Núcleo de Zcoin</translation>
+        <source>Verticalcoin Core</source>
+        <translation>Núcleo de Verticalcoin</translation>
     </message>
     <message>
         <source>Bind to given address and always listen on it. Use [host]:port notation for IPv6</source>

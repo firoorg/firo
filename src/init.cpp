@@ -1035,7 +1035,7 @@ void InitLogging() {
     fLogIPs = GetBoolArg("-logips", DEFAULT_LOGIPS);
 
     LogPrintf("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
-    LogPrintf("Zcoin version %s\n", FormatFullVersion());
+    LogPrintf("Verticalcoin version %s\n", FormatFullVersion());
 }
 
 /** Initialize bitcoin.

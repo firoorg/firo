@@ -62,12 +62,12 @@
         <translation>Adresses de réception</translation>
     </message>
     <message>
-        <source>These are your Zcoin addresses for sending payments. Always check the amount and the receiving address before sending coins.</source>
-        <translation>Voici vos adresses Zcoin pour envoyer des paiements. Vérifiez toujours le montant et l'adresse du destinataire avant d'envoyer des pièces.</translation>
+        <source>These are your Verticalcoin addresses for sending payments. Always check the amount and the receiving address before sending coins.</source>
+        <translation>Voici vos adresses Verticalcoin pour envoyer des paiements. Vérifiez toujours le montant et l'adresse du destinataire avant d'envoyer des pièces.</translation>
     </message>
     <message>
-        <source>These are your Zcoin addresses for receiving payments. It is recommended to use a new receiving address for each transaction.</source>
-        <translation>Voici vos adresses Zcoin pour recevoir des paiements. Il est recommandé d'utiliser une nouvelle adresse de réception pour chaque transaction.</translation>
+        <source>These are your Verticalcoin addresses for receiving payments. It is recommended to use a new receiving address for each transaction.</source>
+        <translation>Voici vos adresses Verticalcoin pour recevoir des paiements. Il est recommandé d'utiliser une nouvelle adresse de réception pour chaque transaction.</translation>
     </message>
     <message>
         <source>&amp;Copy Address</source>
@@ -322,8 +322,8 @@
         <translation>Réindexation des blocs sur le disque...</translation>
     </message>
     <message>
-        <source>Send coins to a Zcoin address</source>
-        <translation>Envoyer des pièces à une adresse Zcoin</translation>
+        <source>Send coins to a Verticalcoin address</source>
+        <translation>Envoyer des pièces à une adresse Verticalcoin</translation>
     </message>
     <message>
         <source>Backup wallet to another location</source>
@@ -346,8 +346,8 @@
         <translation>&amp;Vérifier un message...</translation>
     </message>
     <message>
-        <source>Zcoin</source>
-        <translation>Zcoin</translation>
+        <source>Verticalcoin</source>
+        <translation>Verticalcoin</translation>
     </message>
     <message>
         <source>Wallet</source>
@@ -374,12 +374,12 @@
         <translation>Chiffrer les clés privées qui appartiennent à votre porte-monnaie</translation>
     </message>
     <message>
-        <source>Sign messages with your Zcoin addresses to prove you own them</source>
-        <translation>Signer les messages avec vos adresses Zcoin pour prouver que vous les détenez</translation>
+        <source>Sign messages with your Verticalcoin addresses to prove you own them</source>
+        <translation>Signer les messages avec vos adresses Verticalcoin pour prouver que vous les détenez</translation>
     </message>
     <message>
-        <source>Verify messages to ensure they were signed with specified Zcoin addresses</source>
-        <translation>Vérifier les messages pour s'assurer qu'ils ont été signés avec les adresses Zcoin spécifiées</translation>
+        <source>Verify messages to ensure they were signed with specified Verticalcoin addresses</source>
+        <translation>Vérifier les messages pour s'assurer qu'ils ont été signés avec les adresses Verticalcoin spécifiées</translation>
     </message>
     <message>
         <source>&amp;File</source>
@@ -418,8 +418,8 @@
         <translation>Options de ligne de &amp;commande</translation>
     </message>
     <message numerus="yes">
-        <source>%n active connection(s) to Zcoin network</source>
-        <translation><numerusform>%n connexion active avec le réseau Zcoin</numerusform><numerusform>%n connexions actives avec le réseau Zcoin</numerusform></translation>
+        <source>%n active connection(s) to Verticalcoin network</source>
+        <translation><numerusform>%n connexion active avec le réseau Verticalcoin</numerusform><numerusform>%n connexions actives avec le réseau Verticalcoin</numerusform></translation>
     </message>
     <message>
         <source>Indexing blocks on disk...</source>
@@ -486,8 +486,8 @@
         <translation>À jour</translation>
     </message>
     <message>
-        <source>Show the %1 help message to get a list with possible Zcoin command-line options</source>
-        <translation>Afficher le message d'aide de %1 pour obtenir la liste des options de ligne de commande Zcoin possibles.</translation>
+        <source>Show the %1 help message to get a list with possible Verticalcoin command-line options</source>
+        <translation>Afficher le message d'aide de %1 pour obtenir la liste des options de ligne de commande Verticalcoin possibles.</translation>
     </message>
     <message>
         <source>%1 client</source>
@@ -806,8 +806,8 @@
         <translation>Modifier l’adresse d'envoi</translation>
     </message>
     <message>
-        <source>The entered address "%1" is not a valid Zcoin address.</source>
-        <translation>L'adresse saisie « %1 » n'est pas une adresse Zcoin valide.</translation>
+        <source>The entered address "%1" is not a valid Verticalcoin address.</source>
+        <translation>L'adresse saisie « %1 » n'est pas une adresse Verticalcoin valide.</translation>
     </message>
     <message>
         <source>The entered address "%1" is already in the address book.</source>
@@ -915,8 +915,8 @@
         <translation>Puisque c'est la première fois que le logiciel est lancé, vous pouvez choisir où %1 stockera ses données.</translation>
     </message>
     <message>
-        <source>%1 will download and store a copy of the Zcoin block chain. At least %2GB of data will be stored in this directory, and it will grow over time. The wallet will also be stored in this directory.</source>
-        <translation>%1 téléchargera et stockera une copie de la chaîne de blocs de Zcoin. Au moins %2 Go de données seront stockés dans ce répertoire et sa taille augmentera avec le temps. Le porte-monnaie sera également stocké dans ce répertoire.</translation>
+        <source>%1 will download and store a copy of the Verticalcoin block chain. At least %2GB of data will be stored in this directory, and it will grow over time. The wallet will also be stored in this directory.</source>
+        <translation>%1 téléchargera et stockera une copie de la chaîne de blocs de Verticalcoin. Au moins %2 Go de données seront stockés dans ce répertoire et sa taille augmentera avec le temps. Le porte-monnaie sera également stocké dans ce répertoire.</translation>
     </message>
     <message>
         <source>Use the default data directory</source>
@@ -1061,16 +1061,16 @@
         <translation>&amp;Dépenser la monnaie non confirmée</translation>
     </message>
     <message>
-        <source>Automatically open the Zcoin client port on the router. This only works when your router supports UPnP and it is enabled.</source>
-        <translation>Ouvrir automatiquement le port du client Zcoin sur le routeur. Cela ne fonctionne que si votre routeur prend en charge l'UPnP et si la fonction est activée.</translation>
+        <source>Automatically open the Verticalcoin client port on the router. This only works when your router supports UPnP and it is enabled.</source>
+        <translation>Ouvrir automatiquement le port du client Verticalcoin sur le routeur. Cela ne fonctionne que si votre routeur prend en charge l'UPnP et si la fonction est activée.</translation>
     </message>
     <message>
         <source>Map port using &amp;UPnP</source>
         <translation>Mapper le port avec l'&amp;UPnP</translation>
     </message>
     <message>
-        <source>Connect to the Zcoin network through a SOCKS5 proxy.</source>
-        <translation>Se connecter au réseau Zcoin par un mandataire SOCKS5.</translation>
+        <source>Connect to the Verticalcoin network through a SOCKS5 proxy.</source>
+        <translation>Se connecter au réseau Verticalcoin par un mandataire SOCKS5.</translation>
     </message>
     <message>
         <source>&amp;Connect through SOCKS5 proxy (default proxy):</source>
@@ -1109,8 +1109,8 @@
         <translation>Tor</translation>
     </message>
     <message>
-        <source>Connect to the Zcoin network through a separate SOCKS5 proxy for Tor hidden services.</source>
-        <translation>Se connecter au réseau Zcoin au travers d'un mandataire SOCKS5 séparé pour les services cachés de Tor.</translation>
+        <source>Connect to the Verticalcoin network through a separate SOCKS5 proxy for Tor hidden services.</source>
+        <translation>Se connecter au réseau Verticalcoin au travers d'un mandataire SOCKS5 séparé pour les services cachés de Tor.</translation>
     </message>
     <message>
         <source>Use separate SOCKS5 proxy to reach peers via Tor hidden services:</source>
@@ -1208,8 +1208,8 @@
         <translation>Formulaire</translation>
     </message>
     <message>
-        <source>The displayed information may be out of date. Your wallet automatically synchronizes with the Zcoin network after a connection is established, but this process has not completed yet.</source>
-        <translation>Les informations affichées peuvent être obsolètes. Votre porte-monnaie est automatiquement synchronisé avec le réseau Zcoin lorsque la connexion s'établit, or ce processus n'est pas encore terminé.</translation>
+        <source>The displayed information may be out of date. Your wallet automatically synchronizes with the Verticalcoin network after a connection is established, but this process has not completed yet.</source>
+        <translation>Les informations affichées peuvent être obsolètes. Votre porte-monnaie est automatiquement synchronisé avec le réseau Verticalcoin lorsque la connexion s'établit, or ce processus n'est pas encore terminé.</translation>
     </message>
     <message>
         <source>Watch-only:</source>
@@ -1299,8 +1299,8 @@
         <translation>Adresse de paiement invalide %1</translation>
     </message>
     <message>
-        <source>URI cannot be parsed! This can be caused by an invalid Zcoin address or malformed URI parameters.</source>
-        <translation>L'URI ne peut pas être analysée ! Cela peut être causé par une adresse Zcoin invalide ou par des paramètres d'URI mal formés.</translation>
+        <source>URI cannot be parsed! This can be caused by an invalid Verticalcoin address or malformed URI parameters.</source>
+        <translation>L'URI ne peut pas être analysée ! Cela peut être causé par une adresse Verticalcoin invalide ou par des paramètres d'URI mal formés.</translation>
     </message>
     <message>
         <source>Payment request file handling</source>
@@ -1389,8 +1389,8 @@
         <translation>Montant</translation>
     </message>
     <message>
-        <source>Enter a Zcoin address (e.g. %1)</source>
-        <translation>Saisir une adresse Zcoin (p. ex. %1)</translation>
+        <source>Enter a Verticalcoin address (e.g. %1)</source>
+        <translation>Saisir une adresse Verticalcoin (p. ex. %1)</translation>
     </message>
     <message>
         <source>%1 d</source>
@@ -1754,8 +1754,8 @@
         <translation>Ré&amp;utiliser une adresse de réception existante (non recommandé)</translation>
     </message>
     <message>
-        <source>An optional message to attach to the payment request, which will be displayed when the request is opened. Note: The message will not be sent with the payment over the Zcoin network.</source>
-        <translation>Un message facultatif à joindre à la demande de paiement et qui sera affiché à l'ouverture de celle-ci. Note : le message ne sera pas envoyé avec le paiement par le réseau Zcoin.</translation>
+        <source>An optional message to attach to the payment request, which will be displayed when the request is opened. Note: The message will not be sent with the payment over the Verticalcoin network.</source>
+        <translation>Un message facultatif à joindre à la demande de paiement et qui sera affiché à l'ouverture de celle-ci. Note : le message ne sera pas envoyé avec le paiement par le réseau Verticalcoin.</translation>
     </message>
     <message>
         <source>An optional label to associate with the new receiving address.</source>
@@ -2147,8 +2147,8 @@
         <translation>Payer seulement les frais exigés de %1</translation>
     </message>
     <message>
-        <source>Warning: Invalid Zcoin address</source>
-        <translation>Avertissement : adresse Zcoin invalide</translation>
+        <source>Warning: Invalid Verticalcoin address</source>
+        <translation>Avertissement : adresse Verticalcoin invalide</translation>
     </message>
     <message>
         <source>Warning: Unknown change address</source>
@@ -2182,8 +2182,8 @@
         <translation>Ceci est un paiement normal.</translation>
     </message>
     <message>
-        <source>The Zcoin address to send the payment to</source>
-        <translation>L'adresse Zcoin à laquelle envoyer le paiement</translation>
+        <source>The Verticalcoin address to send the payment to</source>
+        <translation>L'adresse Verticalcoin à laquelle envoyer le paiement</translation>
     </message>
     <message>
         <source>Alt+A</source>
@@ -2226,8 +2226,8 @@
         <translation>Saisir une étiquette pour cette adresse afin de l'ajouter à la liste d'adresses utilisées</translation>
     </message>
     <message>
-        <source>A message that was attached to the zcoin: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Zcoin network.</source>
-        <translation>Un message qui était joint à l'URI zcoin: et qui sera stocké avec la transaction pour référence. Note : ce message ne sera pas envoyé par le réseau Zcoin.</translation>
+        <source>A message that was attached to the zcoin: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Verticalcoin network.</source>
+        <translation>Un message qui était joint à l'URI zcoin: et qui sera stocké avec la transaction pour référence. Note : ce message ne sera pas envoyé par le réseau Verticalcoin.</translation>
     </message>
     <message>
         <source>Pay To:</source>
@@ -2275,8 +2275,8 @@
         <translation>Vous pouvez signer des messages ou des accords avec vos adresses pour prouver que vous pouvez recevoir des zcoins à ces dernières. Faites attention de ne rien signer de vague ou au hasard, car des attaques d'hameçonnage pourraient essayer de vous faire signer avec votre identité afin de l'usurper. Ne signez que des déclarations entièrement détaillées et avec lesquelles vous êtes d'accord.</translation>
     </message>
     <message>
-        <source>The Zcoin address to sign the message with</source>
-        <translation>L'adresse Zcoin avec laquelle signer le message</translation>
+        <source>The Verticalcoin address to sign the message with</source>
+        <translation>L'adresse Verticalcoin avec laquelle signer le message</translation>
     </message>
     <message>
         <source>Choose previously used address</source>
@@ -2307,8 +2307,8 @@
         <translation>Copier la signature actuelle dans le presse-papiers</translation>
     </message>
     <message>
-        <source>Sign the message to prove you own this Zcoin address</source>
-        <translation>Signer le message afin de prouver que vous détenez cette adresse Zcoin</translation>
+        <source>Sign the message to prove you own this Verticalcoin address</source>
+        <translation>Signer le message afin de prouver que vous détenez cette adresse Verticalcoin</translation>
     </message>
     <message>
         <source>Sign &amp;Message</source>
@@ -2331,12 +2331,12 @@
         <translation>Saisir ci-dessous l'adresse du destinataire, le message (s'assurer de copier fidèlement les retours à la ligne, les espaces, les tabulations, etc.) et la signature pour vérifier le message. Faire attention à ne pas déduire davantage de la signature que ce qui est contenu dans le message signé même, pour éviter d'être trompé par une attaque d'homme du milieu. Prendre en compte que cela ne fait que prouver que le signataire reçoit l'adresse et ne peut pas prouver la provenance d'une transaction !</translation>
     </message>
     <message>
-        <source>The Zcoin address the message was signed with</source>
-        <translation>L'adresse Zcoin avec laquelle le message a été signé</translation>
+        <source>The Verticalcoin address the message was signed with</source>
+        <translation>L'adresse Verticalcoin avec laquelle le message a été signé</translation>
     </message>
     <message>
-        <source>Verify the message to ensure it was signed with the specified Zcoin address</source>
-        <translation>Vérifier le message pour s'assurer qu'il a été signé avec l'adresse Zcoin spécifiée</translation>
+        <source>Verify the message to ensure it was signed with the specified Verticalcoin address</source>
+        <translation>Vérifier le message pour s'assurer qu'il a été signé avec l'adresse Verticalcoin spécifiée</translation>
     </message>
     <message>
         <source>Verify &amp;Message</source>
@@ -2988,8 +2988,8 @@
         <translation>Accepter les connexions entrantes (par défaut : 1 si aucun -proxy ou -connect )</translation>
     </message>
     <message>
-        <source>Zcoin Core</source>
-        <translation>Zcoin Core</translation>
+        <source>Verticalcoin Core</source>
+        <translation>Verticalcoin Core</translation>
     </message>
     <message>
         <source>-fallbackfee is set very high! This is the transaction fee you may pay when fee estimates are not available.</source>

@@ -70,7 +70,7 @@
         <translation>Құпия сөзді өзгерту</translation>
     </message>
     <message>
-        <source>Zcoin</source>
+        <source>Verticalcoin</source>
         <translation>Биткоин</translation>
     </message>
     <message>

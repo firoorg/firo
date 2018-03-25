@@ -62,12 +62,12 @@
         <translation>Modtagelsesadresser</translation>
     </message>
     <message>
-        <source>These are your Zcoin addresses for sending payments. Always check the amount and the receiving address before sending coins.</source>
-        <translation>Disse er dine Zcoin-adresser til afsendelse af betalinger. Tjek altid beløb og modtagelsesadresse, inden du sender zcoins.</translation>
+        <source>These are your Verticalcoin addresses for sending payments. Always check the amount and the receiving address before sending coins.</source>
+        <translation>Disse er dine Verticalcoin-adresser til afsendelse af betalinger. Tjek altid beløb og modtagelsesadresse, inden du sender zcoins.</translation>
     </message>
     <message>
-        <source>These are your Zcoin addresses for receiving payments. It is recommended to use a new receiving address for each transaction.</source>
-        <translation>Dette er dine Zcoin-adresser til modtagelse af betalinger. Det anbefales at bruge en ny modtagelsesadresse for hver transaktion.</translation>
+        <source>These are your Verticalcoin addresses for receiving payments. It is recommended to use a new receiving address for each transaction.</source>
+        <translation>Dette er dine Verticalcoin-adresser til modtagelse af betalinger. Det anbefales at bruge en ny modtagelsesadresse for hver transaktion.</translation>
     </message>
     <message>
         <source>&amp;Copy Address</source>
@@ -322,8 +322,8 @@
         <translation>Genindekserer blokke på disken…</translation>
     </message>
     <message>
-        <source>Send coins to a Zcoin address</source>
-        <translation>Send zcoins til en Zcoin-adresse</translation>
+        <source>Send coins to a Verticalcoin address</source>
+        <translation>Send zcoins til en Verticalcoin-adresse</translation>
     </message>
     <message>
         <source>Backup wallet to another location</source>
@@ -346,8 +346,8 @@
         <translation>&amp;Verificér besked…</translation>
     </message>
     <message>
-        <source>Zcoin</source>
-        <translation>Zcoin</translation>
+        <source>Verticalcoin</source>
+        <translation>Verticalcoin</translation>
     </message>
     <message>
         <source>Wallet</source>
@@ -374,12 +374,12 @@
         <translation>Kryptér de private nøgler, der hører til din tegnebog</translation>
     </message>
     <message>
-        <source>Sign messages with your Zcoin addresses to prove you own them</source>
-        <translation>Signér beskeder med dine Zcoin-adresser for at bevise, at de tilhører dig</translation>
+        <source>Sign messages with your Verticalcoin addresses to prove you own them</source>
+        <translation>Signér beskeder med dine Verticalcoin-adresser for at bevise, at de tilhører dig</translation>
     </message>
     <message>
-        <source>Verify messages to ensure they were signed with specified Zcoin addresses</source>
-        <translation>Verificér beskeder for at sikre, at de er signeret med de angivne Zcoin-adresser</translation>
+        <source>Verify messages to ensure they were signed with specified Verticalcoin addresses</source>
+        <translation>Verificér beskeder for at sikre, at de er signeret med de angivne Verticalcoin-adresser</translation>
     </message>
     <message>
         <source>&amp;File</source>
@@ -418,8 +418,8 @@
         <translation>Tilvalg for &amp;kommandolinje</translation>
     </message>
     <message numerus="yes">
-        <source>%n active connection(s) to Zcoin network</source>
-        <translation><numerusform>%n aktiv forbindelse til Zcoin-netværket</numerusform><numerusform>%n aktive forbindelser til Zcoin-netværket</numerusform></translation>
+        <source>%n active connection(s) to Verticalcoin network</source>
+        <translation><numerusform>%n aktiv forbindelse til Verticalcoin-netværket</numerusform><numerusform>%n aktive forbindelser til Verticalcoin-netværket</numerusform></translation>
     </message>
     <message>
         <source>Indexing blocks on disk...</source>
@@ -486,8 +486,8 @@
         <translation>Opdateret</translation>
     </message>
     <message>
-        <source>Show the %1 help message to get a list with possible Zcoin command-line options</source>
-        <translation>Vis %1 hjælpebesked for at få en liste over mulige tilvalg for Zcoin kommandolinje</translation>
+        <source>Show the %1 help message to get a list with possible Verticalcoin command-line options</source>
+        <translation>Vis %1 hjælpebesked for at få en liste over mulige tilvalg for Verticalcoin kommandolinje</translation>
     </message>
     <message>
         <source>%1 client</source>
@@ -806,8 +806,8 @@
         <translation>Redigér afsendelsesadresse</translation>
     </message>
     <message>
-        <source>The entered address "%1" is not a valid Zcoin address.</source>
-        <translation>Den indtastede adresse "%1" er ikke en gyldig Zcoin-adresse.</translation>
+        <source>The entered address "%1" is not a valid Verticalcoin address.</source>
+        <translation>Den indtastede adresse "%1" er ikke en gyldig Verticalcoin-adresse.</translation>
     </message>
     <message>
         <source>The entered address "%1" is already in the address book.</source>
@@ -915,8 +915,8 @@
         <translation>Siden dette er første gang, programmet startes, kan du vælge, hvor %1 skal gemme sin data.</translation>
     </message>
     <message>
-        <source>%1 will download and store a copy of the Zcoin block chain. At least %2GB of data will be stored in this directory, and it will grow over time. The wallet will also be stored in this directory.</source>
-        <translation>%1 vil downloade og gemme et kopi af Zcoin-blokkæden. Mindst %2 GB data vil blive gemt i denne mappe, og den vil vokse over tid. Tegnebogen vil også blive gemt i denne mappe.</translation>
+        <source>%1 will download and store a copy of the Verticalcoin block chain. At least %2GB of data will be stored in this directory, and it will grow over time. The wallet will also be stored in this directory.</source>
+        <translation>%1 vil downloade og gemme et kopi af Verticalcoin-blokkæden. Mindst %2 GB data vil blive gemt i denne mappe, og den vil vokse over tid. Tegnebogen vil også blive gemt i denne mappe.</translation>
     </message>
     <message>
         <source>Use the default data directory</source>
@@ -1061,16 +1061,16 @@
         <translation>&amp;Brug ubekræftede byttepenge</translation>
     </message>
     <message>
-        <source>Automatically open the Zcoin client port on the router. This only works when your router supports UPnP and it is enabled.</source>
-        <translation>Åbn automatisk Zcoin-klientens port på routeren. Dette virker kun, når din router understøtter UPnP, og UPnP er aktiveret.</translation>
+        <source>Automatically open the Verticalcoin client port on the router. This only works when your router supports UPnP and it is enabled.</source>
+        <translation>Åbn automatisk Verticalcoin-klientens port på routeren. Dette virker kun, når din router understøtter UPnP, og UPnP er aktiveret.</translation>
     </message>
     <message>
         <source>Map port using &amp;UPnP</source>
         <translation>Konfigurér port vha. &amp;UPnP</translation>
     </message>
     <message>
-        <source>Connect to the Zcoin network through a SOCKS5 proxy.</source>
-        <translation>Forbind til Zcoin-netværket gennem en SOCKS5-proxy.</translation>
+        <source>Connect to the Verticalcoin network through a SOCKS5 proxy.</source>
+        <translation>Forbind til Verticalcoin-netværket gennem en SOCKS5-proxy.</translation>
     </message>
     <message>
         <source>&amp;Connect through SOCKS5 proxy (default proxy):</source>
@@ -1109,8 +1109,8 @@
         <translation>Tor</translation>
     </message>
     <message>
-        <source>Connect to the Zcoin network through a separate SOCKS5 proxy for Tor hidden services.</source>
-        <translation>Forbind til Zcoin-netværket gennem en separat SOCKS5-proxy for skjulte Tor-tjenester.</translation>
+        <source>Connect to the Verticalcoin network through a separate SOCKS5 proxy for Tor hidden services.</source>
+        <translation>Forbind til Verticalcoin-netværket gennem en separat SOCKS5-proxy for skjulte Tor-tjenester.</translation>
     </message>
     <message>
         <source>Use separate SOCKS5 proxy to reach peers via Tor hidden services:</source>
@@ -1208,8 +1208,8 @@
         <translation>Formular</translation>
     </message>
     <message>
-        <source>The displayed information may be out of date. Your wallet automatically synchronizes with the Zcoin network after a connection is established, but this process has not completed yet.</source>
-        <translation>Den viste information kan være forældet. Din tegnebog synkroniserer automatisk med Zcoin-netværket, når en forbindelse etableres, men denne proces er ikke gennemført endnu.</translation>
+        <source>The displayed information may be out of date. Your wallet automatically synchronizes with the Verticalcoin network after a connection is established, but this process has not completed yet.</source>
+        <translation>Den viste information kan være forældet. Din tegnebog synkroniserer automatisk med Verticalcoin-netværket, når en forbindelse etableres, men denne proces er ikke gennemført endnu.</translation>
     </message>
     <message>
         <source>Watch-only:</source>
@@ -1299,8 +1299,8 @@
         <translation>Ugyldig betalingsadresse %1</translation>
     </message>
     <message>
-        <source>URI cannot be parsed! This can be caused by an invalid Zcoin address or malformed URI parameters.</source>
-        <translation>URI kan ikke tolkes! Dette kan skyldes en ugyldig Zcoin-adresse eller forkert udformede URL-parametre.</translation>
+        <source>URI cannot be parsed! This can be caused by an invalid Verticalcoin address or malformed URI parameters.</source>
+        <translation>URI kan ikke tolkes! Dette kan skyldes en ugyldig Verticalcoin-adresse eller forkert udformede URL-parametre.</translation>
     </message>
     <message>
         <source>Payment request file handling</source>
@@ -1389,8 +1389,8 @@
         <translation>Beløb</translation>
     </message>
     <message>
-        <source>Enter a Zcoin address (e.g. %1)</source>
-        <translation>Indtast en Zcoin-adresse (fx %1)</translation>
+        <source>Enter a Verticalcoin address (e.g. %1)</source>
+        <translation>Indtast en Verticalcoin-adresse (fx %1)</translation>
     </message>
     <message>
         <source>%1 d</source>
@@ -1754,8 +1754,8 @@
         <translation>&amp;Genbrug en eksisterende modtagelsesadresse (anbefales ikke)</translation>
     </message>
     <message>
-        <source>An optional message to attach to the payment request, which will be displayed when the request is opened. Note: The message will not be sent with the payment over the Zcoin network.</source>
-        <translation>En valgfri besked, der føjes til betalingsanmodningen, og som vil vises, når anmodningen åbnes. Bemærk: Beskeden vil ikke sendes sammen med betalingen over Zcoin-netværket.</translation>
+        <source>An optional message to attach to the payment request, which will be displayed when the request is opened. Note: The message will not be sent with the payment over the Verticalcoin network.</source>
+        <translation>En valgfri besked, der føjes til betalingsanmodningen, og som vil vises, når anmodningen åbnes. Bemærk: Beskeden vil ikke sendes sammen med betalingen over Verticalcoin-netværket.</translation>
     </message>
     <message>
         <source>An optional label to associate with the new receiving address.</source>
@@ -2151,8 +2151,8 @@
         <translation><numerusform>Bekræftelse estimeret til at begynde inden for %n blok.</numerusform><numerusform>Bekræftelse estimeret til at begynde inden for %n blokke.</numerusform></translation>
     </message>
     <message>
-        <source>Warning: Invalid Zcoin address</source>
-        <translation>Advarsel: Ugyldig Zcoin-adresse</translation>
+        <source>Warning: Invalid Verticalcoin address</source>
+        <translation>Advarsel: Ugyldig Verticalcoin-adresse</translation>
     </message>
     <message>
         <source>Warning: Unknown change address</source>
@@ -2186,8 +2186,8 @@
         <translation>Dette er en normal betaling.</translation>
     </message>
     <message>
-        <source>The Zcoin address to send the payment to</source>
-        <translation>Zcoin-adresse, som betalingen skal sendes til</translation>
+        <source>The Verticalcoin address to send the payment to</source>
+        <translation>Verticalcoin-adresse, som betalingen skal sendes til</translation>
     </message>
     <message>
         <source>Alt+A</source>
@@ -2230,8 +2230,8 @@
         <translation>Indtast et mærkat for denne adresse for at føje den til listen over brugte adresser</translation>
     </message>
     <message>
-        <source>A message that was attached to the zcoin: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Zcoin network.</source>
-        <translation>En besked, som blev føjet til "bitcon:"-URI'en, som vil gemmes med transaktionen til din reference. Bemærk: Denne besked vil ikke blive sendt over Zcoin-netværket.</translation>
+        <source>A message that was attached to the zcoin: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Verticalcoin network.</source>
+        <translation>En besked, som blev føjet til "bitcon:"-URI'en, som vil gemmes med transaktionen til din reference. Bemærk: Denne besked vil ikke blive sendt over Verticalcoin-netværket.</translation>
     </message>
     <message>
         <source>Pay To:</source>
@@ -2279,8 +2279,8 @@
         <translation>Du kan signere beskeder/aftaler med dine adresser for at bevise, at du kan modtage zcoin, der bliver sendt til adresserne. Vær forsigtig med ikke at signere noget vagt eller tilfældigt, da eventuelle phishing-angreb kan snyde dig til at overlade din identitet til dem. Signér kun fuldt ud detaljerede udsagn, som du er enig i.</translation>
     </message>
     <message>
-        <source>The Zcoin address to sign the message with</source>
-        <translation>Zcoin-adresse, som beskeden skal signeres med</translation>
+        <source>The Verticalcoin address to sign the message with</source>
+        <translation>Verticalcoin-adresse, som beskeden skal signeres med</translation>
     </message>
     <message>
         <source>Choose previously used address</source>
@@ -2311,8 +2311,8 @@
         <translation>Kopiér den nuværende signatur til systemets udklipsholder</translation>
     </message>
     <message>
-        <source>Sign the message to prove you own this Zcoin address</source>
-        <translation>Signér denne besked for at bevise, at Zcoin-adressen tilhører dig</translation>
+        <source>Sign the message to prove you own this Verticalcoin address</source>
+        <translation>Signér denne besked for at bevise, at Verticalcoin-adressen tilhører dig</translation>
     </message>
     <message>
         <source>Sign &amp;Message</source>
@@ -2335,12 +2335,12 @@
         <translation>Indtast modtagerens adresse, besked (vær sikker på at kopiere linjeskift, mellemrum, tabuleringer, etc. præcist) og signatur herunder for at verificere beskeden. Vær forsigtig med ikke at læse noget ud fra signaturen, som ikke står i selve beskeden, for at undgå at blive snydt af et eventuelt man-in-the-middle-angreb. Bemærk, at dette kun beviser, at den signerende person kan modtage med adressen; det kan ikke bevise hvem der har sendt en given transaktion!</translation>
     </message>
     <message>
-        <source>The Zcoin address the message was signed with</source>
-        <translation>Zcoin-adressen, som beskeden blev signeret med</translation>
+        <source>The Verticalcoin address the message was signed with</source>
+        <translation>Verticalcoin-adressen, som beskeden blev signeret med</translation>
     </message>
     <message>
-        <source>Verify the message to ensure it was signed with the specified Zcoin address</source>
-        <translation>Verificér beskeden for at sikre, at den er signeret med den angivne Zcoin-adresse</translation>
+        <source>Verify the message to ensure it was signed with the specified Verticalcoin address</source>
+        <translation>Verificér beskeden for at sikre, at den er signeret med den angivne Verticalcoin-adresse</translation>
     </message>
     <message>
         <source>Verify &amp;Message</source>
@@ -2992,8 +2992,8 @@
         <translation>Acceptér forbindelser udefra (standard: 1 hvis hverken -proxy eller -connect)</translation>
     </message>
     <message>
-        <source>Zcoin Core</source>
-        <translation>Zcoin Core</translation>
+        <source>Verticalcoin Core</source>
+        <translation>Verticalcoin Core</translation>
     </message>
     <message>
         <source>The %s developers</source>

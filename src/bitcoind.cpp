@@ -141,7 +141,7 @@ bool AppInit(int argc, char* argv[])
         fDaemon = GetBoolArg("-daemon", false);
         if (fDaemon)
         {
-            fprintf(stdout, "Zcoin server starting\n");
+            fprintf(stdout, "Verticalcoin server starting\n");
 
             // Daemonize
             pid_t pid = fork();

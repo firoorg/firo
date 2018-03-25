@@ -16,8 +16,8 @@ BEGIN
     BEGIN
         BLOCK "040904E4" // U.S. English - multilingual (hex)
         BEGIN
-            VALUE "CompanyName",        "Zcoin"
-            VALUE "FileDescription",    "zcoin-tx (CLI Zcoin transaction editor utility)"
+            VALUE "CompanyName",        "Verticalcoin"
+            VALUE "FileDescription",    "zcoin-tx (CLI Verticalcoin transaction editor utility)"
             VALUE "FileVersion",        VER_FILEVERSION_STR
             VALUE "InternalName",       "zcoin-tx"
             VALUE "LegalCopyright",     COPYRIGHT_STR

@@ -259,7 +259,7 @@ UniValue stop(const UniValue& params, bool fHelp)
     // Event loop will exit after current HTTP requests have been handled, so
     // this reply will get back to the client.
     StartShutdown();
-    return "Zcoin server stopping";
+    return "Verticalcoin server stopping";
 }
 
 /**

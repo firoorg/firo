@@ -114,7 +114,7 @@
         <translation>Промени &amp;лозинку...</translation>
     </message>
     <message>
-        <source>Send coins to a Zcoin address</source>
+        <source>Send coins to a Verticalcoin address</source>
         <translation>Пошаљите новац на zcoin адресу</translation>
     </message>
     <message>

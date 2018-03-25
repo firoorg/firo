@@ -79,7 +79,7 @@
         <translation>पहचान शब्द/अक्षर जो वॉलेट एनक्रिपशन के लिए इस्तेमाल किया है उसे बदलिए!</translation>
     </message>
     <message>
-        <source>Zcoin</source>
+        <source>Verticalcoin</source>
         <translation>बीटकोइन</translation>
     </message>
     <message>

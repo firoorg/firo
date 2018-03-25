@@ -94,8 +94,8 @@
         <translation>Ndrysho frazkalimin e përdorur per enkriptimin e portofolit</translation>
     </message>
     <message>
-        <source>Zcoin</source>
-        <translation>Zcoin</translation>
+        <source>Verticalcoin</source>
+        <translation>Verticalcoin</translation>
     </message>
     <message>
         <source>Wallet</source>
@@ -438,8 +438,8 @@
         <translation>Opsionet:</translation>
     </message>
     <message>
-        <source>Zcoin Core</source>
-        <translation>Berthama Zcoin</translation>
+        <source>Verticalcoin Core</source>
+        <translation>Berthama Verticalcoin</translation>
     </message>
     <message>
         <source>Information</source>

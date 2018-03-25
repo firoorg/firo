@@ -142,8 +142,8 @@
         <translation>Deschide &amp;URI...</translation>
     </message>
     <message>
-        <source>Send coins to a Zcoin address</source>
-        <translation>Trimite monedele către o adresă Zcoin</translation>
+        <source>Send coins to a Verticalcoin address</source>
+        <translation>Trimite monedele către o adresă Verticalcoin</translation>
     </message>
     <message>
         <source>Backup wallet to another location</source>
@@ -166,8 +166,8 @@
         <translation>&amp;Verifică mesajul...</translation>
     </message>
     <message>
-        <source>Zcoin</source>
-        <translation>Zcoin</translation>
+        <source>Verticalcoin</source>
+        <translation>Verticalcoin</translation>
     </message>
     <message>
         <source>Wallet</source>
@@ -194,12 +194,12 @@
         <translation>Criptează cheile private care aparțin portofelului tău.</translation>
     </message>
     <message>
-        <source>Sign messages with your Zcoin addresses to prove you own them</source>
-        <translation>Semnează mesajele cu adresa ta de Zcoin pentru a face dovada că îți aparțin.</translation>
+        <source>Sign messages with your Verticalcoin addresses to prove you own them</source>
+        <translation>Semnează mesajele cu adresa ta de Verticalcoin pentru a face dovada că îți aparțin.</translation>
     </message>
     <message>
-        <source>Verify messages to ensure they were signed with specified Zcoin addresses</source>
-        <translation>Verifică mesajele cu scopul de a asigura faptul că au fost semnate cu adresa de Zcoin specificată.</translation>
+        <source>Verify messages to ensure they were signed with specified Verticalcoin addresses</source>
+        <translation>Verifică mesajele cu scopul de a asigura faptul că au fost semnate cu adresa de Verticalcoin specificată.</translation>
     </message>
     <message>
         <source>&amp;File</source>
@@ -746,8 +746,8 @@
 <context>
     <name>zcoin-core</name>
     <message>
-        <source>Zcoin Core</source>
-        <translation>Zcoin Core</translation>
+        <source>Verticalcoin Core</source>
+        <translation>Verticalcoin Core</translation>
     </message>
     <message>
         <source>Information</source>

@@ -90,8 +90,8 @@
         <translation>&amp;செய்தியை சரிசெய்...</translation>
     </message>
     <message>
-        <source>Zcoin</source>
-        <translation>Zcoin</translation>
+        <source>Verticalcoin</source>
+        <translation>Verticalcoin</translation>
     </message>
     <message>
         <source>Wallet</source>
@@ -714,8 +714,8 @@
 <context>
     <name>zcoin-core</name>
     <message>
-        <source>Zcoin Core</source>
-        <translation>Zcoin மையம்</translation>
+        <source>Verticalcoin Core</source>
+        <translation>Verticalcoin மையம்</translation>
     </message>
     <message>
         <source>(default: %u)</source>

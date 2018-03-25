@@ -170,7 +170,7 @@
         <translation>Preindexúvam bloky na disku...</translation>
     </message>
     <message>
-        <source>Send coins to a Zcoin address</source>
+        <source>Send coins to a Verticalcoin address</source>
         <translation>Poslať zcoins na adresu</translation>
     </message>
     <message>
@@ -194,8 +194,8 @@
         <translation>O&amp;veriť správu...</translation>
     </message>
     <message>
-        <source>Zcoin</source>
-        <translation>Zcoin</translation>
+        <source>Verticalcoin</source>
+        <translation>Verticalcoin</translation>
     </message>
     <message>
         <source>Wallet</source>
@@ -222,12 +222,12 @@
         <translation>Zašifruj súkromné kľúče ktoré patria do vašej peňaženky</translation>
     </message>
     <message>
-        <source>Sign messages with your Zcoin addresses to prove you own them</source>
-        <translation>Podpísať správu s vašou adresou Zcoin aby ste preukázali že ju vlastníte</translation>
+        <source>Sign messages with your Verticalcoin addresses to prove you own them</source>
+        <translation>Podpísať správu s vašou adresou Verticalcoin aby ste preukázali že ju vlastníte</translation>
     </message>
     <message>
-        <source>Verify messages to ensure they were signed with specified Zcoin addresses</source>
-        <translation>Overiť či správa bola podpísaná uvedenou Zcoin adresou</translation>
+        <source>Verify messages to ensure they were signed with specified Verticalcoin addresses</source>
+        <translation>Overiť či správa bola podpísaná uvedenou Verticalcoin adresou</translation>
     </message>
     <message>
         <source>&amp;File</source>
@@ -266,8 +266,8 @@
         <translation>Možnosti príkazového riadku</translation>
     </message>
     <message numerus="yes">
-        <source>%n active connection(s) to Zcoin network</source>
-        <translation><numerusform>%n aktívne pripojenie do siete Zcoin</numerusform><numerusform>%n aktívne pripojenia do siete Zcoin</numerusform><numerusform>%n aktívnych pripojení do siete Zcoin</numerusform></translation>
+        <source>%n active connection(s) to Verticalcoin network</source>
+        <translation><numerusform>%n aktívne pripojenie do siete Verticalcoin</numerusform><numerusform>%n aktívne pripojenia do siete Verticalcoin</numerusform><numerusform>%n aktívnych pripojení do siete Verticalcoin</numerusform></translation>
     </message>
     <message>
         <source>Indexing blocks on disk...</source>
@@ -334,7 +334,7 @@
         <translation>Aktualizovaný</translation>
     </message>
     <message>
-        <source>Show the %1 help message to get a list with possible Zcoin command-line options</source>
+        <source>Show the %1 help message to get a list with possible Verticalcoin command-line options</source>
         <translation>Ukáž %1 zoznam možných nastavení Zcoinu pomocou príkazového riadku</translation>
     </message>
     <message>
@@ -591,8 +591,8 @@
         <translation>Keďže toto je prvé spustenie programu, môžete si vybrať, kam %1 bude ukladať vaše údaje.</translation>
     </message>
     <message>
-        <source>%1 will download and store a copy of the Zcoin block chain. At least %2GB of data will be stored in this directory, and it will grow over time. The wallet will also be stored in this directory.</source>
-        <translation>%1 stiahne a uloží kópiu Zcoin block chain. Minimálne %2GB dát bude uložených v tejto zložke, a bude sa zväčšovať postupom času. Peňaženka bude taktiež uložená v tejto zložke.</translation>
+        <source>%1 will download and store a copy of the Verticalcoin block chain. At least %2GB of data will be stored in this directory, and it will grow over time. The wallet will also be stored in this directory.</source>
+        <translation>%1 stiahne a uloží kópiu Verticalcoin block chain. Minimálne %2GB dát bude uložených v tejto zložke, a bude sa zväčšovať postupom času. Peňaženka bude taktiež uložená v tejto zložke.</translation>
     </message>
     <message>
         <source>Use the default data directory</source>
@@ -733,16 +733,16 @@
         <translation>Minúť nepotvrdený výdavok</translation>
     </message>
     <message>
-        <source>Automatically open the Zcoin client port on the router. This only works when your router supports UPnP and it is enabled.</source>
-        <translation>Automaticky otvorit port pre Zcoin na routeri. Toto funguje len ak router podporuje UPnP a je táto podpora aktivovaná.</translation>
+        <source>Automatically open the Verticalcoin client port on the router. This only works when your router supports UPnP and it is enabled.</source>
+        <translation>Automaticky otvorit port pre Verticalcoin na routeri. Toto funguje len ak router podporuje UPnP a je táto podpora aktivovaná.</translation>
     </message>
     <message>
         <source>Map port using &amp;UPnP</source>
         <translation>Mapovať port pomocou &amp;UPnP</translation>
     </message>
     <message>
-        <source>Connect to the Zcoin network through a SOCKS5 proxy.</source>
-        <translation>Pripojiť do siete Zcoin cez proxy server SOCKS5.</translation>
+        <source>Connect to the Verticalcoin network through a SOCKS5 proxy.</source>
+        <translation>Pripojiť do siete Verticalcoin cez proxy server SOCKS5.</translation>
     </message>
     <message>
         <source>&amp;Connect through SOCKS5 proxy (default proxy):</source>
@@ -781,7 +781,7 @@
         <translation>Tor</translation>
     </message>
     <message>
-        <source>Connect to the Zcoin network through a separate SOCKS5 proxy for Tor hidden services.</source>
+        <source>Connect to the Verticalcoin network through a separate SOCKS5 proxy for Tor hidden services.</source>
         <translation>Pripojiť k Zcoinovej sieti cez separované SOCKS5 proxy pre skrytú službu Tor.</translation>
     </message>
     <message>
@@ -880,8 +880,8 @@
         <translation>Forma</translation>
     </message>
     <message>
-        <source>The displayed information may be out of date. Your wallet automatically synchronizes with the Zcoin network after a connection is established, but this process has not completed yet.</source>
-        <translation>Zobrazené informácie môžu byť neaktuálne. Vaša peňaženka sa automaticky synchronizuje so sieťou Zcoin po nadviazaní spojenia, ale tento proces ešte nie je ukončený.</translation>
+        <source>The displayed information may be out of date. Your wallet automatically synchronizes with the Verticalcoin network after a connection is established, but this process has not completed yet.</source>
+        <translation>Zobrazené informácie môžu byť neaktuálne. Vaša peňaženka sa automaticky synchronizuje so sieťou Verticalcoin po nadviazaní spojenia, ale tento proces ešte nie je ukončený.</translation>
     </message>
     <message>
         <source>Watch-only:</source>
@@ -973,7 +973,7 @@
         <translation>Suma</translation>
     </message>
     <message>
-        <source>Enter a Zcoin address (e.g. %1)</source>
+        <source>Enter a Verticalcoin address (e.g. %1)</source>
         <translation>Zadajte zcoin adresu (napr. %1)</translation>
     </message>
     <message>
@@ -1323,8 +1323,8 @@
         <translation>Znovu použiť jestvujúcu prijímaciu adresu (neodporúča sa)</translation>
     </message>
     <message>
-        <source>An optional message to attach to the payment request, which will be displayed when the request is opened. Note: The message will not be sent with the payment over the Zcoin network.</source>
-        <translation>Pridať voliteľnú správu k výzve na zaplatenie, ktorá sa zobrazí keď bude výzva otvorená. Poznámka: Správa nebude poslaná s platbou cez sieť Zcoin.</translation>
+        <source>An optional message to attach to the payment request, which will be displayed when the request is opened. Note: The message will not be sent with the payment over the Verticalcoin network.</source>
+        <translation>Pridať voliteľnú správu k výzve na zaplatenie, ktorá sa zobrazí keď bude výzva otvorená. Poznámka: Správa nebude poslaná s platbou cez sieť Verticalcoin.</translation>
     </message>
     <message>
         <source>An optional label to associate with the new receiving address.</source>
@@ -1579,7 +1579,7 @@
         <translation>Toto je normálna platba.</translation>
     </message>
     <message>
-        <source>The Zcoin address to send the payment to</source>
+        <source>The Verticalcoin address to send the payment to</source>
         <translation>Zvoľte adresu kam poslať platbu</translation>
     </message>
     <message>
@@ -1623,8 +1623,8 @@
         <translation>Vložte popis pre túto adresu aby sa uložila do zoznamu použitých adries</translation>
     </message>
     <message>
-        <source>A message that was attached to the zcoin: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Zcoin network.</source>
-        <translation>Správa ktorá bola pripojená k zcoin: URI a ktorá bude uložená s transakcou pre Vaše potreby. Poznámka: Táto správa nebude poslaná cez sieť Zcoin.</translation>
+        <source>A message that was attached to the zcoin: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Verticalcoin network.</source>
+        <translation>Správa ktorá bola pripojená k zcoin: URI a ktorá bude uložená s transakcou pre Vaše potreby. Poznámka: Táto správa nebude poslaná cez sieť Verticalcoin.</translation>
     </message>
     <message>
         <source>Pay To:</source>
@@ -1660,8 +1660,8 @@
         <translation>&amp;Podpísať Správu</translation>
     </message>
     <message>
-        <source>The Zcoin address to sign the message with</source>
-        <translation>Zcoin adresa pre podpísanie správy s</translation>
+        <source>The Verticalcoin address to sign the message with</source>
+        <translation>Verticalcoin adresa pre podpísanie správy s</translation>
     </message>
     <message>
         <source>Choose previously used address</source>
@@ -1692,7 +1692,7 @@
         <translation>Kopírovať práve zvolenú adresu do systémového klipbordu</translation>
     </message>
     <message>
-        <source>Sign the message to prove you own this Zcoin address</source>
+        <source>Sign the message to prove you own this Verticalcoin address</source>
         <translation>Podpíšte správu aby ste dokázali že vlastníte túto adresu</translation>
     </message>
     <message>
@@ -1712,12 +1712,12 @@
         <translation>O&amp;veriť správu...</translation>
     </message>
     <message>
-        <source>The Zcoin address the message was signed with</source>
-        <translation>Adresa Zcoin, ktorou bola podpísaná správa</translation>
+        <source>The Verticalcoin address the message was signed with</source>
+        <translation>Adresa Verticalcoin, ktorou bola podpísaná správa</translation>
     </message>
     <message>
-        <source>Verify the message to ensure it was signed with the specified Zcoin address</source>
-        <translation>Overím správy sa uistiť že bola podpísaná označenou Zcoin adresou</translation>
+        <source>Verify the message to ensure it was signed with the specified Verticalcoin address</source>
+        <translation>Overím správy sa uistiť že bola podpísaná označenou Verticalcoin adresou</translation>
     </message>
     <message>
         <source>Verify &amp;Message</source>
@@ -1833,8 +1833,8 @@
         <translation>Prijať spojenia zvonku (predvolené: 1 ak žiadne -proxy alebo -connect)</translation>
     </message>
     <message>
-        <source>Zcoin Core</source>
-        <translation>Jadro Zcoin</translation>
+        <source>Verticalcoin Core</source>
+        <translation>Jadro Verticalcoin</translation>
     </message>
     <message>
         <source>-fallbackfee is set very high! This is the transaction fee you may pay when fee estimates are not available.</source>

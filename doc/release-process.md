@@ -110,7 +110,7 @@ NOTE: Offline builds must use the --url flag to ensure Gitian fetches only from 
 
 The gbuild invocations below <b>DO NOT DO THIS</b> by default.
 
-### Build and sign Zcoin Core for Linux, Windows, and OS X:
+### Build and sign Verticalcoin Core for Linux, Windows, and OS X:
 
     pushd ./gitian-builder
     ./bin/gbuild --memory 3000 --commit zcoin=v${VERSION} ../zcoin/contrib/gitian-descriptors/gitian-linux.yml
@@ -262,7 +262,7 @@ bitcoin.org (see below for bitcoin.org update instructions).
 
   - bitcoin-dev and bitcoin-core-dev mailing list
 
-  - Zcoin Core announcements list https://bitcoincore.org/en/list/announcements/join/
+  - Verticalcoin Core announcements list https://bitcoincore.org/en/list/announcements/join/
 
   - bitcoincore.org blog post
 

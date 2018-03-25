@@ -58,8 +58,8 @@
 <context>
     <name>ZcoinGUI</name>
     <message>
-        <source>Zcoin</source>
-        <translation>Zcoin Core</translation>
+        <source>Verticalcoin</source>
+        <translation>Verticalcoin Core</translation>
     </message>
     <message>
         <source>&amp;Command-line options</source>
@@ -218,8 +218,8 @@
 <context>
     <name>zcoin-core</name>
     <message>
-        <source>Zcoin Core</source>
-        <translation>Zcoin Core</translation>
+        <source>Verticalcoin Core</source>
+        <translation>Verticalcoin Core</translation>
     </message>
     <message>
         <source>Whitelisted peers cannot be DoS banned and their transactions are always relayed, even if they are already in the mempool, useful e.g. for a gateway</source>

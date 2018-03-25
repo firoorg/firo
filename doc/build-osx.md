@@ -20,9 +20,9 @@ Dependencies
 
 NOTE: Building with Qt4 is still supported, however, could result in a broken UI. Building with Qt5 is recommended.
 
-Build Zcoin Core
+Build Verticalcoin Core
 ------------------------
-1.  Build Zcoin-core:
+1.  Build Verticalcoin-core:
 
     Configure and build the headless bitcoin binaries as well as the GUI (if Qt is found).
 
@@ -44,7 +44,7 @@ Build Zcoin Core
 Running
 -------
 
-Zcoin Core is now available at `./src/zcoind`
+Verticalcoin Core is now available at `./src/zcoind`
 
 Before running, it's recommended you create an RPC configuration file.
 

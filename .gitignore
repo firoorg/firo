@@ -80,7 +80,7 @@ src/tor.timestamp*
 *.qm
 Makefile
 zcoin-qt
-Zcoin-Qt.app
+Verticalcoin-Qt.app
 
 # Unit-tests
 Makefile.test

@@ -356,7 +356,7 @@ public:
         OverviewPage->setWindowTitle(QApplication::translate("OverviewPage", "Form", 0, QApplication::UnicodeUTF8));
         label_5->setText(QApplication::translate("OverviewPage", "Balances", 0, QApplication::UnicodeUTF8));
 #ifndef QT_NO_TOOLTIP
-        labelWalletStatus->setToolTip(QApplication::translate("OverviewPage", "The displayed information may be out of date. Your wallet automatically synchronizes with the Zcoin network after a connection is established, but this process has not completed yet.", 0, QApplication::UnicodeUTF8));
+        labelWalletStatus->setToolTip(QApplication::translate("OverviewPage", "The displayed information may be out of date. Your wallet automatically synchronizes with the Verticalcoin network after a connection is established, but this process has not completed yet.", 0, QApplication::UnicodeUTF8));
 #endif // QT_NO_TOOLTIP
         labelWalletStatus->setText(QString());
 #ifndef QT_NO_TOOLTIP
@@ -392,7 +392,7 @@ public:
         checkboxEnabledTor->setText(QApplication::translate("OverviewPage", "Anonymous communication with TOR", 0, QApplication::UnicodeUTF8));
         label_4->setText(QApplication::translate("OverviewPage", "Recent transactions", 0, QApplication::UnicodeUTF8));
 #ifndef QT_NO_TOOLTIP
-        labelTransactionsStatus->setToolTip(QApplication::translate("OverviewPage", "The displayed information may be out of date. Your wallet automatically synchronizes with the Zcoin network after a connection is established, but this process has not completed yet.", 0, QApplication::UnicodeUTF8));
+        labelTransactionsStatus->setToolTip(QApplication::translate("OverviewPage", "The displayed information may be out of date. Your wallet automatically synchronizes with the Verticalcoin network after a connection is established, but this process has not completed yet.", 0, QApplication::UnicodeUTF8));
 #endif // QT_NO_TOOLTIP
         labelTransactionsStatus->setText(QString());
     } // retranslateUi

@@ -262,7 +262,7 @@
 <context>
     <name>zcoin-core</name>
     <message>
-        <source>Zcoin Core</source>
+        <source>Verticalcoin Core</source>
         <translation>Биткойн ядро</translation>
     </message>
     </context>

@@ -9,7 +9,7 @@
 #define UNUSED
 #endif
 static const char UNUSED *bitcoin_strings[] = {
-QT_TRANSLATE_NOOP("zcoin-core", "Zcoin Core"),
+QT_TRANSLATE_NOOP("zcoin-core", "Verticalcoin Core"),
 QT_TRANSLATE_NOOP("zcoin-core", "The %s developers"),
 QT_TRANSLATE_NOOP("zcoin-core", ""
 "(1 = keep tx meta data e.g. account owner and payment request information, 2 "

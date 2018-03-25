@@ -364,7 +364,7 @@ static void SendMoney(const CTxDestination &address, CAmount nValue, bool fSubtr
     if (nValue > curBalance)
         throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Insufficient funds");
 
-    // Parse Zcoin address
+    // Parse Verticalcoin address
     CScript scriptPubKey = GetScriptForDestination(address);
 
     // Create and send the transaction

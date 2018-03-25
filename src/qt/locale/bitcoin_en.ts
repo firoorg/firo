@@ -80,12 +80,12 @@
     </message>
     <message>
         <location line="+7"/>
-        <source>These are your Zcoin addresses for sending payments. Always check the amount and the receiving address before sending coins.</source>
+        <source>These are your Verticalcoin addresses for sending payments. Always check the amount and the receiving address before sending coins.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+4"/>
-        <source>These are your Zcoin addresses for receiving payments. It is recommended to use a new receiving address for each transaction.</source>
+        <source>These are your Verticalcoin addresses for receiving payments. It is recommended to use a new receiving address for each transaction.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -410,8 +410,8 @@
     </message>
     <message>
         <location line="-463"/>
-        <source>Send coins to a Zcoin address</source>
-        <translation>Send coins to a Zcoin address</translation>
+        <source>Send coins to a Verticalcoin address</source>
+        <translation>Send coins to a Verticalcoin address</translation>
     </message>
     <message>
         <location line="+67"/>
@@ -440,8 +440,8 @@
     </message>
     <message>
         <location line="+487"/>
-        <source>Zcoin</source>
-        <translation>Zcoin</translation>
+        <source>Verticalcoin</source>
+        <translation>Verticalcoin</translation>
     </message>
     <message>
         <location line="-699"/>
@@ -475,13 +475,13 @@
     </message>
     <message>
         <location line="+7"/>
-        <source>Sign messages with your Zcoin addresses to prove you own them</source>
-        <translation>Sign messages with your Zcoin addresses to prove you own them</translation>
+        <source>Sign messages with your Verticalcoin addresses to prove you own them</source>
+        <translation>Sign messages with your Verticalcoin addresses to prove you own them</translation>
     </message>
     <message>
         <location line="+2"/>
-        <source>Verify messages to ensure they were signed with specified Zcoin addresses</source>
-        <translation>Verify messages to ensure they were signed with specified Zcoin addresses</translation>
+        <source>Verify messages to ensure they were signed with specified Verticalcoin addresses</source>
+        <translation>Verify messages to ensure they were signed with specified Verticalcoin addresses</translation>
     </message>
     <message>
         <location line="+58"/>
@@ -505,7 +505,7 @@
     </message>
     <message>
         <location line="-158"/>
-        <source>Request payments (generates QR codes and Zcoin: URIs)</source>
+        <source>Request payments (generates QR codes and Verticalcoin: URIs)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -520,7 +520,7 @@
     </message>
     <message>
         <location line="+3"/>
-        <source>Open a Zcoin: URI or payment request</source>
+        <source>Open a Verticalcoin: URI or payment request</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -530,10 +530,10 @@
     </message>
     <message numerus="yes">
         <location line="+347"/>
-        <source>%n active connection(s) to Zcoin network</source>
+        <source>%n active connection(s) to Verticalcoin network</source>
         <translation>
-            <numerusform>%n active connection to Zcoin network</numerusform>
-            <numerusform>%n active connections to Zcoin network</numerusform>
+            <numerusform>%n active connection to Verticalcoin network</numerusform>
+            <numerusform>%n active connections to Verticalcoin network</numerusform>
         </translation>
     </message>
     <message>
@@ -634,7 +634,7 @@
     </message>
     <message>
         <location line="-394"/>
-        <source>Show the %1 help message to get a list with possible Zcoin command-line options</source>
+        <source>Show the %1 help message to get a list with possible Verticalcoin command-line options</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1028,7 +1028,7 @@
     </message>
     <message>
         <location line="+71"/>
-        <source>The entered address &quot;%1&quot; is not a valid Zcoin address.</source>
+        <source>The entered address &quot;%1&quot; is not a valid Verticalcoin address.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1163,7 +1163,7 @@
     </message>
     <message>
         <location line="+10"/>
-        <source>%1 will download and store a copy of the Zcoin block chain. At least %2GB of data will be stored in this directory, and it will grow over time. The wallet will also be stored in this directory.</source>
+        <source>%1 will download and store a copy of the Verticalcoin block chain. At least %2GB of data will be stored in this directory, and it will grow over time. The wallet will also be stored in this directory.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1352,8 +1352,8 @@
     </message>
     <message>
         <location line="+30"/>
-        <source>Automatically open the Zcoin client port on the router. This only works when your router supports UPnP and it is enabled.</source>
-        <translation>Automatically open the Zcoin client port on the router. This only works when your router supports UPnP and it is enabled.</translation>
+        <source>Automatically open the Verticalcoin client port on the router. This only works when your router supports UPnP and it is enabled.</source>
+        <translation>Automatically open the Verticalcoin client port on the router. This only works when your router supports UPnP and it is enabled.</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -1362,7 +1362,7 @@
     </message>
     <message>
         <location line="+17"/>
-        <source>Connect to the Zcoin network through a SOCKS5 proxy.</source>
+        <source>Connect to the Verticalcoin network through a SOCKS5 proxy.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1417,7 +1417,7 @@
     </message>
     <message>
         <location line="+25"/>
-        <source>Connect to the Zcoin network through a separate SOCKS5 proxy for Tor hidden services.</source>
+        <source>Connect to the Verticalcoin network through a separate SOCKS5 proxy for Tor hidden services.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1542,8 +1542,8 @@
     <message>
         <location line="+62"/>
         <location line="+386"/>
-        <source>The displayed information may be out of date. Your wallet automatically synchronizes with the Zcoin network after a connection is established, but this process has not completed yet.</source>
-        <translation>The displayed information may be out of date. Your wallet automatically synchronizes with the Zcoin network after a connection is established, but this process has not completed yet.</translation>
+        <source>The displayed information may be out of date. Your wallet automatically synchronizes with the Verticalcoin network after a connection is established, but this process has not completed yet.</source>
+        <translation>The displayed information may be out of date. Your wallet automatically synchronizes with the Verticalcoin network after a connection is established, but this process has not completed yet.</translation>
     </message>
     <message>
         <location line="-139"/>
@@ -1640,7 +1640,7 @@
     </message>
     <message>
         <location line="-402"/>
-        <source>Cannot start Zcoin: click-to-pay handler</source>
+        <source>Cannot start Verticalcoin: click-to-pay handler</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1662,7 +1662,7 @@
     </message>
     <message>
         <location line="+8"/>
-        <source>URI cannot be parsed! This can be caused by an invalid Zcoin address or malformed URI parameters.</source>
+        <source>URI cannot be parsed! This can be caused by an invalid Verticalcoin address or malformed URI parameters.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1779,7 +1779,7 @@
     </message>
     <message>
         <location filename="../guiutil.cpp" line="+135"/>
-        <source>Enter a Zcoin address (e.g. %1)</source>
+        <source>Enter a Verticalcoin address (e.g. %1)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2272,7 +2272,7 @@
     <message>
         <location line="+14"/>
         <location line="+23"/>
-        <source>An optional message to attach to the payment request, which will be displayed when the request is opened. Note: The message will not be sent with the payment over the Zcoin network.</source>
+        <source>An optional message to attach to the payment request, which will be displayed when the request is opened. Note: The message will not be sent with the payment over the Verticalcoin network.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2566,7 +2566,7 @@
     <message>
         <location line="+30"/>
         <location line="+13"/>
-        <source>Paying only the minimum fee is just fine as long as there is less transaction volume than space in the blocks. But be aware that this can end up in a never confirming transaction once there is more demand for Zcoin transactions than the network can process.</source>
+        <source>Paying only the minimum fee is just fine as long as there is less transaction volume than space in the blocks. But be aware that this can end up in a never confirming transaction once there is more demand for Verticalcoin transactions than the network can process.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2777,7 +2777,7 @@
     </message>
     <message>
         <location line="+106"/>
-        <source>Warning: Invalid Zcoin address</source>
+        <source>Warning: Invalid Verticalcoin address</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2822,7 +2822,7 @@
     </message>
     <message>
         <location line="+39"/>
-        <source>The Zcoin address to send the payment to</source>
+        <source>The Verticalcoin address to send the payment to</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2879,7 +2879,7 @@
     </message>
     <message>
         <location line="+47"/>
-        <source>A message that was attached to the Zcoin: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Zcoin network.</source>
+        <source>A message that was attached to the Verticalcoin: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Verticalcoin network.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2941,7 +2941,7 @@
     </message>
     <message>
         <location line="+18"/>
-        <source>The Zcoin address to sign the message with</source>
+        <source>The Verticalcoin address to sign the message with</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2983,8 +2983,8 @@
     </message>
     <message>
         <location line="+21"/>
-        <source>Sign the message to prove you own this Zcoin address</source>
-        <translation>Sign the message to prove you own this Zcoin address</translation>
+        <source>Sign the message to prove you own this Verticalcoin address</source>
+        <translation>Sign the message to prove you own this Verticalcoin address</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -3014,13 +3014,13 @@
     </message>
     <message>
         <location line="+21"/>
-        <source>The Zcoin address the message was signed with</source>
+        <source>The Verticalcoin address the message was signed with</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+37"/>
-        <source>Verify the message to ensure it was signed with the specified Zcoin address</source>
-        <translation>Verify the message to ensure it was signed with the specified Zcoin address</translation>
+        <source>Verify the message to ensure it was signed with the specified Verticalcoin address</source>
+        <translation>Verify the message to ensure it was signed with the specified Verticalcoin address</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -3777,7 +3777,7 @@
     </message>
 </context>
 <context>
-    <name>Zcoin-core</name>
+    <name>Verticalcoin-core</name>
     <message>
         <location filename="../Zcoinstrings.cpp" line="+297"/>
         <source>Options:</source>
@@ -3860,8 +3860,8 @@
     </message>
     <message>
         <location line="-211"/>
-        <source>Zcoin Core</source>
-        <translation type="unfinished">Zcoin Core</translation>
+        <source>Verticalcoin Core</source>
+        <translation type="unfinished">Verticalcoin Core</translation>
     </message>
     <message>
         <location line="+1"/>

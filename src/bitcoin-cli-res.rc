@@ -16,7 +16,7 @@ BEGIN
     BEGIN
         BLOCK "040904E4" // U.S. English - multilingual (hex)
         BEGIN
-            VALUE "CompanyName",        "Zcoin"
+            VALUE "CompanyName",        "Verticalcoin"
             VALUE "FileDescription",    "zcoin-cli (JSON-RPC client for " PACKAGE_NAME ")"
             VALUE "FileVersion",        VER_FILEVERSION_STR
             VALUE "InternalName",       "zcoin-cli"

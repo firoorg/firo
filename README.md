@@ -29,7 +29,7 @@ Build
 
         git clone https://github.com/zcoinofficial/zcoin
 
-2.  Build Zcoin-core:
+2.  Build Verticalcoin-core:
 
     Configure and build the headless zcoin binaries as well as the GUI (if Qt is found).
 

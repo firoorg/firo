@@ -1,6 +1,6 @@
 name: znode
 version: "0.0.1"
-summary: Znode for Zcoin project
+summary: Znode for Verticalcoin project
 description: |
  Znodes verify transaction and are used as second layer on top of the normal nodes.
  Znodes must have access to 1000xzc at a specific address to play the role of Znode otherwise they are just degraded to a regular node on the network.

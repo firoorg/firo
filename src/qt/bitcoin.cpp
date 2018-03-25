@@ -631,7 +631,7 @@ int main(int argc, char *argv[])
     /// 7a. parse znode.conf
     std::string strErr;
     if(!znodeConfig.read(strErr)) {
-        QMessageBox::critical(0, QObject::tr("Zcoin Core"),
+        QMessageBox::critical(0, QObject::tr("Verticalcoin Core"),
                               QObject::tr("Error reading znode configuration file: %1").arg(strErr.c_str()));
         return EXIT_FAILURE;
     }
