@@ -104,7 +104,7 @@ endif
 .PHONY: FORCE check-symbols check-security
 # bitcoin core #
 BITCOIN_CORE_H = \
-  activeznode.h \
+  activevnode.h \
   addrman.h \
   base58.h \
   bloom.h \
@@ -141,8 +141,8 @@ BITCOIN_CORE_H = \
   vnode.h \
   vnode-payments.h \
   vnode-sync.h \
-  znodeman.h \
-  znodeconfig.h \
+  vnodeman.h \
+  vnodeconfig.h \
   memusage.h \
   merkleblock.h \
   miner.h \
@@ -233,7 +233,7 @@ libbitcoin_server_a_SOURCES = \
   rpc/misc.cpp \
   rpc/net.cpp \
   rpc/rawtransaction.cpp \
-  rpc/rpcznode.cpp \
+  rpc/rpcvnode.cpp \
   rpc/server.cpp \
   script/sigcache.cpp \
   script/ismine.cpp \
@@ -263,14 +263,14 @@ endif
 libbitcoin_wallet_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 libbitcoin_wallet_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_wallet_a_SOURCES = \
-  activeznode.cpp \
+  activevnode.cpp \
   darksend.cpp \
   vnode.cpp \
   instantx.cpp \
   vnode-payments.cpp \
   vnode-sync.cpp \
-  znodeconfig.cpp \
-  znodeman.cpp \
+  vnodeconfig.cpp \
+  vnodeman.cpp \
   wallet/crypter.cpp \
   wallet/db.cpp \
   wallet/rpcdump.cpp \

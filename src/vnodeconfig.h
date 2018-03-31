@@ -7,7 +7,7 @@
 #define SRC_ZNODECONFIG_H_
 
 class CZnodeConfig;
-extern CZnodeConfig znodeConfig;
+extern CZnodeConfig vnodeConfig;
 
 class CZnodeConfig
 {

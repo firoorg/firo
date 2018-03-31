@@ -2,13 +2,13 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "activeznode.h"
+#include "activevnode.h"
 #include "darksend.h"
 #include "instantx.h"
 #include "key.h"
 #include "main.h"
 #include "vnode-sync.h"
-#include "znodeman.h"
+#include "vnodeman.h"
 #include "net.h"
 #include "protocol.h"
 #include "spork.h"
@@ -32,7 +32,7 @@ CInstantSend instantsend;
 // Transaction Locks
 //
 // step 1) Some node announces intention to lock transaction inputs via "txlreg" message
-// step 2) Top COutPointLock::SIGNATURES_TOTAL znodes per each spent outpoint push "txvote" message
+// step 2) Top COutPointLock::SIGNATURES_TOTAL vnodes per each spent outpoint push "txvote" message
 // step 3) Once there are COutPointLock::SIGNATURES_REQUIRED valid "txvote" messages per each spent outpoint
 //         for a corresponding "txlreg" message, all outpoints from that tx are treated as locked
 
@@ -46,7 +46,7 @@ void CInstantSend::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataSt
 //    if(!sporkManager.IsSporkActive(SPORK_2_INSTANTSEND_ENABLED)) return;
 
     // Ignore any InstantSend messages until vnode list is synced
-    if(!znodeSync.IsZnodeListSynced()) return;
+    if(!vnodeSync.IsZnodeListSynced()) return;
 
     // NOTE: NetMsgType::TXLOCKREQUEST is handled via ProcessMessage() in main.cpp
 
@@ -333,7 +333,7 @@ bool CInstantSend::ProcessTxLockVote(CNode* pfrom, CTxLockVote& vote)
                 }
             }
         }
-        // we have votes by other znodes only (so far), let's continue and see who will win
+        // we have votes by other vnodes only (so far), let's continue and see who will win
         it1->second.insert(txHash);
     } else {
         std::set<uint256> setHashes;
@@ -1015,7 +1015,7 @@ bool CTxLockVote::CheckSignature() const
     std::string strError;
     std::string strMessage = txHash.ToString() + outpoint.ToStringShort();
 
-    znode_info_t infoMn = mnodeman.GetZnodeInfo(CTxIn(outpointZnode));
+    vnode_info_t infoMn = mnodeman.GetZnodeInfo(CTxIn(outpointZnode));
 
     if(!infoMn.fInfoValid) {
         LogPrintf("CTxLockVote::CheckSignature -- Unknown Vnode: vnode=%s\n", outpointZnode.ToString());

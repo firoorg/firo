@@ -291,26 +291,26 @@ UniValue znsync(const UniValue& params, bool fHelp)
 
     if(strMode == "status") {
         UniValue objStatus(UniValue::VOBJ);
-        objStatus.push_back(Pair("AssetID", znodeSync.GetAssetID()));
-        objStatus.push_back(Pair("AssetName", znodeSync.GetAssetName()));
-        objStatus.push_back(Pair("Attempt", znodeSync.GetAttempt()));
-        objStatus.push_back(Pair("IsBlockchainSynced", znodeSync.IsBlockchainSynced()));
-        objStatus.push_back(Pair("IsZnodeListSynced", znodeSync.IsZnodeListSynced()));
-        objStatus.push_back(Pair("IsWinnersListSynced", znodeSync.IsWinnersListSynced()));
-        objStatus.push_back(Pair("IsSynced", znodeSync.IsSynced()));
-        objStatus.push_back(Pair("IsFailed", znodeSync.IsFailed()));
+        objStatus.push_back(Pair("AssetID", vnodeSync.GetAssetID()));
+        objStatus.push_back(Pair("AssetName", vnodeSync.GetAssetName()));
+        objStatus.push_back(Pair("Attempt", vnodeSync.GetAttempt()));
+        objStatus.push_back(Pair("IsBlockchainSynced", vnodeSync.IsBlockchainSynced()));
+        objStatus.push_back(Pair("IsZnodeListSynced", vnodeSync.IsZnodeListSynced()));
+        objStatus.push_back(Pair("IsWinnersListSynced", vnodeSync.IsWinnersListSynced()));
+        objStatus.push_back(Pair("IsSynced", vnodeSync.IsSynced()));
+        objStatus.push_back(Pair("IsFailed", vnodeSync.IsFailed()));
         return objStatus;
     }
 
     if(strMode == "next")
     {
-        znodeSync.SwitchToNextAsset();
-        return "sync updated to " + znodeSync.GetAssetName();
+        vnodeSync.SwitchToNextAsset();
+        return "sync updated to " + vnodeSync.GetAssetName();
     }
 
     if(strMode == "reset")
     {
-        znodeSync.Reset();
+        vnodeSync.Reset();
         return "success";
     }
     return "failure";

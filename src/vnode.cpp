@@ -2,7 +2,7 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "activeznode.h"
+#include "activevnode.h"
 #include "consensus/validation.h"
 #include "darksend.h"
 #include "init.h"
@@ -10,7 +10,7 @@
 #include "vnode.h"
 #include "vnode-payments.h"
 #include "vnode-sync.h"
-#include "znodeman.h"
+#include "vnodeman.h"
 #include "util.h"
 
 #include <boost/lexical_cast.hpp>
@@ -217,8 +217,8 @@ void CZnode::Check(bool fForce) {
         return;
     }
 
-    // keep old znodes on start, give them a chance to receive updates...
-    bool fWaitForPing = !znodeSync.IsZnodeListSynced() && !IsPingedWithin(ZNODE_MIN_MNP_SECONDS);
+    // keep old vnodes on start, give them a chance to receive updates...
+    bool fWaitForPing = !vnodeSync.IsZnodeListSynced() && !IsPingedWithin(ZNODE_MIN_MNP_SECONDS);
 
     if (fWaitForPing && !fOurZnode) {
         // ...but if it was already expired before the initial check - return right away
@@ -239,7 +239,7 @@ void CZnode::Check(bool fForce) {
             return;
         }
 
-        bool fWatchdogActive = znodeSync.IsSynced() && mnodeman.IsWatchdogActive();
+        bool fWatchdogActive = vnodeSync.IsSynced() && mnodeman.IsWatchdogActive();
         bool fWatchdogExpired = (fWatchdogActive && ((GetTime() - nTimeLastWatchdogVote) > ZNODE_WATCHDOG_MAX_SECONDS));
 
 //        LogPrint("vnode", "CZnode::Check -- outpoint=%s, nTimeLastWatchdogVote=%d, GetTime()=%d, fWatchdogExpired=%d\n",
@@ -299,8 +299,8 @@ bool CZnode::IsValidNetAddr(CService addrIn) {
            (addrIn.IsIPv4() && IsReachable(addrIn) && addrIn.IsRoutable());
 }
 
-znode_info_t CZnode::GetInfo() {
-    znode_info_t info;
+vnode_info_t CZnode::GetInfo() {
+    vnode_info_t info;
     info.vin = vin;
     info.addr = addr;
     info.pubKeyCollateralAddress = pubKeyCollateralAddress;
@@ -446,7 +446,7 @@ bool CZnodeBroadcast::Create(std::string strService, std::string strKeyZnode, st
     CPubKey pubKeyZnodeNew;
     CKey keyZnodeNew;
     //need correct blocks to send ping
-    if (!fOffline && !znodeSync.IsBlockchainSynced()) {
+    if (!fOffline && !vnodeSync.IsBlockchainSynced()) {
         strErrorRet = "Sync in progress. Must wait until sync is complete to start Vnode";
         LogPrintf("CZnodeBroadcast::Create -- %s\n", strErrorRet);
         return false;
@@ -624,7 +624,7 @@ bool CZnodeBroadcast::Update(CZnode *pmn, int &nDos) {
             pmn->Check();
             RelayZNode();
         }
-        znodeSync.AddedZnodeList();
+        vnodeSync.AddedZnodeList();
     }
 
     return true;
@@ -872,10 +872,10 @@ bool CZnodePing::CheckAndUpdate(CZnode *pmn, bool fFromNewBroadcast, int &nDos) 
 
     // if we are still syncing and there was no known ping for this mn for quite a while
     // (NOTE: assuming that ZNODE_EXPIRATION_SECONDS/2 should be enough to finish mn list sync)
-    if (!znodeSync.IsZnodeListSynced() && !pmn->IsPingedWithin(ZNODE_EXPIRATION_SECONDS / 2)) {
+    if (!vnodeSync.IsZnodeListSynced() && !pmn->IsPingedWithin(ZNODE_EXPIRATION_SECONDS / 2)) {
         // let's bump sync timeout
         LogPrint("vnode", "CZnodePing::CheckAndUpdate -- bumping sync timeout, vnode=%s\n", vin.prevout.ToStringShort());
-        znodeSync.AddedZnodeList();
+        vnodeSync.AddedZnodeList();
     }
 
     // let's store this ping as the last one

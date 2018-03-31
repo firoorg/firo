@@ -17,7 +17,7 @@
 #include "httpserver.h"
 #include "httprpc.h"
 #include "utilstrencodings.h"
-#include "znodeconfig.h"
+#include "vnodeconfig.h"
 
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/filesystem.hpp>
@@ -121,7 +121,7 @@ bool AppInit(int argc, char* argv[])
 
         // parse vnode.conf
         std::string strErr;
-        if(!znodeConfig.read(strErr)) {
+        if(!vnodeConfig.read(strErr)) {
             fprintf(stderr,"Error reading vnode configuration file: %s\n", strErr.c_str());
             return false;
         }

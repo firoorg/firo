@@ -486,9 +486,9 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
         // Update coinbase transaction with additional info about vnode and governance payments,
         // get some info back to pass to getblocktemplate
         if (nHeight >= chainparams.GetConsensus().nZnodePaymentsStartBlock) {
-            CAmount znodePayment = GetZnodePayment(nHeight, blockReward);
-            coinbaseTx.vout[0].nValue -= znodePayment;
-            FillBlockPayments(coinbaseTx, nHeight, znodePayment, pblock->txoutZnode, pblock->voutSuperblock);
+            CAmount vnodePayment = GetZnodePayment(nHeight, blockReward);
+            coinbaseTx.vout[0].nValue -= vnodePayment;
+            FillBlockPayments(coinbaseTx, nHeight, vnodePayment, pblock->txoutZnode, pblock->voutSuperblock);
         }
 
         nLastBlockTx = nBlockTx;

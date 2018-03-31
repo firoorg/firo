@@ -23,7 +23,7 @@ extern CActiveZnode activeZnode;
 class CActiveZnode
 {
 public:
-    enum znode_type_enum_t {
+    enum vnode_type_enum_t {
         ZNODE_UNKNOWN = 0,
         ZNODE_REMOTE  = 1,
         ZNODE_LOCAL   = 2
@@ -33,7 +33,7 @@ private:
     // critical section to protect the inner data structures
     mutable CCriticalSection cs;
 
-    znode_type_enum_t eType;
+    vnode_type_enum_t eType;
 
     bool fPingerEnabled;
 

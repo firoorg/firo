@@ -2,10 +2,10 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "activeznode.h"
+#include "activevnode.h"
 #include "vnode.h"
 #include "vnode-sync.h"
-#include "znodeman.h"
+#include "vnodeman.h"
 #include "protocol.h"
 
 extern CWallet *pwalletMain;
@@ -20,7 +20,7 @@ void CActiveZnode::ManageState() {
         return;
     }
 
-    if (Params().NetworkIDString() != CBaseChainParams::REGTEST && !znodeSync.IsBlockchainSynced()) {
+    if (Params().NetworkIDString() != CBaseChainParams::REGTEST && !vnodeSync.IsBlockchainSynced()) {
         nState = ACTIVE_ZNODE_SYNC_IN_PROCESS;
         LogPrintf("CActiveZnode::ManageState -- %s: %s\n", GetStateString(), GetStatus());
         return;
@@ -247,7 +247,7 @@ void CActiveZnode::ManageStateRemote() {
              GetStatus(), fPingerEnabled, GetTypeString(), pubKeyZnode.GetID().ToString());
 
     mnodeman.CheckZnode(pubKeyZnode);
-    znode_info_t infoMn = mnodeman.GetZnodeInfo(pubKeyZnode);
+    vnode_info_t infoMn = mnodeman.GetZnodeInfo(pubKeyZnode);
     if (infoMn.fInfoValid) {
         if (infoMn.nProtocolVersion != PROTOCOL_VERSION) {
             nState = ACTIVE_ZNODE_NOT_CAPABLE;

@@ -142,10 +142,10 @@ private:
     /// Set when index has been rebuilt, clear when read
     bool fIndexRebuilt;
 
-    /// Set when znodes are added, cleared when CGovernanceManager is notified
+    /// Set when vnodes are added, cleared when CGovernanceManager is notified
     bool fZnodesAdded;
 
-    /// Set when znodes are removed, cleared when CGovernanceManager is notified
+    /// Set when vnodes are removed, cleared when CGovernanceManager is notified
     bool fZnodesRemoved;
 
     std::vector<uint256> vecDirtyGovernanceObjectHashes;
@@ -161,7 +161,7 @@ public:
     std::map<uint256, CZnodePing> mapSeenZnodePing;
     // Keep track of all verifications I've seen
     std::map<uint256, CZnodeVerification> mapSeenZnodeVerification;
-    // keep track of dsq count to prevent znodes from gaming darksend queue
+    // keep track of dsq count to prevent vnodes from gaming darksend queue
     int64_t nDsqCount;
 
 
@@ -280,9 +280,9 @@ public:
 
     bool Has(const CTxIn& vin);
 
-    znode_info_t GetZnodeInfo(const CTxIn& vin);
+    vnode_info_t GetZnodeInfo(const CTxIn& vin);
 
-    znode_info_t GetZnodeInfo(const CPubKey& pubKeyZnode);
+    vnode_info_t GetZnodeInfo(const CPubKey& pubKeyZnode);
 
     char* GetNotQualifyReason(CZnode& mn, int nBlockHeight, bool fFilterSigTime, int nMnCount);
 

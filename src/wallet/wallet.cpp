@@ -3894,7 +3894,7 @@ bool CWallet::CommitZerocoinSpendTransaction(CWalletTx &wtxNew, CReserveKey &res
 string CWallet::MintZerocoin(CScript pubCoin, int64_t nValue, CWalletTx &wtxNew, bool fAskFee) {
     // Do not allow mint to take place until fully synced
     // Temporary measure: we can remove this limitation when well after spend v1.5 HF block
-    if (fImporting || fReindex || !znodeSync.IsBlockchainSynced())
+    if (fImporting || fReindex || !vnodeSync.IsBlockchainSynced())
         return _("Not fully synced yet");
 
     LogPrintf("MintZerocoin: value = %s\n", nValue);
@@ -3962,7 +3962,7 @@ string CWallet::SpendZerocoin(int64_t nValue, libzerocoin::CoinDenomination deno
 
     // Do not allow spend to take place until fully synced
     // Temporary measure: we can remove this limitation when well after spend v1.5 HF block
-    if (fImporting || fReindex || !znodeSync.IsBlockchainSynced())
+    if (fImporting || fReindex || !vnodeSync.IsBlockchainSynced())
         return _("Not fully synced yet");
 
     CReserveKey reservekey(this);

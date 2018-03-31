@@ -2,20 +2,20 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "activeznode.h"
+#include "activevnode.h"
 #include "checkpoints.h"
 #include "main.h"
 #include "vnode.h"
 #include "vnode-payments.h"
 #include "vnode-sync.h"
-#include "znodeman.h"
+#include "vnodeman.h"
 #include "netfulfilledman.h"
 #include "spork.h"
 #include "util.h"
 
 class CZnodeSync;
 
-CZnodeSync znodeSync;
+CZnodeSync vnodeSync;
 
 bool CZnodeSync::CheckNodeHeight(CNode *pnode, bool fDisconnectStuckNodes) {
     CNodeStateStats stats;
@@ -189,13 +189,13 @@ void CZnodeSync::SwitchToNextAsset() {
 }
 
 std::string CZnodeSync::GetSyncStatus() {
-    switch (znodeSync.nRequestedZnodeAssets) {
+    switch (vnodeSync.nRequestedZnodeAssets) {
         case ZNODE_SYNC_INITIAL:
             return _("Synchronization pending...");
         case ZNODE_SYNC_SPORKS:
             return _("Synchronizing sporks...");
         case ZNODE_SYNC_LIST:
-            return _("Synchronizing znodes...");
+            return _("Synchronizing vnodes...");
         case ZNODE_SYNC_MNW:
             return _("Synchronizing vnode payments...");
         case ZNODE_SYNC_FAILED:
@@ -239,7 +239,7 @@ void CZnodeSync::ProcessTick() {
     if (nTick++ % ZNODE_SYNC_TICK_SECONDS != 0) return;
     if (!pCurrentBlockIndex) return;
 
-    //the actual count of znodes we have currently
+    //the actual count of vnodes we have currently
     int nMnCount = mnodeman.CountZnodes();
 
     LogPrint("ProcessTick", "CZnodeSync::ProcessTick -- nTick %d nMnCount %d\n", nTick, nMnCount);
@@ -253,7 +253,7 @@ void CZnodeSync::ProcessTick() {
     {
         if (IsSynced()) {
             /*
-                Resync if we lost all znodes from sleep/wake or failed to sync originally
+                Resync if we lost all vnodes from sleep/wake or failed to sync originally
             */
             if (nMnCount == 0) {
                 LogPrintf("CZnodeSync::ProcessTick -- WARNING: not enough data, restarting sync\n");

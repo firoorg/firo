@@ -7,8 +7,8 @@
 #define DARKSEND_RELAY_H
 
 #include "main.h"
-#include "activeznode.h"
-#include "znodeman.h"
+#include "activevnode.h"
+#include "vnodeman.h"
 
 
 class CDarkSendRelay

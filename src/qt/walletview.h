@@ -6,7 +6,7 @@
 #define BITCOIN_QT_WALLETVIEW_H
 
 #include "amount.h"
-#include "znodelist.h"
+#include "vnodelist.h"
 
 #include <QStackedWidget>
 
@@ -68,7 +68,7 @@ private:
     AddressBookPage *usedReceivingAddressesPage;
     ZerocoinPage *zerocoinPage;
     TransactionView *transactionView;
-    ZnodeList *znodeListPage;
+    ZnodeList *vnodeListPage;
 
     QProgressDialog *progressDialog;
     const PlatformStyle *platformStyle;

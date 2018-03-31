@@ -112,7 +112,7 @@ private:
     QAction *openAction;
     QAction *showHelpMessageAction;
     QAction *zerocoinAction;
-    QAction *znodeAction;
+    QAction *vnodeAction;
     QAction *zerocoinMenuAction;
 
     QSystemTrayIcon *trayIcon;

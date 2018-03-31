@@ -24,7 +24,7 @@ static const int ZNODE_SYNC_TIMEOUT_SECONDS = 30; // our blocks are 2.5 minutes 
 //static const int ZNODE_SYNC_ENOUGH_PEERS    = 6;
 static const int ZNODE_SYNC_ENOUGH_PEERS    = 3;
 
-extern CZnodeSync znodeSync;
+extern CZnodeSync vnodeSync;
 
 //
 // CZnodeSync : Sync vnode assets in stages

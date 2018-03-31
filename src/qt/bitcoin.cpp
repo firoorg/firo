@@ -19,7 +19,7 @@
 #include "splashscreen.h"
 #include "utilitydialog.h"
 #include "winshutdownmonitor.h"
-#include "znodeconfig.h"
+#include "vnodeconfig.h"
 
 #ifdef ENABLE_WALLET
 #include "paymentserver.h"
@@ -630,7 +630,7 @@ int main(int argc, char *argv[])
 #ifdef ENABLE_WALLET
     /// 7a. parse vnode.conf
     std::string strErr;
-    if(!znodeConfig.read(strErr)) {
+    if(!vnodeConfig.read(strErr)) {
         QMessageBox::critical(0, QObject::tr("Verticalcoin Core"),
                               QObject::tr("Error reading vnode configuration file: %1").arg(strErr.c_str()));
         return EXIT_FAILURE;

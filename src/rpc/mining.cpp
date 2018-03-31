@@ -465,8 +465,8 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
             "      \"script\" : \"xxxx\",            (string) payee scriptPubKey\n"
             "      \"amount\": n                   (numeric) required amount to pay\n"
             "  },\n"
-            "  \"znode_payments_started\" :  true|false, (boolean) true, if vnode payments started\n"
-//            "  \"znode_payments_enforced\" : true|false, (boolean) true, if vnode payments are enforced\n"
+            "  \"vnode_payments_started\" :  true|false, (boolean) true, if vnode payments started\n"
+//            "  \"vnode_payments_enforced\" : true|false, (boolean) true, if vnode payments are enforced\n"
             "}\n"
 
             "\nExamples:\n"
@@ -547,7 +547,7 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
     if (IsInitialBlockDownload())
         throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "Verticalcoin is downloading blocks...");
 
-    if (!znodeSync.IsSynced())
+    if (!vnodeSync.IsSynced())
         throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "Verticalcoin Core is syncing with network...");
 
     static unsigned int nTransactionsUpdatedLast;
@@ -783,18 +783,18 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
     result.push_back(Pair("bits", strprintf("%08x", pblock->nBits)));
     result.push_back(Pair("height", (int64_t)(pindexPrev->nHeight+1)));
 
-    UniValue znodeObj(UniValue::VOBJ);
+    UniValue vnodeObj(UniValue::VOBJ);
     if(pblock->txoutZnode != CTxOut()) {
         CTxDestination address1;
         ExtractDestination(pblock->txoutZnode.scriptPubKey, address1);
         CBitcoinAddress address2(address1);
-        znodeObj.push_back(Pair("payee", address2.ToString().c_str()));
-        znodeObj.push_back(Pair("script", HexStr(pblock->txoutZnode.scriptPubKey.begin(), pblock->txoutZnode.scriptPubKey.end())));
-        znodeObj.push_back(Pair("amount", pblock->txoutZnode.nValue));
+        vnodeObj.push_back(Pair("payee", address2.ToString().c_str()));
+        vnodeObj.push_back(Pair("script", HexStr(pblock->txoutZnode.scriptPubKey.begin(), pblock->txoutZnode.scriptPubKey.end())));
+        vnodeObj.push_back(Pair("amount", pblock->txoutZnode.nValue));
     }
-    result.push_back(Pair("vnode", znodeObj));
-    result.push_back(Pair("znode_payments_started", pindexPrev->nHeight + 1 > Params().GetConsensus().nZnodePaymentsStartBlock));
-//    result.push_back(Pair("znode_payments_enforced", sporkManager.IsSporkActive(SPORK_8_MASTERNODE_PAYMENT_ENFORCEMENT)));
+    result.push_back(Pair("vnode", vnodeObj));
+    result.push_back(Pair("vnode_payments_started", pindexPrev->nHeight + 1 > Params().GetConsensus().nZnodePaymentsStartBlock));
+//    result.push_back(Pair("vnode_payments_enforced", sporkManager.IsSporkActive(SPORK_8_MASTERNODE_PAYMENT_ENFORCEMENT)));
 
     const struct BIP9DeploymentInfo& segwit_info = VersionBitsDeploymentInfo[Consensus::DEPLOYMENT_SEGWIT];
     if (!pblocktemplate->vchCoinbaseCommitment.empty() && setClientRules.find(segwit_info.name) != setClientRules.end()) {

@@ -36,7 +36,7 @@ Step 3. First run on your Local Wallet
 
     ./src/verticalcoind -daemon -server -testnet
 
-**3.2.**  Generate znodeprivkey:
+**3.2.**  Generate vnodeprivkey:
 
     ./src/verticalcoin-cli vnode genkey
 
@@ -66,7 +66,7 @@ Step 4. In your VPS where you are hosting your Vnode. Update config files
     listen=1
     maxconnections=24
     vnode=1
-    znodeprivkey=XXXXXXXXXXXXXXXXX  ## Replace with your vnode private key
+    vnodeprivkey=XXXXXXXXXXXXXXXXX  ## Replace with your vnode private key
     externalip=XXX.XXX.XXX.XXX:8168 ## Replace with your node external IP
 
 **4.2.**  Create file **vnode.conf** (in 2 folders **~/.verticalcoin** and **~/.verticalcoin/testnet3**) contains the following info:

@@ -2,7 +2,7 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "activeznode.h"
+#include "activevnode.h"
 #include "coincontrol.h"
 #include "consensus/validation.h"
 #include "darksend.h"
@@ -11,7 +11,7 @@
 #include "instantx.h"
 #include "vnode-payments.h"
 #include "vnode-sync.h"
-#include "znodeman.h"
+#include "vnodeman.h"
 #include "script/sign.h"
 #include "txmempool.h"
 #include "util.h"
@@ -32,7 +32,7 @@ std::vector <CAmount> vecPrivateSendDenominations;
 
 void CDarksendPool::ProcessMessage(CNode *pfrom, std::string &strCommand, CDataStream &vRecv) {
     if (fLiteMode) return; // ignore all Dash related functionality
-    if (!znodeSync.IsBlockchainSynced()) return;
+    if (!vnodeSync.IsBlockchainSynced()) return;
 
     if (strCommand == NetMsgType::DSACCEPT) {
 
@@ -520,7 +520,7 @@ std::string CDarksendPool::GetStatus() {
     nStatusMessageProgress += 10;
     std::string strSuffix = "";
 
-    if ((pCurrentBlockIndex && pCurrentBlockIndex->nHeight - nCachedLastSuccessBlock < nMinBlockSpacing) || !znodeSync.IsBlockchainSynced())
+    if ((pCurrentBlockIndex && pCurrentBlockIndex->nHeight - nCachedLastSuccessBlock < nMinBlockSpacing) || !vnodeSync.IsBlockchainSynced())
         return strAutoDenomResult;
 
     switch (nState) {
@@ -1307,7 +1307,7 @@ bool CDarksendPool::DoAutomaticDenominating(bool fDryRun) {
     if (!pwalletMain || pwalletMain->IsLocked(true)) return false;
     if (nState != POOL_STATE_IDLE) return false;
 
-    if (!znodeSync.IsZnodeListSynced()) {
+    if (!vnodeSync.IsZnodeListSynced()) {
         strAutoDenomResult = _("Can't mix while sync in progress.");
         return false;
     }
@@ -2483,7 +2483,7 @@ void CDarksendPool::UpdatedBlockTip(const CBlockIndex *pindex) {
     pCurrentBlockIndex = pindex;
     LogPrint("privatesend", "CDarksendPool::UpdatedBlockTip -- pCurrentBlockIndex->nHeight: %d\n", pCurrentBlockIndex->nHeight);
 
-    if (!fLiteMode && znodeSync.IsZnodeListSynced()) {
+    if (!fLiteMode && vnodeSync.IsZnodeListSynced()) {
         NewBlock();
     }
 }
@@ -2506,13 +2506,13 @@ void ThreadCheckDarkSendPool() {
         MilliSleep(1000);
 
         // try to sync from all available nodes, one step at a time
-        znodeSync.ProcessTick();
+        vnodeSync.ProcessTick();
 
-        if (znodeSync.IsBlockchainSynced() && !ShutdownRequested()) {
+        if (vnodeSync.IsBlockchainSynced() && !ShutdownRequested()) {
 
             nTick++;
 
-            // make sure to check all znodes first
+            // make sure to check all vnodes first
             mnodeman.Check();
 
             // check if we should activate or ping every few minutes,

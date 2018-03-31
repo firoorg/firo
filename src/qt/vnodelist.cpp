@@ -1,13 +1,13 @@
-#include "znodelist.h"
-#include "ui_znodelist.h"
+#include "vnodelist.h"
+#include "ui_vnodelist.h"
 
-#include "activeznode.h"
+#include "activevnode.h"
 #include "clientmodel.h"
 #include "init.h"
 #include "guiutil.h"
 #include "vnode-sync.h"
-#include "znodeconfig.h"
-#include "znodeman.h"
+#include "vnodeconfig.h"
+#include "vnodeman.h"
 #include "sync.h"
 #include "wallet/wallet.h"
 #include "walletmodel.h"
@@ -104,7 +104,7 @@ void ZnodeList::StartAlias(std::string strAlias)
     std::string strStatusHtml;
     strStatusHtml += "<center>Alias: " + strAlias;
 
-    BOOST_FOREACH(CZnodeConfig::CZnodeEntry mne, znodeConfig.getEntries()) {
+    BOOST_FOREACH(CZnodeConfig::CZnodeEntry mne, vnodeConfig.getEntries()) {
         if(mne.getAlias() == strAlias) {
             std::string strError;
             CZnodeBroadcast mnb;
@@ -137,7 +137,7 @@ void ZnodeList::StartAll(std::string strCommand)
     int nCountFailed = 0;
     std::string strFailedHtml;
 
-    BOOST_FOREACH(CZnodeConfig::CZnodeEntry mne, znodeConfig.getEntries()) {
+    BOOST_FOREACH(CZnodeConfig::CZnodeEntry mne, vnodeConfig.getEntries()) {
         std::string strError;
         CZnodeBroadcast mnb;
 
@@ -165,7 +165,7 @@ void ZnodeList::StartAll(std::string strCommand)
     pwalletMain->Lock();
 
     std::string returnObj;
-    returnObj = strprintf("Successfully started %d znodes, failed to start %d, total %d", nCountSuccessful, nCountFailed, nCountFailed + nCountSuccessful);
+    returnObj = strprintf("Successfully started %d vnodes, failed to start %d, total %d", nCountSuccessful, nCountFailed, nCountFailed + nCountSuccessful);
     if (nCountFailed > 0) {
         returnObj += strFailedHtml;
     }
@@ -195,7 +195,7 @@ void ZnodeList::updateMyZnodeInfo(QString strAlias, QString strAddr, const COutP
         ui->tableWidgetMyZnodes->insertRow(nNewRow);
     }
 
-    znode_info_t infoMn = mnodeman.GetZnodeInfo(CTxIn(outpoint));
+    vnode_info_t infoMn = mnodeman.GetZnodeInfo(CTxIn(outpoint));
     bool fFound = infoMn.fInfoValid;
 
     QTableWidgetItem *aliasItem = new QTableWidgetItem(strAlias);
@@ -233,7 +233,7 @@ void ZnodeList::updateMyNodeList(bool fForce)
     nTimeMyListUpdated = GetTime();
 
     ui->tableWidgetZnodes->setSortingEnabled(false);
-    BOOST_FOREACH(CZnodeConfig::CZnodeEntry mne, znodeConfig.getEntries()) {
+    BOOST_FOREACH(CZnodeConfig::CZnodeEntry mne, vnodeConfig.getEntries()) {
         int32_t nOutputIndex = 0;
         if(!ParseInt32(mne.getOutputIndex(), &nOutputIndex)) {
             continue;
@@ -362,8 +362,8 @@ void ZnodeList::on_startButton_clicked()
 void ZnodeList::on_startAllButton_clicked()
 {
     // Display message box
-    QMessageBox::StandardButton retval = QMessageBox::question(this, tr("Confirm all znodes start"),
-        tr("Are you sure you want to start ALL znodes?"),
+    QMessageBox::StandardButton retval = QMessageBox::question(this, tr("Confirm all vnodes start"),
+        tr("Are you sure you want to start ALL vnodes?"),
         QMessageBox::Yes | QMessageBox::Cancel,
         QMessageBox::Cancel);
 
@@ -386,7 +386,7 @@ void ZnodeList::on_startAllButton_clicked()
 void ZnodeList::on_startMissingButton_clicked()
 {
 
-    if(!znodeSync.IsZnodeListSynced()) {
+    if(!vnodeSync.IsZnodeListSynced()) {
         QMessageBox::critical(this, tr("Command is not available right now"),
             tr("You can't use this command until vnode list is synced"));
         return;
@@ -394,8 +394,8 @@ void ZnodeList::on_startMissingButton_clicked()
 
     // Display message box
     QMessageBox::StandardButton retval = QMessageBox::question(this,
-        tr("Confirm missing znodes start"),
-        tr("Are you sure you want to start MISSING znodes?"),
+        tr("Confirm missing vnodes start"),
+        tr("Are you sure you want to start MISSING vnodes?"),
         QMessageBox::Yes | QMessageBox::Cancel,
         QMessageBox::Cancel);
 

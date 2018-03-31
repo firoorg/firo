@@ -101,7 +101,7 @@ QT_FORMS_UI = \
   qt/forms/coincontroldialog.ui \
   qt/forms/editaddressdialog.ui \
   qt/forms/helpmessagedialog.ui \
-  qt/forms/znodelist.ui \
+  qt/forms/vnodelist.ui \
   qt/forms/intro.ui \
   qt/forms/openuridialog.ui \
   qt/forms/optionsdialog.ui \
@@ -133,7 +133,7 @@ QT_MOC_CPP = \
   qt/moc_intro.cpp \
   qt/moc_macdockiconhandler.cpp \
   qt/moc_macnotificationhandler.cpp \
-  qt/moc_znodelist.cpp \
+  qt/moc_vnodelist.cpp \
   qt/moc_notificator.cpp \
   qt/moc_openuridialog.cpp \
   qt/moc_optionsdialog.cpp \
@@ -202,7 +202,7 @@ BITCOIN_QT_H = \
   qt/intro.h \
   qt/macdockiconhandler.h \
   qt/macnotificationhandler.h \
-  qt/znodelist.h \
+  qt/vnodelist.h \
   qt/networkstyle.h \
   qt/notificator.h \
   qt/openuridialog.h \
@@ -247,7 +247,7 @@ RES_ICONS = \
   qt/res/icons/bitcoin.png \
   qt/res/icons/verticalcoin.png \
   qt/res/icons/zerocoin.png \
-  qt/res/icons/znodes.png \
+  qt/res/icons/vnodes.png \
   qt/res/icons/qrcode.png \
   qt/res/icons/chevron.png \
   qt/res/icons/clock1.png \
@@ -350,7 +350,7 @@ BITCOIN_QT_WALLET_CPP = \
   qt/walletframe.cpp \
   qt/walletmodel.cpp \
   qt/walletmodeltransaction.cpp \
-  qt/znodelist.cpp \
+  qt/vnodelist.cpp \
   qt/walletview.cpp
 
 BITCOIN_QT_CPP = $(BITCOIN_QT_BASE_CPP)

@@ -274,8 +274,8 @@ static const CRPCCommand vRPCCommands[] =
         /* Dash features */
     { "verticalcoin",               "vnode",             &vnode,             true  },
     { "verticalcoin",               "znsync",             &znsync,             true  },
-    { "verticalcoin",               "znodelist",         &znodelist,         true  },
-    { "verticalcoin",               "znodebroadcast",    &znodebroadcast,    true  },
+    { "verticalcoin",               "vnodelist",         &vnodelist,         true  },
+    { "verticalcoin",               "vnodebroadcast",    &vnodebroadcast,    true  },
     { "verticalcoin",               "getpoolinfo",            &getpoolinfo,            true  },
 };
 

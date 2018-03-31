@@ -1,11 +1,11 @@
-#include "activeznode.h"
+#include "activevnode.h"
 #include "darksend.h"
 #include "init.h"
 #include "main.h"
 #include "vnode-payments.h"
 #include "vnode-sync.h"
-#include "znodeconfig.h"
-#include "znodeman.h"
+#include "vnodeconfig.h"
+#include "vnodeman.h"
 #include "rpc/server.h"
 #include "util.h"
 #include "utilmoneystr.h"
@@ -36,7 +36,7 @@ UniValue privatesend(const UniValue &params, bool fHelp) {
         }
 
         if (fZNode)
-            return "Mixing is not supported from znodes";
+            return "Mixing is not supported from vnodes";
 
         fEnablePrivateSend = true;
         bool result = darkSendPool.DoAutomaticDenominating();
@@ -107,16 +107,16 @@ UniValue vnode(const UniValue &params, bool fHelp) {
                         "\nArguments:\n"
                         "1. \"command\"        (string or set of strings, required) The command to execute\n"
                         "\nAvailable commands:\n"
-                        "  count        - Print number of all known znodes (optional: 'ps', 'enabled', 'all', 'qualify')\n"
+                        "  count        - Print number of all known vnodes (optional: 'ps', 'enabled', 'all', 'qualify')\n"
                         "  current      - Print info on current vnode winner to be paid the next block (calculated locally)\n"
                         "  debug        - Print vnode status\n"
-                        "  genkey       - Generate new znodeprivkey\n"
+                        "  genkey       - Generate new vnodeprivkey\n"
                         "  outputs      - Print vnode compatible outputs\n"
                         "  start        - Start local Hot vnode configured in dash.conf\n"
                         "  start-alias  - Start single remote vnode by assigned alias configured in vnode.conf\n"
-                        "  start-<mode> - Start remote znodes configured in vnode.conf (<mode>: 'all', 'missing', 'disabled')\n"
+                        "  start-<mode> - Start remote vnodes configured in vnode.conf (<mode>: 'all', 'missing', 'disabled')\n"
                         "  status       - Print vnode status information\n"
-                        "  list         - Print list of all known znodes (see znodelist for more info)\n"
+                        "  list         - Print list of all known vnodes (see vnodelist for more info)\n"
                         "  list-conf    - Print vnode.conf in JSON format\n"
                         "  winner       - Print info on next vnode winner to vote for\n"
                         "  winners      - Print list of vnode winners\n"
@@ -128,7 +128,7 @@ UniValue vnode(const UniValue &params, bool fHelp) {
         for (unsigned int i = 1; i < params.size(); i++) {
             newParams.push_back(params[i]);
         }
-        return znodelist(newParams, fHelp);
+        return vnodelist(newParams, fHelp);
     }
 
     if (strCommand == "connect") {
@@ -201,7 +201,7 @@ UniValue vnode(const UniValue &params, bool fHelp) {
     }
 
     if (strCommand == "debug") {
-        if (activeZnode.nState != ACTIVE_ZNODE_INITIAL || !znodeSync.IsBlockchainSynced())
+        if (activeZnode.nState != ACTIVE_ZNODE_INITIAL || !vnodeSync.IsBlockchainSynced())
             return activeZnode.GetStatus();
 
         CTxIn vin;
@@ -248,7 +248,7 @@ UniValue vnode(const UniValue &params, bool fHelp) {
         UniValue statusObj(UniValue::VOBJ);
         statusObj.push_back(Pair("alias", strAlias));
 
-        BOOST_FOREACH(CZnodeConfig::CZnodeEntry mne, znodeConfig.getEntries()) {
+        BOOST_FOREACH(CZnodeConfig::CZnodeEntry mne, vnodeConfig.getEntries()) {
             if (mne.getAlias() == strAlias) {
                 fFound = true;
                 std::string strError;
@@ -287,7 +287,7 @@ UniValue vnode(const UniValue &params, bool fHelp) {
         }
 
         if ((strCommand == "start-missing" || strCommand == "start-disabled") &&
-            !znodeSync.IsZnodeListSynced()) {
+            !vnodeSync.IsZnodeListSynced()) {
             throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD,
                                "You can't use this command until vnode list is synced");
         }
@@ -297,7 +297,7 @@ UniValue vnode(const UniValue &params, bool fHelp) {
 
         UniValue resultsObj(UniValue::VOBJ);
 
-        BOOST_FOREACH(CZnodeConfig::CZnodeEntry mne, znodeConfig.getEntries()) {
+        BOOST_FOREACH(CZnodeConfig::CZnodeEntry mne, vnodeConfig.getEntries()) {
             std::string strError;
 
             CTxIn vin = CTxIn(uint256S(mne.getTxHash()), uint32_t(atoi(mne.getOutputIndex().c_str())));
@@ -329,7 +329,7 @@ UniValue vnode(const UniValue &params, bool fHelp) {
 
         UniValue returnObj(UniValue::VOBJ);
         returnObj.push_back(Pair("overall",
-                                 strprintf("Successfully started %d znodes, failed to start %d, total %d",
+                                 strprintf("Successfully started %d vnodes, failed to start %d, total %d",
                                            nSuccessful, nFailed, nSuccessful + nFailed)));
         returnObj.push_back(Pair("detail", resultsObj));
 
@@ -346,7 +346,7 @@ UniValue vnode(const UniValue &params, bool fHelp) {
     if (strCommand == "list-conf") {
         UniValue resultObj(UniValue::VOBJ);
 
-        BOOST_FOREACH(CZnodeConfig::CZnodeEntry mne, znodeConfig.getEntries()) {
+        BOOST_FOREACH(CZnodeConfig::CZnodeEntry mne, vnodeConfig.getEntries()) {
             CTxIn vin = CTxIn(uint256S(mne.getTxHash()), uint32_t(atoi(mne.getOutputIndex().c_str())));
             CZnode *pmn = mnodeman.Find(vin);
 
@@ -436,7 +436,7 @@ UniValue vnode(const UniValue &params, bool fHelp) {
     return NullUniValue;
 }
 
-UniValue znodelist(const UniValue &params, bool fHelp) {
+UniValue vnodelist(const UniValue &params, bool fHelp) {
     std::string strMode = "status";
     std::string strFilter = "";
 
@@ -449,8 +449,8 @@ UniValue znodelist(const UniValue &params, bool fHelp) {
             strMode != "protocol" && strMode != "payee" && strMode != "rank" && strMode != "qualify" &&
             strMode != "status")) {
         throw std::runtime_error(
-                "znodelist ( \"mode\" \"filter\" )\n"
-                        "Get a list of znodes in different modes\n"
+                "vnodelist ( \"mode\" \"filter\" )\n"
+                        "Get a list of vnodes in different modes\n"
                         "\nArguments:\n"
                         "1. \"mode\"      (string, optional/required to use filter, defaults = status) The mode to run list in\n"
                         "2. \"filter\"    (string, optional) Filter results. Partial match by outpoint by default in all modes,\n"
@@ -581,7 +581,7 @@ bool DecodeHexVecMnb(std::vector <CZnodeBroadcast> &vecMnb, std::string strHexMn
     return true;
 }
 
-UniValue znodebroadcast(const UniValue &params, bool fHelp) {
+UniValue vnodebroadcast(const UniValue &params, bool fHelp) {
     std::string strCommand;
     if (params.size() >= 1)
         strCommand = params[0].get_str();
@@ -589,13 +589,13 @@ UniValue znodebroadcast(const UniValue &params, bool fHelp) {
     if (fHelp ||
         (strCommand != "create-alias" && strCommand != "create-all" && strCommand != "decode" && strCommand != "relay"))
         throw std::runtime_error(
-                "znodebroadcast \"command\"...\n"
+                "vnodebroadcast \"command\"...\n"
                         "Set of commands to create and relay vnode broadcast messages\n"
                         "\nArguments:\n"
                         "1. \"command\"        (string or set of strings, required) The command to execute\n"
                         "\nAvailable commands:\n"
                         "  create-alias  - Create single remote vnode broadcast message by assigned alias configured in vnode.conf\n"
-                        "  create-all    - Create remote vnode broadcast messages for all znodes configured in vnode.conf\n"
+                        "  create-all    - Create remote vnode broadcast messages for all vnodes configured in vnode.conf\n"
                         "  decode        - Decode vnode broadcast message\n"
                         "  relay         - Relay vnode broadcast message to the network\n"
         );
@@ -622,7 +622,7 @@ UniValue znodebroadcast(const UniValue &params, bool fHelp) {
         statusObj.push_back(Pair("alias", strAlias));
 
         BOOST_FOREACH(CZnodeConfig::CZnodeEntry
-        mne, znodeConfig.getEntries()) {
+        mne, vnodeConfig.getEntries()) {
             if (mne.getAlias() == strAlias) {
                 fFound = true;
                 std::string strError;
@@ -664,7 +664,7 @@ UniValue znodebroadcast(const UniValue &params, bool fHelp) {
         }
 
         std::vector <CZnodeConfig::CZnodeEntry> mnEntries;
-        mnEntries = znodeConfig.getEntries();
+        mnEntries = vnodeConfig.getEntries();
 
         int nSuccessful = 0;
         int nFailed = 0;
@@ -673,7 +673,7 @@ UniValue znodebroadcast(const UniValue &params, bool fHelp) {
         std::vector <CZnodeBroadcast> vecMnb;
 
         BOOST_FOREACH(CZnodeConfig::CZnodeEntry
-        mne, znodeConfig.getEntries()) {
+        mne, vnodeConfig.getEntries()) {
             std::string strError;
             CZnodeBroadcast mnb;
 
@@ -699,7 +699,7 @@ UniValue znodebroadcast(const UniValue &params, bool fHelp) {
         ssVecMnb << vecMnb;
         UniValue returnObj(UniValue::VOBJ);
         returnObj.push_back(Pair("overall", strprintf(
-                "Successfully created broadcast messages for %d znodes, failed to create %d, total %d",
+                "Successfully created broadcast messages for %d vnodes, failed to create %d, total %d",
                 nSuccessful, nFailed, nSuccessful + nFailed)));
         returnObj.push_back(Pair("detail", resultsObj));
         returnObj.push_back(Pair("hex", HexStr(ssVecMnb.begin(), ssVecMnb.end())));
@@ -709,7 +709,7 @@ UniValue znodebroadcast(const UniValue &params, bool fHelp) {
 
     if (strCommand == "decode") {
         if (params.size() != 2)
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "Correct usage is 'znodebroadcast decode \"hexstring\"'");
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Correct usage is 'vnodebroadcast decode \"hexstring\"'");
 
         std::vector <CZnodeBroadcast> vecMnb;
 
@@ -754,7 +754,7 @@ UniValue znodebroadcast(const UniValue &params, bool fHelp) {
         }
 
         returnObj.push_back(Pair("overall", strprintf(
-                "Successfully decoded broadcast messages for %d znodes, failed to decode %d, total %d",
+                "Successfully decoded broadcast messages for %d vnodes, failed to decode %d, total %d",
                 nSuccessful, nFailed, nSuccessful + nFailed)));
 
         return returnObj;
@@ -762,7 +762,7 @@ UniValue znodebroadcast(const UniValue &params, bool fHelp) {
 
     if (strCommand == "relay") {
         if (params.size() < 2 || params.size() > 3)
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "znodebroadcast relay \"hexstring\" ( fast )\n"
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "vnodebroadcast relay \"hexstring\" ( fast )\n"
                     "\nArguments:\n"
                     "1. \"hex\"      (string, required) Broadcast messages hex string\n"
                     "2. fast       (string, optional) If none, using safe method\n");
@@ -810,7 +810,7 @@ UniValue znodebroadcast(const UniValue &params, bool fHelp) {
         }
 
         returnObj.push_back(Pair("overall", strprintf(
-                "Successfully relayed broadcast messages for %d znodes, failed to relay %d, total %d", nSuccessful,
+                "Successfully relayed broadcast messages for %d vnodes, failed to relay %d, total %d", nSuccessful,
                 nFailed, nSuccessful + nFailed)));
 
         return returnObj;

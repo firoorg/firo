@@ -71,12 +71,12 @@
 #include <event2/util.h>
 #include <event2/event.h>
 #include <event2/thread.h>
-#include "activeznode.h"
+#include "activevnode.h"
 #include "darksend.h"
 #include "vnode-payments.h"
 #include "vnode-sync.h"
-#include "znodeman.h"
-#include "znodeconfig.h"
+#include "vnodeman.h"
+#include "vnodeconfig.h"
 #include "netfulfilledman.h"
 #include "flat-database.h"
 #include "instantx.h"
@@ -1832,9 +1832,9 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     fZNode = GetBoolArg("-vnode", false);
 
     LogPrintf("fZNode = %s\n", fZNode);
-    LogPrintf("znodeConfig.getCount(): %s\n", znodeConfig.getCount());
+    LogPrintf("vnodeConfig.getCount(): %s\n", vnodeConfig.getCount());
 
-    if ((fZNode || znodeConfig.getCount() > 0) && !fTxIndex) {
+    if ((fZNode || vnodeConfig.getCount() > 0) && !fTxIndex) {
         return InitError("Enabling Vnode support requires turning on transaction indexing."
                                  "Please add txindex=1 to your configuration and start with -reindex");
     }
@@ -1842,33 +1842,33 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     if (fZNode) {
         LogPrintf("Vnode:\n");
 
-        if (!GetArg("-znodeaddr", "").empty()) {
+        if (!GetArg("-vnodeaddr", "").empty()) {
             // Hot Vnode (either local or remote) should get its address in
             // CActiveZnode::ManageState() automatically and no longer relies on Znodeaddr.
-            return InitError(_("znodeaddr option is deprecated. Please use vnode.conf to manage your remote znodes."));
+            return InitError(_("vnodeaddr option is deprecated. Please use vnode.conf to manage your remote vnodes."));
         }
 
-        std::string strZnodePrivKey = GetArg("-znodeprivkey", "");
+        std::string strZnodePrivKey = GetArg("-vnodeprivkey", "");
         if (!strZnodePrivKey.empty()) {
             if (!darkSendSigner.GetKeysFromSecret(strZnodePrivKey, activeZnode.keyZnode,
                                                   activeZnode.pubKeyZnode))
-                return InitError(_("Invalid znodeprivkey. Please see documenation."));
+                return InitError(_("Invalid vnodeprivkey. Please see documenation."));
 
             LogPrintf("  pubKeyZnode: %s\n", CBitcoinAddress(activeZnode.pubKeyZnode.GetID()).ToString());
         } else {
             return InitError(
-                    _("You must specify a znodeprivkey in the configuration. Please see documentation for help."));
+                    _("You must specify a vnodeprivkey in the configuration. Please see documentation for help."));
         }
     }
 
     LogPrintf("Using Vnode config file %s\n", GetZnodeConfigFile().string());
 
-    if (GetBoolArg("-znconflock", true) && pwalletMain && (znodeConfig.getCount() > 0)) {
+    if (GetBoolArg("-znconflock", true) && pwalletMain && (vnodeConfig.getCount() > 0)) {
         LOCK(pwalletMain->cs_wallet);
         LogPrintf("Locking Vnodes:\n");
         uint256 mnTxHash;
         int outputIndex;
-        BOOST_FOREACH(CZnodeConfig::CZnodeEntry mne, znodeConfig.getEntries()) {
+        BOOST_FOREACH(CZnodeConfig::CZnodeEntry mne, vnodeConfig.getEntries()) {
             mnTxHash.SetHex(mne.getTxHash());
             outputIndex = boost::lexical_cast<unsigned int>(mne.getOutputIndex());
             COutPoint outpoint = COutPoint(mnTxHash, outputIndex);
@@ -1947,7 +1947,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     mnodeman.UpdatedBlockTip(chainActive.Tip());
     darkSendPool.UpdatedBlockTip(chainActive.Tip());
     mnpayments.UpdatedBlockTip(chainActive.Tip());
-    znodeSync.UpdatedBlockTip(chainActive.Tip());
+    vnodeSync.UpdatedBlockTip(chainActive.Tip());
     // governance.UpdatedBlockTip(chainActive.Tip());
 
     // ********************************************************* Step 11d: start dash-privatesend thread

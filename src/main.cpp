@@ -48,7 +48,7 @@
 #include "instantx.h"
 #include "vnode-payments.h"
 #include "vnode-sync.h"
-#include "znodeman.h"
+#include "vnodeman.h"
 
 #include <atomic>
 #include <sstream>
@@ -2850,7 +2850,7 @@ void static UpdateTip(CBlockIndex *pindexNew, const CChainParams &chainParams) {
     mnodeman.UpdatedBlockTip(chainActive.Tip());
     darkSendPool.UpdatedBlockTip(chainActive.Tip());
     mnpayments.UpdatedBlockTip(chainActive.Tip());
-    znodeSync.UpdatedBlockTip(chainActive.Tip());
+    vnodeSync.UpdatedBlockTip(chainActive.Tip());
 
     // New best block
     nTimeBestReceived = GetTime();
@@ -4194,7 +4194,7 @@ bool ProcessNewBlock(CValidationState &state, const CChainParams &chainparams, C
         return error("%s: ActivateBestChain failed", __func__);
     }
 
-    znodeSync.IsBlockchainSynced(true);
+    vnodeSync.IsBlockchainSynced(true);
 
     return true;
 }
@@ -6894,7 +6894,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
             mnpayments.ProcessMessage(pfrom, strCommand, vRecv);
             instantsend.ProcessMessage(pfrom, strCommand, vRecv);
             sporkManager.ProcessSpork(pfrom, strCommand, vRecv);
-            znodeSync.ProcessMessage(pfrom, strCommand, vRecv);
+            vnodeSync.ProcessMessage(pfrom, strCommand, vRecv);
         } else {
             // Ignore unknown commands for extensibility
             LogPrint("net", "Unknown command \"%s\" from peer=%d\n", SanitizeString(strCommand), pfrom->id);

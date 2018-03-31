@@ -73,7 +73,7 @@ public:
     std::string ToString() const;
 };
 
-// Keep track of votes for payees from znodes
+// Keep track of votes for payees from vnodes
 class CZnodeBlockPayees
 {
 public:

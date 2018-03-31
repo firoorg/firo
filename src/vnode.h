@@ -26,7 +26,7 @@ static const int ZNODE_COIN_REQUIRED  = 1000;
 
 static const int ZNODE_POSE_BAN_MAX_SCORE          = 5;
 //
-// The Vnode Ping Class : Contains a different serialize method for sending pings from znodes throughout the network
+// The Vnode Ping Class : Contains a different serialize method for sending pings from vnodes throughout the network
 //
 
 class CZnodePing
@@ -102,9 +102,9 @@ public:
 
 };
 
-struct znode_info_t
+struct vnode_info_t
 {
-    znode_info_t()
+    vnode_info_t()
         : vin(),
           addr(),
           pubKeyCollateralAddress(),
@@ -287,7 +287,7 @@ public:
     void IncreasePoSeBanScore() { if(nPoSeBanScore < ZNODE_POSE_BAN_MAX_SCORE) nPoSeBanScore++; }
     void DecreasePoSeBanScore() { if(nPoSeBanScore > -ZNODE_POSE_BAN_MAX_SCORE) nPoSeBanScore--; }
 
-    znode_info_t GetInfo();
+    vnode_info_t GetInfo();
 
     static std::string StateToString(int nStateIn);
     std::string GetStateString() const;
@@ -327,7 +327,7 @@ public:
 
 
 //
-// The Vnode Broadcast Class : Contains a different serialize method for sending znodes through the network
+// The Vnode Broadcast Class : Contains a different serialize method for sending vnodes through the network
 //
 
 class CZnodeBroadcast : public CZnode
