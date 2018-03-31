@@ -22,12 +22,12 @@ int64_t nMinimumInputValue = DUST_HARD_LIMIT;
 
 // btzc: add zerocoin init
 // zerocoin init
-static CBigNum bnTrustedModulus;
-bool setParams = bnTrustedModulus.SetHexBool(ZEROCOIN_MODULUS);
+static CBigNum bnTrustedModulus(ZEROCOIN_MODULUS), bnTrustedModulusV2(ZEROCOIN_MODULUS_V2);
 
 // Set up the Zerocoin Params object
 uint32_t securityLevel = 80;
-static libzerocoin::Params *ZCParams = new libzerocoin::Params(bnTrustedModulus);
+libzerocoin::Params *ZCParams = new libzerocoin::Params(bnTrustedModulus, bnTrustedModulus);
+libzerocoin::Params *ZCParamsV2 = new libzerocoin::Params(bnTrustedModulusV2, bnTrustedModulus);
 
 static CZerocoinState zerocoinState;
 
@@ -112,10 +112,10 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
         LogPrintf("CheckSpendZcoinTransaction: tx version=%d, tx metadata hash=%s, serial=%s\n", newSpend.getVersion(), txHashForMetadata.ToString(), newSpend.getCoinSerialNumber().ToString());
 
         if (spendVersion == ZEROCOIN_TX_VERSION_1 && nHeight == INT_MAX) {
-            bool fTestNet = Params().NetworkIDString() == CBaseChainParams::TESTNET;
+	        int allowedV1Height = Params().nSpendV15StartBlock;
+	        auto params = Params();
             int txHeight;
             txHeight = chainActive.Height();
-            int allowedV1Height = fTestNet ? ZC_V1_5_TESTNET_STARTING_BLOCK : ZC_V1_5_STARTING_BLOCK;
             if (txHeight >= allowedV1Height + ZC_V1_5_GRACEFUL_MEMPOOL_PERIOD) {
                 LogPrintf("CheckSpendZcoinTransaction: cannot allow spend v1 into mempool after block %d\n",
                           allowedV1Height + ZC_V1_5_GRACEFUL_MEMPOOL_PERIOD);

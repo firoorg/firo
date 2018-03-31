@@ -13,7 +13,7 @@
 
 namespace libzerocoin {
 
-Params::Params(CBigNum N, uint32_t securityLevel) {
+Params::Params(CBigNum N, CBigNum Nseed, uint32_t securityLevel) {
 	this->zkp_hash_len = securityLevel;
 	this->zkp_iterations = securityLevel;
 

@@ -11,24 +11,17 @@
 #include <unordered_map>
 #include <functional>
 
+// zerocoin parameters
+libzerocoin::Params *ZCParams, *ZCParamsV2;
+
 // Test for zerocoin transaction version 2
 inline bool IsZerocoinTxV2(libzerocoin::CoinDenomination denomination, int coinId) {
-    bool fTestNet = Params().NetworkIDString() == CBaseChainParams::TESTNET;
-
-    if (fTestNet) {
-        return ((denomination == libzerocoin::ZQ_LOVELACE) && (coinId >= ZC_V2_TESTNET_SWITCH_ID_1))
-            || ((denomination == libzerocoin::ZQ_GOLDWASSER) && (coinId >= ZC_V2_TESTNET_SWITCH_ID_10))
-            || ((denomination == libzerocoin::ZQ_RACKOFF) && (coinId >= ZC_V2_TESTNET_SWITCH_ID_25))
-            || ((denomination == libzerocoin::ZQ_PEDERSEN) && (coinId >= ZC_V2_TESTNET_SWITCH_ID_50))
-            || ((denomination == libzerocoin::ZQ_WILLIAMSON) && (coinId >= ZC_V2_TESTNET_SWITCH_ID_100));
-    }
-    else {
-        return ((denomination == libzerocoin::ZQ_LOVELACE) && (coinId >= ZC_V2_SWITCH_ID_1))
-            || ((denomination == libzerocoin::ZQ_GOLDWASSER) && (coinId >= ZC_V2_SWITCH_ID_10))
-            || ((denomination == libzerocoin::ZQ_RACKOFF) && (coinId >= ZC_V2_SWITCH_ID_25))
-            || ((denomination == libzerocoin::ZQ_PEDERSEN) && (coinId >= ZC_V2_SWITCH_ID_50))
-            || ((denomination == libzerocoin::ZQ_WILLIAMSON) && (coinId >= ZC_V2_SWITCH_ID_100));
-    }
+	auto params = Params();
+	return ((denomination == libzerocoin::ZQ_LOVELACE) && (coinId >= params.nSpendV2ID_1))
+	    || ((denomination == libzerocoin::ZQ_GOLDWASSER) && (coinId >= params.nSpendV2ID_10))
+	    || ((denomination == libzerocoin::ZQ_RACKOFF) && (coinId >= params.nSpendV2ID_25))
+	    || ((denomination == libzerocoin::ZQ_PEDERSEN) && (coinId >= params.nSpendV2ID_50))
+	    || ((denomination == libzerocoin::ZQ_WILLIAMSON) && (coinId >= params.nSpendV2ID_100));
 }
 
 // Zerocoin transaction info, added to the CBlock to ensure zerocoin mint/spend transactions got their info stored into
