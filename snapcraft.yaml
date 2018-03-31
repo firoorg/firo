@@ -10,7 +10,7 @@ grade: stable
 
 apps:
  cli:
-  command: bin/zcoin-cli
+  command: bin/verticalcoin-cli
   plugs:
     - network
     - home
@@ -45,5 +45,5 @@ parts:
   after: [libboost]
   plugin: autotools
   configflags: [--without-gui]
-  source: https://github.com/zcoinofficial/zcoin.git
+  source: https://github.com/zcoinofficial/verticalcoin.git
   source-branch: master

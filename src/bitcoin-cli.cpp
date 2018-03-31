@@ -82,9 +82,9 @@ static int AppInitRPC(int argc, char* argv[])
         std::string strUsage = strprintf(_("%s RPC client version"), _(PACKAGE_NAME)) + " " + FormatFullVersion() + "\n";
         if (!mapArgs.count("-version")) {
             strUsage += "\n" + _("Usage:") + "\n" +
-                  "  zcoin-cli [options] <command> [params]  " + strprintf(_("Send command to %s"), _(PACKAGE_NAME)) + "\n" +
-                  "  zcoin-cli [options] help                " + _("List commands") + "\n" +
-                  "  zcoin-cli [options] help <command>      " + _("Get help for a command") + "\n";
+                  "  verticalcoin-cli [options] <command> [params]  " + strprintf(_("Send command to %s"), _(PACKAGE_NAME)) + "\n" +
+                  "  verticalcoin-cli [options] help                " + _("List commands") + "\n" +
+                  "  verticalcoin-cli [options] help <command>      " + _("Get help for a command") + "\n";
 
             strUsage += "\n" + HelpMessageCli();
         }

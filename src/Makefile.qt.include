@@ -2,7 +2,7 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-bin_PROGRAMS += qt/zcoin-qt
+bin_PROGRAMS += qt/verticalcoin-qt
 EXTRA_LIBRARIES += qt/libzcoinqt.a
 
 # bitcoin qt core #
@@ -245,7 +245,7 @@ RES_ICONS = \
   qt/res/icons/bitcoin.ico \
   qt/res/icons/bitcoin_testnet.ico \
   qt/res/icons/bitcoin.png \
-  qt/res/icons/zcoin.png \
+  qt/res/icons/verticalcoin.png \
   qt/res/icons/zerocoin.png \
   qt/res/icons/znodes.png \
   qt/res/icons/qrcode.png \
@@ -460,9 +460,9 @@ CLEAN_QT = $(nodist_qt_libzcoinqt_a_SOURCES) $(QT_QM) $(QT_FORMS_H) qt/*.gcda qt
 CLEANFILES += $(CLEAN_QT)
 
 zcoin_qt_clean: FORCE
-	rm -f $(CLEAN_QT) $(qt_libzcoinqt_a_OBJECTS) $(qt_zcoin_qt_OBJECTS) qt/zcoin-qt$(EXEEXT) $(LIBBITCOINQT)
+	rm -f $(CLEAN_QT) $(qt_libzcoinqt_a_OBJECTS) $(qt_zcoin_qt_OBJECTS) qt/verticalcoin-qt$(EXEEXT) $(LIBBITCOINQT)
 
-zcoin_qt : qt/zcoin-qt$(EXEEXT)
+zcoin_qt : qt/verticalcoin-qt$(EXEEXT)
 
 ui_%.h: %.ui
 	@test -f $(UIC)

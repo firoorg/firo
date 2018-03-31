@@ -241,7 +241,7 @@ void Shutdown() {
     StopNode();
 
     // STORE DATA CACHES INTO SERIALIZED DAT FILES
-    // TODO: https://github.com/zcoinofficial/zcoin/issues/182
+    // TODO: https://github.com/zcoinofficial/verticalcoin/issues/182
     //    CFlatDB<CZnodeMan> flatdb1("zncache.dat", "magicZnodeCache");
     //    flatdb1.Dump(mnodeman);
     //    CFlatDB<CZnodePayments> flatdb2("znpayments.dat", "magicZnodePaymentsCache");
@@ -1914,7 +1914,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     // ********************************************************* Step 11b: Load cache data
 
     // LOAD SERIALIZED DAT FILES INTO DATA CACHES FOR INTERNAL USE
-    // TODO: https://github.com/zcoinofficial/zcoin/issues/182
+    // TODO: https://github.com/zcoinofficial/verticalcoin/issues/182
     /* uiInterface.InitMessage(_("Loading znode cache..."));
     CFlatDB<CZnodeMan> flatdb1("zncache.dat", "magicZnodeCache");
     if (!flatdb1.Load(mnodeman)) {

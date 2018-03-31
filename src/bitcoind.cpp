@@ -129,12 +129,12 @@ bool AppInit(int argc, char* argv[])
         // Command-line RPC
         bool fCommandLine = false;
         for (int i = 1; i < argc; i++)
-            if (!IsSwitchChar(argv[i][0]) && !boost::algorithm::istarts_with(argv[i], "zcoin:"))
+            if (!IsSwitchChar(argv[i][0]) && !boost::algorithm::istarts_with(argv[i], "verticalcoin:"))
                 fCommandLine = true;
 
         if (fCommandLine)
         {
-            fprintf(stderr, "Error: There is no RPC client functionality in zcoind anymore. Use the zcoin-cli utility instead.\n");
+            fprintf(stderr, "Error: There is no RPC client functionality in zcoind anymore. Use the verticalcoin-cli utility instead.\n");
             exit(EXIT_FAILURE);
         }
 #ifndef WIN32

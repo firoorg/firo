@@ -61,7 +61,7 @@ static CBlock CreateGenesisBlock(const char *pszTimestamp, const CScript &genesi
 static CBlock CreateGenesisBlock(uint32_t nTime, uint32_t nNonce, uint32_t nBits, int32_t nVersion, const CAmount &genesisReward,
                    std::vector<unsigned char> extraNonce) {
 //    const char* pszTimestamp = "The Times 03/Jan/2009 Chancellor on brink of second bailout for banks";
-    //btzc: zcoin timestamp
+    //btzc: verticalcoin timestamp
     const char *pszTimestamp = "Times 2014/10/31 Maine Judge Says Nurse Must Follow Ebola Quarantine for Now";
     const CScript genesisOutputScript = CScript();
     return CreateGenesisBlock(pszTimestamp, genesisOutputScript, nTime, nNonce, nBits, nVersion, genesisReward,
@@ -138,7 +138,7 @@ public:
          * The characters are rarely used upper ASCII, not valid as UTF-8, and produce
        `  * a large 32-bit integer with any alignment.
          */
-        //btzc: update zcoin pchMessage
+        //btzc: update verticalcoin pchMessage
         pchMessageStart[0] = 0xe3;
         pchMessageStart[1] = 0xd9;
         pchMessageStart[2] = 0xfe;
@@ -146,7 +146,7 @@ public:
         nDefaultPort = 8168;
         nPruneAfterHeight = 100000;
         /**
-         * btzc: zcoin init genesis block
+         * btzc: verticalcoin init genesis block
          * nBits = 0x1e0ffff0
          * nTime = 1414776286
          * nNonce = 142392
@@ -161,15 +161,15 @@ public:
         extraNonce[3] = 0x00;
         genesis = CreateGenesisBlock(1414776286, 142392, 0x1e0ffff0, 2, 0 * COIN, extraNonce);
         const std::string s = genesis.GetHash().ToString();
-        // std::cout << "zcoin new hashMerkleRoot hash: " << genesis.hashMerkleRoot.ToString() << std::endl;
+        // std::cout << "verticalcoin new hashMerkleRoot hash: " << genesis.hashMerkleRoot.ToString() << std::endl;
         consensus.hashGenesisBlock = genesis.GetHash();
         assert(consensus.hashGenesisBlock == uint256S("0x4381deb85b1b2c9843c222944b616d997516dcbd6a964e1eaf0def0830695233"));
         assert(genesis.hashMerkleRoot == uint256S("0x365d2aa75d061370c9aefdabac3985716b1e3b4bb7c4af4ed54f25e5aaa42783"));
-        vSeeds.push_back(CDNSSeedData("sf1.zcoin.io", "sf1.zcoin.io", false));
-        vSeeds.push_back(CDNSSeedData("sf2.zcoin.io", "sf2.zcoin.io", false));
-        vSeeds.push_back(CDNSSeedData("london.zcoin.io", "london.zcoin.io", false));
-        vSeeds.push_back(CDNSSeedData("singapore.zcoin.io", "singapore.zcoin.io", false));
-        vSeeds.push_back(CDNSSeedData("nyc.zcoin.io", "nyc.zcoin.io", false));
+        vSeeds.push_back(CDNSSeedData("sf1.verticalcoin.io", "sf1.verticalcoin.io", false));
+        vSeeds.push_back(CDNSSeedData("sf2.verticalcoin.io", "sf2.verticalcoin.io", false));
+        vSeeds.push_back(CDNSSeedData("london.verticalcoin.io", "london.verticalcoin.io", false));
+        vSeeds.push_back(CDNSSeedData("singapore.verticalcoin.io", "singapore.verticalcoin.io", false));
+        vSeeds.push_back(CDNSSeedData("nyc.verticalcoin.io", "nyc.verticalcoin.io", false));
         // Note that of those with the service bits flag, most only support a subset of possible options
         base58Prefixes[PUBKEY_ADDRESS] = std::vector < unsigned char > (1, 82);
         base58Prefixes[SCRIPT_ADDRESS] = std::vector < unsigned char > (1, 7);
@@ -276,9 +276,9 @@ public:
         extraNonce[3] = 0x00;
         genesis = CreateGenesisBlock(1414776313, 1620571, 0x1e0ffff0, 2, 0 * COIN, extraNonce);
         consensus.hashGenesisBlock = genesis.GetHash();
-//        std::cout << "zcoin testnet genesisBlock hash: " << consensus.hashGenesisBlock.ToString() << std::endl;
-//        std::cout << "zcoin testnet hashMerkleRoot hash: " << genesis.hashMerkleRoot.ToString() << std::endl;
-        //btzc: update testnet zcoin hashGenesisBlock and hashMerkleRoot
+//        std::cout << "verticalcoin testnet genesisBlock hash: " << consensus.hashGenesisBlock.ToString() << std::endl;
+//        std::cout << "verticalcoin testnet hashMerkleRoot hash: " << genesis.hashMerkleRoot.ToString() << std::endl;
+        //btzc: update testnet verticalcoin hashGenesisBlock and hashMerkleRoot
         assert(consensus.hashGenesisBlock ==
                uint256S("0x7ac038c193c2158c428c59f9ae0c02a07115141c6e9dc244ae96132e99b4e642"));
         assert(genesis.hashMerkleRoot ==
@@ -286,9 +286,9 @@ public:
         vFixedSeeds.clear();
         vSeeds.clear();
         // nodes with support for servicebits filtering should be at the top
-        // zcoin test seeds
-        vSeeds.push_back(CDNSSeedData("beta1.zcoin.io", "beta1.zcoin.io", false));
-        vSeeds.push_back(CDNSSeedData("beta2.zcoin.io", "beta2.zcoin.io", false));
+        // verticalcoin test seeds
+        vSeeds.push_back(CDNSSeedData("beta1.verticalcoin.io", "beta1.verticalcoin.io", false));
+        vSeeds.push_back(CDNSSeedData("beta2.verticalcoin.io", "beta2.verticalcoin.io", false));
 
 //        vSeeds.push_back(CDNSSeedData("testnetbitcoin.jonasschnelli.ch", "testnet-seed.bitcoin.jonasschnelli.ch", true));
 //        vSeeds.push_back(CDNSSeedData("petertodd.org", "seed.tbtc.petertodd.org", true));
@@ -377,10 +377,10 @@ public:
         extraNonce[3] = 0x00;
         genesis = CreateGenesisBlock(1414776313, 414098458, 0x1d00ffff, 1, 0 * COIN, extraNonce);
         consensus.hashGenesisBlock = genesis.GetHash();
-        //btzc: update regtest zcoin hashGenesisBlock and hashMerkleRoot
-//        std::cout << "zcoin regtest genesisBlock hash: " << consensus.hashGenesisBlock.ToString() << std::endl;
-//        std::cout << "zcoin regtest hashMerkleRoot hash: " << genesis.hashMerkleRoot.ToString() << std::endl;
-        //btzc: update testnet zcoin hashGenesisBlock and hashMerkleRoot
+        //btzc: update regtest verticalcoin hashGenesisBlock and hashMerkleRoot
+//        std::cout << "verticalcoin regtest genesisBlock hash: " << consensus.hashGenesisBlock.ToString() << std::endl;
+//        std::cout << "verticalcoin regtest hashMerkleRoot hash: " << genesis.hashMerkleRoot.ToString() << std::endl;
+        //btzc: update testnet verticalcoin hashGenesisBlock and hashMerkleRoot
         assert(consensus.hashGenesisBlock ==
                uint256S("0x0080c7bf30bb2579ed9c93213475bf8fafc1f53807da908cde19cf405b9eb55b"));
         assert(genesis.hashMerkleRoot ==

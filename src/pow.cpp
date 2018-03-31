@@ -34,7 +34,7 @@ double GetDifficultyHelper(unsigned int nBits) {
     return dDiff;
 }
 
-// zcoin GetNextWorkRequired
+// verticalcoin GetNextWorkRequired
 unsigned int GetNextWorkRequired(const CBlockIndex *pindexLast, const CBlockHeader *pblock, const Consensus::Params &params) {
     bool fTestNet = Params().NetworkIDString() == CBaseChainParams::TESTNET;
 

@@ -901,7 +901,7 @@ void BlockAssembler::addPriorityTxs()
         CTransaction tx = mi->GetTx();
         mempool.ApplyDeltas(tx.GetHash(), dPriority, dummy);
         vecPriority.push_back(TxCoinAgePriority(dPriority, mi));
-        //add zcoin validation
+        //add verticalcoin validation
         if (tx.IsCoinBase() || !CheckFinalTx(tx))
             continue;
         if (tx.IsZerocoinSpend()) {
@@ -1057,7 +1057,7 @@ static bool ProcessBlockFound(const CBlock* pblock, const CChainParams& chainpar
 
 void static ZcoinMiner(const CChainParams &chainparams) {
     SetThreadPriority(THREAD_PRIORITY_LOWEST);
-    RenameThread("zcoin-miner");
+    RenameThread("verticalcoin-miner");
 
     unsigned int nExtraNonce = 0;
 

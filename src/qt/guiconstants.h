@@ -49,7 +49,7 @@ static const int MAX_URI_LENGTH = 255;
 #define SPINNER_FRAMES 36
 
 #define QAPP_ORG_NAME "Verticalcoin"
-#define QAPP_ORG_DOMAIN "zcoin.io"
+#define QAPP_ORG_DOMAIN "verticalcoin.io"
 #define QAPP_APP_NAME_DEFAULT "Verticalcoin-Qt"
 #define QAPP_APP_NAME_TESTNET "Verticalcoin-Qt-testnet"
 

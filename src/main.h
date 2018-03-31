@@ -46,14 +46,14 @@ struct PrecomputedTransactionData;
 struct CNodeStateStats;
 struct LockPoints;
 
-/** btzc: update zcoin config */
+/** btzc: update verticalcoin config */
 /** Default for DEFAULT_WHITELISTRELAY. */
 static const bool DEFAULT_WHITELISTRELAY = true;
 /** Default for DEFAULT_WHITELISTFORCERELAY. */
 static const bool DEFAULT_WHITELISTFORCERELAY = true;
 /** Default for -minrelaytxfee, minimum relay fee for transactions */
-//btzc: update zcoin fee
-static const unsigned int DEFAULT_MIN_RELAY_TX_FEE = CENT / 10; //0.001 zcoin,
+//btzc: update verticalcoin fee
+static const unsigned int DEFAULT_MIN_RELAY_TX_FEE = CENT / 10; //0.001 verticalcoin,
 static const unsigned int MAX_STANDARD_TX_SIZE = 300000;
 //! -maxtxfee default
 static const CAmount DEFAULT_TRANSACTION_MAXFEE = 1000 * CENT;
@@ -77,11 +77,11 @@ static const unsigned int DEFAULT_DESCENDANT_LIMIT = 25;
 static const unsigned int DEFAULT_DESCENDANT_SIZE_LIMIT = 101;
 /** Default for -mempoolexpiry, expiration time for mempool transactions in hours */
 static const unsigned int DEFAULT_MEMPOOL_EXPIRY = 72;
-/** The maximum size of a blk?????.dat, btzc:zcoin: 128 MiB */
+/** The maximum size of a blk?????.dat, btzc:verticalcoin: 128 MiB */
 static const unsigned int MAX_BLOCKFILE_SIZE = 0x8000000; // 128 MiB;
-/** The pre-allocation chunk size for blk?????.dat files (since 0.8), btzc:zcoin: 16MiB */
+/** The pre-allocation chunk size for blk?????.dat files (since 0.8), btzc:verticalcoin: 16MiB */
 static const unsigned int BLOCKFILE_CHUNK_SIZE = 0x1000000; // 16 MiB
-/** The pre-allocation chunk size for rev?????.dat files (since 0.8), btzc:zcoin: 1MiB */
+/** The pre-allocation chunk size for rev?????.dat files (since 0.8), btzc:verticalcoin: 1MiB */
 static const unsigned int UNDOFILE_CHUNK_SIZE = 0x100000; // 1 MiB
 /** Default for -blockprioritysize, maximum space for zero/low-fee transactions **/
 static const unsigned int DEFAULT_BLOCK_PRIORITY_SIZE = 50000; // 50KB
@@ -386,7 +386,7 @@ bool CheckInputs(const CTransaction& tx, CValidationState &state, const CCoinsVi
 void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, int nHeight);
 
 /** Context-independent validity checks */
-//BTZC: ADD params for zcoin works
+//BTZC: ADD params for verticalcoin works
 bool CheckTransaction(const CTransaction& tx, CValidationState& state, uint256 hashTx, bool isVerifyDB, int nHeight = INT_MAX, bool isCheckWallet = false, CZerocoinTxInfo *zerocoinTxInfo = NULL);
 //bool CheckTransaction(const CTransaction& tx, CValidationState& state);
 

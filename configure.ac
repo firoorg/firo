@@ -1,23 +1,23 @@
 dnl require autoconf 2.60 (AS_ECHO/AS_ECHO_N)
 AC_PREREQ([2.60])
-define(_CLIENT_VERSION_MAJOR, 0)
-define(_CLIENT_VERSION_MINOR, 13)
-define(_CLIENT_VERSION_REVISION, 5)
-define(_CLIENT_VERSION_BUILD, 7)
+define(_CLIENT_VERSION_MAJOR, 1)
+define(_CLIENT_VERSION_MINOR, 1)
+define(_CLIENT_VERSION_REVISION, 1)
+define(_CLIENT_VERSION_BUILD, 1)
 define(_CLIENT_VERSION_IS_RELEASE, true)
 define(_COPYRIGHT_YEAR, 2018)
 define(_COPYRIGHT_HOLDERS,[The %s developers])
 define(_COPYRIGHT_HOLDERS_SUBSTITUTION,[[Verticalcoin Core]])
-AC_INIT([Verticalcoin Core],[_CLIENT_VERSION_MAJOR._CLIENT_VERSION_MINOR._CLIENT_VERSION_REVISION],[https://github.com/zcoinofficial/zcoin/issues],[zcoin],[https://zcoin.io/])
+AC_INIT([Verticalcoin Core],[_CLIENT_VERSION_MAJOR._CLIENT_VERSION_MINOR._CLIENT_VERSION_REVISION],[https://github.com/zcoinofficial/verticalcoin/issues],[verticalcoin],[https://verticalcoin.io/])
 AC_CONFIG_SRCDIR([src/main.cpp])
 AC_CONFIG_HEADERS([src/config/bitcoin-config.h])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([build-aux/m4])
 
 BITCOIN_DAEMON_NAME=zcoind
-BITCOIN_GUI_NAME=zcoin-qt
-BITCOIN_CLI_NAME=zcoin-cli
-BITCOIN_TX_NAME=zcoin-tx
+BITCOIN_GUI_NAME=verticalcoin-qt
+BITCOIN_CLI_NAME=verticalcoin-cli
+BITCOIN_TX_NAME=verticalcoin-tx
 
 AC_CANONICAL_HOST
 
@@ -229,7 +229,7 @@ CPPFLAGS="$CPPFLAGS -DHAVE_BUILD_INFO -D__STDC_FORMAT_MACROS"
 
 AC_ARG_WITH([utils],
   [AS_HELP_STRING([--with-utils],
-  [build zcoin-cli zcoin-tx (default=yes)])],
+  [build verticalcoin-cli verticalcoin-tx (default=yes)])],
   [build_bitcoin_utils=$withval],
   [build_bitcoin_utils=yes])
 
@@ -900,7 +900,7 @@ AC_MSG_CHECKING([whether to build zcoind])
 AM_CONDITIONAL([BUILD_BITCOIND], [test x$build_bitcoind = xyes])
 AC_MSG_RESULT($build_bitcoind)
 
-AC_MSG_CHECKING([whether to build utils (zcoin-cli zcoin-tx)])
+AC_MSG_CHECKING([whether to build utils (verticalcoin-cli verticalcoin-tx)])
 AM_CONDITIONAL([BUILD_BITCOIN_UTILS], [test x$build_bitcoin_utils = xyes])
 AC_MSG_RESULT($build_bitcoin_utils)
 

@@ -4,10 +4,10 @@
 *.tar.gz
 
 *.exe
-src/zcoin
+src/verticalcoin
 src/zcoind
-src/zcoin-cli
-src/zcoin-tx
+src/verticalcoin-cli
+src/verticalcoin-tx
 src/test/test_zcoin
 src/test/test_zcoin_fuzzy
 src/qt/test/test_zcoin-qt
@@ -79,12 +79,12 @@ src/tor.timestamp*
 # Compilation and Qt preprocessor part
 *.qm
 Makefile
-zcoin-qt
+verticalcoin-qt
 Verticalcoin-Qt.app
 
 # Unit-tests
 Makefile.test
-zcoin-qt_test
+verticalcoin-qt_test
 
 # Resources cpp
 qrc_*.cpp

@@ -2413,7 +2413,7 @@ static int64_t nTimeTotal = 0;
 
 bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pindex, CCoinsViewCache &view,
                   const CChainParams &chainparams, bool fJustCheck) {
-    //btzc: zcoin code
+    //btzc: verticalcoin code
 //    if (BlockMerkleBranch(block).size() <=0) {
 //        return false;
 //    };
@@ -6206,7 +6206,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
             BOOST_FOREACH(uint256
             hash, vEraseQueue)
             EraseOrphanTx(hash);
-            //btzc: zcoin condition
+            //btzc: verticalcoin condition
         } else if (!AlreadyHave(inv) && tx.IsZerocoinSpend() && AcceptToMemoryPool(mempool, state, tx, false, true, &fMissingInputsZerocoin, false, 0, true)) {
             RelayTransaction(tx);
 //            LogPrint("mempool", "AcceptToMemoryPool: peer=%d: accepted %s (poolsz %u txn, %u kB)\n",
