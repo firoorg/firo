@@ -136,7 +136,7 @@ Free option
      <PipeLaunchOptions xmlns="http://schemas.microsoft.com/vstudio/MDDDebuggerOptions/2014" 
         PipePath="C:\msys64\usr\bin\gdb.exe" 
         PipeArguments="--interpreter=mi" 
-        ExePath="C:/Users/<username>/verticalcoin/src/zcoind.exe" ExeArguments="" 
+        ExePath="C:/Users/<username>/verticalcoin/src/verticalcoind.exe" ExeArguments="" 
         TargetArchitecture="X64" 
         WorkingDirectory="C:/Users/<username>/verticalcoin" 
         AdditionalSOLibSearchPath=""> 

@@ -5,7 +5,7 @@
 
 *.exe
 src/verticalcoin
-src/zcoind
+src/verticalcoind
 src/verticalcoin-cli
 src/verticalcoin-tx
 src/test/test_zcoin

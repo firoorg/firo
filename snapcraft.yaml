@@ -15,7 +15,7 @@ apps:
     - network
     - home
  daemon:
-  command: bin/zcoind
+  command: bin/verticalcoind
   plugs:
     - network
     - network-bind

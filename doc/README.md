@@ -14,7 +14,7 @@ The following are some helpful notes on how to run Verticalcoin on your native p
 Unpack the files into a directory and run:
 
 - `bin/verticalcoin-qt` (GUI) or
-- `bin/zcoind` (headless)
+- `bin/verticalcoind` (headless)
 
 ### Windows
 

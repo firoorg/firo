@@ -34,7 +34,7 @@ Step 3. First run on your Local Wallet
 
 **3.1.**  Start daemon in testnet mode:
 
-    ./src/zcoind -daemon -server -testnet
+    ./src/verticalcoind -daemon -server -testnet
 
 **3.2.**  Generate znodeprivkey:
 
