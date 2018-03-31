@@ -15,7 +15,7 @@
 #define MASTERNODELIST_FILTER_COOLDOWN_SECONDS            3
 
 namespace Ui {
-    class ZnodeList;
+    class VnodeList;
 }
 
 class ClientModel;
@@ -26,13 +26,13 @@ class QModelIndex;
 QT_END_NAMESPACE
 
 /** Vnode Manager page widget */
-class ZnodeList : public QWidget
+class VnodeList : public QWidget
 {
     Q_OBJECT
 
 public:
-    explicit ZnodeList(const PlatformStyle *platformStyle, QWidget *parent = 0);
-    ~ZnodeList();
+    explicit VnodeList(const PlatformStyle *platformStyle, QWidget *parent = 0);
+    ~VnodeList();
 
     void setClientModel(ClientModel *clientModel);
     void setWalletModel(WalletModel *walletModel);
@@ -45,7 +45,7 @@ private:
     bool fFilterUpdated;
 
 public Q_SLOTS:
-    void updateMyZnodeInfo(QString strAlias, QString strAddr, const COutPoint& outpoint);
+    void updateMyVnodeInfo(QString strAlias, QString strAddr, const COutPoint& outpoint);
     void updateMyNodeList(bool fForce = false);
     void updateNodeList();
 
@@ -53,14 +53,14 @@ Q_SIGNALS:
 
 private:
     QTimer *timer;
-    Ui::ZnodeList *ui;
+    Ui::VnodeList *ui;
     ClientModel *clientModel;
     WalletModel *walletModel;
 
-    // Protects tableWidgetZnodes
+    // Protects tableWidgetVnodes
     CCriticalSection cs_mnlist;
 
-    // Protects tableWidgetMyZnodes
+    // Protects tableWidgetMyVnodes
     CCriticalSection cs_mymnlist;
 
     QString strCurrentFilter;
@@ -71,7 +71,7 @@ private Q_SLOTS:
     void on_startButton_clicked();
     void on_startAllButton_clicked();
     void on_startMissingButton_clicked();
-    void on_tableWidgetMyZnodes_itemSelectionChanged();
+    void on_tableWidgetMyVnodes_itemSelectionChanged();
     void on_UpdateButton_clicked();
 };
 #endif // MASTERNODELIST_H

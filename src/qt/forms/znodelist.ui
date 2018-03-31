@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>ZnodeList</class>
- <widget class="QWidget" name="ZnodeList">
+ <class>VnodeList</class>
+ <widget class="QWidget" name="VnodeList">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -49,7 +49,7 @@
        <property name="currentIndex">
         <number>1</number>
        </property>
-       <widget class="QWidget" name="tabMyZnodes">
+       <widget class="QWidget" name="tabMyVnodes">
         <attribute name="title">
          <string>My Vnodes</string>
         </attribute>
@@ -74,7 +74,7 @@
             </layout>
            </item>
            <item>
-            <widget class="QTableWidget" name="tableWidgetMyZnodes">
+            <widget class="QTableWidget" name="tableWidgetMyVnodes">
              <property name="minimumSize">
               <size>
                <width>695</width>
@@ -202,13 +202,13 @@
          </item>
         </layout>
        </widget>
-       <widget class="QWidget" name="tabAllZnodes">
+       <widget class="QWidget" name="tabAllVnodes">
         <attribute name="title">
          <string>All Vnodes</string>
         </attribute>
         <layout class="QGridLayout" name="gridLayout">
          <item row="1" column="0">
-          <widget class="QTableWidget" name="tableWidgetZnodes">
+          <widget class="QTableWidget" name="tableWidgetVnodes">
            <property name="editTriggers">
             <set>QAbstractItemView::NoEditTriggers</set>
            </property>

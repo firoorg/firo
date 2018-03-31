@@ -326,7 +326,7 @@ bool CheckZerocoinFoundersInputs(const CTransaction &tx, CValidationState &state
         CScript FOUNDER_3_SCRIPT;
         CScript FOUNDER_4_SCRIPT;
         CScript FOUNDER_5_SCRIPT;
-        if (nHeight < Params().GetConsensus().nZnodePaymentsStartBlock) {
+        if (nHeight < Params().GetConsensus().nVnodePaymentsStartBlock) {
             if (!fTestNet && GetAdjustedTime() > nStartRewardTime) {
                 FOUNDER_1_SCRIPT = GetScriptForDestination(CBitcoinAddress("aCAgTPgtYcA4EysU4UKC86EQd5cTtHtCcr").Get());
                 if (nHeight < 14000) {
@@ -392,7 +392,7 @@ bool CheckZerocoinFoundersInputs(const CTransaction &tx, CValidationState &state
                 FOUNDER_5_SCRIPT = GetScriptForDestination(CBitcoinAddress("TCsTzQZKVn4fao8jDmB9zQBk9YQNEZ3XfS").Get());
             }
 
-            CAmount vnodePayment = GetZnodePayment(nHeight);
+            CAmount vnodePayment = GetVnodePayment(nHeight);
             BOOST_FOREACH(const CTxOut &output, tx.vout) {
                 if (output.scriptPubKey == FOUNDER_1_SCRIPT && output.nValue == (int64_t)(1 * COIN)) {
                     found_1 = true;

@@ -3,18 +3,18 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef SRC_ZNODECONFIG_H_
-#define SRC_ZNODECONFIG_H_
+#ifndef SRC_VNODECONFIG_H_
+#define SRC_VNODECONFIG_H_
 
-class CZnodeConfig;
-extern CZnodeConfig vnodeConfig;
+class CVnodeConfig;
+extern CVnodeConfig vnodeConfig;
 
-class CZnodeConfig
+class CVnodeConfig
 {
 
 public:
 
-    class CZnodeEntry {
+    class CVnodeEntry {
 
     private:
         std::string alias;
@@ -24,7 +24,7 @@ public:
         std::string outputIndex;
     public:
 
-        CZnodeEntry(std::string alias, std::string ip, std::string privKey, std::string txHash, std::string outputIndex) {
+        CVnodeEntry(std::string alias, std::string ip, std::string privKey, std::string txHash, std::string outputIndex) {
             this->alias = alias;
             this->ip = ip;
             this->privKey = privKey;
@@ -73,15 +73,15 @@ public:
         }
     };
 
-    CZnodeConfig() {
-        entries = std::vector<CZnodeEntry>();
+    CVnodeConfig() {
+        entries = std::vector<CVnodeEntry>();
     }
 
     void clear();
     bool read(std::string& strErr);
     void add(std::string alias, std::string ip, std::string privKey, std::string txHash, std::string outputIndex);
 
-    std::vector<CZnodeEntry>& getEntries() {
+    std::vector<CVnodeEntry>& getEntries() {
         return entries;
     }
 
@@ -90,10 +90,10 @@ public:
     }
 
 private:
-    std::vector<CZnodeEntry> entries;
+    std::vector<CVnodeEntry> entries;
 
 
 };
 
 
-#endif /* SRC_ZNODECONFIG_H_ */
+#endif /* SRC_VNODECONFIG_H_ */

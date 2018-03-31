@@ -70,9 +70,9 @@ UniValue getpoolinfo(const UniValue &params, bool fHelp) {
     obj.push_back(Pair("entries", darkSendPool.GetEntriesCount()));
     obj.push_back(Pair("status", darkSendPool.GetStatus()));
 
-    if (darkSendPool.pSubmittedToZnode) {
-        obj.push_back(Pair("outpoint", darkSendPool.pSubmittedToZnode->vin.prevout.ToStringShort()));
-        obj.push_back(Pair("addr", darkSendPool.pSubmittedToZnode->addr.ToString()));
+    if (darkSendPool.pSubmittedToVnode) {
+        obj.push_back(Pair("outpoint", darkSendPool.pSubmittedToVnode->vin.prevout.ToStringShort()));
+        obj.push_back(Pair("addr", darkSendPool.pSubmittedToVnode->addr.ToString()));
     }
 
     if (pwalletMain) {
@@ -162,7 +162,7 @@ UniValue vnode(const UniValue &params, bool fHelp) {
             return mnodeman.CountEnabled();
 
         int nCount;
-        mnodeman.GetNextZnodeInQueueForPayment(true, nCount);
+        mnodeman.GetNextVnodeInQueueForPayment(true, nCount);
 
         if (strMode == "qualify")
             return nCount;
@@ -176,13 +176,13 @@ UniValue vnode(const UniValue &params, bool fHelp) {
     if (strCommand == "current" || strCommand == "winner") {
         int nCount;
         int nHeight;
-        CZnode *winner = NULL;
+        CVnode *winner = NULL;
         {
             LOCK(cs_main);
             nHeight = chainActive.Height() + (strCommand == "current" ? 1 : 10);
         }
         mnodeman.UpdateLastPaid();
-        winner = mnodeman.GetNextZnodeInQueueForPayment(nHeight, true, nCount);
+        winner = mnodeman.GetNextVnodeInQueueForPayment(nHeight, true, nCount);
         if (!winner) return "unknown";
 
         UniValue obj(UniValue::VOBJ);
@@ -192,27 +192,27 @@ UniValue vnode(const UniValue &params, bool fHelp) {
         obj.push_back(Pair("protocol", (int64_t) winner->nProtocolVersion));
         obj.push_back(Pair("vin", winner->vin.prevout.ToStringShort()));
         obj.push_back(Pair("payee", CBitcoinAddress(winner->pubKeyCollateralAddress.GetID()).ToString()));
-        obj.push_back(Pair("lastseen", (winner->lastPing == CZnodePing()) ? winner->sigTime :
+        obj.push_back(Pair("lastseen", (winner->lastPing == CVnodePing()) ? winner->sigTime :
                                        winner->lastPing.sigTime));
-        obj.push_back(Pair("activeseconds", (winner->lastPing == CZnodePing()) ? 0 :
+        obj.push_back(Pair("activeseconds", (winner->lastPing == CVnodePing()) ? 0 :
                                             (winner->lastPing.sigTime - winner->sigTime)));
         obj.push_back(Pair("nBlockLastPaid", winner->nBlockLastPaid));
         return obj;
     }
 
     if (strCommand == "debug") {
-        if (activeZnode.nState != ACTIVE_ZNODE_INITIAL || !vnodeSync.IsBlockchainSynced())
-            return activeZnode.GetStatus();
+        if (activeVnode.nState != ACTIVE_ZNODE_INITIAL || !vnodeSync.IsBlockchainSynced())
+            return activeVnode.GetStatus();
 
         CTxIn vin;
         CPubKey pubkey;
         CKey key;
 
-        if (!pwalletMain || !pwalletMain->GetZnodeVinAndKeys(vin, pubkey, key))
+        if (!pwalletMain || !pwalletMain->GetVnodeVinAndKeys(vin, pubkey, key))
             throw JSONRPCError(RPC_INVALID_PARAMETER,
                                "Missing vnode input, please look at the documentation for instructions on vnode creation");
 
-        return activeZnode.GetStatus();
+        return activeVnode.GetStatus();
     }
 
     if (strCommand == "start") {
@@ -224,12 +224,12 @@ UniValue vnode(const UniValue &params, bool fHelp) {
             EnsureWalletIsUnlocked();
         }
 
-        if (activeZnode.nState != ACTIVE_ZNODE_STARTED) {
-            activeZnode.nState = ACTIVE_ZNODE_INITIAL; // TODO: consider better way
-            activeZnode.ManageState();
+        if (activeVnode.nState != ACTIVE_ZNODE_STARTED) {
+            activeVnode.nState = ACTIVE_ZNODE_INITIAL; // TODO: consider better way
+            activeVnode.ManageState();
         }
 
-        return activeZnode.GetStatus();
+        return activeVnode.GetStatus();
     }
 
     if (strCommand == "start-alias") {
@@ -248,23 +248,23 @@ UniValue vnode(const UniValue &params, bool fHelp) {
         UniValue statusObj(UniValue::VOBJ);
         statusObj.push_back(Pair("alias", strAlias));
 
-        BOOST_FOREACH(CZnodeConfig::CZnodeEntry mne, vnodeConfig.getEntries()) {
+        BOOST_FOREACH(CVnodeConfig::CVnodeEntry mne, vnodeConfig.getEntries()) {
             if (mne.getAlias() == strAlias) {
                 fFound = true;
                 std::string strError;
-                CZnodeBroadcast mnb;
+                CVnodeBroadcast mnb;
 
-                bool fResult = CZnodeBroadcast::Create(mne.getIp(), mne.getPrivKey(), mne.getTxHash(),
+                bool fResult = CVnodeBroadcast::Create(mne.getIp(), mne.getPrivKey(), mne.getTxHash(),
                                                             mne.getOutputIndex(), strError, mnb);
                 statusObj.push_back(Pair("result", fResult ? "successful" : "failed"));
                 if (fResult) {
-                    mnodeman.UpdateZnodeList(mnb);
+                    mnodeman.UpdateVnodeList(mnb);
                     mnb.RelayVNode();
                 } else {
                     LogPrintf("Start-alias: errorMessage = %s\n", strError);
                     statusObj.push_back(Pair("errorMessage", strError));
                 }
-                mnodeman.NotifyZnodeUpdates();
+                mnodeman.NotifyVnodeUpdates();
                 break;
             }
         }
@@ -287,7 +287,7 @@ UniValue vnode(const UniValue &params, bool fHelp) {
         }
 
         if ((strCommand == "start-missing" || strCommand == "start-disabled") &&
-            !vnodeSync.IsZnodeListSynced()) {
+            !vnodeSync.IsVnodeListSynced()) {
             throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD,
                                "You can't use this command until vnode list is synced");
         }
@@ -297,17 +297,17 @@ UniValue vnode(const UniValue &params, bool fHelp) {
 
         UniValue resultsObj(UniValue::VOBJ);
 
-        BOOST_FOREACH(CZnodeConfig::CZnodeEntry mne, vnodeConfig.getEntries()) {
+        BOOST_FOREACH(CVnodeConfig::CVnodeEntry mne, vnodeConfig.getEntries()) {
             std::string strError;
 
             CTxIn vin = CTxIn(uint256S(mne.getTxHash()), uint32_t(atoi(mne.getOutputIndex().c_str())));
-            CZnode *pmn = mnodeman.Find(vin);
-            CZnodeBroadcast mnb;
+            CVnode *pmn = mnodeman.Find(vin);
+            CVnodeBroadcast mnb;
 
             if (strCommand == "start-missing" && pmn) continue;
             if (strCommand == "start-disabled" && pmn && pmn->IsEnabled()) continue;
 
-            bool fResult = CZnodeBroadcast::Create(mne.getIp(), mne.getPrivKey(), mne.getTxHash(),
+            bool fResult = CVnodeBroadcast::Create(mne.getIp(), mne.getPrivKey(), mne.getTxHash(),
                                                         mne.getOutputIndex(), strError, mnb);
 
             UniValue statusObj(UniValue::VOBJ);
@@ -316,7 +316,7 @@ UniValue vnode(const UniValue &params, bool fHelp) {
 
             if (fResult) {
                 nSuccessful++;
-                mnodeman.UpdateZnodeList(mnb);
+                mnodeman.UpdateVnodeList(mnb);
                 mnb.RelayVNode();
             } else {
                 nFailed++;
@@ -325,7 +325,7 @@ UniValue vnode(const UniValue &params, bool fHelp) {
 
             resultsObj.push_back(Pair("status", statusObj));
         }
-        mnodeman.NotifyZnodeUpdates();
+        mnodeman.NotifyVnodeUpdates();
 
         UniValue returnObj(UniValue::VOBJ);
         returnObj.push_back(Pair("overall",
@@ -346,9 +346,9 @@ UniValue vnode(const UniValue &params, bool fHelp) {
     if (strCommand == "list-conf") {
         UniValue resultObj(UniValue::VOBJ);
 
-        BOOST_FOREACH(CZnodeConfig::CZnodeEntry mne, vnodeConfig.getEntries()) {
+        BOOST_FOREACH(CVnodeConfig::CVnodeEntry mne, vnodeConfig.getEntries()) {
             CTxIn vin = CTxIn(uint256S(mne.getTxHash()), uint32_t(atoi(mne.getOutputIndex().c_str())));
-            CZnode *pmn = mnodeman.Find(vin);
+            CVnode *pmn = mnodeman.Find(vin);
 
             std::string strStatus = pmn ? pmn->GetStatus() : "MISSING";
 
@@ -386,15 +386,15 @@ UniValue vnode(const UniValue &params, bool fHelp) {
 
         UniValue mnObj(UniValue::VOBJ);
 
-        mnObj.push_back(Pair("vin", activeZnode.vin.ToString()));
-        mnObj.push_back(Pair("service", activeZnode.service.ToString()));
+        mnObj.push_back(Pair("vin", activeVnode.vin.ToString()));
+        mnObj.push_back(Pair("service", activeVnode.service.ToString()));
 
-        CZnode mn;
-        if (mnodeman.Get(activeZnode.vin, mn)) {
+        CVnode mn;
+        if (mnodeman.Get(activeVnode.vin, mn)) {
             mnObj.push_back(Pair("payee", CBitcoinAddress(mn.pubKeyCollateralAddress.GetID()).ToString()));
         }
 
-        mnObj.push_back(Pair("status", activeZnode.GetStatus()));
+        mnObj.push_back(Pair("status", activeVnode.GetStatus()));
         return mnObj;
     }
 
@@ -480,16 +480,16 @@ UniValue vnodelist(const UniValue &params, bool fHelp) {
 
     UniValue obj(UniValue::VOBJ);
     if (strMode == "rank") {
-        std::vector <std::pair<int, CZnode>> vZnodeRanks = mnodeman.GetZnodeRanks();
-        BOOST_FOREACH(PAIRTYPE(int, CZnode) & s, vZnodeRanks)
+        std::vector <std::pair<int, CVnode>> vVnodeRanks = mnodeman.GetVnodeRanks();
+        BOOST_FOREACH(PAIRTYPE(int, CVnode) & s, vVnodeRanks)
         {
             std::string strOutpoint = s.second.vin.prevout.ToStringShort();
             if (strFilter != "" && strOutpoint.find(strFilter) == std::string::npos) continue;
             obj.push_back(Pair(strOutpoint, s.first));
         }
     } else {
-        std::vector <CZnode> vZnodes = mnodeman.GetFullZnodeVector();
-        BOOST_FOREACH(CZnode & mn, vZnodes)
+        std::vector <CVnode> vVnodes = mnodeman.GetFullVnodeVector();
+        BOOST_FOREACH(CVnode & mn, vVnodes)
         {
             std::string strOutpoint = mn.vin.prevout.ToStringShort();
             if (strMode == "activeseconds") {
@@ -564,7 +564,7 @@ UniValue vnodelist(const UniValue &params, bool fHelp) {
     return obj;
 }
 
-bool DecodeHexVecMnb(std::vector <CZnodeBroadcast> &vecMnb, std::string strHexMnb) {
+bool DecodeHexVecMnb(std::vector <CVnodeBroadcast> &vecMnb, std::string strHexMnb) {
 
     if (!IsHex(strHexMnb))
         return false;
@@ -617,18 +617,18 @@ UniValue vnodebroadcast(const UniValue &params, bool fHelp) {
         std::string strAlias = params[1].get_str();
 
         UniValue statusObj(UniValue::VOBJ);
-        std::vector <CZnodeBroadcast> vecMnb;
+        std::vector <CVnodeBroadcast> vecMnb;
 
         statusObj.push_back(Pair("alias", strAlias));
 
-        BOOST_FOREACH(CZnodeConfig::CZnodeEntry
+        BOOST_FOREACH(CVnodeConfig::CVnodeEntry
         mne, vnodeConfig.getEntries()) {
             if (mne.getAlias() == strAlias) {
                 fFound = true;
                 std::string strError;
-                CZnodeBroadcast mnb;
+                CVnodeBroadcast mnb;
 
-                bool fResult = CZnodeBroadcast::Create(mne.getIp(), mne.getPrivKey(), mne.getTxHash(),
+                bool fResult = CVnodeBroadcast::Create(mne.getIp(), mne.getPrivKey(), mne.getTxHash(),
                                                             mne.getOutputIndex(), strError, mnb, true);
 
                 statusObj.push_back(Pair("result", fResult ? "successful" : "failed"));
@@ -663,21 +663,21 @@ UniValue vnodebroadcast(const UniValue &params, bool fHelp) {
             EnsureWalletIsUnlocked();
         }
 
-        std::vector <CZnodeConfig::CZnodeEntry> mnEntries;
+        std::vector <CVnodeConfig::CVnodeEntry> mnEntries;
         mnEntries = vnodeConfig.getEntries();
 
         int nSuccessful = 0;
         int nFailed = 0;
 
         UniValue resultsObj(UniValue::VOBJ);
-        std::vector <CZnodeBroadcast> vecMnb;
+        std::vector <CVnodeBroadcast> vecMnb;
 
-        BOOST_FOREACH(CZnodeConfig::CZnodeEntry
+        BOOST_FOREACH(CVnodeConfig::CVnodeEntry
         mne, vnodeConfig.getEntries()) {
             std::string strError;
-            CZnodeBroadcast mnb;
+            CVnodeBroadcast mnb;
 
-            bool fResult = CZnodeBroadcast::Create(mne.getIp(), mne.getPrivKey(), mne.getTxHash(),
+            bool fResult = CVnodeBroadcast::Create(mne.getIp(), mne.getPrivKey(), mne.getTxHash(),
                                                         mne.getOutputIndex(), strError, mnb, true);
 
             UniValue statusObj(UniValue::VOBJ);
@@ -711,7 +711,7 @@ UniValue vnodebroadcast(const UniValue &params, bool fHelp) {
         if (params.size() != 2)
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Correct usage is 'vnodebroadcast decode \"hexstring\"'");
 
-        std::vector <CZnodeBroadcast> vecMnb;
+        std::vector <CVnodeBroadcast> vecMnb;
 
         if (!DecodeHexVecMnb(vecMnb, params[1].get_str()))
             throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Vnode broadcast message decode failed");
@@ -721,7 +721,7 @@ UniValue vnodebroadcast(const UniValue &params, bool fHelp) {
         int nDos = 0;
         UniValue returnObj(UniValue::VOBJ);
 
-        BOOST_FOREACH(CZnodeBroadcast & mnb, vecMnb)
+        BOOST_FOREACH(CVnodeBroadcast & mnb, vecMnb)
         {
             UniValue resultObj(UniValue::VOBJ);
 
@@ -731,7 +731,7 @@ UniValue vnodebroadcast(const UniValue &params, bool fHelp) {
                 resultObj.push_back(Pair("addr", mnb.addr.ToString()));
                 resultObj.push_back(Pair("pubKeyCollateralAddress",
                                          CBitcoinAddress(mnb.pubKeyCollateralAddress.GetID()).ToString()));
-                resultObj.push_back(Pair("pubKeyZnode", CBitcoinAddress(mnb.pubKeyZnode.GetID()).ToString()));
+                resultObj.push_back(Pair("pubKeyVnode", CBitcoinAddress(mnb.pubKeyVnode.GetID()).ToString()));
                 resultObj.push_back(Pair("vchSig", EncodeBase64(&mnb.vchSig[0], mnb.vchSig.size())));
                 resultObj.push_back(Pair("sigTime", mnb.sigTime));
                 resultObj.push_back(Pair("protocolVersion", mnb.nProtocolVersion));
@@ -767,7 +767,7 @@ UniValue vnodebroadcast(const UniValue &params, bool fHelp) {
                     "1. \"hex\"      (string, required) Broadcast messages hex string\n"
                     "2. fast       (string, optional) If none, using safe method\n");
 
-        std::vector <CZnodeBroadcast> vecMnb;
+        std::vector <CVnodeBroadcast> vecMnb;
 
         if (!DecodeHexVecMnb(vecMnb, params[1].get_str()))
             throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Vnode broadcast message decode failed");
@@ -778,7 +778,7 @@ UniValue vnodebroadcast(const UniValue &params, bool fHelp) {
         UniValue returnObj(UniValue::VOBJ);
 
         // verify all signatures first, bailout if any of them broken
-        BOOST_FOREACH(CZnodeBroadcast & mnb, vecMnb)
+        BOOST_FOREACH(CVnodeBroadcast & mnb, vecMnb)
         {
             UniValue resultObj(UniValue::VOBJ);
 
@@ -789,13 +789,13 @@ UniValue vnodebroadcast(const UniValue &params, bool fHelp) {
             bool fResult;
             if (mnb.CheckSignature(nDos)) {
                 if (fSafe) {
-                    fResult = mnodeman.CheckMnbAndUpdateZnodeList(NULL, mnb, nDos);
+                    fResult = mnodeman.CheckMnbAndUpdateVnodeList(NULL, mnb, nDos);
                 } else {
-                    mnodeman.UpdateZnodeList(mnb);
+                    mnodeman.UpdateVnodeList(mnb);
                     mnb.RelayVNode();
                     fResult = true;
                 }
-                mnodeman.NotifyZnodeUpdates();
+                mnodeman.NotifyVnodeUpdates();
             } else fResult = false;
 
             if (fResult) {

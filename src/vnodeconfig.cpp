@@ -7,21 +7,21 @@
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
 
-CZnodeConfig vnodeConfig;
+CVnodeConfig vnodeConfig;
 
-void CZnodeConfig::add(std::string alias, std::string ip, std::string privKey, std::string txHash, std::string outputIndex) {
-    CZnodeEntry cme(alias, ip, privKey, txHash, outputIndex);
+void CVnodeConfig::add(std::string alias, std::string ip, std::string privKey, std::string txHash, std::string outputIndex) {
+    CVnodeEntry cme(alias, ip, privKey, txHash, outputIndex);
     entries.push_back(cme);
 }
 
-bool CZnodeConfig::read(std::string& strErr) {
+bool CVnodeConfig::read(std::string& strErr) {
     int linenumber = 1;
-    boost::filesystem::path pathZnodeConfigFile = GetZnodeConfigFile();
-    boost::filesystem::ifstream streamConfig(pathZnodeConfigFile);
-    LogPrintf("pathZnodeConfigFile=%s\n", pathZnodeConfigFile);
+    boost::filesystem::path pathVnodeConfigFile = GetVnodeConfigFile();
+    boost::filesystem::ifstream streamConfig(pathVnodeConfigFile);
+    LogPrintf("pathVnodeConfigFile=%s\n", pathVnodeConfigFile);
 
     if (!streamConfig.good()) {
-        FILE* configFile = fopen(pathZnodeConfigFile.string().c_str(), "a");
+        FILE* configFile = fopen(pathVnodeConfigFile.string().c_str(), "a");
         if (configFile != NULL) {
             std::string strHeader = "# Vnode config file\n"
                           "# Format: alias IP:port vnode_privatekey collateral_output_txid collateral_output_index\n"

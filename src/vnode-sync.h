@@ -9,7 +9,7 @@
 
 #include <univalue.h>
 
-class CZnodeSync;
+class CVnodeSync;
 
 static const int ZNODE_SYNC_FAILED          = -1;
 static const int ZNODE_SYNC_INITIAL         = 0;
@@ -24,25 +24,25 @@ static const int ZNODE_SYNC_TIMEOUT_SECONDS = 30; // our blocks are 2.5 minutes 
 //static const int ZNODE_SYNC_ENOUGH_PEERS    = 6;
 static const int ZNODE_SYNC_ENOUGH_PEERS    = 3;
 
-extern CZnodeSync vnodeSync;
+extern CVnodeSync vnodeSync;
 
 //
-// CZnodeSync : Sync vnode assets in stages
+// CVnodeSync : Sync vnode assets in stages
 //
 
-class CZnodeSync
+class CVnodeSync
 {
 private:
     // Keep track of current asset
-    int nRequestedZnodeAssets;
+    int nRequestedVnodeAssets;
     // Count peers we've requested the asset from
-    int nRequestedZnodeAttempt;
+    int nRequestedVnodeAttempt;
 
     // Time when current vnode asset sync started
     int64_t nTimeAssetSyncStarted;
 
     // Last time when we received some vnode asset ...
-    int64_t nTimeLastZnodeList;
+    int64_t nTimeLastVnodeList;
     int64_t nTimeLastPaymentVote;
     int64_t nTimeLastGovernanceItem;
     // ... or failed
@@ -59,22 +59,22 @@ private:
     void ClearFulfilledRequests();
 
 public:
-    CZnodeSync() { Reset(); }
+    CVnodeSync() { Reset(); }
 
-    void AddedZnodeList() { nTimeLastZnodeList = GetTime(); }
+    void AddedVnodeList() { nTimeLastVnodeList = GetTime(); }
     void AddedPaymentVote() { nTimeLastPaymentVote = GetTime(); }
     void AddedGovernanceItem() { nTimeLastGovernanceItem = GetTime(); };
 
     void SendGovernanceSyncRequest(CNode* pnode);
 
-    bool IsFailed() { return nRequestedZnodeAssets == ZNODE_SYNC_FAILED; }
+    bool IsFailed() { return nRequestedVnodeAssets == ZNODE_SYNC_FAILED; }
     bool IsBlockchainSynced(bool fBlockAccepted = false);
-    bool IsZnodeListSynced() { return nRequestedZnodeAssets > ZNODE_SYNC_LIST; }
-    bool IsWinnersListSynced() { return nRequestedZnodeAssets > ZNODE_SYNC_MNW; }
-    bool IsSynced() { return nRequestedZnodeAssets == ZNODE_SYNC_FINISHED; }
+    bool IsVnodeListSynced() { return nRequestedVnodeAssets > ZNODE_SYNC_LIST; }
+    bool IsWinnersListSynced() { return nRequestedVnodeAssets > ZNODE_SYNC_MNW; }
+    bool IsSynced() { return nRequestedVnodeAssets == ZNODE_SYNC_FINISHED; }
 
-    int GetAssetID() { return nRequestedZnodeAssets; }
-    int GetAttempt() { return nRequestedZnodeAttempt; }
+    int GetAssetID() { return nRequestedVnodeAssets; }
+    int GetAttempt() { return nRequestedVnodeAttempt; }
     std::string GetAssetName();
     std::string GetSyncStatus();
 

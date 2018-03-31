@@ -68,7 +68,7 @@ private:
     AddressBookPage *usedReceivingAddressesPage;
     ZerocoinPage *zerocoinPage;
     TransactionView *transactionView;
-    ZnodeList *vnodeListPage;
+    VnodeList *vnodeListPage;
 
     QProgressDialog *progressDialog;
     const PlatformStyle *platformStyle;
@@ -79,7 +79,7 @@ public Q_SLOTS:
     /** Switch to history (transactions) page */
     void gotoHistoryPage();
     /** Switch to vnode page */
-    void gotoZnodePage();
+    void gotoVnodePage();
     /** Switch to receive coins page */
     void gotoReceiveCoinsPage();
     /** Switch to send coins page */

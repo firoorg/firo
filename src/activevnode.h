@@ -9,7 +9,7 @@
 #include "key.h"
 #include "wallet/wallet.h"
 
-class CActiveZnode;
+class CActiveVnode;
 
 static const int ACTIVE_ZNODE_INITIAL          = 0; // initial state
 static const int ACTIVE_ZNODE_SYNC_IN_PROCESS  = 1;
@@ -17,10 +17,10 @@ static const int ACTIVE_ZNODE_INPUT_TOO_NEW    = 2;
 static const int ACTIVE_ZNODE_NOT_CAPABLE      = 3;
 static const int ACTIVE_ZNODE_STARTED          = 4;
 
-extern CActiveZnode activeZnode;
+extern CActiveVnode activeVnode;
 
 // Responsible for activating the Vnode and pinging the network
-class CActiveZnode
+class CActiveVnode
 {
 public:
     enum vnode_type_enum_t {
@@ -38,12 +38,12 @@ private:
     bool fPingerEnabled;
 
     /// Ping Vnode
-    bool SendZnodePing();
+    bool SendVnodePing();
 
 public:
     // Keys for the active Vnode
-    CPubKey pubKeyZnode;
-    CKey keyZnode;
+    CPubKey pubKeyVnode;
+    CKey keyVnode;
 
     // Initialized while registering Vnode
     CTxIn vin;
@@ -52,11 +52,11 @@ public:
     int nState; // should be one of ACTIVE_ZNODE_XXXX
     std::string strNotCapableReason;
 
-    CActiveZnode()
+    CActiveVnode()
         : eType(ZNODE_UNKNOWN),
           fPingerEnabled(false),
-          pubKeyZnode(),
-          keyZnode(),
+          pubKeyVnode(),
+          keyVnode(),
           vin(),
           service(),
           nState(ACTIVE_ZNODE_INITIAL)

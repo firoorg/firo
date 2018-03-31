@@ -12,9 +12,9 @@
 #include "timedata.h"
 #include "utiltime.h"
 
-class CZnode;
-class CZnodeBroadcast;
-class CZnodePing;
+class CVnode;
+class CVnodeBroadcast;
+class CVnodePing;
 
 static const int ZNODE_CHECK_SECONDS               =   5;
 static const int ZNODE_MIN_MNB_SECONDS             =   5 * 60; //BROADCAST_TIME
@@ -29,7 +29,7 @@ static const int ZNODE_POSE_BAN_MAX_SCORE          = 5;
 // The Vnode Ping Class : Contains a different serialize method for sending pings from vnodes throughout the network
 //
 
-class CZnodePing
+class CVnodePing
 {
 public:
     CTxIn vin;
@@ -38,14 +38,14 @@ public:
     std::vector<unsigned char> vchSig;
     //removed stop
 
-    CZnodePing() :
+    CVnodePing() :
         vin(),
         blockHash(),
         sigTime(0),
         vchSig()
         {}
 
-    CZnodePing(CTxIn& vinNew);
+    CVnodePing(CTxIn& vinNew);
 
     ADD_SERIALIZE_METHODS;
 
@@ -57,7 +57,7 @@ public:
         READWRITE(vchSig);
     }
 
-    void swap(CZnodePing& first, CZnodePing& second) // nothrow
+    void swap(CVnodePing& first, CVnodePing& second) // nothrow
     {
         // enable ADL (not necessary in our case, but good practice)
         using std::swap;
@@ -80,22 +80,22 @@ public:
 
     bool IsExpired() { return GetTime() - sigTime > ZNODE_NEW_START_REQUIRED_SECONDS; }
 
-    bool Sign(CKey& keyZnode, CPubKey& pubKeyZnode);
-    bool CheckSignature(CPubKey& pubKeyZnode, int &nDos);
+    bool Sign(CKey& keyVnode, CPubKey& pubKeyVnode);
+    bool CheckSignature(CPubKey& pubKeyVnode, int &nDos);
     bool SimpleCheck(int& nDos);
-    bool CheckAndUpdate(CZnode* pmn, bool fFromNewBroadcast, int& nDos);
+    bool CheckAndUpdate(CVnode* pmn, bool fFromNewBroadcast, int& nDos);
     void Relay();
 
-    CZnodePing& operator=(CZnodePing from)
+    CVnodePing& operator=(CVnodePing from)
     {
         swap(*this, from);
         return *this;
     }
-    friend bool operator==(const CZnodePing& a, const CZnodePing& b)
+    friend bool operator==(const CVnodePing& a, const CVnodePing& b)
     {
         return a.vin == b.vin && a.blockHash == b.blockHash;
     }
-    friend bool operator!=(const CZnodePing& a, const CZnodePing& b)
+    friend bool operator!=(const CVnodePing& a, const CVnodePing& b)
     {
         return !(a == b);
     }
@@ -108,7 +108,7 @@ struct vnode_info_t
         : vin(),
           addr(),
           pubKeyCollateralAddress(),
-          pubKeyZnode(),
+          pubKeyVnode(),
           sigTime(0),
           nLastDsq(0),
           nTimeLastChecked(0),
@@ -123,7 +123,7 @@ struct vnode_info_t
     CTxIn vin;
     CService addr;
     CPubKey pubKeyCollateralAddress;
-    CPubKey pubKeyZnode;
+    CPubKey pubKeyVnode;
     int64_t sigTime; //mnb message time
     int64_t nLastDsq; //the dsq count from the last dsq broadcast of this node
     int64_t nTimeLastChecked;
@@ -139,7 +139,7 @@ struct vnode_info_t
 // The Vnode Class. For managing the Darksend process. It contains the input of the 1000DRK, signature to prove
 // it's the one who own that ip address and code for calculating the payment election.
 //
-class CZnode
+class CVnode
 {
 private:
     // critical section to protect the inner data structures
@@ -160,8 +160,8 @@ public:
     CTxIn vin;
     CService addr;
     CPubKey pubKeyCollateralAddress;
-    CPubKey pubKeyZnode;
-    CZnodePing lastPing;
+    CPubKey pubKeyVnode;
+    CVnodePing lastPing;
     std::vector<unsigned char> vchSig;
     int64_t sigTime; //mnb message time
     int64_t nLastDsq; //the dsq count from the last dsq broadcast of this node
@@ -180,10 +180,10 @@ public:
     // KEEP TRACK OF GOVERNANCE ITEMS EACH Vnode HAS VOTE UPON FOR RECALCULATION
     std::map<uint256, int> mapGovernanceObjectsVotedOn;
 
-    CZnode();
-    CZnode(const CZnode& other);
-    CZnode(const CZnodeBroadcast& mnb);
-    CZnode(CService addrNew, CTxIn vinNew, CPubKey pubKeyCollateralAddressNew, CPubKey pubKeyZnodeNew, int nProtocolVersionIn);
+    CVnode();
+    CVnode(const CVnode& other);
+    CVnode(const CVnodeBroadcast& mnb);
+    CVnode(CService addrNew, CTxIn vinNew, CPubKey pubKeyCollateralAddressNew, CPubKey pubKeyVnodeNew, int nProtocolVersionIn);
 
     ADD_SERIALIZE_METHODS;
 
@@ -193,7 +193,7 @@ public:
         READWRITE(vin);
         READWRITE(addr);
         READWRITE(pubKeyCollateralAddress);
-        READWRITE(pubKeyZnode);
+        READWRITE(pubKeyVnode);
         READWRITE(lastPing);
         READWRITE(vchSig);
         READWRITE(sigTime);
@@ -212,7 +212,7 @@ public:
         READWRITE(mapGovernanceObjectsVotedOn);
     }
 
-    void swap(CZnode& first, CZnode& second) // nothrow
+    void swap(CVnode& first, CVnode& second) // nothrow
     {
         // enable ADL (not necessary in our case, but good practice)
         using std::swap;
@@ -222,7 +222,7 @@ public:
         swap(first.vin, second.vin);
         swap(first.addr, second.addr);
         swap(first.pubKeyCollateralAddress, second.pubKeyCollateralAddress);
-        swap(first.pubKeyZnode, second.pubKeyZnode);
+        swap(first.pubKeyVnode, second.pubKeyVnode);
         swap(first.lastPing, second.lastPing);
         swap(first.vchSig, second.vchSig);
         swap(first.sigTime, second.sigTime);
@@ -244,7 +244,7 @@ public:
     // CALCULATE A RANK AGAINST OF GIVEN BLOCK
     arith_uint256 CalculateScore(const uint256& blockHash);
 
-    bool UpdateFromNewBroadcast(CZnodeBroadcast& mnb);
+    bool UpdateFromNewBroadcast(CVnodeBroadcast& mnb);
 
     void Check(bool fForce = false);
 
@@ -252,7 +252,7 @@ public:
 
     bool IsPingedWithin(int nSeconds, int64_t nTimeToCheckAt = -1)
     {
-        if(lastPing == CZnodePing()) return false;
+        if(lastPing == CVnodePing()) return false;
 
         if(nTimeToCheckAt == -1) {
             nTimeToCheckAt = GetAdjustedTime();
@@ -309,16 +309,16 @@ public:
 
     void UpdateWatchdogVoteTime();
 
-    CZnode& operator=(CZnode from)
+    CVnode& operator=(CVnode from)
     {
         swap(*this, from);
         return *this;
     }
-    friend bool operator==(const CZnode& a, const CZnode& b)
+    friend bool operator==(const CVnode& a, const CVnode& b)
     {
         return a.vin == b.vin;
     }
-    friend bool operator!=(const CZnode& a, const CZnode& b)
+    friend bool operator!=(const CVnode& a, const CVnode& b)
     {
         return !(a.vin == b.vin);
     }
@@ -330,16 +330,16 @@ public:
 // The Vnode Broadcast Class : Contains a different serialize method for sending vnodes through the network
 //
 
-class CZnodeBroadcast : public CZnode
+class CVnodeBroadcast : public CVnode
 {
 public:
 
     bool fRecovery;
 
-    CZnodeBroadcast() : CZnode(), fRecovery(false) {}
-    CZnodeBroadcast(const CZnode& mn) : CZnode(mn), fRecovery(false) {}
-    CZnodeBroadcast(CService addrNew, CTxIn vinNew, CPubKey pubKeyCollateralAddressNew, CPubKey pubKeyZnodeNew, int nProtocolVersionIn) :
-        CZnode(addrNew, vinNew, pubKeyCollateralAddressNew, pubKeyZnodeNew, nProtocolVersionIn), fRecovery(false) {}
+    CVnodeBroadcast() : CVnode(), fRecovery(false) {}
+    CVnodeBroadcast(const CVnode& mn) : CVnode(mn), fRecovery(false) {}
+    CVnodeBroadcast(CService addrNew, CTxIn vinNew, CPubKey pubKeyCollateralAddressNew, CPubKey pubKeyVnodeNew, int nProtocolVersionIn) :
+        CVnode(addrNew, vinNew, pubKeyCollateralAddressNew, pubKeyVnodeNew, nProtocolVersionIn), fRecovery(false) {}
 
     ADD_SERIALIZE_METHODS;
 
@@ -348,7 +348,7 @@ public:
         READWRITE(vin);
         READWRITE(addr);
         READWRITE(pubKeyCollateralAddress);
-        READWRITE(pubKeyZnode);
+        READWRITE(pubKeyVnode);
         READWRITE(vchSig);
         READWRITE(sigTime);
         READWRITE(nProtocolVersion);
@@ -365,11 +365,11 @@ public:
     }
 
     /// Create Vnode broadcast, needs to be relayed manually after that
-    static bool Create(CTxIn vin, CService service, CKey keyCollateralAddressNew, CPubKey pubKeyCollateralAddressNew, CKey keyZnodeNew, CPubKey pubKeyZnodeNew, std::string &strErrorRet, CZnodeBroadcast &mnbRet);
-    static bool Create(std::string strService, std::string strKey, std::string strTxHash, std::string strOutputIndex, std::string& strErrorRet, CZnodeBroadcast &mnbRet, bool fOffline = false);
+    static bool Create(CTxIn vin, CService service, CKey keyCollateralAddressNew, CPubKey pubKeyCollateralAddressNew, CKey keyVnodeNew, CPubKey pubKeyVnodeNew, std::string &strErrorRet, CVnodeBroadcast &mnbRet);
+    static bool Create(std::string strService, std::string strKey, std::string strTxHash, std::string strOutputIndex, std::string& strErrorRet, CVnodeBroadcast &mnbRet, bool fOffline = false);
 
     bool SimpleCheck(int& nDos);
-    bool Update(CZnode* pmn, int& nDos);
+    bool Update(CVnode* pmn, int& nDos);
     bool CheckOutpoint(int& nDos);
 
     bool Sign(CKey& keyCollateralAddress);
@@ -377,7 +377,7 @@ public:
     void RelayVNode();
 };
 
-class CZnodeVerification
+class CVnodeVerification
 {
 public:
     CTxIn vin1;
@@ -388,7 +388,7 @@ public:
     std::vector<unsigned char> vchSig1;
     std::vector<unsigned char> vchSig2;
 
-    CZnodeVerification() :
+    CVnodeVerification() :
         vin1(),
         vin2(),
         addr(),
@@ -398,7 +398,7 @@ public:
         vchSig2()
         {}
 
-    CZnodeVerification(CService addr, int nonce, int nBlockHeight) :
+    CVnodeVerification(CService addr, int nonce, int nBlockHeight) :
         vin1(),
         vin2(),
         addr(addr),

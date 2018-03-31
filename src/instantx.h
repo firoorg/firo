@@ -53,7 +53,7 @@ private:
     std::map<COutPoint, uint256> mapLockedOutpoints; // utxo - tx hash
 
     //track vnodes who voted with no txreq (for DOS protection)
-    std::map<COutPoint, int64_t> mapZnodeOrphanVotes; // mn outpoint - time
+    std::map<COutPoint, int64_t> mapVnodeOrphanVotes; // mn outpoint - time
 
     bool CreateTxLockCandidate(const CTxLockRequest& txLockRequest);
     void Vote(CTxLockCandidate& txLockCandidate);
@@ -63,7 +63,7 @@ private:
     void ProcessOrphanTxLockVotes();
     bool IsEnoughOrphanVotesForTx(const CTxLockRequest& txLockRequest);
     bool IsEnoughOrphanVotesForTxAndOutPoint(const uint256& txHash, const COutPoint& outpoint);
-    int64_t GetAverageZnodeOrphanVoteTime();
+    int64_t GetAverageVnodeOrphanVoteTime();
 
     void TryToFinalizeLockCandidate(const CTxLockCandidate& txLockCandidate);
     void LockTransactionInputs(const CTxLockCandidate& txLockCandidate);
@@ -138,8 +138,8 @@ class CTxLockVote
 private:
     uint256 txHash;
     COutPoint outpoint;
-    COutPoint outpointZnode;
-    std::vector<unsigned char> vchZnodeSignature;
+    COutPoint outpointVnode;
+    std::vector<unsigned char> vchVnodeSignature;
     // local memory only
     int nConfirmedHeight; // when corresponding tx is 0-confirmed or conflicted, nConfirmedHeight is -1
     int64_t nTimeCreated;
@@ -148,17 +148,17 @@ public:
     CTxLockVote() :
         txHash(),
         outpoint(),
-        outpointZnode(),
-        vchZnodeSignature(),
+        outpointVnode(),
+        vchVnodeSignature(),
         nConfirmedHeight(-1),
         nTimeCreated(GetTime())
         {}
 
-    CTxLockVote(const uint256& txHashIn, const COutPoint& outpointIn, const COutPoint& outpointZnodeIn) :
+    CTxLockVote(const uint256& txHashIn, const COutPoint& outpointIn, const COutPoint& outpointVnodeIn) :
         txHash(txHashIn),
         outpoint(outpointIn),
-        outpointZnode(outpointZnodeIn),
-        vchZnodeSignature(),
+        outpointVnode(outpointVnodeIn),
+        vchVnodeSignature(),
         nConfirmedHeight(-1),
         nTimeCreated(GetTime())
         {}
@@ -169,15 +169,15 @@ public:
     inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
         READWRITE(txHash);
         READWRITE(outpoint);
-        READWRITE(outpointZnode);
-        READWRITE(vchZnodeSignature);
+        READWRITE(outpointVnode);
+        READWRITE(vchVnodeSignature);
     }
 
     uint256 GetHash() const;
 
     uint256 GetTxHash() const { return txHash; }
     COutPoint GetOutpoint() const { return outpoint; }
-    COutPoint GetZnodeOutpoint() const { return outpointZnode; }
+    COutPoint GetVnodeOutpoint() const { return outpointVnode; }
     int64_t GetTimeCreated() const { return nTimeCreated; }
 
     bool IsValid(CNode* pnode) const;
@@ -194,7 +194,7 @@ class COutPointLock
 {
 private:
     COutPoint outpoint; // utxo
-    std::map<COutPoint, CTxLockVote> mapZnodeVotes; // vnode outpoint - vote
+    std::map<COutPoint, CTxLockVote> mapVnodeVotes; // vnode outpoint - vote
 
 public:
     static const int SIGNATURES_REQUIRED        = 6;
@@ -202,15 +202,15 @@ public:
 
     COutPointLock(const COutPoint& outpointIn) :
         outpoint(outpointIn),
-        mapZnodeVotes()
+        mapVnodeVotes()
         {}
 
     COutPoint GetOutpoint() const { return outpoint; }
 
     bool AddVote(const CTxLockVote& vote);
     std::vector<CTxLockVote> GetVotes() const;
-    bool HasZnodeVoted(const COutPoint& outpointZnodeIn) const;
-    int CountVotes() const { return mapZnodeVotes.size(); }
+    bool HasVnodeVoted(const COutPoint& outpointVnodeIn) const;
+    int CountVotes() const { return mapVnodeVotes.size(); }
     bool IsReady() const { return CountVotes() >= SIGNATURES_REQUIRED; }
 
     void Relay() const;
@@ -237,7 +237,7 @@ public:
     bool AddVote(const CTxLockVote& vote);
     bool IsAllOutPointsReady() const;
 
-    bool HasZnodeVoted(const COutPoint& outpointIn, const COutPoint& outpointZnodeIn);
+    bool HasVnodeVoted(const COutPoint& outpointIn, const COutPoint& outpointVnodeIn);
     int CountVotes() const;
 
     void SetConfirmedHeight(int nConfirmedHeightIn) { nConfirmedHeight = nConfirmedHeightIn; }

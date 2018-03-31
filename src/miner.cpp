@@ -157,7 +157,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
         CScript FOUNDER_3_SCRIPT;
         CScript FOUNDER_4_SCRIPT;
         CScript FOUNDER_5_SCRIPT;
-        if (nHeight < Params().GetConsensus().nZnodePaymentsStartBlock) {
+        if (nHeight < Params().GetConsensus().nVnodePaymentsStartBlock) {
             // Take some reward away from us
             coinbaseTx.vout[0].nValue = -10 * COIN;
 
@@ -187,7 +187,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
             coinbaseTx.vout.push_back(CTxOut(2 * COIN, CScript(FOUNDER_3_SCRIPT.begin(), FOUNDER_3_SCRIPT.end())));
             coinbaseTx.vout.push_back(CTxOut(2 * COIN, CScript(FOUNDER_4_SCRIPT.begin(), FOUNDER_4_SCRIPT.end())));
             coinbaseTx.vout.push_back(CTxOut(2 * COIN, CScript(FOUNDER_5_SCRIPT.begin(), FOUNDER_5_SCRIPT.end())));
-        } else if (nHeight >= Params().GetConsensus().nZnodePaymentsStartBlock) {
+        } else if (nHeight >= Params().GetConsensus().nVnodePaymentsStartBlock) {
             // Take some reward away from us
             coinbaseTx.vout[0].nValue = -7 * COIN;
 
@@ -485,10 +485,10 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
         CAmount blockReward = nFees + GetBlockSubsidy(nHeight, chainparams.GetConsensus());
         // Update coinbase transaction with additional info about vnode and governance payments,
         // get some info back to pass to getblocktemplate
-        if (nHeight >= chainparams.GetConsensus().nZnodePaymentsStartBlock) {
-            CAmount vnodePayment = GetZnodePayment(nHeight, blockReward);
+        if (nHeight >= chainparams.GetConsensus().nVnodePaymentsStartBlock) {
+            CAmount vnodePayment = GetVnodePayment(nHeight, blockReward);
             coinbaseTx.vout[0].nValue -= vnodePayment;
-            FillBlockPayments(coinbaseTx, nHeight, vnodePayment, pblock->txoutZnode, pblock->voutSuperblock);
+            FillBlockPayments(coinbaseTx, nHeight, vnodePayment, pblock->txoutVnode, pblock->voutSuperblock);
         }
 
         nLastBlockTx = nBlockTx;

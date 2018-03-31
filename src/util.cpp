@@ -99,7 +99,7 @@ namespace boost {
 
 using namespace std;
 
-// vnode fZnode
+// vnode fVnode
 bool fVNode = false;
 bool fLiteMode = false;
 int nWalletBackups = 10;
@@ -563,7 +563,7 @@ boost::filesystem::path GetConfigFile()
     return pathConfigFile;
 }
 
-boost::filesystem::path GetZnodeConfigFile()
+boost::filesystem::path GetVnodeConfigFile()
 {
     boost::filesystem::path pathConfigFile(GetArg("-znconf", "vnode.conf"));
     if (!pathConfigFile.is_complete()) pathConfigFile = GetDataDir() / pathConfigFile;

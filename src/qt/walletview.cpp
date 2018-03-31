@@ -67,7 +67,7 @@ WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
     addWidget(receiveCoinsPage);
     addWidget(sendCoinsPage);
     addWidget(zerocoinPage);
-    vnodeListPage = new ZnodeList(platformStyle);
+    vnodeListPage = new VnodeList(platformStyle);
     addWidget(vnodeListPage);
 
     // Clicking on a transaction on the overview pre-selects the transaction on the transaction history page
@@ -181,7 +181,7 @@ void WalletView::gotoHistoryPage()
     setCurrentWidget(transactionsPage);
 }
 
-void WalletView::gotoZnodePage()
+void WalletView::gotoVnodePage()
 {
     setCurrentWidget(vnodeListPage);
 }

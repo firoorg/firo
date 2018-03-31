@@ -114,7 +114,7 @@ public:
     std::vector<CTransaction> vtx;
 
     // memory only
-    mutable CTxOut txoutZnode; // vnode payment
+    mutable CTxOut txoutVnode; // vnode payment
     mutable std::vector<CTxOut> voutSuperblock; // superblock payment
     mutable bool fChecked;
 
@@ -151,7 +151,7 @@ public:
         ZerocoinClean();
         CBlockHeader::SetNull();
         vtx.clear();
-        txoutZnode = CTxOut();
+        txoutVnode = CTxOut();
         voutSuperblock.clear();
         fChecked = false;
     }

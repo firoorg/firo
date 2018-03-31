@@ -242,9 +242,9 @@ void Shutdown() {
 
     // STORE DATA CACHES INTO SERIALIZED DAT FILES
     // TODO: https://github.com/zcoinofficial/verticalcoin/issues/182
-    //    CFlatDB<CZnodeMan> flatdb1("zncache.dat", "magicZnodeCache");
+    //    CFlatDB<CVnodeMan> flatdb1("zncache.dat", "magicVnodeCache");
     //    flatdb1.Dump(mnodeman);
-    //    CFlatDB<CZnodePayments> flatdb2("znpayments.dat", "magicZnodePaymentsCache");
+    //    CFlatDB<CVnodePayments> flatdb2("znpayments.dat", "magicVnodePaymentsCache");
     //    flatdb2.Dump(mnpayments);
     //    CFlatDB<CNetFulfilledRequestManager> flatdb4("netfulfilled.dat", "magicFulfilledCache");
     //    flatdb4.Dump(netfulfilledman);
@@ -1844,31 +1844,31 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
 
         if (!GetArg("-vnodeaddr", "").empty()) {
             // Hot Vnode (either local or remote) should get its address in
-            // CActiveZnode::ManageState() automatically and no longer relies on Znodeaddr.
+            // CActiveVnode::ManageState() automatically and no longer relies on Vnodeaddr.
             return InitError(_("vnodeaddr option is deprecated. Please use vnode.conf to manage your remote vnodes."));
         }
 
-        std::string strZnodePrivKey = GetArg("-vnodeprivkey", "");
-        if (!strZnodePrivKey.empty()) {
-            if (!darkSendSigner.GetKeysFromSecret(strZnodePrivKey, activeZnode.keyZnode,
-                                                  activeZnode.pubKeyZnode))
+        std::string strVnodePrivKey = GetArg("-vnodeprivkey", "");
+        if (!strVnodePrivKey.empty()) {
+            if (!darkSendSigner.GetKeysFromSecret(strVnodePrivKey, activeVnode.keyVnode,
+                                                  activeVnode.pubKeyVnode))
                 return InitError(_("Invalid vnodeprivkey. Please see documenation."));
 
-            LogPrintf("  pubKeyZnode: %s\n", CBitcoinAddress(activeZnode.pubKeyZnode.GetID()).ToString());
+            LogPrintf("  pubKeyVnode: %s\n", CBitcoinAddress(activeVnode.pubKeyVnode.GetID()).ToString());
         } else {
             return InitError(
                     _("You must specify a vnodeprivkey in the configuration. Please see documentation for help."));
         }
     }
 
-    LogPrintf("Using Vnode config file %s\n", GetZnodeConfigFile().string());
+    LogPrintf("Using Vnode config file %s\n", GetVnodeConfigFile().string());
 
     if (GetBoolArg("-znconflock", true) && pwalletMain && (vnodeConfig.getCount() > 0)) {
         LOCK(pwalletMain->cs_wallet);
         LogPrintf("Locking Vnodes:\n");
         uint256 mnTxHash;
         int outputIndex;
-        BOOST_FOREACH(CZnodeConfig::CZnodeEntry mne, vnodeConfig.getEntries()) {
+        BOOST_FOREACH(CVnodeConfig::CVnodeEntry mne, vnodeConfig.getEntries()) {
             mnTxHash.SetHex(mne.getTxHash());
             outputIndex = boost::lexical_cast<unsigned int>(mne.getOutputIndex());
             COutPoint outpoint = COutPoint(mnTxHash, outputIndex);
@@ -1916,14 +1916,14 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     // LOAD SERIALIZED DAT FILES INTO DATA CACHES FOR INTERNAL USE
     // TODO: https://github.com/zcoinofficial/verticalcoin/issues/182
     /* uiInterface.InitMessage(_("Loading vnode cache..."));
-    CFlatDB<CZnodeMan> flatdb1("zncache.dat", "magicZnodeCache");
+    CFlatDB<CVnodeMan> flatdb1("zncache.dat", "magicVnodeCache");
     if (!flatdb1.Load(mnodeman)) {
         return InitError("Failed to load vnode cache from zncache.dat");
     }
 
     if (mnodeman.size()) {
         uiInterface.InitMessage(_("Loading Vnode payment cache..."));
-        CFlatDB<CZnodePayments> flatdb2("znpayments.dat", "magicZnodePaymentsCache");
+        CFlatDB<CVnodePayments> flatdb2("znpayments.dat", "magicVnodePaymentsCache");
         if (!flatdb2.Load(mnpayments)) {
             return InitError("Failed to load vnode payments cache from znpayments.dat");
         }

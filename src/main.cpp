@@ -2558,7 +2558,7 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
         const CTransaction &tx = block.vtx[i];
 
         uint256 txHash = tx.GetHash();
-        if (txIds.count(txHash) > 0 && (fTestNet || pindex->nHeight >= HF_ZNODE_HEIGHT))
+        if (txIds.count(txHash) > 0 && (fTestNet || pindex->nHeight >= HF_VNODE_HEIGHT))
             return state.DoS(100, error("ConnectBlock(): duplicate transactions in the same block"),
                              REJECT_INVALID, "bad-txns-duplicatetxid");
         txIds.insert(txHash);
@@ -3080,11 +3080,11 @@ int GetInputAge(const CTxIn &txin) {
     }
 }
 
-CAmount GetZnodePayment(int nHeight, CAmount blockValue) {
+CAmount GetVnodePayment(int nHeight, CAmount blockValue) {
 //    CAmount ret = blockValue * 30/100 ; // start at 30%
-//    int nMNPIBlock = Params().GetConsensus().nZnodePaymentsStartBlock;
-////    int nMNPIBlock = Params().GetConsensus().nZnodePaymentsIncreaseBlock;
-//    int nMNPIPeriod = Params().GetConsensus().nZnodePaymentsIncreasePeriod;
+//    int nMNPIBlock = Params().GetConsensus().nVnodePaymentsStartBlock;
+////    int nMNPIBlock = Params().GetConsensus().nVnodePaymentsIncreaseBlock;
+//    int nMNPIPeriod = Params().GetConsensus().nVnodePaymentsIncreasePeriod;
 //
 //    // mainnet:
 //    if (nHeight > nMNPIBlock) ret += blockValue / 20; // 158000 - 25.0% - 2014-10-24
@@ -5227,26 +5227,26 @@ bool static AlreadyHave(const CInv &inv) EXCLUSIVE_LOCKS_REQUIRED(cs_main) {
         case MSG_SPORK:
             return mapSporks.count(inv.hash);
 
-        case MSG_ZNODE_PAYMENT_VOTE:
-            return mnpayments.mapZnodePaymentVotes.count(inv.hash);
+        case MSG_VNODE_PAYMENT_VOTE:
+            return mnpayments.mapVnodePaymentVotes.count(inv.hash);
 
-        case MSG_ZNODE_PAYMENT_BLOCK:
+        case MSG_VNODE_PAYMENT_BLOCK:
         {
             BlockMap::iterator mi = mapBlockIndex.find(inv.hash);
-            return mi != mapBlockIndex.end() && mnpayments.mapZnodeBlocks.find(mi->second->nHeight) != mnpayments.mapZnodeBlocks.end();
+            return mi != mapBlockIndex.end() && mnpayments.mapVnodeBlocks.find(mi->second->nHeight) != mnpayments.mapVnodeBlocks.end();
         }
 
-        case MSG_ZNODE_ANNOUNCE:
-            return mnodeman.mapSeenZnodeBroadcast.count(inv.hash) && !mnodeman.IsMnbRecoveryRequested(inv.hash);
+        case MSG_VNODE_ANNOUNCE:
+            return mnodeman.mapSeenVnodeBroadcast.count(inv.hash) && !mnodeman.IsMnbRecoveryRequested(inv.hash);
 
-        case MSG_ZNODE_PING:
-            return mnodeman.mapSeenZnodePing.count(inv.hash);
+        case MSG_VNODE_PING:
+            return mnodeman.mapSeenVnodePing.count(inv.hash);
 
         case MSG_DSTX:
             return mapDarksendBroadcastTxes.count(inv.hash);
 
-        case MSG_ZNODE_VERIFY:
-            return mnodeman.mapSeenZnodeVerification.count(inv.hash);
+        case MSG_VNODE_VERIFY:
+            return mnodeman.mapSeenVnodeVerification.count(inv.hash);
     }
     // Don't know what it is, just say we already got one
     return true;
@@ -5438,28 +5438,28 @@ void static ProcessGetData(CNode *pfrom, const Consensus::Params &consensusParam
                     }
                 }
 
-                if (!pushed && inv.type == MSG_ZNODE_PAYMENT_VOTE) {
+                if (!pushed && inv.type == MSG_VNODE_PAYMENT_VOTE) {
                     if(mnpayments.HasVerifiedPaymentVote(inv.hash)) {
                         CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
                         ss.reserve(1000);
-                        ss << mnpayments.mapZnodePaymentVotes[inv.hash];
-                        pfrom->PushMessage(NetMsgType::ZNODEPAYMENTVOTE, ss);
+                        ss << mnpayments.mapVnodePaymentVotes[inv.hash];
+                        pfrom->PushMessage(NetMsgType::VNODEPAYMENTVOTE, ss);
                         pushed = true;
                     }
                 }
 
-                if (!pushed && inv.type == MSG_ZNODE_PAYMENT_BLOCK) {
+                if (!pushed && inv.type == MSG_VNODE_PAYMENT_BLOCK) {
                     BlockMap::iterator mi = mapBlockIndex.find(inv.hash);
-                    LOCK(cs_mapZnodeBlocks);
-                    if (mi != mapBlockIndex.end() && mnpayments.mapZnodeBlocks.count(mi->second->nHeight)) {
-                        BOOST_FOREACH(CZnodePayee& payee, mnpayments.mapZnodeBlocks[mi->second->nHeight].vecPayees) {
+                    LOCK(cs_mapVnodeBlocks);
+                    if (mi != mapBlockIndex.end() && mnpayments.mapVnodeBlocks.count(mi->second->nHeight)) {
+                        BOOST_FOREACH(CVnodePayee& payee, mnpayments.mapVnodeBlocks[mi->second->nHeight].vecPayees) {
                             std::vector<uint256> vecVoteHashes = payee.GetVoteHashes();
                             BOOST_FOREACH(uint256& hash, vecVoteHashes) {
                                 if(mnpayments.HasVerifiedPaymentVote(hash)) {
                                     CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
                                     ss.reserve(1000);
-                                    ss << mnpayments.mapZnodePaymentVotes[hash];
-                                    pfrom->PushMessage(NetMsgType::ZNODEPAYMENTVOTE, ss);
+                                    ss << mnpayments.mapVnodePaymentVotes[hash];
+                                    pfrom->PushMessage(NetMsgType::VNODEPAYMENTVOTE, ss);
                                 }
                             }
                         }
@@ -5467,21 +5467,21 @@ void static ProcessGetData(CNode *pfrom, const Consensus::Params &consensusParam
                     }
                 }
 
-                if (!pushed && inv.type == MSG_ZNODE_ANNOUNCE) {
-                    if(mnodeman.mapSeenZnodeBroadcast.count(inv.hash)){
+                if (!pushed && inv.type == MSG_VNODE_ANNOUNCE) {
+                    if(mnodeman.mapSeenVnodeBroadcast.count(inv.hash)){
                         CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
                         ss.reserve(1000);
-                        ss << mnodeman.mapSeenZnodeBroadcast[inv.hash].second;
+                        ss << mnodeman.mapSeenVnodeBroadcast[inv.hash].second;
                         pfrom->PushMessage(NetMsgType::MNANNOUNCE, ss);
                         pushed = true;
                     }
                 }
 
-                if (!pushed && inv.type == MSG_ZNODE_PING) {
-                    if(mnodeman.mapSeenZnodePing.count(inv.hash)) {
+                if (!pushed && inv.type == MSG_VNODE_PING) {
+                    if(mnodeman.mapSeenVnodePing.count(inv.hash)) {
                         CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
                         ss.reserve(1000);
-                        ss << mnodeman.mapSeenZnodePing[inv.hash];
+                        ss << mnodeman.mapSeenVnodePing[inv.hash];
                         pfrom->PushMessage(NetMsgType::MNPING, ss);
                         pushed = true;
                     }
@@ -5497,11 +5497,11 @@ void static ProcessGetData(CNode *pfrom, const Consensus::Params &consensusParam
                     }
                 }
 
-                if (!pushed && inv.type == MSG_ZNODE_VERIFY) {
-                    if(mnodeman.mapSeenZnodeVerification.count(inv.hash)) {
+                if (!pushed && inv.type == MSG_VNODE_VERIFY) {
+                    if(mnodeman.mapSeenVnodeVerification.count(inv.hash)) {
                         CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
                         ss.reserve(1000);
-                        ss << mnodeman.mapSeenZnodeVerification[inv.hash];
+                        ss << mnodeman.mapSeenVnodeVerification[inv.hash];
                         pfrom->PushMessage(NetMsgType::MNVERIFY, ss);
                         pushed = true;
                     }
@@ -5604,7 +5604,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
             LOCK(cs_main);
             nHeight = chainActive.Height();
         }
-        int minPeerVersion = (nHeight + 1 < HF_ZNODE_HEIGHT) ? MIN_PEER_PROTO_VERSION : MIN_PEER_PROTO_VERSION_AFTER_ZNODE_PAYMENT_HF;
+        int minPeerVersion = (nHeight + 1 < HF_VNODE_HEIGHT) ? MIN_PEER_PROTO_VERSION : MIN_PEER_PROTO_VERSION_AFTER_VNODE_PAYMENT_HF;
         if (pfrom->nVersion < minPeerVersion) {
             // disconnect from peers older than this proto version
             // LogPrintf("peer=%d using obsolete version %i; disconnecting\n", pfrom->id, pfrom->nVersion);
@@ -6103,7 +6103,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
                 return true; // not an error
             }
 
-            CZnode *pmn = mnodeman.Find(dstx.vin);
+            CVnode *pmn = mnodeman.Find(dstx.vin);
             if (pmn == NULL) {
                 LogPrint("privatesend", "DSTX -- Can't find vnode %s to verify %s\n",
                          dstx.vin.prevout.ToStringShort(), hashTx.ToString());
@@ -6118,7 +6118,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
                 // we have no idea about (e.g we were offline)? How to handle them?
             }
 
-            if (!dstx.CheckSignature(pmn->pubKeyZnode)) {
+            if (!dstx.CheckSignature(pmn->pubKeyVnode)) {
                 LogPrint("privatesend", "DSTX -- CheckSignature() failed for %s\n", hashTx.ToString());
                 return false;
             }

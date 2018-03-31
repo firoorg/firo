@@ -14,11 +14,11 @@
 #include <boost/lexical_cast.hpp>
 
 /** Object for who's going to get paid on which blocks */
-CZnodePayments mnpayments;
+CVnodePayments mnpayments;
 
 CCriticalSection cs_vecPayees;
-CCriticalSection cs_mapZnodeBlocks;
-CCriticalSection cs_mapZnodePaymentVotes;
+CCriticalSection cs_mapVnodeBlocks;
+CCriticalSection cs_mapVnodePaymentVotes;
 
 /**
 * IsBlockValueValid
@@ -132,7 +132,7 @@ bool IsBlockPayeeValid(const CTransaction &txNew, int nBlockHeight, CAmount bloc
     // we can only check vnode payment /
     const Consensus::Params &consensusParams = Params().GetConsensus();
 
-    if (nBlockHeight < consensusParams.nZnodePaymentsStartBlock) {
+    if (nBlockHeight < consensusParams.nVnodePaymentsStartBlock) {
         //there is no budget data to use to check anything, let's just accept the longest chain
         if (fDebug) LogPrintf("IsBlockPayeeValid -- vnode isn't start\n");
         return true;
@@ -157,7 +157,7 @@ bool IsBlockPayeeValid(const CTransaction &txNew, int nBlockHeight, CAmount bloc
     }
 }
 
-void FillBlockPayments(CMutableTransaction &txNew, int nBlockHeight, CAmount vnodePayment, CTxOut &txoutZnodeRet, std::vector <CTxOut> &voutSuperblockRet) {
+void FillBlockPayments(CMutableTransaction &txNew, int nBlockHeight, CAmount vnodePayment, CTxOut &txoutVnodeRet, std::vector <CTxOut> &voutSuperblockRet) {
     // only create superblocks if spork is enabled AND if superblock is actually triggered
     // (height should be validated inside)
 //    if(sporkManager.IsSporkActive(SPORK_9_SUPERBLOCKS_ENABLED) &&
@@ -168,9 +168,9 @@ void FillBlockPayments(CMutableTransaction &txNew, int nBlockHeight, CAmount vno
 //    }
 
     // FILL BLOCK PAYEE WITH Vnode PAYMENT OTHERWISE
-    mnpayments.FillBlockPayee(txNew, nBlockHeight, vnodePayment, txoutZnodeRet);
-    LogPrint("mnpayments", "FillBlockPayments -- nBlockHeight %d vnodePayment %lld txoutZnodeRet %s txNew %s",
-             nBlockHeight, vnodePayment, txoutZnodeRet.ToString(), txNew.ToString());
+    mnpayments.FillBlockPayee(txNew, nBlockHeight, vnodePayment, txoutVnodeRet);
+    LogPrint("mnpayments", "FillBlockPayments -- nBlockHeight %d vnodePayment %lld txoutVnodeRet %s txNew %s",
+             nBlockHeight, vnodePayment, txoutVnodeRet.ToString(), txNew.ToString());
 }
 
 std::string GetRequiredPaymentsString(int nBlockHeight) {
@@ -183,25 +183,25 @@ std::string GetRequiredPaymentsString(int nBlockHeight) {
     return mnpayments.GetRequiredPaymentsString(nBlockHeight);
 }
 
-void CZnodePayments::Clear() {
-    LOCK2(cs_mapZnodeBlocks, cs_mapZnodePaymentVotes);
-    mapZnodeBlocks.clear();
-    mapZnodePaymentVotes.clear();
+void CVnodePayments::Clear() {
+    LOCK2(cs_mapVnodeBlocks, cs_mapVnodePaymentVotes);
+    mapVnodeBlocks.clear();
+    mapVnodePaymentVotes.clear();
 }
 
-bool CZnodePayments::CanVote(COutPoint outZnode, int nBlockHeight) {
-    LOCK(cs_mapZnodePaymentVotes);
+bool CVnodePayments::CanVote(COutPoint outVnode, int nBlockHeight) {
+    LOCK(cs_mapVnodePaymentVotes);
 
-    if (mapZnodesLastVote.count(outZnode) && mapZnodesLastVote[outZnode] == nBlockHeight) {
+    if (mapVnodesLastVote.count(outVnode) && mapVnodesLastVote[outVnode] == nBlockHeight) {
         return false;
     }
 
     //record this vnode voted
-    mapZnodesLastVote[outZnode] = nBlockHeight;
+    mapVnodesLastVote[outVnode] = nBlockHeight;
     return true;
 }
 
-std::string CZnodePayee::ToString() const {
+std::string CVnodePayee::ToString() const {
     CTxDestination address1;
     ExtractDestination(scriptPubKey, address1);
     CBitcoinAddress address2(address1);
@@ -218,9 +218,9 @@ std::string CZnodePayee::ToString() const {
 *   Fill Vnode ONLY payment block
 */
 
-void CZnodePayments::FillBlockPayee(CMutableTransaction &txNew, int nBlockHeight, CAmount vnodePayment, CTxOut &txoutZnodeRet) {
+void CVnodePayments::FillBlockPayee(CMutableTransaction &txNew, int nBlockHeight, CAmount vnodePayment, CTxOut &txoutVnodeRet) {
     // make sure it's not filled yet
-    txoutZnodeRet = CTxOut();
+    txoutVnodeRet = CTxOut();
 
     CScript payee;
     bool foundMaxVotedPayee = true;
@@ -230,41 +230,41 @@ void CZnodePayments::FillBlockPayee(CMutableTransaction &txNew, int nBlockHeight
         // LogPrintf("no vnode detected...\n");
         foundMaxVotedPayee = false;
         int nCount = 0;
-        CZnode *winningNode = mnodeman.GetNextZnodeInQueueForPayment(nBlockHeight, true, nCount);
+        CVnode *winningNode = mnodeman.GetNextVnodeInQueueForPayment(nBlockHeight, true, nCount);
         if (!winningNode) {
             // ...and we can't calculate it on our own
-            LogPrintf("CZnodePayments::FillBlockPayee -- Failed to detect vnode to pay\n");
+            LogPrintf("CVnodePayments::FillBlockPayee -- Failed to detect vnode to pay\n");
             return;
         }
         // fill payee with locally calculated winner and hope for the best
         payee = GetScriptForDestination(winningNode->pubKeyCollateralAddress.GetID());
         LogPrintf("payee=%s\n", winningNode->ToString());
     }
-    txoutZnodeRet = CTxOut(vnodePayment, payee);
-    txNew.vout.push_back(txoutZnodeRet);
+    txoutVnodeRet = CTxOut(vnodePayment, payee);
+    txNew.vout.push_back(txoutVnodeRet);
 
     CTxDestination address1;
     ExtractDestination(payee, address1);
     CBitcoinAddress address2(address1);
     if (foundMaxVotedPayee) {
-        LogPrintf("CZnodePayments::FillBlockPayee::foundMaxVotedPayee -- Vnode payment %lld to %s\n", vnodePayment, address2.ToString());
+        LogPrintf("CVnodePayments::FillBlockPayee::foundMaxVotedPayee -- Vnode payment %lld to %s\n", vnodePayment, address2.ToString());
     } else {
-        LogPrintf("CZnodePayments::FillBlockPayee -- Vnode payment %lld to %s\n", vnodePayment, address2.ToString());
+        LogPrintf("CVnodePayments::FillBlockPayee -- Vnode payment %lld to %s\n", vnodePayment, address2.ToString());
     }
 
 }
 
-int CZnodePayments::GetMinZnodePaymentsProto() {
+int CVnodePayments::GetMinVnodePaymentsProto() {
     return sporkManager.IsSporkActive(SPORK_10_ZNODE_PAY_UPDATED_NODES)
            ? MIN_ZNODE_PAYMENT_PROTO_VERSION_2
            : MIN_ZNODE_PAYMENT_PROTO_VERSION_1;
 }
 
-void CZnodePayments::ProcessMessage(CNode *pfrom, std::string &strCommand, CDataStream &vRecv) {
+void CVnodePayments::ProcessMessage(CNode *pfrom, std::string &strCommand, CDataStream &vRecv) {
 
-//    LogPrintf("CZnodePayments::ProcessMessage strCommand=%s\n", strCommand);
+//    LogPrintf("CVnodePayments::ProcessMessage strCommand=%s\n", strCommand);
     // Ignore any payments messages until vnode list is synced
-    if (!vnodeSync.IsZnodeListSynced()) return;
+    if (!vnodeSync.IsVnodeListSynced()) return;
 
     if (fLiteMode) return; // disable all Dash specific functionality
 
@@ -291,10 +291,10 @@ void CZnodePayments::ProcessMessage(CNode *pfrom, std::string &strCommand, CData
 
     } else if (strCommand == NetMsgType::ZNODEPAYMENTVOTE) { // Vnode Payments Vote for the Winner
 
-        CZnodePaymentVote vote;
+        CVnodePaymentVote vote;
         vRecv >> vote;
 
-        if (pfrom->nVersion < GetMinZnodePaymentsProto()) return;
+        if (pfrom->nVersion < GetMinVnodePaymentsProto()) return;
 
         if (!pCurrentBlockIndex) return;
 
@@ -303,17 +303,17 @@ void CZnodePayments::ProcessMessage(CNode *pfrom, std::string &strCommand, CData
         pfrom->setAskFor.erase(nHash);
 
         {
-            LOCK(cs_mapZnodePaymentVotes);
-            if (mapZnodePaymentVotes.count(nHash)) {
+            LOCK(cs_mapVnodePaymentVotes);
+            if (mapVnodePaymentVotes.count(nHash)) {
                 LogPrint("mnpayments", "ZNODEPAYMENTVOTE -- hash=%s, nHeight=%d seen\n", nHash.ToString(), pCurrentBlockIndex->nHeight);
                 return;
             }
 
             // Avoid processing same vote multiple times
-            mapZnodePaymentVotes[nHash] = vote;
+            mapVnodePaymentVotes[nHash] = vote;
             // but first mark vote as non-verified,
             // AddPaymentVote() below should take care of it if vote is actually ok
-            mapZnodePaymentVotes[nHash].MarkAsNotVerified();
+            mapVnodePaymentVotes[nHash].MarkAsNotVerified();
         }
 
         int nFirstBlock = pCurrentBlockIndex->nHeight - GetStorageLimit();
@@ -328,21 +328,21 @@ void CZnodePayments::ProcessMessage(CNode *pfrom, std::string &strCommand, CData
             return;
         }
 
-        if (!CanVote(vote.vinZnode.prevout, vote.nBlockHeight)) {
-            LogPrintf("ZNODEPAYMENTVOTE -- vnode already voted, vnode=%s\n", vote.vinZnode.prevout.ToStringShort());
+        if (!CanVote(vote.vinVnode.prevout, vote.nBlockHeight)) {
+            LogPrintf("ZNODEPAYMENTVOTE -- vnode already voted, vnode=%s\n", vote.vinVnode.prevout.ToStringShort());
             return;
         }
 
-        vnode_info_t mnInfo = mnodeman.GetZnodeInfo(vote.vinZnode);
+        vnode_info_t mnInfo = mnodeman.GetVnodeInfo(vote.vinVnode);
         if (!mnInfo.fInfoValid) {
             // mn was not found, so we can't check vote, some info is probably missing
-            LogPrintf("ZNODEPAYMENTVOTE -- vnode is missing %s\n", vote.vinZnode.prevout.ToStringShort());
-            mnodeman.AskForMN(pfrom, vote.vinZnode);
+            LogPrintf("ZNODEPAYMENTVOTE -- vnode is missing %s\n", vote.vinVnode.prevout.ToStringShort());
+            mnodeman.AskForMN(pfrom, vote.vinVnode);
             return;
         }
 
         int nDos = 0;
-        if (!vote.CheckSignature(mnInfo.pubKeyZnode, pCurrentBlockIndex->nHeight, nDos)) {
+        if (!vote.CheckSignature(mnInfo.pubKeyVnode, pCurrentBlockIndex->nHeight, nDos)) {
             if (nDos) {
                 LogPrintf("ZNODEPAYMENTVOTE -- ERROR: invalid signature\n");
                 Misbehaving(pfrom->GetId(), nDos);
@@ -352,7 +352,7 @@ void CZnodePayments::ProcessMessage(CNode *pfrom, std::string &strCommand, CData
             }
             // Either our info or vote info could be outdated.
             // In case our info is outdated, ask for an update,
-            mnodeman.AskForMN(pfrom, vote.vinZnode);
+            mnodeman.AskForMN(pfrom, vote.vinVnode);
             // but there is nothing we can do if vote info itself is outdated
             // (i.e. it was signed by a mn which changed its key),
             // so just quit here.
@@ -363,7 +363,7 @@ void CZnodePayments::ProcessMessage(CNode *pfrom, std::string &strCommand, CData
         ExtractDestination(vote.payee, address1);
         CBitcoinAddress address2(address1);
 
-        LogPrint("mnpayments", "ZNODEPAYMENTVOTE -- vote: address=%s, nBlockHeight=%d, nHeight=%d, prevout=%s\n", address2.ToString(), vote.nBlockHeight, pCurrentBlockIndex->nHeight, vote.vinZnode.prevout.ToStringShort());
+        LogPrint("mnpayments", "ZNODEPAYMENTVOTE -- vote: address=%s, nBlockHeight=%d, nHeight=%d, prevout=%s\n", address2.ToString(), vote.nBlockHeight, pCurrentBlockIndex->nHeight, vote.vinVnode.prevout.ToStringShort());
 
         if (AddPaymentVote(vote)) {
             vote.Relay();
@@ -372,28 +372,28 @@ void CZnodePayments::ProcessMessage(CNode *pfrom, std::string &strCommand, CData
     }
 }
 
-bool CZnodePaymentVote::Sign() {
+bool CVnodePaymentVote::Sign() {
     std::string strError;
-    std::string strMessage = vinZnode.prevout.ToStringShort() +
+    std::string strMessage = vinVnode.prevout.ToStringShort() +
                              boost::lexical_cast<std::string>(nBlockHeight) +
                              ScriptToAsmStr(payee);
 
-    if (!darkSendSigner.SignMessage(strMessage, vchSig, activeZnode.keyZnode)) {
-        LogPrintf("CZnodePaymentVote::Sign -- SignMessage() failed\n");
+    if (!darkSendSigner.SignMessage(strMessage, vchSig, activeVnode.keyVnode)) {
+        LogPrintf("CVnodePaymentVote::Sign -- SignMessage() failed\n");
         return false;
     }
 
-    if (!darkSendSigner.VerifyMessage(activeZnode.pubKeyZnode, vchSig, strMessage, strError)) {
-        LogPrintf("CZnodePaymentVote::Sign -- VerifyMessage() failed, error: %s\n", strError);
+    if (!darkSendSigner.VerifyMessage(activeVnode.pubKeyVnode, vchSig, strMessage, strError)) {
+        LogPrintf("CVnodePaymentVote::Sign -- VerifyMessage() failed, error: %s\n", strError);
         return false;
     }
 
     return true;
 }
 
-bool CZnodePayments::GetBlockPayee(int nBlockHeight, CScript &payee) {
-    if (mapZnodeBlocks.count(nBlockHeight)) {
-        return mapZnodeBlocks[nBlockHeight].GetBestPayee(payee);
+bool CVnodePayments::GetBlockPayee(int nBlockHeight, CScript &payee) {
+    if (mapVnodeBlocks.count(nBlockHeight)) {
+        return mapVnodeBlocks[nBlockHeight].GetBestPayee(payee);
     }
 
     return false;
@@ -401,8 +401,8 @@ bool CZnodePayments::GetBlockPayee(int nBlockHeight, CScript &payee) {
 
 // Is this vnode scheduled to get paid soon?
 // -- Only look ahead up to 8 blocks to allow for propagation of the latest 2 blocks of votes
-bool CZnodePayments::IsScheduled(CZnode &mn, int nNotBlockHeight) {
-    LOCK(cs_mapZnodeBlocks);
+bool CVnodePayments::IsScheduled(CVnode &mn, int nNotBlockHeight) {
+    LOCK(cs_mapVnodeBlocks);
 
     if (!pCurrentBlockIndex) return false;
 
@@ -412,7 +412,7 @@ bool CZnodePayments::IsScheduled(CZnode &mn, int nNotBlockHeight) {
     CScript payee;
     for (int64_t h = pCurrentBlockIndex->nHeight; h <= pCurrentBlockIndex->nHeight + 8; h++) {
         if (h == nNotBlockHeight) continue;
-        if (mapZnodeBlocks.count(h) && mapZnodeBlocks[h].GetBestPayee(payee) && mnpayee == payee) {
+        if (mapVnodeBlocks.count(h) && mapVnodeBlocks[h].GetBestPayee(payee) && mnpayee == payee) {
             return true;
         }
     }
@@ -420,57 +420,57 @@ bool CZnodePayments::IsScheduled(CZnode &mn, int nNotBlockHeight) {
     return false;
 }
 
-bool CZnodePayments::AddPaymentVote(const CZnodePaymentVote &vote) {
-    LogPrint("vnode-payments", "CZnodePayments::AddPaymentVote\n");
+bool CVnodePayments::AddPaymentVote(const CVnodePaymentVote &vote) {
+    LogPrint("vnode-payments", "CVnodePayments::AddPaymentVote\n");
     uint256 blockHash = uint256();
     if (!GetBlockHash(blockHash, vote.nBlockHeight - 101)) return false;
 
     if (HasVerifiedPaymentVote(vote.GetHash())) return false;
 
-    LOCK2(cs_mapZnodeBlocks, cs_mapZnodePaymentVotes);
+    LOCK2(cs_mapVnodeBlocks, cs_mapVnodePaymentVotes);
 
-    mapZnodePaymentVotes[vote.GetHash()] = vote;
+    mapVnodePaymentVotes[vote.GetHash()] = vote;
 
-    if (!mapZnodeBlocks.count(vote.nBlockHeight)) {
-        CZnodeBlockPayees blockPayees(vote.nBlockHeight);
-        mapZnodeBlocks[vote.nBlockHeight] = blockPayees;
+    if (!mapVnodeBlocks.count(vote.nBlockHeight)) {
+        CVnodeBlockPayees blockPayees(vote.nBlockHeight);
+        mapVnodeBlocks[vote.nBlockHeight] = blockPayees;
     }
 
-    mapZnodeBlocks[vote.nBlockHeight].AddPayee(vote);
+    mapVnodeBlocks[vote.nBlockHeight].AddPayee(vote);
 
     return true;
 }
 
-bool CZnodePayments::HasVerifiedPaymentVote(uint256 hashIn) {
-    LOCK(cs_mapZnodePaymentVotes);
-    std::map<uint256, CZnodePaymentVote>::iterator it = mapZnodePaymentVotes.find(hashIn);
-    return it != mapZnodePaymentVotes.end() && it->second.IsVerified();
+bool CVnodePayments::HasVerifiedPaymentVote(uint256 hashIn) {
+    LOCK(cs_mapVnodePaymentVotes);
+    std::map<uint256, CVnodePaymentVote>::iterator it = mapVnodePaymentVotes.find(hashIn);
+    return it != mapVnodePaymentVotes.end() && it->second.IsVerified();
 }
 
-void CZnodeBlockPayees::AddPayee(const CZnodePaymentVote &vote) {
+void CVnodeBlockPayees::AddPayee(const CVnodePaymentVote &vote) {
     LOCK(cs_vecPayees);
 
-    BOOST_FOREACH(CZnodePayee & payee, vecPayees)
+    BOOST_FOREACH(CVnodePayee & payee, vecPayees)
     {
         if (payee.GetPayee() == vote.payee) {
             payee.AddVoteHash(vote.GetHash());
             return;
         }
     }
-    CZnodePayee payeeNew(vote.payee, vote.GetHash());
+    CVnodePayee payeeNew(vote.payee, vote.GetHash());
     vecPayees.push_back(payeeNew);
 }
 
-bool CZnodeBlockPayees::GetBestPayee(CScript &payeeRet) {
+bool CVnodeBlockPayees::GetBestPayee(CScript &payeeRet) {
     LOCK(cs_vecPayees);
-    LogPrint("mnpayments", "CZnodeBlockPayees::GetBestPayee, vecPayees.size()=%s\n", vecPayees.size());
+    LogPrint("mnpayments", "CVnodeBlockPayees::GetBestPayee, vecPayees.size()=%s\n", vecPayees.size());
     if (!vecPayees.size()) {
-        LogPrint("mnpayments", "CZnodeBlockPayees::GetBestPayee -- ERROR: couldn't find any payee\n");
+        LogPrint("mnpayments", "CVnodeBlockPayees::GetBestPayee -- ERROR: couldn't find any payee\n");
         return false;
     }
 
     int nVotes = -1;
-    BOOST_FOREACH(CZnodePayee & payee, vecPayees)
+    BOOST_FOREACH(CVnodePayee & payee, vecPayees)
     {
         if (payee.GetVoteCount() > nVotes) {
             payeeRet = payee.GetPayee();
@@ -481,31 +481,31 @@ bool CZnodeBlockPayees::GetBestPayee(CScript &payeeRet) {
     return (nVotes > -1);
 }
 
-bool CZnodeBlockPayees::HasPayeeWithVotes(CScript payeeIn, int nVotesReq) {
+bool CVnodeBlockPayees::HasPayeeWithVotes(CScript payeeIn, int nVotesReq) {
     LOCK(cs_vecPayees);
 
-    BOOST_FOREACH(CZnodePayee & payee, vecPayees)
+    BOOST_FOREACH(CVnodePayee & payee, vecPayees)
     {
         if (payee.GetVoteCount() >= nVotesReq && payee.GetPayee() == payeeIn) {
             return true;
         }
     }
 
-//    LogPrint("mnpayments", "CZnodeBlockPayees::HasPayeeWithVotes -- ERROR: couldn't find any payee with %d+ votes\n", nVotesReq);
+//    LogPrint("mnpayments", "CVnodeBlockPayees::HasPayeeWithVotes -- ERROR: couldn't find any payee with %d+ votes\n", nVotesReq);
     return false;
 }
 
-bool CZnodeBlockPayees::IsTransactionValid(const CTransaction &txNew) {
+bool CVnodeBlockPayees::IsTransactionValid(const CTransaction &txNew) {
     LOCK(cs_vecPayees);
 
     int nMaxSignatures = 0;
     std::string strPayeesPossible = "";
 
-    CAmount nZnodePayment = GetZnodePayment(nBlockHeight, txNew.GetValueOut());
+    CAmount nVnodePayment = GetVnodePayment(nBlockHeight, txNew.GetValueOut());
 
     //require at least MNPAYMENTS_SIGNATURES_REQUIRED signatures
 
-    BOOST_FOREACH(CZnodePayee & payee, vecPayees)
+    BOOST_FOREACH(CVnodePayee & payee, vecPayees)
     {
         if (payee.GetVoteCount() >= nMaxSignatures) {
             nMaxSignatures = payee.GetVoteCount();
@@ -517,14 +517,14 @@ bool CZnodeBlockPayees::IsTransactionValid(const CTransaction &txNew) {
 
     bool hasValidPayee = false;
 
-    BOOST_FOREACH(CZnodePayee & payee, vecPayees)
+    BOOST_FOREACH(CVnodePayee & payee, vecPayees)
     {
         if (payee.GetVoteCount() >= MNPAYMENTS_SIGNATURES_REQUIRED) {
             hasValidPayee = true;
 
             BOOST_FOREACH(CTxOut txout, txNew.vout) {
-                if (payee.GetPayee() == txout.scriptPubKey && nZnodePayment == txout.nValue) {
-                    LogPrint("mnpayments", "CZnodeBlockPayees::IsTransactionValid -- Found required payment\n");
+                if (payee.GetPayee() == txout.scriptPubKey && nVnodePayment == txout.nValue) {
+                    LogPrint("mnpayments", "CVnodeBlockPayees::IsTransactionValid -- Found required payment\n");
                     return true;
                 }
             }
@@ -543,16 +543,16 @@ bool CZnodeBlockPayees::IsTransactionValid(const CTransaction &txNew) {
 
     if (!hasValidPayee) return true;
 
-    LogPrintf("CZnodeBlockPayees::IsTransactionValid -- ERROR: Missing required payment, possible payees: '%s', amount: %f XZC\n", strPayeesPossible, (float) nZnodePayment / COIN);
+    LogPrintf("CVnodeBlockPayees::IsTransactionValid -- ERROR: Missing required payment, possible payees: '%s', amount: %f XZC\n", strPayeesPossible, (float) nVnodePayment / COIN);
     return false;
 }
 
-std::string CZnodeBlockPayees::GetRequiredPaymentsString() {
+std::string CVnodeBlockPayees::GetRequiredPaymentsString() {
     LOCK(cs_vecPayees);
 
     std::string strRequiredPayments = "Unknown";
 
-    BOOST_FOREACH(CZnodePayee & payee, vecPayees)
+    BOOST_FOREACH(CVnodePayee & payee, vecPayees)
     {
         CTxDestination address1;
         ExtractDestination(payee.GetPayee(), address1);
@@ -568,56 +568,56 @@ std::string CZnodeBlockPayees::GetRequiredPaymentsString() {
     return strRequiredPayments;
 }
 
-std::string CZnodePayments::GetRequiredPaymentsString(int nBlockHeight) {
-    LOCK(cs_mapZnodeBlocks);
+std::string CVnodePayments::GetRequiredPaymentsString(int nBlockHeight) {
+    LOCK(cs_mapVnodeBlocks);
 
-    if (mapZnodeBlocks.count(nBlockHeight)) {
-        return mapZnodeBlocks[nBlockHeight].GetRequiredPaymentsString();
+    if (mapVnodeBlocks.count(nBlockHeight)) {
+        return mapVnodeBlocks[nBlockHeight].GetRequiredPaymentsString();
     }
 
     return "Unknown";
 }
 
-bool CZnodePayments::IsTransactionValid(const CTransaction &txNew, int nBlockHeight) {
-    LOCK(cs_mapZnodeBlocks);
+bool CVnodePayments::IsTransactionValid(const CTransaction &txNew, int nBlockHeight) {
+    LOCK(cs_mapVnodeBlocks);
 
-    if (mapZnodeBlocks.count(nBlockHeight)) {
-        return mapZnodeBlocks[nBlockHeight].IsTransactionValid(txNew);
+    if (mapVnodeBlocks.count(nBlockHeight)) {
+        return mapVnodeBlocks[nBlockHeight].IsTransactionValid(txNew);
     }
 
     return true;
 }
 
-void CZnodePayments::CheckAndRemove() {
+void CVnodePayments::CheckAndRemove() {
     if (!pCurrentBlockIndex) return;
 
-    LOCK2(cs_mapZnodeBlocks, cs_mapZnodePaymentVotes);
+    LOCK2(cs_mapVnodeBlocks, cs_mapVnodePaymentVotes);
 
     int nLimit = GetStorageLimit();
 
-    std::map<uint256, CZnodePaymentVote>::iterator it = mapZnodePaymentVotes.begin();
-    while (it != mapZnodePaymentVotes.end()) {
-        CZnodePaymentVote vote = (*it).second;
+    std::map<uint256, CVnodePaymentVote>::iterator it = mapVnodePaymentVotes.begin();
+    while (it != mapVnodePaymentVotes.end()) {
+        CVnodePaymentVote vote = (*it).second;
 
         if (pCurrentBlockIndex->nHeight - vote.nBlockHeight > nLimit) {
-            LogPrint("mnpayments", "CZnodePayments::CheckAndRemove -- Removing old Vnode payment: nBlockHeight=%d\n", vote.nBlockHeight);
-            mapZnodePaymentVotes.erase(it++);
-            mapZnodeBlocks.erase(vote.nBlockHeight);
+            LogPrint("mnpayments", "CVnodePayments::CheckAndRemove -- Removing old Vnode payment: nBlockHeight=%d\n", vote.nBlockHeight);
+            mapVnodePaymentVotes.erase(it++);
+            mapVnodeBlocks.erase(vote.nBlockHeight);
         } else {
             ++it;
         }
     }
-    LogPrintf("CZnodePayments::CheckAndRemove -- %s\n", ToString());
+    LogPrintf("CVnodePayments::CheckAndRemove -- %s\n", ToString());
 }
 
-bool CZnodePaymentVote::IsValid(CNode *pnode, int nValidationHeight, std::string &strError) {
-    CZnode *pmn = mnodeman.Find(vinZnode);
+bool CVnodePaymentVote::IsValid(CNode *pnode, int nValidationHeight, std::string &strError) {
+    CVnode *pmn = mnodeman.Find(vinVnode);
 
     if (!pmn) {
-        strError = strprintf("Unknown Vnode: prevout=%s", vinZnode.prevout.ToStringShort());
+        strError = strprintf("Unknown Vnode: prevout=%s", vinVnode.prevout.ToStringShort());
         // Only ask if we are already synced and still have no idea about that Vnode
-        if (vnodeSync.IsZnodeListSynced()) {
-            mnodeman.AskForMN(pnode, vinZnode);
+        if (vnodeSync.IsVnodeListSynced()) {
+            mnodeman.AskForMN(pnode, vinVnode);
         }
 
         return false;
@@ -626,7 +626,7 @@ bool CZnodePaymentVote::IsValid(CNode *pnode, int nValidationHeight, std::string
     int nMinRequiredProtocol;
     if (nBlockHeight >= nValidationHeight) {
         // new votes must comply SPORK_10_ZNODE_PAY_UPDATED_NODES rules
-        nMinRequiredProtocol = mnpayments.GetMinZnodePaymentsProto();
+        nMinRequiredProtocol = mnpayments.GetMinVnodePaymentsProto();
     } else {
         // allow non-updated vnodes for old blocks
         nMinRequiredProtocol = MIN_ZNODE_PAYMENT_PROTO_VERSION_1;
@@ -641,11 +641,11 @@ bool CZnodePaymentVote::IsValid(CNode *pnode, int nValidationHeight, std::string
     // Regular clients (miners included) need to verify vnode rank for future block votes only.
     if (!fVNode && nBlockHeight < nValidationHeight) return true;
 
-    int nRank = mnodeman.GetZnodeRank(vinZnode, nBlockHeight - 101, nMinRequiredProtocol, false);
+    int nRank = mnodeman.GetVnodeRank(vinVnode, nBlockHeight - 101, nMinRequiredProtocol, false);
 
     if (nRank == -1) {
-        LogPrint("mnpayments", "CZnodePaymentVote::IsValid -- Can't calculate rank for vnode %s\n",
-                 vinZnode.prevout.ToStringShort());
+        LogPrint("mnpayments", "CVnodePaymentVote::IsValid -- Can't calculate rank for vnode %s\n",
+                 vinVnode.prevout.ToStringShort());
         return false;
     }
 
@@ -656,7 +656,7 @@ bool CZnodePaymentVote::IsValid(CNode *pnode, int nValidationHeight, std::string
         // Only ban for new mnw which is out of bounds, for old mnw MN list itself might be way too much off
         if (nRank > MNPAYMENTS_SIGNATURES_TOTAL * 2 && nBlockHeight > nValidationHeight) {
             strError = strprintf("Vnode is not in the top %d (%d)", MNPAYMENTS_SIGNATURES_TOTAL * 2, nRank);
-            LogPrintf("CZnodePaymentVote::IsValid -- Error: %s\n", strError);
+            LogPrintf("CVnodePaymentVote::IsValid -- Error: %s\n", strError);
             Misbehaving(pnode->GetId(), 20);
         }
         // Still invalid however
@@ -666,7 +666,7 @@ bool CZnodePaymentVote::IsValid(CNode *pnode, int nValidationHeight, std::string
     return true;
 }
 
-bool CZnodePayments::ProcessBlock(int nBlockHeight) {
+bool CVnodePayments::ProcessBlock(int nBlockHeight) {
 
     // DETERMINE IF WE SHOULD BE VOTING FOR THE NEXT PAYEE
 
@@ -677,41 +677,41 @@ bool CZnodePayments::ProcessBlock(int nBlockHeight) {
     // We have little chances to pick the right winner if winners list is out of sync
     // but we have no choice, so we'll try. However it doesn't make sense to even try to do so
     // if we have not enough data about vnodes.
-    if (!vnodeSync.IsZnodeListSynced()) {
+    if (!vnodeSync.IsVnodeListSynced()) {
         return false;
     }
 
-    int nRank = mnodeman.GetZnodeRank(activeZnode.vin, nBlockHeight - 101, GetMinZnodePaymentsProto(), false);
+    int nRank = mnodeman.GetVnodeRank(activeVnode.vin, nBlockHeight - 101, GetMinVnodePaymentsProto(), false);
 
     if (nRank == -1) {
-        LogPrint("mnpayments", "CZnodePayments::ProcessBlock -- Unknown Vnode\n");
+        LogPrint("mnpayments", "CVnodePayments::ProcessBlock -- Unknown Vnode\n");
         return false;
     }
 
     if (nRank > MNPAYMENTS_SIGNATURES_TOTAL) {
-        LogPrint("mnpayments", "CZnodePayments::ProcessBlock -- Vnode not in the top %d (%d)\n", MNPAYMENTS_SIGNATURES_TOTAL, nRank);
+        LogPrint("mnpayments", "CVnodePayments::ProcessBlock -- Vnode not in the top %d (%d)\n", MNPAYMENTS_SIGNATURES_TOTAL, nRank);
         return false;
     }
 
     // LOCATE THE NEXT Vnode WHICH SHOULD BE PAID
 
-    LogPrintf("CZnodePayments::ProcessBlock -- Start: nBlockHeight=%d, vnode=%s\n", nBlockHeight, activeZnode.vin.prevout.ToStringShort());
+    LogPrintf("CVnodePayments::ProcessBlock -- Start: nBlockHeight=%d, vnode=%s\n", nBlockHeight, activeVnode.vin.prevout.ToStringShort());
 
     // pay to the oldest MN that still had no payment but its input is old enough and it was active long enough
     int nCount = 0;
-    CZnode *pmn = mnodeman.GetNextZnodeInQueueForPayment(nBlockHeight, true, nCount);
+    CVnode *pmn = mnodeman.GetNextVnodeInQueueForPayment(nBlockHeight, true, nCount);
 
     if (pmn == NULL) {
-        LogPrintf("CZnodePayments::ProcessBlock -- ERROR: Failed to find vnode to pay\n");
+        LogPrintf("CVnodePayments::ProcessBlock -- ERROR: Failed to find vnode to pay\n");
         return false;
     }
 
-    LogPrintf("CZnodePayments::ProcessBlock -- Vnode found by GetNextZnodeInQueueForPayment(): %s\n", pmn->vin.prevout.ToStringShort());
+    LogPrintf("CVnodePayments::ProcessBlock -- Vnode found by GetNextVnodeInQueueForPayment(): %s\n", pmn->vin.prevout.ToStringShort());
 
 
     CScript payee = GetScriptForDestination(pmn->pubKeyCollateralAddress.GetID());
 
-    CZnodePaymentVote voteNew(activeZnode.vin, nBlockHeight, payee);
+    CVnodePaymentVote voteNew(activeVnode.vin, nBlockHeight, payee);
 
     CTxDestination address1;
     ExtractDestination(payee, address1);
@@ -729,42 +729,42 @@ bool CZnodePayments::ProcessBlock(int nBlockHeight) {
     return false;
 }
 
-void CZnodePaymentVote::Relay() {
+void CVnodePaymentVote::Relay() {
     // do not relay until synced
     if (!vnodeSync.IsWinnersListSynced()) {
-        LogPrintf("CZnodePaymentVote::Relay - vnodeSync.IsWinnersListSynced() not sync\n");
+        LogPrintf("CVnodePaymentVote::Relay - vnodeSync.IsWinnersListSynced() not sync\n");
         return;
     }
     CInv inv(MSG_ZNODE_PAYMENT_VOTE, GetHash());
     RelayInv(inv);
 }
 
-bool CZnodePaymentVote::CheckSignature(const CPubKey &pubKeyZnode, int nValidationHeight, int &nDos) {
+bool CVnodePaymentVote::CheckSignature(const CPubKey &pubKeyVnode, int nValidationHeight, int &nDos) {
     // do not ban by default
     nDos = 0;
 
-    std::string strMessage = vinZnode.prevout.ToStringShort() +
+    std::string strMessage = vinVnode.prevout.ToStringShort() +
                              boost::lexical_cast<std::string>(nBlockHeight) +
                              ScriptToAsmStr(payee);
 
     std::string strError = "";
-    if (!darkSendSigner.VerifyMessage(pubKeyZnode, vchSig, strMessage, strError)) {
+    if (!darkSendSigner.VerifyMessage(pubKeyVnode, vchSig, strMessage, strError)) {
         // Only ban for future block vote when we are already synced.
         // Otherwise it could be the case when MN which signed this vote is using another key now
         // and we have no idea about the old one.
-        if (vnodeSync.IsZnodeListSynced() && nBlockHeight > nValidationHeight) {
+        if (vnodeSync.IsVnodeListSynced() && nBlockHeight > nValidationHeight) {
             nDos = 20;
         }
-        return error("CZnodePaymentVote::CheckSignature -- Got bad Vnode payment signature, vnode=%s, error: %s", vinZnode.prevout.ToStringShort().c_str(), strError);
+        return error("CVnodePaymentVote::CheckSignature -- Got bad Vnode payment signature, vnode=%s, error: %s", vinVnode.prevout.ToStringShort().c_str(), strError);
     }
 
     return true;
 }
 
-std::string CZnodePaymentVote::ToString() const {
+std::string CVnodePaymentVote::ToString() const {
     std::ostringstream info;
 
-    info << vinZnode.prevout.ToStringShort() <<
+    info << vinVnode.prevout.ToStringShort() <<
          ", " << nBlockHeight <<
          ", " << ScriptToAsmStr(payee) <<
          ", " << (int) vchSig.size();
@@ -773,16 +773,16 @@ std::string CZnodePaymentVote::ToString() const {
 }
 
 // Send only votes for future blocks, node should request every other missing payment block individually
-void CZnodePayments::Sync(CNode *pnode) {
-    LOCK(cs_mapZnodeBlocks);
+void CVnodePayments::Sync(CNode *pnode) {
+    LOCK(cs_mapVnodeBlocks);
 
     if (!pCurrentBlockIndex) return;
 
     int nInvCount = 0;
 
     for (int h = pCurrentBlockIndex->nHeight; h < pCurrentBlockIndex->nHeight + 20; h++) {
-        if (mapZnodeBlocks.count(h)) {
-            BOOST_FOREACH(CZnodePayee & payee, mapZnodeBlocks[h].vecPayees)
+        if (mapVnodeBlocks.count(h)) {
+            BOOST_FOREACH(CVnodePayee & payee, mapVnodeBlocks[h].vecPayees)
             {
                 std::vector <uint256> vecVoteHashes = payee.GetVoteHashes();
                 BOOST_FOREACH(uint256 & hash, vecVoteHashes)
@@ -795,15 +795,15 @@ void CZnodePayments::Sync(CNode *pnode) {
         }
     }
 
-    LogPrintf("CZnodePayments::Sync -- Sent %d votes to peer %d\n", nInvCount, pnode->id);
+    LogPrintf("CVnodePayments::Sync -- Sent %d votes to peer %d\n", nInvCount, pnode->id);
     pnode->PushMessage(NetMsgType::SYNCSTATUSCOUNT, ZNODE_SYNC_MNW, nInvCount);
 }
 
 // Request low data/unknown payment blocks in batches directly from some node instead of/after preliminary Sync.
-void CZnodePayments::RequestLowDataPaymentBlocks(CNode *pnode) {
+void CVnodePayments::RequestLowDataPaymentBlocks(CNode *pnode) {
     if (!pCurrentBlockIndex) return;
 
-    LOCK2(cs_main, cs_mapZnodeBlocks);
+    LOCK2(cs_main, cs_mapVnodeBlocks);
 
     std::vector <CInv> vToFetch;
     int nLimit = GetStorageLimit();
@@ -811,12 +811,12 @@ void CZnodePayments::RequestLowDataPaymentBlocks(CNode *pnode) {
     const CBlockIndex *pindex = pCurrentBlockIndex;
 
     while (pCurrentBlockIndex->nHeight - pindex->nHeight < nLimit) {
-        if (!mapZnodeBlocks.count(pindex->nHeight)) {
+        if (!mapVnodeBlocks.count(pindex->nHeight)) {
             // We have no idea about this block height, let's ask
             vToFetch.push_back(CInv(MSG_ZNODE_PAYMENT_BLOCK, pindex->GetBlockHash()));
             // We should not violate GETDATA rules
             if (vToFetch.size() == MAX_INV_SZ) {
-                LogPrintf("CZnodePayments::SyncLowDataPaymentBlocks -- asking peer %d for %d blocks\n", pnode->id, MAX_INV_SZ);
+                LogPrintf("CVnodePayments::SyncLowDataPaymentBlocks -- asking peer %d for %d blocks\n", pnode->id, MAX_INV_SZ);
                 pnode->PushMessage(NetMsgType::GETDATA, vToFetch);
                 // Start filling new batch
                 vToFetch.clear();
@@ -826,12 +826,12 @@ void CZnodePayments::RequestLowDataPaymentBlocks(CNode *pnode) {
         pindex = pindex->pprev;
     }
 
-    std::map<int, CZnodeBlockPayees>::iterator it = mapZnodeBlocks.begin();
+    std::map<int, CVnodeBlockPayees>::iterator it = mapVnodeBlocks.begin();
 
-    while (it != mapZnodeBlocks.end()) {
+    while (it != mapVnodeBlocks.end()) {
         int nTotalVotes = 0;
         bool fFound = false;
-        BOOST_FOREACH(CZnodePayee & payee, it->second.vecPayees)
+        BOOST_FOREACH(CVnodePayee & payee, it->second.vecPayees)
         {
             if (payee.GetVoteCount() >= MNPAYMENTS_SIGNATURES_REQUIRED) {
                 fFound = true;
@@ -849,7 +849,7 @@ void CZnodePayments::RequestLowDataPaymentBlocks(CNode *pnode) {
         // DEBUG
 //        DBG (
 //            // Let's see why this failed
-//            BOOST_FOREACH(CZnodePayee& payee, it->second.vecPayees) {
+//            BOOST_FOREACH(CVnodePayee& payee, it->second.vecPayees) {
 //                CTxDestination address1;
 //                ExtractDestination(payee.GetPayee(), address1);
 //                CBitcoinAddress address2(address1);
@@ -865,7 +865,7 @@ void CZnodePayments::RequestLowDataPaymentBlocks(CNode *pnode) {
         }
         // We should not violate GETDATA rules
         if (vToFetch.size() == MAX_INV_SZ) {
-            LogPrintf("CZnodePayments::SyncLowDataPaymentBlocks -- asking peer %d for %d payment blocks\n", pnode->id, MAX_INV_SZ);
+            LogPrintf("CVnodePayments::SyncLowDataPaymentBlocks -- asking peer %d for %d payment blocks\n", pnode->id, MAX_INV_SZ);
             pnode->PushMessage(NetMsgType::GETDATA, vToFetch);
             // Start filling new batch
             vToFetch.clear();
@@ -874,33 +874,33 @@ void CZnodePayments::RequestLowDataPaymentBlocks(CNode *pnode) {
     }
     // Ask for the rest of it
     if (!vToFetch.empty()) {
-        LogPrintf("CZnodePayments::SyncLowDataPaymentBlocks -- asking peer %d for %d payment blocks\n", pnode->id, vToFetch.size());
+        LogPrintf("CVnodePayments::SyncLowDataPaymentBlocks -- asking peer %d for %d payment blocks\n", pnode->id, vToFetch.size());
         pnode->PushMessage(NetMsgType::GETDATA, vToFetch);
     }
 }
 
-std::string CZnodePayments::ToString() const {
+std::string CVnodePayments::ToString() const {
     std::ostringstream info;
 
-    info << "Votes: " << (int) mapZnodePaymentVotes.size() <<
-         ", Blocks: " << (int) mapZnodeBlocks.size();
+    info << "Votes: " << (int) mapVnodePaymentVotes.size() <<
+         ", Blocks: " << (int) mapVnodeBlocks.size();
 
     return info.str();
 }
 
-bool CZnodePayments::IsEnoughData() {
+bool CVnodePayments::IsEnoughData() {
     float nAverageVotes = (MNPAYMENTS_SIGNATURES_TOTAL + MNPAYMENTS_SIGNATURES_REQUIRED) / 2;
     int nStorageLimit = GetStorageLimit();
     return GetBlockCount() > nStorageLimit && GetVoteCount() > nStorageLimit * nAverageVotes;
 }
 
-int CZnodePayments::GetStorageLimit() {
+int CVnodePayments::GetStorageLimit() {
     return std::max(int(mnodeman.size() * nStorageCoeff), nMinBlocksToStore);
 }
 
-void CZnodePayments::UpdatedBlockTip(const CBlockIndex *pindex) {
+void CVnodePayments::UpdatedBlockTip(const CBlockIndex *pindex) {
     pCurrentBlockIndex = pindex;
-    LogPrint("mnpayments", "CZnodePayments::UpdatedBlockTip -- pCurrentBlockIndex->nHeight=%d\n", pCurrentBlockIndex->nHeight);
+    LogPrint("mnpayments", "CVnodePayments::UpdatedBlockTip -- pCurrentBlockIndex->nHeight=%d\n", pCurrentBlockIndex->nHeight);
     
     ProcessBlock(pindex->nHeight + 5);
 }

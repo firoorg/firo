@@ -80,7 +80,7 @@ public:
     int PoolMaxTransactions() const { return nPoolMaxTransactions; }
     int FulfilledRequestExpireTime() const { return nFulfilledRequestExpireTime; }
     std::string SporkPubKey() const { return strSporkPubKey; }
-    std::string ZnodePaymentPubKey() const { return strZnodePaymentsPubKey; }
+    std::string VnodePaymentPubKey() const { return strVnodePaymentsPubKey; }
 protected:
     CChainParams() {}
 
@@ -104,7 +104,7 @@ protected:
     int nPoolMaxTransactions;
     int nFulfilledRequestExpireTime;
     std::string strSporkPubKey;
-    std::string strZnodePaymentsPubKey;
+    std::string strVnodePaymentsPubKey;
 };
 
 /**

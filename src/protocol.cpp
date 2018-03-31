@@ -45,9 +45,9 @@ namespace NetMsgType {
     const char *TXLOCKVOTE="txlvote";
     const char *SPORK = "spork";
     const char *GETSPORKS = "getsporks";
-    const char *ZNODEPAYMENTVOTE = "mnw";
-    const char *ZNODEPAYMENTBLOCK = "mnwb";
-    const char *ZNODEPAYMENTSYNC = "mnget";
+    const char *VNODEPAYMENTVOTE = "mnw";
+    const char *VNODEPAYMENTBLOCK = "mnwb";
+    const char *VNODEPAYMENTSYNC = "mnget";
     const char *MNANNOUNCE = "mnb";
     const char *MNPING = "mnp";
     const char *DSACCEPT = "dsa";
@@ -97,9 +97,9 @@ const static std::string allNetMessageTypes[] = {
         NetMsgType::BLOCKTXN,
         //vnode
         NetMsgType::TXLOCKREQUEST,
-        NetMsgType::ZNODEPAYMENTVOTE,
-        NetMsgType::ZNODEPAYMENTBLOCK,
-        NetMsgType::ZNODEPAYMENTSYNC,
+        NetMsgType::VNODEPAYMENTVOTE,
+        NetMsgType::VNODEPAYMENTBLOCK,
+        NetMsgType::VNODEPAYMENTSYNC,
         NetMsgType::SPORK,
         NetMsgType::GETSPORKS,
         NetMsgType::MNANNOUNCE,
@@ -206,12 +206,12 @@ const char* CInv::GetCommand() const
         case MSG_TXLOCK_REQUEST:        return NetMsgType::TXLOCKREQUEST;
         case MSG_TXLOCK_VOTE:           return NetMsgType::TXLOCKVOTE;
         case MSG_SPORK:                 return NetMsgType::SPORK;
-        case MSG_ZNODE_PAYMENT_VOTE:    return NetMsgType::ZNODEPAYMENTVOTE;
-        case MSG_ZNODE_PAYMENT_BLOCK:   return NetMsgType::ZNODEPAYMENTBLOCK;
-        case MSG_ZNODE_ANNOUNCE:        return NetMsgType::MNANNOUNCE;
-        case MSG_ZNODE_PING:            return NetMsgType::MNPING;
+        case MSG_VNODE_PAYMENT_VOTE:    return NetMsgType::VNODEPAYMENTVOTE;
+        case MSG_VNODE_PAYMENT_BLOCK:   return NetMsgType::VNODEPAYMENTBLOCK;
+        case MSG_VNODE_ANNOUNCE:        return NetMsgType::MNANNOUNCE;
+        case MSG_VNODE_PING:            return NetMsgType::MNPING;
         case MSG_DSTX:                  return NetMsgType::DSTX;
-        case MSG_ZNODE_VERIFY:          return NetMsgType::MNVERIFY;
+        case MSG_VNODE_VERIFY:          return NetMsgType::MNVERIFY;
         default: {
             return "error";
         }

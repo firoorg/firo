@@ -11,89 +11,89 @@
 extern CWallet *pwalletMain;
 
 // Keep track of the active Vnode
-CActiveZnode activeZnode;
+CActiveVnode activeVnode;
 
-void CActiveZnode::ManageState() {
-    LogPrint("vnode", "CActiveZnode::ManageState -- Start\n");
+void CActiveVnode::ManageState() {
+    LogPrint("vnode", "CActiveVnode::ManageState -- Start\n");
     if (!fVNode) {
-        LogPrint("vnode", "CActiveZnode::ManageState -- Not a vnode, returning\n");
+        LogPrint("vnode", "CActiveVnode::ManageState -- Not a vnode, returning\n");
         return;
     }
 
     if (Params().NetworkIDString() != CBaseChainParams::REGTEST && !vnodeSync.IsBlockchainSynced()) {
-        nState = ACTIVE_ZNODE_SYNC_IN_PROCESS;
-        LogPrintf("CActiveZnode::ManageState -- %s: %s\n", GetStateString(), GetStatus());
+        nState = ACTIVE_VNODE_SYNC_IN_PROCESS;
+        LogPrintf("CActiveVnode::ManageState -- %s: %s\n", GetStateString(), GetStatus());
         return;
     }
 
-    if (nState == ACTIVE_ZNODE_SYNC_IN_PROCESS) {
-        nState = ACTIVE_ZNODE_INITIAL;
+    if (nState == ACTIVE_VNODE_SYNC_IN_PROCESS) {
+        nState = ACTIVE_VNODE_INITIAL;
     }
 
-    LogPrint("vnode", "CActiveZnode::ManageState -- status = %s, type = %s, pinger enabled = %d\n",
+    LogPrint("vnode", "CActiveVnode::ManageState -- status = %s, type = %s, pinger enabled = %d\n",
              GetStatus(), GetTypeString(), fPingerEnabled);
 
-    if (eType == ZNODE_UNKNOWN) {
+    if (eType == VNODE_UNKNOWN) {
         ManageStateInitial();
     }
 
-    if (eType == ZNODE_REMOTE) {
+    if (eType == VNODE_REMOTE) {
         ManageStateRemote();
-    } else if (eType == ZNODE_LOCAL) {
+    } else if (eType == VNODE_LOCAL) {
         // Try Remote Start first so the started local vnode can be restarted without recreate vnode broadcast.
         ManageStateRemote();
-        if (nState != ACTIVE_ZNODE_STARTED)
+        if (nState != ACTIVE_VNODE_STARTED)
             ManageStateLocal();
     }
 
-    SendZnodePing();
+    SendVnodePing();
 }
 
-std::string CActiveZnode::GetStateString() const {
+std::string CActiveVnode::GetStateString() const {
     switch (nState) {
-        case ACTIVE_ZNODE_INITIAL:
+        case ACTIVE_VNODE_INITIAL:
             return "INITIAL";
-        case ACTIVE_ZNODE_SYNC_IN_PROCESS:
+        case ACTIVE_VNODE_SYNC_IN_PROCESS:
             return "SYNC_IN_PROCESS";
-        case ACTIVE_ZNODE_INPUT_TOO_NEW:
+        case ACTIVE_VNODE_INPUT_TOO_NEW:
             return "INPUT_TOO_NEW";
-        case ACTIVE_ZNODE_NOT_CAPABLE:
+        case ACTIVE_VNODE_NOT_CAPABLE:
             return "NOT_CAPABLE";
-        case ACTIVE_ZNODE_STARTED:
+        case ACTIVE_VNODE_STARTED:
             return "STARTED";
         default:
             return "UNKNOWN";
     }
 }
 
-std::string CActiveZnode::GetStatus() const {
+std::string CActiveVnode::GetStatus() const {
     switch (nState) {
-        case ACTIVE_ZNODE_INITIAL:
+        case ACTIVE_VNODE_INITIAL:
             return "Node just started, not yet activated";
-        case ACTIVE_ZNODE_SYNC_IN_PROCESS:
+        case ACTIVE_VNODE_SYNC_IN_PROCESS:
             return "Sync in progress. Must wait until sync is complete to start Vnode";
-        case ACTIVE_ZNODE_INPUT_TOO_NEW:
+        case ACTIVE_VNODE_INPUT_TOO_NEW:
             return strprintf("Vnode input must have at least %d confirmations",
-                             Params().GetConsensus().nZnodeMinimumConfirmations);
-        case ACTIVE_ZNODE_NOT_CAPABLE:
+                             Params().GetConsensus().nVnodeMinimumConfirmations);
+        case ACTIVE_VNODE_NOT_CAPABLE:
             return "Not capable vnode: " + strNotCapableReason;
-        case ACTIVE_ZNODE_STARTED:
+        case ACTIVE_VNODE_STARTED:
             return "Vnode successfully started";
         default:
             return "Unknown";
     }
 }
 
-std::string CActiveZnode::GetTypeString() const {
+std::string CActiveVnode::GetTypeString() const {
     std::string strType;
     switch (eType) {
-        case ZNODE_UNKNOWN:
+        case VNODE_UNKNOWN:
             strType = "UNKNOWN";
             break;
-        case ZNODE_REMOTE:
+        case VNODE_REMOTE:
             strType = "REMOTE";
             break;
-        case ZNODE_LOCAL:
+        case VNODE_LOCAL:
             strType = "LOCAL";
             break;
         default:
@@ -103,51 +103,51 @@ std::string CActiveZnode::GetTypeString() const {
     return strType;
 }
 
-bool CActiveZnode::SendZnodePing() {
+bool CActiveVnode::SendVnodePing() {
     if (!fPingerEnabled) {
         LogPrint("vnode",
-                 "CActiveZnode::SendZnodePing -- %s: vnode ping service is disabled, skipping...\n",
+                 "CActiveVnode::SendVnodePing -- %s: vnode ping service is disabled, skipping...\n",
                  GetStateString());
         return false;
     }
 
     if (!mnodeman.Has(vin)) {
         strNotCapableReason = "Vnode not in vnode list";
-        nState = ACTIVE_ZNODE_NOT_CAPABLE;
-        LogPrintf("CActiveZnode::SendZnodePing -- %s: %s\n", GetStateString(), strNotCapableReason);
+        nState = ACTIVE_VNODE_NOT_CAPABLE;
+        LogPrintf("CActiveVnode::SendVnodePing -- %s: %s\n", GetStateString(), strNotCapableReason);
         return false;
     }
 
-    CZnodePing mnp(vin);
-    if (!mnp.Sign(keyZnode, pubKeyZnode)) {
-        LogPrintf("CActiveZnode::SendZnodePing -- ERROR: Couldn't sign Vnode Ping\n");
+    CVnodePing mnp(vin);
+    if (!mnp.Sign(keyVnode, pubKeyVnode)) {
+        LogPrintf("CActiveVnode::SendVnodePing -- ERROR: Couldn't sign Vnode Ping\n");
         return false;
     }
 
     // Update lastPing for our vnode in Vnode list
-    if (mnodeman.IsZnodePingedWithin(vin, ZNODE_MIN_MNP_SECONDS, mnp.sigTime)) {
-        LogPrintf("CActiveZnode::SendZnodePing -- Too early to send Vnode Ping\n");
+    if (mnodeman.IsVnodePingedWithin(vin, VNODE_MIN_MNP_SECONDS, mnp.sigTime)) {
+        LogPrintf("CActiveVnode::SendVnodePing -- Too early to send Vnode Ping\n");
         return false;
     }
 
-    mnodeman.SetZnodeLastPing(vin, mnp);
+    mnodeman.SetVnodeLastPing(vin, mnp);
 
-    LogPrintf("CActiveZnode::SendZnodePing -- Relaying ping, collateral=%s\n", vin.ToString());
+    LogPrintf("CActiveVnode::SendVnodePing -- Relaying ping, collateral=%s\n", vin.ToString());
     mnp.Relay();
 
     return true;
 }
 
-void CActiveZnode::ManageStateInitial() {
-    LogPrint("vnode", "CActiveZnode::ManageStateInitial -- status = %s, type = %s, pinger enabled = %d\n",
+void CActiveVnode::ManageStateInitial() {
+    LogPrint("vnode", "CActiveVnode::ManageStateInitial -- status = %s, type = %s, pinger enabled = %d\n",
              GetStatus(), GetTypeString(), fPingerEnabled);
 
     // Check that our local network configuration is correct
     if (!fListen) {
         // listen option is probably overwritten by smth else, no good
-        nState = ACTIVE_ZNODE_NOT_CAPABLE;
+        nState = ACTIVE_VNODE_NOT_CAPABLE;
         strNotCapableReason = "Vnode must accept connections from outside. Make sure listen configuration option is not overwritten by some another parameter.";
-        LogPrintf("CActiveZnode::ManageStateInitial -- %s: %s\n", GetStateString(), strNotCapableReason);
+        LogPrintf("CActiveVnode::ManageStateInitial -- %s: %s\n", GetStateString(), strNotCapableReason);
         return;
     }
 
@@ -156,20 +156,20 @@ void CActiveZnode::ManageStateInitial() {
         LOCK(cs_vNodes);
 
         // First try to find whatever local address is specified by externalip option
-        fFoundLocal = GetLocal(service) && CZnode::IsValidNetAddr(service);
+        fFoundLocal = GetLocal(service) && CVnode::IsValidNetAddr(service);
         if (!fFoundLocal) {
             // nothing and no live connections, can't do anything for now
             if (vNodes.empty()) {
-                nState = ACTIVE_ZNODE_NOT_CAPABLE;
+                nState = ACTIVE_VNODE_NOT_CAPABLE;
                 strNotCapableReason = "Can't detect valid external address. Will retry when there are some connections available.";
-                LogPrintf("CActiveZnode::ManageStateInitial -- %s: %s\n", GetStateString(), strNotCapableReason);
+                LogPrintf("CActiveVnode::ManageStateInitial -- %s: %s\n", GetStateString(), strNotCapableReason);
                 return;
             }
             // We have some peers, let's try to find our local address from one of them
             BOOST_FOREACH(CNode * pnode, vNodes)
             {
                 if (pnode->fSuccessfullyConnected && pnode->addr.IsIPv4()) {
-                    fFoundLocal = GetLocal(service, &pnode->addr) && CZnode::IsValidNetAddr(service);
+                    fFoundLocal = GetLocal(service, &pnode->addr) && CVnode::IsValidNetAddr(service);
                     if (fFoundLocal) break;
                 }
             }
@@ -177,54 +177,54 @@ void CActiveZnode::ManageStateInitial() {
     }
 
     if (!fFoundLocal) {
-        nState = ACTIVE_ZNODE_NOT_CAPABLE;
+        nState = ACTIVE_VNODE_NOT_CAPABLE;
         strNotCapableReason = "Can't detect valid external address. Please consider using the externalip configuration option if problem persists. Make sure to use IPv4 address only.";
-        LogPrintf("CActiveZnode::ManageStateInitial -- %s: %s\n", GetStateString(), strNotCapableReason);
+        LogPrintf("CActiveVnode::ManageStateInitial -- %s: %s\n", GetStateString(), strNotCapableReason);
         return;
     }
 
     int mainnetDefaultPort = Params(CBaseChainParams::MAIN).GetDefaultPort();
     if (Params().NetworkIDString() == CBaseChainParams::MAIN) {
         if (service.GetPort() != mainnetDefaultPort) {
-            nState = ACTIVE_ZNODE_NOT_CAPABLE;
+            nState = ACTIVE_VNODE_NOT_CAPABLE;
             strNotCapableReason = strprintf("Invalid port: %u - only %d is supported on mainnet.", service.GetPort(),
                                             mainnetDefaultPort);
-            LogPrintf("CActiveZnode::ManageStateInitial -- %s: %s\n", GetStateString(), strNotCapableReason);
+            LogPrintf("CActiveVnode::ManageStateInitial -- %s: %s\n", GetStateString(), strNotCapableReason);
             return;
         }
     } else if (service.GetPort() == mainnetDefaultPort) {
-        nState = ACTIVE_ZNODE_NOT_CAPABLE;
+        nState = ACTIVE_VNODE_NOT_CAPABLE;
         strNotCapableReason = strprintf("Invalid port: %u - %d is only supported on mainnet.", service.GetPort(),
                                         mainnetDefaultPort);
-        LogPrintf("CActiveZnode::ManageStateInitial -- %s: %s\n", GetStateString(), strNotCapableReason);
+        LogPrintf("CActiveVnode::ManageStateInitial -- %s: %s\n", GetStateString(), strNotCapableReason);
         return;
     }
 
-    LogPrintf("CActiveZnode::ManageStateInitial -- Checking inbound connection to '%s'\n", service.ToString());
+    LogPrintf("CActiveVnode::ManageStateInitial -- Checking inbound connection to '%s'\n", service.ToString());
     //TODO
     if (!ConnectNode(CAddress(service, NODE_NETWORK), NULL, false, true)) {
-        nState = ACTIVE_ZNODE_NOT_CAPABLE;
+        nState = ACTIVE_VNODE_NOT_CAPABLE;
         strNotCapableReason = "Could not connect to " + service.ToString();
-        LogPrintf("CActiveZnode::ManageStateInitial -- %s: %s\n", GetStateString(), strNotCapableReason);
+        LogPrintf("CActiveVnode::ManageStateInitial -- %s: %s\n", GetStateString(), strNotCapableReason);
         return;
     }
 
     // Default to REMOTE
-    eType = ZNODE_REMOTE;
+    eType = VNODE_REMOTE;
 
     // Check if wallet funds are available
     if (!pwalletMain) {
-        LogPrintf("CActiveZnode::ManageStateInitial -- %s: Wallet not available\n", GetStateString());
+        LogPrintf("CActiveVnode::ManageStateInitial -- %s: Wallet not available\n", GetStateString());
         return;
     }
 
     if (pwalletMain->IsLocked()) {
-        LogPrintf("CActiveZnode::ManageStateInitial -- %s: Wallet is locked\n", GetStateString());
+        LogPrintf("CActiveVnode::ManageStateInitial -- %s: Wallet is locked\n", GetStateString());
         return;
     }
 
-    if (pwalletMain->GetBalance() < ZNODE_COIN_REQUIRED * COIN) {
-        LogPrintf("CActiveZnode::ManageStateInitial -- %s: Wallet balance is < 1000 XZC\n", GetStateString());
+    if (pwalletMain->GetBalance() < VNODE_COIN_REQUIRED * COIN) {
+        LogPrintf("CActiveVnode::ManageStateInitial -- %s: Wallet balance is < 1000 XZC\n", GetStateString());
         return;
     }
 
@@ -233,60 +233,60 @@ void CActiveZnode::ManageStateInitial() {
     CKey keyCollateral;
 
     // If collateral is found switch to LOCAL mode
-    if (pwalletMain->GetZnodeVinAndKeys(vin, pubKeyCollateral, keyCollateral)) {
-        eType = ZNODE_LOCAL;
+    if (pwalletMain->GetVnodeVinAndKeys(vin, pubKeyCollateral, keyCollateral)) {
+        eType = VNODE_LOCAL;
     }
 
-    LogPrint("vnode", "CActiveZnode::ManageStateInitial -- End status = %s, type = %s, pinger enabled = %d\n",
+    LogPrint("vnode", "CActiveVnode::ManageStateInitial -- End status = %s, type = %s, pinger enabled = %d\n",
              GetStatus(), GetTypeString(), fPingerEnabled);
 }
 
-void CActiveZnode::ManageStateRemote() {
+void CActiveVnode::ManageStateRemote() {
     LogPrint("vnode",
-             "CActiveZnode::ManageStateRemote -- Start status = %s, type = %s, pinger enabled = %d, pubKeyZnode.GetID() = %s\n",
-             GetStatus(), fPingerEnabled, GetTypeString(), pubKeyZnode.GetID().ToString());
+             "CActiveVnode::ManageStateRemote -- Start status = %s, type = %s, pinger enabled = %d, pubKeyVnode.GetID() = %s\n",
+             GetStatus(), fPingerEnabled, GetTypeString(), pubKeyVnode.GetID().ToString());
 
-    mnodeman.CheckZnode(pubKeyZnode);
-    vnode_info_t infoMn = mnodeman.GetZnodeInfo(pubKeyZnode);
+    mnodeman.CheckVnode(pubKeyVnode);
+    vnode_info_t infoMn = mnodeman.GetVnodeInfo(pubKeyVnode);
     if (infoMn.fInfoValid) {
         if (infoMn.nProtocolVersion != PROTOCOL_VERSION) {
-            nState = ACTIVE_ZNODE_NOT_CAPABLE;
+            nState = ACTIVE_VNODE_NOT_CAPABLE;
             strNotCapableReason = "Invalid protocol version";
-            LogPrintf("CActiveZnode::ManageStateRemote -- %s: %s\n", GetStateString(), strNotCapableReason);
+            LogPrintf("CActiveVnode::ManageStateRemote -- %s: %s\n", GetStateString(), strNotCapableReason);
             return;
         }
         if (service != infoMn.addr) {
-            nState = ACTIVE_ZNODE_NOT_CAPABLE;
+            nState = ACTIVE_VNODE_NOT_CAPABLE;
             // LogPrintf("service: %s\n", service.ToString());
             // LogPrintf("infoMn.addr: %s\n", infoMn.addr.ToString());
             strNotCapableReason = "Broadcasted IP doesn't match our external address. Make sure you issued a new broadcast if IP of this vnode changed recently.";
-            LogPrintf("CActiveZnode::ManageStateRemote -- %s: %s\n", GetStateString(), strNotCapableReason);
+            LogPrintf("CActiveVnode::ManageStateRemote -- %s: %s\n", GetStateString(), strNotCapableReason);
             return;
         }
-        if (!CZnode::IsValidStateForAutoStart(infoMn.nActiveState)) {
-            nState = ACTIVE_ZNODE_NOT_CAPABLE;
-            strNotCapableReason = strprintf("Vnode in %s state", CZnode::StateToString(infoMn.nActiveState));
-            LogPrintf("CActiveZnode::ManageStateRemote -- %s: %s\n", GetStateString(), strNotCapableReason);
+        if (!CVnode::IsValidStateForAutoStart(infoMn.nActiveState)) {
+            nState = ACTIVE_VNODE_NOT_CAPABLE;
+            strNotCapableReason = strprintf("Vnode in %s state", CVnode::StateToString(infoMn.nActiveState));
+            LogPrintf("CActiveVnode::ManageStateRemote -- %s: %s\n", GetStateString(), strNotCapableReason);
             return;
         }
-        if (nState != ACTIVE_ZNODE_STARTED) {
-            LogPrintf("CActiveZnode::ManageStateRemote -- STARTED!\n");
+        if (nState != ACTIVE_VNODE_STARTED) {
+            LogPrintf("CActiveVnode::ManageStateRemote -- STARTED!\n");
             vin = infoMn.vin;
             service = infoMn.addr;
             fPingerEnabled = true;
-            nState = ACTIVE_ZNODE_STARTED;
+            nState = ACTIVE_VNODE_STARTED;
         }
     } else {
-        nState = ACTIVE_ZNODE_NOT_CAPABLE;
+        nState = ACTIVE_VNODE_NOT_CAPABLE;
         strNotCapableReason = "Vnode not in vnode list";
-        LogPrintf("CActiveZnode::ManageStateRemote -- %s: %s\n", GetStateString(), strNotCapableReason);
+        LogPrintf("CActiveVnode::ManageStateRemote -- %s: %s\n", GetStateString(), strNotCapableReason);
     }
 }
 
-void CActiveZnode::ManageStateLocal() {
-    LogPrint("vnode", "CActiveZnode::ManageStateLocal -- status = %s, type = %s, pinger enabled = %d\n",
+void CActiveVnode::ManageStateLocal() {
+    LogPrint("vnode", "CActiveVnode::ManageStateLocal -- status = %s, type = %s, pinger enabled = %d\n",
              GetStatus(), GetTypeString(), fPingerEnabled);
-    if (nState == ACTIVE_ZNODE_STARTED) {
+    if (nState == ACTIVE_VNODE_STARTED) {
         return;
     }
 
@@ -294,12 +294,12 @@ void CActiveZnode::ManageStateLocal() {
     CPubKey pubKeyCollateral;
     CKey keyCollateral;
 
-    if (pwalletMain->GetZnodeVinAndKeys(vin, pubKeyCollateral, keyCollateral)) {
+    if (pwalletMain->GetVnodeVinAndKeys(vin, pubKeyCollateral, keyCollateral)) {
         int nInputAge = GetInputAge(vin);
-        if (nInputAge < Params().GetConsensus().nZnodeMinimumConfirmations) {
-            nState = ACTIVE_ZNODE_INPUT_TOO_NEW;
+        if (nInputAge < Params().GetConsensus().nVnodeMinimumConfirmations) {
+            nState = ACTIVE_VNODE_INPUT_TOO_NEW;
             strNotCapableReason = strprintf(_("%s - %d confirmations"), GetStatus(), nInputAge);
-            LogPrintf("CActiveZnode::ManageStateLocal -- %s: %s\n", GetStateString(), strNotCapableReason);
+            LogPrintf("CActiveVnode::ManageStateLocal -- %s: %s\n", GetStateString(), strNotCapableReason);
             return;
         }
 
@@ -308,26 +308,26 @@ void CActiveZnode::ManageStateLocal() {
             pwalletMain->LockCoin(vin.prevout);
         }
 
-        CZnodeBroadcast mnb;
+        CVnodeBroadcast mnb;
         std::string strError;
-        if (!CZnodeBroadcast::Create(vin, service, keyCollateral, pubKeyCollateral, keyZnode,
-                                     pubKeyZnode, strError, mnb)) {
-            nState = ACTIVE_ZNODE_NOT_CAPABLE;
+        if (!CVnodeBroadcast::Create(vin, service, keyCollateral, pubKeyCollateral, keyVnode,
+                                     pubKeyVnode, strError, mnb)) {
+            nState = ACTIVE_VNODE_NOT_CAPABLE;
             strNotCapableReason = "Error creating mastenode broadcast: " + strError;
-            LogPrintf("CActiveZnode::ManageStateLocal -- %s: %s\n", GetStateString(), strNotCapableReason);
+            LogPrintf("CActiveVnode::ManageStateLocal -- %s: %s\n", GetStateString(), strNotCapableReason);
             return;
         }
 
         fPingerEnabled = true;
-        nState = ACTIVE_ZNODE_STARTED;
+        nState = ACTIVE_VNODE_STARTED;
 
         //update to vnode list
-        LogPrintf("CActiveZnode::ManageStateLocal -- Update Vnode List\n");
-        mnodeman.UpdateZnodeList(mnb);
-        mnodeman.NotifyZnodeUpdates();
+        LogPrintf("CActiveVnode::ManageStateLocal -- Update Vnode List\n");
+        mnodeman.UpdateVnodeList(mnb);
+        mnodeman.NotifyVnodeUpdates();
 
         //send to all peers
-        LogPrintf("CActiveZnode::ManageStateLocal -- Relay broadcast, vin=%s\n", vin.ToString());
+        LogPrintf("CActiveVnode::ManageStateLocal -- Relay broadcast, vin=%s\n", vin.ToString());
         mnb.RelayVNode();
     }
 }

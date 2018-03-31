@@ -177,7 +177,7 @@ public:
      */
     bool Sign();
     /// Check if we have a valid Vnode address
-    bool CheckSignature(const CPubKey& pubKeyZnode);
+    bool CheckSignature(const CPubKey& pubKeyVnode);
 
     bool Relay();
 
@@ -231,7 +231,7 @@ public:
     }
 
     bool Sign();
-    bool CheckSignature(const CPubKey& pubKeyZnode);
+    bool CheckSignature(const CPubKey& pubKeyVnode);
 };
 
 /** Helper object for signing and checking signatures
@@ -306,7 +306,7 @@ private:
     // The current mixing sessions in progress on the network
     std::vector<CDarksendQueue> vecDarksendQueue;
     // Keep track of the used Vnodes
-    std::vector<CTxIn> vecZnodesUsed;
+    std::vector<CTxIn> vecVnodesUsed;
 
     std::vector<CAmount> vecDenominationsSkipped;
     std::vector<COutPoint> vecOutPointLocked;
@@ -416,7 +416,7 @@ private:
     void SetNull();
 
 public:
-    CZnode* pSubmittedToZnode;
+    CVnode* pSubmittedToVnode;
     int nSessionDenom; //Users must submit an denom matching this
     int nCachedNumBlocks; //used for the overview screen
     bool fCreateAutoBackups; //builtin support for automatic backups

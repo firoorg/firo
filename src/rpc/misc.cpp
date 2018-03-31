@@ -295,7 +295,7 @@ UniValue znsync(const UniValue& params, bool fHelp)
         objStatus.push_back(Pair("AssetName", vnodeSync.GetAssetName()));
         objStatus.push_back(Pair("Attempt", vnodeSync.GetAttempt()));
         objStatus.push_back(Pair("IsBlockchainSynced", vnodeSync.IsBlockchainSynced()));
-        objStatus.push_back(Pair("IsZnodeListSynced", vnodeSync.IsZnodeListSynced()));
+        objStatus.push_back(Pair("IsVnodeListSynced", vnodeSync.IsVnodeListSynced()));
         objStatus.push_back(Pair("IsWinnersListSynced", vnodeSync.IsWinnersListSynced()));
         objStatus.push_back(Pair("IsSynced", vnodeSync.IsSynced()));
         objStatus.push_back(Pair("IsFailed", vnodeSync.IsFailed()));

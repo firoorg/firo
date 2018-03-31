@@ -327,7 +327,7 @@ void BitcoinGUI::createActions()
 #endif
     tabGroup->addAction(vnodeAction);
     connect(vnodeAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
-    connect(vnodeAction, SIGNAL(triggered()), this, SLOT(gotoZnodePage()));
+    connect(vnodeAction, SIGNAL(triggered()), this, SLOT(gotoVnodePage()));
 	connect(overviewAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
 	connect(overviewAction, SIGNAL(triggered()), this, SLOT(gotoOverviewPage()));
 	connect(sendCoinsAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
@@ -708,11 +708,11 @@ void BitcoinGUI::gotoHistoryPage()
     if (walletFrame) walletFrame->gotoHistoryPage();
 }
 
-void BitcoinGUI::gotoZnodePage()
+void BitcoinGUI::gotoVnodePage()
 {
     QSettings settings;
     vnodeAction->setChecked(true);
-    if (walletFrame) walletFrame->gotoZnodePage();
+    if (walletFrame) walletFrame->gotoVnodePage();
 }
 
 void BitcoinGUI::gotoReceiveCoinsPage()
