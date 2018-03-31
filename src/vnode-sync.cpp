@@ -5,9 +5,9 @@
 #include "activeznode.h"
 #include "checkpoints.h"
 #include "main.h"
-#include "znode.h"
-#include "znode-payments.h"
-#include "znode-sync.h"
+#include "vnode.h"
+#include "vnode-payments.h"
+#include "vnode-sync.h"
 #include "znodeman.h"
 #include "netfulfilledman.h"
 #include "spork.h"
@@ -76,7 +76,7 @@ bool CZnodeSync::IsBlockchainSynced(bool fBlockAccepted) {
         }
     }
 
-    LogPrint("znode-sync", "CZnodeSync::IsBlockchainSynced -- state before check: %ssynced, skipped %d times\n", fBlockchainSynced ? "" : "not ", nSkipped);
+    LogPrint("vnode-sync", "CZnodeSync::IsBlockchainSynced -- state before check: %ssynced, skipped %d times\n", fBlockchainSynced ? "" : "not ", nSkipped);
 
     nTimeLastProcess = GetTime();
     nSkipped = 0;
@@ -197,7 +197,7 @@ std::string CZnodeSync::GetSyncStatus() {
         case ZNODE_SYNC_LIST:
             return _("Synchronizing znodes...");
         case ZNODE_SYNC_MNW:
-            return _("Synchronizing znode payments...");
+            return _("Synchronizing vnode payments...");
         case ZNODE_SYNC_FAILED:
             return _("Synchronization failed");
         case ZNODE_SYNC_FINISHED:
@@ -228,8 +228,8 @@ void CZnodeSync::ClearFulfilledRequests() {
     BOOST_FOREACH(CNode * pnode, vNodes)
     {
         netfulfilledman.RemoveFulfilledRequest(pnode->addr, "spork-sync");
-        netfulfilledman.RemoveFulfilledRequest(pnode->addr, "znode-list-sync");
-        netfulfilledman.RemoveFulfilledRequest(pnode->addr, "znode-payment-sync");
+        netfulfilledman.RemoveFulfilledRequest(pnode->addr, "vnode-list-sync");
+        netfulfilledman.RemoveFulfilledRequest(pnode->addr, "vnode-payment-sync");
         netfulfilledman.RemoveFulfilledRequest(pnode->addr, "full-sync");
     }
 }
@@ -288,9 +288,9 @@ void CZnodeSync::ProcessTick() {
 
     BOOST_FOREACH(CNode * pnode, vNodesCopy)
     {
-        // Don't try to sync any data from outbound "znode" connections -
+        // Don't try to sync any data from outbound "vnode" connections -
         // they are temporary and should be considered unreliable for a sync process.
-        // Inbound connection this early is most likely a "znode" connection
+        // Inbound connection this early is most likely a "vnode" connection
         // initialted from another node, so skip it too.
         if (pnode->fZnode || (fZNode && pnode->fInbound)) continue;
 
@@ -332,7 +332,7 @@ void CZnodeSync::ProcessTick() {
                 continue; // always get sporks first, switch to the next node without waiting for the next tick
             }
 
-            // MNLIST : SYNC ZNODE LIST FROM OTHER CONNECTED CLIENTS
+            // MNLIST : SYNC Vnode LIST FROM OTHER CONNECTED CLIENTS
 
             if (nRequestedZnodeAssets == ZNODE_SYNC_LIST) {
                 // check for timeout first
@@ -340,7 +340,7 @@ void CZnodeSync::ProcessTick() {
                     LogPrintf("CZnodeSync::ProcessTick -- nTick %d nRequestedZnodeAssets %d -- timeout\n", nTick, nRequestedZnodeAssets);
                     if (nRequestedZnodeAttempt == 0) {
                         LogPrintf("CZnodeSync::ProcessTick -- ERROR: failed to sync %s\n", GetAssetName());
-                        // there is no way we can continue without znode list, fail here and try later
+                        // there is no way we can continue without vnode list, fail here and try later
                         Fail();
                         ReleaseNodeVector(vNodesCopy);
                         return;
@@ -351,8 +351,8 @@ void CZnodeSync::ProcessTick() {
                 }
 
                 // only request once from each peer
-                if (netfulfilledman.HasFulfilledRequest(pnode->addr, "znode-list-sync")) continue;
-                netfulfilledman.AddFulfilledRequest(pnode->addr, "znode-list-sync");
+                if (netfulfilledman.HasFulfilledRequest(pnode->addr, "vnode-list-sync")) continue;
+                netfulfilledman.AddFulfilledRequest(pnode->addr, "vnode-list-sync");
 
                 if (pnode->nVersion < mnpayments.GetMinZnodePaymentsProto()) continue;
                 nRequestedZnodeAttempt++;
@@ -363,7 +363,7 @@ void CZnodeSync::ProcessTick() {
                 return; //this will cause each peer to get one request each six seconds for the various assets we need
             }
 
-            // MNW : SYNC ZNODE PAYMENT VOTES FROM OTHER CONNECTED CLIENTS
+            // MNW : SYNC Vnode PAYMENT VOTES FROM OTHER CONNECTED CLIENTS
 
             if (nRequestedZnodeAssets == ZNODE_SYNC_MNW) {
                 LogPrint("mnpayments", "CZnodeSync::ProcessTick -- nTick %d nRequestedZnodeAssets %d nTimeLastPaymentVote %lld GetTime() %lld diff %lld\n", nTick, nRequestedZnodeAssets, nTimeLastPaymentVote, GetTime(), GetTime() - nTimeLastPaymentVote);
@@ -395,8 +395,8 @@ void CZnodeSync::ProcessTick() {
                 }
 
                 // only request once from each peer
-                if (netfulfilledman.HasFulfilledRequest(pnode->addr, "znode-payment-sync")) continue;
-                netfulfilledman.AddFulfilledRequest(pnode->addr, "znode-payment-sync");
+                if (netfulfilledman.HasFulfilledRequest(pnode->addr, "vnode-payment-sync")) continue;
+                netfulfilledman.AddFulfilledRequest(pnode->addr, "vnode-payment-sync");
 
                 if (pnode->nVersion < mnpayments.GetMinZnodePaymentsProto()) continue;
                 nRequestedZnodeAttempt++;

@@ -46,8 +46,8 @@
 
 #include "darksend.h"
 #include "instantx.h"
-#include "znode-payments.h"
-#include "znode-sync.h"
+#include "vnode-payments.h"
+#include "vnode-sync.h"
 #include "znodeman.h"
 
 #include <atomic>
@@ -100,7 +100,7 @@ CAmount maxTxFee = DEFAULT_TRANSACTION_MAXFEE;
 CTxMemPool mempool(::minRelayTxFee);
 FeeFilterRounder filterRounder(::minRelayTxFee);
 
-// Dash znode
+// Dash vnode
 map <uint256, int64_t> mapRejectedBlocks GUARDED_BY(cs_main);
 
 struct IteratorComparator {
@@ -2638,7 +2638,7 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
                                     block.vtx[0].GetValueOut(), blockReward),
                          REJECT_INVALID, "bad-cb-amount");
 
-    // ZNODE : MODIFIED TO CHECK ZNODE PAYMENTS AND SUPERBLOCKS
+    // Vnode : MODIFIED TO CHECK Vnode PAYMENTS AND SUPERBLOCKS
     // It's possible that we simply don't have enough data and this could fail
     // (i.e. block itself could be a correct one and we need to store it),
     // that's why this is in ConnectBlock. Could be the other way around however -
@@ -2652,10 +2652,10 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
 
     if (!IsBlockPayeeValid(block.vtx[0], pindex->nHeight, blockReward)) {
         mapRejectedBlocks.insert(make_pair(block.GetHash(), GetTime()));
-        return state.DoS(0, error("ConnectBlock(): couldn't find znode or superblock payments"),
+        return state.DoS(0, error("ConnectBlock(): couldn't find vnode or superblock payments"),
                          REJECT_INVALID, "bad-cb-payee");
     }
-    // END ZNODE
+    // END Vnode
 
     if (!control.Wait())
         return state.DoS(100, false);
@@ -6105,13 +6105,13 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
 
             CZnode *pmn = mnodeman.Find(dstx.vin);
             if (pmn == NULL) {
-                LogPrint("privatesend", "DSTX -- Can't find znode %s to verify %s\n",
+                LogPrint("privatesend", "DSTX -- Can't find vnode %s to verify %s\n",
                          dstx.vin.prevout.ToStringShort(), hashTx.ToString());
                 return false;
             }
 
             if (!pmn->fAllowMixingTx) {
-                LogPrint("privatesend", "DSTX -- Znode %s is sending too many transactions %s\n",
+                LogPrint("privatesend", "DSTX -- Vnode %s is sending too many transactions %s\n",
                          dstx.vin.prevout.ToStringShort(), hashTx.ToString());
                 return true;
                 // TODO: Not an error? Could it be that someone is relaying old DSTXes

@@ -9,7 +9,7 @@
 #include "core_io.h"
 #include "key.h"
 #include "main.h"
-#include "znode.h"
+#include "vnode.h"
 #include "utilstrencodings.h"
 
 class CZnodePayments;
@@ -19,8 +19,8 @@ class CZnodeBlockPayees;
 static const int MNPAYMENTS_SIGNATURES_REQUIRED         = 6;
 static const int MNPAYMENTS_SIGNATURES_TOTAL            = 10;
 
-//! minimum peer version that can receive and send znode payment messages,
-//  vote for znode and be elected as a payment winner
+//! minimum peer version that can receive and send vnode payment messages,
+//  vote for vnode and be elected as a payment winner
 // V1 - Last protocol version before update
 // V2 - Newest protocol version
 static const int MIN_ZNODE_PAYMENT_PROTO_VERSION_1 = 90023;
@@ -161,14 +161,14 @@ public:
 };
 
 //
-// Znode Payments Class
+// Vnode Payments Class
 // Keeps track of who should get paid for which blocks
 //
 
 class CZnodePayments
 {
 private:
-    // znode count times nStorageCoeff payments blocks should be stored ...
+    // vnode count times nStorageCoeff payments blocks should be stored ...
     const float nStorageCoeff;
     // ... but at least nMinBlocksToStore (payments blocks)
     const int nMinBlocksToStore;

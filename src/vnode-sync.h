@@ -27,7 +27,7 @@ static const int ZNODE_SYNC_ENOUGH_PEERS    = 3;
 extern CZnodeSync znodeSync;
 
 //
-// CZnodeSync : Sync znode assets in stages
+// CZnodeSync : Sync vnode assets in stages
 //
 
 class CZnodeSync
@@ -38,10 +38,10 @@ private:
     // Count peers we've requested the asset from
     int nRequestedZnodeAttempt;
 
-    // Time when current znode asset sync started
+    // Time when current vnode asset sync started
     int64_t nTimeAssetSyncStarted;
 
-    // Last time when we received some znode asset ...
+    // Last time when we received some vnode asset ...
     int64_t nTimeLastZnodeList;
     int64_t nTimeLastPaymentVote;
     int64_t nTimeLastGovernanceItem;

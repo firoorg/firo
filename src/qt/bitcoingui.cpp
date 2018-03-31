@@ -34,7 +34,7 @@
 #include "ui_interface.h"
 #include "util.h"
 
-#include "znode-sync.h"
+#include "vnode-sync.h"
 #include "znodelist.h"
 
 #include <iostream>
@@ -316,7 +316,7 @@ void BitcoinGUI::createActions()
 #ifdef ENABLE_WALLET
     // These showNormalIfMinimized are needed because Send Coins and Receive Coins
     // can be triggered from the tray menu, and need to show the GUI to be useful.
-    znodeAction = new QAction(platformStyle->SingleColorIcon(":/icons/znodes"), tr("&Znodes"), this);
+    znodeAction = new QAction(platformStyle->SingleColorIcon(":/icons/znodes"), tr("&Vnodes"), this);
     znodeAction->setStatusTip(tr("Browse znodes"));
     znodeAction->setToolTip(znodeAction->statusTip());
     znodeAction->setCheckable(true);

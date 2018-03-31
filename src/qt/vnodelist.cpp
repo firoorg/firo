@@ -5,7 +5,7 @@
 #include "clientmodel.h"
 #include "init.h"
 #include "guiutil.h"
-#include "znode-sync.h"
+#include "vnode-sync.h"
 #include "znodeconfig.h"
 #include "znodeman.h"
 #include "sync.h"
@@ -83,7 +83,7 @@ void ZnodeList::setClientModel(ClientModel *model)
 {
     this->clientModel = model;
     if(model) {
-        // try to update list when znode count changes
+        // try to update list when vnode count changes
         connect(clientModel, SIGNAL(strZnodesChanged(QString)), this, SLOT(updateNodeList()));
     }
 }
@@ -112,12 +112,12 @@ void ZnodeList::StartAlias(std::string strAlias)
             bool fSuccess = CZnodeBroadcast::Create(mne.getIp(), mne.getPrivKey(), mne.getTxHash(), mne.getOutputIndex(), strError, mnb);
 
             if(fSuccess) {
-                strStatusHtml += "<br>Successfully started znode.";
+                strStatusHtml += "<br>Successfully started vnode.";
                 mnodeman.UpdateZnodeList(mnb);
                 mnb.RelayZNode();
                 mnodeman.NotifyZnodeUpdates();
             } else {
-                strStatusHtml += "<br>Failed to start znode.<br>Error: " + strError;
+                strStatusHtml += "<br>Failed to start vnode.<br>Error: " + strError;
             }
             break;
         }
@@ -224,7 +224,7 @@ void ZnodeList::updateMyNodeList(bool fForce)
     }
     static int64_t nTimeMyListUpdated = 0;
 
-    // automatically update my znode list only once in MY_MASTERNODELIST_UPDATE_SECONDS seconds,
+    // automatically update my vnode list only once in MY_MASTERNODELIST_UPDATE_SECONDS seconds,
     // this update still can be triggered manually at any time via button click
     int64_t nSecondsTillUpdate = nTimeMyListUpdated + MY_MASTERNODELIST_UPDATE_SECONDS - GetTime();
     ui->secondsLabel->setText(QString::number(nSecondsTillUpdate));
@@ -338,8 +338,8 @@ void ZnodeList::on_startButton_clicked()
     }
 
     // Display message box
-    QMessageBox::StandardButton retval = QMessageBox::question(this, tr("Confirm znode start"),
-        tr("Are you sure you want to start znode %1?").arg(QString::fromStdString(strAlias)),
+    QMessageBox::StandardButton retval = QMessageBox::question(this, tr("Confirm vnode start"),
+        tr("Are you sure you want to start vnode %1?").arg(QString::fromStdString(strAlias)),
         QMessageBox::Yes | QMessageBox::Cancel,
         QMessageBox::Cancel);
 
@@ -388,7 +388,7 @@ void ZnodeList::on_startMissingButton_clicked()
 
     if(!znodeSync.IsZnodeListSynced()) {
         QMessageBox::critical(this, tr("Command is not available right now"),
-            tr("You can't use this command until znode list is synced"));
+            tr("You can't use this command until vnode list is synced"));
         return;
     }
 

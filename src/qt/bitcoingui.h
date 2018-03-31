@@ -186,7 +186,7 @@ private Q_SLOTS:
     void gotoOverviewPage();
     /** Switch to history (transactions) page */
     void gotoHistoryPage();
-    /** Switch to znode page */
+    /** Switch to vnode page */
     void gotoZnodePage();
     /** Switch to receive coins page */
     void gotoReceiveCoinsPage();

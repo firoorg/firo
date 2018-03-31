@@ -356,7 +356,7 @@ CNode *FindNode(const NodeId nodeid) {
 
 CNode *ConnectNode(CAddress addrConnect, const char *pszDest, bool fCountFailure, bool fConnectToZnode) {
     if (pszDest == NULL) {
-        // we clean znode connections in CZnodeMan::ProcessZnodeConnections()
+        // we clean vnode connections in CZnodeMan::ProcessZnodeConnections()
         // so should be safe to skip this and connect to local Hot MN on CActiveZnode::ManageState()
         if (IsLocal(addrConnect) && !fConnectToZnode)
             return NULL;
@@ -364,7 +364,7 @@ CNode *ConnectNode(CAddress addrConnect, const char *pszDest, bool fCountFailure
         // Look for an existing connection
         CNode *pnode = FindNode((CService) addrConnect);
         if (pnode) {
-            // we have existing connection to this node but it was not a connection to znode,
+            // we have existing connection to this node but it was not a connection to vnode,
             // change flag and add reference so that we can correctly clear it later
             if (fConnectToZnode && !pnode->fZnode) {
                 pnode->fZnode = true;
@@ -2397,7 +2397,7 @@ CNode::CNode(SOCKET hSocketIn, const CAddress &addrIn, const std::string &addrNa
     minFeeFilter = 0;
     lastSentFeeFilter = 0;
     nextSendTimeFeeFilter = 0;
-    // znode
+    // vnode
     fZnode = false;
 
     BOOST_FOREACH(

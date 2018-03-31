@@ -51,7 +51,7 @@
        </property>
        <widget class="QWidget" name="tabMyZnodes">
         <attribute name="title">
-         <string>My Znodes</string>
+         <string>My Vnodes</string>
         </attribute>
         <layout class="QGridLayout" name="gridLayout_2">
          <item row="0" column="0">
@@ -67,7 +67,7 @@
              <item>
               <widget class="QLabel" name="updateNote">
                <property name="text">
-                <string>Note: Status of your znodes in local wallet can potentially be slightly incorrect.&lt;br /&gt;Always wait for wallet to sync additional data and then double check from another node&lt;br /&gt;if your znode should be running but you still do not see &quot;ENABLED&quot; in &quot;Status&quot; field.</string>
+                <string>Note: Status of your znodes in local wallet can potentially be slightly incorrect.&lt;br /&gt;Always wait for wallet to sync additional data and then double check from another node&lt;br /&gt;if your vnode should be running but you still do not see &quot;ENABLED&quot; in &quot;Status&quot; field.</string>
                </property>
               </widget>
              </item>
@@ -204,7 +204,7 @@
        </widget>
        <widget class="QWidget" name="tabAllZnodes">
         <attribute name="title">
-         <string>All Znodes</string>
+         <string>All Vnodes</string>
         </attribute>
         <layout class="QGridLayout" name="gridLayout">
          <item row="1" column="0">
@@ -271,7 +271,7 @@
            <item>
             <widget class="QLineEdit" name="filterLineEdit">
              <property name="toolTip">
-              <string>Filter znode list</string>
+              <string>Filter vnode list</string>
              </property>
             </widget>
            </item>

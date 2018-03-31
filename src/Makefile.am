@@ -138,9 +138,9 @@ BITCOIN_CORE_H = \
   dbwrapper.h \
   limitedmap.h \
   main.h \
-  znode.h \
-  znode-payments.h \
-  znode-sync.h \
+  vnode.h \
+  vnode-payments.h \
+  vnode-sync.h \
   znodeman.h \
   znodeconfig.h \
   memusage.h \
@@ -265,10 +265,10 @@ libbitcoin_wallet_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_wallet_a_SOURCES = \
   activeznode.cpp \
   darksend.cpp \
-  znode.cpp \
+  vnode.cpp \
   instantx.cpp \
-  znode-payments.cpp \
-  znode-sync.cpp \
+  vnode-payments.cpp \
+  vnode-sync.cpp \
   znodeconfig.cpp \
   znodeman.cpp \
   wallet/crypter.cpp \

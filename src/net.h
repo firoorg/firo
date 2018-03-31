@@ -373,7 +373,7 @@ public:
     CBloomFilter* pfilter;
     std::atomic<int> nRefCount;
     NodeId id;
-    // znode from dash
+    // vnode from dash
     bool fZnode;
 
     const uint64_t nKeyedNetGroup;

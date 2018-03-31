@@ -25,7 +25,7 @@ QT_BEGIN_NAMESPACE
 class QModelIndex;
 QT_END_NAMESPACE
 
-/** Znode Manager page widget */
+/** Vnode Manager page widget */
 class ZnodeList : public QWidget
 {
     Q_OBJECT

@@ -20,7 +20,7 @@
 #include "txmempool.h"
 #include "util.h"
 #ifdef ENABLE_WALLET
-#include "znode-sync.h"
+#include "vnode-sync.h"
 #endif
 #include "utilstrencodings.h"
 #include "validationinterface.h"
@@ -460,13 +460,13 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
             "  \"curtime\" : ttt,                  (numeric) current timestamp in seconds since epoch (Jan 1 1970 GMT)\n"
             "  \"bits\" : \"xxxxxxxx\",              (string) compressed target of next block\n"
             "  \"height\" : n                      (numeric) The height of the next block\n"
-            "  \"znode\" : {                  (json object) required znode payee that must be included in the next block\n"
+            "  \"vnode\" : {                  (json object) required vnode payee that must be included in the next block\n"
             "      \"payee\" : \"xxxx\",             (string) payee address\n"
             "      \"script\" : \"xxxx\",            (string) payee scriptPubKey\n"
             "      \"amount\": n                   (numeric) required amount to pay\n"
             "  },\n"
-            "  \"znode_payments_started\" :  true|false, (boolean) true, if znode payments started\n"
-//            "  \"znode_payments_enforced\" : true|false, (boolean) true, if znode payments are enforced\n"
+            "  \"znode_payments_started\" :  true|false, (boolean) true, if vnode payments started\n"
+//            "  \"znode_payments_enforced\" : true|false, (boolean) true, if vnode payments are enforced\n"
             "}\n"
 
             "\nExamples:\n"
@@ -792,7 +792,7 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
         znodeObj.push_back(Pair("script", HexStr(pblock->txoutZnode.scriptPubKey.begin(), pblock->txoutZnode.scriptPubKey.end())));
         znodeObj.push_back(Pair("amount", pblock->txoutZnode.nValue));
     }
-    result.push_back(Pair("znode", znodeObj));
+    result.push_back(Pair("vnode", znodeObj));
     result.push_back(Pair("znode_payments_started", pindexPrev->nHeight + 1 > Params().GetConsensus().nZnodePaymentsStartBlock));
 //    result.push_back(Pair("znode_payments_enforced", sporkManager.IsSporkActive(SPORK_8_MASTERNODE_PAYMENT_ENFORCEMENT)));
 

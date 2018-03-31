@@ -14,7 +14,7 @@
 #include "util.h"
 #include "utilstrencodings.h"
 #ifdef ENABLE_WALLET
-#include "znode-sync.h"
+#include "vnode-sync.h"
 #include "wallet/wallet.h"
 #include "wallet/walletdb.h"
 #endif

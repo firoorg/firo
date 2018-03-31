@@ -628,11 +628,11 @@ int main(int argc, char *argv[])
     initTranslations(qtTranslatorBase, qtTranslator, translatorBase, translator);
 
 #ifdef ENABLE_WALLET
-    /// 7a. parse znode.conf
+    /// 7a. parse vnode.conf
     std::string strErr;
     if(!znodeConfig.read(strErr)) {
         QMessageBox::critical(0, QObject::tr("Verticalcoin Core"),
-                              QObject::tr("Error reading znode configuration file: %1").arg(strErr.c_str()));
+                              QObject::tr("Error reading vnode configuration file: %1").arg(strErr.c_str()));
         return EXIT_FAILURE;
     }
 

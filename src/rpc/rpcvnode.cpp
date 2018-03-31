@@ -2,8 +2,8 @@
 #include "darksend.h"
 #include "init.h"
 #include "main.h"
-#include "znode-payments.h"
-#include "znode-sync.h"
+#include "vnode-payments.h"
+#include "vnode-sync.h"
 #include "znodeconfig.h"
 #include "znodeman.h"
 #include "rpc/server.h"
@@ -85,7 +85,7 @@ UniValue getpoolinfo(const UniValue &params, bool fHelp) {
 }
 
 
-UniValue znode(const UniValue &params, bool fHelp) {
+UniValue vnode(const UniValue &params, bool fHelp) {
     std::string strCommand;
     if (params.size() >= 1) {
         strCommand = params[0].get_str();
@@ -102,24 +102,24 @@ UniValue znode(const UniValue &params, bool fHelp) {
          strCommand != "genkey" &&
          strCommand != "connect" && strCommand != "outputs" && strCommand != "status"))
         throw std::runtime_error(
-                "znode \"command\"...\n"
-                        "Set of commands to execute znode related actions\n"
+                "vnode \"command\"...\n"
+                        "Set of commands to execute vnode related actions\n"
                         "\nArguments:\n"
                         "1. \"command\"        (string or set of strings, required) The command to execute\n"
                         "\nAvailable commands:\n"
                         "  count        - Print number of all known znodes (optional: 'ps', 'enabled', 'all', 'qualify')\n"
-                        "  current      - Print info on current znode winner to be paid the next block (calculated locally)\n"
-                        "  debug        - Print znode status\n"
+                        "  current      - Print info on current vnode winner to be paid the next block (calculated locally)\n"
+                        "  debug        - Print vnode status\n"
                         "  genkey       - Generate new znodeprivkey\n"
-                        "  outputs      - Print znode compatible outputs\n"
-                        "  start        - Start local Hot znode configured in dash.conf\n"
-                        "  start-alias  - Start single remote znode by assigned alias configured in znode.conf\n"
-                        "  start-<mode> - Start remote znodes configured in znode.conf (<mode>: 'all', 'missing', 'disabled')\n"
-                        "  status       - Print znode status information\n"
+                        "  outputs      - Print vnode compatible outputs\n"
+                        "  start        - Start local Hot vnode configured in dash.conf\n"
+                        "  start-alias  - Start single remote vnode by assigned alias configured in vnode.conf\n"
+                        "  start-<mode> - Start remote znodes configured in vnode.conf (<mode>: 'all', 'missing', 'disabled')\n"
+                        "  status       - Print vnode status information\n"
                         "  list         - Print list of all known znodes (see znodelist for more info)\n"
-                        "  list-conf    - Print znode.conf in JSON format\n"
-                        "  winner       - Print info on next znode winner to vote for\n"
-                        "  winners      - Print list of znode winners\n"
+                        "  list-conf    - Print vnode.conf in JSON format\n"
+                        "  winner       - Print info on next vnode winner to vote for\n"
+                        "  winners      - Print list of vnode winners\n"
         );
 
     if (strCommand == "list") {
@@ -133,7 +133,7 @@ UniValue znode(const UniValue &params, bool fHelp) {
 
     if (strCommand == "connect") {
         if (params.size() < 2)
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "Znode address required");
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Vnode address required");
 
         std::string strAddress = params[1].get_str();
 
@@ -141,7 +141,7 @@ UniValue znode(const UniValue &params, bool fHelp) {
 
         CNode *pnode = ConnectNode(CAddress(addr, NODE_NETWORK), NULL);
         if (!pnode)
-            throw JSONRPCError(RPC_INTERNAL_ERROR, strprintf("Couldn't connect to znode %s", strAddress));
+            throw JSONRPCError(RPC_INTERNAL_ERROR, strprintf("Couldn't connect to vnode %s", strAddress));
 
         return "successfully connected";
     }
@@ -210,14 +210,14 @@ UniValue znode(const UniValue &params, bool fHelp) {
 
         if (!pwalletMain || !pwalletMain->GetZnodeVinAndKeys(vin, pubkey, key))
             throw JSONRPCError(RPC_INVALID_PARAMETER,
-                               "Missing znode input, please look at the documentation for instructions on znode creation");
+                               "Missing vnode input, please look at the documentation for instructions on vnode creation");
 
         return activeZnode.GetStatus();
     }
 
     if (strCommand == "start") {
         if (!fZNode)
-            throw JSONRPCError(RPC_INTERNAL_ERROR, "You must set znode=1 in the configuration");
+            throw JSONRPCError(RPC_INTERNAL_ERROR, "You must set vnode=1 in the configuration");
 
         {
             LOCK(pwalletMain->cs_wallet);
@@ -289,7 +289,7 @@ UniValue znode(const UniValue &params, bool fHelp) {
         if ((strCommand == "start-missing" || strCommand == "start-disabled") &&
             !znodeSync.IsZnodeListSynced()) {
             throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD,
-                               "You can't use this command until znode list is synced");
+                               "You can't use this command until vnode list is synced");
         }
 
         int nSuccessful = 0;
@@ -359,7 +359,7 @@ UniValue znode(const UniValue &params, bool fHelp) {
             mnObj.push_back(Pair("txHash", mne.getTxHash()));
             mnObj.push_back(Pair("outputIndex", mne.getOutputIndex()));
             mnObj.push_back(Pair("status", strStatus));
-            resultObj.push_back(Pair("znode", mnObj));
+            resultObj.push_back(Pair("vnode", mnObj));
         }
 
         return resultObj;
@@ -382,7 +382,7 @@ UniValue znode(const UniValue &params, bool fHelp) {
 
     if (strCommand == "status") {
         if (!fZNode)
-            throw JSONRPCError(RPC_INTERNAL_ERROR, "This is not a znode");
+            throw JSONRPCError(RPC_INTERNAL_ERROR, "This is not a vnode");
 
         UniValue mnObj(UniValue::VOBJ);
 
@@ -420,7 +420,7 @@ UniValue znode(const UniValue &params, bool fHelp) {
         }
 
         if (params.size() > 3)
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "Correct usage is 'znode winners ( \"count\" \"filter\" )'");
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Correct usage is 'vnode winners ( \"count\" \"filter\" )'");
 
         UniValue obj(UniValue::VOBJ);
 
@@ -456,20 +456,20 @@ UniValue znodelist(const UniValue &params, bool fHelp) {
                         "2. \"filter\"    (string, optional) Filter results. Partial match by outpoint by default in all modes,\n"
                         "                                    additional matches in some modes are also available\n"
                         "\nAvailable modes:\n"
-                        "  activeseconds  - Print number of seconds znode recognized by the network as enabled\n"
-                        "                   (since latest issued \"znode start/start-many/start-alias\")\n"
-                        "  addr           - Print ip address associated with a znode (can be additionally filtered, partial match)\n"
+                        "  activeseconds  - Print number of seconds vnode recognized by the network as enabled\n"
+                        "                   (since latest issued \"vnode start/start-many/start-alias\")\n"
+                        "  addr           - Print ip address associated with a vnode (can be additionally filtered, partial match)\n"
                         "  full           - Print info in format 'status protocol payee lastseen activeseconds lastpaidtime lastpaidblock IP'\n"
                         "                   (can be additionally filtered, partial match)\n"
                         "  lastpaidblock  - Print the last block height a node was paid on the network\n"
                         "  lastpaidtime   - Print the last time a node was paid on the network\n"
-                        "  lastseen       - Print timestamp of when a znode was last seen on the network\n"
-                        "  payee          - Print Dash address associated with a znode (can be additionally filtered,\n"
+                        "  lastseen       - Print timestamp of when a vnode was last seen on the network\n"
+                        "  payee          - Print Dash address associated with a vnode (can be additionally filtered,\n"
                         "                   partial match)\n"
-                        "  protocol       - Print protocol of a znode (can be additionally filtered, exact match))\n"
-                        "  rank           - Print rank of a znode based on current block\n"
-                        "  qualify        - Print qualify status of a znode based on current block\n"
-                        "  status         - Print znode status: PRE_ENABLED / ENABLED / EXPIRED / WATCHDOG_EXPIRED / NEW_START_REQUIRED /\n"
+                        "  protocol       - Print protocol of a vnode (can be additionally filtered, exact match))\n"
+                        "  rank           - Print rank of a vnode based on current block\n"
+                        "  qualify        - Print qualify status of a vnode based on current block\n"
+                        "  status         - Print vnode status: PRE_ENABLED / ENABLED / EXPIRED / WATCHDOG_EXPIRED / NEW_START_REQUIRED /\n"
                         "                   UPDATE_REQUIRED / POSE_BAN / OUTPOINT_SPENT (can be additionally filtered, partial match)\n"
         );
     }
@@ -590,14 +590,14 @@ UniValue znodebroadcast(const UniValue &params, bool fHelp) {
         (strCommand != "create-alias" && strCommand != "create-all" && strCommand != "decode" && strCommand != "relay"))
         throw std::runtime_error(
                 "znodebroadcast \"command\"...\n"
-                        "Set of commands to create and relay znode broadcast messages\n"
+                        "Set of commands to create and relay vnode broadcast messages\n"
                         "\nArguments:\n"
                         "1. \"command\"        (string or set of strings, required) The command to execute\n"
                         "\nAvailable commands:\n"
-                        "  create-alias  - Create single remote znode broadcast message by assigned alias configured in znode.conf\n"
-                        "  create-all    - Create remote znode broadcast messages for all znodes configured in znode.conf\n"
-                        "  decode        - Decode znode broadcast message\n"
-                        "  relay         - Relay znode broadcast message to the network\n"
+                        "  create-alias  - Create single remote vnode broadcast message by assigned alias configured in vnode.conf\n"
+                        "  create-all    - Create remote vnode broadcast messages for all znodes configured in vnode.conf\n"
+                        "  decode        - Decode vnode broadcast message\n"
+                        "  relay         - Relay vnode broadcast message to the network\n"
         );
 
     if (strCommand == "create-alias") {
@@ -714,7 +714,7 @@ UniValue znodebroadcast(const UniValue &params, bool fHelp) {
         std::vector <CZnodeBroadcast> vecMnb;
 
         if (!DecodeHexVecMnb(vecMnb, params[1].get_str()))
-            throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Znode broadcast message decode failed");
+            throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Vnode broadcast message decode failed");
 
         int nSuccessful = 0;
         int nFailed = 0;
@@ -747,7 +747,7 @@ UniValue znodebroadcast(const UniValue &params, bool fHelp) {
                 resultObj.push_back(Pair("lastPing", lastPingObj));
             } else {
                 nFailed++;
-                resultObj.push_back(Pair("errorMessage", "Znode broadcast signature verification failed"));
+                resultObj.push_back(Pair("errorMessage", "Vnode broadcast signature verification failed"));
             }
 
             returnObj.push_back(Pair(mnb.GetHash().ToString(), resultObj));
@@ -770,7 +770,7 @@ UniValue znodebroadcast(const UniValue &params, bool fHelp) {
         std::vector <CZnodeBroadcast> vecMnb;
 
         if (!DecodeHexVecMnb(vecMnb, params[1].get_str()))
-            throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Znode broadcast message decode failed");
+            throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "Vnode broadcast message decode failed");
 
         int nSuccessful = 0;
         int nFailed = 0;
@@ -803,7 +803,7 @@ UniValue znodebroadcast(const UniValue &params, bool fHelp) {
                 resultObj.push_back(Pair(mnb.GetHash().ToString(), "successful"));
             } else {
                 nFailed++;
-                resultObj.push_back(Pair("errorMessage", "Znode broadcast signature verification failed"));
+                resultObj.push_back(Pair("errorMessage", "Vnode broadcast signature verification failed"));
             }
 
             returnObj.push_back(Pair(mnb.GetHash().ToString(), resultObj));

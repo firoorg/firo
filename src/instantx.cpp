@@ -7,7 +7,7 @@
 #include "instantx.h"
 #include "key.h"
 #include "main.h"
-#include "znode-sync.h"
+#include "vnode-sync.h"
 #include "znodeman.h"
 #include "net.h"
 #include "protocol.h"
@@ -45,7 +45,7 @@ void CInstantSend::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataSt
     if(fLiteMode) return; // disable all Dash specific functionality
 //    if(!sporkManager.IsSporkActive(SPORK_2_INSTANTSEND_ENABLED)) return;
 
-    // Ignore any InstantSend messages until znode list is synced
+    // Ignore any InstantSend messages until vnode list is synced
     if(!znodeSync.IsZnodeListSynced()) return;
 
     // NOTE: NetMsgType::TXLOCKREQUEST is handled via ProcessMessage() in main.cpp
@@ -115,7 +115,7 @@ bool CInstantSend::ProcessTxLockRequest(const CTxLockRequest& txLockRequest)
     Vote(txLockCandidate);
     ProcessOrphanTxLockVotes();
 
-    // Znodes will sometimes propagate votes before the transaction is known to the client.
+    // Vnodes will sometimes propagate votes before the transaction is known to the client.
     // If this just happened - lock inputs, resolve conflicting locks, update transaction status
     // forcing external script notification.
     TryToFinalizeLockCandidate(txLockCandidate);
@@ -172,14 +172,14 @@ void CInstantSend::Vote(CTxLockCandidate& txLockCandidate)
         int n = mnodeman.GetZnodeRank(activeZnode.vin, nLockInputHeight, MIN_INSTANTSEND_PROTO_VERSION);
 
         if(n == -1) {
-            LogPrint("instantsend", "CInstantSend::Vote -- Unknown Znode %s\n", activeZnode.vin.prevout.ToStringShort());
+            LogPrint("instantsend", "CInstantSend::Vote -- Unknown Vnode %s\n", activeZnode.vin.prevout.ToStringShort());
             ++itOutpointLock;
             continue;
         }
 
         int nSignaturesTotal = COutPointLock::SIGNATURES_TOTAL;
         if(n > nSignaturesTotal) {
-            LogPrint("instantsend", "CInstantSend::Vote -- Znode not in the top %d (%d)\n", nSignaturesTotal, n);
+            LogPrint("instantsend", "CInstantSend::Vote -- Vnode not in the top %d (%d)\n", nSignaturesTotal, n);
             ++itOutpointLock;
             continue;
         }
@@ -261,14 +261,14 @@ bool CInstantSend::ProcessTxLockVote(CNode* pfrom, CTxLockVote& vote)
         return false;
     }
 
-    // Znodes will sometimes propagate votes before the transaction is known to the client,
+    // Vnodes will sometimes propagate votes before the transaction is known to the client,
     // will actually process only after the lock request itself has arrived
 
     std::map<uint256, CTxLockCandidate>::iterator it = mapTxLockCandidates.find(txHash);
     if(it == mapTxLockCandidates.end()) {
         if(!mapTxLockVotesOrphan.count(vote.GetHash())) {
             mapTxLockVotesOrphan[vote.GetHash()] = vote;
-            LogPrint("instantsend", "CInstantSend::ProcessTxLockVote -- Orphan vote: txid=%s  znode=%s new\n",
+            LogPrint("instantsend", "CInstantSend::ProcessTxLockVote -- Orphan vote: txid=%s  vnode=%s new\n",
                     txHash.ToString(), vote.GetZnodeOutpoint().ToStringShort());
             bool fReprocess = true;
             std::map<uint256, CTxLockRequest>::iterator itLockRequest = mapLockRequestAccepted.find(txHash);
@@ -287,7 +287,7 @@ bool CInstantSend::ProcessTxLockVote(CNode* pfrom, CTxLockVote& vote)
                 return true;
             }
         } else {
-            LogPrint("instantsend", "CInstantSend::ProcessTxLockVote -- Orphan vote: txid=%s  znode=%s seen\n",
+            LogPrint("instantsend", "CInstantSend::ProcessTxLockVote -- Orphan vote: txid=%s  vnode=%s seen\n",
                     txHash.ToString(), vote.GetZnodeOutpoint().ToStringShort());
         }
 
@@ -300,7 +300,7 @@ bool CInstantSend::ProcessTxLockVote(CNode* pfrom, CTxLockVote& vote)
         } else {
             int64_t nPrevOrphanVote = mapZnodeOrphanVotes[vote.GetZnodeOutpoint()];
             if(nPrevOrphanVote > GetTime() && nPrevOrphanVote > GetAverageZnodeOrphanVoteTime()) {
-                LogPrint("instantsend", "CInstantSend::ProcessTxLockVote -- znode is spamming orphan Transaction Lock Votes: txid=%s  znode=%s\n",
+                LogPrint("instantsend", "CInstantSend::ProcessTxLockVote -- vnode is spamming orphan Transaction Lock Votes: txid=%s  vnode=%s\n",
                         txHash.ToString(), vote.GetZnodeOutpoint().ToStringShort());
                 // Misbehaving(pfrom->id, 1);
                 return false;
@@ -323,12 +323,12 @@ bool CInstantSend::ProcessTxLockVote(CNode* pfrom, CTxLockVote& vote)
                 std::map<uint256, CTxLockCandidate>::iterator it2 = mapTxLockCandidates.find(hash);
                 if(it2->second.HasZnodeVoted(vote.GetOutpoint(), vote.GetZnodeOutpoint())) {
                     // yes, it did, refuse to accept a vote to include the same outpoint in another tx
-                    // from the same znode.
-                    // TODO: apply pose ban score to this znode?
+                    // from the same vnode.
+                    // TODO: apply pose ban score to this vnode?
                     // NOTE: if we decide to apply pose ban score here, this vote must be relayed further
                     // to let all other nodes know about this node's misbehaviour and let them apply
                     // pose ban score too.
-                    LogPrintf("CInstantSend::ProcessTxLockVote -- znode sent conflicting votes! %s\n", vote.GetZnodeOutpoint().ToStringShort());
+                    LogPrintf("CInstantSend::ProcessTxLockVote -- vnode sent conflicting votes! %s\n", vote.GetZnodeOutpoint().ToStringShort());
                     return false;
                 }
             }
@@ -610,7 +610,7 @@ void CInstantSend::CheckAndRemove()
     std::map<uint256, CTxLockVote>::iterator itVote = mapTxLockVotes.begin();
     while(itVote != mapTxLockVotes.end()) {
         if(itVote->second.IsExpired(pCurrentBlockIndex->nHeight)) {
-            LogPrint("instantsend", "CInstantSend::CheckAndRemove -- Removing expired vote: txid=%s  znode=%s\n",
+            LogPrint("instantsend", "CInstantSend::CheckAndRemove -- Removing expired vote: txid=%s  vnode=%s\n",
                     itVote->second.GetTxHash().ToString(), itVote->second.GetZnodeOutpoint().ToStringShort());
             mapTxLockVotes.erase(itVote++);
         } else {
@@ -622,7 +622,7 @@ void CInstantSend::CheckAndRemove()
     std::map<uint256, CTxLockVote>::iterator itOrphanVote = mapTxLockVotesOrphan.begin();
     while(itOrphanVote != mapTxLockVotesOrphan.end()) {
         if(GetTime() - itOrphanVote->second.GetTimeCreated() > ORPHAN_VOTE_SECONDS) {
-            LogPrint("instantsend", "CInstantSend::CheckAndRemove -- Removing expired orphan vote: txid=%s  znode=%s\n",
+            LogPrint("instantsend", "CInstantSend::CheckAndRemove -- Removing expired orphan vote: txid=%s  vnode=%s\n",
                     itOrphanVote->second.GetTxHash().ToString(), itOrphanVote->second.GetZnodeOutpoint().ToStringShort());
             mapTxLockVotes.erase(itOrphanVote->first);
             mapTxLockVotesOrphan.erase(itOrphanVote++);
@@ -631,11 +631,11 @@ void CInstantSend::CheckAndRemove()
         }
     }
 
-    // remove expired znode orphan votes (DOS protection)
+    // remove expired vnode orphan votes (DOS protection)
     std::map<COutPoint, int64_t>::iterator itZnodeOrphan = mapZnodeOrphanVotes.begin();
     while(itZnodeOrphan != mapZnodeOrphanVotes.end()) {
         if(itZnodeOrphan->second < GetTime()) {
-            LogPrint("instantsend", "CInstantSend::CheckAndRemove -- Removing expired orphan znode vote: znode=%s\n",
+            LogPrint("instantsend", "CInstantSend::CheckAndRemove -- Removing expired orphan vnode vote: vnode=%s\n",
                     itZnodeOrphan->first.ToStringShort());
             mapZnodeOrphanVotes.erase(itZnodeOrphan++);
         } else {
@@ -949,7 +949,7 @@ bool CTxLockRequest::IsTimedOut() const
 bool CTxLockVote::IsValid(CNode* pnode) const
 {
     if(!mnodeman.Has(CTxIn(outpointZnode))) {
-        LogPrint("instantsend", "CTxLockVote::IsValid -- Unknown znode %s\n", outpointZnode.ToStringShort());
+        LogPrint("instantsend", "CTxLockVote::IsValid -- Unknown vnode %s\n", outpointZnode.ToStringShort());
         mnodeman.AskForMN(pnode, CTxIn(outpointZnode));
         return false;
     }
@@ -981,14 +981,14 @@ bool CTxLockVote::IsValid(CNode* pnode) const
 
     if(n == -1) {
         //can be caused by past versions trying to vote with an invalid protocol
-        LogPrint("instantsend", "CTxLockVote::IsValid -- Outdated znode %s\n", outpointZnode.ToStringShort());
+        LogPrint("instantsend", "CTxLockVote::IsValid -- Outdated vnode %s\n", outpointZnode.ToStringShort());
         return false;
     }
-    LogPrint("instantsend", "CTxLockVote::IsValid -- Znode %s, rank=%d\n", outpointZnode.ToStringShort(), n);
+    LogPrint("instantsend", "CTxLockVote::IsValid -- Vnode %s, rank=%d\n", outpointZnode.ToStringShort(), n);
 
     int nSignaturesTotal = COutPointLock::SIGNATURES_TOTAL;
     if(n > nSignaturesTotal) {
-        LogPrint("instantsend", "CTxLockVote::IsValid -- Znode %s is not in the top %d (%d), vote hash=%s\n",
+        LogPrint("instantsend", "CTxLockVote::IsValid -- Vnode %s is not in the top %d (%d), vote hash=%s\n",
                 outpointZnode.ToStringShort(), nSignaturesTotal, n, GetHash().ToString());
         return false;
     }
@@ -1018,7 +1018,7 @@ bool CTxLockVote::CheckSignature() const
     znode_info_t infoMn = mnodeman.GetZnodeInfo(CTxIn(outpointZnode));
 
     if(!infoMn.fInfoValid) {
-        LogPrintf("CTxLockVote::CheckSignature -- Unknown Znode: znode=%s\n", outpointZnode.ToString());
+        LogPrintf("CTxLockVote::CheckSignature -- Unknown Vnode: vnode=%s\n", outpointZnode.ToString());
         return false;
     }
 

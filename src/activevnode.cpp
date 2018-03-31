@@ -3,20 +3,20 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "activeznode.h"
-#include "znode.h"
-#include "znode-sync.h"
+#include "vnode.h"
+#include "vnode-sync.h"
 #include "znodeman.h"
 #include "protocol.h"
 
 extern CWallet *pwalletMain;
 
-// Keep track of the active Znode
+// Keep track of the active Vnode
 CActiveZnode activeZnode;
 
 void CActiveZnode::ManageState() {
-    LogPrint("znode", "CActiveZnode::ManageState -- Start\n");
+    LogPrint("vnode", "CActiveZnode::ManageState -- Start\n");
     if (!fZNode) {
-        LogPrint("znode", "CActiveZnode::ManageState -- Not a znode, returning\n");
+        LogPrint("vnode", "CActiveZnode::ManageState -- Not a vnode, returning\n");
         return;
     }
 
@@ -30,7 +30,7 @@ void CActiveZnode::ManageState() {
         nState = ACTIVE_ZNODE_INITIAL;
     }
 
-    LogPrint("znode", "CActiveZnode::ManageState -- status = %s, type = %s, pinger enabled = %d\n",
+    LogPrint("vnode", "CActiveZnode::ManageState -- status = %s, type = %s, pinger enabled = %d\n",
              GetStatus(), GetTypeString(), fPingerEnabled);
 
     if (eType == ZNODE_UNKNOWN) {
@@ -40,7 +40,7 @@ void CActiveZnode::ManageState() {
     if (eType == ZNODE_REMOTE) {
         ManageStateRemote();
     } else if (eType == ZNODE_LOCAL) {
-        // Try Remote Start first so the started local znode can be restarted without recreate znode broadcast.
+        // Try Remote Start first so the started local vnode can be restarted without recreate vnode broadcast.
         ManageStateRemote();
         if (nState != ACTIVE_ZNODE_STARTED)
             ManageStateLocal();
@@ -71,14 +71,14 @@ std::string CActiveZnode::GetStatus() const {
         case ACTIVE_ZNODE_INITIAL:
             return "Node just started, not yet activated";
         case ACTIVE_ZNODE_SYNC_IN_PROCESS:
-            return "Sync in progress. Must wait until sync is complete to start Znode";
+            return "Sync in progress. Must wait until sync is complete to start Vnode";
         case ACTIVE_ZNODE_INPUT_TOO_NEW:
-            return strprintf("Znode input must have at least %d confirmations",
+            return strprintf("Vnode input must have at least %d confirmations",
                              Params().GetConsensus().nZnodeMinimumConfirmations);
         case ACTIVE_ZNODE_NOT_CAPABLE:
-            return "Not capable znode: " + strNotCapableReason;
+            return "Not capable vnode: " + strNotCapableReason;
         case ACTIVE_ZNODE_STARTED:
-            return "Znode successfully started";
+            return "Vnode successfully started";
         default:
             return "Unknown";
     }
@@ -105,14 +105,14 @@ std::string CActiveZnode::GetTypeString() const {
 
 bool CActiveZnode::SendZnodePing() {
     if (!fPingerEnabled) {
-        LogPrint("znode",
-                 "CActiveZnode::SendZnodePing -- %s: znode ping service is disabled, skipping...\n",
+        LogPrint("vnode",
+                 "CActiveZnode::SendZnodePing -- %s: vnode ping service is disabled, skipping...\n",
                  GetStateString());
         return false;
     }
 
     if (!mnodeman.Has(vin)) {
-        strNotCapableReason = "Znode not in znode list";
+        strNotCapableReason = "Vnode not in vnode list";
         nState = ACTIVE_ZNODE_NOT_CAPABLE;
         LogPrintf("CActiveZnode::SendZnodePing -- %s: %s\n", GetStateString(), strNotCapableReason);
         return false;
@@ -120,13 +120,13 @@ bool CActiveZnode::SendZnodePing() {
 
     CZnodePing mnp(vin);
     if (!mnp.Sign(keyZnode, pubKeyZnode)) {
-        LogPrintf("CActiveZnode::SendZnodePing -- ERROR: Couldn't sign Znode Ping\n");
+        LogPrintf("CActiveZnode::SendZnodePing -- ERROR: Couldn't sign Vnode Ping\n");
         return false;
     }
 
-    // Update lastPing for our znode in Znode list
+    // Update lastPing for our vnode in Vnode list
     if (mnodeman.IsZnodePingedWithin(vin, ZNODE_MIN_MNP_SECONDS, mnp.sigTime)) {
-        LogPrintf("CActiveZnode::SendZnodePing -- Too early to send Znode Ping\n");
+        LogPrintf("CActiveZnode::SendZnodePing -- Too early to send Vnode Ping\n");
         return false;
     }
 
@@ -139,14 +139,14 @@ bool CActiveZnode::SendZnodePing() {
 }
 
 void CActiveZnode::ManageStateInitial() {
-    LogPrint("znode", "CActiveZnode::ManageStateInitial -- status = %s, type = %s, pinger enabled = %d\n",
+    LogPrint("vnode", "CActiveZnode::ManageStateInitial -- status = %s, type = %s, pinger enabled = %d\n",
              GetStatus(), GetTypeString(), fPingerEnabled);
 
     // Check that our local network configuration is correct
     if (!fListen) {
         // listen option is probably overwritten by smth else, no good
         nState = ACTIVE_ZNODE_NOT_CAPABLE;
-        strNotCapableReason = "Znode must accept connections from outside. Make sure listen configuration option is not overwritten by some another parameter.";
+        strNotCapableReason = "Vnode must accept connections from outside. Make sure listen configuration option is not overwritten by some another parameter.";
         LogPrintf("CActiveZnode::ManageStateInitial -- %s: %s\n", GetStateString(), strNotCapableReason);
         return;
     }
@@ -237,12 +237,12 @@ void CActiveZnode::ManageStateInitial() {
         eType = ZNODE_LOCAL;
     }
 
-    LogPrint("znode", "CActiveZnode::ManageStateInitial -- End status = %s, type = %s, pinger enabled = %d\n",
+    LogPrint("vnode", "CActiveZnode::ManageStateInitial -- End status = %s, type = %s, pinger enabled = %d\n",
              GetStatus(), GetTypeString(), fPingerEnabled);
 }
 
 void CActiveZnode::ManageStateRemote() {
-    LogPrint("znode",
+    LogPrint("vnode",
              "CActiveZnode::ManageStateRemote -- Start status = %s, type = %s, pinger enabled = %d, pubKeyZnode.GetID() = %s\n",
              GetStatus(), fPingerEnabled, GetTypeString(), pubKeyZnode.GetID().ToString());
 
@@ -259,13 +259,13 @@ void CActiveZnode::ManageStateRemote() {
             nState = ACTIVE_ZNODE_NOT_CAPABLE;
             // LogPrintf("service: %s\n", service.ToString());
             // LogPrintf("infoMn.addr: %s\n", infoMn.addr.ToString());
-            strNotCapableReason = "Broadcasted IP doesn't match our external address. Make sure you issued a new broadcast if IP of this znode changed recently.";
+            strNotCapableReason = "Broadcasted IP doesn't match our external address. Make sure you issued a new broadcast if IP of this vnode changed recently.";
             LogPrintf("CActiveZnode::ManageStateRemote -- %s: %s\n", GetStateString(), strNotCapableReason);
             return;
         }
         if (!CZnode::IsValidStateForAutoStart(infoMn.nActiveState)) {
             nState = ACTIVE_ZNODE_NOT_CAPABLE;
-            strNotCapableReason = strprintf("Znode in %s state", CZnode::StateToString(infoMn.nActiveState));
+            strNotCapableReason = strprintf("Vnode in %s state", CZnode::StateToString(infoMn.nActiveState));
             LogPrintf("CActiveZnode::ManageStateRemote -- %s: %s\n", GetStateString(), strNotCapableReason);
             return;
         }
@@ -278,13 +278,13 @@ void CActiveZnode::ManageStateRemote() {
         }
     } else {
         nState = ACTIVE_ZNODE_NOT_CAPABLE;
-        strNotCapableReason = "Znode not in znode list";
+        strNotCapableReason = "Vnode not in vnode list";
         LogPrintf("CActiveZnode::ManageStateRemote -- %s: %s\n", GetStateString(), strNotCapableReason);
     }
 }
 
 void CActiveZnode::ManageStateLocal() {
-    LogPrint("znode", "CActiveZnode::ManageStateLocal -- status = %s, type = %s, pinger enabled = %d\n",
+    LogPrint("vnode", "CActiveZnode::ManageStateLocal -- status = %s, type = %s, pinger enabled = %d\n",
              GetStatus(), GetTypeString(), fPingerEnabled);
     if (nState == ACTIVE_ZNODE_STARTED) {
         return;
@@ -321,8 +321,8 @@ void CActiveZnode::ManageStateLocal() {
         fPingerEnabled = true;
         nState = ACTIVE_ZNODE_STARTED;
 
-        //update to znode list
-        LogPrintf("CActiveZnode::ManageStateLocal -- Update Znode List\n");
+        //update to vnode list
+        LogPrintf("CActiveZnode::ManageStateLocal -- Update Vnode List\n");
         mnodeman.UpdateZnodeList(mnb);
         mnodeman.NotifyZnodeUpdates();
 

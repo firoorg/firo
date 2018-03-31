@@ -272,7 +272,7 @@ static const CRPCCommand vRPCCommands[] =
     { "control",            "help",                   &help,                   true  },
     { "control",            "stop",                   &stop,                   true  },
         /* Dash features */
-    { "verticalcoin",               "znode",             &znode,             true  },
+    { "verticalcoin",               "vnode",             &vnode,             true  },
     { "verticalcoin",               "znsync",             &znsync,             true  },
     { "verticalcoin",               "znodelist",         &znodelist,         true  },
     { "verticalcoin",               "znodebroadcast",    &znodebroadcast,    true  },

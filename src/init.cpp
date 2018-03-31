@@ -73,8 +73,8 @@
 #include <event2/thread.h>
 #include "activeznode.h"
 #include "darksend.h"
-#include "znode-payments.h"
-#include "znode-sync.h"
+#include "vnode-payments.h"
+#include "vnode-sync.h"
 #include "znodeman.h"
 #include "znodeconfig.h"
 #include "netfulfilledman.h"
@@ -1829,23 +1829,23 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
                      chainparams);
 
     // ********************************************************* Step 11a: setup PrivateSend
-    fZNode = GetBoolArg("-znode", false);
+    fZNode = GetBoolArg("-vnode", false);
 
     LogPrintf("fZNode = %s\n", fZNode);
     LogPrintf("znodeConfig.getCount(): %s\n", znodeConfig.getCount());
 
     if ((fZNode || znodeConfig.getCount() > 0) && !fTxIndex) {
-        return InitError("Enabling Znode support requires turning on transaction indexing."
+        return InitError("Enabling Vnode support requires turning on transaction indexing."
                                  "Please add txindex=1 to your configuration and start with -reindex");
     }
 
     if (fZNode) {
-        LogPrintf("ZNODE:\n");
+        LogPrintf("Vnode:\n");
 
         if (!GetArg("-znodeaddr", "").empty()) {
-            // Hot Znode (either local or remote) should get its address in
+            // Hot Vnode (either local or remote) should get its address in
             // CActiveZnode::ManageState() automatically and no longer relies on Znodeaddr.
-            return InitError(_("znodeaddr option is deprecated. Please use znode.conf to manage your remote znodes."));
+            return InitError(_("znodeaddr option is deprecated. Please use vnode.conf to manage your remote znodes."));
         }
 
         std::string strZnodePrivKey = GetArg("-znodeprivkey", "");
@@ -1861,11 +1861,11 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
         }
     }
 
-    LogPrintf("Using Znode config file %s\n", GetZnodeConfigFile().string());
+    LogPrintf("Using Vnode config file %s\n", GetZnodeConfigFile().string());
 
     if (GetBoolArg("-znconflock", true) && pwalletMain && (znodeConfig.getCount() > 0)) {
         LOCK(pwalletMain->cs_wallet);
-        LogPrintf("Locking Znodes:\n");
+        LogPrintf("Locking Vnodes:\n");
         uint256 mnTxHash;
         int outputIndex;
         BOOST_FOREACH(CZnodeConfig::CZnodeEntry mne, znodeConfig.getEntries()) {
@@ -1898,10 +1898,10 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     nInstantSendDepth = GetArg("-instantsenddepth", DEFAULT_INSTANTSEND_DEPTH);
     nInstantSendDepth = std::min(std::max(nInstantSendDepth, 0), 60);
 
-    //lite mode disables all Znode and Darksend related functionality
+    //lite mode disables all Vnode and Darksend related functionality
     fLiteMode = GetBoolArg("-litemode", false);
     if (fZNode && fLiteMode) {
-        return InitError("You can not start a znode in litemode");
+        return InitError("You can not start a vnode in litemode");
     }
 
     LogPrintf("fLiteMode %d\n", fLiteMode);
@@ -1915,20 +1915,20 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
 
     // LOAD SERIALIZED DAT FILES INTO DATA CACHES FOR INTERNAL USE
     // TODO: https://github.com/zcoinofficial/verticalcoin/issues/182
-    /* uiInterface.InitMessage(_("Loading znode cache..."));
+    /* uiInterface.InitMessage(_("Loading vnode cache..."));
     CFlatDB<CZnodeMan> flatdb1("zncache.dat", "magicZnodeCache");
     if (!flatdb1.Load(mnodeman)) {
-        return InitError("Failed to load znode cache from zncache.dat");
+        return InitError("Failed to load vnode cache from zncache.dat");
     }
 
     if (mnodeman.size()) {
-        uiInterface.InitMessage(_("Loading Znode payment cache..."));
+        uiInterface.InitMessage(_("Loading Vnode payment cache..."));
         CFlatDB<CZnodePayments> flatdb2("znpayments.dat", "magicZnodePaymentsCache");
         if (!flatdb2.Load(mnpayments)) {
-            return InitError("Failed to load znode payments cache from znpayments.dat");
+            return InitError("Failed to load vnode payments cache from znpayments.dat");
         }
     } else {
-        uiInterface.InitMessage(_("Znode cache is empty, skipping payments and governance cache..."));
+        uiInterface.InitMessage(_("Vnode cache is empty, skipping payments and governance cache..."));
     } */
 
     // uiInterface.InitMessage(_("Loading fulfilled requests cache..."));

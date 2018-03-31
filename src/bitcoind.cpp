@@ -119,10 +119,10 @@ bool AppInit(int argc, char* argv[])
             return false;
         }
 
-        // parse znode.conf
+        // parse vnode.conf
         std::string strErr;
         if(!znodeConfig.read(strErr)) {
-            fprintf(stderr,"Error reading znode configuration file: %s\n", strErr.c_str());
+            fprintf(stderr,"Error reading vnode configuration file: %s\n", strErr.c_str());
             return false;
         }
 

@@ -26,7 +26,7 @@ static const int ZNODE_COIN_REQUIRED  = 1000;
 
 static const int ZNODE_POSE_BAN_MAX_SCORE          = 5;
 //
-// The Znode Ping Class : Contains a different serialize method for sending pings from znodes throughout the network
+// The Vnode Ping Class : Contains a different serialize method for sending pings from znodes throughout the network
 //
 
 class CZnodePing
@@ -136,7 +136,7 @@ struct znode_info_t
 };
 
 //
-// The Znode Class. For managing the Darksend process. It contains the input of the 1000DRK, signature to prove
+// The Vnode Class. For managing the Darksend process. It contains the input of the 1000DRK, signature to prove
 // it's the one who own that ip address and code for calculating the payment election.
 //
 class CZnode
@@ -177,7 +177,7 @@ public:
     bool fAllowMixingTx;
     bool fUnitTest;
 
-    // KEEP TRACK OF GOVERNANCE ITEMS EACH ZNODE HAS VOTE UPON FOR RECALCULATION
+    // KEEP TRACK OF GOVERNANCE ITEMS EACH Vnode HAS VOTE UPON FOR RECALCULATION
     std::map<uint256, int> mapGovernanceObjectsVotedOn;
 
     CZnode();
@@ -327,7 +327,7 @@ public:
 
 
 //
-// The Znode Broadcast Class : Contains a different serialize method for sending znodes through the network
+// The Vnode Broadcast Class : Contains a different serialize method for sending znodes through the network
 //
 
 class CZnodeBroadcast : public CZnode
@@ -364,7 +364,7 @@ public:
         return ss.GetHash();
     }
 
-    /// Create Znode broadcast, needs to be relayed manually after that
+    /// Create Vnode broadcast, needs to be relayed manually after that
     static bool Create(CTxIn vin, CService service, CKey keyCollateralAddressNew, CPubKey pubKeyCollateralAddressNew, CKey keyZnodeNew, CPubKey pubKeyZnodeNew, std::string &strErrorRet, CZnodeBroadcast &mnbRet);
     static bool Create(std::string strService, std::string strKey, std::string strTxHash, std::string strOutputIndex, std::string& strErrorRet, CZnodeBroadcast &mnbRet, bool fOffline = false);
 

@@ -41,7 +41,7 @@ namespace NetMsgType {
     const char *CMPCTBLOCK = "cmpctblock";
     const char *GETBLOCKTXN = "getblocktxn";
     const char *BLOCKTXN = "blocktxn";
-//znode
+//vnode
     const char *TXLOCKVOTE="txlvote";
     const char *SPORK = "spork";
     const char *GETSPORKS = "getsporks";
@@ -95,7 +95,7 @@ const static std::string allNetMessageTypes[] = {
         NetMsgType::CMPCTBLOCK,
         NetMsgType::GETBLOCKTXN,
         NetMsgType::BLOCKTXN,
-        //znode
+        //vnode
         NetMsgType::TXLOCKREQUEST,
         NetMsgType::ZNODEPAYMENTVOTE,
         NetMsgType::ZNODEPAYMENTBLOCK,

@@ -19,7 +19,7 @@ static const int ACTIVE_ZNODE_STARTED          = 4;
 
 extern CActiveZnode activeZnode;
 
-// Responsible for activating the Znode and pinging the network
+// Responsible for activating the Vnode and pinging the network
 class CActiveZnode
 {
 public:
@@ -37,15 +37,15 @@ private:
 
     bool fPingerEnabled;
 
-    /// Ping Znode
+    /// Ping Vnode
     bool SendZnodePing();
 
 public:
-    // Keys for the active Znode
+    // Keys for the active Vnode
     CPubKey pubKeyZnode;
     CKey keyZnode;
 
-    // Initialized while registering Znode
+    // Initialized while registering Vnode
     CTxIn vin;
     CService service;
 
@@ -62,7 +62,7 @@ public:
           nState(ACTIVE_ZNODE_INITIAL)
     {}
 
-    /// Manage state of active Znode
+    /// Manage state of active Vnode
     void ManageState();
 
     std::string GetStateString() const;

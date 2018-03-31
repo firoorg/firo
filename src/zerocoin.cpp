@@ -427,7 +427,7 @@ bool CheckZerocoinFoundersInputs(const CTransaction &tx, CValidationState &state
 
         if (total_payment_tx > 1) {
             return state.DoS(100, false, REJECT_INVALID_ZNODE_PAYMENT,
-                             "CTransaction::CheckTransaction() : invalid znode payment");
+                             "CTransaction::CheckTransaction() : invalid vnode payment");
         }
     }
 

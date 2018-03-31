@@ -9,8 +9,8 @@
 //#include "governance.h"
 #include "init.h"
 #include "instantx.h"
-#include "znode-payments.h"
-#include "znode-sync.h"
+#include "vnode-payments.h"
+#include "vnode-sync.h"
 #include "znodeman.h"
 #include "script/sign.h"
 #include "txmempool.h"
@@ -43,7 +43,7 @@ void CDarksendPool::ProcessMessage(CNode *pfrom, std::string &strCommand, CDataS
         }
 
         if (!fZNode) {
-            LogPrintf("DSACCEPT -- not a Znode!\n");
+            LogPrintf("DSACCEPT -- not a Vnode!\n");
             PushStatus(pfrom, STATUS_REJECTED, ERR_NOT_A_MN);
             return;
         }
@@ -126,12 +126,12 @@ void CDarksendPool::ProcessMessage(CNode *pfrom, std::string &strCommand, CDataS
         if (dsq.fReady) {
             if (!pSubmittedToZnode) return;
             if ((CNetAddr) pSubmittedToZnode->addr != (CNetAddr) pmn->addr) {
-                LogPrintf("DSQUEUE -- message doesn't match current Znode: pSubmittedToZnode=%s, addr=%s\n", pSubmittedToZnode->addr.ToString(), pmn->addr.ToString());
+                LogPrintf("DSQUEUE -- message doesn't match current Vnode: pSubmittedToZnode=%s, addr=%s\n", pSubmittedToZnode->addr.ToString(), pmn->addr.ToString());
                 return;
             }
 
             if (nState == POOL_STATE_QUEUE) {
-                LogPrint("privatesend", "DSQUEUE -- PrivateSend queue (%s) is ready on znode %s\n", dsq.ToString(), pmn->addr.ToString());
+                LogPrint("privatesend", "DSQUEUE -- PrivateSend queue (%s) is ready on vnode %s\n", dsq.ToString(), pmn->addr.ToString());
                 SubmitDenominate();
             }
         } else {
@@ -139,7 +139,7 @@ void CDarksendPool::ProcessMessage(CNode *pfrom, std::string &strCommand, CDataS
             q, vecDarksendQueue) {
                 if (q.vin == dsq.vin) {
                     // no way same mn can send another "not yet ready" dsq this soon
-                    LogPrint("privatesend", "DSQUEUE -- Znode %s is sending WAY too many dsq messages\n", pmn->addr.ToString());
+                    LogPrint("privatesend", "DSQUEUE -- Vnode %s is sending WAY too many dsq messages\n", pmn->addr.ToString());
                     return;
                 }
             }
@@ -148,14 +148,14 @@ void CDarksendPool::ProcessMessage(CNode *pfrom, std::string &strCommand, CDataS
             LogPrint("privatesend", "DSQUEUE -- nLastDsq: %d  threshold: %d  nDsqCount: %d\n", pmn->nLastDsq, nThreshold, mnodeman.nDsqCount);
             //don't allow a few nodes to dominate the queuing process
             if (pmn->nLastDsq != 0 && nThreshold > mnodeman.nDsqCount) {
-                LogPrint("privatesend", "DSQUEUE -- Znode %s is sending too many dsq messages\n", pmn->addr.ToString());
+                LogPrint("privatesend", "DSQUEUE -- Vnode %s is sending too many dsq messages\n", pmn->addr.ToString());
                 return;
             }
             mnodeman.nDsqCount++;
             pmn->nLastDsq = mnodeman.nDsqCount;
             pmn->fAllowMixingTx = true;
 
-            LogPrint("privatesend", "DSQUEUE -- new PrivateSend queue (%s) from znode %s\n", dsq.ToString(), pmn->addr.ToString());
+            LogPrint("privatesend", "DSQUEUE -- new PrivateSend queue (%s) from vnode %s\n", dsq.ToString(), pmn->addr.ToString());
             if (pSubmittedToZnode && pSubmittedToZnode->vin.prevout == dsq.vin.prevout) {
                 dsq.fTried = true;
             }
@@ -172,7 +172,7 @@ void CDarksendPool::ProcessMessage(CNode *pfrom, std::string &strCommand, CDataS
         }
 
         if (!fZNode) {
-            LogPrintf("DSVIN -- not a Znode!\n");
+            LogPrintf("DSVIN -- not a Vnode!\n");
             PushStatus(pfrom, STATUS_REJECTED, ERR_NOT_A_MN);
             return;
         }
@@ -283,13 +283,13 @@ void CDarksendPool::ProcessMessage(CNode *pfrom, std::string &strCommand, CDataS
         }
 
         if (fZNode) {
-            // LogPrintf("DSSTATUSUPDATE -- Can't run on a Znode!\n");
+            // LogPrintf("DSSTATUSUPDATE -- Can't run on a Vnode!\n");
             return;
         }
 
         if (!pSubmittedToZnode) return;
         if ((CNetAddr) pSubmittedToZnode->addr != (CNetAddr) pfrom->addr) {
-            //LogPrintf("DSSTATUSUPDATE -- message doesn't match current Znode: pSubmittedToZnode %s addr %s\n", pSubmittedToZnode->addr.ToString(), pfrom->addr.ToString());
+            //LogPrintf("DSSTATUSUPDATE -- message doesn't match current Vnode: pSubmittedToZnode %s addr %s\n", pSubmittedToZnode->addr.ToString(), pfrom->addr.ToString());
             return;
         }
 
@@ -332,7 +332,7 @@ void CDarksendPool::ProcessMessage(CNode *pfrom, std::string &strCommand, CDataS
         }
 
         if (!fZNode) {
-            LogPrintf("DSSIGNFINALTX -- not a Znode!\n");
+            LogPrintf("DSSIGNFINALTX -- not a Vnode!\n");
             return;
         }
 
@@ -365,13 +365,13 @@ void CDarksendPool::ProcessMessage(CNode *pfrom, std::string &strCommand, CDataS
         }
 
         if (fZNode) {
-            // LogPrintf("DSFINALTX -- Can't run on a Znode!\n");
+            // LogPrintf("DSFINALTX -- Can't run on a Vnode!\n");
             return;
         }
 
         if (!pSubmittedToZnode) return;
         if ((CNetAddr) pSubmittedToZnode->addr != (CNetAddr) pfrom->addr) {
-            //LogPrintf("DSFINALTX -- message doesn't match current Znode: pSubmittedToZnode %s addr %s\n", pSubmittedToZnode->addr.ToString(), pfrom->addr.ToString());
+            //LogPrintf("DSFINALTX -- message doesn't match current Vnode: pSubmittedToZnode %s addr %s\n", pSubmittedToZnode->addr.ToString(), pfrom->addr.ToString());
             return;
         }
 
@@ -397,13 +397,13 @@ void CDarksendPool::ProcessMessage(CNode *pfrom, std::string &strCommand, CDataS
         }
 
         if (fZNode) {
-            // LogPrintf("DSCOMPLETE -- Can't run on a Znode!\n");
+            // LogPrintf("DSCOMPLETE -- Can't run on a Vnode!\n");
             return;
         }
 
         if (!pSubmittedToZnode) return;
         if ((CNetAddr) pSubmittedToZnode->addr != (CNetAddr) pfrom->addr) {
-            LogPrint("privatesend", "DSCOMPLETE -- message doesn't match current Znode: pSubmittedToZnode=%s  addr=%s\n", pSubmittedToZnode->addr.ToString(), pfrom->addr.ToString());
+            LogPrint("privatesend", "DSCOMPLETE -- message doesn't match current Vnode: pSubmittedToZnode=%s  addr=%s\n", pSubmittedToZnode->addr.ToString(), pfrom->addr.ToString());
             return;
         }
 
@@ -530,7 +530,7 @@ std::string CDarksendPool::GetStatus() {
             if (nStatusMessageProgress % 70 <= 30) strSuffix = ".";
             else if (nStatusMessageProgress % 70 <= 50) strSuffix = "..";
             else if (nStatusMessageProgress % 70 <= 70) strSuffix = "...";
-            return strprintf(_("Submitted to znode, waiting in queue %s"), strSuffix);;
+            return strprintf(_("Submitted to vnode, waiting in queue %s"), strSuffix);;
         case POOL_STATE_ACCEPTING_ENTRIES:
             if (nEntriesCount == 0) {
                 nStatusMessageProgress = 0;
@@ -542,11 +542,11 @@ std::string CDarksendPool::GetStatus() {
                 }
                 return _("PrivateSend request complete:") + " " + _("Your transaction was accepted into the pool!");
             } else {
-                if (nStatusMessageProgress % 70 <= 40) return strprintf(_("Submitted following entries to znode: %u / %d"), nEntriesCount, GetMaxPoolTransactions());
+                if (nStatusMessageProgress % 70 <= 40) return strprintf(_("Submitted following entries to vnode: %u / %d"), nEntriesCount, GetMaxPoolTransactions());
                 else if (nStatusMessageProgress % 70 <= 50) strSuffix = ".";
                 else if (nStatusMessageProgress % 70 <= 60) strSuffix = "..";
                 else if (nStatusMessageProgress % 70 <= 70) strSuffix = "...";
-                return strprintf(_("Submitted to znode, waiting for more entries ( %u / %d ) %s"), nEntriesCount, GetMaxPoolTransactions(), strSuffix);
+                return strprintf(_("Submitted to vnode, waiting for more entries ( %u / %d ) %s"), nEntriesCount, GetMaxPoolTransactions(), strSuffix);
             }
         case POOL_STATE_SIGNING:
             if (nStatusMessageProgress % 70 <= 40) return _("Found enough users, signing ...");
@@ -564,7 +564,7 @@ std::string CDarksendPool::GetStatus() {
 }
 
 //
-// Check the mixing progress and send client updates if a Znode
+// Check the mixing progress and send client updates if a Vnode
 //
 void CDarksendPool::CheckPool() {
     if (fZNode) {
@@ -622,7 +622,7 @@ void CDarksendPool::CreateFinalTransaction() {
 }
 
 void CDarksendPool::CommitFinalTransaction() {
-    if (!fZNode) return; // check and relay final tx only on znode
+    if (!fZNode) return; // check and relay final tx only on vnode
 
     CTransaction finalTransaction = CTransaction(finalMutableTransaction);
     uint256 hashTx = finalTransaction.GetHash();
@@ -645,7 +645,7 @@ void CDarksendPool::CommitFinalTransaction() {
 
     LogPrintf("CDarksendPool::CommitFinalTransaction -- CREATING DSTX\n");
 
-    // create and sign znode dstx transaction
+    // create and sign vnode dstx transaction
     if (!mapDarksendBroadcastTxes.count(hashTx)) {
         CDarksendBroadcastTx dstx(finalTransaction, activeZnode.vin, GetAdjustedTime());
         dstx.Sign();
@@ -676,8 +676,8 @@ void CDarksendPool::CommitFinalTransaction() {
 // a client submits a transaction then refused to sign, there must be a cost. Otherwise they
 // would be able to do this over and over again and bring the mixing to a hault.
 //
-// How does this work? Messages to Znodes come in via NetMsgType::DSVIN, these require a valid collateral
-// transaction for the client to be able to enter the pool. This transaction is kept by the Znode
+// How does this work? Messages to Vnodes come in via NetMsgType::DSVIN, these require a valid collateral
+// transaction for the client to be able to enter the pool. This transaction is kept by the Vnode
 // until the transaction is either complete or fails.
 //
 void CDarksendPool::ChargeFees() {
@@ -1059,12 +1059,12 @@ bool CDarksendPool::IsSignaturesComplete() {
 }
 
 //
-// Execute a mixing denomination via a Znode.
+// Execute a mixing denomination via a Vnode.
 // This is only ran from clients
 //
 bool CDarksendPool::SendDenominate(const std::vector <CTxIn> &vecTxIn, const std::vector <CTxOut> &vecTxOut) {
     if (fZNode) {
-        LogPrintf("CDarksendPool::SendDenominate -- PrivateSend from a Znode is not supported currently.\n");
+        LogPrintf("CDarksendPool::SendDenominate -- PrivateSend from a Vnode is not supported currently.\n");
         return false;
     }
 
@@ -1082,9 +1082,9 @@ bool CDarksendPool::SendDenominate(const std::vector <CTxIn> &vecTxIn, const std
     txin, vecTxIn)
     vecOutPointLocked.push_back(txin.prevout);
 
-    // we should already be connected to a Znode
+    // we should already be connected to a Vnode
     if (!nSessionID) {
-        LogPrintf("CDarksendPool::SendDenominate -- No Znode has been selected yet.\n");
+        LogPrintf("CDarksendPool::SendDenominate -- No Vnode has been selected yet.\n");
         UnlockCoins();
         SetNull();
         return false;
@@ -1141,18 +1141,18 @@ bool CDarksendPool::SendDenominate(const std::vector <CTxIn> &vecTxIn, const std
     return true;
 }
 
-// Incoming message from Znode updating the progress of mixing
+// Incoming message from Vnode updating the progress of mixing
 bool CDarksendPool::CheckPoolStateUpdate(PoolState nStateNew, int nEntriesCountNew, PoolStatusUpdate nStatusUpdate, PoolMessage nMessageID, int nSessionIDNew) {
     if (fZNode) return false;
 
     // do not update state when mixing client state is one of these
     if (nState == POOL_STATE_IDLE || nState == POOL_STATE_ERROR || nState == POOL_STATE_SUCCESS) return false;
 
-    strAutoDenomResult = _("Znode:") + " " + GetMessageByID(nMessageID);
+    strAutoDenomResult = _("Vnode:") + " " + GetMessageByID(nMessageID);
 
     // if rejected at any state
     if (nStatusUpdate == STATUS_REJECTED) {
-        LogPrintf("CDarksendPool::CheckPoolStateUpdate -- entry is rejected by Znode\n");
+        LogPrintf("CDarksendPool::CheckPoolStateUpdate -- entry is rejected by Vnode\n");
         UnlockCoins();
         SetNull();
         SetState(POOL_STATE_ERROR);
@@ -1181,7 +1181,7 @@ bool CDarksendPool::CheckPoolStateUpdate(PoolState nStateNew, int nEntriesCountN
 }
 
 //
-// After we receive the finalized transaction from the Znode, we must
+// After we receive the finalized transaction from the Vnode, we must
 // check it to make sure it's what we want, then sign it if we agree.
 // If we refuse to sign, it's possible we'll be charged collateral
 //
@@ -1264,8 +1264,8 @@ bool CDarksendPool::SignFinalTransaction(const CTransaction &finalTransactionNew
         return false;
     }
 
-    // push all of our signatures to the Znode
-    LogPrintf("CDarksendPool::SignFinalTransaction -- pushing sigs to the znode, finalMutableTransaction=%s", finalMutableTransaction.ToString());
+    // push all of our signatures to the Vnode
+    LogPrintf("CDarksendPool::SignFinalTransaction -- pushing sigs to the vnode, finalMutableTransaction=%s", finalMutableTransaction.ToString());
     pnode->PushMessage(NetMsgType::DSSIGNFINALTX, sigs);
     SetState(POOL_STATE_SIGNING);
     nTimeLastSuccessfulStep = GetTimeMillis();
@@ -1395,8 +1395,8 @@ bool CDarksendPool::DoAutomaticDenominating(bool fDryRun) {
     }
 
     if (mnodeman.size() == 0) {
-        LogPrint("privatesend", "CDarksendPool::DoAutomaticDenominating -- No Znodes detected\n");
-        strAutoDenomResult = _("No Znodes detected.");
+        LogPrint("privatesend", "CDarksendPool::DoAutomaticDenominating -- No Vnodes detected\n");
+        strAutoDenomResult = _("No Vnodes detected.");
         return false;
     }
 
@@ -1450,7 +1450,7 @@ bool CDarksendPool::DoAutomaticDenominating(bool fDryRun) {
         return false;
     }
 
-    // Initial phase, find a Znode
+    // Initial phase, find a Vnode
     // Clean if there is anything left from previous session
     UnlockCoins();
     SetNull();
@@ -1481,7 +1481,7 @@ bool CDarksendPool::DoAutomaticDenominating(bool fDryRun) {
 
     int nMnCountEnabled = mnodeman.CountEnabled(MIN_PRIVATESEND_PEER_PROTO_VERSION);
 
-    // If we've used 90% of the Znode list then drop the oldest first ~30%
+    // If we've used 90% of the Vnode list then drop the oldest first ~30%
     int nThreshold_high = nMnCountEnabled * 0.9;
     int nThreshold_low = nThreshold_high * 0.7;
     LogPrint("privatesend", "Checking vecZnodesUsed: size: %d, threshold: %d\n", (int) vecZnodesUsed.size(), nThreshold_high);
@@ -1506,7 +1506,7 @@ bool CDarksendPool::DoAutomaticDenominating(bool fDryRun) {
 
             CZnode *pmn = mnodeman.Find(dsq.vin);
             if (pmn == NULL) {
-                LogPrintf("CDarksendPool::DoAutomaticDenominating -- dsq znode is not in znode list, znode=%s\n", dsq.vin.prevout.ToStringShort());
+                LogPrintf("CDarksendPool::DoAutomaticDenominating -- dsq vnode is not in vnode list, vnode=%s\n", dsq.vin.prevout.ToStringShort());
                 continue;
             }
 
@@ -1549,8 +1549,8 @@ bool CDarksendPool::DoAutomaticDenominating(bool fDryRun) {
                 }
             }
 
-            LogPrintf("CDarksendPool::DoAutomaticDenominating -- attempt to connect to znode from queue, addr=%s\n", pmn->addr.ToString());
-            // connect to Znode and submit the queue request
+            LogPrintf("CDarksendPool::DoAutomaticDenominating -- attempt to connect to vnode from queue, addr=%s\n", pmn->addr.ToString());
+            // connect to Vnode and submit the queue request
             CNode *pnode = (pnodeFound && pnodeFound->fZnode) ? pnodeFound : ConnectNode(CAddress(pmn->addr, NODE_NETWORK), NULL, false, true);
             if (pnode) {
                 pSubmittedToZnode = pmn;
@@ -1568,7 +1568,7 @@ bool CDarksendPool::DoAutomaticDenominating(bool fDryRun) {
                 return true;
             } else {
                 LogPrintf("CDarksendPool::DoAutomaticDenominating -- can't connect, addr=%s\n", pmn->addr.ToString());
-                strAutoDenomResult = _("Error connecting to Znode.");
+                strAutoDenomResult = _("Error connecting to Vnode.");
                 continue;
             }
         }
@@ -1593,15 +1593,15 @@ bool CDarksendPool::DoAutomaticDenominating(bool fDryRun) {
     while (nTries < 10) {
         CZnode *pmn = mnodeman.FindRandomNotInVec(vecZnodesUsed, MIN_PRIVATESEND_PEER_PROTO_VERSION);
         if (pmn == NULL) {
-            LogPrintf("CDarksendPool::DoAutomaticDenominating -- Can't find random znode!\n");
-            strAutoDenomResult = _("Can't find random Znode.");
+            LogPrintf("CDarksendPool::DoAutomaticDenominating -- Can't find random vnode!\n");
+            strAutoDenomResult = _("Can't find random Vnode.");
             return false;
         }
         vecZnodesUsed.push_back(pmn->vin);
 
         if (pmn->nLastDsq != 0 && pmn->nLastDsq + nMnCountEnabled / 5 > mnodeman.nDsqCount) {
-            LogPrintf("CDarksendPool::DoAutomaticDenominating -- Too early to mix on this znode!"
-                              " znode=%s  addr=%s  nLastDsq=%d  CountEnabled/5=%d  nDsqCount=%d\n",
+            LogPrintf("CDarksendPool::DoAutomaticDenominating -- Too early to mix on this vnode!"
+                              " vnode=%s  addr=%s  nLastDsq=%d  CountEnabled/5=%d  nDsqCount=%d\n",
                       pmn->vin.prevout.ToStringShort(), pmn->addr.ToString(), pmn->nLastDsq,
                       nMnCountEnabled / 5, mnodeman.nDsqCount);
             nTries++;
@@ -1622,7 +1622,7 @@ bool CDarksendPool::DoAutomaticDenominating(bool fDryRun) {
             }
         }
 
-        LogPrintf("CDarksendPool::DoAutomaticDenominating -- attempt %d connection to Znode %s\n", nTries, pmn->addr.ToString());
+        LogPrintf("CDarksendPool::DoAutomaticDenominating -- attempt %d connection to Vnode %s\n", nTries, pmn->addr.ToString());
         CNode *pnode = (pnodeFound && pnodeFound->fZnode) ? pnodeFound : ConnectNode(CAddress(pmn->addr, NODE_NETWORK), NULL, false, true);
         if (pnode) {
             LogPrintf("CDarksendPool::DoAutomaticDenominating -- connected, addr=%s\n", pmn->addr.ToString());
@@ -1652,7 +1652,7 @@ bool CDarksendPool::DoAutomaticDenominating(bool fDryRun) {
         }
     }
 
-    strAutoDenomResult = _("No compatible Znode found.");
+    strAutoDenomResult = _("No compatible Vnode found.");
     return false;
 }
 
@@ -2274,15 +2274,15 @@ std::string CDarksendPool::GetMessageByID(PoolMessage nMessageID) {
         case ERR_MAXIMUM:
             return _("Value more than PrivateSend pool maximum allows.");
         case ERR_MN_LIST:
-            return _("Not in the Znode list.");
+            return _("Not in the Vnode list.");
         case ERR_MODE:
             return _("Incompatible mode.");
         case ERR_NON_STANDARD_PUBKEY:
             return _("Non-standard public key detected.");
         case ERR_NOT_A_MN:
-            return _("This is not a Znode.");
+            return _("This is not a Vnode.");
         case ERR_QUEUE_FULL:
-            return _("Znode queue is full.");
+            return _("Vnode queue is full.");
         case ERR_RECENT:
             return _("Last PrivateSend was too recent.");
         case ERR_SESSION:
@@ -2391,7 +2391,7 @@ bool CDarksendQueue::CheckSignature(const CPubKey &pubKeyZnode) {
     std::string strError = "";
 
     if (!darkSendSigner.VerifyMessage(pubKeyZnode, vchSig, strMessage, strError)) {
-        LogPrintf("CDarksendQueue::CheckSignature -- Got bad Znode queue signature: %s; error: %s\n", ToString(), strError);
+        LogPrintf("CDarksendQueue::CheckSignature -- Got bad Vnode queue signature: %s; error: %s\n", ToString(), strError);
         return false;
     }
 
@@ -2471,7 +2471,7 @@ void CDarksendPool::RelayCompletedTransaction(PoolMessage nMessageID) {
 
 void CDarksendPool::SetState(PoolState nStateNew) {
     if (fZNode && (nStateNew == POOL_STATE_ERROR || nStateNew == POOL_STATE_SUCCESS)) {
-        LogPrint("privatesend", "CDarksendPool::SetState -- Can't set state to ERROR or SUCCESS as a Znode. \n");
+        LogPrint("privatesend", "CDarksendPool::SetState -- Can't set state to ERROR or SUCCESS as a Vnode. \n");
         return;
     }
 
