@@ -2,8 +2,8 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef ZNODEMAN_H
-#define ZNODEMAN_H
+#ifndef VNODEMAN_H
+#define VNODEMAN_H
 
 #include "vnode.h"
 #include "sync.h"
@@ -128,7 +128,7 @@ private:
     // who we asked for the vnode verification
     std::map<CNetAddr, CVnodeVerification> mWeAskedForVerification;
 
-    // these maps are used for vnode recovery from ZNODE_NEW_START_REQUIRED state
+    // these maps are used for vnode recovery from VNODE_NEW_START_REQUIRED state
     std::map<uint256, std::pair< int64_t, std::set<CNetAddr> > > mMnbRecoveryRequests;
     std::map<uint256, std::vector<CVnodeBroadcast> > mMnbRecoveryGoodReplies;
     std::list< std::pair<CService, uint256> > listScheduledMnbRequestConnections;

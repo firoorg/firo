@@ -201,7 +201,7 @@ UniValue vnode(const UniValue &params, bool fHelp) {
     }
 
     if (strCommand == "debug") {
-        if (activeVnode.nState != ACTIVE_ZNODE_INITIAL || !vnodeSync.IsBlockchainSynced())
+        if (activeVnode.nState != ACTIVE_VNODE_INITIAL || !vnodeSync.IsBlockchainSynced())
             return activeVnode.GetStatus();
 
         CTxIn vin;
@@ -224,8 +224,8 @@ UniValue vnode(const UniValue &params, bool fHelp) {
             EnsureWalletIsUnlocked();
         }
 
-        if (activeVnode.nState != ACTIVE_ZNODE_STARTED) {
-            activeVnode.nState = ACTIVE_ZNODE_INITIAL; // TODO: consider better way
+        if (activeVnode.nState != ACTIVE_VNODE_STARTED) {
+            activeVnode.nState = ACTIVE_VNODE_INITIAL; // TODO: consider better way
             activeVnode.ManageState();
         }
 

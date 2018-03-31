@@ -2,8 +2,8 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef ZNODE_PAYMENTS_H
-#define ZNODE_PAYMENTS_H
+#ifndef VNODE_PAYMENTS_H
+#define VNODE_PAYMENTS_H
 
 #include "util.h"
 #include "core_io.h"
@@ -23,8 +23,8 @@ static const int MNPAYMENTS_SIGNATURES_TOTAL            = 10;
 //  vote for vnode and be elected as a payment winner
 // V1 - Last protocol version before update
 // V2 - Newest protocol version
-static const int MIN_ZNODE_PAYMENT_PROTO_VERSION_1 = 90023;
-static const int MIN_ZNODE_PAYMENT_PROTO_VERSION_2 = 90024;
+static const int MIN_VNODE_PAYMENT_PROTO_VERSION_1 = 90023;
+static const int MIN_VNODE_PAYMENT_PROTO_VERSION_2 = 90024;
 
 extern CCriticalSection cs_vecPayees;
 extern CCriticalSection cs_mapVnodeBlocks;

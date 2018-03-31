@@ -2,8 +2,8 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef ACTIVEZNODE_H
-#define ACTIVEZNODE_H
+#ifndef ACTIVEVNODE_H
+#define ACTIVEVNODE_H
 
 #include "net.h"
 #include "key.h"
@@ -11,11 +11,11 @@
 
 class CActiveVnode;
 
-static const int ACTIVE_ZNODE_INITIAL          = 0; // initial state
-static const int ACTIVE_ZNODE_SYNC_IN_PROCESS  = 1;
-static const int ACTIVE_ZNODE_INPUT_TOO_NEW    = 2;
-static const int ACTIVE_ZNODE_NOT_CAPABLE      = 3;
-static const int ACTIVE_ZNODE_STARTED          = 4;
+static const int ACTIVE_VNODE_INITIAL          = 0; // initial state
+static const int ACTIVE_VNODE_SYNC_IN_PROCESS  = 1;
+static const int ACTIVE_VNODE_INPUT_TOO_NEW    = 2;
+static const int ACTIVE_VNODE_NOT_CAPABLE      = 3;
+static const int ACTIVE_VNODE_STARTED          = 4;
 
 extern CActiveVnode activeVnode;
 
@@ -24,9 +24,9 @@ class CActiveVnode
 {
 public:
     enum vnode_type_enum_t {
-        ZNODE_UNKNOWN = 0,
-        ZNODE_REMOTE  = 1,
-        ZNODE_LOCAL   = 2
+        VNODE_UNKNOWN = 0,
+        VNODE_REMOTE  = 1,
+        VNODE_LOCAL   = 2
     };
 
 private:
@@ -49,17 +49,17 @@ public:
     CTxIn vin;
     CService service;
 
-    int nState; // should be one of ACTIVE_ZNODE_XXXX
+    int nState; // should be one of ACTIVE_VNODE_XXXX
     std::string strNotCapableReason;
 
     CActiveVnode()
-        : eType(ZNODE_UNKNOWN),
+        : eType(VNODE_UNKNOWN),
           fPingerEnabled(false),
           pubKeyVnode(),
           keyVnode(),
           vin(),
           service(),
-          nState(ACTIVE_ZNODE_INITIAL)
+          nState(ACTIVE_VNODE_INITIAL)
     {}
 
     /// Manage state of active Vnode

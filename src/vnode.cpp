@@ -28,7 +28,7 @@ CVnode::CVnode() :
         nTimeLastChecked(0),
         nTimeLastPaid(0),
         nTimeLastWatchdogVote(0),
-        nActiveState(ZNODE_ENABLED),
+        nActiveState(VNODE_ENABLED),
         nCacheCollateralBlock(0),
         nBlockLastPaid(0),
         nProtocolVersion(PROTOCOL_VERSION),
@@ -49,7 +49,7 @@ CVnode::CVnode(CService addrNew, CTxIn vinNew, CPubKey pubKeyCollateralAddressNe
         nTimeLastChecked(0),
         nTimeLastPaid(0),
         nTimeLastWatchdogVote(0),
-        nActiveState(ZNODE_ENABLED),
+        nActiveState(VNODE_ENABLED),
         nCacheCollateralBlock(0),
         nBlockLastPaid(0),
         nProtocolVersion(nProtocolVersionIn),
@@ -122,7 +122,7 @@ bool CVnode::UpdateFromNewBroadcast(CVnodeBroadcast &mnb) {
     }
     // if it matches our Vnode privkey...
     if (fVNode && pubKeyVnode == activeVnode.pubKeyVnode) {
-        nPoSeBanScore = -ZNODE_POSE_BAN_MAX_SCORE;
+        nPoSeBanScore = -VNODE_POSE_BAN_MAX_SCORE;
         if (nProtocolVersion == PROTOCOL_VERSION) {
             // ... and PROTOCOL_VERSION, then we've been remotely activated ...
             activeVnode.ManageState();
@@ -161,7 +161,7 @@ void CVnode::Check(bool fForce) {
 
     if (ShutdownRequested()) return;
 
-    if (!fForce && (GetTime() - nTimeLastChecked < ZNODE_CHECK_SECONDS)) return;
+    if (!fForce && (GetTime() - nTimeLastChecked < VNODE_CHECK_SECONDS)) return;
     nTimeLastChecked = GetTime();
 
     LogPrint("vnode", "CVnode::Check -- Vnode %s is in %s state\n", vin.prevout.ToStringShort(), GetStateString());
@@ -178,7 +178,7 @@ void CVnode::Check(bool fForce) {
         if (!pcoinsTip->GetCoins(vin.prevout.hash, coins) ||
             (unsigned int) vin.prevout.n >= coins.vout.size() ||
             coins.vout[vin.prevout.n].IsNull()) {
-            nActiveState = ZNODE_OUTPOINT_SPENT;
+            nActiveState = VNODE_OUTPOINT_SPENT;
             LogPrint("vnode", "CVnode::Check -- Failed to find Vnode UTXO, vnode=%s\n", vin.prevout.ToStringShort());
             return;
         }
@@ -193,8 +193,8 @@ void CVnode::Check(bool fForce) {
         // or connect attempts. Will require few mnverify messages to strengthen its position in mn list.
         LogPrintf("CVnode::Check -- Vnode %s is unbanned and back in list now\n", vin.prevout.ToStringShort());
         DecreasePoSeBanScore();
-    } else if (nPoSeBanScore >= ZNODE_POSE_BAN_MAX_SCORE) {
-        nActiveState = ZNODE_POSE_BAN;
+    } else if (nPoSeBanScore >= VNODE_POSE_BAN_MAX_SCORE) {
+        nActiveState = VNODE_POSE_BAN;
         // ban for the whole payment cycle
         nPoSeBanHeight = nHeight + mnodeman.size();
         LogPrintf("CVnode::Check -- Vnode %s is banned till block %d now\n", vin.prevout.ToStringShort(), nPoSeBanHeight);
@@ -210,7 +210,7 @@ void CVnode::Check(bool fForce) {
                           (fOurVnode && nProtocolVersion < PROTOCOL_VERSION);
 
     if (fRequireUpdate) {
-        nActiveState = ZNODE_UPDATE_REQUIRED;
+        nActiveState = VNODE_UPDATE_REQUIRED;
         if (nActiveStatePrev != nActiveState) {
             LogPrint("vnode", "CVnode::Check -- Vnode %s is in %s state now\n", vin.prevout.ToStringShort(), GetStateString());
         }
@@ -218,7 +218,7 @@ void CVnode::Check(bool fForce) {
     }
 
     // keep old vnodes on start, give them a chance to receive updates...
-    bool fWaitForPing = !vnodeSync.IsVnodeListSynced() && !IsPingedWithin(ZNODE_MIN_MNP_SECONDS);
+    bool fWaitForPing = !vnodeSync.IsVnodeListSynced() && !IsPingedWithin(VNODE_MIN_MNP_SECONDS);
 
     if (fWaitForPing && !fOurVnode) {
         // ...but if it was already expired before the initial check - return right away
@@ -231,8 +231,8 @@ void CVnode::Check(bool fForce) {
     // don't expire if we are still in "waiting for ping" mode unless it's our own vnode
     if (!fWaitForPing || fOurVnode) {
 
-        if (!IsPingedWithin(ZNODE_NEW_START_REQUIRED_SECONDS)) {
-            nActiveState = ZNODE_NEW_START_REQUIRED;
+        if (!IsPingedWithin(VNODE_NEW_START_REQUIRED_SECONDS)) {
+            nActiveState = VNODE_NEW_START_REQUIRED;
             if (nActiveStatePrev != nActiveState) {
                 LogPrint("vnode", "CVnode::Check -- Vnode %s is in %s state now\n", vin.prevout.ToStringShort(), GetStateString());
             }
@@ -240,21 +240,21 @@ void CVnode::Check(bool fForce) {
         }
 
         bool fWatchdogActive = vnodeSync.IsSynced() && mnodeman.IsWatchdogActive();
-        bool fWatchdogExpired = (fWatchdogActive && ((GetTime() - nTimeLastWatchdogVote) > ZNODE_WATCHDOG_MAX_SECONDS));
+        bool fWatchdogExpired = (fWatchdogActive && ((GetTime() - nTimeLastWatchdogVote) > VNODE_WATCHDOG_MAX_SECONDS));
 
 //        LogPrint("vnode", "CVnode::Check -- outpoint=%s, nTimeLastWatchdogVote=%d, GetTime()=%d, fWatchdogExpired=%d\n",
 //                vin.prevout.ToStringShort(), nTimeLastWatchdogVote, GetTime(), fWatchdogExpired);
 
         if (fWatchdogExpired) {
-            nActiveState = ZNODE_WATCHDOG_EXPIRED;
+            nActiveState = VNODE_WATCHDOG_EXPIRED;
             if (nActiveStatePrev != nActiveState) {
                 LogPrint("vnode", "CVnode::Check -- Vnode %s is in %s state now\n", vin.prevout.ToStringShort(), GetStateString());
             }
             return;
         }
 
-        if (!IsPingedWithin(ZNODE_EXPIRATION_SECONDS)) {
-            nActiveState = ZNODE_EXPIRED;
+        if (!IsPingedWithin(VNODE_EXPIRATION_SECONDS)) {
+            nActiveState = VNODE_EXPIRED;
             if (nActiveStatePrev != nActiveState) {
                 LogPrint("vnode", "CVnode::Check -- Vnode %s is in %s state now\n", vin.prevout.ToStringShort(), GetStateString());
             }
@@ -262,15 +262,15 @@ void CVnode::Check(bool fForce) {
         }
     }
 
-    if (lastPing.sigTime - sigTime < ZNODE_MIN_MNP_SECONDS) {
-        nActiveState = ZNODE_PRE_ENABLED;
+    if (lastPing.sigTime - sigTime < VNODE_MIN_MNP_SECONDS) {
+        nActiveState = VNODE_PRE_ENABLED;
         if (nActiveStatePrev != nActiveState) {
             LogPrint("vnode", "CVnode::Check -- Vnode %s is in %s state now\n", vin.prevout.ToStringShort(), GetStateString());
         }
         return;
     }
 
-    nActiveState = ZNODE_ENABLED; // OK
+    nActiveState = VNODE_ENABLED; // OK
     if (nActiveStatePrev != nActiveState) {
         LogPrint("vnode", "CVnode::Check -- Vnode %s is in %s state now\n", vin.prevout.ToStringShort(), GetStateString());
     }
@@ -281,11 +281,11 @@ bool CVnode::IsValidNetAddr() {
 }
 
 bool CVnode::IsValidForPayment() {
-    if (nActiveState == ZNODE_ENABLED) {
+    if (nActiveState == VNODE_ENABLED) {
         return true;
     }
 //    if(!sporkManager.IsSporkActive(SPORK_14_REQUIRE_SENTINEL_FLAG) &&
-//       (nActiveState == ZNODE_WATCHDOG_EXPIRED)) {
+//       (nActiveState == VNODE_WATCHDOG_EXPIRED)) {
 //        return true;
 //    }
 
@@ -319,21 +319,21 @@ vnode_info_t CVnode::GetInfo() {
 
 std::string CVnode::StateToString(int nStateIn) {
     switch (nStateIn) {
-        case ZNODE_PRE_ENABLED:
+        case VNODE_PRE_ENABLED:
             return "PRE_ENABLED";
-        case ZNODE_ENABLED:
+        case VNODE_ENABLED:
             return "ENABLED";
-        case ZNODE_EXPIRED:
+        case VNODE_EXPIRED:
             return "EXPIRED";
-        case ZNODE_OUTPOINT_SPENT:
+        case VNODE_OUTPOINT_SPENT:
             return "OUTPOINT_SPENT";
-        case ZNODE_UPDATE_REQUIRED:
+        case VNODE_UPDATE_REQUIRED:
             return "UPDATE_REQUIRED";
-        case ZNODE_WATCHDOG_EXPIRED:
+        case VNODE_WATCHDOG_EXPIRED:
             return "WATCHDOG_EXPIRED";
-        case ZNODE_NEW_START_REQUIRED:
+        case VNODE_NEW_START_REQUIRED:
             return "NEW_START_REQUIRED";
-        case ZNODE_POSE_BAN:
+        case VNODE_POSE_BAN:
             return "POSE_BAN";
         default:
             return "UNKNOWN";
@@ -539,7 +539,7 @@ bool CVnodeBroadcast::SimpleCheck(int &nDos) {
     // empty ping or incorrect sigTime/unknown blockhash
     if (lastPing == CVnodePing() || !lastPing.SimpleCheck(nDos)) {
         // one of us is probably forked or smth, just mark it as expired and check the rest of the rules
-        nActiveState = ZNODE_EXPIRED;
+        nActiveState = VNODE_EXPIRED;
     }
 
     if (nProtocolVersion < mnpayments.GetMinVnodePaymentsProto()) {
@@ -617,7 +617,7 @@ bool CVnodeBroadcast::Update(CVnode *pmn, int &nDos) {
     }
 
     // if ther was no vnode broadcast recently or if it matches our Vnode privkey...
-    if (!pmn->IsBroadcastedWithin(ZNODE_MIN_MNB_SECONDS) || (fVNode && pubKeyVnode == activeVnode.pubKeyVnode)) {
+    if (!pmn->IsBroadcastedWithin(VNODE_MIN_MNB_SECONDS) || (fVNode && pubKeyVnode == activeVnode.pubKeyVnode)) {
         // take the newest entry
         LogPrintf("CVnodeBroadcast::Update -- Got UPDATED Vnode entry: addr=%s\n", addr.ToString());
         if (pmn->UpdateFromNewBroadcast((*this))) {
@@ -658,7 +658,7 @@ bool CVnodeBroadcast::CheckOutpoint(int &nDos) {
             LogPrint("vnode", "CVnodeBroadcast::CheckOutpoint -- Failed to find Vnode UTXO, vnode=%s\n", vin.prevout.ToStringShort());
             return false;
         }
-        if (coins.vout[vin.prevout.n].nValue != ZNODE_COIN_REQUIRED * COIN) {
+        if (coins.vout[vin.prevout.n].nValue != VNODE_COIN_REQUIRED * COIN) {
             LogPrint("vnode", "CVnodeBroadcast::CheckOutpoint -- Vnode UTXO should have 1000 XZC, vnode=%s\n", vin.prevout.ToStringShort());
             return false;
         }
@@ -748,7 +748,7 @@ bool CVnodeBroadcast::CheckSignature(int &nDos) {
 
 void CVnodeBroadcast::RelayVNode() {
     LogPrintf("CVnodeBroadcast::RelayVNode\n");
-    CInv inv(MSG_ZNODE_ANNOUNCE, GetHash());
+    CInv inv(MSG_VNODE_ANNOUNCE, GetHash());
     RelayInv(inv);
 }
 
@@ -859,8 +859,8 @@ bool CVnodePing::CheckAndUpdate(CVnode *pmn, bool fFromNewBroadcast, int &nDos) 
 
     // LogPrintf("mnping - Found corresponding mn for vin: %s\n", vin.prevout.ToStringShort());
     // update only if there is no known ping for this vnode or
-    // last ping was more then ZNODE_MIN_MNP_SECONDS-60 ago comparing to this one
-    if (pmn->IsPingedWithin(ZNODE_MIN_MNP_SECONDS - 60, sigTime)) {
+    // last ping was more then VNODE_MIN_MNP_SECONDS-60 ago comparing to this one
+    if (pmn->IsPingedWithin(VNODE_MIN_MNP_SECONDS - 60, sigTime)) {
         LogPrint("vnode", "CVnodePing::CheckAndUpdate -- Vnode ping arrived too early, vnode=%s\n", vin.prevout.ToStringShort());
         //nDos = 1; //disable, this is happening frequently and causing banned peers
         return false;
@@ -871,8 +871,8 @@ bool CVnodePing::CheckAndUpdate(CVnode *pmn, bool fFromNewBroadcast, int &nDos) 
     // so, ping seems to be ok
 
     // if we are still syncing and there was no known ping for this mn for quite a while
-    // (NOTE: assuming that ZNODE_EXPIRATION_SECONDS/2 should be enough to finish mn list sync)
-    if (!vnodeSync.IsVnodeListSynced() && !pmn->IsPingedWithin(ZNODE_EXPIRATION_SECONDS / 2)) {
+    // (NOTE: assuming that VNODE_EXPIRATION_SECONDS/2 should be enough to finish mn list sync)
+    if (!vnodeSync.IsVnodeListSynced() && !pmn->IsPingedWithin(VNODE_EXPIRATION_SECONDS / 2)) {
         // let's bump sync timeout
         LogPrint("vnode", "CVnodePing::CheckAndUpdate -- bumping sync timeout, vnode=%s\n", vin.prevout.ToStringShort());
         vnodeSync.AddedVnodeList();
@@ -899,7 +899,7 @@ bool CVnodePing::CheckAndUpdate(CVnode *pmn, bool fFromNewBroadcast, int &nDos) 
 }
 
 void CVnodePing::Relay() {
-    CInv inv(MSG_ZNODE_PING, GetHash());
+    CInv inv(MSG_VNODE_PING, GetHash());
     RelayInv(inv);
 }
 

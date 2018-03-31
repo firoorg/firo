@@ -243,7 +243,7 @@ void CVnodeMan::CheckAndRemove()
             }
         }
 
-        // proces replies for ZNODE_NEW_START_REQUIRED vnodes
+        // proces replies for VNODE_NEW_START_REQUIRED vnodes
         LogPrint("vnode", "CVnodeMan::CheckAndRemove -- mMnbRecoveryGoodReplies size=%d\n", (int)mMnbRecoveryGoodReplies.size());
         std::map<uint256, std::vector<CVnodeBroadcast> >::iterator itMnbReplies = mMnbRecoveryGoodReplies.begin();
         while(itMnbReplies != mMnbRecoveryGoodReplies.end()){
@@ -271,7 +271,7 @@ void CVnodeMan::CheckAndRemove()
         std::map<uint256, std::pair< int64_t, std::set<CNetAddr> > >::iterator itMnbRequest = mMnbRecoveryRequests.begin();
         while(itMnbRequest != mMnbRecoveryRequests.end()){
             // Allow this mnb to be re-verified again after MNB_RECOVERY_RETRY_SECONDS seconds
-            // if mn is still in ZNODE_NEW_START_REQUIRED state.
+            // if mn is still in VNODE_NEW_START_REQUIRED state.
             if(GetTime() - itMnbRequest->second.first > MNB_RECOVERY_RETRY_SECONDS) {
                 mMnbRecoveryRequests.erase(itMnbRequest++);
             } else {
@@ -983,8 +983,8 @@ void CVnodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataStrea
             LogPrint("vnode", "DSEG -- Sending Vnode entry: vnode=%s  addr=%s\n", mn.vin.prevout.ToStringShort(), mn.addr.ToString());
             CVnodeBroadcast mnb = CVnodeBroadcast(mn);
             uint256 hash = mnb.GetHash();
-            pfrom->PushInventory(CInv(MSG_ZNODE_ANNOUNCE, hash));
-            pfrom->PushInventory(CInv(MSG_ZNODE_PING, mn.lastPing.GetHash()));
+            pfrom->PushInventory(CInv(MSG_VNODE_ANNOUNCE, hash));
+            pfrom->PushInventory(CInv(MSG_VNODE_PING, mn.lastPing.GetHash()));
             nInvCount++;
 
             if (!mapSeenVnodeBroadcast.count(hash)) {
@@ -998,7 +998,7 @@ void CVnodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataStrea
         }
 
         if(vin == CTxIn()) {
-            pfrom->PushMessage(NetMsgType::SYNCSTATUSCOUNT, ZNODE_SYNC_LIST, nInvCount);
+            pfrom->PushMessage(NetMsgType::SYNCSTATUSCOUNT, VNODE_SYNC_LIST, nInvCount);
             LogPrintf("DSEG -- Sent %d Vnode invs to peer %d\n", nInvCount, pfrom->id);
             return;
         }
@@ -1493,7 +1493,7 @@ bool CVnodeMan::CheckMnbAndUpdateVnodeList(CNode* pfrom, CVnodeBroadcast mnb, in
         if (mapSeenVnodeBroadcast.count(hash) && !mnb.fRecovery) { //seen
             LogPrint("vnode", "CVnodeMan::CheckMnbAndUpdateVnodeList -- vnode=%s seen\n", mnb.vin.prevout.ToStringShort());
             // less then 2 pings left before this MN goes into non-recoverable state, bump sync timeout
-            if (GetTime() - mapSeenVnodeBroadcast[hash].first > ZNODE_NEW_START_REQUIRED_SECONDS - ZNODE_MIN_MNP_SECONDS * 2) {
+            if (GetTime() - mapSeenVnodeBroadcast[hash].first > VNODE_NEW_START_REQUIRED_SECONDS - VNODE_MIN_MNP_SECONDS * 2) {
                 LogPrint("vnode", "CVnodeMan::CheckMnbAndUpdateVnodeList -- vnode=%s seen update\n", mnb.vin.prevout.ToStringShort());
                 mapSeenVnodeBroadcast[hash].first = GetTime();
                 vnodeSync.AddedVnodeList();
@@ -1549,7 +1549,7 @@ bool CVnodeMan::CheckMnbAndUpdateVnodeList(CNode* pfrom, CVnodeBroadcast mnb, in
         vnodeSync.AddedVnodeList();
         // if it matches our Vnode privkey...
         if(fVNode && mnb.pubKeyVnode == activeVnode.pubKeyVnode) {
-            mnb.nPoSeBanScore = -ZNODE_POSE_BAN_MAX_SCORE;
+            mnb.nPoSeBanScore = -VNODE_POSE_BAN_MAX_SCORE;
             if(mnb.nProtocolVersion == PROTOCOL_VERSION) {
                 // ... and PROTOCOL_VERSION, then we've been remotely activated ...
                 LogPrintf("CVnodeMan::CheckMnbAndUpdateVnodeList -- Got NEW Vnode entry: vnode=%s  sigTime=%lld  addr=%s\n",
@@ -1637,7 +1637,7 @@ bool CVnodeMan::IsWatchdogActive()
 {
     LOCK(cs);
     // Check if any vnodes have voted recently, otherwise return false
-    return (GetTime() - nLastWatchdogVoteTime) <= ZNODE_WATCHDOG_MAX_SECONDS;
+    return (GetTime() - nLastWatchdogVoteTime) <= VNODE_WATCHDOG_MAX_SECONDS;
 }
 
 void CVnodeMan::CheckVnode(const CTxIn& vin, bool fForce)
@@ -1665,7 +1665,7 @@ int CVnodeMan::GetVnodeState(const CTxIn& vin)
     LOCK(cs);
     CVnode* pMN = Find(vin);
     if(!pMN)  {
-        return CVnode::ZNODE_NEW_START_REQUIRED;
+        return CVnode::VNODE_NEW_START_REQUIRED;
     }
     return pMN->nActiveState;
 }
@@ -1675,7 +1675,7 @@ int CVnodeMan::GetVnodeState(const CPubKey& pubKeyVnode)
     LOCK(cs);
     CVnode* pMN = Find(pubKeyVnode);
     if(!pMN)  {
-        return CVnode::ZNODE_NEW_START_REQUIRED;
+        return CVnode::VNODE_NEW_START_REQUIRED;
     }
     return pMN->nActiveState;
 }

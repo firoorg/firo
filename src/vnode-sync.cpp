@@ -70,7 +70,7 @@ bool CVnodeSync::IsBlockchainSynced(bool fBlockAccepted) {
         }
     } else {
         // skip if we already checked less than 1 tick ago
-        if (GetTime() - nTimeLastProcess < ZNODE_SYNC_TICK_SECONDS) {
+        if (GetTime() - nTimeLastProcess < VNODE_SYNC_TICK_SECONDS) {
             nSkipped++;
             return fBlockchainSynced;
         }
@@ -91,7 +91,7 @@ bool CVnodeSync::IsBlockchainSynced(bool fBlockAccepted) {
 
     std::vector < CNode * > vNodesCopy = CopyNodeVector();
     // We have enough peers and assume most of them are synced
-    if (vNodesCopy.size() >= ZNODE_SYNC_ENOUGH_PEERS) {
+    if (vNodesCopy.size() >= VNODE_SYNC_ENOUGH_PEERS) {
         // Check to see how many of our peers are (almost) at the same height as we are
         int nNodesAtSameHeight = 0;
         BOOST_FOREACH(CNode * pnode, vNodesCopy)
@@ -102,7 +102,7 @@ bool CVnodeSync::IsBlockchainSynced(bool fBlockAccepted) {
             }
             nNodesAtSameHeight++;
             // if we have decent number of such peers, most likely we are synced now
-            if (nNodesAtSameHeight >= ZNODE_SYNC_ENOUGH_PEERS) {
+            if (nNodesAtSameHeight >= VNODE_SYNC_ENOUGH_PEERS) {
                 LogPrintf("CVnodeSync::IsBlockchainSynced -- found enough peers on the same height as we are, done\n");
                 fBlockchainSynced = true;
                 ReleaseNodeVector(vNodesCopy);
@@ -124,11 +124,11 @@ bool CVnodeSync::IsBlockchainSynced(bool fBlockAccepted) {
 
 void CVnodeSync::Fail() {
     nTimeLastFailure = GetTime();
-    nRequestedVnodeAssets = ZNODE_SYNC_FAILED;
+    nRequestedVnodeAssets = VNODE_SYNC_FAILED;
 }
 
 void CVnodeSync::Reset() {
-    nRequestedVnodeAssets = ZNODE_SYNC_INITIAL;
+    nRequestedVnodeAssets = VNODE_SYNC_INITIAL;
     nRequestedVnodeAttempt = 0;
     nTimeAssetSyncStarted = GetTime();
     nTimeLastVnodeList = GetTime();
@@ -140,18 +140,18 @@ void CVnodeSync::Reset() {
 
 std::string CVnodeSync::GetAssetName() {
     switch (nRequestedVnodeAssets) {
-        case (ZNODE_SYNC_INITIAL):
-            return "ZNODE_SYNC_INITIAL";
-        case (ZNODE_SYNC_SPORKS):
-            return "ZNODE_SYNC_SPORKS";
-        case (ZNODE_SYNC_LIST):
-            return "ZNODE_SYNC_LIST";
-        case (ZNODE_SYNC_MNW):
-            return "ZNODE_SYNC_MNW";
-        case (ZNODE_SYNC_FAILED):
-            return "ZNODE_SYNC_FAILED";
-        case ZNODE_SYNC_FINISHED:
-            return "ZNODE_SYNC_FINISHED";
+        case (VNODE_SYNC_INITIAL):
+            return "VNODE_SYNC_INITIAL";
+        case (VNODE_SYNC_SPORKS):
+            return "VNODE_SYNC_SPORKS";
+        case (VNODE_SYNC_LIST):
+            return "VNODE_SYNC_LIST";
+        case (VNODE_SYNC_MNW):
+            return "VNODE_SYNC_MNW";
+        case (VNODE_SYNC_FAILED):
+            return "VNODE_SYNC_FAILED";
+        case VNODE_SYNC_FINISHED:
+            return "VNODE_SYNC_FINISHED";
         default:
             return "UNKNOWN";
     }
@@ -159,29 +159,29 @@ std::string CVnodeSync::GetAssetName() {
 
 void CVnodeSync::SwitchToNextAsset() {
     switch (nRequestedVnodeAssets) {
-        case (ZNODE_SYNC_FAILED):
+        case (VNODE_SYNC_FAILED):
             throw std::runtime_error("Can't switch to next asset from failed, should use Reset() first!");
             break;
-        case (ZNODE_SYNC_INITIAL):
+        case (VNODE_SYNC_INITIAL):
             ClearFulfilledRequests();
-            nRequestedVnodeAssets = ZNODE_SYNC_SPORKS;
+            nRequestedVnodeAssets = VNODE_SYNC_SPORKS;
             LogPrintf("CVnodeSync::SwitchToNextAsset -- Starting %s\n", GetAssetName());
             break;
-        case (ZNODE_SYNC_SPORKS):
+        case (VNODE_SYNC_SPORKS):
             nTimeLastVnodeList = GetTime();
-            nRequestedVnodeAssets = ZNODE_SYNC_LIST;
+            nRequestedVnodeAssets = VNODE_SYNC_LIST;
             LogPrintf("CVnodeSync::SwitchToNextAsset -- Starting %s\n", GetAssetName());
             break;
-        case (ZNODE_SYNC_LIST):
+        case (VNODE_SYNC_LIST):
             nTimeLastPaymentVote = GetTime();
-            nRequestedVnodeAssets = ZNODE_SYNC_MNW;
+            nRequestedVnodeAssets = VNODE_SYNC_MNW;
             LogPrintf("CVnodeSync::SwitchToNextAsset -- Starting %s\n", GetAssetName());
             break;
 
-        case (ZNODE_SYNC_MNW):
+        case (VNODE_SYNC_MNW):
             nTimeLastGovernanceItem = GetTime();
             LogPrintf("CVnodeSync::SwitchToNextAsset -- Sync has finished\n");
-            nRequestedVnodeAssets = ZNODE_SYNC_FINISHED;
+            nRequestedVnodeAssets = VNODE_SYNC_FINISHED;
             break;
     }
     nRequestedVnodeAttempt = 0;
@@ -190,17 +190,17 @@ void CVnodeSync::SwitchToNextAsset() {
 
 std::string CVnodeSync::GetSyncStatus() {
     switch (vnodeSync.nRequestedVnodeAssets) {
-        case ZNODE_SYNC_INITIAL:
+        case VNODE_SYNC_INITIAL:
             return _("Synchronization pending...");
-        case ZNODE_SYNC_SPORKS:
+        case VNODE_SYNC_SPORKS:
             return _("Synchronizing sporks...");
-        case ZNODE_SYNC_LIST:
+        case VNODE_SYNC_LIST:
             return _("Synchronizing vnodes...");
-        case ZNODE_SYNC_MNW:
+        case VNODE_SYNC_MNW:
             return _("Synchronizing vnode payments...");
-        case ZNODE_SYNC_FAILED:
+        case VNODE_SYNC_FAILED:
             return _("Synchronization failed");
-        case ZNODE_SYNC_FINISHED:
+        case VNODE_SYNC_FINISHED:
             return _("Synchronization finished");
         default:
             return "";
@@ -236,7 +236,7 @@ void CVnodeSync::ClearFulfilledRequests() {
 
 void CVnodeSync::ProcessTick() {
     static int nTick = 0;
-    if (nTick++ % ZNODE_SYNC_TICK_SECONDS != 0) return;
+    if (nTick++ % VNODE_SYNC_TICK_SECONDS != 0) return;
     if (!pCurrentBlockIndex) return;
 
     //the actual count of vnodes we have currently
@@ -274,13 +274,13 @@ void CVnodeSync::ProcessTick() {
         }
     }
 
-    if (Params().NetworkIDString() != CBaseChainParams::REGTEST && !IsBlockchainSynced() && nRequestedVnodeAssets > ZNODE_SYNC_SPORKS) {
+    if (Params().NetworkIDString() != CBaseChainParams::REGTEST && !IsBlockchainSynced() && nRequestedVnodeAssets > VNODE_SYNC_SPORKS) {
         nTimeLastVnodeList = GetTime();
         nTimeLastPaymentVote = GetTime();
         nTimeLastGovernanceItem = GetTime();
         return;
     }
-    if (nRequestedVnodeAssets == ZNODE_SYNC_INITIAL || (nRequestedVnodeAssets == ZNODE_SYNC_SPORKS && IsBlockchainSynced())) {
+    if (nRequestedVnodeAssets == VNODE_SYNC_INITIAL || (nRequestedVnodeAssets == VNODE_SYNC_SPORKS && IsBlockchainSynced())) {
         SwitchToNextAsset();
     }
 
@@ -302,9 +302,9 @@ void CVnodeSync::ProcessTick() {
                 mnodeman.DsegUpdate(pnode);
             } else if (nRequestedVnodeAttempt < 6) {
                 int nMnCount = mnodeman.CountVnodes();
-                pnode->PushMessage(NetMsgType::ZNODEPAYMENTSYNC, nMnCount); //sync payment votes
+                pnode->PushMessage(NetMsgType::VNODEPAYMENTSYNC, nMnCount); //sync payment votes
             } else {
-                nRequestedVnodeAssets = ZNODE_SYNC_FINISHED;
+                nRequestedVnodeAssets = VNODE_SYNC_FINISHED;
             }
             nRequestedVnodeAttempt++;
             ReleaseNodeVector(vNodesCopy);
@@ -334,9 +334,9 @@ void CVnodeSync::ProcessTick() {
 
             // MNLIST : SYNC Vnode LIST FROM OTHER CONNECTED CLIENTS
 
-            if (nRequestedVnodeAssets == ZNODE_SYNC_LIST) {
+            if (nRequestedVnodeAssets == VNODE_SYNC_LIST) {
                 // check for timeout first
-                if (nTimeLastVnodeList < GetTime() - ZNODE_SYNC_TIMEOUT_SECONDS) {
+                if (nTimeLastVnodeList < GetTime() - VNODE_SYNC_TIMEOUT_SECONDS) {
                     LogPrintf("CVnodeSync::ProcessTick -- nTick %d nRequestedVnodeAssets %d -- timeout\n", nTick, nRequestedVnodeAssets);
                     if (nRequestedVnodeAttempt == 0) {
                         LogPrintf("CVnodeSync::ProcessTick -- ERROR: failed to sync %s\n", GetAssetName());
@@ -365,12 +365,12 @@ void CVnodeSync::ProcessTick() {
 
             // MNW : SYNC Vnode PAYMENT VOTES FROM OTHER CONNECTED CLIENTS
 
-            if (nRequestedVnodeAssets == ZNODE_SYNC_MNW) {
+            if (nRequestedVnodeAssets == VNODE_SYNC_MNW) {
                 LogPrint("mnpayments", "CVnodeSync::ProcessTick -- nTick %d nRequestedVnodeAssets %d nTimeLastPaymentVote %lld GetTime() %lld diff %lld\n", nTick, nRequestedVnodeAssets, nTimeLastPaymentVote, GetTime(), GetTime() - nTimeLastPaymentVote);
                 // check for timeout first
-                // This might take a lot longer than ZNODE_SYNC_TIMEOUT_SECONDS minutes due to new blocks,
+                // This might take a lot longer than VNODE_SYNC_TIMEOUT_SECONDS minutes due to new blocks,
                 // but that should be OK and it should timeout eventually.
-                if (nTimeLastPaymentVote < GetTime() - ZNODE_SYNC_TIMEOUT_SECONDS) {
+                if (nTimeLastPaymentVote < GetTime() - VNODE_SYNC_TIMEOUT_SECONDS) {
                     LogPrintf("CVnodeSync::ProcessTick -- nTick %d nRequestedVnodeAssets %d -- timeout\n", nTick, nRequestedVnodeAssets);
                     if (nRequestedVnodeAttempt == 0) {
                         LogPrintf("CVnodeSync::ProcessTick -- ERROR: failed to sync %s\n", GetAssetName());
@@ -402,7 +402,7 @@ void CVnodeSync::ProcessTick() {
                 nRequestedVnodeAttempt++;
 
                 // ask node for all payment votes it has (new nodes will only return votes for future payments)
-                pnode->PushMessage(NetMsgType::ZNODEPAYMENTSYNC, mnpayments.GetStorageLimit());
+                pnode->PushMessage(NetMsgType::VNODEPAYMENTSYNC, mnpayments.GetStorageLimit());
                 // ask node for missing pieces only (old nodes will not be asked)
                 mnpayments.RequestLowDataPaymentBlocks(pnode);
 

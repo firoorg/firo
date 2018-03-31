@@ -2,8 +2,8 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef ZNODE_H
-#define ZNODE_H
+#ifndef VNODE_H
+#define VNODE_H
 
 #include "key.h"
 #include "main.h"
@@ -16,15 +16,15 @@ class CVnode;
 class CVnodeBroadcast;
 class CVnodePing;
 
-static const int ZNODE_CHECK_SECONDS               =   5;
-static const int ZNODE_MIN_MNB_SECONDS             =   5 * 60; //BROADCAST_TIME
-static const int ZNODE_MIN_MNP_SECONDS             =  10 * 60; //PRE_ENABLE_TIME
-static const int ZNODE_EXPIRATION_SECONDS          =  65 * 60;
-static const int ZNODE_WATCHDOG_MAX_SECONDS        = 120 * 60;
-static const int ZNODE_NEW_START_REQUIRED_SECONDS  = 180 * 60;
-static const int ZNODE_COIN_REQUIRED  = 1000;
+static const int VNODE_CHECK_SECONDS               =   5;
+static const int VNODE_MIN_MNB_SECONDS             =   5 * 60; //BROADCAST_TIME
+static const int VNODE_MIN_MNP_SECONDS             =  10 * 60; //PRE_ENABLE_TIME
+static const int VNODE_EXPIRATION_SECONDS          =  65 * 60;
+static const int VNODE_WATCHDOG_MAX_SECONDS        = 120 * 60;
+static const int VNODE_NEW_START_REQUIRED_SECONDS  = 180 * 60;
+static const int VNODE_COIN_REQUIRED  = 1000;
 
-static const int ZNODE_POSE_BAN_MAX_SCORE          = 5;
+static const int VNODE_POSE_BAN_MAX_SCORE          = 5;
 //
 // The Vnode Ping Class : Contains a different serialize method for sending pings from vnodes throughout the network
 //
@@ -78,7 +78,7 @@ public:
         return ss.GetHash();
     }
 
-    bool IsExpired() { return GetTime() - sigTime > ZNODE_NEW_START_REQUIRED_SECONDS; }
+    bool IsExpired() { return GetTime() - sigTime > VNODE_NEW_START_REQUIRED_SECONDS; }
 
     bool Sign(CKey& keyVnode, CPubKey& pubKeyVnode);
     bool CheckSignature(CPubKey& pubKeyVnode, int &nDos);
@@ -147,14 +147,14 @@ private:
 
 public:
     enum state {
-        ZNODE_PRE_ENABLED,
-        ZNODE_ENABLED,
-        ZNODE_EXPIRED,
-        ZNODE_OUTPOINT_SPENT,
-        ZNODE_UPDATE_REQUIRED,
-        ZNODE_WATCHDOG_EXPIRED,
-        ZNODE_NEW_START_REQUIRED,
-        ZNODE_POSE_BAN
+        VNODE_PRE_ENABLED,
+        VNODE_ENABLED,
+        VNODE_EXPIRED,
+        VNODE_OUTPOINT_SPENT,
+        VNODE_UPDATE_REQUIRED,
+        VNODE_WATCHDOG_EXPIRED,
+        VNODE_NEW_START_REQUIRED,
+        VNODE_POSE_BAN
     };
 
     CTxIn vin;
@@ -260,23 +260,23 @@ public:
         return nTimeToCheckAt - lastPing.sigTime < nSeconds;
     }
 
-    bool IsEnabled() { return nActiveState == ZNODE_ENABLED; }
-    bool IsPreEnabled() { return nActiveState == ZNODE_PRE_ENABLED; }
-    bool IsPoSeBanned() { return nActiveState == ZNODE_POSE_BAN; }
+    bool IsEnabled() { return nActiveState == VNODE_ENABLED; }
+    bool IsPreEnabled() { return nActiveState == VNODE_PRE_ENABLED; }
+    bool IsPoSeBanned() { return nActiveState == VNODE_POSE_BAN; }
     // NOTE: this one relies on nPoSeBanScore, not on nActiveState as everything else here
-    bool IsPoSeVerified() { return nPoSeBanScore <= -ZNODE_POSE_BAN_MAX_SCORE; }
-    bool IsExpired() { return nActiveState == ZNODE_EXPIRED; }
-    bool IsOutpointSpent() { return nActiveState == ZNODE_OUTPOINT_SPENT; }
-    bool IsUpdateRequired() { return nActiveState == ZNODE_UPDATE_REQUIRED; }
-    bool IsWatchdogExpired() { return nActiveState == ZNODE_WATCHDOG_EXPIRED; }
-    bool IsNewStartRequired() { return nActiveState == ZNODE_NEW_START_REQUIRED; }
+    bool IsPoSeVerified() { return nPoSeBanScore <= -VNODE_POSE_BAN_MAX_SCORE; }
+    bool IsExpired() { return nActiveState == VNODE_EXPIRED; }
+    bool IsOutpointSpent() { return nActiveState == VNODE_OUTPOINT_SPENT; }
+    bool IsUpdateRequired() { return nActiveState == VNODE_UPDATE_REQUIRED; }
+    bool IsWatchdogExpired() { return nActiveState == VNODE_WATCHDOG_EXPIRED; }
+    bool IsNewStartRequired() { return nActiveState == VNODE_NEW_START_REQUIRED; }
 
     static bool IsValidStateForAutoStart(int nActiveStateIn)
     {
-        return  nActiveStateIn == ZNODE_ENABLED ||
-                nActiveStateIn == ZNODE_PRE_ENABLED ||
-                nActiveStateIn == ZNODE_EXPIRED ||
-                nActiveStateIn == ZNODE_WATCHDOG_EXPIRED;
+        return  nActiveStateIn == VNODE_ENABLED ||
+                nActiveStateIn == VNODE_PRE_ENABLED ||
+                nActiveStateIn == VNODE_EXPIRED ||
+                nActiveStateIn == VNODE_WATCHDOG_EXPIRED;
     }
 
     bool IsValidForPayment();
@@ -284,8 +284,8 @@ public:
     bool IsValidNetAddr();
     static bool IsValidNetAddr(CService addrIn);
 
-    void IncreasePoSeBanScore() { if(nPoSeBanScore < ZNODE_POSE_BAN_MAX_SCORE) nPoSeBanScore++; }
-    void DecreasePoSeBanScore() { if(nPoSeBanScore > -ZNODE_POSE_BAN_MAX_SCORE) nPoSeBanScore--; }
+    void IncreasePoSeBanScore() { if(nPoSeBanScore < VNODE_POSE_BAN_MAX_SCORE) nPoSeBanScore++; }
+    void DecreasePoSeBanScore() { if(nPoSeBanScore > -VNODE_POSE_BAN_MAX_SCORE) nPoSeBanScore--; }
 
     vnode_info_t GetInfo();
 
@@ -434,7 +434,7 @@ public:
 
     void Relay() const
     {
-        CInv inv(MSG_ZNODE_VERIFY, GetHash());
+        CInv inv(MSG_VNODE_VERIFY, GetHash());
         RelayInv(inv);
     }
 };
