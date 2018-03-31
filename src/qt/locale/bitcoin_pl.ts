@@ -259,7 +259,7 @@
     </message>
     <message>
         <source>Send coins to a Verticalcoin address</source>
-        <translation>Wyślij monety na adres zcoinowy</translation>
+        <translation>Wyślij monety na adres verticalcoinowy</translation>
     </message>
     <message>
         <source>Backup wallet to another location</source>
@@ -315,7 +315,7 @@
     </message>
     <message>
         <source>Verify messages to ensure they were signed with specified Verticalcoin addresses</source>
-        <translation>Zweryfikuj wiadomość,  aby upewnić się, że została podpisana podanym adresem zcoinowym.</translation>
+        <translation>Zweryfikuj wiadomość,  aby upewnić się, że została podpisana podanym adresem verticalcoinowym.</translation>
     </message>
     <message>
         <source>&amp;File</source>
@@ -335,7 +335,7 @@
     </message>
     <message>
         <source>Request payments (generates QR codes and verticalcoin: URIs)</source>
-        <translation>Żądaj płatności (generuje kod QR oraz zcoinowe URI)</translation>
+        <translation>Żądaj płatności (generuje kod QR oraz verticalcoinowe URI)</translation>
     </message>
     <message>
         <source>Show the list of used sending addresses and labels</source>
@@ -1138,7 +1138,7 @@
     </message>
     <message>
         <source>Enter a Verticalcoin address (e.g. %1)</source>
-        <translation>Wprowadź adres zcoinowy (np. %1)</translation>
+        <translation>Wprowadź adres verticalcoinowy (np. %1)</translation>
     </message>
     <message>
         <source>%1 d</source>
@@ -1664,7 +1664,7 @@
     </message>
     <message>
         <source>Paying only the minimum fee is just fine as long as there is less transaction volume than space in the blocks. But be aware that this can end up in a never confirming transaction once there is more demand for verticalcoin transactions than the network can process.</source>
-        <translation>Zapłacenie tylko minimalnej opłaty jest nadal wystarczające, dopóki jest mniejszy wolumen transakcji niż miejsca w blokach. Należy jednak mieć świadomość, że może skończyć się to niezatwierdzeniem nigdy transakcji, gdy jest większe zapotrzebowanie na transakcje zcoina niż sieć może przetworzyć.</translation>
+        <translation>Zapłacenie tylko minimalnej opłaty jest nadal wystarczające, dopóki jest mniejszy wolumen transakcji niż miejsca w blokach. Należy jednak mieć świadomość, że może skończyć się to niezatwierdzeniem nigdy transakcji, gdy jest większe zapotrzebowanie na transakcje verticalcoina niż sieć może przetworzyć.</translation>
     </message>
     <message>
         <source>(read the tooltip)</source>
@@ -1786,8 +1786,8 @@
         <translation>Usuń ten wpis</translation>
     </message>
     <message>
-        <source>The fee will be deducted from the amount being sent. The recipient will receive less zcoins than you enter in the amount field. If multiple recipients are selected, the fee is split equally.</source>
-        <translation>Opłata zostanie odjęta od kwoty wysyłane.Odbiorca otrzyma mniej niż zcoins wpisz w polu kwoty. Jeśli wybrano kilku odbiorców, opłata jest podzielona równo.</translation>
+        <source>The fee will be deducted from the amount being sent. The recipient will receive less verticalcoins than you enter in the amount field. If multiple recipients are selected, the fee is split equally.</source>
+        <translation>Opłata zostanie odjęta od kwoty wysyłane.Odbiorca otrzyma mniej niż verticalcoins wpisz w polu kwoty. Jeśli wybrano kilku odbiorców, opłata jest podzielona równo.</translation>
     </message>
     <message>
         <source>S&amp;ubtract fee from amount</source>
@@ -1847,7 +1847,7 @@
         <translation>Podpi&amp;sz Wiadomość</translation>
     </message>
     <message>
-        <source>You can sign messages/agreements with your addresses to prove you can receive zcoins sent to them. Be careful not to sign anything vague or random, as phishing attacks may try to trick you into signing your identity over to them. Only sign fully-detailed statements you agree to.</source>
+        <source>You can sign messages/agreements with your addresses to prove you can receive verticalcoins sent to them. Be careful not to sign anything vague or random, as phishing attacks may try to trick you into signing your identity over to them. Only sign fully-detailed statements you agree to.</source>
         <translation>Możesz podpisywać wiadomości swoimi adresami aby udowodnić, że jesteś ich właścicielem. Uważaj, aby nie podpisywać niczego co wzbudza Twoje podejrzenia, ponieważ ktoś może stosować phishing próbując nakłonić Cię do ich podpisania. Akceptuj i podpisuj tylko w pełni zrozumiałe komunikaty i wiadomości.</translation>
     </message>
     <message>

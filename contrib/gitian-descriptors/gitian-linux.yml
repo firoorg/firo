@@ -28,7 +28,7 @@ packages:
 - "ca-certificates"
 - "python"
 remotes:
-- "url": "https://github.com/zcoinofficial/verticalcoin"
+- "url": "https://github.com/verticalcoinofficial/verticalcoin"
   "dir": "verticalcoin"
 files: []
 script: |

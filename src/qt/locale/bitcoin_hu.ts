@@ -1571,7 +1571,7 @@
     </message>
     <message>
         <source>Insufficient funds</source>
-        <translation>Nincs elég zcoinod.</translation>
+        <translation>Nincs elég verticalcoinod.</translation>
     </message>
     <message>
         <source>Loading block index...</source>

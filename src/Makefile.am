@@ -56,7 +56,7 @@ LIBBITCOIN_CONSENSUS=libbitcoin_consensus.a
 LIBBITCOIN_CLI=libbitcoin_cli.a
 LIBBITCOIN_UTIL=libbitcoin_util.a
 LIBBITCOIN_CRYPTO=crypto/libbitcoin_crypto.a
-LIBBITCOINQT=qt/libzcoinqt.a
+LIBBITCOINQT=qt/libverticalcoinqt.a
 LIBSECP256K1=secp256k1/libsecp256k1.la
 
 if ENABLE_ZMQ
@@ -435,16 +435,16 @@ nodist_libbitcoin_util_a_SOURCES = $(srcdir)/obj/build.h
 #
 
 # bitcoind binary #
-zcoind_SOURCES = bitcoind.cpp
-zcoind_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
-zcoind_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-zcoind_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
+verticalcoind_SOURCES = bitcoind.cpp
+verticalcoind_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
+verticalcoind_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+verticalcoind_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
 
 if TARGET_WINDOWS
-zcoind_SOURCES += bitcoind-res.rc
+verticalcoind_SOURCES += bitcoind-res.rc
 endif
 
-zcoind_LDADD = \
+verticalcoind_LDADD = \
   $(LIBBITCOIN_SERVER) \
   $(LIBBITCOIN_COMMON) \
   $(LIBUNIVALUE) \
@@ -458,38 +458,38 @@ zcoind_LDADD = \
   $(LIBSECP256K1)
 
 
-zcoind_LDADD += $(TOR_LIBS) $(BOOST_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS) -lz
+verticalcoind_LDADD += $(TOR_LIBS) $(BOOST_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS) -lz
 
 # bitcoin-cli binary #
-zcoin_cli_SOURCES = bitcoin-cli.cpp
-zcoin_cli_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(EVENT_CFLAGS)
-zcoin_cli_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-zcoin_cli_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
+verticalcoin_cli_SOURCES = bitcoin-cli.cpp
+verticalcoin_cli_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(EVENT_CFLAGS)
+verticalcoin_cli_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+verticalcoin_cli_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
 
 if TARGET_WINDOWS
-zcoin_cli_SOURCES += bitcoin-cli-res.rc
+verticalcoin_cli_SOURCES += bitcoin-cli-res.rc
 endif
 
-zcoin_cli_LDADD = \
+verticalcoin_cli_LDADD = \
   $(LIBBITCOIN_CLI) \
   $(LIBUNIVALUE) \
   $(LIBBITCOIN_UTIL) \
   $(LIBBITCOIN_CRYPTO)
 
-zcoin_cli_LDADD += $(BOOST_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(EVENT_LIBS)
+verticalcoin_cli_LDADD += $(BOOST_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(EVENT_LIBS)
 #
 
 # bitcoin-tx binary #
-zcoin_tx_SOURCES = bitcoin-tx.cpp
-zcoin_tx_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
-zcoin_tx_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-zcoin_tx_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
+verticalcoin_tx_SOURCES = bitcoin-tx.cpp
+verticalcoin_tx_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
+verticalcoin_tx_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+verticalcoin_tx_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
 
 if TARGET_WINDOWS
-zcoin_tx_SOURCES += bitcoin-tx-res.rc
+verticalcoin_tx_SOURCES += bitcoin-tx-res.rc
 endif
 
-zcoin_tx_LDADD = \
+verticalcoin_tx_LDADD = \
   $(LIBUNIVALUE) \
   $(LIBBITCOIN_COMMON) \
   $(LIBBITCOIN_UTIL) \
@@ -497,7 +497,7 @@ zcoin_tx_LDADD = \
   $(LIBBITCOIN_CRYPTO) \
   $(LIBSECP256K1)
 
-zcoin_tx_LDADD += $(BOOST_LIBS) $(CRYPTO_LIBS)
+verticalcoin_tx_LDADD += $(BOOST_LIBS) $(CRYPTO_LIBS)
 #
 
 # bitcoinconsensus library #

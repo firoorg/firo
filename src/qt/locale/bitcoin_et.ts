@@ -363,11 +363,11 @@
     </message>
     <message>
         <source>Request payments (generates QR codes and verticalcoin: URIs)</source>
-        <translation>Loo maksepäring (genereerib QR koodid ja zcoini: URId)</translation>
+        <translation>Loo maksepäring (genereerib QR koodid ja verticalcoini: URId)</translation>
     </message>
     <message>
         <source>Open a verticalcoin: URI or payment request</source>
-        <translation>Ava zcoini: URI või maksepäring</translation>
+        <translation>Ava verticalcoini: URI või maksepäring</translation>
     </message>
     <message>
         <source>&amp;Command-line options</source>

@@ -782,7 +782,7 @@
     </message>
     <message>
         <source>Choose the default subdivision unit to show in the interface and when sending coins.</source>
-        <translation>Velg standard delt enhet for visning i grensesnittet og for sending av zcoins.</translation>
+        <translation>Velg standard delt enhet for visning i grensesnittet og for sending av verticalcoins.</translation>
     </message>
     <message>
         <source>Whether to show coin control features or not.</source>
@@ -1526,8 +1526,8 @@
         <translation>Fjern denne oppføringen</translation>
     </message>
     <message>
-        <source>The fee will be deducted from the amount being sent. The recipient will receive less zcoins than you enter in the amount field. If multiple recipients are selected, the fee is split equally.</source>
-        <translation>Gebyret vil bli trukket fra beløpet som blir sendt. Mottakeren vil motta mindre zcoins enn det du skriver inn i beløpsfeltet. Hvis det er valgt flere mottakere, deles gebyret likt.</translation>
+        <source>The fee will be deducted from the amount being sent. The recipient will receive less verticalcoins than you enter in the amount field. If multiple recipients are selected, the fee is split equally.</source>
+        <translation>Gebyret vil bli trukket fra beløpet som blir sendt. Mottakeren vil motta mindre verticalcoins enn det du skriver inn i beløpsfeltet. Hvis det er valgt flere mottakere, deles gebyret likt.</translation>
     </message>
     <message>
         <source>S&amp;ubtract fee from amount</source>
@@ -1551,7 +1551,7 @@
     </message>
     <message>
         <source>A message that was attached to the verticalcoin: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Verticalcoin network.</source>
-        <translation>En melding som var tilknyttet zcoinen: URI vil bli lagret med transaksjonen for din oversikt. Denne meldingen vil ikke bli sendt over Verticalcoin-nettverket.</translation>
+        <translation>En melding som var tilknyttet verticalcoinen: URI vil bli lagret med transaksjonen for din oversikt. Denne meldingen vil ikke bli sendt over Verticalcoin-nettverket.</translation>
     </message>
     <message>
         <source>Pay To:</source>
@@ -1583,8 +1583,8 @@
         <translation>&amp;Signer Melding</translation>
     </message>
     <message>
-        <source>You can sign messages/agreements with your addresses to prove you can receive zcoins sent to them. Be careful not to sign anything vague or random, as phishing attacks may try to trick you into signing your identity over to them. Only sign fully-detailed statements you agree to.</source>
-        <translation>Du kan signere meldinger/avtaler med adresser for å bevise at du kan motta zcoins sendt til dem. Vær forsiktig med å signere noe vagt eller tilfeldig, siden phishing-angrep kan prøve å lure deg til å signere din identitet over til dem. Bare signer fullt detaljerte utsagn som du er enig i.</translation>
+        <source>You can sign messages/agreements with your addresses to prove you can receive verticalcoins sent to them. Be careful not to sign anything vague or random, as phishing attacks may try to trick you into signing your identity over to them. Only sign fully-detailed statements you agree to.</source>
+        <translation>Du kan signere meldinger/avtaler med adresser for å bevise at du kan motta verticalcoins sendt til dem. Vær forsiktig med å signere noe vagt eller tilfeldig, siden phishing-angrep kan prøve å lure deg til å signere din identitet over til dem. Bare signer fullt detaljerte utsagn som du er enig i.</translation>
     </message>
     <message>
         <source>The Verticalcoin address to sign the message with</source>

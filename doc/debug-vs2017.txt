@@ -40,7 +40,7 @@ Building
       ln -s /mnt/c/Users/<username>/verticalcoin verticalcoin 
 
  4. Clone git resository into newly created directory and go to the right branch
-      git clone https://github.com/zcoinofficial/verticalcoin.git
+      git clone https://github.com/verticalcoinofficial/verticalcoin.git
       cd verticalcoin
       git checkout core_upgrade
     Configure git to always use LF and (optionally) specify your name/email. Global Windows git settings (if set)

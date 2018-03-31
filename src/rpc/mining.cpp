@@ -656,7 +656,7 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
         if (tx.IsCoinBase())
             continue;
 
-        // https://github.com/zcoinofficial/verticalcoin/pull/26
+        // https://github.com/verticalcoinofficial/verticalcoin/pull/26
         // make order independence
         // and easy to read for other people
         if (tx.IsZerocoinSpend()) {

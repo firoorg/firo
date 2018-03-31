@@ -81,10 +81,10 @@ UniValue importprivkey(const UniValue& params, bool fHelp)
     
     if (fHelp || params.size() < 1 || params.size() > 3)
         throw runtime_error(
-            "importprivkey \"zcoinprivkey\" ( \"label\" rescan )\n"
+            "importprivkey \"verticalcoinprivkey\" ( \"label\" rescan )\n"
             "\nAdds a private key (as returned by dumpprivkey) to your wallet.\n"
             "\nArguments:\n"
-            "1. \"zcoinprivkey\"   (string, required) The private key (see dumpprivkey)\n"
+            "1. \"verticalcoinprivkey\"   (string, required) The private key (see dumpprivkey)\n"
             "2. \"label\"            (string, optional, default=\"\") An optional label\n"
             "3. rescan               (boolean, optional, default=true) Rescan the wallet for transactions\n"
             "\nNote: This call can take minutes to complete if rescan is true.\n"

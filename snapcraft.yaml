@@ -45,5 +45,5 @@ parts:
   after: [libboost]
   plugin: autotools
   configflags: [--without-gui]
-  source: https://github.com/zcoinofficial/verticalcoin.git
+  source: https://github.com/verticalcoinofficial/verticalcoin.git
   source-branch: master

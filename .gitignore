@@ -8,9 +8,9 @@ src/verticalcoin
 src/verticalcoind
 src/verticalcoin-cli
 src/verticalcoin-tx
-src/test/test_zcoin
-src/test/test_zcoin_fuzzy
-src/qt/test/test_zcoin-qt
+src/test/test_verticalcoin
+src/test/test_verticalcoin_fuzzy
+src/qt/test/test_verticalcoin-qt
 
 # autoreconf
 Makefile.in
@@ -97,7 +97,7 @@ build
 *.gcno
 *.gcda
 /*.info
-test_zcoin.coverage/
+test_verticalcoin.coverage/
 total.coverage/
 coverage_percent.txt
 
@@ -113,6 +113,6 @@ src/test/buildenv.py
 
 /doc/doxygen/
 
-libzcoinconsensus.pc
+libverticalcoinconsensus.pc
 contrib/devtools/split-debug.sh
 /.vs

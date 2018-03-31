@@ -3,7 +3,7 @@ Release Process
 
 Before every release candidate:
 
-* Update translations (ping wumpus on IRC) see [translation_process.md](https://github.com/zcoinofficial/verticalcoin/blob/master/doc/translation_process.md#synchronising-translations).
+* Update translations (ping wumpus on IRC) see [translation_process.md](https://github.com/verticalcoinofficial/verticalcoin/blob/master/doc/translation_process.md#synchronising-translations).
 
 Before every minor and major release:
 
@@ -24,7 +24,7 @@ Check out the source code in the following directory hierarchy.
     git clone https://github.com/bitcoin-core/gitian.sigs.git
     git clone https://github.com/bitcoin-core/bitcoin-detached-sigs.git
     git clone https://github.com/devrandom/gitian-builder.git
-    git clone https://github.com/zcoinofficial/verticalcoin
+    git clone https://github.com/verticalcoinofficial/verticalcoin
 
 ### Bitcoin maintainers/release engineers, update version in sources
 

@@ -14,7 +14,7 @@ Step 1. Build
 ----------------------
 **1.1.**  Check out from source:
 
-    git clone https://github.com/zcoinofficial/verticalcoin
+    git clone https://github.com/verticalcoinofficial/verticalcoin
 
 **1.2.**  See [README.md](README.md) for instructions on building.
 

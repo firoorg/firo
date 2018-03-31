@@ -28,7 +28,7 @@ packages:
 - "python-setuptools"
 - "fonts-tuffy"
 remotes:
-- "url": "https://github.com/zcoinofficial/verticalcoin"
+- "url": "https://github.com/verticalcoinofficial/verticalcoin"
   "dir": "verticalcoin"
 files:
 - "MacOSX10.11.sdk.tar.gz"

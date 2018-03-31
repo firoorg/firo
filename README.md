@@ -27,7 +27,7 @@ Build
 ----------------------
 1.  Clone the source:
 
-        git clone https://github.com/zcoinofficial/verticalcoin
+        git clone https://github.com/verticalcoinofficial/verticalcoin
 
 2.  Build Verticalcoin-core:
 
