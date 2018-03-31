@@ -234,8 +234,8 @@
         <translation>Панель вкладок</translation>
     </message>
     <message>
-        <source>Request payments (generates QR codes and zcoin: URIs)</source>
-        <translation>Створити запит платежу (генерує QR-код та zcoin: URI)</translation>
+        <source>Request payments (generates QR codes and verticalcoin: URIs)</source>
+        <translation>Створити запит платежу (генерує QR-код та verticalcoin: URI)</translation>
     </message>
     <message>
         <source>Show the list of used sending addresses and labels</source>
@@ -246,8 +246,8 @@
         <translation>Показати список адрес і міток, що були використані для отримання</translation>
     </message>
     <message>
-        <source>Open a zcoin: URI or payment request</source>
-        <translation>Відкрити zcoin: URI чи запит платежу</translation>
+        <source>Open a verticalcoin: URI or payment request</source>
+        <translation>Відкрити verticalcoin: URI чи запит платежу</translation>
     </message>
     <message>
         <source>&amp;Command-line options</source>
@@ -1387,7 +1387,7 @@
         <translation>всього щонайменше</translation>
     </message>
     <message>
-        <source>Paying only the minimum fee is just fine as long as there is less transaction volume than space in the blocks. But be aware that this can end up in a never confirming transaction once there is more demand for zcoin transactions than the network can process.</source>
+        <source>Paying only the minimum fee is just fine as long as there is less transaction volume than space in the blocks. But be aware that this can end up in a never confirming transaction once there is more demand for verticalcoin transactions than the network can process.</source>
         <translation>Оплата тільки мінімальної комісії є прийнятною, допоки обсяг транзакцій є меншим простору в блоках. Але майте на увазі, що це може анулювати транзакцію, якщо попит на Verticalcoin транзакції стане більшим, ніж мережа зможе обробити.</translation>
     </message>
     <message>
@@ -1518,8 +1518,8 @@
         <translation>Введіть мітку для цієї адреси для додавання її в список використаних адрес</translation>
     </message>
     <message>
-        <source>A message that was attached to the zcoin: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Verticalcoin network.</source>
-        <translation>Повідомлення, що було додане до zcoin:URI та буде збережено разом з транзакцією для довідки. Примітка: Це повідомлення не буде відправлено в мережу Verticalcoin.</translation>
+        <source>A message that was attached to the verticalcoin: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Verticalcoin network.</source>
+        <translation>Повідомлення, що було додане до verticalcoin:URI та буде збережено разом з транзакцією для довідки. Примітка: Це повідомлення не буде відправлено в мережу Verticalcoin.</translation>
     </message>
     <message>
         <source>Pay To:</source>
@@ -1674,7 +1674,7 @@
     <name>WalletView</name>
     </context>
 <context>
-    <name>zcoin-core</name>
+    <name>verticalcoin-core</name>
     <message>
         <source>Options:</source>
         <translation>Параметри:</translation>

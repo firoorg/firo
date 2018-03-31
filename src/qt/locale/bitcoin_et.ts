@@ -362,11 +362,11 @@
         <translation>Vahelehe tööriistariba</translation>
     </message>
     <message>
-        <source>Request payments (generates QR codes and zcoin: URIs)</source>
+        <source>Request payments (generates QR codes and verticalcoin: URIs)</source>
         <translation>Loo maksepäring (genereerib QR koodid ja zcoini: URId)</translation>
     </message>
     <message>
-        <source>Open a zcoin: URI or payment request</source>
+        <source>Open a verticalcoin: URI or payment request</source>
         <translation>Ava zcoini: URI või maksepäring</translation>
     </message>
     <message>
@@ -1770,7 +1770,7 @@
     <name>WalletView</name>
     </context>
 <context>
-    <name>zcoin-core</name>
+    <name>verticalcoin-core</name>
     <message>
         <source>Options:</source>
         <translation>Valikud:</translation>

@@ -222,8 +222,8 @@
         <translation>Ички ойналар асбоблар панели</translation>
     </message>
     <message>
-        <source>Request payments (generates QR codes and zcoin: URIs)</source>
-        <translation>Тўловлар (QR кодлари ва zcoin ёрдамида яратишлар: URI’лар) сўраш</translation>
+        <source>Request payments (generates QR codes and verticalcoin: URIs)</source>
+        <translation>Тўловлар (QR кодлари ва verticalcoin ёрдамида яратишлар: URI’лар) сўраш</translation>
     </message>
     <message>
         <source>Show the list of used sending addresses and labels</source>
@@ -234,7 +234,7 @@
         <translation>Фойдаланилган қабул қилинган манзиллар ва ёрлиқлар рўйхатини кўрсатиш</translation>
     </message>
     <message>
-        <source>Open a zcoin: URI or payment request</source>
+        <source>Open a verticalcoin: URI or payment request</source>
         <translation>Verticalcoin’ни очиш: URI ёки тўлов сўрови</translation>
     </message>
     <message>
@@ -1216,7 +1216,7 @@
     <name>WalletView</name>
     </context>
 <context>
-    <name>zcoin-core</name>
+    <name>verticalcoin-core</name>
     <message>
         <source>Options:</source>
         <translation>Танламалар:</translation>

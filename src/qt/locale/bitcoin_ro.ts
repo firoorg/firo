@@ -214,12 +214,12 @@
         <translation>&amp;Ajutor</translation>
     </message>
     <message>
-        <source>Request payments (generates QR codes and zcoin: URIs)</source>
-        <translation>Cerere plată (generează coduri QR și zcoin: URIs)</translation>
+        <source>Request payments (generates QR codes and verticalcoin: URIs)</source>
+        <translation>Cerere plată (generează coduri QR și verticalcoin: URIs)</translation>
     </message>
     <message>
-        <source>Open a zcoin: URI or payment request</source>
-        <translation>Deschide un zcoin: URI sau cerere de plată</translation>
+        <source>Open a verticalcoin: URI or payment request</source>
+        <translation>Deschide un verticalcoin: URI sau cerere de plată</translation>
     </message>
     <message>
         <source>%1 and %2</source>
@@ -744,7 +744,7 @@
     <name>WalletView</name>
     </context>
 <context>
-    <name>zcoin-core</name>
+    <name>verticalcoin-core</name>
     <message>
         <source>Verticalcoin Core</source>
         <translation>Verticalcoin Core</translation>

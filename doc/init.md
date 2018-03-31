@@ -54,7 +54,7 @@ see `contrib/debian/examples/bitcoin.conf`.
 All three configurations assume several paths that might need to be adjusted.
 
 Binary:              `/usr/bin/zcoind`
-Configuration file:  `/etc/zcoin/zconf.conf`
+Configuration file:  `/etc/verticalcoin/zconf.conf`
 Data directory:      `/var/lib/zcoind`
 PID file:            `/var/run/zcoind/zcoind.pid` (OpenRC and Upstart) or `/var/lib/zcoind/zcoind.pid` (systemd)
 Lock file:           `/var/lock/subsys/zcoind` (CentOS)
@@ -68,9 +68,9 @@ can then be controlled by group membership.
 3b) Mac OS X
 
 Binary:              `/usr/local/bin/zcoind`
-Configuration file:  `~/Library/Application Support/zcoin/zcoin.conf`
-Data directory:      `~/Library/Application Support/zcoin`
-Lock file:           `~/Library/Application Support/zcoin/.lock`
+Configuration file:  `~/Library/Application Support/verticalcoin/verticalcoin.conf`
+Data directory:      `~/Library/Application Support/verticalcoin`
+Lock file:           `~/Library/Application Support/verticalcoin/.lock`
 
 4. Installing Service Configuration
 -----------------------------------
@@ -110,7 +110,7 @@ setting the BITCOIND and FLAGS environment variables in the file
 4e) Mac OS X
 
 Copy org.bitcoin.bitcoind.plist into ~/Library/LaunchAgents. Load the launch agent by
-running `launchctl load ~/Library/LaunchAgents/org.zcoin.zcoind.plist`.
+running `launchctl load ~/Library/LaunchAgents/org.verticalcoin.zcoind.plist`.
 
 This Launch Agent will cause bitcoind to start whenever the user logs in.
 

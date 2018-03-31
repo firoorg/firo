@@ -398,8 +398,8 @@
         <translation>Barra de pestañas</translation>
     </message>
     <message>
-        <source>Request payments (generates QR codes and zcoin: URIs)</source>
-        <translation>Solicitar pagos (generando códigos QR e identificadores URI "zcoin:")</translation>
+        <source>Request payments (generates QR codes and verticalcoin: URIs)</source>
+        <translation>Solicitar pagos (generando códigos QR e identificadores URI "verticalcoin:")</translation>
     </message>
     <message>
         <source>Show the list of used sending addresses and labels</source>
@@ -410,8 +410,8 @@
         <translation>Muestra la lista de direcciones de recepción y etiquetas</translation>
     </message>
     <message>
-        <source>Open a zcoin: URI or payment request</source>
-        <translation>Abrir un identificador URI "zcoin:" o una petición de pago</translation>
+        <source>Open a verticalcoin: URI or payment request</source>
+        <translation>Abrir un identificador URI "verticalcoin:" o una petición de pago</translation>
     </message>
     <message>
         <source>&amp;Command-line options</source>
@@ -1279,8 +1279,8 @@
         <translation>Fallo en la solicitud de pago</translation>
     </message>
     <message>
-        <source>Cannot start zcoin: click-to-pay handler</source>
-        <translation>No se puede iniciar zcoin: encargado click-para-pagar</translation>
+        <source>Cannot start verticalcoin: click-to-pay handler</source>
+        <translation>No se puede iniciar verticalcoin: encargado click-para-pagar</translation>
     </message>
     <message>
         <source>URI handling</source>
@@ -1983,7 +1983,7 @@
         <translation>total por lo menos</translation>
     </message>
     <message>
-        <source>Paying only the minimum fee is just fine as long as there is less transaction volume than space in the blocks. But be aware that this can end up in a never confirming transaction once there is more demand for zcoin transactions than the network can process.</source>
+        <source>Paying only the minimum fee is just fine as long as there is less transaction volume than space in the blocks. But be aware that this can end up in a never confirming transaction once there is more demand for verticalcoin transactions than the network can process.</source>
         <translation>Pagando solamente la cuota mínima es correcto, siempre y cuando haya menos volumen de transacciones que el espacio en los bloques. Pero tenga en cuenta que esto puede terminar en una transacción nunca confirmada, una vez que haya más demanda para transacciones Verticalcoin que la red pueda procesar.</translation>
     </message>
     <message>
@@ -2226,8 +2226,8 @@
         <translation>Introduce una etiqueta para esta dirección para añadirla a la lista de direcciones utilizadas</translation>
     </message>
     <message>
-        <source>A message that was attached to the zcoin: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Verticalcoin network.</source>
-        <translation>Un mensaje que se adjuntó a la zcoin: URL que será almacenada con la transacción para su referencia. Nota: Este mensaje no se envía a través de la red Verticalcoin.</translation>
+        <source>A message that was attached to the verticalcoin: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Verticalcoin network.</source>
+        <translation>Un mensaje que se adjuntó a la verticalcoin: URL que será almacenada con la transacción para su referencia. Nota: Este mensaje no se envía a través de la red Verticalcoin.</translation>
     </message>
     <message>
         <source>Pay To:</source>
@@ -2922,7 +2922,7 @@
     </message>
 </context>
 <context>
-    <name>zcoin-core</name>
+    <name>verticalcoin-core</name>
     <message>
         <source>Options:</source>
         <translation>Opciones:

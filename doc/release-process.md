@@ -3,7 +3,7 @@ Release Process
 
 Before every release candidate:
 
-* Update translations (ping wumpus on IRC) see [translation_process.md](https://github.com/zcoinofficial/zcoin/blob/master/doc/translation_process.md#synchronising-translations).
+* Update translations (ping wumpus on IRC) see [translation_process.md](https://github.com/zcoinofficial/verticalcoin/blob/master/doc/translation_process.md#synchronising-translations).
 
 Before every minor and major release:
 
@@ -24,7 +24,7 @@ Check out the source code in the following directory hierarchy.
     git clone https://github.com/bitcoin-core/gitian.sigs.git
     git clone https://github.com/bitcoin-core/bitcoin-detached-sigs.git
     git clone https://github.com/devrandom/gitian-builder.git
-    git clone https://github.com/zcoinofficial/zcoin
+    git clone https://github.com/zcoinofficial/verticalcoin
 
 ### Bitcoin maintainers/release engineers, update version in sources
 
@@ -63,7 +63,7 @@ Tag version (or release candidate) in git
 
 Setup Gitian descriptors:
 
-    pushd ./zcoin
+    pushd ./verticalcoin
     export SIGNER=(your Gitian key, ie bluematt, sipa, etc)
     export VERSION=(new version, e.g. 0.13.2.x)
     git fetch
@@ -97,7 +97,7 @@ Create the OS X SDK tarball, see the [OS X readme](README_osx.md) for details, a
 By default, Gitian will fetch source files as needed. To cache them ahead of time:
 
     pushd ./gitian-builder
-    make -C ../zcoin/depends download SOURCES_PATH=`pwd`/cache/common
+    make -C ../verticalcoin/depends download SOURCES_PATH=`pwd`/cache/common
     popd
 
 Only missing files will be fetched, so this is safe to re-run for each build.
@@ -105,7 +105,7 @@ Only missing files will be fetched, so this is safe to re-run for each build.
 NOTE: Offline builds must use the --url flag to ensure Gitian fetches only from local URLs. For example:
 
     pushd ./gitian-builder
-    ./bin/gbuild --url zcoin=/path/to/zcoin,signature=/path/to/sigs {rest of arguments}
+    ./bin/gbuild --url verticalcoin=/path/to/verticalcoin,signature=/path/to/sigs {rest of arguments}
     popd
 
 The gbuild invocations below <b>DO NOT DO THIS</b> by default.
@@ -113,27 +113,27 @@ The gbuild invocations below <b>DO NOT DO THIS</b> by default.
 ### Build and sign Verticalcoin Core for Linux, Windows, and OS X:
 
     pushd ./gitian-builder
-    ./bin/gbuild --memory 3000 --commit zcoin=v${VERSION} ../zcoin/contrib/gitian-descriptors/gitian-linux.yml
+    ./bin/gbuild --memory 3000 --commit verticalcoin=v${VERSION} ../verticalcoin/contrib/gitian-descriptors/gitian-linux.yml
     ./bin/gsign --signer $SIGNER --release ${VERSION}-linux --destination ../gitian.sigs/ ../bitcoin/contrib/gitian-descriptors/gitian-linux.yml
-    mv build/out/zcoin-*.tar.gz build/out/src/zcoin-*.tar.gz ../
+    mv build/out/verticalcoin-*.tar.gz build/out/src/verticalcoin-*.tar.gz ../
 
-    ./bin/gbuild --memory 3000 --commit zcoin=v${VERSION} ../zcoin/contrib/gitian-descriptors/gitian-win.yml
+    ./bin/gbuild --memory 3000 --commit verticalcoin=v${VERSION} ../verticalcoin/contrib/gitian-descriptors/gitian-win.yml
     ./bin/gsign --signer $SIGNER --release ${VERSION}-win-unsigned --destination ../gitian.sigs/ ../bitcoin/contrib/gitian-descriptors/gitian-win.yml
-    mv build/out/zcoin-*-win-unsigned.tar.gz inputs/zcoin-win-unsigned.tar.gz
-    mv build/out/zcoin-*.zip build/out/bitcoin-*.exe ../
+    mv build/out/verticalcoin-*-win-unsigned.tar.gz inputs/verticalcoin-win-unsigned.tar.gz
+    mv build/out/verticalcoin-*.zip build/out/bitcoin-*.exe ../
 
-    ./bin/gbuild --memory 3000 --commit zcoin=v${VERSION} ../zcoin/contrib/gitian-descriptors/gitian-osx.yml
+    ./bin/gbuild --memory 3000 --commit verticalcoin=v${VERSION} ../verticalcoin/contrib/gitian-descriptors/gitian-osx.yml
     ./bin/gsign --signer $SIGNER --release ${VERSION}-osx-unsigned --destination ../gitian.sigs/ ../bitcoin/contrib/gitian-descriptors/gitian-osx.yml
-    mv build/out/zcoin-*-osx-unsigned.tar.gz inputs/zcoin-osx-unsigned.tar.gz
-    mv build/out/zcoin-*.tar.gz build/out/zcoin-*.dmg ../
+    mv build/out/verticalcoin-*-osx-unsigned.tar.gz inputs/verticalcoin-osx-unsigned.tar.gz
+    mv build/out/verticalcoin-*.tar.gz build/out/verticalcoin-*.dmg ../
     popd
 
 Build output expected:
 
-  1. source tarball (`zcoin-${VERSION}.tar.gz`)
-  2. linux 32-bit and 64-bit dist tarballs (zcoin-${VERSION}-linux[32|64].tar.gz`)
-  3. windows 32-bit and 64-bit unsigned installers and dist zips (`zcoin-${VERSION}-win[32|64]-setup-unsigned.exe`, `zcoin-${VERSION}-win[32|64].zip`)
-  4. OS X unsigned installer and dist tarball (`zcoin-${VERSION}-osx-unsigned.dmg`, `zcoin-${VERSION}-osx64.tar.gz`)
+  1. source tarball (`verticalcoin-${VERSION}.tar.gz`)
+  2. linux 32-bit and 64-bit dist tarballs (verticalcoin-${VERSION}-linux[32|64].tar.gz`)
+  3. windows 32-bit and 64-bit unsigned installers and dist zips (`verticalcoin-${VERSION}-win[32|64]-setup-unsigned.exe`, `verticalcoin-${VERSION}-win[32|64].zip`)
+  4. OS X unsigned installer and dist tarball (`verticalcoin-${VERSION}-osx-unsigned.dmg`, `verticalcoin-${VERSION}-osx64.tar.gz`)
   5. Gitian signatures (in `gitian.sigs/${VERSION}-<linux|{win,osx}-unsigned>/(your Gitian key)/`)
 
 ### Verify other gitian builders signatures to your own. (Optional)
@@ -145,9 +145,9 @@ Add other gitian builders keys to your gpg keyring
 Verify the signatures
 
     pushd ./gitian-builder
-    ./bin/gverify -v -d ../gitian.sigs/ -r ${VERSION}-linux ../zcoin/contrib/gitian-descriptors/gitian-linux.yml
-    ./bin/gverify -v -d ../gitian.sigs/ -r ${VERSION}-win-unsigned ../zcoin/contrib/gitian-descriptors/gitian-win.yml
-    ./bin/gverify -v -d ../gitian.sigs/ -r ${VERSION}-osx-unsigned ../zcoin/contrib/gitian-descriptors/gitian-osx.yml
+    ./bin/gverify -v -d ../gitian.sigs/ -r ${VERSION}-linux ../verticalcoin/contrib/gitian-descriptors/gitian-linux.yml
+    ./bin/gverify -v -d ../gitian.sigs/ -r ${VERSION}-win-unsigned ../verticalcoin/contrib/gitian-descriptors/gitian-win.yml
+    ./bin/gverify -v -d ../gitian.sigs/ -r ${VERSION}-osx-unsigned ../verticalcoin/contrib/gitian-descriptors/gitian-osx.yml
     popd
 
 ### Next steps:
@@ -170,20 +170,20 @@ Wait for Windows/OS X detached signatures:
 Create (and optionally verify) the signed OS X binary:
 
     pushd ./gitian-builder
-    ./bin/gbuild -i --commit signature=v${VERSION} ../zcoin/contrib/gitian-descriptors/gitian-osx-signer.yml
-    ./bin/gsign --signer $SIGNER --release ${VERSION}-osx-signed --destination ../gitian.sigs/ ../zcoin/contrib/gitian-descriptors/gitian-osx-signer.yml
-    ./bin/gverify -v -d ../gitian.sigs/ -r ${VERSION}-osx-signed ../zcoin/contrib/gitian-descriptors/gitian-osx-signer.yml
-    mv build/out/zcoin-osx-signed.dmg ../zcoin-${VERSION}-osx.dmg
+    ./bin/gbuild -i --commit signature=v${VERSION} ../verticalcoin/contrib/gitian-descriptors/gitian-osx-signer.yml
+    ./bin/gsign --signer $SIGNER --release ${VERSION}-osx-signed --destination ../gitian.sigs/ ../verticalcoin/contrib/gitian-descriptors/gitian-osx-signer.yml
+    ./bin/gverify -v -d ../gitian.sigs/ -r ${VERSION}-osx-signed ../verticalcoin/contrib/gitian-descriptors/gitian-osx-signer.yml
+    mv build/out/verticalcoin-osx-signed.dmg ../verticalcoin-${VERSION}-osx.dmg
     popd
 
 Create (and optionally verify) the signed Windows binaries:
 
     pushd ./gitian-builder
-    ./bin/gbuild -i --commit signature=v${VERSION} ../zcoin/contrib/gitian-descriptors/gitian-win-signer.yml
-    ./bin/gsign --signer $SIGNER --release ${VERSION}-win-signed --destination ../gitian.sigs/ ../zcoin/contrib/gitian-descriptors/gitian-win-signer.yml
-    ./bin/gverify -v -d ../gitian.sigs/ -r ${VERSION}-win-signed ../zcoin/contrib/gitian-descriptors/gitian-win-signer.yml
-    mv build/out/zcoin-*win64-setup.exe ../zcoin-${VERSION}-win64-setup.exe
-    mv build/out/zcoin-*win32-setup.exe ../zcoin-${VERSION}-win32-setup.exe
+    ./bin/gbuild -i --commit signature=v${VERSION} ../verticalcoin/contrib/gitian-descriptors/gitian-win-signer.yml
+    ./bin/gsign --signer $SIGNER --release ${VERSION}-win-signed --destination ../gitian.sigs/ ../verticalcoin/contrib/gitian-descriptors/gitian-win-signer.yml
+    ./bin/gverify -v -d ../gitian.sigs/ -r ${VERSION}-win-signed ../verticalcoin/contrib/gitian-descriptors/gitian-win-signer.yml
+    mv build/out/verticalcoin-*win64-setup.exe ../verticalcoin-${VERSION}-win64-setup.exe
+    mv build/out/verticalcoin-*win32-setup.exe ../verticalcoin-${VERSION}-win32-setup.exe
     popd
 
 Commit your signature for the signed OS X/Windows binaries:
@@ -205,17 +205,17 @@ sha256sum * > SHA256SUMS
 
 The list of files should be:
 ```
-zcoin-${VERSION}-aarch64-linux-gnu.tar.gz
-zcoin-${VERSION}-arm-linux-gnueabihf.tar.gz
-zcoin-${VERSION}-i686-pc-linux-gnu.tar.gz
-zcoin-${VERSION}-x86_64-linux-gnu.tar.gz
-zcoin-${VERSION}-osx64.tar.gz
-zcoin-${VERSION}-osx.dmg
-zcoin-${VERSION}.tar.gz
-zcoin-${VERSION}-win32-setup.exe
-zcoin-${VERSION}-win32.zip
-zcoin-${VERSION}-win64-setup.exe
-zcoin-${VERSION}-win64.zip
+verticalcoin-${VERSION}-aarch64-linux-gnu.tar.gz
+verticalcoin-${VERSION}-arm-linux-gnueabihf.tar.gz
+verticalcoin-${VERSION}-i686-pc-linux-gnu.tar.gz
+verticalcoin-${VERSION}-x86_64-linux-gnu.tar.gz
+verticalcoin-${VERSION}-osx64.tar.gz
+verticalcoin-${VERSION}-osx.dmg
+verticalcoin-${VERSION}.tar.gz
+verticalcoin-${VERSION}-win32-setup.exe
+verticalcoin-${VERSION}-win32.zip
+verticalcoin-${VERSION}-win64-setup.exe
+verticalcoin-${VERSION}-win64.zip
 ```
 The `*-debug*` files generated by the gitian build contain debug symbols
 for troubleshooting by developers. It is assumed that anyone that is interested
@@ -232,7 +232,7 @@ rm SHA256SUMS
 Note: check that SHA256SUMS itself doesn't end up in SHA256SUMS, which is a spurious/nonsensical entry.
 
 - Upload zips and installers, as well as `SHA256SUMS.asc` from last step, to the znode.io server
-  into `/var/www/bin/zcoin-core-${VERSION}`
+  into `/var/www/bin/verticalcoin-core-${VERSION}`
 
 - A `.torrent` will appear in the directory after a few minutes. Optionally help seed this torrent. To get the `magnet:` URI use:
 ```bash

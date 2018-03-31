@@ -143,7 +143,7 @@
     </message>
     <message>
         <source>Send coins to a Verticalcoin address</source>
-        <translation>Enviar monedas a una dirección zcoin</translation>
+        <translation>Enviar monedas a una dirección verticalcoin</translation>
     </message>
     <message>
         <source>Backup wallet to another location</source>
@@ -206,8 +206,8 @@
         <translation>Barra de pestañas</translation>
     </message>
     <message>
-        <source>Request payments (generates QR codes and zcoin: URIs)</source>
-        <translation>Pide pagos (genera codigos QR and zcoin: URls)</translation>
+        <source>Request payments (generates QR codes and verticalcoin: URIs)</source>
+        <translation>Pide pagos (genera codigos QR and verticalcoin: URls)</translation>
     </message>
     <message>
         <source>%1 and %2</source>
@@ -752,7 +752,7 @@
     <name>WalletView</name>
     </context>
 <context>
-    <name>zcoin-core</name>
+    <name>verticalcoin-core</name>
     <message>
         <source>Options:</source>
         <translation>Opciones:
@@ -775,7 +775,7 @@
     </message>
     <message>
         <source>Verticalcoin Core</source>
-        <translation>zcoin core</translation>
+        <translation>verticalcoin core</translation>
     </message>
     <message>
         <source>Connect only to the specified node(s)</source>

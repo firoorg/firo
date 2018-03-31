@@ -3,7 +3,7 @@ Verticalcoin Core 0.13.2.x
 
 Setup
 ---------------------
-[Verticalcoin Core] (https://zcoin.io/get-zcoin/) is the original Verticalcoin client and it builds the backbone of the network. However, it downloads and stores the entire history of Verticalcoin transactions (which is currently several hundreds MBs); depending on the speed of your computer and network connection, the synchronization process can take anywhere from a few hours to a day or more.
+[Verticalcoin Core] (https://verticalcoin.io/get-verticalcoin/) is the original Verticalcoin client and it builds the backbone of the network. However, it downloads and stores the entire history of Verticalcoin transactions (which is currently several hundreds MBs); depending on the speed of your computer and network connection, the synchronization process can take anywhere from a few hours to a day or more.
 
 Running
 ---------------------
@@ -13,12 +13,12 @@ The following are some helpful notes on how to run Verticalcoin on your native p
 
 Unpack the files into a directory and run:
 
-- `bin/zcoin-qt` (GUI) or
+- `bin/verticalcoin-qt` (GUI) or
 - `bin/zcoind` (headless)
 
 ### Windows
 
-Unpack the files into a directory, and then run zcoin-qt.exe.
+Unpack the files into a directory, and then run verticalcoin-qt.exe.
 
 ### OS X
 

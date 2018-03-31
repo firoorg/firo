@@ -6,7 +6,7 @@ Some notes on how to build Verticalcoin Core in Unix.
 
 Note
 ---------------------
-Always use absolute paths to configure and compile zcoin and the dependencies,
+Always use absolute paths to configure and compile verticalcoin and the dependencies,
 for example, when specifying the path of the dependency:
 
 	../dist/configure --enable-cxx --disable-shared --with-pic --prefix=$BDB_PREFIX
@@ -24,7 +24,7 @@ make
 make install # optional
 ```
 
-This will build zcoin-qt as well if the dependencies are met.
+This will build verticalcoin-qt as well if the dependencies are met.
 
 Dependencies
 ---------------------
@@ -122,7 +122,7 @@ libqrencode (optional) can be installed with:
 
     sudo apt-get install libqrencode-dev
 
-Once these are installed, they will be found by configure and a zcoin-qt executable will be
+Once these are installed, they will be found by configure and a verticalcoin-qt executable will be
 built by default.
 
 Dependency Build Instructions: Fedora
@@ -203,7 +203,7 @@ If you need to build Boost yourself:
 
 Security
 --------
-To help make your zcoin installation more secure by making certain attacks impossible to
+To help make your verticalcoin installation more secure by making certain attacks impossible to
 exploit even if a vulnerability is found, binaries are hardened by default.
 This can be disabled with:
 
@@ -227,7 +227,7 @@ Hardening enables the following features:
 
     To test that you have built PIE executable, install scanelf, part of paxutils, and use:
 
-        scanelf -e ./zcoin
+        scanelf -e ./verticalcoin
 
     The output should contain:
 
@@ -236,7 +236,7 @@ Hardening enables the following features:
 
 * Non-executable Stack
     If the stack is executable then trivial stack based buffer overflow exploits are possible if
-    vulnerable buffers are found. By default, zcoin should be built with a non-executable stack
+    vulnerable buffers are found. By default, verticalcoin should be built with a non-executable stack
     but if one of the libraries it uses asks for an executable stack or someone makes a mistake
     and uses a compiler extension which requires an executable stack, it will silently build an
     executable without the non-executable stack protection.
