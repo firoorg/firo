@@ -374,7 +374,7 @@ public:
 
     bool Sign(CKey& keyCollateralAddress);
     bool CheckSignature(int& nDos);
-    void RelayZNode();
+    void RelayVNode();
 };
 
 class CZnodeVerification

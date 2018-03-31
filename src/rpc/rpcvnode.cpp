@@ -35,7 +35,7 @@ UniValue privatesend(const UniValue &params, bool fHelp) {
             EnsureWalletIsUnlocked();
         }
 
-        if (fZNode)
+        if (fVNode)
             return "Mixing is not supported from vnodes";
 
         fEnablePrivateSend = true;
@@ -216,7 +216,7 @@ UniValue vnode(const UniValue &params, bool fHelp) {
     }
 
     if (strCommand == "start") {
-        if (!fZNode)
+        if (!fVNode)
             throw JSONRPCError(RPC_INTERNAL_ERROR, "You must set vnode=1 in the configuration");
 
         {
@@ -259,7 +259,7 @@ UniValue vnode(const UniValue &params, bool fHelp) {
                 statusObj.push_back(Pair("result", fResult ? "successful" : "failed"));
                 if (fResult) {
                     mnodeman.UpdateZnodeList(mnb);
-                    mnb.RelayZNode();
+                    mnb.RelayVNode();
                 } else {
                     LogPrintf("Start-alias: errorMessage = %s\n", strError);
                     statusObj.push_back(Pair("errorMessage", strError));
@@ -317,7 +317,7 @@ UniValue vnode(const UniValue &params, bool fHelp) {
             if (fResult) {
                 nSuccessful++;
                 mnodeman.UpdateZnodeList(mnb);
-                mnb.RelayZNode();
+                mnb.RelayVNode();
             } else {
                 nFailed++;
                 statusObj.push_back(Pair("errorMessage", strError));
@@ -381,7 +381,7 @@ UniValue vnode(const UniValue &params, bool fHelp) {
     }
 
     if (strCommand == "status") {
-        if (!fZNode)
+        if (!fVNode)
             throw JSONRPCError(RPC_INTERNAL_ERROR, "This is not a vnode");
 
         UniValue mnObj(UniValue::VOBJ);
@@ -792,7 +792,7 @@ UniValue vnodebroadcast(const UniValue &params, bool fHelp) {
                     fResult = mnodeman.CheckMnbAndUpdateZnodeList(NULL, mnb, nDos);
                 } else {
                     mnodeman.UpdateZnodeList(mnb);
-                    mnb.RelayZNode();
+                    mnb.RelayVNode();
                     fResult = true;
                 }
                 mnodeman.NotifyZnodeUpdates();

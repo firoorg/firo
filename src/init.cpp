@@ -1829,17 +1829,17 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
                      chainparams);
 
     // ********************************************************* Step 11a: setup PrivateSend
-    fZNode = GetBoolArg("-vnode", false);
+    fVNode = GetBoolArg("-vnode", false);
 
-    LogPrintf("fZNode = %s\n", fZNode);
+    LogPrintf("fVNode = %s\n", fVNode);
     LogPrintf("vnodeConfig.getCount(): %s\n", vnodeConfig.getCount());
 
-    if ((fZNode || vnodeConfig.getCount() > 0) && !fTxIndex) {
+    if ((fVNode || vnodeConfig.getCount() > 0) && !fTxIndex) {
         return InitError("Enabling Vnode support requires turning on transaction indexing."
                                  "Please add txindex=1 to your configuration and start with -reindex");
     }
 
-    if (fZNode) {
+    if (fVNode) {
         LogPrintf("Vnode:\n");
 
         if (!GetArg("-vnodeaddr", "").empty()) {
@@ -1900,7 +1900,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
 
     //lite mode disables all Vnode and Darksend related functionality
     fLiteMode = GetBoolArg("-litemode", false);
-    if (fZNode && fLiteMode) {
+    if (fVNode && fLiteMode) {
         return InitError("You can not start a vnode in litemode");
     }
 

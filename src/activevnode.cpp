@@ -15,7 +15,7 @@ CActiveZnode activeZnode;
 
 void CActiveZnode::ManageState() {
     LogPrint("vnode", "CActiveZnode::ManageState -- Start\n");
-    if (!fZNode) {
+    if (!fVNode) {
         LogPrint("vnode", "CActiveZnode::ManageState -- Not a vnode, returning\n");
         return;
     }
@@ -328,6 +328,6 @@ void CActiveZnode::ManageStateLocal() {
 
         //send to all peers
         LogPrintf("CActiveZnode::ManageStateLocal -- Relay broadcast, vin=%s\n", vin.ToString());
-        mnb.RelayZNode();
+        mnb.RelayVNode();
     }
 }

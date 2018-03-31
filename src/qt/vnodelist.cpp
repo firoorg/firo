@@ -114,7 +114,7 @@ void ZnodeList::StartAlias(std::string strAlias)
             if(fSuccess) {
                 strStatusHtml += "<br>Successfully started vnode.";
                 mnodeman.UpdateZnodeList(mnb);
-                mnb.RelayZNode();
+                mnb.RelayVNode();
                 mnodeman.NotifyZnodeUpdates();
             } else {
                 strStatusHtml += "<br>Failed to start vnode.<br>Error: " + strError;
@@ -155,7 +155,7 @@ void ZnodeList::StartAll(std::string strCommand)
         if(fSuccess) {
             nCountSuccessful++;
             mnodeman.UpdateZnodeList(mnb);
-            mnb.RelayZNode();
+            mnb.RelayVNode();
             mnodeman.NotifyZnodeUpdates();
         } else {
             nCountFailed++;

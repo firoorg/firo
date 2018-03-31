@@ -121,7 +121,7 @@ bool CZnode::UpdateFromNewBroadcast(CZnodeBroadcast &mnb) {
         mnodeman.mapSeenZnodePing.insert(std::make_pair(lastPing.GetHash(), lastPing));
     }
     // if it matches our Vnode privkey...
-    if (fZNode && pubKeyZnode == activeZnode.pubKeyZnode) {
+    if (fVNode && pubKeyZnode == activeZnode.pubKeyZnode) {
         nPoSeBanScore = -ZNODE_POSE_BAN_MAX_SCORE;
         if (nProtocolVersion == PROTOCOL_VERSION) {
             // ... and PROTOCOL_VERSION, then we've been remotely activated ...
@@ -202,7 +202,7 @@ void CZnode::Check(bool fForce) {
     }
 
     int nActiveStatePrev = nActiveState;
-    bool fOurZnode = fZNode && activeZnode.pubKeyZnode == pubKeyZnode;
+    bool fOurZnode = fVNode && activeZnode.pubKeyZnode == pubKeyZnode;
 
     // vnode doesn't meet payment protocol requirements ...
     bool fRequireUpdate = nProtocolVersion < mnpayments.GetMinZnodePaymentsProto() ||
@@ -617,12 +617,12 @@ bool CZnodeBroadcast::Update(CZnode *pmn, int &nDos) {
     }
 
     // if ther was no vnode broadcast recently or if it matches our Vnode privkey...
-    if (!pmn->IsBroadcastedWithin(ZNODE_MIN_MNB_SECONDS) || (fZNode && pubKeyZnode == activeZnode.pubKeyZnode)) {
+    if (!pmn->IsBroadcastedWithin(ZNODE_MIN_MNB_SECONDS) || (fVNode && pubKeyZnode == activeZnode.pubKeyZnode)) {
         // take the newest entry
         LogPrintf("CZnodeBroadcast::Update -- Got UPDATED Vnode entry: addr=%s\n", addr.ToString());
         if (pmn->UpdateFromNewBroadcast((*this))) {
             pmn->Check();
-            RelayZNode();
+            RelayVNode();
         }
         vnodeSync.AddedZnodeList();
     }
@@ -633,7 +633,7 @@ bool CZnodeBroadcast::Update(CZnode *pmn, int &nDos) {
 bool CZnodeBroadcast::CheckOutpoint(int &nDos) {
     // we are a vnode with the same vin (i.e. already activated) and this mnb is ours (matches our Vnode privkey)
     // so nothing to do here for us
-    if (fZNode && vin.prevout == activeZnode.vin.prevout && pubKeyZnode == activeZnode.pubKeyZnode) {
+    if (fVNode && vin.prevout == activeZnode.vin.prevout && pubKeyZnode == activeZnode.pubKeyZnode) {
         return false;
     }
 
@@ -746,8 +746,8 @@ bool CZnodeBroadcast::CheckSignature(int &nDos) {
     return true;
 }
 
-void CZnodeBroadcast::RelayZNode() {
-    LogPrintf("CZnodeBroadcast::RelayZNode\n");
+void CZnodeBroadcast::RelayVNode() {
+    LogPrintf("CZnodeBroadcast::RelayVNode\n");
     CInv inv(MSG_ZNODE_ANNOUNCE, GetHash());
     RelayInv(inv);
 }
@@ -764,7 +764,7 @@ CZnodePing::CZnodePing(CTxIn &vinNew) {
 
 bool CZnodePing::Sign(CKey &keyZnode, CPubKey &pubKeyZnode) {
     std::string strError;
-    std::string strZNodeSignMessage;
+    std::string strVNodeSignMessage;
 
     sigTime = GetAdjustedTime();
     std::string strMessage = vin.ToString() + blockHash.ToString() + boost::lexical_cast<std::string>(sigTime);
