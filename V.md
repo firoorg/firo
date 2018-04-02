@@ -46,7 +46,7 @@ Step 3. First run on your Local Wallet
 
     ./src/verticalcoin-cli getaccountaddress 0
 
-**3.4.**  Send to received address **exactly 1000 XZC** in **1 transaction**. Wait for 15 confirmations.
+**3.4.**  Send to received address **exactly 3750 VRT** in **1 transaction**. Wait for 15 confirmations.
 
 **3.5.**  Stop daemon:
 
@@ -73,7 +73,7 @@ Step 4. In your VPS where you are hosting your Vnode. Update config files
  - LABEL: A one word name you make up to call your node (ex. ZN1)
  - IP:PORT: Your vnode VPS's IP, and the port is always 18168.
  - VNODEPRIVKEY: This is the result of your "vnode genkey" from earlier.
- - TRANSACTION HASH: The collateral tx. hash from the 1000 XZC deposit.
+ - TRANSACTION HASH: The collateral tx. hash from the 3750 VRT deposit.
  - INDEX: The Index is always 0 or 1.
 
 To get TRANSACTION HASH, run:

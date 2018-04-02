@@ -384,7 +384,7 @@ void CBlockPolicyEstimator::processTransaction(const CTxMemPoolEntry& entry, boo
     double curPri = entry.GetPriority(txHeight);
     mapMemPoolTxs[hash].blockHeight = txHeight;
 
-    LogPrint("estimatefee", "entry.GetFee()=%s XZC\n", entry.GetFee()/100000000);
+    LogPrint("estimatefee", "entry.GetFee()=%s VRT\n", entry.GetFee()/100000000);
     // Record this as a priority estimate
 //    if (entry.GetFee() == 0 || isPriDataPoint(feeRate, c) {
     if (entry.GetFee() == 0) {

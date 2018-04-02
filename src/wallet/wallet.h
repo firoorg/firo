@@ -726,7 +726,7 @@ public:
     void ListLockedCoins(std::vector<COutPoint>& vOutpts);
 
     // vnode
-    /// Get 1000 XZC output and keys which can be used for the Vnode
+    /// Get 3750 VRT output and keys which can be used for the Vnode
     bool GetVnodeVinAndKeys(CTxIn& txinRet, CPubKey& pubKeyRet, CKey& keyRet, std::string strTxHash = "", std::string strOutputIndex = "");
     /// Extract txin information and keys from output
     bool GetVinAndKeysFromOutput(COutput out, CTxIn& txinRet, CPubKey& pubKeyRet, CKey& keyRet);

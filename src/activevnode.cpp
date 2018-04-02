@@ -224,7 +224,7 @@ void CActiveVnode::ManageStateInitial() {
     }
 
     if (pwalletMain->GetBalance() < VNODE_COIN_REQUIRED * COIN) {
-        LogPrintf("CActiveVnode::ManageStateInitial -- %s: Wallet balance is < 1000 XZC\n", GetStateString());
+        LogPrintf("CActiveVnode::ManageStateInitial -- %s: Wallet balance is < 3750 VRT\n", GetStateString());
         return;
     }
 

@@ -3,7 +3,7 @@ version: "0.0.1"
 summary: Vnode for Verticalcoin project
 description: |
  Vnodes verify transaction and are used as second layer on top of the normal nodes.
- Vnodes must have access to 1000xzc at a specific address to play the role of Vnode otherwise they are just degraded to a regular node on the network.
+ Vnodes must have access to 3750vrt at a specific address to play the role of Vnode otherwise they are just degraded to a regular node on the network.
 
 confinement: strict
 grade: stable

@@ -135,7 +135,7 @@ public:
         labelWatchPending->setObjectName(QString::fromUtf8("labelWatchPending"));
         labelWatchPending->setFont(font);
         labelWatchPending->setCursor(QCursor(Qt::IBeamCursor));
-        labelWatchPending->setText(QString::fromUtf8("0.000\342\200\211000\342\200\21100 XZC"));
+        labelWatchPending->setText(QString::fromUtf8("0.000\342\200\211000\342\200\21100 VRT"));
         labelWatchPending->setAlignment(Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter);
         labelWatchPending->setTextInteractionFlags(Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse);
 
@@ -145,7 +145,7 @@ public:
         labelUnconfirmed->setObjectName(QString::fromUtf8("labelUnconfirmed"));
         labelUnconfirmed->setFont(font);
         labelUnconfirmed->setCursor(QCursor(Qt::IBeamCursor));
-        labelUnconfirmed->setText(QString::fromUtf8("0.000\342\200\211000\342\200\21100 XZC"));
+        labelUnconfirmed->setText(QString::fromUtf8("0.000\342\200\211000\342\200\21100 VRT"));
         labelUnconfirmed->setAlignment(Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter);
         labelUnconfirmed->setTextInteractionFlags(Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse);
 
@@ -155,7 +155,7 @@ public:
         labelWatchImmature->setObjectName(QString::fromUtf8("labelWatchImmature"));
         labelWatchImmature->setFont(font);
         labelWatchImmature->setCursor(QCursor(Qt::IBeamCursor));
-        labelWatchImmature->setText(QString::fromUtf8("0.000\342\200\211000\342\200\21100 XZC"));
+        labelWatchImmature->setText(QString::fromUtf8("0.000\342\200\211000\342\200\21100 VRT"));
         labelWatchImmature->setAlignment(Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter);
         labelWatchImmature->setTextInteractionFlags(Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse);
 
@@ -190,7 +190,7 @@ public:
         labelImmature->setObjectName(QString::fromUtf8("labelImmature"));
         labelImmature->setFont(font);
         labelImmature->setCursor(QCursor(Qt::IBeamCursor));
-        labelImmature->setText(QString::fromUtf8("0.000\342\200\211000\342\200\21100 XZC"));
+        labelImmature->setText(QString::fromUtf8("0.000\342\200\211000\342\200\21100 VRT"));
         labelImmature->setAlignment(Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter);
         labelImmature->setTextInteractionFlags(Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse);
 
@@ -209,7 +209,7 @@ public:
         labelTotal->setObjectName(QString::fromUtf8("labelTotal"));
         labelTotal->setFont(font);
         labelTotal->setCursor(QCursor(Qt::IBeamCursor));
-        labelTotal->setText(QString::fromUtf8("0.000\342\200\211000\342\200\21100 XZC"));
+        labelTotal->setText(QString::fromUtf8("0.000\342\200\211000\342\200\21100 VRT"));
         labelTotal->setAlignment(Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter);
         labelTotal->setTextInteractionFlags(Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse);
 
@@ -219,7 +219,7 @@ public:
         labelWatchTotal->setObjectName(QString::fromUtf8("labelWatchTotal"));
         labelWatchTotal->setFont(font);
         labelWatchTotal->setCursor(QCursor(Qt::IBeamCursor));
-        labelWatchTotal->setText(QString::fromUtf8("0.000\342\200\211000\342\200\21100 XZC"));
+        labelWatchTotal->setText(QString::fromUtf8("0.000\342\200\211000\342\200\21100 VRT"));
         labelWatchTotal->setAlignment(Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter);
         labelWatchTotal->setTextInteractionFlags(Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse);
 
@@ -240,7 +240,7 @@ public:
         labelBalance->setObjectName(QString::fromUtf8("labelBalance"));
         labelBalance->setFont(font);
         labelBalance->setCursor(QCursor(Qt::IBeamCursor));
-        labelBalance->setText(QString::fromUtf8("0.000\342\200\211000\342\200\21100 XZC"));
+        labelBalance->setText(QString::fromUtf8("0.000\342\200\211000\342\200\21100 VRT"));
         labelBalance->setAlignment(Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter);
         labelBalance->setTextInteractionFlags(Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse);
 
@@ -250,7 +250,7 @@ public:
         labelWatchAvailable->setObjectName(QString::fromUtf8("labelWatchAvailable"));
         labelWatchAvailable->setFont(font);
         labelWatchAvailable->setCursor(QCursor(Qt::IBeamCursor));
-        labelWatchAvailable->setText(QString::fromUtf8("0.000\342\200\211000\342\200\21100 XZC"));
+        labelWatchAvailable->setText(QString::fromUtf8("0.000\342\200\211000\342\200\21100 VRT"));
         labelWatchAvailable->setAlignment(Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter);
         labelWatchAvailable->setTextInteractionFlags(Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse);
 

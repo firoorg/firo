@@ -2262,8 +2262,8 @@ UniValue settxfee(const UniValue& params, bool fHelp)
             "\nResult\n"
             "true|false        (boolean) Returns true if successful\n"
             "\nExamples:\n"
-            + HelpExampleCli("settxfee", "0.00000001 XZC")
-            + HelpExampleRpc("settxfee", "0.00000001 XZC")
+            + HelpExampleCli("settxfee", "0.00000001 VRT")
+            + HelpExampleRpc("settxfee", "0.00000001 VRT")
         );
 
     LOCK2(cs_main, pwalletMain->cs_wallet);

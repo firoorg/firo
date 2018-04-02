@@ -3096,7 +3096,7 @@ CAmount GetVnodePayment(int nHeight, CAmount blockValue) {
 //    if (nHeight > nMNPIBlock + (nMNPIPeriod * 6)) ret += blockValue / 40; // 261680 - 45.0% - 2015-05-01
 //    if (nHeight > nMNPIBlock + (nMNPIPeriod * 7)) ret += blockValue / 40; // 278960 - 47.5% - 2015-06-01
 //    if (nHeight > nMNPIBlock + (nMNPIPeriod * 9)) ret += blockValue / 40; // 313520 - 50.0% - 2015-08-03
-    CAmount ret = 15 * COIN; //15XZC
+    CAmount ret = 15 * COIN; //15VRT
 
     return ret;
 }
@@ -3781,14 +3781,14 @@ bool CheckBlock(const CBlock &block, CValidationState &state, const Consensus::P
                         instantsend.Relay(hashLocked);
                         LOCK(cs_main);
                         mapRejectedBlocks.insert(make_pair(block.GetHash(), GetTime()));
-                        return state.DoS(0, error("CheckBlock(XZC): transaction %s conflicts with transaction lock %s",
+                        return state.DoS(0, error("CheckBlock(VRT): transaction %s conflicts with transaction lock %s",
                                                   tx.GetHash().ToString(), hashLocked.ToString()),
                                          REJECT_INVALID, "conflict-tx-lock");
                     }
                 }
             }
         } else {
-            LogPrintf("CheckBlock(XZC): spork is off, skipping transaction locking checks\n");
+            LogPrintf("CheckBlock(VRT): spork is off, skipping transaction locking checks\n");
         }
 
         // Check transactions
