@@ -12,7 +12,7 @@
 #include <functional>
 
 // zerocoin parameters
-libzerocoin::Params *ZCParams, *ZCParamsV2;
+extern libzerocoin::Params *ZCParams, *ZCParamsV2;
 
 // Test for zerocoin transaction version 2
 inline bool IsZerocoinTxV2(libzerocoin::CoinDenomination denomination, int coinId) {
@@ -124,13 +124,16 @@ public:
     // Given denomination and id returns latest accumulator value and corresponding block hash
     // Do not take into account coins with height more than maxHeight
     // Returns number of coins satisfying conditions
-    int GetAccumulatorValueForSpend(int maxHeight, int denomination, int id, CBigNum &accumulator, uint256 &blockHash);
+    int GetAccumulatorValueForSpend(CChain *chain, int maxHeight, int denomination, int id, CBigNum &accumulator, uint256 &blockHash, bool useModulusV2);
 
     // Get witness
-    libzerocoin::AccumulatorWitness GetWitnessForSpend(CChain *chain, int maxHeight, int denomination, int id, const CBigNum &pubCoin);
+    libzerocoin::AccumulatorWitness GetWitnessForSpend(CChain *chain, int maxHeight, int denomination, int id, const CBigNum &pubCoin, bool useModulusV2);
 
     // Return height of mint transaction and id of minted coin
     int GetMintedCoinHeightAndId(const CBigNum &pubCoin, int denomination, int &id);
+
+    // If needed calculate accumulators for alternative accumulator modulus
+    void CalculateAlternativeModulusAccumulatorValues(CChain *chain, int denomination, int id);
 
     // Reset to initial values
     void Reset();

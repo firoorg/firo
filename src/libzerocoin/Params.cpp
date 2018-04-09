@@ -21,7 +21,7 @@ Params::Params(CBigNum N, CBigNum Nseed, uint32_t securityLevel) {
 	this->accumulatorParams.k_dprime = ACCPROOF_KDPRIME;
 
 	// Generate the parameters
-	CalculateParams(*this, N, ZEROCOIN_PROTOCOL_VERSION, securityLevel);
+    CalculateParams(*this, N, Nseed, ZEROCOIN_PROTOCOL_VERSION, securityLevel);
 
 	this->accumulatorParams.initialized = true;
 	this->initialized = true;
