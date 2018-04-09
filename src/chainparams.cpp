@@ -18,6 +18,7 @@
 
 #include "chainparamsseeds.h"
 #include "arith_uint256.h"
+#include "oldschool/genesis.cpp"
 
 
 static CBlock CreateGenesisBlock(const char *pszTimestamp, const CScript &genesisOutputScript, uint32_t nTime, uint32_t nNonce,
@@ -42,7 +43,7 @@ static CBlock CreateGenesisBlock(const char *pszTimestamp, const CScript &genesi
     genesis.nNonce = nNonce;
     genesis.nVersion = nVersion;
     genesis.vtx.push_back(txNew);
-    genesis.hashPrevBlock = NULL;
+    genesis.hashPrevBlock.SetNull();
     genesis.hashMerkleRoot = BlockMerkleRoot(genesis);
     return genesis;
 }
@@ -60,9 +61,7 @@ static CBlock CreateGenesisBlock(const char *pszTimestamp, const CScript &genesi
  */
 static CBlock CreateGenesisBlock(uint32_t nTime, uint32_t nNonce, uint32_t nBits, int32_t nVersion, const CAmount &genesisReward,
                    std::vector<unsigned char> extraNonce) {
-//    const char* pszTimestamp = "The Times 03/Jan/2009 Chancellor on brink of second bailout for banks";
-    //btzc: verticalcoin timestamp
-    const char *pszTimestamp = "Times 2014/10/31 Maine Judge Says Nurse Must Follow Ebola Quarantine for Now";
+    const char *pszTimestamp = "Bloomberg 2018-04-09: U.S. Deficit to Surpass $1 Trillion Two Years Ahead of Estimates";
     const CScript genesisOutputScript = CScript();
     return CreateGenesisBlock(pszTimestamp, genesisOutputScript, nTime, nNonce, nBits, nVersion, genesisReward,
                               extraNonce);
@@ -159,8 +158,11 @@ public:
 		extraNonce[1] = 0x3f;
 		extraNonce[2] = 0x00;
 		extraNonce[3] = 0x00;
+
 		// Updated the nTime to avoid any max tip age issues.
 		genesis = CreateGenesisBlock(1519267014, 664006, 0x1e0ffff0, 2, 0 * COIN, extraNonce);
+        std::cout << "MAIN" << std::endl;
+        mineBlock(genesis);
 		consensus.hashGenesisBlock = genesis.GetHash();
 		assert(consensus.hashGenesisBlock == uint256S("0x00000d9fc8e92375a033511bfac625ce65de96e603b75bcfd17a377abfe1498d"));
 		assert(genesis.hashMerkleRoot == uint256S("0xf6551e3313a3baf39707e255bdff927f2fc7e20270d4d4be8278781fb5b6597a"));
@@ -196,12 +198,12 @@ public:
         fTestnetToBeDeprecatedFieldRPC = false;
 
         checkpointData = (CCheckpointData) {
-                boost::assign::map_list_of
-                        (0, uint256S("0x00000d9fc8e92375a033511bfac625ce65de96e603b75bcfd17a377abfe1498d")),
-                1486809257, // * UNIX timestamp of last checkpoint block
-                109007,    // * total number of transactions between genesis and last checkpoint
-                //   (the tx=... number in the SetBestChain debug.log lines)
-                1200.0     // * estimated number of transactions per day after checkpoint
+            boost::assign::map_list_of
+                (0, uint256S("0x00000d9fc8e92375a033511bfac625ce65de96e603b75bcfd17a377abfe1498d")),
+            1486809257, // * UNIX timestamp of last checkpoint block
+            0,    // * total number of transactions between genesis and last checkpoint
+            //   (the tx=... number in the SetBestChain debug.log lines)
+            0     // * estimated number of transactions per day after checkpoint
         };
     }
 };
@@ -280,14 +282,9 @@ public:
 		extraNonce[3] = 0x00;
 
 		genesis = CreateGenesisBlock(1516643562, 142392, 0x1e0ffff0, 2, 100 * COIN, extraNonce);
-
+        std::cout << "TEST" << std::endl;
+        mineBlock(genesis);
 		consensus.hashGenesisBlock = genesis.GetHash();
-
-		//std::cout << "verticalcoin testnet genesisBlock hash: " << consensus.hashGenesisBlock.ToString() << std::endl;
-		//std::cout << "verticalcoin testnet hashMerkleRoot hash: " << genesis.hashMerkleRoot.ToString() << std::endl;
-
-		//btzc: update testnet verticalcoin hashGenesisBlock and hashMerkleRoot
-
 		assert(consensus.hashGenesisBlock == uint256S("0xb3666bae2e1e52faca6e1492f720e659873153d830724aa3c3a52fd64ad115f9"));
 		assert(genesis.hashMerkleRoot == uint256S("0xfff3e8e082b40a8257f7cb68c8f7a142010fe5c18f8f15a66fd899a578833678"));
 
@@ -380,15 +377,15 @@ public:
         extraNonce[2] = 0x00;
         extraNonce[3] = 0x00;
         genesis = CreateGenesisBlock(1414776313, 414098458, 0x1d00ffff, 1, 0 * COIN, extraNonce);
+        std::cout << "REG" << std::endl;
+        mineBlock(genesis);
         consensus.hashGenesisBlock = genesis.GetHash();
         //btzc: update regtest verticalcoin hashGenesisBlock and hashMerkleRoot
 //        std::cout << "verticalcoin regtest genesisBlock hash: " << consensus.hashGenesisBlock.ToString() << std::endl;
 //        std::cout << "verticalcoin regtest hashMerkleRoot hash: " << genesis.hashMerkleRoot.ToString() << std::endl;
         //btzc: update testnet verticalcoin hashGenesisBlock and hashMerkleRoot
-        assert(consensus.hashGenesisBlock ==
-               uint256S("0x0080c7bf30bb2579ed9c93213475bf8fafc1f53807da908cde19cf405b9eb55b"));
-        assert(genesis.hashMerkleRoot ==
-               uint256S("0x25b361d60bc7a66b311e72389bf5d9add911c735102bcb6425f63aceeff5b7b8"));
+        assert(consensus.hashGenesisBlock == uint256S("0x0080c7bf30bb2579ed9c93213475bf8fafc1f53807da908cde19cf405b9eb55b"));
+        assert(genesis.hashMerkleRoot == uint256S("0x25b361d60bc7a66b311e72389bf5d9add911c735102bcb6425f63aceeff5b7b8"));
 
         vFixedSeeds.clear(); //!< Regtest mode doesn't have any fixed seeds.
         vSeeds.clear();      //!< Regtest mode doesn't have any DNS seeds.
