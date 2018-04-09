@@ -42,7 +42,7 @@ static CBlock CreateGenesisBlock(const char *pszTimestamp, const CScript &genesi
     genesis.nNonce = nNonce;
     genesis.nVersion = nVersion;
     genesis.vtx.push_back(txNew);
-    genesis.hashPrevBlock.SetNull();
+    genesis.hashPrevBlock = NULL;
     genesis.hashMerkleRoot = BlockMerkleRoot(genesis);
     return genesis;
 }
@@ -248,7 +248,7 @@ public:
 																					// The best chain should have at least this much work.
 		consensus.nMinimumChainWork = uint256S("0x");
 		// Znode params testnet
-		consensus.nZnodePaymentsStartBlock = 0; // not true, but it's ok as long as it's less then n
+		consensus.nVnodePaymentsStartBlock = 0; // not true, but it's ok as long as it's less then n
 												//consensus.nZnodePaymentsIncreaseBlock = 360; // not used for now, probably later
 												//consensus.nZnodePaymentsIncreasePeriod = 650; // not used for now, probably later
 												//consensus.nSuperblockStartBlock = 61000;
@@ -260,7 +260,7 @@ public:
 		nPoolMaxTransactions = 3;
 		nFulfilledRequestExpireTime = 5 * 60; // fulfilled requests expire in 5 minutes
 		strSporkPubKey = "047560EDFAECC55DF8CE4DCC7BE0887A3AE611FF171CF7A5948BCA012E6ED2CDBFF44F4862B2EFED1E2BE6A70D7AEBE64130926B336DEC2452DC06E27091A15F36";
-		strZnodePaymentsPubKey = "04FB415FD3DB63A0CDAA0037A96BEDBD845A676BC4D9DA50A0AEA55C79EBF0C11712403E1E84F4DF5C5C551468DFD9AC7C537149E065E5851CB35206CF6BD8BF48";
+		strVnodePaymentsPubKey = "04FB415FD3DB63A0CDAA0037A96BEDBD845A676BC4D9DA50A0AEA55C79EBF0C11712403E1E84F4DF5C5C551468DFD9AC7C537149E065E5851CB35206CF6BD8BF48";
 
 		pchMessageStart[0] = 0xaf;
 		pchMessageStart[1] = 0xf1;

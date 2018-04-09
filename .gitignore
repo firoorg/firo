@@ -116,3 +116,5 @@ src/test/buildenv.py
 libverticalcoinconsensus.pc
 contrib/devtools/split-debug.sh
 /.vs
+
+oldschool/
