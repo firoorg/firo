@@ -2664,6 +2664,9 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
     LogPrint("bench", "    - Verify %u txins: %.2fms (%.3fms/txin) [%.2fs]\n", nInputs - 1, 0.001 * (nTime4 - nTime2),
              nInputs <= 1 ? 0 : 0.001 * (nTime4 - nTime2) / (nInputs - 1), nTimeVerify * 0.000001);
 
+    if (!ConnectBlockZC(state, chainparams, pindex, &block))
+        return false;
+
     if (fJustCheck)
         return true;
 
@@ -3011,9 +3014,6 @@ ConnectTip(CValidationState &state, const CChainParams &chainparams, CBlockIndex
     int64_t nTime4 = GetTimeMicros();
     nTimeFlush += nTime4 - nTime3;
     LogPrint("bench", "  - Flush: %.2fms [%.2fs]\n", (nTime4 - nTime3) * 0.001, nTimeFlush * 0.000001);
-
-    if (!ConnectTipZC(state, chainparams, pindexNew, pblock))
-        return false;
 
     // Write the chain state to disk, if necessary.
     if (!FlushStateToDisk(state, FLUSH_STATE_IF_NEEDED))

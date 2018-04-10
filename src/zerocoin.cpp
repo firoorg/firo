@@ -494,7 +494,7 @@ void DisconnectTipZC(CBlock & /*block*/, CBlockIndex *pindexDelete) {
  * Connect a new ZCblock to chainActive. pblock is either NULL or a pointer to a CBlock
  * corresponding to pindexNew, to bypass loading it again from disk.
  */
-bool ConnectTipZC(CValidationState &state, const CChainParams &chainparams, CBlockIndex *pindexNew, const CBlock *pblock) {
+bool ConnectBlockZC(CValidationState &state, const CChainParams &chainparams, CBlockIndex *pindexNew, const CBlock *pblock) {
 
     // Add zerocoin transaction information to index
     if (pblock && pblock->zerocoinTxInfo) {
