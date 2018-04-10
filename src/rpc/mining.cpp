@@ -205,6 +205,10 @@ UniValue generate(const UniValue& params, bool fHelp)
 
 UniValue generatetoaddress(const UniValue& params, bool fHelp)
 {
+    throw runtime_error(
+        "generatetoaddress does work currently, please see 'setgenerate' for wallet mining.\n"
+    );
+
     if (fHelp || params.size() < 2 || params.size() > 3)
         throw runtime_error(
             "generatetoaddress numblocks address (maxtries)\n"

@@ -1783,6 +1783,7 @@ bool ReadBlockFromDisk(CBlock &block, const CDiskBlockPos &pos, int nHeight, con
     // Check the header
     if (!CheckProofOfWork(block.GetPoWHash(nHeight), block.nBits, consensusParams))
         return error("ReadBlockFromDisk: Errors in block header at %s", pos.ToString());
+    
     return true;
 }
 
@@ -1798,6 +1799,9 @@ bool ReadBlockFromDisk(CBlock &block, const CBlockIndex *pindex, const Consensus
 
 CAmount GetBlockSubsidy(int nHeight, const Consensus::Params &consensusParams, int nTime) {
     CAmount nSubsidy = 32 * COIN; // Verticalcoin - Reward of 32 VRT 
+
+    // [oldschool] TODO: add reward schedule and premine.
+
     return nSubsidy;
 }
 
