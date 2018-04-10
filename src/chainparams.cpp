@@ -20,7 +20,7 @@
 #include "arith_uint256.h"
 
 // [oldschool] TODO: remove with mining below.
-#include "oldschool/genesis.cpp"
+//#include "oldschool/genesis.cpp"
 
 
 static CBlock CreateGenesisBlock(const char *pszTimestamp, const CScript &genesisOutputScript, uint32_t nTime, uint32_t nNonce,
