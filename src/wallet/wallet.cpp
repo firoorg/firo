@@ -3171,17 +3171,9 @@ bool CWallet::CreateZerocoinMintModel(string &stringError, string denomAmount) {
     // Set up the Zerocoin Params object
     libzerocoin::Params *ZCParams = new libzerocoin::Params(bnTrustedModulus);
 	
-	int mintVersion = ZEROCOIN_TX_VERSION_1;
+	int mintVersion = ZEROCOIN_TX_VERSION_2;
 	
-	// do not use v2 mint until certain moment when it would be understood by peers
-	{
-		LOCK(cs_main);
-		bool fTestNet = Params().NetworkIDString() == CBaseChainParams::TESTNET;
-		int allowedV1Height = fTestNet ? ZC_V1_5_TESTNET_STARTING_BLOCK : ZC_V1_5_STARTING_BLOCK;
-		if (chainActive.Height() >= allowedV1Height)
-			mintVersion = ZEROCOIN_TX_VERSION_2;
-	}
-
+	
     // The following constructor does all the work of minting a brand
     // new zerocoin. It stores all the private values inside the
     // PrivateCoin object. This includes the coin secrets, which must be
