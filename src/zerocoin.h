@@ -39,8 +39,8 @@ public:
     set<uint256> zcTransactions;
     // <denomination, pubCoin> for all the mints
     vector<pair<int,CBigNum> > mints;
-    // serial for every spend
-    set<CBigNum> spentSerials;
+    // serial for every spend (map from serial to denomination)
+    map<CBigNum,int> spentSerials;
 
     // are there v1 spends in the block?
     bool fHasSpendV1;

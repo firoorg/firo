@@ -31,6 +31,27 @@ static libzerocoin::Params *ZCParams = new libzerocoin::Params(bnTrustedModulus)
 
 static CZerocoinState zerocoinState;
 
+static bool CheckZerocoinSpendSerial(CValidationState &state, CZerocoinTxInfo *zerocoinTxInfo, libzerocoin::CoinDenomination denomination, const CBigNum &serial, int nHeight, bool fConnectTip) {
+    if (nHeight > ZC_CHECK_BUG_FIXED_AT_BLOCK) {
+        // check for zerocoin transaction in this block as well
+        if (zerocoinTxInfo && !zerocoinTxInfo->fInfoIsComplete && zerocoinTxInfo->spentSerials.count(serial) > 0)
+            return state.DoS(0, error("CTransaction::CheckTransaction() : two or more spends with same serial in the same block"));
+
+        // check for used serials in zerocoinState
+        if (zerocoinState.IsUsedCoinSerial(serial)) {
+            // Proceed with checks ONLY if we're accepting tx into the memory pool or connecting block to the existing blockchain
+            if (nHeight == INT_MAX || fConnectTip) {
+                if (nHeight < ZC_V1_5_STARTING_BLOCK)
+                    LogPrintf("ZCSpend: height=%d, denomination=%d, serial=%s\n", nHeight, (int)denomination, serial.ToString());
+                else
+                    return state.DoS(0, error("CTransaction::CheckTransaction() : The CoinSpend serial has been used"));
+            }
+        }
+    }
+
+    return true;
+}
+
 bool CheckSpendZcoinTransaction(const CTransaction &tx,
                                 libzerocoin::CoinDenomination targetDenomination,
                                 CValidationState &state,
@@ -204,32 +225,17 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
 
 
         if (passVerify) {
-            // Pull the serial number out of the CoinSpend object. If we
-            // were a real Zerocoin client we would now check that the serial number
-            // has not been spent before (in another ZEROCOIN_SPEND) transaction.
-            // The serial number is stored as a Bignum.
             CBigNum serial = newSpend.getCoinSerialNumber();
-            if (nHeight > ZC_CHECK_BUG_FIXED_AT_BLOCK &&
-                    // do not check for duplicates in case we've seen exact copy of this tx in this block before
-                    !(zerocoinTxInfo &&
-                        zerocoinTxInfo->zcTransactions.count(hashTx) > 0) &&
-                    // check for used serials both in zerocoinState and in other transactions of this block
-                    (zerocoinState.IsUsedCoinSerial(serial) ||
-                        // check for zerocoin transaction in the same block as well
-                        (zerocoinTxInfo &&
-                            !zerocoinTxInfo->fInfoIsComplete &&
-                         zerocoinTxInfo->spentSerials.count(serial) > 0))) {
-
-                if (nHeight < ZC_V1_5_STARTING_BLOCK)
-                    LogPrintf("ZCSpend: height=%d, denomination=%d, serial=%s\n", nHeight, (int)newSpend.getDenomination(), newSpend.getCoinSerialNumber().ToString());
-                else
-                    return state.DoS(0, error("CTransaction::CheckTransaction() : The CoinSpend serial has been used"));
+            // do not check for duplicates in case we've seen exact copy of this tx in this block before
+            if (!(zerocoinTxInfo && zerocoinTxInfo->zcTransactions.count(hashTx) > 0)) {
+                if (!CheckZerocoinSpendSerial(state, zerocoinTxInfo, newSpend.getDenomination(), serial, nHeight, false))
+                    return false;
             }
 
             if(!isVerifyDB && !isCheckWallet) {
                 if (zerocoinTxInfo && !zerocoinTxInfo->fInfoIsComplete) {
                     // add spend information to the index
-                    zerocoinTxInfo->spentSerials.insert(serial);
+                    zerocoinTxInfo->spentSerials[serial] = (int)newSpend.getDenomination();
                     zerocoinTxInfo->zcTransactions.insert(hashTx);
 
                     if (newSpend.getVersion() == ZEROCOIN_TX_VERSION_1)
@@ -503,10 +509,13 @@ bool ConnectTipZC(CValidationState &state, const CChainParams &chainparams, CBlo
             }
         }
 
-        pindexNew->spentSerials = pblock->zerocoinTxInfo->spentSerials;
+        pindexNew->spentSerials.clear();
         if (pindexNew->nHeight > ZC_CHECK_BUG_FIXED_AT_BLOCK) {
-            BOOST_FOREACH(const CBigNum &serial, pindexNew->spentSerials) {
-                zerocoinState.AddSpend(serial);
+            BOOST_FOREACH(const PAIRTYPE(CBigNum,int) &serial, pblock->zerocoinTxInfo->spentSerials) {
+                pindexNew->spentSerials.insert(serial.first);
+                if (!CheckZerocoinSpendSerial(state, pblock->zerocoinTxInfo, (libzerocoin::CoinDenomination)serial.second, serial.first, pindexNew->nHeight, true))
+                    return false;
+                zerocoinState.AddSpend(serial.first);
             }
         }
 
