@@ -1,3 +1,16 @@
+Features and Specs
+==================================
+
+Specs
+----------------------
+LWMA difficulty algorithm https://github.com/zawy12/difficulty-algorithms/issues/3
+Lyra2Z mining algorithm
+vnodes 
+Tor integration
+2 minute blocktime
+2 MB blocksize
+
+
 Linux Build Instructions and Notes
 ==================================
 
