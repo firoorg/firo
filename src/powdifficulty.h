@@ -9,6 +9,8 @@
 // https://github.com/MyHush/hush/commit/f2c48e15e5867426ab1f888b28fe1fc556f020e4#diff-bc9415451d733499187a3fe59e0fd7e6
 
 #include <math.h> // pow
+#include "miner.h"
+#include "consensus\params.h"
 
 
 const static int64_t LWMAStartingBlock     = 1;
