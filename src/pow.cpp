@@ -45,10 +45,10 @@ uint64_t PoWDifficultyParameters::CalculateNextWorkRequired(const CBlockIndex* p
    const std::int64_t T = GetTargetTimespan();
    const std::int64_t height = pindexLast->nHeight + 1;
    // If new coin, just "give away" first 5 blocks at low difficulty
-   if (n <= 5) { return  1; }
+   if (pindexLast->nHeight <= 5) { return  1; }
 
    // If height "n" is from 6 to N, then reset N to n-1.
-   else if (n < N + 1) { N = n - 1; }
+   else if (pindexLast->nHeight < N + 1) { N = pindexLast->nHeight - 1; }
 
    // To get an average solvetime to within +/- ~0.1%, use an adjustment factor.
    // adjust=0.999 for 80 < N < 120(?)
