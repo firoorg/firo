@@ -16,6 +16,7 @@
 #include "libzerocoin/bitcoin_bignum/bignum.h"
 #include "fixed.h"
 #include "powdifficulty.h"
+#include <boost/math/special_functions/round.hpp>
 
 static CBigNum bnProofOfWorkLimit(~arith_uint256(0) >> 8);
 
@@ -41,7 +42,7 @@ unsigned int PoWDifficultyParameters::CalculateNextWorkRequired(const CBlockInde
    // The nodes' future time limit (FTL) aka CRYPTONOTE_BLOCK_FUTURE_TIME_LIMIT needs to
    // be reduced from 60*60*2 to 500 seconds to prevent timestamp manipulation from miners.  
 
-   std::size_t const N = GetAveragingWindow();
+   std::size_t N = GetAveragingWindow();
    
    // we need a vector of timestamps
    std::vector<std::uint64_t> timestamps;
@@ -144,8 +145,6 @@ unsigned int PoWDifficultyParameters::GetNextWorkRequired(const CBlockIndex* pin
 
 // verticalcoin GetNextWorkRequired
 unsigned int GetNextWorkRequired(const CBlockIndex *pindexLast, const CBlockHeader *pblock, const Consensus::Params &params) {
-   bool fTestNet = Params().NetworkIDString() == CBaseChainParams::TESTNET;
-   
    assert(pindexLast != nullptr);
 
    PoWDifficultyParameters PoWDifficultyParameters;
