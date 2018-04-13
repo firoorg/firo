@@ -5,6 +5,7 @@
 // Tom Harding, Karbowanec, Masari, Bitcoin Gold, and Bitcoin Candy have contributed.
 // https://github.com/zawy12/difficulty-algorithms/issues/3
 #include "miner.h"
+#include "uint256.h"
 #include <math.h> // pow
 
 class CBlockIndex;
