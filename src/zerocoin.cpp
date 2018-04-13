@@ -494,7 +494,7 @@ void DisconnectTipZC(CBlock & /*block*/, CBlockIndex *pindexDelete) {
  * Connect a new ZCblock to chainActive. pblock is either NULL or a pointer to a CBlock
  * corresponding to pindexNew, to bypass loading it again from disk.
  */
-bool ConnectBlockZC(CValidationState &state, const CChainParams &chainparams, CBlockIndex *pindexNew, const CBlock *pblock) {
+bool ConnectBlockZC(CValidationState &state, const CChainParams &chainparams, CBlockIndex *pindexNew, const CBlock *pblock, bool fJustCheck) {
 
     // Add zerocoin transaction information to index
     if (pblock && pblock->zerocoinTxInfo) {
@@ -509,16 +509,24 @@ bool ConnectBlockZC(CValidationState &state, const CChainParams &chainparams, CB
             }
         }
 
-        pindexNew->spentSerials.clear();
+	    if (!fJustCheck)
+			pindexNew->spentSerials.clear();
+	    
         if (pindexNew->nHeight > ZC_CHECK_BUG_FIXED_AT_BLOCK) {
             BOOST_FOREACH(const PAIRTYPE(CBigNum,int) &serial, pblock->zerocoinTxInfo->spentSerials) {
-                pindexNew->spentSerials.insert(serial.first);
                 if (!CheckZerocoinSpendSerial(state, pblock->zerocoinTxInfo, (libzerocoin::CoinDenomination)serial.second, serial.first, pindexNew->nHeight, true))
                     return false;
-                zerocoinState.AddSpend(serial.first);
+	            
+	            if (!fJustCheck) {
+		            pindexNew->spentSerials.insert(serial.first);
+		            zerocoinState.AddSpend(serial.first);
+	            }
             }
         }
 
+	    if (fJustCheck)
+		    return true;
+	    
         // Update minted values and accumulators
         BOOST_FOREACH(const PAIRTYPE(int,CBigNum) &mint, pblock->zerocoinTxInfo->mints) {
             int denomination = mint.first;
@@ -548,7 +556,7 @@ bool ConnectBlockZC(CValidationState &state, const CChainParams &chainparams, CB
             }
         }               
     }
-    else {
+    else if (!fJustCheck) {
         zerocoinState.AddBlock(pindexNew);
     }
 
