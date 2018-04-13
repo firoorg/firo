@@ -141,7 +141,7 @@ uint64_t PoWDifficultyParameters::GetNextWorkRequired(const CBlockIndex* pindexL
       return nProofOfWorkLimit;
 
    // Okay we are on a valid blockchain... 
-   return CalculateNextWorkRequired(pindexLast, pindexFirst->GetMedianTimePast(), params);
+   return CalculateNextWorkRequired(pindexLast, pindexCheck->GetMedianTimePast(), params);
 }
 
 // verticalcoin GetNextWorkRequired
