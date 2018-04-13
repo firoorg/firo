@@ -8,6 +8,7 @@
 #include "chain.h"
 #include "chainparams.h"
 #include "consensus/consensus.h"
+#include "powdifficulty.h"
 #include "consensus/params.h"
 #include "consensus/validation.h"
 #include "core_io.h"

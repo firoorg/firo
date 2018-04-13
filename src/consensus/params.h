@@ -70,8 +70,7 @@ struct Params {
 
     uint256 nMinimumChainWork;
    
-    PoWDifficultyParameters PoWDifficultyParameters; 
-   
+    PoWDifficultyParameters PoWDifficultyParameters;
 };
 } // namespace Consensus
 

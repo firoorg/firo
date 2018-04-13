@@ -8,6 +8,7 @@
 #include "test/test_bitcoin.h"
 #include "chainparams.h"
 #include "main.h"
+#include "powdifficulty.h"
 #include "consensus/params.h"
 
 #include <boost/test/unit_test.hpp>

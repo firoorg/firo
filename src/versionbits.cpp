@@ -4,6 +4,7 @@
 
 #include "versionbits.h"
 
+#include "powdifficulty.h"
 #include "consensus/params.h"
 
 const struct BIP9DeploymentInfo VersionBitsDeploymentInfo[Consensus::MAX_VERSION_BITS_DEPLOYMENTS] = {

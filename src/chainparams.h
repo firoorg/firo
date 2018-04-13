@@ -7,6 +7,7 @@
 #define BITCOIN_CHAINPARAMS_H
 
 #include "chainparamsbase.h"
+#include "powdifficulty.h"
 #include "consensus/params.h"
 #include "primitives/block.h"
 #include "protocol.h"

@@ -63,6 +63,5 @@ public:
 
 
    unsigned int CalculateNextWorkRequired(const CBlockIndex* pindexLast, int64_t nFirstBlockTime, const Consensus::Params& params) const;
-   unsigned int CalculateNextWorkRequired_Old(const CBlockIndex* pindexLast, const Consensus::Params& params) const;
    unsigned int GetNextWorkRequired(      const CBlockIndex *pindexLast, const CBlockHeader *pblock, const Consensus::Params &params) const;
 };
