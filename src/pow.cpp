@@ -119,15 +119,20 @@ uint64_t PoWDifficultyParameters::GetNextWorkRequired(const CBlockIndex* pindexL
 
    // Genesis block
    if (pindexLast == nullptr)
+   {
+      LogPrintf("PoWDifficultyParameters::GetNextWorkRequired::Genesis Block detected::nProofOfWorkLimit:%u", nProofOfWorkLimit);
       return nProofOfWorkLimit;
-
+   }
    // Special difficulty rule for testnet:
    // If the new block's timestamp is more than 2* 10 minutes
    // then allow mining of a min-difficulty block.
    if (params.fPowAllowMinDifficultyBlocks)
    {
       if (pblock->GetBlockTime() > pindexLast->GetBlockTime() + GetPowTargetSpacing() * 2)
+      {
+         LogPrintf("PoWDifficultyParameters::GetNextWorkRequired::Special difficulty rule for testnet:::nProofOfWorkLimit:%u", nProofOfWorkLimit);
          return nProofOfWorkLimit;
+      }
    }
 
    // Find the first block in the averaging interval
@@ -138,8 +143,10 @@ uint64_t PoWDifficultyParameters::GetNextWorkRequired(const CBlockIndex* pindexL
 
    // Check we have enough blocks
    if (pindexCheck == nullptr)
+   {
+      LogPrintf("PoWDifficultyParameters::GetNextWorkRequired::Check we have enough blocks::nProofOfWorkLimit:%u", nProofOfWorkLimit);
       return nProofOfWorkLimit;
-
+   }
    // Okay we are on a valid blockchain... 
    return CalculateNextWorkRequired(pindexLast, pindexCheck->GetMedianTimePast(), params);
 }
