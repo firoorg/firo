@@ -6,8 +6,6 @@
 #ifndef BITCOIN_POW_H
 #define BITCOIN_POW_H
 
-
-#include "powdifficulty.h"
 #include "consensus/params.h"
 
 #include <stdint.h>

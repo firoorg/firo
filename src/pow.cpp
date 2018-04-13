@@ -114,7 +114,7 @@ unsigned int PoWDifficultyParameters::CalculateNextWorkRequired(const CBlockInde
 unsigned int PoWDifficultyParameters::GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params& params) const
 {
    unsigned int nProofOfWorkLimit = UintToArith256(params.powLimit).GetCompact();
-   
+
    // Genesis block
    if (pindexLast == NULL)
       return nProofOfWorkLimit;
@@ -124,13 +124,13 @@ unsigned int PoWDifficultyParameters::GetNextWorkRequired(const CBlockIndex* pin
    // then allow mining of a min-difficulty block.
    if (params.fPowAllowMinDifficultyBlocks)
    {
-      if (pblock->GetBlockTime() > pindexLast->GetBlockTime() + params.PoWDifficultyParameters.GetPowTargetSpacing() * 2)
+      if (pblock->GetBlockTime() > pindexLast->GetBlockTime() + GetPowTargetSpacing() * 2)
          return nProofOfWorkLimit;
    }
 
    // Find the first block in the averaging interval
    const CBlockIndex* pindexFirst = pindexLast;
-   for (int i = 0; pindexFirst && i < params.PoWDifficultyParameters.GetAveragingWindow(); i++) {
+   for (int i = 0; pindexFirst && i < GetAveragingWindow(); i++) {
       pindexFirst = pindexFirst->pprev;
    }
 
@@ -148,8 +148,10 @@ unsigned int GetNextWorkRequired(const CBlockIndex *pindexLast, const CBlockHead
    
    assert(pindexLast != nullptr);
 
+   PoWDifficultyParameters PoWDifficultyParameters;
+
    // Zawy's LWMA.
-   return params.PoWDifficultyParameters.GetNextWorkRequired(pindexLast, pblock, params);
+   return PoWDifficultyParameters.GetNextWorkRequired(pindexLast, pblock, params);
 }
 
 bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params &params) {

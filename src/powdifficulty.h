@@ -4,19 +4,18 @@
 // MIT license http://www.opensource.org/licenses/mit-license.php.
 // Tom Harding, Karbowanec, Masari, Bitcoin Gold, and Bitcoin Candy have contributed.
 // https://github.com/zawy12/difficulty-algorithms/issues/3
-
-#include <math.h> // pow
 #include "miner.h"
-
-const static int64_t LWMAStartingBlock     = 1;
-const static int64_t LWMAAveragingWindow   = 70;      // N = 70
-const static int64_t LWMAPowTargetTimespan = 30 * 60; // 30 minutes between retargets
-const static int64_t LWMAPowTargetSpacing  = 2 * 60;  // 2 minute blocktime
+#include <math.h> // pow
 
 class CBlockIndex;
 
 class PoWDifficultyParameters
 {
+   const static int64_t LWMAStartingBlock = 1;
+   const static int64_t LWMAAveragingWindow = 70;      // N = 70
+   const static int64_t LWMAPowTargetTimespan = 30 * 60; // 30 minutes between retargets
+   const static int64_t LWMAPowTargetSpacing = 2 * 60;  // 2 minute blocktime
+   
    // T = target_solvetime;
    // Base your N on your solvetime and coin size:
    //  N=45, 60, 70, 100, 140 for T=600, 240, 120, 90, 60 respectively.

@@ -8,7 +8,6 @@
 #include "chain.h"
 #include "chainparams.h"
 #include "consensus/consensus.h"
-#include "powdifficulty.h"
 #include "consensus/params.h"
 #include "consensus/validation.h"
 #include "core_io.h"
@@ -32,6 +31,7 @@
 #include <boost/shared_ptr.hpp>
 
 #include <univalue.h>
+#include "powdifficulty.h"
 
 using namespace std;
 
@@ -51,8 +51,10 @@ UniValue GetNetworkHashPS(int lookup, int height) {
       return 0;
 
    // If lookup is -1, then use difficulty averaging window.
+   PoWDifficultyParameters PoWDifficultyParameters;
+
    if (lookup <= 0)
-      lookup = pb->nHeight - Params().GetConsensus().PoWDifficultyParameters.GetAveragingWindow();
+      lookup = pb->nHeight - PoWDifficultyParameters.GetAveragingWindow();
 
    // If lookup is still negative, then use blocks since genesis.
    if (lookup <= 0)

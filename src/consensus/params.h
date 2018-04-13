@@ -68,8 +68,6 @@ struct Params {
     int nVnodePaymentsStartBlock;
 
     uint256 nMinimumChainWork;
-   
-    PoWDifficultyParameters PoWDifficultyParameters;
 };
 } // namespace Consensus
 
