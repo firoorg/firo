@@ -40,28 +40,26 @@ uint64_t PoWDifficultyParameters::CalculateNextWorkRequired(const CBlockIndex* p
    // The nodes' future time limit (FTL) aka CRYPTONOTE_BLOCK_FUTURE_TIME_LIMIT needs to
    // be reduced from 60*60*2 to 500 seconds to prevent timestamp manipulation from miners.  
 
-   std::size_t N = GetAveragingWindow();
+          std::size_t N = GetAveragingWindow();
    
+   const std::int64_t T = GetTargetTimespan();
+
    // we need a vector of timestamps
    std::vector<std::uint64_t> timestamps;
 
    // and a vector of Chainwork
-   std::vector<arith_uint256> cumulative_difficulties;
+   std::vector<std::uint64_t> cumulative_difficulties;
 
    for (unsigned int i = 0; i < N; ++i)
    {
       const CBlockIndex* block = pindexLast->GetAncestor(i);
       timestamps.emplace_back(block->GetBlockTime());
-      cumulative_difficulties.emplace_back(block->nChainWork);
+      cumulative_difficulties.emplace_back(block->nChainWork.GetLow64());
    }
-
-   const int64_t T = GetTargetTimespan();
 
    // N=45, 55, 70, 90, 120 for T=600, 240, 120, 90, and 60 seconds
    // This is optimized for small coin protection.  It's fast.
    // Largest coin for a given POW can safely double N.
-
-
    if (timestamps.size() > N) {
       timestamps.resize(N + 1);
       cumulative_difficulties.resize(N + 1);
@@ -84,12 +82,12 @@ uint64_t PoWDifficultyParameters::CalculateNextWorkRequired(const CBlockIndex* p
    const double k = N * (N + 1) / 2;
 
    double LWMA(0), sum_inverse_D(0), harmonic_mean_D(0), nextDifficulty(0);
-   uint64_t difficulty(0), next_difficulty(0);
+   std::uint64_t difficulty(0), next_difficulty(0);
 
    // Loop through N most recent blocks. N is most recently solved block.
    for (std::size_t i = 1; i <= N; i++) {
-      auto solveTime = static_cast<int64_t>(timestamps[i]) - static_cast<int64_t>(timestamps[i - 1]);
-      solveTime = std::min<int64_t>((T * 7), std::max<int64_t>(solveTime, (-7 * T)));
+      auto solveTime = static_cast<int64_t>(timestamps[i]) - static_cast<std::int64_t>(timestamps[i - 1]);
+      solveTime = std::min<std::int64_t>((T * 7), std::max<std::int64_t>(solveTime, (-7 * T)));
       difficulty = cumulative_difficulties[i] - cumulative_difficulties[i - 1];
       LWMA += solveTime * i / k;
       sum_inverse_D += 1 / static_cast<double>(difficulty);
@@ -97,7 +95,7 @@ uint64_t PoWDifficultyParameters::CalculateNextWorkRequired(const CBlockIndex* p
    harmonic_mean_D = N / sum_inverse_D;
 
    // Keep LWMA sane in case something unforeseen occurs.
-   if (static_cast<int64_t>(boost::math::round(LWMA)) < T / 20)
+   if (static_cast<std::int64_t>(boost::math::round(LWMA)) < T / 20)
       LWMA = static_cast<double>(T / 20);
 
    nextDifficulty = harmonic_mean_D * T / LWMA * adjust;
@@ -105,7 +103,7 @@ uint64_t PoWDifficultyParameters::CalculateNextWorkRequired(const CBlockIndex* p
    // No limits should be employed, but this is correct way to employ a 20% symmetrical limit:
    // nextDifficulty=max(previous_Difficulty*0.8,min(previous_Difficulty/0.8, next_Difficulty)); 
 
-   next_difficulty = static_cast<uint64_t>(nextDifficulty);
+   next_difficulty = static_cast<std::uint64_t>(nextDifficulty);
 
    return next_difficulty;
 }
