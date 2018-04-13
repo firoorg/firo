@@ -43,6 +43,7 @@
 #include "versionbits.h"
 #include "definition.h"
 #include "utiltime.h"
+#include "powdifficulty.h"
 
 #include "darksend.h"
 #include "instantx.h"
@@ -545,8 +546,10 @@ namespace {
     }
 
 // Requires cs_main
+
     bool CanDirectFetch(const Consensus::Params &consensusParams) {
-        return chainActive.Tip()->GetBlockTime() > GetAdjustedTime() - consensusParams.nPowTargetSpacing * 20;
+       PoWDifficultyParameters PoWDifficultyParameters;
+       return chainActive.Tip()->GetBlockTime() > GetAdjustedTime() - PoWDifficultyParameters.GetPowTargetSpacing() * 20;
     }
 
 // Requires cs_main
@@ -5941,8 +5944,9 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
             }
             // If pruning, don't inv blocks unless we have on disk and are likely to still have
             // for some reasonable time window (1 hour) that block relay might require.
+            PoWDifficultyParameters PoWDifficultyParameters;
             const int nPrunedBlocksLikelyToHave =
-                    MIN_BLOCKS_TO_KEEP - 3600 / chainparams.GetConsensus().nPowTargetSpacing;
+                    MIN_BLOCKS_TO_KEEP - 3600 / PoWDifficultyParameters.GetPowTargetSpacing();
             if (fPruneMode && (!(pindex->nStatus & BLOCK_HAVE_DATA) ||
                                pindex->nHeight <= chainActive.Tip()->nHeight - nPrunedBlocksLikelyToHave)) {
                 LogPrintf("getblocks stopping, pruned or too old block at %d %s\n", pindex->nHeight,
@@ -7444,10 +7448,12 @@ bool SendMessages(CNode *pto) {
         // being saturated. We only count validated in-flight blocks so peers can't advertise non-existing block hashes
         // to unreasonably increase our timeout.
         if (!pto->fDisconnect && state.vBlocksInFlight.size() > 0) {
+
+            PoWDifficultyParameters PoWDifficultyParameters;
             QueuedBlock &queuedBlock = state.vBlocksInFlight.front();
             int nOtherPeersWithValidatedDownloads =
                     nPeersWithValidatedDownloads - (state.nBlocksInFlightValidHeaders > 0);
-            if (nNow > state.nDownloadingSince + consensusParams.nPowTargetSpacing * (BLOCK_DOWNLOAD_TIMEOUT_BASE +
+            if (nNow > state.nDownloadingSince + PoWDifficultyParameters.GetPowTargetSpacing() * (BLOCK_DOWNLOAD_TIMEOUT_BASE +
                                                                                       BLOCK_DOWNLOAD_TIMEOUT_PER_PEER *
                                                                                       nOtherPeersWithValidatedDownloads)) {
                 LogPrintf("Timeout downloading block %s from peer=%d, disconnecting\n", queuedBlock.hash.ToString(),
