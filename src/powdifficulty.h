@@ -8,10 +8,15 @@
 // Thanks to HUSH
 // https://github.com/MyHush/hush/commit/f2c48e15e5867426ab1f888b28fe1fc556f020e4#diff-bc9415451d733499187a3fe59e0fd7e6
 
+#include <math.h> // pow
+
+
 const static int64_t LWMAStartingBlock     = 1;
 const static int64_t LWMAAveragingWindow   = 70;      // N = 70
 const static int64_t LWMAPowTargetTimespan = 30 * 60; // 30 minutes between retargets
 const static int64_t LWMAPowTargetSpacing  = 2 * 60;  // 2 minute blocktime
+
+class CBlockIndex;
 
 class PoWDifficultyParameters
 {

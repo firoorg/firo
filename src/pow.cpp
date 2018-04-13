@@ -17,7 +17,6 @@
 #include "fixed.h"
 #include "powdifficulty.h"
 
-
 static CBigNum bnProofOfWorkLimit(~arith_uint256(0) >> 8);
 
 // next_difficulty = harmonic_mean(difficulties) * target_solvetime / LWMA(solvetimes)
