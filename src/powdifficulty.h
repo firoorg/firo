@@ -5,12 +5,8 @@
 // Tom Harding, Karbowanec, Masari, Bitcoin Gold, and Bitcoin Candy have contributed.
 // https://github.com/zawy12/difficulty-algorithms/issues/3
 
-// Thanks to HUSH
-// https://github.com/MyHush/hush/commit/f2c48e15e5867426ab1f888b28fe1fc556f020e4#diff-bc9415451d733499187a3fe59e0fd7e6
-
 #include <math.h> // pow
 #include "miner.h"
-
 
 const static int64_t LWMAStartingBlock     = 1;
 const static int64_t LWMAAveragingWindow   = 70;      // N = 70
