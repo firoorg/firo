@@ -87,7 +87,7 @@ uint64_t PoWDifficultyParameters::CalculateNextWorkRequired(const CBlockIndex* p
       next_target = pow_limit;
    }
 
-   LogPrintf("CalculateNextWorkRequired::next_difficulty: %u\n", next_target);
+   LogPrintf("CalculateNextWorkRequired::next_difficulty: %u\n", next_target.GetLow64());
 
    return next_target.GetLow64();
 }
