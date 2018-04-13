@@ -63,6 +63,7 @@ uint64_t PoWDifficultyParameters::CalculateNextWorkRequired(const CBlockIndex* p
    if (timestamps.size() > N) {
       timestamps.resize(N + 1);
       cumulative_difficulties.resize(N + 1);
+      LogPrintf("timestamps.size() > N");
    }
 
    std::size_t n = timestamps.size();
@@ -96,14 +97,18 @@ uint64_t PoWDifficultyParameters::CalculateNextWorkRequired(const CBlockIndex* p
 
    // Keep LWMA sane in case something unforeseen occurs.
    if (static_cast<std::int64_t>(boost::math::round(LWMA)) < T / 20)
+   {
+      LogPrintf("something unforeseen occured.");
       LWMA = static_cast<double>(T / 20);
-
+   }
    nextDifficulty = harmonic_mean_D * T / LWMA * adjust;
 
    // No limits should be employed, but this is correct way to employ a 20% symmetrical limit:
    // nextDifficulty=max(previous_Difficulty*0.8,min(previous_Difficulty/0.8, next_Difficulty)); 
 
    next_difficulty = static_cast<std::uint64_t>(nextDifficulty);
+
+   LogPrintf("CalculateNextWorkRequired::next_difficulty: %u", next_difficulty);
 
    return next_difficulty;
 }
@@ -113,7 +118,7 @@ uint64_t PoWDifficultyParameters::GetNextWorkRequired(const CBlockIndex* pindexL
    unsigned int nProofOfWorkLimit = UintToArith256(params.powLimit).GetCompact();
 
    // Genesis block
-   if (pindexLast == NULL)
+   if (pindexLast == nullptr)
       return nProofOfWorkLimit;
 
    // Special difficulty rule for testnet:
@@ -126,13 +131,13 @@ uint64_t PoWDifficultyParameters::GetNextWorkRequired(const CBlockIndex* pindexL
    }
 
    // Find the first block in the averaging interval
-   const CBlockIndex* pindexFirst = pindexLast;
-   for (int i = 0; pindexFirst && i < GetAveragingWindow(); i++) {
-      pindexFirst = pindexFirst->pprev;
+   const CBlockIndex* pindexCheck = pindexLast;
+   for (std::int64_t i = 0; pindexCheck && i < GetAveragingWindow(); i++) {
+      pindexCheck = pindexFirst->pprev;
    }
 
    // Check we have enough blocks
-   if (pindexFirst == NULL)
+   if (pindexCheck == nullptr)
       return nProofOfWorkLimit;
 
    // Okay we are on a valid blockchain... 
