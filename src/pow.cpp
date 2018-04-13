@@ -18,8 +18,6 @@
 #include "powdifficulty.h"
 #include <boost/math/special_functions/round.hpp>
 
-static CBigNum bnProofOfWorkLimit(~arith_uint256(0) >> 8);
-
 unsigned int PoWDifficultyParameters::CalculateNextWorkRequired(const CBlockIndex* pindexLast, int64_t nFirstBlockTime, const Consensus::Params& params) const
 {
    // LWMA difficulty algorithm
@@ -50,7 +48,7 @@ unsigned int PoWDifficultyParameters::CalculateNextWorkRequired(const CBlockInde
    // and a vector of Chainwork
    std::vector<unsigned int> cumulative_difficulties;
 
-   for (auto i = 0; i < N; ++i)
+   for (unsigned int i = 0; i < N; ++i)
    {
       const CBlockIndex* block = pindexLast->GetAncestor(i);
       timestamps.emplace_back(block->GetBlockTime());
