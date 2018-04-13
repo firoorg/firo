@@ -133,7 +133,7 @@ uint64_t PoWDifficultyParameters::GetNextWorkRequired(const CBlockIndex* pindexL
    // Find the first block in the averaging interval
    const CBlockIndex* pindexCheck = pindexLast;
    for (std::int64_t i = 0; pindexCheck && i < GetAveragingWindow(); i++) {
-      pindexCheck = pindexFirst->pprev;
+      pindexCheck = pindexCheck->pprev;
    }
 
    // Check we have enough blocks
