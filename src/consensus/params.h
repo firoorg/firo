@@ -9,7 +9,6 @@
 #include "uint256.h"
 #include <map>
 #include <string>
-#include "../powdifficulty.h"
 
 namespace Consensus {
 
