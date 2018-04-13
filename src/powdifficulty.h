@@ -62,6 +62,6 @@ public:
    int64_t GetTargetTimespan()  const { return m_nPowTargetTimespan; }
 
 
-   unsigned int CalculateNextWorkRequired(const CBlockIndex* pindexLast, int64_t nFirstBlockTime, const Consensus::Params& params) const;
-   unsigned int GetNextWorkRequired(      const CBlockIndex *pindexLast, const CBlockHeader *pblock, const Consensus::Params &params) const;
+   uint64_t CalculateNextWorkRequired(const CBlockIndex* pindexLast, int64_t nFirstBlockTime, const Consensus::Params& params) const;
+   uint64_t GetNextWorkRequired(      const CBlockIndex *pindexLast, const CBlockHeader *pblock, const Consensus::Params &params) const;
 };

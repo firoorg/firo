@@ -18,7 +18,7 @@
 #include "powdifficulty.h"
 #include <boost/math/special_functions/round.hpp>
 
-unsigned int PoWDifficultyParameters::CalculateNextWorkRequired(const CBlockIndex* pindexLast, int64_t nFirstBlockTime, const Consensus::Params& params) const
+uint64_t PoWDifficultyParameters::CalculateNextWorkRequired(const CBlockIndex* pindexLast, int64_t nFirstBlockTime, const Consensus::Params& params) const
 {
    // LWMA difficulty algorithm
    // Background:  https://github.com/zawy12/difficulty-algorithms/issues/3
@@ -46,7 +46,7 @@ unsigned int PoWDifficultyParameters::CalculateNextWorkRequired(const CBlockInde
    std::vector<std::uint64_t> timestamps;
 
    // and a vector of Chainwork
-   std::vector<unsigned int> cumulative_difficulties;
+   std::vector<arith_uint256> cumulative_difficulties;
 
    for (unsigned int i = 0; i < N; ++i)
    {
@@ -110,7 +110,7 @@ unsigned int PoWDifficultyParameters::CalculateNextWorkRequired(const CBlockInde
    return next_difficulty;
 }
 
-unsigned int PoWDifficultyParameters::GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params& params) const
+uint64_t PoWDifficultyParameters::GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params& params) const
 {
    unsigned int nProofOfWorkLimit = UintToArith256(params.powLimit).GetCompact();
 
@@ -166,3 +166,4 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params 
         return false;
     return true;
 }
+
