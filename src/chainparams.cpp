@@ -120,12 +120,6 @@ public:
 
         // vnode params
         consensus.nVnodePaymentsStartBlock = HF_VNODE_PAYMENT_START; // not true, but it's ok as long as it's less then nVnodePaymentsIncreaseBlock
-        // consensus.nVnodePaymentsIncreaseBlock = 680000; // actual historical value // not used for now, probably later
-        // consensus.nVnodePaymentsIncreasePeriod = 576*30; // 17280 - actual historical value // not used for now, probably later
-        // consensus.nSuperblockStartBlock = 614820;
-        // consensus.nBudgetPaymentsStartBlock = 328008; // actual historical value
-        // consensus.nBudgetPaymentsCycleBlocks = 16616; // ~(60*24*30)/2.6, actual number of blocks per month is 200700 / 12 = 16725
-        // consensus.nBudgetPaymentsWindowBlocks = 100;
         nMaxTipAge = 6 * 60 * 60; // ~144 blocks behind -> 2 x fork detection time, was 24 * 60 * 60 in bitcoin
 
         nPoolMaxTransactions = 3;
