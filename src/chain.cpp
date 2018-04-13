@@ -139,7 +139,7 @@ int64_t GetBlockProofEquivalentTime(const CBlockIndex& to, const CBlockIndex& fr
         sign = -1;
     }
     PoWDifficultyParameters PoWDifficultyParameters;
-    r = r * arith_uint256(PoWDifficultyParameters.GetPowTargetSpacing) / GetBlockProof(tip);
+    r = r * arith_uint256(PoWDifficultyParameters.GetPowTargetSpacing()) / GetBlockProof(tip);
     if (r.bits() > 63) {
         return sign * std::numeric_limits<int64_t>::max();
     }
