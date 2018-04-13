@@ -84,6 +84,7 @@ class CMainParams : public CChainParams {
 public:
     CMainParams() {
         strNetworkID = "main";
+        
         consensus.nSubsidyHalvingInterval = 0; // Verticalcoin - Deactivated 
         consensus.nMajorityEnforceBlockUpgrade = 750;
         consensus.nMajorityRejectBlockOutdated = 950;
@@ -96,8 +97,6 @@ public:
         consensus.BIP34Hash = uint256S("0x57dd7d975f4b17ada4f105daa40fc3efa97168482b4aba024a57f2d6f4d70dba");
         consensus.powLimit = uint256S("00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         //static const int64 nInterval = nTargetTimespan / nTargetSpacing;
-		consensus.nPowTargetTimespan = 30 * 60; // 30 minutes between retargets
-		consensus.nPowTargetSpacing = 2 * 60; // 2 minute blocks
         consensus.fPowAllowMinDifficultyBlocks = false;
         consensus.fPowNoRetargeting = false;
         consensus.nRuleChangeActivationThreshold = 1916; // 95% of 2016
@@ -230,8 +229,6 @@ public:
 		consensus.BIP34Height = 0;
 		consensus.BIP34Hash = uint256S("0x67dad51e489684aaad0217fb5adab655fb489d0393fd97d295e4c1241e01fd8c");
 		consensus.powLimit = uint256S("00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
-		consensus.nPowTargetTimespan = 60 * 60; // 60 minutes between retargets
-		consensus.nPowTargetSpacing = 1 * 30; // 30 sec blocks 
 		consensus.fPowAllowMinDifficultyBlocks = true;
 		consensus.fPowNoRetargeting = false;
 		consensus.nRuleChangeActivationThreshold = 1512; // 75% for testchains
@@ -342,8 +339,6 @@ public:
         consensus.BIP34Height = -1; // BIP34 has not necessarily activated on regtest
         consensus.BIP34Hash = uint256();
         consensus.powLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
-        consensus.nPowTargetTimespan = 60 * 60; // 60 minutes between retargets
-        consensus.nPowTargetSpacing = 10 * 60; // 10 minute blocks
         consensus.fPowAllowMinDifficultyBlocks = true;
         consensus.fPowNoRetargeting = true;
         consensus.nRuleChangeActivationThreshold = 108; // 75% for testchains

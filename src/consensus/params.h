@@ -9,6 +9,7 @@
 #include "uint256.h"
 #include <map>
 #include <string>
+#include "powdifficulty.h"
 
 namespace Consensus {
 
@@ -54,27 +55,23 @@ struct Params {
     uint32_t nRuleChangeActivationThreshold;
     uint32_t nMinerConfirmationWindow;
     BIP9Deployment vDeployments[MAX_VERSION_BITS_DEPLOYMENTS];
+    
     /** Proof of work parameters */
-    uint256 powLimit;
+    uint256 powLimit;// todo delete?
     bool fPowAllowMinDifficultyBlocks;
     bool fPowNoRetargeting;
-    int64_t nPowTargetSpacing;
-    int64_t nPowTargetTimespan;
     int64_t nChainStartTime;
     unsigned char nMinNFactor;
     unsigned char nMaxNFactor;
+    
     int nInstantSendKeepLock; // in blocks
-    //int nBudgetPaymentsStartBlock;
-    //int nBudgetPaymentsCycleBlocks;
-    //int nBudgetPaymentsWindowBlocks;
     int nVnodeMinimumConfirmations;
     int nVnodePaymentsStartBlock;
-    //int nVnodePaymentsIncreaseBlock;
-    //int nVnodePaymentsIncreasePeriod; // in blocks
-    //int nSuperblockStartBlock;
 
-    int64_t DifficultyAdjustmentInterval() const { return nPowTargetTimespan / nPowTargetSpacing; }
     uint256 nMinimumChainWork;
+   
+    PoWDifficultyParameters PoWDifficultyParameters; 
+   
 };
 } // namespace Consensus
 
