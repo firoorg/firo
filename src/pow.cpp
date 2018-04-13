@@ -43,33 +43,7 @@ uint64_t PoWDifficultyParameters::CalculateNextWorkRequired(const CBlockIndex* p
           std::size_t N = GetAveragingWindow();
    
    const std::int64_t T = GetTargetTimespan();
-
-   // we need a vector of timestamps
-   std::vector<std::uint64_t> timestamps;
-
-   // and a vector of Chainwork
-   std::vector<std::uint64_t> cumulative_difficulties;
-
-   for (unsigned int i = 0; i < N; ++i)
-   {
-      const CBlockIndex* block = pindexLast->GetAncestor(i);
-      timestamps.emplace_back(block->GetBlockTime());
-      cumulative_difficulties.emplace_back(block->nChainWork.GetLow64());
-   }
-
-   // N=45, 55, 70, 90, 120 for T=600, 240, 120, 90, and 60 seconds
-   // This is optimized for small coin protection.  It's fast.
-   // Largest coin for a given POW can safely double N.
-   if (timestamps.size() > N) {
-      timestamps.resize(N + 1);
-      cumulative_difficulties.resize(N + 1);
-      LogPrintf("timestamps.size() > N");
-   }
-
-   std::size_t n = timestamps.size();
-   assert(n == cumulative_difficulties.size());
-   assert(n <= GetAveragingWindow());
-
+   const std::int64_t height = pindexLast->nHeight + 1;
    // If new coin, just "give away" first 5 blocks at low difficulty
    if (n <= 5) { return  1; }
 
@@ -82,35 +56,40 @@ uint64_t PoWDifficultyParameters::CalculateNextWorkRequired(const CBlockIndex* p
                                  // The divisor k normalizes the LWMA sum to a standard LWMA.
    const double k = N * (N + 1) / 2;
 
-   double LWMA(0), sum_inverse_D(0), harmonic_mean_D(0), nextDifficulty(0);
-   std::uint64_t difficulty(0), next_difficulty(0);
+   int t = 0, j = 0;
+   arith_uint256 sum_target;
 
-   // Loop through N most recent blocks. N is most recently solved block.
-   for (std::size_t i = 1; i <= N; i++) {
-      auto solveTime = static_cast<int64_t>(timestamps[i]) - static_cast<std::int64_t>(timestamps[i - 1]);
-      solveTime = std::min<std::int64_t>((T * 7), std::max<std::int64_t>(solveTime, (-7 * T)));
-      difficulty = cumulative_difficulties[i] - cumulative_difficulties[i - 1];
-      LWMA += solveTime * i / k;
-      sum_inverse_D += 1 / static_cast<double>(difficulty);
+   // Loop through N most recent blocks.
+   for (int i = height - N; i < height; i++) {
+      const CBlockIndex* block = pindexLast->GetAncestor(i);
+      const CBlockIndex* block_Prev = block->GetAncestor(i - 1);
+      int64_t solvetime = block->GetBlockTime() - block_Prev->GetBlockTime();
+
+      j++;
+      t += solvetime * j;  // Weighted solvetime sum.
+
+                           // Target sum divided by a factor, (k N^2).
+                           // The factor is a part of the final equation. However we divide sum_target here to avoid
+                           // potential overflow.
+      arith_uint256 target;
+      target.SetCompact(block->nBits);
+      sum_target += target / (k * N * N);
+
    }
-   harmonic_mean_D = N / sum_inverse_D;
-
-   // Keep LWMA sane in case something unforeseen occurs.
-   if (static_cast<std::int64_t>(boost::math::round(LWMA)) < T / 20)
-   {
-      LogPrintf("something unforeseen occured.");
-      LWMA = static_cast<double>(T / 20);
+   // Keep t reasonable in case strange solvetimes occurred.
+   if (t < N * k / 3) {
+      t = N * k / 3;
    }
-   nextDifficulty = harmonic_mean_D * T / LWMA * adjust;
 
-   // No limits should be employed, but this is correct way to employ a 20% symmetrical limit:
-   // nextDifficulty=max(previous_Difficulty*0.8,min(previous_Difficulty/0.8, next_Difficulty)); 
+   const arith_uint256 pow_limit = UintToArith256(params.powLimit);
+   arith_uint256 next_target = T * sum_target;
+   if (next_target > pow_limit) {
+      next_target = pow_limit;
+   }
 
-   next_difficulty = static_cast<std::uint64_t>(nextDifficulty);
+   LogPrintf("CalculateNextWorkRequired::next_difficulty: %u\n", next_target);
 
-   LogPrintf("CalculateNextWorkRequired::next_difficulty: %u", next_difficulty);
-
-   return next_difficulty;
+   return next_target.GetLow64();
 }
 
 uint64_t PoWDifficultyParameters::GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params& params) const
@@ -120,7 +99,7 @@ uint64_t PoWDifficultyParameters::GetNextWorkRequired(const CBlockIndex* pindexL
    // Genesis block
    if (pindexLast == nullptr)
    {
-      LogPrintf("PoWDifficultyParameters::GetNextWorkRequired::Genesis Block detected::nProofOfWorkLimit:%u", nProofOfWorkLimit);
+      LogPrintf("PoWDifficultyParameters::GetNextWorkRequired::Genesis Block detected::nProofOfWorkLimit:%u\n", nProofOfWorkLimit);
       return nProofOfWorkLimit;
    }
    // Special difficulty rule for testnet:
@@ -130,7 +109,7 @@ uint64_t PoWDifficultyParameters::GetNextWorkRequired(const CBlockIndex* pindexL
    {
       if (pblock->GetBlockTime() > pindexLast->GetBlockTime() + GetPowTargetSpacing() * 2)
       {
-         LogPrintf("PoWDifficultyParameters::GetNextWorkRequired::Special difficulty rule for testnet:::nProofOfWorkLimit:%u", nProofOfWorkLimit);
+         LogPrintf("PoWDifficultyParameters::GetNextWorkRequired::Special difficulty rule for testnet:::nProofOfWorkLimit:%u\n", nProofOfWorkLimit);
          return nProofOfWorkLimit;
       }
    }
@@ -144,7 +123,7 @@ uint64_t PoWDifficultyParameters::GetNextWorkRequired(const CBlockIndex* pindexL
    // Check we have enough blocks
    if (pindexCheck == nullptr)
    {
-      LogPrintf("PoWDifficultyParameters::GetNextWorkRequired::Check we have enough blocks::nProofOfWorkLimit:%u", nProofOfWorkLimit);
+      LogPrintf("PoWDifficultyParameters::GetNextWorkRequired::Check we have enough blocks::nProofOfWorkLimit:%u\n", nProofOfWorkLimit);
       return nProofOfWorkLimit;
    }
    // Okay we are on a valid blockchain... 
@@ -167,13 +146,20 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params 
     arith_uint256 bnTarget;
 
     bnTarget.SetCompact(nBits, &fNegative, &fOverflow);
+   
     // Check range
     if (fNegative || bnTarget == 0 || fOverflow || bnTarget > UintToArith256(params.powLimit))
-        return false;
-
+    {
+       LogPrintf("CheckProofOfWork::Range check failed\n");
+       return false;
+    }
+   
     // Check proof of work matches claimed amount
     if (UintToArith256(hash) > bnTarget)
-        return false;
+    {
+       LogPrintf("CheckProofOfWork::check of claimed amount failed\n");
+       return false;
+    }
     return true;
 }
 
