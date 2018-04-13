@@ -10,7 +10,6 @@
 
 #include <math.h> // pow
 #include "miner.h"
-#include "consensus\params.h"
 
 
 const static int64_t LWMAStartingBlock     = 1;
