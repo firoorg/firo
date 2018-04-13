@@ -50,13 +50,7 @@ class PoWDifficultyParameters
       return m_nAjustedWeight;
    }
 
-   // MinMax adjustments on difficulty
-   int64_t nPowMaxAdjustDown = 16; // 16% adjustment down
-   int64_t nPowMaxAdjustUp = 8;    // 8% adjustment down
-   
    int64_t AveragingWindowTimespan()      const { return GetAveragingWindow() * GetPowTargetSpacing(); }
-   int64_t MinActualTimespan()            const { return (AveragingWindowTimespan() * (100 - nPowMaxAdjustUp)) / 100; }
-   int64_t MaxActualTimespan()            const { return (AveragingWindowTimespan() * (100 + nPowMaxAdjustDown)) / 100; }
 
 public:
    PoWDifficultyParameters() { 

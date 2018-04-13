@@ -19,89 +19,96 @@
 
 static CBigNum bnProofOfWorkLimit(~arith_uint256(0) >> 8);
 
-// next_difficulty = harmonic_mean(difficulties) * target_solvetime / LWMA(solvetimes)
-unsigned int PoWDifficultyParameters::CalculateNextWorkRequired_Old(const CBlockIndex* pindexLast, const Consensus::Params& params) const
-{
-   if (params.fPowNoRetargeting) {
-      return pindexLast->nBits;
-   }
-
-   int T = GetPowTargetSpacing();
-   const int N = GetAveragingWindow();
-   const int k = GetAjustedWeight();
-   const int height = pindexLast->nHeight + 1;
-
-   const arith_uint256 pow_limit = UintToArith256(params.powLimit);
-   
-   assert(height > N);
-
-   int t = 0, j = 0;
-
-   // Loop through N most recent blocks.
-   arith_uint256 sum_target;
-   for (int i = height - N; i < height; i++) {
-      const CBlockIndex* block = pindexLast->GetAncestor(i);
-      const CBlockIndex* block_Prev = block->GetAncestor(i - 1);
-      int64_t solvetime = block->GetBlockTime() - block_Prev->GetBlockTime();
-
-      if (solvetime > 6 * T) { solvetime = 6 * T; }
-      if (solvetime < -5 * T) { solvetime = -5 * T; }
-
-      j++;
-      t += solvetime * j;
-
-      arith_uint256 target;
-      target.SetCompact(block->nBits);
-      sum_target += target / k;
-   }
-
-   // Keep t reasonable in case strange solvetimes occurred.
-   if (t < N * k / 3) {
-      t = N * k / 3;
-   }
-   
-   arith_uint256 next_target = t * sum_target;
-   if (next_target > pow_limit) {
-      next_target = pow_limit;
-   }
-
-   return next_target.GetCompact();
-}
-
 unsigned int PoWDifficultyParameters::CalculateNextWorkRequired(const CBlockIndex* pindexLast, int64_t nFirstBlockTime, const Consensus::Params& params) const
 {
-   // Limit adjustment step
-   // Use medians to prevent time-warp attacks
-   int64_t nActualTimespan = pindexLast->GetMedianTimePast() - nFirstBlockTime;
-   LogPrint("pow", "  nActualTimespan = %d  before dampening\n", nActualTimespan);
+   // LWMA difficulty algorithm
+   // Background:  https://github.com/zawy12/difficulty-algorithms/issues/3
+   // Copyright (c) 2017-2018 Zawy (pseudocode)
+   // MIT license http://www.opensource.org/licenses/mit-license.php
+   // Copyright (c) 2018 The Karbowanec developers (initial code)
+   // Copyright (c) 2018 Haven Protocol (refinements)
+   // Degnr8, Karbowanec, Masari, Bitcoin Gold, Bitcoin Candy, and Haven have contributed.
 
-   nActualTimespan = params.PoWDifficultyParameters.AveragingWindowTimespan() + (nActualTimespan - params.PoWDifficultyParameters.AveragingWindowTimespan()) / 4;
-   LogPrint("pow", "  nActualTimespan = %d  before bounds\n", nActualTimespan);
+   // This algorithm is: next_difficulty = harmonic_mean(Difficulties) * T / LWMA(Solvetimes)
+   // The harmonic_mean(Difficulties) = 1/average(Targets) so it is also:
+   // next_target = avg(Targets) * LWMA(Solvetimes) / T.
+   // Do not use "if solvetime < 1 then solvetime = 1" which allows a catastrophic exploit.
+   // Do not sort timestamps.  "Solvetimes" and "LWMA" variables must allow negatives.
+   // Do not use MTP as most recent block.  Do not use (POW)Limits, filtering, or tempering.
+   // Do not forget to set N (aka DIFFICULTY_WINDOW in Cryptonote) to recommendation below.
+   // Make sure cut and lag are not applied to the timestamps and cumulativeDifficulties.
 
-   if (nActualTimespan < params.PoWDifficultyParameters.MinActualTimespan())
-      nActualTimespan = params.PoWDifficultyParameters.MinActualTimespan();
-   if (nActualTimespan > params.PoWDifficultyParameters.MaxActualTimespan())
-      nActualTimespan = params.PoWDifficultyParameters.MaxActualTimespan();
+   // The nodes' future time limit (FTL) aka CRYPTONOTE_BLOCK_FUTURE_TIME_LIMIT needs to
+   // be reduced from 60*60*2 to 500 seconds to prevent timestamp manipulation from miners.  
 
-   // Retarget
-   const arith_uint256 bnPowLimit = UintToArith256(params.powLimit);
-   arith_uint256 bnNew;
-   arith_uint256 bnOld;
-   bnNew.SetCompact(pindexLast->nBits);
-   bnOld = bnNew;
-   bnNew /= params.PoWDifficultyParameters.AveragingWindowTimespan();
-   bnNew *= nActualTimespan;
+   std::size_t const N = GetAveragingWindow();
+   
+   // we need a vector of timestamps
+   std::vector<std::uint64_t> timestamps;
 
-   if (bnNew > bnPowLimit)
-      bnNew = bnPowLimit;
+   // and a vector of Chainwork
+   std::vector<unsigned int> cumulative_difficulties;
 
-   /// debug print
-   LogPrint("pow", "GetNextWorkRequired RETARGET\n");
-   LogPrint("pow", "params.AveragingWindowTimespan() = %d    nActualTimespan = %d\n", params.PoWDifficultyParameters.AveragingWindowTimespan(), nActualTimespan);
-   LogPrint("pow", "Before: %08x  %s\n", pindexLast->nBits, bnOld.ToString());
-   LogPrint("pow", "After:  %08x  %s\n", bnNew.GetCompact(), bnNew.ToString());
+   for (auto i = 0; i < N; ++i)
+   {
+      const CBlockIndex* block = pindexLast->GetAncestor(i);
+      timestamps.emplace_back(block->GetBlockTime());
+      cumulative_difficulties.emplace_back(block->nChainWork);
+   }
 
-   return bnNew.GetCompact();
+   const int64_t T = GetTargetTimespan();
+
+   // N=45, 55, 70, 90, 120 for T=600, 240, 120, 90, and 60 seconds
+   // This is optimized for small coin protection.  It's fast.
+   // Largest coin for a given POW can safely double N.
+
+
+   if (timestamps.size() > N) {
+      timestamps.resize(N + 1);
+      cumulative_difficulties.resize(N + 1);
+   }
+
+   std::size_t n = timestamps.size();
+   assert(n == cumulative_difficulties.size());
+   assert(n <= GetAveragingWindow());
+
+   // If new coin, just "give away" first 5 blocks at low difficulty
+   if (n <= 5) { return  1; }
+
+   // If height "n" is from 6 to N, then reset N to n-1.
+   else if (n < N + 1) { N = n - 1; }
+
+   // To get an average solvetime to within +/- ~0.1%, use an adjustment factor.
+   // adjust=0.999 for 80 < N < 120(?)
+   const double adjust = 0.998;  // for 45 < N < 80 
+                                 // The divisor k normalizes the LWMA sum to a standard LWMA.
+   const double k = N * (N + 1) / 2;
+
+   double LWMA(0), sum_inverse_D(0), harmonic_mean_D(0), nextDifficulty(0);
+   uint64_t difficulty(0), next_difficulty(0);
+
+   // Loop through N most recent blocks. N is most recently solved block.
+   for (std::size_t i = 1; i <= N; i++) {
+      auto solveTime = static_cast<int64_t>(timestamps[i]) - static_cast<int64_t>(timestamps[i - 1]);
+      solveTime = std::min<int64_t>((T * 7), std::max<int64_t>(solveTime, (-7 * T)));
+      difficulty = cumulative_difficulties[i] - cumulative_difficulties[i - 1];
+      LWMA += solveTime * i / k;
+      sum_inverse_D += 1 / static_cast<double>(difficulty);
+   }
+   harmonic_mean_D = N / sum_inverse_D;
+
+   // Keep LWMA sane in case something unforeseen occurs.
+   if (static_cast<int64_t>(boost::math::round(LWMA)) < T / 20)
+      LWMA = static_cast<double>(T / 20);
+
+   nextDifficulty = harmonic_mean_D * T / LWMA * adjust;
+
+   // No limits should be employed, but this is correct way to employ a 20% symmetrical limit:
+   // nextDifficulty=max(previous_Difficulty*0.8,min(previous_Difficulty/0.8, next_Difficulty)); 
+
+   next_difficulty = static_cast<uint64_t>(nextDifficulty);
+
+   return next_difficulty;
 }
 
 unsigned int PoWDifficultyParameters::GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params& params) const
