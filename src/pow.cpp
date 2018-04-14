@@ -15,10 +15,11 @@
 #include "chainparams.h"
 #include "libzerocoin/bitcoin_bignum/bignum.h"
 #include "fixed.h"
-#include "powdifficulty.h"
 #include <boost/math/special_functions/round.hpp>
 
-uint64_t PoWDifficultyParameters::CalculateNextWorkRequired(const CBlockIndex* pindexLast, int64_t nFirstBlockTime, const Consensus::Params& params) const
+
+
+uint64_t LWMA_CalculateNextWorkRequired(const CBlockIndex* pindexLast, int64_t nFirstBlockTime, const Consensus::Params& params) 
 {
    // LWMA difficulty algorithm
    // Background:  https://github.com/zawy12/difficulty-algorithms/issues/3
@@ -40,9 +41,9 @@ uint64_t PoWDifficultyParameters::CalculateNextWorkRequired(const CBlockIndex* p
    // The nodes' future time limit (FTL) aka CRYPTONOTE_BLOCK_FUTURE_TIME_LIMIT needs to
    // be reduced from 60*60*2 to 500 seconds to prevent timestamp manipulation from miners.  
 
-          std::size_t N = GetAveragingWindow();
+          std::size_t N = params.LWMAAveragingWindow;
+   const std::int64_t T = params.LWMAPowTargetTimespan;
    
-   const std::int64_t T = GetTargetTimespan();
    const std::int64_t height = pindexLast->nHeight + 1;
    // If new coin, just "give away" first 5 blocks at low difficulty
    if (pindexLast->nHeight <= 5) { return  1; }
@@ -92,14 +93,14 @@ uint64_t PoWDifficultyParameters::CalculateNextWorkRequired(const CBlockIndex* p
    return next_target.GetLow64();
 }
 
-uint64_t PoWDifficultyParameters::GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params& params) const
+uint64_t LWMA_GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params& params)
 {
    unsigned int nProofOfWorkLimit = UintToArith256(params.powLimit).GetCompact();
 
    // Genesis block
    if (pindexLast == nullptr)
    {
-      LogPrintf("PoWDifficultyParameters::GetNextWorkRequired::Genesis Block detected::nProofOfWorkLimit:%u\n", nProofOfWorkLimit);
+      LogPrintf("GetNextWorkRequired::Genesis Block detected::nProofOfWorkLimit:%u\n", nProofOfWorkLimit);
       return nProofOfWorkLimit;
    }
    // Special difficulty rule for testnet:
@@ -107,37 +108,35 @@ uint64_t PoWDifficultyParameters::GetNextWorkRequired(const CBlockIndex* pindexL
    // then allow mining of a min-difficulty block.
    if (params.fPowAllowMinDifficultyBlocks)
    {
-      if (pblock->GetBlockTime() > pindexLast->GetBlockTime() + GetPowTargetSpacing() * 2)
+      if (pblock->GetBlockTime() > pindexLast->GetBlockTime() + params.LWMAPowTargetSpacing * 2)
       {
-         LogPrintf("PoWDifficultyParameters::GetNextWorkRequired::Special difficulty rule for testnet:::nProofOfWorkLimit:%u\n", nProofOfWorkLimit);
+         LogPrintf("GetNextWorkRequired::Special difficulty rule for testnet:::nProofOfWorkLimit:%u\n", nProofOfWorkLimit);
          return nProofOfWorkLimit;
       }
    }
 
    // Find the first block in the averaging interval
    const CBlockIndex* pindexCheck = pindexLast;
-   for (std::int64_t i = 0; pindexCheck && i < GetAveragingWindow(); i++) {
+   for (std::int64_t i = 0; pindexCheck && i < params.LWMAAveragingWindow; i++) {
       pindexCheck = pindexCheck->pprev;
    }
 
    // Check we have enough blocks
    if (pindexCheck == nullptr)
    {
-      LogPrintf("PoWDifficultyParameters::GetNextWorkRequired::Check we have enough blocks::nProofOfWorkLimit:%u\n", nProofOfWorkLimit);
+      LogPrintf("GetNextWorkRequired::Check we have enough blocks::nProofOfWorkLimit:%u\n", nProofOfWorkLimit);
       return nProofOfWorkLimit;
    }
+
    // Okay we are on a valid blockchain... 
-   return CalculateNextWorkRequired(pindexLast, pindexCheck->GetMedianTimePast(), params);
+   return LWMA_CalculateNextWorkRequired(pindexLast, pindexCheck->GetMedianTimePast(), params);
 }
 
-// verticalcoin GetNextWorkRequired
-unsigned int GetNextWorkRequired(const CBlockIndex *pindexLast, const CBlockHeader *pblock, const Consensus::Params &params) {
+uint64_t GetNextWorkRequired(const CBlockIndex *pindexLast, const CBlockHeader *pblock, const Consensus::Params &params) {
    assert(pindexLast != nullptr);
-
-   PoWDifficultyParameters PoWDifficultyParameters;
-
+   
    // Zawy's LWMA.
-   return PoWDifficultyParameters.GetNextWorkRequired(pindexLast, pblock, params);
+   return LWMA_GetNextWorkRequired(pindexLast, pblock, params);
 }
 
 bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params &params) {

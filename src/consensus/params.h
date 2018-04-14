@@ -58,7 +58,6 @@ struct Params {
     /** Proof of work parameters */
     uint256 powLimit;
     bool fPowAllowMinDifficultyBlocks;
-    bool fPowNoRetargeting;
     int64_t nChainStartTime;
     unsigned char nMinNFactor;
     unsigned char nMaxNFactor;
@@ -68,6 +67,11 @@ struct Params {
     int nVnodePaymentsStartBlock;
 
     uint256 nMinimumChainWork;
+    
+    int64_t LWMAStartingBlock;
+    int64_t LWMAAveragingWindow;   // N = 70
+    int64_t LWMAPowTargetTimespan; // 30 minutes between retargets
+    int64_t LWMAPowTargetSpacing;  // 2 minute blocktime
 };
 } // namespace Consensus
 

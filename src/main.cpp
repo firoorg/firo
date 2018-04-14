@@ -43,7 +43,6 @@
 #include "versionbits.h"
 #include "definition.h"
 #include "utiltime.h"
-#include "powdifficulty.h"
 
 #include "darksend.h"
 #include "instantx.h"
@@ -63,6 +62,7 @@
 #include <boost/thread.hpp>
 
 using namespace std;
+extern int64_t LWMAPowTargetSpacing;
 
 #if defined(NDEBUG)
 # error "Verticalcoin cannot be compiled without assertions."
@@ -548,8 +548,8 @@ namespace {
 // Requires cs_main
 
     bool CanDirectFetch(const Consensus::Params &consensusParams) {
-       PoWDifficultyParameters PoWDifficultyParameters;
-       return chainActive.Tip()->GetBlockTime() > GetAdjustedTime() - PoWDifficultyParameters.GetPowTargetSpacing() * 20;
+       
+       return chainActive.Tip()->GetBlockTime() > GetAdjustedTime() - consensusParams.LWMAPowTargetSpacing * 20;
     }
 
 // Requires cs_main
@@ -5944,9 +5944,8 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
             }
             // If pruning, don't inv blocks unless we have on disk and are likely to still have
             // for some reasonable time window (1 hour) that block relay might require.
-            PoWDifficultyParameters PoWDifficultyParameters;
             const int nPrunedBlocksLikelyToHave =
-                    MIN_BLOCKS_TO_KEEP - 3600 / PoWDifficultyParameters.GetPowTargetSpacing();
+                    MIN_BLOCKS_TO_KEEP - 3600 / chainparams.GetConsensus().LWMAPowTargetSpacing;
             if (fPruneMode && (!(pindex->nStatus & BLOCK_HAVE_DATA) ||
                                pindex->nHeight <= chainActive.Tip()->nHeight - nPrunedBlocksLikelyToHave)) {
                 LogPrintf("getblocks stopping, pruned or too old block at %d %s\n", pindex->nHeight,
@@ -7453,7 +7452,7 @@ bool SendMessages(CNode *pto) {
             QueuedBlock &queuedBlock = state.vBlocksInFlight.front();
             int nOtherPeersWithValidatedDownloads =
                     nPeersWithValidatedDownloads - (state.nBlocksInFlightValidHeaders > 0);
-            if (nNow > state.nDownloadingSince + PoWDifficultyParameters.GetPowTargetSpacing() * (BLOCK_DOWNLOAD_TIMEOUT_BASE +
+            if (nNow > state.nDownloadingSince + chainparams.GetConsensus().LWMAPowTargetSpacing * (BLOCK_DOWNLOAD_TIMEOUT_BASE +
                                                                                       BLOCK_DOWNLOAD_TIMEOUT_PER_PEER *
                                                                                       nOtherPeersWithValidatedDownloads)) {
                 LogPrintf("Timeout downloading block %s from peer=%d, disconnecting\n", queuedBlock.hash.ToString(),

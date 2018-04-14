@@ -110,7 +110,6 @@ BITCOIN_CORE_H = \
   bloom.h \
   blockencodings.h \
   chain.h \
-  powdifficulty.h \
   chainparams.h \
   chainparamsbase.h \
   chainparamsseeds.h \
@@ -355,7 +354,6 @@ libbitcoin_common_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_common_a_SOURCES = \
   amount.cpp \
   base58.cpp \
-  powdifficulty.h \
   chainparams.cpp \
   coins.cpp \
   auxpow.cpp \
@@ -379,7 +377,6 @@ libbitcoin_util_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 libbitcoin_util_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_util_a_SOURCES = \
   support/pagelocker.cpp \
-  powdifficulty.h \
   chainparamsbase.cpp \
   clientversion.cpp \
   compat/glibc_sanity.cpp \

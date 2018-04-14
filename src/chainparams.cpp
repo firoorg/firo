@@ -96,9 +96,15 @@ public:
         consensus.BIP34Height = 227931;
         consensus.BIP34Hash = uint256S("0x57dd7d975f4b17ada4f105daa40fc3efa97168482b4aba024a57f2d6f4d70dba");
         consensus.powLimit = uint256S("00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+
+        // Mining diffuclty LWMA Algo
+        consensus.LWMAStartingBlock = 1;               // Starts on Block 1
+        consensus.LWMAAveragingWindow = 70;            // N = 70
+        consensus.LWMAPowTargetTimespan = 30 * 60;     // 30 minutes between retargets
+        consensus.LWMAPowTargetSpacing = 2 * 60;       // 2 minute blocktime
+
         //static const int64 nInterval = nTargetTimespan / nTargetSpacing;
         consensus.fPowAllowMinDifficultyBlocks = false;
-        consensus.fPowNoRetargeting = false;
         consensus.nRuleChangeActivationThreshold = 1916; // 95% of 2016
         consensus.nMinerConfirmationWindow = 2016; // nPowTargetTimespan / nPowTargetSpacing
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
@@ -223,8 +229,14 @@ public:
 		consensus.BIP34Height = 0;
 		consensus.BIP34Hash = uint256S("0x67dad51e489684aaad0217fb5adab655fb489d0393fd97d295e4c1241e01fd8c");
 		consensus.powLimit = uint256S("00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+      
+      // Mining diffuclty LWMA Algo
+      consensus.LWMAStartingBlock = 1;               // Starts on Block 1
+      consensus.LWMAAveragingWindow = 70;            // N = 70
+      consensus.LWMAPowTargetTimespan = 30 * 60;     // 30 minutes between retargets
+      consensus.LWMAPowTargetSpacing = 2 * 60;       // 2 minute blocktime
+
 		consensus.fPowAllowMinDifficultyBlocks = true;
-		consensus.fPowNoRetargeting = false;
 		consensus.nRuleChangeActivationThreshold = 1512; // 75% for testchains
 		consensus.nMinerConfirmationWindow = 2016; // nPowTargetTimespan / nPowTargetSpacing
 		consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
@@ -333,8 +345,14 @@ public:
         consensus.BIP34Height = -1; // BIP34 has not necessarily activated on regtest
         consensus.BIP34Hash = uint256();
         consensus.powLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+
+        // Mining diffuclty LWMA Algo
+        consensus.LWMAStartingBlock = 1;               // Starts on Block 1
+        consensus.LWMAAveragingWindow = 70;            // N = 70
+        consensus.LWMAPowTargetTimespan = 30 * 60;     // 30 minutes between retargets
+        consensus.LWMAPowTargetSpacing = 2 * 60;       // 2 minute blocktime
+        
         consensus.fPowAllowMinDifficultyBlocks = true;
-        consensus.fPowNoRetargeting = true;
         consensus.nRuleChangeActivationThreshold = 108; // 75% for testchains
         consensus.nMinerConfirmationWindow = 144; // Faster than normal for regtest (144 instead of 2016)
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;

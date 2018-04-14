@@ -4,7 +4,6 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "chain.h"
-#include "powdifficulty.h"
 
 using namespace std;
 
@@ -138,8 +137,8 @@ int64_t GetBlockProofEquivalentTime(const CBlockIndex& to, const CBlockIndex& fr
         r = from.nChainWork - to.nChainWork;
         sign = -1;
     }
-    PoWDifficultyParameters PoWDifficultyParameters;
-    r = r * arith_uint256(PoWDifficultyParameters.GetPowTargetSpacing()) / GetBlockProof(tip);
+
+    r = r * arith_uint256(params.LWMAPowTargetTimespan) / GetBlockProof(tip);
     if (r.bits() > 63) {
         return sign * std::numeric_limits<int64_t>::max();
     }

@@ -31,7 +31,6 @@
 #include <boost/shared_ptr.hpp>
 
 #include <univalue.h>
-#include "powdifficulty.h"
 
 using namespace std;
 
@@ -40,7 +39,7 @@ using namespace std;
  * or over the difficulty averaging window if 'lookup' is nonpositive.
  * If 'height' is nonnegative, compute the estimate at the time when a given block was found.
  */
-UniValue GetNetworkHashPS(int lookup, int height) {
+UniValue GetNetworkHashPS(int lookup, int height, const int64_t AveragingWindow) {
 
    CBlockIndex *pb = chainActive.Tip();
 
@@ -51,10 +50,8 @@ UniValue GetNetworkHashPS(int lookup, int height) {
       return 0;
 
    // If lookup is -1, then use difficulty averaging window.
-   PoWDifficultyParameters PoWDifficultyParameters;
-
    if (lookup <= 0)
-      lookup = pb->nHeight - PoWDifficultyParameters.GetAveragingWindow();
+      lookup = pb->nHeight - AveragingWindow;
 
    // If lookup is still negative, then use blocks since genesis.
    if (lookup <= 0)
@@ -103,7 +100,7 @@ UniValue getnetworkhashps(const UniValue& params, bool fHelp)
        );
 
     LOCK(cs_main);
-    return GetNetworkHashPS(params.size() > 0 ? params[0].get_int() : 120, params.size() > 1 ? params[1].get_int() : -1);
+    return GetNetworkHashPS(params.size() > 0 ? params[0].get_int() : 120, params.size() > 1 ? params[1].get_int() : -1, params.LWMAAveragingWindow);
 }
 
 UniValue generateBlocks(boost::shared_ptr<CReserveScript> coinbaseScript, int nGenerate, uint64_t nMaxTries, bool keepScript)
