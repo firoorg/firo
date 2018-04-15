@@ -101,12 +101,12 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
         }
 
         if (IsZerocoinTxV2(targetDenomination, pubcoinId)) {
-            // After threshold id all spends should be either version 1.5 or 2.0
-            if (spendVersion == ZEROCOIN_TX_VERSION_1)
+            // After threshold id all spends should be strictly 2.0
+            if (spendVersion != ZEROCOIN_TX_VERSION_2)
                 return state.DoS(100,
                     false,
                     NSEQUENCE_INCORRECT,
-                    "CTransaction::CheckTransaction() : Error: zerocoin spend should be version 1.5 or 2.0");
+                    "CTransaction::CheckTransaction() : Error: zerocoin spend should be version 2.0");
         }
         else {
             // old spends v2.0s are probably incorrect, force spend to version 1
