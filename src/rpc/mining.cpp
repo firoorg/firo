@@ -39,7 +39,7 @@ using namespace std;
  * or over the difficulty averaging window if 'lookup' is nonpositive.
  * If 'height' is nonnegative, compute the estimate at the time when a given block was found.
  */
-UniValue GetNetworkHashPS(int lookup, int height, const int64_t AveragingWindow) {
+UniValue GetNetworkHashPS(int lookup, int height) {
 
    CBlockIndex *pb = chainActive.Tip();
 
@@ -51,7 +51,7 @@ UniValue GetNetworkHashPS(int lookup, int height, const int64_t AveragingWindow)
 
    // If lookup is -1, then use difficulty averaging window.
    if (lookup <= 0)
-      lookup = pb->nHeight - AveragingWindow;
+      lookup = pb->nHeight - Params().GetConsensus().LWMAAveragingWindow;
 
    // If lookup is still negative, then use blocks since genesis.
    if (lookup <= 0)
@@ -100,7 +100,7 @@ UniValue getnetworkhashps(const UniValue& params, bool fHelp)
        );
 
     LOCK(cs_main);
-    return GetNetworkHashPS(params.size() > 0 ? params[0].get_int() : 120, params.size() > 1 ? params[1].get_int() : -1, params.LWMAAveragingWindow);
+    return GetNetworkHashPS(params.size() > 0 ? params[0].get_int() : 120, params.size() > 1 ? params[1].get_int() : -1);
 }
 
 UniValue generateBlocks(boost::shared_ptr<CReserveScript> coinbaseScript, int nGenerate, uint64_t nMaxTries, bool keepScript)

@@ -62,7 +62,6 @@
 #include <boost/thread.hpp>
 
 using namespace std;
-extern int64_t LWMAPowTargetSpacing;
 
 #if defined(NDEBUG)
 # error "Verticalcoin cannot be compiled without assertions."
@@ -7448,11 +7447,10 @@ bool SendMessages(CNode *pto) {
         // to unreasonably increase our timeout.
         if (!pto->fDisconnect && state.vBlocksInFlight.size() > 0) {
 
-            PoWDifficultyParameters PoWDifficultyParameters;
             QueuedBlock &queuedBlock = state.vBlocksInFlight.front();
             int nOtherPeersWithValidatedDownloads =
                     nPeersWithValidatedDownloads - (state.nBlocksInFlightValidHeaders > 0);
-            if (nNow > state.nDownloadingSince + chainparams.GetConsensus().LWMAPowTargetSpacing * (BLOCK_DOWNLOAD_TIMEOUT_BASE +
+            if (nNow > state.nDownloadingSince + consensusParams.LWMAPowTargetSpacing * (BLOCK_DOWNLOAD_TIMEOUT_BASE +
                                                                                       BLOCK_DOWNLOAD_TIMEOUT_PER_PEER *
                                                                                       nOtherPeersWithValidatedDownloads)) {
                 LogPrintf("Timeout downloading block %s from peer=%d, disconnecting\n", queuedBlock.hash.ToString(),
