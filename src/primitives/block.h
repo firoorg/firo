@@ -102,6 +102,8 @@ public:
     {
         return (int64_t)nTime;
     }
+
+    void InvalidateCachedPoWHash(int nHeight) const;
 };
 
 

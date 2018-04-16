@@ -2318,6 +2318,7 @@ bool DisconnectBlock(const CBlock &block, CValidationState &state, const CBlockI
 
     // move best block pointer to prevout block
     view.SetBestBlock(pindex->pprev->GetBlockHash());
+    block.InvalidateCachedPoWHash(pindex->nHeight);
 
     if (pfClean) {
         *pfClean = fClean;

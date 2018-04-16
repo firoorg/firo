@@ -94,6 +94,11 @@ uint256 CBlockHeader::GetPoWHash(int nHeight) const {
     return powHash;
 }
 
+void CBlockHeader::InvalidateCachedPoWHash(int nHeight) const {
+    if (nHeight >= 20500 && mapPoWHash.count(nHeight) > 0)
+        mapPoWHash.erase(nHeight);
+}
+
 std::string CBlock::ToString() const {
     std::stringstream s;
     s << strprintf(
