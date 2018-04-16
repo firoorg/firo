@@ -22,6 +22,7 @@
 // [oldschool] TODO: remove with mining below.
 //#include "oldschool/genesis.cpp"
 
+const arith_uint256 maxUint = UintToArith256(uint256S("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"));
 
 static CBlock CreateGenesisBlock(const char *pszTimestamp, const CScript &genesisOutputScript, uint32_t nTime, uint32_t nNonce,
                    uint32_t nBits, int32_t nVersion, const CAmount &genesisReward,
@@ -95,13 +96,16 @@ public:
         consensus.nChainStartTime = 1523301543;
         consensus.BIP34Height = 227931;
         consensus.BIP34Hash = uint256S("0x57dd7d975f4b17ada4f105daa40fc3efa97168482b4aba024a57f2d6f4d70dba");
-        consensus.powLimit = uint256S("00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+        consensus.powLimit = uint256S("0007ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
 
         // Mining diffuclty LWMA Algo
-        consensus.LWMAStartingBlock = 1;               // Starts on Block 1
-        consensus.LWMAAveragingWindow = 70;            // N = 70
-        consensus.LWMAPowTargetTimespan = 30 * 60;     // 30 minutes between retargets
-        consensus.LWMAPowTargetSpacing = 2 * 60;       // 2 minute blocktime
+        consensus.LWMAAveragingWindow = 70;                              // N = 70
+        consensus.LWMAStartingBlock = consensus.LWMAAveragingWindow + 5; // Starts on Block LWMAAveragingWindow + 5
+        consensus.PowTargetTimespan = 30 * 60;                       // 30 minutes between retargets
+        consensus.LWMAPowTargetSpacing = 2 * 60;                         // 2 minute blocktime
+       
+        consensus.AveragingWindow = 17;
+        assert(maxUint / UintToArith256(consensus.powLimit) >= consensus.AveragingWindow);
 
         //static const int64 nInterval = nTargetTimespan / nTargetSpacing;
         consensus.fPowAllowMinDifficultyBlocks = false;
@@ -228,13 +232,18 @@ public:
 		consensus.nChainStartTime = 1519267024;
 		consensus.BIP34Height = 0;
 		consensus.BIP34Hash = uint256S("0x67dad51e489684aaad0217fb5adab655fb489d0393fd97d295e4c1241e01fd8c");
-		consensus.powLimit = uint256S("00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+		consensus.powLimit = uint256S("07ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
       
       // Mining diffuclty LWMA Algo
-      consensus.LWMAStartingBlock = 1;               // Starts on Block 1
-      consensus.LWMAAveragingWindow = 70;            // N = 70
-      consensus.LWMAPowTargetTimespan = 30 * 60;     // 30 minutes between retargets
-      consensus.LWMAPowTargetSpacing = 2 * 60;       // 2 minute blocktime
+      consensus.LWMAAveragingWindow = 70;                              // N = 70
+      consensus.LWMAStartingBlock = consensus.LWMAAveragingWindow + 5; // Starts on Block LWMAAveragingWindow + 5
+      consensus.PowTargetTimespan = 30 * 60;                       // 30 minutes between retargets
+      consensus.LWMAPowTargetSpacing = 2 * 60;                         // 2 minute blocktime
+     
+      consensus.AveragingWindow = 17;
+    
+      
+      assert(maxUint / UintToArith256(consensus.powLimit) >= consensus.AveragingWindow);
 
 		consensus.fPowAllowMinDifficultyBlocks = true;
 		consensus.nRuleChangeActivationThreshold = 1512; // 75% for testchains
@@ -344,13 +353,17 @@ public:
         consensus.nChainStartTime = 1519267034;
         consensus.BIP34Height = -1; // BIP34 has not necessarily activated on regtest
         consensus.BIP34Hash = uint256();
-        consensus.powLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+        consensus.powLimit = uint256S("0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f");
 
         // Mining diffuclty LWMA Algo
-        consensus.LWMAStartingBlock = 1;               // Starts on Block 1
-        consensus.LWMAAveragingWindow = 70;            // N = 70
-        consensus.LWMAPowTargetTimespan = 30 * 60;     // 30 minutes between retargets
-        consensus.LWMAPowTargetSpacing = 2 * 60;       // 2 minute blocktime
+        consensus.LWMAAveragingWindow = 70;                              // N = 70
+        consensus.LWMAStartingBlock = consensus.LWMAAveragingWindow + 5; // Starts on Block LWMAAveragingWindow + 5
+        consensus.PowTargetTimespan = 30 * 60;                       // 30 minutes between retargets
+        consensus.LWMAPowTargetSpacing = 2 * 60;                         // 2 minute blocktime
+        
+        consensus.AveragingWindow = 17;
+    
+        assert(maxUint / UintToArith256(consensus.powLimit) >= consensus.AveragingWindow);
         
         consensus.fPowAllowMinDifficultyBlocks = true;
         consensus.nRuleChangeActivationThreshold = 108; // 75% for testchains

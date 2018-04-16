@@ -118,3 +118,5 @@ contrib/devtools/split-debug.sh
 /.vs
 
 oldschool/
+/qa/pull-tester
+/libbitcoinconsensus.pc

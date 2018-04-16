@@ -68,10 +68,15 @@ struct Params {
 
     uint256 nMinimumChainWork;
     
+    // Params for Zawy's LWMA difficulty adjustment algorithm. 
     int64_t LWMAStartingBlock;
+
     int64_t LWMAAveragingWindow;   // N = 70
-    int64_t LWMAPowTargetTimespan; // 30 minutes between retargets
+    int64_t PowTargetTimespan; // 30 minutes between retargets
     int64_t LWMAPowTargetSpacing;  // 2 minute blocktime
+
+    int64_t AveragingWindow;
+    int64_t AveragingWindowTimespan() const { return AveragingWindow * PowTargetTimespan; }
 };
 } // namespace Consensus
 
