@@ -69,6 +69,11 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
         if (!txin.scriptSig.IsZerocoinSpend())
             continue;
 
+        if (tx.vin.size() > 1)
+            return state.DoS(100, false,
+                             REJECT_MALFORMED,
+                             "CheckSpendZcoinTransaction: can't have more than one input");
+
         uint32_t pubcoinId = txin.nSequence;
         if (pubcoinId < 1 || pubcoinId >= INT_MAX) {
              // coin id should be positive integer
