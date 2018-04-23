@@ -32,8 +32,8 @@ public:
     set<uint256> zcTransactions;
     // <denomination, pubCoin> for all the mints
     vector<pair<int,CBigNum> > mints;
-    // serial for every spend
-    set<CBigNum> spentSerials;
+    // serial for every spend (map from serial to denomination)
+    map<CBigNum,int> spentSerials;
 
     // are there v1 spends in the block?
     bool fHasSpendV1;
@@ -56,7 +56,7 @@ bool CheckZerocoinTransaction(const CTransaction &tx,
     CZerocoinTxInfo *zerocoinTxInfo);
 
 void DisconnectTipZC(CBlock &block, CBlockIndex *pindexDelete);
-bool ConnectTipZC(CValidationState &state, const CChainParams &chainparams, CBlockIndex *pindexNew, const CBlock *pblock);
+bool ConnectBlockZC(CValidationState &state, const CChainParams &chainparams, CBlockIndex *pindexNew, const CBlock *pblock, bool fJustCheck=false);
 
 int ZerocoinGetNHeight(const CBlockHeader &block);
 
