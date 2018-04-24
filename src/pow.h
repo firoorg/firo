@@ -24,6 +24,6 @@ unsigned int CalculateNextWorkRequired(const CBlockIndex *pindexLast, int64_t nF
 unsigned int GetNextWorkRequired(const CBlockIndex *pindexLast, const CBlockHeader *pblock, const Consensus::Params &params);
 unsigned int BorisRidiculouslyNamedDifficultyFunction(const CBlockIndex *pindexLast, uint32_t TargetBlocksSpacingSeconds, uint32_t PastBlocksMin, uint32_t PastBlocksMax);
 unsigned int LwmaCalculateNextWorkRequired(const CBlockIndex* pindexLast, const Consensus::Params& params);
-unsigned int LwmaGetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params& params);
+unsigned int LwmaGetNextWorkRequired(const CBlockIndex* pindexLast, const Consensus::Params& params);
 
 #endif // BITCOIN_POW_H

@@ -1800,11 +1800,7 @@ bool ReadBlockFromDisk(CBlock &block, const CBlockIndex *pindex, const Consensus
 }
 
 CAmount GetBlockSubsidy(int nHeight, const Consensus::Params &consensusParams, int nTime) {
-    CAmount nSubsidy = 32 * COIN; // Verticalcoin - Reward of 32 VRT 
-
-    // [oldschool] TODO: add reward schedule and premine.
-
-    return nSubsidy;
+    return CAmount(32 * COIN); // Verticalcoin - Reward of 32 VRT
 }
 
 bool IsInitialBlockDownload() {

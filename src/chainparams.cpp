@@ -99,10 +99,10 @@ public:
         consensus.powLimit = uint256S("0007ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
 
         // Mining diffuclty LWMA Algo
-        consensus.LWMAAveragingWindow = 70;                              // N = 70
-        consensus.LWMAStartingBlock = consensus.LWMAAveragingWindow + 5; // Starts on Block LWMAAveragingWindow + 5
-        consensus.PowTargetTimespan = 30 * 60;                       // 30 minutes between retargets
-        consensus.LWMAPowTargetSpacing = 2 * 60;                         // 2 minute blocktime
+        consensus.LWMAAveragingWindow = 70;          // N = 70
+        consensus.LWMAStartingBlock = 1;             // Starts on Block LWMAAveragingWindow + 5
+        consensus.PowTargetTimespan = 30 * 60;       // 30 minutes between retargets
+        consensus.LWMAPowTargetSpacing = 2 * 60;     // 2 minute blocktime
        
         consensus.AveragingWindow = 17;
         assert(maxUint / UintToArith256(consensus.powLimit) >= consensus.AveragingWindow);
@@ -235,10 +235,10 @@ public:
 		consensus.powLimit = uint256S("07ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
       
       // Mining diffuclty LWMA Algo
-      consensus.LWMAAveragingWindow = 70;                              // N = 70
-      consensus.LWMAStartingBlock = consensus.LWMAAveragingWindow + 5; // Starts on Block LWMAAveragingWindow + 5
-      consensus.PowTargetTimespan = 30 * 60;                       // 30 minutes between retargets
-      consensus.LWMAPowTargetSpacing = 2 * 60;                         // 2 minute blocktime
+      consensus.LWMAAveragingWindow = 70;       // N = 70
+      consensus.LWMAStartingBlock = 1;          // Starts on Block LWMAAveragingWindow + 5
+      consensus.PowTargetTimespan = 30 * 60;    // 30 minutes between retargets
+      consensus.LWMAPowTargetSpacing = 2 * 60;  // 2 minute blocktime
      
       consensus.AveragingWindow = 17;
     
@@ -356,10 +356,10 @@ public:
         consensus.powLimit = uint256S("0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f");
 
         // Mining diffuclty LWMA Algo
-        consensus.LWMAAveragingWindow = 70;                              // N = 70
-        consensus.LWMAStartingBlock = consensus.LWMAAveragingWindow + 5; // Starts on Block LWMAAveragingWindow + 5
-        consensus.PowTargetTimespan = 30 * 60;                       // 30 minutes between retargets
-        consensus.LWMAPowTargetSpacing = 2 * 60;                         // 2 minute blocktime
+        consensus.LWMAAveragingWindow = 70;       // N = 70
+        consensus.LWMAStartingBlock = 1;          // Starts on Block LWMAAveragingWindow + 5
+        consensus.PowTargetTimespan = 30 * 60;    // 30 minutes between retargets
+        consensus.LWMAPowTargetSpacing = 2 * 60;  // 2 minute blocktime
         
         consensus.AveragingWindow = 17;
     
