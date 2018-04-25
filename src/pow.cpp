@@ -28,14 +28,14 @@ unsigned int LwmaCalculateNextWorkRequired(const CBlockIndex* pindexLast, const 
    const int k = (N + 1) / 2 * 0.998 * T;
    const int height = pindexLast->nHeight + 1;
    
-   LogPrintf("h=%i", height);
-   LogPrintf("T=%i", T);
-   LogPrintf("N=%i", N);
-   LogPrintf("k=%i", k);
+   LogPrintf("LWMA:h=%i\n", height);
+   LogPrintf("LWMA:T=%i\n", T);
+   LogPrintf("LWMA:N=%i\n", N);
+   LogPrintf("LWMA:k=%i\n", k);
 
    if (height < N + 1)
    {
-      LogPrintf("Blockheigh is smaller than N? pindexLast->nBits:%x\n", pindexLast->nBits);
+      LogPrintf("LWMA:Blockheigh is smaller than N? pindexLast->nBits:%x\n", pindexLast->nBits);
       return pindexLast->nBits;
    }
 
@@ -65,7 +65,11 @@ unsigned int LwmaCalculateNextWorkRequired(const CBlockIndex* pindexLast, const 
    const arith_uint256 pow_limit = UintToArith256(params.powLimit);
    arith_uint256 next_target = t * sum_target;
 
-   if (next_target > pow_limit) { next_target = pow_limit; }
+   if (next_target > pow_limit) 
+   { 
+      next_target = pow_limit; 
+      LogPrintf("LWMA:next_target > pow_limit:%h\n", next_target.GetCompact());
+   }
 
    return next_target.GetCompact();
 }
@@ -76,7 +80,7 @@ unsigned int GetNextWorkRequired(const CBlockIndex *pindexLast, const CBlockHead
    // Zawy's LWMA.
    double const nBits_OfNextBlock = LwmaCalculateNextWorkRequired(pindexLast, params);
    
-   LogPrintf("Blockheight: %u \t\tTimestamp:%i \t\tnBits_OfNextBlock:%x\n",pindexLast->nHeight, pindexLast->GetBlockTime(), nBits_OfNextBlock);
+   LogPrintf("LWMA:Blockheight: %u \t\tTimestamp:%i \t\tnBits_OfNextBlock:%x\n",pindexLast->nHeight, pindexLast->GetBlockTime(), nBits_OfNextBlock);
    
    return nBits_OfNextBlock;
 }
