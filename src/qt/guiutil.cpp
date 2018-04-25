@@ -83,6 +83,15 @@ extern double NSAppKitVersionNumber;
 namespace GUIUtil {
 
 
+// Check whether a theme is not build-in
+bool isExternal(QString theme)
+{
+   if (theme.isEmpty())
+      return false;
+
+   return (theme.operator!=("default"));
+}
+
 // Open CSS when configured
 QString loadStyleSheet()
 {
