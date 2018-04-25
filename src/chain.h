@@ -21,7 +21,7 @@
 * Maximum amount of time that a block timestamp is allowed to exceed the
 * current network-adjusted time before the block will be accepted.
 */
-static const int64_t BITCOIN_MAX_FUTURE_BLOCK_TIME = 0.5 * 60 * 60;
+static const int64_t BITCOIN_MAX_FUTURE_BLOCK_TIME = 500;
 
 /**
 * Timestamp window used as a grace period by code that compares external
