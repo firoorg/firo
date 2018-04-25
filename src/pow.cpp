@@ -25,7 +25,7 @@ unsigned int LwmaCalculateNextWorkRequired(const CBlockIndex* pindexLast, const 
 {
    const int T = params.LWMAPowTargetSpacing;
    const int N = params.LWMAAveragingWindow;
-   const int k = (params.LWMAAveragingWindow + 1) / 2 * 0.998 * params.LWMAPowTargetSpacing;
+   const int k = (N + 1) / 2 * 0.998 * T;
    const int height = pindexLast->nHeight + 1;
    
    LogPrintf("h=%i", height);
