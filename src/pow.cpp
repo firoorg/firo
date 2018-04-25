@@ -18,46 +18,14 @@
 #include "fixed.h"
 #include <algorithm>    // std::max
 
-
-static CBigNum bnProofOfWorkLimit(~arith_uint256(0) >> 8);
-
-double GetDifficultyHelper(unsigned int nBits) {
-   int nShift = (nBits >> 24) & 0xff;
-   double dDiff = (double)0x0000ffff / (double)(nBits & 0x00ffffff);
-
-   while (nShift < 29) {
-      dDiff *= 256.0;
-      nShift++;
-   }
-   while (nShift > 29) {
-      dDiff /= 256.0;
-      nShift--;
-   }
-
-   return dDiff;
-}
-
-static int64_t GetAdjustedWeight(const Consensus::Params& params)
-{
-   assert(params.LWMAPowTargetSpacing != 0);
-   return 45 * pow(600 / params.LWMAPowTargetSpacing, 0.2*pow(600 / params.LWMAPowTargetSpacing, 0.3)) + 0.5;
-}
-
 // LWMA difficulty algorithm (simplified)
 // Copyright (c) 2017-2018 Zawy
-// MIT license http://www.opensource.org/licenses/mit-license.php
-// See link below for other file changes required in Cryptonote clones
 // https://github.com/zawy12/difficulty-algorithms/issues/3
-// If you're a cryptonote coin, you must change in config file:
-// CRYPTONOTE_FUTURE_TIME_LIMIT_V2 = 500 instead of 60*60*2
-// and use "size_t N = DIFFICULTY_WINDOW_V2 - 1;"before using the following.
-// Bitcoin clones reduce following 7200 to 500.
-// mapKeyBirth[it->first] = it->second->GetBlockTime() - 7200; 
 unsigned int LwmaCalculateNextWorkRequired(const CBlockIndex* pindexLast, const Consensus::Params& params)
 {
    const int T = params.LWMAPowTargetSpacing;
    const int N = params.LWMAAveragingWindow;
-   const int k = GetAdjustedWeight(params);
+   const int k = (params.LWMAAveragingWindow + 1) / 2 * 0.998 * params.LWMAPowTargetSpacing;
    const int height = pindexLast->nHeight + 1;
    
    LogPrintf("h=%i", height);
@@ -83,11 +51,9 @@ unsigned int LwmaCalculateNextWorkRequired(const CBlockIndex* pindexLast, const 
       int64_t solvetime = block->GetBlockTime() - block_Prev->GetBlockTime();
       
       j++;
-      t += solvetime * j;  // Weighted solvetime sum.
-
-                           // Target sum divided by a factor, (k N^2).
-                           // The factor is a part of the final equation. However we divide sum_target 
-                           // here to avoid potential overflow.
+      t += solvetime * j;  
+      
+      // divide sum_target  here to avoid potential overflow.
       arith_uint256 target;
       target.SetCompact(block->nBits);
       sum_target += target / (k * N * N);
