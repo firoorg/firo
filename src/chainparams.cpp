@@ -173,20 +173,10 @@ public:
 		assert(consensus.hashGenesisBlock == uint256S("0x57dd7d975f4b17ada4f105daa40fc3efa97168482b4aba024a57f2d6f4d70dba"));
 		assert(genesis.hashMerkleRoot == uint256S("0x1ab1367b6c7666c78b3ce0b688c4ef323f42379158a6a29463fe03781ec1d745"));
 
-		// vrtnode01.schulze.ovh - Hetzner 
-		// vrtnode02.schulze.ovh - Vultr 45.32.14.97
-		// vrtnode03.schulze.ovh - Vultr 45.76.56.53
-		// vrtnode04.schulze.ovh - Vultr 108.61.199.33
-		// vrtnode05.schulze.ovh - OVH 
-		
-		//vSeeds.push_back(CDNSSeedData("vrtnode01.schulze.ovh", "vrtnode01.schulze.ovh", false));
-		//vSeeds.push_back(CDNSSeedData("vrtnode02.schulze.ovh", "vrtnode02.schulze.ovh", false));
-		//vSeeds.push_back(CDNSSeedData("vrtnode03.schulze.ovh", "vrtnode03.schulze.ovh", false));
-		//vSeeds.push_back(CDNSSeedData("vrtnode04.schulze.ovh", "vrtnode04.schulze.ovh", false));
-		//vSeeds.push_back(CDNSSeedData("vrtnode05.schulze.ovh", "vrtnode05.schulze.ovh", false));
+      // oldschool - DNSSEC - 51.15.85.226
+      vSeeds.push_back(CDNSSeedData("vrtseed.ovh", "seed1.vrtseed.ovh", false)); 
 
 		vFixedSeeds.clear();
-		vSeeds.clear();
 
         // Note that of those with the service bits flag, most only support a subset of possible options
         base58Prefixes[PUBKEY_ADDRESS] = std::vector < unsigned char > (1, 70);
