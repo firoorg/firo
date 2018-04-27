@@ -3261,7 +3261,9 @@ bool CWallet::CreateZerocoinSpendModel(string &stringError, string denomAmount) 
     CBigNum zcSelectedValue;
     bool zcSelectedIsUsed;
 
-    stringError = SpendZerocoin(nAmount, denomination, wtx, coinSerial, txHash, zcSelectedValue, zcSelectedIsUsed);
+    string thirdPartyaddress = "";
+
+    stringError = SpendZerocoin(thirdPartyaddress, nAmount, denomination, wtx, coinSerial, txHash, zcSelectedValue, zcSelectedIsUsed);
 
     if (stringError != "")
         return false;
@@ -3611,11 +3613,11 @@ CWallet::CreateZerocoinMintTransaction(CScript pubCoin, int64_t nValue, CWalletT
  * @param strFailReason
  * @return
  */
-bool CWallet::CreateZerocoinSpendTransaction(int64_t nValue, libzerocoin::CoinDenomination denomination,
+bool CWallet::CreateZerocoinSpendTransaction(std::string &thirdPartyaddress, int64_t nValue, libzerocoin::CoinDenomination denomination,
                                              CWalletTx &wtxNew, CReserveKey &reservekey, CBigNum &coinSerial,
                                              uint256 &txHash, CBigNum &zcSelectedValue, bool &zcSelectedIsUsed,
                                              std::string &strFailReason) {
-    if (nValue < 0) {
+    if (nValue <= 0) {
         strFailReason = _("Transaction amounts must be positive");
         return false;
     }
@@ -3630,11 +3632,17 @@ bool CWallet::CreateZerocoinSpendTransaction(int64_t nValue, libzerocoin::CoinDe
             txNew.wit.SetNull();
             //wtxNew.fFromMe = true;
 
-            // Reserve a new key pair from key pool
-            CPubKey vchPubKey;
-            assert(reservekey.GetReservedKey(vchPubKey)); // should never fail, as we just unlocked
+
             CScript scriptChange;
-            scriptChange = GetScriptForDestination(vchPubKey.GetID());
+            if(thirdPartyaddress == ""){
+            	// Reserve a new key pair from key pool
+            	CPubKey vchPubKey;
+            	assert(reservekey.GetReservedKey(vchPubKey)); // should never fail, as we just unlocked
+            	scriptChange = GetScriptForDestination(vchPubKey.GetID());
+            }else{
+            	// Parse Zcoin address
+            	scriptChange = GetScriptForDestination(CBitcoinAddress(thirdPartyaddress).Get()s);
+            }
 
             CTxOut newTxOut(nValue, scriptChange);
 
@@ -3953,7 +3961,7 @@ string CWallet::MintZerocoin(CScript pubCoin, int64_t nValue, CWalletTx &wtxNew,
  * @param zcSelectedIsUsed
  * @return
  */
-string CWallet::SpendZerocoin(int64_t nValue, libzerocoin::CoinDenomination denomination, CWalletTx &wtxNew,
+string CWallet::SpendZerocoin(std::string &thirdPartyaddress, int64_t nValue, libzerocoin::CoinDenomination denomination, CWalletTx &wtxNew,
                               CBigNum &coinSerial, uint256 &txHash, CBigNum &zcSelectedValue,
                               bool &zcSelectedIsUsed) {
     // Check amount
@@ -3965,6 +3973,7 @@ string CWallet::SpendZerocoin(int64_t nValue, libzerocoin::CoinDenomination deno
     if (fImporting || fReindex || !znodeSync.IsBlockchainSynced())
         return _("Not fully synced yet");
 
+
     CReserveKey reservekey(this);
 
     if (IsLocked()) {
@@ -3974,7 +3983,7 @@ string CWallet::SpendZerocoin(int64_t nValue, libzerocoin::CoinDenomination deno
     }
 
     string strError;
-    if (!CreateZerocoinSpendTransaction(nValue, denomination, wtxNew, reservekey, coinSerial, txHash,
+    if (!CreateZerocoinSpendTransaction(thirdPartyaddress, nValue, denomination, wtxNew, reservekey, coinSerial, txHash,
                                         zcSelectedValue, zcSelectedIsUsed, strError)) {
         LogPrintf("SpendZerocoin() : %s\n", strError.c_str());
         return strError;
