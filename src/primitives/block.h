@@ -24,7 +24,7 @@ unsigned char GetNfactor(int64_t nTimestamp);
 
 inline int GetZerocoinChainID()
 {
-    return 0x0001; // We are the first :)
+    return 0x0002; // We are the 2nd :)
 }
 
 class CBlockHeader
