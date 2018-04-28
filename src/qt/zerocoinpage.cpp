@@ -118,22 +118,45 @@ void ZerocoinPage::on_zerocoinMintButton_clicked() {
         QMessageBox::critical(this, tr("Error"),
                               tr("You cannot mint zerocoin because %1").arg(t),
                               QMessageBox::Ok, QMessageBox::Ok);
+    }else{
+    	QMessageBox::information(this, tr("Success"),
+    	                              tr("You have been successfully mint zerocoin from the wallet"),
+    	                              QMessageBox::Ok, QMessageBox::Ok);
+
     }
 }
 
 void ZerocoinPage::on_zerocoinSpendButton_clicked() {
+
     QString amount = ui->zerocoinAmount->currentText();
-    QString address = ui->zerocoinAmount->currentText();
+    QString address = ui->spendToThirdPartyAddress->text();
     std::string denomAmount = amount.toStdString();
     std::string thirdPartyAddress = address.toStdString();
     std::string stringError;
-    if(!model->zerocoinSpend(stringError, thirdPartyAddress, denomAmount)){
-        QString t = tr(stringError.c_str());
 
-        QMessageBox::critical(this, tr("Error"),
-                              tr("You cannot spend zerocoin because %1").arg(t),
-                              QMessageBox::Ok, QMessageBox::Ok);
-    }
+	if(ui->zerocoinSpendToMeCheckBox->isChecked() == false && thirdPartyAddress == ""){
+		QMessageBox::critical(this, tr("Error"),
+		                              tr("Your \"Spend To\" field is empty, please check again"),
+		                              QMessageBox::Ok, QMessageBox::Ok);
+	}else{
+
+		if(!model->zerocoinSpend(stringError, thirdPartyAddress, denomAmount)){
+			QString t = tr(stringError.c_str());
+
+			QMessageBox::critical(this, tr("Error"),
+								  tr("You cannot spend zerocoin because %1").arg(t),
+								  QMessageBox::Ok, QMessageBox::Ok);
+		}else{
+			QMessageBox::information(this, tr("Success"),
+										  tr("You have been successfully spent zerocoin from the wallet"),
+										  QMessageBox::Ok, QMessageBox::Ok);
+
+		}
+		ui->spendToThirdPartyAddress->clear();
+		ui->spendToThirdPartyAddress->setEnabled(false);
+
+		ui->zerocoinSpendToMeCheckBox->setChecked(true);
+	}
 }
 
 void ZerocoinPage::zerocoinSpendToMeCheckBoxChecked(int state) {

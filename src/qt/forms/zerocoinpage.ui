@@ -194,6 +194,9 @@
          </property>
         </widget>
         <widget class="QLineEdit" name="spendToThirdPartyAddress">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
          <property name="geometry">
           <rect>
            <x>90</x>
@@ -226,6 +229,9 @@
          </property>
          <property name="text">
           <string>Spend To Me</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
          </property>
         </widget>
        </widget>
