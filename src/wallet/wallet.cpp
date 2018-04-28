@@ -3227,7 +3227,7 @@ bool CWallet::CreateZerocoinMintModel(string &stringError, string denomAmount) {
     }
 }
 
-bool CWallet::CreateZerocoinSpendModel(string &stringError, string denomAmount) {
+bool CWallet::CreateZerocoinSpendModel(string &stringError, string thirdPartyAddress, string denomAmount) {
     if (!fFileBacked)
         return false;
 
@@ -3261,9 +3261,7 @@ bool CWallet::CreateZerocoinSpendModel(string &stringError, string denomAmount) 
     CBigNum zcSelectedValue;
     bool zcSelectedIsUsed;
 
-    string thirdPartyaddress = "";
-
-    stringError = SpendZerocoin(thirdPartyaddress, nAmount, denomination, wtx, coinSerial, txHash, zcSelectedValue, zcSelectedIsUsed);
+    stringError = SpendZerocoin(thirdPartyAddress, nAmount, denomination, wtx, coinSerial, txHash, zcSelectedValue, zcSelectedIsUsed);
 
     if (stringError != "")
         return false;
@@ -3640,8 +3638,14 @@ bool CWallet::CreateZerocoinSpendTransaction(std::string &thirdPartyaddress, int
             	assert(reservekey.GetReservedKey(vchPubKey)); // should never fail, as we just unlocked
             	scriptChange = GetScriptForDestination(vchPubKey.GetID());
             }else{
+
+            	CBitcoinAddress address(thirdPartyaddress);
+            	if (!address.IsValid()){
+            		strFailReason = _("Invalid zcoin address");
+            		return false;
+            	}
             	// Parse Zcoin address
-            	scriptChange = GetScriptForDestination(CBitcoinAddress(thirdPartyaddress).Get()s);
+            	scriptChange = GetScriptForDestination(CBitcoinAddress(thirdPartyaddress).Get());
             }
 
             CTxOut newTxOut(nValue, scriptChange);
