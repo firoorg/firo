@@ -120,3 +120,4 @@ contrib/devtools/split-debug.sh
 oldschool/
 /qa/pull-tester
 /libbitcoinconsensus.pc
+/src/qt/res/RCa23436

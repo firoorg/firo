@@ -84,123 +84,123 @@ static CBlock CreateGenesisBlock(uint32_t nTime, uint32_t nNonce, uint32_t nBits
 class CMainParams : public CChainParams {
 public:
     CMainParams() {
-        strNetworkID = "main";
-        
-        consensus.nSubsidyHalvingInterval = 0; // Verticalcoin - Deactivated 
-        consensus.nMajorityEnforceBlockUpgrade = 750;
-        consensus.nMajorityRejectBlockOutdated = 950;
-        consensus.nMajorityWindow = 1000;
-        consensus.nMinNFactor = 10;
-        consensus.nMaxNFactor = 30;
-        //nVertcoinStartTime
-        consensus.nChainStartTime = 1523301543;
-        consensus.BIP34Height = 227931;
-        consensus.BIP34Hash = uint256S("0x57dd7d975f4b17ada4f105daa40fc3efa97168482b4aba024a57f2d6f4d70dba");
-        consensus.powLimit = uint256S("0007ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+       strNetworkID = "main";
 
-        // Mining diffuclty LWMA Algo
-        consensus.LWMAAveragingWindow = 70;          // N = 70
-        consensus.LWMAStartingBlock = 1;             // Starts on Block LWMAAveragingWindow + 5
-        consensus.PowTargetTimespan = 30 * 60;       // 30 minutes between retargets
-        consensus.LWMAPowTargetSpacing = 2 * 60;     // 2 minute blocktime
-       
-        consensus.AveragingWindow = 17;
-        assert(maxUint / UintToArith256(consensus.powLimit) >= consensus.AveragingWindow);
+       consensus.nSubsidyHalvingInterval = 0; // Verticalcoin - Deactivated 
+       consensus.nMajorityEnforceBlockUpgrade = 750;
+       consensus.nMajorityRejectBlockOutdated = 950;
+       consensus.nMajorityWindow = 1000;
+       consensus.nMinNFactor = 10;
+       consensus.nMaxNFactor = 30;
+       //nVertcoinStartTime
+       consensus.nChainStartTime = 1523301543;
+       consensus.BIP34Height = 227931;
+       consensus.BIP34Hash = uint256S("0x57dd7d975f4b17ada4f105daa40fc3efa97168482b4aba024a57f2d6f4d70dba");
+       consensus.powLimit = uint256S("0007ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
 
-        //static const int64 nInterval = nTargetTimespan / nTargetSpacing;
-        consensus.fPowAllowMinDifficultyBlocks = false;
-        consensus.nRuleChangeActivationThreshold = 1916; // 95% of 2016
-        consensus.nMinerConfirmationWindow = 2016; // nPowTargetTimespan / nPowTargetSpacing
-        consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
-        consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = 1475020800; // January 1, 2008
-        consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = 1230767999; // December 31, 2008
+       // Mining diffuclty LWMA Algo
+       consensus.LWMAAveragingWindow = 70;          // N = 70
+       consensus.LWMAStartingBlock = 1;             // Starts on Block LWMAAveragingWindow + 5
+       consensus.PowTargetTimespan = 30 * 60;       // 30 minutes between retargets
+       consensus.LWMAPowTargetSpacing = 2 * 60;     // 2 minute blocktime
 
-        // Deployment of BIP68, BIP112, and BIP113.
-        consensus.vDeployments[Consensus::DEPLOYMENT_CSV].bit = 0;
-        consensus.vDeployments[Consensus::DEPLOYMENT_CSV].nStartTime = 1462060800; // May 1st, 2016
-        consensus.vDeployments[Consensus::DEPLOYMENT_CSV].nTimeout = 1493596800; // May 1st, 2017
+       consensus.AveragingWindow = 17;
+       assert(maxUint / UintToArith256(consensus.powLimit) >= consensus.AveragingWindow);
 
-        // Deployment of SegWit (BIP141, BIP143, and BIP147)
-        consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].bit = 1;
-        consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].nStartTime = 1479168000; // November 15th, 2016.
-        consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].nTimeout = 1510704000; // November 15th, 2017.
+       //static const int64 nInterval = nTargetTimespan / nTargetSpacing;
+       consensus.fPowAllowMinDifficultyBlocks = false;
+       consensus.nRuleChangeActivationThreshold = 1916; // 95% of 2016
+       consensus.nMinerConfirmationWindow = 2016; // nPowTargetTimespan / nPowTargetSpacing
+       consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
+       consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = 1475020800; // January 1, 2008
+       consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = 1230767999; // December 31, 2008
 
-        // The best chain should have at least this much work.
-        consensus.nMinimumChainWork = uint256S("0x00");
+                                                                                      // Deployment of BIP68, BIP112, and BIP113.
+       consensus.vDeployments[Consensus::DEPLOYMENT_CSV].bit = 0;
+       consensus.vDeployments[Consensus::DEPLOYMENT_CSV].nStartTime = 1462060800; // May 1st, 2016
+       consensus.vDeployments[Consensus::DEPLOYMENT_CSV].nTimeout = 1493596800; // May 1st, 2017
 
-        // vnode params
-        consensus.nVnodePaymentsStartBlock = HF_VNODE_PAYMENT_START; // not true, but it's ok as long as it's less then nVnodePaymentsIncreaseBlock
-        nMaxTipAge = 6 * 60 * 60; // ~144 blocks behind -> 2 x fork detection time, was 24 * 60 * 60 in bitcoin
+                                                                                // Deployment of SegWit (BIP141, BIP143, and BIP147)
+       consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].bit = 1;
+       consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].nStartTime = 1479168000; // November 15th, 2016.
+       consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].nTimeout = 1510704000; // November 15th, 2017.
 
-        nPoolMaxTransactions = 3;
-        nFulfilledRequestExpireTime = 60*60; // fulfilled requests expire in 1 hour
-        strSporkPubKey = "047560EDFAECC55DF8CE4DCC7BE0887A3AE611FF171CF7A5948BCA012E6ED2CDBFF44F4862B2EFED1E2BE6A70D7AEBE64130926B336DEC2452DC06E27091A15F36";
-        strVnodePaymentsPubKey = "04FB415FD3DB63A0CDAA0037A96BEDBD845A676BC4D9DA50A0AEA55C79EBF0C11712403E1E84F4DF5C5C551468DFD9AC7C537149E065E5851CB35206CF6BD8BF48";
+                                                                                   // The best chain should have at least this much work.
+       consensus.nMinimumChainWork = uint256S("0x00");
 
-        /**
-         * The message start string is designed to be unlikely to occur in normal data.
-         * The characters are rarely used upper ASCII, not valid as UTF-8, and produce
+       // vnode params
+       consensus.nVnodePaymentsStartBlock = HF_VNODE_PAYMENT_START; // not true, but it's ok as long as it's less then nVnodePaymentsIncreaseBlock
+       nMaxTipAge = 6 * 60 * 60; // ~144 blocks behind -> 2 x fork detection time, was 24 * 60 * 60 in bitcoin
+
+       nPoolMaxTransactions = 3;
+       nFulfilledRequestExpireTime = 60 * 60; // fulfilled requests expire in 1 hour
+       strSporkPubKey = "047560EDFAECC55DF8CE4DCC7BE0887A3AE611FF171CF7A5948BCA012E6ED2CDBFF44F4862B2EFED1E2BE6A70D7AEBE64130926B336DEC2452DC06E27091A15F36";
+       strVnodePaymentsPubKey = "04FB415FD3DB63A0CDAA0037A96BEDBD845A676BC4D9DA50A0AEA55C79EBF0C11712403E1E84F4DF5C5C551468DFD9AC7C537149E065E5851CB35206CF6BD8BF48";
+
+       /**
+       * The message start string is designed to be unlikely to occur in normal data.
+       * The characters are rarely used upper ASCII, not valid as UTF-8, and produce
        `  * a large 32-bit integer with any alignment.
-         */
-		 //btzc: update verticalcoin pchMessage
-		pchMessageStart[0] = 0xe2;
-		pchMessageStart[1] = 0xd7;
-		pchMessageStart[2] = 0xf1;
-		pchMessageStart[3] = 0xf3;
-		nDefaultPort = 54111;
-		nPruneAfterHeight = 100000;
-		/**
-		* btzc: verticalcoin init genesis block
-		* nBits = 0x1e0ffff0
-		* nTime = 1519267024
-		* nNonce = 0
-		* genesisReward = 0 * COIN
-		* nVersion = 2
-		* extraNonce
-		*/
-		std::vector<unsigned char> extraNonce(4);
-		extraNonce[0] = 0x82;
-		extraNonce[1] = 0x3f;
-		extraNonce[2] = 0x00;
-		extraNonce[3] = 0x00;
+       */
+       //btzc: update verticalcoin pchMessage
+       pchMessageStart[0] = 0xe2;
+       pchMessageStart[1] = 0xd7;
+       pchMessageStart[2] = 0xf1;
+       pchMessageStart[3] = 0xf3;
+       nDefaultPort = 54111;
+       nPruneAfterHeight = 100000;
+       /**
+       * btzc: verticalcoin init genesis block
+       * nBits = 0x1e0ffff0
+       * nTime = 1519267024
+       * nNonce = 0
+       * genesisReward = 0 * COIN
+       * nVersion = 2
+       * extraNonce
+       */
+       std::vector<unsigned char> extraNonce(4);
+       extraNonce[0] = 0x82;
+       extraNonce[1] = 0x3f;
+       extraNonce[2] = 0x00;
+       extraNonce[3] = 0x00;
 
-		// Updated the nTime to avoid any max tip age issues.
-		genesis = CreateGenesisBlock(1523301543, 1407710, 0x1e0ffff0, 2, 0 * COIN, extraNonce);
-        //std::cout << "MAIN" << std::endl;
-        //mineBlock(genesis);
-        //std::cout << genesis.GetHash().ToString() << std::endl;
-		consensus.hashGenesisBlock = genesis.GetHash();
-		assert(consensus.hashGenesisBlock == uint256S("0x57dd7d975f4b17ada4f105daa40fc3efa97168482b4aba024a57f2d6f4d70dba"));
-		assert(genesis.hashMerkleRoot == uint256S("0x1ab1367b6c7666c78b3ce0b688c4ef323f42379158a6a29463fe03781ec1d745"));
+       // Updated the nTime to avoid any max tip age issues.
+       genesis = CreateGenesisBlock(1523301543, 1407710, 0x1e0ffff0, 2, 0 * COIN, extraNonce);
+       //std::cout << "MAIN" << std::endl;
+       //mineBlock(genesis);
+       //std::cout << genesis.GetHash().ToString() << std::endl;
+       consensus.hashGenesisBlock = genesis.GetHash();
+       assert(consensus.hashGenesisBlock == uint256S("0x57dd7d975f4b17ada4f105daa40fc3efa97168482b4aba024a57f2d6f4d70dba"));
+       assert(genesis.hashMerkleRoot == uint256S("0x1ab1367b6c7666c78b3ce0b688c4ef323f42379158a6a29463fe03781ec1d745"));
 
-      // oldschool - DNSSEC - 51.15.85.226
-      vSeeds.push_back(CDNSSeedData("vrtseed.ovh", "seed1.vrtseed.ovh", false)); 
+       // oldschool - DNSSEC - 51.15.85.226
+       vSeeds.push_back(CDNSSeedData("vrtseed.ovh", "seed1.vrtseed.ovh", false));
 
-		vFixedSeeds.clear();
+       vFixedSeeds.clear();
 
-        // Note that of those with the service bits flag, most only support a subset of possible options
-        base58Prefixes[PUBKEY_ADDRESS] = std::vector < unsigned char >(1, 70); // V
-        base58Prefixes[SCRIPT_ADDRESS] = std::vector < unsigned char >(1, 132); // v
-        base58Prefixes[SECRET_KEY] = std::vector < unsigned char >(1, 5); // 3
-        base58Prefixes[EXT_PUBLIC_KEY] = boost::assign::list_of(0x04)(0x88)(0xB2)(0x1E).convert_to_container < std::vector < unsigned char > > ();
-        base58Prefixes[EXT_SECRET_KEY] = boost::assign::list_of(0x04)(0x88)(0xAD)(0xE4).convert_to_container < std::vector < unsigned char > > ();
+       // Note that of those with the service bits flag, most only support a subset of possible options
+       base58Prefixes[PUBKEY_ADDRESS] = std::vector < unsigned char >(1, 70); // V
+       base58Prefixes[SCRIPT_ADDRESS] = std::vector < unsigned char >(1, 132); // v
+       base58Prefixes[SECRET_KEY] = std::vector < unsigned char >(1, 5); // 3
+       base58Prefixes[EXT_PUBLIC_KEY] = boost::assign::list_of(0x04)(0x88)(0xB2)(0x1E).convert_to_container < std::vector < unsigned char > >();
+       base58Prefixes[EXT_SECRET_KEY] = boost::assign::list_of(0x04)(0x88)(0xAD)(0xE4).convert_to_container < std::vector < unsigned char > >();
 
-        vFixedSeeds = std::vector<SeedSpec6>(pnSeed6_main, pnSeed6_main + ARRAYLEN(pnSeed6_main));
+       vFixedSeeds = std::vector<SeedSpec6>(pnSeed6_main, pnSeed6_main + ARRAYLEN(pnSeed6_main));
 
-        fMiningRequiresPeers = false; // [oldschool] TODO: change to "true"
-        fDefaultConsistencyChecks = false;
-        fRequireStandard = true;
-        fMineBlocksOnDemand = false;
-        fTestnetToBeDeprecatedFieldRPC = false;
+       fMiningRequiresPeers = false; // [oldschool] TODO: change to "true"
+       fDefaultConsistencyChecks = false;
+       fRequireStandard = true;
+       fMineBlocksOnDemand = false;
+       fTestnetToBeDeprecatedFieldRPC = false;
 
-        checkpointData = (CCheckpointData) {
-            boost::assign::map_list_of
-                (0, uint256S("0x57dd7d975f4b17ada4f105daa40fc3efa97168482b4aba024a57f2d6f4d70dba")),
-            1523301543, // * UNIX timestamp of last checkpoint block
-            0,    // * total number of transactions between genesis and last checkpoint
-            //   (the tx=... number in the SetBestChain debug.log lines)
-            0     // * estimated number of transactions per day after checkpoint
-        };
+       checkpointData = (CCheckpointData) {
+          boost::assign::map_list_of
+          (0, uint256S("0x57dd7d975f4b17ada4f105daa40fc3efa97168482b4aba024a57f2d6f4d70dba")),
+             1523301543, // * UNIX timestamp of last checkpoint block
+             0,    // * total number of transactions between genesis and last checkpoint
+                   //   (the tx=... number in the SetBestChain debug.log lines)
+             0     // * estimated number of transactions per day after checkpoint
+       };
     }
 };
 
@@ -213,7 +213,7 @@ class CTestNetParams : public CChainParams {
 public:
     CTestNetParams() {
 		strNetworkID = "test";
-		consensus.nSubsidyHalvingInterval = 210000;
+		consensus.nSubsidyHalvingInterval = 0;
 		consensus.nMajorityEnforceBlockUpgrade = 51;
 		consensus.nMajorityRejectBlockOutdated = 75;
 		consensus.nMajorityWindow = 100;

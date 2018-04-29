@@ -23,9 +23,9 @@ static const struct {
     const bool useExtraSpacing;
 } platform_styles[] = {
     {"macosx", false, false, true},
-    {"windows", true, false, false},
+    {"windows", false, false, false},
     /* Other: linux, unix, ... */
-    {"other", true, true, false}
+    {"other", false, false, false}
 };
 static const unsigned platform_styles_count = sizeof(platform_styles)/sizeof(*platform_styles);
 
