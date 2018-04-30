@@ -86,6 +86,12 @@
 #include "zmq/zmqnotificationinterface.h"
 #endif
 
+#if ENABLE_ZMQ // TODO create own flag
+#include "client-api/zmq.h"
+#include "client-api/server.h"
+#include "client-api/register.h"
+#endif
+
 
 bool fFeeEstimatesInitialized = false;
 static const bool DEFAULT_PROXYRANDOMIZE = true;
@@ -848,6 +854,10 @@ bool AppInitServers(boost::thread_group &threadGroup) {
         return false;
     if (!StartHTTPServer())
         return false;
+#if ENABLE_ZMQ
+    if (!StartREQREPZMQ())
+        return false;
+#endif
     return true;
 }
 
@@ -1531,6 +1541,10 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     if (pzmqNotificationInterface) {
         RegisterValidationInterface(pzmqNotificationInterface);
     }
+#endif
+    // ZMQ API
+#if ENABLE_ZMQ
+    RegisterAllCoreZMQCommands(tableZMQ);
 #endif
     if (mapArgs.count("-maxuploadtarget")) {
         CNode::SetMaxOutboundTarget(GetArg("-maxuploadtarget", DEFAULT_MAX_UPLOAD_TARGET) * 1024 * 1024);
