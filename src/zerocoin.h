@@ -138,6 +138,9 @@ public:
     // Reset to initial values
     void Reset();
 
+    // Test function
+    bool TestValidity(CChain *chain);
+
     static CZerocoinState *GetZerocoinState();
 };
 

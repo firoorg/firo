@@ -109,7 +109,7 @@ map <uint256, int64_t> mapRejectedBlocks GUARDED_BY(cs_main);
 
 struct IteratorComparator {
     template<typename I>
-    bool operator()(const I &a, const I &b) {
+    bool operator()(const I &a, const I &b) const {
         return &(*a) < &(*b);
     }
 };

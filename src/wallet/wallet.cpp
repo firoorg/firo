@@ -3162,14 +3162,8 @@ bool CWallet::CreateZerocoinMintModel(string &stringError, string denomAmount) {
         return false;
     }
 
-    // zerocoin init
-    CBigNum bnTrustedModulus;
-
-    // Loads a trusted Zerocoin modulus "N"
-    bnTrustedModulus.SetHex(ZEROCOIN_MODULUS);
-
     // Set up the Zerocoin Params object
-    libzerocoin::Params *ZCParams = new libzerocoin::Params(bnTrustedModulus);
+    libzerocoin::Params *zcParams = ZCParamsV2;
 	
 	int mintVersion = ZEROCOIN_TX_VERSION_1;
 	
@@ -3186,7 +3180,7 @@ bool CWallet::CreateZerocoinMintModel(string &stringError, string denomAmount) {
     // new zerocoin. It stores all the private values inside the
     // PrivateCoin object. This includes the coin secrets, which must be
     // stored in a secure location (wallet) at the client.
-    libzerocoin::PrivateCoin newCoin(ZCParams, denomination, mintVersion);
+    libzerocoin::PrivateCoin newCoin(zcParams, denomination, mintVersion);
 
     // Get a copy of the 'public' portion of the coin. You should
     // embed this into a Zerocoin 'MINT' transaction along with a series
@@ -3646,16 +3640,9 @@ bool CWallet::CreateZerocoinSpendTransaction(int64_t nValue, libzerocoin::CoinDe
 
             // Fill vin
 
-            // Zerocoin
-            // zerocoin init
-            static CBigNum bnTrustedModulus;
-            bool setParams = bnTrustedModulus.SetHexBool(ZEROCOIN_MODULUS);
-            if (!setParams) {
-                LogPrintf("bnTrustedModulus.SetHexBool(ZEROCOIN_MODULUS) failed");
-            }
-
             // Set up the Zerocoin Params object
-            static libzerocoin::Params *ZCParams = new libzerocoin::Params(bnTrustedModulus);
+            bool fModulusV2 = chainActive.Height() >= Params().nModulusV2StartBlock;
+            libzerocoin::Params *zcParams = fModulusV2 ? ZCParamsV2 : ZCParams;
 
             // Select not yet used coin from the wallet with minimal possible id
 
@@ -3683,11 +3670,13 @@ bool CWallet::CreateZerocoinSpendTransaction(int64_t nValue, libzerocoin::CoinDe
                             && id < coinId
                             && coinHeight + (ZC_MINT_CONFIRMATIONS-1) <= chainActive.Height()
                             && zerocoinState->GetAccumulatorValueForSpend(
+                                    &chainActive,
                                     chainActive.Height()-(ZC_MINT_CONFIRMATIONS-1),
                                     denomination,
                                     id,
                                     accumulatorValue,
-                                    accumulatorBlockHash) > 1
+                                    accumulatorBlockHash,
+                                    fModulusV2) > 1
                             ) {
                         coinId = id;
                         coinToUse = minIdPubcoin;
@@ -3700,9 +3689,9 @@ bool CWallet::CreateZerocoinSpendTransaction(int64_t nValue, libzerocoin::CoinDe
                 return false;
             }
 
-            libzerocoin::Accumulator accumulator(ZCParams, accumulatorValue, denomination);
+            libzerocoin::Accumulator accumulator(zcParams, accumulatorValue, denomination);
             // 2. Get pubcoin from the private coin
-            libzerocoin::PublicCoin pubCoinSelected(ZCParams, coinToUse.value, denomination);
+            libzerocoin::PublicCoin pubCoinSelected(zcParams, coinToUse.value, denomination);
 
             // Now make sure the coin is valid.
             if (!pubCoinSelected.validate()) {
@@ -3718,10 +3707,13 @@ bool CWallet::CreateZerocoinSpendTransaction(int64_t nValue, libzerocoin::CoinDe
                     zerocoinState->GetWitnessForSpend(&chainActive,
                                                       chainActive.Height()-(ZC_MINT_CONFIRMATIONS-1),
                                                       denomination, coinId,
-                                                      coinToUse.value);
+                                                      coinToUse.value,
+                                                      fModulusV2);
+
+            int serializedId = coinId + (fModulusV2 ? ZC_MODULUS_V2_BASE_ID : 0);
 
             CTxIn newTxIn;
-            newTxIn.nSequence = coinId;
+            newTxIn.nSequence = serializedId;
             newTxIn.scriptSig = CScript();
             newTxIn.prevout.SetNull();
             txNew.vin.push_back(newTxIn);
@@ -3729,11 +3721,11 @@ bool CWallet::CreateZerocoinSpendTransaction(int64_t nValue, libzerocoin::CoinDe
             bool useVersion2 = IsZerocoinTxV2(denomination, coinId);
 
             // We use incomplete transaction hash for now as a metadata
-            libzerocoin::SpendMetaData metaData(coinId, txNew.GetHash());
+            libzerocoin::SpendMetaData metaData(serializedId, txNew.GetHash());
 
             // Construct the CoinSpend object. This acts like a signature on the
             // transaction.
-            libzerocoin::PrivateCoin privateCoin(ZCParams, denomination);
+            libzerocoin::PrivateCoin privateCoin(zcParams, denomination);
 
             int txVersion = ZEROCOIN_TX_VERSION_1;
             if (useVersion2) {
@@ -3759,7 +3751,7 @@ bool CWallet::CreateZerocoinSpendTransaction(int64_t nValue, libzerocoin::CoinDe
             privateCoin.setSerialNumber(coinToUse.serialNumber);
             privateCoin.setEcdsaSeckey(coinToUse.ecdsaSecretKey);
 
-            libzerocoin::CoinSpend spend(ZCParams, privateCoin, accumulator, witness, metaData, accumulatorBlockHash);
+            libzerocoin::CoinSpend spend(zcParams, privateCoin, accumulator, witness, metaData, accumulatorBlockHash);
             spend.setVersion(txVersion);
 
             // This is a sanity check. The CoinSpend object should always verify,
@@ -3824,7 +3816,7 @@ bool CWallet::CreateZerocoinSpendTransaction(int64_t nValue, libzerocoin::CoinDe
             entry.coinSerial = coinSerial;
             entry.hashTx = txHash;
             entry.pubCoin = zcSelectedValue;
-            entry.id = coinId;
+            entry.id = serializedId;
             entry.denomination = coinToUse.denomination;
             LogPrintf("WriteCoinSpendSerialEntry, serialNumber=%s\n", coinSerial.ToString());
             if (!CWalletDB(strWalletFile).WriteCoinSpendSerialEntry(entry)) {

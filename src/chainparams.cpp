@@ -208,6 +208,7 @@ public:
 	    nSpendV2ID_50 = ZC_V2_SWITCH_ID_50;
 	    nSpendV2ID_100 = ZC_V2_SWITCH_ID_100;
 	    nModulusV2StartBlock = ZC_MODULUS_V2_START_BLOCK;
+        nModulusV1MempoolStopBlock = ZC_MODULUS_V1_MEMPOOL_STOP_BLOCK;
 	    nModulusV1StopBlock = ZC_MODULUS_V1_STOP_BLOCK;
     }
 };
@@ -334,6 +335,7 @@ public:
 	    nSpendV2ID_50 = ZC_V2_TESTNET_SWITCH_ID_50;
 	    nSpendV2ID_100 = ZC_V2_TESTNET_SWITCH_ID_100;
 	    nModulusV2StartBlock = ZC_MODULUS_V2_TESTNET_START_BLOCK;
+        nModulusV1MempoolStopBlock = ZC_MODULUS_V1_TESTNET_MEMPOOL_STOP_BLOCK;
 	    nModulusV1StopBlock = ZC_MODULUS_V1_TESTNET_STOP_BLOCK;
     }
 };
@@ -433,6 +435,7 @@ public:
 	    nSpendV2ID_50 = ZC_V2_TESTNET_SWITCH_ID_50;
 	    nSpendV2ID_100 = ZC_V2_TESTNET_SWITCH_ID_100;
 	    nModulusV2StartBlock = ZC_MODULUS_V2_TESTNET_START_BLOCK;
+        nModulusV1MempoolStopBlock = ZC_MODULUS_V1_TESTNET_MEMPOOL_STOP_BLOCK;
 	    nModulusV1StopBlock = ZC_MODULUS_V1_TESTNET_STOP_BLOCK;
     }
 
