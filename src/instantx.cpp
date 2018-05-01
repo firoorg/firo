@@ -43,31 +43,7 @@ CInstantSend instantsend;
 void CInstantSend::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataStream& vRecv)
 {
     if(fLiteMode) return; // disable all Dash specific functionality
-//    if(!sporkManager.IsSporkActive(SPORK_2_INSTANTSEND_ENABLED)) return;
-
-    // Ignore any InstantSend messages until vnode list is synced
     if(!vnodeSync.IsVnodeListSynced()) return;
-
-    // NOTE: NetMsgType::TXLOCKREQUEST is handled via ProcessMessage() in main.cpp
-
-//    if (strCommand == NetMsgType::TXLOCKVOTE) // InstantSend Transaction Lock Consensus Votes
-//    {
-//        if(pfrom->nVersion < MIN_INSTANTSEND_PROTO_VERSION) return;
-//
-//        CTxLockVote vote;
-//        vRecv >> vote;
-//
-//        LOCK2(cs_main, cs_instantsend);
-//
-//        uint256 nVoteHash = vote.GetHash();
-//
-//        if(mapTxLockVotes.count(nVoteHash)) return;
-//        mapTxLockVotes.insert(std::make_pair(nVoteHash, vote));
-//
-//        ProcessTxLockVote(pfrom, vote);
-//
-//        return;
-//    }
 }
 
 bool CInstantSend::ProcessTxLockRequest(const CTxLockRequest& txLockRequest)
@@ -694,9 +670,6 @@ bool CInstantSend::GetTxLockVote(const uint256& hash, CTxLockVote& txLockVoteRet
 
 bool CInstantSend::IsInstantSendReadyToLock(const uint256& txHash)
 {
-//    if(!fEnableInstantSend || fLargeWorkForkFound || fLargeWorkInvalidChainFound ||
-//        !sporkManager.IsSporkActive(SPORK_2_INSTANTSEND_ENABLED)) return false;
-
     LOCK(cs_instantsend);
     // There must be a successfully verified lock request
     // and all outputs must be locked (i.e. have enough signatures)
@@ -706,9 +679,6 @@ bool CInstantSend::IsInstantSendReadyToLock(const uint256& txHash)
 
 bool CInstantSend::IsLockedInstantSendTransaction(const uint256& txHash)
 {
-//    if(!fEnableInstantSend || fLargeWorkForkFound || fLargeWorkInvalidChainFound ||
-//        !sporkManager.IsSporkActive(SPORK_2_INSTANTSEND_ENABLED)) return false;
-
     LOCK(cs_instantsend);
 
     // there must be a lock candidate
@@ -732,9 +702,6 @@ bool CInstantSend::IsLockedInstantSendTransaction(const uint256& txHash)
 int CInstantSend::GetTransactionLockSignatures(const uint256& txHash)
 {
     if(!fEnableInstantSend) return -1;
-//    if(fLargeWorkForkFound || fLargeWorkInvalidChainFound) return -2;
-//    if(!sporkManager.IsSporkActive(SPORK_2_INSTANTSEND_ENABLED)) return -3;
-
     LOCK(cs_instantsend);
 
     std::map<uint256, CTxLockCandidate>::iterator itLockCandidate = mapTxLockCandidates.find(txHash);
@@ -912,11 +879,6 @@ bool CTxLockRequest::IsValid(bool fRequireUnspent) const
 
         nValueIn += nValue;
     }
-
-//    if(nValueOut > sporkManager.GetSporkValue(SPORK_5_INSTANTSEND_MAX_VALUE)*COIN) {
-//        LogPrint("instantsend", "CTxLockRequest::IsValid -- Transaction value too high: nValueOut=%d, tx=%s", nValueOut, ToString());
-//        return false;
-//    }
 
     if(nValueIn - nValueOut < GetMinFee()) {
         LogPrint("instantsend", "CTxLockRequest::IsValid -- did not include enough fees in transaction: fees=%d, tx=%s", nValueOut - nValueIn, ToString());

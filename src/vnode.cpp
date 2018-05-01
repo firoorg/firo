@@ -284,10 +284,6 @@ bool CVnode::IsValidForPayment() {
     if (nActiveState == VNODE_ENABLED) {
         return true;
     }
-//    if(!sporkManager.IsSporkActive(SPORK_14_REQUIRE_SENTINEL_FLAG) &&
-//       (nActiveState == VNODE_WATCHDOG_EXPIRED)) {
-//        return true;
-//    }
 
     return false;
 }
