@@ -1867,7 +1867,9 @@ bool ReadBlockFromDisk(CBlock &block, const CBlockIndex *pindex, const Consensus
 }
 
 CAmount GetBlockSubsidy(int nHeight, const Consensus::Params &consensusParams, int nTime) {
-    return CAmount(32 * COIN); // Verticalcoin - Reward of 32 VRT
+   if (nHeight == 1)
+      return CAmount(243750 * COIN); // 243750 VRT Premine
+   return CAmount(32 * COIN); //32 VRT - 20 for POW / 12 for vnodes
 }
 
 bool IsInitialBlockDownload() {
@@ -3300,24 +3302,7 @@ int GetInputAge(const CTxIn &txin) {
 }
 
 CAmount GetVnodePayment(int nHeight, CAmount blockValue) {
-//    CAmount ret = blockValue * 30/100 ; // start at 30%
-//    int nMNPIBlock = Params().GetConsensus().nVnodePaymentsStartBlock;
-////    int nMNPIBlock = Params().GetConsensus().nVnodePaymentsIncreaseBlock;
-//    int nMNPIPeriod = Params().GetConsensus().nVnodePaymentsIncreasePeriod;
-//
-//    // mainnet:
-//    if (nHeight > nMNPIBlock) ret += blockValue / 20; // 158000 - 25.0% - 2014-10-24
-//    if (nHeight > nMNPIBlock + (nMNPIPeriod * 1)) ret += blockValue / 20; // 175280 - 30.0% - 2014-11-25
-//    if (nHeight > nMNPIBlock + (nMNPIPeriod * 2)) ret += blockValue / 20; // 192560 - 35.0% - 2014-12-26
-//    if (nHeight > nMNPIBlock + (nMNPIPeriod * 3)) ret += blockValue / 40; // 209840 - 37.5% - 2015-01-26
-//    if (nHeight > nMNPIBlock + (nMNPIPeriod * 4)) ret += blockValue / 40; // 227120 - 40.0% - 2015-02-27
-//    if (nHeight > nMNPIBlock + (nMNPIPeriod * 5)) ret += blockValue / 40; // 244400 - 42.5% - 2015-03-30
-//    if (nHeight > nMNPIBlock + (nMNPIPeriod * 6)) ret += blockValue / 40; // 261680 - 45.0% - 2015-05-01
-//    if (nHeight > nMNPIBlock + (nMNPIPeriod * 7)) ret += blockValue / 40; // 278960 - 47.5% - 2015-06-01
-//    if (nHeight > nMNPIBlock + (nMNPIPeriod * 9)) ret += blockValue / 40; // 313520 - 50.0% - 2015-08-03
-    CAmount ret = 15 * COIN; //15VRT
-
-    return ret;
+    return CAmount(12 * COIN); // 12 VRT - 20 for POW / 12 for vnodes
 }
 
 bool DisconnectBlocks(int blocks) {

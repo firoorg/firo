@@ -14,11 +14,11 @@
 
 static const int HF_LYRA2Z_HEIGHT = 0;
 static const int HF_VNODE_HEIGHT = 100;
-static const int HF_VNODE_PAYMENT_START = 200; 
+static const int HF_VNODE_PAYMENT_START = 720; // After ~1 day we start with Masternodes 
 //static const int HF_MTP_HEIGHT = 70000;
 
 static const int HF_LYRA2Z_HEIGHT_TESTNET = 0;
-static const int HF_VNODE_HEIGHT_TESTNET = 100;
+static const int HF_VNODE_HEIGHT_TESTNET = HF_VNODE_PAYMENT_START;
 //static const int HF_MTP_HEIGHT_TESTNET = 30;
 
 static const int HF_ZEROSPEND_FIX = 1;
