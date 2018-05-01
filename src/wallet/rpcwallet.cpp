@@ -2766,12 +2766,10 @@ UniValue spendzerocoin(const UniValue& params, bool fHelp) {
                 "spendzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n");
     }
 
-    CBitcoinAddress address = NULL;
-    bool thirdParty = false;
+    CBitcoinAddress address;
     string thirdPartyaddress = "";
     if (params.size() > 1){
     	// Address
-    	thirdParty = true;
     	thirdPartyaddress = params[1].get_str();
     	address = CBitcoinAddress(params[1].get_str());
 		 if (!address.IsValid())
