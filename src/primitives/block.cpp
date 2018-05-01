@@ -55,7 +55,7 @@ uint256 CBlockHeader::GetPoWHash(int nHeight, bool forceCalc) const {
 //            std::chrono::system_clock::now().time_since_epoch()).count();
     bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
     if (!fTestNet) {
-        if (nHeight < 20500) {
+        if (nHeight < PRECOMPUTED_HASHES) {
             if (!mapPoWHash.count(1)) {
 //            std::cout << "Start Build Map" << std::endl;
                 buildMapPoWHash();
@@ -78,7 +78,7 @@ uint256 CBlockHeader::GetPoWHash(int nHeight, bool forceCalc) const {
 }
 
 void CBlockHeader::InvalidateCachedPoWHash(int nHeight) const {
-    if (nHeight >= 20500 && mapPoWHash.count(nHeight) > 0)
+   if (nHeight >= PRECOMPUTED_HASHES && mapPoWHash.count(nHeight) > 0)
         mapPoWHash.erase(nHeight);
 }
 
