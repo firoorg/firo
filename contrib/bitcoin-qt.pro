@@ -16,7 +16,7 @@ FORMS += \
     ../src/qt/forms/sendcoinsentry.ui \
     ../src/qt/forms/signverifymessagedialog.ui \
     ../src/qt/forms/transactiondescdialog.ui \
-    ../src/qt/forms/znodelist.ui \
+    ../src/qt/forms/vnodelist.ui \
     ../src/qt/forms/zerocoinpage.ui \
 
 RESOURCES += \

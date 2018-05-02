@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>ZnodeList</class>
- <widget class="QWidget" name="ZnodeList">
+ <class>VnodeList</class>
+ <widget class="QWidget" name="VnodeList">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -49,9 +49,9 @@
        <property name="currentIndex">
         <number>1</number>
        </property>
-       <widget class="QWidget" name="tabMyZnodes">
+       <widget class="QWidget" name="tabMyVnodes">
         <attribute name="title">
-         <string>My Znodes</string>
+         <string>My Vnodes</string>
         </attribute>
         <layout class="QGridLayout" name="gridLayout_2">
          <item row="0" column="0">
@@ -67,14 +67,14 @@
              <item>
               <widget class="QLabel" name="updateNote">
                <property name="text">
-                <string>Note: Status of your znodes in local wallet can potentially be slightly incorrect.&lt;br /&gt;Always wait for wallet to sync additional data and then double check from another node&lt;br /&gt;if your znode should be running but you still do not see &quot;ENABLED&quot; in &quot;Status&quot; field.</string>
+                <string>Note: Status of your vnodes in local wallet can potentially be slightly incorrect.&lt;br /&gt;Always wait for wallet to sync additional data and then double check from another node&lt;br /&gt;if your vnode should be running but you still do not see &quot;ENABLED&quot; in &quot;Status&quot; field.</string>
                </property>
               </widget>
              </item>
             </layout>
            </item>
            <item>
-            <widget class="QTableWidget" name="tableWidgetMyZnodes">
+            <widget class="QTableWidget" name="tableWidgetMyVnodes">
              <property name="minimumSize">
               <size>
                <width>695</width>
@@ -202,13 +202,13 @@
          </item>
         </layout>
        </widget>
-       <widget class="QWidget" name="tabAllZnodes">
+       <widget class="QWidget" name="tabAllVnodes">
         <attribute name="title">
-         <string>All Znodes</string>
+         <string>All Vnodes</string>
         </attribute>
         <layout class="QGridLayout" name="gridLayout">
          <item row="1" column="0">
-          <widget class="QTableWidget" name="tableWidgetZnodes">
+          <widget class="QTableWidget" name="tableWidgetVnodes">
            <property name="editTriggers">
             <set>QAbstractItemView::NoEditTriggers</set>
            </property>
@@ -271,7 +271,7 @@
            <item>
             <widget class="QLineEdit" name="filterLineEdit">
              <property name="toolTip">
-              <string>Filter znode list</string>
+              <string>Filter vnode list</string>
              </property>
             </widget>
            </item>

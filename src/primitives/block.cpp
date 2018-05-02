@@ -55,7 +55,7 @@ uint256 CBlockHeader::GetPoWHash(int nHeight, bool forceCalc) const {
 //            std::chrono::system_clock::now().time_since_epoch()).count();
     bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
     if (!fTestNet) {
-        if (nHeight < 20500) {
+        if (nHeight < PRECOMPUTED_HASHES) {
             if (!mapPoWHash.count(1)) {
 //            std::cout << "Start Build Map" << std::endl;
                 buildMapPoWHash();
@@ -67,35 +67,18 @@ uint256 CBlockHeader::GetPoWHash(int nHeight, bool forceCalc) const {
         }
     }
     uint256 powHash;
+    
     try {
-        if (!fTestNet && nHeight >= HF_LYRA2Z_HEIGHT) {
-            lyra2z_hash(BEGIN(nVersion), BEGIN(powHash));
-        } else if (!fTestNet && nHeight >= HF_LYRA2_HEIGHT) {
-            LYRA2(BEGIN(powHash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, 8192, 256);
-        } else if (!fTestNet && nHeight >= HF_LYRA2VAR_HEIGHT) {
-            LYRA2(BEGIN(powHash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, nHeight, 256);
-        } else if (fTestNet && nHeight >= HF_LYRA2Z_HEIGHT_TESTNET) { // testnet
-            lyra2z_hash(BEGIN(nVersion), BEGIN(powHash));
-        } else if (fTestNet && nHeight >= HF_LYRA2_HEIGHT_TESTNET) { // testnet
-            LYRA2(BEGIN(powHash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, 8192, 256);
-        } else if (fTestNet && nHeight >= HF_LYRA2VAR_HEIGHT_TESTNET) { // testnet
-            LYRA2(BEGIN(powHash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, nHeight, 256);
-        } else {
-            scrypt_N_1_1_256(BEGIN(nVersion), BEGIN(powHash), GetNfactor(nTime));
-        }
+        lyra2z_hash(BEGIN(nVersion), BEGIN(powHash));
     } catch (std::exception &e) {
         LogPrintf("excepetion: %s", e.what());
     }
-//    int64_t end = std::chrono::duration_cast<std::chrono::milliseconds>(
-//            std::chrono::system_clock::now().time_since_epoch()).count();
-//    std::cout << "GetPowHash nHeight=" << nHeight << ", hash= " << powHash.ToString() << " done in= " << (end - start) << " miliseconds" << std::endl;
-    mapPoWHash.insert(make_pair(nHeight, powHash));
-//    SetPoWHash(thash);
+    
     return powHash;
 }
 
 void CBlockHeader::InvalidateCachedPoWHash(int nHeight) const {
-    if (nHeight >= 20500 && mapPoWHash.count(nHeight) > 0)
+   if (nHeight >= PRECOMPUTED_HASHES && mapPoWHash.count(nHeight) > 0)
         mapPoWHash.erase(nHeight);
 }
 

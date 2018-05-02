@@ -120,11 +120,11 @@ void WalletFrame::gotoHistoryPage()
         i.value()->gotoHistoryPage();
 }
 
-void WalletFrame::gotoZnodePage()
+void WalletFrame::gotoVnodePage()
 {
     QMap<QString, WalletView*>::const_iterator i;
     for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i)
-        i.value()->gotoZnodePage();
+        i.value()->gotoVnodePage();
 }
 
 void WalletFrame::gotoReceiveCoinsPage()

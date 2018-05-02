@@ -1,3 +1,16 @@
+Features and Specs
+==================================
+
+Specs
+----------------------
+- LWMA difficulty algorithm https://github.com/zawy12/difficulty-algorithms/issues/3
+- Lyra2Z mining algorithm
+- vnodes 
+- Tor integration
+- 2 minute blocktime
+- 2 MB blocksize
+
+
 Linux Build Instructions and Notes
 ==================================
 
@@ -27,11 +40,11 @@ Build
 ----------------------
 1.  Clone the source:
 
-        git clone https://github.com/zcoinofficial/zcoin
+        git clone https://github.com/verticalcoinofficial/verticalcoin
 
-2.  Build Zcoin-core:
+2.  Build Verticalcoin-core:
 
-    Configure and build the headless zcoin binaries as well as the GUI (if Qt is found).
+    Configure and build the headless verticalcoin binaries as well as the GUI (if Qt is found).
 
     You can disable the GUI build by passing `--without-gui` to configure.
         

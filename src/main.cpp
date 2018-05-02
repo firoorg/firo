@@ -46,9 +46,9 @@
 
 #include "darksend.h"
 #include "instantx.h"
-#include "znode-payments.h"
-#include "znode-sync.h"
-#include "znodeman.h"
+#include "vnode-payments.h"
+#include "vnode-sync.h"
+#include "vnodeman.h"
 #include "coins.h"
 
 #include <atomic>
@@ -65,7 +65,7 @@
 using namespace std;
 
 #if defined(NDEBUG)
-# error "Zcoin cannot be compiled without assertions."
+# error "Verticalcoin cannot be compiled without assertions."
 #endif
 
 /**
@@ -104,7 +104,7 @@ CAmount maxTxFee = DEFAULT_TRANSACTION_MAXFEE;
 CTxMemPool mempool(::minRelayTxFee);
 FeeFilterRounder filterRounder(::minRelayTxFee);
 
-// Dash znode
+// Dash vnode
 map <uint256, int64_t> mapRejectedBlocks GUARDED_BY(cs_main);
 
 struct IteratorComparator {
@@ -137,7 +137,7 @@ static void CheckBlockIndex(const Consensus::Params &consensusParams);
 /** Constant stuff for coinbase transactions we create: */
 CScript COINBASE_FLAGS;
 
-const string strMessageMagic = "Zcoin Signed Message:\n";
+const string strMessageMagic = "Verticalcoin Signed Message:\n";
 
 // Internal stuff
 namespace {
@@ -549,8 +549,10 @@ namespace {
     }
 
 // Requires cs_main
+
     bool CanDirectFetch(const Consensus::Params &consensusParams) {
-        return chainActive.Tip()->GetBlockTime() > GetAdjustedTime() - consensusParams.nPowTargetSpacing * 20;
+       
+       return chainActive.Tip()->GetBlockTime() > GetAdjustedTime() - consensusParams.LWMAPowTargetSpacing * 20;
     }
 
 // Requires cs_main
@@ -1865,23 +1867,9 @@ bool ReadBlockFromDisk(CBlock &block, const CBlockIndex *pindex, const Consensus
 }
 
 CAmount GetBlockSubsidy(int nHeight, const Consensus::Params &consensusParams, int nTime) {
-    bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
-    // Just want to make sure no one gets a dime before 28 Sep 2016 12:00 AM UTC
-    if (nTime < nStartRewardTime && !fTestNet)
-        return 0;
-
-    // Genesis block is 0 coin
-    if (nHeight == 0)
-        return 0;
-    int halvings = nHeight / consensusParams.nSubsidyHalvingInterval;
-    // Force block reward to zero when right shift is undefined.
-    if (halvings >= 64)
-        return 0;
-
-    CAmount nSubsidy = 50 * COIN;
-    // Subsidy is cut in half every 210,000 blocks which will occur approximately every 4 years.
-    nSubsidy >>= halvings;
-    return nSubsidy;
+   if (nHeight == 1)
+      return CAmount(243750 * COIN); // 243750 VRT Premine
+   return CAmount(32 * COIN); //32 VRT - 20 for POW / 12 for vnodes
 }
 
 bool IsInitialBlockDownload() {
@@ -2559,7 +2547,7 @@ static int64_t nTimeTotal = 0;
 
 bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pindex, CCoinsViewCache &view,
                   const CChainParams &chainparams, bool fJustCheck) {
-    //btzc: zcoin code
+    //btzc: verticalcoin code
 //    if (BlockMerkleBranch(block).size() <=0) {
 //        return false;
 //    };
@@ -2708,7 +2696,7 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
         const CTransaction &tx = block.vtx[i];
 
         uint256 txHash = tx.GetHash();
-        if (txIds.count(txHash) > 0 && (fTestNet || pindex->nHeight >= HF_ZNODE_HEIGHT))
+        if (txIds.count(txHash) > 0 && (fTestNet || pindex->nHeight >= HF_VNODE_HEIGHT))
             return state.DoS(100, error("ConnectBlock(): duplicate transactions in the same block"),
                              REJECT_INVALID, "bad-txns-duplicatetxid");
         txIds.insert(txHash);
@@ -2853,7 +2841,7 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
                                     block.vtx[0].GetValueOut(), blockReward),
                          REJECT_INVALID, "bad-cb-amount");
 
-    // ZNODE : MODIFIED TO CHECK ZNODE PAYMENTS AND SUPERBLOCKS
+    // Vnode : MODIFIED TO CHECK Vnode PAYMENTS AND SUPERBLOCKS
     // It's possible that we simply don't have enough data and this could fail
     // (i.e. block itself could be a correct one and we need to store it),
     // that's why this is in ConnectBlock. Could be the other way around however -
@@ -2867,10 +2855,10 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
 
     if (!IsBlockPayeeValid(block.vtx[0], pindex->nHeight, blockReward)) {
         mapRejectedBlocks.insert(make_pair(block.GetHash(), GetTime()));
-        return state.DoS(0, error("ConnectBlock(): couldn't find znode or superblock payments"),
+        return state.DoS(0, error("ConnectBlock(): couldn't find vnode or superblock payments"),
                          REJECT_INVALID, "bad-cb-payee");
     }
-    // END ZNODE
+    // END Vnode
 
     if (!control.Wait())
         return state.DoS(100, false);
@@ -3086,7 +3074,7 @@ void static UpdateTip(CBlockIndex *pindexNew, const CChainParams &chainParams) {
     mnodeman.UpdatedBlockTip(chainActive.Tip());
     darkSendPool.UpdatedBlockTip(chainActive.Tip());
     mnpayments.UpdatedBlockTip(chainActive.Tip());
-    znodeSync.UpdatedBlockTip(chainActive.Tip());
+    vnodeSync.UpdatedBlockTip(chainActive.Tip());
 
     // New best block
     nTimeBestReceived = GetTime();
@@ -3313,25 +3301,8 @@ int GetInputAge(const CTxIn &txin) {
     }
 }
 
-CAmount GetZnodePayment(int nHeight, CAmount blockValue) {
-//    CAmount ret = blockValue * 30/100 ; // start at 30%
-//    int nMNPIBlock = Params().GetConsensus().nZnodePaymentsStartBlock;
-////    int nMNPIBlock = Params().GetConsensus().nZnodePaymentsIncreaseBlock;
-//    int nMNPIPeriod = Params().GetConsensus().nZnodePaymentsIncreasePeriod;
-//
-//    // mainnet:
-//    if (nHeight > nMNPIBlock) ret += blockValue / 20; // 158000 - 25.0% - 2014-10-24
-//    if (nHeight > nMNPIBlock + (nMNPIPeriod * 1)) ret += blockValue / 20; // 175280 - 30.0% - 2014-11-25
-//    if (nHeight > nMNPIBlock + (nMNPIPeriod * 2)) ret += blockValue / 20; // 192560 - 35.0% - 2014-12-26
-//    if (nHeight > nMNPIBlock + (nMNPIPeriod * 3)) ret += blockValue / 40; // 209840 - 37.5% - 2015-01-26
-//    if (nHeight > nMNPIBlock + (nMNPIPeriod * 4)) ret += blockValue / 40; // 227120 - 40.0% - 2015-02-27
-//    if (nHeight > nMNPIBlock + (nMNPIPeriod * 5)) ret += blockValue / 40; // 244400 - 42.5% - 2015-03-30
-//    if (nHeight > nMNPIBlock + (nMNPIPeriod * 6)) ret += blockValue / 40; // 261680 - 45.0% - 2015-05-01
-//    if (nHeight > nMNPIBlock + (nMNPIPeriod * 7)) ret += blockValue / 40; // 278960 - 47.5% - 2015-06-01
-//    if (nHeight > nMNPIBlock + (nMNPIPeriod * 9)) ret += blockValue / 40; // 313520 - 50.0% - 2015-08-03
-    CAmount ret = 15 * COIN; //15XZC
-
-    return ret;
+CAmount GetVnodePayment(int nHeight, CAmount blockValue) {
+    return CAmount(12 * COIN); // 12 VRT - 20 for POW / 12 for vnodes
 }
 
 bool DisconnectBlocks(int blocks) {
@@ -3998,34 +3969,30 @@ bool CheckBlock(const CBlock &block, CValidationState &state, const Consensus::P
 
         }
 
-        // DASH : CHECK TRANSACTIONS FOR INSTANTSEND
-        if(sporkManager.IsSporkActive(SPORK_3_INSTANTSEND_BLOCK_FILTERING)) {
-            // We should never accept block which conflicts with completed transaction lock,
-            // that's why this is in CheckBlock unlike coinbase payee/amount.
-            // Require other nodes to comply, send them some data in case they are missing it.
-            BOOST_FOREACH(const CTransaction& tx, block.vtx) {
-                // skip coinbase, it has no inputs
-                if (tx.IsCoinBase()) continue;
-                // LOOK FOR TRANSACTION LOCK IN OUR MAP OF OUTPOINTS
-                BOOST_FOREACH(const CTxIn& txin, tx.vin) {
-                    uint256 hashLocked;
-                    if(instantsend.GetLockedOutPointTxHash(txin.prevout, hashLocked) && hashLocked != tx.GetHash()) {
-                        // Every node which relayed this block to us must invalidate it
-                        // but they probably need more data.
-                        // Relay corresponding transaction lock request and all its votes
-                        // to let other nodes complete the lock.
-                        instantsend.Relay(hashLocked);
-                        LOCK(cs_main);
-                        mapRejectedBlocks.insert(make_pair(block.GetHash(), GetTime()));
-                        return state.DoS(0, error("CheckBlock(XZC): transaction %s conflicts with transaction lock %s",
-                                                  tx.GetHash().ToString(), hashLocked.ToString()),
-                                         REJECT_INVALID, "conflict-tx-lock");
-                    }
-                }
-            }
-        } else {
-            LogPrintf("CheckBlock(XZC): spork is off, skipping transaction locking checks\n");
-        }
+       
+         // We should never accept block which conflicts with completed transaction lock,
+         // that's why this is in CheckBlock unlike coinbase payee/amount.
+         // Require other nodes to comply, send them some data in case they are missing it.
+         BOOST_FOREACH(const CTransaction& tx, block.vtx) {
+               // skip coinbase, it has no inputs
+               if (tx.IsCoinBase()) continue;
+               // LOOK FOR TRANSACTION LOCK IN OUR MAP OF OUTPOINTS
+               BOOST_FOREACH(const CTxIn& txin, tx.vin) {
+                  uint256 hashLocked;
+                  if(instantsend.GetLockedOutPointTxHash(txin.prevout, hashLocked) && hashLocked != tx.GetHash()) {
+                     // Every node which relayed this block to us must invalidate it
+                     // but they probably need more data.
+                     // Relay corresponding transaction lock request and all its votes
+                     // to let other nodes complete the lock.
+                     instantsend.Relay(hashLocked);
+                     LOCK(cs_main);
+                     mapRejectedBlocks.insert(make_pair(block.GetHash(), GetTime()));
+                     return state.DoS(0, error("CheckBlock(VRT): transaction %s conflicts with transaction lock %s",
+                                                tx.GetHash().ToString(), hashLocked.ToString()),
+                                       REJECT_INVALID, "conflict-tx-lock");
+                  }
+               }
+         }
 
         // Check transactions
         if (nHeight == INT_MAX)
@@ -4430,7 +4397,7 @@ bool ProcessNewBlock(CValidationState &state, const CChainParams &chainparams, C
         return error("%s: ActivateBestChain failed", __func__);
     }
 
-    znodeSync.IsBlockchainSynced(true);
+    vnodeSync.IsBlockchainSynced(true);
 
     return true;
 }
@@ -5488,26 +5455,26 @@ bool static AlreadyHave(const CInv &inv) EXCLUSIVE_LOCKS_REQUIRED(cs_main) {
         case MSG_SPORK:
             return mapSporks.count(inv.hash);
 
-        case MSG_ZNODE_PAYMENT_VOTE:
-            return mnpayments.mapZnodePaymentVotes.count(inv.hash);
+        case MSG_VNODE_PAYMENT_VOTE:
+            return mnpayments.mapVnodePaymentVotes.count(inv.hash);
 
-        case MSG_ZNODE_PAYMENT_BLOCK:
+        case MSG_VNODE_PAYMENT_BLOCK:
         {
             BlockMap::iterator mi = mapBlockIndex.find(inv.hash);
-            return mi != mapBlockIndex.end() && mnpayments.mapZnodeBlocks.find(mi->second->nHeight) != mnpayments.mapZnodeBlocks.end();
+            return mi != mapBlockIndex.end() && mnpayments.mapVnodeBlocks.find(mi->second->nHeight) != mnpayments.mapVnodeBlocks.end();
         }
 
-        case MSG_ZNODE_ANNOUNCE:
-            return mnodeman.mapSeenZnodeBroadcast.count(inv.hash) && !mnodeman.IsMnbRecoveryRequested(inv.hash);
+        case MSG_VNODE_ANNOUNCE:
+            return mnodeman.mapSeenVnodeBroadcast.count(inv.hash) && !mnodeman.IsMnbRecoveryRequested(inv.hash);
 
-        case MSG_ZNODE_PING:
-            return mnodeman.mapSeenZnodePing.count(inv.hash);
+        case MSG_VNODE_PING:
+            return mnodeman.mapSeenVnodePing.count(inv.hash);
 
         case MSG_DSTX:
             return mapDarksendBroadcastTxes.count(inv.hash);
 
-        case MSG_ZNODE_VERIFY:
-            return mnodeman.mapSeenZnodeVerification.count(inv.hash);
+        case MSG_VNODE_VERIFY:
+            return mnodeman.mapSeenVnodeVerification.count(inv.hash);
     }
     // Don't know what it is, just say we already got one
     return true;
@@ -5699,28 +5666,28 @@ void static ProcessGetData(CNode *pfrom, const Consensus::Params &consensusParam
                     }
                 }
 
-                if (!pushed && inv.type == MSG_ZNODE_PAYMENT_VOTE) {
+                if (!pushed && inv.type == MSG_VNODE_PAYMENT_VOTE) {
                     if(mnpayments.HasVerifiedPaymentVote(inv.hash)) {
                         CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
                         ss.reserve(1000);
-                        ss << mnpayments.mapZnodePaymentVotes[inv.hash];
-                        pfrom->PushMessage(NetMsgType::ZNODEPAYMENTVOTE, ss);
+                        ss << mnpayments.mapVnodePaymentVotes[inv.hash];
+                        pfrom->PushMessage(NetMsgType::VNODEPAYMENTVOTE, ss);
                         pushed = true;
                     }
                 }
 
-                if (!pushed && inv.type == MSG_ZNODE_PAYMENT_BLOCK) {
+                if (!pushed && inv.type == MSG_VNODE_PAYMENT_BLOCK) {
                     BlockMap::iterator mi = mapBlockIndex.find(inv.hash);
-                    LOCK(cs_mapZnodeBlocks);
-                    if (mi != mapBlockIndex.end() && mnpayments.mapZnodeBlocks.count(mi->second->nHeight)) {
-                        BOOST_FOREACH(CZnodePayee& payee, mnpayments.mapZnodeBlocks[mi->second->nHeight].vecPayees) {
+                    LOCK(cs_mapVnodeBlocks);
+                    if (mi != mapBlockIndex.end() && mnpayments.mapVnodeBlocks.count(mi->second->nHeight)) {
+                        BOOST_FOREACH(CVnodePayee& payee, mnpayments.mapVnodeBlocks[mi->second->nHeight].vecPayees) {
                             std::vector<uint256> vecVoteHashes = payee.GetVoteHashes();
                             BOOST_FOREACH(uint256& hash, vecVoteHashes) {
                                 if(mnpayments.HasVerifiedPaymentVote(hash)) {
                                     CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
                                     ss.reserve(1000);
-                                    ss << mnpayments.mapZnodePaymentVotes[hash];
-                                    pfrom->PushMessage(NetMsgType::ZNODEPAYMENTVOTE, ss);
+                                    ss << mnpayments.mapVnodePaymentVotes[hash];
+                                    pfrom->PushMessage(NetMsgType::VNODEPAYMENTVOTE, ss);
                                 }
                             }
                         }
@@ -5728,21 +5695,21 @@ void static ProcessGetData(CNode *pfrom, const Consensus::Params &consensusParam
                     }
                 }
 
-                if (!pushed && inv.type == MSG_ZNODE_ANNOUNCE) {
-                    if(mnodeman.mapSeenZnodeBroadcast.count(inv.hash)){
+                if (!pushed && inv.type == MSG_VNODE_ANNOUNCE) {
+                    if(mnodeman.mapSeenVnodeBroadcast.count(inv.hash)){
                         CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
                         ss.reserve(1000);
-                        ss << mnodeman.mapSeenZnodeBroadcast[inv.hash].second;
+                        ss << mnodeman.mapSeenVnodeBroadcast[inv.hash].second;
                         pfrom->PushMessage(NetMsgType::MNANNOUNCE, ss);
                         pushed = true;
                     }
                 }
 
-                if (!pushed && inv.type == MSG_ZNODE_PING) {
-                    if(mnodeman.mapSeenZnodePing.count(inv.hash)) {
+                if (!pushed && inv.type == MSG_VNODE_PING) {
+                    if(mnodeman.mapSeenVnodePing.count(inv.hash)) {
                         CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
                         ss.reserve(1000);
-                        ss << mnodeman.mapSeenZnodePing[inv.hash];
+                        ss << mnodeman.mapSeenVnodePing[inv.hash];
                         pfrom->PushMessage(NetMsgType::MNPING, ss);
                         pushed = true;
                     }
@@ -5758,11 +5725,11 @@ void static ProcessGetData(CNode *pfrom, const Consensus::Params &consensusParam
                     }
                 }
 
-                if (!pushed && inv.type == MSG_ZNODE_VERIFY) {
-                    if(mnodeman.mapSeenZnodeVerification.count(inv.hash)) {
+                if (!pushed && inv.type == MSG_VNODE_VERIFY) {
+                    if(mnodeman.mapSeenVnodeVerification.count(inv.hash)) {
                         CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
                         ss.reserve(1000);
-                        ss << mnodeman.mapSeenZnodeVerification[inv.hash];
+                        ss << mnodeman.mapSeenVnodeVerification[inv.hash];
                         pfrom->PushMessage(NetMsgType::MNVERIFY, ss);
                         pushed = true;
                     }
@@ -5865,7 +5832,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
             LOCK(cs_main);
             nHeight = chainActive.Height();
         }
-        int minPeerVersion = (nHeight + 1 < HF_ZNODE_HEIGHT) ? MIN_PEER_PROTO_VERSION : MIN_PEER_PROTO_VERSION_AFTER_ZNODE_PAYMENT_HF;
+        int minPeerVersion = (nHeight + 1 < HF_VNODE_HEIGHT) ? MIN_PEER_PROTO_VERSION : MIN_PEER_PROTO_VERSION_AFTER_VNODE_PAYMENT_HF;
         if (pfrom->nVersion < minPeerVersion) {
             // disconnect from peers older than this proto version
             // LogPrintf("peer=%d using obsolete version %i; disconnecting\n", pfrom->id, pfrom->nVersion);
@@ -5966,7 +5933,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
         // Must have a version message before anything else
         LOCK(cs_main);
         Misbehaving(pfrom->GetId(), 1);
-        LogPrintf("Must have a version message before anything else\n");
+        LogPrintf("Misbehaving Must have a version message before anything else\n");
         return false;
     } else if (strCommand == NetMsgType::VERACK) {
         pfrom->SetRecvVersion(min(pfrom->nVersion, PROTOCOL_VERSION));
@@ -6007,7 +5974,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
         if (vAddr.size() > 1000) {
             LOCK(cs_main);
             Misbehaving(pfrom->GetId(), 20);
-            return error("message addr size() = %u", vAddr.size());
+            return error("Misbehaving message addr size() = %u", vAddr.size());
         }
 
         // Store the new addresses
@@ -6089,7 +6056,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
         if (vInv.size() > MAX_INV_SZ) {
             LOCK(cs_main);
             Misbehaving(pfrom->GetId(), 20);
-            return error("message inv size() = %u", vInv.size());
+            return error("Misbehaving message inv size() = %u", vInv.size());
         }
 
         bool fBlocksOnly = !fRelayTxes;
@@ -6164,7 +6131,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
 
             if (pfrom->nSendSize > (SendBufferSize() * 2)) {
                 Misbehaving(pfrom->GetId(), 50);
-                return error("send buffer size() = %u", pfrom->nSendSize);
+                return error("Misbehaving send buffer size() = %u", pfrom->nSendSize);
             }
         }
 
@@ -6177,7 +6144,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
         if (vInv.size() > MAX_INV_SZ) {
             LOCK(cs_main);
             Misbehaving(pfrom->GetId(), 20);
-            return error("message getdata size() = %u", vInv.size());
+            return error("Misbehaving message getdata size() = %u", vInv.size());
         }
         if (fDebug || (vInv.size() != 1)) {
             LogPrint("net", "received getdata (%u invsz) peer=%d\n", vInv.size(), pfrom->id);
@@ -6214,7 +6181,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
             // If pruning, don't inv blocks unless we have on disk and are likely to still have
             // for some reasonable time window (1 hour) that block relay might require.
             const int nPrunedBlocksLikelyToHave =
-                    MIN_BLOCKS_TO_KEEP - 3600 / chainparams.GetConsensus().nPowTargetSpacing;
+                    MIN_BLOCKS_TO_KEEP - 3600 / chainparams.GetConsensus().LWMAPowTargetSpacing;
             if (fPruneMode && (!(pindex->nStatus & BLOCK_HAVE_DATA) ||
                                pindex->nHeight <= chainActive.Tip()->nHeight - nPrunedBlocksLikelyToHave)) {
                 LogPrintf("getblocks stopping, pruned or too old block at %d %s\n", pindex->nHeight,
@@ -6267,7 +6234,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
         for (size_t i = 0; i < req.indexes.size(); i++) {
             if (req.indexes[i] >= block.vtx.size()) {
                 Misbehaving(pfrom->GetId(), 100);
-//                LogPrintf("Peer %d sent us a getblocktxn with out-of-bounds tx indices", pfrom->id);
+                LogPrintf("Misbehaving Peer %d sent us a getblocktxn with out-of-bounds tx indices", pfrom->id);
                 return true;
             }
             resp.txn[i] = block.vtx[req.indexes[i]];
@@ -6364,22 +6331,22 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
                 return true; // not an error
             }
 
-            CZnode *pmn = mnodeman.Find(dstx.vin);
+            CVnode *pmn = mnodeman.Find(dstx.vin);
             if (pmn == NULL) {
-                LogPrint("privatesend", "DSTX -- Can't find znode %s to verify %s\n",
+                LogPrint("privatesend", "DSTX -- Can't find vnode %s to verify %s\n",
                          dstx.vin.prevout.ToStringShort(), hashTx.ToString());
                 return false;
             }
 
             if (!pmn->fAllowMixingTx) {
-                LogPrint("privatesend", "DSTX -- Znode %s is sending too many transactions %s\n",
+                LogPrint("privatesend", "DSTX -- Vnode %s is sending too many transactions %s\n",
                          dstx.vin.prevout.ToStringShort(), hashTx.ToString());
                 return true;
                 // TODO: Not an error? Could it be that someone is relaying old DSTXes
                 // we have no idea about (e.g we were offline)? How to handle them?
             }
 
-            if (!dstx.CheckSignature(pmn->pubKeyZnode)) {
+            if (!dstx.CheckSignature(pmn->pubKeyVnode)) {
                 LogPrint("privatesend", "DSTX -- CheckSignature() failed for %s\n", hashTx.ToString());
                 return false;
             }
@@ -6467,7 +6434,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
             BOOST_FOREACH(uint256
             hash, vEraseQueue)
             EraseOrphanTx(hash);
-            //btzc: zcoin condition
+            //btzc: verticalcoin condition
         } else if (!AlreadyHave(inv) && tx.IsZerocoinSpend() && AcceptToMemoryPool(mempool, state, tx, false, true, &fMissingInputsZerocoin, false, 0, true)) {
             RelayTransaction(tx);
 //            LogPrint("mempool", "AcceptToMemoryPool: peer=%d: accepted %s (poolsz %u txn, %u kB)\n",
@@ -7155,7 +7122,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
             mnpayments.ProcessMessage(pfrom, strCommand, vRecv);
             instantsend.ProcessMessage(pfrom, strCommand, vRecv);
             sporkManager.ProcessSpork(pfrom, strCommand, vRecv);
-            znodeSync.ProcessMessage(pfrom, strCommand, vRecv);
+            vnodeSync.ProcessMessage(pfrom, strCommand, vRecv);
         } else {
             // Ignore unknown commands for extensibility
             LogPrint("net", "Unknown command \"%s\" from peer=%d\n", SanitizeString(strCommand), pfrom->id);
@@ -7716,10 +7683,11 @@ bool SendMessages(CNode *pto) {
         // being saturated. We only count validated in-flight blocks so peers can't advertise non-existing block hashes
         // to unreasonably increase our timeout.
         if (!pto->fDisconnect && state.vBlocksInFlight.size() > 0) {
+
             QueuedBlock &queuedBlock = state.vBlocksInFlight.front();
             int nOtherPeersWithValidatedDownloads =
                     nPeersWithValidatedDownloads - (state.nBlocksInFlightValidHeaders > 0);
-            if (nNow > state.nDownloadingSince + consensusParams.nPowTargetSpacing * (BLOCK_DOWNLOAD_TIMEOUT_BASE +
+            if (nNow > state.nDownloadingSince + consensusParams.LWMAPowTargetSpacing * (BLOCK_DOWNLOAD_TIMEOUT_BASE +
                                                                                       BLOCK_DOWNLOAD_TIMEOUT_PER_PEER *
                                                                                       nOtherPeersWithValidatedDownloads)) {
                 LogPrintf("Timeout downloading block %s from peer=%d, disconnecting\n", queuedBlock.hash.ToString(),

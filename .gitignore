@@ -4,13 +4,13 @@
 *.tar.gz
 
 *.exe
-src/zcoin
-src/zcoind
-src/zcoin-cli
-src/zcoin-tx
-src/test/test_zcoin
-src/test/test_zcoin_fuzzy
-src/qt/test/test_zcoin-qt
+src/verticalcoin
+src/verticalcoind
+src/verticalcoin-cli
+src/verticalcoin-tx
+src/test/test_verticalcoin
+src/test/test_verticalcoin_fuzzy
+src/qt/test/test_verticalcoin-qt
 
 # autoreconf
 Makefile.in
@@ -79,12 +79,12 @@ src/tor.timestamp*
 # Compilation and Qt preprocessor part
 *.qm
 Makefile
-zcoin-qt
-Zcoin-Qt.app
+verticalcoin-qt
+Verticalcoin-Qt.app
 
 # Unit-tests
 Makefile.test
-zcoin-qt_test
+verticalcoin-qt_test
 
 # Resources cpp
 qrc_*.cpp
@@ -97,7 +97,7 @@ build
 *.gcno
 *.gcda
 /*.info
-test_zcoin.coverage/
+test_verticalcoin.coverage/
 total.coverage/
 coverage_percent.txt
 
@@ -113,5 +113,11 @@ src/test/buildenv.py
 
 /doc/doxygen/
 
-libzcoinconsensus.pc
+libverticalcoinconsensus.pc
 contrib/devtools/split-debug.sh
+/.vs
+
+oldschool/
+/qa/pull-tester
+/libbitcoinconsensus.pc
+/src/qt/res/RCa23436

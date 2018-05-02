@@ -17,7 +17,7 @@
 #include "httpserver.h"
 #include "httprpc.h"
 #include "utilstrencodings.h"
-#include "znodeconfig.h"
+#include "vnodeconfig.h"
 
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/filesystem.hpp>
@@ -88,7 +88,7 @@ bool AppInit(int argc, char* argv[])
         else
         {
             strUsage += "\n" + _("Usage:") + "\n" +
-                  "  zcoind [options]                     " + strprintf(_("Start %s Daemon"), _(PACKAGE_NAME)) + "\n";
+                  "  verticalcoind [options]                     " + strprintf(_("Start %s Daemon"), _(PACKAGE_NAME)) + "\n";
 
             strUsage += "\n" + HelpMessage(HMM_BITCOIND);
         }
@@ -119,29 +119,29 @@ bool AppInit(int argc, char* argv[])
             return false;
         }
 
-        // parse znode.conf
+        // parse vnode.conf
         std::string strErr;
-        if(!znodeConfig.read(strErr)) {
-            fprintf(stderr,"Error reading znode configuration file: %s\n", strErr.c_str());
+        if(!vnodeConfig.read(strErr)) {
+            fprintf(stderr,"Error reading vnode configuration file: %s\n", strErr.c_str());
             return false;
         }
 
         // Command-line RPC
         bool fCommandLine = false;
         for (int i = 1; i < argc; i++)
-            if (!IsSwitchChar(argv[i][0]) && !boost::algorithm::istarts_with(argv[i], "zcoin:"))
+            if (!IsSwitchChar(argv[i][0]) && !boost::algorithm::istarts_with(argv[i], "verticalcoin:"))
                 fCommandLine = true;
 
         if (fCommandLine)
         {
-            fprintf(stderr, "Error: There is no RPC client functionality in zcoind anymore. Use the zcoin-cli utility instead.\n");
+            fprintf(stderr, "Error: There is no RPC client functionality in verticalcoind anymore. Use the verticalcoin-cli utility instead.\n");
             exit(EXIT_FAILURE);
         }
 #ifndef WIN32
         fDaemon = GetBoolArg("-daemon", false);
         if (fDaemon)
         {
-            fprintf(stdout, "Zcoin server starting\n");
+            fprintf(stdout, "Verticalcoin server starting\n");
 
             // Daemonize
             pid_t pid = fork();

@@ -67,8 +67,8 @@ WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
     addWidget(receiveCoinsPage);
     addWidget(sendCoinsPage);
     addWidget(zerocoinPage);
-    znodeListPage = new ZnodeList(platformStyle);
-    addWidget(znodeListPage);
+    vnodeListPage = new VnodeList(platformStyle);
+    addWidget(vnodeListPage);
 
     // Clicking on a transaction on the overview pre-selects the transaction on the transaction history page
     connect(overviewPage, SIGNAL(transactionClicked(QModelIndex)), transactionView, SLOT(focusTransaction(QModelIndex)));
@@ -113,7 +113,7 @@ void WalletView::setClientModel(ClientModel *clientModel)
 
     overviewPage->setClientModel(clientModel);
     sendCoinsPage->setClientModel(clientModel);
-    znodeListPage->setClientModel(clientModel);
+    vnodeListPage->setClientModel(clientModel);
 }
 
 void WalletView::setWalletModel(WalletModel *walletModel)
@@ -128,7 +128,7 @@ void WalletView::setWalletModel(WalletModel *walletModel)
     zerocoinPage->setModel(walletModel->getAddressTableModel());
     usedReceivingAddressesPage->setModel(walletModel->getAddressTableModel());
     usedSendingAddressesPage->setModel(walletModel->getAddressTableModel());
-    znodeListPage->setWalletModel(walletModel);
+    vnodeListPage->setWalletModel(walletModel);
 
     if (walletModel)
     {
@@ -181,9 +181,9 @@ void WalletView::gotoHistoryPage()
     setCurrentWidget(transactionsPage);
 }
 
-void WalletView::gotoZnodePage()
+void WalletView::gotoVnodePage()
 {
-    setCurrentWidget(znodeListPage);
+    setCurrentWidget(vnodeListPage);
 }
 
 void WalletView::gotoReceiveCoinsPage()

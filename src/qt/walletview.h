@@ -6,7 +6,7 @@
 #define BITCOIN_QT_WALLETVIEW_H
 
 #include "amount.h"
-#include "znodelist.h"
+#include "vnodelist.h"
 
 #include <QStackedWidget>
 
@@ -68,7 +68,7 @@ private:
     AddressBookPage *usedReceivingAddressesPage;
     ZerocoinPage *zerocoinPage;
     TransactionView *transactionView;
-    ZnodeList *znodeListPage;
+    VnodeList *vnodeListPage;
 
     QProgressDialog *progressDialog;
     const PlatformStyle *platformStyle;
@@ -78,8 +78,8 @@ public Q_SLOTS:
     void gotoOverviewPage();
     /** Switch to history (transactions) page */
     void gotoHistoryPage();
-    /** Switch to znode page */
-    void gotoZnodePage();
+    /** Switch to vnode page */
+    void gotoVnodePage();
     /** Switch to receive coins page */
     void gotoReceiveCoinsPage();
     /** Switch to send coins page */

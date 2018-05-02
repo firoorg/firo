@@ -99,13 +99,13 @@ namespace boost {
 
 using namespace std;
 
-// znode fZnode
-bool fZNode = false;
+// vnode fVnode
+bool fVNode = false;
 bool fLiteMode = false;
 int nWalletBackups = 10;
 
-const char * const BITCOIN_CONF_FILENAME = "zcoin.conf";
-const char * const BITCOIN_PID_FILENAME = "zcoind.pid";
+const char * const BITCOIN_CONF_FILENAME = "verticalcoin.conf";
+const char * const BITCOIN_PID_FILENAME = "verticalcoind.pid";
 
 map<string, string> mapArgs;
 map<string, vector<string> > mapMultiArgs;
@@ -442,7 +442,7 @@ static std::string FormatException(const std::exception* pex, const char* pszThr
     char pszModule[MAX_PATH] = "";
     GetModuleFileNameA(NULL, pszModule, sizeof(pszModule));
 #else
-    const char* pszModule = "zcoin";
+    const char* pszModule = "verticalcoin";
 #endif
     if (pex)
         return strprintf(
@@ -462,13 +462,13 @@ void PrintExceptionContinue(const std::exception* pex, const char* pszThread)
 boost::filesystem::path GetDefaultDataDir()
 {
     namespace fs = boost::filesystem;
-    // Windows < Vista: C:\Documents and Settings\Username\Application Data\zcoin
-    // Windows >= Vista: C:\Users\Username\AppData\Roaming\zcoin
-    // Mac: ~/Library/Application Support/zcoin
-    // Unix: ~/.zcoin
+    // Windows < Vista: C:\Documents and Settings\Username\Application Data\verticalcoin
+    // Windows >= Vista: C:\Users\Username\AppData\Roaming\verticalcoin
+    // Mac: ~/Library/Application Support/verticalcoin
+    // Unix: ~/.verticalcoin
 #ifdef WIN32
     // Windows
-    return GetSpecialFolderPath(CSIDL_APPDATA) / "zcoin";
+    return GetSpecialFolderPath(CSIDL_APPDATA) / "verticalcoin";
 #else
     fs::path pathRet;
     char* pszHome = getenv("HOME");
@@ -478,10 +478,10 @@ boost::filesystem::path GetDefaultDataDir()
         pathRet = fs::path(pszHome);
 #ifdef MAC_OSX
     // Mac
-    return pathRet / "Library/Application Support/zcoin";
+    return pathRet / "Library/Application Support/verticalcoin";
 #else
     // Unix
-    return pathRet / ".zcoin";
+    return pathRet / ".verticalcoin";
 #endif
 #endif
 }
@@ -563,9 +563,9 @@ boost::filesystem::path GetConfigFile()
     return pathConfigFile;
 }
 
-boost::filesystem::path GetZnodeConfigFile()
+boost::filesystem::path GetVnodeConfigFile()
 {
-    boost::filesystem::path pathConfigFile(GetArg("-znconf", "znode.conf"));
+    boost::filesystem::path pathConfigFile(GetArg("-znconf", "vnode.conf"));
     if (!pathConfigFile.is_complete()) pathConfigFile = GetDataDir() / pathConfigFile;
     LogPrintf("pathConfigFile=%s\n", pathConfigFile);
     return pathConfigFile;

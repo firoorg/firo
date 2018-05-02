@@ -53,11 +53,11 @@ see `contrib/debian/examples/bitcoin.conf`.
 
 All three configurations assume several paths that might need to be adjusted.
 
-Binary:              `/usr/bin/zcoind`
-Configuration file:  `/etc/zcoin/zconf.conf`
-Data directory:      `/var/lib/zcoind`
-PID file:            `/var/run/zcoind/zcoind.pid` (OpenRC and Upstart) or `/var/lib/zcoind/zcoind.pid` (systemd)
-Lock file:           `/var/lock/subsys/zcoind` (CentOS)
+Binary:              `/usr/bin/verticalcoind`
+Configuration file:  `/etc/verticalcoin/zconf.conf`
+Data directory:      `/var/lib/verticalcoind`
+PID file:            `/var/run/verticalcoind/verticalcoind.pid` (OpenRC and Upstart) or `/var/lib/verticalcoind/verticalcoind.pid` (systemd)
+Lock file:           `/var/lock/subsys/verticalcoind` (CentOS)
 
 The configuration file, PID directory (if applicable) and data directory
 should all be owned by the bitcoin user and group.  It is advised for security
@@ -67,10 +67,10 @@ can then be controlled by group membership.
 
 3b) Mac OS X
 
-Binary:              `/usr/local/bin/zcoind`
-Configuration file:  `~/Library/Application Support/zcoin/zcoin.conf`
-Data directory:      `~/Library/Application Support/zcoin`
-Lock file:           `~/Library/Application Support/zcoin/.lock`
+Binary:              `/usr/local/bin/verticalcoind`
+Configuration file:  `~/Library/Application Support/verticalcoin/verticalcoin.conf`
+Data directory:      `~/Library/Application Support/verticalcoin`
+Lock file:           `~/Library/Application Support/verticalcoin/.lock`
 
 4. Installing Service Configuration
 -----------------------------------
@@ -81,19 +81,19 @@ Installing this .service file consists of just copying it to
 /usr/lib/systemd/system directory, followed by the command
 `systemctl daemon-reload` in order to update running systemd configuration.
 
-To test, run `systemctl start zcoind` and to enable for system startup run
-`systemctl enable zcoind`
+To test, run `systemctl start verticalcoind` and to enable for system startup run
+`systemctl enable verticalcoind`
 
 4b) OpenRC
 
 Rename bitcoind.openrc to bitcoind and drop it in /etc/init.d.  Double
 check ownership and permissions and make it executable.  Test it with
-`/etc/init.d/zcoind start` and configure it to run on startup with
-`rc-update add zcoind`
+`/etc/init.d/verticalcoind start` and configure it to run on startup with
+`rc-update add verticalcoind`
 
 4c) Upstart (for Debian/Ubuntu based distributions)
 
-Drop bitcoind.conf in /etc/init.  Test by running `service zcoind start`
+Drop bitcoind.conf in /etc/init.  Test by running `service verticalcoind start`
 it will automatically start on reboot.
 
 NOTE: This script is incompatible with CentOS 5 and Amazon Linux 2014 as they
@@ -101,7 +101,7 @@ use old versions of Upstart and do not supply the start-stop-daemon utility.
 
 4d) CentOS
 
-Copy zcoind.init to /etc/init.d/zcoind. Test by running `service zcoind start`.
+Copy verticalcoind.init to /etc/init.d/verticalcoind. Test by running `service verticalcoind start`.
 
 Using this script, you can adjust the path and flags to the bitcoind program by
 setting the BITCOIND and FLAGS environment variables in the file
@@ -110,7 +110,7 @@ setting the BITCOIND and FLAGS environment variables in the file
 4e) Mac OS X
 
 Copy org.bitcoin.bitcoind.plist into ~/Library/LaunchAgents. Load the launch agent by
-running `launchctl load ~/Library/LaunchAgents/org.zcoin.zcoind.plist`.
+running `launchctl load ~/Library/LaunchAgents/org.verticalcoin.verticalcoind.plist`.
 
 This Launch Agent will cause bitcoind to start whenever the user logs in.
 

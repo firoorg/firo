@@ -1,21 +1,21 @@
-name: znode
+name: vnode
 version: "0.0.1"
-summary: Znode for Zcoin project
+summary: Vnode for Verticalcoin project
 description: |
- Znodes verify transaction and are used as second layer on top of the normal nodes.
- Znodes must have access to 1000xzc at a specific address to play the role of Znode otherwise they are just degraded to a regular node on the network.
+ Vnodes verify transaction and are used as second layer on top of the normal nodes.
+ Vnodes must have access to 3750vrt at a specific address to play the role of Vnode otherwise they are just degraded to a regular node on the network.
 
 confinement: strict
 grade: stable
 
 apps:
  cli:
-  command: bin/zcoin-cli
+  command: bin/verticalcoin-cli
   plugs:
     - network
     - home
  daemon:
-  command: bin/zcoind
+  command: bin/verticalcoind
   plugs:
     - network
     - network-bind
@@ -45,5 +45,5 @@ parts:
   after: [libboost]
   plugin: autotools
   configflags: [--without-gui]
-  source: https://github.com/zcoinofficial/zcoin.git
+  source: https://github.com/verticalcoinofficial/verticalcoin.git
   source-branch: master

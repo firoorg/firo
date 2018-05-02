@@ -71,12 +71,12 @@
 #include <event2/util.h>
 #include <event2/event.h>
 #include <event2/thread.h>
-#include "activeznode.h"
+#include "activevnode.h"
 #include "darksend.h"
-#include "znode-payments.h"
-#include "znode-sync.h"
-#include "znodeman.h"
-#include "znodeconfig.h"
+#include "vnode-payments.h"
+#include "vnode-sync.h"
+#include "vnodeman.h"
+#include "vnodeconfig.h"
 #include "netfulfilledman.h"
 #include "flat-database.h"
 #include "instantx.h"
@@ -241,10 +241,10 @@ void Shutdown() {
     StopNode();
 
     // STORE DATA CACHES INTO SERIALIZED DAT FILES
-    // TODO: https://github.com/zcoinofficial/zcoin/issues/182
-    //    CFlatDB<CZnodeMan> flatdb1("zncache.dat", "magicZnodeCache");
+    // TODO: https://github.com/verticalcoinofficial/verticalcoin/issues/182
+    //    CFlatDB<CVnodeMan> flatdb1("zncache.dat", "magicVnodeCache");
     //    flatdb1.Dump(mnodeman);
-    //    CFlatDB<CZnodePayments> flatdb2("znpayments.dat", "magicZnodePaymentsCache");
+    //    CFlatDB<CVnodePayments> flatdb2("znpayments.dat", "magicVnodePaymentsCache");
     //    flatdb2.Dump(mnpayments);
     //    CFlatDB<CNetFulfilledRequestManager> flatdb4("netfulfilled.dat", "magicFulfilledCache");
     //    flatdb4.Dump(netfulfilledman);
@@ -1038,7 +1038,7 @@ void InitLogging() {
     fLogIPs = GetBoolArg("-logips", DEFAULT_LOGIPS);
 
     LogPrintf("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
-    LogPrintf("Zcoin version %s\n", FormatFullVersion());
+    LogPrintf("Verticalcoin version %s\n", FormatFullVersion());
 }
 
 /** Initialize bitcoin.
@@ -1635,8 +1635,10 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
 
                 // If the loaded chain has a wrong genesis, bail out immediately
                 // (we're likely using a testnet datadir, or the other way around).
-                if (!mapBlockIndex.empty() && mapBlockIndex.count(chainparams.GetConsensus().hashGenesisBlock) == 0)
+                if (!mapBlockIndex.empty() && mapBlockIndex.count(chainparams.GetConsensus().hashGenesisBlock) == 0) {
+                    LogPrintf("Hash: %s", chainparams.GetConsensus().hashGenesisBlock.ToString());
                     return InitError(_("Incorrect or no genesis block found. Wrong datadir for network?"));
+                }
 
                 // Initialize the block index (no-op if non-empty database was already loaded)
                 if (!InitBlockIndex(chainparams)) {
@@ -1832,46 +1834,46 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
                      chainparams);
 
     // ********************************************************* Step 11a: setup PrivateSend
-    fZNode = GetBoolArg("-znode", false);
+    fVNode = GetBoolArg("-vnode", false);
 
-    LogPrintf("fZNode = %s\n", fZNode);
-    LogPrintf("znodeConfig.getCount(): %s\n", znodeConfig.getCount());
+    LogPrintf("fVNode = %s\n", fVNode);
+    LogPrintf("vnodeConfig.getCount(): %s\n", vnodeConfig.getCount());
 
-    if ((fZNode || znodeConfig.getCount() > 0) && !fTxIndex) {
-        return InitError("Enabling Znode support requires turning on transaction indexing."
+    if ((fVNode || vnodeConfig.getCount() > 0) && !fTxIndex) {
+        return InitError("Enabling Vnode support requires turning on transaction indexing."
                                  "Please add txindex=1 to your configuration and start with -reindex");
     }
 
-    if (fZNode) {
-        LogPrintf("ZNODE:\n");
+    if (fVNode) {
+        LogPrintf("Vnode:\n");
 
-        if (!GetArg("-znodeaddr", "").empty()) {
-            // Hot Znode (either local or remote) should get its address in
-            // CActiveZnode::ManageState() automatically and no longer relies on Znodeaddr.
-            return InitError(_("znodeaddr option is deprecated. Please use znode.conf to manage your remote znodes."));
+        if (!GetArg("-vnodeaddr", "").empty()) {
+            // Hot Vnode (either local or remote) should get its address in
+            // CActiveVnode::ManageState() automatically and no longer relies on Vnodeaddr.
+            return InitError(_("vnodeaddr option is deprecated. Please use vnode.conf to manage your remote vnodes."));
         }
 
-        std::string strZnodePrivKey = GetArg("-znodeprivkey", "");
-        if (!strZnodePrivKey.empty()) {
-            if (!darkSendSigner.GetKeysFromSecret(strZnodePrivKey, activeZnode.keyZnode,
-                                                  activeZnode.pubKeyZnode))
-                return InitError(_("Invalid znodeprivkey. Please see documenation."));
+        std::string strVnodePrivKey = GetArg("-vnodeprivkey", "");
+        if (!strVnodePrivKey.empty()) {
+            if (!darkSendSigner.GetKeysFromSecret(strVnodePrivKey, activeVnode.keyVnode,
+                                                  activeVnode.pubKeyVnode))
+                return InitError(_("Invalid vnodeprivkey. Please see documenation."));
 
-            LogPrintf("  pubKeyZnode: %s\n", CBitcoinAddress(activeZnode.pubKeyZnode.GetID()).ToString());
+            LogPrintf("  pubKeyVnode: %s\n", CBitcoinAddress(activeVnode.pubKeyVnode.GetID()).ToString());
         } else {
             return InitError(
-                    _("You must specify a znodeprivkey in the configuration. Please see documentation for help."));
+                    _("You must specify a vnodeprivkey in the configuration. Please see documentation for help."));
         }
     }
 
-    LogPrintf("Using Znode config file %s\n", GetZnodeConfigFile().string());
+    LogPrintf("Using Vnode config file %s\n", GetVnodeConfigFile().string());
 
-    if (GetBoolArg("-znconflock", true) && pwalletMain && (znodeConfig.getCount() > 0)) {
+    if (GetBoolArg("-znconflock", true) && pwalletMain && (vnodeConfig.getCount() > 0)) {
         LOCK(pwalletMain->cs_wallet);
-        LogPrintf("Locking Znodes:\n");
+        LogPrintf("Locking Vnodes:\n");
         uint256 mnTxHash;
         int outputIndex;
-        BOOST_FOREACH(CZnodeConfig::CZnodeEntry mne, znodeConfig.getEntries()) {
+        BOOST_FOREACH(CVnodeConfig::CVnodeEntry mne, vnodeConfig.getEntries()) {
             mnTxHash.SetHex(mne.getTxHash());
             outputIndex = boost::lexical_cast<unsigned int>(mne.getOutputIndex());
             COutPoint outpoint = COutPoint(mnTxHash, outputIndex);
@@ -1902,10 +1904,10 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
 //    nInstantSendDepth = GetArg("-instantsenddepth", DEFAULT_INSTANTSEND_DEPTH);
 //    nInstantSendDepth = std::min(std::max(nInstantSendDepth, 0), 60);
 
-    // lite mode disables all Znode and Darksend related functionality
+    //lite mode disables all Vnode and Darksend related functionality
     fLiteMode = GetBoolArg("-litemode", false);
-    if (fZNode && fLiteMode) {
-        return InitError("You can not start a znode in litemode");
+    if (fVNode && fLiteMode) {
+        return InitError("You can not start a vnode in litemode");
     }
 
     LogPrintf("fLiteMode %d\n", fLiteMode);
@@ -1918,21 +1920,21 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     // ********************************************************* Step 11b: Load cache data
 
     // LOAD SERIALIZED DAT FILES INTO DATA CACHES FOR INTERNAL USE
-    // TODO: https://github.com/zcoinofficial/zcoin/issues/182
-    /* uiInterface.InitMessage(_("Loading znode cache..."));
-    CFlatDB<CZnodeMan> flatdb1("zncache.dat", "magicZnodeCache");
+    // TODO: https://github.com/verticalcoinofficial/verticalcoin/issues/182
+    /* uiInterface.InitMessage(_("Loading vnode cache..."));
+    CFlatDB<CVnodeMan> flatdb1("zncache.dat", "magicVnodeCache");
     if (!flatdb1.Load(mnodeman)) {
-        return InitError("Failed to load znode cache from zncache.dat");
+        return InitError("Failed to load vnode cache from zncache.dat");
     }
 
     if (mnodeman.size()) {
-        uiInterface.InitMessage(_("Loading Znode payment cache..."));
-        CFlatDB<CZnodePayments> flatdb2("znpayments.dat", "magicZnodePaymentsCache");
+        uiInterface.InitMessage(_("Loading Vnode payment cache..."));
+        CFlatDB<CVnodePayments> flatdb2("znpayments.dat", "magicVnodePaymentsCache");
         if (!flatdb2.Load(mnpayments)) {
-            return InitError("Failed to load znode payments cache from znpayments.dat");
+            return InitError("Failed to load vnode payments cache from znpayments.dat");
         }
     } else {
-        uiInterface.InitMessage(_("Znode cache is empty, skipping payments and governance cache..."));
+        uiInterface.InitMessage(_("Vnode cache is empty, skipping payments and governance cache..."));
     } */
 
     // uiInterface.InitMessage(_("Loading fulfilled requests cache..."));
@@ -1951,7 +1953,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     mnodeman.UpdatedBlockTip(chainActive.Tip());
     darkSendPool.UpdatedBlockTip(chainActive.Tip());
     mnpayments.UpdatedBlockTip(chainActive.Tip());
-    znodeSync.UpdatedBlockTip(chainActive.Tip());
+    vnodeSync.UpdatedBlockTip(chainActive.Tip());
     // governance.UpdatedBlockTip(chainActive.Tip());
 
     // ********************************************************* Step 11d: start dash-privatesend thread

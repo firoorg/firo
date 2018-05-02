@@ -20,7 +20,7 @@
 #include "txmempool.h"
 #include "util.h"
 #ifdef ENABLE_WALLET
-#include "znode-sync.h"
+#include "vnode-sync.h"
 #endif
 #include "utilstrencodings.h"
 #include "validationinterface.h"
@@ -36,62 +36,67 @@ using namespace std;
 
 /**
  * Return average network hashes per second based on the last 'lookup' blocks,
- * or from the last difficulty change if 'lookup' is nonpositive.
+ * or over the difficulty averaging window if 'lookup' is nonpositive.
  * If 'height' is nonnegative, compute the estimate at the time when a given block was found.
  */
 UniValue GetNetworkHashPS(int lookup, int height) {
-    CBlockIndex *pb = chainActive.Tip();
 
-    if (height >= 0 && height < chainActive.Height())
-        pb = chainActive[height];
+   CBlockIndex *pb = chainActive.Tip();
 
-    if (pb == NULL || !pb->nHeight)
-        return 0;
+   if (height >= 0 && height < chainActive.Height())
+      pb = chainActive[height];
 
-    // If lookup is -1, then use blocks since last difficulty change.
-    if (lookup <= 0)
-        lookup = pb->nHeight % Params().GetConsensus().DifficultyAdjustmentInterval() + 1;
+   if (pb == NULL || !pb->nHeight)
+      return 0;
 
-    // If lookup is larger than chain, then set it to chain length.
-    if (lookup > pb->nHeight)
-        lookup = pb->nHeight;
+   // If lookup is -1, then use difficulty averaging window.
+   if (lookup <= 0)
+      lookup = pb->nHeight - Params().GetConsensus().LWMAAveragingWindow;
 
-    CBlockIndex *pb0 = pb;
-    int64_t minTime = pb0->GetBlockTime();
-    int64_t maxTime = minTime;
-    for (int i = 0; i < lookup; i++) {
-        pb0 = pb0->pprev;
-        int64_t time = pb0->GetBlockTime();
-        minTime = std::min(time, minTime);
-        maxTime = std::max(time, maxTime);
-    }
+   // If lookup is still negative, then use blocks since genesis.
+   if (lookup <= 0)
+      lookup = pb->nHeight;
 
-    // In case there's a situation where minTime == maxTime, we don't want a divide by zero exception.
-    if (minTime == maxTime)
-        return 0;
+   // If lookup is larger than chain, then set it to chain length.
+   if (lookup > pb->nHeight)
+      lookup = pb->nHeight;
 
-    arith_uint256 workDiff = pb->nChainWork - pb0->nChainWork;
-    int64_t timeDiff = maxTime - minTime;
+   CBlockIndex *pb0 = pb;
+   int64_t minTime = pb0->GetBlockTime();
+   int64_t maxTime = minTime;
+   for (int i = 0; i < lookup; i++) {
+      pb0 = pb0->pprev;
+      int64_t time = pb0->GetBlockTime();
+      minTime = std::min(time, minTime);
+      maxTime = std::max(time, maxTime);
+   }
 
-    return workDiff.getdouble() / timeDiff;
+   // In case there's a situation where minTime == maxTime, we don't want a divide by zero exception.
+   if (minTime == maxTime)
+      return 0;
+
+   arith_uint256 workDiff = pb->nChainWork - pb0->nChainWork;
+   int64_t timeDiff = maxTime - minTime;
+
+   return (int64_t)(workDiff.getdouble() / timeDiff);
 }
 
 UniValue getnetworkhashps(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() > 2)
         throw runtime_error(
-            "getnetworkhashps ( blocks height )\n"
-            "\nReturns the estimated network hashes per second based on the last n blocks.\n"
-            "Pass in [blocks] to override # of blocks, -1 specifies since last difficulty change.\n"
-            "Pass in [height] to estimate the network speed at the time when a certain block was found.\n"
-            "\nArguments:\n"
-            "1. blocks     (numeric, optional, default=120) The number of blocks, or -1 for blocks since last difficulty change.\n"
-            "2. height     (numeric, optional, default=-1) To estimate at the time of the given height.\n"
-            "\nResult:\n"
-            "x             (numeric) Hashes per second estimated\n"
-            "\nExamples:\n"
-            + HelpExampleCli("getnetworkhashps", "")
-            + HelpExampleRpc("getnetworkhashps", "")
+           "getnetworkhashps ( blocks height )\n"
+           "\nReturns the estimated network hashes per second based on the last n blocks.\n"
+           "Pass in [blocks] to override # of blocks, -1 specifies over difficulty averaging window.\n"
+           "Pass in [height] to estimate the network speed at the time when a certain block was found.\n"
+           "\nArguments:\n"
+           "1. blocks     (numeric, optional, default=120) The number of blocks, or -1 for blocks over difficulty averaging window.\n"
+           "2. height     (numeric, optional, default=-1) To estimate at the time of the given height.\n"
+           "\nResult:\n"
+           "x             (numeric) Hashes per second estimated\n"
+           "\nExamples:\n"
+           + HelpExampleCli("getnetworkhashps", "")
+           + HelpExampleRpc("getnetworkhashps", "")
        );
 
     LOCK(cs_main);
@@ -205,6 +210,10 @@ UniValue generate(const UniValue& params, bool fHelp)
 
 UniValue generatetoaddress(const UniValue& params, bool fHelp)
 {
+    throw runtime_error(
+        "generatetoaddress does work currently, please see 'setgenerate' for wallet mining.\n"
+    );
+
     if (fHelp || params.size() < 2 || params.size() > 3)
         throw runtime_error(
             "generatetoaddress numblocks address (maxtries)\n"
@@ -460,13 +469,13 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
             "  \"curtime\" : ttt,                  (numeric) current timestamp in seconds since epoch (Jan 1 1970 GMT)\n"
             "  \"bits\" : \"xxxxxxxx\",              (string) compressed target of next block\n"
             "  \"height\" : n                      (numeric) The height of the next block\n"
-            "  \"znode\" : {                  (json object) required znode payee that must be included in the next block\n"
+            "  \"vnode\" : {                  (json object) required vnode payee that must be included in the next block\n"
             "      \"payee\" : \"xxxx\",             (string) payee address\n"
             "      \"script\" : \"xxxx\",            (string) payee scriptPubKey\n"
             "      \"amount\": n                   (numeric) required amount to pay\n"
             "  },\n"
-            "  \"znode_payments_started\" :  true|false, (boolean) true, if znode payments started\n"
-//            "  \"znode_payments_enforced\" : true|false, (boolean) true, if znode payments are enforced\n"
+            "  \"vnode_payments_started\" :  true|false, (boolean) true, if vnode payments started\n"
+//            "  \"vnode_payments_enforced\" : true|false, (boolean) true, if vnode payments are enforced\n"
             "}\n"
 
             "\nExamples:\n"
@@ -543,12 +552,12 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid mode");
 
     if (vNodes.empty())
-        throw JSONRPCError(RPC_CLIENT_NOT_CONNECTED, "Zcoin is not connected!");
+        throw JSONRPCError(RPC_CLIENT_NOT_CONNECTED, "Verticalcoin is not connected!");
     if (IsInitialBlockDownload())
-        throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "Zcoin is downloading blocks...");
+        throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "Verticalcoin is downloading blocks...");
 
-    if (!znodeSync.IsSynced())
-        throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "Zcoin Core is syncing with network...");
+    if (!vnodeSync.IsSynced())
+        throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "Verticalcoin Core is syncing with network...");
 
     static unsigned int nTransactionsUpdatedLast;
     if (!lpval.isNull())
@@ -656,7 +665,7 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
         if (tx.IsCoinBase())
             continue;
 
-        // https://github.com/zcoinofficial/zcoin/pull/26
+        // https://github.com/verticalcoinofficial/verticalcoin/pull/26
         // make order independence
         // and easy to read for other people
         if (tx.IsZerocoinSpend()) {
@@ -783,18 +792,18 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
     result.push_back(Pair("bits", strprintf("%08x", pblock->nBits)));
     result.push_back(Pair("height", (int64_t)(pindexPrev->nHeight+1)));
 
-    UniValue znodeObj(UniValue::VOBJ);
-    if(pblock->txoutZnode != CTxOut()) {
+    UniValue vnodeObj(UniValue::VOBJ);
+    if(pblock->txoutVnode != CTxOut()) {
         CTxDestination address1;
-        ExtractDestination(pblock->txoutZnode.scriptPubKey, address1);
+        ExtractDestination(pblock->txoutVnode.scriptPubKey, address1);
         CBitcoinAddress address2(address1);
-        znodeObj.push_back(Pair("payee", address2.ToString().c_str()));
-        znodeObj.push_back(Pair("script", HexStr(pblock->txoutZnode.scriptPubKey.begin(), pblock->txoutZnode.scriptPubKey.end())));
-        znodeObj.push_back(Pair("amount", pblock->txoutZnode.nValue));
+        vnodeObj.push_back(Pair("payee", address2.ToString().c_str()));
+        vnodeObj.push_back(Pair("script", HexStr(pblock->txoutVnode.scriptPubKey.begin(), pblock->txoutVnode.scriptPubKey.end())));
+        vnodeObj.push_back(Pair("amount", pblock->txoutVnode.nValue));
     }
-    result.push_back(Pair("znode", znodeObj));
-    result.push_back(Pair("znode_payments_started", pindexPrev->nHeight + 1 > Params().GetConsensus().nZnodePaymentsStartBlock));
-//    result.push_back(Pair("znode_payments_enforced", sporkManager.IsSporkActive(SPORK_8_MASTERNODE_PAYMENT_ENFORCEMENT)));
+    result.push_back(Pair("vnode", vnodeObj));
+    result.push_back(Pair("vnode_payments_started", pindexPrev->nHeight + 1 > Params().GetConsensus().nVnodePaymentsStartBlock));
+//    result.push_back(Pair("vnode_payments_enforced", sporkManager.IsSporkActive(SPORK_8_MASTERNODE_PAYMENT_ENFORCEMENT)));
 
     const struct BIP9DeploymentInfo& segwit_info = VersionBitsDeploymentInfo[Consensus::DEPLOYMENT_SEGWIT];
     if (!pblocktemplate->vchCoinbaseCommitment.empty() && setClientRules.find(segwit_info.name) != setClientRules.end()) {

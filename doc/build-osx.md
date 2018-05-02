@@ -24,9 +24,9 @@ If you want to build the disk image with `make deploy` (.dmg / optional), you ne
 
 NOTE: Building with Qt4 is still supported, however, could result in a broken UI. Building with Qt5 is recommended.
 
-Build Zcoin Core
+Build Verticalcoin Core
 ------------------------
-1.  Build Zcoin-core:
+1.  Build Verticalcoin-core:
 
     Configure and build the headless bitcoin binaries as well as the GUI (if Qt is found).
 
@@ -48,26 +48,26 @@ Build Zcoin Core
 Running
 -------
 
-Zcoin Core is now available at `./src/zcoind`
+Verticalcoin Core is now available at `./src/verticalcoind`
 
 Before running, it's recommended you create an RPC configuration file.
 
-    echo -e "rpcuser=bitcoinrpc\nrpcpassword=$(xxd -l 16 -p /dev/urandom)" > "/Users/${USER}/Library/Application Support/zcoin/zcoin.conf"
+    echo -e "rpcuser=bitcoinrpc\nrpcpassword=$(xxd -l 16 -p /dev/urandom)" > "/Users/${USER}/Library/Application Support/verticalcoin/verticalcoin.conf"
 
-    chmod 600 "/Users/${USER}/Library/Application Support/zcoin/zcoin.conf"
+    chmod 600 "/Users/${USER}/Library/Application Support/verticalcoin/verticalcoin.conf"
 
-The first time you run zcoind, it will start downloading the blockchain. This process could take several hours.
+The first time you run verticalcoind, it will start downloading the blockchain. This process could take several hours.
 
 You can monitor the download process by looking at the debug.log file:
 
-    tail -f $HOME/Library/Application\ Support/zcoin/debug.log
+    tail -f $HOME/Library/Application\ Support/verticalcoin/debug.log
 
 Other commands:
 -------
 
-    ./src/zcoind -daemon # Starts the zcoin daemon.
-    ./src/zcoin-cli --help # Outputs a list of command-line options.
-    ./src/zcoin-cli help # Outputs a list of RPC commands when the daemon is running.
+    ./src/verticalcoind -daemon # Starts the verticalcoin daemon.
+    ./src/verticalcoin-cli --help # Outputs a list of command-line options.
+    ./src/verticalcoin-cli help # Outputs a list of RPC commands when the daemon is running.
 
 Using Qt Creator as IDE
 ------------------------
