@@ -199,7 +199,7 @@ void CVnodePayments::ProcessMessage(CNode *pfrom, std::string &strCommand, CData
         if (netfulfilledman.HasFulfilledRequest(pfrom->addr, NetMsgType::VNODEPAYMENTSYNC)) {
             // Asking for the payments list multiple times in a short period of time is no good
             LogPrintf("VNODEPAYMENTSYNC -- peer already asked me for the list, peer=%d\n", pfrom->id);
-            Misbehaving(pfrom->GetId(), 20);
+            // Misbehaving(pfrom->GetId(), 20);
             return;
         }
         netfulfilledman.AddFulfilledRequest(pfrom->addr, NetMsgType::VNODEPAYMENTSYNC);

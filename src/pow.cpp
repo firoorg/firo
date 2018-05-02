@@ -60,7 +60,11 @@ unsigned int LwmaCalculateNextWorkRequired(const CBlockIndex* pindexLast, const 
    }
 
    // Keep t reasonable in case strange solvetimes occurred.
-   if (t < N * k / 3) { t = N * k / 3; }
+   if (t < N * k / 3) 
+   { 
+      LogPrintf("LWMA Keep t reasonable in case strange solvetimes occurred.\n");
+      t = N * k / 3; 
+   }
 
    const arith_uint256 pow_limit = UintToArith256(params.powLimit);
    arith_uint256 next_target = t * sum_target;
@@ -78,11 +82,11 @@ unsigned int LwmaCalculateNextWorkRequired(const CBlockIndex* pindexLast, const 
 unsigned int GetNextWorkRequired(const CBlockIndex *pindexLast, const CBlockHeader *pblock, const Consensus::Params &params) {
    
    // Zawy's LWMA.
-   unsigned int nBits_OfNextBlock = LwmaCalculateNextWorkRequired(pindexLast, params);
+   unsigned int next_target = LwmaCalculateNextWorkRequired(pindexLast, params);
    
-   LogPrintf("LWMA Blockheight: %u \t\tTimestamp:%i \t\tnBits_OfNextBlock:%x\n",pindexLast->nHeight, pindexLast->GetBlockTime(), nBits_OfNextBlock);
+   LogPrintf("LWMA Blockheight: %u \t\tTimestamp:%i \t\tcurrent nBit: %x next_target: %x \n",pindexLast->nHeight, pindexLast->GetBlockTime(), pindexLast->nBits, next_target);
    
-   return nBits_OfNextBlock;
+   return next_target;
 }
 
 bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params &params) {
