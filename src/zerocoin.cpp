@@ -160,14 +160,14 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
 
         // test if given modulus version is allowed at this point
         if (fModulusV2) {
-            if (txHeight != INT_MAX && txHeight < chainParams.nModulusV2StartBlock)
+            if ((nHeight == INT_MAX && txHeight < chainParams.nModulusV2StartBlock) || nHeight < chainParams.nModulusV2StartBlock)
                 return state.DoS(100, false,
                                  NSEQUENCE_INCORRECT,
                                  "CheckSpendZcoinTransaction: cannon use modulus v2 at this point");
         }
         else {
-            if ((txHeight == INT_MAX && txHeight >= chainParams.nModulusV1MempoolStopBlock) ||
-                    (txHeight != INT_MAX && txHeight >= chainParams.nModulusV1StopBlock))
+            if ((nHeight == INT_MAX && txHeight >= chainParams.nModulusV1MempoolStopBlock) ||
+                    (nHeight != INT_MAX && nHeight >= chainParams.nModulusV1StopBlock))
                 return state.DoS(100, false,
                                  NSEQUENCE_INCORRECT,
                                  "CheckSpendZcoinTransaction: cannon use modulus v1 at this point");
