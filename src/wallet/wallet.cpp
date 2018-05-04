@@ -3170,9 +3170,7 @@ bool CWallet::CreateZerocoinMintModel(string &stringError, string denomAmount) {
 	// do not use v2 mint until certain moment when it would be understood by peers
 	{
 		LOCK(cs_main);
-		bool fTestNet = Params().NetworkIDString() == CBaseChainParams::TESTNET;
-		int allowedV1Height = fTestNet ? ZC_V1_5_TESTNET_STARTING_BLOCK : ZC_V1_5_STARTING_BLOCK;
-		if (chainActive.Height() >= allowedV1Height)
+        if (chainActive.Height() >= Params().nSpendV15StartBlock)
 			mintVersion = ZEROCOIN_TX_VERSION_2;
 	}
 

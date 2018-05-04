@@ -83,7 +83,7 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
                 "CTransaction::CheckTransaction() : Error: zerocoin spend nSequence is incorrect");
         }
 
-        bool fModulusV2 = pubcoinId >= ZC_MODULUS_V2_BASE_ID, fMoudulusV2InIndex = false;
+        bool fModulusV2 = pubcoinId >= ZC_MODULUS_V2_BASE_ID, fModulusV2InIndex = false;
         if (fModulusV2)
             pubcoinId -= ZC_MODULUS_V2_BASE_ID;
         libzerocoin::Params *zcParams = fModulusV2 ? ZCParamsV2 : ZCParams;
@@ -117,7 +117,7 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
                     false,
                     NSEQUENCE_INCORRECT,
                     "CTransaction::CheckTransaction() : Error: zerocoin spend should be version 2.0");
-            fMoudulusV2InIndex = true;
+            fModulusV2InIndex = true;
         }
         else {
             // old spends v2.0s are probably incorrect, force spend to version 1
@@ -127,7 +127,7 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
             }
         }
 
-        if (fMoudulusV2InIndex != fModulusV2)
+        if (fModulusV2InIndex != fModulusV2)
             zerocoinState.CalculateAlternativeModulusAccumulatorValues(&chainActive, (int)targetDenomination, pubcoinId);
 
         uint256 txHashForMetadata;
@@ -196,7 +196,7 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
 				index = index->pprev;
 		}
 
-        decltype(&CBlockIndex::accumulatorChanges) accChanges = fModulusV2 == fMoudulusV2InIndex ?
+        decltype(&CBlockIndex::accumulatorChanges) accChanges = fModulusV2 == fModulusV2InIndex ?
                     &CBlockIndex::accumulatorChanges : &CBlockIndex::alternativeAccumulatorChanges;
 
         // Enumerate all the accumulator changes seen in the blockchain starting with the latest block
