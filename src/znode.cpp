@@ -849,7 +849,7 @@ bool CZnodePing::CheckAndUpdate(CZnode *pmn, bool fFromNewBroadcast, int &nDos) 
         LOCK(cs_main);
         BlockMap::iterator mi = mapBlockIndex.find(blockHash);
         if ((*mi).second && (*mi).second->nHeight < chainActive.Height() - 24) {
-            LogPrintf("CZnodePing::CheckAndUpdate -- Znode ping is invalid, block hash is too old: znode=%s  blockHash=%s\n", vin.prevout.ToStringShort(), blockHash.ToString());
+            // LogPrintf("CZnodePing::CheckAndUpdate -- Znode ping is invalid, block hash is too old: znode=%s  blockHash=%s\n", vin.prevout.ToStringShort(), blockHash.ToString());
             // nDos = 1;
             return false;
         }
