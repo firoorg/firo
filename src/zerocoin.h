@@ -11,24 +11,17 @@
 #include <unordered_map>
 #include <functional>
 
+// zerocoin parameters
+extern libzerocoin::Params *ZCParams, *ZCParamsV2;
+
 // Test for zerocoin transaction version 2
 inline bool IsZerocoinTxV2(libzerocoin::CoinDenomination denomination, int coinId) {
-    bool fTestNet = Params().NetworkIDString() == CBaseChainParams::TESTNET;
-
-    if (fTestNet) {
-        return ((denomination == libzerocoin::ZQ_LOVELACE) && (coinId >= ZC_V2_TESTNET_SWITCH_ID_1))
-            || ((denomination == libzerocoin::ZQ_GOLDWASSER) && (coinId >= ZC_V2_TESTNET_SWITCH_ID_10))
-            || ((denomination == libzerocoin::ZQ_RACKOFF) && (coinId >= ZC_V2_TESTNET_SWITCH_ID_25))
-            || ((denomination == libzerocoin::ZQ_PEDERSEN) && (coinId >= ZC_V2_TESTNET_SWITCH_ID_50))
-            || ((denomination == libzerocoin::ZQ_WILLIAMSON) && (coinId >= ZC_V2_TESTNET_SWITCH_ID_100));
-    }
-    else {
-        return ((denomination == libzerocoin::ZQ_LOVELACE) && (coinId >= ZC_V2_SWITCH_ID_1))
-            || ((denomination == libzerocoin::ZQ_GOLDWASSER) && (coinId >= ZC_V2_SWITCH_ID_10))
-            || ((denomination == libzerocoin::ZQ_RACKOFF) && (coinId >= ZC_V2_SWITCH_ID_25))
-            || ((denomination == libzerocoin::ZQ_PEDERSEN) && (coinId >= ZC_V2_SWITCH_ID_50))
-            || ((denomination == libzerocoin::ZQ_WILLIAMSON) && (coinId >= ZC_V2_SWITCH_ID_100));
-    }
+	auto params = Params();
+	return ((denomination == libzerocoin::ZQ_LOVELACE) && (coinId >= params.nSpendV2ID_1))
+	    || ((denomination == libzerocoin::ZQ_GOLDWASSER) && (coinId >= params.nSpendV2ID_10))
+	    || ((denomination == libzerocoin::ZQ_RACKOFF) && (coinId >= params.nSpendV2ID_25))
+	    || ((denomination == libzerocoin::ZQ_PEDERSEN) && (coinId >= params.nSpendV2ID_50))
+	    || ((denomination == libzerocoin::ZQ_WILLIAMSON) && (coinId >= params.nSpendV2ID_100));
 }
 
 // Zerocoin transaction info, added to the CBlock to ensure zerocoin mint/spend transactions got their info stored into
@@ -131,16 +124,22 @@ public:
     // Given denomination and id returns latest accumulator value and corresponding block hash
     // Do not take into account coins with height more than maxHeight
     // Returns number of coins satisfying conditions
-    int GetAccumulatorValueForSpend(int maxHeight, int denomination, int id, CBigNum &accumulator, uint256 &blockHash);
+    int GetAccumulatorValueForSpend(CChain *chain, int maxHeight, int denomination, int id, CBigNum &accumulator, uint256 &blockHash, bool useModulusV2);
 
     // Get witness
-    libzerocoin::AccumulatorWitness GetWitnessForSpend(CChain *chain, int maxHeight, int denomination, int id, const CBigNum &pubCoin);
+    libzerocoin::AccumulatorWitness GetWitnessForSpend(CChain *chain, int maxHeight, int denomination, int id, const CBigNum &pubCoin, bool useModulusV2);
 
     // Return height of mint transaction and id of minted coin
     int GetMintedCoinHeightAndId(const CBigNum &pubCoin, int denomination, int &id);
 
+    // If needed calculate accumulators for alternative accumulator modulus
+    void CalculateAlternativeModulusAccumulatorValues(CChain *chain, int denomination, int id);
+
     // Reset to initial values
     void Reset();
+
+    // Test function
+    bool TestValidity(CChain *chain);
 
     static CZerocoinState *GetZerocoinState();
 };
