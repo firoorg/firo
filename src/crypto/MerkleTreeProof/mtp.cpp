@@ -1,4 +1,5 @@
 #include "mtp.h"
+#include "util.h"
 
 using namespace std;
 using namespace boost::multiprecision;
@@ -204,9 +205,9 @@ bool mtp_verify(const char* input, const uint32_t target,
 	context.out = out;
 	context.outlen = TEST_OUTLEN;
 	context.version = ARGON2_VERSION_NUMBER;
-	context.pwd = pwd;
+	context.pwd = (uint8_t*)input;
 	context.pwdlen = TEST_PWDLEN;
-	context.salt = salt;
+	context.salt = (uint8_t*)input;
 	context.saltlen = TEST_SALTLEN;
 	context.secret = NULL;
 	context.secretlen = TEST_SECRETLEN;
@@ -464,7 +465,7 @@ void mtp_hash(const char* input, uint32_t target,
 BEGIN:
 
 
-
+	LogPrintf("START mtp_hash\n");
 
 #define TEST_OUTLEN 32
 #define TEST_PWDLEN 80
@@ -484,6 +485,8 @@ BEGIN:
 	const allocate_fptr myown_allocator = NULL;
 	const deallocate_fptr myown_deallocator = NULL;
 
+	LogPrintf("INIT mtp_hash\n");
+
 	memset(pwd, 0, TEST_OUTLEN);
 	memset(salt, 0, TEST_SALTLEN);
 	//memset(secret, 3, TEST_SECRETLEN);
@@ -492,11 +495,11 @@ BEGIN:
 	context.out = out;
 	context.outlen = TEST_OUTLEN;
 	context.version = ARGON2_VERSION_NUMBER;
-	//context.pwd = &input;
-	memcpy(context.pwd, input, TEST_PWDLEN);
+	context.pwd = (uint8_t*)input;
+	//memcpy(&context.pwd, input, TEST_PWDLEN);
 	context.pwdlen = TEST_PWDLEN;
-	//context.salt = &input;
-	memcpy(context.salt, input, TEST_SALTLEN);
+	context.salt = (uint8_t*)input;
+	//memcpy(&context.salt, input, TEST_SALTLEN);
 	context.saltlen = TEST_SALTLEN;
 	context.secret = NULL;
 	context.secretlen = TEST_SECRETLEN;
@@ -541,9 +544,11 @@ BEGIN:
 		instance.threads = instance.lanes;
 	}
 
+	LogPrintf("STEP 1\n");
 	// step 1
 	argon2_ctx_mtp(&context, Argon2_d, &instance);
 
+	LogPrintf("STEP 2\n");
 	// step 2
 	MerkleTree::Elements elements;
 	if (&instance != NULL) {
@@ -575,9 +580,11 @@ BEGIN:
 	}
 	cout << oss.str() << endl;*/
 
+	LogPrintf("STEP 3\n");
 	// step 3
 	unsigned int nNonceInternal = 0;
 
+	LogPrintf("STEP 4\n");
 	// step 4
 	uint256 Y[L + 1];
 	uint8_t input[80] = { 1 };
@@ -601,6 +608,7 @@ BEGIN:
 		blake2b_final(&state, &Y[0], sizeof(uint256));
 
 
+		LogPrintf("STEP 5\n");
 		// step 5
 		bool init_blocks = false;
 		bool unmatch_block = false;
@@ -614,18 +622,31 @@ BEGIN:
 				break;
 			}
 
+			LogPrintf("Y[j]\n");
 			block blockhash;
+			LogPrintf("block blockhash\n");
 			uint8_t blockhash_bytes[ARGON2_BLOCK_SIZE];
+			LogPrintf("uint8_t blockhash_bytes[ARGON2_BLOCK_SIZE];\n");
 			copy_block(&blockhash, &instance.memory[ij]);
+			LogPrintf("copy_block(&blockhash, &instance.memory[ij]);\n");
 			store_block(&blockhash_bytes, &blockhash);
+			LogPrintf("store_block(&blockhash_bytes, &blockhash);\n");
 			blake2b_state ctx_yj;
+			LogPrintf("blake2b_state ctx_yj;\n");
 			blake2b_init(&ctx_yj, 32);
+			LogPrintf("blake2b_init(&ctx_yj, 32);\n");
 			blake2b_update(&ctx_yj, &Y[j - 1], 32);
+			LogPrintf("blake2b_update(&ctx_yj, &Y[j - 1], 32);\n");
 			blake2b_update(&ctx_yj, blockhash_bytes, ARGON2_BLOCK_SIZE);
+			LogPrintf("blake2b_update(&ctx_yj, blockhash_bytes, ARGON2_BLOCK_SIZE);\n");
 			blake2b_final(&ctx_yj, &Y[j], 32);
+			LogPrintf("blake2b_final(&ctx_yj, &Y[j], 32);\n");
 			clear_internal_memory(blockhash.v, ARGON2_BLOCK_SIZE);
+			LogPrintf("clear_internal_memory(blockhash.v, ARGON2_BLOCK_SIZE);\n");
 			clear_internal_memory(blockhash_bytes, ARGON2_BLOCK_SIZE);
+			LogPrintf("clear_internal_memory(blockhash_bytes, ARGON2_BLOCK_SIZE);\n");
 
+			LogPrintf("storing blocks\n");
 			//storing blocks
 			uint32_t prev_index;
 			uint32_t ref_index;
@@ -636,23 +657,38 @@ BEGIN:
 			//ref block
 			copy_block(&blocks[j*2 - 1], &instance.memory[ref_index]);
 
+			LogPrintf("storing proof\n");
 			//storing proof
 			//TODO : make it as function please
 			//current proof
 			block blockhash_curr;
+			LogPrintf("block blockhash_curr;\n");
 			uint8_t blockhash_curr_bytes[ARGON2_BLOCK_SIZE];
+			LogPrintf("uint8_t blockhash_curr_bytes[ARGON2_BLOCK_SIZE];\n");
 			copy_block(&blockhash_curr, &instance.memory[ij]);
+			LogPrintf("copy_block(&blockhash_curr, &instance.memory[ij]);\n");
 			store_block(&blockhash_curr_bytes, &blockhash_curr);
+			LogPrintf("store_block(&blockhash_curr_bytes, &blockhash_curr);\n");
 			blake2b_state state_curr;
+			LogPrintf("blake2b_state state_curr;\n");
 			blake2b_init(&state_curr, MERKLE_TREE_ELEMENT_SIZE_B);
+			LogPrintf("blake2b_init(&state_curr, MERKLE_TREE_ELEMENT_SIZE_B);\n");
 			blake2b_update(&state_curr, blockhash_curr_bytes, ARGON2_BLOCK_SIZE);
+			LogPrintf("blake2b_update(&state_curr, blockhash_curr_bytes, ARGON2_BLOCK_SIZE);\n");
 			uint8_t digest_curr[MERKLE_TREE_ELEMENT_SIZE_B];
+			LogPrintf("uint8_t digest_curr[MERKLE_TREE_ELEMENT_SIZE_B];\n");
 			blake2b_final(&state_curr, digest_curr, sizeof(digest_curr));
+			LogPrintf("blake2b_final(&state_curr, digest_curr, sizeof(digest_curr));\n");
 			MerkleTree::Buffer hash_curr = MerkleTree::Buffer(digest_curr, digest_curr + sizeof(digest_curr));
+			LogPrintf("MerkleTree::Buffer hash_curr = MerkleTree::Buffer(digest_curr, digest_curr + sizeof(digest_curr));\n");
 			clear_internal_memory(blockhash_curr.v, ARGON2_BLOCK_SIZE);
+			LogPrintf("clear_internal_memory(blockhash_curr.v, ARGON2_BLOCK_SIZE);\n");
 			clear_internal_memory(blockhash_curr_bytes, ARGON2_BLOCK_SIZE);
+			LogPrintf("clear_internal_memory(blockhash_curr_bytes, ARGON2_BLOCK_SIZE);\n");
 			MerkleTree::Elements proof_curr = ordered_tree.getProofOrdered(hash_curr, ij + 1);
+			LogPrintf("MerkleTree::Elements proof_curr = ordered_tree.getProofOrdered(hash_curr, ij + 1);\n");
 			proof_blocks[j*3 - 3] = proof_curr;
+			LogPrintf("proof_blocks[j*3 - 3] = proof_curr;\n");
 			/*std::ostringstream oss;
 			oss << "hash_curr[" << ij << "] = 0x";
 			for (MerkleTree::Buffer::const_iterator it = hash_curr.begin();
@@ -686,50 +722,83 @@ BEGIN:
 			cout << endl << "----" << endl;
 			*/
 
+			LogPrintf("storing prev proof\n");
 			//prev proof
 			block blockhash_prev;
+			LogPrintf("block blockhash_prev\n");
 			uint8_t blockhash_prev_bytes[ARGON2_BLOCK_SIZE];
+			LogPrintf("uint8_t blockhash_prev_bytes[ARGON2_BLOCK_SIZE];\n");
 			copy_block(&blockhash_prev, &instance.memory[prev_index]);
+			LogPrintf("copy_block(&blockhash_prev, &instance.memory[prev_index]);\n");
 			store_block(&blockhash_prev_bytes, &blockhash_prev);
+			LogPrintf("store_block(&blockhash_prev_bytes, &blockhash_prev);\n");
 			blake2b_state state_prev;
+			LogPrintf("blake2b_state state_prev;\n");
 			blake2b_init(&state_prev, MERKLE_TREE_ELEMENT_SIZE_B);
+			LogPrintf("blake2b_init(&state_prev, MERKLE_TREE_ELEMENT_SIZE_B);\n");
 			blake2b_update(&state_prev, blockhash_prev_bytes, ARGON2_BLOCK_SIZE);
+			LogPrintf("blake2b_update(&state_prev, blockhash_prev_bytes, ARGON2_BLOCK_SIZE);\n");
 			uint8_t digest_prev[MERKLE_TREE_ELEMENT_SIZE_B];
+			LogPrintf("uint8_t digest_prev[MERKLE_TREE_ELEMENT_SIZE_B];\n");
 			blake2b_final(&state_prev, digest_prev, sizeof(digest_prev));
+			LogPrintf("blake2b_final(&state_prev, digest_prev, sizeof(digest_prev));\n");
 			MerkleTree::Buffer hash_prev = MerkleTree::Buffer(digest_prev, digest_prev + sizeof(digest_prev));
+			LogPrintf("MerkleTree::Buffer hash_prev = MerkleTree::Buffer(digest_prev, digest_prev + sizeof(digest_prev));\n");
 			clear_internal_memory(blockhash_prev.v, ARGON2_BLOCK_SIZE);
+			LogPrintf("clear_internal_memory(blockhash_prev.v, ARGON2_BLOCK_SIZE);\n");
 			clear_internal_memory(blockhash_prev_bytes, ARGON2_BLOCK_SIZE);
+			LogPrintf("clear_internal_memory(blockhash_prev_bytes, ARGON2_BLOCK_SIZE);\n");
 			MerkleTree::Elements proof_prev = ordered_tree.getProofOrdered(hash_prev, prev_index + 1);
+			LogPrintf("MerkleTree::Elements proof_prev = ordered_tree.getProofOrdered(hash_prev, prev_index + 1);\n");
 			proof_blocks[j*3 - 2] = proof_prev;
+			LogPrintf("proof_blocks[j*3 - 2] = proof_prev;\n");
 
 
 
+			LogPrintf("storing ref proof\n");
 			//ref proof
 			block blockhash_ref;
+			LogPrintf("block blockhash_ref;\n");
 			uint8_t blockhash_ref_bytes[ARGON2_BLOCK_SIZE];
+			LogPrintf("uint8_t blockhash_ref_bytes[ARGON2_BLOCK_SIZE];\n");
 			copy_block(&blockhash_ref, &instance.memory[ref_index]);
+			LogPrintf("copy_block(&blockhash_ref, &instance.memory[ref_index]);\n");
 			store_block(&blockhash_ref_bytes, &blockhash_ref);
+			LogPrintf("store_block(&blockhash_ref_bytes, &blockhash_ref);\n");
 			blake2b_state state_ref;
+			LogPrintf("blake2b_state state_ref;\n");
 			blake2b_init(&state_ref, MERKLE_TREE_ELEMENT_SIZE_B);
+			LogPrintf("blake2b_init(&state_ref, MERKLE_TREE_ELEMENT_SIZE_B);\n");
 			blake2b_update(&state_ref, blockhash_ref_bytes, ARGON2_BLOCK_SIZE);
+			LogPrintf("blake2b_update(&state_ref, blockhash_ref_bytes, ARGON2_BLOCK_SIZE);\n");
 			uint8_t digest_ref[MERKLE_TREE_ELEMENT_SIZE_B];
+			LogPrintf("uint8_t digest_ref[MERKLE_TREE_ELEMENT_SIZE_B];\n");
 			blake2b_final(&state_ref, digest_ref, sizeof(digest_ref));
+			LogPrintf("blake2b_final(&state_ref, digest_ref, sizeof(digest_ref));\n");
 			MerkleTree::Buffer hash_ref = MerkleTree::Buffer(digest_ref, digest_ref + sizeof(digest_ref));
+			LogPrintf("MerkleTree::Buffer hash_ref = MerkleTree::Buffer(digest_ref, digest_ref + sizeof(digest_ref));\n");
 			clear_internal_memory(blockhash_ref.v, ARGON2_BLOCK_SIZE);
+			LogPrintf("clear_internal_memory(blockhash_ref.v, ARGON2_BLOCK_SIZE);\n");
 			clear_internal_memory(blockhash_ref_bytes, ARGON2_BLOCK_SIZE);
+			LogPrintf("clear_internal_memory(blockhash_ref_bytes, ARGON2_BLOCK_SIZE);\n");
 			MerkleTree::Elements proof_ref = ordered_tree.getProofOrdered(hash_ref, ref_index + 1);
+			LogPrintf("MerkleTree::Elements proof_ref = ordered_tree.getProofOrdered(hash_ref, ref_index + 1);\n");
 			proof_blocks[j*3 - 1] = proof_ref;
+			LogPrintf("proof_blocks[j*3 - 1] = proof_ref;\n");
 
 			//cout << "Y[" << dec << j << "] = " << Y[j].GetHex().c_str() << endl;
+			LogPrintf("Y[%d] = %s\n", j, Y[j].GetHex().c_str());
 
 		}
 
 		if (init_blocks) {
+			LogPrintf("IT IS init_blocks; continue\n");
 			nNonceInternal++;
 		    continue;
 		}
 
 
+		LogPrintf("STEP 6\n");
 		// step 6
 	    bool fNegative;
 	    bool fOverflow;
@@ -739,9 +808,14 @@ BEGIN:
 		if (fNegative || bnTarget == 0 || fOverflow || bnTarget > UintToArith256(powLimit) || UintToArith256(Y[L]) > bnTarget) {
 			/*cout << "hashTarget = " << ArithToUint256(bnTarget).GetHex().c_str() << endl;
 			cout << "Y[L] = " << Y[L].GetHex().c_str() << " nNonce = " << nNonce << endl;*/
+			LogPrintf("Y[L] = %s nNonce = %s\n", Y[L].GetHex().c_str(), nNonceInternal);
 			nNonceInternal++;
 			continue;
 		} else {
+			LogPrintf("Found a MTP solution :\n");
+			LogPrintf("hashTarget = %s\n", ArithToUint256(bnTarget).GetHex().c_str());
+			LogPrintf("Y[L] = %s nNonce = %s\n", Y[L].GetHex().c_str());
+			LogPrintf("nNonce = %s\n", nNonceInternal);
 			/*cout << endl << "Found a solution :" << endl;
 			cout << "hashTarget = " << ArithToUint256(bnTarget).GetHex().c_str() << endl;
 			cout << "Y[L]       = " << Y[L].GetHex().c_str() << endl;
@@ -775,6 +849,8 @@ BEGIN:
 					memcpy(blocks[i].v, nBlockMTP[i], sizeof(uint64_t) * ARGON2_QWORDS_IN_BLOCK);
 				}
 			*/
+
+			LogPrintf("END mtp_hash\n");
 			memcpy(hashRootMTP, &root, sizeof(uint256));
 
 			*nNonce = nNonceInternal;

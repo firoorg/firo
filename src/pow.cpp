@@ -40,9 +40,18 @@ double GetDifficultyHelper(unsigned int nBits) {
 unsigned int GetNextWorkRequired(const CBlockIndex *pindexLast, const CBlockHeader *pblock, const Consensus::Params &params) {
     bool fTestNet = Params().NetworkIDString() == CBaseChainParams::TESTNET;
 
-	if(pindexLast->nHeight + 1 > 86836){
+    if(pindexLast->nHeight + 1 > 86836){
+    	return bnProofOfWorkLimit.GetCompact();
+    }
+
+	if(!fTestNet && pindexLast->nHeight + 1 >= HF_MTP_HEIGHT){
 		return 0x2000ffff;
 	}
+
+	if(fTestNet && pindexLast->nHeight + 1 >= HF_MTP_HEIGHT_TESTNET){
+			return 0x2000ffff;
+	}
+
     // allow instamine first x blocks on testnet for distribution testing
 	if(fTestNet && pindexLast->nHeight < 5000){
 		return bnProofOfWorkLimit.GetCompact();

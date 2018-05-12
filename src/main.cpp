@@ -4180,14 +4180,14 @@ ContextualCheckBlockHeader(const CBlockHeader &block, CValidationState &state, c
                                  strprintf("rejected nVersion=0x%08x block", version - 1));
 
     // Zcoin - MTP
-	if ((!fTestNet && nHeight >= HF_MTP_HEIGHT)
+	if (!block.hashRootMTP.IsNull() && (!fTestNet && nHeight >= HF_MTP_HEIGHT)
 	&& (block.nVersion	>= (CBlock::CURRENT_VERSION | (GetZerocoinChainID() * BLOCK_VERSION_CHAIN_START)| block.nVersionMTP))) {
 		if (!CheckMerkleTreeProof(nHeight, block, consensusParams)){
 			return state.DoS(100, false, REJECT_INVALID, "bad-diffbits", false, "incorrect proof of work");
 		}
 	}
 
-	if ((fTestNet && nHeight >= HF_MTP_HEIGHT_TESTNET)	&&
+	if (!block.hashRootMTP.IsNull() && (fTestNet && nHeight >= HF_MTP_HEIGHT_TESTNET)	&&
 			(block.nVersion	>= (CBlock::CURRENT_VERSION | (GetZerocoinChainID() * BLOCK_VERSION_CHAIN_START) | block.nVersionMTP))) {
 		if (!CheckMerkleTreeProof(nHeight, block, consensusParams)){
 					return state.DoS(100, false, REJECT_INVALID, "bad-diffbits", false, "incorrect proof of work");

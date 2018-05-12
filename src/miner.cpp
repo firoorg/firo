@@ -37,6 +37,7 @@
 #include <boost/thread.hpp>
 #include <boost/tuple/tuple.hpp>
 #include <queue>
+#include <unistd.h>
 
 using namespace std;
 
@@ -509,14 +510,20 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
         pblock->nNonce         = 0;
 
         // Zcoin - MTP
+        LogPrintf("CreateNewBlock(): BEFORE CALL MTP\n");
         const int nHeight = pindexPrev == NULL ? 0 : pindexPrev->nHeight + 1;
         bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
         if (!fTestNet && nHeight >= HF_MTP_HEIGHT){
+        	LogPrintf("CreateNewBlock(): CALL MTP - pblock->hashRootMTP.SetNull()\n");
         	pblock->hashRootMTP.SetNull();
+        	LogPrintf("CreateNewBlock(): CALL MTP - memset(pblock->nBlockMTP, 0, sizeof(uint64_t) * 128 * 72 * 2);\n");
             memset(pblock->nBlockMTP, 0, sizeof(uint64_t) * 128 * 72 * 2);
+            LogPrintf("CreateNewBlock(): START CALL MTP - for(int i = 0; i < 72*3; i++)\n");
             for(int i = 0; i < 72*3; i++){
+            	LogPrintf("CreateNewBlock(): CALL MTP - pblock->nProofMTP[i].clear()\n");
             	pblock->nProofMTP[i].clear();
             }
+            LogPrintf("CreateNewBlock(): END CALL MTP - for(int i = 0; i < 72*3; i++)\n");
         };
 
         if (fTestNet && nHeight >= HF_MTP_HEIGHT_TESTNET){
@@ -526,14 +533,20 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
             	pblock->nProofMTP[i].clear();
             }
         };
+        LogPrintf("CreateNewBlock(): AFTER CALL MTP\n");
 
         pblocktemplate->vTxSigOpsCost[0] = GetLegacySigOpCount(pblock->vtx[0]);
 
+        LogPrintf("CreateNewBlock(): AFTER pblocktemplate->vTxSigOpsCost[0] = GetLegacySigOpCount(pblock->vtx[0])\n");
+
         CValidationState state;
+        LogPrintf("CreateNewBlock(): BEFORE TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false)\n");
         if (!TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false)) {
             throw std::runtime_error(strprintf("%s: TestBlockValidity failed: %s", __func__, FormatStateMessage(state)));
         }
+        LogPrintf("CreateNewBlock(): AFTER TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false)\n");
     }
+    LogPrintf("CreateNewBlock(): pblocktemplate.release()\n");
     return pblocktemplate.release();
 }
 
@@ -1118,7 +1131,9 @@ void static ZcoinMiner(const CChainParams &chainparams) {
             if (pindexPrev) {
                 LogPrintf("loop pindexPrev->nHeight=%s\n", pindexPrev->nHeight);
             }
+            LogPrintf("BEFORE: pblocktemplate\n");
             auto_ptr <CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(coinbaseScript->reserveScript));
+            LogPrintf("AFTER: pblocktemplate\n");
             if (!pblocktemplate.get()) {
                 LogPrintf("Error in ZcoinMiner: Keypool ran out, please call keypoolrefill before restarting the mining thread\n");
                 return;
@@ -1129,6 +1144,7 @@ void static ZcoinMiner(const CChainParams &chainparams) {
             LogPrintf("Running ZcoinMiner with %u transactions in block (%u bytes)\n", pblock->vtx.size(),
                       ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
 
+            LogPrintf("BEFORE: search\n");
             //
             // Search
             //
@@ -1140,13 +1156,21 @@ void static ZcoinMiner(const CChainParams &chainparams) {
             LogPrintf("pblock: %s\n", pblock->ToString());
             LogPrintf("pblock->nVersion: %s\n", pblock->nVersion);
             LogPrintf("pblock->nTime: %s\n", pblock->nTime);
+            LogPrintf("pblock->hashRootMTP: %s\n", &pblock->hashRootMTP);
+            LogPrintf("pblock->nNonce: %s\n", &pblock->nNonce);
+            LogPrintf("pblock->nBlockMTP: %s\n", &pblock->nBlockMTP);
+            LogPrintf("pblock->nProofMTP: %s\n", &pblock->nProofMTP);
+            LogPrintf("powLimit: %s\n", Params().GetConsensus().powLimit.ToString());
+
             while (true) {
                 // Check if something found
                 uint256 thash;
 
                 while (true) {
                     if (!fTestNet && pindexPrev->nHeight + 1 >= HF_MTP_HEIGHT){
+                    	LogPrintf("BEFORE: mtp_hash\n");
                     	mtp_hash(BEGIN(pblock->nVersion), pblock->nBits, &pblock->hashRootMTP, &pblock->nNonce, pblock->nBlockMTP, pblock->nProofMTP, Params().GetConsensus().powLimit, &thash);
+                    	LogPrintf("AFTER: mtp_hash\n");
                     } else if (!fTestNet && pindexPrev->nHeight + 1 >= HF_LYRA2Z_HEIGHT) {
                         lyra2z_hash(BEGIN(pblock->nVersion), BEGIN(thash));
                     } else if (!fTestNet && pindexPrev->nHeight + 1 >= HF_LYRA2_HEIGHT) {

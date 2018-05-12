@@ -171,7 +171,7 @@ void fill_segment_mtp(const argon2_instance_t *instance,
         ref_block =
             instance->memory + instance->lane_length * ref_lane + ref_index;
         curr_block = instance->memory + curr_offset;
-        printf("\ncurr_offset = %lu prev_offset = %lu ref_block = %lu \n", curr_offset ,prev_offset, instance->lane_length * ref_lane + ref_index);
+        //printf("\ncurr_offset = %lu prev_offset = %lu ref_block = %lu \n", curr_offset ,prev_offset, instance->lane_length * ref_lane + ref_index);
 
 
         uint8_t h0[ARGON2_PREHASH_SEED_LENGTH];
