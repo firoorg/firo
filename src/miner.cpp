@@ -519,7 +519,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
             }
         };
 
-        if (!fTestNet && nHeight >= HF_MTP_HEIGHT_TESTNET){
+        if (fTestNet && nHeight >= HF_MTP_HEIGHT_TESTNET){
         	pblock->hashRootMTP.SetNull();
             memset(pblock->nBlockMTP, 0, sizeof(uint64_t) * 128 * 72 * 2);
             for(int i = 0; i < 72*3; i++){
