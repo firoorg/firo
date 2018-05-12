@@ -1846,11 +1846,19 @@ bool ReadBlockFromDisk(CBlock &block, const CDiskBlockPos &pos, int nHeight, con
     catch (const std::exception &e) {
         return error("%s: Deserialize or I/O error - %s at %s", __func__, e.what(), pos.ToString());
     }
+
+    // Zcoin - MTP
+    if (!CheckMerkleTreeProof(nHeight, block, consensusParams)){
+    	return error("ReadBlockFromDisk: Errors in block header at %s", pos.ToString());
+    }
+
     // Check the header
-    if (!CheckProofOfWork(block.GetPoWHash(nHeight), block.nBits, consensusParams))
+    if (!CheckProofOfWork(block.GetPoWHash(nHeight), block.nBits, consensusParams)){
         //Maybe cache is not valid
-        if (!CheckProofOfWork(block.GetPoWHash(nHeight, true), block.nBits, consensusParams))
+        if (!CheckProofOfWork(block.GetPoWHash(nHeight, true), block.nBits, consensusParams)){
             return error("ReadBlockFromDisk: Errors in block header at %s", pos.ToString());
+        }
+    }
     return true;
 }
 
@@ -4139,7 +4147,20 @@ GenerateCoinbaseCommitment(CBlock &block, const CBlockIndex *pindexPrev, const C
 bool
 ContextualCheckBlockHeader(const CBlockHeader &block, CValidationState &state, const Consensus::Params &consensusParams,
                            CBlockIndex *const pindexPrev, int64_t nAdjustedTime) {
-    // Check proof of work
+	// Zcoin - MTP
+	const int nHeight = pindexPrev == NULL ? 0 : pindexPrev->nHeight + 1;
+	bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
+	if ((!fTestNet && nHeight >= HF_MTP_HEIGHT)
+	&& (block.nVersion	< (CBlock::CURRENT_VERSION | (GetZerocoinChainID() * BLOCK_VERSION_CHAIN_START)| block.nVersionMTP))) {
+		return state.Invalid(false, REJECT_OBSOLETE, strprintf("bad-version(0x%08x)", block.nVersion),strprintf("rejected nVersion=0x%08x block", block.nVersion));
+	};
+
+	if ((!fTestNet && nHeight >= HF_MTP_HEIGHT_TESTNET)	&&
+			(block.nVersion	< (CBlock::CURRENT_VERSION | (GetZerocoinChainID() * BLOCK_VERSION_CHAIN_START) | block.nVersionMTP))) {
+		return state.Invalid(false, REJECT_OBSOLETE, strprintf("bad-version(0x%08x)", block.nVersion), strprintf("rejected nVersion=0x%08x block", block.nVersion));
+	};
+
+	// Check proof of work
     if (block.nBits != GetNextWorkRequired(pindexPrev, &block, consensusParams))
         return state.DoS(100, false, REJECT_INVALID, "bad-diffbits", false, "incorrect proof of work");
 
@@ -4157,6 +4178,21 @@ ContextualCheckBlockHeader(const CBlockHeader &block, CValidationState &state, c
             IsSuperMajority(version, pindexPrev, consensusParams.nMajorityRejectBlockOutdated, consensusParams))
             return state.Invalid(false, REJECT_OBSOLETE, strprintf("bad-version(0x%08x)", version - 1),
                                  strprintf("rejected nVersion=0x%08x block", version - 1));
+
+    // Zcoin - MTP
+	if ((!fTestNet && nHeight >= HF_MTP_HEIGHT)
+	&& (block.nVersion	>= (CBlock::CURRENT_VERSION | (GetZerocoinChainID() * BLOCK_VERSION_CHAIN_START)| block.nVersionMTP))) {
+		if (!CheckMerkleTreeProof(nHeight, block, consensusParams)){
+			return state.DoS(100, false, REJECT_INVALID, "bad-diffbits", false, "incorrect proof of work");
+		}
+	}
+
+	if ((!fTestNet && nHeight >= HF_MTP_HEIGHT_TESTNET)	&&
+			(block.nVersion	>= (CBlock::CURRENT_VERSION | (GetZerocoinChainID() * BLOCK_VERSION_CHAIN_START) | block.nVersionMTP))) {
+		if (!CheckMerkleTreeProof(nHeight, block, consensusParams)){
+					return state.DoS(100, false, REJECT_INVALID, "bad-diffbits", false, "incorrect proof of work");
+		}
+	}
 
     return true;
 }

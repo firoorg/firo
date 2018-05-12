@@ -14,6 +14,8 @@
 #include "util.h"
 #include "chainparams.h"
 #include "libzerocoin/bitcoin_bignum/bignum.h"
+#include "utilstrencodings.h"
+#include "crypto/MerkleTreeProof/mtp.h"
 #include "fixed.h"
 
 static CBigNum bnProofOfWorkLimit(~arith_uint256(0) >> 8);
@@ -113,6 +115,26 @@ unsigned int CalculateNextWorkRequired(const CBlockIndex *pindexLast, int64_t nF
         bnNew = bnPowLimit;
 
     return bnNew.GetCompact();
+}
+
+// Zcoin - MTP
+bool CheckMerkleTreeProof(int nHeight, const CBlockHeader &block, const Consensus::Params &params) {
+	bool fTestNet = Params().NetworkIDString() == CBaseChainParams::TESTNET;
+	if (!fTestNet && nHeight + 1 < HF_MTP_HEIGHT){
+	    return true;
+	};
+	if (!fTestNet && nHeight + 1 < HF_MTP_HEIGHT_TESTNET){
+		return true;
+	};
+
+	uint256 powHash;
+	bool isVerified = mtp_verify(BEGIN(block.nVersion), block.nBits, &block.hashRootMTP, &block.nNonce,
+			block.nBlockMTP, block.nProofMTP, Params().GetConsensus().powLimit, &powHash);
+    if(!isVerified){
+    	return false;
+    }
+
+    return true;
 }
 
 bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params &params) {

@@ -10,6 +10,7 @@
 #include "pow.h"
 #include "uint256.h"
 #include "main.h"
+#include "consensus/consensus.h"
 
 #include <stdint.h>
 
@@ -308,6 +309,7 @@ bool CBlockTreeDB::ReadFlag(const std::string &name, bool &fValue) {
 bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256&)> insertBlockIndex)
 {
     LogPrintf("CBlockTreeDB::LoadBlockIndexGuts\n");
+    bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
     boost::scoped_ptr<CDBIterator> pcursor(NewIterator());
 
     pcursor->Seek(make_pair(DB_BLOCK_INDEX, uint256()));
@@ -333,6 +335,33 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
                 pindexNew->nNonce         = diskindex.nNonce;
                 pindexNew->nStatus        = diskindex.nStatus;
                 pindexNew->nTx            = diskindex.nTx;
+
+                if (!fTestNet && diskindex.nHeight >= HF_MTP_HEIGHT){
+                	pindexNew->hashRootMTP = diskindex.hashRootMTP;
+                    int i, j;
+					for (i = 0; i < 128; i++) {
+						for (j = 0; j < 72 * 2; j++) {
+							pindexNew->nBlockMTP[i][j] = diskindex.nBlockMTP[i][j];
+						}
+					}
+
+					for (i = 0; i < 72 * 3; i++) {
+						pindexNew->nProofMTP[i][j] = diskindex.nProofMTP[i][j];
+					}
+
+                }else if (fTestNet && diskindex.nHeight >= HF_MTP_HEIGHT_TESTNET){
+                	pindexNew->hashRootMTP = diskindex.hashRootMTP;
+                    int i, j;
+					for (i = 0; i < 128; i++) {
+						for (j = 0; j < 72 * 2; j++) {
+							pindexNew->nBlockMTP[i][j] = diskindex.nBlockMTP[i][j];
+						}
+					}
+
+					for (i = 0; i < 72 * 3; i++) {
+						pindexNew->nProofMTP[i][j] = diskindex.nProofMTP[i][j];
+					}
+                }
 
                 pindexNew->accumulatorChanges = diskindex.accumulatorChanges;
                 pindexNew->mintedPubCoins     = diskindex.mintedPubCoins;

@@ -6,6 +6,7 @@
 #ifndef BITCOIN_PRIMITIVES_BLOCK_H
 #define BITCOIN_PRIMITIVES_BLOCK_H
 
+#include <deque>
 #include "primitives/transaction.h"
 #include "serialize.h"
 #include "uint256.h"
@@ -37,6 +38,11 @@ public:
     uint32_t nTime;
     uint32_t nBits;
     uint32_t nNonce;
+    // Zcoin - MTP
+    uint256 hashRootMTP;
+    uint64_t nBlockMTP[72*2][128]; // 128 is ARGON2_QWORDS_IN_BLOCK and 72 * 2 is L * 2
+    std::deque<std::vector<uint8_t>> nProofMTP[72*3]; // 72 * 3 is L * 3
+    int32_t nVersionMTP = 0x1000;
 
     static const int CURRENT_VERSION = 2;
 
@@ -59,6 +65,21 @@ public:
         READWRITE(nTime);
         READWRITE(nBits);
         READWRITE(nNonce);
+        // Zcoin - MTP
+        if(nVersion == (CBlockHeader::CURRENT_VERSION | (GetZerocoinChainID() * BLOCK_VERSION_CHAIN_START) | nVersionMTP)){
+        	READWRITE(hashRootMTP);
+        	int i, j;
+
+        	for(i = 0; i < 72*2; i++){
+        		for(j = 0; j < 128; j++){
+            		READWRITE(nBlockMTP[i][j]);
+        		}
+        	}
+
+        	for(i = 0; i < 72*3; i++){
+        		READWRITE(nProofMTP[i]);
+        	}
+        }
     }
 
     void SetNull()
@@ -71,6 +92,12 @@ public:
         nNonce = 0;
         isComputed = -1;
         powHash.SetNull();
+        // Zcoin - MTP
+        hashRootMTP.SetNull();
+        memset(nBlockMTP, 0, sizeof(uint64_t) * 72 * 2 * 128);
+        for(int i = 0; i < 72*3; i++){
+        	nProofMTP[i].clear();
+        }
     }
 
     int GetChainID() const
@@ -105,7 +132,6 @@ public:
 
     void InvalidateCachedPoWHash(int nHeight) const;
 };
-
 
 class CZerocoinTxInfo;
 
@@ -167,12 +193,44 @@ public:
         block.nTime          = nTime;
         block.nBits          = nBits;
         block.nNonce         = nNonce;
+        // Zcoin - MTP
+		if(nVersion == (CBlockHeader::CURRENT_VERSION | (GetZerocoinChainID() * BLOCK_VERSION_CHAIN_START) | nVersionMTP)){
+			block.hashRootMTP = hashRootMTP;
+			memcpy(block.nBlockMTP, nBlockMTP, sizeof(uint64_t) * 72 * 2 * 128);
+			for(int i = 0; i < 72*3; i++){
+				block.nProofMTP[i] = nProofMTP[i];
+			}
+		}
         return block;
     }
 
     std::string ToString() const;
 
     void ZerocoinClean() const;
+};
+
+// Zcoin - MTP
+class CMTPInput : private CBlockHeader
+{
+public:
+
+	CMTPInput(const CBlockHeader &blockHeader){
+		CBlockHeader::SetNull();
+		*((CBlockHeader*)this) = blockHeader;
+	}
+
+	ADD_SERIALIZE_METHODS;
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+    	READWRITE(this->nVersion);
+    	READWRITE(hashPrevBlock);
+    	READWRITE(hashMerkleRoot);
+    	READWRITE(nTime);
+    	READWRITE(nBits);
+    	/*uint32_t nNounceInternal = 0;
+    	READWRITE(nNounceInternal);*/
+    }
 };
 
 /** Describes a place in the block chain to another node such that if the

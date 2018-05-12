@@ -200,6 +200,11 @@ public:
     unsigned int nTime;
     unsigned int nBits;
     unsigned int nNonce;
+    // Zcoin - MTP
+    uint256 hashRootMTP;
+    uint64_t nBlockMTP[128][72*2]; // 128 is ARGON2_QWORDS_IN_BLOCK and 72 * 2 is L * 2
+    std::deque<std::vector<uint8_t>> nProofMTP[72*3]; // 72 * 3 is L * 3
+    int32_t nVersionMTP = 0x1000;
 
     //! (memory only) Sequential id assigned to distinguish order in which blocks are received.
     uint32_t nSequenceId;
@@ -238,6 +243,13 @@ public:
         nTime          = 0;
         nBits          = 0;
         nNonce         = 0;
+
+        // Zcoin - MTP
+        hashRootMTP.SetNull();
+        memset(nBlockMTP, 0, sizeof(uint64_t) * 128 * 72 * 2);
+        for(int i = 0; i < 72*3; i++){
+        	nProofMTP[i].clear();
+        }
 
         mintedPubCoins.clear();
         accumulatorChanges.clear();
@@ -408,6 +420,22 @@ public:
         READWRITE(nBits);
         READWRITE(nNonce);
 
+        // Zcoin - MTP
+        if(nVersion == (CBlockHeader::CURRENT_VERSION | (GetZerocoinChainID() * BLOCK_VERSION_CHAIN_START) | nVersionMTP)){
+        	READWRITE(hashRootMTP);
+        	int i, j;
+
+        	for(i = 0; i < 128; i++){
+        		for(j = 0; j < 72*2; j++){
+            		READWRITE(nBlockMTP[i][j]);
+        		}
+        	}
+
+        	for(i = 0; i < 72*3; i++){
+        		READWRITE(nProofMTP[i]);
+        	}
+        }
+
         if (!(nType & SER_GETHASH) && nVersion >= ZC_ADVANCED_INDEX_VERSION) {
             READWRITE(mintedPubCoins);
 		    READWRITE(accumulatorChanges);
@@ -426,6 +454,14 @@ public:
         block.nTime           = nTime;
         block.nBits           = nBits;
         block.nNonce          = nNonce;
+        // Zcoin - MTP
+		if(nVersion == (CBlockHeader::CURRENT_VERSION | (GetZerocoinChainID() * BLOCK_VERSION_CHAIN_START) | nVersionMTP)){
+			block.hashRootMTP = hashRootMTP;
+			memcpy(block.nBlockMTP, nBlockMTP, sizeof(uint64_t) * 72 * 2);
+			for(int i = 0; i < 72*3; i++){
+				block.nProofMTP[i] = nProofMTP[i];
+			}
+		}
         return block.GetHash();
     }
 

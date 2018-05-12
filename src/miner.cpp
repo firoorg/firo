@@ -28,6 +28,7 @@
 #include "wallet/wallet.h"
 #include "definition.h"
 #include "crypto/scrypt.h"
+#include "crypto/MerkleTreeProof/mtp.h"
 #include "crypto/Lyra2Z/Lyra2Z.h"
 #include "crypto/Lyra2Z/Lyra2.h"
 #include "znode-payments.h"
@@ -262,7 +263,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
 
     std::priority_queue<CTxMemPool::txiter, std::vector<CTxMemPool::txiter>, ScoreCompare> clearedTxs;
     bool fPrintPriority = GetBoolArg("-printpriority", DEFAULT_PRINTPRIORITY);
-    uint64_t nBlockSize = 1000;
+    uint64_t nBlockSize = 1500;
     uint64_t nBlockTx = 0;
     unsigned int nBlockSigOps = 100;
     int lastFewTxs = 0;
@@ -506,6 +507,26 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
         UpdateTime(pblock, chainparams.GetConsensus(), pindexPrev);
         pblock->nBits          = GetNextWorkRequired(pindexPrev, pblock, chainparams.GetConsensus());
         pblock->nNonce         = 0;
+
+        // Zcoin - MTP
+        const int nHeight = pindexPrev == NULL ? 0 : pindexPrev->nHeight + 1;
+        bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
+        if (!fTestNet && nHeight >= HF_MTP_HEIGHT){
+        	pblock->hashRootMTP.SetNull();
+            memset(pblock->nBlockMTP, 0, sizeof(uint64_t) * 128 * 72 * 2);
+            for(int i = 0; i < 72*3; i++){
+            	pblock->nProofMTP[i].clear();
+            }
+        };
+
+        if (!fTestNet && nHeight >= HF_MTP_HEIGHT_TESTNET){
+        	pblock->hashRootMTP.SetNull();
+            memset(pblock->nBlockMTP, 0, sizeof(uint64_t) * 128 * 72 * 2);
+            for(int i = 0; i < 72*3; i++){
+            	pblock->nProofMTP[i].clear();
+            }
+        };
+
         pblocktemplate->vTxSigOpsCost[0] = GetLegacySigOpCount(pblock->vtx[0]);
 
         CValidationState state;
@@ -1124,13 +1145,17 @@ void static ZcoinMiner(const CChainParams &chainparams) {
                 uint256 thash;
 
                 while (true) {
-                    if ((!fTestNet && pindexPrev->nHeight + 1 >= HF_LYRA2Z_HEIGHT)) {
+                    if (!fTestNet && pindexPrev->nHeight + 1 >= HF_MTP_HEIGHT){
+                    	mtp_hash(BEGIN(pblock->nVersion), pblock->nBits, &pblock->hashRootMTP, &pblock->nNonce, pblock->nBlockMTP, pblock->nProofMTP, Params().GetConsensus().powLimit, &thash);
+                    } else if (!fTestNet && pindexPrev->nHeight + 1 >= HF_LYRA2Z_HEIGHT) {
                         lyra2z_hash(BEGIN(pblock->nVersion), BEGIN(thash));
                     } else if (!fTestNet && pindexPrev->nHeight + 1 >= HF_LYRA2_HEIGHT) {
                         LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, 8192, 256);
                     } else if (!fTestNet && pindexPrev->nHeight + 1 >= HF_LYRA2VAR_HEIGHT) {
                         LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2,
                               pindexPrev->nHeight + 1, 256);
+                    } else if (fTestNet && pindexPrev->nHeight + 1 >= HF_MTP_HEIGHT_TESTNET) { // testnet
+                    	mtp_hash(BEGIN(pblock->nVersion), pblock->nBits, &pblock->hashRootMTP, &pblock->nNonce, pblock->nBlockMTP, pblock->nProofMTP, Params().GetConsensus().powLimit, &thash);
                     } else if (fTestNet && pindexPrev->nHeight + 1 >= HF_LYRA2Z_HEIGHT_TESTNET) { // testnet
                         lyra2z_hash(BEGIN(pblock->nVersion), BEGIN(thash));
                     } else if (fTestNet && pindexPrev->nHeight + 1 >= HF_LYRA2_HEIGHT_TESTNET) { // testnet

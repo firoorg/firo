@@ -15,6 +15,7 @@
 #include "crypto/scrypt.h"
 #include "crypto/Lyra2Z/Lyra2Z.h"
 #include "crypto/Lyra2Z/Lyra2.h"
+#include "crypto/MerkleTreeProof/mtp.h"
 #include "util.h"
 #include <iostream>
 #include <chrono>
@@ -67,14 +68,19 @@ uint256 CBlockHeader::GetPoWHash(int nHeight, bool forceCalc) const {
         }
     }
     uint256 powHash;
+    // Zcoin - MTP
     try {
-        if (!fTestNet && nHeight >= HF_LYRA2Z_HEIGHT) {
+		if (!fTestNet && nHeight >= HF_MTP_HEIGHT) {
+			mtp_verify(BEGIN(nVersion), nBits, &hashRootMTP, &nNonce, nBlockMTP, nProofMTP, Params().GetConsensus().powLimit, &powHash);
+		} else if (!fTestNet && nHeight >= HF_LYRA2Z_HEIGHT) {
             lyra2z_hash(BEGIN(nVersion), BEGIN(powHash));
         } else if (!fTestNet && nHeight >= HF_LYRA2_HEIGHT) {
             LYRA2(BEGIN(powHash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, 8192, 256);
         } else if (!fTestNet && nHeight >= HF_LYRA2VAR_HEIGHT) {
             LYRA2(BEGIN(powHash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, nHeight, 256);
-        } else if (fTestNet && nHeight >= HF_LYRA2Z_HEIGHT_TESTNET) { // testnet
+		} else if (fTestNet	&& nHeight  >= HF_MTP_HEIGHT_TESTNET) { // testnet
+			mtp_verify(BEGIN(nVersion), nBits, &hashRootMTP, &nNonce, nBlockMTP, nProofMTP, Params().GetConsensus().powLimit, &powHash);
+		} else if (fTestNet && nHeight >= HF_LYRA2Z_HEIGHT_TESTNET) { // testnet
             lyra2z_hash(BEGIN(nVersion), BEGIN(powHash));
         } else if (fTestNet && nHeight >= HF_LYRA2_HEIGHT_TESTNET) { // testnet
             LYRA2(BEGIN(powHash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, 8192, 256);
