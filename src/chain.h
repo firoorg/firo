@@ -212,6 +212,9 @@ public:
     //! Maps <denomination, id> to <accumulator value (CBigNum), number of such mints in this block>
     map<pair<int,int>, pair<CBigNum,int>> accumulatorChanges;
 	
+	//! Same as accumulatorChanges but for alternative modulus
+	map<pair<int,int>, pair<CBigNum,int>> alternativeAccumulatorChanges;
+	
     //! Values of coin serials spent in this block
 	set<CBigNum> spentSerials;
 
@@ -293,9 +296,9 @@ public:
         return *phashBlock;
     }
 
-    uint256 GetBlockPoWHash() const
+    uint256 GetBlockPoWHash(bool forceCalc = false) const
     {
-        return GetBlockHeader().GetPoWHash(nHeight);
+        return GetBlockHeader().GetPoWHash(nHeight, forceCalc);
     }
 
     int64_t GetBlockTime() const

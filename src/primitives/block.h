@@ -94,7 +94,7 @@ public:
 //        powHash = hash;
     }
 
-    uint256 GetPoWHash(int nHeight) const;
+    uint256 GetPoWHash(int nHeight, bool forceCalc = false) const;
 
     uint256 GetHash() const;
 
@@ -102,6 +102,8 @@ public:
     {
         return (int64_t)nTime;
     }
+
+    void InvalidateCachedPoWHash(int nHeight) const;
 };
 
 

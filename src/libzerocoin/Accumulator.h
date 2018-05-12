@@ -144,7 +144,7 @@ public:
 	AccumulatorWitness& operator +=(const PublicCoin& rhs);
 private:
     const Params* params;
-	Accumulator witness;
+    Accumulator witness;
 	const PublicCoin element;
 };
 

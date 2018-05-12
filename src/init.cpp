@@ -406,6 +406,9 @@ std::string HelpMessage(HelpMessageMode mode) {
     strUsage += HelpMessageOpt("-txindex", strprintf(
             _("Maintain a full transaction index, used by the getrawtransaction rpc call (default: %u)"),
             DEFAULT_TXINDEX));
+    strUsage += HelpMessageOpt("-addressindex", strprintf(_("Maintain a full address index, used to query for the balance, txids and unspent outputs for addresses (default: %u)"), DEFAULT_ADDRESSINDEX));
+    strUsage += HelpMessageOpt("-timestampindex", strprintf(_("Maintain a timestamp index for block hashes, used to query blocks hashes by a range of timestamps (default: %u)"), DEFAULT_TIMESTAMPINDEX));
+    strUsage += HelpMessageOpt("-spentindex", strprintf(_("Maintain a full spent index, used to query the spending txid and input index for an outpoint (default: %u)"), DEFAULT_SPENTINDEX));
 
     strUsage += HelpMessageGroup(_("Connection options:"));
     strUsage += HelpMessageOpt("-addnode=<ip>", _("Add a node to connect to and attempt to keep the connection open"));
@@ -1882,32 +1885,33 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
         }
     }
 
-
     nLiquidityProvider = GetArg("-liquidityprovider", nLiquidityProvider);
     nLiquidityProvider = std::min(std::max(nLiquidityProvider, 0), 100);
     darkSendPool.SetMinBlockSpacing(nLiquidityProvider * 15);
 
-    fEnablePrivateSend = GetBoolArg("-enableprivatesend", 0);
-    fPrivateSendMultiSession = GetBoolArg("-privatesendmultisession", DEFAULT_PRIVATESEND_MULTISESSION);
-    nPrivateSendRounds = GetArg("-privatesendrounds", DEFAULT_PRIVATESEND_ROUNDS);
-    nPrivateSendRounds = std::min(std::max(nPrivateSendRounds, 2), nLiquidityProvider ? 99999 : 16);
-    nPrivateSendAmount = GetArg("-privatesendamount", DEFAULT_PRIVATESEND_AMOUNT);
-    nPrivateSendAmount = std::min(std::max(nPrivateSendAmount, 2), 999999);
+    fEnablePrivateSend = false;
+//    fEnablePrivateSend = GetBoolArg("-enableprivatesend", 0);
+//    fPrivateSendMultiSession = GetBoolArg("-privatesendmultisession", DEFAULT_PRIVATESEND_MULTISESSION);
+//    nPrivateSendRounds = GetArg("-privatesendrounds", DEFAULT_PRIVATESEND_ROUNDS);
+//    nPrivateSendRounds = std::min(std::max(nPrivateSendRounds, 2), nLiquidityProvider ? 99999 : 16);
+//    nPrivateSendAmount = GetArg("-privatesendamount", DEFAULT_PRIVATESEND_AMOUNT);
+//    nPrivateSendAmount = std::min(std::max(nPrivateSendAmount, 2), 999999);
 
-    fEnableInstantSend = GetBoolArg("-enableinstantsend", 1);
-    nInstantSendDepth = GetArg("-instantsenddepth", DEFAULT_INSTANTSEND_DEPTH);
-    nInstantSendDepth = std::min(std::max(nInstantSendDepth, 0), 60);
+    fEnableInstantSend = false;
+//    fEnableInstantSend = GetBoolArg("-enableinstantsend", 1);
+//    nInstantSendDepth = GetArg("-instantsenddepth", DEFAULT_INSTANTSEND_DEPTH);
+//    nInstantSendDepth = std::min(std::max(nInstantSendDepth, 0), 60);
 
-    //lite mode disables all Znode and Darksend related functionality
+    // lite mode disables all Znode and Darksend related functionality
     fLiteMode = GetBoolArg("-litemode", false);
     if (fZNode && fLiteMode) {
         return InitError("You can not start a znode in litemode");
     }
 
     LogPrintf("fLiteMode %d\n", fLiteMode);
-    LogPrintf("nInstantSendDepth %d\n", nInstantSendDepth);
-    LogPrintf("PrivateSend rounds %d\n", nPrivateSendRounds);
-    LogPrintf("PrivateSend amount %d\n", nPrivateSendAmount);
+//    LogPrintf("nInstantSendDepth %d\n", nInstantSendDepth);
+//    LogPrintf("PrivateSend rounds %d\n", nPrivateSendRounds);
+//    LogPrintf("PrivateSend amount %d\n", nPrivateSendAmount);
 
     darkSendPool.InitDenominations();
 

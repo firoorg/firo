@@ -81,6 +81,15 @@ public:
     int FulfilledRequestExpireTime() const { return nFulfilledRequestExpireTime; }
     std::string SporkPubKey() const { return strSporkPubKey; }
     std::string ZnodePaymentPubKey() const { return strZnodePaymentsPubKey; }
+	
+	/** Zerocoin-related block numbers when features are changed */
+	int nSpendV15StartBlock;
+	int nSpendV2ID_1, nSpendV2ID_10, nSpendV2ID_25, nSpendV2ID_50, nSpendV2ID_100;
+	
+	int nModulusV2StartBlock;
+    int nModulusV1MempoolStopBlock;
+	int nModulusV1StopBlock;
+	
 protected:
     CChainParams() {}
 
@@ -99,6 +108,7 @@ protected:
     bool fMineBlocksOnDemand;
     bool fTestnetToBeDeprecatedFieldRPC;
     CCheckpointData checkpointData;
+	
     /** znode params*/
     long nMaxTipAge;
     int nPoolMaxTransactions;

@@ -13,7 +13,7 @@
 
 namespace libzerocoin {
 
-void CalculateParams(Params &params, Bignum N, std::string aux, uint32_t securityLevel);
+void CalculateParams(Params &params, Bignum N, Bignum Nseed, std::string aux, uint32_t securityLevel);
 void calculateGroupParamLengths(uint32_t maxPLen, uint32_t securityLevel,
                                 uint32_t *pLen, uint32_t *qLen);
 

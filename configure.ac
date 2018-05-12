@@ -3,7 +3,7 @@ AC_PREREQ([2.60])
 define(_CLIENT_VERSION_MAJOR, 0)
 define(_CLIENT_VERSION_MINOR, 13)
 define(_CLIENT_VERSION_REVISION, 5)
-define(_CLIENT_VERSION_BUILD, 7)
+define(_CLIENT_VERSION_BUILD, 8)
 define(_CLIENT_VERSION_IS_RELEASE, true)
 define(_COPYRIGHT_YEAR, 2018)
 define(_COPYRIGHT_HOLDERS,[The %s developers])
@@ -196,6 +196,9 @@ AC_ARG_ENABLE([debug],
                     [use debug compiler flags and macros (default is no)])],
     [enable_debug=$enableval],
     [enable_debug=no])
+
+AC_ARG_ENABLE(seccomp,
+    AS_HELP_STRING(--disable-seccomp, [do not attempt to use libseccomp]))
 
 AC_LANG_PUSH([C++])
 AX_CHECK_COMPILE_FLAG([-Werror],[CXXFLAG_WERROR="-Werror"],[CXXFLAG_WERROR=""])
@@ -887,6 +890,20 @@ if test x$need_bundled_univalue = xyes ; then
 fi
 
 fi
+
+dnl ============================================================
+dnl Check for libseccomp
+
+if test "x$enable_seccomp" != "xno"; then
+  AC_CHECK_HEADERS([seccomp.h])
+  AC_SEARCH_LIBS(seccomp_init, [seccomp])
+fi
+
+dnl ============================================================
+dnl Check for libcap
+
+AC_CHECK_HEADERS([sys/capability.h])
+AC_SEARCH_LIBS(cap_get_proc, [cap])
 
 ac_configure_args="${ac_configure_args} --disable-shared"
 

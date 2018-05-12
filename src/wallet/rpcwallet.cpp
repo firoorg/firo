@@ -19,6 +19,7 @@
 #include "utilmoneystr.h"
 #include "wallet.h"
 #include "walletdb.h"
+#include "zerocoin.h"
 
 #include <stdint.h>
 
@@ -2673,20 +2674,14 @@ UniValue mintzerocoin(const UniValue& params, bool fHelp)
     LogPrintf("rpcWallet.mintzerocoin() denomination = %s, nAmount = %s \n", denomination, nAmount);
 
 
-    // zerocoin init
-    CBigNum bnTrustedModulus;
-
-    // Loads a trusted Zerocoin modulus "N"
-    bnTrustedModulus.SetHex(ZEROCOIN_MODULUS);
-
-    // Set up the Zerocoin Params object
-    libzerocoin::Params *ZCParams = new libzerocoin::Params(bnTrustedModulus);
+    // Always use modulus v2
+    libzerocoin::Params *zcParams = ZCParamsV2;
 
     // The following constructor does all the work of minting a brand
     // new zerocoin. It stores all the private values inside the
     // PrivateCoin object. This includes the coin secrets, which must be
     // stored in a secure location (wallet) at the client.
-    libzerocoin::PrivateCoin newCoin(ZCParams, denomination, ZEROCOIN_TX_VERSION_2);
+    libzerocoin::PrivateCoin newCoin(zcParams, denomination, ZEROCOIN_TX_VERSION_2);
     // Get a copy of the 'public' portion of the coin. You should
     // embed this into a Zerocoin 'MINT' transaction along with a series
     // of currency inputs totaling the assigned value of one zerocoin.
@@ -2713,7 +2708,7 @@ UniValue mintzerocoin(const UniValue& params, bool fHelp)
         zerocoinTx.IsUsed = false;
         zerocoinTx.denomination = denomination;
         zerocoinTx.value = pubCoin.getValue();
-        libzerocoin::PublicCoin checkPubCoin(ZCParams, zerocoinTx.value, denomination);
+        libzerocoin::PublicCoin checkPubCoin(zcParams, zerocoinTx.value, denomination);
         if (!checkPubCoin.validate()) {
             return false;
         }
@@ -2915,7 +2910,10 @@ UniValue setmintzerocoinstatus(const UniValue& params, bool fHelp) {
                 zerocoinTx.serialNumber = zerocoinItem.serialNumber;
                 zerocoinTx.nHeight = zerocoinItem.nHeight;
                 zerocoinTx.randomness = zerocoinItem.randomness;
-                pwalletMain->NotifyZerocoinChanged(pwalletMain, zerocoinTx.value.GetHex(), zerocoinTx.IsUsed ? "Used" : "New", CT_UPDATED);
+                const std::string& isUsedDenomStr = zerocoinTx.IsUsed
+                        ? "Used (" + std::to_string(zerocoinTx.denomination) + " mint)"
+                        : "New (" + std::to_string(zerocoinTx.denomination) + " mint)";
+                pwalletMain->NotifyZerocoinChanged(pwalletMain, zerocoinTx.value.GetHex(), isUsedDenomStr, CT_UPDATED);
                 walletdb.WriteZerocoinEntry(zerocoinTx);
 
                 UniValue entry(UniValue::VOBJ);
