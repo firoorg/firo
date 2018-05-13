@@ -177,15 +177,15 @@ void fill_segment_mtp(const argon2_instance_t *instance,
         uint8_t h0[ARGON2_PREHASH_SEED_LENGTH];
         memcpy(h0, instance->hash_zero, sizeof(uint8_t) *ARGON2_PREHASH_SEED_LENGTH );
 
-        /*
-		printf("\nh0_Proof = ");
+
+		/*printf("\nh0_Proof = ");
 		int xx = 0;
 		for (xx = 0; xx < ARGON2_PREHASH_SEED_LENGTH; xx++) {
 			printf("%02x", h0[xx]);
 		}
-		printf("\n");
+		printf("\n");*/
 
-		*/
+
 
 
         if (ARGON2_VERSION_10 == instance->version) {

@@ -623,7 +623,11 @@ int initialize(argon2_instance_t *instance, argon2_context *context) {
                           ARGON2_PREHASH_SEED_LENGTH -
                               ARGON2_PREHASH_DIGEST_LENGTH);
 
-    memcpy(instance->hash_zero, blockhash, sizeof(uint8_t)*ARGON2_PREHASH_SEED_LENGTH);
+    //memcpy(instance->hash_zero, blockhash, sizeof(uint8_t)*ARGON2_PREHASH_SEED_LENGTH);
+    int i;
+    for(i = 0; i < ARGON2_PREHASH_SEED_LENGTH; i++){
+    	instance->hash_zero[i] = blockhash[i];
+    }
 
 #ifdef GENKAT
     initial_kat(blockhash, context, instance->type);

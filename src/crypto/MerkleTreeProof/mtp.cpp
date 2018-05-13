@@ -210,7 +210,7 @@ bool mtp_verify(const char* input, const uint32_t target,
 #define TEST_SECRETLEN 0
 #define TEST_ADLEN 0
 
-	argon2_context context;
+	argon2_context context_verify;
 	argon2_instance_t instance;
 	uint32_t memory_blocks, segment_length;
 
@@ -226,27 +226,27 @@ bool mtp_verify(const char* input, const uint32_t target,
 	memset(salt, 0, TEST_SALTLEN);
 	//memset(secret, 3, TEST_SECRETLEN);
 	//memset(ad, 4, TEST_ADLEN);
-	memcpy(pwd, input, TEST_OUTLEN);
-	memcpy(salt, input, TEST_SALTLEN);
+	//memcpy(pwd, input, TEST_OUTLEN);
+	//memcpy(salt, input, TEST_SALTLEN);
 
-	context.out = out;
-	context.outlen = TEST_OUTLEN;
-	context.version = ARGON2_VERSION_NUMBER;
-	context.pwd = pwd;
-	context.pwdlen = TEST_PWDLEN;
-	context.salt = salt;
-	context.saltlen = TEST_SALTLEN;
-	context.secret = NULL;
-	context.secretlen = TEST_SECRETLEN;
-	context.ad = NULL;
-	context.adlen = TEST_ADLEN;
-	context.t_cost = t_cost;
-	context.m_cost = m_cost;
-	context.lanes = lanes;
-	context.threads = lanes;
-	context.allocate_cbk = myown_allocator;
-	context.free_cbk = myown_deallocator;
-	context.flags = ARGON2_DEFAULT_FLAGS;
+	context_verify.out = out;
+	context_verify.outlen = TEST_OUTLEN;
+	context_verify.version = ARGON2_VERSION_NUMBER;
+	context_verify.pwd = pwd;
+	context_verify.pwdlen = TEST_PWDLEN;
+	context_verify.salt = salt;
+	context_verify.saltlen = TEST_SALTLEN;
+	context_verify.secret = NULL;
+	context_verify.secretlen = TEST_SECRETLEN;
+	context_verify.ad = NULL;
+	context_verify.adlen = TEST_ADLEN;
+	context_verify.t_cost = t_cost;
+	context_verify.m_cost = m_cost;
+	context_verify.lanes = lanes;
+	context_verify.threads = lanes;
+	context_verify.allocate_cbk = myown_allocator;
+	context_verify.free_cbk = myown_deallocator;
+	context_verify.flags = ARGON2_DEFAULT_FLAGS;
 
 
 #undef TEST_OUTLEN
@@ -255,28 +255,53 @@ bool mtp_verify(const char* input, const uint32_t target,
 #undef TEST_SECRETLEN
 #undef TEST_ADLEN
 
+
+	memory_blocks = context_verify.m_cost;
+
+	if (memory_blocks < 2 * ARGON2_SYNC_POINTS * context_verify.lanes) {
+		memory_blocks = 2 * ARGON2_SYNC_POINTS * context_verify.lanes;
+	}
+
+	segment_length = memory_blocks / (context_verify.lanes * ARGON2_SYNC_POINTS);
+	memory_blocks = segment_length * (context_verify.lanes * ARGON2_SYNC_POINTS);
+
+	instance.version = context_verify.version;
+	instance.memory = NULL;
+	instance.passes = context_verify.t_cost;
+	instance.memory_blocks = context_verify.m_cost;
+	instance.segment_length = segment_length;
+	instance.lane_length = segment_length * ARGON2_SYNC_POINTS;
+	instance.lanes = context_verify.lanes;
+	instance.threads = context_verify.threads;
+	instance.type = Argon2_d;
+
+	if (instance.threads > instance.lanes) {
+		instance.threads = instance.lanes;
+	}
+
 	//cout << "verifying ..." << endl;
 	// step 7
 	uint256 Y[L + 1];
 
 	memset(&Y[0], 0, sizeof(Y));
 	//unsigned int nNonceInternal = *nNonce;
-	unsigned char x[80];
-	memcpy(&x, &input, sizeof(unsigned char)*80);
+	//unsigned char x[80];
+	//memcpy(&x, &input, sizeof(unsigned char)*80);
 
 	blake2b_state state_y0;
 	blake2b_init(&state_y0, 32); // 256 bit
-	blake2b_update(&state_y0, &x, 80);
-	blake2b_update(&state_y0, &hashRootMTP, MERKLE_TREE_ELEMENT_SIZE_B);
-	blake2b_update(&state_y0, &nNonce, sizeof(unsigned int));
+	blake2b_update(&state_y0, input, 80);
+	blake2b_update(&state_y0, hashRootMTP, MERKLE_TREE_ELEMENT_SIZE_B);
+	blake2b_update(&state_y0, nNonce, sizeof(unsigned int));
 	blake2b_final(&state_y0, &Y[0], sizeof(uint256));
+
 
 	LogPrintf("Y[0] = %s\n", Y[0].ToString());
 
-	memset(&Y[0], 0, sizeof(Y));
+	/*memset(&Y[0], 0, sizeof(Y));
 	blake2b_state state_y1;
 	blake2b_init(&state_y1, 32); // 256 bit
-	blake2b_update(&state_y1, &x, 80);
+	blake2b_update(&state_y1, &input, 80);
 	blake2b_update(&state_y1, &hashRootMTP, MERKLE_TREE_ELEMENT_SIZE_B);
 	blake2b_update(&state_y1, nNonce, sizeof(unsigned int));
 	blake2b_final(&state_y1, &Y[0], sizeof(uint256));
@@ -286,7 +311,7 @@ bool mtp_verify(const char* input, const uint32_t target,
 	memset(&Y[0], 0, sizeof(Y));
 	blake2b_state state_y2;
 	blake2b_init(&state_y2, 32); // 256 bit
-	blake2b_update(&state_y2, &x, 80);
+	blake2b_update(&state_y2, &input, 80);
 	blake2b_update(&state_y2, hashRootMTP, MERKLE_TREE_ELEMENT_SIZE_B);
 	blake2b_update(&state_y2, &nNonce, sizeof(unsigned int));
 	blake2b_final(&state_y2, &Y[0], sizeof(uint256));
@@ -296,7 +321,7 @@ bool mtp_verify(const char* input, const uint32_t target,
 	memset(&Y[0], 0, sizeof(Y));
 	blake2b_state state_y3;
 	blake2b_init(&state_y3, 32); // 256 bit
-	blake2b_update(&state_y3, &x, 80);
+	blake2b_update(&state_y3, &input, 80);
 	blake2b_update(&state_y3, hashRootMTP, MERKLE_TREE_ELEMENT_SIZE_B);
 	blake2b_update(&state_y3, nNonce, sizeof(unsigned int));
 	blake2b_final(&state_y3, &Y[0], sizeof(uint256));
@@ -309,7 +334,7 @@ bool mtp_verify(const char* input, const uint32_t target,
 	memset(&Y[0], 0, sizeof(Y));
 	blake2b_state state_y4;
 	blake2b_init(&state_y4, 32); // 256 bit
-	blake2b_update(&state_y4, x, 80);
+	blake2b_update(&state_y4, input, 80);
 	blake2b_update(&state_y4, &hashRootMTP, MERKLE_TREE_ELEMENT_SIZE_B);
 	blake2b_update(&state_y4, &nNonce, sizeof(unsigned int));
 	blake2b_final(&state_y4, &Y[0], sizeof(uint256));
@@ -318,7 +343,7 @@ bool mtp_verify(const char* input, const uint32_t target,
 	memset(&Y[0], 0, sizeof(Y));
 	blake2b_state state_y5;
 	blake2b_init(&state_y5, 32); // 256 bit
-	blake2b_update(&state_y5, x, 80);
+	blake2b_update(&state_y5, input, 80);
 	blake2b_update(&state_y5, &hashRootMTP, MERKLE_TREE_ELEMENT_SIZE_B);
 	blake2b_update(&state_y5, nNonce, sizeof(unsigned int));
 	blake2b_final(&state_y5, &Y[0], sizeof(uint256));
@@ -327,7 +352,7 @@ bool mtp_verify(const char* input, const uint32_t target,
 	memset(&Y[0], 0, sizeof(Y));
 	blake2b_state state_y6;
 	blake2b_init(&state_y6, 32); // 256 bit
-	blake2b_update(&state_y6, x, 80);
+	blake2b_update(&state_y6, input, 80);
 	blake2b_update(&state_y6, hashRootMTP, MERKLE_TREE_ELEMENT_SIZE_B);
 	blake2b_update(&state_y6, &nNonce, sizeof(unsigned int));
 	blake2b_final(&state_y6, &Y[0], sizeof(uint256));
@@ -336,12 +361,12 @@ bool mtp_verify(const char* input, const uint32_t target,
 	memset(&Y[0], 0, sizeof(Y));
 	blake2b_state state_y7;
 	blake2b_init(&state_y7, 32); // 256 bit
-	blake2b_update(&state_y7, x, 80);
+	blake2b_update(&state_y7, input, 80);
 	blake2b_update(&state_y7, hashRootMTP, MERKLE_TREE_ELEMENT_SIZE_B);
 	blake2b_update(&state_y7, nNonce, sizeof(unsigned int));
 	blake2b_final(&state_y7, &Y[0], sizeof(uint256));
 
-	LogPrintf("Y[7] = %s\n", Y[0].ToString());
+	LogPrintf("Y[7] = %s\n", Y[0].ToString());*/
 
 	LogPrintf("input = \n");
 	for (int i = 0; i < 80; i++) {
@@ -460,14 +485,15 @@ bool mtp_verify(const char* input, const uint32_t target,
 		block block_ij;
 		// get hash_zero
 		uint8_t h0[ARGON2_PREHASH_SEED_LENGTH];
-		initial_hash(h0, &context,  instance.type);
+		initial_hash(h0, &context_verify,  instance.type);
 		std::ostringstream ossx;
 		ossx << "h0 = ";
-		for (int xxx = 0; xxx < 80; xxx++) {
+		for (int xxx = 0; xxx < 72; xxx++) {
 			ossx << std::hex << std::setw(2) << std::setfill('0')
 					<< (int) h0[xxx];
 		}
-		cout << ossx.str() << endl;
+
+		LogPrintf("H0_Verify : %s\n", ossx.str());
 
 		fill_block_mtp(&blocks[j*2 - 2], &blocks[j*2 - 1], &block_ij, 0, computed_ref_block, h0);
 
@@ -599,8 +625,8 @@ BEGIN:
 	memset(salt, 0, TEST_SALTLEN);
 	//memset(secret, 3, TEST_SECRETLEN);
 	//memset(ad, 4, TEST_ADLEN);
-	memcpy(pwd, input, TEST_OUTLEN);
-	memcpy(salt, input, TEST_SALTLEN);
+	//memcpy(pwd, input, TEST_OUTLEN);
+	//memcpy(salt, input, TEST_SALTLEN);
 
 	context.out = out;
 	context.outlen = TEST_OUTLEN;
@@ -678,6 +704,7 @@ BEGIN:
 
 	MerkleTree ordered_tree(elements, true);
 	MerkleTree::Buffer root = ordered_tree.getRoot();
+	std::copy(root.begin(), root.end(), hashRootMTP);
 	/*std::ostringstream oss;
 	oss << "0x";
 	for (MerkleTree::Buffer::const_iterator it = root.begin(); it != root.end();
@@ -703,13 +730,11 @@ BEGIN:
 
 		memset(&Y[0], 0, sizeof(Y));
 		memset(&blocks[0], 0, sizeof(sizeof(block) * L * 2));
-		unsigned char x[80];
-		memcpy(x, &input, sizeof(unsigned char)*80);
 
 		blake2b_state state;
 		blake2b_init(&state, 32); // 256 bit
-		blake2b_update(&state, x, 80);
-		blake2b_update(&state, &root, MERKLE_TREE_ELEMENT_SIZE_B);
+		blake2b_update(&state, input, 80);
+		blake2b_update(&state, hashRootMTP, MERKLE_TREE_ELEMENT_SIZE_B);
 		blake2b_update(&state, &nNonceInternal, sizeof(unsigned int));
 		blake2b_final(&state, &Y[0], sizeof(uint256));
 
@@ -803,27 +828,28 @@ BEGIN:
 			}
 			cout << oss.str() << endl;*/
 
-			/*
-			printf("\ncurr_block_ij = ");
+
+			/*printf("\ncurr_block[%d] = ", ij);
 			int index = 0;
 			for (index = 0; index < 10; index++) {
 				printf("%016llx", (unsigned long long)instance.memory[ij].v[index]);
 			}
 
-			printf("\nprev_block_ij = ");
+			printf("\nprev_block of [%d] is block %d = ", ij, prev_index);
 			index = 0;
 			for (index = 0; index < 10; index++) {
 				printf("%016llx",
 						(unsigned long long) instance.memory[prev_index].v[index]);
 			}
 
-			printf("\nref_block_ij = ");
+			printf("\nref_block of [%d] is block %d = ", ij, ref_index);
 			index = 0;
 			for (index = 0; index < 10; index++) {
 				printf("%016llx",
 						(unsigned long long) instance.memory[ref_index].v[index]);
-			}
+			}*/
 
+			/*
 			cout << endl << "----" << endl;
 			*/
 
@@ -990,6 +1016,120 @@ BEGIN:
 			}
 			LogPrintf("\n");
 			LogPrintf("Y[0] = %s\n", Y[0].ToString());
+
+			/*memset(&Y[0], 0, sizeof(Y));
+			blake2b_state state_y5;
+			blake2b_init(&state_y5, 32); // 256 bit
+			blake2b_update(&state_y5, input, 80);
+			blake2b_update(&state_y5, &root, MERKLE_TREE_ELEMENT_SIZE_B);
+			blake2b_update(&state_y5, &nNonceInternal, sizeof(unsigned int));
+			blake2b_final(&state_y5, &Y[0], sizeof(uint256));
+			LogPrintf("Y[0]_COMPUTED = %s\n", Y[0].ToString());*/
+			/*
+			memset(&Y[0], 0, sizeof(Y));
+			blake2b_state state_y1;
+			blake2b_init(&state_y1, 32); // 256 bit
+			blake2b_update(&state_y1, input, 80);
+			blake2b_update(&state_y1, &hashRootMTP, MERKLE_TREE_ELEMENT_SIZE_B);
+			blake2b_update(&state_y1, &nNonceInternal, sizeof(unsigned int));
+			blake2b_final(&state_y1, &Y[0], sizeof(uint256));
+
+			LogPrintf("Y[1]_COMPUTED = %s\n", Y[0].ToString());
+
+			memset(&Y[0], 0, sizeof(Y));
+			blake2b_state state_y2;
+			blake2b_init(&state_y2, 32); // 256 bit
+			blake2b_update(&state_y2, &input, 80);
+			blake2b_update(&state_y2, hashRootMTP, MERKLE_TREE_ELEMENT_SIZE_B);
+			blake2b_update(&state_y2, &nNonceInternal, sizeof(unsigned int));
+			blake2b_final(&state_y2, &Y[0], sizeof(uint256));
+
+			LogPrintf("Y[2]_COMPUTED = %s\n", Y[0].ToString());
+
+			memset(&Y[0], 0, sizeof(Y));
+			blake2b_state state_y3;
+			blake2b_init(&state_y3, 32); // 256 bit
+			blake2b_update(&state_y3, &input, 80);
+			blake2b_update(&state_y3, hashRootMTP, MERKLE_TREE_ELEMENT_SIZE_B);
+			blake2b_update(&state_y3, &nNonceInternal, sizeof(unsigned int));
+			blake2b_final(&state_y3, &Y[0], sizeof(uint256));
+
+			LogPrintf("Y[3]_COMPUTED = %s\n", Y[0].ToString());
+
+
+			///
+
+			memset(&Y[0], 0, sizeof(Y));
+			blake2b_state state_y4;
+			blake2b_init(&state_y4, 32); // 256 bit
+			blake2b_update(&state_y4, input, 80);
+			blake2b_update(&state_y4, &hashRootMTP, MERKLE_TREE_ELEMENT_SIZE_B);
+			blake2b_update(&state_y4, &nNonceInternal, sizeof(unsigned int));
+			blake2b_final(&state_y4, &Y[0], sizeof(uint256));
+
+			LogPrintf("Y[4]_COMPUTED = %s\n", Y[0].ToString());
+			memset(&Y[0], 0, sizeof(Y));
+			blake2b_state state_y5;
+			blake2b_init(&state_y5, 32); // 256 bit
+			blake2b_update(&state_y5, input, 80);
+			blake2b_update(&state_y5, &hashRootMTP, MERKLE_TREE_ELEMENT_SIZE_B);
+			blake2b_update(&state_y5, &nNonceInternal, sizeof(unsigned int));
+			blake2b_final(&state_y5, &Y[0], sizeof(uint256));
+
+			LogPrintf("Y[5]_COMPUTED = %s\n", Y[0].ToString());
+			memset(&Y[0], 0, sizeof(Y));
+			blake2b_state state_y6;
+			blake2b_init(&state_y6, 32); // 256 bit
+			blake2b_update(&state_y6, input, 80);
+			blake2b_update(&state_y6, hashRootMTP, MERKLE_TREE_ELEMENT_SIZE_B);
+			blake2b_update(&state_y6, &nNonceInternal, sizeof(unsigned int));
+			blake2b_final(&state_y6, &Y[0], sizeof(uint256));
+
+			LogPrintf("Y[6]_COMPUTED = %s\n", Y[0].ToString());
+			memset(&Y[0], 0, sizeof(Y));
+			blake2b_state state_y7;
+			blake2b_init(&state_y7, 32); // 256 bit
+			blake2b_update(&state_y7, input, 80);
+			blake2b_update(&state_y7, hashRootMTP, MERKLE_TREE_ELEMENT_SIZE_B);
+			blake2b_update(&state_y7, &nNonceInternal, sizeof(unsigned int));
+			blake2b_final(&state_y7, &Y[0], sizeof(uint256));
+
+			LogPrintf("Y[7]_COMPUTED = %s\n", Y[0].ToString());
+
+			/*
+			blake2b_state state;
+			blake2b_init(&state, 32); // 256 bit
+			blake2b_update(&state, input, 80);
+			blake2b_update(&state, &root, MERKLE_TREE_ELEMENT_SIZE_B);
+			blake2b_update(&state, &nNonceInternal, sizeof(unsigned int));
+			blake2b_final(&state, &Y[0], sizeof(uint256));
+			*/
+
+			uint8_t h0[ARGON2_PREHASH_SEED_LENGTH];
+			memcpy(h0, instance.hash_zero,
+					sizeof(uint8_t) * ARGON2_PREHASH_SEED_LENGTH);
+
+			std::ostringstream ossx;
+			ossx << "h0 = ";
+			for (int xxx = 0; xxx < 72; xxx++) {
+				ossx << std::hex << std::setw(2) << std::setfill('0')
+						<< (int) h0[xxx];
+			}
+
+			LogPrintf("H0_Proof : %s\n", ossx.str());
+
+			// get hash_zero
+			uint8_t h0_computed[ARGON2_PREHASH_SEED_LENGTH];
+			initial_hash(h0_computed, &context, instance.type);
+			std::ostringstream ossxxx;
+			ossxxx << "h0 = ";
+			for (int xxx = 0; xxx < 72; xxx++) {
+				ossxxx << std::hex << std::setw(2) << std::setfill('0')
+						<< (int) h0_computed[xxx];
+			}
+
+			LogPrintf("H0_Proof_Computed : %s\n", ossx.str());
+
 			LogPrintf("RETURN mtp_hash\n");
 
 			return ;
