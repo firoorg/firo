@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "activeznode.h"
+#include "consensus/consensus.h"
 #include "consensus/validation.h"
 #include "darksend.h"
 #include "init.h"
@@ -499,7 +500,12 @@ bool CZnodeBroadcast::Create(CTxIn txin, CService service, CKey keyCollateralAdd
         return false;
     }
 
-    mnbRet = CZnodeBroadcast(service, txin, pubKeyCollateralAddressNew, pubKeyZnodeNew, PROTOCOL_VERSION);
+    int nHeight = chainActive.Height();
+    if (nHeight <= HF_MODULUS_HEIGHT) {
+        mnbRet = CZnodeBroadcast(service, txin, pubKeyCollateralAddressNew, pubKeyZnodeNew, MIN_PEER_PROTO_VERSION);
+    } else {
+        mnbRet = CZnodeBroadcast(service, txin, pubKeyCollateralAddressNew, pubKeyZnodeNew, PROTOCOL_VERSION);
+    }
 
     if (!mnbRet.IsValidNetAddr()) {
         strErrorRet = strprintf("Invalid IP address, znode=%s", txin.prevout.ToStringShort());
