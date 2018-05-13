@@ -510,24 +510,19 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
         pblock->nNonce         = 0;
 
         // Zcoin - MTP
-        LogPrintf("CreateNewBlock(): BEFORE CALL MTP\n");
+
         const int nHeight = pindexPrev == NULL ? 0 : pindexPrev->nHeight + 1;
         bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
         if (!fTestNet && nHeight >= HF_MTP_HEIGHT){
-        	LogPrintf("CreateNewBlock(): CALL MTP - pblock->hashRootMTP.SetNull()\n");
-        	pblock->hashRootMTP.SetNull();
-        	LogPrintf("CreateNewBlock(): CALL MTP - memset(pblock->nBlockMTP, 0, sizeof(uint64_t) * 128 * 72 * 2);\n");
+        	memset(pblock->hashRootMTP, 0, sizeof(uint8_t) * 16);
             memset(pblock->nBlockMTP, 0, sizeof(uint64_t) * 128 * 72 * 2);
-            LogPrintf("CreateNewBlock(): START CALL MTP - for(int i = 0; i < 72*3; i++)\n");
             for(int i = 0; i < 72*3; i++){
-            	LogPrintf("CreateNewBlock(): CALL MTP - pblock->nProofMTP[i].clear()\n");
             	pblock->nProofMTP[i].clear();
             }
-            LogPrintf("CreateNewBlock(): END CALL MTP - for(int i = 0; i < 72*3; i++)\n");
         };
 
         if (fTestNet && nHeight >= HF_MTP_HEIGHT_TESTNET){
-        	pblock->hashRootMTP.SetNull();
+        	memset(pblock->hashRootMTP, 0, sizeof(uint8_t) * 16);
             memset(pblock->nBlockMTP, 0, sizeof(uint64_t) * 128 * 72 * 2);
             for(int i = 0; i < 72*3; i++){
             	pblock->nProofMTP[i].clear();
@@ -1169,8 +1164,30 @@ void static ZcoinMiner(const CChainParams &chainparams) {
                 while (true) {
                     if (!fTestNet && pindexPrev->nHeight + 1 >= HF_MTP_HEIGHT){
                     	LogPrintf("BEFORE: mtp_hash\n");
-                    	mtp_hash(BEGIN(pblock->nVersion), pblock->nBits, &pblock->hashRootMTP, &pblock->nNonce, pblock->nBlockMTP, pblock->nProofMTP, Params().GetConsensus().powLimit, &thash);
+                    	CMTPInput input{*pblock};
+                    	CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+                    	ss << input;
+                    	mtp_hash((char*)&ss[0], pblock->nBits, pblock->hashRootMTP, &pblock->nNonce, pblock->nBlockMTP, pblock->nProofMTP, Params().GetConsensus().powLimit, &thash);
                     	LogPrintf("AFTER: mtp_hash\n");
+                    	LogPrintf("pblock->hashRootMTP:\n");
+                    	for(int i = 0; i < 16; i++){
+                    		LogPrintf("%0x", pblock->hashRootMTP[i]);
+                    	}
+                    	LogPrintf("\n");
+                    	LogPrintf("pblock->nNonce: %s\n", pblock->nNonce);
+                    	LogPrintf("pblock->nBlockMTP:\n");
+						for (int i = 0; i < 1; i++) {
+							LogPrintf("%s = ", i);
+							for (int j = 0; j < 10; j++) {
+								LogPrintf("%0x", pblock->nBlockMTP[i][j]);
+							}
+							LogPrintf("\n");
+						}
+						/*LogPrintf("pblock->nProofMTP: \n");
+						for (i = 0; i < 72 * 3; i++) {
+							LogPrintf("%s = %s\n", i , pblock->nProofMTP[i]);
+						}*/
+
                     } else if (!fTestNet && pindexPrev->nHeight + 1 >= HF_LYRA2Z_HEIGHT) {
                         lyra2z_hash(BEGIN(pblock->nVersion), BEGIN(thash));
                     } else if (!fTestNet && pindexPrev->nHeight + 1 >= HF_LYRA2_HEIGHT) {
@@ -1179,7 +1196,11 @@ void static ZcoinMiner(const CChainParams &chainparams) {
                         LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2,
                               pindexPrev->nHeight + 1, 256);
                     } else if (fTestNet && pindexPrev->nHeight + 1 >= HF_MTP_HEIGHT_TESTNET) { // testnet
-                    	mtp_hash(BEGIN(pblock->nVersion), pblock->nBits, &pblock->hashRootMTP, &pblock->nNonce, pblock->nBlockMTP, pblock->nProofMTP, Params().GetConsensus().powLimit, &thash);
+                    	LogPrintf("BEFORE: mtp_hash\n");
+                    	CMTPInput input{*pblock};
+                    	CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+                    	ss << input;
+                    	mtp_hash((char*)&ss[0], pblock->nBits, pblock->hashRootMTP, &pblock->nNonce, pblock->nBlockMTP, pblock->nProofMTP, Params().GetConsensus().powLimit, &thash);
                     } else if (fTestNet && pindexPrev->nHeight + 1 >= HF_LYRA2Z_HEIGHT_TESTNET) { // testnet
                         lyra2z_hash(BEGIN(pblock->nVersion), BEGIN(thash));
                     } else if (fTestNet && pindexPrev->nHeight + 1 >= HF_LYRA2_HEIGHT_TESTNET) { // testnet

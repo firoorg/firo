@@ -201,7 +201,7 @@ public:
     unsigned int nBits;
     unsigned int nNonce;
     // Zcoin - MTP
-    uint256 hashRootMTP;
+    uint8_t hashRootMTP[16];
     uint64_t nBlockMTP[128][72*2]; // 128 is ARGON2_QWORDS_IN_BLOCK and 72 * 2 is L * 2
     std::deque<std::vector<uint8_t>> nProofMTP[72*3]; // 72 * 3 is L * 3
     int32_t nVersionMTP = 0x1000;
@@ -245,7 +245,8 @@ public:
         nNonce         = 0;
 
         // Zcoin - MTP
-        hashRootMTP.SetNull();
+        nVersionMTP       = 0;
+        memset(hashRootMTP, 0, sizeof(uint8_t) * 16);
         memset(nBlockMTP, 0, sizeof(uint64_t) * 128 * 72 * 2);
         for(int i = 0; i < 72*3; i++){
         	nProofMTP[i].clear();
@@ -422,8 +423,11 @@ public:
 
         // Zcoin - MTP
         if(nVersion == (CBlockHeader::CURRENT_VERSION | (GetZerocoinChainID() * BLOCK_VERSION_CHAIN_START) | nVersionMTP)){
-        	READWRITE(hashRootMTP);
+        	READWRITE(nVersionMTP);
         	int i, j;
+        	for(i = 0; i < 16; i++){
+        		READWRITE(hashRootMTP[i]);
+        	}
 
         	for(i = 0; i < 128; i++){
         		for(j = 0; j < 72*2; j++){
@@ -456,7 +460,8 @@ public:
         block.nNonce          = nNonce;
         // Zcoin - MTP
 		if(nVersion == (CBlockHeader::CURRENT_VERSION | (GetZerocoinChainID() * BLOCK_VERSION_CHAIN_START) | nVersionMTP)){
-			block.hashRootMTP = hashRootMTP;
+			block.nVersionMTP        = nVersionMTP;
+			memcpy(block.hashRootMTP, hashRootMTP, sizeof(uint8_t) * 16);
 			memcpy(block.nBlockMTP, nBlockMTP, sizeof(uint64_t) * 72 * 2);
 			for(int i = 0; i < 72*3; i++){
 				block.nProofMTP[i] = nProofMTP[i];

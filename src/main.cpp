@@ -4146,7 +4146,7 @@ GenerateCoinbaseCommitment(CBlock &block, const CBlockIndex *pindexPrev, const C
 
 bool
 ContextualCheckBlockHeader(const CBlockHeader &block, CValidationState &state, const Consensus::Params &consensusParams,
-                           CBlockIndex *const pindexPrev, int64_t nAdjustedTime) {
+                           CBlockIndex *const pindexPrev, int64_t nAdjustedTime, bool isTestBlockValidity) {
 	// Zcoin - MTP
 	const int nHeight = pindexPrev == NULL ? 0 : pindexPrev->nHeight + 1;
 	bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
@@ -4180,19 +4180,21 @@ ContextualCheckBlockHeader(const CBlockHeader &block, CValidationState &state, c
                                  strprintf("rejected nVersion=0x%08x block", version - 1));
 
     // Zcoin - MTP
-	if (!block.hashRootMTP.IsNull() && (!fTestNet && nHeight >= HF_MTP_HEIGHT)
-	&& (block.nVersion	>= (CBlock::CURRENT_VERSION | (GetZerocoinChainID() * BLOCK_VERSION_CHAIN_START)| block.nVersionMTP))) {
-		if (!CheckMerkleTreeProof(nHeight, block, consensusParams)){
-			return state.DoS(100, false, REJECT_INVALID, "bad-diffbits", false, "incorrect proof of work");
+    if (!isTestBlockValidity){
+		if ((!fTestNet && nHeight >= HF_MTP_HEIGHT)
+		&& (block.nVersion	>= (CBlock::CURRENT_VERSION | (GetZerocoinChainID() * BLOCK_VERSION_CHAIN_START)| block.nVersionMTP))) {
+			if (!CheckMerkleTreeProof(nHeight, block, consensusParams)){
+				return state.DoS(100, false, REJECT_INVALID, "bad-diffbits", false, "incorrect proof of work");
+			}
 		}
-	}
 
-	if (!block.hashRootMTP.IsNull() && (fTestNet && nHeight >= HF_MTP_HEIGHT_TESTNET)	&&
-			(block.nVersion	>= (CBlock::CURRENT_VERSION | (GetZerocoinChainID() * BLOCK_VERSION_CHAIN_START) | block.nVersionMTP))) {
-		if (!CheckMerkleTreeProof(nHeight, block, consensusParams)){
-					return state.DoS(100, false, REJECT_INVALID, "bad-diffbits", false, "incorrect proof of work");
+		if ((fTestNet && nHeight >= HF_MTP_HEIGHT_TESTNET)	&&
+				(block.nVersion	>= (CBlock::CURRENT_VERSION | (GetZerocoinChainID() * BLOCK_VERSION_CHAIN_START) | block.nVersionMTP))) {
+			if (!CheckMerkleTreeProof(nHeight, block, consensusParams)){
+						return state.DoS(100, false, REJECT_INVALID, "bad-diffbits", false, "incorrect proof of work");
+			}
 		}
-	}
+    }
 
     return true;
 }
@@ -4484,7 +4486,7 @@ bool TestBlockValidity(CValidationState &state, const CChainParams &chainparams,
     indexDummy.nHeight = pindexPrev->nHeight + 1;
 
     // NOTE: CheckBlockHeader is called by CheckBlock
-    if (!ContextualCheckBlockHeader(block, state, chainparams.GetConsensus(), pindexPrev, GetAdjustedTime()))
+    if (!ContextualCheckBlockHeader(block, state, chainparams.GetConsensus(), pindexPrev, GetAdjustedTime(), true))
         return error("%s: Consensus::ContextualCheckBlockHeader: %s", __func__, FormatStateMessage(state));
 //    std::cout << "TestBlockValidity->CheckBlock() nHeight=" << indexDummy.nHeight << std::endl;
     if (!CheckBlock(block, state, chainparams.GetConsensus(), fCheckPOW, fCheckMerkleRoot, indexDummy.nHeight, false))

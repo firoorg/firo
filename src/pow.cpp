@@ -132,15 +132,18 @@ unsigned int CalculateNextWorkRequired(const CBlockIndex *pindexLast, int64_t nF
 // Zcoin - MTP
 bool CheckMerkleTreeProof(int nHeight, const CBlockHeader &block, const Consensus::Params &params) {
 	bool fTestNet = Params().NetworkIDString() == CBaseChainParams::TESTNET;
-	if (!fTestNet && nHeight + 1 < HF_MTP_HEIGHT){
+	if (!fTestNet && nHeight < HF_MTP_HEIGHT){
 	    return true;
 	};
-	if (fTestNet && nHeight + 1 < HF_MTP_HEIGHT_TESTNET){
+	if (fTestNet && nHeight < HF_MTP_HEIGHT_TESTNET){
 		return true;
 	};
 
 	uint256 powHash;
-	bool isVerified = mtp_verify(BEGIN(block.nVersion), block.nBits, &block.hashRootMTP, &block.nNonce,
+	CMTPInput input{block};
+	CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+	ss << input;
+	bool isVerified = mtp_verify((char*)&ss[0], block.nBits, block.hashRootMTP, &block.nNonce,
 			block.nBlockMTP, block.nProofMTP, Params().GetConsensus().powLimit, &powHash);
     if(!isVerified){
     	return false;

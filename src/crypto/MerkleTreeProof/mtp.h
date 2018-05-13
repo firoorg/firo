@@ -22,12 +22,12 @@ extern "C" {
 }
 
 void mtp_hash(const char* input, uint32_t target,
-		uint256 * hashRootMTP, unsigned int * nNonce,
+		uint8_t hashRootMTP[16], unsigned int * nNonce,
 		uint64_t nBlockMTP[72*2][128], std::deque<std::vector<uint8_t>> * nProofMTP, uint256 powLimit,
 		uint256 * output);
 
 bool mtp_verify(const char* input, const uint32_t target,
-		const uint256 * hashRootMTP, const unsigned int * nNonce,
+		const uint8_t hashRootMTP[16], const unsigned int * nNonce,
 		const uint64_t nBlockMTP[72*2][128], const std::deque<std::vector<uint8_t>> * nProofMTP, uint256 powLimit,
 		uint256 * output);
 
