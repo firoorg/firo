@@ -206,9 +206,16 @@ void CZnode::Check(bool fForce) {
     bool fOurZnode = fZNode && activeZnode.pubKeyZnode == pubKeyZnode;
 
     // znode doesn't meet payment protocol requirements ...
+/*    bool fRequireUpdate = nProtocolVersion < mnpayments.GetMinZnodePaymentsProto() ||
+                          // or it's our own node and we just updated it to the new protocol but we are still waiting for activation ...
+                          (fOurZnode && nProtocolVersion < PROTOCOL_VERSION); */
+
+    // znode doesn't meet payment protocol requirements ...
     bool fRequireUpdate = nProtocolVersion < mnpayments.GetMinZnodePaymentsProto() ||
                           // or it's our own node and we just updated it to the new protocol but we are still waiting for activation ...
-                          (fOurZnode && nProtocolVersion < PROTOCOL_VERSION);
+                          (fOurZnode &&
+                                (nProtocolVersion < MIN_PEER_PROTO_VERSION
+                                || (nHeight > HF_MODULUS_HEIGHT && nProtocolVersion < PROTOCOL_VERSION)));
 
     if (fRequireUpdate) {
         nActiveState = ZNODE_UPDATE_REQUIRED;
