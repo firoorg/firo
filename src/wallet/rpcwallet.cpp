@@ -2797,6 +2797,7 @@ UniValue resetmintzerocoin(const UniValue& params, bool fHelp) {
             zerocoinTx.serialNumber = zerocoinItem.serialNumber;
             zerocoinTx.nHeight = -1;
             zerocoinTx.randomness = zerocoinItem.randomness;
+            zerocoinTx.ecdsaSecretKey = zerocoinItem.ecdsaSecretKey;
             walletdb.WriteZerocoinEntry(zerocoinTx);
         }
     }
@@ -2912,6 +2913,7 @@ UniValue setmintzerocoinstatus(const UniValue& params, bool fHelp) {
                 zerocoinTx.serialNumber = zerocoinItem.serialNumber;
                 zerocoinTx.nHeight = zerocoinItem.nHeight;
                 zerocoinTx.randomness = zerocoinItem.randomness;
+                zerocoinTx.ecdsaSecretKey = zerocoinItem.ecdsaSecretKey;
                 const std::string& isUsedDenomStr = zerocoinTx.IsUsed
                         ? "Used (" + std::to_string(zerocoinTx.denomination) + " mint)"
                         : "New (" + std::to_string(zerocoinTx.denomination) + " mint)";
