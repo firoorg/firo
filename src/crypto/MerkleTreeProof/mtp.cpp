@@ -222,7 +222,7 @@ bool mtp_verify(const char* input, const uint32_t target,
 	const allocate_fptr myown_allocator = NULL;
 	const deallocate_fptr myown_deallocator = NULL;
 
-	memset(pwd, 0, TEST_OUTLEN);
+	memset(pwd, 0, TEST_PWDLEN);
 	memset(salt, 0, TEST_SALTLEN);
 	//memset(secret, 3, TEST_SECRETLEN);
 	//memset(ad, 4, TEST_ADLEN);
@@ -621,7 +621,7 @@ BEGIN:
 	const allocate_fptr myown_allocator = NULL;
 	const deallocate_fptr myown_deallocator = NULL;
 
-	memset(pwd, 0, TEST_OUTLEN);
+	memset(pwd, 0, TEST_PWDLEN);
 	memset(salt, 0, TEST_SALTLEN);
 	//memset(secret, 3, TEST_SECRETLEN);
 	//memset(ad, 4, TEST_ADLEN);
