@@ -253,7 +253,7 @@ void CActiveZnode::ManageStateRemote() {
     int nHeight = chainActive.Height();
     if (infoMn.fInfoValid) {
         if (infoMn.nProtocolVersion < MIN_PEER_PROTO_VERSION
-                || (nHeight > HF_MODULUS_HEIGHT && infoMn.nProtocolVersion < PROTOCOL_VERSION)) {
+                || (nHeight > ZC_MODULUS_V2_START_BLOCK && infoMn.nProtocolVersion < PROTOCOL_VERSION)) {
             nState = ACTIVE_ZNODE_NOT_CAPABLE;
             strNotCapableReason = "Invalid protocol version";
             LogPrintf("CActiveZnode::ManageStateRemote -- %s: %s\n", GetStateString(), strNotCapableReason);

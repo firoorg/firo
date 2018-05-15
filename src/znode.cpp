@@ -215,7 +215,7 @@ void CZnode::Check(bool fForce) {
                           // or it's our own node and we just updated it to the new protocol but we are still waiting for activation ...
                           (fOurZnode &&
                                 (nProtocolVersion < MIN_PEER_PROTO_VERSION
-                                || (nHeight > HF_MODULUS_HEIGHT && nProtocolVersion < PROTOCOL_VERSION)));
+                                || (nHeight > ZC_MODULUS_V2_START_BLOCK && nProtocolVersion < PROTOCOL_VERSION)));
 
     if (fRequireUpdate) {
         nActiveState = ZNODE_UPDATE_REQUIRED;
@@ -508,7 +508,7 @@ bool CZnodeBroadcast::Create(CTxIn txin, CService service, CKey keyCollateralAdd
     }
 
     int nHeight = chainActive.Height();
-    if (nHeight <= HF_MODULUS_HEIGHT) {
+    if (nHeight <= ZC_MODULUS_V2_START_BLOCK) {
         mnbRet = CZnodeBroadcast(service, txin, pubKeyCollateralAddressNew, pubKeyZnodeNew, MIN_PEER_PROTO_VERSION);
     } else {
         mnbRet = CZnodeBroadcast(service, txin, pubKeyCollateralAddressNew, pubKeyZnodeNew, PROTOCOL_VERSION);
