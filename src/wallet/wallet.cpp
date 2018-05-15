@@ -3683,7 +3683,7 @@ bool CWallet::CreateZerocoinSpendTransaction(int64_t nValue, libzerocoin::CoinDe
             }
 
             if (coinId == INT_MAX){
-                strFailReason = _("it has to have at least two mint coins with at least 6 confirmation in order to spend a coin");
+                strFailReason = _("either your mint does not have 6 confirmations yet or nobody else has minted this denomination, which could compromise your anonymity");
                 return false;
             }
 
