@@ -259,7 +259,8 @@ libbitcoin_zmq_a_SOURCES = \
   zmq/zmqpublishnotifier.cpp \
   client-api/server.cpp \
   client-api/settingModule.cpp \
-  client-api/zmq.cpp
+  client-api/zmq.cpp \
+  rpc/client.cpp
 endif
 
 
