@@ -21,4 +21,10 @@ void InterruptREQREPZMQ();
  */
 void StopREQREPZMQ();
 
+/**
+ * parse input from ZMQ REQ and make the RPC call.
+ */ 
+//std::string parseInputs(std::vector<std::string> args);
+
+
 #endif // BITCOIN_ZMQAPI_ZMQ_H
