@@ -6,6 +6,7 @@
 #include "consensus/consensus.h"
 #include "znode.h"
 #include "znode-sync.h"
+#include "znode-payments.h"
 #include "znodeman.h"
 #include "protocol.h"
 
@@ -250,10 +251,9 @@ void CActiveZnode::ManageStateRemote() {
     mnodeman.CheckZnode(pubKeyZnode);
     znode_info_t infoMn = mnodeman.GetZnodeInfo(pubKeyZnode);
 
-    int nHeight = chainActive.Height();
     if (infoMn.fInfoValid) {
-        if (infoMn.nProtocolVersion < MIN_PEER_PROTO_VERSION
-                || (nHeight > ZC_MODULUS_V2_START_BLOCK && infoMn.nProtocolVersion < PROTOCOL_VERSION)) {
+        if (infoMn.nProtocolVersion < MIN_ZNODE_PAYMENT_PROTO_VERSION_1
+                || infoMn.nProtocolVersion > MIN_ZNODE_PAYMENT_PROTO_VERSION_2) {
             nState = ACTIVE_ZNODE_NOT_CAPABLE;
             strNotCapableReason = "Invalid protocol version";
             LogPrintf("CActiveZnode::ManageStateRemote -- %s: %s\n", GetStateString(), strNotCapableReason);
