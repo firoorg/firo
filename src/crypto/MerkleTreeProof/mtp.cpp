@@ -533,14 +533,14 @@ bool mtp_verify(const char* input, const uint32_t target,
 				digest_ij + sizeof(digest_ij));
 		clear_internal_memory(blockhash_ij.v, ARGON2_BLOCK_SIZE);
 		clear_internal_memory(blockhash_ij_bytes, ARGON2_BLOCK_SIZE);
-		cout <<endl << "curr_offset = " << ij << " prev_offset = " << ij_prev << " ref_block = " << computed_ref_block << endl;
+		//cout <<endl << "curr_offset = " << ij << " prev_offset = " << ij_prev << " ref_block = " << computed_ref_block << endl;
 		std::ostringstream oss;
 		oss << "hash_ij[" << ij << "] = 0x";
 		for (MerkleTree::Buffer::const_iterator it = hash_ij.begin();
 				it != hash_ij.end(); ++it) {
 			oss << std::hex << std::setw(2) << std::setfill('0') << (int) *it;
 		}
-		cout << oss.str() << endl;
+		//cout << oss.str() << endl;
 
 		if (!MerkleTree::checkProofOrdered(proof_blocks[j * 3 - 3], root,
 				hash_ij, ij + 1)) {
