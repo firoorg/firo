@@ -205,6 +205,7 @@ std::string parseInputs(std::vector<std::string> args)
 
                if (!error.isNull()) {
                    // Error
+                   LogPrintf("ZMQ: errored.");
                    int code = error["code"].get_int();
                    if (fWait && code == RPC_IN_WARMUP)
                        throw CConnectionFailed("server in warmup");
@@ -227,6 +228,7 @@ std::string parseInputs(std::vector<std::string> args)
                        strPrint = result.get_str();
                    else
                        strPrint = result.write(2);
+                   LogPrintf("ZMQ: result: %s", strPrint.c_str());
                }
                // Connection succeeded, no need to retry.
                break;
@@ -288,9 +290,8 @@ static void* REQREP_ZMQ(void *arg)
         // 2. do something in tableZMQ
         // 3. reply result
 
-        /* Create an empty ØMQ message to hold the message part */
+        /* Create an empty ØMQ message to hold the message part. */
         /* message assumed to contain an RPC command to be executed with args */
-
         zmq_msg_t request;
         int rc = zmq_msg_init (&request);
         assert (rc == 0);
@@ -300,40 +301,33 @@ static void* REQREP_ZMQ(void *arg)
 
         char* request_chars = (char*) malloc (rc + 1);
 
+        LogPrintf("ZMQ: Received message part.\n");
+        LogPrintf("ZMQ: Part: %s\n", request_chars); 
+
+        //create convert request in (char*)
         memcpy (request_chars, zmq_msg_data (&request), rc);
         zmq_msg_close(&request);
         request_chars[rc]=0;
 
+        /* delimit request by SPACE: first arg is command followed by n arguments. */
         string request_str(request_chars);
-
-        //std::string request_str((char *) zmq_msg_data (&request));
-        LogPrint(NULL, "ZMQ: Received message part.\n");
-        //LogPrint(NULL, "ZMQ: Part: ", (const char *) zmq_msg_data (&request));        
-
         istringstream iss(request_str);
         std::vector<std::string> tokens{istream_iterator<string>{iss}, istream_iterator<string>{}};
 
-        // for (std::vector<string>::const_iterator i = tokens.begin(); i != tokens.end(); ++i)
-        //     LogPrintf("ZMQ: %s\n", *i);
-
         /* execute RPC command */
         std::string reply_str = parseInputs(tokens);
-
-        //LogPrintF("ZMQ: result of rpc call is ")
-
-        //LogPrintf("ZMQ: Result of RPC Call: %s", reply_str);
         
         /* Send reply */
         zmq_msg_t reply;
         rc = zmq_msg_init_size (&reply, reply_str.size());
         assert(rc == 0);
         std::memcpy (zmq_msg_data (&reply), reply_str.data(), reply_str.size());
-        LogPrint(NULL, "ZMQ: Sending reply..\n");
+        LogPrintf("ZMQ: Sending reply..\n");
         /* Block until a message is available to be sent from socket */
         rc = zmq_sendmsg (zmqpsocket, &reply, 0);
         assert(rc!=-1);
 
-        LogPrint(NULL, "ZMQ: Reply sent.\n");
+        LogPrintf("ZMQ: Reply sent.\n");
         zmq_msg_close(&reply);
 
     }
@@ -343,23 +337,23 @@ static void* REQREP_ZMQ(void *arg)
 
 bool StartREQREPZMQ()
 {
-    LogPrint(NULL, "ZMQ: Starting REQ/REP ZMQ server\n");
+    LogPrintf("ZMQ: Starting REQ/REP ZMQ server\n");
     // TODO authentication
 
     zmqpcontext = zmq_ctx_new();
 
     zmqpsocket = zmq_socket(zmqpcontext,ZMQ_REP);
     if(!zmqpsocket){
-        LogPrint(NULL, "ZMQ: Failed to create socket\n");
+        LogPrintf("ZMQ: Failed to create socket\n");
         //zmqError("Failed to create socket");
         return false;
     }
 
     int rc = zmq_bind(zmqpsocket, "tcp://*:5556");
-    LogPrint(NULL, "ZMQ: Bound socket\n");
+    LogPrintf("ZMQ: Bound socket\n");
     if (rc == -1)
     {
-        LogPrint(NULL, "ZMQ: Unable to send ZMQ msg");
+        LogPrintf("ZMQ: Unable to send ZMQ msg");
         return false;
     }
 
