@@ -1,6 +1,7 @@
 #include <univalue.h>
 #include "utilstrencodings.h"
 #include "client-api/server.h"
+//#include "qt/optionsmodel.h"
 
 UniValue getSetting(const UniValue& params,bool fHelp)
 {
