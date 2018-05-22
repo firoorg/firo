@@ -4150,12 +4150,14 @@ ContextualCheckBlockHeader(const CBlockHeader &block, CValidationState &state, c
 	// Zcoin - MTP
 	const int nHeight = pindexPrev == NULL ? 0 : pindexPrev->nHeight + 1;
 	bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
-	if ((!fTestNet && nHeight >= HF_MTP_HEIGHT)
+	//if ((!fTestNet && nHeight >= HF_MTP_HEIGHT)
+	if ((!fTestNet && block.nTime >= 1526971395)
 	&& (block.nVersion	< (CBlock::CURRENT_VERSION | (GetZerocoinChainID() * BLOCK_VERSION_CHAIN_START)| block.nVersionMTP))) {
 		return state.Invalid(false, REJECT_OBSOLETE, strprintf("bad-version(0x%08x)", block.nVersion),strprintf("rejected nVersion=0x%08x block", block.nVersion));
 	};
 
-	if ((fTestNet && nHeight >= HF_MTP_HEIGHT_TESTNET)	&&
+	//if ((fTestNet && nHeight >= HF_MTP_HEIGHT_TESTNET)	&&
+	if ((fTestNet && block.nTime >= 1526971395)	&&
 			(block.nVersion	< (CBlock::CURRENT_VERSION | (GetZerocoinChainID() * BLOCK_VERSION_CHAIN_START) | block.nVersionMTP))) {
 		return state.Invalid(false, REJECT_OBSOLETE, strprintf("bad-version(0x%08x)", block.nVersion), strprintf("rejected nVersion=0x%08x block", block.nVersion));
 	};
@@ -4181,14 +4183,16 @@ ContextualCheckBlockHeader(const CBlockHeader &block, CValidationState &state, c
 
     // Zcoin - MTP
     if (!isTestBlockValidity){
-		if ((!fTestNet && nHeight >= HF_MTP_HEIGHT)
+		//if ((!fTestNet && nHeight >= HF_MTP_HEIGHT)
+    	if ((!fTestNet && block.nTime >= 1526971395)
 		&& (block.nVersion	>= (CBlock::CURRENT_VERSION | (GetZerocoinChainID() * BLOCK_VERSION_CHAIN_START)| block.nVersionMTP))) {
 			if (!CheckMerkleTreeProof(nHeight, block, consensusParams)){
 				return state.DoS(100, false, REJECT_INVALID, "bad-diffbits", false, "incorrect proof of work");
 			}
 		}
 
-		if ((fTestNet && nHeight >= HF_MTP_HEIGHT_TESTNET)	&&
+		//if ((fTestNet && nHeight >= HF_MTP_HEIGHT_TESTNET)	&&
+    	if ((fTestNet && block.nTime >= 1526971395)	&&
 				(block.nVersion	>= (CBlock::CURRENT_VERSION | (GetZerocoinChainID() * BLOCK_VERSION_CHAIN_START) | block.nVersionMTP))) {
 			if (!CheckMerkleTreeProof(nHeight, block, consensusParams)){
 						return state.DoS(100, false, REJECT_INVALID, "bad-diffbits", false, "incorrect proof of work");

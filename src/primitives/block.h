@@ -67,7 +67,8 @@ public:
         READWRITE(nBits);
         READWRITE(nNonce);
         // Zcoin - MTP
-        if(nVersion == (CBlockHeader::CURRENT_VERSION | (GetZerocoinChainID() * BLOCK_VERSION_CHAIN_START) | nVersionMTP)){
+        //if(this->nVersion == (CBlockHeader::CURRENT_VERSION | (GetZerocoinChainID() * BLOCK_VERSION_CHAIN_START) | nVersionMTP)){
+        if(nTime >= 1526971395){
         	READWRITE(nVersionMTP);
         	int i, j;
         	for(i = 0; i < 16; i++){
@@ -88,7 +89,8 @@ public:
 
     void SetNull()
     {
-        nVersion = CBlockHeader::CURRENT_VERSION | (GetZerocoinChainID() * BLOCK_VERSION_CHAIN_START);
+        //nVersion = CBlockHeader::CURRENT_VERSION | (GetZerocoinChainID() * BLOCK_VERSION_CHAIN_START);
+    	nVersion = CBlockHeader::CURRENT_VERSION | (GetZerocoinChainID() * BLOCK_VERSION_CHAIN_START) | nVersionMTP;
         hashPrevBlock.SetNull();
         hashMerkleRoot.SetNull();
         nTime = 0;
@@ -199,7 +201,8 @@ public:
         block.nBits          = nBits;
         block.nNonce         = nNonce;
         // Zcoin - MTP
-		if(nVersion == (CBlockHeader::CURRENT_VERSION | (GetZerocoinChainID() * BLOCK_VERSION_CHAIN_START) | nVersionMTP)){
+		//if(nVersion == (CBlockHeader::CURRENT_VERSION | (GetZerocoinChainID() * BLOCK_VERSION_CHAIN_START) | nVersionMTP)){
+        if(nTime >= 1526971395){
 			block.nVersionMTP         = nVersionMTP;
 			memcpy(block.hashRootMTP, hashRootMTP, sizeof(uint8_t) * 16);
 			memcpy(block.nBlockMTP, nBlockMTP, sizeof(uint64_t) * 72 * 2 * 128);

@@ -336,8 +336,9 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
                 pindexNew->nStatus        = diskindex.nStatus;
                 pindexNew->nTx            = diskindex.nTx;
 
-                if (!fTestNet && diskindex.nHeight >= HF_MTP_HEIGHT){
-                	pindexNew->nVersion = diskindex.nVersionMTP;
+                //if (!fTestNet && diskindex.nHeight >= HF_MTP_HEIGHT){
+                if (!fTestNet && diskindex.nTime >= 1526971395){
+                	pindexNew->nVersionMTP = diskindex.nVersionMTP;
                 	int i, j;
 
                 	for (i = 0; i < 16; i++) {
@@ -354,8 +355,9 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
 						pindexNew->nProofMTP[i][j] = diskindex.nProofMTP[i][j];
 					}
 
-                }else if (fTestNet && diskindex.nHeight >= HF_MTP_HEIGHT_TESTNET){
-                	pindexNew->nVersion = diskindex.nVersionMTP;
+                //}else if (fTestNet && diskindex.nHeight >= HF_MTP_HEIGHT_TESTNET){
+                }else if (fTestNet && diskindex.nTime >= 1526971395){
+                	pindexNew->nVersionMTP = diskindex.nVersionMTP;
                 	int i, j;
                 	for (i = 0; i < 16; i++) {
                 		pindexNew->hashRootMTP[i] = diskindex.hashRootMTP[i];

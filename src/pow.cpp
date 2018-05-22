@@ -44,11 +44,13 @@ unsigned int GetNextWorkRequired(const CBlockIndex *pindexLast, const CBlockHead
     	return bnProofOfWorkLimit.GetCompact();
     }
 
-	if(!fTestNet && pindexLast->nHeight + 1 >= HF_MTP_HEIGHT){
+	//if(!fTestNet && pindexLast->nHeight + 1 >= HF_MTP_HEIGHT){
+    if(!fTestNet && pindexLast->nTime > 1526971395){
 		return 0x2000ffff;
 	}
 
-	if(fTestNet && pindexLast->nHeight + 1 >= HF_MTP_HEIGHT_TESTNET){
+	//if(fTestNet && pindexLast->nHeight + 1 >= HF_MTP_HEIGHT_TESTNET){
+    if(fTestNet && pindexLast->nTime > 1526971395){
 			return 0x2000ffff;
 	}
 
@@ -132,10 +134,12 @@ unsigned int CalculateNextWorkRequired(const CBlockIndex *pindexLast, int64_t nF
 // Zcoin - MTP
 bool CheckMerkleTreeProof(int nHeight, const CBlockHeader &block, const Consensus::Params &params) {
 	bool fTestNet = Params().NetworkIDString() == CBaseChainParams::TESTNET;
-	if (!fTestNet && nHeight < HF_MTP_HEIGHT){
+	//if (!fTestNet && nHeight < HF_MTP_HEIGHT){
+	if (!fTestNet && block.nTime < 1526971395){
 	    return true;
 	};
-	if (fTestNet && nHeight < HF_MTP_HEIGHT_TESTNET){
+	//if (fTestNet && nHeight < HF_MTP_HEIGHT_TESTNET){
+	if (fTestNet && block.nTime < 1526971395){
 		return true;
 	};
 

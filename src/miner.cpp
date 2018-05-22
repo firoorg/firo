@@ -510,10 +510,10 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
         pblock->nNonce         = 0;
 
         // Zcoin - MTP
-
         const int nHeight = pindexPrev == NULL ? 0 : pindexPrev->nHeight + 1;
         bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
-        if (!fTestNet && nHeight >= HF_MTP_HEIGHT){
+        //if (!fTestNet && nHeight >= HF_MTP_HEIGHT){
+        if (!fTestNet && pblock->nTime >= 1526971395){
         	memset(pblock->hashRootMTP, 0, sizeof(uint8_t) * 16);
             memset(pblock->nBlockMTP, 0, sizeof(uint64_t) * 128 * 72 * 2);
             for(int i = 0; i < 72*3; i++){
@@ -521,27 +521,28 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
             }
         };
 
-        if (fTestNet && nHeight >= HF_MTP_HEIGHT_TESTNET){
+        //if (fTestNet && nHeight >= HF_MTP_HEIGHT_TESTNET){
+        if (fTestNet && pblock->nTime >= 1526971395){
         	memset(pblock->hashRootMTP, 0, sizeof(uint8_t) * 16);
             memset(pblock->nBlockMTP, 0, sizeof(uint64_t) * 128 * 72 * 2);
             for(int i = 0; i < 72*3; i++){
             	pblock->nProofMTP[i].clear();
             }
         };
-        LogPrintf("CreateNewBlock(): AFTER CALL MTP\n");
+        //LogPrintf("CreateNewBlock(): AFTER CALL MTP\n");
 
         pblocktemplate->vTxSigOpsCost[0] = GetLegacySigOpCount(pblock->vtx[0]);
 
-        LogPrintf("CreateNewBlock(): AFTER pblocktemplate->vTxSigOpsCost[0] = GetLegacySigOpCount(pblock->vtx[0])\n");
+        //LogPrintf("CreateNewBlock(): AFTER pblocktemplate->vTxSigOpsCost[0] = GetLegacySigOpCount(pblock->vtx[0])\n");
 
         CValidationState state;
-        LogPrintf("CreateNewBlock(): BEFORE TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false)\n");
+        //LogPrintf("CreateNewBlock(): BEFORE TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false)\n");
         if (!TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false)) {
             throw std::runtime_error(strprintf("%s: TestBlockValidity failed: %s", __func__, FormatStateMessage(state)));
         }
-        LogPrintf("CreateNewBlock(): AFTER TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false)\n");
+        //LogPrintf("CreateNewBlock(): AFTER TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false)\n");
     }
-    LogPrintf("CreateNewBlock(): pblocktemplate.release()\n");
+    //LogPrintf("CreateNewBlock(): pblocktemplate.release()\n");
     return pblocktemplate.release();
 }
 
@@ -1162,7 +1163,8 @@ void static ZcoinMiner(const CChainParams &chainparams) {
                 uint256 thash;
 
                 while (true) {
-                    if (!fTestNet && pindexPrev->nHeight + 1 >= HF_MTP_HEIGHT){
+                    //if (!fTestNet && pindexPrev->nHeight + 1 >= HF_MTP_HEIGHT){
+                	if (!fTestNet && pblock->nTime >= 1526971395){
                     	LogPrintf("BEFORE: mtp_hash\n");
                     	CMTPInput input{*pblock};
                     	CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
@@ -1195,7 +1197,8 @@ void static ZcoinMiner(const CChainParams &chainparams) {
                     } else if (!fTestNet && pindexPrev->nHeight + 1 >= HF_LYRA2VAR_HEIGHT) {
                         LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2,
                               pindexPrev->nHeight + 1, 256);
-                    } else if (fTestNet && pindexPrev->nHeight + 1 >= HF_MTP_HEIGHT_TESTNET) { // testnet
+                    //} else if (fTestNet && pindexPrev->nHeight + 1 >= HF_MTP_HEIGHT_TESTNET) { // testnet
+                    } else if (fTestNet && pblock->nTime >= 1526971395) { // testnet
                     	LogPrintf("BEFORE: mtp_hash\n");
                     	CMTPInput input{*pblock};
                     	CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);

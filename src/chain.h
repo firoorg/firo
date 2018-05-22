@@ -422,7 +422,8 @@ public:
         READWRITE(nNonce);
 
         // Zcoin - MTP
-        if(nVersion == (CBlockHeader::CURRENT_VERSION | (GetZerocoinChainID() * BLOCK_VERSION_CHAIN_START) | nVersionMTP)){
+        //if(nHeight >= MTP_HEIGHT){
+        if(nTime >= 1526971395){
         	READWRITE(nVersionMTP);
         	int i, j;
         	for(i = 0; i < 16; i++){
