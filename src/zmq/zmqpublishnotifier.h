@@ -52,4 +52,10 @@ public:
     bool NotifyTransaction(const CTransaction &transaction);
 };
 
+class CZMQPublishUpdatedBalancesNotifier : public CZMQAbstractPublishNotifier
+{
+public:
+    bool NotifyBlock(const CBlockIndex *pindex);
+};
+
 #endif // BITCOIN_ZMQ_ZMQPUBLISHNOTIFIER_H

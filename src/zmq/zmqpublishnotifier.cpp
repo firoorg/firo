@@ -7,6 +7,8 @@
 #include "main.h"
 #include "util.h"
 #include "rpc/server.h"
+#include "script/standard.h"
+#include "base58.h"
 
 static std::multimap<std::string, CZMQAbstractPublishNotifier*> mapPublishNotifiers;
 
@@ -190,3 +192,111 @@ bool CZMQPublishRawTransactionNotifier::NotifyTransaction(const CTransaction &tr
     ss << transaction;
     return SendMessage(MSG_RAWTX, &(*ss.begin()), ss.size());
 }
+
+bool CZMQPublishUpdatedBalancesNotifier::NotifyBlock(const CBlockIndex *pindex)
+{
+    uint256 hashBlock = pindex->GetBlockHash();
+    LogPrint(NULL, "zmq: Publish updated balances for block %s\n", hashBlock.GetHex());
+
+    const Consensus::Params& consensusParams = Params().GetConsensus();
+    CDataStream ss(SER_NETWORK, PROTOCOL_VERSION | RPCSerializationFlags());
+    {
+        LOCK(cs_main);
+        CBlock block;
+        if(!ReadBlockFromDisk(block, pindex, consensusParams))
+        {
+            zmqError("Can't read block from disk");
+            return false;
+        }
+        /*
+            for each transaction in the block:
+                for each vin:
+                    for each vout in vin:
+                        grab each address.
+                for each vout:
+                    grab each address.
+        */ 
+
+        //list of tx destinations (ie. pre-addresses)
+        vector<CTxDestination> tx_destinations;
+
+        // temporary list of addresses, updated by ExtractDestinations each run -
+        // would like to reuse ExtractDestinations rather than modifying/adding a very similar function.
+        vector<CTxDestination> temp_tx_destinations;
+
+        //vin transaction
+        CTransaction tx_vin;
+
+        //these are passed to 'ExtractDestinations' and modified internally- we don't need to process them.
+        txnouttype tx_type;
+        int nRequired;
+        int addr_type;
+        uint160 hashBytes;
+
+        std::vector<std::pair<uint160, int> > addresses;
+
+        std::vector<std::pair<CAddressIndexKey, CAmount> > addressIndexes;
+
+        CAmount balance;
+
+        BOOST_FOREACH(const CTransaction&tx_base, block.vtx)
+        {
+            //first get addresses associated with vin for tx_base.
+            for (unsigned int i = 0; i < tx_base.vin.size(); i++) {
+                //get next vin for this transaction
+                const CTxIn& txin = tx_base.vin[i]; 
+
+                // get tx hash associated with this vin
+                uint256 tx_vin_hash = txin.prevout.hash;
+
+                //get tx for txid
+                GetTransaction(tx_vin_hash, tx_vin, Params().GetConsensus(), hashBlock, true);
+
+                // get all addresses in vout associated with this tx.
+                for (unsigned int i = 0; i < tx_vin.vout.size(); i++) {
+                    // store addresses in temporary data structure
+                    ExtractDestinations(tx_vin.vout[i].scriptPubKey, tx_type, temp_tx_destinations, nRequired);
+
+                    // push addresses into master 
+                    tx_destinations.insert(tx_destinations.end(),temp_tx_destinations.begin(),temp_tx_destinations.end());
+                }
+            }
+
+            // get all vout addresses. 
+            for (unsigned int i = 0; i < tx_base.vout.size(); i++) {            
+
+                // store addresses in temporary data structure
+                ExtractDestinations(tx_vin.vout[i].scriptPubKey, tx_type, temp_tx_destinations, nRequired);
+
+                // push addresses into master 
+                tx_destinations.insert(tx_destinations.end(),temp_tx_destinations.begin(),temp_tx_destinations.end());
+            }
+        }
+
+        // convert destinations to addresses
+        BOOST_FOREACH(const CTxDestination& dest, tx_destinations)
+        {
+            addr_type = 0;
+            CBitcoinAddress(dest).GetIndexKey(hashBytes, addr_type);
+            addresses.push_back(std::make_pair(hashBytes, addr_type));
+        }
+
+        // get address indexes from addresses
+        for (std::vector<std::pair<uint160, int> >::iterator it = addresses.begin(); it != addresses.end(); it++) {
+            GetAddressIndex((*it).first, (*it).second, addressIndexes);
+        }
+
+        // finally get balances
+        for (std::vector<std::pair<CAddressIndexKey, CAmount> >::const_iterator it=addressIndexes.begin(); it!=addressIndexes.end(); it++) {
+            balance = it->second;
+            ss << balance;
+
+            std::string msg = "address-" + it->first.hashBytes.ToString() + "-balance";
+
+            SendMessage(msg.c_str(), &(*ss.begin()), ss.size());
+
+        }
+    }
+    return true;
+}
+
