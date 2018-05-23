@@ -377,6 +377,17 @@ bool mtp_verify(const char* input, const uint32_t target,
 	LogPrintf("\n");
 	LogPrintf("Y[0] = %s\n", Y[0].ToString());
 
+	// get hash_zero
+	uint8_t h0[ARGON2_PREHASH_SEED_LENGTH];
+	initial_hash(h0, &context_verify, instance.type);
+	std::ostringstream ossx;
+	ossx << "h0 = ";
+	for (int xxx = 0; xxx < 72; xxx++) {
+		ossx << std::hex << std::setw(2) << std::setfill('0') << (int) h0[xxx];
+	}
+
+	LogPrintf("H0_Verify : %s\n", ossx.str());
+
 	// step 8
 	for (uint32_t j = 1; j <= L; j++) {
 		// compute ij
@@ -430,7 +441,7 @@ bool mtp_verify(const char* input, const uint32_t target,
 			LogPrintf("error : checkProofOrdered in x[ij_prev]\n");
 			return false;
 		}else{
-			LogPrintf("success : checkProofOrdered in x[ij_prev]\n");
+			//LogPrintf("success : checkProofOrdered in x[ij_prev]\n");
 		}
 
 		//hash[ref_index]
@@ -478,22 +489,11 @@ bool mtp_verify(const char* input, const uint32_t target,
 			LogPrintf("error : checkProofOrdered in x[ij_ref]\n");
 			return false;
 		}else{
-			LogPrintf("success : checkProofOrdered in x[ij_ref]\n");
+			//LogPrintf("success : checkProofOrdered in x[ij_ref]\n");
 		}
 
 		// compute x[ij]
 		block block_ij;
-		// get hash_zero
-		uint8_t h0[ARGON2_PREHASH_SEED_LENGTH];
-		initial_hash(h0, &context_verify,  instance.type);
-		std::ostringstream ossx;
-		ossx << "h0 = ";
-		for (int xxx = 0; xxx < 72; xxx++) {
-			ossx << std::hex << std::setw(2) << std::setfill('0')
-					<< (int) h0[xxx];
-		}
-
-		LogPrintf("H0_Verify : %s\n", ossx.str());
 
 		fill_block_mtp(&blocks[j*2 - 2], &blocks[j*2 - 1], &block_ij, 0, computed_ref_block, h0);
 
@@ -547,7 +547,7 @@ bool mtp_verify(const char* input, const uint32_t target,
 			LogPrintf("error : checkProofOrdered in x[ij]\n");
 			return false;
 		}else{
-			LogPrintf("success : checkProofOrdered in x[ij]\n");
+			//LogPrintf("success : checkProofOrdered in x[ij]\n");
 		}
 
 		// compute Y(j)
@@ -575,17 +575,17 @@ bool mtp_verify(const char* input, const uint32_t target,
 	if (fNegative || bnTarget == 0 || fOverflow
 			|| bnTarget > UintToArith256(powLimit)
 			|| UintToArith256(Y[L]) > bnTarget) {
-		cout << "hashTarget = " << ArithToUint256(bnTarget).GetHex().c_str()
+		/*cout << "hashTarget = " << ArithToUint256(bnTarget).GetHex().c_str()
 				<< endl;
 		cout << "Y[L] 		= " << Y[L].GetHex().c_str() << " nNonce = " << *nNonce
-				<< endl;
+				<< endl;*/
 		return false;
 	} else {
-		cout << "Verified :" << endl;
-		cout << "hashTarget = " << ArithToUint256(bnTarget).GetHex().c_str()
-				<< endl;
-		cout << "Y[L]       = " << Y[L].GetHex().c_str() << endl;
-		cout << "nNonce     = " << *nNonce << endl;
+		LogPrintf("Verified :\n");
+		LogPrintf("hashTarget = %s\n",
+				ArithToUint256(bnTarget).GetHex().c_str());
+		LogPrintf("Y[L] 	  = %s", Y[L].GetHex().c_str());
+		LogPrintf("nNonce 	  = %s\n", *nNonce);
 		return true;
 	}
 

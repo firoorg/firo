@@ -1849,14 +1849,14 @@ bool ReadBlockFromDisk(CBlock &block, const CDiskBlockPos &pos, int nHeight, con
 
     // Zcoin - MTP
     if (!CheckMerkleTreeProof(nHeight, block, consensusParams)){
-    	return error("ReadBlockFromDisk: Errors in block header at %s", pos.ToString());
+    	return error("ReadBlockFromDisk: CheckMerkleTreeProof: Errors in block header at %s", pos.ToString());
     }
 
     // Check the header
     if (!CheckProofOfWork(block.GetPoWHash(nHeight), block.nBits, consensusParams)){
         //Maybe cache is not valid
         if (!CheckProofOfWork(block.GetPoWHash(nHeight, true), block.nBits, consensusParams)){
-            return error("ReadBlockFromDisk: Errors in block header at %s", pos.ToString());
+            return error("ReadBlockFromDisk: CheckProofOfWork: Errors in block header at %s", pos.ToString());
         }
     }
     return true;

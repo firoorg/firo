@@ -1165,6 +1165,7 @@ void static ZcoinMiner(const CChainParams &chainparams) {
                 while (true) {
                     //if (!fTestNet && pindexPrev->nHeight + 1 >= HF_MTP_HEIGHT){
                 	if (!fTestNet && pblock->nTime >= 1526971395){
+                		//sleep(60);
                     	LogPrintf("BEFORE: mtp_hash\n");
                     	CMTPInput input{*pblock};
                     	CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);

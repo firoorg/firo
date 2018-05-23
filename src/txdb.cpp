@@ -352,7 +352,7 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
 					}
 
 					for (i = 0; i < 72 * 3; i++) {
-						pindexNew->nProofMTP[i][j] = diskindex.nProofMTP[i][j];
+						pindexNew->nProofMTP[i] = diskindex.nProofMTP[i];
 					}
 
                 //}else if (fTestNet && diskindex.nHeight >= HF_MTP_HEIGHT_TESTNET){
@@ -370,7 +370,7 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
 					}
 
 					for (i = 0; i < 72 * 3; i++) {
-						pindexNew->nProofMTP[i][j] = diskindex.nProofMTP[i][j];
+						pindexNew->nProofMTP[i] = diskindex.nProofMTP[i];
 					}
                 }
 
