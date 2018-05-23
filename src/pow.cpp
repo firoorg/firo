@@ -45,12 +45,12 @@ unsigned int GetNextWorkRequired(const CBlockIndex *pindexLast, const CBlockHead
     }
 
 	//if(!fTestNet && pindexLast->nHeight + 1 >= HF_MTP_HEIGHT){
-    if(!fTestNet && pindexLast->nTime > 1526971395){
+    if(!fTestNet && pblock->nTime > 1526971395){
 		return 0x2000ffff;
 	}
 
 	//if(fTestNet && pindexLast->nHeight + 1 >= HF_MTP_HEIGHT_TESTNET){
-    if(fTestNet && pindexLast->nTime > 1526971395){
+    if(fTestNet && pblock->nTime > 1526971395){
 			return 0x2000ffff;
 	}
 
