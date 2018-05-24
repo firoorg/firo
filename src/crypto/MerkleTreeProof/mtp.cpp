@@ -573,6 +573,11 @@ bool mtp_verify(const char* input, const uint32_t target,
 	bool fOverflow;
 	arith_uint256 bnTarget;
 	bnTarget.SetCompact(target, &fNegative, &fOverflow); // diff = 1
+
+	for (int i = 0; i < L*2; i++) {
+		clear_internal_memory(blocks[i].v, ARGON2_BLOCK_SIZE);
+	}
+
 	//uint256 powLimit = uint256S(
 	//		"00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
 	if (fNegative || bnTarget == 0 || fOverflow
