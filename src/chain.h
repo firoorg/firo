@@ -484,7 +484,7 @@ public:
         if(nTime >= 1526971395){
 			block.nVersionMTP        = nVersionMTP;
 			memcpy(block.hashRootMTP, hashRootMTP, sizeof(uint8_t) * 16);
-			memcpy(block.nBlockMTP, nBlockMTP, sizeof(uint64_t) * 72 * 2);
+			memcpy(block.nBlockMTP, nBlockMTP, sizeof(uint64_t) * 72 * 2 * 128);
 			for(int i = 0; i < 72*3; i++){
 				block.nProofMTP[i] = nProofMTP[i];
 			}
