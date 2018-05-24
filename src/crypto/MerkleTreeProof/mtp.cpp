@@ -401,6 +401,8 @@ bool mtp_verify(const char* input, const uint32_t target,
 		memcpy(t_ref_block.v, nBlockMTP[j*2 - 1], sizeof(uint64_t) * ARGON2_QWORDS_IN_BLOCK);
 		copy_block(&prev_block , &t_prev_block);
 		copy_block(&ref_block , &t_ref_block);
+		clear_internal_memory(t_prev_block.v, ARGON2_BLOCK_SIZE);
+		clear_internal_memory(t_ref_block.v, ARGON2_BLOCK_SIZE);
 
 		//prev_index
 		//compute
