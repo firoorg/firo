@@ -560,6 +560,7 @@ bool mtp_verify(const char* input, const uint32_t target,
 		blake2b_update(&ctx_yj, &Y[j - 1], 32);
 		blake2b_update(&ctx_yj, blockhash_bytes, ARGON2_BLOCK_SIZE);
 		blake2b_final(&ctx_yj, &Y[j], 32);
+		clear_internal_memory(block_ij.v, ARGON2_BLOCK_SIZE);
 		clear_internal_memory(blockhash.v, ARGON2_BLOCK_SIZE);
 		clear_internal_memory(blockhash_bytes, ARGON2_BLOCK_SIZE);
 
