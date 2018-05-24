@@ -209,92 +209,124 @@ bool CZMQPublishUpdatedBalancesNotifier::NotifyBlock(const CBlockIndex *pindex)
             return false;
         }
         /*
+            We want to get the list of addresses where balance is affected.
             for each transaction in the block:
-                for each vin:
+                for each vin of that transaction:
                     for each vout in vin:
                         grab each address.
                 for each vout:
                     grab each address.
         */ 
 
-        //list of tx destinations (ie. pre-addresses)
+        //list of tx destinations.
         vector<CTxDestination> tx_destinations;
 
         // temporary list of addresses, updated by ExtractDestinations each run -
         // would like to reuse ExtractDestinations rather than modifying/adding a very similar function.
         vector<CTxDestination> temp_tx_destinations;
 
-        //vin transaction
-        CTransaction tx_vin;
+        // list of bitcoin addresses.
+        vector<CBitcoinAddress> bitcoin_addresses;
 
-        //these are passed to 'ExtractDestinations' and modified internally- we don't need to process them.
+        // list of index keys (ie. address hashes)
+        std::vector<std::pair<uint160, int> > index_keys;
+
+        // list of address indexes (transactions with balance information)
+        std::vector<std::pair<CAddressIndexKey, CAmount> > address_indexes;
+
+        // pointer parameters.
+        CTransaction tx_vin;
         txnouttype tx_type;
         int nRequired;
         int addr_type;
         uint160 hashBytes;
-
-        std::vector<std::pair<uint160, int> > addresses;
-
-        std::vector<std::pair<CAddressIndexKey, CAmount> > addressIndexes;
-
         CAmount balance;
 
-        BOOST_FOREACH(const CTransaction&tx_base, block.vtx)
-        {
+         BOOST_FOREACH(const CTransaction&tx_base, block.vtx)
+         {
+            LogPrintf("    zmq: printing transaction hash %s\n", tx_base.GetHash().GetHex());
             //first get addresses associated with vin for tx_base.
+            //ignore this part for coinbase txs.         
             for (unsigned int i = 0; i < tx_base.vin.size(); i++) {
                 //get next vin for this transaction
                 const CTxIn& txin = tx_base.vin[i]; 
 
                 // get tx hash associated with this vin
                 uint256 tx_vin_hash = txin.prevout.hash;
+                LogPrintf("        zmq: printing vin tx hash %s\n", tx_vin_hash.GetHex());
 
                 //get tx for txid
                 GetTransaction(tx_vin_hash, tx_vin, Params().GetConsensus(), hashBlock, true);
 
                 // get all addresses in vout associated with this tx.
-                for (unsigned int i = 0; i < tx_vin.vout.size(); i++) {
-                    // store addresses in temporary data structure
-                    ExtractDestinations(tx_vin.vout[i].scriptPubKey, tx_type, temp_tx_destinations, nRequired);
-
-                    // push addresses into master 
-                    tx_destinations.insert(tx_destinations.end(),temp_tx_destinations.begin(),temp_tx_destinations.end());
+                if(!tx_base.IsCoinBase()){
+                    for (unsigned int i = 0; i < tx_vin.vout.size(); i++) {
+                        // store addresses in temporary data structure
+                        ExtractDestinations(tx_vin.vout[i].scriptPubKey, tx_type, temp_tx_destinations, nRequired);
+                        // push addresses into master 
+                        tx_destinations.insert(tx_destinations.end(),temp_tx_destinations.begin(),temp_tx_destinations.end());
+                    }
                 }
             }
 
             // get all vout addresses. 
             for (unsigned int i = 0; i < tx_base.vout.size(); i++) {            
-
                 // store addresses in temporary data structure
-                ExtractDestinations(tx_vin.vout[i].scriptPubKey, tx_type, temp_tx_destinations, nRequired);
-
-                // push addresses into master 
+                ExtractDestinations(tx_base.vout[i].scriptPubKey, tx_type, temp_tx_destinations, nRequired); 
+                // push addresses into master.
                 tx_destinations.insert(tx_destinations.end(),temp_tx_destinations.begin(),temp_tx_destinations.end());
             }
-        }
+         }
 
         // convert destinations to addresses
         BOOST_FOREACH(const CTxDestination& dest, tx_destinations)
         {
-            addr_type = 0;
-            CBitcoinAddress(dest).GetIndexKey(hashBytes, addr_type);
-            addresses.push_back(std::make_pair(hashBytes, addr_type));
+            //create address for destination
+            CBitcoinAddress new_addr(dest);
+            //push to list of considered addresses
+            bitcoin_addresses.push_back(new_addr);
+            //get index key for address
+            new_addr.GetIndexKey(hashBytes, addr_type);
+            //add to vector of index_keys
+            index_keys.push_back(std::make_pair(hashBytes, addr_type));
         }
 
-        // get address indexes from addresses
-        for (std::vector<std::pair<uint160, int> >::iterator it = addresses.begin(); it != addresses.end(); it++) {
-            GetAddressIndex((*it).first, (*it).second, addressIndexes);
-        }
+        //remove duplicate indexes and sort for index_keys and addresses.
+        sort( index_keys.begin(), index_keys.end() );
+        sort( bitcoin_addresses.begin(), bitcoin_addresses.end() );
 
-        // finally get balances
-        for (std::vector<std::pair<CAddressIndexKey, CAmount> >::const_iterator it=addressIndexes.begin(); it!=addressIndexes.end(); it++) {
-            balance = it->second;
+        index_keys.erase( unique( index_keys.begin(), index_keys.end() ), index_keys.end() );
+        bitcoin_addresses.erase( unique( bitcoin_addresses.begin(), bitcoin_addresses.end() ), bitcoin_addresses.end() );
+
+        //get address indexes to calculate new balances.
+        for (std::vector<std::pair<uint160, int> >::iterator it = index_keys.begin(); it != index_keys.end(); it++) {
+            GetAddressIndex((*it).first, (*it).second, address_indexes);
+
+            //clear stringstream
+            ss.clear();
+
+            //total balances for this address.
+            for (std::vector<std::pair<CAddressIndexKey, CAmount> >::const_iterator it=address_indexes.begin(); it!=address_indexes.end(); it++) {
+                balance += it->second;
+            }
+
+            //put balance in stringstream
             ss << balance;
 
-            std::string msg = "address-" + it->first.hashBytes.ToString() + "-balance";
+            //get address
+            string address = bitcoin_addresses[it - index_keys.begin()].ToString();
 
+            //create topic for zmq msg
+            std::string msg = "address-" + address + "-balance";
+
+            LogPrint(NULL, "zmq: Publish updatedbalance for address %s, balance: %s\n", address, to_string(balance));
+
+            //send zmq msg
             SendMessage(msg.c_str(), &(*ss.begin()), ss.size());
 
+            //reset values
+            balance = 0;
+            addressIndexes.clear();
         }
     }
     return true;
