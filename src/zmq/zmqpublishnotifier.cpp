@@ -221,7 +221,7 @@ bool CZMQPublishUpdatedBalancesNotifier::NotifyBlock(const CBlockIndex *pindex)
         //list of tx destinations.
         vector<CTxDestination> tx_destinations;
 
-        // temporary list of addresses, updated by ExtractDestinations each run -
+        // temporary list of tx destinations, updated by ExtractDestinations each run -
         // would like to reuse ExtractDestinations rather than modifying/adding a very similar function.
         vector<CTxDestination> temp_tx_destinations;
 
@@ -326,7 +326,7 @@ bool CZMQPublishUpdatedBalancesNotifier::NotifyBlock(const CBlockIndex *pindex)
 
             //reset values
             balance = 0;
-            addressIndexes.clear();
+            address_indexes.clear();
         }
     }
     return true;
