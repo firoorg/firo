@@ -592,6 +592,8 @@ bool ConnectBlockZC(CValidationState &state, const CChainParams &chainparams, CB
             else {
                 pindexNew->accumulatorChanges[denomAndId] = make_pair(accumulator.getValue(), 1);
             }
+            // invalidate alternative accumulator value for this denomination and id
+            pindexNew->alternativeAccumulatorChanges.erase(denomAndId);
         }               
     }
     else if (!fJustCheck) {
