@@ -322,8 +322,8 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
             CDiskBlockIndex diskindex;
             if (pcursor->GetValue(diskindex)) {
                 // Construct block index object
-                CBlockIndex* pindexNew = insertBlockIndex(diskindex.GetBlockHash());
-                pindexNew->pprev          = insertBlockIndex(diskindex.hashPrev);
+                CBlockIndex* pindexNew    = insertBlockIndex(diskindex.hashBlock);
+                pindexNew->pprev 		  = insertBlockIndex(diskindex.hashPrev);
                 pindexNew->nHeight        = diskindex.nHeight;
                 pindexNew->nFile          = diskindex.nFile;
                 pindexNew->nDataPos       = diskindex.nDataPos;
@@ -335,6 +335,9 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
                 pindexNew->nNonce         = diskindex.nNonce;
                 pindexNew->nStatus        = diskindex.nStatus;
                 pindexNew->nTx            = diskindex.nTx;
+
+                // Zcoin - MTP
+                pindexNew->hashBlock	  = diskindex.hashBlock;
 
                 /*
                 //if (!fTestNet && diskindex.nHeight >= HF_MTP_HEIGHT){
