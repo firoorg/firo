@@ -201,10 +201,10 @@ public:
     unsigned int nBits;
     unsigned int nNonce;
     // Zcoin - MTP
-    uint8_t hashRootMTP[16];
+    /*uint8_t hashRootMTP[16];
     uint64_t nBlockMTP[128][72*2]; // 128 is ARGON2_QWORDS_IN_BLOCK and 72 * 2 is L * 2
     std::deque<std::vector<uint8_t>> nProofMTP[72*3]; // 72 * 3 is L * 3
-    int32_t nVersionMTP = 0x1000;
+    int32_t nVersionMTP = 0x1000;*/
 
     //! (memory only) Sequential id assigned to distinguish order in which blocks are received.
     uint32_t nSequenceId;
@@ -245,12 +245,12 @@ public:
         nNonce         = 0;
 
         // Zcoin - MTP
-        nVersionMTP       = 0;
+        /*nVersionMTP       = 0;
         memset(hashRootMTP, 0, sizeof(uint8_t) * 16);
         memset(nBlockMTP, 0, sizeof(uint64_t) * 128 * 72 * 2);
         for(int i = 0; i < 72*3; i++){
         	nProofMTP[i].clear();
-        }
+        }*/
 
         mintedPubCoins.clear();
         accumulatorChanges.clear();
@@ -443,7 +443,7 @@ public:
 
         // Zcoin - MTP
         //if(nHeight >= MTP_HEIGHT){
-        if(nTime >= 1526971395){
+        /*if(nTime >= 1526971395){
         	READWRITE(nVersionMTP);
         	int i, j;
         	for(i = 0; i < 16; i++){
@@ -459,7 +459,7 @@ public:
         	for(i = 0; i < 72*3; i++){
         		READWRITE(nProofMTP[i]);
         	}
-        }
+        }*/
 
         if (!(nType & SER_GETHASH) && nVersion >= ZC_ADVANCED_INDEX_VERSION) {
             READWRITE(mintedPubCoins);
@@ -472,7 +472,7 @@ public:
 
     uint256 GetBlockHash() const
     {
-        CBlockHeader block;
+        /*CBlockHeader block;
         block.nVersion        = nVersion;
         block.hashPrevBlock   = hashPrev;
         block.hashMerkleRoot  = hashMerkleRoot;
@@ -489,7 +489,8 @@ public:
 				block.nProofMTP[i] = nProofMTP[i];
 			}
 		}
-        return block.GetHash();
+        return block.GetHash();*/
+    	return *phashBlock;
     }
 
 
