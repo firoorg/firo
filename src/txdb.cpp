@@ -309,7 +309,7 @@ bool CBlockTreeDB::ReadFlag(const std::string &name, bool &fValue) {
 bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256&)> insertBlockIndex)
 {
     LogPrintf("CBlockTreeDB::LoadBlockIndexGuts\n");
-    bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
+    //bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
     boost::scoped_ptr<CDBIterator> pcursor(NewIterator());
 
     pcursor->Seek(make_pair(DB_BLOCK_INDEX, uint256()));
@@ -322,6 +322,8 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
             CDiskBlockIndex diskindex;
             if (pcursor->GetValue(diskindex)) {
                 // Construct block index object
+            	if(diskindex.hashBlock != uint256()
+            		&& diskindex.hashPrev != uint256()){
                 CBlockIndex* pindexNew    = insertBlockIndex(diskindex.hashBlock);
                 pindexNew->pprev 		  = insertBlockIndex(diskindex.hashPrev);
                 pindexNew->nHeight        = diskindex.nHeight;
@@ -389,6 +391,9 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
 				*/
 
                 pcursor->Next();
+            		}else{
+            			pcursor->Next();
+            		}
             } else {
                 return error("LoadBlockIndex() : failed to read value");
             }

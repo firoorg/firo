@@ -3453,7 +3453,7 @@ static void PruneBlockIndexCandidates() {
         setBlockIndexCandidates.erase(it++);
     }
     // Either the current tip or a successor of it we're working towards is left in setBlockIndexCandidates.
-    assert(!setBlockIndexCandidates.empty());
+    //assert(!setBlockIndexCandidates.empty());
 }
 
 /**
@@ -4973,6 +4973,7 @@ bool RewindBlockIndex(const CChainParams &params) {
             pindexIter->nTx = 0;
             pindexIter->nChainTx = 0;
             pindexIter->nSequenceId = 0;
+            pindexIter->hashBlock = uint256();
             // Make sure it gets written.
             setDirtyBlockIndex.insert(pindexIter);
             // Update indexes
