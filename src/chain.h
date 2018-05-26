@@ -273,14 +273,14 @@ public:
         nNonce         = block.nNonce;
 
         // Zcoin - MTP
-        if(nTime >= 1526971395){
+        /*if(nTime >= 1526971395){
 			nVersionMTP = block.nVersionMTP;
 			memcpy(hashRootMTP, block.hashRootMTP, sizeof(uint8_t) * 16);
 			memcpy(nBlockMTP, block.nBlockMTP, sizeof(uint64_t) * 72 * 2 * 128);
 			for (int i = 0; i < 72 * 3; i++) {
 				nProofMTP[i] = block.nProofMTP[i];
 			}
-		}
+		}*/
 
     }
 
@@ -302,7 +302,7 @@ public:
         return ret;
     }
 
-    CBlockHeader GetBlockHeader() const
+    /*CBlockHeader GetBlockHeader() const
     {
         CBlockHeader block;
         block.nVersion       = nVersion;
@@ -322,17 +322,17 @@ public:
 			}
 		}
         return block;
-    }
+    }*/
 
     uint256 GetBlockHash() const
     {
         return *phashBlock;
     }
 
-    uint256 GetBlockPoWHash(bool forceCalc = false) const
+    /*uint256 GetBlockPoWHash(bool forceCalc = false) const
     {
         return GetBlockHeader().GetPoWHash(nHeight, forceCalc);
-    }
+    }*/
 
     int64_t GetBlockTime() const
     {

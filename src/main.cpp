@@ -6348,7 +6348,9 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
 //        LogPrint("net", "getheaders %d to %s from peer=%d\n", (pindex ? pindex->nHeight : -1), hashStop.ToString(),
 //                 pfrom->id);
         for (; pindex; pindex = chainActive.Next(pindex)) {
-            vHeaders.push_back(pindex->GetBlockHeader());
+        	CBlock block;
+        	ReadBlockFromDisk(block, pindex, Params().GetConsensus());
+            vHeaders.push_back(block.GetBlockHeader());
             if (--nLimit <= 0 || pindex->GetBlockHash() == hashStop)
                 break;
         }
@@ -7513,14 +7515,20 @@ bool SendMessages(CNode *pto) {
                     pBestIndex = pindex;
                     if (fFoundStartingHeader) {
                         // add this to the headers message
-                        vHeaders.push_back(pindex->GetBlockHeader());
+                    	CBlock block;
+                    	ReadBlockFromDisk(block, pindex, Params().GetConsensus());
+                        vHeaders.push_back(block.GetBlockHeader());
+                        //vHeaders.push_back(pindex->GetBlockHeader());
                     } else if (PeerHasHeader(&state, pindex)) {
                         continue; // keep looking for the first new block
                     } else if (pindex->pprev == NULL || PeerHasHeader(&state, pindex->pprev)) {
                         // Peer doesn't have this header but they do have the prior one.
                         // Start sending headers.
                         fFoundStartingHeader = true;
-                        vHeaders.push_back(pindex->GetBlockHeader());
+                    	CBlock block;
+                    	ReadBlockFromDisk(block, pindex, Params().GetConsensus());
+                        vHeaders.push_back(block.GetBlockHeader());
+                        //vHeaders.push_back(pindex->GetBlockHeader());
                     } else {
                         // Peer doesn't have this header or the prior one -- nothing will
                         // connect, so bail out.
