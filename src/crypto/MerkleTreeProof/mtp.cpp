@@ -226,8 +226,8 @@ bool mtp_verify(const char* input, const uint32_t target,
 	memset(salt, 0, TEST_SALTLEN);
 	//memset(secret, 3, TEST_SECRETLEN);
 	//memset(ad, 4, TEST_ADLEN);
-	//memcpy(pwd, input, TEST_OUTLEN);
-	//memcpy(salt, input, TEST_SALTLEN);
+	memcpy(pwd, input, TEST_PWDLEN);
+	memcpy(salt, input, TEST_SALTLEN);
 
 	context_verify.out = out;
 	context_verify.outlen = TEST_OUTLEN;
@@ -633,8 +633,9 @@ BEGIN:
 	memset(salt, 0, TEST_SALTLEN);
 	//memset(secret, 3, TEST_SECRETLEN);
 	//memset(ad, 4, TEST_ADLEN);
-	//memcpy(pwd, input, TEST_OUTLEN);
-	//memcpy(salt, input, TEST_SALTLEN);
+	memcpy(pwd, input, TEST_PWDLEN);
+	memcpy(salt, input, TEST_SALTLEN);
+
 
 	context.out = out;
 	context.outlen = TEST_OUTLEN;
