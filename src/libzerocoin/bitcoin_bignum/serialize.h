@@ -29,7 +29,9 @@ typedef unsigned long long  uint64;
 class CScript;
 class CDataStream;
 class CAutoFile;
-static const unsigned int MAX_SIZE = 0x02000000;
+// static const unsigned int MAX_SIZE = 0x02000000;
+// Zcoin - MTP
+static const unsigned int MAX_SIZE = 0x20000000;
 
 // Used to bypass the rule against non-const reference to temporary
 // where it makes sense with wrappers such as CFlatData or CTxDB
