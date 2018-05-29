@@ -268,6 +268,8 @@ void CZnodePayments::ProcessMessage(CNode *pfrom, std::string &strCommand, CData
 
     if (fLiteMode) return; // disable all Dash specific functionality
 
+    bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
+
     if (strCommand == NetMsgType::ZNODEPAYMENTSYNC) { //Znode Payments Request Sync
 
         // Ignore such requests until we are fully synced.
@@ -281,7 +283,7 @@ void CZnodePayments::ProcessMessage(CNode *pfrom, std::string &strCommand, CData
         if (netfulfilledman.HasFulfilledRequest(pfrom->addr, NetMsgType::ZNODEPAYMENTSYNC)) {
             // Asking for the payments list multiple times in a short period of time is no good
             LogPrintf("ZNODEPAYMENTSYNC -- peer already asked me for the list, peer=%d\n", pfrom->id);
-            Misbehaving(pfrom->GetId(), 20);
+            if (!fTestNet) Misbehaving(pfrom->GetId(), 20);
             return;
         }
         netfulfilledman.AddFulfilledRequest(pfrom->addr, NetMsgType::ZNODEPAYMENTSYNC);
@@ -345,7 +347,7 @@ void CZnodePayments::ProcessMessage(CNode *pfrom, std::string &strCommand, CData
         if (!vote.CheckSignature(mnInfo.pubKeyZnode, pCurrentBlockIndex->nHeight, nDos)) {
             if (nDos) {
                 LogPrintf("ZNODEPAYMENTVOTE -- ERROR: invalid signature\n");
-                Misbehaving(pfrom->GetId(), nDos);
+                if (!fTestNet) Misbehaving(pfrom->GetId(), nDos);
             } else {
                 // only warn about anything non-critical (i.e. nDos == 0) in debug mode
                 LogPrint("mnpayments", "ZNODEPAYMENTVOTE -- WARNING: invalid signature\n");

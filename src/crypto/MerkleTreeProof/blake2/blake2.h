@@ -82,6 +82,9 @@ ARGON2_LOCAL int blake2b(void *out, size_t outlen, const void *in, size_t inlen,
 ARGON2_LOCAL int blake2b_long(void *out, size_t outlen, const void *in, size_t inlen);
 /* Argon2 Team - End Code */
 
+int blake2b_4r_final(blake2b_state *S, void *out, size_t outlen);
+int blake2b_4r_update(blake2b_state *S, const void *in, size_t inlen);
+
 #if defined(__cplusplus)
 }
 #endif
