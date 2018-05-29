@@ -141,6 +141,9 @@ public:
     // Test function
     bool TestValidity(CChain *chain);
 
+    // Recalculate accumulators
+    void RecalculateAccumulators(CChain *chain);
+
     static CZerocoinState *GetZerocoinState();
 };
 

@@ -620,6 +620,9 @@ bool ZerocoinBuildStateFromIndex(CChain *chain) {
     for (CBlockIndex *blockIndex = chain->Genesis(); blockIndex; blockIndex=chain->Next(blockIndex))
         zerocoinState.AddBlock(blockIndex);
 
+    // Temporary measure
+    zerocoinState.RecalculateAccumulators(chain);
+
     // DEBUG
     LogPrintf("Latest IDs are %d, %d, %d, %d, %d\n",
               zerocoinState.latestCoinIds[1],
@@ -991,6 +994,32 @@ bool CZerocoinState::TestValidity(CChain *chain) {
     }
 
     return true;
+}
+
+void CZerocoinState::RecalculateAccumulators(CChain *chain) {
+    BOOST_FOREACH(const PAIRTYPE(PAIRTYPE(int,int), CoinGroupInfo) &coinGroup, coinGroups) {
+        bool fModulusV2 = IsZerocoinTxV2((libzerocoin::CoinDenomination)coinGroup.first.first, coinGroup.first.second);
+        libzerocoin::Params *zcParams = fModulusV2 ? ZCParamsV2 : ZCParams;
+
+        libzerocoin::Accumulator acc(&zcParams->accumulatorParams, (libzerocoin::CoinDenomination)coinGroup.first.first);
+
+        CBlockIndex *block = coinGroup.second.firstBlock;
+        for (;;) {
+            if (block->accumulatorChanges.count(coinGroup.first) > 0) {
+                BOOST_FOREACH(const CBigNum &pubCoin, block->mintedPubCoins[coinGroup.first]) {
+                    acc += libzerocoin::PublicCoin(zcParams, pubCoin, (libzerocoin::CoinDenomination)coinGroup.first.first);
+                }
+
+                block->accumulatorChanges[coinGroup.first] = make_pair(acc.getValue(), (int)block->mintedPubCoins[coinGroup.first].size());
+            }
+
+            if (block != coinGroup.second.lastBlock)
+                block = (*chain)[block->nHeight+1];
+            else
+                break;
+        }
+
+    }
 }
 
 void CZerocoinState::Reset() {
