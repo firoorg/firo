@@ -358,7 +358,11 @@ libbitcoin_consensus_a_SOURCES = \
   crypto/MerkleTreeProof/blake2/blake2.h \
   crypto/MerkleTreeProof/blake2/blamka-round-opt.h \
   crypto/MerkleTreeProof/blake2/blake2-impl.h \
-  crypto/MerkleTreeProof/blake2/blamka-round-ref.h
+  crypto/MerkleTreeProof/blake2/blamka-round-ref.h \
+  crypto/MerkleTreeProof/thread.c \
+  crypto/MerkleTreeProof/core.c \
+  crypto/MerkleTreeProof/ref.c \
+  crypto/MerkleTreeProof/blake2/blake2b.c
 
 # common: shared between zcoind, and zcoin-qt and non-server tools
 libbitcoin_common_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
@@ -432,10 +436,6 @@ libbitcoin_util_a_SOURCES = \
   libzerocoin/Zerocoin.h \
   crypto/MerkleTreeProof/mtp.cpp \
   crypto/MerkleTreeProof/merkle-tree.cpp \
-  crypto/MerkleTreeProof/thread.c \
-  crypto/MerkleTreeProof/core.c \
-  crypto/MerkleTreeProof/ref.c \
-  crypto/MerkleTreeProof/blake2/blake2b.c \
   $(BITCOIN_CORE_H)
 
 if GLIBC_BACK_COMPAT
