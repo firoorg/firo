@@ -221,6 +221,65 @@ static void blake2b_compress(blake2b_state *S, const uint8_t *block) {
 #undef ROUND
 }
 
+static void blake2b_4r_compress(blake2b_state *S, const uint8_t *block) {
+    uint64_t m[16];
+    uint64_t v[16];
+    unsigned int i, r;
+
+    for (i = 0; i < 16; ++i) {
+        m[i] = load64(block + i * sizeof(m[i]));
+    }
+
+    for (i = 0; i < 8; ++i) {
+        v[i] = S->h[i];
+    }
+
+    v[8] = blake2b_IV[0];
+    v[9] = blake2b_IV[1];
+    v[10] = blake2b_IV[2];
+    v[11] = blake2b_IV[3];
+    v[12] = blake2b_IV[4] ^ S->t[0];
+    v[13] = blake2b_IV[5] ^ S->t[1];
+    v[14] = blake2b_IV[6] ^ S->f[0];
+    v[15] = blake2b_IV[7] ^ S->f[1];
+
+#define G(r, i, a, b, c, d)                                                    \
+    do {                                                                       \
+        a = a + b + m[blake2b_sigma[r][2 * i + 0]];                            \
+        d = rotr64(d ^ a, 32);                                                 \
+        c = c + d;                                                             \
+        b = rotr64(b ^ c, 24);                                                 \
+        a = a + b + m[blake2b_sigma[r][2 * i + 1]];                            \
+        d = rotr64(d ^ a, 16);                                                 \
+        c = c + d;                                                             \
+        b = rotr64(b ^ c, 63);                                                 \
+    } while ((void)0, 0)
+
+#define ROUND(r)                                                               \
+    do {                                                                       \
+        G(r, 0, v[0], v[4], v[8], v[12]);                                      \
+        G(r, 1, v[1], v[5], v[9], v[13]);                                      \
+        G(r, 2, v[2], v[6], v[10], v[14]);                                     \
+        G(r, 3, v[3], v[7], v[11], v[15]);                                     \
+        G(r, 4, v[0], v[5], v[10], v[15]);                                     \
+        G(r, 5, v[1], v[6], v[11], v[12]);                                     \
+        G(r, 6, v[2], v[7], v[8], v[13]);                                      \
+        G(r, 7, v[3], v[4], v[9], v[14]);                                      \
+    } while ((void)0, 0)
+
+    for (r = 0; r < 4; ++r) {
+        ROUND(r);
+    }
+
+    for (i = 0; i < 8; ++i) {
+        S->h[i] = S->h[i] ^ v[i] ^ v[i + 8];
+    }
+
+#undef G
+#undef ROUND
+}
+
+
 int blake2b_update(blake2b_state *S, const void *in, size_t inlen) {
     const uint8_t *pin = (const uint8_t *)in;
 
@@ -261,6 +320,47 @@ int blake2b_update(blake2b_state *S, const void *in, size_t inlen) {
     return 0;
 }
 
+int blake2b_4r_update(blake2b_state *S, const void *in, size_t inlen) {
+    const uint8_t *pin = (const uint8_t *)in;
+
+    if (inlen == 0) {
+        return 0;
+    }
+
+    /* Sanity check */
+    if (S == NULL || in == NULL) {
+        return -1;
+    }
+
+    /* Is this a reused state? */
+    if (S->f[0] != 0) {
+        return -1;
+    }
+
+    if (S->buflen + inlen > BLAKE2B_BLOCKBYTES) {
+        /* Complete current block */
+        size_t left = S->buflen;
+        size_t fill = BLAKE2B_BLOCKBYTES - left;
+        memcpy(&S->buf[left], pin, fill);
+        blake2b_increment_counter(S, BLAKE2B_BLOCKBYTES);
+        blake2b_4r_compress(S, S->buf);
+        S->buflen = 0;
+        inlen -= fill;
+        pin += fill;
+        /* Avoid buffer copies when possible */
+        while (inlen > BLAKE2B_BLOCKBYTES) {
+            blake2b_increment_counter(S, BLAKE2B_BLOCKBYTES);
+            blake2b_4r_compress(S, pin);
+            inlen -= BLAKE2B_BLOCKBYTES;
+            pin += BLAKE2B_BLOCKBYTES;
+        }
+    }
+    memcpy(&S->buf[S->buflen], pin, inlen);
+    S->buflen += (unsigned int)inlen;
+    return 0;
+}
+
+
 int blake2b_final(blake2b_state *S, void *out, size_t outlen) {
     uint8_t buffer[BLAKE2B_OUTBYTES] = {0};
     unsigned int i;
@@ -290,6 +390,37 @@ int blake2b_final(blake2b_state *S, void *out, size_t outlen) {
     clear_internal_memory(S->h, sizeof(S->h));
     return 0;
 }
+
+int blake2b_4r_final(blake2b_state *S, void *out, size_t outlen) {
+    uint8_t buffer[BLAKE2B_OUTBYTES] = { 0 };
+    unsigned int i;
+
+    /* Sanity checks */
+    if (S == NULL || out == NULL || outlen < S->outlen) {
+        return -1;
+    }
+
+    /* Is this a reused state? */
+    if (S->f[0] != 0) {
+        return -1;
+    }
+
+    blake2b_increment_counter(S, S->buflen);
+    blake2b_set_lastblock(S);
+    memset(&S->buf[S->buflen], 0, BLAKE2B_BLOCKBYTES - S->buflen); /* Padding */
+    blake2b_4r_compress(S, S->buf);
+
+    for (i = 0; i < 8; ++i) { /* Output full hash to temp buffer */
+        store64(buffer + sizeof(S->h[i]) * i, S->h[i]);
+    }
+
+    memcpy(out, buffer, S->outlen);
+    clear_internal_memory(buffer, sizeof(buffer));
+    clear_internal_memory(S->buf, sizeof(S->buf));
+    clear_internal_memory(S->h, sizeof(S->h));
+    return 0;
+}
+
 
 int blake2b(void *out, size_t outlen, const void *in, size_t inlen,
             const void *key, size_t keylen) {

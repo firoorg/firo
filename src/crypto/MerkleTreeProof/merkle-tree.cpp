@@ -59,10 +59,10 @@ MerkleTree::Buffer MerkleTree::hash(const Buffer& data)
     blake2b_state state;
     blake2b_init(&state, MERKLE_TREE_ELEMENT_SIZE_B);
     for (Buffer::const_iterator it = data.begin(); it != data.end(); ++it) {
-        blake2b_update(&state, &(*it), sizeof(*it));
+        blake2b_4r_update(&state, &(*it), sizeof(*it));
     }
     uint8_t digest[MERKLE_TREE_ELEMENT_SIZE_B];
-    blake2b_final(&state, digest, sizeof(digest));
+    blake2b_4r_final(&state, digest, sizeof(digest));
     return Buffer(digest, digest + sizeof(digest));
 }
 
