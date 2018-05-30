@@ -4749,7 +4749,14 @@ bool static LoadBlockIndexDB() {
     chainActive.SetTip(it->second);
 
     PruneBlockIndexCandidates();
-    ZerocoinBuildStateFromIndex(&chainActive);
+
+    // some blocks in index can change as a result of ZerocoinBuildStateFromIndex() call
+    set<CBlockIndex *> changes;
+    ZerocoinBuildStateFromIndex(&chainActive, changes);
+    if (!changes.empty()) {
+        setDirtyBlockIndex.insert(changes.begin(), changes.end());
+        FlushStateToDisk();
+    }
 
     LogPrintf("%s: hashBestChain=%s height=%d date=%s progress=%f\n", __func__,
               chainActive.Tip()->GetBlockHash().ToString(), chainActive.Height(),

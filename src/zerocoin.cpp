@@ -615,13 +615,12 @@ int ZerocoinGetNHeight(const CBlockHeader &block) {
 }
 
 
-bool ZerocoinBuildStateFromIndex(CChain *chain) {
+bool ZerocoinBuildStateFromIndex(CChain *chain, set<CBlockIndex *> &changes) {
     zerocoinState.Reset();
     for (CBlockIndex *blockIndex = chain->Genesis(); blockIndex; blockIndex=chain->Next(blockIndex))
         zerocoinState.AddBlock(blockIndex);
 
-    // Temporary measure
-    zerocoinState.RecalculateAccumulators(chain);
+    changes = zerocoinState.RecalculateAccumulators(chain);
 
     // DEBUG
     LogPrintf("Latest IDs are %d, %d, %d, %d, %d\n",
@@ -996,21 +995,36 @@ bool CZerocoinState::TestValidity(CChain *chain) {
     return true;
 }
 
-void CZerocoinState::RecalculateAccumulators(CChain *chain) {
+set<CBlockIndex *> CZerocoinState::RecalculateAccumulators(CChain *chain) {
+    set<CBlockIndex *> changes;
+
     BOOST_FOREACH(const PAIRTYPE(PAIRTYPE(int,int), CoinGroupInfo) &coinGroup, coinGroups) {
-        bool fModulusV2 = IsZerocoinTxV2((libzerocoin::CoinDenomination)coinGroup.first.first, coinGroup.first.second);
-        libzerocoin::Params *zcParams = fModulusV2 ? ZCParamsV2 : ZCParams;
+        // Skip non-modulusv2 groups
+        if (!IsZerocoinTxV2((libzerocoin::CoinDenomination)coinGroup.first.first, coinGroup.first.second))
+            continue;
 
-        libzerocoin::Accumulator acc(&zcParams->accumulatorParams, (libzerocoin::CoinDenomination)coinGroup.first.first);
+        libzerocoin::Accumulator acc(&ZCParamsV2->accumulatorParams, (libzerocoin::CoinDenomination)coinGroup.first.first);
 
+        // Try to calculate accumulator for the first batch of mints. If it doesn't match we need to recalculate the rest of it
         CBlockIndex *block = coinGroup.second.firstBlock;
         for (;;) {
             if (block->accumulatorChanges.count(coinGroup.first) > 0) {
                 BOOST_FOREACH(const CBigNum &pubCoin, block->mintedPubCoins[coinGroup.first]) {
-                    acc += libzerocoin::PublicCoin(zcParams, pubCoin, (libzerocoin::CoinDenomination)coinGroup.first.first);
+                    acc += libzerocoin::PublicCoin(ZCParamsV2, pubCoin, (libzerocoin::CoinDenomination)coinGroup.first.first);
+                }
+
+                // First block case is special: do the check
+                if (block == coinGroup.second.firstBlock) {
+                    if (acc.getValue() != block->accumulatorChanges[coinGroup.first].first)
+                        // recalculation is needed
+                        LogPrintf("ZerocoinState: accumulator recalculation for denomination=%d, id=%d\n", coinGroup.first.first, coinGroup.first.second);
+                    else
+                        // everything's ok
+                        break;
                 }
 
                 block->accumulatorChanges[coinGroup.first] = make_pair(acc.getValue(), (int)block->mintedPubCoins[coinGroup.first].size());
+                changes.insert(block);
             }
 
             if (block != coinGroup.second.lastBlock)
@@ -1018,8 +1032,9 @@ void CZerocoinState::RecalculateAccumulators(CChain *chain) {
             else
                 break;
         }
-
     }
+
+    return changes;
 }
 
 void CZerocoinState::Reset() {
