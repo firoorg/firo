@@ -431,10 +431,9 @@ bool mtp_verify(const char* input, const uint32_t target,
 		store_block(&blockhash_prev_bytes, &blockhash_prev);
 		blake2b_state state_prev;
 		blake2b_init(&state_prev, MERKLE_TREE_ELEMENT_SIZE_B);
-		blake2b_update(&state_prev, blockhash_prev_bytes,
-				ARGON2_BLOCK_SIZE);
+		blake2b_4r_update(&state_prev, blockhash_prev_bytes, ARGON2_BLOCK_SIZE);
 		uint8_t digest_prev[MERKLE_TREE_ELEMENT_SIZE_B];
-		blake2b_final(&state_prev, digest_prev, sizeof(digest_prev));
+		blake2b_4r_final(&state_prev, digest_prev, sizeof(digest_prev));
 		MerkleTree::Buffer hash_prev = MerkleTree::Buffer(digest_prev,
 				digest_prev + sizeof(digest_prev));
 		clear_internal_memory(blockhash_prev.v, ARGON2_BLOCK_SIZE);
@@ -479,10 +478,9 @@ bool mtp_verify(const char* input, const uint32_t target,
 		store_block(&blockhash_ref_bytes, &blockhash_ref);
 		blake2b_state state_ref;
 		blake2b_init(&state_ref, MERKLE_TREE_ELEMENT_SIZE_B);
-		blake2b_update(&state_ref, blockhash_ref_bytes,
-				ARGON2_BLOCK_SIZE);
+		blake2b_4r_update(&state_ref, blockhash_ref_bytes, ARGON2_BLOCK_SIZE);
 		uint8_t digest_ref[MERKLE_TREE_ELEMENT_SIZE_B];
-		blake2b_final(&state_ref, digest_ref, sizeof(digest_ref));
+		blake2b_4r_final(&state_ref, digest_ref, sizeof(digest_ref));
 		MerkleTree::Buffer hash_ref = MerkleTree::Buffer(digest_ref,
 				digest_ref + sizeof(digest_ref));
 		clear_internal_memory(blockhash_ref.v, ARGON2_BLOCK_SIZE);
@@ -528,9 +526,9 @@ bool mtp_verify(const char* input, const uint32_t target,
 		store_block(&blockhash_ij_bytes, &blockhash_ij);
 		blake2b_state state_ij;
 		blake2b_init(&state_ij, MERKLE_TREE_ELEMENT_SIZE_B);
-		blake2b_update(&state_ij, blockhash_ij_bytes, ARGON2_BLOCK_SIZE);
+		blake2b_4r_update(&state_ij, blockhash_ij_bytes, ARGON2_BLOCK_SIZE);
 		uint8_t digest_ij[MERKLE_TREE_ELEMENT_SIZE_B];
-		blake2b_final(&state_ij, digest_ij, sizeof(digest_ij));
+		blake2b_4r_final(&state_ij, digest_ij, sizeof(digest_ij));
 		MerkleTree::Buffer hash_ij = MerkleTree::Buffer(digest_ij,
 				digest_ij + sizeof(digest_ij));
 		clear_internal_memory(blockhash_ij.v, ARGON2_BLOCK_SIZE);
