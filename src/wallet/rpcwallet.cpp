@@ -2727,11 +2727,18 @@ UniValue mintzerocoin(const UniValue& params, bool fHelp)
 
 UniValue spendzerocoin(const UniValue& params, bool fHelp) {
 
-    if (fHelp || params.size() > 1)
+    if (fHelp || params.size() < 1 || params.size() > 2)
         throw runtime_error(
-                "spendzerocoin <amount>(1,10,25,50,100)\n"
-                + HelpRequiringPassphrase());
+                "spendzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n"
+                + HelpRequiringPassphrase() +
+				"\nArguments:\n"
+				"1. \"amount\"      (numeric or string, required) The amount in " + CURRENCY_UNIT + " to send. currently options are following 1, 10, 25, 50 and 100 only\n"
+				"2. \"zcoinaddress\"  (string, optional) The zcoin address to send to third party.\n"
+				"\nExamples:\n"
+				            + HelpExampleCli("spendzerocoin", "10 \"a1kCCGddf5pMXSipLVD9hBG2MGGVNaJ15U\"")
+        );
 
+    LOCK2(cs_main, pwalletMain->cs_wallet);
 
     int64_t nAmount = 0;
     libzerocoin::CoinDenomination denomination;
@@ -2753,13 +2760,20 @@ UniValue spendzerocoin(const UniValue& params, bool fHelp) {
         nAmount = AmountFromValue(params[0]);
     } else {
         throw runtime_error(
-                "spendzerocoin <amount>(1,10,25,50,100)\n");
+                "spendzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n");
     }
 
+    CBitcoinAddress address;
+    string thirdPartyaddress = "";
+    if (params.size() > 1){
+    	// Address
+    	thirdPartyaddress = params[1].get_str();
+    	address = CBitcoinAddress(params[1].get_str());
+		 if (!address.IsValid())
+			 throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Zcoin address");
+    }
 
-    if (pwalletMain->IsLocked())
-        throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED,
-                           "Error: Please enter the wallet passphrase with walletpassphrase first.");
+    EnsureWalletIsUnlocked();
 
     // Wallet comments
     CWalletTx wtx;
@@ -2768,7 +2782,7 @@ UniValue spendzerocoin(const UniValue& params, bool fHelp) {
     CBigNum zcSelectedValue;
     bool zcSelectedIsUsed;
 
-    string strError = pwalletMain->SpendZerocoin(nAmount, denomination, wtx, coinSerial, txHash, zcSelectedValue,
+    string strError = pwalletMain->SpendZerocoin(thirdPartyaddress, nAmount, denomination, wtx, coinSerial, txHash, zcSelectedValue,
                                                  zcSelectedIsUsed);
 
     if (strError != "")
