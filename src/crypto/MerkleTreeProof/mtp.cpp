@@ -14,7 +14,7 @@ extern void clear_internal_memory(void *v, size_t n);
 
 const int8_t L = 72;
 const unsigned t_cost = 1;
-const unsigned m_cost = 1024 * 4;
+const unsigned m_cost = 1024 * 1024 * 4;
 const unsigned lanes = 4;
 
 
