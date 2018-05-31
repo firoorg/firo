@@ -1139,6 +1139,9 @@ BEGIN:
 
 			LogPrintf("RETURN mtp_hash\n");
 
+			LogPrintf("FREE memory\n");
+			free_memory(&context, (uint8_t *)instance.memory, instance.memory_blocks, sizeof(block));
+
 			return ;
 
 		}
