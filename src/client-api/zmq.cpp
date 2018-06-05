@@ -2,6 +2,7 @@
 #include "config/bitcoin-config.h"
 #endif
 
+#include "json.hpp"
 #include "client-api/zmq.h"
 #include "client-api/server.h"
 #include "zmq/zmqpublishnotifier.h"
@@ -22,6 +23,8 @@
 
 #include <univalue.h>
 //import rpc methods. or use the table?
+
+using json = nlohmann::json;
 
 
 static const char DEFAULT_RPCCONNECT[] = "127.0.0.1";
@@ -191,6 +194,7 @@ std::string parseInputs(std::vector<std::string> args)
    int nRet = 0;
    try {
        std::string strMethod = args[0];
+       //LogPrintf("strMethod: " + strMethod.c_str() + "\n");
        UniValue params = RPCConvertValues(strMethod, std::vector<std::string>(args.begin()+1, args.end()));
 
        // Execute and handle connection failures with -rpcwait
@@ -205,7 +209,7 @@ std::string parseInputs(std::vector<std::string> args)
 
                if (!error.isNull()) {
                    // Error
-                   LogPrintf("ZMQ: errored.");
+                   LogPrintf("ZMQ: errored.\n");
                    int code = error["code"].get_int();
                    if (fWait && code == RPC_IN_WARMUP)
                        throw CConnectionFailed("server in warmup");
@@ -301,7 +305,7 @@ static void* REQREP_ZMQ(void *arg)
 
         char* request_chars = (char*) malloc (rc + 1);
 
-        LogPrintf("ZMQ: Received message part.\n");
+        LogPrintf("ZMQ: Received message request.\n");
         LogPrintf("ZMQ: Part: %s\n", request_chars); 
 
         //create convert request in (char*)
@@ -311,11 +315,29 @@ static void* REQREP_ZMQ(void *arg)
 
         /* delimit request by SPACE: first arg is command followed by n arguments. */
         string request_str(request_chars);
-        istringstream iss(request_str);
-        std::vector<std::string> tokens{istream_iterator<string>{iss}, istream_iterator<string>{}};
+
+        auto request_json = json::parse(request_str);
+
+        // if payload is an object (ie. it is a JSON argument itself) take 'payload' as a single arg into the vector, and pass along with command name.
+        // if payload is an array of arguments, cycle through 'payload' args and store in vector.
+
+        std::vector<std::string> request_vector;
+        request_vector.push_back(request_json["type"]);
+
+        if(request_json["payload"].is_object()){
+          LogPrintf("zmq: payload is JSON.\n");
+          std::string payload = request_json["payload"].dump();
+          request_vector.push_back(payload.c_str());            
+        }
+        else {
+          LogPrintf("zmq: payload is list.\n");
+          for (auto& element : request_json["payload"]) {
+            request_vector.push_back(element);            
+          }
+        }
 
         /* execute RPC command */
-        std::string reply_str = parseInputs(tokens);
+        std::string reply_str = parseInputs(request_vector);
         
         /* Send reply */
         zmq_msg_t reply;
@@ -345,18 +367,16 @@ bool StartREQREPZMQ()
     zmqpsocket = zmq_socket(zmqpcontext,ZMQ_REP);
     if(!zmqpsocket){
         LogPrintf("ZMQ: Failed to create socket\n");
-        //zmqError("Failed to create socket");
         return false;
     }
 
-    int rc = zmq_bind(zmqpsocket, "tcp://*:5556");
-    LogPrintf("ZMQ: Bound socket\n");
+    int rc = zmq_bind(zmqpsocket, "tcp://*:5557");
     if (rc == -1)
     {
-        LogPrintf("ZMQ: Unable to send ZMQ msg");
+        LogPrintf("ZMQ: Unable to send ZMQ msg\n");
         return false;
     }
-
+    LogPrintf("ZMQ: Bound socket\n");
     //pthread_mutex_init(&mxq,NULL);
     //pthread_mutex_lock(&mxq);
     //create worker & run a thread 
