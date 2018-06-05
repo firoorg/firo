@@ -313,7 +313,6 @@ static void* REQREP_ZMQ(void *arg)
         zmq_msg_close(&request);
         request_chars[rc]=0;
 
-        /* delimit request by SPACE: first arg is command followed by n arguments. */
         string request_str(request_chars);
 
         auto request_json = json::parse(request_str);
@@ -325,12 +324,10 @@ static void* REQREP_ZMQ(void *arg)
         request_vector.push_back(request_json["type"]);
 
         if(request_json["payload"].is_object()){
-          LogPrintf("zmq: payload is JSON.\n");
           std::string payload = request_json["payload"].dump();
           request_vector.push_back(payload.c_str());            
         }
         else {
-          LogPrintf("zmq: payload is list.\n");
           for (auto& element : request_json["payload"]) {
             request_vector.push_back(element);            
           }
