@@ -1,5 +1,24 @@
 #include "mtp.h"
 #include "util.h"
+#include "arith_uint256.h"
+
+extern "C" {
+#include "blake2/blake2.h"
+#include "blake2/blake2-impl.h"
+#include "blake2/blamka-round-ref.h"
+#include "core.h"
+#include "ref.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+}
+
+#include <iostream>
+#include <sstream>
+#include <iomanip>
+#include "merkle-tree.hpp"
+#include <boost/multiprecision/cpp_int.hpp>
+#include <boost/numeric/conversion/cast.hpp>
 
 using namespace std;
 using namespace boost::multiprecision;
