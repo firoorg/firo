@@ -188,10 +188,11 @@ UniValue CallRPC(const string& strMethod, const UniValue& params)
     return reply;
 }
 
-std::string parseInputs(std::vector<std::string> args)
+std::string get_reply(std::vector<std::string> args)
 {
    string strPrint;
    int nRet = 0;
+   json j;
    try {
        std::string strMethod = args[0];
        //LogPrintf("strMethod: " + strMethod.c_str() + "\n");
@@ -209,6 +210,8 @@ std::string parseInputs(std::vector<std::string> args)
 
                if (!error.isNull()) {
                    // Error
+                   j["errors"] = nullptr;
+                   j["errors"]["status"] = 400;
                    LogPrintf("ZMQ: errored.\n");
                    int code = error["code"].get_int();
                    if (fWait && code == RPC_IN_WARMUP)
@@ -219,6 +222,8 @@ std::string parseInputs(std::vector<std::string> args)
                    {
                        UniValue errCode = find_value(error, "code");
                        UniValue errMsg  = find_value(error, "message");
+                       j["errors"]["code"] = errCode.getValStr();
+                       j["errors"]["message"] = errMsg.getValStr();
                        strPrint = errCode.isNull() ? "" : "error code: "+errCode.getValStr()+"\n";
 
                        if (errMsg.isStr())
@@ -226,6 +231,8 @@ std::string parseInputs(std::vector<std::string> args)
                    }
                } else {
                    // Result
+                   j["meta"] = nullptr;
+                   j["meta"]["status"] = 200;
                    if (result.isNull())
                        strPrint = "";
                    else if (result.isStr())
@@ -233,6 +240,7 @@ std::string parseInputs(std::vector<std::string> args)
                    else
                        strPrint = result.write(2);
                    LogPrintf("ZMQ: result: %s", strPrint.c_str());
+                   j["data"] = strPrint.c_str();
                }
                // Connection succeeded, no need to retry.
                break;
@@ -257,11 +265,43 @@ std::string parseInputs(std::vector<std::string> args)
        throw;
    }
 
-   //print result
-   if (strPrint != "") {
-       fprintf((nRet == 0 ? stdout : stderr), "%s\n", strPrint.c_str());
-   }
-   return strPrint;
+   return j.dump();
+}
+
+
+std::vector<std::string> parse_request(string request_str){
+
+    auto request_json = json::parse(request_str);
+
+    // if payload is an object (ie. it is a JSON argument itself):
+    //    take 'payload' as a single arg into the vector, and pass along with command name.
+    // if payload is an array of arguments, cycle through 'payload' args and store in vector.
+
+    std::vector<std::string> request_vector;
+    request_vector.push_back(request_json["type"]);
+
+    if(request_json["payload"].is_object()){
+      std::string payload = request_json["payload"].dump();
+      request_vector.push_back(payload.c_str());            
+    }
+    else {
+      for (auto& element : request_json["payload"]) {
+        request_vector.push_back(element);            
+      }
+    }
+
+    return request_vector;
+}
+
+std::vector<std::string> parse_response(string response_str){
+
+    //response errored.
+    json j;
+
+    if(response_str.find("error code:")!= string::npos){
+
+    }
+
 }
 
 
@@ -315,26 +355,11 @@ static void* REQREP_ZMQ(void *arg)
 
         string request_str(request_chars);
 
-        auto request_json = json::parse(request_str);
+        /* convert input request to a vector of arguments */
+        std::vector<std::string> request_vector = parse_request(request_str);
 
-        // if payload is an object (ie. it is a JSON argument itself) take 'payload' as a single arg into the vector, and pass along with command name.
-        // if payload is an array of arguments, cycle through 'payload' args and store in vector.
-
-        std::vector<std::string> request_vector;
-        request_vector.push_back(request_json["type"]);
-
-        if(request_json["payload"].is_object()){
-          std::string payload = request_json["payload"].dump();
-          request_vector.push_back(payload.c_str());            
-        }
-        else {
-          for (auto& element : request_json["payload"]) {
-            request_vector.push_back(element);            
-          }
-        }
-
-        /* execute RPC command */
-        std::string reply_str = parseInputs(request_vector);
+        /* Execute command and get reply */
+        std::string reply_str = get_reply(request_vector);
         
         /* Send reply */
         zmq_msg_t reply;
