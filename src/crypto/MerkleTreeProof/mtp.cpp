@@ -160,9 +160,6 @@ void getblockindex(uint32_t ij, argon2_instance_t *instance, uint32_t *out_ij_pr
 	uint32_t Slice = (ij - (Lane * instance->lane_length)) / instance->segment_length;
 	uint32_t posIndex = ij - Lane * instance->lane_length - Slice * instance->segment_length;
 
-
-	uint32_t rec_ij = Slice*instance->segment_length + Lane *instance->lane_length + (ij % instance->segment_length);
-
 	if (Slice == 0)
 		ref_lane = Lane;
 
@@ -226,15 +223,11 @@ bool mtp_verify(const char* input, const uint32_t target,
 	unsigned char out[TEST_OUTLEN];
 	unsigned char pwd[TEST_PWDLEN];
 	unsigned char salt[TEST_SALTLEN];
-	unsigned char secret[TEST_SECRETLEN];
-	unsigned char ad[TEST_ADLEN];
 	const allocate_fptr myown_allocator = NULL;
 	const deallocate_fptr myown_deallocator = NULL;
 
 	memset(pwd, 0, TEST_PWDLEN);
 	memset(salt, 0, TEST_SALTLEN);
-	//memset(secret, 3, TEST_SECRETLEN);
-	//memset(ad, 4, TEST_ADLEN);
 	memcpy(pwd, input, TEST_PWDLEN);
 	memcpy(salt, input, TEST_SALTLEN);
 
@@ -390,9 +383,6 @@ bool mtp_verify(const char* input, const uint32_t target,
 		uint32_t Slice = (ij - (Lane * lane_length)) / segment_length;
 		uint32_t posIndex = ij - Lane * lane_length - Slice * segment_length;
 
-
-		uint32_t rec_ij = Slice*segment_length + Lane *lane_length + (ij % segment_length);
-
 		if (Slice == 0)
 			ref_lane = Lane;
 
@@ -530,8 +520,6 @@ BEGIN:
 	unsigned char out[TEST_OUTLEN];
 	unsigned char pwd[TEST_PWDLEN];
 	unsigned char salt[TEST_SALTLEN];
-	unsigned char secret[TEST_SECRETLEN];
-	unsigned char ad[TEST_ADLEN];
 	const allocate_fptr myown_allocator = NULL;
 	const deallocate_fptr myown_deallocator = NULL;
 
@@ -596,24 +584,21 @@ BEGIN:
 
 	// step 2
 	MerkleTree::Elements elements;
-	if (&instance != NULL) {
-
-		for (long int i = 0; i < instance.memory_blocks; ++i) {
-			block blockhash;
-			uint8_t blockhash_bytes[ARGON2_BLOCK_SIZE];
-			copy_block(&blockhash, &instance.memory[i]);
-			store_block(&blockhash_bytes, &blockhash);
-			blake2b_state state;
-			blake2b_init(&state, MERKLE_TREE_ELEMENT_SIZE_B);
-			blake2b_4r_update(&state, blockhash_bytes, ARGON2_BLOCK_SIZE);
-			uint8_t digest[MERKLE_TREE_ELEMENT_SIZE_B];
-			blake2b_4r_final(&state, digest, sizeof(digest));
-			MerkleTree::Buffer hash_digest = MerkleTree::Buffer(digest, digest + sizeof(digest));
-			elements.push_back(hash_digest);
-			clear_internal_memory(blockhash.v, ARGON2_BLOCK_SIZE);
-			clear_internal_memory(blockhash_bytes, ARGON2_BLOCK_SIZE);
-		}
-	}
+    for (long int i = 0; i < instance.memory_blocks; ++i) {
+        block blockhash;
+        uint8_t blockhash_bytes[ARGON2_BLOCK_SIZE];
+        copy_block(&blockhash, &instance.memory[i]);
+        store_block(&blockhash_bytes, &blockhash);
+        blake2b_state state;
+        blake2b_init(&state, MERKLE_TREE_ELEMENT_SIZE_B);
+        blake2b_4r_update(&state, blockhash_bytes, ARGON2_BLOCK_SIZE);
+        uint8_t digest[MERKLE_TREE_ELEMENT_SIZE_B];
+        blake2b_4r_final(&state, digest, sizeof(digest));
+        MerkleTree::Buffer hash_digest = MerkleTree::Buffer(digest, digest + sizeof(digest));
+        elements.push_back(hash_digest);
+        clear_internal_memory(blockhash.v, ARGON2_BLOCK_SIZE);
+        clear_internal_memory(blockhash_bytes, ARGON2_BLOCK_SIZE);
+    }
 
 	MerkleTree ordered_tree(elements, true);
 	MerkleTree::Buffer root = ordered_tree.getRoot();
@@ -647,7 +632,6 @@ BEGIN:
 
 		// step 5
 		bool init_blocks = false;
-		bool unmatch_block = false;
 		for (uint32_t j = 1; j <= L; j++) {
 			string s = "0x" + Y[j - 1].GetHex();
 			uint256_t t(s);
