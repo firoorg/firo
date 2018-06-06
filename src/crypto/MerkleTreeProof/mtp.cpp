@@ -212,16 +212,6 @@ bool mtp_verify(const char* input, const uint32_t target,
 		}
 		LogPrintf("\n");
 	}
-	/*LogPrintf("pblock->nProofMTP: \n");
-	for (int i = 0; i < 72 * 3; i++) {
-		std::ostringstream oss;
-			oss << "0x";
-			for (MerkleTree::Buffer::const_iterator it = proof_blocks[i].begin(); it != proof_blocks[i].end();
-					++it) {
-				oss << std::hex << std::setw(2) << std::setfill('0') << (int) *it;
-			}
-		LogPrintf("%s = %s\n", i ,oss.str());
-	}*/
 
 #define TEST_OUTLEN 32
 #define TEST_PWDLEN 80
@@ -303,9 +293,6 @@ bool mtp_verify(const char* input, const uint32_t target,
 	uint256 Y[L + 1];
 
 	memset(&Y[0], 0, sizeof(Y));
-	//unsigned int nNonceInternal = *nNonce;
-	//unsigned char x[80];
-	//memcpy(&x, &input, sizeof(unsigned char)*80);
 
 	blake2b_state state_y0;
 	blake2b_init(&state_y0, 32); // 256 bit
@@ -316,76 +303,6 @@ bool mtp_verify(const char* input, const uint32_t target,
 
 
 	LogPrintf("Y[0] = %s\n", Y[0].ToString());
-
-	/*memset(&Y[0], 0, sizeof(Y));
-	blake2b_state state_y1;
-	blake2b_init(&state_y1, 32); // 256 bit
-	blake2b_update(&state_y1, &input, 80);
-	blake2b_update(&state_y1, &hashRootMTP, MERKLE_TREE_ELEMENT_SIZE_B);
-	blake2b_update(&state_y1, nNonce, sizeof(unsigned int));
-	blake2b_final(&state_y1, &Y[0], sizeof(uint256));
-
-	LogPrintf("Y[1] = %s\n", Y[0].ToString());
-
-	memset(&Y[0], 0, sizeof(Y));
-	blake2b_state state_y2;
-	blake2b_init(&state_y2, 32); // 256 bit
-	blake2b_update(&state_y2, &input, 80);
-	blake2b_update(&state_y2, hashRootMTP, MERKLE_TREE_ELEMENT_SIZE_B);
-	blake2b_update(&state_y2, &nNonce, sizeof(unsigned int));
-	blake2b_final(&state_y2, &Y[0], sizeof(uint256));
-
-	LogPrintf("Y[2] = %s\n", Y[0].ToString());
-
-	memset(&Y[0], 0, sizeof(Y));
-	blake2b_state state_y3;
-	blake2b_init(&state_y3, 32); // 256 bit
-	blake2b_update(&state_y3, &input, 80);
-	blake2b_update(&state_y3, hashRootMTP, MERKLE_TREE_ELEMENT_SIZE_B);
-	blake2b_update(&state_y3, nNonce, sizeof(unsigned int));
-	blake2b_final(&state_y3, &Y[0], sizeof(uint256));
-
-	LogPrintf("Y[3] = %s\n", Y[0].ToString());
-
-
-	///
-
-	memset(&Y[0], 0, sizeof(Y));
-	blake2b_state state_y4;
-	blake2b_init(&state_y4, 32); // 256 bit
-	blake2b_update(&state_y4, input, 80);
-	blake2b_update(&state_y4, &hashRootMTP, MERKLE_TREE_ELEMENT_SIZE_B);
-	blake2b_update(&state_y4, &nNonce, sizeof(unsigned int));
-	blake2b_final(&state_y4, &Y[0], sizeof(uint256));
-
-	LogPrintf("Y[4] = %s\n", Y[0].ToString());
-	memset(&Y[0], 0, sizeof(Y));
-	blake2b_state state_y5;
-	blake2b_init(&state_y5, 32); // 256 bit
-	blake2b_update(&state_y5, input, 80);
-	blake2b_update(&state_y5, &hashRootMTP, MERKLE_TREE_ELEMENT_SIZE_B);
-	blake2b_update(&state_y5, nNonce, sizeof(unsigned int));
-	blake2b_final(&state_y5, &Y[0], sizeof(uint256));
-
-	LogPrintf("Y[5] = %s\n", Y[0].ToString());
-	memset(&Y[0], 0, sizeof(Y));
-	blake2b_state state_y6;
-	blake2b_init(&state_y6, 32); // 256 bit
-	blake2b_update(&state_y6, input, 80);
-	blake2b_update(&state_y6, hashRootMTP, MERKLE_TREE_ELEMENT_SIZE_B);
-	blake2b_update(&state_y6, &nNonce, sizeof(unsigned int));
-	blake2b_final(&state_y6, &Y[0], sizeof(uint256));
-
-	LogPrintf("Y[6] = %s\n", Y[0].ToString());
-	memset(&Y[0], 0, sizeof(Y));
-	blake2b_state state_y7;
-	blake2b_init(&state_y7, 32); // 256 bit
-	blake2b_update(&state_y7, input, 80);
-	blake2b_update(&state_y7, hashRootMTP, MERKLE_TREE_ELEMENT_SIZE_B);
-	blake2b_update(&state_y7, nNonce, sizeof(unsigned int));
-	blake2b_final(&state_y7, &Y[0], sizeof(uint256));
-
-	LogPrintf("Y[7] = %s\n", Y[0].ToString());*/
 
 	LogPrintf("input = \n");
 	for (int i = 0; i < 80; i++) {
@@ -460,8 +377,6 @@ bool mtp_verify(const char* input, const uint32_t target,
 		if(!MerkleTree::checkProofOrdered(proof_blocks[j*3 - 2], root, hash_prev, ij_prev + 1)){
 			LogPrintf("error : checkProofOrdered in x[ij_prev]\n");
 			return false;
-		}else{
-			//LogPrintf("success : checkProofOrdered in x[ij_prev]\n");
 		}
 
 		//hash[ref_index]
@@ -516,27 +431,6 @@ bool mtp_verify(const char* input, const uint32_t target,
 
 		fill_block_mtp(&blocks[j*2 - 2], &blocks[j*2 - 1], &block_ij, 0, computed_ref_block, h0);
 
-		/*printf("\ncurr_block_verify = ");
-		int index = 0;
-		for (index = 0; index < 10; index++) {
-			printf("%016llx",
-					(unsigned long long) block_ij.v[index]);
-		}
-
-		printf("\nprev_block_verify = ");
-		index = 0;
-		for (index = 0; index < 10; index++) {
-			printf("%016llx",
-					(unsigned long long) blocks[j*2 - 2].v[index]);
-		}
-
-		printf("\nref_block_verify = ");
-		index = 0;
-		for (index = 0; index < 10; index++) {
-			printf("%016llx",
-					(unsigned long long) blocks[j*2 - 1].v[index]);
-		}*/
-
 		// verify opening
 		// hash x[ij]
 		block blockhash_ij;
@@ -552,7 +446,6 @@ bool mtp_verify(const char* input, const uint32_t target,
 				digest_ij + sizeof(digest_ij));
 		clear_internal_memory(blockhash_ij.v, ARGON2_BLOCK_SIZE);
 		clear_internal_memory(blockhash_ij_bytes, ARGON2_BLOCK_SIZE);
-		//cout <<endl << "curr_offset = " << ij << " prev_offset = " << ij_prev << " ref_block = " << computed_ref_block << endl;
 		std::ostringstream oss;
 		oss << "hash_ij[" << ij << "] = 0x";
 		for (MerkleTree::Buffer::const_iterator it = hash_ij.begin();
@@ -600,10 +493,6 @@ bool mtp_verify(const char* input, const uint32_t target,
 	if (fNegative || bnTarget == 0 || fOverflow
 			|| bnTarget > UintToArith256(powLimit)
 			|| UintToArith256(Y[L]) > bnTarget) {
-		/*cout << "hashTarget = " << ArithToUint256(bnTarget).GetHex().c_str()
-				<< endl;
-		cout << "Y[L] 		= " << Y[L].GetHex().c_str() << " nNonce = " << *nNonce
-				<< endl;*/
 		return false;
 	} else {
 		LogPrintf("Verified :\n");
@@ -648,8 +537,6 @@ BEGIN:
 
 	memset(pwd, 0, TEST_PWDLEN);
 	memset(salt, 0, TEST_SALTLEN);
-	//memset(secret, 3, TEST_SECRETLEN);
-	//memset(ad, 4, TEST_ADLEN);
 	memcpy(pwd, input, TEST_PWDLEN);
 	memcpy(salt, input, TEST_SALTLEN);
 
@@ -731,13 +618,6 @@ BEGIN:
 	MerkleTree ordered_tree(elements, true);
 	MerkleTree::Buffer root = ordered_tree.getRoot();
 	std::copy(root.begin(), root.end(), hashRootMTP);
-	/*std::ostringstream oss;
-	oss << "0x";
-	for (MerkleTree::Buffer::const_iterator it = root.begin(); it != root.end();
-			++it) {
-		oss << std::hex << std::setw(2) << std::setfill('0') << (int) *it;
-	}
-	cout << oss.str() << endl;*/
 
 	// step 3
 	unsigned int nNonceInternal = 0;
@@ -778,174 +658,78 @@ BEGIN:
 				break;
 			}
 
-			//LogPrintf("Y[j]\n");
 			block blockhash;
-			//LogPrintf("block blockhash\n");
 			uint8_t blockhash_bytes[ARGON2_BLOCK_SIZE];
-			//LogPrintf("uint8_t blockhash_bytes[ARGON2_BLOCK_SIZE];\n");
 			copy_block(&blockhash, &instance.memory[ij]);
-			//LogPrintf("copy_block(&blockhash, &instance.memory[ij]);\n");
 			store_block(&blockhash_bytes, &blockhash);
-			//LogPrintf("store_block(&blockhash_bytes, &blockhash);\n");
 			blake2b_state ctx_yj;
-			//LogPrintf("blake2b_state ctx_yj;\n");
 			blake2b_init(&ctx_yj, 32);
-			//LogPrintf("blake2b_init(&ctx_yj, 32);\n");
 			blake2b_update(&ctx_yj, &Y[j - 1], 32);
-			//LogPrintf("blake2b_update(&ctx_yj, &Y[j - 1], 32);\n");
 			blake2b_update(&ctx_yj, blockhash_bytes, ARGON2_BLOCK_SIZE);
-			//LogPrintf("blake2b_update(&ctx_yj, blockhash_bytes, ARGON2_BLOCK_SIZE);\n");
 			blake2b_final(&ctx_yj, &Y[j], 32);
-			//LogPrintf("blake2b_final(&ctx_yj, &Y[j], 32);\n");
 			clear_internal_memory(blockhash.v, ARGON2_BLOCK_SIZE);
-			//LogPrintf("clear_internal_memory(blockhash.v, ARGON2_BLOCK_SIZE);\n");
 			clear_internal_memory(blockhash_bytes, ARGON2_BLOCK_SIZE);
-			//LogPrintf("clear_internal_memory(blockhash_bytes, ARGON2_BLOCK_SIZE);\n");
 
-			//LogPrintf("storing blocks\n");
 			//storing blocks
 			uint32_t prev_index;
 			uint32_t ref_index;
 			getblockindex(ij, &instance, &prev_index, &ref_index);
-			//cout << endl << "++++" << endl << "curr_index = " << ij << " prev_index = " << prev_index << " ref_index = " << ref_index << endl;
 			//previous block
 			copy_block(&blocks[j*2 - 2], &instance.memory[prev_index]);
 			//ref block
 			copy_block(&blocks[j*2 - 1], &instance.memory[ref_index]);
 
-			//LogPrintf("storing proof\n");
 			//storing proof
 			//TODO : make it as function please
 			//current proof
 			block blockhash_curr;
-			//LogPrintf("block blockhash_curr;\n");
 			uint8_t blockhash_curr_bytes[ARGON2_BLOCK_SIZE];
-			//LogPrintf("uint8_t blockhash_curr_bytes[ARGON2_BLOCK_SIZE];\n");
 			copy_block(&blockhash_curr, &instance.memory[ij]);
-			//LogPrintf("copy_block(&blockhash_curr, &instance.memory[ij]);\n");
 			store_block(&blockhash_curr_bytes, &blockhash_curr);
-			//LogPrintf("store_block(&blockhash_curr_bytes, &blockhash_curr);\n");
 			blake2b_state state_curr;
-			//LogPrintf("blake2b_state state_curr;\n");
 			blake2b_init(&state_curr, MERKLE_TREE_ELEMENT_SIZE_B);
-			//LogPrintf("blake2b_init(&state_curr, MERKLE_TREE_ELEMENT_SIZE_B);\n");
 			blake2b_4r_update(&state_curr, blockhash_curr_bytes, ARGON2_BLOCK_SIZE);
-			//LogPrintf("blake2b_update(&state_curr, blockhash_curr_bytes, ARGON2_BLOCK_SIZE);\n");
 			uint8_t digest_curr[MERKLE_TREE_ELEMENT_SIZE_B];
-			//LogPrintf("uint8_t digest_curr[MERKLE_TREE_ELEMENT_SIZE_B];\n");
 			blake2b_4r_final(&state_curr, digest_curr, sizeof(digest_curr));
-			//LogPrintf("blake2b_final(&state_curr, digest_curr, sizeof(digest_curr));\n");
 			MerkleTree::Buffer hash_curr = MerkleTree::Buffer(digest_curr, digest_curr + sizeof(digest_curr));
-			//LogPrintf("MerkleTree::Buffer hash_curr = MerkleTree::Buffer(digest_curr, digest_curr + sizeof(digest_curr));\n");
 			clear_internal_memory(blockhash_curr.v, ARGON2_BLOCK_SIZE);
-			//LogPrintf("clear_internal_memory(blockhash_curr.v, ARGON2_BLOCK_SIZE);\n");
 			clear_internal_memory(blockhash_curr_bytes, ARGON2_BLOCK_SIZE);
-			//LogPrintf("clear_internal_memory(blockhash_curr_bytes, ARGON2_BLOCK_SIZE);\n");
 			MerkleTree::Elements proof_curr = ordered_tree.getProofOrdered(hash_curr, ij + 1);
-			//LogPrintf("MerkleTree::Elements proof_curr = ordered_tree.getProofOrdered(hash_curr, ij + 1);\n");
 			proof_blocks[j*3 - 3] = proof_curr;
-			//LogPrintf("proof_blocks[j*3 - 3] = proof_curr;\n");
-			/*std::ostringstream oss;
-			oss << "hash_curr[" << ij << "] = 0x";
-			for (MerkleTree::Buffer::const_iterator it = hash_curr.begin();
-					it != hash_curr.end(); ++it) {
-				oss << std::hex << std::setw(2) << std::setfill('0')
-						<< (int) *it;
-			}
-			cout << oss.str() << endl;*/
 
-
-			/*printf("\ncurr_block[%d] = ", ij);
-			int index = 0;
-			for (index = 0; index < 10; index++) {
-				printf("%016llx", (unsigned long long)instance.memory[ij].v[index]);
-			}
-
-			printf("\nprev_block of [%d] is block %d = ", ij, prev_index);
-			index = 0;
-			for (index = 0; index < 10; index++) {
-				printf("%016llx",
-						(unsigned long long) instance.memory[prev_index].v[index]);
-			}
-
-			printf("\nref_block of [%d] is block %d = ", ij, ref_index);
-			index = 0;
-			for (index = 0; index < 10; index++) {
-				printf("%016llx",
-						(unsigned long long) instance.memory[ref_index].v[index]);
-			}*/
-
-			/*
-			cout << endl << "----" << endl;
-			*/
-
-			//LogPrintf("storing prev proof\n");
 			//prev proof
 			block blockhash_prev;
-			//LogPrintf("block blockhash_prev\n");
 			uint8_t blockhash_prev_bytes[ARGON2_BLOCK_SIZE];
-			//LogPrintf("uint8_t blockhash_prev_bytes[ARGON2_BLOCK_SIZE];\n");
 			copy_block(&blockhash_prev, &instance.memory[prev_index]);
-			//LogPrintf("copy_block(&blockhash_prev, &instance.memory[prev_index]);\n");
 			store_block(&blockhash_prev_bytes, &blockhash_prev);
-			//LogPrintf("store_block(&blockhash_prev_bytes, &blockhash_prev);\n");
 			blake2b_state state_prev;
-			//LogPrintf("blake2b_state state_prev;\n");
 			blake2b_init(&state_prev, MERKLE_TREE_ELEMENT_SIZE_B);
-			//LogPrintf("blake2b_init(&state_prev, MERKLE_TREE_ELEMENT_SIZE_B);\n");
 			blake2b_4r_update(&state_prev, blockhash_prev_bytes, ARGON2_BLOCK_SIZE);
-			//LogPrintf("blake2b_update(&state_prev, blockhash_prev_bytes, ARGON2_BLOCK_SIZE);\n");
 			uint8_t digest_prev[MERKLE_TREE_ELEMENT_SIZE_B];
-			//LogPrintf("uint8_t digest_prev[MERKLE_TREE_ELEMENT_SIZE_B];\n");
 			blake2b_4r_final(&state_prev, digest_prev, sizeof(digest_prev));
-			//LogPrintf("blake2b_final(&state_prev, digest_prev, sizeof(digest_prev));\n");
 			MerkleTree::Buffer hash_prev = MerkleTree::Buffer(digest_prev, digest_prev + sizeof(digest_prev));
-			//LogPrintf("MerkleTree::Buffer hash_prev = MerkleTree::Buffer(digest_prev, digest_prev + sizeof(digest_prev));\n");
 			clear_internal_memory(blockhash_prev.v, ARGON2_BLOCK_SIZE);
-			//LogPrintf("clear_internal_memory(blockhash_prev.v, ARGON2_BLOCK_SIZE);\n");
 			clear_internal_memory(blockhash_prev_bytes, ARGON2_BLOCK_SIZE);
-			//LogPrintf("clear_internal_memory(blockhash_prev_bytes, ARGON2_BLOCK_SIZE);\n");
 			MerkleTree::Elements proof_prev = ordered_tree.getProofOrdered(hash_prev, prev_index + 1);
-			//LogPrintf("MerkleTree::Elements proof_prev = ordered_tree.getProofOrdered(hash_prev, prev_index + 1);\n");
 			proof_blocks[j*3 - 2] = proof_prev;
-			//LogPrintf("proof_blocks[j*3 - 2] = proof_prev;\n");
 
 
 
-			//LogPrintf("storing ref proof\n");
 			//ref proof
 			block blockhash_ref;
-			//LogPrintf("block blockhash_ref;\n");
 			uint8_t blockhash_ref_bytes[ARGON2_BLOCK_SIZE];
-			//LogPrintf("uint8_t blockhash_ref_bytes[ARGON2_BLOCK_SIZE];\n");
 			copy_block(&blockhash_ref, &instance.memory[ref_index]);
-			//LogPrintf("copy_block(&blockhash_ref, &instance.memory[ref_index]);\n");
 			store_block(&blockhash_ref_bytes, &blockhash_ref);
-			//LogPrintf("store_block(&blockhash_ref_bytes, &blockhash_ref);\n");
 			blake2b_state state_ref;
-			//LogPrintf("blake2b_state state_ref;\n");
 			blake2b_init(&state_ref, MERKLE_TREE_ELEMENT_SIZE_B);
-			//LogPrintf("blake2b_init(&state_ref, MERKLE_TREE_ELEMENT_SIZE_B);\n");
 			blake2b_4r_update(&state_ref, blockhash_ref_bytes, ARGON2_BLOCK_SIZE);
-			//LogPrintf("blake2b_update(&state_ref, blockhash_ref_bytes, ARGON2_BLOCK_SIZE);\n");
 			uint8_t digest_ref[MERKLE_TREE_ELEMENT_SIZE_B];
-			//LogPrintf("uint8_t digest_ref[MERKLE_TREE_ELEMENT_SIZE_B];\n");
 			blake2b_4r_final(&state_ref, digest_ref, sizeof(digest_ref));
-			//LogPrintf("blake2b_final(&state_ref, digest_ref, sizeof(digest_ref));\n");
 			MerkleTree::Buffer hash_ref = MerkleTree::Buffer(digest_ref, digest_ref + sizeof(digest_ref));
-			//LogPrintf("MerkleTree::Buffer hash_ref = MerkleTree::Buffer(digest_ref, digest_ref + sizeof(digest_ref));\n");
 			clear_internal_memory(blockhash_ref.v, ARGON2_BLOCK_SIZE);
-			//LogPrintf("clear_internal_memory(blockhash_ref.v, ARGON2_BLOCK_SIZE);\n");
 			clear_internal_memory(blockhash_ref_bytes, ARGON2_BLOCK_SIZE);
-			//LogPrintf("clear_internal_memory(blockhash_ref_bytes, ARGON2_BLOCK_SIZE);\n");
 			MerkleTree::Elements proof_ref = ordered_tree.getProofOrdered(hash_ref, ref_index + 1);
-			//LogPrintf("MerkleTree::Elements proof_ref = ordered_tree.getProofOrdered(hash_ref, ref_index + 1);\n");
 			proof_blocks[j*3 - 1] = proof_ref;
-			//LogPrintf("proof_blocks[j*3 - 1] = proof_ref;\n");
-
-			//cout << "Y[" << dec << j << "] = " << Y[j].GetHex().c_str() << endl;
-			//LogPrintf("Y[%d] = %s\n", j, Y[j].GetHex().c_str());
-
 		}
 
 		if (init_blocks) {
@@ -959,11 +743,7 @@ BEGIN:
 	    bool fOverflow;
 		arith_uint256 bnTarget;
 		bnTarget.SetCompact(target, &fNegative, &fOverflow); // diff = 1
-		//uint256 powLimit = uint256S("00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
 		if (fNegative || bnTarget == 0 || fOverflow || bnTarget > UintToArith256(powLimit) || UintToArith256(Y[L]) > bnTarget) {
-			/*cout << "hashTarget = " << ArithToUint256(bnTarget).GetHex().c_str() << endl;
-			cout << "Y[L] = " << Y[L].GetHex().c_str() << " nNonce = " << nNonce << endl;*/
-			//LogPrintf("Y[L] 	  = %d nNonce = %s\n", Y[L].GetHex().c_str(), nNonceInternal);
 			nNonceInternal++;
 			continue;
 		} else {
@@ -971,39 +751,8 @@ BEGIN:
 			LogPrintf("hashTarget = %s\n", ArithToUint256(bnTarget).GetHex().c_str());
 			LogPrintf("Y[L] 	  = %s", Y[L].GetHex().c_str());
 			LogPrintf("nNonce 	  = %s\n", nNonceInternal);
-			/*cout << endl << "Found a solution :" << endl;
-			cout << "hashTarget = " << ArithToUint256(bnTarget).GetHex().c_str() << endl;
-			cout << "Y[L]       = " << Y[L].GetHex().c_str() << endl;
-			cout << "nNonce     = " << nNonce << endl;*/
 
-			/*std::ostringstream ossx;
-					ossx << "input = ";
-					for (int xxx = 0; xxx < 80; xxx++) {
-						ossx << std::hex << std::setw(2) << std::setfill('0') << (int) input[xxx];
-					}
-					cout << ossx.str() << endl;
-			std::ostringstream oss;
-				oss << "root = 0x";
-				for (MerkleTree::Buffer::const_iterator it = root.begin(); it != root.end();
-						++it) {
-					oss << std::hex << std::setw(2) << std::setfill('0') << (int) *it;
-				}
-				cout << oss.str() << endl;
-			*/
 			// step 7
-			//return mtp_verify(input, &root, &nNonce, blocks, proof_blocks);
-
-			/*MerkleTree::Elements proof_blocks[L*3];
-				//MerkleTree::Buffer root;
-				block blocks[L*2];
-				for(int i = 0; i < L*3; i++){
-					proof_blocks[i] = nProofMTP[i];
-				}
-				//memcpy(&root, hashRootMTP, sizeof(uint256));
-				for(int i = 0; i < L*2; i++){
-					memcpy(blocks[i].v, nBlockMTP[i], sizeof(uint64_t) * ARGON2_QWORDS_IN_BLOCK);
-				}
-			*/
 
 			LogPrintf("END mtp_hash\n");
 
@@ -1042,94 +791,6 @@ BEGIN:
 			}
 			LogPrintf("\n");
 			LogPrintf("Y[0] = %s\n", Y[0].ToString());
-
-			/*memset(&Y[0], 0, sizeof(Y));
-			blake2b_state state_y5;
-			blake2b_init(&state_y5, 32); // 256 bit
-			blake2b_update(&state_y5, input, 80);
-			blake2b_update(&state_y5, &root, MERKLE_TREE_ELEMENT_SIZE_B);
-			blake2b_update(&state_y5, &nNonceInternal, sizeof(unsigned int));
-			blake2b_final(&state_y5, &Y[0], sizeof(uint256));
-			LogPrintf("Y[0]_COMPUTED = %s\n", Y[0].ToString());*/
-			/*
-			memset(&Y[0], 0, sizeof(Y));
-			blake2b_state state_y1;
-			blake2b_init(&state_y1, 32); // 256 bit
-			blake2b_update(&state_y1, input, 80);
-			blake2b_update(&state_y1, &hashRootMTP, MERKLE_TREE_ELEMENT_SIZE_B);
-			blake2b_update(&state_y1, &nNonceInternal, sizeof(unsigned int));
-			blake2b_final(&state_y1, &Y[0], sizeof(uint256));
-
-			LogPrintf("Y[1]_COMPUTED = %s\n", Y[0].ToString());
-
-			memset(&Y[0], 0, sizeof(Y));
-			blake2b_state state_y2;
-			blake2b_init(&state_y2, 32); // 256 bit
-			blake2b_update(&state_y2, &input, 80);
-			blake2b_update(&state_y2, hashRootMTP, MERKLE_TREE_ELEMENT_SIZE_B);
-			blake2b_update(&state_y2, &nNonceInternal, sizeof(unsigned int));
-			blake2b_final(&state_y2, &Y[0], sizeof(uint256));
-
-			LogPrintf("Y[2]_COMPUTED = %s\n", Y[0].ToString());
-
-			memset(&Y[0], 0, sizeof(Y));
-			blake2b_state state_y3;
-			blake2b_init(&state_y3, 32); // 256 bit
-			blake2b_update(&state_y3, &input, 80);
-			blake2b_update(&state_y3, hashRootMTP, MERKLE_TREE_ELEMENT_SIZE_B);
-			blake2b_update(&state_y3, &nNonceInternal, sizeof(unsigned int));
-			blake2b_final(&state_y3, &Y[0], sizeof(uint256));
-
-			LogPrintf("Y[3]_COMPUTED = %s\n", Y[0].ToString());
-
-
-			///
-
-			memset(&Y[0], 0, sizeof(Y));
-			blake2b_state state_y4;
-			blake2b_init(&state_y4, 32); // 256 bit
-			blake2b_update(&state_y4, input, 80);
-			blake2b_update(&state_y4, &hashRootMTP, MERKLE_TREE_ELEMENT_SIZE_B);
-			blake2b_update(&state_y4, &nNonceInternal, sizeof(unsigned int));
-			blake2b_final(&state_y4, &Y[0], sizeof(uint256));
-
-			LogPrintf("Y[4]_COMPUTED = %s\n", Y[0].ToString());
-			memset(&Y[0], 0, sizeof(Y));
-			blake2b_state state_y5;
-			blake2b_init(&state_y5, 32); // 256 bit
-			blake2b_update(&state_y5, input, 80);
-			blake2b_update(&state_y5, &hashRootMTP, MERKLE_TREE_ELEMENT_SIZE_B);
-			blake2b_update(&state_y5, &nNonceInternal, sizeof(unsigned int));
-			blake2b_final(&state_y5, &Y[0], sizeof(uint256));
-
-			LogPrintf("Y[5]_COMPUTED = %s\n", Y[0].ToString());
-			memset(&Y[0], 0, sizeof(Y));
-			blake2b_state state_y6;
-			blake2b_init(&state_y6, 32); // 256 bit
-			blake2b_update(&state_y6, input, 80);
-			blake2b_update(&state_y6, hashRootMTP, MERKLE_TREE_ELEMENT_SIZE_B);
-			blake2b_update(&state_y6, &nNonceInternal, sizeof(unsigned int));
-			blake2b_final(&state_y6, &Y[0], sizeof(uint256));
-
-			LogPrintf("Y[6]_COMPUTED = %s\n", Y[0].ToString());
-			memset(&Y[0], 0, sizeof(Y));
-			blake2b_state state_y7;
-			blake2b_init(&state_y7, 32); // 256 bit
-			blake2b_update(&state_y7, input, 80);
-			blake2b_update(&state_y7, hashRootMTP, MERKLE_TREE_ELEMENT_SIZE_B);
-			blake2b_update(&state_y7, &nNonceInternal, sizeof(unsigned int));
-			blake2b_final(&state_y7, &Y[0], sizeof(uint256));
-
-			LogPrintf("Y[7]_COMPUTED = %s\n", Y[0].ToString());
-
-			/*
-			blake2b_state state;
-			blake2b_init(&state, 32); // 256 bit
-			blake2b_update(&state, input, 80);
-			blake2b_update(&state, &root, MERKLE_TREE_ELEMENT_SIZE_B);
-			blake2b_update(&state, &nNonceInternal, sizeof(unsigned int));
-			blake2b_final(&state, &Y[0], sizeof(uint256));
-			*/
 
 			uint8_t h0[ARGON2_PREHASH_SEED_LENGTH];
 			memcpy(h0, instance.hash_zero,
