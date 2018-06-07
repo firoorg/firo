@@ -20,8 +20,6 @@ extern "C" {
 #include <boost/multiprecision/cpp_int.hpp>
 #include <boost/numeric/conversion/cast.hpp>
 
-using namespace std;
-using namespace boost::multiprecision;
 using boost::numeric_cast;
 using boost::numeric::bad_numeric_cast;
 using boost::numeric::positive_overflow;
@@ -320,8 +318,8 @@ bool mtp_verify(const char* input, const uint32_t target,
 	// step 8
 	for (uint32_t j = 1; j <= L; j++) {
 		// compute ij
-		string s = "0x" + Y[j - 1].GetHex();
-		uint256_t t(s);
+        std::string s = "0x" + Y[j - 1].GetHex();
+        boost::multiprecision::uint256_t t(s);
 		uint32_t ij = numeric_cast<uint32_t>(t % m_cost);
 
 		// retrieve x[ij-1] and x[phi(i)) from proof
@@ -633,8 +631,8 @@ BEGIN:
 		// step 5
 		bool init_blocks = false;
 		for (uint32_t j = 1; j <= L; j++) {
-			string s = "0x" + Y[j - 1].GetHex();
-			uint256_t t(s);
+            std::string s = "0x" + Y[j - 1].GetHex();
+            boost::multiprecision::uint256_t t(s);
 			uint32_t ij = numeric_cast<uint32_t>(t % m_cost);
 			uint32_t except_index = numeric_cast<uint32_t>(m_cost / lanes);
 			if (ij % except_index == 0 || ij % except_index == 1) {
