@@ -29,13 +29,15 @@ extern int validate_inputs(const argon2_context *context);
 extern void clear_internal_memory(void *v, size_t n);
 
 
+namespace {
+
 const int8_t L = 72;
 const unsigned t_cost = 1;
 const unsigned m_cost = 1024 * 4;
 const unsigned lanes = 4;
 
 
-static void store_block(void *output, const block *src) {
+void store_block(void *output, const block *src) {
 	unsigned i;
 	for (i = 0; i < ARGON2_QWORDS_IN_BLOCK; ++i) {
 		store64((uint8_t *) output + i * sizeof(src->v[i]), src->v[i]);
@@ -172,7 +174,7 @@ void getblockindex(uint32_t ij, argon2_instance_t *instance, uint32_t *out_ij_pr
 	*out_computed_ref_block = computed_ref_block;
 }
 
-
+} // unnamed namespace
 
 
 bool mtp_verify(const char* input, const uint32_t target,
