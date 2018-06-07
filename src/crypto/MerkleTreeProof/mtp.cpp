@@ -32,9 +32,9 @@ extern void clear_internal_memory(void *v, size_t n);
 namespace {
 
 const int8_t L = 72;
-const unsigned t_cost = 1;
-const unsigned m_cost = 1024 * 4;
-const unsigned lanes = 4;
+const unsigned T_COST = 1;
+const unsigned M_COST = 1024 * 4;
+const unsigned LANES = 4;
 
 
 void store_block(void *output, const block *src) {
@@ -242,10 +242,10 @@ bool mtp_verify(const char* input, const uint32_t target,
 	context_verify.secretlen = TEST_SECRETLEN;
 	context_verify.ad = NULL;
 	context_verify.adlen = TEST_ADLEN;
-	context_verify.t_cost = t_cost;
-	context_verify.m_cost = m_cost;
-	context_verify.lanes = lanes;
-	context_verify.threads = lanes;
+	context_verify.t_cost = T_COST;
+	context_verify.m_cost = M_COST;
+	context_verify.lanes = LANES;
+	context_verify.threads = LANES;
 	context_verify.allocate_cbk = myown_allocator;
 	context_verify.free_cbk = myown_deallocator;
 	context_verify.flags = ARGON2_DEFAULT_FLAGS;
@@ -322,7 +322,7 @@ bool mtp_verify(const char* input, const uint32_t target,
 		// compute ij
         std::string s = "0x" + Y[j - 1].GetHex();
         boost::multiprecision::uint256_t t(s);
-		uint32_t ij = numeric_cast<uint32_t>(t % m_cost);
+		uint32_t ij = numeric_cast<uint32_t>(t % M_COST);
 
 		// retrieve x[ij-1] and x[phi(i)) from proof
 		block prev_block, ref_block, t_prev_block, t_ref_block;
@@ -336,13 +336,13 @@ bool mtp_verify(const char* input, const uint32_t target,
 		//prev_index
 		//compute
 		uint32_t memory_blocks, segment_length;
-		memory_blocks = m_cost;
+		memory_blocks = M_COST;
 
-		if (memory_blocks < 2 * ARGON2_SYNC_POINTS * lanes) {
-			memory_blocks = 2 * ARGON2_SYNC_POINTS * lanes;
+		if (memory_blocks < 2 * ARGON2_SYNC_POINTS * LANES) {
+			memory_blocks = 2 * ARGON2_SYNC_POINTS * LANES;
 		}
 
-		segment_length = memory_blocks / (lanes * ARGON2_SYNC_POINTS);
+		segment_length = memory_blocks / (LANES * ARGON2_SYNC_POINTS);
 		uint32_t lane_length = segment_length * ARGON2_SYNC_POINTS;
 		uint32_t ij_prev = 0;
 		if (ij%lane_length == 0)
@@ -375,7 +375,7 @@ bool mtp_verify(const char* input, const uint32_t target,
 		//hash[ref_index]
 		//compute ref_index
 		uint64_t prev_block_opening = prev_block.v[0];
-		uint32_t ref_lane = (uint32_t)((prev_block_opening >> 32) % lanes);
+		uint32_t ref_lane = (uint32_t)((prev_block_opening >> 32) % LANES);
 
 		uint32_t pseudo_rand = (uint32_t)(prev_block_opening & 0xFFFFFFFF);
 
@@ -540,10 +540,10 @@ BEGIN:
 	context.secretlen = TEST_SECRETLEN;
 	context.ad = NULL;
 	context.adlen = TEST_ADLEN;
-	context.t_cost = t_cost;
-	context.m_cost = m_cost;
-	context.lanes = lanes;
-	context.threads = lanes;
+	context.t_cost = T_COST;
+	context.m_cost = M_COST;
+	context.lanes = LANES;
+	context.threads = LANES;
 	context.allocate_cbk = myown_allocator;
 	context.free_cbk = myown_deallocator;
 	context.flags = ARGON2_DEFAULT_FLAGS;
@@ -635,8 +635,8 @@ BEGIN:
 		for (uint32_t j = 1; j <= L; j++) {
             std::string s = "0x" + Y[j - 1].GetHex();
             boost::multiprecision::uint256_t t(s);
-			uint32_t ij = numeric_cast<uint32_t>(t % m_cost);
-			uint32_t except_index = numeric_cast<uint32_t>(m_cost / lanes);
+			uint32_t ij = numeric_cast<uint32_t>(t % M_COST);
+			uint32_t except_index = numeric_cast<uint32_t>(M_COST / LANES);
 			if (ij % except_index == 0 || ij % except_index == 1) {
 				init_blocks = true;
 				break;
