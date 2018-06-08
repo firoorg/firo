@@ -28,7 +28,6 @@ using boost::numeric::negative_overflow;
 extern int validate_inputs(const argon2_context *context);
 extern void clear_internal_memory(void *v, size_t n);
 
-
 namespace {
 
 const int8_t L = 72;
@@ -36,15 +35,14 @@ const unsigned T_COST = 1;
 const unsigned M_COST = 1024 * 4;
 const unsigned LANES = 4;
 
-
-void store_block(void *output, const block *src) {
+void StoreBlock(void *output, const block *src) {
 	unsigned i;
 	for (i = 0; i < ARGON2_QWORDS_IN_BLOCK; ++i) {
 		store64((uint8_t *) output + i * sizeof(src->v[i]), src->v[i]);
 	}
 }
 
-int argon2_ctx_mtp(argon2_context *context, argon2_type type,
+int Argon2CtxMtp(argon2_context *context, argon2_type type,
 		argon2_instance_t *instance) {
 	int result = validate_inputs(context);
 
@@ -66,7 +64,7 @@ int argon2_ctx_mtp(argon2_context *context, argon2_type type,
 	return ARGON2_OK;
 }
 
-uint32_t index_beta(const argon2_instance_t *instance,
+uint32_t IndexBeta(const argon2_instance_t *instance,
 	const argon2_position_t *position, uint32_t pseudo_rand,
 	int same_lane) {
 	/*
@@ -140,7 +138,7 @@ uint32_t index_beta(const argon2_instance_t *instance,
 	return absolute_position;
 }
 
-void getblockindex(uint32_t ij, argon2_instance_t *instance, uint32_t *out_ij_prev, uint32_t *out_computed_ref_block)
+void GetBlockIndex(uint32_t ij, argon2_instance_t *instance, uint32_t *out_ij_prev, uint32_t *out_computed_ref_block)
 {
 	uint32_t ij_prev = 0;
 	if (ij%instance->lane_length == 0)
@@ -166,7 +164,7 @@ void getblockindex(uint32_t ij, argon2_instance_t *instance, uint32_t *out_ij_pr
 
 	argon2_position_t position = { 0, Lane , (uint8_t)Slice, posIndex };
 
-	uint32_t ref_index = index_beta(instance, &position, pseudo_rand, ref_lane == position.lane);
+	uint32_t ref_index = IndexBeta(instance, &position, pseudo_rand, ref_lane == position.lane);
 
 	uint32_t computed_ref_block = instance->lane_length * ref_lane + ref_index;
 
@@ -283,19 +281,19 @@ bool mtp_verify(const char* input, const uint32_t target,
 
 	//cout << "verifying ..." << endl;
 	// step 7
-	uint256 Y[L + 1];
+	uint256 y[L + 1];
 
-	memset(&Y[0], 0, sizeof(Y));
+	memset(&y[0], 0, sizeof(y));
 
 	blake2b_state state_y0;
 	blake2b_init(&state_y0, 32); // 256 bit
 	blake2b_update(&state_y0, input, 80);
 	blake2b_update(&state_y0, hashRootMTP, MERKLE_TREE_ELEMENT_SIZE_B);
 	blake2b_update(&state_y0, nNonce, sizeof(unsigned int));
-	blake2b_final(&state_y0, &Y[0], sizeof(uint256));
+	blake2b_final(&state_y0, &y[0], sizeof(uint256));
 
 
-	LogPrintf("Y[0] = %s\n", Y[0].ToString());
+	LogPrintf("y[0] = %s\n", y[0].ToString());
 
 	LogPrintf("input = \n");
 	for (int i = 0; i < 80; i++) {
@@ -304,7 +302,7 @@ bool mtp_verify(const char* input, const uint32_t target,
 		LogPrintf("%0x", x);
 	}
 	LogPrintf("\n");
-	LogPrintf("Y[0] = %s\n", Y[0].ToString());
+	LogPrintf("y[0] = %s\n", y[0].ToString());
 
 	// get hash_zero
 	uint8_t h0[ARGON2_PREHASH_SEED_LENGTH];
@@ -320,7 +318,7 @@ bool mtp_verify(const char* input, const uint32_t target,
 	// step 8
 	for (uint32_t j = 1; j <= L; j++) {
 		// compute ij
-        std::string s = "0x" + Y[j - 1].GetHex();
+        std::string s = "0x" + y[j - 1].GetHex();
         boost::multiprecision::uint256_t t(s);
 		uint32_t ij = numeric_cast<uint32_t>(t % M_COST);
 
@@ -357,7 +355,7 @@ bool mtp_verify(const char* input, const uint32_t target,
 		block blockhash_prev;
 		uint8_t blockhash_prev_bytes[ARGON2_BLOCK_SIZE];
 		copy_block(&blockhash_prev, &prev_block);
-		store_block(&blockhash_prev_bytes, &blockhash_prev);
+		StoreBlock(&blockhash_prev_bytes, &blockhash_prev);
 		blake2b_state state_prev;
 		blake2b_init(&state_prev, MERKLE_TREE_ELEMENT_SIZE_B);
 		blake2b_4r_update(&state_prev, blockhash_prev_bytes, ARGON2_BLOCK_SIZE);
@@ -392,14 +390,14 @@ bool mtp_verify(const char* input, const uint32_t target,
 		instance.segment_length = segment_length;
 		instance.lane_length = lane_length;
 
-		uint32_t ref_index = index_beta(&instance, &position, pseudo_rand, ref_lane == position.lane);
+		uint32_t ref_index = IndexBeta(&instance, &position, pseudo_rand, ref_lane == position.lane);
 
 		uint32_t computed_ref_block = lane_length * ref_lane + ref_index;
 
 		block blockhash_ref;
 		uint8_t blockhash_ref_bytes[ARGON2_BLOCK_SIZE];
 		copy_block(&blockhash_ref, &ref_block);
-		store_block(&blockhash_ref_bytes, &blockhash_ref);
+		StoreBlock(&blockhash_ref_bytes, &blockhash_ref);
 		blake2b_state state_ref;
 		blake2b_init(&state_ref, MERKLE_TREE_ELEMENT_SIZE_B);
 		blake2b_4r_update(&state_ref, blockhash_ref_bytes, ARGON2_BLOCK_SIZE);
@@ -426,7 +424,7 @@ bool mtp_verify(const char* input, const uint32_t target,
 		block blockhash_ij;
 		uint8_t blockhash_ij_bytes[ARGON2_BLOCK_SIZE];
 		copy_block(&blockhash_ij, &block_ij);
-		store_block(&blockhash_ij_bytes, &blockhash_ij);
+		StoreBlock(&blockhash_ij_bytes, &blockhash_ij);
 		blake2b_state state_ij;
 		blake2b_init(&state_ij, MERKLE_TREE_ELEMENT_SIZE_B);
 		blake2b_4r_update(&state_ij, blockhash_ij_bytes, ARGON2_BLOCK_SIZE);
@@ -452,16 +450,16 @@ bool mtp_verify(const char* input, const uint32_t target,
 			//LogPrintf("success : checkProofOrdered in x[ij]\n");
 		}
 
-		// compute Y(j)
+		// compute y(j)
 		block blockhash;
 		uint8_t blockhash_bytes[ARGON2_BLOCK_SIZE];
 		copy_block(&blockhash, &block_ij);
-		store_block(&blockhash_bytes, &blockhash);
+		StoreBlock(&blockhash_bytes, &blockhash);
 		blake2b_state ctx_yj;
 		blake2b_init(&ctx_yj, 32);
-		blake2b_update(&ctx_yj, &Y[j - 1], 32);
+		blake2b_update(&ctx_yj, &y[j - 1], 32);
 		blake2b_update(&ctx_yj, blockhash_bytes, ARGON2_BLOCK_SIZE);
-		blake2b_final(&ctx_yj, &Y[j], 32);
+		blake2b_final(&ctx_yj, &y[j], 32);
 		clear_internal_memory(block_ij.v, ARGON2_BLOCK_SIZE);
 		clear_internal_memory(blockhash.v, ARGON2_BLOCK_SIZE);
 		clear_internal_memory(blockhash_bytes, ARGON2_BLOCK_SIZE);
@@ -469,10 +467,10 @@ bool mtp_verify(const char* input, const uint32_t target,
 	}
 
 	// step 9
-	bool fNegative;
-	bool fOverflow;
+	bool negative;
+	bool overflow;
 	arith_uint256 bnTarget;
-	bnTarget.SetCompact(target, &fNegative, &fOverflow); // diff = 1
+	bnTarget.SetCompact(target, &negative, &overflow); // diff = 1
 
 	for (int i = 0; i < L*2; i++) {
 		clear_internal_memory(blocks[i].v, ARGON2_BLOCK_SIZE);
@@ -480,15 +478,15 @@ bool mtp_verify(const char* input, const uint32_t target,
 
 	//uint256 powLimit = uint256S(
 	//		"00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
-	if (fNegative || bnTarget == 0 || fOverflow
+	if (negative || bnTarget == 0 || overflow
 			|| bnTarget > UintToArith256(powLimit)
-			|| UintToArith256(Y[L]) > bnTarget) {
+			|| UintToArith256(y[L]) > bnTarget) {
 		return false;
 	} else {
 		LogPrintf("Verified :\n");
 		LogPrintf("hashTarget = %s\n",
 				ArithToUint256(bnTarget).GetHex().c_str());
-		LogPrintf("Y[L] 	  = %s", Y[L].GetHex().c_str());
+		LogPrintf("y[L] 	  = %s", y[L].GetHex().c_str());
 		LogPrintf("nNonce 	  = %s\n", *nNonce);
 		return true;
 	}
@@ -580,7 +578,7 @@ BEGIN:
 	}
 
 	// step 1
-	argon2_ctx_mtp(&context, Argon2_d, &instance);
+	Argon2CtxMtp(&context, Argon2_d, &instance);
 
 	// step 2
 	MerkleTree::Elements elements;
@@ -588,7 +586,7 @@ BEGIN:
         block blockhash;
         uint8_t blockhash_bytes[ARGON2_BLOCK_SIZE];
         copy_block(&blockhash, &instance.memory[i]);
-        store_block(&blockhash_bytes, &blockhash);
+        StoreBlock(&blockhash_bytes, &blockhash);
         blake2b_state state;
         blake2b_init(&state, MERKLE_TREE_ELEMENT_SIZE_B);
         blake2b_4r_update(&state, blockhash_bytes, ARGON2_BLOCK_SIZE);
@@ -605,7 +603,7 @@ BEGIN:
 	std::copy(root.begin(), root.end(), hashRootMTP);
 
 	// step 3
-	unsigned int nNonceInternal = 0;
+	unsigned int n_nonce_internal = 0;
 
 	// step 4
 	uint256 Y[L + 1];
@@ -614,7 +612,7 @@ BEGIN:
 	MerkleTree::Elements proof_blocks[L*3];
 	while (true) {
 
-		if(nNonceInternal == UINT_MAX){
+		if(n_nonce_internal == UINT_MAX){
 			// go to create a new merkle tree
 			goto BEGIN;
 		}
@@ -626,7 +624,7 @@ BEGIN:
 		blake2b_init(&state, 32); // 256 bit
 		blake2b_update(&state, input, 80);
 		blake2b_update(&state, hashRootMTP, MERKLE_TREE_ELEMENT_SIZE_B);
-		blake2b_update(&state, &nNonceInternal, sizeof(unsigned int));
+		blake2b_update(&state, &n_nonce_internal, sizeof(unsigned int));
 		blake2b_final(&state, &Y[0], sizeof(uint256));
 
 
@@ -645,7 +643,7 @@ BEGIN:
 			block blockhash;
 			uint8_t blockhash_bytes[ARGON2_BLOCK_SIZE];
 			copy_block(&blockhash, &instance.memory[ij]);
-			store_block(&blockhash_bytes, &blockhash);
+			StoreBlock(&blockhash_bytes, &blockhash);
 			blake2b_state ctx_yj;
 			blake2b_init(&ctx_yj, 32);
 			blake2b_update(&ctx_yj, &Y[j - 1], 32);
@@ -657,7 +655,7 @@ BEGIN:
 			//storing blocks
 			uint32_t prev_index;
 			uint32_t ref_index;
-			getblockindex(ij, &instance, &prev_index, &ref_index);
+			GetBlockIndex(ij, &instance, &prev_index, &ref_index);
 			//previous block
 			copy_block(&blocks[j*2 - 2], &instance.memory[prev_index]);
 			//ref block
@@ -669,7 +667,7 @@ BEGIN:
 			block blockhash_curr;
 			uint8_t blockhash_curr_bytes[ARGON2_BLOCK_SIZE];
 			copy_block(&blockhash_curr, &instance.memory[ij]);
-			store_block(&blockhash_curr_bytes, &blockhash_curr);
+			StoreBlock(&blockhash_curr_bytes, &blockhash_curr);
 			blake2b_state state_curr;
 			blake2b_init(&state_curr, MERKLE_TREE_ELEMENT_SIZE_B);
 			blake2b_4r_update(&state_curr, blockhash_curr_bytes, ARGON2_BLOCK_SIZE);
@@ -685,7 +683,7 @@ BEGIN:
 			block blockhash_prev;
 			uint8_t blockhash_prev_bytes[ARGON2_BLOCK_SIZE];
 			copy_block(&blockhash_prev, &instance.memory[prev_index]);
-			store_block(&blockhash_prev_bytes, &blockhash_prev);
+			StoreBlock(&blockhash_prev_bytes, &blockhash_prev);
 			blake2b_state state_prev;
 			blake2b_init(&state_prev, MERKLE_TREE_ELEMENT_SIZE_B);
 			blake2b_4r_update(&state_prev, blockhash_prev_bytes, ARGON2_BLOCK_SIZE);
@@ -703,7 +701,7 @@ BEGIN:
 			block blockhash_ref;
 			uint8_t blockhash_ref_bytes[ARGON2_BLOCK_SIZE];
 			copy_block(&blockhash_ref, &instance.memory[ref_index]);
-			store_block(&blockhash_ref_bytes, &blockhash_ref);
+			StoreBlock(&blockhash_ref_bytes, &blockhash_ref);
 			blake2b_state state_ref;
 			blake2b_init(&state_ref, MERKLE_TREE_ELEMENT_SIZE_B);
 			blake2b_4r_update(&state_ref, blockhash_ref_bytes, ARGON2_BLOCK_SIZE);
@@ -717,24 +715,24 @@ BEGIN:
 		}
 
 		if (init_blocks) {
-			nNonceInternal++;
+			n_nonce_internal++;
 		    continue;
 		}
 
 
 		// step 6
-	    bool fNegative;
-	    bool fOverflow;
+	    bool negative;
+	    bool overflow;
 		arith_uint256 bnTarget;
-		bnTarget.SetCompact(target, &fNegative, &fOverflow); // diff = 1
-		if (fNegative || bnTarget == 0 || fOverflow || bnTarget > UintToArith256(powLimit) || UintToArith256(Y[L]) > bnTarget) {
-			nNonceInternal++;
+		bnTarget.SetCompact(target, &negative, &overflow); // diff = 1
+		if (negative || bnTarget == 0 || overflow || bnTarget > UintToArith256(powLimit) || UintToArith256(Y[L]) > bnTarget) {
+			n_nonce_internal++;
 			continue;
 		} else {
 			LogPrintf("Found a MTP solution :\n");
 			LogPrintf("hashTarget = %s\n", ArithToUint256(bnTarget).GetHex().c_str());
 			LogPrintf("Y[L] 	  = %s", Y[L].GetHex().c_str());
-			LogPrintf("nNonce 	  = %s\n", nNonceInternal);
+			LogPrintf("nNonce 	  = %s\n", n_nonce_internal);
 
 			// step 7
 
@@ -742,7 +740,7 @@ BEGIN:
 
 			std::copy(root.begin(), root.end(), hashRootMTP);
 
-			*nNonce = nNonceInternal;
+			*nNonce = n_nonce_internal;
 			for (int i = 0; i < L * 2; i++) {
 				memcpy(nBlockMTP[i], &blocks[i],
 						sizeof(uint64_t) * ARGON2_QWORDS_IN_BLOCK);
