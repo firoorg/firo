@@ -9,13 +9,13 @@ extern "C" {
 #include <vector>
 
 void mtp_hash(const char* input, uint32_t target,
-        uint8_t hashRootMTP[16], unsigned int * nNonce,
-        uint64_t (&nBlockMTP)[72*2][128], std::deque<std::vector<uint8_t>> * nProofMTP, uint256 powLimit,
+        uint8_t hash_root_mtp[16], unsigned int * nonce,
+        uint64_t (&block_mtp)[72*2][128], std::deque<std::vector<uint8_t>> * proof_mtp, uint256 pow_limit,
         uint256 * output);
 
 bool mtp_verify(const char* input, const uint32_t target,
-        const uint8_t hashRootMTP[16], const unsigned int * nNonce,
-        const uint64_t (&nBlockMTP)[72*2][128], const std::deque<std::vector<uint8_t>> * nProofMTP, uint256 powLimit,
+        const uint8_t hash_root_mtp[16], const unsigned int * nonce,
+        const uint64_t (&block_mtp)[72*2][128], const std::deque<std::vector<uint8_t>> * proof_mtp, uint256 pow_limit,
         uint256 * output);
 
 #endif
