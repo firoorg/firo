@@ -35,7 +35,8 @@ const unsigned T_COST = 1;
 const unsigned M_COST = 1024 * 4;
 const unsigned LANES = 4;
 
-void StoreBlock(void *output, const block *src) {
+void StoreBlock(void *output, const block *src)
+{
     unsigned i;
     for (i = 0; i < ARGON2_QWORDS_IN_BLOCK; ++i) {
         store64((uint8_t *) output + i * sizeof(src->v[i]), src->v[i]);
@@ -43,9 +44,9 @@ void StoreBlock(void *output, const block *src) {
 }
 
 int Argon2CtxMtp(argon2_context *context, argon2_type type,
-        argon2_instance_t *instance) {
+        argon2_instance_t *instance)
+{
     int result = validate_inputs(context);
-
     if (ARGON2_OK != result) {
         return result;
     }
@@ -56,7 +57,6 @@ int Argon2CtxMtp(argon2_context *context, argon2_type type,
     if (ARGON2_OK != result) {
         return result;
     }
-
     result = fill_memory_blocks_mtp(instance, context);
     if (ARGON2_OK != result) {
         return result;
@@ -66,7 +66,8 @@ int Argon2CtxMtp(argon2_context *context, argon2_type type,
 
 uint32_t IndexBeta(const argon2_instance_t *instance,
         const argon2_position_t *position, uint32_t pseudo_rand,
-        int same_lane) {
+        int same_lane)
+{
     /*
      * Pass 0:
      *      This lane : all already finished segments plus already constructed
@@ -85,31 +86,26 @@ uint32_t IndexBeta(const argon2_instance_t *instance,
         /* First pass */
         if (0 == position->slice) {
             /* First slice */
-            reference_area_size =
-                position->index - 1; /* all but the previous */
-        }
-        else {
+            reference_area_size = position->index - 1; // all but the previous
+        } else {
             if (same_lane) {
                 /* The same lane => add current segment */
                 reference_area_size =
                     position->slice * instance->segment_length +
                     position->index - 1;
-            }
-            else {
+            } else {
                 reference_area_size =
                     position->slice * instance->segment_length +
                     ((position->index == 0) ? (-1) : 0);
             }
         }
-    }
-    else {
+    } else {
         /* Second pass */
         if (same_lane) {
             reference_area_size = instance->lane_length -
                 instance->segment_length + position->index -
                 1;
-        }
-        else {
+        } else {
             reference_area_size = instance->lane_length -
                 instance->segment_length +
                 ((position->index == 0) ? (-1) : 0);
@@ -125,7 +121,6 @@ uint32_t IndexBeta(const argon2_instance_t *instance,
 
     /* 1.2.5 Computing starting position */
     start_position = 0;
-
     if (0 != position->pass) {
         start_position = (position->slice == ARGON2_SYNC_POINTS - 1)
             ? 0
@@ -138,57 +133,55 @@ uint32_t IndexBeta(const argon2_instance_t *instance,
     return absolute_position;
 }
 
-void GetBlockIndex(uint32_t ij, argon2_instance_t *instance, uint32_t *out_ij_prev, uint32_t *out_computed_ref_block)
+void GetBlockIndex(uint32_t ij, argon2_instance_t *instance,
+        uint32_t *out_ij_prev, uint32_t *out_computed_ref_block)
 {
     uint32_t ij_prev = 0;
-    if (ij%instance->lane_length == 0)
+    if (ij%instance->lane_length == 0) {
         ij_prev = ij + instance->lane_length - 1;
-    else
+    } else {
         ij_prev = ij - 1;
+    }
 
-    if (ij % instance->lane_length == 1)
+    if (ij % instance->lane_length == 1) {
         ij_prev = ij - 1;
+    }
 
     uint64_t prev_block_opening = instance->memory[ij_prev].v[0];
     uint32_t ref_lane = (uint32_t)((prev_block_opening >> 32) % instance->lanes);
-
     uint32_t pseudo_rand = (uint32_t)(prev_block_opening & 0xFFFFFFFF);
-
     uint32_t lane = ((ij) / instance->lane_length);
     uint32_t slice = (ij - (lane * instance->lane_length)) / instance->segment_length;
     uint32_t pos_index = ij - lane * instance->lane_length - slice * instance->segment_length;
-
     if (slice == 0)
         ref_lane = lane;
 
-
     argon2_position_t position = { 0, lane , (uint8_t)slice, pos_index };
-
-    uint32_t ref_index = IndexBeta(instance, &position, pseudo_rand, ref_lane == position.lane);
-
+    uint32_t ref_index = IndexBeta(instance, &position, pseudo_rand,
+            ref_lane == position.lane);
     uint32_t computed_ref_block = instance->lane_length * ref_lane + ref_index;
-
     *out_ij_prev = ij_prev;
     *out_computed_ref_block = computed_ref_block;
 }
 
 } // unnamed namespace
 
-
 bool mtp_verify(const char* input, const uint32_t target,
-        const uint8_t hash_root_mtp[16], const unsigned int * nonce,
-        const uint64_t (&block_mtp)[72*2][128], const std::deque<std::vector<uint8_t>> * proof_mtp, uint256 pow_limit,
-        uint256 * output){
-
-    MerkleTree::Elements proof_blocks[L*3];
+        const uint8_t hash_root_mtp[16], const unsigned int* nonce,
+        const uint64_t (&block_mtp)[72*2][128],
+        const std::deque<std::vector<uint8_t>> *proof_mtp, uint256 pow_limit,
+        uint256* output)
+{
+    MerkleTree::Elements proof_blocks[L * 3];
     MerkleTree::Buffer root;
-    block blocks[L*2];
+    block blocks[L * 2];
     root.insert(root.begin(), &hash_root_mtp[0], &hash_root_mtp[16]);
-    for(int i = 0; i < L*3; i++){
+    for(int i = 0; i < L * 3; i++) {
         proof_blocks[i] = proof_mtp[i];
     }
-    for(int i = 0; i < L*2; i++){
-        memcpy(blocks[i].v, block_mtp[i], sizeof(uint64_t) * ARGON2_QWORDS_IN_BLOCK);
+    for(int i = 0; i < L * 2; i++) {
+        memcpy(blocks[i].v, block_mtp[i],
+                sizeof(uint64_t) * ARGON2_QWORDS_IN_BLOCK);
     }
 
     LogPrintf("START mtp_verify\n");
@@ -248,20 +241,16 @@ bool mtp_verify(const char* input, const uint32_t target,
     context_verify.free_cbk = myown_deallocator;
     context_verify.flags = ARGON2_DEFAULT_FLAGS;
 
-
 #undef TEST_OUTLEN
 #undef TEST_PWDLEN
 #undef TEST_SALTLEN
 #undef TEST_SECRETLEN
 #undef TEST_ADLEN
 
-
     memory_blocks = context_verify.m_cost;
-
     if (memory_blocks < 2 * ARGON2_SYNC_POINTS * context_verify.lanes) {
         memory_blocks = 2 * ARGON2_SYNC_POINTS * context_verify.lanes;
     }
-
     segment_length = memory_blocks / (context_verify.lanes * ARGON2_SYNC_POINTS);
     memory_blocks = segment_length * (context_verify.lanes * ARGON2_SYNC_POINTS);
 
@@ -279,7 +268,6 @@ bool mtp_verify(const char* input, const uint32_t target,
         instance.threads = instance.lanes;
     }
 
-    //cout << "verifying ..." << endl;
     // step 7
     uint256 y[L + 1];
 
@@ -291,7 +279,6 @@ bool mtp_verify(const char* input, const uint32_t target,
     blake2b_update(&state_y0, hash_root_mtp, MERKLE_TREE_ELEMENT_SIZE_B);
     blake2b_update(&state_y0, nonce, sizeof(unsigned int));
     blake2b_final(&state_y0, &y[0], sizeof(uint256));
-
 
     LogPrintf("y[0] = %s\n", y[0].ToString());
 
@@ -312,7 +299,6 @@ bool mtp_verify(const char* input, const uint32_t target,
     for (int xxx = 0; xxx < 72; xxx++) {
         ossx << std::hex << std::setw(2) << std::setfill('0') << (int) h0[xxx];
     }
-
     LogPrintf("H0_Verify : %s\n", ossx.str());
 
     // step 8
@@ -322,7 +308,7 @@ bool mtp_verify(const char* input, const uint32_t target,
         boost::multiprecision::uint256_t t(s);
         uint32_t ij = numeric_cast<uint32_t>(t % M_COST);
 
-        // retrieve x[ij-1] and x[phi(i)) from proof
+        // retrieve x[ij-1] and x[phi(i)] from proof
         block prev_block, ref_block, t_prev_block, t_ref_block;
         memcpy(t_prev_block.v, block_mtp[j*2 - 2], sizeof(uint64_t) * ARGON2_QWORDS_IN_BLOCK);
         memcpy(t_ref_block.v, block_mtp[j*2 - 1], sizeof(uint64_t) * ARGON2_QWORDS_IN_BLOCK);
@@ -335,7 +321,6 @@ bool mtp_verify(const char* input, const uint32_t target,
         //compute
         uint32_t memory_blocks, segment_length;
         memory_blocks = M_COST;
-
         if (memory_blocks < 2 * ARGON2_SYNC_POINTS * LANES) {
             memory_blocks = 2 * ARGON2_SYNC_POINTS * LANES;
         }
@@ -343,13 +328,15 @@ bool mtp_verify(const char* input, const uint32_t target,
         segment_length = memory_blocks / (LANES * ARGON2_SYNC_POINTS);
         uint32_t lane_length = segment_length * ARGON2_SYNC_POINTS;
         uint32_t ij_prev = 0;
-        if (ij%lane_length == 0)
+        if (ij%lane_length == 0) {
             ij_prev = ij + lane_length - 1;
-        else
+        } else {
             ij_prev = ij - 1;
+        }
 
-        if (ij % lane_length == 1)
+        if (ij % lane_length == 1) {
             ij_prev = ij - 1;
+        }
 
         //hash[prev_index]
         block blockhash_prev;
@@ -365,25 +352,22 @@ bool mtp_verify(const char* input, const uint32_t target,
                 digest_prev + sizeof(digest_prev));
         clear_internal_memory(blockhash_prev.v, ARGON2_BLOCK_SIZE);
         clear_internal_memory(blockhash_prev_bytes, ARGON2_BLOCK_SIZE);
-        if(!MerkleTree::checkProofOrdered(proof_blocks[j*3 - 2], root, hash_prev, ij_prev + 1)){
+        if (!MerkleTree::checkProofOrdered(proof_blocks[j*3 - 2],
+                    root, hash_prev, ij_prev + 1)) {
             LogPrintf("error : checkProofOrdered in x[ij_prev]\n");
             return false;
         }
 
-        //hash[ref_index]
         //compute ref_index
         uint64_t prev_block_opening = prev_block.v[0];
         uint32_t ref_lane = (uint32_t)((prev_block_opening >> 32) % LANES);
-
         uint32_t pseudo_rand = (uint32_t)(prev_block_opening & 0xFFFFFFFF);
-
         uint32_t lane = ((ij) / lane_length);
         uint32_t slice = (ij - (lane * lane_length)) / segment_length;
         uint32_t pos_index = ij - lane * lane_length - slice * segment_length;
-
-        if (slice == 0)
+        if (slice == 0) {
             ref_lane = lane;
-
+        }
 
         argon2_position_t position = { 0, lane , (uint8_t)slice, pos_index };
         argon2_instance_t instance;
@@ -398,26 +382,29 @@ bool mtp_verify(const char* input, const uint32_t target,
         uint8_t blockhash_ref_bytes[ARGON2_BLOCK_SIZE];
         copy_block(&blockhash_ref, &ref_block);
         StoreBlock(&blockhash_ref_bytes, &blockhash_ref);
+
         blake2b_state state_ref;
         blake2b_init(&state_ref, MERKLE_TREE_ELEMENT_SIZE_B);
         blake2b_4r_update(&state_ref, blockhash_ref_bytes, ARGON2_BLOCK_SIZE);
+
         uint8_t digest_ref[MERKLE_TREE_ELEMENT_SIZE_B];
         blake2b_4r_final(&state_ref, digest_ref, sizeof(digest_ref));
+
         MerkleTree::Buffer hash_ref = MerkleTree::Buffer(digest_ref,
                 digest_ref + sizeof(digest_ref));
         clear_internal_memory(blockhash_ref.v, ARGON2_BLOCK_SIZE);
         clear_internal_memory(blockhash_ref_bytes, ARGON2_BLOCK_SIZE);
-        if(!MerkleTree::checkProofOrdered(proof_blocks[j*3 - 1], root, hash_ref, computed_ref_block + 1)){
+
+        if (!MerkleTree::checkProofOrdered(proof_blocks[j*3 - 1],
+                    root, hash_ref, computed_ref_block + 1)) {
             LogPrintf("error : checkProofOrdered in x[ij_ref]\n");
             return false;
-        }else{
-            //LogPrintf("success : checkProofOrdered in x[ij_ref]\n");
         }
 
         // compute x[ij]
         block block_ij;
-
-        fill_block_mtp(&blocks[j*2 - 2], &blocks[j*2 - 1], &block_ij, 0, computed_ref_block, h0);
+        fill_block_mtp(&blocks[j*2 - 2], &blocks[j*2 - 1], &block_ij, 0,
+                computed_ref_block, h0);
 
         // verify opening
         // hash x[ij]
@@ -425,29 +412,31 @@ bool mtp_verify(const char* input, const uint32_t target,
         uint8_t blockhash_ij_bytes[ARGON2_BLOCK_SIZE];
         copy_block(&blockhash_ij, &block_ij);
         StoreBlock(&blockhash_ij_bytes, &blockhash_ij);
+
         blake2b_state state_ij;
         blake2b_init(&state_ij, MERKLE_TREE_ELEMENT_SIZE_B);
         blake2b_4r_update(&state_ij, blockhash_ij_bytes, ARGON2_BLOCK_SIZE);
+
         uint8_t digest_ij[MERKLE_TREE_ELEMENT_SIZE_B];
         blake2b_4r_final(&state_ij, digest_ij, sizeof(digest_ij));
+
         MerkleTree::Buffer hash_ij = MerkleTree::Buffer(digest_ij,
                 digest_ij + sizeof(digest_ij));
         clear_internal_memory(blockhash_ij.v, ARGON2_BLOCK_SIZE);
         clear_internal_memory(blockhash_ij_bytes, ARGON2_BLOCK_SIZE);
+
         std::ostringstream oss;
         oss << "hash_ij[" << ij << "] = 0x";
         for (MerkleTree::Buffer::const_iterator it = hash_ij.begin();
-                it != hash_ij.end(); ++it) {
-            oss << std::hex << std::setw(2) << std::setfill('0') << (int) *it;
+                it != hash_ij.end();
+                ++it) {
+            oss << std::hex << std::setw(2) << std::setfill('0') << (int)*it;
         }
-        //cout << oss.str() << endl;
 
-        if (!MerkleTree::checkProofOrdered(proof_blocks[j * 3 - 3], root,
+        if (!MerkleTree::checkProofOrdered(proof_blocks[j*3 - 3], root,
                     hash_ij, ij + 1)) {
             LogPrintf("error : checkProofOrdered in x[ij]\n");
             return false;
-        }else{
-            //LogPrintf("success : checkProofOrdered in x[ij]\n");
         }
 
         // compute y(j)
@@ -463,7 +452,6 @@ bool mtp_verify(const char* input, const uint32_t target,
         clear_internal_memory(block_ij.v, ARGON2_BLOCK_SIZE);
         clear_internal_memory(blockhash.v, ARGON2_BLOCK_SIZE);
         clear_internal_memory(blockhash_bytes, ARGON2_BLOCK_SIZE);
-
     }
 
     // step 9
@@ -476,8 +464,6 @@ bool mtp_verify(const char* input, const uint32_t target,
         clear_internal_memory(blocks[i].v, ARGON2_BLOCK_SIZE);
     }
 
-    //uint256 pow_limit = uint256S(
-    //		"00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
     if (negative || bn_target == 0 || overflow
             || bn_target > UintToArith256(pow_limit)
             || UintToArith256(y[L]) > bn_target) {
@@ -494,15 +480,12 @@ bool mtp_verify(const char* input, const uint32_t target,
     return false;
 }
 
-
-void mtp_hash(const char* input, uint32_t target,
-        uint8_t hash_root_mtp[16], unsigned int * nonce,
-        uint64_t (&block_mtp)[72*2][128], std::deque<std::vector<uint8_t>> * proof_mtp, uint256 pow_limit,
-        uint256 * output) {
-
+void mtp_hash(const char* input, uint32_t target, uint8_t hash_root_mtp[16],
+        unsigned int *nonce, uint64_t (&block_mtp)[72*2][128],
+        std::deque<std::vector<uint8_t>> *proof_mtp, uint256 pow_limit,
+        uint256* output)
+{
 BEGIN:
-
-
     LogPrintf("START mtp_hash\n");
 
 #define TEST_OUTLEN 32
@@ -526,7 +509,6 @@ BEGIN:
     memcpy(pwd, input, TEST_PWDLEN);
     memcpy(salt, input, TEST_SALTLEN);
 
-
     context.out = out;
     context.outlen = TEST_OUTLEN;
     context.version = ARGON2_VERSION_NUMBER;
@@ -546,16 +528,13 @@ BEGIN:
     context.free_cbk = myown_deallocator;
     context.flags = ARGON2_DEFAULT_FLAGS;
 
-
 #undef TEST_OUTLEN
 #undef TEST_PWDLEN
 #undef TEST_SALTLEN
 #undef TEST_SECRETLEN
 #undef TEST_ADLEN
 
-
     memory_blocks = context.m_cost;
-
     if (memory_blocks < 2 * ARGON2_SYNC_POINTS * context.lanes) {
         memory_blocks = 2 * ARGON2_SYNC_POINTS * context.lanes;
     }
@@ -587,11 +566,14 @@ BEGIN:
         uint8_t blockhash_bytes[ARGON2_BLOCK_SIZE];
         copy_block(&blockhash, &instance.memory[i]);
         StoreBlock(&blockhash_bytes, &blockhash);
+
         blake2b_state state;
         blake2b_init(&state, MERKLE_TREE_ELEMENT_SIZE_B);
         blake2b_4r_update(&state, blockhash_bytes, ARGON2_BLOCK_SIZE);
+
         uint8_t digest[MERKLE_TREE_ELEMENT_SIZE_B];
         blake2b_4r_final(&state, digest, sizeof(digest));
+
         MerkleTree::Buffer hash_digest = MerkleTree::Buffer(digest, digest + sizeof(digest));
         elements.push_back(hash_digest);
         clear_internal_memory(blockhash.v, ARGON2_BLOCK_SIZE);
@@ -607,12 +589,10 @@ BEGIN:
 
     // step 4
     uint256 y[L + 1];
-    //uint8_t input[80] = { 1 };
     block blocks[L*2];
     MerkleTree::Elements proof_blocks[L*3];
     while (true) {
-
-        if(n_nonce_internal == UINT_MAX){
+        if (n_nonce_internal == UINT_MAX) {
             // go to create a new merkle tree
             goto BEGIN;
         }
@@ -626,7 +606,6 @@ BEGIN:
         blake2b_update(&state, hash_root_mtp, MERKLE_TREE_ELEMENT_SIZE_B);
         blake2b_update(&state, &n_nonce_internal, sizeof(unsigned int));
         blake2b_final(&state, &y[0], sizeof(uint256));
-
 
         // step 5
         bool init_blocks = false;
@@ -668,15 +647,21 @@ BEGIN:
             uint8_t blockhash_curr_bytes[ARGON2_BLOCK_SIZE];
             copy_block(&blockhash_curr, &instance.memory[ij]);
             StoreBlock(&blockhash_curr_bytes, &blockhash_curr);
+
             blake2b_state state_curr;
             blake2b_init(&state_curr, MERKLE_TREE_ELEMENT_SIZE_B);
-            blake2b_4r_update(&state_curr, blockhash_curr_bytes, ARGON2_BLOCK_SIZE);
+            blake2b_4r_update(&state_curr, blockhash_curr_bytes,
+                    ARGON2_BLOCK_SIZE);
+
             uint8_t digest_curr[MERKLE_TREE_ELEMENT_SIZE_B];
             blake2b_4r_final(&state_curr, digest_curr, sizeof(digest_curr));
-            MerkleTree::Buffer hash_curr = MerkleTree::Buffer(digest_curr, digest_curr + sizeof(digest_curr));
+
+            MerkleTree::Buffer hash_curr = MerkleTree::Buffer(digest_curr,
+                    digest_curr + sizeof(digest_curr));
             clear_internal_memory(blockhash_curr.v, ARGON2_BLOCK_SIZE);
             clear_internal_memory(blockhash_curr_bytes, ARGON2_BLOCK_SIZE);
-            MerkleTree::Elements proof_curr = ordered_tree.getProofOrdered(hash_curr, ij + 1);
+            MerkleTree::Elements proof_curr = ordered_tree.getProofOrdered(
+                    hash_curr, ij + 1);
             proof_blocks[j*3 - 3] = proof_curr;
 
             //prev proof
@@ -684,33 +669,43 @@ BEGIN:
             uint8_t blockhash_prev_bytes[ARGON2_BLOCK_SIZE];
             copy_block(&blockhash_prev, &instance.memory[prev_index]);
             StoreBlock(&blockhash_prev_bytes, &blockhash_prev);
+
             blake2b_state state_prev;
             blake2b_init(&state_prev, MERKLE_TREE_ELEMENT_SIZE_B);
-            blake2b_4r_update(&state_prev, blockhash_prev_bytes, ARGON2_BLOCK_SIZE);
+            blake2b_4r_update(&state_prev, blockhash_prev_bytes,
+                    ARGON2_BLOCK_SIZE);
+
             uint8_t digest_prev[MERKLE_TREE_ELEMENT_SIZE_B];
             blake2b_4r_final(&state_prev, digest_prev, sizeof(digest_prev));
-            MerkleTree::Buffer hash_prev = MerkleTree::Buffer(digest_prev, digest_prev + sizeof(digest_prev));
+
+            MerkleTree::Buffer hash_prev = MerkleTree::Buffer(digest_prev,
+                    digest_prev + sizeof(digest_prev));
             clear_internal_memory(blockhash_prev.v, ARGON2_BLOCK_SIZE);
             clear_internal_memory(blockhash_prev_bytes, ARGON2_BLOCK_SIZE);
-            MerkleTree::Elements proof_prev = ordered_tree.getProofOrdered(hash_prev, prev_index + 1);
+            MerkleTree::Elements proof_prev = ordered_tree.getProofOrdered(
+                    hash_prev, prev_index + 1);
             proof_blocks[j*3 - 2] = proof_prev;
-
-
 
             //ref proof
             block blockhash_ref;
             uint8_t blockhash_ref_bytes[ARGON2_BLOCK_SIZE];
             copy_block(&blockhash_ref, &instance.memory[ref_index]);
             StoreBlock(&blockhash_ref_bytes, &blockhash_ref);
+
             blake2b_state state_ref;
             blake2b_init(&state_ref, MERKLE_TREE_ELEMENT_SIZE_B);
-            blake2b_4r_update(&state_ref, blockhash_ref_bytes, ARGON2_BLOCK_SIZE);
+            blake2b_4r_update(&state_ref, blockhash_ref_bytes,
+                    ARGON2_BLOCK_SIZE);
+
             uint8_t digest_ref[MERKLE_TREE_ELEMENT_SIZE_B];
             blake2b_4r_final(&state_ref, digest_ref, sizeof(digest_ref));
-            MerkleTree::Buffer hash_ref = MerkleTree::Buffer(digest_ref, digest_ref + sizeof(digest_ref));
+
+            MerkleTree::Buffer hash_ref = MerkleTree::Buffer(digest_ref,
+                    digest_ref + sizeof(digest_ref));
             clear_internal_memory(blockhash_ref.v, ARGON2_BLOCK_SIZE);
             clear_internal_memory(blockhash_ref_bytes, ARGON2_BLOCK_SIZE);
-            MerkleTree::Elements proof_ref = ordered_tree.getProofOrdered(hash_ref, ref_index + 1);
+            MerkleTree::Elements proof_ref = ordered_tree.getProofOrdered(
+                    hash_ref, ref_index + 1);
             proof_blocks[j*3 - 1] = proof_ref;
         }
 
@@ -719,13 +714,14 @@ BEGIN:
             continue;
         }
 
-
         // step 6
         bool negative;
         bool overflow;
         arith_uint256 bn_target;
         bn_target.SetCompact(target, &negative, &overflow); // diff = 1
-        if (negative || bn_target == 0 || overflow || bn_target > UintToArith256(pow_limit) || UintToArith256(y[L]) > bn_target) {
+        if (negative || bn_target == 0 || overflow
+                || bn_target > UintToArith256(pow_limit)
+                || UintToArith256(y[L]) > bn_target) {
             n_nonce_internal++;
             continue;
         } else {
@@ -735,9 +731,7 @@ BEGIN:
             LogPrintf("nNonce 	  = %s\n", n_nonce_internal);
 
             // step 7
-
             LogPrintf("END mtp_hash\n");
-
             std::copy(root.begin(), root.end(), hash_root_mtp);
 
             *nonce = n_nonce_internal;
@@ -749,7 +743,6 @@ BEGIN:
                 proof_mtp[i] = proof_blocks[i];
             }
             memcpy(output, &y[L], sizeof(uint256));
-
 
             LogPrintf("pblock->hashRootMTP:\n");
             for (int i = 0; i < 16; i++) {
@@ -782,9 +775,8 @@ BEGIN:
             ossx << "h0 = ";
             for (int xxx = 0; xxx < 72; xxx++) {
                 ossx << std::hex << std::setw(2) << std::setfill('0')
-                    << (int) h0[xxx];
+                    << (int)h0[xxx];
             }
-
             LogPrintf("H0_Proof : %s\n", ossx.str());
 
             // get hash_zero
@@ -794,18 +786,13 @@ BEGIN:
             ossxxx << "h0 = ";
             for (int xxx = 0; xxx < 72; xxx++) {
                 ossxxx << std::hex << std::setw(2) << std::setfill('0')
-                    << (int) h0_computed[xxx];
+                    << (int)h0_computed[xxx];
             }
 
             LogPrintf("H0_Proof_Computed : %s\n", ossx.str());
-
             LogPrintf("RETURN mtp_hash\n");
-
-            return ;
-
+            return;
         }
-
     }
-
-    return ;
+    return;
 }
