@@ -38,7 +38,8 @@ const unsigned LANES = 4;
 void StoreBlock(void *output, const block *src)
 {
     for (unsigned i = 0; i < ARGON2_QWORDS_IN_BLOCK; ++i) {
-        store64((uint8_t*)output + (i * sizeof(src->v[i])), src->v[i]);
+        store64(static_cast<uint8_t*>(output)
+                + (i * sizeof(src->v[i])), src->v[i]);
     }
 }
 
@@ -141,9 +142,9 @@ void GetBlockIndex(uint32_t ij, argon2_instance_t *instance,
     }
 
     uint64_t prev_block_opening = instance->memory[ij_prev].v[0];
-    uint32_t ref_lane = (uint32_t)((prev_block_opening >> 32)
-            % instance->lanes);
-    uint32_t pseudo_rand = (uint32_t)(prev_block_opening & 0xFFFFFFFF);
+    uint32_t ref_lane = static_cast<uint32_t>((prev_block_opening >> 32)
+            % static_cast<uint64_t>(instance->lanes));
+    uint32_t pseudo_rand = static_cast<uint32_t>(prev_block_opening & 0xFFFFFFFF);
     uint32_t lane = ij / instance->lane_length;
     uint32_t slice = (ij - (lane * instance->lane_length))
         / instance->segment_length;
@@ -173,7 +174,7 @@ bool mtp_verify(const char* input, const uint32_t target,
     MerkleTree::Buffer root;
     block blocks[L * 2];
     root.insert(root.begin(), &hash_root_mtp[0], &hash_root_mtp[16]);
-    for(int i = 0; i < (L * 3); i++) {
+    for (int i = 0; i < (L * 3); i++) {
         proof_blocks[i] = proof_mtp[i];
     }
     for(int i = 0; i < (L * 2); i++) {
@@ -357,8 +358,8 @@ bool mtp_verify(const char* input, const uint32_t target,
 
         //compute ref_index
         uint64_t prev_block_opening = prev_block.v[0];
-        uint32_t ref_lane = (uint32_t)((prev_block_opening >> 32) % LANES);
-        uint32_t pseudo_rand = (uint32_t)(prev_block_opening & 0xFFFFFFFF);
+        uint32_t ref_lane = static_cast<uint32_t>((prev_block_opening >> 32) % LANES);
+        uint32_t pseudo_rand = static_cast<uint32_t>(prev_block_opening & 0xFFFFFFFF);
         uint32_t lane = ij / lane_length;
         uint32_t slice = (ij - (lane * lane_length)) / segment_length;
         uint32_t pos_index = ij - (lane * lane_length)
@@ -585,8 +586,8 @@ BEGIN:
 
     // step 4
     uint256 y[L + 1];
-    block blocks[L*2];
-    MerkleTree::Elements proof_blocks[L*3];
+    block blocks[L * 2];
+    MerkleTree::Elements proof_blocks[L * 3];
     while (true) {
         if (n_nonce_internal == UINT_MAX) {
             // go to create a new merkle tree
@@ -632,9 +633,9 @@ BEGIN:
             uint32_t ref_index;
             GetBlockIndex(ij, &instance, &prev_index, &ref_index);
             //previous block
-            copy_block(&blocks[j*2 - 2], &instance.memory[prev_index]);
+            copy_block(&blocks[(j * 2) - 2], &instance.memory[prev_index]);
             //ref block
-            copy_block(&blocks[j*2 - 1], &instance.memory[ref_index]);
+            copy_block(&blocks[(j * 2) - 1], &instance.memory[ref_index]);
 
             //storing proof
             //TODO : make it as function please
