@@ -2951,6 +2951,80 @@ UniValue setmintzerocoinstatus(const UniValue& params, bool fHelp) {
     return results;
 }
 
+UniValue listspendzerocoins(const UniValue &params, bool fHelp) {
+    if (fHelp || params.size() < 1 || params.size() > 2)
+        throw runtime_error(
+                "listspendzerocoins\n"
+                "Return up to \"count\" saved spend transactions\n"
+                "\nArguments:\n"
+                "1. count            (numeric) The number of transactions to return, <=0 means no limit\n"
+                "2. onlyunconfirmed  (bool, optional, default=false) If true return only unconfirmed transactions\n"
+                "\nResult:\n"
+                "[\n"
+                "  {\n"
+                "    \"txid\": \"transactionid\",      (string) The transaction hash\n"
+                "    \"denomination\": d,            (numeric) Denomination\n"
+                "    \"spendid\": id,                (numeric) Spend group id\n"
+                "    \"version\": \"v\",               (string) Spend version (1.0, 1,5 or 2.0)\n"
+                "    \"modversion\": mv,             (numeric) Modulus version (1 or 2)\n"
+                "    \"serial\": \"s\",                (string) Serial number of the coin\n"
+                "    \"abandoned\": xxx,             (bool) True if the transaction was already abandoned\n"
+                "    \"confirmations\": n,           (numeric) The number of confirmations for the transaction\n"
+                "  }\n"
+                "]\n");
+
+    int  count = params[0].get_int();
+    bool fOnlyUnconfirmed = params.size()>=2 && params[1].get_bool();
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    UniValue ret(UniValue::VARR);
+    const CWallet::TxItems & txOrdered = pwalletMain->wtxOrdered;
+
+    for (CWallet::TxItems::const_reverse_iterator it = txOrdered.rbegin(); it != txOrdered.rend(); ++it) {
+        CWalletTx *const pwtx = (*it).second.first;
+
+        if (!pwtx || !pwtx->IsZerocoinSpend() || pwtx->vin.size() != 1)
+            continue;
+
+        UniValue entry(UniValue::VOBJ);
+
+        int confirmations = pwtx->GetDepthInMainChain();
+        if (confirmations > 0 && fOnlyUnconfirmed)
+            continue;
+
+        entry.push_back(Pair("txid", pwtx->GetHash().GetHex()));
+        entry.push_back(Pair("confirmations", confirmations));
+        entry.push_back(Pair("abandoned", pwtx->isAbandoned()));
+
+        const CTxIn &txin = pwtx->vin[0];
+        int pubcoinId = txin.nSequence;
+        bool fModulusV2 = pubcoinId >= ZC_MODULUS_V2_BASE_ID;
+        if (fModulusV2)
+            pubcoinId -= ZC_MODULUS_V2_BASE_ID;
+
+        CDataStream serializedCoinSpend((const char *)&*(txin.scriptSig.begin() + 4),
+                                        (const char *)&*txin.scriptSig.end(),
+                                        SER_NETWORK, PROTOCOL_VERSION);
+        libzerocoin::CoinSpend spend(fModulusV2 ? ZCParamsV2 : ZCParams, serializedCoinSpend);
+        int spendVersion = spend.getVersion();
+
+        entry.push_back(Pair("denomination", (int)spend.getDenomination()));
+        entry.push_back(Pair("spendid", pubcoinId));
+        entry.push_back(Pair("modversion", fModulusV2 ? 2 : 1));
+        entry.push_back(Pair("version", spendVersion==ZEROCOIN_TX_VERSION_1 ? "1.0" :
+                                         (spendVersion==ZEROCOIN_TX_VERSION_1_5 ? "1.5" : "2.0")));
+        entry.push_back(Pair("serial", spend.getCoinSerialNumber().ToString()));
+
+        ret.push_back(entry);
+
+        if (count > 0 && (int)ret.size() >= count)
+            break;
+    }
+
+    return ret;
+}
+
 UniValue removetxmempool(const UniValue &params, bool fHelp) {
     if (fHelp || params.size() != 1)
         throw runtime_error(
@@ -3063,6 +3137,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "listpubcoins",        &listpubcoins,        false },
     { "wallet",             "removetxmempool",          &removetxmempool,          false },
     { "wallet",             "removetxwallet",           &removetxwallet,           false },
+    { "wallet",             "listspendzerocoins",       &listspendzerocoins,       false }
 };
 
 void RegisterWalletRPCCommands(CRPCTable &tableRPC)
