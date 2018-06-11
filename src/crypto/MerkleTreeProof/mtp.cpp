@@ -37,8 +37,7 @@ const unsigned LANES = 4;
 
 void StoreBlock(void *output, const block *src)
 {
-    unsigned i;
-    for (i = 0; i < ARGON2_QWORDS_IN_BLOCK; ++i) {
+    for (unsigned i = 0; i < ARGON2_QWORDS_IN_BLOCK; ++i) {
         store64((uint8_t*)output + (i * sizeof(src->v[i])), src->v[i]);
     }
 }
@@ -47,18 +46,18 @@ int Argon2CtxMtp(argon2_context *context, argon2_type type,
         argon2_instance_t *instance)
 {
     int result = validate_inputs(context);
-    if (ARGON2_OK != result) {
+    if (result != ARGON2_OK) {
         return result;
     }
-    if ((Argon2_d != type) && (Argon2_i != type) && (Argon2_id != type)) {
+    if ((type != Argon2_d) && (type != Argon2_i) && (type != Argon2_id)) {
         return ARGON2_INCORRECT_TYPE;
     }
     result = initialize(instance, context);
-    if (ARGON2_OK != result) {
+    if (result != ARGON2_OK) {
         return result;
     }
     result = fill_memory_blocks_mtp(instance, context);
-    if (ARGON2_OK != result) {
+    if (result != ARGON2_OK) {
         return result;
     }
     return ARGON2_OK;
@@ -79,12 +78,9 @@ uint32_t IndexBeta(const argon2_instance_t *instance,
      *      Other lanes : (SYNC_POINTS - 1) last segments
      */
     uint32_t reference_area_size;
-    uint64_t relative_position;
-    uint32_t start_position, absolute_position;
-
-    if (0 == position->pass) {
+    if (position->pass == 0) {
         /* First pass */
-        if (0 == position->slice) {
+        if (position->slice == 0) {
             /* First slice */
             reference_area_size = position->index - 1; // all but the previous
         } else {
@@ -112,23 +108,23 @@ uint32_t IndexBeta(const argon2_instance_t *instance,
 
     /* 1.2.4. Mapping pseudo_rand to 0..<reference_area_size-1> and produce
      * relative position */
-    relative_position = pseudo_rand;
+    uint64_t relative_position = pseudo_rand;
     relative_position = relative_position * (relative_position >> 32);
     relative_position = reference_area_size - 1
         - (reference_area_size * (relative_position >> 32));
 
     /* 1.2.5 Computing starting position */
-    start_position = 0;
-    if (0 != position->pass) {
-        start_position = (position->slice == ARGON2_SYNC_POINTS - 1)
+    uint32_t start_position = 0;
+    if (position->pass != 0) {
+        start_position = (position->slice == (ARGON2_SYNC_POINTS - 1))
             ? 0
             : (position->slice + 1) * instance->segment_length;
     }
 
     /* 1.2.6. Computing absolute position */
-    absolute_position = (start_position + relative_position) %
-        instance->lane_length; /* absolute position */
-    return absolute_position;
+    uint64_t absolute_position = (static_cast<uint64_t>(start_position)
+            + relative_position) % static_cast<uint64_t>(instance->lane_length);
+    return static_cast<uint32_t>(absolute_position);
 }
 
 void GetBlockIndex(uint32_t ij, argon2_instance_t *instance,
