@@ -32,7 +32,7 @@ namespace {
 
 const int8_t L = 72;
 const unsigned T_COST = 1;
-const unsigned M_COST = 1024 * 4;
+const unsigned M_COST = 4 * 1024 * 1024;
 const unsigned LANES = 4;
 
 void StoreBlock(void *output, const block *src)
