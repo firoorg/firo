@@ -964,6 +964,41 @@ bool CWallet::AbandonTransaction(const uint256 &hashTx) {
                     mapWallet[txin.prevout.hash].MarkDirty();
             }
         }
+
+        if (wtx.IsZerocoinSpend()) {
+            // find out coin serial number
+            assert(wtx.vin.size() == 1);
+
+            const CTxIn &txin = wtx.vin[0];
+            CDataStream serializedCoinSpend((const char *)&*(txin.scriptSig.begin() + 4),
+                                            (const char *)&*txin.scriptSig.end(),
+                                            SER_NETWORK, PROTOCOL_VERSION);
+            libzerocoin::CoinSpend spend(txin.nSequence >= ZC_MODULUS_V2_BASE_ID ? ZCParamsV2 : ZCParams,
+                                         serializedCoinSpend);
+
+            CBigNum serial = spend.getCoinSerialNumber();
+
+            // mark corresponding mint as unspent
+            list <CZerocoinEntry> pubCoins;
+            walletdb.ListPubCoin(pubCoins);
+
+            BOOST_FOREACH(const CZerocoinEntry &zerocoinItem, pubCoins) {
+                if (zerocoinItem.serialNumber == serial) {
+                    CZerocoinEntry modifiedItem = zerocoinItem;
+                    modifiedItem.IsUsed = false;
+                    pwalletMain->NotifyZerocoinChanged(pwalletMain, zerocoinItem.value.GetHex(),
+                                                       std::string("New (") + std::to_string(zerocoinItem.denomination) + "mint)",
+                                                       CT_UPDATED);
+                    walletdb.WriteZerocoinEntry(modifiedItem);
+
+                    // erase zerocoin spend entry
+                    CZerocoinSpendEntry spendEntry;
+                    spendEntry.coinSerial = serial;
+                    walletdb.EraseCoinSpendSerialEntry(spendEntry);
+                }
+            }
+
+        }
     }
 
     return true;

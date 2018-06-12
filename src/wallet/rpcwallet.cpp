@@ -2934,6 +2934,13 @@ UniValue setmintzerocoinstatus(const UniValue& params, bool fHelp) {
                 pwalletMain->NotifyZerocoinChanged(pwalletMain, zerocoinTx.value.GetHex(), isUsedDenomStr, CT_UPDATED);
                 walletdb.WriteZerocoinEntry(zerocoinTx);
 
+                if (!fStatus) {
+                    // erase zerocoin spend entry
+                    CZerocoinSpendEntry spendEntry;
+                    spendEntry.coinSerial = coinSerial;
+                    walletdb.EraseCoinSpendSerialEntry(spendEntry);
+                }
+
                 UniValue entry(UniValue::VOBJ);
                 entry.push_back(Pair("id", zerocoinTx.id));
                 entry.push_back(Pair("IsUsed", zerocoinTx.IsUsed));
