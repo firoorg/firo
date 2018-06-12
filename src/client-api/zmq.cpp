@@ -188,60 +188,23 @@ UniValue CallRPC(const string& strMethod, const UniValue& params)
     return reply;
 }
 
-std::string get_reply(std::vector<std::string> args)
+
+UniValue setupRPC(std::vector<std::string> args)
 {
    string strPrint;
    int nRet = 0;
+   UniValue reply;
    json j;
    try {
        std::string strMethod = args[0];
-       //LogPrintf("strMethod: " + strMethod.c_str() + "\n");
+
        UniValue params = RPCConvertValues(strMethod, std::vector<std::string>(args.begin()+1, args.end()));
 
        // Execute and handle connection failures with -rpcwait
        const bool fWait = GetBoolArg("-rpcwait", false);
        do {
            try {
-               const UniValue reply = CallRPC(strMethod, params);
-
-               // Parse reply
-               const UniValue& result = find_value(reply, "result");
-               const UniValue& error  = find_value(reply, "error");
-
-               if (!error.isNull()) {
-                   // Error
-                   j["errors"] = nullptr;
-                   j["errors"]["status"] = 400;
-                   LogPrintf("ZMQ: errored.\n");
-                   int code = error["code"].get_int();
-                   if (fWait && code == RPC_IN_WARMUP)
-                       throw CConnectionFailed("server in warmup");
-                   strPrint = "error: " + error.write();
-                   nRet = abs(code);
-                   if (error.isObject())
-                   {
-                       UniValue errCode = find_value(error, "code");
-                       UniValue errMsg  = find_value(error, "message");
-                       j["errors"]["code"] = errCode.getValStr();
-                       j["errors"]["message"] = errMsg.getValStr();
-                       strPrint = errCode.isNull() ? "" : "error code: "+errCode.getValStr()+"\n";
-
-                       if (errMsg.isStr())
-                           strPrint += "error message:\n"+errMsg.get_str();
-                   }
-               } else {
-                   // Result
-                   j["meta"] = nullptr;
-                   j["meta"]["status"] = 200;
-                   if (result.isNull())
-                       strPrint = "";
-                   else if (result.isStr())
-                       strPrint = result.get_str();
-                   else
-                       strPrint = result.write(2);
-                   LogPrintf("ZMQ: result: %s", strPrint.c_str());
-                   j["data"] = strPrint.c_str();
-               }
+               reply = CallRPC(strMethod, params);
                // Connection succeeded, no need to retry.
                break;
            }
@@ -265,7 +228,85 @@ std::string get_reply(std::vector<std::string> args)
        throw;
    }
 
-   return j.dump();
+   return reply;
+}
+
+
+json response_to_json(UniValue reply){
+    // Parse reply
+    json response;
+    string strPrint;
+    int nRet = 0;
+    const UniValue& result = find_value(reply, "result");
+    const UniValue& error  = find_value(reply, "error");
+
+
+    if (!error.isNull()) {
+       // Error state.
+       response["errors"] = nullptr;
+       response["errors"]["status"] = 400;
+       LogPrintf("ZMQ: errored.\n");
+       int code = error["code"].get_int();
+       strPrint = "error: " + error.write();
+       nRet = abs(code);
+       if (error.isObject())
+       {
+           UniValue errMsg  = find_value(error, "message");
+           UniValue errCode = find_value(error, "code");
+           response["errors"]["message"] = errMsg.getValStr();
+           response["errors"]["code"] = errCode.getValStr();
+           strPrint = errCode.isNull() ? "" : "error code: "+errCode.getValStr()+"\n";
+
+           if (errMsg.isStr())
+               strPrint += "error message:\n"+errMsg.get_str();
+       }
+    } else {
+       // Result
+       if (result.isNull())
+           strPrint = "";
+       else if (result.isStr())
+           strPrint = result.get_str();
+       else
+           strPrint = result.write(2);
+       LogPrintf("ZMQ: result: %s", strPrint.c_str());
+       response["data"] = strPrint.c_str();
+       response["meta"] = nullptr;
+       response["meta"]["status"] = 200;
+    }
+    
+    LogPrintf("ZMQ: returning response.\n");
+
+    return response;
+}
+
+void create_payment_request(string address, std::vector<std::string> request) {
+  /* order of request in assumed to be: {amount, label, msg} */
+  /*TODO 
+    - getDataDir interacts with the conf file. could have potential implications down the line
+  */
+  boost::filesystem::path persistent_pr = GetDataDir(false) / "persistent" / "payment_request.json";
+
+  // get raw string
+  std::ifstream persistent_pr_in(persistent_pr.string());
+
+  // convert to JSON
+  json persistent_pr_json;
+  persistent_pr_in >> persistent_pr_json;
+
+  // store payment request
+  int last_entry = persistent_pr_json["data"].size();
+  persistent_pr_json["data"][last_entry] = nullptr;
+  persistent_pr_json["data"][last_entry]["msg"]    = request[2];
+  persistent_pr_json["data"][last_entry]["label"]  = request[1];
+  persistent_pr_json["data"][last_entry]["amount"] = request[0];
+  persistent_pr_json["data"][last_entry]["address"] = address;
+
+      
+  // write back
+  std::ofstream persistent_pr_out(persistent_pr.string());
+  persistent_pr_out << std::setw(4) << persistent_pr_json << std::endl;
+  LogPrintf("ZMQ: written back payment request.");
+
 }
 
 
@@ -292,19 +333,6 @@ std::vector<std::string> parse_request(string request_str){
 
     return request_vector;
 }
-
-std::vector<std::string> parse_response(string response_str){
-
-    //response errored.
-    json j;
-
-    if(response_str.find("error code:")!= string::npos){
-
-    }
-
-}
-
-
 
 void *zmqpcontext;
 void *zmqpsocket;
@@ -358,14 +386,46 @@ static void* REQREP_ZMQ(void *arg)
         /* convert input request to a vector of arguments */
         std::vector<std::string> request_vector = parse_request(request_str);
 
-        /* Execute command and get reply */
-        std::string reply_str = get_reply(request_vector);
+        
+        UniValue response_raw;
+
+        json response_json;
+
+        /* handle unorthodox requests */
+        // TODO better scheme for this as more requests added (see RPCTable)
+        if(request_vector[0]=="getpaymentrequest"){
+            /* store */
+            std::vector<std::string> getnewaddress;
+            getnewaddress.push_back("getnewaddress");
+            /* Execute getnewaddress command */
+            response_raw = setupRPC(getnewaddress);
+
+            /* extract address */
+            LogPrintf("ZMQ: before func..\n");
+            response_json = response_to_json(response_raw);
+            LogPrintf("ZMQ: after func..\n");
+
+            /* create & store payment request in local storage */
+            create_payment_request(response_json["data"], std::vector<std::string>(request_vector.begin()+1, request_vector.end()));
+
+            /* TODO- generally, what to return for unorthodox requests.
+               in getpaymentrequest, client only needs a status and an address back, so don't need to modify JSON call.
+               this will likely be different for different calls. 
+            */
+        }
+        else {
+          /* Execute command */
+          response_raw = setupRPC(request_vector);
+          /* process reply */
+          response_json = response_to_json(response_raw);
+        }
         
         /* Send reply */
+        string response_str = response_json.dump();
         zmq_msg_t reply;
-        rc = zmq_msg_init_size (&reply, reply_str.size());
+        rc = zmq_msg_init_size (&reply, response_str.size());
         assert(rc == 0);
-        std::memcpy (zmq_msg_data (&reply), reply_str.data(), reply_str.size());
+        std::memcpy (zmq_msg_data (&reply), response_str.data(), response_str.size());
         LogPrintf("ZMQ: Sending reply..\n");
         /* Block until a message is available to be sent from socket */
         rc = zmq_sendmsg (zmqpsocket, &reply, 0);

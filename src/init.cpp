@@ -39,6 +39,7 @@
 #include "utilmoneystr.h"
 #include "validationinterface.h"
 #include "validation.h"
+#include "client-api/json.hpp"
 
 #ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
@@ -92,6 +93,7 @@
 #include "client-api/register.h"
 #endif
 
+using json = nlohmann::json;
 
 bool fFeeEstimatesInitialized = false;
 static const bool DEFAULT_PROXYRANDOMIZE = true;
@@ -1580,6 +1582,33 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
             fReindex = true;
         }
     }
+
+    // Add persistent data folder in the datadir
+    boost::filesystem::path persistent_dir = GetDataDir() / "persistent";
+    if (!boost::filesystem::exists(persistent_dir)) {
+        boost::filesystem::create_directories(persistent_dir);
+    }
+
+    //list of JSON file names
+    std::vector<std::string> files = {"payment_request",
+                                      "settings", 
+                                      "zerocoin"};
+
+    for (std::vector<std::string>::iterator it = files.begin(); it != files.end(); it++) {
+
+            // create JSON file for current
+            json filepath_json;
+            filepath_json["type"] = (*it);
+            filepath_json["data"] = nullptr;
+            
+        boost::filesystem::path filepath = persistent_dir / (*it).append(".json");
+        if (!boost::filesystem::exists(filepath)) {            
+            //write JSON to persistent storage
+            std::ofstream filepath_out(filepath.string());
+            filepath_out << std::setw(4) << filepath_json << std::endl;
+        }
+    }
+
 
     // cache size calculations
     int64_t nTotalCache = (GetArg("-dbcache", nDefaultDbCache) << 20);
