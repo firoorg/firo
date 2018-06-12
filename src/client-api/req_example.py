@@ -11,6 +11,15 @@ context = zmq.Context()
 socket = context.socket(zmq.REQ)
 socket.connect("tcp://localhost:5557")
 
+message_input_pr = b"{ \
+                    \"type\": \"getpaymentrequest\", \
+                    \"payload\": [ \
+                        \"4000\", \
+                        \"Joern's Payment Request\",\
+                        \"this is a payment request for Joern.\" \
+                     ] \
+                  }";
+
 message_input_list = b"{ \
                     \"type\": \"getblock\", \
                     \"payload\": [ \
@@ -21,10 +30,10 @@ message_input_list = b"{ \
 message_input_object = b"{ \
                     \"type\": \"getaddressbalance\", \
                     \"payload\": { \
-                        \"addresses\": [\"aQ18FBV445FtnueucZKeVg4srhmzbpAeb1KoN\"] \
+                        \"addresses\": [\"aQ18FBVFtnueucZKeVg4srhmzbpAeb1KoN\"] \
                      } \
                   }";
                   
-socket.send(message_input_object)
+socket.send(message_input_pr)
 message = socket.recv()
 print("Received reply [%s]" % (message))
