@@ -805,7 +805,7 @@ UniValue getaddressbalance(const UniValue& params, bool fHelp)
 
     for (std::vector<std::pair<uint160, int> >::iterator it = addresses.begin(); it != addresses.end(); it++) {
         if (!GetAddressIndex((*it).first, (*it).second, addressIndex)) {
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for address");
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for address. If this is not an address in your wallet, set addressindex=1 in the conf file.");
         }
     }
 

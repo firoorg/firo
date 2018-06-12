@@ -21,7 +21,7 @@ message_input_list = b"{ \
 message_input_object = b"{ \
                     \"type\": \"getaddressbalance\", \
                     \"payload\": { \
-                        \"addresses\": [\"aQ18FBVFtnueucZKeVg4srhmzbpAeb1KoN\"] \
+                        \"addresses\": [\"aQ18FBV445FtnueucZKeVg4srhmzbpAeb1KoN\"] \
                      } \
                   }";
                   
