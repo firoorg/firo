@@ -110,9 +110,9 @@ uint32_t IndexBeta(const argon2_instance_t *instance,
     /* 1.2.4. Mapping pseudo_rand to 0..<reference_area_size-1> and produce
      * relative position */
     uint64_t relative_position = pseudo_rand;
-    relative_position = relative_position * (relative_position >> 32);
+    relative_position = (relative_position * relative_position) >> 32;
     relative_position = reference_area_size - 1
-        - (reference_area_size * (relative_position >> 32));
+        - ((reference_area_size * relative_position) >> 32);
 
     /* 1.2.5 Computing starting position */
     uint32_t start_position = 0;
