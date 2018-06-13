@@ -12,6 +12,7 @@
 #include "rpc/protocol.h"
 #include "util.h"
 #include "utilstrencodings.h"
+#include <chrono>
 
 #include <boost/filesystem/operations.hpp>
 #include <stdio.h>
@@ -22,9 +23,14 @@
 #include <event2/keyvalq_struct.h>
 
 #include <univalue.h>
+
+#include <iostream>
+#include <sstream>
 //import rpc methods. or use the table?
 
 using json = nlohmann::json;
+
+using namespace std::chrono;
 
 
 static const char DEFAULT_RPCCONNECT[] = "127.0.0.1";
@@ -293,12 +299,19 @@ void create_payment_request(string address, std::vector<std::string> request) {
   json persistent_pr_json;
   persistent_pr_in >> persistent_pr_json;
 
+  // get time in ms
+  milliseconds ms = duration_cast< milliseconds >(
+    system_clock::now().time_since_epoch()
+  );
+
   // store payment request
   int last_entry = persistent_pr_json["data"].size();
   persistent_pr_json["data"][last_entry] = nullptr;
   persistent_pr_json["data"][last_entry]["msg"]    = request[2];
   persistent_pr_json["data"][last_entry]["label"]  = request[1];
   persistent_pr_json["data"][last_entry]["amount"] = request[0];
+  persistent_pr_json["data"][last_entry]["amount"] = request[0];
+  persistent_pr_json["data"][last_entry]["created_at"] = to_string(ms.count());
   persistent_pr_json["data"][last_entry]["address"] = address;
 
       
@@ -399,6 +412,10 @@ static void* REQREP_ZMQ(void *arg)
             getnewaddress.push_back("getnewaddress");
             /* Execute getnewaddress command */
             response_raw = setupRPC(getnewaddress);
+
+
+
+
 
             /* extract address */
             LogPrintf("ZMQ: before func..\n");
