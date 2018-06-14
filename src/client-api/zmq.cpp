@@ -6,6 +6,7 @@
 #include "client-api/zmq.h"
 #include "client-api/server.h"
 #include "zmq/zmqpublishnotifier.h"
+#include "chainparams.h"
 #include "chainparamsbase.h"
 #include "clientversion.h"
 #include "rpc/client.h"
@@ -469,7 +470,22 @@ bool StartREQREPZMQ()
         return false;
     }
 
-    int rc = zmq_bind(zmqpsocket, "tcp://*:5557");
+    // Get network port.
+    string port;
+    if(Params().NetworkIDString()==CBaseChainParams::MAIN){
+      port = "15557";
+    }
+    else if(Params().NetworkIDString()==CBaseChainParams::TESTNET){
+      port = "15558";
+    }
+    //should fail otherwise 
+
+    LogPrintf("ZMQ: port = %s\n", port);
+
+    string tcp = "tcp://*:";
+
+    int rc = zmq_bind(zmqpsocket, tcp.append(port).c_str());
+    //int rc = zmq_bind(zmqpsocket, "tcp://*:5558");
     if (rc == -1)
     {
         LogPrintf("ZMQ: Unable to send ZMQ msg\n");
