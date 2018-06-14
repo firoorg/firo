@@ -14,8 +14,10 @@
 #include "libzerocoin/bitcoin_bignum/bignum.h"
 #include "zerocoin_params.h"
 #include "util.h"
+#include "streams.h"
 
 #include <vector>
+
 
 class CBlockFileInfo
 {
@@ -447,7 +449,7 @@ public:
         // Zcoin - MTP
         //if(nHeight >= MTP_HEIGHT){
         /*if(nTime >= 1526971395){
-        	/*READWRITE(nVersionMTP);
+        	READWRITE(nVersionMTP);
         	int i, j;
         	for(i = 0; i < 16; i++){
         		READWRITE(hashRootMTP[i]);
@@ -461,9 +463,9 @@ public:
 
         	for(i = 0; i < 72*3; i++){
         		READWRITE(nProofMTP[i]);
-        	}*/
+        	}
         	//READWRITE(hashBlock);
-        //}*/
+        }*/
 		READWRITE(hashBlock);
 
         if (!(nType & SER_GETHASH) && nVersion >= ZC_ADVANCED_INDEX_VERSION) {
@@ -478,16 +480,64 @@ public:
     uint256 GetBlockHash() const
     {
     	if(hashBlock == uint256()){
-			CBlockHeader block;
-			block.nVersion        = nVersion;
+			CBlock block;
+			// Open history file to read
+			CDiskBlockPos pos = this->GetBlockPos();
+
+			//if (pos.IsNull())
+			//	return NULL;
+			boost::filesystem::path path = GetDataDir() / "blocks" / strprintf("%s%05u.dat", "blk", pos.nFile);
+			//boost::filesystem::create_directories(path.parent_path());
+			FILE *file = fopen(path.string().c_str(), "rb+");
+			if (!file && false)
+				file = fopen(path.string().c_str(), "wb+");
+			if (!file) {
+				LogPrintf("Unable to open file %s\n", path.string());
+				//return NULL;
+			}
+			if (pos.nPos) {
+				if (fseek(file, pos.nPos, SEEK_SET)) {
+					LogPrintf("Unable to seek to position %u of %s\n", pos.nPos,
+							path.string());
+					fclose(file);
+					//return NULL;
+				}
+			}
+
+			CAutoFile filein(file, SER_DISK, CLIENT_VERSION);
+			if (filein.IsNull())
+				//return error("ReadBlockFromDisk: OpenBlockFile failed for %s", pos.ToString());
+
+			// Read block
+			try {
+				filein >> block;
+			}catch (const std::exception &e) {
+				//return error("%s: Deserialize or I/O error - %s at %s", __func__, e.what(), pos.ToString());
+			}
+
+			/*block.nVersion        = nVersion;
 			block.hashPrevBlock   = hashPrev;
 			block.hashMerkleRoot  = hashMerkleRoot;
 			block.nTime           = nTime;
 			block.nBits           = nBits;
-			block.nNonce          = nNonce;
+			block.nNonce          = nNonce;*/
 			// Zcoin - MTP
-			//if(nVersion == (CBlockHeader::CURRENT_VERSION | (GetZerocoinChainID() * BLOCK_VERSION_CHAIN_START) | nVersionMTP)){
 			/*if(nTime >= 1526971395){
+				// Open history file to read
+				    CAutoFile filein(OpenBlockFile(GetBlockPos(), true), SER_DISK, CLIENT_VERSION);
+				    if (filein.IsNull())
+				        return error("ReadBlockFromDisk: OpenBlockFile failed for %s", pos.ToString());
+
+				    // Read block
+				    try {
+				        filein >> block;
+				    }
+				    catch (const std::exception &e) {
+				        return error("%s: Deserialize or I/O error - %s at %s", __func__, e.what(), pos.ToString());
+				    }
+
+				 CBlock blockT;
+				        if (ReadBlockFromDisk(blockT, pindexSlow, consensusParams))
 				block.nVersionMTP        = nVersionMTP;
 				memcpy(block.hashRootMTP, hashRootMTP, sizeof(uint8_t) * 16);
 				memcpy(block.nBlockMTP, nBlockMTP, sizeof(uint64_t) * 72 * 2 * 128);
@@ -495,7 +545,7 @@ public:
 					block.nProofMTP[i] = nProofMTP[i];
 				}
 			}*/
-			return block.GetHash();
+			return block.GetBlockHeader().GetHash();
     	}else{
     		return hashBlock;
     	}
