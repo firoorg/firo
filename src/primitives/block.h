@@ -12,6 +12,8 @@
 #include "uint256.h"
 #include "definition.h"
 
+#define SWITCH_TO_MTP_BLOCK_HEADER 1528995835
+
 
 unsigned char GetNfactor(int64_t nTimestamp);
 
