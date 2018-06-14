@@ -513,7 +513,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
         const int nHeight = pindexPrev == NULL ? 0 : pindexPrev->nHeight + 1;
         bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
         //if (!fTestNet && nHeight >= HF_MTP_HEIGHT){
-        if (!fTestNet && pblock->nTime >= 1526971395){
+        if (!fTestNet && pblock->nTime >= SWITCH_TO_MTP_BLOCK_HEADER){
         	memset(pblock->hashRootMTP, 0, sizeof(uint8_t) * 16);
             memset(pblock->nBlockMTP, 0, sizeof(uint64_t) * 128 * 72 * 2);
             for(int i = 0; i < 72*3; i++){
@@ -522,7 +522,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
         };
 
         //if (fTestNet && nHeight >= HF_MTP_HEIGHT_TESTNET){
-        if (fTestNet && pblock->nTime >= 1526971395){
+        if (fTestNet && pblock->nTime >= SWITCH_TO_MTP_BLOCK_HEADER){
         	memset(pblock->hashRootMTP, 0, sizeof(uint8_t) * 16);
             memset(pblock->nBlockMTP, 0, sizeof(uint64_t) * 128 * 72 * 2);
             for(int i = 0; i < 72*3; i++){
@@ -1164,7 +1164,7 @@ void static ZcoinMiner(const CChainParams &chainparams) {
 
                 while (true) {
                     //if (!fTestNet && pindexPrev->nHeight + 1 >= HF_MTP_HEIGHT){
-                	if (!fTestNet && pblock->nTime >= 1526971395){
+                	if (!fTestNet && pblock->nTime >= SWITCH_TO_MTP_BLOCK_HEADER){
                 		//sleep(60);
                     	LogPrintf("BEFORE: mtp_hash\n");
                     	CMTPInput input{*pblock};
@@ -1199,7 +1199,7 @@ void static ZcoinMiner(const CChainParams &chainparams) {
                         LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2,
                               pindexPrev->nHeight + 1, 256);
                     //} else if (fTestNet && pindexPrev->nHeight + 1 >= HF_MTP_HEIGHT_TESTNET) { // testnet
-                    } else if (fTestNet && pblock->nTime >= 1526971395) { // testnet
+                    } else if (fTestNet && pblock->nTime >= SWITCH_TO_MTP_BLOCK_HEADER) { // testnet
                     	LogPrintf("BEFORE: mtp_hash\n");
                     	CMTPInput input{*pblock};
                     	CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);

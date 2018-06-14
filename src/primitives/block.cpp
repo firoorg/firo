@@ -71,7 +71,7 @@ uint256 CBlockHeader::GetPoWHash(int nHeight, bool forceCalc) const {
     // Zcoin - MTP
     try {
 		//if (!fTestNet && nHeight >= HF_MTP_HEIGHT) {
-    	if (!fTestNet && nTime >= 1526971395){
+    	if (!fTestNet && nTime >= SWITCH_TO_MTP_BLOCK_HEADER){
 			CMTPInput input{*this};
 			CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
 			ss << input;
@@ -83,7 +83,7 @@ uint256 CBlockHeader::GetPoWHash(int nHeight, bool forceCalc) const {
         } else if (!fTestNet && nHeight >= HF_LYRA2VAR_HEIGHT) {
             LYRA2(BEGIN(powHash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, nHeight, 256);
 		//} else if (fTestNet	&& nHeight  >= HF_MTP_HEIGHT_TESTNET) { // testnet
-        } else if (fTestNet	&& nTime  >= 1526971395) { // testnet
+        } else if (fTestNet	&& nTime  >= SWITCH_TO_MTP_BLOCK_HEADER) { // testnet
 			CMTPInput input{*this};
 			CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
 			ss << input;

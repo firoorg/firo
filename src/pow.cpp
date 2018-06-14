@@ -132,11 +132,11 @@ unsigned int CalculateNextWorkRequired(const CBlockIndex *pindexLast, int64_t nF
 bool CheckMerkleTreeProof(int nHeight, const CBlockHeader &block, const Consensus::Params &params) {
 	bool fTestNet = Params().NetworkIDString() == CBaseChainParams::TESTNET;
 	//if (!fTestNet && nHeight < HF_MTP_HEIGHT){
-	if (!fTestNet && block.nTime < 1526971395){
+	if (!fTestNet && block.nTime < SWITCH_TO_MTP_BLOCK_HEADER){
 	    return true;
 	};
 	//if (fTestNet && nHeight < HF_MTP_HEIGHT_TESTNET){
-	if (fTestNet && block.nTime < 1526971395){
+	if (fTestNet && block.nTime < SWITCH_TO_MTP_BLOCK_HEADER){
 		return true;
 	};
 
