@@ -154,7 +154,7 @@ void GetBlockIndex(uint32_t ij, argon2_instance_t *instance,
         ref_lane = lane;
     }
 
-    argon2_position_t position = { 0, lane , (uint8_t)slice, pos_index };
+    argon2_position_t position { 0, lane , (uint8_t)slice, pos_index };
     uint32_t ref_index = IndexBeta(instance, &position, pseudo_rand,
             ref_lane == position.lane);
     uint32_t computed_ref_block = (instance->lane_length * ref_lane) + ref_index;
@@ -281,8 +281,7 @@ bool mtp_verify(const char* input, const uint32_t target,
 
     LogPrintf("input = \n");
     for (int i = 0; i < 80; i++) {
-        unsigned char x;
-        memcpy(&x, &input[i], sizeof(unsigned char));
+        unsigned char x = static_cast<unsigned char>(input[i]);
         LogPrintf("%0x", x);
     }
     LogPrintf("\n");
@@ -341,12 +340,15 @@ bool mtp_verify(const char* input, const uint32_t target,
         uint8_t blockhash_prev_bytes[ARGON2_BLOCK_SIZE];
         copy_block(&blockhash_prev, &prev_block);
         StoreBlock(&blockhash_prev_bytes, &blockhash_prev);
+
         blake2b_state state_prev;
         blake2b_init(&state_prev, MERKLE_TREE_ELEMENT_SIZE_B);
         blake2b_4r_update(&state_prev, blockhash_prev_bytes, ARGON2_BLOCK_SIZE);
+
         uint8_t digest_prev[MERKLE_TREE_ELEMENT_SIZE_B];
         blake2b_4r_final(&state_prev, digest_prev, sizeof(digest_prev));
-        MerkleTree::Buffer hash_prev = MerkleTree::Buffer(digest_prev,
+
+        MerkleTree::Buffer hash_prev(digest_prev,
                 digest_prev + sizeof(digest_prev));
         clear_internal_memory(blockhash_prev.v, ARGON2_BLOCK_SIZE);
         clear_internal_memory(blockhash_prev_bytes, ARGON2_BLOCK_SIZE);
@@ -390,8 +392,7 @@ bool mtp_verify(const char* input, const uint32_t target,
         uint8_t digest_ref[MERKLE_TREE_ELEMENT_SIZE_B];
         blake2b_4r_final(&state_ref, digest_ref, sizeof(digest_ref));
 
-        MerkleTree::Buffer hash_ref = MerkleTree::Buffer(digest_ref,
-                digest_ref + sizeof(digest_ref));
+        MerkleTree::Buffer hash_ref(digest_ref, digest_ref + sizeof(digest_ref));
         clear_internal_memory(blockhash_ref.v, ARGON2_BLOCK_SIZE);
         clear_internal_memory(blockhash_ref_bytes, ARGON2_BLOCK_SIZE);
 
@@ -420,8 +421,7 @@ bool mtp_verify(const char* input, const uint32_t target,
         uint8_t digest_ij[MERKLE_TREE_ELEMENT_SIZE_B];
         blake2b_4r_final(&state_ij, digest_ij, sizeof(digest_ij));
 
-        MerkleTree::Buffer hash_ij = MerkleTree::Buffer(digest_ij,
-                digest_ij + sizeof(digest_ij));
+        MerkleTree::Buffer hash_ij(digest_ij, digest_ij + sizeof(digest_ij));
         clear_internal_memory(blockhash_ij.v, ARGON2_BLOCK_SIZE);
         clear_internal_memory(blockhash_ij_bytes, ARGON2_BLOCK_SIZE);
 
@@ -470,8 +470,7 @@ bool mtp_verify(const char* input, const uint32_t target,
         return false;
     }
     LogPrintf("Verified :\n");
-    LogPrintf("hashTarget = %s\n",
-            ArithToUint256(bn_target).GetHex().c_str());
+    LogPrintf("hashTarget = %s\n", ArithToUint256(bn_target).GetHex().c_str());
     LogPrintf("y[L] 	  = %s", y[L].GetHex().c_str());
     LogPrintf("nNonce 	  = %s\n", *nonce);
     return true;
@@ -571,7 +570,7 @@ BEGIN:
         uint8_t digest[MERKLE_TREE_ELEMENT_SIZE_B];
         blake2b_4r_final(&state, digest, sizeof(digest));
 
-        MerkleTree::Buffer hash_digest = MerkleTree::Buffer(digest, digest + sizeof(digest));
+        MerkleTree::Buffer hash_digest(digest, digest + sizeof(digest));
         elements.push_back(hash_digest);
         clear_internal_memory(blockhash.v, ARGON2_BLOCK_SIZE);
         clear_internal_memory(blockhash_bytes, ARGON2_BLOCK_SIZE);
@@ -653,7 +652,7 @@ BEGIN:
             uint8_t digest_curr[MERKLE_TREE_ELEMENT_SIZE_B];
             blake2b_4r_final(&state_curr, digest_curr, sizeof(digest_curr));
 
-            MerkleTree::Buffer hash_curr = MerkleTree::Buffer(digest_curr,
+            MerkleTree::Buffer hash_curr(digest_curr,
                     digest_curr + sizeof(digest_curr));
             clear_internal_memory(blockhash_curr.v, ARGON2_BLOCK_SIZE);
             clear_internal_memory(blockhash_curr_bytes, ARGON2_BLOCK_SIZE);
@@ -675,7 +674,7 @@ BEGIN:
             uint8_t digest_prev[MERKLE_TREE_ELEMENT_SIZE_B];
             blake2b_4r_final(&state_prev, digest_prev, sizeof(digest_prev));
 
-            MerkleTree::Buffer hash_prev = MerkleTree::Buffer(digest_prev,
+            MerkleTree::Buffer hash_prev(digest_prev,
                     digest_prev + sizeof(digest_prev));
             clear_internal_memory(blockhash_prev.v, ARGON2_BLOCK_SIZE);
             clear_internal_memory(blockhash_prev_bytes, ARGON2_BLOCK_SIZE);
@@ -697,7 +696,7 @@ BEGIN:
             uint8_t digest_ref[MERKLE_TREE_ELEMENT_SIZE_B];
             blake2b_4r_final(&state_ref, digest_ref, sizeof(digest_ref));
 
-            MerkleTree::Buffer hash_ref = MerkleTree::Buffer(digest_ref,
+            MerkleTree::Buffer hash_ref(digest_ref,
                     digest_ref + sizeof(digest_ref));
             clear_internal_memory(blockhash_ref.v, ARGON2_BLOCK_SIZE);
             clear_internal_memory(blockhash_ref_bytes, ARGON2_BLOCK_SIZE);
