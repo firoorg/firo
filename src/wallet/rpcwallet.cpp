@@ -2972,7 +2972,7 @@ UniValue listspendzerocoins(const UniValue &params, bool fHelp) {
                 "    \"txid\": \"transactionid\",      (string) The transaction hash\n"
                 "    \"denomination\": d,            (numeric) Denomination\n"
                 "    \"spendid\": id,                (numeric) Spend group id\n"
-                "    \"version\": \"v\",               (string) Spend version (1.0, 1,5 or 2.0)\n"
+                "    \"version\": \"v\",               (string) Spend version (1.0, 1.5 or 2.0)\n"
                 "    \"modversion\": mv,             (numeric) Modulus version (1 or 2)\n"
                 "    \"serial\": \"s\",                (string) Serial number of the coin\n"
                 "    \"abandoned\": xxx,             (bool) True if the transaction was already abandoned\n"
@@ -3021,7 +3021,7 @@ UniValue listspendzerocoins(const UniValue &params, bool fHelp) {
         entry.push_back(Pair("modversion", fModulusV2 ? 2 : 1));
         entry.push_back(Pair("version", spendVersion==ZEROCOIN_TX_VERSION_1 ? "1.0" :
                                          (spendVersion==ZEROCOIN_TX_VERSION_1_5 ? "1.5" : "2.0")));
-        entry.push_back(Pair("serial", spend.getCoinSerialNumber().ToString()));
+        entry.push_back(Pair("serial", spend.getCoinSerialNumber().GetHex()));
 
         ret.push_back(entry);
 
