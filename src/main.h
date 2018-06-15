@@ -173,7 +173,7 @@ static const bool DEFAULT_PEERBLOOMFILTERS = true;
 // Add more spend txs per block at block height
 #define SWITCH_TO_MORE_SPEND_TXS 60000
 
-#define SWITCH_TO_MTP_BLOCK_HEADER 1528995835
+#define SWITCH_TO_MTP_BLOCK_HEADER 1529062072
 
 
 struct BlockHasher

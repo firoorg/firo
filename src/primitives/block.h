@@ -12,7 +12,7 @@
 #include "uint256.h"
 #include "definition.h"
 
-#define SWITCH_TO_MTP_BLOCK_HEADER 1528995835
+#define SWITCH_TO_MTP_BLOCK_HEADER 1529062072
 
 
 unsigned char GetNfactor(int64_t nTimestamp);
@@ -69,7 +69,7 @@ public:
         READWRITE(nBits);
         READWRITE(nNonce);
         // Zcoin - MTP
-        if(nTime >= 1528995835){
+        if(nTime >= SWITCH_TO_MTP_BLOCK_HEADER){
         	READWRITE(nVersionMTP);
         	int i, j;
         	for(i = 0; i < 16; i++){
