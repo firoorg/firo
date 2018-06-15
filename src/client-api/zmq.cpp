@@ -30,7 +30,6 @@
 //import rpc methods. or use the table?
 
 using json = nlohmann::json;
-
 using namespace std::chrono;
 
 
@@ -41,7 +40,7 @@ static const int DEFAULT_HTTP_CLIENT_TIMEOUT=900;
 /*************** Start RPC setup functions *****************************************/
 struct HTTPReply
 {
-
+    int status; 
     std::string body;
 };
 
@@ -242,8 +241,7 @@ UniValue setupRPC(std::vector<std::string> args)
 
 /*************** Start API function definitions ***************************************/
 
-void create_payment_request(string address, std::vector<std::string> request) {
-  /* order of request in assumed to be: {amount, label, msg} */
+void create_payment_request(string address, json request) {
   /*TODO 
     - getDataDir interacts with the conf file. could have potential implications down the line
   */
@@ -261,21 +259,16 @@ void create_payment_request(string address, std::vector<std::string> request) {
     system_clock::now().time_since_epoch()
   );
 
-  // store payment request
+  // Add payment request to persistent storage including new data
   int last_entry = persistent_pr_json["data"].size();
   persistent_pr_json["data"][last_entry] = nullptr;
-  persistent_pr_json["data"][last_entry]["msg"]    = request[2];
-  persistent_pr_json["data"][last_entry]["label"]  = request[1];
-  persistent_pr_json["data"][last_entry]["amount"] = request[0];
-  persistent_pr_json["data"][last_entry]["amount"] = request[0];
+  persistent_pr_json["data"][last_entry] = request;
   persistent_pr_json["data"][last_entry]["created_at"] = to_string(ms.count());
   persistent_pr_json["data"][last_entry]["address"] = address;
-
       
   // write back
   std::ofstream persistent_pr_out(persistent_pr.string());
   persistent_pr_out << std::setw(4) << persistent_pr_json << std::endl;
-  LogPrintf("ZMQ: written back payment request.");
 
 }
 
@@ -284,7 +277,6 @@ void create_payment_request(string address, std::vector<std::string> request) {
 /******************* Start parsing functions ******************************************/
 
 std::vector<std::string> parse_request(string request_str){
-
     auto request_json = json::parse(request_str);
 
     // if data is an object (ie. it is a JSON argument itself):
@@ -343,7 +335,7 @@ json response_to_json(UniValue reply){
            strPrint = result.get_str();
        else
            strPrint = result.write(2);
-       LogPrintf("ZMQ: result: %s", strPrint.c_str());
+       LogPrintf("ZMQ: result: %s\n", strPrint.c_str());
        response["data"] = strPrint.c_str();
        response["meta"] = nullptr;
        response["meta"]["status"] = 200;
@@ -399,55 +391,45 @@ static void* REQREP_ZMQ(void *arg)
         LogPrintf("ZMQ: Received message request.\n");
         LogPrintf("ZMQ: Part: %s\n", request_chars); 
 
-        //create convert request in (char*)
+        /* convert request to (char*) */
         memcpy (request_chars, zmq_msg_data (&request), rc);
         zmq_msg_close(&request);
         request_chars[rc]=0;
 
+        /* char* to string */
         string request_str(request_chars);
 
-        /* convert input request to a vector of arguments */
-        std::vector<std::string> request_vector = parse_request(request_str);
-  
-        UniValue response_raw;
-
-        json response_json;
-
-        /* handle unorthodox requests */
+        /* finally, as JSON */
+        json request_json = json::parse(request_str);
+        //std::vector<std::string> request_vector = parse_request(request_str);
+        
+        // variables for the arguments passed in any RPC calls
+        UniValue rpc_raw;
+        json rpc_json;
+        std::vector<std::string> rpc_vector;
+        
         // TODO better scheme for this as more requests added (see RPCTable)
-        if(request_vector[0]=="create-payment-request"){
-            /* store */
-            std::vector<std::string> getnewaddress;
-            getnewaddress.push_back("getnewaddress");
+        if(request_json["type"]=="create-payment-request"){
+            /* First get new address for the payment request */
+            rpc_vector.push_back("getnewaddress"); 
+
             /* Execute getnewaddress command */
-            response_raw = setupRPC(getnewaddress);
-
-
-
-
+            rpc_raw = setupRPC(rpc_vector);
 
             /* extract address */
-            LogPrintf("ZMQ: before func..\n");
-            response_json = response_to_json(response_raw);
-            LogPrintf("ZMQ: after func..\n");
+            rpc_json = response_to_json(rpc_raw);
 
             /* create & store payment request in local storage */
-            create_payment_request(response_json["data"], std::vector<std::string>(request_vector.begin()+1, request_vector.end()));
+            create_payment_request(rpc_json["data"], request_json["data"]);
 
-            /* TODO- generally, what to return for unorthodox requests.
+            /* TODO- generally, what to return for API requests.
                in create-payment-request, client only needs a status and an address back, so don't need to modify JSON call.
                this will likely be different for different calls. 
             */
         }
-        else {
-          /* Execute command */
-          response_raw = setupRPC(request_vector);
-          /* process reply */
-          response_json = response_to_json(response_raw);
-        }
-        
+                
         /* Send reply */
-        string response_str = response_json.dump();
+        string response_str = rpc_json.dump();
         zmq_msg_t reply;
         rc = zmq_msg_init_size (&reply, response_str.size());
         assert(rc == 0);
