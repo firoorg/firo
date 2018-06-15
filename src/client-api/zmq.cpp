@@ -282,7 +282,6 @@ void create_payment_request(string address, json request) {
 
 void delete_payment_request(string address) {
 
-  LogPrintf("ZMQ: in delete payment request");
   boost::filesystem::path persistent_pr = GetDataDir(false) / "persistent" / "payment_request.json";
 
   // get raw string
@@ -294,6 +293,32 @@ void delete_payment_request(string address) {
 
   // remove payment request
   persistent_pr_json["data"].erase(address);
+      
+  // write back
+  std::ofstream persistent_pr_out(persistent_pr.string());
+  persistent_pr_out << std::setw(4) << persistent_pr_json << std::endl;
+
+}
+
+void modify_payment_request(json request) {
+
+  boost::filesystem::path persistent_pr = GetDataDir(false) / "persistent" / "payment_request.json";
+
+  // get raw string
+  std::ifstream persistent_pr_in(persistent_pr.string());
+
+  // convert to JSON
+  json persistent_pr_json;
+  persistent_pr_in >> persistent_pr_json;
+
+  string address = request["id"];
+
+  // cycle through new values and replace
+  for (json::iterator it = request["data"].begin(); it != request["data"].end(); ++it) {
+      persistent_pr_json["data"][address][it.key()] = it.value();
+  }
+
+  LogPrintf("ZMQ: new persistent_pr_json: %s\n", persistent_pr_json.dump());
       
   // write back
   std::ofstream persistent_pr_out(persistent_pr.string());
@@ -458,9 +483,13 @@ static void* REQREP_ZMQ(void *arg)
                 create_payment_request(rpc_json["data"], request_json["data"]);
             }
             if(request_json["type"]=="delete") {
-                LogPrintf("ZMQ: 474.\n");  
-                LogPrintf("calling delete payment request\n");
+                LogPrintf("ZMQ: calling delete payment request\n");
                 delete_payment_request(request_json["id"]);
+            }
+
+            if(request_json["type"]=="update") {
+                LogPrintf("ZMQ: calling modify payment request\n");
+                modify_payment_request(request_json);
             }
         }
         if(request_json["type"]=="delete-payment-request"){
