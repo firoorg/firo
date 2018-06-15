@@ -38,9 +38,10 @@ static const char DEFAULT_RPCCONNECT[] = "127.0.0.1";
 static const int DEFAULT_HTTP_CLIENT_TIMEOUT=900;
 
 /** Reply structure for request_done to fill in */
+/*************** Start RPC setup functions *****************************************/
 struct HTTPReply
 {
-    int status;
+
     std::string body;
 };
 
@@ -237,7 +238,74 @@ UniValue setupRPC(std::vector<std::string> args)
 
    return reply;
 }
+/*************** End RPC setup functions **********************************************/
 
+/*************** Start API function definitions ***************************************/
+
+void create_payment_request(string address, std::vector<std::string> request) {
+  /* order of request in assumed to be: {amount, label, msg} */
+  /*TODO 
+    - getDataDir interacts with the conf file. could have potential implications down the line
+  */
+  boost::filesystem::path persistent_pr = GetDataDir(false) / "persistent" / "payment_request.json";
+
+  // get raw string
+  std::ifstream persistent_pr_in(persistent_pr.string());
+
+  // convert to JSON
+  json persistent_pr_json;
+  persistent_pr_in >> persistent_pr_json;
+
+  // get time in ms
+  milliseconds ms = duration_cast< milliseconds >(
+    system_clock::now().time_since_epoch()
+  );
+
+  // store payment request
+  int last_entry = persistent_pr_json["data"].size();
+  persistent_pr_json["data"][last_entry] = nullptr;
+  persistent_pr_json["data"][last_entry]["msg"]    = request[2];
+  persistent_pr_json["data"][last_entry]["label"]  = request[1];
+  persistent_pr_json["data"][last_entry]["amount"] = request[0];
+  persistent_pr_json["data"][last_entry]["amount"] = request[0];
+  persistent_pr_json["data"][last_entry]["created_at"] = to_string(ms.count());
+  persistent_pr_json["data"][last_entry]["address"] = address;
+
+      
+  // write back
+  std::ofstream persistent_pr_out(persistent_pr.string());
+  persistent_pr_out << std::setw(4) << persistent_pr_json << std::endl;
+  LogPrintf("ZMQ: written back payment request.");
+
+}
+
+/*************** End API function definitions *****************************************/
+
+/******************* Start parsing functions ******************************************/
+
+std::vector<std::string> parse_request(string request_str){
+
+    auto request_json = json::parse(request_str);
+
+    // if data is an object (ie. it is a JSON argument itself):
+    //    take 'data' as a single arg into the vector, and pass along with command name.
+    // if data is an array of arguments, cycle through 'data' args and store in vector.
+
+    std::vector<std::string> request_vector;
+    request_vector.push_back(request_json["type"]);
+
+    if(request_json["data"].is_object()){
+      std::string data = request_json["data"].dump();
+      request_vector.push_back(data.c_str());            
+    }
+    else {
+      for (auto& element : request_json["data"]) {
+        request_vector.push_back(element);            
+      }
+    }
+
+    return request_vector;
+}
 
 json response_to_json(UniValue reply){
     // Parse reply
@@ -286,68 +354,9 @@ json response_to_json(UniValue reply){
     return response;
 }
 
-void create_payment_request(string address, std::vector<std::string> request) {
-  /* order of request in assumed to be: {amount, label, msg} */
-  /*TODO 
-    - getDataDir interacts with the conf file. could have potential implications down the line
-  */
-  boost::filesystem::path persistent_pr = GetDataDir(false) / "persistent" / "payment_request.json";
+/******************* End parsing functions ******************************************/
 
-  // get raw string
-  std::ifstream persistent_pr_in(persistent_pr.string());
-
-  // convert to JSON
-  json persistent_pr_json;
-  persistent_pr_in >> persistent_pr_json;
-
-  // get time in ms
-  milliseconds ms = duration_cast< milliseconds >(
-    system_clock::now().time_since_epoch()
-  );
-
-  // store payment request
-  int last_entry = persistent_pr_json["data"].size();
-  persistent_pr_json["data"][last_entry] = nullptr;
-  persistent_pr_json["data"][last_entry]["msg"]    = request[2];
-  persistent_pr_json["data"][last_entry]["label"]  = request[1];
-  persistent_pr_json["data"][last_entry]["amount"] = request[0];
-  persistent_pr_json["data"][last_entry]["amount"] = request[0];
-  persistent_pr_json["data"][last_entry]["created_at"] = to_string(ms.count());
-  persistent_pr_json["data"][last_entry]["address"] = address;
-
-      
-  // write back
-  std::ofstream persistent_pr_out(persistent_pr.string());
-  persistent_pr_out << std::setw(4) << persistent_pr_json << std::endl;
-  LogPrintf("ZMQ: written back payment request.");
-
-}
-
-
-std::vector<std::string> parse_request(string request_str){
-
-    auto request_json = json::parse(request_str);
-
-    // if payload is an object (ie. it is a JSON argument itself):
-    //    take 'payload' as a single arg into the vector, and pass along with command name.
-    // if payload is an array of arguments, cycle through 'payload' args and store in vector.
-
-    std::vector<std::string> request_vector;
-    request_vector.push_back(request_json["type"]);
-
-    if(request_json["payload"].is_object()){
-      std::string payload = request_json["payload"].dump();
-      request_vector.push_back(payload.c_str());            
-    }
-    else {
-      for (auto& element : request_json["payload"]) {
-        request_vector.push_back(element);            
-      }
-    }
-
-    return request_vector;
-}
-
+/******************* Start REQ/REP ZMQ functions ******************************************/
 void *zmqpcontext;
 void *zmqpsocket;
 
@@ -399,15 +408,14 @@ static void* REQREP_ZMQ(void *arg)
 
         /* convert input request to a vector of arguments */
         std::vector<std::string> request_vector = parse_request(request_str);
-
-        
+  
         UniValue response_raw;
 
         json response_json;
 
         /* handle unorthodox requests */
         // TODO better scheme for this as more requests added (see RPCTable)
-        if(request_vector[0]=="getpaymentrequest"){
+        if(request_vector[0]=="create-payment-request"){
             /* store */
             std::vector<std::string> getnewaddress;
             getnewaddress.push_back("getnewaddress");
@@ -427,7 +435,7 @@ static void* REQREP_ZMQ(void *arg)
             create_payment_request(response_json["data"], std::vector<std::string>(request_vector.begin()+1, request_vector.end()));
 
             /* TODO- generally, what to return for unorthodox requests.
-               in getpaymentrequest, client only needs a status and an address back, so don't need to modify JSON call.
+               in create-payment-request, client only needs a status and an address back, so don't need to modify JSON call.
                this will likely be different for different calls. 
             */
         }
@@ -510,3 +518,5 @@ void StopREQREPZMQ()
     LogPrint("zmq", "Stopping REQ/REP ZMQ server\n");
     pthread_mutex_unlock(&mxq);
 }
+
+/******************* End REQ/REP ZMQ functions ******************************************/
