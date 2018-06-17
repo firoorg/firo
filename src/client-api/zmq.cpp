@@ -252,7 +252,7 @@ void create_payment_request(string address, json request) {
   );
 
   //get payment request data
-  boost::filesystem::path persistent_pr = GetDataDir(false) / "persistent" / "payment_request.json";
+  boost::filesystem::path persistent_pr = GetDataDir(false) / (Params().NetworkIDString()==CBaseChainParams::TESTNET ? "testnet3" : "") / "persistent" / "payment_request.json";
 
   // get raw string
   std::ifstream persistent_pr_in(persistent_pr.string());
@@ -282,7 +282,7 @@ void create_payment_request(string address, json request) {
 
 void delete_payment_request(string address) {
 
-  boost::filesystem::path persistent_pr = GetDataDir(false) / "persistent" / "payment_request.json";
+  boost::filesystem::path persistent_pr = GetDataDir(false) / (Params().NetworkIDString()==CBaseChainParams::TESTNET ? "testnet3" : "") / "persistent" / "payment_request.json";
 
   // get raw string
   std::ifstream persistent_pr_in(persistent_pr.string());
@@ -302,7 +302,7 @@ void delete_payment_request(string address) {
 
 void modify_payment_request(json request) {
 
-  boost::filesystem::path persistent_pr = GetDataDir(false) / "persistent" / "payment_request.json";
+  boost::filesystem::path persistent_pr = GetDataDir(false) / (Params().NetworkIDString()==CBaseChainParams::TESTNET ? "testnet3" : "") / "persistent" / "payment_request.json";
 
   // get raw string
   std::ifstream persistent_pr_in(persistent_pr.string());
