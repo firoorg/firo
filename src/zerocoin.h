@@ -93,8 +93,6 @@ private:
 
     // Collection of coin groups. Map from <denomination,id> to CoinGroupInfo structure
     map<pair<int, int>, CoinGroupInfo> coinGroups;
-    // Set of all used coin serials. Allows multiple entries for the same coin serial for historical reasons
-    unordered_multiset<CBigNum,CBigNumHash> usedCoinSerials;
     // Set of all minted pubCoin values
     unordered_multimap<CBigNum,CMintedCoinInfo,CBigNumHash> mintedPubCoins;
     // Latest IDs of coins by denomination
@@ -102,6 +100,9 @@ private:
 
 public:
     CZerocoinState();
+
+    // Set of all used coin serials. Allows multiple entries for the same coin serial for historical reasons
+    unordered_multiset<CBigNum,CBigNumHash> usedCoinSerials;
 
     // Add mint, automatically assigning id to it. Returns id and previous accumulator value (if any)
     int AddMint(CBlockIndex *index, int denomination, const CBigNum &pubCoin, CBigNum &previousAccValue);

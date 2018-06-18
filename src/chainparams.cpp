@@ -201,6 +201,7 @@ public:
                 1200.0     // * estimated number of transactions per day after checkpoint
         };
 	    
+        nCheckBugFixedAtBlock = ZC_CHECK_BUG_FIXED_AT_BLOCK;
 	    nSpendV15StartBlock = ZC_V1_5_STARTING_BLOCK;
 	    nSpendV2ID_1 = ZC_V2_SWITCH_ID_1;
 	    nSpendV2ID_10 = ZC_V2_SWITCH_ID_10;
@@ -329,6 +330,8 @@ public:
         };
 
 	    nSpendV15StartBlock = ZC_V1_5_TESTNET_STARTING_BLOCK;
+        nCheckBugFixedAtBlock = 35000;
+
 	    nSpendV2ID_1 = ZC_V2_TESTNET_SWITCH_ID_1;
 	    nSpendV2ID_10 = ZC_V2_TESTNET_SWITCH_ID_10;
 	    nSpendV2ID_25 = ZC_V2_TESTNET_SWITCH_ID_25;
@@ -349,17 +352,18 @@ class CRegTestParams : public CChainParams {
 public:
     CRegTestParams() {
         strNetworkID = "regtest";
-        consensus.nSubsidyHalvingInterval = 150;
+        consensus.nSubsidyHalvingInterval = 210000;
         consensus.nMajorityEnforceBlockUpgrade = 750;
         consensus.nMajorityRejectBlockOutdated = 950;
         consensus.nMajorityWindow = 1000;
         consensus.BIP34Height = -1; // BIP34 has not necessarily activated on regtest
         consensus.BIP34Hash = uint256();
         consensus.powLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
-        consensus.nPowTargetTimespan = 60 * 60; // 60 minutes between retargets
-        consensus.nPowTargetSpacing = 10 * 60; // 10 minute blocks
+        consensus.nPowTargetTimespan = 60 * 60 * 1000; // 60 minutes between retargets
+        consensus.nPowTargetSpacing = 1; // 10 minute blocks
         consensus.fPowAllowMinDifficultyBlocks = true;
         consensus.fPowNoRetargeting = true;
+        consensus.nZnodePaymentsStartBlock = 100000000;
         consensus.nRuleChangeActivationThreshold = 108; // 75% for testchains
         consensus.nMinerConfirmationWindow = 144; // Faster than normal for regtest (144 instead of 2016)
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
@@ -395,16 +399,16 @@ public:
         extraNonce[1] = 0x00;
         extraNonce[2] = 0x00;
         extraNonce[3] = 0x00;
-        genesis = CreateGenesisBlock(1414776313, 414098458, 0x1d00ffff, 1, 0 * COIN, extraNonce);
+        genesis = CreateGenesisBlock(1414776313, 414098458, 0x207fffff, 1, 0 * COIN, extraNonce);
         consensus.hashGenesisBlock = genesis.GetHash();
         //btzc: update regtest zcoin hashGenesisBlock and hashMerkleRoot
 //        std::cout << "zcoin regtest genesisBlock hash: " << consensus.hashGenesisBlock.ToString() << std::endl;
 //        std::cout << "zcoin regtest hashMerkleRoot hash: " << genesis.hashMerkleRoot.ToString() << std::endl;
         //btzc: update testnet zcoin hashGenesisBlock and hashMerkleRoot
-        assert(consensus.hashGenesisBlock ==
-               uint256S("0x0080c7bf30bb2579ed9c93213475bf8fafc1f53807da908cde19cf405b9eb55b"));
-        assert(genesis.hashMerkleRoot ==
-               uint256S("0x25b361d60bc7a66b311e72389bf5d9add911c735102bcb6425f63aceeff5b7b8"));
+        //assert(consensus.hashGenesisBlock ==
+        //       uint256S("0x0080c7bf30bb2579ed9c93213475bf8fafc1f53807da908cde19cf405b9eb55b"));
+        //assert(genesis.hashMerkleRoot ==
+        //       uint256S("0x25b361d60bc7a66b311e72389bf5d9add911c735102bcb6425f63aceeff5b7b8"));
 
         vFixedSeeds.clear(); //!< Regtest mode doesn't have any fixed seeds.
         vSeeds.clear();      //!< Regtest mode doesn't have any DNS seeds.
@@ -428,15 +432,16 @@ public:
         base58Prefixes[EXT_PUBLIC_KEY] = boost::assign::list_of(0x04)(0x35)(0x87)(0xCF).convert_to_container < std::vector < unsigned char > > ();
         base58Prefixes[EXT_SECRET_KEY] = boost::assign::list_of(0x04)(0x35)(0x83)(0x94).convert_to_container < std::vector < unsigned char > > ();
 
-	    nSpendV15StartBlock = ZC_V1_5_TESTNET_STARTING_BLOCK;
-	    nSpendV2ID_1 = ZC_V2_TESTNET_SWITCH_ID_1;
-	    nSpendV2ID_10 = ZC_V2_TESTNET_SWITCH_ID_10;
-	    nSpendV2ID_25 = ZC_V2_TESTNET_SWITCH_ID_25;
-	    nSpendV2ID_50 = ZC_V2_TESTNET_SWITCH_ID_50;
-	    nSpendV2ID_100 = ZC_V2_TESTNET_SWITCH_ID_100;
-	    nModulusV2StartBlock = ZC_MODULUS_V2_TESTNET_START_BLOCK;
-        nModulusV1MempoolStopBlock = ZC_MODULUS_V1_TESTNET_MEMPOOL_STOP_BLOCK;
-	    nModulusV1StopBlock = ZC_MODULUS_V1_TESTNET_STOP_BLOCK;
+        nCheckBugFixedAtBlock = 120;
+        nSpendV15StartBlock = 1;
+        nSpendV2ID_1 = 2;
+        nSpendV2ID_10 = 3;
+        nSpendV2ID_25 = 3;
+        nSpendV2ID_50 = 3;
+        nSpendV2ID_100 = 3;
+        nModulusV2StartBlock = 130;
+        nModulusV1MempoolStopBlock = 135;
+        nModulusV1StopBlock = 140;
     }
 
     void UpdateBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout) {
