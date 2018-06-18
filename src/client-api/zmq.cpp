@@ -239,94 +239,7 @@ UniValue setupRPC(std::vector<std::string> args)
 }
 /*************** End RPC setup functions **********************************************/
 
-/*************** Start API function definitions ***************************************/
 
-void create_payment_request(string address, json request) {
-  /*TODO 
-    - getDataDir interacts with the conf file. could have potential implications down the line
-  */
-  
-  // get time in ms
-  milliseconds ms = duration_cast< milliseconds >(
-    system_clock::now().time_since_epoch()
-  );
-
-  //get payment request data
-  boost::filesystem::path persistent_pr = GetDataDir(false) / (Params().NetworkIDString()==CBaseChainParams::TESTNET ? "testnet3" : "") / "persistent" / "payment_request.json";
-
-  // get raw string
-  std::ifstream persistent_pr_in(persistent_pr.string());
-
-  // convert to JSON
-  json persistent_pr_json;
-  persistent_pr_in >> persistent_pr_json;
-
-  // get "data" object from JSON
-  json data_json = persistent_pr_json["data"];
-
-  // update 'request' to include time of creation
-  request["created_at"] = to_string(ms.count());
-
-  //update data to include `request`
-  data_json[address] = request;
-
-  // write request back to JSON
-  persistent_pr_json["data"] = data_json;
-      
-  // write back to file.
-  std::ofstream persistent_pr_out(persistent_pr.string());
-  persistent_pr_out << std::setw(4) << persistent_pr_json << std::endl;
-
-}
-
-
-void delete_payment_request(string address) {
-
-  boost::filesystem::path persistent_pr = GetDataDir(false) / (Params().NetworkIDString()==CBaseChainParams::TESTNET ? "testnet3" : "") / "persistent" / "payment_request.json";
-
-  // get raw string
-  std::ifstream persistent_pr_in(persistent_pr.string());
-
-  // convert to JSON
-  json persistent_pr_json;
-  persistent_pr_in >> persistent_pr_json;
-
-  // remove payment request
-  persistent_pr_json["data"].erase(address);
-      
-  // write back
-  std::ofstream persistent_pr_out(persistent_pr.string());
-  persistent_pr_out << std::setw(4) << persistent_pr_json << std::endl;
-
-}
-
-void modify_payment_request(json request) {
-
-  boost::filesystem::path persistent_pr = GetDataDir(false) / (Params().NetworkIDString()==CBaseChainParams::TESTNET ? "testnet3" : "") / "persistent" / "payment_request.json";
-
-  // get raw string
-  std::ifstream persistent_pr_in(persistent_pr.string());
-
-  // convert to JSON
-  json persistent_pr_json;
-  persistent_pr_in >> persistent_pr_json;
-
-  string address = request["id"];
-
-  // cycle through new values and replace
-  for (json::iterator it = request["data"].begin(); it != request["data"].end(); ++it) {
-      persistent_pr_json["data"][address][it.key()] = it.value();
-  }
-
-  LogPrintf("ZMQ: new persistent_pr_json: %s\n", persistent_pr_json.dump());
-      
-  // write back
-  std::ofstream persistent_pr_out(persistent_pr.string());
-  persistent_pr_out << std::setw(4) << persistent_pr_json << std::endl;
-
-}
-
-/*************** End API function definitions *****************************************/
 
 /******************* Start parsing functions ******************************************/
 
@@ -403,6 +316,116 @@ json response_to_json(UniValue reply){
 
 /******************* End parsing functions ******************************************/
 
+
+
+/*************** Start API function definitions ***************************************/
+
+json payment_request(json request){
+
+  LogPrintf("ZMQ: got into payment request function");
+    //get payment request data
+    boost::filesystem::path persistent_pr = GetDataDir(false) / (Params().NetworkIDString()==CBaseChainParams::TESTNET ? "testnet3" : "") / "persistent" / "payment_request.json";
+  LogPrintf("ZMQ: 329");
+    // get raw string
+    std::ifstream persistent_pr_in(persistent_pr.string());
+LogPrintf("ZMQ: 332");
+    // convert to JSON
+    json persistent_pr_json;
+    persistent_pr_in >> persistent_pr_json;
+
+    LogPrintf("ZMQ: 337");
+
+    // get "data" object from JSON
+    json data_json = persistent_pr_json["data"];
+
+    LogPrintf("ZMQ: 342");
+
+    //misc values for use
+    json reply;
+    string address;
+
+    LogPrintf("ZMQ: got to before request check");
+
+    if(request["type"]=="create"){
+
+        vector<string> rpc_vector;
+        // First get new address for the payment request
+        rpc_vector.push_back("getnewaddress"); 
+
+        // Execute getnewaddress command
+        UniValue rpc_raw = setupRPC(rpc_vector);
+
+        // extract address
+        json rpc_json = response_to_json(rpc_raw);
+        address = rpc_json["data"];
+
+        LogPrintf("ZMQ: got to before time entry");
+
+        // get time in ms
+        milliseconds ms = duration_cast< milliseconds >(
+          system_clock::now().time_since_epoch()
+        );
+
+        // update 'request' to include time of creation
+        request["data"]["created_at"] = to_string(ms.count());
+
+        //update data to include `request`
+        data_json[address] = request["data"];
+
+        //set up reply value
+        reply = data_json[address];
+
+        // add address inside data object (only for reply - values are indexed by address in storage)
+        reply["address"] = address;
+    }
+
+    if(request["type"]=="delete"){
+        // remove payment request
+        address = request["data"]["id"];
+        data_json.erase(address);
+        //TODO handle reply.
+        reply = data_json;
+    }
+
+    if(request["type"]=="update"){
+        address = request["data"]["id"];
+
+        // ensure address entry exists. only continue should this exist.
+        if (data_json.find(address) == data_json.end()) {
+          // TODO handle return value.
+          return reply;
+        }
+
+        // remove address from 'request' as we do not want to add this fieldz to the data payload.
+        request["data"].erase("id");
+
+        // cycle through new values and replace
+        for (json::iterator it = request["data"].begin(); it != request["data"].end(); ++it) {
+            data_json[address][it.key()] = it.value();
+        }
+
+        reply = data_json[address];
+    }
+
+    if(request["type"]=="initial"){
+      //TODO status codes
+      reply = data_json;
+    }
+      
+    // write request back to JSON
+    persistent_pr_json["data"] = data_json;
+        
+    // write back to file.
+    std::ofstream persistent_pr_out(persistent_pr.string());
+    persistent_pr_out << std::setw(4) << persistent_pr_json << std::endl;
+
+    // Return reply.
+    return reply;
+
+}
+
+/*************** End API function definitions *****************************************/
+
 /******************* Start REQ/REP ZMQ functions ******************************************/
 void *zmqpcontext;
 void *zmqpsocket;
@@ -464,47 +487,11 @@ static void* REQREP_ZMQ(void *arg)
         std::vector<std::string> rpc_vector;
 
         LogPrintf("ZMQ: 454.\n");  
-        LogPrintf("ZMQ: request_json string:%s\n", request_json.dump());  
+        LogPrintf("ZMQ: request_json string:%s\n", request_json.dump());
+
         // TODO better scheme for this as more requests added (see RPCTable)
         if(request_json["collection"]=="payment-request"){
-
-            if(request_json["type"]=="create") {
-                LogPrintf("ZMQ: 459.\n");  
-                /* First get new address for the payment request */
-                rpc_vector.push_back("getnewaddress"); 
-
-                /* Execute getnewaddress command */
-                rpc_raw = setupRPC(rpc_vector);
-
-                /* extract address */
-                rpc_json = response_to_json(rpc_raw);
-
-                /* create & store payment request in local storage */
-                create_payment_request(rpc_json["data"], request_json["data"]);
-            }
-            if(request_json["type"]=="delete") {
-                LogPrintf("ZMQ: calling delete payment request\n");
-                delete_payment_request(request_json["id"]);
-            }
-
-            if(request_json["type"]=="update") {
-                LogPrintf("ZMQ: calling modify payment request\n");
-                modify_payment_request(request_json);
-            }
-        }
-        if(request_json["type"]=="delete-payment-request"){
-            /* First get new address for the payment request */
-            rpc_vector.push_back("getnewaddress"); 
-
-            /* Execute getnewaddress command */
-            rpc_raw = setupRPC(rpc_vector);
-
-            /* extract address */
-            rpc_json = response_to_json(rpc_raw);
-
-            /* create & store payment request in local storage */
-            create_payment_request(rpc_json["data"], request_json["data"]);
-
+            rpc_json = payment_request(request_json);
         }
 
         /* TODO- generally, what to return for API requests.
@@ -516,7 +503,7 @@ static void* REQREP_ZMQ(void *arg)
         string response_str = rpc_json.dump();
         zmq_msg_t reply;
         rc = zmq_msg_init_size (&reply, response_str.size());
-        assert(rc == 0);
+        assert(rc == 0);  
         std::memcpy (zmq_msg_data (&reply), response_str.data(), response_str.size());
         LogPrintf("ZMQ: Sending reply..\n");
         /* Block until a message is available to be sent from socket */
