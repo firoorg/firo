@@ -371,7 +371,8 @@ json payment_request(json request){
         reply["data"] = data_json[address];
         // add address inside data object (only for reply - values are indexed by address in storage)
         reply["data"]["address"] = address;
-        reply["meta"] = 200;
+        reply["meta"] = nullptr;
+        reply["meta"]["status"] = 200;
     }
 
     if(request["type"]=="delete"){
@@ -392,7 +393,8 @@ json payment_request(json request){
         //set up reply value
         json _delete;
         reply["data"] = _delete;
-        reply["meta"] = 200;
+        reply["meta"] = nullptr;
+        reply["meta"]["status"] = 200;
     }
 
     if(request["type"]=="update"){
@@ -402,8 +404,9 @@ json payment_request(json request){
         if (data_json.find(address) == data_json.end()) {
           // TODO handle return value.
           reply["errors"] = nullptr;
-          reply["errors"]["meta"] = 400;
           reply["errors"]["message"] = "The payment request ID does not exist.";
+          reply["meta"] = nullptr;
+          reply["meta"]["status"] = 400;
           return reply;
         }
 
@@ -419,13 +422,15 @@ json payment_request(json request){
         reply["data"] = data_json[address];
         // add address inside data object (only for reply - values are indexed by address in storage)
         reply["data"]["address"] = address;
-        reply["meta"] = 200;
+        reply["meta"] = nullptr;
+        reply["meta"]["status"] = 200;
     }
 
     if(request["type"]=="initial"){
       //TODO status codes
       reply["data"] = data_json;
-      reply["meta"] = 200;
+      reply["meta"] = nullptr;
+      reply["meta"]["status"] = 200;
     }
       
     // write request back to JSON
