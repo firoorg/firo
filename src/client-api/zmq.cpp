@@ -279,7 +279,7 @@ json response_to_json(UniValue reply){
     if (!error.isNull()) {
        // Error state.
        response["errors"] = nullptr;
-       response["errors"]["status"] = 400;
+       response["errors"]["meta"] = 400;
        LogPrintf("ZMQ: errored.\n");
        int code = error["code"].get_int();
        strPrint = "error: " + error.write();
@@ -306,7 +306,7 @@ json response_to_json(UniValue reply){
        LogPrintf("ZMQ: result: %s\n", strPrint.c_str());
        response["data"] = strPrint.c_str();
        response["meta"] = nullptr;
-       response["meta"]["status"] = 200;
+       response["meta"]["meta"] = 200;
     }
     
     LogPrintf("ZMQ: returning response.\n");
@@ -322,23 +322,18 @@ json response_to_json(UniValue reply){
 
 json payment_request(json request){
 
-  LogPrintf("ZMQ: got into payment request function");
     //get payment request data
     boost::filesystem::path persistent_pr = GetDataDir(false) / (Params().NetworkIDString()==CBaseChainParams::TESTNET ? "testnet3" : "") / "persistent" / "payment_request.json";
-  LogPrintf("ZMQ: 329");
+
     // get raw string
     std::ifstream persistent_pr_in(persistent_pr.string());
-LogPrintf("ZMQ: 332");
+
     // convert to JSON
     json persistent_pr_json;
     persistent_pr_in >> persistent_pr_json;
 
-    LogPrintf("ZMQ: 337");
-
     // get "data" object from JSON
     json data_json = persistent_pr_json["data"];
-
-    LogPrintf("ZMQ: 342");
 
     //misc values for use
     json reply;
@@ -367,24 +362,37 @@ LogPrintf("ZMQ: 332");
         );
 
         // update 'request' to include time of creation
-        request["data"]["created_at"] = to_string(ms.count());
+        request["data"]["created_at"] = ms.count();
 
         //update data to include `request`
         data_json[address] = request["data"];
 
         //set up reply value
-        reply = data_json[address];
-
+        reply["data"] = data_json[address];
         // add address inside data object (only for reply - values are indexed by address in storage)
-        reply["address"] = address;
+        reply["data"]["address"] = address;
+        reply["meta"] = 200;
     }
 
     if(request["type"]=="delete"){
         // remove payment request
         address = request["data"]["id"];
+
+        // ensure address entry exists. only continue should this exist.
+        if (data_json.find(address) == data_json.end()) {
+          // TODO handle return value.
+          reply["errors"] = nullptr;
+          reply["errors"]["meta"] = 400;
+          reply["errors"]["message"] = "The payment request ID does not exist.";
+          return reply;
+        }
+
         data_json.erase(address);
-        //TODO handle reply.
-        reply = data_json;
+        
+        //set up reply value
+        json _delete;
+        reply["data"] = _delete;
+        reply["meta"] = 200;
     }
 
     if(request["type"]=="update"){
@@ -393,10 +401,13 @@ LogPrintf("ZMQ: 332");
         // ensure address entry exists. only continue should this exist.
         if (data_json.find(address) == data_json.end()) {
           // TODO handle return value.
+          reply["errors"] = nullptr;
+          reply["errors"]["meta"] = 400;
+          reply["errors"]["message"] = "The payment request ID does not exist.";
           return reply;
         }
 
-        // remove address from 'request' as we do not want to add this fieldz to the data payload.
+        // remove address from 'request' as we do not want to add this field to the data payload.
         request["data"].erase("id");
 
         // cycle through new values and replace
@@ -404,12 +415,17 @@ LogPrintf("ZMQ: 332");
             data_json[address][it.key()] = it.value();
         }
 
-        reply = data_json[address];
+        //set up reply value
+        reply["data"] = data_json[address];
+        // add address inside data object (only for reply - values are indexed by address in storage)
+        reply["data"]["address"] = address;
+        reply["meta"] = 200;
     }
 
     if(request["type"]=="initial"){
       //TODO status codes
-      reply = data_json;
+      reply["data"] = data_json;
+      reply["meta"] = 200;
     }
       
     // write request back to JSON
