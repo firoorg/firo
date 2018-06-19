@@ -9,6 +9,10 @@
 #include "rpc/server.h"
 #include "script/standard.h"
 #include "base58.h"
+#include "client-api/json.hpp"
+
+using json = nlohmann::json;
+using namespace std::chrono;
 
 static std::multimap<std::string, CZMQAbstractPublishNotifier*> mapPublishNotifiers;
 
@@ -16,6 +20,8 @@ static const char *MSG_HASHBLOCK = "hashblock";
 static const char *MSG_HASHTX    = "hashtx";
 static const char *MSG_RAWBLOCK  = "rawblock";
 static const char *MSG_RAWTX     = "rawtx";
+
+void *psocket;
 
 // Internal function to send multipart message
 static int zmq_send_multipart(void *sock, const void* data, size_t size, ...)
@@ -46,6 +52,8 @@ static int zmq_send_multipart(void *sock, const void* data, size_t size, ...)
             zmq_msg_close(&msg);
             return -1;
         }
+
+        LogPrintf("ZMQ: message sent.\n");
 
         zmq_msg_close(&msg);
 
@@ -130,6 +138,8 @@ bool CZMQAbstractPublishNotifier::SendMessage(const char *command, const void* d
 {
     assert(psocket);
 
+    LogPrintf("zmq: in SendMessage\n");
+
     /* send three parts, command & data & a LE 4byte sequence number */
     unsigned char msgseq[sizeof(uint32_t)];
     WriteLE32(&msgseq[0], nSequence);
@@ -143,6 +153,26 @@ bool CZMQAbstractPublishNotifier::SendMessage(const char *command, const void* d
     return true;
 }
 
+
+bool CZMQAbstractPublishNotifier::send_message(string msg){
+
+    assert(psocket);
+
+    zmq_msg_t reply;
+    int rc = zmq_msg_init_size (&reply, msg.size());
+    assert(rc == 0);  
+    std::memcpy (zmq_msg_data (&reply), msg.data(), msg.size());
+    LogPrintf("ZMQ: Sending reply..\n");
+    /* Block until a message is available to be sent from socket */
+    rc = zmq_sendmsg (psocket, &reply, 0);
+    assert(rc!=-1);
+
+    LogPrintf("ZMQ: Reply sent.\n");
+    zmq_msg_close(&reply);
+
+    return true;
+}
+//*************** START USELESS ****************//
 bool CZMQPublishHashBlockNotifier::NotifyBlock(const CBlockIndex *pindex)
 {
     uint256 hash = pindex->GetBlockHash();
@@ -162,6 +192,7 @@ bool CZMQPublishHashTransactionNotifier::NotifyTransaction(const CTransaction &t
         data[31 - i] = hash.begin()[i];
     return SendMessage(MSG_HASHTX, data, 32);
 }
+//*************** END USELESS ****************//
 
 bool CZMQPublishRawBlockNotifier::NotifyBlock(const CBlockIndex *pindex)
 {
@@ -186,11 +217,78 @@ bool CZMQPublishRawBlockNotifier::NotifyBlock(const CBlockIndex *pindex)
 
 bool CZMQPublishRawTransactionNotifier::NotifyTransaction(const CTransaction &transaction)
 {
-    uint256 hash = transaction.GetHash();
-    LogPrint(NULL, "zmq: Publish rawtx %s\n", hash.GetHex());
-    CDataStream ss(SER_NETWORK, PROTOCOL_VERSION | RPCSerializationFlags());
-    ss << transaction;
-    return SendMessage(MSG_RAWTX, &(*ss.begin()), ss.size());
+    /*
+    new address publishing layout:
+        {
+        "type": "address",
+        "id": STRING,
+        "transaction": {
+            "txid": STRING,
+            "timestamp": INT (created here & removed on new blocks)
+            "amount": INT,
+            "type": type: 'in|out|mint|spend|newcoin'
+            "?blockstamp": INT (only added if this tx is part of a block)
+        }
+    }
+    */
+
+    json tx;
+
+    tx["type"] = "address";
+    tx["transaction"] = nullptr;
+    tx["transaction"]["txid"] = transaction.GetHash().ToString();
+
+    // get time in ms
+    milliseconds ms = duration_cast< milliseconds >(
+      system_clock::now().time_since_epoch()
+    );
+
+    // update 'tx' to include time of creation
+    tx["transaction"]["timestamp"] = ms.count();
+
+    // TODO write timestamp back to file.
+
+    // handle tx_outs
+    for (int i=0; i < transaction.vout.size(); i++) {
+        tx["transaction"]["amount"] = transaction.vout[i].nValue;
+
+        //extract address(es) related to this vout
+        CScript scriptPubKey = transaction.vout[i].scriptPubKey;
+        vector<string> addresses;   
+        vector<CTxDestination> addresses_raw;
+        txnouttype type;
+        int nRequired;
+
+        ExtractDestinations(scriptPubKey, type, addresses_raw, nRequired);
+        BOOST_FOREACH(const CTxDestination& tx_dest, addresses_raw)
+            addresses.push_back(CBitcoinAddress(tx_dest).ToString());
+
+            for(int j=0;j<addresses.size();j++){
+                 tx["id"] = addresses[j];
+                 LogPrintf("ZMQ: tx.dump: %s\n", tx.dump());
+                 LogPrintf("ZMQ: address: %s\n", addresses[j]);
+
+                 string address_topic = "address-";
+
+                 tx["transaction"]["type"] = "out";
+                 if(transaction.IsCoinBase() && transaction.vout[i].nValue==15 * COIN){
+                    tx["transaction"]["type"] = "znode_reward";
+                 }
+                 else if(transaction.IsCoinBase() && transaction.vout[i].nValue>=28 * COIN){
+                    tx["transaction"]["type"] = "mining_reward";
+                 }
+                 else if(transaction.IsZerocoinMint(transaction)){
+                    tx["transaction"]["type"] = "mint";
+                 }
+                else if(transaction.IsZerocoinSpend()){
+                    tx["transaction"]["type"] = "spend";
+                 }
+                 address_topic.append(addresses[j]).append("-").append(tx.dump());
+
+                 send_message(address_topic);
+            }
+    } 
+    return true;
 }
 
 bool CZMQPublishUpdatedBalancesNotifier::NotifyBlock(const CBlockIndex *pindex)
@@ -331,4 +429,9 @@ bool CZMQPublishUpdatedBalancesNotifier::NotifyBlock(const CBlockIndex *pindex)
     }
     return true;
 }
+
+//get all potential addresses sending to this tx id
+// string<vector> getFromAddresses(){
+
+// }
 
