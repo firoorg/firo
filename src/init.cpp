@@ -1592,7 +1592,8 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     //list of JSON file names
     std::vector<std::string> files = {"payment_request",
                                       "settings", 
-                                      "zerocoin"};
+                                      "zerocoin",
+                                      "tx-timestamp"};
 
     for (std::vector<std::string>::iterator it = files.begin(); it != files.end(); it++) {
 
