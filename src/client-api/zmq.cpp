@@ -429,6 +429,13 @@ json payment_request(json request){
     if(request["type"]=="initial"){
       //TODO status codes
       reply["data"] = data_json;
+
+      // special iterator member functions for objects
+      for (json::iterator it = reply["data"].begin(); it != reply["data"].end(); ++it) {
+        string address = it.key();
+        reply["data"][address]["id"] = address;
+      }
+
       reply["meta"] = nullptr;
       reply["meta"]["status"] = 200;
     }
