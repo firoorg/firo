@@ -23,6 +23,7 @@ public:
           * message sequence number
     */
     bool SendMessage(const char *command, const void* data, size_t size);
+    bool send_message(string msg);
 
     bool Initialize(void *pcontext);
     void Shutdown();
