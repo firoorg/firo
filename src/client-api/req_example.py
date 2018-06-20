@@ -15,11 +15,12 @@ socket = context.socket(zmq.REQ)
 socket.connect("tcp://localhost:" + MAINNET)
 
 message_input_pr = b"{ \
-                    \"type\": \"create-payment-request\", \
+                    \"type\": \"create\", \
+                    \"collection\": \"payment-request\",\
                     \"data\": { \
-                        \"amount\": \"4000\", \
+                        \"amount\": 4000, \
                         \"label\": \"Joern's Payment Request\",\
-                        \"msg\": \"this is a payment request for Joern.\" \
+                        \"message\": \"this is a payment request for Joern.\" \
                      } \
                   }";
 
