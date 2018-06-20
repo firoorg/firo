@@ -69,10 +69,13 @@ bool CZnodeSync::IsBlockchainSynced(bool fBlockAccepted) {
             return false;
         }
     } else {
-        // skip if we already checked less than 1 tick ago
-        if (GetTime() - nTimeLastProcess < ZNODE_SYNC_TICK_SECONDS) {
-            nSkipped++;
-            return fBlockchainSynced;
+        //Dont skip on REGTEST to make the tests run faster
+        if(Params().NetworkIDString() != CBaseChainParams::REGTEST) {
+            // skip if we already checked less than 1 tick ago
+            if (GetTime() - nTimeLastProcess < ZNODE_SYNC_TICK_SECONDS) {
+                nSkipped++;
+                return fBlockchainSynced;
+            }
         }
     }
 

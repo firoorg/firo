@@ -62,6 +62,8 @@ private Q_SLOTS:
     void on_zerocoinMintButton_clicked();
     /** Zerocoin Spend clicked */
     void on_zerocoinSpendButton_clicked();
+    /** Zerocoin Spend To Me checked */
+    void zerocoinSpendToMeCheckBoxChecked(int);
 //    void on_showQRCode_clicked();
     /** Set button states based on selected tab and selection */
 //    void selectionChanged();
