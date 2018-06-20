@@ -21,6 +21,10 @@ static const char *MSG_HASHTX    = "hashtx";
 static const char *MSG_RAWBLOCK  = "rawblock";
 static const char *MSG_RAWTX     = "rawtx";
 
+static const int ISBLOCKTX   = 0;
+static const int BLOCKHEIGHT = 1;
+static const int BLOCKTIME   = 2;
+
 void *psocket;
 
 // Internal function to send multipart message
@@ -172,7 +176,7 @@ bool CZMQAbstractPublishNotifier::send_message(string msg){
 
     return true;
 }
-//*************** START USELESS ****************//
+
 bool CZMQPublishHashBlockNotifier::NotifyBlock(const CBlockIndex *pindex)
 {
     uint256 hash = pindex->GetBlockHash();
@@ -192,30 +196,68 @@ bool CZMQPublishHashTransactionNotifier::NotifyTransaction(const CTransaction &t
         data[31 - i] = hash.begin()[i];
     return SendMessage(MSG_HASHTX, data, 32);
 }
-//*************** END USELESS ****************//
+
+
+bool CZMQPublishRawTransactionNotifier::NotifyTransaction(const CTransaction &transaction)
+{
+    /*
+    address publishing layout for new tx's:
+        {
+            "type": "address",
+            "id": STRING,
+            "transaction": {
+                "txid": STRING,
+                "timestamp": INT (created here & changed to block timestamp with 6 confs)
+                "amount": INT
+                "type": type: 'in|out|mint|spend|mining|znode'
+            }
+        }
+    */
+    vector<int> blockParams;
+    //blockParams[ISBLOCKTX] is false here
+    blockParams.push_back(0);
+    processTransaction(transaction, blockParams);
+    LogPrintf("ZMQ: processed Transaction\n");
+    return true;
+}
 
 bool CZMQPublishRawBlockNotifier::NotifyBlock(const CBlockIndex *pindex)
 {
-    //TODO - 
-    // - add address return
-    // - remove tx timestamps with 6 confirmationsa 
+    /*
+    address publishing layout for block tx's:
+        {
+            "type": "address",
+            "id": STRING,
+            "transaction": {
+                "txid": STRING,
+                "timestamp": INT (blocktime)
+                "amount": INT
+                "type": type: 'in|out|mint|spend|mining|znode'
+                "blockstamp": INT
+            }
+        }
+    */
     LogPrint(NULL, "zmq: Publish rawblock %s\n", pindex->GetBlockHash().GetHex());
 
-    const Consensus::Params& consensusParams = Params().GetConsensus();
-    CDataStream ss(SER_NETWORK, PROTOCOL_VERSION | RPCSerializationFlags());
-    {
-        LOCK(cs_main);
-        CBlock block;
-        if(!ReadBlockFromDisk(block, pindex, consensusParams))
-        {
-            zmqError("Can't read block from disk");
-            return false;
-        }
+    CBlock block;
 
-        ss << block;
+    const Consensus::Params& consensusParams = Params().GetConsensus();
+    if(!ReadBlockFromDisk(block, pindex, consensusParams))
+    {
+        zmqError("Can't read block from disk");
+        return false;
     }
 
-    return SendMessage(MSG_RAWBLOCK, &(*ss.begin()), ss.size());
+    vector<int> blockParams;
+    blockParams.push_back(1);
+    blockParams.push_back(pindex->nHeight);
+    blockParams.push_back(block.GetBlockTime());
+
+    BOOST_FOREACH(const CTransaction&transaction, block.vtx){
+        processTransaction(transaction, blockParams);
+    }
+
+    return true;
 }
 
 bool CZMQAbstractPublishNotifier::writeTimestampToFile(json tx){
@@ -247,23 +289,8 @@ bool CZMQAbstractPublishNotifier::writeTimestampToFile(json tx){
     return true;
 }
 
-bool CZMQPublishRawTransactionNotifier::NotifyTransaction(const CTransaction &transaction)
-{
-    /*
-    new address publishing layout:
-    {
-        "type": "address",
-        "id": STRING,
-        "transaction": {
-            "txid": STRING,
-            "timestamp": INT (created here & removed on new blocks)
-            "amount": INT (only for `in` tx's - UTXO's are always fully spent)
-            "type": type: 'in|out|mint|spend|newcoin'
-            "?blockstamp": INT (only added if this tx is part of a block)
-        }
-    }
-    */
-
+bool CZMQAbstractPublishNotifier::processTransaction(const CTransaction &transaction, vector<int> blockvals){
+    // if blockvals[ISBLOCKTX] =1, this transaction is part of a block.
     json tx_json_in;
     json tx_json_outs;
 
@@ -273,8 +300,8 @@ bool CZMQPublishRawTransactionNotifier::NotifyTransaction(const CTransaction &tr
     );
     
     // first get addresses of inputs
-    if(!transaction.IsCoinBase()){
 
+    if(!transaction.IsCoinBase()){
         for (int i=0; i < transaction.vin.size(); i++) {
             CTransaction txPrev;
             uint256 hashBlock;
@@ -292,14 +319,21 @@ bool CZMQPublishRawTransactionNotifier::NotifyTransaction(const CTransaction &tr
                 tx_json_outs[btc_address]["type"] = "address";
                 tx_json_outs[btc_address]["transaction"] = nullptr;
                 tx_json_outs[btc_address]["transaction"]["txid"] = transaction.GetHash().ToString();
-                tx_json_outs[btc_address]["transaction"]["timestamp"] = ms.count();
                 tx_json_outs[btc_address]["transaction"]["type"] = "out";
+
                 if(tx_json_outs[btc_address]["transaction"]["amount"].is_null()){
-                    tx_json_outs[btc_address]["transaction"]["amount"] = amount;
+                   tx_json_outs[btc_address]["transaction"]["amount"] = amount;
                 }
                 else{
-                    tx_json_outs[btc_address]["transaction"]["amount"] += amount;
+                   tx_json_outs[btc_address]["transaction"]["amount"] += amount;
                 }
+
+                if (blockvals[ISBLOCKTX]==1){
+                    tx_json_outs[btc_address]["transaction"]["timestamp"] = blockvals[BLOCKTIME];
+                    tx_json_outs[btc_address]["transaction"]["blockstamp"] = blockvals[BLOCKHEIGHT];
+                }else{
+                    tx_json_outs[btc_address]["transaction"]["timestamp"] = ms.count();
+                }  
             }
         }
         
@@ -317,8 +351,17 @@ bool CZMQPublishRawTransactionNotifier::NotifyTransaction(const CTransaction &tr
     tx_json_in["transaction"]["txid"] = transaction.GetHash().ToString();
     tx_json_in["transaction"]["timestamp"] = ms.count();
 
-    //  write timestamp to file.
-    writeTimestampToFile(tx_json_in);
+
+    if (blockvals[ISBLOCKTX]==1){
+        tx_json_in["transaction"]["timestamp"] = blockvals[BLOCKTIME];
+        tx_json_in["transaction"]["blockstamp"] = blockvals[BLOCKHEIGHT];
+    }else{
+        tx_json_in["transaction"]["timestamp"] = ms.count();
+    } 
+
+    //  write timestamp to file in the case that this is not a block tx.
+    if(blockvals[ISBLOCKTX]==0) writeTimestampToFile(tx_json_in);
+        
 
     // handle tx_outs
     for (int i=0; i < transaction.vout.size(); i++) {
@@ -339,15 +382,16 @@ bool CZMQPublishRawTransactionNotifier::NotifyTransaction(const CTransaction &tr
              tx_json_in["id"] = addresses[j];
              LogPrintf("ZMQ: tx.dump: %s\n", tx_json_in.dump());
              LogPrintf("ZMQ: address: %s\n", addresses[j]);
+             LogPrintf("ZMQ: isBlockTX: %s\n", to_string(blockvals[ISBLOCKTX]));
 
              string address_topic = "address-";
 
              tx_json_in["transaction"]["type"] = "in";
              if(transaction.IsCoinBase() && transaction.vout[i].nValue==15 * COIN){
-                tx_json_in["transaction"]["type"] = "znode_reward";
+                tx_json_in["transaction"]["type"] = "znode";
              }
              else if(transaction.IsCoinBase() && transaction.vout[i].nValue>=28 * COIN){
-                tx_json_in["transaction"]["type"] = "mining_reward";
+                tx_json_in["transaction"]["type"] = "mining";
              }
              else if(transaction.IsZerocoinMint(transaction)){
                 tx_json_in["transaction"]["type"] = "mint";
@@ -361,144 +405,5 @@ bool CZMQPublishRawTransactionNotifier::NotifyTransaction(const CTransaction &tr
         }
     } 
     return true;
+
 }
-
-bool CZMQPublishUpdatedBalancesNotifier::NotifyBlock(const CBlockIndex *pindex)
-{
-    uint256 hashBlock = pindex->GetBlockHash();
-    LogPrint(NULL, "zmq: Publish updated balances for block %s\n", hashBlock.GetHex());
-
-    const Consensus::Params& consensusParams = Params().GetConsensus();
-    CDataStream ss(SER_NETWORK, PROTOCOL_VERSION | RPCSerializationFlags());
-    {
-        LOCK(cs_main);
-        CBlock block;
-        if(!ReadBlockFromDisk(block, pindex, consensusParams))
-        {
-            zmqError("Can't read block from disk");
-            return false;
-        }
-        /*
-            We want to get the list of addresses where balance is affected.
-            for each transaction in the block:
-                for each vin of that transaction:
-                    for each vout in vin:
-                        grab each address.
-                for each vout:
-                    grab each address.
-        */ 
-
-        //list of tx destinations.
-        vector<CTxDestination> tx_destinations;
-
-        // temporary list of tx destinations, updated by ExtractDestinations each run -
-        // would like to reuse ExtractDestinations rather than modifying/adding a very similar function.
-        vector<CTxDestination> temp_tx_destinations;
-
-        // list of bitcoin addresses.
-        vector<CBitcoinAddress> bitcoin_addresses;
-
-        // list of index keys (ie. address hashes)
-        std::vector<std::pair<uint160, int> > index_keys;
-
-        // list of address indexes (transactions with balance information)
-        std::vector<std::pair<CAddressIndexKey, CAmount> > address_indexes;
-
-        // pointer parameters.
-        CTransaction tx_vin;
-        txnouttype tx_type;
-        int nRequired;
-        int addr_type;
-        uint160 hashBytes;
-        CAmount balance;
-
-         BOOST_FOREACH(const CTransaction&tx_base, block.vtx)
-         {
-            LogPrintf("    zmq: printing transaction hash %s\n", tx_base.GetHash().GetHex());
-            //first get addresses associated with vin for tx_base.
-            //ignore this part for coinbase txs.         
-            for (unsigned int i = 0; i < tx_base.vin.size(); i++) {
-                //get next vin for this transaction
-                const CTxIn& txin = tx_base.vin[i]; 
-
-                // get tx hash associated with this vin
-                uint256 tx_vin_hash = txin.prevout.hash;
-                LogPrintf("        zmq: printing vin tx hash %s\n", tx_vin_hash.GetHex());
-
-                //get tx for txid
-                GetTransaction(tx_vin_hash, tx_vin, Params().GetConsensus(), hashBlock, true);
-
-                // get all addresses in vout associated with this tx.
-                if(!tx_base.IsCoinBase()){
-                    for (unsigned int i = 0; i < tx_vin.vout.size(); i++) {
-                        // store addresses in temporary data structure
-                        ExtractDestinations(tx_vin.vout[i].scriptPubKey, tx_type, temp_tx_destinations, nRequired);
-                        // push addresses into master 
-                        tx_destinations.insert(tx_destinations.end(),temp_tx_destinations.begin(),temp_tx_destinations.end());
-                    }
-                }
-            }
-
-            // get all vout addresses. 
-            for (unsigned int i = 0; i < tx_base.vout.size(); i++) {            
-                // store addresses in temporary data structure
-                ExtractDestinations(tx_base.vout[i].scriptPubKey, tx_type, temp_tx_destinations, nRequired); 
-                // push addresses into master.
-                tx_destinations.insert(tx_destinations.end(),temp_tx_destinations.begin(),temp_tx_destinations.end());
-            }
-         }
-
-        // convert destinations to addresses
-        BOOST_FOREACH(const CTxDestination& dest, tx_destinations)
-        {
-            //create address for destination
-            CBitcoinAddress new_addr(dest);
-            //push to list of considered addresses
-            bitcoin_addresses.push_back(new_addr);
-            //get index key for address
-            new_addr.GetIndexKey(hashBytes, addr_type);
-            //add to vector of index_keys
-            index_keys.push_back(std::make_pair(hashBytes, addr_type));
-        }
-
-        //remove duplicate indexes and sort for index_keys and addresses.
-        sort( index_keys.begin(), index_keys.end() );
-        sort( bitcoin_addresses.begin(), bitcoin_addresses.end() );
-
-        index_keys.erase( unique( index_keys.begin(), index_keys.end() ), index_keys.end() );
-        bitcoin_addresses.erase( unique( bitcoin_addresses.begin(), bitcoin_addresses.end() ), bitcoin_addresses.end() );
-
-        //get address indexes to calculate new balances.
-        for (std::vector<std::pair<uint160, int> >::iterator it = index_keys.begin(); it != index_keys.end(); it++) {
-            GetAddressIndex((*it).first, (*it).second, address_indexes);
-
-            //clear stringstream
-            ss.clear();
-
-            //total balances for this address.
-            for (std::vector<std::pair<CAddressIndexKey, CAmount> >::const_iterator it=address_indexes.begin(); it!=address_indexes.end(); it++) {
-                balance += it->second;
-            }
-
-            //put balance in stringstream
-            ss << balance;
-
-            //get address
-            string address = bitcoin_addresses[it - index_keys.begin()].ToString();
-
-            //create topic for zmq msg
-            std::string msg = "address-" + address + "-balance";
-
-            LogPrint(NULL, "zmq: Publish updatedbalance for address %s, balance: %s\n", address, to_string(balance));
-
-            //send zmq msg
-            SendMessage(msg.c_str(), &(*ss.begin()), ss.size());
-
-            //reset values
-            balance = 0;
-            address_indexes.clear();
-        }
-    }
-    return true;
-}
-
