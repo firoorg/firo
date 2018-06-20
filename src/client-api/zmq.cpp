@@ -320,6 +320,11 @@ json response_to_json(UniValue reply){
 
 /*************** Start API function definitions ***************************************/
 
+json send_zcoin(json request){
+
+
+  
+}
 json payment_request(json request){
 
     //get payment request data
@@ -520,6 +525,11 @@ static void* REQREP_ZMQ(void *arg)
         // TODO better scheme for this as more requests added (see RPCTable)
         if(request_json["collection"]=="payment-request"){
             rpc_json = payment_request(request_json);
+        }
+
+        // TODO better scheme for this as more requests added (see RPCTable)
+        if(request_json["collection"]=="send-zcoin"){
+            rpc_json = send_zcoin(request_json);
         }
 
         /* TODO- generally, what to return for API requests.

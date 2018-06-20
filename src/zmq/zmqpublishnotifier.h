@@ -30,6 +30,7 @@ public:
 
     bool writeTimestampToFile(json tx);
 
+    bool processTransaction(const CTransaction &transaction, vector<int> blockvals);
     bool Initialize(void *pcontext);
     void Shutdown();
 };
@@ -56,12 +57,6 @@ class CZMQPublishRawTransactionNotifier : public CZMQAbstractPublishNotifier
 {
 public:
     bool NotifyTransaction(const CTransaction &transaction);
-};
-
-class CZMQPublishUpdatedBalancesNotifier : public CZMQAbstractPublishNotifier
-{
-public:
-    bool NotifyBlock(const CBlockIndex *pindex);
 };
 
 #endif // BITCOIN_ZMQ_ZMQPUBLISHNOTIFIER_H

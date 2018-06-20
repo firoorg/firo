@@ -39,7 +39,6 @@ CZMQNotificationInterface* CZMQNotificationInterface::CreateWithArguments(const 
     factories["pubhashtx"] = CZMQAbstractNotifier::Create<CZMQPublishHashTransactionNotifier>;
     factories["pubrawblock"] = CZMQAbstractNotifier::Create<CZMQPublishRawBlockNotifier>;
     factories["pubrawtx"] = CZMQAbstractNotifier::Create<CZMQPublishRawTransactionNotifier>;
-    factories["pubupdatedbalances"] = CZMQAbstractNotifier::Create<CZMQPublishUpdatedBalancesNotifier>;
 
     for (std::map<std::string, CZMQNotifierFactory>::const_iterator i=factories.begin(); i!=factories.end(); ++i)
     {
