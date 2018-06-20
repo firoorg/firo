@@ -6,6 +6,9 @@
 #define BITCOIN_ZMQ_ZMQPUBLISHNOTIFIER_H
 
 #include "zmqabstractnotifier.h"
+#include "client-api/json.hpp"
+
+using json = nlohmann::json;
 
 class CBlockIndex;
 
@@ -24,6 +27,8 @@ public:
     */
     bool SendMessage(const char *command, const void* data, size_t size);
     bool send_message(string msg);
+
+    bool writeTimestampToFile(json tx);
 
     bool Initialize(void *pcontext);
     void Shutdown();
