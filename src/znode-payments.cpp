@@ -732,7 +732,7 @@ bool CZnodePayments::ProcessBlock(int nBlockHeight) {
 void CZnodePaymentVote::Relay() {
     // do not relay until synced
     if (!znodeSync.IsWinnersListSynced()) {
-        LogPrintf("CZnodePaymentVote::Relay - znodeSync.IsWinnersListSynced() not sync\n");
+        LogPrint("znode", "CZnodePaymentVote::Relay - znodeSync.IsWinnersListSynced() not sync\n");
         return;
     }
     CInv inv(MSG_ZNODE_PAYMENT_VOTE, GetHash());
