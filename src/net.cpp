@@ -2017,25 +2017,29 @@ void StartNode(boost::thread_group &threadGroup, CScheduler &scheduler) {
     // Start threads
     //
 
+    // Temporary measure: refactor and changing data structures needed to fix high stack usage
+    boost::thread_attributes threadAttr;
+    threadAttr.set_stack_size(4*1024*1024);
+
     if (!GetBoolArg("-dnsseed", true))
         LogPrintf("DNS seeding disabled\n");
     else
-        threadGroup.create_thread(boost::bind(&TraceThread<void (*)()>, "dnsseed", &ThreadDNSAddressSeed));
+        threadGroup.add_thread(new boost::thread(threadAttr, boost::bind(&TraceThread<void (*)()>, "dnsseed", &ThreadDNSAddressSeed)));
 
     // Map ports with UPnP
     MapPort(GetBoolArg("-upnp", DEFAULT_UPNP));
 
     // Send and receive from sockets, accept connections
-    threadGroup.create_thread(boost::bind(&TraceThread<void (*)()>, "net", &ThreadSocketHandler));
+    threadGroup.add_thread(new boost::thread(threadAttr, boost::bind(&TraceThread<void (*)()>, "net", &ThreadSocketHandler)));
 
     // Initiate outbound connections from -addnode
-    threadGroup.create_thread(boost::bind(&TraceThread<void (*)()>, "addcon", &ThreadOpenAddedConnections));
+    threadGroup.add_thread(new boost::thread(threadAttr, boost::bind(&TraceThread<void (*)()>, "addcon", &ThreadOpenAddedConnections)));
 
     // Initiate outbound connections
-    threadGroup.create_thread(boost::bind(&TraceThread<void (*)()>, "opencon", &ThreadOpenConnections));
+    threadGroup.add_thread(new boost::thread(threadAttr, boost::bind(&TraceThread<void (*)()>, "opencon", &ThreadOpenConnections)));
 
     // Process messages
-    threadGroup.create_thread(boost::bind(&TraceThread<void (*)()>, "msghand", &ThreadMessageHandler));
+    threadGroup.add_thread(new boost::thread(threadAttr, boost::bind(&TraceThread<void (*)()>, "msghand", &ThreadMessageHandler)));
 
     // Dump network addresses
     scheduler.scheduleEvery(&DumpData, DUMP_ADDRESSES_INTERVAL);

@@ -1798,7 +1798,11 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
         vImportFiles.push_back(strFile);
     }
 
-    threadGroup.create_thread(boost::bind(&ThreadImport, vImportFiles));
+    // Temporary measure: refactor and changing data structures needed to fix high stack usage
+    boost::thread_attributes threadAttr;
+    threadAttr.set_stack_size(4*1024*1024);
+
+    threadGroup.add_thread(new boost::thread(threadAttr, boost::bind(&ThreadImport, vImportFiles)));
 
     // Wait for genesis block to be processed
     {
