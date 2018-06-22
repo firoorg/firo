@@ -60,13 +60,13 @@ bool ConnectBlockZC(CValidationState &state, const CChainParams &chainparams, CB
 
 int ZerocoinGetNHeight(const CBlockHeader &block);
 
-bool ZerocoinBuildStateFromIndex(CChain *chain);
+bool ZerocoinBuildStateFromIndex(CChain *chain, set<CBlockIndex *> &changes);
 
 /*
  * State of minted/spent coins as extracted from the index
  */
 class CZerocoinState {
-friend bool ZerocoinBuildStateFromIndex(CChain *);
+friend bool ZerocoinBuildStateFromIndex(CChain *, set<CBlockIndex *> &);
 public:
     // First and last block where mint (and hence accumulator update) with given denomination and id was seen
     struct CoinGroupInfo {
@@ -93,8 +93,6 @@ private:
 
     // Collection of coin groups. Map from <denomination,id> to CoinGroupInfo structure
     map<pair<int, int>, CoinGroupInfo> coinGroups;
-    // Set of all used coin serials. Allows multiple entries for the same coin serial for historical reasons
-    unordered_multiset<CBigNum,CBigNumHash> usedCoinSerials;
     // Set of all minted pubCoin values
     unordered_multimap<CBigNum,CMintedCoinInfo,CBigNumHash> mintedPubCoins;
     // Latest IDs of coins by denomination
@@ -102,6 +100,9 @@ private:
 
 public:
     CZerocoinState();
+
+    // Set of all used coin serials. Allows multiple entries for the same coin serial for historical reasons
+    unordered_multiset<CBigNum,CBigNumHash> usedCoinSerials;
 
     // Add mint, automatically assigning id to it. Returns id and previous accumulator value (if any)
     int AddMint(CBlockIndex *index, int denomination, const CBigNum &pubCoin, CBigNum &previousAccValue);
@@ -140,6 +141,10 @@ public:
 
     // Test function
     bool TestValidity(CChain *chain);
+
+    // Recalculate accumulators. Needed if upgrade from pre-modulusv2 version is detected
+    // Returns set of indices that changed
+    set<CBlockIndex *> RecalculateAccumulators(CChain *chain);
 
     static CZerocoinState *GetZerocoinState();
 };

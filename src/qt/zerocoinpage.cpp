@@ -66,6 +66,7 @@ ZerocoinPage::ZerocoinPage(const PlatformStyle *platformStyle, Mode mode, QWidge
     // Connect signals for context menu actions
 //    connect(showQRCodeAction, SIGNAL(triggered()), this, SLOT(on_showQRCode_clicked()));
     connect(ui->tableView, SIGNAL(customContextMenuRequested(QPoint)), this, SLOT(contextualMenu(QPoint)));
+    connect(ui->zerocoinSpendToMeCheckBox, SIGNAL(stateChanged(int)), this, SLOT(zerocoinSpendToMeCheckBoxChecked(int)));
 
 }
 
@@ -117,21 +118,57 @@ void ZerocoinPage::on_zerocoinMintButton_clicked() {
         QMessageBox::critical(this, tr("Error"),
                               tr("You cannot mint zerocoin because %1").arg(t),
                               QMessageBox::Ok, QMessageBox::Ok);
+    }else{
+    	QMessageBox::information(this, tr("Success"),
+    	                              tr("You have been successfully mint zerocoin from the wallet"),
+    	                              QMessageBox::Ok, QMessageBox::Ok);
+
     }
 }
 
 void ZerocoinPage::on_zerocoinSpendButton_clicked() {
-    QString amount = ui->zerocoinAmount->currentText();
-    std::string denomAmount = amount.toStdString();
-    std::string stringError;
-    if(!model->zerocoinSpend(stringError, denomAmount)){
-        QString t = tr(stringError.c_str());
 
-        QMessageBox::critical(this, tr("Error"),
-                              tr("You cannot spend zerocoin because %1").arg(t),
-                              QMessageBox::Ok, QMessageBox::Ok);
+    QString amount = ui->zerocoinAmount->currentText();
+    QString address = ui->spendToThirdPartyAddress->text();
+    std::string denomAmount = amount.toStdString();
+    std::string thirdPartyAddress = address.toStdString();
+    std::string stringError;
+
+	if(ui->zerocoinSpendToMeCheckBox->isChecked() == false && thirdPartyAddress == ""){
+		QMessageBox::critical(this, tr("Error"),
+		                              tr("Your \"Spend To\" field is empty, please check again"),
+		                              QMessageBox::Ok, QMessageBox::Ok);
+	}else{
+
+		if(!model->zerocoinSpend(stringError, thirdPartyAddress, denomAmount)){
+			QString t = tr(stringError.c_str());
+
+			QMessageBox::critical(this, tr("Error"),
+								  tr("You cannot spend zerocoin because %1").arg(t),
+								  QMessageBox::Ok, QMessageBox::Ok);
+		}else{
+			QMessageBox::information(this, tr("Success"),
+										  tr("You have been successfully spent zerocoin from the wallet"),
+										  QMessageBox::Ok, QMessageBox::Ok);
+
+		}
+		ui->spendToThirdPartyAddress->clear();
+		ui->spendToThirdPartyAddress->setEnabled(false);
+
+		ui->zerocoinSpendToMeCheckBox->setChecked(true);
+	}
+}
+
+void ZerocoinPage::zerocoinSpendToMeCheckBoxChecked(int state) {
+    if (state == Qt::Checked)
+    {
+        ui->spendToThirdPartyAddress->clear();
+        ui->spendToThirdPartyAddress->setEnabled(false);
+    }else{
+    	ui->spendToThirdPartyAddress->setEnabled(true);
     }
 }
+
 
 //void ZerocoinPage::on_showQRCode_clicked()
 //{

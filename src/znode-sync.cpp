@@ -36,7 +36,7 @@ bool CZnodeSync::CheckNodeHeight(CNode *pnode, bool fDisconnectStuckNodes) {
         return false;
     } else if (pCurrentBlockIndex->nHeight < stats.nSyncHeight - 1) {
         // This peer announced more headers than we have blocks currently
-        LogPrintf("CZnodeSync::CheckNodeHeight -- skipping peer, who announced more headers than we have blocks currently, nHeight=%d, nSyncHeight=%d, peer=%d\n",
+        LogPrint("znode", "CZnodeSync::CheckNodeHeight -- skipping peer, who announced more headers than we have blocks currently, nHeight=%d, nSyncHeight=%d, peer=%d\n",
                   pCurrentBlockIndex->nHeight, stats.nSyncHeight, pnode->id);
         return false;
     }
@@ -69,10 +69,13 @@ bool CZnodeSync::IsBlockchainSynced(bool fBlockAccepted) {
             return false;
         }
     } else {
-        // skip if we already checked less than 1 tick ago
-        if (GetTime() - nTimeLastProcess < ZNODE_SYNC_TICK_SECONDS) {
-            nSkipped++;
-            return fBlockchainSynced;
+        //Dont skip on REGTEST to make the tests run faster
+        if(Params().NetworkIDString() != CBaseChainParams::REGTEST) {
+            // skip if we already checked less than 1 tick ago
+            if (GetTime() - nTimeLastProcess < ZNODE_SYNC_TICK_SECONDS) {
+                nSkipped++;
+                return fBlockchainSynced;
+            }
         }
     }
 

@@ -3,8 +3,10 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "activeznode.h"
+#include "consensus/consensus.h"
 #include "znode.h"
 #include "znode-sync.h"
+#include "znode-payments.h"
 #include "znodeman.h"
 #include "protocol.h"
 
@@ -248,8 +250,10 @@ void CActiveZnode::ManageStateRemote() {
 
     mnodeman.CheckZnode(pubKeyZnode);
     znode_info_t infoMn = mnodeman.GetZnodeInfo(pubKeyZnode);
+
     if (infoMn.fInfoValid) {
-        if (infoMn.nProtocolVersion != PROTOCOL_VERSION) {
+        if (infoMn.nProtocolVersion < MIN_ZNODE_PAYMENT_PROTO_VERSION_1
+                || infoMn.nProtocolVersion > MIN_ZNODE_PAYMENT_PROTO_VERSION_2) {
             nState = ACTIVE_ZNODE_NOT_CAPABLE;
             strNotCapableReason = "Invalid protocol version";
             LogPrintf("CActiveZnode::ManageStateRemote -- %s: %s\n", GetStateString(), strNotCapableReason);

@@ -3,8 +3,8 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-SRCDIR="/home/bushido/git/zcoin-dev"
-BUILDDIR="/home/bushido/git/zcoin-dev"
+SRCDIR="/Volumes/DATA/BITCOIN/Projects/github/zcoinofficial/refactor-mtp"
+BUILDDIR="/Volumes/DATA/BITCOIN/Projects/github/zcoinofficial/refactor-mtp"
 EXEEXT=""
 
 # These will turn into comments if they were disabled when configuring.

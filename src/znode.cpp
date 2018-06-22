@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "activeznode.h"
+#include "consensus/consensus.h"
 #include "consensus/validation.h"
 #include "darksend.h"
 #include "init.h"
@@ -205,9 +206,14 @@ void CZnode::Check(bool fForce) {
     bool fOurZnode = fZNode && activeZnode.pubKeyZnode == pubKeyZnode;
 
     // znode doesn't meet payment protocol requirements ...
+/*    bool fRequireUpdate = nProtocolVersion < mnpayments.GetMinZnodePaymentsProto() ||
+                          // or it's our own node and we just updated it to the new protocol but we are still waiting for activation ...
+                          (fOurZnode && nProtocolVersion < PROTOCOL_VERSION); */
+
+    // znode doesn't meet payment protocol requirements ...
     bool fRequireUpdate = nProtocolVersion < mnpayments.GetMinZnodePaymentsProto() ||
                           // or it's our own node and we just updated it to the new protocol but we are still waiting for activation ...
-                          (fOurZnode && nProtocolVersion < PROTOCOL_VERSION);
+                          (fOurZnode && (nProtocolVersion < MIN_ZNODE_PAYMENT_PROTO_VERSION_1 || nProtocolVersion > MIN_ZNODE_PAYMENT_PROTO_VERSION_2));
 
     if (fRequireUpdate) {
         nActiveState = ZNODE_UPDATE_REQUIRED;
@@ -499,7 +505,12 @@ bool CZnodeBroadcast::Create(CTxIn txin, CService service, CKey keyCollateralAdd
         return false;
     }
 
-    mnbRet = CZnodeBroadcast(service, txin, pubKeyCollateralAddressNew, pubKeyZnodeNew, PROTOCOL_VERSION);
+    int nHeight = chainActive.Height();
+    if (nHeight < ZC_MODULUS_V2_START_BLOCK) {
+        mnbRet = CZnodeBroadcast(service, txin, pubKeyCollateralAddressNew, pubKeyZnodeNew, MIN_PEER_PROTO_VERSION);
+    } else {
+        mnbRet = CZnodeBroadcast(service, txin, pubKeyCollateralAddressNew, pubKeyZnodeNew, PROTOCOL_VERSION);
+    }
 
     if (!mnbRet.IsValidNetAddr()) {
         strErrorRet = strprintf("Invalid IP address, znode=%s", txin.prevout.ToStringShort());
@@ -849,7 +860,7 @@ bool CZnodePing::CheckAndUpdate(CZnode *pmn, bool fFromNewBroadcast, int &nDos) 
         LOCK(cs_main);
         BlockMap::iterator mi = mapBlockIndex.find(blockHash);
         if ((*mi).second && (*mi).second->nHeight < chainActive.Height() - 24) {
-            LogPrintf("CZnodePing::CheckAndUpdate -- Znode ping is invalid, block hash is too old: znode=%s  blockHash=%s\n", vin.prevout.ToStringShort(), blockHash.ToString());
+            // LogPrintf("CZnodePing::CheckAndUpdate -- Znode ping is invalid, block hash is too old: znode=%s  blockHash=%s\n", vin.prevout.ToStringShort(), blockHash.ToString());
             // nDos = 1;
             return false;
         }
