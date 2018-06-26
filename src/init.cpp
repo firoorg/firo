@@ -857,7 +857,46 @@ bool AppInitServers(boost::thread_group &threadGroup) {
     if (!StartHTTPServer())
         return false;
 #if ENABLE_ZMQ
-    LogPrint(NULL, "ZMQ: starting REQ/REP zmq.");
+    LogPrint(NULL, "ZMQ: starting REQ/REP zmq.\n");
+
+    LogPrint(NULL, "ZMQ: creating data directory.\n");
+    // Add persistent_dir data folder in the datadir
+    boost::filesystem::path persistent_dir = GetDataDir() / "persistent";
+    if (!boost::filesystem::exists(persistent_dir)) {
+        boost::filesystem::create_directories(persistent_dir);
+    }
+
+    //list of JSON file names
+    std::vector<std::string> files = {"payment_request",
+                                      "settings", 
+                                      "zerocoin",
+                                      "tx-timestamp"};
+
+    for (std::vector<std::string>::iterator it = files.begin(); it != files.end(); it++) {
+
+            // create JSON file for current
+            json filepath_json;
+            filepath_json["type"] = (*it);
+            filepath_json["data"] = nullptr;
+            
+        boost::filesystem::path filepath = persistent_dir / (*it).append(".json");
+        if (!boost::filesystem::exists(filepath)) {            
+            //write JSON to persistent storage
+            std::ofstream filepath_out(filepath.string());
+            filepath_out << std::setw(4) << filepath_json << std::endl;
+        }
+    }
+
+    // Generate client/server keys for auth over zmq.
+    char server_public_key[41], server_secret_key[41];
+    char client_public_key[41], client_secret_key[41];
+    zmq_curve_keypair(server_public_key, server_secret_key);
+    zmq_curve_keypair(client_public_key, client_secret_key);
+
+    write_cert(server_public_key, server_secret_key, "server");
+    write_cert(client_public_key, client_secret_key, "client");
+
+    LogPrint(NULL, "ZMQ: created data directory.\n");
     if (!StartREQREPZMQ())
         return false;
 #endif
@@ -1582,34 +1621,6 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
             fReindex = true;
         }
     }
-
-    // Add persistent data folder in the datadir
-    boost::filesystem::path persistent_dir = GetDataDir() / "persistent";
-    if (!boost::filesystem::exists(persistent_dir)) {
-        boost::filesystem::create_directories(persistent_dir);
-    }
-
-    //list of JSON file names
-    std::vector<std::string> files = {"payment_request",
-                                      "settings", 
-                                      "zerocoin",
-                                      "tx-timestamp"};
-
-    for (std::vector<std::string>::iterator it = files.begin(); it != files.end(); it++) {
-
-            // create JSON file for current
-            json filepath_json;
-            filepath_json["type"] = (*it);
-            filepath_json["data"] = nullptr;
-            
-        boost::filesystem::path filepath = persistent_dir / (*it).append(".json");
-        if (!boost::filesystem::exists(filepath)) {            
-            //write JSON to persistent storage
-            std::ofstream filepath_out(filepath.string());
-            filepath_out << std::setw(4) << filepath_json << std::endl;
-        }
-    }
-
 
     // cache size calculations
     int64_t nTotalCache = (GetArg("-dbcache", nDefaultDbCache) << 20);

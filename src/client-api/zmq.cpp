@@ -29,9 +29,13 @@
 #include <sstream>
 //import rpc methods. or use the table?
 
+using path = boost::filesystem::path;
 using json = nlohmann::json;
 using namespace std::chrono;
 
+using namespace std;
+
+using namespace boost::filesystem;
 
 static const char DEFAULT_RPCCONNECT[] = "127.0.0.1";
 static const int DEFAULT_HTTP_CLIENT_TIMEOUT=900;
@@ -117,6 +121,55 @@ public:
 
 };
 
+vector<string> read_cert(string type){
+
+    path cert = GetDataDir(true) / "certificates" / type / "keys.json"; 
+
+    LogPrintf("ZMQ: path @ read: %s\n", cert.string());
+
+    std::ifstream cert_in(cert.string());
+    // convert to JSON
+    json cert_json;
+    cert_in >> cert_json;
+
+    LogPrintf("ZMQ: read cert into JSON.\n");
+
+    vector<string> result;
+
+    result.push_back(cert_json["data"][ "public"]);
+    result.push_back(cert_json["data"]["private"]);
+
+  return result;
+}
+
+
+void write_cert(string public_key, string private_key, string type){
+
+    path cert = GetDataDir(true) / "certificates" / type;
+
+    LogPrintf("ZMQ: path @ write: %s\n", cert.string());
+
+    if (!boost::filesystem::exists(cert)) {
+        boost::filesystem::create_directories(cert);
+    }
+
+     cert /= "keys.json";
+
+    LogPrintf("ZMQ: writing cert\n");
+    //create JSON
+    json cert_json;
+    cert_json["type"] = "keys";
+    cert_json["data"] = nullptr;
+    cert_json["data"]["public"] = public_key;
+    cert_json["data"]["private"] = private_key;
+
+    LogPrintf("ZMQ: cert json: %s\n", cert_json.dump());
+
+    // write keys to fs
+    std::ofstream cert_out(cert.string());
+    cert_out << std::setw(4) << cert_json << std::endl;
+}
+
 UniValue CallRPC(const string& strMethod, const UniValue& params)
 {
     std::string host = GetArg("-rpcconnect", DEFAULT_RPCCONNECT);
@@ -196,7 +249,7 @@ UniValue CallRPC(const string& strMethod, const UniValue& params)
 }
 
 
-UniValue setupRPC(std::vector<std::string> args)
+UniValue SetupRPC(std::vector<std::string> args)
 {
    string strPrint;
    int nRet = 0;
@@ -320,15 +373,10 @@ json response_to_json(UniValue reply){
 
 /*************** Start API function definitions ***************************************/
 
-json send_zcoin(json request){
-
-
-  
-}
 json payment_request(json request){
 
     //get payment request data
-    boost::filesystem::path persistent_pr = GetDataDir(false) / (Params().NetworkIDString()==CBaseChainParams::TESTNET ? "testnet3" : "") / "persistent" / "payment_request.json";
+    path persistent_pr = GetDataDir(true) / "persistent" / "payment_request.json";
 
     // get raw string
     std::ifstream persistent_pr_in(persistent_pr.string());
@@ -353,7 +401,7 @@ json payment_request(json request){
         rpc_vector.push_back("getnewaddress"); 
 
         // Execute getnewaddress command
-        UniValue rpc_raw = setupRPC(rpc_vector);
+        UniValue rpc_raw = SetupRPC(rpc_vector);
 
         // extract address
         json rpc_json = response_to_json(rpc_raw);
@@ -509,8 +557,6 @@ static void* REQREP_ZMQ(void *arg)
         /* char* to string */
         string request_str(request_chars);
 
-        LogPrintf("ZMQ: 444.\n");
-
         /* finally, as JSON */
         json request_json = json::parse(request_str);
         
@@ -527,10 +573,10 @@ static void* REQREP_ZMQ(void *arg)
             rpc_json = payment_request(request_json);
         }
 
-        // TODO better scheme for this as more requests added (see RPCTable)
-        if(request_json["collection"]=="send-zcoin"){
-            rpc_json = send_zcoin(request_json);
-        }
+        // // TODO better scheme for this as more requests added (see RPCTable)
+        // if(request_json["collection"]=="send-zcoin"){
+        //     rpc_json = send_zcoin(request_json);
+        // }
 
         /* TODO- generally, what to return for API requests.
            in create-payment-request, client only needs a status and an address back, so don't need to modify JSON call.
@@ -559,25 +605,41 @@ static void* REQREP_ZMQ(void *arg)
 bool StartREQREPZMQ()
 {
     LogPrintf("ZMQ: Starting REQ/REP ZMQ server\n");
-    // TODO authentication
 
     zmqpcontext = zmq_ctx_new();
+
+    LogPrintf("ZMQ: created context\n");
 
     zmqpsocket = zmq_socket(zmqpcontext,ZMQ_REP);
     if(!zmqpsocket){
         LogPrintf("ZMQ: Failed to create socket\n");
         return false;
     }
+    LogPrintf("ZMQ: created socket\n");
 
-    // Get network port.
+    //set up REP auth
+    vector<string> keys = read_cert("server");
+
+    string server_secret_key = keys.at(1);
+
+    LogPrintf("ZMQ: secret_server_key: %s\n", server_secret_key);
+
+    const int curve_server_enable = 1;
+    zmq_setsockopt(zmqpsocket, ZMQ_CURVE_SERVER, &curve_server_enable, sizeof(curve_server_enable));
+    zmq_setsockopt(zmqpsocket, ZMQ_CURVE_SECRETKEY, server_secret_key.c_str(), 40);
+
+
+    // Get network port. TODO add zmq ports to base params
     string port;
     if(Params().NetworkIDString()==CBaseChainParams::MAIN){
       port = "15557";
     }
     else if(Params().NetworkIDString()==CBaseChainParams::TESTNET){
-      port = "15558";
+      port = "25557";
     }
-    //should fail otherwise 
+    else if(Params().NetworkIDString()==CBaseChainParams::REGTEST){
+      port = "35557";
+    }
 
     LogPrintf("ZMQ: port = %s\n", port);
 

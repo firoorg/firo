@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "chainparams.h"
+#include "chain.h"
 #include "zmqpublishnotifier.h"
 #include "main.h"
 #include "util.h"
@@ -10,7 +11,11 @@
 #include "script/standard.h"
 #include "base58.h"
 #include "client-api/json.hpp"
+#include "znode-sync.h"
+#include "net.h"
+#include "client-api/zmq.h"
 
+using path = boost::filesystem::path;
 using json = nlohmann::json;
 using namespace std::chrono;
 
@@ -84,6 +89,15 @@ bool CZMQAbstractPublishNotifier::Initialize(void *pcontext)
             zmqError("Failed to create socket");
             return false;
         }
+
+        // Set up PUB auth.
+        vector<string> keys = read_cert("server");
+
+        string server_secret_key = keys.at(1);
+
+        const int curve_server_enable = 1;
+        zmq_setsockopt(psocket, ZMQ_CURVE_SERVER, &curve_server_enable, sizeof(curve_server_enable));
+        zmq_setsockopt(psocket, ZMQ_CURVE_SECRETKEY, server_secret_key.c_str(), 40);
 
         int rc = zmq_bind(psocket, address.c_str());
         if (rc!=0)
@@ -160,23 +174,27 @@ bool CZMQAbstractPublishNotifier::SendMessage(const char *command, const void* d
 
 bool CZMQAbstractPublishNotifier::send_message(string msg){
 
+    LogPrintf("ZMQ: sending message %s\n", msg);
     assert(psocket);
 
     zmq_msg_t reply;
     int rc = zmq_msg_init_size (&reply, msg.size());
     assert(rc == 0);  
     std::memcpy (zmq_msg_data (&reply), msg.data(), msg.size());
-    LogPrintf("ZMQ: Sending reply..\n");
+    //LogPrintf("ZMQ: Sending reply..\n");
     /* Block until a message is available to be sent from socket */
     rc = zmq_sendmsg (psocket, &reply, 0);
     assert(rc!=-1);
 
-    LogPrintf("ZMQ: Reply sent.\n");
+    LogPrintf("ZMQ: message sent.\n");
     zmq_msg_close(&reply);
 
     return true;
 }
 
+
+
+/***************** not used *******************/
 bool CZMQPublishHashBlockNotifier::NotifyBlock(const CBlockIndex *pindex)
 {
     uint256 hash = pindex->GetBlockHash();
@@ -196,6 +214,8 @@ bool CZMQPublishHashTransactionNotifier::NotifyTransaction(const CTransaction &t
         data[31 - i] = hash.begin()[i];
     return SendMessage(MSG_HASHTX, data, 32);
 }
+/***************** not used *******************/
+
 
 
 bool CZMQPublishRawTransactionNotifier::NotifyTransaction(const CTransaction &transaction)
@@ -213,56 +233,144 @@ bool CZMQPublishRawTransactionNotifier::NotifyTransaction(const CTransaction &tr
             }
         }
     */
-    vector<int> blockParams;
-    //blockParams[ISBLOCKTX] is false here
-    blockParams.push_back(0);
-    processTransaction(transaction, blockParams);
-    LogPrintf("ZMQ: processed Transaction\n");
+    LogPrintf("ZMQ: in NotifyTransaction\n");
+    if(znodeSync.IsBlockchainSynced()){
+        vector<int> blockParams;
+        //blockParams[ISBLOCKTX] is false here
+        blockParams.push_back(0);
+        processTransaction(transaction, blockParams);
+        LogPrintf("ZMQ: processed Transaction\n");
+    }
+    vector<string> test_args;
+    
     return true;
 }
 
+// bool CZMQPublishRawBlockNotifier::NotifyBlock(const CBlockIndex *pindex)
+// {
+//     /*
+//     address publishing layout for block tx's:
+//         {
+//             "type": "address",
+//             "id": STRING,
+//             "transaction": {
+//                 "txid": STRING,
+//                 "timestamp": INT (blocktime)
+//                 "amount": INT
+//                 "type": type: 'in|out|mint|spend|mining|znode'
+//                 "blockstamp": INT
+//             }
+//         }
+//     */
+//     LogPrint(NULL, "zmq: Publish rawblock %s\n", pindex->GetBlockHash().GetHex());
+
+//     CBlock block;
+
+//     const Consensus::Params& consensusParams = Params().GetConsensus();
+//     if(!ReadBlockFromDisk(block, pindex, consensusParams))
+//     {
+//         zmqError("Can't read block from disk");
+//         return false;
+//     }
+
+//     vector<int> blockParams;
+//     blockParams.push_back(1);
+//     blockParams.push_back(pindex->nHeight);
+//     blockParams.push_back(block.GetBlockTime());
+
+//     // publish for each "address"
+//     BOOST_FOREACH(const CTransaction&transaction, block.vtx){
+//         //processTransaction(transaction, blockParams);
+//         //LogPrintf("ZMQ: processed block transaction\n");
+//     }
+
+//     //publish Blockchain related info.
+//     json block_json;
+//     block_json["type"] = "full";
+//     block_json["status"] = nullptr;
+
+//     block_json["status"]["IsBlockchainSynced"] = znodeSync.IsBlockchainSynced();
+//     block_json["status"]["IsZnodeListSynced"] = znodeSync.IsZnodeListSynced();
+//     block_json["status"]["IsWinnersListSynced"] = znodeSync.IsWinnersListSynced();
+//     block_json["status"]["IsSynced"] = znodeSync.IsSynced();
+//     block_json["status"]["IsFailed"] = znodeSync.IsFailed();
+
+//     block_json["testnet"] = Params().TestnetToBeDeprecatedFieldRPC();
+
+//     block_json["connections"] = (int)vNodes.size();
+
+//     block_json["currentBlock"] = nullptr;
+//     block_json["currentBlock"]["height"] = pindex->nHeight;
+//     block_json["currentBlock"]["timestamp"] = pindex->nTime;
+
+//     string topic = "block-";
+//     topic.append(block_json.dump());
+//     send_message(topic);
+
+//     return true;
+// }
+
+
 bool CZMQPublishRawBlockNotifier::NotifyBlock(const CBlockIndex *pindex)
 {
-    /*
-    address publishing layout for block tx's:
-        {
-            "type": "address",
-            "id": STRING,
-            "transaction": {
-                "txid": STRING,
-                "timestamp": INT (blocktime)
-                "amount": INT
-                "type": type: 'in|out|mint|spend|mining|znode'
-                "blockstamp": INT
-            }
+    //publish block related info every 10 blocks.
+    int currentHeight = pindex->nHeight;
+    LogPrintf("ZMQ: in notifyblock. currentHeight: %s\n", to_string(currentHeight));
+    if(currentHeight % 10==0 && currentHeight >=10){
+        vector<string> listsinceblockargs;
+        string prevblockhash = chainActive[currentHeight-10]->GetBlockHash().ToString();
+        LogPrintf("ZMQ: prevblockhash: %s\n", prevblockhash);
+        listsinceblockargs.push_back("listsinceblock");
+        listsinceblockargs.push_back(prevblockhash);
+        listsinceblockargs.push_back("1");
+        UniValue rpc_raw = SetupRPC(listsinceblockargs);
+        const UniValue& result = find_value(rpc_raw, "result");
+        const UniValue& error = find_value(rpc_raw, "error");
+        string strPrint;
+        // Result
+        if (result.isNull())
+           strPrint = "";
+        if (!error.isNull()) {
+            LogPrintf("ZMQ: listsinceblock call errored.\n");
         }
-    */
-    LogPrint(NULL, "zmq: Publish rawblock %s\n", pindex->GetBlockHash().GetHex());
-
-    CBlock block;
-
-    const Consensus::Params& consensusParams = Params().GetConsensus();
-    if(!ReadBlockFromDisk(block, pindex, consensusParams))
-    {
-        zmqError("Can't read block from disk");
-        return false;
+        else if (result.isStr())
+            strPrint = result.get_str();
+        else
+            strPrint = result.write(2);
+           
+        LogPrintf("ZMQ: in notifyblock. result of listsinceblock call: %s\n", strPrint);
+        // TODO if str empty, ignore.
     }
 
-    vector<int> blockParams;
-    blockParams.push_back(1);
-    blockParams.push_back(pindex->nHeight);
-    blockParams.push_back(block.GetBlockTime());
+    //publish Blockchain related info.
+    json block_json;
+    block_json["type"] = "full";
+    block_json["status"] = nullptr;
 
-    BOOST_FOREACH(const CTransaction&transaction, block.vtx){
-        processTransaction(transaction, blockParams);
-    }
+    block_json["status"]["IsBlockchainSynced"] = znodeSync.IsBlockchainSynced();
+    block_json["status"]["IsZnodeListSynced"] = znodeSync.IsZnodeListSynced();
+    block_json["status"]["IsWinnersListSynced"] = znodeSync.IsWinnersListSynced();
+    block_json["status"]["IsSynced"] = znodeSync.IsSynced();
+    block_json["status"]["IsFailed"] = znodeSync.IsFailed();
+
+    block_json["testnet"] = Params().TestnetToBeDeprecatedFieldRPC();
+
+    block_json["connections"] = (int)vNodes.size();
+
+    block_json["currentBlock"] = nullptr;
+    block_json["currentBlock"]["height"] = pindex->nHeight;
+    block_json["currentBlock"]["timestamp"] = pindex->nTime;
+
+    string topic = "block-";
+    topic.append(block_json.dump());
+    send_message(topic);
 
     return true;
 }
 
 bool CZMQAbstractPublishNotifier::writeTimestampToFile(json tx){
     //get payment request data
-    boost::filesystem::path persistent_pr = GetDataDir(false) / (Params().NetworkIDString()==CBaseChainParams::TESTNET ? "testnet3" : "") / "persistent" / "tx-timestamp.json";
+    path persistent_pr = GetDataDir(true) / "persistent" / "tx-timestamp.json";
 
     // get raw string
     std::ifstream persistent_pr_in(persistent_pr.string());
@@ -301,50 +409,50 @@ bool CZMQAbstractPublishNotifier::processTransaction(const CTransaction &transac
     
     // first get addresses of inputs
 
-    if(!transaction.IsCoinBase()){
-        for (int i=0; i < transaction.vin.size(); i++) {
-            CTransaction txPrev;
-            uint256 hashBlock;
-            // get the vin's previous transaction 
-            GetTransaction(transaction.vin[i].prevout.hash, txPrev, Params().GetConsensus(), hashBlock, true);  
-            CTxDestination source;
-            // extract the destination of the previous transaction's vout[n]
-            CTxOut prevout = txPrev.vout[transaction.vin[i].prevout.n];
-            CAmount amount  = prevout.nValue;
-            if (ExtractDestination(prevout.scriptPubKey, source))  
-            {
-                CBitcoinAddress addressSource(source);              // convert this to an address
-                string btc_address = addressSource.ToString();
-                tx_json_outs[btc_address]["id"] = btc_address;
-                tx_json_outs[btc_address]["type"] = "address";
-                tx_json_outs[btc_address]["transaction"] = nullptr;
-                tx_json_outs[btc_address]["transaction"]["txid"] = transaction.GetHash().ToString();
-                tx_json_outs[btc_address]["transaction"]["type"] = "out";
+    // if(!transaction.IsCoinBase()){
+    //     for (int i=0; i < transaction.vin.size(); i++) {
+    //         CTransaction txPrev;
+    //         uint256 hashBlock;
+    //         // get the vin's previous transaction 
+    //         GetTransaction(transaction.vin[i].prevout.hash, txPrev, Params().GetConsensus(), hashBlock, true);  
+    //         CTxDestination source;
+    //         // extract the destination of the previous transaction's vout[n]
+    //         CTxOut prevout = txPrev.vout[transaction.vin[i].prevout.n];
+    //         CAmount amount  = prevout.nValue;
+    //         if (ExtractDestination(prevout.scriptPubKey, source))  
+    //         {
+    //             CBitcoinAddress addressSource(source);              // convert this to an address
+    //             string btc_address = addressSource.ToString();
+    //             tx_json_outs[btc_address]["id"] = btc_address;
+    //             tx_json_outs[btc_address]["type"] = "address";
+    //             tx_json_outs[btc_address]["transaction"] = nullptr;
+    //             tx_json_outs[btc_address]["transaction"]["txid"] = transaction.GetHash().ToString();
+    //             tx_json_outs[btc_address]["transaction"]["type"] = "out";
 
-                if(tx_json_outs[btc_address]["transaction"]["amount"].is_null()){
-                   tx_json_outs[btc_address]["transaction"]["amount"] = amount;
-                }
-                else{
-                   tx_json_outs[btc_address]["transaction"]["amount"] += amount;
-                }
+    //             if(tx_json_outs[btc_address]["transaction"]["amount"].is_null()){
+    //                tx_json_outs[btc_address]["transaction"]["amount"] = amount;
+    //             }
+    //             else{
+    //                tx_json_outs[btc_address]["transaction"]["amount"] += amount;
+    //             }
 
-                if (blockvals[ISBLOCKTX]==1){
-                    tx_json_outs[btc_address]["transaction"]["timestamp"] = blockvals[BLOCKTIME];
-                    tx_json_outs[btc_address]["transaction"]["blockstamp"] = blockvals[BLOCKHEIGHT];
-                }else{
-                    tx_json_outs[btc_address]["transaction"]["timestamp"] = ms.count();
-                }  
-            }
-        }
+    //             if (blockvals[ISBLOCKTX]==1){
+    //                 tx_json_outs[btc_address]["transaction"]["timestamp"] = blockvals[BLOCKTIME];
+    //                 tx_json_outs[btc_address]["transaction"]["blockstamp"] = blockvals[BLOCKHEIGHT];
+    //             }else{
+    //                 tx_json_outs[btc_address]["transaction"]["timestamp"] = ms.count();
+    //             }  
+    //         }
+    //     }
         
-        // send all the out address values
-        BOOST_FOREACH(json tx_json, tx_json_outs){
-            string address_topic = "address-";
-            string address = tx_json["id"];
-            address_topic.append(address).append("-").append(tx_json.dump());
-            send_message(address_topic);
-        }
-    }
+        // // send all the out address values
+        // BOOST_FOREACH(json tx_json, tx_json_outs){
+        //     string address_topic = "address-";
+        //     string address = tx_json["id"];
+        //     address_topic.append(address).append("-").append(tx_json.dump());
+        //     send_message(address_topic);
+        // }
+    // }
 
     tx_json_in["type"] = "address";
     tx_json_in["transaction"] = nullptr;
@@ -380,9 +488,9 @@ bool CZMQAbstractPublishNotifier::processTransaction(const CTransaction &transac
 
         for(int j=0;j<addresses.size();j++){
              tx_json_in["id"] = addresses[j];
-             LogPrintf("ZMQ: tx.dump: %s\n", tx_json_in.dump());
-             LogPrintf("ZMQ: address: %s\n", addresses[j]);
-             LogPrintf("ZMQ: isBlockTX: %s\n", to_string(blockvals[ISBLOCKTX]));
+             // LogPrintf("ZMQ: tx.dump: %s\n", tx_json_in.dump());
+             // LogPrintf("ZMQ: address: %s\n", addresses[j]);
+             // LogPrintf("ZMQ: isBlockTX: %s\n", to_string(blockvals[ISBLOCKTX]));
 
              string address_topic = "address-";
 
