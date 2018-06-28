@@ -2966,8 +2966,9 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
     BOOST_FOREACH(const CTransaction &tx, block.vtx) {
         if (tx.IsZerocoinSpend()) {
             CBigNum zcSpendSerial = ZerocoinGetSpendSerialNumber(tx);
+            uint256 thisTxHash = tx.GetHash();
             uint256 conflictingTxHash = zcState->GetMempoolConflictingTxHash(zcSpendSerial);
-            if (!conflictingTxHash.IsNull()) {
+            if (!conflictingTxHash.IsNull() && conflictingTxHash != thisTxHash) {
                 std::list<CTransaction> removed;
                 auto pTx = mempool.get(conflictingTxHash);
                 if (pTx)
