@@ -251,7 +251,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
     }
 
     if(Params().NetworkIDString() == CBaseChainParams::REGTEST)
-        MAX_SPEND_ZC_TX_PER_BLOCK = 2;
+        MAX_SPEND_ZC_TX_PER_BLOCK = 1;
 
     // Collect memory pool transactions into the block
     CTxMemPool::setEntries inBlock;

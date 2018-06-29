@@ -38,12 +38,12 @@
 extern CCriticalSection cs_main;
 using namespace std;
 
-CScript scriptPubKey;
+CScript scriptPubKey3;
 
-bool no_check( std::runtime_error const& ex ) { return true; }
+bool no_check3( std::runtime_error const& ex ) { return true; }
 
-struct ZerocoinTestingSetup : public TestingSetup {
-    ZerocoinTestingSetup() : TestingSetup(CBaseChainParams::REGTEST, "1")
+struct ZerocoinTestingSetup3 : public TestingSetup {
+    ZerocoinTestingSetup3() : TestingSetup(CBaseChainParams::REGTEST, "1")
     {
         CPubKey newKey;
         BOOST_CHECK(pwalletMain->GetKeyFromPool(newKey));
@@ -57,11 +57,11 @@ struct ZerocoinTestingSetup : public TestingSetup {
         //mBlockHeightConstants["ZC_CHECK_BUG_FIXED_AT_BLOCK"] = 140;
 
         printf("Balance before %ld\n", pwalletMain->GetBalance());
-        scriptPubKey = CScript() <<  ToByteVector(newKey/*coinbaseKey.GetPubKey()*/) << OP_CHECKSIG;
+        scriptPubKey3 = CScript() <<  ToByteVector(newKey/*coinbaseKey.GetPubKey()*/) << OP_CHECKSIG;
         for (int i = 0; i < 200; i++)
         {
             std::vector<CMutableTransaction> noTxns;
-            CBlock b = CreateAndProcessBlock(noTxns, scriptPubKey);
+            CBlock b = CreateAndProcessBlock(noTxns, scriptPubKey3);
             coinbaseTxns.push_back(b.vtx[0]);
             LOCK(cs_main);
             {
@@ -117,7 +117,7 @@ struct ZerocoinTestingSetup : public TestingSetup {
     CKey coinbaseKey; // private/public key needed to spend coinbase transactions
 };
 
-BOOST_FIXTURE_TEST_SUITE(zerocoin_tests, ZerocoinTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(zerocoin_tests3, ZerocoinTestingSetup3)
 
 BOOST_AUTO_TEST_CASE(zerocoin_mintspend)
 {
@@ -148,7 +148,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend)
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mint was not added to mempool");
 
         int previousHeight = chainActive.Height();
-        CBlock b = CreateAndProcessBlock(MinTxns, scriptPubKey);
+        CBlock b = CreateAndProcessBlock(MinTxns, scriptPubKey3);
         BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
 
         previousHeight = chainActive.Height();
@@ -159,7 +159,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend)
             BOOST_CHECK_MESSAGE(stringError == "it has to have at least two mint coins with at least 6 confirmation in order to spend a coin", stringError + " - Incorrect error message");
 
             std::vector<CMutableTransaction> noTxns;
-            CBlock b = CreateAndProcessBlock(noTxns, scriptPubKey);
+            CBlock b = CreateAndProcessBlock(noTxns, scriptPubKey3);
         }
         BOOST_CHECK_MESSAGE(previousHeight + 5 == chainActive.Height(), "Block not added to chain");
 
@@ -173,7 +173,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend)
         MinTxns.clear();
 
         previousHeight = chainActive.Height();
-        b = CreateAndProcessBlock(MinTxns, scriptPubKey);
+        b = CreateAndProcessBlock(MinTxns, scriptPubKey3);
         BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
 
 
@@ -184,95 +184,53 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend)
             BOOST_CHECK_MESSAGE(!pwalletMain->CreateZerocoinSpendModel(stringError, "", denomination.c_str()), "Spend succeeded although not confirmed by 6 blocks");
             BOOST_CHECK_MESSAGE(stringError == "it has to have at least two mint coins with at least 6 confirmation in order to spend a coin", stringError + " - Incorrect error message");
             std::vector<CMutableTransaction> noTxns;
-            CBlock b = CreateAndProcessBlock(noTxns, scriptPubKey);
+            CBlock b = CreateAndProcessBlock(noTxns, scriptPubKey3);
         }
 
         BOOST_CHECK_MESSAGE(previousHeight + 5 == chainActive.Height(), "Block not added to chain");
 
-        //Create two spend trancastion using the same mint - Test no longer possible
         BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(stringError, "", denomination.c_str()), "Spend failed");
-        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(stringError, "", denomination.c_str(), true), stringError + " - Spend failed");
-
-        //Try to put two in the same block and it will fail, expect 1
-        BOOST_CHECK_MESSAGE(mempool.size() == 1, "Spends was not added to mempool");
-
-        //NOT POSSIBLE - Hacky method of forcing double spends to be added to same block
-        /*vtxid.clear();
-        mempool.queryHashes(vtxid);
-        MinTxns.clear();
-        MinTxns.push_back(*mempool.get(vtxid.at(0)));
-        MinTxns.push_back(*mempool.get(vtxid.at(1)));
-
-        b = CreateBlock(MinTxns, scriptPubKey);
-        //Reset zerocoinTxInfo to perform check again as if we received the block from another node
-        b.zerocoinTxInfo = std::make_shared<CZerocoinTxInfo>();
-        previousHeight = chainActive.Height();
-        BOOST_CHECK_MESSAGE(!ProcessBlock(b), "ProcessBlock succeeded and should have failed on double spend");
-        BOOST_CHECK_MESSAGE(previousHeight == chainActive.Height(), "Double spend - Block added to chain even though two same spends in same block");
-
-        mempool.clear();
-
-        //Create a new spend transaction from a mint that wallet think is used
-        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(stringError, "", denomination.c_str(), true), "Spend failed");
-*/
-        //Verify spend got into mempool
-        BOOST_CHECK_MESSAGE(mempool.size() == 1, "Spend was not added to mempool");
-
-        vtxid.clear();
-        MinTxns.clear();
-
-        b = CreateBlock(MinTxns, scriptPubKey);
-        previousHeight = chainActive.Height();
-        BOOST_CHECK_MESSAGE(ProcessBlock(b), "ProcessBlock failed although valid spend inside");
-        BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
-
-        BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool not cleared");
-
-        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(stringError, "", denomination.c_str()), stringError + " - Spend failed");
 
         //Verify spend got into mempool
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Spend was not added to mempool");
-
+        vtxid.clear();
         MinTxns.clear();
 
-        b = CreateBlock(MinTxns, scriptPubKey);
+        b = CreateBlock(MinTxns, scriptPubKey3);
         previousHeight = chainActive.Height();
+        mempool.clear();
+        BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool not cleared");
+
+        //Selete usedCoinSerials since we deleted the mempool
+        CZerocoinState *zerocoinStatex = CZerocoinState::GetZerocoinState();
+        zerocoinStatex->usedCoinSerials.clear();
+        zerocoinStatex->mempoolCoinSerials.clear();
+
+        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(stringError, "", denomination.c_str(), true), "Spend created although double");
+        BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mempool did not receive the transaction");
+
         BOOST_CHECK_MESSAGE(ProcessBlock(b), "ProcessBlock failed although valid spend inside");
         BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
 
+        //Since new block contained a TX with the same serial as the TX in mempool, confirm that mempool is cleared
         BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool not cleared");
 
-        //Test double spend with previous spend in last block
-        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(stringError, "", denomination.c_str(), true), "Spend created although double");
-        //This confirms that double spend is blocked and cannot enter mempool
-        BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool not empty although mempool should reject double spend");
+        //Confirm that on disconnect block transaction is returned to mempool
+        DisconnectBlocks(1);
+        LOCK(cs_main);
+        {
+            CValidationState state;
+            const CChainParams& chainparams = Params();
+            InvalidateBlock(state, chainparams, mapBlockIndex[b.GetHash()]);
+        }
 
-        //Temporary disable usedCoinSerials check to force double spend in mempool
-        CZerocoinState *zerocoinState = CZerocoinState::GetZerocoinState();
-        auto tempSerials = zerocoinState->usedCoinSerials;
-        zerocoinState->usedCoinSerials.clear();
+        BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mempool should get the transaction of disconnected block");
 
-        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(stringError, "", denomination.c_str(), true), "Spend created although double");
-        BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mempool not set");
-        zerocoinState->usedCoinSerials = tempSerials;
+        //This mint is just to create a block with the new hash
+        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denomination.c_str()), stringError + "Create Mint failed");
 
-        MinTxns.clear();
-        BOOST_CHECK_EXCEPTION(CreateBlock(MinTxns, scriptPubKey), std::runtime_error, no_check);
-        BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mempool not set");
-        vtxid.clear();
-        mempool.queryHashes(vtxid);
-        MinTxns.clear();
-        MinTxns.push_back(*mempool.get(vtxid.at(0)));
-        tempSerials = zerocoinState->usedCoinSerials;
-        zerocoinState->usedCoinSerials.clear();
-        CreateBlock(MinTxns, scriptPubKey);
-        zerocoinState->usedCoinSerials = tempSerials;
-
-        mempool.clear();
-        previousHeight = chainActive.Height();
-        BOOST_CHECK_MESSAGE(ProcessBlock(b), "ProcessBlock failed");
-        //This test confirms that a block containing a double spend is rejected and not added in the chain
-        BOOST_CHECK_MESSAGE(previousHeight == chainActive.Height(), "Double spend - Block added to chain even though same spend in previous block");
+        std::vector<CMutableTransaction> noTxns;
+        b = CreateAndProcessBlock(noTxns, scriptPubKey3);
 
         vtxid.clear();
         MinTxns.clear();
