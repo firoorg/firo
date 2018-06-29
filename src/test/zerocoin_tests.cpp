@@ -221,7 +221,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend)
         vtxid.clear();
         MinTxns.clear();
 
-        b = CreateBlock(MinTxns, scriptPubKey);
+        /*b = CreateBlock(MinTxns, scriptPubKey);
         previousHeight = chainActive.Height();
         BOOST_CHECK_MESSAGE(ProcessBlock(b), "ProcessBlock failed although valid spend inside");
         BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
@@ -229,32 +229,70 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend)
         BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool not cleared");
 
         BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(stringError, "", denomination.c_str()), stringError + " - Spend failed");
+*/
 
         //Verify spend got into mempool
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Spend was not added to mempool");
+
+
+
+        vtxid.clear();
+        mempool.queryHashes(vtxid);
+        printf("t1: %s\n",vtxid.at(0).ToString().c_str());
+        vtxid.clear();
+
+
 
         MinTxns.clear();
 
         b = CreateBlock(MinTxns, scriptPubKey);
         previousHeight = chainActive.Height();
         mempool.clear();
-
+        BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool not cleared");
 
         //Temporary disable usedCoinSerials check to force double spend in mempool
         CZerocoinState *zerocoinStatex = CZerocoinState::GetZerocoinState();
         auto tempSerialsx = zerocoinStatex->usedCoinSerials;
+        auto tempMemPoolSerials = zerocoinStatex->mempoolCoinSerials;
         zerocoinStatex->usedCoinSerials.clear();
+        zerocoinStatex->mempoolCoinSerials.clear();
 
         BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(stringError, "", denomination.c_str(), true), "Spend created although double");
         //This confirms that double spend is blocked and cannot enter mempool
-        BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mempool not empty although mempool should reject double spend");
-        zerocoinStatex->usedCoinSerials = tempSerialsx;
+        BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mempool did not receive the transaction");
+        //zerocoinStatex->usedCoinSerials = tempSerialsx;
+        //zerocoinStatex->mempoolCoinSerials = tempMemPoolSerials;
+
+        vtxid.clear();
+        mempool.queryHashes(vtxid);
+        printf("t2: %s\n",vtxid.at(0).ToString().c_str());
+        vtxid.clear();
+
+
 
 
         BOOST_CHECK_MESSAGE(ProcessBlock(b), "ProcessBlock failed although valid spend inside");
         BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
 
         BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool not cleared");
+
+
+        CValidationState state;
+        const CChainParams& chainparams = Params();
+        //InvalidateBlock(state, chainparams, mapBlockIndex[b.GetHash()]);
+        DisconnectBlocks(1);
+        ActivateBestChain(state, Params());
+
+
+
+
+
+
+
+
+
+
+
 
         //Test double spend with previous spend in last block
         BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(stringError, "", denomination.c_str(), true), "Spend created although double");

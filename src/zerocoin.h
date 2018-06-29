@@ -99,14 +99,16 @@ private:
     unordered_multimap<CBigNum,CMintedCoinInfo,CBigNumHash> mintedPubCoins;
     // Latest IDs of coins by denomination
     map<int, int> latestCoinIds;
-    // serials of spends currently in the mempool mapped to tx hashes
-    unordered_map<CBigNum,uint256,CBigNumHash> mempoolCoinSerials;
+
 
 public:
     CZerocoinState();
 
     // Set of all used coin serials. Allows multiple entries for the same coin serial for historical reasons
     unordered_multiset<CBigNum,CBigNumHash> usedCoinSerials;
+
+    // serials of spends currently in the mempool mapped to tx hashes
+    unordered_map<CBigNum,uint256,CBigNumHash> mempoolCoinSerials;
 
     // Add mint, automatically assigning id to it. Returns id and previous accumulator value (if any)
     int AddMint(CBlockIndex *index, int denomination, const CBigNum &pubCoin, CBigNum &previousAccValue);
