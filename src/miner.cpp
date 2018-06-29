@@ -251,7 +251,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
     }
 
     if(Params().NetworkIDString() == CBaseChainParams::REGTEST)
-        MAX_SPEND_ZC_TX_PER_BLOCK = 1;
+        MAX_SPEND_ZC_TX_PER_BLOCK = 2;
 
     // Collect memory pool transactions into the block
     CTxMemPool::setEntries inBlock;
@@ -432,6 +432,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
                 nBlockSigOpsCost += nTxSigOps;
                 nFees += nTxFees;
                 COUNT_SPEND_ZC_TX++;
+                inBlock.insert(iter);
                 continue;
             }
             unsigned int nTxSigOps = iter->GetSigOpCost();
