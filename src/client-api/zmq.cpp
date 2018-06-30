@@ -14,6 +14,7 @@
 #include "util.h"
 #include "utilstrencodings.h"
 #include <chrono>
+#include "main.h"
 
 #include <boost/filesystem/operations.hpp>
 #include <stdio.h>
@@ -120,6 +121,8 @@ public:
     {}
 
 };
+
+
 
 vector<string> read_cert(string type){
 
@@ -237,6 +240,7 @@ UniValue CallRPC(const string& strMethod, const UniValue& params)
     else if (response.body.empty())
         throw runtime_error("no response from server");
 
+    LogPrintf("ZMQ: response was a success \n");
     // Parse reply
     UniValue valReply(UniValue::VSTR);
     if (!valReply.read(response.body))
@@ -257,7 +261,6 @@ UniValue SetupRPC(std::vector<std::string> args)
    json j;
    try {
        std::string strMethod = args[0];
-
        UniValue params = RPCConvertValues(strMethod, std::vector<std::string>(args.begin()+1, args.end()));
 
        // Execute and handle connection failures with -rpcwait
@@ -350,14 +353,17 @@ json response_to_json(UniValue reply){
        }
     } else {
        // Result
-       if (result.isNull())
+       if (result.isNull()){
            strPrint = "";
-       else if (result.isStr())
+       } else if (result.isStr()){
            strPrint = result.get_str();
-       else
-           strPrint = result.write(2);
+           response["data"] = strPrint.c_str();
+       } else {
+           strPrint = result.write(0);
+           response["data"] = json::parse(strPrint);
+       }
+
        LogPrintf("ZMQ: result: %s\n", strPrint.c_str());
-       response["data"] = strPrint.c_str();
        response["meta"] = nullptr;
        response["meta"]["meta"] = 200;
     }
@@ -372,6 +378,103 @@ json response_to_json(UniValue reply){
 
 
 /*************** Start API function definitions ***************************************/
+
+json get_tx_fee(json request){
+    /*
+    argument:
+    {
+      "type": get,
+      "collection": "get_transaction_fee",
+      "data": {
+        "addresses": {
+            "{address}":{value},
+            "{address}":{value},
+            ...
+        }
+        "feeperkb": INT
+      }
+    }
+    */
+    //first set tx fee.
+    UniValue rpc_raw;
+    string tx_fee = request["data"]["feeperkb"];
+    vector<string> set_tx_fee_args;
+    set_tx_fee_args.push_back("settxfee");
+    set_tx_fee_args.push_back(tx_fee);
+    // set tx fee per kb. for now assume that the call succeeded
+    rpc_raw = SetupRPC(set_tx_fee_args);
+
+    //set up call to get-transaction-fee.
+    json get_tx_fee = request["data"]["addresses"];
+    vector<string> get_transaction_fee_args;
+
+    get_transaction_fee_args.push_back("gettransactionfee");
+    get_transaction_fee_args.push_back("");
+    get_transaction_fee_args.push_back(get_tx_fee.dump());
+
+    // get transaction fee for all addresses and values
+    rpc_raw = SetupRPC(get_transaction_fee_args);
+
+    json get_transaction_fee_json = response_to_json(rpc_raw);
+
+    return get_transaction_fee_json;
+
+}
+
+/* get core status. */
+json api_status(){
+    vector<string> get_info_args;
+    get_info_args.push_back("getinfo");
+    UniValue rpc_raw = SetupRPC(get_info_args);
+    json get_info_json = response_to_json(rpc_raw);
+    json api_status_json;
+
+    api_status_json["version"] = get_info_json["data"]["version"];
+    api_status_json["protocolversion"] = get_info_json["data"]["protocolversion"];
+    api_status_json["walletversion"] = get_info_json["data"]["walletversion"];
+    api_status_json["datadir"] = GetDataDir(true).string();
+    api_status_json["network"]  = ChainNameFromCommandLine();
+
+    return api_status_json;
+}
+
+
+json initial_state(){
+    vector<string> initial_state_args;
+    // to get the complete transaction history for the wallet, we use the listsinceblock rpc command
+    string genesis_block_hash = chainActive[0]->GetBlockHash().ToString();
+    initial_state_args.push_back("listsinceblock");
+    initial_state_args.push_back(genesis_block_hash);
+
+    UniValue rpc_raw = SetupRPC(initial_state_args);
+
+    json result_json = response_to_json(rpc_raw);
+
+    //cycle through result["data"], getting all tx's for one address, and adding balances
+    json address_jsons;
+    BOOST_FOREACH(json tx_json, result_json["data"]["transactions"]){
+        LogPrintf("ZMQ: getting address in req/rep\n");
+        string address_str = tx_json["address"];
+        LogPrintf("ZMQ: address in req/rep: %s\n", address_str);
+        string txid = tx_json["txid"];
+        LogPrintf("ZMQ: txid in req/rep: %s\n", txid);
+
+        // add transaction to address field
+        address_jsons[address_str][txid] = tx_json;
+
+        // tally up total amount
+        int amount = tx_json["amount"];
+
+        if(!(address_jsons[address_str]["total"].is_null())){
+            int old_amount = address_jsons[address_str]["total"];
+            amount += old_amount;
+        }
+
+        address_jsons[address_str]["total"] = amount;
+    }
+
+    return address_jsons;
+}
 
 json payment_request(json request){
 
@@ -573,6 +676,18 @@ static void* REQREP_ZMQ(void *arg)
             rpc_json = payment_request(request_json);
         }
 
+        else if(request_json["collection"]=="initial-state-wallet"){
+            rpc_json = initial_state();
+        }
+
+        else if(request_json["collection"]=="api-status"){
+            rpc_json = api_status();
+        }
+
+        else if(request_json["collection"]=="get-tx-fee"){
+            rpc_json = get_tx_fee(request_json);
+        }
+
         // // TODO better scheme for this as more requests added (see RPCTable)
         // if(request_json["collection"]=="send-zcoin"){
         //     rpc_json = send_zcoin(request_json);
@@ -584,6 +699,7 @@ static void* REQREP_ZMQ(void *arg)
         */
 
         /* Send reply */
+        LogPrintf("ZMQ: dump it\n");  
         string response_str = rpc_json.dump();
         zmq_msg_t reply;
         rc = zmq_msg_init_size (&reply, response_str.size());
@@ -618,15 +734,15 @@ bool StartREQREPZMQ()
     LogPrintf("ZMQ: created socket\n");
 
     //set up REP auth
-    vector<string> keys = read_cert("server");
+    // vector<string> keys = read_cert("server");
 
-    string server_secret_key = keys.at(1);
+    // string server_secret_key = keys.at(1);
 
-    LogPrintf("ZMQ: secret_server_key: %s\n", server_secret_key);
+    // LogPrintf("ZMQ: secret_server_key: %s\n", server_secret_key);
 
-    const int curve_server_enable = 1;
-    zmq_setsockopt(zmqpsocket, ZMQ_CURVE_SERVER, &curve_server_enable, sizeof(curve_server_enable));
-    zmq_setsockopt(zmqpsocket, ZMQ_CURVE_SECRETKEY, server_secret_key.c_str(), 40);
+    // const int curve_server_enable = 1;
+    // zmq_setsockopt(zmqpsocket, ZMQ_CURVE_SERVER, &curve_server_enable, sizeof(curve_server_enable));
+    // zmq_setsockopt(zmqpsocket, ZMQ_CURVE_SECRETKEY, server_secret_key.c_str(), 40);
 
 
     // Get network port. TODO add zmq ports to base params

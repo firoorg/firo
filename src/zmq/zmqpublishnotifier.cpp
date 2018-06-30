@@ -310,37 +310,74 @@ bool CZMQPublishRawTransactionNotifier::NotifyTransaction(const CTransaction &tr
 //     return true;
 // }
 
-
 bool CZMQPublishRawBlockNotifier::NotifyBlock(const CBlockIndex *pindex)
 {
     //publish block related info every 10 blocks.
     int currentHeight = pindex->nHeight;
     LogPrintf("ZMQ: in notifyblock. currentHeight: %s\n", to_string(currentHeight));
-    if(currentHeight % 10==0 && currentHeight >=10){
-        vector<string> listsinceblockargs;
-        string prevblockhash = chainActive[currentHeight-10]->GetBlockHash().ToString();
-        LogPrintf("ZMQ: prevblockhash: %s\n", prevblockhash);
-        listsinceblockargs.push_back("listsinceblock");
-        listsinceblockargs.push_back(prevblockhash);
-        listsinceblockargs.push_back("1");
-        UniValue rpc_raw = SetupRPC(listsinceblockargs);
-        const UniValue& result = find_value(rpc_raw, "result");
-        const UniValue& error = find_value(rpc_raw, "error");
-        string strPrint;
-        // Result
-        if (result.isNull())
-           strPrint = "";
-        if (!error.isNull()) {
-            LogPrintf("ZMQ: listsinceblock call errored.\n");
-        }
-        else if (result.isStr())
-            strPrint = result.get_str();
-        else
-            strPrint = result.write(2);
-           
-        LogPrintf("ZMQ: in notifyblock. result of listsinceblock call: %s\n", strPrint);
-        // TODO if str empty, ignore.
-    }
+    // if(currentHeight % 10==0 && currentHeight >=10){
+    //     vector<string> listsinceblockargs;
+    //     string prevblockhash = chainActive[currentHeight-10]->GetBlockHash().ToString();
+    //     LogPrintf("ZMQ: prevblockhash: %s\n", prevblockhash);
+    //     listsinceblockargs.push_back("listsinceblock");
+    //     listsinceblockargs.push_back(prevblockhash);
+    //     UniValue rpc_raw = SetupRPC(listsinceblockargs);
+    //     LogPrintf("ZMQ: returned from listsinceblock.\n");
+    //     const UniValue& result = find_value(rpc_raw, "result");
+    //     const UniValue& error = find_value(rpc_raw, "error");
+    //     string strPrint;
+    //     json result_json;
+    //     // Result
+    //     if (result.isNull())
+    //        strPrint = "";
+    //     if (!error.isNull()) {
+    //         LogPrintf("ZMQ: listsinceblock call errored.\n");
+    //     }
+    //     else if (result.isStr()){
+    //         strPrint = result.get_str();
+    //         LogPrintf("ZMQ: result is str\n");
+    //     }else{
+    //         // TODO if str empty, ignore.
+    //         LogPrintf("ZMQ: result is obj\n");
+    //         strPrint = result.write(0);
+    //         result_json = json::parse(strPrint);
+    //         LogPrintf("ZMQ: parsed JSON\n");
+
+    //         LogPrintf("ZMQ: transactions from JSON: %S\n", result_json["transactions"].dump());            
+
+    //         // organise output by addresses
+    //         json address_jsons;
+    //         BOOST_FOREACH(json tx_json, result_json["transactions"]){
+    //             //LogPrintf("ZMQ: getting address\n");
+    //             string address_str = tx_json["address"];
+    //             //LogPrintf("ZMQ: address: %s\n", address_str);
+    //             string txid = tx_json["txid"];
+    //             //LogPrintf("ZMQ: txid: %s\n", txid);
+    //             address_jsons[address_str][txid] = tx_json;
+
+    //             // tally up total amount
+    //             int amount = tx_json["amount"];
+    //             if(address_jsons[address_str]["total"].is_null()){
+    //                 address_jsons[address_str]["total"] = amount;
+    //             }
+    //             else{
+    //                address_jsons[address_str]["total"] += amount;
+    //             }
+    //         }
+
+    //         // send all the out address values
+    //         BOOST_FOREACH(json address_json, address_jsons){
+    //             //LogPrintf("ZMQ: address_json: %s\n", address_json.dump());
+    //             string address_topic = "address-";
+    //             string address_str = address_json.begin().value()["address"];
+    //             //LogPrintf("ZMQ: address in second loop: %s\n", address_str);
+    //             address_topic.append(address_str).append("-").append(address_json.dump());
+    //             //LogPrintf("ZMQ: address and txid info: %s\n", address_topic);
+    //             send_message(address_topic);
+    //         }
+    //     }
+        
+    // }
 
     //publish Blockchain related info.
     json block_json;
