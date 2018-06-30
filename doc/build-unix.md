@@ -49,7 +49,6 @@ Optional dependencies:
  libqrencode | QR codes in GUI  | Optional for generating QR codes (only needed when GUI enabled)
  univalue    | Utility          | JSON parsing and encoding (bundled version will be used unless --with-system-univalue passed to configure)
 
-
 For the versions used in the release, see [release-process.md](release-process.md) under *Fetch and build inputs*.
 
 Memory Requirements

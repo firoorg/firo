@@ -1,9 +1,9 @@
 package=zeromq
-$(package)_version=4.2.3
-$(package)_download_path=https://github.com/zeromq/libzmq/releases/download/v4.2.3/
+$(package)_version=4.2.5
+$(package)_download_path=https://github.com/zeromq/libzmq/releases/download/v$($(package)_version)/
 $(package)_file_name=$(package)-$($(package)_version).tar.gz
-$(package)_sha256_hash=5b23f4ca9ef545d5bd3af55d305765e3ee06b986263b31967435d285a3e6df6b
-$(package)_patches=0001-fix-build-with-older-mingw64.patch
+$(package)_sha256_hash=cc9090ba35713d59bb2f7d7965f877036c49c5558ea0c290b0dcc6f2a17e489f
+$(package)_patches=0001-fix-build-with-older-mingw64.patch 0002-disable-pthread_set_name_np.patch
 
 define $(package)_set_vars
   $(package)_config_opts=--without-documentation --disable-shared --without-libsodium
@@ -31,4 +31,3 @@ endef
 define $(package)_postprocess_cmds
   rm -rf bin share
 endef
-

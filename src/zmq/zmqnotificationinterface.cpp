@@ -75,7 +75,7 @@ bool CZMQNotificationInterface::Initialize()
     LogPrint("zmq", "zmq: Initialize notification interface\n");
     assert(!pcontext);
 
-    pcontext = zmq_init(1);
+    pcontext = zmq_ctx_new();
 
     if (!pcontext)
     {
@@ -118,7 +118,7 @@ void CZMQNotificationInterface::Shutdown()
             LogPrint("zmq", "   Shutdown notifier %s at %s\n", notifier->GetType(), notifier->GetAddress());
             notifier->Shutdown();
         }
-        zmq_ctx_destroy(pcontext);
+        zmq_ctx_term(pcontext);
 
         pcontext = 0;
     }
