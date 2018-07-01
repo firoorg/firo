@@ -17,8 +17,10 @@ extern "C" {
  * \param target        [in]  Target difficulty to achieve
  * \param hash_root_mtp [out] Root hash of the merkle tree
  * \param nonce         [out] Found nonce that satisfied the `target`
- * \param block_mtp     [out] Data used to compute hash values
- * \param proof_mtp     [out] Merkle proofs for every element in `block_mtp`
+ * \param block_mtp     [out] Merkle tree leaves against which the hash has
+ *                            been computed: 72*2 leaves of 1KiB each
+ * \param proof_mtp     [out] Merkle proofs for every element in `block_mtp`;
+ *                            must point to an array of [72*3] elements
  * \param pow_limit     [in]  Network limit (hash must be less than that)
  * \param output        [out] Resulting hash value for the given `nonce`
  */
@@ -41,7 +43,8 @@ void mtp_hash(const char* input,
  * \param hash_root_mtp [in]  Root hash of the merkle tree
  * \param nonce         [in]  Nonce to verify
  * \param block_mtp     [in]  Data used to compute hash values
- * \param proof_mtp     [in]  Merkle proofs for every element in `block_mtp`
+ * \param proof_mtp     [in]  Merkle proofs for every element in `block_mtp`;
+ *                            must point to an array of [72*3] elements
  * \param pow_limit     [in]  Network limit (hash must be less than that)
  * \param output        [out] Unused
  *

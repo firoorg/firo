@@ -9,7 +9,6 @@ struct MtpTestingSetup : public TestingSetup
 {
     MtpTestingSetup() : TestingSetup(CBaseChainParams::REGTEST, "1")
     {
-        std::cout << "XXX MtpTestingSetup::MtpTestingSetup()" << std::endl;
     }
 };
 
@@ -17,7 +16,6 @@ BOOST_FIXTURE_TEST_SUITE(mtp_tests, MtpTestingSetup)
 
 BOOST_AUTO_TEST_CASE(mtp_test)
 {
-    std::cout << "XXX mtp_test start" << std::endl;
     char input[] = {
         (char)0x00, (char)0x00, (char)0x00, (char)0x20, (char)0x7f, (char)0xda,
         (char)0x1a, (char)0xbd, (char)0xca, (char)0x0f, (char)0x11, (char)0xc3,
@@ -41,14 +39,16 @@ BOOST_AUTO_TEST_CASE(mtp_test)
     uint8_t hash_root_mtp[16];
     unsigned int nonce;
     uint64_t block_mtp[72*2][128];
-    std::deque<std::vector<uint8_t>> proof_mtp;
+    std::deque<std::vector<uint8_t>> proof_mtp[72*3];
     uint256 output;
 
-    mtp_hash(input, target, hash_root_mtp, &nonce, block_mtp, &proof_mtp,
+    mtp_hash(input, target, hash_root_mtp, &nonce, block_mtp, proof_mtp,
             pow_limit, &output);
+    BOOST_CHECK_MESSAGE(nonce == 143u, "wrong nonce");
 
-    std::cout << "XXX mtp_test end" << std::endl;
-    BOOST_CHECK_MESSAGE(true, "XXX boost check");
+    bool ok = mtp_verify(input, target, hash_root_mtp, &nonce, block_mtp,
+            proof_mtp, pow_limit, &output);
+    BOOST_CHECK_MESSAGE(ok, "mtp_verify() failed");
 }
 
 BOOST_AUTO_TEST_SUITE_END()
