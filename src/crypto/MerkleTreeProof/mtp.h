@@ -38,15 +38,14 @@ void mtp_hash(const char* input,
  * This function verifies that the provided `nonce` does produce a hash value
  * that is less than `target`.
  *
- * \param input         [in]  Serialized block header
- * \param target        [in]  Target difficulty to achieve
- * \param hash_root_mtp [in]  Root hash of the merkle tree
- * \param nonce         [in]  Nonce to verify
- * \param block_mtp     [in]  Data used to compute hash values
- * \param proof_mtp     [in]  Merkle proofs for every element in `block_mtp`;
- *                            must point to an array of [72*3] elements
- * \param pow_limit     [in]  Network limit (hash must be less than that)
- * \param output        [out] Unused
+ * \param input         [in] Serialized block header
+ * \param target        [in] Target difficulty to achieve
+ * \param hash_root_mtp [in] Root hash of the merkle tree
+ * \param nonce         [in] Nonce to verify
+ * \param block_mtp     [in] Data used to compute hash values
+ * \param proof_mtp     [in] Merkle proofs for every element in `block_mtp`;
+ *                           must point to an array of [72*3] elements
+ * \param pow_limit     [in] Network limit (hash must be less than that)
  *
  * \return `true` if `nonce` is valid, `false` otherwise
  */
@@ -56,7 +55,6 @@ bool mtp_verify(const char* input,
         const unsigned int* nonce,
         const uint64_t block_mtp[72*2][128],
         const std::deque<std::vector<uint8_t>>* proof_mtp,
-        uint256 pow_limit,
-        uint256* output);
+        uint256 pow_limit);
 
 #endif

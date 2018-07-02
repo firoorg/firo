@@ -167,8 +167,7 @@ void GetBlockIndex(uint32_t ij, argon2_instance_t *instance,
 bool mtp_verify(const char* input, const uint32_t target,
         const uint8_t hash_root_mtp[16], const unsigned int* nonce,
         const uint64_t block_mtp[72*2][128],
-        const std::deque<std::vector<uint8_t>> *proof_mtp, uint256 pow_limit,
-        uint256* output)
+        const std::deque<std::vector<uint8_t>> *proof_mtp, uint256 pow_limit)
 {
     MerkleTree::Elements proof_blocks[L * 3];
     MerkleTree::Buffer root;

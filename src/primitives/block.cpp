@@ -75,7 +75,7 @@ uint256 CBlockHeader::GetPoWHash(int nHeight, bool forceCalc) const {
 			CMTPInput input{*this};
 			CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
 			ss << input;
-			mtp_verify((char*)&ss[0], nBits, hashRootMTP, &nNonce, nBlockMTP, nProofMTP, Params().GetConsensus().powLimit, &powHash);
+			mtp_verify((char*)&ss[0], nBits, hashRootMTP, &nNonce, nBlockMTP, nProofMTP, Params().GetConsensus().powLimit);
 		} else if (!fTestNet && nHeight >= HF_LYRA2Z_HEIGHT) {
             lyra2z_hash(BEGIN(nVersion), BEGIN(powHash));
         } else if (!fTestNet && nHeight >= HF_LYRA2_HEIGHT) {
@@ -87,7 +87,7 @@ uint256 CBlockHeader::GetPoWHash(int nHeight, bool forceCalc) const {
 			CMTPInput input{*this};
 			CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
 			ss << input;
-			mtp_verify((char*)&ss[0], nBits, hashRootMTP, &nNonce, nBlockMTP, nProofMTP, Params().GetConsensus().powLimit, &powHash);
+			mtp_verify((char*)&ss[0], nBits, hashRootMTP, &nNonce, nBlockMTP, nProofMTP, Params().GetConsensus().powLimit);
 		} else if (fTestNet && nHeight >= HF_LYRA2Z_HEIGHT_TESTNET) { // testnet
             lyra2z_hash(BEGIN(nVersion), BEGIN(powHash));
         } else if (fTestNet && nHeight >= HF_LYRA2_HEIGHT_TESTNET) { // testnet
