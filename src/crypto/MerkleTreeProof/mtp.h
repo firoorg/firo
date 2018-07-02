@@ -19,8 +19,7 @@ extern "C" {
  * \param nonce         [out] Found nonce that satisfied the `target`
  * \param block_mtp     [out] Merkle tree leaves against which the hash has
  *                            been computed: 72*2 leaves of 1KiB each
- * \param proof_mtp     [out] Merkle proofs for every element in `block_mtp`;
- *                            must point to an array of [72*3] elements
+ * \param proof_mtp     [out] Merkle proofs for every element in `block_mtp`
  * \param pow_limit     [in]  Network limit (hash must be less than that)
  * \param output        [out] Resulting hash value for the given `nonce`
  */
@@ -29,7 +28,7 @@ void mtp_hash(const char* input,
         uint8_t hash_root_mtp[16],
         unsigned int& nonce,
         uint64_t block_mtp[72*2][128],
-        std::deque<std::vector<uint8_t>>* proof_mtp,
+        std::deque<std::vector<uint8_t>> proof_mtp[73*3],
         uint256 pow_limit,
         uint256* output);
 
@@ -44,7 +43,6 @@ void mtp_hash(const char* input,
  * \param nonce         [in] Nonce to verify
  * \param block_mtp     [in] Data used to compute hash values
  * \param proof_mtp     [in] Merkle proofs for every element in `block_mtp`;
- *                           must point to an array of [72*3] elements
  * \param pow_limit     [in] Network limit (hash must be less than that)
  *
  * \return `true` if `nonce` is valid, `false` otherwise
@@ -54,7 +52,7 @@ bool mtp_verify(const char* input,
         const uint8_t hash_root_mtp[16],
         const unsigned int* nonce,
         const uint64_t block_mtp[72*2][128],
-        const std::deque<std::vector<uint8_t>>* proof_mtp,
+        const std::deque<std::vector<uint8_t>> proof_mtp[73*3],
         uint256 pow_limit);
 
 #endif
