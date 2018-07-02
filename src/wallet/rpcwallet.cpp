@@ -2718,7 +2718,7 @@ UniValue mintzerocoin(const UniValue& params, bool fHelp)
         zerocoinTx.ecdsaSecretKey = std::vector<unsigned char>(ecdsaSecretKey, ecdsaSecretKey+32);
         walletdb.WriteZerocoinEntry(zerocoinTx);
 
-        return pubCoin.getValue().GetHex();
+        return wtx.GetHash().GetHex();
     } else {
         return "";
     }
@@ -2789,6 +2789,90 @@ UniValue spendzerocoin(const UniValue& params, bool fHelp) {
         throw JSONRPCError(RPC_WALLET_ERROR, strError);
 
     return wtx.GetHash().GetHex();
+
+}
+
+UniValue spendmanyzerocoin(const UniValue& params, bool fHelp) {
+
+    if (fHelp || params.size() != 1)
+        throw runtime_error(
+                "spendmanyzerocoin {\"address\":<amount>(1,10,25,50,100),...}\n"
+                + HelpRequiringPassphrase()
+                + "\nSpend multiple zerocoins. Amounts must be of denominations specified.\n"
+                "\nArguments:\n"
+                "1. \"addresses\"             (object, required) A json object with addresses and amounts\n"
+                    "    {\n"
+                    "      \"address\":amount   (numeric or string) The zcoin address is the key; leave as \"\" to spend to self. The numeric amount must be one of (1,10,25,50,100)\n"
+                    "      ,...\n"
+                    "    }\n"
+                "\nExamples:\n"
+                    + HelpExampleCli("spendmanyzerocoin", "\"\" \"{\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XZ\\\":25,\\\"\\\":10}\"")
+        );
+
+    UniValue txids(UniValue::VARR);
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    int64_t nAmount = 0;
+    libzerocoin::CoinDenomination denomination;
+
+    UniValue sendTo = params[0].get_obj();
+
+    vector<string> keys = sendTo.getKeys();
+    BOOST_FOREACH(const string& address_str, keys)
+    {
+        nAmount = AmountFromValue(sendTo[address_str]);
+
+        LogPrintf("ZMQ: nAmount: %s\n", nAmount / COIN);
+
+        switch(nAmount / COIN){
+            case 1:
+                denomination = libzerocoin::ZQ_LOVELACE;
+                break;
+            case 10:
+                denomination = libzerocoin::ZQ_GOLDWASSER;
+                break;
+            case 25:
+                denomination = libzerocoin::ZQ_RACKOFF;
+                break;
+            case 50:
+                denomination = libzerocoin::ZQ_PEDERSEN;
+                break;
+            case 100:
+                denomination = libzerocoin::ZQ_WILLIAMSON;                                                
+                break;
+            default:
+                throw runtime_error(
+                    "spendmanyzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n");
+        }
+
+        string thirdPartyaddress = "";
+        if (!(address_str == "")){
+            CBitcoinAddress address(address_str);
+            if (!address.IsValid())
+                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Zcoin address");
+            thirdPartyaddress = address_str;
+        }
+
+        EnsureWalletIsUnlocked();
+
+        // Wallet comments
+        CWalletTx wtx;
+        CBigNum coinSerial;
+        uint256 txHash;
+        CBigNum zcSelectedValue;
+        bool zcSelectedIsUsed;
+
+        string strError = pwalletMain->SpendZerocoin(thirdPartyaddress, nAmount, denomination, wtx, coinSerial, txHash, zcSelectedValue,
+                                                     zcSelectedIsUsed);
+
+        if (strError != "")
+            throw JSONRPCError(RPC_WALLET_ERROR, strError);
+
+        txids.push_back(wtx.GetHash().GetHex());
+    }
+
+    return txids;
 
 }
 
@@ -3138,6 +3222,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "listunspentmintzerocoins",             &listunspentmintzerocoins,             false },
     { "wallet",             "mintzerocoin",             &mintzerocoin,             false },
     { "wallet",             "spendzerocoin",            &spendzerocoin,            false },
+    { "wallet",             "spendmanyzerocoin",            &spendmanyzerocoin,            false },
     { "wallet",             "resetmintzerocoin",        &resetmintzerocoin,        false },
     { "wallet",             "setmintzerocoinstatus",        &setmintzerocoinstatus,        false },
     { "wallet",             "listmintzerocoins",        &listmintzerocoins,        false },
