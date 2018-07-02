@@ -2776,7 +2776,7 @@ UniValue mintmanyzerocoin(const UniValue& params, bool fHelp)
                 break;
             default:
                 throw runtime_error(
-                    "mintzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n");
+                    "mintmanyzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n");
         }
 
 
