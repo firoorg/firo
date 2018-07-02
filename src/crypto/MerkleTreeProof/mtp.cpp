@@ -708,70 +708,70 @@ BEGIN:
         LogPrintf("hashTarget = %s\n", ArithToUint256(bn_target).GetHex().c_str());
         LogPrintf("Y[L] 	  = %s", y[L].GetHex().c_str());
         LogPrintf("nNonce 	  = %s\n", n_nonce_internal);
-
-        // step 7
-        LogPrintf("END mtp_hash\n");
-        std::copy(root.begin(), root.end(), hash_root_mtp);
-
-        nonce = n_nonce_internal;
-        for (int i = 0; i < L * 2; i++) {
-            std::memcpy(block_mtp[i], &blocks[i],
-                    sizeof(uint64_t) * ARGON2_QWORDS_IN_BLOCK);
-        }
-        for (int i = 0; i < L * 3; i++) {
-            proof_mtp[i] = proof_blocks[i];
-        }
-        std::memcpy(&output, &y[L], sizeof(uint256));
-
-        LogPrintf("pblock->hashRootMTP:\n");
-        for (int i = 0; i < 16; i++) {
-            LogPrintf("%0x", hash_root_mtp[i]);
-        }
-        LogPrintf("\n");
-        LogPrintf("pblock->nNonce: %s\n", nonce);
-        LogPrintf("pblock->nBlockMTP:\n");
-        for (int i = 0; i < 1; i++) {
-            LogPrintf("%s = ", i);
-            for (int j = 0; j < 10; j++) {
-                LogPrintf("%0x", block_mtp[i][j]);
-            }
-            LogPrintf("\n");
-        }
-        LogPrintf("input = \n");
-        for (int i = 0; i < 80; i++) {
-            unsigned char x;
-            std::memcpy(&x, &input[i], sizeof(unsigned char));
-            LogPrintf("%0x", x);
-        }
-        LogPrintf("\n");
-        LogPrintf("Y[0] = %s\n", y[0].ToString());
-
-        uint8_t h0[ARGON2_PREHASH_SEED_LENGTH];
-        std::memcpy(h0, instance.hash_zero,
-                sizeof(uint8_t) * ARGON2_PREHASH_SEED_LENGTH);
-
-        std::ostringstream ossx;
-        ossx << "h0 = ";
-        for (int xxx = 0; xxx < 72; xxx++) {
-            ossx << std::hex << std::setw(2) << std::setfill('0')
-                << (int)h0[xxx];
-        }
-        LogPrintf("H0_Proof : %s\n", ossx.str());
-
-        // get hash_zero
-        uint8_t h0_computed[ARGON2_PREHASH_SEED_LENGTH];
-        initial_hash(h0_computed, &context, instance.type);
-        std::ostringstream ossxxx;
-        ossxxx << "h0 = ";
-        for (int xxx = 0; xxx < 72; xxx++) {
-            ossxxx << std::hex << std::setw(2) << std::setfill('0')
-                << (int)h0_computed[xxx];
-        }
-
-        LogPrintf("H0_Proof_Computed : %s\n", ossx.str());
-        LogPrintf("RETURN mtp_hash\n");
-        LogPrintf("FREE memory\n");
-        free_memory(&context, (uint8_t *)instance.memory, instance.memory_blocks, sizeof(block));
         break;
     }
+
+    // step 7
+    LogPrintf("END mtp_hash\n");
+    std::copy(root.begin(), root.end(), hash_root_mtp);
+
+    nonce = n_nonce_internal;
+    for (int i = 0; i < L * 2; i++) {
+        std::memcpy(block_mtp[i], &blocks[i],
+                sizeof(uint64_t) * ARGON2_QWORDS_IN_BLOCK);
+    }
+    for (int i = 0; i < L * 3; i++) {
+        proof_mtp[i] = proof_blocks[i];
+    }
+    std::memcpy(&output, &y[L], sizeof(uint256));
+
+    LogPrintf("pblock->hashRootMTP:\n");
+    for (int i = 0; i < 16; i++) {
+        LogPrintf("%0x", hash_root_mtp[i]);
+    }
+    LogPrintf("\n");
+    LogPrintf("pblock->nNonce: %s\n", nonce);
+    LogPrintf("pblock->nBlockMTP:\n");
+    for (int i = 0; i < 1; i++) {
+        LogPrintf("%s = ", i);
+        for (int j = 0; j < 10; j++) {
+            LogPrintf("%0x", block_mtp[i][j]);
+        }
+        LogPrintf("\n");
+    }
+    LogPrintf("input = \n");
+    for (int i = 0; i < 80; i++) {
+        unsigned char x;
+        std::memcpy(&x, &input[i], sizeof(unsigned char));
+        LogPrintf("%0x", x);
+    }
+    LogPrintf("\n");
+    LogPrintf("Y[0] = %s\n", y[0].ToString());
+
+    uint8_t h0[ARGON2_PREHASH_SEED_LENGTH];
+    std::memcpy(h0, instance.hash_zero,
+            sizeof(uint8_t) * ARGON2_PREHASH_SEED_LENGTH);
+
+    std::ostringstream ossx;
+    ossx << "h0 = ";
+    for (int xxx = 0; xxx < 72; xxx++) {
+        ossx << std::hex << std::setw(2) << std::setfill('0')
+            << (int)h0[xxx];
+    }
+    LogPrintf("H0_Proof : %s\n", ossx.str());
+
+    // get hash_zero
+    uint8_t h0_computed[ARGON2_PREHASH_SEED_LENGTH];
+    initial_hash(h0_computed, &context, instance.type);
+    std::ostringstream ossxxx;
+    ossxxx << "h0 = ";
+    for (int xxx = 0; xxx < 72; xxx++) {
+        ossxxx << std::hex << std::setw(2) << std::setfill('0')
+            << (int)h0_computed[xxx];
+    }
+
+    LogPrintf("H0_Proof_Computed : %s\n", ossx.str());
+    LogPrintf("RETURN mtp_hash\n");
+    LogPrintf("FREE memory\n");
+    free_memory(&context, (uint8_t *)instance.memory, instance.memory_blocks, sizeof(block));
 }
