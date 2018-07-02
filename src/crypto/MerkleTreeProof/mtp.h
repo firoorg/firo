@@ -50,7 +50,7 @@ void mtp_hash(const char* input,
 bool mtp_verify(const char* input,
         const uint32_t target,
         const uint8_t hash_root_mtp[16],
-        const unsigned int* nonce,
+        unsigned int nonce,
         const uint64_t block_mtp[72*2][128],
         const std::deque<std::vector<uint8_t>> proof_mtp[73*3],
         uint256 pow_limit);

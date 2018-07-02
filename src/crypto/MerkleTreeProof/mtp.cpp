@@ -165,7 +165,7 @@ void GetBlockIndex(uint32_t ij, argon2_instance_t *instance,
 } // unnamed namespace
 
 bool mtp_verify(const char* input, const uint32_t target,
-        const uint8_t hash_root_mtp[16], const unsigned int* nonce,
+        const uint8_t hash_root_mtp[16], unsigned int nonce,
         const uint64_t block_mtp[72*2][128],
         const std::deque<std::vector<uint8_t>> proof_mtp[73*3],
         uint256 pow_limit)
@@ -189,7 +189,7 @@ bool mtp_verify(const char* input, const uint32_t target,
         LogPrintf("%0x", root[i]);
     }
     LogPrintf("\n");
-    LogPrintf("pblock->nNonce: %s\n", *nonce);
+    LogPrintf("pblock->nNonce: %s\n", nonce);
     LogPrintf("pblock->nBlockMTP:\n");
     for (int i = 0; i < 1; i++) {
         LogPrintf("%s = ", i);
@@ -274,7 +274,7 @@ bool mtp_verify(const char* input, const uint32_t target,
     blake2b_init(&state_y0, 32); // 256 bit
     blake2b_update(&state_y0, input, 80);
     blake2b_update(&state_y0, hash_root_mtp, MERKLE_TREE_ELEMENT_SIZE_B);
-    blake2b_update(&state_y0, nonce, sizeof(unsigned int));
+    blake2b_update(&state_y0, &nonce, sizeof(unsigned int));
     blake2b_final(&state_y0, &y[0], sizeof(uint256));
 
     LogPrintf("y[0] = %s\n", y[0].ToString());
@@ -472,7 +472,7 @@ bool mtp_verify(const char* input, const uint32_t target,
     LogPrintf("Verified :\n");
     LogPrintf("hashTarget = %s\n", ArithToUint256(bn_target).GetHex().c_str());
     LogPrintf("y[L] 	  = %s", y[L].GetHex().c_str());
-    LogPrintf("nNonce 	  = %s\n", *nonce);
+    LogPrintf("nNonce 	  = %s\n", nonce);
     return true;
 }
 

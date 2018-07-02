@@ -46,7 +46,7 @@ BOOST_AUTO_TEST_CASE(mtp_test)
             pow_limit, output);
     BOOST_CHECK_MESSAGE(nonce == 143u, "wrong nonce");
 
-    bool ok = mtp_verify(input, target, hash_root_mtp, &nonce, block_mtp,
+    bool ok = mtp_verify(input, target, hash_root_mtp, nonce, block_mtp,
             proof_mtp, pow_limit);
     BOOST_CHECK_MESSAGE(ok, "mtp_verify() failed");
 }
