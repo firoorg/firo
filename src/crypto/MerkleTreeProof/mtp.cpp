@@ -205,21 +205,13 @@ bool mtp_verify(const char* input, const uint32_t target,
 #define TEST_SECRETLEN 0
 #define TEST_ADLEN 0
 
-    argon2_context context_verify;
-    argon2_instance_t instance;
-    uint32_t memory_blocks, segment_length;
-
     unsigned char out[TEST_OUTLEN];
     unsigned char pwd[TEST_PWDLEN];
-    unsigned char salt[TEST_SALTLEN];
-    const allocate_fptr myown_allocator = NULL;
-    const deallocate_fptr myown_deallocator = NULL;
-
-    std::memset(pwd, 0, TEST_PWDLEN);
-    std::memset(salt, 0, TEST_SALTLEN);
     std::memcpy(pwd, input, TEST_PWDLEN);
+    unsigned char salt[TEST_SALTLEN];
     std::memcpy(salt, input, TEST_SALTLEN);
 
+    argon2_context context_verify;
     context_verify.out = out;
     context_verify.outlen = TEST_OUTLEN;
     context_verify.version = ARGON2_VERSION_NUMBER;
@@ -235,8 +227,8 @@ bool mtp_verify(const char* input, const uint32_t target,
     context_verify.m_cost = M_COST;
     context_verify.lanes = LANES;
     context_verify.threads = LANES;
-    context_verify.allocate_cbk = myown_allocator;
-    context_verify.free_cbk = myown_deallocator;
+    context_verify.allocate_cbk = NULL;
+    context_verify.free_cbk = NULL;
     context_verify.flags = ARGON2_DEFAULT_FLAGS;
 
 #undef TEST_OUTLEN
@@ -245,13 +237,14 @@ bool mtp_verify(const char* input, const uint32_t target,
 #undef TEST_SECRETLEN
 #undef TEST_ADLEN
 
-    memory_blocks = context_verify.m_cost;
+    uint32_t memory_blocks = context_verify.m_cost;
     if (memory_blocks < (2 * ARGON2_SYNC_POINTS * context_verify.lanes)) {
         memory_blocks = 2 * ARGON2_SYNC_POINTS * context_verify.lanes;
     }
-    segment_length = memory_blocks / (context_verify.lanes * ARGON2_SYNC_POINTS);
+    uint32_t segment_length = memory_blocks / (context_verify.lanes * ARGON2_SYNC_POINTS);
     memory_blocks = segment_length * (context_verify.lanes * ARGON2_SYNC_POINTS);
 
+    argon2_instance_t instance;
     instance.version = context_verify.version;
     instance.memory = NULL;
     instance.passes = context_verify.t_cost;
@@ -261,7 +254,6 @@ bool mtp_verify(const char* input, const uint32_t target,
     instance.lanes = context_verify.lanes;
     instance.threads = context_verify.threads;
     instance.type = Argon2_d;
-
     if (instance.threads > instance.lanes) {
         instance.threads = instance.lanes;
     }
@@ -317,14 +309,13 @@ bool mtp_verify(const char* input, const uint32_t target,
 
         //prev_index
         //compute
-        uint32_t memory_blocks, segment_length;
-        memory_blocks = M_COST;
-        if (memory_blocks < (2 * ARGON2_SYNC_POINTS * LANES)) {
-            memory_blocks = 2 * ARGON2_SYNC_POINTS * LANES;
+        uint32_t memory_blocks_2 = M_COST;
+        if (memory_blocks_2 < (2 * ARGON2_SYNC_POINTS * LANES)) {
+            memory_blocks_2 = 2 * ARGON2_SYNC_POINTS * LANES;
         }
 
-        segment_length = memory_blocks / (LANES * ARGON2_SYNC_POINTS);
-        uint32_t lane_length = segment_length * ARGON2_SYNC_POINTS;
+        uint32_t segment_length_2 = memory_blocks_2 / (LANES * ARGON2_SYNC_POINTS);
+        uint32_t lane_length = segment_length_2 * ARGON2_SYNC_POINTS;
         uint32_t ij_prev = 0;
         if ((ij % lane_length) == 0) {
             ij_prev = ij + lane_length - 1;
@@ -337,8 +328,8 @@ bool mtp_verify(const char* input, const uint32_t target,
 
         //hash[prev_index]
         block blockhash_prev;
-        uint8_t blockhash_prev_bytes[ARGON2_BLOCK_SIZE];
         copy_block(&blockhash_prev, &prev_block);
+        uint8_t blockhash_prev_bytes[ARGON2_BLOCK_SIZE];
         StoreBlock(&blockhash_prev_bytes, &blockhash_prev);
 
         blake2b_state state_prev;
@@ -363,18 +354,18 @@ bool mtp_verify(const char* input, const uint32_t target,
         uint32_t ref_lane = static_cast<uint32_t>((prev_block_opening >> 32) % LANES);
         uint32_t pseudo_rand = static_cast<uint32_t>(prev_block_opening & 0xFFFFFFFF);
         uint32_t lane = ij / lane_length;
-        uint32_t slice = (ij - (lane * lane_length)) / segment_length;
+        uint32_t slice = (ij - (lane * lane_length)) / segment_length_2;
         uint32_t pos_index = ij - (lane * lane_length)
-            - (slice * segment_length);
+            - (slice * segment_length_2);
         if (slice == 0) {
             ref_lane = lane;
         }
 
-        argon2_position_t position = { 0, lane , (uint8_t)slice, pos_index };
         argon2_instance_t instance;
-        instance.segment_length = segment_length;
+        instance.segment_length = segment_length_2;
         instance.lane_length = lane_length;
 
+        argon2_position_t position { 0, lane , (uint8_t)slice, pos_index };
         uint32_t ref_index = IndexBeta(&instance, &position, pseudo_rand,
                 ref_lane == position.lane);
 
@@ -410,8 +401,8 @@ bool mtp_verify(const char* input, const uint32_t target,
         // verify opening
         // hash x[ij]
         block blockhash_ij;
-        uint8_t blockhash_ij_bytes[ARGON2_BLOCK_SIZE];
         copy_block(&blockhash_ij, &block_ij);
+        uint8_t blockhash_ij_bytes[ARGON2_BLOCK_SIZE];
         StoreBlock(&blockhash_ij_bytes, &blockhash_ij);
 
         blake2b_state state_ij;
@@ -441,8 +432,8 @@ bool mtp_verify(const char* input, const uint32_t target,
 
         // compute y(j)
         block blockhash;
-        uint8_t blockhash_bytes[ARGON2_BLOCK_SIZE];
         copy_block(&blockhash, &block_ij);
+        uint8_t blockhash_bytes[ARGON2_BLOCK_SIZE];
         StoreBlock(&blockhash_bytes, &blockhash);
         blake2b_state ctx_yj;
         blake2b_init(&ctx_yj, 32);
@@ -490,21 +481,13 @@ BEGIN:
 #define TEST_SECRETLEN 0
 #define TEST_ADLEN 0
 
-    argon2_context context;
-    argon2_instance_t instance;
-    uint32_t memory_blocks, segment_length;
-
     unsigned char out[TEST_OUTLEN];
     unsigned char pwd[TEST_PWDLEN];
-    unsigned char salt[TEST_SALTLEN];
-    const allocate_fptr myown_allocator = NULL;
-    const deallocate_fptr myown_deallocator = NULL;
-
-    std::memset(pwd, 0, TEST_PWDLEN);
-    std::memset(salt, 0, TEST_SALTLEN);
     std::memcpy(pwd, input, TEST_PWDLEN);
+    unsigned char salt[TEST_SALTLEN];
     std::memcpy(salt, input, TEST_SALTLEN);
 
+    argon2_context context;
     context.out = out;
     context.outlen = TEST_OUTLEN;
     context.version = ARGON2_VERSION_NUMBER;
@@ -520,8 +503,8 @@ BEGIN:
     context.m_cost = M_COST;
     context.lanes = LANES;
     context.threads = LANES;
-    context.allocate_cbk = myown_allocator;
-    context.free_cbk = myown_deallocator;
+    context.allocate_cbk = NULL;
+    context.free_cbk = NULL;
     context.flags = ARGON2_DEFAULT_FLAGS;
 
 #undef TEST_OUTLEN
@@ -530,14 +513,14 @@ BEGIN:
 #undef TEST_SECRETLEN
 #undef TEST_ADLEN
 
-    memory_blocks = context.m_cost;
+    uint32_t memory_blocks = context.m_cost;
     if (memory_blocks < (2 * ARGON2_SYNC_POINTS * context.lanes)) {
         memory_blocks = 2 * ARGON2_SYNC_POINTS * context.lanes;
     }
-
-    segment_length = memory_blocks / (context.lanes * ARGON2_SYNC_POINTS);
+    uint32_t segment_length = memory_blocks / (context.lanes * ARGON2_SYNC_POINTS);
     memory_blocks = segment_length * (context.lanes * ARGON2_SYNC_POINTS);
 
+    argon2_instance_t instance;
     instance.version = context.version;
     instance.memory = NULL;
     instance.passes = context.t_cost;
@@ -547,7 +530,6 @@ BEGIN:
     instance.lanes = context.lanes;
     instance.threads = context.threads;
     instance.type = Argon2_d;
-
     if (instance.threads > instance.lanes) {
         instance.threads = instance.lanes;
     }
@@ -559,8 +541,8 @@ BEGIN:
     MerkleTree::Elements elements;
     for (long int i = 0; i < instance.memory_blocks; ++i) {
         block blockhash;
-        uint8_t blockhash_bytes[ARGON2_BLOCK_SIZE];
         copy_block(&blockhash, &instance.memory[i]);
+        uint8_t blockhash_bytes[ARGON2_BLOCK_SIZE];
         StoreBlock(&blockhash_bytes, &blockhash);
 
         blake2b_state state;
@@ -616,8 +598,8 @@ BEGIN:
             }
 
             block blockhash;
-            uint8_t blockhash_bytes[ARGON2_BLOCK_SIZE];
             copy_block(&blockhash, &instance.memory[ij]);
+            uint8_t blockhash_bytes[ARGON2_BLOCK_SIZE];
             StoreBlock(&blockhash_bytes, &blockhash);
             blake2b_state ctx_yj;
             blake2b_init(&ctx_yj, 32);
@@ -640,8 +622,8 @@ BEGIN:
             //TODO : make it as function please
             //current proof
             block blockhash_curr;
-            uint8_t blockhash_curr_bytes[ARGON2_BLOCK_SIZE];
             copy_block(&blockhash_curr, &instance.memory[ij]);
+            uint8_t blockhash_curr_bytes[ARGON2_BLOCK_SIZE];
             StoreBlock(&blockhash_curr_bytes, &blockhash_curr);
 
             blake2b_state state_curr;
@@ -662,8 +644,8 @@ BEGIN:
 
             //prev proof
             block blockhash_prev;
-            uint8_t blockhash_prev_bytes[ARGON2_BLOCK_SIZE];
             copy_block(&blockhash_prev, &instance.memory[prev_index]);
+            uint8_t blockhash_prev_bytes[ARGON2_BLOCK_SIZE];
             StoreBlock(&blockhash_prev_bytes, &blockhash_prev);
 
             blake2b_state state_prev;
@@ -684,8 +666,8 @@ BEGIN:
 
             //ref proof
             block blockhash_ref;
-            uint8_t blockhash_ref_bytes[ARGON2_BLOCK_SIZE];
             copy_block(&blockhash_ref, &instance.memory[ref_index]);
+            uint8_t blockhash_ref_bytes[ARGON2_BLOCK_SIZE];
             StoreBlock(&blockhash_ref_bytes, &blockhash_ref);
 
             blake2b_state state_ref;
