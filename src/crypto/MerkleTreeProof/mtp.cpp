@@ -178,7 +178,7 @@ bool mtp_verify(const char* input, const uint32_t target,
         proof_blocks[i] = proof_mtp[i];
     }
     for(int i = 0; i < (L * 2); i++) {
-        memcpy(blocks[i].v, block_mtp[i],
+        std::memcpy(blocks[i].v, block_mtp[i],
                 sizeof(uint64_t) * ARGON2_QWORDS_IN_BLOCK);
     }
 
@@ -215,10 +215,10 @@ bool mtp_verify(const char* input, const uint32_t target,
     const allocate_fptr myown_allocator = NULL;
     const deallocate_fptr myown_deallocator = NULL;
 
-    memset(pwd, 0, TEST_PWDLEN);
-    memset(salt, 0, TEST_SALTLEN);
-    memcpy(pwd, input, TEST_PWDLEN);
-    memcpy(salt, input, TEST_SALTLEN);
+    std::memset(pwd, 0, TEST_PWDLEN);
+    std::memset(salt, 0, TEST_SALTLEN);
+    std::memcpy(pwd, input, TEST_PWDLEN);
+    std::memcpy(salt, input, TEST_SALTLEN);
 
     context_verify.out = out;
     context_verify.outlen = TEST_OUTLEN;
@@ -268,7 +268,7 @@ bool mtp_verify(const char* input, const uint32_t target,
 
     // step 7
     uint256 y[L + 1];
-    memset(&y[0], 0, sizeof(y));
+    std::memset(&y[0], 0, sizeof(y));
 
     blake2b_state state_y0;
     blake2b_init(&state_y0, 32); // 256 bit
@@ -306,9 +306,9 @@ bool mtp_verify(const char* input, const uint32_t target,
 
         // retrieve x[ij-1] and x[phi(i)] from proof
         block prev_block, ref_block, t_prev_block, t_ref_block;
-        memcpy(t_prev_block.v, block_mtp[(j * 2) - 2],
+        std::memcpy(t_prev_block.v, block_mtp[(j * 2) - 2],
                 sizeof(uint64_t) * ARGON2_QWORDS_IN_BLOCK);
-        memcpy(t_ref_block.v, block_mtp[j*2 - 1],
+        std::memcpy(t_ref_block.v, block_mtp[j*2 - 1],
                 sizeof(uint64_t) * ARGON2_QWORDS_IN_BLOCK);
         copy_block(&prev_block , &t_prev_block);
         copy_block(&ref_block , &t_ref_block);
@@ -500,10 +500,10 @@ BEGIN:
     const allocate_fptr myown_allocator = NULL;
     const deallocate_fptr myown_deallocator = NULL;
 
-    memset(pwd, 0, TEST_PWDLEN);
-    memset(salt, 0, TEST_SALTLEN);
-    memcpy(pwd, input, TEST_PWDLEN);
-    memcpy(salt, input, TEST_SALTLEN);
+    std::memset(pwd, 0, TEST_PWDLEN);
+    std::memset(salt, 0, TEST_SALTLEN);
+    std::memcpy(pwd, input, TEST_PWDLEN);
+    std::memcpy(salt, input, TEST_SALTLEN);
 
     context.out = out;
     context.outlen = TEST_OUTLEN;
@@ -593,8 +593,8 @@ BEGIN:
             goto BEGIN;
         }
 
-        memset(&y[0], 0, sizeof(y));
-        memset(&blocks[0], 0, sizeof(sizeof(block) * L * 2));
+        std::memset(&y[0], 0, sizeof(y));
+        std::memset(&blocks[0], 0, sizeof(sizeof(block) * L * 2));
 
         blake2b_state state;
         blake2b_init(&state, 32); // 256 bit
@@ -733,13 +733,13 @@ BEGIN:
 
         nonce = n_nonce_internal;
         for (int i = 0; i < L * 2; i++) {
-            memcpy(block_mtp[i], &blocks[i],
+            std::memcpy(block_mtp[i], &blocks[i],
                     sizeof(uint64_t) * ARGON2_QWORDS_IN_BLOCK);
         }
         for (int i = 0; i < L * 3; i++) {
             proof_mtp[i] = proof_blocks[i];
         }
-        memcpy(&output, &y[L], sizeof(uint256));
+        std::memcpy(&output, &y[L], sizeof(uint256));
 
         LogPrintf("pblock->hashRootMTP:\n");
         for (int i = 0; i < 16; i++) {
@@ -758,14 +758,14 @@ BEGIN:
         LogPrintf("input = \n");
         for (int i = 0; i < 80; i++) {
             unsigned char x;
-            memcpy(&x, &input[i], sizeof(unsigned char));
+            std::memcpy(&x, &input[i], sizeof(unsigned char));
             LogPrintf("%0x", x);
         }
         LogPrintf("\n");
         LogPrintf("Y[0] = %s\n", y[0].ToString());
 
         uint8_t h0[ARGON2_PREHASH_SEED_LENGTH];
-        memcpy(h0, instance.hash_zero,
+        std::memcpy(h0, instance.hash_zero,
                 sizeof(uint8_t) * ARGON2_PREHASH_SEED_LENGTH);
 
         std::ostringstream ossx;
