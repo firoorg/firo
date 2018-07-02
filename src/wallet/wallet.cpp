@@ -904,11 +904,11 @@ bool CWallet::AddToWalletIfInvolvingMe(const CTransaction &tx, const CBlock *pbl
             // Do not flush the wallet here for performance reasons
             // this is safe, as in case of a crash, we rescan the necessary blocks on startup through our SetBestChain-mechanism
             CWalletDB walletdb(strWalletFile, "r+", false);
-
+            LogPrintf("CWallet::AddToWalletIfInvolvingMe -> out true!\n");
             return AddToWallet(wtx, false, &walletdb);
         }
     }
-//    LogPrintf("CWallet::AddToWalletIfInvolvingMe -> out false!\n");
+//   LogPrintf("CWallet::AddToWalletIfInvolvingMe -> out false!\n");
     return false;
 }
 
@@ -2859,6 +2859,7 @@ bool CWallet::CreateTransaction(const vector <CRecipient> &vecSend, CWalletTx &w
             AvailableCoins(vAvailableCoins, true, coinControl, false, nCoinType, fUseInstantSend);
 
             nFeeRet = payTxFee.GetFeePerK();
+            LogPrintf("nFeeRet initial: %s\n", nFeeRet);
             // Start with no fee and loop until there is enough fee
             while (true) {
                 nChangePosInOut = nChangePosRequest;
@@ -2869,6 +2870,7 @@ bool CWallet::CreateTransaction(const vector <CRecipient> &vecSend, CWalletTx &w
 //                bool fFirst = true;
                 CAmount nValueToSelect = nValue;
                 if (nSubtractFeeFromAmount == 0)
+                    LogPrintf("nSubtractFeeFromAmount is 0\n");
                     nValueToSelect += nFeeRet;
                 double dPriority = 0;
                 // vouts to the payees
@@ -2925,6 +2927,7 @@ bool CWallet::CreateTransaction(const vector <CRecipient> &vecSend, CWalletTx &w
                     //over pay for denominated transactions
                     if (nCoinType == ONLY_DENOMINATED) {
                         nFeeRet += nChange;
+                        LogPrintf("nFeeRet 2930: %s\n", nFeeRet);
                         wtxNew.mapValue["DS"] = "1";
                         // recheck skipped denominations during next mixing
                         darkSendPool.ClearSkippedDenominations();
@@ -2986,6 +2989,7 @@ bool CWallet::CreateTransaction(const vector <CRecipient> &vecSend, CWalletTx &w
                         if (newTxOut.IsDust(::minRelayTxFee)) {
                             nChangePosInOut = -1;
                             nFeeRet += nChange;
+                            LogPrintf("nFeeRet 2992: %S\n", nFeeRet);
                             reservekey.ReturnKey();
                         } else {
                             if (nChangePosInOut == -1) {
@@ -3064,6 +3068,7 @@ bool CWallet::CreateTransaction(const vector <CRecipient> &vecSend, CWalletTx &w
                 }
  
                 CAmount nFeeNeeded = GetMinimumFee(nBytes, nTxConfirmTarget, mempool);
+                LogPrintf("fee needed for tx: %s\n", nFeeNeeded);   
                 if (coinControl && nFeeNeeded > 0 && coinControl->nMinimumTotalFee > nFeeNeeded) {
                     nFeeNeeded = coinControl->nMinimumTotalFee;
                 }
@@ -3077,16 +3082,20 @@ bool CWallet::CreateTransaction(const vector <CRecipient> &vecSend, CWalletTx &w
                     strFailReason = _("Transaction too large for fee policy");
                     return false;
                 }
-
+                LogPrintf("nFeeRet: %s\n", nFeeRet);   
                 if (nFeeRet >= nFeeNeeded)
+                    LogPrintf("enough fee gotten.nFeeRet: %s\n", nFeeRet);
                     break; // Done, enough fee included.
 
                 // Include more fee and try again.
                 nFeeRet = nFeeNeeded;
+                LogPrintf("not enough fee yet. nFeeRet: %s\n", nFeeRet);
                 continue;
             }
         }
     }
+
+    LogPrintf("nFeeRet final: %s\n", nFeeRet);
 
     if (GetBoolArg("-walletrejectlongchains", DEFAULT_WALLET_REJECT_LONG_CHAINS)) {
         // Lastly, ensure this tx will pass the mempool's chain limits
@@ -3346,7 +3355,7 @@ bool CWallet::CreateZerocoinMintTransaction(const vector <CRecipient> &vecSend, 
 
 
             nFeeRet = payTxFee.GetFeePerK();
-            LogPrintf("nFeeRet=%s\n", nFeeRet);
+            LogPrintf("nFeeRet= %s\n", nFeeRet);
             // Start with no fee and loop until there is enough fee
             while (true) {
                 nChangePosInOut = nChangePosRequest;
@@ -3931,8 +3940,8 @@ bool CWallet::CommitZerocoinSpendTransaction(CWalletTx &wtxNew, CReserveKey &res
 string CWallet::MintZerocoin(CScript pubCoin, int64_t nValue, CWalletTx &wtxNew, bool fAskFee) {
     // Do not allow mint to take place until fully synced
     // Temporary measure: we can remove this limitation when well after spend v1.5 HF block
-    if (fImporting || fReindex || !znodeSync.IsBlockchainSynced())
-        return _("Not fully synced yet");
+    // if (fImporting || fReindex || !znodeSync.IsBlockchainSynced())
+    //     return _("Not fully synced yet");
 
     LogPrintf("MintZerocoin: value = %s\n", nValue);
     // Check amount
@@ -3999,8 +4008,8 @@ string CWallet::SpendZerocoin(std::string &thirdPartyaddress, int64_t nValue, li
 
     // Do not allow spend to take place until fully synced
     // Temporary measure: we can remove this limitation when well after spend v1.5 HF block
-    if (fImporting || fReindex || !znodeSync.IsBlockchainSynced())
-        return _("Not fully synced yet");
+    // if (fImporting || fReindex || !znodeSync.IsBlockchainSynced())
+    //     return _("Not fully synced yet");
 
 
     CReserveKey reservekey(this);
