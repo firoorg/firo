@@ -42,7 +42,7 @@ BOOST_AUTO_TEST_CASE(mtp_test)
     std::deque<std::vector<uint8_t>> proof_mtp[72*3];
     uint256 output;
 
-    mtp_hash(input, target, hash_root_mtp, &nonce, block_mtp, proof_mtp,
+    mtp_hash(input, target, hash_root_mtp, nonce, block_mtp, proof_mtp,
             pow_limit, &output);
     BOOST_CHECK_MESSAGE(nonce == 143u, "wrong nonce");
 

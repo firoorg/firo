@@ -476,7 +476,7 @@ bool mtp_verify(const char* input, const uint32_t target,
 }
 
 void mtp_hash(const char* input, uint32_t target, uint8_t hash_root_mtp[16],
-        unsigned int *nonce, uint64_t block_mtp[72*2][128],
+        unsigned int& nonce, uint64_t block_mtp[72*2][128],
         std::deque<std::vector<uint8_t>> *proof_mtp, uint256 pow_limit,
         uint256* output)
 {
@@ -730,7 +730,7 @@ BEGIN:
         LogPrintf("END mtp_hash\n");
         std::copy(root.begin(), root.end(), hash_root_mtp);
 
-        *nonce = n_nonce_internal;
+        nonce = n_nonce_internal;
         for (int i = 0; i < L * 2; i++) {
             memcpy(block_mtp[i], &blocks[i],
                     sizeof(uint64_t) * ARGON2_QWORDS_IN_BLOCK);
@@ -745,7 +745,7 @@ BEGIN:
             LogPrintf("%0x", hash_root_mtp[i]);
         }
         LogPrintf("\n");
-        LogPrintf("pblock->nNonce: %s\n", *nonce);
+        LogPrintf("pblock->nNonce: %s\n", nonce);
         LogPrintf("pblock->nBlockMTP:\n");
         for (int i = 0; i < 1; i++) {
             LogPrintf("%s = ", i);

@@ -27,7 +27,7 @@ extern "C" {
 void mtp_hash(const char* input,
         uint32_t target,
         uint8_t hash_root_mtp[16],
-        unsigned int* nonce,
+        unsigned int& nonce,
         uint64_t block_mtp[72*2][128],
         std::deque<std::vector<uint8_t>>* proof_mtp,
         uint256 pow_limit,
