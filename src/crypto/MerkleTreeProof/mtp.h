@@ -30,7 +30,7 @@ void mtp_hash(const char* input,
         uint64_t block_mtp[72*2][128],
         std::deque<std::vector<uint8_t>> proof_mtp[73*3],
         uint256 pow_limit,
-        uint256* output);
+        uint256& output);
 
 /** Verify the given nonce does satisfy the given difficulty
  *

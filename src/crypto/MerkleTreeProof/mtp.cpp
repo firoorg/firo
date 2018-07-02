@@ -479,7 +479,7 @@ bool mtp_verify(const char* input, const uint32_t target,
 void mtp_hash(const char* input, uint32_t target, uint8_t hash_root_mtp[16],
         unsigned int& nonce, uint64_t block_mtp[72*2][128],
         std::deque<std::vector<uint8_t>> proof_mtp[73*3], uint256 pow_limit,
-        uint256* output)
+        uint256& output)
 {
 BEGIN:
     LogPrintf("START mtp_hash\n");
@@ -739,7 +739,7 @@ BEGIN:
         for (int i = 0; i < L * 3; i++) {
             proof_mtp[i] = proof_blocks[i];
         }
-        memcpy(output, &y[L], sizeof(uint256));
+        memcpy(&output, &y[L], sizeof(uint256));
 
         LogPrintf("pblock->hashRootMTP:\n");
         for (int i = 0; i < 16; i++) {
