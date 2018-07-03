@@ -349,22 +349,10 @@ bool mtp_verify(const char* input, const uint32_t target,
         }
 
         //hash[prev_index]
-        block blockhash_prev;
-        copy_block(&blockhash_prev, &prev_block);
-        uint8_t blockhash_prev_bytes[ARGON2_BLOCK_SIZE];
-        StoreBlock(&blockhash_prev_bytes, &blockhash_prev);
-
-        blake2b_state state_prev;
-        blake2b_init(&state_prev, MERKLE_TREE_ELEMENT_SIZE_B);
-        blake2b_4r_update(&state_prev, blockhash_prev_bytes, ARGON2_BLOCK_SIZE);
-
         uint8_t digest_prev[MERKLE_TREE_ELEMENT_SIZE_B];
-        blake2b_4r_final(&state_prev, digest_prev, sizeof(digest_prev));
-
+        compute_blake2b(prev_block, digest_prev);
         MerkleTree::Buffer hash_prev(digest_prev,
                 digest_prev + sizeof(digest_prev));
-        clear_internal_memory(blockhash_prev.v, ARGON2_BLOCK_SIZE);
-        clear_internal_memory(blockhash_prev_bytes, ARGON2_BLOCK_SIZE);
         if (!MerkleTree::checkProofOrdered(proof_blocks[(j * 3) - 2],
                     root, hash_prev, ij_prev + 1)) {
             LogPrintf("error : checkProofOrdered in x[ij_prev]\n");
