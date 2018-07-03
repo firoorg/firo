@@ -2730,35 +2730,33 @@ UniValue mintmanyzerocoin(const UniValue& params, bool fHelp)
 
     if (fHelp || params.size() > 1)
         throw runtime_error(
-                "mintmanyzerocoin {\"amount\":<denomination>(1,10,25,50,100),...}\n"
+                "mintmanyzerocoin {<denomination>(1,10,25,50,100):\"amount\"...}\n"
                 + HelpRequiringPassphrase()
                 + "\nMint 1 or more zerocoins. Amounts must be of denominations specified.\n"
                 "\nArguments:\n"
-                "1. \"addresses\"             (object, required) A json object with amounts and denominations\n"
+                "1. \"denominations\"             (object, required) A json object with amounts and denominations\n"
                     "    {\n"
-                    "      \"amount\":denomination The amount of zerocoins to mint for this denomination followed by the denomination itself (must be one of (1,10,25,50,100))\n"
+                    "      \"denomination\":amount The denomination of zerocoin to mint (must be one of (1,10,25,50,100)) followed by the amount of the denomination to mint.\n"
                     "      ,...\n"
                     "    }\n"
                 "\nExamples:\n"
-                    + HelpExampleCli("mintmanyzerocoin", "\"\" \"{\\\"10\\\":25,\\\"5\\\":10}\"")
+                    + HelpExampleCli("mintmanyzerocoin", "\"\" \"{\\\"25\\\":10,\\\"10\\\":5}\"")
         );
 
 
     UniValue txids(UniValue::VARR);
 
-    int64_t nAmount = 0;
+    int64_t denomination_int = 0;
     libzerocoin::CoinDenomination denomination;
 
     UniValue sendTo = params[0].get_obj();
 
     vector<string> keys = sendTo.getKeys();
-    BOOST_FOREACH(const string& amount, keys){
+    BOOST_FOREACH(const string& denomination_str, keys){
 
-        nAmount = AmountFromValue(sendTo[amount]);
+        denomination_int = stoi(denomination_str.c_str());
 
-        LogPrintf("nAmount: %s\n", nAmount / COIN);
-
-        switch(nAmount / COIN){
+        switch(denomination_int){
             case 1:
                 denomination = libzerocoin::ZQ_LOVELACE;
                 break;
@@ -2776,13 +2774,22 @@ UniValue mintmanyzerocoin(const UniValue& params, bool fHelp)
                 break;
             default:
                 throw runtime_error(
-                    "mintmanyzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n");
+                    "mintzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n");
         }
 
 
-        LogPrintf("rpcWallet.mintzerocoin() denomination = %s, nAmount = %s \n", denomination, nAmount);
+        int64_t amount = sendTo[denomination_str].get_int();
 
-        for(int i=0; i<stoi(amount.c_str()); i++){
+        LogPrintf("rpcWallet.mintzerocoin() denomination = %s, amount = %s \n", denomination_str, amount);
+
+        
+
+        if(amount < 0){
+                throw runtime_error(
+                    "mintzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n");
+        }
+
+        for(int64_t i=0; i<amount; i++){
             bool valid_coin = false;
             // Always use modulus v2
             libzerocoin::Params *zcParams = ZCParamsV2;
@@ -2818,7 +2825,7 @@ UniValue mintmanyzerocoin(const UniValue& params, bool fHelp)
             // Wallet comments
             CWalletTx wtx;
 
-            string strError = pwalletMain->MintZerocoin(scriptSerializedCoin, nAmount, wtx);
+            string strError = pwalletMain->MintZerocoin(scriptSerializedCoin, (denomination_int * COIN), wtx);
 
             if (strError != "")
                 throw JSONRPCError(RPC_WALLET_ERROR, strError);
