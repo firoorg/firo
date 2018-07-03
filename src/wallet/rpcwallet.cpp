@@ -2917,36 +2917,40 @@ UniValue spendmanyzerocoin(const UniValue& params, bool fHelp) {
 
     if (fHelp || params.size() != 1)
         throw runtime_error(
-                "spendmanyzerocoin {\"address\":<amount>(1,10,25,50,100),...}\n"
+                "spendmanyzerocoin {\"address\":<denomination>(1,10,25,50,100), \"amount\": 10...}\n"
                 + HelpRequiringPassphrase()
                 + "\nSpend multiple zerocoins. Amounts must be of denominations specified.\n"
                 "\nArguments:\n"
                 "1. \"addresses\"             (object, required) A json object with addresses and amounts\n"
                     "    {\n"
-                    "      \"address\":amount   (numeric or string) The zcoin address is the key; leave as \"\" to spend to self. The numeric amount must be one of (1,10,25,50,100)\n"
+                    "      \"address\":denomination,   (numeric or string) The zcoin address is the key; leave as \"\" to spend to self. The numeric amount must be one of (1,10,25,50,100)\n"
+                    "      \"amount,                    (numeric or string) The amount of spends to this address.\n"
                     "      ,...\n"
                     "    }\n"
                 "\nExamples:\n"
-                    + HelpExampleCli("spendmanyzerocoin", "\"\" \"{\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XZ\\\":25,\\\"\\\":10}\"")
+                    + HelpExampleCli("spendmanyzerocoin", "\"\" \"[{\\\"address\\\":\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XZ\", \\\"denomination\\\":25, \\\"amount\\\": 1}{\\\"\\\":10, amount:}]\"")
         );
 
     UniValue txids(UniValue::VARR);
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
-    int64_t nAmount = 0;
+    int64_t denomination_in = 0;
     libzerocoin::CoinDenomination denomination;
 
-    UniValue sendTo = params[0].get_obj();
+    UniValue inputs = params[0].get_array();
 
-    vector<string> keys = sendTo.getKeys();
-    BOOST_FOREACH(const string& address_str, keys)
-    {
-        nAmount = AmountFromValue(sendTo[address_str]);
+    for(size_t i=0; i<inputs.size();i++) {
 
-        LogPrintf("ZMQ: nAmount: %s\n", nAmount / COIN);
+        const UniValue& input_obj = inputs[i].get_obj();
 
-        switch(nAmount / COIN){
+        int amount = find_value(input_obj, "amount").get_int();
+
+        denomination_in = find_value(input_obj, "denomination").get_int();
+
+        string address_str = find_value(input_obj, "address").get_str();
+
+        switch(denomination_in){
             case 1:
                 denomination = libzerocoin::ZQ_LOVELACE;
                 break;
@@ -2984,13 +2988,16 @@ UniValue spendmanyzerocoin(const UniValue& params, bool fHelp) {
         CBigNum zcSelectedValue;
         bool zcSelectedIsUsed;
 
-        string strError = pwalletMain->SpendZerocoin(thirdPartyaddress, nAmount, denomination, wtx, coinSerial, txHash, zcSelectedValue,
-                                                     zcSelectedIsUsed);
+        for(int j=0;j<amount;j++) {
 
-        if (strError != "")
-            throw JSONRPCError(RPC_WALLET_ERROR, strError);
+            string strError = pwalletMain->SpendZerocoin(thirdPartyaddress, (denomination_in * COIN), denomination, wtx, coinSerial, txHash, zcSelectedValue,
+                                                         zcSelectedIsUsed);
 
-        txids.push_back(wtx.GetHash().GetHex());
+            if (strError != "")
+                throw JSONRPCError(RPC_WALLET_ERROR, strError);
+
+            txids.push_back(wtx.GetHash().GetHex());
+        }
     }
 
     return txids;
