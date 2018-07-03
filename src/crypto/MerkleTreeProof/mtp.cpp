@@ -162,6 +162,28 @@ void GetBlockIndex(uint32_t ij, argon2_instance_t *instance,
     *out_computed_ref_block = computed_ref_block;
 }
 
+/** Compute a BLAKE2B hash on a block
+ *
+ * \param input  [in]  Block to compute the hash on
+ * \param digest [out] Computed hash
+ */
+void compute_blake2b(const block& input,
+        uint8_t digest[MERKLE_TREE_ELEMENT_SIZE_B])
+{
+    block tmp_block;
+    copy_block(&tmp_block, &input);
+    uint8_t tmp_block_bytes[ARGON2_BLOCK_SIZE];
+    StoreBlock(&tmp_block_bytes, &tmp_block);
+
+    blake2b_state state;
+    blake2b_init(&state, MERKLE_TREE_ELEMENT_SIZE_B);
+    blake2b_4r_update(&state, tmp_block_bytes, ARGON2_BLOCK_SIZE);
+
+    blake2b_4r_final(&state, digest, MERKLE_TREE_ELEMENT_SIZE_B);
+    clear_internal_memory(tmp_block.v, ARGON2_BLOCK_SIZE);
+    clear_internal_memory(tmp_block_bytes, ARGON2_BLOCK_SIZE);
+}
+
 } // unnamed namespace
 
 bool mtp_verify(const char* input, const uint32_t target,
@@ -371,22 +393,9 @@ bool mtp_verify(const char* input, const uint32_t target,
 
         uint32_t computed_ref_block = (lane_length * ref_lane) + ref_index;
 
-        block blockhash_ref;
-        uint8_t blockhash_ref_bytes[ARGON2_BLOCK_SIZE];
-        copy_block(&blockhash_ref, &ref_block);
-        StoreBlock(&blockhash_ref_bytes, &blockhash_ref);
-
-        blake2b_state state_ref;
-        blake2b_init(&state_ref, MERKLE_TREE_ELEMENT_SIZE_B);
-        blake2b_4r_update(&state_ref, blockhash_ref_bytes, ARGON2_BLOCK_SIZE);
-
         uint8_t digest_ref[MERKLE_TREE_ELEMENT_SIZE_B];
-        blake2b_4r_final(&state_ref, digest_ref, sizeof(digest_ref));
-
+        compute_blake2b(ref_block, digest_ref);
         MerkleTree::Buffer hash_ref(digest_ref, digest_ref + sizeof(digest_ref));
-        clear_internal_memory(blockhash_ref.v, ARGON2_BLOCK_SIZE);
-        clear_internal_memory(blockhash_ref_bytes, ARGON2_BLOCK_SIZE);
-
         if (!MerkleTree::checkProofOrdered(proof_blocks[(j * 3) - 1],
                     root, hash_ref, computed_ref_block + 1)) {
             LogPrintf("error : checkProofOrdered in x[ij_ref]\n");
@@ -400,21 +409,9 @@ bool mtp_verify(const char* input, const uint32_t target,
 
         // verify opening
         // hash x[ij]
-        block blockhash_ij;
-        copy_block(&blockhash_ij, &block_ij);
-        uint8_t blockhash_ij_bytes[ARGON2_BLOCK_SIZE];
-        StoreBlock(&blockhash_ij_bytes, &blockhash_ij);
-
-        blake2b_state state_ij;
-        blake2b_init(&state_ij, MERKLE_TREE_ELEMENT_SIZE_B);
-        blake2b_4r_update(&state_ij, blockhash_ij_bytes, ARGON2_BLOCK_SIZE);
-
         uint8_t digest_ij[MERKLE_TREE_ELEMENT_SIZE_B];
-        blake2b_4r_final(&state_ij, digest_ij, sizeof(digest_ij));
-
+        compute_blake2b(block_ij, digest_ij);
         MerkleTree::Buffer hash_ij(digest_ij, digest_ij + sizeof(digest_ij));
-        clear_internal_memory(blockhash_ij.v, ARGON2_BLOCK_SIZE);
-        clear_internal_memory(blockhash_ij_bytes, ARGON2_BLOCK_SIZE);
 
         std::ostringstream oss;
         oss << "hash_ij[" << ij << "] = 0x";
@@ -540,22 +537,10 @@ BEGIN:
     // step 2
     MerkleTree::Elements elements;
     for (long int i = 0; i < instance.memory_blocks; ++i) {
-        block blockhash;
-        copy_block(&blockhash, &instance.memory[i]);
-        uint8_t blockhash_bytes[ARGON2_BLOCK_SIZE];
-        StoreBlock(&blockhash_bytes, &blockhash);
-
-        blake2b_state state;
-        blake2b_init(&state, MERKLE_TREE_ELEMENT_SIZE_B);
-        blake2b_4r_update(&state, blockhash_bytes, ARGON2_BLOCK_SIZE);
-
         uint8_t digest[MERKLE_TREE_ELEMENT_SIZE_B];
-        blake2b_4r_final(&state, digest, sizeof(digest));
-
+        compute_blake2b(instance.memory[i], digest);
         MerkleTree::Buffer hash_digest(digest, digest + sizeof(digest));
         elements.push_back(hash_digest);
-        clear_internal_memory(blockhash.v, ARGON2_BLOCK_SIZE);
-        clear_internal_memory(blockhash_bytes, ARGON2_BLOCK_SIZE);
     }
 
     MerkleTree ordered_tree(elements, true);
@@ -621,67 +606,28 @@ BEGIN:
             //storing proof
             //TODO : make it as function please
             //current proof
-            block blockhash_curr;
-            copy_block(&blockhash_curr, &instance.memory[ij]);
-            uint8_t blockhash_curr_bytes[ARGON2_BLOCK_SIZE];
-            StoreBlock(&blockhash_curr_bytes, &blockhash_curr);
-
-            blake2b_state state_curr;
-            blake2b_init(&state_curr, MERKLE_TREE_ELEMENT_SIZE_B);
-            blake2b_4r_update(&state_curr, blockhash_curr_bytes,
-                    ARGON2_BLOCK_SIZE);
-
             uint8_t digest_curr[MERKLE_TREE_ELEMENT_SIZE_B];
-            blake2b_4r_final(&state_curr, digest_curr, sizeof(digest_curr));
-
+            compute_blake2b(instance.memory[ij], digest_curr);
             MerkleTree::Buffer hash_curr(digest_curr,
                     digest_curr + sizeof(digest_curr));
-            clear_internal_memory(blockhash_curr.v, ARGON2_BLOCK_SIZE);
-            clear_internal_memory(blockhash_curr_bytes, ARGON2_BLOCK_SIZE);
             MerkleTree::Elements proof_curr = ordered_tree.getProofOrdered(
                     hash_curr, ij + 1);
             proof_blocks[(j * 3) - 3] = proof_curr;
 
             //prev proof
-            block blockhash_prev;
-            copy_block(&blockhash_prev, &instance.memory[prev_index]);
-            uint8_t blockhash_prev_bytes[ARGON2_BLOCK_SIZE];
-            StoreBlock(&blockhash_prev_bytes, &blockhash_prev);
-
-            blake2b_state state_prev;
-            blake2b_init(&state_prev, MERKLE_TREE_ELEMENT_SIZE_B);
-            blake2b_4r_update(&state_prev, blockhash_prev_bytes,
-                    ARGON2_BLOCK_SIZE);
-
             uint8_t digest_prev[MERKLE_TREE_ELEMENT_SIZE_B];
-            blake2b_4r_final(&state_prev, digest_prev, sizeof(digest_prev));
-
+            compute_blake2b(instance.memory[prev_index], digest_prev);
             MerkleTree::Buffer hash_prev(digest_prev,
                     digest_prev + sizeof(digest_prev));
-            clear_internal_memory(blockhash_prev.v, ARGON2_BLOCK_SIZE);
-            clear_internal_memory(blockhash_prev_bytes, ARGON2_BLOCK_SIZE);
             MerkleTree::Elements proof_prev = ordered_tree.getProofOrdered(
                     hash_prev, prev_index + 1);
             proof_blocks[(j * 3) - 2] = proof_prev;
 
             //ref proof
-            block blockhash_ref;
-            copy_block(&blockhash_ref, &instance.memory[ref_index]);
-            uint8_t blockhash_ref_bytes[ARGON2_BLOCK_SIZE];
-            StoreBlock(&blockhash_ref_bytes, &blockhash_ref);
-
-            blake2b_state state_ref;
-            blake2b_init(&state_ref, MERKLE_TREE_ELEMENT_SIZE_B);
-            blake2b_4r_update(&state_ref, blockhash_ref_bytes,
-                    ARGON2_BLOCK_SIZE);
-
             uint8_t digest_ref[MERKLE_TREE_ELEMENT_SIZE_B];
-            blake2b_4r_final(&state_ref, digest_ref, sizeof(digest_ref));
-
+            compute_blake2b(instance.memory[ref_index], digest_ref);
             MerkleTree::Buffer hash_ref(digest_ref,
                     digest_ref + sizeof(digest_ref));
-            clear_internal_memory(blockhash_ref.v, ARGON2_BLOCK_SIZE);
-            clear_internal_memory(blockhash_ref_bytes, ARGON2_BLOCK_SIZE);
             MerkleTree::Elements proof_ref = ordered_tree.getProofOrdered(
                     hash_ref, ref_index + 1);
             proof_blocks[(j * 3) - 1] = proof_ref;
