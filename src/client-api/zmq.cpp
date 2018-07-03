@@ -379,6 +379,21 @@ json response_to_json(UniValue reply){
 
 /*************** Start API function definitions ***************************************/
 
+json mint(json request){
+
+    vector<string> rpc_args;
+    rpc_args.push_back("mintmanyzerocoin");
+    rpc_args.push_back(request["data"]["denominations"].dump());
+
+    UniValue rpc_raw = SetupRPC(rpc_args);
+
+    json result_json = response_to_json(rpc_raw);
+
+    LogPrintf("ZMQ: result json: %s\n", result_json.dump());
+
+    return result_json;
+
+}
 json get_tx_fee(json request){
     /*
     argument:
@@ -395,37 +410,92 @@ json get_tx_fee(json request){
       }
     }
     */
-    //first set tx fee.
+
+    //first get tx fee.
     UniValue rpc_raw;
     string tx_fee = request["data"]["feeperkb"];
-    vector<string> set_tx_fee_args;
-    set_tx_fee_args.push_back("settxfee");
-    set_tx_fee_args.push_back(tx_fee);
+    vector<string> rpc_args;
+    rpc_args.push_back("settxfee");
+    rpc_args.push_back(tx_fee);
     // set tx fee per kb. for now assume that the call succeeded
-    rpc_raw = SetupRPC(set_tx_fee_args);
+    rpc_raw = SetupRPC(rpc_args);
+
+    LogPrintf("ZMQ: set tx fee\n");
 
     //set up call to get-transaction-fee.
     json get_tx_fee = request["data"]["addresses"];
-    vector<string> get_transaction_fee_args;
 
-    get_transaction_fee_args.push_back("gettransactionfee");
-    get_transaction_fee_args.push_back("");
-    get_transaction_fee_args.push_back(get_tx_fee.dump());
+    rpc_args.clear();
+    rpc_args.push_back("gettransactionfee");
+    rpc_args.push_back("");
+    rpc_args.push_back(get_tx_fee.dump());
+
+    LogPrintf("ZMQ: dump of tx fee data: %s\n", get_tx_fee.dump());
 
     // get transaction fee for all addresses and values
-    rpc_raw = SetupRPC(get_transaction_fee_args);
+    rpc_raw = SetupRPC(rpc_args);
 
     json get_transaction_fee_json = response_to_json(rpc_raw);
 
+    LogPrintf("ZMQ: called gettransactionfee. result: %s\n", get_transaction_fee_json.dump());
     return get_transaction_fee_json;
+
+}
+
+json send_private(json request){
+
+    vector<string> rpc_args;
+    rpc_args.push_back("spendmanyzerocoin");
+    rpc_args.push_back(request["data"]["denominations"].dump());
+
+    LogPrintf("ZMQ: send private data: %s\n", request["data"]["denominations"].dump());
+
+    UniValue rpc_raw = SetupRPC(rpc_args);
+
+    json result_json = response_to_json(rpc_raw);
+
+    return result_json;
+}
+
+json send_zcoin(json request){
+    // first set tx fee per kb
+
+    LogPrintf("ZMQ: in send zcoin\n");
+
+    UniValue rpc_raw;
+    float num_tx_fee = request["data"]["feeperkb"];
+    string tx_fee = to_string(num_tx_fee);
+    LogPrintf("ZMQ: feeperkb: %s\n", tx_fee);
+    vector<string> rpc_args;
+    rpc_args.push_back("settxfee");
+    rpc_args.push_back(tx_fee);
+    // set tx fee per kb. for now assume that the call succeeded
+    rpc_raw = SetupRPC(rpc_args);
+
+    LogPrintf("ZMQ: set tx fee\n");
+
+    // now send for all addresses specified
+    rpc_args.clear();
+    rpc_args.push_back("sendmany");
+    // TODO deal with extra accounts
+    rpc_args.push_back("");
+    rpc_args.push_back(request["data"]["addresses"].dump());
+
+
+    rpc_raw = SetupRPC(rpc_args);
+
+
+    json result_json = response_to_json(rpc_raw);
+
+    return result_json;
 
 }
 
 /* get core status. */
 json api_status(){
-    vector<string> get_info_args;
-    get_info_args.push_back("getinfo");
-    UniValue rpc_raw = SetupRPC(get_info_args);
+    vector<string> rpc_args;
+    rpc_args.push_back("getinfo");
+    UniValue rpc_raw = SetupRPC(rpc_args);
     json get_info_json = response_to_json(rpc_raw);
     json api_status_json;
 
@@ -440,13 +510,13 @@ json api_status(){
 
 
 json initial_state(){
-    vector<string> initial_state_args;
+    vector<string> rpc_args;
     // to get the complete transaction history for the wallet, we use the listsinceblock rpc command
     string genesis_block_hash = chainActive[0]->GetBlockHash().ToString();
-    initial_state_args.push_back("listsinceblock");
-    initial_state_args.push_back(genesis_block_hash);
+    rpc_args.push_back("listsinceblock");
+    rpc_args.push_back(genesis_block_hash);
 
-    UniValue rpc_raw = SetupRPC(initial_state_args);
+    UniValue rpc_raw = SetupRPC(rpc_args);
 
     json result_json = response_to_json(rpc_raw);
 
@@ -668,10 +738,11 @@ static void* REQREP_ZMQ(void *arg)
         json rpc_json;
         std::vector<std::string> rpc_vector;
 
-        LogPrintf("ZMQ: 454.\n");  
         LogPrintf("ZMQ: request_json string:%s\n", request_json.dump());
 
-        // TODO better scheme for this as more requests added (see RPCTable)
+        /* TODO better scheme for this as more requests added (see RPCTable)
+           generally, what to return for API requests.
+        */
         if(request_json["collection"]=="payment-request"){
             rpc_json = payment_request(request_json);
         }
@@ -684,22 +755,23 @@ static void* REQREP_ZMQ(void *arg)
             rpc_json = api_status();
         }
 
-        else if(request_json["collection"]=="get-tx-fee"){
+        else if(request_json["collection"]=="tx-fee"){
             rpc_json = get_tx_fee(request_json);
         }
 
-        // // TODO better scheme for this as more requests added (see RPCTable)
-        // if(request_json["collection"]=="send-zcoin"){
-        //     rpc_json = send_zcoin(request_json);
-        // }
+        else if(request_json["collection"]=="send-zcoin"){
+            rpc_json = send_zcoin(request_json);
+        }
 
-        /* TODO- generally, what to return for API requests.
-           in create-payment-request, client only needs a status and an address back, so don't need to modify JSON call.
-           this will likely be different for different calls. 
-        */
+        else if(request_json["collection"]=="mint"){
+            rpc_json = mint(request_json);
+        }
 
+        else if(request_json["collection"]=="send-private"){
+            rpc_json = send_private(request_json);
+        }
+        
         /* Send reply */
-        LogPrintf("ZMQ: dump it\n");  
         string response_str = rpc_json.dump();
         zmq_msg_t reply;
         rc = zmq_msg_init_size (&reply, response_str.size());
@@ -734,15 +806,15 @@ bool StartREQREPZMQ()
     LogPrintf("ZMQ: created socket\n");
 
     //set up REP auth
-    // vector<string> keys = read_cert("server");
+    vector<string> keys = read_cert("server");
 
-    // string server_secret_key = keys.at(1);
+    string server_secret_key = keys.at(1);
 
-    // LogPrintf("ZMQ: secret_server_key: %s\n", server_secret_key);
+    LogPrintf("ZMQ: secret_server_key: %s\n", server_secret_key);
 
-    // const int curve_server_enable = 1;
-    // zmq_setsockopt(zmqpsocket, ZMQ_CURVE_SERVER, &curve_server_enable, sizeof(curve_server_enable));
-    // zmq_setsockopt(zmqpsocket, ZMQ_CURVE_SECRETKEY, server_secret_key.c_str(), 40);
+    const int curve_server_enable = 1;
+    zmq_setsockopt(zmqpsocket, ZMQ_CURVE_SERVER, &curve_server_enable, sizeof(curve_server_enable));
+    zmq_setsockopt(zmqpsocket, ZMQ_CURVE_SECRETKEY, server_secret_key.c_str(), 40);
 
 
     // Get network port. TODO add zmq ports to base params
@@ -762,15 +834,12 @@ bool StartREQREPZMQ()
     string tcp = "tcp://*:";
 
     int rc = zmq_bind(zmqpsocket, tcp.append(port).c_str());
-    //int rc = zmq_bind(zmqpsocket, "tcp://*:5558");
     if (rc == -1)
     {
         LogPrintf("ZMQ: Unable to send ZMQ msg\n");
         return false;
     }
     LogPrintf("ZMQ: Bound socket\n");
-    //pthread_mutex_init(&mxq,NULL);
-    //pthread_mutex_lock(&mxq);
     //create worker & run a thread 
     pthread_t worker;
     pthread_create(&worker,NULL, REQREP_ZMQ, NULL);

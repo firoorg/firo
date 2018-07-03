@@ -2716,87 +2716,133 @@ UniValue listunspentmintzerocoins(const UniValue &params, bool fHelp) {
     return results;
 }
 
-UniValue mintzerocoin(const UniValue& params, bool fHelp)
-{
+    UniValue mintmanyzerocoin(const UniValue& params, bool fHelp)
+    {
 
-    if (fHelp || params.size() > 1)
-        throw runtime_error("mintzerocoin <amount>(1,10,25,50,100)\n" + HelpRequiringPassphrase());
-
-    int64_t nAmount = 0;
-    libzerocoin::CoinDenomination denomination;
-    // Amount
-    if (params[0].get_real() == 1.0) {
-        denomination = libzerocoin::ZQ_LOVELACE;
-        nAmount = AmountFromValue(params[0]);
-    } else if (params[0].get_real() == 10.0) {
-        denomination = libzerocoin::ZQ_GOLDWASSER;
-        nAmount = AmountFromValue(params[0]);
-    } else if (params[0].get_real() == 25.0) {
-        denomination = libzerocoin::ZQ_RACKOFF;
-        nAmount = AmountFromValue(params[0]);
-    } else if (params[0].get_real() == 50.0) {
-        denomination = libzerocoin::ZQ_PEDERSEN;
-        nAmount = AmountFromValue(params[0]);
-    } else if (params[0].get_real() == 100.0) {
-        denomination = libzerocoin::ZQ_WILLIAMSON;
-        nAmount = AmountFromValue(params[0]);
-    } else {
-        throw runtime_error("mintzerocoin <amount>(1,10,25,50,100)\n");
-    }
-    LogPrintf("rpcWallet.mintzerocoin() denomination = %s, nAmount = %s \n", denomination, nAmount);
+        if (fHelp || params.size() > 1)
+            throw runtime_error(
+                    "mintzerocoin {\"amount\":<denomination>(1,10,25,50,100),...}\n"
+                    + HelpRequiringPassphrase()
+                    + "\nMint 1 or more zerocoins. Amounts must be of denominations specified.\n"
+                    "\nArguments:\n"
+                    "1. \"addresses\"             (object, required) A json object with amounts and denominations\n"
+                        "    {\n"
+                        "      \"amount\":denomination The amount of zerocoins to mint for this denomination followed by the denomination itself (must be one of (1,10,25,50,100))\n"
+                        "      ,...\n"
+                        "    }\n"
+                    "\nExamples:\n"
+                        + HelpExampleCli("mintmanyzerocoin", "\"\" \"{\\\"25\\\":10,\\\"10\\\":5}\"")
+            );
 
 
-    // Always use modulus v2
-    libzerocoin::Params *zcParams = ZCParamsV2;
+        UniValue txids(UniValue::VARR);
 
-    // The following constructor does all the work of minting a brand
-    // new zerocoin. It stores all the private values inside the
-    // PrivateCoin object. This includes the coin secrets, which must be
-    // stored in a secure location (wallet) at the client.
-    libzerocoin::PrivateCoin newCoin(zcParams, denomination, ZEROCOIN_TX_VERSION_2);
-    // Get a copy of the 'public' portion of the coin. You should
-    // embed this into a Zerocoin 'MINT' transaction along with a series
-    // of currency inputs totaling the assigned value of one zerocoin.
-    libzerocoin::PublicCoin pubCoin = newCoin.getPublicCoin();
+        int64_t denomination_int = 0;
+        libzerocoin::CoinDenomination denomination;
 
-    // Validate
-    if (pubCoin.validate()) {
-        CScript scriptSerializedCoin =
-                CScript() << OP_ZEROCOINMINT << pubCoin.getValue().getvch().size() << pubCoin.getValue().getvch();
+        UniValue sendTo = params[0].get_obj();
 
-        if (pwalletMain->IsLocked())
-            throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Error: Please enter the wallet passphrase with walletpassphrase first.");
+        vector<string> keys = sendTo.getKeys();
+        BOOST_FOREACH(const string& denomination_str, keys){
 
-        // Wallet comments
-        CWalletTx wtx;
+            denomination_int = stoi(denomination_str.c_str());
 
-        string strError = pwalletMain->MintZerocoin(scriptSerializedCoin, nAmount, wtx);
+            switch(denomination_int){
+                case 1:
+                    denomination = libzerocoin::ZQ_LOVELACE;
+                    break;
+                case 10:
+                    denomination = libzerocoin::ZQ_GOLDWASSER;
+                    break;
+                case 25:
+                    denomination = libzerocoin::ZQ_RACKOFF;
+                    break;
+                case 50:
+                    denomination = libzerocoin::ZQ_PEDERSEN;
+                    break;
+                case 100:
+                    denomination = libzerocoin::ZQ_WILLIAMSON;                                                
+                    break;
+                default:
+                    throw runtime_error(
+                        "mintzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n");
+            }
 
-        if (strError != "")
-            throw JSONRPCError(RPC_WALLET_ERROR, strError);
 
-        CWalletDB walletdb(pwalletMain->strWalletFile);
-        CZerocoinEntry zerocoinTx;
-        zerocoinTx.IsUsed = false;
-        zerocoinTx.denomination = denomination;
-        zerocoinTx.value = pubCoin.getValue();
-        libzerocoin::PublicCoin checkPubCoin(zcParams, zerocoinTx.value, denomination);
-        if (!checkPubCoin.validate()) {
-            return false;
+            int64_t amount = sendTo[denomination_str].get_int();
+
+            LogPrintf("rpcWallet.mintzerocoin() denomination = %s, nAmount = %s \n", denomination_str, amount);
+
+            
+
+            if(amount < 0){
+                    throw runtime_error(
+                        "mintzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n");
+            }
+
+            for(int64_t i=0; i<amount; i++){
+                bool valid_coin = false;
+                // Always use modulus v2
+                libzerocoin::Params *zcParams = ZCParamsV2;
+                //do {
+                // The following constructor does all the work of minting a brand
+                // new zerocoin. It stores all the private values inside the
+                // PrivateCoin object. This includes the coin secrets, which must be
+                // stored in a secure location (wallet) at the client.
+                libzerocoin::PrivateCoin newCoin(zcParams, denomination, ZEROCOIN_TX_VERSION_2);
+                // Get a copy of the 'public' portion of the coin. You should
+                // embed this into a Zerocoin 'MINT' transaction along with a series
+                // of currency inputs totaling the assigned value of one zerocoin.
+                
+                libzerocoin::PublicCoin pubCoin = newCoin.getPublicCoin();
+                
+                //Validate
+                valid_coin = pubCoin.validate();
+
+                // loop until we find a valid coin
+                while(!valid_coin){
+                    libzerocoin::PrivateCoin newCoin(zcParams, denomination, ZEROCOIN_TX_VERSION_2);
+                    libzerocoin::PublicCoin pubCoin = newCoin.getPublicCoin();
+                    valid_coin = pubCoin.validate();
+                }
+
+                // Validate
+                CScript scriptSerializedCoin =
+                        CScript() << OP_ZEROCOINMINT << pubCoin.getValue().getvch().size() << pubCoin.getValue().getvch();
+
+                if (pwalletMain->IsLocked())
+                    throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Error: Please enter the wallet passphrase with walletpassphrase first.");
+
+                // Wallet comments
+                CWalletTx wtx;
+
+                string strError = pwalletMain->MintZerocoin(scriptSerializedCoin, (denomination_int * COIN), wtx);
+
+                if (strError != "")
+                    throw JSONRPCError(RPC_WALLET_ERROR, strError);
+
+                CWalletDB walletdb(pwalletMain->strWalletFile);
+                CZerocoinEntry zerocoinTx;
+                zerocoinTx.IsUsed = false;
+                zerocoinTx.denomination = denomination;
+                zerocoinTx.value = pubCoin.getValue();
+                libzerocoin::PublicCoin checkPubCoin(zcParams, zerocoinTx.value, denomination);
+                if (!checkPubCoin.validate()) {
+                    return false;
+                }
+                zerocoinTx.randomness = newCoin.getRandomness();
+                zerocoinTx.serialNumber = newCoin.getSerialNumber();
+                const unsigned char *ecdsaSecretKey = newCoin.getEcdsaSeckey();
+                zerocoinTx.ecdsaSecretKey = std::vector<unsigned char>(ecdsaSecretKey, ecdsaSecretKey+32);
+                walletdb.WriteZerocoinEntry(zerocoinTx);
+
+                txids.push_back(wtx.GetHash().GetHex());
+            }
         }
-        zerocoinTx.randomness = newCoin.getRandomness();
-        zerocoinTx.serialNumber = newCoin.getSerialNumber();
-        const unsigned char *ecdsaSecretKey = newCoin.getEcdsaSeckey();
-        zerocoinTx.ecdsaSecretKey = std::vector<unsigned char>(ecdsaSecretKey, ecdsaSecretKey+32);
-        walletdb.WriteZerocoinEntry(zerocoinTx);
 
-        //return pubCoin.getValue().GetHex();
-        return wtx.GetHash().GetHex();
-    } else {
-        return "";
+        return txids;
+
     }
-
-}
 
 UniValue spendzerocoin(const UniValue& params, bool fHelp) {
 
@@ -2869,36 +2915,40 @@ UniValue spendmanyzerocoin(const UniValue& params, bool fHelp) {
 
     if (fHelp || params.size() != 1)
         throw runtime_error(
-                "spendmanyzerocoin {\"address\":<amount>(1,10,25,50,100),...}\n"
+                "spendmanyzerocoin {\"address\":<denomination>(1,10,25,50,100), \"amount\": 10...}\n"
                 + HelpRequiringPassphrase()
                 + "\nSpend multiple zerocoins. Amounts must be of denominations specified.\n"
                 "\nArguments:\n"
                 "1. \"addresses\"             (object, required) A json object with addresses and amounts\n"
                     "    {\n"
-                    "      \"address\":amount   (numeric or string) The zcoin address is the key; leave as \"\" to spend to self. The numeric amount must be one of (1,10,25,50,100)\n"
+                    "      \"address\":denomination,   (numeric or string) The zcoin address is the key; leave as \"\" to spend to self. The numeric amount must be one of (1,10,25,50,100)\n"
+                    "      \"amount,                    (numeric or string) The amount of spends to this address.\n"
                     "      ,...\n"
                     "    }\n"
                 "\nExamples:\n"
-                    + HelpExampleCli("spendmanyzerocoin", "\"\" \"{\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XZ\\\":25,\\\"\\\":10}\"")
+                    + HelpExampleCli("spendmanyzerocoin", "\"\" \"[{\\\"address\\\":\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XZ\", \\\"denomination\\\":25, \\\"amount\\\": 1}{\\\"\\\":10, amount:}]\"")
         );
 
     UniValue txids(UniValue::VARR);
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
-    int64_t nAmount = 0;
+    int64_t denomination_in = 0;
     libzerocoin::CoinDenomination denomination;
 
-    UniValue sendTo = params[0].get_obj();
+    UniValue inputs = params[0].get_array();
 
-    vector<string> keys = sendTo.getKeys();
-    BOOST_FOREACH(const string& address_str, keys)
-    {
-        nAmount = AmountFromValue(sendTo[address_str]);
+    for(size_t i=0; i<inputs.size();i++) {
 
-        LogPrintf("ZMQ: nAmount: %s\n", nAmount / COIN);
+        const UniValue& input_obj = inputs[i].get_obj();
 
-        switch(nAmount / COIN){
+        int amount = find_value(input_obj, "amount").get_int();
+
+        denomination_in = find_value(input_obj, "denomination").get_int();
+
+        string address_str = find_value(input_obj, "address").get_str();
+
+        switch(denomination_in){
             case 1:
                 denomination = libzerocoin::ZQ_LOVELACE;
                 break;
@@ -2936,18 +2986,105 @@ UniValue spendmanyzerocoin(const UniValue& params, bool fHelp) {
         CBigNum zcSelectedValue;
         bool zcSelectedIsUsed;
 
-        string strError = pwalletMain->SpendZerocoin(thirdPartyaddress, nAmount, denomination, wtx, coinSerial, txHash, zcSelectedValue,
-                                                     zcSelectedIsUsed);
+        for(int j=0;j<amount;j++) {
 
-        if (strError != "")
-            throw JSONRPCError(RPC_WALLET_ERROR, strError);
+            string strError = pwalletMain->SpendZerocoin(thirdPartyaddress, (denomination_in * COIN), denomination, wtx, coinSerial, txHash, zcSelectedValue,
+                                                         zcSelectedIsUsed);
 
-        txids.push_back(wtx.GetHash().GetHex());
+            if (strError != "")
+                throw JSONRPCError(RPC_WALLET_ERROR, strError);
+
+            txids.push_back(wtx.GetHash().GetHex());
+        }
     }
 
     return txids;
 
 }
+
+// UniValue spendmanyzerocoin(const UniValue& params, bool fHelp) {
+
+//     if (fHelp || params.size() != 1)
+//         throw runtime_error(
+//                 "spendmanyzerocoin {\"address\":<denomination>(1,10,25,50,100), \"amount\": 10...}\n"
+//                 + HelpRequiringPassphrase()
+//                 + "\nSpend multiple zerocoins. Amounts must be of denominations specified.\n"
+//                 "\nArguments:\n"
+//                 "1. \"addresses\"             (object, required) A json object with addresses and amounts\n"
+//                     "    {\n"
+//                     "      \"address\":amount   (numeric or string) The zcoin address is the key; leave as \"\" to spend to self. The numeric amount must be one of (1,10,25,50,100)\n"
+//                     "      ,...\n"
+//                     "    }\n"
+//                 "\nExamples:\n"
+//                     + HelpExampleCli("spendmanyzerocoin", "\"\" \"{\\\"TXq6ZT3JYjkAm25ruviKk9sJNNNhQAjhey\\\":25,\\\"\\\":10}\"")
+//         );
+
+//     UniValue txids(UniValue::VARR);
+
+//     LOCK2(cs_main, pwalletMain->cs_wallet);
+
+//     int64_t nAmount = 0;
+//     libzerocoin::CoinDenomination denomination;
+
+//     UniValue sendTo = params[0].get_obj();
+
+//     vector<string> keys = sendTo.getKeys();
+//     BOOST_FOREACH(const string& address_str, keys)
+//     {
+//         nAmount = AmountFromValue(sendTo[address_str]);
+
+//         LogPrintf("ZMQ: nAmount: %s\n", nAmount / COIN);
+
+//         switch(nAmount / COIN){
+//             case 1:
+//                 denomination = libzerocoin::ZQ_LOVELACE;
+//                 break;
+//             case 10:
+//                 denomination = libzerocoin::ZQ_GOLDWASSER;
+//                 break;
+//             case 25:
+//                 denomination = libzerocoin::ZQ_RACKOFF;
+//                 break;
+//             case 50:
+//                 denomination = libzerocoin::ZQ_PEDERSEN;
+//                 break;
+//             case 100:
+//                 denomination = libzerocoin::ZQ_WILLIAMSON;                                                
+//                 break;
+//             default:
+//                 throw runtime_error(
+//                     "spendmanyzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n");
+//         }
+
+//         string thirdPartyaddress = "";
+//         if (!(address_str == "")){
+//             CBitcoinAddress address(address_str);
+//             if (!address.IsValid())
+//                 throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Zcoin address");
+//             thirdPartyaddress = address_str;
+//         }
+
+//         EnsureWalletIsUnlocked();
+
+//         // Wallet comments
+//         CWalletTx wtx;
+//         CBigNum coinSerial;
+//         uint256 txHash;
+//         CBigNum zcSelectedValue;
+//         bool zcSelectedIsUsed;
+
+//         string strError = pwalletMain->SpendZerocoin(thirdPartyaddress, nAmount, denomination, wtx, coinSerial, txHash, zcSelectedValue,
+//                                                      zcSelectedIsUsed);
+
+//         if (strError != "")
+//             throw JSONRPCError(RPC_WALLET_ERROR, strError);
+
+//         txids.push_back(wtx.GetHash().GetHex());
+//     }
+
+//     return txids;
+
+// }
 
 UniValue resetmintzerocoin(const UniValue& params, bool fHelp) {
     if (fHelp || params.size() != 0)
@@ -3294,7 +3431,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "removeprunedfunds",        &removeprunedfunds,        true  },
     { "wallet",             "setmininput",              &setmininput,              false },
     { "wallet",             "listunspentmintzerocoins", &listunspentmintzerocoins, false },
-    { "wallet",             "mintzerocoin",             &mintzerocoin,             false },
+    { "wallet",             "mintmanyzerocoin",             &mintmanyzerocoin,             false },
     { "wallet",             "spendzerocoin",            &spendzerocoin,            false },
     { "wallet",             "spendmanyzerocoin",        &spendmanyzerocoin,        false },
     { "wallet",             "resetmintzerocoin",        &resetmintzerocoin,        false },
