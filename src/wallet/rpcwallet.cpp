@@ -1358,7 +1358,15 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
                 entry.push_back(Pair("involvesWatchonly", true));
             entry.push_back(Pair("account", strSentAccount));
             MaybePushAddress(entry, s.destination, addr);
-            entry.push_back(Pair("category", "send"));
+            if(wtx.IsZerocoinMint(wtx)){
+                    entry.push_back(Pair("category", "mint"));
+                }
+            else if(wtx.IsZerocoinSpend()){
+                    entry.push_back(Pair("category", "spend"));
+                }
+            else {
+                entry.push_back(Pair("category", "send"));
+            }
             entry.push_back(Pair("amount", ValueFromAmount(-s.amount)));
             if (pwalletMain->mapAddressBook.count(s.destination))
                 entry.push_back(Pair("label", pwalletMain->mapAddressBook[s.destination].name));
@@ -1390,13 +1398,12 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
                 {
                     int txHeight = chainActive.Height() - wtx.GetDepthInMainChain();
                     CScript payee;
+
                     mnpayments.GetBlockPayee(txHeight, payee);
-                 
+                    //compare address of payee to addr. 
                     CTxDestination payeeDest;
                     ExtractDestination(payee, payeeDest);
                     CBitcoinAddress payeeAddr(payeeDest);
-
-                    //compare address of payee and addr.
                     if(addr.ToString() == payeeAddr.ToString()){
                         entry.push_back(Pair("category", "znode"));
                     }
@@ -1407,14 +1414,10 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
                     else
                         entry.push_back(Pair("category", "generate"));
                 }
-                else if(wtx.IsZerocoinMint(wtx)){
-                    entry.push_back(Pair("category", "mint"));
-                }
                 else if(wtx.IsZerocoinSpend()){
                     entry.push_back(Pair("category", "spend"));
                 }
-                else
-                {
+                else {
                     entry.push_back(Pair("category", "receive"));
                 }
                 entry.push_back(Pair("amount", ValueFromAmount(r.amount)));
