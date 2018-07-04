@@ -452,12 +452,13 @@ bool mtp_verify(const char* input, const uint32_t target,
     return true;
 }
 
-void mtp_hash(const char* input, uint32_t target, uint8_t hash_root_mtp[16],
+namespace {
+
+bool mtp_hash1(const char* input, uint32_t target, uint8_t hash_root_mtp[16],
         unsigned int& nonce, uint64_t block_mtp[72*2][128],
         std::deque<std::vector<uint8_t>> proof_mtp[73*3], uint256 pow_limit,
         uint256& output)
 {
-BEGIN:
     LogPrintf("START mtp_hash\n");
 
 #define TEST_OUTLEN 32
@@ -545,7 +546,7 @@ BEGIN:
     while (true) {
         if (n_nonce_internal == UINT_MAX) {
             // go to create a new merkle tree
-            goto BEGIN;
+            return false;
         }
 
         std::memset(&y[0], 0, sizeof(y));
@@ -708,4 +709,19 @@ BEGIN:
     LogPrintf("RETURN mtp_hash\n");
     LogPrintf("FREE memory\n");
     free_memory(&context, (uint8_t *)instance.memory, instance.memory_blocks, sizeof(block));
+    return true;
+}
+
+} // unnamed namespace
+
+void mtp_hash(const char* input, uint32_t target, uint8_t hash_root_mtp[16],
+        unsigned int& nonce, uint64_t block_mtp[72*2][128],
+        std::deque<std::vector<uint8_t>> proof_mtp[73*3], uint256 pow_limit,
+        uint256& output)
+{
+    bool done = false;
+    while (!done) {
+        done = mtp_hash1(input, target, hash_root_mtp, nonce, block_mtp,
+                proof_mtp, pow_limit, output);
+    }
 }
