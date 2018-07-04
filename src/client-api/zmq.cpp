@@ -391,6 +391,17 @@ json mint(json request){
 
     LogPrintf("ZMQ: result json: %s\n", result_json.dump());
 
+      if(result_json["errors"].is_null()){
+        // add 'fee' entryto return JSON
+        json txids = result_json["data"];
+
+        result_json.erase("data");
+
+        result_json["data"] = nullptr;
+
+        result_json["data"]["txids"] = txids;    
+    }
+
     return result_json;
 
 }
@@ -437,6 +448,19 @@ json get_tx_fee(json request){
 
     json get_transaction_fee_json = response_to_json(rpc_raw);
 
+    if(get_transaction_fee_json["errors"].is_null()){
+        // add 'fee' entryto return JSON
+        string fee_str = get_transaction_fee_json["data"].dump();
+
+        int fee = stoi(fee_str);
+
+        get_transaction_fee_json.erase("data");
+
+        get_transaction_fee_json["data"] = nullptr;
+
+        get_transaction_fee_json["data"]["fee"] = fee;    
+    }
+
     LogPrintf("ZMQ: called gettransactionfee. result: %s\n", get_transaction_fee_json.dump());
     return get_transaction_fee_json;
 
@@ -453,6 +477,18 @@ json send_private(json request){
     UniValue rpc_raw = SetupRPC(rpc_args);
 
     json result_json = response_to_json(rpc_raw);
+
+
+    if(result_json["errors"].is_null()){
+        // add 'fee' entryto return JSON
+        json txids = result_json["data"];
+
+        result_json.erase("data");
+
+        result_json["data"] = nullptr;
+
+        result_json["data"]["txids"] = txids;    
+    }
 
     return result_json;
 }
@@ -484,8 +520,17 @@ json send_zcoin(json request){
 
     rpc_raw = SetupRPC(rpc_args);
 
-
     json result_json = response_to_json(rpc_raw);
+
+    if(result_json["errors"].is_null()){
+        string txid = result_json["data"].dump();
+
+        result_json.erase("data");
+
+        result_json["data"] = nullptr;
+
+        result_json["data"]["txid"] = txid; 
+    }
 
     return result_json;
 
@@ -513,6 +558,7 @@ json initial_state(){
     vector<string> rpc_args;
     // to get the complete transaction history for the wallet, we use the listsinceblock rpc command
     string genesis_block_hash = chainActive[0]->GetBlockHash().ToString();
+    LogPrintf("ZMQ: genesis_block_hash: %s\n", genesis_block_hash);
     rpc_args.push_back("listsinceblock");
     rpc_args.push_back(genesis_block_hash);
 
@@ -524,25 +570,57 @@ json initial_state(){
     json address_jsons;
     BOOST_FOREACH(json tx_json, result_json["data"]["transactions"]){
         LogPrintf("ZMQ: getting address in req/rep\n");
-        string address_str = tx_json["address"];
+        string address_str;
+        if(tx_json["address"].is_null()){
+          address_str = "";
+        }else address_str = tx_json["address"];
+    
         LogPrintf("ZMQ: address in req/rep: %s\n", address_str);
         string txid = tx_json["txid"];
         LogPrintf("ZMQ: txid in req/rep: %s\n", txid);
 
+        // erase values we don't want to return
+        tx_json.erase("account");
+        tx_json.erase("vout");
+        tx_json.erase("blockindex");
+        tx_json.erase("walletconflicts");
+        tx_json.erase("bip125-replaceable");
+        tx_json.erase("abandoned");
+        tx_json.erase("generated");
+
+        if(tx_json["category"]=="generate" || tx_json["category"]=="immature"){
+          tx_json["category"] = "mined";
+        }
+
+        //make negative values positive
+        if(tx_json["amount"]<0){
+          float amount = tx_json["amount"];
+          tx_json["amount"]=amount * -1;
+        }
+        
         // add transaction to address field
         address_jsons[address_str][txid] = tx_json;
 
+        LogPrintf("ZMQ: added tx_json\n");
+
         // tally up total amount
         int amount = tx_json["amount"];
+
+        LogPrintf("ZMQ: got amount\n");
 
         if(!(address_jsons[address_str]["total"].is_null())){
             int old_amount = address_jsons[address_str]["total"];
             amount += old_amount;
         }
 
+        LogPrintf("ZMQ: checked amount\n");
+
         address_jsons[address_str]["total"] = amount;
+
+        LogPrintf("ZMQ: end loop\n");
     }
 
+    LogPrintf("ZMQ: returning values in initial_state.\n");
     return address_jsons;
 }
 
@@ -747,7 +825,7 @@ static void* REQREP_ZMQ(void *arg)
             rpc_json = payment_request(request_json);
         }
 
-        else if(request_json["collection"]=="initial-state-wallet"){
+        else if(request_json["collection"]=="state-wallet"){
             rpc_json = initial_state();
         }
 
@@ -806,15 +884,15 @@ bool StartREQREPZMQ()
     LogPrintf("ZMQ: created socket\n");
 
     //set up REP auth
-    vector<string> keys = read_cert("server");
+    // vector<string> keys = read_cert("server");
 
-    string server_secret_key = keys.at(1);
+    // string server_secret_key = keys.at(1);
 
-    LogPrintf("ZMQ: secret_server_key: %s\n", server_secret_key);
+    // LogPrintf("ZMQ: secret_server_key: %s\n", server_secret_key);
 
-    const int curve_server_enable = 1;
-    zmq_setsockopt(zmqpsocket, ZMQ_CURVE_SERVER, &curve_server_enable, sizeof(curve_server_enable));
-    zmq_setsockopt(zmqpsocket, ZMQ_CURVE_SECRETKEY, server_secret_key.c_str(), 40);
+    // const int curve_server_enable = 1;
+    // zmq_setsockopt(zmqpsocket, ZMQ_CURVE_SERVER, &curve_server_enable, sizeof(curve_server_enable));
+    // zmq_setsockopt(zmqpsocket, ZMQ_CURVE_SECRETKEY, server_secret_key.c_str(), 40);
 
 
     // Get network port. TODO add zmq ports to base params
