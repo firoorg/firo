@@ -21,6 +21,8 @@
 #include "walletdb.h"
 #include "zerocoin.h"
 
+#include <znode-payments.h>
+
 #include <stdint.h>
 
 #include <boost/assign/list_of.hpp>
@@ -1392,7 +1394,7 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
                  
                     CTxDestination payeeDest;
                     ExtractDestination(payee, payeeDest);
-                    CBitcoinAddress payeeAddr(payee_dest);
+                    CBitcoinAddress payeeAddr(payeeDest);
 
                     //compare address of payee and addr.
                     if(addr.ToString() == payeeAddr.ToString()){
