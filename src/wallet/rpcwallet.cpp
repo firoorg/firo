@@ -1327,9 +1327,8 @@ UniValue listreceivedbyaccount(const UniValue& params, bool fHelp)
     return ListReceived(params, true);
 }
 
-static void MaybePushAddress(UniValue & entry, const CTxDestination &dest)
-{
-    CBitcoinAddress addr;
+static void MaybePushAddress(UniValue & entry, const CTxDestination &dest, CBitcoinAddress &addr)
+{  
     if (addr.Set(dest))
         entry.push_back(Pair("address", addr.ToString()));
 }
@@ -1340,6 +1339,7 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
     string strSentAccount;
     list<COutputEntry> listReceived;
     list<COutputEntry> listSent;
+    CBitcoinAddress addr;
 
     wtx.GetAmounts(listReceived, listSent, nFee, strSentAccount, filter);
 
@@ -1355,7 +1355,7 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
             if(involvesWatchonly || (::IsMine(*pwalletMain, s.destination) & ISMINE_WATCH_ONLY))
                 entry.push_back(Pair("involvesWatchonly", true));
             entry.push_back(Pair("account", strSentAccount));
-            MaybePushAddress(entry, s.destination);
+            MaybePushAddress(entry, s.destination, addr);
             entry.push_back(Pair("category", "send"));
             entry.push_back(Pair("amount", ValueFromAmount(-s.amount)));
             if (pwalletMain->mapAddressBook.count(s.destination))
@@ -1383,15 +1383,33 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
                 if(involvesWatchonly || (::IsMine(*pwalletMain, r.destination) & ISMINE_WATCH_ONLY))
                     entry.push_back(Pair("involvesWatchonly", true));
                 entry.push_back(Pair("account", account));
-                MaybePushAddress(entry, r.destination);
+                MaybePushAddress(entry, r.destination, addr);
                 if (wtx.IsCoinBase())
                 {
-                    if (wtx.GetDepthInMainChain() < 1)
+                    int txHeight = chainActive.Height() - wtx.GetDepthInMainChain();
+                    CScript payee;
+                    mnpayments.GetBlockPayee(txHeight, payee);
+                 
+                    CTxDestination payeeDest;
+                    ExtractDestination(payee, payeeDest);
+                    CBitcoinAddress payeeAddr(payee_dest);
+
+                    //compare address of payee and addr.
+                    if(addr.ToString() == payeeAddr.ToString()){
+                        entry.push_back(Pair("category", "znode"));
+                    }
+                    else if (wtx.GetDepthInMainChain() < 1)
                         entry.push_back(Pair("category", "orphan"));
                     else if (wtx.GetBlocksToMaturity() > 0)
                         entry.push_back(Pair("category", "immature"));
                     else
                         entry.push_back(Pair("category", "generate"));
+                }
+                else if(wtx.IsZerocoinMint(wtx)){
+                    entry.push_back(Pair("category", "mint"));
+                }
+                else if(wtx.IsZerocoinSpend()){
+                    entry.push_back(Pair("category", "spend"));
                 }
                 else
                 {
