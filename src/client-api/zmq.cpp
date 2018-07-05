@@ -572,7 +572,7 @@ json initial_state(){
         LogPrintf("ZMQ: getting address in req/rep\n");
         string address_str;
         if(tx_json["address"].is_null()){
-          address_str = "";
+          address_str = "ZEROCOIN_MINT";
         }else address_str = tx_json["address"];
     
         LogPrintf("ZMQ: address in req/rep: %s\n", address_str);
@@ -593,13 +593,21 @@ json initial_state(){
         }
 
         //make negative values positive
+        LogPrintf("ZMQ: checking amount\n");
         if(tx_json["amount"]<0){
           float amount = tx_json["amount"];
           tx_json["amount"]=amount * -1;
         }
-        
+        LogPrintf("ZMQ: checking fee\n");
+        if(!tx_json["fee"].is_null()){
+            if(tx_json["fee"]<0){
+              float fee = tx_json["fee"];
+              tx_json["fee"]=fee * -1;
+            }
+        }   
+
         // add transaction to address field
-        address_jsons[address_str][txid] = tx_json;
+        address_jsons[address_str]["txids"][txid] = tx_json;
 
         LogPrintf("ZMQ: added tx_json\n");
 
@@ -620,8 +628,10 @@ json initial_state(){
         LogPrintf("ZMQ: end loop\n");
     }
 
+    result_json["data"] = address_jsons;
+
     LogPrintf("ZMQ: returning values in initial_state.\n");
-    return address_jsons;
+    return result_json;
 }
 
 json payment_request(json request){
@@ -883,7 +893,7 @@ bool StartREQREPZMQ()
     }
     LogPrintf("ZMQ: created socket\n");
 
-    //set up REP auth
+    // //set up REP auth
     // vector<string> keys = read_cert("server");
 
     // string server_secret_key = keys.at(1);
