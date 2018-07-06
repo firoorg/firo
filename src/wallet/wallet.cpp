@@ -2243,6 +2243,34 @@ bool CWallet::GetVinAndKeysFromOutput(COutput out, CTxIn &txinRet, CPubKey &pubK
     return true;
 }
 
+bool CWallet::IsMintFromTxOutUsed(CTxOut& txout){
+    LOCK(cs_wallet);
+
+    if(!txout.scriptPubKey.IsZerocoinMint()){
+        throw runtime_error(std::string(__func__) + ": txout is not a ZEROCOIN_MINT\n");
+    }
+
+    list <CZerocoinEntry> listPubCoin = list<CZerocoinEntry>();
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+    walletdb.ListPubCoin(listPubCoin);
+
+    vector<unsigned char> vchZeroMint;
+    vchZeroMint.insert(vchZeroMint.end(), txout.scriptPubKey.begin() + 6,
+                       txout.scriptPubKey.begin() + txout.scriptPubKey.size());
+
+    CBigNum pubCoin;
+    pubCoin.setvch(vchZeroMint);
+    LogPrintf("Pubcoin=%s\n", pubCoin.ToString());
+    BOOST_FOREACH(const CZerocoinEntry &pubCoinItem, listPubCoin) {
+        if (pubCoinItem.value == pubCoin){
+            return pubCoinItem.IsUsed;
+        }
+    }
+    // If we got here, mint not contained in the db, so some error has occured.
+    throw runtime_error(std::string(__func__) + ": txout mint not contained in the database\n");
+
+}
+
 //[zcoin]
 void CWallet::ListAvailableCoinsMintCoins(vector <COutput> &vCoins, bool fOnlyConfirmed) const {
     vCoins.clear();
