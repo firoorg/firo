@@ -30,6 +30,42 @@ inline int GetZerocoinChainID()
     return 0x0001; // We are the first :)
 }
 
+// Zcoin - MTP
+class CMTPHashData {
+public:
+    int32_t nVersionMTP = 0x1000;
+    uint8_t hashRootMTP[16]; // 16 is 128 bit of blake2b
+    uint64_t nBlockMTP[72*2][128]; // 128 is ARGON2_QWORDS_IN_BLOCK and 72 * 2 is L * 2
+    std::deque<std::vector<uint8_t>> nProofMTP[72*3]; // 72 * 3 is L * 3
+
+    CMTPHashData() {
+        memset(hashRootMTP, 0, sizeof(uint8_t)*16);
+        memset(nBlockMTP, 0, sizeof(uint64_t) * 72 * 2 * 128);
+    }
+
+    ADD_SERIALIZE_METHODS;
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+        READWRITE(nVersionMTP);
+
+        int i, j;
+        for(i = 0; i < 16; i++){
+            READWRITE(hashRootMTP[i]);
+        }
+
+        for(i = 0; i < 72*2; i++){
+            for(j = 0; j < 128; j++){
+                READWRITE(nBlockMTP[i][j]);
+            }
+        }
+
+        for(int i = 0; i < 72*3; i++){
+            READWRITE(nProofMTP[i]);
+        }
+    }
+};
+
 class CBlockHeader
 {
 public:
@@ -40,12 +76,10 @@ public:
     uint32_t nTime;
     uint32_t nBits;
     uint32_t nNonce;
-    // Zcoin - MTP
-    int32_t nVersionMTP = 0x1000;
-    uint8_t hashRootMTP[16]; // 16 is 128 bit of blake2b
-    uint64_t nBlockMTP[72*2][128]; // 128 is ARGON2_QWORDS_IN_BLOCK and 72 * 2 is L * 2
-    std::deque<std::vector<uint8_t>> nProofMTP[72*3]; // 72 * 3 is L * 3
 
+    // Zcoin - MTP
+    // Store this only when absolutely needed for verification
+    std::shared_ptr<CMTPHashData> mtpHashData;
 
     static const int CURRENT_VERSION = 2;
 
@@ -69,22 +103,16 @@ public:
         READWRITE(nBits);
         READWRITE(nNonce);
         // Zcoin - MTP
-        if(nTime >= SWITCH_TO_MTP_BLOCK_HEADER){
-        	READWRITE(nVersionMTP);
-        	int i, j;
-        	for(i = 0; i < 16; i++){
-        		READWRITE(hashRootMTP[i]);
-        	}
-
-        	for(i = 0; i < 72*2; i++){
-        		for(j = 0; j < 128; j++){
-            		READWRITE(nBlockMTP[i][j]);
-        		}
-        	}
-
-        	for(i = 0; i < 72*3; i++){
-        		READWRITE(nProofMTP[i]);
-        	}
+        // On read: allocate and read. On write: write only if already allocated
+        if (nTime >= SWITCH_TO_MTP_BLOCK_HEADER) {
+            if (ser_action.ForRead()) {
+                mtpHashData = make_shared<CMTPHashData>();
+                READWRITE(*mtpHashData);
+            }
+            else {
+                if (mtpHashData)
+                    READWRITE(*mtpHashData);
+            }
         }
     }
 
@@ -98,13 +126,9 @@ public:
         nNonce = 0;
         isComputed = -1;
         powHash.SetNull();
+
         // Zcoin - MTP
-        nVersionMTP = 0x1000;
-        memset(hashRootMTP, 0, sizeof(uint8_t)*16);
-        memset(nBlockMTP, 0, sizeof(uint64_t) * 72 * 2 * 128);
-        for(int i = 0; i < 72*3; i++){
-        	nProofMTP[i].clear();
-        }
+        mtpHashData.reset();
     }
 
     int GetChainID() const
@@ -200,15 +224,6 @@ public:
         block.nTime          = nTime;
         block.nBits          = nBits;
         block.nNonce         = nNonce;
-        // Zcoin - MTP
-        if(nTime >= SWITCH_TO_MTP_BLOCK_HEADER){
-			block.nVersionMTP         = nVersionMTP;
-			memcpy(block.hashRootMTP, hashRootMTP, sizeof(uint8_t) * 16);
-			memcpy(block.nBlockMTP, nBlockMTP, sizeof(uint64_t) * 72 * 2 * 128);
-			for(int i = 0; i < 72*3; i++){
-				block.nProofMTP[i] = nProofMTP[i];
-			}
-		}
         return block;
     }
 
@@ -231,12 +246,14 @@ public:
 
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+        // Write-only
+        assert(!ser_action.ForRead() && mtpHashData);
     	READWRITE(this->nVersion);
     	READWRITE(hashPrevBlock);
     	READWRITE(hashMerkleRoot);
     	READWRITE(nTime);
     	READWRITE(nBits);
-    	READWRITE(nVersionMTP);
+        READWRITE(mtpHashData->nVersionMTP);
     }
 };
 

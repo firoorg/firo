@@ -514,26 +514,9 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
         pblock->nNonce         = 0;
 
         // Zcoin - MTP
-        const int nHeight = pindexPrev == NULL ? 0 : pindexPrev->nHeight + 1;
-        bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
-        //if (!fTestNet && nHeight >= HF_MTP_HEIGHT){
-        if (!fTestNet && pblock->nTime >= SWITCH_TO_MTP_BLOCK_HEADER){
-        	memset(pblock->hashRootMTP, 0, sizeof(uint8_t) * 16);
-            memset(pblock->nBlockMTP, 0, sizeof(uint64_t) * 128 * 72 * 2);
-            for(int i = 0; i < 72*3; i++){
-            	pblock->nProofMTP[i].clear();
-            }
-        };
-
-        //if (fTestNet && nHeight >= HF_MTP_HEIGHT_TESTNET){
-        if (fTestNet && pblock->nTime >= SWITCH_TO_MTP_BLOCK_HEADER){
-        	memset(pblock->hashRootMTP, 0, sizeof(uint8_t) * 16);
-            memset(pblock->nBlockMTP, 0, sizeof(uint64_t) * 128 * 72 * 2);
-            for(int i = 0; i < 72*3; i++){
-            	pblock->nProofMTP[i].clear();
-            }
-        };
-        //LogPrintf("CreateNewBlock(): AFTER CALL MTP\n");
+        bool fMTPIsRequired = pblock->nTime >= Params().nMTPSwitchTime;
+        if (fMTPIsRequired)
+            pblock->mtpHashData = make_shared<CMTPHashData>();
 
         pblocktemplate->vTxSigOpsCost[0] = GetLegacySigOpCount(pblock->vtx[0]);
 
@@ -1156,45 +1139,28 @@ void static ZcoinMiner(const CChainParams &chainparams) {
             LogPrintf("pblock: %s\n", pblock->ToString());
             LogPrintf("pblock->nVersion: %s\n", pblock->nVersion);
             LogPrintf("pblock->nTime: %s\n", pblock->nTime);
-            LogPrintf("pblock->hashRootMTP: %s\n", &pblock->hashRootMTP);
             LogPrintf("pblock->nNonce: %s\n", &pblock->nNonce);
-            LogPrintf("pblock->nBlockMTP: %s\n", &pblock->nBlockMTP);
-            LogPrintf("pblock->nProofMTP: %s\n", &pblock->nProofMTP);
             LogPrintf("powLimit: %s\n", Params().GetConsensus().powLimit.ToString());
+
+            bool fMTPIsRequired = pblock->nTime >= Params().nMTPSwitchTime;
+            CMTPHashData *mtpHashData = nullptr;
+            if (fMTPIsRequired) {
+                pblock->mtpHashData = make_shared<CMTPHashData>();
+                mtpHashData = pblock->mtpHashData.get();
+            }
 
             while (true) {
                 // Check if something found
                 uint256 thash;
 
                 while (true) {
-                    //if (!fTestNet && pindexPrev->nHeight + 1 >= HF_MTP_HEIGHT){
-                	if (!fTestNet && pblock->nTime >= SWITCH_TO_MTP_BLOCK_HEADER){
+                	if (fMTPIsRequired) {
                 		//sleep(60);
                     	LogPrintf("BEFORE: mtp_hash\n");
                     	CMTPInput input{*pblock};
                     	CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
                     	ss << input;
-                    	mtp_hash((char*)&ss[0], pblock->nBits, pblock->hashRootMTP, pblock->nNonce, pblock->nBlockMTP, pblock->nProofMTP, Params().GetConsensus().powLimit, thash);
-                    	LogPrintf("AFTER: mtp_hash\n");
-                    	LogPrintf("pblock->hashRootMTP:\n");
-                    	for(int i = 0; i < 16; i++){
-                    		LogPrintf("%0x", pblock->hashRootMTP[i]);
-                    	}
-                    	LogPrintf("\n");
-                    	LogPrintf("pblock->nNonce: %s\n", pblock->nNonce);
-                    	LogPrintf("pblock->nBlockMTP:\n");
-						for (int i = 0; i < 1; i++) {
-							LogPrintf("%s = ", i);
-							for (int j = 0; j < 10; j++) {
-								LogPrintf("%0x", pblock->nBlockMTP[i][j]);
-							}
-							LogPrintf("\n");
-						}
-						/*LogPrintf("pblock->nProofMTP: \n");
-						for (i = 0; i < 72 * 3; i++) {
-							LogPrintf("%s = %s\n", i , pblock->nProofMTP[i]);
-						}*/
-
+                    	mtp_hash((char*)&ss[0], pblock->nBits, mtpHashData->hashRootMTP, pblock->nNonce, mtpHashData->nBlockMTP, mtpHashData->nProofMTP, Params().GetConsensus().powLimit, thash);
                     } else if (!fTestNet && pindexPrev->nHeight + 1 >= HF_LYRA2Z_HEIGHT) {
                         lyra2z_hash(BEGIN(pblock->nVersion), BEGIN(thash));
                     } else if (!fTestNet && pindexPrev->nHeight + 1 >= HF_LYRA2_HEIGHT) {
@@ -1202,13 +1168,6 @@ void static ZcoinMiner(const CChainParams &chainparams) {
                     } else if (!fTestNet && pindexPrev->nHeight + 1 >= HF_LYRA2VAR_HEIGHT) {
                         LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2,
                               pindexPrev->nHeight + 1, 256);
-                    //} else if (fTestNet && pindexPrev->nHeight + 1 >= HF_MTP_HEIGHT_TESTNET) { // testnet
-                    } else if (fTestNet && pblock->nTime >= SWITCH_TO_MTP_BLOCK_HEADER) { // testnet
-                    	LogPrintf("BEFORE: mtp_hash\n");
-                    	CMTPInput input{*pblock};
-                    	CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
-                    	ss << input;
-                    	mtp_hash((char*)&ss[0], pblock->nBits, pblock->hashRootMTP, pblock->nNonce, pblock->nBlockMTP, pblock->nProofMTP, Params().GetConsensus().powLimit, thash);
                     } else if (fTestNet && pindexPrev->nHeight + 1 >= HF_LYRA2Z_HEIGHT_TESTNET) { // testnet
                         lyra2z_hash(BEGIN(pblock->nVersion), BEGIN(thash));
                     } else if (fTestNet && pindexPrev->nHeight + 1 >= HF_LYRA2_HEIGHT_TESTNET) { // testnet

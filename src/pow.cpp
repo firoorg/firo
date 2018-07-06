@@ -129,22 +129,19 @@ unsigned int CalculateNextWorkRequired(const CBlockIndex *pindexLast, int64_t nF
 }
 
 // Zcoin - MTP
-bool CheckMerkleTreeProof(int nHeight, const CBlockHeader &block, const Consensus::Params &params) {
-	bool fTestNet = Params().NetworkIDString() == CBaseChainParams::TESTNET;
-	//if (!fTestNet && nHeight < HF_MTP_HEIGHT){
-	if (!fTestNet && block.nTime < SWITCH_TO_MTP_BLOCK_HEADER){
+bool CheckMerkleTreeProof(const CBlockHeader &block, const Consensus::Params &params) {
+    if (block.nTime < Params().nMTPSwitchTime)
 	    return true;
-	};
-	//if (fTestNet && nHeight < HF_MTP_HEIGHT_TESTNET){
-	if (fTestNet && block.nTime < SWITCH_TO_MTP_BLOCK_HEADER){
-		return true;
-	};
+
+    shared_ptr<CMTPHashData> mtpHashData = block.mtpHashData;
+    if (!mtpHashData)
+        return false;
 
 	CMTPInput input{block};
 	CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
 	ss << input;
-	bool isVerified = mtp_verify((char*)&ss[0], block.nBits, block.hashRootMTP, block.nNonce,
-			block.nBlockMTP, block.nProofMTP, Params().GetConsensus().powLimit);
+	bool isVerified = mtp_verify((char*)&ss[0], block.nBits, mtpHashData->hashRootMTP, block.nNonce,
+			mtpHashData->nBlockMTP, mtpHashData->nProofMTP, Params().GetConsensus().powLimit);
     if(!isVerified){
     	return false;
     }

@@ -90,6 +90,9 @@ public:
 	int nModulusV2StartBlock;
     int nModulusV1MempoolStopBlock;
 	int nModulusV1StopBlock;
+
+    /** switch to MTP time */
+    uint32_t nMTPSwitchTime;
 	
 protected:
     CChainParams() {}

@@ -211,6 +211,7 @@ public:
 	    nModulusV2StartBlock = ZC_MODULUS_V2_START_BLOCK;
         nModulusV1MempoolStopBlock = ZC_MODULUS_V1_MEMPOOL_STOP_BLOCK;
 	    nModulusV1StopBlock = ZC_MODULUS_V1_STOP_BLOCK;
+        nMTPSwitchTime = SWITCH_TO_MTP_BLOCK_HEADER;
     }
 };
 
@@ -341,6 +342,7 @@ public:
 	    nModulusV2StartBlock = ZC_MODULUS_V2_TESTNET_START_BLOCK;
         nModulusV1MempoolStopBlock = ZC_MODULUS_V1_TESTNET_MEMPOOL_STOP_BLOCK;
 	    nModulusV1StopBlock = ZC_MODULUS_V1_TESTNET_STOP_BLOCK;
+        nMTPSwitchTime = SWITCH_TO_MTP_BLOCK_HEADER;
     }
 };
 
@@ -443,6 +445,7 @@ public:
         nModulusV2StartBlock = 130;
         nModulusV1MempoolStopBlock = 135;
         nModulusV1StopBlock = 140;
+        nMTPSwitchTime = INT_MAX;
     }
 
     void UpdateBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout) {
