@@ -233,6 +233,7 @@ public:
 
     std::string ToString() const;
 };
+static CTxOut _txout;
 
 class CTxInWitness
 {
@@ -452,8 +453,7 @@ public:
 
     bool IsZerocoinSpend() const;
 
-    bool IsZerocoinMint(CTxOut& txout) const;
-
+    bool IsZerocoinMint(CTxOut& txout=_txout) const;
 
     friend bool operator==(const CTransaction& a, const CTransaction& b)
     {

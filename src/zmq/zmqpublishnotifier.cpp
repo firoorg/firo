@@ -518,7 +518,6 @@ bool CZMQAbstractPublishNotifier::processTransaction(const CTransaction &transac
         vector<CTxDestination> addresses_raw;
         txnouttype type;
         int nRequired;
-        CTxOut txout;
 
         ExtractDestinations(scriptPubKey, type, addresses_raw, nRequired);
         BOOST_FOREACH(const CTxDestination& tx_dest, addresses_raw)
@@ -539,7 +538,7 @@ bool CZMQAbstractPublishNotifier::processTransaction(const CTransaction &transac
              else if(transaction.IsCoinBase() && transaction.vout[i].nValue>=28 * COIN){
                 tx_json_in["transaction"]["type"] = "mining";
              }
-             else if(transaction.IsZerocoinMint(txout)){
+             else if(transaction.IsZerocoinMint()){
                 tx_json_in["transaction"]["type"] = "mint";
              }
             else if(transaction.IsZerocoinSpend()){
