@@ -406,21 +406,6 @@ json mint(json request){
 
 }
 json get_tx_fee(json request){
-    /*
-    argument:
-    {
-      "type": get,
-      "collection": "get_transaction_fee",
-      "data": {
-        "addresses": {
-            "{address}":{value},
-            "{address}":{value},
-            ...
-        }
-        "feeperkb": INT
-      }
-    }
-    */
 
     //first get tx fee.
     UniValue rpc_raw;

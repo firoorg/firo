@@ -365,7 +365,7 @@ bool CZMQPublishRawBlockNotifier::NotifyBlock(const CBlockIndex *pindex)
     //             }
     //         }
 
-    //         // send all the out address values
+    //         // send all the out address valuesz
     //         BOOST_FOREACH(json address_json, address_jsons){
     //             //LogPrintf("ZMQ: address_json: %s\n", address_json.dump());
     //             string address_topic = "address-";
@@ -518,6 +518,7 @@ bool CZMQAbstractPublishNotifier::processTransaction(const CTransaction &transac
         vector<CTxDestination> addresses_raw;
         txnouttype type;
         int nRequired;
+        CTxOut txout;
 
         ExtractDestinations(scriptPubKey, type, addresses_raw, nRequired);
         BOOST_FOREACH(const CTxDestination& tx_dest, addresses_raw)
@@ -538,7 +539,7 @@ bool CZMQAbstractPublishNotifier::processTransaction(const CTransaction &transac
              else if(transaction.IsCoinBase() && transaction.vout[i].nValue>=28 * COIN){
                 tx_json_in["transaction"]["type"] = "mining";
              }
-             else if(transaction.IsZerocoinMint(transaction)){
+             else if(transaction.IsZerocoinMint(txout)){
                 tx_json_in["transaction"]["type"] = "mint";
              }
             else if(transaction.IsZerocoinSpend()){

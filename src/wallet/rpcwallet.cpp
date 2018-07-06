@@ -1413,6 +1413,7 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
     list<COutputEntry> listReceived;
     list<COutputEntry> listSent;
     CBitcoinAddress addr;
+    CTxOut txout;
 
     wtx.GetAmounts(listReceived, listSent, nFee, strSentAccount, filter);
 
@@ -1429,8 +1430,9 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
                 entry.push_back(Pair("involvesWatchonly", true));
             entry.push_back(Pair("account", strSentAccount));
             MaybePushAddress(entry, s.destination, addr);
-            if(wtx.IsZerocoinMint(wtx)){
+            if(wtx.IsZerocoinMint(txout)){
                     entry.push_back(Pair("category", "mint"));
+                    entry.push_back(Pair("used", pwalletMain->IsMintFromTxOutUsed(txout)));
                 }
             else if(wtx.IsZerocoinSpend()){
                     entry.push_back(Pair("category", "spend"));
