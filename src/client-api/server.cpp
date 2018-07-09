@@ -3,55 +3,55 @@
 #include <univalue.h>
 #include <boost/signals2/signal.hpp>
 
-static bool fZMQRunning = false;
+static bool fAPIRunning = false;
 
-bool IsZMQRunning() {
-	return fZMQRunning;
+bool IsAPIRunning() {
+	return fAPIRunning;
 }
 
-static const CZMQCommand vZMQCommands[] =
+static const CAPICommand vAPICommands[] =
 { //  category              name                      actor (function)       
   //  --------------------- ------------------------  -----------------------  
   { "addressindex",       "getaddressbalance",      &getaddressbalance    },
 };
 
-static struct CZMQSignals
+static struct CAPISignals
 {
     boost::signals2::signal<void ()> Started;
     boost::signals2::signal<void ()> Stopped;
-    boost::signals2::signal<void (const CZMQCommand&)> PreCommand;
-    boost::signals2::signal<void (const CZMQCommand&)> PostCommand;
-} g_zmqSignals;
+    boost::signals2::signal<void (const CAPICommand&)> PreCommand;
+    boost::signals2::signal<void (const CAPICommand&)> PostCommand;
+} g_apiSignals;
 
-CZMQTable::CZMQTable()
+CAPITable::CAPITable()
 {
 	unsigned int vcidx;
-    for (vcidx = 0; vcidx < (sizeof(vZMQCommands) / sizeof(vZMQCommands[0])); vcidx++)
+    for (vcidx = 0; vcidx < (sizeof(vAPICommands) / sizeof(vAPICommands[0])); vcidx++)
     {
-        const CZMQCommand *pcmd;
+        const CAPICommand *pcmd;
 
-        pcmd = &vZMQCommands[vcidx];
+        pcmd = &vAPICommands[vcidx];
         mapCommands[pcmd->name] = pcmd;
     }
 }
 
 
 
-const CZMQCommand *CZMQTable::operator[](const std::string &name) const
+const CAPICommand *CAPITable::operator[](const std::string &name) const
 {
-	std::map<std::string, const CZMQCommand*>::const_iterator it = mapCommands.find(name);
+	std::map<std::string, const CAPICommand*>::const_iterator it = mapCommands.find(name);
 	if (it == mapCommands.end())
 		return NULL;
 	return (*it).second;
 }
 
-bool CZMQTable::appendCommand(const std::string& name, const CZMQCommand* pcmd)
+bool CAPITable::appendCommand(const std::string& name, const CAPICommand* pcmd)
 {
-    if (IsZMQRunning())
+    if (IsAPIRunning())
         return false;
 
     // don't allow overwriting for now
-    std::map<std::string, const CZMQCommand*>::const_iterator it = mapCommands.find(name);
+    std::map<std::string, const CAPICommand*>::const_iterator it = mapCommands.find(name);
     if (it != mapCommands.end())
         return false;
 
@@ -59,7 +59,7 @@ bool CZMQTable::appendCommand(const std::string& name, const CZMQCommand* pcmd)
     return true;
 }
 
-UniValue CZMQTable::execute(const std::string &strMethod, const UniValue &params) const
+UniValue CAPITable::execute(const std::string &strMethod, const UniValue &params) const
 {
     // Return immediately if in warmup
     // { don't think necessary
@@ -69,11 +69,11 @@ UniValue CZMQTable::execute(const std::string &strMethod, const UniValue &params
     // }
 
     // Find method
-    const CZMQCommand *pcmd = tableZMQ[strMethod];
+    const CAPICommand *pcmd = tableAPI[strMethod];
     if (!pcmd)
         throw JSONRPCError(RPC_METHOD_NOT_FOUND, "Method not found");
 
-    g_zmqSignals.PreCommand (*pcmd);
+    g_apiSignals.PreCommand (*pcmd);
 
     try
     {
@@ -85,7 +85,7 @@ UniValue CZMQTable::execute(const std::string &strMethod, const UniValue &params
         throw JSONRPCError(RPC_MISC_ERROR, e.what());
     }
 
-    g_zmqSignals.PostCommand(*pcmd);
+    g_apiSignals.PostCommand(*pcmd);
 }
 
-CZMQTable tableZMQ;
+CAPITable tableAPI;

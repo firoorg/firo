@@ -26,6 +26,9 @@ void StopREQREPZMQ();
 
 UniValue SetupRPC(std::vector<std::string> args);
 
+/* Setup a port for an auth/noauth port */
+bool SetupType(int type);
+
 /* read certificate from datadir certificate folder. */
 vector<string> read_cert(string type);
 

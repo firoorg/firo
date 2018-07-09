@@ -41,6 +41,8 @@ using namespace boost::filesystem;
 static const char DEFAULT_RPCCONNECT[] = "127.0.0.1";
 static const int DEFAULT_HTTP_CLIENT_TIMEOUT=900;
 
+static const int AUTH = 0;
+
 /** Reply structure for request_done to fill in */
 /*************** Start RPC setup functions *****************************************/
 struct HTTPReply
@@ -423,7 +425,6 @@ json get_tx_fee(json request){
 
     rpc_args.clear();
     rpc_args.push_back("gettransactionfee");
-    rpc_args.push_back("");
     rpc_args.push_back(get_tx_fee.dump());
 
     LogPrintf("ZMQ: dump of tx fee data: %s\n", get_tx_fee.dump());
@@ -497,9 +498,8 @@ json send_zcoin(json request){
 
     // now send for all addresses specified
     rpc_args.clear();
-    rpc_args.push_back("sendmany");
+    rpc_args.push_back("sendmanyfromany");
     // TODO deal with extra accounts
-    rpc_args.push_back("");
     rpc_args.push_back(request["data"]["addresses"].dump());
 
 
@@ -754,8 +754,11 @@ json payment_request(json request){
 /*************** End API function definitions *****************************************/
 
 /******************* Start REQ/REP ZMQ functions ******************************************/
-void *zmqpcontext;
-void *zmqpsocket;
+//std::vector<void *> contexts;
+void *context_auth;
+void *socket_auth;
+//std::vector<void *> sockets;
+pthread_t worker_auth;
 
 void zmqError(const char *str)
 {
@@ -777,7 +780,9 @@ int needStopREQREPZMQ(){
 // arg[0] is the broker
 static void* REQREP_ZMQ(void *arg)
 {
+    LogPrintf("ZMQ: IN REQREP_ZMQ\n");
     while (1) {
+        free(arg);
         // 1. get request message
         // 2. do something in tableZMQ
         // 3. reply result
@@ -788,7 +793,7 @@ static void* REQREP_ZMQ(void *arg)
         int rc = zmq_msg_init (&request);
         assert (rc == 0);
         /* Block until a message is available to be received from socket */
-        rc = zmq_recvmsg (zmqpsocket, &request, 0);
+        rc = zmq_recvmsg (socket_auth, &request, 0);
         if(rc==-1) return NULL;
 
         char* request_chars = (char*) malloc (rc + 1);
@@ -852,7 +857,7 @@ static void* REQREP_ZMQ(void *arg)
         std::memcpy (zmq_msg_data (&reply), response_str.data(), response_str.size());
         LogPrintf("ZMQ: Sending reply..\n");
         /* Block until a message is available to be sent from socket */
-        rc = zmq_sendmsg (zmqpsocket, &reply, 0);
+        rc = zmq_sendmsg (socket_auth, &reply, 0);
         assert(rc!=-1);
 
         LogPrintf("ZMQ: Reply sent.\n");
@@ -863,59 +868,78 @@ static void* REQREP_ZMQ(void *arg)
     return (void*)true;
 }
 
-bool StartREQREPZMQ()
-{
-    LogPrintf("ZMQ: Starting REQ/REP ZMQ server\n");
+bool SetupType(int type){
 
-    zmqpcontext = zmq_ctx_new();
+    context_auth = zmq_ctx_new();
 
-    LogPrintf("ZMQ: created context\n");
+    LogPrintf("ZMQ: created contexts\n");
 
-    zmqpsocket = zmq_socket(zmqpcontext,ZMQ_REP);
-    if(!zmqpsocket){
+    socket_auth = zmq_socket(context_auth,ZMQ_REP);
+    if(!socket_auth){
         LogPrintf("ZMQ: Failed to create socket\n");
         return false;
     }
-    LogPrintf("ZMQ: created socket\n");
+    LogPrintf("ZMQ: created auth socket\n");
 
-    // //set up REP auth
-    // vector<string> keys = read_cert("server");
+    // set up auth on auth port
+    // if(type==AUTH){
+    //     vector<string> keys = read_cert("server");
 
-    // string server_secret_key = keys.at(1);
+    //     string server_secret_key = keys.at(1);
 
-    // LogPrintf("ZMQ: secret_server_key: %s\n", server_secret_key);
+    //     LogPrintf("ZMQ: secret_server_key: %s\n", server_secret_key);
 
-    // const int curve_server_enable = 1;
-    // zmq_setsockopt(zmqpsocket, ZMQ_CURVE_SERVER, &curve_server_enable, sizeof(curve_server_enable));
-    // zmq_setsockopt(zmqpsocket, ZMQ_CURVE_SECRETKEY, server_secret_key.c_str(), 40);
-
+    //     const int curve_server_enable = 1;
+    //     zmq_setsockopt(socket_auth, ZMQ_CURVE_SERVER, &curve_server_enable, sizeof(curve_server_enable));
+    //     zmq_setsockopt(socket_auth, ZMQ_CURVE_SECRETKEY, server_secret_key.c_str(), 40);
+    // }
 
     // Get network port. TODO add zmq ports to base params
     string port;
     if(Params().NetworkIDString()==CBaseChainParams::MAIN){
-      port = "15557";
+      port = "1555";
     }
     else if(Params().NetworkIDString()==CBaseChainParams::TESTNET){
-      port = "25557";
+      port = "2555";
     }
     else if(Params().NetworkIDString()==CBaseChainParams::REGTEST){
-      port = "35557";
+      port = "3555";
     }
+
+    port.append(type==AUTH ? "7" : "8");
 
     LogPrintf("ZMQ: port = %s\n", port);
 
     string tcp = "tcp://*:";
 
-    int rc = zmq_bind(zmqpsocket, tcp.append(port).c_str());
+    int rc = zmq_bind(socket_auth, tcp.append(port).c_str());
     if (rc == -1)
     {
         LogPrintf("ZMQ: Unable to send ZMQ msg\n");
         return false;
     }
     LogPrintf("ZMQ: Bound socket\n");
-    //create worker & run a thread 
-    pthread_t worker;
-    pthread_create(&worker,NULL, REQREP_ZMQ, NULL);
+    //create worker_auth & run a thread 
+    // int *arg = (int*) malloc(sizeof(arg));
+    // if ( arg == NULL ) {
+    //     fprintf(stderr, "Couldn't allocate memory for thread arg.\n");
+    //     exit(EXIT_FAILURE);
+    //}
+    //*arg = type;
+    pthread_create(&worker_auth, NULL, REQREP_ZMQ, NULL);
+    return true;
+}
+
+bool StartREQREPZMQ()
+{
+    LogPrintf("ZMQ: Starting REQ/REP ZMQ server\n");
+
+    // setup sockets
+    //for(int i=0; i<2;i++){
+      //contexts.push_back(new void *);
+      SetupType(0);
+    //}
+
     return true;
 }
 

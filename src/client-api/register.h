@@ -1,16 +1,21 @@
-#ifndef BITCOIN_ZMQAPI_REGISTER_H
-#define BITCOIN_ZMQAPI_REGISTER_H
+// Copyright (c) 2009-2016 The Bitcoin Core developers
+// Distributed under the MIT software license, see the accompanying
+// file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-class CZMQTable;
+#ifndef BITCOIN_APIREGISTER_H
+#define BITCOIN_APIREGISTER_H
 
-/** Register block chain RPC commands */
-// void RegisterBlockchainRPCCommands(CRPCTable &tableRPC);
-void SettingModuleZMQReqRep(CZMQTable &tableZMQ);
+/** These are in one header file to avoid creating tons of single-function
+ * headers for everything under src/client-api/ */
+class CAPITable;
 
-static inline void RegisterAllCoreZMQCommands(CZMQTable &tableZMQ)
+/** Register block chain API commands */
+void RegisterAPICommands(CAPITable &tableAPI);
+
+static inline void RegisterAllCoreAPICommands(CAPITable &tableAPI)
 {
-	// TODO register some method here
-	SettingModuleZMQReqRep(tableZMQ);
+    // maybe readd after
+    //RegisterAPICommands(tableAPI);
 }
 
-#endif // BITCOIN_ZMQAPI_REGISTER_H
+#endif

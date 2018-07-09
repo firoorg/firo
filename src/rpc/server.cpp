@@ -278,11 +278,11 @@ static const CRPCCommand vRPCCommands[] =
     { "addressindex",       "getaddresstxids",        &getaddresstxids,        false },
     { "addressindex",       "getaddressbalance",      &getaddressbalance,      false },
         /* Dash features */
-    { "zcoin",               "znode",             &znode,             true  },
-    { "zcoin",               "znsync",             &znsync,             true  },
-    { "zcoin",               "znodelist",         &znodelist,         true  },
-    { "zcoin",               "znodebroadcast",    &znodebroadcast,    true  },
-    { "zcoin",               "getpoolinfo",            &getpoolinfo,            true  },
+    { "zcoin",               "znode",                 &znode,                  true  },
+    { "zcoin",               "znsync",                &znsync,                 true  },
+    { "zcoin",               "znodelist",             &znodelist,              true  },
+    { "zcoin",               "znodebroadcast",        &znodebroadcast,         true  },
+    { "zcoin",               "getpoolinfo",           &getpoolinfo,            true  },
 };
 
 CRPCTable::CRPCTable()

@@ -3,31 +3,31 @@
 #include <map>
 #include <vector>
 
-#ifndef BITCOIN_ZMQAPI_SERVER_H
-#define BITCOIN_ZMQAPI_SERVER_H
+#ifndef BITCOIN_API_SERVER_H
+#define BITCOIN_API_SERVER_H
 
-typedef UniValue(*zmqfn_type)(const UniValue& params, bool fHelp);
+typedef UniValue(*apifn_type)(const UniValue& params, bool fHelp);
 
-class CZMQCommand;
+class CAPICommand;
 
-bool IsZMQRunning();
+bool IsAPIRunning();
 
-class CZMQCommand
+class CAPICommand
 {
 public:
     std::string category;
     std::string name;
-    zmqfn_type actor;
+    apifn_type actor;
     // bool okSafeMode;
 };
 
-class CZMQTable
+class CAPITable
 {
 private:
-    std::map<std::string, const CZMQCommand*> mapCommands;
+    std::map<std::string, const CAPICommand*> mapCommands;
 public:
-    CZMQTable();
-    const CZMQCommand* operator[](const std::string& name) const;
+    CAPITable();
+    const CAPICommand* operator[](const std::string& name) const;
     std::string help(const std::string& name) const; // TODO
 
     /**
@@ -47,13 +47,13 @@ public:
 
 
     /**
-     * Appends a CRPCCommand to the dispatch table.
-     * Returns false if RPC server is already running (dump concurrency protection).
+     * Appends a CAPICommand to the dispatch table.
+     * Returns false if API server is already running (dump concurrency protection).
      * Commands cannot be overwritten (returns false).
      */
-    bool appendCommand(const std::string& name, const CZMQCommand* pcmd); // TODO
+    bool appendCommand(const std::string& name, const CAPICommand* pcmd); // TODO
 };
 
-extern CZMQTable tableZMQ;
+extern CAPITable tableAPI;
 
-#endif // BITCOIN_ZMQAPI_SERVER_H
+#endif // BITCOIN_APIAPI_SERVER_H
