@@ -203,12 +203,13 @@ bool CTransaction::IsZerocoinSpend() const
     return (vin.size() == 1 && vin[0].prevout.IsNull() && vin[0].scriptSig.size() > 0 && (vin[0].scriptSig[0] == OP_ZEROCOINSPEND) && (vout.size() == 1) );
 }
 
-bool CTransaction::IsZerocoinMint(const CTransaction& tx) const
+bool CTransaction::IsZerocoinMint(CTxOut& txout) const
 {
-    for (std::vector<CTxOut>::const_iterator it(tx.vout.begin()); it != tx.vout.end(); ++it)
-    {
-        if (it -> scriptPubKey.IsZerocoinMint())
+    for(unsigned long i=0;i<vout.size();i++){
+        txout = vout[i];
+        if(txout.scriptPubKey.IsZerocoinMint()){
             return true;
+        }
     }
     return false;
 }
