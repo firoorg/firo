@@ -386,6 +386,30 @@ json response_to_json(UniValue reply){
 
 /*************** Start API function definitions ***************************************/
 
+json set_passphrase(json request){
+
+    vector<string> rpc_args;
+    string rpc_call;
+    if(pwalletMain && pwalletMain->IsCrypted()){
+      LogPrintf("ZMQ: wallet is encrypted\n");
+      rpc_args.push_back("walletpassphrasechange");
+      rpc_args.push_back(request["data"]["oldpassword"]);
+    }
+    else{
+      rpc_args.push_back("encryptwallet");
+    }
+    rpc_args.push_back(request["data"]["newpassword"]);
+
+    UniValue rpc_raw = SetupRPC(rpc_args);
+
+    json result_json = response_to_json(rpc_raw);
+
+    LogPrintf("ZMQ: result json: %s\n", result_json.dump());
+
+    return result_json;
+
+}
+
 json mint(json request){
 
     vector<string> rpc_args;
@@ -412,6 +436,7 @@ json mint(json request){
     return result_json;
 
 }
+
 json get_tx_fee(json request){
 
     //first get tx fee.
@@ -872,6 +897,9 @@ static void* REQREP_ZMQ(void *arg)
 
         else if(request_json["collection"]=="send-private"){
             rpc_json = send_private(request_json);
+        }
+        else if(request_json["collection"]=="set-passphrase"){
+            rpc_json = set_passphrase(request_json);   
         }
         
         /* Send reply */
