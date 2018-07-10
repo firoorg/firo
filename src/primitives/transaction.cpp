@@ -205,7 +205,7 @@ bool CTransaction::IsZerocoinSpend() const
 
 bool CTransaction::IsZerocoinMint(CTxOut& txout) const
 {
-    for(unsigned long i=0; i<vout.size();i++){
+    for(unsigned long i=0;i<vout.size();i++){
         txout = vout[i];
         if(txout.scriptPubKey.IsZerocoinMint()){
             return true;

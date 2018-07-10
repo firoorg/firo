@@ -559,6 +559,8 @@ json initial_state(){
         if(tx_json["address"].is_null()){
           address_str = "ZEROCOIN_MINT";
         }else address_str = tx_json["address"];
+
+        
     
         LogPrintf("ZMQ: address in req/rep: %s\n", address_str);
         string txid = tx_json["txid"];
@@ -573,16 +575,13 @@ json initial_state(){
         tx_json.erase("abandoned");
         tx_json.erase("generated");
 
+
         if(tx_json["category"]=="generate" || tx_json["category"]=="immature"){
           tx_json["category"] = "mined";
         }
 
-        //make negative values positive
-        LogPrintf("ZMQ: checking amount\n");
-        if(tx_json["amount"]<0){
-          float amount = tx_json["amount"];
-          tx_json["amount"]=amount * -1;
-        }
+        string category = tx_json["category"];
+
         LogPrintf("ZMQ: checking fee\n");
         if(!tx_json["fee"].is_null()){
             if(tx_json["fee"]<0){
@@ -591,26 +590,46 @@ json initial_state(){
             }
         }   
 
-        // add transaction to address field
-        address_jsons[address_str]["txids"][txid] = tx_json;
-
         LogPrintf("ZMQ: added tx_json\n");
 
         // tally up total amount
-        int amount = tx_json["amount"];
+        float amount = tx_json["amount"];
 
-        LogPrintf("ZMQ: got amount\n");
+        LogPrintf("ZMQ: amount: %s\n", to_string(amount));
 
-        if(!(address_jsons[address_str]["total"].is_null())){
-            int old_amount = address_jsons[address_str]["total"];
-            amount += old_amount;
+        if(!(address_jsons[address_str]["total"].is_null())){ 
+            LogPrintf("ZMQ: total entry is not null.\n");
+            float total = address_jsons[address_str]["total"];           
+            total += amount;
+            address_jsons[address_str]["total"] = total;
+        }
+        else{
+            address_jsons[address_str]["total"] = amount;
+        }
+        
+
+        //make negative display values positive
+        LogPrintf("ZMQ: checking amount\n");
+        if(amount<0){
+          tx_json["amount"]=amount * -1;
         }
 
-        LogPrintf("ZMQ: checked amount\n");
-
-        address_jsons[address_str]["total"] = amount;
+        // add transaction to address field
+        address_jsons[address_str]["txids"][txid]["category"][category] = tx_json;
 
         LogPrintf("ZMQ: end loop\n");
+    }
+
+    // make all 'total' values positive
+    for (json::iterator it = address_jsons.begin(); it != address_jsons.end(); ++it) {
+      string address = it.key();
+      json value = it.value();
+      float total = value["total"];
+      if(total<0){
+        total *= -1;
+        value["total"] = total;
+        address_jsons[address] = value;
+      }
     }
 
     result_json["data"] = address_jsons;
