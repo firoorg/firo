@@ -46,8 +46,6 @@ using namespace boost::filesystem;
 static const char DEFAULT_RPCCONNECT[] = "127.0.0.1";
 static const int DEFAULT_HTTP_CLIENT_TIMEOUT=900;
 
-static const int AUTH = 0;
-
 /** Reply structure for request_done to fill in */
 /*************** Start RPC setup functions *****************************************/
 struct HTTPReply
@@ -804,11 +802,15 @@ json payment_request(json request){
 /*************** End API function definitions *****************************************/
 
 /******************* Start REQ/REP ZMQ functions ******************************************/
-//std::vector<void *> contexts;
+//std::vector<void *> context_auths;
 void *context_auth;
 void *socket_auth;
+
+void *context_noauth;
+void *socket_noauth;
 //std::vector<void *> sockets;
 pthread_t worker_auth;
+pthread_t worker_noauth;
 
 void zmqError(const char *str)
 {
@@ -827,12 +829,73 @@ int needStopREQREPZMQ(){
     return 1;
 }
 
-// arg[0] is the broker
-static void* REQREP_ZMQ(void *arg)
-{
-    LogPrintf("ZMQ: IN REQREP_ZMQ\n");
+//*********** threads waiting for responses ***********//
+static void* threadNoAuth(void *arg){
+
+    LogPrintf("ZMQ: IN REQREP_ZMQ_noauth\n");
     while (1) {
-        free(arg);
+        // 1. get request message
+        // 2. do something in tableZMQ
+        // 3. reply result
+
+        /* Create an empty ØMQ message to hold the message part. */
+        /* message assumed to contain an RPC command to be executed with args */
+        zmq_msg_t request;
+        int rc = zmq_msg_init (&request);
+        assert (rc == 0);
+        /* Block until a message is available to be received from socket */
+        rc = zmq_recvmsg (socket_noauth, &request, 0);
+        if(rc==-1) return NULL;
+
+        char* request_chars = (char*) malloc (rc + 1);
+
+        LogPrintf("ZMQ: Received message request.\n");
+
+        /* convert request to (char*) */
+        memcpy (request_chars, zmq_msg_data (&request), rc);
+        zmq_msg_close(&request);
+        request_chars[rc]=0;
+
+        /* char* to string */
+        string request_str(request_chars);
+
+        /* finally, as JSON */
+        json request_json = json::parse(request_str);
+        
+        // variables for the arguments passed in any RPC calls
+        UniValue rpc_raw;
+        json rpc_json;
+        std::vector<std::string> rpc_vector;
+
+        LogPrintf("ZMQ: request_json string:%s\n", request_json.dump());
+
+        if(request_json["collection"]=="api-status"){
+            rpc_json = api_status();
+        }
+        
+        /* Send reply */
+        string response_str = rpc_json.dump();
+        zmq_msg_t reply;
+        rc = zmq_msg_init_size (&reply, response_str.size());
+        assert(rc == 0);  
+        std::memcpy (zmq_msg_data (&reply), response_str.data(), response_str.size());
+        LogPrintf("ZMQ: Sending reply..\n");
+        /* Block until a message is available to be sent from socket */
+        rc = zmq_sendmsg (socket_noauth, &reply, 0);
+        assert(rc!=-1);
+
+        LogPrintf("ZMQ: Reply sent.\n");
+        zmq_msg_close(&reply);
+
+    }
+
+    return (void*)true;
+}
+
+static void* threadAuth(void *arg)
+{
+    LogPrintf("ZMQ: IN REQREP_ZMQ_auth\n");
+    while (1) {
         // 1. get request message
         // 2. do something in tableZMQ
         // 3. reply result
@@ -879,10 +942,6 @@ static void* REQREP_ZMQ(void *arg)
             rpc_json = initial_state();
         }
 
-        else if(request_json["collection"]=="api-status"){
-            rpc_json = api_status();
-        }
-
         else if(request_json["collection"]=="tx-fee"){
             rpc_json = get_tx_fee(request_json);
         }
@@ -920,46 +979,88 @@ static void* REQREP_ZMQ(void *arg)
 
     return (void*)true;
 }
+//*********** threads waiting for responses ***********//
 
-bool SetupType(int type){
 
-    context_auth = zmq_ctx_new();
+//***** setup ports & call thread *******************//
+bool SetupPortNoAuth(){
 
-    LogPrintf("ZMQ: created contexts\n");
+    LogPrintf("ZMQ: setting up type.\n");
+    context_noauth = zmq_ctx_new();
 
-    socket_auth = zmq_socket(context_auth,ZMQ_REP);
-    if(!socket_auth){
+    LogPrintf("ZMQ: created context noauth\n");
+
+    socket_noauth = zmq_socket(context_noauth,ZMQ_REP);
+    if(!socket_noauth){
         LogPrintf("ZMQ: Failed to create socket\n");
         return false;
     }
-    LogPrintf("ZMQ: created auth socket\n");
-
-    // set up auth on auth port
-    // if(type==AUTH){
-    //     vector<string> keys = read_cert("server");
-
-    //     string server_secret_key = keys.at(1);
-
-    //     LogPrintf("ZMQ: secret_server_key: %s\n", server_secret_key);
-
-    //     const int curve_server_enable = 1;
-    //     zmq_setsockopt(socket_auth, ZMQ_CURVE_SERVER, &curve_server_enable, sizeof(curve_server_enable));
-    //     zmq_setsockopt(socket_auth, ZMQ_CURVE_SECRETKEY, server_secret_key.c_str(), 40);
-    // }
+    LogPrintf("ZMQ: created noauth socket\n");
 
     // Get network port. TODO add zmq ports to base params
     string port;
     if(Params().NetworkIDString()==CBaseChainParams::MAIN){
-      port = "1555";
+      port = "15558";
     }
     else if(Params().NetworkIDString()==CBaseChainParams::TESTNET){
-      port = "2555";
+      port = "25558";
     }
     else if(Params().NetworkIDString()==CBaseChainParams::REGTEST){
-      port = "3555";
+      port = "35558";
     }
 
-    port.append(type==AUTH ? "7" : "8");
+    LogPrintf("ZMQ: port = %s\n", port);
+
+    string tcp = "tcp://*:";
+
+    int rc = zmq_bind(socket_noauth, tcp.append(port).c_str());
+    if (rc == -1)
+    {
+        LogPrintf("ZMQ: Unable to send ZMQ msg\n");
+        return false;
+    }
+    LogPrintf("ZMQ: Bound socket\n");
+  
+    pthread_create(&worker_noauth, NULL, threadNoAuth, NULL);
+    return true;
+}
+
+bool SetupPortAuth(){
+
+    LogPrintf("ZMQ: setting up type.\n");
+    context_auth = zmq_ctx_new();
+
+    LogPrintf("ZMQ: created context_auths\n");
+
+    socket_auth = zmq_socket(context_auth,ZMQ_REP);
+    if(!socket_auth){
+        LogPrintf("ZMQ: Failed to create socket_auth\n");
+        return false;
+    }
+    LogPrintf("ZMQ: created auth socket_auth\n");
+
+    // set up auth
+    vector<string> keys = read_cert("server");
+
+    string server_secret_key = keys.at(1);
+
+    LogPrintf("ZMQ: secret_server_key: %s\n", server_secret_key);
+
+    const int curve_server_enable = 1;
+    zmq_setsockopt(socket_auth, ZMQ_CURVE_SERVER, &curve_server_enable, sizeof(curve_server_enable));
+    zmq_setsockopt(socket_auth, ZMQ_CURVE_SECRETKEY, server_secret_key.c_str(), 40);
+
+    // Get network port. TODO add zmq ports to base params
+    string port;
+    if(Params().NetworkIDString()==CBaseChainParams::MAIN){
+      port = "15557";
+    }
+    else if(Params().NetworkIDString()==CBaseChainParams::TESTNET){
+      port = "25557";
+    }
+    else if(Params().NetworkIDString()==CBaseChainParams::REGTEST){
+      port = "35557";
+    }
 
     LogPrintf("ZMQ: port = %s\n", port);
 
@@ -971,27 +1072,20 @@ bool SetupType(int type){
         LogPrintf("ZMQ: Unable to send ZMQ msg\n");
         return false;
     }
-    LogPrintf("ZMQ: Bound socket\n");
-    //create worker_auth & run a thread 
-    // int *arg = (int*) malloc(sizeof(arg));
-    // if ( arg == NULL ) {
-    //     fprintf(stderr, "Couldn't allocate memory for thread arg.\n");
-    //     exit(EXIT_FAILURE);
-    //}
-    //*arg = type;
-    pthread_create(&worker_auth, NULL, REQREP_ZMQ, NULL);
+    LogPrintf("ZMQ: Bound socket_auth\n");
+    pthread_create(&worker_auth, NULL, threadAuth, NULL);
     return true;
 }
+//***** setup ports & call thread *******************//
 
 bool StartREQREPZMQ()
 {
     LogPrintf("ZMQ: Starting REQ/REP ZMQ server\n");
 
-    // setup sockets
-    //for(int i=0; i<2;i++){
-      //contexts.push_back(new void *);
-      SetupType(0);
-    //}
+    SetupPortAuth();
+    SetupPortNoAuth();
+
+    LogPrintf("ZMQ: done setting up types\n");
 
     return true;
 }
