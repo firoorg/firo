@@ -15,6 +15,11 @@
 #include "utilstrencodings.h"
 #include <chrono>
 #include "main.h"
+#ifdef ENABLE_WALLET
+#include "znode-sync.h"
+#include "wallet/wallet.h"
+#include "wallet/walletdb.h"
+#endif
 
 #include <boost/filesystem/operations.hpp>
 #include <stdio.h>
@@ -534,6 +539,7 @@ json api_status(){
     api_status_json["walletversion"] = get_info_json["data"]["walletversion"];
     api_status_json["datadir"] = GetDataDir(true).string();
     api_status_json["network"]  = ChainNameFromCommandLine();
+    api_status_json["walletlock"]= (pwalletMain && pwalletMain->IsCrypted());
 
     return api_status_json;
 }
