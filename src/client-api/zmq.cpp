@@ -439,10 +439,10 @@ json get_tx_fee(json request){
 
     //first get tx fee.
     UniValue rpc_raw;
-    string tx_fee = request["data"]["feeperkb"];
+    float tx_fee = request["data"]["feeperkb"];
     vector<string> rpc_args;
     rpc_args.push_back("settxfee");
-    rpc_args.push_back(tx_fee);
+    rpc_args.push_back(to_string(tx_fee));
     // set tx fee per kb. for now assume that the call succeeded
     rpc_raw = SetupRPC(rpc_args);
 
