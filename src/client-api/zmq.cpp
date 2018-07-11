@@ -626,16 +626,26 @@ json initial_state(){
 
         LogPrintf("ZMQ: amount: %s\n", to_string(amount));
 
-        if(!(address_jsons[address_str]["total"].is_null())){ 
-            LogPrintf("ZMQ: total entry is not null.\n");
-            float total = address_jsons[address_str]["total"];           
-            total += amount;
-            address_jsons[address_str]["total"] = total;
+        
+        if(address_jsons[address_str]["total"].is_null()){
+          address_jsons[address_str]["total"] = nullptr;
+        }
+
+        if(category=="send"){
+            if(!(address_jsons[address_str]["total"]["sent"].is_null())){ 
+
+              float total_send = address_jsons[address_str]["total"]["sent"];           
+              amount += total_send;
+            }
+            address_jsons[address_str]["total"]["sent"] = amount;
         }
         else{
-            address_jsons[address_str]["total"] = amount;
+            if(!(address_jsons[address_str]["total"]["balance"].is_null())){ 
+              float total_balance = address_jsons[address_str]["total"]["balance"];           
+              amount += total_balance;
+            }
+            address_jsons[address_str]["total"]["balance"] = amount;
         }
-        
 
         //make negative display values positive
         LogPrintf("ZMQ: checking amount\n");
@@ -651,14 +661,17 @@ json initial_state(){
 
     // make all 'total' values positive
     for (json::iterator it = address_jsons.begin(); it != address_jsons.end(); ++it) {
-      string address = it.key();
-      json value = it.value();
-      float total = value["total"];
-      if(total<0){
-        total *= -1;
-        value["total"] = total;
-        address_jsons[address] = value;
-      }
+        string address = it.key();
+        json value = it.value();
+        string category = (address=="ZEROCOIN_MINT") ? "balance" : "sent";
+        if(!value["total"][category].is_null()){
+            float total = value["total"][category];
+            if(total<0){
+                total *= -1;
+                value["total"][category] = total;
+                address_jsons[address] = value;
+            }
+        }
     }
 
     result_json["data"] = address_jsons;
@@ -1040,15 +1053,15 @@ bool SetupPortAuth(){
     LogPrintf("ZMQ: created auth socket_auth\n");
 
     // set up auth
-    vector<string> keys = read_cert("server");
+    // vector<string> keys = read_cert("server");
 
-    string server_secret_key = keys.at(1);
+    // string server_secret_key = keys.at(1);
 
-    LogPrintf("ZMQ: secret_server_key: %s\n", server_secret_key);
+    // LogPrintf("ZMQ: secret_server_key: %s\n", server_secret_key);
 
-    const int curve_server_enable = 1;
-    zmq_setsockopt(socket_auth, ZMQ_CURVE_SERVER, &curve_server_enable, sizeof(curve_server_enable));
-    zmq_setsockopt(socket_auth, ZMQ_CURVE_SECRETKEY, server_secret_key.c_str(), 40);
+    // const int curve_server_enable = 1;
+    // zmq_setsockopt(socket_auth, ZMQ_CURVE_SERVER, &curve_server_enable, sizeof(curve_server_enable));
+    // zmq_setsockopt(socket_auth, ZMQ_CURVE_SECRETKEY, server_secret_key.c_str(), 40);
 
     // Get network port. TODO add zmq ports to base params
     string port;

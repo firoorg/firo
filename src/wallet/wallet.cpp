@@ -2260,15 +2260,14 @@ bool CWallet::IsMintFromTxOutUsed(CTxOut& txout){
 
     CBigNum pubCoin;
     pubCoin.setvch(vchZeroMint);
-    LogPrintf("Pubcoin=%s\n", pubCoin.ToString());
+    LogPrintf("Pubcoin=%s\n", pubCoin.GetHex());
     BOOST_FOREACH(const CZerocoinEntry &pubCoinItem, listPubCoin) {
         if (pubCoinItem.value == pubCoin){
             return pubCoinItem.IsUsed;
         }
     }
-    // If we got here, mint not contained in the db, so some error has occured.
-    throw runtime_error(std::string(__func__) + ": txout mint not contained in the database\n");
-
+    // mint tx not yet added to db, so not used.
+    return false;
 }
 
 //[zcoin]
