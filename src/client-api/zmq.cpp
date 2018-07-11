@@ -46,6 +46,8 @@ using namespace boost::filesystem;
 static const char DEFAULT_RPCCONNECT[] = "127.0.0.1";
 static const int DEFAULT_HTTP_CLIENT_TIMEOUT=900;
 
+static const bool DEV_AUTH = false;
+
 /** Reply structure for request_done to fill in */
 /*************** Start RPC setup functions *****************************************/
 struct HTTPReply
@@ -563,6 +565,7 @@ json api_status(){
     api_status_json["datadir"] = GetDataDir(true).string();
     api_status_json["network"]  = ChainNameFromCommandLine();
     api_status_json["walletlock"]= (pwalletMain && pwalletMain->IsCrypted());
+    api_status_json["auth"]= DEV_AUTH;
 
     return api_status_json;
 }
@@ -1050,18 +1053,20 @@ bool SetupPortAuth(){
         LogPrintf("ZMQ: Failed to create socket_auth\n");
         return false;
     }
-    LogPrintf("ZMQ: created auth socket_auth\n");
 
-    // set up auth
-    // vector<string> keys = read_cert("server");
+    if(DEV_AUTH){
+        // set up auth
+        vector<string> keys = read_cert("server");
 
-    // string server_secret_key = keys.at(1);
+        string server_secret_key = keys.at(1);
 
-    // LogPrintf("ZMQ: secret_server_key: %s\n", server_secret_key);
+        LogPrintf("ZMQ: secret_server_key: %s\n", server_secret_key);
 
-    // const int curve_server_enable = 1;
-    // zmq_setsockopt(socket_auth, ZMQ_CURVE_SERVER, &curve_server_enable, sizeof(curve_server_enable));
-    // zmq_setsockopt(socket_auth, ZMQ_CURVE_SECRETKEY, server_secret_key.c_str(), 40);
+        const int curve_server_enable = 1;
+        zmq_setsockopt(socket_auth, ZMQ_CURVE_SERVER, &curve_server_enable, sizeof(curve_server_enable));
+        zmq_setsockopt(socket_auth, ZMQ_CURVE_SECRETKEY, server_secret_key.c_str(), 40);
+    }
+
 
     // Get network port. TODO add zmq ports to base params
     string port;
