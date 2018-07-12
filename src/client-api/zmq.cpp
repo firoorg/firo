@@ -46,8 +46,6 @@ using namespace boost::filesystem;
 static const char DEFAULT_RPCCONNECT[] = "127.0.0.1";
 static const int DEFAULT_HTTP_CLIENT_TIMEOUT=900;
 
-static const bool DEV_AUTH = false;
-
 /** Reply structure for request_done to fill in */
 /*************** Start RPC setup functions *****************************************/
 struct HTTPReply
@@ -302,6 +300,116 @@ UniValue SetupRPC(std::vector<std::string> args)
 }
 /*************** End RPC setup functions **********************************************/
 
+/**************** Start helper functions ****************************************/
+json WalletDataSinceBlock(string block){
+    vector<string> rpc_args;
+    rpc_args.push_back("listsinceblock");
+    rpc_args.push_back(block);
+
+    UniValue rpc_raw = SetupRPC(rpc_args);
+
+    json result_json = response_to_json(rpc_raw);
+
+    //cycle through result["data"], getting all tx's for one address, and adding balances
+    json address_jsons;
+    BOOST_FOREACH(json tx_json, result_json["data"]["transactions"]){
+        LogPrintf("ZMQ: getting address in req/rep\n");
+        string address_str;
+        if(tx_json["address"].is_null()){
+          address_str = "ZEROCOIN_MINT";
+        }else address_str = tx_json["address"];
+    
+        LogPrintf("ZMQ: address in req/rep: %s\n", address_str);
+        string txid = tx_json["txid"];
+        LogPrintf("ZMQ: txid in req/rep: %s\n", txid);
+
+        // erase values we don't want to return
+        tx_json.erase("account");
+        tx_json.erase("vout");
+        tx_json.erase("blockindex");
+        tx_json.erase("walletconflicts");
+        tx_json.erase("bip125-replaceable");
+        tx_json.erase("abandoned");
+        tx_json.erase("generated");
+
+
+        if(tx_json["category"]=="generate" || tx_json["category"]=="immature"){
+          tx_json["category"] = "mined";
+        }
+
+        string category = tx_json["category"];
+
+        LogPrintf("ZMQ: checking fee\n");
+        if(!tx_json["fee"].is_null()){
+            if(tx_json["fee"]<0){
+              float fee = tx_json["fee"];
+              tx_json["fee"]=fee * -1;
+            }
+        }   
+
+        // tally up total amount
+        float amount;
+
+        amount = tx_json["amount"];
+        
+        if(address_jsons[address_str]["total"].is_null()){
+          address_jsons[address_str]["total"] = nullptr;
+        }
+
+        if(category=="send"){
+            if(!(address_jsons[address_str]["total"]["sent"].is_null())){ 
+
+              float total_send = address_jsons[address_str]["total"]["sent"];           
+              amount += total_send;
+            }
+            address_jsons[address_str]["total"]["sent"] = amount;
+        }
+        else{
+            if(!(address_jsons[address_str]["total"]["balance"].is_null())){ 
+              float total_balance = address_jsons[address_str]["total"]["balance"];           
+              amount += total_balance;
+            }
+            address_jsons[address_str]["total"]["balance"] = amount;
+        }
+
+        amount = tx_json["amount"];
+
+        //make negative display values positive
+        LogPrintf("ZMQ: checking amount\n");
+        if(amount<0){
+          tx_json["amount"]=amount * -1;
+        }
+
+        amount = tx_json["amount"];
+
+        // add transaction to address field
+        address_jsons[address_str]["txids"][txid]["category"][category] = tx_json;
+    }
+
+    // make all 'total' values positive
+    if(!address_jsons["ZEROCOIN_MINT"].is_null()){
+      float balance = address_jsons["ZEROCOIN_MINT"]["total"]["balance"];
+      balance *= -1;
+      address_jsons["ZEROCOIN_MINT"]["total"]["balance"] = balance;
+    }
+    
+    for (json::iterator it = address_jsons.begin(); it != address_jsons.end(); ++it) {
+        string address = it.key();
+        json value = it.value();
+        if(!value["total"]["sent"].is_null()){
+            float total = value["total"]["sent"];
+            if(total<0){
+                total *= -1;
+                value["total"]["sent"] = total;
+                address_jsons[address] = value;
+            }
+        }
+    }
+
+    result_json["data"] = address_jsons;
+
+    return result_json;
+}
 
 
 /******************* Start parsing functions ******************************************/
@@ -576,110 +684,8 @@ json initial_state(){
     // to get the complete transaction history for the wallet, we use the listsinceblock rpc command
     string genesis_block_hash = chainActive[0]->GetBlockHash().ToString();
     LogPrintf("ZMQ: genesis_block_hash: %s\n", genesis_block_hash);
-    rpc_args.push_back("listsinceblock");
-    rpc_args.push_back(genesis_block_hash);
 
-    UniValue rpc_raw = SetupRPC(rpc_args);
-
-    json result_json = response_to_json(rpc_raw);
-
-    //cycle through result["data"], getting all tx's for one address, and adding balances
-    json address_jsons;
-    BOOST_FOREACH(json tx_json, result_json["data"]["transactions"]){
-        LogPrintf("ZMQ: getting address in req/rep\n");
-        string address_str;
-        if(tx_json["address"].is_null()){
-          address_str = "ZEROCOIN_MINT";
-        }else address_str = tx_json["address"];
-    
-        LogPrintf("ZMQ: address in req/rep: %s\n", address_str);
-        string txid = tx_json["txid"];
-        LogPrintf("ZMQ: txid in req/rep: %s\n", txid);
-
-        // erase values we don't want to return
-        tx_json.erase("account");
-        tx_json.erase("vout");
-        tx_json.erase("blockindex");
-        tx_json.erase("walletconflicts");
-        tx_json.erase("bip125-replaceable");
-        tx_json.erase("abandoned");
-        tx_json.erase("generated");
-
-
-        if(tx_json["category"]=="generate" || tx_json["category"]=="immature"){
-          tx_json["category"] = "mined";
-        }
-
-        string category = tx_json["category"];
-
-        LogPrintf("ZMQ: checking fee\n");
-        if(!tx_json["fee"].is_null()){
-            if(tx_json["fee"]<0){
-              float fee = tx_json["fee"];
-              tx_json["fee"]=fee * -1;
-            }
-        }   
-
-        // tally up total amount
-        float amount;
-
-        amount = tx_json["amount"];
-        
-        if(address_jsons[address_str]["total"].is_null()){
-          address_jsons[address_str]["total"] = nullptr;
-        }
-
-        if(category=="send"){
-            if(!(address_jsons[address_str]["total"]["sent"].is_null())){ 
-
-              float total_send = address_jsons[address_str]["total"]["sent"];           
-              amount += total_send;
-            }
-            address_jsons[address_str]["total"]["sent"] = amount;
-        }
-        else{
-            if(!(address_jsons[address_str]["total"]["balance"].is_null())){ 
-              float total_balance = address_jsons[address_str]["total"]["balance"];           
-              amount += total_balance;
-            }
-            address_jsons[address_str]["total"]["balance"] = amount;
-        }
-
-        amount = tx_json["amount"];
-
-        //make negative display values positive
-        LogPrintf("ZMQ: checking amount\n");
-        if(amount<0){
-          tx_json["amount"]=amount * -1;
-        }
-
-        amount = tx_json["amount"];
-
-        // add transaction to address field
-        address_jsons[address_str]["txids"][txid]["category"][category] = tx_json;
-    }
-
-    // make all 'total' values positive
-    if(!address_jsons["ZEROCOIN_MINT"].is_null()){
-      float balance = address_jsons["ZEROCOIN_MINT"]["total"]["balance"];
-      balance *= -1;
-      address_jsons["ZEROCOIN_MINT"]["total"]["balance"] = balance;
-    }
-    
-    for (json::iterator it = address_jsons.begin(); it != address_jsons.end(); ++it) {
-        string address = it.key();
-        json value = it.value();
-        if(!value["total"]["sent"].is_null()){
-            float total = value["total"]["sent"];
-            if(total<0){
-                total *= -1;
-                value["total"]["sent"] = total;
-                address_jsons[address] = value;
-            }
-        }
-    }
-
-    result_json["data"] = address_jsons;
+    json result_json = WalletDataSinceBlock(genesis_block_hash);
 
     LogPrintf("ZMQ: returning values in initial_state.\n");
     return result_json;

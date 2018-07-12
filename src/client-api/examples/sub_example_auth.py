@@ -5,11 +5,16 @@
 #
 import zmq
 import json
+from os.path import expanduser
 
 addressfilter = b"address-"
 blockfilter = b"block-"
 
-base_dir = "/Users/tadhgriordan/Library/Application Support/zcoin/certificates"
+REGTEST = "regtest"
+MAINNET = "mainnet"
+TESTNET = "testnet3"
+
+base_dir = expanduser("~") + "/Library/Application Support/zcoin/" + REGTEST +"/certificates"
 
 #  Prepare our context and sockets
 ctx = zmq.Context.instance()

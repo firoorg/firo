@@ -11,6 +11,7 @@
 #include "script/standard.h"
 #include "base58.h"
 #include "client-api/json.hpp"
+#include "client-api/zmq.h"
 #include "znode-sync.h"
 #include "net.h"
 #include "client-api/zmq.h"
@@ -90,14 +91,16 @@ bool CZMQAbstractPublishNotifier::Initialize(void *pcontext)
             return false;
         }
 
-        // Set up PUB auth.
-        vector<string> keys = read_cert("server");
+        if(DEV_AUTH){
+            // Set up PUB auth.
+            vector<string> keys = read_cert("server");
 
-        string server_secret_key = keys.at(1);
+            string server_secret_key = keys.at(1);
 
-        const int curve_server_enable = 1;
-        zmq_setsockopt(psocket, ZMQ_CURVE_SERVER, &curve_server_enable, sizeof(curve_server_enable));
-        zmq_setsockopt(psocket, ZMQ_CURVE_SECRETKEY, server_secret_key.c_str(), 40);
+            const int curve_server_enable = 1;
+            zmq_setsockopt(psocket, ZMQ_CURVE_SERVER, &curve_server_enable, sizeof(curve_server_enable));
+            zmq_setsockopt(psocket, ZMQ_CURVE_SECRETKEY, server_secret_key.c_str(), 40);
+        }
 
         int rc = zmq_bind(psocket, address.c_str());
         if (rc!=0)
@@ -246,138 +249,23 @@ bool CZMQPublishRawTransactionNotifier::NotifyTransaction(const CTransaction &tr
     return true;
 }
 
-// bool CZMQPublishRawBlockNotifier::NotifyBlock(const CBlockIndex *pindex)
-// {
-//     /*
-//     address publishing layout for block tx's:
-//         {
-//             "type": "address",
-//             "id": STRING,
-//             "transaction": {
-//                 "txid": STRING,
-//                 "timestamp": INT (blocktime)
-//                 "amount": INT
-//                 "type": type: 'in|out|mint|spend|mining|znode'
-//                 "blockstamp": INT
-//             }
-//         }
-//     */
-//     LogPrint(NULL, "zmq: Publish rawblock %s\n", pindex->GetBlockHash().GetHex());
-
-//     CBlock block;
-
-//     const Consensus::Params& consensusParams = Params().GetConsensus();
-//     if(!ReadBlockFromDisk(block, pindex, consensusParams))
-//     {
-//         zmqError("Can't read block from disk");
-//         return false;
-//     }
-
-//     vector<int> blockParams;
-//     blockParams.push_back(1);
-//     blockParams.push_back(pindex->nHeight);
-//     blockParams.push_back(block.GetBlockTime());
-
-//     // publish for each "address"
-//     BOOST_FOREACH(const CTransaction&transaction, block.vtx){
-//         //processTransaction(transaction, blockParams);
-//         //LogPrintf("ZMQ: processed block transaction\n");
-//     }
-
-//     //publish Blockchain related info.
-//     json block_json;
-//     block_json["type"] = "full";
-//     block_json["status"] = nullptr;
-
-//     block_json["status"]["IsBlockchainSynced"] = znodeSync.IsBlockchainSynced();
-//     block_json["status"]["IsZnodeListSynced"] = znodeSync.IsZnodeListSynced();
-//     block_json["status"]["IsWinnersListSynced"] = znodeSync.IsWinnersListSynced();
-//     block_json["status"]["IsSynced"] = znodeSync.IsSynced();
-//     block_json["status"]["IsFailed"] = znodeSync.IsFailed();
-
-//     block_json["testnet"] = Params().TestnetToBeDeprecatedFieldRPC();
-
-//     block_json["connections"] = (int)vNodes.size();
-
-//     block_json["currentBlock"] = nullptr;
-//     block_json["currentBlock"]["height"] = pindex->nHeight;
-//     block_json["currentBlock"]["timestamp"] = pindex->nTime;
-
-//     string topic = "block-";
-//     topic.append(block_json.dump());
-//     send_message(topic);
-
-//     return true;
-// }
-
 bool CZMQPublishRawBlockNotifier::NotifyBlock(const CBlockIndex *pindex)
 {
     //publish block related info every 10 blocks.
     int currentHeight = pindex->nHeight;
+    string topic;
     LogPrintf("ZMQ: in notifyblock. currentHeight: %s\n", to_string(currentHeight));
-    // if(currentHeight % 10==0 && currentHeight >=10){
-    //     vector<string> listsinceblockargs;
-    //     string prevblockhash = chainActive[currentHeight-10]->GetBlockHash().ToString();
-    //     LogPrintf("ZMQ: prevblockhash: %s\n", prevblockhash);
-    //     listsinceblockargs.push_back("listsinceblock");
-    //     listsinceblockargs.push_back(prevblockhash);
-    //     UniValue rpc_raw = SetupRPC(listsinceblockargs);
-    //     LogPrintf("ZMQ: returned from listsinceblock.\n");
-    //     const UniValue& result = find_value(rpc_raw, "result");
-    //     const UniValue& error = find_value(rpc_raw, "error");
-    //     string strPrint;
-    //     json result_json;
-    //     // Result
-    //     if (result.isNull())
-    //        strPrint = "";
-    //     if (!error.isNull()) {
-    //         LogPrintf("ZMQ: listsinceblock call errored.\n");
-    //     }
-    //     else if (result.isStr()){
-    //         strPrint = result.get_str();
-    //         LogPrintf("ZMQ: result is str\n");
-    //     }else{
-    //         // TODO if str empty, ignore.
-    //         LogPrintf("ZMQ: result is obj\n");
-    //         strPrint = result.write(0);
-    //         result_json = json::parse(strPrint);
-    //         LogPrintf("ZMQ: parsed JSON\n");
+    if(currentHeight % 10==0 && currentHeight >=10){
+        string prevblockhash = chainActive[currentHeight-10]->GetBlockHash().ToString();
+        LogPrintf("ZMQ: prevblockhash: %s\n", prevblockhash);
 
-    //         LogPrintf("ZMQ: transactions from JSON: %S\n", result_json["transactions"].dump());            
+        json result_json;
+        result_json = WalletDataSinceBlock(prevblockhash);
 
-    //         // organise output by addresses
-    //         json address_jsons;
-    //         BOOST_FOREACH(json tx_json, result_json["transactions"]){
-    //             //LogPrintf("ZMQ: getting address\n");
-    //             string address_str = tx_json["address"];
-    //             //LogPrintf("ZMQ: address: %s\n", address_str);
-    //             string txid = tx_json["txid"];
-    //             //LogPrintf("ZMQ: txid: %s\n", txid);
-    //             address_jsons[address_str][txid] = tx_json;
-
-    //             // tally up total amount
-    //             int amount = tx_json["amount"];
-    //             if(address_jsons[address_str]["total"].is_null()){
-    //                 address_jsons[address_str]["total"] = amount;
-    //             }
-    //             else{
-    //                address_jsons[address_str]["total"] += amount;
-    //             }
-    //         }
-
-    //         // send all the out address valuesz
-    //         BOOST_FOREACH(json address_json, address_jsons){
-    //             //LogPrintf("ZMQ: address_json: %s\n", address_json.dump());
-    //             string address_topic = "address-";
-    //             string address_str = address_json.begin().value()["address"];
-    //             //LogPrintf("ZMQ: address in second loop: %s\n", address_str);
-    //             address_topic.append(address_str).append("-").append(address_json.dump());
-    //             //LogPrintf("ZMQ: address and txid info: %s\n", address_topic);
-    //             send_message(address_topic);
-    //         }
-    //     }
-        
-    // }
+        topic = "address-";
+        topic.append(result_json.dump());
+        send_message(topic);
+    }
 
     //publish Blockchain related info.
     json block_json;
@@ -398,7 +286,7 @@ bool CZMQPublishRawBlockNotifier::NotifyBlock(const CBlockIndex *pindex)
     block_json["currentBlock"]["height"] = pindex->nHeight;
     block_json["currentBlock"]["timestamp"] = pindex->nTime;
 
-    string topic = "block-";
+    topic = "block-";
     topic.append(block_json.dump());
     send_message(topic);
 
@@ -509,7 +397,7 @@ bool CZMQAbstractPublishNotifier::processTransaction(const CTransaction &transac
         
 
     // handle tx_outs
-    for (int i=0; i < transaction.vout.size(); i++) {
+    for (unsigned long i=0; i < transaction.vout.size(); i++) {
         tx_json_in["transaction"]["amount"] = transaction.vout[i].nValue;
 
         //extract address(es) related to this vout
@@ -523,7 +411,7 @@ bool CZMQAbstractPublishNotifier::processTransaction(const CTransaction &transac
         BOOST_FOREACH(const CTxDestination& tx_dest, addresses_raw)
             addresses.push_back(CBitcoinAddress(tx_dest).ToString());
 
-        for(int j=0;j<addresses.size();j++){
+        for(unsigned long j=0;j<addresses.size();j++){
              tx_json_in["id"] = addresses[j];
              // LogPrintf("ZMQ: tx.dump: %s\n", tx_json_in.dump());
              // LogPrintf("ZMQ: address: %s\n", addresses[j]);

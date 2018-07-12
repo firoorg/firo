@@ -6,6 +6,9 @@
 #include <map>
 #include "client-api/zmqconfig.h"
 #include <univalue.h>
+#include <client-api/json.hpp>
+
+using json = nlohmann::json;
 
 #ifndef BITCOIN_ZMQAPI_ZMQ_H
 #define BITCOIN_ZMQAPI_ZMQ_H
@@ -22,9 +25,16 @@ void InterruptREQREPZMQ();
  */
 void StopREQREPZMQ();
 
+static const bool DEV_AUTH = false;
+
 //UniValue RPCConvertValues(const std::string &strMethod, const std::vector<std::string> &strParams);
 
 UniValue SetupRPC(std::vector<std::string> args);
+
+json response_to_json(UniValue reply);
+
+/* Get all transactions related to the wallet from block "block". */
+json WalletDataSinceBlock(string block);
 
 /* Setup a port for an auth/noauth port */
 bool SetupType(int type);
