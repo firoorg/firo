@@ -591,8 +591,6 @@ json initial_state(){
         if(tx_json["address"].is_null()){
           address_str = "ZEROCOIN_MINT";
         }else address_str = tx_json["address"];
-
-        
     
         LogPrintf("ZMQ: address in req/rep: %s\n", address_str);
         string txid = tx_json["txid"];
@@ -622,13 +620,10 @@ json initial_state(){
             }
         }   
 
-        LogPrintf("ZMQ: added tx_json\n");
-
         // tally up total amount
-        float amount = tx_json["amount"];
+        float amount;
 
-        LogPrintf("ZMQ: amount: %s\n", to_string(amount));
-
+        amount = tx_json["amount"];
         
         if(address_jsons[address_str]["total"].is_null()){
           address_jsons[address_str]["total"] = nullptr;
@@ -650,28 +645,35 @@ json initial_state(){
             address_jsons[address_str]["total"]["balance"] = amount;
         }
 
+        amount = tx_json["amount"];
+
         //make negative display values positive
         LogPrintf("ZMQ: checking amount\n");
         if(amount<0){
           tx_json["amount"]=amount * -1;
         }
 
+        amount = tx_json["amount"];
+
         // add transaction to address field
         address_jsons[address_str]["txids"][txid]["category"][category] = tx_json;
-
-        LogPrintf("ZMQ: end loop\n");
     }
 
     // make all 'total' values positive
+    if(!address_jsons["ZEROCOIN_MINT"].is_null()){
+      float balance = address_jsons["ZEROCOIN_MINT"]["total"]["balance"];
+      balance *= -1;
+      address_jsons["ZEROCOIN_MINT"]["total"]["balance"] = balance;
+    }
+    
     for (json::iterator it = address_jsons.begin(); it != address_jsons.end(); ++it) {
         string address = it.key();
         json value = it.value();
-        string category = (address=="ZEROCOIN_MINT") ? "balance" : "sent";
-        if(!value["total"][category].is_null()){
-            float total = value["total"][category];
+        if(!value["total"]["sent"].is_null()){
+            float total = value["total"]["sent"];
             if(total<0){
                 total *= -1;
-                value["total"][category] = total;
+                value["total"]["sent"] = total;
                 address_jsons[address] = value;
             }
         }
