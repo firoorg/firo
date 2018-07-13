@@ -4,17 +4,25 @@
 #   Sends json request to zcoind
 #
 import zmq
+import sys
 import json
 from os.path import expanduser
+
 
 addressfilter = b"address-"
 blockfilter = b"block-"
 
-REGTEST = "regtest"
-MAINNET = "mainnet"
-TESTNET = "testnet3"
+'''
+"network" must be one of:
+    Mainnet = "mainnet"
+    Testnet = "testnet3"
+    Regtest = "regtest" 
+'''
+network = sys.argv[1]
 
-base_dir = expanduser("~") + "/Library/Application Support/zcoin/" + REGTEST +"/certificates"
+base_dir = expanduser("~") + "/Library/Application Support/zcoin/" + network +"/certificates"
+
+print(base_dir)
 
 #  Prepare our context and sockets
 ctx = zmq.Context.instance()
