@@ -25,8 +25,8 @@ public:
           * data
           * message sequence number
     */
-    bool SendMessage(const char *command, const void* data, size_t size);
-    bool send_message(string msg);
+    bool SendTopicMessage(const char *command, const void* data, size_t size);
+    bool SendMessage(string msg);
 
     bool writeTimestampToFile(json tx);
 
@@ -57,6 +57,12 @@ class CZMQPublishRawTransactionNotifier : public CZMQAbstractPublishNotifier
 {
 public:
     bool NotifyTransaction(const CTransaction &transaction);
+};
+
+class CZMQPublishSettingsUpdateNotifier : public CZMQAbstractPublishNotifier
+{
+public:
+    bool NotifySettingsUpdate();
 };
 
 #endif // BITCOIN_ZMQ_ZMQPUBLISHNOTIFIER_H

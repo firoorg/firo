@@ -12,8 +12,8 @@ context = zmq.Context()
 socket = context.socket(zmq.SUB)
 socket.connect("tcp://localhost:28332")
 
-addressfilter = b"address-"
-blockfilter = b"block-"
+addressfilter = b"address"
+blockfilter = b"block"
 
 socket.setsockopt(zmq.SUBSCRIBE, addressfilter)
 socket.setsockopt(zmq.SUBSCRIBE, blockfilter)

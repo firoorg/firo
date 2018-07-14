@@ -155,7 +155,7 @@ void CZMQAbstractPublishNotifier::Shutdown()
     psocket = 0;
 }
 
-bool CZMQAbstractPublishNotifier::SendMessage(const char *command, const void* data, size_t size)
+bool CZMQAbstractPublishNotifier::SendTopicMessage(const char *command, const void* data, size_t size)
 {
     assert(psocket);
 
@@ -175,7 +175,7 @@ bool CZMQAbstractPublishNotifier::SendMessage(const char *command, const void* d
 }
 
 
-bool CZMQAbstractPublishNotifier::send_message(string msg){
+bool CZMQAbstractPublishNotifier::SendMessage(string msg){
 
     LogPrintf("ZMQ: sending message %s\n", msg);
     assert(psocket);
@@ -205,7 +205,7 @@ bool CZMQPublishHashBlockNotifier::NotifyBlock(const CBlockIndex *pindex)
     char data[32];
     for (unsigned int i = 0; i < 32; i++)
         data[31 - i] = hash.begin()[i];
-    return SendMessage(MSG_HASHBLOCK, data, 32);
+    return SendTopicMessage(MSG_HASHBLOCK, data, 32);
 }
 
 bool CZMQPublishHashTransactionNotifier::NotifyTransaction(const CTransaction &transaction)
@@ -215,7 +215,7 @@ bool CZMQPublishHashTransactionNotifier::NotifyTransaction(const CTransaction &t
     char data[32];
     for (unsigned int i = 0; i < 32; i++)
         data[31 - i] = hash.begin()[i];
-    return SendMessage(MSG_HASHTX, data, 32);
+    return SendTopicMessage(MSG_HASHTX, data, 32);
 }
 /***************** not used *******************/
 
@@ -254,6 +254,7 @@ bool CZMQPublishRawBlockNotifier::NotifyBlock(const CBlockIndex *pindex)
     //publish block related info every 10 blocks.
     int currentHeight = pindex->nHeight;
     string topic;
+    string message;
     LogPrintf("ZMQ: in notifyblock. currentHeight: %s\n", to_string(currentHeight));
     if(currentHeight % 10==0 && currentHeight >=10){
         string prevblockhash = chainActive[currentHeight-10]->GetBlockHash().ToString();
@@ -262,9 +263,9 @@ bool CZMQPublishRawBlockNotifier::NotifyBlock(const CBlockIndex *pindex)
         json result_json;
         result_json = WalletDataSinceBlock(prevblockhash);
 
-        topic = "address-";
-        topic.append(result_json.dump());
-        send_message(topic);
+        topic = "address";
+        message = result_json.dump();
+        SendTopicMessage(topic.c_str(), message.c_str(), message.length());
     }
 
     //publish Blockchain related info.
@@ -286,9 +287,9 @@ bool CZMQPublishRawBlockNotifier::NotifyBlock(const CBlockIndex *pindex)
     block_json["currentBlock"]["height"] = pindex->nHeight;
     block_json["currentBlock"]["timestamp"] = pindex->nTime;
 
-    topic = "block-";
-    topic.append(block_json.dump());
-    send_message(topic);
+    topic = "block";
+    message = block_json.dump();
+    SendTopicMessage(topic.c_str(), message.c_str(), message.length());
 
     return true;
 }
@@ -375,7 +376,7 @@ bool CZMQAbstractPublishNotifier::processTransaction(const CTransaction &transac
         //     string address_topic = "address-";
         //     string address = tx_json["id"];
         //     address_topic.append(address).append("-").append(tx_json.dump());
-        //     send_message(address_topic);
+        //     SendMessage(address_topic);
         // }
     // }
 
@@ -434,7 +435,7 @@ bool CZMQAbstractPublishNotifier::processTransaction(const CTransaction &transac
              }
              address_topic.append(addresses[j]).append("-").append(tx_json_in.dump());
 
-             send_message(address_topic);
+             SendMessage(address_topic);
         }
     } 
     return true;
