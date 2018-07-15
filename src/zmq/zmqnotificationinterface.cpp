@@ -38,21 +38,19 @@ CZMQNotificationInterface* CZMQNotificationInterface::CreateWithArguments(const 
     //factories["pubhashblock"] = CZMQAbstractNotifier::Create<CZMQPublishHashBlockNotifier>;
     //factories["pubhashtx"] = CZMQAbstractNotifier::Create<CZMQPublishHashTransactionNotifier>;
     factories["pubrawblock"] = CZMQAbstractNotifier::Create<CZMQPublishRawBlockNotifier>;
-    //factories["pubrawtx"] = CZMQAbstractNotifier::Create<CZMQPublishRawTransactionNotifier>;
-
-    //for (std::map<std::string, CZMQNotifierFactory>::const_iterator i=factories.begin(); i!=factories.end(); ++i)
-    //{
-    //  std::map<std::string, std::string>::const_iterator j = args.find("-zmq" + i->first);
-    // if (j!=args.end())
-    //   {
-    CZMQNotifierFactory factory = factories["pubrawblock"];
+    factories["pubrawtx"] = CZMQAbstractNotifier::Create<CZMQPublishRawTransactionNotifier>;
     std::string address = "tcp://127.0.0.1:28332";
-    CZMQAbstractNotifier *notifier = factory();
-    notifier->SetType("zmqpubrawblock");
-    notifier->SetAddress(address);
-    notifiers.push_back(notifier);
-    //       }
-    //}
+
+    for (std::map<std::string, CZMQNotifierFactory>::const_iterator i=factories.begin(); i!=factories.end(); ++i)
+    {
+    //  std::map<std::string, std::string>::const_iterator j = args.find("-zmq" + i->first);
+    //   {
+        CZMQNotifierFactory factory = factories[i->first];
+        CZMQAbstractNotifier *notifier = factory();
+        notifier->SetType("zmq" + i->first);
+        notifier->SetAddress(address);
+        notifiers.push_back(notifier);
+    }
 
     if (!notifiers.empty())
     {
