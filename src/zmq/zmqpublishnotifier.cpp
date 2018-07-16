@@ -23,12 +23,8 @@ static std::multimap<std::string, CZMQAbstractPublishNotifier*> mapPublishNotifi
 
 static const char *MSG_HASHBLOCK = "hashblock";
 static const char *MSG_HASHTX    = "hashtx";
-static const char *MSG_RAWBLOCK  = "rawblock";
-static const char *MSG_RAWTX     = "rawtx";
-
-static const int ISBLOCKTX   = 0;
-static const int BLOCKHEIGHT = 1;
-static const int BLOCKTIME   = 2;
+//static const char *MSG_RAWBLOCK  = "rawblock";
+//static const char *MSG_RAWTX     = "rawtx";
 
 void *psocket;
 
@@ -289,8 +285,10 @@ bool CZMQPublishRawBlockNotifier::NotifyBlock(const CBlockIndex *pindex)
     block_json["currentBlock"]["height"] = pindex->nHeight;
     block_json["currentBlock"]["timestamp"] = pindex->nTime;
 
+    json response = finalize_json(block_json, false);
+
     topic = "block";
-    message = block_json.dump();
+    message = response.dump();
     SendTopicMessage(topic.c_str(), message.c_str(), message.length());
 
     return true;

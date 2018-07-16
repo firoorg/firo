@@ -32,6 +32,7 @@ static const bool DEV_AUTH = false;
 UniValue SetupRPC(std::vector<std::string> args);
 
 json response_to_json(UniValue reply);
+json finalize_json(json request, bool errored);
 
 /* Get all transactions related to the wallet from block "block". */
 json WalletDataSinceBlock(string block);

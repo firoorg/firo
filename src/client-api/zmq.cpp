@@ -3,6 +3,7 @@
 #endif
 
 #include "json.hpp"
+#include "httpserver.h"
 #include "client-api/zmq.h"
 #include "client-api/server.h"
 #include "zmq/zmqpublishnotifier.h"
@@ -15,6 +16,7 @@
 #include "utilstrencodings.h"
 #include <chrono>
 #include "main.h"
+#include "httpserver.h"
 #ifdef ENABLE_WALLET
 #include "znode-sync.h"
 #include "wallet/wallet.h"
@@ -301,16 +303,9 @@ UniValue SetupRPC(std::vector<std::string> args)
 /*************** End RPC setup functions **********************************************/
 
 /**************** Start helper functions ****************************************/
-json WalletDataSinceBlock(string block){
-    vector<string> rpc_args;
-    rpc_args.push_back("listsinceblock");
-    rpc_args.push_back(block);
 
-    UniValue rpc_raw = SetupRPC(rpc_args);
-
-    json result_json = response_to_json(rpc_raw);
-
-    //cycle through result["data"], getting all tx's for one address, and adding balances
+json ProcessWalletData(json result_json, bool isBlock){
+   //cycle through result["data"], getting all tx's for one address, and adding balances
     json address_jsons;
     BOOST_FOREACH(json tx_json, result_json["data"]["transactions"]){
         LogPrintf("ZMQ: getting address in req/rep\n");
@@ -412,6 +407,21 @@ json WalletDataSinceBlock(string block){
 }
 
 
+
+json WalletDataSinceBlock(string block){
+    vector<string> rpc_args;
+    rpc_args.push_back("listsinceblock");
+    rpc_args.push_back(block);
+
+    UniValue rpc_raw = SetupRPC(rpc_args);
+
+    json result_json = response_to_json(rpc_raw);
+
+    return ProcessWalletData(result_json, true);
+}
+/**************** End helper functions ****************************************/
+
+
 /******************* Start parsing functions ******************************************/
 
 std::vector<std::string> parse_request(string request_str){
@@ -435,6 +445,51 @@ std::vector<std::string> parse_request(string request_str){
     }
 
     return request_vector;
+}
+
+bool unlock_account(json& response, string password){
+  LogPrintf("zmq: in unlockaccount\n");
+  vector<string> rpc_args;
+  rpc_args.push_back("walletpassphrase");
+  rpc_args.push_back(password);
+  rpc_args.push_back("1000"); 
+
+  UniValue rpc_raw = SetupRPC(rpc_args);
+
+  response = response_to_json(rpc_raw);
+
+  if(!response["errors"].is_null()){
+    return false;
+  }
+  LogPrintf("zmq: account unlocked. returning true.\n");
+  return true;
+}
+
+bool lock_account(){
+  LogPrintf("zmq: in walletlock\n");
+  vector<string> rpc_args;
+  rpc_args.push_back("walletlock");
+
+  UniValue rpc_raw = SetupRPC(rpc_args);
+
+  json response = response_to_json(rpc_raw);
+
+  if(!response["errors"].is_null()){
+    return false;
+  }
+  LogPrintf("zmq: account locked. returning true.\n");
+  return true;
+}
+
+json finalize_json(json request, bool errored){
+    json response;
+    string key = errored ? "errors" : "data";
+    int code = errored ? 400 : 200;
+    
+    response[key] = request;
+    response["meta"]["status"] = code;
+
+    return response;
 }
 
 json response_to_json(UniValue reply){
@@ -480,7 +535,7 @@ json response_to_json(UniValue reply){
 
        LogPrintf("ZMQ: result: %s\n", strPrint.c_str());
        response["meta"] = nullptr;
-       response["meta"]["meta"] = 200;
+       response["meta"]["status"] = 200;
     }
     
     LogPrintf("ZMQ: returning response.\n");
@@ -494,6 +549,24 @@ json response_to_json(UniValue reply){
 
 /*************** Start API function definitions ***************************************/
 
+// json fetch(json request){
+
+//   string url = request["data"]["url"];
+//   struct evhttp_request *req;
+//   // HTTPReply response;
+//   //  = evhttp_request_new(http_request_done, (void*)&response); // TODO RAII
+//   // if (req == NULL)
+//   //     throw runtime_error("create http request failed");
+
+//   if(!req->GetURL(url.c_str())==1){
+//     throw runtime_error("URL fetch failed.");
+//   }
+
+//   // get fetch data body, return.
+//   json fak
+
+// }
+
 json set_passphrase(json request){
 
     vector<string> rpc_args;
@@ -501,12 +574,12 @@ json set_passphrase(json request){
     if(pwalletMain && pwalletMain->IsCrypted()){
       LogPrintf("ZMQ: wallet is encrypted\n");
       rpc_args.push_back("walletpassphrasechange");
-      rpc_args.push_back(request["data"]["oldpassword"]);
+      rpc_args.push_back(request["auth"]["password"]);
     }
     else{
       rpc_args.push_back("encryptwallet");
     }
-    rpc_args.push_back(request["data"]["newpassword"]);
+    rpc_args.push_back(request["auth"]["newpassword"]);
 
     UniValue rpc_raw = SetupRPC(rpc_args);
 
@@ -553,7 +626,7 @@ json get_tx_fee(json request){
     vector<string> rpc_args;
     rpc_args.push_back("settxfee");
     rpc_args.push_back(to_string(tx_fee));
-    // set tx fee per kb. for now assume that the call succeeded
+    // set tx fee q per kb. for now assume that the call succeeded
     rpc_raw = SetupRPC(rpc_args);
 
     LogPrintf("ZMQ: set tx fee\n");
@@ -667,13 +740,16 @@ json api_status(){
     json get_info_json = response_to_json(rpc_raw);
     json api_status_json;
 
-    api_status_json["version"] = get_info_json["data"]["version"];
-    api_status_json["protocolversion"] = get_info_json["data"]["protocolversion"];
-    api_status_json["walletversion"] = get_info_json["data"]["walletversion"];
-    api_status_json["datadir"] = GetDataDir(true).string();
-    api_status_json["network"]  = ChainNameFromCommandLine();
-    api_status_json["walletlock"]= (pwalletMain && pwalletMain->IsCrypted());
-    api_status_json["auth"]= DEV_AUTH;
+    api_status_json["data"]["version"] = get_info_json["data"]["version"];
+    api_status_json["data"]["protocolversion"] = get_info_json["data"]["protocolversion"];
+    api_status_json["data"]["walletversion"] = get_info_json["data"]["walletversion"];
+    api_status_json["data"]["datadir"] = GetDataDir(true).string();
+    api_status_json["data"]["network"]  = ChainNameFromCommandLine();
+    api_status_json["data"]["walletlock"]= (pwalletMain && pwalletMain->IsCrypted());
+    api_status_json["data"]["auth"]= DEV_AUTH;
+    api_status_json["data"]["synced"]= znodeSync.IsBlockchainSynced();
+
+    api_status_json["meta"]["status"] = 200;
 
     return api_status_json;
 }
@@ -742,7 +818,6 @@ json payment_request(json request){
         reply["data"] = data_json[address];
         // add address inside data object (only for reply - values are indexed by address in storage)
         reply["data"]["address"] = address;
-        reply["meta"] = nullptr;
         reply["meta"]["status"] = 200;
     }
 
@@ -753,7 +828,6 @@ json payment_request(json request){
         // ensure address entry exists. only continue should this exist.
         if (data_json.find(address) == data_json.end()) {
           // TODO handle return value.
-          reply["errors"] = nullptr;
           reply["errors"]["meta"] = 400;
           reply["errors"]["message"] = "The payment request ID does not exist.";
           return reply;
@@ -764,7 +838,6 @@ json payment_request(json request){
         //set up reply value
         json _delete;
         reply["data"] = _delete;
-        reply["meta"] = nullptr;
         reply["meta"]["status"] = 200;
     }
 
@@ -776,7 +849,6 @@ json payment_request(json request){
           // TODO handle return value.
           reply["errors"] = nullptr;
           reply["errors"]["message"] = "The payment request ID does not exist.";
-          reply["meta"] = nullptr;
           reply["meta"]["status"] = 400;
           return reply;
         }
@@ -793,7 +865,6 @@ json payment_request(json request){
         reply["data"] = data_json[address];
         // add address inside data object (only for reply - values are indexed by address in storage)
         reply["data"]["address"] = address;
-        reply["meta"] = nullptr;
         reply["meta"]["status"] = 200;
     }
 
@@ -807,7 +878,6 @@ json payment_request(json request){
         reply["data"][address]["id"] = address;
       }
 
-      reply["meta"] = nullptr;
       reply["meta"]["status"] = 200;
     }
       
@@ -947,44 +1017,56 @@ static void* threadAuth(void *arg)
 
         /* finally, as JSON */
         json request_json = json::parse(request_str);
-        
-        // variables for the arguments passed in any RPC calls
-        UniValue rpc_raw;
-        json rpc_json;
-        std::vector<std::string> rpc_vector;
-
         LogPrintf("ZMQ: request_json string:%s\n", request_json.dump());
 
-        /* TODO better scheme for this as more requests added (see RPCTable)
-           generally, what to return for API requests.
-        */
-        if(request_json["collection"]=="payment-request"){
-            rpc_json = payment_request(request_json);
-        }
+        // variables for the arguments passed in any RPC calls
+        json rpc_json;
 
-        else if(request_json["collection"]=="state-wallet"){
+        // execute functions that can be ran regardless of wallet encryption status.
+        if(request_json["collection"]=="state-wallet"){
             rpc_json = initial_state();
         }
+        else {
+          // only execute the if statement if wallet is unencrypted OR encrypted and unlocked successfully.
+          bool unlockSuccess = false;
+          bool walletLocked = (pwalletMain && pwalletMain->IsCrypted());
+          if(walletLocked){
+            unlockSuccess = unlock_account(rpc_json, request_json["auth"]["password"]);
+          }
+          if(!walletLocked || (walletLocked && unlockSuccess)){
+              if(request_json["collection"]=="payment-request"){                
+                  rpc_json = payment_request(request_json);
+              }
+              else if(request_json["collection"]=="state-wallet"){
+                  rpc_json = initial_state();
+              }
 
-        else if(request_json["collection"]=="tx-fee"){
-            rpc_json = get_tx_fee(request_json);
+              else if(request_json["collection"]=="tx-fee"){
+                  rpc_json = get_tx_fee(request_json);
+              }
+
+              else if(request_json["collection"]=="send-zcoin"){
+                  rpc_json = send_zcoin(request_json);
+              }
+
+              else if(request_json["collection"]=="mint"){
+                  rpc_json = mint(request_json);
+              }
+
+              else if(request_json["collection"]=="tx-fee"){
+                rpc_json = get_tx_fee(request_json);
+              }
+
+              else if(request_json["collection"]=="send-private"){
+                  rpc_json = send_private(request_json);
+              }
+              else if(request_json["collection"]=="set-passphrase"){      
+                  rpc_json = set_passphrase(request_json);
+              }
+          }
+          lock_account();
         }
 
-        else if(request_json["collection"]=="send-zcoin"){
-            rpc_json = send_zcoin(request_json);
-        }
-
-        else if(request_json["collection"]=="mint"){
-            rpc_json = mint(request_json);
-        }
-
-        else if(request_json["collection"]=="send-private"){
-            rpc_json = send_private(request_json);
-        }
-        else if(request_json["collection"]=="set-passphrase"){
-            rpc_json = set_passphrase(request_json);   
-        }
-        
         /* Send reply */
         string response_str = rpc_json.dump();
         zmq_msg_t reply;
@@ -998,7 +1080,6 @@ static void* threadAuth(void *arg)
 
         LogPrintf("ZMQ: Reply sent.\n");
         zmq_msg_close(&reply);
-
     }
 
     return (void*)true;
