@@ -65,8 +65,11 @@ void SetRPCWarmupStatus(const std::string& newStatus);
 /* Mark warmup as done.  RPC calls will be processed from now on.  */
 void SetRPCWarmupFinished();
 
-/* returns the current warmup state.  */
+/* returns the current warmup state & sets the status in statusOut.  */
 bool RPCIsInWarmup(std::string *statusOut);
+
+/* returns the current warmup state. */
+bool RPCIsInWarmup();
 
 /**
  * Type-check arguments; throws JSONRPCError if wrong type given. Does not check that

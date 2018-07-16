@@ -14,6 +14,9 @@
 #include "client-api/zmq.h"
 #include "znode-sync.h"
 #include "net.h"
+#include "script/ismine.h"
+#include "wallet/wallet.h"
+#include "wallet/rpcwallet.cpp"
 
 using path = boost::filesystem::path;
 using json = nlohmann::json;
@@ -25,6 +28,8 @@ static const char *MSG_HASHBLOCK = "hashblock";
 static const char *MSG_HASHTX    = "hashtx";
 //static const char *MSG_RAWBLOCK  = "rawblock";
 //static const char *MSG_RAWTX     = "rawtx";
+
+extern CWallet* pwalletMain;
 
 void *psocket;
 
@@ -214,27 +219,34 @@ bool CZMQPublishHashTransactionNotifier::NotifyTransaction(const CTransaction &t
 }
 /***************** not used *******************/
 
-
-
 bool CZMQPublishRawTransactionNotifier::NotifyTransaction(const CTransaction &transaction)
 {
-    /*
-    address publishing layout for new tx's:
-        {
-            "type": "address",
-            "id": STRING,
-            "transaction": {
-                "txid": STRING,
-                "timestamp": INT (created here & changed to block timestamp with 6 confs)
-                "amount": INT
-                "type": type: 'in|out|mint|spend|mining|znode'
-            }
-        }
-    */
-    LogPrintf("ZMQ: in NotifyTransaction\n");
-    LogPrintf("ZMQ: blockchain synced: %s\n", znodeSync.IsBlockchainSynced());
+    // // get time in ms
+    // milliseconds ms = duration_cast< milliseconds >(
+    //   system_clock::now().time_since_epoch()
+    // );
+
     if(znodeSync.IsBlockchainSynced()){
-        processTransaction(transaction);
+        LOCK2(cs_main, pwalletMain->cs_wallet); 
+
+        UniValue entry(UniValue::VARR);
+
+        const CWalletTx wtx(pwalletMain, transaction);
+
+        isminefilter filter = ISMINE_SPENDABLE;
+
+        ListTransactions(wtx, "*", 0, true, entry, filter);
+        string result_str = entry.write(0);
+
+        json result_json;
+        result_json["data"]["transactions"] = json::parse(result_str);
+
+        ProcessWalletData(result_json, false);
+
+        string topic = "address";
+        string message = result_json.dump();
+
+        SendTopicMessage(topic.c_str(), message.c_str(), message.length());
     }
     
     return true;
@@ -321,70 +333,4 @@ bool CZMQAbstractPublishNotifier::writeTimestampToFile(json tx){
     persistent_pr_out << std::setw(4) << persistent_pr_json << std::endl;
 
     return true;
-}
-
-bool CZMQAbstractPublishNotifier::processTransaction(const CTransaction &transaction){
-
-    // // get time in ms
-    milliseconds ms = duration_cast< milliseconds >(
-      system_clock::now().time_since_epoch()
-    );
-
-    string topic = "address";
-    string message;
-
-    string txid = transaction.GetHash().ToString();
-
-    json result;
-        
-    // handle tx_outs
-    for (unsigned long i=0; i < transaction.vout.size(); i++) {
-        //extract address(es) related to this vout
-        CScript scriptPubKey = transaction.vout[i].scriptPubKey;
-        vector<string> addresses;   
-        vector<CTxDestination> addresses_raw;
-        txnouttype type;
-        int nRequired;
-
-        ExtractDestinations(scriptPubKey, type, addresses_raw, nRequired);
-        BOOST_FOREACH(const CTxDestination& tx_dest, addresses_raw)
-            addresses.push_back(CBitcoinAddress(tx_dest).ToString());
-
-        for(unsigned long j=0;j<addresses.size();j++){
-             string new_address = addresses[j];
-             result["data"][new_address]["txids"][txid]["category"] = nullptr;
-
-             string category = "in";
-             if(transaction.IsCoinBase() && transaction.vout[i].nValue==15 * COIN){
-                category = "znode";
-             }
-             else if(transaction.IsCoinBase() && transaction.vout[i].nValue>=28 * COIN){
-                category = "mined";
-             }
-             else if(transaction.IsZerocoinMint()){
-                category = "mint";
-             }
-            else if(transaction.IsZerocoinSpend()){
-                category = "spend";
-             }
-             
-             json tx;
-             tx["address"] = new_address;
-             tx["amount"] = transaction.vout[i].nValue;
-             tx["category"] = category;
-             tx["confirmations"];
-             tx["fee"];
-             tx["time"] = ms.count();
-             tx["txid"] = txid;
-
-             result["data"][new_address]["txids"][txid]["category"][category] = tx;
-
-
-             message = result.dump();
-
-             SendTopicMessage(topic.c_str(), message.c_str(), message.length());
-        }
-    } 
-    return true;
-
 }

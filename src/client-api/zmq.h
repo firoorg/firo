@@ -37,6 +37,9 @@ json finalize_json(json request, bool errored);
 /* Get all transactions related to the wallet from block "block". */
 json WalletDataSinceBlock(string block);
 
+/* Process a a JSON with an RPC result for the API */
+bool ProcessWalletData(json& result_json, bool isBlock);
+
 /* Setup a port for an auth/noauth port */
 bool SetupType(int type);
 
@@ -45,10 +48,6 @@ vector<string> read_cert(string type);
 
 /* write certificate to datadir certificate folder. */
 void write_cert(string public_key, string private_key, string type);
-
-//UniValue CallRPC(const string& strMethod, const UniValue& params);
-
-//static void http_request_done(struct evhttp_request *req, void *ctx);
 
 /* TODO new function layout */
 

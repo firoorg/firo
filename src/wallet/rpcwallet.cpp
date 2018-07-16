@@ -1561,7 +1561,7 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
                     entry.push_back(Pair("category", "mint"));
                     if(pwalletMain){
                         entry.push_back(Pair("used", pwalletMain->IsMintFromTxOutUsed(txout)));
-                }
+                    }
                 }
             else if(wtx.IsZerocoinSpend()){
                     entry.push_back(Pair("category", "spend"));

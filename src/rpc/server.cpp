@@ -367,6 +367,12 @@ bool RPCIsInWarmup(std::string *outStatus)
     return fRPCInWarmup;
 }
 
+bool RPCIsInWarmup()
+{
+    LOCK(cs_rpcWarmup);
+    return fRPCInWarmup;
+}
+
 void JSONRequest::parse(const UniValue& valRequest)
 {
     // Parse request

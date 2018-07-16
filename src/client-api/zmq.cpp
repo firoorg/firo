@@ -11,6 +11,7 @@
 #include "chainparamsbase.h"
 #include "clientversion.h"
 #include "rpc/client.h"
+#include "rpc/server.h"
 #include "rpc/protocol.h"
 #include "util.h"
 #include "utilstrencodings.h"
@@ -304,7 +305,7 @@ UniValue SetupRPC(std::vector<std::string> args)
 
 /**************** Start helper functions ****************************************/
 
-json ProcessWalletData(json result_json, bool isBlock){
+bool ProcessWalletData(json& result_json, bool isBlock){
    //cycle through result["data"], getting all tx's for one address, and adding balances
     json address_jsons;
     BOOST_FOREACH(json tx_json, result_json["data"]["transactions"]){
@@ -326,6 +327,18 @@ json ProcessWalletData(json result_json, bool isBlock){
         tx_json.erase("bip125-replaceable");
         tx_json.erase("abandoned");
         tx_json.erase("generated");
+        tx_json.erase("confirmations");
+
+        if(!tx_json["blockhash"].is_null()){
+          string blockhash = tx_json["blockhash"];
+          vector<string> rpc_args;
+          rpc_args.push_back("getblock");
+          rpc_args.push_back(blockhash);
+          UniValue rpc_raw = SetupRPC(rpc_args);
+          json result_json = response_to_json(rpc_raw);
+          tx_json["blockheight"] = result_json["data"]["height"];
+
+        }else tx_json.erase("blockhash");
 
 
         if(tx_json["category"]=="generate" || tx_json["category"]=="immature"){
@@ -403,7 +416,7 @@ json ProcessWalletData(json result_json, bool isBlock){
 
     result_json["data"] = address_jsons;
 
-    return result_json;
+    return true;
 }
 
 
@@ -417,7 +430,9 @@ json WalletDataSinceBlock(string block){
 
     json result_json = response_to_json(rpc_raw);
 
-    return ProcessWalletData(result_json, true);
+    ProcessWalletData(result_json, true);
+
+    return result_json;
 }
 /**************** End helper functions ****************************************/
 
@@ -748,6 +763,9 @@ json api_status(){
     api_status_json["data"]["walletlock"]= (pwalletMain && pwalletMain->IsCrypted());
     api_status_json["data"]["auth"]= DEV_AUTH;
     api_status_json["data"]["synced"]= znodeSync.IsBlockchainSynced();
+
+    api_status_json["data"]["modules"]= nullptr;
+    api_status_json["data"]["modules"]["rpc"] = !RPCIsInWarmup();
 
     api_status_json["meta"]["status"] = 200;
 
