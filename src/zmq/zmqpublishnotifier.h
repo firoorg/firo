@@ -30,7 +30,7 @@ public:
 
     bool writeTimestampToFile(json tx);
 
-    bool processTransaction(const CTransaction &transaction, vector<int> blockvals);
+    bool processTransaction(const CTransaction &transaction);
     bool Initialize(void *pcontext);
     void Shutdown();
 };
