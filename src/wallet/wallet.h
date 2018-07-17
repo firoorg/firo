@@ -830,6 +830,8 @@ public:
      */
     bool IsMintFromTxOutUsed(CTxOut& pcoin);
     void ListAvailableCoinsMintCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed=true) const;
+    
+    void GetAvailableMintCoinBalance(CAmount& balance, bool fOnlyConfirmed=true) const;
     bool CreateZerocoinMintTransaction(const std::vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet, int& nChangePosInOut,
                            std::string& strFailReason, const CCoinControl *coinControl = NULL, bool sign = true);
     bool CreateZerocoinMintTransaction(CScript pubCoin, int64_t nValue,

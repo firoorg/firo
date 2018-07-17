@@ -399,7 +399,7 @@ bool ProcessWalletData(json& result_json, bool isBlock){
       float balance = address_jsons["ZEROCOIN_MINT"]["total"]["balance"];
       balance *= -1;
       address_jsons["ZEROCOIN_MINT"]["total"]["balance"] = balance;
-    }
+    }else address_jsons.erase("ZEROCOIN_MINT");
     
     for (json::iterator it = address_jsons.begin(); it != address_jsons.end(); ++it) {
         string address = it.key();

@@ -2334,6 +2334,64 @@ void CWallet::ListAvailableCoinsMintCoins(vector <COutput> &vCoins, bool fOnlyCo
     }
 }
 
+//[zcoin]
+void CWallet::GetAvailableMintCoinBalance(CAmount& balance, bool fOnlyConfirmed) const {
+
+    LOCK(cs_wallet);
+    list <CZerocoinEntry> listPubCoin = list<CZerocoinEntry>();
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+    walletdb.ListPubCoin(listPubCoin);
+    LogPrintf("listPubCoin.size()=%s\n", listPubCoin.size());
+    for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it) {
+        const CWalletTx *pcoin = &(*it).second;
+//            LogPrintf("pcoin=%s\n", pcoin->GetHash().ToString());
+        if (!CheckFinalTx(*pcoin)) {
+            LogPrintf("!CheckFinalTx(*pcoin)=%s\n", !CheckFinalTx(*pcoin));
+            continue;
+        }
+
+        if (pcoin->IsCoinBase() && pcoin->GetBlocksToMaturity() > 0) {
+            LogPrintf("Not trusted\n");
+            continue;
+        }
+
+        int nDepth = pcoin->GetDepthInMainChain();
+        if (nDepth < 0) {
+            LogPrintf("nDepth=%s\n", nDepth);
+            continue;
+        }
+        LogPrintf("pcoin->vout.size()=%s\n", pcoin->vout.size());
+
+        for (unsigned int i = 0; i < pcoin->vout.size(); i++) {
+            if (pcoin->vout[i].scriptPubKey.IsZerocoinMint()) {
+                CTxOut txout = pcoin->vout[i];
+                vector<unsigned char> vchZeroMint;
+                vchZeroMint.insert(vchZeroMint.end(), txout.scriptPubKey.begin() + 6,
+                                   txout.scriptPubKey.begin() + txout.scriptPubKey.size());
+
+                CBigNum pubCoin;
+                pubCoin.setvch(vchZeroMint);
+                LogPrintf("Pubcoin=%s\n", pubCoin.ToString());
+                // CHECKING PROCESS
+                BOOST_FOREACH(const CZerocoinEntry &pubCoinItem, listPubCoin) {
+//                        LogPrintf("*******\n");
+//                        LogPrintf("pubCoinItem.value=%s,\n", pubCoinItem.value.ToString());
+//                        LogPrintf("pubCoinItem.IsUsed=%s\n, ", pubCoinItem.IsUsed);
+//                        LogPrintf("pubCoinItem.randomness=%s\n, ", pubCoinItem.randomness);
+//                        LogPrintf("pubCoinItem.serialNumber=%s\n, ", pubCoinItem.serialNumber);
+                    if (pubCoinItem.value == pubCoin && pubCoinItem.IsUsed == false &&
+                        pubCoinItem.randomness != 0 && pubCoinItem.serialNumber != 0) {
+                        if((fOnlyConfirmed && pcoin->IsTrusted()) ||!fOnlyConfirmed){
+                            balance += pubCoinItem.denomination * COIN;
+                        }
+                    }
+                }
+
+            }
+        }
+    }
+}
+
 static void ApproximateBestSubset(vector <pair<CAmount, pair<const CWalletTx *, unsigned int> >> vValue,
                                   const CAmount &nTotalLower,
                                   const CAmount &nTargetValue,

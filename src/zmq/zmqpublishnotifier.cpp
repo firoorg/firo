@@ -15,7 +15,7 @@
 #include "znode-sync.h"
 #include "net.h"
 #include "script/ismine.h"
-#include "wallet/wallet.h"
+#include "wallet/wallet.cpp"
 #include "wallet/rpcwallet.cpp"
 
 using path = boost::filesystem::path;
@@ -197,6 +197,85 @@ bool CZMQAbstractPublishNotifier::SendMessage(string msg){
 
 
 
+bool CZMQAbstractPublishNotifier::notifyBalance(){
+
+    // get confirmed,unconfirmed, locked, private-confirmed, and private-unconfirmed balance.
+    vector<string> rpc_args;
+    UniValue rpc_raw;
+    json result_json;
+    float amount;
+
+    //get confirmed
+    rpc_args.clear();
+    rpc_args.push_back("getbalance");
+    rpc_raw = SetupRPC(rpc_args);
+    result_json = response_to_json(rpc_raw);
+    amount = result_json["data"];
+    CAmount xzc_confirmed = amount * COIN;
+
+    //get unconfirmed
+    rpc_args.clear();
+    rpc_args.push_back("getunconfirmedbalance");
+    rpc_raw = SetupRPC(rpc_args);
+    result_json = response_to_json(rpc_raw);
+    amount = result_json["data"];
+    CAmount xzc_unconfirmed = amount * COIN;
+
+    //get locked
+    rpc_args.clear();
+    rpc_args.push_back("listlockunspentamount");
+    rpc_raw = SetupRPC(rpc_args);
+    result_json = response_to_json(rpc_raw);
+    amount = result_json["data"];
+    CAmount xzc_locked = amount * COIN;  
+
+    //get private confirmed
+    CAmount zerocoin_all = 0;
+    CAmount zerocoin_confirmed = 0;
+    pwalletMain->GetAvailableMintCoinBalance(zerocoin_confirmed, true);
+    pwalletMain->GetAvailableMintCoinBalance(zerocoin_all, false);
+
+    CAmount zerocoin_unconfirmed = zerocoin_all - zerocoin_confirmed; //the difference of all and confirmed gives unconfirmed
+
+    // We now have all base units, derive return values.
+    CAmount total = xzc_confirmed + xzc_unconfirmed + xzc_locked + zerocoin_all;
+    CAmount pending = total - xzc_confirmed - zerocoin_confirmed - xzc_locked;
+    CAmount available = xzc_confirmed -  xzc_locked;
+
+    json response;
+
+    response["data"]["total"] = nullptr;
+    response["data"]["total"]["all"] = total;
+    response["data"]["total"]["pending"] = pending;
+    response["data"]["total"]["available"] = available;
+
+    response["data"]["xzc"] = nullptr;
+    response["data"]["xzc"]["confirmed"] = xzc_confirmed;
+    response["data"]["xzc"]["unconfirmed"] = xzc_unconfirmed;
+    response["data"]["xzc"]["locked"] = xzc_locked;
+
+    response["data"]["zerocoin"] = nullptr;
+    response["data"]["zerocoin"]["confirmed"] = zerocoin_confirmed;
+    response["data"]["zerocoin"]["unconfirmed"] = zerocoin_unconfirmed;
+
+    response["meta"]["status"] = 200;
+
+
+    string topic = "balance";
+    string message = response.dump();
+
+    LogPrintf("ZMQ: message: %s\n", message);
+    LogPrintf("ZMQ: sending topic message balance\n");
+    if(!SendTopicMessage(topic.c_str(), message.c_str(), message.length())){
+        LogPrintf("ZMQ: sending topic message balance failed");
+        return false;
+    }
+    LogPrintf("ZMQ: sending topic message balance succeeded\n");
+    return true;
+}
+
+
+
 /***************** not used *******************/
 bool CZMQPublishHashBlockNotifier::NotifyBlock(const CBlockIndex *pindex)
 {
@@ -227,8 +306,6 @@ bool CZMQPublishRawTransactionNotifier::NotifyTransaction(const CTransaction &tr
     // );
 
     if(znodeSync.IsBlockchainSynced()){
-        LOCK2(cs_main, pwalletMain->cs_wallet); 
-
         UniValue entry(UniValue::VARR);
 
         const CWalletTx wtx(pwalletMain, transaction);
@@ -246,7 +323,9 @@ bool CZMQPublishRawTransactionNotifier::NotifyTransaction(const CTransaction &tr
         string topic = "address";
         string message = result_json.dump();
 
-        SendTopicMessage(topic.c_str(), message.c_str(), message.length());
+        if(!SendTopicMessage(topic.c_str(), message.c_str(), message.length())){
+            return false;
+        }
     }
     
     return true;
@@ -266,16 +345,19 @@ bool CZMQPublishRawBlockNotifier::NotifyBlock(const CBlockIndex *pindex)
         if(znodeSync.IsBlockchainSynced()){
             prevblockhash = pindex->GetBlockHash().ToString();
         }else {
-            prevblockhash = chainActive[currentHeight - (syncing ? 10 : 0)]->GetBlockHash().ToString();
+            LogPrintf("zmq: currentheight: %s\n", to_string(currentHeight));
+            prevblockhash = chainActive[currentHeight - 10]->GetBlockHash().ToString();
+            LogPrintf("zmq: prevblockhash: %s\n", prevblockhash);
         }
-        LogPrintf("ZMQ: prevblockhash: %s\n", prevblockhash);
 
         json result_json;
         result_json = WalletDataSinceBlock(prevblockhash);
 
         topic = "address";
         message = result_json.dump();
-        SendTopicMessage(topic.c_str(), message.c_str(), message.length());
+        if(!SendTopicMessage(topic.c_str(), message.c_str(), message.length())){
+            return false;
+        }
     }
 
     //publish Blockchain related info.
@@ -301,7 +383,14 @@ bool CZMQPublishRawBlockNotifier::NotifyBlock(const CBlockIndex *pindex)
 
     topic = "block";
     message = response.dump();
-    SendTopicMessage(topic.c_str(), message.c_str(), message.length());
+    if(!SendTopicMessage(topic.c_str(), message.c_str(), message.length())){
+        return false;
+    }
+
+    //Publish balance info.
+    if(!notifyBalance()){
+        return false;
+    }
 
     return true;
 }

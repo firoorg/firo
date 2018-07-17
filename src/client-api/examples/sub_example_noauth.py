@@ -14,9 +14,11 @@ socket.connect("tcp://localhost:28332")
 
 addressfilter = b"address"
 blockfilter = b"block"
+balancefilter = b"balance"
 
 socket.setsockopt(zmq.SUBSCRIBE, addressfilter)
 socket.setsockopt(zmq.SUBSCRIBE, blockfilter)
+socket.setsockopt(zmq.SUBSCRIBE, balancefilter)
 while True:
   message = socket.recv()
   print("Received reply [%s]" % (message))

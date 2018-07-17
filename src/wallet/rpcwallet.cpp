@@ -2474,6 +2474,58 @@ UniValue listlockunspent(const UniValue& params, bool fHelp)
     return ret;
 }
 
+UniValue listlockunspentamount(const UniValue& params, bool fHelp)
+{
+    if (!EnsureWalletIsAvailable(fHelp))
+        return NullUniValue;
+
+    if (fHelp || params.size() > 0)
+        throw runtime_error(
+            "listlockunspent\n"
+            "\nReturns list of temporarily unspendable outputs.\n"
+            "See the lockunspent call to lock and unlock transactions for spending.\n"
+            "\nResult:\n"
+            "[\n"
+            "  {\n"
+            "    \"txid\" : \"transactionid\",     (string) The transaction id locked\n"
+            "    \"vout\" : n                      (numeric) The vout value\n"
+            "  }\n"
+            "  ,...\n"
+            "]\n"
+            "\nExamples:\n"
+            "\nList the unspent transactions\n"
+            + HelpExampleCli("listunspent", "") +
+            "\nLock an unspent transaction\n"
+            + HelpExampleCli("lockunspent", "false \"[{\\\"txid\\\":\\\"a08e6907dbbd3d809776dbfc5d82e371b764ed838b5655e72f463568df1aadf0\\\",\\\"vout\\\":1}]\"") +
+            "\nList the locked transactions\n"
+            + HelpExampleCli("listlockunspent", "") +
+            "\nUnlock the transaction again\n"
+            + HelpExampleCli("lockunspent", "true \"[{\\\"txid\\\":\\\"a08e6907dbbd3d809776dbfc5d82e371b764ed838b5655e72f463568df1aadf0\\\",\\\"vout\\\":1}]\"") +
+            "\nAs a json rpc call\n"
+            + HelpExampleRpc("listlockunspent", "")
+        );
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    CTransaction tx;
+    uint256 hashBlock;
+    uint256 hash;
+    vector<COutPoint> vOutpts;
+    CAmount total = 0;
+
+    pwalletMain->ListLockedCoins(vOutpts);
+
+    BOOST_FOREACH(COutPoint &outpt, vOutpts) {
+        uint256 hash = outpt.hash;
+        if (!GetTransaction(hash, tx, Params().GetConsensus(), hashBlock, true))
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available about transaction");
+
+        total += tx.vout[outpt.n].nValue;
+    }
+
+    return total;
+}
+
 UniValue settxfee(const UniValue& params, bool fHelp)
 {
     if (!EnsureWalletIsAvailable(fHelp))
@@ -3564,6 +3616,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "listaccounts",             &listaccounts,             false },
     { "wallet",             "listaddressgroupings",     &listaddressgroupings,     false },
     { "wallet",             "listlockunspent",          &listlockunspent,          false },
+    { "wallet",             "listlockunspentamount",    &listlockunspentamount,    false },
     { "wallet",             "listreceivedbyaccount",    &listreceivedbyaccount,    false },
     { "wallet",             "listreceivedbyaddress",    &listreceivedbyaddress,    false },
     { "wallet",             "listsinceblock",           &listsinceblock,           false },

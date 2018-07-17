@@ -30,6 +30,8 @@ public:
 
     bool writeTimestampToFile(json tx);
 
+    bool notifyBalance();
+
     bool processTransaction(const CTransaction &transaction);
     bool Initialize(void *pcontext);
     void Shutdown();
