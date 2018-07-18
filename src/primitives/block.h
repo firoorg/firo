@@ -94,6 +94,8 @@ public:
 
     ADD_SERIALIZE_METHODS;
 
+    class CReadBlockHeader : public CSerActionUnserialize {};
+
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
         READWRITE(this->nVersion);
@@ -114,6 +116,16 @@ public:
                     READWRITE(*mtpHashData);
             }
         }
+    }
+
+    template <typename Stream>
+    inline void SerializationOp(Stream &s, CReadBlockHeader ser_action, int nType, int) {
+        READWRITE(this->nVersion);
+        READWRITE(hashPrevBlock);
+        READWRITE(hashMerkleRoot);
+        READWRITE(nTime);
+        READWRITE(nBits);
+        READWRITE(nNonce);
     }
 
     void SetNull()
@@ -203,6 +215,11 @@ public:
     inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
         READWRITE(*(CBlockHeader*)this);
         READWRITE(vtx);
+    }
+
+    template <typename Stream>
+    inline void SerializationOp(Stream &s, CReadBlockHeader ser_action, int nType, int nVersion) {
+        READWRITE(*(CBlockHeader *)this);
     }
 
     void SetNull()

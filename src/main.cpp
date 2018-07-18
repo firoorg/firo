@@ -1872,6 +1872,21 @@ bool ReadBlockFromDisk(CBlock &block, const CBlockIndex *pindex, const Consensus
     return true;
 }
 
+bool ReadBlockHeaderFromDisk(CBlock &block, const CDiskBlockPos &pos) {
+    CAutoFile filein(OpenBlockFile(pos, true), SER_DISK, CLIENT_VERSION);
+    if (filein.IsNull())
+        return error("ReadBlockFromDisk: OpenBlockFile failed for %s", pos.ToString());
+
+    try {
+        block.SerializationOp(filein, CBlockHeader::CReadBlockHeader(), SER_DISK, CLIENT_VERSION);
+    }
+    catch (const std::exception &e) {
+        return error("%s: Deserialize or I/O error - %s at %s", __func__, e.what(), pos.ToString());
+    }
+
+    return true;
+}
+
 CAmount GetBlockSubsidy(int nHeight, const Consensus::Params &consensusParams, int nTime) {
     bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
     // Just want to make sure no one gets a dime before 28 Sep 2016 12:00 AM UTC
@@ -6339,7 +6354,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
 //                 pfrom->id);
         for (; pindex; pindex = chainActive.Next(pindex)) {
         	CBlock block;
-        	ReadBlockFromDisk(block, pindex, Params().GetConsensus());
+        	ReadBlockHeaderFromDisk(block, pindex->GetBlockPos());
             vHeaders.push_back(block.GetBlockHeader());
             if (--nLimit <= 0 || pindex->GetBlockHash() == hashStop)
                 break;
@@ -6811,7 +6826,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
         }
         headers.resize(nCount);
         for (unsigned int n = 0; n < nCount; n++) {
-            vRecv >> headers[n];
+            headers[n].SerializationOp(vRecv, CBlockHeader::CReadBlockHeader(), SER_NETWORK, CLIENT_VERSION);
             ReadCompactSize(vRecv); // ignore tx count; assume it is 0.
         }
 
