@@ -225,7 +225,7 @@ void ZerocoinPage::on_exportButton_clicked() {
     writer.addColumn("Address", AddressTableModel::Address, Qt::EditRole);
 
     if (!writer.write()) {
-        QMessageBox::critical(this, tr("Exporting Failed"), tr("There was an error trying to save the address list to %1. Please try again.").arg(
+        QMessageBox::critical(this, tr("Export Failed"), tr("There was an error trying to save the address list to %1. Please try again.").arg(
                 filename));
     }
 }
