@@ -422,7 +422,7 @@ UniValue sendtoaddress(const UniValue& params, bool fHelp)
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid zcoin address");
 
     // Amount
-    CAmount nAmount = AmountFromValue(params[1]);
+    CAmount nAmount = params[1].get_int64();
     if (nAmount <= 0)
         throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
 
@@ -904,7 +904,8 @@ UniValue gettransactionfee(const UniValue& params, bool fHelp)
         setAddress.insert(address);
 
         CScript scriptPubKey = GetScriptForDestination(address.Get());
-        CAmount nAmount = AmountFromValue(sendTo[name_]);
+        CAmount nAmount = sendTo[name_].get_int64();
+        LogPrintf("nAmount gettransactionfee: %s\n", nAmount);
         if (nAmount <= 0)
             throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
         totalAmount += nAmount;
@@ -1017,7 +1018,8 @@ UniValue sendmanyfromany(const UniValue& params, bool fHelp)
         setAddress.insert(address);
 
         CScript scriptPubKey = GetScriptForDestination(address.Get());
-        CAmount nAmount = AmountFromValue(sendTo[name_]);
+        CAmount nAmount = sendTo[name_].get_int64();
+        LogPrintf("nAmount sendmanyfromany: %s\n", nAmount);
         if (nAmount <= 0)
             throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
         totalAmount += nAmount;
@@ -2536,18 +2538,19 @@ UniValue settxfee(const UniValue& params, bool fHelp)
             "settxfee amount\n"
             "\nSet the transaction fee per kB. Overwrites the paytxfee parameter.\n"
             "\nArguments:\n"
-            "1. amount         (numeric or string, required) The transaction fee in " + CURRENCY_UNIT + "/kB\n"
+            "1. amount         (numeric or string, required) The transaction fee in satoshi's/kB\n"
             "\nResult\n"
             "true|false        (boolean) Returns true if successful\n"
             "\nExamples:\n"
-            + HelpExampleCli("settxfee", "0.00000001 XZC")
-            + HelpExampleRpc("settxfee", "0.00000001 XZC")
+            + HelpExampleCli("settxfee", "1000")
+            + HelpExampleRpc("settxfee", "1000")
         );
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
     // Amount
-    CAmount nAmount = AmountFromValue(params[0]);
+    CAmount nAmount = params[0].get_int64();
+    LogPrintf("nAmount settxfee: %s\n", nAmount);
 
     payTxFee = CFeeRate(nAmount, 1000);
     return true;
@@ -2939,7 +2942,7 @@ UniValue listunspentmintzerocoins(const UniValue &params, bool fHelp) {
                         + HelpExampleCli("mintmanyzerocoin", "\"\" \"{\\\"25\\\":10,\\\"10\\\":5}\"")
             );
 
-
+        //TODO verify enough balance available before starting to mint.
         UniValue txids(UniValue::VARR);
 
         int64_t denomination_int = 0;

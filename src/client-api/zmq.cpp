@@ -48,6 +48,7 @@ using namespace boost::filesystem;
 
 static const char DEFAULT_RPCCONNECT[] = "127.0.0.1";
 static const int DEFAULT_HTTP_CLIENT_TIMEOUT=900;
+static int KEEPALIVE = 1;
 
 /** Reply structure for request_done to fill in */
 /*************** Start RPC setup functions *****************************************/
@@ -353,7 +354,7 @@ bool ProcessWalletData(json& result_json, bool isBlock){
               float fee = tx_json["fee"];
               tx_json["fee"]=fee * -1;
             }
-        }   
+        }else(tx_json.erase("fee")); 
 
         // tally up total amount
         float amount;
@@ -945,7 +946,7 @@ int needStopREQREPZMQ(){
 static void* threadNoAuth(void *arg){
 
     LogPrintf("ZMQ: IN REQREP_ZMQ_noauth\n");
-    while (1) {
+    while (KEEPALIVE) {
         // 1. get request message
         // 2. do something in tableZMQ
         // 3. reply result
@@ -1222,8 +1223,32 @@ void InterruptREQREPZMQ()
 
 void StopREQREPZMQ()
 {
-    LogPrint("zmq", "Stopping REQ/REP ZMQ server\n");
-    pthread_mutex_unlock(&mxq);
+    LogPrintf("Stopping REQ/REP ZMQ server\n");
+    if (socket_auth)
+    {
+        zmq_close(socket_auth);
+        socket_auth = 0;
+    }
+
+    if (context_auth)
+    {
+        zmq_ctx_destroy(context_auth);
+        context_auth = 0;
+    }
+
+    if (socket_noauth)
+    {
+        zmq_close(socket_noauth);
+        socket_noauth = 0;
+    }
+
+    if (context_noauth)
+    {
+        zmq_ctx_destroy(context_noauth);
+        context_noauth = 0;
+    }
+    
+    KEEPALIVE = 0;
 }
 
 /******************* End REQ/REP ZMQ functions ******************************************/

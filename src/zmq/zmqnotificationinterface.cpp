@@ -6,6 +6,7 @@
 #include "zmqpublishnotifier.h"
 
 #include "version.h"
+#include "chainparamsbase.h"
 #include "main.h"
 #include "streams.h"
 #include "util.h"
@@ -39,7 +40,7 @@ CZMQNotificationInterface* CZMQNotificationInterface::CreateWithArguments(const 
     //factories["pubhashtx"] = CZMQAbstractNotifier::Create<CZMQPublishHashTransactionNotifier>;
     factories["pubrawblock"] = CZMQAbstractNotifier::Create<CZMQPublishRawBlockNotifier>;
     factories["pubrawtx"] = CZMQAbstractNotifier::Create<CZMQPublishRawTransactionNotifier>;
-    std::string address = "tcp://127.0.0.1:28332";
+    std::string address = "tcp://127.0.0.1:" + to_string(BaseParams().APIPort());
 
     for (std::map<std::string, CZMQNotifierFactory>::const_iterator i=factories.begin(); i!=factories.end(); ++i)
     {

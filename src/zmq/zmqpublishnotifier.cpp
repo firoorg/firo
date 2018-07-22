@@ -15,6 +15,7 @@
 #include "znode-sync.h"
 #include "net.h"
 #include "script/ismine.h"
+#include "wallet/wallet.h"
 #include "wallet/wallet.cpp"
 #include "wallet/rpcwallet.cpp"
 

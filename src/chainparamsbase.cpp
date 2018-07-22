@@ -32,6 +32,7 @@ class CBaseMainParams : public CBaseChainParams
 public:
     CBaseMainParams()
     {
+        nAPIPort = 28332;
         nRPCPort = 8888;
     }
 };
@@ -45,6 +46,7 @@ class CBaseTestNetParams : public CBaseChainParams
 public:
     CBaseTestNetParams()
     {
+        nAPIPort = 28332;
         nRPCPort = 18888;
         strDataDir = "testnet3";
     }
@@ -59,6 +61,7 @@ class CBaseRegTestParams : public CBaseChainParams
 public:
     CBaseRegTestParams()
     {
+        nAPIPort = 28332;
         nRPCPort = 28888;
         strDataDir = "regtest";
     }

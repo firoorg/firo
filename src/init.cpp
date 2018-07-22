@@ -85,9 +85,6 @@
 
 #if ENABLE_ZMQ
 #include "zmq/zmqnotificationinterface.h"
-#endif
-
-#if ENABLE_ZMQ // TODO create own flag
 #include "client-api/zmq.h"
 #include "client-api/server.h"
 #include "client-api/register.h"
@@ -220,6 +217,8 @@ void Interrupt(boost::thread_group &threadGroup) {
     InterruptRPC();
     InterruptREST();
     InterruptTorControl();
+    //InterruptZMQServer();
+    //InterruptAPI();
     threadGroup.interrupt_all();
 }
 
@@ -240,7 +239,10 @@ void Shutdown() {
     StopHTTPRPC();
     StopREST();
     StopRPC();
+    //StopZMQServer();
+    //StopAPI();
     StopHTTPServer();
+    StopREQREPZMQ();
 #ifdef ENABLE_WALLET
     if (pwalletMain)
         pwalletMain->Flush(false);
