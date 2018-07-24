@@ -40,7 +40,9 @@
 #include "validationinterface.h"
 #include "validation.h"
 #include "client-api/json.hpp"
-
+#include "client-api/register.h"
+#include "client-api/server.h"
+#include "zmqserver.h"
 #ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
 #endif
@@ -242,7 +244,7 @@ void Shutdown() {
     //StopZMQServer();
     //StopAPI();
     StopHTTPServer();
-    StopREQREPZMQ();
+    //StopREQREPZMQ();
 #ifdef ENABLE_WALLET
     if (pwalletMain)
         pwalletMain->Flush(false);
@@ -859,7 +861,6 @@ bool AppInitServers(boost::thread_group &threadGroup) {
     if (!StartHTTPServer())
         return false;
 #if ENABLE_ZMQ
-    LogPrint(NULL, "ZMQ: starting REQ/REP zmq.\n");
 
     LogPrint(NULL, "ZMQ: creating data directory.\n");
     // Add persistent_dir data folder in the datadir
@@ -899,7 +900,7 @@ bool AppInitServers(boost::thread_group &threadGroup) {
     write_cert(client_public_key, client_secret_key, "client");
 
     LogPrint(NULL, "ZMQ: created data directory.\n");
-    if (!StartREQREPZMQ())
+    if (!InitZMQServer())
         return false;
 #endif
     return true;
@@ -1260,6 +1261,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     }
 
     RegisterAllCoreRPCCommands(tableRPC);
+    RegisterAllCoreAPICommands(tableAPI);
 #ifdef ENABLE_WALLET
     bool fDisableWallet = GetBoolArg("-disablewallet", false);
     if (!fDisableWallet)
@@ -1420,6 +1422,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
      */
     if (fServer) {
         uiInterface.InitMessage.connect(SetRPCWarmupStatus);
+        uiInterface.InitMessage.connect(SetAPIWarmupStatus);
         if (!AppInitServers(threadGroup))
             return InitError(_("Unable to start HTTP server. See debug log for details."));
     }
@@ -2021,6 +2024,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     // ********************************************************* Step 12: finished
 
     SetRPCWarmupFinished();
+    SetAPIWarmupFinished();
     uiInterface.InitMessage(_("Done loading"));
 
 #ifdef ENABLE_WALLET

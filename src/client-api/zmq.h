@@ -10,8 +10,8 @@
 
 using json = nlohmann::json;
 
-#ifndef BITCOIN_ZMQAPI_ZMQ_H
-#define BITCOIN_ZMQAPI_ZMQ_H
+// #ifndef BITCOIN_ZMQAPI_ZMQ_H
+// #define BITCOIN_ZMQAPI_ZMQ_H
 
 /** Start REQ/REP ZMQ subsystem.
  * Precondition; REQ/REP ZMQ has been started.
@@ -51,4 +51,4 @@ void write_cert(string public_key, string private_key, string type);
 
 /* TODO new function layout */
 
-#endif // BITCOIN_ZMQAPI_ZMQ_H
+//#endif // BITCOIN_ZMQAPI_ZMQ_H

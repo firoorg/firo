@@ -583,6 +583,58 @@ json response_to_json(UniValue reply){
 
 // }
 
+// json settings(json request){
+
+//     //get payment request data
+//     path settings_path = GetDataDir(true) / "persistent" / "settings.json";
+
+//     // get raw string
+//     std::ifstream settings_in(settings_path.string());
+
+//     // convert to JSON
+//     json settings_json;
+//     settings_in >> settings_json;
+
+//     // get "data" object from JSON
+//     json data_json = settings_json["data"];
+
+//     //misc values for use
+//     json reply;
+
+//     if(request["type"]=="initial"){
+//       //TODO status codes
+//       reply["data"] = data_json;
+
+//       reply["meta"]["status"] = 200;
+//     }
+
+//     if(request["type"]=="update"){
+
+//         // cycle through new values and replace
+//         for (json::iterator it = request["data"].begin(); it != request["data"].end(); ++it) {
+//             data_json[it.key()] = it.value();
+//         }
+
+//         //set up reply value
+//         reply["data"] = data_json;
+//         reply["meta"]["status"] = 200;
+//     }
+//     else {}//TODO throw
+
+
+      
+//     // write request back to JSON
+//     persistent_pr_json["data"] = data_json;
+        
+//     // write back to file.
+//     std::ofstream persistent_pr_out(persistent_pr.string());
+//     persistent_pr_out << std::setw(4) << persistent_pr_json << std::endl;
+
+//     // Return reply.
+//     return reply;
+
+// }
+
 json set_passphrase(json request){
 
     vector<string> rpc_args;
@@ -755,20 +807,6 @@ json api_status(){
     UniValue rpc_raw = SetupRPC(rpc_args);
     json get_info_json = response_to_json(rpc_raw);
     json api_status_json;
-
-    api_status_json["data"]["version"] = get_info_json["data"]["version"];
-    api_status_json["data"]["protocolversion"] = get_info_json["data"]["protocolversion"];
-    api_status_json["data"]["walletversion"] = get_info_json["data"]["walletversion"];
-    api_status_json["data"]["datadir"] = GetDataDir(true).string();
-    api_status_json["data"]["network"]  = ChainNameFromCommandLine();
-    api_status_json["data"]["walletlock"]= (pwalletMain && pwalletMain->IsCrypted());
-    api_status_json["data"]["auth"]= DEV_AUTH;
-    api_status_json["data"]["synced"]= znodeSync.IsBlockchainSynced();
-
-    api_status_json["data"]["modules"]= nullptr;
-    api_status_json["data"]["modules"]["rpc"] = !RPCIsInWarmup();
-
-    api_status_json["meta"]["status"] = 200;
 
     return api_status_json;
 }
@@ -1082,6 +1120,9 @@ static void* threadAuth(void *arg)
               else if(request_json["collection"]=="set-passphrase"){      
                   rpc_json = set_passphrase(request_json);
               }
+              // else if(request_json["collection"]=="settings"){      
+              //     rpc_json = settings(request_json);
+              // }
           }
           lock_account();
         }

@@ -259,6 +259,8 @@ libbitcoin_zmq_a_SOURCES = \
   zmq/zmqpublishnotifier.cpp \
   client-api/server.cpp \
   client-api/zmq.cpp \
+  client-api/methods.cpp \
+  zmqserver.cpp \
   rpc/client.cpp
 endif
 
@@ -389,6 +391,7 @@ libbitcoin_util_a_SOURCES = \
   compat/strnlen.cpp \
   random.cpp \
   rpc/protocol.cpp \
+  client-api/protocol.cpp \
   support/cleanse.cpp \
   sync.cpp \
   util.cpp \

@@ -14,8 +14,7 @@ void RegisterAPICommands(CAPITable &tableAPI);
 
 static inline void RegisterAllCoreAPICommands(CAPITable &tableAPI)
 {
-    // maybe readd after
-    //RegisterAPICommands(tableAPI);
+    RegisterAPICommands(tableAPI);
 }
 
 #endif
