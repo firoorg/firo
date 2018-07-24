@@ -1,4 +1,4 @@
-Zcoin Core 0.13.2.x
+Zcoin Core 0.13.6.x
 =====================
 
 Setup
