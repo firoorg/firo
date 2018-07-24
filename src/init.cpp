@@ -241,10 +241,10 @@ void Shutdown() {
     StopHTTPRPC();
     StopREST();
     StopRPC();
-    //StopZMQServer();
     //StopAPI();
     StopHTTPServer();
-    //StopREQREPZMQ();
+    StopREQREPZMQ();
+    //StopZMQServer();
 #ifdef ENABLE_WALLET
     if (pwalletMain)
         pwalletMain->Flush(false);
@@ -900,7 +900,9 @@ bool AppInitServers(boost::thread_group &threadGroup) {
     write_cert(client_public_key, client_secret_key, "client");
 
     LogPrint(NULL, "ZMQ: created data directory.\n");
-    if (!InitZMQServer())
+    // if (!InitZMQServer())
+    //     return false;
+    if (!StartREQREPZMQ())
         return false;
 #endif
     return true;

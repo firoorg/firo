@@ -83,6 +83,9 @@ public:
     bool isArray() const { return (typ == VARR); }
     bool isObject() const { return (typ == VOBJ); }
 
+    //replace a previous instance of 'key' with a new value, should it exist; otherwise set new.
+    bool replace(const UniValue& key, const UniValue& value);
+
     bool push_back(const UniValue& val);
     bool push_back(const std::string& val_) {
         UniValue tmpVal(VSTR, val_);
