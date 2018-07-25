@@ -122,7 +122,7 @@ void APIJSONRequest::parse(const UniValue& valRequest)
     // Parse type
     UniValue valType = find_value(request, "type");
     if (valType.isNull())
-        throw JSONAPIError(API_INVALID_REQUEST, "Missing type");
+        throw JSONAPIError(API_INVALID_REQUEST, "Missing type in JSON request");
     if (!valType.isStr())
         throw JSONAPIError(API_INVALID_REQUEST, "type must be a string");
     type = valType.get_str();
@@ -130,7 +130,7 @@ void APIJSONRequest::parse(const UniValue& valRequest)
     // Parse collection
     UniValue valCollection = find_value(request, "collection");
     if (valCollection.isNull())
-        throw JSONAPIError(API_INVALID_REQUEST, "Missing collection");
+        throw JSONAPIError(API_INVALID_REQUEST, "Missing collection in JSON request");
     if (!valCollection.isStr())
         throw JSONAPIError(API_INVALID_REQUEST, "collection must be a string");
     collection = valCollection.get_str();
@@ -144,7 +144,7 @@ void APIJSONRequest::parse(const UniValue& valRequest)
     else if (valAuth.isNull())
         auth = UniValue(UniValue::VARR);
     else
-        throw JSONAPIError(API_INVALID_REQUEST, "auth must be an array");
+        throw JSONAPIError(API_INVALID_REQUEST, "auth must be an object");
 
     // Parse data
     UniValue valData = find_value(request, "data");
@@ -155,24 +155,26 @@ void APIJSONRequest::parse(const UniValue& valRequest)
     else if (valData.isNull())
         data = UniValue(UniValue::VARR);
     else
-        throw JSONAPIError(API_INVALID_REQUEST, "data must be an array");
+        throw JSONAPIError(API_INVALID_REQUEST, "data must be an object");
 
 
 }
 
 UniValue CAPITable::execute(APIJSONRequest request, const bool authPort) const
 {
-    // Return immediately if in warmup
-    { 
-        LOCK(cs_apiWarmup);
-        if (fAPIInWarmup)
-            throw JSONAPIError(API_IN_WARMUP, apiWarmupStatus);
-    }
 
     // Find method
     const CAPICommand *pcmd = tableAPI[request.collection];
     if (!pcmd)
         throw JSONAPIError(API_METHOD_NOT_FOUND, "Method not found");
+
+    // Return if in warmup
+    { 
+        LOCK(cs_apiWarmup);
+        //TODO add 'warmupOK' field or something like that and set true for apistatus
+        if (fAPIInWarmup && !pcmd->warmupOk)
+            throw JSONAPIError(API_IN_WARMUP, apiWarmupStatus);
+    }
 
     // If on open port, fail if trying to execute an authenticated method.
     if(!authPort && pcmd->authPort){

@@ -20,6 +20,6 @@ void InterruptZMQServer();
  */
 void StopZMQServer();
 
-//static const bool DEV_AUTH = false; in zmq.h
+static const bool DEV_AUTH = false;
 
 //TODO ifndef defines

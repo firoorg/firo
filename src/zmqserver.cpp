@@ -5,6 +5,7 @@
 #include "client-api/protocol.h"
 #include "client-api/server.h"
 
+#include "zmqserver.h"
 #include "httpserver.h"
 #include "client-api/zmq.h"
 #include "zmq/zmqpublishnotifier.h"
@@ -35,6 +36,7 @@
 #include <iostream>
 #include <sstream>
 
+int KEEPALIVE=1;
 /******************* Start REQ/REP ZMQ functions ******************************************/
 //TODO create class to hold thread instance. have to experiment with different setups
 // public: context, socket, thread
@@ -63,9 +65,10 @@ void zmqError(const char *str)
 
 // 'Wait' thread. hangs waiting for REQ
 bool wait(int& rc, zmq_msg_t& request, bool auth){
+    if(rc==-1) return false;
     /* Block until a message is available to be received from socket */
     rc = zmq_recvmsg ((auth ? socket_auth : socket_open), &request, 0);
-    if(rc==-1) return false; //TODO error handle
+    if(rc==-1) return false;
 
     return true;
 }
@@ -82,12 +85,12 @@ bool sendResponse(int& rc, string response, bool auth){
     /* Send reply */
     zmq_msg_t reply;
     rc = zmq_msg_init_size (&reply, response.size());
-    assert(rc == 0);  
+    if(rc==-1) return false;  
     std::memcpy (zmq_msg_data (&reply), response.data(), response.size());
     LogPrintf("ZMQ: Sending reply..\n");
     /* Block until a message is available to be sent from socket */   
     rc = zmq_sendmsg ((auth ? socket_auth : socket_open), &reply, 0);    
-    if(rc==-1) return false; //TODO error handle
+    if(rc==-1) return false;
 
     LogPrintf("ZMQ: Reply sent.\n");
     zmq_msg_close(&reply);
@@ -114,14 +117,16 @@ bool sendResponse(int& rc, string response, bool auth){
 static void* threadAuth(void *arg){
 
     LogPrintf("ZMQ: IN REQREP_ZMQ_auth\n");
-    while (1) {
+    while (KEEPALIVE) {
         /* Create an empty ØMQ message to hold the message part. */
         /* message assumed to contain an API command to be executed with data */
         zmq_msg_t request;
         int rc = zmq_msg_init (&request);
 
         /* Block until a message is available to be received from socket */
-        wait(rc, request, true);
+        if(!wait(rc, request, true)){
+            break;
+        }
 
         APIJSONRequest jreq;
         string requestStr = readRequest(rc, request);
@@ -139,33 +144,43 @@ static void* threadAuth(void *arg){
             // Send reply
             response = JSONAPIReply(result, NullUniValue);
             if(!sendResponse(rc, response, true)){
-                throw JSONAPIError(API_RESPONSE_ERROR, "Response error");
+                break;
             }
 
         } catch (const UniValue& objError) {
             response = JSONAPIReply(NullUniValue, objError);
-            sendResponse(rc, response, true);
+            if(!sendResponse(rc, response, true)){
+                break;
+            }
         } catch (const std::exception& e) {
             response = JSONAPIReply(NullUniValue, JSONAPIError(API_PARSE_ERROR, e.what()));
-            sendResponse(rc, response, true);
-            return (void*)false;
+            if(!sendResponse(rc, response, true)){
+                break;
+            }
+            void *ret;
+            pthread_exit(ret);
+            return NULL;
         }
     }
 
-    return (void*)true;
+    void *ret;
+    pthread_exit(ret);
+    return NULL;
 }
 
 static void* threadOpen(void *arg)
 {
     LogPrintf("ZMQ: IN REQREP_ZMQ_open\n");
-    while (1) {
+    while (KEEPALIVE) {
         /* Create an empty ØMQ message to hold the message part. */
         /* message assumed to contain an API command to be executed with data */
         zmq_msg_t request;
         int rc = zmq_msg_init (&request);
 
         /* Block until a message is available to be received from socket */
-        wait(rc, request, false);
+        if(!wait(rc, request, false)){
+            break;
+        }
 
         APIJSONRequest jreq;
         string requestStr = readRequest(rc, request);
@@ -184,20 +199,27 @@ static void* threadOpen(void *arg)
             // Send reply
             response = JSONAPIReply(result, NullUniValue);
             if(!sendResponse(rc, response, false)){
-                throw JSONAPIError(API_RESPONSE_ERROR, "Response error");
+                break;
             }
 
         } catch (const UniValue& objError) {
             response = JSONAPIReply(NullUniValue, objError);
-            sendResponse(rc, response, false);
+            if(!sendResponse(rc, response, false)){
+                break;
+            }
         } catch (const std::exception& e) {
             response = JSONAPIReply(NullUniValue, JSONAPIError(API_PARSE_ERROR, e.what()));
-            sendResponse(rc, response, false);
-            return (void*)false;
+            if(!sendResponse(rc, response, false)){
+                break;
+            }
+            void *ret;
+            pthread_exit(ret);
+            return NULL;
         }
     }
-
-    return (void*)true;
+    void *ret;
+    pthread_exit(ret);
+    return NULL;
 }
 //*********** threads waiting for responses ***********//
 
@@ -345,7 +367,7 @@ void StopZMQServer()
         context_open = 0;
     }
     
-    //KEEPALIVE=0;
+    KEEPALIVE=0;
 }
 
 /******************* End REQ/REP ZMQ functions ******************************************/

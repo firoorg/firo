@@ -18,6 +18,7 @@
 #include <chrono>
 #include "main.h"
 #include "httpserver.h"
+#include "zmqserver.h"
 #ifdef ENABLE_WALLET
 #include "znode-sync.h"
 #include "wallet/wallet.h"
@@ -807,6 +808,20 @@ json api_status(){
     UniValue rpc_raw = SetupRPC(rpc_args);
     json get_info_json = response_to_json(rpc_raw);
     json api_status_json;
+
+    api_status_json["data"]["version"] = get_info_json["data"]["version"]; 
+    api_status_json["data"]["protocolversion"] = get_info_json["data"]["protocolversion"]; 
+    api_status_json["data"]["walletversion"] = get_info_json["data"]["walletversion"]; 
+    api_status_json["data"]["datadir"] = GetDataDir(true).string();  
+    api_status_json["data"]["network"]  = ChainNameFromCommandLine();  
+    api_status_json["data"]["walletlock"]= (pwalletMain && pwalletMain->IsCrypted());  
+    api_status_json["data"]["auth"]= DEV_AUTH; 
+    api_status_json["data"]["synced"]= znodeSync.IsBlockchainSynced(); 
+
+    api_status_json["data"]["modules"]= nullptr; 
+    api_status_json["data"]["modules"]["rpc"] = !RPCIsInWarmup();  
+     
+    api_status_json["meta"]["status"] = 200;
 
     return api_status_json;
 }

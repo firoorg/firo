@@ -25,7 +25,7 @@ void InterruptREQREPZMQ();
  */
 void StopREQREPZMQ();
 
-static const bool DEV_AUTH = false;
+//static const bool DEV_AUTH = false;
 
 //UniValue RPCConvertValues(const std::string &strMethod, const std::vector<std::string> &strParams);
 

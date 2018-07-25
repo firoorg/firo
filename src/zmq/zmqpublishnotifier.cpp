@@ -12,6 +12,7 @@
 #include "base58.h"
 #include "client-api/json.hpp"
 #include "client-api/zmq.h"
+#include "zmqserver.h"
 #include "znode-sync.h"
 #include "net.h"
 #include "script/ismine.h"

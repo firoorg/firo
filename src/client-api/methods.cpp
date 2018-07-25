@@ -11,6 +11,7 @@
 #include "primitives/transaction.h"
 #include "client-api/server.h"
 #include "streams.h"
+#include "znode-sync.h"
 #include "sync.h"
 #include "util.h"
 #include "utilstrencodings.h"
@@ -18,12 +19,23 @@
 #include "wallet/rpcwallet.cpp"
 #include <stdint.h>
 #include <client-api/protocol.h>
+#include <zmqserver.h>
 
 #include <univalue.h>
 
 #include <boost/thread/thread.hpp> // boost::thread::interrupt
 
 using namespace std;
+
+bool setTxFee(const UniValue& feeperkb){
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    CAmount nAmount = feeperkb.get_int64();
+
+    payTxFee = CFeeRate(nAmount, 1000);
+
+    return true;
+}
 
 UniValue getBlockHeight(const string strHash)
 {
@@ -237,11 +249,390 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
 }
 
 
+UniValue sendzcoin(const UniValue& params, bool fHelp)
+{
+    UniValue feeperkb = find_value(params,"feeperkb");
+    setTxFee(feeperkb);
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    UniValue sendTo = find_value(params,"addresses").get_obj();
+    int nMinDepth = 1;
+    if (params.size() > 1)
+        nMinDepth = params[1].get_int();
+
+    CWalletTx wtx;
+    if (params.size() > 2 && !params[2].isNull() && !params[2].get_str().empty())
+        wtx.mapValue["comment"] = params[2].get_str();
+
+    UniValue subtractFeeFromAmount(UniValue::VARR);
+    if (params.size() > 3)
+        subtractFeeFromAmount = params[4].get_array();
+
+    set<CBitcoinAddress> setAddress;
+    vector<CRecipient> vecSend;
+
+    CAmount totalAmount = 0;
+    vector<string> keys = sendTo.getKeys();
+    BOOST_FOREACH(const string& name_, keys)
+    {
+        CBitcoinAddress address(name_);
+        if (!address.IsValid())
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, string("Invalid zcoin address: ")+name_);
+
+        if (setAddress.count(address))
+            throw JSONRPCError(RPC_INVALID_PARAMETER, string("Invalid parameter, duplicated address: ")+name_);
+        setAddress.insert(address);
+
+        CScript scriptPubKey = GetScriptForDestination(address.Get());
+        CAmount nAmount = sendTo[name_].get_int64() / COIN;
+        LogPrintf("nAmount sendmanyfromany: %s\n", nAmount);
+        if (nAmount <= 0)
+            throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
+        totalAmount += nAmount;
+
+        bool fSubtractFeeFromAmount = false;
+        for (unsigned int idx = 0; idx < subtractFeeFromAmount.size(); idx++) {
+            const UniValue& addr = subtractFeeFromAmount[idx];
+            if (addr.get_str() == name_)
+                fSubtractFeeFromAmount = true;
+        }
+
+        CRecipient recipient = {scriptPubKey, nAmount, fSubtractFeeFromAmount};
+        vecSend.push_back(recipient);
+    }
+
+    EnsureWalletIsUnlocked();
+
+    // Try each of our accounts looking for one with enough balance
+    vector<string> accounts = GetMyAccountNames();
+    bool isValid = false;
+    BOOST_FOREACH(string strAccount, accounts){      
+        CAmount nBalance = pwalletMain->GetAccountBalance(strAccount, nMinDepth, ISMINE_SPENDABLE);
+        LogPrintf("nBalance: %s\n", nBalance);
+        LogPrintf("totalAmount: %s\n", totalAmount);
+        if (totalAmount <= nBalance){
+           LogPrintf("ZMQ: found valid address. address: %s\n", strAccount);
+           wtx.strFromAccount = strAccount;
+           isValid = true; 
+           break;
+        }
+    }
+    if(!isValid){
+        LogPrintf("ZMQ: valid address not found.\n");
+        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "No account has sufficient funds");
+    }
+    
+    // Send
+    CReserveKey keyChange(pwalletMain);
+    CAmount nFeeRequired = 0;
+    int nChangePosRet = -1;
+    string strFailReason;
+    bool fCreated = pwalletMain->CreateTransaction(vecSend, wtx, keyChange, nFeeRequired, nChangePosRet, strFailReason);
+    if (!fCreated)
+        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, strFailReason);
+    if (!pwalletMain->CommitTransaction(wtx, keyChange))
+        throw JSONRPCError(RPC_WALLET_ERROR, "Transaction commit failed");
+
+    return wtx.GetHash().GetHex();
+}
+
+
+
+UniValue txfee(const UniValue& params, bool fHelp){
+    // first set the tx fee per kb, then return the total fee with addresses.   
+    LogPrintf("API: in txfee\n");
+    if (!EnsureWalletIsAvailable(fHelp))
+        return NullUniValue;
+
+    UniValue feeperkb = find_value(params, "feeperkb");
+
+    setTxFee(feeperkb);
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+    
+    UniValue sendTo = find_value(params, "addresses").get_obj();
+    int nMinDepth = 1;
+    if (params.size() > 1)
+        nMinDepth = params[1].get_int();
+
+    CWalletTx wtx;
+    wtx.strFromAccount = "";
+    if (params.size() > 2 && !params[2].isNull() && !params[2].get_str().empty())
+        wtx.mapValue["comment"] = params[2].get_str();
+
+    UniValue subtractFeeFromAmount(UniValue::VARR);
+    if (params.size() > 3)
+        subtractFeeFromAmount = params[3].get_array();
+
+    set<CBitcoinAddress> setAddress;
+    vector<CRecipient> vecSend;
+
+    CAmount totalAmount = 0;
+    vector<string> keys = sendTo.getKeys();
+    BOOST_FOREACH(const string& name_, keys)
+    {
+        CBitcoinAddress address(name_);
+        if (!address.IsValid())
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, string("Invalid zcoin address: ")+name_);
+
+        if (setAddress.count(address))
+            throw JSONRPCError(RPC_INVALID_PARAMETER, string("Invalid parameter, duplicated address: ")+name_);
+        setAddress.insert(address);
+
+        CScript scriptPubKey = GetScriptForDestination(address.Get());
+        CAmount nAmount = sendTo[name_].get_int64();
+        LogPrintf("nAmount gettransactionfee: %s\n", nAmount);
+        if (nAmount <= 0)
+            throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
+        totalAmount += nAmount;
+
+        bool fSubtractFeeFromAmount = false;
+        for (unsigned int idx = 0; idx < subtractFeeFromAmount.size(); idx++) {
+            const UniValue& addr = subtractFeeFromAmount[idx];
+            if (addr.get_str() == name_)
+                fSubtractFeeFromAmount = true;
+        }
+
+        CRecipient recipient = {scriptPubKey, nAmount, fSubtractFeeFromAmount};
+        vecSend.push_back(recipient);
+    }
+
+    EnsureWalletIsUnlocked();
+
+    CReserveKey keyChange(pwalletMain);
+    CAmount nFeeRequired = 0;
+    int nChangePosRet = -1;
+    string strFailReason;
+    bool fCreated = pwalletMain->CreateTransaction(vecSend, wtx, keyChange, nFeeRequired, nChangePosRet, strFailReason);
+    if (!fCreated)
+        throw JSONRPCError(API_WALLET_INSUFFICIENT_FUNDS, strFailReason);
+    
+    LogPrintf("API: returning from txfee\n");
+    return nFeeRequired;
+}
+
+
+UniValue mint(const UniValue& params, bool fHelp)
+{
+    //TODO verify enough balance available before starting to mint.
+    UniValue txids(UniValue::VARR);
+
+    int64_t denomination_int = 0;
+    libzerocoin::CoinDenomination denomination;
+
+    UniValue sendTo = params[0].get_obj();
+
+    vector<string> keys = sendTo.getKeys();
+    BOOST_FOREACH(const string& denomination_str, keys){
+
+        denomination_int = stoi(denomination_str.c_str());
+
+        switch(denomination_int){
+            case 1:
+                denomination = libzerocoin::ZQ_LOVELACE;
+                break;
+            case 10:
+                denomination = libzerocoin::ZQ_GOLDWASSER;
+                break;
+            case 25:
+                denomination = libzerocoin::ZQ_RACKOFF;
+                break;
+            case 50:
+                denomination = libzerocoin::ZQ_PEDERSEN;
+                break;
+            case 100:
+                denomination = libzerocoin::ZQ_WILLIAMSON;                                                
+                break;
+            default:
+                throw runtime_error(
+                    "mintzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n");
+        }
+
+
+        int64_t amount = sendTo[denomination_str].get_int();
+
+        LogPrintf("rpcWallet.mintzerocoin() denomination = %s, nAmount = %s \n", denomination_str, amount);
+
+        
+
+        if(amount < 0){
+                throw runtime_error(
+                    "mintzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n");
+        }
+
+        for(int64_t i=0; i<amount; i++){
+            bool valid_coin = false;
+            // Always use modulus v2
+            libzerocoin::Params *zcParams = ZCParamsV2;
+            //do {
+            // The following constructor does all the work of minting a brand
+            // new zerocoin. It stores all the private values inside the
+            // PrivateCoin object. This includes the coin secrets, which must be
+            // stored in a secure location (wallet) at the client.
+            libzerocoin::PrivateCoin newCoin(zcParams, denomination, ZEROCOIN_TX_VERSION_2);
+            // Get a copy of the 'public' portion of the coin. You should
+            // embed this into a Zerocoin 'MINT' transaction along with a series
+            // of currency inputs totaling the assigned value of one zerocoin.
+            
+            libzerocoin::PublicCoin pubCoin = newCoin.getPublicCoin();
+            
+            //Validate
+            valid_coin = pubCoin.validate();
+
+            // loop until we find a valid coin
+            while(!valid_coin){
+                libzerocoin::PrivateCoin newCoin(zcParams, denomination, ZEROCOIN_TX_VERSION_2);
+                libzerocoin::PublicCoin pubCoin = newCoin.getPublicCoin();
+                valid_coin = pubCoin.validate();
+            }
+
+            // Validate
+            CScript scriptSerializedCoin =
+                    CScript() << OP_ZEROCOINMINT << pubCoin.getValue().getvch().size() << pubCoin.getValue().getvch();
+
+            // Wallet comments
+            CWalletTx wtx;
+
+            string strError = pwalletMain->MintZerocoin(scriptSerializedCoin, (denomination_int * COIN), wtx);
+
+            if (strError != "")
+                throw JSONRPCError(RPC_WALLET_ERROR, strError);
+
+            CWalletDB walletdb(pwalletMain->strWalletFile);
+            CZerocoinEntry zerocoinTx;
+            zerocoinTx.IsUsed = false;
+            zerocoinTx.denomination = denomination;
+            zerocoinTx.value = pubCoin.getValue();
+            libzerocoin::PublicCoin checkPubCoin(zcParams, zerocoinTx.value, denomination);
+            if (!checkPubCoin.validate()) {
+                return false;
+            }
+            zerocoinTx.randomness = newCoin.getRandomness();
+            zerocoinTx.serialNumber = newCoin.getSerialNumber();
+            const unsigned char *ecdsaSecretKey = newCoin.getEcdsaSeckey();
+            zerocoinTx.ecdsaSecretKey = std::vector<unsigned char>(ecdsaSecretKey, ecdsaSecretKey+32);
+            walletdb.WriteZerocoinEntry(zerocoinTx);
+
+            txids.push_back(wtx.GetHash().GetHex());
+        }
+    }
+
+    return txids;
+
+}
+
+UniValue sendprivate(const UniValue& data, bool fHelp) {
+
+    UniValue txids(UniValue::VARR);
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    int64_t denomination_in = 0;
+    libzerocoin::CoinDenomination denomination;
+
+    UniValue inputs = find_value(data, "denominations");
+
+    for(size_t i=0; i<inputs.size();i++) {
+
+        const UniValue& input_obj = inputs[i].get_obj();
+
+        int amount = find_value(input_obj, "amount").get_int();
+
+        denomination_in = find_value(input_obj, "denomination").get_int();
+
+        string address_str = find_value(input_obj, "address").get_str();
+
+        switch(denomination_in){
+            case 1:
+                denomination = libzerocoin::ZQ_LOVELACE;
+                break;
+            case 10:
+                denomination = libzerocoin::ZQ_GOLDWASSER;
+                break;
+            case 25:
+                denomination = libzerocoin::ZQ_RACKOFF;
+                break;
+            case 50:
+                denomination = libzerocoin::ZQ_PEDERSEN;
+                break;
+            case 100:
+                denomination = libzerocoin::ZQ_WILLIAMSON;                                                
+                break;
+            default:
+                throw runtime_error(
+                    "spendmanyzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n");
+        }
+
+        string thirdPartyaddress = "";
+        if (!(address_str == "")){
+            CBitcoinAddress address(address_str);
+            if (!address.IsValid())
+                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Zcoin address");
+            thirdPartyaddress = address_str;
+        }
+
+        EnsureWalletIsUnlocked();
+
+        // Wallet comments
+        CWalletTx wtx;
+        CBigNum coinSerial;
+        uint256 txHash;
+        CBigNum zcSelectedValue;
+        bool zcSelectedIsUsed;
+
+        for(int j=0;j<amount;j++) {
+
+            string strError = pwalletMain->SpendZerocoin(thirdPartyaddress, (denomination_in * COIN), denomination, wtx, coinSerial, txHash, zcSelectedValue,
+                                                         zcSelectedIsUsed);
+
+            if (strError != "")
+                throw JSONRPCError(RPC_WALLET_ERROR, strError);
+
+            txids.push_back(wtx.GetHash().GetHex());
+        }
+    }
+
+    return txids;
+
+}
+
+
 UniValue apistatus(const UniValue& data, bool fHelp)
 {
-    LogPrintf("API status called.");
-    return true;
+#ifdef ENABLE_WALLET
+    LOCK2(cs_main, pwalletMain ? &pwalletMain->cs_wallet : NULL);
+#else
+    LOCK(cs_main);
+#endif
+
+    UniValue obj(UniValue::VOBJ);
+    UniValue modules(UniValue::VOBJ);
+
+    modules.push_back(Pair("API", !APIIsInWarmup()));
+
+    obj.push_back(Pair("version", CLIENT_VERSION));
+    obj.push_back(Pair("protocolversion", PROTOCOL_VERSION));
+#ifdef ENABLE_WALLET
+    if (pwalletMain) {
+        obj.push_back(Pair("walletversion", pwalletMain->GetVersion()));
+    }
+    if (pwalletMain && pwalletMain->IsCrypted()){
+        obj.push_back(Pair("walletlock",    "true"));
+        obj.push_back(Pair("unlocked_until", nWalletUnlockTime));
+    }
+#endif
+    obj.push_back(Pair("datadir",       GetDataDir(true).string()));
+    obj.push_back(Pair("network",       ChainNameFromCommandLine()));
+    obj.push_back(Pair("blocks",        (int)chainActive.Height()));
+    obj.push_back(Pair("connections",   (int)vNodes.size()));
+    obj.push_back(Pair("devauth",       DEV_AUTH));
+    obj.push_back(Pair("synced",       znodeSync.IsBlockchainSynced()));
+    obj.push_back(Pair("modules",       modules));
+
+    return obj;
 }
+
 UniValue lockwallet(const UniValue& data, bool fHelp)
 {
     if (!EnsureWalletIsAvailable(false))
@@ -312,7 +703,7 @@ UniValue unlockwallet(const UniValue& data, bool fHelp)
     return true;
 }
 
-UniValue statewallet(const UniValue& params, bool fHelp)
+UniValue statewallet(const UniValue& data, bool fHelp)
 {
     if (!EnsureWalletIsAvailable(false))
         return NullUniValue;
@@ -320,7 +711,6 @@ UniValue statewallet(const UniValue& params, bool fHelp)
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
     CBlockIndex *pindex = NULL;
-    int target_confirms = 1;
     isminefilter filter = ISMINE_SPENDABLE;
 
 
@@ -343,9 +733,6 @@ UniValue statewallet(const UniValue& params, bool fHelp)
             ListAPITransactions(tx, transactions, filter);
     }
 
-    CBlockIndex *pblockLast = chainActive[chainActive.Height() + 1 - target_confirms];
-    uint256 lastblock = pblockLast ? pblockLast->GetBlockHash() : uint256();
-
     UniValue ret(UniValue::VOBJ);
     ret.push_back(Pair("addresses", transactions));
 
@@ -353,12 +740,16 @@ UniValue statewallet(const UniValue& params, bool fHelp)
 }
 
 static const CAPICommand commands[] =
-{ //  type                  collection     actor (function)        authPort  authPassphrase
-  //  --------------------- ------------ -----------------------  ---------- --------------
-    { "get",         "apistatus",       &apistatus,              false,    false  },
-    { "modify",      "lockwallet",      &lockwallet,             true,     false  },
-    { "modify",      "unlockwallet",    &unlockwallet,           true,     false  },
-    { "initial",     "statewallet",     &statewallet,            true,     false  },
+{ //  type                  collection     actor (function)        authPort  authPassphrase warmupOk
+  //  --------------------- ------------ -----------------------  ---------- -------------- --------
+    { "GET",         "apistatus",       &apistatus,               false,     false,           true   },
+    { "MODIFY",      "lockwallet",      &lockwallet,              true,      false,           false  },
+    { "MODIFY",      "unlockwallet",    &unlockwallet,            true,      false,           false  },
+    { "INITIAL",     "statewallet",     &statewallet,             true,      false,           false  },
+    { "CREATE",      "mint",            &mint,                    true,      true,            false  },
+    { "CREATE",      "sendprivate",     &sendprivate,             true,      true,            false  },
+    { "GET",         "txfee",           &txfee,                   true,      true,            false  },
+    { "CREATE",         "sendzcoin",    &sendzcoin,               true,      true,            false  },
 };
 
 void RegisterAPICommands(CAPITable &tableAPI)
