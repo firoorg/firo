@@ -22,11 +22,11 @@ UniValue JSONAPIReplyObj(const UniValue& result, const UniValue& error)
     UniValue status(UniValue::VOBJ);
     if (!error.isNull()){
         reply.push_back(Pair("data", NullUniValue));
-        status.push_back(Pair("status", "200"));
+        status.push_back(Pair("status", "400"));
     }
     else {
         reply.push_back(Pair("data", result));
-        status.push_back(Pair("status", "400"));
+        status.push_back(Pair("status", "200"));
     }
     reply.push_back(Pair("meta", status));
     reply.push_back(Pair("error", error));

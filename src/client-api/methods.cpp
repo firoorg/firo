@@ -31,7 +31,6 @@ UniValue getBlockHeight(const string strHash)
 
     uint256 hash(uint256S(strHash));
 
-    bool fVerbose = true;
     if (mapBlockIndex.count(hash) == 0)
         return -1;
 
@@ -47,12 +46,10 @@ void APIWalletTxToJSON(const CWalletTx& wtx, UniValue& entry)
     if (confirms > 0)
     {
         entry.push_back(Pair("blockhash", wtx.hashBlock.GetHex()));
-        entry.push_back(Pair("blockindex", wtx.nIndex)); //TODO check to see if this is blockheight or npt
         entry.push_back(Pair("blocktime", mapBlockIndex[wtx.hashBlock]->GetBlockTime()));
         entry.push_back(Pair("blockheight", getBlockHeight(wtx.hashBlock.GetHex())));
-    } else {
-        entry.push_back(Pair("trusted", wtx.IsTrusted()));
-    }
+    } 
+
     uint256 hash = wtx.GetHash();
     entry.push_back(Pair("txid", hash.GetHex()));
     entry.push_back(Pair("time", wtx.GetTxTime()));
@@ -62,7 +59,7 @@ void APIWalletTxToJSON(const CWalletTx& wtx, UniValue& entry)
         entry.push_back(Pair(item.first, item.second));
 }
 
-void ListAPITransactions(const CWalletTx& wtx, const string& strAccount, int nMinDepth, UniValue& ret, const isminefilter& filter)
+void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter& filter)
 {
     CAmount nFee;
     string strSentAccount;
@@ -72,132 +69,173 @@ void ListAPITransactions(const CWalletTx& wtx, const string& strAccount, int nMi
     string addrStr;
     CTxOut txout;
 
-    UniValue address(UniValue::VOBJ);
-    UniValue total(UniValue::VOBJ);
-    UniValue txid(UniValue::VOBJ);
-
     wtx.GetAmounts(listReceived, listSent, nFee, strSentAccount, filter);
 
-    bool fAllAccounts = (strAccount == string("*"));
-    bool involvesWatchonly = wtx.IsFromMe(ISMINE_WATCH_ONLY);
-
     // Sent
-    if ((!listSent.empty() || nFee != 0) && (fAllAccounts || strAccount == strSentAccount))
+    if ((!listSent.empty() || nFee != 0))
     {
         BOOST_FOREACH(const COutputEntry& s, listSent)
-        {
+        {   
+            UniValue address(UniValue::VOBJ);         
+            UniValue total(UniValue::VOBJ);
+            UniValue txids(UniValue::VOBJ);
+            UniValue categories(UniValue::VOBJ);
             UniValue entry(UniValue::VOBJ);
+
             uint256 txid = wtx.GetHash();
-            MaybePushAddress(entry, s.destination, addr);
-            if (addr.Set(s.destination))
+            if (addr.Set(s.destination)){
                 addrStr = addr.ToString();
-                entry.push_back(Pair("address", addr.ToString()));
-            if(wtx.IsZerocoinMint(txout)){
-                    entry.push_back(Pair("category", "mint"));
-                    addrStr = "ZEROCOIN_MINT";
-                    entry.push_back(Pair("address", addrStr));
-                    if(pwalletMain){
-                        entry.push_back(Pair("used", pwalletMain->IsMintFromTxOutUsed(txout)));
-                    }
-                }
-            else if(wtx.IsZerocoinSpend()){
-                    entry.push_back(Pair("category", "spend"));
-                }
-            else {
-                entry.push_back(Pair("category", "send"));
             }
-            UniValue amount = ValueFromAmount(s.amount);
+
+            string category;
+            
+            if(wtx.IsZerocoinMint(txout)){
+                category = "mint";
+                addrStr = "ZEROCOIN_MINT";
+                if(pwalletMain){
+                    entry.push_back(Pair("used", pwalletMain->IsMintFromTxOutUsed(txout)));
+                }
+            }
+            else if(wtx.IsZerocoinSpend()){
+                category = "spend";                
+            }
+            else {
+                category = "send";
+            }
+            entry.push_back(Pair("category", category));
+            entry.push_back(Pair("address", addrStr));
+
+            CAmount amount = ValueFromAmount(s.amount).get_real() * COIN;
             entry.push_back(Pair("amount", amount));
             if (pwalletMain->mapAddressBook.count(s.destination))
                 entry.push_back(Pair("label", pwalletMain->mapAddressBook[s.destination].name));
-            entry.push_back(Pair("fee", ValueFromAmount(nFee)));
-            WalletTxToJSON(wtx, entry);
+            entry.push_back(Pair("fee", ValueFromAmount(nFee).get_real() * COIN));
+            APIWalletTxToJSON(wtx, entry);
+
 
             if(!ret[addrStr].isNull()){
                 address = ret[addrStr];
-            }
-            else {
-                address.clear();
             }
 
             if(!address["total"].isNull()){
                 total = address["total"];
             }
-            else {
-                total.clear();
+
+            if(!address["txids"].isNull()){
+                txids = address["txids"];
+            }
+
+            if(!txids[category].isNull()){
+                categories = txids[category];
             }
 
             if(!total["sent"].isNull()){
                 UniValue totalSent = find_value(total, "sent");
-                UniValue newTotal = totalSent.get_int() + amount.get_int();
+                UniValue newTotal = totalSent.get_real() + amount;
                 total.replace("sent", newTotal);
             }
             else{
-                entry.push_back(Pair("sent", amount.get_int()));
+                total.push_back(Pair("sent", amount));
             }
+            categories.replace(txid.GetHex(), entry);
+            txids.replace(category, categories);
             address.replace("total", total);
-            address.replace(txid.GetHex(), entry);
-
+            address.replace("txids", txids);
             ret.replace(addrStr, address);
         }
     }
 
-    // Received
-    // if (listReceived.size() > 0 && wtx.GetDepthInMainChain() >= nMinDepth)
-    // {
-    //     BOOST_FOREACH(const COutputEntry& r, listReceived)
-    //     {
-    //         string account;
-    //         if (pwalletMain->mapAddressBook.count(r.destination))
-    //             account = pwalletMain->mapAddressBook[r.destination].name;
-    //         if (fAllAccounts || (account == strAccount))
-    //         {
-    //             UniValue entry(UniValue::VOBJ);
-    //             uint256 txid = wtx.GetHash();
-    //             MaybePushAddress(entry, r.destination, addr);
-    //             if (wtx.IsCoinBase())
-    //             {
-    //                 int txHeight = chainActive.Height() - wtx.GetDepthInMainChain();
-    //                 CScript payee;
+    //Received
+    if (listReceived.size() > 0 && wtx.GetDepthInMainChain() >= 0)
+    {
+       // LogPrintf("api: in list received \n");
+        BOOST_FOREACH(const COutputEntry& r, listReceived)
+        {
+            UniValue address(UniValue::VOBJ);         
+            UniValue total(UniValue::VOBJ);
+            UniValue txids(UniValue::VOBJ);
+            UniValue categories(UniValue::VOBJ);
+            UniValue entry(UniValue::VOBJ);
 
-    //                 mnpayments.GetBlockPayee(txHeight, payee);
-    //                 //compare address of payee to addr. 
-    //                 CTxDestination payeeDest;
-    //                 ExtractDestination(payee, payeeDest);
-    //                 CBitcoinAddress payeeAddr(payeeDest);
-    //                 if(addr.ToString() == payeeAddr.ToString()){
-    //                     entry.push_back(Pair("category", "znode"));
-    //                 }
-    //                 else if (wtx.GetDepthInMainChain() < 1)
-    //                     entry.push_back(Pair("category", "orphan"));
-    //                 else
-    //                     entry.push_back(Pair("category", "mined"));
-    //             }
-    //             else if(wtx.IsZerocoinSpend()){
-    //                 entry.push_back(Pair("category", "spend"));
-    //             }
-    //             else {
-    //                 entry.push_back(Pair("category", "receive"));
-    //             }
-    //             UniValue amount = ValueFromAmount(r.amount);
-    //             entry.push_back(Pair("amount", ValueFromAmount(r.amount)));
-    //             if (pwalletMain->mapAddressBook.count(r.destination))
-    //                 entry.push_back(Pair("label", account));
-    //             WalletTxToJSON(wtx, entry);
+            string account;
+            if (pwalletMain->mapAddressBook.count(r.destination)){
+                account = pwalletMain->mapAddressBook[r.destination].name;
+            }
 
-    //             if(!ret[addrStr]["total"]["sent"].isNull()){
-    //                 UniValue totalSent = ret[addrStr]["total"]["sent"];
-    //                 ret[addrStr]["total"]["sent"] = totalSent.get_int() + amount.get_int();
-    //             }
-    //             else{
-    //                 ret[addrStr]["total"]["sent"] = amount.get_int();
-    //             }
+            uint256 txid = wtx.GetHash();
+            string category;
+            if (addr.Set(r.destination)){
+                addrStr = addr.ToString();
+                entry.push_back(Pair("address", addr.ToString()));
+            }
+            if (wtx.IsCoinBase())
+            {
+                int txHeight = chainActive.Height() - wtx.GetDepthInMainChain();
+                CScript payee;
 
-    //             ret[addrStr][txid.GetHex()] = entry;
-    //         }
-    //     }
-    // }
+                mnpayments.GetBlockPayee(txHeight, payee);
+                //compare address of payee to addr. 
+                CTxDestination payeeDest;
+                ExtractDestination(payee, payeeDest);
+                CBitcoinAddress payeeAddr(payeeDest);
+                if(addr.ToString() == payeeAddr.ToString()){
+                    category = "znode";
+                }
+                else if (wtx.GetDepthInMainChain() < 1)
+                    category = "orphan";
+                else
+                    category = "mined";
+            }
+            else if(wtx.IsZerocoinSpend()){
+                category = "spend";
+            }
+            else {
+                category = "receive";
+            }
+            entry.push_back(Pair("category", category));
+
+            CAmount amount = ValueFromAmount(r.amount).get_real() * COIN;
+            entry.push_back(Pair("amount", amount));
+            if (pwalletMain->mapAddressBook.count(r.destination))
+                entry.push_back(Pair("label", account));
+
+            APIWalletTxToJSON(wtx, entry);
+
+            if(!ret[addrStr].isNull()){
+                address = ret[addrStr];
+            }
+
+            if(!address["total"].isNull()){
+                total = address["total"];
+            }
+
+            if(!address["txids"].isNull()){
+                txids = address["txids"];
+            }
+
+            if(!txids[category].isNull()){
+                categories = txids[category];
+            }
+
+            if(!total["balance"].isNull()){
+                UniValue totalBalance = find_value(total, "balance");
+                UniValue newTotal = totalBalance.get_real() + amount;
+                total.replace("balance", newTotal);
+            }
+            else{
+                total.push_back(Pair("balance", amount));
+            }
+            
+            categories.replace(txid.GetHex(), entry);
+            txids.replace(category, categories);
+            address.replace("total", total);
+            address.replace("txids", txids);
+
+            ret.replace(addrStr, address);
+        }
+    }
 }
+
 
 UniValue apistatus(const UniValue& data, bool fHelp)
 {
@@ -274,8 +312,7 @@ UniValue unlockwallet(const UniValue& data, bool fHelp)
     return true;
 }
 
-//TODO remove params, add genesis block hash
-UniValue getstatewallet(const UniValue& params, bool fHelp)
+UniValue statewallet(const UniValue& params, bool fHelp)
 {
     if (!EnsureWalletIsAvailable(false))
         return NullUniValue;
@@ -286,46 +323,31 @@ UniValue getstatewallet(const UniValue& params, bool fHelp)
     int target_confirms = 1;
     isminefilter filter = ISMINE_SPENDABLE;
 
-    if (params.size() > 0)
-    {
-        uint256 blockId;
 
-        blockId.SetHex(params[0].get_str());
-        BlockMap::iterator it = mapBlockIndex.find(blockId);
-        if (it != mapBlockIndex.end())
-            pindex = it->second;
-    }
+    uint256 blockId;
 
-    if (params.size() > 1)
-    {
-        target_confirms = params[1].get_int();
-
-        if (target_confirms < 1)
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter");
-    }
-
-    if(params.size() > 2)
-        if(params[2].get_bool())
-            filter = filter | ISMINE_WATCH_ONLY;
+    blockId.SetHex(chainActive[0]->GetBlockHash().ToString()); //set genesis block hash
+    BlockMap::iterator it = mapBlockIndex.find(blockId);
+    if (it != mapBlockIndex.end())
+        pindex = it->second;
 
     int depth = pindex ? (1 + chainActive.Height() - pindex->nHeight) : -1;
 
-    UniValue transactions(UniValue::VARR);
+    UniValue transactions(UniValue::VOBJ);
 
     for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin(); it != pwalletMain->mapWallet.end(); it++)
     {
         CWalletTx tx = (*it).second;
 
         if (depth == -1 || tx.GetDepthInMainChain() < depth)
-            ListAPITransactions(tx, "*", 0, transactions, filter);
+            ListAPITransactions(tx, transactions, filter);
     }
 
     CBlockIndex *pblockLast = chainActive[chainActive.Height() + 1 - target_confirms];
     uint256 lastblock = pblockLast ? pblockLast->GetBlockHash() : uint256();
 
     UniValue ret(UniValue::VOBJ);
-    ret.push_back(Pair("transactions", transactions));
-    ret.push_back(Pair("lastblock", lastblock.GetHex()));
+    ret.push_back(Pair("addresses", transactions));
 
     return ret;
 }
@@ -335,7 +357,8 @@ static const CAPICommand commands[] =
   //  --------------------- ------------ -----------------------  ---------- --------------
     { "get",         "apistatus",       &apistatus,              false,    false  },
     { "modify",      "lockwallet",      &lockwallet,             true,     false  },
-    { "modify",      "unlockwallet",    &unlockwallet,           true,     false  }
+    { "modify",      "unlockwallet",    &unlockwallet,           true,     false  },
+    { "initial",     "statewallet",     &statewallet,            true,     false  },
 };
 
 void RegisterAPICommands(CAPITable &tableAPI)

@@ -189,6 +189,7 @@ bool UniValue::replace(const UniValue& key, const UniValue& value)
 
     int index = findKey(key.get_str());
     if(!(index == -1)){
+        keys.erase(keys.begin() + index);
         values.erase(values.begin() + index);
     }
     

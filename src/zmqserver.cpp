@@ -35,8 +35,6 @@
 #include <iostream>
 #include <sstream>
 
-
-static int KEEPALIVE = 1;
 /******************* Start REQ/REP ZMQ functions ******************************************/
 //TODO create class to hold thread instance. have to experiment with different setups
 // public: context, socket, thread
@@ -116,7 +114,7 @@ bool sendResponse(int& rc, string response, bool auth){
 static void* threadAuth(void *arg){
 
     LogPrintf("ZMQ: IN REQREP_ZMQ_auth\n");
-    while (KEEPALIVE) {
+    while (1) {
         /* Create an empty ØMQ message to hold the message part. */
         /* message assumed to contain an API command to be executed with data */
         zmq_msg_t request;
@@ -160,7 +158,7 @@ static void* threadAuth(void *arg){
 static void* threadOpen(void *arg)
 {
     LogPrintf("ZMQ: IN REQREP_ZMQ_open\n");
-    while (KEEPALIVE) {
+    while (1) {
         /* Create an empty ØMQ message to hold the message part. */
         /* message assumed to contain an API command to be executed with data */
         zmq_msg_t request;
@@ -347,7 +345,7 @@ void StopZMQServer()
         context_open = 0;
     }
     
-    KEEPALIVE=0;
+    //KEEPALIVE=0;
 }
 
 /******************* End REQ/REP ZMQ functions ******************************************/
