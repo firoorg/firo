@@ -24,8 +24,6 @@
 #include "main.h"
 #include "ntmain.h"
 
-#include <event2/event.h>
-
 #include <windows.h>
 #define GENSRV_SERVICENAME  "tor"
 #define GENSRV_DISPLAYNAME  "Tor Win32 Service"
@@ -195,7 +193,7 @@ nt_service_loadlibrary(void)
   return;
  err:
   printf("Unable to load library support for NT services: exiting.\n");
-  exit(1);
+  exit(1); // exit ok: ntmain can't read libraries
 }
 
 /** If we're compiled to run as an NT service, and the service wants to
@@ -245,7 +243,8 @@ nt_service_control(DWORD request)
           log_notice(LD_GENERAL,
                      "Got stop/shutdown request; shutting down cleanly.");
           service_status.dwCurrentState = SERVICE_STOP_PENDING;
-          event_base_loopexit(tor_libevent_get_base(), &exit_now);
+          tor_libevent_exit_loop_after_delay(tor_libevent_get_base(),
+                                             &exit_now);
           return;
   }
   service_fns.SetServiceStatus_fn(hStatus, &service_status);
@@ -318,7 +317,7 @@ nt_service_main(void)
     printf("Service error %d : %s\n", (int) result, errmsg);
     tor_free(errmsg);
     if (result == ERROR_FAILED_SERVICE_CONTROLLER_CONNECT) {
-      if (tor_init(backup_argc, backup_argv) < 0)
+      if (tor_init(backup_argc, backup_argv))
         return;
       switch (get_options()->command) {
       case CMD_RUN_TOR:

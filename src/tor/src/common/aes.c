@@ -16,8 +16,9 @@
   #include <ws2tcpip.h>
 #endif
 
+#include "compat_openssl.h"
 #include <openssl/opensslv.h>
-#include "crypto.h"
+#include "crypto_openssl_mgt.h"
 
 #if OPENSSL_VERSION_NUMBER < OPENSSL_V_SERIES(1,0,0)
 #error "We require OpenSSL >= 1.0.0"
@@ -110,12 +111,16 @@ aes_new_cipher(const uint8_t *key, const uint8_t *iv, int key_bits)
   return (aes_cnt_cipher_t *) cipher;
 }
 void
-aes_cipher_free(aes_cnt_cipher_t *cipher_)
+aes_cipher_free_(aes_cnt_cipher_t *cipher_)
 {
   if (!cipher_)
     return;
   EVP_CIPHER_CTX *cipher = (EVP_CIPHER_CTX *) cipher_;
+#ifdef OPENSSL_1_1_API
+  EVP_CIPHER_CTX_reset(cipher);
+#else
   EVP_CIPHER_CTX_cleanup(cipher);
+#endif
   EVP_CIPHER_CTX_free(cipher);
 }
 void
@@ -254,7 +259,7 @@ evaluate_ctr_for_aes(void)
     /* LCOV_EXCL_START */
     log_err(LD_CRYPTO, "This OpenSSL has a buggy version of counter mode; "
                   "quitting tor.");
-    exit(1);
+    exit(1); // exit ok: openssl is broken.
     /* LCOV_EXCL_STOP */
   }
   return 0;
@@ -324,7 +329,7 @@ aes_set_key(aes_cnt_cipher_t *cipher, const uint8_t *key, int key_bits)
 /** Release storage held by <b>cipher</b>
  */
 void
-aes_cipher_free(aes_cnt_cipher_t *cipher)
+aes_cipher_free_(aes_cnt_cipher_t *cipher)
 {
   if (!cipher)
     return;

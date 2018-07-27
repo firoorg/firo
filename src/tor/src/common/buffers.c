@@ -409,7 +409,7 @@ buf_slack(const buf_t *buf)
 
 /** Release storage held by <b>buf</b>. */
 void
-buf_free(buf_t *buf)
+buf_free_(buf_t *buf)
 {
   if (!buf)
     return;
@@ -472,7 +472,7 @@ buf_add_chunk_with_capacity(buf_t *buf, size_t capacity, int capped)
     chunk = chunk_new_with_alloc_size(buf_preferred_chunk_size(capacity));
   }
 
-  chunk->inserted_time = (uint32_t)monotime_coarse_absolute_msec();
+  chunk->inserted_time = monotime_coarse_get_stamp();
 
   if (buf->tail) {
     tor_assert(buf->head);
@@ -487,8 +487,8 @@ buf_add_chunk_with_capacity(buf_t *buf, size_t capacity, int capped)
 }
 
 /** Return the age of the oldest chunk in the buffer <b>buf</b>, in
- * milliseconds.  Requires the current monotonic time, in truncated msec,
- * as its input <b>now</b>.
+ * timestamp units.  Requires the current monotonic timestamp as its
+ * input <b>now</b>.
  */
 uint32_t
 buf_get_oldest_chunk_timestamp(const buf_t *buf, uint32_t now)
@@ -714,6 +714,53 @@ buf_add(buf_t *buf, const char *string, size_t string_len)
   return (int)buf->datalen;
 }
 
+/** Add a nul-terminated <b>string</b> to <b>buf</b>, not including the
+ * terminating NUL. */
+void
+buf_add_string(buf_t *buf, const char *string)
+{
+  buf_add(buf, string, strlen(string));
+}
+
+/** As tor_snprintf, but write the results into a buf_t */
+void
+buf_add_printf(buf_t *buf, const char *format, ...)
+{
+  va_list ap;
+  va_start(ap,format);
+  buf_add_vprintf(buf, format, ap);
+  va_end(ap);
+}
+
+/** As tor_vsnprintf, but write the results into a buf_t. */
+void
+buf_add_vprintf(buf_t *buf, const char *format, va_list args)
+{
+  /* XXXX Faster implementations are easy enough, but let's optimize later */
+  char *tmp;
+  tor_vasprintf(&tmp, format, args);
+  buf_add(buf, tmp, strlen(tmp));
+  tor_free(tmp);
+}
+
+/** Return a heap-allocated string containing the contents of <b>buf</b>, plus
+ * a NUL byte. If <b>sz_out</b> is provided, set *<b>sz_out</b> to the length
+ * of the returned string, not including the terminating NUL. */
+char *
+buf_extract(buf_t *buf, size_t *sz_out)
+{
+  tor_assert(buf);
+
+  size_t sz = buf_datalen(buf);
+  char *result;
+  result = tor_malloc(sz+1);
+  buf_peek(buf, result, sz);
+  result[sz] = 0;
+  if (sz_out)
+    *sz_out = sz;
+  return result;
+}
+
 /** Helper: copy the first <b>string_len</b> bytes from <b>buf</b>
  * onto <b>string</b>.
  */
@@ -793,6 +840,28 @@ buf_move_to_buf(buf_t *buf_out, buf_t *buf_in, size_t *buf_flushlen)
   }
   *buf_flushlen -= cp;
   return (int)cp;
+}
+
+/** Moves all data from <b>buf_in</b> to <b>buf_out</b>, without copying.
+ */
+void
+buf_move_all(buf_t *buf_out, buf_t *buf_in)
+{
+  tor_assert(buf_out);
+  if (!buf_in)
+    return;
+
+  if (buf_out->head == NULL) {
+    buf_out->head = buf_in->head;
+    buf_out->tail = buf_in->tail;
+  } else {
+    buf_out->tail->next = buf_in->head;
+    buf_out->tail = buf_in->tail;
+  }
+
+  buf_out->datalen += buf_in->datalen;
+  buf_in->head = buf_in->tail = NULL;
+  buf_in->datalen = 0;
 }
 
 /** Internal structure: represents a position in a buffer. */

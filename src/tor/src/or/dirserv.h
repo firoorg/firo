@@ -123,7 +123,7 @@ void dirserv_set_cached_consensus_networkstatus(const char *consensus,
 void dirserv_clear_old_networkstatuses(time_t cutoff);
 int dirserv_get_routerdesc_spool(smartlist_t *spools_out, const char *key,
                                  dir_spool_source_t source,
-                                 int conn_is_encrytped,
+                                 int conn_is_encrypted,
                                  const char **msg_out);
 int dirserv_get_routerdescs(smartlist_t *descs_out, const char *key,
                             const char **msg);
@@ -150,12 +150,22 @@ char *routerstatus_format_entry(
                               const char *version,
                               const char *protocols,
                               routerstatus_format_type_t format,
+                              int consensus_method,
                               const vote_routerstatus_t *vrs);
 void dirserv_free_all(void);
 void cached_dir_decref(cached_dir_t *d);
 cached_dir_t *new_cached_dir(char *s, time_t published);
-
+char *format_recommended_version_list(const config_line_t *line, int warn);
 int validate_recommended_package_line(const char *line);
+int dirserv_query_measured_bw_cache_kb(const char *node_id,
+                                       long *bw_out,
+                                       time_t *as_of_out);
+void dirserv_clear_measured_bw_cache(void);
+int dirserv_has_measured_bw(const char *node_id);
+int dirserv_get_measured_bw_cache_size(void);
+void dirserv_count_measured_bws(const smartlist_t *routers);
+int running_long_enough_to_decide_unreachable(void);
+void dirserv_compute_performance_thresholds(digestmap_t *omit_as_sybil);
 
 #ifdef DIRSERV_PRIVATE
 
@@ -164,20 +174,15 @@ STATIC void dirserv_set_routerstatus_testing(routerstatus_t *rs);
 /* Put the MAX_MEASUREMENT_AGE #define here so unit tests can see it */
 #define MAX_MEASUREMENT_AGE (3*24*60*60) /* 3 days */
 
-STATIC int measured_bw_line_parse(measured_bw_line_t *out, const char *line);
+STATIC int measured_bw_line_parse(measured_bw_line_t *out, const char *line,
+                                  int line_is_after_headers);
 
 STATIC int measured_bw_line_apply(measured_bw_line_t *parsed_line,
                            smartlist_t *routerstatuses);
 
 STATIC void dirserv_cache_measured_bw(const measured_bw_line_t *parsed_line,
                                time_t as_of);
-STATIC void dirserv_clear_measured_bw_cache(void);
 STATIC void dirserv_expire_measured_bw_cache(time_t now);
-STATIC int dirserv_get_measured_bw_cache_size(void);
-STATIC int dirserv_query_measured_bw_cache_kb(const char *node_id,
-                                              long *bw_out,
-                                              time_t *as_of_out);
-STATIC int dirserv_has_measured_bw(const char *node_id);
 
 STATIC int
 dirserv_read_guardfraction_file_from_str(const char *guardfraction_file_str,
@@ -195,7 +200,9 @@ spooled_resource_t *spooled_resource_new(dir_spool_source_t source,
                                          size_t digestlen);
 spooled_resource_t *spooled_resource_new_from_cache_entry(
                                       struct consensus_cache_entry_t *entry);
-void spooled_resource_free(spooled_resource_t *spooled);
+void spooled_resource_free_(spooled_resource_t *spooled);
+#define spooled_resource_free(sp) \
+  FREE_AND_NULL(spooled_resource_t, spooled_resource_free_, (sp))
 void dirserv_spool_remove_missing_and_guess_size(dir_connection_t *conn,
                                                  time_t cutoff,
                                                  int compression,
@@ -205,4 +212,3 @@ void dirserv_spool_sort(dir_connection_t *conn);
 void dir_conn_clear_spool(dir_connection_t *conn);
 
 #endif /* !defined(TOR_DIRSERV_H) */
-

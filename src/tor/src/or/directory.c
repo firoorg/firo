@@ -18,13 +18,15 @@
 #include "consdiffmgr.h"
 #include "control.h"
 #include "compat.h"
+#include "crypto_rand.h"
+#include "crypto_util.h"
 #include "directory.h"
 #include "dirserv.h"
-#include "dirvote.h"
 #include "entrynodes.h"
 #include "geoip.h"
 #include "hs_cache.h"
 #include "hs_common.h"
+#include "hs_control.h"
 #include "hs_client.h"
 #include "main.h"
 #include "microdesc.h"
@@ -40,13 +42,16 @@
 #include "routerlist.h"
 #include "routerparse.h"
 #include "routerset.h"
-#include "shared_random.h"
 
 #if defined(EXPORTMALLINFO) && defined(HAVE_MALLOC_H) && defined(HAVE_MALLINFO)
 #if !defined(OpenBSD)
 #include <malloc.h>
 #endif
 #endif
+
+#include "dirauth/dirvote.h"
+#include "dirauth/mode.h"
+#include "dirauth/shared_random.h"
 
 /**
  * \file directory.c
@@ -793,9 +798,9 @@ directory_choose_address_routerstatus(const routerstatus_t *status,
      * Use the preferred address and port if they are reachable, otherwise,
      * use the alternate address and port (if any).
      */
-    have_or = fascist_firewall_choose_address_rs(status,
-                                                 FIREWALL_OR_CONNECTION, 0,
-                                                 use_or_ap);
+    fascist_firewall_choose_address_rs(status, FIREWALL_OR_CONNECTION, 0,
+                                       use_or_ap);
+    have_or = tor_addr_port_is_valid_ap(use_or_ap, 0);
   }
 
   /* DirPort connections
@@ -804,9 +809,9 @@ directory_choose_address_routerstatus(const routerstatus_t *status,
       indirection == DIRIND_ANON_DIRPORT ||
       (indirection == DIRIND_ONEHOP
        && !directory_must_use_begindir(options))) {
-    have_dir = fascist_firewall_choose_address_rs(status,
-                                                  FIREWALL_DIR_CONNECTION, 0,
-                                                  use_dir_ap);
+    fascist_firewall_choose_address_rs(status, FIREWALL_DIR_CONNECTION, 0,
+                                       use_dir_ap);
+    have_dir = tor_addr_port_is_valid_ap(use_dir_ap, 0);
   }
 
   /* We rejected all addresses in the relay's status. This means we can't
@@ -1101,7 +1106,7 @@ directory_request_new(uint8_t dir_purpose)
  * Release all resources held by <b>req</b>.
  */
 void
-directory_request_free(directory_request_t *req)
+directory_request_free_(directory_request_t *req)
 {
   if (req == NULL)
     return;
@@ -1111,7 +1116,7 @@ directory_request_free(directory_request_t *req)
 /**
  * Set the address and OR port to use for this directory request.  If there is
  * no OR port, we'll have to connect over the dirport.  (If there are both,
- * the indirection setting determins which to use.)
+ * the indirection setting determines which to use.)
  */
 void
 directory_request_set_or_addr_port(directory_request_t *req,
@@ -1122,7 +1127,7 @@ directory_request_set_or_addr_port(directory_request_t *req,
 /**
  * Set the address and dirport to use for this directory request.  If there
  * is no dirport, we'll have to connect over the OR port.  (If there are both,
- * the indirection setting determins which to use.)
+ * the indirection setting determines which to use.)
  */
 void
 directory_request_set_dir_addr_port(directory_request_t *req,
@@ -1810,9 +1815,10 @@ directory_send_command(dir_connection_t *conn,
       tor_assert(payload);
       httpcommand = "POST";
       url = tor_strdup("/tor/");
-      if (why) {
-        smartlist_add_asprintf(headers, "X-Desc-Gen-Reason: %s\r\n", why);
+      if (!why) {
+        why = "for no reason at all";
       }
+      smartlist_add_asprintf(headers, "X-Desc-Gen-Reason: %s\r\n", why);
       break;
     }
     case DIR_PURPOSE_UPLOAD_VOTE:
@@ -2196,8 +2202,6 @@ load_downloaded_routers(const char *body, smartlist_t *which,
   return added;
 }
 
-static int handle_response_fetch_consensus(dir_connection_t *,
-                                           const response_handler_args_t *);
 static int handle_response_fetch_certificate(dir_connection_t *,
                                              const response_handler_args_t *);
 static int handle_response_fetch_status_vote(dir_connection_t *,
@@ -2438,7 +2442,7 @@ connection_dir_client_reached_eof(dir_connection_t *conn)
      * and the date header.  (We used to check now-date_header, but that's
      * inaccurate if we spend a lot of time downloading.)
      */
-    apparent_skew = conn->base_.timestamp_lastwritten - date_header;
+    apparent_skew = conn->base_.timestamp_last_write_allowed - date_header;
     if (labs(apparent_skew)>ALLOW_DIRECTORY_TIME_SKEW) {
       int trusted = router_digest_is_trusted_dir(conn->identity_digest);
       clock_skew_warning(TO_CONN(conn), apparent_skew, trusted, LD_HTTP,
@@ -2542,7 +2546,7 @@ connection_dir_client_reached_eof(dir_connection_t *conn)
  * consensus document by checking the consensus, storing it, and marking
  * router requests as reachable.
  **/
-static int
+STATIC int
 handle_response_fetch_consensus(dir_connection_t *conn,
                                 const response_handler_args_t *args)
 {
@@ -3092,10 +3096,19 @@ handle_response_fetch_hsdesc_v3(dir_connection_t *conn,
     /* We got something: Try storing it in the cache. */
     if (hs_cache_store_as_client(body, &conn->hs_ident->identity_pk) < 0) {
       log_warn(LD_REND, "Failed to store hidden service descriptor");
+      /* Fire control port FAILED event. */
+      hs_control_desc_event_failed(conn->hs_ident, conn->identity_digest,
+                                   "BAD_DESC");
+      hs_control_desc_event_content(conn->hs_ident, conn->identity_digest,
+                                    NULL);
     } else {
       log_info(LD_REND, "Stored hidden service descriptor successfully.");
       TO_CONN(conn)->purpose = DIR_PURPOSE_HAS_FETCHED_HSDESC;
       hs_client_desc_has_arrived(conn->hs_ident);
+      /* Fire control port RECEIVED event. */
+      hs_control_desc_event_received(conn->hs_ident, conn->identity_digest);
+      hs_control_desc_event_content(conn->hs_ident, conn->identity_digest,
+                                    body);
     }
     break;
   case 404:
@@ -3103,13 +3116,22 @@ handle_response_fetch_hsdesc_v3(dir_connection_t *conn,
      * tries to clean this conn up. */
     log_info(LD_REND, "Fetching hidden service v3 descriptor not found: "
                       "Retrying at another directory.");
-    /* TODO: Inform the control port */
+    /* Fire control port FAILED event. */
+    hs_control_desc_event_failed(conn->hs_ident, conn->identity_digest,
+                                 "NOT_FOUND");
+    hs_control_desc_event_content(conn->hs_ident, conn->identity_digest,
+                                  NULL);
     break;
   case 400:
     log_warn(LD_REND, "Fetching v3 hidden service descriptor failed: "
                       "http status 400 (%s). Dirserver didn't like our "
                       "query? Retrying at another directory.",
              escaped(reason));
+    /* Fire control port FAILED event. */
+    hs_control_desc_event_failed(conn->hs_ident, conn->identity_digest,
+                                 "QUERY_REJECTED");
+    hs_control_desc_event_content(conn->hs_ident, conn->identity_digest,
+                                  NULL);
     break;
   default:
     log_warn(LD_REND, "Fetching v3 hidden service descriptor failed: "
@@ -3117,6 +3139,11 @@ handle_response_fetch_hsdesc_v3(dir_connection_t *conn,
              "'%s:%d'. Retrying at another directory.",
              status_code, escaped(reason), TO_CONN(conn)->address,
              TO_CONN(conn)->port);
+    /* Fire control port FAILED event. */
+    hs_control_desc_event_failed(conn->hs_ident, conn->identity_digest,
+                                 "UNEXPECTED");
+    hs_control_desc_event_content(conn->hs_ident, conn->identity_digest,
+                                  NULL);
     break;
   }
 
@@ -3138,9 +3165,9 @@ handle_response_fetch_renddesc_v2(dir_connection_t *conn,
   const size_t body_len = args->body_len;
 
 #define SEND_HS_DESC_FAILED_EVENT(reason)                               \
-  (control_event_hs_descriptor_failed(conn->rend_data,                  \
-                                      conn->identity_digest,            \
-                                      reason))
+  (control_event_hsv2_descriptor_failed(conn->rend_data,                \
+                                        conn->identity_digest,          \
+                                        reason))
 #define SEND_HS_DESC_FAILED_CONTENT()                                   \
   (control_event_hs_descriptor_content(                                 \
                                 rend_data_get_address(conn->rend_data), \
@@ -3175,9 +3202,9 @@ handle_response_fetch_renddesc_v2(dir_connection_t *conn,
         /* success. notify pending connections about this. */
         log_info(LD_REND, "Successfully fetched v2 rendezvous "
                  "descriptor.");
-        control_event_hs_descriptor_received(service_id,
-                                             conn->rend_data,
-                                             conn->identity_digest);
+        control_event_hsv2_descriptor_received(service_id,
+                                               conn->rend_data,
+                                               conn->identity_digest);
         control_event_hs_descriptor_content(service_id,
                                             conn->requested_resource,
                                             conn->identity_digest,
@@ -3294,7 +3321,7 @@ handle_response_upload_hsdesc(dir_connection_t *conn,
   case 200:
     log_info(LD_REND, "Uploading hidden service descriptor: "
                       "finished with status 200 (%s)", escaped(reason));
-    /* XXX: Trigger control event. */
+    hs_control_desc_event_uploaded(conn->hs_ident, conn->identity_digest);
     break;
   case 400:
     log_fn(LOG_PROTOCOL_WARN, LD_REND,
@@ -3302,7 +3329,8 @@ handle_response_upload_hsdesc(dir_connection_t *conn,
            "status 400 (%s) response from dirserver "
            "'%s:%d'. Malformed hidden service descriptor?",
            escaped(reason), conn->base_.address, conn->base_.port);
-    /* XXX: Trigger control event. */
+    hs_control_desc_event_failed(conn->hs_ident, conn->identity_digest,
+                                 "UPLOAD_REJECTED");
     break;
   default:
     log_warn(LD_REND, "Uploading hidden service descriptor: http "
@@ -3310,7 +3338,8 @@ handle_response_upload_hsdesc(dir_connection_t *conn,
                       "'%s:%d').",
              status_code, escaped(reason), conn->base_.address,
              conn->base_.port);
-    /* XXX: Trigger control event. */
+    hs_control_desc_event_failed(conn->hs_ident, conn->identity_digest,
+                                 "UNEXPECTED");
     break;
   }
 
@@ -3389,7 +3418,7 @@ connection_dir_process_inbuf(dir_connection_t *conn)
 }
 
 /** We are closing a dir connection: If <b>dir_conn</b> is a dir connection
- *  that tried to fetch an HS descriptor, check if it successfuly fetched it,
+ *  that tried to fetch an HS descriptor, check if it successfully fetched it,
  *  or if we need to try again. */
 static void
 refetch_hsdesc_if_needed(dir_connection_t *dir_conn)
@@ -3476,63 +3505,47 @@ write_http_response_header_impl(dir_connection_t *conn, ssize_t length,
                            long cache_lifetime)
 {
   char date[RFC1123_TIME_LEN+1];
-  char tmp[1024];
-  char *cp;
   time_t now = time(NULL);
+  buf_t *buf = buf_new_with_capacity(1024);
 
   tor_assert(conn);
 
   format_rfc1123_time(date, now);
-  cp = tmp;
-  tor_snprintf(cp, sizeof(tmp),
-               "HTTP/1.0 200 OK\r\nDate: %s\r\n",
-               date);
-  cp += strlen(tmp);
+
+  buf_add_printf(buf, "HTTP/1.0 200 OK\r\nDate: %s\r\n", date);
   if (type) {
-    tor_snprintf(cp, sizeof(tmp)-(cp-tmp), "Content-Type: %s\r\n", type);
-    cp += strlen(cp);
+    buf_add_printf(buf, "Content-Type: %s\r\n", type);
   }
   if (!is_local_addr(&conn->base_.addr)) {
     /* Don't report the source address for a nearby/private connection.
      * Otherwise we tend to mis-report in cases where incoming ports are
      * being forwarded to a Tor server running behind the firewall. */
-    tor_snprintf(cp, sizeof(tmp)-(cp-tmp),
-                 X_ADDRESS_HEADER "%s\r\n", conn->base_.address);
-    cp += strlen(cp);
+    buf_add_printf(buf, X_ADDRESS_HEADER "%s\r\n", conn->base_.address);
   }
   if (encoding) {
-    tor_snprintf(cp, sizeof(tmp)-(cp-tmp),
-                 "Content-Encoding: %s\r\n", encoding);
-    cp += strlen(cp);
+    buf_add_printf(buf, "Content-Encoding: %s\r\n", encoding);
   }
   if (length >= 0) {
-    tor_snprintf(cp, sizeof(tmp)-(cp-tmp),
-                 "Content-Length: %ld\r\n", (long)length);
-    cp += strlen(cp);
+    buf_add_printf(buf, "Content-Length: %ld\r\n", (long)length);
   }
   if (cache_lifetime > 0) {
     char expbuf[RFC1123_TIME_LEN+1];
     format_rfc1123_time(expbuf, (time_t)(now + cache_lifetime));
     /* We could say 'Cache-control: max-age=%d' here if we start doing
      * http/1.1 */
-    tor_snprintf(cp, sizeof(tmp)-(cp-tmp),
-                 "Expires: %s\r\n", expbuf);
-    cp += strlen(cp);
+    buf_add_printf(buf, "Expires: %s\r\n", expbuf);
   } else if (cache_lifetime == 0) {
     /* We could say 'Cache-control: no-cache' here if we start doing
      * http/1.1 */
-    strlcpy(cp, "Pragma: no-cache\r\n", sizeof(tmp)-(cp-tmp));
-    cp += strlen(cp);
+    buf_add_string(buf, "Pragma: no-cache\r\n");
   }
   if (extra_headers) {
-    strlcpy(cp, extra_headers, sizeof(tmp)-(cp-tmp));
-    cp += strlen(cp);
+    buf_add_string(buf, extra_headers);
   }
-  if (sizeof(tmp)-(cp-tmp) > 3)
-    memcpy(cp, "\r\n", 3);
-  else
-    tor_assert(0);
-  connection_buf_add(tmp, strlen(tmp), TO_CONN(conn));
+  buf_add_string(buf, "\r\n");
+
+  connection_buf_add_buf(TO_CONN(conn), buf);
+  buf_free(buf);
 }
 
 /** As write_http_response_header_impl, but sets encoding and content-typed
@@ -3671,6 +3684,7 @@ client_likes_consensus(const struct consensus_cache_entry_t *ent,
   int have = 0;
 
   if (consensus_cache_entry_get_voter_id_digests(ent, voters) != 0) {
+    smartlist_free(voters);
     return 1; // We don't know the voters; assume the client won't mind. */
   }
 
@@ -4028,7 +4042,7 @@ find_best_diff(const smartlist_t *digests, int flav,
 }
 
 /** Lookup the cached consensus document by the flavor found in <b>flav</b>.
- * The prefered set of compression methods should be listed in the
+ * The preferred set of compression methods should be listed in the
  * <b>compression_methods</b> bitfield. The compression method chosen (if any)
  * is stored in <b>compression_used_out</b>. */
 static struct consensus_cache_entry_t *
@@ -4429,59 +4443,15 @@ handle_get_status_vote(dir_connection_t *conn, const get_handler_args_t *args)
 {
   const char *url = args->url;
   {
-    int current;
     ssize_t body_len = 0;
     ssize_t estimated_len = 0;
+    int lifetime = 60; /* XXXX?? should actually use vote intervals. */
     /* This smartlist holds strings that we can compress on the fly. */
     smartlist_t *items = smartlist_new();
     /* This smartlist holds cached_dir_t objects that have a precompressed
      * deflated version. */
     smartlist_t *dir_items = smartlist_new();
-    int lifetime = 60; /* XXXX?? should actually use vote intervals. */
-    url += strlen("/tor/status-vote/");
-    current = !strcmpstart(url, "current/");
-    url = strchr(url, '/');
-    tor_assert(url);
-    ++url;
-    if (!strcmp(url, "consensus")) {
-      const char *item;
-      tor_assert(!current); /* we handle current consensus specially above,
-                             * since it wants to be spooled. */
-      if ((item = dirvote_get_pending_consensus(FLAV_NS)))
-        smartlist_add(items, (char*)item);
-    } else if (!current && !strcmp(url, "consensus-signatures")) {
-      /* XXXX the spec says that we should implement
-       * current/consensus-signatures too.  It doesn't seem to be needed,
-       * though. */
-      const char *item;
-      if ((item=dirvote_get_pending_detached_signatures()))
-        smartlist_add(items, (char*)item);
-    } else if (!strcmp(url, "authority")) {
-      const cached_dir_t *d;
-      int flags = DGV_BY_ID |
-        (current ? DGV_INCLUDE_PREVIOUS : DGV_INCLUDE_PENDING);
-      if ((d=dirvote_get_vote(NULL, flags)))
-        smartlist_add(dir_items, (cached_dir_t*)d);
-    } else {
-      const cached_dir_t *d;
-      smartlist_t *fps = smartlist_new();
-      int flags;
-      if (!strcmpstart(url, "d/")) {
-        url += 2;
-        flags = DGV_INCLUDE_PENDING | DGV_INCLUDE_PREVIOUS;
-      } else {
-        flags = DGV_BY_ID |
-          (current ? DGV_INCLUDE_PREVIOUS : DGV_INCLUDE_PENDING);
-      }
-      dir_split_resource_into_fingerprints(url, fps, NULL,
-                                           DSR_HEX|DSR_SORT_UNIQ);
-      SMARTLIST_FOREACH(fps, char *, fp, {
-          if ((d = dirvote_get_vote(fp, flags)))
-            smartlist_add(dir_items, (cached_dir_t*)d);
-          tor_free(fp);
-        });
-      smartlist_free(fps);
-    }
+    dirvote_dirreq_get_status_vote(url, items, dir_items);
     if (!smartlist_len(dir_items) && !smartlist_len(items)) {
       write_short_http_response(conn, 404, "Not found");
       goto vote_done;
@@ -4940,7 +4910,7 @@ handle_get_robots(dir_connection_t *conn, const get_handler_args_t *args)
 
 /* Given the <b>url</b> from a POST request, try to extract the version number
  * using the provided <b>prefix</b>. The version should be after the prefix and
- * ending with the seperator "/". For instance:
+ * ending with the separator "/". For instance:
  *      /tor/hs/3/publish
  *
  * On success, <b>end_pos</b> points to the position right after the version
@@ -5292,93 +5262,71 @@ connection_dir_finished_connecting(dir_connection_t *conn)
 
 /** Decide which download schedule we want to use based on descriptor type
  * in <b>dls</b> and <b>options</b>.
- * Then return a list of int pointers defining download delays in seconds.
+ *
+ * Then, return the initial delay for that download schedule, in seconds.
+ *
  * Helper function for download_status_increment_failure(),
  * download_status_reset(), and download_status_increment_attempt(). */
-STATIC const smartlist_t *
-find_dl_schedule(const download_status_t *dls, const or_options_t *options)
+STATIC int
+find_dl_min_delay(const download_status_t *dls, const or_options_t *options)
 {
+  tor_assert(dls);
+  tor_assert(options);
+
   switch (dls->schedule) {
     case DL_SCHED_GENERIC:
       /* Any other directory document */
       if (dir_server_mode(options)) {
         /* A directory authority or directory mirror */
-        return options->TestingServerDownloadSchedule;
+        return options->TestingServerDownloadInitialDelay;
       } else {
-        return options->TestingClientDownloadSchedule;
+        return options->TestingClientDownloadInitialDelay;
       }
     case DL_SCHED_CONSENSUS:
       if (!networkstatus_consensus_can_use_multiple_directories(options)) {
         /* A public relay */
-        return options->TestingServerConsensusDownloadSchedule;
+        return options->TestingServerConsensusDownloadInitialDelay;
       } else {
         /* A client or bridge */
         if (networkstatus_consensus_is_bootstrapping(time(NULL))) {
           /* During bootstrapping */
           if (!networkstatus_consensus_can_use_extra_fallbacks(options)) {
             /* A bootstrapping client without extra fallback directories */
-            return
-             options->ClientBootstrapConsensusAuthorityOnlyDownloadSchedule;
+            return options->
+              ClientBootstrapConsensusAuthorityOnlyDownloadInitialDelay;
           } else if (dls->want_authority) {
             /* A bootstrapping client with extra fallback directories, but
              * connecting to an authority */
             return
-             options->ClientBootstrapConsensusAuthorityDownloadSchedule;
+             options->ClientBootstrapConsensusAuthorityDownloadInitialDelay;
           } else {
             /* A bootstrapping client connecting to extra fallback directories
              */
             return
-              options->ClientBootstrapConsensusFallbackDownloadSchedule;
+              options->ClientBootstrapConsensusFallbackDownloadInitialDelay;
           }
         } else {
           /* A client with a reasonably live consensus, with or without
            * certificates */
-          return options->TestingClientConsensusDownloadSchedule;
+          return options->TestingClientConsensusDownloadInitialDelay;
         }
       }
     case DL_SCHED_BRIDGE:
       if (options->UseBridges && num_bridges_usable(0) > 0) {
         /* A bridge client that is sure that one or more of its bridges are
          * running can afford to wait longer to update bridge descriptors. */
-        return options->TestingBridgeDownloadSchedule;
+        return options->TestingBridgeDownloadInitialDelay;
       } else {
         /* A bridge client which might have no running bridges, must try to
          * get bridge descriptors straight away. */
-        return options->TestingBridgeBootstrapDownloadSchedule;
+        return options->TestingBridgeBootstrapDownloadInitialDelay;
       }
     default:
       tor_assert(0);
   }
 
   /* Impossible, but gcc will fail with -Werror without a `return`. */
-  return NULL;
-}
-
-/** Decide which minimum and maximum delay step we want to use based on
- * descriptor type in <b>dls</b> and <b>options</b>.
- * Helper function for download_status_schedule_get_delay(). */
-STATIC void
-find_dl_min_and_max_delay(download_status_t *dls, const or_options_t *options,
-                          int *min, int *max)
-{
-  tor_assert(dls);
-  tor_assert(options);
-  tor_assert(min);
-  tor_assert(max);
-
-  /*
-   * For now, just use the existing schedule config stuff and pick the
-   * first/last entries off to get min/max delay for backoff purposes
-   */
-  const smartlist_t *schedule = find_dl_schedule(dls, options);
-  tor_assert(schedule != NULL && smartlist_len(schedule) >= 2);
-  *min = *((int *)(smartlist_get(schedule, 0)));
-  /* Increment on failure schedules always use exponential backoff, but they
-   * have a smaller limit when they're deterministic */
-  if (dls->backoff == DL_SCHED_DETERMINISTIC)
-    *max = *((int *)((smartlist_get(schedule, smartlist_len(schedule) - 1))));
-  else
-    *max = INT_MAX;
+  return 0;
 }
 
 /** As next_random_exponential_delay() below, but does not compute a random
@@ -5416,55 +5364,39 @@ next_random_exponential_delay_range(int *low_bound_out,
  * zero); the <b>backoff_position</b> parameter is the number of times we've
  * generated a delay; and the <b>delay</b> argument is the most recently used
  * delay.
- *
- * Requires that delay is less than INT_MAX, and delay is in [0,max_delay].
  */
 STATIC int
 next_random_exponential_delay(int delay,
-                              int base_delay,
-                              int max_delay)
+                              int base_delay)
 {
   /* Check preconditions */
-  if (BUG(max_delay < 0))
-    max_delay = 0;
-  if (BUG(delay > max_delay))
-    delay = max_delay;
   if (BUG(delay < 0))
     delay = 0;
 
   if (base_delay < 1)
     base_delay = 1;
 
-  int low_bound=0, high_bound=max_delay;
+  int low_bound=0, high_bound=INT_MAX;
 
   next_random_exponential_delay_range(&low_bound, &high_bound,
                                       delay, base_delay);
 
-  int rand_delay = crypto_rand_int_range(low_bound, high_bound);
-
-  return MIN(rand_delay, max_delay);
+  return crypto_rand_int_range(low_bound, high_bound);
 }
 
-/** Find the current delay for dls based on schedule or min_delay/
- * max_delay if we're using exponential backoff.  If dls->backoff is
- * DL_SCHED_RANDOM_EXPONENTIAL, we must have 0 <= min_delay <= max_delay <=
- * INT_MAX, but schedule may be set to NULL; otherwise schedule is required.
+/** Find the current delay for dls based on min_delay.
+ *
  * This function sets dls->next_attempt_at based on now, and returns the delay.
  * Helper for download_status_increment_failure and
  * download_status_increment_attempt. */
 STATIC int
 download_status_schedule_get_delay(download_status_t *dls,
-                                   const smartlist_t *schedule,
-                                   int min_delay, int max_delay,
+                                   int min_delay,
                                    time_t now)
 {
   tor_assert(dls);
-  /* We don't need a schedule if we're using random exponential backoff */
-  tor_assert(dls->backoff == DL_SCHED_RANDOM_EXPONENTIAL ||
-             schedule != NULL);
   /* If we're using random exponential backoff, we do need min/max delay */
-  tor_assert(dls->backoff != DL_SCHED_RANDOM_EXPONENTIAL ||
-             (min_delay >= 0 && max_delay >= min_delay));
+  tor_assert(min_delay >= 0);
 
   int delay = INT_MAX;
   uint8_t dls_schedule_position = (dls->increment_on
@@ -5472,42 +5404,32 @@ download_status_schedule_get_delay(download_status_t *dls,
                                    ? dls->n_download_attempts
                                    : dls->n_download_failures);
 
-  if (dls->backoff == DL_SCHED_DETERMINISTIC) {
-    if (dls_schedule_position < smartlist_len(schedule))
-      delay = *(int *)smartlist_get(schedule, dls_schedule_position);
-    else if (dls_schedule_position == IMPOSSIBLE_TO_DOWNLOAD)
-      delay = INT_MAX;
-    else
-      delay = *(int *)smartlist_get(schedule, smartlist_len(schedule) - 1);
-  } else if (dls->backoff == DL_SCHED_RANDOM_EXPONENTIAL) {
-    /* Check if we missed a reset somehow */
-    IF_BUG_ONCE(dls->last_backoff_position > dls_schedule_position) {
-      dls->last_backoff_position = 0;
-      dls->last_delay_used = 0;
-    }
-
-    if (dls_schedule_position > 0) {
-      delay = dls->last_delay_used;
-
-      while (dls->last_backoff_position < dls_schedule_position) {
-        /* Do one increment step */
-        delay = next_random_exponential_delay(delay, min_delay, max_delay);
-        /* Update our position */
-        ++(dls->last_backoff_position);
-      }
-    } else {
-      /* If we're just starting out, use the minimum delay */
-      delay = min_delay;
-    }
-
-    /* Clamp it within min/max if we have them */
-    if (min_delay >= 0 && delay < min_delay) delay = min_delay;
-    if (max_delay != INT_MAX && delay > max_delay) delay = max_delay;
-
-    /* Store it for next time */
-    dls->last_backoff_position = dls_schedule_position;
-    dls->last_delay_used = delay;
+  /* Check if we missed a reset somehow */
+  IF_BUG_ONCE(dls->last_backoff_position > dls_schedule_position) {
+    dls->last_backoff_position = 0;
+    dls->last_delay_used = 0;
   }
+
+  if (dls_schedule_position > 0) {
+    delay = dls->last_delay_used;
+
+    while (dls->last_backoff_position < dls_schedule_position) {
+      /* Do one increment step */
+      delay = next_random_exponential_delay(delay, min_delay);
+      /* Update our position */
+      ++(dls->last_backoff_position);
+    }
+  } else {
+    /* If we're just starting out, use the minimum delay */
+    delay = min_delay;
+  }
+
+  /* Clamp it within min/max if we have them */
+  if (min_delay >= 0 && delay < min_delay) delay = min_delay;
+
+  /* Store it for next time */
+  dls->last_backoff_position = dls_schedule_position;
+  dls->last_delay_used = delay;
 
   /* A negative delay makes no sense. Knowing that delay is
    * non-negative allows us to safely do the wrapping check below. */
@@ -5570,7 +5492,7 @@ download_status_increment_failure(download_status_t *dls, int status_code,
   (void) status_code; // XXXX no longer used.
   (void) server; // XXXX no longer used.
   int increment = -1;
-  int min_delay = 0, max_delay = INT_MAX;
+  int min_delay = 0;
 
   tor_assert(dls);
 
@@ -5595,10 +5517,8 @@ download_status_increment_failure(download_status_t *dls, int status_code,
 
     /* only return a failure retry time if this schedule increments on failures
      */
-    const smartlist_t *schedule = find_dl_schedule(dls, get_options());
-    find_dl_min_and_max_delay(dls, get_options(), &min_delay, &max_delay);
-    increment = download_status_schedule_get_delay(dls, schedule,
-                                                   min_delay, max_delay, now);
+    min_delay = find_dl_min_delay(dls, get_options());
+    increment = download_status_schedule_get_delay(dls, min_delay, now);
   }
 
   download_status_log_helper(item, !dls->increment_on, "failed",
@@ -5629,7 +5549,7 @@ download_status_increment_attempt(download_status_t *dls, const char *item,
                                   time_t now)
 {
   int delay = -1;
-  int min_delay = 0, max_delay = INT_MAX;
+  int min_delay = 0;
 
   tor_assert(dls);
 
@@ -5649,10 +5569,8 @@ download_status_increment_attempt(download_status_t *dls, const char *item,
   if (dls->n_download_attempts < IMPOSSIBLE_TO_DOWNLOAD-1)
     ++dls->n_download_attempts;
 
-  const smartlist_t *schedule = find_dl_schedule(dls, get_options());
-  find_dl_min_and_max_delay(dls, get_options(), &min_delay, &max_delay);
-  delay = download_status_schedule_get_delay(dls, schedule,
-                                             min_delay, max_delay, now);
+  min_delay = find_dl_min_delay(dls, get_options());
+  delay = download_status_schedule_get_delay(dls, min_delay, now);
 
   download_status_log_helper(item, dls->increment_on, "attempted",
                              "on failure", dls->n_download_attempts,
@@ -5665,10 +5583,9 @@ download_status_increment_attempt(download_status_t *dls, const char *item,
 static time_t
 download_status_get_initial_delay_from_now(const download_status_t *dls)
 {
-  const smartlist_t *schedule = find_dl_schedule(dls, get_options());
   /* We use constant initial delays, even in exponential backoff
    * schedules. */
-  return time(NULL) + *(int *)smartlist_get(schedule, 0);
+  return time(NULL) + find_dl_min_delay(dls, get_options());
 }
 
 /** Reset <b>dls</b> so that it will be considered downloadable
@@ -5761,8 +5678,7 @@ dir_routerdesc_download_failed(smartlist_t *failed, int status_code,
     } else {
       dls = router_get_dl_status_by_descriptor_digest(digest);
     }
-    if (!dls || dls->n_download_failures >=
-                get_options()->TestingDescriptorMaxDownloadTries)
+    if (!dls)
       continue;
     download_status_increment_failure(dls, status_code, cp, server, now);
   } SMARTLIST_FOREACH_END(cp);
@@ -5799,10 +5715,6 @@ dir_microdesc_download_failed(smartlist_t *failed,
     if (!rs)
       continue;
     dls = &rs->dl_status;
-    if (dls->n_download_failures >=
-        get_options()->TestingMicrodescMaxDownloadTries) {
-      continue;
-    }
 
     { /* Increment the failure count for this md fetch */
       char buf[BASE64_DIGEST256_LEN+1];

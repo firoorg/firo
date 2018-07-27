@@ -99,6 +99,14 @@ static const compress_method_t compress_diffs_with[] = {
 #endif
 };
 
+/**
+ * Event for rescanning the cache.
+ */
+static mainloop_event_t *consdiffmgr_rescan_ev = NULL;
+
+static void consdiffmgr_rescan_cb(mainloop_event_t *ev, void *arg);
+static void mark_cdm_cache_dirty(void);
+
 /** How many different methods will we try to use for diff compression? */
 STATIC unsigned
 n_diff_compression_methods(void)
@@ -207,9 +215,12 @@ HT_PROTOTYPE(cdm_diff_ht, cdm_diff_t, node, cdm_diff_hash, cdm_diff_eq)
 HT_GENERATE2(cdm_diff_ht, cdm_diff_t, node, cdm_diff_hash, cdm_diff_eq,
              0.6, tor_reallocarray, tor_free_)
 
+#define cdm_diff_free(diff) \
+  FREE_AND_NULL(cdm_diff_t, cdm_diff_free_, (diff))
+
 /** Release all storage held in <b>diff</b>. */
 static void
-cdm_diff_free(cdm_diff_t *diff)
+cdm_diff_free_(cdm_diff_t *diff)
 {
   if (!diff)
     return;
@@ -369,7 +380,9 @@ cdm_cache_init(void)
   } else {
     consdiffmgr_set_cache_flags();
   }
-  cdm_cache_dirty = 1;
+  consdiffmgr_rescan_ev =
+    mainloop_event_postloop_new(consdiffmgr_rescan_cb, NULL);
+  mark_cdm_cache_dirty();
   cdm_cache_loaded = 0;
 }
 
@@ -1092,6 +1105,24 @@ consdiffmgr_rescan(void)
   cdm_cache_dirty = 0;
 }
 
+/** Callback wrapper for consdiffmgr_rescan */
+static void
+consdiffmgr_rescan_cb(mainloop_event_t *ev, void *arg)
+{
+  (void)ev;
+  (void)arg;
+  consdiffmgr_rescan();
+}
+
+/** Mark the cache as dirty, and schedule a rescan event. */
+static void
+mark_cdm_cache_dirty(void)
+{
+  cdm_cache_dirty = 1;
+  tor_assert(consdiffmgr_rescan_ev);
+  mainloop_event_activate(consdiffmgr_rescan_ev);
+}
+
 /**
  * Helper: compare two files by their from-valid-after and valid-after labels,
  * trying to sort in ascending order by from-valid-after (when present) and
@@ -1216,6 +1247,7 @@ consdiffmgr_free_all(void)
   memset(latest_consensus, 0, sizeof(latest_consensus));
   consensus_cache_free(cons_diff_cache);
   cons_diff_cache = NULL;
+  mainloop_event_free(consdiffmgr_rescan_ev);
 }
 
 /* =====
@@ -1310,8 +1342,13 @@ store_multiple(consensus_cache_entry_handle_t **handles_out,
                             labels,
                             body_out,
                             bodylen_out);
-      if (BUG(ent == NULL))
+      if (ent == NULL) {
+        static ratelim_t cant_store_ratelim = RATELIM_INIT(5*60);
+        log_fn_ratelim(&cant_store_ratelim, LOG_WARN, LD_FS,
+                       "Unable to store object %s compressed with %s.",
+                       description, methodname);
         continue;
+      }
 
       status = CDM_DIFF_PRESENT;
       handles_out[i] = consensus_cache_entry_handle_new(ent);
@@ -1506,11 +1543,15 @@ consensus_diff_worker_threadfn(void *state_, void *work_)
   return WQ_RPL_REPLY;
 }
 
+#define consensus_diff_worker_job_free(job)             \
+  FREE_AND_NULL(consensus_diff_worker_job_t,            \
+                consensus_diff_worker_job_free_, (job))
+
 /**
  * Helper: release all storage held in <b>job</b>.
  */
 static void
-consensus_diff_worker_job_free(consensus_diff_worker_job_t *job)
+consensus_diff_worker_job_free_(consensus_diff_worker_job_t *job)
 {
   if (!job)
     return;
@@ -1658,11 +1699,15 @@ typedef struct consensus_compress_worker_job_t {
   compressed_result_t out[ARRAY_LENGTH(compress_consensus_with)];
 } consensus_compress_worker_job_t;
 
+#define consensus_compress_worker_job_free(job) \
+  FREE_AND_NULL(consensus_compress_worker_job_t, \
+                consensus_compress_worker_job_free_, (job))
+
 /**
  * Free all resources held in <b>job</b>
  */
 static void
-consensus_compress_worker_job_free(consensus_compress_worker_job_t *job)
+consensus_compress_worker_job_free_(consensus_compress_worker_job_t *job)
 {
   if (!job)
     return;
@@ -1734,7 +1779,7 @@ consensus_compress_worker_replyfn(void *work_)
                  compress_consensus_with,
                  job->out,
                  "consensus");
-  cdm_cache_dirty = 1;
+  mark_cdm_cache_dirty();
 
   unsigned u;
   consensus_flavor_t f = job->flavor;
