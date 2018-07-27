@@ -6,7 +6,7 @@
 #ifndef BITCOIN_API_SERVER_H
 #define BITCOIN_API_SERVER_H
 
-typedef UniValue(*apifn_type)(const UniValue& data, bool fHelp);
+
 
 class CAPICommand;
 
@@ -19,14 +19,12 @@ void SetAPIWarmupFinished();
 bool APIIsInWarmup(std::string *outStatus);
 bool APIIsInWarmup();
 
-class CAPICommand
-{
-public:
-    std::string type;       // command type: one of CREATE, UPDATE, MODIFY, DELETE
-    std::string collection; // function name
-    apifn_type actor;       // pointer to function
-    bool authPort;          // command can only be called through authenticated port
-    bool authPassphrase;    // command requires unlocking before being ran.
+enum Type {
+   None,
+   Initial,
+   Create,
+   Update,
+   Delete 
 };
 
 class APIJSONRequest
@@ -34,13 +32,27 @@ class APIJSONRequest
 public:
     char* raw;
 
-    std::string type;
+    Type type;
     std::string collection;
     UniValue data;
     UniValue auth;
 
     APIJSONRequest() {}
     void parse(const UniValue& valRequest);
+    void parseType(std::string typeRequest);
+};
+
+typedef UniValue(*apifn_type)(Type type, const UniValue& data, const UniValue& auth, bool fHelp);
+
+class CAPICommand
+{
+public:
+    std::string category;   // command category
+    std::string collection; // function name
+    apifn_type actor;       // pointer to function
+    bool authPort;          // command can only be called through authenticated port
+    bool authPassphrase;    // command requires unlocking before being ran.
+    bool warmupOk;          // command can be executed during program warmup.
 };
 
 class CAPITable

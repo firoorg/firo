@@ -132,9 +132,14 @@ bool RenameOver(boost::filesystem::path src, boost::filesystem::path dest);
 bool TryCreateDirectory(const boost::filesystem::path& p);
 boost::filesystem::path GetDefaultDataDir();
 const boost::filesystem::path &GetDataDir(bool fNetSpecific = true);
+const boost::filesystem::path &GetPersistentDataDir(bool fNetSpecific = true);
+const boost::filesystem::path &GetJsonDataDir(bool fNetSpecific, const char* filename);
 const boost::filesystem::path &GetBackupsDir();
 void ClearDatadirCache();
 boost::filesystem::path GetConfigFile();
+const boost::filesystem::path GetPaymentRequestFile(bool fNetSpecific=true);
+const boost::filesystem::path GetZerocoinFile(bool fNetSpecific=true);
+const boost::filesystem::path GetSettingsFile(bool fNetSpecific=true);
 boost::filesystem::path GetZnodeConfigFile();
 #ifndef WIN32
 boost::filesystem::path GetPidFile();

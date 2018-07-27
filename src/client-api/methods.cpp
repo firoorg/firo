@@ -25,6 +25,8 @@
 
 #include <boost/thread/thread.hpp> // boost::thread::interrupt
 
+namespace fs = boost::filesystem;
+using namespace std::chrono;
 using namespace std;
 
 bool setTxFee(const UniValue& feeperkb){
@@ -35,6 +37,27 @@ bool setTxFee(const UniValue& feeperkb){
     payTxFee = CFeeRate(nAmount, 1000);
 
     return true;
+}
+
+UniValue getNewAddress()
+{
+    if (!EnsureWalletIsAvailable(false))
+        return NullUniValue;
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    if (!pwalletMain->IsLocked())
+        pwalletMain->TopUpKeyPool();
+
+    // Generate a new key that is added to wallet
+    CPubKey newKey;
+    if (!pwalletMain->GetKeyFromPool(newKey))
+        throw JSONRPCError(RPC_WALLET_KEYPOOL_RAN_OUT, "Error: Keypool ran out, please call keypoolrefill first");
+    CKeyID keyID = newKey.GetID();
+
+    pwalletMain->SetAddressBook(keyID, "", "receive");
+
+    return CBitcoinAddress(keyID).ToString();
 }
 
 UniValue getBlockHeight(const string strHash)
@@ -249,25 +272,20 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
 }
 
 
-UniValue sendzcoin(const UniValue& params, bool fHelp)
+UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
 {
-    UniValue feeperkb = find_value(params,"feeperkb");
+    LogPrintf("API: in sendzcoin\n");
+    UniValue feeperkb = find_value(data,"feeperkb");
     setTxFee(feeperkb);
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
-    UniValue sendTo = find_value(params,"addresses").get_obj();
+    UniValue sendTo = find_value(data,"addresses").get_obj();
     int nMinDepth = 1;
-    if (params.size() > 1)
-        nMinDepth = params[1].get_int();
 
     CWalletTx wtx;
-    if (params.size() > 2 && !params[2].isNull() && !params[2].get_str().empty())
-        wtx.mapValue["comment"] = params[2].get_str();
 
     UniValue subtractFeeFromAmount(UniValue::VARR);
-    if (params.size() > 3)
-        subtractFeeFromAmount = params[4].get_array();
 
     set<CBitcoinAddress> setAddress;
     vector<CRecipient> vecSend;
@@ -285,7 +303,7 @@ UniValue sendzcoin(const UniValue& params, bool fHelp)
         setAddress.insert(address);
 
         CScript scriptPubKey = GetScriptForDestination(address.Get());
-        CAmount nAmount = sendTo[name_].get_int64() / COIN;
+        CAmount nAmount = sendTo[name_].get_int64();
         LogPrintf("nAmount sendmanyfromany: %s\n", nAmount);
         if (nAmount <= 0)
             throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
@@ -302,8 +320,6 @@ UniValue sendzcoin(const UniValue& params, bool fHelp)
         vecSend.push_back(recipient);
     }
 
-    EnsureWalletIsUnlocked();
-
     // Try each of our accounts looking for one with enough balance
     vector<string> accounts = GetMyAccountNames();
     bool isValid = false;
@@ -319,8 +335,7 @@ UniValue sendzcoin(const UniValue& params, bool fHelp)
         }
     }
     if(!isValid){
-        LogPrintf("ZMQ: valid address not found.\n");
-        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "No account has sufficient funds");
+        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "No account has sufficient funds. Consider moving enough funds to a single account");
     }
     
     // Send
@@ -339,31 +354,24 @@ UniValue sendzcoin(const UniValue& params, bool fHelp)
 
 
 
-UniValue txfee(const UniValue& params, bool fHelp){
+UniValue txfee(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
     // first set the tx fee per kb, then return the total fee with addresses.   
     LogPrintf("API: in txfee\n");
     if (!EnsureWalletIsAvailable(fHelp))
         return NullUniValue;
 
-    UniValue feeperkb = find_value(params, "feeperkb");
+    UniValue feeperkb = find_value(data, "feeperkb");
 
     setTxFee(feeperkb);
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
     
-    UniValue sendTo = find_value(params, "addresses").get_obj();
-    int nMinDepth = 1;
-    if (params.size() > 1)
-        nMinDepth = params[1].get_int();
+    UniValue sendTo = find_value(data, "addresses").get_obj();
 
     CWalletTx wtx;
     wtx.strFromAccount = "";
-    if (params.size() > 2 && !params[2].isNull() && !params[2].get_str().empty())
-        wtx.mapValue["comment"] = params[2].get_str();
 
     UniValue subtractFeeFromAmount(UniValue::VARR);
-    if (params.size() > 3)
-        subtractFeeFromAmount = params[3].get_array();
 
     set<CBitcoinAddress> setAddress;
     vector<CRecipient> vecSend;
@@ -413,7 +421,7 @@ UniValue txfee(const UniValue& params, bool fHelp){
 }
 
 
-UniValue mint(const UniValue& params, bool fHelp)
+UniValue mint(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
 {
     //TODO verify enough balance available before starting to mint.
     UniValue txids(UniValue::VARR);
@@ -421,7 +429,7 @@ UniValue mint(const UniValue& params, bool fHelp)
     int64_t denomination_int = 0;
     libzerocoin::CoinDenomination denomination;
 
-    UniValue sendTo = params[0].get_obj();
+    UniValue sendTo = data[0].get_obj();
 
     vector<string> keys = sendTo.getKeys();
     BOOST_FOREACH(const string& denomination_str, keys){
@@ -519,86 +527,92 @@ UniValue mint(const UniValue& params, bool fHelp)
     }
 
     return txids;
-
 }
 
-UniValue sendprivate(const UniValue& data, bool fHelp) {
+UniValue sendprivate(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
 
-    UniValue txids(UniValue::VARR);
+    switch(type){
+        case Create: {
+            UniValue txids(UniValue::VARR);
 
-    LOCK2(cs_main, pwalletMain->cs_wallet);
+            LOCK2(cs_main, pwalletMain->cs_wallet);
 
-    int64_t denomination_in = 0;
-    libzerocoin::CoinDenomination denomination;
+            int64_t denomination_in = 0;
+            libzerocoin::CoinDenomination denomination;
 
-    UniValue inputs = find_value(data, "denominations");
+            UniValue inputs = find_value(data, "denominations");
 
-    for(size_t i=0; i<inputs.size();i++) {
+            for(size_t i=0; i<inputs.size();i++) {
 
-        const UniValue& input_obj = inputs[i].get_obj();
+                const UniValue& input_obj = inputs[i].get_obj();
 
-        int amount = find_value(input_obj, "amount").get_int();
+                int amount = find_value(input_obj, "amount").get_int();
 
-        denomination_in = find_value(input_obj, "denomination").get_int();
+                denomination_in = find_value(input_obj, "denomination").get_int();
 
-        string address_str = find_value(input_obj, "address").get_str();
+                string address_str = find_value(input_obj, "address").get_str();
 
-        switch(denomination_in){
-            case 1:
-                denomination = libzerocoin::ZQ_LOVELACE;
-                break;
-            case 10:
-                denomination = libzerocoin::ZQ_GOLDWASSER;
-                break;
-            case 25:
-                denomination = libzerocoin::ZQ_RACKOFF;
-                break;
-            case 50:
-                denomination = libzerocoin::ZQ_PEDERSEN;
-                break;
-            case 100:
-                denomination = libzerocoin::ZQ_WILLIAMSON;                                                
-                break;
-            default:
-                throw runtime_error(
-                    "spendmanyzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n");
+                switch(denomination_in){
+                    case 1:
+                        denomination = libzerocoin::ZQ_LOVELACE;
+                        break;
+                    case 10:
+                        denomination = libzerocoin::ZQ_GOLDWASSER;
+                        break;
+                    case 25:
+                        denomination = libzerocoin::ZQ_RACKOFF;
+                        break;
+                    case 50:
+                        denomination = libzerocoin::ZQ_PEDERSEN;
+                        break;
+                    case 100:
+                        denomination = libzerocoin::ZQ_WILLIAMSON;                                                
+                        break;
+                    default:
+                        throw runtime_error(
+                            "spendmanyzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n");
+                }
+
+                string thirdPartyaddress = "";
+                if (!(address_str == "")){
+                    CBitcoinAddress address(address_str);
+                    if (!address.IsValid())
+                        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Zcoin address");
+                    thirdPartyaddress = address_str;
+                }
+
+                EnsureWalletIsUnlocked();
+
+                // Wallet comments
+                CWalletTx wtx;
+                CBigNum coinSerial;
+                uint256 txHash;
+                CBigNum zcSelectedValue;
+                bool zcSelectedIsUsed;
+
+                for(int j=0;j<amount;j++) {
+
+                    string strError = pwalletMain->SpendZerocoin(thirdPartyaddress, 
+                                                                (denomination_in * COIN), denomination, wtx, coinSerial, txHash, zcSelectedValue,
+                                                                 zcSelectedIsUsed);
+
+                    if (strError != "")
+                        throw JSONRPCError(RPC_WALLET_ERROR, strError);
+
+                    txids.push_back(wtx.GetHash().GetHex());
+                }
+            }
+
+            return txids;
         }
-
-        string thirdPartyaddress = "";
-        if (!(address_str == "")){
-            CBitcoinAddress address(address_str);
-            if (!address.IsValid())
-                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Zcoin address");
-            thirdPartyaddress = address_str;
-        }
-
-        EnsureWalletIsUnlocked();
-
-        // Wallet comments
-        CWalletTx wtx;
-        CBigNum coinSerial;
-        uint256 txHash;
-        CBigNum zcSelectedValue;
-        bool zcSelectedIsUsed;
-
-        for(int j=0;j<amount;j++) {
-
-            string strError = pwalletMain->SpendZerocoin(thirdPartyaddress, (denomination_in * COIN), denomination, wtx, coinSerial, txHash, zcSelectedValue,
-                                                         zcSelectedIsUsed);
-
-            if (strError != "")
-                throw JSONRPCError(RPC_WALLET_ERROR, strError);
-
-            txids.push_back(wtx.GetHash().GetHex());
+        default: {
+           throw JSONRPCError(API_TYPE_NOT_IMPLEMENTED, "Error: type does not exist for method called, or no type passed where method requires it."); 
         }
     }
-
-    return txids;
-
 }
 
 
-UniValue apistatus(const UniValue& data, bool fHelp)
+UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
 {
 #ifdef ENABLE_WALLET
     LOCK2(cs_main, pwalletMain ? &pwalletMain->cs_wallet : NULL);
@@ -613,7 +627,6 @@ UniValue apistatus(const UniValue& data, bool fHelp)
 
     obj.push_back(Pair("version", CLIENT_VERSION));
     obj.push_back(Pair("protocolversion", PROTOCOL_VERSION));
-#ifdef ENABLE_WALLET
     if (pwalletMain) {
         obj.push_back(Pair("walletversion", pwalletMain->GetVersion()));
     }
@@ -621,7 +634,6 @@ UniValue apistatus(const UniValue& data, bool fHelp)
         obj.push_back(Pair("walletlock",    "true"));
         obj.push_back(Pair("unlocked_until", nWalletUnlockTime));
     }
-#endif
     obj.push_back(Pair("datadir",       GetDataDir(true).string()));
     obj.push_back(Pair("network",       ChainNameFromCommandLine()));
     obj.push_back(Pair("blocks",        (int)chainActive.Height()));
@@ -633,7 +645,75 @@ UniValue apistatus(const UniValue& data, bool fHelp)
     return obj;
 }
 
-UniValue lockwallet(const UniValue& data, bool fHelp)
+UniValue setpassphrase(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
+{
+    // encrypt's the wallet should be the wallet be unencrypted.
+    // if already encrypted, it checks for a `newpassphrase` field, and updates the passphrase accordingly.
+    if (!EnsureWalletIsAvailable(fHelp))
+        return NullUniValue;
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    if (fHelp)
+        return true;
+
+    switch(type){
+        case Update: {
+            if(pwalletMain && pwalletMain->IsCrypted()){
+                SecureString strOldWalletPass;
+                strOldWalletPass.reserve(100);
+                strOldWalletPass = find_value(auth, "passphrase").get_str().c_str();
+
+                SecureString strNewWalletPass;
+                strNewWalletPass.reserve(100);
+                strNewWalletPass = find_value(auth, "newpassphrase").get_str().c_str();
+
+                if (strOldWalletPass.length() < 1 || strNewWalletPass.length() < 1)
+                    throw runtime_error(
+                        "walletpassphrase <oldpassphrase> <newpassphrase>\n"
+                        "Changes the wallet passphrase from <oldpassphrase> to <newpassphrase>.");
+
+                if (!pwalletMain->ChangeWalletPassphrase(strOldWalletPass, strNewWalletPass))
+                    throw JSONRPCError(RPC_WALLET_PASSPHRASE_INCORRECT, "Error: The wallet passphrase entered was incorrect.");
+
+                return true;
+            }
+            else {
+                throw JSONRPCError(API_WRONG_TYPE_CALLED, "Error: MODIFY type called, but wallet is unencrypted.");
+            }
+            break;
+        }
+        case Create: {
+            if (pwalletMain->IsCrypted())
+                throw JSONRPCError(RPC_WALLET_WRONG_ENC_STATE, "Error: running with an encrypted wallet, but encryptwallet was called.");
+
+            SecureString strWalletPass;
+            strWalletPass.reserve(100);
+            strWalletPass = find_value(auth, "passphrase").get_str().c_str();
+
+            if (strWalletPass.length() < 1)
+                throw runtime_error(
+                    "encryptwallet <passphrase>\n"
+                    "Encrypts the wallet with <passphrase>.");
+
+            if (!pwalletMain->EncryptWallet(strWalletPass))
+                throw JSONRPCError(RPC_WALLET_ENCRYPTION_FAILED, "Error: Failed to encrypt the wallet.");
+
+            // BDB seems to have a bad habit of writing old data into
+            // slack space in .dat files; that is bad if the old data is
+            // unencrypted private keys. So:
+            StartShutdown();
+            return "wallet encrypted; zcoin server stopping, restart to run with encrypted wallet. The keypool has been flushed and a new HD seed was generated (if you are using HD). You need to make a new backup.";   
+            break;
+        }
+        default: {
+            throw JSONRPCError(API_TYPE_NOT_IMPLEMENTED, "Error: type does not exist for method called, or no type passed where method requires it.");
+        }
+    }
+    return true;
+}
+
+UniValue lockwallet(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
 {
     if (!EnsureWalletIsAvailable(false))
         return NullUniValue;
@@ -660,7 +740,7 @@ UniValue lockwallet(const UniValue& data, bool fHelp)
     return true;
 }
 
-UniValue unlockwallet(const UniValue& data, bool fHelp)
+UniValue unlockwallet(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
 {
     if (!EnsureWalletIsAvailable(false))
         return NullUniValue;
@@ -681,12 +761,9 @@ UniValue unlockwallet(const UniValue& data, bool fHelp)
     LogPrintf("values size: %s\n", to_string(values.size()));
     
 
-    UniValue auth = find_value(data, "auth");
-    UniValue password = find_value(data, "password");
+    UniValue passphrase = find_value(auth, "passphrase");
 
-    LogPrintf("valtype: %s\n", password.type());
-
-    strWalletPass = password.get_str().c_str();
+    strWalletPass = passphrase.get_str().c_str();
 
     if (strWalletPass.length() > 0)
     {
@@ -703,7 +780,7 @@ UniValue unlockwallet(const UniValue& data, bool fHelp)
     return true;
 }
 
-UniValue statewallet(const UniValue& data, bool fHelp)
+UniValue statewallet(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
 {
     if (!EnsureWalletIsAvailable(false))
         return NullUniValue;
@@ -739,19 +816,136 @@ UniValue statewallet(const UniValue& data, bool fHelp)
     return ret;
 }
 
-static const CAPICommand commands[] =
-{ //  type                  collection     actor (function)        authPort  authPassphrase warmupOk
-  //  --------------------- ------------ -----------------------  ---------- -------------- --------
-    { "GET",         "apistatus",       &apistatus,               false,     false,           true   },
-    { "MODIFY",      "lockwallet",      &lockwallet,              true,      false,           false  },
-    { "MODIFY",      "unlockwallet",    &unlockwallet,            true,      false,           false  },
-    { "INITIAL",     "statewallet",     &statewallet,             true,      false,           false  },
-    { "CREATE",      "mint",            &mint,                    true,      true,            false  },
-    { "CREATE",      "sendprivate",     &sendprivate,             true,      true,            false  },
-    { "GET",         "txfee",           &txfee,                   true,      true,            false  },
-    { "CREATE",         "sendzcoin",    &sendzcoin,               true,      true,            false  },
-};
+UniValue paymentrequest(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
+{
+    if (!EnsureWalletIsAvailable(false))
+        return NullUniValue;
 
+    fs::path const &path = GetPaymentRequestFile();
+    LogPrintf("paymentrequest path: %s\n", path.string());
+
+    // get data as ifstream
+    std::ifstream paymentRequestIn(path.string());
+
+    // parse as std::string
+    std::string paymentRequestStr((std::istreambuf_iterator<char>(paymentRequestIn)), std::istreambuf_iterator<char>());
+    LogPrintf("paymentRequestStr: %s\n", paymentRequestStr);
+
+    // finally as UniValue
+    UniValue paymentRequestUni(UniValue::VOBJ);
+    paymentRequestUni.read(paymentRequestStr);
+    LogPrintf("paymentRequestUni write: %s\n", paymentRequestUni.write());
+
+    UniValue paymentRequestData(UniValue::VOBJ);
+    if(!paymentRequestUni["data"].isNull()){
+        paymentRequestData = paymentRequestUni["data"];
+    }
+
+    switch(type){
+        case Initial: {
+            return paymentRequestUni;
+            break; 
+        }
+        case Create: {
+            UniValue entry(UniValue::VOBJ);
+
+            UniValue newAddress = getNewAddress();
+            milliseconds ms = duration_cast< milliseconds >(
+                 system_clock::now().time_since_epoch()
+            );
+            UniValue createdAt = to_string(ms.count());
+
+            LogPrintf("data write: %s\n", data.write());
+            entry.push_back(Pair("address", newAddress.get_str()));
+            entry.push_back(Pair("created_at", createdAt.get_str()));
+            entry.push_back(Pair("amount", find_value(data, "amount").get_real()));
+            entry.push_back(Pair("message", find_value(data, "message").get_str()));
+            entry.push_back(Pair("label", find_value(data, "label").get_str()));
+            
+
+            paymentRequestData.push_back(Pair(newAddress.get_str(), entry));
+            LogPrintf("paymentRequestData write: %s\n", paymentRequestData.write());
+
+            if(!paymentRequestUni.replace("data", paymentRequestData)){
+                throw runtime_error("Could not replace key/value pair.");
+            }
+            break;
+        }
+        case Delete: {
+            const UniValue id = find_value(data, "id");
+            if(id.isNull()){
+                throw JSONAPIError(API_INVALID_PARAMETER, "Invalid parameter, expected id");
+            }
+
+            const UniValue addressObj = find_value(paymentRequestData, id.get_str());
+            if(addressObj.isNull()){
+                throw JSONAPIError(API_INVALID_PARAMETER, "Invalid data, id does not exist");
+            }  
+
+            const UniValue addressStr = find_value(addressObj, "address");
+
+            paymentRequestData.erase(addressStr);
+
+            if(!paymentRequestUni.replace("data", paymentRequestData)){
+                throw runtime_error("Could not replace key/value pair.");
+            }
+            break;      
+        }
+
+        case Update: {
+            string id = find_value(data, "id").get_str();
+            UniValue paymentRequestId(UniValue::VOBJ);
+            paymentRequestId = find_value(paymentRequestData, id);
+            if(paymentRequestId.isNull()){
+                throw runtime_error("Invalid param.");
+            }
+
+            std::vector<std::string> dataKeys = data.getKeys();
+
+            for (std::vector<std::string>::iterator it = dataKeys.begin(); it != dataKeys.end(); it++){
+                string key = (*it);
+                LogPrintf("key: %s\n",  key);
+                if(!(key=="id")){
+                    paymentRequestId.replace(key, find_value(data, key)); //todo might have to specify type
+                }
+            }
+
+            paymentRequestData.replace(id, paymentRequestId);
+
+
+            if(!paymentRequestUni.replace("data", paymentRequestData)){
+                throw runtime_error("Could not replace key/value pair.");
+            }
+
+            break;
+        }
+        default: {
+
+        }
+    }
+
+    //write back UniValue
+    std::ofstream paymentRequestOut(path.string());
+
+    paymentRequestOut << paymentRequestUni.write(4,0) << endl;
+
+    return true;
+}
+
+static const CAPICommand commands[] =
+{ //  category              collection         actor (function)          authPort   authPassphrase   warmupOk
+  //  --------------------- ------------       ----------------          -------- --------------   --------
+    { "misc",               "apistatus",       &apistatus,               false,     false,           true   },
+    { "wallet",             "lockwallet",      &lockwallet,              true,      false,           false  },
+    { "wallet",             "unlockwallet",    &unlockwallet,            true,      false,           false  },
+    { "wallet",             "statewallet",     &statewallet,             true,      false,           false  },
+    { "zerocoin",           "mint",            &mint,                    true,      true,            false  },
+    { "zerocoin",           "sendprivate",     &sendprivate,             true,      true,            false  },
+    { "sending",            "txfee",           &txfee,                   true,      true,            false  },
+    { "sending",            "sendzcoin",       &sendzcoin,               true,      true,            false  },
+    { "wallet",             "setpassphrase",   &setpassphrase,           true,      true,            false  },
+    { "sending",            "paymentrequest",  &paymentrequest,          true,      true,            false  }
+};
 void RegisterAPICommands(CAPITable &tableAPI)
 {
     for (unsigned int vcidx = 0; vcidx < ARRAYLEN(commands); vcidx++)

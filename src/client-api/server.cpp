@@ -2,6 +2,7 @@
 #include "client-api/protocol.h"
 #include "sync.h"
 #include "util.h"
+#include "wallet/wallet.h"
 #include <univalue.h>
 #include <boost/signals2/signal.hpp>
 
@@ -112,6 +113,28 @@ bool CAPITable::appendCommand(const std::string& name, const CAPICommand* pcmd)
     return true;
 }
 
+void APIJSONRequest::parseType(std::string typeRequest)
+{
+    if(typeRequest=="none"){
+        type = None;
+    }
+    if(typeRequest=="initial"){
+        type = Initial;
+    }
+    else if(typeRequest=="create"){
+        type = Create;
+    }
+    else if(typeRequest=="update"){
+        type = Update;
+    }
+    else if(typeRequest=="delete"){
+        type = Delete;
+    }
+    else {
+       throw JSONAPIError(API_INVALID_REQUEST, "Invalid Type request string"); 
+    }
+}
+
 void APIJSONRequest::parse(const UniValue& valRequest)
 {
     // Parse request
@@ -121,11 +144,16 @@ void APIJSONRequest::parse(const UniValue& valRequest)
 
     // Parse type
     UniValue valType = find_value(request, "type");
-    if (valType.isNull())
-        throw JSONAPIError(API_INVALID_REQUEST, "Missing type in JSON request");
-    if (!valType.isStr())
-        throw JSONAPIError(API_INVALID_REQUEST, "type must be a string");
-    type = valType.get_str();
+    string typeStr;
+    if (valType.isNull()){
+        typeStr = "none";
+    }
+    else {
+        if (!valType.isStr())
+            throw JSONAPIError(API_INVALID_REQUEST, "type must be a string");
+        typeStr = valType.get_str();
+    }
+    parseType(typeStr);
 
     // Parse collection
     UniValue valCollection = find_value(request, "collection");
@@ -163,7 +191,7 @@ void APIJSONRequest::parse(const UniValue& valRequest)
 UniValue CAPITable::execute(APIJSONRequest request, const bool authPort) const
 {
 
-    // Find method
+    // Find method - TODO make tableAPI a 2 dim array and pass type as the first argument
     const CAPICommand *pcmd = tableAPI[request.collection];
     if (!pcmd)
         throw JSONAPIError(API_METHOD_NOT_FOUND, "Method not found");
@@ -181,29 +209,28 @@ UniValue CAPITable::execute(APIJSONRequest request, const bool authPort) const
         throw JSONAPIError(API_NOT_AUTHENTICATED, "Not authenticated for this method");
     }
 
-    UniValue request_data = pcmd->collection == "unlockwallet" ? request.auth : request.data;
+    const CAPICommand *walletlock = tableAPI["lockwallet"];
 
     g_apiSignals.PreCommand (*pcmd);
     try
     {
         // If this method requires passphrase, lock and unlock the wallet accordingly
-        if(pcmd->authPassphrase){
+        if(pcmd->authPassphrase && (pwalletMain && pwalletMain->IsCrypted())){
             if(request.auth.isNull()){
                 throw JSONAPIError(API_INVALID_PARAMETER, "Missing auth field");
             }
             // execute wallet unlock, call method, relock following call. 
             const CAPICommand *walletunlock = tableAPI["unlockwallet"];
-            UniValue lock = walletunlock->actor(request.auth, false);
-            return pcmd->actor(request.data, false);
-            const CAPICommand *walletlock = tableAPI["lockwallet"];
-            walletlock->actor(NullUniValue, false);
+            UniValue lock = walletunlock->actor(request.type, NullUniValue, request.auth, false);
+            return pcmd->actor(request.type, request.data, NullUniValue, false);
+            walletlock->actor(request.type, NullUniValue, NullUniValue, false);
 
         }
-        UniValue params = (pcmd->collection == "unlockwallet") ? request.auth : request.data;
-        return pcmd->actor(params, false);
+        return pcmd->actor(request.type, request.data, request.auth, false);
     }
     catch (const std::exception& e)
     {
+        //walletlock->actor(request.type, NullUniValue, NullUniValue, false); //ensure to relock should an error occur
         throw JSONAPIError(API_MISC_ERROR, e.what());
     }
 

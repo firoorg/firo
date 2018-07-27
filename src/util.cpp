@@ -107,6 +107,12 @@ int nWalletBackups = 10;
 const char * const BITCOIN_CONF_FILENAME = "zcoin.conf";
 const char * const BITCOIN_PID_FILENAME = "zcoind.pid";
 
+const char * const PERSISTENT_FILENAME = "persistent";
+
+const char * const PAYMENT_REQUEST_FILENAME = "payment_request.json";
+const char * const ZEROCOIN_FILENAME = "zerocoin.json";
+const char * const SETTINGS_FILENAME = "settings.json";
+
 map<string, string> mapArgs;
 map<string, vector<string> > mapMultiArgs;
 bool fDebug = false;
@@ -548,6 +554,31 @@ const boost::filesystem::path &GetDataDir(bool fNetSpecific)
     return path;
 }
 
+const boost::filesystem::path &GetPersistentDataDir(bool fNetSpecific)
+{
+    namespace fs = boost::filesystem;
+
+    LOCK(csPathCached);
+
+    fs::path const &path = GetDataDir(fNetSpecific);
+    fs::path const &newpath = path / PERSISTENT_FILENAME;
+
+    return newpath;
+}
+
+const boost::filesystem::path &GetJsonDataDir(bool fNetSpecific, const char* filename)
+{
+    namespace fs = boost::filesystem;
+
+    LOCK(csPathCached);
+
+    fs::path const &path = GetPersistentDataDir(fNetSpecific);
+
+    fs::path const &newpath = path / filename;
+
+    return newpath;
+}
+
 void ClearDatadirCache()
 {
     pathCached = boost::filesystem::path();
@@ -559,6 +590,27 @@ boost::filesystem::path GetConfigFile()
     boost::filesystem::path pathConfigFile(GetArg("-conf", BITCOIN_CONF_FILENAME));
     if (!pathConfigFile.is_complete())
         pathConfigFile = GetDataDir(false) / pathConfigFile;
+
+    return pathConfigFile;
+}
+
+const boost::filesystem::path GetPaymentRequestFile(bool fNetSpecific)
+{
+    boost::filesystem::path const &pathConfigFile = GetJsonDataDir(fNetSpecific,PAYMENT_REQUEST_FILENAME);
+
+    return pathConfigFile;
+}
+
+const boost::filesystem::path GetZerocoinFile(bool fNetSpecific)
+{
+    boost::filesystem::path const &pathConfigFile = GetJsonDataDir(fNetSpecific,ZEROCOIN_FILENAME);
+
+    return pathConfigFile;
+}
+
+const boost::filesystem::path GetSettingsFile(bool fNetSpecific)
+{
+    boost::filesystem::path const &pathConfigFile = GetJsonDataDir(fNetSpecific, SETTINGS_FILENAME);
 
     return pathConfigFile;
 }

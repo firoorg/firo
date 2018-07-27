@@ -184,7 +184,6 @@ static void* threadOpen(void *arg)
 
         APIJSONRequest jreq;
         string requestStr = readRequest(rc, request);
-        LogPrintf("API: requestStr: %s\n", requestStr);
         std::string response;
         try {
             // Parse request

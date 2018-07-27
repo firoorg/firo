@@ -39,6 +39,8 @@ enum APIErrorCode
     API_IN_WARMUP                   = -28, //!< Client still warming up
     API_NOT_AUTHENTICATED           = -29, //!< Calling thread is not authenticated to request this method
     API_RESPONSE_ERROR              = -30, //!< ZMQ error in forming the response
+    API_WRONG_TYPE_CALLED           = -31, //!< wrong type passed for method
+    API_TYPE_NOT_IMPLEMENTED        = -32, //!< No implementation of this type for this method
 
     //! Aliases for backward compatibility
     API_TRANSACTION_ERROR           = API_VERIFY_ERROR,
