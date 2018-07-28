@@ -821,7 +821,7 @@ UniValue paymentrequest(Type type, const UniValue& data, const UniValue& auth, b
     if (!EnsureWalletIsAvailable(false))
         return NullUniValue;
 
-    fs::path const &path = GetPaymentRequestFile();
+    fs::path const &path = CreatePaymentRequestFile();
     LogPrintf("paymentrequest path: %s\n", path.string());
 
     // get data as ifstream

@@ -22,4 +22,7 @@ void StopZMQServer();
 
 static const bool DEV_AUTH = false;
 
+/* Create client/server certificates */
+bool createCerts();
+
 //TODO ifndef defines

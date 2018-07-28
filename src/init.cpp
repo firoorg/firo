@@ -868,44 +868,14 @@ bool AppInitServers(boost::thread_group &threadGroup) {
         return false;
 #if ENABLE_ZMQ
 
-    LogPrint(NULL, "ZMQ: creating data directory.\n");
-    // Add persistent_dir data folder in the datadir
-    boost::filesystem::path persistent_dir = GetDataDir() / "persistent";
-    if (!boost::filesystem::exists(persistent_dir)) {
-        boost::filesystem::create_directories(persistent_dir);
-    }
+    LogPrint(NULL, "API: creating data directory.\n");
 
-    //list of JSON file names
-    std::vector<std::string> files = {"payment_request",
-                                      "settings", 
-                                      "zerocoin",
-                                      "tx-timestamp"};
+    CreatePaymentRequestFile();
+    CreateZerocoinFile();
+    CreateSettingsFile();
+ 
+    CreateCerts();
 
-    for (std::vector<std::string>::iterator it = files.begin(); it != files.end(); it++) {
-
-            // create JSON file for current
-            json filepath_json;
-            filepath_json["type"] = (*it);
-            filepath_json["data"] = nullptr;
-            
-        boost::filesystem::path filepath = persistent_dir / (*it).append(".json");
-        if (!boost::filesystem::exists(filepath)) {            
-            //write JSON to persistent storage
-            std::ofstream filepath_out(filepath.string());
-            filepath_out << std::setw(4) << filepath_json << std::endl;
-        }
-    }
-
-    // Generate client/server keys for auth over zmq.
-    char server_public_key[41], server_secret_key[41];
-    char client_public_key[41], client_secret_key[41];
-    zmq_curve_keypair(server_public_key, server_secret_key);
-    zmq_curve_keypair(client_public_key, client_secret_key);
-
-    write_cert(server_public_key, server_secret_key, "server");
-    write_cert(client_public_key, client_secret_key, "client");
-
-    LogPrint(NULL, "ZMQ: created data directory.\n");
     if(NEWAPI){
         if (!InitZMQServer())
             return false;

@@ -15,6 +15,7 @@
 #include "sync.h"
 #include "utilstrencodings.h"
 #include "utiltime.h"
+#include "univalue.h"
 
 #include <stdarg.h>
 
@@ -554,27 +555,32 @@ const boost::filesystem::path &GetDataDir(bool fNetSpecific)
     return path;
 }
 
-const boost::filesystem::path &GetPersistentDataDir(bool fNetSpecific)
+boost::filesystem::path GetPersistentDataDir(bool fNetSpecific)
 {
     namespace fs = boost::filesystem;
 
     LOCK(csPathCached);
 
-    fs::path const &path = GetDataDir(fNetSpecific);
-    fs::path const &newpath = path / PERSISTENT_FILENAME;
+    fs::path path = GetDataDir(fNetSpecific) / PERSISTENT_FILENAME;
 
-    return newpath;
+    if(!fs::exists(path)){
+        fs::create_directories(path);
+    }
+
+    return path;
 }
 
-const boost::filesystem::path &GetJsonDataDir(bool fNetSpecific, const char* filename)
+boost::filesystem::path GetJsonDataDir(bool fNetSpecific, const char* filename)
 {
     namespace fs = boost::filesystem;
 
     LOCK(csPathCached);
 
-    fs::path const &path = GetPersistentDataDir(fNetSpecific);
+    fs::path path = GetPersistentDataDir(fNetSpecific);
 
-    fs::path const &newpath = path / filename;
+    fs::path newpath = path / filename;
+
+    LogPrintf("API: newpath: %s\n", newpath.string());
 
     return newpath;
 }
@@ -594,23 +600,60 @@ boost::filesystem::path GetConfigFile()
     return pathConfigFile;
 }
 
-const boost::filesystem::path GetPaymentRequestFile(bool fNetSpecific)
+boost::filesystem::path CreatePaymentRequestFile(bool fNetSpecific)
 {
-    boost::filesystem::path const &pathConfigFile = GetJsonDataDir(fNetSpecific,PAYMENT_REQUEST_FILENAME);
+    boost::filesystem::path pathConfigFile = GetJsonDataDir(fNetSpecific,PAYMENT_REQUEST_FILENAME);
+
+    LogPrintf("API: pathConfigFile payment request: %s\n", pathConfigFile.string());
+    if(!boost::filesystem::exists(pathConfigFile)){
+        LogPrintf("PR does not exist\n");
+        UniValue paymentRequestUni(UniValue::VOBJ);
+        paymentRequestUni.push_back(Pair("type", "payment_request"));
+        paymentRequestUni.push_back(Pair("data", NullUniValue));
+        
+        //write back UniValue
+        std::ofstream paymentRequestOut(pathConfigFile.string());
+
+        paymentRequestOut << paymentRequestUni.write(4,0) << endl;
+    }
 
     return pathConfigFile;
 }
 
-const boost::filesystem::path GetZerocoinFile(bool fNetSpecific)
+boost::filesystem::path CreateZerocoinFile(bool fNetSpecific)
 {
     boost::filesystem::path const &pathConfigFile = GetJsonDataDir(fNetSpecific,ZEROCOIN_FILENAME);
+    LogPrintf("API: pathConfigFile zerocoin: %s\n", pathConfigFile.string());
+    if(!boost::filesystem::exists(pathConfigFile)){
+        LogPrintf("zerocoin does not exist\n");
+        UniValue zerocoinUni(UniValue::VOBJ);
+        zerocoinUni.push_back(Pair("type", "zerocoin"));
+        zerocoinUni.push_back(Pair("data", NullUniValue));
+        
+        //write back UniValue
+        std::ofstream zerocoinOut(pathConfigFile.string());
+
+        zerocoinOut << zerocoinUni.write(4,0) << endl;
+    }
 
     return pathConfigFile;
 }
 
-const boost::filesystem::path GetSettingsFile(bool fNetSpecific)
+boost::filesystem::path CreateSettingsFile(bool fNetSpecific)
 {
     boost::filesystem::path const &pathConfigFile = GetJsonDataDir(fNetSpecific, SETTINGS_FILENAME);
+    LogPrintf("API: pathConfigFile settings: %s\n", pathConfigFile.string());
+    if(!boost::filesystem::exists(pathConfigFile)){
+        LogPrintf("settings does not exist\n");
+        UniValue settingsUni(UniValue::VOBJ);
+        settingsUni.push_back(Pair("type", "settings"));
+        settingsUni.push_back(Pair("data", NullUniValue));
+        
+        //write back UniValue
+        std::ofstream settingsOut(pathConfigFile.string());
+
+        settingsOut << settingsUni.write(4,0) << endl;
+    }
 
     return pathConfigFile;
 }
