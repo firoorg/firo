@@ -194,10 +194,11 @@ BITCOIN_CORE_H = \
   wallet/wallet.h \
   wallet/walletdb.h \
   definition.h \
-  zmq/zmqabstractnotifier.h \
-  zmq/zmqconfig.h\
-  zmq/zmqnotificationinterface.h \
-  zmq/zmqpublishnotifier.h \
+  zmqserver/zmqabstract.h \
+  zmqserver/zmqconfig.h \
+  zmqserver/zmqinterface.h \
+  zmqserver/zmqpublisher.h \
+  zmqserver/zmqreplier.h \
   zerocoin.h \
   zerocoin_params.h
 
@@ -254,9 +255,10 @@ if ENABLE_ZMQ
 libbitcoin_zmq_a_CPPFLAGS = $(BITCOIN_INCLUDES) $(ZMQ_CFLAGS)
 libbitcoin_zmq_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_zmq_a_SOURCES = \
-  zmq/zmqabstractnotifier.cpp \
-  zmq/zmqnotificationinterface.cpp \
-  zmq/zmqpublishnotifier.cpp \
+  zmqserver/zmqabstract.cpp \
+  zmqserver/zmqinterface.cpp \
+  zmqserver/zmqpublisher.cpp \
+  zmqserver/zmqreplier.cpp \
   client-api/server.cpp \
   client-api/zmq.cpp \
   client-api/methods.cpp \

@@ -1831,9 +1831,9 @@ CAmount CWallet::GetDenominatedBalance(bool unconfirmed) const {
     {
         LOCK2(cs_main, cs_wallet);
         for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it) {
-            const CWalletTx *pcoin = &(*it).second;
+            // const CWalletTx *pcoin = &(*it).second;
 
-//            nTotal += pcoin->GetDenominatedCredit(unconfirmed);
+            // nTotal += pcoin->GetDenominatedCredit(unconfirmed);
         }
     }
 

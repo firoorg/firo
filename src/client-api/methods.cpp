@@ -271,6 +271,37 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
     }
 }
 
+UniValue StateSinceBlock(UniValue& ret, std::string block){
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    CBlockIndex *pindex = NULL;
+    isminefilter filter = ISMINE_SPENDABLE;
+
+    uint256 blockId;
+
+    blockId.SetHex(block); //set block hash
+    BlockMap::iterator it = mapBlockIndex.find(blockId);
+    if (it != mapBlockIndex.end())
+        pindex = it->second;
+
+    int depth = pindex ? (1 + chainActive.Height() - pindex->nHeight) : -1;
+
+    UniValue transactions(UniValue::VOBJ);
+
+    for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin(); it != pwalletMain->mapWallet.end(); it++)
+    {
+        CWalletTx tx = (*it).second;
+
+        if (depth == -1 || tx.GetDepthInMainChain() < depth)
+            ListAPITransactions(tx, transactions, filter);
+    }
+
+    ret.push_back(Pair("addresses", transactions));
+
+    return ret;
+}
+
 
 UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
 {
@@ -785,33 +816,11 @@ UniValue statewallet(Type type, const UniValue& data, const UniValue& auth, bool
     if (!EnsureWalletIsAvailable(false))
         return NullUniValue;
 
-    LOCK2(cs_main, pwalletMain->cs_wallet);
-
-    CBlockIndex *pindex = NULL;
-    isminefilter filter = ISMINE_SPENDABLE;
-
-
-    uint256 blockId;
-
-    blockId.SetHex(chainActive[0]->GetBlockHash().ToString()); //set genesis block hash
-    BlockMap::iterator it = mapBlockIndex.find(blockId);
-    if (it != mapBlockIndex.end())
-        pindex = it->second;
-
-    int depth = pindex ? (1 + chainActive.Height() - pindex->nHeight) : -1;
-
-    UniValue transactions(UniValue::VOBJ);
-
-    for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin(); it != pwalletMain->mapWallet.end(); it++)
-    {
-        CWalletTx tx = (*it).second;
-
-        if (depth == -1 || tx.GetDepthInMainChain() < depth)
-            ListAPITransactions(tx, transactions, filter);
-    }
-
     UniValue ret(UniValue::VOBJ);
-    ret.push_back(Pair("addresses", transactions));
+
+    std::string genesisBlock = chainActive[0]->GetBlockHash().ToString();
+
+    StateSinceBlock(ret, genesisBlock);
 
     return ret;
 }

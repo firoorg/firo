@@ -6,6 +6,7 @@
 #include "client-api/server.h"
 
 #include "zmqserver.h"
+#include "zmqserver/zmqabstract.h"
 #include "httpserver.h"
 #include "client-api/zmq.h"
 #include "zmq/zmqpublishnotifier.h"
@@ -57,62 +58,6 @@ pthread_t worker_auth;
 pthread_t worker_open;
 
 zmq_pollitem_t items [2];
-
-enum KeyType {
-    Server,
-    Client
-};
-
-string GetType(KeyType type){
-    return (type == Server) ? "server" : "client";
-}
-
-void zmqError(const char *str)
-{
-    LogPrint(NULL, "zmq: Error: %s, errno=%s\n", str, zmq_strerror(errno));
-}
-
-bool writeCert(string publicKey, string privateKey, KeyType type){
-
-    boost::filesystem::path cert = GetDataDir(true) / "certificates" / GetType(type);
-
-    LogPrintf("ZMQ: path @ write: %s\n", cert.string());
-
-    if (!boost::filesystem::exists(cert)) {
-        boost::filesystem::create_directories(cert);
-    }
-
-    cert /= "keys.json";
-
-    LogPrintf("ZMQ: writing cert\n");
-    //create JSON
-
-    UniValue certUni;
-    UniValue data;
-
-    data.push_back(Pair("public",publicKey));
-    data.push_back(Pair("private",privateKey));
-
-    certUni.push_back(Pair("type","keys"));
-    certUni.push_back(Pair("data", data));
-
-    LogPrintf("ZMQ: cert json: %s\n", certUni.write());
-
-    // write keys to fs
-    std::ofstream certOut(cert.string());
-    certOut << certUni.write(4,0) << std::endl;
-}
-
-bool createCerts(){
-    // Generate client/server keys for auth over zmq.
-    char serverPublicKey[41], serverSecretKey[41];
-    char clientPublicKey[41], clientSecretKey[41];
-    zmq_curve_keypair(serverPublicKey, serverSecretKey);
-    zmq_curve_keypair(clientPublicKey, clientSecretKey);
-
-    writeCert(serverPublicKey, serverSecretKey, Server);
-    writeCert(clientPublicKey, clientSecretKey, Client);
-}
 
 // 'Wait' thread. hangs waiting for REQ
 bool wait(int& rc, zmq_msg_t& request, bool auth){
@@ -332,7 +277,7 @@ bool SetupPortAuth(){
 
     if(DEV_AUTH){
         // set up auth
-        vector<string> keys = read_cert("server");
+        vector<string> keys = CZMQAbstract::readCert(CZMQAbstract::Server);
 
         string server_secret_key = keys.at(1);
 

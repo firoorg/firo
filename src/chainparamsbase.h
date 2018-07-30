@@ -22,13 +22,19 @@ public:
 
     const std::string& DataDir() const { return strDataDir; }
     int RPCPort() const { return nRPCPort; }
-    int APIPort() const { return nAPIPort; }
+    int APIAuthREPPort() const { return nAPIAuthREPPort; }
+    int APIOpenREPPort() const { return nAPIOpenREPPort; }
+    int APIPUBPort() const { return nAPIPUBPort; }
+    std::string APIAddr() const { return nAPIAddr; }
 
 protected:
     CBaseChainParams() {}
 
+    std::string nAPIAddr;
+    int nAPIAuthREPPort;
+    int nAPIOpenREPPort;
+    int nAPIPUBPort;
     int nRPCPort;
-    int nAPIPort;
     std::string strDataDir;
 };
 

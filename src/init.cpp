@@ -88,7 +88,8 @@ bool NEWAPI = false;
 #include "spork.h"
 
 #if ENABLE_ZMQ
-#include "zmq/zmqnotificationinterface.h"
+#include "zmqserver/zmqabstract.h"
+#include "zmqserver/zmqinterface.h"
 #include "client-api/zmq.h"
 #include "client-api/server.h"
 #include "client-api/register.h"
@@ -104,7 +105,8 @@ static const bool DEFAULT_STOPAFTERBLOCKIMPORT = false;
 
 
 #if ENABLE_ZMQ
-static CZMQNotificationInterface* pzmqNotificationInterface = NULL;
+static CZMQPublisherInterface* pzmqPublisherInterface = NULL;
+//static CZMQReplierInterface* pzmqReplierInterface = NULL;
 #endif
 
 #ifdef WIN32
@@ -300,11 +302,13 @@ void Shutdown() {
 #endif
 
 #if ENABLE_ZMQ
-    if (pzmqNotificationInterface) {
-        UnregisterValidationInterface(pzmqNotificationInterface);
-        delete pzmqNotificationInterface;
-        pzmqNotificationInterface = NULL;
+    if (pzmqPublisherInterface) {
+        UnregisterValidationInterface(pzmqPublisherInterface);
+        delete pzmqPublisherInterface;
+        pzmqPublisherInterface = NULL;
     }
+
+    //pzmqReplierInterface->Shutdown();
 #endif
 
 #ifndef WIN32
@@ -874,7 +878,7 @@ bool AppInitServers(boost::thread_group &threadGroup) {
     CreateZerocoinFile();
     CreateSettingsFile();
  
-    CreateCerts();
+    CZMQAbstract::createCerts();
 
     if(NEWAPI){
         if (!InitZMQServer())
@@ -1565,10 +1569,12 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     AddOneShot(strDest);
 
 #if ENABLE_ZMQ
-    pzmqNotificationInterface = CZMQNotificationInterface::CreateWithArguments(mapArgs);
+    pzmqPublisherInterface = CZMQPublisherInterface::Create();
+    //pzmqReplierInterface = CZMQReplierInterface::Create();
 
-    if (pzmqNotificationInterface) {
-        RegisterValidationInterface(pzmqNotificationInterface);
+    // register publisher with validation interface
+    if (pzmqPublisherInterface) {
+        RegisterValidationInterface(pzmqPublisherInterface);
     }
 #endif
     // ZMQ API

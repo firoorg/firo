@@ -32,7 +32,10 @@ class CBaseMainParams : public CBaseChainParams
 public:
     CBaseMainParams()
     {
-        nAPIPort = 28332;
+        nAPIAddr = "tcp://127.0.0.1:";
+        nAPIAuthREPPort = 15557;
+        nAPIOpenREPPort = 15558;
+        nAPIPUBPort = 28332;
         nRPCPort = 8888;
     }
 };
@@ -46,7 +49,10 @@ class CBaseTestNetParams : public CBaseChainParams
 public:
     CBaseTestNetParams()
     {
-        nAPIPort = 28332;
+        nAPIAddr = "tcp://127.0.0.1:";
+        nAPIAuthREPPort = 25557;
+        nAPIOpenREPPort = 25558;
+        nAPIPUBPort = 28332;
         nRPCPort = 18888;
         strDataDir = "testnet3";
     }
@@ -61,7 +67,10 @@ class CBaseRegTestParams : public CBaseChainParams
 public:
     CBaseRegTestParams()
     {
-        nAPIPort = 28332;
+        nAPIAddr = "tcp://127.0.0.1:";
+        nAPIAuthREPPort = 35557;
+        nAPIOpenREPPort = 35558;
+        nAPIPUBPort = 28332;
         nRPCPort = 28888;
         strDataDir = "regtest";
     }
