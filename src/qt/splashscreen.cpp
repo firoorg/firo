@@ -20,6 +20,9 @@
 #include "wallet/wallet.h"
 #endif
 
+#include "exodus/version.h"
+#include "exodus/utilsbitcoin.h"
+
 #include <QApplication>
 #include <QCloseEvent>
 #include <QDesktopWidget>

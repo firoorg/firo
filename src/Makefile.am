@@ -589,3 +589,7 @@ endif
 if ENABLE_TESTS
 include Makefile.test.include
 endif
+
+# Exodus
+include Makefile.exodus.include
+#

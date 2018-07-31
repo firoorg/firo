@@ -53,8 +53,16 @@ private:
 public Q_SLOTS:
     /** Switch to overview (home) page */
     void gotoOverviewPage();
+    /** Switch to balances page */
+    void gotoBalancesPage();
     /** Switch to history (transactions) page */
     void gotoHistoryPage();
+    /** Switch directory to Exodus tx history tab */
+    void gotoExodusHistoryTab();
+    /** Switch directory to bitcoin tx history tab */
+    void gotoBitcoinHistoryTab();
+    /** Switch to utility page */
+    void gotoToolboxPage();
     /** Switch to znode page */
     void gotoZnodePage();
     /** Switch to receive coins page */
