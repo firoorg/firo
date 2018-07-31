@@ -90,7 +90,6 @@ bool NEWAPI = false;
 #if ENABLE_ZMQ
 #include "zmqserver/zmqabstract.h"
 #include "zmqserver/zmqinterface.h"
-#include "client-api/zmq.h"
 #include "client-api/server.h"
 #include "client-api/register.h"
 #endif
@@ -221,6 +220,7 @@ void Interrupt(boost::thread_group &threadGroup) {
     InterruptHTTPServer();
     InterruptHTTPRPC();
     InterruptRPC();
+    InterruptAPI();
     InterruptREST();
     InterruptTorControl();
     //InterruptZMQServer();
@@ -245,7 +245,7 @@ void Shutdown() {
     StopHTTPRPC();
     StopREST();
     StopRPC();
-    //StopAPI();
+    StopAPI();
     StopHTTPServer();
     // if(NEWAPI){
     //     StopZMQServer();
@@ -863,6 +863,8 @@ bool AppInitServers(boost::thread_group &threadGroup) {
     if (!InitHTTPServer())
         return false;
     if (!StartRPC())
+        return false;
+    if (!StartAPI())
         return false;
     if (!StartHTTPRPC())
         return false;

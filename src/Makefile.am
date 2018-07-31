@@ -260,9 +260,7 @@ libbitcoin_zmq_a_SOURCES = \
   zmqserver/zmqpublisher.cpp \
   zmqserver/zmqreplier.cpp \
   client-api/server.cpp \
-  client-api/zmq.cpp \
   client-api/methods.cpp \
-  zmqserver.cpp \
   rpc/client.cpp
 endif
 

@@ -4,7 +4,6 @@
 
 #include "json.hpp"
 #include "httpserver.h"
-#include "client-api/zmq.h"
 #include "client-api/server.h"
 #include "zmq/zmqpublishnotifier.h"
 #include "chainparams.h"

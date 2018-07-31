@@ -12,7 +12,6 @@
 #include "script/standard.h"
 #include "base58.h"
 #include "client-api/json.hpp"
-#include "client-api/zmq.h"
 #include "zmqserver.h"
 #include "znode-sync.h"
 #include "net.h"
@@ -41,6 +40,8 @@ void* CZMQOpenReplier::Thread()
         if(!Wait()){
             break;
         }
+
+        LogPrintf("ZMQ: read open request\n");
 
         APIJSONRequest jreq;
         string requestStr = ReadRequest();
@@ -92,6 +93,8 @@ void* CZMQAuthReplier::Thread(){
             break;
         }
 
+        LogPrintf("ZMQ: read auth request\n");
+
         APIJSONRequest jreq;
         string requestStr = ReadRequest();
         try {
@@ -120,14 +123,9 @@ void* CZMQAuthReplier::Thread(){
             if(!SendResponse()){
                 break;
             }
-            // void *ret;
-            // pthread_exit(ret);
             return NULL;
         }
     }
-
-    // void *ret;
-    // pthread_exit(ret);
     return NULL;
 }
 
@@ -136,7 +134,7 @@ bool CZMQAbstractReplier::Wait(){
 
     if(rc==-1) return false;
     /* Block until a message is available to be received from socket */
-    LogPrintf("waiting to receive msg..\n");
+    LogPrintf("ZMQ: waiting for incoming message..\n");
     rc = zmq_recvmsg (psocket, &request, 0);
     if(rc==-1) return false;
 
@@ -202,7 +200,7 @@ bool CZMQAuthReplier::Auth(){
 bool CZMQAbstractReplier::Bind(){
     string tcp = "tcp://*:";
 
-    LogPrintf("Port in bind: %s\n", port);
+    LogPrintf("ZMQ: Port in bind: %s\n", port);
 
     int rc = zmq_bind(psocket, tcp.append(port).c_str());
     if (rc == -1)
@@ -224,12 +222,15 @@ bool CZMQAbstractReplier::Initialize()
     Bind();
     worker = new boost::thread(boost::bind(&CZMQAbstractReplier::Thread, this));
     //worker->join();
-    LogPrintf("created and ran thread\n");
+    LogPrintf("ZMQ: created and ran thread\n");
     return true;
 }
 
 void CZMQAbstractReplier::Shutdown()
 {
+    LogPrintf("shutting down replier..\n");
+    KEEPALIVE = 0;
+
     assert(psocket);
 
     LogPrint(NULL, "Close socket at authority %s\n", authority);
@@ -245,5 +246,5 @@ void CZMQAbstractReplier::Shutdown()
         pcontext = 0;
     }
 
-    KEEPALIVE = 0;
+    LogPrintf("replier shutdown\n");
 }

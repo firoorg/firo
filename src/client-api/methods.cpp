@@ -787,11 +787,6 @@ UniValue unlockwallet(Type type, const UniValue& data, const UniValue& auth, boo
     // TODO: get rid of this .c_str() by implementing SecureString::operator=(std::string)
     // Alternately, find a way to make data[0] mlock()'d to begin with.
 
-    LogPrintf("getting values \n");
-    vector<UniValue> values = data.getValues();
-    LogPrintf("values size: %s\n", to_string(values.size()));
-    
-
     UniValue passphrase = find_value(auth, "passphrase");
 
     strWalletPass = passphrase.get_str().c_str();
@@ -850,8 +845,11 @@ UniValue paymentrequest(Type type, const UniValue& data, const UniValue& auth, b
         paymentRequestData = paymentRequestUni["data"];
     }
 
+    LogPrintf("API: data in write: %s\n", data.write());
+
     switch(type){
         case Initial: {
+            LogPrintf("API: returning initial layout..\n");
             return paymentRequestUni;
             break; 
         }
@@ -881,12 +879,9 @@ UniValue paymentrequest(Type type, const UniValue& data, const UniValue& auth, b
             break;
         }
         case Delete: {
-            const UniValue id = find_value(data, "id");
-            if(id.isNull()){
-                throw JSONAPIError(API_INVALID_PARAMETER, "Invalid parameter, expected id");
-            }
-
-            const UniValue addressObj = find_value(paymentRequestData, id.get_str());
+            string id = find_value(data, "id").get_str();
+            
+            const UniValue addressObj = find_value(paymentRequestData, id);
             if(addressObj.isNull()){
                 throw JSONAPIError(API_INVALID_PARAMETER, "Invalid data, id does not exist");
             }  
@@ -906,7 +901,7 @@ UniValue paymentrequest(Type type, const UniValue& data, const UniValue& auth, b
             UniValue paymentRequestId(UniValue::VOBJ);
             paymentRequestId = find_value(paymentRequestData, id);
             if(paymentRequestId.isNull()){
-                throw runtime_error("Invalid param.");
+                throw JSONAPIError(API_INVALID_PARAMETER, "Invalid data, id does not exist");
             }
 
             std::vector<std::string> dataKeys = data.getKeys();
@@ -948,11 +943,11 @@ static const CAPICommand commands[] =
     { "wallet",             "lockwallet",      &lockwallet,              true,      false,           false  },
     { "wallet",             "unlockwallet",    &unlockwallet,            true,      false,           false  },
     { "wallet",             "statewallet",     &statewallet,             true,      false,           false  },
+    { "wallet",             "setpassphrase",   &setpassphrase,           true,      false,           false  },
     { "zerocoin",           "mint",            &mint,                    true,      true,            false  },
     { "zerocoin",           "sendprivate",     &sendprivate,             true,      true,            false  },
     { "sending",            "txfee",           &txfee,                   true,      true,            false  },
     { "sending",            "sendzcoin",       &sendzcoin,               true,      true,            false  },
-    { "wallet",             "setpassphrase",   &setpassphrase,           true,      true,            false  },
     { "sending",            "paymentrequest",  &paymentrequest,          true,      true,            false  }
 };
 void RegisterAPICommands(CAPITable &tableAPI)
