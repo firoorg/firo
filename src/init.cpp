@@ -106,7 +106,7 @@ static const bool DEFAULT_STOPAFTERBLOCKIMPORT = false;
 
 #if ENABLE_ZMQ
 static CZMQPublisherInterface* pzmqPublisherInterface = NULL;
-//static CZMQReplierInterface* pzmqReplierInterface = NULL;
+static CZMQReplierInterface* pzmqReplierInterface = NULL;
 #endif
 
 #ifdef WIN32
@@ -247,12 +247,12 @@ void Shutdown() {
     StopRPC();
     //StopAPI();
     StopHTTPServer();
-    if(NEWAPI){
-        StopZMQServer();
-    }
-    else{
-        StopREQREPZMQ();
-    }
+    // if(NEWAPI){
+    //     StopZMQServer();
+    // }
+    // else{
+    //     StopREQREPZMQ();
+    // }
 #ifdef ENABLE_WALLET
     if (pwalletMain)
         pwalletMain->Flush(false);
@@ -308,7 +308,7 @@ void Shutdown() {
         pzmqPublisherInterface = NULL;
     }
 
-    //pzmqReplierInterface->Shutdown();
+    pzmqReplierInterface->Shutdown();
 #endif
 
 #ifndef WIN32
@@ -880,13 +880,13 @@ bool AppInitServers(boost::thread_group &threadGroup) {
  
     CZMQAbstract::createCerts();
 
-    if(NEWAPI){
-        if (!InitZMQServer())
-            return false;
-    }else{
-        if (!StartREQREPZMQ())
-        return false;
-    }
+    // if(NEWAPI){
+    //     if (!InitZMQServer())
+    //         return false;
+    // }else{
+    //     if (!StartREQREPZMQ())
+    //     return false;
+    // }
 
 #endif
     return true;
@@ -1570,7 +1570,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
 
 #if ENABLE_ZMQ
     pzmqPublisherInterface = CZMQPublisherInterface::Create();
-    //pzmqReplierInterface = CZMQReplierInterface::Create();
+    pzmqReplierInterface = CZMQReplierInterface::Create();
 
     // register publisher with validation interface
     if (pzmqPublisherInterface) {

@@ -25,11 +25,6 @@ using path = boost::filesystem::path;
 using json = nlohmann::json;
 using namespace std::chrono;
 
-// enum KeyType {
-//     Server,
-//     Client
-// };
-
 static std::multimap<std::string, CZMQAbstractPublisher*> mapPublishers;
 extern CWallet* pwalletMain;
 
@@ -103,7 +98,7 @@ bool CZMQAbstractPublisher::Initialize()
             return false;
         }
 
-        if(DEV_AUTH){
+        if(CZMQAbstract::DEV_AUTH){
             // Set up PUB auth.
             vector<string> keys = readCert(CZMQAbstract::Server);
 
@@ -159,7 +154,7 @@ void CZMQAbstractPublisher::Shutdown()
         }
         if (count == 1)
         {
-            LogPrint(NULL, "Close socket at address %s\n", address);
+            LogPrint(NULL, "Close socket at authority %s\n", authority);
             int linger = 0;
             zmq_setsockopt(psocket, ZMQ_LINGER, &linger, sizeof(linger));
             zmq_close(psocket);

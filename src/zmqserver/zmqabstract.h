@@ -12,9 +12,6 @@ class CZMQAbstract;
 
 typedef CZMQAbstract* (*CZMQFactory)();
 
-
-
-
 class CZMQAbstract
 {
 public:
@@ -22,6 +19,8 @@ public:
         Server,
         Client
     };
+
+    static const bool DEV_AUTH = false;
 
     CZMQAbstract() : psocket(0),pcontext(0) { }
     virtual ~CZMQAbstract();
