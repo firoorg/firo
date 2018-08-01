@@ -4,28 +4,9 @@
 #if defined(HAVE_CONFIG_H)
 #include "config/bitcoin-config.h"
 #else
-
-//
-// Exodus version information are also to be defined in configure.ac.
-//
-// During the configuration, this information are used for other places.
-//
-
-// Increase with every consensus affecting change
-#define EXODUS_VERSION_MAJOR       0
-
-// Increase with every non-consensus affecting feature
-#define EXODUS_VERSION_MINOR       3
-
-// Increase with every patch, which is not a feature or consensus affecting
-#define EXODUS_VERSION_PATCH       0
-
-// Non-public build number/revision (usually zero)
-#define EXODUS_VERSION_BUILD       0
-
 #endif // HAVE_CONFIG_H
 
-#if !defined(WINDRES_PREPROC)
+//#if !defined(WINDRES_PREPROC)
 
 //
 // *-res.rc includes this file, but it cannot cope with real c++ code.
@@ -34,6 +15,29 @@
 //
 
 #include <string>
+
+//
+// Exodus version information are also to be defined in configure.ac.
+//
+// During the configuration, this information are used for other places.
+//
+
+// Increase with every consensus affecting change
+//#define EXODUS_VERSION_MAJOR 0
+
+const int EXODUS_VERSION_MAJOR = 0;
+
+// Increase with every non-consensus affecting feature
+//#define EXODUS_VERSION_MINOR 3
+const int EXODUS_VERSION_MINOR = 3;
+
+// Increase with every patch, which is not a feature or consensus affecting
+//#define EXODUS_VERSION_PATCH 0
+const int EXODUS_VERSION_PATCH = 0;
+
+// Non-public build number/revision (usually zero)
+//#define EXODUS_VERSION_BUILD 0
+const int EXODUS_VERSION_BUILD = 0;
 
 //! Exodus client version
 static const int EXODUS_VERSION =
@@ -46,9 +50,9 @@ static const int EXODUS_VERSION =
 const std::string ExodusVersion();
 
 //! Returns formatted Bitcoin Core version, e.g. "0.10", "0.9.3"
-const std::string BitcoinCoreVersion();
+const std::string ZcoinCoreVersion();
 
 
-#endif // WINDRES_PREPROC
+//#endif // WINDRES_PREPROC
 
 #endif // EXODUS_VERSION_H

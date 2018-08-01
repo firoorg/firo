@@ -264,9 +264,9 @@ static MatchReturnType x_Trade(CMPMetaDEx* const pnew)
             int64_t buyer_amountGotAfterFee = buyer_amountGot;
             int64_t tradingFee = 0;
 
-            // strip a 0.05% fee from non-OMNI pairs if fees are activated
+            // strip a 0.05% fee from non-EXODUS pairs if fees are activated
             if (IsFeatureActivated(FEATURE_FEES, pnew->getBlock())) {
-                if (pold->getProperty() > OMNI_PROPERTY_TMSC && pold->getDesProperty() > OMNI_PROPERTY_TMSC) {
+                if (pold->getProperty() > EXODUS_PROPERTY_TEXODUS && pold->getDesProperty() > EXODUS_PROPERTY_TEXODUS) {
                     int64_t feeDivider = 2000; // 0.05%
                     tradingFee = buyer_amountGot / feeDivider;
 
@@ -345,7 +345,7 @@ static MatchReturnType x_Trade(CMPMetaDEx* const pnew)
 std::string CMPMetaDEx::displayUnitPrice() const
 {
      rational_t tmpDisplayPrice;
-     if (getDesProperty() == OMNI_PROPERTY_MSC || getDesProperty() == OMNI_PROPERTY_TMSC) {
+     if (getDesProperty() == EXODUS_PROPERTY_EXODUS || getDesProperty() == EXODUS_PROPERTY_TEXODUS) {
          tmpDisplayPrice = unitPrice();
          if (isPropertyDivisible(getProperty())) tmpDisplayPrice = tmpDisplayPrice * COIN;
      } else {
@@ -699,7 +699,7 @@ int exodus::MetaDEx_SHUTDOWN_ALLPAIR()
         for (md_PricesMap::iterator it = prices.begin(); it != prices.end(); ++it) {
             md_Set& indexes = it->second;
             for (md_Set::iterator it = indexes.begin(); it != indexes.end();) {
-                if (it->getDesProperty() > OMNI_PROPERTY_TMSC && it->getProperty() > OMNI_PROPERTY_TMSC) { // no OMNI/TOMNI side to the trade
+                if (it->getDesProperty() > EXODUS_PROPERTY_TEXODUS && it->getProperty() > EXODUS_PROPERTY_TEXODUS) { // no EXODUS/TEXODUS side to the trade
                     PrintToLog("%s(): REMOVING %s\n", __FUNCTION__, it->ToString());
                     // move from reserve to balance
                     assert(update_tally_map(it->getAddr(), it->getProperty(), -it->getAmountRemaining(), METADEX_RESERVE));

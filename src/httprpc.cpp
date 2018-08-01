@@ -194,7 +194,7 @@ static bool HTTPReq_JSONRPC(HTTPRequest* req, const std::string &)
             // Send reply
             strReply = JSONRPCReply(result, NullUniValue, jreq.id);
             if (fSanitizeResponse) {
-                strReply = mastercore::SanitizeInvalidUTF8(strReply);
+                strReply = exodus::SanitizeInvalidUTF8(strReply);
             }
 
         // array of requests

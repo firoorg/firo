@@ -205,7 +205,7 @@ public:
     void saveCrowdSale(std::ofstream& file, SHA256_CTX* shaCtx, const std::string& addr) const;
 };
 
-namespace mastercore
+namespace exodus
 {
 typedef std::map<std::string, CMPCrowd> CrowdMap;
 

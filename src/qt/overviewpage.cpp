@@ -15,15 +15,15 @@
 #include "transactiontablemodel.h"
 #include "walletmodel.h"
 
-#include "omnicore/activation.h"
-#include "omnicore/notifications.h"
-#include "omnicore/omnicore.h"
-#include "omnicore/rules.h"
-#include "omnicore/sp.h"
-#include "omnicore/tx.h"
-#include "omnicore/pending.h"
-#include "omnicore/utilsbitcoin.h"
-#include "omnicore/wallettxs.h"
+#include "exodus/activation.h"
+#include "exodus/notifications.h"
+#include "exodus/exodus.h"
+#include "exodus/rules.h"
+#include "exodus/sp.h"
+#include "exodus/tx.h"
+#include "exodus/pending.h"
+#include "exodus/utilsbitcoin.h"
+#include "exodus/wallettxs.h"
 
 #include "main.h"
 #include "sync.h"
@@ -56,10 +56,6 @@
 #include <QVariant>
 #include <QVBoxLayout>
 #include <QWidget>
-
-#define DECORATION_SIZE 54
-#define NUM_ITEMS 5
-
 
 using std::ostringstream;
 using std::string;
@@ -110,6 +106,8 @@ public:
         qint64 amount = index.data(TransactionTableModel::AmountRole).toLongLong();
         bool confirmed = index.data(TransactionTableModel::ConfirmedRole).toBool();
         QVariant value = index.data(Qt::ForegroundRole);
+
+
 
         QRect mainRect = option.rect;
         QRect decorationRect(mainRect.topLeft(), QSize(DECORATION_SIZE, DECORATION_SIZE));
@@ -202,7 +200,7 @@ public:
 									valid = getValidMPTX(hash);
 									uint32_t exodusPropertyId = mp_obj.getProperty();
 									int64_t exodusAmount = mp_obj.getAmount();
-									if (isPropertyDivisible(omniPropertyId)) {
+									if (isPropertyDivisible(exodusPropertyId)) {
 										exodusAmountStr = QString::fromStdString(FormatDivisibleShortMP(exodusAmount) + getTokenLabel(exodusPropertyId));
 									} else {
 										exodusAmountStr = QString::fromStdString(FormatIndivisibleMP(exodusAmount) + getTokenLabel(exodusPropertyId));
@@ -222,7 +220,7 @@ public:
 							// override amount for cancels
 							if (mp_obj.getType() == EXODUS_TYPE_METADEX_CANCEL_PRICE || mp_obj.getType() == EXODUS_TYPE_METADEX_CANCEL_PAIR ||
 								mp_obj.getType() == EXODUS_TYPE_METADEX_CANCEL_ECOSYSTEM || mp_obj.getType() == EXODUS_TYPE_SEND_ALL) {
-								omniAmountStr = QString::fromStdString("N/A");
+								exodusAmountStr = QString::fromStdString("N/A");
 							}
 
 							// insert into cache
@@ -253,11 +251,11 @@ public:
         icon = platformStyle->SingleColorIcon(icon);
         icon.paint(painter, decorationRect);
 
-        QDateTime date = index.data(TransactionTableModel::DateRole).toDateTime();
+        /*QDateTime date = index.data(TransactionTableModel::DateRole).toDateTime();
         QString address = index.data(Qt::DisplayRole).toString();
         qint64 amount = index.data(TransactionTableModel::AmountRole).toLongLong();
         bool confirmed = index.data(TransactionTableModel::ConfirmedRole).toBool();
-        QVariant value = index.data(Qt::ForegroundRole);
+        QVariant value = index.data(Qt::ForegroundRole);*/
         QColor foreground = option.palette.color(QPalette::Text);
         if(value.canConvert<QBrush>())
         {
@@ -383,10 +381,10 @@ void OverviewPage::handleTransactionClicked(const QModelIndex &index)
         LOCK(cs_pending);
 
         PendingMap::iterator it = my_pending.find(hash);
-        if (it != my_pending.end()) omniTx = true;
+        if (it != my_pending.end()) exodusTx = true;
     }
     std::map<uint256, OverviewCacheEntry>::iterator cacheIt = recentCache.find(hash);
-    if (cacheIt != recentCache.end()) omniTx = true;
+    if (cacheIt != recentCache.end()) exodusTx = true;
 
     // override if it's an Exodus transaction
     if (exodusTx) {
@@ -681,6 +679,8 @@ void OverviewPage::updateDisplayUnit()
 
 void OverviewPage::updateAlerts(const QString &warnings)
 {
+	QString alertString = warnings; // get current bitcoin alert/warning directly
+
     this->ui->labelAlerts->setVisible(!warnings.isEmpty());
     this->ui->labelAlerts->setText(warnings);
 

@@ -1,7 +1,7 @@
 /**
  * @file exodus.cpp
  *
- * This file contains the core of Omni Core.
+ * This file contains the core of Exodus Core.
  */
 
 #include "exodus/exodus.h"
@@ -122,7 +122,7 @@ std::set<std::pair<std::string,uint32_t> > setFrozenAddresses;
  */
 bool autoCommit = true;
 
-//! Number of "Dev MSC" of the last processed block
+//! Number of "Dev EXODUS" of the last processed block
 static int64_t exodus_prev = 0;
 
 static boost::filesystem::path MPPersistencePath;
@@ -135,9 +135,9 @@ static int reorgRecoveryMaxHeight = 0;
 CMPTxList *exodus::p_txlistdb;
 CMPTradeList *exodus::t_tradelistdb;
 CMPSTOList *exodus::s_stolistdb;
-COmniTransactionDB *exodus::p_OmniTXDB;
-COmniFeeCache *exodus::p_feecache;
-COmniFeeHistory *exodus::p_feehistory;
+CExodusTransactionDB *exodus::p_ExodusTXDB;
+CExodusFeeCache *exodus::p_feecache;
+CExodusFeeHistory *exodus::p_feehistory;
 
 // indicate whether persistence is enabled at this point, or not
 // used to write/read files, for breakout mode, debugging, etc.
@@ -158,11 +158,11 @@ std::string exodus::strMPProperty(uint32_t propertyId)
         str = strprintf("Test token: %d : 0x%08X", 0x7FFFFFFF & propertyId, propertyId);
     } else {
         switch (propertyId) {
-            case OMNI_PROPERTY_BTC: str = "BTC";
+            case EXODUS_PROPERTY_XZC: str = "XZC";
                 break;
-            case OMNI_PROPERTY_MSC: str = "OMNI";
+            case EXODUS_PROPERTY_EXODUS: str = "EXODUS";
                 break;
-            case OMNI_PROPERTY_TMSC: str = "TOMNI";
+            case EXODUS_PROPERTY_TEXODUS: str = "TEXODUS";
                 break;
             default:
                 str = strprintf("SP token: %d", propertyId);
@@ -232,7 +232,7 @@ std::string FormatMP(uint32_t property, int64_t n, bool fSign)
 
 std::string FormatByType(int64_t amount, uint16_t propertyType)
 {
-    if (propertyType & MSC_PROPERTY_TYPE_INDIVISIBLE) {
+    if (propertyType & EXODUS_PROPERTY_TYPE_INDIVISIBLE) {
         return FormatIndivisibleMP(amount);
     } else {
         return FormatDivisibleMP(amount);
@@ -264,8 +264,8 @@ int64_t getMPbalance(const std::string& address, uint32_t propertyId, TallyType 
     if (TALLY_TYPE_COUNT <= ttype) {
         return 0;
     }
-    if (ttype == ACCEPT_RESERVE && propertyId > OMNI_PROPERTY_TMSC) {
-        // ACCEPT_RESERVE is always empty, except for MSC and TMSC
+    if (ttype == ACCEPT_RESERVE && propertyId > EXODUS_PROPERTY_TEXODUS) {
+        // ACCEPT_RESERVE is always empty, except for EXODUS and TEXODUS
         return 0; 
     }
 
@@ -303,14 +303,14 @@ int64_t getUserFrozenMPbalance(const std::string& address, uint32_t propertyId)
 
 bool exodus::isTestEcosystemProperty(uint32_t propertyId)
 {
-    if ((OMNI_PROPERTY_TMSC == propertyId) || (TEST_ECO_PROPERTY_1 <= propertyId)) return true;
+    if ((EXODUS_PROPERTY_TEXODUS == propertyId) || (TEST_ECO_PROPERTY_1 <= propertyId)) return true;
 
     return false;
 }
 
 bool exodus::isMainEcosystemProperty(uint32_t propertyId)
 {
-    if ((OMNI_PROPERTY_BTC != propertyId) && !isTestEcosystemProperty(propertyId)) return true;
+    if ((EXODUS_PROPERTY_XZC != propertyId) && !isTestEcosystemProperty(propertyId)) return true;
 
     return false;
 }
@@ -515,17 +515,17 @@ bool exodus::update_tally_map(const std::string& who, uint32_t propertyId, int64
 /**
  * Calculates and updates the "development mastercoins".
  *
- * For every 10 MSC sold during the Exodus period, 1 additional "Dev MSC" was generated,
+ * For every 10 EXODUS sold during the Exodus period, 1 additional "Dev EXODUS" was generated,
  * which are being awarded to the Exodus address slowly over the years.
  *
- * @see The "Dev MSC" specification:
- * https://github.com/OmniLayer/spec#development-mastercoins-dev-exodus-previously-reward-mastercoins
+ * @see The "Dev EXODUS" specification:
+ * https://github.com/ExodusLayer/spec#development-mastercoins-dev-exodus-previously-reward-mastercoins
  *
  * Note:
- * If timestamps are out of order, then previously vested "Dev MSC" are not voided.
+ * If timestamps are out of order, then previously vested "Dev EXODUS" are not voided.
  *
- * @param nTime  The timestamp of the block to update the "Dev MSC" for
- * @return The number of "Dev MSC" generated
+ * @param nTime  The timestamp of the block to update the "Dev EXODUS" for
+ * @return The number of "Dev EXODUS" generated
  */
 static int64_t calculate_and_update_devexodus(unsigned int nTime, int block)
 {
@@ -558,11 +558,11 @@ static int64_t calculate_and_update_devexodus(unsigned int nTime, int block)
     }
 
     if (exodus_delta > 0) {
-        update_tally_map(exodus_address, OMNI_PROPERTY_MSC, exodus_delta, BALANCE);
+        update_tally_map(exodus_address, EXODUS_PROPERTY_EXODUS, exodus_delta, BALANCE);
         exodus_prev = devexodus;
     }
 
-    NotifyTotalTokensChanged(OMNI_PROPERTY_MSC, block);
+    NotifyTotalTokensChanged(EXODUS_PROPERTY_EXODUS, block);
 
     return exodus_delta;
 }
@@ -586,16 +586,16 @@ void NotifyTotalTokensChanged(uint32_t propertyId, int block)
 void CheckWalletUpdate(bool forceUpdate)
 {
     if (!WalletCacheUpdate()) {
-        // no balance changes were detected that affect wallet addresses, signal a generic change to overall Omni state
+        // no balance changes were detected that affect wallet addresses, signal a generic change to overall Exodus state
         if (!forceUpdate) {
-            uiInterface.OmniStateChanged();
+            uiInterface.ExodusStateChanged();
             return;
         }
     }
 #ifdef ENABLE_WALLET
     LOCK(cs_tally);
 
-    // balance changes were found in the wallet, update the global totals and signal a Omni balance change
+    // balance changes were found in the wallet, update the global totals and signal a Exodus balance change
     global_balance_money.clear();
     global_balance_reserved.clear();
 
@@ -620,8 +620,8 @@ void CheckWalletUpdate(bool forceUpdate)
             global_balance_reserved[propertyId] += getMPbalance(address, propertyId, ACCEPT_RESERVE);
         }
     }
-    // signal an Omni balance change
-    uiInterface.OmniBalanceChanged();
+    // signal an Exodus balance change
+    uiInterface.ExodusBalanceChanged();
 #endif
 }
 
@@ -644,8 +644,8 @@ static bool TXExodusFundraiser(const CTransaction& tx, const std::string& sender
         if (amountGenerated > 0) {
             PrintToLog("Exodus Fundraiser tx detected, tx %s generated %s\n", tx.GetHash().ToString(), FormatDivisibleMP(amountGenerated));
 
-            assert(update_tally_map(sender, OMNI_PROPERTY_MSC, amountGenerated, BALANCE));
-            assert(update_tally_map(sender, OMNI_PROPERTY_TMSC, amountGenerated, BALANCE));
+            assert(update_tally_map(sender, EXODUS_PROPERTY_EXODUS, amountGenerated, BALANCE));
+            assert(update_tally_map(sender, EXODUS_PROPERTY_TEXODUS, amountGenerated, BALANCE));
 
             return true;
         }
@@ -671,7 +671,7 @@ int exodus::GetEncodingClass(const CTransaction& tx, int nBlock)
 
     /* Fast Search
      * Perform a string comparison on hex for each scriptPubKey & look directly for Exodus hash160 bytes or exodus marker bytes
-     * This allows to drop non-Omni transactions with less work
+     * This allows to drop non-Exodus transactions with less work
      */
     std::string strClassC = "6f6d6e69";
     std::string strClassAB = "76a914946cb2e08075bcbaf157e47bcb67eb2b2339d24288ac";
@@ -748,13 +748,13 @@ int exodus::GetEncodingClass(const CTransaction& tx, int nBlock)
     }
 
     if (hasOpReturn) {
-        return OMNI_CLASS_C;
+        return EXODUS_CLASS_C;
     }
     if (hasExodus && hasMultisig) {
-        return OMNI_CLASS_B;
+        return EXODUS_CLASS_B;
     }
     if (hasExodus || hasMoney) {
-        return OMNI_CLASS_A;
+        return EXODUS_CLASS_A;
     }
 
     return NO_MARKER;
@@ -831,7 +831,7 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
     int exodusClass = GetEncodingClass(wtx, nBlock);
 
     if (exodusClass == NO_MARKER) {
-        return -1; // No Exodus/Omni marker, thus not a valid Omni transaction
+        return -1; // No Exodus/Exodus marker, thus not a valid Exodus transaction
     }
 
     if (!bRPConly || exodus_debug_parser_readonly) {
@@ -854,7 +854,7 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
 
     assert(view.HaveInputs(wtx));
 
-    if (exodusClass != OMNI_CLASS_C)
+    if (exodusClass != EXODUS_CLASS_C)
     {
         // OLD LOGIC - collect input amounts and identify sender via "largest input by sum"
         std::map<std::string, int64_t> inputs_sum_of_values;
@@ -966,7 +966,7 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
     if (exodus_debug_parser_data) PrintToLog(" address_data.size=%lu\n script_data.size=%lu\n value_data.size=%lu\n", address_data.size(), script_data.size(), value_data.size());
 
     // ### CLASS A PARSING ###
-    if (exodusClass == OMNI_CLASS_A) {
+    if (exodusClass == EXODUS_CLASS_A) {
         std::string strScriptData;
         std::string strDataAddress;
         std::string strRefAddress;
@@ -1051,7 +1051,7 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
         }
     }
     // ### CLASS B / CLASS C PARSING ###
-    if ((exodusClass == OMNI_CLASS_B) || (exodusClass == OMNI_CLASS_C)) {
+    if ((exodusClass == EXODUS_CLASS_B) || (exodusClass == EXODUS_CLASS_C)) {
         if (exodus_debug_parser_data) PrintToLog("Beginning reference identification\n");
         bool referenceFound = false; // bool to hold whether we've found the reference yet
         bool changeRemoved = false; // bool to hold whether we've ignored the first output to sender as change
@@ -1090,7 +1090,7 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
         if (exodus_debug_parser_data) PrintToLog("Ending reference identification\nFinal decision on reference identification is: %s\n", strReference);
 
         // ### CLASS B SPECIFC PARSING ###
-        if (exodusClass == OMNI_CLASS_B) {
+        if (exodusClass == EXODUS_CLASS_B) {
             std::vector<std::string> multisig_script_data;
 
             // ### POPULATE MULTISIG SCRIPT DATA ###
@@ -1178,7 +1178,7 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
         }
 
         // ### CLASS C SPECIFIC PARSING ###
-        if (exodusClass == OMNI_CLASS_C) {
+        if (exodusClass == EXODUS_CLASS_C) {
             std::vector<std::string> op_return_script_data;
 
             // ### POPULATE OP RETURN SCRIPT DATA ###
@@ -1245,7 +1245,7 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
 
     // TODO: the following is a bit aweful
     // Provide a hint for DEx payments
-    if (exodusClass == OMNI_CLASS_A && packet_size == 0) {
+    if (exodusClass == EXODUS_CLASS_A && packet_size == 0) {
         return 1;
     }
 
@@ -1546,7 +1546,7 @@ int input_mp_offers_string(const std::string& s)
     uint256 txid = uint256S(vstr[i++]);
 
     // TODO: should this be here? There are usually no sanity checks..
-    if (OMNI_PROPERTY_BTC != prop_desired) return -1;
+    if (EXODUS_PROPERTY_XZC != prop_desired) return -1;
 
     const std::string combo = STR_SELLOFFER_ADDR_PROP_COMBO(sellerAddr, prop);
     CMPOffer newOffer(offerBlock, amountOriginal, prop, btcDesired, minFee, blocktimelimit, txid);
@@ -2014,8 +2014,8 @@ static int write_mp_accepts(ofstream &file, SHA256_CTX *shaCtx)
 
 static int write_globals_state(ofstream &file, SHA256_CTX *shaCtx)
 {
-  unsigned int nextSPID = _my_sps->peekNextSPID(OMNI_PROPERTY_MSC);
-  unsigned int nextTestSPID = _my_sps->peekNextSPID(OMNI_PROPERTY_TMSC);
+  unsigned int nextSPID = _my_sps->peekNextSPID(EXODUS_PROPERTY_EXODUS);
+  unsigned int nextTestSPID = _my_sps->peekNextSPID(EXODUS_PROPERTY_TEXODUS);
   std::string lineOut = strprintf("%d,%d,%d",
     exodus_prev,
     nextSPID,
@@ -2200,7 +2200,7 @@ void clear_all_state()
     p_txlistdb->Clear();
     s_stolistdb->Clear();
     t_tradelistdb->Clear();
-    p_OmniTXDB->Clear();
+    p_ExodusTXDB->Clear();
     p_feecache->Clear();
     p_feehistory->Clear();
     assert(p_txlistdb->setDBVersion() == DB_VERSION); // new set of databases, set DB version
@@ -2208,7 +2208,7 @@ void clear_all_state()
 }
 
 /**
- * Global handler to initialize Omni Core.
+ * Global handler to initialize Exodus Core.
  *
  * @return An exit code, indicating success or failure
  */
@@ -2221,9 +2221,9 @@ int exodus_init()
         return 0;
     }
 
-    PrintToConsole("Initializing Omni Core v%s [%s]\n", OmniCoreVersion(), Params().NetworkIDString());
+    PrintToConsole("Initializing Exodus Core v%s [%s]\n", ExodusVersion(), Params().NetworkIDString());
 
-    PrintToLog("\nInitializing Omni Core v%s [%s]\n", OmniCoreVersion(), Params().NetworkIDString());
+    PrintToLog("\nInitializing Exodus Core v%s [%s]\n", ExodusVersion(), Params().NetworkIDString());
     PrintToLog("Startup time: %s\n", DateTimeStrFormat("%Y-%m-%d %H:%M:%S", GetTime()));
 
     InitDebugLogLevels();
@@ -2236,7 +2236,7 @@ int exodus_init()
     // check for --autocommit option and set transaction commit flag accordingly
     if (!GetBoolArg("-autocommit", true)) {
         PrintToLog("Process was started with --autocommit set to false. "
-                "Created Omni transactions will not be committed to wallet or broadcast.\n");
+                "Created Exodus transactions will not be committed to wallet or broadcast.\n");
         autoCommit = false;
     }
 
@@ -2250,9 +2250,9 @@ int exodus_init()
             boost::filesystem::path tradePath = GetDataDir() / "MP_tradelist";
             boost::filesystem::path spPath = GetDataDir() / "MP_spinfo";
             boost::filesystem::path stoPath = GetDataDir() / "MP_stolist";
-            boost::filesystem::path exodusTXDBPath = GetDataDir() / "Omni_TXDB";
-            boost::filesystem::path feesPath = GetDataDir() / "OMNI_feecache";
-            boost::filesystem::path feeHistoryPath = GetDataDir() / "OMNI_feehistory";
+            boost::filesystem::path exodusTXDBPath = GetDataDir() / "Exodus_TXDB";
+            boost::filesystem::path feesPath = GetDataDir() / "EXODUS_feecache";
+            boost::filesystem::path feeHistoryPath = GetDataDir() / "EXODUS_feehistory";
             if (boost::filesystem::exists(persistPath)) boost::filesystem::remove_all(persistPath);
             if (boost::filesystem::exists(txlistPath)) boost::filesystem::remove_all(txlistPath);
             if (boost::filesystem::exists(tradePath)) boost::filesystem::remove_all(tradePath);
@@ -2273,9 +2273,9 @@ int exodus_init()
     s_stolistdb = new CMPSTOList(GetDataDir() / "MP_stolist", fReindex);
     p_txlistdb = new CMPTxList(GetDataDir() / "MP_txlist", fReindex);
     _my_sps = new CMPSPInfo(GetDataDir() / "MP_spinfo", fReindex);
-    p_OmniTXDB = new COmniTransactionDB(GetDataDir() / "Omni_TXDB", fReindex);
-    p_feecache = new COmniFeeCache(GetDataDir() / "OMNI_feecache", fReindex);
-    p_feehistory = new COmniFeeHistory(GetDataDir() / "OMNI_feehistory", fReindex);
+    p_ExodusTXDB = new CExodusTransactionDB(GetDataDir() / "Exodus_TXDB", fReindex);
+    p_feecache = new CExodusFeeCache(GetDataDir() / "EXODUS_feecache", fReindex);
+    p_feehistory = new CExodusFeeHistory(GetDataDir() / "EXODUS_feehistory", fReindex);
 
     MPPersistencePath = GetDataDir() / "MP_persist";
     TryCreateDirectory(MPPersistencePath);
@@ -2322,7 +2322,7 @@ int exodus_init()
     // collect the real Exodus balances available at the snapshot time
     // redundant? do we need to show it both pre-parse and post-parse?  if so let's label the printfs accordingly
     if (exodus_debug_exo) {
-        int64_t exodus_balance = getMPbalance(exodus_address, OMNI_PROPERTY_MSC, BALANCE);
+        int64_t exodus_balance = getMPbalance(exodus_address, EXODUS_PROPERTY_EXODUS, BALANCE);
         PrintToLog("Exodus balance at start: %s\n", FormatDivisibleMP(exodus_balance));
     }
 
@@ -2345,17 +2345,17 @@ int exodus_init()
     exodus_initial_scan(nWaterlineBlock);
 
     // display Exodus balance
-    int64_t exodus_balance = getMPbalance(exodus_address, OMNI_PROPERTY_MSC, BALANCE);
+    int64_t exodus_balance = getMPbalance(exodus_address, EXODUS_PROPERTY_EXODUS, BALANCE);
     PrintToLog("Exodus balance after initialization: %s\n", FormatDivisibleMP(exodus_balance));
 
     PrintToConsole("Exodus balance: %s OMNI\n", FormatDivisibleMP(exodus_balance));
-    PrintToConsole("Omni Core initialization completed\n");
+    PrintToConsole("Exodus Core initialization completed\n");
 
     return 0;
 }
 
 /**
- * Global handler to shut down Omni Core.
+ * Global handler to shut down Exodus Core.
  *
  * In particular, the LevelDB databases of the global state objects are closed
  * properly.
@@ -2382,9 +2382,9 @@ int exodus_shutdown()
         delete _my_sps;
         _my_sps = NULL;
     }
-    if (p_OmniTXDB) {
-        delete p_OmniTXDB;
-        p_OmniTXDB = NULL;
+    if (p_ExodusTXDB) {
+        delete p_ExodusTXDB;
+        p_ExodusTXDB = NULL;
     }
     if (p_feecache) {
         delete p_feecache;
@@ -2397,10 +2397,10 @@ int exodus_shutdown()
 
     exodusInitialized = 0;
 
-    PrintToLog("\nOmni Core shutdown completed\n");
+    PrintToLog("\nExodus Core shutdown completed\n");
     PrintToLog("Shutdown time: %s\n", DateTimeStrFormat("%Y-%m-%d %H:%M:%S", GetTime()));
 
-    PrintToConsole("Omni Core shutdown completed\n");
+    PrintToConsole("Exodus Core shutdown completed\n");
 
     return 0;
 }
@@ -2408,7 +2408,7 @@ int exodus_shutdown()
 /**
  * This handler is called for every new transaction that comes in (actually in block parsing loop).
  *
- * @return True, if the transaction was an Exodus purchase, DEx payment or a valid Omni transaction
+ * @return True, if the transaction was an Exodus purchase, DEx payment or a valid Exodus transaction
  */
 bool exodus_handler_tx(const CTransaction& tx, int nBlock, unsigned int idx, const CBlockIndex* pBlockIndex)
 {
@@ -2446,7 +2446,7 @@ bool exodus_handler_tx(const CTransaction& tx, int nBlock, unsigned int idx, con
     }
 
     if (pop_ret > 0) {
-        assert(mp_obj.getEncodingClass() == OMNI_CLASS_A);
+        assert(mp_obj.getEncodingClass() == EXODUS_CLASS_A);
         assert(mp_obj.getPayload().empty() == true);
 
         fFoundTx |= HandleDExPayments(tx, nBlock, mp_obj.getSender());
@@ -2461,7 +2461,7 @@ bool exodus_handler_tx(const CTransaction& tx, int nBlock, unsigned int idx, con
         if (interp_ret != PKT_ERROR - 2) {
             bool bValid = (0 <= interp_ret);
             p_txlistdb->recordTX(tx.GetHash(), bValid, nBlock, mp_obj.getType(), mp_obj.getNewAmount());
-            p_OmniTXDB->RecordTransaction(tx.GetHash(), idx, interp_ret);
+            p_ExodusTXDB->RecordTransaction(tx.GetHash(), idx, interp_ret);
         }
         fFoundTx |= (interp_ret == 0);
     }
@@ -2491,7 +2491,7 @@ bool exodus::UseEncodingClassC(size_t nDataSize)
     return nTotalSize <= nMaxDatacarrierBytes && fDataEnabled;
 }
 
-// This function requests the wallet create an Omni transaction using the supplied parameters and payload
+// This function requests the wallet create an Exodus transaction using the supplied parameters and payload
 int exodus::WalletTxBuilder(const std::string& senderAddress, const std::string& receiverAddress, const std::string& redemptionAddress,
         int64_t referenceAmount, const std::vector<unsigned char>& data, uint256& txid, std::string& rawHex, bool commit)
 {
@@ -2499,8 +2499,8 @@ int exodus::WalletTxBuilder(const std::string& senderAddress, const std::string&
     if (pwalletMain == NULL) return MP_ERR_WALLET_ACCESS;
 
     // Determine the class to send the transaction via - default is Class C
-    int exodusTxClass = OMNI_CLASS_C;
-    if (!UseEncodingClassC(data.size())) exodusTxClass = OMNI_CLASS_B;
+    int exodusTxClass = EXODUS_CLASS_C;
+    if (!UseEncodingClassC(data.size())) exodusTxClass = EXODUS_CLASS_B;
 
     // Prepare the transaction - first setup some vars
     CCoinControl coinControl;
@@ -2520,16 +2520,16 @@ int exodus::WalletTxBuilder(const std::string& senderAddress, const std::string&
 
     // Encode the data outputs
     switch(exodusTxClass) {
-        case OMNI_CLASS_B: { // declaring vars in a switch here so use an expicit code block
+        case EXODUS_CLASS_B: { // declaring vars in a switch here so use an expicit code block
             CPubKey redeemingPubKey;
             const std::string& sAddress = redemptionAddress.empty() ? senderAddress : redemptionAddress;
             if (!AddressToPubKey(sAddress, redeemingPubKey)) {
                 return MP_REDEMP_BAD_VALIDATION;
             }
-            if (!OmniCore_Encode_ClassB(senderAddress,redeemingPubKey,data,vecSend)) { return MP_ENCODING_ERROR; }
+            if (!Exodus_Encode_ClassB(senderAddress,redeemingPubKey,data,vecSend)) { return MP_ENCODING_ERROR; }
         break; }
-        case OMNI_CLASS_C:
-            if(!OmniCore_Encode_ClassC(data,vecSend)) { return MP_ENCODING_ERROR; }
+        case EXODUS_CLASS_C:
+            if(!Exodus_Encode_ClassC(data,vecSend)) { return MP_ENCODING_ERROR; }
         break;
     }
 
@@ -2573,7 +2573,7 @@ int exodus::WalletTxBuilder(const std::string& senderAddress, const std::string&
 
 }
 
-void COmniTransactionDB::RecordTransaction(const uint256& txid, uint32_t posInBlock, int processingResult)
+void CExodusTransactionDB::RecordTransaction(const uint256& txid, uint32_t posInBlock, int processingResult)
 {
     assert(pdb);
 
@@ -2584,7 +2584,7 @@ void COmniTransactionDB::RecordTransaction(const uint256& txid, uint32_t posInBl
     ++nWritten;
 }
 
-std::vector<std::string> COmniTransactionDB::FetchTransactionDetails(const uint256& txid)
+std::vector<std::string> CExodusTransactionDB::FetchTransactionDetails(const uint256& txid)
 {
     assert(pdb);
     std::string strValue;
@@ -2598,16 +2598,16 @@ std::vector<std::string> COmniTransactionDB::FetchTransactionDetails(const uint2
             vTransactionDetails.push_back(vStr[0]);
             vTransactionDetails.push_back(vStr[1]);
         } else {
-            PrintToLog("ERROR: Entry (%s) found in OmniTXDB with unexpected number of attributes!\n", txid.GetHex());
+            PrintToLog("ERROR: Entry (%s) found in ExodusTXDB with unexpected number of attributes!\n", txid.GetHex());
         }
     } else {
-        PrintToLog("ERROR: Entry (%s) could not be loaded from OmniTXDB!\n", txid.GetHex());
+        PrintToLog("ERROR: Entry (%s) could not be loaded from ExodusTXDB!\n", txid.GetHex());
     }
 
     return vTransactionDetails;
 }
 
-uint32_t COmniTransactionDB::FetchTransactionPosition(const uint256& txid)
+uint32_t CExodusTransactionDB::FetchTransactionPosition(const uint256& txid)
 {
     uint32_t posInBlock = 999999; // setting an initial arbitrarily high value will ensure transaction is always "last" in event of bug/exploit
 
@@ -2619,7 +2619,7 @@ uint32_t COmniTransactionDB::FetchTransactionPosition(const uint256& txid)
     return posInBlock;
 }
 
-std::string COmniTransactionDB::FetchInvalidReason(const uint256& txid)
+std::string CExodusTransactionDB::FetchInvalidReason(const uint256& txid)
 {
     int processingResult = -999999;
 
@@ -2668,8 +2668,8 @@ bool CMPTxList::CheckForFreezeTxs(int blockHeight)
         int block = atoi(vstr[1]);
         if (block < blockHeight) continue;
         uint16_t txtype = atoi(vstr[2]);
-        if (txtype == MSC_TYPE_FREEZE_PROPERTY_TOKENS || txtype == MSC_TYPE_UNFREEZE_PROPERTY_TOKENS ||
-            txtype == MSC_TYPE_ENABLE_FREEZING || txtype == MSC_TYPE_DISABLE_FREEZING) {
+        if (txtype == EXODUS_TYPE_FREEZE_PROPERTY_TOKENS || txtype == EXODUS_TYPE_UNFREEZE_PROPERTY_TOKENS ||
+            txtype == EXODUS_TYPE_ENABLE_FREEZING || txtype == EXODUS_TYPE_DISABLE_FREEZING) {
             delete it;
             return true;
         }
@@ -2693,11 +2693,11 @@ bool CMPTxList::LoadFreezeState(int blockHeight)
         boost::split(vstr, itData, boost::is_any_of(":"), token_compress_on);
         if (4 != vstr.size()) continue;
         uint16_t txtype = atoi(vstr[2]);
-        if (txtype != MSC_TYPE_FREEZE_PROPERTY_TOKENS && txtype != MSC_TYPE_UNFREEZE_PROPERTY_TOKENS &&
-            txtype != MSC_TYPE_ENABLE_FREEZING && txtype != MSC_TYPE_DISABLE_FREEZING) continue;
+        if (txtype != EXODUS_TYPE_FREEZE_PROPERTY_TOKENS && txtype != EXODUS_TYPE_UNFREEZE_PROPERTY_TOKENS &&
+            txtype != EXODUS_TYPE_ENABLE_FREEZING && txtype != EXODUS_TYPE_DISABLE_FREEZING) continue;
         if (atoi(vstr[0]) != 1) continue; // invalid, ignore
         uint256 txid = uint256S(it->key().ToString());
-        int txPosition = p_OmniTXDB->FetchTransactionPosition(txid);
+        int txPosition = p_ExodusTXDB->FetchTransactionPosition(txid);
         std::string sortKey = strprintf("%06d%010d", atoi(vstr[1]), txPosition);
         loadOrder.push_back(std::make_pair(sortKey, txid));
     }
@@ -2737,8 +2737,8 @@ bool CMPTxList::LoadFreezeState(int blockHeight)
             PrintToLog("ERROR: While loading freeze transaction %s: failed interpret_Transaction.\n", hash.GetHex());
             return false;
         }
-        if (MSC_TYPE_FREEZE_PROPERTY_TOKENS != mp_obj.getType() && MSC_TYPE_UNFREEZE_PROPERTY_TOKENS != mp_obj.getType() &&
-            MSC_TYPE_ENABLE_FREEZING != mp_obj.getType() && MSC_TYPE_DISABLE_FREEZING != mp_obj.getType()) {
+        if (EXODUS_TYPE_FREEZE_PROPERTY_TOKENS != mp_obj.getType() && EXODUS_TYPE_UNFREEZE_PROPERTY_TOKENS != mp_obj.getType() &&
+            EXODUS_TYPE_ENABLE_FREEZING != mp_obj.getType() && EXODUS_TYPE_DISABLE_FREEZING != mp_obj.getType()) {
             PrintToLog("ERROR: While loading freeze transaction %s: levelDB type mismatch, not a freeze transaction.\n", hash.GetHex());
             return false;
         }
@@ -2773,7 +2773,7 @@ void CMPTxList::LoadActivations(int blockHeight)
         std::vector<std::string> vstr;
         boost::split(vstr, itData, boost::is_any_of(":"), token_compress_on);
         if (4 != vstr.size()) continue; // unexpected number of tokens
-        if (atoi(vstr[2]) != OMNICORE_MESSAGE_TYPE_ACTIVATION || atoi(vstr[0]) != 1) continue; // we only care about valid activations
+        if (atoi(vstr[2]) != EXODUS_MESSAGE_TYPE_ACTIVATION || atoi(vstr[0]) != 1) continue; // we only care about valid activations
         uint256 txid = uint256S(it->key().ToString());;
         loadOrder.push_back(std::make_pair(atoi(vstr[1]), txid));
     }
@@ -2808,7 +2808,7 @@ void CMPTxList::LoadActivations(int blockHeight)
             PrintToLog("ERROR: While loading activation transaction %s: failed interpret_Transaction.\n", hash.GetHex());
             continue;
         }
-        if (OMNICORE_MESSAGE_TYPE_ACTIVATION != mp_obj.getType()) {
+        if (EXODUS_MESSAGE_TYPE_ACTIVATION != mp_obj.getType()) {
             PrintToLog("ERROR: While loading activation transaction %s: levelDB type mismatch, not an activation.\n", hash.GetHex());
             continue;
         }
@@ -2841,7 +2841,7 @@ void CMPTxList::LoadAlerts(int blockHeight)
         std::vector<std::string> vstr;
         boost::split(vstr, itData, boost::is_any_of(":"), token_compress_on);
         if (4 != vstr.size()) continue; // unexpected number of tokens
-        if (atoi(vstr[2]) != OMNICORE_MESSAGE_TYPE_ALERT || atoi(vstr[0]) != 1) continue; // not a valid alert
+        if (atoi(vstr[2]) != EXODUS_MESSAGE_TYPE_ALERT || atoi(vstr[0]) != 1) continue; // not a valid alert
         uint256 txid = uint256S(it->key().ToString());;
         loadOrder.push_back(std::make_pair(atoi(vstr[1]), txid));
     }
@@ -2865,7 +2865,7 @@ void CMPTxList::LoadAlerts(int blockHeight)
             PrintToLog("ERROR: While loading alert %s: failed interpret_Transaction.\n", txid.GetHex());
             continue;
         }
-        if (OMNICORE_MESSAGE_TYPE_ALERT != mp_obj.getType()) {
+        if (EXODUS_MESSAGE_TYPE_ALERT != mp_obj.getType()) {
             PrintToLog("ERROR: While loading alert %s: levelDB type mismatch, not an alert.\n", txid.GetHex());
             continue;
         }
@@ -3964,7 +3964,7 @@ int exodus_handler_block_begin(int nBlockPrev, CBlockIndex const * pBlockIndex)
         // clear the global wallet property list, perform a forced wallet update and tell the UI that state is no longer valid, and UI views need to be reinit
         global_wallet_property_list.clear();
         CheckWalletUpdate(true);
-        uiInterface.OmniStateInvalidated();
+        uiInterface.ExodusStateInvalidated();
 
         if (nWaterlineBlock < nBlockPrev) {
             // scan from the block after the best active block to catch up to the active chain
@@ -4009,7 +4009,7 @@ int exodus_handler_block_end(int nBlockNow, CBlockIndex const * pBlockIndex,
     devexodus = calculate_and_update_devexodus(pBlockIndex->GetBlockTime(), nBlockNow);
 
     if (exodus_debug_exo) {
-        int64_t balance = getMPbalance(exodus_address, OMNI_PROPERTY_MSC, BALANCE);
+        int64_t balance = getMPbalance(exodus_address, EXODUS_PROPERTY_EXODUS, BALANCE);
         PrintToLog("devexodus for block %d: %d, Exodus balance: %d\n", nBlockNow, devexodus, FormatDivisibleMP(balance));
     }
 

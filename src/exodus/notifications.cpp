@@ -122,7 +122,7 @@ bool CheckAlertAuthorization(const std::string& sender)
 /**
  * Alerts including meta data.
  */
-std::vector<AlertData> GetExodusCoreAlerts()
+std::vector<AlertData> GetExodusAlerts()
 {
     return currentExodusAlerts;
 }
@@ -130,7 +130,7 @@ std::vector<AlertData> GetExodusCoreAlerts()
 /**
  * Human readable alert messages.
  */
-std::vector<std::string> GetExodusCoreAlertMessages()
+std::vector<std::string> GetExodusAlertMessages()
 {
     std::vector<std::string> vstr;
     for (std::vector<AlertData>::iterator it = currentExodusAlerts.begin(); it != currentExodusAlerts.end(); it++) {
@@ -168,7 +168,7 @@ bool CheckExpiredAlerts(unsigned int curBlock, uint64_t curTime)
                 }
             break;
             case ALERT_CLIENT_VERSION_EXPIRY:
-                if (OMNICORE_VERSION > alert.alert_expiry) {
+                if (EXODUS_VERSION > alert.alert_expiry) {
                     PrintToLog("Expiring alert (form: %s type:%d expiry:%d message:%s)\n", alert.alert_sender,
                         alert.alert_type, alert.alert_expiry, alert.alert_message);
                     it = currentExodusAlerts.erase(it);

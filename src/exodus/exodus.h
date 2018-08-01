@@ -45,13 +45,13 @@ int const MAX_STATE_HISTORY = 50;
 // maximum size of string fields
 #define SP_STRING_FIELD_LEN 256
 
-// Exodus Layer Transaction Class
+// Exodus Transaction Class
 #define NO_MARKER    0
-#define OMNI_CLASS_A 1
-#define OMNI_CLASS_B 2
-#define OMNI_CLASS_C 3
+#define EXODUS_CLASS_A 1
+#define EXODUS_CLASS_B 2
+#define EXODUS_CLASS_C 3
 
-// Exodus Layer Transaction (Packet) Version
+// Exodus Transaction (Packet) Version
 #define MP_TX_PKT_V0  0
 #define MP_TX_PKT_V1  1
 
@@ -130,9 +130,9 @@ enum FILETYPES {
 #define PKT_ERROR_TOKENS      (-82000)
 #define PKT_ERROR_SEND_ALL    (-83000)
 
-#define OMNI_PROPERTY_BTC   0
-#define OMNI_PROPERTY_MSC   1
-#define OMNI_PROPERTY_TMSC  2
+#define EXODUS_PROPERTY_XZC   0
+#define EXODUS_PROPERTY_EXODUS   1
+#define EXODUS_PROPERTY_TEXODUS  2
 
 // forward declarations
 std::string FormatDivisibleMP(int64_t amount, bool fSign = false);
@@ -170,7 +170,7 @@ public:
 
     virtual ~CExodusTransactionDB()
     {
-        if (msc_debug_persistence) PrintToLog("CExodusTransactionDB closed\n");
+        if (exodus_debug_persistence) PrintToLog("CExodusTransactionDB closed\n");
     }
 
     /* These functions would be expanded upon to store a serialized version of the transaction and associated state data
@@ -200,7 +200,7 @@ public:
 
     virtual ~CMPSTOList()
     {
-        if (msc_debug_persistence) PrintToLog("CMPSTOList closed\n");
+        if (exodus_debug_persistence) PrintToLog("CMPSTOList closed\n");
     }
 
     void getRecipients(const uint256 txid, string filterAddress, UniValue *recipientArray, uint64_t *total, uint64_t *numRecipients);
@@ -225,7 +225,7 @@ public:
 
     virtual ~CMPTradeList()
     {
-        if (msc_debug_persistence) PrintToLog("CMPTradeList closed\n");
+        if (exodus_debug_persistence) PrintToLog("CMPTradeList closed\n");
     }
 
     void recordMatchedTrade(const uint256 txid1, const uint256 txid2, string address1, string address2, unsigned int prop1, unsigned int prop2, uint64_t amount1, uint64_t amount2, int blockNum, int64_t fee);
@@ -253,7 +253,7 @@ public:
 
     virtual ~CMPTxList()
     {
-        if (msc_debug_persistence) PrintToLog("CMPTxList closed\n");
+        if (exodus_debug_persistence) PrintToLog("CMPTxList closed\n");
     }
 
     void recordTX(const uint256 &txid, bool fValid, int nBlock, unsigned int type, uint64_t nValue);

@@ -31,7 +31,7 @@
 #include <string>
 
 using std::runtime_error;
-using namespace mastercore;
+using namespace exodus;
 
 UniValue exodus_sendrawtx(const UniValue& params, bool fHelp)
 {
@@ -127,7 +127,7 @@ UniValue exodus_send(const UniValue& params, bool fHelp)
         if (!autoCommit) {
             return rawHex;
         } else {
-            PendingAdd(txid, fromAddress, MSC_TYPE_SIMPLE_SEND, propertyId, amount);
+            PendingAdd(txid, fromAddress, EXODUS_TYPE_SIMPLE_SEND, propertyId, amount);
             return txid.GetHex();
         }
     }
@@ -270,7 +270,7 @@ UniValue exodus_senddexsell(const UniValue& params, bool fHelp)
             return rawHex;
         } else {
             bool fSubtract = (action <= CMPTransaction::UPDATE); // no pending balances for cancels
-            PendingAdd(txid, fromAddress, MSC_TYPE_TRADE_OFFER, propertyIdForSale, amountForSale, fSubtract);
+            PendingAdd(txid, fromAddress, EXODUS_TYPE_TRADE_OFFER, propertyIdForSale, amountForSale, fSubtract);
             return txid.GetHex();
         }
     }
@@ -603,7 +603,7 @@ UniValue exodus_sendsto(const UniValue& params, bool fHelp)
         if (!autoCommit) {
             return rawHex;
         } else {
-            PendingAdd(txid, fromAddress, MSC_TYPE_SEND_TO_OWNERS, propertyId, amount);
+            PendingAdd(txid, fromAddress, EXODUS_TYPE_SEND_TO_OWNERS, propertyId, amount);
             return txid.GetHex();
         }
     }
@@ -815,11 +815,11 @@ UniValue trade_MP(const UniValue& params, bool fHelp)
             uint8_t ecosystem = 0;
             if (isMainEcosystemProperty(params[1].get_int64())
                     && isMainEcosystemProperty(params[3].get_int64())) {
-                ecosystem = OMNI_PROPERTY_MSC;
+                ecosystem = EXODUS_PROPERTY_EXODUS;
             }
             if (isTestEcosystemProperty(params[1].get_int64())
                     && isTestEcosystemProperty(params[3].get_int64())) {
-                ecosystem = OMNI_PROPERTY_TMSC;
+                ecosystem = EXODUS_PROPERTY_TEXODUS;
             }
             values.push_back(params[0]); // fromAddress
             values.push_back(ecosystem);
@@ -882,7 +882,7 @@ UniValue exodus_sendtrade(const UniValue& params, bool fHelp)
         if (!autoCommit) {
             return rawHex;
         } else {
-            PendingAdd(txid, fromAddress, MSC_TYPE_METADEX_TRADE, propertyIdForSale, amountForSale);
+            PendingAdd(txid, fromAddress, EXODUS_TYPE_METADEX_TRADE, propertyIdForSale, amountForSale);
             return txid.GetHex();
         }
     }
@@ -940,7 +940,7 @@ UniValue exodus_sendcanceltradesbyprice(const UniValue& params, bool fHelp)
         if (!autoCommit) {
             return rawHex;
         } else {
-            PendingAdd(txid, fromAddress, MSC_TYPE_METADEX_CANCEL_PRICE, propertyIdForSale, amountForSale, false);
+            PendingAdd(txid, fromAddress, EXODUS_TYPE_METADEX_CANCEL_PRICE, propertyIdForSale, amountForSale, false);
             return txid.GetHex();
         }
     }
@@ -994,7 +994,7 @@ UniValue exodus_sendcanceltradesbypair(const UniValue& params, bool fHelp)
         if (!autoCommit) {
             return rawHex;
         } else {
-            PendingAdd(txid, fromAddress, MSC_TYPE_METADEX_CANCEL_PAIR, propertyIdForSale, 0, false);
+            PendingAdd(txid, fromAddress, EXODUS_TYPE_METADEX_CANCEL_PAIR, propertyIdForSale, 0, false);
             return txid.GetHex();
         }
     }
@@ -1042,7 +1042,7 @@ UniValue exodus_sendcancelalltrades(const UniValue& params, bool fHelp)
         if (!autoCommit) {
             return rawHex;
         } else {
-            PendingAdd(txid, fromAddress, MSC_TYPE_METADEX_CANCEL_ECOSYSTEM, ecosystem, 0, false);
+            PendingAdd(txid, fromAddress, EXODUS_TYPE_METADEX_CANCEL_ECOSYSTEM, ecosystem, 0, false);
             return txid.GetHex();
         }
     }
@@ -1419,7 +1419,7 @@ UniValue exodus_sendalert(const UniValue& params, bool fHelp)
     std::string alertMessage = ParseText(params[3]);
 
     // create a payload for the transaction
-    std::vector<unsigned char> payload = CreatePayload_ExodusCoreAlert(alertType, expiryValue, alertMessage);
+    std::vector<unsigned char> payload = CreatePayload_ExodusAlert(alertType, expiryValue, alertMessage);
 
     // request the wallet build the transaction (and if needed commit it)
     uint256 txid;

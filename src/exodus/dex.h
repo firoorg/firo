@@ -45,11 +45,11 @@ class CMPOffer
 {
 private:
     int offerBlock;
-    //! amount of MSC for sale specified when the offer was placed
+    //! amount of EXODUS for sale specified when the offer was placed
     int64_t offer_amount_original;
     uint32_t property;
-    //! amount desired, in BTC
-    int64_t BTC_desired_original;
+    //! amount desired, in XZC
+    int64_t XZC_desired_original;
     int64_t min_fee;
     uint8_t blocktimelimit;
     uint256 txid;
@@ -63,10 +63,10 @@ public:
     uint8_t getSubaction() const { return subaction; }
 
     int64_t getOfferAmountOriginal() const { return offer_amount_original; }
-    int64_t getBTCDesiredOriginal() const { return BTC_desired_original; }
+    int64_t getXZCDesiredOriginal() const { return XZC_desired_original; }
 
     CMPOffer()
-      : offerBlock(0), offer_amount_original(0), property(0), BTC_desired_original(0), min_fee(0),
+      : offerBlock(0), offer_amount_original(0), property(0), XZC_desired_original(0), min_fee(0),
         blocktimelimit(0), subaction(0)
     {
     }
@@ -74,15 +74,15 @@ public:
     CMPOffer(int block, int64_t amountOffered, uint32_t propertyId, int64_t amountDesired,
              int64_t minAcceptFee, uint8_t paymentWindow, const uint256& tx)
       : offerBlock(block), offer_amount_original(amountOffered), property(propertyId),
-        BTC_desired_original(amountDesired), min_fee(minAcceptFee), blocktimelimit(paymentWindow),
+        XZC_desired_original(amountDesired), min_fee(minAcceptFee), blocktimelimit(paymentWindow),
         txid(tx), subaction(0)
     {
-        if (msc_debug_dex) PrintToLog("%s(%d): %s\n", __func__, amountOffered, txid.GetHex());
+        if (exodus_debug_dex) PrintToLog("%s(%d): %s\n", __func__, amountOffered, txid.GetHex());
     }
 
     CMPOffer(const CMPTransaction& tx)
       : offerBlock(tx.block), offer_amount_original(tx.nValue), property(tx.property),
-        BTC_desired_original(tx.amount_desired), min_fee(tx.min_fee),
+        XZC_desired_original(tx.amount_desired), min_fee(tx.min_fee),
         blocktimelimit(tx.blocktimelimit), subaction(tx.subaction)
     {
     }
@@ -94,8 +94,8 @@ public:
                 offerBlock,
                 offer_amount_original,
                 property,
-                BTC_desired_original,
-                (OMNI_PROPERTY_BTC),
+                XZC_desired_original,
+                (EXODUS_PROPERTY_XZC),
                 min_fee,
                 blocktimelimit,
                 txid.ToString()
@@ -117,13 +117,13 @@ public:
 class CMPAccept
 {
 private:
-    int64_t accept_amount_original;    // amount of MSC/TMSC desired to purchased
-    int64_t accept_amount_remaining;   // amount of MSC/TMSC remaining to purchased
+    int64_t accept_amount_original;    // amount of EXODUS/TEXODUS desired to purchased
+    int64_t accept_amount_remaining;   // amount of EXODUS/TEXODUS remaining to purchased
     uint8_t blocktimelimit;            // copied from the offer during creation
     uint32_t property;                 // copied from the offer during creation
 
     int64_t offer_amount_original;     // copied from the Offer during Accept's creation
-    int64_t BTC_desired_original;      // copied from the Offer during Accept's creation
+    int64_t XZC_desired_original;      // copied from the Offer during Accept's creation
 
     // the original offers TXIDs, needed to match Accept to the Offer during Accept's destruction, etc.
     uint256 offer_txid;
@@ -134,7 +134,7 @@ public:
     uint256 getHash() const { return offer_txid; }
 
     int64_t getOfferAmountOriginal() const { return offer_amount_original; }
-    int64_t getBTCDesiredOriginal() const { return BTC_desired_original; }
+    int64_t getXZCDesiredOriginal() const { return XZC_desired_original; }
 
     int64_t getAcceptAmount() const { return accept_amount_original; }
 
@@ -147,7 +147,7 @@ public:
               int64_t offerAmountOriginal, int64_t amountDesired, const uint256& txid)
       : accept_amount_remaining(amountAccepted), blocktimelimit(paymentWindow),
         property(propertyId), offer_amount_original(offerAmountOriginal),
-        BTC_desired_original(amountDesired), offer_txid(txid), block(blockIn)
+        XZC_desired_original(amountDesired), offer_txid(txid), block(blockIn)
     {
         accept_amount_original = accept_amount_remaining;
         PrintToLog("%s(%d): %s\n", __func__, amountAccepted, txid.GetHex());
@@ -159,7 +159,7 @@ public:
       : accept_amount_original(acceptAmountOriginal),
         accept_amount_remaining(acceptAmountRemaining), blocktimelimit(paymentWindow),
         property(propertyId), offer_amount_original(offerAmountOriginal),
-        BTC_desired_original(amountDesired), offer_txid(txid), block(blockIn)
+        XZC_desired_original(amountDesired), offer_txid(txid), block(blockIn)
     {
         PrintToLog("%s(%d[%d]): %s\n", __func__, acceptAmountRemaining, acceptAmountOriginal, txid.GetHex());
     }
@@ -206,7 +206,7 @@ public:
                 accept_amount_original,
                 blocktimelimit,
                 offer_amount_original,
-                BTC_desired_original,
+                XZC_desired_original,
                 offer_txid.ToString());
 
         // add the line to the hash

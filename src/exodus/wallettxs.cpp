@@ -248,7 +248,7 @@ int64_t SelectCoins(const std::string& fromAddress, CCoinControl& coinControl, i
                 continue;
             }
             if (txOut.nValue < GetEconomicThreshold(txOut)) {
-                if (msc_debug_tokens)
+                if (exodus_debug_tokens)
                     PrintToLog("%s: output value below economic threshold: %s:%d, value: %d\n",
                             __func__, txid.GetHex(), n, txOut.nValue);
                 continue;

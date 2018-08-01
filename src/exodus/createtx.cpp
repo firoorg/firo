@@ -145,7 +145,7 @@ ExodusTxBuilder& ExodusTxBuilder::addOpReturn(const std::vector<unsigned char>& 
 {
     std::vector<std::pair<CScript, int64_t> > outputs;
 
-    if (!ExodusCore_Encode_ClassC(data, outputs)) {
+    if (!Exodus_Encode_ClassC(data, outputs)) {
         return *this;
     }
 
@@ -157,7 +157,7 @@ ExodusTxBuilder& ExodusTxBuilder::addMultisig(const std::vector<unsigned char>& 
 {
     std::vector<std::pair<CScript, int64_t> > outputs;
 
-    if (!ExodusCore_Encode_ClassB(seed, pubKey, data, outputs)) {
+    if (!Exodus_Encode_ClassB(seed, pubKey, data, outputs)) {
         return *this;
     }
 

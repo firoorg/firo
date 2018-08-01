@@ -37,7 +37,7 @@ const uint16_t FEATURE_STOV1 = 10;
 //! Feature identifier to activate the waiting period for enabling managed property address freezing
 const uint16_t FEATURE_FREEZENOTICE = 14;
 
-//! When (propertyTotalTokens / OMNI_FEE_THRESHOLD) is reached fee distribution will occur
+//! When (propertyTotalTokens / EXODUS_FEE_THRESHOLD) is reached fee distribution will occur
 const int64_t EXODUS_FEE_THRESHOLD = 100000; // 0.001%
 
 /** A structure to represent transaction restrictions.
@@ -89,7 +89,7 @@ public:
     int MAX_ACTIVATION_BLOCKS;
 
     //! Waiting period after enabling freezing before addresses may be frozen
-    int OMNI_FREEZE_WAIT_PERIOD;
+    int EXODUS_FREEZE_WAIT_PERIOD;
 
     //! Block to enable pay-to-pubkey-hash support
     int PUBKEYHASH_BLOCK;
@@ -101,25 +101,25 @@ public:
     int NULLDATA_BLOCK;
 
     //! Block to enable alerts and notifications
-    int MSC_ALERT_BLOCK;
+    int EXODUS_ALERT_BLOCK;
     //! Block to enable simple send transactions
-    int MSC_SEND_BLOCK;
+    int EXODUS_SEND_BLOCK;
     //! Block to enable DEx transactions
-    int MSC_DEX_BLOCK;
+    int EXODUS_DEX_BLOCK;
     //! Block to enable smart property transactions
-    int MSC_SP_BLOCK;
+    int EXODUS_SP_BLOCK;
     //! Block to enable managed properties
-    int MSC_MANUALSP_BLOCK;
+    int EXODUS_MANUALSP_BLOCK;
     //! Block to enable send-to-owners transactions
-    int MSC_STO_BLOCK;
+    int EXODUS_STO_BLOCK;
     //! Block to enable MetaDEx transactions
-    int MSC_METADEX_BLOCK;
+    int EXODUS_METADEX_BLOCK;
     //! Block to enable "send all" transactions
-    int MSC_SEND_ALL_BLOCK;
+    int EXODUS_SEND_ALL_BLOCK;
     //! Block to enable betting transactions
-    int MSC_BET_BLOCK;
+    int EXODUS_BET_BLOCK;
     //! Block to enable cross property STO (v1)
-    int MSC_STOV1_BLOCK;
+    int EXODUS_STOV1_BLOCK;
 
     //! Block to deactivate crowdsale participations when "granting tokens"
     int GRANTEFFECTS_FEATURE_BLOCK;

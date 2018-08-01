@@ -52,7 +52,7 @@ static void PendingActivationCompleted(const FeatureActivation& activation)
 {
     DeletePendingActivation(activation.featureId);
     vecCompletedActivations.push_back(activation);
-    uiInterface.OmniStateChanged();
+    uiInterface.ExodusStateChanged();
 }
 
 /**
@@ -72,7 +72,7 @@ void AddPendingActivation(uint16_t featureId, int activationBlock, uint32_t minC
 
     vecPendingActivations.push_back(featureActivation);
 
-    uiInterface.OmniStateChanged();
+    uiInterface.ExodusStateChanged();
 }
 
 /**
@@ -86,7 +86,7 @@ void CheckLiveActivations(int blockHeight)
         if (liveActivation.activationBlock > blockHeight) {
             continue;
         }
-        if (OMNICORE_VERSION < liveActivation.minClientVersion) {
+        if (EXODUS_VERSION < liveActivation.minClientVersion) {
             std::string msgText = strprintf("Shutting down due to unsupported feature activation (%d: %s)", liveActivation.featureId, liveActivation.featureName);
             PrintToLog(msgText);
             PrintToConsole(msgText);
@@ -126,7 +126,7 @@ void ClearActivations()
 {
     vecPendingActivations.clear();
     vecCompletedActivations.clear();
-    uiInterface.OmniStateChanged();
+    uiInterface.ExodusStateChanged();
 }
 
 /**

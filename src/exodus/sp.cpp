@@ -88,7 +88,7 @@ CMPSPInfo::CMPSPInfo(const boost::filesystem::path& path, bool fWipe)
 
 CMPSPInfo::~CMPSPInfo()
 {
-    if (msc_debug_persistence) PrintToLog("CMPSPInfo closed\n");
+    if (exodus_debug_persistence) PrintToLog("CMPSPInfo closed\n");
 }
 
 void CMPSPInfo::Clear()
@@ -110,10 +110,10 @@ uint32_t CMPSPInfo::peekNextSPID(uint8_t ecosystem) const
     uint32_t nextId = 0;
 
     switch (ecosystem) {
-        case EXODUS_PROPERTY_MSC: // Main ecosystem, MSC: 1, TMSC: 2, First available SP = 3
+        case EXODUS_PROPERTY_EXODUS: // Main ecosystem, MSC: 1, TMSC: 2, First available SP = 3
             nextId = next_spid;
             break;
-        case EXODUS_PROPERTY_TMSC: // Test ecosystem, same as above with high bit set
+        case EXODUS_PROPERTY_TEXODUS: // Test ecosystem, same as above with high bit set
             nextId = next_test_spid;
             break;
         default: // Non-standard ecosystem, ID's start at 0
@@ -126,7 +126,7 @@ uint32_t CMPSPInfo::peekNextSPID(uint8_t ecosystem) const
 bool CMPSPInfo::updateSP(uint32_t propertyId, const Entry& info)
 {
     // cannot update implied SP
-    if (EXODUS_PROPERTY_MSC == propertyId || EXODUS_PROPERTY_TMSC == propertyId) {
+    if (EXODUS_PROPERTY_EXODUS == propertyId || EXODUS_PROPERTY_TEXODUS == propertyId) {
         return false;
     }
 
@@ -171,10 +171,10 @@ uint32_t CMPSPInfo::putSP(uint8_t ecosystem, const Entry& info)
 {
     uint32_t propertyId = 0;
     switch (ecosystem) {
-        case EXODUS_PROPERTY_MSC: // Main ecosystem, MSC: 1, TMSC: 2, First available SP = 3
+        case EXODUS_PROPERTY_EXODUS: // Main ecosystem, MSC: 1, TMSC: 2, First available SP = 3
             propertyId = next_spid++;
             break;
-        case EXODUS_PROPERTY_TMSC: // Test ecosystem, same as above with high bit set
+        case EXODUS_PROPERTY_TEXODUS: // Test ecosystem, same as above with high bit set
             propertyId = next_test_spid++;
             break;
         default: // Non-standard ecosystem, ID's start at 0
@@ -230,10 +230,10 @@ uint32_t CMPSPInfo::putSP(uint8_t ecosystem, const Entry& info)
 bool CMPSPInfo::getSP(uint32_t propertyId, Entry& info) const
 {
     // special cases for constant SPs MSC and TMSC
-    if (EXODUS_PROPERTY_MSC == propertyId) {
+    if (EXODUS_PROPERTY_EXODUS == propertyId) {
         info = implied_exodus;
         return true;
-    } else if (EXODUS_PROPERTY_TMSC == propertyId) {
+    } else if (EXODUS_PROPERTY_TEXODUS == propertyId) {
         info = implied_texodus;
         return true;
     }
@@ -267,7 +267,7 @@ bool CMPSPInfo::getSP(uint32_t propertyId, Entry& info) const
 bool CMPSPInfo::hasSP(uint32_t propertyId) const
 {
     // Special cases for constant SPs MSC and TMSC
-    if (EXODUS_PROPERTY_MSC == propertyId || EXODUS_PROPERTY_TMSC == propertyId) {
+    if (EXODUS_PROPERTY_EXODUS == propertyId || EXODUS_PROPERTY_TEXODUS == propertyId) {
         return true;
     }
 
@@ -441,7 +441,7 @@ bool CMPSPInfo::getWatermark(uint256& watermark) const
 void CMPSPInfo::printAll() const
 {
     // print off the hard coded MSC and TMSC entries
-    for (uint32_t idx = EXODUS_PROPERTY_MSC; idx <= EXODUS_PROPERTY_TMSC; idx++) {
+    for (uint32_t idx = EXODUS_PROPERTY_EXODUS; idx <= EXODUS_PROPERTY_TEXODUS; idx++) {
         Entry info;
         PrintToConsole("%10d => ", idx);
         if (getSP(idx, info)) {
@@ -803,7 +803,7 @@ void exodus::eraseMaxedCrowdsale(const std::string& address, int64_t blockTime, 
         PrintToLog("%s(): ERASING MAXED OUT CROWDSALE from address=%s, at block %d (timestamp: %d), SP: %d (%s)\n",
             __func__, address, block, blockTime, crowdsale.getPropertyId(), strMPProperty(crowdsale.getPropertyId()));
 
-        if (msc_debug_sp) {
+        if (exodus_debug_sp) {
             PrintToLog("%s(): %s\n", __func__, DateTimeStrFormat("%Y-%m-%d %H:%M:%S", blockTime));
             PrintToLog("%s(): %s\n", __func__, crowdsale.toString(address));
         }
@@ -844,7 +844,7 @@ unsigned int exodus::eraseExpiredCrowdsale(const CBlockIndex* pBlockIndex)
             PrintToLog("%s(): ERASING EXPIRED CROWDSALE from address=%s, at block %d (timestamp: %d), SP: %d (%s)\n",
                 __func__, address, blockHeight, blockTime, crowdsale.getPropertyId(), strMPProperty(crowdsale.getPropertyId()));
 
-            if (msc_debug_sp) {
+            if (exodus_debug_sp) {
                 PrintToLog("%s(): %s\n", __func__, DateTimeStrFormat("%Y-%m-%d %H:%M:%S", blockTime));
                 PrintToLog("%s(): %s\n", __func__, crowdsale.toString(address));
             }

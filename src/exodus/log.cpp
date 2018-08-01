@@ -84,8 +84,8 @@ static boost::once_flag debugLogInitFlag = BOOST_ONCE_INIT;
  */
 static FILE* fileout = NULL;
 static boost::mutex* mutexDebugLog = NULL;
-/** Flag to indicate, whether the Omni Core log file should be reopened. */
-extern std::atomic<bool> fReopenOmniCoreLog;
+/** Flag to indicate, whether the Exodus log file should be reopened. */
+extern std::atomic<bool> fReopenExodusLog;
 /**
  * Returns path for debug log file.
  *
@@ -164,8 +164,8 @@ int LogFilePrint(const std::string& str)
         boost::mutex::scoped_lock scoped_lock(*mutexDebugLog);
 
         // Reopen the log file, if requested
-        if (fReopenOmniCoreLog) {
-            fReopenOmniCoreLog = false;
+        if (fReopenExodusLog) {
+        	fReopenExodusLog = false;
             boost::filesystem::path pathDebug = GetLogPath();
             if (freopen(pathDebug.string().c_str(), "a", fileout) != NULL) {
                 setbuf(fileout, NULL); // Unbuffered

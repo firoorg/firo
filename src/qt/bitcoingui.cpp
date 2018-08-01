@@ -229,8 +229,8 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *platformStyle, const NetworkStyle *n
     framePendingLayout->addStretch();
     labelExodusPendingIcon = new QLabel();
     labelExodusPendingText = new QLabel("You have Exodus transactions awaiting confirmation.");
-    framePendingLayout->addWidget(labelOmniPendingIcon);
-    framePendingLayout->addWidget(labelOmniPendingText);
+    framePendingLayout->addWidget(labelExodusPendingIcon);
+    framePendingLayout->addWidget(labelExodusPendingText);
     framePendingLayout->addStretch();
     labelExodusPendingIcon->hide();
     labelExodusPendingText->hide();

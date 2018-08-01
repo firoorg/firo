@@ -1941,7 +1941,7 @@ bool fLargeWorkForkFound = false;
 bool fLargeWorkInvalidChainFound = false;
 CBlockIndex *pindexBestForkTip = NULL, *pindexBestForkBase = NULL;
 
-static void AlertNotify(const std::string &strMessage) {
+void AlertNotify(const std::string &strMessage) {
     uiInterface.NotifyAlertChanged();
     std::string strCmd = GetArg("-alertnotify", "");
     if (strCmd.empty()) return;
@@ -2247,6 +2247,17 @@ bool CheckInputs(const CTransaction &tx, CValidationState &state, const CCoinsVi
     return true;
 }
 
+bool AbortNode(const std::string &strMessage, const std::string &userMessage = "") {
+     strMiscWarning = strMessage;
+     LogPrintf("*** %s\n", strMessage);
+     uiInterface.ThreadSafeMessageBox(
+             userMessage.empty() ? _("Error: A fatal internal error occurred, see debug.log for details")
+                                 : userMessage,
+             "", CClientUIInterface::MSG_ERROR);
+     StartShutdown();
+     return false;
+ }
+
 namespace {
 
     bool UndoWriteToDisk(const CBlockUndo &blockundo, CDiskBlockPos &pos, const uint256 &hashBlock,
@@ -2303,7 +2314,7 @@ namespace {
     }
 
 /** Abort with a message */
-    bool AbortNode(const std::string &strMessage, const std::string &userMessage = "") {
+    /*bool AbortNode(const std::string &strMessage, const std::string &userMessage = "") {
         strMiscWarning = strMessage;
         LogPrintf("*** %s\n", strMessage);
         uiInterface.ThreadSafeMessageBox(
@@ -2312,10 +2323,10 @@ namespace {
                 "", CClientUIInterface::MSG_ERROR);
         StartShutdown();
         return false;
-    }
+    }*/
 
     bool AbortNode(CValidationState &state, const std::string &strMessage, const std::string &userMessage = "") {
-        AbortNode(strMessage, userMessage);
+        ::AbortNode(strMessage, userMessage);
         return state.Error(strMessage);
     }
 

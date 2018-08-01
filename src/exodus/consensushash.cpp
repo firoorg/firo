@@ -65,7 +65,7 @@ std::string GenerateConsensusString(const CMPOffer& offerObj, const std::string&
 {
     return strprintf("%s|%s|%d|%d|%d|%d|%d",
             offerObj.getHash().GetHex(), address, offerObj.getProperty(), offerObj.getOfferAmountOriginal(),
-            offerObj.getBTCDesiredOriginal(), offerObj.getMinFee(), offerObj.getBlockTimeLimit());
+            offerObj.getXZCDesiredOriginal(), offerObj.getMinFee(), offerObj.getBlockTimeLimit());
 }
 
 // Generates a consensus string for hashing based on a DEx accept object

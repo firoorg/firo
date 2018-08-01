@@ -82,7 +82,7 @@ int populateRPCTransactionObject(const CTransaction& tx, const uint256& blockHas
 
     const uint256& txid = tx.GetHash();
 
-    // DEx BTC payment needs special handling since it's not actually an Omni message - handle and return
+    // DEx XZC payment needs special handling since it's not actually an Exodus message - handle and return
     if (parseRC > 0) {
         if (confirmations <= 0) {
             // only confirmed DEx payments are currently supported
@@ -144,7 +144,7 @@ int populateRPCTransactionObject(const CTransaction& tx, const uint256& blockHas
     if (confirmations != 0 && !blockHash.IsNull()) {
         txobj.push_back(Pair("valid", valid));
         if (!valid) {
-            txobj.push_back(Pair("invalidreason", p_OmniTXDB->FetchInvalidReason(txid)));
+            txobj.push_back(Pair("invalidreason", p_ExodusTXDB->FetchInvalidReason(txid)));
         }
         txobj.push_back(Pair("blockhash", blockHash.GetHex()));
         txobj.push_back(Pair("blocktime", blockTime));
@@ -212,7 +212,7 @@ void populateRPCTypeInfo(CMPTransaction& mp_obj, UniValue& txobj, uint32_t txTyp
         case EXODUS_TYPE_CHANGE_ISSUER_ADDRESS:
             populateRPCTypeChangeIssuer(mp_obj, txobj);
             break;
-        case OMNICORE_MESSAGE_TYPE_ACTIVATION:
+        case EXODUS_MESSAGE_TYPE_ACTIVATION:
             populateRPCTypeActivation(mp_obj, txobj);
             break;
     }
@@ -297,7 +297,7 @@ void populateRPCTypeTradeOffer(CMPTransaction& exodusObj, UniValue& txobj)
     CMPOffer temp_offer(exodusObj);
     uint32_t propertyId = exodusObj.getProperty();
     int64_t amountOffered = exodusObj.getAmount();
-    int64_t amountDesired = temp_offer.getBTCDesiredOriginal();
+    int64_t amountDesired = temp_offer.getXZCDesiredOriginal();
     uint8_t sellSubAction = temp_offer.getSubaction();
 
     {

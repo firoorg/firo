@@ -15,6 +15,11 @@
 #    define EXODUS_VERSION_SUFFIX ""
 #endif
 
+extern const int EXODUS_VERSION_MAJOR;
+extern const int EXODUS_VERSION_MINOR;
+extern const int EXODUS_VERSION_PATCH;
+extern const int EXODUS_VERSION_BUILD;
+
 //! Returns formatted Exodus version, e.g. "1.2.0" or "1.3.4.1"
 const std::string ExodusVersion()
 {
@@ -32,8 +37,8 @@ const std::string ExodusVersion()
     }
 }
 
-//! Returns formatted Bitcoin Core version, e.g. "0.10", "0.9.3"
-const std::string BitcoinCoreVersion()
+//! Returns formatted Zcoin Core version, e.g. "0.10", "0.9.3"
+const std::string ZcoinCoreVersion()
 {
     if (CLIENT_VERSION_BUILD) {
         return strprintf("%d.%d.%d.%d",

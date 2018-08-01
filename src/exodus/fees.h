@@ -34,7 +34,7 @@ public:
     // Show Fee Cache DB records
     void printAll();
 
-    // Sets the distribution thresholds to total tokens for a property / OMNI_FEE_THRESHOLD
+    // Sets the distribution thresholds to total tokens for a property / EXODUS_FEE_THRESHOLD
     void UpdateDistributionThresholds(uint32_t propertyId);
     // Returns the distribution threshold for a property
     int64_t GetDistributionThreshold(const uint32_t &propertyId);

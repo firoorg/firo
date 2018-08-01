@@ -163,7 +163,7 @@ void WalletView::setClientModel(ClientModel *clientModel)
     this->clientModel = clientModel;
 
     overviewPage->setClientModel(clientModel);
-    sendCoinsPage->setClientModel(clientModel);
+    //sendCoinsPage->setClientModel(clientModel);
     znodeListPage->setClientModel(clientModel);
     balancesPage->setClientModel(clientModel);
     sendMPTab->setClientModel(clientModel);
@@ -178,7 +178,7 @@ void WalletView::setWalletModel(WalletModel *walletModel)
     transactionView->setModel(walletModel);
     overviewPage->setWalletModel(walletModel);
     receiveCoinsPage->setModel(walletModel);
-    sendCoinsPage->setModel(walletModel);
+    //sendCoinsPage->setModel(walletModel);
     zerocoinPage->setModel(walletModel->getAddressTableModel());
     usedReceivingAddressesPage->setModel(walletModel->getAddressTableModel());
     usedSendingAddressesPage->setModel(walletModel->getAddressTableModel());
@@ -281,8 +281,10 @@ void WalletView::gotoSendCoinsPage(QString addr)
 {
     setCurrentWidget(sendCoinsPage);
 
-    if (!addr.isEmpty())
-        sendCoinsPage->setAddress(addr);
+    if (!addr.isEmpty()){
+        //sendCoinsPage->setAddress(addr);
+    	sendCoinsTab->setAddress(addr);
+    }
 }
 
 void WalletView::gotoSignMessageTab(QString addr)
@@ -312,7 +314,8 @@ void WalletView::gotoVerifyMessageTab(QString addr)
 bool WalletView::handlePaymentRequest(const SendCoinsRecipient& recipient)
 {
     sendTabHolder->setCurrentIndex(1);
-    return sendCoinsPage->handlePaymentRequest(recipient);
+    //return sendCoinsPage->handlePaymentRequest(recipient);
+    return sendCoinsTab->handlePaymentRequest(recipient);
 }
 
 void WalletView::showOutOfSyncWarning(bool fShow)

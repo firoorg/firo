@@ -28,7 +28,7 @@ PendingMap my_pending;
  */
 void PendingAdd(const uint256& txid, const std::string& sendingAddress, uint16_t type, uint32_t propertyId, int64_t amount, bool fSubtract)
 {
-    if (msc_debug_pending) PrintToLog("%s(%s,%s,%d,%d,%d,%s)\n", __func__, txid.GetHex(), sendingAddress, type, propertyId, amount, fSubtract);
+    if (exodus_debug_pending) PrintToLog("%s(%s,%s,%d,%d,%d,%s)\n", __func__, txid.GetHex(), sendingAddress, type, propertyId, amount, fSubtract);
 
     // bypass tally update for pending transactions, if there the amount should not be subtracted from the balance (e.g. for cancels)
     if (fSubtract) {
@@ -66,7 +66,7 @@ void PendingDelete(const uint256& txid)
     if (it != my_pending.end()) {
         const CMPPending& pending = it->second;
         int64_t src_amount = getMPbalance(pending.src, pending.prop, PENDING);
-        if (msc_debug_pending) PrintToLog("%s(%s): amount=%d\n", __FUNCTION__, txid.GetHex(), src_amount);
+        if (exodus_debug_pending) PrintToLog("%s(%s): amount=%d\n", __FUNCTION__, txid.GetHex(), src_amount);
         if (src_amount) update_tally_map(pending.src, pending.prop, pending.amount, PENDING);
         my_pending.erase(it);
 

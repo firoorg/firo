@@ -78,7 +78,7 @@ extern bool exodus_debug_fees;
         return ConsolePrint(tfm::format("%s", TINYFORMAT_PASSARGS(n)));         \
     }
 
-TINYFORMAT_FOREACH_ARGNUM(MAKE_EXODUS_CORE_ERROR_AND_LOG_FUNC)
+TINYFORMAT_FOREACH_ARGNUM(MAKE_EXODUS_ERROR_AND_LOG_FUNC)
 
 #undef MAKE_EXODUS_ERROR_AND_LOG_FUNC
 

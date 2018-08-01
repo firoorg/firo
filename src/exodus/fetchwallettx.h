@@ -12,7 +12,7 @@ namespace exodus
 unsigned int GetTransactionByteOffset(const uint256& txid);
 
 /** Returns an ordered list of Omni transactions that are relevant to the wallet. */
-std::map<std::string, uint256> FetchWalletOmniTransactions(unsigned int count, int startBlock = 0, int endBlock = 999999);
+std::map<std::string, uint256> FetchWalletExodusTransactions(unsigned int count, int startBlock = 0, int endBlock = 999999);
 }
 
 #endif // EXODUS_FETCHWALLETTX_H

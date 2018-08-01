@@ -53,7 +53,7 @@
 #include <string>
 
 using std::runtime_error;
-using namespace mastercore;
+using namespace exodus;
 
 /**
  * Throws a JSONRPCError, depending on error code.
@@ -72,8 +72,8 @@ void PopulateFailure(int error)
                                                   \"Crowdsale Purchase\" without valid property identifier");
         case MP_INVALID_TX_IN_DB_FOUND:
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Potential database corruption: Invalid transaction found");
-        case MP_TX_IS_NOT_MASTER_PROTOCOL:
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Not a Master Protocol transaction");
+        case MP_TX_IS_NOT_EXODUS_PROTOCOL:
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Not a Exodus Protocol transaction");
     }
     throw JSONRPCError(RPC_INTERNAL_ERROR, "Generic transaction population failure");
 }
@@ -385,9 +385,9 @@ UniValue exodus_getfeeshare(const UniValue& params, bool fHelp)
 
     OwnerAddrType receiversSet;
     if (ecosystem == 1) {
-        receiversSet = STO_GetReceivers("FEEDISTRIBUTION", OMNI_PROPERTY_MSC, COIN);
+        receiversSet = STO_GetReceivers("FEEDISTRIBUTION", EXODUS_PROPERTY_EXODUS, COIN);
     } else {
-        receiversSet = STO_GetReceivers("FEEDISTRIBUTION", OMNI_PROPERTY_TMSC, COIN);
+        receiversSet = STO_GetReceivers("FEEDISTRIBUTION", EXODUS_PROPERTY_TEXODUS, COIN);
     }
 
     for (OwnerAddrType::reverse_iterator it = receiversSet.rbegin(); it != receiversSet.rend(); ++it) {
@@ -548,7 +548,7 @@ UniValue exodus_getpayload(const UniValue& params, bool fHelp)
 
     CMPTransaction mp_obj;
     int parseRC = ParseTransaction(tx, blockHeight, 0, mp_obj, blockTime);
-    if (parseRC < 0) PopulateFailure(MP_TX_IS_NOT_MASTER_PROTOCOL);
+    if (parseRC < 0) PopulateFailure(MP_TX_IS_NOT_EXODUS_PROTOCOL);
 
     UniValue payloadObj(UniValue::VOBJ);
     payloadObj.push_back(Pair("payload", mp_obj.getPayload()));
@@ -1096,8 +1096,8 @@ UniValue exodus_getcrowdsale(const UniValue& params, bool fHelp)
 
     // note the database is already deserialized here and there is minimal performance penalty to iterate recipients to calculate amountRaised
     int64_t amountRaised = 0;
-    uint16_t propertyIdType = isPropertyDivisible(propertyId) ? MSC_PROPERTY_TYPE_DIVISIBLE : MSC_PROPERTY_TYPE_INDIVISIBLE;
-    uint16_t desiredIdType = isPropertyDivisible(sp.property_desired) ? MSC_PROPERTY_TYPE_DIVISIBLE : MSC_PROPERTY_TYPE_INDIVISIBLE;
+    uint16_t propertyIdType = isPropertyDivisible(propertyId) ? EXODUS_PROPERTY_TYPE_DIVISIBLE : EXODUS_PROPERTY_TYPE_INDIVISIBLE;
+    uint16_t desiredIdType = isPropertyDivisible(sp.property_desired) ? EXODUS_PROPERTY_TYPE_DIVISIBLE : EXODUS_PROPERTY_TYPE_INDIVISIBLE;
     std::map<std::string, UniValue> sortMap;
     for (std::map<uint256, std::vector<int64_t> >::const_iterator it = database.begin(); it != database.end(); it++) {
         UniValue participanttx(UniValue::VOBJ);
@@ -1555,7 +1555,7 @@ UniValue exodus_getactivedexsells(const UniValue& params, bool fHelp)
         int64_t minFee = selloffer.getMinFee();
         uint8_t timeLimit = selloffer.getBlockTimeLimit();
         int64_t sellOfferAmount = selloffer.getOfferAmountOriginal(); //badly named - "Original" implies off the wire, but is amended amount
-        int64_t sellBitcoinDesired = selloffer.getBTCDesiredOriginal(); //badly named - "Original" implies off the wire, but is amended amount
+        int64_t sellBitcoinDesired = selloffer.getXZCDesiredOriginal(); //badly named - "Original" implies off the wire, but is amended amount
         int64_t amountAvailable = getMPbalance(seller, propertyId, SELLOFFER_RESERVE);
         int64_t amountAccepted = getMPbalance(seller, propertyId, ACCEPT_RESERVE);
 
@@ -1597,7 +1597,7 @@ UniValue exodus_getactivedexsells(const UniValue& params, bool fHelp)
                 int blocksLeftToPay = (blockOfAccept + selloffer.getBlockTimeLimit()) - curBlock;
                 int64_t amountAccepted = accept.getAcceptAmountRemaining();
                 // TODO: don't recalculate!
-                int64_t amountToPayInBTC = calculateDesiredBTC(accept.getOfferAmountOriginal(), accept.getBTCDesiredOriginal(), amountAccepted);
+                int64_t amountToPayInBTC = calculateDesiredBTC(accept.getOfferAmountOriginal(), accept.getXZCDesiredOriginal(), amountAccepted);
                 matchedAccept.push_back(Pair("buyer", buyer));
                 matchedAccept.push_back(Pair("block", blockOfAccept));
                 matchedAccept.push_back(Pair("blocksleft", blocksLeftToPay));
@@ -1847,8 +1847,7 @@ UniValue exodus_getinfo(const UniValue& params, bool fHelp)
             "{\n"
             "  \"exodusversion_int\" : xxxxxxx,       (number) client version as integer\n"
             "  \"exodusversion\" : \"x.x.x.x-xxx\",     (string) client version\n"
-            "  \"mastercoreversion\" : \"x.x.x.x-xxx\",   (string) client version (DEPRECIATED)\n"
-            "  \"bitcoincoreversion\" : \"x.x.x\",        (string) Bitcoin Core version\n"
+            "  \"zcoincoreversion\" : \"x.x.x\",        (string) Bitcoin Core version\n"
             "  \"block\" : nnnnnn,                      (number) index of the last processed block\n"
             "  \"blocktime\" : nnnnnnnnnn,              (number) timestamp of the last processed block\n"
             "  \"blocktransactions\" : nnnn,            (number) Exodus transactions found in the last processed block\n"
@@ -1870,11 +1869,10 @@ UniValue exodus_getinfo(const UniValue& params, bool fHelp)
 
     UniValue infoResponse(UniValue::VOBJ);
 
-    // provide the mastercore and bitcoin version
+    // provide the exodus and bitcoin version
     infoResponse.push_back(Pair("exodusversion_int", EXODUS_VERSION));
-    infoResponse.push_back(Pair("exodusversion", ExodusCoreVersion()));
-    infoResponse.push_back(Pair("mastercoreversion", ExodusCoreVersion()));
-    infoResponse.push_back(Pair("bitcoincoreversion", BitcoinCoreVersion()));
+    infoResponse.push_back(Pair("exodusversion", ExodusVersion()));
+    infoResponse.push_back(Pair("zcoincoreversion", ZcoinCoreVersion()));
 
     // provide the current block details
     int block = GetHeight();
@@ -1896,7 +1894,7 @@ UniValue exodus_getinfo(const UniValue& params, bool fHelp)
 
     // handle alerts
     UniValue alerts(UniValue::VARR);
-    std::vector<AlertData> exodusAlerts = GetExodusCoreAlerts();
+    std::vector<AlertData> exodusAlerts = GetExodusAlerts();
     for (std::vector<AlertData>::iterator it = exodusAlerts.begin(); it != exodusAlerts.end(); it++) {
         AlertData alert = *it;
         UniValue alertResponse(UniValue::VOBJ);

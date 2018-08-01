@@ -32,10 +32,10 @@ int64_t CExodusFeeCache::GetDistributionThreshold(const uint32_t &propertyId)
     return distributionThresholds[propertyId];
 }
 
-// Sets the distribution thresholds to total tokens for a property / OMNI_FEE_THRESHOLD
+// Sets the distribution thresholds to total tokens for a property / EXODUS_FEE_THRESHOLD
 void CExodusFeeCache::UpdateDistributionThresholds(uint32_t propertyId)
 {
-    int64_t distributionThreshold = getTotalTokens(propertyId) / OMNI_FEE_THRESHOLD;
+    int64_t distributionThreshold = getTotalTokens(propertyId) / EXODUS_FEE_THRESHOLD;
     if (distributionThreshold <= 0) {
         // protect against zero valued thresholds for low token count properties
         distributionThreshold = 1;
@@ -191,9 +191,9 @@ void CExodusFeeCache::DistributeCache(const uint32_t &propertyId, int block)
 
     OwnerAddrType receiversSet;
     if (isTestEcosystemProperty(propertyId)) {
-        receiversSet = STO_GetReceivers("FEEDISTRIBUTION", OMNI_PROPERTY_TMSC, cachedAmount);
+        receiversSet = STO_GetReceivers("FEEDISTRIBUTION", EXODUS_PROPERTY_TEXODUS, cachedAmount);
     } else {
-        receiversSet = STO_GetReceivers("FEEDISTRIBUTION", OMNI_PROPERTY_MSC, cachedAmount);
+        receiversSet = STO_GetReceivers("FEEDISTRIBUTION", EXODUS_PROPERTY_EXODUS, cachedAmount);
     }
 
     uint64_t numberOfReceivers = receiversSet.size(); // there will always be addresses holding OMNI, so no need to check size>0

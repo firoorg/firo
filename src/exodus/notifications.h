@@ -27,7 +27,7 @@ struct AlertData
     std::string alert_message;
 };
 
-/** Determines whether the sender is an authorized source for Omni Core alerts. */
+/** Determines whether the sender is an authorized source for Exodus alerts. */
 bool CheckAlertAuthorization(const std::string& sender);
 
 /** Deletes previously broadcast alerts from the sender. */
@@ -39,9 +39,9 @@ void ClearAlerts();
 void AddAlert(const std::string& sender, uint16_t alertType, uint32_t alertExpiry, const std::string& alertMessage);
 
 /** Alert string including meta data. */
-std::vector<AlertData> GetOmniCoreAlerts();
+std::vector<AlertData> GetExodusAlerts();
 /** Human readable alert messages. */
-std::vector<std::string> GetOmniCoreAlertMessages();
+std::vector<std::string> GetExodusAlertMessages();
 
 /** Expires any alerts that need expiring. */
 bool CheckExpiredAlerts(unsigned int curBlock, uint64_t curTime);
