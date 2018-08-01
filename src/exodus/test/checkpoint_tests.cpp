@@ -1,10 +1,10 @@
-#include "omnicore/consensushash.h"
-#include "omnicore/dex.h"
-#include "omnicore/mdex.h"
-#include "omnicore/sp.h"
-#include "omnicore/omnicore.h"
-#include "omnicore/rules.h"
-#include "omnicore/tally.h"
+#include "exodus/consensushash.h"
+#include "exodus/dex.h"
+#include "exodus/mdex.h"
+#include "exodus/sp.h"
+#include "exodus/exodus.h"
+#include "exodus/rules.h"
+#include "exodus/tally.h"
 
 #include "arith_uint256.h"
 #include "sync.h"
@@ -16,7 +16,7 @@
 #include <stdint.h>
 #include <string>
 
-namespace mastercore
+namespace exodus
 {
 extern std::string GenerateConsensusString(const CMPTally& tallyObj, const std::string& address, const uint32_t propertyId); // done
 extern std::string GenerateConsensusString(const CMPOffer& offerObj, const std::string& address); // half
@@ -28,9 +28,9 @@ extern std::string GenerateConsensusString(const uint32_t propertyId, const std:
 
 extern void clear_all_state();
 
-using namespace mastercore;
+using namespace exodus;
 
-BOOST_FIXTURE_TEST_SUITE(omnicore_checkpoint_tests, BasicTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(exodus_checkpoint_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(consensus_string_tally)
 {

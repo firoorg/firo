@@ -1,4 +1,4 @@
-#include "omnicore/uint256_extensions.h"
+#include "exodus/uint256_extensions.h"
 
 #include "arith_uint256.h"
 #include "test/test_bitcoin.h"
@@ -8,9 +8,9 @@
 #include <stdint.h>
 #include <limits>
 
-using namespace mastercore;
+using namespace exodus;
 
-BOOST_FIXTURE_TEST_SUITE(omnicore_uint256_extensions_tests, BasicTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(exodus_uint256_extensions_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(uint256_from_uint64_t)
 {
@@ -98,8 +98,8 @@ BOOST_AUTO_TEST_CASE(uint256_divide_and_round_up)
 
 BOOST_AUTO_TEST_CASE(uint256_const)
 {
-    BOOST_CHECK_EQUAL(1, ConvertTo64(mastercore::uint256_const::one));
-    BOOST_CHECK_EQUAL(std::numeric_limits<int64_t>::max(), ConvertTo64(mastercore::uint256_const::max_int64));
+    BOOST_CHECK_EQUAL(1, ConvertTo64(exodus::uint256_const::one));
+    BOOST_CHECK_EQUAL(std::numeric_limits<int64_t>::max(), ConvertTo64(exodus::uint256_const::max_int64));
 }
 
 

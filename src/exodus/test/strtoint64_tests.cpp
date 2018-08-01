@@ -1,4 +1,4 @@
-#include "omnicore/parse_string.h"
+#include "exodus/parse_string.h"
 
 #include "test/test_bitcoin.h"
 
@@ -7,9 +7,9 @@
 #include <stdint.h>
 #include <string>
 
-using namespace mastercore;
+using namespace exodus;
 
-BOOST_FIXTURE_TEST_SUITE(omnicore_strtoint64_tests, BasicTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(exodus_strtoint64_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(strtoint64_invidisible)
 {

@@ -1,11 +1,11 @@
-#include "omnicore/test/utils_tx.h"
+#include "exodus/test/utils_tx.h"
 
-#include "omnicore/createpayload.h"
-#include "omnicore/encoding.h"
-#include "omnicore/omnicore.h"
-#include "omnicore/rules.h"
-#include "omnicore/script.h"
-#include "omnicore/tx.h"
+#include "exodus/createpayload.h"
+#include "exodus/encoding.h"
+#include "exodus/exodus.h"
+#include "exodus/rules.h"
+#include "exodus/script.h"
+#include "exodus/tx.h"
 
 #include "base58.h"
 #include "coins.h"
@@ -21,9 +21,9 @@
 
 #include <boost/test/unit_test.hpp>
 
-using namespace mastercore;
+using namespace exodus;
 
-BOOST_FIXTURE_TEST_SUITE(omnicore_parsing_c_tests, BasicTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(exodus_parsing_c_tests, BasicTestingSetup)
 
 /** Creates a dummy transaction with the given inputs and outputs. */
 static CTransaction TxClassC(const std::vector<CTxOut>& txInputs, const std::vector<CTxOut>& txOuts)

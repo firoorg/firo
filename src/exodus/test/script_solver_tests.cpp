@@ -1,4 +1,4 @@
-#include "omnicore/script.h"
+#include "exodus/script.h"
 
 #include "script/script.h"
 #include "test/test_bitcoin.h"
@@ -11,7 +11,7 @@
 /** To be set in the tests. */
 extern unsigned nMaxDatacarrierBytes;
 
-BOOST_FIXTURE_TEST_SUITE(omnicore_script_solver_tests, BasicTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(exodus_script_solver_tests, BasicTestingSetup)
 
 /** Checks whether the custom solver is unaffected by user settings. */
 static void CheckOutputType(const CScript& script, txnouttype outTypeExpected)

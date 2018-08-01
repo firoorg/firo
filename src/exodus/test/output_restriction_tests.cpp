@@ -1,5 +1,5 @@
-#include "omnicore/omnicore.h"
-#include "omnicore/rules.h"
+#include "exodus/exodus.h"
+#include "exodus/rules.h"
 
 #include "chainparams.h"
 #include "script/standard.h"
@@ -10,9 +10,9 @@
 #include <stdint.h>
 #include <limits>
 
-using namespace mastercore;
+using namespace exodus;
 
-BOOST_FIXTURE_TEST_SUITE(omnicore_output_restriction_tests, BasicTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(exodus_output_restriction_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(input_nonstandard)
 {

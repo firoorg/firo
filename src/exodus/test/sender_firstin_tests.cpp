@@ -1,10 +1,10 @@
-#include "omnicore/test/utils_tx.h"
+#include "exodus/test/utils_tx.h"
 
-#include "omnicore/omnicore.h"
-#include "omnicore/script.h"
-#include "omnicore/tx.h"
-#include "omnicore/encoding.h"
-#include "omnicore/createpayload.h"
+#include "exodus/exodus.h"
+#include "exodus/script.h"
+#include "exodus/tx.h"
+#include "exodus/encoding.h"
+#include "exodus/createpayload.h"
 
 #include "base58.h"
 #include "coins.h"
@@ -19,9 +19,9 @@
 
 #include <boost/test/unit_test.hpp>
 
-using namespace mastercore;
+using namespace exodus;
 
-BOOST_FIXTURE_TEST_SUITE(omnicore_sender_firstin_tests, BasicTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(exodus_sender_firstin_tests, BasicTestingSetup)
 
 /** Creates a dummy class C transaction with the given inputs. */
 static CTransaction TxClassC(const std::vector<CTxOut>& txInputs)
@@ -56,7 +56,7 @@ static CTransaction TxClassC(const std::vector<CTxOut>& txInputs)
     // Outputs:
     std::vector<std::pair<CScript, int64_t> > txOutputs;
     std::vector<unsigned char> vchPayload = CreatePayload_SimpleSend(1, 1000);
-    BOOST_CHECK(OmniCore_Encode_ClassC(vchPayload, txOutputs));
+    BOOST_CHECK(Exodus_Encode_ClassC(vchPayload, txOutputs));
 
     for (std::vector<std::pair<CScript, int64_t> >::const_iterator it = txOutputs.begin(); it != txOutputs.end(); ++it)
     {

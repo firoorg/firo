@@ -1,4 +1,4 @@
-#include "omnicore/mbstring.h"
+#include "exodus/mbstring.h"
 
 #include "test/test_bitcoin.h"
 
@@ -7,7 +7,7 @@
 #include <stddef.h>
 #include <string>
 
-namespace mastercore {
+namespace exodus {
 namespace mbstring {
 // Forward declarations
 extern int get_mblen(unsigned char c);
@@ -23,9 +23,9 @@ bool check_mb(const std::string& s)
 }
 }
 
-using namespace mastercore;
+using namespace exodus;
 
-BOOST_FIXTURE_TEST_SUITE(omnicore_mbstring_tests, BasicTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(exodus_mbstring_tests, BasicTestingSetup)
 
 /**
  * Many examples were adopted from the following sources:
@@ -482,7 +482,7 @@ BOOST_AUTO_TEST_CASE(valid_ascii)
             SanitizeInvalidUTF8("`abcdefghijklmnopqrstuvwxyz{|}~"));
 }
 
-BOOST_AUTO_TEST_CASE(omni_getproperty_2147483662)
+BOOST_AUTO_TEST_CASE(exodus_getproperty_2147483662)
 {
     BOOST_CHECK_EQUAL(
             "{"

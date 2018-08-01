@@ -116,4 +116,4 @@ bool Initialize()
     return true;
 }
 
-} // namespace OmniCore
+} // namespace Exodus

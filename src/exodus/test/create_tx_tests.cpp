@@ -1,4 +1,4 @@
-#include "omnicore/createtx.h"
+#include "exodus/createtx.h"
 
 #include "base58.h"
 #include "coins.h"
@@ -21,7 +21,7 @@
 extern CFeeRate minRelayTxFee;
 static CFeeRate minRelayTxFeeOriginal = CFeeRate(DEFAULT_MIN_RELAY_TX_FEE);
 
-BOOST_FIXTURE_TEST_SUITE(omnicore_create_tx_tests, BasicTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(exodus_create_tx_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(txbuilder_empty)
 {
@@ -194,15 +194,15 @@ BOOST_AUTO_TEST_CASE(txbuilder_add_change_position)
     BOOST_CHECK_EQUAL(rawTx, EncodeHexTx(CTransaction(tx)));
 }
 
-BOOST_AUTO_TEST_CASE(omnitxbuilder_empty)
+BOOST_AUTO_TEST_CASE(exodustxbuilder_empty)
 {
-    OmniTxBuilder builder;
+    ExodusTxBuilder builder;
     CMutableTransaction tx = builder.build();
 
     BOOST_CHECK_EQUAL("01000000000000000000", EncodeHexTx(CTransaction(tx)));
 }
 
-BOOST_AUTO_TEST_CASE(omnitxbuilder_from_existing)
+BOOST_AUTO_TEST_CASE(exodustxbuilder_from_existing)
 {
     std::string rawTx("01000000017f63a90b9f89c1ad0616825d2565050e53ef044721f58822148193da511e76f8010000006b"
         "483045022100c135ed7eb933d97e59ea758e394f93a83ddc5861277da3ccfd28bd77d02d55c70220568e4255aa69fdb860"
@@ -213,11 +213,11 @@ BOOST_AUTO_TEST_CASE(omnitxbuilder_from_existing)
     CTransaction txBasis;
     BOOST_CHECK(DecodeHexTx(txBasis, rawTx));
 
-    CMutableTransaction tx = OmniTxBuilder(txBasis).build();
+    CMutableTransaction tx = ExodusTxBuilder(txBasis).build();
     BOOST_CHECK_EQUAL(rawTx, EncodeHexTx(CTransaction(tx)));
 }
 
-BOOST_AUTO_TEST_CASE(omnitxbuilder_op_return)
+BOOST_AUTO_TEST_CASE(exodustxbuilder_op_return)
 {
     minRelayTxFee = CFeeRate(1000);
 
@@ -246,13 +246,13 @@ BOOST_AUTO_TEST_CASE(omnitxbuilder_op_return)
     CCoinsViewCache viewTemp(&viewDummy);
     InputsToView(prevTxs, viewTemp);
 
-    CMutableTransaction tx = OmniTxBuilder()
+    CMutableTransaction tx = ExodusTxBuilder()
         .addInputs(prevTxs)
         .build();
 
     BOOST_CHECK(viewTemp.HaveInputs(CTransaction(tx)));
 
-    tx = OmniTxBuilder(tx)
+    tx = ExodusTxBuilder(tx)
         .addOpReturn(payload)
         .addReference("12faQbtHsD7ECFweehhHoRYxiRjyB1d1uy", 2730LL)
         .addChange("1JovPp7XB8Tjc6E2fVPigxXtfmrFLBoMhK", viewTemp, 10000LL, 1)

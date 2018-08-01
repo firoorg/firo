@@ -1,4 +1,4 @@
-#include "omnicore/tally.h"
+#include "exodus/tally.h"
 
 #include "test/test_bitcoin.h"
 
@@ -6,7 +6,7 @@
 
 #include <boost/test/unit_test.hpp>
 
-BOOST_FIXTURE_TEST_SUITE(omnicore_tally_tests, BasicTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(exodus_tally_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(empty_tally)
 {

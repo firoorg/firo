@@ -1,4 +1,4 @@
-#include "omnicore/utils.h"
+#include "exodus/utils.h"
 
 #include "test/test_bitcoin.h"
 
@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 
-BOOST_FIXTURE_TEST_SUITE(omnicore_obfuscation_tests, BasicTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(exodus_obfuscation_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(prepare_obfuscated_hashes)
 {

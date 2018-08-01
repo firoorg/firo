@@ -1,4 +1,4 @@
-#include "omnicore/convert.h"
+#include "exodus/convert.h"
 
 #include "test/test_bitcoin.h"
 
@@ -6,9 +6,9 @@
 
 #include <stdint.h>
 
-using namespace mastercore;
+using namespace exodus;
 
-BOOST_FIXTURE_TEST_SUITE(omnicore_swapbyteorder_tests, BasicTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(exodus_swapbyteorder_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(swapbyteorder_cycle)
 {

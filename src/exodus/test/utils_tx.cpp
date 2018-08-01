@@ -1,7 +1,7 @@
-#include "omnicore/test/utils_tx.h"
+#include "exodus/test/utils_tx.h"
 
-#include "omnicore/omnicore.h"
-#include "omnicore/script.h"
+#include "exodus/exodus.h"
+#include "exodus/script.h"
 
 #include "base58.h"
 #include "primitives/transaction.h"

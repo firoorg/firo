@@ -1,8 +1,8 @@
-#include "omnicore/test/utils_tx.h"
+#include "exodus/test/utils_tx.h"
 
-#include "omnicore/omnicore.h"
-#include "omnicore/script.h"
-#include "omnicore/tx.h"
+#include "exodus/exodus.h"
+#include "exodus/script.h"
+#include "exodus/tx.h"
 
 #include "base58.h"
 #include "coins.h"
@@ -19,9 +19,9 @@
 
 #include <boost/test/unit_test.hpp>
 
-using namespace mastercore;
+using namespace exodus;
 
-BOOST_FIXTURE_TEST_SUITE(omnicore_sender_bycontribution_tests, BasicTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(exodus_sender_bycontribution_tests, BasicTestingSetup)
 
 // Forward declarations
 static CTransaction TxClassB(const std::vector<CTxOut>& txInputs);

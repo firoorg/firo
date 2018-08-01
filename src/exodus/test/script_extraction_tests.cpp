@@ -1,4 +1,4 @@
-#include "omnicore/script.h"
+#include "exodus/script.h"
 
 #include "base58.h"
 #include "pubkey.h"
@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 
-BOOST_FIXTURE_TEST_SUITE(omnicore_script_extraction_tests, BasicTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(exodus_script_extraction_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(extract_pubkey_test)
 {

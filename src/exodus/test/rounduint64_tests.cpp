@@ -1,4 +1,4 @@
-#include "omnicore/convert.h"
+#include "exodus/convert.h"
 
 #include "test/test_bitcoin.h"
 
@@ -6,9 +6,9 @@
 
 #include <boost/test/unit_test.hpp>
 
-using namespace mastercore;
+using namespace exodus;
 
-BOOST_FIXTURE_TEST_SUITE(omnicore_rounduint64_tests, BasicTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(exodus_rounduint64_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(rounduint64_simple)
 {

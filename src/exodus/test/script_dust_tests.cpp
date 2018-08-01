@@ -1,4 +1,4 @@
-#include "omnicore/script.h"
+#include "exodus/script.h"
 
 #include "amount.h"
 #include "main.h"
@@ -17,7 +17,7 @@
 extern CFeeRate minRelayTxFee;
 static CFeeRate minRelayTxFeeOriginal = CFeeRate(DEFAULT_MIN_RELAY_TX_FEE);
 
-BOOST_FIXTURE_TEST_SUITE(omnicore_script_dust_tests, BasicTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(exodus_script_dust_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(dust_threshold_pubkey_hash)
 {

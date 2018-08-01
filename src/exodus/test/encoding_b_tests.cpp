@@ -1,6 +1,6 @@
-#include "omnicore/encoding.h"
+#include "exodus/encoding.h"
 
-#include "omnicore/script.h"
+#include "exodus/script.h"
 
 #include "base58.h"
 #include "pubkey.h"
@@ -15,7 +15,7 @@
 #include <string>
 #include <vector>
 
-BOOST_FIXTURE_TEST_SUITE(omnicore_encoding_b_tests, BasicTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(exodus_encoding_b_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(class_b_empty)
 {
@@ -24,7 +24,7 @@ BOOST_AUTO_TEST_CASE(class_b_empty)
     const std::vector<unsigned char> vchPayload;
 
     std::vector<std::pair<CScript, int64_t> > vTxOuts;
-    BOOST_CHECK(OmniCore_Encode_ClassB(strSeed, pubKey, vchPayload, vTxOuts));
+    BOOST_CHECK(Exodus_Encode_ClassB(strSeed, pubKey, vchPayload, vTxOuts));
     BOOST_CHECK_EQUAL(vTxOuts.size(), 1);
 
     const CScript& scriptPubKey = vTxOuts[0].first;
@@ -77,7 +77,7 @@ BOOST_AUTO_TEST_CASE(class_b_maidsafe)
         "00");
 
     std::vector<std::pair<CScript, int64_t> > vTxOuts;
-    BOOST_CHECK(OmniCore_Encode_ClassB(strSeed, pubKey, vchPayload, vTxOuts));
+    BOOST_CHECK(Exodus_Encode_ClassB(strSeed, pubKey, vchPayload, vTxOuts));
     BOOST_CHECK_EQUAL(vTxOuts.size(), 3);
 
     const CScript& scriptPubKeyA = vTxOuts[0].first;
@@ -136,7 +136,7 @@ BOOST_AUTO_TEST_CASE(class_b_tetherus)
         "6172616469676d206f66206d6f6e65792e00");
 
     std::vector<std::pair<CScript, int64_t> > vTxOuts;
-    BOOST_CHECK(OmniCore_Encode_ClassB(strSeed, pubKey, vchPayload, vTxOuts));
+    BOOST_CHECK(Exodus_Encode_ClassB(strSeed, pubKey, vchPayload, vTxOuts));
     BOOST_CHECK_EQUAL(vTxOuts.size(), 4);
 
     const CScript& scriptPubKeyA = vTxOuts[0].first;
