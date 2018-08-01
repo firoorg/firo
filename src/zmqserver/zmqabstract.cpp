@@ -26,6 +26,73 @@ bool CZMQAbstract::NotifyTransaction(const CTransaction &/*transaction*/)
     return true;
 }
 
+// Internal function to send multipart message
+bool CZMQAbstract::SendMultipart(const void* data, size_t size, ...)
+{
+    va_list args;
+    va_start(args, size);
+
+    while (1)
+    {
+        zmq_msg_t msg;
+
+        int rc = zmq_msg_init_size(&msg, size);
+        if (rc != 0)
+        {
+            zmqError("Unable to initialize ZMQ msg");
+            return -1;
+        }
+
+        void *buf = zmq_msg_data(&msg);
+        memcpy(buf, data, size);
+
+        data = va_arg(args, const void*);
+
+        rc = zmq_msg_send(&msg, psocket, data ? ZMQ_SNDMORE : 0);
+        if (rc == -1)
+        {
+            zmqError("Unable to send ZMQ msg");
+            zmq_msg_close(&msg);
+            return -1;
+        }
+
+        LogPrintf("ZMQ: message sent.\n");
+
+        zmq_msg_close(&msg);
+
+        if (!data)
+            break;
+
+        size = va_arg(args, size_t);
+    }
+    return 0;
+}
+
+bool CZMQAbstract::SendMessage()
+{
+    assert(psocket);
+
+    LogPrintf("zmq: in SendMessage\n");
+
+    /* send three parts, command & data & a LE 4byte sequence number */
+    unsigned char msgseq[sizeof(uint32_t)];
+    WriteLE32(&msgseq[0], nSequence);
+    int rc;
+    if(!(topic.empty())){
+        rc = SendMultipart(topic.c_str(), topic.length(), message.c_str(), message.length(), msgseq, (size_t)sizeof(uint32_t), (void*)0);
+    }else{
+        rc = SendMultipart(message.c_str(), message.length(), msgseq, (size_t)sizeof(uint32_t), (void*)0);
+    }
+
+    if (rc == -1)
+        return false;
+
+    /* increment memory only sequence number after sending */
+    nSequence++;
+
+    return true;
+}
+
 string CZMQAbstract::GetAuthType(KeyType type){
     return (type == Server) ? "server" : "client";
 }

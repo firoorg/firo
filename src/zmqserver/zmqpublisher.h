@@ -11,9 +11,6 @@ class CBlockIndex;
 
 class CZMQAbstractPublisher : public CZMQAbstract
 {
-private:
-    uint32_t nSequence; //!< upcounting per message sequence number
-
 public:
 
     /* send zmq multipart message
@@ -22,8 +19,6 @@ public:
           * data
           * message sequence number
     */
-    bool SendTopicMessage(const char *command, const void* data, size_t size);
-    bool SendMessage(string msg);
 
     //bool writeTimestampToFile(json tx);
 

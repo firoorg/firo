@@ -446,48 +446,6 @@ json WalletDataSinceBlock(string block){
     return result_json;
 }
 
-// Internal function to send multipart message
-static int zmq_send_multipart(void *sock, const void* data, size_t size, ...)
-{
-    va_list args;
-    va_start(args, size);
-
-    while (1)
-    {
-        zmq_msg_t msg;
-
-        int rc = zmq_msg_init_size(&msg, size);
-        if (rc != 0)
-        {
-            zmqError("Unable to initialize ZMQ msg");
-            return -1;
-        }
-
-        void *buf = zmq_msg_data(&msg);
-        memcpy(buf, data, size);
-
-        data = va_arg(args, const void*);
-
-        rc = zmq_msg_send(&msg, sock, data ? ZMQ_SNDMORE : 0);
-        if (rc == -1)
-        {
-            zmqError("Unable to send ZMQ msg");
-            zmq_msg_close(&msg);
-            return -1;
-        }
-
-        LogPrintf("ZMQ: message sent.\n");
-
-        zmq_msg_close(&msg);
-
-        if (!data)
-            break;
-
-        size = va_arg(args, size_t);
-    }
-    return 0;
-}
-
 bool CZMQAbstractPublisher::Initialize()
 {
     LogPrint(NULL, "zmq: Initialize notification interface\n");
@@ -586,47 +544,24 @@ void CZMQAbstractPublisher::Shutdown()
     }
 }
 
-bool CZMQAbstractPublisher::SendTopicMessage(const char *command, const void* data, size_t size)
-{
-    assert(psocket);
+// bool CZMQAbstractPublisher::SendMessage(const char *command, const void* data, size_t size)
+// {
+//     assert(psocket);
 
-    LogPrintf("zmq: in SendMessage\n");
+//     LogPrintf("zmq: in SendMessage\n");
 
-    /* send three parts, command & data & a LE 4byte sequence number */
-    unsigned char msgseq[sizeof(uint32_t)];
-    WriteLE32(&msgseq[0], nSequence);
-    int rc = zmq_send_multipart(psocket, command, strlen(command), data, size, msgseq, (size_t)sizeof(uint32_t), (void*)0);
-    if (rc == -1)
-        return false;
+//     /* send three parts, command & data & a LE 4byte sequence number */
+//     unsigned char msgseq[sizeof(uint32_t)];
+//     WriteLE32(&msgseq[0], nSequence);
+//     int rc = zmq_send_multipart(psocket, command, strlen(command), data, size, msgseq, (size_t)sizeof(uint32_t), (void*)0);
+//     if (rc == -1)
+//         return false;
 
-    /* increment memory only sequence number after sending */
-    nSequence++;
+//     /* increment memory only sequence number after sending */
+//     nSequence++;
 
-    return true;
-}
-
-
-bool CZMQAbstractPublisher::SendMessage(string msg){
-
-    LogPrintf("ZMQ: sending message %s\n", msg);
-    assert(psocket);
-
-    zmq_msg_t reply;
-    int rc = zmq_msg_init_size (&reply, msg.size());
-    assert(rc == 0);  
-    std::memcpy (zmq_msg_data (&reply), msg.data(), msg.size());
-    //LogPrintf("ZMQ: Sending reply..\n");
-    /* Block until a message is available to be sent from socket */
-    rc = zmq_sendmsg (psocket, &reply, 0);
-    assert(rc!=-1);
-
-    LogPrintf("ZMQ: message sent.\n");
-    zmq_msg_close(&reply);
-
-    return true;
-}
-
-
+//     return true;
+// }
 
 bool CZMQAbstractPublisher::notifyBalance(){
 
@@ -692,12 +627,13 @@ bool CZMQAbstractPublisher::notifyBalance(){
     response["meta"]["status"] = 200;
 
 
-    string topic = "balance";
-    string message = response.dump();
+    topic = "balance";
+    message = response.dump();
 
     LogPrintf("ZMQ: message: %s\n", message);
     LogPrintf("ZMQ: sending topic message balance\n");
-    if(!SendTopicMessage(topic.c_str(), message.c_str(), message.length())){
+    //if(!SendMessage(topic.c_str(), message.c_str())){
+    if(!SendMessage()){
         LogPrintf("ZMQ: sending topic message balance failed");
         return false;
     }
@@ -727,10 +663,10 @@ bool CZMQRawTransactionPublisher::NotifyTransaction(const CTransaction &transact
 
         ProcessWalletData(result_json, false);
 
-        string topic = "address";
-        string message = result_json.dump();
+        topic = "address";
+        message = result_json.dump();
 
-        if(!SendTopicMessage(topic.c_str(), message.c_str(), message.length())){
+        if(!SendMessage()){
             return false;
         }
     }
@@ -743,8 +679,6 @@ bool CZMQRawBlockPublisher::NotifyBlock(const CBlockIndex *pindex)
     LogPrintf("API: In notifyblock\n");
     //publish block related info every 10 blocks.
     int currentHeight = pindex->nHeight;
-    string topic;
-    string message;
     LogPrintf("ZMQ: in notifyblock. currentHeight: %s\n", to_string(currentHeight));
     bool syncing = (currentHeight % 10==0 && currentHeight >=10);
     string prevblockhash;
@@ -763,7 +697,7 @@ bool CZMQRawBlockPublisher::NotifyBlock(const CBlockIndex *pindex)
 
         topic = "address";
         message = result_json.dump();
-        if(!SendTopicMessage(topic.c_str(), message.c_str(), message.length())){
+        if(!SendMessage()){
             return false;
         }
     }
@@ -791,7 +725,7 @@ bool CZMQRawBlockPublisher::NotifyBlock(const CBlockIndex *pindex)
 
     topic = "block";
     message = response.dump();
-    if(!SendTopicMessage(topic.c_str(), message.c_str(), message.length())){
+    if(!SendMessage()){
         return false;
     }
 

@@ -54,6 +54,11 @@ public:
     virtual bool NotifyBlock(const CBlockIndex *pindex);
     virtual bool NotifyTransaction(const CTransaction &transaction);
 
+    bool SendMessage();
+
+private:
+    bool SendMultipart(const void* data, size_t size, ...);
+
 protected:
     void *psocket;
     void *pcontext;
@@ -61,6 +66,9 @@ protected:
     std::string address;
     std::string port;
     std::string authority;
+    std::string topic;
+    std::string message;
+    uint32_t nSequence; //!< upcounting per message sequence number
 };
 
 #endif // BITCOIN_ZMQ_ZMQABSTRACT_H
