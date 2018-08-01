@@ -41,8 +41,6 @@ void* CZMQOpenReplier::Thread()
             break;
         }
 
-        //topic = "REPlier";
-
         LogPrintf("ZMQ: read open request\n");
 
         APIJSONRequest jreq;
@@ -93,8 +91,6 @@ void* CZMQAuthReplier::Thread(){
 
         LogPrintf("ZMQ: read auth request\n");
 
-        //topic = "REPlier";
-
         APIJSONRequest jreq;
         string requestStr = ReadRequest();
         try {
@@ -109,20 +105,17 @@ void* CZMQAuthReplier::Thread(){
 
             // Send reply
             message = JSONAPIReply(result, NullUniValue);
-            //if(!SendResponse()){
             if(!SendMessage()){
                 break;
             }
 
         } catch (const UniValue& objError) {
             message = JSONAPIReply(NullUniValue, objError);
-            //if(!SendResponse()){
             if(!SendMessage()){
                 break;
             }
         } catch (const std::exception& e) {
             message = JSONAPIReply(NullUniValue, JSONAPIError(API_PARSE_ERROR, e.what()));
-            //if(!SendResponse()){
             if(!SendMessage()){
                 break;
             }
@@ -151,23 +144,6 @@ std::string CZMQAbstractReplier::ReadRequest(){
     requestChars[rc]=0;
     return std::string(requestChars);
 }
-
-// bool CZMQAbstractReplier::SendResponse(){
-//     /* Send reply */
-//     zmq_msg_t reply;
-//     rc = zmq_msg_init_size (&reply, response.size());
-//     if(rc==-1) return false;  
-//     std::memcpy (zmq_msg_data (&reply), response.data(), response.size());
-//     LogPrintf("ZMQ: Sending reply..\n");
-//     /* Block until a message is available to be sent from socket */   
-//     rc = zmq_sendmsg (psocket, &reply, 0);    
-//     if(rc==-1) return false;
-
-//     LogPrintf("ZMQ: Reply sent.\n");
-//     zmq_msg_close(&reply);
-
-//     return true;
-// }
 
 bool CZMQAbstractReplier::Socket(){
     LogPrintf("ZMQ: setting up type in Socket.\n");
@@ -224,7 +200,6 @@ bool CZMQAbstractReplier::Initialize()
     Auth();
     Bind();
     worker = new boost::thread(boost::bind(&CZMQAbstractReplier::Thread, this));
-    //worker->join();
     LogPrintf("ZMQ: created and ran thread\n");
     return true;
 }

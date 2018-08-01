@@ -16,7 +16,6 @@ protected:
     int KEEPALIVE = 1;
     int rc;
     zmq_msg_t request;
-    //std::string response;
     boost::thread* worker;
 
 public:

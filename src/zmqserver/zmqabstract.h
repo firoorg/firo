@@ -41,16 +41,17 @@ public:
     std::string GetAuthority() const { return address + port; }
     void SetAuthority(const std::string &a) { authority = a; }
 
+    /* static certificate handling */
     static vector<string> readCert(KeyType type);
     static bool writeCert(string publicKey, string privateKey, KeyType type);
     static bool createCerts();
     static std::string GetAuthType(KeyType type);
 
-    // define pure virtual functions (implemented by every derived instance)
+    /*define pure virtual functions (implemented by every derived instance) */ 
     virtual bool Initialize() = 0;
     virtual void Shutdown() = 0;
 
-    // to be implemented by publishers
+    /*virtual functions to be implemented by publisher (defined here to allow access by notifiers) */ 
     virtual bool NotifyBlock(const CBlockIndex *pindex);
     virtual bool NotifyTransaction(const CTransaction &transaction);
 
