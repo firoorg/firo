@@ -52,7 +52,7 @@ Build
 
     Configure and build the headless zcoin binaries as well as the GUI (if Qt is found).
 
-    You can disable the GUI build by passing `--without-gui` to configure. Include `--enabled-tests` if you want to run those.
+    You can disable the GUI build by passing `--without-gui` to configure. Include `--enable-tests` if you want to run those.
         
         ./autogen.sh
         ./configure
@@ -65,7 +65,7 @@ Build
 
 macOS Build Instructions and Notes
 =====================================
-See [doc/build-osx.md](doc/build-osx.md) for instructions on building on Mac OS X.
+See [doc/build-macos.md](doc/build-macos.md) for instructions on building on macOS.
 
 
 
