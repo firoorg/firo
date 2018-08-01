@@ -850,7 +850,7 @@ UniValue paymentrequest(Type type, const UniValue& data, const UniValue& auth, b
     switch(type){
         case Initial: {
             LogPrintf("API: returning initial layout..\n");
-            return paymentRequestUni;
+            return paymentRequestData;
             break; 
         }
         case Create: {
