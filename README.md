@@ -63,12 +63,12 @@ Build
         make check
 
 
-Mac OS X Build Instructions and Notes
+macOS Build Instructions and Notes
 =====================================
-See (doc/build-osx.md) for instructions on building on Mac OS X.
+See [doc/build-osx.md](doc/build-osx.md) for instructions on building on Mac OS X.
 
 
 
 Windows (64/32 bit) Build Instructions and Notes
 =====================================
-See (doc/build-windows.md) for instructions on building on Windows 64/32 bit.
+See [doc/build-windows.md](doc/build-windows.md) for instructions on building on Windows 64/32 bit.
