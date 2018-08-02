@@ -166,7 +166,7 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
 
             if(!total["sent"].isNull()){
                 UniValue totalSent = find_value(total, "sent");
-                UniValue newTotal = totalSent.get_real() + amount;
+                UniValue newTotal = totalSent.get_int64() + amount;
                 total.replace("sent", newTotal);
             }
             else{
@@ -254,7 +254,7 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
 
             if(!total["balance"].isNull()){
                 UniValue totalBalance = find_value(total, "balance");
-                UniValue newTotal = totalBalance.get_real() + amount;
+                UniValue newTotal = totalBalance.get_int64() + amount;
                 total.replace("balance", newTotal);
             }
             else{
