@@ -960,7 +960,7 @@ UniValue paymentrequest(Type type, const UniValue& data, const UniValue& auth, b
     return true;
 }
 
-UniValue blockinfo(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
+UniValue blockchain(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
 
     UniValue blockinfoObj(UniValue::VOBJ);
     UniValue status(UniValue::VOBJ);
@@ -1079,7 +1079,7 @@ static const CAPICommand commands[] =
     { "wallet",             "statewallet",     &statewallet,             true,      false,           false  },
     { "wallet",             "setpassphrase",   &setpassphrase,           true,      false,           false  },
     { "wallet",             "balance",         &balance,                 true,      false,           false  },
-    { "blockchain",         "blockinfo",       &blockinfo,               true,      false,           false  },
+    { "blockchain",         "blockchain",      &blockchain,               true,      false,           false  },
     { "blockchain",         "block",           &block,                   true,      false,           false  },
     { "zerocoin",           "mint",            &mint,                    true,      true,            false  },
     { "zerocoin",           "sendprivate",     &sendprivate,             true,      true,            false  },

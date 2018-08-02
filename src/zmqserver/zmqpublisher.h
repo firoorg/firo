@@ -52,7 +52,7 @@ public:
 class CZMQBlockInfoPublisher : public CZMQBlockPublisher
 {
 public:
-    void SetMethod(){ method= "blockinfo";};
+    void SetMethod(){ method= "blockchain";};
     void SetTopic(){ topic = "block";};
 };
 

@@ -22,6 +22,7 @@ bool APIIsInWarmup();
 enum Type {
    None,
    Initial,
+   Get,
    Create,
    Update,
    Delete 

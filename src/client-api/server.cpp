@@ -101,8 +101,11 @@ void APIJSONRequest::parseType(std::string typeRequest)
     if(typeRequest=="none"){
         type = None;
     }
-    if(typeRequest=="initial"){
+    else if(typeRequest=="initial"){
         type = Initial;
+    }
+    else if(typeRequest=="get"){
+        type = Get;
     }
     else if(typeRequest=="create"){
         type = Create;

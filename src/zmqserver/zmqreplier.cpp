@@ -208,15 +208,17 @@ void CZMQAbstractReplier::Shutdown()
 
     LogPrint(NULL, "Close socket at authority %s\n", authority);
 
-    int linger = 0;
-    zmq_setsockopt(psocket, ZMQ_LINGER, &linger, sizeof(linger));
+    //int linger = 0;
+    //zmq_setsockopt(psocket, ZMQ_LINGER, &linger, sizeof(linger));
     zmq_close(psocket);
     psocket = 0;
-
+    LogPrintf("closed psocket\n");
     if (pcontext)
     {
+        LogPrintf("destroying pcontext..\n");
         zmq_ctx_destroy(pcontext);
         pcontext = 0;
+        LogPrintf("pcontext destroyed.  \n");
     }
 
     LogPrintf("replier shutdown\n");
