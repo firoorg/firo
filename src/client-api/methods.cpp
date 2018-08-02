@@ -1079,14 +1079,13 @@ static const CAPICommand commands[] =
     { "wallet",             "statewallet",     &statewallet,             true,      false,           false  },
     { "wallet",             "setpassphrase",   &setpassphrase,           true,      false,           false  },
     { "wallet",             "balance",         &balance,                 true,      false,           false  },
-    { "blockchain",         "blockchain",      &blockchain,               true,      false,           false  },
+    { "blockchain",         "blockchain",      &blockchain,              true,      false,           false  },
     { "blockchain",         "block",           &block,                   true,      false,           false  },
+    { "sending",            "paymentrequest",  &paymentrequest,          true,      false,           false  },
+    { "sending",            "txfee",           &txfee,                   true,      false,           false  },
     { "zerocoin",           "mint",            &mint,                    true,      true,            false  },
     { "zerocoin",           "sendprivate",     &sendprivate,             true,      true,            false  },
-    { "sending",            "txfee",           &txfee,                   true,      true,            false  },
-    { "sending",            "sendzcoin",       &sendzcoin,               true,      true,            false  },
-    { "sending",            "paymentrequest",  &paymentrequest,          true,      true,            false  }
-
+    { "sending",            "sendzcoin",       &sendzcoin,               true,      true,            false  }
 };
 void RegisterAPICommands(CAPITable &tableAPI)
 {
