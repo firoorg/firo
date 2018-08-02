@@ -960,7 +960,7 @@ UniValue paymentrequest(Type type, const UniValue& data, const UniValue& auth, b
     return true;
 }
 
-UniValue getblockinfo(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
+UniValue blockinfo(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
 
     UniValue blockinfoObj(UniValue::VOBJ);
     UniValue status(UniValue::VOBJ);
@@ -972,20 +972,29 @@ UniValue getblockinfo(Type type, const UniValue& data, const UniValue& auth, boo
     status.push_back(Pair("IsSynced", znodeSync.IsSynced()));
     status.push_back(Pair("IsFailed", znodeSync.IsFailed()));
 
-    currentBlock.push_back(Pair("height", find_value(data, "nHeight")));
-    currentBlock.push_back(Pair("timestamp", find_value(data, "nTime")));
+    // if coming from PUB, height and time are included in data. otherwise just return chain tip
+    UniValue height = find_value(data, "nHeight");
+    UniValue time = find_value(data, "nTime");
+
+    if(!(height.isNull() && time.isNull())){
+        currentBlock.push_back(Pair("height", height));    
+        currentBlock.push_back(Pair("timestamp", time));
+    }else{
+        currentBlock.push_back(Pair("height", to_string(chainActive.Tip()->nHeight)));
+        currentBlock.push_back(Pair("timestamp", to_string(chainActive.Tip()->nTime)));
+    }
 
     blockinfoObj.push_back(Pair("testnet", Params().TestnetToBeDeprecatedFieldRPC()));
     blockinfoObj.push_back(Pair("connections", (int)vNodes.size()));
     blockinfoObj.push_back(Pair("type","full"));
     blockinfoObj.push_back(Pair("status", status));
     blockinfoObj.push_back(Pair("currentBlock", currentBlock));
-
+    
     return blockinfoObj;
 }
 
 
-UniValue getblock(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
+UniValue block(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
 
     //Get block related info every 10 blocks.
     UniValue getblockObj(UniValue::VOBJ);
@@ -1012,7 +1021,7 @@ UniValue getblock(Type type, const UniValue& data, const UniValue& auth, bool fH
     return getblockObj;
 }
 
-UniValue getbalance(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
+UniValue balance(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
     if (!EnsureWalletIsAvailable(false))
         return NullUniValue;
 
@@ -1069,9 +1078,9 @@ static const CAPICommand commands[] =
     { "wallet",             "unlockwallet",    &unlockwallet,            true,      false,           false  },
     { "wallet",             "statewallet",     &statewallet,             true,      false,           false  },
     { "wallet",             "setpassphrase",   &setpassphrase,           true,      false,           false  },
-    { "wallet",             "getbalance",      &getbalance,              true,      false,           false  },
-    { "blockchain",         "getblockinfo",    &getblockinfo,            true,      false,           false  },
-    { "blockchain",         "getblock",        &getblock,                true,      false,           false  },
+    { "wallet",             "balance",         &balance,                 true,      false,           false  },
+    { "blockchain",         "blockinfo",       &blockinfo,               true,      false,           false  },
+    { "blockchain",         "block",           &block,                   true,      false,           false  },
     { "zerocoin",           "mint",            &mint,                    true,      true,            false  },
     { "zerocoin",           "sendprivate",     &sendprivate,             true,      true,            false  },
     { "sending",            "txfee",           &txfee,                   true,      true,            false  },

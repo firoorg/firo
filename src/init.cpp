@@ -8,8 +8,6 @@
 #include "config/bitcoin-config.h"
 #endif
 
-bool NEWAPI = false;
-
 #include "init.h"
 
 #include "addrman.h"
@@ -243,12 +241,7 @@ void Shutdown() {
     StopRPC();
     StopAPI();
     StopHTTPServer();
-    // if(NEWAPI){
-    //     StopZMQServer();
-    // }
-    // else{
-    //     StopREQREPZMQ();
-    // }
+
 #ifdef ENABLE_WALLET
     if (pwalletMain)
         pwalletMain->Flush(false);
@@ -877,14 +870,6 @@ bool AppInitServers(boost::thread_group &threadGroup) {
     CreateSettingsFile();
  
     CZMQAbstract::createCerts();
-
-    // if(NEWAPI){
-    //     if (!InitZMQServer())
-    //         return false;
-    // }else{
-    //     if (!StartREQREPZMQ())
-    //     return false;
-    // }
 
 #endif
     return true;

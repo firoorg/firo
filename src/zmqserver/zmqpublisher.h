@@ -45,21 +45,21 @@ public:
 class CZMQBlockDataPublisher : public CZMQBlockPublisher
 {
 public:
-    void SetMethod(){ method= "getblock";};
+    void SetMethod(){ method= "block";};
     void SetTopic(){ topic = "address";};
 };
 
 class CZMQBlockInfoPublisher : public CZMQBlockPublisher
 {
 public:
-    void SetMethod(){ method= "getblockinfo";};
+    void SetMethod(){ method= "blockinfo";};
     void SetTopic(){ topic = "block";};
 };
 
 class CZMQBalancePublisher : public CZMQBlockPublisher
 {
 public:
-    void SetMethod(){ method= "getbalance";};
+    void SetMethod(){ method= "balance";};
     void SetTopic(){ topic = "balance";};
 
 };
