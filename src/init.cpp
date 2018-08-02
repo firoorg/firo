@@ -41,10 +41,8 @@ bool NEWAPI = false;
 #include "utilmoneystr.h"
 #include "validationinterface.h"
 #include "validation.h"
-#include "client-api/json.hpp"
 #include "client-api/register.h"
 #include "client-api/server.h"
-#include "zmqserver.h"
 #ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
 #endif
@@ -93,8 +91,6 @@ bool NEWAPI = false;
 #include "client-api/server.h"
 #include "client-api/register.h"
 #endif
-
-using json = nlohmann::json;
 
 bool fFeeEstimatesInitialized = false;
 static const bool DEFAULT_PROXYRANDOMIZE = true;

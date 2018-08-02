@@ -10,6 +10,7 @@
 #include "policy/policy.h"
 #include "primitives/transaction.h"
 #include "client-api/server.h"
+#include "rpc/server.h"
 #include "streams.h"
 #include "znode-sync.h"
 #include "sync.h"
@@ -19,7 +20,8 @@
 #include "wallet/rpcwallet.cpp"
 #include <stdint.h>
 #include <client-api/protocol.h>
-#include <zmqserver.h>
+
+#include <zmqserver/zmqabstract.h>
 
 #include <univalue.h>
 
@@ -29,6 +31,28 @@ namespace fs = boost::filesystem;
 using namespace std::chrono;
 using namespace std;
 
+CAmount getLockUnspentAmount()
+{
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    CTransaction tx;
+    uint256 hashBlock;
+    uint256 hash;
+    vector<COutPoint> vOutpts;
+    CAmount total = 0;
+
+    pwalletMain->ListLockedCoins(vOutpts);
+
+    BOOST_FOREACH(COutPoint &outpt, vOutpts) {
+        uint256 hash = outpt.hash;
+        if (!GetTransaction(hash, tx, Params().GetConsensus(), hashBlock, true))
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available about transaction");
+
+        total += tx.vout[outpt.n].nValue;
+    }
+
+    return total;
+}
 bool setTxFee(const UniValue& feeperkb){
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
@@ -111,6 +135,7 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
     {
         BOOST_FOREACH(const COutputEntry& s, listSent)
         {   
+            LogPrintf("first\n");
             UniValue address(UniValue::VOBJ);         
             UniValue total(UniValue::VOBJ);
             UniValue txids(UniValue::VOBJ);
@@ -293,7 +318,7 @@ UniValue StateSinceBlock(UniValue& ret, std::string block){
     {
         CWalletTx tx = (*it).second;
 
-        if (depth == -1 || tx.GetDepthInMainChain() < depth)
+        if (depth == -1 || tx.GetDepthInMainChain() <= depth)
             ListAPITransactions(tx, transactions, filter);
     }
 
@@ -305,7 +330,6 @@ UniValue StateSinceBlock(UniValue& ret, std::string block){
 
 UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
 {
-    LogPrintf("API: in sendzcoin\n");
     UniValue feeperkb = find_value(data,"feeperkb");
     setTxFee(feeperkb);
 
@@ -669,7 +693,7 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
     obj.push_back(Pair("network",       ChainNameFromCommandLine()));
     obj.push_back(Pair("blocks",        (int)chainActive.Height()));
     obj.push_back(Pair("connections",   (int)vNodes.size()));
-    obj.push_back(Pair("devauth",       DEV_AUTH));
+    obj.push_back(Pair("devauth",       CZMQAbstract::DEV_AUTH));
     obj.push_back(Pair("synced",       znodeSync.IsBlockchainSynced()));
     obj.push_back(Pair("modules",       modules));
 
@@ -849,7 +873,7 @@ UniValue paymentrequest(Type type, const UniValue& data, const UniValue& auth, b
 
     switch(type){
         case Initial: {
-            LogPrintf("API: returning initial layout..\n");
+            LogPrintf ("API: returning initial layout..\n");
             return paymentRequestData;
             break; 
         }
@@ -936,6 +960,107 @@ UniValue paymentrequest(Type type, const UniValue& data, const UniValue& auth, b
     return true;
 }
 
+UniValue getblockinfo(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
+
+    UniValue blockinfoObj(UniValue::VOBJ);
+    UniValue status(UniValue::VOBJ);
+    UniValue currentBlock(UniValue::VOBJ);
+
+    status.push_back(Pair("IsBlockchainSynced", znodeSync.IsBlockchainSynced()));
+    status.push_back(Pair("IsZnodeListSynced", znodeSync.IsZnodeListSynced()));
+    status.push_back(Pair("IsWinnersListSynced", znodeSync.IsWinnersListSynced()));
+    status.push_back(Pair("IsSynced", znodeSync.IsSynced()));
+    status.push_back(Pair("IsFailed", znodeSync.IsFailed()));
+
+    currentBlock.push_back(Pair("height", find_value(data, "nHeight")));
+    currentBlock.push_back(Pair("timestamp", find_value(data, "nTime")));
+
+    blockinfoObj.push_back(Pair("testnet", Params().TestnetToBeDeprecatedFieldRPC()));
+    blockinfoObj.push_back(Pair("connections", (int)vNodes.size()));
+    blockinfoObj.push_back(Pair("type","full"));
+    blockinfoObj.push_back(Pair("status", status));
+    blockinfoObj.push_back(Pair("currentBlock", currentBlock));
+
+    return blockinfoObj;
+}
+
+
+UniValue getblock(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
+
+    //Get block related info every 10 blocks.
+    UniValue getblockObj(UniValue::VOBJ);
+    int currentHeight = find_value(data, "nHeight").get_int();
+    LogPrintf("currentheight: %s\n", to_string(currentHeight));
+    bool syncing = (currentHeight % 10==0 && currentHeight >=10);
+    string prevblockhash;
+    if(syncing || znodeSync.IsBlockchainSynced()){
+        // if blockchain synced - get every block. if not get 10 previous blocks every 10
+        if(znodeSync.IsBlockchainSynced()){
+            prevblockhash = find_value(data, "hashBlock").get_str();
+            LogPrintf("prevblockhash: %s\n", prevblockhash);
+        }else {
+            LogPrintf("zmq: currentheight: %s\n", to_string(currentHeight));
+            prevblockhash = chainActive[currentHeight - 10]->GetBlockHash().ToString();
+            LogPrintf("zmq: prevblockhash: %s\n", prevblockhash);
+        }
+
+        LogPrintf("prevblockhash: %s\n", prevblockhash);
+
+        StateSinceBlock(getblockObj, prevblockhash);
+    }
+
+    return getblockObj;
+}
+
+UniValue getbalance(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
+    if (!EnsureWalletIsAvailable(false))
+        return NullUniValue;
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+    
+    UniValue balanceObj(UniValue::VOBJ);
+    UniValue totalObj(UniValue::VOBJ);
+    UniValue xzcObj(UniValue::VOBJ);
+    UniValue zerocoinObj(UniValue::VOBJ);
+
+    // various balances
+    CAmount xzcConfirmed = pwalletMain->GetBalance();
+    CAmount xzcUnconfirmed = pwalletMain->GetUnconfirmedBalance();
+    CAmount xzcLocked = getLockUnspentAmount();
+
+    //get private confirmed
+    CAmount zerocoinAll = 0;
+    CAmount zerocoinConfirmed = 0;
+    pwalletMain->GetAvailableMintCoinBalance(zerocoinConfirmed, true);
+    pwalletMain->GetAvailableMintCoinBalance(zerocoinAll, false);
+
+    //the difference of all and confirmed gives unconfirmed
+    CAmount zerocoinUnconfirmed = zerocoinAll - zerocoinConfirmed; 
+
+    // // We now have all base units, derive return values.
+    CAmount total = xzcConfirmed + xzcUnconfirmed + xzcLocked + zerocoinAll;
+    CAmount pending = total - xzcConfirmed - zerocoinConfirmed - xzcLocked;
+    CAmount available = xzcConfirmed -  xzcLocked;
+
+    
+    totalObj.push_back(Pair("all", total));
+    totalObj.push_back(Pair("pending", pending));
+    totalObj.push_back(Pair("available", available));
+
+    xzcObj.push_back(Pair("confirmed", xzcConfirmed));
+    xzcObj.push_back(Pair("unconfirmed", xzcUnconfirmed));
+    xzcObj.push_back(Pair("locked", xzcLocked));
+
+    zerocoinObj.push_back(Pair("confirmed", zerocoinConfirmed));
+    zerocoinObj.push_back(Pair("unconfirmed", zerocoinUnconfirmed));
+
+    balanceObj.push_back(Pair("total", totalObj));
+    balanceObj.push_back(Pair("xzc", xzcObj));
+    balanceObj.push_back(Pair("zerocoin", zerocoinObj));
+
+    return balanceObj;
+}
+
 static const CAPICommand commands[] =
 { //  category              collection         actor (function)          authPort   authPassphrase   warmupOk
   //  --------------------- ------------       ----------------          -------- --------------   --------
@@ -944,11 +1069,15 @@ static const CAPICommand commands[] =
     { "wallet",             "unlockwallet",    &unlockwallet,            true,      false,           false  },
     { "wallet",             "statewallet",     &statewallet,             true,      false,           false  },
     { "wallet",             "setpassphrase",   &setpassphrase,           true,      false,           false  },
+    { "wallet",             "getbalance",      &getbalance,              true,      false,           false  },
+    { "blockchain",         "getblockinfo",    &getblockinfo,            true,      false,           false  },
+    { "blockchain",         "getblock",        &getblock,                true,      false,           false  },
     { "zerocoin",           "mint",            &mint,                    true,      true,            false  },
     { "zerocoin",           "sendprivate",     &sendprivate,             true,      true,            false  },
     { "sending",            "txfee",           &txfee,                   true,      true,            false  },
     { "sending",            "sendzcoin",       &sendzcoin,               true,      true,            false  },
     { "sending",            "paymentrequest",  &paymentrequest,          true,      true,            false  }
+
 };
 void RegisterAPICommands(CAPITable &tableAPI)
 {

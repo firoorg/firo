@@ -2278,7 +2278,7 @@ void CWallet::ListAvailableCoinsMintCoins(vector <COutput> &vCoins, bool fOnlyCo
         list <CZerocoinEntry> listPubCoin = list<CZerocoinEntry>();
         CWalletDB walletdb(pwalletMain->strWalletFile);
         walletdb.ListPubCoin(listPubCoin);
-        LogPrintf("listPubCoin.size()=%s\n", listPubCoin.size());
+//        LogPrintf("listPubCoin.size()=%s\n", listPubCoin.size());
         for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it) {
             const CWalletTx *pcoin = &(*it).second;
 //            LogPrintf("pcoin=%s\n", pcoin->GetHash().ToString());
@@ -2293,7 +2293,7 @@ void CWallet::ListAvailableCoinsMintCoins(vector <COutput> &vCoins, bool fOnlyCo
             }
 
             if (pcoin->IsCoinBase() && pcoin->GetBlocksToMaturity() > 0) {
-                LogPrintf("Not trusted\n");
+                //LogPrintf("Not trusted\n");
                 continue;
             }
 
@@ -2302,7 +2302,7 @@ void CWallet::ListAvailableCoinsMintCoins(vector <COutput> &vCoins, bool fOnlyCo
                 LogPrintf("nDepth=%s\n", nDepth);
                 continue;
             }
-            LogPrintf("pcoin->vout.size()=%s\n", pcoin->vout.size());
+//            LogPrintf("pcoin->vout.size()=%s\n", pcoin->vout.size());
 
             for (unsigned int i = 0; i < pcoin->vout.size(); i++) {
                 if (pcoin->vout[i].scriptPubKey.IsZerocoinMint()) {
@@ -2341,7 +2341,7 @@ void CWallet::GetAvailableMintCoinBalance(CAmount& balance, bool fOnlyConfirmed)
     list <CZerocoinEntry> listPubCoin = list<CZerocoinEntry>();
     CWalletDB walletdb(pwalletMain->strWalletFile);
     walletdb.ListPubCoin(listPubCoin);
-    LogPrintf("listPubCoin.size()=%s\n", listPubCoin.size());
+//    LogPrintf("listPubCoin.size()=%s\n", listPubCoin.size());
     for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it) {
         const CWalletTx *pcoin = &(*it).second;
 //            LogPrintf("pcoin=%s\n", pcoin->GetHash().ToString());
@@ -2351,7 +2351,7 @@ void CWallet::GetAvailableMintCoinBalance(CAmount& balance, bool fOnlyConfirmed)
         }
 
         if (pcoin->IsCoinBase() && pcoin->GetBlocksToMaturity() > 0) {
-            LogPrintf("Not trusted\n");
+            //LogPrintf("Not trusted\n");
             continue;
         }
 
@@ -2360,7 +2360,7 @@ void CWallet::GetAvailableMintCoinBalance(CAmount& balance, bool fOnlyConfirmed)
             LogPrintf("nDepth=%s\n", nDepth);
             continue;
         }
-        LogPrintf("pcoin->vout.size()=%s\n", pcoin->vout.size());
+//        LogPrintf("pcoin->vout.size()=%s\n", pcoin->vout.size());
 
         for (unsigned int i = 0; i < pcoin->vout.size(); i++) {
             if (pcoin->vout[i].scriptPubKey.IsZerocoinMint()) {

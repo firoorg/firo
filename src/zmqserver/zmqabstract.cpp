@@ -26,7 +26,6 @@ bool CZMQAbstract::NotifyTransaction(const CTransaction &/*transaction*/)
     return true;
 }
 
-// Internal function to send multipart message
 bool CZMQAbstract::SendMultipart(const void* data, size_t size, ...)
 {
     va_list args;

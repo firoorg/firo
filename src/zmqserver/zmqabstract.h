@@ -55,9 +55,11 @@ public:
     virtual bool NotifyBlock(const CBlockIndex *pindex);
     virtual bool NotifyTransaction(const CTransaction &transaction);
 
+    /* send message with or without topic value. */
     bool SendMessage();
 
 private:
+    /* Internal function to send multipart message - 1 to N messages */
     bool SendMultipart(const void* data, size_t size, ...);
 
 protected:

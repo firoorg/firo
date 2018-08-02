@@ -11,8 +11,6 @@
 #include "rpc/server.h"
 #include "script/standard.h"
 #include "base58.h"
-#include "client-api/json.hpp"
-#include "zmqserver.h"
 #include "znode-sync.h"
 #include "net.h"
 #include "script/ismine.h"
@@ -24,7 +22,6 @@
 #include "client-api/protocol.h"
 
 using path = boost::filesystem::path;
-using json = nlohmann::json;
 extern CWallet* pwalletMain;
 
 //*********** threads waiting for responses ***********//
@@ -44,11 +41,10 @@ void* CZMQOpenReplier::Thread()
         LogPrintf("ZMQ: read open request\n");
 
         APIJSONRequest jreq;
-        string requestStr = ReadRequest();
         try {
             // Parse request
             UniValue valRequest;
-            if (!valRequest.read(requestStr))
+            if (!valRequest.read(ReadRequest()))
                 throw JSONAPIError(API_PARSE_ERROR, "Parse error");
 
             jreq.parse(valRequest);
@@ -92,11 +88,10 @@ void* CZMQAuthReplier::Thread(){
         LogPrintf("ZMQ: read auth request\n");
 
         APIJSONRequest jreq;
-        string requestStr = ReadRequest();
         try {
             // Parse request
             UniValue valRequest;
-            if (!valRequest.read(requestStr))
+            if (!valRequest.read(ReadRequest()))
                 throw JSONAPIError(API_PARSE_ERROR, "Parse error");
 
             jreq.parse(valRequest);

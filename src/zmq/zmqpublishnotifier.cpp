@@ -10,7 +10,6 @@
 #include "rpc/server.h"
 #include "script/standard.h"
 #include "base58.h"
-#include "client-api/json.hpp"
 #include "client-api/zmq.h"
 #include "zmqserver.h"
 #include "znode-sync.h"
@@ -21,7 +20,6 @@
 #include "wallet/rpcwallet.cpp"
 
 using path = boost::filesystem::path;
-using json = nlohmann::json;
 using namespace std::chrono;
 
 static std::multimap<std::string, CZMQAbstractPublishNotifier*> mapPublishNotifiers;
