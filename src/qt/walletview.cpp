@@ -72,7 +72,7 @@ WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
 	QVBoxLayout *txvbox = new QVBoxLayout();
 	txTabHolder = new QTabWidget();
 	txTabHolder->addTab(mpTXTab,tr("Exodus"));
-	txTabHolder->addTab(bitcoinTXTab,tr("Bitcoin"));
+	txTabHolder->addTab(bitcoinTXTab,tr("Zcoin"));
 	txvbox->addWidget(txTabHolder);
 	transactionsPage->setLayout(txvbox);
 
@@ -92,7 +92,7 @@ WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
     sendMPTab = new SendMPDialog(platformStyle);
     sendTabHolder = new QTabWidget();
     sendTabHolder->addTab(sendMPTab,tr("Exodus"));
-    sendTabHolder->addTab(sendCoinsTab,tr("Bitcoin"));
+    sendTabHolder->addTab(sendCoinsTab,tr("Zcoin"));
     svbox->addWidget(sendTabHolder);
     sendCoinsPage->setLayout(svbox);
 

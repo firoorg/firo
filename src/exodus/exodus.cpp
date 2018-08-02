@@ -2221,9 +2221,9 @@ int exodus_init()
         return 0;
     }
 
-    PrintToConsole("Initializing Exodus Core v%s [%s]\n", ExodusVersion(), Params().NetworkIDString());
+    PrintToConsole("Initializing Exodus v%s [%s]\n", ExodusVersion(), Params().NetworkIDString());
 
-    PrintToLog("\nInitializing Exodus Core v%s [%s]\n", ExodusVersion(), Params().NetworkIDString());
+    PrintToLog("\nInitializing Exodus v%s [%s]\n", ExodusVersion(), Params().NetworkIDString());
     PrintToLog("Startup time: %s\n", DateTimeStrFormat("%Y-%m-%d %H:%M:%S", GetTime()));
 
     InitDebugLogLevels();
@@ -2348,8 +2348,8 @@ int exodus_init()
     int64_t exodus_balance = getMPbalance(exodus_address, EXODUS_PROPERTY_EXODUS, BALANCE);
     PrintToLog("Exodus balance after initialization: %s\n", FormatDivisibleMP(exodus_balance));
 
-    PrintToConsole("Exodus balance: %s OMNI\n", FormatDivisibleMP(exodus_balance));
-    PrintToConsole("Exodus Core initialization completed\n");
+    PrintToConsole("Exodus balance: %s EXODUS\n", FormatDivisibleMP(exodus_balance));
+    PrintToConsole("Exodus initialization completed\n");
 
     return 0;
 }

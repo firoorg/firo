@@ -197,8 +197,8 @@ UniValue exodus_createpayload_issuancefixed(const UniValue& params, bool fHelp)
             "\"payload\"             (string) the hex-encoded payload\n"
 
             "\nExamples:\n"
-            + HelpExampleCli("exodus_createpayload_issuancefixed", "2 1 0 \"Companies\" \"Bitcoin Mining\" \"Quantum Miner\" \"\" \"\" \"1000000\"")
-            + HelpExampleRpc("exodus_createpayload_issuancefixed", "2, 1, 0, \"Companies\", \"Bitcoin Mining\", \"Quantum Miner\", \"\", \"\", \"1000000\"")
+            + HelpExampleCli("exodus_createpayload_issuancefixed", "2 1 0 \"Companies\" \"Zcoin Mining\" \"Quantum Miner\" \"\" \"\" \"1000000\"")
+            + HelpExampleRpc("exodus_createpayload_issuancefixed", "2, 1, 0, \"Companies\", \"Zcoin Mining\", \"Quantum Miner\", \"\", \"\", \"1000000\"")
         );
 
     uint8_t ecosystem = ParseEcosystem(params[0]);
@@ -245,8 +245,8 @@ UniValue exodus_createpayload_issuancecrowdsale(const UniValue& params, bool fHe
             "\"payload\"             (string) the hex-encoded payload\n"
 
             "\nExamples:\n"
-            + HelpExampleCli("exodus_createpayload_issuancecrowdsale", "2 1 0 \"Companies\" \"Bitcoin Mining\" \"Quantum Miner\" \"\" \"\" 2 \"100\" 1483228800 30 2")
-            + HelpExampleRpc("exodus_createpayload_issuancecrowdsale", "2, 1, 0, \"Companies\", \"Bitcoin Mining\", \"Quantum Miner\", \"\", \"\", 2, \"100\", 1483228800, 30, 2")
+            + HelpExampleCli("exodus_createpayload_issuancecrowdsale", "2 1 0 \"Companies\" \"Zcoin Mining\" \"Quantum Miner\" \"\" \"\" 2 \"100\" 1483228800 30 2")
+            + HelpExampleRpc("exodus_createpayload_issuancecrowdsale", "2, 1, 0, \"Companies\", \"Zcoin Mining\", \"Quantum Miner\", \"\", \"\", 2, \"100\", 1483228800, 30, 2")
         );
 
     uint8_t ecosystem = ParseEcosystem(params[0]);
@@ -294,8 +294,8 @@ UniValue exodus_createpayload_issuancemanaged(const UniValue& params, bool fHelp
             "\"payload\"             (string) the hex-encoded payload\n"
 
             "\nExamples:\n"
-            + HelpExampleCli("exodus_createpayload_issuancemanaged", "2 1 0 \"Companies\" \"Bitcoin Mining\" \"Quantum Miner\" \"\" \"\"")
-            + HelpExampleRpc("exodus_createpayload_issuancemanaged", "2, 1, 0, \"Companies\", \"Bitcoin Mining\", \"Quantum Miner\", \"\", \"\"")
+            + HelpExampleCli("exodus_createpayload_issuancemanaged", "2 1 0 \"Companies\" \"Zcoin Mining\" \"Quantum Miner\" \"\" \"\"")
+            + HelpExampleRpc("exodus_createpayload_issuancemanaged", "2, 1, 0, \"Companies\", \"Zcoin Mining\", \"Quantum Miner\", \"\", \"\"")
         );
 
     uint8_t ecosystem = ParseEcosystem(params[0]);
