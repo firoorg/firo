@@ -179,6 +179,7 @@ bool CZMQRawTransactionPublisher::NotifyTransaction(const CTransaction &transact
 
     isminefilter filter = ISMINE_SPENDABLE;
     publish.setObject();
+    
     ListAPITransactions(wtx, publish, filter);
 
     Publish();
