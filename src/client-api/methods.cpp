@@ -171,7 +171,6 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
             entry.push_back(Pair("fee", ValueFromAmount(nFee).get_real() * COIN));
             APIWalletTxToJSON(wtx, entry);
 
-
             if(!ret[addrStr].isNull()){
                 address = ret[addrStr];
             }
@@ -207,7 +206,6 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
     //Received
     if (listReceived.size() > 0 && wtx.GetDepthInMainChain() >= 0)
     {
-       // LogPrintf("api: in list received \n");
         BOOST_FOREACH(const COutputEntry& r, listReceived)
         {
             UniValue address(UniValue::VOBJ);         

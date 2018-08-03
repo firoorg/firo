@@ -27,9 +27,6 @@
 using path = boost::filesystem::path;
 extern CWallet* pwalletMain;
 
-//static std::multimap<std::string, CZMQAbstractPublisher*> mapRepliers;
-
-
 //*********** threads waiting for responses ***********//
 void* CZMQOpenReplier::Thread()
 {
