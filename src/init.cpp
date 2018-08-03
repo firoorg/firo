@@ -866,6 +866,7 @@ bool AppInitServers(boost::thread_group &threadGroup) {
     LogPrint(NULL, "API: creating data directory.\n");
 
     CreatePaymentRequestFile();
+    CreateTxTimestampFile();
     CreateZerocoinFile();
     CreateSettingsFile();
  

@@ -1303,6 +1303,7 @@ void CWalletTx::GetAmounts(list <COutputEntry> &listReceived,
         // Only need to handle txouts if AT LEAST one of these is true:
         //   1) they debit from us (sent)
         //   2) the output is to us (received)
+
         if (nDebit > 0) {
             // Don't report 'change' txouts
             if (pwallet->IsChange(txout))

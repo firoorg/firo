@@ -175,9 +175,9 @@ bool CZMQAbstractPublisher::Publish(){
 
 bool CZMQRawTransactionPublisher::NotifyTransaction(const CTransaction &transaction)
 {
-    const CWalletTx wtx(pwalletMain, transaction);
+    CWalletTx wtx(pwalletMain, transaction);
 
-    isminefilter filter = ISMINE_SPENDABLE;
+    isminefilter filter = ISMINE_ALL;
     publish.setObject();
     
     ListAPITransactions(wtx, publish, filter);

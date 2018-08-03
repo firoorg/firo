@@ -1,4 +1,4 @@
-// Copyright (c) 2010 Satoshi Nakamoto
+    // Copyright (c) 2010 Satoshi Nakamoto
 // Copyright (c) 2009-2015 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -30,6 +30,74 @@
 namespace fs = boost::filesystem;
 using namespace std::chrono;
 using namespace std;
+
+UniValue getInitialTimestamp(string hash){
+    fs::path const &path = CreateTxTimestampFile();
+
+    // get data as ifstream
+    std::ifstream TxTimestampIn(path.string());
+
+    // parse as std::string
+    std::string TxTimestampStr((std::istreambuf_iterator<char>(TxTimestampIn)), std::istreambuf_iterator<char>());
+
+    // finally as UniValue
+    UniValue TxTimestampUni(UniValue::VOBJ);
+    TxTimestampUni.read(TxTimestampStr);
+
+    UniValue TxTimestampData(UniValue::VOBJ);
+    if(!TxTimestampUni["data"].isNull()){
+        TxTimestampData = TxTimestampUni["data"];
+    }
+
+    UniValue firstSeenAt = find_value(TxTimestampData,hash);
+    if(firstSeenAt.isNull()){
+        return 0;
+    }
+    return firstSeenAt;
+}
+
+UniValue setInitialTimestamp(string hash){
+    fs::path const &path = CreateTxTimestampFile();
+
+    // get data as ifstream
+    std::ifstream TxTimestampIn(path.string());
+
+    // parse as std::string
+    std::string TxTimestampStr((std::istreambuf_iterator<char>(TxTimestampIn)), std::istreambuf_iterator<char>());
+
+    // finally as UniValue
+    UniValue TxTimestampUni(UniValue::VOBJ);
+    TxTimestampUni.read(TxTimestampStr);
+
+    UniValue TxTimestampData(UniValue::VOBJ);
+    if(!TxTimestampUni["data"].isNull()){
+        TxTimestampData = TxTimestampUni["data"];
+    }
+
+    if(!find_value(TxTimestampData,hash).isNull()){
+        return find_value(TxTimestampData,hash);
+    }
+
+    milliseconds secs = duration_cast< seconds >(
+     system_clock::now().time_since_epoch()
+    ) / 1000;
+    UniValue firstSeenAt = secs.count();
+
+    TxTimestampData.push_back(Pair(hash, firstSeenAt));
+
+    if(!TxTimestampUni.replace("data", TxTimestampData)){
+        throw runtime_error("Could not replace key/value pair.");
+    }
+
+    //write back UniValue
+    std::ofstream TxTimestampOut(path.string());
+
+    TxTimestampOut << TxTimestampUni.write(4,0) << endl;
+
+    return firstSeenAt;
+
+
+}
 
 CAmount getLockUnspentAmount()
 {
@@ -102,17 +170,19 @@ UniValue getBlockHeight(const string strHash)
 void APIWalletTxToJSON(const CWalletTx& wtx, UniValue& entry)
 {
     int confirms = wtx.GetDepthInMainChain();
+    string hash = wtx.GetHash().GetHex();
     if (confirms > 0)
     {
-        entry.push_back(Pair("blockhash", wtx.hashBlock.GetHex()));
-        entry.push_back(Pair("blocktime", mapBlockIndex[wtx.hashBlock]->GetBlockTime()));
-        entry.push_back(Pair("blockheight", getBlockHeight(wtx.hashBlock.GetHex())));
-        entry.push_back(Pair("time", wtx.GetTxTime()));
-        entry.push_back(Pair("timereceived", (int64_t)wtx.nTimeReceived));
-    } 
+        entry.push_back(Pair("blockHash", wtx.hashBlock.GetHex()));
+        entry.push_back(Pair("blockTime", mapBlockIndex[wtx.hashBlock]->GetBlockTime()));
+        entry.push_back(Pair("blockHeight", getBlockHeight(wtx.hashBlock.GetHex())));
+        entry.push_back(Pair("firstSeenAt", getInitialTimestamp(hash)));    
+    }
+    else {
+        entry.push_back(Pair("firstSeenAt", setInitialTimestamp(hash)));
+    }
 
-    uint256 hash = wtx.GetHash();
-    entry.push_back(Pair("txid", hash.GetHex()));
+    entry.push_back(Pair("txid", hash));
 
     BOOST_FOREACH(const PAIRTYPE(string,string)& item, wtx.mapValue)
         entry.push_back(Pair(item.first, item.second));
@@ -376,7 +446,7 @@ UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool f
     vector<string> accounts = GetMyAccountNames();
     bool isValid = false;
     BOOST_FOREACH(string strAccount, accounts){      
-        CAmount nBalance = pwalletMain->GetAccountBalance(strAccount, nMinDepth, ISMINE_SPENDABLE);
+        CAmount nBalance = pwalletMain->GetAccountBalance(strAccount, nMinDepth, ISMINE_ALL);
         LogPrintf("nBalance: %s\n", nBalance);
         LogPrintf("totalAmount: %s\n", totalAmount);
         if (totalAmount <= nBalance){
@@ -879,14 +949,14 @@ UniValue paymentrequest(Type type, const UniValue& data, const UniValue& auth, b
         }
         case Create: {     
             UniValue newAddress = getNewAddress();
-            milliseconds ms = duration_cast< milliseconds >(
+            milliseconds secs = duration_cast< seconds >(
                  system_clock::now().time_since_epoch()
-            );
-            UniValue createdAt = ms.count();
+            ) / 1000;
+            UniValue createdAt = secs.count();
 
             LogPrintf("data write: %s\n", data.write());
             entry.push_back(Pair("address", newAddress.get_str()));
-            entry.push_back(Pair("created_at", createdAt.get_int64()));
+            entry.push_back(Pair("createdAt", createdAt.get_int64()));
             entry.push_back(Pair("amount", find_value(data, "amount").get_real()));
             entry.push_back(Pair("message", find_value(data, "message").get_str()));
             entry.push_back(Pair("label", find_value(data, "label").get_str()));
@@ -931,7 +1001,6 @@ UniValue paymentrequest(Type type, const UniValue& data, const UniValue& auth, b
 
             for (std::vector<std::string>::iterator it = dataKeys.begin(); it != dataKeys.end(); it++){
                 string key = (*it);
-                LogPrintf("key: %s\n",  key);
                 if(!(key=="id")){
                     entry.replace(key, find_value(data, key)); //todo might have to specify type
                 }
@@ -969,11 +1038,11 @@ UniValue blockchain(Type type, const UniValue& data, const UniValue& auth, bool 
     UniValue status(UniValue::VOBJ);
     UniValue currentBlock(UniValue::VOBJ);
 
-    status.push_back(Pair("IsBlockchainSynced", znodeSync.IsBlockchainSynced()));
-    status.push_back(Pair("IsZnodeListSynced", znodeSync.IsZnodeListSynced()));
-    status.push_back(Pair("IsWinnersListSynced", znodeSync.IsWinnersListSynced()));
-    status.push_back(Pair("IsSynced", znodeSync.IsSynced()));
-    status.push_back(Pair("IsFailed", znodeSync.IsFailed()));
+    status.push_back(Pair("isBlockchainSynced", znodeSync.IsBlockchainSynced()));
+    status.push_back(Pair("isZnodeListSynced", znodeSync.IsZnodeListSynced()));
+    status.push_back(Pair("isWinnersListSynced", znodeSync.IsWinnersListSynced()));
+    status.push_back(Pair("isSynced", znodeSync.IsSynced()));
+    status.push_back(Pair("isFailed", znodeSync.IsFailed()));
 
     // if coming from PUB, height and time are included in data. otherwise just return chain tip
     UniValue height = find_value(data, "nHeight");

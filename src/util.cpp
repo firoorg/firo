@@ -113,6 +113,7 @@ const char * const PERSISTENT_FILENAME = "persistent";
 const char * const PAYMENT_REQUEST_FILENAME = "payment_request.json";
 const char * const ZEROCOIN_FILENAME = "zerocoin.json";
 const char * const SETTINGS_FILENAME = "settings.json";
+const char * const TX_TIMESTAMP_FILENAME = "tx_timestamp.json";
 
 map<string, string> mapArgs;
 map<string, vector<string> > mapMultiArgs;
@@ -653,6 +654,26 @@ boost::filesystem::path CreateSettingsFile(bool fNetSpecific)
         std::ofstream settingsOut(pathConfigFile.string());
 
         settingsOut << settingsUni.write(4,0) << endl;
+    }
+
+    return pathConfigFile;
+}
+
+boost::filesystem::path CreateTxTimestampFile(bool fNetSpecific)
+{
+    boost::filesystem::path pathConfigFile = GetJsonDataDir(fNetSpecific,TX_TIMESTAMP_FILENAME);
+
+    LogPrintf("API: pathConfigFile timestamp: %s\n", pathConfigFile.string());
+    if(!boost::filesystem::exists(pathConfigFile)){
+        LogPrintf("timestamp does not exist\n");
+        UniValue txTimestampUni(UniValue::VOBJ);
+        txTimestampUni.push_back(Pair("type", "tx_timestamp"));
+        txTimestampUni.push_back(Pair("data", NullUniValue));
+        
+        //write back UniValue
+        std::ofstream txTimestampOut(pathConfigFile.string());
+
+        txTimestampOut << txTimestampUni.write(4,0) << endl;
     }
 
     return pathConfigFile;
