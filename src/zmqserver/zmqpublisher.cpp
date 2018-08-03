@@ -64,8 +64,6 @@ bool CZMQAbstractPublisher::Initialize()
     // set API method string
     SetMethod();
 
-    publish.setObject();
-
     // check if address is being used by other publish notifier
     std::multimap<std::string, CZMQAbstractPublisher*>::iterator i = mapPublishers.find(address);
 
@@ -180,6 +178,7 @@ bool CZMQRawTransactionPublisher::NotifyTransaction(const CTransaction &transact
     const CWalletTx wtx(pwalletMain, transaction);
 
     isminefilter filter = ISMINE_SPENDABLE;
+    publish.setObject();
     ListAPITransactions(wtx, publish, filter);
 
     Publish();
@@ -199,6 +198,7 @@ bool CZMQBlockPublisher::NotifyBlock(const CBlockIndex *pindex){
   try {
       jreq.parse(pindexUni);
 
+      publish.setObject();
       publish = tableAPI.execute(jreq, true);
 
       Publish();
