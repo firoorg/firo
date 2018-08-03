@@ -870,24 +870,25 @@ UniValue paymentrequest(Type type, const UniValue& data, const UniValue& auth, b
 
     LogPrintf("API: data in write: %s\n", data.write());
 
+    bool returnEntry = false;
+    UniValue entry(UniValue::VOBJ);
+
     switch(type){
         case Initial: {
             LogPrintf ("API: returning initial layout..\n");
             return paymentRequestData;
             break; 
         }
-        case Create: {
-            UniValue entry(UniValue::VOBJ);
-
+        case Create: {     
             UniValue newAddress = getNewAddress();
             milliseconds ms = duration_cast< milliseconds >(
                  system_clock::now().time_since_epoch()
             );
-            UniValue createdAt = to_string(ms.count());
+            UniValue createdAt = ms.count();
 
             LogPrintf("data write: %s\n", data.write());
             entry.push_back(Pair("address", newAddress.get_str()));
-            entry.push_back(Pair("created_at", createdAt.get_str()));
+            entry.push_back(Pair("created_at", createdAt.get_int64()));
             entry.push_back(Pair("amount", find_value(data, "amount").get_real()));
             entry.push_back(Pair("message", find_value(data, "message").get_str()));
             entry.push_back(Pair("label", find_value(data, "label").get_str()));
@@ -899,6 +900,7 @@ UniValue paymentrequest(Type type, const UniValue& data, const UniValue& auth, b
             if(!paymentRequestUni.replace("data", paymentRequestData)){
                 throw runtime_error("Could not replace key/value pair.");
             }
+            returnEntry = true;
             break;
         }
         case Delete: {
@@ -916,14 +918,14 @@ UniValue paymentrequest(Type type, const UniValue& data, const UniValue& auth, b
             if(!paymentRequestUni.replace("data", paymentRequestData)){
                 throw runtime_error("Could not replace key/value pair.");
             }
+            return true;
             break;      
         }
 
         case Update: {
             string id = find_value(data, "id").get_str();
-            UniValue paymentRequestId(UniValue::VOBJ);
-            paymentRequestId = find_value(paymentRequestData, id);
-            if(paymentRequestId.isNull()){
+            entry = find_value(paymentRequestData, id);
+            if(entry.isNull()){
                 throw JSONAPIError(API_INVALID_PARAMETER, "Invalid data, id does not exist");
             }
 
@@ -933,17 +935,17 @@ UniValue paymentrequest(Type type, const UniValue& data, const UniValue& auth, b
                 string key = (*it);
                 LogPrintf("key: %s\n",  key);
                 if(!(key=="id")){
-                    paymentRequestId.replace(key, find_value(data, key)); //todo might have to specify type
+                    entry.replace(key, find_value(data, key)); //todo might have to specify type
                 }
             }
 
-            paymentRequestData.replace(id, paymentRequestId);
+            paymentRequestData.replace(id, entry);
 
 
             if(!paymentRequestUni.replace("data", paymentRequestData)){
                 throw runtime_error("Could not replace key/value pair.");
             }
-
+            returnEntry = true;
             break;
         }
         default: {
@@ -955,6 +957,10 @@ UniValue paymentrequest(Type type, const UniValue& data, const UniValue& auth, b
     std::ofstream paymentRequestOut(path.string());
 
     paymentRequestOut << paymentRequestUni.write(4,0) << endl;
+
+    if(returnEntry){
+        return entry;
+    }
 
     return true;
 }
