@@ -18,11 +18,17 @@
 #include "wallet/wallet.cpp"
 #include "wallet/rpcwallet.cpp"
 
+#include <thread>
+#include <chrono>
+
 #include "client-api/server.h"
 #include "client-api/protocol.h"
 
 using path = boost::filesystem::path;
 extern CWallet* pwalletMain;
+
+//static std::multimap<std::string, CZMQAbstractPublisher*> mapRepliers;
+
 
 //*********** threads waiting for responses ***********//
 void* CZMQOpenReplier::Thread()
@@ -39,12 +45,13 @@ void* CZMQOpenReplier::Thread()
         }
 
         LogPrintf("ZMQ: read open request\n");
-
+        std::string requestStr = ReadRequest();
+        LogPrintf("requestStr: %s\n", requestStr);
         APIJSONRequest jreq;
         try {
             // Parse request
             UniValue valRequest;
-            if (!valRequest.read(ReadRequest()))
+            if (!valRequest.read(requestStr))
                 throw JSONAPIError(API_PARSE_ERROR, "Parse error");
 
             jreq.parse(valRequest);
@@ -126,8 +133,15 @@ bool CZMQAbstractReplier::Wait(){
     if(rc==-1) return false;
     /* Block until a message is available to be received from socket */
     LogPrintf("ZMQ: waiting for incoming message..\n");
-    rc = zmq_recvmsg (psocket, &request, 0);
-    if(rc==-1) return false;
+    do {
+        rc = zmq_recvmsg (psocket, &request, ZMQ_DONTWAIT);
+        if ((EAGAIN != errno && rc==0) || !KEEPALIVE){
+            break;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    } while(rc==-1);
+
+    if (!KEEPALIVE) return false;
 
     return true;
 }
@@ -142,9 +156,17 @@ std::string CZMQAbstractReplier::ReadRequest(){
 
 bool CZMQAbstractReplier::Socket(){
     LogPrintf("ZMQ: setting up type in Socket.\n");
-    pcontext = zmq_ctx_new();
+    pcontext = zmq_init(1);
+
+    if (!pcontext)
+    {
+        zmqError("Unable to initialize context");
+        return false;
+    }
 
     LogPrintf("ZMQ: created pcontext\n");
+
+    assert(!psocket);
 
     psocket = zmq_socket(pcontext,ZMQ_REP);
     if(!psocket){
@@ -202,24 +224,27 @@ bool CZMQAbstractReplier::Initialize()
 void CZMQAbstractReplier::Shutdown()
 {
     LogPrintf("shutting down replier..\n");
-    KEEPALIVE = 0;
+    if (pcontext) // prematurely end context in order to let threads run out
+    {
+        pcontext = 0;
+    }
+
+    KEEPALIVE = 0; // end infinite loop in thread 
+    worker->interrupt(); // terminate boost thread
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // wait allowing thread to finish up
 
     assert(psocket);
 
     LogPrint(NULL, "Close socket at authority %s\n", authority);
 
-    //int linger = 0;
-    //zmq_setsockopt(psocket, ZMQ_LINGER, &linger, sizeof(linger));
+    int linger = 0;
+    zmq_setsockopt(psocket, ZMQ_LINGER, &linger, sizeof(linger));
     zmq_close(psocket);
     psocket = 0;
     LogPrintf("closed psocket\n");
-    if (pcontext)
-    {
-        LogPrintf("destroying pcontext..\n");
-        zmq_ctx_destroy(pcontext);
-        pcontext = 0;
-        LogPrintf("pcontext destroyed.  \n");
-    }
+
+    zmq_ctx_destroy(pcontext);
 
     LogPrintf("replier shutdown\n");
 }

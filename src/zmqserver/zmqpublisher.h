@@ -71,7 +71,7 @@ class CZMQRawTransactionPublisher : public CZMQAbstractPublisher
 public:
     bool NotifyTransaction(const CTransaction &transaction);
     void SetMethod(){ method= "transaction";};
-    void SetTopic(){ topic = "address";};
+    void SetTopic(){ topic = "transaction";};
 };
 
 class CZMQSettingsUpdatePublisher : public CZMQAbstractPublisher
