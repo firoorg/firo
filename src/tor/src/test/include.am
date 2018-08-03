@@ -23,8 +23,8 @@ TESTSCRIPTS = \
 	src/test/test_workqueue_efd2.sh \
 	src/test/test_workqueue_pipe.sh \
 	src/test/test_workqueue_pipe2.sh \
-	src/test/test_workqueue_socketpair.sh \
-	src/test/test_switch_id.sh
+	src/test/test_workqueue_socketpair.sh 
+#	src/test/test_switch_id.sh
 
 if USE_RUST
 TESTSCRIPTS += \
