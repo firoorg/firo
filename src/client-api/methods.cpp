@@ -107,12 +107,11 @@ void APIWalletTxToJSON(const CWalletTx& wtx, UniValue& entry)
         entry.push_back(Pair("blockhash", wtx.hashBlock.GetHex()));
         entry.push_back(Pair("blocktime", mapBlockIndex[wtx.hashBlock]->GetBlockTime()));
         entry.push_back(Pair("blockheight", getBlockHeight(wtx.hashBlock.GetHex())));
+        entry.push_back(Pair("timereceived", (int64_t)wtx.nTimeReceived));
     } 
 
     uint256 hash = wtx.GetHash();
     entry.push_back(Pair("txid", hash.GetHex()));
-    entry.push_back(Pair("time", wtx.GetTxTime()));
-    entry.push_back(Pair("timereceived", (int64_t)wtx.nTimeReceived));
 
     BOOST_FOREACH(const PAIRTYPE(string,string)& item, wtx.mapValue)
         entry.push_back(Pair(item.first, item.second));
@@ -135,7 +134,6 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
     {
         BOOST_FOREACH(const COutputEntry& s, listSent)
         {   
-            LogPrintf("first\n");
             UniValue address(UniValue::VOBJ);         
             UniValue total(UniValue::VOBJ);
             UniValue txids(UniValue::VOBJ);
@@ -694,7 +692,7 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
     obj.push_back(Pair("blocks",        (int)chainActive.Height()));
     obj.push_back(Pair("connections",   (int)vNodes.size()));
     obj.push_back(Pair("devauth",       CZMQAbstract::DEV_AUTH));
-    obj.push_back(Pair("synced",       znodeSync.IsBlockchainSynced()));
+    obj.push_back(Pair("synced",        znodeSync.IsBlockchainSynced()));
     obj.push_back(Pair("modules",       modules));
 
     return obj;
@@ -978,10 +976,10 @@ UniValue blockchain(Type type, const UniValue& data, const UniValue& auth, bool 
 
     if(!(height.isNull() && time.isNull())){
         currentBlock.push_back(Pair("height", height));    
-        currentBlock.push_back(Pair("timestamp", time));
+        currentBlock.push_back(Pair("timestamp", stoi(time.get_str())));
     }else{
-        currentBlock.push_back(Pair("height", to_string(chainActive.Tip()->nHeight)));
-        currentBlock.push_back(Pair("timestamp", to_string(chainActive.Tip()->nTime)));
+        currentBlock.push_back(Pair("height", stoi(to_string(chainActive.Tip()->nHeight))));
+        currentBlock.push_back(Pair("timestamp", stoi(to_string(chainActive.Tip()->nTime))));
     }
 
     blockinfoObj.push_back(Pair("testnet", Params().TestnetToBeDeprecatedFieldRPC()));
@@ -996,27 +994,11 @@ UniValue blockchain(Type type, const UniValue& data, const UniValue& auth, bool 
 
 UniValue block(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
 
-    //Get block related info every 10 blocks.
     UniValue getblockObj(UniValue::VOBJ);
-    int currentHeight = find_value(data, "nHeight").get_int();
-    LogPrintf("currentheight: %s\n", to_string(currentHeight));
-    bool syncing = (currentHeight % 10==0 && currentHeight >=10);
-    string prevblockhash;
-    if(syncing || znodeSync.IsBlockchainSynced()){
-        // if blockchain synced - get every block. if not get 10 previous blocks every 10
-        if(znodeSync.IsBlockchainSynced()){
-            prevblockhash = find_value(data, "hashBlock").get_str();
-            LogPrintf("prevblockhash: %s\n", prevblockhash);
-        }else {
-            LogPrintf("zmq: currentheight: %s\n", to_string(currentHeight));
-            prevblockhash = chainActive[currentHeight - 10]->GetBlockHash().ToString();
-            LogPrintf("zmq: prevblockhash: %s\n", prevblockhash);
-        }
 
-        LogPrintf("prevblockhash: %s\n", prevblockhash);
+    string blockhash = find_value(data, "hashBlock").get_str();
 
-        StateSinceBlock(getblockObj, prevblockhash);
-    }
+    StateSinceBlock(getblockObj, blockhash);
 
     return getblockObj;
 }

@@ -177,26 +177,19 @@ bool CZMQAbstractPublisher::Publish(){
 
 bool CZMQRawTransactionPublisher::NotifyTransaction(const CTransaction &transaction)
 {
-    // // get time in ms
-    // milliseconds ms = duration_cast< milliseconds >(
-    //   system_clock::now().time_since_epoch()
-    // );
+    const CWalletTx wtx(pwalletMain, transaction);
 
-    if(znodeSync.IsBlockchainSynced()){
-        const CWalletTx wtx(pwalletMain, transaction);
+    isminefilter filter = ISMINE_SPENDABLE;
+    ListAPITransactions(wtx, publish, filter);
 
-        isminefilter filter = ISMINE_SPENDABLE;
-        ListAPITransactions(wtx, publish, filter);
-
-        Publish();
-    }
+    Publish();
     
     return true;
 }
 
 bool CZMQBlockPublisher::NotifyBlock(const CBlockIndex *pindex){
 
-  LogPrintf("In notifyblock. method: %s\n", method);
+  LogPrintf("API: In notifyblock. method: %s\n", method);
   UniValue pindexUni(UniValue::VOBJ);
   pindexUni = pindex->ToJSON();
 
