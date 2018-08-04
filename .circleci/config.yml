@@ -66,9 +66,6 @@ jobs:
         - run:
             name: BUILD Zcoin Windows
             command: make -j2
-        - run:
-            name: RUN Unit test
-            command: make check
 workflows:
   version: 2
   linux_and_windows:
