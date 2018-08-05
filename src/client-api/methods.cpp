@@ -51,7 +51,7 @@ UniValue getInitialTimestamp(string hash){
 
     UniValue firstSeenAt = find_value(TxTimestampData,hash);
     if(firstSeenAt.isNull()){
-        return 0;
+        return NullUniValue;
     }
     return firstSeenAt;
 }
@@ -174,9 +174,12 @@ void APIWalletTxToJSON(const CWalletTx& wtx, UniValue& entry)
     if (confirms > 0)
     {
         entry.push_back(Pair("blockHash", wtx.hashBlock.GetHex()));
-        entry.push_back(Pair("blockTime", mapBlockIndex[wtx.hashBlock]->GetBlockTime()));
+        UniValue blocktime = mapBlockIndex[wtx.hashBlock]->GetBlockTime();
+        entry.push_back(Pair("blockTime", blocktime));
         entry.push_back(Pair("blockHeight", getBlockHeight(wtx.hashBlock.GetHex())));
-        entry.push_back(Pair("firstSeenAt", getInitialTimestamp(hash)));    
+        UniValue timestamp = getInitialTimestamp(hash);
+        if(timestamp.isNull()) timestamp = blocktime;
+        entry.push_back(Pair("firstSeenAt", timestamp));    
     }
     else {
         entry.push_back(Pair("firstSeenAt", setInitialTimestamp(hash)));
@@ -397,7 +400,7 @@ UniValue StateSinceBlock(UniValue& ret, std::string block){
 
 UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
 {
-    UniValue feeperkb = find_value(data,"feeperkb");
+    UniValue feeperkb = find_value(data,"feePerKb");
     setTxFee(feeperkb);
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
@@ -478,11 +481,10 @@ UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool f
 
 UniValue txfee(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
     // first set the tx fee per kb, then return the total fee with addresses.   
-    LogPrintf("API: in txfee\n");
     if (!EnsureWalletIsAvailable(fHelp))
         return NullUniValue;
 
-    UniValue feeperkb = find_value(data, "feeperkb");
+    UniValue feeperkb = find_value(data, "feePerKb");
 
     setTxFee(feeperkb);
 
@@ -546,6 +548,7 @@ UniValue txfee(Type type, const UniValue& data, const UniValue& auth, bool fHelp
 UniValue mint(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
 {
     //TODO verify enough balance available before starting to mint.
+    UniValue ret(UniValue::VOBJ);
     UniValue txids(UniValue::VARR);
 
     int64_t denomination_int = 0;
@@ -648,13 +651,15 @@ UniValue mint(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
         }
     }
 
-    return txids;
+    ret.push_back(Pair("txids", txids));
+    return ret;
 }
 
 UniValue sendprivate(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
 
     switch(type){
         case Create: {
+            UniValue ret(UniValue::VOBJ);
             UniValue txids(UniValue::VARR);
 
             LOCK2(cs_main, pwalletMain->cs_wallet);
@@ -724,8 +729,8 @@ UniValue sendprivate(Type type, const UniValue& data, const UniValue& auth, bool
                     txids.push_back(wtx.GetHash().GetHex());
                 }
             }
-
-            return txids;
+            ret.push_back(Pair("txids", txids));
+            return ret;
         }
         default: {
            throw JSONRPCError(API_TYPE_NOT_IMPLEMENTED, "Error: type does not exist for method called, or no type passed where method requires it."); 
@@ -748,19 +753,19 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
     modules.push_back(Pair("API", !APIIsInWarmup()));
 
     obj.push_back(Pair("version", CLIENT_VERSION));
-    obj.push_back(Pair("protocolversion", PROTOCOL_VERSION));
+    obj.push_back(Pair("protocolVersion", PROTOCOL_VERSION));
     if (pwalletMain) {
-        obj.push_back(Pair("walletversion", pwalletMain->GetVersion()));
+        obj.push_back(Pair("walletVersion", pwalletMain->GetVersion()));
     }
     if (pwalletMain && pwalletMain->IsCrypted()){
-        obj.push_back(Pair("walletlock",    "true"));
-        obj.push_back(Pair("unlocked_until", nWalletUnlockTime));
+        obj.push_back(Pair("walletLock",    "true"));
+        obj.push_back(Pair("unlockedUntil", nWalletUnlockTime));
     }
-    obj.push_back(Pair("datadir",       GetDataDir(true).string()));
+    obj.push_back(Pair("dataDir",       GetDataDir(true).string()));
     obj.push_back(Pair("network",       ChainNameFromCommandLine()));
     obj.push_back(Pair("blocks",        (int)chainActive.Height()));
     obj.push_back(Pair("connections",   (int)vNodes.size()));
-    obj.push_back(Pair("devauth",       CZMQAbstract::DEV_AUTH));
+    obj.push_back(Pair("devAuth",       CZMQAbstract::DEV_AUTH));
     obj.push_back(Pair("synced",        znodeSync.IsBlockchainSynced()));
     obj.push_back(Pair("modules",       modules));
 
@@ -788,12 +793,10 @@ UniValue setpassphrase(Type type, const UniValue& data, const UniValue& auth, bo
 
                 SecureString strNewWalletPass;
                 strNewWalletPass.reserve(100);
-                strNewWalletPass = find_value(auth, "newpassphrase").get_str().c_str();
+                strNewWalletPass = find_value(auth, "newPassphrase").get_str().c_str();
 
                 if (strOldWalletPass.length() < 1 || strNewWalletPass.length() < 1)
-                    throw runtime_error(
-                        "walletpassphrase <oldpassphrase> <newpassphrase>\n"
-                        "Changes the wallet passphrase from <oldpassphrase> to <newpassphrase>.");
+                    throw runtime_error("");
 
                 if (!pwalletMain->ChangeWalletPassphrase(strOldWalletPass, strNewWalletPass))
                     throw JSONRPCError(RPC_WALLET_PASSPHRASE_INCORRECT, "Error: The wallet passphrase entered was incorrect.");
@@ -886,6 +889,7 @@ UniValue unlockwallet(Type type, const UniValue& data, const UniValue& auth, boo
     {
         if (!pwalletMain->Unlock(strWalletPass))
             throw JSONAPIError(API_WALLET_PASSPHRASE_INCORRECT, "Error: The wallet passphrase entered was incorrect.");
+
     }
     else //TODO length error
         throw runtime_error(
@@ -893,7 +897,6 @@ UniValue unlockwallet(Type type, const UniValue& data, const UniValue& auth, boo
             "Stores the wallet decryption key in memory.");
 
     pwalletMain->TopUpKeyPool();
-
     return true;
 }
 
@@ -1129,19 +1132,19 @@ UniValue balance(Type type, const UniValue& data, const UniValue& auth, bool fHe
 static const CAPICommand commands[] =
 { //  category              collection         actor (function)          authPort   authPassphrase   warmupOk
   //  --------------------- ------------       ----------------          -------- --------------   --------
-    { "misc",               "apistatus",       &apistatus,               false,     false,           true   },
-    { "wallet",             "lockwallet",      &lockwallet,              true,      false,           false  },
-    { "wallet",             "unlockwallet",    &unlockwallet,            true,      false,           false  },
-    { "wallet",             "statewallet",     &statewallet,             true,      false,           false  },
-    { "wallet",             "setpassphrase",   &setpassphrase,           true,      false,           false  },
+    { "misc",               "apiStatus",       &apistatus,               false,     false,           true   },
+    { "wallet",             "lockWallet",      &lockwallet,              true,      false,           false  },
+    { "wallet",             "unlockWallet",    &unlockwallet,            true,      false,           false  },
+    { "wallet",             "stateWallet",     &statewallet,             true,      false,           false  },
+    { "wallet",             "setPassphrase",   &setpassphrase,           true,      false,           false  },
     { "wallet",             "balance",         &balance,                 true,      false,           false  },
     { "blockchain",         "blockchain",      &blockchain,              true,      false,           false  },
     { "blockchain",         "block",           &block,                   true,      false,           false  },
-    { "sending",            "paymentrequest",  &paymentrequest,          true,      false,           false  },
-    { "sending",            "txfee",           &txfee,                   true,      false,           false  },
+    { "sending",            "paymentRequest",  &paymentrequest,          true,      false,           false  },
+    { "sending",            "txFee",           &txfee,                   true,      false,           false  },
     { "zerocoin",           "mint",            &mint,                    true,      true,            false  },
-    { "zerocoin",           "sendprivate",     &sendprivate,             true,      true,            false  },
-    { "sending",            "sendzcoin",       &sendzcoin,               true,      true,            false  }
+    { "zerocoin",           "sendPrivate",     &sendprivate,             true,      true,            false  },
+    { "sending",            "sendZcoin",       &sendzcoin,               true,      true,            false  }
 };
 void RegisterAPICommands(CAPITable &tableAPI)
 {

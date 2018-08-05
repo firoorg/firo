@@ -196,7 +196,7 @@ UniValue CAPITable::execute(APIJSONRequest request, const bool authPort) const
 
     LogPrintf("API: past open port\n");
 
-    const CAPICommand *walletlock = tableAPI["lockwallet"];
+    const CAPICommand *walletlock = tableAPI["lockWallet"];
 
     LogPrintf("API: got lock wallet\n");
 
@@ -211,9 +211,12 @@ UniValue CAPITable::execute(APIJSONRequest request, const bool authPort) const
             }
 
             // execute wallet unlock, call method, relock following call. 
-            const CAPICommand *walletunlock = tableAPI["unlockwallet"];
+            const CAPICommand *walletunlock = tableAPI["unlockWallet"];
             LogPrintf("API: unlocking wallet method..\n");
             UniValue lock = walletunlock->actor(request.type, NullUniValue, request.auth, false);
+            if(lock.isNull()){
+                throw JSONAPIError(API_MISC_ERROR, "wallet could not be unlocked.");
+            }
             LogPrintf("API: unlocked\n");
             UniValue result = pcmd->actor(request.type, request.data, NullUniValue, false);
             LogPrintf("API: returning method inside\n");
