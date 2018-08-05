@@ -71,11 +71,9 @@ uint256 CBlockHeader::GetPoWHash(int nHeight, bool forceCalc) const {
     // Zcoin - MTP
     try {
     	if (nTime >= Params().nMTPSwitchTime) {
-            assert(mtpHashData);
-			CMTPInput input{*this};
-			CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
-			ss << input;
-			mtp_verify((char*)&ss[0], nBits, mtpHashData->hashRootMTP, nNonce, mtpHashData->nBlockMTP, mtpHashData->nProofMTP, Params().GetConsensus().powLimit);
+            vector<uint8_t> hashBytes(16, 0);
+            std::copy(hashRootMTP, hashRootMTP+sizeof(hashRootMTP), hashBytes.begin());
+            powHash = uint256(hashBytes);
 		} else if (!fTestNet && nHeight >= HF_LYRA2Z_HEIGHT) {
             lyra2z_hash(BEGIN(nVersion), BEGIN(powHash));
         } else if (!fTestNet && nHeight >= HF_LYRA2_HEIGHT) {

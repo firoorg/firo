@@ -1160,7 +1160,7 @@ void static ZcoinMiner(const CChainParams &chainparams) {
                     	CMTPInput input{*pblock};
                     	CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
                     	ss << input;
-                    	mtp_hash((char*)&ss[0], pblock->nBits, mtpHashData->hashRootMTP, pblock->nNonce, mtpHashData->nBlockMTP, mtpHashData->nProofMTP, Params().GetConsensus().powLimit, thash);
+                    	mtp_hash((char*)&ss[0], pblock->nBits, pblock->hashRootMTP, pblock->nNonce, mtpHashData->nBlockMTP, mtpHashData->nProofMTP, Params().GetConsensus().powLimit, thash);
                     } else if (!fTestNet && pindexPrev->nHeight + 1 >= HF_LYRA2Z_HEIGHT) {
                         lyra2z_hash(BEGIN(pblock->nVersion), BEGIN(thash));
                     } else if (!fTestNet && pindexPrev->nHeight + 1 >= HF_LYRA2_HEIGHT) {

@@ -33,13 +33,10 @@ inline int GetZerocoinChainID()
 // Zcoin - MTP
 class CMTPHashData {
 public:
-    int32_t nVersionMTP = 0x1000;
-    uint8_t hashRootMTP[16]; // 16 is 128 bit of blake2b
     uint64_t nBlockMTP[72*2][128]; // 128 is ARGON2_QWORDS_IN_BLOCK and 72 * 2 is L * 2
     std::deque<std::vector<uint8_t>> nProofMTP[72*3]; // 72 * 3 is L * 3
 
     CMTPHashData() {
-        memset(hashRootMTP, 0, sizeof(uint8_t)*16);
         memset(nBlockMTP, 0, sizeof(uint64_t) * 72 * 2 * 128);
     }
 
@@ -47,19 +44,7 @@ public:
 
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
-        READWRITE(nVersionMTP);
-
-        int i, j;
-        for(i = 0; i < 16; i++){
-            READWRITE(hashRootMTP[i]);
-        }
-
-        for(i = 0; i < 72*2; i++){
-            for(j = 0; j < 128; j++){
-                READWRITE(nBlockMTP[i][j]);
-            }
-        }
-
+        READWRITE(nBlockMTP);
         for(int i = 0; i < 72*3; i++){
             READWRITE(nProofMTP[i]);
         }
@@ -78,6 +63,9 @@ public:
     uint32_t nNonce;
 
     // Zcoin - MTP
+    int32_t nVersionMTP = 0x1000;
+    uint8_t hashRootMTP[16]; // 16 is 128 bit of blake2b
+
     // Store this only when absolutely needed for verification
     std::shared_ptr<CMTPHashData> mtpHashData;
 
@@ -107,6 +95,8 @@ public:
         // Zcoin - MTP
         // On read: allocate and read. On write: write only if already allocated
         if (nTime >= SWITCH_TO_MTP_BLOCK_HEADER) {
+            READWRITE(nVersionMTP);
+            READWRITE(hashRootMTP);
             if (ser_action.ForRead()) {
                 mtpHashData = make_shared<CMTPHashData>();
                 READWRITE(*mtpHashData);
@@ -126,6 +116,10 @@ public:
         READWRITE(nTime);
         READWRITE(nBits);
         READWRITE(nNonce);
+        if (nTime >= SWITCH_TO_MTP_BLOCK_HEADER) {
+            READWRITE(nVersionMTP);
+            READWRITE(hashRootMTP);
+        }
     }
 
     void SetNull()
@@ -141,6 +135,7 @@ public:
 
         // Zcoin - MTP
         mtpHashData.reset();
+        memset(hashRootMTP, 0, sizeof(uint8_t)*16);
     }
 
     int GetChainID() const
@@ -270,7 +265,7 @@ public:
     	READWRITE(hashMerkleRoot);
     	READWRITE(nTime);
     	READWRITE(nBits);
-        READWRITE(mtpHashData->nVersionMTP);
+        READWRITE(nVersionMTP);
     }
 };
 

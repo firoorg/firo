@@ -140,7 +140,7 @@ bool CheckMerkleTreeProof(const CBlockHeader &block, const Consensus::Params &pa
 	CMTPInput input{block};
 	CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
 	ss << input;
-	bool isVerified = mtp_verify((char*)&ss[0], block.nBits, mtpHashData->hashRootMTP, block.nNonce,
+	bool isVerified = mtp_verify((char*)&ss[0], block.nBits, block.hashRootMTP, block.nNonce,
 			mtpHashData->nBlockMTP, mtpHashData->nProofMTP, Params().GetConsensus().powLimit);
     if(!isVerified){
     	return false;

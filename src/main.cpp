@@ -4163,7 +4163,7 @@ bool
 ContextualCheckBlockHeader(const CBlockHeader &block, CValidationState &state, const Consensus::Params &consensusParams,
                            CBlockIndex *const pindexPrev, int64_t nAdjustedTime, bool isTestBlockValidity) {
 	// Zcoin - MTP
-    int32_t nVersionMTP = block.mtpHashData ? block.mtpHashData->nVersionMTP : 0;
+    int32_t nVersionMTP = block.mtpHashData ? block.nVersionMTP : 0;
     bool fMTPIsRequired = block.nTime >= Params().nMTPSwitchTime;
     bool fBlockIsMTP = block.nVersion >= (CBlock::CURRENT_VERSION | (GetZerocoinChainID() * BLOCK_VERSION_CHAIN_START)| nVersionMTP);
 
