@@ -51,6 +51,10 @@ uint256 CBlockHeader::GetHash() const {
     return SerializeHash(*this);
 }
 
+bool CBlockHeader::IsMTP() const {
+    return nTime >= Params().nMTPSwitchTime;
+}
+
 uint256 CBlockHeader::GetPoWHash(int nHeight, bool forceCalc) const {
 //    int64_t start = std::chrono::duration_cast<std::chrono::milliseconds>(
 //            std::chrono::system_clock::now().time_since_epoch()).count();
@@ -70,7 +74,7 @@ uint256 CBlockHeader::GetPoWHash(int nHeight, bool forceCalc) const {
     uint256 powHash;
     // Zcoin - MTP
     try {
-    	if (nTime >= Params().nMTPSwitchTime) {
+    	if (IsMTP()) {
             vector<uint8_t> hashBytes(16, 0);
             std::copy(hashRootMTP, hashRootMTP+sizeof(hashRootMTP), hashBytes.begin());
             powHash = uint256(hashBytes);

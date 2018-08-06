@@ -94,7 +94,7 @@ public:
         READWRITE(nNonce);
         // Zcoin - MTP
         // On read: allocate and read. On write: write only if already allocated
-        if (nTime >= SWITCH_TO_MTP_BLOCK_HEADER) {
+        if (IsMTP()) {
             READWRITE(nVersionMTP);
             READWRITE(hashRootMTP);
             if (ser_action.ForRead()) {
@@ -116,7 +116,7 @@ public:
         READWRITE(nTime);
         READWRITE(nBits);
         READWRITE(nNonce);
-        if (nTime >= SWITCH_TO_MTP_BLOCK_HEADER) {
+        if (IsMTP()) {
             READWRITE(nVersionMTP);
             READWRITE(hashRootMTP);
         }
@@ -169,6 +169,8 @@ public:
     }
 
     void InvalidateCachedPoWHash(int nHeight) const;
+
+    bool IsMTP() const;
 };
 
 class CZerocoinTxInfo;
