@@ -130,10 +130,10 @@ CZMQPublisherInterface* CZMQPublisherInterface::Create()
     std::map<std::string, CZMQFactory> factories;
     std::list<CZMQAbstract*> notifiers;
 
-    factories["pubblock"] = CZMQAbstract::Create<CZMQBlockDataPublisher>;
-    factories["pubblockinfo"] = CZMQAbstract::Create<CZMQBlockInfoPublisher>;
-    factories["pubbalance"] = CZMQAbstract::Create<CZMQBalancePublisher>;
-    factories["pubrawtx"] = CZMQAbstract::Create<CZMQRawTransactionPublisher>;
+    factories["pubblock"] = CZMQAbstract::Create<CZMQBlockDataTopic>;
+    factories["pubblockinfo"] = CZMQAbstract::Create<CZMQBlockInfoTopic>;
+    factories["pubbalance"] = CZMQAbstract::Create<CZMQBalanceTopic>;
+    factories["pubrawtx"] = CZMQAbstract::Create<CZMQTransactionTopic>;
     std::string address = BaseParams().APIAddr() + to_string(BaseParams().APIPUBPort());
 
     for (std::map<std::string, CZMQFactory>::const_iterator i=factories.begin(); i!=factories.end(); ++i)

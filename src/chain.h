@@ -334,25 +334,22 @@ public:
     UniValue ToJSON() const
     {
         UniValue ret(UniValue::VOBJ);
-        UniValue data(UniValue::VOBJ);
 
-        data.push_back(Pair("type", "CBlockIndex"));
-        data.push_back(Pair("pprev", pprev));
-        data.push_back(Pair("nHeight", nHeight));
-        data.push_back(Pair("merkle", hashMerkleRoot.ToString()));
-        data.push_back(Pair("hashBlock", GetBlockHash().ToString()));
-        data.push_back(Pair("dataPos", to_string(nDataPos)));
-        data.push_back(Pair("chainWork", nChainWork.GetHex()));
-        data.push_back(Pair("tx", to_string(nTx)));
-        data.push_back(Pair("chainTx", to_string(nChainTx)));
-        data.push_back(Pair("status", to_string(nStatus)));
-        data.push_back(Pair("sequenceId", to_string(nSequenceId)));
-        data.push_back(Pair("version", to_string(nVersion)));
-        data.push_back(Pair("nTime", to_string(nTime)));
-        data.push_back(Pair("bits", to_string(nBits)));
-        data.push_back(Pair("nonce", to_string(nNonce)));
-
-        ret.push_back(Pair("data", data));
+        ret.push_back(Pair("type", "CBlockIndex"));
+        ret.push_back(Pair("pprev", pprev));
+        ret.push_back(Pair("nHeight", nHeight));
+        ret.push_back(Pair("merkle", hashMerkleRoot.ToString()));
+        ret.push_back(Pair("hashBlock", GetBlockHash().ToString()));
+        ret.push_back(Pair("dataPos", to_string(nDataPos)));
+        ret.push_back(Pair("chainWork", nChainWork.GetHex()));
+        ret.push_back(Pair("tx", to_string(nTx)));
+        ret.push_back(Pair("chainTx", to_string(nChainTx)));
+        ret.push_back(Pair("status", to_string(nStatus)));
+        ret.push_back(Pair("sequenceId", to_string(nSequenceId)));
+        ret.push_back(Pair("version", to_string(nVersion)));
+        ret.push_back(Pair("nTime", to_string(nTime)));
+        ret.push_back(Pair("bits", to_string(nBits)));
+        ret.push_back(Pair("nonce", to_string(nNonce)));
 
         return ret;
     }

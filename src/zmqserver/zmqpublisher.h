@@ -13,8 +13,6 @@ class CBlockIndex;
 class CZMQAbstractPublisher : public CZMQAbstract
 {
 public:
-    //bool writeTimestampToFile(json tx);
-
     bool processTransaction(const CTransaction &transaction);
 
     bool Initialize();
@@ -33,48 +31,58 @@ protected:
 
 };
 
-/* On a new block, publish data on three separate items:
-  - new block information
-  - general blockchain info
-  - balance info
-*/
-class CZMQBlockPublisher : public CZMQAbstractPublisher
+/* Event classes. Each one is a specific notifier in ValidationInterface */
+class CZMQBlockEvent : public CZMQAbstractPublisher
 {
+    /* Data related to a new block (updatedblocktip)
+    */
 public:
     bool NotifyBlock(const CBlockIndex *pindex);
 };
 
-class CZMQBlockDataPublisher : public CZMQBlockPublisher
-{
-public:
-    void SetMethod(){ method= "block";};
-    void SetTopic(){ topic = "address";};
-};
 
-class CZMQBlockInfoPublisher : public CZMQBlockPublisher
+class CZMQRawTransactionEvent : public CZMQAbstractPublisher
 {
-public:
-    void SetMethod(){ method= "blockchain";};
-    void SetTopic(){ topic = "block";};
-};
-
-class CZMQBalancePublisher : public CZMQBlockPublisher
-{
-public:
-    void SetMethod(){ method= "balance";};
-    void SetTopic(){ topic = "balance";};
-
-};
-
-/* publish data related to a new transaction
-*/
-class CZMQRawTransactionPublisher : public CZMQAbstractPublisher
-{
+    /* Data related to a new transaction
+    */
 public:
     bool NotifyTransaction(const CTransaction &transaction);
-    void SetMethod(){ method= "transaction";};
-    void SetTopic(){ topic = "transaction";};
 };
+
+/* Topics. inheriting from an event class implies publishing on that event. 
+   'method' string is the API method called in client-api/ 
+*/
+class CZMQBlockDataTopic : public CZMQBlockEvent
+{
+public:
+    void SetTopic(){ topic = "address";};
+    void SetMethod(){ method= "block";};
+    
+};
+
+class CZMQBlockInfoTopic : public CZMQBlockEvent
+{
+public:
+    void SetTopic(){ topic = "block";};
+    void SetMethod(){ method= "blockchain";};
+    
+};
+
+class CZMQBalanceTopic : public CZMQBlockEvent
+{
+public:
+    void SetTopic(){ topic = "balance";};
+    void SetMethod(){ method= "balance";};
+};
+
+class CZMQTransactionTopic : public CZMQRawTransactionEvent
+{
+public:
+    void SetTopic(){ topic = "transaction";};
+    void SetMethod(){ method= "transaction";};
+};
+
+
 
 class CZMQSettingsUpdatePublisher : public CZMQAbstractPublisher
 {

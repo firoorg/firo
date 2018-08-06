@@ -65,7 +65,11 @@ bool CZMQAbstractPublisher::Initialize()
     SetMethod();
 
     //set method string in request object
+    request.setObject();
     request.push_back(Pair("collection", method));
+
+    // set publish univalue as an object
+    publish.setObject();
 
     // check if address is being used by other publish notifier
     std::multimap<std::string, CZMQAbstractPublisher*>::iterator i = mapPublishers.find(address);
@@ -203,22 +207,19 @@ bool CZMQAbstractPublisher::Publish(){
 
 
 
-bool CZMQRawTransactionPublisher::NotifyTransaction(const CTransaction &transaction)
+bool CZMQRawTransactionEvent::NotifyTransaction(const CTransaction &transaction)
 {
-    UniValue requestData(UniValue::VOBJ);
-    requestData.push_back(Pair("txRaw", EncodeHexTx(transaction)));
-    request.push_back(Pair("data", requestData));
+  UniValue requestData(UniValue::VOBJ);
+  requestData.push_back(Pair("txRaw",EncodeHexTx(transaction)));
+  request.replace("data", requestData);
 
-    Execute();
+  Execute();
 
-    return true;
+  return true;
 }
 
-bool CZMQBlockPublisher::NotifyBlock(const CBlockIndex *pindex){
-
-  LogPrintf("API: In notifyblock. method: %s\n", method);
-  request.push_back(pindex->ToJSON());
-
+bool CZMQBlockEvent::NotifyBlock(const CBlockIndex *pindex){
+  request.replace("data", pindex->ToJSON());
   Execute();
 
   return true;

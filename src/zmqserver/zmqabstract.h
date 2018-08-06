@@ -47,11 +47,11 @@ public:
     static bool createCerts();
     static std::string GetAuthType(KeyType type);
 
-    /*define pure virtual functions (implemented by every derived instance) */ 
+    /* define pure virtual functions (implemented by every derived instance) */ 
     virtual bool Initialize() = 0;
     virtual void Shutdown() = 0;
 
-    /*virtual functions to be implemented by publisher (defined here to allow access by notifiers) */ 
+    /* virtual functions to be implemented by publisher (defined here to allow access by notifiers) */ 
     virtual bool NotifyBlock(const CBlockIndex *pindex);
     virtual bool NotifyTransaction(const CTransaction &transaction);
 
