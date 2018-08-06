@@ -757,10 +757,13 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
     if (pwalletMain) {
         obj.push_back(Pair("walletVersion", pwalletMain->GetVersion()));
     }
-    if (pwalletMain && pwalletMain->IsCrypted()){
-        obj.push_back(Pair("walletLock",    "true"));
-        obj.push_back(Pair("unlockedUntil", nWalletUnlockTime));
+    if (pwalletMain){
+        obj.push_back(Pair("walletLock",    pwalletMain->IsCrypted()));
+        if(nWalletUnlockTime>0){
+            obj.push_back(Pair("unlockedUntil", nWalletUnlockTime));
+        }
     }
+
     obj.push_back(Pair("dataDir",       GetDataDir(true).string()));
     obj.push_back(Pair("network",       ChainNameFromCommandLine()));
     obj.push_back(Pair("blocks",        (int)chainActive.Height()));
@@ -1068,6 +1071,22 @@ UniValue blockchain(Type type, const UniValue& data, const UniValue& auth, bool 
     return blockinfoObj;
 }
 
+UniValue transaction(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
+    //decode transaction
+    UniValue ret(UniValue::VOBJ);
+    CTransaction transaction;
+    if (!DecodeHexTx(transaction, find_value(data, "txRaw").get_str()))
+        throw runtime_error("invalid transaction encoding");
+
+    CWalletTx wtx(pwalletMain, transaction);
+
+    isminefilter filter = ISMINE_ALL;
+    
+    ListAPITransactions(wtx, ret, filter);
+
+    return ret;
+}
+
 
 UniValue block(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
 
@@ -1140,11 +1159,13 @@ static const CAPICommand commands[] =
     { "wallet",             "balance",         &balance,                 true,      false,           false  },
     { "blockchain",         "blockchain",      &blockchain,              true,      false,           false  },
     { "blockchain",         "block",           &block,                   true,      false,           false  },
+    { "blockchain",         "transaction",     &transaction,             true,      false,           false  },
     { "sending",            "paymentRequest",  &paymentrequest,          true,      false,           false  },
     { "sending",            "txFee",           &txfee,                   true,      false,           false  },
     { "zerocoin",           "mint",            &mint,                    true,      true,            false  },
     { "zerocoin",           "sendPrivate",     &sendprivate,             true,      true,            false  },
     { "sending",            "sendZcoin",       &sendzcoin,               true,      true,            false  }
+
 };
 void RegisterAPICommands(CAPITable &tableAPI)
 {

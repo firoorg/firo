@@ -20,6 +20,7 @@ public:
     bool Initialize();
     void Shutdown();
 
+    bool Execute();
     bool Publish();
 
     virtual void SetMethod() = 0;
@@ -27,6 +28,7 @@ public:
 
 protected:
     std::string method;
+    UniValue request;
     UniValue publish;
 
 };

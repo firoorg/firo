@@ -64,6 +64,9 @@ bool CZMQAbstractPublisher::Initialize()
     // set API method string
     SetMethod();
 
+    //set method string in request object
+    request.push_back(Pair("collection", method));
+
     // check if address is being used by other publish notifier
     std::multimap<std::string, CZMQAbstractPublisher*>::iterator i = mapPublishers.find(address);
 
@@ -147,6 +150,33 @@ void CZMQAbstractPublisher::Shutdown()
     }
 }
 
+bool CZMQAbstractPublisher::Execute(){
+    APIJSONRequest jreq;
+    try {
+        jreq.parse(request);
+
+        publish.setObject();
+        publish = tableAPI.execute(jreq, true);
+
+        Publish();
+
+    } catch (const UniValue& objError) {
+        message = JSONAPIReply(NullUniValue, objError);
+        if(!SendMessage()){
+            throw JSONAPIError(API_MISC_ERROR, "Could not send msg");
+        }
+        return false;
+    } catch (const std::exception& e) {
+        message = JSONAPIReply(NullUniValue, JSONAPIError(API_PARSE_ERROR, e.what()));
+        if(!SendMessage()){
+            throw JSONAPIError(API_MISC_ERROR, "Could not send error msg");
+        }
+        return false;
+    }
+    
+    return true;
+}
+
 bool CZMQAbstractPublisher::Publish(){
   try {
       // Send reply
@@ -175,48 +205,21 @@ bool CZMQAbstractPublisher::Publish(){
 
 bool CZMQRawTransactionPublisher::NotifyTransaction(const CTransaction &transaction)
 {
-    CWalletTx wtx(pwalletMain, transaction);
+    UniValue requestData(UniValue::VOBJ);
+    requestData.push_back(Pair("txRaw", EncodeHexTx(transaction)));
+    request.push_back(Pair("data", requestData));
 
-    isminefilter filter = ISMINE_ALL;
-    publish.setObject();
-    
-    ListAPITransactions(wtx, publish, filter);
+    Execute();
 
-    Publish();
-    
     return true;
 }
 
 bool CZMQBlockPublisher::NotifyBlock(const CBlockIndex *pindex){
 
   LogPrintf("API: In notifyblock. method: %s\n", method);
-  UniValue pindexUni(UniValue::VOBJ);
-  pindexUni = pindex->ToJSON();
+  request.push_back(pindex->ToJSON());
 
-  pindexUni.push_back(Pair("collection", method));
-
-  APIJSONRequest jreq;
-  try {
-      jreq.parse(pindexUni);
-
-      publish.setObject();
-      publish = tableAPI.execute(jreq, true);
-
-      Publish();
-
-  } catch (const UniValue& objError) {
-      message = JSONAPIReply(NullUniValue, objError);
-      if(!SendMessage()){
-          throw JSONAPIError(API_MISC_ERROR, "Could not send msg");
-      }
-      return false;
-  } catch (const std::exception& e) {
-      message = JSONAPIReply(NullUniValue, JSONAPIError(API_PARSE_ERROR, e.what()));
-      if(!SendMessage()){
-          throw JSONAPIError(API_MISC_ERROR, "Could not send error msg");
-      }
-      return false;
-  }
+  Execute();
 
   return true;
 }
