@@ -29,7 +29,7 @@ void RequireBalance(const std::string& address, uint32_t propertyId, int64_t amo
 void RequirePrimaryToken(uint32_t propertyId)
 {
     if (propertyId < 1 || 2 < propertyId) {
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "Property identifier must be 1 (OMNI) or 2 (TOMNI)");
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Property identifier must be 1 (EXODUS) or 2 (TEXODUS)");
     }
 }
 
@@ -125,7 +125,7 @@ void RequireNoOtherDExOffer(const std::string& address, uint32_t propertyId)
 void RequireSaneReferenceAmount(int64_t amount)
 {
     if ((0.01 * COIN) < amount) {
-        throw JSONRPCError(RPC_TYPE_ERROR, "Reference amount higher is than 0.01 BTC");
+        throw JSONRPCError(RPC_TYPE_ERROR, "Reference amount higher is than 0.01 XZC");
     }
 }
 
@@ -149,7 +149,7 @@ void RequireSaneDExFee(const std::string& address, uint32_t propertyId)
         throw JSONRPCError(RPC_DATABASE_ERROR, "Unable to load sell offer from the distributed exchange");
     }
     if (poffer->getMinFee() > 1000000) {
-        throw JSONRPCError(RPC_TYPE_ERROR, "Minimum accept fee is higher than 0.01 BTC (use override = true to continue)");
+        throw JSONRPCError(RPC_TYPE_ERROR, "Minimum accept fee is higher than 0.01 XZC (use override = true to continue)");
     }
 }
 
