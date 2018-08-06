@@ -207,7 +207,7 @@ bool CZMQAbstractPublisher::Publish(){
 
 
 
-bool CZMQRawTransactionEvent::NotifyTransaction(const CTransaction &transaction)
+bool CZMQTransactionEvent::NotifyTransaction(const CTransaction &transaction)
 {
   UniValue requestData(UniValue::VOBJ);
   requestData.push_back(Pair("txRaw",EncodeHexTx(transaction)));

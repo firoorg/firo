@@ -13,8 +13,6 @@ class CBlockIndex;
 class CZMQAbstractPublisher : public CZMQAbstract
 {
 public:
-    bool processTransaction(const CTransaction &transaction);
-
     bool Initialize();
     void Shutdown();
 
@@ -32,7 +30,7 @@ protected:
 };
 
 /* Event classes. Each one is a specific notifier in ValidationInterface */
-class CZMQBlockEvent : public CZMQAbstractPublisher
+class CZMQBlockEvent : virtual public CZMQAbstractPublisher
 {
     /* Data related to a new block (updatedblocktip)
     */
@@ -41,7 +39,7 @@ public:
 };
 
 
-class CZMQRawTransactionEvent : public CZMQAbstractPublisher
+class CZMQTransactionEvent : virtual public CZMQAbstractPublisher
 {
     /* Data related to a new transaction
     */
@@ -68,14 +66,15 @@ public:
     
 };
 
-class CZMQBalanceTopic : public CZMQBlockEvent
+class CZMQBalanceTopic : public CZMQBlockEvent, 
+                         public CZMQTransactionEvent
 {
 public:
     void SetTopic(){ topic = "balance";};
     void SetMethod(){ method= "balance";};
 };
 
-class CZMQTransactionTopic : public CZMQRawTransactionEvent
+class CZMQTransactionTopic : public CZMQTransactionEvent
 {
 public:
     void SetTopic(){ topic = "transaction";};
