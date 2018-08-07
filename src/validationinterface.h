@@ -42,6 +42,7 @@ protected:
     virtual void GetScriptForMining(boost::shared_ptr<CReserveScript>&) {};
     virtual void ResetRequestCount(const uint256 &hash) {};
     virtual void NumConnectionsChanged() {}
+    virtual void UpdateSyncStatus() {}
     friend void ::RegisterValidationInterface(CValidationInterface*);
     friend void ::UnregisterValidationInterface(CValidationInterface*);
     friend void ::UnregisterAllValidationInterfaces();
@@ -68,6 +69,8 @@ struct CMainSignals {
     boost::signals2::signal<void (const uint256 &)> BlockFound;
     /** Notifies listeners of change in number of active connections */
     boost::signals2::signal<void ()> NumConnectionsChanged;
+    /** Notifies listeners of change of blockchain syncing state */
+    boost::signals2::signal<void ()> UpdateSyncStatus;
 };
 
 CMainSignals& GetMainSignals();

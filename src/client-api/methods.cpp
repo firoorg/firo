@@ -769,7 +769,7 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
     obj.push_back(Pair("blocks",        (int)chainActive.Height()));
     obj.push_back(Pair("connections",   (int)vNodes.size()));
     obj.push_back(Pair("devAuth",       CZMQAbstract::DEV_AUTH));
-    obj.push_back(Pair("synced",        znodeSync.IsBlockchainSynced()));
+    obj.push_back(Pair("synced",        znodeSync.GetBlockchainSynced()));
     obj.push_back(Pair("modules",       modules));
 
     return obj;
@@ -1044,7 +1044,7 @@ UniValue blockchain(Type type, const UniValue& data, const UniValue& auth, bool 
     UniValue status(UniValue::VOBJ);
     UniValue currentBlock(UniValue::VOBJ);
 
-    status.push_back(Pair("isBlockchainSynced", znodeSync.IsBlockchainSynced()));
+    status.push_back(Pair("isBlockchainSynced", znodeSync.GetBlockchainSynced()));
     status.push_back(Pair("isZnodeListSynced", znodeSync.IsZnodeListSynced()));
     status.push_back(Pair("isWinnersListSynced", znodeSync.IsWinnersListSynced()));
     status.push_back(Pair("isSynced", znodeSync.IsSynced()));
@@ -1127,7 +1127,7 @@ UniValue balance(Type type, const UniValue& data, const UniValue& auth, bool fHe
     // // We now have all base units, derive return values.
     CAmount total = xzcConfirmed + xzcUnconfirmed + xzcLocked + zerocoinAll;
     CAmount pending = total - xzcConfirmed - zerocoinConfirmed - xzcLocked;
-    CAmount available = xzcConfirmed -  xzcLocked;
+    CAmount available = total - xzcLocked - xzcUnconfirmed - zerocoinUnconfirmed;
 
     
     totalObj.push_back(Pair("all", total));

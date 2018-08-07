@@ -205,25 +205,32 @@ bool CZMQAbstractPublisher::Publish(){
   }
 }
 
-bool CZMQConnectionsEvent::NotifyConnections(){
-  Execute();
+bool CZMQStatusEvent::NotifyStatus()
+{
+    Execute();
+    return true;
+}
 
-  return true;
+
+bool CZMQConnectionsEvent::NotifyConnections()
+{
+    Execute();
+    return true;
 }
 bool CZMQTransactionEvent::NotifyTransaction(const CTransaction &transaction)
 {
-  UniValue requestData(UniValue::VOBJ);
-  requestData.push_back(Pair("txRaw",EncodeHexTx(transaction)));
-  request.replace("data", requestData);
+    UniValue requestData(UniValue::VOBJ);
+    requestData.push_back(Pair("txRaw",EncodeHexTx(transaction)));
+    request.replace("data", requestData);
 
-  Execute();
+    Execute();
 
-  return true;
+    return true;
 }
 
 bool CZMQBlockEvent::NotifyBlock(const CBlockIndex *pindex){
-  request.replace("data", pindex->ToJSON());
-  Execute();
+    request.replace("data", pindex->ToJSON());
+    Execute();
 
-  return true;
+    return true;
 }

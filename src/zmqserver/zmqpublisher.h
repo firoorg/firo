@@ -55,6 +55,14 @@ public:
     bool NotifyConnections();
 };
 
+class CZMQStatusEvent : virtual public CZMQAbstractPublisher
+{
+    /* Updated blockchain sync status
+    */
+public:
+    bool NotifyStatus();
+};
+
 /* Topics. inheriting from an event class implies publishing on that event. 
    'method' string is the API method called in client-api/ 
 */
@@ -67,7 +75,8 @@ public:
 };
 
 class CZMQBlockInfoTopic : public CZMQBlockEvent,
-                           public CZMQConnectionsEvent
+                           public CZMQConnectionsEvent,
+                           public CZMQStatusEvent
 {
 public:
     void SetTopic(){ topic = "block";};
@@ -77,6 +86,7 @@ public:
 
 class CZMQBalanceTopic : public CZMQBlockEvent, 
                          public CZMQTransactionEvent
+                         
 {
 public:
     void SetTopic(){ topic = "balance";};

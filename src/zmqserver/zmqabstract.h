@@ -55,6 +55,7 @@ public:
     virtual bool NotifyBlock(const CBlockIndex *pindex);
     virtual bool NotifyTransaction(const CTransaction &transaction);
     virtual bool NotifyConnections();
+    virtual bool NotifyStatus();
 
     /* send message with or without topic value. */
     bool SendMessage();

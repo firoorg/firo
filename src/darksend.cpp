@@ -32,7 +32,7 @@ std::vector <CAmount> vecPrivateSendDenominations;
 
 void CDarksendPool::ProcessMessage(CNode *pfrom, std::string &strCommand, CDataStream &vRecv) {
     if (fLiteMode) return; // ignore all Dash related functionality
-    if (!znodeSync.IsBlockchainSynced()) return;
+    if (!znodeSync.GetBlockchainSynced()) return;
 
     if (strCommand == NetMsgType::DSACCEPT) {
 
@@ -520,7 +520,7 @@ std::string CDarksendPool::GetStatus() {
     nStatusMessageProgress += 10;
     std::string strSuffix = "";
 
-    if ((pCurrentBlockIndex && pCurrentBlockIndex->nHeight - nCachedLastSuccessBlock < nMinBlockSpacing) || !znodeSync.IsBlockchainSynced())
+    if ((pCurrentBlockIndex && pCurrentBlockIndex->nHeight - nCachedLastSuccessBlock < nMinBlockSpacing) || !znodeSync.GetBlockchainSynced())
         return strAutoDenomResult;
 
     switch (nState) {
@@ -2507,8 +2507,7 @@ void ThreadCheckDarkSendPool() {
 
         // try to sync from all available nodes, one step at a time
         znodeSync.ProcessTick();
-
-        if (znodeSync.IsBlockchainSynced() && !ShutdownRequested()) {
+        if (znodeSync.GetBlockchainSynced() && !ShutdownRequested()) {
 
             nTick++;
 

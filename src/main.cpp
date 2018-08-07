@@ -4430,7 +4430,7 @@ bool ProcessNewBlock(CValidationState &state, const CChainParams &chainparams, C
         return error("%s: ActivateBestChain failed", __func__);
     }
 
-    znodeSync.IsBlockchainSynced(true);
+    znodeSync.GetBlockchainSynced(true);
 
     return true;
 }

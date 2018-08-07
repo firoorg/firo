@@ -22,7 +22,7 @@ void CActiveZnode::ManageState() {
         return;
     }
 
-    if (Params().NetworkIDString() != CBaseChainParams::REGTEST && !znodeSync.IsBlockchainSynced()) {
+    if (Params().NetworkIDString() != CBaseChainParams::REGTEST && !znodeSync.GetBlockchainSynced()) {
         nState = ACTIVE_ZNODE_SYNC_IN_PROCESS;
         LogPrintf("CActiveZnode::ManageState -- %s: %s\n", GetStateString(), GetStatus());
         return;

@@ -31,6 +31,11 @@ bool CZMQAbstract::NotifyConnections()
     return true;
 }
 
+bool CZMQAbstract::NotifyStatus()
+{
+    return true;
+}
+
 bool CZMQAbstract::SendMultipart(const void* data, size_t size, ...)
 {
     va_list args;
