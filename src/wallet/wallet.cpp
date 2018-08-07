@@ -2339,6 +2339,7 @@ void CWallet::ListAvailableCoinsMintCoins(vector <COutput> &vCoins, bool fOnlyCo
 void CWallet::GetAvailableMintCoinBalance(CAmount& balance, bool fOnlyConfirmed) const {
 
     LOCK(cs_wallet);
+    int count = 0;
     list <CZerocoinEntry> listPubCoin = list<CZerocoinEntry>();
     CWalletDB walletdb(pwalletMain->strWalletFile);
     walletdb.ListPubCoin(listPubCoin);
@@ -2361,7 +2362,6 @@ void CWallet::GetAvailableMintCoinBalance(CAmount& balance, bool fOnlyConfirmed)
             LogPrintf("nDepth=%s\n", nDepth);
             continue;
         }
-//        LogPrintf("pcoin->vout.size()=%s\n", pcoin->vout.size());
 
         for (unsigned int i = 0; i < pcoin->vout.size(); i++) {
             if (pcoin->vout[i].scriptPubKey.IsZerocoinMint()) {
@@ -2380,16 +2380,23 @@ void CWallet::GetAvailableMintCoinBalance(CAmount& balance, bool fOnlyConfirmed)
 //                        LogPrintf("pubCoinItem.IsUsed=%s\n, ", pubCoinItem.IsUsed);
 //                        LogPrintf("pubCoinItem.randomness=%s\n, ", pubCoinItem.randomness);
 //                        LogPrintf("pubCoinItem.serialNumber=%s\n, ", pubCoinItem.serialNumber);
-                    if (pubCoinItem.value == pubCoin && pubCoinItem.IsUsed == false &&
-                        pubCoinItem.randomness != 0 && pubCoinItem.serialNumber != 0) {
-                        if((fOnlyConfirmed && pcoin->IsTrusted()) ||!fOnlyConfirmed){
+                    if (pubCoinItem.value == pubCoin && //pubcoin found
+                        pubCoinItem.IsUsed == false && //unused
+                        pubCoinItem.randomness != 0 && pubCoinItem.serialNumber != 0 //assigned a value
+                    ) {
+                        if(fOnlyConfirmed){
+                            if (pcoin->IsTrusted() && pcoin->GetDepthInMainChain() != 0 && !pcoin->InMempool())
+                                balance += pubCoinItem.denomination * COIN;
+                        }else {
                             balance += pubCoinItem.denomination * COIN;
-                        }
+                        } 
+                        count++;                       
                     }
                 }
 
             }
         }
+        LogPrintf("count in GetAvailableMintCoinBalance=%s\n", count);
     }
 }
 
