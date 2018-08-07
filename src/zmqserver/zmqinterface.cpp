@@ -158,6 +158,23 @@ CZMQPublisherInterface* CZMQPublisherInterface::Create()
     return notificationInterface;
 }
 
+void CZMQPublisherInterface::NumConnectionsChanged()
+{
+    for (std::list<CZMQAbstract*>::iterator i = notifiers.begin(); i!=notifiers.end(); )
+    {
+        CZMQAbstract *notifier = *i;
+        if (notifier->NotifyConnections())
+        {
+            i++;
+        }
+        else
+        {
+            notifier->Shutdown();
+            i = notifiers.erase(i);
+        }
+    }
+}
+
 void CZMQPublisherInterface::UpdatedBlockTip(const CBlockIndex *pindex)
 {
     for (std::list<CZMQAbstract*>::iterator i = notifiers.begin(); i!=notifiers.end(); )

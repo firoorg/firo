@@ -47,6 +47,14 @@ public:
     bool NotifyTransaction(const CTransaction &transaction);
 };
 
+class CZMQConnectionsEvent : virtual public CZMQAbstractPublisher
+{
+    /* Updated connection count
+    */
+public:
+    bool NotifyConnections();
+};
+
 /* Topics. inheriting from an event class implies publishing on that event. 
    'method' string is the API method called in client-api/ 
 */
@@ -58,7 +66,8 @@ public:
     
 };
 
-class CZMQBlockInfoTopic : public CZMQBlockEvent
+class CZMQBlockInfoTopic : public CZMQBlockEvent,
+                           public CZMQConnectionsEvent
 {
 public:
     void SetTopic(){ topic = "block";};

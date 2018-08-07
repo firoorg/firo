@@ -16,6 +16,7 @@
 #include "streams.h"
 #include "sync.h"
 #include "uint256.h"
+#include "validationinterface.h"
 
 #include <atomic>
 #include <deque>

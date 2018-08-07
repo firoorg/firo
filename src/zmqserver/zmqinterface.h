@@ -34,6 +34,7 @@ protected:
     // CValidationInterface
     void SyncTransaction(const CTransaction& tx, const CBlockIndex *pindex, const CBlock* pblock);
     void UpdatedBlockTip(const CBlockIndex *pindex);
+    void NumConnectionsChanged();
 
 private:
     CZMQPublisherInterface();

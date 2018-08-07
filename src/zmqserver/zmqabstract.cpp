@@ -26,6 +26,11 @@ bool CZMQAbstract::NotifyTransaction(const CTransaction &/*transaction*/)
     return true;
 }
 
+bool CZMQAbstract::NotifyConnections()
+{
+    return true;
+}
+
 bool CZMQAbstract::SendMultipart(const void* data, size_t size, ...)
 {
     va_list args;
