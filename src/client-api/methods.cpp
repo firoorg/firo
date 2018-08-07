@@ -484,6 +484,8 @@ UniValue txfee(Type type, const UniValue& data, const UniValue& auth, bool fHelp
     if (!EnsureWalletIsAvailable(fHelp))
         return NullUniValue;
 
+    UniValue ret(UniValue::VOBJ);
+
     UniValue feeperkb = find_value(data, "feePerKb");
 
     setTxFee(feeperkb);
@@ -541,7 +543,8 @@ UniValue txfee(Type type, const UniValue& data, const UniValue& auth, bool fHelp
         throw JSONRPCError(API_WALLET_INSUFFICIENT_FUNDS, strFailReason);
     
     LogPrintf("API: returning from txfee\n");
-    return nFeeRequired;
+    ret.push_back(Pair("fee", nFeeRequired));
+    return ret;
 }
 
 
