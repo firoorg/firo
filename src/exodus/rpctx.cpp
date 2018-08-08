@@ -193,12 +193,12 @@ UniValue exodus_senddexsell(const UniValue& params, bool fHelp)
         throw runtime_error(
             "exodus_senddexsell \"fromaddress\" propertyidforsale \"amountforsale\" \"amountdesired\" paymentwindow minacceptfee action\n"
 
-            "\nPlace, update or cancel a sell offer on the traditional distributed OMNI/BTC exchange.\n"
+            "\nPlace, update or cancel a sell offer on the traditional distributed EXODUS/BTC exchange.\n"
 
             "\nArguments:\n"
 
             "1. fromaddress          (string, required) the address to send from\n"
-            "2. propertyidforsale    (number, required) the identifier of the tokens to list for sale (must be 1 for OMNI or 2 for TOMNI)\n"
+            "2. propertyidforsale    (number, required) the identifier of the tokens to list for sale (must be 1 for EXODUS or 2 for TEXODUS)\n"
             "3. amountforsale        (string, required) the amount of tokens to list for sale\n"
             "4. amountdesired        (string, required) the amount of bitcoins desired\n"
             "5. paymentwindow        (number, required) a time limit in blocks a buyer has to pay following a successful accepting order\n"
@@ -774,10 +774,10 @@ UniValue trade_MP(const UniValue& params, bool fHelp)
         throw runtime_error(
             "trade_MP \"fromaddress\" propertyidforsale \"amountforsale\" propertiddesired \"amountdesired\" action\n"
             "\nNote: this command is depreciated, and was replaced by:\n"
-            " - sendtrade_OMNI\n"
-            " - sendcanceltradebyprice_OMNI\n"
-            " - sendcanceltradebypair_OMNI\n"
-            " - sendcanceltradebypair_OMNI\n"
+            " - sendtrade_EXODUS\n"
+            " - sendcanceltradebyprice_EXODUS\n"
+            " - sendcanceltradebypair_EXODUS\n"
+            " - sendcanceltradebypair_EXODUS\n"
         );
 
     UniValue values(UniValue::VARR);

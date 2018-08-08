@@ -524,7 +524,7 @@ void populateRPCExtendedTypeSendToOwners(const uint256 txid, std::string extende
     } else {
         stoFee = numRecipients * TRANSFER_FEE_PER_OWNER_V1;
     }
-    txobj.push_back(Pair("totalstofee", FormatDivisibleMP(stoFee))); // fee always OMNI so always divisible
+    txobj.push_back(Pair("totalstofee", FormatDivisibleMP(stoFee))); // fee always EXODUS so always divisible
     txobj.push_back(Pair("recipients", receiveArray));
 }
 

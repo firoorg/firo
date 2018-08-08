@@ -160,7 +160,7 @@ inline std::string error_str(int ec) {
           ec_str = "Value out of range or zero";
           break;
       case PKT_ERROR_TRADEOFFER -47:
-          ec_str = "Property for sale must be OMNI or TOMNI";
+          ec_str = "Property for sale must be EXODUS or TEXODUS";
           break;
       case PKT_ERROR_TRADEOFFER -49:
           ec_str = "Sender has no active sell offer for the property";

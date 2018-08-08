@@ -196,7 +196,7 @@ void CExodusFeeCache::DistributeCache(const uint32_t &propertyId, int block)
         receiversSet = STO_GetReceivers("FEEDISTRIBUTION", EXODUS_PROPERTY_EXODUS, cachedAmount);
     }
 
-    uint64_t numberOfReceivers = receiversSet.size(); // there will always be addresses holding OMNI, so no need to check size>0
+    uint64_t numberOfReceivers = receiversSet.size(); // there will always be addresses holding EXODUS, so no need to check size>0
     PrintToLog("Starting fee distribution for property %d to %d recipients...\n", propertyId, numberOfReceivers);
 
     int64_t sent_so_far = 0;

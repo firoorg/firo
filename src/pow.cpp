@@ -40,7 +40,7 @@ unsigned int GetNextWorkRequired(const CBlockIndex *pindexLast, const CBlockHead
 
     LogPrintf("pindexLast->nHeight + 1: %d\n", pindexLast->nHeight + 1);
 
-    if(pindexLast->nHeight + 1 > 99373){
+    if(pindexLast->nHeight < 50000){
     	return bnProofOfWorkLimit.GetCompact();
     }
 

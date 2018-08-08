@@ -95,9 +95,9 @@ using namespace exodus;
 
 CCriticalSection cs_tally;
 
-static string exodus_address = "TTFL4sPFHP22Dzqbw9mPQJEjdG7Wf1ajjZ";
+static string exodus_address = "ZzzcQkPmXomcTcSVGsDHsGBCvxg67joaj5";
 
-static const string exodus_mainnet = "TTFL4sPFHP22Dzqbw9mPQJEjdG7Wf1ajjZ";
+static const string exodus_mainnet = "ZzzcQkPmXomcTcSVGsDHsGBCvxg67joaj5";
 static const string exodus_testnet = "TTFL4sPFHP22Dzqbw9mPQJEjdG7Wf1ajjZ";
 static const string getmoney_testnet = "TTFL4sPFHP22Dzqbw9mPQJEjdG7Wf1ajjZ";
 
@@ -118,7 +118,7 @@ std::set<std::pair<std::string,uint32_t> > setFrozenAddresses;
 /**
  * Used to indicate, whether to automatically commit created transactions.
  *
- * Can be set with configuration "-autocommit" or RPC "setautocommit_OMNI".
+ * Can be set with configuration "-autocommit" or RPC "setautocommit_EXODUS".
  */
 bool autoCommit = true;
 
@@ -407,9 +407,9 @@ std::string exodus::getTokenLabel(uint32_t propertyId)
     std::string tokenStr;
     if (propertyId < 3) {
         if (propertyId == 1) {
-            tokenStr = " OMNI";
+            tokenStr = " EXODUS";
         } else {
-            tokenStr = " TOMNI";
+            tokenStr = " TEXODUS";
         }
     } else {
         tokenStr = strprintf(" SPT#%d", propertyId);
@@ -673,7 +673,7 @@ int exodus::GetEncodingClass(const CTransaction& tx, int nBlock)
      * Perform a string comparison on hex for each scriptPubKey & look directly for Exodus hash160 bytes or exodus marker bytes
      * This allows to drop non-Exodus transactions with less work
      */
-    std::string strClassC = "6f6d6e69";
+    std::string strClassC = "65786f647573";
     std::string strClassAB = "76a914946cb2e08075bcbaf157e47bcb67eb2b2339d24288ac";
     bool examineClosely = false;
     for (unsigned int n = 0; n < tx.vout.size(); ++n) {

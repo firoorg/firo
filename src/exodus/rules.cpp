@@ -165,7 +165,7 @@ CMainConsensusParams::CMainConsensusParams()
     //GENESIS_BLOCK = 249498;
     GENESIS_BLOCK = 1;
     //LAST_EXODUS_BLOCK = 255365;
-    LAST_EXODUS_BLOCK = 1000;
+    LAST_EXODUS_BLOCK = 680;
     // Notice range for feature activations:
     MIN_ACTIVATION_BLOCKS = 2048;  // ~2 weeks
     MAX_ACTIVATION_BLOCKS = 12288; // ~12 weeks

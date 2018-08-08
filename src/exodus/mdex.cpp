@@ -367,7 +367,7 @@ std::string CMPMetaDEx::displayUnitPrice() const
 /**
  * Used for display of unit prices with 50 decimal places at RPC layer.
  *
- * Note: unit price is no longer always shown in OMNI and/or inverted
+ * Note: unit price is no longer always shown in EXODUS and/or inverted
  */
 std::string CMPMetaDEx::displayFullUnitPrice() const
 {
