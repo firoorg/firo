@@ -73,7 +73,7 @@ CMPSPInfo::CMPSPInfo(const boost::filesystem::path& path, bool fWipe)
     implied_exodus.subcategory = "N/A";
     implied_exodus.name = "Exodus";
     implied_exodus.url = "https://www.zcoin.io";
-    implied_exodus.data = "Exodus serve as the binding between Bitcoin, smart properties and contracts created on the Exodus Layer.";
+    implied_exodus.data = "Exodus serve as the binding between Zcoin, smart properties and contracts created on the Exodus Layer.";
     implied_texodus.issuer = ExodusAddress().ToString();
     implied_texodus.prop_type = EXODUS_PROPERTY_TYPE_DIVISIBLE;
     implied_texodus.num_tokens = 700000;
@@ -81,7 +81,7 @@ CMPSPInfo::CMPSPInfo(const boost::filesystem::path& path, bool fWipe)
     implied_texodus.subcategory = "N/A";
     implied_texodus.name = "Test Exodus";
     implied_texodus.url = "https://www.zcoin.io";
-    implied_texodus.data = "Test Exodus serve as the binding between Bitcoin, smart properties and contracts created on the Exodus Layer.";
+    implied_texodus.data = "Test Exodus serve as the binding between Zcoin, smart properties and contracts created on the Exodus Layer.";
 
     init();
 }
@@ -110,7 +110,7 @@ uint32_t CMPSPInfo::peekNextSPID(uint8_t ecosystem) const
     uint32_t nextId = 0;
 
     switch (ecosystem) {
-        case EXODUS_PROPERTY_EXODUS: // Main ecosystem, MSC: 1, TMSC: 2, First available SP = 3
+        case EXODUS_PROPERTY_EXODUS: // Main ecosystem, EXODUS: 1, TEXODUS: 2, First available SP = 3
             nextId = next_spid;
             break;
         case EXODUS_PROPERTY_TEXODUS: // Test ecosystem, same as above with high bit set
@@ -171,7 +171,7 @@ uint32_t CMPSPInfo::putSP(uint8_t ecosystem, const Entry& info)
 {
     uint32_t propertyId = 0;
     switch (ecosystem) {
-        case EXODUS_PROPERTY_EXODUS: // Main ecosystem, MSC: 1, TMSC: 2, First available SP = 3
+        case EXODUS_PROPERTY_EXODUS: // Main ecosystem, EXODUS: 1, TEXODUS: 2, First available SP = 3
             propertyId = next_spid++;
             break;
         case EXODUS_PROPERTY_TEXODUS: // Test ecosystem, same as above with high bit set
@@ -229,7 +229,7 @@ uint32_t CMPSPInfo::putSP(uint8_t ecosystem, const Entry& info)
 
 bool CMPSPInfo::getSP(uint32_t propertyId, Entry& info) const
 {
-    // special cases for constant SPs MSC and TMSC
+    // special cases for constant SPs EXODUS and TEXODUS
     if (EXODUS_PROPERTY_EXODUS == propertyId) {
         info = implied_exodus;
         return true;

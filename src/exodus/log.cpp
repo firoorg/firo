@@ -217,20 +217,20 @@ int ConsolePrint(const std::string& str)
 }
 
 /**
- * Determine whether to override compiled debug levels via enumerating startup option --omnidebug.
+ * Determine whether to override compiled debug levels via enumerating startup option --exodusdebug.
  *
- * Example usage (granular categories)    : --omnidebug=parser --omnidebug=metadex1 --omnidebug=ui
- * Example usage (enable all categories)  : --omnidebug=all
- * Example usage (disable all debugging)  : --omnidebug=none
- * Example usage (disable all except XYZ) : --omnidebug=none --omnidebug=parser --omnidebug=sto
+ * Example usage (granular categories)    : --exodusdebug=parser --exodusdebug=metadex1 --exodusdebug=ui
+ * Example usage (enable all categories)  : --exodusdebug=all
+ * Example usage (disable all debugging)  : --exodusdebug=none
+ * Example usage (disable all except XYZ) : --exodusdebug=none --omnidebug=parser --exodusdebug=sto
  */
 void InitDebugLogLevels()
 {
-    if (!mapArgs.count("-omnidebug")) {
+    if (!mapArgs.count("-exodusdebug")) {
         return;
     }
 
-    const std::vector<std::string>& debugLevels = mapMultiArgs["-omnidebug"];
+    const std::vector<std::string>& debugLevels = mapMultiArgs["-exodusdebug"];
 
     for (std::vector<std::string>::const_iterator it = debugLevels.begin(); it != debugLevels.end(); ++it) {
         if (*it == "parser_data") exodus_debug_parser_data = true;
