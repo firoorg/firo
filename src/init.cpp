@@ -473,6 +473,9 @@ std::string HelpMessage(HelpMessageMode mode) {
     strUsage += HelpMessageOpt("-proxyrandomize", strprintf(
             _("Randomize credentials for every proxy connection. This enables Tor stream isolation (default: %u)"),
             DEFAULT_PROXYRANDOMIZE));
+    strUsage += HelpMessageOpt("-resetapicerts", strprintf(
+            _("Reset ZMQ authentication key files on startup. (default: %u)"),
+            DEFAULT_RESETAPICERTS));
     strUsage += HelpMessageOpt("-rpcserialversion", strprintf(
             _("Sets the serialization of raw transaction or block hex returned in non-verbose mode, non-segwit(0) or segwit(1) (default: %d)"),
             DEFAULT_RPC_SERIALIZE_VERSION));
@@ -870,7 +873,9 @@ bool AppInitServers(boost::thread_group &threadGroup) {
     CreateZerocoinFile();
     CreateSettingsFile();
 
-    CZMQAbstract::createCerts(GetBoolArg("-resetapicerts", false));
+    bool resetapicerts = GetBoolArg("-resetapicerts", DEFAULT_RESETAPICERTS);
+
+    CZMQAbstract::createCerts(resetapicerts);
  
 #endif
     return true;
