@@ -908,7 +908,7 @@ bool CWallet::AddToWalletIfInvolvingMe(const CTransaction &tx, const CBlock *pbl
             return AddToWallet(wtx, false, &walletdb);
         }
     }
-//   LogPrintf("CWallet::AddToWalletIfInvolvingMe -> out false!\n");
+    LogPrintf("CWallet::AddToWalletIfInvolvingMe -> out false!\n");
     return false;
 }
 
@@ -2254,7 +2254,6 @@ bool CWallet::IsMintFromTxOutUsed(CTxOut& txout){
     list <CZerocoinEntry> listPubCoin = list<CZerocoinEntry>();
     CWalletDB walletdb(pwalletMain->strWalletFile);
     walletdb.ListPubCoin(listPubCoin);
-
     vector<unsigned char> vchZeroMint;
     vchZeroMint.insert(vchZeroMint.end(), txout.scriptPubKey.begin() + 6,
                        txout.scriptPubKey.begin() + txout.scriptPubKey.size());
@@ -2267,6 +2266,7 @@ bool CWallet::IsMintFromTxOutUsed(CTxOut& txout){
             return pubCoinItem.IsUsed;
         }
     }
+    LogPrintf("mint not yet added to db\n");
     // mint tx not yet added to db, so not used.
     return false;
 }
@@ -2279,7 +2279,7 @@ void CWallet::ListAvailableCoinsMintCoins(vector <COutput> &vCoins, bool fOnlyCo
         list <CZerocoinEntry> listPubCoin = list<CZerocoinEntry>();
         CWalletDB walletdb(pwalletMain->strWalletFile);
         walletdb.ListPubCoin(listPubCoin);
-//        LogPrintf("listPubCoin.size()=%s\n", listPubCoin.size());
+//        LogPrintf("listPubCoin.size() in ListAvailableCoinsMintCoins=%s\n", listPubCoin.size());
         for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it) {
             const CWalletTx *pcoin = &(*it).second;
 //            LogPrintf("pcoin=%s\n", pcoin->GetHash().ToString());
@@ -2303,7 +2303,6 @@ void CWallet::ListAvailableCoinsMintCoins(vector <COutput> &vCoins, bool fOnlyCo
                 LogPrintf("nDepth=%s\n", nDepth);
                 continue;
             }
-//            LogPrintf("pcoin->vout.size()=%s\n", pcoin->vout.size());
 
             for (unsigned int i = 0; i < pcoin->vout.size(); i++) {
                 if (pcoin->vout[i].scriptPubKey.IsZerocoinMint()) {
@@ -2339,14 +2338,13 @@ void CWallet::ListAvailableCoinsMintCoins(vector <COutput> &vCoins, bool fOnlyCo
 void CWallet::GetAvailableMintCoinBalance(CAmount& balance, bool fOnlyConfirmed) const {
 
     LOCK(cs_wallet);
-    int count = 0;
     list <CZerocoinEntry> listPubCoin = list<CZerocoinEntry>();
     CWalletDB walletdb(pwalletMain->strWalletFile);
     walletdb.ListPubCoin(listPubCoin);
-//    LogPrintf("listPubCoin.size()=%s\n", listPubCoin.size());
+    LogPrintf("listPubCoin.size() in GetAvailableMintCoinBalance=%s\n", listPubCoin.size());
     for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it) {
         const CWalletTx *pcoin = &(*it).second;
-//            LogPrintf("pcoin=%s\n", pcoin->GetHash().ToString());
+        //LogPrintf("pcoin hash=%s\n", pcoin->GetHash().ToString());
         if (!CheckFinalTx(*pcoin)) {
             LogPrintf("!CheckFinalTx(*pcoin)=%s\n", !CheckFinalTx(*pcoin));
             continue;
@@ -2372,7 +2370,7 @@ void CWallet::GetAvailableMintCoinBalance(CAmount& balance, bool fOnlyConfirmed)
 
                 CBigNum pubCoin;
                 pubCoin.setvch(vchZeroMint);
-                LogPrintf("Pubcoin=%s\n", pubCoin.ToString());
+//                LogPrintf("Pubcoin=%s\n", pubCoin.ToString());
                 // CHECKING PROCESS
                 BOOST_FOREACH(const CZerocoinEntry &pubCoinItem, listPubCoin) {
 //                        LogPrintf("*******\n");
@@ -2390,13 +2388,11 @@ void CWallet::GetAvailableMintCoinBalance(CAmount& balance, bool fOnlyConfirmed)
                         }else {
                             balance += pubCoinItem.denomination * COIN;
                         } 
-                        count++;                       
                     }
                 }
 
             }
         }
-        LogPrintf("count in GetAvailableMintCoinBalance=%s\n", count);
     }
 }
 
@@ -4022,6 +4018,74 @@ bool CWallet::CommitZerocoinSpendTransaction(CWalletTx &wtxNew, CReserveKey &res
     return true;
 }
 
+
+
+//TODO errors instead of string
+string CWallet::MintAndStoreZerocoin(CScript coinScript, 
+                                          libzerocoin::PublicCoin pubCoin, libzerocoin::PrivateCoin privCoin,
+                                          libzerocoin::CoinDenomination denomination, int64_t nValue, CWalletTx &wtxNew, 
+                                          bool fAskFee) {
+
+    LogPrintf("MintZerocoin: value = %s\n", nValue);
+    // Check amount
+    if (nValue <= 0)
+        return _("Invalid amount");
+    LogPrintf("CWallet.MintZerocoin() nValue = %s, payTxFee.GetFee(1000) = %s, GetBalance() = %s \n", nValue,
+              payTxFee.GetFee(1000), GetBalance());
+    if (nValue + payTxFee.GetFeePerK() > GetBalance())
+        return _("Insufficient funds");
+    LogPrintf("payTxFee.GetFeePerK()=%s\n", payTxFee.GetFeePerK());
+    CReserveKey reservekey(this);
+    int64_t nFeeRequired;
+
+    if (IsLocked()) {
+        string strError = _("Error: Wallet locked, unable to create transaction!");
+        LogPrintf("MintZerocoin() : %s", strError);
+        return strError;
+    }
+
+    string strError;
+    if (!CreateZerocoinMintTransaction(coinScript, nValue, wtxNew, reservekey, nFeeRequired, strError)) {
+        LogPrintf("nFeeRequired=%s\n", nFeeRequired);
+        if (nValue + nFeeRequired > GetBalance())
+            return strprintf(
+                    _("Error: This transaction requires a transaction fee of at least %s because of its amount, complexity, or use of recently received funds!"),
+                    FormatMoney(nFeeRequired).c_str());
+        return strError;
+    }
+
+    if (fAskFee && !uiInterface.ThreadSafeAskFee(nFeeRequired)){
+        LogPrintf("MintZerocoin: returning aborted..\n");
+        return "ABORTED";
+    }
+
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+    libzerocoin::Params *zcParams = ZCParamsV2;
+
+    CZerocoinEntry zerocoinTx;
+    zerocoinTx.IsUsed = false;
+    zerocoinTx.denomination = denomination;
+    zerocoinTx.value = pubCoin.getValue();
+    libzerocoin::PublicCoin checkPubCoin(zcParams, zerocoinTx.value, denomination);
+    if (!checkPubCoin.validate()) {
+        return "error: pubCoin not validated.";
+    }
+    zerocoinTx.randomness = privCoin.getRandomness();
+    zerocoinTx.serialNumber = privCoin.getSerialNumber();
+    const unsigned char *ecdsaSecretKey = privCoin.getEcdsaSeckey();
+    zerocoinTx.ecdsaSecretKey = std::vector<unsigned char>(ecdsaSecretKey, ecdsaSecretKey+32);
+    walletdb.WriteZerocoinEntry(zerocoinTx);
+
+    if (!CommitTransaction(wtxNew, reservekey)) {
+        return _(
+                "Error: The transaction was rejected! This might happen if some of the coins in your wallet were already spent, such as if you used a copy of wallet.dat and coins were spent in the copy but not marked as spent here.");
+    } else {
+        LogPrintf("CommitTransaction success!\n");
+    }
+
+    return "";
+}
+
 /**
  * @brief CWallet::MintZerocoin
  * @param pubCoin
@@ -4064,8 +4128,10 @@ string CWallet::MintZerocoin(CScript pubCoin, int64_t nValue, CWalletTx &wtxNew,
         return strError;
     }
 
-    if (fAskFee && !uiInterface.ThreadSafeAskFee(nFeeRequired))
+    if (fAskFee && !uiInterface.ThreadSafeAskFee(nFeeRequired)){
+        LogPrintf("MintZerocoin: returning aborted..\n");
         return "ABORTED";
+    }
 
     if (!CommitTransaction(wtxNew, reservekey)) {
         return _(

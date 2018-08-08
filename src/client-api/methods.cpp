@@ -630,25 +630,11 @@ UniValue mint(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
             // Wallet comments
             CWalletTx wtx;
 
-            string strError = pwalletMain->MintZerocoin(scriptSerializedCoin, (denomination_int * COIN), wtx);
+            string strError = pwalletMain->MintAndStoreZerocoin(scriptSerializedCoin, pubCoin, newCoin, 
+                                                                denomination, (denomination_int * COIN), wtx);
 
             if (strError != "")
                 throw JSONRPCError(RPC_WALLET_ERROR, strError);
-
-            CWalletDB walletdb(pwalletMain->strWalletFile);
-            CZerocoinEntry zerocoinTx;
-            zerocoinTx.IsUsed = false;
-            zerocoinTx.denomination = denomination;
-            zerocoinTx.value = pubCoin.getValue();
-            libzerocoin::PublicCoin checkPubCoin(zcParams, zerocoinTx.value, denomination);
-            if (!checkPubCoin.validate()) {
-                return false;
-            }
-            zerocoinTx.randomness = newCoin.getRandomness();
-            zerocoinTx.serialNumber = newCoin.getSerialNumber();
-            const unsigned char *ecdsaSecretKey = newCoin.getEcdsaSeckey();
-            zerocoinTx.ecdsaSecretKey = std::vector<unsigned char>(ecdsaSecretKey, ecdsaSecretKey+32);
-            walletdb.WriteZerocoinEntry(zerocoinTx);
 
             txids.push_back(wtx.GetHash().GetHex());
         }

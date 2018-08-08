@@ -137,7 +137,7 @@ CZMQPublisherInterface* CZMQPublisherInterface::Create()
     
     std::string address = BaseParams().APIAddr() + to_string(BaseParams().APIPUBPort());
 
-    for (std::map<std::string, CZMQFactory>::const_iterator i=factories.begin(); i!=factories.end(); ++i)
+    for (std::map<string, CZMQFactory>::const_iterator i=factories.begin(); i!=factories.end(); ++i)
     {
         CZMQFactory factory = factories[i->first];
         CZMQAbstract *notifier = factory();

@@ -291,11 +291,12 @@ bool CheckMintZcoinTransaction(const CTxOut &txout,
     LogPrintf("CheckMintZcoinTransaction txHash = %s\n", txout.GetHash().ToString());
     LogPrintf("nValue = %d\n", txout.nValue);
 
-    if (txout.scriptPubKey.size() < 6)
+    if (txout.scriptPubKey.size() < 6){
         return state.DoS(100,
             false,
             PUBCOIN_NOT_VALIDATE,
             "CTransaction::CheckTransaction() : PubCoin validation failed");
+    }
 
     CBigNum pubCoin(vector<unsigned char>(txout.scriptPubKey.begin()+6, txout.scriptPubKey.end()));
 
@@ -319,12 +320,12 @@ bool CheckMintZcoinTransaction(const CTxOut &txout,
     }
 
     switch (txout.nValue) {
-    default:
+    default:{
         return state.DoS(100,
             false,
             PUBCOIN_NOT_VALIDATE,
             "CheckZerocoinTransaction : PubCoin denomination is invalid");
-
+    }
     case libzerocoin::ZQ_LOVELACE*COIN:
     case libzerocoin::ZQ_GOLDWASSER*COIN:
     case libzerocoin::ZQ_RACKOFF*COIN:
@@ -332,12 +333,12 @@ bool CheckMintZcoinTransaction(const CTxOut &txout,
     case libzerocoin::ZQ_WILLIAMSON*COIN:
         libzerocoin::CoinDenomination denomination = (libzerocoin::CoinDenomination)(txout.nValue / COIN);
         libzerocoin::PublicCoin checkPubCoin(ZCParamsV2, pubCoin, denomination);
-        if (!checkPubCoin.validate())
+        if (!checkPubCoin.validate()){
             return state.DoS(100,
                 false,
                 PUBCOIN_NOT_VALIDATE,
                 "CheckZerocoinTransaction : PubCoin validation failed");
-
+        }
         if (zerocoinTxInfo != NULL && !zerocoinTxInfo->fInfoIsComplete) {
             // Update public coin list in the info
             zerocoinTxInfo->mints.push_back(make_pair(denomination, pubCoin));
