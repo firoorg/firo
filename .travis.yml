@@ -10,7 +10,7 @@ cache:
   - $HOME/.ccache
 env:
   global:
-    - MAKEJOBS="-j6"
+    - MAKEJOBS="-j4"
     - RUN_TEST=false
     - RUN_BENCH=false  # Set to true for any one job that has debug enabled, to quickly check bench is not crashing or hitting assertions
     - DOCKER_NAME_TAG=ubuntu:18.04
@@ -31,11 +31,13 @@ env:
       HOST=i686-w64-mingw32
       PACKAGES="python3 nsis wine1.6 bc g++-mingw-w64-i686 mingw-w64-i686-dev g++-mingw-w64-x86-64 mingw-w64-x86-64-dev curl"
       ZCOIN_CONFIG="--enable-reduce-exports"
+      DEP_OPTS="NO_QT=1"
 # Win64
     - >-
        HOST=x86_64-w64-mingw32
        PACKAGES="python3 nsis wine1.6 bc g++-mingw-w64-i686 mingw-w64-i686-dev g++-mingw-w64-x86-64 mingw-w64-x86-64-dev curl"
        ZCOIN_CONFIG="--enable-reduce-exports"
+       DEP_OPTS="NO_QT=1"
 # x86_64 Linux
     - >-
       HOST=x86_64-unknown-linux-gnu
@@ -67,7 +69,7 @@ before_script:
     - if [ -n "$OSX_SDK" -a ! -f depends/sdk-sources/MacOSX${OSX_SDK}.sdk.tar.gz ]; then curl --location --fail $SDK_URL/MacOSX${OSX_SDK}.sdk.tar.gz -o depends/sdk-sources/MacOSX${OSX_SDK}.sdk.tar.gz; fi
     - if [ -n "$OSX_SDK" -a -f depends/sdk-sources/MacOSX${OSX_SDK}.sdk.tar.gz ]; then tar -C depends/SDKs -xf depends/sdk-sources/MacOSX${OSX_SDK}.sdk.tar.gz; fi
     - if [[ $HOST = *-mingw32 ]]; then DOCKER_EXEC update-alternatives --set $HOST-g++ \$\(which $HOST-g++-posix\); fi
-    - if [ -z "$NO_DEPENDS" ]; then DOCKER_EXEC CONFIG_SHELL= make $MAKEJOBS -C depends HOST=$HOST; fi
+    - if [ -z "$NO_DEPENDS" ]; then DOCKER_EXEC CONFIG_SHELL= make $MAKEJOBS -C depends HOST=$HOST $DEP_OPTS; fi
 script:
     - export TRAVIS_COMMIT_LOG=`git log --format=fuller -1`
     - OUTDIR=$BASE_OUTDIR/$TRAVIS_PULL_REQUEST/$TRAVIS_JOB_NUMBER-$HOST
