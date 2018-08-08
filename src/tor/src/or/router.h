@@ -14,6 +14,13 @@
 
 #include "testsupport.h"
 
+#define TOR_ROUTERINFO_ERROR_NO_EXT_ADDR     (-1)
+#define TOR_ROUTERINFO_ERROR_CANNOT_PARSE    (-2)
+#define TOR_ROUTERINFO_ERROR_NOT_A_SERVER    (-3)
+#define TOR_ROUTERINFO_ERROR_DIGEST_FAILED   (-4)
+#define TOR_ROUTERINFO_ERROR_CANNOT_GENERATE (-5)
+#define TOR_ROUTERINFO_ERROR_DESC_REBUILDING (-6)
+
 crypto_pk_t *get_onion_key(void);
 time_t get_onion_key_set_at(void);
 void set_server_identity_key(crypto_pk_t *k);
@@ -36,7 +43,9 @@ int get_onion_key_lifetime(void);
 int get_onion_key_grace_period(void);
 
 di_digest256_map_t *construct_ntor_key_map(void);
-void ntor_key_map_free(di_digest256_map_t *map);
+void ntor_key_map_free_(di_digest256_map_t *map);
+#define ntor_key_map_free(map) \
+  FREE_AND_NULL(di_digest256_map_t, ntor_key_map_free_, (map))
 
 int router_initialize_tls_context(void);
 int init_keys(void);
@@ -45,15 +54,15 @@ int init_keys_client(void);
 int check_whether_orport_reachable(const or_options_t *options);
 int check_whether_dirport_reachable(const or_options_t *options);
 int dir_server_mode(const or_options_t *options);
-void consider_testing_reachability(int test_or, int test_dir);
+void router_do_reachability_checks(int test_or, int test_dir);
 void router_orport_found_reachable(void);
 void router_dirport_found_reachable(void);
 void router_perform_bandwidth_test(int num_circs, time_t now);
 
 int net_is_disabled(void);
+int net_is_completely_disabled(void);
 
 int authdir_mode(const or_options_t *options);
-int authdir_mode_v3(const or_options_t *options);
 int authdir_mode_handles_descs(const or_options_t *options, int purpose);
 int authdir_mode_publishes_statuses(const or_options_t *options);
 int authdir_mode_tests_reachability(const or_options_t *options);
@@ -84,6 +93,7 @@ void router_new_address_suggestion(const char *suggestion,
 int router_compare_to_my_exit_policy(const tor_addr_t *addr, uint16_t port);
 MOCK_DECL(int, router_my_exit_policy_is_reject_star,(void));
 MOCK_DECL(const routerinfo_t *, router_get_my_routerinfo, (void));
+MOCK_DECL(const routerinfo_t *, router_get_my_routerinfo_with_err,(int *err));
 extrainfo_t *router_get_my_extrainfo(void);
 const char *router_get_my_descriptor(void);
 const char *router_get_descriptor_gen_reason(void);
@@ -121,28 +131,13 @@ int is_legal_nickname(const char *s);
 int is_legal_nickname_or_hexdigest(const char *s);
 int is_legal_hexdigest(const char *s);
 
-/**
- * Longest allowed output of format_node_description, plus 1 character for
- * NUL.  This allows space for:
- * "$FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF~xxxxxxxxxxxxxxxxxxx at"
- * " [ffff:ffff:ffff:ffff:ffff:ffff:255.255.255.255]"
- * plus a terminating NUL.
- */
-#define NODE_DESC_BUF_LEN (MAX_VERBOSE_NICKNAME_LEN+4+TOR_ADDR_BUF_LEN)
-const char *format_node_description(char *buf,
-                                    const char *id_digest,
-                                    int is_named,
-                                    const char *nickname,
-                                    const tor_addr_t *addr,
-                                    uint32_t addr32h);
-const char *router_get_description(char *buf, const routerinfo_t *ri);
-const char *node_get_description(char *buf, const node_t *node);
-const char *routerstatus_get_description(char *buf, const routerstatus_t *rs);
-const char *extend_info_get_description(char *buf, const extend_info_t *ei);
 const char *router_describe(const routerinfo_t *ri);
 const char *node_describe(const node_t *node);
 const char *routerstatus_describe(const routerstatus_t *ri);
 const char *extend_info_describe(const extend_info_t *ei);
+
+const char *routerinfo_err_to_string(int err);
+int routerinfo_err_is_transient(int err);
 
 void router_get_verbose_nickname(char *buf, const routerinfo_t *router);
 void router_reset_warnings(void);

@@ -18,11 +18,22 @@ void networkstatus_reset_warnings(void);
 void networkstatus_reset_download_failures(void);
 char *networkstatus_read_cached_consensus(const char *flavorname);
 int router_reload_consensus_networkstatus(void);
-void routerstatus_free(routerstatus_t *rs);
-void networkstatus_vote_free(networkstatus_t *ns);
+void routerstatus_free_(routerstatus_t *rs);
+#define routerstatus_free(rs) \
+  FREE_AND_NULL(routerstatus_t, routerstatus_free_, (rs))
+void networkstatus_vote_free_(networkstatus_t *ns);
+#define networkstatus_vote_free(ns) \
+  FREE_AND_NULL(networkstatus_t, networkstatus_vote_free_, (ns))
+void ns_detached_signatures_free_(ns_detached_signatures_t *s);
+#define ns_detached_signatures_free(s) \
+  FREE_AND_NULL(ns_detached_signatures_t, ns_detached_signatures_free_, (s))
 networkstatus_voter_info_t *networkstatus_get_voter_by_id(
                                        networkstatus_t *vote,
                                        const char *identity);
+document_signature_t *networkstatus_get_voter_sig_by_alg(
+                                    const networkstatus_voter_info_t *voter,
+                                    digest_algorithm_t alg);
+
 int networkstatus_check_consensus_signature(networkstatus_t *consensus,
                                             int warn);
 int networkstatus_check_document_signature(const networkstatus_t *consensus,
@@ -89,6 +100,7 @@ int networkstatus_consensus_can_use_multiple_directories(
 MOCK_DECL(int, networkstatus_consensus_can_use_extra_fallbacks,(
                                                 const or_options_t *options));
 int networkstatus_consensus_is_already_downloading(const char *resource);
+int networkstatus_consensus_has_ipv6(const or_options_t* options);
 
 #define NSSET_FROM_CACHE 1
 #define NSSET_WAS_WAITING_FOR_CERTS 2
@@ -124,17 +136,23 @@ int32_t networkstatus_get_bw_weight(networkstatus_t *ns, const char *weight,
                                     int32_t default_val);
 const char *networkstatus_get_flavor_name(consensus_flavor_t flav);
 int networkstatus_parse_flavor_name(const char *flavname);
-void document_signature_free(document_signature_t *sig);
+void document_signature_free_(document_signature_t *sig);
+#define document_signature_free(sig) \
+  FREE_AND_NULL(document_signature_t, document_signature_free_, (sig))
 document_signature_t *document_signature_dup(const document_signature_t *sig);
 void networkstatus_free_all(void);
 int networkstatus_get_weight_scale_param(networkstatus_t *ns);
 
-void vote_routerstatus_free(vote_routerstatus_t *rs);
+void vote_routerstatus_free_(vote_routerstatus_t *rs);
+#define vote_routerstatus_free(rs) \
+  FREE_AND_NULL(vote_routerstatus_t, vote_routerstatus_free_, (rs))
 
 #ifdef NETWORKSTATUS_PRIVATE
 #ifdef TOR_UNIT_TESTS
 STATIC int networkstatus_set_current_consensus_from_ns(networkstatus_t *c,
                                                 const char *flavor);
+STATIC void warn_early_consensus(const networkstatus_t *c, const char *flavor,
+                                 time_t now);
 extern networkstatus_t *current_ns_consensus;
 extern networkstatus_t *current_md_consensus;
 #endif /* defined(TOR_UNIT_TESTS) */

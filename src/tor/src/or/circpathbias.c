@@ -30,6 +30,7 @@
 #include "circuitstats.h"
 #include "connection_edge.h"
 #include "config.h"
+#include "crypto_rand.h"
 #include "entrynodes.h"
 #include "networkstatus.h"
 #include "relay.h"
@@ -1467,7 +1468,7 @@ pathbias_measure_close_rate(entry_guard_t *guard)
  *
  * XXX: The attempt count transfer stuff here might be done
  * better by keeping separate pending counters that get
- * transfered at circuit close. See ticket #8160.
+ * transferred at circuit close. See ticket #8160.
  */
 static void
 pathbias_scale_close_rates(entry_guard_t *guard)
@@ -1527,7 +1528,7 @@ pathbias_scale_close_rates(entry_guard_t *guard)
  *
  * XXX: The attempt count transfer stuff here might be done
  * better by keeping separate pending counters that get
- * transfered at circuit close. See ticket #8160.
+ * transferred at circuit close. See ticket #8160.
  */
 void
 pathbias_scale_use_rates(entry_guard_t *guard)

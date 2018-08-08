@@ -172,7 +172,7 @@ evdns_server_callback(struct evdns_server_request *req, void *data_)
   if (connection_add(ENTRY_TO_CONN(entry_conn)) < 0) {
     log_warn(LD_APP, "Couldn't register dummy connection for DNS request");
     evdns_server_request_respond(req, DNS_ERR_SERVERFAILED);
-    connection_free(ENTRY_TO_CONN(entry_conn));
+    connection_free_(ENTRY_TO_CONN(entry_conn));
     return;
   }
 
@@ -208,6 +208,7 @@ dnsserv_launch_request(const char *name, int reverse,
 
   /* Make a new dummy AP connection, and attach the request to it. */
   entry_conn = entry_connection_new(CONN_TYPE_AP, AF_INET);
+  entry_conn->entry_cfg.dns_request = 1;
   conn = ENTRY_TO_EDGE_CONN(entry_conn);
   CONNECTION_AP_EXPECT_NONPENDING(entry_conn);
   conn->base_.state = AP_CONN_STATE_RESOLVE_WAIT;
@@ -249,7 +250,7 @@ dnsserv_launch_request(const char *name, int reverse,
 
   if (connection_add(TO_CONN(conn))<0) {
     log_warn(LD_APP, "Couldn't register dummy connection for RESOLVE request");
-    connection_free(TO_CONN(conn));
+    connection_free_(TO_CONN(conn));
     return -1;
   }
 

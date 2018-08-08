@@ -18,6 +18,7 @@
 #define POLICIES_PRIVATE
 
 #include "or.h"
+#include "bridges.h"
 #include "config.h"
 #include "dirserv.h"
 #include "microdesc.h"
@@ -81,7 +82,8 @@ static int policies_parse_exit_policy_internal(
                                       const smartlist_t *configured_addresses,
                                       int reject_interface_addresses,
                                       int reject_configured_port_addresses,
-                                      int add_default_policy);
+                                      int add_default_policy,
+                                      int add_reduced_policy);
 
 /** Replace all "private" entries in *<b>policy</b> with their expanded
  * equivalents. */
@@ -823,9 +825,8 @@ fascist_firewall_choose_address(const tor_addr_port_t *a,
  * If pref_only, only choose preferred addresses. In either case, choose
  * a preferred address before an address that's not preferred.
  * If both addresses could be chosen (they are both preferred or both allowed)
- * choose IPv6 if pref_ipv6 is true, otherwise choose IPv4.
- * If neither address is chosen, return 0, else return 1. */
-static int
+ * choose IPv6 if pref_ipv6 is true, otherwise choose IPv4. */
+static void
 fascist_firewall_choose_address_base(const tor_addr_t *ipv4_addr,
                                      uint16_t ipv4_orport,
                                      uint16_t ipv4_dirport,
@@ -842,6 +843,9 @@ fascist_firewall_choose_address_base(const tor_addr_t *ipv4_addr,
 
   tor_assert(ipv6_addr);
   tor_assert(ap);
+
+  tor_addr_make_null(&ap->addr, AF_UNSPEC);
+  ap->port = 0;
 
   tor_addr_port_t ipv4_ap;
   tor_addr_copy(&ipv4_ap.addr, ipv4_addr);
@@ -863,17 +867,12 @@ fascist_firewall_choose_address_base(const tor_addr_t *ipv4_addr,
   if (result) {
     tor_addr_copy(&ap->addr, &result->addr);
     ap->port = result->port;
-    return 1;
-  } else {
-    tor_addr_make_null(&ap->addr, AF_UNSPEC);
-    ap->port = 0;
-    return 0;
   }
 }
 
 /** Like fascist_firewall_choose_address_base(), but takes a host-order IPv4
  * address as the first parameter. */
-static int
+static void
 fascist_firewall_choose_address_ipv4h(uint32_t ipv4h_addr,
                                       uint16_t ipv4_orport,
                                       uint16_t ipv4_dirport,
@@ -887,16 +886,22 @@ fascist_firewall_choose_address_ipv4h(uint32_t ipv4h_addr,
 {
   tor_addr_t ipv4_addr;
   tor_addr_from_ipv4h(&ipv4_addr, ipv4h_addr);
-  return fascist_firewall_choose_address_base(&ipv4_addr, ipv4_orport,
-                                              ipv4_dirport, ipv6_addr,
-                                              ipv6_orport, ipv6_dirport,
-                                              fw_connection, pref_only,
-                                              pref_ipv6, ap);
+  tor_assert(ap);
+
+  tor_addr_make_null(&ap->addr, AF_UNSPEC);
+  ap->port = 0;
+
+  fascist_firewall_choose_address_base(&ipv4_addr, ipv4_orport,
+                                       ipv4_dirport, ipv6_addr,
+                                       ipv6_orport, ipv6_dirport,
+                                       fw_connection, pref_only,
+                                       pref_ipv6, ap);
 }
 
-/* The microdescriptor consensus has no IPv6 addresses in rs: they are in
- * the microdescriptors. This means we can't rely on the node's IPv6 address
- * until its microdescriptor is available (when using microdescs).
+/* Some microdescriptor consensus methods have no IPv6 addresses in rs: they
+ * are in the microdescriptors. For these consensus methods, we can't rely on
+ * the node's IPv6 address until its microdescriptor is available (when using
+ * microdescs).
  * But for bridges, rewrite_node_address_for_bridge() updates node->ri with
  * the configured address, so we can trust bridge addresses.
  * (Bridges could gain an IPv6 address if their microdescriptor arrives, but
@@ -914,11 +919,26 @@ node_awaiting_ipv6(const or_options_t* options, const node_t *node)
     return 0;
   }
 
+  /* If the node has an IPv6 address, we're not waiting */
+  if (node_has_ipv6_addr(node)) {
+    return 0;
+  }
+
+  /* If the current consensus method and flavour has IPv6 addresses, we're not
+   * waiting */
+  if (networkstatus_consensus_has_ipv6(options)) {
+    return 0;
+  }
+
+  /* Bridge clients never use the address from a bridge's md, so there's no
+   * need to wait for it. */
+  if (node_is_a_configured_bridge(node)) {
+    return 0;
+  }
+
   /* We are waiting if we_use_microdescriptors_for_circuits() and we have no
-   * md. Bridges have a ri based on their config. They would never use the
-   * address from their md, so there's no need to wait for it. */
-  return (!node->md && we_use_microdescriptors_for_circuits(options) &&
-          !node->ri);
+   * md. */
+  return (!node->md && we_use_microdescriptors_for_circuits(options));
 }
 
 /** Like fascist_firewall_choose_address_base(), but takes <b>rs</b>.
@@ -926,23 +946,25 @@ node_awaiting_ipv6(const or_options_t* options, const node_t *node)
  * This should only happen when there's no valid consensus, and rs doesn't
  * correspond to a bridge client's bridge.
  */
-int
+void
 fascist_firewall_choose_address_rs(const routerstatus_t *rs,
                                    firewall_connection_t fw_connection,
                                    int pref_only, tor_addr_port_t* ap)
 {
-  if (!rs) {
-    return 0;
-  }
-
   tor_assert(ap);
+
+  tor_addr_make_null(&ap->addr, AF_UNSPEC);
+  ap->port = 0;
+
+  if (!rs) {
+    return;
+  }
 
   const or_options_t *options = get_options();
   const node_t *node = node_get_by_id(rs->identity_digest);
 
   if (node && !node_awaiting_ipv6(options, node)) {
-    return fascist_firewall_choose_address_node(node, fw_connection, pref_only,
-                                                ap);
+    fascist_firewall_choose_address_node(node, fw_connection, pref_only, ap);
   } else {
     /* There's no node-specific IPv6 preference, so use the generic IPv6
      * preference instead. */
@@ -952,33 +974,31 @@ fascist_firewall_choose_address_rs(const routerstatus_t *rs,
 
     /* Assume IPv4 and IPv6 DirPorts are the same.
      * Assume the IPv6 OR and Dir addresses are the same. */
-    return fascist_firewall_choose_address_ipv4h(rs->addr,
-                                                 rs->or_port,
-                                                 rs->dir_port,
-                                                 &rs->ipv6_addr,
-                                                 rs->ipv6_orport,
-                                                 rs->dir_port,
-                                                 fw_connection,
-                                                 pref_only,
-                                                 pref_ipv6,
-                                                 ap);
+    fascist_firewall_choose_address_ipv4h(rs->addr, rs->or_port, rs->dir_port,
+                                          &rs->ipv6_addr, rs->ipv6_orport,
+                                          rs->dir_port, fw_connection,
+                                          pref_only, pref_ipv6, ap);
   }
 }
 
 /** Like fascist_firewall_choose_address_base(), but takes <b>node</b>, and
  * looks up the node's IPv6 preference rather than taking an argument
  * for pref_ipv6. */
-int
+void
 fascist_firewall_choose_address_node(const node_t *node,
                                      firewall_connection_t fw_connection,
                                      int pref_only, tor_addr_port_t *ap)
 {
+  tor_assert(ap);
+
+  tor_addr_make_null(&ap->addr, AF_UNSPEC);
+  ap->port = 0;
+
   if (!node) {
-    return 0;
+    return;
   }
 
   node_assert_ok(node);
-
   /* Calling fascist_firewall_choose_address_node() when the node is missing
    * IPv6 information breaks IPv6-only clients.
    * If the node is a hard-coded fallback directory or authority, call
@@ -988,7 +1008,7 @@ fascist_firewall_choose_address_node(const node_t *node,
    * descriptor (routerinfo), or is one of our configured bridges before
    * calling this function. */
   if (BUG(node_awaiting_ipv6(get_options(), node))) {
-    return 0;
+    return;
   }
 
   const int pref_ipv6_node = (fw_connection == FIREWALL_OR_CONNECTION
@@ -1006,27 +1026,27 @@ fascist_firewall_choose_address_node(const node_t *node,
   node_get_pref_ipv6_dirport(node, &ipv6_dir_ap);
 
   /* Assume the IPv6 OR and Dir addresses are the same. */
-  return fascist_firewall_choose_address_base(&ipv4_or_ap.addr,
-                                              ipv4_or_ap.port,
-                                              ipv4_dir_ap.port,
-                                              &ipv6_or_ap.addr,
-                                              ipv6_or_ap.port,
-                                              ipv6_dir_ap.port,
-                                              fw_connection,
-                                              pref_only,
-                                              pref_ipv6_node,
-                                              ap);
+  fascist_firewall_choose_address_base(&ipv4_or_ap.addr, ipv4_or_ap.port,
+                                       ipv4_dir_ap.port, &ipv6_or_ap.addr,
+                                       ipv6_or_ap.port, ipv6_dir_ap.port,
+                                       fw_connection, pref_only,
+                                       pref_ipv6_node, ap);
 }
 
 /** Like fascist_firewall_choose_address_rs(), but takes <b>ds</b>. */
-int
+void
 fascist_firewall_choose_address_dir_server(const dir_server_t *ds,
                                            firewall_connection_t fw_connection,
                                            int pref_only,
                                            tor_addr_port_t *ap)
 {
+  tor_assert(ap);
+
+  tor_addr_make_null(&ap->addr, AF_UNSPEC);
+  ap->port = 0;
+
   if (!ds) {
-    return 0;
+    return;
   }
 
   /* A dir_server_t always has a fake_status. As long as it has the same
@@ -1034,8 +1054,8 @@ fascist_firewall_choose_address_dir_server(const dir_server_t *ds,
    * (See #17867.)
    * This function relies on fascist_firewall_choose_address_rs looking up the
    * node if it can, because that will get the latest info for the relay. */
-  return fascist_firewall_choose_address_rs(&ds->fake_status, fw_connection,
-                                            pref_only, ap);
+  fascist_firewall_choose_address_rs(&ds->fake_status, fw_connection,
+                                     pref_only, ap);
 }
 
 /** Return 1 if <b>addr</b> is permitted to connect to our dir port,
@@ -1146,7 +1166,7 @@ validate_addr_policies(const or_options_t *options, char **msg)
              "to 1 to disable this warning, and for forward compatibility.",
              options->ExitPolicy == NULL ?
                  " with the default exit policy" : "");
-    if (options->ExitPolicy == NULL) {
+    if (options->ExitPolicy == NULL && options->ReducedExitPolicy == 0) {
       log_warn(LD_CONFIG,
                "In a future version of Tor, ExitRelay 0 may become the "
                "default when no ExitPolicy is given.");
@@ -1793,14 +1813,14 @@ policies_parse_exit_policy_reject_private(
     /* Reject public IPv4 addresses on any interface */
     public_addresses = get_interface_address6_list(LOG_INFO, AF_INET, 0);
     addr_policy_append_reject_addr_list_filter(dest, public_addresses, 1, 0);
-    free_interface_address6_list(public_addresses);
+    interface_address6_list_free(public_addresses);
 
     /* Don't look for IPv6 addresses if we're configured as IPv4-only */
     if (ipv6_exit) {
       /* Reject public IPv6 addresses on any interface */
       public_addresses = get_interface_address6_list(LOG_INFO, AF_INET6, 0);
       addr_policy_append_reject_addr_list_filter(dest, public_addresses, 0, 1);
-      free_interface_address6_list(public_addresses);
+      interface_address6_list_free(public_addresses);
     }
   }
 
@@ -1879,6 +1899,24 @@ policies_log_first_redundant_entry(const smartlist_t *policy)
   "reject *:563,reject *:1214,reject *:4661-4666,"                  \
   "reject *:6346-6429,reject *:6699,reject *:6881-6999,accept *:*"
 
+#define REDUCED_EXIT_POLICY                                                   \
+  "accept *:20-23,accept *:43,accept *:53,accept *:79-81,accept *:88,"        \
+  "accept *:110,accept *:143,accept *:194,accept *:220,accept *:389,"         \
+  "accept *:443,accept *:464,accept *:465,accept *:531,accept *:543-544,"     \
+  "accept *:554,accept *:563,accept *:587,accept *:636,accept *:706,"         \
+  "accept *:749,accept *:873,accept *:902-904,accept *:981,accept *:989-995," \
+  "accept *:1194,accept *:1220,accept *:1293,accept *:1500,accept *:1533,"    \
+  "accept *:1677,accept *:1723,accept *:1755,accept *:1863,"                  \
+  "accept *:2082-2083,accept *:2086-2087,accept *:2095-2096,"                 \
+  "accept *:2102-2104,accept *:3128,accept *:3389,accept *:3690,"             \
+  "accept *:4321,accept *:4643,accept *:5050,accept *:5190,"                  \
+  "accept *:5222-5223,accept *:5228,accept *:5900,accept *:6660-6669,"        \
+  "accept *:6679,accept *:6697,accept *:8000,accept *:8008,accept *:8074,"    \
+  "accept *:8080,accept *:8082,accept *:8087-8088,accept *:8232-8233,"        \
+  "accept *:8332-8333,accept *:8443,accept *:8888,accept *:9418,"             \
+  "accept *:9999,accept *:10000,accept *:11371,accept *:19294,"               \
+  "accept *:19638,accept *:50002,accept *:64738,reject *:*"
+
 /** Parse the exit policy <b>cfg</b> into the linked list *<b>dest</b>.
  *
  * If <b>ipv6_exit</b> is false, prepend "reject *6:*" to the policy.
@@ -1914,7 +1952,8 @@ policies_parse_exit_policy_internal(config_line_t *cfg,
                                     const smartlist_t *configured_addresses,
                                     int reject_interface_addresses,
                                     int reject_configured_port_addresses,
-                                    int add_default_policy)
+                                    int add_default_policy,
+                                    int add_reduced_policy)
 {
   if (!ipv6_exit) {
     append_exit_policy_string(dest, "reject *6:*");
@@ -1940,7 +1979,9 @@ policies_parse_exit_policy_internal(config_line_t *cfg,
    * effect, and are most likely an error. */
   policies_log_first_redundant_entry(*dest);
 
-  if (add_default_policy) {
+  if (add_reduced_policy) {
+    append_exit_policy_string(dest, REDUCED_EXIT_POLICY);
+  } else if (add_default_policy) {
     append_exit_policy_string(dest, DEFAULT_EXIT_POLICY);
   } else {
     append_exit_policy_string(dest, "reject *4:*");
@@ -1981,13 +2022,15 @@ policies_parse_exit_policy(config_line_t *cfg, smartlist_t **dest,
   int add_default = (options & EXIT_POLICY_ADD_DEFAULT) ? 1 : 0;
   int reject_local_interfaces = (options &
                                  EXIT_POLICY_REJECT_LOCAL_INTERFACES) ? 1 : 0;
+  int add_reduced = (options & EXIT_POLICY_ADD_REDUCED) ? 1 : 0;
 
   return policies_parse_exit_policy_internal(cfg,dest,ipv6_enabled,
                                              reject_private,
                                              configured_addresses,
                                              reject_local_interfaces,
                                              reject_local_interfaces,
-                                             add_default);
+                                             add_default,
+                                             add_reduced);
 }
 
 /** Helper function that adds a copy of addr to a smartlist as long as it is
@@ -2097,7 +2140,10 @@ policies_parse_exit_policy_from_options(const or_options_t *or_options,
   }
 
   if (!or_options->BridgeRelay) {
-    parser_cfg |= EXIT_POLICY_ADD_DEFAULT;
+    if (or_options->ReducedExitPolicy)
+      parser_cfg |= EXIT_POLICY_ADD_REDUCED;
+    else
+      parser_cfg |= EXIT_POLICY_ADD_DEFAULT;
   }
 
   if (or_options->ExitPolicyRejectLocalInterfaces) {
@@ -2363,7 +2409,7 @@ policy_summary_item_split(policy_summary_item_t* old, uint16_t new_starts)
 #define REJECT_CUTOFF_SCALE_IPV6 (64)
 /* Ports are rejected in an IPv6 summary if they are rejected in more than one
  * IPv6 /16 address block.
- * This is rougly equivalent to the IPv4 cutoff, as only five IPv6 /12s (and
+ * This is roughly equivalent to the IPv4 cutoff, as only five IPv6 /12s (and
  * some scattered smaller blocks) have been allocated to the RIRs.
  * Network providers are typically allocated one or more IPv6 /32s.
  */
@@ -2769,7 +2815,7 @@ write_short_policy(const short_policy_t *policy)
 
 /** Release all storage held in <b>policy</b>. */
 void
-short_policy_free(short_policy_t *policy)
+short_policy_free_(short_policy_t *policy)
 {
   tor_free(policy);
 }
@@ -2953,11 +2999,12 @@ getinfo_helper_policies(control_connection_t *conn,
     smartlist_free(private_policy_strings);
   } else if (!strcmp(question, "exit-policy/reject-private/relay")) {
     const or_options_t *options = get_options();
-    const routerinfo_t *me = router_get_my_routerinfo();
+    int err = 0;
+    const routerinfo_t *me = router_get_my_routerinfo_with_err(&err);
 
     if (!me) {
-      *errmsg = "router_get_my_routerinfo returned NULL";
-      return -1;
+      *errmsg = routerinfo_err_to_string(err);
+      return routerinfo_err_is_transient(err) ? -1 : 0;
     }
 
     if (!options->ExitPolicyRejectPrivate &&
@@ -2992,10 +3039,16 @@ getinfo_helper_policies(control_connection_t *conn,
     SMARTLIST_FOREACH(configured_addresses, tor_addr_t *, a, tor_free(a));
     smartlist_free(configured_addresses);
   } else if (!strcmpstart(question, "exit-policy/")) {
-    const routerinfo_t *me = router_get_my_routerinfo();
-
     int include_ipv4 = 0;
     int include_ipv6 = 0;
+
+    int err = 0;
+    const routerinfo_t *me = router_get_my_routerinfo_with_err(&err);
+
+    if (!me) {
+      *errmsg = routerinfo_err_to_string(err);
+      return routerinfo_err_is_transient(err) ? -1 : 0;
+    }
 
     if (!strcmp(question, "exit-policy/ipv4")) {
       include_ipv4 = 1;
@@ -3007,19 +3060,16 @@ getinfo_helper_policies(control_connection_t *conn,
       return 0; /* No such key. */
     }
 
-    if (!me) {
-      *errmsg = "router_get_my_routerinfo returned NULL";
-      return -1;
-    }
-
-    *answer = router_dump_exit_policy_to_string(me,include_ipv4,include_ipv6);
+    *answer = router_dump_exit_policy_to_string(me,include_ipv4,
+                                                include_ipv6);
   }
+
   return 0;
 }
 
 /** Release all storage held by <b>p</b>. */
 void
-addr_policy_list_free(smartlist_t *lst)
+addr_policy_list_free_(smartlist_t *lst)
 {
   if (!lst)
     return;
@@ -3029,7 +3079,7 @@ addr_policy_list_free(smartlist_t *lst)
 
 /** Release all storage held by <b>p</b>. */
 void
-addr_policy_free(addr_policy_t *p)
+addr_policy_free_(addr_policy_t *p)
 {
   if (!p)
     return;

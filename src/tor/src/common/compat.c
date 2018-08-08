@@ -100,7 +100,6 @@ SecureZeroMemory(PVOID ptr, SIZE_T cnt)
 /* Only use the linux prctl;  the IRIX prctl is totally different */
 #include <sys/prctl.h>
 #elif defined(__APPLE__)
-#include <sys/types.h>
 #include <sys/ptrace.h>
 #endif /* defined(HAVE_SYS_PRCTL_H) && defined(__linux__) || ... */
 
@@ -116,7 +115,7 @@ SecureZeroMemory(PVOID ptr, SIZE_T cnt)
 #ifdef HAVE_SIGNAL_H
 #include <signal.h>
 #endif
-#ifdef HAVE_SYS_MMAN_H
+#ifdef HAVE_MMAP
 #include <sys/mman.h>
 #endif
 #ifdef HAVE_SYS_SYSLIMITS_H
@@ -204,25 +203,17 @@ tor_rename(const char *path_old, const char *path_new)
                 sandbox_intern_string(path_new));
 }
 
-/* Some MinGW builds have sys/mman.h, but not the corresponding symbols.
- * Other configs rename the symbols using macros (including getpagesize).
- * So check for sys/mman.h and unistd.h, and a getpagesize declaration. */
-#if (defined(HAVE_SYS_MMAN_H) && defined(HAVE_UNISTD_H) && \
-     defined(HAVE_DECL_GETPAGESIZE))
-#define COMPAT_HAS_MMAN_AND_PAGESIZE
-#endif
-
-#if defined(COMPAT_HAS_MMAN_AND_PAGESIZE) || \
-  defined(RUNNING_DOXYGEN)
+#if defined(HAVE_MMAP) || defined(RUNNING_DOXYGEN)
 /** Try to create a memory mapping for <b>filename</b> and return it.  On
- * failure, return NULL.  Sets errno properly, using ERANGE to mean
- * "empty file". */
+ * failure, return NULL. Sets errno properly, using ERANGE to mean
+ * "empty file". Must only be called on trusted Tor-owned files, as changing
+ * the underlying file's size causes unspecified behavior. */
 tor_mmap_t *
 tor_mmap_file(const char *filename)
 {
   int fd; /* router file */
   char *string;
-  int page_size, result;
+  int result;
   tor_mmap_t *res;
   size_t size, filesize;
   struct stat st;
@@ -251,13 +242,6 @@ tor_mmap_file(const char *filename)
     return NULL;
   }
   size = filesize = (size_t)(st.st_size);
-  /*
-   * Should we check for weird crap like mmapping a named pipe here,
-   * or just wait for if (!size) below to fail?
-   */
-  /* ensure page alignment */
-  page_size = getpagesize();
-  size += (size%page_size) ? page_size-(size%page_size) : 0;
 
   if (st.st_size > SSIZE_T_CEILING || (off_t)size < st.st_size) {
     log_warn(LD_FS, "File \"%s\" is too large. Ignoring.",filename);
@@ -418,40 +402,8 @@ tor_munmap_file(tor_mmap_t *handle)
   return 0;
 }
 #else
-tor_mmap_t *
-tor_mmap_file(const char *filename)
-{
-  struct stat st;
-  char *res = read_file_to_str(filename, RFTS_BIN|RFTS_IGNORE_MISSING, &st);
-  tor_mmap_t *handle;
-  if (! res)
-    return NULL;
-  handle = tor_malloc_zero(sizeof(tor_mmap_t));
-  handle->data = res;
-  handle->size = st.st_size;
-  return handle;
-}
-
-/** Unmap the file mapped with tor_mmap_file(), and return 0 for success
- * or -1 for failure.
- */
-
-int
-tor_munmap_file(tor_mmap_t *handle)
-{
-  char *d = NULL;
-  if (handle == NULL)
-    return 0;
-
-  d = (char*)handle->data;
-  tor_free(d);
-  memwipe(handle, 0, sizeof(tor_mmap_t));
-  tor_free(handle);
-
-  /* Can't fail in this mmap()/munmap()-free case */
-  return 0;
-}
-#endif /* defined(COMPAT_HAS_MMAN_AND_PAGESIZE) || ... || ... */
+#error "cannot implement tor_mmap_file"
+#endif /* defined(HAVE_MMAP) || ... || ... */
 
 /** Replacement for snprintf.  Differs from platform snprintf in two
  * ways: First, always NUL-terminates its output.  Second, always
@@ -1186,7 +1138,7 @@ mark_socket_open(tor_socket_t s)
   bitarray_set(open_sockets, s);
 }
 #else /* !(defined(DEBUG_SOCKET_COUNTING)) */
-#define mark_socket_open(s) STMT_NIL
+#define mark_socket_open(s) ((void) (s))
 #endif /* defined(DEBUG_SOCKET_COUNTING) */
 /** @} */
 
@@ -1273,11 +1225,22 @@ tor_open_socket_with_extensions(int domain, int type, int protocol,
   goto socket_ok; /* So that socket_ok will not be unused. */
 
  socket_ok:
+  tor_take_socket_ownership(s);
+  return s;
+}
+
+/**
+ * For socket accounting: remember that we are the owner of the socket
+ * <b>s</b>. This will prevent us from overallocating sockets, and prevent us
+ * from asserting later when we close the socket <b>s</b>.
+ */
+void
+tor_take_socket_ownership(tor_socket_t s)
+{
   socket_accounting_lock();
   ++n_sockets_open;
   mark_socket_open(s);
   socket_accounting_unlock();
-  return s;
 }
 
 /** As accept(), but counts the number of open sockets. */
@@ -1358,10 +1321,7 @@ tor_accept_socket_with_extensions(tor_socket_t sockfd, struct sockaddr *addr,
   goto socket_ok; /* So that socket_ok will not be unused. */
 
  socket_ok:
-  socket_accounting_lock();
-  ++n_sockets_open;
-  mark_socket_open(s);
-  socket_accounting_unlock();
+  tor_take_socket_ownership(s);
   return s;
 }
 
@@ -1382,6 +1342,24 @@ tor_getsockname,(tor_socket_t sock, struct sockaddr *address,
                  socklen_t *address_len))
 {
    return getsockname(sock, address, address_len);
+}
+
+/**
+ * Find the local address associated with the socket <b>sock</b>, and
+ * place it in *<b>addr_out</b>.  Return 0 on success, -1 on failure.
+ *
+ * (As tor_getsockname, but instead places the result in a tor_addr_t.) */
+int
+tor_addr_from_getsockname(tor_addr_t *addr_out, tor_socket_t sock)
+{
+  struct sockaddr_storage ss;
+  socklen_t ss_len = sizeof(ss);
+  memset(&ss, 0, sizeof(ss));
+
+  if (tor_getsockname(sock, (struct sockaddr *) &ss, &ss_len) < 0)
+    return -1;
+
+  return tor_addr_from_sockaddr(addr_out, (struct sockaddr *)&ss, NULL);
 }
 
 /** Turn <b>socket</b> into a nonblocking socket. Return 0 on success, -1
@@ -1667,7 +1645,7 @@ get_max_sockets(void)
  * fail by returning -1 and <b>max_out</b> is untouched.
  *
  * If we are unable to set the limit value because of setrlimit() failing,
- * return -1 and <b>max_out</b> is set to the current maximum value returned
+ * return 0 and <b>max_out</b> is set to the current maximum value returned
  * by getrlimit().
  *
  * Otherwise, return 0 and store the maximum we found inside <b>max_out</b>
@@ -1732,13 +1710,14 @@ set_max_file_descriptors(rlim_t limit, int *max_out)
   rlim.rlim_cur = rlim.rlim_max;
 
   if (setrlimit(RLIMIT_NOFILE, &rlim) != 0) {
-    int bad = 1;
+    int couldnt_set = 1;
+    const int setrlimit_errno = errno;
 #ifdef OPEN_MAX
     uint64_t try_limit = OPEN_MAX - ULIMIT_BUFFER;
     if (errno == EINVAL && try_limit < (uint64_t) rlim.rlim_cur) {
       /* On some platforms, OPEN_MAX is the real limit, and getrlimit() is
        * full of nasty lies.  I'm looking at you, OSX 10.5.... */
-      rlim.rlim_cur = try_limit;
+      rlim.rlim_cur = MIN((rlim_t) try_limit, rlim.rlim_cur);
       if (setrlimit(RLIMIT_NOFILE, &rlim) == 0) {
         if (rlim.rlim_cur < (rlim_t)limit) {
           log_warn(LD_CONFIG, "We are limited to %lu file descriptors by "
@@ -1753,14 +1732,13 @@ set_max_file_descriptors(rlim_t limit, int *max_out)
                    (unsigned long)try_limit, (unsigned long)OPEN_MAX,
                    (unsigned long)rlim.rlim_max);
         }
-        bad = 0;
+        couldnt_set = 0;
       }
     }
 #endif /* defined(OPEN_MAX) */
-    if (bad) {
+    if (couldnt_set) {
       log_warn(LD_CONFIG,"Couldn't set maximum number of file descriptors: %s",
-               strerror(errno));
-      return -1;
+               strerror(setrlimit_errno));
     }
   }
   /* leave some overhead for logs, etc, */
@@ -1897,9 +1875,12 @@ tor_passwd_dup(const struct passwd *pw)
   return new_pw;
 }
 
+#define tor_passwd_free(pw) \
+  FREE_AND_NULL(struct passwd, tor_passwd_free_, (pw))
+
 /** Helper: free one of our cached 'struct passwd' values. */
 static void
-tor_passwd_free(struct passwd *pw)
+tor_passwd_free_(struct passwd *pw)
 {
   if (!pw)
     return;
@@ -2444,7 +2425,7 @@ get_environment(void)
 
 /** Get name of current host and write it to <b>name</b> array, whose
  * length is specified by <b>namelen</b> argument. Return 0 upon
- * successfull completion; otherwise return return -1. (Currently,
+ * successful completion; otherwise return return -1. (Currently,
  * this function is merely a mockable wrapper for POSIX gethostname().)
  */
 MOCK_IMPL(int,
@@ -2879,7 +2860,7 @@ compute_num_cpus(void)
 /** Helper: Deal with confused or out-of-bounds values from localtime_r and
  * friends.  (On some platforms, they can give out-of-bounds values or can
  * return NULL.)  If <b>islocal</b>, this is a localtime result; otherwise
- * it's from gmtime.  The function returned <b>r</b>, when given <b>timep</b>
+ * it's from gmtime.  The function returns <b>r</b>, when given <b>timep</b>
  * as its input. If we need to store new results, store them in
  * <b>resultbuf</b>. */
 static struct tm *
@@ -3398,8 +3379,8 @@ get_total_system_memory_impl(void)
  * Try to find out how much physical memory the system has. On success,
  * return 0 and set *<b>mem_out</b> to that value. On failure, return -1.
  */
-int
-get_total_system_memory(size_t *mem_out)
+MOCK_IMPL(int,
+get_total_system_memory, (size_t *mem_out))
 {
   static size_t mem_cached=0;
   uint64_t m = get_total_system_memory_impl();

@@ -213,12 +213,12 @@ test_e2e_rend_circuit_setup_legacy(void *arg)
   tt_int_op(retval, OP_EQ, 1);
 
   /* Check the digest algo */
-  tt_int_op(crypto_digest_get_algorithm(or_circ->cpath->f_digest),
+  tt_int_op(crypto_digest_get_algorithm(or_circ->cpath->crypto.f_digest),
             OP_EQ, DIGEST_SHA1);
-  tt_int_op(crypto_digest_get_algorithm(or_circ->cpath->b_digest),
+  tt_int_op(crypto_digest_get_algorithm(or_circ->cpath->crypto.b_digest),
             OP_EQ, DIGEST_SHA1);
-  tt_assert(or_circ->cpath->f_crypto);
-  tt_assert(or_circ->cpath->b_crypto);
+  tt_assert(or_circ->cpath->crypto.f_crypto);
+  tt_assert(or_circ->cpath->crypto.b_crypto);
 
   /* Ensure that circ purpose was changed */
   tt_int_op(or_circ->base_.purpose, OP_EQ, CIRCUIT_PURPOSE_C_REND_JOINED);
@@ -227,10 +227,10 @@ test_e2e_rend_circuit_setup_legacy(void *arg)
   tt_ptr_op(TO_EDGE_CONN(conn)->on_circuit, OP_EQ, TO_CIRCUIT(or_circ));
 
  done:
-  connection_free_(conn);
+  connection_free_minimal(conn);
   if (or_circ)
     tor_free(TO_CIRCUIT(or_circ)->n_chan);
-  circuit_free(TO_CIRCUIT(or_circ));
+  circuit_free_(TO_CIRCUIT(or_circ));
 }
 
 /* Test: Ensure that setting up v3 rendezvous circuits works correctly. */
@@ -283,12 +283,12 @@ test_e2e_rend_circuit_setup(void *arg)
   tt_int_op(retval, OP_EQ, 1);
 
   /* Check that the crypt path has prop224 algorithm parameters */
-  tt_int_op(crypto_digest_get_algorithm(or_circ->cpath->f_digest),
+  tt_int_op(crypto_digest_get_algorithm(or_circ->cpath->crypto.f_digest),
             OP_EQ, DIGEST_SHA3_256);
-  tt_int_op(crypto_digest_get_algorithm(or_circ->cpath->b_digest),
+  tt_int_op(crypto_digest_get_algorithm(or_circ->cpath->crypto.b_digest),
             OP_EQ, DIGEST_SHA3_256);
-  tt_assert(or_circ->cpath->f_crypto);
-  tt_assert(or_circ->cpath->b_crypto);
+  tt_assert(or_circ->cpath->crypto.f_crypto);
+  tt_assert(or_circ->cpath->crypto.b_crypto);
 
   /* Ensure that circ purpose was changed */
   tt_int_op(or_circ->base_.purpose, OP_EQ, CIRCUIT_PURPOSE_C_REND_JOINED);
@@ -297,10 +297,10 @@ test_e2e_rend_circuit_setup(void *arg)
   tt_ptr_op(TO_EDGE_CONN(conn)->on_circuit, OP_EQ, TO_CIRCUIT(or_circ));
 
  done:
-  connection_free_(conn);
+  connection_free_minimal(conn);
   if (or_circ)
     tor_free(TO_CIRCUIT(or_circ)->n_chan);
-  circuit_free(TO_CIRCUIT(or_circ));
+  circuit_free_(TO_CIRCUIT(or_circ));
 }
 
 /** Test client logic for picking intro points from a descriptor. Also test how
@@ -397,21 +397,25 @@ test_client_pick_intro(void *arg)
     } SMARTLIST_FOREACH_END(ip);
 
     /* Try to get a random intro: Should return the chosen one! */
-    extend_info_t *ip = client_get_random_intro(&service_kp.pubkey);
-    tor_assert(ip);
-    tt_assert(!tor_mem_is_zero((char*)ip->identity_digest, DIGEST_LEN));
-    tt_mem_op(ip->identity_digest, OP_EQ, chosen_intro_ei->identity_digest,
-              DIGEST_LEN);
+    /* (We try several times, to make sure this behavior is consistent, and to
+     * cover the different cases of client_get_random_intro().) */
+    for (int i = 0; i < 64; ++i) {
+      extend_info_t *ip = client_get_random_intro(&service_kp.pubkey);
+      tor_assert(ip);
+      tt_assert(!tor_mem_is_zero((char*)ip->identity_digest, DIGEST_LEN));
+      tt_mem_op(ip->identity_digest, OP_EQ, chosen_intro_ei->identity_digest,
+                DIGEST_LEN);
+      extend_info_free(ip);
+    }
 
     extend_info_free(chosen_intro_ei);
-    extend_info_free(ip);
 
     /* Now also mark the chosen one as failed: See that we can't get any intro
        points anymore. */
     hs_cache_client_intro_state_note(&service_kp.pubkey,
                                 &chosen_intro_point->auth_key_cert->signed_key,
                                      INTRO_POINT_FAILURE_TIMEOUT);
-    ip = client_get_random_intro(&service_kp.pubkey);
+    extend_info_t *ip = client_get_random_intro(&service_kp.pubkey);
     tor_assert(!ip);
   }
 
@@ -560,7 +564,7 @@ test_descriptor_fetch(void *arg)
     smartlist_add(get_connection_array(), TO_CONN(dir_conn));
     ret = hs_client_refetch_hsdesc(&service_pk);
     smartlist_remove(get_connection_array(), TO_CONN(dir_conn));
-    connection_free_(TO_CONN(dir_conn));
+    connection_free_minimal(TO_CONN(dir_conn));
     tt_int_op(ret, OP_EQ, HS_CLIENT_FETCH_PENDING);
   }
 
@@ -579,7 +583,7 @@ test_descriptor_fetch(void *arg)
   tt_int_op(ec->edge_.end_reason, OP_EQ, END_STREAM_REASON_RESOLVEFAILED);
 
  done:
-  connection_free_(ENTRY_TO_CONN(ec));
+  connection_free_minimal(ENTRY_TO_CONN(ec));
   UNMOCK(networkstatus_get_live_consensus);
   UNMOCK(router_have_minimum_dir_info);
   hs_free_all();

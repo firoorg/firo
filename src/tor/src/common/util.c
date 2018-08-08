@@ -16,7 +16,7 @@
 #define UTIL_PRIVATE
 #include "util.h"
 #include "torlog.h"
-#include "crypto.h"
+#include "crypto_digest.h"
 #include "torint.h"
 #include "container.h"
 #include "address.h"
@@ -156,7 +156,7 @@ tor_malloc_(size_t size DMALLOC_PARAMS)
     /* If these functions die within a worker process, they won't call
      * spawn_exit, but that's ok, since the parent will run out of memory soon
      * anyway. */
-    exit(1);
+    exit(1); // exit ok: alloc failed.
     /* LCOV_EXCL_STOP */
   }
   return result;
@@ -244,7 +244,7 @@ tor_realloc_(void *ptr, size_t size DMALLOC_PARAMS)
   if (PREDICT_UNLIKELY(result == NULL)) {
     /* LCOV_EXCL_START */
     log_err(LD_MM,"Out of memory on realloc(). Dying.");
-    exit(1);
+    exit(1); // exit ok: alloc failed.
     /* LCOV_EXCL_STOP */
   }
   return result;
@@ -282,7 +282,7 @@ tor_strdup_(const char *s DMALLOC_PARAMS)
   if (PREDICT_UNLIKELY(duplicate == NULL)) {
     /* LCOV_EXCL_START */
     log_err(LD_MM,"Out of memory on strdup(). Dying.");
-    exit(1);
+    exit(1); // exit ok: alloc failed.
     /* LCOV_EXCL_STOP */
   }
   return duplicate;
@@ -570,6 +570,19 @@ add_laplace_noise(int64_t signal_, double random_, double delta_f,
     return INT64_MIN;
   else
     return signal_ + noise;
+}
+
+/* Helper: safely add two uint32_t's, capping at UINT32_MAX rather
+ * than overflow */
+uint32_t
+tor_add_u32_nowrap(uint32_t a, uint32_t b)
+{
+  /* a+b > UINT32_MAX check, without overflow */
+  if (PREDICT_UNLIKELY(a > UINT32_MAX - b)) {
+    return UINT32_MAX;
+  } else {
+    return a+b;
+  }
 }
 
 /* Helper: return greatest common divisor of a,b */
@@ -1071,6 +1084,36 @@ string_is_valid_ipv6_address(const char *string)
   return (tor_inet_pton(AF_INET6,string,&addr) == 1);
 }
 
+/** Return true iff <b>string</b> is a valid destination address,
+ * i.e. either a DNS hostname or IPv4/IPv6 address string.
+ */
+int
+string_is_valid_dest(const char *string)
+{
+  char *tmp = NULL;
+  int retval;
+  size_t len;
+
+  if (string == NULL)
+    return 0;
+
+  len = strlen(string);
+
+  if (len == 0)
+    return 0;
+
+  if (string[0] == '[' && string[len - 1] == ']')
+    string = tmp = tor_strndup(string + 1, len - 2);
+
+  retval = string_is_valid_ipv4_address(string) ||
+    string_is_valid_ipv6_address(string) ||
+    string_is_valid_nonrfc_hostname(string);
+
+  tor_free(tmp);
+
+  return retval;
+}
+
 /** Return true iff <b>string</b> matches a pattern of DNS names
  * that we allow Tor clients to connect to.
  *
@@ -1078,14 +1121,36 @@ string_is_valid_ipv6_address(const char *string)
  * with misconfigured zones that have been encountered in the wild.
  */
 int
-string_is_valid_hostname(const char *string)
+string_is_valid_nonrfc_hostname(const char *string)
 {
   int result = 1;
+  int has_trailing_dot;
+  char *last_label;
   smartlist_t *components;
+
+  if (!string || strlen(string) == 0)
+    return 0;
+
+  if (string_is_valid_ipv4_address(string))
+    return 0;
 
   components = smartlist_new();
 
   smartlist_split_string(components,string,".",0,0);
+
+  if (BUG(smartlist_len(components) == 0))
+    return 0; // LCOV_EXCL_LINE should be impossible given the earlier checks.
+
+  /* Allow a single terminating '.' used rarely to indicate domains
+   * are FQDNs rather than relative. */
+  last_label = (char *)smartlist_get(components,
+                                     smartlist_len(components) - 1);
+  has_trailing_dot = (last_label[0] == '\0');
+  if (has_trailing_dot) {
+    smartlist_pop_last(components);
+    tor_free(last_label);
+    last_label = NULL;
+  }
 
   SMARTLIST_FOREACH_BEGIN(components, char *, c) {
     if ((c[0] == '-') || (*c == '_')) {
@@ -1093,22 +1158,14 @@ string_is_valid_hostname(const char *string)
       break;
     }
 
-    /* Allow a single terminating '.' used rarely to indicate domains
-     * are FQDNs rather than relative. */
-    if ((c_sl_idx > 0) && (c_sl_idx + 1 == c_sl_len) && !*c) {
-      continue;
-    }
-
     do {
-      if ((*c >= 'a' && *c <= 'z') ||
-          (*c >= 'A' && *c <= 'Z') ||
-          (*c >= '0' && *c <= '9') ||
-          (*c == '-') || (*c == '_'))
-        c++;
-      else
-        result = 0;
+      result = (TOR_ISALNUM(*c) || (*c == '-') || (*c == '_'));
+      c++;
     } while (result && *c);
 
+    if (result == 0) {
+      break;
+    }
   } SMARTLIST_FOREACH_END(c);
 
   SMARTLIST_FOREACH_BEGIN(components, char *, c) {
@@ -1775,6 +1832,15 @@ format_iso_time(char *buf, time_t t)
 {
   struct tm tm;
   strftime(buf, ISO_TIME_LEN+1, "%Y-%m-%d %H:%M:%S", tor_gmtime_r(&t, &tm));
+}
+
+/** As format_local_iso_time, but use the yyyy-mm-ddThh:mm:ss format to avoid
+ * embedding an internal space. */
+void
+format_local_iso_time_nospace(char *buf, time_t t)
+{
+  format_local_iso_time(buf, t);
+  buf[10] = 'T';
 }
 
 /** As format_iso_time, but use the yyyy-mm-ddThh:mm:ss format to avoid
@@ -3047,7 +3113,7 @@ unescape_string(const char *s, char **result, size_t *size_out)
 
 /** Removes enclosing quotes from <b>path</b> and unescapes quotes between the
  * enclosing quotes. Backslashes are not unescaped. Return the unquoted
- * <b>path</b> on sucess or 0 if <b>path</b> is not quoted correctly. */
+ * <b>path</b> on success or 0 if <b>path</b> is not quoted correctly. */
 char *
 get_unquoted_path(const char *path)
 {
@@ -3590,14 +3656,14 @@ start_daemon(void)
   if (pipe(daemon_filedes)) {
     /* LCOV_EXCL_START */
     log_err(LD_GENERAL,"pipe failed; exiting. Error was %s", strerror(errno));
-    exit(1);
+    exit(1); // exit ok: during daemonize, pipe failed.
     /* LCOV_EXCL_STOP */
   }
   pid = fork();
   if (pid < 0) {
     /* LCOV_EXCL_START */
     log_err(LD_GENERAL,"fork failed. Exiting.");
-    exit(1);
+    exit(1); // exit ok: during daemonize, fork failed
     /* LCOV_EXCL_STOP */
   }
   if (pid) {  /* Parent */
@@ -3612,9 +3678,9 @@ start_daemon(void)
     }
     fflush(stdout);
     if (ok == 1)
-      exit(0);
+      exit(0); // exit ok: during daemonize, daemonizing.
     else
-      exit(1); /* child reported error */
+      exit(1); /* child reported error. exit ok: daemonize failed. */
   } else { /* Child */
     close(daemon_filedes[0]); /* we only write */
 
@@ -3626,7 +3692,7 @@ start_daemon(void)
      * _Advanced Programming in the Unix Environment_.
      */
     if (fork() != 0) {
-      exit(0);
+      exit(0); // exit ok: during daemonize, fork failed (2)
     }
     set_main_thread(); /* We are now the main thread. */
 
@@ -3655,14 +3721,14 @@ finish_daemon(const char *desired_cwd)
    /* Don't hold the wrong FS mounted */
   if (chdir(desired_cwd) < 0) {
     log_err(LD_GENERAL,"chdir to \"%s\" failed. Exiting.",desired_cwd);
-    exit(1);
+    exit(1); // exit ok: during daemonize, chdir failed.
   }
 
   nullfd = tor_open_cloexec("/dev/null", O_RDWR, 0);
   if (nullfd < 0) {
     /* LCOV_EXCL_START */
     log_err(LD_GENERAL,"/dev/null can't be opened. Exiting.");
-    exit(1);
+    exit(1); // exit ok: during daemonize, couldn't open /dev/null
     /* LCOV_EXCL_STOP */
   }
   /* close fds linking to invoking terminal, but
@@ -3674,7 +3740,7 @@ finish_daemon(const char *desired_cwd)
       dup2(nullfd,2) < 0) {
     /* LCOV_EXCL_START */
     log_err(LD_GENERAL,"dup2 failed. Exiting.");
-    exit(1);
+    exit(1); // exit ok: during daemonize, dup2 failed.
     /* LCOV_EXCL_STOP */
   }
   if (nullfd > 2)
@@ -3898,7 +3964,7 @@ format_number_sigsafe(unsigned long x, char *buf, int buf_len,
  * call it with a signed int and an unsigned char, and since the C standard
  * does not guarantee that an int is wider than a char (an int must be at
  * least 16 bits but it is permitted for a char to be that wide as well), we
- * can't assume a signed int is sufficient to accomodate an unsigned char.
+ * can't assume a signed int is sufficient to accommodate an unsigned char.
  * Thus, format_helper_exit_status() will still need to emit any require '-'
  * on its own.
  *
@@ -3928,7 +3994,7 @@ format_dec_number_sigsafe(unsigned long x, char *buf, int buf_len)
  *
  * The format of <b>hex_errno</b> is: "CHILD_STATE/ERRNO\n", left-padded
  * with spaces. CHILD_STATE indicates where
- * in the processs of starting the child process did the failure occur (see
+ * in the process of starting the child process did the failure occur (see
  * CHILD_STATE_* macros for definition), and SAVED_ERRNO is the value of
  * errno when the failure occurred.
  *
@@ -4474,7 +4540,7 @@ tor_spawn_background(const char *const filename, const char **argv,
         err += (nbytes < 0);
       }
 
-      _exit(err?254:255);
+      _exit(err?254:255); // exit ok: in child.
     }
 
     /* Never reached, but avoids compiler warning */
@@ -4713,7 +4779,7 @@ environment_variable_names_equal(const char *s1, const char *s2)
 /** Free <b>env</b> (assuming it was produced by
  * process_environment_make). */
 void
-process_environment_free(process_environment_t *env)
+process_environment_free_(process_environment_t *env)
 {
   if (env == NULL) return;
 
@@ -4735,8 +4801,8 @@ process_environment_t *
 process_environment_make(struct smartlist_t *env_vars)
 {
   process_environment_t *env = tor_malloc_zero(sizeof(process_environment_t));
-  size_t n_env_vars = smartlist_len(env_vars);
-  size_t i;
+  int n_env_vars = smartlist_len(env_vars);
+  int i;
   size_t total_env_length;
   smartlist_t *env_vars_sorted;
 
@@ -5067,30 +5133,6 @@ stream_status_to_string(enum stream_status stream_status)
   }
 }
 
-/* DOCDOC */
-static void
-log_portfw_spawn_error_message(const char *buf,
-                               const char *executable, int *child_status)
-{
-  /* Parse error message */
-  int retval, child_state, saved_errno;
-  retval = tor_sscanf(buf, SPAWN_ERROR_MESSAGE "%x/%x",
-                      &child_state, &saved_errno);
-  if (retval == 2) {
-    log_warn(LD_GENERAL,
-             "Failed to start child process \"%s\" in state %d: %s",
-             executable, child_state, strerror(saved_errno));
-    if (child_status)
-      *child_status = 1;
-  } else {
-    /* Failed to parse message from child process, log it as a
-       warning */
-    log_warn(LD_GENERAL,
-             "Unexpected message from port forwarding helper \"%s\": %s",
-             executable, buf);
-  }
-}
-
 #ifdef _WIN32
 
 /** Return a smartlist containing lines outputted from
@@ -5136,51 +5178,6 @@ tor_get_lines_from_handle, (HANDLE *handle,
   return lines;
 }
 
-/** Read from stream, and send lines to log at the specified log level.
- * Returns -1 if there is a error reading, and 0 otherwise.
- * If the generated stream is flushed more often than on new lines, or
- * a read exceeds 256 bytes, lines will be truncated. This should be fixed,
- * along with the corresponding problem on *nix (see bug #2045).
- */
-static int
-log_from_handle(HANDLE *pipe, int severity)
-{
-  char buf[256];
-  int pos;
-  smartlist_t *lines;
-
-  pos = tor_read_all_handle(pipe, buf, sizeof(buf) - 1, NULL);
-  if (pos < 0) {
-    /* Error */
-    log_warn(LD_GENERAL, "Failed to read data from subprocess");
-    return -1;
-  }
-
-  if (0 == pos) {
-    /* There's nothing to read (process is busy or has exited) */
-    log_debug(LD_GENERAL, "Subprocess had nothing to say");
-    return 0;
-  }
-
-  /* End with a null even if there isn't a \r\n at the end */
-  /* TODO: What if this is a partial line? */
-  buf[pos] = '\0';
-  log_debug(LD_GENERAL, "Subprocess had %d bytes to say", pos);
-
-  /* Split up the buffer */
-  lines = smartlist_new();
-  tor_split_lines(lines, buf, pos);
-
-  /* Log each line */
-  SMARTLIST_FOREACH(lines, char *, line,
-  {
-    log_fn(severity, LD_GENERAL, "Port forwarding helper says: %s", line);
-  });
-  smartlist_free(lines);
-
-  return 0;
-}
-
 #else /* !(defined(_WIN32)) */
 
 /** Return a smartlist containing lines outputted from
@@ -5210,42 +5207,6 @@ tor_get_lines_from_handle, (int fd, enum stream_status *stream_status_out))
   return lines;
 }
 
-/** Read from fd, and send lines to log at the specified log level.
- * Returns 1 if stream is closed normally, -1 if there is a error reading, and
- * 0 otherwise. Handles lines from tor-fw-helper and
- * tor_spawn_background() specially.
- */
-static int
-log_from_pipe(int fd, int severity, const char *executable,
-              int *child_status)
-{
-  char buf[256];
-  enum stream_status r;
-
-  for (;;) {
-    r = get_string_from_pipe(fd, buf, sizeof(buf) - 1);
-
-    if (r == IO_STREAM_CLOSED) {
-      return 1;
-    } else if (r == IO_STREAM_EAGAIN) {
-      return 0;
-    } else if (r == IO_STREAM_TERM) {
-      return -1;
-    }
-
-    tor_assert(r == IO_STREAM_OKAY);
-
-    /* Check if buf starts with SPAWN_ERROR_MESSAGE */
-    if (strcmpstart(buf, SPAWN_ERROR_MESSAGE) == 0) {
-      log_portfw_spawn_error_message(buf, executable, child_status);
-    } else {
-      log_fn(severity, LD_GENERAL, "Port forwarding helper says: %s", buf);
-    }
-  }
-
-  /* We should never get here */
-  return -1;
-}
 #endif /* defined(_WIN32) */
 
 /** Reads from <b>fd</b> and stores input in <b>buf_out</b> making
@@ -5286,294 +5247,6 @@ get_string_from_pipe(int fd, char *buf_out, size_t count)
     buf_out[ret] = '\0';
 
   return IO_STREAM_OKAY;
-}
-
-/** Parse a <b>line</b> from tor-fw-helper and issue an appropriate
- *  log message to our user. */
-static void
-handle_fw_helper_line(const char *executable, const char *line)
-{
-  smartlist_t *tokens = smartlist_new();
-  char *message = NULL;
-  char *message_for_log = NULL;
-  const char *external_port = NULL;
-  const char *internal_port = NULL;
-  const char *result = NULL;
-  int port = 0;
-  int success = 0;
-
-  if (strcmpstart(line, SPAWN_ERROR_MESSAGE) == 0) {
-    /* We need to check for SPAWN_ERROR_MESSAGE again here, since it's
-     * possible that it got sent after we tried to read it in log_from_pipe.
-     *
-     * XXX Ideally, we should be using one of stdout/stderr for the real
-     * output, and one for the output of the startup code.  We used to do that
-     * before cd05f35d2c.
-     */
-    int child_status;
-    log_portfw_spawn_error_message(line, executable, &child_status);
-    goto done;
-  }
-
-  smartlist_split_string(tokens, line, NULL,
-                         SPLIT_SKIP_SPACE|SPLIT_IGNORE_BLANK, -1);
-
-  if (smartlist_len(tokens) < 5)
-    goto err;
-
-  if (strcmp(smartlist_get(tokens, 0), "tor-fw-helper") ||
-      strcmp(smartlist_get(tokens, 1), "tcp-forward"))
-    goto err;
-
-  external_port = smartlist_get(tokens, 2);
-  internal_port = smartlist_get(tokens, 3);
-  result = smartlist_get(tokens, 4);
-
-  if (smartlist_len(tokens) > 5) {
-    /* If there are more than 5 tokens, they are part of [<message>].
-       Let's use a second smartlist to form the whole message;
-       strncat loops suck. */
-    int i;
-    int message_words_n = smartlist_len(tokens) - 5;
-    smartlist_t *message_sl = smartlist_new();
-    for (i = 0; i < message_words_n; i++)
-      smartlist_add(message_sl, smartlist_get(tokens, 5+i));
-
-    tor_assert(smartlist_len(message_sl) > 0);
-    message = smartlist_join_strings(message_sl, " ", 0, NULL);
-
-    /* wrap the message in log-friendly wrapping */
-    tor_asprintf(&message_for_log, " ('%s')", message);
-
-    smartlist_free(message_sl);
-  }
-
-  port = atoi(external_port);
-  if (port < 1 || port > 65535)
-    goto err;
-
-  port = atoi(internal_port);
-  if (port < 1 || port > 65535)
-    goto err;
-
-  if (!strcmp(result, "SUCCESS"))
-    success = 1;
-  else if (!strcmp(result, "FAIL"))
-    success = 0;
-  else
-    goto err;
-
-  if (!success) {
-    log_warn(LD_GENERAL, "Tor was unable to forward TCP port '%s' to '%s'%s. "
-             "Please make sure that your router supports port "
-             "forwarding protocols (like NAT-PMP). Note that if '%s' is "
-             "your ORPort, your relay will be unable to receive inbound "
-             "traffic.", external_port, internal_port,
-             message_for_log ? message_for_log : "",
-             internal_port);
-  } else {
-    log_info(LD_GENERAL,
-             "Tor successfully forwarded TCP port '%s' to '%s'%s.",
-             external_port, internal_port,
-             message_for_log ? message_for_log : "");
-  }
-
-  goto done;
-
- err:
-  log_warn(LD_GENERAL, "tor-fw-helper sent us a string we could not "
-           "parse (%s).", line);
-
- done:
-  SMARTLIST_FOREACH(tokens, char *, cp, tor_free(cp));
-  smartlist_free(tokens);
-  tor_free(message);
-  tor_free(message_for_log);
-}
-
-/** Read what tor-fw-helper has to say in its stdout and handle it
- *  appropriately */
-static int
-handle_fw_helper_output(const char *executable,
-                        process_handle_t *process_handle)
-{
-  smartlist_t *fw_helper_output = NULL;
-  enum stream_status stream_status = 0;
-
-  fw_helper_output =
-    tor_get_lines_from_handle(tor_process_get_stdout_pipe(process_handle),
-                              &stream_status);
-  if (!fw_helper_output) { /* didn't get any output from tor-fw-helper */
-    /* if EAGAIN we should retry in the future */
-    return (stream_status == IO_STREAM_EAGAIN) ? 0 : -1;
-  }
-
-  /* Handle the lines we got: */
-  SMARTLIST_FOREACH_BEGIN(fw_helper_output, char *, line) {
-    handle_fw_helper_line(executable, line);
-    tor_free(line);
-  } SMARTLIST_FOREACH_END(line);
-
-  smartlist_free(fw_helper_output);
-
-  return 0;
-}
-
-/** Spawn tor-fw-helper and ask it to forward the ports in
- *  <b>ports_to_forward</b>. <b>ports_to_forward</b> contains strings
- *  of the form "<external port>:<internal port>", which is the format
- *  that tor-fw-helper expects. */
-void
-tor_check_port_forwarding(const char *filename,
-                          smartlist_t *ports_to_forward,
-                          time_t now)
-{
-/* When fw-helper succeeds, how long do we wait until running it again */
-#define TIME_TO_EXEC_FWHELPER_SUCCESS 300
-/* When fw-helper failed to start, how long do we wait until running it again
- */
-#define TIME_TO_EXEC_FWHELPER_FAIL 60
-
-  /* Static variables are initialized to zero, so child_handle.status=0
-   * which corresponds to it not running on startup */
-  static process_handle_t *child_handle=NULL;
-
-  static time_t time_to_run_helper = 0;
-  int stderr_status, retval;
-  int stdout_status = 0;
-
-  tor_assert(filename);
-
-  /* Start the child, if it is not already running */
-  if ((!child_handle || child_handle->status != PROCESS_STATUS_RUNNING) &&
-      time_to_run_helper < now) {
-    /*tor-fw-helper cli looks like this: tor_fw_helper -p :5555 -p 4555:1111 */
-    const char **argv; /* cli arguments */
-    int args_n, status;
-    int argv_index = 0; /* index inside 'argv' */
-
-    tor_assert(smartlist_len(ports_to_forward) > 0);
-
-    /* check for overflow during 'argv' allocation:
-       (len(ports_to_forward)*2 + 2)*sizeof(char*) > SIZE_MAX ==
-       len(ports_to_forward) > (((SIZE_MAX/sizeof(char*)) - 2)/2) */
-    if ((size_t) smartlist_len(ports_to_forward) >
-        (((SIZE_MAX/sizeof(char*)) - 2)/2)) {
-      log_warn(LD_GENERAL,
-               "Overflow during argv allocation. This shouldn't happen.");
-      return;
-    }
-    /* check for overflow during 'argv_index' increase:
-       ((len(ports_to_forward)*2 + 2) > INT_MAX) ==
-       len(ports_to_forward) > (INT_MAX - 2)/2 */
-    if (smartlist_len(ports_to_forward) > (INT_MAX - 2)/2) {
-      log_warn(LD_GENERAL,
-               "Overflow during argv_index increase. This shouldn't happen.");
-      return;
-    }
-
-    /* Calculate number of cli arguments: one for the filename, two
-       for each smartlist element (one for "-p" and one for the
-       ports), and one for the final NULL. */
-    args_n = 1 + 2*smartlist_len(ports_to_forward) + 1;
-    argv = tor_calloc(args_n, sizeof(char *));
-
-    argv[argv_index++] = filename;
-    SMARTLIST_FOREACH_BEGIN(ports_to_forward, const char *, port) {
-      argv[argv_index++] = "-p";
-      argv[argv_index++] = port;
-    } SMARTLIST_FOREACH_END(port);
-    argv[argv_index] = NULL;
-
-    /* Assume tor-fw-helper will succeed, start it later*/
-    time_to_run_helper = now + TIME_TO_EXEC_FWHELPER_SUCCESS;
-
-    if (child_handle) {
-      tor_process_handle_destroy(child_handle, 1);
-      child_handle = NULL;
-    }
-
-#ifdef _WIN32
-    /* Passing NULL as lpApplicationName makes Windows search for the .exe */
-    status = tor_spawn_background(NULL, argv, NULL, &child_handle);
-#else
-    status = tor_spawn_background(filename, argv, NULL, &child_handle);
-#endif /* defined(_WIN32) */
-
-    tor_free_((void*)argv);
-    argv=NULL;
-
-    if (PROCESS_STATUS_ERROR == status) {
-      log_warn(LD_GENERAL, "Failed to start port forwarding helper %s",
-              filename);
-      time_to_run_helper = now + TIME_TO_EXEC_FWHELPER_FAIL;
-      return;
-    }
-
-    log_info(LD_GENERAL,
-             "Started port forwarding helper (%s) with pid '%d'",
-             filename, tor_process_get_pid(child_handle));
-  }
-
-  /* If child is running, read from its stdout and stderr) */
-  if (child_handle && PROCESS_STATUS_RUNNING == child_handle->status) {
-    /* Read from stdout/stderr and log result */
-    retval = 0;
-#ifdef _WIN32
-    stderr_status = log_from_handle(child_handle->stderr_pipe, LOG_INFO);
-#else
-    stderr_status = log_from_pipe(child_handle->stderr_pipe,
-                                  LOG_INFO, filename, &retval);
-#endif /* defined(_WIN32) */
-    if (handle_fw_helper_output(filename, child_handle) < 0) {
-      log_warn(LD_GENERAL, "Failed to handle fw helper output.");
-      stdout_status = -1;
-      retval = -1;
-    }
-
-    if (retval) {
-      /* There was a problem in the child process */
-      time_to_run_helper = now + TIME_TO_EXEC_FWHELPER_FAIL;
-    }
-
-    /* Combine the two statuses in order of severity */
-    if (-1 == stdout_status || -1 == stderr_status)
-      /* There was a failure */
-      retval = -1;
-#ifdef _WIN32
-    else if (!child_handle || tor_get_exit_code(child_handle, 0, NULL) !=
-             PROCESS_EXIT_RUNNING) {
-      /* process has exited or there was an error */
-      /* TODO: Do something with the process return value */
-      /* TODO: What if the process output something since
-       * between log_from_handle and tor_get_exit_code? */
-      retval = 1;
-    }
-#else /* !(defined(_WIN32)) */
-    else if (1 == stdout_status || 1 == stderr_status)
-      /* stdout or stderr was closed, the process probably
-       * exited. It will be reaped by waitpid() in main.c */
-      /* TODO: Do something with the process return value */
-      retval = 1;
-#endif /* defined(_WIN32) */
-    else
-      /* Both are fine */
-      retval = 0;
-
-    /* If either pipe indicates a failure, act on it */
-    if (0 != retval) {
-      if (1 == retval) {
-        log_info(LD_GENERAL, "Port forwarding helper terminated");
-        child_handle->status = PROCESS_STATUS_NOTRUNNING;
-      } else {
-        log_warn(LD_GENERAL, "Failed to read from port forwarding helper");
-        child_handle->status = PROCESS_STATUS_ERROR;
-      }
-
-      /* TODO: The child might not actually be finished (maybe it failed or
-         closed stdout/stderr), so maybe we shouldn't start another? */
-    }
-  }
 }
 
 /** Initialize the insecure RNG <b>rng</b> from a seed value <b>seed</b>. */

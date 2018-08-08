@@ -20,6 +20,7 @@
 #define STATEFILE_PRIVATE
 #define TOR_CHANNEL_INTERNAL_
 #define HS_CLIENT_PRIVATE
+#define ROUTERPARSE_PRIVATE
 
 #include "test.h"
 #include "test_helpers.h"
@@ -32,12 +33,12 @@
 #include "circuitbuild.h"
 #include "circuitlist.h"
 #include "circuituse.h"
-#include "crypto.h"
-#include "dirvote.h"
+#include "crypto_rand.h"
+#include "dirauth/dirvote.h"
 #include "networkstatus.h"
 #include "nodelist.h"
 #include "relay.h"
-
+#include "routerparse.h"
 #include "hs_common.h"
 #include "hs_config.h"
 #include "hs_ident.h"
@@ -49,7 +50,8 @@
 #include "main.h"
 #include "rendservice.h"
 #include "statefile.h"
-#include "shared_random_state.h"
+#include "dirauth/shared_random_state.h"
+#include "voting_schedule.h"
 
 /* Trunnel */
 #include "hs/cell_establish_intro.h"
@@ -171,18 +173,18 @@ test_e2e_rend_circuit_setup(void *arg)
   tt_int_op(retval, OP_EQ, 1);
 
   /* Check the digest algo */
-  tt_int_op(crypto_digest_get_algorithm(or_circ->cpath->f_digest),
+  tt_int_op(crypto_digest_get_algorithm(or_circ->cpath->crypto.f_digest),
             OP_EQ, DIGEST_SHA3_256);
-  tt_int_op(crypto_digest_get_algorithm(or_circ->cpath->b_digest),
+  tt_int_op(crypto_digest_get_algorithm(or_circ->cpath->crypto.b_digest),
             OP_EQ, DIGEST_SHA3_256);
-  tt_assert(or_circ->cpath->f_crypto);
-  tt_assert(or_circ->cpath->b_crypto);
+  tt_assert(or_circ->cpath->crypto.f_crypto);
+  tt_assert(or_circ->cpath->crypto.b_crypto);
 
   /* Ensure that circ purpose was changed */
   tt_int_op(or_circ->base_.purpose, OP_EQ, CIRCUIT_PURPOSE_S_REND_JOINED);
 
  done:
-  circuit_free(TO_CIRCUIT(or_circ));
+  circuit_free_(TO_CIRCUIT(or_circ));
 }
 
 /* Helper: Return a newly allocated and initialized origin circuit with
@@ -194,7 +196,7 @@ helper_create_origin_circuit(int purpose, int flags)
   origin_circuit_t *circ = NULL;
 
   circ = origin_circuit_init(purpose, flags);
-  tt_assert(circ);
+  tor_assert(circ);
   circ->cpath = tor_malloc_zero(sizeof(crypt_path_t));
   circ->cpath->magic = CRYPT_PATH_MAGIC;
   circ->cpath->state = CPATH_STATE_OPEN;
@@ -206,7 +208,6 @@ helper_create_origin_circuit(int purpose, int flags)
   /* Create a default HS identifier. */
   circ->hs_ident = tor_malloc_zero(sizeof(hs_ident_circuit_t));
 
- done:
   return circ;
 }
 
@@ -219,7 +220,7 @@ helper_create_service(void)
 {
   /* Set a service for this circuit. */
   hs_service_t *service = hs_service_new(get_options());
-  tt_assert(service);
+  tor_assert(service);
   service->config.version = HS_VERSION_THREE;
   ed25519_secret_key_generate(&service->keys.identity_sk, 0);
   ed25519_public_key_generate(&service->keys.identity_pk,
@@ -241,7 +242,7 @@ helper_create_service_ip(void)
 {
   hs_desc_link_specifier_t *ls;
   hs_service_intro_point_t *ip = service_intro_point_new(NULL, 0);
-  tt_assert(ip);
+  tor_assert(ip);
   /* Add a first unused link specifier. */
   ls = tor_malloc_zero(sizeof(*ls));
   ls->type = LS_IPV4;
@@ -252,7 +253,6 @@ helper_create_service_ip(void)
   memset(ls->u.legacy_id, 'A', sizeof(ls->u.legacy_id));
   smartlist_add(ip->base.link_specifiers, ls);
 
- done:
   return ip;
 }
 
@@ -413,13 +413,16 @@ test_service_intro_point(void *arg)
               INTRO_POINT_MIN_LIFETIME_INTRODUCTIONS);
     tt_u64_op(ip->introduce2_max, OP_LE,
               INTRO_POINT_MAX_LIFETIME_INTRODUCTIONS);
-    /* Time to expire MUST also be in that range. We add 5 seconds because
-     * there could be a gap between setting now and the time taken in
-     * service_intro_point_new. On ARM, it can be surprisingly slow... */
+    /* Time to expire MUST also be in that range. We subtract 500 seconds
+     * because there could be a gap between setting now and the time taken in
+     * service_intro_point_new. On ARM and other older CPUs, it can be
+     * surprisingly slow... */
     tt_u64_op(ip->time_to_expire, OP_GE,
-              now + INTRO_POINT_LIFETIME_MIN_SECONDS + 5);
+              now + INTRO_POINT_LIFETIME_MIN_SECONDS - 500);
+    /* We add 500 seconds, because this time we're testing against the
+     * maximum allowed time. */
     tt_u64_op(ip->time_to_expire, OP_LE,
-              now + INTRO_POINT_LIFETIME_MAX_SECONDS + 5);
+              now + INTRO_POINT_LIFETIME_MAX_SECONDS + 500);
     tt_assert(ip->replay_cache);
     tt_assert(ip->base.link_specifiers);
     /* By default, this is NOT a legacy object. */
@@ -655,13 +658,13 @@ test_intro_circuit_opened(void *arg)
   teardown_capture_of_logs();
 
  done:
-  circuit_free(TO_CIRCUIT(circ));
+  circuit_free_(TO_CIRCUIT(circ));
   hs_free_all();
   UNMOCK(circuit_mark_for_close_);
   UNMOCK(relay_send_command_from_edge_);
 }
 
-/** Test the operations we do on a circuit after we learn that we successfuly
+/** Test the operations we do on a circuit after we learn that we successfully
  *  established an intro point on it */
 static void
 test_intro_established(void *arg)
@@ -730,7 +733,7 @@ test_intro_established(void *arg)
 
  done:
   if (circ)
-    circuit_free(TO_CIRCUIT(circ));
+    circuit_free_(TO_CIRCUIT(circ));
   hs_free_all();
   UNMOCK(circuit_mark_for_close_);
 }
@@ -772,7 +775,7 @@ test_rdv_circuit_opened(void *arg)
   tt_int_op(TO_CIRCUIT(circ)->purpose, OP_EQ, CIRCUIT_PURPOSE_S_REND_JOINED);
 
  done:
-  circuit_free(TO_CIRCUIT(circ));
+  circuit_free_(TO_CIRCUIT(circ));
   hs_free_all();
   UNMOCK(circuit_mark_for_close_);
   UNMOCK(relay_send_command_from_edge_);
@@ -825,7 +828,7 @@ test_closing_intro_circs(void *arg)
   /* Now pretend we are freeing this intro circuit. We want to see that our
    * destructor is not gonna kill our intro point structure since that's the
    * job of the cleanup routine. */
-  circuit_free(TO_CIRCUIT(intro_circ));
+  circuit_free_(TO_CIRCUIT(intro_circ));
   intro_circ = NULL;
   entry = service_intro_point_find(service, &ip->auth_key_kp.pubkey);
   tt_assert(entry);
@@ -857,7 +860,7 @@ test_closing_intro_circs(void *arg)
 
  done:
   if (intro_circ) {
-    circuit_free(TO_CIRCUIT(intro_circ));
+    circuit_free_(TO_CIRCUIT(intro_circ));
   }
   /* Frees the service object. */
   hs_free_all();
@@ -938,7 +941,7 @@ test_introduce2(void *arg)
   or_state_free(dummy_state);
   dummy_state = NULL;
   if (circ)
-    circuit_free(TO_CIRCUIT(circ));
+    circuit_free_(TO_CIRCUIT(circ));
   hs_free_all();
   UNMOCK(circuit_mark_for_close_);
 }
@@ -1022,7 +1025,7 @@ test_service_event(void *arg)
 
  done:
   hs_circuitmap_remove_circuit(TO_CIRCUIT(circ));
-  circuit_free(TO_CIRCUIT(circ));
+  circuit_free_(TO_CIRCUIT(circ));
   hs_free_all();
   UNMOCK(circuit_mark_for_close_);
 }
@@ -1054,7 +1057,7 @@ test_rotate_descriptors(void *arg)
   ret = parse_rfc1123_time("Sat, 26 Oct 1985 14:00:00 UTC",
                            &mock_ns.fresh_until);
   tt_int_op(ret, OP_EQ, 0);
-  dirvote_recalculate_timing(get_options(), mock_ns.valid_after);
+  voting_schedule_recalculate_timing(get_options(), mock_ns.valid_after);
 
   /* Create a service with a default descriptor and state. It's added to the
    * global map. */
@@ -1092,7 +1095,7 @@ test_rotate_descriptors(void *arg)
   ret = parse_rfc1123_time("Sat, 27 Oct 1985 02:00:00 UTC",
                            &mock_ns.fresh_until);
   tt_int_op(ret, OP_EQ, 0);
-  dirvote_recalculate_timing(get_options(), mock_ns.valid_after);
+  voting_schedule_recalculate_timing(get_options(), mock_ns.valid_after);
 
   /* Note down what to expect for the next rotation time which is 01:00 + 23h
    * meaning 00:00:00. */
@@ -1154,7 +1157,7 @@ test_build_update_descriptors(void *arg)
   ret = parse_rfc1123_time("Sat, 26 Oct 1985 04:00:00 UTC",
                            &mock_ns.fresh_until);
   tt_int_op(ret, OP_EQ, 0);
-  dirvote_recalculate_timing(get_options(), mock_ns.valid_after);
+  voting_schedule_recalculate_timing(get_options(), mock_ns.valid_after);
 
   /* Create a service without a current descriptor to trigger a build. */
   service = helper_create_service();
@@ -1212,6 +1215,7 @@ test_build_update_descriptors(void *arg)
     /* Ugly yes but we never free the "ri" object so this just makes things
      * easier. */
     ri.protocol_list = (char *) "HSDir=1-2 LinkAuth=3";
+    summarize_protover_flags(&ri.pv, ri.protocol_list, NULL);
     ret = curve25519_secret_key_generate(&curve25519_secret_key, 0);
     tt_int_op(ret, OP_EQ, 0);
     ri.onion_curve25519_pkey =
@@ -1232,6 +1236,10 @@ test_build_update_descriptors(void *arg)
     tt_assert(node);
     node->is_running = node->is_valid = node->is_fast = node->is_stable = 1;
   }
+
+  /* We have to set this, or the lack of microdescriptors for these
+   * nodes will make them unusable. */
+  get_options_mutable()->UseMicrodescriptors = 0;
 
   /* We expect to pick only one intro point from the node above. */
   setup_full_capture_of_logs(LOG_INFO);
@@ -1576,8 +1584,8 @@ test_rendezvous1_parsing(void *arg)
    * would need an extra circuit and some more stuff but it's doable. */
 
  done:
-  circuit_free(TO_CIRCUIT(service_circ));
-  circuit_free(TO_CIRCUIT(client_circ));
+  circuit_free_(TO_CIRCUIT(service_circ));
+  circuit_free_(TO_CIRCUIT(client_circ));
   hs_service_free(service);
   hs_free_all();
   UNMOCK(relay_send_command_from_edge_);

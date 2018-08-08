@@ -118,11 +118,13 @@
 #include "circpathbias.h"
 #include "circuitbuild.h"
 #include "circuitlist.h"
+#include "circuituse.h"
 #include "circuitstats.h"
 #include "config.h"
 #include "confparse.h"
 #include "connection.h"
 #include "control.h"
+#include "crypto_rand.h"
 #include "directory.h"
 #include "entrynodes.h"
 #include "main.h"
@@ -185,14 +187,14 @@ should_apply_guardfraction(const networkstatus_t *ns)
   return options->UseGuardFraction;
 }
 
-/** Return true iff we know a descriptor for <b>guard</b> */
+/** Return true iff we know a preferred descriptor for <b>guard</b> */
 static int
 guard_has_descriptor(const entry_guard_t *guard)
 {
   const node_t *node = node_get_by_id(guard->identity);
   if (!node)
     return 0;
-  return node_has_descriptor(node);
+  return node_has_preferred_descriptor(node, 1);
 }
 
 /**
@@ -432,14 +434,15 @@ get_guard_confirmed_min_lifetime(void)
 STATIC int
 get_n_primary_guards(void)
 {
-  const int n = get_options()->NumEntryGuards;
-  const int n_dir = get_options()->NumDirectoryGuards;
-  if (n > 5) {
-    return MAX(n_dir, n + n / 2);
-  } else if (n >= 1) {
-    return MAX(n_dir, n * 2);
+  /* If the user has explicitly configured the number of primary guards, do
+   * what the user wishes to do */
+  const int configured_primaries = get_options()->NumPrimaryGuards;
+  if (configured_primaries) {
+    return configured_primaries;
   }
 
+  /* otherwise check for consensus parameter and if that's not set either, just
+   * use the default value. */
   return networkstatus_get_param(NULL,
                                  "guard-n-primary-guards",
                                  DFLT_N_PRIMARY_GUARDS, 1, INT32_MAX);
@@ -454,6 +457,9 @@ get_n_primary_guards_to_use(guard_usage_t usage)
   int configured;
   const char *param_name;
   int param_default;
+
+  /* If the user has explicitly configured the amount of guards, use
+     that. Otherwise, fall back to the default value. */
   if (usage == GUARD_USAGE_DIRGUARD) {
     configured = get_options()->NumDirectoryGuards;
     param_name = "guard-n-primary-dir-guards-to-use";
@@ -1094,7 +1100,11 @@ select_and_add_guard_item_for_sample(guard_selection_t *gs,
   return added_guard;
 }
 
-/** Return true iff we need a consensus to maintain our  */
+/**
+ * Return true iff we need a consensus to update our guards, but we don't
+ * have one. (We can return 0 here either if the consensus is _not_ missing,
+ * or if we don't need a consensus because we're using bridges.)
+ */
 static int
 live_consensus_is_missing(const guard_selection_t *gs)
 {
@@ -2196,7 +2206,7 @@ entry_guard_has_higher_priority(entry_guard_t *a, entry_guard_t *b)
 
 /** Release all storage held in <b>restriction</b> */
 STATIC void
-entry_guard_restriction_free(entry_guard_restriction_t *rst)
+entry_guard_restriction_free_(entry_guard_restriction_t *rst)
 {
   tor_free(rst);
 }
@@ -2205,7 +2215,7 @@ entry_guard_restriction_free(entry_guard_restriction_t *rst)
  * Release all storage held in <b>state</b>.
  */
 void
-circuit_guard_state_free(circuit_guard_state_t *state)
+circuit_guard_state_free_(circuit_guard_state_t *state)
 {
   if (!state)
     return;
@@ -2216,9 +2226,9 @@ circuit_guard_state_free(circuit_guard_state_t *state)
 
 /** Allocate and return a new circuit_guard_state_t to track the result
  * of using <b>guard</b> for a given operation. */
-static circuit_guard_state_t *
-circuit_guard_state_new(entry_guard_t *guard, unsigned state,
-                        entry_guard_restriction_t *rst)
+MOCK_IMPL(STATIC circuit_guard_state_t *,
+circuit_guard_state_new,(entry_guard_t *guard, unsigned state,
+                         entry_guard_restriction_t *rst))
 {
   circuit_guard_state_t *result;
 
@@ -2265,7 +2275,8 @@ entry_guard_pick_for_circuit(guard_selection_t *gs,
   // XXXX #20827 check Ed ID.
   if (! node)
     goto fail;
-  if (BUG(usage != GUARD_USAGE_DIRGUARD && !node_has_descriptor(node)))
+  if (BUG(usage != GUARD_USAGE_DIRGUARD &&
+          !node_has_preferred_descriptor(node, 1)))
     goto fail;
 
   *chosen_node_out = node;
@@ -2330,7 +2341,7 @@ entry_guard_cancel(circuit_guard_state_t **guard_state_p)
 }
 
 /**
- * Called by the circuit building module when a circuit has succeeded:
+ * Called by the circuit building module when a circuit has failed:
  * informs the guards code that the guard in *<b>guard_state_p</b> is
  * not working, and advances the state of the guard module.
  */
@@ -3108,7 +3119,7 @@ get_guard_state_for_bridge_desc_fetch(const char *digest)
 
 /** Release all storage held by <b>e</b>. */
 STATIC void
-entry_guard_free(entry_guard_t *e)
+entry_guard_free_(entry_guard_t *e)
 {
   if (!e)
     return;
@@ -3303,6 +3314,22 @@ entry_guards_update_state(or_state_t *state)
   entry_guards_dirty = 0;
 }
 
+/** Return true iff the circuit's guard can succeed that is can be used. */
+int
+entry_guard_could_succeed(const circuit_guard_state_t *guard_state)
+{
+  if (!guard_state) {
+    return 0;
+  }
+
+  entry_guard_t *guard = entry_guard_handle_get(guard_state->guard);
+  if (!guard || BUG(guard->in_selection == NULL)) {
+    return 0;
+  }
+
+  return 1;
+}
+
 /**
  * Format a single entry guard in the format expected by the controller.
  * Return a newly allocated string.
@@ -3453,12 +3480,18 @@ guards_update_all(void)
     used. */
 const node_t *
 guards_choose_guard(cpath_build_state_t *state,
-                   circuit_guard_state_t **guard_state_out)
+                    uint8_t purpose,
+                    circuit_guard_state_t **guard_state_out)
 {
   const node_t *r = NULL;
   const uint8_t *exit_id = NULL;
   entry_guard_restriction_t *rst = NULL;
-  if (state && (exit_id = build_state_get_exit_rsa_id(state))) {
+
+  /* Only apply restrictions if we have a specific exit node in mind, and only
+   * if we are not doing vanguard circuits: we don't want to apply guard
+   * restrictions to vanguard circuits. */
+  if (state && !circuit_should_use_vanguards(purpose) &&
+      (exit_id = build_state_get_exit_rsa_id(state))) {
     /* We're building to a targeted exit node, so that node can't be
      * chosen as our guard for this circuit.  Remember that fact in a
      * restriction. */
@@ -3615,7 +3648,7 @@ entry_guards_get_err_str_if_dir_info_missing(int using_mds,
 
 /** Free one guard selection context */
 STATIC void
-guard_selection_free(guard_selection_t *gs)
+guard_selection_free_(guard_selection_t *gs)
 {
   if (!gs) return;
 
