@@ -41,12 +41,12 @@ env:
 # x86_64 Linux
     - >-
       HOST=x86_64-unknown-linux-gnu
-      PACKAGES="libminiupnpc-dev libzmq3-dev libqt5gui5 libqt5core5a libqt5dbus5 qttools5-dev qttools5-dev-tools libprotobuf-dev protobuf-compiler libqrencode-dev"
+      PACKAGES="libminiupnpc-dev libzmq3-dev libqt5gui5 libqt5core5a libqt5dbus5 qttools5-dev qttools5-dev-tools libprotobuf-dev protobuf-compiler libqrencode-dev curl"
       NO_DEPENDS=1
 # Cross-Mac
     - >-
       HOST=x86_64-apple-darwin11
-      PACKAGES="cmake imagemagick libcap-dev librsvg2-bin libz-dev libbz2-dev libtiff-tools python-dev python3-setuptools-git"
+      PACKAGES="cmake imagemagick libcap-dev librsvg2-bin libz-dev libbz2-dev libtiff-tools python-dev python3-setuptools-git curl"
       OSX_SDK=10.11
 
 before_install:
