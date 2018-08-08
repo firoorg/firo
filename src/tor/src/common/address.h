@@ -206,7 +206,9 @@ const char * fmt_addr32(uint32_t addr);
 
 MOCK_DECL(int,get_interface_address6,(int severity, sa_family_t family,
 tor_addr_t *addr));
-void free_interface_address6_list(smartlist_t * addrs);
+void interface_address6_list_free_(smartlist_t * addrs);// XXXX
+#define interface_address6_list_free(addrs) \
+  FREE_AND_NULL(smartlist_t, interface_address6_list_free_, (addrs))
 MOCK_DECL(smartlist_t *,get_interface_address6_list,(int severity,
                                                      sa_family_t family,
                                                      int include_internal));
@@ -229,6 +231,8 @@ int tor_addr_compare_masked(const tor_addr_t *addr1, const tor_addr_t *addr2,
 #define tor_addr_eq(a,b) (0==tor_addr_compare((a),(b),CMP_EXACT))
 
 uint64_t tor_addr_hash(const tor_addr_t *addr);
+struct sipkey;
+uint64_t tor_addr_keyed_hash(const struct sipkey *key, const tor_addr_t *addr);
 int tor_addr_is_v4(const tor_addr_t *addr);
 int tor_addr_is_internal_(const tor_addr_t *ip, int for_listening,
                           const char *filename, int lineno);
@@ -321,13 +325,8 @@ int addr_mask_get_bits(uint32_t mask);
 int tor_inet_ntoa(const struct in_addr *in, char *buf, size_t buf_len);
 char *tor_dup_ip(uint32_t addr) ATTR_MALLOC;
 MOCK_DECL(int,get_interface_address,(int severity, uint32_t *addr));
-/** Free a smartlist of IP addresses returned by get_interface_address_list.
- */
-static inline void
-free_interface_address_list(smartlist_t *addrs)
-{
-  free_interface_address6_list(addrs);
-}
+#define interface_address_list_free(lst)\
+  interface_address6_list_free(lst)
 /** Return a smartlist of the IPv4 addresses of all interfaces on the server.
  * Excludes loopback and multicast addresses. Only includes internal addresses
  * if include_internal is true. (Note that a relay behind NAT may use an

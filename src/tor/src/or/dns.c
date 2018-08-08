@@ -19,7 +19,7 @@
  *      dns_seems_to_be_broken().
  *    <li>When a client has asked the relay, in a RELAY_BEGIN cell, to connect
  *      to a given server by hostname.  This happens via dns_resolve().
- *    <li>When a client has asked the rela, in a RELAY_RESOLVE cell, to look
+ *    <li>When a client has asked the relay, in a RELAY_RESOLVE cell, to look
  *      up a given server's IP address(es) by hostname. This also happens via
  *      dns_resolve().
  *   </ol>
@@ -56,6 +56,7 @@
 #include "connection.h"
 #include "connection_edge.h"
 #include "control.h"
+#include "crypto_rand.h"
 #include "dns.h"
 #include "main.h"
 #include "policies.h"
@@ -457,7 +458,7 @@ purge_expired_resolves(time_t now)
         if (!pendconn->base_.marked_for_close) {
           connection_edge_end(pendconn, END_STREAM_REASON_TIMEOUT);
           circuit_detach_stream(circuit_get_by_edge_conn(pendconn), pendconn);
-          connection_free(TO_CONN(pendconn));
+          connection_free_(TO_CONN(pendconn));
         }
         tor_free(pend);
       }
@@ -670,7 +671,7 @@ dns_resolve(edge_connection_t *exitconn)
         /* If we made the connection pending, then we freed it already in
          * dns_cancel_pending_resolve().  If we marked it for close, it'll
          * get freed from the main loop.  Otherwise, can free it now. */
-        connection_free(TO_CONN(exitconn));
+        connection_free_(TO_CONN(exitconn));
       }
       break;
     default:
@@ -1101,7 +1102,7 @@ dns_cancel_pending_resolve,(const char *address))
     if (circ)
       circuit_detach_stream(circ, pendconn);
     if (!pendconn->base_.marked_for_close)
-      connection_free(TO_CONN(pendconn));
+      connection_free_(TO_CONN(pendconn));
     resolve->pending_connections = pend->next;
     tor_free(pend);
   }
@@ -1230,7 +1231,7 @@ inform_pending_connections(cached_resolve_t *resolve)
         /* This detach must happen after we send the resolved cell. */
         circuit_detach_stream(circuit_get_by_edge_conn(pendconn), pendconn);
       }
-      connection_free(TO_CONN(pendconn));
+      connection_free_(TO_CONN(pendconn));
     } else {
       circuit_t *circ;
       if (pendconn->base_.purpose == EXIT_PURPOSE_CONNECT) {
@@ -1259,7 +1260,7 @@ inform_pending_connections(cached_resolve_t *resolve)
         circ = circuit_get_by_edge_conn(pendconn);
         tor_assert(circ);
         circuit_detach_stream(circ, pendconn);
-        connection_free(TO_CONN(pendconn));
+        connection_free_(TO_CONN(pendconn));
       }
     }
     resolve->pending_connections = pend->next;
@@ -1441,27 +1442,30 @@ configure_nameservers(int force)
   // If we only have one nameserver, it does not make sense to back off
   // from it for a timeout. Unfortunately, the value for max-timeouts is
   // currently clamped by libevent to 255, but it does not hurt to set
-  // it higher in case libevent gets a patch for this.
-  // Reducing attempts in the case of just one name server too, because
-  // it is very likely to be a local one where a network connectivity
-  // issue should not cause an attempt to fail.
+  // it higher in case libevent gets a patch for this.  Higher-than-
+  // default maximum of 3 with multiple nameservers to avoid spuriously
+  // marking one down on bursts of timeouts resulting from scans/attacks
+  // against non-responding authoritative DNS servers.
   if (evdns_base_count_nameservers(the_evdns_base) == 1) {
     SET("max-timeouts:", "1000000");
-    SET("attempts:", "1");
   } else {
-    SET("max-timeouts:", "3");
+    SET("max-timeouts:", "10");
   }
 
   // Elongate the queue of maximum inflight dns requests, so if a bunch
-  // time out at the resolver (happens commonly with unbound) we won't
+  // remain pending at the resolver (happens commonly with Unbound) we won't
   // stall every other DNS request. This potentially means some wasted
   // CPU as there's a walk over a linear queue involved, but this is a
   // much better tradeoff compared to just failing DNS requests because
   // of a full queue.
   SET("max-inflight:", "8192");
 
-  // Time out after 5 seconds if no reply.
+  // Two retries at 5 and 10 seconds for bind9/named which relies on
+  // clients to handle retries.  Second retry for retried circuits with
+  // extended 15 second timeout.  Superfluous with local-system Unbound
+  // instance--has its own elaborate retry scheme.
   SET("timeout:", "5");
+  SET("attempts:","3");
 
   if (options->ServerDNSRandomizeCase)
     SET("randomize-case:", "1");
@@ -1666,7 +1670,7 @@ launch_resolve,(cached_resolve_t *resolve))
   tor_addr_t a;
   int r;
 
-  if (get_options()->DisableNetwork)
+  if (net_is_disabled())
     return -1;
 
   /* What? Nameservers not configured?  Sounds like a bug. */
@@ -1901,7 +1905,7 @@ launch_test_addresses(evutil_socket_t fd, short event, void *args)
   (void)event;
   (void)args;
 
-  if (options->DisableNetwork)
+  if (net_is_disabled())
     return;
 
   log_info(LD_EXIT, "Launching checks to see whether our nameservers like to "

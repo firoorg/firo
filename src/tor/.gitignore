@@ -45,6 +45,7 @@ uptime-*.json
 /autom4te.cache
 /build-stamp
 /compile
+/config.rust
 /configure
 /Doxyfile
 /orconfig.h
@@ -55,6 +56,7 @@ uptime-*.json
 /config.guess
 /config.sub
 /conftest*
+/link_rust.sh
 /micro-revision.*
 /patch-stamp
 /stamp-h
@@ -212,6 +214,7 @@ uptime-*.json
 /src/test/fuzz/lf-fuzz-*
 
 # /src/tools/
+/src/tools/libtorrunner.a
 /src/tools/tor-checkkey
 /src/tools/tor-resolve
 /src/tools/tor-cov-resolve

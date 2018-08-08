@@ -28,6 +28,7 @@
  * part of a subclass (channel_tls_t).
  */
 #define TOR_CHANNEL_INTERNAL_
+#define CONNECTION_OR_PRIVATE
 #include "channel.h"
 #include "channeltls.h"
 #include "circuitbuild.h"
@@ -38,6 +39,8 @@
 #include "connection.h"
 #include "connection_or.h"
 #include "control.h"
+#include "crypto_rand.h"
+#include "crypto_util.h"
 #include "dirserv.h"
 #include "entrynodes.h"
 #include "geoip.h"
@@ -505,7 +508,7 @@ var_cell_copy(const var_cell_t *src)
 
 /** Release all space held by <b>cell</b>. */
 void
-var_cell_free(var_cell_t *cell)
+var_cell_free_(var_cell_t *cell)
 {
   tor_free(cell);
 }
@@ -592,8 +595,9 @@ connection_or_flushed_some(or_connection_t *conn)
 {
   size_t datalen;
 
-  /* The channel will want to update its estimated queue size */
-  channel_update_xmit_queue_size(TLS_CHAN_TO_BASE(conn->chan));
+  /* Update the channel's active timestamp if there is one */
+  if (conn->chan)
+    channel_timestamp_active(TLS_CHAN_TO_BASE(conn->chan));
 
   /* If we're under the low water mark, add cells until we're just over the
    * high water mark. */
@@ -655,6 +659,11 @@ connection_or_finished_flushing(or_connection_t *conn)
       tor_fragile_assert();
       return -1;
   }
+
+  /* Update the channel's active timestamp if there is one */
+  if (conn->chan)
+    channel_timestamp_active(TLS_CHAN_TO_BASE(conn->chan));
+
   return 0;
 }
 
@@ -699,7 +708,6 @@ connection_or_finished_connecting(or_connection_t *or_conn)
 void
 connection_or_about_to_close(or_connection_t *or_conn)
 {
-  time_t now = time(NULL);
   connection_t *conn = TO_CONN(or_conn);
 
   /* Tell the controlling channel we're closed */
@@ -719,7 +727,6 @@ connection_or_about_to_close(or_connection_t *or_conn)
     if (connection_or_nonopen_was_started_here(or_conn)) {
       const or_options_t *options = get_options();
       connection_or_note_state_when_broken(or_conn);
-      rep_hist_note_connect_failed(or_conn->identity_digest, now);
       /* Tell the new guard API about the channel failure */
       entry_guard_chan_failed(TLS_CHAN_TO_BASE(or_conn->chan));
       if (conn->state >= OR_CONN_STATE_TLS_HANDSHAKING) {
@@ -735,11 +742,9 @@ connection_or_about_to_close(or_connection_t *or_conn)
   } else if (conn->hold_open_until_flushed) {
     /* We only set hold_open_until_flushed when we're intentionally
      * closing a connection. */
-    rep_hist_note_disconnect(or_conn->identity_digest, now);
     control_event_or_conn_status(or_conn, OR_CONN_EVENT_CLOSED,
                 tls_error_to_orconn_end_reason(or_conn->tls_error));
   } else if (!tor_digest_is_zero(or_conn->identity_digest)) {
-    rep_hist_note_connection_died(or_conn->identity_digest, now);
     control_event_or_conn_status(or_conn, OR_CONN_EVENT_CLOSED,
                 tls_error_to_orconn_end_reason(or_conn->tls_error));
   }
@@ -790,18 +795,10 @@ connection_or_update_token_buckets_helper(or_connection_t *conn, int reset,
                                 (int)options->BandwidthBurst, 1, INT32_MAX);
   }
 
-  conn->bandwidthrate = rate;
-  conn->bandwidthburst = burst;
-  if (reset) { /* set up the token buckets to be full */
-    conn->read_bucket = conn->write_bucket = burst;
-    return;
+  token_bucket_rw_adjust(&conn->bucket, rate, burst);
+  if (reset) {
+    token_bucket_rw_reset(&conn->bucket, monotime_coarse_get_stamp());
   }
-  /* If the new token bucket is smaller, take out the extra tokens.
-   * (If it's larger, don't -- the buckets can grow to reach the cap.) */
-  if (conn->read_bucket > burst)
-    conn->read_bucket = burst;
-  if (conn->write_bucket > burst)
-    conn->write_bucket = burst;
 }
 
 /** Either our set of relays or our per-conn rate limits have changed.
@@ -886,7 +883,7 @@ connection_or_check_canonicity(or_connection_t *conn, int started_here)
 
   const node_t *r = node_get_by_id(id_digest);
   if (r &&
-      node_supports_ed25519_link_authentication(r) &&
+      node_supports_ed25519_link_authentication(r, 1) &&
       ! node_ed25519_id_matches(r, ed_id)) {
     /* If this node is capable of proving an ed25519 ID,
      * we can't call this a canonical connection unless both IDs match. */
@@ -965,6 +962,36 @@ connection_or_mark_bad_for_new_circs(or_connection_t *or_conn)
  * too old for new circuits? */
 #define TIME_BEFORE_OR_CONN_IS_TOO_OLD (60*60*24*7)
 
+/** Expire an or_connection if it is too old. Helper for
+ * connection_or_group_set_badness_ and fast path for
+ * channel_rsa_id_group_set_badness.
+ *
+ * Returns 1 if the connection was already expired, else 0.
+ */
+int
+connection_or_single_set_badness_(time_t now,
+                                  or_connection_t *or_conn,
+                                  int force)
+{
+  /* XXXX this function should also be about channels? */
+  if (or_conn->base_.marked_for_close ||
+      connection_or_is_bad_for_new_circs(or_conn))
+    return 1;
+
+  if (force ||
+      or_conn->base_.timestamp_created + TIME_BEFORE_OR_CONN_IS_TOO_OLD
+        < now) {
+    log_info(LD_OR,
+             "Marking OR conn to %s:%d as too old for new circuits "
+             "(fd "TOR_SOCKET_T_FORMAT", %d secs old).",
+             or_conn->base_.address, or_conn->base_.port, or_conn->base_.s,
+             (int)(now - or_conn->base_.timestamp_created));
+    connection_or_mark_bad_for_new_circs(or_conn);
+  }
+
+  return 0;
+}
+
 /** Given a list of all the or_connections with a given
  * identity, set elements of that list as is_bad_for_new_circs as
  * appropriate. Helper for connection_or_set_bad_connections().
@@ -995,19 +1022,8 @@ connection_or_group_set_badness_(smartlist_t *group, int force)
   /* Pass 1: expire everything that's old, and see what the status of
    * everything else is. */
   SMARTLIST_FOREACH_BEGIN(group, or_connection_t *, or_conn) {
-    if (or_conn->base_.marked_for_close ||
-        connection_or_is_bad_for_new_circs(or_conn))
+    if (connection_or_single_set_badness_(now, or_conn, force))
       continue;
-    if (force ||
-        or_conn->base_.timestamp_created + TIME_BEFORE_OR_CONN_IS_TOO_OLD
-          < now) {
-      log_info(LD_OR,
-               "Marking OR conn to %s:%d as too old for new circuits "
-               "(fd "TOR_SOCKET_T_FORMAT", %d secs old).",
-               or_conn->base_.address, or_conn->base_.port, or_conn->base_.s,
-               (int)(now - or_conn->base_.timestamp_created));
-      connection_or_mark_bad_for_new_circs(or_conn);
-    }
 
     if (connection_or_is_bad_for_new_circs(or_conn)) {
       ++n_old;
@@ -1101,6 +1117,216 @@ connection_or_group_set_badness_(smartlist_t *group, int force)
   } SMARTLIST_FOREACH_END(or_conn);
 }
 
+/* Lifetime of a connection failure. After that, we'll retry. This is in
+ * seconds. */
+#define OR_CONNECT_FAILURE_LIFETIME 60
+/* The interval to use with when to clean up the failure cache. */
+#define OR_CONNECT_FAILURE_CLEANUP_INTERVAL 60
+
+/* When is the next time we have to cleanup the failure map. We keep this
+ * because we clean it opportunistically. */
+static time_t or_connect_failure_map_next_cleanup_ts = 0;
+
+/* OR connection failure entry data structure. It is kept in the connection
+ * failure map defined below and indexed by OR identity digest, address and
+ * port.
+ *
+ * We need to identify a connection failure with these three values because we
+ * want to avoid to wrongfully blacklist a relay if someone is trying to
+ * extend to a known identity digest but with the wrong IP/port. For instance,
+ * it can happen if a relay changed its port but the client still has an old
+ * descriptor with the old port. We want to stop connecting to that
+ * IP/port/identity all together, not only the relay identity. */
+typedef struct or_connect_failure_entry_t {
+  HT_ENTRY(or_connect_failure_entry_t) node;
+  /* Identity digest of the connection where it is connecting to. */
+  uint8_t identity_digest[DIGEST_LEN];
+  /* This is the connection address from the base connection_t. After the
+   * connection is checked for canonicity, the base address should represent
+   * what we know instead of where we are connecting to. This is what we need
+   * so we can correlate known relays within the consensus. */
+  tor_addr_t addr;
+  uint16_t port;
+  /* Last time we were unable to connect. */
+  time_t last_failed_connect_ts;
+} or_connect_failure_entry_t;
+
+/* Map where we keep connection failure entries. They are indexed by addr,
+ * port and identity digest. */
+static HT_HEAD(or_connect_failure_ht, or_connect_failure_entry_t)
+       or_connect_failures_map = HT_INITIALIZER();
+
+/* Helper: Hashtable equal function. Return 1 if equal else 0. */
+static int
+or_connect_failure_ht_eq(const or_connect_failure_entry_t *a,
+                         const or_connect_failure_entry_t *b)
+{
+  return fast_memeq(a->identity_digest, b->identity_digest, DIGEST_LEN) &&
+         tor_addr_eq(&a->addr, &b->addr) &&
+         a->port == b->port;
+}
+
+/* Helper: Return the hash for the hashtable of the given entry. For this
+ * table, it is a combination of address, port and identity digest. */
+static unsigned int
+or_connect_failure_ht_hash(const or_connect_failure_entry_t *entry)
+{
+  size_t offset = 0, addr_size;
+  const void *addr_ptr;
+  /* Largest size is IPv6 and IPv4 is smaller so it is fine. */
+  uint8_t data[16 + sizeof(uint16_t) + DIGEST_LEN];
+
+  /* Get the right address bytes depending on the family. */
+  switch (tor_addr_family(&entry->addr)) {
+  case AF_INET:
+    addr_size = 4;
+    addr_ptr = &entry->addr.addr.in_addr.s_addr;
+    break;
+  case AF_INET6:
+    addr_size = 16;
+    addr_ptr = &entry->addr.addr.in6_addr.s6_addr;
+    break;
+  default:
+    tor_assert_nonfatal_unreached();
+    return 0;
+  }
+
+  memcpy(data, addr_ptr, addr_size);
+  offset += addr_size;
+  memcpy(data + offset, entry->identity_digest, DIGEST_LEN);
+  offset += DIGEST_LEN;
+  set_uint16(data + offset, entry->port);
+  offset += sizeof(uint16_t);
+
+  return (unsigned int) siphash24g(data, offset);
+}
+
+HT_PROTOTYPE(or_connect_failure_ht, or_connect_failure_entry_t, node,
+             or_connect_failure_ht_hash, or_connect_failure_ht_eq)
+
+HT_GENERATE2(or_connect_failure_ht, or_connect_failure_entry_t, node,
+             or_connect_failure_ht_hash, or_connect_failure_ht_eq,
+             0.6, tor_reallocarray_, tor_free_)
+
+/* Initialize a given connect failure entry with the given identity_digest,
+ * addr and port. All field are optional except ocf. */
+static void
+or_connect_failure_init(const char *identity_digest, const tor_addr_t *addr,
+                        uint16_t port, or_connect_failure_entry_t *ocf)
+{
+  tor_assert(ocf);
+  if (identity_digest) {
+    memcpy(ocf->identity_digest, identity_digest,
+           sizeof(ocf->identity_digest));
+  }
+  if (addr) {
+    tor_addr_copy(&ocf->addr, addr);
+  }
+  ocf->port = port;
+}
+
+/* Return a newly allocated connection failure entry. It is initialized with
+ * the given or_conn data. This can't fail. */
+static or_connect_failure_entry_t *
+or_connect_failure_new(const or_connection_t *or_conn)
+{
+  or_connect_failure_entry_t *ocf = tor_malloc_zero(sizeof(*ocf));
+  or_connect_failure_init(or_conn->identity_digest, &or_conn->real_addr,
+                          TO_CONN(or_conn)->port, ocf);
+  return ocf;
+}
+
+/* Return a connection failure entry matching the given or_conn. NULL is
+ * returned if not found. */
+static or_connect_failure_entry_t *
+or_connect_failure_find(const or_connection_t *or_conn)
+{
+  or_connect_failure_entry_t lookup;
+  tor_assert(or_conn);
+  or_connect_failure_init(or_conn->identity_digest, &TO_CONN(or_conn)->addr,
+                          TO_CONN(or_conn)->port, &lookup);
+  return HT_FIND(or_connect_failure_ht, &or_connect_failures_map, &lookup);
+}
+
+/* Note down in the connection failure cache that a failure occurred on the
+ * given or_conn. */
+STATIC void
+note_or_connect_failed(const or_connection_t *or_conn)
+{
+  or_connect_failure_entry_t *ocf = NULL;
+
+  tor_assert(or_conn);
+
+  ocf = or_connect_failure_find(or_conn);
+  if (ocf == NULL) {
+    ocf = or_connect_failure_new(or_conn);
+    HT_INSERT(or_connect_failure_ht, &or_connect_failures_map, ocf);
+  }
+  ocf->last_failed_connect_ts = approx_time();
+}
+
+/* Cleanup the connection failure cache and remove all entries below the
+ * given cutoff. */
+static void
+or_connect_failure_map_cleanup(time_t cutoff)
+{
+  or_connect_failure_entry_t **ptr, **next, *entry;
+
+  for (ptr = HT_START(or_connect_failure_ht, &or_connect_failures_map);
+       ptr != NULL; ptr = next) {
+    entry = *ptr;
+    if (entry->last_failed_connect_ts <= cutoff) {
+      next = HT_NEXT_RMV(or_connect_failure_ht, &or_connect_failures_map, ptr);
+      tor_free(entry);
+    } else {
+      next = HT_NEXT(or_connect_failure_ht, &or_connect_failures_map, ptr);
+    }
+  }
+}
+
+/* Return true iff the given OR connection can connect to its destination that
+ * is the triplet identity_digest, address and port.
+ *
+ * The or_conn MUST have gone through connection_or_check_canonicity() so the
+ * base address is properly set to what we know or doesn't know. */
+STATIC int
+should_connect_to_relay(const or_connection_t *or_conn)
+{
+  time_t now, cutoff;
+  time_t connect_failed_since_ts = 0;
+  or_connect_failure_entry_t *ocf;
+
+  tor_assert(or_conn);
+
+  now = approx_time();
+  cutoff = now - OR_CONNECT_FAILURE_LIFETIME;
+
+  /* Opportunistically try to cleanup the failure cache. We do that at regular
+   * interval so it doesn't grow too big. */
+  if (or_connect_failure_map_next_cleanup_ts <= now) {
+    or_connect_failure_map_cleanup(cutoff);
+    or_connect_failure_map_next_cleanup_ts =
+      now + OR_CONNECT_FAILURE_CLEANUP_INTERVAL;
+  }
+
+  /* Look if we have failed previously to the same destination as this
+   * OR connection. */
+  ocf = or_connect_failure_find(or_conn);
+  if (ocf) {
+    connect_failed_since_ts = ocf->last_failed_connect_ts;
+  }
+  /* If we do have an unable to connect timestamp and it is below cutoff, we
+   * can connect. Or we have never failed before so let it connect. */
+  if (connect_failed_since_ts > cutoff) {
+    goto no_connect;
+  }
+
+  /* Ok we can connect! */
+  return 1;
+ no_connect:
+  return 0;
+}
+
 /** <b>conn</b> is in the 'connecting' state, and it failed to complete
  * a TCP connection. Send notifications appropriately.
  *
@@ -1114,6 +1340,7 @@ connection_or_connect_failed(or_connection_t *conn,
   control_event_or_conn_status(conn, OR_CONN_EVENT_FAILED, reason);
   if (!authdir_mode_tests_reachability(get_options()))
     control_event_bootstrap_prob_or(msg, reason, conn);
+  note_or_connect_failed(conn);
 }
 
 /** <b>conn</b> got an error in connection_handle_read_impl() or
@@ -1204,6 +1431,19 @@ connection_or_connect, (const tor_addr_t *_addr, uint16_t port,
   conn->chan = chan;
   chan->conn = conn;
   connection_or_init_conn_from_address(conn, &addr, port, id_digest, ed_id, 1);
+
+  /* We have a proper OR connection setup, now check if we can connect to it
+   * that is we haven't had a failure earlier. This is to avoid to try to
+   * constantly connect to relays that we think are not reachable. */
+  if (!should_connect_to_relay(conn)) {
+    log_info(LD_GENERAL, "Can't connect to identity %s at %s:%u because we "
+                         "failed earlier. Refusing.",
+             hex_str(id_digest, DIGEST_LEN), fmt_addr(&TO_CONN(conn)->addr),
+             TO_CONN(conn)->port);
+    connection_free_(TO_CONN(conn));
+    return NULL;
+  }
+
   connection_or_change_state(conn, OR_CONN_STATE_CONNECTING);
   control_event_or_conn_status(conn, OR_CONN_EVENT_LAUNCHED, 0);
 
@@ -1247,7 +1487,7 @@ connection_or_connect, (const tor_addr_t *_addr, uint16_t port,
                fmt_addrport(&TO_CONN(conn)->addr, TO_CONN(conn)->port));
     }
 
-    connection_free(TO_CONN(conn));
+    connection_free_(TO_CONN(conn));
     return NULL;
   }
 
@@ -1260,7 +1500,7 @@ connection_or_connect, (const tor_addr_t *_addr, uint16_t port,
       connection_or_connect_failed(conn,
                                    errno_to_orconn_end_reason(socket_error),
                                    tor_socket_strerror(socket_error));
-      connection_free(TO_CONN(conn));
+      connection_free_(TO_CONN(conn));
       return NULL;
     case 0:
       connection_watch_events(TO_CONN(conn), READ_EVENT | WRITE_EVENT);
@@ -1854,7 +2094,7 @@ connection_init_or_handshake_state(or_connection_t *conn, int started_here)
 
 /** Free all storage held by <b>state</b>. */
 void
-or_handshake_state_free(or_handshake_state_t *state)
+or_handshake_state_free_(or_handshake_state_t *state)
 {
   if (!state)
     return;
@@ -1953,6 +2193,12 @@ connection_or_set_state_open(or_connection_t *conn)
 {
   connection_or_change_state(conn, OR_CONN_STATE_OPEN);
   control_event_or_conn_status(conn, OR_CONN_EVENT_CONNECTED, 0);
+
+  /* Link protocol 3 appeared in Tor 0.2.3.6-alpha, so any connection
+   * that uses an earlier link protocol should not be treated as a relay. */
+  if (conn->link_proto < 3) {
+    channel_mark_client(TLS_CHAN_TO_BASE(conn->chan));
+  }
 
   or_handshake_state_free(conn->handshake_state);
   conn->handshake_state = NULL;

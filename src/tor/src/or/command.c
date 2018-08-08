@@ -46,6 +46,8 @@
 #include "config.h"
 #include "control.h"
 #include "cpuworker.h"
+#include "crypto_util.h"
+#include "dos.h"
 #include "hibernate.h"
 #include "nodelist.h"
 #include "onion.h"
@@ -247,6 +249,11 @@ command_process_create_cell(cell_t *cell, channel_t *chan)
             (unsigned)cell->circ_id,
             U64_PRINTF_ARG(chan->global_identifier), chan);
 
+  /* First thing we do, even though the cell might be invalid, is inform the
+   * DoS mitigation subsystem layer of this event. Validation is done by this
+   * function. */
+  dos_cc_new_create_cell(chan);
+
   /* We check for the conditions that would make us drop the cell before
    * we check for the conditions that would make us send a DESTROY back,
    * since those conditions would make a DESTROY nonsensical. */
@@ -280,7 +287,14 @@ command_process_create_cell(cell_t *cell, channel_t *chan)
              "Received create cell but we're shutting down. Sending back "
              "destroy.");
     channel_send_destroy(cell->circ_id, chan,
-                               END_CIRC_REASON_HIBERNATING);
+                         END_CIRC_REASON_HIBERNATING);
+    return;
+  }
+
+  /* Check if we should apply a defense for this channel. */
+  if (dos_cc_get_defense_type(chan) == DOS_CC_DEFENSE_REFUSE_CELL) {
+    channel_send_destroy(cell->circ_id, chan,
+                         END_CIRC_REASON_RESOURCELIMIT);
     return;
   }
 
@@ -326,14 +340,10 @@ command_process_create_cell(cell_t *cell, channel_t *chan)
     return;
   }
 
-  if (connection_or_digest_is_known_relay(chan->identity_digest)) {
+  if (!channel_is_client(chan)) {
+    /* remember create types we've seen, but don't remember them from
+     * clients, to be extra conservative about client statistics. */
     rep_hist_note_circuit_handshake_requested(create_cell->handshake_type);
-    // Needed for chutney: Sometimes relays aren't in the consensus yet, and
-    // get marked as clients. This resets their channels once they appear.
-    // Probably useful for normal operation wrt relay flapping, too.
-    channel_clear_client(chan);
-  } else {
-    channel_mark_client(chan);
   }
 
   if (create_cell->handshake_type != ONION_HANDSHAKE_TYPE_FAST) {
@@ -486,6 +496,17 @@ command_process_relay_cell(cell_t *cell, channel_t *chan)
     /* if we're a relay and treating connections with recent local
      * traffic better, then this is one of them. */
     channel_timestamp_client(chan);
+
+    /* Count all circuit bytes here for control port accuracy. We want
+     * to count even invalid/dropped relay cells, hence counting
+     * before the recognized check and the connection_edge_process_relay
+     * cell checks.
+     */
+    origin_circuit_t *ocirc = TO_ORIGIN_CIRCUIT(circ);
+
+    /* Count the payload bytes only. We don't care about cell headers */
+    ocirc->n_read_circ_bw = tor_add_u32_nowrap(ocirc->n_read_circ_bw,
+                                               CELL_PAYLOAD_SIZE);
   }
 
   if (!CIRCUIT_IS_ORIGIN(circ) &&

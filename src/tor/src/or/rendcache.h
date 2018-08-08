@@ -36,7 +36,7 @@ typedef struct rend_cache_entry_t {
 
 /* Introduction point failure type. */
 typedef struct rend_cache_failure_intro_t {
-  /* When this intro point failure occured thus we allocated this object and
+  /* When this intro point failure occurred thus we allocated this object and
    * cache it. */
   time_t created_ts;
   rend_intro_point_failure_t failure_type;
@@ -90,10 +90,18 @@ void rend_cache_increment_allocation(size_t n);
 #ifdef RENDCACHE_PRIVATE
 
 STATIC size_t rend_cache_entry_allocation(const rend_cache_entry_t *e);
-STATIC void rend_cache_entry_free(rend_cache_entry_t *e);
-STATIC void rend_cache_failure_intro_entry_free(rend_cache_failure_intro_t
-                                                *entry);
-STATIC void rend_cache_failure_entry_free(rend_cache_failure_t *entry);
+STATIC void rend_cache_entry_free_(rend_cache_entry_t *e);
+#define rend_cache_entry_free(e) \
+  FREE_AND_NULL(rend_cache_entry_t, rend_cache_entry_free_, (e))
+STATIC void rend_cache_failure_intro_entry_free_(rend_cache_failure_intro_t
+                                                 *entry);
+#define rend_cache_failure_intro_entry_free(e)                          \
+  FREE_AND_NULL(rend_cache_failure_intro_t,                   \
+                          rend_cache_failure_intro_entry_free_, (e))
+STATIC void rend_cache_failure_entry_free_(rend_cache_failure_t *entry);
+#define rend_cache_failure_entry_free(e)                        \
+  FREE_AND_NULL(rend_cache_failure_t,                 \
+                          rend_cache_failure_entry_free_, (e))
 STATIC int cache_failure_intro_lookup(const uint8_t *identity,
                                       const char *service_id,
                                       rend_cache_failure_intro_t
@@ -108,7 +116,7 @@ STATIC void cache_failure_intro_add(const uint8_t *identity,
 STATIC void validate_intro_point_failure(const rend_service_descriptor_t *desc,
                                         const char *service_id);
 
-STATIC void rend_cache_failure_entry_free_(void *entry);
+STATIC void rend_cache_failure_entry_free_void(void *entry);
 
 #ifdef TOR_UNIT_TESTS
 extern strmap_t *rend_cache;

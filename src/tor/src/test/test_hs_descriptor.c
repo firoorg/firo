@@ -9,6 +9,8 @@
 #define HS_DESCRIPTOR_PRIVATE
 
 #include "crypto_ed25519.h"
+#include "crypto_digest.h"
+#include "crypto_rand.h"
 #include "ed25519_cert.h"
 #include "or.h"
 #include "hs_descriptor.h"
@@ -174,6 +176,9 @@ test_link_specifier(void *arg)
   ssize_t ret;
   hs_desc_link_specifier_t spec;
   smartlist_t *link_specifiers = smartlist_new();
+  char buf[256];
+  char *b64 = NULL;
+  link_specifier_t *ls = NULL;
 
   (void) arg;
 
@@ -183,9 +188,7 @@ test_link_specifier(void *arg)
 
   /* Test IPv4 for starter. */
   {
-    char *b64, buf[256];
     uint32_t ipv4;
-    link_specifier_t *ls;
 
     spec.type = LS_IPV4;
     ret = tor_addr_parse(&spec.u.ap.addr, "1.2.3.4");
@@ -207,14 +210,13 @@ test_link_specifier(void *arg)
     tt_int_op(link_specifier_get_un_ipv4_port(ls), OP_EQ, spec.u.ap.port);
 
     link_specifier_free(ls);
+    ls = NULL;
     tor_free(b64);
   }
 
   /* Test IPv6. */
   {
-    char *b64, buf[256];
     uint8_t ipv6[16];
-    link_specifier_t *ls;
 
     spec.type = LS_IPV6;
     ret = tor_addr_parse(&spec.u.ap.addr, "[1:2:3:4::]");
@@ -239,14 +241,13 @@ test_link_specifier(void *arg)
     tt_int_op(link_specifier_get_un_ipv6_port(ls), OP_EQ, spec.u.ap.port);
 
     link_specifier_free(ls);
+    ls = NULL;
     tor_free(b64);
   }
 
   /* Test legacy. */
   {
-    char *b64, buf[256];
     uint8_t *id;
-    link_specifier_t *ls;
 
     spec.type = LS_LEGACY_ID;
     memset(spec.u.legacy_id, 'Y', sizeof(spec.u.legacy_id));
@@ -268,10 +269,13 @@ test_link_specifier(void *arg)
     tt_mem_op(spec.u.legacy_id, OP_EQ, id, DIGEST_LEN);
 
     link_specifier_free(ls);
+    ls = NULL;
     tor_free(b64);
   }
 
  done:
+  link_specifier_free(ls);
+  tor_free(b64);
   smartlist_free(link_specifiers);
 }
 
@@ -413,7 +417,7 @@ test_decode_invalid_intro_point(void *arg)
 
   (void) arg;
 
-  /* Seperate pieces of a valid encoded introduction point. */
+  /* Separate pieces of a valid encoded introduction point. */
   const char *intro_point =
     "introduction-point AQIUMDI5OUYyNjhGQ0E5RDU1Q0QxNTc=";
   const char *auth_key =
