@@ -106,34 +106,35 @@ string CZMQAbstract::GetAuthType(KeyType type){
     return (type == Server) ? "server" : "client";
 }
 
-bool CZMQAbstract::writeCert(string publicKey, string privateKey, KeyType type){
+bool CZMQAbstract::writeCert(string publicKey, string privateKey, KeyType type, bool reset){
 
     boost::filesystem::path cert = GetDataDir(true) / "certificates" / GetAuthType(type);
 
     LogPrintf("ZMQ: path @ write: %s\n", cert.string());
 
-    if (!boost::filesystem::exists(cert)) {
+    LogPrintf("reset: %s\n", reset);
+    if (!boost::filesystem::exists(cert) || reset) {
         boost::filesystem::create_directories(cert);
+    
+        cert /= "keys.json";
+
+        UniValue certUni(UniValue::VOBJ);
+        UniValue data(UniValue::VOBJ);
+
+        data.push_back(Pair("public",publicKey));
+        data.push_back(Pair("private",privateKey));
+
+        LogPrintf("data write: %s\n", data.write());
+
+        certUni.push_back(Pair("type","keys"));
+        certUni.push_back(Pair("data", data));
+
+        LogPrintf("ZMQ: cert json: %s\n", certUni.write());
+
+        // write keys to fs
+        std::ofstream certOut(cert.string());
+        certOut << certUni.write(4,0) << std::endl;
     }
-
-    cert /= "keys.json";
-
-    UniValue certUni(UniValue::VOBJ);
-    UniValue data(UniValue::VOBJ);
-
-    data.push_back(Pair("public",publicKey));
-    data.push_back(Pair("private",privateKey));
-
-    LogPrintf("data write: %s\n", data.write());
-
-    certUni.push_back(Pair("type","keys"));
-    certUni.push_back(Pair("data", data));
-
-    LogPrintf("ZMQ: cert json: %s\n", certUni.write());
-
-    // write keys to fs
-    std::ofstream certOut(cert.string());
-    certOut << certUni.write(4,0) << std::endl;
 
     return true;
 }
@@ -162,15 +163,15 @@ vector<string> CZMQAbstract::readCert(KeyType type){
     return result;
 }
 
-bool CZMQAbstract::createCerts(){
+bool CZMQAbstract::createCerts(bool reset){
     // Generate client/server keys for auth over zmq.
     char serverPublicKey[41], serverSecretKey[41];
     char clientPublicKey[41], clientSecretKey[41];
     zmq_curve_keypair(serverPublicKey, serverSecretKey);
     zmq_curve_keypair(clientPublicKey, clientSecretKey);
 
-    writeCert(serverPublicKey, serverSecretKey, Server);
-    writeCert(clientPublicKey, clientSecretKey, Client);
+    writeCert(serverPublicKey, serverSecretKey, Server, reset);
+    writeCert(clientPublicKey, clientSecretKey, Client, reset);
 
     return true;
 }

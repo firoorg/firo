@@ -43,8 +43,8 @@ public:
 
     /* static certificate handling */
     static vector<string> readCert(KeyType type);
-    static bool writeCert(string publicKey, string privateKey, KeyType type);
-    static bool createCerts();
+    static bool writeCert(string publicKey, string privateKey, KeyType type, bool reset=false);
+    static bool createCerts(bool reset=false);
     static std::string GetAuthType(KeyType type);
 
     /* define pure virtual functions (implemented by every derived instance) */ 

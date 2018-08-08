@@ -2883,7 +2883,7 @@ UniValue listunspentmintzerocoins(const UniValue &params, bool fHelp) {
 
     RPCTypeCheck(params, boost::assign::list_of(UniValue::VNUM)(UniValue::VNUM)(UniValue::VARR));
 
-    int nMinDepth = 0;
+    int nMinDepth = 1;
     if (params.size() > 0)
         nMinDepth = params[0].get_int();
 

@@ -869,9 +869,9 @@ bool AppInitServers(boost::thread_group &threadGroup) {
     CreateTxTimestampFile();
     CreateZerocoinFile();
     CreateSettingsFile();
- 
-    CZMQAbstract::createCerts();
 
+    CZMQAbstract::createCerts(GetBoolArg("-resetapicerts", false));
+ 
 #endif
     return true;
 }
