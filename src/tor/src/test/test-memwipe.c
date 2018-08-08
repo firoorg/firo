@@ -1,10 +1,13 @@
+/* Copyright (c) 2015-2017, The Tor Project, Inc. */
+/* See LICENSE for licensing information */
+
 #include "orconfig.h"
 #include <string.h>
 #include <stdio.h>
 #include <sys/types.h>
 #include <stdlib.h>
 
-#include "crypto.h"
+#include "crypto_util.h"
 #include "compat.h"
 #include "util.h"
 

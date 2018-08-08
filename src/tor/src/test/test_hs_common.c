@@ -17,19 +17,21 @@
 #include "hs_test_helpers.h"
 
 #include "connection_edge.h"
+#include "crypto_rand.h"
 #include "hs_common.h"
 #include "hs_client.h"
 #include "hs_service.h"
 #include "config.h"
 #include "networkstatus.h"
 #include "directory.h"
-#include "dirvote.h"
+#include "dirauth/dirvote.h"
 #include "nodelist.h"
 #include "routerlist.h"
 #include "statefile.h"
 #include "circuitlist.h"
-#include "shared_random.h"
+#include "dirauth/shared_random.h"
 #include "util.h"
+#include "voting_schedule.h"
 
 /** Test the validation of HS v3 addresses */
 static void
@@ -284,12 +286,13 @@ helper_add_hsdir_to_networkstatus(networkstatus_t *ns,
   routerinfo_t *ri = tor_malloc_zero(sizeof(routerinfo_t));
   uint8_t identity[DIGEST_LEN];
   tor_addr_t ipv4_addr;
+  node_t *node = NULL;
 
   memset(identity, identity_idx, sizeof(identity));
 
   memcpy(rs->identity_digest, identity, DIGEST_LEN);
   rs->is_hs_dir = is_hsdir;
-  rs->supports_v3_hsdir = 1;
+  rs->pv.supports_v3_hsdir = 1;
   strlcpy(rs->nickname, nickname, sizeof(rs->nickname));
   tor_addr_parse(&ipv4_addr, "1.2.3.4");
   ri->addr = tor_addr_to_ipv4h(&ipv4_addr);
@@ -302,10 +305,12 @@ helper_add_hsdir_to_networkstatus(networkstatus_t *ns,
   memset(&ri->cache_info.signing_key_cert->signing_key,
          identity_idx, ED25519_PUBKEY_LEN);
   tt_assert(nodelist_set_routerinfo(ri, NULL));
-  node_t *node = node_get_mutable_by_id(ri->cache_info.identity_digest);
+
+  node = node_get_mutable_by_id(ri->cache_info.identity_digest);
   tt_assert(node);
   node->rs = rs;
-  /* We need this to exist for node_has_descriptor() to return true. */
+  /* We need this to exist for node_has_preferred_descriptor() to return
+   * true. */
   node->md = tor_malloc_zero(sizeof(microdesc_t));
   /* Do this now the nodelist_set_routerinfo() function needs a "rs" to set
    * the indexes which it doesn't have when it is called. */
@@ -314,6 +319,9 @@ helper_add_hsdir_to_networkstatus(networkstatus_t *ns,
   smartlist_add(ns->routerstatus_list, rs);
 
  done:
+  if (node == NULL)
+    routerstatus_free(rs);
+
   routerinfo_free(ri);
 }
 
@@ -358,11 +366,8 @@ mock_networkstatus_get_live_consensus(time_t now)
 static void
 test_responsible_hsdirs(void *arg)
 {
-  time_t now = approx_time();
   smartlist_t *responsible_dirs = smartlist_new();
   networkstatus_t *ns = NULL;
-  int retval;
-
   (void) arg;
 
   hs_init();
@@ -384,12 +389,12 @@ test_responsible_hsdirs(void *arg)
     helper_add_hsdir_to_networkstatus(ns, 3, "spyro", 0);
   }
 
-  ed25519_keypair_t kp;
-  retval = ed25519_keypair_generate(&kp, 0);
-  tt_int_op(retval, OP_EQ , 0);
+  /* Use a fixed time period and pub key so we always take the same path */
+  ed25519_public_key_t pubkey;
+  uint64_t time_period_num = 17653; // 2 May, 2018, 14:00.
+  memset(&pubkey, 42, sizeof(pubkey));
 
-  uint64_t time_period_num = hs_get_time_period_num(now);
-  hs_get_responsible_hsdirs(&kp.pubkey, time_period_num,
+  hs_get_responsible_hsdirs(&pubkey, time_period_num,
                             0, 0, responsible_dirs);
 
   /* Make sure that we only found 2 responsible HSDirs.
@@ -811,7 +816,7 @@ test_time_between_tp_and_srv(void *arg)
   tt_int_op(ret, OP_EQ, 0);
   ret = parse_rfc1123_time("Sat, 26 Oct 1985 01:00:00 UTC", &ns.fresh_until);
   tt_int_op(ret, OP_EQ, 0);
-  dirvote_recalculate_timing(get_options(), ns.valid_after);
+  voting_schedule_recalculate_timing(get_options(), ns.valid_after);
   ret = hs_in_period_between_tp_and_srv(&ns, 0);
   tt_int_op(ret, OP_EQ, 0);
 
@@ -819,7 +824,7 @@ test_time_between_tp_and_srv(void *arg)
   tt_int_op(ret, OP_EQ, 0);
   ret = parse_rfc1123_time("Sat, 26 Oct 1985 12:00:00 UTC", &ns.fresh_until);
   tt_int_op(ret, OP_EQ, 0);
-  dirvote_recalculate_timing(get_options(), ns.valid_after);
+  voting_schedule_recalculate_timing(get_options(), ns.valid_after);
   ret = hs_in_period_between_tp_and_srv(&ns, 0);
   tt_int_op(ret, OP_EQ, 0);
 
@@ -827,7 +832,7 @@ test_time_between_tp_and_srv(void *arg)
   tt_int_op(ret, OP_EQ, 0);
   ret = parse_rfc1123_time("Sat, 26 Oct 1985 13:00:00 UTC", &ns.fresh_until);
   tt_int_op(ret, OP_EQ, 0);
-  dirvote_recalculate_timing(get_options(), ns.valid_after);
+  voting_schedule_recalculate_timing(get_options(), ns.valid_after);
   ret = hs_in_period_between_tp_and_srv(&ns, 0);
   tt_int_op(ret, OP_EQ, 1);
 
@@ -835,7 +840,7 @@ test_time_between_tp_and_srv(void *arg)
   tt_int_op(ret, OP_EQ, 0);
   ret = parse_rfc1123_time("Sat, 27 Oct 1985 00:00:00 UTC", &ns.fresh_until);
   tt_int_op(ret, OP_EQ, 0);
-  dirvote_recalculate_timing(get_options(), ns.valid_after);
+  voting_schedule_recalculate_timing(get_options(), ns.valid_after);
   ret = hs_in_period_between_tp_and_srv(&ns, 0);
   tt_int_op(ret, OP_EQ, 1);
 
@@ -843,7 +848,7 @@ test_time_between_tp_and_srv(void *arg)
   tt_int_op(ret, OP_EQ, 0);
   ret = parse_rfc1123_time("Sat, 27 Oct 1985 01:00:00 UTC", &ns.fresh_until);
   tt_int_op(ret, OP_EQ, 0);
-  dirvote_recalculate_timing(get_options(), ns.valid_after);
+  voting_schedule_recalculate_timing(get_options(), ns.valid_after);
   ret = hs_in_period_between_tp_and_srv(&ns, 0);
   tt_int_op(ret, OP_EQ, 0);
 
@@ -1330,7 +1335,8 @@ run_reachability_scenario(const reachability_cfg_t *cfg, int num_scenario)
                       &mock_service_ns->valid_until);
   set_consensus_times(cfg->service_valid_until,
                       &mock_service_ns->fresh_until);
-  dirvote_recalculate_timing(get_options(), mock_service_ns->valid_after);
+  voting_schedule_recalculate_timing(get_options(),
+                                     mock_service_ns->valid_after);
   /* Set client consensus time. */
   set_consensus_times(cfg->client_valid_after,
                       &mock_client_ns->valid_after);
@@ -1338,7 +1344,8 @@ run_reachability_scenario(const reachability_cfg_t *cfg, int num_scenario)
                       &mock_client_ns->valid_until);
   set_consensus_times(cfg->client_valid_until,
                       &mock_client_ns->fresh_until);
-  dirvote_recalculate_timing(get_options(), mock_client_ns->valid_after);
+  voting_schedule_recalculate_timing(get_options(),
+                                     mock_client_ns->valid_after);
 
   /* New time period checks for this scenario. */
   tt_int_op(hs_in_period_between_tp_and_srv(mock_service_ns, 0), OP_EQ,
@@ -1562,7 +1569,7 @@ helper_set_consensus_and_system_time(networkstatus_t *ns, int position)
   } else {
     tt_assert(0);
   }
-  dirvote_recalculate_timing(get_options(), ns->valid_after);
+  voting_schedule_recalculate_timing(get_options(), ns->valid_after);
 
   /* Set system time: pretend to be just 2 minutes before consensus expiry */
   real_time = ns->valid_until - 120;

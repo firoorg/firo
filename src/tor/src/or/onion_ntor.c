@@ -22,13 +22,15 @@
 
 #define ONION_NTOR_PRIVATE
 #include "crypto.h"
+#include "crypto_digest.h"
+#include "crypto_util.h"
 #include "onion_ntor.h"
 #include "torlog.h"
 #include "util.h"
 
 /** Free storage held in an ntor handshake state. */
 void
-ntor_handshake_state_free(ntor_handshake_state_t *state)
+ntor_handshake_state_free_(ntor_handshake_state_t *state)
 {
   if (!state)
     return;

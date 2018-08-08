@@ -54,12 +54,52 @@ If you have any external modules as dependencies (e.g. `extern crate
 libc;`), you MUST declare them in your crate's `lib.rs` and NOT in any
 other module.
 
- Dependencies
---------------
+ Dependencies and versions
+---------------------------
 
 In general, we use modules from only the Rust standard library
 whenever possible. We will review including external crates on a
 case-by-case basis.
+
+If a crate only contains traits meant for compatibility between Rust
+crates, such as [the digest crate](https://crates.io/crates/digest) or
+[the failure crate](https://crates.io/crates/failure), it is very likely
+permissible to add it as a dependency.  However, a brief review should
+be conducted as to the usefulness of implementing external traits
+(i.e. how widespread is the usage, how many other crates either
+implement the traits or have trait bounds based upon them), as well as
+the stability of the traits (i.e. if the trait is going to change, we'll
+potentially have to re-do all our implementations of it).
+
+For large external libraries, especially which implement features which
+would be labour-intensive to reproduce/maintain ourselves, such as
+cryptographic or mathematical/statistics libraries, only crates which
+have stabilised to 1.0.0 should be considered, however, again, we may
+make exceptions on a case-by-case basis.
+
+Currently, Tor requires that you use the latest stable Rust version. At
+some point in the future, we will freeze on a given stable Rust version,
+to ensure backward compatibility with stable distributions that ship it.
+
+ Updating/Adding Dependencies
+------------------------------
+
+To add/remove/update dependencies, first add your dependencies,
+exactly specifying their versions, into the appropriate *crate-level*
+`Cargo.toml` in `src/rust/` (i.e. *not* `/src/rust/Cargo.toml`, but
+instead the one for your crate).  Also, investigate whether your
+dependency has any optional dependencies which are unnecessary but are
+enabled by default.  If so, you'll likely be able to enable/disable
+them via some feature, e.g.:
+
+```toml
+[dependencies]
+foo = { version = "1.0.0", default-features = false }
+```
+
+Next, run `/scripts/maint/updateRustDependencies.sh`.  Then, go into
+`src/ext/rust` and commit the changes to the `tor-rust-dependencies`
+repo.
 
  Documentation
 ---------------
@@ -284,12 +324,26 @@ Here are some additional bits of advice and rules:
             }
         }
 
-3. Pass only integer types and bytes over the boundary
+3. Pass only C-compatible primitive types and bytes over the boundary
 
-   The only non-integer type which may cross the FFI boundary is
+   Rust's C-compatible primitive types are integers and floats.
+   These types are declared in the [libc crate](https://doc.rust-lang.org/libc/x86_64-unknown-linux-gnu/libc/index.html#types).
+   Most Rust objects have different [representations](https://doc.rust-lang.org/libc/x86_64-unknown-linux-gnu/libc/index.html#types)
+   in C and Rust, so they can't be passed using FFI.
+
+   Tor currently uses the following Rust primitive types from libc for FFI:
+   * defined-size integers: `uint32_t`
+   * native-sized integers: `c_int`
+   * native-sized floats: `c_double`
+   * native-sized raw pointers: `* c_void`, `* c_char`, `** c_char`
+
+   TODO: C smartlist to Stringlist conversion using FFI
+
+   The only non-primitive type which may cross the FFI boundary is
    bytes, e.g. `&[u8]`.  This SHOULD be done on the Rust side by
-   passing a pointer (`*mut libc::c_char`) and a length
-   (`libc::size_t`).
+   passing a pointer (`*mut libc::c_char`). The length can be passed
+   explicitly (`libc::size_t`), or the string can be NUL-byte terminated
+   C string.
 
    One might be tempted to do this via doing
    `CString::new("blah").unwrap().into_raw()`. This has several problems:

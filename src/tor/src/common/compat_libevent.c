@@ -11,7 +11,7 @@
 #define COMPAT_LIBEVENT_PRIVATE
 #include "compat_libevent.h"
 
-#include "crypto.h"
+#include "crypto_rand.h"
 
 #include "util.h"
 #include "torlog.h"
@@ -69,7 +69,7 @@ suppress_libevent_log_msg(const char *msg)
 
 /* Wrapper for event_free() that tolerates tor_event_free(NULL) */
 void
-tor_event_free(struct event *ev)
+tor_event_free_(struct event *ev)
 {
   if (ev == NULL)
     return;
@@ -78,6 +78,43 @@ tor_event_free(struct event *ev)
 
 /** Global event base for use by the main thread. */
 static struct event_base *the_event_base = NULL;
+
+/**
+ * @defgroup postloop post-loop event helpers
+ *
+ * If we're not careful, Libevent can susceptible to infinite event chains:
+ * one event can activate another, whose callback activates another, whose
+ * callback activates another, ad infinitum.  While this is happening,
+ * Libevent won't be checking timeouts, socket-based events, signals, and so
+ * on.
+ *
+ * We solve this problem by marking some events as "post-loop".  A post-loop
+ * event behaves like any ordinary event, but any events that _it_ activates
+ * cannot run until Libevent has checked for other events at least once.
+ *
+ * @{ */
+
+/**
+ * An event that stops Libevent from running any more events on the current
+ * iteration of its loop, until it has re-checked for socket events, signal
+ * events, timeouts, etc.
+ */
+static struct event *rescan_mainloop_ev = NULL;
+
+/**
+ * Callback to implement rescan_mainloop_ev: it simply exits the mainloop,
+ * and relies on Tor to re-enter the mainloop since no error has occurred.
+ */
+static void
+rescan_mainloop_cb(evutil_socket_t fd, short events, void *arg)
+{
+  (void)fd;
+  (void)events;
+  struct event_base *the_base = arg;
+  event_base_loopbreak(the_base);
+}
+
+/** @} */
 
 /* This is what passes for version detection on OSX.  We set
  * MACOSX_KQUEUE_IS_BROKEN to true iff we're on a version of OSX before
@@ -126,7 +163,16 @@ tor_libevent_initialize(tor_libevent_cfg *torcfg)
   if (!the_event_base) {
     /* LCOV_EXCL_START */
     log_err(LD_GENERAL, "Unable to initialize Libevent: cannot continue.");
-    exit(1);
+    exit(1); // exit ok: libevent is broken.
+    /* LCOV_EXCL_STOP */
+  }
+
+  rescan_mainloop_ev = event_new(the_event_base, -1, 0,
+                                 rescan_mainloop_cb, the_event_base);
+  if (!rescan_mainloop_ev) {
+    /* LCOV_EXCL_START */
+    log_err(LD_GENERAL, "Unable to create rescan event: cannot continue.");
+    exit(1); // exit ok: libevent is broken.
     /* LCOV_EXCL_STOP */
   }
 
@@ -207,18 +253,214 @@ periodic_timer_new(struct event_base *base,
   }
   timer->cb = cb;
   timer->data = data;
-  event_add(timer->ev, (struct timeval *)tv); /*drop const for old libevent*/
+  periodic_timer_launch(timer, tv);
   return timer;
+}
+
+/**
+ * Launch the timer <b>timer</b> to run at <b>tv</b> from now, and every
+ * <b>tv</b> thereafter.
+ *
+ * If the timer is already enabled, this function does nothing.
+ */
+void
+periodic_timer_launch(periodic_timer_t *timer, const struct timeval *tv)
+{
+  tor_assert(timer);
+  if (event_pending(timer->ev, EV_TIMEOUT, NULL))
+    return;
+  event_add(timer->ev, tv);
+}
+
+/**
+ * Disable the provided <b>timer</b>, but do not free it.
+ *
+ * You can reenable the same timer later with periodic_timer_launch.
+ *
+ * If the timer is already disabled, this function does nothing.
+ */
+void
+periodic_timer_disable(periodic_timer_t *timer)
+{
+  tor_assert(timer);
+  (void) event_del(timer->ev);
 }
 
 /** Stop and free a periodic timer */
 void
-periodic_timer_free(periodic_timer_t *timer)
+periodic_timer_free_(periodic_timer_t *timer)
 {
   if (!timer)
     return;
   tor_event_free(timer->ev);
   tor_free(timer);
+}
+
+/**
+ * Type used to represent events that run directly from the main loop,
+ * either because they are activated from elsewhere in the code, or
+ * because they have a simple timeout.
+ *
+ * We use this type to avoid exposing Libevent's API throughout the rest
+ * of the codebase.
+ *
+ * This type can't be used for all events: it doesn't handle events that
+ * are triggered by signals or by sockets.
+ */
+struct mainloop_event_t {
+  struct event *ev;
+  void (*cb)(mainloop_event_t *, void *);
+  void *userdata;
+};
+
+/**
+ * Internal: Implements mainloop event using a libevent event.
+ */
+static void
+mainloop_event_cb(evutil_socket_t fd, short what, void *arg)
+{
+  (void)fd;
+  (void)what;
+  mainloop_event_t *mev = arg;
+  mev->cb(mev, mev->userdata);
+}
+
+/**
+ * As mainloop_event_cb, but implements a post-loop event.
+ */
+static void
+mainloop_event_postloop_cb(evutil_socket_t fd, short what, void *arg)
+{
+  (void)fd;
+  (void)what;
+
+  /* Note that if rescan_mainloop_ev is already activated,
+   * event_active() will do nothing: only the first post-loop event that
+   * happens each time through the event loop will cause it to be
+   * activated.
+   *
+   * Because event_active() puts events on a FIFO queue, every event
+   * that is made active _after_ rescan_mainloop_ev will get its
+   * callback run after rescan_mainloop_cb is called -- that is, on the
+   * next iteration of the loop.
+   */
+  event_active(rescan_mainloop_ev, EV_READ, 1);
+
+  mainloop_event_t *mev = arg;
+  mev->cb(mev, mev->userdata);
+}
+
+/**
+ * Helper for mainloop_event_new() and mainloop_event_postloop_new().
+ */
+static mainloop_event_t *
+mainloop_event_new_impl(int postloop,
+                        void (*cb)(mainloop_event_t *, void *),
+                        void *userdata)
+{
+  tor_assert(cb);
+
+  struct event_base *base = tor_libevent_get_base();
+  mainloop_event_t *mev = tor_malloc_zero(sizeof(mainloop_event_t));
+  mev->ev = tor_event_new(base, -1, 0,
+                  postloop ? mainloop_event_postloop_cb : mainloop_event_cb,
+                  mev);
+  tor_assert(mev->ev);
+  mev->cb = cb;
+  mev->userdata = userdata;
+  return mev;
+}
+
+/**
+ * Create and return a new mainloop_event_t to run the function <b>cb</b>.
+ *
+ * When run, the callback function will be passed the mainloop_event_t
+ * and <b>userdata</b> as its arguments.  The <b>userdata</b> pointer
+ * must remain valid for as long as the mainloop_event_t event exists:
+ * it is your responsibility to free it.
+ *
+ * The event is not scheduled by default: Use mainloop_event_activate()
+ * or mainloop_event_schedule() to make it run.
+ */
+mainloop_event_t *
+mainloop_event_new(void (*cb)(mainloop_event_t *, void *),
+                   void *userdata)
+{
+  return mainloop_event_new_impl(0, cb, userdata);
+}
+
+/**
+ * As mainloop_event_new(), but create a post-loop event.
+ *
+ * A post-loop event behaves like any ordinary event, but any events
+ * that _it_ activates cannot run until Libevent has checked for other
+ * events at least once.
+ */
+mainloop_event_t *
+mainloop_event_postloop_new(void (*cb)(mainloop_event_t *, void *),
+                            void *userdata)
+{
+  return mainloop_event_new_impl(1, cb, userdata);
+}
+
+/**
+ * Schedule <b>event</b> to run in the main loop, immediately.  If it is
+ * not scheduled, it will run anyway. If it is already scheduled to run
+ * later, it will run now instead.  This function will have no effect if
+ * the event is already scheduled to run.
+ *
+ * This function may only be called from the main thread.
+ */
+void
+mainloop_event_activate(mainloop_event_t *event)
+{
+  tor_assert(event);
+  event_active(event->ev, EV_READ, 1);
+}
+
+/** Schedule <b>event</b> to run in the main loop, after a delay of <b>tv</b>.
+ *
+ * If the event is scheduled for a different time, cancel it and run
+ * after this delay instead.  If the event is currently pending to run
+ * <em>now</b>, has no effect.
+ *
+ * Do not call this function with <b>tv</b> == NULL -- use
+ * mainloop_event_activate() instead.
+ *
+ * This function may only be called from the main thread.
+ */
+int
+mainloop_event_schedule(mainloop_event_t *event, const struct timeval *tv)
+{
+  tor_assert(event);
+  if (BUG(tv == NULL)) {
+    // LCOV_EXCL_START
+    mainloop_event_activate(event);
+    return 0;
+    // LCOV_EXCL_STOP
+  }
+  return event_add(event->ev, tv);
+}
+
+/** Cancel <b>event</b> if it is currently active or pending. (Do nothing if
+ * the event is not currently active or pending.) */
+void
+mainloop_event_cancel(mainloop_event_t *event)
+{
+  if (!event)
+    return;
+  (void) event_del(event->ev);
+}
+
+/** Cancel <b>event</b> and release all storage associated with it. */
+void
+mainloop_event_free_(mainloop_event_t *event)
+{
+  if (!event)
+    return;
+  tor_event_free(event->ev);
+  memset(event, 0xb8, sizeof(*event));
+  tor_free(event);
 }
 
 int
@@ -237,51 +479,51 @@ tor_init_libevent_rng(void)
   return rv;
 }
 
-#if defined(LIBEVENT_VERSION_NUMBER) &&         \
-  LIBEVENT_VERSION_NUMBER >= V(2,1,1) &&        \
-  !defined(TOR_UNIT_TESTS)
+/**
+ * Un-initialize libevent in preparation for an exit
+ */
 void
-tor_gettimeofday_cached(struct timeval *tv)
+tor_libevent_free_all(void)
 {
-  event_base_gettimeofday_cached(the_event_base, tv);
-}
-void
-tor_gettimeofday_cache_clear(void)
-{
-  event_base_update_cache_time(the_event_base);
-}
-#else /* !(defined(LIBEVENT_VERSION_NUMBER) &&         ...) */
-/** Cache the current hi-res time; the cache gets reset when libevent
- * calls us. */
-static struct timeval cached_time_hires = {0, 0};
-
-/** Return a fairly recent view of the current time. */
-void
-tor_gettimeofday_cached(struct timeval *tv)
-{
-  if (cached_time_hires.tv_sec == 0) {
-    tor_gettimeofday(&cached_time_hires);
-  }
-  *tv = cached_time_hires;
+  tor_event_free(rescan_mainloop_ev);
+  if (the_event_base)
+    event_base_free(the_event_base);
+  the_event_base = NULL;
 }
 
-/** Reset the cached view of the current time, so that the next time we try
- * to learn it, we will get an up-to-date value. */
-void
-tor_gettimeofday_cache_clear(void)
+/**
+ * Run the event loop for the provided event_base, handling events until
+ * something stops it.  If <b>once</b> is set, then just poll-and-run
+ * once, then exit.  Return 0 on success, -1 if an error occurred, or 1
+ * if we exited because no events were pending or active.
+ *
+ * This isn't reentrant or multithreaded.
+ */
+int
+tor_libevent_run_event_loop(struct event_base *base, int once)
 {
-  cached_time_hires.tv_sec = 0;
+  const int flags = once ? EVLOOP_ONCE : 0;
+  return event_base_loop(base, flags);
 }
 
-#ifdef TOR_UNIT_TESTS
-/** For testing: force-update the cached time to a given value. */
+/** Tell the event loop to exit after <b>delay</b>.  If <b>delay</b> is NULL,
+ * instead exit after we're done running the currently active events. */
 void
-tor_gettimeofday_cache_set(const struct timeval *tv)
+tor_libevent_exit_loop_after_delay(struct event_base *base,
+                                   const struct timeval *delay)
 {
-  tor_assert(tv);
-  memcpy(&cached_time_hires, tv, sizeof(*tv));
+  event_base_loopexit(base, delay);
 }
 
+/** Tell the event loop to exit after running whichever callback is currently
+ * active. */
+void
+tor_libevent_exit_loop_after_callback(struct event_base *base)
+{
+  event_base_loopbreak(base);
+}
+
+#if defined(TOR_UNIT_TESTS)
 /** For testing: called post-fork to make libevent reinitialize
  * kernel structures. */
 void
@@ -291,5 +533,4 @@ tor_libevent_postfork(void)
   tor_assert(r == 0);
 }
 #endif /* defined(TOR_UNIT_TESTS) */
-#endif /* defined(LIBEVENT_VERSION_NUMBER) &&         ... */
 

@@ -238,8 +238,8 @@ get_microdesc_cache_noload(void)
   if (PREDICT_UNLIKELY(the_microdesc_cache==NULL)) {
     microdesc_cache_t *cache = tor_malloc_zero(sizeof(*cache));
     HT_INIT(microdesc_map, &cache->map);
-    cache->cache_fname = get_datadir_fname("cached-microdescs");
-    cache->journal_fname = get_datadir_fname("cached-microdescs.new");
+    cache->cache_fname = get_cachedir_fname("cached-microdescs");
+    cache->journal_fname = get_cachedir_fname("cached-microdescs.new");
     the_microdesc_cache = cache;
   }
   return the_microdesc_cache;
@@ -920,8 +920,7 @@ microdesc_list_missing_digest256(networkstatus_t *ns, microdesc_cache_t *cache,
     if (microdesc_cache_lookup_by_digest256(cache, rs->descriptor_digest))
       continue;
     if (downloadable_only &&
-        !download_status_is_ready(&rs->dl_status, now,
-                  get_options()->TestingMicrodescMaxDownloadTries))
+        !download_status_is_ready(&rs->dl_status, now))
       continue;
     if (skip && digest256map_get(skip, (const uint8_t*)rs->descriptor_digest))
       continue;

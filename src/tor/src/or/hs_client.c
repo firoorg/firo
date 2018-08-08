@@ -9,30 +9,31 @@
 #define HS_CLIENT_PRIVATE
 
 #include "or.h"
-#include "hs_circuit.h"
-#include "hs_ident.h"
-#include "connection_edge.h"
-#include "container.h"
-#include "rendclient.h"
-#include "hs_descriptor.h"
-#include "hs_cache.h"
-#include "hs_cell.h"
-#include "hs_ident.h"
-#include "config.h"
-#include "directory.h"
-#include "hs_client.h"
-#include "router.h"
-#include "routerset.h"
+#include "circpathbias.h"
+#include "circuitbuild.h"
 #include "circuitlist.h"
 #include "circuituse.h"
+#include "config.h"
 #include "connection.h"
-#include "nodelist.h"
-#include "circpathbias.h"
-#include "connection.h"
+#include "connection_edge.h"
+#include "container.h"
+#include "crypto_rand.h"
+#include "crypto_util.h"
+#include "directory.h"
+#include "hs_cache.h"
+#include "hs_cell.h"
+#include "hs_circuit.h"
+#include "hs_client.h"
+#include "hs_control.h"
+#include "hs_descriptor.h"
+#include "hs_ident.h"
 #include "hs_ntor.h"
-#include "circuitbuild.h"
 #include "networkstatus.h"
+#include "nodelist.h"
 #include "reasons.h"
+#include "rendclient.h"
+#include "router.h"
+#include "routerset.h"
 
 /* Return a human-readable string for the client fetch status code. */
 static const char *
@@ -349,6 +350,10 @@ directory_launch_v3_desc_fetch(const ed25519_public_key_t *onion_identity_pk,
            safe_str_client(base64_blinded_pubkey),
            safe_str_client(routerstatus_describe(hsdir)));
 
+  /* Fire a REQUESTED event on the control port. */
+  hs_control_desc_event_requested(onion_identity_pk, base64_blinded_pubkey,
+                                  hsdir);
+
   /* Cleanup memory. */
   memwipe(&blinded_pubkey, 0, sizeof(blinded_pubkey));
   memwipe(base64_blinded_pubkey, 0, sizeof(base64_blinded_pubkey));
@@ -365,13 +370,11 @@ pick_hsdir_v3(const ed25519_public_key_t *onion_identity_pk)
   int retval;
   char base64_blinded_pubkey[ED25519_BASE64_LEN + 1];
   uint64_t current_time_period = hs_get_time_period_num(0);
-  smartlist_t *responsible_hsdirs;
+  smartlist_t *responsible_hsdirs = NULL;
   ed25519_public_key_t blinded_pubkey;
   routerstatus_t *hsdir_rs = NULL;
 
   tor_assert(onion_identity_pk);
-
-  responsible_hsdirs = smartlist_new();
 
   /* Get blinded pubkey of hidden service */
   hs_build_blinded_pubkey(onion_identity_pk, NULL, 0,
@@ -383,6 +386,8 @@ pick_hsdir_v3(const ed25519_public_key_t *onion_identity_pk)
   }
 
   /* Get responsible hsdirs of service for this time period */
+  responsible_hsdirs = smartlist_new();
+
   hs_get_responsible_hsdirs(&blinded_pubkey, current_time_period,
                             0, 1, responsible_hsdirs);
 
@@ -711,7 +716,7 @@ desc_intro_point_to_extend_info(const hs_desc_intro_point_t *ip)
     smartlist_add(lspecs, lspec);
   } SMARTLIST_FOREACH_END(desc_lspec);
 
-  /* Explicitely put the direct connection option to 0 because this is client
+  /* Explicitly put the direct connection option to 0 because this is client
    * side and there is no such thing as a non anonymous client. */
   ei = hs_get_extend_info_from_lspecs(lspecs, &ip->onion_key, 0);
 
@@ -940,7 +945,8 @@ handle_introduce_ack_success(origin_circuit_t *intro_circ)
 
   /* Get the rendezvous circuit for this rendezvous cookie. */
   uint8_t *rendezvous_cookie = intro_circ->hs_ident->rendezvous_cookie;
-  rend_circ = hs_circuitmap_get_rend_circ_client_side(rendezvous_cookie);
+  rend_circ =
+  hs_circuitmap_get_established_rend_circ_client_side(rendezvous_cookie);
   if (rend_circ == NULL) {
     log_warn(LD_REND, "Can't find any rendezvous circuit. Stopping");
     goto end;
@@ -1229,10 +1235,12 @@ hs_client_decode_descriptor(const char *desc_str,
   /* Make sure the descriptor signing key cross certifies with the computed
    * blinded key. Without this validation, anyone knowing the subcredential
    * and onion address can forge a descriptor. */
-  if (tor_cert_checksig((*desc)->plaintext_data.signing_key_cert,
+  tor_cert_t *cert = (*desc)->plaintext_data.signing_key_cert;
+  if (tor_cert_checksig(cert,
                         &blinded_pubkey, approx_time()) < 0) {
     log_warn(LD_GENERAL, "Descriptor signing key certificate signature "
-                         "doesn't validate with computed blinded key.");
+             "doesn't validate with computed blinded key: %s",
+             tor_cert_describe_signature_status(cert));
     goto err;
   }
 
@@ -1431,8 +1439,8 @@ hs_client_desc_has_arrived(const hs_ident_dir_conn_t *ident)
      * connection is considered "fresh" and can continue without being closed
      * too early. */
     base_conn->timestamp_created = now;
-    base_conn->timestamp_lastread = now;
-    base_conn->timestamp_lastwritten = now;
+    base_conn->timestamp_last_read_allowed = now;
+    base_conn->timestamp_last_write_allowed = now;
     /* Change connection's state into waiting for a circuit. */
     base_conn->state = AP_CONN_STATE_CIRCUIT_WAIT;
 

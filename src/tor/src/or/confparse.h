@@ -28,7 +28,9 @@ typedef enum config_type_t {
                               * optional whitespace. */
   CONFIG_TYPE_CSV_INTERVAL, /**< A list of strings, separated by commas and
                               * optional whitespace, representing intervals in
-                              * seconds, with optional units */
+                              * seconds, with optional units.  We allow
+                              * multiple values here for legacy reasons, but
+                              * ignore every value after the first. */
   CONFIG_TYPE_LINELIST,     /**< Uninterpreted config lines */
   CONFIG_TYPE_LINELIST_S,   /**< Uninterpreted, context-sensitive config lines,
                              * mixed with other keywords. */
@@ -62,13 +64,13 @@ typedef union {
   int *AUTOBOOL;
   time_t *ISOTIME;
   smartlist_t **CSV;
-  smartlist_t **CSV_INTERVAL;
+  int *CSV_INTERVAL;
   config_line_t **LINELIST;
   config_line_t **LINELIST_S;
   config_line_t **LINELIST_V;
   routerset_t **ROUTERSET;
 } confparse_dummy_values_t;
-#endif
+#endif /* defined(TOR_UNIT_TESTS) */
 
 /** An abbreviation for a configuration option allowed on the command line. */
 typedef struct config_abbrev_t {
@@ -132,13 +134,13 @@ typedef struct config_var_t {
   { NULL, CONFIG_TYPE_OBSOLETE, 0, NULL, { .INT=NULL } }
 #define DUMMY_TYPECHECK_INSTANCE(tp)            \
   static tp tp ## _dummy
-#else
+#else /* !(defined(TOR_UNIT_TESTS)) */
 #define CONF_TEST_MEMBERS(tp, conftype, member)
 #define END_OF_CONFIG_VARS { NULL, CONFIG_TYPE_OBSOLETE, 0, NULL }
 /* Repeatedly declarable incomplete struct to absorb redundant semicolons */
 #define DUMMY_TYPECHECK_INSTANCE(tp)            \
   struct tor_semicolon_eater
-#endif
+#endif /* defined(TOR_UNIT_TESTS) */
 
 /** Type of a callback to validate whether a given configuration is
  * well-formed and consistent. See options_trial_assign() for documentation
@@ -177,7 +179,12 @@ typedef struct config_format_t {
 #define CAL_WARN_DEPRECATIONS (1u<<2)
 
 void *config_new(const config_format_t *fmt);
-void config_free(const config_format_t *fmt, void *options);
+void config_free_(const config_format_t *fmt, void *options);
+#define config_free(fmt, options) do {                \
+    config_free_((fmt), (options));                   \
+    (options) = NULL;                                 \
+  } while (0)
+
 config_line_t *config_get_assigned_option(const config_format_t *fmt,
                                           const void *options, const char *key,
                                           int escape_val);
@@ -202,6 +209,14 @@ const char *config_expand_abbrev(const config_format_t *fmt,
                                  const char *option,
                                  int command_line, int warn_obsolete);
 void warn_deprecated_option(const char *what, const char *why);
+
+/* Helper macros to compare an option across two configuration objects */
+#define CFG_EQ_BOOL(a,b,opt) ((a)->opt == (b)->opt)
+#define CFG_EQ_INT(a,b,opt) ((a)->opt == (b)->opt)
+#define CFG_EQ_STRING(a,b,opt) (!strcmp_opt((a)->opt, (b)->opt))
+#define CFG_EQ_SMARTLIST(a,b,opt) smartlist_strings_eq((a)->opt, (b)->opt)
+#define CFG_EQ_LINELIST(a,b,opt) config_lines_eq((a)->opt, (b)->opt)
+#define CFG_EQ_ROUTERSET(a,b,opt) routerset_equal((a)->opt, (b)->opt)
 
 #endif /* !defined(TOR_CONFPARSE_H) */
 

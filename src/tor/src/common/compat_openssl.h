@@ -8,11 +8,12 @@
 #define TOR_COMPAT_OPENSSL_H
 
 #include <openssl/opensslv.h>
+#include "crypto_openssl_mgt.h"
 
 /**
  * \file compat_openssl.h
  *
- * \brief compatability definitions for working with different openssl forks
+ * \brief compatibility definitions for working with different openssl forks
  **/
 
 #if !defined(LIBRESSL_VERSION_NUMBER) && \
@@ -27,8 +28,11 @@
 #define OPENSSL_1_1_API
 #endif /* OPENSSL_VERSION_NUMBER >= OPENSSL_V_SERIES(1,1,0) && ... */
 
-#ifndef OPENSSL_1_1_API
+#ifndef OPENSSL_VERSION
 #define OPENSSL_VERSION SSLEAY_VERSION
+#endif
+
+#ifndef OPENSSL_1_1_API
 #define OpenSSL_version(v) SSLeay_version(v)
 #define OpenSSL_version_num() SSLeay()
 #define RAND_OpenSSL() RAND_SSLeay()

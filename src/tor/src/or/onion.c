@@ -67,6 +67,7 @@
 #include "circuitlist.h"
 #include "config.h"
 #include "cpuworker.h"
+#include "crypto_util.h"
 #include "networkstatus.h"
 #include "onion.h"
 #include "onion_fast.h"
@@ -423,7 +424,7 @@ server_onion_keys_new(void)
 
 /** Release all storage held in <b>keys</b>. */
 void
-server_onion_keys_free(server_onion_keys_t *keys)
+server_onion_keys_free_(server_onion_keys_t *keys)
 {
   if (! keys)
     return;
@@ -521,6 +522,11 @@ onion_skin_create(int type,
   return r;
 }
 
+/* This is the maximum value for keys_out_len passed to
+ * onion_skin_server_handshake, plus 16. We can make it bigger if needed:
+ * It just defines how many bytes to stack-allocate. */
+#define MAX_KEYS_TMP_LEN 128
+
 /** Perform the second (server-side) step of a circuit-creation handshake of
  * type <b>type</b>, responding to the client request in <b>onion_skin</b>
  * using the keys in <b>keys</b>.  On success, write our response into
@@ -563,20 +569,21 @@ onion_skin_server_handshake(int type,
       return -1;
     {
       size_t keys_tmp_len = keys_out_len + DIGEST_LEN;
-      uint8_t *keys_tmp = tor_malloc(keys_out_len + DIGEST_LEN);
+      tor_assert(keys_tmp_len <= MAX_KEYS_TMP_LEN);
+      uint8_t keys_tmp[MAX_KEYS_TMP_LEN];
 
       if (onion_skin_ntor_server_handshake(
                                    onion_skin, keys->curve25519_key_map,
                                    keys->junk_keypair,
                                    keys->my_identity,
                                    reply_out, keys_tmp, keys_tmp_len)<0) {
-        tor_free(keys_tmp);
+        /* no need to memwipe here, since the output will never be used */
         return -1;
       }
+
       memcpy(keys_out, keys_tmp, keys_out_len);
       memcpy(rend_nonce_out, keys_tmp+keys_out_len, DIGEST_LEN);
-      memwipe(keys_tmp, 0, keys_tmp_len);
-      tor_free(keys_tmp);
+      memwipe(keys_tmp, 0, sizeof(keys_tmp));
       r = NTOR_REPLY_LEN;
     }
     break;

@@ -42,6 +42,23 @@ If you have changed build system components:
    - For example, if you have changed Makefiles, autoconf files, or anything
      else that affects the build system.
 
+License issues
+==============
+
+Tor is distributed under the license terms in the LICENSE -- in
+brief, the "3-clause BSD license".  If you send us code to
+distribute with Tor, it needs to be code that we can distribute
+under those terms.  Please don't send us patches unless you agree
+to allow this.
+
+Some compatible licenses include:
+
+  - 3-clause BSD
+  - 2-clause BSD
+  - CC0 Public Domain Dedication
+
+
+
 How we use Git branches
 =======================
 
@@ -346,6 +363,46 @@ macro, as in:
 	if (BUG(ptr == NULL))
 		return -1;
 
+Allocator conventions
+---------------------
+
+By convention, any tor type with a name like `abc_t` should be allocated
+by a function named `abc_new()`.  This function should never return
+NULL.
+
+Also, a type named `abc_t` should be freed by a function named `abc_free_()`.
+Don't call this `abc_free_()` function directly -- instead, wrap it in a
+macro called `abc_free()`, using the `FREE_AND_NULL` macro:
+
+    void abc_free_(abc_t *obj);
+    #define abc_free(obj) FREE_AND_NULL(abc_t, abc_free_, (obj))
+
+This macro will free the underlying `abc_t` object, and will also set
+the object pointer to NULL.
+
+You should define all `abc_free_()` functions to accept NULL inputs:
+
+    void
+    abc_free_(abc_t *obj)
+    {
+      if (!obj)
+        return;
+      tor_free(obj->name);
+      thing_free(obj->thing);
+      tor_free(obj);
+    }
+
+If you need a free function that takes a `void *` argument (for example,
+to use it as a function callback), define it with a name like
+`abc_free_void()`:
+
+    static void
+    abc_free_void_(void *obj)
+    {
+      abc_free_(obj);
+    }
+
+
 Doxygen comment conventions
 ---------------------------
 
@@ -377,3 +434,4 @@ the functions that call your function rely on it doing something, then your
 function should mention that it does that something in the documentation.  If
 you rely on a function doing something beyond what is in its documentation,
 then you should watch out, or it might do something else later.
+

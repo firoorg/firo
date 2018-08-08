@@ -9,6 +9,7 @@
 #include "consdiff.h"
 #include "consdiffmgr.h"
 #include "cpuworker.h"
+#include "crypto_rand.h"
 #include "networkstatus.h"
 #include "routerparse.h"
 #include "workqueue.h"
@@ -24,8 +25,8 @@ consdiffmgr_test_setup(const struct testcase_t *arg)
 {
   (void)arg;
   char *ddir_fname = tor_strdup(get_fname_rnd("datadir_cdm"));
-  tor_free(get_options_mutable()->DataDirectory);
-  get_options_mutable()->DataDirectory = ddir_fname; // now owns the pointer.
+  tor_free(get_options_mutable()->CacheDirectory);
+  get_options_mutable()->CacheDirectory = ddir_fname; // now owns the pointer.
   check_private_dir(ddir_fname, CPD_CREATE, NULL);
 
   consdiff_cfg_t consdiff_cfg = { 300 };
@@ -215,8 +216,8 @@ test_consdiffmgr_init_failure(void *arg)
   /* As in ...test_setup, but do not create the datadir. The missing directory
    * will cause a failure. */
   char *ddir_fname = tor_strdup(get_fname_rnd("datadir_cdm"));
-  tor_free(get_options_mutable()->DataDirectory);
-  get_options_mutable()->DataDirectory = ddir_fname; // now owns the pointer.
+  tor_free(get_options_mutable()->CacheDirectory);
+  get_options_mutable()->CacheDirectory = ddir_fname; // now owns the pointer.
 
   consdiff_cfg_t consdiff_cfg = { 7200, 300 };
 

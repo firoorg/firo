@@ -56,29 +56,33 @@
 #define ROUTERPARSE_PRIVATE
 
 #include "or.h"
-#include "config.h"
 #include "circuitstats.h"
+#include "config.h"
+#include "crypto_util.h"
+#include "dirauth/shared_random.h"
 #include "dirserv.h"
-#include "dirvote.h"
+#include "entrynodes.h"
+#include "memarea.h"
+#include "microdesc.h"
+#include "networkstatus.h"
 #include "parsecommon.h"
 #include "policies.h"
 #include "protover.h"
 #include "rendcommon.h"
-#include "router.h"
-#include "routerlist.h"
-#include "memarea.h"
-#include "microdesc.h"
-#include "networkstatus.h"
 #include "rephist.h"
+#include "router.h"
 #include "routerkeys.h"
+#include "routerlist.h"
 #include "routerparse.h"
-#include "entrynodes.h"
-#include "torcert.h"
 #include "sandbox.h"
-#include "shared_random.h"
+#include "shared_random_client.h"
+#include "torcert.h"
+#include "voting_schedule.h"
 
 #undef log
 #include <math.h>
+
+#include "dirauth/dirvote.h"
 
 /****************************************************************************/
 
@@ -1895,12 +1899,19 @@ router_parse_entry_from_string(const char *s, const char *end,
     }
   }
 
-  if ((tok = find_opt_by_keyword(tokens, K_PLATFORM))) {
-    router->platform = tor_strdup(tok->args[0]);
-  }
+  {
+    const char *version = NULL, *protocols = NULL;
+    if ((tok = find_opt_by_keyword(tokens, K_PLATFORM))) {
+      router->platform = tor_strdup(tok->args[0]);
+      version = tok->args[0];
+    }
 
-  if ((tok = find_opt_by_keyword(tokens, K_PROTO))) {
-    router->protocol_list = tor_strdup(tok->args[0]);
+    if ((tok = find_opt_by_keyword(tokens, K_PROTO))) {
+      router->protocol_list = tor_strdup(tok->args[0]);
+      protocols = tok->args[0];
+    }
+
+    summarize_protover_flags(&router->pv, protocols, version);
   }
 
   if ((tok = find_opt_by_keyword(tokens, K_CONTACT))) {
@@ -2530,6 +2541,50 @@ routerstatus_parse_guardfraction(const char *guardfraction_str,
   return 0;
 }
 
+/** Summarize the protocols listed in <b>protocols</b> into <b>out</b>,
+ * falling back or correcting them based on <b>version</b> as appropriate.
+ */
+STATIC void
+summarize_protover_flags(protover_summary_flags_t *out,
+                         const char *protocols,
+                         const char *version)
+{
+  tor_assert(out);
+  memset(out, 0, sizeof(*out));
+  if (protocols) {
+    out->protocols_known = 1;
+    out->supports_extend2_cells =
+      protocol_list_supports_protocol(protocols, PRT_RELAY, 2);
+    out->supports_ed25519_link_handshake_compat =
+      protocol_list_supports_protocol(protocols, PRT_LINKAUTH, 3);
+    out->supports_ed25519_link_handshake_any =
+      protocol_list_supports_protocol_or_later(protocols, PRT_LINKAUTH, 3);
+    out->supports_ed25519_hs_intro =
+      protocol_list_supports_protocol(protocols, PRT_HSINTRO, 4);
+    out->supports_v3_hsdir =
+      protocol_list_supports_protocol(protocols, PRT_HSDIR,
+                                      PROTOVER_HSDIR_V3);
+    out->supports_v3_rendezvous_point =
+      protocol_list_supports_protocol(protocols, PRT_HSREND,
+                                      PROTOVER_HS_RENDEZVOUS_POINT_V3);
+  }
+  if (version && !strcmpstart(version, "Tor ")) {
+    if (!out->protocols_known) {
+      /* The version is a "Tor" version, and where there is no
+       * list of protocol versions that we should be looking at instead. */
+
+      out->supports_extend2_cells =
+        tor_version_as_new_as(version, "0.2.4.8-alpha");
+      out->protocols_known = 1;
+    } else {
+      /* Bug #22447 forces us to filter on this version. */
+      if (!tor_version_as_new_as(version, "0.3.0.8")) {
+        out->supports_v3_hsdir = 0;
+      }
+    }
+  }
+}
+
 /** Given a string at *<b>s</b>, containing a routerstatus object, and an
  * empty smartlist at <b>tokens</b>, parse and return the first router status
  * object in the string, and advance *<b>s</b> to just after the end of the
@@ -2692,45 +2747,23 @@ routerstatus_parse_entry_from_string(memarea_t *area,
     /* These are implied true by having been included in a consensus made
      * with a given method */
     rs->is_flagged_running = 1; /* Starting with consensus method 4. */
-    if (consensus_method >= MIN_METHOD_FOR_EXCLUDING_INVALID_NODES)
-      rs->is_valid = 1;
+    rs->is_valid = 1; /* Starting with consensus method 24. */
   }
-  int found_protocol_list = 0;
-  if ((tok = find_opt_by_keyword(tokens, K_PROTO))) {
-    found_protocol_list = 1;
-    rs->protocols_known = 1;
-    rs->supports_extend2_cells =
-      protocol_list_supports_protocol(tok->args[0], PRT_RELAY, 2);
-    rs->supports_ed25519_link_handshake =
-      protocol_list_supports_protocol(tok->args[0], PRT_LINKAUTH, 3);
-    rs->supports_ed25519_hs_intro =
-      protocol_list_supports_protocol(tok->args[0], PRT_HSINTRO, 4);
-    rs->supports_v3_hsdir =
-      protocol_list_supports_protocol(tok->args[0], PRT_HSDIR,
-                                      PROTOVER_HSDIR_V3);
-    rs->supports_v3_rendezvous_point =
-      protocol_list_supports_protocol(tok->args[0], PRT_HSDIR,
-                                      PROTOVER_HS_RENDEZVOUS_POINT_V3);
-  }
-  if ((tok = find_opt_by_keyword(tokens, K_V))) {
-    tor_assert(tok->n_args == 1);
-    if (!strcmpstart(tok->args[0], "Tor ") && !found_protocol_list) {
-      /* We only do version checks like this in the case where
-       * the version is a "Tor" version, and where there is no
-       * list of protocol versions that we should be looking at instead. */
-      rs->supports_extend2_cells =
-        tor_version_as_new_as(tok->args[0], "0.2.4.8-alpha");
-      rs->protocols_known = 1;
+  {
+    const char *protocols = NULL, *version = NULL;
+    if ((tok = find_opt_by_keyword(tokens, K_PROTO))) {
+      tor_assert(tok->n_args == 1);
+      protocols = tok->args[0];
     }
-    if (!strcmpstart(tok->args[0], "Tor ") && found_protocol_list) {
-      /* Bug #22447 forces us to filter on this version. */
-      if (!tor_version_as_new_as(tok->args[0], "0.3.0.8")) {
-        rs->supports_v3_hsdir = 0;
+    if ((tok = find_opt_by_keyword(tokens, K_V))) {
+      tor_assert(tok->n_args == 1);
+      version = tok->args[0];
+      if (vote_rs) {
+        vote_rs->version = tor_strdup(tok->args[0]);
       }
     }
-    if (vote_rs) {
-      vote_rs->version = tor_strdup(tok->args[0]);
-    }
+
+    summarize_protover_flags(&rs->pv, protocols, version);
   }
 
   /* handle weighting/bandwidth info */
@@ -3253,60 +3286,6 @@ networkstatus_verify_bw_weights(networkstatus_t *ns, int consensus_method)
   return valid;
 }
 
-/** Parse and extract all SR commits from <b>tokens</b> and place them in
- *  <b>ns</b>. */
-static void
-extract_shared_random_commits(networkstatus_t *ns, smartlist_t *tokens)
-{
-  smartlist_t *chunks = NULL;
-
-  tor_assert(ns);
-  tor_assert(tokens);
-  /* Commits are only present in a vote. */
-  tor_assert(ns->type == NS_TYPE_VOTE);
-
-  ns->sr_info.commits = smartlist_new();
-
-  smartlist_t *commits = find_all_by_keyword(tokens, K_COMMIT);
-  /* It's normal that a vote might contain no commits even if it participates
-   * in the SR protocol. Don't treat it as an error. */
-  if (commits == NULL) {
-    goto end;
-  }
-
-  /* Parse the commit. We do NO validation of number of arguments or ordering
-   * for forward compatibility, it's the parse commit job to inform us if it's
-   * supported or not. */
-  chunks = smartlist_new();
-  SMARTLIST_FOREACH_BEGIN(commits, directory_token_t *, tok) {
-    /* Extract all arguments and put them in the chunks list. */
-    for (int i = 0; i < tok->n_args; i++) {
-      smartlist_add(chunks, tok->args[i]);
-    }
-    sr_commit_t *commit = sr_parse_commit(chunks);
-    smartlist_clear(chunks);
-    if (commit == NULL) {
-      /* Get voter identity so we can warn that this dirauth vote contains
-       * commit we can't parse. */
-      networkstatus_voter_info_t *voter = smartlist_get(ns->voters, 0);
-      tor_assert(voter);
-      log_warn(LD_DIR, "SR: Unable to parse commit %s from vote of voter %s.",
-               escaped(tok->object_body),
-               hex_str(voter->identity_digest,
-                       sizeof(voter->identity_digest)));
-      /* Commitment couldn't be parsed. Continue onto the next commit because
-       * this one could be unsupported for instance. */
-      continue;
-    }
-    /* Add newly created commit object to the vote. */
-    smartlist_add(ns->sr_info.commits, commit);
-  } SMARTLIST_FOREACH_END(tok);
-
- end:
-  smartlist_free(chunks);
-  smartlist_free(commits);
-}
-
 /** Check if a shared random value of type <b>srv_type</b> is in
  *  <b>tokens</b>. If there is, parse it and set it to <b>srv_out</b>. Return
  *  -1 on failure, 0 on success. The resulting srv is allocated on the heap and
@@ -3744,13 +3723,7 @@ networkstatus_parse_vote_from_string(const char *s, const char **eos_out,
   /* If this is a vote document, check if information about the shared
      randomness protocol is included, and extract it. */
   if (ns->type == NS_TYPE_VOTE) {
-    /* Does this authority participates in the SR protocol? */
-    tok = find_opt_by_keyword(tokens, K_SR_FLAG);
-    if (tok) {
-      ns->sr_info.participate = 1;
-      /* Get the SR commitments and reveals from the vote. */
-      extract_shared_random_commits(ns, tokens);
-    }
+    dirvote_parse_sr_commits(ns, tokens);
   }
   /* For both a vote and consensus, extract the shared random values. */
   if (ns->type == NS_TYPE_VOTE || ns->type == NS_TYPE_CONSENSUS) {
@@ -3779,7 +3752,6 @@ networkstatus_parse_vote_from_string(const char *s, const char **eos_out,
                                                      ns->consensus_method,
                                                      flav))) {
         /* Use exponential-backoff scheduling when downloading microdescs */
-        rs->dl_status.backoff = DL_SCHED_RANDOM_EXPONENTIAL;
         smartlist_add(ns->routerstatus_list, rs);
       }
     }
@@ -3941,7 +3913,7 @@ networkstatus_parse_vote_from_string(const char *s, const char **eos_out,
       }
     }
 
-    if (voter_get_sig_by_algorithm(v, sig->alg)) {
+    if (networkstatus_get_voter_sig_by_alg(v, sig->alg)) {
       /* We already parsed a vote with this algorithm from this voter. Use the
          first one. */
       log_fn(LOG_PROTOCOL_WARN, LD_DIR, "We received a networkstatus "
@@ -4027,7 +3999,7 @@ networkstatus_parse_vote_from_string(const char *s, const char **eos_out,
 /** Return the common_digests_t that holds the digests of the
  * <b>flavor_name</b>-flavored networkstatus according to the detached
  * signatures document <b>sigs</b>, allocating a new common_digests_t as
- * neeeded. */
+ * needed. */
 static common_digests_t *
 detached_get_digests(ns_detached_signatures_t *sigs, const char *flavor_name)
 {
@@ -4041,7 +4013,7 @@ detached_get_digests(ns_detached_signatures_t *sigs, const char *flavor_name)
 
 /** Return the list of signatures of the <b>flavor_name</b>-flavored
  * networkstatus according to the detached signatures document <b>sigs</b>,
- * allocating a new common_digests_t as neeeded. */
+ * allocating a new common_digests_t as needed. */
 static smartlist_t *
 detached_get_signatures(ns_detached_signatures_t *sigs,
                         const char *flavor_name)

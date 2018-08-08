@@ -15,6 +15,8 @@
  * descriptors.  Authorities should use this to decide whether to
  * guess proto lines. */
 /* This is a guess. */
+/// C_RUST_COUPLED: src/rust/protover/protover.rs
+///                 `FIRST_TOR_VERSION_TO_ADVERTISE_PROTOCOLS`
 #define FIRST_TOR_VERSION_TO_ADVERTISE_PROTOCOLS "0.2.9.3-alpha"
 
 /** The protover version number that signifies HSDir support for HSv3 */
@@ -25,6 +27,8 @@
 #define PROTOVER_HS_RENDEZVOUS_POINT_V3 2
 
 /** List of recognized subprotocols. */
+/// C_RUST_COUPLED: src/rust/protover/ffi.rs `translate_to_rust`
+/// C_RUST_COUPLED: src/rust/protover/protover.rs `Proto`
 typedef enum protocol_type_t {
   PRT_LINK,
   PRT_LINKAUTH,
@@ -38,6 +42,7 @@ typedef enum protocol_type_t {
   PRT_CONS,
 } protocol_type_t;
 
+bool protover_contains_long_protocol_names(const char *s);
 int protover_all_supported(const char *s, char **missing);
 int protover_is_supported_here(protocol_type_t pr, uint32_t ver);
 const char *protover_get_supported_protocols(void);
@@ -47,6 +52,9 @@ char *protover_compute_vote(const smartlist_t *list_of_proto_strings,
 const char *protover_compute_for_old_tor(const char *version);
 int protocol_list_supports_protocol(const char *list, protocol_type_t tp,
                                     uint32_t version);
+int protocol_list_supports_protocol_or_later(const char *list,
+                                             protocol_type_t tp,
+                                             uint32_t version);
 
 void protover_free_all(void);
 
@@ -70,11 +78,17 @@ typedef struct proto_entry_t {
   smartlist_t *ranges;
 } proto_entry_t;
 
+#if !defined(HAVE_RUST) && defined(TOR_UNIT_TESTS)
 STATIC smartlist_t *parse_protocol_list(const char *s);
-STATIC void proto_entry_free(proto_entry_t *entry);
 STATIC char *encode_protocol_list(const smartlist_t *sl);
 STATIC const char *protocol_type_to_str(protocol_type_t pr);
 STATIC int str_to_protocol_type(const char *s, protocol_type_t *pr_out);
+STATIC void proto_entry_free_(proto_entry_t *entry);
+#endif /* !defined(HAVE_RUST) && defined(TOR_UNIT_TESTS) */
+
+#define proto_entry_free(entry) \
+  FREE_AND_NULL(proto_entry_t, proto_entry_free_, (entry))
+
 #endif /* defined(PROTOVER_PRIVATE) */
 
 #endif /* !defined(TOR_PROTOVER_H) */

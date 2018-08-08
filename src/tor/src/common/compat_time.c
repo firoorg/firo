@@ -71,8 +71,8 @@ tor_sleep_msec(int msec)
 /** Set *timeval to the current time of day.  On error, log and terminate.
  * (Same as gettimeofday(timeval,NULL), but never returns -1.)
  */
-void
-tor_gettimeofday(struct timeval *timeval)
+MOCK_IMPL(void,
+tor_gettimeofday, (struct timeval *timeval))
 {
 #ifdef _WIN32
   /* Epoch bias copied from perl: number of units between windows epoch and
@@ -90,7 +90,7 @@ tor_gettimeofday(struct timeval *timeval)
   if (ft.ft_64 < EPOCH_BIAS) {
     /* LCOV_EXCL_START */
     log_err(LD_GENERAL,"System time is before 1970; failing.");
-    exit(1);
+    exit(1); // exit ok: system clock is broken.
     /* LCOV_EXCL_STOP */
   }
   ft.ft_64 -= EPOCH_BIAS;
@@ -102,7 +102,7 @@ tor_gettimeofday(struct timeval *timeval)
     log_err(LD_GENERAL,"gettimeofday failed.");
     /* If gettimeofday dies, we have either given a bad timezone (we didn't),
        or segfaulted.*/
-    exit(1);
+    exit(1); // exit ok: gettimeofday failed.
     /* LCOV_EXCL_STOP */
   }
 #elif defined(HAVE_FTIME)
@@ -279,6 +279,8 @@ monotime_reset_ratchets_for_testing(void)
  * nanoseconds.
  */
 static struct mach_timebase_info mach_time_info;
+static struct mach_timebase_info mach_time_info_msec_cvt;
+static int monotime_shift = 0;
 
 static void
 monotime_init_internal(void)
@@ -287,6 +289,22 @@ monotime_init_internal(void)
   int r = mach_timebase_info(&mach_time_info);
   tor_assert(r == 0);
   tor_assert(mach_time_info.denom != 0);
+
+  {
+    // approximate only.
+    uint64_t ns_per_tick = mach_time_info.numer / mach_time_info.denom;
+    uint64_t ms_per_tick = ns_per_tick * ONE_MILLION;
+    // requires that tor_log2(0) == 0.
+    monotime_shift = tor_log2(ms_per_tick);
+  }
+  {
+    // For converting ticks to milliseconds in a 32-bit-friendly way, we
+    // will first right-shift by 20, and then multiply by 20/19, since
+    // (1<<20) * 19/20 is about 1e6.  We precompute a new numerate and
+    // denominator here to avoid multiple multiplies.
+    mach_time_info_msec_cvt.numer = mach_time_info.numer * 20;
+    mach_time_info_msec_cvt.denom = mach_time_info.denom * 19;
+  }
 }
 
 /**
@@ -305,6 +323,21 @@ monotime_get(monotime_t *out)
   out->abstime_ = mach_absolute_time();
 }
 
+#if defined(HAVE_MACH_APPROXIMATE_TIME)
+void
+monotime_coarse_get(monotime_coarse_t *out)
+{
+#ifdef TOR_UNIT_TESTS
+  if (monotime_mocking_enabled) {
+    out->abstime_ = (mock_time_nsec_coarse * mach_time_info.denom)
+      / mach_time_info.numer;
+    return;
+  }
+#endif /* defined(TOR_UNIT_TESTS) */
+  out->abstime_ = mach_approximate_time();
+}
+#endif
+
 /**
  * Return the number of nanoseconds between <b>start</b> and <b>end</b>.
  */
@@ -319,6 +352,42 @@ monotime_diff_nsec(const monotime_t *start,
   const int64_t diff_nsec =
     (diff_ticks * mach_time_info.numer) / mach_time_info.denom;
   return diff_nsec;
+}
+
+int32_t
+monotime_coarse_diff_msec32_(const monotime_coarse_t *start,
+                             const monotime_coarse_t *end)
+{
+  if (BUG(mach_time_info.denom == 0)) {
+    monotime_init();
+  }
+  const int64_t diff_ticks = end->abstime_ - start->abstime_;
+
+  /* We already require in di_ops.c that right-shift performs a sign-extend. */
+  const int32_t diff_microticks = (int32_t)(diff_ticks >> 20);
+
+  return (diff_microticks * mach_time_info_msec_cvt.numer) /
+    mach_time_info_msec_cvt.denom;
+}
+
+uint32_t
+monotime_coarse_to_stamp(const monotime_coarse_t *t)
+{
+  return (uint32_t)(t->abstime_ >> monotime_shift);
+}
+
+int
+monotime_is_zero(const monotime_t *val)
+{
+  return val->abstime_ == 0;
+}
+
+void
+monotime_add_msec(monotime_t *out, const monotime_t *val, uint32_t msec)
+{
+  const uint64_t nsec = msec * ONE_MILLION;
+  const uint64_t ticks = (nsec * mach_time_info.denom) / mach_time_info.numer;
+  out->abstime_ = val->abstime_ + ticks;
 }
 
 /* end of "__APPLE__" */
@@ -397,6 +466,46 @@ monotime_diff_nsec(const monotime_t *start,
     (end->ts_.tv_nsec - start->ts_.tv_nsec);
 
   return diff_nsec;
+}
+
+int32_t
+monotime_coarse_diff_msec32_(const monotime_coarse_t *start,
+                             const monotime_coarse_t *end)
+{
+  const int32_t diff_sec = (int32_t)(end->ts_.tv_sec - start->ts_.tv_sec);
+  const int32_t diff_nsec = (int32_t)(end->ts_.tv_nsec - start->ts_.tv_nsec);
+  return diff_sec * 1000 + diff_nsec / ONE_MILLION;
+}
+
+/* This value is ONE_BILLION >> 20. */
+static const uint32_t STAMP_TICKS_PER_SECOND = 953;
+
+uint32_t
+monotime_coarse_to_stamp(const monotime_coarse_t *t)
+{
+  uint32_t nsec = (uint32_t)t->ts_.tv_nsec;
+  uint32_t sec = (uint32_t)t->ts_.tv_sec;
+
+  return (sec * STAMP_TICKS_PER_SECOND) + (nsec >> 20);
+}
+
+int
+monotime_is_zero(const monotime_t *val)
+{
+  return val->ts_.tv_sec == 0 && val->ts_.tv_nsec == 0;
+}
+
+void
+monotime_add_msec(monotime_t *out, const monotime_t *val, uint32_t msec)
+{
+  const uint32_t sec = msec / 1000;
+  const uint32_t msec_remainder = msec % 1000;
+  out->ts_.tv_sec = val->ts_.tv_sec + sec;
+  out->ts_.tv_nsec = val->ts_.tv_nsec + (msec_remainder * ONE_MILLION);
+  if (out->ts_.tv_nsec > ONE_BILLION) {
+    out->ts_.tv_nsec -= ONE_BILLION;
+    out->ts_.tv_sec += 1;
+  }
 }
 
 /* end of "HAVE_CLOCK_GETTIME" */
@@ -517,6 +626,13 @@ monotime_coarse_diff_msec(const monotime_coarse_t *start,
   return diff_ticks;
 }
 
+int32_t
+monotime_coarse_diff_msec32_(const monotime_coarse_t *start,
+                             const monotime_coarse_t *end)
+{
+  return (int32_t)monotime_coarse_diff_msec(start, end);
+}
+
 int64_t
 monotime_coarse_diff_usec(const monotime_coarse_t *start,
                           const monotime_coarse_t *end)
@@ -529,6 +645,41 @@ monotime_coarse_diff_nsec(const monotime_coarse_t *start,
                           const monotime_coarse_t *end)
 {
   return monotime_coarse_diff_msec(start, end) * ONE_MILLION;
+}
+
+static const uint32_t STAMP_TICKS_PER_SECOND = 1000;
+
+uint32_t
+monotime_coarse_to_stamp(const monotime_coarse_t *t)
+{
+  return (uint32_t) t->tick_count_;
+}
+
+int
+monotime_is_zero(const monotime_t *val)
+{
+  return val->pcount_ == 0;
+}
+
+int
+monotime_coarse_is_zero(const monotime_coarse_t *val)
+{
+  return val->tick_count_ == 0;
+}
+
+void
+monotime_add_msec(monotime_t *out, const monotime_t *val, uint32_t msec)
+{
+  const uint64_t nsec = msec * ONE_MILLION;
+  const uint64_t ticks = (nsec * nsec_per_tick_denom) / nsec_per_tick_numer;
+  out->pcount_ = val->pcount_ + ticks;
+}
+
+void
+monotime_coarse_add_msec(monotime_coarse_t *out, const monotime_coarse_t *val,
+                         uint32_t msec)
+{
+  out->tick_count_ = val->tick_count_ + msec;
 }
 
 /* end of "_WIN32" */
@@ -567,6 +718,45 @@ monotime_diff_nsec(const monotime_t *start,
   return (diff.tv_sec * ONE_BILLION + diff.tv_usec * 1000);
 }
 
+int32_t
+monotime_coarse_diff_msec32_(const monotime_coarse_t *start,
+                             const monotime_coarse_t *end)
+{
+  struct timeval diff;
+  timersub(&end->tv_, &start->tv_, &diff);
+  return diff.tv_sec * 1000 + diff.tv_usec / 1000;
+}
+
+/* This value is ONE_MILLION >> 10. */
+static const uint32_t STAMP_TICKS_PER_SECOND = 976;
+
+uint32_t
+monotime_coarse_to_stamp(const monotime_coarse_t *t)
+{
+  const uint32_t usec = (uint32_t)t->tv_.tv_usec;
+  const uint32_t sec = (uint32_t)t->tv_.tv_sec;
+  return (sec * STAMP_TICKS_PER_SECOND) | (nsec >> 10);
+}
+
+int
+monotime_is_zero(const monotime_t *val)
+{
+  return val->tv_.tv_sec == 0 && val->tv_.tv_usec == 0;
+}
+
+void
+monotime_add_msec(monotime_t *out, const monotime_t *val, uint32_t msec)
+{
+  const uint32_t sec = msec / 1000;
+  const uint32_t msec_remainder = msec % 1000;
+  out->tv_.tv_sec = val->tv_.tv_sec + sec;
+  out->tv_.tv_usec = val->tv_.tv_nsec + (msec_remainder * 1000);
+  if (out->tv_.tv_usec > ONE_MILLION) {
+    out->tv_.tv_usec -= ONE_MILLION;
+    out->tv_.tv_sec += 1;
+  }
+}
+
 /* end of "MONOTIME_USING_GETTIMEOFDAY" */
 #else
 #error "No way to implement monotonic timers."
@@ -588,6 +778,19 @@ monotime_init(void)
 #endif
   }
 }
+
+void
+monotime_zero(monotime_t *out)
+{
+  memset(out, 0, sizeof(*out));
+}
+#ifdef MONOTIME_COARSE_TYPE_IS_DIFFERENT
+void
+monotime_coarse_zero(monotime_coarse_t *out)
+{
+  memset(out, 0, sizeof(*out));
+}
+#endif
 
 int64_t
 monotime_diff_usec(const monotime_t *start,
@@ -653,5 +856,48 @@ monotime_coarse_absolute_msec(void)
 {
   return monotime_coarse_absolute_nsec() / ONE_MILLION;
 }
+#else
+#define initialized_at_coarse initialized_at
 #endif /* defined(MONOTIME_COARSE_FN_IS_DIFFERENT) */
+
+/**
+ * Return the current time "stamp" as described by monotime_coarse_to_stamp.
+ */
+uint32_t
+monotime_coarse_get_stamp(void)
+{
+  monotime_coarse_t now;
+  monotime_coarse_get(&now);
+  return monotime_coarse_to_stamp(&now);
+}
+
+#ifdef __APPLE__
+uint64_t
+monotime_coarse_stamp_units_to_approx_msec(uint64_t units)
+{
+  /* Recover as much precision as we can. */
+  uint64_t abstime_diff = (units << monotime_shift);
+  return (abstime_diff * mach_time_info.numer) /
+    (mach_time_info.denom * ONE_MILLION);
+}
+uint64_t
+monotime_msec_to_approx_coarse_stamp_units(uint64_t msec)
+{
+  uint64_t abstime_val =
+    (((uint64_t)msec) * ONE_MILLION * mach_time_info.denom) /
+    mach_time_info.numer;
+  return abstime_val >> monotime_shift;
+}
+#else
+uint64_t
+monotime_coarse_stamp_units_to_approx_msec(uint64_t units)
+{
+  return (units * 1000) / STAMP_TICKS_PER_SECOND;
+}
+uint64_t
+monotime_msec_to_approx_coarse_stamp_units(uint64_t msec)
+{
+  return (msec * STAMP_TICKS_PER_SECOND) / 1000;
+}
+#endif
 
