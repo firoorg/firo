@@ -3,11 +3,6 @@
  * Copyright (c) 2007-2017, The Tor Project, Inc. */
 /* See LICENSE for licensing information */
 
-extern const char tor_git_revision[];
-/* Ordinarily defined in tor_main.c; this bit is just here to provide one
- * since we're not linking to tor_main.c */
-const char tor_git_revision[] = "";
-
 /**
  * \file bench.c
  * \brief Benchmarks for lower level Tor modules.
@@ -17,7 +12,7 @@ const char tor_git_revision[] = "";
 
 #include "or.h"
 #include "onion_tap.h"
-#include "relay.h"
+#include "relay_crypto.h"
 #include <openssl/opensslv.h>
 #include <openssl/evp.h>
 #include <openssl/ec.h>
@@ -28,6 +23,7 @@ const char tor_git_revision[] = "";
 #include "crypto_curve25519.h"
 #include "onion_ntor.h"
 #include "crypto_ed25519.h"
+#include "crypto_rand.h"
 #include "consdiff.h"
 
 #if defined(HAVE_CLOCK_GETTIME) && defined(CLOCK_PROCESS_CPUTIME_ID)
@@ -510,10 +506,10 @@ bench_cell_ops(void)
   char key1[CIPHER_KEY_LEN], key2[CIPHER_KEY_LEN];
   crypto_rand(key1, sizeof(key1));
   crypto_rand(key2, sizeof(key2));
-  or_circ->p_crypto = crypto_cipher_new(key1);
-  or_circ->n_crypto = crypto_cipher_new(key2);
-  or_circ->p_digest = crypto_digest_new();
-  or_circ->n_digest = crypto_digest_new();
+  or_circ->crypto.f_crypto = crypto_cipher_new(key1);
+  or_circ->crypto.b_crypto = crypto_cipher_new(key2);
+  or_circ->crypto.f_digest = crypto_digest_new();
+  or_circ->crypto.b_digest = crypto_digest_new();
 
   reset_perftime();
 
@@ -523,7 +519,8 @@ bench_cell_ops(void)
     for (i = 0; i < iters; ++i) {
       char recognized = 0;
       crypt_path_t *layer_hint = NULL;
-      relay_crypt(TO_CIRCUIT(or_circ), cell, d, &layer_hint, &recognized);
+      relay_decrypt_cell(TO_CIRCUIT(or_circ), cell, d,
+                         &layer_hint, &recognized);
     }
     end = perftime();
     printf("%sbound cells: %.2f ns per cell. (%.2f ns per byte of payload)\n",
@@ -532,10 +529,7 @@ bench_cell_ops(void)
            NANOCOUNT(start,end,iters*CELL_PAYLOAD_SIZE));
   }
 
-  crypto_digest_free(or_circ->p_digest);
-  crypto_digest_free(or_circ->n_digest);
-  crypto_cipher_free(or_circ->p_crypto);
-  crypto_cipher_free(or_circ->n_crypto);
+  relay_crypto_clear(&or_circ->crypto);
   tor_free(or_circ);
   tor_free(cell);
 }
@@ -718,11 +712,15 @@ main(int argc, const char **argv)
     printf("Couldn't seed RNG; exiting.\n");
     return 1;
   }
+
+  init_protocol_warning_severity_level();
   crypto_init_siphash_key();
   options = options_new();
   init_logging(1);
   options->command = CMD_RUN_UNITTESTS;
   options->DataDirectory = tor_strdup("");
+  options->KeyDirectory = tor_strdup("");
+  options->CacheDirectory = tor_strdup("");
   options_init(options);
   if (set_options(options, &errmsg) < 0) {
     printf("Failed to set initial options: %s\n", errmsg);

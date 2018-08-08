@@ -15,6 +15,8 @@
 
 #include "config.h"
 #include "circuitbuild.h"
+#include "crypto_rand.h"
+#include "crypto_util.h"
 #include "networkstatus.h"
 #include "nodelist.h"
 #include "hs_cache.h"
@@ -28,9 +30,8 @@
 #include "rendservice.h"
 #include "routerset.h"
 #include "router.h"
-#include "routerset.h"
-#include "shared_random.h"
-#include "shared_random_state.h"
+#include "shared_random_client.h"
+#include "dirauth/shared_random_state.h"
 
 /* Trunnel */
 #include "ed25519_cert.h"
@@ -104,7 +105,7 @@ compare_digest_to_fetch_hsdir_index(const void *_key, const void **_member)
 {
   const char *key = _key;
   const node_t *node = *_member;
-  return tor_memcmp(key, node->hsdir_index->fetch, DIGEST256_LEN);
+  return tor_memcmp(key, node->hsdir_index.fetch, DIGEST256_LEN);
 }
 
 /* Helper function: The key is a digest that we compare to a node_t object
@@ -115,7 +116,7 @@ compare_digest_to_store_first_hsdir_index(const void *_key,
 {
   const char *key = _key;
   const node_t *node = *_member;
-  return tor_memcmp(key, node->hsdir_index->store_first, DIGEST256_LEN);
+  return tor_memcmp(key, node->hsdir_index.store_first, DIGEST256_LEN);
 }
 
 /* Helper function: The key is a digest that we compare to a node_t object
@@ -126,7 +127,7 @@ compare_digest_to_store_second_hsdir_index(const void *_key,
 {
   const char *key = _key;
   const node_t *node = *_member;
-  return tor_memcmp(key, node->hsdir_index->store_second, DIGEST256_LEN);
+  return tor_memcmp(key, node->hsdir_index.store_second, DIGEST256_LEN);
 }
 
 /* Helper function: Compare two node_t objects current hsdir_index. */
@@ -135,8 +136,8 @@ compare_node_fetch_hsdir_index(const void **a, const void **b)
 {
   const node_t *node1= *a;
   const node_t *node2 = *b;
-  return tor_memcmp(node1->hsdir_index->fetch,
-                    node2->hsdir_index->fetch,
+  return tor_memcmp(node1->hsdir_index.fetch,
+                    node2->hsdir_index.fetch,
                     DIGEST256_LEN);
 }
 
@@ -146,8 +147,8 @@ compare_node_store_first_hsdir_index(const void **a, const void **b)
 {
   const node_t *node1= *a;
   const node_t *node2 = *b;
-  return tor_memcmp(node1->hsdir_index->store_first,
-                    node2->hsdir_index->store_first,
+  return tor_memcmp(node1->hsdir_index.store_first,
+                    node2->hsdir_index.store_first,
                     DIGEST256_LEN);
 }
 
@@ -157,8 +158,8 @@ compare_node_store_second_hsdir_index(const void **a, const void **b)
 {
   const node_t *node1= *a;
   const node_t *node2 = *b;
-  return tor_memcmp(node1->hsdir_index->store_second,
-                    node2->hsdir_index->store_second,
+  return tor_memcmp(node1->hsdir_index.store_second,
+                    node2->hsdir_index.store_second,
                     DIGEST256_LEN);
 }
 
@@ -208,6 +209,23 @@ hs_check_service_private_dir(const char *username, const char *path,
     return -1;
   }
   return 0;
+}
+
+/* Default, minimum, and maximum values for the maximum rendezvous failures
+ * consensus parameter. */
+#define MAX_REND_FAILURES_DEFAULT 2
+#define MAX_REND_FAILURES_MIN 1
+#define MAX_REND_FAILURES_MAX 10
+
+/** How many times will a hidden service operator attempt to connect to
+ * a requested rendezvous point before giving up? */
+int
+hs_get_service_max_rend_failures(void)
+{
+  return networkstatus_get_param(NULL, "hs_service_max_rdv_failures",
+                                 MAX_REND_FAILURES_DEFAULT,
+                                 MAX_REND_FAILURES_MIN,
+                                 MAX_REND_FAILURES_MAX);
 }
 
 /** Get the default HS time period length in minutes from the consensus. */
@@ -330,7 +348,7 @@ rend_data_alloc(uint32_t version)
 
 /** Free all storage associated with <b>data</b> */
 void
-rend_data_free(rend_data_t *data)
+rend_data_free_(rend_data_t *data)
 {
   if (!data) {
     return;
@@ -1263,25 +1281,24 @@ node_has_hsdir_index(const node_t *node)
   tor_assert(node_supports_v3_hsdir(node));
 
   /* A node can't have an HSDir index without a descriptor since we need desc
-   * to get its ed25519 key */
-  if (!node_has_descriptor(node)) {
+   * to get its ed25519 key.  for_direct_connect should be zero, since we
+   * always use the consensus-indexed node's keys to build the hash ring, even
+   * if some of the consensus-indexed nodes are also bridges. */
+  if (!node_has_preferred_descriptor(node, 0)) {
     return 0;
   }
 
   /* At this point, since the node has a desc, this node must also have an
    * hsdir index. If not, something went wrong, so BUG out. */
-  if (BUG(node->hsdir_index == NULL)) {
-    return 0;
-  }
-  if (BUG(tor_mem_is_zero((const char*)node->hsdir_index->fetch,
+  if (BUG(tor_mem_is_zero((const char*)node->hsdir_index.fetch,
                           DIGEST256_LEN))) {
     return 0;
   }
-  if (BUG(tor_mem_is_zero((const char*)node->hsdir_index->store_first,
+  if (BUG(tor_mem_is_zero((const char*)node->hsdir_index.store_first,
                           DIGEST256_LEN))) {
     return 0;
   }
-  if (BUG(tor_mem_is_zero((const char*)node->hsdir_index->store_second,
+  if (BUG(tor_mem_is_zero((const char*)node->hsdir_index.store_second,
                           DIGEST256_LEN))) {
     return 0;
   }
@@ -1315,15 +1332,20 @@ hs_get_responsible_hsdirs(const ed25519_public_key_t *blinded_pk,
 
   sorted_nodes = smartlist_new();
 
+  /* Make sure we actually have a live consensus */
+  networkstatus_t *c = networkstatus_get_live_consensus(approx_time());
+  if (!c || smartlist_len(c->routerstatus_list) == 0) {
+      log_warn(LD_REND, "No live consensus so we can't get the responsible "
+               "hidden service directories.");
+      goto done;
+  }
+
+  /* Ensure the nodelist is fresh, since it contains the HSDir indices. */
+  nodelist_ensure_freshness(c);
+
   /* Add every node_t that support HSDir v3 for which we do have a valid
    * hsdir_index already computed for them for this consensus. */
   {
-    networkstatus_t *c = networkstatus_get_latest_consensus();
-    if (!c || smartlist_len(c->routerstatus_list) == 0) {
-      log_warn(LD_REND, "No valid consensus so we can't get the responsible "
-                        "hidden service directories.");
-      goto done;
-    }
     SMARTLIST_FOREACH_BEGIN(c->routerstatus_list, const routerstatus_t *, rs) {
       /* Even though this node_t object won't be modified and should be const,
        * we can't add const object in a smartlist_t. */
@@ -1595,12 +1617,17 @@ hs_pick_hsdir(smartlist_t *responsible_dirs, const char *req_key_str)
   hs_clean_last_hid_serv_requests(now);
 
   /* Only select those hidden service directories to which we did not send a
-   * request recently and for which we have a router descriptor here. */
+   * request recently and for which we have a router descriptor here.
+   *
+   * Use for_direct_connect==0 even if we will be connecting to the node
+   * directly, since we always use the key information in the
+   * consensus-indexed node descriptors for building the index.
+   **/
   SMARTLIST_FOREACH_BEGIN(responsible_dirs, routerstatus_t *, dir) {
     time_t last = hs_lookup_last_hid_serv_request(dir, req_key_str, 0, 0);
     const node_t *node = node_get_by_id(dir->identity_digest);
     if (last + hs_hsdir_requery_period(options) >= now ||
-        !node || !node_has_descriptor(node)) {
+        !node || !node_has_preferred_descriptor(node, 0)) {
       SMARTLIST_DEL_CURRENT(responsible_dirs, dir);
       continue;
     }

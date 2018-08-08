@@ -7,8 +7,6 @@
 #include "orconfig.h"
 #include "testsupport.h"
 
-#include <event2/event.h>
-
 void configure_libevent_logging(void);
 void suppress_libevent_log_msg(const char *msg);
 
@@ -19,7 +17,12 @@ void suppress_libevent_log_msg(const char *msg);
   evdns_add_server_port_with_base(tor_libevent_get_base(), \
   (sock),(tcp),(cb),(data));
 
-void tor_event_free(struct event *ev);
+struct event;
+struct event_base;
+
+void tor_event_free_(struct event *ev);
+#define tor_event_free(ev) \
+  FREE_AND_NULL(struct event, tor_event_free_, (ev))
 
 typedef struct periodic_timer_t periodic_timer_t;
 
@@ -27,9 +30,25 @@ periodic_timer_t *periodic_timer_new(struct event_base *base,
              const struct timeval *tv,
              void (*cb)(periodic_timer_t *timer, void *data),
              void *data);
-void periodic_timer_free(periodic_timer_t *);
+void periodic_timer_free_(periodic_timer_t *);
+void periodic_timer_launch(periodic_timer_t *, const struct timeval *tv);
+void periodic_timer_disable(periodic_timer_t *);
+#define periodic_timer_free(t) \
+  FREE_AND_NULL(periodic_timer_t, periodic_timer_free_, (t))
 
-#define tor_event_base_loopexit event_base_loopexit
+typedef struct mainloop_event_t mainloop_event_t;
+mainloop_event_t *mainloop_event_new(void (*cb)(mainloop_event_t *, void *),
+                                     void *userdata);
+mainloop_event_t * mainloop_event_postloop_new(
+                                     void (*cb)(mainloop_event_t *, void *),
+                                     void *userdata);
+void mainloop_event_activate(mainloop_event_t *event);
+int mainloop_event_schedule(mainloop_event_t *event,
+                            const struct timeval *delay);
+void mainloop_event_cancel(mainloop_event_t *event);
+void mainloop_event_free_(mainloop_event_t *event);
+#define mainloop_event_free(event) \
+  FREE_AND_NULL(mainloop_event_t, mainloop_event_free_, (event))
 
 /** Defines a configuration for using libevent with Tor: passed as an argument
  * to tor_libevent_initialize() to describe how we want to set up. */
@@ -47,15 +66,18 @@ const char *tor_libevent_get_method(void);
 void tor_check_libevent_header_compatibility(void);
 const char *tor_libevent_get_version_str(void);
 const char *tor_libevent_get_header_version_str(void);
+void tor_libevent_free_all(void);
 
 int tor_init_libevent_rng(void);
 
-void tor_gettimeofday_cached(struct timeval *tv);
-void tor_gettimeofday_cache_clear(void);
 #ifdef TOR_UNIT_TESTS
-void tor_gettimeofday_cache_set(const struct timeval *tv);
 void tor_libevent_postfork(void);
 #endif
+
+int tor_libevent_run_event_loop(struct event_base *base, int once);
+void tor_libevent_exit_loop_after_delay(struct event_base *base,
+                                        const struct timeval *delay);
+void tor_libevent_exit_loop_after_callback(struct event_base *base);
 
 #ifdef COMPAT_LIBEVENT_PRIVATE
 

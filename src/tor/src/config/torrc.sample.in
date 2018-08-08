@@ -106,6 +106,7 @@
 ## A handle for your relay, so people don't have to refer to it by key.
 ## Nicknames must be between 1 and 19 characters inclusive, and must
 ## contain only the characters [a-zA-Z0-9].
+## If not set, "Unnamed" will be used.
 #Nickname ididnteditheconfig
 
 ## Define these to limit how much relayed traffic you will allow. Your
@@ -136,6 +137,9 @@
 ## descriptors containing these lines and that Google indexes them, so
 ## spammers might also collect them. You may want to obscure the fact that
 ## it's an email address and/or generate a new address for this purpose.
+##
+## If you are running multiple relays, you MUST set this option.
+##
 #ContactInfo Random Person <nobody AT example dot com>
 ## You might also include your PGP or GPG fingerprint if you have one:
 #ContactInfo 0xFFFFFFFF Random Person <nobody AT example dot com>
@@ -162,6 +166,9 @@
 ## https://www.torproject.org/docs/faq#MultipleRelays
 ## However, you should never include a bridge's fingerprint here, as it would
 ## break its concealability and potentially reveal its IP/TCP address.
+##
+## If you are running multiple relays, you MUST set this option.
+##
 #MyFamily $keyid,$keyid,...
 
 ## Uncomment this if you do *not* want your relay to allow any exit traffic.

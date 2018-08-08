@@ -20,9 +20,11 @@
 #include "or.h"
 #include "connection.h"
 #include "connection_or.h"
-#include "ext_orport.h"
 #include "control.h"
 #include "config.h"
+#include "crypto_rand.h"
+#include "crypto_util.h"
+#include "ext_orport.h"
 #include "main.h"
 #include "proto_ext_or.h"
 #include "util.h"
@@ -40,7 +42,7 @@ ext_or_cmd_new(uint16_t len)
 
 /** Deallocate the Extended ORPort message in <b>cmd</b>. */
 void
-ext_or_cmd_free(ext_or_cmd_t *cmd)
+ext_or_cmd_free_(ext_or_cmd_t *cmd)
 {
   tor_free(cmd);
 }

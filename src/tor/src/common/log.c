@@ -35,6 +35,9 @@
 #define LOG_PRIVATE
 #include "torlog.h"
 #include "container.h"
+#ifdef HAVE_ANDROID_LOG_H
+#include <android/log.h>
+#endif // HAVE_ANDROID_LOG_H.
 
 /** Given a severity, yields an index into log_severity_list_t.masks to use
  * for that severity. */
@@ -49,6 +52,13 @@
 
 #define raw_assert(x) assert(x) // assert OK
 
+/** Defining compile-time constants for Tor log levels (used by the Rust
+ * log wrapper at src/rust/tor_log) */
+const int LOG_WARN_ = LOG_WARN;
+const int LOG_NOTICE_ = LOG_NOTICE;
+const log_domain_mask_t LD_GENERAL_ = LD_GENERAL;
+const log_domain_mask_t LD_NET_ = LD_NET;
+
 /** Information for a single logfile; only used in log.c */
 typedef struct logfile_t {
   struct logfile_t *next; /**< Next logfile_t in the linked list. */
@@ -58,12 +68,16 @@ typedef struct logfile_t {
   int needs_close; /**< Boolean: true if the stream gets closed on shutdown. */
   int is_temporary; /**< Boolean: close after initializing logging subsystem.*/
   int is_syslog; /**< Boolean: send messages to syslog. */
+  int is_android; /**< Boolean: send messages to Android's log subsystem. */
+  char *android_tag; /**< Identity Tag used in Android's log subsystem. */
   log_callback callback; /**< If not NULL, send messages to this function. */
   log_severity_list_t *severities; /**< Which severity of messages should we
                                     * log for each log domain? */
 } logfile_t;
 
-static void log_free(logfile_t *victim);
+static void log_free_(logfile_t *victim);
+#define log_free(lg)    \
+  FREE_AND_NULL(logfile_t, log_free_, (lg))
 
 /** Helper: map a log severity to descriptive string. */
 static inline const char *
@@ -101,6 +115,33 @@ should_log_function_name(log_domain_mask_t domain, int severity)
   }
 }
 
+#ifdef HAVE_ANDROID_LOG_H
+/** Helper function to convert Tor's log severity into the matching
+ * Android log priority.
+ */
+static int
+severity_to_android_log_priority(int severity)
+{
+  switch (severity) {
+    case LOG_DEBUG:
+      return ANDROID_LOG_VERBOSE;
+    case LOG_INFO:
+      return ANDROID_LOG_DEBUG;
+    case LOG_NOTICE:
+      return ANDROID_LOG_INFO;
+    case LOG_WARN:
+      return ANDROID_LOG_WARN;
+    case LOG_ERR:
+      return ANDROID_LOG_ERROR;
+    default:
+      // LCOV_EXCL_START
+      raw_assert(0);
+      return 0;
+      // LCOV_EXCL_STOP
+  }
+}
+#endif // HAVE_ANDROID_LOG_H.
+
 /** A mutex to guard changes to logfiles and logging. */
 static tor_mutex_t log_mutex;
 /** True iff we have initialized log_mutex */
@@ -128,6 +169,9 @@ typedef struct pending_log_message_t {
 
 /** Log messages waiting to be replayed onto callback-based logs */
 static smartlist_t *pending_cb_messages = NULL;
+
+/** Callback to invoke when pending_cb_messages becomes nonempty. */
+static pending_callback_callback pending_cb_cb = NULL;
 
 /** Log messages waiting to be replayed once the logging system is initialized.
  */
@@ -189,6 +233,30 @@ log_set_application_name(const char *name)
 {
   tor_free(appname);
   appname = name ? tor_strdup(name) : NULL;
+}
+
+/** Return true if some of the running logs might be interested in a log
+ * message of the given severity in the given domains. If this function
+ * returns true, the log message might be ignored anyway, but if it returns
+ * false, it is definitely_ safe not to log the message. */
+int
+log_message_is_interesting(int severity, log_domain_mask_t domain)
+{
+  (void) domain;
+  return (severity <= log_global_min_severity_);
+}
+
+/**
+ * As tor_log, but takes an optional function name, and does not treat its
+ * <b>string</b> as a printf format.
+ *
+ * For use by Rust integration.
+ */
+void
+tor_log_string(int severity, log_domain_mask_t domain,
+               const char *function, const char *string)
+{
+  log_fn_(severity, domain, function, "%s", string);
 }
 
 /** Log time granularity in milliseconds. */
@@ -385,15 +453,28 @@ pending_log_message_new(int severity, log_domain_mask_t domain,
   return m;
 }
 
+#define pending_log_message_free(msg) \
+  FREE_AND_NULL(pending_log_message_t, pending_log_message_free_, (msg))
+
 /** Release all storage held by <b>msg</b>. */
 static void
-pending_log_message_free(pending_log_message_t *msg)
+pending_log_message_free_(pending_log_message_t *msg)
 {
   if (!msg)
     return;
   tor_free(msg->msg);
   tor_free(msg->fullmsg);
   tor_free(msg);
+}
+
+/** Helper function: returns true iff the log file, given in <b>lf</b>, is
+ * handled externally via the system log API, the Android logging API, or is an
+ * external callback function. */
+static inline int
+logfile_is_external(const logfile_t *lf)
+{
+  raw_assert(lf);
+  return lf->is_syslog || lf->is_android || lf->callback;
 }
 
 /** Return true iff <b>lf</b> would like to receive a message with the
@@ -406,7 +487,7 @@ logfile_wants_message(const logfile_t *lf, int severity,
   if (! (lf->severities->masks[SEVERITY_MASK_IDX(severity)] & domain)) {
     return 0;
   }
-  if (! (lf->fd >= 0 || lf->is_syslog || lf->callback)) {
+  if (! (lf->fd >= 0 || logfile_is_external(lf))) {
     return 0;
   }
   if (lf->seems_dead) {
@@ -449,12 +530,20 @@ logfile_deliver(logfile_t *lf, const char *buf, size_t msg_len,
     syslog(severity, "%s", msg_after_prefix);
 #endif /* defined(MAXLINE) */
 #endif /* defined(HAVE_SYSLOG_H) */
+  } else if (lf->is_android) {
+#ifdef HAVE_ANDROID_LOG_H
+    int priority = severity_to_android_log_priority(severity);
+    __android_log_write(priority, lf->android_tag, msg_after_prefix);
+#endif // HAVE_ANDROID_LOG_H.
   } else if (lf->callback) {
     if (domain & LD_NOCB) {
       if (!*callbacks_deferred && pending_cb_messages) {
         smartlist_add(pending_cb_messages,
             pending_log_message_new(severity,domain,NULL,msg_after_prefix));
         *callbacks_deferred = 1;
+        if (smartlist_len(pending_cb_messages) == 1 && pending_cb_cb) {
+          pending_cb_cb();
+        }
       }
     } else {
       lf->callback(severity, domain, msg_after_prefix);
@@ -641,8 +730,8 @@ tor_log_update_sigsafe_err_fds(void)
      /* Don't try callback to the control port, or syslogs: We can't
       * do them from a signal handler. Don't try stdout: we always do stderr.
       */
-    if (lf->is_temporary || lf->is_syslog ||
-        lf->callback || lf->seems_dead || lf->fd < 0)
+    if (lf->is_temporary || logfile_is_external(lf)
+        || lf->seems_dead || lf->fd < 0)
       continue;
     if (lf->severities->masks[SEVERITY_MASK_IDX(LOG_ERR)] &
         (LD_BUG|LD_GENERAL)) {
@@ -678,7 +767,7 @@ tor_log_get_logfile_names(smartlist_t *out)
   LOCK_LOGS();
 
   for (lf = logfiles; lf; lf = lf->next) {
-    if (lf->is_temporary || lf->is_syslog || lf->callback)
+    if (lf->is_temporary || logfile_is_external(lf))
       continue;
     if (lf->filename == NULL)
       continue;
@@ -721,12 +810,13 @@ log_fn_ratelim_(ratelim_t *ratelim, int severity, log_domain_mask_t domain,
 
 /** Free all storage held by <b>victim</b>. */
 static void
-log_free(logfile_t *victim)
+log_free_(logfile_t *victim)
 {
   if (!victim)
     return;
   tor_free(victim->severities);
   tor_free(victim->filename);
+  tor_free(victim->android_tag);
   tor_free(victim);
 }
 
@@ -741,6 +831,7 @@ logs_free_all(void)
   logfiles = NULL;
   messages = pending_cb_messages;
   pending_cb_messages = NULL;
+  pending_cb_cb = NULL;
   messages2 = pending_startup_messages;
   pending_startup_messages = NULL;
   UNLOCK_LOGS();
@@ -901,6 +992,24 @@ add_temp_log(int min_severity)
   tor_free(s);
   logfiles->is_temporary = 1;
   UNLOCK_LOGS();
+}
+
+/**
+ * Register "cb" as the callback to call when there are new pending log
+ * callbacks to be flushed with flush_pending_log_callbacks().
+ *
+ * Note that this callback, if present, can be invoked from any thread.
+ *
+ * This callback must not log.
+ *
+ * It is intentional that this function contains the name "callback" twice: it
+ * sets a "callback" to be called on the condition that there is a "pending
+ * callback".
+ **/
+void
+logs_set_pending_callback_callback(pending_callback_callback cb)
+{
+  pending_cb_cb = cb;
 }
 
 /**
@@ -1146,6 +1255,39 @@ add_syslog_log(const log_severity_list_t *severity,
 }
 #endif /* defined(HAVE_SYSLOG_H) */
 
+#ifdef HAVE_ANDROID_LOG_H
+/**
+ * Add a log handler to send messages to the Android platform log facility.
+ */
+int
+add_android_log(const log_severity_list_t *severity,
+                const char *android_tag)
+{
+  logfile_t *lf = NULL;
+
+  lf = tor_malloc_zero(sizeof(logfile_t));
+  lf->fd = -1;
+  lf->severities = tor_memdup(severity, sizeof(log_severity_list_t));
+  lf->filename = tor_strdup("<android>");
+  lf->is_android = 1;
+
+  if (android_tag == NULL)
+    lf->android_tag = tor_strdup("Tor");
+  else {
+    char buf[256];
+    tor_snprintf(buf, sizeof(buf), "Tor-%s", android_tag);
+    lf->android_tag = tor_strdup(buf);
+  }
+
+  LOCK_LOGS();
+  lf->next = logfiles;
+  logfiles = lf;
+  log_global_min_severity_ = get_min_log_level();
+  UNLOCK_LOGS();
+  return 0;
+}
+#endif // HAVE_ANDROID_LOG_H.
+
 /** If <b>level</b> is a valid log severity, return the corresponding
  * numeric value.  Otherwise, return -1. */
 int
@@ -1172,12 +1314,15 @@ log_level_to_string(int level)
 }
 
 /** NULL-terminated array of names for log domains such that domain_list[dom]
- * is a description of <b>dom</b>. */
+ * is a description of <b>dom</b>.
+ *
+ * Remember to update doc/tor.1.txt if you modify this list.
+ * */
 static const char *domain_list[] = {
   "GENERAL", "CRYPTO", "NET", "CONFIG", "FS", "PROTOCOL", "MM",
   "HTTP", "APP", "CONTROL", "CIRC", "REND", "BUG", "DIR", "DIRSERV",
   "OR", "EDGE", "ACCT", "HIST", "HANDSHAKE", "HEARTBEAT", "CHANNEL",
-  "SCHED", "GUARD", "CONSDIFF", NULL
+  "SCHED", "GUARD", "CONSDIFF", "DOS", NULL
 };
 
 /** Return a bitmask for the log domain for which <b>domain</b> is the name,
@@ -1313,7 +1458,8 @@ parse_log_severity_config(const char **cfg_ptr,
     if (!strcasecmpstart(cfg, "file") ||
         !strcasecmpstart(cfg, "stderr") ||
         !strcasecmpstart(cfg, "stdout") ||
-        !strcasecmpstart(cfg, "syslog")) {
+        !strcasecmpstart(cfg, "syslog") ||
+        !strcasecmpstart(cfg, "android")) {
       goto done;
     }
     if (got_an_unqualified_range > 1)

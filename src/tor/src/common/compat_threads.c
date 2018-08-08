@@ -48,7 +48,7 @@ tor_mutex_new_nonrecursive(void)
 }
 /** Release all storage and system resources held by <b>m</b>. */
 void
-tor_mutex_free(tor_mutex_t *m)
+tor_mutex_free_(tor_mutex_t *m)
 {
   if (!m)
     return;
@@ -68,7 +68,7 @@ tor_cond_new(void)
 
 /** Free all storage held in <b>c</b>. */
 void
-tor_cond_free(tor_cond_t *c)
+tor_cond_free_(tor_cond_t *c)
 {
   if (!c)
     return;
@@ -352,12 +352,7 @@ alert_sockets_close(alert_sockets_t *socks)
   socks->read_fd = socks->write_fd = -1;
 }
 
-/*
- * XXXX We might be smart to move to compiler intrinsics or real atomic
- * XXXX operations at some point.  But not yet.
- *
- */
-
+#ifndef HAVE_STDATOMIC_H
 /** Initialize a new atomic counter with the value 0 */
 void
 atomic_counter_init(atomic_counter_t *counter)
@@ -397,4 +392,16 @@ atomic_counter_get(atomic_counter_t *counter)
   tor_mutex_release(&counter->mutex);
   return val;
 }
+/** Replace the value of an atomic counter; return the old one. */
+size_t
+atomic_counter_exchange(atomic_counter_t *counter, size_t newval)
+{
+  size_t oldval;
+  tor_mutex_acquire(&counter->mutex);
+  oldval = counter->val;
+  counter->val = newval;
+  tor_mutex_release(&counter->mutex);
+  return oldval;
+}
+#endif /* !defined(HAVE_STDATOMIC_H) */
 

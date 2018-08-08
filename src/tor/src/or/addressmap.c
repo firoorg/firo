@@ -21,9 +21,10 @@
 #include "config.h"
 #include "connection_edge.h"
 #include "control.h"
+#include "crypto_rand.h"
 #include "dns.h"
-#include "routerset.h"
 #include "nodelist.h"
+#include "routerset.h"
 
 /** A client-side struct to remember requests to rewrite addresses
  * to new addresses. These structs are stored in the hash table
@@ -90,32 +91,45 @@ addressmap_init(void)
   virtaddress_reversemap = strmap_new();
 }
 
+#define addressmap_ent_free(ent)                                        \
+  FREE_AND_NULL(addressmap_entry_t, addressmap_ent_free_, (ent))
+
 /** Free the memory associated with the addressmap entry <b>_ent</b>. */
 static void
-addressmap_ent_free(void *_ent)
+addressmap_ent_free_(addressmap_entry_t *ent)
 {
-  addressmap_entry_t *ent;
-  if (!_ent)
+  if (!ent)
     return;
 
-  ent = _ent;
   tor_free(ent->new_address);
   tor_free(ent);
 }
 
+static void
+addressmap_ent_free_void(void *ent)
+{
+  addressmap_ent_free_(ent);
+}
+
+#define addressmap_virtaddress_ent_free(ent)                            \
+  FREE_AND_NULL(virtaddress_entry_t, addressmap_virtaddress_ent_free_, (ent))
+
 /** Free storage held by a virtaddress_entry_t* entry in <b>_ent</b>. */
 static void
-addressmap_virtaddress_ent_free(void *_ent)
+addressmap_virtaddress_ent_free_(virtaddress_entry_t *ent)
 {
-  virtaddress_entry_t *ent;
-  if (!_ent)
+  if (!ent)
     return;
-
-  ent = _ent;
   tor_free(ent->ipv4_address);
   tor_free(ent->ipv6_address);
   tor_free(ent->hostname_address);
   tor_free(ent);
+}
+
+static void
+addressmap_virtaddress_ent_free_void(void *ent)
+{
+  addressmap_virtaddress_ent_free_(ent);
 }
 
 /** Remove <b>address</b> (which must map to <b>ent</b>) from the
@@ -311,10 +325,10 @@ addressmap_clean(time_t now)
 void
 addressmap_free_all(void)
 {
-  strmap_free(addressmap, addressmap_ent_free);
+  strmap_free(addressmap, addressmap_ent_free_void);
   addressmap = NULL;
 
-  strmap_free(virtaddress_reversemap, addressmap_virtaddress_ent_free);
+  strmap_free(virtaddress_reversemap, addressmap_virtaddress_ent_free_void);
   virtaddress_reversemap = NULL;
 }
 
@@ -541,7 +555,7 @@ addressmap_have_mapping(const char *address, int update_expiry)
  * (virtual address mapping) from the controller.)
  *
  * <b>new_address</b> should be a newly dup'ed string, which we'll use or
- * free as appropriate. We will leave address alone.
+ * free as appropriate. We will leave <b>address</b> alone.
  *
  * If <b>wildcard_addr</b> is true, then the mapping will match any address
  * equal to <b>address</b>, or any address ending with a period followed by
@@ -553,7 +567,6 @@ addressmap_have_mapping(const char *address, int update_expiry)
  * <b>address</b> and <b>wildcard_addr</b> is equal to
  * <b>wildcard_new_addr</b>, remove any mappings that exist from
  * <b>address</b>.
- *
  *
  * It is an error to set <b>wildcard_new_addr</b> if <b>wildcard_addr</b> is
  * not set. */
@@ -947,9 +960,11 @@ addressmap_get_virtual_address(int type)
         char tmp[TOR_ADDR_BUF_LEN];
         tor_addr_to_str(tmp, &addr, sizeof(tmp), 0);
         if (strmap_get(addressmap, tmp)) {
+          // LCOV_EXCL_START
           log_warn(LD_BUG, "%s wasn't in the addressmap, but %s was.",
                    buf, tmp);
           continue;
+          // LCOV_EXCL_STOP
         }
 
         return tor_strdup(buf);
@@ -958,8 +973,10 @@ addressmap_get_virtual_address(int type)
     log_warn(LD_CONFIG, "Ran out of virtual addresses!");
     return NULL;
   } else {
+    // LCOV_EXCL_START
     log_warn(LD_BUG, "Called with unsupported address type (%d)", type);
     return NULL;
+    // LCOV_EXCL_STOP
   }
 }
 

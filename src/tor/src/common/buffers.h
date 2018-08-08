@@ -13,7 +13,6 @@
 #define TOR_BUFFERS_H
 
 #include "compat.h"
-#include "compat.h"
 #include "torint.h"
 #include "testsupport.h"
 
@@ -24,7 +23,8 @@ struct tor_compress_state_t;
 buf_t *buf_new(void);
 buf_t *buf_new_with_capacity(size_t size);
 size_t buf_get_default_chunk_size(const buf_t *buf);
-void buf_free(buf_t *buf);
+void buf_free_(buf_t *buf);
+#define buf_free(b) FREE_AND_NULL(buf_t, buf_free_, (b))
 void buf_clear(buf_t *buf);
 buf_t *buf_copy(const buf_t *buf);
 
@@ -43,9 +43,15 @@ int buf_flush_to_socket(buf_t *buf, tor_socket_t s, size_t sz,
                         size_t *buf_flushlen);
 
 int buf_add(buf_t *buf, const char *string, size_t string_len);
+void buf_add_string(buf_t *buf, const char *string);
+void buf_add_printf(buf_t *buf, const char *format, ...)
+  CHECK_PRINTF(2, 3);
+void buf_add_vprintf(buf_t *buf, const char *format, va_list args)
+  CHECK_PRINTF(2, 0);
 int buf_add_compress(buf_t *buf, struct tor_compress_state_t *state,
                           const char *data, size_t data_len, int done);
 int buf_move_to_buf(buf_t *buf_out, buf_t *buf_in, size_t *buf_flushlen);
+void buf_move_all(buf_t *buf_out, buf_t *buf_in);
 void buf_peek(const buf_t *buf, char *string, size_t string_len);
 void buf_drain(buf_t *buf, size_t n);
 int buf_get_bytes(buf_t *buf, char *string, size_t string_len);
@@ -62,6 +68,7 @@ void buf_assert_ok(buf_t *buf);
 int buf_find_string_offset(const buf_t *buf, const char *s, size_t n);
 void buf_pullup(buf_t *buf, size_t bytes,
                 const char **head_out, size_t *len_out);
+char *buf_extract(buf_t *buf, size_t *sz_out);
 
 #ifdef BUFFERS_PRIVATE
 #ifdef TOR_UNIT_TESTS
@@ -79,8 +86,7 @@ typedef struct chunk_t {
   size_t DBG_alloc;
 #endif
   char *data; /**< A pointer to the first byte of data stored in <b>mem</b>. */
-  uint32_t inserted_time; /**< Timestamp in truncated ms since epoch
-                           * when this chunk was inserted. */
+  uint32_t inserted_time; /**< Timestamp when this chunk was inserted. */
   char mem[FLEXIBLE_ARRAY_MEMBER]; /**< The actual memory used for storage in
                 * this chunk. */
 } chunk_t;

@@ -34,7 +34,6 @@
  * Define this so channel.h gives us things only channel_t subclasses
  * should touch.
  */
-
 #define TOR_CHANNEL_INTERNAL_
 
 #define CHANNELTLS_PRIVATE
@@ -132,7 +131,6 @@ static void channel_tls_process_padding_negotiate_cell(cell_t *cell,
  * Do parts of channel_tls_t initialization common to channel_tls_connect()
  * and channel_tls_handle_incoming().
  */
-
 STATIC void
 channel_tls_common_init(channel_tls_t *tlschan)
 {
@@ -162,19 +160,17 @@ channel_tls_common_init(channel_tls_t *tlschan)
   chan->write_var_cell = channel_tls_write_var_cell_method;
 
   chan->cmux = circuitmux_alloc();
-  if (cell_ewma_enabled()) {
-    circuitmux_set_policy(chan->cmux, &ewma_policy);
-  }
+  /* We only have one policy for now so always set it to EWMA. */
+  circuitmux_set_policy(chan->cmux, &ewma_policy);
 }
 
 /**
- * Start a new TLS channel
+ * Start a new TLS channel.
  *
  * Launch a new OR connection to <b>addr</b>:<b>port</b> and expect to
  * handshake with an OR with identity digest <b>id_digest</b>, and wrap
  * it in a channel_tls_t.
  */
-
 channel_t *
 channel_tls_connect(const tor_addr_t *addr, uint16_t port,
                     const char *id_digest,
@@ -233,12 +229,11 @@ channel_tls_connect(const tor_addr_t *addr, uint16_t port,
 }
 
 /**
- * Return the current channel_tls_t listener
+ * Return the current channel_tls_t listener.
  *
  * Returns the current channel listener for incoming TLS connections, or
  * NULL if none has been established
  */
-
 channel_listener_t *
 channel_tls_get_listener(void)
 {
@@ -246,12 +241,11 @@ channel_tls_get_listener(void)
 }
 
 /**
- * Start a channel_tls_t listener if necessary
+ * Start a channel_tls_t listener if necessary.
  *
  * Return the current channel_tls_t listener, or start one if we haven't yet,
  * and return that.
  */
-
 channel_listener_t *
 channel_tls_start_listener(void)
 {
@@ -278,12 +272,11 @@ channel_tls_start_listener(void)
 }
 
 /**
- * Free everything on shutdown
+ * Free everything on shutdown.
  *
  * Not much to do here, since channel_free_all() takes care of a lot, but let's
  * get rid of the listener.
  */
-
 void
 channel_tls_free_all(void)
 {
@@ -314,9 +307,8 @@ channel_tls_free_all(void)
 }
 
 /**
- * Create a new channel around an incoming or_connection_t
+ * Create a new channel around an incoming or_connection_t.
  */
-
 channel_t *
 channel_tls_handle_incoming(or_connection_t *orconn)
 {
@@ -359,7 +351,6 @@ channel_tls_handle_incoming(or_connection_t *orconn)
 /**
  * Cast a channel_tls_t to a channel_t.
  */
-
 channel_t *
 channel_tls_to_base(channel_tls_t *tlschan)
 {
@@ -372,7 +363,6 @@ channel_tls_to_base(channel_tls_t *tlschan)
  * Cast a channel_t to a channel_tls_t, with appropriate type-checking
  * asserts.
  */
-
 channel_tls_t *
 channel_tls_from_base(channel_t *chan)
 {
@@ -388,11 +378,10 @@ channel_tls_from_base(channel_t *chan)
  *******************************************/
 
 /**
- * Close a channel_tls_t
+ * Close a channel_tls_t.
  *
- * This implements the close method for channel_tls_t
+ * This implements the close method for channel_tls_t.
  */
-
 static void
 channel_tls_close_method(channel_t *chan)
 {
@@ -411,12 +400,11 @@ channel_tls_close_method(channel_t *chan)
 }
 
 /**
- * Describe the transport for a channel_tls_t
+ * Describe the transport for a channel_tls_t.
  *
  * This returns the string "TLS channel on connection <id>" to the upper
  * layer.
  */
-
 static const char *
 channel_tls_describe_transport_method(channel_t *chan)
 {
@@ -446,7 +434,7 @@ channel_tls_describe_transport_method(channel_t *chan)
 }
 
 /**
- * Free a channel_tls_t
+ * Free a channel_tls_t.
  *
  * This is called by the generic channel layer when freeing a channel_tls_t;
  * this happens either on a channel which has already reached
@@ -455,7 +443,6 @@ channel_tls_describe_transport_method(channel_t *chan)
  * have an orconn active (which connection_free_all() will get to later),
  * so we should null out its channel pointer now.
  */
-
 static void
 channel_tls_free_method(channel_t *chan)
 {
@@ -470,9 +457,8 @@ channel_tls_free_method(channel_t *chan)
 }
 
 /**
- * Get an estimate of the average TLS overhead for the upper layer
+ * Get an estimate of the average TLS overhead for the upper layer.
  */
-
 static double
 channel_tls_get_overhead_estimate_method(channel_t *chan)
 {
@@ -505,13 +491,12 @@ channel_tls_get_overhead_estimate_method(channel_t *chan)
 }
 
 /**
- * Get the remote address of a channel_tls_t
+ * Get the remote address of a channel_tls_t.
  *
  * This implements the get_remote_addr method for channel_tls_t; copy the
  * remote endpoint of the channel to addr_out and return 1 (always
  * succeeds for this transport).
  */
-
 static int
 channel_tls_get_remote_addr_method(channel_t *chan, tor_addr_t *addr_out)
 {
@@ -522,7 +507,7 @@ channel_tls_get_remote_addr_method(channel_t *chan, tor_addr_t *addr_out)
   tor_assert(addr_out);
 
   if (tlschan->conn) {
-    tor_addr_copy(addr_out, &(TO_CONN(tlschan->conn)->addr));
+    tor_addr_copy(addr_out, &(tlschan->conn->real_addr));
     rv = 1;
   } else tor_addr_make_unspec(addr_out);
 
@@ -535,8 +520,8 @@ channel_tls_get_remote_addr_method(channel_t *chan, tor_addr_t *addr_out)
  * This implements the get_transport_name for channel_tls_t. If the
  * channel uses a pluggable transport, copy its name to
  * <b>transport_out</b> and return 0. If the channel did not use a
- * pluggable transport, return -1. */
-
+ * pluggable transport, return -1.
+ */
 static int
 channel_tls_get_transport_name_method(channel_t *chan, char **transport_out)
 {
@@ -554,14 +539,13 @@ channel_tls_get_transport_name_method(channel_t *chan, char **transport_out)
 }
 
 /**
- * Get endpoint description of a channel_tls_t
+ * Get endpoint description of a channel_tls_t.
  *
  * This implements the get_remote_descr method for channel_tls_t; it returns
  * a text description of the remote endpoint of the channel suitable for use
- * in log messages.  The req parameter is 0 for the canonical address or 1 for
+ * in log messages. The req parameter is 0 for the canonical address or 1 for
  * the actual address seen.
  */
-
 static const char *
 channel_tls_get_remote_descr_method(channel_t *chan, int flags)
 {
@@ -617,12 +601,11 @@ channel_tls_get_remote_descr_method(channel_t *chan, int flags)
 }
 
 /**
- * Tell the upper layer if we have queued writes
+ * Tell the upper layer if we have queued writes.
  *
  * This implements the has_queued_writes method for channel_tls t_; it returns
  * 1 iff we have queued writes on the outbuf of the underlying or_connection_t.
  */
-
 static int
 channel_tls_has_queued_writes_method(channel_t *chan)
 {
@@ -645,13 +628,12 @@ channel_tls_has_queued_writes_method(channel_t *chan)
 }
 
 /**
- * Tell the upper layer if we're canonical
+ * Tell the upper layer if we're canonical.
  *
  * This implements the is_canonical method for channel_tls_t; if req is zero,
  * it returns whether this is a canonical channel, and if it is one it returns
  * whether that can be relied upon.
  */
-
 static int
 channel_tls_is_canonical_method(channel_t *chan, int req)
 {
@@ -684,12 +666,11 @@ channel_tls_is_canonical_method(channel_t *chan, int req)
 }
 
 /**
- * Check if we match an extend_info_t
+ * Check if we match an extend_info_t.
  *
  * This implements the matches_extend_info method for channel_tls_t; the upper
  * layer wants to know if this channel matches an extend_info_t.
  */
-
 static int
 channel_tls_matches_extend_info_method(channel_t *chan,
                                        extend_info_t *extend_info)
@@ -720,7 +701,6 @@ channel_tls_matches_extend_info_method(channel_t *chan,
  * layer wants to know if this channel matches a target address when extending
  * a circuit.
  */
-
 static int
 channel_tls_matches_target_method(channel_t *chan,
                                   const tor_addr_t *target)
@@ -755,7 +735,6 @@ channel_tls_matches_target_method(channel_t *chan,
  * Tell the upper layer how many bytes we have queued and not yet
  * sent.
  */
-
 static size_t
 channel_tls_num_bytes_queued_method(channel_t *chan)
 {
@@ -768,13 +747,12 @@ channel_tls_num_bytes_queued_method(channel_t *chan)
 }
 
 /**
- * Tell the upper layer how many cells we can accept to write
+ * Tell the upper layer how many cells we can accept to write.
  *
  * This implements the num_cells_writeable method for channel_tls_t; it
  * returns an estimate of the number of cells we can accept with
  * channel_tls_write_*_cell().
  */
-
 static int
 channel_tls_num_cells_writeable_method(channel_t *chan)
 {
@@ -799,12 +777,11 @@ channel_tls_num_cells_writeable_method(channel_t *chan)
 }
 
 /**
- * Write a cell to a channel_tls_t
+ * Write a cell to a channel_tls_t.
  *
  * This implements the write_cell method for channel_tls_t; given a
  * channel_tls_t and a cell_t, transmit the cell_t.
  */
-
 static int
 channel_tls_write_cell_method(channel_t *chan, cell_t *cell)
 {
@@ -828,12 +805,14 @@ channel_tls_write_cell_method(channel_t *chan, cell_t *cell)
 }
 
 /**
- * Write a packed cell to a channel_tls_t
+ * Write a packed cell to a channel_tls_t.
  *
  * This implements the write_packed_cell method for channel_tls_t; given a
  * channel_tls_t and a packed_cell_t, transmit the packed_cell_t.
+ *
+ * Return 0 on success or negative value on error. The caller must free the
+ * packed cell.
  */
-
 static int
 channel_tls_write_packed_cell_method(channel_t *chan,
                                      packed_cell_t *packed_cell)
@@ -841,7 +820,6 @@ channel_tls_write_packed_cell_method(channel_t *chan,
   tor_assert(chan);
   channel_tls_t *tlschan = BASE_CHAN_TO_TLS(chan);
   size_t cell_network_size = get_cell_network_size(chan->wide_circ_ids);
-  int written = 0;
 
   tor_assert(tlschan);
   tor_assert(packed_cell);
@@ -849,27 +827,23 @@ channel_tls_write_packed_cell_method(channel_t *chan,
   if (tlschan->conn) {
     connection_buf_add(packed_cell->body, cell_network_size,
                             TO_CONN(tlschan->conn));
-
-    /* This is where the cell is finished; used to be done from relay.c */
-    packed_cell_free(packed_cell);
-    ++written;
   } else {
     log_info(LD_CHANNEL,
              "something called write_packed_cell on a tlschan "
              "(%p with ID " U64_FORMAT " but no conn",
              chan, U64_PRINTF_ARG(chan->global_identifier));
+    return -1;
   }
 
-  return written;
+  return 0;
 }
 
 /**
- * Write a variable-length cell to a channel_tls_t
+ * Write a variable-length cell to a channel_tls_t.
  *
  * This implements the write_var_cell method for channel_tls_t; given a
  * channel_tls_t and a var_cell_t, transmit the var_cell_t.
  */
-
 static int
 channel_tls_write_var_cell_method(channel_t *chan, var_cell_t *var_cell)
 {
@@ -897,11 +871,10 @@ channel_tls_write_var_cell_method(channel_t *chan, var_cell_t *var_cell)
  ************************************************/
 
 /**
- * Close a channel_listener_t
+ * Close a channel_listener_t.
  *
- * This implements the close method for channel_listener_t
+ * This implements the close method for channel_listener_t.
  */
-
 static void
 channel_tls_listener_close_method(channel_listener_t *chan_l)
 {
@@ -937,12 +910,11 @@ channel_tls_listener_close_method(channel_listener_t *chan_l)
 }
 
 /**
- * Describe the transport for a channel_listener_t
+ * Describe the transport for a channel_listener_t.
  *
  * This returns the string "TLS channel (listening)" to the upper
  * layer.
  */
-
 static const char *
 channel_tls_listener_describe_transport_method(channel_listener_t *chan_l)
 {
@@ -956,12 +928,11 @@ channel_tls_listener_describe_transport_method(channel_listener_t *chan_l)
  ******************************************************/
 
 /**
- * Handle an orconn state change
+ * Handle an orconn state change.
  *
  * This function will be called by connection_or.c when the or_connection_t
  * associated with this channel_tls_t changes state.
  */
-
 void
 channel_tls_handle_state_change_on_orconn(channel_tls_t *chan,
                                           or_connection_t *conn,
@@ -1012,13 +983,12 @@ channel_tls_handle_state_change_on_orconn(channel_tls_t *chan,
 #ifdef KEEP_TIMING_STATS
 
 /**
- * Timing states wrapper
+ * Timing states wrapper.
  *
  * This is a wrapper function around the actual function that processes the
  * <b>cell</b> that just arrived on <b>chan</b>. Increment <b>*time</b>
  * by the number of microseconds used by the call to <b>*func(cell, chan)</b>.
  */
-
 static void
 channel_tls_time_process_cell(cell_t *cell, channel_tls_t *chan, int *time,
                               void (*func)(cell_t *, channel_tls_t *))
@@ -1047,7 +1017,7 @@ channel_tls_time_process_cell(cell_t *cell, channel_tls_t *chan, int *time,
 #endif /* defined(KEEP_TIMING_STATS) */
 
 /**
- * Handle an incoming cell on a channel_tls_t
+ * Handle an incoming cell on a channel_tls_t.
  *
  * This is called from connection_or.c to handle an arriving cell; it checks
  * for cell types specific to the handshake for this transport protocol and
@@ -1059,7 +1029,6 @@ channel_tls_time_process_cell(cell_t *cell, channel_tls_t *chan, int *time,
  * for copying in the case that it queues; we merely pass pointers through
  * which we get from connection_or_process_cells_from_inbuf().
  */
-
 void
 channel_tls_handle_cell(cell_t *cell, or_connection_t *conn)
 {
@@ -1149,7 +1118,7 @@ channel_tls_handle_cell(cell_t *cell, or_connection_t *conn)
        * These are all transport independent and we pass them up through the
        * channel_t mechanism.  They are ultimately handled in command.c.
        */
-      channel_queue_cell(TLS_CHAN_TO_BASE(chan), cell);
+      channel_process_cell(TLS_CHAN_TO_BASE(chan), cell);
       break;
     default:
       log_fn(LOG_INFO, LD_PROTOCOL,
@@ -1161,7 +1130,7 @@ channel_tls_handle_cell(cell_t *cell, or_connection_t *conn)
 }
 
 /**
- * Handle an incoming variable-length cell on a channel_tls_t
+ * Handle an incoming variable-length cell on a channel_tls_t.
  *
  * Process a <b>var_cell</b> that was just received on <b>conn</b>. Keep
  * internal statistics about how many of each cell we've processed so far
@@ -1177,7 +1146,6 @@ channel_tls_handle_cell(cell_t *cell, or_connection_t *conn)
  * caller always frees them after this function returns, so this function
  * should never free var_cell.
  */
-
 void
 channel_tls_handle_var_cell(var_cell_t *var_cell, or_connection_t *conn)
 {
@@ -1342,7 +1310,7 @@ channel_tls_handle_var_cell(var_cell_t *var_cell, or_connection_t *conn)
 }
 
 /**
- * Update channel marks after connection_or.c has changed an address
+ * Update channel marks after connection_or.c has changed an address.
  *
  * This is called from connection_or_init_conn_from_address() after the
  * connection's _base.addr or real_addr fields have potentially been changed
@@ -1351,7 +1319,6 @@ channel_tls_handle_var_cell(var_cell_t *var_cell, or_connection_t *conn)
  * remote router by looking it up in the consensus after we finish the
  * handshake and know an authenticated identity digest.
  */
-
 void
 channel_tls_update_marks(or_connection_t *conn)
 {
@@ -1380,12 +1347,11 @@ channel_tls_update_marks(or_connection_t *conn)
 }
 
 /**
- * Check if this cell type is allowed before the handshake is finished
+ * Check if this cell type is allowed before the handshake is finished.
  *
  * Return true if <b>command</b> is a cell command that's allowed to start a
  * V3 handshake.
  */
-
 static int
 command_allowed_before_handshake(uint8_t command)
 {
@@ -1400,14 +1366,13 @@ command_allowed_before_handshake(uint8_t command)
 }
 
 /**
- * Start a V3 handshake on an incoming connection
+ * Start a V3 handshake on an incoming connection.
  *
  * Called when we as a server receive an appropriate cell while waiting
  * either for a cell or a TLS handshake.  Set the connection's state to
  * "handshaking_v3', initializes the or_handshake_state field as needed,
  * and add the cell to the hash of incoming cells.)
  */
-
 static int
 enter_v3_handshake_with_cell(var_cell_t *cell, channel_tls_t *chan)
 {
@@ -1448,7 +1413,6 @@ enter_v3_handshake_with_cell(var_cell_t *cell, channel_tls_t *chan)
  * we support, pick the highest version we have in common, and continue the
  * negotiation from there.
  */
-
 static void
 channel_tls_process_versions_cell(var_cell_t *cell, channel_tls_t *chan)
 {
@@ -1589,7 +1553,7 @@ channel_tls_process_versions_cell(var_cell_t *cell, channel_tls_t *chan)
       }
     }
 
-    /* We set this after sending the verions cell. */
+    /* We set this after sending the versions cell. */
     /*XXXXX symbolic const.*/
     TLS_CHAN_TO_BASE(chan)->wide_circ_ids =
       chan->conn->link_proto >= MIN_LINK_PROTO_FOR_WIDE_CIRC_IDS;
@@ -1623,7 +1587,7 @@ channel_tls_process_versions_cell(var_cell_t *cell, channel_tls_t *chan)
 }
 
 /**
- * Process a 'padding_negotiate' cell
+ * Process a 'padding_negotiate' cell.
  *
  * This function is called to handle an incoming PADDING_NEGOTIATE cell;
  * enable or disable padding accordingly, and read and act on its timeout
@@ -1660,12 +1624,11 @@ channel_tls_process_padding_negotiate_cell(cell_t *cell, channel_tls_t *chan)
 }
 
 /**
- * Process a 'netinfo' cell
+ * Process a 'netinfo' cell.
  *
  * This function is called to handle an incoming NETINFO cell; read and act
  * on its contents, and set the connection state to "open".
  */
-
 static void
 channel_tls_process_netinfo_cell(cell_t *cell, channel_tls_t *chan)
 {
@@ -2168,7 +2131,7 @@ channel_tls_process_certs_cell(var_cell_t *cell, channel_tls_t *chan)
 }
 
 /**
- * Process an AUTH_CHALLENGE cell from a channel_tls_t
+ * Process an AUTH_CHALLENGE cell from a channel_tls_t.
  *
  * This function is called to handle an incoming AUTH_CHALLENGE cell on a
  * channel_tls_t; if we weren't supposed to get one (for example, because we're
@@ -2177,7 +2140,6 @@ channel_tls_process_certs_cell(var_cell_t *cell, channel_tls_t *chan)
  * want to authenticate, just drop it.  If the cell is well-formed *and* we
  * want to authenticate, send an AUTHENTICATE cell and then a NETINFO cell.
  */
-
 STATIC void
 channel_tls_process_auth_challenge_cell(var_cell_t *cell, channel_tls_t *chan)
 {
@@ -2271,7 +2233,7 @@ channel_tls_process_auth_challenge_cell(var_cell_t *cell, channel_tls_t *chan)
 }
 
 /**
- * Process an AUTHENTICATE cell from a channel_tls_t
+ * Process an AUTHENTICATE cell from a channel_tls_t.
  *
  * If it's ill-formed or we weren't supposed to get one or we're not doing a
  * v3 handshake, then mark the connection.  If it does not authenticate the
@@ -2279,7 +2241,6 @@ channel_tls_process_auth_challenge_cell(var_cell_t *cell, channel_tls_t *chan)
  * we didn't get a CERTS cell, etc) mark the connection.  Otherwise, accept
  * the identity of the router on the other side of the connection.
  */
-
 STATIC void
 channel_tls_process_authenticate_cell(var_cell_t *cell, channel_tls_t *chan)
 {
