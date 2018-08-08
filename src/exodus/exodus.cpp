@@ -95,11 +95,11 @@ using namespace exodus;
 
 CCriticalSection cs_tally;
 
-static string exodus_address = "1EXoDusjGwvnjZUyKkxZ4UHEf77z6A5S4P";
+static string exodus_address = "TTFL4sPFHP22Dzqbw9mPQJEjdG7Wf1ajjZ";
 
-static const string exodus_mainnet = "1EXoDusjGwvnjZUyKkxZ4UHEf77z6A5S4P";
-static const string exodus_testnet = "mpexoDuSkGGqvqrkrjiFng38QPkJQVFyqv";
-static const string getmoney_testnet = "moneyqMan7uh8FqdCA2BV5yZ8qVrc9ikLP";
+static const string exodus_mainnet = "TTFL4sPFHP22Dzqbw9mPQJEjdG7Wf1ajjZ";
+static const string exodus_testnet = "TTFL4sPFHP22Dzqbw9mPQJEjdG7Wf1ajjZ";
+static const string getmoney_testnet = "TTFL4sPFHP22Dzqbw9mPQJEjdG7Wf1ajjZ";
 
 static int nWaterlineBlock = 0;
 
@@ -553,7 +553,7 @@ static int64_t calculate_and_update_devexodus(unsigned int nTime, int block)
 
     // sanity check that devexodus isn't an impossible value
     if (devexodus > all_reward || 0 > devexodus) {
-        PrintToLog("%s(): ERROR: insane number of Dev OMNI (nTime=%d, exodus_prev=%d, devexodus=%d)\n", __func__, nTime, exodus_prev, devexodus);
+        PrintToLog("%s(): ERROR: insane number of Dev EXODUS (nTime=%d, exodus_prev=%d, devexodus=%d)\n", __func__, nTime, exodus_prev, devexodus);
         return 0;
     }
 
