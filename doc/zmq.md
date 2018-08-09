@@ -44,13 +44,8 @@ operation.
 ## Enabling
 
 By default, the ZeroMQ feature is automatically compiled in if the
-necessary prerequisites are found.  To disable, use --disable-zmq
-during the *configure* step of building bitcoind:
-
-    $ ./configure --disable-zmq (other options)
-
-To actually enable operation, one must set the appropriate options on
-the commandline or in the configuration file.
+necessary prerequisites are found. To actually enable operation, one must set 
+the appropriate options on the commandline or in the configuration file.
 
 ## Usage
 
