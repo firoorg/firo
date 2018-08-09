@@ -258,9 +258,8 @@ libbitcoin_zmq_a_SOURCES = \
   zmqserver/zmqpublisher.cpp \
   zmqserver/zmqreplier.cpp \
   client-api/server.cpp \
-  client-api/methods.cpp \
-  rpc/client.cpp
-
+  client-api/methods.cpp
+  
 # wallet: shared between zcoind and zcoin-qt, but only linked
 # when wallet enabled
 libbitcoin_wallet_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)

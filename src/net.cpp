@@ -425,7 +425,6 @@ CNode *ConnectNode(CAddress addrConnect, const char *pszDest, bool fCountFailure
         {
             LOCK(cs_vNodes);
             vNodes.push_back(pnode);
-            // TADHGSIGNAL
         }
 
         pnode->nServicesExpected = ServiceFlags(addrConnect.nServices & nRelevantServices);
@@ -1106,7 +1105,6 @@ void ThreadSocketHandler() {
             nPrevNodeCount = vNodes.size();
             uiInterface.NotifyNumConnectionsChanged(nPrevNodeCount);
             GetMainSignals().NumConnectionsChanged();
-            //TADHGSIGNAL
         }
 
         //
