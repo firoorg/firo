@@ -6,14 +6,13 @@
 #include "zmqpublishnotifier.h"
 
 #include "version.h"
-#include "chainparamsbase.h"
 #include "main.h"
 #include "streams.h"
 #include "util.h"
 
 void zmqError(const char *str)
 {
-    LogPrint(NULL, "zmq: Error: %s, errno=%s\n", str, zmq_strerror(errno));
+    LogPrint("zmq", "zmq: Error: %s, errno=%s\n", str, zmq_strerror(errno));
 }
 
 CZMQNotificationInterface::CZMQNotificationInterface() : pcontext(NULL)
@@ -36,21 +35,23 @@ CZMQNotificationInterface* CZMQNotificationInterface::CreateWithArguments(const 
     std::map<std::string, CZMQNotifierFactory> factories;
     std::list<CZMQAbstractNotifier*> notifiers;
 
-    //factories["pubhashblock"] = CZMQAbstractNotifier::Create<CZMQPublishHashBlockNotifier>;
-    //factories["pubhashtx"] = CZMQAbstractNotifier::Create<CZMQPublishHashTransactionNotifier>;
+    factories["pubhashblock"] = CZMQAbstractNotifier::Create<CZMQPublishHashBlockNotifier>;
+    factories["pubhashtx"] = CZMQAbstractNotifier::Create<CZMQPublishHashTransactionNotifier>;
     factories["pubrawblock"] = CZMQAbstractNotifier::Create<CZMQPublishRawBlockNotifier>;
     factories["pubrawtx"] = CZMQAbstractNotifier::Create<CZMQPublishRawTransactionNotifier>;
-    std::string address = "tcp://127.0.0.1:" + to_string(BaseParams().APIPort());
 
     for (std::map<std::string, CZMQNotifierFactory>::const_iterator i=factories.begin(); i!=factories.end(); ++i)
     {
-    //  std::map<std::string, std::string>::const_iterator j = args.find("-zmq" + i->first);
-    //   {
-        CZMQNotifierFactory factory = factories[i->first];
-        CZMQAbstractNotifier *notifier = factory();
-        notifier->SetType("zmq" + i->first);
-        notifier->SetAddress(address);
-        notifiers.push_back(notifier);
+        std::map<std::string, std::string>::const_iterator j = args.find("-zmq" + i->first);
+        if (j!=args.end())
+        {
+            CZMQNotifierFactory factory = i->second;
+            std::string address = j->second;
+            CZMQAbstractNotifier *notifier = factory();
+            notifier->SetType(i->first);
+            notifier->SetAddress(address);
+            notifiers.push_back(notifier);
+        }
     }
 
     if (!notifiers.empty())
@@ -71,7 +72,7 @@ CZMQNotificationInterface* CZMQNotificationInterface::CreateWithArguments(const 
 // Called at startup to conditionally set up ZMQ socket(s)
 bool CZMQNotificationInterface::Initialize()
 {
-    LogPrint(NULL, "zmq: Initialize notification interface\n");
+    LogPrint("zmq", "zmq: Initialize notification interface\n");
     assert(!pcontext);
 
     pcontext = zmq_init(1);
@@ -88,11 +89,11 @@ bool CZMQNotificationInterface::Initialize()
         CZMQAbstractNotifier *notifier = *i;
         if (notifier->Initialize(pcontext))
         {
-            LogPrint(NULL, "  Notifier %s ready (address = %s)\n", notifier->GetType(), notifier->GetAddress());
+            LogPrint("zmq", "  Notifier %s ready (address = %s)\n", notifier->GetType(), notifier->GetAddress());
         }
         else
         {
-            LogPrint(NULL, "  Notifier %s failed (address = %s)\n", notifier->GetType(), notifier->GetAddress());
+            LogPrint("zmq", "  Notifier %s failed (address = %s)\n", notifier->GetType(), notifier->GetAddress());
             break;
         }
     }
@@ -108,13 +109,13 @@ bool CZMQNotificationInterface::Initialize()
 // Called during shutdown sequence
 void CZMQNotificationInterface::Shutdown()
 {
-    LogPrint(NULL, "zmq: Shutdown notification interface\n");
+    LogPrint("zmq", "zmq: Shutdown notification interface\n");
     if (pcontext)
     {
         for (std::list<CZMQAbstractNotifier*>::iterator i=notifiers.begin(); i!=notifiers.end(); ++i)
         {
             CZMQAbstractNotifier *notifier = *i;
-            LogPrint(NULL, "   Shutdown notifier %s at %s\n", notifier->GetType(), notifier->GetAddress());
+            LogPrint("zmq", "   Shutdown notifier %s at %s\n", notifier->GetType(), notifier->GetAddress());
             notifier->Shutdown();
         }
         zmq_ctx_destroy(pcontext);
