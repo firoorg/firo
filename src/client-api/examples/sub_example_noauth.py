@@ -42,6 +42,9 @@ if __name__ == "__main__":
     transactionfilter = b"transaction"
     socket.setsockopt(zmq.SUBSCRIBE, transactionfilter)
 
+    avgblocktimefilter = b"avgblocktime"
+    socket.setsockopt(zmq.SUBSCRIBE, avgblocktimefilter)
+
     while True:
       message = socket.recv()
       print("Received reply [%s]" % (message))

@@ -70,8 +70,14 @@ class CZMQBlockDataTopic : public CZMQBlockEvent
 {
 public:
     void SetTopic(){ topic = "address";};
-    void SetMethod(){ method= "block";};
-    
+    void SetMethod(){ method= "block";};    
+};
+
+class CZMQAvgBlockTimeTopic : public CZMQBlockEvent
+{
+public:
+    void SetTopic(){ topic = "avgblocktime";};
+    void SetMethod(){ method= "avgblocktime";};   
 };
 
 class CZMQBlockInfoTopic : public CZMQBlockEvent,
@@ -80,8 +86,7 @@ class CZMQBlockInfoTopic : public CZMQBlockEvent,
 {
 public:
     void SetTopic(){ topic = "block";};
-    void SetMethod(){ method= "blockchain";};
-    
+    void SetMethod(){ method= "blockchain";};   
 };
 
 class CZMQBalanceTopic : public CZMQBlockEvent, 
@@ -99,8 +104,6 @@ public:
     void SetTopic(){ topic = "transaction";};
     void SetMethod(){ method= "transaction";};
 };
-
-
 
 class CZMQSettingsUpdatePublisher : public CZMQAbstractPublisher
 {

@@ -1161,22 +1161,20 @@ UniValue balance(Type type, const UniValue& data, const UniValue& auth, bool fHe
 }
 
 UniValue avgblocktime(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
-    UniValue result;
+    UniValue ret(UniValue::VOBJ);
+    UniValue avgblocktime;
 
     double difficulty = GetDifficulty();
-    LogPrintf("difficulty: %lf", difficulty);
-    double networkHashrate = GetNetworkHashPS(120, -1).get_real() / 1000000;
-    LogPrintf("networkHashrate: %lf", networkHashrate);
+    double networkHashrateMH = GetNetworkHashPS(120, -1).get_real() / 1000000;
 
-    difficulty = 29059.46507709899;
-    networkHashrate = 187139527043.9566 / 1000000;
-
-    // avg(secs) = difficulty * ((2^32) / (3600 * 10^6 * (networkHashrate))) * 60 * 60
+    // avg(secs) = difficulty * ((2^32) / (3600 * 10^6 * (networkHashrate(mh/s))) * 60 * 60
     // see http://www.wolframalpha.com/widgets/gallery/view.jsp?id=76444b3132fda0e2aca778051d776f1c
 
-    result = int(difficulty * (pow(2,32) / (3600 * pow(10,6) * networkHashrate)) * 60 * 60);
+    avgblocktime = int(difficulty * (pow(2,32) / (3600 * pow(10,6) * networkHashrateMH)) * 60 * 60);
 
-    return result;
+    ret.push_back(Pair("avgblocktime", avgblocktime));
+
+    return ret;
 }
 
 static const CAPICommand commands[] =
