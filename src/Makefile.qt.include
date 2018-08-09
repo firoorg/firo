@@ -410,9 +410,7 @@ qt_zcoin_qt_LDADD = qt/libzcoinqt.a $(LIBBITCOIN_SERVER)
 if ENABLE_WALLET
 qt_zcoin_qt_LDADD += $(LIBBITCOIN_WALLET)
 endif
-if ENABLE_ZMQ
 qt_zcoin_qt_LDADD += $(LIBBITCOIN_ZMQ) $(ZMQ_LIBS)
-endif
 
 qt_zcoin_qt_LDADD += tor/src/or/libtor.a \
 	tor/src/common/libor.a \

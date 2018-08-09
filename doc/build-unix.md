@@ -36,6 +36,7 @@ These dependencies are required:
  libssl      | Crypto           | Random Number Generation, Elliptic Curve Cryptography
  libboost    | Utility          | Library for threading, data structures, etc
  libevent    | Networking       | OS independent asynchronous networking
+ libzmq3     | ZMQ notification | IPC between the GUI and zcoind (requires ZMQ version >= 4.x)
 
 Optional dependencies:
 
@@ -47,7 +48,7 @@ Optional dependencies:
  protobuf    | Payments in GUI  | Data interchange format used for payment protocol (only needed when GUI enabled)
  libqrencode | QR codes in GUI  | Optional for generating QR codes (only needed when GUI enabled)
  univalue    | Utility          | JSON parsing and encoding (bundled version will be used unless --with-system-univalue passed to configure)
- libzmq3     | ZMQ notification | Optional, allows generating ZMQ notifications (requires ZMQ version >= 4.x)
+
 
 For the versions used in the release, see [release-process.md](release-process.md) under *Fetch and build inputs*.
 

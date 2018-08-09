@@ -47,8 +47,6 @@ if 'ENABLE_BITCOIND' not in vars():
     ENABLE_BITCOIND=0
 if 'ENABLE_UTILS' not in vars():
     ENABLE_UTILS=0
-if 'ENABLE_ZMQ' not in vars():
-    ENABLE_ZMQ=0
 
 ENABLE_COVERAGE=0
 
@@ -91,13 +89,11 @@ if not (ENABLE_WALLET == 1 and ENABLE_UTILS == 1 and ENABLE_BITCOIND == 1):
     sys.exit(0)
 
 # python3-zmq may not be installed. Handle this gracefully and with some helpful info
-if ENABLE_ZMQ:
     try:
         import zmq
     except ImportError:
-        print("ERROR: \"import zmq\" failed. Set ENABLE_ZMQ=0 or "
+        print("ERROR: \"import zmq\" failed. "
               "to run zmq tests, see dependency info in /qa/README.md.")
-        # ENABLE_ZMQ=0
         raise
 
 testScripts = [
@@ -144,9 +140,8 @@ testScripts = [
     'signmessages.py',
     'p2p-compactblocks.py',
     'nulldummy.py',
+    'zmq_test.py'
 ]
-if ENABLE_ZMQ:
-    testScripts.append('zmq_test.py')
 
 testScriptsExt = [
     'bip9-softforks.py',

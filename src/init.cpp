@@ -83,12 +83,10 @@
 #include "instantx.h"
 #include "spork.h"
 
-#if ENABLE_ZMQ
 #include "zmqserver/zmqabstract.h"
 #include "zmqserver/zmqinterface.h"
 #include "client-api/server.h"
 #include "client-api/register.h"
-#endif
 
 bool fFeeEstimatesInitialized = false;
 static const bool DEFAULT_PROXYRANDOMIZE = true;
@@ -97,10 +95,8 @@ static const bool DEFAULT_DISABLE_SAFEMODE = false;
 static const bool DEFAULT_STOPAFTERBLOCKIMPORT = false;
 
 
-#if ENABLE_ZMQ
 static CZMQPublisherInterface* pzmqPublisherInterface = NULL;
 static CZMQReplierInterface* pzmqReplierInterface = NULL;
-#endif
 
 #ifdef WIN32
 // Win32 LevelDB doesn't use filedescriptors, and the ones used for
@@ -217,7 +213,6 @@ void Interrupt(boost::thread_group &threadGroup) {
     InterruptAPI();
     InterruptREST();
     InterruptTorControl();
-    //InterruptZMQServer();
     //InterruptAPI();
     threadGroup.interrupt_all();
 }
@@ -290,7 +285,6 @@ void Shutdown() {
         pwalletMain->Flush(true);
 #endif
 
-#if ENABLE_ZMQ
     if (pzmqPublisherInterface) {
         UnregisterValidationInterface(pzmqPublisherInterface);
         delete pzmqPublisherInterface;
@@ -298,7 +292,6 @@ void Shutdown() {
     }
 
     pzmqReplierInterface->Shutdown();
-#endif
 
 #ifndef WIN32
     try {
@@ -514,13 +507,11 @@ std::string HelpMessage(HelpMessageMode mode) {
     strUsage += CWallet::GetWalletHelpString(showDebug);
 #endif
 
-#if ENABLE_ZMQ
     strUsage += HelpMessageGroup(_("ZeroMQ notification options:"));
     strUsage += HelpMessageOpt("-zmqpubhashblock=<address>", _("Enable publish hash block in <address>"));
     strUsage += HelpMessageOpt("-zmqpubhashtx=<address>", _("Enable publish hash transaction in <address>"));
     strUsage += HelpMessageOpt("-zmqpubrawblock=<address>", _("Enable publish raw block in <address>"));
     strUsage += HelpMessageOpt("-zmqpubrawtx=<address>", _("Enable publish raw transaction in <address>"));
-#endif
 
     strUsage += HelpMessageGroup(_("Debugging/Testing options:"));
     strUsage += HelpMessageOpt("-uacomment=<cmt>", _("Append comment to the user agent string"));
@@ -864,7 +855,6 @@ bool AppInitServers(boost::thread_group &threadGroup) {
         return false;
     if (!StartHTTPServer())
         return false;
-#if ENABLE_ZMQ
 
     LogPrint(NULL, "API: creating data directory.\n");
 
@@ -874,10 +864,8 @@ bool AppInitServers(boost::thread_group &threadGroup) {
     CreateSettingsFile();
 
     bool resetapicerts = GetBoolArg("-resetapicerts", DEFAULT_RESETAPICERTS);
-
     CZMQAbstract::createCerts(resetapicerts);
  
-#endif
     return true;
 }
 
@@ -1557,7 +1545,6 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     const std::string &strDest, mapMultiArgs["-seednode"])
     AddOneShot(strDest);
 
-#if ENABLE_ZMQ
     pzmqPublisherInterface = CZMQPublisherInterface::Create();
     pzmqReplierInterface = CZMQReplierInterface::Create();
 
@@ -1565,11 +1552,8 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     if (pzmqPublisherInterface) {
         RegisterValidationInterface(pzmqPublisherInterface);
     }
-#endif
     // ZMQ API
-#if ENABLE_ZMQ
     RegisterAllCoreAPICommands(tableAPI);
-#endif
     if (mapArgs.count("-maxuploadtarget")) {
         CNode::SetMaxOutboundTarget(GetArg("-maxuploadtarget", DEFAULT_MAX_UPLOAD_TARGET) * 1024 * 1024);
     }

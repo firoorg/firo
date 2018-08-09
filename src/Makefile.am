@@ -59,9 +59,8 @@ LIBBITCOIN_CRYPTO=crypto/libbitcoin_crypto.a
 LIBBITCOINQT=qt/libzcoinqt.a
 LIBSECP256K1=secp256k1/libsecp256k1.la
 
-if ENABLE_ZMQ
 LIBBITCOIN_ZMQ=libbitcoin_zmq.a
-endif
+
 if BUILD_BITCOIN_LIBS
 LIBBITCOINCONSENSUS=libbitcoinconsensus.la
 endif
@@ -251,7 +250,6 @@ libbitcoin_server_a_SOURCES = \
   zerocoin.cpp \
   $(BITCOIN_CORE_H)
 
-if ENABLE_ZMQ
 libbitcoin_zmq_a_CPPFLAGS = $(BITCOIN_INCLUDES) $(ZMQ_CFLAGS)
 libbitcoin_zmq_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_zmq_a_SOURCES = \
@@ -262,8 +260,6 @@ libbitcoin_zmq_a_SOURCES = \
   client-api/server.cpp \
   client-api/methods.cpp \
   rpc/client.cpp
-endif
-
 
 # wallet: shared between zcoind and zcoin-qt, but only linked
 # when wallet enabled
