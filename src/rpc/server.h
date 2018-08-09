@@ -189,6 +189,7 @@ extern int64_t nWalletUnlockTime;
 extern CAmount AmountFromValue(const UniValue& value);
 extern UniValue ValueFromAmount(const CAmount& amount);
 extern double GetDifficulty(const CBlockIndex* blockindex = NULL);
+extern UniValue GetNetworkHashPS(int lookup, int height);
 extern std::string HelpRequiringPassphrase();
 extern std::string HelpExampleCli(const std::string& methodname, const std::string& args);
 extern std::string HelpExampleRpc(const std::string& methodname, const std::string& args);

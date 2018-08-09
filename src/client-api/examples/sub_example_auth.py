@@ -8,6 +8,17 @@ import sys
 import json
 from os.path import expanduser
 
+MAINNET = 18332;
+TESTNET = 28332;
+REGTEST = 38332;
+
+def get_network(network):
+    if(network=="mainnet"):
+        return MAINNET;
+    if(networK=="testnet"):
+        return TESTNET;
+    if(networK=="regtest"):
+        return REGTEST;
 
 addressfilter = b"address-"
 blockfilter = b"block-"
@@ -46,7 +57,7 @@ socket.curve_publickey = client_json["data"]["public"].encode('ascii')
 socket.curve_serverkey = server_json["data"]["public"].encode('ascii')
 
 # connect client to ZMQ endpoint
-socket.connect('tcp://localhost:28332')
+socket.connect('tcp://localhost:' + TESTNET)
 
 socket.setsockopt(zmq.SUBSCRIBE, addressfilter)
 socket.setsockopt(zmq.SUBSCRIBE, blockfilter)

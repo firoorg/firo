@@ -35,7 +35,7 @@ public:
         nAPIAddr = "tcp://127.0.0.1:";
         nAPIAuthREPPort = 15557;
         nAPIOpenREPPort = 15558;
-        nAPIPUBPort = 28332;
+        nAPIPUBPort = 18332;
         nRPCPort = 8888;
     }
 };
@@ -70,7 +70,7 @@ public:
         nAPIAddr = "tcp://127.0.0.1:";
         nAPIAuthREPPort = 35557;
         nAPIOpenREPPort = 35558;
-        nAPIPUBPort = 28332;
+        nAPIPUBPort = 38332;
         nRPCPort = 28888;
         strDataDir = "regtest";
     }

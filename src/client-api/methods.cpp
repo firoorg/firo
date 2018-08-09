@@ -31,6 +31,7 @@ namespace fs = boost::filesystem;
 using namespace std::chrono;
 using namespace std;
 
+
 UniValue getInitialTimestamp(string hash){
     fs::path const &path = CreateTxTimestampFile();
 
@@ -1159,11 +1160,30 @@ UniValue balance(Type type, const UniValue& data, const UniValue& auth, bool fHe
     return balanceObj;
 }
 
+UniValue avgblocktime(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
+    UniValue result;
+
+    double difficulty = GetDifficulty();
+    LogPrintf("difficulty: %lf", difficulty);
+    double networkHashrate = GetNetworkHashPS(120, -1).get_real() / 1000000;
+    LogPrintf("networkHashrate: %lf", networkHashrate);
+
+    difficulty = 29059.46507709899;
+    networkHashrate = 187139527043.9566 / 1000000;
+
+    // avg(secs) = difficulty * ((2^32) / (3600 * 10^6 * (networkHashrate))) * 60 * 60
+    // see http://www.wolframalpha.com/widgets/gallery/view.jsp?id=76444b3132fda0e2aca778051d776f1c
+
+    result = int(difficulty * (pow(2,32) / (3600 * pow(10,6) * networkHashrate)) * 60 * 60);
+
+    return result;
+}
+
 static const CAPICommand commands[] =
 { //  category              collection         actor (function)          authPort   authPassphrase   warmupOk
   //  --------------------- ------------       ----------------          -------- --------------   --------
     { "misc",               "apiStatus",       &apistatus,               false,     false,           true   },
-    { "backup",               "backup",       &backup,                   true,      false,           false  },
+    { "misc",               "backup",          &backup,                  true,      false,           false  },
     { "wallet",             "lockWallet",      &lockwallet,              true,      false,           false  },
     { "wallet",             "unlockWallet",    &unlockwallet,            true,      false,           false  },
     { "wallet",             "stateWallet",     &statewallet,             true,      false,           false  },
@@ -1172,6 +1192,7 @@ static const CAPICommand commands[] =
     { "blockchain",         "blockchain",      &blockchain,              true,      false,           false  },
     { "blockchain",         "block",           &block,                   true,      false,           false  },
     { "blockchain",         "transaction",     &transaction,             true,      false,           false  },
+    { "blockchain",         "avgblocktime",    &avgblocktime,            true,      false,           false  },
     { "sending",            "paymentRequest",  &paymentrequest,          true,      false,           false  },
     { "sending",            "txFee",           &txfee,                   true,      false,           false  },
     { "zerocoin",           "mint",            &mint,                    true,      true,            false  },
