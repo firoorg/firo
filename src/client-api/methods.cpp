@@ -727,6 +727,28 @@ UniValue sendprivate(Type type, const UniValue& data, const UniValue& auth, bool
     }
 }
 
+UniValue backup(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
+{
+    string directory = find_value(data, "directory").get_str();
+    UniValue filenameUni = find_value(data, "filename");
+    string filename = DEFAULT_WALLET_DAT;
+    if(!filenameUni.isNull()){
+        if(filenameUni.get_str().size() > 0){
+            filename = filenameUni.get_str() + ".dat";
+        }
+    }
+
+    fs::path walletPath = GetDataDir() / DEFAULT_WALLET_DAT;
+
+    LogPrintf("API: wallet path: %s\n", walletPath.string());
+    fs::path backupPath (directory);
+    backupPath /= filename;
+    LogPrintf("API: backup path: %s\n", backupPath.string());
+
+    fs::copy_file(walletPath, backupPath);
+
+    return true;
+}
 
 UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
 {
@@ -1141,6 +1163,7 @@ static const CAPICommand commands[] =
 { //  category              collection         actor (function)          authPort   authPassphrase   warmupOk
   //  --------------------- ------------       ----------------          -------- --------------   --------
     { "misc",               "apiStatus",       &apistatus,               false,     false,           true   },
+    { "backup",               "backup",       &backup,                   true,      false,           false  },
     { "wallet",             "lockWallet",      &lockwallet,              true,      false,           false  },
     { "wallet",             "unlockWallet",    &unlockwallet,            true,      false,           false  },
     { "wallet",             "stateWallet",     &statewallet,             true,      false,           false  },

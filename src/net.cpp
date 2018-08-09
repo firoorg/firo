@@ -1039,7 +1039,6 @@ static void AcceptConnection(const ListenSocket &hListenSocket) {
     {
         LOCK(cs_vNodes);
         vNodes.push_back(pnode);
-        //TADHG SIGNAL
     }
 }
 
@@ -1060,7 +1059,6 @@ void ThreadSocketHandler() {
                      pnode->ssSend.empty())) {
                     // remove from vNodes
                     vNodes.erase(remove(vNodes.begin(), vNodes.end(), pnode), vNodes.end());
-                    //TADHG SIGNAL
 
                     // release outbound grant (if any)
                     pnode->grantOutbound.Release();
