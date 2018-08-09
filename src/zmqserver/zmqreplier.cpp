@@ -229,7 +229,7 @@ void CZMQAbstractReplier::Shutdown()
     KEEPALIVE = 0; // end infinite loop in thread 
     worker->interrupt(); // terminate boost thread
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // wait allowing thread to finish up
+    std::this_thread::sleep_for(std::chrono::milliseconds(100)); // wait allowing thread to finish up
 
     assert(psocket);
 
