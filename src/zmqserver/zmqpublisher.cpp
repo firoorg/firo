@@ -222,6 +222,7 @@ bool CZMQTransactionEvent::NotifyTransaction(const CTransaction &transaction)
     request.replace("data", requestData);
 
     Execute();
+    
     return true;
 }
 

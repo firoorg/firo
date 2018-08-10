@@ -464,7 +464,7 @@ UniValue znodelist(const UniValue &params, bool fHelp) {
                         "  lastpaidblock  - Print the last block height a node was paid on the network\n"
                         "  lastpaidtime   - Print the last time a node was paid on the network\n"
                         "  lastseen       - Print timestamp of when a znode was last seen on the network\n"
-                        "  payee          - Print Dash address associated with a znode (can be additionally filtered,\n"
+                        "  payee          - Print Zcoin address associated with a znode (can be additionally filtered,\n"
                         "                   partial match)\n"
                         "  protocol       - Print protocol of a znode (can be additionally filtered, exact match))\n"
                         "  rank           - Print rank of a znode based on current block\n"

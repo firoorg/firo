@@ -12,6 +12,7 @@
 #include "rpc/server.h"
 #include "streams.h"
 #include "znode-sync.h"
+#include "activeznode.h"
 #include "sync.h"
 #include "util.h"
 #include "utilstrencodings.h"
@@ -1193,6 +1194,8 @@ UniValue znodelist(Type type, const UniValue& data, const UniValue& auth, bool f
             UniValue ret(UniValue::VOBJ);
             UniValue data(UniValue::VOBJ);
 
+            string myZnode = activeZnode.vin.prevout.ToStringShort();
+
             std::unordered_map<std::string, int> ranks;
 
             std::vector <std::pair<int, CZnode>> vZnodeRanks = mnodeman.GetZnodeRanks();
@@ -1220,6 +1223,7 @@ UniValue znodelist(Type type, const UniValue& data, const UniValue& auth, bool f
                 entry.push_back(Pair("lastPaidTime", mn.GetLastPaidTime()));
                 entry.push_back(Pair("lastPaidBlock", mn.GetLastPaidBlock()));
                 entry.push_back(Pair("address", mn.addr.ToString()));
+                entry.push_back(Pair("isMine", myZnode==strOutpoint));
 
                 UniValue qualify(UniValue::VOBJ);
                 qualify = mnodeman.GetNotQualifyReasonToUniValue(mn, chainActive.Tip()->nHeight, true, mnodeman.CountEnabled());
