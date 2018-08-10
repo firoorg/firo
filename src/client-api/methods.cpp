@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "amount.h"
+#include "znodeconfig.h"
 #include "chain.h"
 #include "chainparams.h"
 #include "main.h"
@@ -1181,6 +1182,111 @@ UniValue avgblocktime(Type type, const UniValue& data, const UniValue& auth, boo
     ret.push_back(Pair("avgblocktime", avgblocktime));
 
     return ret;
+}
+
+UniValue znodecontrol(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
+
+    string method = find_value(data, "method").get_str();
+
+    if (method == "start-alias") {
+
+        string alias = find_value(data, "alias").get_str();
+
+        bool fFound = false;
+
+        UniValue statusObj(UniValue::VOBJ);
+        statusObj.push_back(Pair("alias", alias));
+
+        BOOST_FOREACH(CZnodeConfig::CZnodeEntry mne, znodeConfig.getEntries()) {
+            if (mne.getAlias() == alias) {
+                fFound = true;
+                std::string strError;
+                CZnodeBroadcast mnb;
+
+                bool fResult = CZnodeBroadcast::Create(mne.getIp(), mne.getPrivKey(), mne.getTxHash(),
+                                                            mne.getOutputIndex(), strError, mnb);
+                statusObj.push_back(Pair("success", fResult));
+                if (fResult) {
+                    mnodeman.UpdateZnodeList(mnb);
+                    mnb.RelayZNode();
+                } else {
+                    statusObj.push_back(Pair("info", strError));
+                }
+                mnodeman.NotifyZnodeUpdates();
+                break;
+            }
+        }
+
+        if (!fFound) {
+            statusObj.push_back(Pair("success", false));
+            statusObj.push_back(Pair("info", "Could not find alias in config. Verify with list-conf."));
+        }
+
+        return statusObj;
+
+    }
+
+    if (method == "start-all" || method == "start-missing") {
+        {
+            LOCK(pwalletMain->cs_wallet);
+            EnsureWalletIsUnlocked();
+        }
+
+        if ((method == "start-missing") && !znodeSync.IsZnodeListSynced()) {
+            throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD,
+                               "You can't use this command until znode list is synced");
+        }
+
+        int nSuccessful = 0;
+        int nFailed = 0;
+
+        UniValue resultsObj(UniValue::VOBJ);
+
+        BOOST_FOREACH(CZnodeConfig::CZnodeEntry mne, znodeConfig.getEntries()) {
+            std::string strError;
+
+            CTxIn vin = CTxIn(uint256S(mne.getTxHash()), uint32_t(atoi(mne.getOutputIndex().c_str())));
+            CZnode *pmn = mnodeman.Find(vin);
+            CZnodeBroadcast mnb;
+
+            if (method == "start-missing" && pmn) continue;
+
+            bool fResult = CZnodeBroadcast::Create(mne.getIp(), mne.getPrivKey(), mne.getTxHash(),
+                                                        mne.getOutputIndex(), strError, mnb);
+
+            UniValue statusObj(UniValue::VOBJ);
+            statusObj.push_back(Pair("alias", mne.getAlias()));
+            statusObj.push_back(Pair("success", fResult));
+
+            if (fResult) {
+                nSuccessful++;
+                mnodeman.UpdateZnodeList(mnb);
+                mnb.RelayZNode();
+            } else {
+                nFailed++;
+                statusObj.push_back(Pair("info", strError));
+            }
+
+            resultsObj.push_back(Pair("status", statusObj));
+        }
+        mnodeman.NotifyZnodeUpdates();
+
+        UniValue returnObj(UniValue::VOBJ);
+        returnObj.push_back(Pair("overall",
+                                 strprintf("Successfully started %d znodes, failed to start %d, total %d",
+                                           nSuccessful, nFailed, nSuccessful + nFailed)));
+        returnObj.push_back(Pair("detail", resultsObj));
+
+        return returnObj;
+    }
+
+    else if(method=="update-status"){
+        
+    }
+    else {
+        throw runtime_error("Method not found.");
+    }
+    return true;
 }
 
 UniValue znodelist(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
