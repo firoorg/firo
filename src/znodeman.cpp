@@ -576,6 +576,58 @@ char* CZnodeMan::GetNotQualifyReason(CZnode& mn, int nBlockHeight, bool fFilterS
     return NULL;
 }
 
+// Same method, different return type, to avoid Znode operator issues.
+// TODO: discuss standardizing the JSON type here, as it's done everywhere else in the code.
+UniValue CZnodeMan::GetNotQualifyReasonToUniValue(CZnode& mn, int nBlockHeight, bool fFilterSigTime, int nMnCount)
+{
+    UniValue ret(UniValue::VOBJ);
+    UniValue data(UniValue::VOBJ);
+    string description;
+
+    if (!mn.IsValidForPayment()) {
+        description = "not valid for payment";
+    }
+
+    //it's in the list (up to 8 entries ahead of current block to allow propagation) -- so let's skip it
+    else if (mnpayments.IsScheduled(mn, nBlockHeight)) {
+        description = "Is scheduled";
+    }
+
+    // //check protocol version
+    else if (mn.nProtocolVersion < mnpayments.GetMinZnodePaymentsProto()) {
+        description = "Invalid nProtocolVersion";
+
+        data.push_back(Pair("nProtocolVersion", mn.nProtocolVersion));
+    }
+
+    //it's too new, wait for a cycle
+    else if (fFilterSigTime && mn.sigTime + (nMnCount * 2.6 * 60) > GetAdjustedTime()) {
+        // LogPrintf("it's too new, wait for a cycle!\n");
+        description = "Too new";
+
+        //TODO unix timestamp
+        data.push_back(Pair("sigTime", mn.sigTime));
+        data.push_back(Pair("qualifiedAfter", mn.sigTime + (nMnCount * 2.6 * 60)));
+    }
+    //make sure it has at least as many confirmations as there are znodes
+    else if (mn.GetCollateralAge() < nMnCount) {
+        description = "collateralAge < znCount";
+
+        data.push_back(Pair("collateralAge", mn.GetCollateralAge()));
+        data.push_back(Pair("znCount", nMnCount));
+    }
+
+    ret.push_back(Pair("result", description.empty()));
+    if(!description.empty()){
+        ret.push_back(Pair("description", description));
+    }
+    if(!data.empty()){
+        ret.push_back(Pair("data", data));
+    }
+
+    return ret;
+}
+
 //
 // Deterministically select the oldest/best znode to pay on the network
 //

@@ -1,5 +1,4 @@
-    // Copyright (c) 2010 Satoshi Nakamoto
-// Copyright (c) 2009-2015 The Bitcoin Core developers
+// Copyright (c) 2018 Tadhg Riordan Zcoin Developer
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -20,6 +19,8 @@
 #include "wallet/rpcwallet.cpp"
 #include <stdint.h>
 #include <client-api/protocol.h>
+
+#include "znodeman.h"
 
 #include <zmqserver/zmqabstract.h>
 
@@ -763,6 +764,7 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
     UniValue modules(UniValue::VOBJ);
 
     modules.push_back(Pair("API", !APIIsInWarmup()));
+    modules.push_back(Pair("Znode", znodeSync.IsSynced()));
 
     obj.push_back(Pair("version", CLIENT_VERSION));
     obj.push_back(Pair("protocolVersion", PROTOCOL_VERSION));
@@ -1180,6 +1182,67 @@ UniValue avgblocktime(Type type, const UniValue& data, const UniValue& auth, boo
     return ret;
 }
 
+UniValue znodelist(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
+
+    if(!znodeSync.IsSynced()){
+        throw runtime_error("Znode data not yet finished syncing.");
+    }
+    switch(type){
+        case Initial: {
+            mnodeman.UpdateLastPaid();
+            UniValue ret(UniValue::VOBJ);
+            UniValue data(UniValue::VOBJ);
+
+            std::unordered_map<std::string, int> ranks;
+
+            std::vector <std::pair<int, CZnode>> vZnodeRanks = mnodeman.GetZnodeRanks();
+            BOOST_FOREACH(PAIRTYPE(int, CZnode) & s, vZnodeRanks)
+            {
+                std::string strOutpoint = s.second.vin.prevout.ToStringShort();
+                ranks[strOutpoint] = s.first;
+            }
+
+            std::vector <CZnode> vZnodes = mnodeman.GetFullZnodeVector();
+            BOOST_FOREACH(CZnode & mn, vZnodes)
+            {
+                UniValue entry(UniValue::VOBJ);
+                std::string strOutpoint = mn.vin.prevout.ToStringShort();
+
+                if (ranks.find(strOutpoint) != ranks.end()){
+                    entry.push_back(Pair("rank", ranks[strOutpoint]));
+                }
+
+                entry.push_back(Pair("status", mn.GetStatus()));
+                entry.push_back(Pair("protocolVersion", mn.nProtocolVersion));
+                entry.push_back(Pair("payee", CBitcoinAddress(mn.pubKeyCollateralAddress.GetID()).ToString()));
+                entry.push_back(Pair("lastSeen", (int64_t) mn.lastPing.sigTime));
+                entry.push_back(Pair("activeSeconds", (int64_t)(mn.lastPing.sigTime - mn.sigTime)));
+                entry.push_back(Pair("lastPaidTime", mn.GetLastPaidTime()));
+                entry.push_back(Pair("lastPaidBlock", mn.GetLastPaidBlock()));
+                entry.push_back(Pair("address", mn.addr.ToString()));
+
+                UniValue qualify(UniValue::VOBJ);
+                qualify = mnodeman.GetNotQualifyReasonToUniValue(mn, chainActive.Tip()->nHeight, true, mnodeman.CountEnabled());
+                entry.push_back(Pair("qualify", qualify));
+
+                data.replace(strOutpoint, entry);
+
+            }
+
+            ret.push_back(Pair("data", data));
+
+            return ret;
+
+            break;
+        }
+        default: {
+
+        }
+    }
+
+    return true;
+}
+
 static const CAPICommand commands[] =
 { //  category              collection         actor (function)          authPort   authPassphrase   warmupOk
   //  --------------------- ------------       ----------------          -------- --------------   --------
@@ -1196,10 +1259,11 @@ static const CAPICommand commands[] =
     { "blockchain",         "avgblocktime",    &avgblocktime,            true,      false,           false  },
     { "sending",            "paymentRequest",  &paymentrequest,          true,      false,           false  },
     { "sending",            "txFee",           &txfee,                   true,      false,           false  },
+    { "znode",              "znodeList",       &znodelist,               true,      false,           false  },
     { "zerocoin",           "mint",            &mint,                    true,      true,            false  },
     { "zerocoin",           "sendPrivate",     &sendprivate,             true,      true,            false  },
     { "sending",            "sendZcoin",       &sendzcoin,               true,      true,            false  }
-
+    
 };
 void RegisterAPICommands(CAPITable &tableAPI)
 {
