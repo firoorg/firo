@@ -7,6 +7,7 @@
 #define BITCOIN_PRIMITIVES_BLOCK_H
 
 #include <deque>
+#include <boost/foreach.hpp>
 #include "primitives/transaction.h"
 #include "serialize.h"
 #include "uint256.h"
@@ -37,16 +38,43 @@ public:
     std::deque<std::vector<uint8_t>> nProofMTP[72*3]; // 72 * 3 is L * 3
 
     CMTPHashData() {
-        memset(nBlockMTP, 0, sizeof(uint64_t) * 72 * 2 * 128);
+        memset(nBlockMTP, 0, sizeof(nBlockMTP));
     }
 
     ADD_SERIALIZE_METHODS;
 
+    /**
+     * Custom serialization scheme is in place because of speed reasons
+     */
+
+    // Function for write/getting size
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+    inline void SerializationOp(Stream &s, Operation ser_action, int nType, int nVersion) {
         READWRITE(nBlockMTP);
-        for(int i = 0; i < 72*3; i++){
-            READWRITE(nProofMTP[i]);
+        for (int i = 0; i < 72*3; i++) {
+            vector<uint32_t> lengths;
+            for (const std::vector<uint8_t> &mtpData: nProofMTP[i]) {
+                lengths.push_back((uint32_t)mtpData.size());                    
+            }
+            READWRITE(lengths);
+            for (const std::vector<uint8_t> &mtpData: nProofMTP[i]) {
+                s.write((const char *)mtpData.data(), (uint32_t)mtpData.size());
+            }
+        }
+    }
+
+    // Function for reading
+    template <typename Stream>
+    inline void SerializationOp(Stream &s, CSerActionUnserialize ser_action, int nType, int nVersion) {
+        READWRITE(nBlockMTP);
+        for (int i = 0; i < 72*3; i++) {
+            vector<uint32_t> lengths;
+            READWRITE(lengths);
+            BOOST_FOREACH(uint32_t l, lengths) {
+                vector<uint8_t> mtpData(l, 0);
+                s.read((char *)mtpData.data(), l);
+                nProofMTP[i].emplace_back(std::move(mtpData));
+            }
         }
     }
 };
