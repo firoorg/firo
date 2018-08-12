@@ -120,5 +120,3 @@ src/test/buildenv.py
 libzcoinconsensus.pc
 libbitcoinconsensus.pc
 contrib/devtools/split-debug.sh
-
-qa/pull-tester/*
