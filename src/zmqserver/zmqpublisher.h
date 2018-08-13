@@ -73,13 +73,6 @@ public:
     void SetMethod(){ method= "block";};    
 };
 
-class CZMQAvgBlockTimeTopic : public CZMQBlockEvent
-{
-public:
-    void SetTopic(){ topic = "avgblocktime";};
-    void SetMethod(){ method= "avgblocktime";};   
-};
-
 class CZMQBlockInfoTopic : public CZMQBlockEvent,
                            public CZMQConnectionsEvent,
                            public CZMQStatusEvent

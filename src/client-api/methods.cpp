@@ -1331,7 +1331,7 @@ UniValue znodelist(Type type, const UniValue& data, const UniValue& auth, bool f
                 entry.push_back(Pair("activeSeconds", (int64_t)(mn.lastPing.sigTime - mn.sigTime)));
                 entry.push_back(Pair("lastPaidTime", mn.GetLastPaidTime()));
                 entry.push_back(Pair("lastPaidBlock", mn.GetLastPaidBlock()));
-                entry.push_back(Pair("address", mn.addr.ToString()));
+                entry.push_back(Pair("authority", mn.addr.ToString()));
                 entry.push_back(Pair("isMine", myZnode==strOutpoint));
 
                 UniValue qualify(UniValue::VOBJ);
@@ -1372,6 +1372,7 @@ static const CAPICommand commands[] =
     { "sending",            "paymentRequest",  &paymentrequest,          true,      false,           false  },
     { "sending",            "txFee",           &txfee,                   true,      false,           false  },
     { "znode",              "znodeList",       &znodelist,               true,      false,           false  },
+    { "znode",              "znodeControl",    &znodecontrol,            true,      true,            false  },
     { "zerocoin",           "mint",            &mint,                    true,      true,            false  },
     { "zerocoin",           "sendPrivate",     &sendprivate,             true,      true,            false  },
     { "sending",            "sendZcoin",       &sendzcoin,               true,      true,            false  }

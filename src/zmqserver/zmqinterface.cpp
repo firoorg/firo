@@ -134,7 +134,6 @@ CZMQPublisherInterface* CZMQPublisherInterface::Create()
     factories["pubrawtx"] = CZMQAbstract::Create<CZMQTransactionTopic>;
     factories["pubblockinfo"] = CZMQAbstract::Create<CZMQBlockInfoTopic>;
     factories["pubbalance"] = CZMQAbstract::Create<CZMQBalanceTopic>;
-    factories["pubavgblocktime"] = CZMQAbstract::Create<CZMQAvgBlockTimeTopic>;
     
     std::string address = BaseParams().APIAddr() + to_string(BaseParams().APIPUBPort());
 
