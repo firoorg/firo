@@ -34,6 +34,23 @@ namespace fs = boost::filesystem;
 using namespace std::chrono;
 using namespace std;
 
+UniValue AvgBlockTime(){
+    UniValue ret(UniValue::VOBJ);
+    UniValue avgblocktime;
+
+    double difficulty = GetDifficulty();
+    //LogPrintf("difficulty: %lf\n", difficulty);
+
+    double networkHashrateMH = GetNetworkHashPS(120, -1).get_real() / 1000000;
+    //LogPrintf("networkHashrateMH: %lf\n", networkHashrateMH);
+
+    // avg(secs) = difficulty * ((2^32) / (3600 * 10^6 * (networkHashrate(mh/s))) * 60 * 60
+    // see http://www.wolframalpha.com/widgets/gallery/view.jsp?id=76444b3132fda0e2aca778051d776f1c
+
+    avgblocktime = int(difficulty * (pow(2,32) / (3600 * pow(10,6) * networkHashrateMH)) * 60 * 60);
+
+    return avgblocktime;
+}
 
 UniValue getInitialTimestamp(string hash){
     fs::path const &path = CreateTxTimestampFile();
@@ -1083,6 +1100,7 @@ UniValue blockchain(Type type, const UniValue& data, const UniValue& auth, bool 
     blockinfoObj.push_back(Pair("type","full"));
     blockinfoObj.push_back(Pair("status", status));
     blockinfoObj.push_back(Pair("currentBlock", currentBlock));
+    blockinfoObj.push_back(Pair("avgBlockTime", AvgBlockTime()));
     
     return blockinfoObj;
 }
@@ -1162,26 +1180,6 @@ UniValue balance(Type type, const UniValue& data, const UniValue& auth, bool fHe
     balanceObj.push_back(Pair("zerocoin", zerocoinObj));
 
     return balanceObj;
-}
-
-UniValue avgblocktime(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
-    UniValue ret(UniValue::VOBJ);
-    UniValue avgblocktime;
-
-    double difficulty = GetDifficulty();
-    //LogPrintf("difficulty: %lf\n", difficulty);
-
-    double networkHashrateMH = GetNetworkHashPS(120, -1).get_real() / 1000000;
-    //LogPrintf("networkHashrateMH: %lf\n", networkHashrateMH);
-
-    // avg(secs) = difficulty * ((2^32) / (3600 * 10^6 * (networkHashrate(mh/s))) * 60 * 60
-    // see http://www.wolframalpha.com/widgets/gallery/view.jsp?id=76444b3132fda0e2aca778051d776f1c
-
-    avgblocktime = int(difficulty * (pow(2,32) / (3600 * pow(10,6) * networkHashrateMH)) * 60 * 60);
-
-    ret.push_back(Pair("avgblocktime", avgblocktime));
-
-    return ret;
 }
 
 UniValue znodecontrol(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
@@ -1366,7 +1364,6 @@ static const CAPICommand commands[] =
     { "blockchain",         "blockchain",      &blockchain,              true,      false,           false  },
     { "blockchain",         "block",           &block,                   true,      false,           false  },
     { "blockchain",         "transaction",     &transaction,             true,      false,           false  },
-    { "blockchain",         "avgblocktime",    &avgblocktime,            true,      false,           false  },
     { "sending",            "paymentRequest",  &paymentrequest,          true,      false,           false  },
     { "sending",            "txFee",           &txfee,                   true,      false,           false  },
     { "znode",              "znodeList",       &znodelist,               true,      false,           false  },
