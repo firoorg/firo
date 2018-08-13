@@ -1186,14 +1186,21 @@ UniValue znodecontrol(Type type, const UniValue& data, const UniValue& auth, boo
 
     string method = find_value(data, "method").get_str();
 
+    UniValue overall(UniValue::VOBJ);
+    UniValue detail(UniValue::VOBJ);
+    UniValue ret(UniValue::VOBJ);
+    
+    int nSuccessful = 0;
+    int nFailed = 0;
+
     if (method == "start-alias") {
 
         string alias = find_value(data, "alias").get_str();
 
         bool fFound = false;
 
-        UniValue statusObj(UniValue::VOBJ);
-        statusObj.push_back(Pair("alias", alias));
+        UniValue status(UniValue::VOBJ);
+        status.push_back(Pair("alias", alias));
 
         BOOST_FOREACH(CZnodeConfig::CZnodeEntry mne, znodeConfig.getEntries()) {
             if (mne.getAlias() == alias) {
@@ -1203,12 +1210,14 @@ UniValue znodecontrol(Type type, const UniValue& data, const UniValue& auth, boo
 
                 bool fResult = CZnodeBroadcast::Create(mne.getIp(), mne.getPrivKey(), mne.getTxHash(),
                                                             mne.getOutputIndex(), strError, mnb);
-                statusObj.push_back(Pair("success", fResult));
+                status.push_back(Pair("success", fResult));
                 if (fResult) {
+                    nSuccessful++;
                     mnodeman.UpdateZnodeList(mnb);
                     mnb.RelayZNode();
                 } else {
-                    statusObj.push_back(Pair("info", strError));
+                    nFailed++;
+                    status.push_back(Pair("info", strError));
                 }
                 mnodeman.NotifyZnodeUpdates();
                 break;
@@ -1216,15 +1225,15 @@ UniValue znodecontrol(Type type, const UniValue& data, const UniValue& auth, boo
         }
 
         if (!fFound) {
-            statusObj.push_back(Pair("success", false));
-            statusObj.push_back(Pair("info", "Could not find alias in config. Verify with list-conf."));
+            nFailed++;
+            status.push_back(Pair("success", false));
+            status.push_back(Pair("info", "Could not find alias in config. Verify with list-conf."));
         }
 
-        return statusObj;
-
+        detail.push_back(Pair("status", status));
     }
 
-    if (method == "start-all" || method == "start-missing") {
+    else if (method == "start-all" || method == "start-missing") {
         {
             LOCK(pwalletMain->cs_wallet);
             EnsureWalletIsUnlocked();
@@ -1234,11 +1243,6 @@ UniValue znodecontrol(Type type, const UniValue& data, const UniValue& auth, boo
             throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD,
                                "You can't use this command until znode list is synced");
         }
-
-        int nSuccessful = 0;
-        int nFailed = 0;
-
-        UniValue resultsObj(UniValue::VOBJ);
 
         BOOST_FOREACH(CZnodeConfig::CZnodeEntry mne, znodeConfig.getEntries()) {
             std::string strError;
@@ -1252,9 +1256,9 @@ UniValue znodecontrol(Type type, const UniValue& data, const UniValue& auth, boo
             bool fResult = CZnodeBroadcast::Create(mne.getIp(), mne.getPrivKey(), mne.getTxHash(),
                                                         mne.getOutputIndex(), strError, mnb);
 
-            UniValue statusObj(UniValue::VOBJ);
-            statusObj.push_back(Pair("alias", mne.getAlias()));
-            statusObj.push_back(Pair("success", fResult));
+            UniValue status(UniValue::VOBJ);
+            status.push_back(Pair("alias", mne.getAlias()));
+            status.push_back(Pair("success", fResult));
 
             if (fResult) {
                 nSuccessful++;
@@ -1262,20 +1266,13 @@ UniValue znodecontrol(Type type, const UniValue& data, const UniValue& auth, boo
                 mnb.RelayZNode();
             } else {
                 nFailed++;
-                statusObj.push_back(Pair("info", strError));
+                status.push_back(Pair("info", strError));
             }
 
-            resultsObj.push_back(Pair("status", statusObj));
+            detail.push_back(Pair("status", status));
         }
         mnodeman.NotifyZnodeUpdates();
 
-        UniValue returnObj(UniValue::VOBJ);
-        returnObj.push_back(Pair("overall",
-                                 strprintf("Successfully started %d znodes, failed to start %d, total %d",
-                                           nSuccessful, nFailed, nSuccessful + nFailed)));
-        returnObj.push_back(Pair("detail", resultsObj));
-
-        return returnObj;
     }
 
     else if(method=="update-status"){
@@ -1284,7 +1281,15 @@ UniValue znodecontrol(Type type, const UniValue& data, const UniValue& auth, boo
     else {
         throw runtime_error("Method not found.");
     }
-    return true;
+
+    overall.push_back(Pair("successful", nSuccessful));
+    overall.push_back(Pair("failed", nFailed));
+    overall.push_back(Pair("total", nSuccessful + nFailed));
+
+    ret.push_back(Pair("overall", overall));
+    ret.push_back(Pair("detail", detail));
+
+    return ret;
 }
 
 UniValue znodelist(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
