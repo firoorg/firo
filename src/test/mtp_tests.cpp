@@ -89,6 +89,9 @@ BOOST_AUTO_TEST_CASE(mtp_block_integrity_test)
     BOOST_CHECK(mtp::verify(block2.nNonce, block2, pow_limit));
     BOOST_CHECK(mtp::verify(block3.nNonce, block3, pow_limit));
 
+    BOOST_CHECK(false == mtp::verify(block1.nNonce+1, block1, pow_limit));
+    BOOST_CHECK(false == mtp::verify(block2.nNonce-1, block2, pow_limit));
+    BOOST_CHECK(false == mtp::verify(block3.nNonce+1, block3, pow_limit));
 }
 
 
