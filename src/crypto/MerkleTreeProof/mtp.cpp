@@ -765,10 +765,11 @@ void serializeMtpHeader(CDataStream & stream, CBlockHeader const & header)
 
 uint256 hash(CBlockHeader & blockHeader, uint256 const & powLimit)
 {
+    if(!blockHeader.mtpHashData)
+        blockHeader.mtpHashData = std::make_shared<CMTPHashData>();
+
     CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
     serializeMtpHeader(ss, blockHeader);
-    
-    blockHeader.mtpHashData = std::make_shared<CMTPHashData>();
     
     uint256 result;
     impl::mtp_hash(reinterpret_cast<char*>(&ss[0]), blockHeader.nBits, blockHeader.mtpHashData->hashRootMTP
