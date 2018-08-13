@@ -72,11 +72,8 @@ uint256 CBlockHeader::GetPoWHash(int nHeight, bool forceCalc) const {
     try {
     	if (nTime >= Params().nMTPSwitchTime) {
             assert(mtpHashData);
-			CMTPInput input{*this};
-			CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
-			ss << input;
-			mtp_verify((char*)&ss[0], nBits, mtpHashData->hashRootMTP, nNonce, mtpHashData->nBlockMTP, mtpHashData->nProofMTP, Params().GetConsensus().powLimit);
-		} else if (!fTestNet && nHeight >= HF_LYRA2Z_HEIGHT) {
+            mtp::verify(nNonce, *this, Params().GetConsensus().powLimit);
+        } else if (!fTestNet && nHeight >= HF_LYRA2Z_HEIGHT) {
             lyra2z_hash(BEGIN(nVersion), BEGIN(powHash));
         } else if (!fTestNet && nHeight >= HF_LYRA2_HEIGHT) {
             LYRA2(BEGIN(powHash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, 8192, 256);

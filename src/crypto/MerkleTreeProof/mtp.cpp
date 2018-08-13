@@ -17,6 +17,8 @@ extern "C" {
 #include <sstream>
 #include <iomanip>
 #include "merkle-tree.hpp"
+#include "primitives/block.h"
+#include "streams.h"
 #include <boost/multiprecision/cpp_int.hpp>
 #include <boost/numeric/conversion/cast.hpp>
 
@@ -27,6 +29,9 @@ using boost::numeric::negative_overflow;
 
 extern int validate_inputs(const argon2_context *context);
 extern void clear_internal_memory(void *v, size_t n);
+
+namespace mtp
+{
 
 namespace {
 
@@ -184,10 +189,25 @@ void compute_blake2b(const block& input,
     clear_internal_memory(tmp_block_bytes, ARGON2_BLOCK_SIZE);
 }
 
+struct TargetHelper
+{
+    bool m_negative;
+    bool m_overflow;
+    arith_uint256 m_target;
+
+    TargetHelper(uint32_t target)
+    {
+       m_target.SetCompact(target, &m_negative, &m_overflow);
+    }
+};
+
 } // unnamed namespace
 
+namespace impl
+{
+
 bool mtp_verify(const char* input, const uint32_t target,
-        const uint8_t hash_root_mtp[16], unsigned int nonce,
+        const uint8_t hash_root_mtp[16], uint32_t nonce,
         const uint64_t block_mtp[72*2][128],
         const std::deque<std::vector<uint8_t>> proof_mtp[73*3],
         uint256 pow_limit)
@@ -528,8 +548,7 @@ bool mtp_hash1(const char* input, uint32_t target, uint8_t hash_root_mtp[16],
     for (long int i = 0; i < instance.memory_blocks; ++i) {
         uint8_t digest[MERKLE_TREE_ELEMENT_SIZE_B];
         compute_blake2b(instance.memory[i], digest);
-        MerkleTree::Buffer hash_digest(digest, digest + sizeof(digest));
-        elements.push_back(hash_digest);
+        elements.emplace_back(digest, digest + sizeof(digest));
     }
 
     MerkleTree ordered_tree(elements, true);
@@ -538,6 +557,7 @@ bool mtp_hash1(const char* input, uint32_t target, uint8_t hash_root_mtp[16],
 
     // step 3
     unsigned int n_nonce_internal = 0;
+    TargetHelper const bn_target(target);
 
     // step 4
     uint256 y[L + 1];
@@ -628,19 +648,15 @@ bool mtp_hash1(const char* input, uint32_t target, uint8_t hash_root_mtp[16],
         }
 
         // step 6
-        bool negative;
-        bool overflow;
-        arith_uint256 bn_target;
-        bn_target.SetCompact(target, &negative, &overflow); // diff = 1
-        if (negative || (bn_target == 0) || overflow
-                || (bn_target > UintToArith256(pow_limit))
-                || (UintToArith256(y[L]) > bn_target)) {
+        if (bn_target.m_negative || (bn_target.m_target == 0) || bn_target.m_overflow
+                || (bn_target.m_target > UintToArith256(pow_limit))
+                || (UintToArith256(y[L]) > bn_target.m_target)) {
             n_nonce_internal++;
             continue;
         }
 
         LogPrintf("Found a MTP solution :\n");
-        LogPrintf("hashTarget = %s\n", ArithToUint256(bn_target).GetHex().c_str());
+        LogPrintf("hashTarget = %s\n", ArithToUint256(bn_target.m_target).GetHex().c_str());
         LogPrintf("Y[L] 	  = %s", y[L].GetHex().c_str());
         LogPrintf("nNonce 	  = %s\n", n_nonce_internal);
         break;
@@ -724,4 +740,51 @@ void mtp_hash(const char* input, uint32_t target, uint8_t hash_root_mtp[16],
         done = mtp_hash1(input, target, hash_root_mtp, nonce, block_mtp,
                 proof_mtp, pow_limit, output);
     }
+}
+
+}
+
+namespace 
+{
+void serializeMtpHeader(CDataStream & stream, CBlockHeader const & header)
+{
+    static_assert(
+                80 == sizeof(header.nVersion) + sizeof(header.hashPrevBlock)+ sizeof(header.hashMerkleRoot) 
+                    + sizeof(header.nTime) + sizeof(header.nBits) + sizeof(header.mtpHashData->nVersionMTP)
+                , "The header data size for MTP hashing should be 80 bytes long."
+            );
+
+    stream << header.nVersion;
+    stream << header.hashPrevBlock;
+    stream << header.hashMerkleRoot;
+    stream << header.nTime;
+    stream << header.nBits;
+    stream << header.mtpHashData->nVersionMTP;
+}
+}
+
+uint256 hash(CBlockHeader & blockHeader, uint256 const & powLimit)
+{
+    CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+    serializeMtpHeader(ss, blockHeader);
+    
+    blockHeader.mtpHashData = std::make_shared<CMTPHashData>();
+    
+    uint256 result;
+    impl::mtp_hash(reinterpret_cast<char*>(&ss[0]), blockHeader.nBits, blockHeader.mtpHashData->hashRootMTP
+            , blockHeader.nNonce, blockHeader.mtpHashData->nBlockMTP, blockHeader.mtpHashData->nProofMTP, powLimit, result);
+    
+    return result;
+}
+
+
+bool verify(uint32_t nonce, CBlockHeader const & blockHeader, uint256 const & powLimit)
+{
+    CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+    serializeMtpHeader(ss, blockHeader);
+
+    return impl::mtp_verify(reinterpret_cast<char*>(&ss[0]), blockHeader.nBits, blockHeader.mtpHashData->hashRootMTP
+            , nonce, blockHeader.mtpHashData->nBlockMTP, blockHeader.mtpHashData->nProofMTP, powLimit);
+}
+
 }

@@ -1142,25 +1142,17 @@ void static ZcoinMiner(const CChainParams &chainparams) {
             LogPrintf("pblock->nNonce: %s\n", &pblock->nNonce);
             LogPrintf("powLimit: %s\n", Params().GetConsensus().powLimit.ToString());
 
-            bool fMTPIsRequired = pblock->nTime >= Params().nMTPSwitchTime;
-            CMTPHashData *mtpHashData = nullptr;
-            if (fMTPIsRequired) {
-                pblock->mtpHashData = make_shared<CMTPHashData>();
-                mtpHashData = pblock->mtpHashData.get();
-            }
+            bool const fMTPIsRequired = pblock->nTime >= Params().nMTPSwitchTime;
 
             while (true) {
                 // Check if something found
                 uint256 thash;
 
                 while (true) {
-                	if (fMTPIsRequired) {
-                		//sleep(60);
+                    if (fMTPIsRequired) {
+                        //sleep(60);
                     	LogPrintf("BEFORE: mtp_hash\n");
-                    	CMTPInput input{*pblock};
-                    	CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
-                    	ss << input;
-                    	mtp_hash((char*)&ss[0], pblock->nBits, mtpHashData->hashRootMTP, pblock->nNonce, mtpHashData->nBlockMTP, mtpHashData->nProofMTP, Params().GetConsensus().powLimit, thash);
+                        thash = mtp::hash(*pblock, Params().GetConsensus().powLimit);
                     } else if (!fTestNet && pindexPrev->nHeight + 1 >= HF_LYRA2Z_HEIGHT) {
                         lyra2z_hash(BEGIN(pblock->nVersion), BEGIN(thash));
                     } else if (!fTestNet && pindexPrev->nHeight + 1 >= HF_LYRA2_HEIGHT) {

@@ -232,31 +232,6 @@ public:
     void ZerocoinClean() const;
 };
 
-// Zcoin - MTP
-class CMTPInput : private CBlockHeader
-{
-public:
-
-	CMTPInput(const CBlockHeader &blockHeader){
-		CBlockHeader::SetNull();
-		*((CBlockHeader*)this) = blockHeader;
-	}
-
-	ADD_SERIALIZE_METHODS;
-
-    template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
-        // Write-only
-        assert(!ser_action.ForRead() && mtpHashData);
-    	READWRITE(this->nVersion);
-    	READWRITE(hashPrevBlock);
-    	READWRITE(hashMerkleRoot);
-    	READWRITE(nTime);
-    	READWRITE(nBits);
-        READWRITE(mtpHashData->nVersionMTP);
-    }
-};
-
 /** Describes a place in the block chain to another node such that if the
  * other node doesn't have the same branch, it can find a recent common trunk.
  * The further back it is, the further before the fork it may be.

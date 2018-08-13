@@ -1,5 +1,6 @@
 #include "crypto/MerkleTreeProof/mtp.h"
 #include "test/test_bitcoin.h"
+#include "random.h"
 #include <iostream>
 #include <boost/test/unit_test.hpp>
 
@@ -14,7 +15,7 @@ struct MtpTestingSetup : public TestingSetup
 
 BOOST_FIXTURE_TEST_SUITE(mtp_tests, MtpTestingSetup)
 
-BOOST_AUTO_TEST_CASE(mtp_test)
+BOOST_AUTO_TEST_CASE(mtp_impl_integrity_test)
 {
     char input[] = {
         (char)0x00, (char)0x00, (char)0x00, (char)0x20, (char)0x7f, (char)0xda,
@@ -42,13 +43,53 @@ BOOST_AUTO_TEST_CASE(mtp_test)
     std::deque<std::vector<uint8_t>> proof_mtp[72*3];
     uint256 output;
 
-    mtp_hash(input, target, hash_root_mtp, nonce, block_mtp, proof_mtp,
+    mtp::impl::mtp_hash(input, target, hash_root_mtp, nonce, block_mtp, proof_mtp,
             pow_limit, output);
     BOOST_CHECK_MESSAGE(nonce == 143u, "wrong nonce");
 
-    bool ok = mtp_verify(input, target, hash_root_mtp, nonce, block_mtp,
+    bool ok = mtp::impl::mtp_verify(input, target, hash_root_mtp, nonce, block_mtp,
             proof_mtp, pow_limit);
     BOOST_CHECK_MESSAGE(ok, "mtp_verify() failed");
 }
+
+
+BOOST_AUTO_TEST_CASE(mtp_block_integrity_test)
+{
+    RandAddSeed();
+
+    CBlock block1;
+    
+    block1.nVersion = CBlock::CURRENT_VERSION;
+    block1.hashPrevBlock = GetRandHash();
+    block1.hashMerkleRoot = GetRandHash();
+    block1.nTime = GetRandInt(std::numeric_limits<decltype(block1.nTime)>::max());
+    block1.nBits = 0x2000ffffUL;
+    block1.mtpHashData = std::shared_ptr<CMTPHashData>(new CMTPHashData);
+    block1.mtpHashData->nVersionMTP = 1;
+
+    CBlock block2(block1);
+    CBlock block3(block1);
+    
+    uint256 pow_limit = uint256S("00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+
+    auto hash1 = mtp::hash(block1, pow_limit);
+
+    auto hash2 = mtp::hash(block2, pow_limit);
+
+    BOOST_CHECK(hash1 == hash2);
+    BOOST_CHECK(block1.nNonce == block2.nNonce);
+
+    ++block3.nVersion;
+    auto hash3 = mtp::hash(block3, pow_limit);
+
+    BOOST_CHECK(hash1 != hash3);
+    BOOST_CHECK(block1.nNonce != block3.nNonce);
+
+    BOOST_CHECK(mtp::verify(block1.nNonce, block1, pow_limit));
+    BOOST_CHECK(mtp::verify(block2.nNonce, block2, pow_limit));
+    BOOST_CHECK(mtp::verify(block3.nNonce, block3, pow_limit));
+
+}
+
 
 BOOST_AUTO_TEST_SUITE_END()
