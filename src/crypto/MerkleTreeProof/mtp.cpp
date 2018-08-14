@@ -750,7 +750,7 @@ void serializeMtpHeader(CDataStream & stream, CBlockHeader const & header)
 {
     static_assert(
                 80 == sizeof(header.nVersion) + sizeof(header.hashPrevBlock)+ sizeof(header.hashMerkleRoot) 
-                    + sizeof(header.nTime) + sizeof(header.nBits) + sizeof(header.mtpHashData->nVersionMTP)
+                    + sizeof(header.nTime) + sizeof(header.nBits) + sizeof(header.nVersionMTP)
                 , "The header data size for MTP hashing should be 80 bytes long."
             );
 
@@ -759,7 +759,7 @@ void serializeMtpHeader(CDataStream & stream, CBlockHeader const & header)
     stream << header.hashMerkleRoot;
     stream << header.nTime;
     stream << header.nBits;
-    stream << header.mtpHashData->nVersionMTP;
+    stream << header.nVersionMTP;
 }
 }
 
@@ -772,7 +772,7 @@ uint256 hash(CBlockHeader & blockHeader, uint256 const & powLimit)
     serializeMtpHeader(ss, blockHeader);
     
     uint256 result;
-    impl::mtp_hash(reinterpret_cast<char*>(&ss[0]), blockHeader.nBits, blockHeader.mtpHashData->hashRootMTP
+    impl::mtp_hash(reinterpret_cast<char*>(&ss[0]), blockHeader.nBits, blockHeader.hashRootMTP
             , blockHeader.nNonce, blockHeader.mtpHashData->nBlockMTP, blockHeader.mtpHashData->nProofMTP, powLimit, result);
     
     return result;
@@ -784,7 +784,7 @@ bool verify(uint32_t nonce, CBlockHeader const & blockHeader, uint256 const & po
     CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
     serializeMtpHeader(ss, blockHeader);
 
-    return impl::mtp_verify(reinterpret_cast<char*>(&ss[0]), blockHeader.nBits, blockHeader.mtpHashData->hashRootMTP
+    return impl::mtp_verify(reinterpret_cast<char*>(&ss[0]), blockHeader.nBits, blockHeader.hashRootMTP
             , nonce, blockHeader.mtpHashData->nBlockMTP, blockHeader.mtpHashData->nProofMTP, powLimit);
 }
 

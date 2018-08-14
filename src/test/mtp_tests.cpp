@@ -65,10 +65,10 @@ BOOST_AUTO_TEST_CASE(mtp_block_integrity_test)
     block1.nTime = GetRandInt(std::numeric_limits<decltype(block1.nTime)>::max());
     block1.nBits = 0x2000ffffUL;
     block1.mtpHashData = std::shared_ptr<CMTPHashData>(new CMTPHashData);
-    block1.mtpHashData->nVersionMTP = 1;
+    block1.nVersionMTP = 1;
 
-    CBlock block2(block1); block2.mtpHashData = std::shared_ptr<CMTPHashData>(new CMTPHashData); block2.mtpHashData->nVersionMTP = 1;
-    CBlock block3(block1); block3.mtpHashData = std::shared_ptr<CMTPHashData>(new CMTPHashData); block3.mtpHashData->nVersionMTP = 1;
+    CBlock block2(block1); block2.mtpHashData = std::shared_ptr<CMTPHashData>(new CMTPHashData); block2.nVersionMTP = 1;
+    CBlock block3(block1); block3.mtpHashData = std::shared_ptr<CMTPHashData>(new CMTPHashData); block3. nVersionMTP = 1;
     
     uint256 pow_limit = uint256S("00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
 
