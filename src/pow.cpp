@@ -130,7 +130,7 @@ unsigned int CalculateNextWorkRequired(const CBlockIndex *pindexLast, int64_t nF
 
 // Zcoin - MTP
 bool CheckMerkleTreeProof(const CBlockHeader &block, const Consensus::Params &params) {
-    if (block.nTime < Params().nMTPSwitchTime)
+    if (!block.IsMTP())
 	    return true;
 
     if (!block.mtpHashData)
