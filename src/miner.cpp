@@ -514,8 +514,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
         pblock->nNonce         = 0;
 
         // Zcoin - MTP
-        bool fMTPIsRequired = pblock->nTime >= Params().nMTPSwitchTime;
-        if (fMTPIsRequired)
+        if (pblock->IsMTP())
             pblock->mtpHashData = make_shared<CMTPHashData>();
 
         pblocktemplate->vTxSigOpsCost[0] = GetLegacySigOpCount(pblock->vtx[0]);
@@ -1142,14 +1141,12 @@ void static ZcoinMiner(const CChainParams &chainparams) {
             LogPrintf("pblock->nNonce: %s\n", &pblock->nNonce);
             LogPrintf("powLimit: %s\n", Params().GetConsensus().powLimit.ToString());
 
-            bool const fMTPIsRequired = pblock->nTime >= Params().nMTPSwitchTime;
-
             while (true) {
                 // Check if something found
                 uint256 thash;
 
                 while (true) {
-                    if (fMTPIsRequired) {
+                    if (pblock->IsMTP()) {
                         //sleep(60);
                         LogPrintf("BEFORE: mtp_hash\n");
                         thash = mtp::hash(*pblock, Params().GetConsensus().powLimit);
