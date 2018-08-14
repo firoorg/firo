@@ -8,7 +8,38 @@ extern "C" {
 #include <deque>
 #include <vector>
 
+class CBlockHeader;
+
+namespace mtp
+{
+
 /** Solve the hash problem
+ *
+ * This function will try different nonce until it finds one such that the
+ * computed hash is less than the `target` difficulty. Stores MTP parameters 
+ * into the block
+ * 
+ * \param blockHeader   [in/out]    Transaction block which header will be used for calculation
+ * \param pow_limit     [in]        Network limit (hash must be less than that)
+ */
+uint256 hash(CBlockHeader & blockHeader, uint256 const & powLimit);
+
+
+/** Verify the given nonce does satisfy the given difficulty
+ *
+ * This function verifies that the provided `nonce` does produce a hash value
+ * that is less than `target`.
+ * \param nonce         [in] Nonce to verify
+ * \param blockHeader   [in]        Transaction block which header will be used for calculation
+ * \param pow_limit     [in]        Network limit (hash must be less than that)
+ */
+bool verify(uint32_t nonce, CBlockHeader const & blockHeader, uint256 const & powLimit);
+
+
+//Implementation details
+namespace impl
+{
+    /** Solve the hash problem
  *
  * This function will try different nonce until it finds one such that the
  * computed hash is less than the `target` difficulty.
@@ -50,9 +81,12 @@ void mtp_hash(const char* input,
 bool mtp_verify(const char* input,
         const uint32_t target,
         const uint8_t hash_root_mtp[16],
-        unsigned int nonce,
+        const uint32_t nonce,
         const uint64_t block_mtp[72*2][128],
         const std::deque<std::vector<uint8_t>> proof_mtp[73*3],
         uint256 pow_limit);
+}
+
+}
 
 #endif
