@@ -115,11 +115,13 @@ void CBlockHeader::InvalidateCachedPoWHash(int nHeight) const {
 std::string CBlock::ToString() const {
     std::stringstream s;
     s << strprintf(
-            "CBlock(hash=%s, ver=0x%08x, hashPrevBlock=%s, hashMerkleRoot=%s, nTime=%u, nBits=%08x, nNonce=%u, vtx=%u)\n",
+            "CBlock(hash=%s, ver=0x%08x, hashPrevBlock=%s, hashMerkleRoot=%s, hashReservedOne=%s, hashReservedTwo=%s, nTime=%u, nBits=%08x, nNonce=%u, vtx=%u)\n",
             GetHash().ToString(),
             nVersion,
             hashPrevBlock.ToString(),
             hashMerkleRoot.ToString(),
+			hashReservedOne.ToString(),
+			hashReservedTwo.ToString(),
             nTime, nBits, nNonce,
             vtx.size());
     for (unsigned int i = 0; i < vtx.size(); i++) {

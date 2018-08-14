@@ -515,8 +515,11 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
 
         // Zcoin - MTP
         bool fMTPIsRequired = pblock->nTime >= Params().nMTPSwitchTime;
-        if (fMTPIsRequired)
+        if (fMTPIsRequired){
             pblock->mtpHashData = make_shared<CMTPHashData>();
+            pblock->hashReservedOne = uint256();
+            pblock->hashReservedTwo = uint256();
+        }
 
         pblocktemplate->vTxSigOpsCost[0] = GetLegacySigOpCount(pblock->vtx[0]);
 

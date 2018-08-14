@@ -97,6 +97,9 @@ public:
     // Store this only when absolutely needed for verification
     std::shared_ptr<CMTPHashData> mtpHashData;
 
+    uint256 hashReservedOne;
+    uint256 hashReservedTwo;
+
     static const int CURRENT_VERSION = 2;
 
     // uint32_t lastHeight;
@@ -133,6 +136,8 @@ public:
                 if (mtpHashData)
                     READWRITE(*mtpHashData);
             }
+            READWRITE(hashReservedOne);
+            READWRITE(hashReservedTwo);
         }
     }
 
@@ -147,6 +152,8 @@ public:
         if (IsMTP()) {
             READWRITE(nVersionMTP);
             READWRITE(hashRootMTP);
+            READWRITE(hashReservedOne);
+            READWRITE(hashReservedTwo);
         }
     }
 
@@ -164,6 +171,8 @@ public:
         // Zcoin - MTP
         mtpHashData.reset();
         memset(hashRootMTP, 0, sizeof(uint8_t)*16);
+        hashReservedOne.SetNull();
+        hashReservedTwo.SetNull();
     }
 
     int GetChainID() const

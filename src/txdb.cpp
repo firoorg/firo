@@ -341,6 +341,8 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
 
                 // Zcoin - MTP
                 pindexNew->hashBlock	  = diskindex.hashBlock;
+                pindexNew->hashReservedOne = diskindex.hashReservedOne;
+                pindexNew->hashReservedTwo = diskindex.hashReservedTwo;
 
                 /*
                 //if (!fTestNet && diskindex.nHeight >= HF_MTP_HEIGHT){

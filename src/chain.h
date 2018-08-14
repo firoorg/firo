@@ -209,6 +209,9 @@ public:
     int32_t nVersionMTP = 0x1000;*/
     uint256 hashBlock;
 
+    uint256 hashReservedOne;
+    uint256 hashReservedTwo;
+
     //! (memory only) Sequential id assigned to distinguish order in which blocks are received.
     uint32_t nSequenceId;
 
@@ -255,6 +258,8 @@ public:
         	nProofMTP[i].clear();
         }*/
         hashBlock = uint256();
+        hashReservedOne = uint256();
+		hashReservedTwo = uint256();
 
         mintedPubCoins.clear();
         accumulatorChanges.clear();
@@ -275,6 +280,8 @@ public:
         nTime          = block.nTime;
         nBits          = block.nBits;
         hashBlock	   = block.GetHash();
+        hashReservedOne = block.hashReservedOne;
+		hashReservedTwo = block.hashReservedTwo;
         nNonce         = block.nNonce;
 
         // Zcoin - MTP
@@ -466,6 +473,8 @@ public:
         	}
         	//READWRITE(hashBlock);
         }*/
+        READWRITE(hashReservedOne);
+        READWRITE(hashReservedTwo);
 		READWRITE(hashBlock);
 
         if (!(nType & SER_GETHASH) && nVersion >= ZC_ADVANCED_INDEX_VERSION) {
