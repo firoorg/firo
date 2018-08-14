@@ -332,7 +332,7 @@ public:
         };
 
 	    nSpendV15StartBlock = ZC_V1_5_TESTNET_STARTING_BLOCK;
-        nCheckBugFixedAtBlock = 35000;
+        nCheckBugFixedAtBlock = ZC_CHECK_BUG_FIXED_AT_BLOCK;
 
 	    nSpendV2ID_1 = ZC_V2_TESTNET_SWITCH_ID_1;
 	    nSpendV2ID_10 = ZC_V2_TESTNET_SWITCH_ID_10;
