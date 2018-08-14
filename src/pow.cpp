@@ -139,7 +139,7 @@ bool CheckMerkleTreeProof(const CBlockHeader &block, const Consensus::Params &pa
     bool isVerified = mtp::verify(block.nNonce, block, Params().GetConsensus().powLimit);
 
     if(!isVerified)
-    	return false;
+        return false;
 
     return true;
 }

@@ -51,6 +51,12 @@ uint256 CBlockHeader::GetHash() const {
     return SerializeHash(*this);
 }
 
+bool CBlockHeader::IsMTP() const {
+    // In case if nTime == ZC_GENESIS_BLOCK_TIME we're being called from CChainParams() constructor and
+    // it is not possible to get Params()
+    return nTime > ZC_GENESIS_BLOCK_TIME && nTime >= Params().nMTPSwitchTime;
+}
+
 uint256 CBlockHeader::GetPoWHash(int nHeight, bool forceCalc) const {
 //    int64_t start = std::chrono::duration_cast<std::chrono::milliseconds>(
 //            std::chrono::system_clock::now().time_since_epoch()).count();
@@ -70,10 +76,11 @@ uint256 CBlockHeader::GetPoWHash(int nHeight, bool forceCalc) const {
     uint256 powHash;
     // Zcoin - MTP
     try {
-    	if (nTime >= Params().nMTPSwitchTime) {
-            assert(mtpHashData);
-            mtp::verify(nNonce, *this, Params().GetConsensus().powLimit);
-        } else if (!fTestNet && nHeight >= HF_LYRA2Z_HEIGHT) {
+    	if (IsMTP()) {
+            vector<uint8_t> hashBytes(16, 0);
+            std::copy(hashRootMTP, hashRootMTP+sizeof(hashRootMTP), hashBytes.begin());
+            powHash = uint256(hashBytes);
+		} else if (!fTestNet && nHeight >= HF_LYRA2Z_HEIGHT) {
             lyra2z_hash(BEGIN(nVersion), BEGIN(powHash));
         } else if (!fTestNet && nHeight >= HF_LYRA2_HEIGHT) {
             LYRA2(BEGIN(powHash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, 8192, 256);

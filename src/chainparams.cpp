@@ -160,7 +160,7 @@ public:
         extraNonce[1] = 0x3f;
         extraNonce[2] = 0x00;
         extraNonce[3] = 0x00;
-        genesis = CreateGenesisBlock(1414776286, 142392, 0x1e0ffff0, 2, 0 * COIN, extraNonce);
+        genesis = CreateGenesisBlock(ZC_GENESIS_BLOCK_TIME, 142392, 0x1e0ffff0, 2, 0 * COIN, extraNonce);
         const std::string s = genesis.GetHash().ToString();
         // std::cout << "zcoin new hashMerkleRoot hash: " << genesis.hashMerkleRoot.ToString() << std::endl;
         consensus.hashGenesisBlock = genesis.GetHash();
@@ -287,7 +287,7 @@ public:
         extraNonce[1] = 0x00;
         extraNonce[2] = 0x00;
         extraNonce[3] = 0x00;
-        genesis = CreateGenesisBlock(1414776313, 1620571, 0x1e0ffff0, 2, 0 * COIN, extraNonce);
+        genesis = CreateGenesisBlock(ZC_GENESIS_BLOCK_TIME, 1620571, 0x1e0ffff0, 2, 0 * COIN, extraNonce);
         consensus.hashGenesisBlock = genesis.GetHash();
 //        std::cout << "zcoin testnet genesisBlock hash: " << consensus.hashGenesisBlock.ToString() << std::endl;
 //        std::cout << "zcoin testnet hashMerkleRoot hash: " << genesis.hashMerkleRoot.ToString() << std::endl;
@@ -402,7 +402,7 @@ public:
         extraNonce[1] = 0x00;
         extraNonce[2] = 0x00;
         extraNonce[3] = 0x00;
-        genesis = CreateGenesisBlock(1414776313, 414098458, 0x207fffff, 1, 0 * COIN, extraNonce);
+        genesis = CreateGenesisBlock(ZC_GENESIS_BLOCK_TIME, 414098458, 0x207fffff, 1, 0 * COIN, extraNonce);
         consensus.hashGenesisBlock = genesis.GetHash();
         //btzc: update regtest zcoin hashGenesisBlock and hashMerkleRoot
 //        std::cout << "zcoin regtest genesisBlock hash: " << consensus.hashGenesisBlock.ToString() << std::endl;

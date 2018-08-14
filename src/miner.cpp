@@ -1151,7 +1151,7 @@ void static ZcoinMiner(const CChainParams &chainparams) {
                 while (true) {
                     if (fMTPIsRequired) {
                         //sleep(60);
-                    	LogPrintf("BEFORE: mtp_hash\n");
+                        LogPrintf("BEFORE: mtp_hash\n");
                         thash = mtp::hash(*pblock, Params().GetConsensus().powLimit);
                     } else if (!fTestNet && pindexPrev->nHeight + 1 >= HF_LYRA2Z_HEIGHT) {
                         lyra2z_hash(BEGIN(pblock->nVersion), BEGIN(thash));

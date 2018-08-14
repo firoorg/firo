@@ -1872,6 +1872,21 @@ bool ReadBlockFromDisk(CBlock &block, const CBlockIndex *pindex, const Consensus
     return true;
 }
 
+bool ReadBlockHeaderFromDisk(CBlock &block, const CDiskBlockPos &pos) {
+    CAutoFile filein(OpenBlockFile(pos, true), SER_DISK, CLIENT_VERSION);
+    if (filein.IsNull())
+        return error("ReadBlockFromDisk: OpenBlockFile failed for %s", pos.ToString());
+
+    try {
+        block.SerializationOp(filein, CBlockHeader::CReadBlockHeader(), SER_DISK, CLIENT_VERSION);
+    }
+    catch (const std::exception &e) {
+        return error("%s: Deserialize or I/O error - %s at %s", __func__, e.what(), pos.ToString());
+    }
+
+    return true;
+}
+
 CAmount GetBlockSubsidy(int nHeight, const Consensus::Params &consensusParams, int nTime) {
     bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
     // Just want to make sure no one gets a dime before 28 Sep 2016 12:00 AM UTC
@@ -4148,7 +4163,7 @@ bool
 ContextualCheckBlockHeader(const CBlockHeader &block, CValidationState &state, const Consensus::Params &consensusParams,
                            CBlockIndex *const pindexPrev, int64_t nAdjustedTime, bool isTestBlockValidity) {
 	// Zcoin - MTP
-    int32_t nVersionMTP = block.mtpHashData ? block.mtpHashData->nVersionMTP : 0;
+    int32_t nVersionMTP = block.mtpHashData ? block.nVersionMTP : 0;
     bool fMTPIsRequired = block.nTime >= Params().nMTPSwitchTime;
     bool fBlockIsMTP = block.nVersion >= (CBlock::CURRENT_VERSION | (GetZerocoinChainID() * BLOCK_VERSION_CHAIN_START)| nVersionMTP);
 
@@ -4278,7 +4293,7 @@ bool ContextualCheckBlock(const CBlock &block, CValidationState &state, CBlockIn
 }
 
 static bool AcceptBlockHeader(const CBlockHeader &block, CValidationState &state, const CChainParams &chainparams,
-                              CBlockIndex **ppindex = NULL) {
+                              CBlockIndex **ppindex = NULL, bool fCheckPOW = true) {
 //    LogPrintf("---AcceptBlockHeader hash=%s--\n", block.GetHash().ToString());
     AssertLockHeld(cs_main);
     // Check for duplicate
@@ -4300,7 +4315,7 @@ static bool AcceptBlockHeader(const CBlockHeader &block, CValidationState &state
 //        int nHeight = ZerocoinGetNHeight(block);
 //        int64_t start = std::chrono::duration_cast<std::chrono::milliseconds>(
 //                std::chrono::system_clock::now().time_since_epoch()).count();
-        if (!CheckBlockHeader(block, state, chainparams.GetConsensus()))
+        if (!CheckBlockHeader(block, state, chainparams.GetConsensus(), fCheckPOW))
             return error("%s: Consensus::CheckBlockHeader: %s, %s", __func__, hash.ToString(),
                          FormatStateMessage(state));
 //        int64_t end = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -6339,7 +6354,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
 //                 pfrom->id);
         for (; pindex; pindex = chainActive.Next(pindex)) {
         	CBlock block;
-        	ReadBlockFromDisk(block, pindex, Params().GetConsensus());
+        	ReadBlockHeaderFromDisk(block, pindex->GetBlockPos());
             vHeaders.push_back(block.GetBlockHeader());
             if (--nLimit <= 0 || pindex->GetBlockHash() == hashStop)
                 break;
@@ -6811,7 +6826,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
         }
         headers.resize(nCount);
         for (unsigned int n = 0; n < nCount; n++) {
-            vRecv >> headers[n];
+            headers[n].SerializationOp(vRecv, CBlockHeader::CReadBlockHeader(), SER_NETWORK, CLIENT_VERSION);
             ReadCompactSize(vRecv); // ignore tx count; assume it is 0.
         }
 
@@ -6869,7 +6884,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
                     return error("non-continuous headers sequence");
                 }
                 //TODOS
-                if (!AcceptBlockHeader(header, state, chainparams, &pindexLast)) {
+                if (!AcceptBlockHeader(header, state, chainparams, &pindexLast, false)) {
                     int nDoS;
                     if (state.IsInvalid(nDoS)) {
                         if (nDoS > 0) Misbehaving(pfrom->GetId(), nDoS);

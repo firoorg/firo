@@ -57,4 +57,7 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 XZC mininput
 // number of mint confirmations needed to spend coin
 #define ZC_MINT_CONFIRMATIONS               6
 
+// Genesis block timestamp
+#define ZC_GENESIS_BLOCK_TIME               1414776286
+
 #endif
