@@ -647,8 +647,12 @@ boost::filesystem::path CreateSettingsFile(bool fNetSpecific)
     if(!boost::filesystem::exists(pathConfigFile)){
         LogPrintf("settings does not exist\n");
         UniValue settingsUni(UniValue::VOBJ);
+        UniValue dataUni(UniValue::VOBJ);
         settingsUni.push_back(Pair("type", "settings"));
-        settingsUni.push_back(Pair("data", NullUniValue));
+        dataUni.push_back(Pair("daemon", NullUniValue));
+        dataUni.push_back(Pair("client", NullUniValue));
+        dataUni.push_back(Pair("restartNow", NullUniValue));
+        settingsUni.push_back(Pair("data", dataUni));
         
         //write back UniValue
         std::ofstream settingsOut(pathConfigFile.string());

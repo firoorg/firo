@@ -1296,6 +1296,8 @@ void CWalletTx::GetAmounts(list <COutputEntry> &listReceived,
         nFee = nDebit - nValueOut;
     }
 
+    LogPrintf("getamounts: vout size: %s\n", vout.size());
+
     // Sent/received.
     for (unsigned int i = 0; i < vout.size(); ++i) {
         const CTxOut &txout = vout[i];
@@ -1304,12 +1306,14 @@ void CWalletTx::GetAmounts(list <COutputEntry> &listReceived,
         //   1) they debit from us (sent)
         //   2) the output is to us (received)
 
-        if (nDebit > 0) {
-            // Don't report 'change' txouts
-            if (pwallet->IsChange(txout))
+        if(!IsZerocoinSpend()){
+            if (nDebit > 0) {
+                // Don't report 'change' txouts
+                if (pwallet->IsChange(txout))
+                    continue;
+            } else if (!(fIsMine & filter))
                 continue;
-        } else if (!(fIsMine & filter))
-            continue;
+        }
 
         // In either case, we need to get the destination address
         CTxDestination address;
@@ -1322,13 +1326,24 @@ void CWalletTx::GetAmounts(list <COutputEntry> &listReceived,
 
         COutputEntry output = {address, txout.nValue, (int) i};
 
-        // If we are debited by the transaction, add the output as a "sent" entry
-        if (nDebit > 0)
+        if(IsZerocoinSpend()){
+            if(fIsMine & filter){
+                listReceived.push_back(output);
+            }else{
+                listSent.push_back(output);
+            }
+        }else{
+
+        /// If we are debited by the transaction, add the output as a "sent" entry
+        if (nDebit > 0){
             listSent.push_back(output);
+        }
 
         // If we are receiving the output, add it as a "received" entry
-        if (fIsMine & filter)
-            listReceived.push_back(output);
+        if (fIsMine & filter){
+            listReceived.push_back(output);  
+        }
+        }
     }
 
 }
@@ -4149,6 +4164,7 @@ string CWallet::MintZerocoin(CScript pubCoin, int64_t nValue, CWalletTx &wtxNew,
 
 /**
  * @brief CWallet::SpendZerocoin
+ * @param thirdPartyaddress
  * @param nValue
  * @param denomination
  * @param wtxNew

@@ -225,6 +225,7 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
     wtx.GetAmounts(listReceived, listSent, nFee, strSentAccount, filter);
 
     // Sent
+    LogPrintf("listSent size: %s\n", listSent.size());
     if ((!listSent.empty() || nFee != 0))
     {
         BOOST_FOREACH(const COutputEntry& s, listSent)
@@ -250,7 +251,7 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
                 }
             }
             else if(wtx.IsZerocoinSpend()){
-                category = "spend";                
+                category = "spendOut";                
             }
             else {
                 category = "send";
@@ -298,6 +299,7 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
     }
 
     //Received
+    LogPrintf("listReceived size: %s\n", listReceived.size());
     if (listReceived.size() > 0 && wtx.GetDepthInMainChain() >= 0)
     {
         BOOST_FOREACH(const COutputEntry& r, listReceived)
@@ -338,7 +340,7 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
                     category = "mined";
             }
             else if(wtx.IsZerocoinSpend()){
-                category = "spend";
+                category = "spendIn";
             }
             else {
                 category = "receive";
@@ -422,6 +424,7 @@ UniValue StateSinceBlock(UniValue& ret, std::string block){
 UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
 {
     UniValue feeperkb = find_value(data,"feePerKb");
+    UniValue txid(UniValue::VOBJ);
     setTxFee(feeperkb);
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
@@ -495,7 +498,8 @@ UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool f
     if (!pwalletMain->CommitTransaction(wtx, keyChange))
         throw JSONRPCError(RPC_WALLET_ERROR, "Transaction commit failed");
 
-    return wtx.GetHash().GetHex();
+    txid.push_back(Pair("txid", wtx.GetHash().GetHex()));
+    return txid;
 }
 
 
@@ -1106,12 +1110,16 @@ UniValue blockchain(Type type, const UniValue& data, const UniValue& auth, bool 
 }
 
 UniValue transaction(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
+    
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
     //decode transaction
     UniValue ret(UniValue::VOBJ);
     CTransaction transaction;
     if (!DecodeHexTx(transaction, find_value(data, "txRaw").get_str()))
         throw runtime_error("invalid transaction encoding");
 
+    LogPrintf("transaction string: %s\n", transaction.ToString());
     CWalletTx wtx(pwalletMain, transaction);
 
     isminefilter filter = ISMINE_ALL;
