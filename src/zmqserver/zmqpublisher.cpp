@@ -217,7 +217,6 @@ bool CZMQConnectionsEvent::NotifyConnections()
 }
 bool CZMQTransactionEvent::NotifyTransaction(const CTransaction &transaction)
 {
-    LogPrintf("transaction string initial: %s\n", transaction.ToString());
     UniValue requestData(UniValue::VOBJ);
     requestData.push_back(Pair("txRaw",EncodeHexTx(transaction)));
     request.replace("data", requestData);

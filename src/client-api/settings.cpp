@@ -10,7 +10,9 @@
 #include "policy/policy.h"
 #include "primitives/transaction.h"
 #include "client-api/server.h"
+#include "client-api/settings.h"
 #include "rpc/server.h"
+#include "util.h"
 #include "streams.h"
 #include "znode-sync.h"
 #include "activeznode.h"
@@ -34,17 +36,78 @@ namespace fs = boost::filesystem;
 using namespace std::chrono;
 using namespace std;
 
+bool WriteAPISetting(UniValue& data, UniValue& setting, string program){
+    UniValue programUni(UniValue::VOBJ);
+    programUni = find_value(data, program);
+    if(programUni.isNull()){
+        programUni.setObject();
+    }
 
-bool WriteAPISetting(string program){
-    //get path (maybe separate function, pass?)
-    // program=daemon || client
+    string name = find_value(setting, "name").get_str();
+    string value = find_value(setting, "data").get_str();
 
-    UniValye
-
+    UniValue settingUni(UniValue::VOBJ);
+    settingUni = find_value(programUni, name);
+    if(!settingUni.isNull()){
+        settingUni.replace("data", value);
+        settingUni.replace("changed", true);
+    }else{
+        settingUni.setObject();
+        settingUni.replace("data", value);
+        settingUni.replace("changed", false);
+        settingUni.replace("restartRequired", restartRequired);
+    }
+    programUni.replace(name, settingUni);
+    data.replace(program, programUni);
+    return true;
 }
 
-UniValue GetSettingsData(){
-    fs::path const &path = CreateSettingsFile();
+bool WriteDaemonSettings(){
+    UniValue settingsData(UniValue::VOBJ);
+    settingsData = ReadSettingsData();
+
+    string name;
+    string value;
+
+    for(std::map<std::string, std::string>:: iterator it = mapArgs.begin(); it != mapArgs.end(); it++){
+        name = (*it).first;
+        value = (*it).second;
+        UniValue setting(UniValue::VOBJ);
+        setting.push_back(Pair("data", value));
+        setting.push_back(Pair("restartRequired", true));
+        setting.push_back(Pair("name", name));
+
+        WriteAPISetting(settingsData, setting, "daemon");
+    }
+
+    WriteSettingsData(settingsData);
+
+    return true;
+}
+
+
+bool WriteClientSettings(){
+    // read from table defined below
+    return true;
+}
+
+bool WriteSettingsData(UniValue& data){
+    fs::path path;
+    UniValue SettingsUni(UniValue::VOBJ);
+    GetSettings(SettingsUni, path);
+
+    SettingsUni.replace("data", data);
+
+    //write back UniValue
+    std::ofstream SettingsOut(path.string());
+
+    SettingsOut << SettingsUni.write(4,0) << endl;
+
+    return true;
+}
+
+bool GetSettings(UniValue& settings, fs::path& path){
+    path = CreateSettingsFile();
 
     // get data as ifstream
     std::ifstream SettingsIn(path.string());
@@ -53,8 +116,15 @@ UniValue GetSettingsData(){
     std::string SettingsStr((std::istreambuf_iterator<char>(SettingsIn)), std::istreambuf_iterator<char>());
 
     // finally as UniValue
+    settings.read(SettingsStr);
+
+    return true;
+}
+
+UniValue ReadSettingsData(){
     UniValue SettingsUni(UniValue::VOBJ);
-    SettingsUni.read(SettingsStr);
+    fs::path path;
+    GetSettings(SettingsUni, path);
 
     UniValue SettingsData(UniValue::VOBJ);
     if(!SettingsUni["data"].isNull()){
@@ -64,28 +134,43 @@ UniValue GetSettingsData(){
     return SettingsData;
 }
 
-UniValue setting(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
-{
-    //type==create
-    //get path
+// called at startup to initialize data.
+// - clears data in daemon sub univalue
+// - sets "changed" value to false for all client univalue
+// - sets restartNow = false
+bool SettingsStartup(){
 
-}
+    UniValue data(UniValue::VOBJ);
+    UniValue client(UniValue::VOBJ);
+    UniValue daemon(UniValue::VOBJ);
 
-static const CAPISettings settings[] =
-{ //  category              settingName         restartRequired  CLI arg
-  //  --------------------- ------------       ---------------- ----------
-    { "misc",               "proxy",                true,      "proxy"               },
-    { "wallet",             "separateProxyTor",     true,      "onion"               },
-    { "wallet",             "SpendZeroConfChange",  true,      "spendzeroconfchange" },
-    { "wallet",             "strThirdPartyTxUrls",  true,      ""                    },
-    { "wallet",             "language",             true,      "lang"                },
-    { "wallet",             "nDatabaseCache",       true,      "dbcache"             },
-    { "wallet",             "nThreadsScriptVerif",  true,      "par"                 },
-    { "wallet",             "fListen",              true,      "listen"              }
-    
-};
-void RegisterAPICommands(CAPITable &tableAPI)
-{
-    for (unsigned int vcidx = 0; vcidx < ARRAYLEN(commands); vcidx++)
-        tableAPI.appendCommand(commands[vcidx].collection, &commands[vcidx]);
+    data = ReadSettingsData();
+
+    client = find_value(data, "client");
+    daemon = find_value(data, "daemon");
+
+    if(!daemon.isNull()){
+        data.replace("daemon", NullUniValue);
+    }
+
+    if(!client.isNull()){
+        vector<string> names = client.getKeys();
+        UniValue settingUni(UniValue::VOBJ);
+        string name;
+        for (vector<string>::iterator it = names.begin(); it != names.end(); it++) {
+            name = *(it);
+            settingUni = find_value(client, name);
+            settingUni.replace("changed", false);
+            client.replace(name, settingUni);
+        }
+        data.replace("client", client);
+    }
+
+    data.replace("restartNow", false);
+
+    WriteSettingsData(data);
+
+    WriteDaemonSettings();
+
+    return true;
 }

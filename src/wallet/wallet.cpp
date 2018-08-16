@@ -1326,23 +1326,14 @@ void CWalletTx::GetAmounts(list <COutputEntry> &listReceived,
 
         COutputEntry output = {address, txout.nValue, (int) i};
 
-        if(IsZerocoinSpend()){
-            if(fIsMine & filter){
-                listReceived.push_back(output);
-            }else{
-                listSent.push_back(output);
-            }
-        }else{
-
         /// If we are debited by the transaction, add the output as a "sent" entry
-        if (nDebit > 0){
+        if (nDebit > 0 || (IsZerocoinSpend() && !(fIsMine & filter))){
             listSent.push_back(output);
         }
 
         // If we are receiving the output, add it as a "received" entry
-        if (fIsMine & filter){
+        if (fIsMine & filter || (IsZerocoinSpend() && (fIsMine & filter))){
             listReceived.push_back(output);  
-        }
         }
     }
 

@@ -41,6 +41,8 @@
 #include "validation.h"
 #include "client-api/register.h"
 #include "client-api/server.h"
+#include "client-api/settings.h"
+
 #ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
 #endif
@@ -858,10 +860,12 @@ bool AppInitServers(boost::thread_group &threadGroup) {
 
     LogPrint(NULL, "API: creating data directory.\n");
 
+
+
+    SettingsStartup();
     CreatePaymentRequestFile();
     CreateTxTimestampFile();
     CreateZerocoinFile();
-    CreateSettingsFile();
 
     bool resetapicerts = GetBoolArg("-resetapicerts", DEFAULT_RESETAPICERTS);
     CZMQAbstract::createCerts(resetapicerts);
