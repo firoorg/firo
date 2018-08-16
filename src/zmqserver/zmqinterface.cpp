@@ -31,7 +31,7 @@ bool CZMQInterface::Initialize()
         else
         {
             LogPrint(NULL, "  Notifier %s failed (address = %s)\n", notifier->GetType(), notifier->GetAuthority());
-            break;
+            return false;
         }
     }
 

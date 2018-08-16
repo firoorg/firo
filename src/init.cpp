@@ -849,27 +849,13 @@ bool AppInitServers(boost::thread_group &threadGroup) {
         return false;
     if (!StartRPC())
         return false;
-    if (!StartAPI())
-        return false;
+
     if (!StartHTTPRPC())
         return false;
     if (GetBoolArg("-rest", DEFAULT_REST_ENABLE) && !StartREST())
         return false;
     if (!StartHTTPServer())
         return false;
-
-    LogPrint(NULL, "API: creating data directory.\n");
-
-
-
-    SettingsStartup();
-    CreatePaymentRequestFile();
-    CreateTxTimestampFile();
-    CreateZerocoinFile();
-
-    bool resetapicerts = GetBoolArg("-resetapicerts", DEFAULT_RESETAPICERTS);
-    CZMQAbstract::createCerts(resetapicerts);
- 
     return true;
 }
 
@@ -1394,6 +1380,17 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
             return InitError(_("Unable to start HTTP server. See debug log for details."));
     }
 
+    if (!StartAPI())
+        return false; 
+
+    SettingsStartup();
+    CreatePaymentRequestFile();
+    CreateTxTimestampFile();
+    CreateZerocoinFile();
+
+    bool resetapicerts = GetBoolArg("-resetapicerts", DEFAULT_RESETAPICERTS);
+    CZMQAbstract::createCerts(resetapicerts);
+
     int64_t nStart;
 
     // ********************************************************* Step 5: verify wallet database integrity
@@ -1552,12 +1549,15 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     pzmqPublisherInterface = CZMQPublisherInterface::Create();
     pzmqReplierInterface = CZMQReplierInterface::Create();
 
+    if(!(pzmqPublisherInterface) || !(pzmqReplierInterface))
+        return InitError(_("Unable to start ZMQ API. See debug log for details."));
+
     // register publisher with validation interface
-    if (pzmqPublisherInterface) {
-        RegisterValidationInterface(pzmqPublisherInterface);
-    }
+    RegisterValidationInterface(pzmqPublisherInterface);
+
     // ZMQ API
     RegisterAllCoreAPICommands(tableAPI);
+    
     if (mapArgs.count("-maxuploadtarget")) {
         CNode::SetMaxOutboundTarget(GetArg("-maxuploadtarget", DEFAULT_MAX_UPLOAD_TARGET) * 1024 * 1024);
     }

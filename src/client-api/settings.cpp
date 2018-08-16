@@ -36,6 +36,8 @@ namespace fs = boost::filesystem;
 using namespace std::chrono;
 using namespace std;
 
+//static const string programs[] = {"client", "daemon"};
+
 bool WriteAPISetting(UniValue& data, UniValue& setting, string program){
     UniValue programUni(UniValue::VOBJ);
     programUni = find_value(data, program);
@@ -45,6 +47,7 @@ bool WriteAPISetting(UniValue& data, UniValue& setting, string program){
 
     string name = find_value(setting, "name").get_str();
     string value = find_value(setting, "data").get_str();
+    bool restartRequired = find_value(setting, "restartRequired").get_bool();
 
     UniValue settingUni(UniValue::VOBJ);
     settingUni = find_value(programUni, name);
@@ -174,3 +177,72 @@ bool SettingsStartup(){
 
     return true;
 }
+
+string GetSettingsProgram(UniValue data, string name){
+    UniValue client = find_value(data, "client");
+    UniValue daemon = find_value(data, "daemon");
+    if(!find_value(client, name).isNull()){
+        return "client";
+    }
+    if(!find_value(daemon, name).isNull()){
+        return "daemon";
+    }
+    else {
+        throw runtime_error("Could not find setting.");
+        return NULL;
+    }
+}
+
+bool SetRestartNow(UniValue& data){
+    UniValue client = find_value(data, "client");
+    UniValue daemon = find_value(data, "daemon");
+
+    vector<string> names;
+    UniValue setting(UniValue::VOBJ);
+
+    for(int i=0; i<=1;i++){
+        names = (i==0) ? client.getKeys() : daemon.getKeys();
+        for (vector<string>::iterator it = names.begin(); it != names.end(); it++) {
+            string name = (*it);
+            setting = find_value(client, name);
+            if(find_value(setting, "restartRequired").get_bool()==true &&
+               find_value(setting,         "changed").get_bool()==true){
+                data.replace("restartNow", true);
+                break;
+            }
+        }
+    }
+    return true;
+}
+
+UniValue setting(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
+{
+    switch(type){
+        case Update: {
+
+            UniValue setting(UniValue::VOBJ);
+            UniValue settingsData = ReadSettingsData();
+            vector<string> names = data.getKeys();
+            UniValue settingUni(UniValue::VOBJ);
+            string name;
+            string program;
+            for (vector<string>::iterator it = names.begin(); it != names.end(); it++) {
+                name = (*it);
+                program = GetSettingsProgram(settingsData, name);
+                setting = find_value(data, name);
+                setting.push_back(Pair("name", name));
+
+                WriteAPISetting(settingsData, setting, program);
+            }
+
+            SetRestartNow(settingsData); 
+            break;   
+        }
+    }
+
+}
+
+// static const CClientSettings settings[] =
+// { //  category              settingName         restartRequired  
+//   //  --------------------- ------------       ----------------
+//     { "misc",               "clientSettingName",           true }

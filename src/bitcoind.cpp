@@ -70,13 +70,10 @@ bool AppInit(int argc, char* argv[])
 
     bool fRet = false;
 
-    // Prepare for writing to settings JSON file
     //
     // Parameters
     //
     // If Qt is used, parameters/bitcoin.conf are parsed in qt/bitcoin.cpp's main()
-
-
     ParseParameters(argc, argv);
 
     // Process help and version before taking care about datadir
