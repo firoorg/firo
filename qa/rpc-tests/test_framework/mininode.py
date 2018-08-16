@@ -249,7 +249,8 @@ class CInv(object):
         2: "Block",
         1|MSG_WITNESS_FLAG: "WitnessTx",
         2|MSG_WITNESS_FLAG : "WitnessBlock",
-        4: "CompactBlock"
+        4: "CompactBlock",
+        5: "DandelionTx"
     }
 
     def __init__(self, t=0, h=0):
@@ -269,6 +270,22 @@ class CInv(object):
     def __repr__(self):
         return "CInv(type=%s hash=%064x)" \
             % (self.typemap[self.type], self.hash)
+
+
+class msg_notfound():
+    command = b"notfound"
+
+    def __init__(self):
+        pass
+
+    def deserialize(self, f):
+        pass
+
+    def serialize(self):
+        return b""
+
+    def __repr__(self):
+        return "msg_notfound()"
 
 
 class CBlockLocator(object):
@@ -520,6 +537,22 @@ class CTransaction(object):
     def __repr__(self):
         return "CTransaction(nVersion=%i vin=%s vout=%s wit=%s nLockTime=%i)" \
             % (self.nVersion, repr(self.vin), repr(self.vout), repr(self.wit), self.nLockTime)
+
+
+class msg_dandeliontx():
+    command = b"dandeliontx"
+
+    def __init__(self, tx=CTransaction()):
+        self.tx = tx
+
+    def deserialize(self, f):
+        self.tx.deserialize(f)
+
+    def serialize(self):
+        return self.tx.serialize_without_witness()
+
+    def __repr__(self):
+        return "msg_dandeliontx(tx=%s)" % (repr(self.tx))
 
 
 class CBlockHeader(object):
@@ -1528,11 +1561,13 @@ class NodeConnCB(object):
     def on_reject(self, conn, message): pass
     def on_close(self, conn): pass
     def on_mempool(self, conn): pass
+    def on_notfound(self, message): pass
     def on_pong(self, conn, message): pass
     def on_feefilter(self, conn, message): pass
     def on_sendheaders(self, conn, message): pass
     def on_sendcmpct(self, conn, message): pass
     def on_cmpctblock(self, conn, message): pass
+    def on_dandeliontx(self, conn, message): pass
     def on_getblocktxn(self, conn, message): pass
     def on_blocktxn(self, conn, message): pass
 
@@ -1587,10 +1622,12 @@ class NodeConn(asyncore.dispatcher):
         b"getheaders": msg_getheaders,
         b"reject": msg_reject,
         b"mempool": msg_mempool,
+        b"notfound": msg_notfound,
         b"feefilter": msg_feefilter,
         b"sendheaders": msg_sendheaders,
         b"sendcmpct": msg_sendcmpct,
         b"cmpctblock": msg_cmpctblock,
+        b"dandeliontx": msg_dandeliontx,
         b"getblocktxn": msg_getblocktxn,
         b"blocktxn": msg_blocktxn
     }
