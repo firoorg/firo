@@ -3,16 +3,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "random.h"
-#include "tinyformat.h"
-#include "util.h"
-#include "utilstrencodings.h"
-#include "utiltime.h"
-#include "version.h"
 #include "univalue.h"
-
-#include <stdint.h>
-#include <fstream>
 
 using namespace std;
 

@@ -9,12 +9,32 @@
  * headers for everything under src/client-api/ */
 class CAPITable;
 
-/** Register block chain API commands */
-void RegisterAPICommands(CAPITable &tableAPI);
+/** Register misc API commands */
+void RegisterMiscAPICommands(CAPITable &tableAPI);
+
+/** Register wallet API commands */
+void RegisterWalletAPICommands(CAPITable &tableAPI);
+
+/** Register blockchain API commands */
+void RegisterBlockchainAPICommands(CAPITable &tableAPI);
+
+/** Register send API commands */
+void RegisterSendAPICommands(CAPITable &tableAPI);
+
+/** Register znode API commands */
+void RegisterZnodeAPICommands(CAPITable &tableAPI);
+
+/** Register zerocoin API commands */
+void RegisterZerocoinAPICommands(CAPITable &tableAPI);
 
 static inline void RegisterAllCoreAPICommands(CAPITable &tableAPI)
 {
-    RegisterAPICommands(tableAPI);
+    RegisterMiscAPICommands(tableAPI);
+    RegisterWalletAPICommands(tableAPI);
+    RegisterBlockchainAPICommands(tableAPI);
+    RegisterSendAPICommands(tableAPI);
+    RegisterZnodeAPICommands(tableAPI);
+    RegisterZerocoinAPICommands(tableAPI);
 }
 
 #endif

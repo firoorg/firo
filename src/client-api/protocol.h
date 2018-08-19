@@ -5,13 +5,6 @@
 
 // #ifndef BITCOIN_APIPROTOCOL_H
 // #define BITCOIN_APIPROTOCOL_H
-
-#include <list>
-#include <map>
-#include <stdint.h>
-#include <string>
-#include <boost/filesystem.hpp>
-
 #include <univalue.h>
 
 //! Zcoin client-API error codes

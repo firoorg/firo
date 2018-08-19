@@ -1,7 +1,6 @@
-#include <string>
 #include <univalue.h>
-#include <map>
-#include <vector>
+
+using namespace std;
 
 #ifndef BITCOIN_API_SERVER_H
 #define BITCOIN_API_SERVER_H

@@ -1,6 +1,5 @@
 #include "client-api/server.h"
 #include "client-api/protocol.h"
-#include "sync.h"
 #include "util.h"
 #include "wallet/wallet.h"
 #include <univalue.h>

@@ -2,41 +2,14 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "amount.h"
-#include "znodeconfig.h"
-#include "chain.h"
-#include "chainparams.h"
-#include "main.h"
-#include "policy/policy.h"
-#include "primitives/transaction.h"
+#include "rpc/server.h"
 #include "client-api/server.h"
 #include "client-api/settings.h"
-#include "rpc/server.h"
 #include "util.h"
-#include "streams.h"
-#include "znode-sync.h"
-#include "activeznode.h"
-#include "sync.h"
-#include "util.h"
-#include "utilstrencodings.h"
-#include "wallet/wallet.h"
-#include "wallet/rpcwallet.cpp"
-#include <stdint.h>
-#include <client-api/protocol.h>
-
-#include "znodeman.h"
-
-#include <zmqserver/zmqabstract.h>
-
 #include <univalue.h>
 
-#include <boost/thread/thread.hpp> // boost::thread::interrupt
-
 namespace fs = boost::filesystem;
-using namespace std::chrono;
 using namespace std;
-
-//static const string programs[] = {"client", "daemon"};
 
 bool WriteAPISetting(UniValue& data, UniValue& setting, string program){
     UniValue programUni(UniValue::VOBJ);

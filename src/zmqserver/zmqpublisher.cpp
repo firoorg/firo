@@ -17,8 +17,11 @@
 #include "wallet/wallet.h"
 #include "wallet/wallet.cpp"
 
-#include "client-api/methods.cpp"
+#include "client-api/wallet.h"
 #include "client-api/server.h"
+#include "client-api/protocol.h"
+
+#include "core_io.h"
 
 #include "chainparamsbase.h"
 #include "clientversion.h"
