@@ -2,47 +2,19 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "chainparams.h"
+#include "util.h"
+#include "core_io.h"
 #include "chain.h"
+
 #include "zmqabstract.h"
 #include "zmqpublisher.h"
-#include "main.h"
-#include "util.h"
-#include "rpc/server.h"
-#include "script/standard.h"
-#include "base58.h"
-#include "znode-sync.h"
-#include "net.h"
-#include "script/ismine.h"
-#include "wallet/wallet.h"
-#include "wallet/wallet.cpp"
 
 #include "client-api/wallet.h"
 #include "client-api/server.h"
 #include "client-api/protocol.h"
-
-#include "core_io.h"
-
-#include "chainparamsbase.h"
-#include "clientversion.h"
-#include "rpc/protocol.h"
-#include "util.h"
-#include "utilstrencodings.h"
-
-#include <boost/filesystem/operations.hpp>
-#include <stdio.h>
-
-#include <event2/event.h>
-#include <event2/http.h>
-#include <event2/buffer.h>
-#include <event2/keyvalq_struct.h>
-
 #include <univalue.h>
 
-using namespace std::chrono;
-
 static std::multimap<std::string, CZMQAbstractPublisher*> mapPublishers;
-extern CWallet* pwalletMain;
 
 bool CZMQAbstractPublisher::Initialize()
 {
