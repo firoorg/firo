@@ -2,30 +2,14 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #include <boost/thread/thread.hpp>
-#include "chainparams.h"
-#include "chain.h"
 #include "zmqreplier.h"
-#include "zmqabstract.h"
-#include "main.h"
 #include "util.h"
-#include "rpc/server.h"
-#include "script/standard.h"
-#include "base58.h"
-#include "znode-sync.h"
-#include "net.h"
-#include "script/ismine.h"
-#include "wallet/wallet.h"
-#include "wallet/wallet.cpp"
-#include "wallet/rpcwallet.cpp"
 
 #include <thread>
 #include <chrono>
 
 #include "client-api/server.h"
 #include "client-api/protocol.h"
-
-using path = boost::filesystem::path;
-extern CWallet* pwalletMain;
 
 //*********** threads waiting for responses ***********//
 void* CZMQOpenReplier::Thread()

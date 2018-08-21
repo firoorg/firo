@@ -190,6 +190,7 @@ bool CZMQConnectionsEvent::NotifyConnections()
     Execute();
     return true;
 }
+
 bool CZMQTransactionEvent::NotifyTransaction(const CTransaction &transaction)
 {
     UniValue requestData(UniValue::VOBJ);

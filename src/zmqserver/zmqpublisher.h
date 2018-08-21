@@ -63,6 +63,14 @@ public:
     bool NotifyStatus();
 };
 
+class CZMQSettingsEvent : public CZMQAbstractPublisher
+{
+     /* Settings updated
+    */   
+public:
+    bool NotifySettingsUpdate();
+};
+
 /* Topics. inheriting from an event class implies publishing on that event. 
    'method' string is the API method called in client-api/ 
 */
@@ -98,12 +106,11 @@ public:
     void SetMethod(){ method= "transaction";};
 };
 
-class CZMQSettingsUpdatePublisher : public CZMQAbstractPublisher
+class CZMQSettingsTopic : public CZMQSettingsEvent
 {
 public:
-    bool NotifySettingsUpdate();
-    void SetMethod(){ method= "settings";};
     void SetTopic(){ topic = "settings";};
+    void SetMethod(){ method= "settings";};
 };
 
 #endif // BITCOIN_ZMQ_ZMQPUBLISHER_H
