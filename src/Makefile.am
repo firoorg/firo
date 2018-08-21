@@ -265,6 +265,7 @@ BITCOIN_CORE_H = \
   utilmoneystr.h \
   utiltime.h \
   batchproof_container.h \
+  util/bytevectorhash.h \
   validation.h \
   validationinterface.h \
   versionbits.h \
@@ -683,6 +684,7 @@ libbitcoin_util_a_SOURCES = \
   bitcoin_bignum/netbase.h \
   crypto/MerkleTreeProof/mtp.cpp \
   crypto/MerkleTreeProof/merkle-tree.cpp \
+  util/bytevectorhash.cpp \
   $(BITCOIN_CORE_H)
 
 liblelantus_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
