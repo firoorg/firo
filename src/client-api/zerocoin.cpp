@@ -124,7 +124,9 @@ UniValue sendprivate(Type type, const UniValue& data, const UniValue& auth, bool
             int64_t denomination_in = 0;
             libzerocoin::CoinDenomination denomination;
 
-            UniValue inputs = find_value(data, "denominations");
+            UniValue inputs = find_value(data, "denomination");
+
+            string address_str = find_value(data, "address").get_str();
 
             for(size_t i=0; i<inputs.size();i++) {
 
@@ -132,9 +134,9 @@ UniValue sendprivate(Type type, const UniValue& data, const UniValue& auth, bool
 
                 int amount = find_value(input_obj, "amount").get_int();
 
-                denomination_in = find_value(input_obj, "denomination").get_int();
+                denomination_in = find_value(input_obj, "value").get_int();
 
-                string address_str = find_value(input_obj, "address").get_str();
+                
 
                 switch(denomination_in){
                     case 1:
