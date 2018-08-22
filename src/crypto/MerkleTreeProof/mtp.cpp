@@ -210,7 +210,8 @@ bool mtp_verify(const char* input, const uint32_t target,
         const uint8_t hash_root_mtp[16], uint32_t nonce,
         const uint64_t block_mtp[72*2][128],
         const std::deque<std::vector<uint8_t>> proof_mtp[73*3],
-        uint256 pow_limit)
+        uint256 pow_limit,
+        uint256 *mtpHashValue)
 {
     MerkleTree::Elements proof_blocks[L * 3];
     MerkleTree::Buffer root;
@@ -448,7 +449,7 @@ bool mtp_verify(const char* input, const uint32_t target,
         clear_internal_memory(block_ij.v, ARGON2_BLOCK_SIZE);
         clear_internal_memory(blockhash.v, ARGON2_BLOCK_SIZE);
         clear_internal_memory(blockhash_bytes, ARGON2_BLOCK_SIZE);
-    }
+    }    
 
     // step 9
     bool negative;
@@ -459,6 +460,9 @@ bool mtp_verify(const char* input, const uint32_t target,
     for (int i = 0; i < (L * 2); ++i) {
         clear_internal_memory(blocks[i].v, ARGON2_BLOCK_SIZE);
     }
+
+    if (mtpHashValue)
+        *mtpHashValue = y[L];
 
     if (negative || (bn_target == 0) || overflow
             || (bn_target > UintToArith256(pow_limit))
@@ -772,20 +776,20 @@ uint256 hash(CBlockHeader & blockHeader, uint256 const & powLimit)
     serializeMtpHeader(ss, blockHeader);
     
     uint256 result;
-    impl::mtp_hash(reinterpret_cast<char*>(&ss[0]), blockHeader.nBits, blockHeader.hashRootMTP
+    impl::mtp_hash(reinterpret_cast<char*>(&ss[0]), blockHeader.nBits, blockHeader.mtpHashData->hashRootMTP
             , blockHeader.nNonce, blockHeader.mtpHashData->nBlockMTP, blockHeader.mtpHashData->nProofMTP, powLimit, result);
     
     return result;
 }
 
 
-bool verify(uint32_t nonce, CBlockHeader const & blockHeader, uint256 const & powLimit)
+bool verify(uint32_t nonce, CBlockHeader const & blockHeader, uint256 const & powLimit, uint256 *mtpHashValue)
 {
     CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
     serializeMtpHeader(ss, blockHeader);
 
-    return impl::mtp_verify(reinterpret_cast<char*>(&ss[0]), blockHeader.nBits, blockHeader.hashRootMTP
-            , nonce, blockHeader.mtpHashData->nBlockMTP, blockHeader.mtpHashData->nProofMTP, powLimit);
+    return impl::mtp_verify(reinterpret_cast<char*>(&ss[0]), blockHeader.nBits, blockHeader.mtpHashData->hashRootMTP
+            , nonce, blockHeader.mtpHashData->nBlockMTP, blockHeader.mtpHashData->nProofMTP, powLimit, mtpHashValue);
 }
 
 }

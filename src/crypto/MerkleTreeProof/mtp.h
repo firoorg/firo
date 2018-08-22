@@ -33,7 +33,7 @@ uint256 hash(CBlockHeader & blockHeader, uint256 const & powLimit);
  * \param blockHeader   [in]        Transaction block which header will be used for calculation
  * \param pow_limit     [in]        Network limit (hash must be less than that)
  */
-bool verify(uint32_t nonce, CBlockHeader const & blockHeader, uint256 const & powLimit);
+bool verify(uint32_t nonce, CBlockHeader const & blockHeader, uint256 const & powLimit, uint256 *mtpHashValue=nullptr);
 
 
 //Implementation details
@@ -84,7 +84,8 @@ bool mtp_verify(const char* input,
         const uint32_t nonce,
         const uint64_t block_mtp[72*2][128],
         const std::deque<std::vector<uint8_t>> proof_mtp[73*3],
-        uint256 pow_limit);
+        uint256 pow_limit,
+        uint256 *mtpHashValue=nullptr);
 }
 
 }

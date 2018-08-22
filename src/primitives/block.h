@@ -34,6 +34,7 @@ inline int GetZerocoinChainID()
 // Zcoin - MTP
 class CMTPHashData {
 public:
+    uint8_t hashRootMTP[16]; // 16 is 128 bit of blake2b
     uint64_t nBlockMTP[72*2][128]; // 128 is ARGON2_QWORDS_IN_BLOCK and 72 * 2 is L * 2
     std::deque<std::vector<uint8_t>> nProofMTP[72*3]; // 72 * 3 is L * 3
 
@@ -50,6 +51,7 @@ public:
     // Function for write/getting size
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream &s, Operation ser_action, int nType, int nVersion) {
+        READWRITE(hashRootMTP);
         READWRITE(nBlockMTP);
         for (int i = 0; i < 72*3; i++) {
             vector<uint32_t> lengths;
@@ -66,6 +68,7 @@ public:
     // Function for reading
     template <typename Stream>
     inline void SerializationOp(Stream &s, CSerActionUnserialize ser_action, int nType, int nVersion) {
+        READWRITE(hashRootMTP);
         READWRITE(nBlockMTP);
         for (int i = 0; i < 72*3; i++) {
             vector<uint32_t> lengths;
@@ -92,7 +95,7 @@ public:
 
     // Zcoin - MTP
     int32_t nVersionMTP = 0x1000;
-    uint8_t hashRootMTP[16]; // 16 is 128 bit of blake2b
+    uint256 mtpHashValue;
 
     // Store this only when absolutely needed for verification
     std::shared_ptr<CMTPHashData> mtpHashData;
@@ -124,7 +127,7 @@ public:
         // On read: allocate and read. On write: write only if already allocated
         if (IsMTP()) {
             READWRITE(nVersionMTP);
-            READWRITE(hashRootMTP);
+            READWRITE(mtpHashValue);
             if (ser_action.ForRead()) {
                 mtpHashData = make_shared<CMTPHashData>();
                 READWRITE(*mtpHashData);
@@ -146,7 +149,7 @@ public:
         READWRITE(nNonce);
         if (IsMTP()) {
             READWRITE(nVersionMTP);
-            READWRITE(hashRootMTP);
+            READWRITE(mtpHashValue);;
         }
     }
 
@@ -163,7 +166,7 @@ public:
 
         // Zcoin - MTP
         mtpHashData.reset();
-        memset(hashRootMTP, 0, sizeof(uint8_t)*16);
+        mtpHashValue.SetNull();
     }
 
     int GetChainID() const

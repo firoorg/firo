@@ -136,7 +136,9 @@ bool CheckMerkleTreeProof(const CBlockHeader &block, const Consensus::Params &pa
     if (!block.mtpHashData)
         return false;
 
-    bool isVerified = mtp::verify(block.nNonce, block, Params().GetConsensus().powLimit);
+    uint256 calculatedMtpHashValue;
+    bool isVerified = mtp::verify(block.nNonce, block, Params().GetConsensus().powLimit, &calculatedMtpHashValue) &&
+        block.mtpHashValue == calculatedMtpHashValue;
 
     if(!isVerified)
         return false;
