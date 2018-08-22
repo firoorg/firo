@@ -97,6 +97,9 @@ public:
     int32_t nVersionMTP = 0x1000;
     uint256 mtpHashValue;
 
+    // Reserved fields
+    uint256 mtpReserved[2];
+
     // Store this only when absolutely needed for verification
     std::shared_ptr<CMTPHashData> mtpHashData;
 
@@ -128,6 +131,8 @@ public:
         if (IsMTP()) {
             READWRITE(nVersionMTP);
             READWRITE(mtpHashValue);
+            READWRITE(mtpReserved[0]);
+            READWRITE(mtpReserved[1]);
             if (ser_action.ForRead()) {
                 mtpHashData = make_shared<CMTPHashData>();
                 READWRITE(*mtpHashData);
@@ -149,7 +154,9 @@ public:
         READWRITE(nNonce);
         if (IsMTP()) {
             READWRITE(nVersionMTP);
-            READWRITE(mtpHashValue);;
+            READWRITE(mtpHashValue);
+            READWRITE(mtpReserved[0]);
+            READWRITE(mtpReserved[1]);
         }
     }
 
@@ -167,6 +174,8 @@ public:
         // Zcoin - MTP
         mtpHashData.reset();
         mtpHashValue.SetNull();
+        mtpReserved[0].SetNull();
+        mtpReserved[1].SetNull();
     }
 
     int GetChainID() const

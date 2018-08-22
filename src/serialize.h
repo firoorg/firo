@@ -249,22 +249,22 @@ template<typename Stream> inline void Unserialize(Stream& s, bool& a, int, int=0
  * Please note that zcoin drops support for high-endian architectures and thus these functions are simple read/writes
  */
 
-template<typename Stream, typename ItemType, int ArraySize, typename = std::enable_if<std::is_arithmetic<ItemType>::value>>
+template<typename Stream, typename ItemType, int ArraySize, typename std::enable_if<std::is_arithmetic<ItemType>::value>::type* = nullptr>
 inline void Serialize(Stream &s, const ItemType (&a) [ArraySize], int, int=0) { s.write((const char *)&a, sizeof(a)); }
 
-template<typename Stream, typename ItemType, int ArraySize, typename = std::enable_if<std::is_arithmetic<ItemType>::value>>
+template<typename Stream, typename ItemType, int ArraySize, typename std::enable_if<std::is_arithmetic<ItemType>::value>::type* = nullptr>
 inline void Unserialize(Stream &s, ItemType (&a)[ArraySize], int, int=0) { s.read((char *)&a, sizeof(a)); }
 
-template<typename Stream, typename ItemType, int ArraySize, typename = std::enable_if<std::is_arithmetic<ItemType>::value>>
+template<typename Stream, typename ItemType, int ArraySize, typename std::enable_if<std::is_arithmetic<ItemType>::value>::type* = nullptr>
 inline unsigned int GetSerializeSize(const ItemType (&a)[ArraySize], int, int=0) { return sizeof(ItemType[ArraySize]); }
 
-template<typename Stream, typename ItemType, int ArraySize1, int ArraySize2, typename = std::enable_if<std::is_arithmetic<ItemType>::value>>
+template<typename Stream, typename ItemType, int ArraySize1, int ArraySize2, typename std::enable_if<std::is_arithmetic<ItemType>::value>::type* =nullptr>
 inline void Serialize(Stream &s, const ItemType (&a)[ArraySize1][ArraySize2], int, int=0) { s.write((const char *)&a, sizeof(a)); }
 
-template<typename Stream, typename ItemType, int ArraySize1, int ArraySize2, typename = std::enable_if<std::is_arithmetic<ItemType>::value>>
+template<typename Stream, typename ItemType, int ArraySize1, int ArraySize2, typename std::enable_if<std::is_arithmetic<ItemType>::value>::type* = nullptr>
 inline void Unserialize(Stream &s, ItemType (&a)[ArraySize1][ArraySize2], int, int=0) { s.read((char *)&a, sizeof(a)); }
 
-template<typename Stream, typename ItemType, int ArraySize1, int ArraySize2, typename = std::enable_if<std::is_arithmetic<ItemType>::value>>
+template<typename Stream, typename ItemType, int ArraySize1, int ArraySize2, typename std::enable_if<std::is_arithmetic<ItemType>::value>::type* = nullptr>
 inline unsigned int GetSerializeSize(const ItemType (&a)[ArraySize1][ArraySize2], int, int=0) { return sizeof(ItemType[ArraySize1][ArraySize2]); }
 
 /**
