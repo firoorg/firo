@@ -242,7 +242,7 @@ UniValue paymentrequest(Type type, const UniValue& data, const UniValue& auth, b
             LogPrintf("data write: %s\n", data.write());
             entry.push_back(Pair("address", newAddress.get_str()));
             entry.push_back(Pair("createdAt", createdAt.get_int64()));
-            entry.push_back(Pair("amount", find_value(data, "amount").get_real()));
+            entry.push_back(Pair("amount", find_value(data, "amount")));
             entry.push_back(Pair("message", find_value(data, "message").get_str()));
             entry.push_back(Pair("label", find_value(data, "label").get_str()));
             
