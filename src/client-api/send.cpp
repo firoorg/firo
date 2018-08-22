@@ -234,9 +234,9 @@ UniValue paymentrequest(Type type, const UniValue& data, const UniValue& auth, b
         }
         case Create: {     
             UniValue newAddress = getNewAddress();
-            milliseconds secs = duration_cast< seconds >(
+            milliseconds secs = duration_cast< milliseconds >(
                  system_clock::now().time_since_epoch()
-            ) / 1000;
+            );
             UniValue createdAt = secs.count();
 
             LogPrintf("data write: %s\n", data.write());

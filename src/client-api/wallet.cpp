@@ -120,9 +120,9 @@ UniValue setInitialTimestamp(string hash){
         return find_value(TxTimestampData,hash);
     }
 
-    milliseconds secs = duration_cast< seconds >(
+    milliseconds secs = duration_cast< milliseconds >(
      system_clock::now().time_since_epoch()
-    ) / 1000;
+    );
     UniValue firstSeenAt = secs.count();
 
     TxTimestampData.push_back(Pair(hash, firstSeenAt));
