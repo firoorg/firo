@@ -70,16 +70,16 @@ extern CTxMemPool mempool;
 
 // Function body is in main.cpp
 bool AcceptToMemoryPool(
-        CTxMemPool &pool,
+        CTxMemPool& pool,
         CValidationState &state,
         const CTransaction &tx,
         bool fCheckInputs,
         bool fLimitFree,
-        bool *pfMissingInputs,
-        bool fOverrideMempoolLimit,
-        const CAmount nAbsurdFee,
-        bool isCheckWalletTransaction
-    );
+        bool* pfMissingInputs,
+        bool fOverrideMempoolLimit=false,
+        const CAmount nAbsurdFee=0,
+        bool isCheckWalletTransaction = false,
+        bool markZcoinSpendTransactionSerial = true);
 
 namespace {
     const int MAX_OUTBOUND_CONNECTIONS = 8;
@@ -103,7 +103,7 @@ std::vector<CNode*> CNode::vDandelionDestination;
 std::map<CNode*, CNode*> CNode::mDandelionRoutes;
 CNode* CNode::localDandelionDestination = nullptr;
 CThreadInterrupt CNode::interruptNet;
-
+extern CTxMemPool stempool;
 
 /** Services this node implementation cares about */
 ServiceFlags nRelevantServices = NODE_NETWORK;
@@ -144,14 +144,6 @@ boost::condition_variable messageHandlerCondition;
 
 // Signals for message handling
 static CNodeSignals g_signals;
-
-// Dandelion fields
-std::vector<CNode*> vDandelionInbound;
-std::vector<CNode*> vDandelionOutbound;
-std::vector<CNode*> vDandelionDestination;
-CNode* localDandelionDestination = nullptr;
-std::map<CNode*, CNode*> mDandelionRoutes;
-extern CTxMemPool stempool;
 
 CNodeSignals &GetNodeSignals() { return g_signals; }
 
@@ -1009,18 +1001,17 @@ static bool AttemptToEvictConnection() {
     return false;
 }
 
+// Randomly selects the destination CNode from a list of destination nodes
+// that have minimal number of routs from "mDandelionRoutes" going to them.
 CNode* CNode::SelectFromDandelionDestinations()
 {
     std::map<CNode*,uint64_t> mDandelionDestinationCounts;
     for (size_t i=0; i<vDandelionDestination.size(); i++) {
         mDandelionDestinationCounts.insert(std::make_pair(vDandelionDestination.at(i),0));
     }
-    for (auto& e : mDandelionDestinationCounts) {
-        for (auto const& f : mDandelionRoutes) {
-            if (e.first == f.second) {
-                e.second+=1;
-            }
-        }
+    for (auto const& f : mDandelionRoutes) {
+        if (mDandelionDestinationCounts.find(f.second) != mDandelionDestinationCounts.end())
+            mDandelionDestinationCounts[f.second]++;
     }
     unsigned int minNumConnections = vDandelionInbound.size();
     for (auto const& e : mDandelionDestinationCounts) {
@@ -1037,7 +1028,8 @@ CNode* CNode::SelectFromDandelionDestinations()
     FastRandomContext rng;
     CNode* dandelionDestination = nullptr;
     if (candidateDestinations.size()>0) {
-        dandelionDestination = candidateDestinations.at(rng.randrange(candidateDestinations.size()));
+        dandelionDestination = candidateDestinations.at(rng.randrange(
+            candidateDestinations.size()));
     }
     return dandelionDestination;
 }
@@ -1141,10 +1133,10 @@ static void AcceptConnection(const ListenSocket &hListenSocket) {
         LOCK(cs_vNodes);
         vNodes.push_back(pnode);
         // Dandelion: new inbound connection
-        vDandelionInbound.push_back(pnode);
+        CNode::vDandelionInbound.push_back(pnode);
         CNode* pto = CNode::SelectFromDandelionDestinations();
         if (pto!=nullptr) {
-            mDandelionRoutes.insert(std::make_pair(pnode, pto));
+            CNode::mDandelionRoutes.insert(std::make_pair(pnode, pto));
         }
         LogPrint(
                 "dandelion", 
@@ -2168,9 +2160,7 @@ void CNode::DandelionShuffle() {
         // Lock node pointers
         LOCK(cs_vNodes);
         // Iterate through mDandelionRoutes to facilitate bookkeeping
-        for (auto iter=mDandelionRoutes.begin(); iter!=mDandelionRoutes.end();) {
-            iter = mDandelionRoutes.erase(iter);
-        }
+        mDandelionRoutes.clear();
         // Set localDandelionDestination to nulltpr and perform bookkeeping
         if (localDandelionDestination!=nullptr) {
             localDandelionDestination = nullptr;
@@ -2179,32 +2169,38 @@ void CNode::DandelionShuffle() {
         //  (bookkeeping already done while iterating through mDandelionRoutes)
         vDandelionDestination.clear();
         // Repopulate vDandelionDestination
-        while (vDandelionDestination.size()<DANDELION_MAX_DESTINATIONS &&
-                vDandelionDestination.size()<vDandelionOutbound.size()) {
+        if (vDandelionDestination.size() < DANDELION_MAX_DESTINATIONS &&
+            vDandelionDestination.size() < vDandelionOutbound.size()) {
             std::vector<CNode*> candidateDestinations;
             for (auto iteri=vDandelionOutbound.begin(); iteri!=vDandelionOutbound.end();) {
                 bool eligibleCandidate = true;
-                for (auto iterj=vDandelionDestination.begin(); iterj!=vDandelionDestination.end();) {
+                for (auto iterj = vDandelionDestination.begin(); iterj != vDandelionDestination.end(); ++iterj) {
                     if (*iteri==*iterj) {
                         eligibleCandidate = false;
-                        iterj = vDandelionDestination.end();
-                    } else {
-                        iterj++;
+                        break;
                     }
                 }
                 if (eligibleCandidate) {
                     candidateDestinations.push_back(*iteri);
                 }
-                iteri++;
+                ++iteri;
             }
+            // Sample "vDandelionDestination.size() - DANDELION_MAX_DESTINATIONS" destinations
+            // if there are that many to choose from.
             FastRandomContext rng;
-            if (candidateDestinations.size() > 0) {
-                vDandelionDestination.push_back(
-                    candidateDestinations.at(rng.randrange(candidateDestinations.size())));
-            } else {
-                break;
+            while (vDandelionDestination.size() < DANDELION_MAX_DESTINATIONS &&
+                vDandelionDestination.size() < vDandelionOutbound.size()) {
+             
+                if (candidateDestinations.size() > 0) {
+                    int rand_index = rng.randrange(candidateDestinations.size());
+                    vDandelionDestination.push_back(candidateDestinations[rand_index]);
+                    vDandelionDestination.erase(vDandelionDestination.begin() + rand_index);
+                } else {
+                    break;
+                }
             }
         }
+
         // Generate new routes
         for (auto pnode : vDandelionInbound) {
             CNode* pto = CNode::SelectFromDandelionDestinations();
@@ -2214,6 +2210,7 @@ void CNode::DandelionShuffle() {
         }
         localDandelionDestination = CNode::SelectFromDandelionDestinations();
     }
+
     // Dandelion debug message
     LogPrint(
         "dandelion", 
@@ -2403,6 +2400,8 @@ void CNode::RelayDandelionTransaction(const CTransaction& tx, CNode* pfrom)
 {
     FastRandomContext rng; 
     if (rng.randrange(100) < DANDELION_FLUFF) {
+        // Start fluffing current transaction.
+
         LogPrint("dandelion", "Dandelion fluff: %s\n", tx.GetHash().ToString());
         CValidationState state;
         std::shared_ptr<const CTransaction> ptx = stempool.get(tx.GetHash());
@@ -2414,7 +2413,7 @@ void CNode::RelayDandelionTransaction(const CTransaction& tx, CNode* pfrom)
             *ptx, 
             true, // fCheckInputs
             true, // fLimitFree
-            &fMissingInputs,
+            &fMissingInputs, // pfMissingInputs
             /*&lRemovedTxn, */
             false, /* fOverrideMempoolLimit */
             0, /* nAbsurdFee */
@@ -2427,6 +2426,7 @@ void CNode::RelayDandelionTransaction(const CTransaction& tx, CNode* pfrom)
             mempool.size(), mempool.DynamicMemoryUsage() / 1000);
         RelayTransaction(tx);
     } else {
+        // Relay transaction to a single dandelion destination.
         CInv inv(MSG_DANDELION_TX, tx.GetHash());
         CNode* destination = getDandelionDestination(pfrom);
         if (destination!=nullptr) {
@@ -2439,29 +2439,40 @@ void CNode::CheckDandelionEmbargoes()
 {
     int64_t nCurrTime = GetTimeMicros();
     for (auto iter=mDandelionEmbargo.begin(); iter!=mDandelionEmbargo.end();) {
-        if (stempool.exists(iter->first)) {
-            LogPrint("dandelion", "Embargoed dandeliontx %s found in mempool; removing from embargo map\n", iter->first.ToString());
+        // If we got the embargoed transaction back, erase it.
+        if (mempool.exists(iter->first)) {
+            LogPrint(
+                "dandelion", 
+                "Embargoed dandeliontx %s found in mempool; removing from embargo map\n", 
+                iter->first.ToString());
             iter = mDandelionEmbargo.erase(iter);
         } else if (iter->second < nCurrTime) {
-            LogPrint("dandelion", "dandeliontx %s embargo expired\n", iter->first.ToString());
+            // Embargo time is over, we did not "see" the transaction back in fluff phase, 
+            // so start fluffing/relaying it.
+            LogPrint(
+                "dandelion", 
+                "dandeliontx %s embargo expired\n", 
+                iter->first.ToString());
             CValidationState state;
             shared_ptr<const CTransaction> ptx = stempool.get(iter->first);
             bool fMissingInputs = false;
             std::list<CTransaction> lRemovedTxn;
             AcceptToMemoryPool(
-                    stempool,
-                    state,
-                    *ptx, 
-                    true, // fCheckInputs
-                    true, // fLimitFree
-                    &fMissingInputs,
-                    /*&lRemovedTxn, */
-                    false, /* fOverrideMempoolLimit */
-                    0, /* nAbsurdFee */
-                    false /*isCheckWalletTransaction*/ // TODO(martun): check what all these booleans do!
-                    );
-            LogPrint("stempool", "AcceptToMemoryPool: accepted %s (poolsz %u txn, %u kB)\n",
-                    iter->first.ToString(), stempool.size(), stempool.DynamicMemoryUsage() / 1000);
+                mempool,
+                state,
+                *ptx, 
+                true, // fCheckInputs
+                true, // fLimitFree
+                &fMissingInputs,
+                /*&lRemovedTxn, */
+                false, /* fOverrideMempoolLimit */
+                0, /* nAbsurdFee */
+                false /*isCheckWalletTransaction*/ // TODO(martun): check what all these booleans do!
+                );
+            LogPrint("mempool", "AcceptToMemoryPool: accepted %s (poolsz %u txn, %u kB)\n",
+                     iter->first.ToString(), 
+                     mempool.size(), 
+                     mempool.DynamicMemoryUsage() / 1000);
             RelayTransaction(*ptx);
             iter = mDandelionEmbargo.erase(iter);
         } else {
@@ -3048,10 +3059,10 @@ bool CNode::setLocalDandelionDestination()
 }
 
 bool CNode::localDandelionDestinationPushInventory(const CInv& inv) {
-    if(isLocalDandelionDestinationSet()) {
-        localDandelionDestination->PushInventory(inv);
-        return true;
-    } else if (setLocalDandelionDestination()) {
+    if (!isLocalDandelionDestinationSet()) {
+        setLocalDandelionDestination();
+    }
+    if (isLocalDandelionDestinationSet()) {
         localDandelionDestination->PushInventory(inv);
         return true;
     } else {
@@ -3065,25 +3076,15 @@ bool CNode::insertDandelionEmbargo(const uint256& hash, const int64_t& embargo) 
 }
 
 bool CNode::isTxDandelionEmbargoed(const uint256& hash) {
-    auto pair = mDandelionEmbargo.find(hash);
-    if (pair != mDandelionEmbargo.end()) {
-        return true;
-    } else {
-        return false;
-    }
+    return mDandelionEmbargo.find(hash) != mDandelionEmbargo.end();
 }
 
 bool CNode::removeDandelionEmbargo(const uint256& hash) {
-    bool removed = false;
-    for (auto iter=mDandelionEmbargo.begin(); iter!=mDandelionEmbargo.end();) {
-        if (iter->first==hash) {
-            iter = mDandelionEmbargo.erase(iter);
-            removed = true;
-        } else {
-            iter++;
-        }
+    auto iter = mDandelionEmbargo.find(hash);
+    if (iter != mDandelionEmbargo.end()) {
+        mDandelionEmbargo.erase(iter);
+        return true;
     }
-    return removed;
+    return false;
 }
-
 

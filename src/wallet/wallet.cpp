@@ -1456,20 +1456,21 @@ bool CWalletTx::RelayWalletTransaction(bool fCheckInputs) {
         /* GetDepthInMainChain already catches known conflicts. */
         if (InMempool() || AcceptToMemoryPool(false, maxTxFee, state, fCheckInputs)) {
             LogPrintf("Relaying wtx %s\n", GetHash().ToString());
-                        if (GetBoolArg("-dandelion", false)) {
-                            int64_t nCurrTime = GetTimeMicros();
-                            int64_t nEmbargo = 1000000 * DANDELION_EMBARGO_MINIMUM
-                                    + PoissonNextSend(nCurrTime, DANDELION_EMBARGO_AVG_ADD);
-                            CNode::insertDandelionEmbargo(GetHash(), nEmbargo);
-                            LogPrint(
-                                    "dandelion", "dandeliontx %s embargoed for %d seconds\n",
-                                    GetHash().ToString(), (nEmbargo - nCurrTime) / 1000000);
-                            CInv inv(MSG_DANDELION_TX, GetHash());
-                            return CNode::localDandelionDestinationPushInventory(inv);
-                        } else {
-                            RelayTransaction(*this);
-                            return true;
-                        }
+            // If Dandelion enabled, push inventory item to just one destination.
+            if (GetBoolArg("-dandelion", false)) {
+                int64_t nCurrTime = GetTimeMicros();
+                int64_t nEmbargo = 1000000 * DANDELION_EMBARGO_MINIMUM
+                        + PoissonNextSend(nCurrTime, DANDELION_EMBARGO_AVG_ADD);
+                CNode::insertDandelionEmbargo(GetHash(), nEmbargo);
+                LogPrint(
+                    "dandelion", "dandeliontx %s embargoed for %d seconds\n",
+                    GetHash().ToString(), (nEmbargo - nCurrTime) / 1000000);
+                CInv inv(MSG_DANDELION_TX, GetHash());
+                return CNode::localDandelionDestinationPushInventory(inv);
+            } else {
+                RelayTransaction(*this);
+                return true;
+            }
         }
     }
 //  LogPrintf("CWalletTx::RelayWalletTransaction() --> invalid condition\n");
