@@ -1,3 +1,6 @@
+[![Build Status](https://travis-ci.com/zcoinofficial/zcoin.svg?branch=CI)](https://travis-ci.com/zcoinofficial/zcoin)
+[![CircleCI](https://circleci.com/gh/zcoinofficial/zcoin/tree/CI.svg?style=svg)](https://circleci.com/gh/zcoinofficial/zcoin/tree/CI)
+
 # Zcoin
 
 **Private financial transactions,
@@ -16,6 +19,7 @@ enabled by the Zerocoin Protocol**
 * :speech_balloon: Join our Telegram group at https://t.me/zcoinproject
 * :video_game: Talk to us on [Discord](https://discordapp.com/invite/4FjnQ2q)
 * :alien: Join the conversation on [Reddit](https://www.reddit.com/r/zcoin/)
+
 
 Linux Build Instructions and Notes
 ==================================
