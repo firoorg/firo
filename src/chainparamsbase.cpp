@@ -95,11 +95,11 @@ std::string ChainNameFromCommandLine()
     boost::optional<bool> regTest = GetOptBoolArg("-regtest")
         , testNet = GetOptBoolArg("-testnet");
 
-    if (testNet && regTest && testNet.get() && regTest.get())
+    if (testNet && regTest && *testNet && *regTest)
         throw std::runtime_error("Invalid combination of -regtest and -testnet.");
-    if (regTest && regTest.get())
+    if (regTest && *regTest)
         return CBaseChainParams::REGTEST;
-    if (!testNet || testNet.get())
+    if (!testNet || *testNet)
         return CBaseChainParams::TESTNET;
     return CBaseChainParams::MAIN;
 }
