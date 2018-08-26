@@ -1110,7 +1110,8 @@ int64_t GetTransactionSigOpCost(const CTransaction &tx, const CCoinsViewCache &i
 bool CheckTransaction(const CTransaction &tx, CValidationState &state, uint256 hashTx,  bool isVerifyDB, int nHeight, bool isCheckWallet, CZerocoinTxInfo *zerocoinTxInfo) {
     LogPrintf("CheckTransaction nHeight=%s, isVerifyDB=%s, isCheckWallet=%s, txHash=%s\n", nHeight, isVerifyDB, isCheckWallet, tx.GetHash().ToString());
 //    LogPrintf("transaction = %s\n", tx.ToString());
-    bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
+    bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET ||
+                     Params().NetworkIDString() == CBaseChainParams::REGTEST);
     // Basic checks that don't depend on any context
     if (tx.vin.empty())
         return state.DoS(10, false, REJECT_INVALID, "bad-txns-vin-empty");
@@ -1192,7 +1193,7 @@ bool AcceptToMemoryPoolWorker(
         std::vector <uint256> &vHashTxnToUncache,
         bool isCheckWalletTransaction,
         bool markZcoinSpendTransactionSerial) {
-    bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
+    bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET || Params().NetworkIDString() == CBaseChainParams::REGTEST);
     LogPrintf("AcceptToMemoryPoolWorker(),fCheckInputs=%s, tx.IsZerocoinSpend()=%s, fTestNet=%s\n", 
               fCheckInputs, tx.IsZerocoinSpend(), fTestNet);
     uint256 hash = tx.GetHash();
@@ -1899,7 +1900,8 @@ bool ReadBlockFromDisk(CBlock &block, const CBlockIndex *pindex, const Consensus
 }
 
 CAmount GetBlockSubsidy(int nHeight, const Consensus::Params &consensusParams, int nTime) {
-    bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
+    bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET || 
+                     Params().NetworkIDString() == CBaseChainParams::REGTEST);
     // Just want to make sure no one gets a dime before 28 Sep 2016 12:00 AM UTC
     if (nTime < nStartRewardTime && !fTestNet)
         return 0;
@@ -2736,7 +2738,8 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
             block.vtx.size()); // Required so that pointers to individual PrecomputedTransactionData don't get invalidated
 
     set<uint256> txIds;
-    bool fTestNet = Params().NetworkIDString() == CBaseChainParams::TESTNET;
+    bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET || 
+                     Params().NetworkIDString() == CBaseChainParams::REGTEST);
 
     for (unsigned int i = 0; i < block.vtx.size(); i++) {
         const CTransaction &tx = block.vtx[i];

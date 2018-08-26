@@ -1762,6 +1762,7 @@ class NodeConn(asyncore.dispatcher):
 
     def send_message(self, message, pushbuf=False):
         if self.state != "connected" and not pushbuf:
+            print("State of connection is ", self.state)
             raise IOError('Not connected, no pushbuf')
         self.show_debug_msg("Send %s" % repr(message))
         command = message.command
