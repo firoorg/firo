@@ -235,7 +235,7 @@ public:
         consensus.BIP34Hash = uint256S("0x0000000023b3a96d3484e5abb3755c413e7d41500f8e2a5c3f0dd01299cd8ef8");
         consensus.powLimit = uint256S("00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.nPowTargetTimespan = 60 * 60; // 60 minutes between retargets
-        consensus.nPowTargetSpacing = 10 * 60; // 10 minute blocks
+        consensus.nPowTargetSpacing = 5 * 60; // 5 minute blocks
         consensus.fPowAllowMinDifficultyBlocks = true;
         consensus.fPowNoRetargeting = false;
         consensus.nRuleChangeActivationThreshold = 1512; // 75% for testchains
@@ -292,10 +292,10 @@ public:
 //        std::cout << "zcoin testnet genesisBlock hash: " << consensus.hashGenesisBlock.ToString() << std::endl;
 //        std::cout << "zcoin testnet hashMerkleRoot hash: " << genesis.hashMerkleRoot.ToString() << std::endl;
         //btzc: update testnet zcoin hashGenesisBlock and hashMerkleRoot
-        assert(consensus.hashGenesisBlock ==
+        /*assert(consensus.hashGenesisBlock ==
                uint256S("0x7ac038c193c2158c428c59f9ae0c02a07115141c6e9dc244ae96132e99b4e642"));
         assert(genesis.hashMerkleRoot ==
-               uint256S("0x25b361d60bc7a66b311e72389bf5d9add911c735102bcb6425f63aceeff5b7b8"));
+               uint256S("0x25b361d60bc7a66b311e72389bf5d9add911c735102bcb6425f63aceeff5b7b8"));*/
         vFixedSeeds.clear();
         vSeeds.clear();
         // nodes with support for servicebits filtering should be at the top
@@ -342,7 +342,7 @@ public:
 	    nModulusV2StartBlock = ZC_MODULUS_V2_TESTNET_START_BLOCK;
         nModulusV1MempoolStopBlock = ZC_MODULUS_V1_TESTNET_MEMPOOL_STOP_BLOCK;
 	    nModulusV1StopBlock = ZC_MODULUS_V1_TESTNET_STOP_BLOCK;
-        nMTPSwitchTime = SWITCH_TO_MTP_BLOCK_HEADER;
+        nMTPSwitchTime = 1;
     }
 };
 
