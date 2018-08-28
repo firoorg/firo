@@ -1,3 +1,16 @@
+Zcoin v0.13.6.6
+=============
+
+[![Build Status](https://travis-ci.com/zcoinofficial/zcoin.svg?branch=CI)](https://travis-ci.com/zcoinofficial/zcoin)
+[![CircleCI](https://circleci.com/gh/zcoinofficial/zcoin/tree/CI.svg?style=svg)](https://circleci.com/gh/zcoinofficial/zcoin/tree/CI)
+
+What is Zcoin?
+--------------
+
+[Zcoin](https://zcoin.io) is the first full implementation of the Zerocoin Protocol, which allows users to have complete privacy via Zero-Knowledge cryptographic proofs. It is worth noting that Zcoin is unrelated to other cryptocurrencies utilizing the Zerocash Protocol. Although Zerocash is a development from Zerocoin, their respective implementations are not simple forks of each other, but rely on different cryptographic assumptions with various tradeoffs. Both approaches supplement each other quite nicely, and a good way to describe them would be sibling projects.
+
+The Zerocoin Protocol is being actively researched and improved, such as by a new [extension](https://pdfs.semanticscholar.org/da9a/85e5d7b7bd9f43255656558d40989ac23a43.pdf) that when implemented would hide transactions and address balances.
+
 Linux Build Instructions and Notes
 ==================================
 

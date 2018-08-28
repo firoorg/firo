@@ -59,6 +59,8 @@
 #include "ed25519_cert.h" /* Trunnel interface. */
 #include "hs_descriptor.h"
 #include "circuitbuild.h"
+#include "crypto_rand.h"
+#include "crypto_util.h"
 #include "parsecommon.h"
 #include "rendcache.h"
 #include "hs_cache.h"
@@ -745,8 +747,8 @@ get_fake_auth_client_lines(void)
 
 /* Create the inner layer of the descriptor (which includes the intro points,
  * etc.). Return a newly-allocated string with the layer plaintext, or NULL if
- * an error occured. It's the responsibility of the caller to free the returned
- * string. */
+ * an error occurred. It's the responsibility of the caller to free the
+ * returned string. */
 static char *
 get_inner_encrypted_layer_plaintext(const hs_descriptor_t *desc)
 {
@@ -802,8 +804,8 @@ get_inner_encrypted_layer_plaintext(const hs_descriptor_t *desc)
 /* Create the middle layer of the descriptor, which includes the client auth
  * data and the encrypted inner layer (provided as a base64 string at
  * <b>layer2_b64_ciphertext</b>). Return a newly-allocated string with the
- * layer plaintext, or NULL if an error occured. It's the responsibility of the
- * caller to free the returned string. */
+ * layer plaintext, or NULL if an error occurred. It's the responsibility of
+ * the caller to free the returned string. */
 static char *
 get_outer_encrypted_layer_plaintext(const hs_descriptor_t *desc,
                                     const char *layer2_b64_ciphertext)
@@ -1125,6 +1127,7 @@ decode_link_specifiers(const char *encoded)
              sizeof(hs_spec->u.ed25519_id));
       break;
     default:
+      tor_free(hs_spec);
       goto err;
     }
 
@@ -1233,7 +1236,8 @@ cert_is_valid(tor_cert_t *cert, uint8_t type, const char *log_obj_type)
   /* The following will not only check if the signature matches but also the
    * expiration date and overall validity. */
   if (tor_cert_checksig(cert, &cert->signing_key, approx_time()) < 0) {
-    log_warn(LD_REND, "Invalid signature for %s.", log_obj_type);
+    log_warn(LD_REND, "Invalid signature for %s: %s", log_obj_type,
+             tor_cert_describe_signature_status(cert));
     goto err;
   }
 
@@ -1608,7 +1612,7 @@ decode_intro_legacy_key(const directory_token_t *tok,
   /* The check on the expiration date is for the entire lifetime of a
    * certificate which is 24 hours. However, a descriptor has a maximum
    * lifetime of 12 hours meaning we have a 12h difference between the two
-   * which ultimately accomodate the clock skewed client. */
+   * which ultimately accommodate the clock skewed client. */
   if (rsa_ed25519_crosscert_check(ip->legacy.cert.encoded,
                                   ip->legacy.cert.len, ip->legacy.key,
                                   &desc->plaintext_data.signing_pubkey,
@@ -1728,7 +1732,8 @@ decode_introduction_point(const hs_descriptor_t *desc, const char *start)
   /* Validate authentication certificate with descriptor signing key. */
   if (tor_cert_checksig(ip->auth_key_cert,
                         &desc->plaintext_data.signing_pubkey, 0) < 0) {
-    log_warn(LD_REND, "Invalid authentication key signature");
+    log_warn(LD_REND, "Invalid authentication key signature: %s",
+             tor_cert_describe_signature_status(ip->auth_key_cert));
     goto err;
   }
 
@@ -1765,7 +1770,8 @@ decode_introduction_point(const hs_descriptor_t *desc, const char *start)
   }
   if (tor_cert_checksig(ip->enc_key_cert,
                         &desc->plaintext_data.signing_pubkey, 0) < 0) {
-    log_warn(LD_REND, "Invalid encryption key signature");
+    log_warn(LD_REND, "Invalid encryption key signature: %s",
+             tor_cert_describe_signature_status(ip->enc_key_cert));
     goto err;
   }
   /* It is successfully cross certified. Flag the object. */
@@ -1892,7 +1898,7 @@ desc_sig_is_valid(const char *b64_sig,
   }
 
   /* Find the start of signature. */
-  sig_start = tor_memstr(encoded_desc, encoded_len, "\n" str_signature);
+  sig_start = tor_memstr(encoded_desc, encoded_len, "\n" str_signature " ");
   /* Getting here means the token parsing worked for the signature so if we
    * can't find the start of the signature, we have a code flow issue. */
   if (!sig_start) {
@@ -2367,7 +2373,7 @@ hs_desc_encode_descriptor,(const hs_descriptor_t *desc,
 
 /* Free the descriptor plaintext data object. */
 void
-hs_desc_plaintext_data_free(hs_desc_plaintext_data_t *desc)
+hs_desc_plaintext_data_free_(hs_desc_plaintext_data_t *desc)
 {
   desc_plaintext_data_free_contents(desc);
   tor_free(desc);
@@ -2375,7 +2381,7 @@ hs_desc_plaintext_data_free(hs_desc_plaintext_data_t *desc)
 
 /* Free the descriptor encrypted data object. */
 void
-hs_desc_encrypted_data_free(hs_desc_encrypted_data_t *desc)
+hs_desc_encrypted_data_free_(hs_desc_encrypted_data_t *desc)
 {
   desc_encrypted_data_free_contents(desc);
   tor_free(desc);
@@ -2383,7 +2389,7 @@ hs_desc_encrypted_data_free(hs_desc_encrypted_data_t *desc)
 
 /* Free the given descriptor object. */
 void
-hs_descriptor_free(hs_descriptor_t *desc)
+hs_descriptor_free_(hs_descriptor_t *desc)
 {
   if (!desc) {
     return;
@@ -2448,7 +2454,7 @@ hs_desc_intro_point_new(void)
 
 /* Free a descriptor intro point object. */
 void
-hs_desc_intro_point_free(hs_desc_intro_point_t *ip)
+hs_desc_intro_point_free_(hs_desc_intro_point_t *ip)
 {
   if (ip == NULL) {
     return;
@@ -2467,7 +2473,7 @@ hs_desc_intro_point_free(hs_desc_intro_point_t *ip)
 
 /* Free the given descriptor link specifier. */
 void
-hs_desc_link_specifier_free(hs_desc_link_specifier_t *ls)
+hs_desc_link_specifier_free_(hs_desc_link_specifier_t *ls)
 {
   if (ls == NULL) {
     return;

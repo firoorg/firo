@@ -18,6 +18,7 @@
 #include "config.h"
 #include "confparse.h"
 #include "connection.h"
+#include "crypto_rand.h"
 #include "main.h"
 #include "nodelist.h"
 #include "relay.h"
@@ -33,7 +34,6 @@ DISABLE_GCC_WARNING(overlength-strings)
  * at large. */
 #endif
 #include "test_descriptors.inc"
-#include "or.h"
 #include "circuitlist.h"
 #ifdef HAVE_CFLAG_WOVERLENGTH_STRINGS
 ENABLE_GCC_WARNING(overlength-strings)
@@ -156,7 +156,7 @@ mock_tor_addr_lookup__fail_on_bad_addrs(const char *name,
 
 /* Helper for test_conn_get_connection() */
 static int
-fake_close_socket(evutil_socket_t sock)
+fake_close_socket(tor_socket_t sock)
 {
   (void)sock;
   return 0;

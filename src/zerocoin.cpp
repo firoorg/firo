@@ -64,15 +64,19 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
     // Check for inputs only, everything else was checked before
 	LogPrintf("CheckSpendZcoinTransaction denomination=%d nHeight=%d\n", targetDenomination, nHeight);
 
+    auto chainParams = Params();
+    int txHeight = chainActive.Height();
+    bool hasZerocoinSpendInputs = false, hasNonZerocoinInputs = false;
+
 	BOOST_FOREACH(const CTxIn &txin, tx.vin)
 	{
-        if (!txin.scriptSig.IsZerocoinSpend())
+        if (txin.scriptSig.IsZerocoinSpend()) {
+            hasZerocoinSpendInputs = true;
+        }
+        else {
+            hasNonZerocoinInputs = true;
             continue;
-
-        if (tx.vin.size() > 1)
-            return state.DoS(100, false,
-                             REJECT_MALFORMED,
-                             "CheckSpendZcoinTransaction: can't have more than one input");
+        }
 
         uint32_t pubcoinId = txin.nSequence;
         if (pubcoinId < 1 || pubcoinId >= INT_MAX) {
@@ -145,9 +149,6 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
         }
 
         LogPrintf("CheckSpendZcoinTransaction: tx version=%d, tx metadata hash=%s, serial=%s\n", newSpend.getVersion(), txHashForMetadata.ToString(), newSpend.getCoinSerialNumber().ToString());
-
-        auto chainParams = Params();
-        int txHeight = chainActive.Height();
 
         if (spendVersion == ZEROCOIN_TX_VERSION_1 && nHeight == INT_MAX) {
             int allowedV1Height = chainParams.nSpendV15StartBlock;
@@ -280,6 +281,25 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
             return false;
         }
 	}
+
+    if (hasZerocoinSpendInputs) {
+        if (hasNonZerocoinInputs) {
+            // mixing zerocoin spend input with non-zerocoin inputs is prohibited
+            return state.DoS(100, false,
+                            REJECT_MALFORMED,
+                            "CheckSpendZcoinTransaction: can't mix zerocoin spend input with regular ones");
+        }
+        else if (tx.vin.size() > 1) {
+            // having tx with several zerocoin spend inputs is possible since nMultipleSpendInputsInOneTxStartBlock
+            if ((nHeight == INT_MAX && txHeight < chainParams.nMultipleSpendInputsInOneTxStartBlock) ||
+                    (nHeight < chainParams.nMultipleSpendInputsInOneTxStartBlock)) {
+                return state.DoS(100, false,
+                             REJECT_MALFORMED,
+                             "CheckSpendZcoinTransaction: can't have more than one input");
+            }
+        }
+    }
+
 	return true;
 }
 
@@ -518,10 +538,25 @@ bool CheckZerocoinTransaction(const CTransaction &tx,
 
 void DisconnectTipZC(CBlock & /*block*/, CBlockIndex *pindexDelete) {
     zerocoinState.RemoveBlock(pindexDelete);
-
-    // TODO: notify the wallet
 }
 
+CBigNum ZerocoinGetSpendSerialNumber(const CTransaction &tx) {
+    if (!tx.IsZerocoinSpend() || tx.vin.size() != 1)
+        return CBigNum(0);
+
+    const CTxIn &txin = tx.vin[0];
+
+    try {
+        CDataStream serializedCoinSpend((const char *)&*(txin.scriptSig.begin() + 4),
+                                    (const char *)&*txin.scriptSig.end(),
+                                    SER_NETWORK, PROTOCOL_VERSION);
+        libzerocoin::CoinSpend spend(txin.nSequence >= ZC_MODULUS_V2_BASE_ID ? ZCParamsV2 : ZCParams, serializedCoinSpend);
+        return spend.getCoinSerialNumber();
+    }
+    catch (const std::runtime_error &) {
+        return CBigNum(0);
+    }
+}
 
 /**
  * Connect a new ZCblock to chainActive. pblock is either NULL or a pointer to a CBlock
@@ -1036,11 +1071,35 @@ set<CBlockIndex *> CZerocoinState::RecalculateAccumulators(CChain *chain) {
     return changes;
 }
 
+bool CZerocoinState::AddSpendToMempool(const CBigNum &coinSerial, uint256 txHash) {
+    if (IsUsedCoinSerial(coinSerial) || mempoolCoinSerials.count(coinSerial))
+        return false;
+
+    mempoolCoinSerials[coinSerial] = txHash;
+    return true;
+}
+
+void CZerocoinState::RemoveSpendFromMempool(const CBigNum &coinSerial) {
+    mempoolCoinSerials.erase(coinSerial);
+}
+
+uint256 CZerocoinState::GetMempoolConflictingTxHash(const CBigNum &coinSerial) {
+    if (mempoolCoinSerials.count(coinSerial) == 0)
+        return uint256();
+
+    return mempoolCoinSerials[coinSerial];
+}
+
+bool CZerocoinState::CanAddSpendToMempool(const CBigNum &coinSerial) {
+    return !IsUsedCoinSerial(coinSerial) && mempoolCoinSerials.count(coinSerial) == 0;
+}
+
 void CZerocoinState::Reset() {
     coinGroups.clear();
     usedCoinSerials.clear();
     mintedPubCoins.clear();
     latestCoinIds.clear();
+    mempoolCoinSerials.clear();
 }
 
 CZerocoinState *CZerocoinState::GetZerocoinState() {

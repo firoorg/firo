@@ -5,6 +5,7 @@
 
 #include "config.h"
 #include "conscache.h"
+#include "crypto_util.h"
 #include "storagedir.h"
 
 #define CCE_MAGIC 0x17162253
@@ -79,7 +80,7 @@ consensus_cache_open(const char *subdir, int max_entries)
 {
   int storagedir_max_entries;
   consensus_cache_t *cache = tor_malloc_zero(sizeof(consensus_cache_t));
-  char *directory = get_datadir_fname(subdir);
+  char *directory = get_cachedir_fname(subdir);
   cache->max_entries = max_entries;
 
 #ifdef MUST_UNMAP_TO_UNLINK
@@ -170,7 +171,7 @@ consensus_cache_clear(consensus_cache_t *cache)
  * Drop all storage held by <b>cache</b>.
  */
 void
-consensus_cache_free(consensus_cache_t *cache)
+consensus_cache_free_(consensus_cache_t *cache)
 {
   if (! cache)
     return;

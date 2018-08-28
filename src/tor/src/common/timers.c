@@ -37,8 +37,6 @@
 #include "torlog.h"
 #include "util.h"
 
-#include <event2/event.h>
-
 struct timeout_cb {
   timer_cb_fn_t cb;
   void *arg;
@@ -63,13 +61,18 @@ struct timeout_cb {
 #define TIMEOUT_CB_OVERRIDE
 /* We're going to support timers that are pretty far out in advance. Making
  * this big can be inefficient, but having a significant number of timers
- * above TIMEOUT_MAX can also be super-inefficent. Choosing 5 here sets
+ * above TIMEOUT_MAX can also be super-inefficient. Choosing 5 here sets
  * timeout_max to 2^30 ticks, or 29 hours with our value for USEC_PER_TICK */
 #define WHEEL_NUM 5
+#if SIZEOF_VOID_P == 4
+/* On 32-bit platforms, we want to override wheel_bit, so that timeout.c will
+ * use 32-bit math. */
+#define WHEEL_BIT 5
+#endif
 #include "src/ext/timeouts/timeout.c"
 
 static struct timeouts *global_timeouts = NULL;
-static struct event *global_timer_event = NULL;
+static struct mainloop_event_t *global_timer_event = NULL;
 
 static monotime_t start_of_time;
 
@@ -147,7 +150,7 @@ libevent_timer_reschedule(void)
   if (delay > MIN_CHECK_TICKS)
     delay = MIN_CHECK_TICKS;
   timeout_to_tv(delay, &d);
-  event_add(global_timer_event, &d);
+  mainloop_event_schedule(global_timer_event, &d);
 }
 
 /** Run the callback of every timer that has expired, based on the current
@@ -170,10 +173,9 @@ timers_run_pending(void)
  * have fired, activate their callbacks, and reschedule the libevent timer.
  */
 static void
-libevent_timer_callback(evutil_socket_t fd, short what, void *arg)
+libevent_timer_callback(mainloop_event_t *ev, void *arg)
 {
-  (void)fd;
-  (void)what;
+  (void)ev;
   (void)arg;
 
   timers_run_pending();
@@ -203,9 +205,8 @@ timers_initialize(void)
   monotime_init();
   monotime_get(&start_of_time);
 
-  struct event *timer_event;
-  timer_event = tor_event_new(tor_libevent_get_base(),
-                              -1, 0, libevent_timer_callback, NULL);
+  mainloop_event_t *timer_event;
+  timer_event = mainloop_event_new(libevent_timer_callback, NULL);
   tor_assert(timer_event);
   global_timer_event = timer_event;
 
@@ -219,7 +220,7 @@ void
 timers_shutdown(void)
 {
   if (global_timer_event) {
-    tor_event_free(global_timer_event);
+    mainloop_event_free(global_timer_event);
     global_timer_event = NULL;
   }
   if (global_timeouts) {
@@ -245,7 +246,7 @@ timer_new(timer_cb_fn_t cb, void *arg)
  * scheduled.
  */
 void
-timer_free(tor_timer_t *t)
+timer_free_(tor_timer_t *t)
 {
   if (! t)
     return;

@@ -88,7 +88,18 @@ TestingSetup::~TestingSetup()
         delete pcoinsTip;
         delete pcoinsdbview;
         delete pblocktree;
-        boost::filesystem::remove_all(pathTemp);
+	try {
+		boost::filesystem::remove_all(pathTemp);
+	}
+	catch(...) {
+		try {
+			MilliSleep(100);
+			boost::filesystem::remove_all(std::wstring(L"\\\\?\\") + pathTemp.wstring());
+		}
+		catch(...) {
+				
+		}
+	}
         bitdb.RemoveDb("wallet_test.dat");
         bitdb.Reset();
 }

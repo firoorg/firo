@@ -1,13 +1,14 @@
-//! C <-> Rust compatibility helpers and types.
-//!
-//! Generically useful, small scale helpers should go here. This goes for both
-//! the C side (in the form of the ffi module) as well as the Rust side
-//! (individual modules per functionality). The corresponding C stuff lives in
-//! `src/common/compat_rust.{c,h}`.
+// Copyright (c) 2016-2017, The Tor Project, Inc. */
+// See LICENSE for licensing information */
+
+//! Small module to announce Rust support during startup for demonstration
+//! purposes.
 
 extern crate libc;
+extern crate tor_allocate;
 
-mod rust_string;
+#[macro_use]
+extern crate tor_log;
+
 pub mod ffi;
-
-pub use rust_string::*;
+pub mod strings;

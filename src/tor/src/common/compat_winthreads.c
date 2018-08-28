@@ -18,7 +18,6 @@
 #include "util.h"
 #include "container.h"
 #include "torlog.h"
-#include <process.h>
 
 /* This value is more or less total cargo-cult */
 #define SPIN_COUNT 2000
@@ -48,10 +47,12 @@ void
 spawn_exit(void)
 {
   _endthread();
+  // LCOV_EXCL_START
   //we should never get here. my compiler thinks that _endthread returns, this
   //is an attempt to fool it.
   tor_assert(0);
-  _exit(0);
+  _exit(0); // exit ok: unreachable.
+  // LCOV_EXCL_STOP
 }
 
 void

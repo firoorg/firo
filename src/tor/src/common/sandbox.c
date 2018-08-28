@@ -162,6 +162,7 @@ static int filter_nopar_gen[] = {
     SCMP_SYS(fstat64),
 #endif
     SCMP_SYS(futex),
+    SCMP_SYS(getdents),
     SCMP_SYS(getdents64),
     SCMP_SYS(getegid),
 #ifdef __NR_getegid32
@@ -196,6 +197,9 @@ static int filter_nopar_gen[] = {
     SCMP_SYS(mmap),
 #endif
     SCMP_SYS(munmap),
+#ifdef __NR_nanosleep
+    SCMP_SYS(nanosleep),
+#endif
 #ifdef __NR_prlimit
     SCMP_SYS(prlimit),
 #endif
@@ -258,7 +262,8 @@ static int filter_nopar_gen[] = {
     SCMP_SYS(recvmsg),
     SCMP_SYS(recvfrom),
     SCMP_SYS(sendto),
-    SCMP_SYS(unlink)
+    SCMP_SYS(unlink),
+    SCMP_SYS(poll)
 };
 
 /* These macros help avoid the error where the number of filters we add on a
@@ -433,9 +438,9 @@ libc_uses_openat_for_everything(void)
     return 1;
   else
     return 0;
-#else
+#else /* !(defined(CHECK_LIBC_VERSION)) */
   return 0;
-#endif
+#endif /* defined(CHECK_LIBC_VERSION) */
 }
 
 /** Allow a single file to be opened.  If <b>use_openat</b> is true,
@@ -1070,25 +1075,6 @@ sb_mremap(scmp_filter_ctx ctx, sandbox_cfg_t *filter)
   return 0;
 }
 
-/**
- * Function responsible for setting up the poll syscall for
- * the seccomp filter sandbox.
- */
-static int
-sb_poll(scmp_filter_ctx ctx, sandbox_cfg_t *filter)
-{
-  int rc = 0;
-  (void) filter;
-
-  rc = seccomp_rule_add_2(ctx, SCMP_ACT_ALLOW, SCMP_SYS(poll),
-      SCMP_CMP(1, SCMP_CMP_EQ, 1),
-      SCMP_CMP(2, SCMP_CMP_EQ, 10));
-  if (rc)
-    return rc;
-
-  return 0;
-}
-
 #ifdef __NR_stat64
 /**
  * Function responsible for setting up the stat64 syscall for
@@ -1130,7 +1116,7 @@ sb_kill(scmp_filter_ctx ctx, sandbox_cfg_t *filter)
        SCMP_CMP(1, SCMP_CMP_EQ, 0));
 #else
   return 0;
-#endif
+#endif /* defined(__NR_kill) */
 }
 
 /**
@@ -1160,7 +1146,6 @@ static sandbox_filter_func_t filter_func[] = {
     sb_flock,
     sb_futex,
     sb_mremap,
-    sb_poll,
 #ifdef __NR_stat64
     sb_stat64,
 #endif
@@ -1500,8 +1485,12 @@ cached_getaddrinfo_items_eq(const cached_getaddrinfo_item_t *a,
   return (a->family == b->family) && 0 == strcmp(a->name, b->name);
 }
 
+#define cached_getaddrinfo_item_free(item)              \
+  FREE_AND_NULL(cached_getaddrinfo_item_t,              \
+                cached_getaddrinfo_item_free_, (item))
+
 static void
-cached_getaddrinfo_item_free(cached_getaddrinfo_item_t *item)
+cached_getaddrinfo_item_free_(cached_getaddrinfo_item_t *item)
 {
   if (item == NULL)
     return;
@@ -1812,7 +1801,7 @@ sigsys_debugging(int nr, siginfo_t *info, void *void_context)
 #endif
 
 #if defined(DEBUGGING_CLOSE)
-  _exit(1);
+  _exit(1); // exit ok: programming error has led to sandbox failure.
 #endif // DEBUGGING_CLOSE
 }
 

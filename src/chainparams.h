@@ -90,6 +90,8 @@ public:
 	int nModulusV2StartBlock;
     int nModulusV1MempoolStopBlock;
 	int nModulusV1StopBlock;
+
+    int nMultipleSpendInputsInOneTxStartBlock;
 	
 protected:
     CChainParams() {}
