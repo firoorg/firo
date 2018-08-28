@@ -27,6 +27,10 @@ void control_ports_write_to_file(void);
 #define LOG_FN_CONN(conn, args)                 \
   CONN_LOG_PROTECT(conn, log_fn args)
 
+#define CC_LOCAL_FD_IS_OWNER (1u<<0)
+#define CC_LOCAL_FD_IS_AUTHENTICATED (1u<<1)
+int control_connection_add_local_fd(tor_socket_t sock, unsigned flags);
+
 int connection_control_finished_flushing(control_connection_t *conn);
 int connection_control_reached_eof(control_connection_t *conn);
 void connection_control_closed(control_connection_t *conn);
@@ -35,6 +39,9 @@ int connection_control_process_inbuf(control_connection_t *conn);
 
 #define EVENT_NS 0x000F
 int control_event_is_interesting(int event);
+
+void control_per_second_events(void);
+int control_any_per_second_event_enabled(void);
 
 int control_event_circuit_status(origin_circuit_t *circ,
                                  circuit_status_event_t e, int reason);
@@ -55,10 +62,8 @@ int control_event_circ_bandwidth_used(void);
 int control_event_conn_bandwidth(connection_t *conn);
 int control_event_conn_bandwidth_used(void);
 int control_event_circuit_cell_stats(void);
-int control_event_tb_empty(const char *bucket, uint32_t read_empty_time,
-                           uint32_t write_empty_time,
-                           int milliseconds_elapsed);
 void control_event_logmsg(int severity, uint32_t domain, const char *msg);
+void control_event_logmsg_pending(void);
 int control_event_descriptors_changed(smartlist_t *routers);
 int control_event_address_mapped(const char *from, const char *to,
                                  time_t expires, const char *error,
@@ -111,32 +116,39 @@ void control_event_transport_launched(const char *mode,
                                       tor_addr_t *addr, uint16_t port);
 const char *rend_auth_type_to_string(rend_auth_type_t auth_type);
 MOCK_DECL(const char *, node_describe_longname_by_id,(const char *id_digest));
-void control_event_hs_descriptor_requested(const rend_data_t *rend_query,
-                                           const char *desc_id_base32,
-                                           const char *hs_dir);
-void control_event_hs_descriptor_created(const char *service_id,
-                                         const char *desc_id_base32,
+void control_event_hs_descriptor_requested(const char *onion_address,
+                                           rend_auth_type_t auth_type,
+                                           const char *id_digest,
+                                           const char *desc_id,
+                                           const char *hsdir_index);
+void control_event_hs_descriptor_created(const char *onion_address,
+                                         const char *desc_id,
                                          int replica);
-void control_event_hs_descriptor_upload(const char *service_id,
-                                        const char *desc_id_base32,
-                                        const char *hs_dir);
-void control_event_hs_descriptor_receive_end(const char *action,
-                                             const char *onion_address,
-                                             const rend_data_t *rend_data,
-                                             const char *id_digest,
-                                             const char *reason);
+void control_event_hs_descriptor_upload(const char *onion_address,
+                                        const char *desc_id,
+                                        const char *hs_dir,
+                                        const char *hsdir_index);
 void control_event_hs_descriptor_upload_end(const char *action,
                                             const char *onion_address,
                                             const char *hs_dir,
                                             const char *reason);
-void control_event_hs_descriptor_received(const char *onion_address,
-                                          const rend_data_t *rend_data,
-                                          const char *id_digest);
 void control_event_hs_descriptor_uploaded(const char *hs_dir,
                                           const char *onion_address);
-void control_event_hs_descriptor_failed(const rend_data_t *rend_data,
-                                        const char *id_digest,
-                                        const char *reason);
+/* Hidden service v2 HS_DESC specific. */
+void control_event_hsv2_descriptor_failed(const rend_data_t *rend_data,
+                                          const char *id_digest,
+                                          const char *reason);
+void control_event_hsv2_descriptor_received(const char *onion_address,
+                                            const rend_data_t *rend_data,
+                                            const char *id_digest);
+/* Hidden service v3 HS_DESC specific. */
+void control_event_hsv3_descriptor_failed(const char *onion_address,
+                                          const char *desc_id,
+                                          const char *hsdir_id_digest,
+                                          const char *reason);
+void control_event_hsv3_descriptor_received(const char *onion_address,
+                                            const char *desc_id,
+                                            const char *hsdir_id_digest);
 void control_event_hs_descriptor_upload_failed(const char *hs_dir,
                                                const char *onion_address,
                                                const char *reason);
@@ -183,7 +195,7 @@ void control_free_all(void);
 #define EVENT_CONF_CHANGED            0x0019
 #define EVENT_CONN_BW                 0x001A
 #define EVENT_CELL_STATS              0x001B
-#define EVENT_TB_EMPTY                0x001C
+/* UNUSED :                           0x001C */
 #define EVENT_CIRC_BANDWIDTH_USED     0x001D
 #define EVENT_TRANSPORT_LAUNCHED      0x0020
 #define EVENT_HS_DESC                 0x0021
@@ -252,10 +264,22 @@ void format_cell_stats(char **event_string, circuit_t *circ,
                        cell_stats_t *cell_stats);
 STATIC char *get_bw_samples(void);
 
-STATIC crypto_pk_t *add_onion_helper_keyarg(const char *arg, int discard_pk,
-                                            const char **key_new_alg_out,
-                                            char **key_new_blob_out,
-                                            char **err_msg_out);
+/* ADD_ONION secret key to create an ephemeral service. The command supports
+ * multiple versions so this union stores the key and passes it to the HS
+ * subsystem depending on the requested version. */
+typedef union add_onion_secret_key_t {
+  /* Hidden service v2 secret key. */
+  crypto_pk_t *v2;
+  /* Hidden service v3 secret key. */
+  ed25519_secret_key_t *v3;
+} add_onion_secret_key_t;
+
+STATIC int add_onion_helper_keyarg(const char *arg, int discard_pk,
+                                   const char **key_new_alg_out,
+                                   char **key_new_blob_out,
+                                   add_onion_secret_key_t *decoded_key,
+                                   int *hs_version, char **err_msg_out);
+
 STATIC rend_authorized_client_t *
 add_onion_helper_clientauth(const char *arg, int *created, char **err_msg_out);
 
@@ -288,6 +312,10 @@ STATIC int getinfo_helper_downloads(
     const char *question, char **answer,
     const char **errmsg);
 STATIC int getinfo_helper_dir(
+    control_connection_t *control_conn,
+    const char *question, char **answer,
+    const char **errmsg);
+STATIC int getinfo_helper_current_time(
     control_connection_t *control_conn,
     const char *question, char **answer,
     const char **errmsg);

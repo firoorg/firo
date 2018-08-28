@@ -10,7 +10,6 @@
 #define TOR_HS_CIRCUIT_H
 
 #include "or.h"
-#include "crypto.h"
 #include "crypto_ed25519.h"
 
 #include "hs_service.h"
@@ -70,7 +69,7 @@ create_rp_circuit_identifier(const hs_service_t *service,
                              const curve25519_public_key_t *server_pk,
                              const hs_ntor_rend_cell_keys_t *keys);
 
-#endif
+#endif /* defined(HS_CIRCUIT_PRIVATE) */
 
 #endif /* !defined(TOR_HS_CIRCUIT_H) */
 
