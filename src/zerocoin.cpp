@@ -64,15 +64,19 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
     // Check for inputs only, everything else was checked before
 	LogPrintf("CheckSpendZcoinTransaction denomination=%d nHeight=%d\n", targetDenomination, nHeight);
 
+    auto chainParams = Params();
+    int txHeight = chainActive.Height();
+    bool hasZerocoinSpendInputs = false, hasNonZerocoinInputs = false;
+
 	BOOST_FOREACH(const CTxIn &txin, tx.vin)
 	{
-        if (!txin.scriptSig.IsZerocoinSpend())
+        if (txin.scriptSig.IsZerocoinSpend()) {
+            hasZerocoinSpendInputs = true;
+        }
+        else {
+            hasNonZerocoinInputs = true;
             continue;
-
-        if (tx.vin.size() > 1)
-            return state.DoS(100, false,
-                             REJECT_MALFORMED,
-                             "CheckSpendZcoinTransaction: can't have more than one input");
+        }
 
         uint32_t pubcoinId = txin.nSequence;
         if (pubcoinId < 1 || pubcoinId >= INT_MAX) {
@@ -145,9 +149,6 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
         }
 
         LogPrintf("CheckSpendZcoinTransaction: tx version=%d, tx metadata hash=%s, serial=%s\n", newSpend.getVersion(), txHashForMetadata.ToString(), newSpend.getCoinSerialNumber().ToString());
-
-        auto chainParams = Params();
-        int txHeight = chainActive.Height();
 
         if (spendVersion == ZEROCOIN_TX_VERSION_1 && nHeight == INT_MAX) {
             int allowedV1Height = chainParams.nSpendV15StartBlock;
@@ -280,6 +281,25 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
             return false;
         }
 	}
+
+    if (hasZerocoinSpendInputs) {
+        if (hasNonZerocoinInputs) {
+            // mixing zerocoin spend input with non-zerocoin inputs is prohibited
+            return state.DoS(100, false,
+                            REJECT_MALFORMED,
+                            "CheckSpendZcoinTransaction: can't mix zerocoin spend input with regular ones");
+        }
+        else if (tx.vin.size() > 1) {
+            // having tx with several zerocoin spend inputs is possible since nMultipleSpendInputsInOneTxStartBlock
+            if ((nHeight == INT_MAX && txHeight < chainParams.nMultipleSpendInputsInOneTxStartBlock) ||
+                    (nHeight < chainParams.nMultipleSpendInputsInOneTxStartBlock)) {
+                return state.DoS(100, false,
+                             REJECT_MALFORMED,
+                             "CheckSpendZcoinTransaction: can't have more than one input");
+            }
+        }
+    }
+
 	return true;
 }
 
