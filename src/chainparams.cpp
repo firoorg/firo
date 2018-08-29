@@ -289,13 +289,13 @@ public:
         extraNonce[3] = 0x00;
         genesis = CreateGenesisBlock(ZC_GENESIS_BLOCK_TIME, 1620571, 0x1e0ffff0, 2, 0 * COIN, extraNonce);
         consensus.hashGenesisBlock = genesis.GetHash();
-//        std::cout << "zcoin testnet genesisBlock hash: " << consensus.hashGenesisBlock.ToString() << std::endl;
-//        std::cout << "zcoin testnet hashMerkleRoot hash: " << genesis.hashMerkleRoot.ToString() << std::endl;
+        //std::cout << "zcoin testnet genesisBlock hash: " << consensus.hashGenesisBlock.ToString() << std::endl;
+        //std::cout << "zcoin testnet hashMerkleRoot hash: " << genesis.hashMerkleRoot.ToString() << std::endl;
         //btzc: update testnet zcoin hashGenesisBlock and hashMerkleRoot
-        /*assert(consensus.hashGenesisBlock ==
-               uint256S("0x7ac038c193c2158c428c59f9ae0c02a07115141c6e9dc244ae96132e99b4e642"));
+        assert(consensus.hashGenesisBlock ==
+               uint256S("0x2db55b2fa8a2a03a7ad42eae88f78aec19ff008a68fa79e11d2a4fbf709ace8f"));
         assert(genesis.hashMerkleRoot ==
-               uint256S("0x25b361d60bc7a66b311e72389bf5d9add911c735102bcb6425f63aceeff5b7b8"));*/
+               uint256S("0x25b361d60bc7a66b311e72389bf5d9add911c735102bcb6425f63aceeff5b7b8"));
         vFixedSeeds.clear();
         vSeeds.clear();
         // nodes with support for servicebits filtering should be at the top
