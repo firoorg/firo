@@ -405,6 +405,17 @@ bool GetBoolArg(const std::string& strArg, bool fDefault)
     return fDefault;
 }
 
+boost::optional<bool> GetOptBoolArg(const std::string& strArg)
+{
+    auto const iter = mapArgs.find(strArg);
+    if(iter != mapArgs.end()){
+        if(iter->second.empty())
+            return boost::optional<bool>(true);
+        return boost::optional<bool>(InterpretBool(iter->second));
+    }
+    return boost::optional<bool>();
+}
+
 bool SoftSetArg(const std::string& strArg, const std::string& strValue)
 {
     if (mapArgs.count(strArg))
