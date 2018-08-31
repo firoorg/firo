@@ -116,7 +116,9 @@ public:
 
     ADD_SERIALIZE_METHODS;
 
-    class CReadBlockHeader : public CSerActionUnserialize {};
+    class CSerializeBlockHeader {};
+    class CReadBlockHeader : public CSerActionUnserialize, public CSerializeBlockHeader {};
+    class CWriteBlockHeader : public CSerActionSerialize, public CSerializeBlockHeader {};
 
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
@@ -256,7 +258,7 @@ public:
 
     template <typename Stream>
     inline void SerializationOp(Stream &s, CReadBlockHeader ser_action, int nType, int nVersion) {
-        READWRITE(*(CBlockHeader *)this);
+        CBlockHeader::SerializationOp(s, ser_action, nType, nVersion);
     }
 
     void SetNull()

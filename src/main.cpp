@@ -6348,9 +6348,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
 //        LogPrint("net", "getheaders %d to %s from peer=%d\n", (pindex ? pindex->nHeight : -1), hashStop.ToString(),
 //                 pfrom->id);
         for (; pindex; pindex = chainActive.Next(pindex)) {
-        	CBlock block;
-        	ReadBlockHeaderFromDisk(block, pindex->GetBlockPos());
-            vHeaders.push_back(block.GetBlockHeader());
+            vHeaders.push_back(pindex->GetBlockHeader());
             if (--nLimit <= 0 || pindex->GetBlockHash() == hashStop)
                 break;
         }
