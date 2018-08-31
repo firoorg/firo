@@ -6142,6 +6142,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
         LogPrintf("Must have a version message before anything else\n");
         return false;
     } else if (strCommand == NetMsgType::VERACK) {
+        LogPrintf("Received verack message from %s", pfrom->addr.ToString());
         pfrom->SetRecvVersion(min(pfrom->nVersion, PROTOCOL_VERSION));
 
         // Mark this node as currently connected, so we update its timestamp later.

@@ -2222,14 +2222,20 @@ void ThreadDandelionShuffle() {
     int64_t nCurrTime = GetTimeMicros();
     int64_t nNextDandelionShuffle = PoissonNextSend(nCurrTime, DANDELION_SHUFFLE_INTERVAL);
     while (!CNode::interruptNet) {
+        boost::this_thread::interruption_point();
         nCurrTime = GetTimeMicros();
         if (nCurrTime > nNextDandelionShuffle) {
             CNode::DandelionShuffle();
             nNextDandelionShuffle = PoissonNextSend(nCurrTime, DANDELION_SHUFFLE_INTERVAL);
-            // Sleep until the next shuffle time
-            if (!CNode::interruptNet.sleep_for(
-                    std::chrono::milliseconds((nNextDandelionShuffle - nCurrTime) / 1000))) {
-                return;
+            // Sleep for 100 miliseconds until the next shuffle time.
+            int time_to_sleep = (nNextDandelionShuffle - nCurrTime) / 1000;
+            while (time_to_sleep > 0) {
+                if (!CNode::interruptNet.sleep_for(
+                        std::chrono::milliseconds(std::min(time_to_sleep, 500)))) {
+                    return;
+                }
+                boost::this_thread::interruption_point();
+                time_to_sleep = (nNextDandelionShuffle - nCurrTime) / 1000;
             }
         }
     }
