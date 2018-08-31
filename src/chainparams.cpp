@@ -302,7 +302,9 @@ public:
         // zcoin test seeds
         // vSeeds.push_back(CDNSSeedData("beta1.zcoin.io", "beta1.zcoin.io", false));
         // vSeeds.push_back(CDNSSeedData("beta2.zcoin.io", "beta2.zcoin.io", false));
-        vSeeds.push_back(CDNSSeedData("45.76.182.254", "45.76.182.254", false));
+        // vSeeds.push_back(CDNSSeedData("45.76.182.254", "45.76.182.254", false));
+        vSeeds.push_back(CDNSSeedData("MTP1", "mtp1.zcoin.io", false));
+        vSeeds.push_back(CDNSSeedData("MTP2", "mtp2.zcoin.io", false));
 
 //        vSeeds.push_back(CDNSSeedData("testnetbitcoin.jonasschnelli.ch", "testnet-seed.bitcoin.jonasschnelli.ch", true));
 //        vSeeds.push_back(CDNSSeedData("petertodd.org", "seed.tbtc.petertodd.org", true));
