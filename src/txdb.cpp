@@ -338,6 +338,7 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
                 pindexNew->nBits          = diskindex.nBits;
                 pindexNew->nNonce         = diskindex.nNonce;
                 pindexNew->nStatus        = diskindex.nStatus;
+                pindexNew->nTx            = diskindex.nTx;
 
                 // Zcoin - MTP
                 if (diskindex.nTime > ZC_GENESIS_BLOCK_TIME && diskindex.nTime >= chainParams.nMTPSwitchTime) {

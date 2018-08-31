@@ -461,7 +461,22 @@ public:
 
     uint256 GetBlockHash() const
     {
-        return GetBlockHeader().GetHash();
+        CBlockHeader    block;
+        block.nVersion       = nVersion;
+        block.hashPrevBlock  = hashPrev;
+        block.hashMerkleRoot = hashMerkleRoot;
+        block.nTime          = nTime;
+        block.nBits          = nBits;
+        block.nNonce         = nNonce;
+
+        if (block.IsMTP()) {
+            block.nVersionMTP = nVersionMTP;
+            block.mtpHashValue = mtpHashValue;
+            block.mtpReserved[0] = mtpReserved[0];
+            block.mtpReserved[1] = mtpReserved[1];
+        }
+
+        return block.GetHash();
     }
 
     std::string ToString() const
