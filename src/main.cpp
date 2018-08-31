@@ -3995,7 +3995,12 @@ bool CheckBlock(const CBlock &block, CValidationState &state, const Consensus::P
                 LogPrintf("CheckBlock - mutated -> failed!\n");
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-duplicate", true, "duplicate transaction");
             }
+
+                // Zcoin - MTP
+            if (block.IsMTP() && !CheckMerkleTreeProof(block, consensusParams))
+                return state.DoS(100, false, REJECT_INVALID, "bad-diffbits", false, "incorrect proof of work");
         }
+
         // All potential-corruption validation must be done before we do any
         // transaction validation, as otherwise we may mark the header as invalid
         // because we receive the wrong transactions for it.
@@ -4187,15 +4192,6 @@ ContextualCheckBlockHeader(const CBlockHeader &block, CValidationState &state, c
             IsSuperMajority(version, pindexPrev, consensusParams.nMajorityRejectBlockOutdated, consensusParams))
             return state.Invalid(false, REJECT_OBSOLETE, strprintf("bad-version(0x%08x)", version - 1),
                                  strprintf("rejected nVersion=0x%08x block", version - 1));
-
-    // Zcoin - MTP
-    if (!isTestBlockValidity){
-        if (block.IsMTP()) {
-			if (!CheckMerkleTreeProof(block, consensusParams)){
-				return state.DoS(100, false, REJECT_INVALID, "bad-diffbits", false, "incorrect proof of work");
-			}
-		}
-    }
 
     return true;
 }
@@ -7519,20 +7515,14 @@ bool SendMessages(CNode *pto) {
                     pBestIndex = pindex;
                     if (fFoundStartingHeader) {
                         // add this to the headers message
-                    	CBlock block;
-                    	ReadBlockFromDisk(block, pindex, Params().GetConsensus());
-                        vHeaders.push_back(block.GetBlockHeader());
-                        //vHeaders.push_back(pindex->GetBlockHeader());
+                        vHeaders.push_back(pindex->GetBlockHeader());
                     } else if (PeerHasHeader(&state, pindex)) {
                         continue; // keep looking for the first new block
                     } else if (pindex->pprev == NULL || PeerHasHeader(&state, pindex->pprev)) {
                         // Peer doesn't have this header but they do have the prior one.
                         // Start sending headers.
                         fFoundStartingHeader = true;
-                    	CBlock block;
-                    	ReadBlockFromDisk(block, pindex, Params().GetConsensus());
-                        vHeaders.push_back(block.GetBlockHeader());
-                        //vHeaders.push_back(pindex->GetBlockHeader());
+                        vHeaders.push_back(pindex->GetBlockHeader());
                     } else {
                         // Peer doesn't have this header or the prior one -- nothing will
                         // connect, so bail out.

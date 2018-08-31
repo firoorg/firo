@@ -14,6 +14,7 @@
 #include "libzerocoin/bitcoin_bignum/bignum.h"
 #include "zerocoin_params.h"
 #include "util.h"
+#include "chainparams.h"
 #include "streams.h"
 
 #include <vector>
@@ -202,11 +203,13 @@ public:
     unsigned int nTime;
     unsigned int nBits;
     unsigned int nNonce;
+
     // Zcoin - MTP
-    /*uint8_t hashRootMTP[16];
-    uint64_t nBlockMTP[128][72*2]; // 128 is ARGON2_QWORDS_IN_BLOCK and 72 * 2 is L * 2
-    std::deque<std::vector<uint8_t>> nProofMTP[72*3]; // 72 * 3 is L * 3
-    int32_t nVersionMTP = 0x1000;*/
+    int32_t nVersionMTP = 0x1000;
+    uint256 mtpHashValue;
+    // Reserved fields
+    uint256 mtpReserved[2];
+
     uint256 hashBlock;
 
     //! (memory only) Sequential id assigned to distinguish order in which blocks are received.
@@ -247,13 +250,9 @@ public:
         nBits          = 0;
         nNonce         = 0;
 
-        // Zcoin - MTP
-        /*nVersionMTP       = 0;
-        memset(hashRootMTP, 0, sizeof(uint8_t) * 16);
-        memset(nBlockMTP, 0, sizeof(uint64_t) * 128 * 72 * 2);
-        for(int i = 0; i < 72*3; i++){
-        	nProofMTP[i].clear();
-        }*/
+        nVersionMTP = 0;
+        mtpHashValue = mtpReserved[0] = mtpReserved[1] = uint256();
+
         hashBlock = uint256();
 
         mintedPubCoins.clear();
@@ -277,16 +276,12 @@ public:
         hashBlock	   = block.GetHash();
         nNonce         = block.nNonce;
 
-        // Zcoin - MTP
-        /*if(nTime >= 1526971395){
-			nVersionMTP = block.nVersionMTP;
-			memcpy(hashRootMTP, block.hashRootMTP, sizeof(uint8_t) * 16);
-			memcpy(nBlockMTP, block.nBlockMTP, sizeof(uint64_t) * 72 * 2 * 128);
-			for (int i = 0; i < 72 * 3; i++) {
-				nProofMTP[i] = block.nProofMTP[i];
-			}
-		}*/
-
+        if (block.IsMTP()) {
+            nVersionMTP = block.nVersionMTP;
+            mtpHashValue = block.mtpHashValue;
+            mtpReserved[0] = block.mtpReserved[0];
+            mtpReserved[1] = block.mtpReserved[1];
+        }
     }
 
     CDiskBlockPos GetBlockPos() const {
@@ -307,7 +302,7 @@ public:
         return ret;
     }
 
-    /*CBlockHeader GetBlockHeader() const
+    CBlockHeader GetBlockHeader() const
     {
         CBlockHeader block;
         block.nVersion       = nVersion;
@@ -317,27 +312,26 @@ public:
         block.nTime          = nTime;
         block.nBits          = nBits;
         block.nNonce         = nNonce;
+
         // Zcoin - MTP
-        if(nTime >= 1526971395){
+        if(block.IsMTP()){
 			block.nVersionMTP = nVersionMTP;
-			memcpy(block.hashRootMTP, hashRootMTP, sizeof(uint8_t) * 16);
-			memcpy(block.nBlockMTP, nBlockMTP, sizeof(uint64_t) * 72 * 2 * 128);
-			for (int i = 0; i < 72 * 3; i++) {
-				block.nProofMTP[i] = nProofMTP[i];
-			}
+            block.mtpHashValue = mtpHashValue;
+            block.mtpReserved[0] = mtpReserved[0];
+            block.mtpReserved[1] = mtpReserved[1];
 		}
         return block;
-    }*/
+    }
 
     uint256 GetBlockHash() const
     {
         return *phashBlock;
     }
 
-    /*uint256 GetBlockPoWHash(bool forceCalc = false) const
+    uint256 GetBlockPoWHash(bool forceCalc = false) const
     {
         return GetBlockHeader().GetPoWHash(nHeight, forceCalc);
-    }*/
+    }
 
     int64_t GetBlockTime() const
     {
@@ -447,25 +441,13 @@ public:
         READWRITE(nNonce);
 
         // Zcoin - MTP
-        //if(nHeight >= MTP_HEIGHT){
-        /*if(nTime >= 1526971395){
-        	READWRITE(nVersionMTP);
-        	int i, j;
-        	for(i = 0; i < 16; i++){
-        		READWRITE(hashRootMTP[i]);
-        	}
+        if (nTime > ZC_GENESIS_BLOCK_TIME && nTime >= Params().nMTPSwitchTime) {
+            READWRITE(nVersionMTP);
+            READWRITE(mtpHashValue);
+            READWRITE(mtpReserved[0]);
+            READWRITE(mtpReserved[1]);
+        }
 
-        	for(i = 0; i < 128; i++){
-        		for(j = 0; j < 72*2; j++){
-            		READWRITE(nBlockMTP[i][j]);
-        		}
-        	}
-
-        	for(i = 0; i < 72*3; i++){
-        		READWRITE(nProofMTP[i]);
-        	}
-        	//READWRITE(hashBlock);
-        }*/
 		READWRITE(hashBlock);
 
         if (!(nType & SER_GETHASH) && nVersion >= ZC_ADVANCED_INDEX_VERSION) {
@@ -479,78 +461,8 @@ public:
 
     uint256 GetBlockHash() const
     {
-    	if(hashBlock == uint256()){
-			CBlock block;
-			// Open history file to read
-			CDiskBlockPos pos = this->GetBlockPos();
-
-			//if (pos.IsNull())
-			//	return NULL;
-			boost::filesystem::path path = GetDataDir() / "blocks" / strprintf("%s%05u.dat", "blk", pos.nFile);
-			//boost::filesystem::create_directories(path.parent_path());
-			FILE *file = fopen(path.string().c_str(), "rb+");
-			if (!file && false)
-				file = fopen(path.string().c_str(), "wb+");
-			if (!file) {
-				LogPrintf("Unable to open file %s\n", path.string());
-				//return NULL;
-			}
-			if (pos.nPos) {
-				if (fseek(file, pos.nPos, SEEK_SET)) {
-					LogPrintf("Unable to seek to position %u of %s\n", pos.nPos,
-							path.string());
-					fclose(file);
-					//return NULL;
-				}
-			}
-
-			CAutoFile filein(file, SER_DISK, CLIENT_VERSION);
-			if (filein.IsNull())
-				//return error("ReadBlockFromDisk: OpenBlockFile failed for %s", pos.ToString());
-
-			// Read block
-			try {
-				filein >> block;
-			}catch (const std::exception &e) {
-				//return error("%s: Deserialize or I/O error - %s at %s", __func__, e.what(), pos.ToString());
-			}
-
-			/*block.nVersion        = nVersion;
-			block.hashPrevBlock   = hashPrev;
-			block.hashMerkleRoot  = hashMerkleRoot;
-			block.nTime           = nTime;
-			block.nBits           = nBits;
-			block.nNonce          = nNonce;*/
-			// Zcoin - MTP
-			/*if(nTime >= 1526971395){
-				// Open history file to read
-				    CAutoFile filein(OpenBlockFile(GetBlockPos(), true), SER_DISK, CLIENT_VERSION);
-				    if (filein.IsNull())
-				        return error("ReadBlockFromDisk: OpenBlockFile failed for %s", pos.ToString());
-
-				    // Read block
-				    try {
-				        filein >> block;
-				    }
-				    catch (const std::exception &e) {
-				        return error("%s: Deserialize or I/O error - %s at %s", __func__, e.what(), pos.ToString());
-				    }
-
-				 CBlock blockT;
-				        if (ReadBlockFromDisk(blockT, pindexSlow, consensusParams))
-				block.nVersionMTP        = nVersionMTP;
-				memcpy(block.hashRootMTP, hashRootMTP, sizeof(uint8_t) * 16);
-				memcpy(block.nBlockMTP, nBlockMTP, sizeof(uint64_t) * 72 * 2 * 128);
-				for(int i = 0; i < 72*3; i++){
-					block.nProofMTP[i] = nProofMTP[i];
-				}
-			}*/
-			return block.GetBlockHeader().GetHash();
-    	}else{
-    		return hashBlock;
-    	}
+        return GetBlockHeader().GetHash();
     }
-
 
     std::string ToString() const
     {

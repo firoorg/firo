@@ -138,7 +138,7 @@ public:
                 READWRITE(*mtpHashData);
             }
             else {
-                if (mtpHashData)
+                if (mtpHashData && !(nType & SER_GETHASH))
                     READWRITE(*mtpHashData);
             }
         }
@@ -278,6 +278,12 @@ public:
         block.nTime          = nTime;
         block.nBits          = nBits;
         block.nNonce         = nNonce;
+        if (block.IsMTP()) {
+            block.nVersionMTP = nVersionMTP;
+            block.mtpHashData = mtpHashData;
+            block.mtpReserved[0] = mtpReserved[0];
+            block.mtpReserved[1] = mtpReserved[1];
+        }
         return block;
     }
 

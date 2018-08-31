@@ -308,6 +308,7 @@ bool CBlockTreeDB::ReadFlag(const std::string &name, bool &fValue) {
 
 bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256&)> insertBlockIndex)
 {
+    auto chainParams = Params();
     LogPrintf("CBlockTreeDB::LoadBlockIndexGuts\n");
     //bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
     boost::scoped_ptr<CDBIterator> pcursor(NewIterator());
@@ -337,64 +338,24 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
                 pindexNew->nBits          = diskindex.nBits;
                 pindexNew->nNonce         = diskindex.nNonce;
                 pindexNew->nStatus        = diskindex.nStatus;
-                pindexNew->nTx            = diskindex.nTx;
 
                 // Zcoin - MTP
-                pindexNew->hashBlock	  = diskindex.hashBlock;
-
-                /*
-                //if (!fTestNet && diskindex.nHeight >= HF_MTP_HEIGHT){
-                if (!fTestNet && diskindex.nTime >= 1526971395){
-                	pindexNew->nVersionMTP = diskindex.nVersionMTP;
-                	int i, j;
-
-                	for (i = 0; i < 16; i++) {
-                		pindexNew->hashRootMTP[i] = diskindex.hashRootMTP[i];
-                	}
-
-					for (i = 0; i < 128; i++) {
-						for (j = 0; j < 72 * 2; j++) {
-							pindexNew->nBlockMTP[i][j] = diskindex.nBlockMTP[i][j];
-						}
-					}
-
-					for (i = 0; i < 72 * 3; i++) {
-						pindexNew->nProofMTP[i] = diskindex.nProofMTP[i];
-					}
-
-                //}else if (fTestNet && diskindex.nHeight >= HF_MTP_HEIGHT_TESTNET){
-                }else if (fTestNet && diskindex.nTime >= 1526971395){
-                	pindexNew->nVersionMTP = diskindex.nVersionMTP;
-                	int i, j;
-                	for (i = 0; i < 16; i++) {
-                		pindexNew->hashRootMTP[i] = diskindex.hashRootMTP[i];
-                	}
-
-					for (i = 0; i < 128; i++) {
-						for (j = 0; j < 72 * 2; j++) {
-							pindexNew->nBlockMTP[i][j] = diskindex.nBlockMTP[i][j];
-						}
-					}
-
-					for (i = 0; i < 72 * 3; i++) {
-						pindexNew->nProofMTP[i] = diskindex.nProofMTP[i];
-					}
-                }
-                */
+                if (diskindex.nTime > ZC_GENESIS_BLOCK_TIME && diskindex.nTime >= chainParams.nMTPSwitchTime) {
+                    pindexNew->nVersionMTP = diskindex.nVersionMTP;
+                    pindexNew->mtpHashValue = diskindex.mtpHashValue;
+                    pindexNew->mtpReserved[0] = diskindex.mtpReserved[0];
+                    pindexNew->mtpReserved[1] = diskindex.mtpReserved[1];
+                }                
 
                 pindexNew->accumulatorChanges = diskindex.accumulatorChanges;
                 pindexNew->mintedPubCoins     = diskindex.mintedPubCoins;
                 pindexNew->spentSerials       = diskindex.spentSerials;
 
-                /*if (!CheckProofOfWork(pindexNew->GetBlockPoWHash(), pindexNew->nBits, Params().GetConsensus()))
-                    if (!CheckProofOfWork(pindexNew->GetBlockPoWHash(true), pindexNew->nBits, Params().GetConsensus()))
+                if (!CheckProofOfWork(pindexNew->GetBlockPoWHash(), pindexNew->nBits, chainParams.GetConsensus()))
+                    if (!CheckProofOfWork(pindexNew->GetBlockPoWHash(true), pindexNew->nBits, chainParams.GetConsensus()))
                         return error("LoadBlockIndex(): CheckProofOfWork failed: %s", pindexNew->ToString());
-				*/
 
                 pcursor->Next();
-            	/*	}else{
-            			pcursor->Next();
-            		}*/
             } else {
                 return error("LoadBlockIndex() : failed to read value");
             }
