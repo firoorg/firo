@@ -11,6 +11,7 @@
  **/
 
 #include "Zerocoin.h"
+#include <util.h>
 
 namespace libzerocoin {
 
@@ -90,30 +91,52 @@ CoinDenomination CoinSpend::getDenomination() const {
 }
 
 bool CoinSpend::Verify(const Accumulator& a, const SpendMetaData &m) const {
-    if (!HasValidSerial())
+    if (!HasValidSerial()){
+        LogPrintf("incorrect serial.\n");
         return false;
+    }
 
 	uint256 metahash = signatureHash(m);
 	// Verify both of the sub-proofs using the given meta-data
-    int ret = (a.getDenomination() == this->denomination)
-                && commitmentPoK.Verify(serialCommitmentToCoinValue, accCommitmentToCoinValue)
-                && accumulatorPoK.Verify(a, accCommitmentToCoinValue)
-                && serialNumberSoK.Verify(coinSerialNumber, serialCommitmentToCoinValue, this->version == ZEROCOIN_TX_VERSION_1_5 ? metahash : uint256());
+    LogPrintf("a.getDenomination(): %s\n",a.getDenomination());
+    LogPrintf("this->denomination: %s\n",this->denomination);
+    int ret = (a.getDenomination() == this->denomination);
+    if(!ret){
+        LogPrintf("ret is false A, returning.\n");
+        return false;  
+    }
+    ret = commitmentPoK.Verify(serialCommitmentToCoinValue, accCommitmentToCoinValue);
+    if(!ret){
+        LogPrintf("ret is false B, returning.\n");
+        return false;  
+    }
+    ret = accumulatorPoK.Verify(a, accCommitmentToCoinValue);
+    if(!ret){
+            LogPrintf("ret is false C, returning.\n");
+            return false;  
+    }
+    LogPrintf("metahash: %s\n", metahash.ToString());
+    ret = serialNumberSoK.Verify(coinSerialNumber, serialCommitmentToCoinValue, this->version == ZEROCOIN_TX_VERSION_1_5 ? metahash : uint256());
     if (!ret) {
+            LogPrintf("ret is false D, returning.\n");
             return false;
     }
 
 
     if (this->version != 2) {
+        LogPrintf("returning ret.\n");
         return ret;
     }
     else {
         // Check if this is a coin that requires a signatures
-        if (coinSerialNumber.bitSize() > 160)
+        if (coinSerialNumber.bitSize() > 160){
+            LogPrintf("bitsize did not verify.\n");
             return false;
+        }
 
         // Check sizes
         if (this->ecdsaPubkey.size() != 33 || this->ecdsaSignature.size() != 64) {
+            LogPrintf("sizes did not verify.\n");
             return false;
         }
 
@@ -122,16 +145,19 @@ bool CoinSpend::Verify(const Accumulator& a, const SpendMetaData &m) const {
         secp256k1_ecdsa_signature signature;
 
         if (!secp256k1_ec_pubkey_parse(ctx, &pubkey, ecdsaPubkey.data(), 33)) {
+            LogPrintf("secp256k1_ec_pubkey_parse did not verify.\n");
             return false;
         }
 
         // Recompute and compare hash of public key
         if (coinSerialNumber != PrivateCoin::serialNumberFromSerializedPublicKey(ctx, &pubkey)) {
+            LogPrintf("coinSerialNumber did not verify.\n");
             return false;
         }
 
         secp256k1_ecdsa_signature_parse_compact(ctx, &signature, ecdsaSignature.data());
         if (!secp256k1_ecdsa_verify(ctx, &signature, metahash.begin(), &pubkey)) {
+            LogPrintf("ecdsa did not verify.\n");
             return false;
         }
 

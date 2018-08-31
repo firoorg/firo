@@ -568,7 +568,6 @@ private:
     std::vector<char> _ssExtra;
 };
 
-
 /**
  * A CWallet is an extension of a keystore, which also maintains a set of transactions and balances,
  * and provides the ability to create new transactions.
@@ -836,7 +835,7 @@ public:
                            std::string& strFailReason, const CCoinControl *coinControl = NULL, bool sign = true);
     bool CreateZerocoinMintTransaction(CScript pubCoin, int64_t nValue,
                                        CWalletTx& wtxNew, CReserveKey& reservekey, int64_t& nFeeRet, std::string& strFailReason, const CCoinControl *coinControl=NULL);
-    bool CreateZerocoinSpendTransaction(std::string& thirdPartyaddress, std::vector<__compressed_pair<int64_t, libzerocoin::CoinDenomination>> denominations,
+    bool CreateMultipleZerocoinSpendTransaction(std::string& thirdPartyaddress, std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>> denominations,
                                         CWalletTx& wtxNew, CReserveKey& reservekey, CBigNum& coinSerial, uint256& txHash, CBigNum& zcSelectedValue, bool& zcSelectedIsUsed,  std::string& strFailReason, bool forceUsed = false);
     bool CreateZerocoinSpendTransaction(std::string& thirdPartyaddress, int64_t nValue, libzerocoin::CoinDenomination denomination,
                                         CWalletTx& wtxNew, CReserveKey& reservekey, CBigNum& coinSerial, uint256& txHash, CBigNum& zcSelectedValue, bool& zcSelectedIsUsed,  std::string& strFailReason, bool forceUsed = false);
@@ -849,6 +848,7 @@ public:
                                           libzerocoin::CoinDenomination denomination, int64_t nValue, CWalletTx &wtxNew, 
                                           bool fAskFee=false);
     std::string SpendZerocoin(std::string& thirdPartyaddress, int64_t nValue, libzerocoin::CoinDenomination denomination, CWalletTx& wtxNew, CBigNum& coinSerial, uint256& txHash, CBigNum& zcSelectedValue, bool& zcSelectedIsUsed, bool forceUsed = false);
+    std::string SpendMultipleZerocoin(std::string& thirdPartyaddress, std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>> denominations, CWalletTx& wtxNew, CBigNum& coinSerial, uint256& txHash, CBigNum& zcSelectedValue, bool& zcSelectedIsUsed, bool forceUsed = false);
     bool CreateZerocoinMintModel(string &stringError, string denomAmount);
     bool CreateZerocoinSpendModel(string &stringError, string thirdPartyAddress, string denomAmount, bool forceUsed = false);
     bool SetZerocoinBook(const CZerocoinEntry& zerocoinEntry);

@@ -121,24 +121,26 @@ UniValue sendprivate(Type type, const UniValue& data, const UniValue& auth, bool
 
             LOCK2(cs_main, pwalletMain->cs_wallet);
 
-            int64_t denomination_in = 0;
+            int64_t value = 0;
+            int64_t amount = 0;
             libzerocoin::CoinDenomination denomination;
+            std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>> denominations; 
 
             UniValue inputs = find_value(data, "denomination");
 
             string address_str = find_value(data, "address").get_str();
 
+ 
+
             for(size_t i=0; i<inputs.size();i++) {
 
                 const UniValue& input_obj = inputs[i].get_obj();
 
-                int amount = find_value(input_obj, "amount").get_int();
+                amount = find_value(input_obj, "amount").get_int();
 
-                denomination_in = find_value(input_obj, "value").get_int();
+                value = find_value(input_obj, "value").get_int();
 
-                
-
-                switch(denomination_in){
+                switch(value){
                     case 1:
                         denomination = libzerocoin::ZQ_LOVELACE;
                         break;
@@ -158,39 +160,40 @@ UniValue sendprivate(Type type, const UniValue& data, const UniValue& auth, bool
                         throw runtime_error(
                             "spendmanyzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n");
                 }
-
-                string thirdPartyaddress = "";
-                if (!(address_str == "")){
-                    CBitcoinAddress address(address_str);
-                    if (!address.IsValid())
-                        throw JSONAPIError(API_INVALID_ADDRESS_OR_KEY, "Invalid Zcoin address");
-                    thirdPartyaddress = address_str;
-                }
-
-                EnsureWalletIsUnlocked();
-
-                // Wallet comments
-                CWalletTx wtx;
-                CBigNum coinSerial;
-                uint256 txHash;
-                CBigNum zcSelectedValue;
-                bool zcSelectedIsUsed;
-
-                for(int j=0;j<amount;j++) {
-
-                    string strError = pwalletMain->SpendZerocoin(thirdPartyaddress, 
-                                                                (denomination_in * COIN), denomination, wtx, coinSerial, txHash, zcSelectedValue,
-                                                                 zcSelectedIsUsed);
-
-                    if (strError != "")
-                        throw JSONAPIError(API_WALLET_ERROR, strError);
-
-                    txids.push_back(wtx.GetHash().GetHex());
+                for(int64_t j=0; j<amount; j++){
+                    denominations.push_back(std::make_pair(value * COIN, denomination));
                 }
             }
+
+            string thirdPartyaddress = "";
+            if (!(address_str == "")){
+                CBitcoinAddress address(address_str);
+                if (!address.IsValid())
+                    throw JSONAPIError(API_INVALID_ADDRESS_OR_KEY, "Invalid Zcoin address");
+                thirdPartyaddress = address_str;
+            }
+
+            EnsureWalletIsUnlocked();
+
+            // Wallet comments
+            CWalletTx wtx;
+            CBigNum coinSerial;
+            uint256 txHash;
+            CBigNum zcSelectedValue;
+            bool zcSelectedIsUsed;
+
+
+            string strError = pwalletMain->SpendMultipleZerocoin(thirdPartyaddress, denominations, wtx, coinSerial, 
+                                                         txHash, zcSelectedValue, zcSelectedIsUsed);
+
+            if (strError != "")
+                throw JSONAPIError(API_WALLET_ERROR, strError);
+
+            txids.push_back(wtx.GetHash().GetHex());
             ret.push_back(Pair("txids", txids));
             return ret;
         }
+     
         default: {
            throw JSONAPIError(API_TYPE_NOT_IMPLEMENTED, "Error: type does not exist for method called, or no type passed where method requires it."); 
         }
