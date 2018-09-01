@@ -3079,6 +3079,10 @@ bool CNode::localDandelionDestinationPushInventory(const CInv& inv) {
         setLocalDandelionDestination();
     }
     if (isLocalDandelionDestinationSet()) {
+        LogPrint("dandelion",
+                 "Pushing inventory item %s to %s.\n", 
+                 inv.ToString(), 
+                 localDandelionDestination->addrName);
         localDandelionDestination->PushInventory(inv);
         return true;
     } else {

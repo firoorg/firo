@@ -1455,7 +1455,6 @@ bool CWalletTx::RelayWalletTransaction(bool fCheckInputs) {
         CValidationState state;
         /* GetDepthInMainChain already catches known conflicts. */
         if (InMempool() || AcceptToMemoryPool(false, maxTxFee, state, fCheckInputs)) {
-            LogPrintf("Relaying wtx %s\n", GetHash().ToString());
             // If Dandelion enabled, push inventory item to just one destination.
             if (GetBoolArg("-dandelion", false)) {
                 int64_t nCurrTime = GetTimeMicros();
@@ -1468,6 +1467,7 @@ bool CWalletTx::RelayWalletTransaction(bool fCheckInputs) {
                 CInv inv(MSG_DANDELION_TX, GetHash());
                 return CNode::localDandelionDestinationPushInventory(inv);
             } else {
+                LogPrintf("Relaying wtx %s\n", GetHash().ToString());
                 RelayTransaction(*this);
                 return true;
             }
