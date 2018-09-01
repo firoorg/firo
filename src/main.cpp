@@ -6825,10 +6825,10 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
                     }
                 }
             } 
-            // If the transaction already was in the mempool,
+            // If the transaction already was in the stempool,
             // Or we just successfully added it there, relay it. 
             // It will either get relayed to one Dandelion destination, or fluff phase will start.
-            if (!stempool.exists(inv.hash)) {
+            if (stempool.exists(inv.hash)) {
                 CNode::RelayDandelionTransaction(tx, pfrom);
             }
         }

@@ -1223,6 +1223,13 @@ void CNode::CloseDandelionConnections(const CNode* const pnode)
     if (localDandelionDestination==pnode) {
         localDandelionDestination = newPto;
     }
+    
+    // Dandelion debug message
+    LogPrint(
+        "dandelion", 
+        "After closing Dandelion connections:\n%s", 
+        CNode::GetDandelionRoutingDataDebugString());
+
 }
 
 void ThreadSocketHandler() {
@@ -2438,6 +2445,9 @@ void CNode::RelayDandelionTransaction(const CTransaction& tx, CNode* pfrom)
         if (destination!=nullptr) {
             destination->PushInventory(inv);
         }
+        LogPrint("dandelion", "Dandelion stem, relaying transaction %s to destination %s \n", 
+            tx.GetHash().ToString(), 
+            destination==nullptr?"nullptr":destination->addrName);
     }
 }
 
