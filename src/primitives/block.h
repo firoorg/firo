@@ -7,6 +7,7 @@
 #define BITCOIN_PRIMITIVES_BLOCK_H
 
 #include <deque>
+#include <type_traits>
 #include <boost/foreach.hpp>
 #include "primitives/transaction.h"
 #include "serialize.h"
@@ -49,7 +50,7 @@ public:
      */
 
     // Function for write/getting size
-    template <typename Stream, typename Operation>
+    template <typename Stream, typename Operation, typename = std::enable_if_t<!std::is_base_of<CSerActionUnserialize, Operation>::value>>
     inline void SerializationOp(Stream &s, Operation ser_action, int nType, int nVersion) {
         READWRITE(hashRootMTP);
         READWRITE(nBlockMTP);
@@ -120,7 +121,7 @@ public:
     class CReadBlockHeader : public CSerActionUnserialize, public CSerializeBlockHeader {};
     class CWriteBlockHeader : public CSerActionSerialize, public CSerializeBlockHeader {};
 
-    template <typename Stream, typename Operation>
+    template <typename Stream, typename Operation, typename = std::enable_if_t<!std::is_base_of<CSerializeBlockHeader,Operation>::value>>
     inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
         READWRITE(this->nVersion);
         READWRITE(hashPrevBlock);
