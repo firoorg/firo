@@ -251,7 +251,7 @@ template<typename Stream> inline void Unserialize(Stream& s, bool& a, int, int=0
  */
 
 template <typename ItemType>
-using CArithType = typename std::enable_if_t<std::is_arithmetic<ItemType>::value>;
+using CArithType = typename std::enable_if<std::is_arithmetic<ItemType>::value>::type;
 
 template<typename Stream, typename ItemType, int ArraySize, typename = CArithType<ItemType>>
 inline void Serialize(Stream &s, const ItemType (&a) [ArraySize], int, int=0) { s.write((const char *)&a, sizeof(a)); }
