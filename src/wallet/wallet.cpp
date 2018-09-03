@@ -3701,7 +3701,7 @@ bool CWallet::CreateZerocoinSpendTransaction(std::string &thirdPartyaddress, int
             uint256 accumulatorBlockHash;      // to be used in zerocoin spend v2
 
             int coinId = INT_MAX;
-            int coinHeight;
+            int coinHeight = 0;
 
             BOOST_FOREACH(const CZerocoinEntry &minIdPubcoin, listPubCoin) {
                 if (minIdPubcoin.denomination == denomination
