@@ -408,16 +408,8 @@ public:
         extraNonce[1] = 0x00;
         extraNonce[2] = 0x00;
         extraNonce[3] = 0x00;
-        genesis = CreateGenesisBlock(ZC_GENESIS_BLOCK_TIME, 414098458, 0x207fffff, 1, 0 * COIN, extraNonce);
+        genesis = CreateGenesisBlock(ZC_GENESIS_BLOCK_TIME, 1, 0x207fffff, 1, 0 * COIN, extraNonce);
         consensus.hashGenesisBlock = genesis.GetHash();
-        //btzc: update regtest zcoin hashGenesisBlock and hashMerkleRoot
-//        std::cout << "zcoin regtest genesisBlock hash: " << consensus.hashGenesisBlock.ToString() << std::endl;
-//        std::cout << "zcoin regtest hashMerkleRoot hash: " << genesis.hashMerkleRoot.ToString() << std::endl;
-        //btzc: update testnet zcoin hashGenesisBlock and hashMerkleRoot
-        //assert(consensus.hashGenesisBlock ==
-        //       uint256S("0x0080c7bf30bb2579ed9c93213475bf8fafc1f53807da908cde19cf405b9eb55b"));
-        //assert(genesis.hashMerkleRoot ==
-        //       uint256S("0x25b361d60bc7a66b311e72389bf5d9add911c735102bcb6425f63aceeff5b7b8"));
 
         vFixedSeeds.clear(); //!< Regtest mode doesn't have any fixed seeds.
         vSeeds.clear();      //!< Regtest mode doesn't have any DNS seeds.
