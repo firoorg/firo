@@ -58,7 +58,7 @@ BOOST_AUTO_TEST_CASE(mtp_block_integrity_test)
     RandAddSeed();
 
     CBlock block1;
-    
+
     block1.nVersion = CBlock::CURRENT_VERSION;
     block1.hashPrevBlock = GetRandHash();
     block1.hashMerkleRoot = GetRandHash();
@@ -69,8 +69,8 @@ BOOST_AUTO_TEST_CASE(mtp_block_integrity_test)
 
     CBlock block2(block1); block2.mtpHashData = std::shared_ptr<CMTPHashData>(new CMTPHashData); block2.nVersionMTP = 1;
     CBlock block3(block1); block3.mtpHashData = std::shared_ptr<CMTPHashData>(new CMTPHashData); block3. nVersionMTP = 1;
-    
-    uint256 pow_limit = uint256S("00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+
+    uint256 const pow_limit = Params(CBaseChainParams::REGTEST).GetConsensus().powLimit ;
 
     auto hash1 = mtp::hash(block1, pow_limit);
 
@@ -94,5 +94,23 @@ BOOST_AUTO_TEST_CASE(mtp_block_integrity_test)
     BOOST_CHECK(false == mtp::verify(block3.nNonce+1, block3, pow_limit));
 }
 
+#include "chainparams.h"
+
+BOOST_AUTO_TEST_CASE(mtp_regtest_genesis_block_test)
+{
+    CBlock genesis = Params(CBaseChainParams::REGTEST).GenesisBlock();
+    auto const & consensus = Params(CBaseChainParams::REGTEST).GetConsensus();
+
+//        std::cout << "zcoin regtest genesisBlock hash: " << consensus.hashGenesisBlock.ToString() << std::endl;
+//        std::cout << "zcoin regtest hashMerkleRoot hash: " << genesis.hashMerkleRoot.ToString() << std::endl;
+
+    BOOST_CHECK(consensus.hashGenesisBlock == uint256S("0xee98d9dc0da1f3378edeeed1edcaf7d657952257d4700d594eb7c08ac1d6fa9a"));
+    BOOST_CHECK(genesis.hashMerkleRoot == uint256S("0x25b361d60bc7a66b311e72389bf5d9add911c735102bcb6425f63aceeff5b7b8"));
+
+    auto hash = mtp::hash(genesis, Params(CBaseChainParams::REGTEST).GetConsensus().powLimit);
+
+    BOOST_CHECK(genesis.nNonce == 1);
+    BOOST_CHECK(hash == genesis.GetHash());
+}
 
 BOOST_AUTO_TEST_SUITE_END()

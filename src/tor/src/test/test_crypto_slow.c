@@ -601,14 +601,10 @@ struct testcase_t slow_crypto_tests[] = {
   { "libscrypt_eq_openssl", test_libscrypt_eq_openssl, 0, NULL, NULL },
 #endif
 #endif /* defined(HAVE_LIBSCRYPT) */
-  { "s2k_pbkdf2", test_crypto_s2k_general, 0, &passthrough_setup,
-    (void*)"pbkdf2" },
-  { "s2k_rfc2440_general", test_crypto_s2k_general, 0, &passthrough_setup,
-    (void*)"rfc2440" },
-  { "s2k_rfc2440_legacy", test_crypto_s2k_general, 0, &passthrough_setup,
-    (void*)"rfc2440-legacy" },
-  { "s2k_errors", test_crypto_s2k_errors, 0, NULL, NULL },
-  { "scrypt_vectors", test_crypto_scrypt_vectors, 0, NULL, NULL },
+  { "s2k_pbkdf2", test_crypto_s2k_general, 0, &passthrough_setup, (void*)"pbkdf2" },
+  { "s2k_rfc2440_general", test_crypto_s2k_general, 0, &passthrough_setup, (void*)"rfc2440" },
+  { "s2k_rfc2440_legacy", test_crypto_s2k_general, 0, &passthrough_setup,  (void*)"rfc2440-legacy" },
+  { "s2k_errors", test_crypto_s2k_errors, 0, NULL, NULL },  { "scrypt_vectors", test_crypto_scrypt_vectors, 0, NULL, NULL },
   { "pbkdf2_vectors", test_crypto_pbkdf2_vectors, 0, NULL, NULL },
   { "pwbox", test_crypto_pwbox, 0, NULL, NULL },
   ED25519_TEST(fuzz_donna, TT_FORK),
