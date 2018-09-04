@@ -3,7 +3,9 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include "client-api/protocol.h"
 #include "univalue.h"
+#include <string>
 
 using namespace std;
 

@@ -6,7 +6,8 @@
 #include "client-api/server.h"
 #include "client-api/settings.h"
 #include "util.h"
-#include <univalue.h>
+#include "univalue.h"
+#include <fstream>
 
 namespace fs = boost::filesystem;
 using namespace std;

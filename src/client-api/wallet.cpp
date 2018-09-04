@@ -7,48 +7,15 @@
 #include "rpc/server.h"
 #include "util.h"
 #include "wallet/wallet.h"
+#include "wallet/rpcwallet.h"
 #include "client-api/server.h"
-#include <client-api/protocol.h>
-#include <univalue.h>
+#include "client-api/protocol.h"
+#include "univalue.h"
+#include <fstream>
 
 namespace fs = boost::filesystem;
-using namespace std::chrono;
+using namespace boost::chrono;
 using namespace std;
-
-int64_t nWalletUnlockTime;
-static CCriticalSection cs_nWalletUnlockTime;
-
-void EnsureWalletIsUnlocked()
-{
-    if (pwalletMain->IsLocked())
-        throw JSONAPIError(API_WALLET_UNLOCK_NEEDED, "Error: Please enter the wallet passphrase with walletpassphrase first.");
-}
-
-vector<string> GetMyAccountNames()
-{    
-    LOCK2(cs_main, pwalletMain->cs_wallet);
-
-    isminefilter includeWatchonly = ISMINE_SPENDABLE;
-
-    vector<string> accounts;
-    BOOST_FOREACH(const PAIRTYPE(CTxDestination, CAddressBookData)& entry, pwalletMain->mapAddressBook) {
-        if (IsMine(*pwalletMain, entry.first) & includeWatchonly) // This address belongs to me
-            accounts.push_back(entry.second.name);
-    }
-    return accounts;
-}
-
-bool EnsureWalletIsAvailable(bool avoidException)
-{
-    if (!pwalletMain)
-    {
-        if (!avoidException)
-            throw JSONRPCError(RPC_METHOD_NOT_FOUND, "Method not found (disabled)");
-        else
-            return false;
-    }
-    return true;
-}
 
 CAmount getLockUnspentAmount()
 {

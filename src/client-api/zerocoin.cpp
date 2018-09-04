@@ -9,10 +9,10 @@
 #include "client-api/wallet.h"
 #include "wallet/wallet.h"
 #include "base58.h"
-#include <client-api/protocol.h>
+#include "client-api/protocol.h"
 #include <zerocoin.h>
 
-#include <univalue.h>
+#include "univalue.h"
 
 using namespace std;
 
