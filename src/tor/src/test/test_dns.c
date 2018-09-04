@@ -1,3 +1,6 @@
+/* Copyright (c) 2015-2017, The Tor Project, Inc. */
+/* See LICENSE for licensing information */
+
 #include "or.h"
 #include "test.h"
 
@@ -121,7 +124,7 @@ static int n_connection_free = 0;
 static connection_t *last_freed_conn = NULL;
 
 static void
-NS(connection_free)(connection_t *conn)
+NS(connection_free_)(connection_t *conn)
 {
    n_connection_free++;
 
@@ -264,7 +267,7 @@ NS(test_main)(void *arg)
    */
 
   NS_MOCK(dns_cancel_pending_resolve);
-  NS_MOCK(connection_free);
+  NS_MOCK(connection_free_);
 
   exitconn->on_circuit = &(on_circuit->base_);
   exitconn->base_.purpose = EXIT_PURPOSE_RESOLVE;
@@ -291,7 +294,7 @@ NS(test_main)(void *arg)
   NS_UNMOCK(send_resolved_cell);
   NS_UNMOCK(send_resolved_hostname_cell);
   NS_UNMOCK(dns_cancel_pending_resolve);
-  NS_UNMOCK(connection_free);
+  NS_UNMOCK(connection_free_);
   tor_free(on_circuit);
   tor_free(exitconn);
   tor_free(nextconn);

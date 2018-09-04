@@ -26,7 +26,9 @@ TESTING_TOR_BINARY=$(top_builddir)/src/or/tor$(EXEEXT)
 endif
 
 if USE_RUST
-rust_ldadd=$(top_builddir)/src/rust/target/release/@TOR_RUST_UTIL_STATIC_NAME@
+## this MUST be $(), otherwise am__DEPENDENCIES will not track it
+rust_ldadd=$(top_builddir)/$(TOR_RUST_LIB_PATH) \
+	$(TOR_RUST_EXTRA_LIBS)
 else
 rust_ldadd=
 endif
@@ -37,6 +39,7 @@ include contrib/include.am
 
 EXTRA_DIST+= \
 	ChangeLog					\
+	CONTRIBUTING					\
 	INSTALL						\
 	LICENSE						\
 	Makefile.nmake					\
@@ -117,17 +120,19 @@ test-network: need-chutney-path $(TESTING_TOR_BINARY) src/tools/tor-gencert
 
 # Run all available tests using automake's test-driver
 # only run IPv6 tests if we can ping6 ::1 (localhost)
+# only run IPv6 tests if we can ping ::1 (localhost)
 # some IPv6 tests will fail without an IPv6 DNS server (see #16971 and #17011)
 # only run mixed tests if we have a tor-stable binary
-# Try both the BSD and the Linux ping6 syntax, because they're incompatible
+# Try the syntax for BSD ping6, Linux ping6, and Linux ping -6,
+# because they're incompatible
 test-network-all: need-chutney-path test-driver $(TESTING_TOR_BINARY) src/tools/tor-gencert
 	mkdir -p $(TEST_NETWORK_ALL_LOG_DIR)
 	@flavors="$(TEST_CHUTNEY_FLAVORS)"; \
-	if ping6 -q -c 1 -o ::1 >/dev/null 2>&1 || ping6 -q -c 1 -W 1 ::1 >/dev/null 2>&1; then \
-		echo "ping6 ::1 succeeded, running IPv6 flavors: $(TEST_CHUTNEY_FLAVORS_IPV6)."; \
+	if ping6 -q -c 1 -o ::1 >/dev/null 2>&1 || ping6 -q -c 1 -W 1 ::1 >/dev/null 2>&1 || ping -6 -c 1 -W 1 ::1 >/dev/null 2>&1; then \
+		echo "ping6 ::1 or ping ::1 succeeded, running IPv6 flavors: $(TEST_CHUTNEY_FLAVORS_IPV6)."; \
 		flavors="$$flavors $(TEST_CHUTNEY_FLAVORS_IPV6)"; \
 	else \
-		echo "ping6 ::1 failed, skipping IPv6 flavors: $(TEST_CHUTNEY_FLAVORS_IPV6)."; \
+		echo "ping6 ::1 and ping ::1 failed, skipping IPv6 flavors: $(TEST_CHUTNEY_FLAVORS_IPV6)."; \
 		skip_flavors="$$skip_flavors $(TEST_CHUTNEY_FLAVORS_IPV6)"; \
 	fi; \
 	if command -v tor-stable >/dev/null 2>&1; then \
@@ -214,6 +219,26 @@ check-logs:
 	$(top_srcdir)/scripts/maint/checkLogs.pl \
 		$(top_srcdir)/src/*/*.[ch] | sort -n
 
+.PHONY: check-typos
+check-typos:
+	@if test -x "`which misspell 2>&1;true`"; then \
+		echo "Checking for Typos ..."; \
+		(misspell \
+			$(top_srcdir)/src/[^e]*/*.[ch] \
+			$(top_srcdir)/doc \
+			$(top_srcdir)/contrib \
+			$(top_srcdir)/scripts \
+			$(top_srcdir)/README \
+			$(top_srcdir)/ChangeLog \
+			$(top_srcdir)/INSTALL \
+			$(top_srcdir)/ReleaseNotes \
+			$(top_srcdir)/LICENSE); \
+	else \
+		echo "Tor can use misspell to check for typos."; \
+		echo "It seems that you don't have misspell installed."; \
+		echo "You can install the latest version of misspell here: https://github.com/client9/misspell#install"; \
+	fi
+
 .PHONY: check-changes
 check-changes:
 if USEPYTHON
@@ -246,3 +271,16 @@ mostlyclean-local:
 clean-local:
 	rm -rf $(top_builddir)/src/rust/target
 	rm -rf $(top_builddir)/src/rust/.cargo/registry
+
+if USE_RUST
+distclean-local: distclean-rust
+endif
+
+# This relies on some internal details of how automake implements
+# distcheck.  We check two directories because automake-1.15 changed
+# from $(distdir)/_build to $(distdir)/_build/sub.
+show-distdir-testlog:
+	@if test -d "$(distdir)/_build/sub"; then \
+	  cat $(distdir)/_build/sub/$(TEST_SUITE_LOG); \
+	else \
+	  cat $(distdir)/_build/$(TEST_SUITE_LOG); fi

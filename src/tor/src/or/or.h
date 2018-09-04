@@ -80,6 +80,7 @@
 #include "crypto_curve25519.h"
 #include "crypto_ed25519.h"
 #include "tor_queue.h"
+#include "token_bucket.h"
 #include "util_format.h"
 #include "hs_circuitmap.h"
 
@@ -506,6 +507,7 @@ typedef enum {
  */
 /** Client-side circuit purpose: Normal circuit, with cpath. */
 #define CIRCUIT_PURPOSE_C_GENERAL 5
+#define CIRCUIT_PURPOSE_C_HS_MIN_ 6
 /** Client-side circuit purpose: at the client, connecting to intro point. */
 #define CIRCUIT_PURPOSE_C_INTRODUCING 6
 /** Client-side circuit purpose: at the client, sent INTRODUCE1 to intro point,
@@ -523,28 +525,46 @@ typedef enum {
 #define CIRCUIT_PURPOSE_C_REND_READY_INTRO_ACKED 11
 /** Client-side circuit purpose: at the client, rendezvous established. */
 #define CIRCUIT_PURPOSE_C_REND_JOINED 12
+/** This circuit is used for getting hsdirs */
+#define CIRCUIT_PURPOSE_C_HSDIR_GET 13
+#define CIRCUIT_PURPOSE_C_HS_MAX_ 13
 /** This circuit is used for build time measurement only */
-#define CIRCUIT_PURPOSE_C_MEASURE_TIMEOUT 13
-#define CIRCUIT_PURPOSE_C_MAX_ 13
+#define CIRCUIT_PURPOSE_C_MEASURE_TIMEOUT 14
+#define CIRCUIT_PURPOSE_C_MAX_ 14
+
+#define CIRCUIT_PURPOSE_S_HS_MIN_ 15
 /** Hidden-service-side circuit purpose: at the service, waiting for
  * introductions. */
-#define CIRCUIT_PURPOSE_S_ESTABLISH_INTRO 14
+#define CIRCUIT_PURPOSE_S_ESTABLISH_INTRO 15
 /** Hidden-service-side circuit purpose: at the service, successfully
  * established intro. */
-#define CIRCUIT_PURPOSE_S_INTRO 15
+#define CIRCUIT_PURPOSE_S_INTRO 16
 /** Hidden-service-side circuit purpose: at the service, connecting to rend
  * point. */
-#define CIRCUIT_PURPOSE_S_CONNECT_REND 16
+#define CIRCUIT_PURPOSE_S_CONNECT_REND 17
 /** Hidden-service-side circuit purpose: at the service, rendezvous
  * established. */
-#define CIRCUIT_PURPOSE_S_REND_JOINED 17
+#define CIRCUIT_PURPOSE_S_REND_JOINED 18
+/** This circuit is used for uploading hsdirs */
+#define CIRCUIT_PURPOSE_S_HSDIR_POST 19
+#define CIRCUIT_PURPOSE_S_HS_MAX_ 19
+
 /** A testing circuit; not meant to be used for actual traffic. */
-#define CIRCUIT_PURPOSE_TESTING 18
+#define CIRCUIT_PURPOSE_TESTING 20
 /** A controller made this circuit and Tor should not use it. */
-#define CIRCUIT_PURPOSE_CONTROLLER 19
+#define CIRCUIT_PURPOSE_CONTROLLER 21
 /** This circuit is used for path bias probing only */
-#define CIRCUIT_PURPOSE_PATH_BIAS_TESTING 20
-#define CIRCUIT_PURPOSE_MAX_ 20
+#define CIRCUIT_PURPOSE_PATH_BIAS_TESTING 22
+
+/** This circuit is used for vanguards/restricted paths.
+ *
+ *  This type of circuit is *only* created preemptively and never
+ *  on-demand. When an HS operation needs to take place (e.g. connect to an
+ *  intro point), these circuits are then cannibalized and repurposed to the
+ *  actual needed HS purpose. */
+#define CIRCUIT_PURPOSE_HS_VANGUARDS 23
+
+#define CIRCUIT_PURPOSE_MAX_ 23
 /** A catch-all for unrecognized purposes. Currently we don't expect
  * to make or see any circuits with this purpose. */
 #define CIRCUIT_PURPOSE_UNKNOWN 255
@@ -566,6 +586,14 @@ typedef enum {
    (p) == CIRCUIT_PURPOSE_S_REND_JOINED)
 /** True iff the circuit_t c is actually an or_circuit_t */
 #define CIRCUIT_IS_ORCIRC(c) (((circuit_t *)(c))->magic == OR_CIRCUIT_MAGIC)
+
+/** True iff this circuit purpose should count towards the global
+ * pending rate limit (set by MaxClientCircuitsPending). We count all
+ * general purpose circuits, as well as the first step of client onion
+ * service connections (HSDir gets). */
+#define CIRCUIT_PURPOSE_COUNTS_TOWARDS_MAXPENDING(p) \
+    ((p) == CIRCUIT_PURPOSE_C_GENERAL || \
+     (p) == CIRCUIT_PURPOSE_C_HSDIR_GET)
 
 /** How many circuits do we want simultaneously in-progress to handle
  * a given stream? */
@@ -700,8 +728,8 @@ typedef enum {
 /** Catch-all "other" reason for closing origin circuits. */
 #define END_CIRC_AT_ORIGIN              -1
 
-/* Reasons why we (or a remote OR) might close a circuit. See tor-spec.txt for
- * documentation of these. */
+/* Reasons why we (or a remote OR) might close a circuit. See tor-spec.txt
+ * section 5.4 for documentation of these. */
 #define END_CIRC_REASON_MIN_            0
 #define END_CIRC_REASON_NONE            0
 #define END_CIRC_REASON_TORPROTOCOL     1
@@ -866,8 +894,19 @@ rend_data_v2_t *TO_REND_DATA_V2(const rend_data_t *d)
 struct hs_ident_edge_conn_t;
 struct hs_ident_dir_conn_t;
 struct hs_ident_circuit_t;
-/* Stub because we can't include hs_common.h. */
-struct hsdir_index_t;
+
+/* Hidden service directory index used in a node_t which is set once we set
+ * the consensus. */
+typedef struct hsdir_index_t {
+  /* HSDir index to use when fetching a descriptor. */
+  uint8_t fetch[DIGEST256_LEN];
+
+  /* HSDir index used by services to store their first and second
+   * descriptor. The first descriptor is chronologically older than the second
+   * one and uses older TP and SRV values. */
+  uint8_t store_first[DIGEST256_LEN];
+  uint8_t store_second[DIGEST256_LEN];
+} hsdir_index_t;
 
 /** Time interval for tracking replays of DH public keys received in
  * INTRODUCE2 cells.  Used only to avoid launching multiple
@@ -890,6 +929,7 @@ typedef enum {
 /** Initial value on both sides of a stream transmission window when the
  * stream is initialized.  Measured in cells. */
 #define STREAMWINDOW_START 500
+#define STREAMWINDOW_START_MAX 500
 /** Amount to increment a stream window when we get a stream SENDME. */
 #define STREAMWINDOW_INCREMENT 50
 
@@ -1166,8 +1206,8 @@ typedef struct packed_cell_t {
   /** Next cell queued on this circuit. */
   TOR_SIMPLEQ_ENTRY(packed_cell_t) next;
   char body[CELL_MAX_NETWORK_SIZE]; /**< Cell as packed for network. */
-  uint32_t inserted_time; /**< Time (in milliseconds since epoch, with high
-                           * bits truncated) when this cell was inserted. */
+  uint32_t inserted_timestamp; /**< Time (in timestamp units) when this cell
+                                * was inserted */
 } packed_cell_t;
 
 /** A queue of cells on a circuit, waiting to be added to the
@@ -1182,7 +1222,8 @@ typedef struct cell_queue_t {
 typedef struct destroy_cell_t {
   TOR_SIMPLEQ_ENTRY(destroy_cell_t) next;
   circid_t circid;
-  uint32_t inserted_time; /** Timestamp when this was queued. */
+  uint32_t inserted_timestamp; /**< Time (in timestamp units) when this cell
+                                * was inserted */
   uint8_t reason;
 } destroy_cell_t;
 
@@ -1341,10 +1382,10 @@ typedef struct connection_t {
                          * connection. */
   size_t outbuf_flushlen; /**< How much data should we try to flush from the
                            * outbuf? */
-  time_t timestamp_lastread; /**< When was the last time libevent said we could
-                              * read? */
-  time_t timestamp_lastwritten; /**< When was the last time libevent said we
-                                 * could write? */
+  time_t timestamp_last_read_allowed; /**< When was the last time libevent said
+                                       * we could read? */
+  time_t timestamp_last_write_allowed; /**< When was the last time libevent
+                                        * said we could write? */
 
   time_t timestamp_created; /**< When was this connection_t created? */
 
@@ -1616,6 +1657,10 @@ typedef struct or_connection_t {
   /** True iff this connection has had its bootstrap failure logged with
    * control_event_bootstrap_problem. */
   unsigned int have_noted_bootstrap_problem:1;
+  /** True iff this is a client connection and its address has been put in the
+   * geoip cache and handled by the DoS mitigation subsystem. We use this to
+   * insure we have a coherent count of concurrent connection. */
+  unsigned int tracked_for_dos_mitigation : 1;
 
   uint16_t link_proto; /**< What protocol version are we using? 0 for
                         * "none negotiated yet." */
@@ -1628,20 +1673,8 @@ typedef struct or_connection_t {
 
   time_t timestamp_lastempty; /**< When was the outbuf last completely empty?*/
 
-  /* bandwidth* and *_bucket only used by ORs in OPEN state: */
-  int bandwidthrate; /**< Bytes/s added to the bucket. (OPEN ORs only.) */
-  int bandwidthburst; /**< Max bucket size for this conn. (OPEN ORs only.) */
-  int read_bucket; /**< When this hits 0, stop receiving. Every second we
-                    * add 'bandwidthrate' to this, capping it at
-                    * bandwidthburst. (OPEN ORs only) */
-  int write_bucket; /**< When this hits 0, stop writing. Like read_bucket. */
-
-  /** Last emptied read token bucket in msec since midnight; only used if
-   * TB_EMPTY events are enabled. */
-  uint32_t read_emptied_time;
-  /** Last emptied write token bucket in msec since midnight; only used if
-   * TB_EMPTY events are enabled. */
-  uint32_t write_emptied_time;
+  token_bucket_rw_t bucket; /**< Used for rate limiting when the connection is
+                          * in state CONN_OPEN. */
 
   /*
    * Count the number of bytes flushed out on this orconn, and the number of
@@ -1794,9 +1827,6 @@ typedef struct entry_connection_t {
    * the exit has sent a CONNECTED cell) and we have chosen to use it.
    */
   unsigned int may_use_optimistic_data : 1;
-
-  /** Are we a socks SocksSocket listener? */
-  unsigned int is_socks_socket:1;
 } entry_connection_t;
 
 /** Subtype of connection_t for an "directory connection" -- that is, an HTTP
@@ -2049,15 +2079,6 @@ typedef enum {
 #define download_schedule_increment_bitfield_t \
                                         ENUM_BF(download_schedule_increment_t)
 
-/** Enumeration: do we want to use the random exponential backoff
- * mechanism? */
-typedef enum {
-  DL_SCHED_DETERMINISTIC = 0,
-  DL_SCHED_RANDOM_EXPONENTIAL = 1,
-} download_schedule_backoff_t;
-#define download_schedule_backoff_bitfield_t \
-                                        ENUM_BF(download_schedule_backoff_t)
-
 /** Information about our plans for retrying downloads for a downloadable
  * directory object.
  * Each type of downloadable directory object has a corresponding retry
@@ -2104,11 +2125,6 @@ typedef struct download_status_t {
   download_schedule_increment_bitfield_t increment_on : 1; /**< does this
                                         * schedule increment on each attempt,
                                         * or after each failure? */
-  download_schedule_backoff_bitfield_t backoff : 1; /**< do we use the
-                                        * deterministic schedule, or random
-                                        * exponential backoffs?
-                                        * Increment on failure schedules
-                                        * always use exponential backoff. */
   uint8_t last_backoff_position; /**< number of attempts/failures, depending
                                   * on increment_on, when we last recalculated
                                   * the delay.  Only updated if backoff
@@ -2175,6 +2191,43 @@ typedef struct signed_descriptor_t {
 
 /** A signed integer representing a country code. */
 typedef int16_t country_t;
+
+/** Flags used to summarize the declared protocol versions of a relay,
+ * so we don't need to parse them again and again. */
+typedef struct protover_summary_flags_t {
+  /** True iff we have a proto line for this router, or a versions line
+   * from which we could infer the protocols. */
+  unsigned int protocols_known:1;
+
+  /** True iff this router has a version or protocol list that allows it to
+   * accept EXTEND2 cells. This requires Relay=2. */
+  unsigned int supports_extend2_cells:1;
+
+  /** True iff this router has a protocol list that allows it to negotiate
+   * ed25519 identity keys on a link handshake with us. This
+   * requires LinkAuth=3. */
+  unsigned int supports_ed25519_link_handshake_compat:1;
+
+  /** True iff this router has a protocol list that allows it to negotiate
+   * ed25519 identity keys on a link handshake, at all. This requires some
+   * LinkAuth=X for X >= 3. */
+  unsigned int supports_ed25519_link_handshake_any:1;
+
+  /** True iff this router has a protocol list that allows it to be an
+   * introduction point supporting ed25519 authentication key which is part of
+   * the v3 protocol detailed in proposal 224. This requires HSIntro=4. */
+  unsigned int supports_ed25519_hs_intro : 1;
+
+  /** True iff this router has a protocol list that allows it to be an hidden
+   * service directory supporting version 3 as seen in proposal 224. This
+   * requires HSDir=2. */
+  unsigned int supports_v3_hsdir : 1;
+
+  /** True iff this router has a protocol list that allows it to be an hidden
+   * service rendezvous point supporting version 3 as seen in proposal 224.
+   * This requires HSRend=2. */
+  unsigned int supports_v3_rendezvous_point: 1;
+} protover_summary_flags_t;
 
 /** Information about another onion router in the network. */
 typedef struct {
@@ -2244,23 +2297,26 @@ typedef struct {
    * this routerinfo. Used only during voting. */
   unsigned int omit_from_vote:1;
 
+  /** Flags to summarize the protocol versions for this routerinfo_t. */
+  protover_summary_flags_t pv;
+
 /** Tor can use this router for general positions in circuits; we got it
  * from a directory server as usual, or we're an authority and a server
  * uploaded it. */
 #define ROUTER_PURPOSE_GENERAL 0
 /** Tor should avoid using this router for circuit-building: we got it
- * from a crontroller.  If the controller wants to use it, it'll have to
+ * from a controller.  If the controller wants to use it, it'll have to
  * ask for it by identity. */
 #define ROUTER_PURPOSE_CONTROLLER 1
 /** Tor should use this router only for bridge positions in circuits: we got
  * it via a directory request from the bridge itself, or a bridge
- * authority. x*/
+ * authority. */
 #define ROUTER_PURPOSE_BRIDGE 2
 /** Tor should not use this router; it was marked in cached-descriptors with
  * a purpose we didn't recognize. */
 #define ROUTER_PURPOSE_UNKNOWN 255
 
-  /* In what way did we find out about this router?  One of ROUTER_PURPOSE_*.
+  /** In what way did we find out about this router?  One of ROUTER_PURPOSE_*.
    * Routers of different purposes are kept segregated and used for different
    * things; see notes on ROUTER_PURPOSE_* macros above.
    */
@@ -2296,10 +2352,10 @@ typedef struct routerstatus_t {
    * If it's a descriptor, we only use the first DIGEST_LEN bytes. */
   char descriptor_digest[DIGEST256_LEN];
   uint32_t addr; /**< IPv4 address for this router, in host order. */
-  uint16_t or_port; /**< OR port for this router. */
+  uint16_t or_port; /**< IPv4 OR port for this router. */
   uint16_t dir_port; /**< Directory port for this router. */
   tor_addr_t ipv6_addr; /**< IPv6 address for this router. */
-  uint16_t ipv6_orport; /**<IPV6 OR port for this router. */
+  uint16_t ipv6_orport; /**< IPv6 OR port for this router. */
   unsigned int is_authority:1; /**< True iff this router is an authority. */
   unsigned int is_exit:1; /**< True iff this router is a good exit. */
   unsigned int is_stable:1; /**< True iff this router stays up a long time. */
@@ -2322,37 +2378,14 @@ typedef struct routerstatus_t {
   unsigned int is_v2_dir:1; /** True iff this router publishes an open DirPort
                              * or it claims to accept tunnelled dir requests.
                              */
-  /** True iff we have a proto line for this router, or a versions line
-   * from which we could infer the protocols. */
-  unsigned int protocols_known:1;
-
-  /** True iff this router has a version or protocol list that allows it to
-   * accept EXTEND2 cells */
-  unsigned int supports_extend2_cells:1;
-
-  /** True iff this router has a protocol list that allows it to negotiate
-   * ed25519 identity keys on a link handshake. */
-  unsigned int supports_ed25519_link_handshake:1;
-
-  /** True iff this router has a protocol list that allows it to be an
-   * introduction point supporting ed25519 authentication key which is part of
-   * the v3 protocol detailed in proposal 224. This requires HSIntro=4. */
-  unsigned int supports_ed25519_hs_intro : 1;
-
-  /** True iff this router has a protocol list that allows it to be an hidden
-   * service directory supporting version 3 as seen in proposal 224. This
-   * requires HSDir=2. */
-  unsigned int supports_v3_hsdir : 1;
-
-  /** True iff this router has a protocol list that allows it to be an hidden
-   * service rendezvous point supporting version 3 as seen in proposal 224.
-   * This requires HSRend=2. */
-  unsigned int supports_v3_rendezvous_point: 1;
 
   unsigned int has_bandwidth:1; /**< The vote/consensus had bw info */
   unsigned int has_exitsummary:1; /**< The vote/consensus had exit summaries */
   unsigned int bw_is_unmeasured:1; /**< This is a consensus entry, with
                                     * the Unmeasured flag set. */
+
+  /** Flags to summarize the protocol versions for this routerstatus_t. */
+  protover_summary_flags_t pv;
 
   uint32_t bandwidth_kb; /**< Bandwidth (capacity) of the router as reported in
                        * the vote/consensus, in kilobytes/sec. */
@@ -2540,7 +2573,7 @@ typedef struct node_t {
   /* Hidden service directory index data. This is used by a service or client
    * in order to know what's the hs directory index for this node at the time
    * the consensus is set. */
-  struct hsdir_index_t *hsdir_index;
+  struct hsdir_index_t hsdir_index;
 } node_t;
 
 /** Linked list of microdesc hash lines for a single router in a directory
@@ -2875,11 +2908,7 @@ typedef struct {
   } u;
 } onion_handshake_state_t;
 
-/** Holds accounting information for a single step in the layered encryption
- * performed by a circuit.  Used only at the client edge of a circuit. */
-typedef struct crypt_path_t {
-  uint32_t magic;
-
+typedef struct relay_crypto_t {
   /* crypto environments */
   /** Encryption key and counter for cells heading towards the OR at this
    * step. */
@@ -2892,6 +2921,17 @@ typedef struct crypt_path_t {
   crypto_digest_t *f_digest; /* for integrity checking */
   /** Digest state for cells heading away from the OR at this step. */
   crypto_digest_t *b_digest;
+
+} relay_crypto_t;
+
+/** Holds accounting information for a single step in the layered encryption
+ * performed by a circuit.  Used only at the client edge of a circuit. */
+typedef struct crypt_path_t {
+  uint32_t magic;
+
+  /** Cryptographic state used for encrypting and authenticating relay
+   * cells to and from this hop. */
+  relay_crypto_t crypto;
 
   /** Current state of the handshake as performed with the OR at this
    * step. */
@@ -3101,7 +3141,7 @@ typedef struct circuit_t {
 
   /** When the circuit was first used, or 0 if the circuit is clean.
    *
-   * XXXX Note that some code will artifically adjust this value backward
+   * XXXX Note that some code will artificially adjust this value backward
    * in time in order to indicate that a circuit shouldn't be used for new
    * streams, but that it can stay alive as long as it has streams on it.
    * That's a kludge we should fix.
@@ -3137,15 +3177,6 @@ typedef struct circuit_t {
 
   /** Index in smartlist of all circuits (global_circuitlist). */
   int global_circuitlist_idx;
-
-  /** Next circuit in the doubly-linked ring of circuits waiting to add
-   * cells to n_conn.  NULL if we have no cells pending, or if we're not
-   * linked to an OR connection. */
-  struct circuit_t *next_active_on_n_chan;
-  /** Previous circuit in the doubly-linked ring of circuits waiting to add
-   * cells to n_conn.  NULL if we have no cells pending, or if we're not
-   * linked to an OR connection. */
-  struct circuit_t *prev_active_on_n_chan;
 
   /** Various statistics about cells being added to or removed from this
    * circuit's queues; used only if CELL_STATS events are enabled and
@@ -3230,15 +3261,35 @@ typedef struct origin_circuit_t {
    * associated with this circuit. */
   edge_connection_t *p_streams;
 
-  /** Bytes read from any attached stream since last call to
+  /** Bytes read on this circuit since last call to
    * control_event_circ_bandwidth_used().  Only used if we're configured
    * to emit CIRC_BW events. */
   uint32_t n_read_circ_bw;
 
-  /** Bytes written to any attached stream since last call to
+  /** Bytes written to on this circuit since last call to
    * control_event_circ_bandwidth_used().  Only used if we're configured
    * to emit CIRC_BW events. */
   uint32_t n_written_circ_bw;
+
+  /** Total known-valid relay cell bytes since last call to
+   * control_event_circ_bandwidth_used().  Only used if we're configured
+   * to emit CIRC_BW events. */
+  uint32_t n_delivered_read_circ_bw;
+
+  /** Total written relay cell bytes since last call to
+   * control_event_circ_bandwidth_used().  Only used if we're configured
+   * to emit CIRC_BW events. */
+  uint32_t n_delivered_written_circ_bw;
+
+  /** Total overhead data in all known-valid relay data cells since last
+   * call to control_event_circ_bandwidth_used().  Only used if we're
+   * configured to emit CIRC_BW events. */
+  uint32_t n_overhead_read_circ_bw;
+
+  /** Total written overhead data in all relay data cells since last call to
+   * control_event_circ_bandwidth_used().  Only used if we're configured
+   * to emit CIRC_BW events. */
+  uint32_t n_overhead_written_circ_bw;
 
   /** Build state for this circuit. It includes the intended path
    * length, the chosen exit router, rendezvous information, etc.
@@ -3359,7 +3410,7 @@ typedef struct origin_circuit_t {
   uint32_t global_identifier;
 
   /** True if we have associated one stream to this circuit, thereby setting
-   * the isolation paramaters for this circuit.  Note that this doesn't
+   * the isolation parameters for this circuit.  Note that this doesn't
    * necessarily mean that we've <em>attached</em> any streams to the circuit:
    * we may only have marked up this circuit during the launch process.
    */
@@ -3426,14 +3477,6 @@ struct onion_queue_t;
 typedef struct or_circuit_t {
   circuit_t base_;
 
-  /** Next circuit in the doubly-linked ring of circuits waiting to add
-   * cells to p_chan.  NULL if we have no cells pending, or if we're not
-   * linked to an OR connection. */
-  struct circuit_t *next_active_on_p_chan;
-  /** Previous circuit in the doubly-linked ring of circuits waiting to add
-   * cells to p_chan.  NULL if we have no cells pending, or if we're not
-   * linked to an OR connection. */
-  struct circuit_t *prev_active_on_p_chan;
   /** Pointer to an entry on the onion queue, if this circuit is waiting for a
    * chance to give an onionskin to a cpuworker. Used only in onion.c */
   struct onion_queue_t *onionqueue_entry;
@@ -3458,21 +3501,10 @@ typedef struct or_circuit_t {
   /** Linked list of Exit streams associated with this circuit that are
    * still being resolved. */
   edge_connection_t *resolving_streams;
-  /** The cipher used by intermediate hops for cells heading toward the
-   * OP. */
-  crypto_cipher_t *p_crypto;
-  /** The cipher used by intermediate hops for cells heading away from
-   * the OP. */
-  crypto_cipher_t *n_crypto;
 
-  /** The integrity-checking digest used by intermediate hops, for
-   * cells packaged here and heading towards the OP.
-   */
-  crypto_digest_t *p_digest;
-  /** The integrity-checking digest used by intermediate hops, for
-   * cells packaged at the OP and arriving here.
-   */
-  crypto_digest_t *n_digest;
+  /** Cryptographic state used for encrypting and authenticating relay
+   * cells to and from this hop. */
+  relay_crypto_t crypto;
 
   /** Points to spliced circuit if purpose is REND_ESTABLISHED, and circuit
    * is not marked for close. */
@@ -3500,12 +3532,6 @@ typedef struct or_circuit_t {
    * exit-ward queues of this circuit; reset every time when writing
    * buffer stats to disk. */
   uint64_t total_cell_waiting_time;
-
-  /** Maximum cell queue size for a middle relay; this is stored per circuit
-   * so append_cell_to_circuit_queue() can adjust it if it changes.  If set
-   * to zero, it is initialized to the default value.
-   */
-  uint32_t max_middle_cells;
 } or_circuit_t;
 
 #if REND_COOKIE_LEN != DIGEST_LEN
@@ -3650,10 +3676,24 @@ typedef struct {
   int TruncateLogFile; /**< Boolean: Should we truncate the log file
                             before we start writing? */
   char *SyslogIdentityTag; /**< Identity tag to add for syslog logging. */
+  char *AndroidIdentityTag; /**< Identity tag to add for Android logging. */
 
   char *DebugLogFile; /**< Where to send verbose log messages. */
-  char *DataDirectory; /**< OR only: where to store long-term data. */
+  char *DataDirectory_option; /**< Where to store long-term data, as
+                               * configured by the user. */
+  char *DataDirectory; /**< Where to store long-term data, as modified. */
   int DataDirectoryGroupReadable; /**< Boolean: Is the DataDirectory g+r? */
+
+  char *KeyDirectory_option; /**< Where to store keys, as
+                               * configured by the user. */
+  char *KeyDirectory; /**< Where to store keys data, as modified. */
+  int KeyDirectoryGroupReadable; /**< Boolean: Is the KeyDirectory g+r? */
+
+  char *CacheDirectory_option; /**< Where to store cached data, as
+                               * configured by the user. */
+  char *CacheDirectory; /**< Where to store cached data, as modified. */
+  int CacheDirectoryGroupReadable; /**< Boolean: Is the CacheDirectory g+r? */
+
   char *Nickname; /**< OR only: nickname of this onion router. */
   char *Address; /**< OR only: configured address for this onion router. */
   char *PidFile; /**< Where to store PID of Tor process. */
@@ -3689,6 +3729,7 @@ typedef struct {
                                         * interface addresses?
                                         * Includes OutboundBindAddresses and
                                         * configured ports. */
+  int ReducedExitPolicy; /**<Should we use the Reduced Exit Policy? */
   config_line_t *SocksPolicy; /**< Lists of socks policy components */
   config_line_t *DirPolicy; /**< Lists of dir policy components */
   /** Local address to bind outbound sockets */
@@ -3738,7 +3779,7 @@ typedef struct {
                                  * for control connections. */
 
   int ControlSocketsGroupWritable; /**< Boolean: Are control sockets g+rw? */
-  int SocksSocketsGroupWritable; /**< Boolean: Are SOCKS sockets g+rw? */
+  int UnixSocksGroupWritable; /**< Boolean: Are SOCKS Unix sockets g+rw? */
   /** Ports to listen on for directory connections. */
   config_line_t *DirPort_lines;
   config_line_t *DNSPort_lines; /**< Ports to listen on for DNS requests. */
@@ -3856,6 +3897,14 @@ typedef struct {
   /** A routerset that should be used when picking RPs for HS circuits. */
   routerset_t *Tor2webRendezvousPoints;
 
+  /** A routerset that should be used when picking middle nodes for HS
+   *  circuits. */
+  routerset_t *HSLayer2Nodes;
+
+  /** A routerset that should be used when picking third-hop nodes for HS
+   *  circuits. */
+  routerset_t *HSLayer3Nodes;
+
   /** Onion Services in HiddenServiceSingleHopMode make one-hop (direct)
    * circuits between the onion service server, and the introduction and
    * rendezvous points. (Onion service descriptors are still posted using
@@ -3968,6 +4017,8 @@ typedef struct {
 
   int HeartbeatPeriod; /**< Log heartbeat messages after this many seconds
                         * have passed. */
+  int MainloopStats; /**< Log main loop statistics as part of the
+                      * heartbeat messages. */
 
   char *HTTPProxy; /**< hostname[:port] to use as http proxy, if any. */
   tor_addr_t HTTPProxyAddr; /**< Parsed IPv4 addr for http proxy, if any. */
@@ -4085,6 +4136,8 @@ typedef struct {
   /** Process specifier for a controller that ‘owns’ this Tor
    * instance.  Tor will terminate if its owning controller does. */
   char *OwningControllerProcess;
+  /** FD specifier for a controller that owns this Tor instance. */
+  int OwningControllerFD;
 
   int ShutdownWaitLength; /**< When we get a SIGINT and we're a server, how
                            * long do we wait before exiting? */
@@ -4114,7 +4167,7 @@ typedef struct {
   int UseEntryGuards_option;
   /** Internal variable to remember whether we're actually acting on
    * UseEntryGuards_option -- when we're a non-anonymous Tor2web client or
-   * Single Onion Service, it is alwasy false, otherwise we use the value of
+   * Single Onion Service, it is always false, otherwise we use the value of
    * UseEntryGuards_option. */
   int UseEntryGuards;
 
@@ -4127,6 +4180,8 @@ typedef struct {
 
   int NumDirectoryGuards; /**< How many dir guards do we try to establish?
                            * If 0, use value from NumEntryGuards. */
+  int NumPrimaryGuards; /**< How many primary guards do we want? */
+
   int RephistTrackTime; /**< How many seconds do we keep rephist info? */
   /** Should we always fetch our dir info on the mirror schedule (which
    * means directly from the authorities) no matter our other config? */
@@ -4170,10 +4225,6 @@ typedef struct {
                                         * testing our DNS server. */
   int EnforceDistinctSubnets; /**< If true, don't allow multiple routers in the
                                * same network zone in the same circuit. */
-  int PortForwarding; /**< If true, use NAT-PMP or UPnP to automatically
-                       * forward the DirPort and ORPort on the NAT device */
-  char *PortForwardingHelper; /** < Filename or full path of the port
-                                  forwarding helper executable */
   int AllowNonRFC953Hostnames; /**< If true, we allow connections to hostnames
                                 * with weird characters. */
   /** If true, we try resolving hostnames with weird characters. */
@@ -4299,19 +4350,19 @@ typedef struct {
 
   /** Schedule for when servers should download things in general.  Only
    * altered on testing networks. */
-  smartlist_t *TestingServerDownloadSchedule;
+  int TestingServerDownloadInitialDelay;
 
   /** Schedule for when clients should download things in general.  Only
    * altered on testing networks. */
-  smartlist_t *TestingClientDownloadSchedule;
+  int TestingClientDownloadInitialDelay;
 
   /** Schedule for when servers should download consensuses.  Only altered
    * on testing networks. */
-  smartlist_t *TestingServerConsensusDownloadSchedule;
+  int TestingServerConsensusDownloadInitialDelay;
 
   /** Schedule for when clients should download consensuses.  Only altered
    * on testing networks. */
-  smartlist_t *TestingClientConsensusDownloadSchedule;
+  int TestingClientConsensusDownloadInitialDelay;
 
   /** Schedule for when clients should download consensuses from authorities
    * if they are bootstrapping (that is, they don't have a usable, reasonably
@@ -4321,7 +4372,7 @@ typedef struct {
    * This schedule is incremented by (potentially concurrent) connection
    * attempts, unlike other schedules, which are incremented by connection
    * failures.  Only altered on testing networks. */
-  smartlist_t *ClientBootstrapConsensusAuthorityDownloadSchedule;
+  int ClientBootstrapConsensusAuthorityDownloadInitialDelay;
 
   /** Schedule for when clients should download consensuses from fallback
    * directory mirrors if they are bootstrapping (that is, they don't have a
@@ -4331,7 +4382,7 @@ typedef struct {
    * This schedule is incremented by (potentially concurrent) connection
    * attempts, unlike other schedules, which are incremented by connection
    * failures.  Only altered on testing networks. */
-  smartlist_t *ClientBootstrapConsensusFallbackDownloadSchedule;
+  int ClientBootstrapConsensusFallbackDownloadInitialDelay;
 
   /** Schedule for when clients should download consensuses from authorities
    * if they are bootstrapping (that is, they don't have a usable, reasonably
@@ -4341,15 +4392,15 @@ typedef struct {
    * This schedule is incremented by (potentially concurrent) connection
    * attempts, unlike other schedules, which are incremented by connection
    * failures.  Only altered on testing networks. */
-  smartlist_t *ClientBootstrapConsensusAuthorityOnlyDownloadSchedule;
+  int ClientBootstrapConsensusAuthorityOnlyDownloadInitialDelay;
 
   /** Schedule for when clients should download bridge descriptors.  Only
    * altered on testing networks. */
-  smartlist_t *TestingBridgeDownloadSchedule;
+  int TestingBridgeDownloadInitialDelay;
 
   /** Schedule for when clients should download bridge descriptors when they
    * have no running bridges.  Only altered on testing networks. */
-  smartlist_t *TestingBridgeBootstrapDownloadSchedule;
+  int TestingBridgeBootstrapDownloadInitialDelay;
 
   /** When directory clients have only a few descriptors to request, they
    * batch them until they have more, or until this amount of time has
@@ -4360,36 +4411,10 @@ typedef struct {
    * it?  Only altered on testing networks. */
   int TestingDirConnectionMaxStall;
 
-  /** How many times will we try to fetch a consensus before we give
-   * up?  Only altered on testing networks. */
-  int TestingConsensusMaxDownloadTries;
-
-  /** How many times will a client try to fetch a consensus while
-   * bootstrapping using a list of fallback directories, before it gives up?
-   * Only altered on testing networks. */
-  int ClientBootstrapConsensusMaxDownloadTries;
-
-  /** How many times will a client try to fetch a consensus while
-   * bootstrapping using only a list of authorities, before it gives up?
-   * Only altered on testing networks. */
-  int ClientBootstrapConsensusAuthorityOnlyMaxDownloadTries;
-
   /** How many simultaneous in-progress connections will we make when trying
    * to fetch a consensus before we wait for one to complete, timeout, or
    * error out?  Only altered on testing networks. */
   int ClientBootstrapConsensusMaxInProgressTries;
-
-  /** How many times will we try to download a router's descriptor before
-   * giving up?  Only altered on testing networks. */
-  int TestingDescriptorMaxDownloadTries;
-
-  /** How many times will we try to download a microdescriptor before
-   * giving up?  Only altered on testing networks. */
-  int TestingMicrodescMaxDownloadTries;
-
-  /** How many times will we try to fetch a certificate before giving
-   * up?  Only altered on testing networks. */
-  int TestingCertMaxDownloadTries;
 
   /** If true, we take part in a testing network. Change the defaults of a
    * couple of other configuration options and allow to change the values
@@ -4422,9 +4447,6 @@ typedef struct {
 
   /** Enable CELL_STATS events.  Only altered on testing networks. */
   int TestingEnableCellStatsEvent;
-
-  /** Enable TB_EMPTY events.  Only altered on testing networks. */
-  int TestingEnableTbEmptyEvent;
 
   /** If true, and we have GeoIP data, and we're a bridge, keep a per-country
    * count of how many client addresses have contacted us so that we can help
@@ -4642,6 +4664,43 @@ typedef struct {
   smartlist_t *Schedulers;
   /* An ordered list of scheduler_types mapped from Schedulers. */
   smartlist_t *SchedulerTypes_;
+
+  /** List of files that were opened by %include in torrc and torrc-defaults */
+  smartlist_t *FilesOpenedByIncludes;
+
+  /** If true, Tor shouldn't install any posix signal handlers, since it is
+   * running embedded inside another process.
+   */
+  int DisableSignalHandlers;
+
+  /** Autobool: Is the circuit creation DoS mitigation subsystem enabled? */
+  int DoSCircuitCreationEnabled;
+  /** Minimum concurrent connection needed from one single address before any
+   * defense is used. */
+  int DoSCircuitCreationMinConnections;
+  /** Circuit rate used to refill the token bucket. */
+  int DoSCircuitCreationRate;
+  /** Maximum allowed burst of circuits. Reaching that value, the address is
+   * detected as malicious and a defense might be used. */
+  int DoSCircuitCreationBurst;
+  /** When an address is marked as malicous, what defense should be used
+   * against it. See the dos_cc_defense_type_t enum. */
+  int DoSCircuitCreationDefenseType;
+  /** For how much time (in seconds) the defense is applicable for a malicious
+   * address. A random time delta is added to the defense time of an address
+   * which will be between 1 second and half of this value. */
+  int DoSCircuitCreationDefenseTimePeriod;
+
+  /** Autobool: Is the DoS connection mitigation subsystem enabled? */
+  int DoSConnectionEnabled;
+  /** Maximum concurrent connection allowed per address. */
+  int DoSConnectionMaxConcurrentCount;
+  /** When an address is reaches the maximum count, what defense should be
+   * used against it. See the dos_conn_defense_type_t enum. */
+  int DoSConnectionDefenseType;
+
+  /** Autobool: Do we refuse single hop client rendezvous? */
+  int DoSRefuseSingleHopClientRendezvous;
 } or_options_t;
 
 #define LOG_PROTOCOL_WARN (get_protocol_warning_severity_level())
@@ -4718,15 +4777,6 @@ typedef struct {
   /** When did we last rotate our onion key?  "0" for 'no idea'. */
   time_t LastRotatedOnionKey;
 } or_state_t;
-
-/** Change the next_write time of <b>state</b> to <b>when</b>, unless the
- * state is already scheduled to be written to disk earlier than <b>when</b>.
- */
-static inline void or_state_mark_dirty(or_state_t *state, time_t when)
-{
-  if (state->next_write > when)
-    state->next_write = when;
-}
 
 #define MAX_SOCKS_REPLY_LEN 1024
 #define MAX_SOCKS_ADDR_LEN 256
@@ -5275,7 +5325,7 @@ typedef struct rend_intro_point_t {
    */
   int accepted_introduce2_count;
 
-  /** (Service side only) Number of maximum INTRODUCE2 cells that this IP
+  /** (Service side only) Maximum number of INTRODUCE2 cells that this IP
    * will accept. This is a random value between
    * INTRO_POINT_MIN_LIFETIME_INTRODUCTIONS and
    * INTRO_POINT_MAX_LIFETIME_INTRODUCTIONS. */

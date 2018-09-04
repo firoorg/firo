@@ -25,11 +25,13 @@ void accounting_add_bytes(size_t n_read, size_t n_written, int seconds);
 int accounting_record_bandwidth_usage(time_t now, or_state_t *state);
 void hibernate_begin_shutdown(void);
 MOCK_DECL(int, we_are_hibernating, (void));
+MOCK_DECL(int, we_are_fully_hibernating,(void));
 void consider_hibernation(time_t now);
 int getinfo_helper_accounting(control_connection_t *conn,
                               const char *question, char **answer,
                               const char **errmsg);
 uint64_t get_accounting_max_total(void);
+void accounting_free_all(void);
 
 #ifdef HIBERNATE_PRIVATE
 /** Possible values of hibernate_state */

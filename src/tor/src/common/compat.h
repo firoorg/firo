@@ -10,6 +10,9 @@
 #ifdef _WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#ifndef SIO_IDEAL_SEND_BACKLOG_QUERY
+#define SIO_IDEAL_SEND_BACKLOG_QUERY 0x4004747b
+#endif
 #endif
 #include "torint.h"
 #include "testsupport.h"
@@ -315,12 +318,12 @@ typedef struct tor_mmap_t {
   size_t size; /**< Size of the file. */
 
   /* None of the fields below should be accessed from outside compat.c */
-#ifdef HAVE_SYS_MMAN_H
+#ifdef HAVE_MMAP
   size_t mapping_size; /**< Size of the actual mapping. (This is this file
                         * size, rounded up to the nearest page.) */
 #elif defined _WIN32
   HANDLE mmap_handle;
-#endif /* defined(HAVE_SYS_MMAN_H) || ... */
+#endif /* defined(HAVE_MMAP) || ... */
 
 } tor_mmap_t;
 
@@ -483,6 +486,7 @@ typedef int socklen_t;
 
 int tor_close_socket_simple(tor_socket_t s);
 MOCK_DECL(int, tor_close_socket, (tor_socket_t s));
+void tor_take_socket_ownership(tor_socket_t s);
 tor_socket_t tor_open_socket_with_extensions(
                                            int domain, int type, int protocol,
                                            int cloexec, int nonblock);
@@ -506,6 +510,8 @@ int get_n_open_sockets(void);
 MOCK_DECL(int,
 tor_getsockname,(tor_socket_t socket, struct sockaddr *address,
                  socklen_t *address_len));
+struct tor_addr_t;
+int tor_addr_from_getsockname(struct tor_addr_t *addr_out, tor_socket_t sock);
 
 #define tor_socket_send(s, buf, len, flags) send(s, buf, len, flags)
 #define tor_socket_recv(s, buf, len, flags) recv(s, buf, len, flags)
@@ -695,7 +701,7 @@ char *make_path_absolute(char *fname);
 
 char **get_environment(void);
 
-int get_total_system_memory(size_t *mem_out);
+MOCK_DECL(int, get_total_system_memory, (size_t *mem_out));
 
 int compute_num_cpus(void);
 

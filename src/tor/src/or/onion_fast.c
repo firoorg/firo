@@ -23,16 +23,18 @@
  * [*]Actually, it's possible that TAP _was_ a little better than TLS with
  * RSA1024 certificates and EDH1024 for forward secrecy, if you
  * hypothesize an adversary who can compute discrete logarithms on a
- * small number of targetted DH1024 fields, but who can't break all that
+ * small number of targeted DH1024 fields, but who can't break all that
  * many RSA1024 keys.
  **/
 
 #include "or.h"
 #include "onion_fast.h"
+#include "crypto_rand.h"
+#include "crypto_util.h"
 
 /** Release all state held in <b>victim</b>. */
 void
-fast_handshake_state_free(fast_handshake_state_t *victim)
+fast_handshake_state_free_(fast_handshake_state_t *victim)
 {
   if (! victim)
     return;

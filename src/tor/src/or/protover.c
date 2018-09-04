@@ -27,11 +27,14 @@
 #include "protover.h"
 #include "routerparse.h"
 
+#ifndef HAVE_RUST
+
 static const smartlist_t *get_supported_protocol_list(void);
 static int protocol_list_contains(const smartlist_t *protos,
                                   protocol_type_t pr, uint32_t ver);
 
 /** Mapping between protocol type string and protocol type. */
+/// C_RUST_COUPLED: src/rust/protover/protover.rs `PROTOCOL_NAMES`
 static const struct {
   protocol_type_t protover_type;
   const char *name;
@@ -49,6 +52,11 @@ static const struct {
 };
 
 #define N_PROTOCOL_NAMES ARRAY_LENGTH(PROTOCOL_NAMES)
+
+/* Maximum allowed length of any single subprotocol name. */
+// C_RUST_COUPLED: src/rust/protover/protover.rs
+//                 `MAX_PROTOCOL_NAME_LENGTH`
+static const unsigned MAX_PROTOCOL_NAME_LENGTH = 100;
 
 /**
  * Given a protocol_type_t, return the corresponding string used in
@@ -93,7 +101,7 @@ str_to_protocol_type(const char *s, protocol_type_t *pr_out)
  * Release all space held by a single proto_entry_t structure
  */
 STATIC void
-proto_entry_free(proto_entry_t *entry)
+proto_entry_free_(proto_entry_t *entry)
 {
   if (!entry)
     return;
@@ -102,6 +110,9 @@ proto_entry_free(proto_entry_t *entry)
   smartlist_free(entry->ranges);
   tor_free(entry);
 }
+
+/** The largest possible protocol version. */
+#define MAX_PROTOCOL_VERSION (UINT32_MAX-1)
 
 /**
  * Given a string <b>s</b> and optional end-of-string pointer
@@ -123,9 +134,14 @@ parse_version_range(const char *s, const char *end_of_range,
   if (BUG(!end_of_range))
     end_of_range = s + strlen(s); // LCOV_EXCL_LINE
 
+  /* A range must start with a digit. */
+  if (!TOR_ISDIGIT(*s)) {
+    goto error;
+  }
+
   /* Note that this wouldn't be safe if we didn't know that eventually,
    * we'd hit a NUL */
-  low = (uint32_t) tor_parse_ulong(s, 10, 0, UINT32_MAX, &ok, &next);
+  low = (uint32_t) tor_parse_ulong(s, 10, 0, MAX_PROTOCOL_VERSION, &ok, &next);
   if (!ok)
     goto error;
   if (next > end_of_range)
@@ -138,11 +154,19 @@ parse_version_range(const char *s, const char *end_of_range,
   if (*next != '-')
     goto error;
   s = next+1;
+
   /* ibid */
-  high = (uint32_t) tor_parse_ulong(s, 10, 0, UINT32_MAX, &ok, &next);
+  if (!TOR_ISDIGIT(*s)) {
+    goto error;
+  }
+  high = (uint32_t) tor_parse_ulong(s, 10, 0,
+                                    MAX_PROTOCOL_VERSION, &ok, &next);
   if (!ok)
     goto error;
   if (next != end_of_range)
+    goto error;
+
+  if (low > high)
     goto error;
 
  done:
@@ -179,6 +203,15 @@ parse_single_entry(const char *s, const char *end_of_entry)
   if (equals == s)
     goto error;
 
+  /* The name must not be longer than MAX_PROTOCOL_NAME_LENGTH. */
+  if (equals - s > (int)MAX_PROTOCOL_NAME_LENGTH) {
+    log_warn(LD_NET, "When parsing a protocol entry, I got a very large "
+             "protocol name. This is possibly an attack or a bug, unless "
+             "the Tor network truly supports protocol names larger than "
+             "%ud characters. The offending string was: %s",
+             MAX_PROTOCOL_NAME_LENGTH, escaped(out->name));
+    goto error;
+  }
   out->name = tor_strndup(s, equals-s);
 
   tor_assert(equals < end_of_entry);
@@ -192,10 +225,6 @@ parse_single_entry(const char *s, const char *end_of_entry)
 
     smartlist_add(out->ranges, range);
     if (parse_version_range(s, comma, &range->low, &range->high) < 0) {
-      goto error;
-    }
-
-    if (range->low > range->high) {
       goto error;
     }
 
@@ -248,6 +277,21 @@ parse_protocol_list(const char *s)
 }
 
 /**
+ * Return true if the unparsed protover in <b>s</b> would contain a protocol
+ * name longer than MAX_PROTOCOL_NAME_LENGTH, and false otherwise.
+ */
+bool
+protover_contains_long_protocol_names(const char *s)
+{
+  smartlist_t *list = parse_protocol_list(s);
+  if (!list)
+    return true; /* yes, has a dangerous name */
+  SMARTLIST_FOREACH(list, proto_entry_t *, ent, proto_entry_free(ent));
+  smartlist_free(list);
+  return false; /* no, looks fine */
+}
+
+/**
  * Given a protocol type and version number, return true iff we know
  * how to speak that protocol.
  */
@@ -280,8 +324,45 @@ protocol_list_supports_protocol(const char *list, protocol_type_t tp,
   return contains;
 }
 
+/**
+ * Return true iff "list" encodes a protocol list that includes support for
+ * the indicated protocol and version, or some later version.
+ */
+int
+protocol_list_supports_protocol_or_later(const char *list,
+                                         protocol_type_t tp,
+                                         uint32_t version)
+{
+  /* NOTE: This is a pretty inefficient implementation. If it ever shows
+   * up in profiles, we should memoize it.
+   */
+  smartlist_t *protocols = parse_protocol_list(list);
+  if (!protocols) {
+    return 0;
+  }
+  const char *pr_name = protocol_type_to_str(tp);
+
+  int contains = 0;
+  SMARTLIST_FOREACH_BEGIN(protocols, proto_entry_t *, proto) {
+    if (strcasecmp(proto->name, pr_name))
+      continue;
+    SMARTLIST_FOREACH_BEGIN(proto->ranges, const proto_range_t *, range) {
+      if (range->high >= version) {
+        contains = 1;
+        goto found;
+      }
+    } SMARTLIST_FOREACH_END(range);
+  } SMARTLIST_FOREACH_END(proto);
+
+ found:
+  SMARTLIST_FOREACH(protocols, proto_entry_t *, ent, proto_entry_free(ent));
+  smartlist_free(protocols);
+  return contains;
+}
+
 /** Return the canonical string containing the list of protocols
  * that we support. */
+/// C_RUST_COUPLED: src/rust/protover/protover.rs `SUPPORTED_PROTOCOLS`
 const char *
 protover_get_supported_protocols(void)
 {
@@ -292,7 +373,7 @@ protover_get_supported_protocols(void)
     "HSDir=1-2 "
     "HSIntro=3-4 "
     "HSRend=1-2 "
-    "Link=1-4 "
+    "Link=1-5 "
     "LinkAuth=1,3 "
     "Microdesc=1-2 "
     "Relay=1-2";
@@ -365,6 +446,8 @@ encode_protocol_list(const smartlist_t *sl)
 
 /* We treat any protocol list with more than this many subprotocols in it
  * as a DoS attempt. */
+/// C_RUST_COUPLED: src/rust/protover/protover.rs
+///                 `MAX_PROTOCOLS_TO_EXPAND`
 static const int MAX_PROTOCOLS_TO_EXPAND = (1<<16);
 
 /** Voting helper: Given a list of proto_entry_t, return a newly allocated
@@ -385,6 +468,14 @@ expand_protocol_list(const smartlist_t *protos)
 
   SMARTLIST_FOREACH_BEGIN(protos, const proto_entry_t *, ent) {
     const char *name = ent->name;
+    if (strlen(name) > MAX_PROTOCOL_NAME_LENGTH) {
+      log_warn(LD_NET, "When expanding a protocol entry, I got a very large "
+               "protocol name. This is possibly an attack or a bug, unless "
+               "the Tor network truly supports protocol names larger than "
+               "%ud characters. The offending string was: %s",
+               MAX_PROTOCOL_NAME_LENGTH, escaped(name));
+      continue;
+    }
     SMARTLIST_FOREACH_BEGIN(ent->ranges, const proto_range_t *, range) {
       uint32_t u;
       for (u = range->low; u <= range->high; ++u) {
@@ -441,6 +532,10 @@ cmp_single_ent_by_version(const void **a_, const void **b_)
 static char *
 contract_protocol_list(const smartlist_t *proto_strings)
 {
+  if (smartlist_len(proto_strings) == 0) {
+    return tor_strdup("");
+  }
+
   // map from name to list of single-version entries
   strmap_t *entry_lists_by_name = strmap_new();
   // list of protocol names
@@ -549,11 +644,21 @@ char *
 protover_compute_vote(const smartlist_t *list_of_proto_strings,
                       int threshold)
 {
+  if (smartlist_len(list_of_proto_strings) == 0) {
+    return tor_strdup("");
+  }
+
   smartlist_t *all_entries = smartlist_new();
 
   // First, parse the inputs and break them into singleton entries.
   SMARTLIST_FOREACH_BEGIN(list_of_proto_strings, const char *, vote) {
     smartlist_t *unexpanded = parse_protocol_list(vote);
+    if (! unexpanded) {
+      log_warn(LD_NET, "I failed with parsing a protocol list from "
+               "an authority. The offending string was: %s",
+               escaped(vote));
+      continue;
+    }
     smartlist_t *this_vote = expand_protocol_list(unexpanded);
     if (this_vote == NULL) {
       log_warn(LD_NET, "When expanding a protocol list from an authority, I "
@@ -568,6 +673,11 @@ protover_compute_vote(const smartlist_t *list_of_proto_strings,
     SMARTLIST_FOREACH(unexpanded, proto_entry_t *, e, proto_entry_free(e));
     smartlist_free(unexpanded);
   } SMARTLIST_FOREACH_END(vote);
+
+  if (smartlist_len(all_entries) == 0) {
+    smartlist_free(all_entries);
+    return tor_strdup("");
+  }
 
   // Now sort the singleton entries
   smartlist_sort_strings(all_entries);
@@ -611,15 +721,23 @@ int
 protover_all_supported(const char *s, char **missing_out)
 {
   int all_supported = 1;
-  smartlist_t *missing;
+  smartlist_t *missing_some;
+  smartlist_t *missing_completely;
+  smartlist_t *missing_all;
 
   if (!s) {
     return 1;
   }
 
   smartlist_t *entries = parse_protocol_list(s);
+  if (BUG(entries == NULL)) {
+    log_warn(LD_NET, "Received an unparseable protocol list %s"
+             " from the consensus", escaped(s));
+    return 1;
+  }
 
-  missing = smartlist_new();
+  missing_some = smartlist_new();
+  missing_completely = smartlist_new();
 
   SMARTLIST_FOREACH_BEGIN(entries, const proto_entry_t *, ent) {
     protocol_type_t tp;
@@ -631,11 +749,61 @@ protover_all_supported(const char *s, char **missing_out)
     }
 
     SMARTLIST_FOREACH_BEGIN(ent->ranges, const proto_range_t *, range) {
+      proto_entry_t *unsupported = tor_malloc_zero(sizeof(proto_entry_t));
+      proto_range_t *versions = tor_malloc_zero(sizeof(proto_range_t));
       uint32_t i;
+
+      unsupported->name = tor_strdup(ent->name);
+      unsupported->ranges = smartlist_new();
+
       for (i = range->low; i <= range->high; ++i) {
         if (!protover_is_supported_here(tp, i)) {
-          goto unsupported;
+          if (versions->low == 0 && versions->high == 0) {
+            versions->low = i;
+            /* Pre-emptively add the high now, just in case we're in a single
+             * version range (e.g. "Link=999"). */
+            versions->high = i;
+          }
+          /* If the last one to be unsupported is one less than the current
+           * one, we're in a continuous range, so set the high field. */
+          if ((versions->high && versions->high == i - 1) ||
+              /* Similarly, if the last high wasn't set and we're currently
+               * one higher than the low, add current index as the highest
+               * known high. */
+              (!versions->high && versions->low == i - 1)) {
+            versions->high = i;
+            continue;
+          }
+        } else {
+          /* If we hit a supported version, and we previously had a range,
+           * we've hit a non-continuity. Copy the previous range and add it to
+           * the unsupported->ranges list and zero-out the previous range for
+           * the next iteration. */
+          if (versions->low != 0 && versions->high != 0) {
+            proto_range_t *versions_to_add = tor_malloc(sizeof(proto_range_t));
+
+            versions_to_add->low = versions->low;
+            versions_to_add->high = versions->high;
+            smartlist_add(unsupported->ranges, versions_to_add);
+
+            versions->low = 0;
+            versions->high = 0;
+          }
         }
+      }
+      /* Once we've run out of versions to check, see if we had any unsupported
+       * ones and, if so, add them to unsupported->ranges. */
+      if (versions->low != 0 && versions->high != 0) {
+        smartlist_add(unsupported->ranges, versions);
+      }
+      /* Finally, if we had something unsupported, add it to the list of
+       * missing_some things and mark that there was something missing. */
+      if (smartlist_len(unsupported->ranges) != 0) {
+        smartlist_add(missing_some, (void*) unsupported);
+        all_supported = 0;
+      } else {
+        proto_entry_free(unsupported);
+        tor_free(versions);
       }
     } SMARTLIST_FOREACH_END(range);
 
@@ -643,14 +811,24 @@ protover_all_supported(const char *s, char **missing_out)
 
   unsupported:
     all_supported = 0;
-    smartlist_add(missing, (void*) ent);
+    smartlist_add(missing_completely, (void*) ent);
   } SMARTLIST_FOREACH_END(ent);
 
+  /* We keep the two smartlists separate so that we can free the proto_entry_t
+   * we created and put in missing_some, so here we add them together to build
+   * the string. */
+  missing_all = smartlist_new();
+  smartlist_add_all(missing_all, missing_some);
+  smartlist_add_all(missing_all, missing_completely);
+
   if (missing_out && !all_supported) {
-    tor_assert(0 != smartlist_len(missing));
-    *missing_out = encode_protocol_list(missing);
+    tor_assert(smartlist_len(missing_all) != 0);
+    *missing_out = encode_protocol_list(missing_all);
   }
-  smartlist_free(missing);
+  SMARTLIST_FOREACH(missing_some, proto_entry_t *, ent, proto_entry_free(ent));
+  smartlist_free(missing_some);
+  smartlist_free(missing_completely);
+  smartlist_free(missing_all);
 
   SMARTLIST_FOREACH(entries, proto_entry_t *, ent, proto_entry_free(ent));
   smartlist_free(entries);
@@ -691,6 +869,7 @@ protocol_list_contains(const smartlist_t *protos,
  * Note that this is only used to infer protocols for Tor versions that
  * can't declare their own.
  **/
+/// C_RUST_COUPLED: src/rust/protover/protover.rs `compute_for_old_tor`
 const char *
 protover_compute_for_old_tor(const char *version)
 {
@@ -739,4 +918,6 @@ protover_free_all(void)
     supported_protocol_list = NULL;
   }
 }
+
+#endif /* !defined(HAVE_RUST) */
 
