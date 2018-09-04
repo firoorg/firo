@@ -7,13 +7,15 @@
 #include "rpc/server.h"
 #include "util.h"
 #include "wallet/wallet.h"
+#include "wallet/rpcwallet.h"
 #include "client-api/server.h"
 #include "client-api/send.h"
-#include <client-api/protocol.h>
-#include <univalue.h>
+#include "client-api/protocol.h"
+#include "univalue.h"
+#include <fstream>
 
 namespace fs = boost::filesystem;
-using namespace std::chrono;
+using namespace boost::chrono;
 using namespace std;
 
 int64_t nWalletUnlockTime;

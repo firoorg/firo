@@ -7,7 +7,7 @@
 
 #include <thread>
 #include <chrono>
-
+#include "univalue.h"
 #include "client-api/server.h"
 #include "client-api/protocol.h"
 

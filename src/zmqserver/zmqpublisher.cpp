@@ -12,7 +12,7 @@
 #include "client-api/wallet.h"
 #include "client-api/server.h"
 #include "client-api/protocol.h"
-#include <univalue.h>
+#include "univalue.h"
 
 extern CWallet *pwalletMain;
 

@@ -21,6 +21,7 @@
 #include "walletdb.h"
 #include "zerocoin.h"
 #include "znode-payments.h"
+#include "wallet/rpcwallet.h"
 
 #include <znode-payments.h>
 
@@ -33,7 +34,6 @@
 using namespace std;
 
 int64_t nWalletUnlockTime;
-static CCriticalSection cs_nWalletUnlockTime;
 
 std::string HelpRequiringPassphrase()
 {

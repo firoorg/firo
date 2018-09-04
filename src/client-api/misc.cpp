@@ -11,7 +11,7 @@
 #include "znode.h"
 #include "activeznode.h"
 #include <zmqserver/zmqabstract.h>
-#include <univalue.h>
+#include "univalue.h"
 
 namespace fs = boost::filesystem;
 using namespace std;
