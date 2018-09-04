@@ -93,6 +93,11 @@ public:
 
     /** switch to MTP time */
     uint32_t nMTPSwitchTime;
+
+    /** don't adjust difficulty until some block number */
+    int nDifficultyAdjustStartBlock;
+    /** fixed diffuculty to use before adjustment takes place */
+    int nFixedDifficulty;
 	
 protected:
     CChainParams() {}

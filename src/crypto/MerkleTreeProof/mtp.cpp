@@ -225,23 +225,6 @@ bool mtp_verify(const char* input, const uint32_t target,
                 sizeof(uint64_t) * ARGON2_QWORDS_IN_BLOCK);
     }
 
-    LogPrintf("START mtp_verify\n");
-
-    LogPrintf("pblock->hash_root_mtp:\n");
-    for (int i = 0; i < 16; ++i) {
-        LogPrintf("%0x", root[i]);
-    }
-    LogPrintf("\n");
-    LogPrintf("pblock->nNonce: %s\n", nonce);
-    LogPrintf("pblock->nBlockMTP:\n");
-    for (int i = 0; i < 1; ++i) {
-        LogPrintf("%s = ", i);
-        for (int j = 0; j < 10; ++j) {
-            LogPrintf("%0x", blocks[i].v[j]);
-        }
-        LogPrintf("\n");
-    }
-
 #define TEST_OUTLEN 32
 #define TEST_PWDLEN 80
 #define TEST_SALTLEN 80
@@ -312,26 +295,10 @@ bool mtp_verify(const char* input, const uint32_t target,
     blake2b_update(&state_y0, &nonce, sizeof(unsigned int));
     blake2b_final(&state_y0, &y[0], sizeof(uint256));
 
-    LogPrintf("y[0] = %s\n", y[0].ToString());
-
-    LogPrintf("input = \n");
-    for (int i = 0; i < 80; ++i) {
-        unsigned char x = static_cast<unsigned char>(input[i]);
-        LogPrintf("%0x", x);
-    }
-    LogPrintf("\n");
-    LogPrintf("y[0] = %s\n", y[0].ToString());
-
     // get hash_zero
     uint8_t h0[ARGON2_PREHASH_SEED_LENGTH];
     initial_hash(h0, &context_verify, instance.type);
-    std::ostringstream ossx;
-    ossx << "h0 = ";
-    for (int xxx = 0; xxx < 72; ++xxx) {
-        ossx << std::hex << std::setw(2) << std::setfill('0') << (int)h0[xxx];
-    }
-    LogPrintf("H0_Verify : %s\n", ossx.str());
-
+    
     // step 8
     for (uint32_t j = 1; j <= L; ++j) {
         // compute ij
@@ -422,14 +389,6 @@ bool mtp_verify(const char* input, const uint32_t target,
         compute_blake2b(block_ij, digest_ij);
         MerkleTree::Buffer hash_ij(digest_ij, digest_ij + sizeof(digest_ij));
 
-        std::ostringstream oss;
-        oss << "hash_ij[" << ij << "] = 0x";
-        for (MerkleTree::Buffer::const_iterator it = hash_ij.begin();
-                it != hash_ij.end();
-                ++it) {
-            oss << std::hex << std::setw(2) << std::setfill('0') << (int)*it;
-        }
-
         if (!MerkleTree::checkProofOrdered(proof_blocks[(j * 3) - 3], root,
                     hash_ij, ij + 1)) {
             LogPrintf("error : checkProofOrdered in x[ij]\n");
@@ -469,10 +428,6 @@ bool mtp_verify(const char* input, const uint32_t target,
             || (UintToArith256(y[L]) > bn_target)) {
         return false;
     }
-    LogPrintf("Verified :\n");
-    LogPrintf("hashTarget = %s\n", ArithToUint256(bn_target).GetHex().c_str());
-    LogPrintf("y[L] 	  = %s", y[L].GetHex().c_str());
-    LogPrintf("nNonce 	  = %s\n", nonce);
     return true;
 }
 
@@ -483,8 +438,6 @@ bool mtp_hash1(const char* input, uint32_t target, uint8_t hash_root_mtp[16],
         std::deque<std::vector<uint8_t>> proof_mtp[73*3], uint256 pow_limit,
         uint256& output)
 {
-    LogPrintf("START mtp_hash\n");
-
 #define TEST_OUTLEN 32
 #define TEST_PWDLEN 80
 #define TEST_SALTLEN 80
@@ -659,15 +612,10 @@ bool mtp_hash1(const char* input, uint32_t target, uint8_t hash_root_mtp[16],
             continue;
         }
 
-        LogPrintf("Found a MTP solution :\n");
-        LogPrintf("hashTarget = %s\n", ArithToUint256(bn_target.m_target).GetHex().c_str());
-        LogPrintf("Y[L] 	  = %s", y[L].GetHex().c_str());
-        LogPrintf("nNonce 	  = %s\n", n_nonce_internal);
         break;
     }
 
     // step 7
-    LogPrintf("END mtp_hash\n");
     std::copy(root.begin(), root.end(), hash_root_mtp);
 
     nonce = n_nonce_internal;
@@ -680,54 +628,14 @@ bool mtp_hash1(const char* input, uint32_t target, uint8_t hash_root_mtp[16],
     }
     std::memcpy(&output, &y[L], sizeof(uint256));
 
-    LogPrintf("pblock->hashRootMTP:\n");
-    for (int i = 0; i < 16; ++i) {
-        LogPrintf("%0x", hash_root_mtp[i]);
-    }
-    LogPrintf("\n");
-    LogPrintf("pblock->nNonce: %s\n", nonce);
-    LogPrintf("pblock->nBlockMTP:\n");
-    for (int i = 0; i < 1; ++i) {
-        LogPrintf("%s = ", i);
-        for (int j = 0; j < 10; j++) {
-            LogPrintf("%0x", block_mtp[i][j]);
-        }
-        LogPrintf("\n");
-    }
-    LogPrintf("input = \n");
-    for (int i = 0; i < 80; ++i) {
-        unsigned char x;
-        std::memcpy(&x, &input[i], sizeof(unsigned char));
-        LogPrintf("%0x", x);
-    }
-    LogPrintf("\n");
-    LogPrintf("Y[0] = %s\n", y[0].ToString());
-
     uint8_t h0[ARGON2_PREHASH_SEED_LENGTH];
     std::memcpy(h0, instance.hash_zero,
             sizeof(uint8_t) * ARGON2_PREHASH_SEED_LENGTH);
 
-    std::ostringstream ossx;
-    ossx << "h0 = ";
-    for (int xxx = 0; xxx < 72; ++xxx) {
-        ossx << std::hex << std::setw(2) << std::setfill('0')
-            << (int)h0[xxx];
-    }
-    LogPrintf("H0_Proof : %s\n", ossx.str());
-
     // get hash_zero
     uint8_t h0_computed[ARGON2_PREHASH_SEED_LENGTH];
     initial_hash(h0_computed, &context, instance.type);
-    std::ostringstream ossxxx;
-    ossxxx << "h0 = ";
-    for (int xxx = 0; xxx < 72; ++xxx) {
-        ossxxx << std::hex << std::setw(2) << std::setfill('0')
-            << (int)h0_computed[xxx];
-    }
-
-    LogPrintf("H0_Proof_Computed : %s\n", ossx.str());
-    LogPrintf("RETURN mtp_hash\n");
-    LogPrintf("FREE memory\n");
+    
     free_memory(&context, (uint8_t *)instance.memory, instance.memory_blocks, sizeof(block));
     return true;
 }
