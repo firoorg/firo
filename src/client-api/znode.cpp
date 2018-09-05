@@ -4,10 +4,10 @@
 
 #include "activeznode.h"
 #include "znodeman.h"
-#include "univalue.h"
+#include <univalue.h>
 #include "znode-sync.h"
 #include "client-api/server.h"
-#include "client-api/protocol.h"
+#include <client-api/protocol.h>
 #include <client-api/wallet.h>
 #include <unordered_map>
 

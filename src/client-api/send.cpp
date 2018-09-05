@@ -8,13 +8,12 @@
 #include "util.h"
 #include "wallet/wallet.h"
 #include <client-api/wallet.h>
-#include "client-api/protocol.h"
+#include <client-api/protocol.h>
 #include "rpc/server.h"
-#include "univalue.h"
-#include <fstream>
+#include <univalue.h>
 
 namespace fs = boost::filesystem;
-using namespace boost::chrono;
+using namespace std::chrono;
 using namespace std;
 
 bool setTxFee(const UniValue& feeperkb){

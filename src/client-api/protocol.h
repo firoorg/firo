@@ -3,15 +3,9 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_APIPROTOCOL_H
-#define BITCOIN_APIPROTOCOL_H
-#include "univalue.h"
-
-#include <list>
-#include <map>
-#include <stdint.h>
-#include <string>
-#include <boost/filesystem.hpp>
+// #ifndef BITCOIN_APIPROTOCOL_H
+// #define BITCOIN_APIPROTOCOL_H
+#include <univalue.h>
 
 //! Zcoin client-API error codes
 enum APIErrorCode
@@ -70,4 +64,4 @@ UniValue JSONAPIReplyObj(const UniValue& result, const UniValue& error);
 std::string JSONAPIReply(const UniValue& result, const UniValue& error);
 UniValue JSONAPIError(int code, const std::string& message);
 
-#endif //BITCOIN_APIPROTOCOL_H
+//#endif // ZCOIN_CLIENTAPIPROTOCOL_H

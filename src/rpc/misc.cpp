@@ -17,7 +17,6 @@
 #ifdef ENABLE_WALLET
 #include "znode-sync.h"
 #include "wallet/wallet.h"
-#include "wallet/rpcwallet.h"
 #include "wallet/walletdb.h"
 #endif
 

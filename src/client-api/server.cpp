@@ -2,7 +2,7 @@
 #include "client-api/protocol.h"
 #include "util.h"
 #include "wallet/wallet.h"
-#include "univalue.h"
+#include <univalue.h>
 #include <boost/signals2/signal.hpp>
 
 static bool fAPIRunning = false;

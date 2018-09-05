@@ -5,17 +5,8 @@
 #ifndef BITCOIN_WALLET_RPCWALLET_H
 #define BITCOIN_WALLET_RPCWALLET_H
 
-extern int64_t nWalletUnlockTime;
-static CCriticalSection cs_nWalletUnlockTime;
-
 class CRPCTable;
 
 void RegisterWalletRPCCommands(CRPCTable &tableRPC);
-
-bool EnsureWalletIsAvailable(bool avoidException);
-
-void EnsureWalletIsUnlocked();
-
-vector<string> GetMyAccountNames();
 
 #endif //BITCOIN_WALLET_RPCWALLET_H

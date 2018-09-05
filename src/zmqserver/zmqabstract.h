@@ -12,6 +12,8 @@ class CZMQAbstract;
 
 typedef CZMQAbstract* (*CZMQFactory)();
 
+extern const bool DEFAULT_RESETAPICERTS = false;
+
 class CZMQAbstract
 {
 public:

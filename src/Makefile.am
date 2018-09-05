@@ -117,11 +117,6 @@ BITCOIN_CORE_H = \
   checkpoints.h \
   checkqueue.h \
   clientversion.h \
-  client-api/protocol.h \
-  client-api/register.h \
-  client-api/server.h \
-  client-api/settings.h \
-  client-api/wallet.h \
   coincontrol.h \
   coins.h \
   compat.h \
@@ -262,7 +257,6 @@ libbitcoin_zmq_a_SOURCES = \
   zmqserver/zmqinterface.cpp \
   zmqserver/zmqpublisher.cpp \
   zmqserver/zmqreplier.cpp \
-  client-api/protocol.cpp \
   client-api/server.cpp \
   client-api/settings.cpp \
   client-api/misc.cpp \
