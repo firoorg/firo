@@ -1,5 +1,7 @@
+# ide & editor stuff
 .project
 .cproject
+.vscode
 
 *.tar.gz
 
