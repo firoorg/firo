@@ -16,6 +16,35 @@ namespace fs = boost::filesystem;
 using namespace std::chrono;
 using namespace std;
 
+UniValue getPaymentRequest(string address){
+    fs::path const &path = CreatePaymentRequestFile();
+    LogPrintf("paymentrequest path: %s\n", path.string());
+
+    // get data as ifstream
+    std::ifstream paymentRequestIn(path.string());
+
+    // parse as std::string
+    std::string paymentRequestStr((std::istreambuf_iterator<char>(paymentRequestIn)), std::istreambuf_iterator<char>());
+    LogPrintf("paymentRequestStr: %s\n", paymentRequestStr);
+
+    // finally as UniValue
+    UniValue paymentRequestUni(UniValue::VOBJ);
+    paymentRequestUni.read(paymentRequestStr);
+    LogPrintf("paymentRequestUni write: %s\n", paymentRequestUni.write());
+
+    UniValue paymentRequestData(UniValue::VOBJ);
+    if(!paymentRequestUni["data"].isNull()){
+        paymentRequestData = paymentRequestUni["data"];
+    }
+
+    UniValue entry(UniValue::VOBJ);
+
+    entry = find_value(paymentRequestData, address);
+
+    return entry;
+
+}
+
 bool setTxFee(const UniValue& feeperkb){
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
@@ -69,6 +98,9 @@ UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool f
     vector<string> keys = sendTo.getKeys();
     BOOST_FOREACH(const string& name_, keys)
     {
+        UniValue entry(UniValue::VOBJ);
+        entry = find_value(sendTo, name_).get_obj();
+
         CBitcoinAddress address(name_);
         if (!address.IsValid())
             throw JSONAPIError(API_INVALID_ADDRESS_OR_KEY, string("Invalid zcoin address: ")+name_);
@@ -78,7 +110,7 @@ UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool f
         setAddress.insert(address);
 
         CScript scriptPubKey = GetScriptForDestination(address.Get());
-        CAmount nAmount = sendTo[name_].get_int64();
+        CAmount nAmount = find_value(entry, "amount").get_int64();
         LogPrintf("nAmount sendmanyfromany: %s\n", nAmount);
         if (nAmount <= 0)
             throw JSONAPIError(API_TYPE_ERROR, "Invalid amount for send");

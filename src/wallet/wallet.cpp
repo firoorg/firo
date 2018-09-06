@@ -3358,6 +3358,105 @@ bool CWallet::CreateZerocoinMintModel(string &stringError, string denomAmount) {
     }
 }
 
+bool CWallet::CreateZerocoinMintModel(string &stringError, vector<string> denomAmounts) {
+
+    if (!fFileBacked)
+        return false;
+
+    std::vector<std::pair<int64_t,libzerocoin::CoinDenomination>> denominations;
+    int64_t nAmount;
+    libzerocoin::CoinDenomination denomination;
+
+    for(vector<string>::iterator it = denomAmounts.begin(); it != denomAmounts.end(); it++){
+        // Amount
+        string denomAmount = (*it).c_str();
+
+        if (denomAmount == "1") {
+            denomination = libzerocoin::ZQ_LOVELACE;
+            nAmount = roundint64(1 * COIN);
+        } else if (denomAmount == "10") {
+            denomination = libzerocoin::ZQ_GOLDWASSER;
+            nAmount = roundint64(10 * COIN);
+        } else if (denomAmount == "25") {
+            denomination = libzerocoin::ZQ_RACKOFF;
+            nAmount = roundint64(25 * COIN);
+        } else if (denomAmount == "50") {
+            denomination = libzerocoin::ZQ_PEDERSEN;
+            nAmount = roundint64(50 * COIN);
+        } else if (denomAmount == "100") {
+            denomination = libzerocoin::ZQ_WILLIAMSON;
+            nAmount = roundint64(100 * COIN);
+        } else {
+            return false;
+        }
+
+        denominations.push_back(std::make_pair(nAmount, denomination));
+    }
+
+    // Set up the Zerocoin Params object
+    libzerocoin::Params *zcParams = ZCParamsV2;
+    
+    int mintVersion = ZEROCOIN_TX_VERSION_1;
+    
+    // do not use v2 mint until certain moment when it would be understood by peers
+    {
+        LOCK(cs_main);
+        if (chainActive.Height() >= Params().nSpendV15StartBlock)
+            mintVersion = ZEROCOIN_TX_VERSION_2;
+    }
+
+    for(vector<pair<int64_t, libzerocoin::CoinDenomination>>::iterator it = denominations.begin(); it!=denominations.end();it++)
+    {
+        int64_t nAmount = (*it).first;
+        libzerocoin::CoinDenomination denomination = (*it).second;
+
+        // The following constructor does all the work of minting a brand
+        // new zerocoin. It stores all the private values inside the
+        // PrivateCoin object. This includes the coin secrets, which must be
+        // stored in a secure location (wallet) at the client.
+        libzerocoin::PrivateCoin newCoin(zcParams, denomination, mintVersion);
+
+        // Get a copy of the 'public' portion of the coin. You should
+        // embed this into a Zerocoin 'MINT' transaction along with a series
+        // of currency inputs totaling the assigned value of one zerocoin.
+        libzerocoin::PublicCoin pubCoin = newCoin.getPublicCoin();
+
+        // Validate
+        if (pubCoin.validate()) {
+            //TODOS
+            CScript scriptSerializedCoin =
+                    CScript() << OP_ZEROCOINMINT << pubCoin.getValue().getvch().size() << pubCoin.getValue().getvch();
+
+            // Wallet comments
+            CWalletTx wtx;
+
+            stringError = MintZerocoin(scriptSerializedCoin, nAmount, wtx);
+
+            if (stringError != "")
+                return false;
+
+            const unsigned char *ecdsaSecretKey = newCoin.getEcdsaSeckey();
+            CZerocoinEntry zerocoinTx;
+            zerocoinTx.IsUsed = false;
+            zerocoinTx.denomination = denomination;
+            zerocoinTx.value = pubCoin.getValue();
+            zerocoinTx.randomness = newCoin.getRandomness();
+            zerocoinTx.serialNumber = newCoin.getSerialNumber();
+            zerocoinTx.ecdsaSecretKey = std::vector<unsigned char>(ecdsaSecretKey, ecdsaSecretKey+32);
+            LogPrintf("CreateZerocoinMintModel() -> NotifyZerocoinChanged\n");
+            LogPrintf("pubcoin=%s, isUsed=%s\n", zerocoinTx.value.GetHex(), zerocoinTx.IsUsed);
+            LogPrintf("randomness=%s, serialNumber=%s\n", zerocoinTx.randomness, zerocoinTx.serialNumber);
+            NotifyZerocoinChanged(this, zerocoinTx.value.GetHex(), "New (" + std::to_string(zerocoinTx.denomination) + " mint)", CT_NEW);
+            if (!CWalletDB(strWalletFile).WriteZerocoinEntry(zerocoinTx))
+                return false;
+        } else {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 bool CWallet::CreateZerocoinSpendModel(string &stringError, string thirdPartyAddress, string denomAmount, bool forceUsed) {
     if (!fFileBacked)
         return false;
@@ -3393,6 +3492,56 @@ bool CWallet::CreateZerocoinSpendModel(string &stringError, string thirdPartyAdd
     bool zcSelectedIsUsed;
 
     stringError = SpendZerocoin(thirdPartyAddress, nAmount, denomination, wtx, coinSerial, txHash, zcSelectedValue, zcSelectedIsUsed, forceUsed);
+
+    if (stringError != "")
+        return false;
+
+    return true;
+
+}
+
+bool CWallet::CreateZerocoinSpendModel(string &stringError, string thirdPartyAddress, vector<string> denomAmounts, bool forceUsed) {
+    if (!fFileBacked)
+        return false;
+
+    
+    vector<pair<int64_t, libzerocoin::CoinDenomination>> denominations;
+    for(vector<string>::iterator it = denomAmounts.begin(); it != denomAmounts.end(); it++){
+        string denomAmount = (*it).c_str();
+        int64_t nAmount = 0;
+        libzerocoin::CoinDenomination denomination;
+        // Amount
+        if (denomAmount == "1") {
+            denomination = libzerocoin::ZQ_LOVELACE;
+            nAmount = roundint64(1 * COIN);
+        } else if (denomAmount == "10") {
+            denomination = libzerocoin::ZQ_GOLDWASSER;
+            nAmount = roundint64(10 * COIN);
+        } else if (denomAmount == "25") {
+            denomination = libzerocoin::ZQ_RACKOFF;
+            nAmount = roundint64(25 * COIN);
+        } else if (denomAmount == "50") {
+            denomination = libzerocoin::ZQ_PEDERSEN;
+            nAmount = roundint64(50 * COIN);
+        } else if (denomAmount == "100") {
+            denomination = libzerocoin::ZQ_WILLIAMSON;
+            nAmount = roundint64(100 * COIN);
+        } else {
+            return false;
+        }
+
+        denominations.push_back(make_pair(nAmount, denomination));
+    }
+
+    // Wallet comments
+    CWalletTx wtx;
+
+    CBigNum coinSerial;
+    uint256 txHash;
+    CBigNum zcSelectedValue;
+    bool zcSelectedIsUsed;
+
+    stringError = SpendMultipleZerocoin(thirdPartyAddress, denominations, wtx, coinSerial, txHash, zcSelectedValue, zcSelectedIsUsed, forceUsed);
 
     if (stringError != "")
         return false;

@@ -8,6 +8,7 @@
 #include "util.h"
 #include "wallet/wallet.h"
 #include "client-api/server.h"
+#include "client-api/send.h"
 #include <client-api/protocol.h>
 #include <univalue.h>
 
@@ -229,8 +230,6 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
 
             CAmount amount = ValueFromAmount(s.amount).get_real() * COIN;
             entry.push_back(Pair("amount", amount));
-            if (pwalletMain->mapAddressBook.count(s.destination))
-                entry.push_back(Pair("label", pwalletMain->mapAddressBook[s.destination].name));
             entry.push_back(Pair("fee", ValueFromAmount(nFee).get_real() * COIN));
             APIWalletTxToJSON(wtx, entry);
 
@@ -317,8 +316,17 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
 
             CAmount amount = ValueFromAmount(r.amount).get_real() * COIN;
             entry.push_back(Pair("amount", amount));
-            if (pwalletMain->mapAddressBook.count(r.destination))
-                entry.push_back(Pair("label", account));
+
+            UniValue paymentRequest = getPaymentRequest(addrStr);
+            if(!paymentRequest.isNull()){
+                CAmount prAmount = find_value(paymentRequest, "amount").get_real();
+                // amount and address match - tack the label onto the returned object
+                if(prAmount==amount){
+
+                    string label = find_value(paymentRequest, "label").get_str();
+                    entry.push_back(Pair("label", label));   
+                }
+            }
 
             APIWalletTxToJSON(wtx, entry);
 
