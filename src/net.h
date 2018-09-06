@@ -17,6 +17,7 @@
 #include "sync.h"
 #include "uint256.h"
 #include "threadinterrupt.h"
+#include "util.h"
 
 #include <atomic>
 #include <deque>
@@ -584,12 +585,13 @@ public:
     void PushInventory(const CInv& inv)
     {
         LOCK(cs_inventory);
+        LogPrintf("Pushing inventory %s to %s", inv.hash.ToString(), addr.ToString());
         if (inv.type == MSG_TX) {
             if (!filterInventoryKnown.contains(inv.hash)) {
                 setInventoryTxToSend.insert(inv.hash);
             }
         } else if (inv.type == MSG_DANDELION_TX) {
-        	if (setDandelionInventoryKnown.count(inv.hash)==0) {
+        	if (setDandelionInventoryKnown.count(inv.hash) == 0) {
         		vInventoryDandelionTxToSend.push_back(inv.hash);
         	}
         } else if (inv.type == MSG_BLOCK) {

@@ -1712,7 +1712,9 @@ bool AcceptToMemoryPool(
 	    const CAmount nAbsurdFee,
         bool isCheckWalletTransaction,
         bool markZcoinSpendTransactionSerial) {
-    LogPrintf("AcceptToMemoryPool(), fCheckInputs=%s\n", fCheckInputs);
+    LogPrintf("AcceptToMemoryPool(), transaction: %s, fCheckInputs=%s\n", 
+              tx.GetHash().ToString(), 
+              fCheckInputs);
     std::vector <uint256> vHashTxToUncache;
     bool res = AcceptToMemoryPoolWorker(pool, state, tx, fCheckInputs, fLimitFree, pfMissingInputs,
                                         fOverrideMempoolLimit, nAbsurdFee,
@@ -5774,10 +5776,12 @@ void static ProcessGetData(CNode *pfrom, const Consensus::Params &consensusParam
                 if (inv.type == MSG_TX || inv.type == MSG_WITNESS_TX) {
                     auto mi = mapRelay.find(inv.hash);
                     int nSendFlags = (inv.type == MSG_TX ? SERIALIZE_TRANSACTION_NO_WITNESS : 0);
-
+                    LogPrintf("Transaction %s requested from node %d.\n", 
+                              inv.hash.ToString(), 
+                              pfrom->GetId());
                     if (!pfrom->fSupportsDandelion && 
-                            !CNode::isDandelionInbound(pfrom) && 
-                            pfrom->setDandelionInventoryKnown.count(inv.hash)!=0) {
+                        !CNode::isDandelionInbound(pfrom) && 
+                        pfrom->setDandelionInventoryKnown.count(inv.hash) != 0) {
 
                         auto txinfo = stempool.info(inv.hash);
                         if (txinfo.tx) {
@@ -5802,6 +5806,9 @@ void static ProcessGetData(CNode *pfrom, const Consensus::Params &consensusParam
                         }
                     }
                 } else {
+                    LogPrintf("Peer asked for dandelion transaction %s from node %d.", 
+                              inv.hash.ToString(), 
+                              pfrom->GetId());
                     int nSendFlags = (
                             inv.type == MSG_DANDELION_TX ?
                             SERIALIZE_TRANSACTION_NO_WITNESS : 0);
@@ -5975,7 +5982,8 @@ uint32_t GetFetchFlags(CNode *pfrom, CBlockIndex *pprev, const Consensus::Params
     return nFetchFlags;
 }
 
-bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, int64_t nTimeReceived,
+bool static ProcessMessage(CNode *pfrom, string strCommand, 
+                           CDataStream &vRecv, int64_t nTimeReceived,
                            const CChainParams &chainparams) {
     if (mapArgs.count("-dropmessagestest") && GetRand(atoi(mapArgs["-dropmessagestest"])) == 0) {
         LogPrintf("dropmessagestest DROPPING RECV MESSAGE\n");
@@ -5983,7 +5991,6 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
     }
 
     LogPrint("main", "ProcessMessage, strCommand=%s\n", strCommand);
-
 
     if (!(nLocalServices & NODE_BLOOM) &&
         (strCommand == NetMsgType::FILTERLOAD ||
@@ -5999,8 +6006,11 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
         }
     }
 
-    CNode::CheckDandelionEmbargoes();
-
+    {
+        LOCK(cs_main);
+        CNode::CheckDandelionEmbargoes();
+    }
+    
     if (strCommand == NetMsgType::VERSION) {
         // Feeler connections exist only to verify if address is online.
         if (pfrom->fFeeler) {
@@ -6142,7 +6152,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
         LogPrintf("Must have a version message before anything else\n");
         return false;
     } else if (strCommand == NetMsgType::VERACK) {
-        LogPrintf("Received verack message from %s", pfrom->addr.ToString());
+        LogPrintf("Received verack message from %s\n", pfrom->addr.ToString());
         pfrom->SetRecvVersion(min(pfrom->nVersion, PROTOCOL_VERSION));
 
         // Mark this node as currently connected, so we update its timestamp later.
@@ -6289,7 +6299,10 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
 //            }
 
             bool fAlreadyHave = AlreadyHave(inv);
-//            LogPrint("net", "got inv: %s  %s peer=%d\n", inv.ToString(), fAlreadyHave ? "have" : "new", pfrom->id);
+            LogPrintf("Got inv: %s  %s peer=%d\n", 
+                      inv.ToString(), 
+                      fAlreadyHave ? "have" : "new", 
+                      pfrom->id);
 
             if (inv.type == MSG_TX || inv.type == MSG_DANDELION_TX) {
                 inv.type |= nFetchFlags;
@@ -6336,7 +6349,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
                 } else if ((!fAlreadyHave && !fImporting && !fReindex && 
                             !IsInitialBlockDownload() && 
                             CNode::isDandelionInbound(pfrom)) ||
-                           (inv.hash==dandelionServiceDiscoveryHash)) {
+                            inv.hash == dandelionServiceDiscoveryHash) {
                     pfrom->AskFor(inv);
                 }
             } else {
@@ -6592,23 +6605,25 @@ bool static ProcessMessage(CNode *pfrom, string strCommand, CDataStream &vRecv, 
         mapAlreadyAskedFor.erase(inv.hash);
         if (!AlreadyHave(inv) && !tx.IsZerocoinSpend()  && 
             AcceptToMemoryPool(mempool, state, tx, true, true, &fMissingInputs, false, 0, true)) {
+            LogPrintf("Transaction %s received and added to the mempool.\n", 
+                      tx.GetHash().ToString());
+
             // Changes to mempool should also be made to Dandelion stempool
             AcceptToMemoryPool(
-                    stempool, 
-                    dummyState,
-                    tx, 
-                    true, /* fCheckInputs */
-                    true, /* fLimitFree */
-                    &fMissingInputs, /* pfMissingInputs */
-                    false, /* fOverrideMempoolLimit */
-                    0, /* nAbsurdFee */
-                    true, /* isCheckWalletTransaction */
-                    false /* markZcoinSpendTransactionSerial */
-                );
+                stempool, 
+                dummyState,
+                tx, 
+                true, /* fCheckInputs */
+                true, /* fLimitFree */
+                &fMissingInputs, /* pfMissingInputs */
+                false, /* fOverrideMempoolLimit */
+                0, /* nAbsurdFee */
+                true, /* isCheckWalletTransaction */
+                false /* markZcoinSpendTransactionSerial */
+            );
 
             if (CNode::isTxDandelionEmbargoed(tx.GetHash())) {
-                LogPrint(
-                    "dandelion", 
+                LogPrintf(
                     "Embargoed dandeliontx %s found in mempool; removing from embargo map\n", 
                     tx.GetHash().ToString());
                 CNode::removeDandelionEmbargo(tx.GetHash());

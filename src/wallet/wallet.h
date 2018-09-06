@@ -427,6 +427,7 @@ public:
     bool IsEquivalentTo(const CWalletTx& tx) const;
 
     bool InMempool() const;
+    bool InStempool() const;
     bool IsTrusted() const;
 
     int64_t GetTxTime() const;
@@ -906,12 +907,10 @@ public:
 
     void Inventory(const uint256 &hash)
     {
-        {
-            LOCK(cs_wallet);
-            std::map<uint256, int>::iterator mi = mapRequestCount.find(hash);
-            if (mi != mapRequestCount.end())
-                (*mi).second++;
-        }
+        LOCK(cs_wallet);
+        std::map<uint256, int>::iterator mi = mapRequestCount.find(hash);
+        if (mi != mapRequestCount.end())
+            (*mi).second++;
     }
 
     void GetScriptForMining(boost::shared_ptr<CReserveScript> &script);

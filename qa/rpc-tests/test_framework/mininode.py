@@ -39,7 +39,7 @@ import copy
 from test_framework.siphash import siphash256
 
 BIP0031_VERSION = 60000
-MY_VERSION = 70014  # past bip-31 for ping/pong
+MY_VERSION = 90025  # past bip-31 for ping/pong
 MY_SUBVERSION = b"/python-mininode-tester:0.0.3/"
 
 MAX_INV_SZ = 50000
@@ -1521,6 +1521,7 @@ class NodeConnCB(object):
             time.sleep(deliver_sleep)
         with mininode_lock:
             try:
+                print("Delivering ", 'on_' + message.command.decode('ascii'))
                 getattr(self, 'on_' + message.command.decode('ascii'))(conn, message)
             except:
                 print("ERROR delivering %s (%s)" % (repr(message),
@@ -1558,7 +1559,8 @@ class NodeConnCB(object):
     def on_ping(self, conn, message):
         if conn.ver_send > BIP0031_VERSION:
             conn.send_message(msg_pong(message.nonce))
-    def on_reject(self, conn, message): pass
+    def on_reject(self, conn, message):
+        print("Connection rejected with message: ", message)
     def on_close(self, conn): pass
     def on_mempool(self, conn): pass
     def on_notfound(self, message): pass
@@ -1583,6 +1585,7 @@ class SingleNodeConnCB(NodeConnCB):
         self.connection = conn
 
     # Wrapper for the NodeConn's send_message function
+        self.send_message(vt, True)
     def send_message(self, message):
         self.connection.send_message(message)
 
@@ -1659,7 +1662,7 @@ class NodeConn(asyncore.dispatcher):
         vt.nServices = services
         vt.addrTo.ip = self.dstaddr
         vt.addrTo.port = self.dstport
-        vt.addrFrom.ip = "0.0.0.0"
+        vt.addrFrom.ip = "127.0.0.1"
         vt.addrFrom.port = 0
         self.send_message(vt, True)
         print('MiniNode: Connecting to Bitcoin Node IP # ' + dstaddr + ':' \
@@ -1667,7 +1670,10 @@ class NodeConn(asyncore.dispatcher):
 
         try:
             self.connect((dstaddr, dstport))
+            print("Connection to " + dstaddr + ':' + \
+                  str(dstport) + " successful. State is " + self.state)
         except:
+            print("Connection to " + dstaddr + ':' + str(dstport) + " failed.")
             self.handle_close()
         self.rpc = rpc
 
@@ -1675,10 +1681,13 @@ class NodeConn(asyncore.dispatcher):
         self.log.debug(msg)
 
     def handle_connect(self):
+        print("MiniNode: Connected & Listening: \n")
         self.show_debug_msg("MiniNode: Connected & Listening: \n")
         self.state = "connected"
 
     def handle_close(self):
+        print("MiniNode: Closing Connection to %s:%d... "
+                            % (self.dstaddr, self.dstport))
         self.show_debug_msg("MiniNode: Closing Connection to %s:%d... "
                             % (self.dstaddr, self.dstport))
         self.state = "closed"
@@ -1712,6 +1721,7 @@ class NodeConn(asyncore.dispatcher):
             try:
                 sent = self.send(self.sendbuf)
             except:
+                print("Closing connection in handle_write")
                 self.handle_close()
                 return
             self.sendbuf = self.sendbuf[sent:]
@@ -1803,6 +1813,7 @@ class NetworkThread(Thread):
             for fd, obj in mininode_socket_map.items():
                 if obj.disconnect:
                     disconnected.append(obj)
+                    print("NetworkThread:run disconnecting " + fd + " " + obj.disconnect)
             [ obj.handle_close() for obj in disconnected ]
             asyncore.loop(0.1, use_poll=True, map=mininode_socket_map, count=1)
 

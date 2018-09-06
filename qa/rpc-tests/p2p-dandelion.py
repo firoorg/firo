@@ -43,7 +43,6 @@ class TestP2PConn(NodeConnCB):
 
         self.ping_counter = 1
         self.last_pong = msg_pong()
-        self.block_receive_map = {}
 
     def add_connection(self, conn):
         self.connection = conn
@@ -68,13 +67,6 @@ class TestP2PConn(NodeConnCB):
     # Track the last getdata message we receive (used in the test)
     def on_getdata(self, conn, message):
         self.last_getdata = message
-
-    def on_block(self, conn, message):
-        message.block.calc_sha256()
-        try:
-            self.block_receive_map[message.block.sha256] += 1
-        except KeyError as e:
-            self.block_receive_map[message.block.sha256] = 1
 
     # Spin until verack message is received from the node.
     # We use this to signal that our test can begin. This
@@ -111,7 +103,8 @@ class TestP2PConn(NodeConnCB):
 
     def send_dandeliontx_getdata(self, dandeliontx_hash):
         msg = msg_getdata([CInv(5,dandeliontx_hash)]) # 5: "DandelionTx"
-        self.send_message(msg)
+        print("Dandelion hash is ", dandeliontx_hash )
+        self.connection.send_message(msg)
 
 
 class DandelionTest(BitcoinTestFramework):
@@ -126,7 +119,7 @@ class DandelionTest(BitcoinTestFramework):
         print("setup_nodes");
         return start_nodes(
             self.num_nodes, self.options.tmpdir, 
-            extra_args=[['-debug', '-whitelist=127.0.0.1']] * self.num_nodes)
+            extra_args=[['-regtest', '-debug', '-whitelist=127.0.0.1']] * self.num_nodes)
 
     def setup_network(self):
         print("Setting up network for dandelion.")
@@ -148,12 +141,13 @@ class DandelionTest(BitcoinTestFramework):
         # Setup TestP2PConns
         test_node0 = TestP2PConn()
 
-        # NOTE: In next line p2p_port(0) was replaced by rpc_port(0).
-        test_node0.add_connection(NodeConn('127.0.0.1', rpc_port(0), node0, test_node0))
+        connection = NodeConn('127.0.0.1', p2p_port(0), node0, test_node0)
+        test_node0.add_connection(connection)
 
         # Start networking thread
         NetworkThread().start()
         test_node0.wait_for_verack()
+        print("Dandelion test: verack " + ("received." if test_node0.verack_received else "failed."))
 
         # Get out of Initial Block Download (IBD)
         for node in self.nodes:
