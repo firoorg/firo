@@ -2483,9 +2483,8 @@ void CNode::CheckDandelionEmbargoes()
     for (auto iter=mDandelionEmbargo.begin(); iter != mDandelionEmbargo.end();) {
         // If we got the embargoed transaction back, erase it.
         if (mempool.exists(iter->first)) {
-            LogPrint(
-                "dandelion", 
-                "Embargoed dandeliontx %s found in mempool; removing from embargo map\n", 
+            LogPrintf(
+                "Embargoed dandeliontx %s found in mempool; removing from embargo map.\n", 
                 iter->first.ToString());
             iter = mDandelionEmbargo.erase(iter);
         } else if (iter->second < nCurrTime) {
@@ -2519,10 +2518,10 @@ void CNode::CheckDandelionEmbargoes()
                 0, /* nAbsurdFee */
                 false /*isCheckWalletTransaction*/ // TODO(martun): check what all these booleans do!
                 );
-            LogPrint("mempool", "AcceptToMemoryPool: accepted %s (poolsz %u txn, %u kB)\n",
-                     iter->first.ToString(), 
-                     mempool.size(), 
-                     mempool.DynamicMemoryUsage() / 1000);
+            LogPrintf("AcceptToMemoryPool: accepted %s (poolsz %u txn, %u kB)\n",
+                      iter->first.ToString(), 
+                      mempool.size(), 
+                      mempool.DynamicMemoryUsage() / 1000);
             RelayTransaction(*ptx);
             iter = mDandelionEmbargo.erase(iter);
         } else {

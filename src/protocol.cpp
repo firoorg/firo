@@ -223,6 +223,11 @@ const char* CInv::GetCommand() const
 
 std::string CInv::ToString() const
 {
+    const char* command = GetCommand();
+    if (strcmp(command, "error") == 0)
+    {
+        return strprintf("Error %d %s", type, hash.ToString());
+    }
     return strprintf("%s %s", GetCommand(), hash.ToString());
 }
 
