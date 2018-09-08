@@ -111,6 +111,7 @@ const char * const BITCOIN_PID_FILENAME = "zcoind.pid";
 const char * const PERSISTENT_FILENAME = "persistent";
 
 const char * const PAYMENT_REQUEST_FILENAME = "payment_request.json";
+const char * const TX_METADATA_FILENAME = "tx_metadata.json";
 const char * const ZEROCOIN_FILENAME = "zerocoin.json";
 const char * const SETTINGS_FILENAME = "settings.json";
 const char * const TX_TIMESTAMP_FILENAME = "tx_timestamp.json";
@@ -597,6 +598,25 @@ boost::filesystem::path GetConfigFile()
     boost::filesystem::path pathConfigFile(GetArg("-conf", BITCOIN_CONF_FILENAME));
     if (!pathConfigFile.is_complete())
         pathConfigFile = GetDataDir(false) / pathConfigFile;
+
+    return pathConfigFile;
+}
+
+boost::filesystem::path CreateTxMetadataFile(bool fNetSpecific)
+{
+    boost::filesystem::path pathConfigFile = GetJsonDataDir(fNetSpecific,TX_METADATA_FILENAME);
+
+    LogPrintf("API: pathConfigFile tx metadata: %s\n", pathConfigFile.string());
+    if(!boost::filesystem::exists(pathConfigFile)){
+        UniValue txMetadataUni(UniValue::VOBJ);
+        txMetadataUni.push_back(Pair("type", "tx_metadata"));
+        txMetadataUni.push_back(Pair("data", NullUniValue));
+        
+        //write back UniValue
+        std::ofstream txMetadataOut(pathConfigFile.string());
+
+        txMetadataOut << txMetadataUni.write(4,0) << endl;
+    }
 
     return pathConfigFile;
 }

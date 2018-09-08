@@ -19,6 +19,36 @@ using namespace std;
 int64_t nWalletUnlockTime;
 static CCriticalSection cs_nWalletUnlockTime;
 
+UniValue getTxMetadataEntry(string txid, string address, CAmount amount){
+    fs::path const &path = CreateTxMetadataFile();
+
+    // get data as ifstream
+    std::ifstream txMetadataIn(path.string());
+
+    // parse as std::string
+    std::string txMetadataStr((std::istreambuf_iterator<char>(txMetadataIn)), std::istreambuf_iterator<char>());
+
+    // finally as UniValue
+    UniValue txMetadataUni(UniValue::VOBJ);
+    UniValue txMetadataData(UniValue::VOBJ);
+    txMetadataUni.read(txMetadataStr);
+
+    if(!txMetadataUni["data"].isNull()){
+        txMetadataData = txMetadataUni["data"];
+    }
+    UniValue entryPointer(UniValue::VOBJ);
+    UniValue entry(UniValue::VOBJ);
+    entryPointer = find_value(find_value(txMetadataData, txid), address);
+
+    if(!entryPointer.isNull()){
+        entry = entryPointer.get_obj();
+        LogPrintf("entry: %s\n", entry.write());
+        return entry;
+    }
+
+    return NullUniValue;
+}
+
 void EnsureWalletIsUnlocked()
 {
     if (pwalletMain->IsLocked())
@@ -233,6 +263,13 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
             entry.push_back(Pair("fee", ValueFromAmount(nFee).get_real() * COIN));
             APIWalletTxToJSON(wtx, entry);
 
+            UniValue txMetadata(UniValue::VOBJ);
+            txMetadata = getTxMetadataEntry(txid.ToString(), addrStr, amount);
+            if(!txMetadata.isNull()){
+                string label = find_value(txMetadata, "label").get_str();
+                entry.push_back(Pair("label", label));   
+            }
+
             if(!ret[addrStr].isNull()){
                 address = ret[addrStr];
             }
@@ -316,17 +353,6 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
 
             CAmount amount = ValueFromAmount(r.amount).get_real() * COIN;
             entry.push_back(Pair("amount", amount));
-
-            UniValue paymentRequest = getPaymentRequest(addrStr);
-            if(!paymentRequest.isNull()){
-                CAmount prAmount = find_value(paymentRequest, "amount").get_real();
-                // amount and address match - tack the label onto the returned object
-                if(prAmount==amount){
-
-                    string label = find_value(paymentRequest, "label").get_str();
-                    entry.push_back(Pair("label", label));   
-                }
-            }
 
             APIWalletTxToJSON(wtx, entry);
 

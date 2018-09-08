@@ -16,7 +16,55 @@ namespace fs = boost::filesystem;
 using namespace std::chrono;
 using namespace std;
 
-UniValue getPaymentRequest(string address){
+
+bool getTxMetadata(UniValue &txMetadataUni, UniValue &txMetadataData){
+    fs::path const &path = CreateTxMetadataFile();
+    LogPrintf("txMetadata path: %s\n", path.string());
+
+    // get data as ifstream
+    std::ifstream txMetadataIn(path.string());
+
+    // parse as std::string
+    std::string txMetadataStr((std::istreambuf_iterator<char>(txMetadataIn)), std::istreambuf_iterator<char>());
+    LogPrintf("txMetadataStr: %s\n", txMetadataStr);
+
+    // finally as UniValue
+    txMetadataUni.read(txMetadataStr);
+    LogPrintf("txMetadataUni write: %s\n", txMetadataUni.write());
+
+    if(!txMetadataUni["data"].isNull()){
+        txMetadataData = txMetadataUni["data"];
+    }
+    
+    return true;
+}
+
+bool setTxMetadata(UniValue txMetadataUni){
+    //write back UniValue
+    fs::path const &path = CreateTxMetadataFile();
+    LogPrintf("path: %s\n", path.string());
+
+    std::ofstream txMetadataOut(path.string());
+
+    LogPrintf("txMetadataUni: %s\n", txMetadataUni.write());
+    txMetadataOut << txMetadataUni.write(4,0) << endl;
+
+    return true;
+}
+
+
+bool setPaymentRequest(UniValue paymentRequestUni){
+    //write back UniValue
+    fs::path const &path = CreatePaymentRequestFile();
+
+    std::ofstream paymentRequestOut(path.string());
+
+    paymentRequestOut << paymentRequestUni.write(4,0) << endl;
+
+    return true;
+}
+
+bool getPaymentRequest(UniValue &paymentRequestUni, UniValue &paymentRequestData){
     fs::path const &path = CreatePaymentRequestFile();
     LogPrintf("paymentrequest path: %s\n", path.string());
 
@@ -28,20 +76,24 @@ UniValue getPaymentRequest(string address){
     LogPrintf("paymentRequestStr: %s\n", paymentRequestStr);
 
     // finally as UniValue
-    UniValue paymentRequestUni(UniValue::VOBJ);
     paymentRequestUni.read(paymentRequestStr);
     LogPrintf("paymentRequestUni write: %s\n", paymentRequestUni.write());
 
-    UniValue paymentRequestData(UniValue::VOBJ);
     if(!paymentRequestUni["data"].isNull()){
         paymentRequestData = paymentRequestUni["data"];
     }
+    
+    return true;
+}
 
-    UniValue entry(UniValue::VOBJ);
+bool getPaymentRequestEntry(string address, UniValue &entry){
 
+    UniValue paymentRequestData(UniValue::VOBJ);
+    UniValue paymentRequestUni(UniValue::VOBJ);
+    getPaymentRequest(paymentRequestUni, paymentRequestData);
     entry = find_value(paymentRequestData, address);
 
-    return entry;
+    return true;
 
 }
 
@@ -94,12 +146,28 @@ UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool f
     set<CBitcoinAddress> setAddress;
     vector<CRecipient> vecSend;
 
+    UniValue txMetadataUni(UniValue::VOBJ);
+    UniValue txMetadataData(UniValue::VOBJ);
+    UniValue txMetadataEntry(UniValue::VOBJ);
+    getTxMetadata(txMetadataUni, txMetadataData);
+
+    if(txMetadataUni.empty()){
+        UniValue txMetadataUni(UniValue::VOBJ);
+    }
+
+    if(txMetadataData.empty()){
+        UniValue txMetadataData(UniValue::VOBJ);
+    }
+
     CAmount totalAmount = 0;
     vector<string> keys = sendTo.getKeys();
     BOOST_FOREACH(const string& name_, keys)
     {
+        
         UniValue entry(UniValue::VOBJ);
         entry = find_value(sendTo, name_).get_obj();
+        LogPrintf("entry: %s\n", entry.write());
+        UniValue txMetadataSubEntry(UniValue::VOBJ);
 
         CBitcoinAddress address(name_);
         if (!address.IsValid())
@@ -111,6 +179,8 @@ UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool f
 
         CScript scriptPubKey = GetScriptForDestination(address.Get());
         CAmount nAmount = find_value(entry, "amount").get_int64();
+        LogPrintf("getting label..\n");
+        string label = find_value(entry, "label").get_str();
         LogPrintf("nAmount sendmanyfromany: %s\n", nAmount);
         if (nAmount <= 0)
             throw JSONAPIError(API_TYPE_ERROR, "Invalid amount for send");
@@ -125,6 +195,13 @@ UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool f
 
         CRecipient recipient = {scriptPubKey, nAmount, fSubtractFeeFromAmount};
         vecSend.push_back(recipient);
+
+        // write label and amount to entry object
+        //out.push_back(Pair("label", label));
+        //txMetadataData.replace(Pair(name_, metadata));
+        txMetadataSubEntry.push_back(Pair("amount", nAmount));
+        txMetadataSubEntry.push_back(Pair("label", label));
+        txMetadataEntry.push_back(Pair(name_, txMetadataSubEntry));
     }
 
     // Try each of our accounts looking for one with enough balance
@@ -153,10 +230,23 @@ UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool f
     bool fCreated = pwalletMain->CreateTransaction(vecSend, wtx, keyChange, nFeeRequired, nChangePosRet, strFailReason);
     if (!fCreated)
         throw JSONAPIError(API_WALLET_INSUFFICIENT_FUNDS, strFailReason);
+
+    string txidStr = wtx.GetHash().GetHex();
+
+    // write back tx metadataA object
+    LogPrintf("txMetadataEntry: %s\n", txMetadataEntry.write());
+    txMetadataData.push_back(Pair(txidStr, txMetadataEntry));
+    LogPrintf("txMetadataData: %s\n", txMetadataData.write());
+    if(!txMetadataUni.replace("data", txMetadataData)){
+        throw runtime_error("Could not replace key/value pair.");
+    }
+    LogPrintf("txMetadataUni: %s\n", txMetadataUni.write());
+    setTxMetadata(txMetadataUni);
+
     if (!pwalletMain->CommitTransaction(wtx, keyChange))
         throw JSONAPIError(API_WALLET_ERROR, "Transaction commit failed");
 
-    txid.push_back(Pair("txid", wtx.GetHash().GetHex()));
+    txid.push_back(Pair("txid", txidStr));
     return txid;
 }
 
@@ -233,27 +323,10 @@ UniValue paymentrequest(Type type, const UniValue& data, const UniValue& auth, b
     if (!EnsureWalletIsAvailable(false))
         return NullUniValue;
 
-    fs::path const &path = CreatePaymentRequestFile();
-    LogPrintf("paymentrequest path: %s\n", path.string());
-
-    // get data as ifstream
-    std::ifstream paymentRequestIn(path.string());
-
-    // parse as std::string
-    std::string paymentRequestStr((std::istreambuf_iterator<char>(paymentRequestIn)), std::istreambuf_iterator<char>());
-    LogPrintf("paymentRequestStr: %s\n", paymentRequestStr);
-
-    // finally as UniValue
     UniValue paymentRequestUni(UniValue::VOBJ);
-    paymentRequestUni.read(paymentRequestStr);
-    LogPrintf("paymentRequestUni write: %s\n", paymentRequestUni.write());
-
     UniValue paymentRequestData(UniValue::VOBJ);
-    if(!paymentRequestUni["data"].isNull()){
-        paymentRequestData = paymentRequestUni["data"];
-    }
 
-    LogPrintf("API: data in write: %s\n", data.write());
+    getPaymentRequest(paymentRequestUni, paymentRequestData);
 
     bool returnEntry = false;
     UniValue entry(UniValue::VOBJ);
@@ -278,7 +351,6 @@ UniValue paymentrequest(Type type, const UniValue& data, const UniValue& auth, b
             entry.push_back(Pair("message", find_value(data, "message").get_str()));
             entry.push_back(Pair("label", find_value(data, "label").get_str()));
             
-
             paymentRequestData.push_back(Pair(newAddress.get_str(), entry));
             LogPrintf("paymentRequestData write: %s\n", paymentRequestData.write());
 
@@ -325,7 +397,6 @@ UniValue paymentrequest(Type type, const UniValue& data, const UniValue& auth, b
 
             paymentRequestData.replace(id, entry);
 
-
             if(!paymentRequestUni.replace("data", paymentRequestData)){
                 throw runtime_error("Could not replace key/value pair.");
             }
@@ -337,10 +408,7 @@ UniValue paymentrequest(Type type, const UniValue& data, const UniValue& auth, b
         }
     }
 
-    //write back UniValue
-    std::ofstream paymentRequestOut(path.string());
-
-    paymentRequestOut << paymentRequestUni.write(4,0) << endl;
+    setPaymentRequest(paymentRequestUni);
 
     if(returnEntry){
         return entry;

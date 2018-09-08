@@ -6,4 +6,6 @@
 #include <univalue.h>
 #include <string>
 
-UniValue getPaymentRequest(string address);
+bool getPaymentRequest(UniValue &paymentRequestUni, UniValue &paymentRequestData);
+
+bool getPaymentRequestEntry(string address, UniValue &entry);
