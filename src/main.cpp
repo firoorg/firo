@@ -1716,12 +1716,20 @@ bool AcceptToMemoryPool(
               tx.GetHash().ToString(), 
               fCheckInputs);
     std::vector <uint256> vHashTxToUncache;
-    bool res = AcceptToMemoryPoolWorker(pool, state, tx, fCheckInputs, fLimitFree, pfMissingInputs,
-                                        fOverrideMempoolLimit, nAbsurdFee,
-                                        vHashTxToUncache, isCheckWalletTransaction, 
-                                        markZcoinSpendTransactionSerial);
-    if (!res) {
-        LogPrintf("AcceptToMemoryPoolWorker --> FAILED\n");
+    bool res = AcceptToMemoryPoolWorker(
+        pool, state, tx, fCheckInputs, fLimitFree, pfMissingInputs,
+        fOverrideMempoolLimit, nAbsurdFee,
+        vHashTxToUncache, isCheckWalletTransaction, 
+        markZcoinSpendTransactionSerial);
+    if (res) {
+        LogPrintf("AcceptToMemoryPool: Successfully added txn %s to %s.\n",
+                  tx.ToString(), 
+                  (&pool == &mempool) ? "mempool" : "stempool");
+    }
+    else {
+        LogPrintf("AcceptToMemoryPool: FAILED to add txn %s to %s.\n",
+                  tx.ToString(), 
+                  (&pool == &mempool) ? "mempool" : "stempool");
         BOOST_FOREACH(const uint256 &hashTx, vHashTxToUncache)
             pcoinsTip->Uncache(hashTx);
     }
@@ -5788,25 +5796,25 @@ void static ProcessGetData(CNode *pfrom, const Consensus::Params &consensusParam
                             pfrom->PushMessageWithFlag(nSendFlags, NetMsgType::TX, *txinfo.tx);
                             push = true;
                         }
-                        else if (mi != mapRelay.end()) {
-                            LogPrintf("Pushing txn %s with flags %d to %s.", 
-                                      mi->second->ToString(),
-                                      inv.type == MSG_TX ? SERIALIZE_TRANSACTION_NO_WITNESS : 0,
-                                      pfrom->addr.ToString());
+                    }
+                    else if (mi != mapRelay.end()) {
+                        LogPrintf("Pushing txn %s with flags %d to %s.", 
+                                  mi->second->ToString(),
+                                  inv.type == MSG_TX ? SERIALIZE_TRANSACTION_NO_WITNESS : 0,
+                                  pfrom->addr.ToString());
+                        pfrom->PushMessageWithFlag(
+                                inv.type == MSG_TX ? SERIALIZE_TRANSACTION_NO_WITNESS : 0,
+                                NetMsgType::TX, *mi->second);
+                        push = true;
+                    } else if (pfrom->timeLastMempoolReq) {
+                        auto txinfo = mempool.info(inv.hash);
+                        // To protect privacy, do not answer getdata using the mempool when
+                        // that TX couldn't have been INVed in reply to a MEMPOOL request.
+                        if (txinfo.tx && txinfo.nTime <= pfrom->timeLastMempoolReq) {
                             pfrom->PushMessageWithFlag(
                                     inv.type == MSG_TX ? SERIALIZE_TRANSACTION_NO_WITNESS : 0,
-                                    NetMsgType::TX, *mi->second);
+                                    NetMsgType::TX, *txinfo.tx);
                             push = true;
-                        } else if (pfrom->timeLastMempoolReq) {
-                            auto txinfo = mempool.info(inv.hash);
-                            // To protect privacy, do not answer getdata using the mempool when
-                            // that TX couldn't have been INVed in reply to a MEMPOOL request.
-                            if (txinfo.tx && txinfo.nTime <= pfrom->timeLastMempoolReq) {
-                                pfrom->PushMessageWithFlag(
-                                        inv.type == MSG_TX ? SERIALIZE_TRANSACTION_NO_WITNESS : 0,
-                                        NetMsgType::TX, *txinfo.tx);
-                                push = true;
-                            }
                         }
                     }
                 } else if (inv.type == MSG_DANDELION_TX || inv.type == MSG_DANDELION_WITNESS_TX) {

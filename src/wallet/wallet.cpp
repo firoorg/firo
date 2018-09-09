@@ -5199,11 +5199,11 @@ bool CMerkleTx::AcceptToMemoryPool(
         }
         return res;
     } else {
-        ::AcceptToMemoryPool(mempool, state, *this, 
-            fCheckInputs, fLimitFree, NULL, false, nAbsurdFee, isCheckWalletTransaction);
         // Changes to mempool should also be made to Dandelion stempool
         CValidationState dummyState;
-        return ::AcceptToMemoryPool(stempool, dummyState, *this, 
+        ::AcceptToMemoryPool(stempool, state, *this, 
+            fCheckInputs, fLimitFree, NULL, false, nAbsurdFee, isCheckWalletTransaction);
+        return ::AcceptToMemoryPool(mempool, dummyState, *this, 
             fCheckInputs, fLimitFree, NULL, false, nAbsurdFee, isCheckWalletTransaction);
     }
 }

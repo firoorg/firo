@@ -1965,7 +1965,9 @@ bool OpenNetworkConnection(
     if (fFeeler)
         pnode->fFeeler = true;
 
-     {
+    // Martun: if dandelion is enabled, then send a special transaction 
+    // to the new peer to check, if the peer supports dandelion or not.
+    if (GetBoolArg("-dandelion", false)) {
         LOCK(cs_vNodes);
         // Dandelion: new outbound connection
         CNode::vDandelionOutbound.push_back(pnode);
