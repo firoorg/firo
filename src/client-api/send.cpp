@@ -19,18 +19,15 @@ using namespace std;
 
 bool getTxMetadata(UniValue &txMetadataUni, UniValue &txMetadataData){
     fs::path const &path = CreateTxMetadataFile();
-    LogPrintf("txMetadata path: %s\n", path.string());
 
     // get data as ifstream
     std::ifstream txMetadataIn(path.string());
 
     // parse as std::string
     std::string txMetadataStr((std::istreambuf_iterator<char>(txMetadataIn)), std::istreambuf_iterator<char>());
-    LogPrintf("txMetadataStr: %s\n", txMetadataStr);
 
     // finally as UniValue
     txMetadataUni.read(txMetadataStr);
-    LogPrintf("txMetadataUni write: %s\n", txMetadataUni.write());
 
     if(!txMetadataUni["data"].isNull()){
         txMetadataData = txMetadataUni["data"];
@@ -46,7 +43,7 @@ bool setTxMetadata(UniValue txMetadataUni){
 
     std::ofstream txMetadataOut(path.string());
 
-    LogPrintf("txMetadataUni: %s\n", txMetadataUni.write());
+    LogPrintf("txMetadata write back: %s\n", txMetadataUni.write());
     txMetadataOut << txMetadataUni.write(4,0) << endl;
 
     return true;
@@ -66,18 +63,16 @@ bool setPaymentRequest(UniValue paymentRequestUni){
 
 bool getPaymentRequest(UniValue &paymentRequestUni, UniValue &paymentRequestData){
     fs::path const &path = CreatePaymentRequestFile();
-    LogPrintf("paymentrequest path: %s\n", path.string());
 
     // get data as ifstream
     std::ifstream paymentRequestIn(path.string());
 
     // parse as std::string
     std::string paymentRequestStr((std::istreambuf_iterator<char>(paymentRequestIn)), std::istreambuf_iterator<char>());
-    LogPrintf("paymentRequestStr: %s\n", paymentRequestStr);
 
     // finally as UniValue
     paymentRequestUni.read(paymentRequestStr);
-    LogPrintf("paymentRequestUni write: %s\n", paymentRequestUni.write());
+    LogPrintf("paymentRequest write back: %s\n", paymentRequestUni.write());
 
     if(!paymentRequestUni["data"].isNull()){
         paymentRequestData = paymentRequestUni["data"];
@@ -166,7 +161,6 @@ UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool f
         
         UniValue entry(UniValue::VOBJ);
         entry = find_value(sendTo, name_).get_obj();
-        LogPrintf("entry: %s\n", entry.write());
         UniValue txMetadataSubEntry(UniValue::VOBJ);
 
         CBitcoinAddress address(name_);
@@ -179,9 +173,7 @@ UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool f
 
         CScript scriptPubKey = GetScriptForDestination(address.Get());
         CAmount nAmount = find_value(entry, "amount").get_int64();
-        LogPrintf("getting label..\n");
         string label = find_value(entry, "label").get_str();
-        LogPrintf("nAmount sendmanyfromany: %s\n", nAmount);
         if (nAmount <= 0)
             throw JSONAPIError(API_TYPE_ERROR, "Invalid amount for send");
         totalAmount += nAmount;
@@ -197,8 +189,6 @@ UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool f
         vecSend.push_back(recipient);
 
         // write label and amount to entry object
-        //out.push_back(Pair("label", label));
-        //txMetadataData.replace(Pair(name_, metadata));
         txMetadataSubEntry.push_back(Pair("amount", nAmount));
         txMetadataSubEntry.push_back(Pair("label", label));
         txMetadataEntry.push_back(Pair(name_, txMetadataSubEntry));
@@ -234,13 +224,10 @@ UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool f
     string txidStr = wtx.GetHash().GetHex();
 
     // write back tx metadataA object
-    LogPrintf("txMetadataEntry: %s\n", txMetadataEntry.write());
     txMetadataData.push_back(Pair(txidStr, txMetadataEntry));
-    LogPrintf("txMetadataData: %s\n", txMetadataData.write());
     if(!txMetadataUni.replace("data", txMetadataData)){
         throw runtime_error("Could not replace key/value pair.");
     }
-    LogPrintf("txMetadataUni: %s\n", txMetadataUni.write());
     setTxMetadata(txMetadataUni);
 
     if (!pwalletMain->CommitTransaction(wtx, keyChange))

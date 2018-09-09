@@ -10,6 +10,7 @@
 #include "wallet/wallet.h"
 #include "base58.h"
 #include <client-api/protocol.h>
+#include "client-api/send.h"
 #include <zerocoin.h>
 
 #include <univalue.h>
@@ -119,6 +120,20 @@ UniValue sendprivate(Type type, const UniValue& data, const UniValue& auth, bool
             UniValue ret(UniValue::VOBJ);
             UniValue txids(UniValue::VARR);
 
+            UniValue txMetadataUni(UniValue::VOBJ);
+            UniValue txMetadataData(UniValue::VOBJ);
+            UniValue txMetadataEntry(UniValue::VOBJ);
+            UniValue txMetadataSubEntry(UniValue::VOBJ);
+            getTxMetadata(txMetadataUni, txMetadataData);
+
+            if(txMetadataUni.empty()){
+                UniValue txMetadataUni(UniValue::VOBJ);
+            }
+
+            if(txMetadataData.empty()){
+                UniValue txMetadataData(UniValue::VOBJ);
+            }
+
             LOCK2(cs_main, pwalletMain->cs_wallet);
 
             int64_t value = 0;
@@ -130,7 +145,9 @@ UniValue sendprivate(Type type, const UniValue& data, const UniValue& auth, bool
 
             string address_str = find_value(data, "address").get_str();
 
- 
+            string label = find_value(data, "label").get_str();
+
+            int64_t totalAmount = 0;
 
             for(size_t i=0; i<inputs.size();i++) {
 
@@ -163,7 +180,12 @@ UniValue sendprivate(Type type, const UniValue& data, const UniValue& auth, bool
                 for(int64_t j=0; j<amount; j++){
                     denominations.push_back(std::make_pair(value * COIN, denomination));
                 }
+
+                // write label and amount to entry object
             }
+            txMetadataSubEntry.push_back(Pair("amount", totalAmount));
+            txMetadataSubEntry.push_back(Pair("label", label));
+            txMetadataEntry.push_back(Pair(address_str, txMetadataSubEntry));
 
             string thirdPartyaddress = "";
             if (!(address_str == "")){
@@ -182,9 +204,65 @@ UniValue sendprivate(Type type, const UniValue& data, const UniValue& auth, bool
             CBigNum zcSelectedValue;
             bool zcSelectedIsUsed;
 
+            // begin spend process
+            CReserveKey reservekey(pwalletMain);
 
-            string strError = pwalletMain->SpendMultipleZerocoin(thirdPartyaddress, denominations, wtx, coinSerial, 
-                                                         txHash, zcSelectedValue, zcSelectedIsUsed);
+            if (pwalletMain->IsLocked()) {
+                string strError = _("Error: Wallet locked, unable to create transaction!");
+                LogPrintf("SpendZerocoin() : %s", strError);
+                return strError;
+            }
+
+            string strError = "";
+            if (!pwalletMain->CreateMultipleZerocoinSpendTransaction(thirdPartyaddress, denominations, wtx, reservekey, coinSerial, txHash,
+                                                zcSelectedValue, zcSelectedIsUsed, strError, true)) {
+                LogPrintf("SpendZerocoin() : %s\n", strError.c_str());
+                return strError;
+            }
+
+            string txidStr = wtx.GetHash().GetHex();
+
+            // write back tx metadata object
+            txMetadataData.push_back(Pair(txidStr, txMetadataEntry));
+            if(!txMetadataUni.replace("data", txMetadataData)){
+                throw runtime_error("Could not replace key/value pair.");
+            }
+            setTxMetadata(txMetadataUni);
+
+            if (!pwalletMain->CommitZerocoinSpendTransaction(wtx, reservekey)) {
+                LogPrintf("CommitZerocoinSpendTransaction() -> FAILED!\n");
+                CZerocoinEntry pubCoinTx;
+                list <CZerocoinEntry> listPubCoin;
+                listPubCoin.clear();
+
+                CWalletDB walletdb(pwalletMain->strWalletFile);
+                walletdb.ListPubCoin(listPubCoin);
+                BOOST_FOREACH(const CZerocoinEntry &pubCoinItem, listPubCoin) {
+                    if (zcSelectedValue == pubCoinItem.value) {
+                        pubCoinTx.id = pubCoinItem.id;
+                        pubCoinTx.IsUsed = false; // having error, so set to false, to be able to use again
+                        pubCoinTx.value = pubCoinItem.value;
+                        pubCoinTx.nHeight = pubCoinItem.nHeight;
+                        pubCoinTx.randomness = pubCoinItem.randomness;
+                        pubCoinTx.serialNumber = pubCoinItem.serialNumber;
+                        pubCoinTx.denomination = pubCoinItem.denomination;
+                        pubCoinTx.ecdsaSecretKey = pubCoinItem.ecdsaSecretKey;
+                        CWalletDB(pwalletMain->strWalletFile).WriteZerocoinEntry(pubCoinTx);
+                        LogPrintf("SpendZerocoin failed, re-updated status -> NotifyZerocoinChanged\n");
+                        LogPrintf("pubcoin=%s, isUsed=New\n", pubCoinItem.value.GetHex());
+                        pwalletMain->NotifyZerocoinChanged(pwalletMain, pubCoinItem.value.GetHex(), "New", CT_UPDATED);
+                    }
+                }
+                CZerocoinSpendEntry entry;
+                entry.coinSerial = coinSerial;
+                entry.hashTx = txHash;
+                entry.pubCoin = zcSelectedValue;
+                if (!CWalletDB(pwalletMain->strWalletFile).EraseCoinSpendSerialEntry(entry)) {
+                    return _("Error: It cannot delete coin serial number in wallet");
+                }
+                return _(
+                        "Error: The transaction was rejected! This might happen if some of the coins in your wallet were already spent, such as if you used a copy of wallet.dat and coins were spent in the copy but not marked as spent here.");
+            }
 
             if (strError != "")
                 throw JSONAPIError(API_WALLET_ERROR, strError);

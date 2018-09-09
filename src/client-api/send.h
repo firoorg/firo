@@ -9,3 +9,7 @@
 bool getPaymentRequest(UniValue &paymentRequestUni, UniValue &paymentRequestData);
 
 bool getPaymentRequestEntry(string address, UniValue &entry);
+
+bool getTxMetadata(UniValue &txMetadataUni, UniValue &txMetadataData);
+
+bool setTxMetadata(UniValue txMetadataUni);

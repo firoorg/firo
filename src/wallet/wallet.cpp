@@ -1288,6 +1288,12 @@ void CWalletTx::GetAmounts(list <COutputEntry> &listReceived,
     listSent.clear();
     strSentAccount = strFromAccount;
 
+    bool fromMe = false;
+    const CWalletTx * storedTx = pwalletMain->GetWalletTx(this->GetHash());
+    if(!(storedTx==NULL)){
+        fromMe = storedTx->fFromMe;
+    }
+
     // Compute fee:
     CAmount nDebit = GetDebit(filter);
     if (nDebit > 0) // debit>0 means we signed/sent this transaction
@@ -1327,7 +1333,7 @@ void CWalletTx::GetAmounts(list <COutputEntry> &listReceived,
         COutputEntry output = {address, txout.nValue, (int) i};
 
         /// If we are debited by the transaction, add the output as a "sent" entry
-        if (nDebit > 0 || (IsZerocoinSpend() && !(fIsMine & filter))){
+        if (nDebit > 0 || (IsZerocoinSpend() && fromMe)){
             listSent.push_back(output);
         }
 
@@ -3908,8 +3914,7 @@ bool CWallet::CreateZerocoinSpendTransaction(std::string &thirdPartyaddress, int
             txNew.vin.clear();
             txNew.vout.clear();
             txNew.wit.SetNull();
-            //wtxNew.fFromMe = true;
-
+            wtxNew.fFromMe = true;
 
             CScript scriptChange;
             if(thirdPartyaddress == ""){
@@ -4159,8 +4164,7 @@ bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddr
             txNew.vin.clear();
             txNew.vout.clear();
             txNew.wit.SetNull();
-            //wtxNew.fFromMe = true;
-
+            wtxNew.fFromMe = true;
 
             CScript scriptChange;
             if(thirdPartyaddress == ""){
