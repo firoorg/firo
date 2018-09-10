@@ -4,6 +4,13 @@
 #include <iostream>
 #include <boost/test/unit_test.hpp>
 
+//#include <univalue.h>
+//#include "wallet/wallet.h"
+//
+//extern UniValue generate(const UniValue& params, bool fHelp);
+//extern UniValue keypoolrefill(const UniValue& params, bool fHelp);
+//extern CRPCTable tableRPC;
+
 using namespace std;
 
 struct MtpTestingSetup : public TestingSetup
@@ -12,6 +19,8 @@ struct MtpTestingSetup : public TestingSetup
     {
     }
 };
+
+
 
 BOOST_FIXTURE_TEST_SUITE(mtp_tests, MtpTestingSetup)
 
@@ -94,23 +103,36 @@ BOOST_AUTO_TEST_CASE(mtp_block_integrity_test)
     BOOST_CHECK(false == mtp::verify(block3.nNonce+1, block3, pow_limit));
 }
 
-#include "chainparams.h"
+//std::ostream & print_what_should(std::ostream &  ostr,  std::string const & addr)
+//{
+//    ostr << "sed -ri 's/" << addr << "/" << bitcoin_address_to_zcoin(addr) << "/g'" << std::endl;
+//    return ostr;
+//}
+//
+//BOOST_AUTO_TEST_CASE(mtp_printer)
+//{
+//    print_what_should(std::cout, "cSFpb16iAbS9KP63UnHv6XjPxWBqmAgTa4U3SeAxyHRvsLimyfNk") << std::endl;
+//}
+//
+//BOOST_AUTO_TEST_CASE(mtp_temp)
+//{
+//    CWallet * pwalletMain = new CWallet("wallet_test.dat");
+//    bool fFirstRun = true;
+//    pwalletMain->LoadWallet(fFirstRun);
+//    RegisterValidationInterface(pwalletMain);
+//
+//    RegisterWalletRPCCommands(tableRPC);
+//
+//
+//    UniValue v(UniValue::VARR), v1;
+//    v1.setInt(1);
+//    v.push_back(v1);
+//
+//    keypoolrefill(v, false);
+//
+//    generate(v, false);
+//
+//}
 
-BOOST_AUTO_TEST_CASE(mtp_regtest_genesis_block_test)
-{
-    CBlock genesis = Params(CBaseChainParams::REGTEST).GenesisBlock();
-    auto const & consensus = Params(CBaseChainParams::REGTEST).GetConsensus();
-
-//        std::cout << "zcoin regtest genesisBlock hash: " << consensus.hashGenesisBlock.ToString() << std::endl;
-//        std::cout << "zcoin regtest hashMerkleRoot hash: " << genesis.hashMerkleRoot.ToString() << std::endl;
-
-    BOOST_CHECK(consensus.hashGenesisBlock == uint256S("0xee98d9dc0da1f3378edeeed1edcaf7d657952257d4700d594eb7c08ac1d6fa9a"));
-    BOOST_CHECK(genesis.hashMerkleRoot == uint256S("0x25b361d60bc7a66b311e72389bf5d9add911c735102bcb6425f63aceeff5b7b8"));
-
-    auto hash = mtp::hash(genesis, Params(CBaseChainParams::REGTEST).GetConsensus().powLimit);
-
-    BOOST_CHECK(genesis.nNonce == 1);
-    BOOST_CHECK(hash == genesis.GetHash());
-}
 
 BOOST_AUTO_TEST_SUITE_END()

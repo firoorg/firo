@@ -4171,8 +4171,8 @@ ContextualCheckBlockHeader(const CBlockHeader &block, CValidationState &state, c
     int32_t nVersionMTP = block.mtpHashData ? block.nVersionMTP : 0;
     bool fBlockHasMTP = block.nVersion >= (CBlock::CURRENT_VERSION | (GetZerocoinChainID() * BLOCK_VERSION_CHAIN_START)| nVersionMTP);
 
-    if (block.IsMTP() && !fBlockHasMTP)
-        return state.Invalid(false, REJECT_OBSOLETE, strprintf("bad-version(0x%08x), block.IsMTP(): %d, fBlockHasMTP: %d", block.nVersion, block.IsMTP(), fBlockHasMTP),strprintf("rejected nVersion=0x%08x block", block.nVersion));
+    if (block.IsMTP() != fBlockHasMTP)
+        return state.Invalid(false, REJECT_OBSOLETE, strprintf("bad-version(0x%08x), block.IsMTP(): %d, fBlockHasMTP: %d", block.nVersion, block.IsMTP(), fBlockHasMTP),strprintf("rejected nVersion=0x%08x block; nTime=%d, mtpSwitchTime=%d", block.nVersion, block.nTime, Params().nMTPSwitchTime));
     
 	// Check proof of work
     if (block.nBits != GetNextWorkRequired(pindexPrev, &block, consensusParams))
