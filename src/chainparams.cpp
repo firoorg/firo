@@ -161,8 +161,8 @@ public:
         extraNonce[2] = 0x00;
         extraNonce[3] = 0x00;
         genesis = CreateGenesisBlock(ZC_GENESIS_BLOCK_TIME, 142392, 0x1e0ffff0, 2, 0 * COIN, extraNonce);
-        const std::string s = genesis.GetHash().ToString();
-        // std::cout << "zcoin new hashMerkleRoot hash: " << genesis.hashMerkleRoot.ToString() << std::endl;
+//        const std::string s = genesis.GetHash().ToString();
+//        std::cout << "zcoin new hashMerkleRoot hash: " << genesis.hashMerkleRoot.ToString() << std::endl;
         consensus.hashGenesisBlock = genesis.GetHash();
         assert(consensus.hashGenesisBlock == uint256S("0x4381deb85b1b2c9843c222944b616d997516dcbd6a964e1eaf0def0830695233"));
         assert(genesis.hashMerkleRoot == uint256S("0x365d2aa75d061370c9aefdabac3985716b1e3b4bb7c4af4ed54f25e5aaa42783"));
@@ -408,16 +408,8 @@ public:
         extraNonce[1] = 0x00;
         extraNonce[2] = 0x00;
         extraNonce[3] = 0x00;
-        genesis = CreateGenesisBlock(ZC_GENESIS_BLOCK_TIME, 414098458, 0x207fffff, 1, 0 * COIN, extraNonce);
+        genesis = CreateGenesisBlock(ZC_GENESIS_BLOCK_TIME, 3, 0x207fffff, 1, 0 * COIN, extraNonce);
         consensus.hashGenesisBlock = genesis.GetHash();
-        //btzc: update regtest zcoin hashGenesisBlock and hashMerkleRoot
-//        std::cout << "zcoin regtest genesisBlock hash: " << consensus.hashGenesisBlock.ToString() << std::endl;
-//        std::cout << "zcoin regtest hashMerkleRoot hash: " << genesis.hashMerkleRoot.ToString() << std::endl;
-        //btzc: update testnet zcoin hashGenesisBlock and hashMerkleRoot
-        //assert(consensus.hashGenesisBlock ==
-        //       uint256S("0x0080c7bf30bb2579ed9c93213475bf8fafc1f53807da908cde19cf405b9eb55b"));
-        //assert(genesis.hashMerkleRoot ==
-        //       uint256S("0x25b361d60bc7a66b311e72389bf5d9add911c735102bcb6425f63aceeff5b7b8"));
 
         vFixedSeeds.clear(); //!< Regtest mode doesn't have any fixed seeds.
         vSeeds.clear();      //!< Regtest mode doesn't have any DNS seeds.
@@ -437,7 +429,7 @@ public:
         };
         base58Prefixes[PUBKEY_ADDRESS] = std::vector < unsigned char > (1, 65);
         base58Prefixes[SCRIPT_ADDRESS] = std::vector < unsigned char > (1, 178);
-        base58Prefixes[SECRET_KEY] = std::vector < unsigned char > (1, 239);
+        base58Prefixes[SECRET_KEY] = std::vector < unsigned char > (1, 185);
         base58Prefixes[EXT_PUBLIC_KEY] = boost::assign::list_of(0x04)(0x35)(0x87)(0xCF).convert_to_container < std::vector < unsigned char > > ();
         base58Prefixes[EXT_SECRET_KEY] = boost::assign::list_of(0x04)(0x35)(0x83)(0x94).convert_to_container < std::vector < unsigned char > > ();
 
@@ -451,9 +443,12 @@ public:
         nModulusV2StartBlock = 130;
         nModulusV1MempoolStopBlock = 135;
         nModulusV1StopBlock = 140;
-        nMTPSwitchTime = INT_MAX;
+        nMTPSwitchTime = 1;
         nDifficultyAdjustStartBlock = 0;
         nFixedDifficulty = 0;
+
+        if(genesis.IsMTP())
+            genesis.mtpHashData = std::make_shared<CMTPHashData>();
     }
 
     void UpdateBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout) {

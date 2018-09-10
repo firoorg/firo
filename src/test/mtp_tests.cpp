@@ -4,6 +4,13 @@
 #include <iostream>
 #include <boost/test/unit_test.hpp>
 
+//#include <univalue.h>
+//#include "wallet/wallet.h"
+//
+//extern UniValue generate(const UniValue& params, bool fHelp);
+//extern UniValue keypoolrefill(const UniValue& params, bool fHelp);
+//extern CRPCTable tableRPC;
+
 using namespace std;
 
 struct MtpTestingSetup : public TestingSetup
@@ -12,6 +19,8 @@ struct MtpTestingSetup : public TestingSetup
     {
     }
 };
+
+
 
 BOOST_FIXTURE_TEST_SUITE(mtp_tests, MtpTestingSetup)
 
@@ -58,7 +67,7 @@ BOOST_AUTO_TEST_CASE(mtp_block_integrity_test)
     RandAddSeed();
 
     CBlock block1;
-    
+
     block1.nVersion = CBlock::CURRENT_VERSION;
     block1.hashPrevBlock = GetRandHash();
     block1.hashMerkleRoot = GetRandHash();
@@ -69,8 +78,8 @@ BOOST_AUTO_TEST_CASE(mtp_block_integrity_test)
 
     CBlock block2(block1); block2.mtpHashData = std::shared_ptr<CMTPHashData>(new CMTPHashData); block2.nVersionMTP = 1;
     CBlock block3(block1); block3.mtpHashData = std::shared_ptr<CMTPHashData>(new CMTPHashData); block3. nVersionMTP = 1;
-    
-    uint256 pow_limit = uint256S("00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+
+    uint256 const pow_limit = Params(CBaseChainParams::REGTEST).GetConsensus().powLimit ;
 
     auto hash1 = mtp::hash(block1, pow_limit);
 
@@ -93,6 +102,37 @@ BOOST_AUTO_TEST_CASE(mtp_block_integrity_test)
     BOOST_CHECK(false == mtp::verify(block2.nNonce-1, block2, pow_limit));
     BOOST_CHECK(false == mtp::verify(block3.nNonce+1, block3, pow_limit));
 }
+
+//std::ostream & print_what_should(std::ostream &  ostr,  std::string const & addr)
+//{
+//    ostr << "sed -ri 's/" << addr << "/" << bitcoin_address_to_zcoin(addr) << "/g'" << std::endl;
+//    return ostr;
+//}
+//
+//BOOST_AUTO_TEST_CASE(mtp_printer)
+//{
+//    print_what_should(std::cout, "cSFpb16iAbS9KP63UnHv6XjPxWBqmAgTa4U3SeAxyHRvsLimyfNk") << std::endl;
+//}
+//
+//BOOST_AUTO_TEST_CASE(mtp_temp)
+//{
+//    CWallet * pwalletMain = new CWallet("wallet_test.dat");
+//    bool fFirstRun = true;
+//    pwalletMain->LoadWallet(fFirstRun);
+//    RegisterValidationInterface(pwalletMain);
+//
+//    RegisterWalletRPCCommands(tableRPC);
+//
+//
+//    UniValue v(UniValue::VARR), v1;
+//    v1.setInt(1);
+//    v.push_back(v1);
+//
+//    keypoolrefill(v, false);
+//
+//    generate(v, false);
+//
+//}
 
 
 BOOST_AUTO_TEST_SUITE_END()
