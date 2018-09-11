@@ -3257,7 +3257,11 @@ bool static DisconnectTip(CValidationState &state, const CChainParams &chainpara
                     tx, 
                     false, /* fCheckInputs */ 
                     false, /* fLimitFree */
-                    NULL /* pfMissingInputs */
+                    NULL, /* pfMissingInputs */
+                    false, /* fOverrideMempoolLimit */
+                    0, /* nAbsurdFee */
+                    false, /* isCheckWalletTransaction */
+                    false /* markZcoinSpendTransactionSerial */
                 );
             }
             if (tx.IsCoinBase() || !AcceptToMemoryPool(mempool, stateDummy, tx, true, false, NULL)) {
@@ -6620,7 +6624,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand,
             LogPrintf("Transaction %s received and added to the mempool.\n", 
                       tx.GetHash().ToString());
 
-            // Changes to mempool should also be made to Dandelion stempool
+            // Changes to mempool should also be made to Dandelion stempool.
             AcceptToMemoryPool(
                 stempool, 
                 dummyState,
@@ -6630,7 +6634,8 @@ bool static ProcessMessage(CNode *pfrom, string strCommand,
                 &fMissingInputs, /* pfMissingInputs */
                 false, /* fOverrideMempoolLimit */
                 0, /* nAbsurdFee */
-                true /* isCheckWalletTransaction */
+                true, /* isCheckWalletTransaction */
+                false /* markZcoinSpendTransactionSerial */ 
             );
 
             if (CNode::isTxDandelionEmbargoed(tx.GetHash())) {
@@ -6694,7 +6699,8 @@ bool static ProcessMessage(CNode *pfrom, string strCommand,
                             &fMissingInputs2,  /* pfMissingInputs */
                             false, /* fOverrideMempoolLimit */
                             0, /* nAbsurdFee */
-                            true /* isCheckWalletTransaction */
+                            true, /* isCheckWalletTransaction */
+                            false /* markZcoinSpendTransactionSerial */
                         );
 
                         RelayTransaction(orphanTx);
@@ -6746,12 +6752,12 @@ bool static ProcessMessage(CNode *pfrom, string strCommand,
                 &fMissingInputsZerocoin,  /* pfMissingInputs */
                 false, /* fOverrideMempoolLimit */
                 0, /* nAbsurdFee */
-                true /* isCheckWalletTransaction */
+                true, /* isCheckWalletTransaction */
+                false /* markZcoinSpendTransactionSerial */
             );
             if (CNode::isTxDandelionEmbargoed(tx.GetHash())) {
-                LogPrint("dandelion",
-                         "Embargoed dandeliontx %s found in mempool; removing from embargo map\n",
-                         tx.GetHash().ToString());
+                LogPrintf("Embargoed dandeliontx %s found in mempool; removing from embargo map.\n",
+                          tx.GetHash().ToString());
                 CNode::removeDandelionEmbargo(tx.GetHash());
             }
             // Changes to mempool should also be made to Dandelion stempool
@@ -6795,8 +6801,9 @@ bool static ProcessMessage(CNode *pfrom, string strCommand,
 //            LogPrint("mempoolrej", "%s from peer=%d was not accepted: %s\n", tx.GetHash().ToString(),
 //                     pfrom->id,
 //                     FormatStateMessage(state));
-            if (state.GetRejectCode() < REJECT_INTERNAL) // Never send AcceptToMemoryPool's internal codes over P2P
-                pfrom->PushMessage(
+            // Never send AcceptToMemoryPool's internal codes over P2P
+            if (state.GetRejectCode() < REJECT_INTERNAL)
+                 pfrom->PushMessage(
                     NetMsgType::REJECT, strCommand, (unsigned char) state.GetRejectCode(),
                     state.GetRejectReason().substr(0, MAX_REJECT_MESSAGE_LENGTH), inv.hash);
             if (nDoS > 0) {

@@ -2439,6 +2439,11 @@ CNode* CNode::getDandelionDestination(CNode* pfrom) {
 
 void CNode::RelayDandelionTransaction(const CTransaction& tx, CNode* pfrom)
 {
+    if (!stempool.exists(tx.GetHash())) {
+        LogPrintf("ERROR: Trying to relay dandelion transaction %s which is not in the stempool.\n", 
+                  tx.GetHash().ToString());
+        return; 
+    }
     FastRandomContext rng; 
     if (rng.randrange(100) < DANDELION_FLUFF) {
         // Start fluffing current transaction.
@@ -2459,7 +2464,6 @@ void CNode::RelayDandelionTransaction(const CTransaction& tx, CNode* pfrom)
             false, /* fOverrideMempoolLimit */
             0, /* nAbsurdFee */
             false /*isCheckWalletTransaction*/ 
-            // TODO(martun): check what all these booleans do!
             );
         LogPrint(
             "mempool", "AcceptToMemoryPool: peer=%d: accepted %s (poolsz %u txn, %u kB)\n",

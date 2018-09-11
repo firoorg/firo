@@ -1447,7 +1447,12 @@ void CWallet::ReacceptWalletTransactions() {
         LOCK(mempool.cs);
         CValidationState state;
         LogPrintf("CWallet::ReacceptWalletTransactions(): re-accepting transaction %s to mempool/stempool.\n", wtx.GetHash().ToString());
-        wtx.AcceptToMemoryPool(false, maxTxFee, state, false);
+
+        // When re-accepting transaction back to the wallet after 
+        // the app was closed and re-opened, do NOT check their
+        // serial numbers, and DO NOT try to mark their serial numbers 
+        // a second time. We assume those operations were already done.
+        wtx.AcceptToMemoryPool(false, maxTxFee, state, false, false);
         // If Dandelion enabled, relay transaction once again.
         if (GetBoolArg("-dandelion", false)) {
             wtx.RelayWalletTransaction(false);
@@ -3942,10 +3947,11 @@ bool CWallet::CommitZerocoinSpendTransaction(CWalletTx &wtxNew, CReserveKey &res
         if (fBroadcastTransactions) {
             CValidationState state;
             // Broadcast
-            if (!wtxNew.AcceptToMemoryPool(false, maxTxFee, state, false)) {
+            if (!wtxNew.AcceptToMemoryPool(false, maxTxFee, state, false, true)) {
                 LogPrintf("CommitZerocoinSpendTransaction(): Transaction cannot be broadcast immediately, %s\n",
                           state.GetRejectReason());
-                // TODO: if we expect the failure to be long term or permanent, instead delete wtx from the wallet and return failure.
+                // TODO: if we expect the failure to be long term or permanent, 
+                // instead delete wtx from the wallet and return failure.
             } else {
                 wtxNew.RelayWalletTransaction(false);
             }
@@ -5179,14 +5185,24 @@ bool CMerkleTx::AcceptToMemoryPool(
         CAmount nAbsurdFee, 
         CValidationState &state, 
         bool fCheckInputs,
-        bool isCheckWalletTransaction) {
+        bool isCheckWalletTransaction,
+        bool markZcoinSpendTransactionSerial) {
     LogPrintf("CMerkleTx::AcceptToMemoryPool(), transaction %s, fCheckInputs=%s\n", 
               GetHash().ToString(), 
               fCheckInputs);
     if (GetBoolArg("-dandelion", false)) {
         bool res = ::AcceptToMemoryPool(
-            stempool, state, *this, 
-            fCheckInputs, fLimitFree, NULL, false, nAbsurdFee, isCheckWalletTransaction);
+            stempool, 
+            state, 
+            *this, 
+            fCheckInputs, 
+            fLimitFree, 
+            NULL, /* pfMissingInputs */
+            false, /* fOverrideMempoolLimit */
+            nAbsurdFee, 
+            isCheckWalletTransaction,
+            false /* markZcoinSpendTransactionSerial */
+        );
         if (res) {
             LogPrintf(
                 "CMerkleTx::AcceptToMemoryPool, Successfully added txn %s to dandelion stempool.\n", 
@@ -5201,10 +5217,29 @@ bool CMerkleTx::AcceptToMemoryPool(
     } else {
         // Changes to mempool should also be made to Dandelion stempool
         CValidationState dummyState;
-        ::AcceptToMemoryPool(stempool, state, *this, 
-            fCheckInputs, fLimitFree, NULL, false, nAbsurdFee, isCheckWalletTransaction);
-        return ::AcceptToMemoryPool(mempool, dummyState, *this, 
-            fCheckInputs, fLimitFree, NULL, false, nAbsurdFee, isCheckWalletTransaction);
+        ::AcceptToMemoryPool(
+            stempool, 
+            state, 
+            *this, 
+            fCheckInputs, 
+            fLimitFree, 
+            NULL, /* pfMissingInputs */ 
+            false, /* fOverrideMempoolLimit */
+            nAbsurdFee, 
+            isCheckWalletTransaction,
+            false /* markZcoinSpendTransactionSerial */
+        );
+        return ::AcceptToMemoryPool(
+            mempool, 
+            dummyState, 
+            *this, 
+            fCheckInputs, 
+            fLimitFree, 
+            NULL, /* pfMissingInputs */
+            false, /* fOverrideMempoolLimit */
+            nAbsurdFee, 
+            isCheckWalletTransaction, 
+            markZcoinSpendTransactionSerial);
     }
 }
 
