@@ -446,9 +446,6 @@ public:
         nMTPSwitchTime = 1;
         nDifficultyAdjustStartBlock = 0;
         nFixedDifficulty = 0;
-
-        if(genesis.IsMTP())
-            genesis.mtpHashData = std::make_shared<CMTPHashData>();
     }
 
     void UpdateBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout) {
