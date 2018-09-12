@@ -107,6 +107,14 @@ public Q_SLOTS:
     void gotoBalancesPage();
     /** Switch to history (transactions) page */
     void gotoHistoryPage();
+    /** Switch specifically to exodus tx history tab */
+    void gotoExodusHistoryTab();
+    /** Switch specifically to bitcoin tx history tab */
+    void gotoBitcoinHistoryTab();
+    /** Switch to exodus tx history tab and focus on specific transaction */
+    void focusExodusTransaction(const uint256& txid);
+    /** Switch to bitcoin tx history tab and focus on specific transaction */
+    void focusBitcoinHistoryTab(const QModelIndex &idx);
     /** Switch to znode page */
     void gotoZnodePage();
     /** Switch to receive coins page */
@@ -115,10 +123,6 @@ public Q_SLOTS:
     void gotoSendCoinsPage(QString addr = "");
     /** Switch to zerocoin page */
     void gotoZerocoinPage();
-    /** Switch specifically to exodus tx history tab */
-    void gotoExodusHistoryTab();
-    /** Switch specifically to bitcoin tx history tab */
-    void gotoBitcoinHistoryTab();
     /** Switch to utility page */
     void gotoToolboxPage();
 

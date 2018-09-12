@@ -120,8 +120,8 @@ WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
     addWidget(znodeListPage);
 
     // Clicking on a transaction on the overview pre-selects the transaction on the transaction history page
-    connect(overviewPage, SIGNAL(transactionClicked(QModelIndex)), transactionView, SLOT(focusTransaction(QModelIndex)));
-    connect(overviewPage, SIGNAL(exodusTransactionClicked(uint256)), mpTXTab, SLOT(focusTransaction(uint256)));
+    connect(overviewPage, SIGNAL(transactionClicked(QModelIndex)), this, SLOT(focusBitcoinHistoryTab(QModelIndex)));
+    connect(overviewPage, SIGNAL(exodusTransactionClicked(uint256)), this, SLOT(focusExodusTransaction(uint256)));
 
     // Double-clicking on a transaction on the transaction history page shows details
     connect(transactionView, SIGNAL(doubleClicked(QModelIndex)), transactionView, SLOT(showDetails()));
@@ -244,16 +244,28 @@ void WalletView::gotoHistoryPage()
     setCurrentWidget(transactionsPage);
 }
 
+void WalletView::gotoExodusHistoryTab()
+{
+    setCurrentWidget(transactionsPage);
+    txTabHolder->setCurrentIndex(0);
+}
+
 void WalletView::gotoBitcoinHistoryTab()
 {
     setCurrentWidget(transactionsPage);
     txTabHolder->setCurrentIndex(1);
 }
 
-void WalletView::gotoExodusHistoryTab()
+void WalletView::focusExodusTransaction(const uint256& txid)
 {
-    setCurrentWidget(transactionsPage);
-    txTabHolder->setCurrentIndex(0);
+    gotoExodusHistoryTab();
+    mpTXTab->focusTransaction(txid);
+}
+
+void WalletView::focusBitcoinHistoryTab(const QModelIndex &idx)
+{
+    gotoBitcoinHistoryTab();
+    transactionView->focusTransaction(idx);
 }
 
 void WalletView::gotoZnodePage()
