@@ -1431,7 +1431,9 @@ void CWallet::ReacceptWalletTransactions() {
 
         int nDepth = wtx.GetDepthInMainChain();
 
-        if ((wtx.IsCoinBase() || wtx.IsZerocoinSpend()) && (nDepth == 0 && !wtx.isAbandoned()))
+        if ((wtx.IsCoinBase() 
+            // || wtx.IsZerocoinSpend() // NOTE(martun): Intentionally commented this out.
+            ) && (nDepth == 0 && !wtx.isAbandoned()))
             continue;
 
         if (nDepth == 0 && !wtx.isAbandoned()) {
@@ -1452,9 +1454,9 @@ void CWallet::ReacceptWalletTransactions() {
         // the app was closed and re-opened, do NOT check their
         // serial numbers, and DO NOT try to mark their serial numbers 
         // a second time. We assume those operations were already done.
-        wtx.AcceptToMemoryPool(false, maxTxFee, state, false, false);
+        wtx.AcceptToMemoryPool(false, maxTxFee, state, false, false, false);
         // If Dandelion enabled, relay transaction once again.
-        if (GetBoolArg("-dandelion", false)) {
+        if (GetBoolArg("-dandelion", true) {
             wtx.RelayWalletTransaction(false);
         }
     }
@@ -1470,7 +1472,7 @@ bool CWalletTx::RelayWalletTransaction(bool fCheckInputs) {
         if (InMempool() || InStempool() || 
             AcceptToMemoryPool(false, maxTxFee, state, fCheckInputs)) {
             // If Dandelion enabled, push inventory item to just one destination.
-            if (GetBoolArg("-dandelion", false)) {
+            if (GetBoolArg("-dandelion", true)) {
                 int64_t nCurrTime = GetTimeMicros();
                 int64_t nEmbargo = 1000000 * DANDELION_EMBARGO_MINIMUM
                         + PoissonNextSend(nCurrTime, DANDELION_EMBARGO_AVG_ADD);
@@ -5190,7 +5192,7 @@ bool CMerkleTx::AcceptToMemoryPool(
     LogPrintf("CMerkleTx::AcceptToMemoryPool(), transaction %s, fCheckInputs=%s\n", 
               GetHash().ToString(), 
               fCheckInputs);
-    if (GetBoolArg("-dandelion", false)) {
+    if (GetBoolArg("-dandelion", true)) {
         bool res = ::AcceptToMemoryPool(
             stempool, 
             state, 
