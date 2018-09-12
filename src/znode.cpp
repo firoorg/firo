@@ -13,6 +13,7 @@
 #include "znode-sync.h"
 #include "znodeman.h"
 #include "util.h"
+#include "validationinterface.h"
 
 #include <boost/lexical_cast.hpp>
 
@@ -118,7 +119,7 @@ bool CZnode::UpdateFromNewBroadcast(CZnodeBroadcast &mnb) {
     nTimeLastChecked = 0;
     int nDos = 0;
     if (mnb.lastPing == CZnodePing() || (mnb.lastPing != CZnodePing() && mnb.lastPing.CheckAndUpdate(this, true, nDos))) {
-        lastPing = mnb.lastPing;
+        SetLastPing(mnb.lastPing);
         mnodeman.mapSeenZnodePing.insert(std::make_pair(lastPing.GetHash(), lastPing));
     }
     // if it matches our Znode privkey...
@@ -179,7 +180,7 @@ void CZnode::Check(bool fForce) {
         if (!pcoinsTip->GetCoins(vin.prevout.hash, coins) ||
             (unsigned int) vin.prevout.n >= coins.vout.size() ||
             coins.vout[vin.prevout.n].IsNull()) {
-            nActiveState = ZNODE_OUTPOINT_SPENT;
+            SetStatus(ZNODE_OUTPOINT_SPENT);
             LogPrint("znode", "CZnode::Check -- Failed to find Znode UTXO, znode=%s\n", vin.prevout.ToStringShort());
             return;
         }
@@ -195,7 +196,7 @@ void CZnode::Check(bool fForce) {
         LogPrintf("CZnode::Check -- Znode %s is unbanned and back in list now\n", vin.prevout.ToStringShort());
         DecreasePoSeBanScore();
     } else if (nPoSeBanScore >= ZNODE_POSE_BAN_MAX_SCORE) {
-        nActiveState = ZNODE_POSE_BAN;
+        SetStatus(ZNODE_POSE_BAN);
         // ban for the whole payment cycle
         nPoSeBanHeight = nHeight + mnodeman.size();
         LogPrintf("CZnode::Check -- Znode %s is banned till block %d now\n", vin.prevout.ToStringShort(), nPoSeBanHeight);
@@ -216,7 +217,7 @@ void CZnode::Check(bool fForce) {
                           (fOurZnode && (nProtocolVersion < MIN_ZNODE_PAYMENT_PROTO_VERSION_1 || nProtocolVersion > MIN_ZNODE_PAYMENT_PROTO_VERSION_2));
 
     if (fRequireUpdate) {
-        nActiveState = ZNODE_UPDATE_REQUIRED;
+        SetStatus(ZNODE_UPDATE_REQUIRED);
         if (nActiveStatePrev != nActiveState) {
             LogPrint("znode", "CZnode::Check -- Znode %s is in %s state now\n", vin.prevout.ToStringShort(), GetStateString());
         }
@@ -238,7 +239,7 @@ void CZnode::Check(bool fForce) {
     if (!fWaitForPing || fOurZnode) {
 
         if (!IsPingedWithin(ZNODE_NEW_START_REQUIRED_SECONDS)) {
-            nActiveState = ZNODE_NEW_START_REQUIRED;
+            SetStatus(ZNODE_NEW_START_REQUIRED);
             if (nActiveStatePrev != nActiveState) {
                 LogPrint("znode", "CZnode::Check -- Znode %s is in %s state now\n", vin.prevout.ToStringShort(), GetStateString());
             }
@@ -252,7 +253,7 @@ void CZnode::Check(bool fForce) {
 //                vin.prevout.ToStringShort(), nTimeLastWatchdogVote, GetTime(), fWatchdogExpired);
 
         if (fWatchdogExpired) {
-            nActiveState = ZNODE_WATCHDOG_EXPIRED;
+            SetStatus(ZNODE_WATCHDOG_EXPIRED);
             if (nActiveStatePrev != nActiveState) {
                 LogPrint("znode", "CZnode::Check -- Znode %s is in %s state now\n", vin.prevout.ToStringShort(), GetStateString());
             }
@@ -260,7 +261,7 @@ void CZnode::Check(bool fForce) {
         }
 
         if (!IsPingedWithin(ZNODE_EXPIRATION_SECONDS)) {
-            nActiveState = ZNODE_EXPIRED;
+            SetStatus(ZNODE_EXPIRED);
             if (nActiveStatePrev != nActiveState) {
                 LogPrint("znode", "CZnode::Check -- Znode %s is in %s state now\n", vin.prevout.ToStringShort(), GetStateString());
             }
@@ -269,14 +270,14 @@ void CZnode::Check(bool fForce) {
     }
 
     if (lastPing.sigTime - sigTime < ZNODE_MIN_MNP_SECONDS) {
-        nActiveState = ZNODE_PRE_ENABLED;
+        SetStatus(ZNODE_PRE_ENABLED);
         if (nActiveStatePrev != nActiveState) {
             LogPrint("znode", "CZnode::Check -- Znode %s is in %s state now\n", vin.prevout.ToStringShort(), GetStateString());
         }
         return;
     }
 
-    nActiveState = ZNODE_ENABLED; // OK
+    SetStatus(ZNODE_ENABLED); // OK
     if (nActiveStatePrev != nActiveState) {
         LogPrint("znode", "CZnode::Check -- Znode %s is in %s state now\n", vin.prevout.ToStringShort(), GetStateString());
     }
@@ -341,6 +342,8 @@ std::string CZnode::StateToString(int nStateIn) {
             return "NEW_START_REQUIRED";
         case ZNODE_POSE_BAN:
             return "POSE_BAN";
+        case ZNODE_REMOVED:
+            return "REMOVED";
         default:
             return "UNKNOWN";
     }
@@ -353,6 +356,45 @@ std::string CZnode::GetStateString() const {
 std::string CZnode::GetStatus() const {
     // TODO: return smth a bit more human readable here
     return GetStateString();
+}
+
+void CZnode::SetStatus(int newState) {
+    if(nActiveState!=newState){
+        nActiveState = newState;
+        GetMainSignals().UpdatedZnode(*this);
+    }
+}
+
+void CZnode::SetLastPing(CZnodePing newZnodePing) {
+    if(lastPing!=newZnodePing){
+        lastPing = newZnodePing;
+        GetMainSignals().UpdatedZnode(*this);
+    }
+}
+
+void CZnode::SetTimeLastPaid(int64_t newTimeLastPaid) {
+     if(nTimeLastPaid!=newTimeLastPaid){
+        nTimeLastPaid = newTimeLastPaid;
+        GetMainSignals().UpdatedZnode(*this);
+    }   
+}
+
+void CZnode::SetBlockLastPaid(int newBlockLastPaid) {
+     if(nBlockLastPaid!=newBlockLastPaid){
+        nBlockLastPaid = newBlockLastPaid;
+        GetMainSignals().UpdatedZnode(*this);
+    }   
+}
+
+void CZnode::SetRank(int newRank) {
+     if(nRank!=newRank){
+        nRank = newRank;
+        GetMainSignals().UpdatedZnode(*this);
+    }   
+}
+
+void CZnode::SetRemoved(){
+    SetStatus(ZNODE_REMOVED);
 }
 
 std::string CZnode::ToString() const {
@@ -373,6 +415,36 @@ std::string CZnode::ToString() const {
     str += std::to_string(nBlockLastPaid);
     str += "}\n";
     return str;
+}
+
+UniValue CZnode::ToJSON() const {
+    UniValue ret(UniValue::VOBJ);
+    mnodeman.UpdateLastPaid();
+    mnodeman.GetZnodeRanks();
+    std::string payee = CBitcoinAddress(pubKeyCollateralAddress.GetID()).ToString();
+    std::string outpoint = vin.prevout.ToStringShort();
+    std::string myZnode = activeZnode.vin.prevout.ToStringShort();
+
+    ret.push_back(Pair("rank", nRank));
+    ret.push_back(Pair("outpoint", outpoint));
+    ret.push_back(Pair("status", GetStatus()));
+    ret.push_back(Pair("protocolVersion", nProtocolVersion));
+    ret.push_back(Pair("payeeAddress", payee));
+    ret.push_back(Pair("lastSeen", (int64_t) lastPing.sigTime));
+    // TODO change to firstSeen timestamp
+    ret.push_back(Pair("activeSeconds", (int64_t)(lastPing.sigTime - sigTime)));
+    ret.push_back(Pair("lastPaidTime", GetLastPaidTime()));
+    ret.push_back(Pair("lastPaidBlock", GetLastPaidBlock()));
+    ret.push_back(Pair("authority", addr.ToString()));
+    ret.push_back(Pair("isMine", myZnode==outpoint));
+
+    UniValue qualify(UniValue::VOBJ);
+
+    CZnode* znode = const_cast <CZnode*> (this);
+    qualify = mnodeman.GetNotQualifyReasonToUniValue(*znode, chainActive.Tip()->nHeight, true, mnodeman.CountEnabled());
+    ret.push_back(Pair("qualify", qualify));
+
+    return ret;
 }
 
 int CZnode::GetCollateralAge() {
@@ -425,8 +497,8 @@ void CZnode::UpdateLastPaid(const CBlockIndex *pindex, int nMaxBlocksToScanBack)
 
             BOOST_FOREACH(CTxOut txout, block.vtx[0].vout)
             if (mnpayee == txout.scriptPubKey && nZnodePayment == txout.nValue) {
-                nBlockLastPaid = BlockReading->nHeight;
-                nTimeLastPaid = BlockReading->nTime;
+                SetBlockLastPaid(BlockReading->nHeight);
+                SetTimeLastPaid(BlockReading->nTime);
                 LogPrint("znode", "CZnode::UpdateLastPaidBlock -- searching for block with payment to %s -- found new %d\n", vin.prevout.ToStringShort(), nBlockLastPaid);
                 return;
             }
@@ -519,7 +591,7 @@ bool CZnodeBroadcast::Create(CTxIn txin, CService service, CKey keyCollateralAdd
         return false;
     }
 
-    mnbRet.lastPing = mnp;
+    mnbRet.SetLastPing(mnp);
     if (!mnbRet.Sign(keyCollateralAddressNew)) {
         strErrorRet = strprintf("Failed to sign broadcast, znode=%s", txin.prevout.ToStringShort());
         LogPrintf("CZnodeBroadcast::Create -- %s\n", strErrorRet);
@@ -550,7 +622,7 @@ bool CZnodeBroadcast::SimpleCheck(int &nDos) {
     // empty ping or incorrect sigTime/unknown blockhash
     if (lastPing == CZnodePing() || !lastPing.SimpleCheck(nDos)) {
         // one of us is probably forked or smth, just mark it as expired and check the rest of the rules
-        nActiveState = ZNODE_EXPIRED;
+        SetStatus(ZNODE_EXPIRED);
     }
 
     if (nProtocolVersion < mnpayments.GetMinZnodePaymentsProto()) {
@@ -891,13 +963,13 @@ bool CZnodePing::CheckAndUpdate(CZnode *pmn, bool fFromNewBroadcast, int &nDos) 
 
     // let's store this ping as the last one
     LogPrint("znode", "CZnodePing::CheckAndUpdate -- Znode ping accepted, znode=%s\n", vin.prevout.ToStringShort());
-    pmn->lastPing = *this;
+    pmn->SetLastPing(*this);
 
     // and update mnodeman.mapSeenZnodeBroadcast.lastPing which is probably outdated
     CZnodeBroadcast mnb(*pmn);
     uint256 hash = mnb.GetHash();
     if (mnodeman.mapSeenZnodeBroadcast.count(hash)) {
-        mnodeman.mapSeenZnodeBroadcast[hash].second.lastPing = *this;
+        mnodeman.mapSeenZnodeBroadcast[hash].second.SetLastPing(*this);
     }
 
     pmn->Check(true); // force update, ignoring cache
@@ -905,6 +977,8 @@ bool CZnodePing::CheckAndUpdate(CZnode *pmn, bool fFromNewBroadcast, int &nDos) 
 
     LogPrint("znode", "CZnodePing::CheckAndUpdate -- Znode ping acceepted and relayed, znode=%s\n", vin.prevout.ToStringShort());
     Relay();
+
+//    GetMainSignals().UpdatedZnode(mnb);
 
     return true;
 }

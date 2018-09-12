@@ -42,8 +42,8 @@ if __name__ == "__main__":
     transactionfilter = b"transaction"
     socket.setsockopt(zmq.SUBSCRIBE, transactionfilter)
 
-    avgblocktimefilter = b"avgblocktime"
-    socket.setsockopt(zmq.SUBSCRIBE, avgblocktimefilter)
+    znodefilter = b"znode"
+    socket.setsockopt(zmq.SUBSCRIBE, znodefilter)
 
     while True:
       message = socket.recv()

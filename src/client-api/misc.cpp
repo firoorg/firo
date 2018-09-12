@@ -2,11 +2,14 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include "znodeman.h"
 #include "main.h"
 #include "client-api/server.h"
 #include "rpc/server.h"
 #include "znode-sync.h"
 #include "wallet/wallet.h"
+#include "znode.h"
+#include "activeznode.h"
 #include <zmqserver/zmqabstract.h>
 #include <univalue.h>
 
@@ -23,6 +26,15 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
 
     UniValue obj(UniValue::VOBJ);
     UniValue modules(UniValue::VOBJ);
+    
+    CZnode *myZnode = mnodeman.Find(activeZnode.vin);
+    if(myZnode!=NULL){
+        UniValue znodeObj(UniValue::VOBJ);
+        znodeObj = myZnode->ToJSON();
+        obj.push_back(Pair("myZnode",znodeObj));
+    }else {
+        obj.push_back(Pair("myZnode",NullUniValue));
+    }
 
     modules.push_back(Pair("API", !APIIsInWarmup()));
     modules.push_back(Pair("Znode", znodeSync.IsSynced()));

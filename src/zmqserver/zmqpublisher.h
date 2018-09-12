@@ -7,6 +7,7 @@
 
 #include "zmqabstract.h"
 #include "univalue.h"
+#include "znode.h"
 
 class CBlockIndex;
 
@@ -29,7 +30,8 @@ protected:
 
 };
 
-/* Event classes. Each one is a specific notifier in ValidationInterface */
+/* Event classes. Each one is a specific notifier in ValidationInterface. 
+   virtual to allow multiple inheritence by topic classses */
 class CZMQBlockEvent : virtual public CZMQAbstractPublisher
 {
     /* Data related to a new block (updatedblocktip)
@@ -63,12 +65,20 @@ public:
     bool NotifyStatus();
 };
 
-class CZMQSettingsEvent : public CZMQAbstractPublisher
+class CZMQSettingsEvent : virtual public CZMQAbstractPublisher
 {
      /* Settings updated
     */   
 public:
     bool NotifySettingsUpdate();
+};
+
+class CZMQZnodeEvent : virtual public CZMQAbstractPublisher
+{
+    /* Data related to an updated Znode
+    */
+public:
+    bool NotifyZnodeUpdate(CZnode &znode);
 };
 
 /* Topics. inheriting from an event class implies publishing on that event. 
@@ -111,6 +121,13 @@ class CZMQSettingsTopic : public CZMQSettingsEvent
 public:
     void SetTopic(){ topic = "settings";};
     void SetMethod(){ method= "settings";};
+};
+
+class CZMQZnodeTopic : public CZMQZnodeEvent
+{
+public:
+    void SetTopic(){ topic = "znode";};
+    void SetMethod(){ method= "znodeUpdate";};
 };
 
 #endif // BITCOIN_ZMQ_ZMQPUBLISHER_H

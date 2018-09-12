@@ -7,6 +7,7 @@
 #include "util.h"
 #include <boost/filesystem/operations.hpp>
 #include <univalue.h>
+#include "zmqconfig.h"
 
 using namespace std;
 
@@ -32,6 +33,11 @@ bool CZMQAbstract::NotifyConnections()
 }
 
 bool CZMQAbstract::NotifyStatus()
+{
+    return true;
+}
+
+bool CZMQAbstract::NotifyZnodeUpdate(CZnode &znode)
 {
     return true;
 }

@@ -134,6 +134,7 @@ CZMQPublisherInterface* CZMQPublisherInterface::Create()
     factories["pubrawtx"] = CZMQAbstract::Create<CZMQTransactionTopic>;
     factories["pubblockinfo"] = CZMQAbstract::Create<CZMQBlockInfoTopic>;
     factories["pubbalance"] = CZMQAbstract::Create<CZMQBalanceTopic>;
+    factories["pubznodeupdate"] = CZMQAbstract::Create<CZMQZnodeTopic>;
     
     std::string address = BaseParams().APIAddr() + to_string(BaseParams().APIPUBPort());
 
@@ -216,6 +217,23 @@ void CZMQPublisherInterface::SyncTransaction(const CTransaction& tx, const CBloc
     {
         CZMQAbstract *notifier = *i;
         if (notifier->NotifyTransaction(tx))
+        {
+            i++;
+        }
+        else
+        {
+            notifier->Shutdown();
+            i = notifiers.erase(i);
+        }
+    }
+}
+
+void CZMQPublisherInterface::UpdatedZnode(CZnode &znode)
+{
+    for (std::list<CZMQAbstract*>::iterator i = notifiers.begin(); i!=notifiers.end(); )
+    {
+        CZMQAbstract *notifier = *i;
+        if (notifier->NotifyZnodeUpdate(znode))
         {
             i++;
         }

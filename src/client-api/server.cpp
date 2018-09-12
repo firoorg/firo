@@ -175,8 +175,9 @@ UniValue CAPITable::execute(APIJSONRequest request, const bool authPort) const
 {
     LogPrintf("API: in execute. request.collection: %s\n", request.collection);
     const CAPICommand *pcmd = tableAPI[request.collection];
-    if (!pcmd)
+    if (!pcmd){
         throw JSONAPIError(API_METHOD_NOT_FOUND, "Method \"" + request.collection + "\" not found");
+    }
     LogPrintf("API: past method not found\n");
 
     // Return if in warmup

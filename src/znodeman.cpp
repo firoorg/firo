@@ -8,6 +8,7 @@
 //#include "governance.h"
 #include "znode-payments.h"
 #include "znode-sync.h"
+#include "znode.h"
 #include "znodeman.h"
 #include "netfulfilledman.h"
 #include "util.h"
@@ -126,6 +127,8 @@ bool CZnodeMan::Add(CZnode &mn)
     if (pmn == NULL) {
         LogPrint("znode", "CZnodeMan::Add -- Adding new Znode: addr=%s, %i now\n", mn.addr.ToString(), size() + 1);
         vZnodes.push_back(mn);
+        LogPrintf("pushing znode in add\n");
+        GetMainSignals().UpdatedZnode(mn);
         indexZnodes.AddZnodeVIN(mn.vin);
         fZnodesAdded = true;
         return true;
@@ -205,6 +208,8 @@ void CZnodeMan::CheckAndRemove()
 
                 // and finally remove it from the list
 //                it->FlagGovernanceItemsAsDirty();
+                // update status to REMOVED, notify via signals, and erase from global list
+                (*it).SetRemoved();
                 it = vZnodes.erase(it);
                 fZnodesRemoved = true;
             } else {
@@ -809,6 +814,7 @@ int CZnodeMan::GetZnodeRank(const CTxIn& vin, int nBlockHeight, int nMinProtocol
     int nRank = 0;
     BOOST_FOREACH (PAIRTYPE(int64_t, CZnode*)& scorePair, vecZnodeScores) {
         nRank++;
+        scorePair.second->SetRank(nRank);
         if(scorePair.second->vin.prevout == vin.prevout) return nRank;
     }
 
@@ -841,6 +847,7 @@ std::vector<std::pair<int, CZnode> > CZnodeMan::GetZnodeRanks(int nBlockHeight, 
     int nRank = 0;
     BOOST_FOREACH (PAIRTYPE(int64_t, CZnode*)& s, vecZnodeScores) {
         nRank++;
+        s.second->SetRank(nRank);
         vecZnodeRanks.push_back(std::make_pair(nRank, *s.second));
     }
 
@@ -875,6 +882,7 @@ CZnode* CZnodeMan::GetZnodeByRank(int nRank, int nBlockHeight, int nMinProtocol,
     int rank = 0;
     BOOST_FOREACH (PAIRTYPE(int64_t, CZnode*)& s, vecZnodeScores){
         rank++;
+        s.second->SetRank(rank);
         if(rank == nRank) {
             return s.second;
         }
@@ -952,7 +960,10 @@ void CZnodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataStrea
 
         if(fZnodesAdded) {
             NotifyZnodeUpdates();
+            LogPrintf("added znode \n");
+            //GetMainSignals().UpdatedZnode(mnb);
         }
+
     } else if (strCommand == NetMsgType::MNPING) { //Znode Ping
 
         CZnodePing mnp;
@@ -1749,13 +1760,13 @@ void CZnodeMan::SetZnodeLastPing(const CTxIn& vin, const CZnodePing& mnp)
     if(!pMN)  {
         return;
     }
-    pMN->lastPing = mnp;
+    pMN->SetLastPing(mnp);
     mapSeenZnodePing.insert(std::make_pair(mnp.GetHash(), mnp));
 
     CZnodeBroadcast mnb(*pMN);
     uint256 hash = mnb.GetHash();
     if(mapSeenZnodeBroadcast.count(hash)) {
-        mapSeenZnodeBroadcast[hash].second.lastPing = mnp;
+        mapSeenZnodeBroadcast[hash].second.SetLastPing(mnp);
     }
 }
 

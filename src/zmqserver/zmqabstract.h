@@ -58,6 +58,7 @@ public:
     virtual bool NotifyTransaction(const CTransaction &transaction);
     virtual bool NotifyConnections();
     virtual bool NotifyStatus();
+    virtual bool NotifyZnodeUpdate(CZnode &znode);
 
     /* send message with or without topic value. */
     bool SendMessage();

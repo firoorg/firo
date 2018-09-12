@@ -161,6 +161,7 @@ UniValue znodelist(Type type, const UniValue& data, const UniValue& auth, bool f
                 entry.push_back(Pair("protocolVersion", mn.nProtocolVersion));
                 entry.push_back(Pair("payeeAddress", payee));
                 entry.push_back(Pair("lastSeen", (int64_t) mn.lastPing.sigTime));
+                // TODO change to firstSeen timestamp
                 entry.push_back(Pair("activeSeconds", (int64_t)(mn.lastPing.sigTime - mn.sigTime)));
                 entry.push_back(Pair("lastPaidTime", mn.GetLastPaidTime()));
                 entry.push_back(Pair("lastPaidBlock", mn.GetLastPaidBlock()));
@@ -189,11 +190,18 @@ UniValue znodelist(Type type, const UniValue& data, const UniValue& auth, bool f
     return true;
 }
 
+UniValue znodeupdate(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
+    UniValue ret(UniValue::VOBJ);
+    ret.push_back(Pair("data", data.get_obj()));
+    return ret;
+}
+
 static const CAPICommand commands[] =
 { //  category              collection         actor (function)          authPort   authPassphrase   warmupOk
   //  --------------------- ------------       ----------------          -------- --------------   --------
     { "znode",              "znodeList",       &znodelist,               true,      false,           false  },
-    { "znode",              "znodeControl",    &znodecontrol,            true,      true,            false  }
+    { "znode",              "znodeControl",    &znodecontrol,            true,      false,           false  },
+    { "znode",              "znodeUpdate",     &znodeupdate,             true,      false,           false  }
 };
 void RegisterZnodeAPICommands(CAPITable &tableAPI)
 {

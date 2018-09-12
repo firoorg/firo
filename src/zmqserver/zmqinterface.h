@@ -36,6 +36,7 @@ protected:
     void UpdatedBlockTip(const CBlockIndex *pindex);
     void NumConnectionsChanged();
     void UpdateSyncStatus();
+    void UpdatedZnode(CZnode &znode);
 
 private:
     CZMQPublisherInterface();

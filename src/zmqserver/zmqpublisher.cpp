@@ -193,17 +193,32 @@ bool CZMQConnectionsEvent::NotifyConnections()
 
 bool CZMQTransactionEvent::NotifyTransaction(const CTransaction &transaction)
 {
-    UniValue requestData(UniValue::VOBJ);
-    requestData.push_back(Pair("txRaw",EncodeHexTx(transaction)));
-    request.replace("data", requestData);
+    CWalletTx wtx(pwalletMain, transaction);
+    CAmount nFee;
+    string strSentAccount;
+    list<COutputEntry> listReceived;
+    list<COutputEntry> listSent;
+    isminefilter filter = ISMINE_ALL;
+    wtx.GetAmounts(listReceived, listSent, nFee, strSentAccount, filter);
 
-    Execute();
-    
+    if(listReceived.size() > 0 || listSent.size() > 0){
+        UniValue requestData(UniValue::VOBJ);
+        requestData.push_back(Pair("txRaw",EncodeHexTx(transaction)));
+        request.replace("data", requestData);
+        Execute();
+    }
+
     return true;
 }
 
 bool CZMQBlockEvent::NotifyBlock(const CBlockIndex *pindex){
     request.replace("data", pindex->ToJSON());
+    Execute();
+    return true;
+}
+
+bool CZMQZnodeEvent::NotifyZnodeUpdate(CZnode &znode){
+    request.replace("data", znode.ToJSON());
     Execute();
 
     return true;
