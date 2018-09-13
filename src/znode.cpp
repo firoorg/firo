@@ -368,7 +368,6 @@ void CZnode::SetStatus(int newState) {
 void CZnode::SetLastPing(CZnodePing newZnodePing) {
     if(lastPing!=newZnodePing){
         lastPing = newZnodePing;
-        GetMainSignals().UpdatedZnode(*this);
     }
 }
 
@@ -419,8 +418,6 @@ std::string CZnode::ToString() const {
 
 UniValue CZnode::ToJSON() const {
     UniValue ret(UniValue::VOBJ);
-    mnodeman.UpdateLastPaid();
-    mnodeman.GetZnodeRanks();
     std::string payee = CBitcoinAddress(pubKeyCollateralAddress.GetID()).ToString();
     std::string outpoint = vin.prevout.ToStringShort();
     std::string myZnode = activeZnode.vin.prevout.ToStringShort();
@@ -590,7 +587,6 @@ bool CZnodeBroadcast::Create(CTxIn txin, CService service, CKey keyCollateralAdd
         mnbRet = CZnodeBroadcast();
         return false;
     }
-
     mnbRet.SetLastPing(mnp);
     if (!mnbRet.Sign(keyCollateralAddressNew)) {
         strErrorRet = strprintf("Failed to sign broadcast, znode=%s", txin.prevout.ToStringShort());
@@ -708,6 +704,7 @@ bool CZnodeBroadcast::Update(CZnode *pmn, int &nDos) {
             RelayZNode();
         }
         znodeSync.AddedZnodeList();
+        GetMainSignals().UpdatedZnode(*pmn);
     }
 
     return true;
@@ -959,6 +956,7 @@ bool CZnodePing::CheckAndUpdate(CZnode *pmn, bool fFromNewBroadcast, int &nDos) 
         // let's bump sync timeout
         LogPrint("znode", "CZnodePing::CheckAndUpdate -- bumping sync timeout, znode=%s\n", vin.prevout.ToStringShort());
         znodeSync.AddedZnodeList();
+        GetMainSignals().UpdatedZnode(*pmn);
     }
 
     // let's store this ping as the last one
@@ -977,8 +975,6 @@ bool CZnodePing::CheckAndUpdate(CZnode *pmn, bool fFromNewBroadcast, int &nDos) 
 
     LogPrint("znode", "CZnodePing::CheckAndUpdate -- Znode ping acceepted and relayed, znode=%s\n", vin.prevout.ToStringShort());
     Relay();
-
-//    GetMainSignals().UpdatedZnode(mnb);
 
     return true;
 }

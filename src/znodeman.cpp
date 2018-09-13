@@ -12,6 +12,7 @@
 #include "znodeman.h"
 #include "netfulfilledman.h"
 #include "util.h"
+#include "validationinterface.h"
 
 /** Znode manager */
 CZnodeMan mnodeman;
@@ -127,8 +128,6 @@ bool CZnodeMan::Add(CZnode &mn)
     if (pmn == NULL) {
         LogPrint("znode", "CZnodeMan::Add -- Adding new Znode: addr=%s, %i now\n", mn.addr.ToString(), size() + 1);
         vZnodes.push_back(mn);
-        LogPrintf("pushing znode in add\n");
-        GetMainSignals().UpdatedZnode(mn);
         indexZnodes.AddZnodeVIN(mn.vin);
         fZnodesAdded = true;
         return true;
@@ -960,8 +959,6 @@ void CZnodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataStrea
 
         if(fZnodesAdded) {
             NotifyZnodeUpdates();
-            LogPrintf("added znode \n");
-            //GetMainSignals().UpdatedZnode(mnb);
         }
 
     } else if (strCommand == NetMsgType::MNPING) { //Znode Ping
@@ -1517,7 +1514,6 @@ std::string CZnodeMan::ToString() const
 void CZnodeMan::UpdateZnodeList(CZnodeBroadcast mnb)
 {
     try {
-        LogPrintf("CZnodeMan::UpdateZnodeList\n");
         LOCK2(cs_main, cs);
         mapSeenZnodePing.insert(std::make_pair(mnb.lastPing.GetHash(), mnb.lastPing));
         mapSeenZnodeBroadcast.insert(std::make_pair(mnb.GetHash(), std::make_pair(GetTime(), mnb)));
@@ -1529,11 +1525,13 @@ void CZnodeMan::UpdateZnodeList(CZnodeBroadcast mnb)
             CZnode mn(mnb);
             if (Add(mn)) {
                 znodeSync.AddedZnodeList();
+                GetMainSignals().UpdatedZnode(mn);
             }
         } else {
             CZnodeBroadcast mnbOld = mapSeenZnodeBroadcast[CZnodeBroadcast(*pmn).GetHash()].second;
             if (pmn->UpdateFromNewBroadcast(mnb)) {
                 znodeSync.AddedZnodeList();
+                GetMainSignals().UpdatedZnode(*pmn);
                 mapSeenZnodeBroadcast.erase(mnbOld.GetHash());
             }
         }
@@ -1560,6 +1558,7 @@ bool CZnodeMan::CheckMnbAndUpdateZnodeList(CNode* pfrom, CZnodeBroadcast mnb, in
                 LogPrint("znode", "CZnodeMan::CheckMnbAndUpdateZnodeList -- znode=%s seen update\n", mnb.vin.prevout.ToStringShort());
                 mapSeenZnodeBroadcast[hash].first = GetTime();
                 znodeSync.AddedZnodeList();
+                GetMainSignals().UpdatedZnode(mnb);
             }
             // did we ask this node for it?
             if (pfrom && IsMnbRecoveryRequested(hash) && GetTime() < mMnbRecoveryRequests[hash].first) {
@@ -1608,7 +1607,9 @@ bool CZnodeMan::CheckMnbAndUpdateZnodeList(CNode* pfrom, CZnodeBroadcast mnb, in
     } // end of LOCK(cs);
 
     if(mnb.CheckOutpoint(nDos)) {
-        Add(mnb);
+        if(Add(mnb)){
+            GetMainSignals().UpdatedZnode(mnb);  
+        }
         znodeSync.AddedZnodeList();
         // if it matches our Znode privkey...
         if(fZNode && mnb.pubKeyZnode == activeZnode.pubKeyZnode) {
@@ -1639,7 +1640,7 @@ void CZnodeMan::UpdateLastPaid()
     LOCK(cs);
     if(fLiteMode) return;
     if(!pCurrentBlockIndex) {
-        // LogPrintf("CZnodeMan::UpdateLastPaid, pCurrentBlockIndex=NULL\n");
+        LogPrintf("CZnodeMan::UpdateLastPaid, pCurrentBlockIndex=NULL\n");
         return;
     }
 
@@ -1652,6 +1653,7 @@ void CZnodeMan::UpdateLastPaid()
                              pCurrentBlockIndex->nHeight, nMaxBlocksToScanBack, IsFirstRun ? "true" : "false");
 
     BOOST_FOREACH(CZnode& mn, vZnodes) {
+        LogPrintf("updating last paid..\n");
         mn.UpdateLastPaid(pCurrentBlockIndex, nMaxBlocksToScanBack);
     }
 
@@ -1776,7 +1778,7 @@ void CZnodeMan::UpdatedBlockTip(const CBlockIndex *pindex)
     LogPrint("znode", "CZnodeMan::UpdatedBlockTip -- pCurrentBlockIndex->nHeight=%d\n", pCurrentBlockIndex->nHeight);
 
     CheckSameAddr();
-
+    LogPrintf("CZnodeMan::UpdatedBlockTip \n");
     if(fZNode) {
         // normal wallet does not need to update this every block, doing update on rpc call should be enough
         UpdateLastPaid();

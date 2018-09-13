@@ -434,6 +434,9 @@ void CZnodeSync::ProcessTick() {
     }
     // looped through all nodes, release them
     ReleaseNodeVector(vNodesCopy);
+
+    // Update last paid time for block
+    mnodeman.UpdateLastPaid();
 }
 
 void CZnodeSync::UpdatedBlockTip(const CBlockIndex *pindex) {

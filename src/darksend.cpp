@@ -2524,6 +2524,7 @@ void ThreadCheckDarkSendPool() {
                 mnodeman.CheckAndRemove();
                 mnpayments.CheckAndRemove();
                 instantsend.CheckAndRemove();
+                mnodeman.UpdateLastPaid();
             }
             if (fZNode && (nTick % (60 * 5) == 0)) {
                 mnodeman.DoFullVerificationStep();
