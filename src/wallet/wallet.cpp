@@ -1456,7 +1456,7 @@ void CWallet::ReacceptWalletTransactions() {
         // a second time. We assume those operations were already done.
         wtx.AcceptToMemoryPool(false, maxTxFee, state, false, false, false);
         // If Dandelion enabled, relay transaction once again.
-        if (GetBoolArg("-dandelion", true) {
+        if (GetBoolArg("-dandelion", true)) {
             wtx.RelayWalletTransaction(false);
         }
     }
