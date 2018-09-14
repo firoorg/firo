@@ -3205,7 +3205,7 @@ bool CWallet::CreateZerocoinMintModel(string &stringError, string denomAmount) {
 	// do not use v2 mint until certain moment when it would be understood by peers
 	{
 		LOCK(cs_main);
-        if (chainActive.Height() >= Params().nSpendV15StartBlock)
+        if (chainActive.Height() >= Params().GetConsensus().nSpendV15StartBlock)
 			mintVersion = ZEROCOIN_TX_VERSION_2;
 	}
 
@@ -3686,7 +3686,7 @@ bool CWallet::CreateZerocoinSpendTransaction(std::string &thirdPartyaddress, int
             // Fill vin
 
             // Set up the Zerocoin Params object
-            bool fModulusV2 = chainActive.Height() >= Params().nModulusV2StartBlock;
+            bool fModulusV2 = chainActive.Height() >= Params().GetConsensus().nModulusV2StartBlock;
             libzerocoin::Params *zcParams = fModulusV2 ? ZCParamsV2 : ZCParams;
 
             // Select not yet used coin from the wallet with minimal possible id
@@ -3763,7 +3763,7 @@ bool CWallet::CreateZerocoinSpendTransaction(std::string &thirdPartyaddress, int
             newTxIn.prevout.SetNull();
             txNew.vin.push_back(newTxIn);
 
-            bool useVersion2 = IsZerocoinTxV2(denomination, coinId);
+            bool useVersion2 = IsZerocoinTxV2(denomination, Params().GetConsensus(), coinId);
 
             // We use incomplete transaction hash for now as a metadata
             libzerocoin::SpendMetaData metaData(serializedId, txNew.GetHash());
@@ -3783,7 +3783,7 @@ bool CWallet::CreateZerocoinSpendTransaction(std::string &thirdPartyaddress, int
                     LOCK(cs_main);
                     nHeight = chainActive.Height();
                 }
-                if (nHeight >= Params().nSpendV15StartBlock)
+                if (nHeight >= Params().GetConsensus().nSpendV15StartBlock)
                     txVersion = ZEROCOIN_TX_VERSION_1_5;
             }
 

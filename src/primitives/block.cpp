@@ -54,7 +54,7 @@ uint256 CBlockHeader::GetHash() const {
 bool CBlockHeader::IsMTP() const {
     // In case if nTime == ZC_GENESIS_BLOCK_TIME we're being called from CChainParams() constructor and
     // it is not possible to get Params()
-    return nTime > ZC_GENESIS_BLOCK_TIME && nTime >= Params().nMTPSwitchTime;
+    return nTime > ZC_GENESIS_BLOCK_TIME && nTime >= Params().GetConsensus().nMTPSwitchTime;
 }
 
 uint256 CBlockHeader::GetPoWHash(int nHeight, bool forceCalc) const {

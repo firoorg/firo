@@ -16,6 +16,7 @@
 #include "libzerocoin/bitcoin_bignum/bignum.h"
 #include "utilstrencodings.h"
 #include "crypto/MerkleTreeProof/mtp.h"
+#include "mtpstate.h"
 #include "fixed.h"
 
 static CBigNum bnProofOfWorkLimit(~arith_uint256(0) >> 8);
@@ -38,39 +39,24 @@ double GetDifficultyHelper(unsigned int nBits) {
 
 // zcoin GetNextWorkRequired
 unsigned int GetNextWorkRequired(const CBlockIndex *pindexLast, const CBlockHeader *pblock, const Consensus::Params &params) {
-    auto chainParams = Params();
-    bool fTestNet = chainParams.NetworkIDString() == CBaseChainParams::TESTNET;
-    bool fMainNet = chainParams.NetworkIDString() == CBaseChainParams::MAIN;
+    if (!pindexLast || pindexLast->nHeight < params.nDifficultyAdjustStartBlock)
+        return params.nFixedDifficulty;
 
-    if (pindexLast->nHeight < chainParams.nDifficultyAdjustStartBlock)
-        return chainParams.nFixedDifficulty;
-
-	if (pindexLast == NULL) {
-        return bnProofOfWorkLimit.GetCompact();
-    }
-
-    static const uint32_t BlocksTargetSpacing = params.nPowTargetSpacing; // 5 minutes
-    unsigned int TimeDaySeconds = 60 * 60 * 24;
-    int64_t PastSecondsMin = TimeDaySeconds * 0.25; // 21600
-    int64_t PastSecondsMax = TimeDaySeconds * 7;// 604800
-    uint32_t PastBlocksMin = PastSecondsMin / BlocksTargetSpacing; // 36 blocks
-    uint32_t PastBlocksMax = PastSecondsMax / BlocksTargetSpacing; // 1008 blocks
-
-    if (fTestNet) {
+    if (params.IsTestnet()) {
         // If the new block's timestamp is more than nTargetSpacing*6
         // then allow mining of a min-difficulty block
         if (pblock->nTime > pindexLast->nTime + params.nPowTargetTimespan * 1) {
-            return bnProofOfWorkLimit.GetCompact();
+            return params.nFixedDifficulty;
         }
     }
 
     // 9/29/2016 - Reset to Lyra2(2,block_height,256) due to ASIC KnC Miner Scrypt
     // 36 block look back, reset to mininmum diff
-    if (fMainNet && pindexLast->nHeight + 1 >= HF_LYRA2VAR_HEIGHT && pindexLast->nHeight + 1 <= HF_LYRA2VAR_HEIGHT + 36 - 1) {
-        return bnProofOfWorkLimit.GetCompact();
+    if (params.IsMain() && pindexLast->nHeight + 1 >= HF_LYRA2VAR_HEIGHT && pindexLast->nHeight + 1 <= HF_LYRA2VAR_HEIGHT + 36 - 1) {
+        return params.nFixedDifficulty;
     }
     // 02/11/2017 - Increase diff to match with new hashrates of Lyra2Z algo
-    if (fMainNet && pindexLast->nHeight + 1 == HF_LYRA2Z_HEIGHT) {
+    if (params.IsMain() && pindexLast->nHeight + 1 == HF_LYRA2Z_HEIGHT) {
         CBigNum bnNew;
         bnNew.SetCompact(pindexLast->nBits);
         bnNew /= 20000; // increase the diff by 20000x since the new hashrate is approx. 20000 times higher
@@ -80,7 +66,31 @@ unsigned int GetNextWorkRequired(const CBlockIndex *pindexLast, const CBlockHead
         return bnNew.GetCompact();
     }
 
-    if ((pindexLast->nHeight + 1) % params.DifficultyAdjustmentInterval() != 0) // Retarget every nInterval blocks
+    int nFirstMTPBlock = MTPState::GetMTPState()->GetFirstMTPBlockNumber();
+    bool fMTP = nFirstMTPBlock > 0;
+
+    if (pblock->IsMTP() && !fMTP) {
+        // first MTP block ever
+        return params.nInitialMTPDifficulty;
+    }
+
+    static const uint32_t BlocksTargetSpacing = fMTP ? params.nPowTargetSpacingMTP : params.nPowTargetSpacing; // 5 or 10 minutes
+    unsigned int TimeDaySeconds = 60 * 60 * 24;
+    int64_t PastSecondsMin = TimeDaySeconds * 0.25; // 21600
+    int64_t PastSecondsMax = TimeDaySeconds * 7;// 604800
+    uint32_t PastBlocksMin = PastSecondsMin / BlocksTargetSpacing; // 36 blocks
+    uint32_t PastBlocksMax = PastSecondsMax / BlocksTargetSpacing; // 1008 blocks
+    uint32_t StartingPoWBlock = 0;
+
+    if (nFirstMTPBlock > 1) {
+        // There are both legacy and MTP blocks in the chain. Limit PoW calculation scope to MTP blocks only
+        uint32_t numberOfMTPBlocks = pindexLast->nHeight - nFirstMTPBlock + 1;
+        PastBlocksMin = std::min(PastBlocksMin, numberOfMTPBlocks);
+        PastBlocksMax = std::min(PastBlocksMax, numberOfMTPBlocks);
+        StartingPoWBlock = nFirstMTPBlock;
+    }
+
+    if ((pindexLast->nHeight + 1 - StartingPoWBlock) % params.DifficultyAdjustmentInterval(fMTP) != 0) // Retarget every nInterval blocks
     {
         return pindexLast->nBits;
     }

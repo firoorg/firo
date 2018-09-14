@@ -441,7 +441,7 @@ public:
         READWRITE(nNonce);
 
         // Zcoin - MTP
-        if (nTime > ZC_GENESIS_BLOCK_TIME && nTime >= Params().nMTPSwitchTime) {
+        if (nTime > ZC_GENESIS_BLOCK_TIME && nTime >= Params().GetConsensus().nMTPSwitchTime) {
             READWRITE(nVersionMTP);
             READWRITE(mtpHashValue);
             READWRITE(mtpReserved[0]);

@@ -308,7 +308,7 @@ bool CBlockTreeDB::ReadFlag(const std::string &name, bool &fValue) {
 
 bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256&)> insertBlockIndex)
 {
-    auto chainParams = Params();
+    auto consensusParams = Params().GetConsensus();
     LogPrintf("CBlockTreeDB::LoadBlockIndexGuts\n");
     //bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
     boost::scoped_ptr<CDBIterator> pcursor(NewIterator());
@@ -341,7 +341,7 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
                 pindexNew->nTx            = diskindex.nTx;
 
                 // Zcoin - MTP
-                if (diskindex.nTime > ZC_GENESIS_BLOCK_TIME && diskindex.nTime >= chainParams.nMTPSwitchTime) {
+                if (diskindex.nTime > ZC_GENESIS_BLOCK_TIME && diskindex.nTime >= consensusParams.nMTPSwitchTime) {
                     pindexNew->nVersionMTP = diskindex.nVersionMTP;
                     pindexNew->mtpHashValue = diskindex.mtpHashValue;
                     pindexNew->mtpReserved[0] = diskindex.mtpReserved[0];
@@ -352,8 +352,8 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
                 pindexNew->mintedPubCoins     = diskindex.mintedPubCoins;
                 pindexNew->spentSerials       = diskindex.spentSerials;
 
-                if (!CheckProofOfWork(pindexNew->GetBlockPoWHash(), pindexNew->nBits, chainParams.GetConsensus()))
-                    if (!CheckProofOfWork(pindexNew->GetBlockPoWHash(true), pindexNew->nBits, chainParams.GetConsensus()))
+                if (!CheckProofOfWork(pindexNew->GetBlockPoWHash(), pindexNew->nBits, consensusParams))
+                    if (!CheckProofOfWork(pindexNew->GetBlockPoWHash(true), pindexNew->nBits, consensusParams))
                         return error("LoadBlockIndex(): CheckProofOfWork failed: %s", pindexNew->ToString());
 
                 pcursor->Next();

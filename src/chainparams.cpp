@@ -84,6 +84,8 @@ class CMainParams : public CChainParams {
 public:
     CMainParams() {
         strNetworkID = "main";
+
+        consensus.chainType = Consensus::chainMain;        
         consensus.nSubsidyHalvingInterval = 210000;
         consensus.nMajorityEnforceBlockUpgrade = 750;
         consensus.nMajorityRejectBlockOutdated = 950;
@@ -119,6 +121,17 @@ public:
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000708f98bf623f02e");
 
+        consensus.nCheckBugFixedAtBlock = ZC_CHECK_BUG_FIXED_AT_BLOCK;
+	    consensus.nSpendV15StartBlock = ZC_V1_5_STARTING_BLOCK;
+	    consensus.nSpendV2ID_1 = ZC_V2_SWITCH_ID_1;
+	    consensus.nSpendV2ID_10 = ZC_V2_SWITCH_ID_10;
+	    consensus.nSpendV2ID_25 = ZC_V2_SWITCH_ID_25;
+	    consensus.nSpendV2ID_50 = ZC_V2_SWITCH_ID_50;
+	    consensus.nSpendV2ID_100 = ZC_V2_SWITCH_ID_100;
+	    consensus.nModulusV2StartBlock = ZC_MODULUS_V2_START_BLOCK;
+        consensus.nModulusV1MempoolStopBlock = ZC_MODULUS_V1_MEMPOOL_STOP_BLOCK;
+	    consensus.nModulusV1StopBlock = ZC_MODULUS_V1_STOP_BLOCK;
+
         // znode params
         consensus.nZnodePaymentsStartBlock = HF_ZNODE_PAYMENT_START; // not true, but it's ok as long as it's less then nZnodePaymentsIncreaseBlock
         // consensus.nZnodePaymentsIncreaseBlock = 680000; // actual historical value // not used for now, probably later
@@ -127,6 +140,14 @@ public:
         // consensus.nBudgetPaymentsStartBlock = 328008; // actual historical value
         // consensus.nBudgetPaymentsCycleBlocks = 16616; // ~(60*24*30)/2.6, actual number of blocks per month is 200700 / 12 = 16725
         // consensus.nBudgetPaymentsWindowBlocks = 100;
+
+        consensus.nMTPSwitchTime = SWITCH_TO_MTP_BLOCK_HEADER;
+        consensus.nDifficultyAdjustStartBlock = 0;
+        consensus.nFixedDifficulty = 0;
+        consensus.nPowTargetSpacingMTP = 5*60;
+        consensus.nInitialMTPDifficulty = 0x2000ffff;  // !!!! change it to the real value
+        consensus.nMTPRewardReduction = 2;
+
         nMaxTipAge = 6 * 60 * 60; // ~144 blocks behind -> 2 x fork detection time, was 24 * 60 * 60 in bitcoin
 
         nPoolMaxTransactions = 3;
@@ -200,20 +221,6 @@ public:
                 //   (the tx=... number in the SetBestChain debug.log lines)
                 1200.0     // * estimated number of transactions per day after checkpoint
         };
-	    
-        nCheckBugFixedAtBlock = ZC_CHECK_BUG_FIXED_AT_BLOCK;
-	    nSpendV15StartBlock = ZC_V1_5_STARTING_BLOCK;
-	    nSpendV2ID_1 = ZC_V2_SWITCH_ID_1;
-	    nSpendV2ID_10 = ZC_V2_SWITCH_ID_10;
-	    nSpendV2ID_25 = ZC_V2_SWITCH_ID_25;
-	    nSpendV2ID_50 = ZC_V2_SWITCH_ID_50;
-	    nSpendV2ID_100 = ZC_V2_SWITCH_ID_100;
-	    nModulusV2StartBlock = ZC_MODULUS_V2_START_BLOCK;
-        nModulusV1MempoolStopBlock = ZC_MODULUS_V1_MEMPOOL_STOP_BLOCK;
-	    nModulusV1StopBlock = ZC_MODULUS_V1_STOP_BLOCK;
-        nMTPSwitchTime = SWITCH_TO_MTP_BLOCK_HEADER;
-        nDifficultyAdjustStartBlock = 0;
-        nFixedDifficulty = 0;
     }
 };
 
@@ -226,6 +233,8 @@ class CTestNetParams : public CChainParams {
 public:
     CTestNetParams() {
         strNetworkID = "test";
+
+        consensus.chainType = Consensus::chainTestnet;
         consensus.nSubsidyHalvingInterval = 210000;
         consensus.nMajorityEnforceBlockUpgrade = 51;
         consensus.nMajorityRejectBlockOutdated = 75;
@@ -258,6 +267,19 @@ public:
 
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000708f98bf623f02e");
+
+	    consensus.nSpendV15StartBlock = ZC_V1_5_TESTNET_STARTING_BLOCK;
+        consensus.nCheckBugFixedAtBlock = 35000;
+
+	    consensus.nSpendV2ID_1 = ZC_V2_TESTNET_SWITCH_ID_1;
+	    consensus.nSpendV2ID_10 = ZC_V2_TESTNET_SWITCH_ID_10;
+	    consensus.nSpendV2ID_25 = ZC_V2_TESTNET_SWITCH_ID_25;
+	    consensus.nSpendV2ID_50 = ZC_V2_TESTNET_SWITCH_ID_50;
+	    consensus.nSpendV2ID_100 = ZC_V2_TESTNET_SWITCH_ID_100;
+	    consensus.nModulusV2StartBlock = ZC_MODULUS_V2_TESTNET_START_BLOCK;
+        consensus.nModulusV1MempoolStopBlock = ZC_MODULUS_V1_TESTNET_MEMPOOL_STOP_BLOCK;
+	    consensus.nModulusV1StopBlock = ZC_MODULUS_V1_TESTNET_STOP_BLOCK;
+
         // Znode params testnet
         consensus.nZnodePaymentsStartBlock = 5200; // not true, but it's ok as long as it's less then n
         //consensus.nZnodePaymentsIncreaseBlock = 360; // not used for now, probably later
@@ -267,6 +289,13 @@ public:
         //consensus.nBudgetPaymentsCycleBlocks = 50;
         //consensus.nBudgetPaymentsWindowBlocks = 10;
         nMaxTipAge = 0x7fffffff; // allow mining on top of old blocks for testnet
+
+        consensus.nMTPSwitchTime = 1;
+        consensus.nDifficultyAdjustStartBlock = 5000;
+        consensus.nFixedDifficulty = 0x2000ffff;
+        consensus.nPowTargetSpacingMTP = 5*60;
+        consensus.nInitialMTPDifficulty = 0x2000ffff;  // !!!! change it to the real value
+        consensus.nMTPRewardReduction = 1;
 
         nPoolMaxTransactions = 3;
         nFulfilledRequestExpireTime = 5*60; // fulfilled requests expire in 5 minutes
@@ -326,7 +355,6 @@ public:
         fMineBlocksOnDemand = false;
         fTestnetToBeDeprecatedFieldRPC = true;
 
-
         checkpointData = (CCheckpointData) {
                 boost::assign::map_list_of
                         (0, uint256S("0x")),
@@ -334,21 +362,6 @@ public:
                         0,
                         100.0
         };
-
-	    nSpendV15StartBlock = ZC_V1_5_TESTNET_STARTING_BLOCK;
-        nCheckBugFixedAtBlock = 35000;
-
-	    nSpendV2ID_1 = ZC_V2_TESTNET_SWITCH_ID_1;
-	    nSpendV2ID_10 = ZC_V2_TESTNET_SWITCH_ID_10;
-	    nSpendV2ID_25 = ZC_V2_TESTNET_SWITCH_ID_25;
-	    nSpendV2ID_50 = ZC_V2_TESTNET_SWITCH_ID_50;
-	    nSpendV2ID_100 = ZC_V2_TESTNET_SWITCH_ID_100;
-	    nModulusV2StartBlock = ZC_MODULUS_V2_TESTNET_START_BLOCK;
-        nModulusV1MempoolStopBlock = ZC_MODULUS_V1_TESTNET_MEMPOOL_STOP_BLOCK;
-	    nModulusV1StopBlock = ZC_MODULUS_V1_TESTNET_STOP_BLOCK;
-        nMTPSwitchTime = 1;
-        nDifficultyAdjustStartBlock = 5000;
-        nFixedDifficulty = 0x2000ffff;
     }
 };
 
@@ -361,6 +374,8 @@ class CRegTestParams : public CChainParams {
 public:
     CRegTestParams() {
         strNetworkID = "regtest";
+
+        consensus.chainType = Consensus::chainRegtest;
         consensus.nSubsidyHalvingInterval = 210000;
         consensus.nMajorityEnforceBlockUpgrade = 750;
         consensus.nMajorityRejectBlockOutdated = 950;
@@ -390,6 +405,25 @@ public:
         // Znode code
         nFulfilledRequestExpireTime = 5*60; // fulfilled requests expire in 5 minutes
         nMaxTipAge = 6 * 60 * 60; // ~144 blocks behind -> 2 x fork detection time, was 24 * 60 * 60 in bitcoin
+
+        consensus.nCheckBugFixedAtBlock = 120;
+        consensus.nSpendV15StartBlock = 1;
+        consensus.nSpendV2ID_1 = 2;
+        consensus.nSpendV2ID_10 = 3;
+        consensus.nSpendV2ID_25 = 3;
+        consensus.nSpendV2ID_50 = 3;
+        consensus.nSpendV2ID_100 = 3;
+        consensus.nModulusV2StartBlock = 130;
+        consensus.nModulusV1MempoolStopBlock = 135;
+        consensus.nModulusV1StopBlock = 140;
+
+        consensus.nMTPSwitchTime = INT_MAX;
+        consensus.nDifficultyAdjustStartBlock = 0;
+        consensus.nFixedDifficulty = 0x2000ffff;
+        consensus.nPowTargetSpacingMTP = 5*60;
+        consensus.nInitialMTPDifficulty = 0x2000ffff;  // !!!! change it to the real value
+        consensus.nMTPRewardReduction = 2;
+        consensus.nFixedDifficulty = 0;
 
         pchMessageStart[0] = 0xfa;
         pchMessageStart[1] = 0xbf;
@@ -440,20 +474,6 @@ public:
         base58Prefixes[SECRET_KEY] = std::vector < unsigned char > (1, 239);
         base58Prefixes[EXT_PUBLIC_KEY] = boost::assign::list_of(0x04)(0x35)(0x87)(0xCF).convert_to_container < std::vector < unsigned char > > ();
         base58Prefixes[EXT_SECRET_KEY] = boost::assign::list_of(0x04)(0x35)(0x83)(0x94).convert_to_container < std::vector < unsigned char > > ();
-
-        nCheckBugFixedAtBlock = 120;
-        nSpendV15StartBlock = 1;
-        nSpendV2ID_1 = 2;
-        nSpendV2ID_10 = 3;
-        nSpendV2ID_25 = 3;
-        nSpendV2ID_50 = 3;
-        nSpendV2ID_100 = 3;
-        nModulusV2StartBlock = 130;
-        nModulusV1MempoolStopBlock = 135;
-        nModulusV1StopBlock = 140;
-        nMTPSwitchTime = INT_MAX;
-        nDifficultyAdjustStartBlock = 0;
-        nFixedDifficulty = 0;
     }
 
     void UpdateBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout) {

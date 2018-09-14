@@ -82,23 +82,6 @@ public:
     std::string SporkPubKey() const { return strSporkPubKey; }
     std::string ZnodePaymentPubKey() const { return strZnodePaymentsPubKey; }
 	
-	/** Zerocoin-related block numbers when features are changed */
-    int nCheckBugFixedAtBlock;
-	int nSpendV15StartBlock;
-	int nSpendV2ID_1, nSpendV2ID_10, nSpendV2ID_25, nSpendV2ID_50, nSpendV2ID_100;
-	
-	int nModulusV2StartBlock;
-    int nModulusV1MempoolStopBlock;
-	int nModulusV1StopBlock;
-
-    /** switch to MTP time */
-    uint32_t nMTPSwitchTime;
-
-    /** don't adjust difficulty until some block number */
-    int nDifficultyAdjustStartBlock;
-    /** fixed diffuculty to use before adjustment takes place */
-    int nFixedDifficulty;
-	
 protected:
     CChainParams() {}
 
