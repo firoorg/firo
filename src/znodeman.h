@@ -298,7 +298,7 @@ public:
 
     std::vector<CZnode> GetFullZnodeVector() { return vZnodes; }
 
-    std::vector<std::pair<int, CZnode> > GetZnodeRanks(int nBlockHeight = -1, int nMinProtocol=0);
+    std::vector<std::pair<int, CZnode> > GetZnodeRanks(int nBlockHeight = -1, int nMinProtocol=0, bool nPublish=false);
     int GetZnodeRank(const CTxIn &vin, int nBlockHeight, int nMinProtocol=0, bool fOnlyActive=true);
     CZnode* GetZnodeByRank(int nRank, int nBlockHeight, int nMinProtocol=0, bool fOnlyActive=true);
 

@@ -81,6 +81,14 @@ public:
     bool NotifyZnodeUpdate(CZnode &znode);
 };
 
+class CZMQMintStatusEvent : virtual public CZMQAbstractPublisher
+{
+    /* Data related to an updated Znode
+    */
+public:
+    bool NotifyMintStatusUpdate(std::string update);
+};
+
 /* Topics. inheriting from an event class implies publishing on that event. 
    'method' string is the API method called in client-api/ 
 */
@@ -128,6 +136,13 @@ class CZMQZnodeTopic : public CZMQZnodeEvent
 public:
     void SetTopic(){ topic = "znode";};
     void SetMethod(){ method= "znodeUpdate";};
+};
+
+class CZMQMintStatusTopic : public CZMQMintStatusEvent
+{
+public:
+    void SetTopic(){ topic = "mintStatus";};
+    void SetMethod(){ method= "mintStatus";};
 };
 
 #endif // BITCOIN_ZMQ_ZMQPUBLISHER_H

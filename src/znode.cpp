@@ -385,10 +385,12 @@ void CZnode::SetBlockLastPaid(int newBlockLastPaid) {
     }   
 }
 
-void CZnode::SetRank(int newRank) {
+void CZnode::SetRank(int newRank, bool nPublish) {
      if(nRank!=newRank){
         nRank = newRank;
-        GetMainSignals().UpdatedZnode(*this);
+        if(nPublish){
+            GetMainSignals().UpdatedZnode(*this);
+        }
     }   
 }
 

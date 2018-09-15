@@ -223,3 +223,14 @@ bool CZMQZnodeEvent::NotifyZnodeUpdate(CZnode &znode){
 
     return true;
 }
+
+bool CZMQMintStatusEvent::NotifyMintStatusUpdate(std::string update){
+    LogPrintf("update in NotifyMintStatusUpdate: %s\n", update);
+    UniValue updateObj(UniValue::VOBJ);
+    updateObj.read(update);
+    //updateObj.push_back(Pair("result", update));
+    request.replace("data", updateObj);
+    Execute();
+
+    return true;
+}

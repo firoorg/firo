@@ -3432,7 +3432,7 @@ UniValue setmintzerocoinstatus(const UniValue& params, bool fHelp) {
                 const std::string& isUsedDenomStr = zerocoinTx.IsUsed
                         ? "Used (" + std::to_string(zerocoinTx.denomination) + " mint)"
                         : "New (" + std::to_string(zerocoinTx.denomination) + " mint)";
-                pwalletMain->NotifyZerocoinChanged(pwalletMain, zerocoinTx.value.GetHex(), isUsedDenomStr, CT_UPDATED);
+                pwalletMain->NotifyZerocoinChanged(pwalletMain, zerocoinTx, isUsedDenomStr, CT_UPDATED);
                 walletdb.WriteZerocoinEntry(zerocoinTx);
 
                 if (!fStatus) {

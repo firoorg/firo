@@ -9,6 +9,8 @@
 #include "wallet/wallet.h"
 #include "client-api/wallet.h"
 #include <univalue.h>
+#include "darksend.h"
+#include "chain.h"
 
 using namespace std;
 

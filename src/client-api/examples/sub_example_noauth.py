@@ -45,6 +45,10 @@ if __name__ == "__main__":
     znodefilter = b"znode"
     socket.setsockopt(zmq.SUBSCRIBE, znodefilter)
 
+
+    mintstatusfilter = b"mintStatus"
+    socket.setsockopt(zmq.SUBSCRIBE, mintstatusfilter)
+
     while True:
       message = socket.recv()
       print("Received reply [%s]" % (message))

@@ -813,14 +813,14 @@ int CZnodeMan::GetZnodeRank(const CTxIn& vin, int nBlockHeight, int nMinProtocol
     int nRank = 0;
     BOOST_FOREACH (PAIRTYPE(int64_t, CZnode*)& scorePair, vecZnodeScores) {
         nRank++;
-        scorePair.second->SetRank(nRank);
+        //scorePair.second->SetRank(nRank);
         if(scorePair.second->vin.prevout == vin.prevout) return nRank;
     }
 
     return -1;
 }
 
-std::vector<std::pair<int, CZnode> > CZnodeMan::GetZnodeRanks(int nBlockHeight, int nMinProtocol)
+std::vector<std::pair<int, CZnode> > CZnodeMan::GetZnodeRanks(int nBlockHeight, int nMinProtocol, bool nPublish)
 {
     std::vector<std::pair<int64_t, CZnode*> > vecZnodeScores;
     std::vector<std::pair<int, CZnode> > vecZnodeRanks;
@@ -846,7 +846,7 @@ std::vector<std::pair<int, CZnode> > CZnodeMan::GetZnodeRanks(int nBlockHeight, 
     int nRank = 0;
     BOOST_FOREACH (PAIRTYPE(int64_t, CZnode*)& s, vecZnodeScores) {
         nRank++;
-        s.second->SetRank(nRank);
+        s.second->SetRank(nRank, nPublish);
         vecZnodeRanks.push_back(std::make_pair(nRank, *s.second));
     }
 
@@ -881,7 +881,6 @@ CZnode* CZnodeMan::GetZnodeByRank(int nRank, int nBlockHeight, int nMinProtocol,
     int rank = 0;
     BOOST_FOREACH (PAIRTYPE(int64_t, CZnode*)& s, vecZnodeScores){
         rank++;
-        s.second->SetRank(rank);
         if(rank == nRank) {
             return s.second;
         }

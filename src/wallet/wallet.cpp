@@ -986,7 +986,7 @@ bool CWallet::AbandonTransaction(const uint256 &hashTx) {
                 if (zerocoinItem.serialNumber == serial) {
                     CZerocoinEntry modifiedItem = zerocoinItem;
                     modifiedItem.IsUsed = false;
-                    pwalletMain->NotifyZerocoinChanged(pwalletMain, zerocoinItem.value.GetHex(),
+                    pwalletMain->NotifyZerocoinChanged(pwalletMain, zerocoinItem,
                                                        std::string("New (") + std::to_string(zerocoinItem.denomination) + "mint)",
                                                        CT_UPDATED);
                     walletdb.WriteZerocoinEntry(modifiedItem);
@@ -2284,6 +2284,56 @@ bool CWallet::IsMintFromTxOutUsed(CTxOut& txout){
 }
 
 //[zcoin]
+uint256 CWallet::GetTxidForPubcoin(const CZerocoinEntry &pubCoinItem) const {
+
+    LOCK(cs_wallet);
+    list <CZerocoinEntry> listPubCoin = list<CZerocoinEntry>();
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+    walletdb.ListPubCoin(listPubCoin);
+
+    LogPrintf("pubCoinItem value: %s\n", pubCoinItem.value.ToString());
+//        LogPrintf("listPubCoin.size() in ListAvailableCoinsMintCoins=%s\n", listPubCoin.size());
+    for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it) {
+        const CWalletTx *pcoin = &(*it).second;
+//            LogPrintf("pcoin=%s\n", pcoin->GetHash().ToString());
+        if (!CheckFinalTx(*pcoin)) {
+            LogPrintf("!CheckFinalTx(*pcoin)=%s\n", !CheckFinalTx(*pcoin));
+            continue;
+        }
+
+        if (pcoin->IsCoinBase() && pcoin->GetBlocksToMaturity() > 0) {
+            //LogPrintf("Not trusted\n");
+            continue;
+        }
+
+        int nDepth = pcoin->GetDepthInMainChain();
+        if (nDepth < 0) {
+            LogPrintf("nDepth=%s\n", nDepth);
+            continue;
+        }
+
+        for (unsigned int i = 0; i < pcoin->vout.size(); i++) {
+            if (pcoin->vout[i].scriptPubKey.IsZerocoinMint()) {
+                CTxOut txout = pcoin->vout[i];
+                vector<unsigned char> vchZeroMint;
+                vchZeroMint.insert(vchZeroMint.end(), txout.scriptPubKey.begin() + 6,
+                                   txout.scriptPubKey.begin() + txout.scriptPubKey.size());
+
+                CBigNum pubCoin;
+                pubCoin.setvch(vchZeroMint);
+                LogPrintf("Pubcoin=%s\n", pubCoin.ToString());
+                if (pubCoinItem.value == pubCoin) {
+                    LogPrintf("found pubcoin\n");
+                    return pcoin->GetHash();
+                }
+            }
+        }
+    }
+
+    return uint256();
+}
+
+//[zcoin]
 void CWallet::ListAvailableCoinsMintCoins(vector <COutput> &vCoins, bool fOnlyConfirmed) const {
     vCoins.clear();
     {
@@ -3355,7 +3405,7 @@ bool CWallet::CreateZerocoinMintModel(string &stringError, string denomAmount) {
         LogPrintf("CreateZerocoinMintModel() -> NotifyZerocoinChanged\n");
         LogPrintf("pubcoin=%s, isUsed=%s\n", zerocoinTx.value.GetHex(), zerocoinTx.IsUsed);
         LogPrintf("randomness=%s, serialNumber=%s\n", zerocoinTx.randomness, zerocoinTx.serialNumber);
-        NotifyZerocoinChanged(this, zerocoinTx.value.GetHex(), "New (" + std::to_string(zerocoinTx.denomination) + " mint)", CT_NEW);
+        NotifyZerocoinChanged(this, zerocoinTx, "New (" + std::to_string(zerocoinTx.denomination) + " mint)", CT_NEW);
         if (!CWalletDB(strWalletFile).WriteZerocoinEntry(zerocoinTx))
             return false;
         return true;
@@ -3452,7 +3502,7 @@ bool CWallet::CreateZerocoinMintModel(string &stringError, vector<string> denomA
             LogPrintf("CreateZerocoinMintModel() -> NotifyZerocoinChanged\n");
             LogPrintf("pubcoin=%s, isUsed=%s\n", zerocoinTx.value.GetHex(), zerocoinTx.IsUsed);
             LogPrintf("randomness=%s, serialNumber=%s\n", zerocoinTx.randomness, zerocoinTx.serialNumber);
-            NotifyZerocoinChanged(this, zerocoinTx.value.GetHex(), "New (" + std::to_string(zerocoinTx.denomination) + " mint)", CT_NEW);
+            NotifyZerocoinChanged(this, zerocoinTx, "New (" + std::to_string(zerocoinTx.denomination) + " mint)", CT_NEW);
             if (!CWalletDB(strWalletFile).WriteZerocoinEntry(zerocoinTx))
                 return false;
         } else {
@@ -4102,7 +4152,7 @@ bool CWallet::CreateZerocoinSpendTransaction(std::string &thirdPartyaddress, int
                     CWalletDB(strWalletFile).WriteZerocoinEntry(pubCoinTx);
                     LogPrintf("CreateZerocoinSpendTransaction() -> NotifyZerocoinChanged\n");
                     LogPrintf("pubcoin=%s, isUsed=Used\n", coinToUse.value.GetHex());
-                    pwalletMain->NotifyZerocoinChanged(pwalletMain, coinToUse.value.GetHex(), "Used (" + std::to_string(coinToUse.denomination) + " mint)",
+                    pwalletMain->NotifyZerocoinChanged(pwalletMain, coinToUse, "Used (" + std::to_string(coinToUse.denomination) + " mint)",
                                                        CT_UPDATED);
                     strFailReason = _("the coin spend has been used");
                     return false;
@@ -4130,7 +4180,7 @@ bool CWallet::CreateZerocoinSpendTransaction(std::string &thirdPartyaddress, int
             coinToUse.id = coinId;
             coinToUse.nHeight = coinHeight;
             CWalletDB(strWalletFile).WriteZerocoinEntry(coinToUse);
-            pwalletMain->NotifyZerocoinChanged(pwalletMain, coinToUse.value.GetHex(), "Used (" + std::to_string(coinToUse.denomination) + " mint)",
+            pwalletMain->NotifyZerocoinChanged(pwalletMain, coinToUse, "Used (" + std::to_string(coinToUse.denomination) + " mint)",
                                                CT_UPDATED);
         }
     }
@@ -4154,9 +4204,10 @@ bool CWallet::CreateZerocoinSpendTransaction(std::string &thirdPartyaddress, int
 bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddress, std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>> denominations,
                                              CWalletTx &wtxNew, CReserveKey &reservekey, CBigNum &coinSerial,
                                              uint256 &txHash, CBigNum &zcSelectedValue, bool &zcSelectedIsUsed,
-                                             std::string &strFailReason, bool forceUsed) 
+                                             std::string &strFailReason, UniValue& mintUpdates, bool forceUsed) 
 {
     wtxNew.BindWallet(this);
+    mintUpdates.setObject();
     CMutableTransaction txNew;
     {
         LOCK2(cs_main, cs_wallet);
@@ -4262,6 +4313,16 @@ bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddr
                             coinId = id;
                             coinToUse = minIdPubcoin;
                             tempCoinsToUse.insert(minIdPubcoin.value);
+
+                            //mintUpdates.setObject();
+                            UniValue entry(UniValue::VOBJ);
+                            uint256 mintTxHash = GetTxidForPubcoin(minIdPubcoin);
+
+                            entry.push_back(Pair("used", true));
+                            mintUpdates.push_back(Pair(mintTxHash.GetHex(), entry));
+                            LogPrintf("mintUpdates: %s\n", mintUpdates.write());
+
+                            break;
                         }
                     }
                 }
@@ -4417,7 +4478,7 @@ bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddr
                         CWalletDB(strWalletFile).WriteZerocoinEntry(pubCoinTx);
                         LogPrintf("CreateZerocoinSpendTransaction() -> NotifyZerocoinChanged\n");
                         LogPrintf("pubcoin=%s, isUsed=Used\n", coinToUse.value.GetHex());
-                        pwalletMain->NotifyZerocoinChanged(pwalletMain, coinToUse.value.GetHex(), "Used (" + std::to_string(coinToUse.denomination) + " mint)",
+                        pwalletMain->NotifyZerocoinChanged(pwalletMain, coinToUse, "Used (" + std::to_string(coinToUse.denomination) + " mint)",
                                                            CT_UPDATED);
                         strFailReason = _("the coin spend has been used");
                         return false;
@@ -4445,7 +4506,7 @@ bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddr
                 coinToUse.id = tempStorage.coinId;
                 coinToUse.nHeight = tempStorage.coinHeight;
                 CWalletDB(strWalletFile).WriteZerocoinEntry(coinToUse);
-                pwalletMain->NotifyZerocoinChanged(pwalletMain, coinToUse.value.GetHex(), "Used (" + std::to_string(coinToUse.denomination) + " mint)",
+                pwalletMain->NotifyZerocoinChanged(pwalletMain, coinToUse, "Used (" + std::to_string(coinToUse.denomination) + " mint)",
                                                    CT_UPDATED);
             }
 
@@ -4695,7 +4756,7 @@ string CWallet::SpendZerocoin(std::string &thirdPartyaddress, int64_t nValue, li
                 CWalletDB(strWalletFile).WriteZerocoinEntry(pubCoinTx);
                 LogPrintf("SpendZerocoin failed, re-updated status -> NotifyZerocoinChanged\n");
                 LogPrintf("pubcoin=%s, isUsed=New\n", pubCoinItem.value.GetHex());
-                pwalletMain->NotifyZerocoinChanged(pwalletMain, pubCoinItem.value.GetHex(), "New", CT_UPDATED);
+                pwalletMain->NotifyZerocoinChanged(pwalletMain, pubCoinItem, "New", CT_UPDATED);
             }
         }
         CZerocoinSpendEntry entry;
@@ -4746,8 +4807,9 @@ string CWallet::SpendMultipleZerocoin(std::string &thirdPartyaddress, std::vecto
     }
 
     string strError;
+    UniValue mintUpdates;
     if (!CreateMultipleZerocoinSpendTransaction(thirdPartyaddress, denominations, wtxNew, reservekey, coinSerial, txHash,
-                                        zcSelectedValue, zcSelectedIsUsed, strError, forceUsed)) {
+                                        zcSelectedValue, zcSelectedIsUsed, strError, mintUpdates, forceUsed)) {
         LogPrintf("SpendZerocoin() : %s\n", strError.c_str());
         return strError;
     }
@@ -4773,7 +4835,7 @@ string CWallet::SpendMultipleZerocoin(std::string &thirdPartyaddress, std::vecto
                 CWalletDB(strWalletFile).WriteZerocoinEntry(pubCoinTx);
                 LogPrintf("SpendZerocoin failed, re-updated status -> NotifyZerocoinChanged\n");
                 LogPrintf("pubcoin=%s, isUsed=New\n", pubCoinItem.value.GetHex());
-                pwalletMain->NotifyZerocoinChanged(pwalletMain, pubCoinItem.value.GetHex(), "New", CT_UPDATED);
+                pwalletMain->NotifyZerocoinChanged(pwalletMain, pubCoinItem, "New", CT_UPDATED);
             }
         }
         CZerocoinSpendEntry entry;

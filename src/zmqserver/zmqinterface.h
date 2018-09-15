@@ -37,6 +37,7 @@ protected:
     void NumConnectionsChanged();
     void UpdateSyncStatus();
     void UpdatedZnode(CZnode &znode);
+    void UpdatedMintStatus(std::string update);
 
 private:
     CZMQPublisherInterface();

@@ -17,6 +17,10 @@
 
 using namespace std;
 
+UniValue mintstatus(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
+    return data;
+}
+
 UniValue mint(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
 {
     //TODO verify enough balance available before starting to mint.
@@ -213,12 +217,16 @@ UniValue sendprivate(Type type, const UniValue& data, const UniValue& auth, bool
                 return strError;
             }
 
+            UniValue mintUpdates;
+
             string strError = "";
             if (!pwalletMain->CreateMultipleZerocoinSpendTransaction(thirdPartyaddress, denominations, wtx, reservekey, coinSerial, txHash,
-                                                zcSelectedValue, zcSelectedIsUsed, strError, true)) {
+                                                zcSelectedValue, zcSelectedIsUsed, strError, mintUpdates, true)) {
                 LogPrintf("SpendZerocoin() : %s\n", strError.c_str());
                 return strError;
             }
+
+            LogPrintf("mintUpdates out of function: %s\n", mintUpdates.write());
 
             string txidStr = wtx.GetHash().GetHex();
 
@@ -250,7 +258,7 @@ UniValue sendprivate(Type type, const UniValue& data, const UniValue& auth, bool
                         CWalletDB(pwalletMain->strWalletFile).WriteZerocoinEntry(pubCoinTx);
                         LogPrintf("SpendZerocoin failed, re-updated status -> NotifyZerocoinChanged\n");
                         LogPrintf("pubcoin=%s, isUsed=New\n", pubCoinItem.value.GetHex());
-                        pwalletMain->NotifyZerocoinChanged(pwalletMain, pubCoinItem.value.GetHex(), "New", CT_UPDATED);
+                        pwalletMain->NotifyZerocoinChanged(pwalletMain, pubCoinItem, "New", CT_UPDATED);
                     }
                 }
                 CZerocoinSpendEntry entry;
@@ -267,6 +275,9 @@ UniValue sendprivate(Type type, const UniValue& data, const UniValue& auth, bool
             if (strError != "")
                 throw JSONAPIError(API_WALLET_ERROR, strError);
 
+            // publish mintUpdates
+            GetMainSignals().UpdatedMintStatus(mintUpdates.write());
+
             txids.push_back(wtx.GetHash().GetHex());
             ret.push_back(Pair("txids", txids));
             return ret;
@@ -282,6 +293,7 @@ static const CAPICommand commands[] =
 { //  category              collection         actor (function)          authPort   authPassphrase   warmupOk
   //  --------------------- ------------       ----------------          -------- --------------   --------
     { "zerocoin",           "mint",            &mint,                    true,      true,            false  },
+    { "zerocoin",           "mintStatus",      &mintstatus,             true,      true,            false  }, 
     { "zerocoin",           "sendPrivate",     &sendprivate,             true,      true,            false  },
 };
 void RegisterZerocoinAPICommands(CAPITable &tableAPI)

@@ -59,6 +59,7 @@ public:
     virtual bool NotifyConnections();
     virtual bool NotifyStatus();
     virtual bool NotifyZnodeUpdate(CZnode &znode);
+    virtual bool NotifyMintStatusUpdate(std::string update);
 
     /* send message with or without topic value. */
     bool SendMessage();

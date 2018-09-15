@@ -482,17 +482,16 @@ static void NotifyAddressBookChanged(WalletModel *walletmodel, CWallet *wallet,
                               Q_ARG(int, status));
 }
 
-static void NotifyZerocoinChanged(WalletModel *walletmodel, CWallet *wallet, const std::string &pubCoin, const std::string &isUsed, ChangeType status)
+static void NotifyZerocoinChanged(WalletModel *walletmodel, CWallet *wallet, const CZerocoinEntry &pubCoin, const std::string &isUsed, ChangeType status)
 {
-//    qDebug() << "NotifyZerocoinChanged %s %s status=%i\n", pubCoin.c_str(), isUsed.c_str(), status);
-    qDebug() << "NotifyZerocoinChanged:" + QString::fromStdString(pubCoin) + " " + QString::fromStdString(isUsed) + " status=" + QString::number(status);
+    const std::string pubCoinStr = pubCoin.value.GetHex();
+//    qDebug() << "NotifyZerocoinChanged %s %s status=%i\n", pubCoinStr.c_str(), isUsed.c_str(), status);
+    qDebug() << "NotifyZerocoinChanged:" + QString::fromStdString(pubCoinStr) + " " + QString::fromStdString(isUsed) + " status=" + QString::number(status);
     QMetaObject::invokeMethod(walletmodel, "updateAddressBook", Qt::QueuedConnection,
-                              Q_ARG(QString, QString::fromStdString(pubCoin)),
+                              Q_ARG(QString, QString::fromStdString(pubCoinStr)),
                               Q_ARG(QString, QString::fromStdString(isUsed)),
                               Q_ARG(int, status));
 }
-
-
 
 static void NotifyTransactionChanged(WalletModel *walletmodel, CWallet *wallet, const uint256 &hash, ChangeType status)
 {

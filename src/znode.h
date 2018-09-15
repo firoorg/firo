@@ -305,7 +305,7 @@ public:
     void SetLastPing(CZnodePing newZnodePing);
     void SetTimeLastPaid(int64_t newTimeLastPaid);
     void SetBlockLastPaid(int newBlockLastPaid);
-    void SetRank(int newRank);
+    void SetRank(int newRank, bool nPublish);
     void SetRemoved();
 
     int GetCollateralAge();

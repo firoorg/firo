@@ -42,6 +42,11 @@ bool CZMQAbstract::NotifyZnodeUpdate(CZnode &znode)
     return true;
 }
 
+bool CZMQAbstract::NotifyMintStatusUpdate(std::string update)
+{
+    return true;
+}
+
 bool CZMQAbstract::SendMultipart(const void* data, size_t size, ...)
 {
     va_list args;

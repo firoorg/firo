@@ -19,6 +19,7 @@
 #include "wallet/rpcwallet.h"
 #include "../base58.h"
 #include "zerocoin_params.h"
+#include "univalue.h"
 
 #include <algorithm>
 #include <map>
@@ -829,6 +830,8 @@ public:
      */
     bool IsMintFromTxOutUsed(CTxOut& pcoin);
     void ListAvailableCoinsMintCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed=true) const;
+
+    uint256 GetTxidForPubcoin(const CZerocoinEntry &pubCoinItem) const;
     
     void GetAvailableMintCoinBalance(CAmount& balance, bool fOnlyConfirmed=true) const;
     bool CreateZerocoinMintTransaction(const std::vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet, int& nChangePosInOut,
@@ -836,7 +839,7 @@ public:
     bool CreateZerocoinMintTransaction(CScript pubCoin, int64_t nValue,
                                        CWalletTx& wtxNew, CReserveKey& reservekey, int64_t& nFeeRet, std::string& strFailReason, const CCoinControl *coinControl=NULL);
     bool CreateMultipleZerocoinSpendTransaction(std::string& thirdPartyaddress, std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>> denominations,
-                                        CWalletTx& wtxNew, CReserveKey& reservekey, CBigNum& coinSerial, uint256& txHash, CBigNum& zcSelectedValue, bool& zcSelectedIsUsed,  std::string& strFailReason, bool forceUsed = false);
+                                        CWalletTx& wtxNew, CReserveKey& reservekey, CBigNum& coinSerial, uint256& txHash, CBigNum& zcSelectedValue, bool& zcSelectedIsUsed,  std::string& strFailReason, UniValue& mintUpdates, bool forceUsed = false);
     bool CreateZerocoinSpendTransaction(std::string& thirdPartyaddress, int64_t nValue, libzerocoin::CoinDenomination denomination,
                                         CWalletTx& wtxNew, CReserveKey& reservekey, CBigNum& coinSerial, uint256& txHash, CBigNum& zcSelectedValue, bool& zcSelectedIsUsed,  std::string& strFailReason, bool forceUsed = false);
     bool CommitZerocoinSpendTransaction(CWalletTx& wtxNew, CReserveKey& reservekey);
@@ -977,7 +980,7 @@ public:
      * Zerocoin entry changed.
      * @note called with lock cs_wallet held.
      */
-    boost::signals2::signal<void (CWallet *wallet, const std::string &pubCoin, const std::string &isUsed, ChangeType status)> NotifyZerocoinChanged;
+    boost::signals2::signal<void (CWallet *wallet, const CZerocoinEntry &pubCoin, const std::string &isUsed, ChangeType status)> NotifyZerocoinChanged;
 
 
     /** Show progress e.g. for rescan */
