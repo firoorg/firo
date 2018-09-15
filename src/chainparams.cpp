@@ -291,7 +291,7 @@ public:
         nMaxTipAge = 0x7fffffff; // allow mining on top of old blocks for testnet
 
         consensus.nMTPSwitchTime = 1;
-        consensus.nDifficultyAdjustStartBlock = 5000;
+        consensus.nDifficultyAdjustStartBlock = 100;
         consensus.nFixedDifficulty = 0x2000ffff;
         consensus.nPowTargetSpacingMTP = 5*60;
         consensus.nInitialMTPDifficulty = 0x2000ffff;  // !!!! change it to the real value
