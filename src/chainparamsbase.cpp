@@ -99,7 +99,7 @@ std::string ChainNameFromCommandLine()
         throw std::runtime_error("Invalid combination of -regtest and -testnet.");
     if (regTest && *regTest)
         return CBaseChainParams::REGTEST;
-    if (!testNet || *testNet)
+    if (testNet && *testNet)
         return CBaseChainParams::TESTNET;
     return CBaseChainParams::MAIN;
 }

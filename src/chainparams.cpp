@@ -143,7 +143,7 @@ public:
 
         consensus.nMTPSwitchTime = SWITCH_TO_MTP_BLOCK_HEADER;
         consensus.nDifficultyAdjustStartBlock = 0;
-        consensus.nFixedDifficulty = 0;
+        consensus.nFixedDifficulty = 0x2000ffff;
         consensus.nPowTargetSpacingMTP = 5*60;
         consensus.nInitialMTPDifficulty = 0x2000ffff;  // !!!! change it to the real value
         consensus.nMTPRewardReduction = 2;
@@ -290,7 +290,7 @@ public:
         //consensus.nBudgetPaymentsWindowBlocks = 10;
         nMaxTipAge = 0x7fffffff; // allow mining on top of old blocks for testnet
 
-        consensus.nMTPSwitchTime = 1;
+        consensus.nMTPSwitchTime = 0;
         consensus.nDifficultyAdjustStartBlock = 100;
         consensus.nFixedDifficulty = 0x2000ffff;
         consensus.nPowTargetSpacingMTP = 5*60;

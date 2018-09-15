@@ -15,7 +15,7 @@
 #include "definition.h"
 #include "crypto/MerkleTreeProof/mtp.h"
 
-#define SWITCH_TO_MTP_BLOCK_HEADER 1529062072
+#define SWITCH_TO_MTP_BLOCK_HEADER 1543622400 // 2018 December 1st
 
 
 unsigned char GetNfactor(int64_t nTimestamp);

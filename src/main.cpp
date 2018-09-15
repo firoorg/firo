@@ -1886,9 +1886,8 @@ bool ReadBlockHeaderFromDisk(CBlock &block, const CDiskBlockPos &pos) {
 }
 
 CAmount GetBlockSubsidy(int nHeight, const Consensus::Params &consensusParams, int nTime) {
-    bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
     // Just want to make sure no one gets a dime before 28 Sep 2016 12:00 AM UTC
-    if (nTime < nStartRewardTime && !fTestNet)
+    if (nTime < nStartRewardTime && !consensusParams.IsTestnet())
         return 0;
 
     // Genesis block is 0 coin
@@ -1902,6 +1901,10 @@ CAmount GetBlockSubsidy(int nHeight, const Consensus::Params &consensusParams, i
     CAmount nSubsidy = 50 * COIN;
     // Subsidy is cut in half every 210,000 blocks which will occur approximately every 4 years.
     nSubsidy >>= halvings;
+
+    if (nHeight > 0 && nTime >= (int)consensusParams.nMTPSwitchTime)
+        nSubsidy /= consensusParams.nMTPRewardReduction;
+
     return nSubsidy;
 }
 
@@ -4175,8 +4178,7 @@ bool
 ContextualCheckBlockHeader(const CBlockHeader &block, CValidationState &state, const Consensus::Params &consensusParams,
                            CBlockIndex *const pindexPrev, int64_t nAdjustedTime, bool isTestBlockValidity) {
 	// Zcoin - MTP
-    int32_t nVersionMTP = block.mtpHashData ? block.nVersionMTP : 0;
-    bool fBlockHasMTP = block.nVersion >= (CBlock::CURRENT_VERSION | (GetZerocoinChainID() * BLOCK_VERSION_CHAIN_START)| nVersionMTP);
+    bool fBlockHasMTP = (block.nVersion & 4096) != 0 || (pindexPrev && consensusParams.nMTPSwitchTime == 0);
 
     if (block.IsMTP() != fBlockHasMTP)
 		return state.Invalid(false, REJECT_OBSOLETE, strprintf("bad-version(0x%08x)", block.nVersion),strprintf("rejected nVersion=0x%08x block", block.nVersion));

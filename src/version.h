@@ -18,10 +18,10 @@ static const int INIT_PROTO_VERSION = 90013;
 static const int GETHEADERS_VERSION = 90020;
 
 //! disconnect from peers older than this proto version
-static const int MIN_PEER_PROTO_VERSION = 90027;
+static const int MIN_PEER_PROTO_VERSION = 90025;
 
 //! disconnect from all older peers after Znode payment HF
-static const int MIN_PEER_PROTO_VERSION_AFTER_ZNODE_PAYMENT_HF = 90027;
+static const int MIN_PEER_PROTO_VERSION_AFTER_ZNODE_PAYMENT_HF = 90025;
 
 //! nTime field added to CAddress, starting with this version;
 //! if possible, avoid requesting addresses nodes older than this
