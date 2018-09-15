@@ -13,6 +13,7 @@
 #include "serialize.h"
 #include "uint256.h"
 #include "definition.h"
+#include "crypto/MerkleTreeProof/mtp.h"
 
 #define SWITCH_TO_MTP_BLOCK_HEADER 1529062072
 
@@ -36,8 +37,8 @@ inline int GetZerocoinChainID()
 class CMTPHashData {
 public:
     uint8_t hashRootMTP[16]; // 16 is 128 bit of blake2b
-    uint64_t nBlockMTP[72*2][128]; // 128 is ARGON2_QWORDS_IN_BLOCK and 72 * 2 is L * 2
-    std::deque<std::vector<uint8_t>> nProofMTP[72*3]; // 72 * 3 is L * 3
+    uint64_t nBlockMTP[mtp::MTP_L*2][128]; // 128 is ARGON2_QWORDS_IN_BLOCK
+    std::deque<std::vector<uint8_t>> nProofMTP[mtp::MTP_L*3];
 
     CMTPHashData() {
         memset(nBlockMTP, 0, sizeof(nBlockMTP));
@@ -54,14 +55,14 @@ public:
     inline void SerializationOp(Stream &s, Operation ser_action, int nType, int nVersion) {
         READWRITE(hashRootMTP);
         READWRITE(nBlockMTP);
-        for (int i = 0; i < 72*3; i++) {
-            vector<uint32_t> lengths;
+        for (int i = 0; i < mtp::MTP_L*3; i++) {
+            assert(nProofMTP[i].size() < 256);
+            uint8_t numberOfProofBlocks = (uint8_t)nProofMTP[i].size();
+            READWRITE(numberOfProofBlocks);
             for (const std::vector<uint8_t> &mtpData: nProofMTP[i]) {
-                lengths.push_back((uint32_t)mtpData.size());                    
-            }
-            READWRITE(lengths);
-            for (const std::vector<uint8_t> &mtpData: nProofMTP[i]) {
-                s.write((const char *)mtpData.data(), (uint32_t)mtpData.size());
+                // data size should be 16 for each block
+                assert(mtpData.size() == 16);
+                s.write((const char *)mtpData.data(), 16);
             }
         }
     }
@@ -71,12 +72,12 @@ public:
     inline void SerializationOp(Stream &s, CSerActionUnserialize ser_action, int nType, int nVersion) {
         READWRITE(hashRootMTP);
         READWRITE(nBlockMTP);
-        for (int i = 0; i < 72*3; i++) {
-            vector<uint32_t> lengths;
-            READWRITE(lengths);
-            BOOST_FOREACH(uint32_t l, lengths) {
-                vector<uint8_t> mtpData(l, 0);
-                s.read((char *)mtpData.data(), l);
+        for (int i = 0; i < mtp::MTP_L*3; i++) {
+            uint8_t numberOfProofBlocks;
+            READWRITE(numberOfProofBlocks);
+            for (uint8_t j=0; j<numberOfProofBlocks; j++) {
+                vector<uint8_t> mtpData(16, 0);
+                s.read((char *)mtpData.data(), 16);
                 nProofMTP[i].emplace_back(std::move(mtpData));
             }
         }

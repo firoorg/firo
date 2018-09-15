@@ -35,7 +35,7 @@ namespace mtp
 
 namespace {
 
-const int8_t L = 72;
+const int8_t L = MTP_L;
 const unsigned T_COST = 1;
 const unsigned M_COST = 1024 * 1024 * 4;
 const unsigned LANES = 4;
@@ -208,8 +208,8 @@ namespace impl
 
 bool mtp_verify(const char* input, const uint32_t target,
         const uint8_t hash_root_mtp[16], uint32_t nonce,
-        const uint64_t block_mtp[72*2][128],
-        const std::deque<std::vector<uint8_t>> proof_mtp[73*3],
+        const uint64_t block_mtp[MTP_L*2][128],
+        const std::deque<std::vector<uint8_t>> proof_mtp[MTP_L*3],
         uint256 pow_limit,
         uint256 *mtpHashValue)
 {
@@ -434,8 +434,8 @@ bool mtp_verify(const char* input, const uint32_t target,
 namespace {
 
 bool mtp_hash1(const char* input, uint32_t target, uint8_t hash_root_mtp[16],
-        unsigned int& nonce, uint64_t block_mtp[72*2][128],
-        std::deque<std::vector<uint8_t>> proof_mtp[73*3], uint256 pow_limit,
+        unsigned int& nonce, uint64_t block_mtp[MTP_L*2][128],
+        std::deque<std::vector<uint8_t>> proof_mtp[MTP_L*3], uint256 pow_limit,
         uint256& output)
 {
 #define TEST_OUTLEN 32
@@ -643,8 +643,8 @@ bool mtp_hash1(const char* input, uint32_t target, uint8_t hash_root_mtp[16],
 } // unnamed namespace
 
 void mtp_hash(const char* input, uint32_t target, uint8_t hash_root_mtp[16],
-        unsigned int& nonce, uint64_t block_mtp[72*2][128],
-        std::deque<std::vector<uint8_t>> proof_mtp[73*3], uint256 pow_limit,
+        unsigned int& nonce, uint64_t block_mtp[MTP_L*2][128],
+        std::deque<std::vector<uint8_t>> proof_mtp[MTP_L*3], uint256 pow_limit,
         uint256& output)
 {
     bool done = false;

@@ -13,6 +13,9 @@ class CBlockHeader;
 namespace mtp
 {
 
+/** L parameter for the MTP hash */
+constexpr int8_t MTP_L = 64;
+
 /** Solve the hash problem
  *
  * This function will try different nonce until it finds one such that the
@@ -58,8 +61,8 @@ void mtp_hash(const char* input,
         uint32_t target,
         uint8_t hash_root_mtp[16],
         unsigned int& nonce,
-        uint64_t block_mtp[72*2][128],
-        std::deque<std::vector<uint8_t>> proof_mtp[73*3],
+        uint64_t block_mtp[MTP_L*2][128],
+        std::deque<std::vector<uint8_t>> proof_mtp[MTP_L*3],
         uint256 pow_limit,
         uint256& output);
 
@@ -82,8 +85,8 @@ bool mtp_verify(const char* input,
         const uint32_t target,
         const uint8_t hash_root_mtp[16],
         const uint32_t nonce,
-        const uint64_t block_mtp[72*2][128],
-        const std::deque<std::vector<uint8_t>> proof_mtp[73*3],
+        const uint64_t block_mtp[MTP_L*2][128],
+        const std::deque<std::vector<uint8_t>> proof_mtp[MTP_L*3],
         uint256 pow_limit,
         uint256 *mtpHashValue=nullptr);
 }

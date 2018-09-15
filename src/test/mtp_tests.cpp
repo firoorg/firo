@@ -39,8 +39,8 @@ BOOST_AUTO_TEST_CASE(mtp_impl_integrity_test)
 
     uint8_t hash_root_mtp[16];
     unsigned int nonce;
-    uint64_t block_mtp[72*2][128];
-    std::deque<std::vector<uint8_t>> proof_mtp[72*3];
+    uint64_t block_mtp[mtp::MTP_L*2][128];
+    std::deque<std::vector<uint8_t>> proof_mtp[mtp::MTP_L*3];
     uint256 output;
 
     mtp::impl::mtp_hash(input, target, hash_root_mtp, nonce, block_mtp, proof_mtp,
