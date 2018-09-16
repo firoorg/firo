@@ -208,7 +208,7 @@ public:
     int32_t nVersionMTP = 0x1000;
     uint256 mtpHashValue;
     // Reserved fields
-    uint256 mtpReserved[2];
+    uint256 reserved[2];
 
     uint256 hashBlock;
 
@@ -251,7 +251,7 @@ public:
         nNonce         = 0;
 
         nVersionMTP = 0;
-        mtpHashValue = mtpReserved[0] = mtpReserved[1] = uint256();
+        mtpHashValue = reserved[0] = reserved[1] = uint256();
 
         hashBlock = uint256();
 
@@ -279,8 +279,8 @@ public:
         if (block.IsMTP()) {
             nVersionMTP = block.nVersionMTP;
             mtpHashValue = block.mtpHashValue;
-            mtpReserved[0] = block.mtpReserved[0];
-            mtpReserved[1] = block.mtpReserved[1];
+            reserved[0] = block.reserved[0];
+            reserved[1] = block.reserved[1];
         }
     }
 
@@ -317,8 +317,8 @@ public:
         if(block.IsMTP()){
 			block.nVersionMTP = nVersionMTP;
             block.mtpHashValue = mtpHashValue;
-            block.mtpReserved[0] = mtpReserved[0];
-            block.mtpReserved[1] = mtpReserved[1];
+            block.reserved[0] = reserved[0];
+            block.reserved[1] = reserved[1];
 		}
         return block;
     }
@@ -444,8 +444,8 @@ public:
         if (nTime > ZC_GENESIS_BLOCK_TIME && nTime >= Params().GetConsensus().nMTPSwitchTime) {
             READWRITE(nVersionMTP);
             READWRITE(mtpHashValue);
-            READWRITE(mtpReserved[0]);
-            READWRITE(mtpReserved[1]);
+            READWRITE(reserved[0]);
+            READWRITE(reserved[1]);
         }
 
 		READWRITE(hashBlock);
@@ -472,8 +472,8 @@ public:
         if (block.IsMTP()) {
             block.nVersionMTP = nVersionMTP;
             block.mtpHashValue = mtpHashValue;
-            block.mtpReserved[0] = mtpReserved[0];
-            block.mtpReserved[1] = mtpReserved[1];
+            block.reserved[0] = reserved[0];
+            block.reserved[1] = reserved[1];
         }
 
         return block.GetHash();

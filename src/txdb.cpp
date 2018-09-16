@@ -344,8 +344,8 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
                 if (diskindex.nTime > ZC_GENESIS_BLOCK_TIME && diskindex.nTime >= consensusParams.nMTPSwitchTime) {
                     pindexNew->nVersionMTP = diskindex.nVersionMTP;
                     pindexNew->mtpHashValue = diskindex.mtpHashValue;
-                    pindexNew->mtpReserved[0] = diskindex.mtpReserved[0];
-                    pindexNew->mtpReserved[1] = diskindex.mtpReserved[1];
+                    pindexNew->reserved[0] = diskindex.reserved[0];
+                    pindexNew->reserved[1] = diskindex.reserved[1];
                 }                
 
                 pindexNew->accumulatorChanges = diskindex.accumulatorChanges;
