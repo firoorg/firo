@@ -20,7 +20,7 @@ Dependencies
 
         sudo apt-get update
 
-2.  Install required packagages
+2.  Install required packages
 
         sudo apt-get install build-essential libtool autotools-dev automake pkg-config libssl-dev libevent-dev bsdmainutils libboost-all-dev
 
