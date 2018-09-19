@@ -31,6 +31,7 @@
 #include <boost/shared_ptr.hpp>
 
 #include <univalue.h>
+#include "crypto/MerkleTreeProof/mtp.h"
 
 using namespace std;
 
@@ -123,10 +124,16 @@ UniValue generateBlocks(boost::shared_ptr<CReserveScript> coinbaseScript, int nG
             LOCK(cs_main);
             IncrementExtraNonce(pblock, chainActive.Tip(), nExtraNonce);
         }
-        while (nMaxTries > 0 && pblock->nNonce < nInnerLoopCount && !CheckProofOfWork(pblock->GetHash(), pblock->nBits, Params().GetConsensus())) {
-            ++pblock->nNonce;
-            --nMaxTries;
+
+        if(pblock->IsMTP()){
+            pblock->mtpHashValue = mtp::hash(*pblock, Params().GetConsensus().powLimit);
+        } else {
+            while (nMaxTries > 0 && pblock->nNonce < nInnerLoopCount && !CheckProofOfWork(pblock->GetHash(), pblock->nBits, Params().GetConsensus())) {
+                ++pblock->nNonce;
+                --nMaxTries;
+            }
         }
+
         if (nMaxTries == 0) {
             break;
         }
