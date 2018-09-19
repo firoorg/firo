@@ -119,7 +119,7 @@ UniValue exodus_createpayload_dexaccept(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 2)
         throw runtime_error(
-            "exodus_senddexaccept propertyid \"amount\"\n"
+            "exodus_createpayload_dexaccept propertyid \"amount\"\n"
 
             "\nCreate the payload for an accept offer for the specified token and amount.\n"
 
