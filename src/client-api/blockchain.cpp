@@ -13,6 +13,7 @@
 #include "chain.h"
 
 using namespace std;
+using namespace std::chrono;
 
 UniValue AvgBlockTime(){
     UniValue ret(UniValue::VOBJ);
@@ -62,6 +63,17 @@ UniValue blockchain(Type type, const UniValue& data, const UniValue& auth, bool 
     blockinfoObj.push_back(Pair("status", status));
     blockinfoObj.push_back(Pair("currentBlock", currentBlock));
     blockinfoObj.push_back(Pair("avgBlockTime", AvgBlockTime()));
+
+    if(!znodeSync.GetBlockchainSynced()){
+        unsigned long currentTimestamp = floor(
+            std::chrono::system_clock::now().time_since_epoch() / 
+            std::chrono::milliseconds(1)/1000);
+
+        int blockTimestamp = chainActive.Tip()->nTime;
+
+        int timeUntilSynced = currentTimestamp - blockTimestamp;
+        blockinfoObj.push_back(Pair("timeUntilSynced", timeUntilSynced));
+    }
     
     return blockinfoObj;
 }
@@ -93,7 +105,7 @@ UniValue block(Type type, const UniValue& data, const UniValue& auth, bool fHelp
 
     string blockhash = find_value(data, "hashBlock").get_str();
 
-    StateSinceBlock(getblockObj, blockhash);
+    StateBlock(getblockObj, blockhash);
 
     return getblockObj;
 }

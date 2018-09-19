@@ -14,6 +14,8 @@
 #include "client-api/protocol.h"
 #include <univalue.h>
 
+extern CWallet *pwalletMain;
+
 static std::multimap<std::string, CZMQAbstractPublisher*> mapPublishers;
 
 bool CZMQAbstractPublisher::Initialize()
@@ -212,8 +214,21 @@ bool CZMQTransactionEvent::NotifyTransaction(const CTransaction &transaction)
 }
 
 bool CZMQBlockEvent::NotifyBlock(const CBlockIndex *pindex){
-    request.replace("data", pindex->ToJSON());
-    Execute();
+
+    CBlock block;
+    if(!ReadBlockFromDisk(block, pindex, Params().GetConsensus())){
+        LogPrintf("can't read block from disk.\n");
+    }
+    BOOST_FOREACH(const CTransaction&tx, block.vtx)
+    {
+        const CWalletTx *wtx = pwalletMain->GetWalletTx(tx.GetHash());
+        if(wtx){
+            request.replace("data", pindex->ToJSON());
+            Execute();
+            break;
+        }
+    }
+
     return true;
 }
 

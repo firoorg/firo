@@ -422,6 +422,44 @@ UniValue StateSinceBlock(UniValue& ret, std::string block){
     return ret;
 }
 
+UniValue StateBlock(UniValue& ret, std::string block){
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    CBlockIndex *pindex = NULL;
+    isminefilter filter = ISMINE_SPENDABLE;
+
+    uint256 blockId;
+
+    blockId.SetHex(block); //set block hash
+    BlockMap::iterator it = mapBlockIndex.find(blockId);
+    if (it != mapBlockIndex.end())
+        pindex = it->second;
+
+    if(!pindex){
+        return false;
+    }
+
+    UniValue transactions(UniValue::VOBJ);
+
+    for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin(); it != pwalletMain->mapWallet.end(); it++)
+    {
+        CWalletTx wtx = (*it).second;
+        CTransaction tx;
+        uint256 hashBlock;
+
+        GetTransaction(wtx.GetHash(), tx, Params().GetConsensus(), hashBlock, true);
+
+        if(block==hashBlock.ToString()){
+            ListAPITransactions(wtx, transactions, filter);
+        }
+    }
+
+    ret.push_back(Pair("addresses", transactions));
+
+    return ret;
+}
+
 UniValue statewallet(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
 {
     if (!EnsureWalletIsAvailable(false))

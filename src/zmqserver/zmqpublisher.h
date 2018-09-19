@@ -95,8 +95,8 @@ public:
 class CZMQBlockDataTopic : public CZMQBlockEvent
 {
 public:
-    void SetTopic(){ topic = "address";};
-    void SetMethod(){ method= "block";};    
+    void SetTopic(){ topic = "address";}
+    void SetMethod(){ method= "block";}
 };
 
 class CZMQBlockInfoTopic : public CZMQBlockEvent,
@@ -104,8 +104,8 @@ class CZMQBlockInfoTopic : public CZMQBlockEvent,
                            public CZMQStatusEvent
 {
 public:
-    void SetTopic(){ topic = "block";};
-    void SetMethod(){ method= "blockchain";};   
+    void SetTopic(){ topic = "block";}
+    void SetMethod(){ method= "blockchain";}
 };
 
 class CZMQBalanceTopic : public CZMQBlockEvent, 
@@ -113,36 +113,36 @@ class CZMQBalanceTopic : public CZMQBlockEvent,
                          
 {
 public:
-    void SetTopic(){ topic = "balance";};
-    void SetMethod(){ method= "balance";};
+    void SetTopic(){ topic = "balance";}
+    void SetMethod(){ method= "balance";}
 };
 
 class CZMQTransactionTopic : public CZMQTransactionEvent
 {
 public:
-    void SetTopic(){ topic = "transaction";};
-    void SetMethod(){ method= "transaction";};
+    void SetTopic(){ topic = "transaction";}
+    void SetMethod(){ method= "transaction";}
 };
 
 class CZMQSettingsTopic : public CZMQSettingsEvent
 {
 public:
-    void SetTopic(){ topic = "settings";};
-    void SetMethod(){ method= "settings";};
+    void SetTopic(){ topic = "settings";}
+    void SetMethod(){ method= "settings";}
 };
 
 class CZMQZnodeTopic : public CZMQZnodeEvent
 {
 public:
-    void SetTopic(){ topic = "znode";};
-    void SetMethod(){ method= "znodeUpdate";};
+    void SetTopic(){ topic = "znode";}
+    void SetMethod(){ method= "znodeUpdate";}
 };
 
 class CZMQMintStatusTopic : public CZMQMintStatusEvent
 {
 public:
-    void SetTopic(){ topic = "mintStatus";};
-    void SetMethod(){ method= "mintStatus";};
+    void SetTopic(){ topic = "mintStatus";}
+    void SetMethod(){ method= "mintStatus";}
 };
 
 #endif // BITCOIN_ZMQ_ZMQPUBLISHER_H
