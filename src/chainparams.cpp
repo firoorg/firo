@@ -466,6 +466,20 @@ public:
         base58Prefixes[SECRET_KEY] = std::vector < unsigned char > (1, 185);
         base58Prefixes[EXT_PUBLIC_KEY] = boost::assign::list_of(0x04)(0x35)(0x87)(0xCF).convert_to_container < std::vector < unsigned char > > ();
         base58Prefixes[EXT_SECRET_KEY] = boost::assign::list_of(0x04)(0x35)(0x83)(0x94).convert_to_container < std::vector < unsigned char > > ();
+
+        nCheckBugFixedAtBlock = 120;
+        nSpendV15StartBlock = 1;
+        nSpendV2ID_1 = 2;
+        nSpendV2ID_10 = 3;
+        nSpendV2ID_25 = 3;
+        nSpendV2ID_50 = 3;
+        nSpendV2ID_100 = 3;
+        nModulusV2StartBlock = 130;
+        nModulusV1MempoolStopBlock = 135;
+        nModulusV1StopBlock = 140;
+        nMTPSwitchTime = 1;
+        nDifficultyAdjustStartBlock = 0;
+        nFixedDifficulty = 0;
     }
 
     void UpdateBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout) {
