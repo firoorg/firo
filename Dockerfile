@@ -59,5 +59,6 @@ VOLUME [ "/home/zcoind/.zcoin" ]
 
 EXPOSE 8168
 EXPOSE 8888
+EXPOSE 18444
 
-CMD [ "/usr/bin/zcoind" ]
+ENTRYPOINT [ "/usr/bin/zcoind" ]
