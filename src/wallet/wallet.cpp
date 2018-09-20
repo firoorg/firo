@@ -2256,7 +2256,7 @@ bool CWallet::GetVinAndKeysFromOutput(COutput out, CTxIn &txinRet, CPubKey &pubK
     return true;
 }
 
-bool CWallet::IsMintFromTxOutUsed(CTxOut& txout){
+bool CWallet::IsMintFromTxOutUsed(CTxOut txout){
     LOCK(cs_wallet);
 
     if(!txout.scriptPubKey.IsZerocoinMint()){

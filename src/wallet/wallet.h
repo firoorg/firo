@@ -828,7 +828,7 @@ public:
     /**
      * Add zerocoin Mint and Spend function
      */
-    bool IsMintFromTxOutUsed(CTxOut& pcoin);
+    bool IsMintFromTxOutUsed(CTxOut pcoin);
     void ListAvailableCoinsMintCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed=true) const;
 
     uint256 GetTxidForPubcoin(const CZerocoinEntry &pubCoinItem) const;

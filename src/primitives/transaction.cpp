@@ -47,6 +47,11 @@ CTxIn::CTxIn(uint256 hashPrevTx, uint32_t nOut, CScript scriptSigIn, uint32_t nS
     nSequence = nSequenceIn;
 }
 
+bool CTxIn::IsZerocoinSpend() const
+{
+    return (prevout.IsNull() && scriptSig.size() > 0 && (scriptSig[0] == OP_ZEROCOINSPEND) );
+}
+
 std::string CTxIn::ToString() const
 {
     std::string str;
@@ -200,7 +205,14 @@ bool CTransaction::IsCoinBase() const
 
 bool CTransaction::IsZerocoinSpend() const
 {
-    return (vin[0].prevout.IsNull() && vin[0].scriptSig.size() > 0 && (vin[0].scriptSig[0] == OP_ZEROCOINSPEND) );
+    for (std::vector<CTxIn>::const_iterator it(vin.begin()); it != vin.end(); ++it)
+    {
+        int index = it - vin.begin();
+        if(vin[index].prevout.IsNull() && vin[index].scriptSig.size() > 0 && (vin[index].scriptSig[0] == OP_ZEROCOINSPEND) ){
+            return true;
+        }
+    }
+    return false;
 }
 
 bool CTransaction::IsZerocoinMint(CTxOut& txout) const

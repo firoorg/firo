@@ -1544,7 +1544,6 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
     list<COutputEntry> listReceived;
     list<COutputEntry> listSent;
     CBitcoinAddress addr;
-    CTxOut txout;
 
     wtx.GetAmounts(listReceived, listSent, nFee, strSentAccount, filter);
 
@@ -1561,13 +1560,13 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
                 entry.push_back(Pair("involvesWatchonly", true));
             entry.push_back(Pair("account", strSentAccount));
             MaybePushAddress(entry, s.destination, addr);
-            if(wtx.IsZerocoinMint(txout)){
+            if(wtx.vout[s.vout].scriptPubKey.IsZerocoinMint()){
                     entry.push_back(Pair("category", "mint"));
                     if(pwalletMain){
-                        entry.push_back(Pair("used", pwalletMain->IsMintFromTxOutUsed(txout)));
+                        entry.push_back(Pair("used", pwalletMain->IsMintFromTxOutUsed(wtx.vout[s.vout])));
                     }
                 }
-            else if(wtx.IsZerocoinSpend()){
+            else if(wtx.vin[s.vout].IsZerocoinSpend()){
                     entry.push_back(Pair("category", "spend"));
                 }
             else {
@@ -1620,7 +1619,7 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
                     else
                         entry.push_back(Pair("category", "generate"));
                 }
-                else if(wtx.IsZerocoinSpend()){
+                else if(wtx.vin[r.vout].IsZerocoinSpend()){
                     entry.push_back(Pair("category", "spend"));
                 }
                 else {

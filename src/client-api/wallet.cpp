@@ -219,7 +219,6 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
     list<COutputEntry> listSent;
     CBitcoinAddress addr;
     string addrStr;
-    CTxOut txout;
 
     wtx.GetAmounts(listReceived, listSent, nFee, strSentAccount, filter);
 
@@ -242,14 +241,14 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
 
             string category;
             
-            if(wtx.IsZerocoinMint(txout)){
+            if(wtx.vout[s.vout].scriptPubKey.IsZerocoinMint()){
                 category = "mint";
                 addrStr = "ZEROCOIN_MINT";
                 if(pwalletMain){
-                    entry.push_back(Pair("used", pwalletMain->IsMintFromTxOutUsed(txout)));
+                    entry.push_back(Pair("used", pwalletMain->IsMintFromTxOutUsed(wtx.vout[s.vout])));
                 }
             }
-            else if(wtx.IsZerocoinSpend()){
+            else if(wtx.vin[s.vout].IsZerocoinSpend()){
                 category = "spendOut";                
             }
             else {
@@ -343,7 +342,7 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
                 else
                     category = "mined";
             }
-            else if(wtx.IsZerocoinSpend()){
+            else if(wtx.vin[r.vout].IsZerocoinSpend()){
                 category = "spendIn";
             }
             else {
