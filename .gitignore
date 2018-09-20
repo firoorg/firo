@@ -47,6 +47,8 @@ src/qt/forms/ui_*.h
 
 src/qt/test/moc*.cpp
 
+src/tor.timestamp*
+
 .deps
 .dirstamp
 .libs
@@ -105,6 +107,7 @@ linux-build
 win32-build
 test/config.ini
 test/cache/*
+src/test/buildenv.py
 
 !src/leveldb*/Makefile
 

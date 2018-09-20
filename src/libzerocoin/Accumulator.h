@@ -40,11 +40,14 @@ public:
 	/**
 	 * @brief      Construct an Accumulator from a Params object.
 	 * @param p    A Params object containing global parameters
-	 * @param d the denomination of coins we are accumulating
-	 * @throw     Zerocoin exception in case of invalid parameters
+     * @param d    the denomination of coins we are accumulating
+     * @param v    accumulator value
+     * @throw      Zerocoin exception in case of invalid parameters
 	 **/
+    Accumulator(const AccumulatorAndProofParams* p, const Bignum &v, const CoinDenomination d = ZQ_LOVELACE);
     Accumulator(const AccumulatorAndProofParams* p, const CoinDenomination d = ZQ_LOVELACE);
 
+    Accumulator(const Params* p, const Bignum &v, const CoinDenomination d = ZQ_LOVELACE);
     Accumulator(const Params* p, const CoinDenomination d = ZQ_LOVELACE);
 
 	/**
@@ -56,7 +59,7 @@ public:
 	 * @throw		Zerocoin exception if the coin is not valid.
 	 *
 	 **/
-    void accumulate(const PublicCoin &coin);
+    void accumulate(const PublicCoin &coin, bool validateCoin=false);
 
 	CoinDenomination getDenomination() const;
 	/** Get the accumulator result
@@ -141,7 +144,7 @@ public:
 	AccumulatorWitness& operator +=(const PublicCoin& rhs);
 private:
     const Params* params;
-	Accumulator witness;
+    Accumulator witness;
 	const PublicCoin element;
 };
 

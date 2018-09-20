@@ -243,6 +243,29 @@ extern const char *GETBLOCKTXN;
  * @since protocol version 70014 as described by BIP 152
  */
 extern const char *BLOCKTXN;
+
+extern const char *TXLOCKVOTE;
+extern const char *SPORK;
+extern const char *GETSPORKS;
+extern const char *ZNODEPAYMENTVOTE;
+extern const char *ZNODEPAYMENTSYNC;
+extern const char *SYNCSTATUSCOUNT;
+extern const char *MNVERIFY;
+extern const char *MNPING;
+extern const char *MNANNOUNCE;
+extern const char *DSACCEPT;
+extern const char *DSQUEUE;
+extern const char *DSEG;
+extern const char *DSVIN;
+extern const char *DSSTATUSUPDATE;
+extern const char *DSSIGNFINALTX;
+extern const char *DSCOMPLETE;
+extern const char *DSFINALTX;
+extern const char *TXLOCKVOTE;
+extern const char *DSTX;
+extern const char *TXLOCKREQUEST;
+
+
 };
 
 /* Get a vector of all valid message types (see above) */
@@ -318,7 +341,7 @@ const uint32_t MSG_TYPE_MASK    = 0xffffffff >> 2;
 enum GetDataMsg
 {
     UNDEFINED = 0,
-    MSG_TX,
+    MSG_TX = 1,
     MSG_BLOCK,
     MSG_TYPE_MAX = MSG_BLOCK,
     // The following can only occur in getdata. Invs always use TX or BLOCK.
@@ -327,6 +350,16 @@ enum GetDataMsg
     MSG_WITNESS_BLOCK = MSG_BLOCK | MSG_WITNESS_FLAG,
     MSG_WITNESS_TX = MSG_TX | MSG_WITNESS_FLAG,
     MSG_FILTERED_WITNESS_BLOCK = MSG_FILTERED_BLOCK | MSG_WITNESS_FLAG,
+    MSG_SPORK,
+    MSG_ZNODE_PAYMENT_VOTE,
+    MSG_ZNODE_PAYMENT_BLOCK,
+    MSG_ZNODE_ANNOUNCE,
+    MSG_ZNODE_PING,
+    MSG_ZNODE_VERIFY,
+    MSG_TXLOCK_REQUEST,
+    MSG_TXLOCK_VOTE,
+    MSG_DSTX,
+    DSQUEUE,
 };
 
 /** inv message data */
@@ -334,6 +367,7 @@ class CInv
 {
 public:
     CInv();
+//    CInv(const std::string& strType, const uint256& hashIn);
     CInv(int typeIn, const uint256& hashIn);
 
     ADD_SERIALIZE_METHODS;
@@ -347,7 +381,9 @@ public:
 
     friend bool operator<(const CInv& a, const CInv& b);
 
-    std::string GetCommand() const;
+//    bool IsKnownType() const;
+//    std::string GetCommand() const;
+    const char* GetCommand() const;
     std::string ToString() const;
 
     // TODO: make private (improves encapsulation)

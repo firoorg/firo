@@ -1,5 +1,5 @@
 ---
-name: "zcoin-osx-0.13"
+name: "zcoin-osx-0.13.6"
 enable_cache: true
 suites:
 - "trusty"
@@ -28,7 +28,7 @@ packages:
 - "python-setuptools"
 - "fonts-tuffy"
 remotes:
-- "url": "https://gitlab.com/btzc/zcoin.git"
+- "url": "https://github.com/zcoinofficial/zcoin"
   "dir": "zcoin"
 files:
 - "MacOSX10.11.sdk.tar.gz"

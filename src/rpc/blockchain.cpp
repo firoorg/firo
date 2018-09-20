@@ -459,6 +459,40 @@ UniValue getmempoolentry(const UniValue& params, bool fHelp)
     return info;
 }
 
+UniValue getblockhashes(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() < 3)
+        throw runtime_error(
+                "getblockhashes timestamp\n"
+                        "\nReturns array of hashes of blocks within the timestamp range provided.\n"
+                        "\nArguments:\n"
+                        "1. high         (numeric, required) The newer block timestamp\n"
+                        "2. low          (numeric, required) The older block timestamp\n"
+                        "\nResult:\n"
+                        "[\n"
+                        "  \"hash\"         (string) The block hash\n"
+                        "]\n"
+                        "\nExamples:\n"
+                + HelpExampleCli("getblockhashes", "1231614698 1231024505")
+                + HelpExampleRpc("getblockhashes", "1231614698, 1231024505")
+        );
+
+    unsigned int high = params[0].get_int();
+    unsigned int low = params[1].get_int();
+    std::vector<uint256> blockHashes;
+    if (!GetTimestampIndex(high, low, blockHashes)) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for block hashes");
+    }
+
+    UniValue result(UniValue::VARR);
+    for (std::vector<uint256>::const_iterator it=blockHashes.begin(); it!=blockHashes.end(); it++) {
+        result.push_back(it->GetHex());
+    }
+
+    return result;
+}
+
+
 UniValue getblockhash(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 1)
@@ -1194,6 +1228,7 @@ static const CRPCCommand commands[] =
     { "blockchain",         "getblockcount",          &getblockcount,          true  },
     { "blockchain",         "getblock",               &getblock,               true  },
     { "blockchain",         "getblockhash",           &getblockhash,           true  },
+    { "blockchain",         "getblockhashes",         &getblockhashes,         true  },
     { "blockchain",         "getblockheader",         &getblockheader,         true  },
     { "blockchain",         "getchaintips",           &getchaintips,           true  },
     { "blockchain",         "getdifficulty",          &getdifficulty,          true  },

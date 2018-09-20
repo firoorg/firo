@@ -9,81 +9,124 @@
 #include "utilstrencodings.h"
 
 #ifndef WIN32
+
 # include <arpa/inet.h>
+
 #endif
 
 namespace NetMsgType {
-const char *VERSION="version";
-const char *VERACK="verack";
-const char *ADDR="addr";
-const char *INV="inv";
-const char *GETDATA="getdata";
-const char *MERKLEBLOCK="merkleblock";
-const char *GETBLOCKS="getblocks";
-const char *GETHEADERS="getheaders";
-const char *TX="tx";
-const char *HEADERS="headers";
-const char *BLOCK="block";
-const char *GETADDR="getaddr";
-const char *MEMPOOL="mempool";
-const char *PING="ping";
-const char *PONG="pong";
-const char *NOTFOUND="notfound";
-const char *FILTERLOAD="filterload";
-const char *FILTERADD="filteradd";
-const char *FILTERCLEAR="filterclear";
-const char *REJECT="reject";
-const char *SENDHEADERS="sendheaders";
-const char *FEEFILTER="feefilter";
-const char *SENDCMPCT="sendcmpct";
-const char *CMPCTBLOCK="cmpctblock";
-const char *GETBLOCKTXN="getblocktxn";
-const char *BLOCKTXN="blocktxn";
+    const char *VERSION = "version";
+    const char *VERACK = "verack";
+    const char *ADDR = "addr";
+    const char *INV = "inv";
+    const char *GETDATA = "getdata";
+    const char *MERKLEBLOCK = "merkleblock";
+    const char *GETBLOCKS = "getblocks";
+    const char *GETHEADERS = "getheaders";
+    const char *TX = "tx";
+    const char *HEADERS = "headers";
+    const char *BLOCK = "block";
+    const char *GETADDR = "getaddr";
+    const char *MEMPOOL = "mempool";
+    const char *PING = "ping";
+    const char *PONG = "pong";
+    const char *NOTFOUND = "notfound";
+    const char *FILTERLOAD = "filterload";
+    const char *FILTERADD = "filteradd";
+    const char *FILTERCLEAR = "filterclear";
+    const char *REJECT = "reject";
+    const char *SENDHEADERS = "sendheaders";
+    const char *FEEFILTER = "feefilter";
+    const char *SENDCMPCT = "sendcmpct";
+    const char *CMPCTBLOCK = "cmpctblock";
+    const char *GETBLOCKTXN = "getblocktxn";
+    const char *BLOCKTXN = "blocktxn";
+//znode
+    const char *TXLOCKVOTE="txlvote";
+    const char *SPORK = "spork";
+    const char *GETSPORKS = "getsporks";
+    const char *ZNODEPAYMENTVOTE = "mnw";
+    const char *ZNODEPAYMENTBLOCK = "mnwb";
+    const char *ZNODEPAYMENTSYNC = "mnget";
+    const char *MNANNOUNCE = "mnb";
+    const char *MNPING = "mnp";
+    const char *DSACCEPT = "dsa";
+    const char *DSVIN = "dsi";
+    const char *DSFINALTX = "dsf";
+    const char *DSSIGNFINALTX = "dss";
+    const char *DSCOMPLETE = "dsc";
+    const char *DSSTATUSUPDATE = "dssu";
+    const char *DSTX = "dstx";
+    const char *DSQUEUE = "dsq";
+    const char *DSEG = "dseg";
+    const char *SYNCSTATUSCOUNT = "ssc";
+    const char *MNVERIFY = "mnv";
+    const char *TXLOCKREQUEST = "ix";
+
 };
 
 /** All known message types. Keep this in the same order as the list of
  * messages above and in protocol.h.
  */
 const static std::string allNetMessageTypes[] = {
-    NetMsgType::VERSION,
-    NetMsgType::VERACK,
-    NetMsgType::ADDR,
-    NetMsgType::INV,
-    NetMsgType::GETDATA,
-    NetMsgType::MERKLEBLOCK,
-    NetMsgType::GETBLOCKS,
-    NetMsgType::GETHEADERS,
-    NetMsgType::TX,
-    NetMsgType::HEADERS,
-    NetMsgType::BLOCK,
-    NetMsgType::GETADDR,
-    NetMsgType::MEMPOOL,
-    NetMsgType::PING,
-    NetMsgType::PONG,
-    NetMsgType::NOTFOUND,
-    NetMsgType::FILTERLOAD,
-    NetMsgType::FILTERADD,
-    NetMsgType::FILTERCLEAR,
-    NetMsgType::REJECT,
-    NetMsgType::SENDHEADERS,
-    NetMsgType::FEEFILTER,
-    NetMsgType::SENDCMPCT,
-    NetMsgType::CMPCTBLOCK,
-    NetMsgType::GETBLOCKTXN,
-    NetMsgType::BLOCKTXN,
-};
-const static std::vector<std::string> allNetMessageTypesVec(allNetMessageTypes, allNetMessageTypes+ARRAYLEN(allNetMessageTypes));
+        NetMsgType::VERSION,
+        NetMsgType::VERACK,
+        NetMsgType::ADDR,
+        NetMsgType::INV,
+        NetMsgType::GETDATA,
+        NetMsgType::MERKLEBLOCK,
+        NetMsgType::GETBLOCKS,
+        NetMsgType::GETHEADERS,
+        NetMsgType::TX,
+        NetMsgType::HEADERS,
+        NetMsgType::BLOCK,
+        NetMsgType::GETADDR,
+        NetMsgType::MEMPOOL,
+        NetMsgType::PING,
+        NetMsgType::PONG,
+        NetMsgType::NOTFOUND,
+        NetMsgType::FILTERLOAD,
+        NetMsgType::FILTERADD,
+        NetMsgType::FILTERCLEAR,
+        NetMsgType::REJECT,
+        NetMsgType::SENDHEADERS,
+        NetMsgType::FEEFILTER,
+        NetMsgType::SENDCMPCT,
+        NetMsgType::CMPCTBLOCK,
+        NetMsgType::GETBLOCKTXN,
+        NetMsgType::BLOCKTXN,
+        //znode
+        NetMsgType::TXLOCKREQUEST,
+        NetMsgType::ZNODEPAYMENTVOTE,
+        NetMsgType::ZNODEPAYMENTBLOCK,
+        NetMsgType::ZNODEPAYMENTSYNC,
+        NetMsgType::SPORK,
+        NetMsgType::GETSPORKS,
+        NetMsgType::MNANNOUNCE,
+        NetMsgType::MNPING,
+        NetMsgType::DSACCEPT,
+        NetMsgType::DSVIN,
+        NetMsgType::DSFINALTX,
+        NetMsgType::DSSIGNFINALTX,
+        NetMsgType::DSCOMPLETE,
+        NetMsgType::DSSTATUSUPDATE,
+        NetMsgType::DSTX,
+        NetMsgType::DSQUEUE,
+        NetMsgType::DSEG,
+        NetMsgType::SYNCSTATUSCOUNT,
+        NetMsgType::MNVERIFY,
 
-CMessageHeader::CMessageHeader(const MessageStartChars& pchMessageStartIn)
-{
+};
+const static std::vector <std::string> allNetMessageTypesVec(allNetMessageTypes, allNetMessageTypes + ARRAYLEN(allNetMessageTypes));
+
+CMessageHeader::CMessageHeader(const MessageStartChars &pchMessageStartIn) {
     memcpy(pchMessageStart, pchMessageStartIn, MESSAGE_START_SIZE);
     memset(pchCommand, 0, sizeof(pchCommand));
     nMessageSize = -1;
     nChecksum = 0;
 }
 
-CMessageHeader::CMessageHeader(const MessageStartChars& pchMessageStartIn, const char* pszCommand, unsigned int nMessageSizeIn)
-{
+CMessageHeader::CMessageHeader(const MessageStartChars &pchMessageStartIn, const char *pszCommand, unsigned int nMessageSizeIn) {
     memcpy(pchMessageStart, pchMessageStartIn, MESSAGE_START_SIZE);
     memset(pchCommand, 0, sizeof(pchCommand));
     strncpy(pchCommand, pszCommand, COMMAND_SIZE);
@@ -91,34 +134,28 @@ CMessageHeader::CMessageHeader(const MessageStartChars& pchMessageStartIn, const
     nChecksum = 0;
 }
 
-std::string CMessageHeader::GetCommand() const
-{
+std::string CMessageHeader::GetCommand() const {
     return std::string(pchCommand, pchCommand + strnlen(pchCommand, COMMAND_SIZE));
 }
 
-bool CMessageHeader::IsValid(const MessageStartChars& pchMessageStartIn) const
-{
+bool CMessageHeader::IsValid(const MessageStartChars &pchMessageStartIn) const {
     // Check start string
     if (memcmp(pchMessageStart, pchMessageStartIn, MESSAGE_START_SIZE) != 0)
         return false;
 
     // Check the command string for errors
-    for (const char* p1 = pchCommand; p1 < pchCommand + COMMAND_SIZE; p1++)
-    {
-        if (*p1 == 0)
-        {
+    for (const char *p1 = pchCommand; p1 < pchCommand + COMMAND_SIZE; p1++) {
+        if (*p1 == 0) {
             // Must be all zeros after the first zero
             for (; p1 < pchCommand + COMMAND_SIZE; p1++)
                 if (*p1 != 0)
                     return false;
-        }
-        else if (*p1 < ' ' || *p1 > 0x7E)
+        } else if (*p1 < ' ' || *p1 > 0x7E)
             return false;
     }
 
     // Message size
-    if (nMessageSize > MAX_SIZE)
-    {
+    if (nMessageSize > MAX_SIZE) {
         LogPrintf("CMessageHeader::IsValid(): (%s, %u bytes) nMessageSize > MAX_SIZE\n", GetCommand(), nMessageSize);
         return false;
     }
@@ -127,55 +164,57 @@ bool CMessageHeader::IsValid(const MessageStartChars& pchMessageStartIn) const
 }
 
 
-
-CAddress::CAddress() : CService()
-{
+CAddress::CAddress() : CService() {
     Init();
 }
 
-CAddress::CAddress(CService ipIn, ServiceFlags nServicesIn) : CService(ipIn)
-{
+CAddress::CAddress(CService ipIn, ServiceFlags nServicesIn) : CService(ipIn) {
     Init();
     nServices = nServicesIn;
 }
 
-void CAddress::Init()
-{
+void CAddress::Init() {
     nServices = NODE_NONE;
     nTime = 100000000;
 }
 
-CInv::CInv()
-{
+CInv::CInv() {
     type = 0;
     hash.SetNull();
 }
 
-CInv::CInv(int typeIn, const uint256& hashIn)
-{
+CInv::CInv(int typeIn, const uint256 &hashIn) {
     type = typeIn;
     hash = hashIn;
 }
 
-bool operator<(const CInv& a, const CInv& b)
-{
+bool operator<(const CInv &a, const CInv &b) {
     return (a.type < b.type || (a.type == b.type && a.hash < b.hash));
 }
 
-std::string CInv::GetCommand() const
+const char* CInv::GetCommand() const
 {
     std::string cmd;
     if (type & MSG_WITNESS_FLAG)
         cmd.append("witness-");
-    int masked = type & MSG_TYPE_MASK;
-    switch (masked)
+    switch (type)
     {
-    case MSG_TX:             return cmd.append(NetMsgType::TX);
-    case MSG_BLOCK:          return cmd.append(NetMsgType::BLOCK);
-    case MSG_FILTERED_BLOCK: return cmd.append(NetMsgType::MERKLEBLOCK);
-    case MSG_CMPCT_BLOCK:    return cmd.append(NetMsgType::CMPCTBLOCK);
-    default:
-        throw std::out_of_range(strprintf("CInv::GetCommand(): type=%d unknown type", type));
+        case MSG_TX:                    return NetMsgType::TX;
+        case MSG_BLOCK:                 return NetMsgType::BLOCK;
+        case MSG_FILTERED_BLOCK:        return NetMsgType::MERKLEBLOCK;
+        case MSG_CMPCT_BLOCK:           return NetMsgType::CMPCTBLOCK;
+        case MSG_TXLOCK_REQUEST:        return NetMsgType::TXLOCKREQUEST;
+        case MSG_TXLOCK_VOTE:           return NetMsgType::TXLOCKVOTE;
+        case MSG_SPORK:                 return NetMsgType::SPORK;
+        case MSG_ZNODE_PAYMENT_VOTE:    return NetMsgType::ZNODEPAYMENTVOTE;
+        case MSG_ZNODE_PAYMENT_BLOCK:   return NetMsgType::ZNODEPAYMENTBLOCK;
+        case MSG_ZNODE_ANNOUNCE:        return NetMsgType::MNANNOUNCE;
+        case MSG_ZNODE_PING:            return NetMsgType::MNPING;
+        case MSG_DSTX:                  return NetMsgType::DSTX;
+        case MSG_ZNODE_VERIFY:          return NetMsgType::MNVERIFY;
+        default: {
+            return "error";
+        }
     }
 }
 
@@ -184,7 +223,6 @@ std::string CInv::ToString() const
     return strprintf("%s %s", GetCommand(), hash.ToString());
 }
 
-const std::vector<std::string> &getAllNetMessageTypes()
-{
+const std::vector <std::string> &getAllNetMessageTypes() {
     return allNetMessageTypesVec;
 }

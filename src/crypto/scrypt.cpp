@@ -269,7 +269,6 @@ void scrypt_N_1_1_256_sp_generic(const char *input, char *output, char *scratchp
         X[k] = scrypt_le32dec(&B[4 * k]);
     N = (1 << (Nfactor + 1));
     for (i = 0; i < N; i++) {
-//        std::cout << "[btzc]scrypt_N_1_1_256_sp_generic checkpoint i=" << i << std::endl;
         memcpy(&V[i * 32], X, 128);
         xor_salsa8(&X[0], &X[16]);
         xor_salsa8(&X[16], &X[0]);

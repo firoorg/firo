@@ -15,22 +15,29 @@
 namespace libzerocoin {
 
 CoinSpend::CoinSpend(const Params* p, const PrivateCoin& coin,
-                     Accumulator& a, const AccumulatorWitness& witness, const SpendMetaData& m):
+                     Accumulator& a, const AccumulatorWitness& witness, const SpendMetaData& m,
+					uint256 _accumulatorBlockHash):
 	params(p),
 	denomination(coin.getPublicCoin().getDenomination()),
-	coinSerialNumber((coin.getSerialNumber())),
+    coinSerialNumber((coin.getSerialNumber())),
+    ecdsaSignature(64, 0),
+    ecdsaPubkey(33, 0),
 	accumulatorPoK(&p->accumulatorParams),
 	serialNumberSoK(p),
 	commitmentPoK(&p->serialNumberSoKCommitmentGroup, &p->accumulatorParams.accumulatorPoKCommitmentGroup),
-	    ecdsaPubkey(33, 0),
-	    ecdsaSignature(64, 0) {
+	accumulatorBlockHash(_accumulatorBlockHash)
+{
 
 	// Sanity check: let's verify that the Witness is valid with respect to
 	// the coin and Accumulator provided.
 	if (!(witness.VerifyWitness(a, coin.getPublicCoin()))) {
 		throw ZerocoinException("Accumulator witness does not verify");
 	}
-
+		    
+	if (!HasValidSerial()) {
+		throw ZerocoinException("Invalid serial # range"); 
+	}
+		    
 	// 1: Generate two separate commitments to the public coin (C), each under
 	// a different set of public parameters. We do this because the RSA accumulator
 	// has specific requirements for the commitment parameters that are not
@@ -54,7 +61,7 @@ CoinSpend::CoinSpend(const Params* p, const PrivateCoin& coin,
 	// 4. Proves that the coin is correct w.r.t. serial number and hidden coin secret
 	// (This proof is bound to the coin 'metadata', i.e., transaction hash)
 	uint256 metahash = signatureHash(m);
-	this->serialNumberSoK = SerialNumberSignatureOfKnowledge(p, coin, fullCommitmentToCoinUnderSerialParams, metahash);
+    this->serialNumberSoK = SerialNumberSignatureOfKnowledge(p, coin, fullCommitmentToCoinUnderSerialParams, coin.getVersion()==ZEROCOIN_TX_VERSION_1_5 ? metahash : uint256());
 
 	if(coin.getVersion() == 2){
 	        // 5. Sign the transaction under the public key associate with the serial number.
@@ -83,51 +90,58 @@ CoinDenomination CoinSpend::getDenomination() const {
 }
 
 bool CoinSpend::Verify(const Accumulator& a, const SpendMetaData &m) const {
+    if (!HasValidSerial())
+        return false;
+
 	uint256 metahash = signatureHash(m);
 	// Verify both of the sub-proofs using the given meta-data
     int ret = (a.getDenomination() == this->denomination)
                 && commitmentPoK.Verify(serialCommitmentToCoinValue, accCommitmentToCoinValue)
                 && accumulatorPoK.Verify(a, accCommitmentToCoinValue)
-                && serialNumberSoK.Verify(coinSerialNumber, serialCommitmentToCoinValue, metahash);
+                && serialNumberSoK.Verify(coinSerialNumber, serialCommitmentToCoinValue, this->version == ZEROCOIN_TX_VERSION_1_5 ? metahash : uint256());
     if (!ret) {
             return false;
     }
 
 
-    if(this->version != 2){
+    if (this->version != 2) {
         return ret;
-    }else{
-        int hashBits = 160;
-        Bignum hashMax(1);
-        hashMax <<= 160;
+    }
+    else {
         // Check if this is a coin that requires a signatures
-        if (coinSerialNumber < hashMax) {
-            // Check sizes
-            if (this->ecdsaPubkey.size() != 33 || this->ecdsaSignature.size() != 64) {
-                return false;
-            }
+        if (coinSerialNumber.bitSize() > 160)
+            return false;
 
-            // Recompute and compare hash of public key
-            if (coinSerialNumber != PrivateCoin::serialNumberFromSerializedPublicKey(ecdsaPubkey)) {
-                return false;
-            }
+        // Check sizes
+        if (this->ecdsaPubkey.size() != 33 || this->ecdsaSignature.size() != 64) {
+            return false;
+        }
 
-            // Verify signature
-            secp256k1_pubkey pubkey;
-            secp256k1_ecdsa_signature signature;
+        // Verify signature
+        secp256k1_pubkey pubkey;
+        secp256k1_ecdsa_signature signature;
 
-            if (!secp256k1_ec_pubkey_parse(ctx, &pubkey, &this->ecdsaPubkey[0], 33)) {
-                return false;
-            }
-            secp256k1_ecdsa_signature_parse_compact(ctx, &signature, &this->ecdsaSignature[0]);
-            if (!secp256k1_ecdsa_verify(ctx, &signature, metahash.begin(), &pubkey)) {
-                return false;
-            }
+        if (!secp256k1_ec_pubkey_parse(ctx, &pubkey, ecdsaPubkey.data(), 33)) {
+            return false;
+        }
+
+        // Recompute and compare hash of public key
+        if (coinSerialNumber != PrivateCoin::serialNumberFromSerializedPublicKey(ctx, &pubkey)) {
+            return false;
+        }
+
+        secp256k1_ecdsa_signature_parse_compact(ctx, &signature, ecdsaSignature.data());
+        if (!secp256k1_ecdsa_verify(ctx, &signature, metahash.begin(), &pubkey)) {
+            return false;
         }
 
         return true;
     }
 
+}
+
+bool CoinSpend::HasValidSerial() const { 
+	return coinSerialNumber > 0 && coinSerialNumber < params->coinCommitmentGroup.groupOrder; 
 }
 
 const uint256 CoinSpend::signatureHash(const SpendMetaData &m) const {

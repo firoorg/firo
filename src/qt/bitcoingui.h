@@ -112,6 +112,7 @@ private:
     QAction *openAction;
     QAction *showHelpMessageAction;
     QAction *zerocoinAction;
+    QAction *znodeAction;
     QAction *zerocoinMenuAction;
 
     QSystemTrayIcon *trayIcon;
@@ -154,6 +155,8 @@ public Q_SLOTS:
     void setNumConnections(int count);
     /** Set number of blocks and last block date shown in the UI */
     void setNumBlocks(int count, const QDateTime& blockDate, double nVerificationProgress, bool headers);
+    /** Set additional data sync status shown in the UI */
+    void setAdditionalDataSyncProgress(int count, double nSyncProgress);
 
     /** Notify the user of an event from the core network or transaction handling code.
        @param[in] title     the message box / notification title
@@ -183,6 +186,8 @@ private Q_SLOTS:
     void gotoOverviewPage();
     /** Switch to history (transactions) page */
     void gotoHistoryPage();
+    /** Switch to znode page */
+    void gotoZnodePage();
     /** Switch to receive coins page */
     void gotoReceiveCoinsPage();
     /** Switch to send coins page */

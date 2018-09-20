@@ -46,7 +46,7 @@ ZerocoinPage::ZerocoinPage(const PlatformStyle *platformStyle, Mode mode, QWidge
             setWindowTitle(tr("Zerocoin"));
     }
     ui->labelExplanation->setText(
-            tr("These are your private coins from mint zerocoin operation, You can perform spend zerocoin operation to redeem zcoin back from Zerocoin."));
+            tr("Here you can use your Zcoin to mint a new, private Zerocoin or spend a previously-minted Zerocoin to a 3rd party Zcoin address or your own wallet"));
     ui->zerocoinAmount->setVisible(true);
     ui->zerocoinMintButton->setVisible(true);
     ui->zerocoinSpendButton->setVisible(true);
@@ -66,6 +66,7 @@ ZerocoinPage::ZerocoinPage(const PlatformStyle *platformStyle, Mode mode, QWidge
     // Connect signals for context menu actions
 //    connect(showQRCodeAction, SIGNAL(triggered()), this, SLOT(on_showQRCode_clicked()));
     connect(ui->tableView, SIGNAL(customContextMenuRequested(QPoint)), this, SLOT(contextualMenu(QPoint)));
+    connect(ui->zerocoinSpendToMeCheckBox, SIGNAL(stateChanged(int)), this, SLOT(zerocoinSpendToMeCheckBoxChecked(int)));
 
 }
 
@@ -117,21 +118,57 @@ void ZerocoinPage::on_zerocoinMintButton_clicked() {
         QMessageBox::critical(this, tr("Error"),
                               tr("You cannot mint zerocoin because %1").arg(t),
                               QMessageBox::Ok, QMessageBox::Ok);
+    }else{
+    	QMessageBox::information(this, tr("Success"),
+    	                              tr("Zerocoin successfully minted"),
+    	                              QMessageBox::Ok, QMessageBox::Ok);
+
     }
 }
 
 void ZerocoinPage::on_zerocoinSpendButton_clicked() {
-    QString amount = ui->zerocoinAmount->currentText();
-    std::string denomAmount = amount.toStdString();
-    std::string stringError;
-    if(!model->zerocoinSpend(stringError, denomAmount)){
-        QString t = tr(stringError.c_str());
 
-        QMessageBox::critical(this, tr("Error"),
-                              tr("You cannot spend zerocoin because %1").arg(t),
-                              QMessageBox::Ok, QMessageBox::Ok);
+    QString amount = ui->zerocoinAmount->currentText();
+    QString address = ui->spendToThirdPartyAddress->text();
+    std::string denomAmount = amount.toStdString();
+    std::string thirdPartyAddress = address.toStdString();
+    std::string stringError;
+
+	if(ui->zerocoinSpendToMeCheckBox->isChecked() == false && thirdPartyAddress == ""){
+		QMessageBox::critical(this, tr("Error"),
+		                              tr("Your \"Spend To\" field is empty, please check again"),
+		                              QMessageBox::Ok, QMessageBox::Ok);
+	}else{
+
+		if(!model->zerocoinSpend(stringError, thirdPartyAddress, denomAmount)){
+			QString t = tr(stringError.c_str());
+
+			QMessageBox::critical(this, tr("Error"),
+								  tr("You cannot spend zerocoin because %1").arg(t),
+								  QMessageBox::Ok, QMessageBox::Ok);
+		}else{
+			QMessageBox::information(this, tr("Success"),
+										  tr("Zerocoin successfully spent"),
+										  QMessageBox::Ok, QMessageBox::Ok);
+
+		}
+		ui->spendToThirdPartyAddress->clear();
+		ui->spendToThirdPartyAddress->setEnabled(false);
+
+		ui->zerocoinSpendToMeCheckBox->setChecked(true);
+	}
+}
+
+void ZerocoinPage::zerocoinSpendToMeCheckBoxChecked(int state) {
+    if (state == Qt::Checked)
+    {
+        ui->spendToThirdPartyAddress->clear();
+        ui->spendToThirdPartyAddress->setEnabled(false);
+    }else{
+    	ui->spendToThirdPartyAddress->setEnabled(true);
     }
 }
+
 
 //void ZerocoinPage::on_showQRCode_clicked()
 //{
@@ -175,7 +212,7 @@ void ZerocoinPage::on_zerocoinSpendButton_clicked() {
 
 void ZerocoinPage::on_exportButton_clicked() {
     // CSV is currently the only supported format
-    QString filename = GUIUtil::getSaveFileName(this, tr("Export Address List"), QString(), tr("Comma separated file (*.csv)"), NULL);
+    QString filename = GUIUtil::getSaveFileName(this, tr("Export Address List"), QString(), tr("Comma-separated file (*.csv)"), NULL);
 
     if (filename.isNull())
         return;
@@ -188,7 +225,7 @@ void ZerocoinPage::on_exportButton_clicked() {
     writer.addColumn("Address", AddressTableModel::Address, Qt::EditRole);
 
     if (!writer.write()) {
-        QMessageBox::critical(this, tr("Exporting Failed"), tr("There was an error trying to save the address list to %1. Please try again.").arg(
+        QMessageBox::critical(this, tr("Export Failed"), tr("There was an error trying to save the address list to %1. Please try again.").arg(
                 filename));
     }
 }

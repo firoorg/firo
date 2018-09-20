@@ -96,13 +96,13 @@ public:
     PrivateCoin(const Params* p, Stream& strm): params(p), publicCoin(p) {
         strm >> *this;
     }
-    PrivateCoin(const Params* p,const CoinDenomination denomination = ZQ_LOVELACE);
+    PrivateCoin(const Params* p, CoinDenomination denomination = ZQ_LOVELACE, int version = ZEROCOIN_TX_VERSION_1);
     const PublicCoin& getPublicCoin() const;
     const Bignum& getSerialNumber() const;
     const Bignum& getRandomness() const;
     const unsigned char* getEcdsaSeckey() const;
-    const unsigned int getVersion() const;
-    static const Bignum serialNumberFromSerializedPublicKey(const std::vector<unsigned char> &pub);
+    unsigned int getVersion() const;
+    static const Bignum serialNumberFromSerializedPublicKey(secp256k1_context *ctx, secp256k1_pubkey *pubkey);
 
     void setPublicCoin(PublicCoin p){
         publicCoin = p;
@@ -120,15 +120,30 @@ public:
         version = nVersion;
     };
 
+    void setEcdsaSeckey(const vector<unsigned char> &seckey) {
+        if (seckey.size() == sizeof(ecdsaSeckey))
+            std::copy(seckey.cbegin(), seckey.cend(), &ecdsaSeckey[0]);
+    }
+
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
         READWRITE(publicCoin);
         READWRITE(randomness);
         READWRITE(serialNumber);
-        if(version == 2){
-            READWRITE(version);
-            READWRITE(ecdsaSeckey);
+
+        if (ser_action.ForRead()) {
+            if (s.eof())
+                version = ZEROCOIN_TX_VERSION_1;
+            else
+                READWRITE(version);
         }
+        else {
+            if (version > ZEROCOIN_TX_VERSION_1)
+                READWRITE(version);
+        }
+
+        if (version == ZEROCOIN_TX_VERSION_2)
+            READWRITE(ecdsaSeckey);
     }
 
 private:

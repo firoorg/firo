@@ -63,6 +63,16 @@ struct Params {
     int64_t nChainStartTime;
     unsigned char nMinNFactor;
     unsigned char nMaxNFactor;
+    int nInstantSendKeepLock; // in blocks
+    //int nBudgetPaymentsStartBlock;
+    //int nBudgetPaymentsCycleBlocks;
+    //int nBudgetPaymentsWindowBlocks;
+    int nZnodeMinimumConfirmations;
+    int nZnodePaymentsStartBlock;
+    //int nZnodePaymentsIncreaseBlock;
+    //int nZnodePaymentsIncreasePeriod; // in blocks
+    //int nSuperblockStartBlock;
+
     int64_t DifficultyAdjustmentInterval() const { return nPowTargetTimespan / nPowTargetSpacing; }
     uint256 nMinimumChainWork;
 };

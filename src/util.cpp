@@ -99,6 +99,11 @@ namespace boost {
 
 using namespace std;
 
+// znode fZnode
+bool fZNode = false;
+bool fLiteMode = false;
+int nWalletBackups = 10;
+
 const char * const BITCOIN_CONF_FILENAME = "zcoin.conf";
 const char * const BITCOIN_PID_FILENAME = "zcoind.pid";
 
@@ -485,6 +490,34 @@ static boost::filesystem::path pathCached;
 static boost::filesystem::path pathCachedNetSpecific;
 static CCriticalSection csPathCached;
 
+static boost::filesystem::path backupsDirCached;
+static CCriticalSection csBackupsDirCached;
+
+const boost::filesystem::path &GetBackupsDir()
+{
+    namespace fs = boost::filesystem;
+
+    LOCK(csBackupsDirCached);
+
+    fs::path &backupsDir = backupsDirCached;
+
+    if (!backupsDir.empty())
+        return backupsDir;
+
+    if (mapArgs.count("-walletbackupsdir")) {
+        backupsDir = fs::absolute(mapArgs["-walletbackupsdir"]);
+        // Path must exist
+        if (fs::is_directory(backupsDir)) return backupsDir;
+        // Fallback to default path if it doesn't
+        LogPrintf("%s: Warning: incorrect parameter -walletbackupsdir, path must exist! Using default path.\n", __func__);
+        strMiscWarning = _("Warning: incorrect parameter -walletbackupsdir, path must exist! Using default path.");
+    }
+    // Default path
+    backupsDir = GetDataDir() / "backups";
+
+    return backupsDir;
+}
+
 const boost::filesystem::path &GetDataDir(bool fNetSpecific)
 {
     namespace fs = boost::filesystem;
@@ -527,6 +560,14 @@ boost::filesystem::path GetConfigFile()
     if (!pathConfigFile.is_complete())
         pathConfigFile = GetDataDir(false) / pathConfigFile;
 
+    return pathConfigFile;
+}
+
+boost::filesystem::path GetZnodeConfigFile()
+{
+    boost::filesystem::path pathConfigFile(GetArg("-znconf", "znode.conf"));
+    if (!pathConfigFile.is_complete()) pathConfigFile = GetDataDir() / pathConfigFile;
+    LogPrintf("pathConfigFile=%s\n", pathConfigFile);
     return pathConfigFile;
 }
 
@@ -823,4 +864,37 @@ std::string CopyrightHolders(const std::string& strPrefix)
         strCopyrightHolders += "\n" + strPrefix + "The Bitcoin Core developers";
     }
     return strCopyrightHolders;
+}
+
+std::pair<bool,std::string> ReadBinaryFileTor(const std::string &filename, size_t maxsize)
+{
+    FILE *f = fopen(filename.c_str(), "rb");
+    if (f == NULL)
+        return std::make_pair(false,"");
+    std::string retval;
+    char buffer[128];
+    size_t n;
+    while ((n=fread(buffer, 1, sizeof(buffer), f)) > 0) {
+        retval.append(buffer, buffer+n);
+        if (retval.size() > maxsize)
+            break;
+    }
+    fclose(f);
+    return std::make_pair(true,retval);
+}
+
+/** Write contents of std::string to a file.
+ * @return true on success.
+ */
+bool WriteBinaryFileTor(const std::string &filename, const std::string &data)
+{
+    FILE *f = fopen(filename.c_str(), "wb");
+    if (f == NULL)
+        return false;
+    if (fwrite(data.data(), 1, data.size(), f) != data.size()) {
+        fclose(f);
+        return false;
+    }
+    fclose(f);
+    return true;
 }

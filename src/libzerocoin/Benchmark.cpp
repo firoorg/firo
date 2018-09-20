@@ -281,7 +281,7 @@ Test_MintCoin()
 		// Generate a list of coins
 		timer.start();
 		for (uint32_t i = 0; i < TESTS_COINS_TO_ACCUMULATE; i++) {
-			gCoins[i] = new PrivateCoin(g_Params);
+            gCoins[i] = new PrivateCoin(g_Params);
 		}
 		timer.stop();
 	} catch (exception &e) {

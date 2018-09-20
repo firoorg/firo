@@ -40,8 +40,7 @@ public:
 
     static const int CURRENT_VERSION = 2;
 
-    //btzc
-//    uint32_t lastHeight;
+    // uint32_t lastHeight;
     uint256 powHash;
     int32_t isComputed;
 
@@ -95,7 +94,7 @@ public:
 //        powHash = hash;
     }
 
-    uint256 GetPoWHash(int nHeight) const;
+    uint256 GetPoWHash(int nHeight, bool forceCalc = false) const;
 
     uint256 GetHash() const;
 
@@ -103,8 +102,12 @@ public:
     {
         return (int64_t)nTime;
     }
+
+    void InvalidateCachedPoWHash(int nHeight) const;
 };
 
+
+class CZerocoinTxInfo;
 
 class CBlock : public CBlockHeader
 {
@@ -113,17 +116,28 @@ public:
     std::vector<CTransaction> vtx;
 
     // memory only
+    mutable CTxOut txoutZnode; // znode payment
+    mutable std::vector<CTxOut> voutSuperblock; // superblock payment
     mutable bool fChecked;
+
+    // memory only, zerocoin tx info
+    mutable std::shared_ptr<CZerocoinTxInfo> zerocoinTxInfo;
 
     CBlock()
     {
+        zerocoinTxInfo = NULL;
         SetNull();
     }
 
     CBlock(const CBlockHeader &header)
     {
+        zerocoinTxInfo = NULL;
         SetNull();
         *((CBlockHeader*)this) = header;
+    }
+
+    ~CBlock() {
+        ZerocoinClean();
     }
 
     ADD_SERIALIZE_METHODS;
@@ -136,8 +150,11 @@ public:
 
     void SetNull()
     {
+        ZerocoinClean();
         CBlockHeader::SetNull();
         vtx.clear();
+        txoutZnode = CTxOut();
+        voutSuperblock.clear();
         fChecked = false;
     }
 
@@ -154,6 +171,8 @@ public:
     }
 
     std::string ToString() const;
+
+    void ZerocoinClean() const;
 };
 
 /** Describes a place in the block chain to another node such that if the

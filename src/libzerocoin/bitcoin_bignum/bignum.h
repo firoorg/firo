@@ -48,8 +48,7 @@ public:
 };
 
 
-/** C++ wrapper for BIGNUM (OpenSSL bignum) */
-class CBigNum
+/** C++ wrapper for BIGNUM (OpenSSL bignum) */class CBigNum
 {
 protected:
     BIGNUM	*bn;
@@ -64,7 +63,7 @@ public:
     {
         init();
     }
-
+	
     CBigNum(const CBigNum& b)
     {
         init();
@@ -82,6 +81,13 @@ public:
         return (*this);
     }
 
+	CBigNum(const char *hexString)
+	{
+		init();
+		if (!SetHexBool(hexString))
+			throw bignum_error("CBigNum::CBigNum(const char *) : invalid hex string");
+	}
+
     ~CBigNum()
     {
         BN_clear_free(bn);
@@ -89,7 +95,7 @@ public:
 
     BIGNUM *operator &() const
     {
-	return bn;
+        return bn;
     }
 
     //CBigNum(char n) is not portable.  Use 'signed char' or 'unsigned char'.
@@ -704,6 +710,12 @@ public:
         const CBigNum ret = *this;
         --(*this);
         return ret;
+    }
+
+    vector<unsigned char> ToBytes() const {
+        vector<unsigned char> result(BN_num_bytes(bn));
+        BN_bn2bin(bn, result.data());
+        return result;
     }
 
 

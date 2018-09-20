@@ -52,6 +52,7 @@ public:
     }
 
     std::string ToString() const;
+    std::string ToStringShort() const;
 };
 
 /** An input of a transaction.  It contains the location of the previous
@@ -64,6 +65,7 @@ public:
     COutPoint prevout;
     CScript scriptSig;
     uint32_t nSequence;
+    CScript prevPubKey;
 
     /* Setting nSequence to this value for every input in a transaction
      * disables nLockTime. */
@@ -121,6 +123,11 @@ public:
         return !(a == b);
     }
 
+    friend bool operator<(const CTxIn& a, const CTxIn& b)
+    {
+        return a.prevout<b.prevout;
+    }
+
     std::string ToString() const;
 };
 
@@ -132,6 +139,7 @@ class CTxOut
 public:
     CAmount nValue;
     CScript scriptPubKey;
+    int nRounds;
 
     CTxOut()
     {
@@ -146,12 +154,15 @@ public:
     inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
         READWRITE(nValue);
         READWRITE(*(CScriptBase*)(&scriptPubKey));
+        if (ser_action.ForRead())
+            nRounds = -10;
     }
 
     void SetNull()
     {
         nValue = -1;
         scriptPubKey.clear();
+        nRounds = -10; // an initial value, should be no way to get this by calculations
     }
 
     bool IsNull() const
@@ -195,7 +206,6 @@ public:
 
     bool IsDust() const
     {
-        //btzc: zcoin disable dust
         return false;
     }
 
@@ -215,6 +225,11 @@ public:
     friend bool operator!=(const CTxOut& a, const CTxOut& b)
     {
         return !(a == b);
+    }
+
+    friend bool operator<(const CTxOut& a, const CTxOut& b)
+    {
+        return a.nValue < b.nValue || (a.nValue == b.nValue && a.scriptPubKey < b.scriptPubKey);
     }
 
     std::string ToString() const;
@@ -385,7 +400,6 @@ public:
     const int32_t nVersion;
     static int64_t nMinTxFee;
     static int64_t nMinRelayTxFee;
-    //btzc: remove const
     std::vector<CTxIn> vin;
     std::vector<CTxOut> vout;
     CTxWitness wit; // Not const: can change without invalidating the txid cache
@@ -435,7 +449,6 @@ public:
     // Compute modified tx size for priority calculation (optionally given tx size)
     unsigned int CalculateModifiedSize(unsigned int nTxSize=0) const;
 
-    //btzc: add zerocoin to coinbase
     bool IsCoinBase() const;
 
     bool IsZerocoinSpend() const;
@@ -481,6 +494,17 @@ struct CMutableTransaction
      * fly, as opposed to GetHash() in CTransaction, which uses a cached result.
      */
     uint256 GetHash() const;
+
+    std::string ToString() const;
+    friend bool operator==(const CMutableTransaction& a, const CMutableTransaction& b)
+    {
+        return a.GetHash() == b.GetHash();
+    }
+
+    friend bool operator!=(const CMutableTransaction& a, const CMutableTransaction& b)
+    {
+        return !(a == b);
+    }
 };
 
 /** Compute the weight of a transaction, as defined by BIP 141 */

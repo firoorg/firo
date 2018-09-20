@@ -82,14 +82,14 @@ AC_DEFUN([AX_BOOST_FILESYSTEM],
             BOOSTLIBDIR=`echo $BOOST_LDFLAGS | sed -e 's/@<:@^\/@:>@*//'`
             ax_lib=
             if test "x$ax_boost_user_filesystem_lib" = "x"; then
-                for libextension in `ls -r $BOOSTLIBDIR/libboost_filesystem* 2>/dev/null | sed 's,.*/lib,,' | sed 's,\..*,,'` ; do
+                for libextension in `(ls -r $BOOSTLIBDIR/libboost_filesystem-mt*; ls -r $BOOSTLIBDIR/libboost_filesystem*) 2>/dev/null | sed 's,.*/lib,,' | sed 's,\..*,,'` ; do
                      ax_lib=${libextension}
 				    AC_CHECK_LIB($ax_lib, exit,
                                  [BOOST_FILESYSTEM_LIB="-l$ax_lib"; AC_SUBST(BOOST_FILESYSTEM_LIB) link_filesystem="yes"; break],
                                  [link_filesystem="no"])
 				done
                 if test "x$link_filesystem" != "xyes"; then
-                for libextension in `ls -r $BOOSTLIBDIR/boost_filesystem* 2>/dev/null | sed 's,.*/,,' | sed -e 's,\..*,,'` ; do
+                for libextension in `(ls -r $BOOSTLIBDIR/libboost_filesystem-mt*; ls -r $BOOSTLIBDIR/libboost_filesystem*) 2>/dev/null | sed 's,.*/,,' | sed -e 's,\..*,,'` ; do
                      ax_lib=${libextension}
 				    AC_CHECK_LIB($ax_lib, exit,
                                  [BOOST_FILESYSTEM_LIB="-l$ax_lib"; AC_SUBST(BOOST_FILESYSTEM_LIB) link_filesystem="yes"; break],

@@ -4,8 +4,9 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "primitives/block.h"
-
+#include "consensus/consensus.h"
 #include "main.h"
+#include "zerocoin.h"
 #include "hash.h"
 #include "tinyformat.h"
 #include "utilstrencodings.h"
@@ -21,6 +22,7 @@
 #include <algorithm>
 #include <string>
 #include "precomputed_hash.h"
+
 
 
 unsigned char GetNfactor(int64_t nTimestamp) {
@@ -48,7 +50,7 @@ uint256 CBlockHeader::GetHash() const {
     return SerializeHash(*this);
 }
 
-uint256 CBlockHeader::GetPoWHash(int nHeight) const {
+uint256 CBlockHeader::GetPoWHash(int nHeight, bool forceCalc) const {
 //    int64_t start = std::chrono::duration_cast<std::chrono::milliseconds>(
 //            std::chrono::system_clock::now().time_since_epoch()).count();
     bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
@@ -59,23 +61,25 @@ uint256 CBlockHeader::GetPoWHash(int nHeight) const {
                 buildMapPoWHash();
             }
         }
-        if (mapPoWHash.count(nHeight)) {
+        if (!forceCalc && mapPoWHash.count(nHeight)) {
 //        std::cout << "GetPowHash nHeight=" << nHeight << ", hash= " << mapPoWHash[nHeight].ToString() << std::endl;
             return mapPoWHash[nHeight];
         }
     }
     uint256 powHash;
     try {
-        if (!fTestNet && nHeight >= LYRA2Z_HEIGHT) {
+        if (!fTestNet && nHeight >= HF_LYRA2Z_HEIGHT) {
             lyra2z_hash(BEGIN(nVersion), BEGIN(powHash));
-        } else if (!fTestNet && nHeight >= 8192) {
+        } else if (!fTestNet && nHeight >= HF_LYRA2_HEIGHT) {
             LYRA2(BEGIN(powHash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, 8192, 256);
-        } else if (!fTestNet && nHeight >= 500) {
+        } else if (!fTestNet && nHeight >= HF_LYRA2VAR_HEIGHT) {
             LYRA2(BEGIN(powHash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, nHeight, 256);
-        } else if (fTestNet && nHeight >= 90) { // testnet
+        } else if (fTestNet && nHeight >= HF_LYRA2Z_HEIGHT_TESTNET) { // testnet
             lyra2z_hash(BEGIN(nVersion), BEGIN(powHash));
-        } else if (fTestNet && nHeight >= 80) { // testnet
+        } else if (fTestNet && nHeight >= HF_LYRA2_HEIGHT_TESTNET) { // testnet
             LYRA2(BEGIN(powHash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, 8192, 256);
+        } else if (fTestNet && nHeight >= HF_LYRA2VAR_HEIGHT_TESTNET) { // testnet
+            LYRA2(BEGIN(powHash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, nHeight, 256);
         } else {
             scrypt_N_1_1_256(BEGIN(nVersion), BEGIN(powHash), GetNfactor(nTime));
         }
@@ -88,6 +92,11 @@ uint256 CBlockHeader::GetPoWHash(int nHeight) const {
     mapPoWHash.insert(make_pair(nHeight, powHash));
 //    SetPoWHash(thash);
     return powHash;
+}
+
+void CBlockHeader::InvalidateCachedPoWHash(int nHeight) const {
+    if (nHeight >= 20500 && mapPoWHash.count(nHeight) > 0)
+        mapPoWHash.erase(nHeight);
 }
 
 std::string CBlock::ToString() const {
@@ -113,4 +122,10 @@ int64_t GetBlockWeight(const CBlock& block)
 //     weight = (stripped_size * 3) + total_size.
 //    return ::GetSerializeSize(block, SER_NETWORK, PROTOCOL_VERSION | SERIALIZE_TRANSACTION_NO_WITNESS) * (WITNESS_SCALE_FACTOR - 1) + ::GetSerializeSize(block, SER_NETWORK, PROTOCOL_VERSION);
     return ::GetSerializeSize(block, SER_NETWORK, PROTOCOL_VERSION);
+}
+
+void CBlock::ZerocoinClean() const {
+    //if (zerocoinTxInfo != NULL)
+        //delete zerocoinTxInfo; No need since now it is a shared ptr
+    zerocoinTxInfo = NULL;
 }

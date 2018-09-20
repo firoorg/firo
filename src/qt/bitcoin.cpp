@@ -19,6 +19,7 @@
 #include "splashscreen.h"
 #include "utilitydialog.h"
 #include "winshutdownmonitor.h"
+#include "znodeconfig.h"
 
 #ifdef ENABLE_WALLET
 #include "paymentserver.h"
@@ -627,6 +628,14 @@ int main(int argc, char *argv[])
     initTranslations(qtTranslatorBase, qtTranslator, translatorBase, translator);
 
 #ifdef ENABLE_WALLET
+    /// 7a. parse znode.conf
+    std::string strErr;
+    if(!znodeConfig.read(strErr)) {
+        QMessageBox::critical(0, QObject::tr("Zcoin Core"),
+                              QObject::tr("Error reading znode configuration file: %1").arg(strErr.c_str()));
+        return EXIT_FAILURE;
+    }
+
     /// 8. URI IPC sending
     // - Do this early as we don't want to bother initializing if we are just calling IPC
     // - Do this *after* setting up the data directory, as the data directory hash is used in the name

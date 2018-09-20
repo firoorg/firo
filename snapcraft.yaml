@@ -1,0 +1,49 @@
+name: znode
+version: "0.0.1"
+summary: Znode for Zcoin project
+description: |
+ Znodes verify transaction and are used as second layer on top of the normal nodes.
+ Znodes must have access to 1000xzc at a specific address to play the role of Znode otherwise they are just degraded to a regular node on the network.
+
+confinement: strict
+grade: stable
+
+apps:
+ cli:
+  command: bin/zcoin-cli
+  plugs:
+    - network
+    - home
+ daemon:
+  command: bin/zcoind
+  plugs:
+    - network
+    - network-bind
+
+parts:
+ berkeley:
+  plugin: nil
+  prepare: |
+    apt-get install software-properties-common -y
+    add-apt-repository -y ppa:bitcoin/bitcoin
+    apt-get update
+    apt-get install libdb4.8-dev libdb4.8++-dev -y
+
+ libboost:
+  after: [openssl]
+  plugin: nil
+  prepare: |
+    apt-get install libboost-all-dev -y
+
+ openssl:
+  after: [berkeley]
+  plugin: nil
+  prepare: |
+    apt-get install openssl libssl-dev libevent-dev -y
+
+ cli:
+  after: [libboost]
+  plugin: autotools
+  configflags: [--without-gui]
+  source: https://github.com/zcoinofficial/zcoin.git
+  source-branch: master

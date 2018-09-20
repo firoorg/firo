@@ -105,14 +105,14 @@ AC_DEFUN([AX_BOOST_THREAD],
                         esac
             if test "x$ax_boost_user_thread_lib" = "x"; then
                 ax_lib=
-                for libextension in `ls -r $BOOSTLIBDIR/libboost_thread* 2>/dev/null | sed 's,.*/lib,,' | sed 's,\..*,,'`; do
+                for libextension in `(ls -r $BOOSTLIBDIR/libboost_thread-mt*; ls -r $BOOSTLIBDIR/libboost_thread*) 2>/dev/null | sed 's,.*/lib,,' | sed 's,\..*,,'`; do
                      ax_lib=${libextension}
 				    AC_CHECK_LIB($ax_lib, exit,
                                  [BOOST_THREAD_LIB="-l$ax_lib"; AC_SUBST(BOOST_THREAD_LIB) link_thread="yes"; break],
                                  [link_thread="no"])
 				done
                 if test "x$link_thread" != "xyes"; then
-                for libextension in `ls -r $BOOSTLIBDIR/boost_thread* 2>/dev/null | sed 's,.*/,,' | sed 's,\..*,,'`; do
+                for libextension in `(ls -r $BOOSTLIBDIR/libboost_thread-mt*; ls -r $BOOSTLIBDIR/libboost_thread*) 2>/dev/null | sed 's,.*/,,' | sed 's,\..*,,'`; do
                      ax_lib=${libextension}
 				    AC_CHECK_LIB($ax_lib, exit,
                                  [BOOST_THREAD_LIB="-l$ax_lib"; AC_SUBST(BOOST_THREAD_LIB) link_thread="yes"; break],

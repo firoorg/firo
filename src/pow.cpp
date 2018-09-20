@@ -8,6 +8,7 @@
 #include "arith_uint256.h"
 #include "chain.h"
 #include "primitives/block.h"
+#include "consensus/consensus.h"
 #include "uint256.h"
 #include <iostream>
 #include "util.h"
@@ -33,10 +34,18 @@ double GetDifficultyHelper(unsigned int nBits) {
     return dDiff;
 }
 
-//btzc, zcoin GetNextWorkRequired
+// zcoin GetNextWorkRequired
 unsigned int GetNextWorkRequired(const CBlockIndex *pindexLast, const CBlockHeader *pblock, const Consensus::Params &params) {
+    bool fTestNet = Params().NetworkIDString() == CBaseChainParams::TESTNET;
 
-	if(ENABLED_LOWEST_DIFF){
+    LogPrintf("pindexLast->nHeight + 1: %d\n", pindexLast->nHeight + 1);
+
+    /*if(pindexLast->nHeight + 1 > 82873){
+    	return bnProofOfWorkLimit.GetCompact();
+    }*/
+
+    // allow instamine first x blocks on testnet for distribution testing
+	if(fTestNet && pindexLast->nHeight < 5000){
 		return bnProofOfWorkLimit.GetCompact();
 	}
 
@@ -50,27 +59,27 @@ unsigned int GetNextWorkRequired(const CBlockIndex *pindexLast, const CBlockHead
     int64_t PastSecondsMax = TimeDaySeconds * 7;// 604800
     uint32_t PastBlocksMin = PastSecondsMin / BlocksTargetSpacing; // 36 blocks
     uint32_t PastBlocksMax = PastSecondsMax / BlocksTargetSpacing; // 1008 blocks
-    bool fTestNet = Params().NetworkIDString() == CBaseChainParams::TESTNET;
+
     if (fTestNet) {
         // If the new block's timestamp is more than nTargetSpacing*6
         // then allow mining of a min-difficulty block
-        if (pblock->nTime > pindexLast->nTime + params.nPowTargetTimespan * 6) {
+        if (pblock->nTime > pindexLast->nTime + params.nPowTargetTimespan * 1) {
             return bnProofOfWorkLimit.GetCompact();
         }
     }
 
     // 9/29/2016 - Reset to Lyra2(2,block_height,256) due to ASIC KnC Miner Scrypt
     // 36 block look back, reset to mininmum diff
-    if (!fTestNet && pindexLast->nHeight + 1 >= 500 && pindexLast->nHeight + 1 <= 535) {
+    if (!fTestNet && pindexLast->nHeight + 1 >= HF_LYRA2VAR_HEIGHT && pindexLast->nHeight + 1 <= HF_LYRA2VAR_HEIGHT + 36 - 1) {
         return bnProofOfWorkLimit.GetCompact();
     }
     // reset to minimum diff at testnet after scrypt_n, 6 block look back
-    if (fTestNet && pindexLast->nHeight + 1 >= 80 && pindexLast->nHeight + 1 <= 85) {
+    if (fTestNet && pindexLast->nHeight + 1 >= HF_LYRA2VAR_HEIGHT_TESTNET && pindexLast->nHeight + 1 <= HF_LYRA2VAR_HEIGHT_TESTNET + 6 - 1) {
         return bnProofOfWorkLimit.GetCompact();
     }
 
     // 02/11/2017 - Increase diff to match with new hashrates of Lyra2Z algo
-    if ((!fTestNet && pindexLast->nHeight + 1 == 20500) || (fTestNet && pindexLast->nHeight + 1 == 90)) {
+    if ((!fTestNet && pindexLast->nHeight + 1 == HF_LYRA2Z_HEIGHT) || (fTestNet && pindexLast->nHeight + 1 == HF_LYRA2Z_HEIGHT_TESTNET)) {
         CBigNum bnNew;
         bnNew.SetCompact(pindexLast->nBits);
         bnNew /= 20000; // increase the diff by 20000x since the new hashrate is approx. 20000 times higher
@@ -86,42 +95,6 @@ unsigned int GetNextWorkRequired(const CBlockIndex *pindexLast, const CBlockHead
     }
 
     return BorisRidiculouslyNamedDifficultyFunction(pindexLast, BlocksTargetSpacing, PastBlocksMin, PastBlocksMax);
-}
-
-unsigned int GetNextWorkRequired_Bitcoin(const CBlockIndex *pindexLast, const CBlockHeader *pblock,
-                                         const Consensus::Params &params) {
-    unsigned int nProofOfWorkLimit = UintToArith256(params.powLimit).GetCompact();
-
-    // Genesis block
-    if (pindexLast == NULL)
-        return nProofOfWorkLimit;
-    // Only change once per difficulty adjustment interval
-    if ((pindexLast->nHeight + 1) % params.DifficultyAdjustmentInterval() != 0) {
-        if (params.fPowAllowMinDifficultyBlocks) {
-            // Special difficulty rule for testnet:
-            // If the new block's timestamp is more than 2* 10 minutes
-            // then allow mining of a min-difficulty block.
-            if (pblock->GetBlockTime() > pindexLast->GetBlockTime() + params.nPowTargetSpacing * 2)
-                return nProofOfWorkLimit;
-            else {
-                // Return the last non-special-min-difficulty-rules-block
-                const CBlockIndex *pindex = pindexLast;
-                while (pindex->pprev && pindex->nHeight % params.DifficultyAdjustmentInterval() != 0 &&
-                       pindex->nBits == nProofOfWorkLimit)
-                    pindex = pindex->pprev;
-                return pindex->nBits;
-            }
-        }
-        return pindexLast->nBits;
-    }
-
-    // Go back by what we want to be 14 days worth of blocks
-    int nHeightFirst = pindexLast->nHeight - (params.DifficultyAdjustmentInterval() - 1);
-    assert(nHeightFirst >= 0);
-    const CBlockIndex *pindexFirst = pindexLast->GetAncestor(nHeightFirst);
-    assert(pindexFirst);
-
-    return CalculateNextWorkRequired(pindexLast, pindexFirst->GetBlockTime(), params);
 }
 
 unsigned int CalculateNextWorkRequired(const CBlockIndex *pindexLast, int64_t nFirstBlockTime, const Consensus::Params &params) {
