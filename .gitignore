@@ -112,6 +112,7 @@ win32-build
 test/config.ini
 test/cache/*
 src/test/buildenv.py
+src/test/test_bitcoin
 
 !src/leveldb*/Makefile
 
