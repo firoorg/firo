@@ -19,7 +19,7 @@ static struct CAPISignals
 } g_apiSignals;
 
 bool IsAPIRunning() {
-	return fAPIRunning;
+    return fAPIRunning;
 }
 
 bool StartAPI()
@@ -74,10 +74,10 @@ CAPITable::CAPITable(){}
 
 const CAPICommand *CAPITable::operator[](const std::string &name) const
 {
-	std::map<std::string, const CAPICommand*>::const_iterator it = mapCommands.find(name);
-	if (it == mapCommands.end())
-		return NULL;
-	return (*it).second;
+    std::map<std::string, const CAPICommand*>::const_iterator it = mapCommands.find(name);
+    if (it == mapCommands.end())
+        return NULL;
+    return (*it).second;
 }
 
 bool CAPITable::appendCommand(const std::string& name, const CAPICommand* pcmd)

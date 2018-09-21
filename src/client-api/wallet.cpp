@@ -421,7 +421,7 @@ UniValue StateSinceBlock(UniValue& ret, std::string block){
     return ret;
 }
 
-UniValue StateBlock(UniValue& ret, std::string block){
+UniValue StateBlock(UniValue& ret, std::string blockhash){
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
@@ -430,7 +430,7 @@ UniValue StateBlock(UniValue& ret, std::string block){
 
     uint256 blockId;
 
-    blockId.SetHex(block); //set block hash
+    blockId.SetHex(blockhash); //set block hash
     BlockMap::iterator it = mapBlockIndex.find(blockId);
     if (it != mapBlockIndex.end())
         pindex = it->second;
@@ -439,18 +439,17 @@ UniValue StateBlock(UniValue& ret, std::string block){
         return false;
     }
 
+    CBlock block;
+    if(!ReadBlockFromDisk(block, pindex, Params().GetConsensus())){
+        LogPrintf("can't read block from disk.\n");
+    }
+
     UniValue transactions(UniValue::VOBJ);
-
-    for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin(); it != pwalletMain->mapWallet.end(); it++)
+    BOOST_FOREACH(const CTransaction&tx, block.vtx)
     {
-        CWalletTx wtx = (*it).second;
-        CTransaction tx;
-        uint256 hashBlock;
-
-        GetTransaction(wtx.GetHash(), tx, Params().GetConsensus(), hashBlock, true);
-
-        if(block==hashBlock.ToString()){
-            ListAPITransactions(wtx, transactions, filter);
+        const CWalletTx *wtx = pwalletMain->GetWalletTx(tx.GetHash());
+        if(wtx){
+            ListAPITransactions(*(wtx), transactions, filter);
         }
     }
 

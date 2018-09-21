@@ -10,7 +10,7 @@
 void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter& filter);
 
 UniValue StateSinceBlock(UniValue& ret, std::string block);
-UniValue StateBlock(UniValue& ret, std::string block);
+UniValue StateBlock(UniValue& ret, std::string blockhash);
 
 bool EnsureWalletIsAvailable(bool avoidException);
 
