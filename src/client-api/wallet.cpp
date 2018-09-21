@@ -48,37 +48,6 @@ UniValue getTxMetadataEntry(string txid, string address, CAmount amount){
     return NullUniValue;
 }
 
-void EnsureWalletIsUnlocked()
-{
-    if (pwalletMain->IsLocked())
-        throw JSONAPIError(API_WALLET_UNLOCK_NEEDED, "Error: Please enter the wallet passphrase with walletpassphrase first.");
-}
-
-vector<string> GetMyAccountNames()
-{    
-    LOCK2(cs_main, pwalletMain->cs_wallet);
-
-    isminefilter includeWatchonly = ISMINE_SPENDABLE;
-
-    vector<string> accounts;
-    BOOST_FOREACH(const PAIRTYPE(CTxDestination, CAddressBookData)& entry, pwalletMain->mapAddressBook) {
-        if (IsMine(*pwalletMain, entry.first) & includeWatchonly) // This address belongs to me
-            accounts.push_back(entry.second.name);
-    }
-    return accounts;
-}
-
-bool EnsureWalletIsAvailable(bool avoidException)
-{
-    if (!pwalletMain)
-    {
-        if (!avoidException)
-            throw JSONRPCError(RPC_METHOD_NOT_FOUND, "Method not found (disabled)");
-        else
-            return false;
-    }
-    return true;
-}
 
 CAmount getLockUnspentAmount()
 {

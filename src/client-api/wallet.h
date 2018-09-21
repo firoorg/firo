@@ -11,9 +11,3 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
 
 UniValue StateSinceBlock(UniValue& ret, std::string block);
 UniValue StateBlock(UniValue& ret, std::string blockhash);
-
-bool EnsureWalletIsAvailable(bool avoidException);
-
-vector<string> GetMyAccountNames();
-
-void EnsureWalletIsUnlocked();
