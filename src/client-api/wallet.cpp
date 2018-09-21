@@ -18,9 +18,6 @@ namespace fs = boost::filesystem;
 using namespace boost::chrono;
 using namespace std;
 
-int64_t nWalletUnlockTime;
-static CCriticalSection cs_nWalletUnlockTime;
-
 UniValue getTxMetadataEntry(string txid, string address, CAmount amount){
     fs::path const &path = CreateTxMetadataFile();
 
