@@ -5221,7 +5221,7 @@ bool CMerkleTx::AcceptToMemoryPool(
         CValidationState dummyState;
         ::AcceptToMemoryPool(
             stempool, 
-            state, 
+            dummyState, 
             *this, 
             fCheckInputs, 
             fLimitFree, 
@@ -5233,7 +5233,7 @@ bool CMerkleTx::AcceptToMemoryPool(
         );
         return ::AcceptToMemoryPool(
             mempool, 
-            dummyState, 
+            state, 
             *this, 
             fCheckInputs, 
             fLimitFree, 
