@@ -132,20 +132,8 @@ UniValue znodelist(Type type, const UniValue& data, const UniValue& auth, bool f
     }
     switch(type){
         case Initial: {
-            mnodeman.UpdateLastPaid();
             UniValue ret(UniValue::VOBJ);
             UniValue data(UniValue::VOBJ);
-
-            string myZnode = activeZnode.vin.prevout.ToStringShort();
-
-            std::unordered_map<std::string, int> ranks;
-
-            std::vector <std::pair<int, CZnode>> vZnodeRanks = mnodeman.GetZnodeRanks();
-            BOOST_FOREACH(PAIRTYPE(int, CZnode) & s, vZnodeRanks)
-            {
-                std::string payee = CBitcoinAddress(s.second.pubKeyCollateralAddress.GetID()).ToString();
-                ranks[payee] = s.first;
-            }
 
             std::vector <CZnode> vZnodes = mnodeman.GetFullZnodeVector();
             BOOST_FOREACH(CZnode & mn, vZnodes)

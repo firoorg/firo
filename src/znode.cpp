@@ -427,6 +427,8 @@ UniValue CZnode::ToJSON() const {
     outpointObj.push_back(Pair("index", to_string(outpoint.n)));
     
     std::string myZnode = activeZnode.vin.prevout.ToStringShort();
+    int lastPaidTime = GetLastPaidTime();
+    if(lastPaidTime >=0) lastPaidTime *= 1000;
 
     ret.push_back(Pair("rank", nRank));
     ret.push_back(Pair("outpoint", outpointObj));
@@ -435,7 +437,7 @@ UniValue CZnode::ToJSON() const {
     ret.push_back(Pair("payeeAddress", payee));
     ret.push_back(Pair("lastSeen", (int64_t) lastPing.sigTime * 1000));
     ret.push_back(Pair("activeSince", (int64_t)(sigTime * 1000)));
-    ret.push_back(Pair("lastPaidTime", GetLastPaidTime()));
+    ret.push_back(Pair("lastPaidTime", lastPaidTime));
     ret.push_back(Pair("lastPaidBlock", GetLastPaidBlock()));
     ret.push_back(Pair("authority", addr.ToString()));
     ret.push_back(Pair("isMine", myZnode==outpoint.ToStringShort()));
