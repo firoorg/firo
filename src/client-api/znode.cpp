@@ -150,31 +150,8 @@ UniValue znodelist(Type type, const UniValue& data, const UniValue& auth, bool f
             std::vector <CZnode> vZnodes = mnodeman.GetFullZnodeVector();
             BOOST_FOREACH(CZnode & mn, vZnodes)
             {
-                UniValue entry(UniValue::VOBJ);
                 std::string payee = CBitcoinAddress(mn.pubKeyCollateralAddress.GetID()).ToString();
-                std::string outpoint = mn.vin.prevout.ToStringShort();
-
-                if (ranks.find(payee) != ranks.end()){
-                    entry.push_back(Pair("rank", ranks[payee]));
-                }
-                entry.push_back(Pair("outpoint", outpoint));
-                entry.push_back(Pair("status", mn.GetStatus()));
-                entry.push_back(Pair("protocolVersion", mn.nProtocolVersion));
-                entry.push_back(Pair("payeeAddress", payee));
-                entry.push_back(Pair("lastSeen", (int64_t) mn.lastPing.sigTime));
-                // TODO change to firstSeen timestamp
-                entry.push_back(Pair("activeSeconds", (int64_t)(mn.lastPing.sigTime - mn.sigTime)));
-                entry.push_back(Pair("lastPaidTime", mn.GetLastPaidTime()));
-                entry.push_back(Pair("lastPaidBlock", mn.GetLastPaidBlock()));
-                entry.push_back(Pair("authority", mn.addr.ToString()));
-                entry.push_back(Pair("isMine", myZnode==outpoint));
-
-                UniValue qualify(UniValue::VOBJ);
-                qualify = mnodeman.GetNotQualifyReasonToUniValue(mn, chainActive.Tip()->nHeight, true, mnodeman.CountEnabled());
-                entry.push_back(Pair("qualify", qualify));
-
-                data.replace(payee, entry);
-
+                data.replace(payee, mn.ToJSON());
             }
 
             ret.push_back(Pair("data", data));

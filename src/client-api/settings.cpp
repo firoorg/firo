@@ -12,6 +12,21 @@
 namespace fs = boost::filesystem;
 using namespace std;
 
+
+bool ReadAPISetting(UniValue& data, UniValue& setting, string name, string program){
+    UniValue programUni(UniValue::VOBJ);
+    programUni = find_value(data, program);
+    if(programUni.isNull()){
+        return false;
+    }
+
+    setting = find_value(programUni, name);
+    if(!setting.isNull()){
+        return true;
+    }
+    return false;
+}
+
 bool WriteAPISetting(UniValue& data, UniValue& setting, string program){
     UniValue programUni(UniValue::VOBJ);
     programUni = find_value(data, program);
@@ -152,6 +167,7 @@ bool SettingsStartup(){
     return true;
 }
 
+// get Client or Daemon settings
 string GetSettingsProgram(UniValue data, string name){
     UniValue client = find_value(data, "client");
     UniValue daemon = find_value(data, "daemon");
@@ -162,9 +178,19 @@ string GetSettingsProgram(UniValue data, string name){
         return "daemon";
     }
     else {
-        throw runtime_error("Could not find setting.");
-        return NULL;
+        return "";
     }
+}
+
+bool CheckSettingLayout(UniValue& setting){
+    if( find_value(setting,            "data").isNull()
+      ||find_value(setting, "restartRequired").isNull()){
+        return false;
+    }
+    if(setting.getKeys().size()!=2){
+        return false;
+    }
+    return true;
 }
 
 bool SetRestartNow(UniValue& data){
@@ -191,29 +217,85 @@ bool SetRestartNow(UniValue& data){
 
 UniValue setting(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
 {
+    UniValue settingsData = ReadSettingsData();
+    vector<string> names = data.getKeys();
     switch(type){
-        case Update: {
+        case Initial: {
 
-            UniValue setting(UniValue::VOBJ);
-            UniValue settingsData = ReadSettingsData();
-            vector<string> names = data.getKeys();
+            return settingsData;
+            break;   
+        }
+        case Get: {                    
+            UniValue result;
+            for (vector<string>::iterator it = names.begin(); it != names.end(); it++) {
+                string name = (*it);
+                string program = GetSettingsProgram(settingsData, name);
+                if(program==""){
+                    break;
+                }
+                UniValue setting(UniValue::VOBJ);
+                if(!ReadAPISetting(settingsData, setting, name, program)){
+                    break;
+                }
+                result.push_back(setting);         
+            }
+
+            return result;
+            break;        
+        }
+        case Create: {
+            for (vector<string>::iterator it = names.begin(); it != names.end(); it++) {
+                string name = (*it);
+                // fail out if the setting already exists
+                if(GetSettingsProgram(settingsData, name)!=""){
+                    break;
+                }
+                UniValue setting(UniValue::VOBJ);
+                setting = find_value(data, name);
+                // check the setting has the correct layout
+                if(!CheckSettingLayout(setting)){
+                    break;
+                }
+                setting.push_back(Pair("name", name));
+                setting.push_back(Pair("changed", false));
+                WriteAPISetting(settingsData, setting, "client");             
+            }
+
+            break;             
+        }
+        case Update: {
             UniValue settingUni(UniValue::VOBJ);
             string name;
             string program;
             for (vector<string>::iterator it = names.begin(); it != names.end(); it++) {
                 name = (*it);
                 program = GetSettingsProgram(settingsData, name);
+                UniValue setting(UniValue::VOBJ);
                 setting = find_value(data, name);
-                setting.push_back(Pair("name", name));
-
-                WriteAPISetting(settingsData, setting, program);
+                setting.push_back(Pair("name", name));    
+                WriteAPISetting(settingsData, setting, program);             
             }
 
             SetRestartNow(settingsData); 
             break;   
         }
-    }
+        case Delete: {
+            // can only delete client data not daemon..
+            UniValue client(UniValue::VOBJ);
+            client = find_value(settingsData, "client");
+            for (vector<string>::iterator it = names.begin(); it != names.end(); it++) {
+                string name = (*it);        
+                UniValue setting(UniValue::VOBJ);
+                setting = find_value(client, name);
+                if(!setting.isNull()){
+                    client.erase(setting); //todo get setting name as univalue
+                }
+            }
 
+            settingsData.replace("client", client);
+            WriteSettingsData(settingsData);
+        }
+    }
 }
 
 // static const CClientSettings settings[] =

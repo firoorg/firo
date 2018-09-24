@@ -433,9 +433,8 @@ UniValue CZnode::ToJSON() const {
     ret.push_back(Pair("status", GetStatus()));
     ret.push_back(Pair("protocolVersion", nProtocolVersion));
     ret.push_back(Pair("payeeAddress", payee));
-    ret.push_back(Pair("lastSeen", (int64_t) lastPing.sigTime));
-    // TODO change to firstSeen timestamp
-    ret.push_back(Pair("activeSeconds", (int64_t)(lastPing.sigTime - sigTime)));
+    ret.push_back(Pair("lastSeen", (int64_t) lastPing.sigTime * 1000));
+    ret.push_back(Pair("activeSince", (int64_t)(sigTime * 1000)));
     ret.push_back(Pair("lastPaidTime", GetLastPaidTime()));
     ret.push_back(Pair("lastPaidBlock", GetLastPaidBlock()));
     ret.push_back(Pair("authority", addr.ToString()));
