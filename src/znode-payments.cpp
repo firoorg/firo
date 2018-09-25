@@ -266,7 +266,7 @@ void CZnodePayments::ProcessMessage(CNode *pfrom, std::string &strCommand, CData
     // Ignore any payments messages until znode list is synced
     if (!znodeSync.IsZnodeListSynced()) return;
 
-    if (fLiteMode) return; // disable all Dash specific functionality
+    if (fLiteMode) return; // disable all Zcoin specific functionality
 
     if (strCommand == NetMsgType::ZNODEPAYMENTSYNC) { //Znode Payments Request Sync
 

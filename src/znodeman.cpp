@@ -1652,7 +1652,6 @@ void CZnodeMan::UpdateLastPaid()
                              pCurrentBlockIndex->nHeight, nMaxBlocksToScanBack, IsFirstRun ? "true" : "false");
 
     BOOST_FOREACH(CZnode& mn, vZnodes) {
-        LogPrintf("updating last paid..\n");
         mn.UpdateLastPaid(pCurrentBlockIndex, nMaxBlocksToScanBack);
     }
 
