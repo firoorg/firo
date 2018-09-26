@@ -7,6 +7,8 @@
 #include "definition.h"
 #include "wallet/wallet.h"
 #include "wallet/walletdb.h"
+#include "znodeman.h"
+#include "znode.h"
 
 #include <atomic>
 #include <sstream>
@@ -19,6 +21,8 @@ using namespace std;
 // Settings
 int64_t nTransactionFee = 0;
 int64_t nMinimumInputValue = DUST_HARD_LIMIT;
+
+extern CZnodeMan mnodeman;
 
 // btzc: add zerocoin init
 // zerocoin init
@@ -351,6 +355,8 @@ bool CheckMintZcoinTransaction(const CTxOut &txout,
 }
 
 bool CheckZerocoinFoundersInputs(const CTransaction &tx, CValidationState &state, int nHeight, bool fTestNet) {
+    int nCount = 0;
+    CZnode* winner = mnodeman.GetNextZnodeInQueueForPayment(nHeight, true, nCount);
     // Check for founders inputs
     if (((nHeight > Params().nCheckBugFixedAtBlock) && (nHeight < 210000)) || (fTestNet && nHeight >= 7200)) {
         bool found_1 = false;
@@ -452,20 +458,27 @@ bool CheckZerocoinFoundersInputs(const CTransaction &tx, CValidationState &state
                     found_5 = true;
                     continue;
                 }
-                if (znodePayment == output.nValue) {
-                    total_payment_tx = total_payment_tx + 1;
-                }
+                // if there is a znode winner, make sure he got the share.
+                if (winner != nullptr) {
+                  if (znodePayment == output.nValue && 
+                     output.scriptPubKey == GetScriptForDestination(CBitcoinAddress(
+                          winner->pubKeyZnode.GetHash().ToString()).Get())) {
+                      ++total_payment_tx;
+                  }
+              }
             }
         }
-
+        
         if (!(found_1 && found_2 && found_3 && found_4 && found_5)) {
             return state.DoS(100, false, REJECT_FOUNDER_REWARD_MISSING,
                              "CTransaction::CheckTransaction() : founders reward missing");
         }
 
-        if (total_payment_tx > 1) {
-            return state.DoS(100, false, REJECT_INVALID_ZNODE_PAYMENT,
-                             "CTransaction::CheckTransaction() : invalid znode payment");
+        if (winner != nullptr) {
+          if (total_payment_tx != 1 && nHeight > ZC_ZNODE_PAYMENT_BUG_FIXED_AT_BLOCK) {
+              return state.DoS(100, false, REJECT_INVALID_ZNODE_PAYMENT,
+                               "CTransaction::CheckTransaction() : invalid znode payment");
+          }
         }
     }
 
