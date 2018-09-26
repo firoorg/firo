@@ -124,18 +124,10 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend)
     string denomination;
     vector<uint256> vtxid;
     std::vector<CMutableTransaction> MinTxns;
+    std::vector<string> denominations = {"1", "10", "25", "50", "100"};
     for(int i = 0; i < 5; i++)
     {
-        if(denomination == "")
-            denomination = "1";
-        else if(denomination == "1")
-            denomination = "10";
-        else if(denomination == "10")
-            denomination = "25";
-        else if(denomination == "25")
-            denomination = "50";
-        else if(denomination == "50")
-            denomination = "100";
+        denomination = denominations[i];
         printf("Testing denomination %s\n", denomination.c_str());
         string stringError;
         //Make sure that transactions get to mempool
@@ -191,7 +183,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend)
 
         BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(stringError, "", denomination.c_str()), "Spend failed");
 
-        //Verify spend got into mempool
+        // Verify spend got into mempool
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Spend was not added to mempool");
         vtxid.clear();
         MinTxns.clear();
@@ -201,7 +193,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend)
         mempool.clear();
         BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool not cleared");
 
-        //Selete usedCoinSerials since we deleted the mempool
+        //Delete usedCoinSerials since we deleted the mempool
         CZerocoinState *zerocoinStatex = CZerocoinState::GetZerocoinState();
         zerocoinStatex->usedCoinSerials.clear();
         zerocoinStatex->mempoolCoinSerials.clear();
