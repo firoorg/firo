@@ -458,22 +458,27 @@ bool CheckZerocoinFoundersInputs(const CTransaction &tx, CValidationState &state
                     found_5 = true;
                     continue;
                 }
-                if (znodePayment == output.nValue && 
-                    output.scriptPubKey == GetScriptForDestination(CBitcoinAddress(
-                        winner->pubKeyZnode.GetHash().ToString()).Get())) {
-                    ++total_payment_tx;
-                }
+                // if there is a znode winner, make sure he got the share.
+                if (winner != nullptr) {
+                  if (znodePayment == output.nValue && 
+                     output.scriptPubKey == GetScriptForDestination(CBitcoinAddress(
+                          winner->pubKeyZnode.GetHash().ToString()).Get())) {
+                      ++total_payment_tx;
+                  }
+              }
             }
         }
-
+        
         if (!(found_1 && found_2 && found_3 && found_4 && found_5)) {
             return state.DoS(100, false, REJECT_FOUNDER_REWARD_MISSING,
                              "CTransaction::CheckTransaction() : founders reward missing");
         }
 
-        if (total_payment_tx > 1) {
-            return state.DoS(100, false, REJECT_INVALID_ZNODE_PAYMENT,
-                             "CTransaction::CheckTransaction() : invalid znode payment");
+        if (winner != nullptr) {
+          if (total_payment_tx != 1 && nHeight > ZC_ZNODE_PAYMENT_BUG_FIXED_AT_BLOCK) {
+              return state.DoS(100, false, REJECT_INVALID_ZNODE_PAYMENT,
+                               "CTransaction::CheckTransaction() : invalid znode payment");
+          }
         }
     }
 
