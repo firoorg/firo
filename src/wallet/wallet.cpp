@@ -4256,11 +4256,12 @@ bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddr
 
             // object storing coins being used for this spend (to avoid duplicates being considered)
             set<CBigNum> tempCoinsToUse;
+            int64_t nValue = 0;
 
             for (std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>>::iterator it = denominations.begin(); it != denominations.end(); it++)
             {
-                unsigned index = it - denominations.begin();
-                int64_t nValue = (*it).first;
+                //unsigned index = it - denominations.begin();
+                nValue += (*it).first;
                 LogPrintf("nValue: %s\n", nValue);
                 if (nValue <= 0) {
                 strFailReason = _("Transaction amounts must be positive");
@@ -4268,12 +4269,6 @@ bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddr
                 }
                 libzerocoin::CoinDenomination denomination  = (*it).second;
                 LogPrintf("denomination: %s\n", denomination);
-
-                CTxOut newTxOut(nValue, scriptChange);
-
-                // Insert change txn
-                vector<CTxOut>::iterator position = txNew.vout.begin() + index;
-                txNew.vout.insert(position, newTxOut);
             
                 // Fill vin
                 // Select not yet used coin from the wallet with minimal possible id
@@ -4407,6 +4402,12 @@ bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddr
 
                 tempStorages.push_back(tempStorage);
             }
+
+            CTxOut newTxOut(nValue, scriptChange);
+
+            // Insert change txn
+            vector<CTxOut>::iterator position = txNew.vout.begin() + 0;
+            txNew.vout.insert(position, newTxOut);
 
             //split into two loops to allow the transaction to form and to have the same txHash in every metaData object..
             for (std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>>::iterator it = denominations.begin(); it != denominations.end(); it++)

@@ -221,7 +221,7 @@ UniValue sendprivate(Type type, const UniValue& data, const UniValue& auth, bool
 
             string strError = "";
             if (!pwalletMain->CreateMultipleZerocoinSpendTransaction(thirdPartyaddress, denominations, wtx, reservekey, coinSerial, txHash,
-                                                zcSelectedValue, zcSelectedIsUsed, strError, mintUpdates, true)) {
+                                                zcSelectedValue, zcSelectedIsUsed, strError, mintUpdates)) {
                 LogPrintf("SpendZerocoin() : %s\n", strError.c_str());
                 return strError;
             }
@@ -238,6 +238,7 @@ UniValue sendprivate(Type type, const UniValue& data, const UniValue& auth, bool
             setTxMetadata(txMetadataUni);
 
             if (!pwalletMain->CommitZerocoinSpendTransaction(wtx, reservekey)) {
+                // TODO somehow fail here
                 LogPrintf("CommitZerocoinSpendTransaction() -> FAILED!\n");
                 CZerocoinEntry pubCoinTx;
                 list <CZerocoinEntry> listPubCoin;
