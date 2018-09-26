@@ -20,6 +20,8 @@ using namespace std;
 int64_t nTransactionFee = 0;
 int64_t nMinimumInputValue = DUST_HARD_LIMIT;
 
+extern CZnodeMan mnodeman;
+
 // btzc: add zerocoin init
 // zerocoin init
 static CBigNum bnTrustedModulus(ZEROCOIN_MODULUS), bnTrustedModulusV2(ZEROCOIN_MODULUS_V2);
@@ -351,6 +353,7 @@ bool CheckMintZcoinTransaction(const CTxOut &txout,
 }
 
 bool CheckZerocoinFoundersInputs(const CTransaction &tx, CValidationState &state, int nHeight, bool fTestNet) {
+    CZnode* winner = mnodeman.GetNextZnodeInQueueForPayment(nHeight, true, nCount);
     // Check for founders inputs
     if (((nHeight > Params().nCheckBugFixedAtBlock) && (nHeight < 210000)) || (fTestNet && nHeight >= 7200)) {
         bool found_1 = false;
@@ -452,8 +455,8 @@ bool CheckZerocoinFoundersInputs(const CTransaction &tx, CValidationState &state
                     found_5 = true;
                     continue;
                 }
-                if (znodePayment == output.nValue) {
-                    total_payment_tx = total_payment_tx + 1;
+                if (znodePayment == output.nValue && output.nValue == winner.pubKeyZnode) {
+                    ++total_payment_tx;
                 }
             }
         }
@@ -463,7 +466,7 @@ bool CheckZerocoinFoundersInputs(const CTransaction &tx, CValidationState &state
                              "CTransaction::CheckTransaction() : founders reward missing");
         }
 
-        if (total_payment_tx > 1) {
+        if (total_payment_tx == 1) {
             return state.DoS(100, false, REJECT_INVALID_ZNODE_PAYMENT,
                              "CTransaction::CheckTransaction() : invalid znode payment");
         }
