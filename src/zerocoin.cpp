@@ -7,6 +7,8 @@
 #include "definition.h"
 #include "wallet/wallet.h"
 #include "wallet/walletdb.h"
+#include "znodeman.h"
+#include "znode.h"
 
 #include <atomic>
 #include <sstream>
@@ -353,6 +355,7 @@ bool CheckMintZcoinTransaction(const CTxOut &txout,
 }
 
 bool CheckZerocoinFoundersInputs(const CTransaction &tx, CValidationState &state, int nHeight, bool fTestNet) {
+    int nCount = 0;
     CZnode* winner = mnodeman.GetNextZnodeInQueueForPayment(nHeight, true, nCount);
     // Check for founders inputs
     if (((nHeight > Params().nCheckBugFixedAtBlock) && (nHeight < 210000)) || (fTestNet && nHeight >= 7200)) {
@@ -455,7 +458,9 @@ bool CheckZerocoinFoundersInputs(const CTransaction &tx, CValidationState &state
                     found_5 = true;
                     continue;
                 }
-                if (znodePayment == output.nValue && output.nValue == winner.pubKeyZnode) {
+                if (znodePayment == output.nValue && 
+                    output.scriptPubKey == GetScriptForDestination(CBitcoinAddress(
+                        winner->pubKeyZnode.GetHash().ToString()).Get())) {
                     ++total_payment_tx;
                 }
             }
