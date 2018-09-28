@@ -104,7 +104,7 @@ CAmount maxTxFee = DEFAULT_TRANSACTION_MAXFEE;
 CTxMemPool mempool(::minRelayTxFee);
 FeeFilterRounder filterRounder(::minRelayTxFee);
 
-// Dash znode
+// Zcoin znode
 map <uint256, int64_t> mapRejectedBlocks GUARDED_BY(cs_main);
 
 struct IteratorComparator {
@@ -1129,12 +1129,21 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, uint256 h
 
     // Check for duplicate inputs
     set <COutPoint> vInOutPoints;
+    set <CScript> spendScripts;
     BOOST_FOREACH(
     const CTxIn &txin, tx.vin)
     {
-        if (vInOutPoints.count(txin.prevout))
-            return state.DoS(100, false, REJECT_INVALID, "bad-txns-inputs-duplicate");
-        vInOutPoints.insert(txin.prevout);
+        if(tx.IsZerocoinSpend()){
+            if(spendScripts.count(txin.scriptSig)){
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-spend-inputs-duplicate");
+            }
+            spendScripts.insert(txin.scriptSig);
+        }else {
+            if (vInOutPoints.count(txin.prevout)){
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-inputs-duplicate");
+            }
+            vInOutPoints.insert(txin.prevout);
+        }
     }
 
     if (tx.IsCoinBase()) {
@@ -3130,6 +3139,7 @@ void static UpdateTip(CBlockIndex *pindexNew, const CChainParams &chainParams) {
     darkSendPool.UpdatedBlockTip(chainActive.Tip());
     mnpayments.UpdatedBlockTip(chainActive.Tip());
     znodeSync.UpdatedBlockTip(chainActive.Tip());
+    GetMainSignals().UpdatedBlockTip(chainActive.Tip());
 
     // New best block
     nTimeBestReceived = GetTime();
@@ -4472,8 +4482,6 @@ bool ProcessNewBlock(CValidationState &state, const CChainParams &chainparams, C
         LogPrintf("->failed\n");
         return error("%s: ActivateBestChain failed", __func__);
     }
-
-    znodeSync.IsBlockchainSynced(true);
 
     return true;
 }
