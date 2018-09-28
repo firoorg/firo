@@ -62,7 +62,7 @@ int ZerocoinGetNHeight(const CBlockHeader &block);
 
 bool ZerocoinBuildStateFromIndex(CChain *chain, set<CBlockIndex *> &changes);
 
-CBigNum ZerocoinGetSpendSerialNumber(const CTransaction &tx);
+CBigNum ZerocoinGetSpendSerialNumber(const CTransaction &tx, const CTxIn &txin);
 
 /*
  * State of minted/spent coins as extracted from the index
