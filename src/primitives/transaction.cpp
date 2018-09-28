@@ -209,7 +209,7 @@ bool CTransaction::IsZerocoinSpend() const
     {
         if(!((*it).IsZerocoinSpend())) return false;
     }
-    return true;
+    return (vout.size()==1);
 }
 
 bool CTransaction::IsZerocoinMint(CTxOut& txout) const

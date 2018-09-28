@@ -510,6 +510,7 @@ bool CheckZerocoinTransaction(const CTransaction &tx,
     vector<libzerocoin::CoinDenomination> denominations;
     if(tx.IsZerocoinSpend()) {
         // first check for any non spend inputs and fail if so
+        int64_t totalValue = 0;
         BOOST_FOREACH(const CTxIn &txin, tx.vin){
             if(!txin.scriptSig.IsZerocoinSpend()) {
                 return state.DoS(100, false,
@@ -529,12 +530,13 @@ bool CheckZerocoinTransaction(const CTransaction &tx,
                                     SER_NETWORK, PROTOCOL_VERSION);
             libzerocoin::CoinSpend newSpend(zcParams, serializedCoinSpend);
             denominations.push_back(newSpend.getDenomination());
+            totalValue += newSpend.getDenomination();
         }
         // Check vOut
         // Only one loop, we checked on the format before enter this case
         BOOST_FOREACH(const CTxOut &txout, tx.vout)
         {
-            if ((txout.nValue % COIN == 0) && !isVerifyDB) {
+            if ((txout.nValue == totalValue * COIN) && !isVerifyDB) {
                     if(!CheckSpendZcoinTransaction(tx, denominations, state, hashTx, isVerifyDB, nHeight, isCheckWallet, zerocoinTxInfo)){
                         return false;
                     }
