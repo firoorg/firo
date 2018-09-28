@@ -3,8 +3,8 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-SRCDIR="/Users/tadhgriordan/Documents/Work/Zcoin/GUI/zcoin"
-BUILDDIR="/Users/tadhgriordan/Documents/Work/Zcoin/GUI/zcoin"
+SRCDIR="/home/tadhgriordan/Documents/zcoin-dev/zcoin"
+BUILDDIR="/home/tadhgriordan/Documents/zcoin-dev/zcoin"
 EXEEXT=""
 
 # These will turn into comments if they were disabled when configuring.

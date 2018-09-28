@@ -855,7 +855,7 @@ public:
     bool CreateZerocoinMintModel(string &stringError, string denomAmount);
     bool CreateZerocoinMintModel(string &stringError, vector<string> denomAmounts);
     bool CreateZerocoinSpendModel(string &stringError, string thirdPartyAddress, string denomAmount, bool forceUsed = false);
-    bool CreateZerocoinSpendModel(string &stringError, string thirdPartyAddress, vector<string> denomAmounts, bool forceUsed = false);
+    bool CreateZerocoinSpendModel(CWalletTx& wtx, string &stringError, string thirdPartyAddress, vector<string> denomAmounts, bool forceUsed = false);
     bool SetZerocoinBook(const CZerocoinEntry& zerocoinEntry);
 
     bool CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey);

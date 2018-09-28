@@ -3556,7 +3556,7 @@ bool CWallet::CreateZerocoinSpendModel(string &stringError, string thirdPartyAdd
 
 }
 
-bool CWallet::CreateZerocoinSpendModel(string &stringError, string thirdPartyAddress, vector<string> denomAmounts, bool forceUsed) {
+bool CWallet::CreateZerocoinSpendModel(CWalletTx& wtx, string &stringError, string thirdPartyAddress, vector<string> denomAmounts, bool forceUsed) {
     if (!fFileBacked)
         return false;
 
@@ -3588,9 +3588,6 @@ bool CWallet::CreateZerocoinSpendModel(string &stringError, string thirdPartyAdd
 
         denominations.push_back(make_pair(nAmount, denomination));
     }
-
-    // Wallet comments
-    CWalletTx wtx;
 
     CBigNum coinSerial;
     uint256 txHash;
@@ -4234,6 +4231,21 @@ bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddr
                 scriptChange = GetScriptForDestination(CBitcoinAddress(thirdPartyaddress).Get());
             }
 
+            //first get total value (for single tx vout)
+            int64_t nValue = 0;
+            for (std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>>::iterator it = denominations.begin(); it != denominations.end(); it++){
+                if ((*it).first <= 0) {
+                strFailReason = _("Transaction amounts must be positive");
+                    return false;
+                }
+                nValue += (*it).first;
+            }
+            CTxOut newTxOut(nValue, scriptChange);
+
+            // Insert change txn
+            vector<CTxOut>::iterator position = txNew.vout.begin();
+            txNew.vout.insert(position, newTxOut);
+
             // Set up the Zerocoin Params object
             bool fModulusV2 = chainActive.Height() >= Params().nModulusV2StartBlock;
             libzerocoin::Params *zcParams = fModulusV2 ? ZCParamsV2 : ZCParams;
@@ -4256,12 +4268,13 @@ bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddr
 
             // object storing coins being used for this spend (to avoid duplicates being considered)
             set<CBigNum> tempCoinsToUse;
-            int64_t nValue = 0;
+
+
 
             for (std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>>::iterator it = denominations.begin(); it != denominations.end(); it++)
             {
-                //unsigned index = it - denominations.begin();
-                nValue += (*it).first;
+                unsigned index = it - denominations.begin();
+                int64_t nValue = (*it).first;
                 LogPrintf("nValue: %s\n", nValue);
                 if (nValue <= 0) {
                 strFailReason = _("Transaction amounts must be positive");
@@ -4402,12 +4415,6 @@ bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddr
 
                 tempStorages.push_back(tempStorage);
             }
-
-            CTxOut newTxOut(nValue, scriptChange);
-
-            // Insert change txn
-            vector<CTxOut>::iterator position = txNew.vout.begin() + 0;
-            txNew.vout.insert(position, newTxOut);
 
             //split into two loops to allow the transaction to form and to have the same txHash in every metaData object..
             for (std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>>::iterator it = denominations.begin(); it != denominations.end(); it++)

@@ -207,12 +207,9 @@ bool CTransaction::IsZerocoinSpend() const
 {
     for (std::vector<CTxIn>::const_iterator it(vin.begin()); it != vin.end(); ++it)
     {
-        int index = it - vin.begin();
-        if(vin[index].prevout.IsNull() && vin[index].scriptSig.size() > 0 && (vin[index].scriptSig[0] == OP_ZEROCOINSPEND) ){
-            return true;
-        }
+        if(!((*it).IsZerocoinSpend())) return false;
     }
-    return false;
+    return true;
 }
 
 bool CTransaction::IsZerocoinMint(CTxOut& txout) const
