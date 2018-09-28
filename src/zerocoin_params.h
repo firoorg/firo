@@ -13,7 +13,7 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 XZC mininput
 #define ZC_CHECK_BUG_FIXED_AT_BLOCK         61168
 
 // Before this block we allowed not paying to the znodes.
-#define ZC_ZNODE_PAYMENT_BUG_FIXED_AT_BLOCK         106958
+#define ZC_ZNODE_PAYMENT_BUG_FIXED_AT_BLOCK         107102
 
 // Do strict check on duplicate minted public coin value after this block
 #define ZC_CHECK_DUPLICATE_MINT_AT_BLOCK    70000

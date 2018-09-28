@@ -7,8 +7,8 @@
 #include "definition.h"
 #include "wallet/wallet.h"
 #include "wallet/walletdb.h"
-#include "znodeman.h"
-#include "znode.h"
+#include "znode-payments.h"
+#include "znode-sync.h"
 
 #include <atomic>
 #include <sstream>
@@ -21,8 +21,6 @@ using namespace std;
 // Settings
 int64_t nTransactionFee = 0;
 int64_t nMinimumInputValue = DUST_HARD_LIMIT;
-
-extern CZnodeMan mnodeman;
 
 // btzc: add zerocoin init
 // zerocoin init
@@ -186,15 +184,15 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
         bool passVerify = false;
         CBlockIndex *index = coinGroup.lastBlock;
         pair<int,int> denominationAndId = make_pair(targetDenomination, pubcoinId);
-		
+
 		bool spendHasBlockHash = false;
-		
+
         // Zerocoin v1.5/v2 transaction can cointain block hash of the last mint tx seen at the moment of spend. It speeds
 		// up verification
         if (spendVersion > ZEROCOIN_TX_VERSION_1 && !newSpend.getAccumulatorBlockHash().IsNull()) {
 			spendHasBlockHash = true;
 			uint256 accumulatorBlockHash = newSpend.getAccumulatorBlockHash();
-			
+
 			// find index for block with hash of accumulatorBlockHash or set index to the coinGroup.firstBlock if not found
 			while (index != coinGroup.firstBlock && index->GetBlockHash() != accumulatorBlockHash)
 				index = index->pprev;
@@ -355,8 +353,6 @@ bool CheckMintZcoinTransaction(const CTxOut &txout,
 }
 
 bool CheckZerocoinFoundersInputs(const CTransaction &tx, CValidationState &state, int nHeight, bool fTestNet) {
-    int nCount = 0;
-    CZnode* winner = mnodeman.GetNextZnodeInQueueForPayment(nHeight, true, nCount);
     // Check for founders inputs
     if (((nHeight > Params().nCheckBugFixedAtBlock) && (nHeight < 210000)) || (fTestNet && nHeight >= 7200)) {
         bool found_1 = false;
@@ -458,27 +454,32 @@ bool CheckZerocoinFoundersInputs(const CTransaction &tx, CValidationState &state
                     found_5 = true;
                     continue;
                 }
-                // if there is a znode winner, make sure he got the share.
-                if (winner != nullptr) {
-                  if (znodePayment == output.nValue && 
-                     output.scriptPubKey == GetScriptForDestination(CBitcoinAddress(
-                          winner->pubKeyZnode.GetHash().ToString()).Get())) {
-                      ++total_payment_tx;
-                  }
-              }
+                if (znodePayment == output.nValue) {
+                    total_payment_tx = total_payment_tx + 1;
+                }
+            }
+
+            bool validZnodePayment;
+
+            if (nHeight > ZC_ZNODE_PAYMENT_BUG_FIXED_AT_BLOCK) {
+                if (!znodeSync.IsSynced()) {
+                    validZnodePayment = true;
+                } else {
+                    validZnodePayment = mnpayments.IsTransactionValid(tx, nHeight);
+                }
+            } else {
+                validZnodePayment = total_payment_tx <= 1;
+            }
+
+            if (!validZnodePayment) {
+                return state.DoS(100, false, REJECT_INVALID_ZNODE_PAYMENT,
+                                 "CTransaction::CheckTransaction() : invalid znode payment");
             }
         }
-        
+
         if (!(found_1 && found_2 && found_3 && found_4 && found_5)) {
             return state.DoS(100, false, REJECT_FOUNDER_REWARD_MISSING,
                              "CTransaction::CheckTransaction() : founders reward missing");
-        }
-
-        if (winner != nullptr) {
-          if (total_payment_tx != 1 && nHeight > ZC_ZNODE_PAYMENT_BUG_FIXED_AT_BLOCK) {
-              return state.DoS(100, false, REJECT_INVALID_ZNODE_PAYMENT,
-                               "CTransaction::CheckTransaction() : invalid znode payment");
-          }
         }
     }
 
@@ -524,7 +525,7 @@ bool CheckZerocoinTransaction(const CTransaction &tx,
 			}
 		}
 	}
-	
+
 	return true;
 }
 
@@ -569,12 +570,12 @@ bool ConnectBlockZC(CValidationState &state, const CChainParams &chainparams, CB
 
 	    if (!fJustCheck)
 			pindexNew->spentSerials.clear();
-	    
+
         if (pindexNew->nHeight > Params().nCheckBugFixedAtBlock) {
             BOOST_FOREACH(const PAIRTYPE(CBigNum,int) &serial, pblock->zerocoinTxInfo->spentSerials) {
                 if (!CheckZerocoinSpendSerial(state, pblock->zerocoinTxInfo.get(), (libzerocoin::CoinDenomination)serial.second, serial.first, pindexNew->nHeight, true))
                     return false;
-	            
+
 	            if (!fJustCheck) {
 		            pindexNew->spentSerials.insert(serial.first);
 		            zerocoinState.AddSpend(serial.first);
@@ -588,7 +589,7 @@ bool ConnectBlockZC(CValidationState &state, const CChainParams &chainparams, CB
         // Update minted values and accumulators
         BOOST_FOREACH(const PAIRTYPE(int,CBigNum) &mint, pblock->zerocoinTxInfo->mints) {
             CBigNum oldAccValue(0);
-            int denomination = mint.first;            
+            int denomination = mint.first;
             int mintId = zerocoinState.AddMint(pindexNew, denomination, mint.second, oldAccValue);
 
             libzerocoin::Params *zcParams = IsZerocoinTxV2((libzerocoin::CoinDenomination)denomination, mintId) ? ZCParamsV2 : ZCParams;
@@ -620,7 +621,7 @@ bool ConnectBlockZC(CValidationState &state, const CChainParams &chainparams, CB
             }
             // invalidate alternative accumulator value for this denomination and id
             pindexNew->alternativeAccumulatorChanges.erase(denomAndId);
-        }               
+        }
     }
     else if (!fJustCheck) {
         zerocoinState.AddBlock(pindexNew);
@@ -1097,5 +1098,3 @@ void CZerocoinState::Reset() {
 CZerocoinState *CZerocoinState::GetZerocoinState() {
     return &zerocoinState;
 }
-
-
