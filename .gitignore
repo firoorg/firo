@@ -116,3 +116,8 @@ src/test/buildenv.py
 libzcoinconsensus.pc
 contrib/devtools/split-debug.sh
 src/test/test_bitcoin
+
+src/zcoin.config
+src/zcoin.creator
+src/zcoin.creator.user
+src/zcoin.files
