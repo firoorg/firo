@@ -164,7 +164,10 @@ UniValue znodelist(Type type, const UniValue& data, const UniValue& auth, bool f
 }
 
 UniValue znodeupdate(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
-    return data;
+    UniValue ret(UniValue::VOBJ);
+    string payee = find_value(data, "payeeAddress").get_str();
+    ret.push_back(Pair(payee, data));
+    return ret;
 }
 
 static const CAPICommand commands[] =
