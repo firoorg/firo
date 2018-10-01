@@ -132,7 +132,6 @@ UniValue znodelist(Type type, const UniValue& data, const UniValue& auth, bool f
     }
     switch(type){
         case Initial: {
-            UniValue ret(UniValue::VOBJ);
             UniValue data(UniValue::VOBJ);
 
             std::unordered_map<std::string, int> ranks;
@@ -152,9 +151,7 @@ UniValue znodelist(Type type, const UniValue& data, const UniValue& auth, bool f
                 data.replace(payee, mn.ToJSON());
             }
 
-            ret.push_back(Pair("data", data));
-
-            return ret;
+            return data;
 
             break;
         }
@@ -167,9 +164,7 @@ UniValue znodelist(Type type, const UniValue& data, const UniValue& auth, bool f
 }
 
 UniValue znodeupdate(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
-    UniValue ret(UniValue::VOBJ);
-    ret.push_back(Pair("data", data.get_obj()));
-    return ret;
+    return data;
 }
 
 static const CAPICommand commands[] =
