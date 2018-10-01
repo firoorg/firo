@@ -423,8 +423,15 @@ UniValue CZnode::ToJSON() const {
     std::string payee = CBitcoinAddress(pubKeyCollateralAddress.GetID()).ToString();
     COutPoint outpoint = vin.prevout;
     UniValue outpointObj(UniValue::VOBJ);
+    UniValue authorityObj(UniValue::VOBJ);
     outpointObj.push_back(Pair("txid", outpoint.hash.ToString().substr(0,64)));
     outpointObj.push_back(Pair("index", to_string(outpoint.n)));
+
+    std::string authority = addr.ToString();
+    std::string ip   = authority.substr(0, authority.find(":"));
+    std::string port = authority.substr(authority.find(":")+1, authority.length());
+    authorityObj.push_back(Pair("ip", ip));
+    authorityObj.push_back(Pair("port", stoi(port)));
     
     std::string myZnode = activeZnode.vin.prevout.ToStringShort();
 
@@ -437,7 +444,7 @@ UniValue CZnode::ToJSON() const {
     ret.push_back(Pair("activeSince", (int64_t)(sigTime * 1000)));
     ret.push_back(Pair("lastPaidTime", (int64_t) GetLastPaidTime() * 1000));
     ret.push_back(Pair("lastPaidBlock", GetLastPaidBlock()));
-    ret.push_back(Pair("authority", addr.ToString()));
+    ret.push_back(Pair("authority", authorityObj));
     ret.push_back(Pair("isMine", myZnode==outpoint.ToStringShort()));
 
     UniValue qualify(UniValue::VOBJ);
