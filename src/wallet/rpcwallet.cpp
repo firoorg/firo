@@ -3033,11 +3033,11 @@ UniValue spendmanyzerocoin(const UniValue& params, bool fHelp) {
     CReserveKey reservekey(pwalletMain);
 
     if (pwalletMain->IsLocked()) {
-        string strError = _("Error: Wallet locked, unable to create transaction!");
-        LogPrintf("SpendZerocoin() : %s", strError);
+        strError = "Error: Wallet locked, unable to create transaction!";
+        LogPrintf("SpendZerocoin() : %s", strError.c_str());
         return strError;
     }
-    
+
     if (!pwalletMain->CreateMultipleZerocoinSpendTransaction(thirdPartyAddress, denominations, wtx, reservekey, coinSerial, txHash,
                                         zcSelectedValue, zcSelectedIsUsed, strError)) {
         LogPrintf("SpendZerocoin() : %s\n", strError.c_str());
