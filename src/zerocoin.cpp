@@ -53,7 +53,7 @@ static bool CheckZerocoinSpendSerial(CValidationState &state, CZerocoinTxInfo *z
 }
 
 bool CheckSpendZcoinTransaction(const CTransaction &tx,
-                                vector<libzerocoin::CoinDenomination> targetDenominations,
+                                const vector<libzerocoin::CoinDenomination>& targetDenominations,
                                 CValidationState &state,
                                 uint256 hashTx,
                                 bool isVerifyDB,

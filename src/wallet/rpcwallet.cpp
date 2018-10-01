@@ -3027,6 +3027,7 @@ UniValue spendmanyzerocoin(const UniValue& params, bool fHelp) {
     uint256 txHash;
     CBigNum zcSelectedValue;
     bool zcSelectedIsUsed;
+    string strError = "";
 
     // begin spend process
     CReserveKey reservekey(pwalletMain);
@@ -3036,8 +3037,7 @@ UniValue spendmanyzerocoin(const UniValue& params, bool fHelp) {
         LogPrintf("SpendZerocoin() : %s", strError);
         return strError;
     }
-
-    string strError = "";
+    
     if (!pwalletMain->CreateMultipleZerocoinSpendTransaction(thirdPartyAddress, denominations, wtx, reservekey, coinSerial, txHash,
                                         zcSelectedValue, zcSelectedIsUsed, strError)) {
         LogPrintf("SpendZerocoin() : %s\n", strError.c_str());
