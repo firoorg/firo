@@ -3297,13 +3297,13 @@ bool CWallet::CreateZerocoinSpendModel(string &stringError, string thirdPartyAdd
 
 }
 
-bool CWallet::CreateZerocoinSpendModel(CWalletTx& wtx, string &stringError, string thirdPartyAddress, vector<string> denomAmounts, bool forceUsed) {
+bool CWallet::CreateZerocoinSpendModel(CWalletTx& wtx, string &stringError, string& thirdPartyAddress, const vector<string>& denomAmounts, bool forceUsed) {
     if (!fFileBacked)
         return false;
      
     vector<pair<int64_t, libzerocoin::CoinDenomination>> denominations;
-    for(vector<string>::iterator it = denomAmounts.begin(); it != denomAmounts.end(); it++){
-        string denomAmount = (*it).c_str();
+    for(vector<string>::const_iterator it = denomAmounts.begin(); it != denomAmounts.end(); it++){
+        const string& denomAmount = *it;
         int64_t nAmount = 0;
         libzerocoin::CoinDenomination denomination;
         // Amount
@@ -3934,7 +3934,7 @@ bool CWallet::CreateZerocoinSpendTransaction(std::string &thirdPartyaddress, int
  * @param strFailReason
  * @return
  */
-bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddress, std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>> denominations,
+bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddress, const std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>>& denominations,
                                              CWalletTx &wtxNew, CReserveKey &reservekey, CBigNum &coinSerial,
                                              uint256 &txHash, CBigNum &zcSelectedValue, bool &zcSelectedIsUsed,
                                              std::string &strFailReason, bool forceUsed) 
@@ -3965,7 +3965,7 @@ bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddr
             }
              //first get total value (for single tx vout)
             int64_t nValue = 0;
-            for (std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>>::iterator it = denominations.begin(); it != denominations.end(); it++){
+            for (std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>>::const_iterator it = denominations.begin(); it != denominations.end(); it++){
                 if ((*it).first <= 0) {
                 strFailReason = _("Transaction amounts must be positive");
                     return false;
@@ -3994,15 +3994,8 @@ bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddr
             vector<TempStorage> tempStorages;
              // object storing coins being used for this spend (to avoid duplicates being considered)
             set<CBigNum> tempCoinsToUse;
-             for (std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>>::iterator it = denominations.begin(); it != denominations.end(); it++)
+             for (std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>>::const_iterator it = denominations.begin(); it != denominations.end(); it++)
             {
-                unsigned index = it - denominations.begin();
-                int64_t nValue = (*it).first;
-                LogPrintf("nValue: %s\n", nValue);
-                if (nValue <= 0) {
-                strFailReason = _("Transaction amounts must be positive");
-                    return false;
-                }
                 libzerocoin::CoinDenomination denomination  = (*it).second;
                 LogPrintf("denomination: %s\n", denomination);
             
@@ -4111,7 +4104,7 @@ bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddr
                  tempStorages.push_back(tempStorage);
             }
              //split into two loops to allow the transaction to form and to have the same txHash in every metaData object..
-            for (std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>>::iterator it = denominations.begin(); it != denominations.end(); it++)
+            for (std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>>::const_iterator it = denominations.begin(); it != denominations.end(); it++)
             {
                 unsigned index = it - denominations.begin();
                 // to ensure we are using the same txHash for each metadata object, remove all zerocoin related info between iterations
@@ -4389,7 +4382,7 @@ string CWallet::SpendZerocoin(std::string &thirdPartyaddress, int64_t nValue, li
  * @param zcSelectedIsUsed
  * @return
  */
-string CWallet::SpendMultipleZerocoin(std::string &thirdPartyaddress, std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>> denominations, CWalletTx &wtxNew,
+string CWallet::SpendMultipleZerocoin(std::string &thirdPartyaddress, const std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>>& denominations, CWalletTx &wtxNew,
                               CBigNum &coinSerial, uint256 &txHash, CBigNum &zcSelectedValue,
                               bool &zcSelectedIsUsed, bool forceUsed) {
     // Check amount
