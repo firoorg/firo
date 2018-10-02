@@ -112,16 +112,16 @@ toolchain_path=$($($(host_arch)_$(host_os)_native_toolchain)_prefixbin)
 final_build_id_long+=$(shell $(build_SHA256SUM) config.site.in)
 final_build_id+=$(shell echo -n "$(final_build_id_long)" | $(build_SHA256SUM) | cut -c-$(HASH_LENGTH))
 $(host_prefix)/.stamp_$(final_build_id): $(native_packages) $(packages)
-    $(AT)rm -rf $(@D)
-    $(AT)mkdir -p $(@D)
-    $(AT)echo copying packages: $^
-    $(AT)echo to: $(@D)
-    $(AT)cd $(@D); $(foreach package,$^, tar xf $($(package)_cached); )
-    $(AT)touch $@
+	$(AT)rm -rf $(@D)
+	$(AT)mkdir -p $(@D)
+	$(AT)echo copying packages: $^
+	$(AT)echo to: $(@D)
+	$(AT)cd $(@D); $(foreach package,$^, tar xf $($(package)_cached); )
+	$(AT)touch $@
 
 $(host_prefix)/share/config.site : config.site.in $(host_prefix)/.stamp_$(final_build_id)
-    $(AT)@mkdir -p $(@D)
-    $(AT)sed -e 's|@HOST@|$(host)|' \
+	$(AT)@mkdir -p $(@D)
+	$(AT)sed -e 's|@HOST@|$(host)|' \
             -e 's|@CC@|$(toolchain_path)$(host_CC)|' \
             -e 's|@CXX@|$(toolchain_path)$(host_CXX)|' \
             -e 's|@AR@|$(toolchain_path)$(host_AR)|' \
@@ -139,7 +139,7 @@ $(host_prefix)/share/config.site : config.site.in $(host_prefix)/.stamp_$(final_
             -e 's|@no_upnp@|$(NO_UPNP)|' \
             -e 's|@debug@|$(DEBUG)|' \
             $< > $@
-    $(AT)touch $@
+	$(AT)touch $@
 
 
 define check_or_remove_cached
@@ -157,9 +157,9 @@ define check_or_remove_sources
 endef
 
 check-packages:
-    @$(foreach package,$(all_packages),$(call check_or_remove_cached,$(package));)
+	@$(foreach package,$(all_packages),$(call check_or_remove_cached,$(package));)
 check-sources:
-    @$(foreach package,$(all_packages),$(call check_or_remove_sources,$(package));)
+	@$(foreach package,$(all_packages),$(call check_or_remove_sources,$(package));)
 
 $(host_prefix)/share/config.site: check-packages
 
@@ -171,11 +171,11 @@ install: check-packages $(host_prefix)/share/config.site
 download-one: check-sources $(all_sources)
 
 download-osx:
-    @$(MAKE) -s HOST=x86_64-apple-darwin11 download-one
+	@$(MAKE) -s HOST=x86_64-apple-darwin11 download-one
 download-linux:
-    @$(MAKE) -s HOST=x86_64-unknown-linux-gnu download-one
+	@$(MAKE) -s HOST=x86_64-unknown-linux-gnu download-one
 download-win:
-    @$(MAKE) -s HOST=x86_64-w64-mingw32 download-one
+	@$(MAKE) -s HOST=x86_64-w64-mingw32 download-one
 download: download-osx download-linux download-win
 
 .PHONY: install cached download-one download-osx download-linux download-win download check-packages check-sources
