@@ -126,3 +126,5 @@ src/zcoin.includes
 libzcoinconsensus.pc
 libbitcoinconsensus.pc
 contrib/devtools/split-debug.sh
+qa/pull-tester/run-bitcoind-for-test.sh
+qa/pull-tester/tests_config.py
