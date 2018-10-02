@@ -92,11 +92,11 @@ static bool GetFirstSender(const std::vector<CTxOut>& txInputs, std::string& str
 BOOST_AUTO_TEST_CASE(first_vin_is_sender)
 {
     std::vector<CTxOut> vouts;
-    vouts.push_back(createTxOut(100, "1CE8bBr1dYZRMnpmyYsFEoexa1YoPz2mfB")); // Winner
-    vouts.push_back(createTxOut(999, "3KYen723gbjhJU69j8jRhZU6fDw8iVVWKy"));
-    vouts.push_back(createTxOut(200, "1471EHpnJ62MDxLw96dKcNT8sWPEbHrAUe"));
+    vouts.push_back(createTxOut(100, "aByw7PqtCUPj2KggygecNahvPztyFBJw2q")); // Winner
+    vouts.push_back(createTxOut(999, "aN5vRJz8YDFUHsffaDqiviifJYvofacfKt"));
+    vouts.push_back(createTxOut(200, "a19njnihgJXU4k58KF7phjaLjcMy66d3Mj"));
 
-    std::string strExpected("1CE8bBr1dYZRMnpmyYsFEoexa1YoPz2mfB");
+    std::string strExpected("aByw7PqtCUPj2KggygecNahvPztyFBJw2q");
 
     std::string strSender;
     BOOST_CHECK(GetFirstSender(vouts, strSender));
@@ -106,12 +106,12 @@ BOOST_AUTO_TEST_CASE(first_vin_is_sender)
 BOOST_AUTO_TEST_CASE(less_input_restrictions)
 {
     std::vector<CTxOut> vouts;
-    vouts.push_back(createTxOut(555, "3CD1QW6fjgTwKq3Pj97nty28WZAVkziNom")); // Winner
+    vouts.push_back(createTxOut(555, "aByw7PqtCUPj2KggygecNahvPztyFBJw2q")); // Winner
     vouts.push_back(PayToPubKey_Unrelated());
     vouts.push_back(PayToBareMultisig_1of3());
     vouts.push_back(NonStandardOutput());
 
-    std::string strExpected("3CD1QW6fjgTwKq3Pj97nty28WZAVkziNom");
+    std::string strExpected("aByw7PqtCUPj2KggygecNahvPztyFBJw2q");
 
     std::string strSender;
     BOOST_CHECK(GetFirstSender(vouts, strSender));

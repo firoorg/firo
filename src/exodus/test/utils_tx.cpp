@@ -32,7 +32,7 @@ CTxOut PayToPubKeyHash_ExodusCrowdsale(int nHeight)
 
 CTxOut PayToPubKeyHash_Unrelated()
 {
-    CBitcoinAddress address("1f2dj45pxYb8BCW5sSbCgJ5YvXBfSapeX");
+    CBitcoinAddress address("a6FFPX9EvcDCtKCzootN4EMwMv2K9xnVcV");
     CScript scriptPubKey = GetScriptForDestination(address.Get());
     int64_t amount = GetDustThreshold(scriptPubKey);
 
@@ -176,7 +176,7 @@ CTxOut OpReturn_Unrelated()
 CTxOut OpReturn_PlainMarker()
 {
     CScript scriptPubKey;
-    scriptPubKey << OP_RETURN << ParseHex("6f6d6e69");
+    scriptPubKey << OP_RETURN << ParseHex("65786f647573");
 
     return CTxOut(0, scriptPubKey);
 }
@@ -184,7 +184,7 @@ CTxOut OpReturn_PlainMarker()
 CTxOut OpReturn_SimpleSend()
 {
     CScript scriptPubKey;
-    scriptPubKey << OP_RETURN << ParseHex("6f6d6e6900000000000000070000000006dac2c0");
+    scriptPubKey << OP_RETURN << ParseHex("65786f64757300000000000000070000000006dac2c0");
 
     return CTxOut(0, scriptPubKey);
 }
@@ -194,7 +194,7 @@ CTxOut OpReturn_MultiSimpleSend()
 {
     CScript scriptPubKey;
     scriptPubKey << OP_RETURN;
-    scriptPubKey << ParseHex("6f6d6e69");
+    scriptPubKey << ParseHex("65786f647573");
     scriptPubKey << ParseHex("00000000000000070000000000002329");
     scriptPubKey << ParseHex("0062e907b15cbf27d5425399ebf6f0fb50ebb88f18");
     scriptPubKey << ParseHex("000000000000001f0000000001406f40");
@@ -211,4 +211,3 @@ CTxOut NonStandardOutput()
 
     return CTxOut(amount, scriptPubKey);
 }
-

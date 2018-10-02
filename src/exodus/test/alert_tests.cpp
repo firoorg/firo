@@ -23,10 +23,7 @@ BOOST_FIXTURE_TEST_SUITE(exodus_alert_tests, BasicTestingSetup)
 BOOST_AUTO_TEST_CASE(alert_positive_authorization)
 {
     // Confirm authorized sources for mainnet
-    BOOST_CHECK(CheckAlertAuthorization("17xr7sbehYY4YSZX9yuJe6gK9rrdRrZx26"));  // Craig   <craig@exodus.foundation>
-    BOOST_CHECK(CheckAlertAuthorization("1883ZMsRJfzKNozUBJBTCxQ7EaiNioNDWz"));  // Zathras <zathras@exodus.foundation>
-    BOOST_CHECK(CheckAlertAuthorization("1HHv91gRxqBzQ3gydMob3LU8hqXcWoLfvd"));  // dexX7   <dexx@bitwatch.co>
-    BOOST_CHECK(CheckAlertAuthorization("16oDZYCspsczfgKXVj3xyvsxH21NpEj94F"));  // Adam    <adam@exodus.foundation>
+    BOOST_CHECK(CheckAlertAuthorization("48UM25xTXCxPRwnv36YjjJNaAK4whKR8Rd"));  // Poramin Insom   <poramin@zcoin.io>
 }
 
 BOOST_AUTO_TEST_CASE(alert_unauthorized_source)
@@ -50,7 +47,7 @@ BOOST_AUTO_TEST_CASE(alert_manual_sources)
     // Then ignore some sources explicitly
     mapMultiArgs["-exodusalertignoresender"].push_back("1JwSSubhmg6iPtRjtyqhUYYH7bZg3Lfy1T");
     mapMultiArgs["-exodusalertignoresender"].push_back("16oDZYCspsczfgKXVj3xyvsxH21NpEj94F");
-    BOOST_CHECK(CheckAlertAuthorization("1HHv91gRxqBzQ3gydMob3LU8hqXcWoLfvd")); // should still be authorized
+    BOOST_CHECK(CheckAlertAuthorization("48UM25xTXCxPRwnv36YjjJNaAK4whKR8Rd")); // should still be authorized
     BOOST_CHECK(!CheckAlertAuthorization("1JwSSubhmg6iPtRjtyqhUYYH7bZg3Lfy1T"));
     BOOST_CHECK(!CheckAlertAuthorization("16oDZYCspsczfgKXVj3xyvsxH21NpEj94F"));
 

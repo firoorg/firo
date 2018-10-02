@@ -119,8 +119,8 @@ BOOST_AUTO_TEST_CASE(txbuilder_add_change)
 {
     std::string rawTx("0100000002605842f019601de54248b9fb4a32b498a7762c6513213b39041fbd89890e3a010200000000"
         "ffffffff878b454ca384a37d72762477406003397ed90b1f8d5ad4061af29ee541162c260000000000ffffffff0280d1f0"
-        "08000000001976a91442784829d93f6de9b2c43b8f7fe9cd4bfbe9e2e888ac5622b701000000001976a9141287169f63d2"
-        "09d2fa640b8ec12f6188404ba51388ac00000000");
+        "08000000001976a91474da251d772d3a0dad3ef97d6a5e35892975542a88ac5622b701000000001976a9145d66ebf06ac9"
+        "2ecd1ec6c3b67550379bea86885688ac00000000");
     std::vector<unsigned char> scriptA = ParseHex("76a9146093da1c808a3a93c7c729ef9b09e9a29bcfc9ed88ac");
     std::vector<unsigned char> scriptB = ParseHex("21036f617ea0d03059cfaf9959b35717906a131a69b1438cc0eaa026"
         "5ddb5faf95dcac");
@@ -136,9 +136,9 @@ BOOST_AUTO_TEST_CASE(txbuilder_add_change)
         0,
         78825000LL,
         CScript(scriptB.begin(), scriptB.end())));
-    
-    CBitcoinAddress addrA("174TgzbFFWiKg1VWt8Z55EVP7rJ54jQSar");
-    CBitcoinAddress addrB("12gxzZL9g6tWsX6ut8srcgcUTQ4c9wWuGS");
+
+    CBitcoinAddress addrA("aBNKT8rnDdiTymZb5GjgoSrpuFt9c6E4V6");
+    CBitcoinAddress addrB("a9EKssBGHFP6ZnZm98pb64sT1xxyeZCjM7");
 
     CCoinsView viewDummy;
     CCoinsViewCache viewTemp(&viewDummy);
@@ -166,7 +166,7 @@ BOOST_AUTO_TEST_CASE(txbuilder_add_change_position)
         "01976a914c656177b31a1cf5f9f319ce67c6de16bb56922b788ac00000000");
     std::string rawTx("0100000001e83e80ce7b1c618bb21acc4ffdf1f420998a2dea7f6f974edae7e5f3dd28be440100000000"
         "ffffffff038058840c000000001976a914390ba459d1746d49221e031e5038b78e0d99e7b688acb0d1b90a000000001976"
-        "a91486e4e00cacf83a6ff87d75caf551c5f2d4574a9d88ac80778e06000000001976a914c656177b31a1cf5f9f319ce67c"
+        "a91474da251d772d3a0dad3ef97d6a5e35892975542a88ac80778e06000000001976a914c656177b31a1cf5f9f319ce67c"
         "6de16bb56922b788ac00000000");
     std::vector<unsigned char> script = ParseHex("76a91453d3a1e3aa03063d660d769acbe2be84821a0b1388ac");
 
@@ -177,7 +177,7 @@ BOOST_AUTO_TEST_CASE(txbuilder_add_change_position)
         500000000LL,
         CScript(script.begin(), script.end())));
 
-    CBitcoinAddress addr("1DJFjEV9U7TgyDZVT1tcCGJDhDeRYSQGuD");
+    CBitcoinAddress addr("aBNKT8rnDdiTymZb5GjgoSrpuFt9c6E4V6");
 
     CTransaction txBasis;
     BOOST_CHECK(DecodeHexTx(txBasis, rawTxBasis));
@@ -223,9 +223,9 @@ BOOST_AUTO_TEST_CASE(exodustxbuilder_op_return)
 
     std::string rawTx("01000000021dc7f242305900960a80cadd2a5d06d2cbbc4bbdd029db37c56a975487b8d4b20100000000"
         "fffffffff1c05e491be9b9c73b918e96b0774d0db4632b41ace5bfbc2fcb0a58561b02bc0200000000ffffffff03000000"
-        "0000000000166a146f6d6e690000000000000001000000009502f9006449f605000000001976a914c359d7d2e140127dd2"
-        "adbeb1b3e9fa644e7dbd8e88acaa0a0000000000001976a9141243d1aba8f18d9bae91dac065549f95c403d7cc88ac0000"
-        "0000");
+        "0000000000186a1665786f6475730000000000000001000000009502f9006449f605000000001976a9145d66ebf06ac92e"
+        "cd1ec6c3b67550379bea86885688acaa0a0000000000001976a91474da251d772d3a0dad3ef97d6a5e35892975542a88ac"
+        "00000000");
     std::vector<unsigned char> scriptA = ParseHex("76a914c359d7d2e140127dd2adbeb1b3e9fa644e7dbd8e88ac");
     std::vector<unsigned char> scriptB = ParseHex("76a914c359d7d2e140127dd2adbeb1b3e9fa644e7dbd8e88ac");
     std::vector<unsigned char> payload = ParseHex("0000000000000001000000009502f900");
@@ -254,8 +254,8 @@ BOOST_AUTO_TEST_CASE(exodustxbuilder_op_return)
 
     tx = ExodusTxBuilder(tx)
         .addOpReturn(payload)
-        .addReference("12faQbtHsD7ECFweehhHoRYxiRjyB1d1uy", 2730LL)
-        .addChange("1JovPp7XB8Tjc6E2fVPigxXtfmrFLBoMhK", viewTemp, 10000LL, 1)
+        .addReference("aBNKT8rnDdiTymZb5GjgoSrpuFt9c6E4V6", 2730LL)
+        .addChange("a9EKssBGHFP6ZnZm98pb64sT1xxyeZCjM7", viewTemp, 10000LL, 1)
         .build();
 
     BOOST_CHECK_EQUAL(rawTx, EncodeHexTx(CTransaction(tx)));

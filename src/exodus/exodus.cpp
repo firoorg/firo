@@ -266,7 +266,7 @@ int64_t getMPbalance(const std::string& address, uint32_t propertyId, TallyType 
     }
     if (ttype == ACCEPT_RESERVE && propertyId > EXODUS_PROPERTY_TEXODUS) {
         // ACCEPT_RESERVE is always empty, except for EXODUS and TEXODUS
-        return 0; 
+        return 0;
     }
 
     LOCK(cs_tally);
@@ -470,7 +470,7 @@ bool exodus::update_tally_map(const std::string& who, uint32_t propertyId, int64
         PrintToLog("%s(%s, %u=0x%X, %+d, ttype=%d) ERROR: invalid tally type\n", __func__, who, propertyId, propertyId, amount, ttype);
         return false;
     }
-    
+
     bool bRet = false;
     int64_t before = 0;
     int64_t after = 0;
@@ -674,7 +674,7 @@ int exodus::GetEncodingClass(const CTransaction& tx, int nBlock)
      * This allows to drop non-Exodus transactions with less work
      */
     std::string strClassC = "65786f647573";
-    std::string strClassAB = "76a914946cb2e08075bcbaf157e47bcb67eb2b2339d24288ac";
+    std::string strClassAB = "76a914030de47b81d0e0a2932746e939de3a7352a3f19288ac";
     bool examineClosely = false;
     for (unsigned int n = 0; n < tx.vout.size(); ++n) {
         const CTxOut& output = tx.vout[n];
@@ -3187,7 +3187,7 @@ void CMPTxList::recordPaymentTX(const uint256 &txid, bool fValid, int nBlock, un
 
        // Step 3 - Create new/update master record for payment tx in TXList
        const string key = txid.ToString();
-       const string value = strprintf("%u:%d:%u:%lu", fValid ? 1:0, nBlock, type, numberOfPayments); 
+       const string value = strprintf("%u:%d:%u:%lu", fValid ? 1:0, nBlock, type, numberOfPayments);
        Status status;
        PrintToLog("DEXPAYDEBUG : Writing master record %s(%s, valid=%s, block= %d, type= %d, number of payments= %lu)\n", __FUNCTION__, txid.ToString(), fValid ? "YES":"NO", nBlock, type, numberOfPayments);
        if (pdb)

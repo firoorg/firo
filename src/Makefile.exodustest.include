@@ -22,7 +22,6 @@ EXODUS_TEST_CPP = \
   exodus/test/parsing_c_tests.cpp \
   exodus/test/rounduint64_tests.cpp \
   exodus/test/rules_txs_tests.cpp \
-  exodus/test/script_dust_tests.cpp \
   exodus/test/script_extraction_tests.cpp \
   exodus/test/script_solver_tests.cpp \
   exodus/test/sender_bycontribution_tests.cpp \
@@ -31,8 +30,7 @@ EXODUS_TEST_CPP = \
   exodus/test/swapbyteorder_tests.cpp \
   exodus/test/tally_tests.cpp \
   exodus/test/uint256_extensions_tests.cpp \
-  exodus/test/utils_tx.cpp \
-  exodus/test/version_tests.cpp
+  exodus/test/utils_tx.cpp
 
 BITCOIN_TESTS += \
   $(EXODUS_TEST_CPP) \

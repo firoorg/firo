@@ -82,9 +82,9 @@ BOOST_AUTO_TEST_CASE(valid_common_class_b)
     int nBlock = 0;
 
     std::vector<CTxOut> txInputs;
-    txInputs.push_back(createTxOut(1000000, "1BxtgEa8UcrMzVZaW32zVyJh4Sg4KGFzxA"));
-    txInputs.push_back(createTxOut(1000000, "1HG3s4Ext3sTqBTHrgftyUzG3cvx5ZbPCj"));
-    txInputs.push_back(createTxOut(2000001, "1Pa6zyqnhL6LDJtrkCMi9XmEDNHJ23ffEr"));
+    txInputs.push_back(createTxOut(1000000, "a1SNP5FDj2HykF2Yg2Jr3Kzu8vMbyuVoyV"));
+    txInputs.push_back(createTxOut(1000000, "a1YSuZWb1vvWx5Fp6oHuCXRjPDmW4nSJ4N"));
+    txInputs.push_back(createTxOut(2000001, "ZzjEgpoT2pARc5Un7xRJAJ4LPSpA9qLQxd"));
 
     std::vector<CTxOut> txOutputs;
     txOutputs.push_back(PayToPubKeyHash_Exodus());
@@ -97,7 +97,7 @@ BOOST_AUTO_TEST_CASE(valid_common_class_b)
 
     CMPTransaction metaTx;
     BOOST_CHECK(ParseTransaction(dummyTx, nBlock, 1, metaTx) == 0);
-    BOOST_CHECK_EQUAL(metaTx.getSender(), "1Pa6zyqnhL6LDJtrkCMi9XmEDNHJ23ffEr");
+    BOOST_CHECK_EQUAL(metaTx.getSender(), "ZzjEgpoT2pARc5Un7xRJAJ4LPSpA9qLQxd");
     BOOST_CHECK_EQUAL(metaTx.getPayload().size(), getPayloadSize(10));
 }
 
@@ -108,7 +108,7 @@ BOOST_AUTO_TEST_CASE(valid_arbitrary_output_number_class_b)
     int nOutputs = 3000 * 8; // due to the junk
 
     std::vector<CTxOut> txInputs;
-    txInputs.push_back(createTxOut(5550000, "3QHw8qKf1vQkMnSVXarq7N4PYzz1G3mAK4"));
+    txInputs.push_back(createTxOut(5550000, "ZzjEgpoT2pARc5Un7xRJAJ4LPSpA9qLQxd"));
 
     std::vector<CTxOut> txOutputs;
     for (int i = 0; i < nOutputs / 8; ++i) {
@@ -129,7 +129,7 @@ BOOST_AUTO_TEST_CASE(valid_arbitrary_output_number_class_b)
 
     CMPTransaction metaTx;
     BOOST_CHECK(ParseTransaction(dummyTx, nBlock, 1, metaTx) == 0);
-    BOOST_CHECK_EQUAL(metaTx.getSender(), "3QHw8qKf1vQkMnSVXarq7N4PYzz1G3mAK4");
+    BOOST_CHECK_EQUAL(metaTx.getSender(), "ZzjEgpoT2pARc5Un7xRJAJ4LPSpA9qLQxd");
     BOOST_CHECK_EQUAL(metaTx.getPayload().size(), getPayloadSize(MAX_PACKETS));
 }
 
