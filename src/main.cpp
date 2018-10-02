@@ -2889,7 +2889,7 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
         return state.DoS(0, error("ConnectBlock(): %s", strError), REJECT_INVALID, "bad-cb-amount");
     }
 
-    if (!IsBlockPayeeValid(block.vtx[0], pindex->nHeight, blockReward)) {
+    if (!IsBlockPayeeValid(block.vtx[0], pindex->nHeight, blockReward, block.IsMTP())) {
         mapRejectedBlocks.insert(make_pair(block.GetHash(), GetTime()));
         return state.DoS(0, error("ConnectBlock(): couldn't find znode or superblock payments"),
                          REJECT_INVALID, "bad-cb-payee");
@@ -3340,7 +3340,7 @@ int GetInputAge(const CTxIn &txin) {
     }
 }
 
-CAmount GetZnodePayment(int nHeight, CAmount blockValue) {
+CAmount GetZnodePayment(const Consensus::Params &params, bool fMTP) {
 //    CAmount ret = blockValue * 30/100 ; // start at 30%
 //    int nMNPIBlock = Params().GetConsensus().nZnodePaymentsStartBlock;
 ////    int nMNPIBlock = Params().GetConsensus().nZnodePaymentsIncreaseBlock;
@@ -3356,7 +3356,8 @@ CAmount GetZnodePayment(int nHeight, CAmount blockValue) {
 //    if (nHeight > nMNPIBlock + (nMNPIPeriod * 6)) ret += blockValue / 40; // 261680 - 45.0% - 2015-05-01
 //    if (nHeight > nMNPIBlock + (nMNPIPeriod * 7)) ret += blockValue / 40; // 278960 - 47.5% - 2015-06-01
 //    if (nHeight > nMNPIBlock + (nMNPIPeriod * 9)) ret += blockValue / 40; // 313520 - 50.0% - 2015-08-03
-    CAmount ret = 15 * COIN; //15XZC
+    CAmount coin = fMTP ? COIN/params.nMTPRewardReduction : COIN;
+    CAmount ret = 15 * coin; //15 or 7.5 XZC
 
     return ret;
 }

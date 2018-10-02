@@ -128,7 +128,7 @@ bool IsBlockValueValid(const CBlock &block, int nBlockHeight, CAmount blockRewar
     return isBlockRewardValueMet;
 }
 
-bool IsBlockPayeeValid(const CTransaction &txNew, int nBlockHeight, CAmount blockReward) {
+bool IsBlockPayeeValid(const CTransaction &txNew, int nBlockHeight, CAmount blockReward, bool fMTP) {
     // we can only check znode payment /
     const Consensus::Params &consensusParams = Params().GetConsensus();
 
@@ -144,7 +144,7 @@ bool IsBlockPayeeValid(const CTransaction &txNew, int nBlockHeight, CAmount bloc
     }
 
     //check for znode payee
-    if (mnpayments.IsTransactionValid(txNew, nBlockHeight)) {
+    if (mnpayments.IsTransactionValid(txNew, nBlockHeight, fMTP)) {
         LogPrint("mnpayments", "IsBlockPayeeValid -- Valid znode payment at height %d: %s", nBlockHeight, txNew.ToString());
         return true;
     } else {
@@ -497,13 +497,14 @@ bool CZnodeBlockPayees::HasPayeeWithVotes(CScript payeeIn, int nVotesReq) {
     return false;
 }
 
-bool CZnodeBlockPayees::IsTransactionValid(const CTransaction &txNew) {
+bool CZnodeBlockPayees::IsTransactionValid(const CTransaction &txNew, bool fMTP) {
     LOCK(cs_vecPayees);
 
     int nMaxSignatures = 0;
     std::string strPayeesPossible = "";
 
-    CAmount nZnodePayment = GetZnodePayment(nBlockHeight, txNew.GetValueOut());
+
+    CAmount nZnodePayment = GetZnodePayment(Params().GetConsensus(), fMTP);
 
     //require at least MNPAYMENTS_SIGNATURES_REQUIRED signatures
 
@@ -580,11 +581,11 @@ std::string CZnodePayments::GetRequiredPaymentsString(int nBlockHeight) {
     return "Unknown";
 }
 
-bool CZnodePayments::IsTransactionValid(const CTransaction &txNew, int nBlockHeight) {
+bool CZnodePayments::IsTransactionValid(const CTransaction &txNew, int nBlockHeight, bool fMTP) {
     LOCK(cs_mapZnodeBlocks);
 
     if (mapZnodeBlocks.count(nBlockHeight)) {
-        return mapZnodeBlocks[nBlockHeight].IsTransactionValid(txNew);
+        return mapZnodeBlocks[nBlockHeight].IsTransactionValid(txNew, fMTP);
     }
 
     return true;
