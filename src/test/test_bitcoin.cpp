@@ -6,6 +6,7 @@
 
 #include "test_bitcoin.h"
 
+#include "util.h"
 #include "chainparams.h"
 #include "consensus/consensus.h"
 #include "consensus/validation.h"
@@ -36,13 +37,18 @@ extern int exodus_shutdown();
 
 BasicTestingSetup::BasicTestingSetup(const std::string& chainName)
 {
-        ECC_Start();
-        SetupEnvironment();
-        SetupNetworking();
-        fPrintToDebugLog = false; // don't want to write to debug.log file
-        fCheckBlockIndex = true;
-        SelectParams(chainName);
-        noui_connect();
+    SoftSetBoolArg("-dandelion", false);
+    ECC_Start();
+    SetupEnvironment();
+    SoftSetBoolArg("-dandelion", false);
+    SetupNetworking();
+    SoftSetBoolArg("-dandelion", false);
+    fPrintToDebugLog = false; // don't want to write to debug.log file
+    fCheckBlockIndex = true;
+    SoftSetBoolArg("-dandelion", false);
+    SelectParams(chainName);
+    SoftSetBoolArg("-dandelion", false);
+    noui_connect();
 }
 
 BasicTestingSetup::~BasicTestingSetup()

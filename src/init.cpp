@@ -117,6 +117,7 @@ enum BindFlags {
 
 static const char *FEE_ESTIMATES_FILENAME = "fee_estimates.dat";
 
+extern CTxMemPool stempool;
 // Exodus initialization and shutdown handlers
 extern int exodus_init();
 extern int exodus_shutdown();
@@ -232,6 +233,8 @@ void Shutdown() {
     /// module was initialized.
     RenameThread("bitcoin-shutoff");
     mempool.AddTransactionsUpdated(1);
+    // Changes to mempool should also be made to Dandelion stempool
+    stempool.AddTransactionsUpdated(1);
 
     StopHTTPRPC();
     StopREST();
@@ -1197,6 +1200,8 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
                               1000000);
     if (ratio != 0) {
         mempool.setSanityCheck(1.0 / ratio);
+        // Changes to mempool should also be made to Dandelion stempool
+        stempool.setSanityCheck(1.0 / ratio);
     }
     fCheckBlockIndex = GetBoolArg("-checkblockindex", chainparams.DefaultConsistencyChecks());
     fCheckpointsEnabled = GetBoolArg("-checkpoints", DEFAULT_CHECKPOINTS_ENABLED);

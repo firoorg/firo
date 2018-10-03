@@ -924,7 +924,7 @@ bool CWallet::AbandonTransaction(const uint256 &hashTx) {
     // Can't mark abandoned if confirmed or in mempool
     assert(mapWallet.count(hashTx));
     CWalletTx &origtx = mapWallet[hashTx];
-    if (origtx.GetDepthInMainChain() > 0 || origtx.InMempool()) {
+    if (origtx.GetDepthInMainChain() > 0 || origtx.InMempool() || origtx.InStempool()) {
         return false;
     }
 
@@ -943,6 +943,7 @@ bool CWallet::AbandonTransaction(const uint256 &hashTx) {
         if (currentconfirm == 0 && !wtx.isAbandoned()) {
             // If the orig tx was not in block/mempool, none of its spends can be in mempool
             assert(!wtx.InMempool());
+            assert(!wtx.InStempool());
             wtx.nIndex = -1;
             wtx.setAbandoned();
             wtx.MarkDirty();
@@ -1430,7 +1431,9 @@ void CWallet::ReacceptWalletTransactions() {
 
         int nDepth = wtx.GetDepthInMainChain();
 
-        if ((wtx.IsCoinBase() || wtx.IsZerocoinSpend()) && (nDepth == 0 && !wtx.isAbandoned()))
+        if ((wtx.IsCoinBase() 
+            // || wtx.IsZerocoinSpend() // NOTE(martun): Intentionally commented this out.
+            ) && (nDepth == 0 && !wtx.isAbandoned()))
             continue;
 
         if (nDepth == 0 && !wtx.isAbandoned()) {
@@ -1445,22 +1448,48 @@ void CWallet::ReacceptWalletTransactions() {
 
         LOCK(mempool.cs);
         CValidationState state;
-        wtx.AcceptToMemoryPool(false, maxTxFee, state, false);
+        LogPrintf("CWallet::ReacceptWalletTransactions(): re-accepting transaction %s to mempool/stempool.\n", wtx.GetHash().ToString());
+
+        // When re-accepting transaction back to the wallet after 
+        // the app was closed and re-opened, do NOT check their
+        // serial numbers, and DO NOT try to mark their serial numbers 
+        // a second time. We assume those operations were already done.
+        wtx.AcceptToMemoryPool(false, maxTxFee, state, false, false, false);
+        // If Dandelion enabled, relay transaction once again.
+        if (GetBoolArg("-dandelion", true)) {
+            wtx.RelayWalletTransaction(false);
+        }
     }
 }
 
 bool CWalletTx::RelayWalletTransaction(bool fCheckInputs) {
+    LogPrintf("Relaying wallet txn %s.\n", GetHash().ToString());
+ 
     assert(pwallet->GetBroadcastTransactions());
     if (!IsCoinBase() && !isAbandoned() && GetDepthInMainChain() == 0) {
         CValidationState state;
         /* GetDepthInMainChain already catches known conflicts. */
-        if (InMempool() || AcceptToMemoryPool(false, maxTxFee, state, fCheckInputs)) {
-            LogPrintf("Relaying wtx %s\n", GetHash().ToString());
-            RelayTransaction((CTransaction) * this);
-            return true;
+        if (InMempool() || InStempool() || 
+            AcceptToMemoryPool(false, maxTxFee, state, fCheckInputs)) {
+            // If Dandelion enabled, push inventory item to just one destination.
+            if (GetBoolArg("-dandelion", true)) {
+                int64_t nCurrTime = GetTimeMicros();
+                int64_t nEmbargo = 1000000 * DANDELION_EMBARGO_MINIMUM
+                        + PoissonNextSend(nCurrTime, DANDELION_EMBARGO_AVG_ADD);
+                CNode::insertDandelionEmbargo(GetHash(), nEmbargo);
+                LogPrintf(
+                    "dandeliontx %s embargoed for %d seconds\n",
+                    GetHash().ToString(), (nEmbargo - nCurrTime) / 1000000);
+                CInv inv(MSG_DANDELION_TX, GetHash());
+                return CNode::localDandelionDestinationPushInventory(inv);
+            } else {
+                LogPrintf("Relaying wtx %s\n", GetHash().ToString());
+                RelayTransaction(*this);
+                return true;
+            }
         }
     }
-//    LogPrintf("CWalletTx::RelayWalletTransaction() --> invalid condition\n");
+    LogPrintf("CWalletTx::RelayWalletTransaction() --> invalid condition\n");
     return false;
 }
 
@@ -1621,6 +1650,14 @@ bool CWalletTx::InMempool() const {
     return false;
 }
 
+bool CWalletTx::InStempool() const {
+    LOCK(stempool.cs);
+    if (stempool.exists(GetHash())) {
+        return true;
+    }
+    return false;
+}
+
 bool CWalletTx::IsTrusted() const {
     // Quick answer in most cases
     if (!CheckFinalTx(*this))
@@ -1633,8 +1670,8 @@ bool CWalletTx::IsTrusted() const {
     if (!bSpendZeroConfChange || !IsFromMe(ISMINE_ALL)) // using wtx's cached debit
         return false;
 
-    // Don't trust unconfirmed transactions from us unless they are in the mempool.
-    if (!InMempool())
+    // Don't trust unconfirmed transactions from us unless they are in the mempool or stempool.
+    if (!InMempool() && !InStempool())
         return false;
 
     // Trusted if all inputs are from us and are in the mempool:
@@ -1847,7 +1884,8 @@ CAmount CWallet::GetUnconfirmedBalance() const {
         LOCK2(cs_main, cs_wallet);
         for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it) {
             const CWalletTx *pcoin = &(*it).second;
-            if (!pcoin->IsTrusted() && pcoin->GetDepthInMainChain() == 0 && pcoin->InMempool())
+            if (!pcoin->IsTrusted() && pcoin->GetDepthInMainChain() == 0 && 
+                (pcoin->InMempool() || pcoin->InStempool()))
                 nTotal += pcoin->GetAvailableCredit();
         }
     }
@@ -1886,7 +1924,8 @@ CAmount CWallet::GetUnconfirmedWatchOnlyBalance() const {
         LOCK2(cs_main, cs_wallet);
         for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it) {
             const CWalletTx *pcoin = &(*it).second;
-            if (!pcoin->IsTrusted() && pcoin->GetDepthInMainChain() == 0 && pcoin->InMempool())
+            if (!pcoin->IsTrusted() && pcoin->GetDepthInMainChain() == 0 && 
+                (pcoin->InMempool() || pcoin->InStempool()))
                 nTotal += pcoin->GetAvailableWatchOnlyCredit();
         }
     }
@@ -3113,7 +3152,8 @@ bool CWallet::CreateTransaction(const vector <CRecipient> &vecSend, CWalletTx &w
 bool CWallet::CommitTransaction(CWalletTx &wtxNew, CReserveKey &reservekey) {
     {
         LOCK2(cs_main, cs_wallet);
-        LogPrintf("CommitTransaction:\n%s", wtxNew.ToString());
+        LogPrintf("CommitTransaction fBroadcastTransactions = %B:\n%s", 
+                  fBroadcastTransactions, wtxNew.ToString());
         {
             // This is only to keep the database open to defeat the auto-flush for the
             // duration of this scope.  This is the only place where this optimization
@@ -3151,7 +3191,8 @@ bool CWallet::CommitTransaction(CWalletTx &wtxNew, CReserveKey &reservekey) {
                           state.GetRejectReason());
                 // TODO: if we expect the failure to be long term or permanent, instead delete wtx from the wallet and return failure.
             } else {
-                LogPrintf("AcceptToMemoryPool success!\n");
+                LogPrintf("Successfully accepted txn %s to mempool/stempool, relaying!\n", 
+                          wtxNew.GetHash().ToString());
                 wtxNew.RelayWalletTransaction();
             }
         }
@@ -3908,10 +3949,11 @@ bool CWallet::CommitZerocoinSpendTransaction(CWalletTx &wtxNew, CReserveKey &res
         if (fBroadcastTransactions) {
             CValidationState state;
             // Broadcast
-            if (!wtxNew.AcceptToMemoryPool(false, maxTxFee, state, false)) {
+            if (!wtxNew.AcceptToMemoryPool(false, maxTxFee, state, false, true)) {
                 LogPrintf("CommitZerocoinSpendTransaction(): Transaction cannot be broadcast immediately, %s\n",
                           state.GetRejectReason());
-                // TODO: if we expect the failure to be long term or permanent, instead delete wtx from the wallet and return failure.
+                // TODO: if we expect the failure to be long term or permanent, 
+                // instead delete wtx from the wallet and return failure.
             } else {
                 wtxNew.RelayWalletTransaction(false);
             }
@@ -5140,11 +5182,67 @@ int CMerkleTx::GetBlocksToMaturity() const {
 }
 
 
-bool CMerkleTx::AcceptToMemoryPool(bool fLimitFree, CAmount nAbsurdFee, CValidationState &state, bool fCheckInputs,
-                                   bool isCheckWalletTransaction) {
-    LogPrintf("CMerkleTx::AcceptToMemoryPool(), fCheckInputs=%s\n", fCheckInputs);
-    return ::AcceptToMemoryPool(mempool, state, *this, fCheckInputs, fLimitFree, NULL, false, nAbsurdFee,
-                                isCheckWalletTransaction);
+bool CMerkleTx::AcceptToMemoryPool(
+        bool fLimitFree, 
+        CAmount nAbsurdFee, 
+        CValidationState &state, 
+        bool fCheckInputs,
+        bool isCheckWalletTransaction,
+        bool markZcoinSpendTransactionSerial) {
+    LogPrintf("CMerkleTx::AcceptToMemoryPool(), transaction %s, fCheckInputs=%s\n", 
+              GetHash().ToString(), 
+              fCheckInputs);
+    if (GetBoolArg("-dandelion", true)) {
+        bool res = ::AcceptToMemoryPool(
+            stempool, 
+            state, 
+            *this, 
+            fCheckInputs, 
+            fLimitFree, 
+            NULL, /* pfMissingInputs */
+            false, /* fOverrideMempoolLimit */
+            nAbsurdFee, 
+            isCheckWalletTransaction,
+            false /* markZcoinSpendTransactionSerial */
+        );
+        if (res) {
+            LogPrintf(
+                "CMerkleTx::AcceptToMemoryPool, Successfully added txn %s to dandelion stempool.\n", 
+                GetHash().ToString());
+        } else {
+            LogPrintf(
+                "CMerkleTx::AcceptToMemoryPool, failed to add txn %s to dandelion stempool: %s.\n", 
+                GetHash().ToString(), 
+                state.GetRejectReason());
+        }
+        return res;
+    } else {
+        // Changes to mempool should also be made to Dandelion stempool
+        CValidationState dummyState;
+        ::AcceptToMemoryPool(
+            stempool, 
+            dummyState, 
+            *this, 
+            fCheckInputs, 
+            fLimitFree, 
+            NULL, /* pfMissingInputs */ 
+            false, /* fOverrideMempoolLimit */
+            nAbsurdFee, 
+            isCheckWalletTransaction,
+            false /* markZcoinSpendTransactionSerial */
+        );
+        return ::AcceptToMemoryPool(
+            mempool, 
+            state, 
+            *this, 
+            fCheckInputs, 
+            fLimitFree, 
+            NULL, /* pfMissingInputs */
+            false, /* fOverrideMempoolLimit */
+            nAbsurdFee, 
+            isCheckWalletTransaction, 
+            markZcoinSpendTransactionSerial);
+    }
 }
 
 bool CompHeight(const CZerocoinEntry &a, const CZerocoinEntry &b) { return a.nHeight < b.nHeight; }
