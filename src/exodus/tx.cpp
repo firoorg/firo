@@ -1112,49 +1112,6 @@ int CMPTransaction::logicMath_SendToOwners()
         return (PKT_ERROR_STO -26);
     }
 
-    // determine which property the fee will be paid in
-    uint32_t feeProperty = isTestEcosystemProperty(property) ? EXODUS_PROPERTY_TEXODUS : EXODUS_PROPERTY_EXODUS;
-    int64_t feePerOwner = (version == MP_TX_PKT_V0) ? TRANSFER_FEE_PER_OWNER : TRANSFER_FEE_PER_OWNER_V1;
-    int64_t transferFee = feePerOwner * numberOfReceivers;
-    PrintToLog("\t    Transfer fee: %s %s\n", FormatDivisibleMP(transferFee), strMPProperty(feeProperty));
-
-    // enough coins to pay the fee?
-    if (feeProperty != property) {
-        int64_t nBalanceFee = getMPbalance(sender, feeProperty, BALANCE);
-        if (nBalanceFee < transferFee) {
-            PrintToLog("%s(): rejected: sender %s has insufficient balance of property %d to pay for fee [%s < %s]\n",
-                    __func__,
-                    sender,
-                    feeProperty,
-                    FormatMP(property, nBalanceFee),
-                    FormatMP(property, transferFee));
-            return (PKT_ERROR_STO -27);
-        }
-    } else {
-        // special case check, only if distributing MSC or TMSC -- the property the fee will be paid in
-        int64_t nBalanceFee = getMPbalance(sender, feeProperty, BALANCE);
-        if (nBalanceFee < ((int64_t) nValue + transferFee)) {
-            PrintToLog("%s(): rejected: sender %s has insufficient balance of %d to pay for amount + fee [%s < %s + %s]\n",
-                    __func__,
-                    sender,
-                    feeProperty,
-                    FormatMP(property, nBalanceFee),
-                    FormatMP(property, nValue),
-                    FormatMP(property, transferFee));
-            return (PKT_ERROR_STO -28);
-        }
-    }
-
-    // ------------------------------------------
-
-    assert(update_tally_map(sender, feeProperty, -transferFee, BALANCE));
-    if (version == MP_TX_PKT_V0) {
-        // v0 - do not credit the subtracted fee to any tally (ie burn the tokens)
-    } else {
-        // v1 - credit the subtracted fee to the fee cache
-        p_feecache->AddFee(feeProperty, block, transferFee);
-    }
-
     // split up what was taken and distribute between all holders
     int64_t sent_so_far = 0;
     for (OwnerAddrType::reverse_iterator it = receiversSet.rbegin(); it != receiversSet.rend(); ++it) {
@@ -2457,4 +2414,3 @@ int CMPTransaction::logicMath_Alert()
 
     return 0;
 }
-
