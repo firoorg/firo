@@ -753,9 +753,6 @@ int exodus::GetEncodingClass(const CTransaction& tx, int nBlock)
     if (hasExodus && hasMultisig) {
         return EXODUS_CLASS_B;
     }
-    if (hasExodus || hasMoney) {
-        return EXODUS_CLASS_A;
-    }
 
     return NO_MARKER;
 }
