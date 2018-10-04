@@ -51,6 +51,8 @@
  * logic, which was originally circuit-focused.
  **/
 #define CIRCUITLIST_PRIVATE
+#include "torint.h"  /* TOR_PRIuSZ */
+
 #include "or.h"
 #include "channel.h"
 #include "circpathbias.h"
@@ -63,6 +65,8 @@
 #include "connection_edge.h"
 #include "connection_or.h"
 #include "control.h"
+#include "crypto_rand.h"
+#include "crypto_util.h"
 #include "entrynodes.h"
 #include "main.h"
 #include "hs_circuit.h"
@@ -74,12 +78,16 @@
 #include "onion_fast.h"
 #include "policies.h"
 #include "relay.h"
+#include "relay_crypto.h"
 #include "rendclient.h"
 #include "rendcommon.h"
 #include "rephist.h"
 #include "routerlist.h"
 #include "routerset.h"
 #include "channelpadding.h"
+#include "compress_lzma.h"
+#include "compress_zlib.h"
+#include "compress_zstd.h"
 
 #include "ht.h"
 
@@ -107,6 +115,14 @@ static void circuit_free_cpath_node(crypt_path_t *victim);
 static void cpath_ref_decref(crypt_path_reference_t *cpath_ref);
 static void circuit_about_to_free_atexit(circuit_t *circ);
 static void circuit_about_to_free(circuit_t *circ);
+
+/**
+ * A cached value of the current state of the origin circuit list.  Has the
+ * value 1 if we saw any opened circuits recently (since the last call to
+ * circuit_any_opened_circuits(), which gets called around once a second by
+ * circuit_expire_building). 0 otherwise.
+ */
+static int any_opened_circs_cached_val = 0;
 
 /********* END VARIABLES ************/
 
@@ -393,9 +409,6 @@ circuit_set_p_circid_chan(or_circuit_t *or_circ, circid_t id,
   circuit_set_circid_chan_helper(circ, CELL_DIRECTION_IN, id, chan);
 
   if (chan) {
-    tor_assert(bool_eq(or_circ->p_chan_cells.n,
-                       or_circ->next_active_on_p_chan));
-
     chan->timestamp_last_had_circuits = approx_time();
   }
 
@@ -418,8 +431,6 @@ circuit_set_n_circid_chan(circuit_t *circ, circid_t id,
   circuit_set_circid_chan_helper(circ, CELL_DIRECTION_OUT, id, chan);
 
   if (chan) {
-    tor_assert(bool_eq(circ->n_chan_cells.n, circ->next_active_on_n_chan));
-
     chan->timestamp_last_had_circuits = approx_time();
   }
 
@@ -504,8 +515,7 @@ circuit_count_pending_on_channel(channel_t *chan)
   circuit_get_all_pending_on_channel(sl, chan);
   cnt = smartlist_len(sl);
   smartlist_free(sl);
-  log_debug(LD_CIRC,"or_conn to %s at %s, %d pending circs",
-            chan->nickname ? chan->nickname : "NULL",
+  log_debug(LD_CIRC,"or_conn to %s, %d pending circs",
             channel_get_canonical_remote_descr(chan),
             cnt);
   return cnt;
@@ -596,6 +606,56 @@ circuit_get_global_origin_circuit_list(void)
   return global_origin_circuit_list;
 }
 
+/**
+ * Return true if we have any opened general-purpose 3 hop
+ * origin circuits.
+ *
+ * The result from this function is cached for use by
+ * circuit_any_opened_circuits_cached().
+ */
+int
+circuit_any_opened_circuits(void)
+{
+  SMARTLIST_FOREACH_BEGIN(circuit_get_global_origin_circuit_list(),
+          const origin_circuit_t *, next_circ) {
+    if (!TO_CIRCUIT(next_circ)->marked_for_close &&
+        next_circ->has_opened &&
+        TO_CIRCUIT(next_circ)->state == CIRCUIT_STATE_OPEN &&
+        TO_CIRCUIT(next_circ)->purpose != CIRCUIT_PURPOSE_C_MEASURE_TIMEOUT &&
+        next_circ->build_state &&
+        next_circ->build_state->desired_path_len == DEFAULT_ROUTE_LEN) {
+      circuit_cache_opened_circuit_state(1);
+      return 1;
+    }
+  } SMARTLIST_FOREACH_END(next_circ);
+
+  circuit_cache_opened_circuit_state(0);
+  return 0;
+}
+
+/**
+ * Cache the "any circuits opened" state, as specified in param
+ * circuits_are_opened. This is a helper function to update
+ * the circuit opened status whenever we happen to look at the
+ * circuit list.
+ */
+void
+circuit_cache_opened_circuit_state(int circuits_are_opened)
+{
+  any_opened_circs_cached_val = circuits_are_opened;
+}
+
+/**
+ * Return true if there were any opened circuits since the last call to
+ * circuit_any_opened_circuits(), or since circuit_expire_building() last
+ * ran (it runs roughly once per second).
+ */
+int
+circuit_any_opened_circuits_cached(void)
+{
+  return any_opened_circs_cached_val;
+}
+
 /** Function to make circ-\>state human-readable */
 const char *
 circuit_state_to_string(int state)
@@ -630,6 +690,10 @@ circuit_purpose_to_controller_string(uint8_t purpose)
 
     case CIRCUIT_PURPOSE_C_GENERAL:
       return "GENERAL";
+
+    case CIRCUIT_PURPOSE_C_HSDIR_GET:
+      return "HS_CLIENT_HSDIR";
+
     case CIRCUIT_PURPOSE_C_INTRODUCING:
     case CIRCUIT_PURPOSE_C_INTRODUCE_ACK_WAIT:
     case CIRCUIT_PURPOSE_C_INTRODUCE_ACKED:
@@ -640,6 +704,9 @@ circuit_purpose_to_controller_string(uint8_t purpose)
     case CIRCUIT_PURPOSE_C_REND_READY_INTRO_ACKED:
     case CIRCUIT_PURPOSE_C_REND_JOINED:
       return "HS_CLIENT_REND";
+
+    case CIRCUIT_PURPOSE_S_HSDIR_POST:
+      return "HS_SERVICE_HSDIR";
 
     case CIRCUIT_PURPOSE_S_ESTABLISH_INTRO:
     case CIRCUIT_PURPOSE_S_INTRO:
@@ -657,6 +724,8 @@ circuit_purpose_to_controller_string(uint8_t purpose)
       return "CONTROLLER";
     case CIRCUIT_PURPOSE_PATH_BIAS_TESTING:
       return "PATH_BIAS_TESTING";
+    case CIRCUIT_PURPOSE_HS_VANGUARDS:
+      return "HS_VANGUARDS";
 
     default:
       tor_snprintf(buf, sizeof(buf), "UNKNOWN_%d", (int)purpose);
@@ -685,6 +754,7 @@ circuit_purpose_to_controller_hs_state_string(uint8_t purpose)
     case CIRCUIT_PURPOSE_TESTING:
     case CIRCUIT_PURPOSE_CONTROLLER:
     case CIRCUIT_PURPOSE_PATH_BIAS_TESTING:
+    case CIRCUIT_PURPOSE_HS_VANGUARDS:
       return NULL;
 
     case CIRCUIT_PURPOSE_INTRO_POINT:
@@ -694,6 +764,7 @@ circuit_purpose_to_controller_hs_state_string(uint8_t purpose)
     case CIRCUIT_PURPOSE_REND_ESTABLISHED:
       return "OR_HS_R_JOINED";
 
+    case CIRCUIT_PURPOSE_C_HSDIR_GET:
     case CIRCUIT_PURPOSE_C_INTRODUCING:
       return "HSCI_CONNECTING";
     case CIRCUIT_PURPOSE_C_INTRODUCE_ACK_WAIT:
@@ -710,6 +781,7 @@ circuit_purpose_to_controller_hs_state_string(uint8_t purpose)
     case CIRCUIT_PURPOSE_C_REND_JOINED:
       return "HSCR_JOINED";
 
+    case CIRCUIT_PURPOSE_S_HSDIR_POST:
     case CIRCUIT_PURPOSE_S_ESTABLISH_INTRO:
       return "HSSI_CONNECTING";
     case CIRCUIT_PURPOSE_S_INTRO:
@@ -735,9 +807,9 @@ circuit_purpose_to_string(uint8_t purpose)
     case CIRCUIT_PURPOSE_INTRO_POINT:
       return "Acting as intro point";
     case CIRCUIT_PURPOSE_REND_POINT_WAITING:
-      return "Acting as rendevous (pending)";
+      return "Acting as rendezvous (pending)";
     case CIRCUIT_PURPOSE_REND_ESTABLISHED:
-      return "Acting as rendevous (established)";
+      return "Acting as rendezvous (established)";
     case CIRCUIT_PURPOSE_C_GENERAL:
       return "General-purpose client";
     case CIRCUIT_PURPOSE_C_INTRODUCING:
@@ -754,6 +826,9 @@ circuit_purpose_to_string(uint8_t purpose)
       return "Hidden service client: Pending rendezvous point (ack received)";
     case CIRCUIT_PURPOSE_C_REND_JOINED:
       return "Hidden service client: Active rendezvous point";
+    case CIRCUIT_PURPOSE_C_HSDIR_GET:
+      return "Hidden service client: Fetching HS descriptor";
+
     case CIRCUIT_PURPOSE_C_MEASURE_TIMEOUT:
       return "Measuring circuit timeout";
 
@@ -765,6 +840,8 @@ circuit_purpose_to_string(uint8_t purpose)
       return "Hidden service: Connecting to rendezvous point";
     case CIRCUIT_PURPOSE_S_REND_JOINED:
       return "Hidden service: Active rendezvous point";
+    case CIRCUIT_PURPOSE_S_HSDIR_POST:
+      return "Hidden service: Uploading HS descriptor";
 
     case CIRCUIT_PURPOSE_TESTING:
       return "Testing circuit";
@@ -774,6 +851,9 @@ circuit_purpose_to_string(uint8_t purpose)
 
     case CIRCUIT_PURPOSE_PATH_BIAS_TESTING:
       return "Path-bias testing circuit";
+
+    case CIRCUIT_PURPOSE_HS_VANGUARDS:
+      return "Hidden service: Pre-built vanguard circuit";
 
     default:
       tor_snprintf(buf, sizeof(buf), "UNKNOWN_%d", (int)purpose);
@@ -818,8 +898,10 @@ init_circuit_base(circuit_t *circ)
 
 /** If we haven't yet decided on a good timeout value for circuit
  * building, we close idle circuits aggressively so we can get more
- * data points. */
-#define IDLE_TIMEOUT_WHILE_LEARNING (1*60)
+ * data points. These are the default, min, and max consensus values */
+#define DFLT_IDLE_TIMEOUT_WHILE_LEARNING (3*60)
+#define MIN_IDLE_TIMEOUT_WHILE_LEARNING (10)
+#define MAX_IDLE_TIMEOUT_WHILE_LEARNING (1000*60)
 
 /** Allocate space for a new circuit, initializing with <b>p_circ_id</b>
  * and <b>p_conn</b>. Add it to the global circuit list.
@@ -852,7 +934,11 @@ origin_circuit_new(void)
       circuit_build_times_needs_circuits(get_circuit_build_times())) {
     /* Circuits should be shorter lived if we need more of them
      * for learning a good build timeout */
-    circ->circuit_idle_timeout = IDLE_TIMEOUT_WHILE_LEARNING;
+    circ->circuit_idle_timeout =
+      networkstatus_get_param(NULL, "cbtlearntimeout",
+                              DFLT_IDLE_TIMEOUT_WHILE_LEARNING,
+                              MIN_IDLE_TIMEOUT_WHILE_LEARNING,
+                              MAX_IDLE_TIMEOUT_WHILE_LEARNING);
   } else {
     // This should always be larger than the current port prediction time
     // remaining, or else we'll end up with the case where a circuit times out
@@ -872,7 +958,11 @@ origin_circuit_new(void)
                "%d seconds of predictive building remaining.",
                circ->circuit_idle_timeout,
                prediction_time_remaining);
-      circ->circuit_idle_timeout = IDLE_TIMEOUT_WHILE_LEARNING;
+      circ->circuit_idle_timeout =
+          networkstatus_get_param(NULL, "cbtlearntimeout",
+                  DFLT_IDLE_TIMEOUT_WHILE_LEARNING,
+                  MIN_IDLE_TIMEOUT_WHILE_LEARNING,
+                  MAX_IDLE_TIMEOUT_WHILE_LEARNING);
     }
 
     log_info(LD_CIRC,
@@ -923,7 +1013,7 @@ circuit_clear_testing_cell_stats(circuit_t *circ)
 /** Deallocate space associated with circ.
  */
 STATIC void
-circuit_free(circuit_t *circ)
+circuit_free_(circuit_t *circ)
 {
   circid_t n_circ_id = 0;
   void *mem;
@@ -995,10 +1085,7 @@ circuit_free(circuit_t *circ)
 
     should_free = (ocirc->workqueue_entry == NULL);
 
-    crypto_cipher_free(ocirc->p_crypto);
-    crypto_digest_free(ocirc->p_digest);
-    crypto_cipher_free(ocirc->n_crypto);
-    crypto_digest_free(ocirc->n_digest);
+    relay_crypto_clear(&ocirc->crypto);
 
     if (ocirc->rend_splice) {
       or_circuit_t *other = ocirc->rend_splice;
@@ -1091,7 +1178,7 @@ circuit_free_all(void)
       while (or_circ->resolving_streams) {
         edge_connection_t *next_conn;
         next_conn = or_circ->resolving_streams->next_stream;
-        connection_free(TO_CONN(or_circ->resolving_streams));
+        connection_free_(TO_CONN(or_circ->resolving_streams));
         or_circ->resolving_streams = next_conn;
       }
     }
@@ -1138,10 +1225,7 @@ circuit_free_cpath_node(crypt_path_t *victim)
   if (!victim)
     return;
 
-  crypto_cipher_free(victim->f_crypto);
-  crypto_cipher_free(victim->b_crypto);
-  crypto_digest_free(victim->f_digest);
-  crypto_digest_free(victim->b_digest);
+  relay_crypto_clear(&victim->crypto);
   onion_handshake_state_release(&victim->handshake_state);
   crypto_dh_free(victim->rend_dh_handshake_state);
   extend_info_free(victim->extend_info);
@@ -1646,14 +1730,29 @@ circuit_can_be_cannibalized_for_v3_rp(const origin_circuit_t *circ)
   return 0;
 }
 
+/** We are trying to create a circuit of purpose <b>purpose</b> and we are
+ *  looking for cannibalizable circuits. Return the circuit purpose we would be
+ *  willing to cannibalize. */
+static uint8_t
+get_circuit_purpose_needed_to_cannibalize(uint8_t purpose)
+{
+  if (circuit_should_use_vanguards(purpose)) {
+    /* If we are using vanguards, then we should only cannibalize vanguard
+     * circuits so that we get the same path construction logic. */
+    return CIRCUIT_PURPOSE_HS_VANGUARDS;
+  } else {
+    /* If no vanguards are used just get a general circuit! */
+    return CIRCUIT_PURPOSE_C_GENERAL;
+  }
+}
+
 /** Return a circuit that is open, is CIRCUIT_PURPOSE_C_GENERAL,
  * has a timestamp_dirty value of 0, has flags matching the CIRCLAUNCH_*
  * flags in <b>flags</b>, and if info is defined, does not already use info
  * as any of its hops; or NULL if no circuit fits this description.
  *
- * The <b>purpose</b> argument (currently ignored) refers to the purpose of
- * the circuit we want to create, not the purpose of the circuit we want to
- * cannibalize.
+ * The <b>purpose</b> argument refers to the purpose of the circuit we want to
+ * create, not the purpose of the circuit we want to cannibalize.
  *
  * If !CIRCLAUNCH_NEED_UPTIME, prefer returning non-uptime circuits.
  *
@@ -1666,7 +1765,7 @@ circuit_can_be_cannibalized_for_v3_rp(const origin_circuit_t *circ)
  * a new circuit.)
  */
 origin_circuit_t *
-circuit_find_to_cannibalize(uint8_t purpose, extend_info_t *info,
+circuit_find_to_cannibalize(uint8_t purpose_to_produce, extend_info_t *info,
                             int flags)
 {
   origin_circuit_t *best=NULL;
@@ -1674,29 +1773,53 @@ circuit_find_to_cannibalize(uint8_t purpose, extend_info_t *info,
   int need_capacity = (flags & CIRCLAUNCH_NEED_CAPACITY) != 0;
   int internal = (flags & CIRCLAUNCH_IS_INTERNAL) != 0;
   const or_options_t *options = get_options();
+  /* We want the circuit we are trying to cannibalize to have this purpose */
+  int purpose_to_search_for;
 
   /* Make sure we're not trying to create a onehop circ by
    * cannibalization. */
   tor_assert(!(flags & CIRCLAUNCH_ONEHOP_TUNNEL));
 
+  purpose_to_search_for = get_circuit_purpose_needed_to_cannibalize(
+                                                  purpose_to_produce);
+
+  tor_assert_nonfatal(purpose_to_search_for == CIRCUIT_PURPOSE_C_GENERAL ||
+                      purpose_to_search_for == CIRCUIT_PURPOSE_HS_VANGUARDS);
+
   log_debug(LD_CIRC,
             "Hunting for a circ to cannibalize: purpose %d, uptime %d, "
             "capacity %d, internal %d",
-            purpose, need_uptime, need_capacity, internal);
+            purpose_to_produce, need_uptime, need_capacity, internal);
 
   SMARTLIST_FOREACH_BEGIN(circuit_get_global_list(), circuit_t *, circ_) {
     if (CIRCUIT_IS_ORIGIN(circ_) &&
         circ_->state == CIRCUIT_STATE_OPEN &&
         !circ_->marked_for_close &&
-        circ_->purpose == CIRCUIT_PURPOSE_C_GENERAL &&
+        circ_->purpose == purpose_to_search_for &&
         !circ_->timestamp_dirty) {
       origin_circuit_t *circ = TO_ORIGIN_CIRCUIT(circ_);
+
+      /* Only cannibalize from reasonable length circuits. If we
+       * want C_GENERAL, then only choose 3 hop circs. If we want
+       * HS_VANGUARDS, only choose 4 hop circs.
+       */
+      if (circ->build_state->desired_path_len !=
+          route_len_for_purpose(purpose_to_search_for, NULL)) {
+        goto next;
+      }
+
+      /* Ignore any circuits for which we can't use the Guard. It is possible
+       * that the Guard was removed from the samepled set after the circuit
+       * was created so avoid using it. */
+      if (!entry_guard_could_succeed(circ->guard_state)) {
+        goto next;
+      }
+
       if ((!need_uptime || circ->build_state->need_uptime) &&
           (!need_capacity || circ->build_state->need_capacity) &&
           (internal == circ->build_state->is_internal) &&
           !circ->unusable_for_new_conns &&
           circ->remaining_relay_early_cells &&
-          circ->build_state->desired_path_len == DEFAULT_ROUTE_LEN &&
           !circ->build_state->onehop_tunnel &&
           !circ->isolation_values_set) {
         if (info) {
@@ -1793,6 +1916,25 @@ circuit_get_cpath_len(origin_circuit_t *circ)
   return n;
 }
 
+/** Return the number of opened hops in circuit's path.
+ * If circ has no entries, or is NULL, returns 0. */
+int
+circuit_get_cpath_opened_len(const origin_circuit_t *circ)
+{
+  int n = 0;
+  if (circ && circ->cpath) {
+    crypt_path_t *cpath, *cpath_next = NULL;
+    for (cpath = circ->cpath;
+         cpath->state == CPATH_STATE_OPEN
+           && cpath_next != circ->cpath;
+         cpath = cpath_next) {
+      cpath_next = cpath->next;
+      ++n;
+    }
+  }
+  return n;
+}
+
 /** Return the <b>hopnum</b>th hop in <b>circ</b>->cpath, or NULL if there
  * aren't that many hops in the list. <b>hopnum</b> starts at 1.
  * Returns NULL if <b>hopnum</b> is 0 or negative. */
@@ -1849,8 +1991,7 @@ circuit_mark_all_dirty_circs_as_unusable(void)
  *   - If state is onionskin_pending, remove circ from the onion_pending
  *     list.
  *   - If circ isn't open yet: call circuit_build_failed() if we're
- *     the origin, and in either case call circuit_rep_hist_note_result()
- *     to note stats.
+ *     the origin.
  *   - If purpose is C_INTRODUCE_ACK_WAIT, report the intro point
  *     failure we just had to the hidden service client module.
  *   - If purpose is C_INTRODUCING and <b>reason</b> isn't TIMEOUT,
@@ -1928,6 +2069,7 @@ circuit_mark_for_close_, (circuit_t *circ, int reason, int line,
     circuits_pending_close = smartlist_new();
 
   smartlist_add(circuits_pending_close, circ);
+  mainloop_schedule_postloop_cleanup();
 
   log_info(LD_GENERAL, "Circuit %u (id: %" PRIu32 ") marked for close at "
                        "%s:%d (orig reason: %d, new reason: %d)",
@@ -1986,7 +2128,6 @@ circuit_about_to_free(circuit_t *circ)
     if (CIRCUIT_IS_ORIGIN(circ)) {
       origin_circuit_t *ocirc = TO_ORIGIN_CIRCUIT(circ);
       circuit_build_failed(ocirc); /* take actions if necessary */
-      circuit_rep_hist_note_result(ocirc);
     }
   }
   if (circ->state == CIRCUIT_STATE_CHAN_WAIT) {
@@ -2176,12 +2317,12 @@ n_cells_in_circ_queues(const circuit_t *c)
 }
 
 /**
- * Return the age of the oldest cell queued on <b>c</b>, in milliseconds.
+ * Return the age of the oldest cell queued on <b>c</b>, in timestamp units.
  * Return 0 if there are no cells queued on c.  Requires that <b>now</b> be
- * the current time in milliseconds since the epoch, truncated.
+ * the current coarse timestamp.
  *
  * This function will return incorrect results if the oldest cell queued on
- * the circuit is older than 2**32 msec (about 49 days) old.
+ * the circuit is older than about 2**32 msec (about 49 days) old.
  */
 STATIC uint32_t
 circuit_max_queued_cell_age(const circuit_t *c, uint32_t now)
@@ -2190,12 +2331,12 @@ circuit_max_queued_cell_age(const circuit_t *c, uint32_t now)
   packed_cell_t *cell;
 
   if (NULL != (cell = TOR_SIMPLEQ_FIRST(&c->n_chan_cells.head)))
-    age = now - cell->inserted_time;
+    age = now - cell->inserted_timestamp;
 
   if (! CIRCUIT_IS_ORIGIN(c)) {
     const or_circuit_t *orcirc = CONST_TO_OR_CIRCUIT(c);
     if (NULL != (cell = TOR_SIMPLEQ_FIRST(&orcirc->p_chan_cells.head))) {
-      uint32_t age2 = now - cell->inserted_time;
+      uint32_t age2 = now - cell->inserted_timestamp;
       if (age2 > age)
         return age2;
     }
@@ -2203,31 +2344,30 @@ circuit_max_queued_cell_age(const circuit_t *c, uint32_t now)
   return age;
 }
 
-/** Return the age in milliseconds of the oldest buffer chunk on <b>conn</b>,
- * where age is taken in milliseconds before the time <b>now</b> (in truncated
- * absolute monotonic msec).  If the connection has no data, treat
- * it as having age zero.
+/** Return the age of the oldest buffer chunk on <b>conn</b>, where age is
+ * taken in timestamp units before the time <b>now</b>.  If the connection has
+ * no data, treat it as having age zero.
  **/
 static uint32_t
-conn_get_buffer_age(const connection_t *conn, uint32_t now)
+conn_get_buffer_age(const connection_t *conn, uint32_t now_ts)
 {
   uint32_t age = 0, age2;
   if (conn->outbuf) {
-    age2 = buf_get_oldest_chunk_timestamp(conn->outbuf, now);
+    age2 = buf_get_oldest_chunk_timestamp(conn->outbuf, now_ts);
     if (age2 > age)
       age = age2;
   }
   if (conn->inbuf) {
-    age2 = buf_get_oldest_chunk_timestamp(conn->inbuf, now);
+    age2 = buf_get_oldest_chunk_timestamp(conn->inbuf, now_ts);
     if (age2 > age)
       age = age2;
   }
   return age;
 }
 
-/** Return the age in milliseconds of the oldest buffer chunk on any stream in
- * the linked list <b>stream</b>, where age is taken in milliseconds before
- * the time <b>now</b> (in truncated milliseconds since the epoch). */
+/** Return the age in timestamp units of the oldest buffer chunk on any stream
+ * in the linked list <b>stream</b>, where age is taken in timestamp units
+ * before the timestamp <b>now</b>. */
 static uint32_t
 circuit_get_streams_max_data_age(const edge_connection_t *stream, uint32_t now)
 {
@@ -2246,9 +2386,9 @@ circuit_get_streams_max_data_age(const edge_connection_t *stream, uint32_t now)
   return age;
 }
 
-/** Return the age in milliseconds of the oldest buffer chunk on any stream
- * attached to the circuit <b>c</b>, where age is taken in milliseconds before
- * the time <b>now</b> (in truncated milliseconds since the epoch). */
+/** Return the age in timestamp units of the oldest buffer chunk on any stream
+ * attached to the circuit <b>c</b>, where age is taken before the timestamp
+ * <b>now</b>. */
 STATIC uint32_t
 circuit_max_queued_data_age(const circuit_t *c, uint32_t now)
 {
@@ -2262,8 +2402,8 @@ circuit_max_queued_data_age(const circuit_t *c, uint32_t now)
 }
 
 /** Return the age of the oldest cell or stream buffer chunk on the circuit
- * <b>c</b>, where age is taken in milliseconds before the time <b>now</b> (in
- * truncated milliseconds since the epoch). */
+ * <b>c</b>, where age is taken in timestamp units before the timestamp
+ * <b>now</b> */
 STATIC uint32_t
 circuit_max_queued_item_age(const circuit_t *c, uint32_t now)
 {
@@ -2293,7 +2433,7 @@ circuits_compare_by_oldest_queued_item_(const void **a_, const void **b_)
     return -1;
 }
 
-static uint32_t now_ms_for_buf_cmp;
+static uint32_t now_ts_for_buf_cmp;
 
 /** Helper to sort a list of circuit_t by age of oldest item, in descending
  * order. */
@@ -2302,8 +2442,8 @@ conns_compare_by_buffer_age_(const void **a_, const void **b_)
 {
   const connection_t *a = *a_;
   const connection_t *b = *b_;
-  time_t age_a = conn_get_buffer_age(a, now_ms_for_buf_cmp);
-  time_t age_b = conn_get_buffer_age(b, now_ms_for_buf_cmp);
+  time_t age_a = conn_get_buffer_age(a, now_ts_for_buf_cmp);
+  time_t age_b = conn_get_buffer_age(b, now_ts_for_buf_cmp);
 
   if (age_a < age_b)
     return 1;
@@ -2328,10 +2468,22 @@ circuits_handle_oom(size_t current_allocation)
   size_t mem_recovered=0;
   int n_circuits_killed=0;
   int n_dirconns_killed=0;
-  uint32_t now_ms;
-  log_notice(LD_GENERAL, "We're low on memory.  Killing circuits with "
-             "over-long queues. (This behavior is controlled by "
-             "MaxMemInQueues.)");
+  uint32_t now_ts;
+  log_notice(LD_GENERAL, "We're low on memory (cell queues total alloc:"
+             " %"TOR_PRIuSZ" buffer total alloc: %" TOR_PRIuSZ ","
+             " tor compress total alloc: %" TOR_PRIuSZ
+             " (zlib: %" TOR_PRIuSZ ", zstd: %" TOR_PRIuSZ ","
+             " lzma: %" TOR_PRIuSZ "),"
+             " rendezvous cache total alloc: %" TOR_PRIuSZ "). Killing"
+             " circuits withover-long queues. (This behavior is controlled by"
+             " MaxMemInQueues.)",
+             cell_queues_get_total_allocation(),
+             buf_get_total_allocation(),
+             tor_compress_get_total_allocation(),
+             tor_zlib_get_total_allocation(),
+             tor_zstd_get_total_allocation(),
+             tor_lzma_get_total_allocation(),
+             rend_cache_get_total_allocation());
 
   {
     size_t mem_target = (size_t)(get_options()->MaxMemInQueues *
@@ -2341,11 +2493,11 @@ circuits_handle_oom(size_t current_allocation)
     mem_to_recover = current_allocation - mem_target;
   }
 
-  now_ms = (uint32_t)monotime_coarse_absolute_msec();
+  now_ts = monotime_coarse_get_stamp();
 
   circlist = circuit_get_global_list();
   SMARTLIST_FOREACH_BEGIN(circlist, circuit_t *, circ) {
-    circ->age_tmp = circuit_max_queued_item_age(circ, now_ms);
+    circ->age_tmp = circuit_max_queued_item_age(circ, now_ts);
   } SMARTLIST_FOREACH_END(circ);
 
   /* This is O(n log n); there are faster algorithms we could use instead.
@@ -2358,9 +2510,9 @@ circuits_handle_oom(size_t current_allocation)
   } SMARTLIST_FOREACH_END(circ);
 
   /* Now sort the connection array ... */
-  now_ms_for_buf_cmp = now_ms;
+  now_ts_for_buf_cmp = now_ts;
   smartlist_sort(connection_array, conns_compare_by_buffer_age_);
-  now_ms_for_buf_cmp = 0;
+  now_ts_for_buf_cmp = 0;
 
   /* Fix up the connection array to its new order. */
   SMARTLIST_FOREACH_BEGIN(connection_array, connection_t *, conn) {
@@ -2379,7 +2531,7 @@ circuits_handle_oom(size_t current_allocation)
      * data older than this circuit. */
     while (conn_idx < smartlist_len(connection_array)) {
       connection_t *conn = smartlist_get(connection_array, conn_idx);
-      uint32_t conn_age = conn_get_buffer_age(conn, now_ms);
+      uint32_t conn_age = conn_get_buffer_age(conn, now_ts);
       if (conn_age < circ->age_tmp) {
         break;
       }
@@ -2437,8 +2589,7 @@ assert_cpath_layer_ok(const crypt_path_t *cp)
   switch (cp->state)
     {
     case CPATH_STATE_OPEN:
-      tor_assert(cp->f_crypto);
-      tor_assert(cp->b_crypto);
+      relay_crypto_assert_ok(&cp->crypto);
       /* fall through */
     case CPATH_STATE_CLOSED:
       /*XXXX Assert that there's no handshake_state either. */
@@ -2528,10 +2679,7 @@ assert_circuit_ok,(const circuit_t *c))
       c->state == CIRCUIT_STATE_GUARD_WAIT) {
     tor_assert(!c->n_chan_create_cell);
     if (or_circ) {
-      tor_assert(or_circ->n_crypto);
-      tor_assert(or_circ->p_crypto);
-      tor_assert(or_circ->n_digest);
-      tor_assert(or_circ->p_digest);
+      relay_crypto_assert_ok(&or_circ->crypto);
     }
   }
   if (c->state == CIRCUIT_STATE_CHAN_WAIT && !c->marked_for_close) {

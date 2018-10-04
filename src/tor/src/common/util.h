@@ -73,19 +73,30 @@ extern int dmalloc_free(const char *file, const int line, void *pnt,
     }                                               \
   STMT_END
 #else /* !(defined(USE_DMALLOC)) */
-/** Release memory allocated by tor_malloc, tor_realloc, tor_strdup, etc.
- * Unlike the free() function, tor_free() will still work on NULL pointers,
- * and it sets the pointer value to NULL after freeing it.
+/** Release memory allocated by tor_malloc, tor_realloc, tor_strdup,
+ * etc.  Unlike the free() function, the tor_free() macro sets the
+ * pointer value to NULL after freeing it.
  *
  * This is a macro.  If you need a function pointer to release memory from
  * tor_malloc(), use tor_free_().
+ *
+ * Note that this macro takes the address of the pointer it is going to
+ * free and clear.  If that pointer is stored with a nonstandard
+ * alignment (eg because of a "packed" pragma) it is not correct to use
+ * tor_free().
  */
+#ifdef __GNUC__
 #define tor_free(p) STMT_BEGIN                                 \
-    if (PREDICT_LIKELY((p)!=NULL)) {                           \
-      raw_free(p);                                             \
-      (p)=NULL;                                                \
-    }                                                          \
+    typeof(&(p)) tor_free__tmpvar = &(p);                      \
+    raw_free(*tor_free__tmpvar);                               \
+    *tor_free__tmpvar=NULL;                                    \
   STMT_END
+#else
+#define tor_free(p) STMT_BEGIN                                 \
+  raw_free(p);                                                 \
+  (p)=NULL;                                                    \
+  STMT_END
+#endif
 #endif /* defined(USE_DMALLOC) */
 
 #define tor_malloc(size)       tor_malloc_(size DMALLOC_ARGS)
@@ -108,6 +119,17 @@ extern int dmalloc_free(const char *file, const int line, void *pnt,
 #define raw_strdup  strdup
 
 void tor_log_mallinfo(int severity);
+
+/* Helper macro: free a variable of type 'typename' using freefn, and
+ * set the variable to NULL.
+ */
+#define FREE_AND_NULL(typename, freefn, var)                            \
+  do {                                                                  \
+    /* only evaluate (var) once. */                                     \
+    typename **tmp__free__ptr ## freefn = &(var);                       \
+    freefn(*tmp__free__ptr ## freefn);                                  \
+    (*tmp__free__ptr ## freefn) = NULL;                                 \
+  } while (0)
 
 /** Macro: yield a pointer to the field at position <b>off</b> within the
  * structure <b>st</b>.  Example:
@@ -153,6 +175,8 @@ int64_t add_laplace_noise(int64_t signal, double random, double delta_f,
 int n_bits_set_u8(uint8_t v);
 int64_t clamp_double_to_int64(double number);
 void simplify_fraction64(uint64_t *numer, uint64_t *denom);
+
+uint32_t tor_add_u32_nowrap(uint32_t a, uint32_t b);
 
 /* Compute the CEIL of <b>a</b> divided by <b>b</b>, for nonnegative <b>a</b>
  * and positive <b>b</b>.  Works on integer types only. Not defined if a+(b-1)
@@ -207,7 +231,8 @@ const char *find_str_at_start_of_line(const char *haystack,
                                       const char *needle);
 int string_is_C_identifier(const char *string);
 int string_is_key_value(int severity, const char *string);
-int string_is_valid_hostname(const char *string);
+int string_is_valid_dest(const char *string);
+int string_is_valid_nonrfc_hostname(const char *string);
 int string_is_valid_ipv4_address(const char *string);
 int string_is_valid_ipv6_address(const char *string);
 
@@ -246,6 +271,7 @@ int parse_rfc1123_time(const char *buf, time_t *t);
 #define ISO_TIME_USEC_LEN (ISO_TIME_LEN+7)
 void format_local_iso_time(char *buf, time_t t);
 void format_iso_time(char *buf, time_t t);
+void format_local_iso_time_nospace(char *buf, time_t t);
 void format_iso_time_nospace(char *buf, time_t t);
 void format_iso_time_nospace_usec(char *buf, const struct timeval *tv);
 int parse_iso_time_(const char *cp, time_t *t, int strict, int nospace);
@@ -391,11 +417,6 @@ void start_daemon(void);
 void finish_daemon(const char *desired_cwd);
 int write_pidfile(const char *filename);
 
-/* Port forwarding */
-void tor_check_port_forwarding(const char *filename,
-                               struct smartlist_t *ports_to_forward,
-                               time_t now);
-
 void tor_disable_spawning_background_processes(void);
 
 typedef struct process_handle_t process_handle_t;
@@ -423,7 +444,9 @@ struct process_environment_t {
 };
 
 process_environment_t *process_environment_make(struct smartlist_t *env_vars);
-void process_environment_free(process_environment_t *env);
+void process_environment_free_(process_environment_t *env);
+#define process_environment_free(env) \
+  FREE_AND_NULL(process_environment_t, process_environment_free_, (env))
 
 struct smartlist_t *get_current_process_environment_variables(void);
 
@@ -432,9 +455,7 @@ void set_environment_variable_in_smartlist(struct smartlist_t *env_vars,
                                            void (*free_old)(void*),
                                            int free_p);
 
-/* Values of process_handle_t.status. PROCESS_STATUS_NOTRUNNING must be
- * 0 because tor_check_port_forwarding depends on this being the initial
- * statue of the static instance of process_handle_t */
+/* Values of process_handle_t.status. */
 #define PROCESS_STATUS_NOTRUNNING 0
 #define PROCESS_STATUS_RUNNING 1
 #define PROCESS_STATUS_ERROR -1

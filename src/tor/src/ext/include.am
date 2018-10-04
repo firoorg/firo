@@ -170,6 +170,7 @@ EXTRA_DIST += \
 	src/ext/timeouts/bench/Rules.mk			\
 	src/ext/timeouts/lua/Rules.mk			\
 	src/ext/timeouts/lua/timeout-lua.c		\
+	src/ext/timeouts/Makefile			\
 	src/ext/timeouts/Rules.shrc			\
 	src/ext/timeouts/test-timeout.c
 

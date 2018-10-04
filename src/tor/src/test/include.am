@@ -9,7 +9,11 @@ TESTS_ENVIRONMENT = \
 	export builddir="$(builddir)"; \
 	export TESTING_TOR_BINARY="$(TESTING_TOR_BINARY)"; \
 	export CARGO="$(CARGO)"; \
-	export CARGO_ONLINE="$(CARGO_ONLINE)";
+	export EXTRA_CARGO_OPTIONS="$(EXTRA_CARGO_OPTIONS)"; \
+	export CARGO_ONLINE="$(CARGO_ONLINE)"; \
+        export CCLD="$(CCLD)"; \
+        chmod +x "$(abs_top_builddir)/link_rust.sh"; \
+        export RUSTFLAGS="-C linker=$(abs_top_builddir)/link_rust.sh";
 
 TESTSCRIPTS = \
 	src/test/fuzz_static_testcases.sh \
@@ -19,8 +23,8 @@ TESTSCRIPTS = \
 	src/test/test_workqueue_efd2.sh \
 	src/test/test_workqueue_pipe.sh \
 	src/test/test_workqueue_pipe2.sh \
-	src/test/test_workqueue_socketpair.sh \
-	src/test/test_switch_id.sh
+	src/test/test_workqueue_socketpair.sh 
+#	src/test/test_switch_id.sh
 
 if USE_RUST
 TESTSCRIPTS += \
@@ -31,7 +35,7 @@ if USEPYTHON
 TESTSCRIPTS += src/test/test_ntor.sh src/test/test_hs_ntor.sh src/test/test_bt.sh
 endif
 
-TESTS += src/test/test src/test/test-slow src/test/test-memwipe \
+TESTS += src/test/test src/test/test src/test/test-memwipe \
 	src/test/test_workqueue \
 	src/test/test_keygen.sh \
 	src/test/test_key_expiration.sh \
@@ -79,7 +83,10 @@ src_test_AM_CPPFLAGS = -DSHARE_DATADIR="\"$(datadir)\"" \
 # This seems to matter nowhere but on Windows, but I assure you that it
 # matters a lot there, and is quite hard to debug if you forget to do it.
 
-src_test_test_SOURCES = \
+src_test_test_SOURCES =
+
+#if UNITTESTS_ENABLED
+src_test_test_SOURCES += \
 	src/test/log_test_helpers.c \
 	src/test/hs_test_helpers.c \
 	src/test/rend_test_helpers.c \
@@ -87,7 +94,10 @@ src_test_test_SOURCES = \
 	src/test/test_accounting.c \
 	src/test/test_addr.c \
 	src/test/test_address.c \
+	src/test/test_address_set.c \
+	src/test/test_bridges.c \
 	src/test/test_buffers.c \
+	src/test/test_bwmgt.c \
 	src/test/test_cell_formats.c \
 	src/test/test_cell_queue.c \
 	src/test/test_channel.c \
@@ -98,6 +108,7 @@ src_test_test_SOURCES = \
 	src/test/test_circuitmux.c \
 	src/test/test_circuitbuild.c \
 	src/test/test_circuituse.c \
+	src/test/test_circuitstats.c \
 	src/test/test_compat_libevent.c \
 	src/test/test_config.c \
 	src/test/test_connection.c \
@@ -113,8 +124,10 @@ src_test_test_SOURCES = \
 	src/test/test_dir.c \
 	src/test/test_dir_common.c \
 	src/test/test_dir_handle_get.c \
+	src/test/test_dos.c \
 	src/test/test_entryconn.c \
 	src/test/test_entrynodes.c \
+	src/test/test_geoip.c \
 	src/test/test_guardfraction.c \
 	src/test/test_extorport.c \
 	src/test/test_hs.c \
@@ -125,6 +138,7 @@ src_test_test_SOURCES = \
 	src/test/test_hs_service.c \
 	src/test/test_hs_client.c  \
 	src/test/test_hs_intropoint.c \
+	src/test/test_hs_control.c \
 	src/test/test_handles.c \
 	src/test/test_hs_cache.c \
 	src/test/test_hs_descriptor.c \
@@ -132,11 +146,13 @@ src_test_test_SOURCES = \
 	src/test/test_keypin.c \
 	src/test/test_link_handshake.c \
 	src/test/test_logging.c \
+	src/test/test_mainloop.c \
 	src/test/test_microdesc.c \
 	src/test/test_nodelist.c \
 	src/test/test_oom.c \
 	src/test/test_oos.c \
 	src/test/test_options.c \
+	src/test/test_periodic_event.c \
 	src/test/test_policy.c \
 	src/test/test_procmon.c \
 	src/test/test_proto_http.c \
@@ -146,13 +162,13 @@ src_test_test_SOURCES = \
 	src/test/test_pubsub.c \
 	src/test/test_relay.c \
 	src/test/test_relaycell.c \
+	src/test/test_relaycrypt.c \
 	src/test/test_rendcache.c \
 	src/test/test_replay.c \
 	src/test/test_router.c \
 	src/test/test_routerkeys.c \
 	src/test/test_routerlist.c \
 	src/test/test_routerset.c \
-	src/test/test_rust.c \
 	src/test/test_scheduler.c \
 	src/test/test_shared_random.c \
 	src/test/test_socks.c \
@@ -163,19 +179,24 @@ src_test_test_SOURCES = \
 	src/test/test_util.c \
 	src/test/test_util_format.c \
 	src/test/test_util_process.c \
+	src/test/test_voting_schedule.c \
 	src/test/test_helpers.c \
 	src/test/test_dns.c \
 	src/test/testing_common.c \
 	src/test/testing_rsakeys.c \
 	src/ext/tinytest.c
+#endif
 
-src_test_test_slow_SOURCES = \
+src_test_test_slow_SOURCES =
+#if UNITTESTS_ENABLED
+src_test_test_slow_SOURCES += \
 	src/test/test_slow.c \
 	src/test/test_crypto_slow.c \
 	src/test/test_util_slow.c \
 	src/test/testing_common.c \
 	src/test/testing_rsakeys.c \
 	src/ext/tinytest.c
+#endif
 
 src_test_test_memwipe_SOURCES = \
 	src/test/test-memwipe.c
@@ -322,6 +343,7 @@ src_test_test_hs_ntor_cl_AM_CPPFLAGS =	       \
 	-I"$(top_srcdir)/src/or"
 
 
+#if UNITTESTS_ENABLED
 noinst_PROGRAMS += src/test/test-bt-cl
 src_test_test_bt_cl_SOURCES = src/test/test_bt_cl.c
 src_test_test_bt_cl_LDADD = src/common/libor-testing.a \
@@ -329,9 +351,10 @@ src_test_test_bt_cl_LDADD = src/common/libor-testing.a \
 	src/trace/libor-trace.a \
 	$(rust_ldadd) \
 	@TOR_LIB_MATH@ \
-	@TOR_LIB_WS32@ @TOR_LIB_GDI@ @TOR_LIB_USERENV@ 
+	@TOR_LIB_WS32@ @TOR_LIB_GDI@ @TOR_LIB_USERENV@
 src_test_test_bt_cl_CFLAGS = $(AM_CFLAGS) $(TEST_CFLAGS)
 src_test_test_bt_cl_CPPFLAGS= $(src_test_AM_CPPFLAGS) $(TEST_CPPFLAGS)
+#endif
 
 EXTRA_DIST += \
 	src/test/bt_test.py \
@@ -342,6 +365,7 @@ EXTRA_DIST += \
 	src/test/fuzz_static_testcases.sh \
 	src/test/slownacl_curve25519.py \
 	src/test/zero_length_keys.sh \
+        src/test/rust_supp.txt \
 	src/test/test_keygen.sh \
 	src/test/test_key_expiration.sh \
 	src/test/test_zero_length_keys.sh \
@@ -356,3 +380,5 @@ EXTRA_DIST += \
 	src/test/test_workqueue_pipe2.sh \
 	src/test/test_workqueue_socketpair.sh
 
+test-rust:
+	$(TESTS_ENVIRONMENT) "$(abs_top_srcdir)/src/test/test_rust.sh"

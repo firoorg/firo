@@ -139,6 +139,7 @@ BITCOIN_CORE_H = \
   keystore.h \
   dbwrapper.h \
   limitedmap.h \
+  threadinterrupt.h \
   main.h \
   znode.h \
   znode-payments.h \
@@ -221,6 +222,7 @@ libbitcoin_server_a_SOURCES = \
   httpserver.cpp \
   init.cpp \
   dbwrapper.cpp \
+  threadinterrupt.cpp \
   main.cpp \
   merkleblock.cpp \
   miner.cpp \
@@ -291,6 +293,8 @@ crypto_libbitcoin_crypto_a_SOURCES = \
   crypto/aes.cpp \
   crypto/aes.h \
   crypto/common.h \
+  crypto/chacha20.h \                           
+  crypto/chacha20.cpp \    
   crypto/hmac_sha256.cpp \
   crypto/hmac_sha256.h \
   crypto/hmac_sha512.cpp \

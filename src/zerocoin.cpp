@@ -7,6 +7,8 @@
 #include "definition.h"
 #include "wallet/wallet.h"
 #include "wallet/walletdb.h"
+#include "znode-payments.h"
+#include "znode-sync.h"
 
 #include <atomic>
 #include <sstream>
@@ -182,15 +184,15 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
         bool passVerify = false;
         CBlockIndex *index = coinGroup.lastBlock;
         pair<int,int> denominationAndId = make_pair(targetDenomination, pubcoinId);
-		
+
 		bool spendHasBlockHash = false;
-		
+
         // Zerocoin v1.5/v2 transaction can cointain block hash of the last mint tx seen at the moment of spend. It speeds
 		// up verification
         if (spendVersion > ZEROCOIN_TX_VERSION_1 && !newSpend.getAccumulatorBlockHash().IsNull()) {
 			spendHasBlockHash = true;
 			uint256 accumulatorBlockHash = newSpend.getAccumulatorBlockHash();
-			
+
 			// find index for block with hash of accumulatorBlockHash or set index to the coinGroup.firstBlock if not found
 			while (index != coinGroup.firstBlock && index->GetBlockHash() != accumulatorBlockHash)
 				index = index->pprev;
@@ -459,16 +461,28 @@ bool CheckZerocoinFoundersInputs(const CTransaction &tx, CValidationState &state
                     total_payment_tx = total_payment_tx + 1;
                 }
             }
+
+            bool validZnodePayment;
+
+            if (nHeight > ZC_ZNODE_PAYMENT_BUG_FIXED_AT_BLOCK) {
+                if (!znodeSync.IsSynced()) {
+                    validZnodePayment = true;
+                } else {
+                    validZnodePayment = mnpayments.IsTransactionValid(tx, nHeight, fMTP);
+                }
+            } else {
+                validZnodePayment = total_payment_tx <= 1;
+            }
+
+            if (!validZnodePayment) {
+                return state.DoS(100, false, REJECT_INVALID_ZNODE_PAYMENT,
+                                 "CTransaction::CheckTransaction() : invalid znode payment");
+            }
         }
 
         if (!(found_1 && found_2 && found_3 && found_4 && found_5)) {
             return state.DoS(100, false, REJECT_FOUNDER_REWARD_MISSING,
                              "CTransaction::CheckTransaction() : founders reward missing");
-        }
-
-        if (total_payment_tx > 1) {
-            return state.DoS(100, false, REJECT_INVALID_ZNODE_PAYMENT,
-                             "CTransaction::CheckTransaction() : invalid znode payment");
         }
     }
 
@@ -515,16 +529,31 @@ bool CheckZerocoinTransaction(const CTransaction &tx,
 			}
 		}
 	}
-	
+
 	return true;
 }
 
 void DisconnectTipZC(CBlock & /*block*/, CBlockIndex *pindexDelete) {
     zerocoinState.RemoveBlock(pindexDelete);
-
-    // TODO: notify the wallet
 }
 
+CBigNum ZerocoinGetSpendSerialNumber(const CTransaction &tx) {
+    if (!tx.IsZerocoinSpend() || tx.vin.size() != 1)
+        return CBigNum(0);
+
+    const CTxIn &txin = tx.vin[0];
+
+    try {
+        CDataStream serializedCoinSpend((const char *)&*(txin.scriptSig.begin() + 4),
+                                    (const char *)&*txin.scriptSig.end(),
+                                    SER_NETWORK, PROTOCOL_VERSION);
+        libzerocoin::CoinSpend spend(txin.nSequence >= ZC_MODULUS_V2_BASE_ID ? ZCParamsV2 : ZCParams, serializedCoinSpend);
+        return spend.getCoinSerialNumber();
+    }
+    catch (const std::runtime_error &) {
+        return CBigNum(0);
+    }
+}
 
 /**
  * Connect a new ZCblock to chainActive. pblock is either NULL or a pointer to a CBlock
@@ -550,7 +579,7 @@ bool ConnectBlockZC(CValidationState &state, const CChainParams &chainParams, CB
             BOOST_FOREACH(const PAIRTYPE(CBigNum,int) &serial, pblock->zerocoinTxInfo->spentSerials) {
                 if (!CheckZerocoinSpendSerial(state, chainParams.GetConsensus(), pblock->zerocoinTxInfo.get(), (libzerocoin::CoinDenomination)serial.second, serial.first, pindexNew->nHeight, true))
                     return false;
-	            
+
 	            if (!fJustCheck) {
 		            pindexNew->spentSerials.insert(serial.first);
 		            zerocoinState.AddSpend(serial.first);
@@ -564,7 +593,7 @@ bool ConnectBlockZC(CValidationState &state, const CChainParams &chainParams, CB
         // Update minted values and accumulators
         BOOST_FOREACH(const PAIRTYPE(int,CBigNum) &mint, pblock->zerocoinTxInfo->mints) {
             CBigNum oldAccValue(0);
-            int denomination = mint.first;            
+            int denomination = mint.first;
             int mintId = zerocoinState.AddMint(pindexNew, denomination, mint.second, oldAccValue);
 
             libzerocoin::Params *zcParams = IsZerocoinTxV2((libzerocoin::CoinDenomination)denomination, 
@@ -597,7 +626,7 @@ bool ConnectBlockZC(CValidationState &state, const CChainParams &chainParams, CB
             }
             // invalidate alternative accumulator value for this denomination and id
             pindexNew->alternativeAccumulatorChanges.erase(denomAndId);
-        }               
+        }
     }
     else if (!fJustCheck) {
         zerocoinState.AddBlock(pindexNew, chainParams.GetConsensus());
@@ -1043,15 +1072,37 @@ set<CBlockIndex *> CZerocoinState::RecalculateAccumulators(CChain *chain) {
     return changes;
 }
 
+bool CZerocoinState::AddSpendToMempool(const CBigNum &coinSerial, uint256 txHash) {
+    if (IsUsedCoinSerial(coinSerial) || mempoolCoinSerials.count(coinSerial))
+        return false;
+
+    mempoolCoinSerials[coinSerial] = txHash;
+    return true;
+}
+
+void CZerocoinState::RemoveSpendFromMempool(const CBigNum &coinSerial) {
+    mempoolCoinSerials.erase(coinSerial);
+}
+
+uint256 CZerocoinState::GetMempoolConflictingTxHash(const CBigNum &coinSerial) {
+    if (mempoolCoinSerials.count(coinSerial) == 0)
+        return uint256();
+
+    return mempoolCoinSerials[coinSerial];
+}
+
+bool CZerocoinState::CanAddSpendToMempool(const CBigNum &coinSerial) {
+    return !IsUsedCoinSerial(coinSerial) && mempoolCoinSerials.count(coinSerial) == 0;
+}
+
 void CZerocoinState::Reset() {
     coinGroups.clear();
     usedCoinSerials.clear();
     mintedPubCoins.clear();
     latestCoinIds.clear();
+    mempoolCoinSerials.clear();
 }
 
 CZerocoinState *CZerocoinState::GetZerocoinState() {
     return &zerocoinState;
 }
-
-

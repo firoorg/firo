@@ -46,7 +46,7 @@ ZerocoinPage::ZerocoinPage(const PlatformStyle *platformStyle, Mode mode, QWidge
             setWindowTitle(tr("Zerocoin"));
     }
     ui->labelExplanation->setText(
-            tr("These are your private coins from mint zerocoin operation, You can perform spend zerocoin operation to redeem zcoin back from Zerocoin."));
+            tr("Here you can use your Zcoin to mint a new, private Zerocoin or spend a previously-minted Zerocoin to a 3rd party Zcoin address or your own wallet"));
     ui->zerocoinAmount->setVisible(true);
     ui->zerocoinMintButton->setVisible(true);
     ui->zerocoinSpendButton->setVisible(true);
@@ -120,7 +120,7 @@ void ZerocoinPage::on_zerocoinMintButton_clicked() {
                               QMessageBox::Ok, QMessageBox::Ok);
     }else{
     	QMessageBox::information(this, tr("Success"),
-    	                              tr("You have been successfully mint zerocoin from the wallet"),
+    	                              tr("Zerocoin successfully minted"),
     	                              QMessageBox::Ok, QMessageBox::Ok);
 
     }
@@ -148,7 +148,7 @@ void ZerocoinPage::on_zerocoinSpendButton_clicked() {
 								  QMessageBox::Ok, QMessageBox::Ok);
 		}else{
 			QMessageBox::information(this, tr("Success"),
-										  tr("You have been successfully spent zerocoin from the wallet"),
+										  tr("Zerocoin successfully spent"),
 										  QMessageBox::Ok, QMessageBox::Ok);
 
 		}
@@ -212,7 +212,7 @@ void ZerocoinPage::zerocoinSpendToMeCheckBoxChecked(int state) {
 
 void ZerocoinPage::on_exportButton_clicked() {
     // CSV is currently the only supported format
-    QString filename = GUIUtil::getSaveFileName(this, tr("Export Address List"), QString(), tr("Comma separated file (*.csv)"), NULL);
+    QString filename = GUIUtil::getSaveFileName(this, tr("Export Address List"), QString(), tr("Comma-separated file (*.csv)"), NULL);
 
     if (filename.isNull())
         return;
@@ -225,7 +225,7 @@ void ZerocoinPage::on_exportButton_clicked() {
     writer.addColumn("Address", AddressTableModel::Address, Qt::EditRole);
 
     if (!writer.write()) {
-        QMessageBox::critical(this, tr("Exporting Failed"), tr("There was an error trying to save the address list to %1. Please try again.").arg(
+        QMessageBox::critical(this, tr("Export Failed"), tr("There was an error trying to save the address list to %1. Please try again.").arg(
                 filename));
     }
 }

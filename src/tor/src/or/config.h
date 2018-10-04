@@ -22,6 +22,13 @@
  * expose more information than we're comfortable with. */
 #define MIN_HEARTBEAT_PERIOD (30*60)
 
+/** Maximum default value for MaxMemInQueues, in bytes. */
+#if SIZEOF_VOID_P >= 8
+#define MAX_DEFAULT_MEMORY_QUEUE_SIZE (U64_LITERAL(8) << 30)
+#else
+#define MAX_DEFAULT_MEMORY_QUEUE_SIZE (U64_LITERAL(2) << 30)
+#endif
+
 MOCK_DECL(const char*, get_dirportfrontpage, (void));
 MOCK_DECL(const or_options_t *, get_options, (void));
 MOCK_DECL(or_options_t *, get_options_mutable, (void));
@@ -31,6 +38,7 @@ const char *safe_str_client(const char *address);
 const char *safe_str(const char *address);
 const char *escaped_safe_str_client(const char *address);
 const char *escaped_safe_str(const char *address);
+void init_protocol_warning_severity_level(void);
 int get_protocol_warning_severity_level(void);
 const char *get_version(void);
 const char *get_short_version(void);
@@ -58,30 +66,76 @@ config_line_t *option_get_assignment(const or_options_t *options,
                                      const char *key);
 int options_save_current(void);
 const char *get_torrc_fname(int defaults_fname);
+typedef enum {
+  DIRROOT_DATADIR,
+  DIRROOT_CACHEDIR,
+  DIRROOT_KEYDIR
+} directory_root_t;
+
 MOCK_DECL(char *,
-          options_get_datadir_fname2_suffix,
+          options_get_dir_fname2_suffix,
           (const or_options_t *options,
+           directory_root_t roottype,
            const char *sub1, const char *sub2,
            const char *suffix));
-#define get_datadir_fname2_suffix(sub1, sub2, suffix) \
-  options_get_datadir_fname2_suffix(get_options(), (sub1), (sub2), (suffix))
-/** Return a newly allocated string containing datadir/sub1.  See
- * get_datadir_fname2_suffix.  */
-#define get_datadir_fname(sub1) get_datadir_fname2_suffix((sub1), NULL, NULL)
-/** Return a newly allocated string containing datadir/sub1/sub2.  See
- * get_datadir_fname2_suffix.  */
-#define get_datadir_fname2(sub1,sub2) \
-  get_datadir_fname2_suffix((sub1), (sub2), NULL)
-/** Return a newly allocated string containing datadir/sub1/sub2 relative to
- * opts.  See get_datadir_fname2_suffix.  */
+
+/* These macros wrap options_get_dir_fname2_suffix to provide a more
+ * convenient API for finding filenames that Tor uses inside its storage
+ * They are named according to a pattern:
+ *    (options_)?get_(cache|key|data)dir_fname(2)?(_suffix)?
+ *
+ * Macros that begin with options_ take an options argument; the others
+ * work with respect to the global options.
+ *
+ * Each macro works relative to the data directory, the key directory,
+ * or the cache directory, as determined by which one is mentioned.
+ *
+ * Macro variants with "2" in their name take two path components; others
+ * take one.
+ *
+ * Macro variants with "_suffix" at the end take an additional suffix
+ * that gets appended to the end of the file
+ */
+#define options_get_datadir_fname2_suffix(options, sub1, sub2, suffix) \
+  options_get_dir_fname2_suffix((options), DIRROOT_DATADIR, \
+                                (sub1), (sub2), (suffix))
+#define options_get_cachedir_fname2_suffix(options, sub1, sub2, suffix) \
+  options_get_dir_fname2_suffix((options), DIRROOT_CACHEDIR, \
+                                (sub1), (sub2), (suffix))
+#define options_get_keydir_fname2_suffix(options, sub1, sub2, suffix) \
+  options_get_dir_fname2_suffix((options), DIRROOT_KEYDIR, \
+                                (sub1), (sub2), (suffix))
+
+#define options_get_datadir_fname(opts,sub1)                    \
+  options_get_datadir_fname2_suffix((opts),(sub1), NULL, NULL)
 #define options_get_datadir_fname2(opts,sub1,sub2)                      \
   options_get_datadir_fname2_suffix((opts),(sub1), (sub2), NULL)
-/** Return a newly allocated string containing datadir/sub1suffix.  See
- * get_datadir_fname2_suffix. */
+
+#define get_datadir_fname2_suffix(sub1, sub2, suffix) \
+  options_get_datadir_fname2_suffix(get_options(), (sub1), (sub2), (suffix))
+#define get_datadir_fname(sub1)                 \
+  get_datadir_fname2_suffix((sub1), NULL, NULL)
+#define get_datadir_fname2(sub1,sub2) \
+  get_datadir_fname2_suffix((sub1), (sub2), NULL)
 #define get_datadir_fname_suffix(sub1, suffix) \
   get_datadir_fname2_suffix((sub1), NULL, (suffix))
 
+/** DOCDOC */
+#define options_get_keydir_fname(options, sub1)  \
+  options_get_keydir_fname2_suffix((options), (sub1), NULL, NULL)
+#define get_keydir_fname_suffix(sub1, suffix)   \
+  options_get_keydir_fname2_suffix(get_options(), (sub1), NULL, suffix)
+#define get_keydir_fname(sub1)                  \
+  options_get_keydir_fname2_suffix(get_options(), (sub1), NULL, NULL)
+
+#define get_cachedir_fname(sub1) \
+  options_get_cachedir_fname2_suffix(get_options(), (sub1), NULL, NULL)
+#define get_cachedir_fname_suffix(sub1, suffix) \
+  options_get_cachedir_fname2_suffix(get_options(), (sub1), NULL, (suffix))
+
 int using_default_dir_authorities(const or_options_t *options);
+
+int create_keys_directory(const or_options_t *options);
 
 int check_or_create_data_subdir(const char *subdir);
 int write_to_data_subdir(const char* subdir, const char* fname,
@@ -152,11 +206,16 @@ typedef struct bridge_line_t {
                                transport proxy. */
 } bridge_line_t;
 
-void bridge_line_free(bridge_line_t *bridge_line);
+void bridge_line_free_(bridge_line_t *bridge_line);
+#define bridge_line_free(line) \
+  FREE_AND_NULL(bridge_line_t, bridge_line_free_, (line))
 bridge_line_t *parse_bridge_line(const char *line);
 smartlist_t *get_options_from_transport_options_line(const char *line,
                                                      const char *transport);
 smartlist_t *get_options_for_server_transport(const char *transport);
+
+/* Port helper functions. */
+int options_any_client_port_set(const or_options_t *options);
 
 #ifdef CONFIG_PRIVATE
 
@@ -175,8 +234,12 @@ extern struct config_format_t options_format;
 #endif
 
 STATIC port_cfg_t *port_cfg_new(size_t namelen);
-STATIC void port_cfg_free(port_cfg_t *port);
-STATIC void or_options_free(or_options_t *options);
+#define port_cfg_free(port) \
+  FREE_AND_NULL(port_cfg_t, port_cfg_free_, (port))
+STATIC void port_cfg_free_(port_cfg_t *port);
+#define or_options_free(opt) \
+  FREE_AND_NULL(or_options_t, or_options_free_, (opt))
+STATIC void or_options_free_(or_options_t *options);
 STATIC int options_validate_single_onion(or_options_t *options,
                                          char **msg);
 STATIC int options_validate(or_options_t *old_options,
@@ -205,6 +268,10 @@ STATIC int parse_port_config(smartlist_t *out,
                   const unsigned flags);
 
 STATIC int check_bridge_distribution_setting(const char *bd);
+
+STATIC uint64_t compute_real_max_mem_in_queues(const uint64_t val,
+                                               int log_guess);
+
 #endif /* defined(CONFIG_PRIVATE) */
 
 #endif /* !defined(TOR_CONFIG_H) */

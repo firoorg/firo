@@ -261,7 +261,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
         MAX_SPEND_ZC_TX_PER_BLOCK = 1;
     }
     if(fTestNet || nHeight > SWITCH_TO_MORE_SPEND_TXS){
-        MAX_SPEND_ZC_TX_PER_BLOCK = 1;
+        MAX_SPEND_ZC_TX_PER_BLOCK = 5;
     }
 
     if(Params().NetworkIDString() == CBaseChainParams::REGTEST)
@@ -449,6 +449,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
                 nBlockSigOpsCost += nTxSigOps;
                 nFees += nTxFees;
                 COUNT_SPEND_ZC_TX++;
+                inBlock.insert(iter);
                 continue;
             }
             unsigned int nTxSigOps = iter->GetSigOpCost();

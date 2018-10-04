@@ -10,6 +10,7 @@
 
 #include <stdint.h>
 #include <vector>
+#include <iostream>
 
 #include "chainparams.h"
 #include "consensus/consensus.h"
@@ -124,18 +125,10 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend)
     string denomination;
     vector<uint256> vtxid;
     std::vector<CMutableTransaction> MinTxns;
+    std::vector<std::string> denominations = {"1", "10", "25", "50", "100"};
     for(int i = 0; i < 5; i++)
     {
-        if(denomination == "")
-            denomination = "1";
-        else if(denomination == "1")
-            denomination = "10";
-        else if(denomination == "10")
-            denomination = "25";
-        else if(denomination == "25")
-            denomination = "50";
-        else if(denomination == "50")
-            denomination = "100";
+        denomination = denominations[i];
         printf("Testing denomination %s\n", denomination.c_str());
         string stringError;
         //Make sure that transactions get to mempool
@@ -189,15 +182,15 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend)
 
         BOOST_CHECK_MESSAGE(previousHeight + 5 == chainActive.Height(), "Block not added to chain");
 
-        //Create two spend trancastion using the same mint
+        //Create two spend trancastion using the same mint - Test no longer possible
         BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(stringError, "", denomination.c_str()), "Spend failed");
         BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(stringError, "", denomination.c_str(), true), stringError + " - Spend failed");
 
-        //Try to put two in the same block
-        BOOST_CHECK_MESSAGE(mempool.size() == 2, "Spends was not added to mempool");
+        //Try to put two in the same block and it will fail, expect 1
+        BOOST_CHECK_MESSAGE(mempool.size() == 1, "Spends was not added to mempool");
 
-        //Hacky method of forcing double spends to be added to same block
-        vtxid.clear();
+        //NOT POSSIBLE - Hacky method of forcing double spends to be added to same block
+        /*vtxid.clear();
         mempool.queryHashes(vtxid);
         MinTxns.clear();
         MinTxns.push_back(*mempool.get(vtxid.at(0)));
@@ -214,7 +207,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend)
 
         //Create a new spend transaction from a mint that wallet think is used
         BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(stringError, "", denomination.c_str(), true), "Spend failed");
-
+*/
         //Verify spend got into mempool
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Spend was not added to mempool");
 
