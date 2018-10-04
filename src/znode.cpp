@@ -10,6 +10,7 @@
 //#include "governance.h"
 #include "znode.h"
 #include "znode-payments.h"
+#include "znodeconfig.h"
 #include "znode-sync.h"
 #include "znodeman.h"
 #include "util.h"
@@ -433,7 +434,12 @@ UniValue CZnode::ToJSON() const {
     authorityObj.push_back(Pair("ip", ip));
     authorityObj.push_back(Pair("port", stoi(port)));
     
-    std::string myZnode = activeZnode.vin.prevout.ToStringShort();
+    // get outpoints of znodes in znodeConfig
+    vector<std::string> myZnodes;
+    BOOST_FOREACH(CZnodeConfig::CZnodeEntry mne, znodeConfig.getEntries()) {
+        CTxIn vin = CTxIn(uint256S(mne.getTxHash()), uint32_t(atoi(mne.getOutputIndex().c_str())));
+        myZnodes.push_back(vin.prevout.ToStringShort());
+    }
 
     ret.push_back(Pair("rank", nRank));
     ret.push_back(Pair("outpoint", outpointObj));
@@ -445,7 +451,8 @@ UniValue CZnode::ToJSON() const {
     ret.push_back(Pair("lastPaidTime", (int64_t) GetLastPaidTime() * 1000));
     ret.push_back(Pair("lastPaidBlock", GetLastPaidBlock()));
     ret.push_back(Pair("authority", authorityObj));
-    ret.push_back(Pair("isMine", myZnode==outpoint.ToStringShort()));
+    ret.push_back(Pair("isMine", find(myZnodes.begin(), myZnodes.end(), outpoint.ToStringShort()) != myZnodes.end()));
+
 
     UniValue qualify(UniValue::VOBJ);
 
