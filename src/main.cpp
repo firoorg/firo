@@ -5820,9 +5820,9 @@ void static ProcessGetData(CNode *pfrom, const Consensus::Params &consensusParam
                         }
                     }
                 } else if (inv.type == MSG_DANDELION_TX || inv.type == MSG_DANDELION_WITNESS_TX) {
-                    LogPrintf("Peer %s asked for dandelion transaction %s.", 
-                              pfrom->addr.ToString(),
-                              inv.ToString());
+                    //LogPrintf("Peer %s asked for dandelion transaction %s.", 
+                    //          pfrom->addr.ToString(),
+                    //          inv.ToString());
                     int nSendFlags = (
                             inv.type == MSG_DANDELION_TX ?
                             SERIALIZE_TRANSACTION_NO_WITNESS : 0);
@@ -5836,7 +5836,7 @@ void static ProcessGetData(CNode *pfrom, const Consensus::Params &consensusParam
                         push = true;
                     } else if (inv.hash == dandelionServiceDiscoveryHash && 
                                pfrom->setDandelionInventoryKnown.count(inv.hash) != 0) {
-                        LogPrint("dandelion", "Peer %d supports Dandelion\n", pfrom->GetId());
+                        // LogPrint("dandelion", "Peer %d supports Dandelion\n", pfrom->GetId());
                         pfrom->fSupportsDandelion = true;
                         push = true;
                     }
@@ -6637,9 +6637,9 @@ bool static ProcessMessage(CNode *pfrom, string strCommand,
             );
 
             if (CNode::isTxDandelionEmbargoed(tx.GetHash())) {
-                LogPrintf(
-                    "Embargoed dandeliontx %s found in mempool; removing from embargo map\n", 
-                    tx.GetHash().ToString());
+                //LogPrintf(
+                //    "Embargoed dandeliontx %s found in mempool; removing from embargo map\n", 
+                //    tx.GetHash().ToString());
                 CNode::removeDandelionEmbargo(tx.GetHash());
             }
 
@@ -6754,8 +6754,8 @@ bool static ProcessMessage(CNode *pfrom, string strCommand,
                 false /* markZcoinSpendTransactionSerial */
             );
             if (CNode::isTxDandelionEmbargoed(tx.GetHash())) {
-                LogPrintf("Embargoed dandeliontx %s found in mempool; removing from embargo map.\n",
-                          tx.GetHash().ToString());
+                //LogPrintf("Embargoed dandeliontx %s found in mempool; removing from embargo map.\n",
+                //          tx.GetHash().ToString());
                 CNode::removeDandelionEmbargo(tx.GetHash());
             }
             // Changes to mempool should also be made to Dandelion stempool
@@ -6844,11 +6844,11 @@ bool static ProcessMessage(CNode *pfrom, string strCommand,
                     int64_t nEmbargo = 1000000 * DANDELION_EMBARGO_MINIMUM + 
                         PoissonNextSend(nCurrTime, DANDELION_EMBARGO_AVG_ADD);
                     pfrom->insertDandelionEmbargo(tx.GetHash(), nEmbargo);
-                    LogPrint(
-                        "dandelion", 
-                        "dandeliontx %s embargoed for %d seconds\n", 
-                        tx.GetHash().ToString(), 
-                        (nEmbargo-nCurrTime) / 1000000);
+                    //LogPrint(
+                    //    "dandelion", 
+                    //    "dandeliontx %s embargoed for %d seconds\n", 
+                    //    tx.GetHash().ToString(), 
+                    //    (nEmbargo-nCurrTime) / 1000000);
                 }
                 int nDoS = 0;
                 if (state.IsInvalid(nDoS)) {
@@ -7934,12 +7934,12 @@ bool SendMessages(CNode *pto) {
                 dandelionServiceDiscoveryHash.SetHex(
                     "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
                 if (!pto->fSupportsDandelion && hash != dandelionServiceDiscoveryHash) {
-                    LogPrintf("Pushing transaction MSG_TX %s to %s.", 
-                              hash.ToString(), pto->addr.ToString());
+                    //LogPrintf("Pushing transaction MSG_TX %s to %s.", 
+                    //          hash.ToString(), pto->addr.ToString());
                     vInv.push_back(CInv(MSG_TX, hash));
                 } else {
-                    LogPrintf("Pushing dandelion transaction MSG_DANDELION_TX %s to %s.", 
-                              hash.ToString(), pto->addr.ToString());
+                    //LogPrintf("Pushing dandelion transaction MSG_DANDELION_TX %s to %s.", 
+                    //          hash.ToString(), pto->addr.ToString());
                     vInv.push_back(CInv(MSG_DANDELION_TX, hash));
                 }
                 if (vInv.size() == MAX_INV_SZ) {
