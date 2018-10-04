@@ -90,82 +90,11 @@ std::vector<ConsensusCheckpoint> CConsensusParams::GetCheckpoints() const
 }
 
 /**
- * Returns consensus checkpoints for mainnet, used to verify transaction processing.
- */
-std::vector<ConsensusCheckpoint> CMainConsensusParams::GetCheckpoints() const
-{
-    // block height, block hash and consensus hash
-    const ConsensusCheckpoint vCheckpoints[] = {
-        { 250000, uint256S("000000000000003887df1f29024b06fc2200b55f8af8f35453d7be294df2d214"),
-                  uint256S("c2e1e0f3cf3c49d8ee08bd45ad39be27eb400041d6288864ee144892449c97df") },
-        { 260000, uint256S("000000000000001fb91fbcebaaba0e2d926f04908d798a8b598c3bd962951080"),
-                  uint256S("cfe2c574a9f969cfa26f23d3a0a7b3c3f416b50e7fb7b2adffe4524a4a7b0992") },
-        { 270000, uint256S("0000000000000002a775aec59dc6a9e4bb1c025cf1b8c2195dd9dc3998c827c5"),
-                  uint256S("46daa1df4cea9a1edc9624091d94839203239502bafcc3a20df2fee1a446cf42") },
-        { 280000, uint256S("0000000000000001c091ada69f444dc0282ecaabe4808ddbb2532e5555db0c03"),
-                  uint256S("4739e5d00fc94e079428cd5a29421df4de3f2b3a4903990a162d8afdd2605fd9") },
-        { 290000, uint256S("0000000000000000fa0b2badd05db0178623ebf8dd081fe7eb874c26e27d0b3b"),
-                  uint256S("51cb4219ae68cc4bf5bd835a1fadec4c4e587c3653304dfdff8109ea0795bfcb") },
-        { 300000, uint256S("000000000000000082ccf8f1557c5d40b21edabb18d2d691cfbf87118bac7254"),
-                  uint256S("3bc727b74dd660ac080c974af67bb627f5a059b82935839a37ce3309af68b7be") },
-        { 310000, uint256S("0000000000000000125a28cc9e9209ddb75718f599a8039f6c9e7d9f1fb021e0"),
-                  uint256S("1a1923a644bee373649e01a0a825daae8d0b862a3488e7f5b092599862169fb7") },
-        { 320000, uint256S("000000000000000015aab005b28a326ade60f07515c33517ea5cb598f28fb7ea"),
-                  uint256S("30f169f9bff9296157b6d116560af485dc6bccabaf827393d4683823e9dca1f4") },
-        { 330000, uint256S("00000000000000000faabab19f17c0178c754dbed023e6c871dcaf74159c5f02"),
-                  uint256S("52cb759cf37cf8aa25c14f988e1515b966e40cd29a310b8faff6cab0bfe0112e") },
-        { 340000, uint256S("00000000000000000d9b2508615d569e18f00c034d71474fc44a43af8d4a5003"),
-                  uint256S("1e21df8610d5ed32645df4e1aacebbb423e4ebe7097015a2392070bb53b3bdf1") },
-        { 350000, uint256S("0000000000000000053cf64f0400bb38e0c4b3872c38795ddde27acb40a112bb"),
-                  uint256S("05e89e25bb86688aac26bc796084638f10bc7564e391eb5c31e07e26f952f92f") },
-        { 360000, uint256S("00000000000000000ca6e07cf681390ff888b7f96790286a440da0f2b87c8ea6"),
-                  uint256S("0ffa97ffd5ac83030d50fbb23e0e953ff3717aa0b5181734e782a62ac39925af") },
-        { 370000, uint256S("000000000000000002cad3026f68357229dd6eaa6bcef6fe5166e1e53b039b8c"),
-                  uint256S("4cce696e822f390fc83a730095d39f5cca5121398829c087dd0c92154e1fb83c") },
-        { 380000, uint256S("00000000000000000b06cee3cee10d2617e2024a996f5c613f7d786b15a571ff"),
-                  uint256S("32b092620f37c02a1ca33acf5b1f3752642b23e8089ffc4ff0ae401ed41aa9d7") },
-        { 390000, uint256S("00000000000000000520000e60b56818523479ada2614806ba17ce0bbe6eaded"),
-                  uint256S("ef1812cf6cc1b1b89de173666126744e3f2441bb32c5e28233088f4c8757eb19") },
-        { 400000, uint256S("000000000000000004ec466ce4732fe6f1ed1cddc2ed4b328fff5224276e3f6f"),
-                  uint256S("1e8949f29a5250c5819d96fd46e632d145e0c667dafd4478598ebb2bb1d5ba84") },
-        { 410000, uint256S("0000000000000000060d7ea100ecb75c0a4dc482d05ff19ddaa8046b4b80a458"),
-                  uint256S("428a0cce4fe10f2e9874aba3882729149ef1db6e721e16204f65ba5ffb727827") },
-        { 420000, uint256S("000000000000000002cce816c0ab2c5c269cb081896b7dcb34b8422d6b74ffa1"),
-                  uint256S("1ca6c6f7f31ff7705a0336140485338abcbadf27e4bfdb3484b900b0b4673bba") },
-        { 430000, uint256S("000000000000000001868b2bb3a285f3cc6b33ea234eb70facf4dcdf22186b87"),
-                  uint256S("758b6850a3fdd86194d20f4c7f3bbbe66c38f78722c242e2ecefaaa42eda6a15") },
-        { 440000, uint256S("0000000000000000038cc0f7bcdbb451ad34a458e2d535764f835fdeb896f29b"),
-                  uint256S("94e3e045b846b35226c1b7c9399992515094e227fd195626e3875ad812b44e7a") },
-        { 450000, uint256S("0000000000000000014083723ed311a461c648068af8cef8a19dcd620c07a20b"),
-                  uint256S("ed4a1b81afd4662089e9310b5bec98e77cfb6a70a6f679ba365aed24d3d5e71d") },
-        { 460000, uint256S("000000000000000000ef751bbce8e744ad303c47ece06c8d863e4d417efc258c"),
-                  uint256S("a5740ebaad24b87ffb1bbd35ea64a3cda6c58e777a513acec51623fed8287d2d") },
-        { 470000, uint256S("0000000000000000006c539c722e280a0769abd510af0073430159d71e6d7589"),
-                  uint256S("eb68d4ed7b0a84dbf75802d717a754a4cc0c2ad48955e3ea89900493b8101845") },
-        { 480000, uint256S("000000000000000001024c5d7a766b173fc9dbb1be1a4dc7e039e631fd96a8b1"),
-                  uint256S("500cc23ba7af3a1fc5d4d910e0c375df515f967b0b9b71871cf38dfc34fb5334") },
-        { 490000, uint256S("000000000000000000de069137b17b8d5a3dfbd5b145b2dcfb203f15d0c4de90"),
-                  uint256S("37248b5d4ec7c2c6ff4fd2aa98a4092c46f2c38a19f9241bffb47157cfb76e4f") },
-    };
-
-    const size_t nSize = sizeof(vCheckpoints) / sizeof(vCheckpoints[0]);
-
-    return std::vector<ConsensusCheckpoint>(vCheckpoints, vCheckpoints + nSize);
-}
-
-/**
  * Constructor for mainnet consensus parameters.
  */
 CMainConsensusParams::CMainConsensusParams()
 {
-    // Exodus related:
-    exodusBonusPerWeek = 0.10;
-    exodusDeadline = 1377993600;
-    exodusReward = 100;
-    //GENESIS_BLOCK = 249498;
-    GENESIS_BLOCK = 1;
-    //LAST_EXODUS_BLOCK = 255365;
-    LAST_EXODUS_BLOCK = 680;
+    GENESIS_BLOCK = 111111;
     // Notice range for feature activations:
     MIN_ACTIVATION_BLOCKS = 2048;  // ~2 weeks
     MAX_ACTIVATION_BLOCKS = 12288; // ~12 weeks
@@ -173,21 +102,11 @@ CMainConsensusParams::CMainConsensusParams()
     EXODUS_FREEZE_WAIT_PERIOD = 4096; // ~4 weeks
     // Script related:
     PUBKEYHASH_BLOCK = 0;
-    //SCRIPTHASH_BLOCK = 322000;
     SCRIPTHASH_BLOCK = 0;
     MULTISIG_BLOCK = 0;
-    //NULLDATA_BLOCK = 395000;
     NULLDATA_BLOCK = 0;
     // Transaction restrictions:
     EXODUS_ALERT_BLOCK = 0;
-    //EXODUS_SEND_BLOCK = 249498;
-    //EXODUS_DEX_BLOCK = 290630;
-    //EXODUS_SP_BLOCK = 297110;
-    //EXODUS_MANUALSP_BLOCK = 323230;
-    //EXODUS_STO_BLOCK = 342650;
-    //EXODUS_METADEX_BLOCK = 400000;
-    //EXODUS_SEND_ALL_BLOCK = 395000;
-
     EXODUS_SEND_BLOCK = 0;
     EXODUS_DEX_BLOCK = 0;
     EXODUS_SP_BLOCK = 0;
@@ -195,22 +114,13 @@ CMainConsensusParams::CMainConsensusParams()
     EXODUS_STO_BLOCK = 0;
     EXODUS_METADEX_BLOCK = 0;
     EXODUS_SEND_ALL_BLOCK = 0;
-
-
     EXODUS_BET_BLOCK = 999999;
     EXODUS_STOV1_BLOCK = 999999;
     // Other feature activations:
-    //GRANTEFFECTS_FEATURE_BLOCK = 394500;
-    //DEXMATH_FEATURE_BLOCK = 395000;
-    //SPCROWDCROSSOVER_FEATURE_BLOCK = 395000;
-    //TRADEALLPAIRS_FEATURE_BLOCK = 438500;
-
     GRANTEFFECTS_FEATURE_BLOCK = 0;
     DEXMATH_FEATURE_BLOCK = 0;
     SPCROWDCROSSOVER_FEATURE_BLOCK = 0;
     TRADEALLPAIRS_FEATURE_BLOCK = 0;
-
-
     FEES_FEATURE_BLOCK = 999999;
     FREEZENOTICE_FEATURE_BLOCK = 999999;
 }
@@ -220,12 +130,7 @@ CMainConsensusParams::CMainConsensusParams()
  */
 CTestNetConsensusParams::CTestNetConsensusParams()
 {
-    // Exodus related:
-    exodusBonusPerWeek = 0.00;
-    exodusDeadline = 1377993600;
-    exodusReward = 100;
-    GENESIS_BLOCK = 263000;
-    LAST_EXODUS_BLOCK = std::numeric_limits<int>::max();
+    GENESIS_BLOCK = 88000;
     // Notice range for feature activations:
     MIN_ACTIVATION_BLOCKS = 0;
     MAX_ACTIVATION_BLOCKS = 999999;
@@ -246,14 +151,14 @@ CTestNetConsensusParams::CTestNetConsensusParams()
     EXODUS_METADEX_BLOCK = 0;
     EXODUS_SEND_ALL_BLOCK = 0;
     EXODUS_BET_BLOCK = 999999;
-    EXODUS_STOV1_BLOCK = 0;
+    EXODUS_STOV1_BLOCK = 999999;
     // Other feature activations:
     GRANTEFFECTS_FEATURE_BLOCK = 0;
     DEXMATH_FEATURE_BLOCK = 0;
     SPCROWDCROSSOVER_FEATURE_BLOCK = 0;
     TRADEALLPAIRS_FEATURE_BLOCK = 0;
-    FEES_FEATURE_BLOCK = 0;
-    FREEZENOTICE_FEATURE_BLOCK = 0;
+    FEES_FEATURE_BLOCK = 999999;
+    FREEZENOTICE_FEATURE_BLOCK = 999999;
 }
 
 /**
@@ -261,12 +166,7 @@ CTestNetConsensusParams::CTestNetConsensusParams()
  */
 CRegTestConsensusParams::CRegTestConsensusParams()
 {
-    // Exodus related:
-    exodusBonusPerWeek = 0.00;
-    exodusDeadline = 1377993600;
-    exodusReward = 100;
     GENESIS_BLOCK = 101;
-    LAST_EXODUS_BLOCK = std::numeric_limits<int>::max();
     // Notice range for feature activations:
     MIN_ACTIVATION_BLOCKS = 5;
     MAX_ACTIVATION_BLOCKS = 10;
@@ -289,10 +189,10 @@ CRegTestConsensusParams::CRegTestConsensusParams()
     EXODUS_BET_BLOCK = 999999;
     EXODUS_STOV1_BLOCK = 999999;
     // Other feature activations:
-    GRANTEFFECTS_FEATURE_BLOCK = 999999;
-    DEXMATH_FEATURE_BLOCK = 999999;
-    SPCROWDCROSSOVER_FEATURE_BLOCK = 999999;
-    TRADEALLPAIRS_FEATURE_BLOCK = 999999;
+    GRANTEFFECTS_FEATURE_BLOCK = 0;
+    DEXMATH_FEATURE_BLOCK = 0;
+    SPCROWDCROSSOVER_FEATURE_BLOCK = 0;
+    TRADEALLPAIRS_FEATURE_BLOCK = 0;
     FEES_FEATURE_BLOCK = 999999;
     FREEZENOTICE_FEATURE_BLOCK = 999999;
 }

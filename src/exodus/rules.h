@@ -9,11 +9,6 @@
 
 namespace exodus
 {
-//! Block to enable the Exodus fundraiser address in regtest mode
-const int MONEYMAN_REGTEST_BLOCK = 101;
-//! Block to enable the Exodus fundraiser address on testnet
-const int MONEYMAN_TESTNET_BLOCK = 270775;
-
 //! Feature identifier to enable Class C transaction parsing and processing
 const uint16_t FEATURE_CLASS_C = 1;
 //! Feature identifier to enable the distributed token exchange
@@ -72,16 +67,8 @@ struct ConsensusCheckpoint
 class CConsensusParams
 {
 public:
-    //! Earily bird bonus per week of Exodus crowdsale
-    double exodusBonusPerWeek;
-    //! Deadline of Exodus crowdsale as Unix timestamp
-    unsigned int exodusDeadline;
-    //! Number of EXODUS/TEXODUS generated per unit invested
-    int64_t exodusReward;
-    //! First block of the Exodus crowdsale
+    //! First block of the Exodus feature
     int GENESIS_BLOCK;
-    //! Last block of the Exodus crowdsale
-    int LAST_EXODUS_BLOCK;
 
     //! Minimum number of blocks to use for notice rules on activation
     int MIN_ACTIVATION_BLOCKS;
@@ -157,9 +144,6 @@ public:
     CMainConsensusParams();
     /** Destructor. */
     virtual ~CMainConsensusParams() {}
-
-    /** Returns consensus checkpoints for mainnet, used to verify transaction processing. */
-    virtual std::vector<ConsensusCheckpoint> GetCheckpoints() const;
 };
 
 /** Consensus parameters for testnet.

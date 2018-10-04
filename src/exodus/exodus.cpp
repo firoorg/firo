@@ -626,35 +626,6 @@ void CheckWalletUpdate(bool forceUpdate)
 }
 
 /**
- * Executes Exodus crowdsale purchases.
- *
- * @return True, if it was a valid purchase
- */
-static bool TXExodusFundraiser(const CTransaction& tx, const std::string& sender, int64_t amountInvested, int nBlock, unsigned int nTime)
-{
-    const int secondsPerWeek = 60 * 60 * 24 * 7;
-    const CConsensusParams& params = ConsensusParams();
-
-    if (nBlock >= params.GENESIS_BLOCK && nBlock <= params.LAST_EXODUS_BLOCK) {
-        int deadlineTimeleft = params.exodusDeadline - nTime;
-        double bonusPercentage = params.exodusBonusPerWeek * deadlineTimeleft / secondsPerWeek;
-        double bonus = 1.0 + std::max(bonusPercentage, 0.0);
-
-        int64_t amountGenerated = round(params.exodusReward * amountInvested * bonus);
-        if (amountGenerated > 0) {
-            PrintToLog("Exodus Fundraiser tx detected, tx %s generated %s\n", tx.GetHash().ToString(), FormatDivisibleMP(amountGenerated));
-
-            assert(update_tally_map(sender, EXODUS_PROPERTY_EXODUS, amountGenerated, BALANCE));
-            assert(update_tally_map(sender, EXODUS_PROPERTY_TEXODUS, amountGenerated, BALANCE));
-
-            return true;
-        }
-    }
-
-    return false;
-}
-
-/**
  * Returns the encoding class, used to embed a payload.
  *
  *   0 None
@@ -667,7 +638,6 @@ int exodus::GetEncodingClass(const CTransaction& tx, int nBlock)
     bool hasExodus = false;
     bool hasMultisig = false;
     bool hasOpReturn = false;
-    bool hasMoney = false;
 
     /* Fast Search
      * Perform a string comparison on hex for each scriptPubKey & look directly for Exodus hash160 bytes or exodus marker bytes
@@ -718,9 +688,6 @@ int exodus::GetEncodingClass(const CTransaction& tx, int nBlock)
                 CBitcoinAddress address(dest);
                 if (address == ExodusAddress()) {
                     hasExodus = true;
-                }
-                if (address == ExodusCrowdsaleAddress(nBlock)) {
-                    hasMoney = true;
                 }
             }
         }
@@ -1255,65 +1222,6 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
 int ParseTransaction(const CTransaction& tx, int nBlock, unsigned int idx, CMPTransaction& mptx, unsigned int nTime)
 {
     return parseTransaction(true, tx, nBlock, idx, mptx, nTime);
-}
-
-/**
- * Handles potential DEx payments.
- *
- * Note: must *not* be called outside of the transaction handler, and it does not
- * check, if a transaction marker exists.
- *
- * @return True, if valid
- */
-static bool HandleDExPayments(const CTransaction& tx, int nBlock, const std::string& strSender)
-{
-    int count = 0;
-
-    for (unsigned int n = 0; n < tx.vout.size(); ++n) {
-        CTxDestination dest;
-        if (ExtractDestination(tx.vout[n].scriptPubKey, dest)) {
-            CBitcoinAddress address(dest);
-            if (address == ExodusAddress()) {
-                continue;
-            }
-            std::string strAddress = address.ToString();
-            if (exodus_debug_parser_dex) PrintToLog("payment #%d %s %s\n", count, strAddress, FormatIndivisibleMP(tx.vout[n].nValue));
-
-            // check everything and pay BTC for the property we are buying here...
-            if (0 == DEx_payment(tx.GetHash(), n, strAddress, strSender, tx.vout[n].nValue, nBlock)) ++count;
-        }
-    }
-
-    return (count > 0);
-}
-
-/**
- * Handles potential Exodus crowdsale purchases.
- *
- * Note: must *not* be called outside of the transaction handler, and it does not
- * check, if a transaction marker exists.
- *
- * @return True, if it was a valid purchase
- */
-static bool HandleExodusPurchase(const CTransaction& tx, int nBlock, const std::string& strSender, unsigned int nTime)
-{
-    int64_t amountInvested = 0;
-
-    for (unsigned int n = 0; n < tx.vout.size(); ++n) {
-        CTxDestination dest;
-        if (ExtractDestination(tx.vout[n].scriptPubKey, dest)) {
-            if (CBitcoinAddress(dest) == ExodusCrowdsaleAddress(nBlock)) {
-                amountInvested = tx.vout[n].nValue;
-                break; // TODO: maybe sum all values
-            }
-        }
-    }
-
-    if (0 < amountInvested) {
-        return TXExodusFundraiser(tx, strSender, amountInvested, nBlock, nTime);
-    }
-
-    return false;
 }
 
 /**
@@ -2430,24 +2338,6 @@ bool exodus_handler_tx(const CTransaction& tx, int nBlock, unsigned int idx, con
 
     bool fFoundTx = false;
     int pop_ret = parseTransaction(false, tx, nBlock, idx, mp_obj, nBlockTime);
-
-    if (pop_ret >= 0) {
-        assert(mp_obj.getEncodingClass() != NO_MARKER);
-        assert(mp_obj.getSender().empty() == false);
-
-        // extra iteration of the outputs for every transaction, not needed on mainnet after Exodus closed
-        const CConsensusParams& params = ConsensusParams();
-        if (isNonMainNet() || nBlock <= params.LAST_EXODUS_BLOCK) {
-            fFoundTx |= HandleExodusPurchase(tx, nBlock, mp_obj.getSender(), nBlockTime);
-        }
-    }
-
-    if (pop_ret > 0) {
-        assert(mp_obj.getEncodingClass() == EXODUS_CLASS_A);
-        assert(mp_obj.getPayload().empty() == true);
-
-        fFoundTx |= HandleDExPayments(tx, nBlock, mp_obj.getSender());
-    }
 
     if (0 == pop_ret) {
         int interp_ret = mp_obj.interpretPacket();
@@ -4082,32 +3972,6 @@ const CBitcoinAddress ExodusAddress()
         static CBitcoinAddress mainAddress(exodus_mainnet);
         return mainAddress;
     }
-}
-
-/**
- * Returns the Exodus crowdsale address.
- *
- * Main network:
- *   1EXoDusjGwvnjZUyKkxZ4UHEf77z6A5S4P
- *
- * Test network:
- *   mpexoDuSkGGqvqrkrjiFng38QPkJQVFyqv (for blocks <  270775)
- *   moneyqMan7uh8FqdCA2BV5yZ8qVrc9ikLP (for blocks >= 270775)
- *
- * @return The Exodus fundraiser address
- */
-const CBitcoinAddress ExodusCrowdsaleAddress(int nBlock)
-{
-    if (MONEYMAN_TESTNET_BLOCK <= nBlock && isNonMainNet()) {
-        static CBitcoinAddress moneyAddress(getmoney_testnet);
-        return moneyAddress;
-    }
-    else if (MONEYMAN_REGTEST_BLOCK <= nBlock && RegTest()) {
-        static CBitcoinAddress moneyAddress(getmoney_testnet);
-        return moneyAddress;
-    }
-
-    return ExodusAddress();
 }
 
 /**

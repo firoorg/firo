@@ -21,15 +21,6 @@ CTxOut PayToPubKeyHash_Exodus()
     return CTxOut(amount, scriptPubKey);
 }
 
-CTxOut PayToPubKeyHash_ExodusCrowdsale(int nHeight)
-{
-    CBitcoinAddress address = ExodusCrowdsaleAddress(nHeight);
-    CScript scriptPubKey = GetScriptForDestination(address.Get());
-    int64_t amount = GetDustThreshold(scriptPubKey);
-
-    return CTxOut(amount, scriptPubKey);
-}
-
 CTxOut PayToPubKeyHash_Unrelated()
 {
     CBitcoinAddress address("a6FFPX9EvcDCtKCzootN4EMwMv2K9xnVcV");

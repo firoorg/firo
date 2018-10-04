@@ -14,7 +14,6 @@ EXODUS_TEST_CPP = \
   exodus/test/lock_tests.cpp \
   exodus/test/marker_tests.cpp \
   exodus/test/mbstring_tests.cpp \
-  exodus/test/params_tests.cpp \
   exodus/test/obfuscation_tests.cpp \
   exodus/test/output_restriction_tests.cpp \
   exodus/test/parsing_b_tests.cpp \

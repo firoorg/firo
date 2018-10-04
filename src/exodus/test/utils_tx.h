@@ -4,7 +4,6 @@
 class CTxOut;
 
 CTxOut PayToPubKeyHash_Exodus();
-CTxOut PayToPubKeyHash_ExodusCrowdsale(int nHeight);
 CTxOut PayToPubKeyHash_Unrelated();
 CTxOut PayToScriptHash_Unrelated();
 CTxOut PayToPubKey_Unrelated();

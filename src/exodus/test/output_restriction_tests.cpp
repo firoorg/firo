@@ -36,7 +36,6 @@ BOOST_AUTO_TEST_CASE(input_scripthash)
 {
     int P2SH_BLOCK = ConsensusParams().SCRIPTHASH_BLOCK;
 
-    BOOST_CHECK(!IsAllowedInputType(TX_SCRIPTHASH, 0));
     BOOST_CHECK(!IsAllowedInputType(TX_SCRIPTHASH, P2SH_BLOCK-1));
     BOOST_CHECK(IsAllowedInputType(TX_SCRIPTHASH, P2SH_BLOCK));
     BOOST_CHECK(IsAllowedInputType(TX_SCRIPTHASH, std::numeric_limits<int>::max()));
@@ -84,7 +83,6 @@ BOOST_AUTO_TEST_CASE(output_scripthash)
 {
     int P2SH_BLOCK = ConsensusParams().SCRIPTHASH_BLOCK;
 
-    BOOST_CHECK(!IsAllowedOutputType(TX_SCRIPTHASH, 0));
     BOOST_CHECK(!IsAllowedOutputType(TX_SCRIPTHASH, P2SH_BLOCK-1));
     BOOST_CHECK(IsAllowedOutputType(TX_SCRIPTHASH, P2SH_BLOCK));
     BOOST_CHECK(IsAllowedOutputType(TX_SCRIPTHASH, std::numeric_limits<int>::max()));
@@ -108,7 +106,6 @@ BOOST_AUTO_TEST_CASE(output_nulldata)
 {
     int OP_RETURN_BLOCK = ConsensusParams().NULLDATA_BLOCK;
 
-    BOOST_CHECK(!IsAllowedOutputType(TX_NULL_DATA, 0));
     BOOST_CHECK(!IsAllowedOutputType(TX_NULL_DATA, OP_RETURN_BLOCK-1));
     BOOST_CHECK(IsAllowedOutputType(TX_NULL_DATA, OP_RETURN_BLOCK));
     BOOST_CHECK(IsAllowedOutputType(TX_NULL_DATA, std::numeric_limits<int>::max()));
