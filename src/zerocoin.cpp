@@ -1082,6 +1082,17 @@ set<CBlockIndex *> CZerocoinState::RecalculateAccumulators(CChain *chain) {
     return changes;
 }
 
+bool CZerocoinState::AddSpendToMempool(const vector<CBigNum> &coinSerials, uint256 txHash) {
+    BOOST_FOREACH(CBigNum coinSerial, coinSerials){
+        if (IsUsedCoinSerial(coinSerial) || mempoolCoinSerials.count(coinSerial))
+            return false;
+
+        mempoolCoinSerials[coinSerial] = txHash;        
+    }
+
+    return true;
+}
+
 bool CZerocoinState::AddSpendToMempool(const CBigNum &coinSerial, uint256 txHash) {
     if (IsUsedCoinSerial(coinSerial) || mempoolCoinSerials.count(coinSerial))
         return false;

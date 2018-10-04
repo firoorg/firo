@@ -3023,10 +3023,9 @@ UniValue spendmanyzerocoin(const UniValue& params, bool fHelp) {
 
     // Wallet comments
     CWalletTx wtx;
-    CBigNum coinSerial;
+    vector<CBigNum> coinSerials;
     uint256 txHash;
-    CBigNum zcSelectedValue;
-    bool zcSelectedIsUsed;
+    vector<CBigNum> zcSelectedValues;
     string strError = "";
 
     // begin spend process
@@ -3037,48 +3036,8 @@ UniValue spendmanyzerocoin(const UniValue& params, bool fHelp) {
         LogPrintf("SpendZerocoin() : %s", strError.c_str());
         return strError;
     }
-
-    if (!pwalletMain->CreateMultipleZerocoinSpendTransaction(thirdPartyAddress, denominations, wtx, reservekey, coinSerial, txHash,
-                                        zcSelectedValue, zcSelectedIsUsed, strError)) {
-        LogPrintf("SpendZerocoin() : %s\n", strError.c_str());
-        return strError;
-    }
-
-    if (!pwalletMain->CommitZerocoinSpendTransaction(wtx, reservekey)) {
-        LogPrintf("CommitZerocoinSpendTransaction() -> FAILED!\n");
-        CZerocoinEntry pubCoinTx;
-        list <CZerocoinEntry> listPubCoin;
-        listPubCoin.clear();
-
-        CWalletDB walletdb(pwalletMain->strWalletFile);
-        walletdb.ListPubCoin(listPubCoin);
-        BOOST_FOREACH(const CZerocoinEntry &pubCoinItem, listPubCoin) {
-            if (zcSelectedValue == pubCoinItem.value) {
-                pubCoinTx.id = pubCoinItem.id;
-                pubCoinTx.IsUsed = false; // having error, so set to false, to be able to use again
-                pubCoinTx.value = pubCoinItem.value;
-                pubCoinTx.nHeight = pubCoinItem.nHeight;
-                pubCoinTx.randomness = pubCoinItem.randomness;
-                pubCoinTx.serialNumber = pubCoinItem.serialNumber;
-                pubCoinTx.denomination = pubCoinItem.denomination;
-                pubCoinTx.ecdsaSecretKey = pubCoinItem.ecdsaSecretKey;
-                CWalletDB(pwalletMain->strWalletFile).WriteZerocoinEntry(pubCoinTx);
-                LogPrintf("SpendZerocoin failed, re-updated status -> NotifyZerocoinChanged\n");
-                LogPrintf("pubcoin=%s, isUsed=New\n", pubCoinItem.value.GetHex());
-                pwalletMain->NotifyZerocoinChanged(pwalletMain, pubCoinItem.value.GetHex(), "New", CT_UPDATED);
-            }
-        }
-        CZerocoinSpendEntry entry;
-        entry.coinSerial = coinSerial;
-        entry.hashTx = txHash;
-        entry.pubCoin = zcSelectedValue;
-        if (!CWalletDB(pwalletMain->strWalletFile).EraseCoinSpendSerialEntry(entry)) {
-            return _("Error: It cannot delete coin serial number in wallet");
-        }
-        return _(
-                "Error: The transaction was rejected! This might happen if some of the coins in your wallet were already spent, such as if you used a copy of wallet.dat and coins were spent in the copy but not marked as spent here.");
-    }
-
+    
+    strError = pwalletMain->SpendMultipleZerocoin(thirdPartyAddress, denominations, wtx, coinSerials, txHash, zcSelectedValues, false);
     if (strError != "")
         throw JSONRPCError(RPC_WALLET_ERROR, strError);
 

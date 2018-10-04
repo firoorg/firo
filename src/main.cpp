@@ -1241,6 +1241,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool &pool, CValidationState &state, const C
     set <uint256> setConflicts;
     //btzc
     CZerocoinState *zcState = CZerocoinState::GetZerocoinState();
+    vector<CBigNum> zcSpendSerials;
     CBigNum zcSpendSerial;
     {
         LOCK(pool.cs); // protect pool.mapNextTx
@@ -1248,13 +1249,14 @@ bool AcceptToMemoryPoolWorker(CTxMemPool &pool, CValidationState &state, const C
             BOOST_FOREACH(
             const CTxIn &txin, tx.vin)
             {
-                zcSpendSerial = ZerocoinGetSpendSerialNumber(tx, txin);
+                zcSpendSerial = ZerocoinGetSpendSerialNumber(tx, txin);      
                 if (!zcSpendSerial)
                     return state.Invalid(false, REJECT_INVALID, "txn-invalid-zerocoin-spend");
                 if (!zcState->CanAddSpendToMempool(zcSpendSerial)) {
                     LogPrintf("AcceptToMemoryPool(): serial number %s has been used\n", zcSpendSerial.ToString());
                     return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
                 }
+                zcSpendSerials.push_back(zcSpendSerial);
             }
         }
         else {
@@ -1692,7 +1694,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool &pool, CValidationState &state, const C
     }
 
     if (tx.IsZerocoinSpend())
-        zcState->AddSpendToMempool(zcSpendSerial, hash);
+        zcState->AddSpendToMempool(zcSpendSerials, hash);
 
     SyncWithWallets(tx, NULL, NULL);
     LogPrintf("AcceptToMemoryPoolWorker -> OK\n");
