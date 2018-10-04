@@ -40,9 +40,9 @@ unsigned int GetNextWorkRequired(const CBlockIndex *pindexLast, const CBlockHead
 
     LogPrintf("pindexLast->nHeight + 1: %d\n", pindexLast->nHeight + 1);
 
-    if(pindexLast->nHeight < 50000){
+    /*if(pindexLast->nHeight + 1 > 82873){
     	return bnProofOfWorkLimit.GetCompact();
-    }
+    }*/
 
     // allow instamine first x blocks on testnet for distribution testing
 	if(fTestNet && pindexLast->nHeight < 5000){

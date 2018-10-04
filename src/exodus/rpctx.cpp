@@ -1458,7 +1458,7 @@ static const CRPCCommand commands[] =
     { "exodus (transaction creation)",  "exodus_sendrevoke",                &exodus_sendrevoke,                 false },
     { "hidden",                         "exodus_sendclosecrowdsale",        &exodus_sendclosecrowdsale,         false },
     { "exodus (transaction creation)",  "exodus_sendchangeissuer",          &exodus_sendchangeissuer,           false },
-    { "exodus (transaction creation)",  "exodus_sendall",                   &exodus_sendall,                    false },
+    { "hidden",                         "exodus_sendall",                   &exodus_sendall,                    false },
     { "hidden",                         "exodus_sendenablefreezing",        &exodus_sendenablefreezing,         false },
     { "hidden",                         "exodus_senddisablefreezing",       &exodus_senddisablefreezing,        false },
     { "hidden",                         "exodus_sendfreeze",                &exodus_sendfreeze,                 false },
