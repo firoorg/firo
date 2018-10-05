@@ -43,7 +43,7 @@ $(TOR_LIBS): tor.timestamp
 		rm -f tor.timestamp; \
 		$(MAKE) $(AM_MAKEFLAGS) tor.timestamp; \
 	fi
-
+	
 BITCOIN_CONFIG_INCLUDES=-I$(builddir)/config
 BITCOIN_INCLUDES=-I$(builddir) -I$(builddir)/obj $(BDB_CPPFLAGS) $(BOOST_CPPFLAGS) $(LEVELDB_CPPFLAGS) $(CRYPTO_CFLAGS) $(SSL_CFLAGS)
 
@@ -464,7 +464,7 @@ zcoind_LDADD = \
   $(LIBSECP256K1)
 
 
-zcoind_LDADD += $(TOR_LIBS) $(BOOST_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS) $(ZLIB_LIBS)
+zcoind_LDADD += $(TOR_LIBS) $(BOOST_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS) -lz
 
 # bitcoin-cli binary #
 zcoin_cli_SOURCES = bitcoin-cli.cpp
