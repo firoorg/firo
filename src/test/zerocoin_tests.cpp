@@ -10,6 +10,7 @@
 
 #include <stdint.h>
 #include <vector>
+#include <iostream>
 
 #include "chainparams.h"
 #include "consensus/consensus.h"
@@ -124,18 +125,10 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend)
     string denomination;
     vector<uint256> vtxid;
     std::vector<CMutableTransaction> MinTxns;
+    std::vector<std::string> denominations = {"1", "10", "25", "50", "100"};
     for(int i = 0; i < 5; i++)
     {
-        if(denomination == "")
-            denomination = "1";
-        else if(denomination == "1")
-            denomination = "10";
-        else if(denomination == "10")
-            denomination = "25";
-        else if(denomination == "25")
-            denomination = "50";
-        else if(denomination == "50")
-            denomination = "100";
+        denomination = denominations[i];
         printf("Testing denomination %s\n", denomination.c_str());
         string stringError;
         //Make sure that transactions get to mempool
