@@ -16,6 +16,8 @@
 #include "streams.h"
 #include "sync.h"
 #include "uint256.h"
+#include "threadinterrupt.h"
+#include "util.h"
 
 #include <atomic>
 #include <deque>
@@ -32,6 +34,7 @@
 class CAddrMan;
 class CScheduler;
 class CNode;
+class CTxMemPool;
 
 namespace boost {
     class thread_group;
@@ -78,6 +81,17 @@ static const ServiceFlags REQUIRED_SERVICES = NODE_NETWORK;
 
 // NOTE: When adjusting this, update rpcnet:setban's help ("24h")
 static const unsigned int DEFAULT_MISBEHAVING_BANTIME = 60 * 60 * 24;  // Default 24-hour ban
+
+/** Maximum number of outbound peers designated as Dandelion destinations */
+static const int DANDELION_MAX_DESTINATIONS = 2;
+/** Expected time between Dandelion routing shuffles (in seconds). */
+static const int DANDELION_SHUFFLE_INTERVAL = 600;
+/** The minimum amount of time a Dandelion transaction is embargoed (seconds) */
+static const int DANDELION_EMBARGO_MINIMUM = 10;
+/** The average additional embargo time beyond the minimum amount (seconds) */
+static const int DANDELION_EMBARGO_AVG_ADD = 20;
+/** Probability (percentage) that a Dandelion transaction enters fluff phase */
+static const unsigned int DANDELION_FLUFF = 10;
 
 unsigned int ReceiveFloodSize();
 unsigned int SendBufferSize();
@@ -178,6 +192,7 @@ extern CCriticalSection cs_vAddedNodes;
 
 extern NodeId nLastNodeId;
 extern CCriticalSection cs_nLastNodeId;
+
 
 /** Subversion as sent to the P2P network in `version` messages */
 extern std::string strSubVersion;
@@ -372,6 +387,8 @@ public:
     CCriticalSection cs_filter;
     CBloomFilter* pfilter;
     std::atomic<int> nRefCount;
+
+    bool fSupportsDandelion = false;
     NodeId id;
     // znode from dash
     bool fZnode;
@@ -411,9 +428,13 @@ public:
     // inventory based relay
     CRollingBloomFilter filterInventoryKnown;
     std::vector<CInv> vInventoryToSend;
+    // Set of Dandelion transactions that should be known to this peer
+    std::set<uint256> setDandelionInventoryKnown;
     // Set of transaction ids we still have to announce.
     // They are sorted by the mempool before relay, so the order is not important.
     std::set<uint256> setInventoryTxToSend;
+    // List of Dandelion transaction ids to announce.
+    std::vector<uint256> vInventoryDandelionTxToSend;
     // List of block ids we still have announce.
     // There is no final sorting before sending, as they are always sent immediately
     // and in the order requested.
@@ -475,6 +496,19 @@ private:
     static uint64_t CalculateKeyedNetGroup(const CAddress& ad);
 
 public:
+    // Dandelion fields.
+    static std::vector<CNode*> vDandelionInbound;
+    static std::vector<CNode*> vDandelionOutbound;
+    static std::vector<CNode*> vDandelionDestination;
+    static CNode* localDandelionDestination;
+		static CThreadInterrupt interruptNet;
+    static std::map<CNode*, CNode*> mDandelionRoutes;
+
+    // Dandelion helper functions.
+    static CNode* SelectFromDandelionDestinations();
+    static void CloseDandelionConnections(const CNode* const pnode);
+    static std::string GetDandelionRoutingDataDebugString();
+    static void DandelionShuffle();
 
     NodeId GetId() const {
       return id;
@@ -551,10 +585,15 @@ public:
     void PushInventory(const CInv& inv)
     {
         LOCK(cs_inventory);
+        LogPrintf("Pushing inventory %s to %s.\n", inv.ToString(), addr.ToString());
         if (inv.type == MSG_TX) {
             if (!filterInventoryKnown.contains(inv.hash)) {
                 setInventoryTxToSend.insert(inv.hash);
             }
+        } else if (inv.type == MSG_DANDELION_TX) {
+        	if (setDandelionInventoryKnown.count(inv.hash) == 0) {
+        		vInventoryDandelionTxToSend.push_back(inv.hash);
+        	}
         } else if (inv.type == MSG_BLOCK) {
             vInventoryBlockToSend.push_back(inv.hash);
         } else {
@@ -822,6 +861,23 @@ public:
     //!response the time in second left in the current max outbound cycle
     // in case of no limit, it will always response 0
     static uint64_t GetMaxOutboundTimeLeftInCycle();
+
+    // Public Dandelion field.
+    static std::map<uint256, int64_t> mDandelionEmbargo;
+
+    // Dandelion methods, they all must be static, as they do not belong to any CNode, they belong
+		// to the currently running node.
+    static bool isDandelionInbound(const CNode* const pnode);
+    static bool isLocalDandelionDestinationSet();
+    static bool setLocalDandelionDestination();
+    static CNode* getDandelionDestination(CNode* pfrom);
+    static bool localDandelionDestinationPushInventory(const CInv& inv);
+    static bool insertDandelionEmbargo(const uint256& hash, const int64_t& embargo);
+    static bool isTxDandelionEmbargoed(const uint256& hash);
+    static bool removeDandelionEmbargo(const uint256& hash);
+		static void CheckDandelionEmbargoes();
+		static void RelayDandelionTransaction(const CTransaction& tx, CNode* pfrom);
+
 };
 
 
