@@ -21,7 +21,7 @@ RUN apt-get update && apt-get install -y \
 RUN curl -L http://download.oracle.com/berkeley-db/db-4.8.30.tar.gz | tar -xz -C /tmp && \
     cd /tmp/db-4.8.30/build_unix && \
     ../dist/configure --enable-cxx --includedir=/usr/include/bdb4.8 --libdir=/usr/lib && \
-    make && make install && \
+    make -j$(nproc) && make install && \
     cd / && rm -rf /tmp/db-4.8.30
 
 # Create user to run daemon
@@ -33,7 +33,7 @@ COPY . /tmp/zcoin/
 RUN cd /tmp/zcoin && \
     ./autogen.sh && \
     ./configure --without-gui --prefix=/usr && \
-    make && \
+    make -j$(nproc) && \
     make check && \
     make install && \
     cd / && rm -rf /tmp/zcoin
