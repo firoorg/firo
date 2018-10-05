@@ -470,7 +470,6 @@ zcoind_LDADD += \
   $(EVENT_PTHREADS_LIBS) \
   $(EVENT_LIBS) \
   $(ZMQ_LIBS) \
-  $(ZSTD_LIBS) \
   $(ZLIB_LIBS)
 
 # bitcoin-cli binary #
