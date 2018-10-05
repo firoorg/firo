@@ -121,3 +121,10 @@ src/test/test_bitcoin
 libbitcoinconsensus.pc
 qa/pull-tester/run-bitcoind-for-test.sh
 qa/pull-tester/tests_config.py
+
+# Qt Creator project files
+zcoin.config
+zcoin.creator
+zcoin.creator.user
+zcoin.files
+zcoin.includes
