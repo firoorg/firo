@@ -41,8 +41,10 @@ GENERATED_TEST_FILES = $(JSON_TEST_FILES:.json=.json.h) $(RAW_TEST_FILES:.raw=.r
 BITCOIN_TESTS =\
   test/zerocoin_tests.cpp \
   test/zerocoin_tests2.cpp \
-  test/mtp_tests.cpp \
   test/zerocoin_tests3.cpp \
+  test/mtp_trans_tests.cpp \
+  test/mtp_halving_tests.cpp \
+  test/mtp_tests.cpp \
   test/arith_uint256_tests.cpp \
   test/scriptnum10.h \
   test/addrman_tests.cpp \

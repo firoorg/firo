@@ -137,7 +137,7 @@ bool IsBlockPayeeValid(const CTransaction &txNew, int nBlockHeight, CAmount bloc
         if (fDebug) LogPrintf("IsBlockPayeeValid -- znode isn't start\n");
         return true;
     }
-    if (!znodeSync.IsSynced()) {
+    if (!znodeSync.IsSynced() && Params().NetworkIDString() != CBaseChainParams::REGTEST) {
         //there is no budget data to use to check anything, let's just accept the longest chain
         if (fDebug) LogPrintf("IsBlockPayeeValid -- WARNING: Client not synced, skipping block payee checks\n");
         return true;
@@ -232,13 +232,19 @@ void CZnodePayments::FillBlockPayee(CMutableTransaction &txNew, int nBlockHeight
         int nCount = 0;
         CZnode *winningNode = mnodeman.GetNextZnodeInQueueForPayment(nBlockHeight, true, nCount);
         if (!winningNode) {
-            // ...and we can't calculate it on our own
-            LogPrintf("CZnodePayments::FillBlockPayee -- Failed to detect znode to pay\n");
-            return;
+            if(Params().NetworkIDString() != CBaseChainParams::REGTEST) {
+                // ...and we can't calculate it on our own
+                LogPrintf("CZnodePayments::FillBlockPayee -- Failed to detect znode to pay\n");
+                return;
+            }
         }
         // fill payee with locally calculated winner and hope for the best
-        payee = GetScriptForDestination(winningNode->pubKeyCollateralAddress.GetID());
-        LogPrintf("payee=%s\n", winningNode->ToString());
+        if (winningNode) {
+            payee = GetScriptForDestination(winningNode->pubKeyCollateralAddress.GetID());
+            LogPrintf("payee=%s\n", winningNode->ToString());
+        }
+        else
+            payee = txNew.vout[0].scriptPubKey;//This is only for unit tests scenario on REGTEST
     }
     txoutZnodeRet = CTxOut(znodePayment, payee);
     txNew.vout.push_back(txoutZnodeRet);
