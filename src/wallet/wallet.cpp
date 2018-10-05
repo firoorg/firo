@@ -1448,7 +1448,7 @@ void CWallet::ReacceptWalletTransactions() {
 
         LOCK(mempool.cs);
         CValidationState state;
-        LogPrintf("CWallet::ReacceptWalletTransactions(): re-accepting transaction %s to mempool/stempool.\n", wtx.GetHash().ToString());
+        // LogPrintf("CWallet::ReacceptWalletTransactions(): re-accepting transaction %s to mempool/stempool.\n", wtx.GetHash().ToString());
 
         // When re-accepting transaction back to the wallet after 
         // the app was closed and re-opened, do NOT check their
@@ -1463,8 +1463,6 @@ void CWallet::ReacceptWalletTransactions() {
 }
 
 bool CWalletTx::RelayWalletTransaction(bool fCheckInputs) {
-    LogPrintf("Relaying wallet txn %s.\n", GetHash().ToString());
- 
     assert(pwallet->GetBroadcastTransactions());
     if (!IsCoinBase() && !isAbandoned() && GetDepthInMainChain() == 0) {
         CValidationState state;
@@ -1477,13 +1475,13 @@ bool CWalletTx::RelayWalletTransaction(bool fCheckInputs) {
                 int64_t nEmbargo = 1000000 * DANDELION_EMBARGO_MINIMUM
                         + PoissonNextSend(nCurrTime, DANDELION_EMBARGO_AVG_ADD);
                 CNode::insertDandelionEmbargo(GetHash(), nEmbargo);
-                LogPrintf(
-                    "dandeliontx %s embargoed for %d seconds\n",
-                    GetHash().ToString(), (nEmbargo - nCurrTime) / 1000000);
+                //LogPrintf(
+                //    "dandeliontx %s embargoed for %d seconds\n",
+                //    GetHash().ToString(), (nEmbargo - nCurrTime) / 1000000);
                 CInv inv(MSG_DANDELION_TX, GetHash());
                 return CNode::localDandelionDestinationPushInventory(inv);
             } else {
-                LogPrintf("Relaying wtx %s\n", GetHash().ToString());
+                // LogPrintf("Relaying wtx %s\n", GetHash().ToString());
                 RelayTransaction(*this);
                 return true;
             }
@@ -5205,11 +5203,7 @@ bool CMerkleTx::AcceptToMemoryPool(
             isCheckWalletTransaction,
             false /* markZcoinSpendTransactionSerial */
         );
-        if (res) {
-            LogPrintf(
-                "CMerkleTx::AcceptToMemoryPool, Successfully added txn %s to dandelion stempool.\n", 
-                GetHash().ToString());
-        } else {
+        if (!res) {
             LogPrintf(
                 "CMerkleTx::AcceptToMemoryPool, failed to add txn %s to dandelion stempool: %s.\n", 
                 GetHash().ToString(), 
