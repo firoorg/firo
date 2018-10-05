@@ -3946,7 +3946,7 @@ bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddr
             txNew.vout.clear();
             txNew.wit.SetNull();
             wtxNew.fFromMe = true;
-             CScript scriptChange;
+            CScript scriptChange;
             if(thirdPartyaddress == ""){
                 // Reserve a new key pair from key pool
                 CPubKey vchPubKey;
@@ -3965,23 +3965,25 @@ bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddr
             // Set up the Zerocoin Params object
             bool fModulusV2 = chainActive.Height() >= Params().nModulusV2StartBlock;
             libzerocoin::Params *zcParams = fModulusV2 ? ZCParamsV2 : ZCParams;
-             // objects holding spend inputs & storage values while tx is formed
+            // objects holding spend inputs & storage values while tx is formed
             struct TempStorage {
                 libzerocoin::PrivateCoin privateCoin;
                 libzerocoin::Accumulator accumulator;
                 libzerocoin::CoinDenomination denomination;
                 uint256 accumulatorBlockHash;
-                 CZerocoinEntry coinToUse;
+                CZerocoinEntry coinToUse;
                 int serializedId;
-                 int txVersion;
+                int txVersion;
                 int coinHeight;
                 int coinId;
             };
             vector<TempStorage> tempStorages;
 
 
-             // object storing coins being used for this spend (to avoid duplicates being considered)
+            // object storing coins being used for this spend (to avoid duplicates being considered)
             set<CBigNum> tempCoinsToUse;
+
+            // total value of all inputs. Iteritively created in the following loop
             int64_t nValue = 0;
             for (std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>>::const_iterator it = denominations.begin(); it != denominations.end(); it++)
             {
@@ -3995,22 +3997,22 @@ bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddr
             
                 // Fill vin
                 // Select not yet used coin from the wallet with minimal possible id
-                 list <CZerocoinEntry> listPubCoin;
+                list <CZerocoinEntry> listPubCoin;
                 CWalletDB(strWalletFile).ListPubCoin(listPubCoin);
                 listPubCoin.sort(CompHeight);
                 CZerocoinEntry coinToUse;
                 CZerocoinState *zerocoinState = CZerocoinState::GetZerocoinState();
-                 CBigNum accumulatorValue;
+                CBigNum accumulatorValue;
                 uint256 accumulatorBlockHash;      // to be used in zerocoin spend v2
-                 int coinId = INT_MAX;
+                int coinId = INT_MAX;
                 int coinHeight;
-                 BOOST_FOREACH(const CZerocoinEntry &minIdPubcoin, listPubCoin) {
+                BOOST_FOREACH(const CZerocoinEntry &minIdPubcoin, listPubCoin) {
                     if (minIdPubcoin.denomination == denomination
                         && ((minIdPubcoin.IsUsed == false && !forceUsed) || (minIdPubcoin.IsUsed == true && forceUsed))
                         && minIdPubcoin.randomness != 0
                         && minIdPubcoin.serialNumber != 0
                         && (tempCoinsToUse.find(minIdPubcoin.value)==tempCoinsToUse.end())) {
-                         int id;
+                        int id;
                         coinHeight = zerocoinState->GetMintedCoinHeightAndId(minIdPubcoin.value, minIdPubcoin.denomination, id);
                         if (coinHeight > 0
                             && id < coinId
@@ -4030,12 +4032,13 @@ bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddr
                         }
                     }
                 }
+
                 // If no suitable coin found, fail.
                 if (coinId == INT_MAX){
                     strFailReason = _("it has to have at least two mint coins with at least 6 confirmation in order to spend a coin");
                     return false;
                 }
-                // 1. Get the current accumulator for denomination selection 
+                // 1. Get the current accumulator for denomination selected 
                 libzerocoin::Accumulator accumulator(zcParams, accumulatorValue, denomination);
                 // 2. Get pubcoin from the private coin
                 libzerocoin::PublicCoin pubCoinSelected(zcParams, coinToUse.value, denomination);
@@ -4067,7 +4070,7 @@ bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddr
                 // Construct the CoinSpend object. This acts like a signature on the
                 // transaction.
                 libzerocoin::PrivateCoin privateCoin(zcParams, denomination);
-                 int txVersion = ZEROCOIN_TX_VERSION_1;
+                int txVersion = ZEROCOIN_TX_VERSION_1;
                 if (useVersion2) {
                     // Use version 2 if possible, for older mints stay with 1.5
                     txVersion = coinToUse.IsCorrectV2Mint() ? ZEROCOIN_TX_VERSION_2 : ZEROCOIN_TX_VERSION_1_5;
@@ -4105,7 +4108,7 @@ bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddr
                     coinHeight,
                     coinId,
                 };
-                 tempStorages.push_back(tempStorage);
+                tempStorages.push_back(tempStorage);
             }
 
             // We now have the total coin amount to send. Create a single TxOut with this value.
@@ -4120,7 +4123,7 @@ bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddr
              * if the hash is different (as it would be if we did all steps for a TxIn in one loop) the transaction creation will fail.
             */ 
 
-            // Remove all zerocoin related info between iterations
+            // Remove all zerocoin related info
             CMutableTransaction txTemp = txNew;
             BOOST_FOREACH(CTxIn &txTempIn, txTemp.vin) {
                 if (txTempIn.scriptSig.IsZerocoinSpend()) {
@@ -4128,8 +4131,6 @@ bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddr
                     txTempIn.prevout.SetNull();
                 }
             }
-
-            vector<CBigNum> coinSerialNumbers;
 
             uint256 txHashForMetadata = txTemp.GetHash();
             LogPrintf("txNew.GetHash: %s\n", txHashForMetadata.ToString());
@@ -4159,8 +4160,6 @@ bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddr
                                              metaData,
                                              tempStorage.accumulatorBlockHash);
                 spend.setVersion(tempStorage.txVersion);
-
-                coinSerialNumbers.push_back(spend.getCoinSerialNumber());
                 
                 // Verify the coinSpend
                 if (!spend.Verify(tempStorage.accumulator, metaData)) {
@@ -4214,7 +4213,7 @@ bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddr
                 return false;
             }
 
-            // This last loop is to notify the wallet of changes to zerocoin spend info.
+            // After transaction creation and verification, this last loop is to notify the wallet of changes to zerocoin spend info.
             for (std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>>::const_iterator it = denominations.begin(); it != denominations.end(); it++)
             {
                 unsigned index = it - denominations.begin();
