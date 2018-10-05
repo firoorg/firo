@@ -583,6 +583,7 @@ UniValue balance(Type type, const UniValue& data, const UniValue& auth, bool fHe
     CAmount xzcConfirmed = pwalletMain->GetBalance();
     CAmount xzcUnconfirmed = pwalletMain->GetUnconfirmedBalance();
     CAmount xzcLocked = getLockUnspentAmount();
+    CAmount xzcImmature = pwalletMain->GetImmatureBalance();
 
     //get private confirmed
     CAmount zerocoinAll = 0;
@@ -594,9 +595,9 @@ UniValue balance(Type type, const UniValue& data, const UniValue& auth, bool fHe
     CAmount zerocoinUnconfirmed = zerocoinAll - zerocoinConfirmed; 
 
     // // We now have all base units, derive return values.
-    CAmount total = xzcConfirmed + xzcUnconfirmed + xzcLocked + zerocoinAll;
+    CAmount total = xzcConfirmed + xzcUnconfirmed + xzcLocked + zerocoinAll + xzcImmature;
     CAmount pending = total - xzcConfirmed - zerocoinConfirmed - xzcLocked;
-    CAmount available = total - xzcLocked - xzcUnconfirmed - zerocoinUnconfirmed;
+    CAmount available = total - xzcLocked - xzcUnconfirmed - zerocoinUnconfirmed - xzcImmature;
 
     
     totalObj.push_back(Pair("all", total));
