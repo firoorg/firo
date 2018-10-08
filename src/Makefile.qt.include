@@ -259,7 +259,6 @@ BITCOIN_QT_H = \
   qt/lookuptxdialog.h \
   qt/txhistorydialog.h \
   qt/balancesdialog.h \
-  qt/exodus_init.h \
   qt/metadexdialog.h \
   qt/metadexcanceldialog.h \
   qt/tradehistorydialog.h \
@@ -363,7 +362,6 @@ BITCOIN_QT_BASE_CPP = \
   qt/splashscreen.cpp \
   qt/trafficgraphwidget.cpp \
   qt/utilitydialog.cpp \
-  qt/exodus_init.cpp \
   qt/exodus_qtutils.cpp
 
 BITCOIN_QT_WINDOWS_CPP = qt/winshutdownmonitor.cpp
