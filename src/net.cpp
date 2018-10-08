@@ -1427,8 +1427,7 @@ void ThreadSocketHandler() {
                     {
                         // typical socket buffer is 8K-64K
                     	// Zcoin - MTP
-                        // char pchBuf[0x10000];
-                        char pchBuf[0x200000];
+                        char pchBuf[0x10000];
                         int nBytes = recv(pnode->hSocket, pchBuf, sizeof(pchBuf), MSG_DONTWAIT);
                         if (nBytes > 0) {
                             if (!pnode->ReceiveMsgBytes(pchBuf, nBytes))

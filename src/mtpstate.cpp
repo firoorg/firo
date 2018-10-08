@@ -20,6 +20,28 @@ void MTPState::SetLastBlock(CBlockIndex *lastBlockIndex, const Consensus::Params
             nFirstMTPBlock = block->nHeight;
         }
     }
+    lastSeenBlockIndex = lastBlockIndex;
+}
+
+int MTPState::GetFirstMTPBlockNumber(const Consensus::Params &params, const CBlockIndex *blockIndex) {
+    if (!lastSeenBlockIndex || blockIndex->nHeight > lastSeenBlockIndex->nHeight) {
+        // blockIndex is actually ahead of lastSeenBlockIndex
+        if (nFirstMTPBlock > 0)
+            return nFirstMTPBlock;
+
+        // go back the block chain and get the first block with MTP
+        int firstMTPBlock = 0;
+        do {
+           if (blockIndex->nTime >= params.nMTPSwitchTime)
+               firstMTPBlock = blockIndex->nHeight;
+           blockIndex = blockIndex->pprev;
+        } while (blockIndex->nHeight > 0 && blockIndex != lastSeenBlockIndex);
+
+        return firstMTPBlock;
+    }
+    else
+        // return nFirstMTPBlock if blockIndex is past the point of MTP switch, else 0
+        return blockIndex->nHeight >= nFirstMTPBlock ? nFirstMTPBlock : 0;
 }
 
 void MTPState::InitializeFromChain(CChain *chain, const Consensus::Params &params) {

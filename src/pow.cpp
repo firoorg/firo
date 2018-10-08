@@ -66,7 +66,7 @@ unsigned int GetNextWorkRequired(const CBlockIndex *pindexLast, const CBlockHead
         return bnNew.GetCompact();
     }
 
-    int nFirstMTPBlock = MTPState::GetMTPState()->GetFirstMTPBlockNumber();
+    int nFirstMTPBlock = MTPState::GetMTPState()->GetFirstMTPBlockNumber(params, pindexLast);
     bool fMTP = nFirstMTPBlock > 0;
 
     if (pblock->IsMTP() && !fMTP) {
