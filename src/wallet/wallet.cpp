@@ -4165,10 +4165,8 @@ bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddr
             // Remove all zerocoin related info
             CMutableTransaction txTemp = txNew;
             BOOST_FOREACH(CTxIn &txTempIn, txTemp.vin) {
-                if (txTempIn.scriptSig.IsZerocoinSpend()) {
-                    txTempIn.scriptSig.clear();
-                    txTempIn.prevout.SetNull();
-                }
+                txTempIn.scriptSig.clear();
+                txTempIn.prevout.SetNull();
             }
 
             uint256 txHashForMetadata = txTemp.GetHash();

@@ -1707,7 +1707,7 @@ bool AcceptToMemoryPoolWorker(
     }
 
     if (tx.IsZerocoinSpend() && markZcoinSpendTransactionSerial)
-        zcState->AddSpendToMempool(zcSpendSerial, hash);
+        zcState->AddSpendToMempool(zcSpendSerials, hash);
 
     SyncWithWallets(tx, NULL, NULL);
     LogPrintf("AcceptToMemoryPoolWorker -> OK\n");
