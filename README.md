@@ -56,9 +56,9 @@ Build
         make check
 
 
-Mac OS X Build Instructions and Notes
+macOS Build Instructions and Notes
 =====================================
-See (doc/build-osx.md) for instructions on building on Mac OS X.
+See (doc/build-macos.md) for instructions on building on macOS.
 
 
 
