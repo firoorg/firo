@@ -555,12 +555,14 @@ bool CheckZerocoinTransaction(const CTransaction &tx,
         // Only one loop, we checked on the format before enter this case
         BOOST_FOREACH(const CTxOut &txout, tx.vout)
         {
-            if ((txout.nValue == totalValue * COIN) && !isVerifyDB) {
+            if(!isVerifyDB){
+                if (txout.nValue == totalValue * COIN) {
                     if(!CheckSpendZcoinTransaction(tx, params, denominations, state, hashTx, isVerifyDB, nHeight, isCheckWallet, zerocoinTxInfo)){
                         return false;
                     }
-            }else{
+                }else{
                     return state.DoS(100, error("CheckZerocoinTransaction : invalid spending txout value"));
+                }
             }
         }
     }
@@ -1151,3 +1153,4 @@ void CZerocoinState::Reset() {
 CZerocoinState *CZerocoinState::GetZerocoinState() {
     return &zerocoinState;
 }
+
