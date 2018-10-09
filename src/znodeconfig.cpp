@@ -68,6 +68,23 @@ bool CZnodeConfig::read(std::string& strErr) {
         LogPrintf("mainnetDefaultPort=%s\n", mainnetDefaultPort);
         LogPrintf("Params().NetworkIDString()=%s\n", Params().NetworkIDString());
         LogPrintf("CBaseChainParams::MAIN=%s\n", CBaseChainParams::MAIN);
+        if(Params().NetworkIDString() == CBaseChainParams::MAIN) {
+            if(port != mainnetDefaultPort) {
+                strErr = _("Invalid port detected in znode.conf") + "\n" +
+                        strprintf(_("Port: %d"), port) + "\n" +
+                        strprintf(_("Line: %d"), linenumber) + "\n\"" + line + "\"" + "\n" +
+                        strprintf(_("(must be %d for mainnet)"), mainnetDefaultPort);
+                streamConfig.close();
+                return false;
+            }
+        } else if(port == mainnetDefaultPort) {
+            strErr = _("Invalid port detected in znode.conf") + "\n" +
+                    strprintf(_("Line: %d"), linenumber) + "\n\"" + line + "\"" + "\n" +
+                    strprintf(_("(%d could be used only on mainnet)"), mainnetDefaultPort);
+            streamConfig.close();
+            return false;
+        }
+
 
         add(alias, ip, privKey, txHash, outputIndex);
     }
