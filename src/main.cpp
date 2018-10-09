@@ -262,6 +262,18 @@ namespace {
 
 //////////////////////////////////////////////////////////////////////////////
 //
+// Exodus notification handlers
+//
+
+// TODO: replace handlers with signals
+int exodus_handler_disc_begin(int nBlockNow, CBlockIndex const * pBlockIndex);
+int exodus_handler_disc_end(int nBlockNow, CBlockIndex const * pBlockIndex);
+int exodus_handler_block_begin(int nBlockNow, CBlockIndex const * pBlockIndex);
+int exodus_handler_block_end(int nBlockNow, CBlockIndex const * pBlockIndex, unsigned int);
+int exodus_handler_tx(const CTransaction &tx, int nBlock, unsigned int idx, CBlockIndex const * pBlockIndex);
+
+//////////////////////////////////////////////////////////////////////////////
+//
 // Registration of network node signals.
 //
 
@@ -1998,7 +2010,7 @@ bool fLargeWorkForkFound = false;
 bool fLargeWorkInvalidChainFound = false;
 CBlockIndex *pindexBestForkTip = NULL, *pindexBestForkBase = NULL;
 
-static void AlertNotify(const std::string &strMessage) {
+void AlertNotify(const std::string &strMessage) {
     uiInterface.NotifyAlertChanged();
     std::string strCmd = GetArg("-alertnotify", "");
     if (strCmd.empty()) return;
@@ -2304,6 +2316,17 @@ bool CheckInputs(const CTransaction &tx, CValidationState &state, const CCoinsVi
     return true;
 }
 
+bool AbortNode(const std::string &strMessage, const std::string &userMessage = "") {
+     strMiscWarning = strMessage;
+     LogPrintf("*** %s\n", strMessage);
+     uiInterface.ThreadSafeMessageBox(
+             userMessage.empty() ? _("Error: A fatal internal error occurred, see debug.log for details")
+                                 : userMessage,
+             "", CClientUIInterface::MSG_ERROR);
+     StartShutdown();
+     return false;
+ }
+
 namespace {
 
     bool UndoWriteToDisk(const CBlockUndo &blockundo, CDiskBlockPos &pos, const uint256 &hashBlock,
@@ -2360,7 +2383,7 @@ namespace {
     }
 
 /** Abort with a message */
-    bool AbortNode(const std::string &strMessage, const std::string &userMessage = "") {
+    /*bool AbortNode(const std::string &strMessage, const std::string &userMessage = "") {
         strMiscWarning = strMessage;
         LogPrintf("*** %s\n", strMessage);
         uiInterface.ThreadSafeMessageBox(
@@ -2369,10 +2392,10 @@ namespace {
                 "", CClientUIInterface::MSG_ERROR);
         StartShutdown();
         return false;
-    }
+    }*/
 
     bool AbortNode(CValidationState &state, const std::string &strMessage, const std::string &userMessage = "") {
-        AbortNode(strMessage, userMessage);
+        ::AbortNode(strMessage, userMessage);
         return state.Error(strMessage);
     }
 
@@ -3329,11 +3352,21 @@ bool static DisconnectTip(CValidationState &state, const CChainParams &chainpara
     }
     // Update chainActive and related variables.
     UpdateTip(pindexDelete->pprev, chainparams);
+
+    //! Exodus: begin block disconnect notification
+    LogPrint("handler", "Exodus handler: block disconnect begin [height: %d, reindex: %d]\n", GetHeight(), (int)fReindex);
+    exodus_handler_disc_begin(GetHeight(), pindexDelete);
+
     // Let wallets know transactions went from 1-confirmed to
     // 0-confirmed or conflicted:
     BOOST_FOREACH(const CTransaction &tx, block.vtx) {
         SyncWithWallets(tx, pindexDelete->pprev, NULL);
     }
+
+    //! Exodus: end of block disconnect notification
+    LogPrint("handler", "Exodus handler: block disconnect end [height: %d, reindex: %d]\n", GetHeight(), (int)fReindex);
+    exodus_handler_disc_end(GetHeight(), pindexDelete);
+
     return true;
 }
 
@@ -3391,6 +3424,16 @@ ConnectTip(CValidationState &state, const CChainParams &chainparams, CBlockIndex
     nTimeChainState += nTime5 - nTime4;
     LogPrint("bench", "  - Writing chainstate: %.2fms [%.2fs]\n", (nTime5 - nTime4) * 0.001,
              nTimeChainState * 0.000001);
+
+    //! Exodus: transaction position within the block
+    unsigned int nTxIdx = 0;
+    //! Exodus: number of meta transactions found
+    unsigned int nNumMetaTxs = 0;
+
+    //! Exodus: begin block connect notification
+    LogPrint("handler", "Exodus handler: block connect begin [height: %d]\n", GetHeight());
+    exodus_handler_block_begin(GetHeight(), pindexNew);
+
     // Remove conflicting transactions from the mempool.
     list <CTransaction> txConflicted;
 
@@ -3412,7 +3455,15 @@ ConnectTip(CValidationState &state, const CChainParams &chainparams, CBlockIndex
     BOOST_FOREACH(
     const CTransaction &tx, pblock->vtx) {
         SyncWithWallets(tx, pindexNew, pblock);
+
+        //! Exodus: new confirmed transaction notification
+        LogPrint("handler", "Exodus handler: new confirmed transaction [height: %d, idx: %u]\n", GetHeight(), nTxIdx);
+        if (exodus_handler_tx(tx, GetHeight(), nTxIdx++, pindexNew)) ++nNumMetaTxs;
     }
+
+    //! Exodus: end of block connect notification
+    LogPrint("handler", "Exodus handler: block connect end [new height: %d, found: %u txs]\n", GetHeight(), nNumMetaTxs);
+    exodus_handler_block_end(GetHeight(), pindexNew, nNumMetaTxs);
 
     int64_t nTime6 = GetTimeMicros();
     nTimePostConnect += nTime6 - nTime5;

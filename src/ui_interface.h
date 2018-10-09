@@ -110,6 +110,18 @@ public:
 
     /** Additional data sync progress changed */
     boost::signals2::signal<void (int count, double nSyncProgress)> NotifyAdditionalDataSyncProgressChanged;
+
+    /** Exodus balances have been updated. */
+    boost::signals2::signal<void ()> ExodusBalanceChanged;
+
+    /** Exodus state has been changed. */
+    boost::signals2::signal<void ()> ExodusStateChanged;
+
+    /** Exodus pending status has been changed */
+    boost::signals2::signal<void (bool pending)> ExodusPendingChanged;
+
+    /** Exodus state has been invalidated due to a reorg */
+    boost::signals2::signal<void ()> ExodusStateInvalidated;
 };
 
 /** Show warning message **/
