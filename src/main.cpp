@@ -106,7 +106,7 @@ CTxMemPool mempool(::minRelayTxFee);
 FeeFilterRounder filterRounder(::minRelayTxFee);
 CTxMemPool stempool(::minRelayTxFee);
 
-// Dash znode
+// Zcoin znode
 map <uint256, int64_t> mapRejectedBlocks GUARDED_BY(cs_main);
 
 struct IteratorComparator {
@@ -1135,12 +1135,21 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, uint256 h
 
     // Check for duplicate inputs
     set <COutPoint> vInOutPoints;
+    set <CScript> spendScripts;
     BOOST_FOREACH(
     const CTxIn &txin, tx.vin)
     {
-        if (vInOutPoints.count(txin.prevout))
-            return state.DoS(100, false, REJECT_INVALID, "bad-txns-inputs-duplicate");
-        vInOutPoints.insert(txin.prevout);
+        if(tx.IsZerocoinSpend()){
+            if(spendScripts.count(txin.scriptSig)){
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-spend-inputs-duplicate");
+            }
+            spendScripts.insert(txin.scriptSig);
+        }else {
+            if (vInOutPoints.count(txin.prevout)){
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-inputs-duplicate");
+            }
+            vInOutPoints.insert(txin.prevout);
+        }
     }
 
     if (tx.IsCoinBase()) {
@@ -1244,16 +1253,22 @@ bool AcceptToMemoryPoolWorker(
     set <uint256> setConflicts;
     //btzc
     CZerocoinState *zcState = CZerocoinState::GetZerocoinState();
+    vector<CBigNum> zcSpendSerials;
     CBigNum zcSpendSerial;
     {
         LOCK(pool.cs); // protect pool.mapNextTx
         if (tx.IsZerocoinSpend()) {
-            zcSpendSerial = ZerocoinGetSpendSerialNumber(tx);
-            if (!zcSpendSerial)
-                return state.Invalid(false, REJECT_INVALID, "txn-invalid-zerocoin-spend");
-            if (!zcState->CanAddSpendToMempool(zcSpendSerial)) {
-                LogPrintf("AcceptToMemoryPool(): serial number %s has been used\n", zcSpendSerial.ToString());
-                return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
+            BOOST_FOREACH(
+            const CTxIn &txin, tx.vin)
+            {
+                zcSpendSerial = ZerocoinGetSpendSerialNumber(tx, txin);      
+                if (!zcSpendSerial)
+                    return state.Invalid(false, REJECT_INVALID, "txn-invalid-zerocoin-spend");
+                if (!zcState->CanAddSpendToMempool(zcSpendSerial)) {
+                    LogPrintf("AcceptToMemoryPool(): serial number %s has been used\n", zcSpendSerial.ToString());
+                    return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
+                }
+                zcSpendSerials.push_back(zcSpendSerial);
             }
         }
         else {
@@ -1690,7 +1705,7 @@ bool AcceptToMemoryPoolWorker(
     }
 
     if (tx.IsZerocoinSpend() && markZcoinSpendTransactionSerial)
-        zcState->AddSpendToMempool(zcSpendSerial, hash);
+        zcState->AddSpendToMempool(zcSpendSerials, hash);
 
     SyncWithWallets(tx, NULL, NULL);
     LogPrintf("AcceptToMemoryPoolWorker -> OK\n");
@@ -3020,20 +3035,24 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
     CZerocoinState *zcState = CZerocoinState::GetZerocoinState();
     BOOST_FOREACH(const CTransaction &tx, block.vtx) {
         if (tx.IsZerocoinSpend()) {
-            CBigNum zcSpendSerial = ZerocoinGetSpendSerialNumber(tx);
-            uint256 thisTxHash = tx.GetHash();
-            uint256 conflictingTxHash = zcState->GetMempoolConflictingTxHash(zcSpendSerial);
-            if (!conflictingTxHash.IsNull() && conflictingTxHash != thisTxHash) {
-                std::list<CTransaction> removed;
-                auto pTx = mempool.get(conflictingTxHash);
-                if (pTx)
-                    mempool.removeRecursive(*pTx, removed);
-                LogPrintf("ConnectBlock: removed conflicting zerocoin spend tx %s from the mempool\n",
-                          conflictingTxHash.ToString());
-            }
+            BOOST_FOREACH(
+            const CTxIn &txin, tx.vin)
+            {
+                CBigNum zcSpendSerial = ZerocoinGetSpendSerialNumber(tx, txin);
+                uint256 thisTxHash = tx.GetHash();
+                uint256 conflictingTxHash = zcState->GetMempoolConflictingTxHash(zcSpendSerial);
+                if (!conflictingTxHash.IsNull() && conflictingTxHash != thisTxHash) {
+                    std::list<CTransaction> removed;
+                    auto pTx = mempool.get(conflictingTxHash);
+                    if (pTx)
+                        mempool.removeRecursive(*pTx, removed);
+                    LogPrintf("ConnectBlock: removed conflicting zerocoin spend tx %s from the mempool\n",
+                              conflictingTxHash.ToString());
+                }
 
-            // In any case we need to remove serial from mempool set
-            zcState->RemoveSpendFromMempool(zcSpendSerial);
+                // In any case we need to remove serial from mempool set
+                zcState->RemoveSpendFromMempool(zcSpendSerial);
+            }
         }
     }
 
@@ -3177,6 +3196,7 @@ void static UpdateTip(CBlockIndex *pindexNew, const CChainParams &chainParams) {
     darkSendPool.UpdatedBlockTip(chainActive.Tip());
     mnpayments.UpdatedBlockTip(chainActive.Tip());
     znodeSync.UpdatedBlockTip(chainActive.Tip());
+    GetMainSignals().UpdatedBlockTip(chainActive.Tip());
 
     // New best block
     nTimeBestReceived = GetTime();
@@ -5867,9 +5887,9 @@ void static ProcessGetData(CNode *pfrom, const Consensus::Params &consensusParam
                         }
                     }
                 } else if (inv.type == MSG_DANDELION_TX || inv.type == MSG_DANDELION_WITNESS_TX) {
-                    LogPrintf("Peer %s asked for dandelion transaction %s.", 
-                              pfrom->addr.ToString(),
-                              inv.ToString());
+                    //LogPrintf("Peer %s asked for dandelion transaction %s.", 
+                    //          pfrom->addr.ToString(),
+                    //          inv.ToString());
                     int nSendFlags = (
                             inv.type == MSG_DANDELION_TX ?
                             SERIALIZE_TRANSACTION_NO_WITNESS : 0);
@@ -5883,7 +5903,7 @@ void static ProcessGetData(CNode *pfrom, const Consensus::Params &consensusParam
                         push = true;
                     } else if (inv.hash == dandelionServiceDiscoveryHash && 
                                pfrom->setDandelionInventoryKnown.count(inv.hash) != 0) {
-                        LogPrint("dandelion", "Peer %d supports Dandelion\n", pfrom->GetId());
+                        // LogPrint("dandelion", "Peer %d supports Dandelion\n", pfrom->GetId());
                         pfrom->fSupportsDandelion = true;
                         push = true;
                     }
@@ -6684,9 +6704,9 @@ bool static ProcessMessage(CNode *pfrom, string strCommand,
             );
 
             if (CNode::isTxDandelionEmbargoed(tx.GetHash())) {
-                LogPrintf(
-                    "Embargoed dandeliontx %s found in mempool; removing from embargo map\n", 
-                    tx.GetHash().ToString());
+                //LogPrintf(
+                //    "Embargoed dandeliontx %s found in mempool; removing from embargo map\n", 
+                //    tx.GetHash().ToString());
                 CNode::removeDandelionEmbargo(tx.GetHash());
             }
 
@@ -6801,8 +6821,8 @@ bool static ProcessMessage(CNode *pfrom, string strCommand,
                 false /* markZcoinSpendTransactionSerial */
             );
             if (CNode::isTxDandelionEmbargoed(tx.GetHash())) {
-                LogPrintf("Embargoed dandeliontx %s found in mempool; removing from embargo map.\n",
-                          tx.GetHash().ToString());
+                //LogPrintf("Embargoed dandeliontx %s found in mempool; removing from embargo map.\n",
+                //          tx.GetHash().ToString());
                 CNode::removeDandelionEmbargo(tx.GetHash());
             }
             // Changes to mempool should also be made to Dandelion stempool
@@ -6891,11 +6911,11 @@ bool static ProcessMessage(CNode *pfrom, string strCommand,
                     int64_t nEmbargo = 1000000 * DANDELION_EMBARGO_MINIMUM + 
                         PoissonNextSend(nCurrTime, DANDELION_EMBARGO_AVG_ADD);
                     pfrom->insertDandelionEmbargo(tx.GetHash(), nEmbargo);
-                    LogPrint(
-                        "dandelion", 
-                        "dandeliontx %s embargoed for %d seconds\n", 
-                        tx.GetHash().ToString(), 
-                        (nEmbargo-nCurrTime) / 1000000);
+                    //LogPrint(
+                    //    "dandelion", 
+                    //    "dandeliontx %s embargoed for %d seconds\n", 
+                    //    tx.GetHash().ToString(), 
+                    //    (nEmbargo-nCurrTime) / 1000000);
                 }
                 int nDoS = 0;
                 if (state.IsInvalid(nDoS)) {
@@ -7981,12 +8001,12 @@ bool SendMessages(CNode *pto) {
                 dandelionServiceDiscoveryHash.SetHex(
                     "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
                 if (!pto->fSupportsDandelion && hash != dandelionServiceDiscoveryHash) {
-                    LogPrintf("Pushing transaction MSG_TX %s to %s.", 
-                              hash.ToString(), pto->addr.ToString());
+                    //LogPrintf("Pushing transaction MSG_TX %s to %s.", 
+                    //          hash.ToString(), pto->addr.ToString());
                     vInv.push_back(CInv(MSG_TX, hash));
                 } else {
-                    LogPrintf("Pushing dandelion transaction MSG_DANDELION_TX %s to %s.", 
-                              hash.ToString(), pto->addr.ToString());
+                    //LogPrintf("Pushing dandelion transaction MSG_DANDELION_TX %s to %s.", 
+                    //          hash.ToString(), pto->addr.ToString());
                     vInv.push_back(CInv(MSG_DANDELION_TX, hash));
                 }
                 if (vInv.size() == MAX_INV_SZ) {

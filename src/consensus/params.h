@@ -92,6 +92,8 @@ struct Params {
 	int nModulusV2StartBlock;
     int nModulusV1MempoolStopBlock;
 	int nModulusV1StopBlock;
+    
+    int nMultipleSpendInputsInOneTxStartBlock;
 
     /** switch to MTP time */
     uint32_t nMTPSwitchTime;

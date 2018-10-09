@@ -1,5 +1,7 @@
+# ide & editor stuff
 .project
 .cproject
+.vscode
 
 *.tar.gz
 
@@ -116,3 +118,16 @@ src/test/test_bitcoin
 
 libzcoinconsensus.pc
 contrib/devtools/split-debug.sh
+
+src/test/test_bitcoin
+
+libbitcoinconsensus.pc
+qa/pull-tester/run-bitcoind-for-test.sh
+qa/pull-tester/tests_config.py
+
+# Qt Creator project files
+zcoin.config
+zcoin.creator
+zcoin.creator.user
+zcoin.files
+zcoin.includes
