@@ -36,6 +36,9 @@ public:
     // Update last block
     void SetLastBlock(CBlockIndex *lastBlockIndex, const Consensus::Params &params);
 
+    // Reset to initial state
+    void Reset();
+
     // Initialize from existing chain
     void InitializeFromChain(CChain *chain, const Consensus::Params &params);
 };

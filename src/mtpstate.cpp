@@ -23,11 +23,19 @@ void MTPState::SetLastBlock(CBlockIndex *lastBlockIndex, const Consensus::Params
     lastSeenBlockIndex = lastBlockIndex;
 }
 
+void MTPState::Reset() {
+    nFirstMTPBlock = 0;
+    lastSeenBlockIndex = NULL;
+}
+
 int MTPState::GetFirstMTPBlockNumber(const Consensus::Params &params, const CBlockIndex *blockIndex) {
     if (!lastSeenBlockIndex || blockIndex->nHeight > lastSeenBlockIndex->nHeight) {
         // blockIndex is actually ahead of lastSeenBlockIndex
         if (nFirstMTPBlock > 0)
             return nFirstMTPBlock;
+
+        if (blockIndex->nHeight == 0)
+            return 0;
 
         // go back the block chain and get the first block with MTP
         int firstMTPBlock = 0;

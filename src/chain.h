@@ -210,8 +210,6 @@ public:
     // Reserved fields
     uint256 reserved[2];
 
-    uint256 hashBlock;
-
     //! (memory only) Sequential id assigned to distinguish order in which blocks are received.
     uint32_t nSequenceId;
 
@@ -253,8 +251,6 @@ public:
         nVersionMTP = 0;
         mtpHashValue = reserved[0] = reserved[1] = uint256();
 
-        hashBlock = uint256();
-
         mintedPubCoins.clear();
         accumulatorChanges.clear();
         spentSerials.clear();
@@ -273,7 +269,6 @@ public:
         hashMerkleRoot = block.hashMerkleRoot;
         nTime          = block.nTime;
         nBits          = block.nBits;
-        hashBlock	   = block.GetHash();
         nNonce         = block.nNonce;
 
         if (block.IsMTP()) {
@@ -447,8 +442,6 @@ public:
             READWRITE(reserved[0]);
             READWRITE(reserved[1]);
         }
-
-		READWRITE(hashBlock);
 
         if (!(nType & SER_GETHASH) && nVersion >= ZC_ADVANCED_INDEX_VERSION) {
             READWRITE(mintedPubCoins);
