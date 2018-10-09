@@ -3,7 +3,6 @@
 #include "guiutil.h"
 
 #include <string>
-#include <fstream>
 
 #include <QDialog>
 #include <QDialogButtonBox>
@@ -12,6 +11,7 @@
 #include <QPushButton>
 #include <QTextEdit>
 #include <QVBoxLayout>
+#include <util.h>
 
 namespace exodus
 {
@@ -127,8 +127,7 @@ struct ShowUiChecker
 
     ShowUiChecker()
     {
-        std::ifstream flag_file("show_exodus_ui");
-        isUiNeeded_ = flag_file.good();
+        isUiNeeded_ = GetBoolArg("-showExodusUi", false);
     }
 
 private:
