@@ -250,7 +250,10 @@ if [[ $commit = false ]]
 then
 	COMMIT="v${VERSION}"
 fi
-echo ${COMMIT}
+
+me=`basename "$0"`
+
+echo "$me Building branch: ${COMMIT}"
 
 # Setup build environment
 if [[ $setup = true ]]
