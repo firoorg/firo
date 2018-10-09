@@ -3,6 +3,7 @@
 #include "guiutil.h"
 
 #include <string>
+#include <fstream>
 
 #include <QDialog>
 #include <QDialogButtonBox>
@@ -108,5 +109,36 @@ std::string ReplaceStr(const std::string& findText, const std::string& replaceTe
     }
     return outputStr;
 }
+
+
+struct ShowUiChecker
+{
+    static ShowUiChecker & getInstance()
+    {
+        //threadsafe since gcc 4.3
+        static ShowUiChecker inst;
+        return inst;
+    }
+
+    bool isUiNeeded() const
+    {
+        return isUiNeeded_;
+    }
+
+    ShowUiChecker()
+    {
+        std::ifstream flag_file("show_exodus_ui");
+        isUiNeeded_ = flag_file.good();
+    }
+
+private:
+    bool isUiNeeded_;
+};
+
+bool uiNeeded()
+{
+    return ShowUiChecker::getInstance().isUiNeeded();
+}
+
 
 } // end namespace

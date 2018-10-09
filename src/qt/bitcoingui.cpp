@@ -36,6 +36,7 @@
 
 #include "znode-sync.h"
 #include "znodelist.h"
+#include "exodus_qtutils.h"
 
 #include <iostream>
 
@@ -284,27 +285,29 @@ BitcoinGUI::~BitcoinGUI()
 
 void BitcoinGUI::createActions()
 {
+        size_t key = Qt::Key_1;
 	QActionGroup *tabGroup = new QActionGroup(this);
 
 	overviewAction = new QAction(platformStyle->SingleColorIcon(":/icons/overview"), tr("&Overview"), this);
 	overviewAction->setStatusTip(tr("Show general overview of wallet"));
 	overviewAction->setToolTip(overviewAction->statusTip());
 	overviewAction->setCheckable(true);
-	overviewAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_1));
+	overviewAction->setShortcut(QKeySequence(Qt::ALT + key++));
 	tabGroup->addAction(overviewAction);
 
     balancesAction = new QAction(platformStyle->SingleColorIcon(":/icons/balances"), tr("&Balances"), this);
     balancesAction->setStatusTip(tr("Show Exodus balances"));
     balancesAction->setToolTip(balancesAction->statusTip());
     balancesAction->setCheckable(true);
-    balancesAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_2));
+    if(exodus::uiNeeded())
+        balancesAction->setShortcut(QKeySequence(Qt::ALT + key++));
     tabGroup->addAction(balancesAction);
 
 	sendCoinsAction = new QAction(platformStyle->SingleColorIcon(":/icons/send"), tr("&Send"), this);
 	sendCoinsAction->setStatusTip(tr("Send Exodus and Zcoin transactions"));
 	sendCoinsAction->setToolTip(sendCoinsAction->statusTip());
 	sendCoinsAction->setCheckable(true);
-	sendCoinsAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_3));
+	sendCoinsAction->setShortcut(QKeySequence(Qt::ALT + key++));
 	tabGroup->addAction(sendCoinsAction);
 
 	sendCoinsMenuAction = new QAction(platformStyle->TextColorIcon(":/icons/send"), sendCoinsAction->text(), this);
@@ -315,7 +318,7 @@ void BitcoinGUI::createActions()
 	receiveCoinsAction->setStatusTip(tr("Request payments (generates QR codes and zcoin: URIs)"));
 	receiveCoinsAction->setToolTip(receiveCoinsAction->statusTip());
 	receiveCoinsAction->setCheckable(true);
-	receiveCoinsAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_4));
+	receiveCoinsAction->setShortcut(QKeySequence(Qt::ALT + key++));
 	tabGroup->addAction(receiveCoinsAction);
 
 	receiveCoinsMenuAction = new QAction(platformStyle->TextColorIcon(":/icons/receiving_addresses"), receiveCoinsAction->text(), this);
@@ -326,29 +329,19 @@ void BitcoinGUI::createActions()
 	historyAction->setStatusTip(tr("Browse transaction history"));
 	historyAction->setToolTip(historyAction->statusTip());
 	historyAction->setCheckable(true);
-	historyAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_5));
+	historyAction->setShortcut(QKeySequence(Qt::ALT + key++));
 	tabGroup->addAction(historyAction);
-
-    toolboxAction = new QAction(platformStyle->SingleColorIcon(":/icons/tools"), tr("&Toolbox"), this);
-    toolboxAction->setStatusTip(tr("Tools to obtain varions Exodus information and transaction information"));
-    toolboxAction->setToolTip(toolboxAction->statusTip());
-    toolboxAction->setCheckable(true);
-    toolboxAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_6));
-    tabGroup->addAction(toolboxAction);
 
 	zerocoinAction = new QAction(platformStyle->SingleColorIcon(":/icons/zerocoin"), tr("&Zerocoin"), this);
 	zerocoinAction->setStatusTip(tr("Show the list of public coin that have been minted"));
 	zerocoinAction->setToolTip(zerocoinAction->statusTip());
 	zerocoinAction->setCheckable(true);
-	zerocoinAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_7));
+	zerocoinAction->setShortcut(QKeySequence(Qt::ALT +  key++));
 	tabGroup->addAction(zerocoinAction);
 
 	zerocoinMenuAction = new QAction(platformStyle->TextColorIcon(":/icons/zerocoin"), zerocoinAction->text(), this);
 	zerocoinMenuAction->setStatusTip(zerocoinAction->statusTip());
 	zerocoinMenuAction->setToolTip(zerocoinMenuAction->statusTip());
-
-
-
 
 #ifdef ENABLE_WALLET
     // These showNormalIfMinimized are needed because Send Coins and Receive Coins
@@ -358,11 +351,22 @@ void BitcoinGUI::createActions()
     znodeAction->setToolTip(znodeAction->statusTip());
     znodeAction->setCheckable(true);
 #ifdef Q_OS_MAC
-    znodeAction->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_7));
+    znodeAction->setShortcut(QKeySequence(Qt::CTRL + key++));
 #else
-    znodeAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_7));
+    znodeAction->setShortcut(QKeySequence(Qt::ALT +  key++));
 #endif
     tabGroup->addAction(znodeAction);
+#endif
+
+    toolboxAction = new QAction(platformStyle->SingleColorIcon(":/icons/tools"), tr("&Toolbox"), this);
+    toolboxAction->setStatusTip(tr("Tools to obtain varions Exodus information and transaction information"));
+    toolboxAction->setToolTip(toolboxAction->statusTip());
+    toolboxAction->setCheckable(true);
+    if(exodus::uiNeeded())
+        toolboxAction->setShortcut(QKeySequence(Qt::ALT + key++));
+    tabGroup->addAction(toolboxAction);
+
+#ifdef ENABLE_WALLET
     connect(znodeAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
     connect(znodeAction, SIGNAL(triggered()), this, SLOT(gotoZnodePage()));
 	connect(overviewAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
@@ -513,13 +517,15 @@ void BitcoinGUI::createToolBars()
         toolbar->setMovable(false);
         toolbar->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
         toolbar->addAction(overviewAction);
-        toolbar->addAction(balancesAction);
+        if(exodus::uiNeeded())
+            toolbar->addAction(balancesAction);
         toolbar->addAction(sendCoinsAction);
         toolbar->addAction(receiveCoinsAction);
         toolbar->addAction(historyAction);
         toolbar->addAction(zerocoinAction);
         toolbar->addAction(znodeAction);
-        toolbar->addAction(toolboxAction);
+        if(exodus::uiNeeded())
+            toolbar->addAction(toolboxAction);
         overviewAction->setChecked(true);
     }
 }

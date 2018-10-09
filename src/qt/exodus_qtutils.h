@@ -30,6 +30,11 @@ namespace exodus
     * with replaceText.
     */
     std::string ReplaceStr(const std::string& findText, const std::string& replaceText, const std::string& inputStr);
+
+    /**
+    * Returns true if there exists a readable file "show_exodus_ui" at the cwd
+    */
+    bool uiNeeded();
 }
 
 #endif // EXODUS_QTUTILS

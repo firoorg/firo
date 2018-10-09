@@ -30,6 +30,7 @@
 #include "walletmodel.h"
 
 #include "ui_interface.h"
+#include "exodus_qtutils.h"
 
 #include <QAction>
 #include <QActionGroup>
@@ -71,7 +72,8 @@ WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
 	transactionsPage = new QWidget(this);
 	QVBoxLayout *txvbox = new QVBoxLayout();
 	txTabHolder = new QTabWidget();
-	txTabHolder->addTab(mpTXTab,tr("Exodus"));
+	if(exodus::uiNeeded())
+            txTabHolder->addTab(mpTXTab,tr("Exodus"));
 	txTabHolder->addTab(bitcoinTXTab,tr("Zcoin"));
 	txvbox->addWidget(txTabHolder);
 	transactionsPage->setLayout(txvbox);
@@ -91,7 +93,8 @@ WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
     sendCoinsTab = new SendCoinsDialog(platformStyle);
     sendMPTab = new SendMPDialog(platformStyle);
     sendTabHolder = new QTabWidget();
-    sendTabHolder->addTab(sendMPTab,tr("Exodus"));
+    if(exodus::uiNeeded())
+        sendTabHolder->addTab(sendMPTab,tr("Exodus"));
     sendTabHolder->addTab(sendCoinsTab,tr("Zcoin"));
     svbox->addWidget(sendTabHolder);
     sendCoinsPage->setLayout(svbox);
