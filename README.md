@@ -10,6 +10,57 @@ What is Zcoin?
 
 The Zerocoin Protocol is being actively researched and improved, such as removing trustless setup and reducing proof sizes.
 
+Running with Docker
+===================
+
+If you already familiar with Docker then running Zcoin with Docker might be the the most easier method for you. If not
+but want to try just install [Docker](https://store.docker.com/search?type=edition&offering=community) then you can
+continue with the following instructions.
+
+Please note currently we don't support GUI when running with Docker so you can only use RPC to interact with Zcoin.
+
+Pull our latest official Docker image:
+
+```sh
+docker pull zcoinofficial/zcoind
+```
+
+Start Zcoin daemon:
+
+```sh
+docker run --detach --name zcoind zcoinofficial/zcoind
+```
+
+View current block count (this might take a while since daemon need to find other nodes and download blocks):
+
+```sh
+docker exec zcoind zcoin-cli getblockcount
+```
+
+View current connected nodes:
+
+```sh
+docker exec zcoind zcoin-cli getpeerinfo
+```
+
+Stop daemon:
+
+```sh
+docker stop zcoind
+```
+
+Backup wallet:
+
+```sh
+docker cp zcoind:/home/zcoind/.zcoin/wallet.dat .
+```
+
+Start daemon again:
+
+```sh
+docker start zcoind
+```
+
 Linux Build Instructions and Notes
 ==================================
 
