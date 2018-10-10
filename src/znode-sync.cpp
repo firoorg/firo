@@ -59,28 +59,31 @@ bool CZnodeSync::IsBlockchainSynced(bool fBlockAccepted) {
     static int nSkipped = 0;
     static bool fFirstBlockAccepted = false;
 
-    // if the last call to this function was more than 60 minutes ago (client was in sleep mode) reset the sync process
+    // If the last call to this function was more than 60 minutes ago 
+    // (client was in sleep mode) reset the sync process
     if (GetTime() - nTimeLastProcess > 60 * 60) {
-        LogPrintf("CZnodeSync::IsBlockchainSynced time-check fBlockchainSynced=%s\n", fBlockchainSynced);
+        LogPrintf("CZnodeSync::IsBlockchainSynced time-check fBlockchainSynced=%s\n", 
+                  fBlockchainSynced);
         Reset();
         fBlockchainSynced = false;
     }
 
-    if (!pCurrentBlockIndex || !pindexBestHeader || fImporting || fReindex) return false;
+    if (!pCurrentBlockIndex || !pindexBestHeader || fImporting || fReindex) 
+        return false;
 
     if (fBlockAccepted) {
-        // this should be only triggered while we are still syncing
+        // This should be only triggered while we are still syncing.
         if (!IsSynced()) {
-            // we are trying to download smth, reset blockchain sync status
+            // We are trying to download smth, reset blockchain sync status.
             fFirstBlockAccepted = true;
             fBlockchainSynced = false;
             nTimeLastProcess = GetTime();
             return fBlockchainSynced;
         }
     } else {
-        //Dont skip on REGTEST to make the tests run faster
+        // Dont skip on REGTEST to make the tests run faster.
         if(Params().NetworkIDString() != CBaseChainParams::REGTEST) {
-            // skip if we already checked less than 1 tick ago
+            // skip if we already checked less than 1 tick ago.
             if (GetTime() - nTimeLastProcess < ZNODE_SYNC_TICK_SECONDS) {
                 nSkipped++;
                 return fBlockchainSynced;
@@ -88,7 +91,10 @@ bool CZnodeSync::IsBlockchainSynced(bool fBlockAccepted) {
         }
     }
 
-    LogPrint("znode-sync", "CZnodeSync::IsBlockchainSynced -- state before check: %ssynced, skipped %d times\n", fBlockchainSynced ? "" : "not ", nSkipped);
+    LogPrint("znode-sync", 
+             "CZnodeSync::IsBlockchainSynced -- state before check: %ssynced, skipped %d times\n", 
+             fBlockchainSynced ? "" : "not ", 
+             nSkipped);
 
     nTimeLastProcess = GetTime();
     nSkipped = 0;
@@ -97,9 +103,10 @@ bool CZnodeSync::IsBlockchainSynced(bool fBlockAccepted) {
         return fBlockchainSynced;
     }
 
-    if (fCheckpointsEnabled && pCurrentBlockIndex->nHeight < Checkpoints::GetTotalBlocksEstimate(Params().Checkpoints())) {
-        fBlockchainSynced = false;
-        return fBlockchainSynced;
+    if (fCheckpointsEnabled && 
+        pCurrentBlockIndex->nHeight < Checkpoints::GetTotalBlocksEstimate(Params().Checkpoints())) {
+        
+        return false;
     }
 
     std::vector < CNode * > vNodesCopy = CopyNodeVector();

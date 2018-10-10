@@ -158,6 +158,9 @@ public:
     // Add spend into the mempool. Check if there is a coin with such serial in either blockchain or mempool
     bool AddSpendToMempool(const CBigNum &coinSerial, uint256 txHash);
 
+    // Add spend(s) into the mempool. Check if there is a coin with such serial in either blockchain or mempool
+    bool AddSpendToMempool(const vector<CBigNum> &coinSerials, uint256 txHash);
+
     // Get conflicting tx hash by coin serial number
     uint256 GetMempoolConflictingTxHash(const CBigNum &coinSerial);
 
