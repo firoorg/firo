@@ -203,30 +203,27 @@ UniValue sendprivate(Type type, const UniValue& data, const UniValue& auth, bool
 
             // Wallet comments
             CWalletTx wtx;
-            CBigNum coinSerial;
+            vector<CBigNum> coinSerials;
             uint256 txHash;
-            CBigNum zcSelectedValue;
-            bool zcSelectedIsUsed;
+            vector<CBigNum> zcSelectedValues;
+            UniValue mintUpdates;
+            string strError = "";
 
             // begin spend process
+            // TODO: update SpendMultipleZerocoin to include mintUpdate code
             CReserveKey reservekey(pwalletMain);
 
             if (pwalletMain->IsLocked()) {
-                string strError = _("Error: Wallet locked, unable to create transaction!");
+                strError = _("Error: Wallet locked, unable to create transaction!");
                 LogPrintf("SpendZerocoin() : %s", strError);
                 return strError;
             }
 
-            UniValue mintUpdates;
-
-            string strError = "";
-            if (!pwalletMain->CreateMultipleZerocoinSpendTransaction(thirdPartyaddress, denominations, wtx, reservekey, coinSerial, txHash,
-                                                zcSelectedValue, zcSelectedIsUsed, strError, mintUpdates)) {
-                LogPrintf("SpendZerocoin() : %s\n", strError.c_str());
+            if (!pwalletMain->CreateMultipleZerocoinSpendTransaction(thirdPartyaddress, denominations, wtx, reservekey, coinSerials, txHash,
+                                                zcSelectedValues, strError, mintUpdates)) {
+                LogPrintf("SpendZerocoin() : %s\n", strError);
                 return strError;
             }
-
-            LogPrintf("mintUpdates out of function: %s\n", mintUpdates.write());
 
             string txidStr = wtx.GetHash().GetHex();
 
@@ -238,39 +235,41 @@ UniValue sendprivate(Type type, const UniValue& data, const UniValue& auth, bool
             setTxMetadata(txMetadataUni);
 
             if (!pwalletMain->CommitZerocoinSpendTransaction(wtx, reservekey)) {
-                // TODO somehow fail here
                 LogPrintf("CommitZerocoinSpendTransaction() -> FAILED!\n");
                 CZerocoinEntry pubCoinTx;
                 list <CZerocoinEntry> listPubCoin;
                 listPubCoin.clear();
-
                 CWalletDB walletdb(pwalletMain->strWalletFile);
                 walletdb.ListPubCoin(listPubCoin);
-                BOOST_FOREACH(const CZerocoinEntry &pubCoinItem, listPubCoin) {
-                    if (zcSelectedValue == pubCoinItem.value) {
-                        pubCoinTx.id = pubCoinItem.id;
-                        pubCoinTx.IsUsed = false; // having error, so set to false, to be able to use again
-                        pubCoinTx.value = pubCoinItem.value;
-                        pubCoinTx.nHeight = pubCoinItem.nHeight;
-                        pubCoinTx.randomness = pubCoinItem.randomness;
-                        pubCoinTx.serialNumber = pubCoinItem.serialNumber;
-                        pubCoinTx.denomination = pubCoinItem.denomination;
-                        pubCoinTx.ecdsaSecretKey = pubCoinItem.ecdsaSecretKey;
-                        CWalletDB(pwalletMain->strWalletFile).WriteZerocoinEntry(pubCoinTx);
-                        LogPrintf("SpendZerocoin failed, re-updated status -> NotifyZerocoinChanged\n");
-                        LogPrintf("pubcoin=%s, isUsed=New\n", pubCoinItem.value.GetHex());
-                        pwalletMain->NotifyZerocoinChanged(pwalletMain, pubCoinItem, "New", CT_UPDATED);
+
+                for (std::vector<CBigNum>::iterator it = coinSerials.begin(); it != coinSerials.end(); it++){
+                    unsigned index = it - coinSerials.begin();
+                    CBigNum zcSelectedValue = zcSelectedValues[index];
+                    BOOST_FOREACH(const CZerocoinEntry &pubCoinItem, listPubCoin) {
+                        if (zcSelectedValue == pubCoinItem.value) {
+                            pubCoinTx.id = pubCoinItem.id;
+                            pubCoinTx.IsUsed = false; // having error, so set to false, to be able to use again
+                            pubCoinTx.value = pubCoinItem.value;
+                            pubCoinTx.nHeight = pubCoinItem.nHeight;
+                            pubCoinTx.randomness = pubCoinItem.randomness;
+                            pubCoinTx.serialNumber = pubCoinItem.serialNumber;
+                            pubCoinTx.denomination = pubCoinItem.denomination;
+                            pubCoinTx.ecdsaSecretKey = pubCoinItem.ecdsaSecretKey;
+                            CWalletDB(pwalletMain->strWalletFile).WriteZerocoinEntry(pubCoinTx);
+                            LogPrintf("SpendZerocoin failed, re-updated status -> NotifyZerocoinChanged\n");
+                            LogPrintf("pubcoin=%s, isUsed=New\n", pubCoinItem.value.GetHex());
+                        }
+                    }
+                    CZerocoinSpendEntry entry;
+                    entry.coinSerial = coinSerials[index];
+                    entry.hashTx = txHash;
+                    entry.pubCoin = zcSelectedValue;
+                    if (!CWalletDB(pwalletMain->strWalletFile).EraseCoinSpendSerialEntry(entry)) {
+                        strError.append("Error: It cannot delete coin serial number in wallet.\n");
                     }
                 }
-                CZerocoinSpendEntry entry;
-                entry.coinSerial = coinSerial;
-                entry.hashTx = txHash;
-                entry.pubCoin = zcSelectedValue;
-                if (!CWalletDB(pwalletMain->strWalletFile).EraseCoinSpendSerialEntry(entry)) {
-                    return _("Error: It cannot delete coin serial number in wallet");
-                }
-                return _(
-                        "Error: The transaction was rejected! This might happen if some of the coins in your wallet were already spent, such as if you used a copy of wallet.dat and coins were spent in the copy but not marked as spent here.");
+                strError.append("Error: The transaction was rejected! This might happen if some of the coins in your wallet were already spent, such as if you used a copy of wallet.dat and coins were spent in the copy but not marked as spent here.");
+                return strError;
             }
 
             if (strError != "")

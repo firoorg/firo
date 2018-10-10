@@ -4548,7 +4548,7 @@ bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddr
                 coinToUse.id = tempStorage.coinId;
                 coinToUse.nHeight = tempStorage.coinHeight;
                 CWalletDB(strWalletFile).WriteZerocoinEntry(coinToUse);
-                pwalletMain->NotifyZerocoinChanged(pwalletMain, coinToUse.value.GetHex(), "Used (" + std::to_string(coinToUse.denomination) + " mint)", CT_UPDATED);
+                pwalletMain->NotifyZerocoinChanged(pwalletMain, coinToUse, "Used (" + std::to_string(coinToUse.denomination) + " mint)", CT_UPDATED);
             }
         }
     }
@@ -4814,86 +4814,6 @@ string CWallet::SpendZerocoin(std::string &thirdPartyaddress, int64_t nValue, li
  * @param zcSelectedIsUsed
  * @return
  */
-string CWallet::SpendMultipleZerocoin(std::string &thirdPartyaddress, std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>> denominations, CWalletTx &wtxNew,
-                              CBigNum &coinSerial, uint256 &txHash, CBigNum &zcSelectedValue,
-                              bool &zcSelectedIsUsed, bool forceUsed) {
-    // Check amount
-    // TODO do for all
-    // if (nValue <= 0)
-    //     return _("Invalid amount");
-
-    // Do not allow spend to take place until fully synced
-    // Temporary measure: we can remove this limitation when well after spend v1.5 HF block
-    // if (fImporting || fReindex || !znodeSync.IsBlockchainSynced())
-    //     return _("Not fully synced yet");
-
-
-    CReserveKey reservekey(this);
-
-    if (IsLocked()) {
-        string strError = _("Error: Wallet locked, unable to create transaction!");
-        LogPrintf("SpendZerocoin() : %s", strError);
-        return strError;
-    }
-
-    string strError;
-    UniValue mintUpdates;
-    if (!CreateMultipleZerocoinSpendTransaction(thirdPartyaddress, denominations, wtxNew, reservekey, coinSerial, txHash,
-                                        zcSelectedValue, zcSelectedIsUsed, strError, mintUpdates, forceUsed)) {
-        LogPrintf("SpendZerocoin() : %s\n", strError.c_str());
-        return strError;
-    }
-
-    if (!CommitZerocoinSpendTransaction(wtxNew, reservekey)) {
-        LogPrintf("CommitZerocoinSpendTransaction() -> FAILED!\n");
-        CZerocoinEntry pubCoinTx;
-        list <CZerocoinEntry> listPubCoin;
-        listPubCoin.clear();
-
-        CWalletDB walletdb(pwalletMain->strWalletFile);
-        walletdb.ListPubCoin(listPubCoin);
-        BOOST_FOREACH(const CZerocoinEntry &pubCoinItem, listPubCoin) {
-            if (zcSelectedValue == pubCoinItem.value) {
-                pubCoinTx.id = pubCoinItem.id;
-                pubCoinTx.IsUsed = false; // having error, so set to false, to be able to use again
-                pubCoinTx.value = pubCoinItem.value;
-                pubCoinTx.nHeight = pubCoinItem.nHeight;
-                pubCoinTx.randomness = pubCoinItem.randomness;
-                pubCoinTx.serialNumber = pubCoinItem.serialNumber;
-                pubCoinTx.denomination = pubCoinItem.denomination;
-                pubCoinTx.ecdsaSecretKey = pubCoinItem.ecdsaSecretKey;
-                CWalletDB(strWalletFile).WriteZerocoinEntry(pubCoinTx);
-                LogPrintf("SpendZerocoin failed, re-updated status -> NotifyZerocoinChanged\n");
-                LogPrintf("pubcoin=%s, isUsed=New\n", pubCoinItem.value.GetHex());
-                pwalletMain->NotifyZerocoinChanged(pwalletMain, pubCoinItem, "New", CT_UPDATED);
-            }
-        }
-        CZerocoinSpendEntry entry;
-        entry.coinSerial = coinSerial;
-        entry.hashTx = txHash;
-        entry.pubCoin = zcSelectedValue;
-        if (!CWalletDB(strWalletFile).EraseCoinSpendSerialEntry(entry)) {
-            return _("Error: It cannot delete coin serial number in wallet");
-        }
-        return _(
-                "Error: The transaction was rejected! This might happen if some of the coins in your wallet were already spent, such as if you used a copy of wallet.dat and coins were spent in the copy but not marked as spent here.");
-    }
-    return "";
-}
-
-
-/**
- * @brief CWallet::SpendZerocoin
- * @param thirdPartyaddress
- * @param nValue
- * @param denomination
- * @param wtxNew
- * @param coinSerial
- * @param txHash
- * @param zcSelectedValue
- * @param zcSelectedIsUsed
- * @return
- */
 string CWallet::SpendMultipleZerocoin(std::string &thirdPartyaddress, const std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>>& denominations, CWalletTx &wtxNew,
                               vector<CBigNum> &coinSerials, uint256 &txHash, vector<CBigNum> &zcSelectedValues, bool forceUsed) {
      CReserveKey reservekey(this);
@@ -4903,8 +4823,8 @@ string CWallet::SpendMultipleZerocoin(std::string &thirdPartyaddress, const std:
         LogPrintf("SpendZerocoin() : %s", strError);
         return strError;
     }
-    
-    if (!CreateMultipleZerocoinSpendTransaction(thirdPartyaddress, denominations, wtxNew, reservekey, coinSerials, txHash, zcSelectedValues, strError, forceUsed)) {
+    UniValue mintUpdates;
+    if (!CreateMultipleZerocoinSpendTransaction(thirdPartyaddress, denominations, wtxNew, reservekey, coinSerials, txHash, zcSelectedValues, strError, mintUpdates, forceUsed)) {
         LogPrintf("SpendZerocoin() : %s\n", strError.c_str());
         return strError;
     }
