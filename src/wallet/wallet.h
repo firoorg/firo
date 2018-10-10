@@ -837,6 +837,7 @@ public:
     /**
      * Add zerocoin Mint and Spend function
      */
+    bool IsMintFromTxOutUsed(CTxOut& pcoin);
     void ListAvailableCoinsMintCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed=true) const;
     bool CreateZerocoinMintTransaction(const std::vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet, int& nChangePosInOut,
                            std::string& strFailReason, const CCoinControl *coinControl = NULL, bool sign = true);

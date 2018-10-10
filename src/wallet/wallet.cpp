@@ -2280,6 +2280,34 @@ bool CWallet::GetVinAndKeysFromOutput(COutput out, CTxIn &txinRet, CPubKey &pubK
     return true;
 }
 
+bool CWallet::IsMintFromTxOutUsed(CTxOut& txout){
+    LOCK(cs_wallet);
+
+    if(!txout.scriptPubKey.IsZerocoinMint()){
+        throw runtime_error(std::string(__func__) + ": txout is not a ZEROCOIN_MINT\n");
+    }
+
+    list <CZerocoinEntry> listPubCoin = list<CZerocoinEntry>();
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+    walletdb.ListPubCoin(listPubCoin);
+
+    vector<unsigned char> vchZeroMint;
+    vchZeroMint.insert(vchZeroMint.end(), txout.scriptPubKey.begin() + 6,
+                       txout.scriptPubKey.begin() + txout.scriptPubKey.size());
+
+    CBigNum pubCoin;
+    pubCoin.setvch(vchZeroMint);
+    LogPrintf("Pubcoin=%s\n", pubCoin.ToString());
+    BOOST_FOREACH(const CZerocoinEntry &pubCoinItem, listPubCoin) {
+        if (pubCoinItem.value == pubCoin){
+            return pubCoinItem.IsUsed;
+        }
+    }
+    // If we got here, mint not contained in the db, so some error has occured.
+    throw runtime_error(std::string(__func__) + ": txout mint not contained in the database\n");
+
+}
+
 //[zcoin]
 void CWallet::ListAvailableCoinsMintCoins(vector <COutput> &vCoins, bool fOnlyConfirmed) const {
     vCoins.clear();
@@ -3125,6 +3153,7 @@ bool CWallet::CreateTransaction(const vector <CRecipient> &vecSend, CWalletTx &w
         }
     }
 
+
     if (GetBoolArg("-walletrejectlongchains", DEFAULT_WALLET_REJECT_LONG_CHAINS)) {
         // Lastly, ensure this tx will pass the mempool's chain limits
         LockPoints lp;
@@ -3238,15 +3267,15 @@ bool CWallet::CreateZerocoinMintModel(string &stringError, string denomAmount) {
 
     // Set up the Zerocoin Params object
     libzerocoin::Params *zcParams = ZCParamsV2;
-	
-	int mintVersion = ZEROCOIN_TX_VERSION_1;
-	
-	// do not use v2 mint until certain moment when it would be understood by peers
-	{
-		LOCK(cs_main);
+    
+    int mintVersion = ZEROCOIN_TX_VERSION_1;
+    
+    // do not use v2 mint until certain moment when it would be understood by peers
+    {
+        LOCK(cs_main);
         if (chainActive.Height() >= Params().nSpendV15StartBlock)
-			mintVersion = ZEROCOIN_TX_VERSION_2;
-	}
+            mintVersion = ZEROCOIN_TX_VERSION_2;
+    }
 
     // The following constructor does all the work of minting a brand
     // new zerocoin. It stores all the private values inside the
@@ -3385,7 +3414,6 @@ bool CWallet::CreateZerocoinMintTransaction(const vector <CRecipient> &vecSend, 
 
 
             nFeeRet = payTxFee.GetFeePerK();
-            LogPrintf("nFeeRet=%s\n", nFeeRet);
             // Start with no fee and loop until there is enough fee
             while (true) {
                 nChangePosInOut = nChangePosRequest;
@@ -3600,7 +3628,7 @@ bool CWallet::CreateZerocoinMintTransaction(const vector <CRecipient> &vecSend, 
                         break;
                 }
                 int64_t nPayFee = payTxFee.GetFeePerK() * (1 + (int64_t) GetTransactionWeight(txNew) / 1000);
-//                bool fAllowFree = false;					// No free TXs in XZC
+//                bool fAllowFree = false;                  // No free TXs in XZC
                 int64_t nMinFee = wtxNew.GetMinFee(1, false, GMF_SEND);
 
                 int64_t nFeeNeeded = nPayFee;
@@ -3699,19 +3727,19 @@ bool CWallet::CreateZerocoinSpendTransaction(std::string &thirdPartyaddress, int
 
             CScript scriptChange;
             if(thirdPartyaddress == ""){
-            	// Reserve a new key pair from key pool
-            	CPubKey vchPubKey;
-            	assert(reservekey.GetReservedKey(vchPubKey)); // should never fail, as we just unlocked
-            	scriptChange = GetScriptForDestination(vchPubKey.GetID());
+               // Reserve a new key pair from key pool
+               CPubKey vchPubKey;
+               assert(reservekey.GetReservedKey(vchPubKey)); // should never fail, as we just unlocked
+               scriptChange = GetScriptForDestination(vchPubKey.GetID());
             }else{
 
-            	CBitcoinAddress address(thirdPartyaddress);
-            	if (!address.IsValid()){
-            		strFailReason = _("Invalid zcoin address");
-            		return false;
-            	}
-            	// Parse Zcoin address
-            	scriptChange = GetScriptForDestination(CBitcoinAddress(thirdPartyaddress).Get());
+               CBitcoinAddress address(thirdPartyaddress);
+               if (!address.IsValid()){
+                   strFailReason = _("Invalid zcoin address");
+                   return false;
+               }
+               // Parse Zcoin address
+               scriptChange = GetScriptForDestination(CBitcoinAddress(thirdPartyaddress).Get());
             }
 
             CTxOut newTxOut(nValue, scriptChange);
