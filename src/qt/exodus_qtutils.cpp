@@ -11,6 +11,7 @@
 #include <QPushButton>
 #include <QTextEdit>
 #include <QVBoxLayout>
+#include <util.h>
 
 namespace exodus
 {
@@ -108,5 +109,35 @@ std::string ReplaceStr(const std::string& findText, const std::string& replaceTe
     }
     return outputStr;
 }
+
+
+struct ShowUiChecker
+{
+    static ShowUiChecker & getInstance()
+    {
+        //threadsafe since gcc 4.3
+        static ShowUiChecker inst;
+        return inst;
+    }
+
+    bool isUiNeeded() const
+    {
+        return isUiNeeded_;
+    }
+
+    ShowUiChecker()
+    {
+        isUiNeeded_ = GetBoolArg("-showExodusUi", false);
+    }
+
+private:
+    bool isUiNeeded_;
+};
+
+bool uiNeeded()
+{
+    return ShowUiChecker::getInstance().isUiNeeded();
+}
+
 
 } // end namespace

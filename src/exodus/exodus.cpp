@@ -2119,7 +2119,7 @@ void clear_all_state()
  */
 int exodus_init()
 {
-    LOCK(cs_tally);
+    LOCK2(cs_main, cs_tally);
 
     if (exodusInitialized) {
         // nothing to do
@@ -2770,12 +2770,9 @@ void CMPTxList::LoadAlerts(int blockHeight)
 
     delete it;
     int64_t blockTime = 0;
-    {
-        LOCK(cs_main);
-        CBlockIndex* pBlockIndex = chainActive[blockHeight-1];
-        if (pBlockIndex != NULL) {
-            blockTime = pBlockIndex->GetBlockTime();
-        }
+    CBlockIndex* pBlockIndex = chainActive[blockHeight-1];
+    if (pBlockIndex != NULL) {
+        blockTime = pBlockIndex->GetBlockTime();
     }
     if (blockTime > 0) {
         CheckExpiredAlerts(blockHeight, blockTime);
