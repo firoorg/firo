@@ -552,7 +552,7 @@ bool CheckZerocoinTransaction(const CTransaction &tx,
         {
             if(!isVerifyDB){
                 if (txout.nValue == totalValue * COIN) {
-                    if(!CheckSpendZcoinTransaction(tx, params, denominations, state, hashTx, isVerifyDB, nHeight, isCheckWallet, zerocoinTxInfo)){
+                    if(!CheckSpendZcoinTransaction(tx, denominations, state, hashTx, isVerifyDB, nHeight, isCheckWallet, zerocoinTxInfo)){
                         return false;
                     }
                 }else{
