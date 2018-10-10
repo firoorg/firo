@@ -18,6 +18,7 @@ void MTPState::SetLastBlock(CBlockIndex *lastBlockIndex, const Consensus::Params
                 block = block->pprev;
 
             nFirstMTPBlock = block->nHeight;
+            LogPrintf("Switch to MTP happened at block height  %d\n", nFirstMTPBlock);
         }
     }
     lastSeenBlockIndex = lastBlockIndex;

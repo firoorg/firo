@@ -296,12 +296,12 @@ public:
         //consensus.nBudgetPaymentsWindowBlocks = 10;
         nMaxTipAge = 0x7fffffff; // allow mining on top of old blocks for testnet
 
-        consensus.nMTPSwitchTime = 0;
+        consensus.nMTPSwitchTime = 1539172800;
         consensus.nDifficultyAdjustStartBlock = 100;
         consensus.nFixedDifficulty = 0x2000ffff;
         consensus.nPowTargetSpacingMTP = 5*60;
         consensus.nInitialMTPDifficulty = 0x2000ffff;  // !!!! change it to the real value
-        consensus.nMTPRewardReduction = 1;
+        consensus.nMTPRewardReduction = 2;
 
         nPoolMaxTransactions = 3;
         nFulfilledRequestExpireTime = 5*60; // fulfilled requests expire in 5 minutes
@@ -324,13 +324,13 @@ public:
         extraNonce[1] = 0x00;
         extraNonce[2] = 0x00;
         extraNonce[3] = 0x00;
-        genesis = CreateGenesisBlock(ZC_GENESIS_BLOCK_TIME, 2327333, 0x1e0ffff0, 2, 0 * COIN, extraNonce);
+        genesis = CreateGenesisBlock(ZC_GENESIS_BLOCK_TIME, 3564781, 0x1e0ffff0, 2, 0 * COIN, extraNonce);
         consensus.hashGenesisBlock = genesis.GetHash();
         //std::cout << "zcoin testnet genesisBlock hash: " << consensus.hashGenesisBlock.ToString() << std::endl;
         //std::cout << "zcoin testnet hashMerkleRoot hash: " << genesis.hashMerkleRoot.ToString() << std::endl;
         //btzc: update testnet zcoin hashGenesisBlock and hashMerkleRoot
         assert(consensus.hashGenesisBlock ==
-               uint256S("0x83df26d5a83042cda090d7469e481f3c353844ded0b2f7a32fbebf6f8ae1cd79"));
+               uint256S("0x1e3487fdb1a7d46dac3e8f3e58339c6eff54abf6aef353485f3ed64250a35e89"));
         assert(genesis.hashMerkleRoot ==
                uint256S("0x25b361d60bc7a66b311e72389bf5d9add911c735102bcb6425f63aceeff5b7b8"));
         vFixedSeeds.clear();
