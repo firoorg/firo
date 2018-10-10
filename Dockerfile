@@ -15,6 +15,7 @@ RUN apt-get update && apt-get install -y \
     make \
     openjdk-8-jdk \
     pkg-config \
+    libzmq3-dev \
     zlib1g-dev
 
 # Install Berkeley DB 4.8
@@ -48,7 +49,6 @@ RUN apt-get remove -y \
     libevent-dev \
     libssl-dev \
     libtool \
-    libzmq3-dev \
     make
 
 # Start Zcoin Daemon
