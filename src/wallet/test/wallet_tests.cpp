@@ -30,6 +30,7 @@ BOOST_FIXTURE_TEST_SUITE(wallet_tests, WalletTestingSetup)
 static const CWallet wallet;
 static vector<COutput> vCoins;
 
+/*
 static void add_coin(const CAmount& nValue, int nAge = 6*24, bool fIsFromMe = false, int nInput=0)
 {
     static int nextLockTime = 0;
@@ -65,7 +66,7 @@ static bool equal_sets(CoinSet a, CoinSet b)
     return ret.first == a.end() && ret.second == b.end();
 }
 
-/*BOOST_AUTO_TEST_CASE(coin_selection_tests)
+BOOST_AUTO_TEST_CASE(coin_selection_tests)
 {
     CoinSet setCoinsRet, setCoinsRet2;
     CAmount nValueRet;

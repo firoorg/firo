@@ -33,11 +33,11 @@ CoinSpend::CoinSpend(const Params* p, const PrivateCoin& coin,
 	if (!(witness.VerifyWitness(a, coin.getPublicCoin()))) {
 		throw ZerocoinException("Accumulator witness does not verify");
 	}
-		    
+
 	if (!HasValidSerial()) {
-		throw ZerocoinException("Invalid serial # range"); 
+		throw ZerocoinException("Invalid serial # range");
 	}
-		    
+
 	// 1: Generate two separate commitments to the public coin (C), each under
 	// a different set of public parameters. We do this because the RSA accumulator
 	// has specific requirements for the commitment parameters that are not
@@ -90,8 +90,8 @@ CoinDenomination CoinSpend::getDenomination() const {
 }
 
 bool CoinSpend::Verify(const Accumulator& a, const SpendMetaData &m) const {
-    if (!HasValidSerial())
-        return false;
+	if (!HasValidSerial())
+		return false;
 
 	uint256 metahash = signatureHash(m);
 	// Verify both of the sub-proofs using the given meta-data
@@ -140,8 +140,8 @@ bool CoinSpend::Verify(const Accumulator& a, const SpendMetaData &m) const {
 
 }
 
-bool CoinSpend::HasValidSerial() const { 
-	return coinSerialNumber > 0 && coinSerialNumber < params->coinCommitmentGroup.groupOrder; 
+bool CoinSpend::HasValidSerial() const {
+	return coinSerialNumber > 0 && coinSerialNumber < params->coinCommitmentGroup.groupOrder;
 }
 
 const uint256 CoinSpend::signatureHash(const SpendMetaData &m) const {

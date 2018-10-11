@@ -17,6 +17,7 @@
 
 BOOST_AUTO_TEST_SUITE(tx_validationcache_tests)
 
+/*
 static bool
 ToMemPool(CMutableTransaction& tx)
 {
@@ -25,7 +26,7 @@ ToMemPool(CMutableTransaction& tx)
     CValidationState state;
     return AcceptToMemoryPool(mempool, state, tx, true, false, NULL, true, 0, true);
 }
-/*
+
 BOOST_FIXTURE_TEST_CASE(tx_mempool_block_doublespend, TestChain100Setup)
 {
     // Make sure skipping validation of transctions that were

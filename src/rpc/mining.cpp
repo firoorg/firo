@@ -231,7 +231,7 @@ UniValue generatetoaddress(const UniValue& params, bool fHelp)
     CBitcoinAddress address(params[1].get_str());
     if (!address.IsValid())
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Error: Invalid address");
-    
+
     boost::shared_ptr<CReserveScript> coinbaseScript(new CReserveScript());
     coinbaseScript->reserveScript = GetScriptForDestination(address.Get());
 
@@ -726,7 +726,7 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
             case THRESHOLD_LOCKED_IN:
                 // Ensure bit is set in block version
                 pblock->nVersion |= VersionBitsMask(consensusParams, pos);
-                // FALL THROUGH to get vbavailable set...
+                // fall-thru to get vbavailable set...
             case THRESHOLD_STARTED:
             {
                 const struct BIP9DeploymentInfo& vbinfo = VersionBitsDeploymentInfo[pos];

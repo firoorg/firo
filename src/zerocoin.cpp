@@ -576,10 +576,10 @@ bool ConnectBlockZC(CValidationState &state, const CChainParams &chainparams, CB
                 if (!CheckZerocoinSpendSerial(state, pblock->zerocoinTxInfo.get(), (libzerocoin::CoinDenomination)serial.second, serial.first, pindexNew->nHeight, true))
                     return false;
 
-	            if (!fJustCheck) {
-		            pindexNew->spentSerials.insert(serial.first);
-		            zerocoinState.AddSpend(serial.first);
-	            }
+                if (!fJustCheck) {
+                    pindexNew->spentSerials.insert(serial.first);
+                    zerocoinState.AddSpend(serial.first);
+                }
             }
         }
 
