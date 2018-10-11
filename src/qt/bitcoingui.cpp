@@ -106,8 +106,8 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *platformStyle, const NetworkStyle *n
     signMessageAction(0),
     verifyMessageAction(0),
     aboutAction(0),
-    znodeAction(0),
     receiveCoinsAction(0),
+    znodeAction(0),
     receiveCoinsMenuAction(0),
     optionsAction(0),
     toggleHideAction(0),
@@ -565,13 +565,13 @@ void BitcoinGUI::setClientModel(ClientModel *clientModel)
         }
 #endif // ENABLE_WALLET
         unitDisplayControl->setOptionsModel(clientModel->getOptionsModel());
-        
+
         OptionsModel* optionsModel = clientModel->getOptionsModel();
         if(optionsModel)
         {
             // be aware of the tray icon disable state change reported by the OptionsModel object.
             connect(optionsModel,SIGNAL(hideTrayIconChanged(bool)),this,SLOT(setTrayIconVisible(bool)));
-        
+
             // initialize the disable state of the tray icon with the current value in the model.
             setTrayIconVisible(optionsModel->getHideTrayIcon());
         }

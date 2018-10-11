@@ -135,8 +135,8 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
     LogPrintf("BlockAssembler::CreateNewBlock()\n");
     bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
     resetBlock();
-    auto_ptr<CBlockTemplate> pblocktemplate(new CBlockTemplate());
-    if(!pblocktemplate.get())
+    std::unique_ptr<CBlockTemplate> pblocktemplate(new CBlockTemplate());
+    if(!pblocktemplate)
         return NULL;
     CBlock *pblock = &pblocktemplate->block; // pointer for convenience
     // Create coinbase tx
@@ -1102,8 +1102,8 @@ void static ZcoinMiner(const CChainParams &chainparams) {
             if (pindexPrev) {
                 LogPrintf("loop pindexPrev->nHeight=%s\n", pindexPrev->nHeight);
             }
-            auto_ptr <CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(coinbaseScript->reserveScript));
-            if (!pblocktemplate.get()) {
+            std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(coinbaseScript->reserveScript));
+            if (!pblocktemplate) {
                 LogPrintf("Error in ZcoinMiner: Keypool ran out, please call keypoolrefill before restarting the mining thread\n");
                 return;
             }

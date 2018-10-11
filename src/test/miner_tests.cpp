@@ -22,6 +22,7 @@
 
 BOOST_FIXTURE_TEST_SUITE(miner_tests, TestingSetup)
 
+/*
 static
 struct {
     unsigned char extranonce;
@@ -56,6 +57,7 @@ struct {
     {2, 0xd351e722}, {1, 0xf4ca48c9}, {1, 0x5b19c670}, {1, 0xa164bf0e},
     {2, 0xbbbeb305}, {2, 0xfe1c810a},
 };
+*/
 
 CBlockIndex CreateBlockIndex(int nHeight)
 {
