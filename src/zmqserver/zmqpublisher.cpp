@@ -5,6 +5,7 @@
 #include "util.h"
 #include "core_io.h"
 #include "chain.h"
+#include "znode-sync.h"
 
 #include "zmqabstract.h"
 #include "zmqpublisher.h"
@@ -214,7 +215,16 @@ bool CZMQTransactionEvent::NotifyTransaction(const CTransaction &transaction)
 }
 
 bool CZMQBlockEvent::NotifyBlock(const CBlockIndex *pindex){
+    // "block" topic is a special case: if synced, always publish, if not, every 100 blocks (for better sync speed).
+    if(topic=="block"){
+        if(znodeSync.GetBlockchainSynced() || pindex->nHeight%100==0){
+            request.replace("data", pindex->ToJSON());
+            Execute(); 
+            return true;
+        }
+    }
 
+    // Otherwise, publish on an update to wallet tx's
     CBlock block;
     if(!ReadBlockFromDisk(block, pindex, Params().GetConsensus())){
         LogPrintf("can't read block from disk.\n");
@@ -225,7 +235,7 @@ bool CZMQBlockEvent::NotifyBlock(const CBlockIndex *pindex){
         if(wtx){
             request.replace("data", pindex->ToJSON());
             Execute();
-            break;
+            return true;
         }
     }
 
