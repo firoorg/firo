@@ -215,6 +215,7 @@ public:
 	    nModulusV2StartBlock = ZC_MODULUS_V2_START_BLOCK;
         nModulusV1MempoolStopBlock = ZC_MODULUS_V1_MEMPOOL_STOP_BLOCK;
 	    nModulusV1StopBlock = ZC_MODULUS_V1_STOP_BLOCK;
+        nMultipleSpendInputsInOneTxStartBlock = ZC_MULTIPLE_SPEND_INPUT_STARTING_BLOCK;
     }
 };
 
@@ -344,6 +345,7 @@ public:
 	    nModulusV2StartBlock = ZC_MODULUS_V2_TESTNET_START_BLOCK;
         nModulusV1MempoolStopBlock = ZC_MODULUS_V1_TESTNET_MEMPOOL_STOP_BLOCK;
 	    nModulusV1StopBlock = ZC_MODULUS_V1_TESTNET_STOP_BLOCK;
+        nMultipleSpendInputsInOneTxStartBlock = 1;
     }
 };
 
@@ -446,6 +448,7 @@ public:
         nModulusV2StartBlock = 130;
         nModulusV1MempoolStopBlock = 135;
         nModulusV1StopBlock = 140;
+        nMultipleSpendInputsInOneTxStartBlock = 1;
     }
 
     void UpdateBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout) {

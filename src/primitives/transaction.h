@@ -129,6 +129,7 @@ public:
     }
 
     std::string ToString() const;
+    bool IsZerocoinSpend() const;
 };
 
 /** An output of a transaction.  It contains the public key that the next input
