@@ -1,6 +1,9 @@
+#!/usr/bin/env bash
 # Copyright (c) 2016 The Bitcoin Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
+
+set -x
 
 # What to do
 sign=false
@@ -258,7 +261,7 @@ echo "$me Building branch: ${COMMIT}"
 # Setup build environment
 if [[ $setup = true ]]
 then
-    sudo apt-get install ruby apache2 git apt-cacher-ng python-vm-builder qemu-kvm qemu-utils
+    sudo apt-get install --assume-yes ruby apache2 git apt-cacher-ng python-vm-builder qemu-kvm qemu-utils
 
     # Only clone valid git repositories
     urlRegex='^(https?:\/\/*|git@*).*'
@@ -277,7 +280,7 @@ then
     pushd ./gitian-builder
     if [[ -n "$USE_LXC" ]]
     then
-        sudo apt-get install lxc
+        sudo apt-get --assume-yes install lxc
         bin/make-base-vm --suite trusty --arch amd64 --lxc
     else
         bin/make-base-vm --suite trusty --arch amd64
