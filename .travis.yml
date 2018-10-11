@@ -29,13 +29,13 @@ env:
 # Win32
     - >-
       HOST=i686-w64-mingw32
-      PACKAGES="python3 nsis wine1.6 bc g++-mingw-w64-i686 mingw-w64-i686-dev g++-mingw-w64-x86-64 mingw-w64-x86-64-dev curl"
+      PACKAGES="python3 nsis wine1.6 bc g++-mingw-w64-i686 mingw-w64-i686-dev g++-mingw-w64-x86-64 mingw-w64-x86-64-dev curl zeromq"
       ZCOIN_CONFIG="--enable-reduce-exports"
       DEP_OPTS="NO_QT=1"
 # Win64
     - >-
        HOST=x86_64-w64-mingw32
-       PACKAGES="python3 nsis wine1.6 bc g++-mingw-w64-i686 mingw-w64-i686-dev g++-mingw-w64-x86-64 mingw-w64-x86-64-dev curl"
+       PACKAGES="python3 nsis wine1.6 bc g++-mingw-w64-i686 mingw-w64-i686-dev g++-mingw-w64-x86-64 mingw-w64-x86-64-dev curl zeromq"
        ZCOIN_CONFIG="--enable-reduce-exports"
        DEP_OPTS="NO_QT=1"
 # x86_64 Linux
