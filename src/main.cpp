@@ -6364,10 +6364,10 @@ bool static ProcessMessage(CNode *pfrom, string strCommand,
 //            }
 
             bool fAlreadyHave = AlreadyHave(inv);
-            LogPrintf("Got inv: %s  %s peer=%d\n", 
-                      inv.ToString(), 
-                      fAlreadyHave ? "have" : "new", 
-                      pfrom->id);
+            //LogPrintf("Got inv: %s  %s peer=%d\n", 
+            //          inv.ToString(), 
+            //          fAlreadyHave ? "have" : "new", 
+            //          pfrom->id);
 
             if (inv.type == MSG_TX || inv.type == MSG_DANDELION_TX) {
                 inv.type |= nFetchFlags;
