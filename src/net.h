@@ -585,7 +585,7 @@ public:
     void PushInventory(const CInv& inv)
     {
         LOCK(cs_inventory);
-        LogPrintf("Pushing inventory %s to %s.\n", inv.ToString(), addr.ToString());
+        // LogPrintf("Pushing inventory %s to %s.\n", inv.ToString(), addr.ToString());
         if (inv.type == MSG_TX) {
             if (!filterInventoryKnown.contains(inv.hash)) {
                 setInventoryTxToSend.insert(inv.hash);
