@@ -119,6 +119,7 @@ BITCOIN_CORE_H = \
   clientversion.h \
   client-api/protocol.h \
   client-api/register.h \
+  client-api/send.h \
   client-api/server.h \
   client-api/settings.h \
   client-api/wallet.h \
