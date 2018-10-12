@@ -20,7 +20,7 @@ public:
         Client
     };
 
-    static const bool DEV_AUTH = false;
+    static const bool DEV_AUTH = true;
 
     CZMQAbstract() : psocket(0),pcontext(0) { }
     virtual ~CZMQAbstract();
