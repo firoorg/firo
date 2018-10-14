@@ -572,6 +572,17 @@ UniValue dumpwallet(const UniValue& params, bool fHelp)
 
     EnsureWalletIsUnlocked();
 
+    const char* warning = "WARNING! This command prints all your private keys. Anyone with these private keys has complete control of your funds. "
+                      "If anyone is requesting for any of the info or output from this dumpwallet command, chances are high that they are scammers. "
+                      "This command is never needed for any Znode setup. Continue? (Y/n)";
+
+    printf("%s\n", warning);
+    char choice;
+    cin >> choice;
+    if(choice !='Y'){
+        return NullUniValue;
+    }
+
     ofstream file;
     file.open(params[0].get_str().c_str());
     if (!file.is_open())
