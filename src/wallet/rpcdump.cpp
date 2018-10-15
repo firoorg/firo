@@ -580,9 +580,16 @@ UniValue dumpwallet(const UniValue& params, bool fHelp)
         return "Warning inputted incorrectly. You must enter the warning shown by running this command without any arguments.";
     }
 
-    const char* warning = "WARNING! This command prints all your private keys. Anyone with these private keys has complete control of your funds. "
-                      "If anyone is requesting for any of the info or output from this dumpwallet command, chances are high that they are scammers. "
-                      "This command is never needed for any Znode setup. Continue? (Y/n)";
+    const char* warning =
+        "WARNING! This command exports all your private keys. Anyone with these keys has complete control over your funds. \n"
+        "If someone asked you to type in this command, chances are they want to steal your coins. \n"
+        "Zcoin team members will never ask for this command's output and it is not needed for Znode setup or diagnosis!\n"
+        "\n"
+        " Please seek help on one of our public channels. \n"
+        " Telegram: https://t.me/zcoinproject \n"
+        " Discord: https://discordapp.com/invite/4FjnQ2q\n"
+        " Reddit: https://www.reddit.com/r/zcoin/\n"
+        " Continue? (Y/n)";
 
     printf("%s\n", warning);
     char choice;
