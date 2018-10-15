@@ -23,6 +23,7 @@ packages:
 - "libcap-dev"
 - "libz-dev"
 - "libbz2-dev"
+- "libzmq3-dev"
 - "python"
 - "python-dev"
 - "python-setuptools"
