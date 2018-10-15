@@ -556,21 +556,29 @@ UniValue dumpwallet(const UniValue& params, bool fHelp)
 {
     if (!EnsureWalletIsAvailable(fHelp))
         return NullUniValue;
+
+    std::string warningInput = "I'M-AWARE-THAT-THIS-FILE-CONTAINS-KEYS-FOR-ALL-MY-FUNDS-AND-I-CAN-LOSE-THEM-IF-SHARED-WITH-A-3RD-PARTY";
     
-    if (fHelp || params.size() != 1)
+    if (fHelp || params.size() != 2)
         throw runtime_error(
             "dumpwallet \"filename\"\n"
             "\nDumps all wallet keys in a human-readable format.\n"
             "\nArguments:\n"
             "1. \"filename\"    (string, required) The filename\n"
+            "1. \"warning\"    (string, required) The warning string. Must be exactly equal to: \"" + warningInput + "\"\n"
             "\nExamples:\n"
-            + HelpExampleCli("dumpwallet", "\"test\"")
-            + HelpExampleRpc("dumpwallet", "\"test\"")
+            + HelpExampleCli("dumpwallet", "\"test\" \"" + warningInput + "\"")
+            + HelpExampleRpc("dumpwallet", "\"test\", \"" + warningInput + "\"")
         );
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
     EnsureWalletIsUnlocked();
+
+    
+    if(params[1].get_str() != warningInput){
+        return "Warning inputted incorrectly. You must enter the warning shown by running this command without any arguments.";
+    }
 
     const char* warning = "WARNING! This command prints all your private keys. Anyone with these private keys has complete control of your funds. "
                       "If anyone is requesting for any of the info or output from this dumpwallet command, chances are high that they are scammers. "
