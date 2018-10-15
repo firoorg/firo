@@ -425,7 +425,7 @@
           <bool>true</bool>
          </property>
          <property name="text">
-          <string>Anonymous communication with TOR</string>
+          <string>Anonymous communication with Tor</string>
          </property>
          <property name="checked">
           <bool>false</bool>
