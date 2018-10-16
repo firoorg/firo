@@ -4,14 +4,14 @@ There are two possibilities of compiling Zcoin code on Windows 10.
  Both of them are based on using [WSL/Ubuntu](https://msdn.microsoft.com/en-us/commandline/wsl/install_guide).
  The main difference is in execution, using first method you will get .exe files, otherwise you need to use [Xming](http://www.straightrunning.com/XmingNotes/) to start **GUI**.
  
- **We are recommending to use first method**.
+ **We recommend using the first method**.
 
  Prerequisites:
  
  * Windows 10 x64
  * [WSL/Ubuntu](https://msdn.microsoft.com/en-us/commandline/wsl/install_guide) installed
 ---
-For second possible execution method, but more complex,  you need to install
+For the more complex second execution method, you need to install
  * [Xming](http://www.straightrunning.com/XmingNotes/) latest version, if you are planning to compile using [unix compiling instruction](https://github.com/zcoinofficial/zcoin/blob/master/doc/build-unix.md)
 
 
@@ -29,13 +29,13 @@ For second possible execution method, but more complex,  you need to install
 
         `sudo apt-get install build-essential libtool autotools-dev automake pkg-config bsdmainutils git`
 
-4. Make shared folder between two words
+4. Make shared folder between two locations
 
     Generally it's OK to read these files from generic Windows app, but Unix file permissions are stored in extended
-    attributes which are not properly updated by usual applications. For example if you create a file/directory inside
+    attributes which are not properly updated by usual applications. For example, if you create a file/directory inside
     WSL subsystem from Explorer it won't be visible by WSL program.
 
-    **To share files between two worlds** we need to create a directory for repository in your Windows home directory
+    **To share files between two locations** we need to create a directory for the repository in your Windows home directory
     and then create a link from the WSL to it:
 
     * From Explorer create a directory named:
@@ -45,7 +45,7 @@ For second possible execution method, but more complex,  you need to install
   
             ln -s /mnt/c/Users/<username>/zcoin zcoin   
     
-    After creating link, please check that linked directory has blue font color, which means, that is was successfully linked. Otherwise check path symbols. Error can be cause spaces, uppercase symbols e.t.c...
+    After creating link, please check that linked directory has blue font color, which means that is was successfully linked. Otherwise check path symbols. Error can be because of spaces, uppercase symbols e.t.c...
 
 5. Clone git repository into newly created directory and go to the right branch
    
@@ -89,7 +89,7 @@ For second possible execution method, but more complex,  you need to install
 
         ./autogen.sh
 
-5. Before start to compile need to update mingw alternatives
+5. Before starting to compile you need to update mingw alternatives
     
         sudo update-alternatives --all
 
@@ -101,7 +101,7 @@ For second possible execution method, but more complex,  you need to install
         * 1          /usr/bin/x86_64-w64-mingw32-gcc-posix   30        manual mode
         2            /usr/bin/x86_64-w64-mingw32-gcc-win32   60        manual mode
 
-    Need to resolve **all mingw alternatives** in such way.
+    Need to resolve **all mingw alternatives** in such a way.
 
     Now do either step **7** OR step **8**, not both.
 
@@ -121,7 +121,7 @@ For second possible execution method, but more complex,  you need to install
 ----
 ## Second method - Ubuntu + Xming
 1. Use existing paper [build-unix](https://github.com/zcoinofficial/zcoin/blob/master/doc/build-unix.md) and
-    * Install all dependces
+    * Install all dependencies
     * Build app
 2. Start installed Xming in Windows
 3. From Ubuntu bash window start output to Xming:
