@@ -11,6 +11,7 @@
 
 #include <stdarg.h>
 #include <string>
+#define ZMQ_STATIC
 #include <zmq.h>
 
 #include "primitives/block.h"
