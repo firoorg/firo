@@ -162,7 +162,7 @@ public:
     CExodusTransactionDB(const boost::filesystem::path& path, bool fWipe)
     {
         leveldb::Status status = Open(path, fWipe);
-        PrintToConsole("Loading master transactions database: %s\n", status.ToString());
+        PrintToLog("Loading master transactions database: %s\n", status.ToString());
     }
 
     virtual ~CExodusTransactionDB()
@@ -192,7 +192,7 @@ public:
     CMPSTOList(const boost::filesystem::path& path, bool fWipe)
     {
         leveldb::Status status = Open(path, fWipe);
-        PrintToConsole("Loading send-to-owners database: %s\n", status.ToString());
+        PrintToLog("Loading send-to-owners database: %s\n", status.ToString());
     }
 
     virtual ~CMPSTOList()
@@ -217,7 +217,7 @@ public:
     CMPTradeList(const boost::filesystem::path& path, bool fWipe)
     {
         leveldb::Status status = Open(path, fWipe);
-        PrintToConsole("Loading trades database: %s\n", status.ToString());
+        PrintToLog("Loading trades database: %s\n", status.ToString());
     }
 
     virtual ~CMPTradeList()
@@ -245,7 +245,7 @@ public:
     CMPTxList(const boost::filesystem::path& path, bool fWipe)
     {
         leveldb::Status status = Open(path, fWipe);
-        PrintToConsole("Loading tx meta-info database: %s\n", status.ToString());
+        PrintToLog("Loading tx meta-info database: %s\n", status.ToString());
     }
 
     virtual ~CMPTxList()

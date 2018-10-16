@@ -51,7 +51,7 @@ bool CMPSPInfo::Entry::isDivisible() const
 
 void CMPSPInfo::Entry::print() const
 {
-    PrintToConsole("%s:%s(Fixed=%s,Divisible=%s):%d:%s/%s, %s %s\n",
+    PrintToLog("%s:%s(Fixed=%s,Divisible=%s):%d:%s/%s, %s %s\n",
             issuer,
             name,
             fixed ? "Yes" : "No",
@@ -63,7 +63,7 @@ void CMPSPInfo::Entry::print() const
 CMPSPInfo::CMPSPInfo(const boost::filesystem::path& path, bool fWipe)
 {
     leveldb::Status status = Open(path, fWipe);
-    PrintToConsole("Loading smart property database: %s\n", status.ToString());
+    PrintToLog("Loading smart property database: %s\n", status.ToString());
 
     // special cases for constant SPs EXODUS and TEXODUS
     implied_exodus.issuer = ExodusAddress().ToString();
@@ -443,11 +443,11 @@ void CMPSPInfo::printAll() const
     // print off the hard coded MSC and TMSC entries
     for (uint32_t idx = EXODUS_PROPERTY_EXODUS; idx <= EXODUS_PROPERTY_TEXODUS; idx++) {
         Entry info;
-        PrintToConsole("%10d => ", idx);
+        PrintToLog("%10d => ", idx);
         if (getSP(idx, info)) {
             info.print();
         } else {
-            PrintToConsole("<Internal Error on implicit SP>\n");
+            PrintToLog("<Internal Error on implicit SP>\n");
         }
     }
 
@@ -464,11 +464,11 @@ void CMPSPInfo::printAll() const
             CDataStream ssValue(1+slSpKey.data(), 1+slSpKey.data()+slSpKey.size(), SER_DISK, CLIENT_VERSION);
             ssValue >> propertyId;
         } catch (const std::exception& e) {
+            PrintToLog("<Malformed key in DB>\n");
             PrintToLog("%s(): ERROR: %s\n", __func__, e.what());
-            PrintToConsole("<Malformed key in DB>\n");
             continue;
         }
-        PrintToConsole("%10s => ", propertyId);
+        PrintToLog("%10s => ", propertyId);
 
         // deserialize the persisted data
         leveldb::Slice slSpValue = iter->value();
@@ -477,7 +477,7 @@ void CMPSPInfo::printAll() const
             CDataStream ssSpValue(slSpValue.data(), slSpValue.data() + slSpValue.size(), SER_DISK, CLIENT_VERSION);
             ssSpValue >> info;
         } catch (const std::exception& e) {
-            PrintToConsole("<Malformed value in DB>\n");
+            PrintToLog("<Malformed value in DB>\n");
             PrintToLog("%s(): ERROR: %s\n", __func__, e.what());
             continue;
         }
