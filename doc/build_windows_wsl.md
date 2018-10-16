@@ -20,13 +20,14 @@ For second possible execution method, but more complex,  you need to install
 1. Launch Ubuntu shell (search for Bash in the "Type here to search" box)
 2. Upgrade outdated packages. This applies even if you just installed WSL.
       
-
-      sudo apt-get update
-      sudo apt-get dist-upgrade
-      sudo apt-get autoremove
+```
+  sudo apt-get update
+  sudo apt-get dist-upgrade
+  sudo apt-get autoremove
+```
 3.   Install build tools 
 
-        sudo apt-get install build-essential libtool autotools-dev automake pkg-config bsdmainutils git
+        `sudo apt-get install build-essential libtool autotools-dev automake pkg-config bsdmainutils git`
 
 4. Make shared folder between two words
 
