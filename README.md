@@ -8,16 +8,15 @@ What is Zcoin?
 
 [Zcoin](https://zcoin.io) is the first full implementation of the Zerocoin Protocol, which allows users to have complete privacy via Zero-Knowledge cryptographic proofs. It is worth noting that Zcoin is unrelated to other cryptocurrencies utilizing the Zerocash Protocol. Although Zerocash is a development from Zerocoin, their respective implementations are not simple forks of each other, but rely on different cryptographic assumptions with various tradeoffs. Both approaches supplement each other quite nicely, and a good way to describe them would be sibling projects.
 
-The Zerocoin Protocol is being actively researched and improved, such as removing trustless setup and reducing proof sizes.
+The Zerocoin Protocol is being actively researched and improved, such as removing the trustless setup and reducing proof sizes.
 
 Running with Docker
 ===================
 
-If you already familiar with Docker then running Zcoin with Docker might be the the most easier method for you. If not
-but want to try just install [Docker](https://store.docker.com/search?type=edition&offering=community) then you can
+If you already familiar with Docker, then running Zcoin with Docker might be the the easier method for you. To run Zcoin using this method, first install [Docker](https://store.docker.com/search?type=edition&offering=community), then you may
 continue with the following instructions.
 
-Please note currently we don't support GUI when running with Docker so you can only use RPC to interact with Zcoin.
+Please note that currently we don't support the GUI when running with Docker, and so you can only use RPC (via HTTP or the `zcoin-cli` utility) to interact with Zcoin via this method.
 
 Pull our latest official Docker image:
 
@@ -31,7 +30,7 @@ Start Zcoin daemon:
 docker run --detach --name zcoind zcoinofficial/zcoind
 ```
 
-View current block count (this might take a while since daemon need to find other nodes and download blocks):
+View current block count (this might take a while since the daemon needs to find other nodes and download blocks):
 
 ```sh
 docker exec zcoind zcoin-cli getblockcount
