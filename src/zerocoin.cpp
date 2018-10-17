@@ -483,7 +483,7 @@ bool CheckZerocoinFoundersInputs(const CTransaction &tx, CValidationState &state
 
             bool validZnodePayment;
 
-            if (nHeight > ZC_ZNODE_PAYMENT_BUG_FIXED_AT_BLOCK) {
+            if (nHeight > params.nZnodePaymentsBugFixedAtBlock) {
                 if (!znodeSync.IsSynced()) {
                     validZnodePayment = true;
                 } else {

@@ -122,6 +122,7 @@ public:
         consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000708f98bf623f02e");
 
         consensus.nCheckBugFixedAtBlock = ZC_CHECK_BUG_FIXED_AT_BLOCK;
+        consensus.nZnodePaymentsBugFixedAtBlock = ZC_ZNODE_PAYMENT_BUG_FIXED_AT_BLOCK;
 	    consensus.nSpendV15StartBlock = ZC_V1_5_STARTING_BLOCK;
 	    consensus.nSpendV2ID_1 = ZC_V2_SWITCH_ID_1;
 	    consensus.nSpendV2ID_10 = ZC_V2_SWITCH_ID_10;
@@ -273,8 +274,9 @@ public:
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000708f98bf623f02e");
 
-	    consensus.nSpendV15StartBlock = ZC_V1_5_TESTNET_STARTING_BLOCK;
-        consensus.nCheckBugFixedAtBlock = 35000;
+	    consensus.nSpendV15StartBlock = 5000;
+        consensus.nCheckBugFixedAtBlock = 1;
+        consensus.nZnodePaymentsBugFixedAtBlock = 1;
 
 	    consensus.nSpendV2ID_1 = ZC_V2_TESTNET_SWITCH_ID_1;
 	    consensus.nSpendV2ID_10 = ZC_V2_TESTNET_SWITCH_ID_10;
@@ -413,6 +415,7 @@ public:
         nMaxTipAge = 6 * 60 * 60; // ~144 blocks behind -> 2 x fork detection time, was 24 * 60 * 60 in bitcoin
 
         consensus.nCheckBugFixedAtBlock = 120;
+        consensus.nZnodePaymentsBugFixedAtBlock = 1;
         consensus.nSpendV15StartBlock = 1;
         consensus.nSpendV2ID_1 = 2;
         consensus.nSpendV2ID_10 = 3;
