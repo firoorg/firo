@@ -15,6 +15,7 @@
 #include "wallet.h"
 #include "merkleblock.h"
 #include "core_io.h"
+#include "authhelper.h"
 
 #include <fstream>
 #include <stdint.h>
@@ -514,6 +515,7 @@ UniValue importwallet(const UniValue& params, bool fHelp)
     return NullUniValue;
 }
 
+//This method intentionally left unchanged.
 UniValue dumpprivkey(const UniValue& params, bool fHelp)
 {
     if (!EnsureWalletIsAvailable(fHelp))
@@ -551,52 +553,70 @@ UniValue dumpprivkey(const UniValue& params, bool fHelp)
     return CBitcoinSecret(vchSecret).ToString();
 }
 
+UniValue dumpprivkey_zcoin(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() < 1 || params.size() > 2)
+        throw runtime_error(
+            "dumpprivkey \"bitcoinaddress\"\n"
+            "\nReveals the private key corresponding to 'bitcoinaddress'.\n"
+            "Then the importprivkey can be used with this output\n"
+            "\nArguments:\n"
+            "1. \"bitcoinaddress\"   (string, required) The bitcoin address for the private key\n"
+            "2. \"one-time-auth-code\"   (string, optional) A one time authorization code received from a previous call of dumpprivkey"
+            "\nResult:\n"
+            "\"key\"                (string) The private key\n"
+            "\nExamples:\n"
+            + HelpExampleCli("dumpprivkey", "\"myaddress\"")
+            + HelpExampleCli("dumpprivkey", "\"myaddress\" \"12aB\"")
+            + HelpExampleRpc("dumpprivkey", "\"myaddress\"")
+            + HelpExampleRpc("dumpprivkey", "\"myaddress\",\"12aB\"")
+            + HelpExampleCli("importprivkey", "\"mykey\"")
+        );
 
+    if(params.size() == 1 || !AuthorizationHelper::inst().authorize(__FUNCTION__ + params[0].get_str(), params[1].get_str()))
+    {
+        std::string warning =
+            "WARNING! Your one time authorization code is: " + AuthorizationHelper::inst().generateAuthorizationCode(__FUNCTION__ + params[0].get_str()) + "\n"
+            "This command exports your wallet private key. Anyone with this key has complete control over your funds. \n"
+            "If someone asked you to type in this command, chances are they want to steal your coins. \n"
+            "Zcoin team members will never ask for this command's output and it is not needed for Znode setup or diagnosis!\n"
+            "\n"
+            " Please seek help on one of our public channels. \n"
+            " Telegram: https://t.me/zcoinproject \n"
+            " Discord: https://discordapp.com/invite/4FjnQ2q\n"
+            " Reddit: https://www.reddit.com/r/zcoin/\n"
+            "\n"
+            ;
+        throw runtime_error(warning);
+    }
+
+    UniValue dumpParams;
+    dumpParams.setArray();
+    dumpParams.push_back(params[0]);
+
+    return dumpprivkey(dumpParams, false);
+}
+
+//This method intentionally left unchanged.
 UniValue dumpwallet(const UniValue& params, bool fHelp)
 {
     if (!EnsureWalletIsAvailable(fHelp))
         return NullUniValue;
 
-    std::string warningInput = "I'M-AWARE-THAT-THIS-FILE-CONTAINS-KEYS-FOR-ALL-MY-FUNDS-AND-I-CAN-LOSE-THEM-IF-SHARED-WITH-A-3RD-PARTY";
-    
-    if (fHelp || params.size() != 2)
+    if (fHelp || params.size() != 1)
         throw runtime_error(
             "dumpwallet \"filename\"\n"
             "\nDumps all wallet keys in a human-readable format.\n"
             "\nArguments:\n"
             "1. \"filename\"    (string, required) The filename\n"
-            "1. \"warning\"    (string, required) The warning string. Must be exactly equal to: \"" + warningInput + "\"\n"
             "\nExamples:\n"
-            + HelpExampleCli("dumpwallet", "\"test\" \"" + warningInput + "\"")
-            + HelpExampleRpc("dumpwallet", "\"test\", \"" + warningInput + "\"")
+            + HelpExampleCli("dumpwallet", "\"test\"")
+            + HelpExampleRpc("dumpwallet", "\"test\"")
         );
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
     EnsureWalletIsUnlocked();
-
-    
-    if(params[1].get_str() != warningInput){
-        return "Warning inputted incorrectly. You must enter the warning shown by running this command without any arguments.";
-    }
-
-    const char* warning =
-        "WARNING! This command exports all your private keys. Anyone with these keys has complete control over your funds. \n"
-        "If someone asked you to type in this command, chances are they want to steal your coins. \n"
-        "Zcoin team members will never ask for this command's output and it is not needed for Znode setup or diagnosis!\n"
-        "\n"
-        " Please seek help on one of our public channels. \n"
-        " Telegram: https://t.me/zcoinproject \n"
-        " Discord: https://discordapp.com/invite/4FjnQ2q\n"
-        " Reddit: https://www.reddit.com/r/zcoin/\n"
-        " Continue? (Y/n)";
-
-    printf("%s\n", warning);
-    char choice;
-    cin >> choice;
-    if(choice !='Y'){
-        return NullUniValue;
-    }
 
     ofstream file;
     file.open(params[0].get_str().c_str());
@@ -665,3 +685,44 @@ UniValue dumpwallet(const UniValue& params, bool fHelp)
     file.close();
     return NullUniValue;
 }
+
+UniValue dumpwallet_zcoin(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() < 1 || params.size() > 2)
+        throw runtime_error(
+            "dumpwallet \"filename\"\n"
+            "\nDumps all wallet keys in a human-readable format.\n"
+            "\nArguments:\n"
+            "1. \"filename\"             (string, required) The filename\n"
+            "2. \"one-time-auth-code\"   (string, optional) A one time authorization code received from a previous call of dumpwallet"
+            "\nExamples:\n"
+            + HelpExampleCli("dumpwallet", "\"test\"")
+            + HelpExampleCli("dumpwallet", "\"test\" \"12aB\"")
+            + HelpExampleRpc("dumpwallet", "\"test\"")
+            + HelpExampleRpc("dumpwallet", "\"test\",\"12aB\"")
+        );
+
+    if(params.size() == 1 || !AuthorizationHelper::inst().authorize(__FUNCTION__ + params[0].get_str(), params[1].get_str()))
+    {
+        std::string warning =
+            "WARNING! Your one time authorization code is: " + AuthorizationHelper::inst().generateAuthorizationCode(__FUNCTION__ + params[0].get_str()) + "\n"
+            "This command exports all your private keys. Anyone with these keys has complete control over your funds. \n"
+            "If someone asked you to type in this command, chances are they want to steal your coins. \n"
+            "Zcoin team members will never ask for this command's output and it is not needed for Znode setup or diagnosis!\n"
+            "\n"
+            " Please seek help on one of our public channels. \n"
+            " Telegram: https://t.me/zcoinproject \n"
+            " Discord: https://discordapp.com/invite/4FjnQ2q\n"
+            " Reddit: https://www.reddit.com/r/zcoin/\n"
+            "\n"
+            ;
+        throw runtime_error(warning);
+    }
+
+    UniValue dumpParams;
+    dumpParams.setArray();
+    dumpParams.push_back(params[0]);
+
+    return dumpwallet(dumpParams, false);
+}
+
