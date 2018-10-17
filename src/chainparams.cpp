@@ -287,7 +287,7 @@ public:
         consensus.nMultipleSpendInputsInOneTxStartBlock = 1;
 
         // Znode params testnet
-        consensus.nZnodePaymentsStartBlock = 5200; // not true, but it's ok as long as it's less then n
+        consensus.nZnodePaymentsStartBlock = 2200;
         //consensus.nZnodePaymentsIncreaseBlock = 360; // not used for now, probably later
         //consensus.nZnodePaymentsIncreasePeriod = 650; // not used for now, probably later
         //consensus.nSuperblockStartBlock = 61000;
