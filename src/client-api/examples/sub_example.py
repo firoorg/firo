@@ -8,6 +8,13 @@ import json
 import sys
 from os.path import expanduser
 
+def get_base(base):
+    if(base=="mac"):
+        return "/Library/Application Support/zcoin/"
+    if(base=="ubuntu"):
+        return "/.zcoin/"
+    raise ValueError('Incorrect base string passed.') 
+
 def get_network_directory(network):
     if(network=="mainnet"):
         return "";
@@ -40,12 +47,14 @@ if __name__ == "__main__":
 
     auth = get_auth(sys.argv[2])
 
+    base = get_base(sys.argv[3])
+
     # Prepare our context and sockets
     ctx = zmq.Context.instance()
     socket = ctx.socket(zmq.SUB)
 
     if(auth):
-        base_dir = expanduser("~") + "/Library/Application Support/zcoin/" + get_network_directory(sys.argv[1]) + "certificates"
+        base_dir = expanduser("~") + base + get_network_directory(sys.argv[1]) + "certificates"
         print(base_dir)
         # We need two certificates, one for the client and one for
         # the server. The client must know the server's public key
