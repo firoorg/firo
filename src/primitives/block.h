@@ -14,8 +14,7 @@
 #include "uint256.h"
 #include "definition.h"
 #include "crypto/MerkleTreeProof/mtp.h"
-
-#define SWITCH_TO_MTP_BLOCK_HEADER 1543622400 // 2018 December 1st
+#include "zerocoin_params.h"
 
 
 unsigned char GetNfactor(int64_t nTimestamp);
