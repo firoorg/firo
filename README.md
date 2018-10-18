@@ -1,4 +1,4 @@
-Zcoin v0.13.6.7
+Zcoin v0.13.6.9
 =============
 
 [![Build Status](https://travis-ci.com/zcoinofficial/zcoin.svg?branch=CI)](https://travis-ci.com/zcoinofficial/zcoin)
@@ -13,10 +13,10 @@ The Zerocoin Protocol is being actively researched and improved, such as removin
 Running with Docker
 ===================
 
-If you already familiar with Docker, then running Zcoin with Docker might be the the easier method for you. To run Zcoin using this method, first install [Docker](https://store.docker.com/search?type=edition&offering=community), then you may
+If you are already familiar with Docker, then running Zcoin with Docker might be the the easier method for you. To run Zcoin using this method, first install [Docker](https://store.docker.com/search?type=edition&offering=community). After this you may
 continue with the following instructions.
 
-Please note that currently we don't support the GUI when running with Docker, and so you can only use RPC (via HTTP or the `zcoin-cli` utility) to interact with Zcoin via this method.
+Please note that we currently don't support the GUI when running with Docker. Therefore, you can only use RPC (via HTTP or the `zcoin-cli` utility) to interact with Zcoin via this method.
 
 Pull our latest official Docker image:
 
@@ -30,13 +30,13 @@ Start Zcoin daemon:
 docker run --detach --name zcoind zcoinofficial/zcoind
 ```
 
-View current block count (this might take a while since the daemon needs to find other nodes and download blocks):
+View current block count (this might take a while since the daemon needs to find other nodes and download blocks first):
 
 ```sh
 docker exec zcoind zcoin-cli getblockcount
 ```
 
-View current connected nodes:
+View connected nodes:
 
 ```sh
 docker exec zcoind zcoin-cli getpeerinfo
@@ -93,7 +93,7 @@ Build
 
 2.  Build Zcoin-core:
 
-    Configure and build the headless zcoin binaries as well as the GUI (if Qt is found).
+    Configure and build the headless Zcoin binaries as well as the GUI (if Qt is found).
 
     You can disable the GUI build by passing `--without-gui` to configure.
         
@@ -106,9 +106,9 @@ Build
         make check
 
 
-Mac OS X Build Instructions and Notes
+macOS Build Instructions and Notes
 =====================================
-See (doc/build-osx.md) for instructions on building on Mac OS X.
+See (doc/build-macos.md) for instructions on building on macOS.
 
 
 
