@@ -118,7 +118,7 @@ script: |
 
   # Create the release tarball using (arbitrarily) the first host
   ./autogen.sh
-  CONFIG_SITE=${BASEPREFIX}/`echo "${HOSTS}" | awk '{print $1;}'`/share/config.site ./configure --disable-hardening --prefix=/
+  CONFIG_SITE=${BASEPREFIX}/`echo "${HOSTS}" | awk '{print $1;}'`/share/config.site ./configure --prefix=/
   make dist
   SOURCEDIST=`echo zcoin-*.tar.gz`
   DISTNAME=`echo ${SOURCEDIST} | sed 's/.tar.*//'`
@@ -142,7 +142,7 @@ script: |
     mkdir -p ${INSTALLPATH}
     tar --strip-components=1 -xf ../$SOURCEDIST
 
-    CONFIG_SITE=${BASEPREFIX}/${i}/share/config.site ./configure --disable-hardening --prefix=/ --disable-ccache --disable-maintainer-mode --disable-dependency-tracking ${CONFIGFLAGS} CFLAGS="${HOST_CFLAGS}" CXXFLAGS="${HOST_CXXFLAGS}"
+    CONFIG_SITE=${BASEPREFIX}/${i}/share/config.site ./configure --prefix=/ --disable-ccache --disable-maintainer-mode --disable-dependency-tracking ${CONFIGFLAGS} CFLAGS="${HOST_CFLAGS}" CXXFLAGS="${HOST_CXXFLAGS}"
     make ${MAKEOPTS}
     make ${MAKEOPTS} -C src check-security
     make deploy
