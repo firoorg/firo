@@ -42,8 +42,8 @@ CScript scriptPubKeyMtp;
 
 bool mtp_no_check( std::runtime_error const& ex ) { return true; }
 
-struct MtpTestingSetup : public TestingSetup {
-    MtpTestingSetup() : TestingSetup(CBaseChainParams::REGTEST)
+struct MtpTransTestingSetup : public TestingSetup {
+    MtpTransTestingSetup() : TestingSetup(CBaseChainParams::REGTEST)
     {
         CPubKey newKey;
         BOOST_CHECK(pwalletMain->GetKeyFromPool(newKey));
@@ -128,7 +128,7 @@ struct MtpTestingSetup : public TestingSetup {
     CKey coinbaseKey; // private/public key needed to spend coinbase transactions
 };
 
-BOOST_FIXTURE_TEST_SUITE(mtp_trans_tests, MtpTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(mtp_trans_tests, MtpTransTestingSetup)
 
 BOOST_AUTO_TEST_CASE(mtp_transition)
 {
@@ -188,6 +188,8 @@ BOOST_AUTO_TEST_CASE(mtp_transition)
         LOCK(pwalletMain->cs_wallet);
         pwalletMain->AddToWalletIfInvolvingMe(b.vtx[0], &b, true);
     }
+
+    Params(CBaseChainParams::REGTEST).SetRegTestMtpSwitchTime(INT_MAX);
 
     BOOST_CHECK_MESSAGE(previousHeight == chainActive.Height() - 1, "Block not connected");
 

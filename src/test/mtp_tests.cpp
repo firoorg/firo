@@ -45,7 +45,7 @@ BOOST_AUTO_TEST_CASE(mtp_impl_integrity_test)
 
     mtp::impl::mtp_hash(input, target, hash_root_mtp, nonce, block_mtp, proof_mtp,
             pow_limit, output);
-    BOOST_CHECK_MESSAGE(nonce == 143u, "wrong nonce");
+    BOOST_CHECK_MESSAGE(nonce == 382, "wrong nonce");
 
     bool ok = mtp::impl::mtp_verify(input, target, hash_root_mtp, nonce, block_mtp,
             proof_mtp, pow_limit);

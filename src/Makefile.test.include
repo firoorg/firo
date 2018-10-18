@@ -42,6 +42,7 @@ BITCOIN_TESTS =\
   test/zerocoin_tests.cpp \
   test/zerocoin_tests2.cpp \
   test/zerocoin_tests3.cpp \
+  test/znode_tests.cpp \
   test/mtp_trans_tests.cpp \
   test/mtp_halving_tests.cpp \
   test/mtp_tests.cpp \
@@ -96,8 +97,7 @@ BITCOIN_TESTS =\
   test/txvalidationcache_tests.cpp \
   test/uint256_tests.cpp \
   test/univalue_tests.cpp \
-  test/util_tests.cpp \
-  test/mtp_hash_validate_tests.cpp
+  test/util_tests.cpp
 
 if ENABLE_WALLET
 BITCOIN_TESTS += \
