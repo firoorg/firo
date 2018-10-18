@@ -528,7 +528,12 @@ bool CheckZerocoinTransaction(const CTransaction &tx,
     // Check Spend Zerocoin Transaction
     vector<libzerocoin::CoinDenomination> denominations;
     if(tx.IsZerocoinSpend()) {
-        // first check for any non spend inputs and fail if so
+        // First check number of inputs does not exceed transaction limit
+        if(tx.vin.size() > ZC_SPEND_LIMIT){
+            return false;
+        }
+
+        // Check for any non spend inputs and fail if so
         int64_t totalValue = 0;
         BOOST_FOREACH(const CTxIn &txin, tx.vin){
             if(!txin.scriptSig.IsZerocoinSpend()) {
@@ -566,7 +571,7 @@ bool CheckZerocoinTransaction(const CTransaction &tx,
             }
         }
     }
-    
+
     return true;
 }
 
@@ -1153,4 +1158,5 @@ void CZerocoinState::Reset() {
 CZerocoinState *CZerocoinState::GetZerocoinState() {
     return &zerocoinState;
 }
+
 
