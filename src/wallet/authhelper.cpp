@@ -4,16 +4,19 @@
 
 #include "base58.h"
 #include "authhelper.h"
+#include "wallet.h"
+#include "main.h"
 
 struct AuthorizationHelper::Impl
 {
     using rnd_type = size_t;
     using code_type = std::string;
     Impl()
-    : seed()
-    , generator(seed())
-    , rnd_dist(std::numeric_limits<rnd_type>::min(), std::numeric_limits<rnd_type>::max())
-    {}
+    : rnd_dist(std::numeric_limits<rnd_type>::min(), std::numeric_limits<rnd_type>::max())
+    {
+        LOCK2(cs_main, pwalletMain->cs_wallet);
+        generator.seed(pwalletMain->GetHDChain().masterKeyID.GetUint64(0) ^ time(NULL));
+    }
 
     bool authorize(code_type const & functionName, code_type code)
     {
@@ -41,7 +44,6 @@ struct AuthorizationHelper::Impl
     }
 
 private:
-    std::random_device seed;
     std::mt19937 generator;
     std::uniform_int_distribution<rnd_type> rnd_dist;
     std::map<code_type, rnd_type> key_store;
