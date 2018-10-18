@@ -1,12 +1,10 @@
 // Copyright (c) 2018 Tadhg Riordan, Zcoin Developer
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
-#include <boost/thread/thread.hpp>
 #include "zmqreplier.h"
+#include <boost/thread/thread.hpp>
+#include <boost/chrono.hpp>
 #include "util.h"
-
-#include <thread>
-#include <chrono>
 #include "univalue.h"
 #include "client-api/server.h"
 #include "client-api/protocol.h"
@@ -119,7 +117,7 @@ bool CZMQAbstractReplier::Wait(){
         if ((EAGAIN != errno && rc==0) || !KEEPALIVE){
             break;
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        boost::this_thread::sleep_for(boost::chrono::milliseconds(100));
     } while(rc==-1);
 
     if (!KEEPALIVE) return false;
@@ -213,7 +211,7 @@ void CZMQAbstractReplier::Shutdown()
     KEEPALIVE = 0; // end infinite loop in thread 
     worker->interrupt(); // terminate boost thread
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(100)); // wait allowing thread to finish up
+    boost::this_thread::sleep_for(boost::chrono::milliseconds(100)); // wait allowing thread to finish up
 
     assert(psocket);
 
