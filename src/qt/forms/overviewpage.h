@@ -389,7 +389,7 @@ public:
 #endif // QT_NO_TOOLTIP
         labelPendingText->setText(QApplication::translate("OverviewPage", "Pending:", 0, QApplication::UnicodeUTF8));
         labelSpendable->setText(QApplication::translate("OverviewPage", "Spendable:", 0, QApplication::UnicodeUTF8));
-        checkboxEnabledTor->setText(QApplication::translate("OverviewPage", "Anonymous communication with TOR", 0, QApplication::UnicodeUTF8));
+        checkboxEnabledTor->setText(QApplication::translate("OverviewPage", "Anonymous communication with Tor", 0, QApplication::UnicodeUTF8));
         label_4->setText(QApplication::translate("OverviewPage", "Recent transactions", 0, QApplication::UnicodeUTF8));
 #ifndef QT_NO_TOOLTIP
         labelTransactionsStatus->setToolTip(QApplication::translate("OverviewPage", "The displayed information may be out of date. Your wallet automatically synchronizes with the Zcoin network after a connection is established, but this process has not completed yet.", 0, QApplication::UnicodeUTF8));
