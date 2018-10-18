@@ -260,12 +260,11 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
     if(!params.IsMain() || nHeight > HF_ZEROSPEND_FIX){
         MAX_SPEND_ZC_TX_PER_BLOCK = 1;
     }
-    if(!params.IsMain() || nHeight > SWITCH_TO_MORE_SPEND_TXS){
-        MAX_SPEND_ZC_TX_PER_BLOCK = 5;
+    if(!params.IsMain() ||
+        nHeight > SWITCH_TO_MORE_SPEND_TXS ||
+        Params().NetworkIDString() == CBaseChainParams::REGTEST){
+        MAX_SPEND_ZC_TX_PER_BLOCK = ZC_SPEND_LIMIT;
     }
-
-    if(Params().NetworkIDString() == CBaseChainParams::REGTEST)
-        MAX_SPEND_ZC_TX_PER_BLOCK = 2;
 
     // Collect memory pool transactions into the block
     CTxMemPool::setEntries inBlock;
@@ -410,7 +409,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
                 LogPrintf("try to include zerocoinspend tx=%s\n", tx.GetHash().ToString());
                 LogPrintf("COUNT_SPEND_ZC_TX =%s\n", COUNT_SPEND_ZC_TX);
                 LogPrintf("MAX_SPEND_ZC_TX_PER_BLOCK =%s\n", MAX_SPEND_ZC_TX_PER_BLOCK);
-                if (COUNT_SPEND_ZC_TX >= MAX_SPEND_ZC_TX_PER_BLOCK) {
+                if ((COUNT_SPEND_ZC_TX + tx.vin.size()) > MAX_SPEND_ZC_TX_PER_BLOCK) {
                     continue;
                 }
 
@@ -448,7 +447,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
                 ++nBlockTx;
                 nBlockSigOpsCost += nTxSigOps;
                 nFees += nTxFees;
-                COUNT_SPEND_ZC_TX++;
+                COUNT_SPEND_ZC_TX += tx.vin.size();
                 inBlock.insert(iter);
                 continue;
             }
@@ -922,7 +921,7 @@ void BlockAssembler::addPriorityTxs()
         MAX_SPEND_ZC_TX_PER_BLOCK = 1;
     }
     if (nHeight + 1 > SWITCH_TO_MORE_SPEND_TXS) {
-        MAX_SPEND_ZC_TX_PER_BLOCK = 1;
+        MAX_SPEND_ZC_TX_PER_BLOCK = ZC_SPEND_LIMIT;
     }
 
     vecPriority.reserve(mempool.mapTx.size());
@@ -939,7 +938,7 @@ void BlockAssembler::addPriorityTxs()
             continue;
         if (tx.IsZerocoinSpend()) {
 
-            if (COUNT_SPEND_ZC_TX >= MAX_SPEND_ZC_TX_PER_BLOCK) {
+            if ((COUNT_SPEND_ZC_TX + tx.vin.size()) > MAX_SPEND_ZC_TX_PER_BLOCK) {
                 continue;
             }
 
@@ -971,7 +970,7 @@ void BlockAssembler::addPriorityTxs()
             ++nBlockTx;
             nBlockSigOpsCost += nTxSigOps;
             nFees += nTxFees;
-            COUNT_SPEND_ZC_TX++;
+            COUNT_SPEND_ZC_TX+=tx.vin.size();
             continue;
         }
     }
@@ -1286,3 +1285,4 @@ void IncrementExtraNonce(CBlock* pblock, const CBlockIndex* pindexPrev, unsigned
     pblock->vtx[0] = txCoinbase;
     pblock->hashMerkleRoot = BlockMerkleRoot(*pblock);
 }
+

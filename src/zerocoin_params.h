@@ -66,4 +66,7 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 XZC mininput
 // Genesis block timestamp
 #define ZC_GENESIS_BLOCK_TIME               1414776286
 
+// Number of zerocoin spends allowed per block and per transaction
+#define ZC_SPEND_LIMIT         5
+
 #endif
