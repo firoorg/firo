@@ -2,6 +2,8 @@
 .project
 .cproject
 .vscode
+.nbproject
+.idea
 
 *.tar.gz
 
@@ -13,6 +15,7 @@ src/zcoin-tx
 src/test/test_zcoin
 src/test/test_zcoin_fuzzy
 src/qt/test/test_zcoin-qt
+src/test/test_bitcoin
 
 # autoreconf
 Makefile.in
@@ -110,6 +113,9 @@ win32-build
 test/config.ini
 test/cache/*
 src/test/buildenv.py
+qa/pull-tester/tests_config.py
+
+qa/pull-tester/run-bitcoind-for-test.sh
 
 !src/leveldb*/Makefile
 
