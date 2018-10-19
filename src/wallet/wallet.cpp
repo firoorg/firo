@@ -3208,6 +3208,89 @@ bool CWallet::EraseFromWallet(uint256 hash) {
     }
     return true;
 }
+bool CWallet::CreateZerocoinMintModel(string &stringError, std::vector<std::pair<int,int>> denominationPairs) {
+    libzerocoin::CoinDenomination denomination;
+    // Always use modulus v2
+    libzerocoin::Params *zcParams = ZCParamsV2;
+
+    vector<CRecipient> vecSend;
+    vector<libzerocoin::PrivateCoin> privCoins;
+    CWalletTx wtx;
+
+    std::pair<int,int> denominationPair;
+    BOOST_FOREACH(denominationPair, denominationPairs){
+        int denominationValue = denominationPair.first;
+        switch(denominationValue){
+            case 1:
+                denomination = libzerocoin::ZQ_LOVELACE;
+                break;
+            case 10:
+                denomination = libzerocoin::ZQ_GOLDWASSER;
+                break;
+            case 25:
+                denomination = libzerocoin::ZQ_RACKOFF;
+                break;
+            case 50:
+                denomination = libzerocoin::ZQ_PEDERSEN;
+                break;
+            case 100:
+                denomination = libzerocoin::ZQ_WILLIAMSON;                                                
+                break;
+            default:
+                throw runtime_error(
+                    "mintzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n");
+        }
+
+        int64_t amount = denominationPair.second;
+
+        LogPrintf("rpcWallet.mintzerocoin() denomination = %s, nAmount = %s \n", denominationValue, amount);
+    
+        if(amount < 0){
+                throw runtime_error(
+                    "mintzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n");
+        }
+
+        for(int64_t i=0; i<amount; i++){
+            // The following constructor does all the work of minting a brand
+            // new zerocoin. It stores all the private values inside the
+            // PrivateCoin object. This includes the coin secrets, which must be
+            // stored in a secure location (wallet) at the client.
+            libzerocoin::PrivateCoin newCoin(zcParams, denomination, ZEROCOIN_TX_VERSION_2);
+            // Get a copy of the 'public' portion of the coin. You should
+            // embed this into a Zerocoin 'MINT' transaction along with a series
+            // of currency inputs totaling the assigned value of one zerocoin.
+            
+            libzerocoin::PublicCoin pubCoin = newCoin.getPublicCoin();
+            
+            //Validate
+            bool validCoin = pubCoin.validate();
+
+            // loop until we find a valid coin
+            while(!validCoin){
+                libzerocoin::PrivateCoin newCoin(zcParams, denomination, ZEROCOIN_TX_VERSION_2);
+                libzerocoin::PublicCoin pubCoin = newCoin.getPublicCoin();
+                validCoin = pubCoin.validate();
+            }
+
+            // Create script for coin
+            CScript scriptSerializedCoin =
+                    CScript() << OP_ZEROCOINMINT << pubCoin.getValue().getvch().size() << pubCoin.getValue().getvch();
+
+            CRecipient recipient = {scriptSerializedCoin, (denominationValue * COIN), false};
+
+            vecSend.push_back(recipient);
+            privCoins.push_back(newCoin);
+        }
+    }
+
+    string strError = pwalletMain->MintAndStoreZerocoin(vecSend, privCoins, wtx);
+
+    if (strError != ""){
+        return false;
+    }
+
+    return true;
+}
 
 bool CWallet::CreateZerocoinMintModel(string &stringError, string denomAmount) {
 
@@ -4321,6 +4404,78 @@ bool CWallet::CommitZerocoinSpendTransaction(CWalletTx &wtxNew, CReserveKey &res
         }
     }
     return true;
+}
+
+string CWallet::MintAndStoreZerocoin(vector<CRecipient> vecSend, 
+                                     vector<libzerocoin::PrivateCoin> privCoins, 
+                                     CWalletTx &wtxNew, bool fAskFee) {
+    string strError;
+    if (IsLocked()) {
+        strError = _("Error: Wallet locked, unable to create transaction!");
+        LogPrintf("MintZerocoin() : %s", strError);
+        return strError;
+    }
+
+    int totalValue = 0;
+    BOOST_FOREACH(CRecipient recipient, vecSend){
+        // Check amount
+        if (recipient.nAmount <= 0)
+            return _("Invalid amount");
+
+        LogPrintf("MintZerocoin: value = %s\n", recipient.nAmount);
+        totalValue += recipient.nAmount;
+
+    }
+    if ((totalValue + payTxFee.GetFeePerK()) > GetBalance())
+        return _("Insufficient funds");
+
+    LogPrintf("payTxFee.GetFeePerK()=%s\n", payTxFee.GetFeePerK());
+    CReserveKey reservekey(this);
+    int64_t nFeeRequired;
+    
+    int nChangePosRet = -1;    
+
+    if (!CreateZerocoinMintTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError)) {
+        LogPrintf("nFeeRequired=%s\n", nFeeRequired);
+        if (totalValue + nFeeRequired > GetBalance())
+            return strprintf(
+                    _("Error: This transaction requires a transaction fee of at least %s because of its amount, complexity, or use of recently received funds!"),
+                    FormatMoney(nFeeRequired).c_str());
+        return strError;
+    }
+
+    if (fAskFee && !uiInterface.ThreadSafeAskFee(nFeeRequired)){
+        LogPrintf("MintZerocoin: returning aborted..\n");
+        return "ABORTED";
+    }
+
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+    libzerocoin::Params *zcParams = ZCParamsV2;
+
+    BOOST_FOREACH(libzerocoin::PrivateCoin privCoin, privCoins){
+        CZerocoinEntry zerocoinTx;
+        zerocoinTx.IsUsed = false;                         
+        zerocoinTx.denomination = privCoin.getPublicCoin().getDenomination();
+        zerocoinTx.value = privCoin.getPublicCoin().getValue();
+        libzerocoin::PublicCoin checkPubCoin(zcParams, zerocoinTx.value, privCoin.getPublicCoin().getDenomination());
+        if (!checkPubCoin.validate()) {
+            return "error: pubCoin not validated.";
+        }
+        zerocoinTx.randomness = privCoin.getRandomness();
+        zerocoinTx.serialNumber = privCoin.getSerialNumber();
+        const unsigned char *ecdsaSecretKey = privCoin.getEcdsaSeckey();
+        zerocoinTx.ecdsaSecretKey = std::vector<unsigned char>(ecdsaSecretKey, ecdsaSecretKey+32);
+        walletdb.WriteZerocoinEntry(zerocoinTx);
+    }
+
+    if (!CommitTransaction(wtxNew, reservekey)) {
+        return _(
+                "Error: The transaction was rejected! This might happen if some of the coins in your wallet were already spent, such as if you used a copy of wallet.dat and coins were spent in the copy but not marked as spent here.");
+    } else {
+        LogPrintf("CommitTransaction success!\n");
+    }
+
+    return "";
 }
 
 /**
