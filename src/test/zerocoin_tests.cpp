@@ -135,7 +135,10 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend)
         pwalletMain->SetBroadcastTransactions(true);
 
         //Verify Mint is successful
-        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denomination.c_str()), stringError + " - Create Mint failed");
+        vector<pair<int,int>> denominationPairs;
+        std::pair<int,int> denominationPair(stoi(denomination), 1);
+        denominationPairs.push_back(denominationPair);
+        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denominationPairs), stringError + " - Create Mint failed");
 
         //Verify Mint gets in the mempool
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mint was not added to mempool");
@@ -159,7 +162,8 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend)
         BOOST_CHECK_MESSAGE(!pwalletMain->CreateZerocoinSpendModel(stringError, "", denomination.c_str()), "Spend succeeded although not at least two mints");
         BOOST_CHECK_MESSAGE(stringError == "it has to have at least two mint coins with at least 6 confirmation in order to spend a coin", stringError + " - Incorrect error message");
 
-        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denomination.c_str()), stringError + "Create Mint failed");
+
+        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denominationPairs), stringError + "Create Mint failed");
 
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mint was not added to mempool");
 
@@ -286,6 +290,8 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_many)
 
     pwalletMain->SetBroadcastTransactions(true);
 
+    vector<pair<int,int>> denominationPairs;
+
     for(int i = 0; i < 4; i++)
     {
         thirdPartyAddress = "";
@@ -296,13 +302,17 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_many)
         string stringError;
         //Make sure that transactions get to mempool
         pwalletMain->SetBroadcastTransactions(true);
-
+        denominationPairs.clear();
         //Verify Mint is successful
-        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denominationsForTx[0].c_str()), stringError + " - Create Mint failed");
-        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denominationsForTx[1].c_str()), stringError + " - Create Mint failed");
+        for(int i=0;i<2;i++){
+             std::pair<int,int> denominationPair(stoi(denominationsForTx[i]), 1);
+             denominationPairs.push_back(denominationPair);
+        }
+                
+        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denominationPairs), stringError + " - Create Mint failed");
 
-        //Verify mints get added in the mempool
-        BOOST_CHECK_MESSAGE(mempool.size() == 2, "Mint was not added to mempool");
+        //Verify mint tx get added in the mempool
+        BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mint tx was not added to mempool");
 
         int previousHeight = chainActive.Height();
         b = CreateAndProcessBlock(MinTxns, scriptPubKey);
@@ -326,10 +336,10 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_many)
         BOOST_CHECK_MESSAGE(!pwalletMain->CreateZerocoinSpendModel(wtx, stringError, thirdPartyAddress, denominationsForTx), "Spend succeeded although not at least two mints");
         BOOST_CHECK_MESSAGE(stringError == "it has to have at least two mint coins with at least 6 confirmation in order to spend a coin", stringError + " - Incorrect error message");
 
-        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denominationsForTx[0].c_str()), stringError + "Create Mint failed");
-        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denominationsForTx[1].c_str()), stringError + "Create Mint failed");
+        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denominationPairs), stringError + "Create Mint failed");
+        //BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denominationsForTx[1].c_str()), stringError + "Create Mint failed");
 
-        BOOST_CHECK_MESSAGE(mempool.size() == 2, "Mint was not added to mempool");
+        BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mint tx was not added to mempool");
 
         MinTxns.clear();
 
@@ -427,12 +437,15 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_many)
 
         // Test: send to third party address.
         // mint two of each denom
-        for (int i = 0; i < 2; i++){
-            BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denominationsForTx[0].c_str()), stringError + " - Create Mint failed");
-            BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denominationsForTx[1].c_str()), stringError + " - Create Mint failed");
+        denominationPairs.clear();
+        for(int i=0;i<2;i++){
+             std::pair<int,int> denominationPair(stoi(denominationsForTx[i]), 2);
+             denominationPairs.push_back(denominationPair);
         }
+        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denominationPairs), stringError + " - Create Mint failed");
+
         // verify mints got to mempool
-        BOOST_CHECK_MESSAGE(mempool.size() == 4, "mints not added to mempool");
+        BOOST_CHECK_MESSAGE(mempool.size() == 1, "mint tx not added to mempool");
 
         // add block
         previousHeight = chainActive.Height();
@@ -478,10 +491,13 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_many)
         denominationsForTx.push_back(denominations[i]); 
         string stringError;
         printf("Testing denominations %s and %s\n", denominationsForTx[0].c_str(), denominationsForTx[1].c_str());
-        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denominations[i]), stringError + " - Create Mint failed");
-        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denominations[i]), stringError + " - Create Mint failed");
+        denominationPairs.clear();
+        std::pair<int,int> denominationPair(stoi(denominations[i]), 2);
+        denominationPairs.push_back(denominationPair);
 
-        BOOST_CHECK_MESSAGE(mempool.size() == 2, "Same denom mints not added to mempool");
+        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denominationPairs), stringError + " - Create Mint failed");
+
+        BOOST_CHECK_MESSAGE(mempool.size() == 1, "Same denom mint tx not added to mempool");
 
         // add block
         previousHeight = chainActive.Height();
@@ -517,7 +533,8 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_many)
 }
 
 BOOST_AUTO_TEST_CASE(zerocoin_mintspend_usedinput){
-        vector<string> denominationsForTx;
+    vector<string> denominationsForTx;
+    vector<pair<int,int>> denominationPairs;
     vector<uint256> vtxid;
     std::vector<CMutableTransaction> MinTxns;
     string thirdPartyAddress;
@@ -538,13 +555,15 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_usedinput){
     denominationsForTx.push_back(denominations[2]); 
     string stringError;
 
-    for (int i = 0; i < 2; i++){
-        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denominationsForTx[0].c_str()), stringError + " - Create Mint failed");
-        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denominationsForTx[1].c_str()), stringError + " - Create Mint failed");
-        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denominationsForTx[2].c_str()), stringError + " - Create Mint failed");
+    denominationPairs.clear();
+    for (int i = 0; i < 3; i++){
+        std::pair<int,int> denominationPair(stoi(denominationsForTx[i]), 2);
+        denominationPairs.push_back(denominationPair);
     }
 
-    BOOST_CHECK_MESSAGE(mempool.size() == 6, "Same denom mints not added to mempool");
+    BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denominationPairs), stringError + " - Create Mint failed");
+
+    BOOST_CHECK_MESSAGE(mempool.size() == 1, "Same denom mints not added to mempool");
 
     // add block
     previousHeight = chainActive.Height();
@@ -583,8 +602,11 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_usedinput){
     BOOST_CHECK_MESSAGE(stringError=="it has to have at least two mint coins with at least 6 confirmation in order to spend a coin", "Incorrect error message: " + stringError);
 
     // Now mint two more of denomination 1, but don't mine the needed blocks, preventing their usage. verify transaction creation fails
-    BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denominationsForTx[0].c_str()), stringError + " - Create Mint failed");
-    BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denominationsForTx[0].c_str()), stringError + " - Create Mint failed");
+    denominationPairs.clear();
+    std::pair<int,int> denominationPair(stoi(denominationsForTx[0]), 2);
+    denominationPairs.push_back(denominationPair);
+    BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denominationPairs), stringError + " - Create Mint failed");
+    //BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denominationsForTx[0].c_str()), stringError + " - Create Mint failed");
 
     BOOST_CHECK_MESSAGE(!pwalletMain->CreateZerocoinSpendModel(wtx, stringError, thirdPartyAddress, denominationsForTx), "Spend succeeded with used mint");
     BOOST_CHECK_MESSAGE(stringError=="it has to have at least two mint coins with at least 6 confirmation in order to spend a coin", "Incorrect error message: " + stringError);
