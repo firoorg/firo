@@ -86,7 +86,7 @@ public:
         strNetworkID = "main";
 
         consensus.chainType = Consensus::chainMain;        
-        consensus.nSubsidyHalvingInterval = 300000;
+        consensus.nSubsidyHalvingInterval = 305000;
         consensus.nMajorityEnforceBlockUpgrade = 750;
         consensus.nMajorityRejectBlockOutdated = 950;
         consensus.nMajorityWindow = 1000;
@@ -241,7 +241,7 @@ public:
         strNetworkID = "test";
 
         consensus.chainType = Consensus::chainTestnet;
-        consensus.nSubsidyHalvingInterval = 300000;
+        consensus.nSubsidyHalvingInterval = 305000;
         consensus.nMajorityEnforceBlockUpgrade = 51;
         consensus.nMajorityRejectBlockOutdated = 75;
         consensus.nMajorityWindow = 100;
@@ -384,7 +384,7 @@ public:
         strNetworkID = "regtest";
 
         consensus.chainType = Consensus::chainRegtest;
-        consensus.nSubsidyHalvingInterval = 300000;
+        consensus.nSubsidyHalvingInterval = 305000;
         consensus.nMajorityEnforceBlockUpgrade = 750;
         consensus.nMajorityRejectBlockOutdated = 950;
         consensus.nMajorityWindow = 1000;

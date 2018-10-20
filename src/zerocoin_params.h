@@ -48,7 +48,7 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 XZC mininput
 
 #define ZC_MODULUS_V2_BASE_ID			1000
 
-#define ZC_MULTIPLE_SPEND_INPUT_STARTING_BLOCK  116000
+#define ZC_MULTIPLE_SPEND_INPUT_STARTING_BLOCK  119000
 
 // Number of coins per id in spend v1/v1.5
 #define ZC_SPEND_V1_COINSPERID			10
