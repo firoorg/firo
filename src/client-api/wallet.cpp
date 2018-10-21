@@ -199,7 +199,7 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
             UniValue address(UniValue::VOBJ);         
             UniValue total(UniValue::VOBJ);
             UniValue txids(UniValue::VOBJ);
-            UniValue categories(UniValue::VOBJ);
+            UniValue vouts(UniValue::VOBJ);
             UniValue entry(UniValue::VOBJ);
 
             uint256 txid = wtx.GetHash();
@@ -208,6 +208,7 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
             }
 
             string category;
+            string voutIndex = to_string(s.vout);
             
             if(wtx.vout[s.vout].scriptPubKey.IsZerocoinMint()){
                 category = "mint";
@@ -224,6 +225,7 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
             }
             entry.push_back(Pair("category", category));
             entry.push_back(Pair("address", addrStr));
+            entry.push_back(Pair("txIndex", s.vout));
 
             CAmount amount = ValueFromAmount(s.amount).get_real() * COIN;
             entry.push_back(Pair("amount", amount));
@@ -249,8 +251,8 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
                 txids = address["txids"];
             }
 
-            if(!txids[category].isNull()){
-                categories = txids[category];
+            if(!txids[voutIndex].isNull()){
+                vouts = txids[voutIndex];
             }
 
             if(!total["sent"].isNull()){
@@ -261,8 +263,8 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
             else{
                 total.push_back(Pair("sent", amount));
             }
-            categories.replace(txid.GetHex(), entry);
-            txids.replace(category, categories);
+            vouts.replace(txid.GetHex(), entry);
+            txids.replace(voutIndex, vouts);
             address.replace("total", total);
             address.replace("txids", txids);
             ret.replace(addrStr, address);
@@ -278,7 +280,7 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
             UniValue address(UniValue::VOBJ);         
             UniValue total(UniValue::VOBJ);
             UniValue txids(UniValue::VOBJ);
-            UniValue categories(UniValue::VOBJ);
+            UniValue vouts(UniValue::VOBJ);
             UniValue entry(UniValue::VOBJ);
 
             string account;
@@ -288,6 +290,8 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
 
             uint256 txid = wtx.GetHash();
             string category;
+            string voutIndex = to_string(r.vout);
+
             if (addr.Set(r.destination)){
                 addrStr = addr.ToString();
                 entry.push_back(Pair("address", addr.ToString()));
@@ -317,6 +321,7 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
                 category = "receive";
             }
             entry.push_back(Pair("category", category));
+            entry.push_back(Pair("txIndex", r.vout));
 
             CAmount amount = ValueFromAmount(r.amount).get_real() * COIN;
             entry.push_back(Pair("amount", amount));
@@ -335,8 +340,8 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
                 txids = address["txids"];
             }
 
-            if(!txids[category].isNull()){
-                categories = txids[category];
+            if(!txids[voutIndex].isNull()){
+                vouts = txids[voutIndex];
             }
 
             if(!total["balance"].isNull()){
@@ -348,8 +353,8 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
                 total.push_back(Pair("balance", amount));
             }
             
-            categories.replace(txid.GetHex(), entry);
-            txids.replace(category, categories);
+            vouts.replace(txid.GetHex(), entry);
+            txids.replace(voutIndex, vouts);
             address.replace("total", total);
             address.replace("txids", txids);
 
