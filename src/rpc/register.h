@@ -20,6 +20,15 @@ void RegisterMiningRPCCommands(CRPCTable &tableRPC);
 /** Register raw transaction RPC commands */
 void RegisterRawTransactionRPCCommands(CRPCTable &tableRPC);
 
+/** Register Exodus data retrieval RPC commands */
+void RegisterExodusDataRetrievalRPCCommands(CRPCTable &tableRPC);
+/** Register Exodus transaction creation RPC commands */
+void RegisterExodusTransactionCreationRPCCommands(CRPCTable &tableRPC);
+/** Register Exodus payload creation RPC commands */
+void RegisterExodusPayloadCreationRPCCommands(CRPCTable &tableRPC);
+/** Register Exodus raw transaction RPC commands */
+void RegisterExodusRawTransactionRPCCommands(CRPCTable &tableRPC);
+
 static inline void RegisterAllCoreRPCCommands(CRPCTable &tableRPC)
 {
     RegisterBlockchainRPCCommands(tableRPC);
@@ -27,6 +36,12 @@ static inline void RegisterAllCoreRPCCommands(CRPCTable &tableRPC)
     RegisterMiscRPCCommands(tableRPC);
     RegisterMiningRPCCommands(tableRPC);
     RegisterRawTransactionRPCCommands(tableRPC);
+
+    /* Exodus RPCs: */
+    RegisterExodusDataRetrievalRPCCommands(tableRPC);
+    RegisterExodusTransactionCreationRPCCommands(tableRPC);
+    RegisterExodusPayloadCreationRPCCommands(tableRPC);
+    RegisterExodusRawTransactionRPCCommands(tableRPC);
 }
 
 #endif

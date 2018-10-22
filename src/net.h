@@ -52,7 +52,9 @@ static const unsigned int MAX_INV_SZ = 50000;
 /** The maximum number of new addresses to accumulate before announcing. */
 static const unsigned int MAX_ADDR_TO_SEND = 1000;
 /** Maximum length of incoming protocol messages (no message over 4 MB is currently acceptable). */
-static const unsigned int MAX_PROTOCOL_MESSAGE_LENGTH = 4 * 1000 * 1000;
+//static const unsigned int MAX_PROTOCOL_MESSAGE_LENGTH = 4 * 1000 * 1000;
+// Zcoin - MTP
+static const unsigned int MAX_PROTOCOL_MESSAGE_LENGTH = 400 * 1000 * 1000;
 /** Maximum length of strSubVer in `version` message */
 static const unsigned int MAX_SUBVERSION_LENGTH = 256;
 /** -listen default */
@@ -586,7 +588,7 @@ public:
     void PushInventory(const CInv& inv)
     {
         LOCK(cs_inventory);
-        LogPrintf("Pushing inventory %s to %s.\n", inv.ToString(), addr.ToString());
+        // LogPrintf("Pushing inventory %s to %s.\n", inv.ToString(), addr.ToString());
         if (inv.type == MSG_TX) {
             if (!filterInventoryKnown.contains(inv.hash)) {
                 setInventoryTxToSend.insert(inv.hash);

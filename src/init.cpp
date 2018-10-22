@@ -42,6 +42,7 @@
 #include "client-api/register.h"
 #include "client-api/server.h"
 #include "client-api/settings.h"
+#include "mtpstate.h"
 
 #ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
@@ -121,6 +122,10 @@ enum BindFlags {
 static const char *FEE_ESTIMATES_FILENAME = "fee_estimates.dat";
 
 extern CTxMemPool stempool;
+// Exodus initialization and shutdown handlers
+extern int exodus_init();
+extern int exodus_shutdown();
+extern int CheckWalletUpdate(bool forceUpdate = false);
 
 namespace fs = boost::filesystem;
 
@@ -286,6 +291,10 @@ void Shutdown() {
         delete pblocktree;
         pblocktree = NULL;
     }
+
+    //! Exodus shutdown
+    exodus_shutdown();
+
 #ifdef ENABLE_WALLET
     if (pwalletMain)
         pwalletMain->Flush(true);
@@ -325,6 +334,7 @@ void HandleSIGTERM(int) {
 
 void HandleSIGHUP(int) {
     fReopenDebugLog = true;
+    fReopenExodusLog = true;
 }
 
 bool static Bind(const CService &addr, unsigned int flags) {
@@ -662,7 +672,26 @@ std::string HelpMessage(HelpMessageMode mode) {
                                              DEFAULT_HTTP_WORKQUEUE));
         strUsage += HelpMessageOpt("-rpcservertimeout=<n>", strprintf("Timeout during HTTP requests (default: %d)",
                                                                       DEFAULT_HTTP_SERVER_TIMEOUT));
+
+        strUsage += HelpMessageOpt("-rpcforceutf8", strprintf("Replace invalid UTF-8 encoded characters with question marks in RPC response (default: %d)", 1));
     }
+
+    strUsage += HelpMessageGroup("Exodus options:");
+	strUsage += HelpMessageOpt("-startclean", "Clear all persistence files on startup; triggers reparsing of Exodus transactions (default: 0)");
+	strUsage += HelpMessageOpt("-exodustxcache", "The maximum number of transactions in the input transaction cache (default: 500000)");
+	strUsage += HelpMessageOpt("-exodusprogressfrequency", "Time in seconds after which the initial scanning progress is reported (default: 30)");
+	strUsage += HelpMessageOpt("-exodusseedblockfilter", "Set skipping of blocks without Exodus transactions during initial scan (default: 1)");
+	strUsage += HelpMessageOpt("-exoduslogfile", "The path of the log file (default: exodus.log)");
+	strUsage += HelpMessageOpt("-exodusdebug=<category>", "Enable or disable log categories, can be \"all\" or \"none\"");
+	strUsage += HelpMessageOpt("-autocommit", "Enable or disable broadcasting of transactions, when creating transactions (default: 1)");
+	strUsage += HelpMessageOpt("-overrideforcedshutdown", "Overwrite shutdown, triggered by an alert (default: 0)");
+	strUsage += HelpMessageOpt("-exodusalertallowsender", "Whitelist senders of alerts, can be \"any\")");
+	strUsage += HelpMessageOpt("-exodusalertignoresender", "Ignore senders of alerts");
+	strUsage += HelpMessageOpt("-exodusactivationignoresender", "Ignore senders of activations");
+	strUsage += HelpMessageOpt("-exodusactivationallowsender", "Whitelist senders of activations");
+	strUsage += HelpMessageOpt("-disclaimer", "Explicitly show QT disclaimer on startup (default: 0)");
+	strUsage += HelpMessageOpt("-exodusuiwalletscope", "Max. transactions to show in trade and transaction history (default: 65535)");
+	strUsage += HelpMessageOpt("-exodusshowblockconsensushash", "Calculate and log the consensus hash for the specified block");
 
     return strUsage;
 }
@@ -773,6 +802,7 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
     CImportingNow imp;
     // -reindex
     if (fReindex) {
+        MTPState::GetMTPState()->Reset();
         int nFile = 0;
         while (true) {
             CDiskBlockPos pos(nFile, 0);
@@ -1767,6 +1797,47 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
         mempool.ReadFeeEstimates(est_filein);
     fFeeEstimatesInitialized = true;
 
+    // ********************************************************* Step 7.5: load exodus
+
+	if (!fTxIndex) {
+		// ask the user if they would like us to modify their config file for them
+		std::string msg = _("Disabled transaction index detected.\n\n"
+							"Exodus requires an enabled transaction index. To enable "
+							"transaction indexing, please use the \"-txindex\" option as "
+							"command line argument or add \"txindex=1\" to your client "
+							"configuration file within your data directory.\n\n"
+							"Configuration file"); // allow translation of main text body while still allowing differing config file string
+		msg += ": " + GetConfigFile().string() + "\n\n";
+		msg += _("Would you like Exodus to attempt to update your configuration file accordingly?");
+		bool fRet = uiInterface.ThreadSafeMessageBox(msg, "", CClientUIInterface::MSG_INFORMATION | CClientUIInterface::BTN_OK | CClientUIInterface::MODAL | CClientUIInterface::BTN_ABORT);
+		if (fRet) {
+			// add txindex=1 to config file in GetConfigFile()
+			boost::filesystem::path configPathInfo = GetConfigFile();
+			FILE *fp = fopen(configPathInfo.string().c_str(), "at");
+			if (!fp) {
+				std::string failMsg = _("Unable to update configuration file at");
+				failMsg += ":\n" + GetConfigFile().string() + "\n\n";
+				failMsg += _("The file may be write protected or you may not have the required permissions to edit it.\n");
+				failMsg += _("Please add txindex=1 to your configuration file manually.\n\nExodus will now shutdown.");
+				return InitError(failMsg);
+			}
+			fprintf(fp, "\ntxindex=1\n");
+			fflush(fp);
+			fclose(fp);
+			std::string strUpdated = _(
+					"Your configuration file has been updated.\n\n"
+					"Exodus will now shutdown - please restart the client for your new configuration to take effect.");
+			uiInterface.ThreadSafeMessageBox(strUpdated, "", CClientUIInterface::MSG_INFORMATION | CClientUIInterface::BTN_OK | CClientUIInterface::MODAL);
+			return false;
+		} else {
+			return InitError(_("Please add txindex=1 to your configuration file manually.\n\nOmni Core will now shutdown."));
+		}
+	}
+
+	uiInterface.InitMessage(_("Parsing Exodus transactions..."));
+
+	exodus_init();
+
     // ********************************************************* Step 8: load wallet
 
 #ifdef ENABLE_WALLET
@@ -1782,6 +1853,9 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
 #else // ENABLE_WALLET
     LogPrintf("No wallet support compiled in!\n");
 #endif // !ENABLE_WALLET
+
+    // Exodus code should be initialized and wallet should now be loaded, perform an initial populat$
+    CheckWalletUpdate();
 
     // ********************************************************* Step 9: data directory maintenance
     LogPrintf("Step 9: data directory maintenance **********************\n");
@@ -1831,7 +1905,11 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
         vImportFiles.push_back(strFile);
     }
 
-    threadGroup.create_thread(boost::bind(&ThreadImport, vImportFiles));
+    // Temporary measure: refactor and changing data structures needed to fix high stack usage
+    boost::thread_attributes threadAttr;
+    threadAttr.set_stack_size(4*1024*1024);
+
+    threadGroup.add_thread(new boost::thread(threadAttr, boost::bind(&ThreadImport, vImportFiles)));
 
     // Wait for genesis block to be processed
     {

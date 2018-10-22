@@ -861,6 +861,7 @@ public:
     std::string SpendMultipleZerocoin(std::string& thirdPartyaddress, const std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>>& denominations, CWalletTx& wtxNew, vector<CBigNum>& coinSerials, uint256& txHash, vector<CBigNum>& zcSelectedValues, bool forceUsed = false);
 
     bool CreateZerocoinMintModel(string &stringError, string denomAmount);
+
     bool CreateZerocoinMintModel(string &stringError, vector<string> denomAmounts);
     bool CreateZerocoinMintModel(string &stringError, std::vector<std::pair<int,int>> denominationPairs);
     bool CreateZerocoinSpendModel(string &stringError, string thirdPartyAddress, string denomAmount, bool forceUsed = false);

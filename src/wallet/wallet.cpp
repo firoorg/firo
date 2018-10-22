@@ -3481,15 +3481,15 @@ bool CWallet::CreateZerocoinMintModel(string &stringError, string denomAmount) {
 
     // Set up the Zerocoin Params object
     libzerocoin::Params *zcParams = ZCParamsV2;
-    
-    int mintVersion = ZEROCOIN_TX_VERSION_1;
-    
-    // do not use v2 mint until certain moment when it would be understood by peers
-    {
-        LOCK(cs_main);
-        if (chainActive.Height() >= Params().nSpendV15StartBlock)
-            mintVersion = ZEROCOIN_TX_VERSION_2;
-    }
+	
+	int mintVersion = ZEROCOIN_TX_VERSION_1;
+	
+	// do not use v2 mint until certain moment when it would be understood by peers
+	{
+		LOCK(cs_main);
+        if (chainActive.Height() >= Params().GetConsensus().nSpendV15StartBlock)
+			mintVersion = ZEROCOIN_TX_VERSION_2;
+	}
 
     // The following constructor does all the work of minting a brand
     // new zerocoin. It stores all the private values inside the
@@ -3579,7 +3579,7 @@ bool CWallet::CreateZerocoinMintModel(string &stringError, vector<string> denomA
     // do not use v2 mint until certain moment when it would be understood by peers
     {
         LOCK(cs_main);
-        if (chainActive.Height() >= Params().nSpendV15StartBlock)
+        if (chainActive.Height() >= Params().GetConsensus().nSpendV15StartBlock)
             mintVersion = ZEROCOIN_TX_VERSION_2;
     }
 
@@ -4105,7 +4105,7 @@ bool CWallet::CreateZerocoinSpendTransaction(std::string &thirdPartyaddress, int
             // Fill vin
 
             // Set up the Zerocoin Params object
-            bool fModulusV2 = chainActive.Height() >= Params().nModulusV2StartBlock;
+            bool fModulusV2 = chainActive.Height() >= Params().GetConsensus().nModulusV2StartBlock;
             libzerocoin::Params *zcParams = fModulusV2 ? ZCParamsV2 : ZCParams;
 
             // Select not yet used coin from the wallet with minimal possible id
@@ -4182,7 +4182,7 @@ bool CWallet::CreateZerocoinSpendTransaction(std::string &thirdPartyaddress, int
             newTxIn.prevout.SetNull();
             txNew.vin.push_back(newTxIn);
 
-            bool useVersion2 = IsZerocoinTxV2(denomination, coinId);
+            bool useVersion2 = IsZerocoinTxV2(denomination, Params().GetConsensus(), coinId);
 
             // We use incomplete transaction hash for now as a metadata
             libzerocoin::SpendMetaData metaData(serializedId, txNew.GetHash());
@@ -4202,7 +4202,7 @@ bool CWallet::CreateZerocoinSpendTransaction(std::string &thirdPartyaddress, int
                     LOCK(cs_main);
                     nHeight = chainActive.Height();
                 }
-                if (nHeight >= Params().nSpendV15StartBlock)
+                if (nHeight >= Params().GetConsensus().nSpendV15StartBlock)
                     txVersion = ZEROCOIN_TX_VERSION_1_5;
             }
 
@@ -4345,7 +4345,7 @@ bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddr
             }
 
             // Set up the Zerocoin Params object
-            bool fModulusV2 = chainActive.Height() >= Params().nModulusV2StartBlock;
+            bool fModulusV2 = chainActive.Height() >= Params().GetConsensus().nModulusV2StartBlock;
             libzerocoin::Params *zcParams = fModulusV2 ? ZCParamsV2 : ZCParams;
 
             // objects holding spend inputs & storage values while tx is formed
@@ -4458,7 +4458,7 @@ bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddr
                 newTxIn.prevout.SetNull();
                 txNew.vin.push_back(newTxIn);
 
-                bool useVersion2 = IsZerocoinTxV2(denomination, coinId);
+                bool useVersion2 = IsZerocoinTxV2(denomination, Params().GetConsensus(), coinId);
 
                 // Construct the CoinSpend object. This acts like a signature on the
                 // transaction.
@@ -4475,7 +4475,7 @@ bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddr
                         LOCK(cs_main);
                         nHeight = chainActive.Height();
                     }
-                    if (nHeight >= Params().nSpendV15StartBlock){
+                    if (nHeight >= Params().GetConsensus().nSpendV15StartBlock){
                         txVersion = ZEROCOIN_TX_VERSION_1_5;
                     }
                 }
@@ -4678,7 +4678,6 @@ bool CWallet::CommitZerocoinSpendTransaction(CWalletTx &wtxNew, CReserveKey &res
     }
     return true;
 }
-
 
 string CWallet::MintAndStoreZerocoin(vector<CRecipient> vecSend, 
                                      vector<libzerocoin::PrivateCoin> privCoins, 

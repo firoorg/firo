@@ -1427,6 +1427,7 @@ void ThreadSocketHandler() {
                 if (lockRecv) {
                     {
                         // typical socket buffer is 8K-64K
+                    	// Zcoin - MTP
                         char pchBuf[0x10000];
                         int nBytes = recv(pnode->hSocket, pchBuf, sizeof(pchBuf), MSG_DONTWAIT);
                         if (nBytes > 0) {
@@ -1469,7 +1470,9 @@ void ThreadSocketHandler() {
             // Inactivity checking
             //
             int64_t nTime = GetTime();
-            if (nTime - pnode->nTimeConnected > 60) {
+            // Zcoin - MTP
+            //if (nTime - pnode->nTimeConnected > 60) {
+            if (nTime - pnode->nTimeConnected > 3600) {
                 if (pnode->nLastRecv == 0 || pnode->nLastSend == 0) {
                     LogPrint("net", "socket no message in first 60 seconds, %d %d from %d\n", pnode->nLastRecv != 0,
                              pnode->nLastSend != 0, pnode->id);
@@ -2332,7 +2335,7 @@ void StartNode(boost::thread_group &threadGroup, CScheduler &scheduler) {
     if (!GetBoolArg("-dnsseed", true))
         LogPrintf("DNS seeding disabled\n");
     else
-        threadGroup.create_thread(boost::bind(&TraceThread<void (*)()>, "dnsseed", &ThreadDNSAddressSeed));
+        threadGroup.add_thread(new boost::thread(boost::bind(&TraceThread<void (*)()>, "dnsseed", &ThreadDNSAddressSeed)));
 
     // Map ports with UPnP
     MapPort(GetBoolArg("-upnp", DEFAULT_UPNP));
@@ -3119,9 +3122,9 @@ bool CNode::localDandelionDestinationPushInventory(const CInv& inv) {
         setLocalDandelionDestination();
     }
     if (isLocalDandelionDestinationSet()) {
-        LogPrintf("Dandelion: Pushing inventory item %s to %s.\n", 
-                  inv.ToString(), 
-                  localDandelionDestination->addrName);
+        //LogPrintf("Dandelion: Pushing inventory item %s to %s.\n", 
+        //          inv.ToString(), 
+        //          localDandelionDestination->addrName);
         localDandelionDestination->PushInventory(inv);
         return true;
     } else {

@@ -489,6 +489,7 @@ void CZnode::UpdateLastPaid(const CBlockIndex *pindex, int nMaxBlocksToScanBack)
         return;
     }
 
+    const Consensus::Params &params = Params().GetConsensus();
     const CBlockIndex *BlockReading = pindex;
 
     CScript mnpayee = GetScriptForDestination(pubKeyCollateralAddress.GetID());
@@ -508,8 +509,8 @@ void CZnode::UpdateLastPaid(const CBlockIndex *pindex, int nMaxBlocksToScanBack)
                 LogPrintf("ReadBlockFromDisk failed\n");
                 continue;
             }
-
-            CAmount nZnodePayment = GetZnodePayment(BlockReading->nHeight, block.vtx[0].GetValueOut());
+            bool fMTP = BlockReading->nHeight > 0 && BlockReading->nTime >= params.nMTPSwitchTime;
+            CAmount nZnodePayment = GetZnodePayment(params, fMTP);
 
             BOOST_FOREACH(CTxOut txout, block.vtx[0].vout)
             if (mnpayee == txout.scriptPubKey && nZnodePayment == txout.nValue) {

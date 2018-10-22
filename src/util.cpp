@@ -132,6 +132,9 @@ bool fLogIPs = DEFAULT_LOGIPS;
 std::atomic<bool> fReopenDebugLog(false);
 CTranslationInterface translationInterface;
 
+/** Flag to indicate, whether the Exodus log file should be reopened. */
+std::atomic<bool> fReopenExodusLog(false);
+
 /** Init OpenSSL library multithreading support */
 static CCriticalSection** ppmutexOpenSSL;
 void locking_callback(int mode, int i, const char* file, int line) NO_THREAD_SAFETY_ANALYSIS
@@ -412,6 +415,17 @@ bool GetBoolArg(const std::string& strArg, bool fDefault)
     if (mapArgs.count(strArg))
         return InterpretBool(mapArgs[strArg]);
     return fDefault;
+}
+
+boost::optional<bool> GetOptBoolArg(const std::string& strArg)
+{
+    auto const iter = mapArgs.find(strArg);
+    if(iter != mapArgs.end()){
+        if(iter->second.empty())
+            return boost::optional<bool>(true);
+        return boost::optional<bool>(InterpretBool(iter->second));
+    }
+    return boost::optional<bool>();
 }
 
 bool SoftSetArg(const std::string& strArg, const std::string& strValue)

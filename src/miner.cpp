@@ -28,6 +28,7 @@
 #include "wallet/wallet.h"
 #include "definition.h"
 #include "crypto/scrypt.h"
+#include "crypto/MerkleTreeProof/mtp.h"
 #include "crypto/Lyra2Z/Lyra2Z.h"
 #include "crypto/Lyra2Z/Lyra2.h"
 #include "znode-payments.h"
@@ -37,6 +38,7 @@
 #include <boost/thread.hpp>
 #include <boost/tuple/tuple.hpp>
 #include <queue>
+#include <unistd.h>
 
 using namespace std;
 
@@ -133,7 +135,20 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
 {
     // Create new block
     LogPrintf("BlockAssembler::CreateNewBlock()\n");
-    bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
+
+    const Consensus::Params &params = Params().GetConsensus();
+    uint32_t nBlockTime;
+    bool fTestNet = params.IsTestnet();
+    bool fMTP;
+    {
+        LOCK2(cs_main, mempool.cs);
+        nBlockTime = GetAdjustedTime();
+    }
+
+    fMTP = nBlockTime >= params.nMTPSwitchTime;
+    int nFeeReductionFactor = fMTP ? params.nMTPRewardReduction : 1;
+    CAmount coin = COIN / nFeeReductionFactor;
+
     resetBlock();
     auto_ptr<CBlockTemplate> pblocktemplate(new CBlockTemplate());
     if(!pblocktemplate.get())
@@ -149,20 +164,19 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
     CBlockIndex* pindexPrev = chainActive.Tip();
     const int nHeight = pindexPrev->nHeight + 1;
 
-
     // To founders and investors
     // To founders and investors
-    if ((nHeight + 1 > 0) && (nHeight + 1 < 210000)) {
+    if ((nHeight + 1 > 0) && (nHeight + 1 < 305000)) {
         CScript FOUNDER_1_SCRIPT;
         CScript FOUNDER_2_SCRIPT;
         CScript FOUNDER_3_SCRIPT;
         CScript FOUNDER_4_SCRIPT;
         CScript FOUNDER_5_SCRIPT;
-        if (nHeight < Params().GetConsensus().nZnodePaymentsStartBlock) {
+        if (nHeight < params.nZnodePaymentsStartBlock) {
             // Take some reward away from us
-            coinbaseTx.vout[0].nValue = -10 * COIN;
+            coinbaseTx.vout[0].nValue = -10 * coin;
 
-            if (!fTestNet && (GetAdjustedTime() > nStartRewardTime)) {
+            if (params.IsMain() && (GetAdjustedTime() > nStartRewardTime)) {
                 FOUNDER_1_SCRIPT = GetScriptForDestination(CBitcoinAddress("aCAgTPgtYcA4EysU4UKC86EQd5cTtHtCcr").Get());
                 if (nHeight + 1 < 14000) {
                     FOUNDER_2_SCRIPT = GetScriptForDestination(CBitcoinAddress("aLrg41sXbXZc5MyEj7dts8upZKSAtJmRDR").Get());
@@ -172,9 +186,9 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
                 FOUNDER_3_SCRIPT = GetScriptForDestination(CBitcoinAddress("aQ18FBVFtnueucZKeVg4srhmzbpAeb1KoN").Get());
                 FOUNDER_4_SCRIPT = GetScriptForDestination(CBitcoinAddress("a1HwTdCmQV3NspP2QqCGpehoFpi8NY4Zg3").Get());
                 FOUNDER_5_SCRIPT = GetScriptForDestination(CBitcoinAddress("a1kCCGddf5pMXSipLVD9hBG2MGGVNaJ15U").Get());
-            } else if (!fTestNet && (GetAdjustedTime() <= nStartRewardTime)) {
+            } else if (params.IsMain() && (GetAdjustedTime() <= nStartRewardTime)) {
                 throw std::runtime_error("CreateNewBlock() : Create new block too early");
-            } else if (fTestNet) {
+            } else if (!params.IsMain()) {
                 FOUNDER_1_SCRIPT = GetScriptForDestination(CBitcoinAddress("TDk19wPKYq91i18qmY6U9FeTdTxwPeSveo").Get());
                 FOUNDER_2_SCRIPT = GetScriptForDestination(CBitcoinAddress("TWZZcDGkNixTAMtRBqzZkkMHbq1G6vUTk5").Get());
                 FOUNDER_3_SCRIPT = GetScriptForDestination(CBitcoinAddress("TRZTFdNCKCKbLMQV8cZDkQN9Vwuuq4gDzT").Get());
@@ -183,16 +197,16 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
             }
 
             // And give it to the founders
-            coinbaseTx.vout.push_back(CTxOut(2 * COIN, CScript(FOUNDER_1_SCRIPT.begin(), FOUNDER_1_SCRIPT.end())));
-            coinbaseTx.vout.push_back(CTxOut(2 * COIN, CScript(FOUNDER_2_SCRIPT.begin(), FOUNDER_2_SCRIPT.end())));
-            coinbaseTx.vout.push_back(CTxOut(2 * COIN, CScript(FOUNDER_3_SCRIPT.begin(), FOUNDER_3_SCRIPT.end())));
-            coinbaseTx.vout.push_back(CTxOut(2 * COIN, CScript(FOUNDER_4_SCRIPT.begin(), FOUNDER_4_SCRIPT.end())));
-            coinbaseTx.vout.push_back(CTxOut(2 * COIN, CScript(FOUNDER_5_SCRIPT.begin(), FOUNDER_5_SCRIPT.end())));
+            coinbaseTx.vout.push_back(CTxOut(2 * coin, CScript(FOUNDER_1_SCRIPT.begin(), FOUNDER_1_SCRIPT.end())));
+            coinbaseTx.vout.push_back(CTxOut(2 * coin, CScript(FOUNDER_2_SCRIPT.begin(), FOUNDER_2_SCRIPT.end())));
+            coinbaseTx.vout.push_back(CTxOut(2 * coin, CScript(FOUNDER_3_SCRIPT.begin(), FOUNDER_3_SCRIPT.end())));
+            coinbaseTx.vout.push_back(CTxOut(2 * coin, CScript(FOUNDER_4_SCRIPT.begin(), FOUNDER_4_SCRIPT.end())));
+            coinbaseTx.vout.push_back(CTxOut(2 * coin, CScript(FOUNDER_5_SCRIPT.begin(), FOUNDER_5_SCRIPT.end())));
         } else if (nHeight >= Params().GetConsensus().nZnodePaymentsStartBlock) {
             // Take some reward away from us
-            coinbaseTx.vout[0].nValue = -7 * COIN;
+            coinbaseTx.vout[0].nValue = -7 * coin;
 
-            if (!fTestNet && (GetAdjustedTime() > nStartRewardTime)) {
+            if (params.IsMain() && (GetAdjustedTime() > nStartRewardTime)) {
                 FOUNDER_1_SCRIPT = GetScriptForDestination(CBitcoinAddress("aCAgTPgtYcA4EysU4UKC86EQd5cTtHtCcr").Get());
                 if (nHeight + 1 < 14000) {
                     FOUNDER_2_SCRIPT = GetScriptForDestination(CBitcoinAddress("aLrg41sXbXZc5MyEj7dts8upZKSAtJmRDR").Get());
@@ -202,9 +216,9 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
                 FOUNDER_3_SCRIPT = GetScriptForDestination(CBitcoinAddress("aQ18FBVFtnueucZKeVg4srhmzbpAeb1KoN").Get());
                 FOUNDER_4_SCRIPT = GetScriptForDestination(CBitcoinAddress("a1HwTdCmQV3NspP2QqCGpehoFpi8NY4Zg3").Get());
                 FOUNDER_5_SCRIPT = GetScriptForDestination(CBitcoinAddress("a1kCCGddf5pMXSipLVD9hBG2MGGVNaJ15U").Get());
-            } else if (!fTestNet && (GetAdjustedTime() <= nStartRewardTime)) {
+            } else if (params.IsMain() && (GetAdjustedTime() <= nStartRewardTime)) {
                 throw std::runtime_error("CreateNewBlock() : Create new block too early");
-            } else if (fTestNet) {
+            } else if (!params.IsMain()) {
                 FOUNDER_1_SCRIPT = GetScriptForDestination(CBitcoinAddress("TDk19wPKYq91i18qmY6U9FeTdTxwPeSveo").Get());
                 FOUNDER_2_SCRIPT = GetScriptForDestination(CBitcoinAddress("TWZZcDGkNixTAMtRBqzZkkMHbq1G6vUTk5").Get());
                 FOUNDER_3_SCRIPT = GetScriptForDestination(CBitcoinAddress("TRZTFdNCKCKbLMQV8cZDkQN9Vwuuq4gDzT").Get());
@@ -213,11 +227,11 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
             }
 
             // And give it to the founders
-            coinbaseTx.vout.push_back(CTxOut(1 * COIN, CScript(FOUNDER_1_SCRIPT.begin(), FOUNDER_1_SCRIPT.end())));
-            coinbaseTx.vout.push_back(CTxOut(1 * COIN, CScript(FOUNDER_2_SCRIPT.begin(), FOUNDER_2_SCRIPT.end())));
-            coinbaseTx.vout.push_back(CTxOut(1 * COIN, CScript(FOUNDER_3_SCRIPT.begin(), FOUNDER_3_SCRIPT.end())));
-            coinbaseTx.vout.push_back(CTxOut(3 * COIN, CScript(FOUNDER_4_SCRIPT.begin(), FOUNDER_4_SCRIPT.end())));
-            coinbaseTx.vout.push_back(CTxOut(1 * COIN, CScript(FOUNDER_5_SCRIPT.begin(), FOUNDER_5_SCRIPT.end())));
+            coinbaseTx.vout.push_back(CTxOut(1 * coin, CScript(FOUNDER_1_SCRIPT.begin(), FOUNDER_1_SCRIPT.end())));
+            coinbaseTx.vout.push_back(CTxOut(1 * coin, CScript(FOUNDER_2_SCRIPT.begin(), FOUNDER_2_SCRIPT.end())));
+            coinbaseTx.vout.push_back(CTxOut(1 * coin, CScript(FOUNDER_3_SCRIPT.begin(), FOUNDER_3_SCRIPT.end())));
+            coinbaseTx.vout.push_back(CTxOut(3 * coin, CScript(FOUNDER_4_SCRIPT.begin(), FOUNDER_4_SCRIPT.end())));
+            coinbaseTx.vout.push_back(CTxOut(1 * coin, CScript(FOUNDER_5_SCRIPT.begin(), FOUNDER_5_SCRIPT.end())));
         }
     }
 
@@ -243,15 +257,14 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
 
     unsigned int COUNT_SPEND_ZC_TX = 0;
     unsigned int MAX_SPEND_ZC_TX_PER_BLOCK = 0;
-    if(fTestNet || nHeight > HF_ZEROSPEND_FIX){
+    if(!params.IsMain() || nHeight > HF_ZEROSPEND_FIX){
         MAX_SPEND_ZC_TX_PER_BLOCK = 1;
     }
-    if(fTestNet || nHeight > SWITCH_TO_MORE_SPEND_TXS){
-        MAX_SPEND_ZC_TX_PER_BLOCK = 5;
+    if(!params.IsMain() ||
+        nHeight > SWITCH_TO_MORE_SPEND_TXS ||
+        Params().NetworkIDString() == CBaseChainParams::REGTEST){
+        MAX_SPEND_ZC_TX_PER_BLOCK = ZC_SPEND_LIMIT;
     }
-
-    if(Params().NetworkIDString() == CBaseChainParams::REGTEST)
-        MAX_SPEND_ZC_TX_PER_BLOCK = 2;
 
     // Collect memory pool transactions into the block
     CTxMemPool::setEntries inBlock;
@@ -266,7 +279,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
 
     std::priority_queue<CTxMemPool::txiter, std::vector<CTxMemPool::txiter>, ScoreCompare> clearedTxs;
     bool fPrintPriority = GetBoolArg("-printpriority", DEFAULT_PRINTPRIORITY);
-    uint64_t nBlockSize = 1000;
+    uint64_t nBlockSize = 1500;
     uint64_t nBlockTx = 0;
     unsigned int nBlockSigOps = 100;
     int lastFewTxs = 0;
@@ -274,10 +287,13 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
 
     {
         LOCK2(cs_main, mempool.cs);
-        pblock->nTime = GetAdjustedTime();
+        pblock->nTime = nBlockTime;
         const int64_t nMedianTimePast = pindexPrev->GetMedianTimePast();
 
         pblock->nVersion = ComputeBlockVersion(pindexPrev, chainparams.GetConsensus());
+        if (fMTP)
+            pblock->nVersion |= 0x1000;
+            
         // -regtest only: allow overriding block.nVersion with
         // -blockversion=N to test forking scenarios
         if (chainparams.MineBlocksOnDemand())
@@ -393,7 +409,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
                 LogPrintf("try to include zerocoinspend tx=%s\n", tx.GetHash().ToString());
                 LogPrintf("COUNT_SPEND_ZC_TX =%s\n", COUNT_SPEND_ZC_TX);
                 LogPrintf("MAX_SPEND_ZC_TX_PER_BLOCK =%s\n", MAX_SPEND_ZC_TX_PER_BLOCK);
-                if (COUNT_SPEND_ZC_TX >= MAX_SPEND_ZC_TX_PER_BLOCK) {
+                if ((COUNT_SPEND_ZC_TX + tx.vin.size()) > MAX_SPEND_ZC_TX_PER_BLOCK) {
                     continue;
                 }
 
@@ -431,7 +447,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
                 ++nBlockTx;
                 nBlockSigOpsCost += nTxSigOps;
                 nFees += nTxFees;
-                COUNT_SPEND_ZC_TX++;
+                COUNT_SPEND_ZC_TX += tx.vin.size();
                 inBlock.insert(iter);
                 continue;
             }
@@ -487,11 +503,12 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
                 }
             }
         }
-        CAmount blockReward = nFees + GetBlockSubsidy(nHeight, chainparams.GetConsensus());
+        CAmount blockReward = nFees + GetBlockSubsidy(nHeight, chainparams.GetConsensus(), nBlockTime);
         // Update coinbase transaction with additional info about znode and governance payments,
         // get some info back to pass to getblocktemplate
         if (nHeight >= chainparams.GetConsensus().nZnodePaymentsStartBlock) {
-            CAmount znodePayment = GetZnodePayment(nHeight, blockReward);
+            const Consensus::Params &params = chainparams.GetConsensus();
+            CAmount znodePayment = GetZnodePayment(chainparams.GetConsensus(), nHeight > 0 && nBlockTime >= params.nMTPSwitchTime);
             coinbaseTx.vout[0].nValue -= znodePayment;
             FillBlockPayments(coinbaseTx, nHeight, znodePayment, pblock->txoutZnode, pblock->voutSuperblock);
         }
@@ -511,13 +528,23 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
         UpdateTime(pblock, chainparams.GetConsensus(), pindexPrev);
         pblock->nBits          = GetNextWorkRequired(pindexPrev, pblock, chainparams.GetConsensus());
         pblock->nNonce         = 0;
+
+        // Zcoin - MTP
+        if (pblock->IsMTP())
+            pblock->mtpHashData = make_shared<CMTPHashData>();
+
         pblocktemplate->vTxSigOpsCost[0] = GetLegacySigOpCount(pblock->vtx[0]);
 
+        //LogPrintf("CreateNewBlock(): AFTER pblocktemplate->vTxSigOpsCost[0] = GetLegacySigOpCount(pblock->vtx[0])\n");
+
         CValidationState state;
+        //LogPrintf("CreateNewBlock(): BEFORE TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false)\n");
         if (!TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false)) {
             throw std::runtime_error(strprintf("%s: TestBlockValidity failed: %s", __func__, FormatStateMessage(state)));
         }
+        //LogPrintf("CreateNewBlock(): AFTER TestBlockValidity(state, chainparams, *pblock, pindexPrev, false, false)\n");
     }
+    //LogPrintf("CreateNewBlock(): pblocktemplate.release()\n");
     return pblocktemplate.release();
 }
 
@@ -894,7 +921,7 @@ void BlockAssembler::addPriorityTxs()
         MAX_SPEND_ZC_TX_PER_BLOCK = 1;
     }
     if (nHeight + 1 > SWITCH_TO_MORE_SPEND_TXS) {
-        MAX_SPEND_ZC_TX_PER_BLOCK = 1;
+        MAX_SPEND_ZC_TX_PER_BLOCK = ZC_SPEND_LIMIT;
     }
 
     vecPriority.reserve(mempool.mapTx.size());
@@ -911,7 +938,7 @@ void BlockAssembler::addPriorityTxs()
             continue;
         if (tx.IsZerocoinSpend()) {
 
-            if (COUNT_SPEND_ZC_TX >= MAX_SPEND_ZC_TX_PER_BLOCK) {
+            if ((COUNT_SPEND_ZC_TX + tx.vin.size()) > MAX_SPEND_ZC_TX_PER_BLOCK) {
                 continue;
             }
 
@@ -943,7 +970,7 @@ void BlockAssembler::addPriorityTxs()
             ++nBlockTx;
             nBlockSigOpsCost += nTxSigOps;
             nFees += nTxFees;
-            COUNT_SPEND_ZC_TX++;
+            COUNT_SPEND_ZC_TX+=tx.vin.size();
             continue;
         }
     }
@@ -1102,7 +1129,9 @@ void static ZcoinMiner(const CChainParams &chainparams) {
             if (pindexPrev) {
                 LogPrintf("loop pindexPrev->nHeight=%s\n", pindexPrev->nHeight);
             }
+            LogPrintf("BEFORE: pblocktemplate\n");
             auto_ptr <CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(coinbaseScript->reserveScript));
+            LogPrintf("AFTER: pblocktemplate\n");
             if (!pblocktemplate.get()) {
                 LogPrintf("Error in ZcoinMiner: Keypool ran out, please call keypoolrefill before restarting the mining thread\n");
                 return;
@@ -1113,6 +1142,7 @@ void static ZcoinMiner(const CChainParams &chainparams) {
             LogPrintf("Running ZcoinMiner with %u transactions in block (%u bytes)\n", pblock->vtx.size(),
                       ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
 
+            LogPrintf("BEFORE: search\n");
             //
             // Search
             //
@@ -1124,12 +1154,20 @@ void static ZcoinMiner(const CChainParams &chainparams) {
             LogPrintf("pblock: %s\n", pblock->ToString());
             LogPrintf("pblock->nVersion: %s\n", pblock->nVersion);
             LogPrintf("pblock->nTime: %s\n", pblock->nTime);
+            LogPrintf("pblock->nNonce: %s\n", &pblock->nNonce);
+            LogPrintf("powLimit: %s\n", Params().GetConsensus().powLimit.ToString());
+
             while (true) {
                 // Check if something found
                 uint256 thash;
 
                 while (true) {
-                    if ((!fTestNet && pindexPrev->nHeight + 1 >= HF_LYRA2Z_HEIGHT)) {
+                    if (pblock->IsMTP()) {
+                        //sleep(60);
+                        LogPrintf("BEFORE: mtp_hash\n");
+                        thash = mtp::hash(*pblock, Params().GetConsensus().powLimit);
+                        pblock->mtpHashValue = thash;
+                    } else if (!fTestNet && pindexPrev->nHeight + 1 >= HF_LYRA2Z_HEIGHT) {
                         lyra2z_hash(BEGIN(pblock->nVersion), BEGIN(thash));
                     } else if (!fTestNet && pindexPrev->nHeight + 1 >= HF_LYRA2_HEIGHT) {
                         LYRA2(BEGIN(thash), 32, BEGIN(pblock->nVersion), 80, BEGIN(pblock->nVersion), 80, 2, 8192, 256);
@@ -1247,3 +1285,4 @@ void IncrementExtraNonce(CBlock* pblock, const CBlockIndex* pindexPrev, unsigned
     pblock->vtx[0] = txCoinbase;
     pblock->hashMerkleRoot = BlockMerkleRoot(*pblock);
 }
+

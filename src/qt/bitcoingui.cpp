@@ -36,6 +36,7 @@
 
 #include "znode-sync.h"
 #include "znodelist.h"
+#include "exodus_qtutils.h"
 
 #include <iostream>
 
@@ -44,8 +45,11 @@
 #include <QDateTime>
 #include <QDesktopWidget>
 #include <QDragEnterEvent>
+#include <QIcon>
+#include <QLabel>
 #include <QListWidget>
 #include <QMenuBar>
+#include <QMenu>
 #include <QMessageBox>
 #include <QMimeData>
 #include <QProgressBar>
@@ -86,6 +90,8 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *platformStyle, const NetworkStyle *n
     labelEncryptionIcon(0),
     labelConnectionsIcon(0),
     labelBlocksIcon(0),
+    labelExodusPendingIcon(0),
+    labelExodusPendingText(0),
     progressBarLabel(0),
     progressBar(0),
     progressDialog(0),
@@ -214,6 +220,22 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *platformStyle, const NetworkStyle *n
     frameBlocksLayout->addWidget(labelBlocksIcon);
     frameBlocksLayout->addStretch();
 
+    // Notification for pending transactions
+    QFrame *framePending = new QFrame();
+    framePending->setContentsMargins(0,0,0,0);
+    framePending->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
+    QHBoxLayout *framePendingLayout = new QHBoxLayout(framePending);
+    framePendingLayout->setContentsMargins(3,0,3,0);
+    framePendingLayout->setSpacing(3);
+    framePendingLayout->addStretch();
+    labelExodusPendingIcon = new QLabel();
+    labelExodusPendingText = new QLabel("You have Exodus transactions awaiting confirmation.");
+    framePendingLayout->addWidget(labelExodusPendingIcon);
+    framePendingLayout->addWidget(labelExodusPendingText);
+    framePendingLayout->addStretch();
+    labelExodusPendingIcon->hide();
+    labelExodusPendingText->hide();
+
     // Progress bar and label for blocks download
     progressBarLabel = new QLabel();
     progressBarLabel->setVisible(false);
@@ -230,6 +252,7 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *platformStyle, const NetworkStyle *n
         progressBar->setStyleSheet("QProgressBar { background-color: #e8e8e8; border: 1px solid grey; border-radius: 7px; padding: 1px; text-align: center; } QProgressBar::chunk { background: QLinearGradient(x1: 0, y1: 0, x2: 1, y2: 0, stop: 0 #FF8000, stop: 1 orange); border-radius: 7px; margin: 0px; }");
     }
 
+    statusBar()->addWidget(framePending);
     statusBar()->addWidget(progressBarLabel);
     statusBar()->addWidget(progressBar);
     statusBar()->addPermanentWidget(frameBlocks);
@@ -262,20 +285,29 @@ BitcoinGUI::~BitcoinGUI()
 
 void BitcoinGUI::createActions()
 {
+        size_t key = Qt::Key_1;
 	QActionGroup *tabGroup = new QActionGroup(this);
 
 	overviewAction = new QAction(platformStyle->SingleColorIcon(":/icons/overview"), tr("&Overview"), this);
 	overviewAction->setStatusTip(tr("Show general overview of wallet"));
 	overviewAction->setToolTip(overviewAction->statusTip());
 	overviewAction->setCheckable(true);
-	overviewAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_1));
+	overviewAction->setShortcut(QKeySequence(Qt::ALT + key++));
 	tabGroup->addAction(overviewAction);
 
+    balancesAction = new QAction(platformStyle->SingleColorIcon(":/icons/balances"), tr("&Balances"), this);
+    balancesAction->setStatusTip(tr("Show Exodus balances"));
+    balancesAction->setToolTip(balancesAction->statusTip());
+    balancesAction->setCheckable(true);
+    if(exodus::uiNeeded())
+        balancesAction->setShortcut(QKeySequence(Qt::ALT + key++));
+    tabGroup->addAction(balancesAction);
+
 	sendCoinsAction = new QAction(platformStyle->SingleColorIcon(":/icons/send"), tr("&Send"), this);
-	sendCoinsAction->setStatusTip(tr("Send coins to a Zcoin address"));
+	sendCoinsAction->setStatusTip(tr("Send Exodus and Zcoin transactions"));
 	sendCoinsAction->setToolTip(sendCoinsAction->statusTip());
 	sendCoinsAction->setCheckable(true);
-	sendCoinsAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_2));
+	sendCoinsAction->setShortcut(QKeySequence(Qt::ALT + key++));
 	tabGroup->addAction(sendCoinsAction);
 
 	sendCoinsMenuAction = new QAction(platformStyle->TextColorIcon(":/icons/send"), sendCoinsAction->text(), this);
@@ -286,7 +318,7 @@ void BitcoinGUI::createActions()
 	receiveCoinsAction->setStatusTip(tr("Request payments (generates QR codes and zcoin: URIs)"));
 	receiveCoinsAction->setToolTip(receiveCoinsAction->statusTip());
 	receiveCoinsAction->setCheckable(true);
-	receiveCoinsAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_3));
+	receiveCoinsAction->setShortcut(QKeySequence(Qt::ALT + key++));
 	tabGroup->addAction(receiveCoinsAction);
 
 	receiveCoinsMenuAction = new QAction(platformStyle->TextColorIcon(":/icons/receiving_addresses"), receiveCoinsAction->text(), this);
@@ -297,21 +329,19 @@ void BitcoinGUI::createActions()
 	historyAction->setStatusTip(tr("Browse transaction history"));
 	historyAction->setToolTip(historyAction->statusTip());
 	historyAction->setCheckable(true);
-	historyAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_4));
+	historyAction->setShortcut(QKeySequence(Qt::ALT + key++));
 	tabGroup->addAction(historyAction);
 
 	zerocoinAction = new QAction(platformStyle->SingleColorIcon(":/icons/zerocoin"), tr("&Zerocoin"), this);
 	zerocoinAction->setStatusTip(tr("Show the list of public coin that have been minted"));
 	zerocoinAction->setToolTip(zerocoinAction->statusTip());
 	zerocoinAction->setCheckable(true);
-	zerocoinAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_5));
+	zerocoinAction->setShortcut(QKeySequence(Qt::ALT +  key++));
 	tabGroup->addAction(zerocoinAction);
 
 	zerocoinMenuAction = new QAction(platformStyle->TextColorIcon(":/icons/zerocoin"), zerocoinAction->text(), this);
 	zerocoinMenuAction->setStatusTip(zerocoinAction->statusTip());
 	zerocoinMenuAction->setToolTip(zerocoinMenuAction->statusTip());
-
-
 
 #ifdef ENABLE_WALLET
     // These showNormalIfMinimized are needed because Send Coins and Receive Coins
@@ -321,15 +351,28 @@ void BitcoinGUI::createActions()
     znodeAction->setToolTip(znodeAction->statusTip());
     znodeAction->setCheckable(true);
 #ifdef Q_OS_MAC
-    znodeAction->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_5));
+    znodeAction->setShortcut(QKeySequence(Qt::CTRL + key++));
 #else
-    znodeAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_5));
+    znodeAction->setShortcut(QKeySequence(Qt::ALT +  key++));
 #endif
     tabGroup->addAction(znodeAction);
+#endif
+
+    toolboxAction = new QAction(platformStyle->SingleColorIcon(":/icons/tools"), tr("&Toolbox"), this);
+    toolboxAction->setStatusTip(tr("Tools to obtain varions Exodus information and transaction information"));
+    toolboxAction->setToolTip(toolboxAction->statusTip());
+    toolboxAction->setCheckable(true);
+    if(exodus::uiNeeded())
+        toolboxAction->setShortcut(QKeySequence(Qt::ALT + key++));
+    tabGroup->addAction(toolboxAction);
+
+#ifdef ENABLE_WALLET
     connect(znodeAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
     connect(znodeAction, SIGNAL(triggered()), this, SLOT(gotoZnodePage()));
 	connect(overviewAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
 	connect(overviewAction, SIGNAL(triggered()), this, SLOT(gotoOverviewPage()));
+    connect(balancesAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
+    connect(balancesAction, SIGNAL(triggered()), this, SLOT(gotoBalancesPage()));
 	connect(sendCoinsAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
 	connect(sendCoinsAction, SIGNAL(triggered()), this, SLOT(gotoSendCoinsPage()));
 	connect(sendCoinsMenuAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
@@ -342,6 +385,8 @@ void BitcoinGUI::createActions()
 	connect(historyAction, SIGNAL(triggered()), this, SLOT(gotoHistoryPage()));
 	connect(zerocoinAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
 	connect(zerocoinAction, SIGNAL(triggered()), this, SLOT(gotoZerocoinPage()));
+    connect(toolboxAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
+    connect(toolboxAction, SIGNAL(triggered()), this, SLOT(gotoToolboxPage()));
 #endif // ENABLE_WALLET
 
     quitAction = new QAction(platformStyle->TextColorIcon(":/icons/quit"), tr("E&xit"), this);
@@ -472,11 +517,15 @@ void BitcoinGUI::createToolBars()
         toolbar->setMovable(false);
         toolbar->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
         toolbar->addAction(overviewAction);
+        if(exodus::uiNeeded())
+            toolbar->addAction(balancesAction);
         toolbar->addAction(sendCoinsAction);
         toolbar->addAction(receiveCoinsAction);
         toolbar->addAction(historyAction);
         toolbar->addAction(zerocoinAction);
         toolbar->addAction(znodeAction);
+        if(exodus::uiNeeded())
+            toolbar->addAction(toolboxAction);
         overviewAction->setChecked(true);
     }
 }
@@ -504,6 +553,9 @@ void BitcoinGUI::setClientModel(ClientModel *clientModel)
 
         // Show progress dialog
         connect(clientModel, SIGNAL(showProgress(QString,int)), this, SLOT(showProgress(QString,int)));
+
+        // Update Exodus pending status
+        connect(clientModel, SIGNAL(refreshExodusPending(bool)), this, SLOT(setExodusPendingStatus(bool)));
 
         rpcConsole->setClientModel(clientModel);
 #ifdef ENABLE_WALLET
@@ -571,11 +623,13 @@ void BitcoinGUI::removeAllWallets()
 void BitcoinGUI::setWalletActionsEnabled(bool enabled)
 {
     overviewAction->setEnabled(enabled);
+    balancesAction->setEnabled(enabled);
     sendCoinsAction->setEnabled(enabled);
     sendCoinsMenuAction->setEnabled(enabled);
     receiveCoinsAction->setEnabled(enabled);
     receiveCoinsMenuAction->setEnabled(enabled);
     historyAction->setEnabled(enabled);
+    toolboxAction->setEnabled(enabled);
     zerocoinAction->setEnabled(enabled);
     znodeAction->setEnabled(enabled);
     encryptWalletAction->setEnabled(enabled);
@@ -702,10 +756,34 @@ void BitcoinGUI::gotoOverviewPage()
     if (walletFrame) walletFrame->gotoOverviewPage();
 }
 
+void BitcoinGUI::gotoBalancesPage()
+{
+    balancesAction->setChecked(true);
+    if (walletFrame) walletFrame->gotoBalancesPage();
+}
+
 void BitcoinGUI::gotoHistoryPage()
 {
     historyAction->setChecked(true);
     if (walletFrame) walletFrame->gotoHistoryPage();
+}
+
+void BitcoinGUI::gotoExodusHistoryTab()
+{
+    historyAction->setChecked(true);
+    if (walletFrame) walletFrame->gotoExodusHistoryTab();
+}
+
+void BitcoinGUI::gotoBitcoinHistoryTab()
+{
+    historyAction->setChecked(true);
+    if (walletFrame) walletFrame->gotoBitcoinHistoryTab();
+}
+
+void BitcoinGUI::gotoToolboxPage()
+{
+    toolboxAction->setChecked(true);
+    if (walletFrame) walletFrame->gotoToolboxPage();
 }
 
 void BitcoinGUI::gotoZnodePage()
@@ -1085,6 +1163,20 @@ bool BitcoinGUI::handlePaymentRequest(const SendCoinsRecipient& recipient)
     }
     return false;
 }
+
+void BitcoinGUI::setExodusPendingStatus(bool pending)
+{
+    if (!pending) {
+        labelExodusPendingIcon->hide();
+        labelExodusPendingText->hide();
+    } else {
+        labelExodusPendingIcon->show();
+        labelExodusPendingText->show();
+        labelExodusPendingIcon->setPixmap(QIcon(":/icons/exodus_hourglass").pixmap(STATUSBAR_ICONSIZE,STATUSBAR_ICONSIZE));
+        labelExodusPendingIcon->setToolTip(tr("You have Exodus transactions awaiting confirmation."));
+    }
+}
+
 
 void BitcoinGUI::setEncryptionStatus(int status)
 {

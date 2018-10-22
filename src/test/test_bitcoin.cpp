@@ -33,6 +33,7 @@
 
 extern bool fPrintToConsole;
 extern void noui_connect();
+extern int exodus_shutdown();
 
 BasicTestingSetup::BasicTestingSetup(const std::string& chainName)
 {
@@ -88,6 +89,7 @@ TestingSetup::TestingSetup(const std::string& chainName, std::string suf) : Basi
 TestingSetup::~TestingSetup()
 {
         UnregisterNodeSignals(GetNodeSignals());
+        exodus_shutdown();
         threadGroup.interrupt_all();
         threadGroup.join_all();
         UnloadBlockIndex();

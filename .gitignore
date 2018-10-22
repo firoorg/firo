@@ -115,11 +115,6 @@ test/config.ini
 test/cache/*
 src/test/buildenv.py
 src/test/test_bitcoin
-src/zcoin.config
-src/zcoin.creator
-src/zcoin.creator.user
-src/zcoin.files
-src/zcoin.includes
 
 !src/leveldb*/Makefile
 
