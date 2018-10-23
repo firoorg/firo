@@ -213,13 +213,13 @@ UniValue sendprivate(Type type, const UniValue& data, const UniValue& auth, bool
             if (pwalletMain->IsLocked()) {
                 strError = _("Error: Wallet locked, unable to create transaction!");
                 LogPrintf("SpendZerocoin() : %s", strError);
-                return strError;
+                throw JSONAPIError(API_WALLET_ERROR, strError);
             }
 
             if (!pwalletMain->CreateMultipleZerocoinSpendTransaction(thirdPartyaddress, denominations, wtx, reservekey, coinSerials, txHash,
                                                 zcSelectedValues, strError, mintUpdates)) {
                 LogPrintf("SpendZerocoin() : %s\n", strError);
-                return strError;
+                throw JSONAPIError(API_WALLET_ERROR, strError);
             }
 
             string txidStr = wtx.GetHash().GetHex();
@@ -266,7 +266,6 @@ UniValue sendprivate(Type type, const UniValue& data, const UniValue& auth, bool
                     }
                 }
                 strError.append("Error: The transaction was rejected! This might happen if some of the coins in your wallet were already spent, such as if you used a copy of wallet.dat and coins were spent in the copy but not marked as spent here.");
-                return strError;
             }
 
             if (strError != "")
