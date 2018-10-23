@@ -15,8 +15,7 @@
 extern libzerocoin::Params *ZCParams, *ZCParamsV2;
 
 // Test for zerocoin transaction version 2
-inline bool IsZerocoinTxV2(libzerocoin::CoinDenomination denomination, int coinId) {
-	auto params = Params();
+inline bool IsZerocoinTxV2(libzerocoin::CoinDenomination denomination, const Consensus::Params &params, int coinId) {
 	return ((denomination == libzerocoin::ZQ_LOVELACE) && (coinId >= params.nSpendV2ID_1))
 	    || ((denomination == libzerocoin::ZQ_GOLDWASSER) && (coinId >= params.nSpendV2ID_10))
 	    || ((denomination == libzerocoin::ZQ_RACKOFF) && (coinId >= params.nSpendV2ID_25))
@@ -46,9 +45,10 @@ public:
     void Complete();
 };
 
-bool CheckZerocoinFoundersInputs(const CTransaction &tx, CValidationState &state, int nHeight, bool fTestNet);
+bool CheckZerocoinFoundersInputs(const CTransaction &tx, CValidationState &state, const Consensus::Params &params, int nHeight, bool fMTP);
 bool CheckZerocoinTransaction(const CTransaction &tx,
 	CValidationState &state,
+    const Consensus::Params &params,
 	uint256 hashTx,
 	bool isVerifyDB,
 	int nHeight,
@@ -62,7 +62,7 @@ int ZerocoinGetNHeight(const CBlockHeader &block);
 
 bool ZerocoinBuildStateFromIndex(CChain *chain, set<CBlockIndex *> &changes);
 
-CBigNum ZerocoinGetSpendSerialNumber(const CTransaction &tx);
+CBigNum ZerocoinGetSpendSerialNumber(const CTransaction &tx, const CTxIn &txin);
 
 /*
  * State of minted/spent coins as extracted from the index
@@ -116,7 +116,7 @@ public:
     void AddSpend(const CBigNum &serial);
 
     // Add everything from the block to the state
-    void AddBlock(CBlockIndex *index);
+    void AddBlock(CBlockIndex *index, const Consensus::Params &params);
     // Disconnect block from the chain rolling back mints and spends
     void RemoveBlock(CBlockIndex *index);
 
@@ -157,6 +157,9 @@ public:
 
     // Add spend into the mempool. Check if there is a coin with such serial in either blockchain or mempool
     bool AddSpendToMempool(const CBigNum &coinSerial, uint256 txHash);
+
+    // Add spend(s) into the mempool. Check if there is a coin with such serial in either blockchain or mempool
+    bool AddSpendToMempool(const vector<CBigNum> &coinSerials, uint256 txHash);
 
     // Get conflicting tx hash by coin serial number
     uint256 GetMempoolConflictingTxHash(const CBigNum &coinSerial);

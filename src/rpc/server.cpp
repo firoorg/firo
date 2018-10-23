@@ -255,7 +255,7 @@ UniValue stop(const UniValue& params, bool fHelp)
     if (fHelp || params.size() > 1)
         throw runtime_error(
             "stop\n"
-            "\nStop Bitcoin server.");
+            "\nStop Zcoin server.");
     // Event loop will exit after current HTTP requests have been handled, so
     // this reply will get back to the client.
     StartShutdown();
@@ -277,12 +277,12 @@ static const CRPCCommand vRPCCommands[] =
     { "addressindex",       "getaddressdeltas",       &getaddressdeltas,       false },
     { "addressindex",       "getaddresstxids",        &getaddresstxids,        false },
     { "addressindex",       "getaddressbalance",      &getaddressbalance,      false },
-        /* Dash features */
-    { "zcoin",               "znode",             &znode,             true  },
-    { "zcoin",               "znsync",             &znsync,             true  },
-    { "zcoin",               "znodelist",         &znodelist,         true  },
-    { "zcoin",               "znodebroadcast",    &znodebroadcast,    true  },
-    { "zcoin",               "getpoolinfo",            &getpoolinfo,            true  },
+        /* Zcoin features */
+    { "zcoin",               "znode",                 &znode,                  true  },
+    { "zcoin",               "znsync",                &znsync,                 true  },
+    { "zcoin",               "znodelist",             &znodelist,              true  },
+    { "zcoin",               "znodebroadcast",        &znodebroadcast,         true  },
+    { "zcoin",               "getpoolinfo",           &getpoolinfo,            true  },
 };
 
 CRPCTable::CRPCTable()

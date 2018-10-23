@@ -48,6 +48,8 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 XZC mininput
 
 #define ZC_MODULUS_V2_BASE_ID			1000
 
+#define ZC_MULTIPLE_SPEND_INPUT_STARTING_BLOCK  119000
+
 // Number of coins per id in spend v1/v1.5
 #define ZC_SPEND_V1_COINSPERID			10
 // Number of coins per id in spend v2.0
@@ -60,5 +62,13 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 XZC mininput
 
 // number of mint confirmations needed to spend coin
 #define ZC_MINT_CONFIRMATIONS               6
+
+// Genesis block timestamp
+#define ZC_GENESIS_BLOCK_TIME               1414776286
+
+#define SWITCH_TO_MTP_BLOCK_HEADER 1544443200 // 2018 December 10th 12:00 UTC
+
+// Number of zerocoin spends allowed per block and per transaction
+#define ZC_SPEND_LIMIT         5
 
 #endif

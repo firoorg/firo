@@ -5,6 +5,8 @@
 #include "data/tx_invalid.json.h"
 #include "data/tx_valid.json.h"
 #include "test/test_bitcoin.h"
+#include "miner.h"
+#include "noui.h"
 
 #include "clientversion.h"
 #include "checkqueue.h"
@@ -34,6 +36,7 @@
 #include <boost/foreach.hpp>
 
 #include <univalue.h>
+#include "zerocoin.h"
 
 using namespace std;
 
@@ -774,80 +777,6 @@ BOOST_AUTO_TEST_CASE(test_IsStandard)
     t.vout[0].scriptPubKey = CScript() << OP_RETURN;
     t.vout[1].scriptPubKey = CScript() << OP_RETURN;
     BOOST_CHECK(!IsStandardTx(t, reason));
-}
-
-BOOST_AUTO_TEST_CASE(Test_EnforceZnodePayment)
-{
-    //See it on the mainnet: https://insight.zcoin.io/block/46f6070a4f5a95aa32009870f930503c949e213b257f2a37111497294b1643fe
-    std::string const raw_tx_block_82000 = "01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff180350400104732eca5a081408102900000000052f6d70682f0000000007fdf0eea6000000001976a91436e086acf6561a68ba64196e7b92b606d0b8516688ac002f6859000000001976a9146162f53d131b0b0eae9295c8b059d56c9a45c3ee88ac00e1f505000000001976a9147d9ed014fc4e603fca7c2e3f9097fb7d0fb487fc88ac00e1f505000000001976a914bc7e5a5234db3ab82d74c396ad2b2af419b7517488ac00e1f505000000001976a914ff71b0c9c2a90c6164a50a2fb523eb54a8a6b55088ac00a3e111000000001976a9140654dd9b856f2ece1d56cb4ee5043cd9398d962c88ac00e1f505000000001976a9140b4bfb256ef4bfa360e3b9e66e53a0bd84d196bc88ac00000000";
-
-    CDataStream stream(ParseHex(raw_tx_block_82000), SER_NETWORK, PROTOCOL_VERSION);
-    CTransaction tx;
-    stream >> tx;
-
-    BOOST_CHECK(tx.IsCoinBase());
-
-    CValidationState state;
-    BOOST_CHECK(true == CheckTransaction(tx, state, tx.GetHash(), false, INT_MAX));
-
-    auto const before_block = ZC_ZNODE_PAYMENT_BUG_FIXED_AT_BLOCK
-             , after_block = ZC_ZNODE_PAYMENT_BUG_FIXED_AT_BLOCK + 1;
-    // Emulates synced state of znodes.
-    for(size_t i =0; i < 4; ++i)
-        znodeSync.SwitchToNextAsset();
-
-    
-    ///////////////////////////////////////////////////////////////////////////
-    // Paying to the best payee
-    CZnodePayee payee1(tx.vout[1].scriptPubKey, uint256());
-    // Emulates 6 votes for the payee
-    for(size_t i =0; i < 5; ++i)
-        payee1.AddVoteHash(uint256());
-
-    CZnodeBlockPayees payees;
-    payees.vecPayees.push_back(payee1);
-
-    mnpayments.mapZnodeBlocks[after_block] = payees;
-
-    BOOST_CHECK(true == CheckTransaction(tx, state, tx.GetHash(), false, after_block));
-
-
-    ///////////////////////////////////////////////////////////////////////////
-    // Paying to a completely wrong payee
-    tx.vout[1].scriptPubKey = tx.vout[0].scriptPubKey;
-    BOOST_CHECK(false == CheckTransaction(tx, state, tx.GetHash(), false, after_block));
-
-
-    ///////////////////////////////////////////////////////////////////////////
-    // Making znodes not synchronized and checking the functionality is disabled
-    znodeSync.Reset();
-    BOOST_CHECK(true == CheckTransaction(tx, state, tx.GetHash(), false, after_block));
-
-
-    ///////////////////////////////////////////////////////////////////////////
-    // Paying to an acceptable payee
-    for(size_t i =0; i < 4; ++i)
-        znodeSync.SwitchToNextAsset();
-
-    CZnodePayee payee2(tx.vout[0].scriptPubKey, uint256());
-    // Emulates 9 votes for the payee
-    for(size_t i =0; i < 8; ++i)
-        payee2.AddVoteHash(uint256());
-
-    mnpayments.mapZnodeBlocks[after_block].vecPayees.insert(mnpayments.mapZnodeBlocks[after_block].vecPayees.begin(), payee2);
-
-    tx.vout[1].scriptPubKey = payee1.GetPayee();
-    BOOST_CHECK(true == CheckTransaction(tx, state, tx.GetHash(), false, after_block));
-
-
-    ///////////////////////////////////////////////////////////////////////////
-    // Checking the functionality is disabled for previous blocks
-    tx.vout[1].scriptPubKey = tx.vout[2].scriptPubKey;
-    BOOST_CHECK(false == CheckTransaction(tx, state, tx.GetHash(), false, after_block));
-
-    mnpayments.mapZnodeBlocks[before_block] = payees;
-
-    BOOST_CHECK(true == CheckTransaction(tx, state, tx.GetHash(), false, before_block));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -14,8 +14,11 @@
 #include "libzerocoin/bitcoin_bignum/bignum.h"
 #include "zerocoin_params.h"
 #include "util.h"
+#include "chainparams.h"
+#include "streams.h"
 
 #include <vector>
+
 
 class CBlockFileInfo
 {
@@ -201,6 +204,12 @@ public:
     unsigned int nBits;
     unsigned int nNonce;
 
+    // Zcoin - MTP
+    int32_t nVersionMTP = 0x1000;
+    uint256 mtpHashValue;
+    // Reserved fields
+    uint256 reserved[2];
+
     //! (memory only) Sequential id assigned to distinguish order in which blocks are received.
     uint32_t nSequenceId;
 
@@ -239,6 +248,9 @@ public:
         nBits          = 0;
         nNonce         = 0;
 
+        nVersionMTP = 0;
+        mtpHashValue = reserved[0] = reserved[1] = uint256();
+
         mintedPubCoins.clear();
         accumulatorChanges.clear();
         spentSerials.clear();
@@ -258,6 +270,13 @@ public:
         nTime          = block.nTime;
         nBits          = block.nBits;
         nNonce         = block.nNonce;
+
+        if (block.IsMTP()) {
+            nVersionMTP = block.nVersionMTP;
+            mtpHashValue = block.mtpHashValue;
+            reserved[0] = block.reserved[0];
+            reserved[1] = block.reserved[1];
+        }
     }
 
     CDiskBlockPos GetBlockPos() const {
@@ -288,6 +307,14 @@ public:
         block.nTime          = nTime;
         block.nBits          = nBits;
         block.nNonce         = nNonce;
+
+        // Zcoin - MTP
+        if(block.IsMTP()){
+			block.nVersionMTP = nVersionMTP;
+            block.mtpHashValue = mtpHashValue;
+            block.reserved[0] = reserved[0];
+            block.reserved[1] = reserved[1];
+		}
         return block;
     }
 
@@ -408,6 +435,14 @@ public:
         READWRITE(nBits);
         READWRITE(nNonce);
 
+        // Zcoin - MTP
+        if (nTime > ZC_GENESIS_BLOCK_TIME && nTime >= Params().GetConsensus().nMTPSwitchTime) {
+            READWRITE(nVersionMTP);
+            READWRITE(mtpHashValue);
+            READWRITE(reserved[0]);
+            READWRITE(reserved[1]);
+        }
+
         if (!(nType & SER_GETHASH) && nVersion >= ZC_ADVANCED_INDEX_VERSION) {
             READWRITE(mintedPubCoins);
 		    READWRITE(accumulatorChanges);
@@ -419,16 +454,23 @@ public:
 
     uint256 GetBlockHash() const
     {
-        CBlockHeader block;
-        block.nVersion        = nVersion;
-        block.hashPrevBlock   = hashPrev;
-        block.hashMerkleRoot  = hashMerkleRoot;
-        block.nTime           = nTime;
-        block.nBits           = nBits;
-        block.nNonce          = nNonce;
+        CBlockHeader    block;
+        block.nVersion       = nVersion;
+        block.hashPrevBlock  = hashPrev;
+        block.hashMerkleRoot = hashMerkleRoot;
+        block.nTime          = nTime;
+        block.nBits          = nBits;
+        block.nNonce         = nNonce;
+
+        if (block.IsMTP()) {
+            block.nVersionMTP = nVersionMTP;
+            block.mtpHashValue = mtpHashValue;
+            block.reserved[0] = reserved[0];
+            block.reserved[1] = reserved[1];
+        }
+
         return block.GetHash();
     }
-
 
     std::string ToString() const
     {
