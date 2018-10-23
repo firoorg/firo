@@ -223,6 +223,8 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
             else {
                 category = "send";
             }
+
+            string categoryIndex = category + voutIndex;
             entry.push_back(Pair("category", category));
             entry.push_back(Pair("address", addrStr));
             entry.push_back(Pair("txIndex", s.vout));
@@ -251,8 +253,8 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
                 txids = address["txids"];
             }
 
-            if(!txids[voutIndex].isNull()){
-                vouts = txids[voutIndex];
+            if(!txids[categoryIndex].isNull()){
+                vouts = txids[categoryIndex];
             }
 
             if(!total["sent"].isNull()){
@@ -264,7 +266,7 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
                 total.push_back(Pair("sent", amount));
             }
             vouts.replace(txid.GetHex(), entry);
-            txids.replace(voutIndex, vouts);
+            txids.replace(categoryIndex, vouts);
             address.replace("total", total);
             address.replace("txids", txids);
             ret.replace(addrStr, address);
@@ -320,6 +322,7 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
             else {
                 category = "receive";
             }
+            string categoryIndex = category + voutIndex;
             entry.push_back(Pair("category", category));
             entry.push_back(Pair("txIndex", r.vout));
 
@@ -340,8 +343,8 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
                 txids = address["txids"];
             }
 
-            if(!txids[voutIndex].isNull()){
-                vouts = txids[voutIndex];
+            if(!txids[categoryIndex].isNull()){
+                vouts = txids[categoryIndex];
             }
 
             if(!total["balance"].isNull()){
@@ -354,7 +357,7 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
             }
             
             vouts.replace(txid.GetHex(), entry);
-            txids.replace(voutIndex, vouts);
+            txids.replace(categoryIndex, vouts);
             address.replace("total", total);
             address.replace("txids", txids);
 
