@@ -47,9 +47,20 @@ BOOST_AUTO_TEST_CASE(block_subsidy_test)
 
 BOOST_AUTO_TEST_CASE(subsidy_limit_test)
 {
-    const Consensus::Params& consensusParams = Params(CBaseChainParams::MAIN).GetConsensus();
+    Consensus::Params consensusParams = Params(CBaseChainParams::MAIN).GetConsensus();
     CAmount nSum = 0;
-    for (int nHeight = 0; nHeight < 14000000; nHeight += 1000) {
+    int const t5m = 300
+        , t10m = 600
+        , mtpActivationHeight = (consensusParams.nMTPSwitchTime - consensusParams.nChainStartTime) / t10m
+        , mtpReleaseHeight = 110725
+        ;
+
+    int nHeight = 0;
+    int const step = 1000;
+
+    consensusParams.nSubsidyHalvingInterval = 210000;
+    for(; nHeight < mtpReleaseHeight; nHeight += step)
+    {
         CAmount nSubsidy = GetBlockSubsidy(nHeight, consensusParams);
         if(nHeight == 0)
             nSubsidy = 50 * COIN;
@@ -57,8 +68,23 @@ BOOST_AUTO_TEST_CASE(subsidy_limit_test)
         nSum += nSubsidy * 1000;
         BOOST_CHECK(MoneyRange(nSum));
     }
-    //TODO: re-calculate correct sum here (halving block has changed from 210000 to 305000)
-    //BOOST_CHECK_EQUAL(nSum, 2099999997690000ULL);
+    BOOST_CHECK_EQUAL(nSum, 555000000000000ULL);
+
+    consensusParams.nSubsidyHalvingInterval = 305000;
+    for(; nHeight < 14000000 + mtpReleaseHeight; nHeight += step)
+    {
+        int blockTime = nHeight * t10m;
+        if(nHeight > mtpActivationHeight)
+            blockTime -= (nHeight - mtpActivationHeight) * t5m;
+
+        CAmount nSubsidy = GetBlockSubsidy(nHeight, consensusParams, blockTime + consensusParams.nChainStartTime);
+        if(nHeight == 0)
+            nSubsidy = 50 * COIN;
+        BOOST_CHECK(nSubsidy <= 50 * COIN);
+        nSum += nSubsidy * 1000;
+        BOOST_CHECK(MoneyRange(nSum));
+    }
+    BOOST_CHECK_EQUAL(nSum, 2003203125000000ULL);
 }
 
 bool ReturnFalse() { return false; }
