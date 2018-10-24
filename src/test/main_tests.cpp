@@ -57,8 +57,7 @@ BOOST_AUTO_TEST_CASE(subsidy_limit_test)
         nSum += nSubsidy * 1000;
         BOOST_CHECK(MoneyRange(nSum));
     }
-    //TODO: re-calculate correct sum here (halving block has changed from 210000 to 305000)
-    //BOOST_CHECK_EQUAL(nSum, 2099999997690000ULL);
+    BOOST_CHECK_EQUAL(nSum, 3049999996645000ULL);
 }
 
 bool ReturnFalse() { return false; }
