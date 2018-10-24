@@ -1,5 +1,21 @@
+/**
+* @file       ParallelTasks.h
+*
+* @brief      ParallelTasks class for the Zerocoin library.
+*
+* @author     Peter Shugalev
+* @date       Nov 2017
+*
+* @copyright  Copyright 2017 Peter Shugalev
+* @license    This project is released under the MIT license.
+**/
+
 #ifndef PARALLELTASKS_H
 #define PARALLELTASKS_H
+
+/**
+ * Implementation of thread pool for parallelizing spend creation and verification
+ */ 
 
 #include <vector>
 #include <functional>
