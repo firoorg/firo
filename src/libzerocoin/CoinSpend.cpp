@@ -148,7 +148,7 @@ bool CoinSpend::Verify(const Accumulator& a, const SpendMetaData &m) const {
 bool CoinSpend::HasValidSerial() const { 
 	return coinSerialNumber > 0 && coinSerialNumber < params->coinCommitmentGroup.groupOrder; 
 }
-q
+
 const uint256 CoinSpend::signatureHash(const SpendMetaData &m) const {
 	CHashWriter h(0,0);
 	h << m << serialCommitmentToCoinValue << accCommitmentToCoinValue << commitmentPoK << accumulatorPoK;
