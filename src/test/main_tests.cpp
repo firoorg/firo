@@ -49,14 +49,15 @@ BOOST_AUTO_TEST_CASE(subsidy_limit_test)
 {
     Consensus::Params consensusParams = Params(CBaseChainParams::MAIN).GetConsensus();
     CAmount nSum = 0;
-    int const t5m = 300
-        , t10m = 600
-        , mtpActivationHeight = (consensusParams.nMTPSwitchTime - consensusParams.nChainStartTime) / t10m
-        , mtpReleaseHeight = 110725
-        ;
+    int const mtpReleaseHeight = 110725
+        //The MTP switch time is December 10th at 12:00 UTC.
+        //The block height of MTP switch cannot be calculated firmly, but can only be approximated.
+        //Below is one of such approximations which is used for this test only.
+        //This approximation influences the check at the end of the test.
+        , mtpActivationHeight = 117560;
 
     int nHeight = 0;
-    int const step = 1000;
+    int step = 1;
 
     consensusParams.nSubsidyHalvingInterval = 210000;
     for(; nHeight < mtpReleaseHeight; nHeight += step)
@@ -65,26 +66,31 @@ BOOST_AUTO_TEST_CASE(subsidy_limit_test)
         if(nHeight == 0)
             nSubsidy = 50 * COIN;
         BOOST_CHECK(nSubsidy <= 50 * COIN);
-        nSum += nSubsidy * 1000;
+        nSum += nSubsidy * step;
         BOOST_CHECK(MoneyRange(nSum));
     }
-    BOOST_CHECK_EQUAL(nSum, 555000000000000ULL);
-
+    BOOST_CHECK_EQUAL(nSum, 553625000000000ULL);
+    
     consensusParams.nSubsidyHalvingInterval = 305000;
-    for(; nHeight < 14000000 + mtpReleaseHeight; nHeight += step)
+    for(; nHeight < mtpActivationHeight; nHeight += step)
     {
-        int blockTime = nHeight * t10m;
-        if(nHeight > mtpActivationHeight)
-            blockTime -= (nHeight - mtpActivationHeight) * t5m;
-
-        CAmount nSubsidy = GetBlockSubsidy(nHeight, consensusParams, blockTime + consensusParams.nChainStartTime);
-        if(nHeight == 0)
-            nSubsidy = 50 * COIN;
+        CAmount nSubsidy = GetBlockSubsidy(nHeight, consensusParams);
         BOOST_CHECK(nSubsidy <= 50 * COIN);
-        nSum += nSubsidy * 1000;
+        nSum += nSubsidy * step;
         BOOST_CHECK(MoneyRange(nSum));
     }
-    BOOST_CHECK_EQUAL(nSum, 2003203125000000ULL);
+    BOOST_CHECK_EQUAL(nSum, 587800000000000ULL);
+
+    step = 1000;
+    for(; nHeight < 14000000; nHeight += step)
+    {
+        CAmount nSubsidy = GetBlockSubsidy(nHeight, consensusParams, consensusParams.nMTPSwitchTime);
+        BOOST_CHECK(nSubsidy <= 50 * COIN);
+        nSum += nSubsidy * step;
+        BOOST_CHECK(MoneyRange(nSum));
+    }
+    //The final check value is changed due to the approximation of mtpActivationHeight
+    BOOST_CHECK_EQUAL(nSum, 1820299996645000ULL);
 }
 
 bool ReturnFalse() { return false; }
