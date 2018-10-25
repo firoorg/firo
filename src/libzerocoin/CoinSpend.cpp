@@ -10,6 +10,11 @@
  * @license    This project is released under the MIT license.
  **/
 
+/**
+ * Credits to Tim Ruffing for discovery of attack and providing a fix
+ * https://www.chaac.tf.fau.de/files/2018/04/attack-cryptocur.pdf
+ */
+		
 #include "Zerocoin.h"
 
 namespace libzerocoin {
@@ -64,20 +69,20 @@ CoinSpend::CoinSpend(const Params* p, const PrivateCoin& coin,
     this->serialNumberSoK = SerialNumberSignatureOfKnowledge(p, coin, fullCommitmentToCoinUnderSerialParams, coin.getVersion()==ZEROCOIN_TX_VERSION_1_5 ? metahash : uint256());
 
 	if(coin.getVersion() == 2){
-	        // 5. Sign the transaction under the public key associate with the serial number.
-	        secp256k1_pubkey pubkey;
-	        size_t len = 33;
-	        secp256k1_ecdsa_signature sig;
+		// 5. Sign the transaction under the public key associate with the serial number.
+		secp256k1_pubkey pubkey;
+		size_t len = 33;
+		secp256k1_ecdsa_signature sig;
 
-	        // TODO timing channel, since secp256k1_ec_pubkey_serialize does not expect its output to be secret.
-	        // See main_impl.h of ecdh module on secp256k1
-	        if (!secp256k1_ec_pubkey_create(ctx, &pubkey, coin.getEcdsaSeckey())) {
-	            throw ZerocoinException("Invalid secret key");
-	        }
-	        secp256k1_ec_pubkey_serialize(ctx, &this->ecdsaPubkey[0], &len, &pubkey, SECP256K1_EC_COMPRESSED);
+		// TODO timing channel, since secp256k1_ec_pubkey_serialize does not expect its output to be secret.
+		// See main_impl.h of ecdh module on secp256k1
+		if (!secp256k1_ec_pubkey_create(ctx, &pubkey, coin.getEcdsaSeckey())) {
+			throw ZerocoinException("Invalid secret key");
+		}
+		secp256k1_ec_pubkey_serialize(ctx, &this->ecdsaPubkey[0], &len, &pubkey, SECP256K1_EC_COMPRESSED);
 
-	        secp256k1_ecdsa_sign(ctx, &sig, metahash.begin(), coin.getEcdsaSeckey(), NULL, NULL);
-	        secp256k1_ecdsa_signature_serialize_compact(ctx, &this->ecdsaSignature[0], &sig);
+		secp256k1_ecdsa_sign(ctx, &sig, metahash.begin(), coin.getEcdsaSeckey(), NULL, NULL);
+		secp256k1_ecdsa_signature_serialize_compact(ctx, &this->ecdsaSignature[0], &sig);
 	}
 }
 
