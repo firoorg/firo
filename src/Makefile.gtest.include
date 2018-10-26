@@ -1,0 +1,31 @@
+TESTS += sigma_R1_test
+noinst_PROGRAMS += gtest/sigma_R1_test
+
+gtest_sigma_R1_test_SOURCES = \
+	gtest/main.cpp \
+	gtest/sigma_R1_test.cpp
+
+gtest_sigma_R1_test_CPPFLAGS = $(AM_CPPFLAGS) -DBINARY_OUTPUT -DCURVE_ALT_BN128 -DSTATIC $(BITCOIN_INCLUDES)
+gtest_sigma_R1_test_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+
+gtest_sigma_R1_test_LDADD = -lgtest  -lgmock $(BOOST_LIBS) $(BOOST_UNIT_TEST_FRAMEWORK_LIB) $(LIBSIGMA) $(LIBSECP256K1) $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO) -lgmp
+
+TESTS += sigma_plus_test
+noinst_PROGRAMS += gtest/sigma_plus_test
+gtest_sigma_plus_test_SOURCES = \
+	gtest/main.cpp \
+	gtest/sigma_plus_test.cpp
+
+gtest_sigma_plus_test_CPPFLAGS = $(AM_CPPFLAGS) -DBINARY_OUTPUT -DCURVE_ALT_BN128 -DSTATIC $(BITCOIN_INCLUDES)
+gtest_sigma_plus_test_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+gtest_sigma_plus_test_LDADD = -lgtest  -lgmock $(BOOST_LIBS) $(BOOST_UNIT_TEST_FRAMEWORK_LIB) $(LIBSIGMA) $(LIBSECP256K1) $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO) -lgmp
+
+TESTS += sigma_Proof_size_test
+noinst_PROGRAMS += gtest/sigma_Proof_size_test
+gtest_sigma_Proof_size_test_SOURCES = \
+	gtest/sigma_Proof_size_test.cpp
+
+gtest_sigma_Proof_size_test_CPPFLAGS = $(AM_CPPFLAGS) -DBINARY_OUTPUT -DCURVE_ALT_BN128 -DSTATIC $(BITCOIN_INCLUDES)
+gtest_sigma_Proof_size_test_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+gtest_sigma_Proof_size_test_LDADD = -lgtest  -lgmock $(BOOST_LIBS) $(BOOST_UNIT_TEST_FRAMEWORK_LIB) $(LIBSIGMA) $(LIBSECP256K1) $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO) -lgmp
+

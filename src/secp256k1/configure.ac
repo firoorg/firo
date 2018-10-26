@@ -25,6 +25,8 @@ fi
 
 AM_PROG_CC_C_O
 
+AC_PROG_CXX
+
 AC_PROG_CC_C89
 if test x"$ac_cv_prog_cc_c89" = x"no"; then
   AC_MSG_ERROR([c89 compiler support required])
@@ -112,7 +114,7 @@ AC_ARG_ENABLE(exhaustive_tests,
 AC_ARG_ENABLE(endomorphism,
     AS_HELP_STRING([--enable-endomorphism],[enable endomorphism (default is no)]),
     [use_endomorphism=$enableval],
-    [use_endomorphism=no])
+    [use_endomorphism=yes])
 
 AC_ARG_ENABLE(ecmult_static_precomputation,
     AS_HELP_STRING([--enable-ecmult-static-precomputation],[enable precomputed ecmult table for signing (default is yes)]),
