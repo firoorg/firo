@@ -2891,6 +2891,23 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
             for (unsigned int k = 0; k < tx.vout.size(); k++) {
                 const CTxOut &out = tx.vout[k];
 
+                if (tx.IsCoinBase() && k == 0) {
+                    std::vector<unsigned char> pubKeyBuf;
+                    opcodetype opcode;
+
+                    CScript::const_iterator iter = out.scriptPubKey.begin();
+                    out.scriptPubKey.GetOp(iter, opcode, pubKeyBuf);
+
+                    CPubKey pubKey(pubKeyBuf.begin(), pubKeyBuf.end());
+
+                    // record receiving activity
+                    addressIndex.push_back(make_pair(CAddressIndexKey(1, pubKey.GetID(), pindex->nHeight, i, txHash, k, false), out.nValue));
+
+                    // record unspent output
+                    addressUnspentIndex.push_back(make_pair(CAddressUnspentKey(1, pubKey.GetID(), txHash, k), CAddressUnspentValue(out.nValue, out.scriptPubKey, pindex->nHeight)));
+                    continue;
+                }
+
                 if (out.scriptPubKey.IsPayToScriptHash()) {
                     vector<unsigned char> hashBytes(out.scriptPubKey.begin()+2, out.scriptPubKey.begin()+22);
 
