@@ -47,18 +47,50 @@ BOOST_AUTO_TEST_CASE(block_subsidy_test)
 
 BOOST_AUTO_TEST_CASE(subsidy_limit_test)
 {
-    const Consensus::Params& consensusParams = Params(CBaseChainParams::MAIN).GetConsensus();
+    Consensus::Params consensusParams = Params(CBaseChainParams::MAIN).GetConsensus();
     CAmount nSum = 0;
-    for (int nHeight = 0; nHeight < 14000000; nHeight += 1000) {
+    int const mtpReleaseHeight = 110725
+        //The MTP switch time is December 10th at 12:00 UTC.
+        //The block height of MTP switch cannot be calculated firmly, but can only be approximated.
+        //Below is one of such approximations which is used for this test only.
+        //This approximation influences the check at the end of the test.
+        , mtpActivationHeight = 117560;
+
+    int nHeight = 0;
+    int step = 1;
+
+    consensusParams.nSubsidyHalvingInterval = 210000;
+    for(; nHeight < mtpReleaseHeight; nHeight += step)
+    {
         CAmount nSubsidy = GetBlockSubsidy(nHeight, consensusParams);
         if(nHeight == 0)
             nSubsidy = 50 * COIN;
         BOOST_CHECK(nSubsidy <= 50 * COIN);
-        nSum += nSubsidy * 1000;
+        nSum += nSubsidy * step;
         BOOST_CHECK(MoneyRange(nSum));
     }
-    //TODO: re-calculate correct sum here (halving block has changed from 210000 to 305000)
-    //BOOST_CHECK_EQUAL(nSum, 2099999997690000ULL);
+    BOOST_CHECK_EQUAL(nSum, 553625000000000ULL);
+    
+    consensusParams.nSubsidyHalvingInterval = 305000;
+    for(; nHeight < mtpActivationHeight; nHeight += step)
+    {
+        CAmount nSubsidy = GetBlockSubsidy(nHeight, consensusParams);
+        BOOST_CHECK(nSubsidy <= 50 * COIN);
+        nSum += nSubsidy * step;
+        BOOST_CHECK(MoneyRange(nSum));
+    }
+    BOOST_CHECK_EQUAL(nSum, 587800000000000ULL);
+
+    step = 1000;
+    for(; nHeight < 14000000; nHeight += step)
+    {
+        CAmount nSubsidy = GetBlockSubsidy(nHeight, consensusParams, consensusParams.nMTPSwitchTime);
+        BOOST_CHECK(nSubsidy <= 50 * COIN);
+        nSum += nSubsidy * step;
+        BOOST_CHECK(MoneyRange(nSum));
+    }
+    //The final check value is changed due to the approximation of mtpActivationHeight
+    BOOST_CHECK_EQUAL(nSum, 1820299996645000ULL);
 }
 
 bool ReturnFalse() { return false; }
