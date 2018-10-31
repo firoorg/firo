@@ -56,6 +56,8 @@ public:
 
   bool operator==(const GroupElement&other) const;
 
+  bool operator!=(const GroupElement&other) const;
+
   bool isMember() const;
 
   void randomize();

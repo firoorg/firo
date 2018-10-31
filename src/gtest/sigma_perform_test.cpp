@@ -1,15 +1,11 @@
-#include <gtest/gtest.h>
+
 #include <libzerocoin/sigma/SigmaPlusProver.h>
 #include <libzerocoin/sigma/SigmaPlusVerifier.h>
+#include <chrono>
+#include <ctime>
 
-TEST(test_1_out_of_N, EC_group)
-{
-    int N = 16;
-    int n = 4;
-    int index = 0;
-
+void test( int N, int n, int index){
     int m = (int)(log(N) / log(n));;
-
     secp_primitives::GroupElement g;
     g.randomize();
     std::vector<secp_primitives::GroupElement> h_gens;
@@ -38,11 +34,32 @@ TEST(test_1_out_of_N, EC_group)
         }
     }
 
-    sigma::SigmaPlusProof<secp_primitives::Scalar,secp_primitives::GroupElement> proof;
+    std::clock_t proof_start = std::clock();
 
+    sigma::SigmaPlusProof<secp_primitives::Scalar,secp_primitives::GroupElement> proof;
     prover.proof(commits, index, r, proof);
+    std::cout <<"N = " << N << " n = " << n << "m = " <<m;
+    std::cout << " Proof size  " << proof.debug_size();
+
+    auto duration_clock = ( std::clock() - proof_start ) / (CLOCKS_PER_SEC / 1000);
+    std::cout << " Proof time  " << duration_clock << " ms ";
+
+
 
     sigma::SigmaPlusVerifier<secp_primitives::Scalar,secp_primitives::GroupElement> verifier(g, h_gens, n, m);
-   EXPECT_TRUE(verifier.verify(commits, proof));
+    std::clock_t verify_start = std::clock();
+    verifier.verify(commits, proof);
 
+    duration_clock = ( std::clock() - verify_start ) / (CLOCKS_PER_SEC / 1000);
+    std::cout << " Verify time  " <<  duration_clock << " ms \n";
+}
+
+int main(){
+    test(16384, 4, 0);
+    test(32768, 8, 0);
+    test(65536, 4, 0);
+    test(65536, 16, 0);
+    test(262144, 8, 0);
+    test(262144, 64, 0);
+	return 0;
 }

@@ -65,6 +65,8 @@ public:
 
     Scalar& randomize();
 
+    Scalar& randomize(std::mt19937& rand);
+
     Scalar& mod_p();
 
     Scalar hash(const unsigned char* data,size_t len);

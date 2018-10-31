@@ -9,13 +9,17 @@ class SigmaPlusVerifier{
 
 public:
     SigmaPlusVerifier(const GroupElement& g,
-                      const std::vector<GroupElement>& h_gens);
+                      const std::vector<GroupElement>& h_gens,
+                      int n, int m_);
 
-    bool verify(const std::vector<GroupElement>& commits,const SigmaPlusProof<Exponent, GroupElement>& proof) const;
+    bool verify(const std::vector<GroupElement>& commits,
+                const SigmaPlusProof<Exponent, GroupElement>& proof) const;
 
 private:
     GroupElement g_;
     zcoin_common::GeneratorVector<Exponent, GroupElement> h_;
+    int n;
+    int m;
 };
 
 } // namespace sigma

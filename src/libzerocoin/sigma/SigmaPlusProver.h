@@ -3,7 +3,6 @@
 
 #include "SigmaPlusProof.h"
 #include "R1ProofGenerator.h"
-#include <algorithm>
 
 namespace sigma {
 
@@ -13,7 +12,10 @@ class SigmaPlusProver{
 public:
     SigmaPlusProver(const GroupElement& g,
                     const std::vector<GroupElement>& h_gens, int n, int m);
-    void proof(const std::vector<GroupElement>& commits, int l, Exponent r, SigmaPlusProof<Exponent, GroupElement>& proof_out);
+    void proof(const std::vector<GroupElement>& commits,
+               int l,
+               Exponent r,
+               SigmaPlusProof<Exponent, GroupElement>& proof_out);
 
 private:
     GroupElement g_;

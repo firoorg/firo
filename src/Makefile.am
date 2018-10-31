@@ -440,15 +440,11 @@ libsigma_a_SOURCES = \
   libzerocoin/common/GeneratorVector.h \
   libzerocoin/sigma/R1Proof.h \
   libzerocoin/sigma/R1ProofGenerator.h \
-  libzerocoin/sigma/R1ProofGenerator.hpp \
   libzerocoin/sigma/R1ProofVerifier.h \
-  libzerocoin/sigma/R1ProofVerifier.hpp \
   libzerocoin/sigma/SigmaPlusProof.h \
   libzerocoin/sigma/SigmaPlusProver.h \
-  libzerocoin/sigma/SigmaPlusProver.hpp \
   libzerocoin/sigma/SigmaPlusVerifier.h \
-  libzerocoin/sigma/SigmaPlusVerifier.hpp \
-  libzerocoin/sigma/utils.h
+  libzerocoin/sigma/SigmaPrimitives.h
 
 if GLIBC_BACK_COMPAT
 libbitcoin_util_a_SOURCES += compat/glibc_compat.cpp

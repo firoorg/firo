@@ -154,9 +154,12 @@ bool Scalar::isMember() const{
      return *this == temp;
     }
 
-    Scalar& Scalar::randomize(){
+Scalar& Scalar::randomize(){
     std::random_device rd;
     std::mt19937 rand(rd());
+    return randomize(rand);
+}
+Scalar& Scalar::randomize(std::mt19937& rand){
     for(int i = 0; i < ((sizeof(secp256k1_scalar) / sizeof(unsigned long)));++i){
        unsigned long term = rand();
        std::memcpy((*value_.get()).d + i, &term, sizeof(unsigned long));

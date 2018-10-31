@@ -1,9 +1,9 @@
 #ifndef ZCOIN_SIGMAPROOFGENERATOR_H
 #define ZCOIN_SIGMAPROOFGENERATOR_H
 
-#include "../common/GeneratorVector.h"
+#include <libzerocoin/common/GeneratorVector.h>
 #include "R1Proof.h"
-#include "utils.h"
+#include "SigmaPrimitives.h"
 
 namespace sigma {
 

@@ -130,6 +130,12 @@ bool GroupElement::operator==(const  GroupElement& other) const
     return true;
 }
 
+bool GroupElement::operator!=(const  GroupElement& other) const
+{
+    return !(*this == other);
+}
+
+
 bool GroupElement::isMember() const
 {
     secp256k1_ge v1 = to_ge();

@@ -11,7 +11,7 @@ public:
     SigmaPlusProof() = default;
 
     inline int debug_size() {
-        return B_.writeMemoryRequired() * 4 + z_.writeMemoryRequired() * r1Proof_.get_f().size() + z_.writeMemoryRequired() * 3
+        return B_.writeMemoryRequired() * 4 + z_.writeMemoryRequired() * r1Proof_.f_.size() + z_.writeMemoryRequired() * 3
                + B_.writeMemoryRequired() * Gk_.size();
     }
 
@@ -20,8 +20,6 @@ public:
     R1Proof<Exponent, GroupElement> r1Proof_;
     std::vector<GroupElement> Gk_;
     Exponent z_;
-    int n_;
-    int m_;
 };
 
 } //namespace sigma

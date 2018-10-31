@@ -13,6 +13,8 @@ public:
 
     bool verify(const R1Proof<Exponent, GroupElement>& proof_) const;
 
+    bool verify(const R1Proof<Exponent, GroupElement>& proof_, std::vector<Exponent>& f_) const;
+
     mutable Exponent x_;
 
 private:
