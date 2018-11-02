@@ -91,9 +91,9 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
                 LogPrintf("But it's not entered here");
                 in.push_back(Pair("value", ValueFromAmount(spentInfo.satoshis)));
                 in.push_back(Pair("valueSat", spentInfo.satoshis));
-                if (spentInfo.addressType == 1) {
+                if (spentInfo.addressType == AddressType::payToPubKeyHash) {
                     in.push_back(Pair("address", CBitcoinAddress(CKeyID(spentInfo.addressHash)).ToString()));
-                } else if (spentInfo.addressType == 2)  {
+                } else if (spentInfo.addressType == AddressType::payToScryptHash)  {
                     in.push_back(Pair("address", CBitcoinAddress(CScriptID(spentInfo.addressHash)).ToString()));
                 }
             }
