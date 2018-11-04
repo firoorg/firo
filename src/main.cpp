@@ -2854,7 +2854,8 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
             {
                 for (size_t j = 0; j < tx.vin.size(); j++) {
                     const CTxIn input = tx.vin[j];
-                    const CTxOut &prevout = view.GetOutputFor(input);
+                    const CCoins* coins = view.AccessCoins(input.prevout.hash);
+                    const CTxOut &prevout = coins->vout[input.prevout.n];
                     uint160 hashBytes;
                     AddressType addressType;
 
@@ -2862,6 +2863,9 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
                         hashBytes = uint160(vector <unsigned char>(prevout.scriptPubKey.begin()+2, prevout.scriptPubKey.begin()+22));
                         addressType = AddressType::payToScryptHash;
                     } else if (prevout.scriptPubKey.IsPayToPublicKeyHash()) {
+                        hashBytes = uint160(vector <unsigned char>(prevout.scriptPubKey.begin()+3, prevout.scriptPubKey.begin()+23));
+                        addressType = AddressType::payToPubKeyHash;
+                    } else if (coins->IsCoinBase()) {
                         hashBytes = uint160(vector <unsigned char>(prevout.scriptPubKey.begin()+3, prevout.scriptPubKey.begin()+23));
                         addressType = AddressType::payToPubKeyHash;
                     } else {
