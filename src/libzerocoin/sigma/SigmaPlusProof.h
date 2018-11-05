@@ -10,9 +10,28 @@ class SigmaPlusProof{
 public:
     SigmaPlusProof() = default;
 
-    inline int debug_size() {
-        return B_.writeMemoryRequired() * 4 + z_.writeMemoryRequired() * r1Proof_.f_.size() + z_.writeMemoryRequired() * 3
-               + B_.writeMemoryRequired() * Gk_.size();
+    inline int memoryRequired() {
+        return B_.memoryRequired()
+               + r1Proof_.memoryRequired()
+               + B_.memoryRequired() * Gk_.size()
+               + z_.memoryRequired();
+    }
+
+    inline void serialize(unsigned char* buffer) const {
+        unsigned char* current = B_.serialize(buffer);
+        current = r1Proof_.serialize(current);
+        for(int i = 0; i < Gk_.size(); ++i)
+            current = Gk_[i].serialize(current);
+        z_.serialize(current);
+    }
+
+    inline void deserialize(unsigned char* buffer, int n, int m) {
+        unsigned char* current = B_.deserialize(buffer);
+        current = r1Proof_.deserialize(current, m * (n - 1));
+        Gk_.resize(m);
+        for(int i = 0; i < m; ++i)
+            current = Gk_[i].deserialize(current);
+        z_.deserialize(current);
     }
 
 public:

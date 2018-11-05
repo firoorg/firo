@@ -83,11 +83,10 @@ public:
 
     std::string tostring() const;
 
-    size_t writeMemoryRequired() const;
-    size_t readMemoryRequired(unsigned char* buffer) const;
+    size_t memoryRequired() const;
 
-    unsigned char* encode(unsigned char* buffer) const;
-    unsigned char* decode(unsigned char* buffer);
+    unsigned char* serialize(unsigned char* buffer) const;
+    unsigned char* deserialize(unsigned char* buffer);
 
     void get_bits(std::vector<bool>& bits) const;
 

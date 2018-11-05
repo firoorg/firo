@@ -64,8 +64,6 @@ public:
 
   void randomize(std::mt19937& rand);
 
-  unsigned char* serialize() const;
-
   std::string tostring() const;
 
   friend std::ostream& operator<< ( std::ostream& os, const GroupElement& s ) {
@@ -73,10 +71,10 @@ public:
         return os;
   }
 
-    size_t writeMemoryRequired() const;
-    unsigned char* encode(unsigned char* buffer) const;
-    size_t readMemoryRequired(unsigned char* buffer) const;
-    unsigned char*  decode(unsigned char* buffer);
+    size_t memoryRequired() const;
+    unsigned char* serialize() const;
+    unsigned char* serialize(unsigned char* buffer) const;
+    unsigned char* deserialize(unsigned char* buffer);
 
 private:
 

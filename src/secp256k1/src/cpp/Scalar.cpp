@@ -204,20 +204,16 @@ std::string Scalar::tostring() const {
 return ss.str();
 }
 
-size_t Scalar::writeMemoryRequired() const  {
+size_t Scalar::memoryRequired() const  {
     return 32;
 }
 
-unsigned char* Scalar::encode(unsigned char* buffer) const {
+unsigned char* Scalar::serialize(unsigned char* buffer) const {
     secp256k1_scalar_get_b32(buffer,value_.get());
 return buffer + 32;
 }
 
-size_t Scalar::readMemoryRequired(unsigned char* buffer) const{
-    return 32;
-}
-
-unsigned char* Scalar::decode(unsigned char* buffer)  {
+unsigned char* Scalar::deserialize(unsigned char* buffer)  {
     int overflow = 0;
     secp256k1_scalar_set_b32(value_.get(),buffer,&overflow);
     if (overflow) {

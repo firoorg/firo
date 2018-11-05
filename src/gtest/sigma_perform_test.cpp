@@ -39,7 +39,7 @@ void test( int N, int n, int index){
     sigma::SigmaPlusProof<secp_primitives::Scalar,secp_primitives::GroupElement> proof;
     prover.proof(commits, index, r, proof);
     std::cout <<"N = " << N << " n = " << n << "m = " <<m;
-    std::cout << " Proof size  " << proof.debug_size();
+    std::cout << " Proof size  " << proof.memoryRequired() ;
 
     auto duration_clock = ( std::clock() - proof_start ) / (CLOCKS_PER_SEC / 1000);
     std::cout << " Proof time  " << duration_clock << " ms ";

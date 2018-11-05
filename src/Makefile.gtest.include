@@ -39,3 +39,13 @@ gtest_sigma_perform_test_SOURCES = \
 gtest_sigma_perform_test_CPPFLAGS = $(AM_CPPFLAGS) -DBINARY_OUTPUT -DCURVE_ALT_BN128 -DSTATIC $(BITCOIN_INCLUDES)
 gtest_sigma_perform_test_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 gtest_sigma_perform_test_LDADD = -lgtest  -lgmock $(BOOST_LIBS) $(BOOST_UNIT_TEST_FRAMEWORK_LIB) $(LIBSIGMA) $(LIBSECP256K1) $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO) -lgmp
+
+TESTS += sigma_serialize_test
+noinst_PROGRAMS += gtest/sigma_serialize_test
+gtest_sigma_serialize_test_SOURCES = \
+	gtest/main.cpp \
+	gtest/sigma_serialize_test.cpp
+
+gtest_sigma_serialize_test_CPPFLAGS = $(AM_CPPFLAGS) -DBINARY_OUTPUT -DCURVE_ALT_BN128 -DSTATIC $(BITCOIN_INCLUDES)
+gtest_sigma_serialize_test_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+gtest_sigma_serialize_test_LDADD = -lgtest  -lgmock $(BOOST_LIBS) $(BOOST_UNIT_TEST_FRAMEWORK_LIB) $(LIBSIGMA) $(LIBSECP256K1) $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO) -lgmp

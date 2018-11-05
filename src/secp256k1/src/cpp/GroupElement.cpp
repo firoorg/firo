@@ -196,13 +196,6 @@ void GroupElement::randomize(std::mt19937& rand){
     secp256k1_gej_set_ge(&g_, &ge);
 }
 
-unsigned char* GroupElement::serialize() const {
-    unsigned char* data = new unsigned char[ 2 * sizeof(secp256k1_fe)];
-    memcpy(&data[0], &g_.x.n[0], sizeof(secp256k1_fe));
-    memcpy(&data[0] + sizeof(secp256k1_fe), &g_.y.n[0], sizeof(secp256k1_fe));
-    return data;
-}
-
 char* _convertToString(char* str,const unsigned char* buffer,int base) {
     mpz_t value;
     mpz_init(value);
@@ -298,29 +291,43 @@ void GroupElement::indifferent_hash(secp256k1_ge* ge, const secp256k1_fe* t){
     secp256k1_fe_cmov(&ge->y, &tmp, secp256k1_fe_is_odd(t));
 }
 
-size_t GroupElement::writeMemoryRequired() const  {
-    return sizeof(secp256k1_ge_storage);
+size_t GroupElement::memoryRequired() const  {
+    return 34;
 }
 
-unsigned char* GroupElement::encode(unsigned char* buffer) const {
+
+unsigned char* GroupElement::serialize() const {
+    unsigned char* data = new unsigned char[ 2 * sizeof(secp256k1_fe)];
+    memcpy(&data[0], &g_.x.n[0], sizeof(secp256k1_fe));
+    memcpy(&data[0] + sizeof(secp256k1_fe), &g_.y.n[0], sizeof(secp256k1_fe));
+    return data;
+}
+
+unsigned char* GroupElement::serialize(unsigned char* buffer) const {
     secp256k1_ge value = to_ge();
-    secp256k1_ge_storage storage;
-    secp256k1_ge_to_storage(&storage,&value);
-    memcpy(buffer,&storage,sizeof(secp256k1_ge_storage));
-    return buffer + sizeof(secp256k1_ge_storage);
+    secp256k1_fe x = value.x;
+    secp256k1_fe y = value.y;
+    secp256k1_fe_normalize(&x);
+    secp256k1_fe_normalize(&x);
+    char oddness = secp256k1_fe_is_odd(&y);
+    char infinity = value.infinity;
+    memcpy(buffer,&x,sizeof(secp256k1_fe));
+    secp256k1_fe_get_b32(buffer, &x);
+    memcpy(buffer + 32,&oddness,sizeof(char));
+    memcpy(buffer + 33,&infinity,sizeof(char));
+    return buffer + 34;
 }
 
-size_t GroupElement::readMemoryRequired(unsigned char* buffer) const {
-    return sizeof(secp256k1_ge_storage);
-}
-
-unsigned char* GroupElement::decode(unsigned char* buffer) {
-    secp256k1_ge value;
-    secp256k1_ge_storage storage;
-    memcpy(&storage,buffer,sizeof(secp256k1_ge_storage));
-    secp256k1_ge_from_storage(&value,&storage);
-    secp256k1_gej_set_ge(&g_,&value);
-    return buffer + sizeof(secp256k1_ge_storage);
+unsigned char* GroupElement::deserialize(unsigned char* buffer) {
+    secp256k1_fe x;
+    secp256k1_fe_set_b32(&x, buffer);
+    int oddness = buffer[32];
+    int infinity = buffer[33];
+    secp256k1_ge result;
+    secp256k1_ge_set_xo_var(&result, &x, oddness);
+    result.infinity = infinity;
+    secp256k1_gej_set_ge(&g_, &result);
+    return buffer + 34;
 }
 
 } // namespace secp_primitives
