@@ -6,8 +6,8 @@ enum struct AddressType
       unknown = 0
     , payToPubKeyHash = 1
     , payToScryptHash = 2
-    , zeroMint = 3
-    , zeroSpend = 4
+    , zerocoinMint = 3
+    , zerocoinSpend = 4
 };
 
 #endif /* ADDRESSTYPE_H */
