@@ -2893,6 +2893,13 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
             }
         }
 
+        if (!fJustCheck && fAddressIndex && tx.IsZerocoinSpend()) {
+            CAmount spendAmount = 0;
+            for (unsigned int k = 0; k < tx.vout.size(); k++)
+                spendAmount += tx.vout[k].nValue;
+            addressIndex.push_back(make_pair(CAddressIndexKey(AddressType::zerocoinSpend, uint160(), pindex->nHeight, i, txHash, 0, true), -spendAmount));
+        }
+
         if (!fJustCheck && fAddressIndex) {
             for (unsigned int k = 0; k < tx.vout.size(); k++) {
                 const CTxOut &out = tx.vout[k];
