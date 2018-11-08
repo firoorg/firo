@@ -10,5 +10,20 @@ enum struct AddressType
     , zerocoinSpend = 4
 };
 
+namespace zerocoin { namespace utils {
+
+inline bool isZerocoinMint(std::string const & str){
+    return str == "Zeromint" || str == "zeromint";
+}
+
+inline bool isZerocoinSpend(std::string const & str){
+    return str == "Zerospend";
+}
+
+inline bool isZerocoin(std::string const & str){
+    return isZerocoinMint(str) || isZerocoinSpend(str);
+}
+
+}}
 #endif /* ADDRESSTYPE_H */
 

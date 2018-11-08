@@ -536,6 +536,49 @@ bool getAddressesFromParams(const UniValue& params, std::vector<std::pair<uint16
     return true;
 }
 
+namespace {
+void handleSingleAddress(const UniValue& uniAddress, std::vector<std::pair<uint160, AddressType> > &addresses)
+{
+    std::string const addr = uniAddress.get_str();
+    if(zerocoin::utils::isZerocoinMint(addr)) {
+        addresses.push_back(std::make_pair(uint160(), AddressType::zerocoinMint));
+    } else if(zerocoin::utils::isZerocoinSpend(addr)) {
+        addresses.push_back(std::make_pair(uint160(), AddressType::zerocoinSpend));
+    } else {
+        CBitcoinAddress address(addr);
+        uint160 hashBytes;
+        AddressType type = AddressType::unknown;
+        if (!address.GetIndexKey(hashBytes, type)) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
+        }
+        addresses.push_back(std::make_pair(hashBytes, type));
+    }
+}
+}
+
+bool getZerocoinAddressesFromParams(const UniValue& params, std::vector<std::pair<uint160, AddressType> > &addresses)
+{
+    if (params[0].isStr()) {
+        handleSingleAddress(params[0], addresses);
+    } else if (params[0].isObject()) {
+
+        UniValue addressValues = find_value(params[0].get_obj(), "addresses");
+        if (!addressValues.isArray()) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Addresses is expected to be an array");
+        }
+
+        std::vector<UniValue> values = addressValues.getValues();
+
+        for (std::vector<UniValue>::iterator it = values.begin(); it != values.end(); ++it) {
+            handleSingleAddress(*it, addresses);
+        }
+    } else {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
+    }
+
+    return true;
+}
+
 bool heightSort(std::pair<CAddressUnspentKey, CAddressUnspentValue> a,
                 std::pair<CAddressUnspentKey, CAddressUnspentValue> b) {
     return a.second.blockHeight < b.second.blockHeight;
@@ -579,7 +622,7 @@ UniValue getaddressmempool(const UniValue& params, bool fHelp)
 
     std::vector<std::pair<uint160, AddressType> > addresses;
 
-    if (!getAddressesFromParams(params, addresses)) {
+    if (!getZerocoinAddressesFromParams(params, addresses)) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
     }
 
@@ -797,7 +840,7 @@ UniValue getaddressbalance(const UniValue& params, bool fHelp)
 
     std::vector<std::pair<uint160, AddressType> > addresses;
 
-    if (!getAddressesFromParams(params, addresses)) {
+    if (!getZerocoinAddressesFromParams(params, addresses)) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
     }
 
@@ -855,7 +898,7 @@ UniValue getaddresstxids(const UniValue& params, bool fHelp)
 
     std::vector<std::pair<uint160, AddressType> > addresses;
 
-    if (!getAddressesFromParams(params, addresses)) {
+    if (!getZerocoinAddressesFromParams(params, addresses)) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
     }
 
