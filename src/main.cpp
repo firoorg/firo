@@ -2852,8 +2852,6 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
 
             if (!fJustCheck && (fAddressIndex || fSpentIndex))
             {
-                bool const isZerocoinMint = tx.IsZerocoinMint(tx);
-
                 for (size_t j = 0; j < tx.vin.size(); j++) {
                     const CTxIn input = tx.vin[j];
                     const CCoins* coins = view.AccessCoins(input.prevout.hash);
@@ -2861,7 +2859,7 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
                     AddressType addressType = AddressType::unknown;
                     uint160 hashBytes;
 
-                    if (isZerocoinMint || coins->IsCoinBase()) {
+                    if (coins->IsCoinBase()) {
                         addressType = AddressType::payToPubKeyHash;
                         std::vector<unsigned char> payKeyBuf;
                         opcodetype opcode;
@@ -2881,9 +2879,7 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
                         continue;
 
                     if (fAddressIndex) {
-                        // record spending activity
                         addressIndex.push_back(make_pair(CAddressIndexKey(addressType, hashBytes, pindex->nHeight, i, txHash, j, true), prevout.nValue * -1));
-                        // remove address from unspent index
                         addressUnspentIndex.push_back(make_pair(CAddressUnspentKey(addressType, hashBytes, input.prevout.hash, input.prevout.n), CAddressUnspentValue()));
                     }
 
@@ -2921,12 +2917,13 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
                     hashBytes = uint160(std::vector<unsigned char>(out.scriptPubKey.begin()+3, out.scriptPubKey.begin()+23));
                 }
 
+                if(out.scriptPubKey.IsZerocoinMint())
+                    addressIndex.push_back(make_pair(CAddressIndexKey(AddressType::zerocoinMint, uint160(), pindex->nHeight, i, txHash, k, false), out.nValue));
+
                 if (addressType == AddressType::unknown)
                     continue;
 
-                // record receiving activity
                 addressIndex.push_back(make_pair(CAddressIndexKey(addressType, hashBytes, pindex->nHeight, i, txHash, k, false), out.nValue));
-                // record unspent output
                 addressUnspentIndex.push_back(make_pair(CAddressUnspentKey(addressType, hashBytes, txHash, k), CAddressUnspentValue(out.nValue, out.scriptPubKey, pindex->nHeight)));
             }
         }
