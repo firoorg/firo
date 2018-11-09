@@ -248,7 +248,7 @@ bool CBlockTreeDB::ReadAddressIndex(uint160 addressHash, AddressType type,
     while (pcursor->Valid()) {
         boost::this_thread::interruption_point();
         std::pair<char,CAddressIndexKey> key;
-        if (pcursor->GetKey(key) && key.first == DB_ADDRESSINDEX && key.second.hashBytes == addressHash) {
+        if (pcursor->GetKey(key) && key.first == DB_ADDRESSINDEX && key.second.hashBytes == addressHash && key.second.type == type) {
             if (end > 0 && key.second.blockHeight > end) {
                 break;
             }
