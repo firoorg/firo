@@ -160,7 +160,6 @@ void CZnodeSync::Reset() {
     nTimeLastGovernanceItem = GetTime();
     nTimeLastFailure = 0;
     nCountFailures = 0;
-    GetMainSignals().UpdateSyncStatus();
 }
 
 std::string CZnodeSync::GetAssetName() {
