@@ -166,7 +166,9 @@ void APIWalletTxToJSON(const CWalletTx& wtx, UniValue& entry)
         entry.push_back(Pair("blockTime", blocktime));
         entry.push_back(Pair("blockHeight", getBlockHeight(wtx.hashBlock.GetHex())));
         UniValue timestamp = getInitialTimestamp(hash);
-        if(timestamp.isNull()) timestamp = blocktime;
+        if(timestamp.isNull()){ 
+            timestamp = blocktime.get_int64() * 1000;
+        }
         entry.push_back(Pair("firstSeenAt", timestamp));    
     }
     else {
