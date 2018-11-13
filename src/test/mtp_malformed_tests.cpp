@@ -130,6 +130,7 @@ BOOST_FIXTURE_TEST_SUITE(mtp_malformed_tests, MtpMalformedTestingSetup)
 
 BOOST_AUTO_TEST_CASE(mtp_malformed)
 {
+    Params(CBaseChainParams::REGTEST).SetRegTestMtpSwitchTime(INT_MAX);
     bool mtp = false;
     CBlock b;
     //Good check to have
@@ -235,6 +236,7 @@ BOOST_AUTO_TEST_CASE(mtp_malformed)
     mybufstream << *bMtp.mtpHashData;
     mybufstream.resize(mybufstream.size()/2);
     BOOST_CHECK_EXCEPTION(mybufstream >> outh, std::runtime_error, no_check);
+    Params(CBaseChainParams::REGTEST).SetRegTestMtpSwitchTime(INT_MAX);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

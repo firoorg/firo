@@ -211,7 +211,7 @@ BOOST_AUTO_TEST_CASE(mtp_halving)
         LOCK(pwalletMain->cs_wallet);
         pwalletMain->AddToWalletIfInvolvingMe(b.vtx[0], &b, true);
     }
-
+    Params(CBaseChainParams::REGTEST).SetRegTestMtpSwitchTime(INT_MAX);
 
 }
 
