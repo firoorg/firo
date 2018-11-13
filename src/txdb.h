@@ -149,7 +149,8 @@ public:
     CDbIndexHelper(bool addressIndex, bool spentIndex);
 
     void ConnectTransaction(CTransaction const & tx, int height, int txNumber, CCoinsViewCache const & view);
-    void DisconnectTransaction(CTransaction const & tx, int height, int txNumber, CCoinsViewCache const & view);
+    void DisconnectTransactionInputs(CTransaction const & tx, int height, int txNumber, CCoinsViewCache const & view);
+    void DisconnectTransactionOutputs(CTransaction const & tx, int height, int txNumber, CCoinsViewCache const & view);
 
     using AddressIndex = std::vector<std::pair<CAddressIndexKey, CAmount> >;
     using AddressUnspentIndex = std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> >;

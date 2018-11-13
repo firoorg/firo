@@ -512,22 +512,58 @@ void CDbIndexHelper::ConnectTransaction(CTransaction const & tx, int height, int
 }
 
 
-void CDbIndexHelper::DisconnectTransaction(CTransaction const & tx, int height, int txNumber, CCoinsViewCache const & view)
+void CDbIndexHelper::DisconnectTransactionInputs(CTransaction const & tx, int height, int txNumber, CCoinsViewCache const & view)
 {
-    ConnectTransaction(tx, height, txNumber, view);
+    size_t pAddressBegin{0}, pUnspentBegin{0}, pSpentBegin{0};
 
-    if(addressIndex)
-    {
-        std::reverse(addressIndex->begin(), addressIndex->end());
-        std::reverse(addressUnspentIndex->begin(), addressUnspentIndex->end());
+    if(addressIndex){
+        pAddressBegin = addressIndex->size();
+        pUnspentBegin = addressUnspentIndex->size();
+    }
+
+    if(spentIndex)
+        pSpentBegin = spentIndex->size();
+
+    size_t no = 0;
+    if(!tx.IsCoinBase() && !tx.IsZerocoinSpend())
+        for (std::vector<CTxIn>::const_iterator iter = tx.vin.begin(); iter != tx.vin.end(); ++iter) {
+            CTxIn const & input = *iter;
+            handleInput(input, no++, tx.GetHash(), height, txNumber, view, addressIndex, addressUnspentIndex, spentIndex);
+        }
+
+    if(addressIndex){
+        std::reverse(addressIndex->begin() + pAddressBegin, addressIndex->end());
+        std::reverse(addressUnspentIndex->begin() + pUnspentBegin, addressUnspentIndex->end());
+
         for(AddressUnspentIndex::iterator iter = addressUnspentIndex->begin(); iter != addressUnspentIndex->end(); ++iter)
             iter->second = CAddressUnspentValue();
     }
 
     if(spentIndex)
-        std::reverse(spentIndex->begin(), spentIndex->end());
+        std::reverse(spentIndex->begin() + pSpentBegin, spentIndex->end());
 }
 
+void CDbIndexHelper::DisconnectTransactionOutputs(CTransaction const & tx, int height, int txNumber, CCoinsViewCache const & view)
+{
+    if(tx.IsZerocoinSpend())
+        handleZerocoinSpend(tx.vout.begin(), tx.vout.end(), tx.GetHash(), height, txNumber, view, addressIndex);
+
+    size_t no = 0;
+    bool const txIsCoinBase = tx.IsCoinBase();
+    for (std::vector<CTxOut>::const_iterator iter = tx.vout.begin(); iter != tx.vout.end(); ++iter) {
+        CTxOut const & out = *iter;
+        handleOutput(out, no++, tx.GetHash(), height, txNumber, view, txIsCoinBase, addressIndex, addressUnspentIndex, spentIndex);
+    }
+
+    if(addressIndex)
+    {
+        std::reverse(addressIndex->begin(), addressIndex->end());
+        std::reverse(addressUnspentIndex->begin(), addressUnspentIndex->end());
+    }
+
+    if(spentIndex)
+        std::reverse(spentIndex->begin(), spentIndex->end());
+}
 
 CDbIndexHelper::AddressIndex const & CDbIndexHelper::getAddressIndex() const
 {

@@ -78,7 +78,8 @@ BOOST_AUTO_TEST_CASE(dbindexhelper_coinbase)
     }
     {
         CDbIndexHelper dbIndexHelper(true, true);
-        dbIndexHelper.DisconnectTransaction(tx, 7980, 1, viewCache);
+        dbIndexHelper.DisconnectTransactionOutputs(tx, 7980, 1, viewCache);
+        dbIndexHelper.DisconnectTransactionInputs(tx, 7980, 1, viewCache);
 
         BOOST_CHECK(dbIndexHelper.getAddressIndex().size() == outNum);
         BOOST_CHECK(dbIndexHelper.getAddressUnspentIndex().size() == outNum);
@@ -151,7 +152,8 @@ BOOST_AUTO_TEST_CASE(dbindexhelper_payToPubKey)
 
     {
         CDbIndexHelper dbIndexHelper(true, true);
-        dbIndexHelper.DisconnectTransaction(tx, 7980, 1, viewCache);
+        dbIndexHelper.DisconnectTransactionOutputs(tx, 7980, 1, viewCache);
+        dbIndexHelper.DisconnectTransactionInputs(tx, 7980, 1, viewCache);
 
         BOOST_CHECK(dbIndexHelper.getAddressIndex().size() == inNum + outNum);
         BOOST_CHECK(dbIndexHelper.getAddressUnspentIndex().size() == inNum + outNum);
@@ -300,7 +302,8 @@ BOOST_AUTO_TEST_CASE(dbindexhelper_zerospend)
 
     {
         CDbIndexHelper dbIndexHelper(true, true);
-        dbIndexHelper.DisconnectTransaction(tx, txHeight, 1, viewCache);
+        dbIndexHelper.DisconnectTransactionOutputs(tx, txHeight, 1, viewCache);
+        dbIndexHelper.DisconnectTransactionInputs(tx, txHeight, 1, viewCache);
 
         BOOST_CHECK(dbIndexHelper.getAddressIndex().size() == inNum + outNum);
         BOOST_CHECK(dbIndexHelper.getAddressUnspentIndex().size() == outNum);

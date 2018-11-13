@@ -2459,7 +2459,7 @@ bool DisconnectBlock(const CBlock &block, CValidationState &state, const CBlockI
         const CTransaction &tx = block.vtx[i];
         uint256 hash = tx.GetHash();
 
-        dbIndexHelper.DisconnectTransaction(tx, pindex->nHeight, i, view);
+        dbIndexHelper.DisconnectTransactionOutputs(tx, pindex->nHeight, i, view);
 
         // Check that all outputs are available and match the outputs in the block itself
         // exactly.
@@ -2492,6 +2492,8 @@ bool DisconnectBlock(const CBlock &block, CValidationState &state, const CBlockI
                     fClean = false;
             }
         }
+
+        dbIndexHelper.DisconnectTransactionInputs(tx, pindex->nHeight, i, view);
     }
 
     // move best block pointer to prevout block
