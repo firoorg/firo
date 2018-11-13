@@ -2331,7 +2331,7 @@ void StartNode(boost::thread_group &threadGroup, CScheduler &scheduler) {
     if (!GetBoolArg("-dnsseed", true))
         LogPrintf("DNS seeding disabled\n");
     else
-        threadGroup.create_thread(boost::bind(&TraceThread<void (*)()>, "dnsseed", &ThreadDNSAddressSeed));
+        threadGroup.add_thread(new boost::thread(boost::bind(&TraceThread<void (*)()>, "dnsseed", &ThreadDNSAddressSeed)));
 
     // Map ports with UPnP
     MapPort(GetBoolArg("-upnp", DEFAULT_UPNP));

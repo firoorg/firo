@@ -128,7 +128,7 @@ bool IsBlockValueValid(const CBlock &block, int nBlockHeight, CAmount blockRewar
     return isBlockRewardValueMet;
 }
 
-bool IsBlockPayeeValid(const CTransaction &txNew, int nBlockHeight, CAmount blockReward) {
+bool IsBlockPayeeValid(const CTransaction &txNew, int nBlockHeight, CAmount blockReward, bool fMTP) {
     // we can only check znode payment /
     const Consensus::Params &consensusParams = Params().GetConsensus();
 
@@ -137,14 +137,14 @@ bool IsBlockPayeeValid(const CTransaction &txNew, int nBlockHeight, CAmount bloc
         if (fDebug) LogPrintf("IsBlockPayeeValid -- znode isn't start\n");
         return true;
     }
-    if (!znodeSync.IsSynced()) {
+    if (!znodeSync.IsSynced() && Params().NetworkIDString() != CBaseChainParams::REGTEST) {
         //there is no budget data to use to check anything, let's just accept the longest chain
         if (fDebug) LogPrintf("IsBlockPayeeValid -- WARNING: Client not synced, skipping block payee checks\n");
         return true;
     }
 
     //check for znode payee
-    if (mnpayments.IsTransactionValid(txNew, nBlockHeight)) {
+    if (mnpayments.IsTransactionValid(txNew, nBlockHeight, fMTP)) {
         LogPrint("mnpayments", "IsBlockPayeeValid -- Valid znode payment at height %d: %s", nBlockHeight, txNew.ToString());
         return true;
     } else {
@@ -232,13 +232,19 @@ void CZnodePayments::FillBlockPayee(CMutableTransaction &txNew, int nBlockHeight
         int nCount = 0;
         CZnode *winningNode = mnodeman.GetNextZnodeInQueueForPayment(nBlockHeight, true, nCount);
         if (!winningNode) {
-            // ...and we can't calculate it on our own
-            LogPrintf("CZnodePayments::FillBlockPayee -- Failed to detect znode to pay\n");
-            return;
+            if(Params().NetworkIDString() != CBaseChainParams::REGTEST) {
+                // ...and we can't calculate it on our own
+                LogPrintf("CZnodePayments::FillBlockPayee -- Failed to detect znode to pay\n");
+                return;
+            }
         }
         // fill payee with locally calculated winner and hope for the best
-        payee = GetScriptForDestination(winningNode->pubKeyCollateralAddress.GetID());
-        LogPrintf("payee=%s\n", winningNode->ToString());
+        if (winningNode) {
+            payee = GetScriptForDestination(winningNode->pubKeyCollateralAddress.GetID());
+            LogPrintf("payee=%s\n", winningNode->ToString());
+        }
+        else
+            payee = txNew.vout[0].scriptPubKey;//This is only for unit tests scenario on REGTEST
     }
     txoutZnodeRet = CTxOut(znodePayment, payee);
     txNew.vout.push_back(txoutZnodeRet);
@@ -268,6 +274,8 @@ void CZnodePayments::ProcessMessage(CNode *pfrom, std::string &strCommand, CData
 
     if (fLiteMode) return; // disable all Dash specific functionality
 
+    bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
+
     if (strCommand == NetMsgType::ZNODEPAYMENTSYNC) { //Znode Payments Request Sync
 
         // Ignore such requests until we are fully synced.
@@ -281,7 +289,7 @@ void CZnodePayments::ProcessMessage(CNode *pfrom, std::string &strCommand, CData
         if (netfulfilledman.HasFulfilledRequest(pfrom->addr, NetMsgType::ZNODEPAYMENTSYNC)) {
             // Asking for the payments list multiple times in a short period of time is no good
             LogPrintf("ZNODEPAYMENTSYNC -- peer already asked me for the list, peer=%d\n", pfrom->id);
-            Misbehaving(pfrom->GetId(), 20);
+            if (!fTestNet) Misbehaving(pfrom->GetId(), 20);
             return;
         }
         netfulfilledman.AddFulfilledRequest(pfrom->addr, NetMsgType::ZNODEPAYMENTSYNC);
@@ -345,7 +353,7 @@ void CZnodePayments::ProcessMessage(CNode *pfrom, std::string &strCommand, CData
         if (!vote.CheckSignature(mnInfo.pubKeyZnode, pCurrentBlockIndex->nHeight, nDos)) {
             if (nDos) {
                 LogPrintf("ZNODEPAYMENTVOTE -- ERROR: invalid signature\n");
-                Misbehaving(pfrom->GetId(), nDos);
+                if (!fTestNet) Misbehaving(pfrom->GetId(), nDos);
             } else {
                 // only warn about anything non-critical (i.e. nDos == 0) in debug mode
                 LogPrint("mnpayments", "ZNODEPAYMENTVOTE -- WARNING: invalid signature\n");
@@ -495,13 +503,14 @@ bool CZnodeBlockPayees::HasPayeeWithVotes(CScript payeeIn, int nVotesReq) {
     return false;
 }
 
-bool CZnodeBlockPayees::IsTransactionValid(const CTransaction &txNew) {
+bool CZnodeBlockPayees::IsTransactionValid(const CTransaction &txNew, bool fMTP) {
     LOCK(cs_vecPayees);
 
     int nMaxSignatures = 0;
     std::string strPayeesPossible = "";
 
-    CAmount nZnodePayment = GetZnodePayment(nBlockHeight, txNew.GetValueOut());
+
+    CAmount nZnodePayment = GetZnodePayment(Params().GetConsensus(), fMTP);
 
     //require at least MNPAYMENTS_SIGNATURES_REQUIRED signatures
 
@@ -578,11 +587,11 @@ std::string CZnodePayments::GetRequiredPaymentsString(int nBlockHeight) {
     return "Unknown";
 }
 
-bool CZnodePayments::IsTransactionValid(const CTransaction &txNew, int nBlockHeight) {
+bool CZnodePayments::IsTransactionValid(const CTransaction &txNew, int nBlockHeight, bool fMTP) {
     LOCK(cs_mapZnodeBlocks);
 
     if (mapZnodeBlocks.count(nBlockHeight)) {
-        return mapZnodeBlocks[nBlockHeight].IsTransactionValid(txNew);
+        return mapZnodeBlocks[nBlockHeight].IsTransactionValid(txNew, fMTP);
     }
 
     return true;

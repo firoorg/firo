@@ -39,6 +39,7 @@
 #include "utilmoneystr.h"
 #include "validationinterface.h"
 #include "validation.h"
+#include "mtpstate.h"
 
 #ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
@@ -793,6 +794,7 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
     CImportingNow imp;
     // -reindex
     if (fReindex) {
+        MTPState::GetMTPState()->Reset();
         int nFile = 0;
         while (true) {
             CDiskBlockPos pos(nFile, 0);
@@ -1875,7 +1877,11 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
         vImportFiles.push_back(strFile);
     }
 
-    threadGroup.create_thread(boost::bind(&ThreadImport, vImportFiles));
+    // Temporary measure: refactor and changing data structures needed to fix high stack usage
+    boost::thread_attributes threadAttr;
+    threadAttr.set_stack_size(4*1024*1024);
+
+    threadGroup.add_thread(new boost::thread(threadAttr, boost::bind(&ThreadImport, vImportFiles)));
 
     // Wait for genesis block to be processed
     {
@@ -1932,7 +1938,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
         if (!strZnodePrivKey.empty()) {
             if (!darkSendSigner.GetKeysFromSecret(strZnodePrivKey, activeZnode.keyZnode,
                                                   activeZnode.pubKeyZnode))
-                return InitError(_("Invalid znodeprivkey. Please see documenation."));
+                return InitError(_("Invalid znodeprivkey. Please see documentation."));
 
             LogPrintf("  pubKeyZnode: %s\n", CBitcoinAddress(activeZnode.pubKeyZnode.GetID()).ToString());
         } else {

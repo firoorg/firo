@@ -597,8 +597,10 @@ UniValue getblockheader(const UniValue& params, bool fHelp)
 
     if (!fVerbose)
     {
+    	CBlock block;
+    	ReadBlockFromDisk(block, pblockindex, Params().GetConsensus());
         CDataStream ssBlock(SER_NETWORK, PROTOCOL_VERSION);
-        ssBlock << pblockindex->GetBlockHeader();
+        ssBlock << block.GetBlockHeader();
         std::string strHex = HexStr(ssBlock.begin(), ssBlock.end());
         return strHex;
     }

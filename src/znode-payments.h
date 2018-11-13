@@ -24,7 +24,7 @@ static const int MNPAYMENTS_SIGNATURES_TOTAL            = 10;
 // V1 - Last protocol version before update
 // V2 - Newest protocol version
 static const int MIN_ZNODE_PAYMENT_PROTO_VERSION_1 = 90024;
-static const int MIN_ZNODE_PAYMENT_PROTO_VERSION_2 = 90025;
+static const int MIN_ZNODE_PAYMENT_PROTO_VERSION_2 = 90026;
 
 extern CCriticalSection cs_vecPayees;
 extern CCriticalSection cs_mapZnodeBlocks;
@@ -34,7 +34,7 @@ extern CZnodePayments mnpayments;
 
 /// TODO: all 4 functions do not belong here really, they should be refactored/moved somewhere (main.cpp ?)
 bool IsBlockValueValid(const CBlock& block, int nBlockHeight, CAmount blockReward, std::string &strErrorRet);
-bool IsBlockPayeeValid(const CTransaction& txNew, int nBlockHeight, CAmount blockReward);
+bool IsBlockPayeeValid(const CTransaction& txNew, int nBlockHeight, CAmount blockReward, bool fMTP);
 void FillBlockPayments(CMutableTransaction& txNew, int nBlockHeight, CAmount blockReward, CTxOut& txoutZnodeRet, std::vector<CTxOut>& voutSuperblockRet);
 std::string GetRequiredPaymentsString(int nBlockHeight);
 
@@ -101,7 +101,7 @@ public:
     bool GetBestPayee(CScript& payeeRet);
     bool HasPayeeWithVotes(CScript payeeIn, int nVotesReq);
 
-    bool IsTransactionValid(const CTransaction& txNew);
+    bool IsTransactionValid(const CTransaction& txNew, bool fMTP);
 
     std::string GetRequiredPaymentsString();
 };
@@ -202,7 +202,7 @@ public:
     void CheckAndRemove();
 
     bool GetBlockPayee(int nBlockHeight, CScript& payee);
-    bool IsTransactionValid(const CTransaction& txNew, int nBlockHeight);
+    bool IsTransactionValid(const CTransaction& txNew, int nBlockHeight, bool fMTP);
     bool IsScheduled(CZnode& mn, int nNotBlockHeight);
 
     bool CanVote(COutPoint outZnode, int nBlockHeight);

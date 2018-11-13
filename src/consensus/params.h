@@ -34,9 +34,20 @@ struct BIP9Deployment {
 };
 
 /**
+ * Type of chain
+ */
+enum ChainType {
+    chainMain,
+    chainTestnet,
+    chainRegtest
+};
+
+/**
  * Parameters that influence chain consensus.
  */
 struct Params {
+    ChainType chainType;
+
     uint256 hashGenesisBlock;
     int nSubsidyHalvingInterval;
     /** Used to check majorities for block version upgrade */
@@ -73,8 +84,41 @@ struct Params {
     //int nZnodePaymentsIncreasePeriod; // in blocks
     //int nSuperblockStartBlock;
 
-    int64_t DifficultyAdjustmentInterval() const { return nPowTargetTimespan / nPowTargetSpacing; }
+	/** Zerocoin-related block numbers when features are changed */
+    int nCheckBugFixedAtBlock;
+    int nZnodePaymentsBugFixedAtBlock;
+	int nSpendV15StartBlock;
+	int nSpendV2ID_1, nSpendV2ID_10, nSpendV2ID_25, nSpendV2ID_50, nSpendV2ID_100;
+	
+	int nModulusV2StartBlock;
+    int nModulusV1MempoolStopBlock;
+	int nModulusV1StopBlock;
+    
+    int nMultipleSpendInputsInOneTxStartBlock;
+
+    /** switch to MTP time */
+    uint32_t nMTPSwitchTime;
+
+    /** don't adjust difficulty until some block number */
+    int nDifficultyAdjustStartBlock;
+    /** fixed diffuculty to use before adjustment takes place */
+    int nFixedDifficulty;
+
+    /** pow target spacing after switch to MTP */
+    int64_t nPowTargetSpacingMTP;
+
+    /** initial MTP difficulty */
+    int nInitialMTPDifficulty;
+
+    /** reduction coefficient for rewards after MTP kicks in */
+    int nMTPRewardReduction;
+	
+    int64_t DifficultyAdjustmentInterval(bool fMTP = false) const { return nPowTargetTimespan / (fMTP ? nPowTargetSpacingMTP : nPowTargetSpacing); }
     uint256 nMinimumChainWork;
+
+    bool IsMain() const { return chainType == chainMain; }
+    bool IsTestnet() const { return chainType == chainTestnet; }
+    bool IsRegtest() const { return chainType == chainRegtest; }
 };
 } // namespace Consensus
 

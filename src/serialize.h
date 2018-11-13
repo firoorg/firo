@@ -19,6 +19,7 @@
 #include <string.h>
 #include <utility>
 #include <vector>
+#include <deque>
 #include "prevector.h"
 #include <memory>
 #include "definition.h"
@@ -242,30 +243,31 @@ inline unsigned int GetSerializeSize(bool a, int, int=0)                        
 template<typename Stream> inline void Serialize(Stream& s, bool a, int, int=0)    { char f=a; ser_writedata8(s, f); }
 template<typename Stream> inline void Unserialize(Stream& s, bool& a, int, int=0) { char f=ser_readdata8(s); a=f; }
 
+/**
+ * Please note that zcoin drops support for big-endian architectures and thus these functions are simple read/writes
+ * It significantly improves MTP structures serialization performance
+ */
 
-inline unsigned int GetSerializeSize(const unsigned char a[32], int, int=0){
-    return sizeof(unsigned char) * 32;
-}
+template <typename ItemType>
+using CArithType = typename std::enable_if<std::is_arithmetic<ItemType>::value>::type;
 
-template<typename Stream> inline void Serialize(Stream& s, const unsigned char a[32], int, int=0)
-{
-    int r;
-    for( r = 0; r < 32; r++){
-        WRITEDATA(s, a[r]);
-    }
-}
+template<typename Stream, typename ItemType, int ArraySize, typename = CArithType<ItemType>>
+inline void Serialize(Stream &s, const ItemType (&a) [ArraySize], int, int=0) { s.write((const char *)&a, sizeof(a)); }
 
-template<typename Stream> inline void Unserialize(Stream& s, unsigned char a[32], int, int=0)
-{
-    int r;
-    for( r = 0; r < 32; r++){
-        READDATA(s, a[r]);
-    }
+template<typename Stream, typename ItemType, int ArraySize, typename = CArithType<ItemType>>
+inline void Unserialize(Stream &s, ItemType (&a)[ArraySize], int, int=0) { s.read((char *)&a, sizeof(a)); }
 
-}
+template<typename Stream, typename ItemType, int ArraySize, typename = CArithType<ItemType>>
+inline unsigned int GetSerializeSize(const ItemType (&a)[ArraySize], int, int=0) { return sizeof(ItemType[ArraySize]); }
 
+template<typename Stream, typename ItemType, int ArraySize1, int ArraySize2, typename = CArithType<ItemType>>
+inline void Serialize(Stream &s, const ItemType (&a)[ArraySize1][ArraySize2], int, int=0) { s.write((const char *)&a, sizeof(a)); }
 
+template<typename Stream, typename ItemType, int ArraySize1, int ArraySize2, typename = CArithType<ItemType>>
+inline void Unserialize(Stream &s, ItemType (&a)[ArraySize1][ArraySize2], int, int=0) { s.read((char *)&a, sizeof(a)); }
 
+template<typename Stream, typename ItemType, int ArraySize1, int ArraySize2, typename = CArithType<ItemType>>
+inline unsigned int GetSerializeSize(const ItemType (&a)[ArraySize1][ArraySize2], int, int=0) { return sizeof(ItemType[ArraySize1][ArraySize2]); }
 
 /**
  * Compact Size
@@ -628,6 +630,95 @@ void Serialize(Stream &s, const std::shared_ptr <T> &item, int nType, int nVersi
 template<typename Stream, typename T>
 void Unserialize(Stream &s, std::shared_ptr <T> &item, int nType, int nVersion);
 
+
+// Zcoin - MTP
+/**
+ * deque
+ */
+template<typename T, typename A>
+unsigned int GetSerializeSize_impl(const std::deque<T, A>& v, int nType, int nVersion, const unsigned char&)
+{
+    return (GetSizeOfCompactSize(v.size()) + v.size() * sizeof(T));
+}
+
+template<typename T, typename A, typename V>
+unsigned int GetSerializeSize_impl(const std::deque<T, A>& v, int nType, int nVersion, const V&)
+{
+    unsigned int nSize = GetSizeOfCompactSize(v.size());
+    for (typename std::deque<T, A>::const_iterator vi = v.begin(); vi != v.end(); ++vi)
+        nSize += GetSerializeSize((*vi), nType, nVersion);
+    return nSize;
+}
+
+template<typename T, typename A>
+inline unsigned int GetSerializeSize(const std::deque<T, A>& v, int nType, int nVersion)
+{
+    return GetSerializeSize_impl(v, nType, nVersion, T());
+}
+
+
+template<typename Stream, typename T, typename A>
+void Serialize_impl(Stream& os, const std::deque<T, A>& v, int nType, int nVersion, const unsigned char&)
+{
+    WriteCompactSize(os, v.size());
+    if (!v.empty())
+        os.write((char*)&v[0], v.size() * sizeof(T));
+}
+
+template<typename Stream, typename T, typename A, typename V>
+void Serialize_impl(Stream& os, const std::deque<T, A>& v, int nType, int nVersion, const V&)
+{
+    WriteCompactSize(os, v.size());
+    for (typename std::deque<T, A>::const_iterator vi = v.begin(); vi != v.end(); ++vi)
+        ::Serialize(os, (*vi), nType, nVersion);
+}
+
+template<typename Stream, typename T, typename A>
+inline void Serialize(Stream& os, const std::deque<T, A>& v, int nType, int nVersion)
+{
+    Serialize_impl(os, v, nType, nVersion, T());
+}
+
+
+template<typename Stream, typename T, typename A>
+void Unserialize_impl(Stream& is, std::deque<T, A>& v, int nType, int nVersion, const unsigned char&)
+{
+    // Limit size per read so bogus size value won't cause out of memory
+    v.clear();
+    unsigned int nSize = ReadCompactSize(is);
+    unsigned int i = 0;
+    while (i < nSize)
+    {
+        unsigned int blk = std::min(nSize - i, (unsigned int)(1 + 4999999 / sizeof(T)));
+        v.resize(i + blk);
+        is.read((char*)&v[i], blk * sizeof(T));
+        i += blk;
+    }
+}
+
+template<typename Stream, typename T, typename A, typename V>
+void Unserialize_impl(Stream& is, std::deque<T, A>& v, int nType, int nVersion, const V&)
+{
+    v.clear();
+    unsigned int nSize = ReadCompactSize(is);
+    unsigned int i = 0;
+    unsigned int nMid = 0;
+    while (nMid < nSize)
+    {
+        nMid += 5000000 / sizeof(T);
+        if (nMid > nSize)
+            nMid = nSize;
+        v.resize(nMid);
+        for (; i < nMid; i++)
+            Unserialize(is, v[i], nType, nVersion);
+    }
+}
+
+template<typename Stream, typename T, typename A>
+inline void Unserialize(Stream& is, std::deque<T, A>& v, int nType, int nVersion)
+{
+    Unserialize_impl(is, v, nType, nVersion, T());
+}
 
 /**
  * If none of the specialized versions above matched, default to calling member function.
@@ -1047,6 +1138,10 @@ void Unserialize(Stream &os, std::shared_ptr <T> &item, int nType, int nVersion)
         item.reset();
     }
 }
+
+
+
+
 
 /**
  * Support for ADD_SERIALIZE_METHODS and READWRITE macro

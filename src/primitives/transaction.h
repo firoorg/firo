@@ -129,6 +129,7 @@ public:
     }
 
     std::string ToString() const;
+    bool IsZerocoinSpend() const;
 };
 
 /** An output of a transaction.  It contains the public key that the next input
@@ -219,7 +220,8 @@ public:
     friend bool operator==(const CTxOut& a, const CTxOut& b)
     {
         return (a.nValue       == b.nValue &&
-                a.scriptPubKey == b.scriptPubKey);
+                a.scriptPubKey == b.scriptPubKey);// &&
+                //a.nRounds      == b.nRounds);
     }
 
     friend bool operator!=(const CTxOut& a, const CTxOut& b)
