@@ -387,3 +387,161 @@ int CBlockTreeDB::GetBlockIndexVersion()
 	}
 	return -1;
 }
+
+/******************************************************************************/
+
+CDbIndexHelper::CDbIndexHelper(bool addressIndex_, bool spentIndex_)
+{
+    if (addressIndex_) {
+        addressIndex.reset(AddressIndex());
+        addressUnspentIndex.reset(AddressUnspentIndex());
+    }
+
+    if (spentIndex_)
+        spentIndex.reset(SpentIndex());
+}
+
+namespace {
+
+using AddressIndexPtr = boost::optional<CDbIndexHelper::AddressIndex>;
+using AddressUnspentIndexPtr = boost::optional<CDbIndexHelper::AddressUnspentIndex>;
+using SpentIndexPtr = boost::optional<CDbIndexHelper::SpentIndex>;
+
+void handleInput(CTxIn const & input, size_t inputNo, uint256 const & txHash, int height, int txNumber, CCoinsViewCache const & view,
+        AddressIndexPtr & addressIndex, AddressUnspentIndexPtr & addressUnspentIndex, SpentIndexPtr & spentIndex)
+{
+    const CCoins* coins = view.AccessCoins(input.prevout.hash);
+    const CTxOut &prevout = coins->vout[input.prevout.n];
+    AddressType addressType = AddressType::unknown;
+    uint160 hashBytes;
+
+    if (coins->IsCoinBase()) {
+        addressType = AddressType::payToPubKeyHash;
+        std::vector<unsigned char> payKeyBuf;
+        opcodetype opcode;
+        CScript::const_iterator iter = prevout.scriptPubKey.begin();
+        prevout.scriptPubKey.GetOp(iter, opcode, payKeyBuf);
+        CPubKey pubKey(payKeyBuf.begin(), payKeyBuf.end());
+        hashBytes = pubKey.GetID();
+    } else if (prevout.scriptPubKey.IsPayToScriptHash()) {
+        addressType = AddressType::payToScryptHash;
+        hashBytes = uint160(vector <unsigned char>(prevout.scriptPubKey.begin()+2, prevout.scriptPubKey.begin()+22));
+    } else if (prevout.scriptPubKey.IsPayToPublicKeyHash()){
+        addressType = AddressType::payToPubKeyHash;
+        hashBytes = uint160(vector <unsigned char>(prevout.scriptPubKey.begin()+3, prevout.scriptPubKey.begin()+23));
+    }
+
+    if (addressType == AddressType::unknown)
+        return;
+
+    if (addressIndex) {
+        addressIndex->push_back(make_pair(CAddressIndexKey(addressType, hashBytes, height, txNumber, txHash, inputNo, true), prevout.nValue * -1));
+        addressUnspentIndex->push_back(make_pair(CAddressUnspentKey(addressType, hashBytes, input.prevout.hash, input.prevout.n), CAddressUnspentValue()));
+    }
+
+    if (spentIndex)
+        spentIndex->push_back(make_pair(CSpentIndexKey(input.prevout.hash, input.prevout.n), CSpentIndexValue(txHash, inputNo, height, prevout.nValue, addressType, hashBytes)));
+}
+
+template <class Iterator>
+void handleZerocoinSpend(Iterator const begin, Iterator const end, uint256 const & txHash, int height, int txNumber, CCoinsViewCache const & view,
+        AddressIndexPtr & addressIndex)
+{
+    CAmount spendAmount = 0;
+    for(Iterator iter = begin; iter != end; ++iter)
+        spendAmount += iter->nValue;
+    if(addressIndex)
+    addressIndex->push_back(make_pair(CAddressIndexKey(AddressType::zerocoinSpend, uint160(), height, txNumber, txHash, 0, true), -spendAmount));
+}
+
+void handleOutput(const CTxOut &out, size_t outNo, uint256 const & txHash, int height, int txNumber, CCoinsViewCache const & view, bool coinbase,
+        AddressIndexPtr & addressIndex, AddressUnspentIndexPtr & addressUnspentIndex, SpentIndexPtr & spentIndex)
+{
+    AddressType addressType = AddressType::unknown;
+    uint160 hashBytes;
+
+    if (coinbase && outNo == 0){
+        addressType = AddressType::payToPubKeyHash;
+        std::vector<unsigned char> pubKeyBuf;
+        opcodetype opcode;
+
+        CScript::const_iterator iter = out.scriptPubKey.begin();
+        out.scriptPubKey.GetOp(iter, opcode, pubKeyBuf);
+        CPubKey pubKey(pubKeyBuf.begin(), pubKeyBuf.end());
+        hashBytes = pubKey.GetID();
+    } else if (out.scriptPubKey.IsPayToScriptHash()){
+        addressType = AddressType::payToScryptHash;
+        hashBytes = uint160(std::vector<unsigned char>(out.scriptPubKey.begin()+2, out.scriptPubKey.begin()+22));
+    } else if (out.scriptPubKey.IsPayToPublicKeyHash()) {
+        addressType = AddressType::payToPubKeyHash;
+        hashBytes = uint160(std::vector<unsigned char>(out.scriptPubKey.begin()+3, out.scriptPubKey.begin()+23));
+    }
+
+    if(out.scriptPubKey.IsZerocoinMint() && addressIndex)
+        addressIndex->push_back(make_pair(CAddressIndexKey(AddressType::zerocoinMint, uint160(), height, txNumber, txHash, outNo, false), out.nValue));
+
+    if (addressType == AddressType::unknown)
+        return;
+
+    if(addressIndex){
+        addressIndex->push_back(make_pair(CAddressIndexKey(addressType, hashBytes, height, txNumber, txHash, outNo, false), out.nValue));
+        addressUnspentIndex->push_back(make_pair(CAddressUnspentKey(addressType, hashBytes, txHash, outNo), CAddressUnspentValue(out.nValue, out.scriptPubKey, height)));
+    }
+}
+}
+
+
+void CDbIndexHelper::ConnectTransaction(CTransaction const & tx, int height, int txNumber, CCoinsViewCache const & view)
+{
+    size_t no = 0;
+    if(!tx.IsCoinBase() && !tx.IsZerocoinSpend())
+        for (std::vector<CTxIn>::const_iterator iter = tx.vin.begin(); iter != tx.vin.end(); ++iter) {
+            CTxIn const & input = *iter;
+            handleInput(input, no++, tx.GetHash(), height, txNumber, view, addressIndex, addressUnspentIndex, spentIndex);
+        }
+
+    if(tx.IsZerocoinSpend())
+        handleZerocoinSpend(tx.vout.begin(), tx.vout.end(), tx.GetHash(), height, txNumber, view, addressIndex);
+
+    no = 0;
+    bool const txIsCoinBase = tx.IsCoinBase();
+    for (std::vector<CTxOut>::const_iterator iter = tx.vout.begin(); iter != tx.vout.end(); ++iter) {
+        CTxOut const & out = *iter;
+        handleOutput(out, no++, tx.GetHash(), height, txNumber, view, txIsCoinBase, addressIndex, addressUnspentIndex, spentIndex);
+    }
+}
+
+
+void CDbIndexHelper::DisconnectTransaction(CTransaction const & tx, int height, int txNumber, CCoinsViewCache const & view)
+{
+    ConnectTransaction(tx, height, txNumber, view);
+
+    if(addressIndex)
+    {
+        std::reverse(addressIndex->begin(), addressIndex->end());
+        std::reverse(addressUnspentIndex->begin(), addressUnspentIndex->end());
+        for(AddressUnspentIndex::iterator iter = addressUnspentIndex->begin(); iter != addressUnspentIndex->end(); ++iter)
+            iter->second = CAddressUnspentValue();
+    }
+
+    if(spentIndex)
+        std::reverse(spentIndex->begin(), spentIndex->end());
+}
+
+
+CDbIndexHelper::AddressIndex const & CDbIndexHelper::getAddressIndex() const
+{
+    return *addressIndex;
+}
+
+
+CDbIndexHelper::AddressUnspentIndex const & CDbIndexHelper::getAddressUnspentIndex() const
+{
+    return *addressUnspentIndex;
+}
+
+
+CDbIndexHelper::SpentIndex const & CDbIndexHelper::getSpentIndex() const
+{
+    return *spentIndex;
+}

@@ -134,4 +134,35 @@ public:
 	int GetBlockIndexVersion();
 };
 
+
+/**
+ * This class was introduced as the logic for address and tx indices became too intricate.
+ *
+ * @param addressIndex, spentIndex - true if to update the corresponding index
+ *
+ * It is undefined behavior if the helper was created with addressIndex == false
+ * and getAddressIndex was called later (same for spentIndex and unspentIndex).
+ */
+class CDbIndexHelper : boost::noncopyable
+{
+public:
+    CDbIndexHelper(bool addressIndex, bool spentIndex);
+
+    void ConnectTransaction(CTransaction const & tx, int height, int txNumber, CCoinsViewCache const & view);
+    void DisconnectTransaction(CTransaction const & tx, int height, int txNumber, CCoinsViewCache const & view);
+
+    using AddressIndex = std::vector<std::pair<CAddressIndexKey, CAmount> >;
+    using AddressUnspentIndex = std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> >;
+    using SpentIndex = std::vector<std::pair<CSpentIndexKey, CSpentIndexValue> >;
+
+    AddressIndex const & getAddressIndex() const;
+    AddressUnspentIndex const & getAddressUnspentIndex() const;
+    SpentIndex const & getSpentIndex() const;
+
+private:
+    boost::optional<AddressIndex> addressIndex;
+    boost::optional<AddressUnspentIndex> addressUnspentIndex;
+    boost::optional<SpentIndex> spentIndex;
+};
+
 #endif // BITCOIN_TXDB_H
