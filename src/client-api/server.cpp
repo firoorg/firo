@@ -52,7 +52,6 @@ void SetAPIWarmupStatus(const std::string& newStatus)
 void SetAPIWarmupFinished()
 {
     LOCK(cs_apiWarmup);
-    assert(fAPIInWarmup);
     fAPIInWarmup = false;
 }
 

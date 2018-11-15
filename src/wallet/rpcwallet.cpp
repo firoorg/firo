@@ -149,7 +149,7 @@ UniValue getnewaddress(const UniValue& params, bool fHelp)
 }
 
 
-CBitcoinAddress GetAccountAddress(string strAccount, bool bForceNew=false)
+CBitcoinAddress GetAccountAddress(string strAccount, bool bForceNew)
 {
     CPubKey pubKey;
     if (!pwalletMain->GetAccountPubkey(pubKey, strAccount, bForceNew)) {

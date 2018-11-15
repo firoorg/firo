@@ -224,7 +224,7 @@ UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool f
 
     string txidStr = wtx.GetHash().GetHex();
 
-    // write back tx metadataA object
+    // write back tx metadata object
     txMetadataData.push_back(Pair(txidStr, txMetadataEntry));
     if(!txMetadataUni.replace("data", txMetadataData)){
         throw runtime_error("Could not replace key/value pair.");
