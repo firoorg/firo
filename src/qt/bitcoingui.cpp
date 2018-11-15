@@ -99,7 +99,7 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *platformStyle, const NetworkStyle *n
     progressDialog(0),
     appMenuBar(0),
     overviewAction(0),
-    balancesAction(0),
+    exoAssetsAction(0),
     historyAction(0),
     quitAction(0),
     toolboxAction(0),
@@ -300,15 +300,6 @@ void BitcoinGUI::createActions()
 	overviewAction->setShortcut(QKeySequence(Qt::ALT + key++));
 	tabGroup->addAction(overviewAction);
 
-    if (exodusEnabled) {
-        balancesAction = new QAction(platformStyle->SingleColorIcon(":/icons/balances"), tr("&Balances"), this);
-        balancesAction->setStatusTip(tr("Show Exodus balances"));
-        balancesAction->setToolTip(balancesAction->statusTip());
-        balancesAction->setCheckable(true);
-        balancesAction->setShortcut(QKeySequence(Qt::ALT + key++));
-        tabGroup->addAction(balancesAction);
-    }
-
 	sendCoinsAction = new QAction(platformStyle->SingleColorIcon(":/icons/send"), tr("&Send"), this);
 	sendCoinsAction->setStatusTip(tr("Send Exodus and Zcoin transactions"));
 	sendCoinsAction->setToolTip(sendCoinsAction->statusTip());
@@ -365,6 +356,13 @@ void BitcoinGUI::createActions()
 #endif
 
     if (exodusEnabled) {
+        exoAssetsAction = new QAction(platformStyle->SingleColorIcon(":/icons/balances"), tr("E&xoAssets"), this);
+        exoAssetsAction->setStatusTip(tr("Show Exodus balances"));
+        exoAssetsAction->setToolTip(exoAssetsAction->statusTip());
+        exoAssetsAction->setCheckable(true);
+        exoAssetsAction->setShortcut(QKeySequence(Qt::ALT + key++));
+        tabGroup->addAction(exoAssetsAction);
+
         toolboxAction = new QAction(platformStyle->SingleColorIcon(":/icons/tools"), tr("&Toolbox"), this);
         toolboxAction->setStatusTip(tr("Tools to obtain varions Exodus information and transaction information"));
         toolboxAction->setToolTip(toolboxAction->statusTip());
@@ -392,8 +390,8 @@ void BitcoinGUI::createActions()
 	connect(zerocoinAction, SIGNAL(triggered()), this, SLOT(gotoZerocoinPage()));
 
     if (exodusEnabled) {
-        connect(balancesAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
-        connect(balancesAction, SIGNAL(triggered()), this, SLOT(gotoBalancesPage()));
+        connect(exoAssetsAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
+        connect(exoAssetsAction, SIGNAL(triggered()), this, SLOT(gotoExoAssetsPage()));
         connect(toolboxAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
         connect(toolboxAction, SIGNAL(triggered()), this, SLOT(gotoToolboxPage()));
     }
@@ -524,18 +522,21 @@ void BitcoinGUI::createToolBars()
     if(walletFrame)
     {
         QToolBar *toolbar = addToolBar(tr("Tabs toolbar"));
-        bool exodusEnabled = isExodusEnabled();
 
         toolbar->setMovable(false);
         toolbar->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
         toolbar->addAction(overviewAction);
-        if (exodusEnabled) toolbar->addAction(balancesAction);
         toolbar->addAction(sendCoinsAction);
         toolbar->addAction(receiveCoinsAction);
         toolbar->addAction(historyAction);
         toolbar->addAction(zerocoinAction);
         toolbar->addAction(znodeAction);
-        if (exodusEnabled) toolbar->addAction(toolboxAction);
+
+        if (isExodusEnabled()) {
+            toolbar->addAction(exoAssetsAction);
+            toolbar->addAction(toolboxAction);
+        }
+
         overviewAction->setChecked(true);
     }
 }
@@ -650,7 +651,7 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
     openAction->setEnabled(enabled);
 
     if (isExodusEnabled()) {
-        balancesAction->setEnabled(enabled);
+        exoAssetsAction->setEnabled(enabled);
         toolboxAction->setEnabled(enabled);
     }
 }
@@ -769,10 +770,10 @@ void BitcoinGUI::gotoOverviewPage()
     if (walletFrame) walletFrame->gotoOverviewPage();
 }
 
-void BitcoinGUI::gotoBalancesPage()
+void BitcoinGUI::gotoExoAssetsPage()
 {
-    balancesAction->setChecked(true);
-    if (walletFrame) walletFrame->gotoBalancesPage();
+    exoAssetsAction->setChecked(true);
+    if (walletFrame) walletFrame->gotoExoAssetsPage();
 }
 
 void BitcoinGUI::gotoHistoryPage()

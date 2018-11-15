@@ -1,7 +1,9 @@
-// Copyright (c) 2011-2013 The Bitcoin developers // Distributed under the MIT/X11 software license, see the accompanying // file COPYING or http://www.opensource.org/licenses/mit-license.php.
+// Copyright (c) 2011-2013 The Bitcoin developers
+// Distributed under the MIT/X11 software license, see the accompanying
+// file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "balancesdialog.h"
-#include "ui_balancesdialog.h"
+#include "exoassetsdialog.h"
+#include "forms/ui_exoassetsdialog.h"
 
 #include "clientmodel.h"
 #include "walletmodel.h"
@@ -38,8 +40,8 @@ using std::ostringstream;
 using std::string;
 using namespace exodus;
 
-BalancesDialog::BalancesDialog(QWidget *parent) :
-    QDialog(parent), ui(new Ui::balancesDialog), clientModel(0), walletModel(0)
+ExoAssetsDialog::ExoAssetsDialog(QWidget *parent) :
+    QDialog(parent), ui(new Ui::ExoAssetsDialog()), clientModel(0), walletModel(0)
 {
     // setup
     ui->setupUi(this);
@@ -111,12 +113,12 @@ BalancesDialog::BalancesDialog(QWidget *parent) :
     connect(balancesCopyAvailableAmountAction, SIGNAL(triggered()), this, SLOT(balancesCopyCol3()));
 }
 
-BalancesDialog::~BalancesDialog()
+ExoAssetsDialog::~ExoAssetsDialog()
 {
     delete ui;
 }
 
-void BalancesDialog::reinitOmni()
+void ExoAssetsDialog::reinitOmni()
 {
     ui->propSelectorWidget->clear();
     ui->balancesTable->setRowCount(0);
@@ -124,7 +126,7 @@ void BalancesDialog::reinitOmni()
     PopulateBalances(2147483646); // 2147483646 = summary (last possible ID for test eco props)
 }
 
-void BalancesDialog::setClientModel(ClientModel *model)
+void ExoAssetsDialog::setClientModel(ClientModel *model)
 {
     this->clientModel = model;
     if (model != NULL) {
@@ -133,13 +135,13 @@ void BalancesDialog::setClientModel(ClientModel *model)
     }
 }
 
-void BalancesDialog::setWalletModel(WalletModel *model)
+void ExoAssetsDialog::setWalletModel(WalletModel *model)
 {
     this->walletModel = model;
     if (model != NULL) { } // do nothing, signals from walletModel no longer needed
 }
 
-void BalancesDialog::UpdatePropSelector()
+void ExoAssetsDialog::UpdatePropSelector()
 {
     LOCK(cs_tally);
 
@@ -163,7 +165,7 @@ void BalancesDialog::UpdatePropSelector()
     if (propIdx != -1) { ui->propSelectorWidget->setCurrentIndex(propIdx); }
 }
 
-void BalancesDialog::AddRow(const std::string& label, const std::string& address, const std::string& reserved, const std::string& available)
+void ExoAssetsDialog::AddRow(const std::string& label, const std::string& address, const std::string& reserved, const std::string& available)
 {
     int workingRow = ui->balancesTable->rowCount();
     ui->balancesTable->insertRow(workingRow);
@@ -181,7 +183,7 @@ void BalancesDialog::AddRow(const std::string& label, const std::string& address
     ui->balancesTable->setItem(workingRow, 3, availableCell);
 }
 
-void BalancesDialog::PopulateBalances(unsigned int propertyId)
+void ExoAssetsDialog::PopulateBalances(unsigned int propertyId)
 {
     ui->balancesTable->setRowCount(0); // fresh slate (note this will automatically cleanup all existing QWidgetItems in the table)
 
@@ -253,14 +255,14 @@ void BalancesDialog::PopulateBalances(unsigned int propertyId)
     }
 }
 
-void BalancesDialog::propSelectorChanged()
+void ExoAssetsDialog::propSelectorChanged()
 {
     QString spId = ui->propSelectorWidget->itemData(ui->propSelectorWidget->currentIndex()).toString();
     unsigned int propertyId = spId.toUInt();
     PopulateBalances(propertyId);
 }
 
-void BalancesDialog::contextualMenu(const QPoint &point)
+void ExoAssetsDialog::contextualMenu(const QPoint &point)
 {
     QModelIndex index = ui->balancesTable->indexAt(point);
     if(index.isValid())
@@ -275,27 +277,27 @@ void BalancesDialog::contextualMenu(const QPoint &point)
     }
 }
 
-void BalancesDialog::balancesCopyCol0()
+void ExoAssetsDialog::balancesCopyCol0()
 {
     GUIUtil::setClipboard(ui->balancesTable->item(ui->balancesTable->currentRow(),0)->text());
 }
 
-void BalancesDialog::balancesCopyCol1()
+void ExoAssetsDialog::balancesCopyCol1()
 {
     GUIUtil::setClipboard(ui->balancesTable->item(ui->balancesTable->currentRow(),1)->text());
 }
 
-void BalancesDialog::balancesCopyCol2()
+void ExoAssetsDialog::balancesCopyCol2()
 {
     GUIUtil::setClipboard(ui->balancesTable->item(ui->balancesTable->currentRow(),2)->text());
 }
 
-void BalancesDialog::balancesCopyCol3()
+void ExoAssetsDialog::balancesCopyCol3()
 {
     GUIUtil::setClipboard(ui->balancesTable->item(ui->balancesTable->currentRow(),3)->text());
 }
 
-void BalancesDialog::balancesUpdated()
+void ExoAssetsDialog::balancesUpdated()
 {
     UpdatePropSelector();
     propSelectorChanged(); // refresh the table with the currently selected property ID
@@ -303,9 +305,8 @@ void BalancesDialog::balancesUpdated()
 
 // We override the virtual resizeEvent of the QWidget to adjust tables column
 // sizes as the tables width is proportional to the dialogs width.
-void BalancesDialog::resizeEvent(QResizeEvent* event)
+void ExoAssetsDialog::resizeEvent(QResizeEvent* event)
 {
     QWidget::resizeEvent(event);
     borrowedColumnResizingFixer->stretchColumnWidth(1);
 }
-

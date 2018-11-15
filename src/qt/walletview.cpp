@@ -7,7 +7,6 @@
 #include "addressbookpage.h"
 #include "zerocoinpage.h"
 #include "askpassphrasedialog.h"
-#include "balancesdialog.h"
 #include "bitcoingui.h"
 #include "clientmodel.h"
 #include "guiutil.h"
@@ -59,7 +58,7 @@ WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
 {
     overviewPage = new OverviewPage(platformStyle);
     transactionsPage = new QWidget(this);
-    balancesPage = new BalancesDialog();
+    exoAssetsPage = new ExoAssetsDialog();
     receiveCoinsPage = new ReceiveCoinsDialog(platformStyle);
     usedSendingAddressesPage = new AddressBookPage(platformStyle, AddressBookPage::ForEditing, AddressBookPage::SendingTab, this);
     usedReceivingAddressesPage = new AddressBookPage(platformStyle, AddressBookPage::ForEditing, AddressBookPage::ReceivingTab, this);
@@ -73,7 +72,7 @@ WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
     setupToolboxPage();
 
     addWidget(overviewPage);
-    addWidget(balancesPage);
+    addWidget(exoAssetsPage);
     addWidget(transactionsPage);
     addWidget(receiveCoinsPage);
     addWidget(sendCoinsPage);
@@ -215,7 +214,7 @@ void WalletView::setClientModel(ClientModel *clientModel)
     overviewPage->setClientModel(clientModel);
     sendZcoinView->setClientModel(clientModel);
     znodeListPage->setClientModel(clientModel);
-    balancesPage->setClientModel(clientModel);
+    exoAssetsPage->setClientModel(clientModel);
 
     if (exodusTransactionsView) {
         exodusTransactionsView->setClientModel(clientModel);
@@ -239,7 +238,7 @@ void WalletView::setWalletModel(WalletModel *walletModel)
     usedSendingAddressesPage->setModel(walletModel->getAddressTableModel());
     znodeListPage->setWalletModel(walletModel);
     sendZcoinView->setModel(walletModel);
-    balancesPage->setWalletModel(walletModel);
+    exoAssetsPage->setWalletModel(walletModel);
 
     if (exodusTransactionsView) {
         exodusTransactionsView->setWalletModel(walletModel);
@@ -295,9 +294,9 @@ void WalletView::gotoOverviewPage()
     setCurrentWidget(overviewPage);
 }
 
-void WalletView::gotoBalancesPage()
+void WalletView::gotoExoAssetsPage()
 {
-    setCurrentWidget(balancesPage);
+    setCurrentWidget(exoAssetsPage);
 }
 
 void WalletView::gotoHistoryPage()

@@ -6,11 +6,11 @@
 #define BITCOIN_QT_WALLETVIEW_H
 
 #include "amount.h"
+#include "exoassetsdialog.h"
 #include "znodelist.h"
 
 #include <QStackedWidget>
 
-class BalancesDialog;
 class BitcoinGUI;
 class ClientModel;
 class OverviewPage;
@@ -76,7 +76,7 @@ private:
     WalletModel *walletModel;
 
     OverviewPage *overviewPage;
-    BalancesDialog *balancesPage;
+    ExoAssetsDialog *exoAssetsPage;
     QWidget *transactionsPage;
     QWidget *smartPropertyPage;
     QWidget *toolboxPage;
@@ -104,8 +104,8 @@ private:
 public Q_SLOTS:
     /** Switch to overview (home) page */
     void gotoOverviewPage();
-    /** Switch to balances page */
-    void gotoBalancesPage();
+    /** Switch to ExoAssets page */
+    void gotoExoAssetsPage();
     /** Switch to history (transactions) page */
     void gotoHistoryPage();
     /** Switch specifically to exodus tx history tab */

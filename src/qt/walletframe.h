@@ -53,8 +53,8 @@ private:
 public Q_SLOTS:
     /** Switch to overview (home) page */
     void gotoOverviewPage();
-    /** Switch to balances page */
-    void gotoBalancesPage();
+    /** Switch to ExoAssets page */
+    void gotoExoAssetsPage();
     /** Switch to history (transactions) page */
     void gotoHistoryPage();
     /** Switch directory to Exodus tx history tab */
