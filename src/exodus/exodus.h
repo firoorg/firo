@@ -299,6 +299,8 @@ int64_t getMPbalance(const std::string& address, uint32_t propertyId, TallyType 
 int64_t getUserAvailableMPbalance(const std::string& address, uint32_t propertyId);
 int64_t getUserFrozenMPbalance(const std::string& address, uint32_t propertyId);
 
+bool isExodusEnabled();
+
 /** Global handler to initialize Exodus Core. */
 int exodus_init();
 

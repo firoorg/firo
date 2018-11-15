@@ -38,6 +38,8 @@
 #include "znodelist.h"
 #include "exodus_qtutils.h"
 
+#include <exodus/exodus.h>
+
 #include <iostream>
 
 #include <QAction>
@@ -97,8 +99,10 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *platformStyle, const NetworkStyle *n
     progressDialog(0),
     appMenuBar(0),
     overviewAction(0),
+    balancesAction(0),
     historyAction(0),
     quitAction(0),
+    toolboxAction(0),
     sendCoinsAction(0),
     sendCoinsMenuAction(0),
     usedSendingAddressesAction(0),
@@ -285,8 +289,9 @@ BitcoinGUI::~BitcoinGUI()
 
 void BitcoinGUI::createActions()
 {
-        size_t key = Qt::Key_1;
+    size_t key = Qt::Key_1;
 	QActionGroup *tabGroup = new QActionGroup(this);
+    bool exodusEnabled = isExodusEnabled();
 
 	overviewAction = new QAction(platformStyle->SingleColorIcon(":/icons/overview"), tr("&Overview"), this);
 	overviewAction->setStatusTip(tr("Show general overview of wallet"));
@@ -295,13 +300,14 @@ void BitcoinGUI::createActions()
 	overviewAction->setShortcut(QKeySequence(Qt::ALT + key++));
 	tabGroup->addAction(overviewAction);
 
-    balancesAction = new QAction(platformStyle->SingleColorIcon(":/icons/balances"), tr("&Balances"), this);
-    balancesAction->setStatusTip(tr("Show Exodus balances"));
-    balancesAction->setToolTip(balancesAction->statusTip());
-    balancesAction->setCheckable(true);
-    if(exodus::uiNeeded())
+    if (exodusEnabled) {
+        balancesAction = new QAction(platformStyle->SingleColorIcon(":/icons/balances"), tr("&Balances"), this);
+        balancesAction->setStatusTip(tr("Show Exodus balances"));
+        balancesAction->setToolTip(balancesAction->statusTip());
+        balancesAction->setCheckable(true);
         balancesAction->setShortcut(QKeySequence(Qt::ALT + key++));
-    tabGroup->addAction(balancesAction);
+        tabGroup->addAction(balancesAction);
+    }
 
 	sendCoinsAction = new QAction(platformStyle->SingleColorIcon(":/icons/send"), tr("&Send"), this);
 	sendCoinsAction->setStatusTip(tr("Send Exodus and Zcoin transactions"));
@@ -358,21 +364,20 @@ void BitcoinGUI::createActions()
     tabGroup->addAction(znodeAction);
 #endif
 
-    toolboxAction = new QAction(platformStyle->SingleColorIcon(":/icons/tools"), tr("&Toolbox"), this);
-    toolboxAction->setStatusTip(tr("Tools to obtain varions Exodus information and transaction information"));
-    toolboxAction->setToolTip(toolboxAction->statusTip());
-    toolboxAction->setCheckable(true);
-    if(exodus::uiNeeded())
+    if (exodusEnabled) {
+        toolboxAction = new QAction(platformStyle->SingleColorIcon(":/icons/tools"), tr("&Toolbox"), this);
+        toolboxAction->setStatusTip(tr("Tools to obtain varions Exodus information and transaction information"));
+        toolboxAction->setToolTip(toolboxAction->statusTip());
+        toolboxAction->setCheckable(true);
         toolboxAction->setShortcut(QKeySequence(Qt::ALT + key++));
-    tabGroup->addAction(toolboxAction);
+        tabGroup->addAction(toolboxAction);
+    }
 
 #ifdef ENABLE_WALLET
     connect(znodeAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
     connect(znodeAction, SIGNAL(triggered()), this, SLOT(gotoZnodePage()));
 	connect(overviewAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
 	connect(overviewAction, SIGNAL(triggered()), this, SLOT(gotoOverviewPage()));
-    connect(balancesAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
-    connect(balancesAction, SIGNAL(triggered()), this, SLOT(gotoBalancesPage()));
 	connect(sendCoinsAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
 	connect(sendCoinsAction, SIGNAL(triggered()), this, SLOT(gotoSendCoinsPage()));
 	connect(sendCoinsMenuAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
@@ -385,8 +390,13 @@ void BitcoinGUI::createActions()
 	connect(historyAction, SIGNAL(triggered()), this, SLOT(gotoHistoryPage()));
 	connect(zerocoinAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
 	connect(zerocoinAction, SIGNAL(triggered()), this, SLOT(gotoZerocoinPage()));
-    connect(toolboxAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
-    connect(toolboxAction, SIGNAL(triggered()), this, SLOT(gotoToolboxPage()));
+
+    if (exodusEnabled) {
+        connect(balancesAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
+        connect(balancesAction, SIGNAL(triggered()), this, SLOT(gotoBalancesPage()));
+        connect(toolboxAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
+        connect(toolboxAction, SIGNAL(triggered()), this, SLOT(gotoToolboxPage()));
+    }
 #endif // ENABLE_WALLET
 
     quitAction = new QAction(platformStyle->TextColorIcon(":/icons/quit"), tr("E&xit"), this);
@@ -514,18 +524,18 @@ void BitcoinGUI::createToolBars()
     if(walletFrame)
     {
         QToolBar *toolbar = addToolBar(tr("Tabs toolbar"));
+        bool exodusEnabled = isExodusEnabled();
+
         toolbar->setMovable(false);
         toolbar->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
         toolbar->addAction(overviewAction);
-        if(exodus::uiNeeded())
-            toolbar->addAction(balancesAction);
+        if (exodusEnabled) toolbar->addAction(balancesAction);
         toolbar->addAction(sendCoinsAction);
         toolbar->addAction(receiveCoinsAction);
         toolbar->addAction(historyAction);
         toolbar->addAction(zerocoinAction);
         toolbar->addAction(znodeAction);
-        if(exodus::uiNeeded())
-            toolbar->addAction(toolboxAction);
+        if (exodusEnabled) toolbar->addAction(toolboxAction);
         overviewAction->setChecked(true);
     }
 }
@@ -565,13 +575,13 @@ void BitcoinGUI::setClientModel(ClientModel *clientModel)
         }
 #endif // ENABLE_WALLET
         unitDisplayControl->setOptionsModel(clientModel->getOptionsModel());
-        
+
         OptionsModel* optionsModel = clientModel->getOptionsModel();
         if(optionsModel)
         {
             // be aware of the tray icon disable state change reported by the OptionsModel object.
             connect(optionsModel,SIGNAL(hideTrayIconChanged(bool)),this,SLOT(setTrayIconVisible(bool)));
-        
+
             // initialize the disable state of the tray icon with the current value in the model.
             setTrayIconVisible(optionsModel->getHideTrayIcon());
         }
@@ -623,13 +633,11 @@ void BitcoinGUI::removeAllWallets()
 void BitcoinGUI::setWalletActionsEnabled(bool enabled)
 {
     overviewAction->setEnabled(enabled);
-    balancesAction->setEnabled(enabled);
     sendCoinsAction->setEnabled(enabled);
     sendCoinsMenuAction->setEnabled(enabled);
     receiveCoinsAction->setEnabled(enabled);
     receiveCoinsMenuAction->setEnabled(enabled);
     historyAction->setEnabled(enabled);
-    toolboxAction->setEnabled(enabled);
     zerocoinAction->setEnabled(enabled);
     znodeAction->setEnabled(enabled);
     encryptWalletAction->setEnabled(enabled);
@@ -640,6 +648,11 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
     usedSendingAddressesAction->setEnabled(enabled);
     usedReceivingAddressesAction->setEnabled(enabled);
     openAction->setEnabled(enabled);
+
+    if (isExodusEnabled()) {
+        balancesAction->setEnabled(enabled);
+        toolboxAction->setEnabled(enabled);
+    }
 }
 
 void BitcoinGUI::createTrayIcon(const NetworkStyle *networkStyle)

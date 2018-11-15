@@ -67,6 +67,11 @@ public:
     void showOutOfSyncWarning(bool fShow);
 
 private:
+    void setupTransactionPage();
+    void setupSendCoinPage();
+    void setupToolboxPage();
+
+private:
     ClientModel *clientModel;
     WalletModel *walletModel;
 
@@ -76,29 +81,25 @@ private:
     QWidget *smartPropertyPage;
     QWidget *toolboxPage;
     ReceiveCoinsDialog *receiveCoinsPage;
-    //SendCoinsDialog *sendCoinsPage;
     AddressBookPage *usedSendingAddressesPage;
     AddressBookPage *usedReceivingAddressesPage;
     QWidget *sendCoinsPage;
-	SendCoinsDialog *sendCoinsTab;
-	SendMPDialog *sendMPTab;
-	LookupSPDialog *spLookupTab;
-	LookupTXDialog *txLookupTab;
-	LookupAddressDialog *addressLookupTab;
-	TradeHistoryDialog *tradeHistoryTab;
-	MetaDExDialog *metaDExTab;
-	MetaDExCancelDialog *cancelTab;
+    SendCoinsDialog *sendZcoinView;
+    SendMPDialog *sendExodusView;
+    TradeHistoryDialog *tradeHistoryTab;
+    MetaDExDialog *metaDExTab;
+    MetaDExCancelDialog *cancelTab;
     ZerocoinPage *zerocoinPage;
-    TransactionView *transactionView;
-    TXHistoryDialog *mpTXTab;
-    QWidget *bitcoinTXTab;
+    TransactionView *zcoinTransactionList;
+    TXHistoryDialog *exodusTransactionsView;
+    QWidget *zcoinTransactionsView;
     ZnodeList *znodeListPage;
 
     QProgressDialog *progressDialog;
     const PlatformStyle *platformStyle;
 
-    QTabWidget *txTabHolder;
-    QTabWidget *sendTabHolder;
+    QTabWidget *transactionTabs;
+    QTabWidget *sendCoinsTabs;
 
 public Q_SLOTS:
     /** Switch to overview (home) page */

@@ -149,6 +149,11 @@ static bool writePersistence(int block_now)
   return true;
 }
 
+bool isExodusEnabled()
+{
+    return GetBoolArg("-exodus", false);
+}
+
 std::string exodus::strMPProperty(uint32_t propertyId)
 {
     std::string str = "*unknown*";
