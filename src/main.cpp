@@ -2493,32 +2493,34 @@ bool DisconnectBlock(const CBlock &block, CValidationState &state, const CBlockI
                 if (!ApplyTxInUndo(undo, view, out))
                     fClean = false;
             }
+            nFees += view.GetValueIn(tx) - tx.GetValueOut();
         }
 
         dbIndexHelper.DisconnectTransactionInputs(tx, pindex->nHeight, i, view);
-
-        if (!tx.IsCoinBase() && !tx.IsZerocoinSpend())
-            nFees += view.GetValueIn(tx) - tx.GetValueOut();
     }
 
     // move best block pointer to prevout block
     view.SetBestBlock(pindex->pprev->GetBlockHash());
     block.InvalidateCachedPoWHash(pindex->nHeight);
 
-    if (fAddressIndex) {
-        if (!pblocktree->EraseAddressIndex(dbIndexHelper.getAddressIndex())) {
-            AbortNode(state, "Failed to delete address index");
-            return error("Failed to delete address index");
+    //The pfClean flag is specified only when called from CVerifyDB::VerifyDB.
+    //When called from there, no real disconnect happens.
+    if(pfClean) {
+        if (fAddressIndex) {
+            if (!pblocktree->EraseAddressIndex(dbIndexHelper.getAddressIndex())) {
+                AbortNode(state, "Failed to delete address index");
+                return error("Failed to delete address index");
+            }
+            if (!pblocktree->UpdateAddressUnspentIndex(dbIndexHelper.getAddressUnspentIndex())) {
+                AbortNode(state, "Failed to write address unspent index");
+                return error("Failed to write address unspent index");
+            }
         }
-        if (!pblocktree->UpdateAddressUnspentIndex(dbIndexHelper.getAddressUnspentIndex())) {
-            AbortNode(state, "Failed to write address unspent index");
-            return error("Failed to write address unspent index");
-        }
-    }
 
-    if (!pblocktree->AddTotalSupply(-(block.vtx[0].GetValueOut() - nFees))) {
-        AbortNode(state, "Failed to write total supply");
-        return error("Failed to write total supply");
+        if (!pblocktree->AddTotalSupply(-(block.vtx[0].GetValueOut() - nFees))) {
+            AbortNode(state, "Failed to write total supply");
+            return error("Failed to write total supply");
+        }
     }
 
     if (pfClean) {
