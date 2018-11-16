@@ -19,6 +19,7 @@
 #include "wallet/wallet.h"
 #include "wallet/walletdb.h"
 #endif
+#include "txdb.h"
 
 #include <stdint.h>
 
@@ -1001,6 +1002,33 @@ UniValue getspentinfo(const UniValue& params, bool fHelp)
     return obj;
 }
 
+UniValue gettotalsupply(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() != 0)
+        throw runtime_error(
+                "gettotalsupply\n"
+                        "\nReturns the total coin amount produced in the coinbase transactions up until the latest block.\n"
+                        "\nArguments: none\n"
+                        "\nResult:\n"
+                        "{\n"
+                        "  \"total\"  (string) The total supply in duffs\n"
+                        "}\n"
+                        "\nExamples:\n"
+                + HelpExampleCli("gettotalsupply", "")
+                + HelpExampleRpc("gettotalsupply", "")
+        );
+
+    CAmount total = 0;
+
+    if(!pblocktree->ReadTotalSupply(total))
+        throw JSONRPCError(RPC_DATABASE_ERROR, "Cannot read the total supply from the database");
+
+    UniValue result(UniValue::VOBJ);
+    result.push_back(Pair("total", total));
+
+    return result;
+}
+
 
 static const CRPCCommand commands[] =
 { //  category              name                      actor (function)         okSafeMode
@@ -1017,6 +1045,7 @@ static const CRPCCommand commands[] =
     { "addressindex",       "getaddressdeltas",       &getaddressdeltas,       false },
     { "addressindex",       "getaddresstxids",        &getaddresstxids,        false },
     { "addressindex",       "getaddressbalance",      &getaddressbalance,      false },
+    { "addressindex",       "gettotalsupply",         &gettotalsupply,         false },
 
     /* Not shown in help */
     { "hidden",             "setmocktime",            &setmocktime,            true  },

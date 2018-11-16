@@ -31,6 +31,7 @@ static const char DB_BEST_BLOCK = 'B';
 static const char DB_FLAG = 'F';
 static const char DB_REINDEX_FLAG = 'R';
 static const char DB_LAST_BLOCK = 'l';
+static const char DB_TOTAL_SUPPLY = 'S';
 
 
 CCoinsViewDB::CCoinsViewDB(size_t nCacheSize, bool fMemory, bool fWipe) : db(GetDataDir() / "chainstate", nCacheSize, fMemory, fWipe, true) 
@@ -386,6 +387,24 @@ int CBlockTreeDB::GetBlockIndexVersion()
 		}
 	}
 	return -1;
+}
+
+bool CBlockTreeDB::AddTotalSupply(CAmount const & supply)
+{
+    CAmount current = 0;
+    Read(DB_TOTAL_SUPPLY, current);
+    current += supply;
+    return Write(DB_TOTAL_SUPPLY, current);
+}
+
+bool CBlockTreeDB::ReadTotalSupply(CAmount & supply)
+{
+    CAmount current = 0;
+    if(Read(DB_TOTAL_SUPPLY, current)) {
+        supply = current;
+        return true;
+    }
+    return false;
 }
 
 /******************************************************************************/
