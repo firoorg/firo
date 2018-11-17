@@ -1,4 +1,4 @@
-// Copyright (c) 2012-2015 The Bitcoin Core developers
+    // Copyright (c) 2012-2015 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -24,6 +24,7 @@
 #include "main.h"
 #include "consensus/validation.h"
 #include "core_io.h"
+#include "znode-sync.h"
 
 using namespace std;
 CScript script;
@@ -108,34 +109,16 @@ struct ClientApiTestingSetup : public TestingSetup {
     CKey coinbaseKey; // private/public key needed to spend coinbase transactions
 };
 
-// UniValue createArgs(int nRequired, const char* address1=NULL, const char* address2=NULL)
-// {
-//     UniValue result(UniValue::VARR);
-//     result.push_back(nRequired);
-//     UniValue addresses(UniValue::VARR);
-//     if (address1) addresses.push_back(address1);
-//     if (address2) addresses.push_back(address2);
-//     result.push_back(addresses);
-//     return result;
-// }
-
-// UniValue CallAPI(string args)
-// {
-//     vector<string> vArgs;
-//     boost::split(vArgs, args, boost::is_any_of(" \t"));
-//     string strMethod = vArgs[0];
-//     vArgs.erase(vArgs.begin());
-//     UniValue params = RPCConvertValues(strMethod, vArgs);
-//     BOOST_CHECK(tableRPC[strMethod]);
-//     rpcfn_type method = tableRPC[strMethod]->actor;
-//     try {
-//         UniValue result = (*method)(params, false);
-//         return result;
-//     }
-//     catch (const UniValue& objError) {
-//         throw runtime_error(find_value(objError, "message").get_str());
-//     }
-// }
+UniValue CallAPI(APIJSONRequest jreq)
+{
+    try {
+        UniValue result = tableAPI.execute(jreq, true);
+        return result;
+    }
+    catch (const UniValue& objError) {
+        throw runtime_error(find_value(objError, "message").get_str());
+    }
+}
 
 
 BOOST_FIXTURE_TEST_SUITE(client_api_tests, ClientApiTestingSetup)
@@ -244,9 +227,226 @@ BOOST_AUTO_TEST_CASE(sendzcoin_test)
     valRequest.push_back(Pair("collection", "sendZcoin"));
     valRequest.push_back(Pair("data", data));
 
-    jreq.parse(valRequest); 
+    jreq.parse(valRequest);
     result = tableAPI.execute(jreq, true);
     BOOST_CHECK(!result["txid"].isNull());
+}
+
+BOOST_AUTO_TEST_CASE(paymentrequest_test)
+{
+    // Verify "Create" initially.
+    UniValue valRequest(UniValue::VOBJ);
+    UniValue data(UniValue::VOBJ);
+    UniValue result(UniValue::VOBJ);
+    UniValue nextResult(UniValue::VOBJ);
+    APIJSONRequest jreq;
+
+    data.push_back(Pair("amount", 40000000));
+    data.push_back(Pair("label", "label"));
+    data.push_back(Pair("message", "message"));
+
+    valRequest.push_back(Pair("type", "create"));
+    valRequest.push_back(Pair("collection", "paymentRequest"));
+    valRequest.push_back(Pair("data", data));
+
+    jreq.parse(valRequest);
+    result = tableAPI.execute(jreq, true);
+
+    BOOST_CHECK(!result["address"].isNull());
+    BOOST_CHECK(!result["createdAt"].isNull());
+    BOOST_CHECK(!result["amount"].isNull());
+    BOOST_CHECK(!result["message"].isNull());
+    BOOST_CHECK(!result["label"].isNull());
+
+    // Now test "initial". values should be the same as what's currently in "result".
+    valRequest.replace("type", "initial");
+    jreq.parse(valRequest);
+    nextResult = tableAPI.execute(jreq, true);
+
+    string address = result["address"].get_str();
+
+    BOOST_CHECK(!nextResult[address].isNull());
+
+    // test "Update".
+    valRequest.replace("type", "update");
+    data.setObject();
+    data.push_back(Pair("id",address));
+    data.push_back(Pair("amount", 400000000));
+    valRequest.replace("data",data);
+    jreq.parse(valRequest);
+    nextResult = tableAPI.execute(jreq, true);
+
+    BOOST_CHECK(result["amount"].get_int64()!=nextResult["amount"].get_int64());
+
+    // test "Delete".
+    valRequest.replace("type", "delete");
+    data.setObject();
+    data.push_back(Pair("id",address));
+    valRequest.replace("data",data);
+    jreq.parse(valRequest);
+    nextResult = tableAPI.execute(jreq, true);
+
+    BOOST_CHECK(nextResult.get_bool());
+}
+
+BOOST_AUTO_TEST_CASE(mint_test)
+{
+    // Verify "Create" initially.
+    UniValue valRequest(UniValue::VOBJ);
+    UniValue data(UniValue::VOBJ);
+    UniValue denominations(UniValue::VOBJ);
+    UniValue result(UniValue::VOBJ);
+    APIJSONRequest jreq;
+
+    denominations.push_back(Pair("1", 1));
+    data.push_back(Pair("denominations", denominations));
+
+    valRequest.push_back(Pair("type", "create"));
+    valRequest.push_back(Pair("collection", "mint"));
+    valRequest.push_back(Pair("data", data));
+
+    jreq.parse(valRequest);
+    result = tableAPI.execute(jreq, true);
+
+    BOOST_CHECK(result.isStr());
+}
+
+BOOST_AUTO_TEST_CASE(sendprivate_test)
+{
+    // Verify "Create" initially.
+    UniValue valRequest(UniValue::VOBJ);
+    UniValue data(UniValue::VOBJ);
+    UniValue denominationArr(UniValue::VARR);
+    UniValue denominationObj(UniValue::VOBJ);
+    UniValue result(UniValue::VOBJ);
+    APIJSONRequest jreq;
+
+    CPubKey newKey;
+    BOOST_CHECK(pwalletMain->GetKeyFromPool(newKey));
+    string address = CBitcoinAddress(newKey.GetID()).ToString();
+
+
+    denominationObj.push_back(Pair("value", 1));
+    denominationObj.push_back(Pair("amount", 1));
+    denominationArr.push_back(denominationObj);
+    data.push_back(Pair("denomination", denominationArr));
+    data.push_back(Pair("address", address));
+    data.push_back(Pair("label", "label"));
+
+    valRequest.push_back(Pair("type", "create"));
+    valRequest.push_back(Pair("collection", "sendPrivate"));
+    valRequest.push_back(Pair("data", data));
+
+    jreq.parse(valRequest);
+    // try to send now, verify failure.
+    BOOST_CHECK_THROW(CallAPI(jreq), runtime_error);
+
+    // mint two of denomination 1 and mine 6 blocks.
+    vector<pair<int,int>> denominationPairs;
+    std::vector<CMutableTransaction> MinTxns;
+    CWalletTx wtx;
+
+    pwalletMain->SetBroadcastTransactions(true);
+
+    string stringError;
+
+    std::pair<int,int> denominationPair(1, 2);
+    denominationPairs.push_back(denominationPair);
+
+    BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denominationPairs), stringError + " - Create Mint failed");
+
+    BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mint not added to mempool");
+
+    // add block
+    int previousHeight = chainActive.Height();
+    CBlock b = CreateAndProcessBlock(MinTxns, script);
+    wtx.Init(NULL);
+    //Add 5 more blocks
+    for (int i = 0; i < 5; i++)
+    {
+        std::vector<CMutableTransaction> noTxns;
+        b = CreateAndProcessBlock(noTxns, script);
+        wtx.Init(NULL);
+    }
+    BOOST_CHECK_MESSAGE(previousHeight + 6 == chainActive.Height(), "Block not added to chain");
+    previousHeight = chainActive.Height();
+
+    // recall now that conditions are met.
+    result = CallAPI(jreq);
+    BOOST_CHECK(!result["txids"].isNull());
+}
+
+BOOST_AUTO_TEST_CASE(setpassphrase_test)
+{
+    // Verify "Create" initially.
+    UniValue valRequest(UniValue::VOBJ);
+    UniValue data(UniValue::VOBJ);
+    UniValue auth(UniValue::VOBJ);
+    UniValue result(UniValue::VOBJ);
+    APIJSONRequest jreq;
+
+    auth.push_back(Pair("passphrase", "12345"));
+
+    valRequest.push_back(Pair("type", "create"));
+    valRequest.push_back(Pair("collection", "setPassphrase"));
+    valRequest.push_back(Pair("auth", auth));
+
+    jreq.parse(valRequest);
+    result = CallAPI(jreq);
+    BOOST_CHECK(result.get_str()=="wallet encrypted; zcoin server stopping, restart to run with encrypted wallet. The keypool has been flushed and a new HD seed was generated (if you are using HD). You need to make a new backup.");
+
+    auth.push_back(Pair("newPassphrase", "123456"));
+
+    valRequest.replace("type", "update");
+    valRequest.replace("auth", auth);
+
+    jreq.parse(valRequest);
+    result = CallAPI(jreq);
+    BOOST_CHECK(result.get_bool());
+}
+
+BOOST_AUTO_TEST_CASE(statewallet_test)
+{
+    // Verify "Create" initially.
+    UniValue valRequest(UniValue::VOBJ);
+    UniValue data(UniValue::VOBJ);
+    UniValue auth(UniValue::VOBJ);
+    UniValue result(UniValue::VOBJ);
+    APIJSONRequest jreq;
+
+    valRequest.push_back(Pair("type", "initial"));
+    valRequest.push_back(Pair("collection", "stateWallet"));
+    //valRequest.push_back(Pair("auth", auth));
+
+    jreq.parse(valRequest);
+    result = CallAPI(jreq);
+    BOOST_CHECK(!result.isNull());
+
+}
+
+BOOST_AUTO_TEST_CASE(znodelist_test)
+{
+    // Verify "Create" initially.
+    UniValue valRequest(UniValue::VOBJ);
+    UniValue data(UniValue::VOBJ);
+    UniValue auth(UniValue::VOBJ);
+    UniValue result(UniValue::VOBJ);
+    APIJSONRequest jreq;
+
+    valRequest.push_back(Pair("type", "initial"));
+    valRequest.push_back(Pair("collection", "znodeList"));
+    //valRequest.push_back(Pair("auth", auth));
+
+    jreq.parse(valRequest);
+    BOOST_CHECK_THROW(CallAPI(jreq), runtime_error);
+
+    // artificially finish znode sync to test list call
+    while(!znodeSync.IsSynced()){
+        znodeSync.SwitchToNextAsset();
+    }
+
+    result = CallAPI(jreq);
+    BOOST_CHECK(!result.isNull());
 }
 
 BOOST_AUTO_TEST_SUITE_END()
