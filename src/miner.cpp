@@ -33,6 +33,7 @@
 #include "crypto/Lyra2Z/Lyra2.h"
 #include "znode-payments.h"
 #include "znode-sync.h"
+#include "znodeman.h"
 #include "zerocoin.h"
 #include <algorithm>
 #include <boost/thread.hpp>
@@ -164,7 +165,6 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
     CBlockIndex* pindexPrev = chainActive.Tip();
     const int nHeight = pindexPrev->nHeight + 1;
 
-    // To founders and investors
     // To founders and investors
     if ((nHeight + 1 > 0) && (nHeight + 1 < 305000)) {
         CScript FOUNDER_1_SCRIPT;
@@ -1095,7 +1095,7 @@ void static ZcoinMiner(const CChainParams &chainparams) {
 
     boost::shared_ptr<CReserveScript> coinbaseScript;
     GetMainSignals().ScriptForMining(coinbaseScript);
-    bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
+    bool fTestNet = chainparams.GetConsensus().IsTestnet();
     try {
         // Throw an error if no script was provided.  This can happen
         // due to some internal error but also if the keypool is empty.
@@ -1109,13 +1109,22 @@ void static ZcoinMiner(const CChainParams &chainparams) {
             if (chainparams.MiningRequiresPeers()) {
                 // Busy-wait for the network to come online so we don't waste time mining
                 // on an obsolete chain. In regtest mode we expect to fly solo.
+
+                // Also try to wait for znode winners unless we're on regtest chain
                 do {
                     bool fvNodesEmpty;
+                    bool fHasZnodesWinnerForNextBlock;
+                    const Consensus::Params &params = chainparams.GetConsensus();
                     {
-                        LOCK(cs_vNodes);
+                        LOCK2(cs_main, cs_vNodes);
+                        int nCount = 0;
                         fvNodesEmpty = vNodes.empty();
+                        fHasZnodesWinnerForNextBlock = 
+                                params.IsRegtest() ||
+                                chainActive.Height() < params.nZnodePaymentsStartBlock ||
+                                mnodeman.GetNextZnodeInQueueForPayment(chainActive.Height(), true, nCount);
                     }
-                    if (!fvNodesEmpty && !IsInitialBlockDownload()) {
+                    if (!fvNodesEmpty && fHasZnodesWinnerForNextBlock && !IsInitialBlockDownload()) {
                         break;
                     }
                     MilliSleep(1000);
