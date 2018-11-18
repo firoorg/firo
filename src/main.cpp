@@ -2505,7 +2505,7 @@ bool DisconnectBlock(const CBlock &block, CValidationState &state, const CBlockI
 
     //The pfClean flag is specified only when called from CVerifyDB::VerifyDB.
     //When called from there, no real disconnect happens.
-    if(pfClean) {
+    if(!pfClean) {
         if (fAddressIndex) {
             if (!pblocktree->EraseAddressIndex(dbIndexHelper.getAddressIndex())) {
                 AbortNode(state, "Failed to delete address index");
