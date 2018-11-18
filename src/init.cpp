@@ -248,14 +248,12 @@ void Shutdown() {
     GenerateBitcoins(false, 0, Params());
     StopNode();
 
-    // STORE DATA CACHES INTO SERIALIZED DAT FILES
-    // TODO: https://github.com/zcoinofficial/zcoin/issues/182
-    //    CFlatDB<CZnodeMan> flatdb1("zncache.dat", "magicZnodeCache");
-    //    flatdb1.Dump(mnodeman);
-    //    CFlatDB<CZnodePayments> flatdb2("znpayments.dat", "magicZnodePaymentsCache");
-    //    flatdb2.Dump(mnpayments);
-    //    CFlatDB<CNetFulfilledRequestManager> flatdb4("netfulfilled.dat", "magicFulfilledCache");
-    //    flatdb4.Dump(netfulfilledman);
+    CFlatDB<CZnodeMan> flatdb1("zncache.dat", "magicZnodeCache");
+    flatdb1.Dump(mnodeman);
+    CFlatDB<CZnodePayments> flatdb2("znpayments.dat", "magicZnodePaymentsCache");
+    flatdb2.Dump(mnpayments);
+    CFlatDB<CNetFulfilledRequestManager> flatdb4("netfulfilled.dat", "magicFulfilledCache");
+    flatdb4.Dump(netfulfilledman);
 
     StopTorControl();
     UnregisterNodeSignals(GetNodeSignals());
@@ -2001,8 +1999,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     // ********************************************************* Step 11b: Load cache data
 
     // LOAD SERIALIZED DAT FILES INTO DATA CACHES FOR INTERNAL USE
-    // TODO: https://github.com/zcoinofficial/zcoin/issues/182
-    /* uiInterface.InitMessage(_("Loading znode cache..."));
+    uiInterface.InitMessage(_("Loading znode cache..."));
     CFlatDB<CZnodeMan> flatdb1("zncache.dat", "magicZnodeCache");
     if (!flatdb1.Load(mnodeman)) {
         return InitError("Failed to load znode cache from zncache.dat");
@@ -2015,10 +2012,10 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
             return InitError("Failed to load znode payments cache from znpayments.dat");
         }
     } else {
-        uiInterface.InitMessage(_("Znode cache is empty, skipping payments and governance cache..."));
-    } */
+        uiInterface.InitMessage(_("Znode cache is empty, skipping payments cache..."));
+    }
 
-    // uiInterface.InitMessage(_("Loading fulfilled requests cache..."));
+    uiInterface.InitMessage(_("Loading fulfilled requests cache..."));
     CFlatDB<CNetFulfilledRequestManager> flatdb4("netfulfilled.dat", "magicFulfilledCache");
 	flatdb4.Load(netfulfilledman);
 	
