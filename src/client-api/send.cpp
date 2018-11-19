@@ -82,17 +82,6 @@ bool getPaymentRequest(UniValue &paymentRequestUni, UniValue &paymentRequestData
     return true;
 }
 
-bool getPaymentRequestEntry(string address, UniValue &entry){
-
-    UniValue paymentRequestData(UniValue::VOBJ);
-    UniValue paymentRequestUni(UniValue::VOBJ);
-    getPaymentRequest(paymentRequestUni, paymentRequestData);
-    entry = find_value(paymentRequestData, address);
-
-    return true;
-
-}
-
 bool setTxFee(const UniValue& feeperkb){
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
