@@ -2,8 +2,8 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BALANCESDIALOG_H
-#define BALANCESDIALOG_H
+#ifndef EXOASSETSDIALOG_H
+#define EXOASSETSDIALOG_H
 
 #include "guiutil.h"
 
@@ -21,16 +21,16 @@ class QWidget;
 QT_END_NAMESPACE
 
 namespace Ui {
-    class balancesDialog;
+    class ExoAssetsDialog;
 }
 
-class BalancesDialog : public QDialog
+class ExoAssetsDialog : public QDialog
 {
     Q_OBJECT
 
 public:
-    explicit BalancesDialog(QWidget *parent = 0);
-    ~BalancesDialog();
+    explicit ExoAssetsDialog(QWidget *parent = 0);
+    ~ExoAssetsDialog();
 
     void setClientModel(ClientModel *model);
     void setWalletModel(WalletModel *model);
@@ -39,7 +39,7 @@ public:
     void UpdatePropSelector();
 
 private:
-    Ui::balancesDialog *ui;
+    Ui::ExoAssetsDialog *ui;
     ClientModel *clientModel;
     WalletModel *walletModel;
     QMenu *contextMenu;
@@ -65,4 +65,4 @@ Q_SIGNALS:
     void message(const QString &title, const QString &message, unsigned int style);
 };
 
-#endif // BALANCESDIALOG_H
+#endif // EXOASSETSDIALOG_H

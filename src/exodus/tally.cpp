@@ -240,12 +240,12 @@ int64_t CMPTally::print(uint32_t propertyId, bool bDivisible) const
     }
 
     if (bDivisible) {
-        PrintToConsole("%22s [ SO_RESERVE= %22s, ACCEPT_RESERVE= %22s, METADEX_RESERVE= %22s ] %22s\n",
+        PrintToLog("%22s [ SO_RESERVE= %22s, ACCEPT_RESERVE= %22s, METADEX_RESERVE= %22s ] %22s\n",
                 FormatDivisibleMP(balance, true), FormatDivisibleMP(selloffer_reserve, true),
                 FormatDivisibleMP(accept_reserve, true), FormatDivisibleMP(metadex_reserve, true),
                 FormatDivisibleMP(pending, true));
     } else {
-        PrintToConsole("%14d [ SO_RESERVE= %14d, ACCEPT_RESERVE= %14d, METADEX_RESERVE= %14d ] %14d\n",
+        PrintToLog("%14d [ SO_RESERVE= %14d, ACCEPT_RESERVE= %14d, METADEX_RESERVE= %14d ] %14d\n",
                 balance, selloffer_reserve, accept_reserve, metadex_reserve, pending);
     }
 

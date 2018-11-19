@@ -17,6 +17,7 @@
 #include "checkpoints.h"
 #include "compat/sanity.h"
 #include "consensus/validation.h"
+#include "exodus/exodus.h"
 #include "httpserver.h"
 #include "httprpc.h"
 #include "key.h"
@@ -119,10 +120,6 @@ enum BindFlags {
 static const char *FEE_ESTIMATES_FILENAME = "fee_estimates.dat";
 
 extern CTxMemPool stempool;
-// Exodus initialization and shutdown handlers
-extern int exodus_init();
-extern int exodus_shutdown();
-extern int CheckWalletUpdate(bool forceUpdate = false);
 
 namespace fs = boost::filesystem;
 
@@ -283,8 +280,9 @@ void Shutdown() {
         pblocktree = NULL;
     }
 
-    //! Exodus shutdown
-    exodus_shutdown();
+    if (isExodusEnabled()) {
+        exodus_shutdown();
+    }
 
 #ifdef ENABLE_WALLET
     if (pwalletMain)
@@ -667,6 +665,7 @@ std::string HelpMessage(HelpMessageMode mode) {
     }
 
     strUsage += HelpMessageGroup("Exodus options:");
+    strUsage += HelpMessageOpt("-exodus", "Enable Exodus");
 	strUsage += HelpMessageOpt("-startclean", "Clear all persistence files on startup; triggers reparsing of Exodus transactions (default: 0)");
 	strUsage += HelpMessageOpt("-exodustxcache", "The maximum number of transactions in the input transaction cache (default: 500000)");
 	strUsage += HelpMessageOpt("-exodusprogressfrequency", "Time in seconds after which the initial scanning progress is reported (default: 30)");
@@ -1639,7 +1638,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
                 delete pblocktree;
 
                 pblocktree = new CBlockTreeDB(nBlockTreeDBCache, false, fReindex);
-	            
+
 	            if (!fReindex) {
                     // Check existing block index database version, reindex if needed
                     if (pblocktree->GetBlockIndexVersion() < ZC_ADVANCED_INDEX_VERSION) {
@@ -1649,7 +1648,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
                         pblocktree = new CBlockTreeDB(nBlockTreeDBCache, false, fReindex);
 		            }
 	            }
-	            
+
                 pcoinsdbview = new CCoinsViewDB(nCoinDBCache, false, fReindex || fReindexChainState);
                 pcoinscatcher = new CCoinsViewErrorCatcher(pcoinsdbview);
                 pcoinsTip = new CCoinsViewCache(pcoinscatcher);
@@ -1769,44 +1768,45 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
 
     // ********************************************************* Step 7.5: load exodus
 
-	if (!fTxIndex) {
-		// ask the user if they would like us to modify their config file for them
-		std::string msg = _("Disabled transaction index detected.\n\n"
-							"Exodus requires an enabled transaction index. To enable "
-							"transaction indexing, please use the \"-txindex\" option as "
-							"command line argument or add \"txindex=1\" to your client "
-							"configuration file within your data directory.\n\n"
-							"Configuration file"); // allow translation of main text body while still allowing differing config file string
-		msg += ": " + GetConfigFile().string() + "\n\n";
-		msg += _("Would you like Exodus to attempt to update your configuration file accordingly?");
-		bool fRet = uiInterface.ThreadSafeMessageBox(msg, "", CClientUIInterface::MSG_INFORMATION | CClientUIInterface::BTN_OK | CClientUIInterface::MODAL | CClientUIInterface::BTN_ABORT);
-		if (fRet) {
-			// add txindex=1 to config file in GetConfigFile()
-			boost::filesystem::path configPathInfo = GetConfigFile();
-			FILE *fp = fopen(configPathInfo.string().c_str(), "at");
-			if (!fp) {
-				std::string failMsg = _("Unable to update configuration file at");
-				failMsg += ":\n" + GetConfigFile().string() + "\n\n";
-				failMsg += _("The file may be write protected or you may not have the required permissions to edit it.\n");
-				failMsg += _("Please add txindex=1 to your configuration file manually.\n\nExodus will now shutdown.");
-				return InitError(failMsg);
-			}
-			fprintf(fp, "\ntxindex=1\n");
-			fflush(fp);
-			fclose(fp);
-			std::string strUpdated = _(
-					"Your configuration file has been updated.\n\n"
-					"Exodus will now shutdown - please restart the client for your new configuration to take effect.");
-			uiInterface.ThreadSafeMessageBox(strUpdated, "", CClientUIInterface::MSG_INFORMATION | CClientUIInterface::BTN_OK | CClientUIInterface::MODAL);
-			return false;
-		} else {
-			return InitError(_("Please add txindex=1 to your configuration file manually.\n\nOmni Core will now shutdown."));
-		}
-	}
+    if (isExodusEnabled()) {
+        if (!fTxIndex) {
+            // ask the user if they would like us to modify their config file for them
+            std::string msg = _("Disabled transaction index detected.\n\n"
+                                "Exodus requires an enabled transaction index. To enable "
+                                "transaction indexing, please use the \"-txindex\" option as "
+                                "command line argument or add \"txindex=1\" to your client "
+                                "configuration file within your data directory.\n\n"
+                                "Configuration file"); // allow translation of main text body while still allowing differing config file string
+            msg += ": " + GetConfigFile().string() + "\n\n";
+            msg += _("Would you like Exodus to attempt to update your configuration file accordingly?");
+            bool fRet = uiInterface.ThreadSafeMessageBox(msg, "", CClientUIInterface::MSG_INFORMATION | CClientUIInterface::BTN_OK | CClientUIInterface::MODAL | CClientUIInterface::BTN_ABORT);
+            if (fRet) {
+                // add txindex=1 to config file in GetConfigFile()
+                boost::filesystem::path configPathInfo = GetConfigFile();
+                FILE *fp = fopen(configPathInfo.string().c_str(), "at");
+                if (!fp) {
+                    std::string failMsg = _("Unable to update configuration file at");
+                    failMsg += ":\n" + GetConfigFile().string() + "\n\n";
+                    failMsg += _("The file may be write protected or you may not have the required permissions to edit it.\n");
+                    failMsg += _("Please add txindex=1 to your configuration file manually.\n\nExodus will now shutdown.");
+                    return InitError(failMsg);
+                }
+                fprintf(fp, "\ntxindex=1\n");
+                fflush(fp);
+                fclose(fp);
+                std::string strUpdated = _(
+                        "Your configuration file has been updated.\n\n"
+                        "Exodus will now shutdown - please restart the client for your new configuration to take effect.");
+                uiInterface.ThreadSafeMessageBox(strUpdated, "", CClientUIInterface::MSG_INFORMATION | CClientUIInterface::BTN_OK | CClientUIInterface::MODAL);
+                return false;
+            } else {
+                return InitError(_("Please add txindex=1 to your configuration file manually.\n\nOmni Core will now shutdown."));
+            }
+        }
 
-	uiInterface.InitMessage(_("Parsing Exodus transactions..."));
-
-	exodus_init();
+        uiInterface.InitMessage(_("Parsing Exodus transactions..."));
+        exodus_init();
+    }
 
     // ********************************************************* Step 8: load wallet
 
@@ -1824,8 +1824,10 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     LogPrintf("No wallet support compiled in!\n");
 #endif // !ENABLE_WALLET
 
-    // Exodus code should be initialized and wallet should now be loaded, perform an initial populat$
-    CheckWalletUpdate();
+    // Exodus code should be initialized and wallet should now be loaded, perform an initial populate
+    if (isExodusEnabled()) {
+        CheckWalletUpdate();
+    }
 
     // ********************************************************* Step 9: data directory maintenance
     LogPrintf("Step 9: data directory maintenance **********************\n");
@@ -2018,7 +2020,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     uiInterface.InitMessage(_("Loading fulfilled requests cache..."));
     CFlatDB<CNetFulfilledRequestManager> flatdb4("netfulfilled.dat", "magicFulfilledCache");
 	flatdb4.Load(netfulfilledman);
-	
+
     // if (!flatdb4.Load(netfulfilledman)) {
     //     LogPrint"Failed to load fulfilled requests cache from netfulfilled.dat");
     // }

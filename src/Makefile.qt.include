@@ -121,7 +121,7 @@ QT_FORMS_UI = \
   qt/forms/metadexcanceldialog.ui \
   qt/forms/metadexdialog.ui \
   qt/forms/tradehistorydialog.ui \
-  qt/forms/balancesdialog.ui
+  qt/forms/exoassetsdialog.ui
 
 QT_MOC_CPP = \
   qt/moc_addressbookpage.cpp \
@@ -175,7 +175,7 @@ QT_MOC_CPP = \
   qt/moc_lookupspdialog.cpp \
   qt/moc_lookuptxdialog.cpp \
   qt/moc_txhistorydialog.cpp \
-  qt/moc_balancesdialog.cpp \
+  qt/moc_exoassetsdialog.cpp \
   qt/moc_metadexdialog.cpp \
   qt/moc_metadexcanceldialog.cpp \
   qt/moc_tradehistorydialog.cpp
@@ -258,7 +258,7 @@ BITCOIN_QT_H = \
   qt/lookupspdialog.h \
   qt/lookuptxdialog.h \
   qt/txhistorydialog.h \
-  qt/balancesdialog.h \
+  qt/exoassetsdialog.h \
   qt/metadexdialog.h \
   qt/metadexcanceldialog.h \
   qt/tradehistorydialog.h \
@@ -294,7 +294,7 @@ RES_ICONS = \
   qt/res/icons/edit.png \
   qt/res/icons/editcopy.png \
   qt/res/icons/editpaste.png \
-  qt/res/icons/exchange.png \  
+  qt/res/icons/exchange.png \
   qt/res/icons/export.png \
   qt/res/icons/eye.png \
   qt/res/icons/eye_minus.png \
@@ -317,7 +317,7 @@ RES_ICONS = \
   qt/res/icons/exodus_inout.png \
   qt/res/icons/exodus_invalid.png \
   qt/res/icons/exodus_out.png \
-  qt/res/icons/exodus_hourglass.png \  
+  qt/res/icons/exodus_hourglass.png \
   qt/res/icons/open.png \
   qt/res/icons/overview.png \
   qt/res/icons/quit.png \
@@ -325,7 +325,7 @@ RES_ICONS = \
   qt/res/icons/remove.png \
   qt/res/icons/send.png \
   qt/res/icons/synced.png \
-  qt/res/icons/tools.png \  
+  qt/res/icons/tools.png \
   qt/res/icons/transaction0.png \
   qt/res/icons/transaction2.png \
   qt/res/icons/transaction_conflicted.png \
@@ -400,7 +400,7 @@ BITCOIN_QT_WALLET_CPP = \
   qt/lookupspdialog.cpp \
   qt/lookuptxdialog.cpp \
   qt/txhistorydialog.cpp \
-  qt/balancesdialog.cpp \
+  qt/exoassetsdialog.cpp \
   qt/metadexdialog.cpp \
   qt/metadexcanceldialog.cpp \
   qt/tradehistorydialog.cpp
