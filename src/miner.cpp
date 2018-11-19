@@ -1116,9 +1116,12 @@ void static ZcoinMiner(const CChainParams &chainparams) {
                     bool fHasZnodesWinnerForNextBlock;
                     const Consensus::Params &params = chainparams.GetConsensus();
                     {
-                        LOCK2(cs_main, cs_vNodes);
-                        int nCount = 0;
+                        LOCK(cs_vNodes);
                         fvNodesEmpty = vNodes.empty();
+                    }
+                    {
+                        LOCK(cs_main);
+                        int nCount = 0;
                         fHasZnodesWinnerForNextBlock = 
                                 params.IsRegtest() ||
                                 chainActive.Height() < params.nZnodePaymentsStartBlock ||
