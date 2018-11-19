@@ -3,6 +3,7 @@
 #include <vector>
 #include <secp256k1/include/Scalar.h>
 #include <secp256k1/include/GroupElement.h>
+#include <libzerocoin/common/GeneratorVector.h>
 #include <algorithm>
 
 namespace sigma {
@@ -22,7 +23,7 @@ public:
 
     static std::vector<uint64_t> convert_to_nal(uint64_t num, uint64_t n, uint64_t m);
 
-    static void get_x(const GroupElement& A, const GroupElement& C, const GroupElement D, Exponent& result_out);
+    static void get_x(const GroupElement& A, const GroupElement& C, const GroupElement& D, Exponent& result_out);
 
     static void new_factor(Exponent x, Exponent a, std::vector<Exponent>& coefficients);
 

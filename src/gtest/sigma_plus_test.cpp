@@ -22,8 +22,6 @@ TEST(test_1_out_of_N, EC_group)
     sigma::SigmaPlusProver<secp_primitives::Scalar,secp_primitives::GroupElement> prover(g,h_gens, n, m);
 
     std::vector<secp_primitives::GroupElement> commits;
-    std::random_device rd;
-    std::mt19937 rand(rd());
     for(int i = 0; i < N; ++i){
         if(i == index){
             secp_primitives::GroupElement c;
@@ -34,7 +32,7 @@ TEST(test_1_out_of_N, EC_group)
         }
         else{
             commits.push_back(secp_primitives::GroupElement());
-            commits[i].randomize(rand);
+            commits[i].randomize();
         }
     }
 

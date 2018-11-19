@@ -65,7 +65,7 @@ public:
 
     Scalar& randomize();
 
-    Scalar& randomize(std::mt19937& rand);
+    Scalar& generate(unsigned char* buff);
 
     Scalar& mod_p();
 

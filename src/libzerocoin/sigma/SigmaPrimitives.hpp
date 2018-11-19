@@ -72,23 +72,17 @@ template<class Exponent, class GroupElement>
 void SigmaPrimitives<Exponent, GroupElement>::get_x(
         const GroupElement& A,
         const GroupElement& C,
-        const GroupElement D,
+        const GroupElement& D,
         Exponent& result_out) {
     secp256k1_sha256_t hash;
     secp256k1_sha256_initialize(&hash);
-    unsigned char data[6 * sizeof(secp256k1_fe)];
-    unsigned char *A_serial = A.serialize();
-    unsigned char *C_serial = C.serialize();
-    unsigned char *D_serial = D.serialize();
-    memcpy(&data[0], &A_serial[0], 2 * sizeof(secp256k1_fe));
-    memcpy(&data[0] + 2 * sizeof(secp256k1_fe), &C_serial[0], 2 * sizeof(secp256k1_fe));
-    memcpy(&data[0] + 4 * sizeof(secp256k1_fe), &D_serial[0], 2 * sizeof(secp256k1_fe));
-    secp256k1_sha256_write(&hash, &data[0], 6 * sizeof(secp256k1_fe));
+    unsigned char data[3 * A.memoryRequired()];
+    unsigned char* current = A.serialize(data);
+    current = C.serialize(current);
+    D.serialize(current);
+    secp256k1_sha256_write(&hash, &data[0], 3 * 34);
     unsigned char result_data[32];
     secp256k1_sha256_finalize(&hash, result_data);
-    delete [] A_serial;
-    delete [] C_serial;
-    delete [] D_serial;
     result_out = result_data;
 }
 

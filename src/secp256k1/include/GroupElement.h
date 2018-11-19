@@ -3,7 +3,7 @@
 
 #include <memory>
 #include <cstring>
-#include <random>
+
 #include "Scalar.h"
 #include "secp256k1.h"
 #include "../src/util.h"
@@ -17,6 +17,7 @@
 #include "../src/field_impl.h"
 #include "../src/scalar_impl.h"
 #include "../src/scalar.h"
+
 
 namespace secp_primitives {
 
@@ -60,9 +61,11 @@ public:
 
   bool isMember() const;
 
-  void randomize();
+  GroupElement& generate(unsigned char* seed);
 
-  void randomize(std::mt19937& rand);
+ void sha256(unsigned char* result) const;
+
+  void randomize();
 
   std::string tostring() const;
 

@@ -48,8 +48,6 @@ protected:
             Pk[k].randomize();
         }
         r.randomize();
-        std::random_device rd;
-        std::mt19937 rand(rd());
         for(int i = 0; i < N; ++i){
             if(i == (index)){
                 secp_primitives::GroupElement c;
@@ -59,7 +57,7 @@ protected:
             }
             else{
                 commits.push_back(secp_primitives::GroupElement());
-                commits[i].randomize(rand);
+                commits[i].randomize();
             }
         }
         (*r1prover).proof(a, r1proof);

@@ -444,7 +444,11 @@ libsigma_a_SOURCES = \
   libzerocoin/sigma/SigmaPlusProof.h \
   libzerocoin/sigma/SigmaPlusProver.h \
   libzerocoin/sigma/SigmaPlusVerifier.h \
-  libzerocoin/sigma/SigmaPrimitives.h
+  libzerocoin/sigma/SigmaPrimitives.h \
+  libzerocoin/sigma/Coin.h \
+  libzerocoin/sigma/Coin.cpp \
+  libzerocoin/sigma/Params.h \
+  libzerocoin/sigma/Params.cpp
 
 if GLIBC_BACK_COMPAT
 libbitcoin_util_a_SOURCES += compat/glibc_compat.cpp

@@ -1,7 +1,6 @@
 #ifndef ZCOIN_SIGMAPROOFGENERATOR_H
 #define ZCOIN_SIGMAPROOFGENERATOR_H
 
-#include <libzerocoin/common/GeneratorVector.h>
 #include "R1Proof.h"
 #include "SigmaPrimitives.h"
 
