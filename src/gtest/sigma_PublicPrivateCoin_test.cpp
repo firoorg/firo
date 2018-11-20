@@ -9,19 +9,19 @@ using namespace std;
 TEST(sigma_PublicPrivateCoin_test, test)
 {
     //creating params
-    V3Params* params = sigma::V3Params::get_default();
+    ParamsV3* params = sigma::ParamsV3::get_default();
 
     //testing public coin and serialize
     secp_primitives::GroupElement coin;
     coin.randomize();
-    V3PublicCoin publicCoin(coin, ZQ_GOLDWASSER);
+    PublicCoinV3 publicCoin(coin, ZQ_GOLDWASSER);
     CDataStream serializedCoin(SER_NETWORK, PROTOCOL_VERSION);
     serializedCoin << publicCoin;
-    V3PublicCoin publicCoinNew(serializedCoin);
+    PublicCoinV3 publicCoinNew(serializedCoin);
     EXPECT_TRUE(publicCoin == publicCoinNew);
 
     // mint test
-    V3PrivateCoin newCoin(params);
-    V3PublicCoin pubCoin = newCoin.getPublicCoin();
+    PrivateCoinV3 newCoin(params);
+    PublicCoinV3 pubCoin = newCoin.getPublicCoin();
     EXPECT_TRUE(pubCoin.validate());
 }

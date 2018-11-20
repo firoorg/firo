@@ -2,78 +2,78 @@
 namespace sigma{
 
 //class PublicCoin
-V3PublicCoin::V3PublicCoin(): denomination(ZQ_LOVELACE) {
+PublicCoinV3::PublicCoinV3(): denomination(ZQ_LOVELACE) {
 }
 
-V3PublicCoin::V3PublicCoin(const GroupElement& coin, const V3CoinDenomination d):
+PublicCoinV3::PublicCoinV3(const GroupElement& coin, const CoinDenominationV3 d):
     value(coin), denomination(d) {
 }
 
-const GroupElement& V3PublicCoin::getValue() const{
+const GroupElement& PublicCoinV3::getValue() const{
     return this->value;
 }
 
-bool V3PublicCoin::operator==(const V3PublicCoin& other) const{
+bool PublicCoinV3::operator==(const PublicCoinV3& other) const{
     return (*this).value == other.value;
 }
 
-bool V3PublicCoin::operator!=(const V3PublicCoin& other) const{
+bool PublicCoinV3::operator!=(const PublicCoinV3& other) const{
     return (*this).value != other.value;
 }
 
-bool V3PublicCoin::validate() const{
+bool PublicCoinV3::validate() const{
     return this->value.isMember();
 }
 
-size_t V3PublicCoin::GetSerializeSize(int nType, int nVersion) const{
+size_t PublicCoinV3::GetSerializeSize(int nType, int nVersion) const{
     return value.memoryRequired() + sizeof(int);
 }
 
 //class PrivateCoin
-V3PrivateCoin::V3PrivateCoin(const V3Params* p,V3CoinDenomination denomination, int version):
+PrivateCoinV3::PrivateCoinV3(const ParamsV3* p,CoinDenominationV3 denomination, int version):
     params(p) {
         this->version = version;
         this->mintCoin(denomination);
 }
 
-const V3PublicCoin& V3PrivateCoin::getPublicCoin() const{
+const PublicCoinV3& PrivateCoinV3::getPublicCoin() const{
     return this->publicCoin;
 }
 
-const Scalar& V3PrivateCoin::getSerialNumber() const{
+const Scalar& PrivateCoinV3::getSerialNumber() const{
     return this->serialNumber;
 }
 
-const Scalar& V3PrivateCoin::getRandomness() const{
+const Scalar& PrivateCoinV3::getRandomness() const{
     return this->randomness;
 }
 
-unsigned int V3PrivateCoin::getVersion() const{
+unsigned int PrivateCoinV3::getVersion() const{
     return this->version;
 }
 
-void V3PrivateCoin::setPublicCoin(V3PublicCoin p){
+void PrivateCoinV3::setPublicCoin(PublicCoinV3 p){
     publicCoin = p;
 }
 
-void V3PrivateCoin::setRandomness(Scalar n){
+void PrivateCoinV3::setRandomness(Scalar n){
     randomness = n;
 }
 
-void V3PrivateCoin::setSerialNumber(Scalar n){
+void PrivateCoinV3::setSerialNumber(Scalar n){
     serialNumber = n;
 }
 
-void V3PrivateCoin::setVersion(unsigned int nVersion){
+void PrivateCoinV3::setVersion(unsigned int nVersion){
     version = nVersion;
 }
 
-void V3PrivateCoin::mintCoin(const V3CoinDenomination denomination){
+void PrivateCoinV3::mintCoin(const CoinDenominationV3 denomination){
     serialNumber.randomize();
     randomness.randomize();
     GroupElement commit = SigmaPrimitives<Scalar, GroupElement>::commit(
             params->get_g(), serialNumber, params->get_h0(), randomness);
-    publicCoin = V3PublicCoin(commit, denomination);
+    publicCoin = PublicCoinV3(commit, denomination);
 }
 
 }//namespace sigma

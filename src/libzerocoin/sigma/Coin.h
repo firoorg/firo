@@ -7,7 +7,7 @@
 
 namespace sigma {
 
-enum  V3CoinDenomination {
+enum  CoinDenominationV3 {
     ZQ_LOVELACE = 1,
     ZQ_GOLDWASSER = 10,
     ZQ_RACKOFF = 25,
@@ -17,20 +17,20 @@ enum  V3CoinDenomination {
                     // Public key cryptography
 };
 
-class V3PublicCoin{
+class PublicCoinV3{
 public:
     template<typename Stream>
-    V3PublicCoin(Stream& strm){
+    PublicCoinV3(Stream& strm){
         strm >> *this;
     }
 
-    V3PublicCoin();
+    PublicCoinV3();
 
-    V3PublicCoin(const GroupElement& coin, const V3CoinDenomination d);
+    PublicCoinV3(const GroupElement& coin, const CoinDenominationV3 d);
 
     const GroupElement& getValue() const;
-    bool operator==(const V3PublicCoin& other) const;
-    bool operator!=(const V3PublicCoin& other) const;
+    bool operator==(const PublicCoinV3& other) const;
+    bool operator!=(const PublicCoinV3& other) const;
     bool validate() const;
     size_t GetSerializeSize(int nType, int nVersion) const;
 
@@ -59,31 +59,31 @@ private:
     int denomination;
 };
 
-class V3PrivateCoin{
+class PrivateCoinV3{
 public:
     template<typename Stream>
-    V3PrivateCoin(const V3Params* p, Stream& strm): params(p), publicCoin() {
+    PrivateCoinV3(const ParamsV3* p, Stream& strm): params(p), publicCoin() {
         strm >> *this;
     }
 
-    V3PrivateCoin(const V3Params* p,V3CoinDenomination denomination = ZQ_LOVELACE, int version = ZEROCOIN_TX_VERSION_3);
-    const V3PublicCoin& getPublicCoin() const;
+    PrivateCoinV3(const ParamsV3* p,CoinDenominationV3 denomination = ZQ_LOVELACE, int version = ZEROCOIN_TX_VERSION_3);
+    const PublicCoinV3& getPublicCoin() const;
     const Scalar& getSerialNumber() const;
     const Scalar& getRandomness() const;
     unsigned int getVersion() const;
-    void setPublicCoin(V3PublicCoin p);
+    void setPublicCoin(PublicCoinV3 p);
     void setRandomness(Scalar n);
     void setSerialNumber(Scalar n);
     void setVersion(unsigned int nVersion);
 
 private:
-    const V3Params* params;
-    V3PublicCoin publicCoin;
+    const ParamsV3* params;
+    PublicCoinV3 publicCoin;
     Scalar randomness;
     Scalar serialNumber;
     unsigned int version = 0;
 
-    void mintCoin(const V3CoinDenomination denomination);
+    void mintCoin(const CoinDenominationV3 denomination);
 };
 
 }// namespace sigma

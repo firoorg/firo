@@ -1,8 +1,8 @@
 #include "Params.h"
 
 namespace sigma {
-    V3Params* V3Params::instance;
-V3Params* V3Params::get_default() {
+    ParamsV3* ParamsV3::instance;
+ParamsV3* ParamsV3::get_default() {
     if(instance != nullptr)
         return instance;
     else {
@@ -14,12 +14,12 @@ V3Params* V3Params::get_default() {
        //fixing n and m; N = n^m = 16,384
        int n = 4;
        int m = 7;
-       instance = new V3Params(g, h, n, m);
+       instance = new ParamsV3(g, h, n, m);
         return instance;
     }
 }
 
-V3Params::V3Params(const GroupElement& g, const GroupElement& h, int n, int m):
+ParamsV3::ParamsV3(const GroupElement& g, const GroupElement& h, int n, int m):
     n_(n), m_(m), g_(g){
     h_.reserve(28);
     h_.emplace_back(h);
@@ -31,18 +31,18 @@ V3Params::V3Params(const GroupElement& g, const GroupElement& h, int n, int m):
     }
 }
 
-V3Params::~V3Params(){
+ParamsV3::~ParamsV3(){
     delete instance;
 }
 
-const GroupElement& V3Params::get_g() const{
+const GroupElement& ParamsV3::get_g() const{
     return g_;
 }
-const GroupElement& V3Params::get_h0() const{
+const GroupElement& ParamsV3::get_h0() const{
     return h_[0];
 }
 
-const std::vector<GroupElement>& V3Params::get_h() const{
+const std::vector<GroupElement>& ParamsV3::get_h() const{
     return h_;
 }
 
