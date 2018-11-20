@@ -20,6 +20,7 @@
 #include "wallet/walletdb.h"
 #endif
 #include "txdb.h"
+#include "zerocoin.h"
 
 #include <stdint.h>
 
@@ -1029,6 +1030,81 @@ UniValue gettotalsupply(const UniValue& params, bool fHelp)
     return result;
 }
 
+namespace {
+bool getZerocoinSupply(CAmount & amount) {
+    using idx_rec = std::pair<CAddressIndexKey, CAmount>;
+    std::vector<idx_rec> addressIndex;
+
+    if(!GetAddressIndex(uint160(), AddressType::zerocoinSpend, addressIndex))
+        return false;
+
+    auto predicate = [](idx_rec const & lhs, idx_rec const & rhs) {
+        if(lhs.first.blockHeight < rhs.first.blockHeight)
+            return true;
+        if(lhs.first.blockHeight > rhs.first.blockHeight)
+            return false;
+        return lhs.first.txindex < lhs.first.txindex;
+    };
+
+    if(!std::is_sorted(addressIndex.begin(), addressIndex.end(), predicate))
+        std::sort(addressIndex.begin(), addressIndex.end(), predicate);
+
+    std::set<CBigNum> originalSerials;
+    CAmount amt = 0;
+
+    for(idx_rec const & idr : addressIndex) {
+        CTransaction tx;
+        uint256 hash;
+
+        if(!GetTransaction(idr.first.txhash, tx, Params().GetConsensus(), hash, true))
+            return false;
+
+        for(CTxIn const & in : tx.vin) {
+            if(!in.IsZerocoinSpend())
+                continue;
+
+            CBigNum const zspendSerial = ZerocoinGetSpendSerialNumber(tx, in);
+            if(zspendSerial == CBigNum(0))
+                return false;
+
+            if(originalSerials.find(zspendSerial) == originalSerials.end())
+                originalSerials.insert(zspendSerial);
+            else
+                amt += -idr.second;
+        }
+    }
+    amount = amt;
+    return true;
+}
+}
+
+UniValue getzerocoinsupply(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() > 1)
+        throw runtime_error(
+                "getzerocoinsupply\n"
+                        "\nReturns zerocoin amount. This function is very slow by design.\n"
+                        "\nArguments: none\n"
+                        "\nResult:\n"
+                        "{\n"
+                        "  \"total\"  (string) The total supply in duffs\n"
+                        "}\n"
+                        "\nExamples:\n"
+                + HelpExampleCli("getzerocoinsupply", "")
+                + HelpExampleRpc("getzerocoinsupply", "")
+        );
+
+    CAmount total = 0;
+
+    if(!getZerocoinSupply(total))
+        throw JSONRPCError(RPC_DATABASE_ERROR, "Cannot read the total supply from the database");
+
+    UniValue result(UniValue::VOBJ);
+    result.push_back(Pair("total", total));
+
+    return result;
+}
+
 
 static const CRPCCommand commands[] =
 { //  category              name                      actor (function)         okSafeMode
@@ -1049,6 +1125,7 @@ static const CRPCCommand commands[] =
 
     /* Not shown in help */
     { "hidden",             "setmocktime",            &setmocktime,            true  },
+    { "hidden",             "getzerocoinsupply",      &getzerocoinsupply,      false },
 };
 
 void RegisterMiscRPCCommands(CRPCTable &tableRPC)
