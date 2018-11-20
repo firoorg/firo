@@ -666,21 +666,19 @@ std::string HelpMessage(HelpMessageMode mode) {
 
     strUsage += HelpMessageGroup("Exodus options:");
     strUsage += HelpMessageOpt("-exodus", "Enable Exodus");
-	strUsage += HelpMessageOpt("-startclean", "Clear all persistence files on startup; triggers reparsing of Exodus transactions (default: 0)");
-	strUsage += HelpMessageOpt("-exodustxcache", "The maximum number of transactions in the input transaction cache (default: 500000)");
-	strUsage += HelpMessageOpt("-exodusprogressfrequency", "Time in seconds after which the initial scanning progress is reported (default: 30)");
-	strUsage += HelpMessageOpt("-exodusseedblockfilter", "Set skipping of blocks without Exodus transactions during initial scan (default: 1)");
-	strUsage += HelpMessageOpt("-exoduslogfile", "The path of the log file (default: exodus.log)");
-	strUsage += HelpMessageOpt("-exodusdebug=<category>", "Enable or disable log categories, can be \"all\" or \"none\"");
-	strUsage += HelpMessageOpt("-autocommit", "Enable or disable broadcasting of transactions, when creating transactions (default: 1)");
-	strUsage += HelpMessageOpt("-overrideforcedshutdown", "Overwrite shutdown, triggered by an alert (default: 0)");
-	strUsage += HelpMessageOpt("-exodusalertallowsender", "Whitelist senders of alerts, can be \"any\")");
-	strUsage += HelpMessageOpt("-exodusalertignoresender", "Ignore senders of alerts");
-	strUsage += HelpMessageOpt("-exodusactivationignoresender", "Ignore senders of activations");
-	strUsage += HelpMessageOpt("-exodusactivationallowsender", "Whitelist senders of activations");
-	strUsage += HelpMessageOpt("-disclaimer", "Explicitly show QT disclaimer on startup (default: 0)");
-	strUsage += HelpMessageOpt("-exodusuiwalletscope", "Max. transactions to show in trade and transaction history (default: 65535)");
-	strUsage += HelpMessageOpt("-exodusshowblockconsensushash", "Calculate and log the consensus hash for the specified block");
+    strUsage += HelpMessageOpt("-startclean", "Clear all persistence files on startup; triggers reparsing of Exodus transactions");
+    strUsage += HelpMessageOpt("-exodustxcache=<num>", "The maximum number of transactions in the input transaction cache (default: 500000)");
+    strUsage += HelpMessageOpt("-exodusprogressfrequency=<seconds>", "Time in seconds after which the initial scanning progress is reported (default: 30)");
+    strUsage += HelpMessageOpt("-exodusseedblockfilter=<flag>", "Set skipping of blocks without Exodus transactions during initial scan (default: 1)");
+    strUsage += HelpMessageOpt("-exodusdebug=<category>", "Enable or disable log categories, can be \"all\" or \"none\"");
+    strUsage += HelpMessageOpt("-autocommit=<flag>", "Enable or disable broadcasting of transactions, when creating transactions (default: 1)");
+    strUsage += HelpMessageOpt("-overrideforcedshutdown=<flag>", "Disable force shutdown when error (default: 0)");
+    strUsage += HelpMessageOpt("-exodusalertallowsender=<addr>", "Whitelist senders of alerts, can be \"any\")");
+    strUsage += HelpMessageOpt("-exodusalertignoresender=<addr>", "Ignore senders of alerts");
+    strUsage += HelpMessageOpt("-exodusactivationignoresender=<addr>", "Ignore senders of activations");
+    strUsage += HelpMessageOpt("-exodusactivationallowsender=<addr>", "Whitelist senders of activations");
+    strUsage += HelpMessageOpt("-exodusuiwalletscope=<number>", "Max. transactions to show in trade and transaction history (default: 65535)");
+    strUsage += HelpMessageOpt("-exodusshowblockconsensushash=<number>", "Calculate and log the consensus hash for the specified block");
 
     return strUsage;
 }
