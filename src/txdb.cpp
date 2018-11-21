@@ -11,6 +11,7 @@
 #include "uint256.h"
 #include "main.h"
 #include "consensus/consensus.h"
+#include "base58.h"
 
 #include <stdint.h>
 
@@ -426,40 +427,51 @@ using AddressIndexPtr = boost::optional<CDbIndexHelper::AddressIndex>;
 using AddressUnspentIndexPtr = boost::optional<CDbIndexHelper::AddressUnspentIndex>;
 using SpentIndexPtr = boost::optional<CDbIndexHelper::SpentIndex>;
 
+std::pair<AddressType, uint160> classifyAddress(txnouttype type, vector<vector<unsigned char> > const & addresses)
+{
+    std::pair<AddressType, uint160> result(AddressType::unknown, uint160());
+    if(type == TX_PUBKEY) {
+        result.first = AddressType::payToPubKeyHash;
+        CPubKey pubKey(addresses.front().begin(), addresses.front().end());
+        result.second = pubKey.GetID();
+    } else if(type == TX_SCRIPTHASH) {
+        result.first = AddressType::payToScryptHash;
+        result.second = uint160(std::vector<unsigned char>(addresses.front().begin(), addresses.front().end()));
+    } else if(type == TX_PUBKEYHASH) {
+        result.first = AddressType::payToPubKeyHash;
+        result.second = uint160(std::vector<unsigned char>(addresses.front().begin(), addresses.front().end()));
+    }
+    return result;
+}
+
 void handleInput(CTxIn const & input, size_t inputNo, uint256 const & txHash, int height, int txNumber, CCoinsViewCache const & view,
         AddressIndexPtr & addressIndex, AddressUnspentIndexPtr & addressUnspentIndex, SpentIndexPtr & spentIndex)
 {
     const CCoins* coins = view.AccessCoins(input.prevout.hash);
     const CTxOut &prevout = coins->vout[input.prevout.n];
-    AddressType addressType = AddressType::unknown;
-    uint160 hashBytes;
 
-    if (coins->IsCoinBase()) {
-        addressType = AddressType::payToPubKeyHash;
-        std::vector<unsigned char> payKeyBuf;
-        opcodetype opcode;
-        CScript::const_iterator iter = prevout.scriptPubKey.begin();
-        prevout.scriptPubKey.GetOp(iter, opcode, payKeyBuf);
-        CPubKey pubKey(payKeyBuf.begin(), payKeyBuf.end());
-        hashBytes = pubKey.GetID();
-    } else if (prevout.scriptPubKey.IsPayToScriptHash()) {
-        addressType = AddressType::payToScryptHash;
-        hashBytes = uint160(vector <unsigned char>(prevout.scriptPubKey.begin()+2, prevout.scriptPubKey.begin()+22));
-    } else if (prevout.scriptPubKey.IsPayToPublicKeyHash()){
-        addressType = AddressType::payToPubKeyHash;
-        hashBytes = uint160(vector <unsigned char>(prevout.scriptPubKey.begin()+3, prevout.scriptPubKey.begin()+23));
+    txnouttype type;
+    vector<vector<unsigned char> > addresses;
+
+    if(!Solver(prevout.scriptPubKey, type, addresses)) {
+        LogPrint("CDbIndexHelper", "Encountered an unsoluble script in block:%i, txHash: %s, inputNo: %i\n", height, txHash.ToString().c_str(), inputNo);
+        return;
     }
 
-    if (addressType == AddressType::unknown)
+    std::pair<AddressType, uint160> addrType = classifyAddress(type, addresses);
+
+    if(addrType.first == AddressType::unknown && type != TX_ZEROCOINMINT){
+        LogPrint("CDbIndexHelper", "Encountered an unsoluble script in block:%i, txHash: %s, inputNo: %i\n", height, txHash.ToString().c_str(), inputNo);
         return;
+    }
 
     if (addressIndex) {
-        addressIndex->push_back(make_pair(CAddressIndexKey(addressType, hashBytes, height, txNumber, txHash, inputNo, true), prevout.nValue * -1));
-        addressUnspentIndex->push_back(make_pair(CAddressUnspentKey(addressType, hashBytes, input.prevout.hash, input.prevout.n), CAddressUnspentValue()));
+        addressIndex->push_back(make_pair(CAddressIndexKey(addrType.first, addrType.second, height, txNumber, txHash, inputNo, true), prevout.nValue * -1));
+        addressUnspentIndex->push_back(make_pair(CAddressUnspentKey(addrType.first, addrType.second, input.prevout.hash, input.prevout.n), CAddressUnspentValue()));
     }
 
     if (spentIndex)
-        spentIndex->push_back(make_pair(CSpentIndexKey(input.prevout.hash, input.prevout.n), CSpentIndexValue(txHash, inputNo, height, prevout.nValue, addressType, hashBytes)));
+        spentIndex->push_back(make_pair(CSpentIndexKey(input.prevout.hash, input.prevout.n), CSpentIndexValue(txHash, inputNo, height, prevout.nValue, addrType.first, addrType.second)));
 }
 
 template <class Iterator>
@@ -476,36 +488,29 @@ void handleZerocoinSpend(Iterator const begin, Iterator const end, uint256 const
 void handleOutput(const CTxOut &out, size_t outNo, uint256 const & txHash, int height, int txNumber, CCoinsViewCache const & view, bool coinbase,
         AddressIndexPtr & addressIndex, AddressUnspentIndexPtr & addressUnspentIndex, SpentIndexPtr & spentIndex)
 {
-    AddressType addressType = AddressType::unknown;
-    uint160 hashBytes;
-
-    if (coinbase && outNo == 0){
-        addressType = AddressType::payToPubKeyHash;
-        std::vector<unsigned char> pubKeyBuf;
-        opcodetype opcode;
-
-        CScript::const_iterator iter = out.scriptPubKey.begin();
-        out.scriptPubKey.GetOp(iter, opcode, pubKeyBuf);
-        CPubKey pubKey(pubKeyBuf.begin(), pubKeyBuf.end());
-        hashBytes = pubKey.GetID();
-    } else if (out.scriptPubKey.IsPayToScriptHash()){
-        addressType = AddressType::payToScryptHash;
-        hashBytes = uint160(std::vector<unsigned char>(out.scriptPubKey.begin()+2, out.scriptPubKey.begin()+22));
-    } else if (out.scriptPubKey.IsPayToPublicKeyHash()) {
-        addressType = AddressType::payToPubKeyHash;
-        hashBytes = uint160(std::vector<unsigned char>(out.scriptPubKey.begin()+3, out.scriptPubKey.begin()+23));
-    }
-
-    if(out.scriptPubKey.IsZerocoinMint() && addressIndex)
-        addressIndex->push_back(make_pair(CAddressIndexKey(AddressType::zerocoinMint, uint160(), height, txNumber, txHash, outNo, false), out.nValue));
-
-    if (addressType == AddressType::unknown)
+    if(!addressIndex)
         return;
 
-    if(addressIndex){
-        addressIndex->push_back(make_pair(CAddressIndexKey(addressType, hashBytes, height, txNumber, txHash, outNo, false), out.nValue));
-        addressUnspentIndex->push_back(make_pair(CAddressUnspentKey(addressType, hashBytes, txHash, outNo), CAddressUnspentValue(out.nValue, out.scriptPubKey, height)));
+    if(out.scriptPubKey.IsZerocoinMint())
+        addressIndex->push_back(make_pair(CAddressIndexKey(AddressType::zerocoinMint, uint160(), height, txNumber, txHash, outNo, false), out.nValue));
+
+    txnouttype type;
+    vector<vector<unsigned char> > addresses;
+  
+    if(!Solver(out.scriptPubKey, type, addresses)) {
+        LogPrint("CDbIndexHelper", "Encountered an unsoluble script in block:%i, txHash: %s, outNo: %i\n", height, txHash.ToString().c_str(), outNo);
+        return;
     }
+
+    std::pair<AddressType, uint160> addrType = classifyAddress(type, addresses);
+
+    if(addrType.first == AddressType::unknown && type != TX_ZEROCOINMINT){
+        LogPrint("CDbIndexHelper", "Encountered an unsoluble script in block:%i, txHash: %s, outNo: %i\n", height, txHash.ToString().c_str(), outNo);
+        return;
+    }
+
+    addressIndex->push_back(make_pair(CAddressIndexKey(addrType.first, addrType.second, height, txNumber, txHash, outNo, false), out.nValue));
+    addressUnspentIndex->push_back(make_pair(CAddressUnspentKey(addrType.first, addrType.second, txHash, outNo), CAddressUnspentValue(out.nValue, out.scriptPubKey, height)));
 }
 }
 
