@@ -1049,7 +1049,7 @@ bool getZerocoinSupply(CAmount & amount) {
     if(!std::is_sorted(addressIndex.begin(), addressIndex.end(), predicate))
         std::sort(addressIndex.begin(), addressIndex.end(), predicate);
 
-    std::set<CBigNum> originalSerials;
+    std::map<CBigNum, uint256> originalSerials;
     CAmount amt = 0;
 
     for(idx_rec const & idr : addressIndex) {
@@ -1067,10 +1067,12 @@ bool getZerocoinSupply(CAmount & amount) {
             if(zspendSerial == CBigNum(0))
                 return false;
 
-            if(originalSerials.find(zspendSerial) == originalSerials.end())
-                originalSerials.insert(zspendSerial);
-            else
+            auto const iter = originalSerials.find(zspendSerial);
+            if(iter == originalSerials.end())
+                originalSerials.insert({zspendSerial, tx.GetHash()});
+            else if(iter->second != tx.GetHash()){
                 amt += -idr.second;
+            }
         }
     }
     amount = amt;
