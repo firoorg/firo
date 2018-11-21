@@ -460,8 +460,9 @@ void handleInput(CTxIn const & input, size_t inputNo, uint256 const & txHash, in
 
     std::pair<AddressType, uint160> addrType = classifyAddress(type, addresses);
 
-    if(addrType.first == AddressType::unknown && type != TX_ZEROCOINMINT){
-        LogPrint("CDbIndexHelper", "Encountered an unsoluble script in block:%i, txHash: %s, inputNo: %i\n", height, txHash.ToString().c_str(), inputNo);
+    if(addrType.first == AddressType::unknown) {
+        if(type != TX_ZEROCOINMINT)
+            LogPrint("CDbIndexHelper", "Encountered an unsoluble script in block:%i, txHash: %s, inputNo: %i\n", height, txHash.ToString().c_str(), inputNo);
         return;
     }
 
@@ -491,7 +492,7 @@ void handleOutput(const CTxOut &out, size_t outNo, uint256 const & txHash, int h
     if(!addressIndex)
         return;
 
-    if(out.scriptPubKey.IsZerocoinMint())
+    if(out.scriptPubKey.IsZerocoinMint()) 
         addressIndex->push_back(make_pair(CAddressIndexKey(AddressType::zerocoinMint, uint160(), height, txNumber, txHash, outNo, false), out.nValue));
 
     txnouttype type;
@@ -504,8 +505,9 @@ void handleOutput(const CTxOut &out, size_t outNo, uint256 const & txHash, int h
 
     std::pair<AddressType, uint160> addrType = classifyAddress(type, addresses);
 
-    if(addrType.first == AddressType::unknown && type != TX_ZEROCOINMINT){
-        LogPrint("CDbIndexHelper", "Encountered an unsoluble script in block:%i, txHash: %s, outNo: %i\n", height, txHash.ToString().c_str(), outNo);
+    if(addrType.first == AddressType::unknown) {
+        if(type != TX_ZEROCOINMINT)
+            LogPrint("CDbIndexHelper", "Encountered an unsoluble script in block:%i, txHash: %s, outNo: %i\n", height, txHash.ToString().c_str(), outNo);
         return;
     }
 

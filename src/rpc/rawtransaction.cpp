@@ -86,16 +86,16 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
 
             CTransaction prevTx;
             uint256 hashBlock;
-            if (!GetTransaction(txin.prevout.hash, prevTx, Params().GetConsensus(), hashBlock, true))
-                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available about transaction");
-            CTxOut const & txOut = prevTx.vout.at(txin.prevout.n);
+            if (GetTransaction(txin.prevout.hash, prevTx, Params().GetConsensus(), hashBlock, true)) {
+                CTxOut const & txOut = prevTx.vout.at(txin.prevout.n);
 
-            in.push_back(Pair("value", ValueFromAmount(txOut.nValue)));
-            in.push_back(Pair("valueSat", txOut.nValue));
+                in.push_back(Pair("value", ValueFromAmount(txOut.nValue)));
+                in.push_back(Pair("valueSat", txOut.nValue));
 
-            CTxDestination dstAddr;
-            if(ExtractDestination(txOut.scriptPubKey, dstAddr))
-                in.push_back(Pair("address", CBitcoinAddress(dstAddr).ToString()));
+                CTxDestination dstAddr;
+                if(ExtractDestination(txOut.scriptPubKey, dstAddr))
+                    in.push_back(Pair("address", CBitcoinAddress(dstAddr).ToString()));
+            }
         }
         if (!tx.wit.IsNull()) {
             if (!tx.wit.vtxinwit[i].IsNull()) {
