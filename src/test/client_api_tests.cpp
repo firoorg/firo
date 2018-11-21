@@ -25,6 +25,7 @@
 #include "consensus/validation.h"
 #include "core_io.h"
 #include "znode-sync.h"
+#include "znodeconfig.h"
 
 using namespace std;
 CScript script;
@@ -35,8 +36,7 @@ static const std::string passphrase = "12345";
 struct ClientApiTestingSetup : public TestingSetup {
     ClientApiTestingSetup() : TestingSetup(CBaseChainParams::REGTEST, "1")
     {
-        // First register all commands to tableAPI + turn warmup status off
-        RegisterAllCoreAPICommands(tableAPI);
+        //turn warmup status off
         SetAPIWarmupFinished();
 
         CPubKey newKey;
@@ -169,12 +169,13 @@ BOOST_AUTO_TEST_CASE(api_status_test)
     cout << "result:" << result.write(4,0) << endl;
 
     BOOST_CHECK(!result.isNull());
-}
+    }
 
 BOOST_AUTO_TEST_CASE(blockchain_test)
 {
     UniValue valRequest(UniValue::VOBJ);
-    UniValue result(UniValue::VOBJ);;
+    UniValue result(UniValue::VOBJ);
+    UniValue data(UniValue::VOBJ);
 
     valRequest.push_back(Pair("type","initial"));
     valRequest.push_back(Pair("collection","blockchain"));
@@ -185,9 +186,9 @@ BOOST_AUTO_TEST_CASE(blockchain_test)
     BOOST_CHECK(!result.isNull());
 
     // set height and time, verify result is returned
-    valRequest.push_back(Pair("nHeight", stoi(to_string(chainActive.Tip()->nHeight))));
-    valRequest.push_back(Pair("nTime", stoi(to_string(chainActive.Tip()->nHeight))));
-
+    data.push_back(Pair("nHeight", chainActive.Tip()->nHeight));
+    data.push_back(Pair("nTime", to_string(chainActive.Tip()->nTime)));
+    valRequest.push_back(Pair("data",data));
 
     result = CallAPI(valRequest, true);
 
@@ -229,7 +230,11 @@ BOOST_AUTO_TEST_CASE(transaction_test)
     
     result = CallAPI(valRequest, true);
 
-    BOOST_CHECK(!result.isNull());
+    //send invalid transaction encoding, verify failure.
+    data.replace("txRaw", "000000000000");
+    valRequest.replace("data", data);
+
+    BOOST_CHECK_THROW(CallAPI(valRequest, true), runtime_error);
 }
 
 BOOST_AUTO_TEST_CASE(sendzcoin_test)
@@ -450,6 +455,20 @@ BOOST_AUTO_TEST_CASE(znodelist_test)
 
     result = CallAPI(valRequest, true);
     BOOST_CHECK(!result.isNull()); // empty znode list
+}
+
+BOOST_AUTO_TEST_CASE(balance_test)
+{
+    // Verify "Create" initially.
+    UniValue valRequest(UniValue::VOBJ);
+    UniValue result(UniValue::VOBJ);
+
+    valRequest.push_back(Pair("type", "initial"));
+    valRequest.push_back(Pair("collection", "balance"));
+
+    result = CallAPI(valRequest, true);
+
+    BOOST_CHECK(!result.isNull());
 }
 
 BOOST_AUTO_TEST_CASE(setpassphrase_test)

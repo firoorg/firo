@@ -7,13 +7,13 @@
 #include "znodeman.h"
 #include "univalue.h"
 #include "znode-sync.h"
+#include "znodeconfig.h"
 #include "client-api/server.h"
 #include "client-api/protocol.h"
 #include <client-api/wallet.h>
 #include <unordered_map>
 
 using namespace std;
-#include "znodeconfig.h"
 
 UniValue znodecontrol(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
 

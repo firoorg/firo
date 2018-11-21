@@ -8,6 +8,8 @@
 
 #include "util.h"
 #include "chainparams.h"
+#include "client-api/register.h"
+#include "client-api/server.h"
 #include "consensus/consensus.h"
 #include "consensus/validation.h"
 #include "key.h"
@@ -63,6 +65,7 @@ TestingSetup::TestingSetup(const std::string& chainName, std::string suf) : Basi
         // instead of unit tests, but for now we need these here.
         CZerocoinState::GetZerocoinState()->Reset();
         RegisterAllCoreRPCCommands(tableRPC);
+        RegisterAllCoreAPICommands(tableAPI);
         ClearDatadirCache();
         pathTemp = GetTempPath() / strprintf("test_bitcoin_%lu_%i", (unsigned long)GetTime(), (int)(GetRand(100000)));
         boost::filesystem::create_directories(pathTemp);
