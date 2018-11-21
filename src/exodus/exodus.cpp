@@ -20,7 +20,6 @@
 #include "exodus/persistence.h"
 #include "exodus/rules.h"
 #include "exodus/script.h"
-#include "exodus/seedblocks.h"
 #include "exodus/sp.h"
 #include "exodus/tally.h"
 #include "exodus/tx.h"
@@ -1327,8 +1326,7 @@ static int exodus_initial_scan(int nFirstBlock)
 {
     int nTimeBetweenProgressReports = GetArg("-exodusprogressfrequency", 30);  // seconds
     int64_t nNow = GetTime();
-    unsigned int nTxsTotal = 0;
-    unsigned int nTxsFoundTotal = 0;
+    size_t nTxsTotal = 0, nTxsFoundTotal = 0;
     int nBlock = 999999;
     const int nLastBlock = GetHeight();
 
@@ -1338,9 +1336,6 @@ static int exodus_initial_scan(int nFirstBlock)
 
     // used to print the progress to the console and notifies the UI
     ProgressReporter progressReporter(chainActive[nFirstBlock], chainActive[nLastBlock]);
-
-    // check if using seed block filter should be disabled
-    bool seedBlockFilterEnabled = GetBoolArg("-exodusseedblockfilter", true);
 
     for (nBlock = nFirstBlock; nBlock <= nLastBlock; ++nBlock)
     {
@@ -1361,30 +1356,36 @@ static int exodus_initial_scan(int nFirstBlock)
             nNow = GetTime();
         }
 
-        unsigned int nTxNum = 0;
-        unsigned int nTxsFoundInBlock = 0;
+        // Get block to parse.
+        CBlock block;
+
+        if (!ReadBlockFromDisk(block, pblockindex, Params().GetConsensus())) {
+            break;
+        }
+
+        // Parse block.
+        unsigned parsed = 0;
+
         exodus_handler_block_begin(nBlock, pblockindex);
 
-        if (!seedBlockFilterEnabled || !SkipBlock(nBlock)) {
-            CBlock block;
-            if (!ReadBlockFromDisk(block, pblockindex, Params().GetConsensus())) break;
-
-            BOOST_FOREACH(const CTransaction&tx, block.vtx) {
-                if (exodus_handler_tx(tx, nBlock, nTxNum, pblockindex)) ++nTxsFoundInBlock;
-                ++nTxNum;
+        for (unsigned i = 0; i < block.vtx.size(); i++) {
+            if (exodus_handler_tx(block.vtx[i], nBlock, i, pblockindex)) {
+                parsed++;
             }
         }
 
-        nTxsFoundTotal += nTxsFoundInBlock;
-        nTxsTotal += nTxNum;
-        exodus_handler_block_end(nBlock, pblockindex, nTxsFoundInBlock);
+        exodus_handler_block_end(nBlock, pblockindex, parsed);
+
+        // Sum total parsed.
+        nTxsFoundTotal += parsed;
+        nTxsTotal += block.vtx.size();
     }
 
     if (nBlock < nLastBlock) {
         PrintToLog("Scan stopped early at block %d of block %d\n", nBlock, nLastBlock);
     }
 
-    PrintToLog("%d transactions processed, %d meta transactions found\n", nTxsTotal, nTxsFoundTotal);
+    PrintToLog("%zu transactions processed, %zu meta transactions found\n", nTxsTotal, nTxsFoundTotal);
 
     return 0;
 }

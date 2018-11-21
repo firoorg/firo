@@ -669,7 +669,6 @@ std::string HelpMessage(HelpMessageMode mode) {
     strUsage += HelpMessageOpt("-startclean", "Clear all persistence files on startup; triggers reparsing of Exodus transactions");
     strUsage += HelpMessageOpt("-exodustxcache=<num>", "The maximum number of transactions in the input transaction cache (default: 500000)");
     strUsage += HelpMessageOpt("-exodusprogressfrequency=<seconds>", "Time in seconds after which the initial scanning progress is reported (default: 30)");
-    strUsage += HelpMessageOpt("-exodusseedblockfilter=<flag>", "Set skipping of blocks without Exodus transactions during initial scan (default: 1)");
     strUsage += HelpMessageOpt("-exodusdebug=<category>", "Enable or disable log categories, can be \"all\" or \"none\"");
     strUsage += HelpMessageOpt("-autocommit=<flag>", "Enable or disable broadcasting of transactions, when creating transactions (default: 1)");
     strUsage += HelpMessageOpt("-overrideforcedshutdown=<flag>", "Disable force shutdown when error (default: 0)");
