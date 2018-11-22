@@ -89,7 +89,6 @@ void CheckLiveActivations(int blockHeight)
         if (EXODUS_VERSION < liveActivation.minClientVersion) {
             std::string msgText = strprintf("Shutting down due to unsupported feature activation (%d: %s)", liveActivation.featureId, liveActivation.featureName);
             PrintToLog(msgText);
-            PrintToConsole(msgText);
             if (!GetBoolArg("-overrideforcedshutdown", false)) {
                 boost::filesystem::path persistPath = GetDataDir() / "MP_persist";
                 if (boost::filesystem::exists(persistPath)) boost::filesystem::remove_all(persistPath); // prevent the node being restarted without a reparse after forced shutdown

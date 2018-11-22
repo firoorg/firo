@@ -21,7 +21,7 @@ public:
     CExodusFeeCache(const boost::filesystem::path& path, bool fWipe)
     {
         leveldb::Status status = Open(path, fWipe);
-        PrintToConsole("Loading fee cache database: %s\n", status.ToString());
+        PrintToLog("Loading fee cache database: %s\n", status.ToString());
     }
 
     virtual ~CExodusFeeCache()
@@ -64,7 +64,7 @@ public:
     CExodusFeeHistory(const boost::filesystem::path& path, bool fWipe)
     {
         leveldb::Status status = Open(path, fWipe);
-        PrintToConsole("Loading fee history database: %s\n", status.ToString());
+        PrintToLog("Loading fee history database: %s\n", status.ToString());
     }
 
     virtual ~CExodusFeeHistory()

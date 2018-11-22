@@ -999,7 +999,10 @@ void CZerocoinState::CalculateAlternativeModulusAccumulatorValues(CChain *chain,
     libzerocoin::Params *altParams = IsZerocoinTxV2(d, Params().GetConsensus(), id) ? ZCParams : ZCParamsV2;
     libzerocoin::Accumulator accumulator(altParams, d);
 
-    assert(coinGroups.count(denomAndId) > 0);
+    if (coinGroups.count(denomAndId) == 0) {
+        // Can happen when verification is done prior to syncing with network
+        return;
+    }
 
     CoinGroupInfo coinGroup = coinGroups[denomAndId];
 

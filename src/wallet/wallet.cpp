@@ -1431,9 +1431,7 @@ void CWallet::ReacceptWalletTransactions() {
 
         int nDepth = wtx.GetDepthInMainChain();
 
-        if ((wtx.IsCoinBase() 
-            // || wtx.IsZerocoinSpend() // NOTE(martun): Intentionally commented this out.
-            ) && (nDepth == 0 && !wtx.isAbandoned()))
+        if (wtx.IsCoinBase() && (nDepth == 0 && !wtx.isAbandoned()))
             continue;
 
         if (nDepth == 0 && !wtx.isAbandoned()) {

@@ -5,6 +5,9 @@
 #ifndef BITCOIN_RPCREGISTER_H
 #define BITCOIN_RPCREGISTER_H
 
+#include <exodus/exodus.h>
+#include "util.h"
+
 /** These are in one header file to avoid creating tons of single-function
  * headers for everything under src/rpc/ */
 class CRPCTable;
@@ -38,10 +41,12 @@ static inline void RegisterAllCoreRPCCommands(CRPCTable &tableRPC)
     RegisterRawTransactionRPCCommands(tableRPC);
 
     /* Exodus RPCs: */
-    RegisterExodusDataRetrievalRPCCommands(tableRPC);
-    RegisterExodusTransactionCreationRPCCommands(tableRPC);
-    RegisterExodusPayloadCreationRPCCommands(tableRPC);
-    RegisterExodusRawTransactionRPCCommands(tableRPC);
+    if (isExodusEnabled()) {
+        RegisterExodusDataRetrievalRPCCommands(tableRPC);
+        RegisterExodusTransactionCreationRPCCommands(tableRPC);
+        RegisterExodusPayloadCreationRPCCommands(tableRPC);
+        RegisterExodusRawTransactionRPCCommands(tableRPC);
+    }
 }
 
 #endif
