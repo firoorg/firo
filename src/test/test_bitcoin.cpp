@@ -115,6 +115,9 @@ TestingSetup::~TestingSetup()
 	}
         bitdb.RemoveDb("wallet_test.dat");
         bitdb.Reset();
+
+        InterruptAPI();
+        StopAPI();
 }
 
 TestChain100Setup::TestChain100Setup() : TestingSetup(CBaseChainParams::REGTEST)
