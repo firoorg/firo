@@ -87,6 +87,8 @@ TestingSetup::TestingSetup(const std::string& chainName, std::string suf) : Basi
         for (int i=0; i < nScriptCheckThreads-1; i++)
             threadGroup.create_thread(&ThreadScriptCheck);
         RegisterNodeSignals(GetNodeSignals());
+
+        StartAPI();
 }
 
 TestingSetup::~TestingSetup()
