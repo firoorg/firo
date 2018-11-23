@@ -55,14 +55,6 @@ void SetAPIWarmupFinished()
     fAPIInWarmup = false;
 }
 
-bool APIIsInWarmup(std::string *outStatus)
-{
-    LOCK(cs_apiWarmup);
-    if (outStatus)
-        *outStatus = apiWarmupStatus;
-    return fAPIInWarmup;
-}
-
 bool APIIsInWarmup()
 {
     LOCK(cs_apiWarmup);

@@ -482,7 +482,7 @@ UniValue setpassphrase(Type type, const UniValue& data, const UniValue& auth, bo
                 return true;
             }
             else {
-                throw JSONRPCError(API_WRONG_TYPE_CALLED, "Error: MODIFY type called, but wallet is unencrypted.");
+                throw JSONRPCError(API_WRONG_TYPE_CALLED, "Error: Update type called, but wallet is unencrypted.");
             }
             break;
         }

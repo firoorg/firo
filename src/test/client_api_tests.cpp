@@ -52,7 +52,7 @@ struct ClientApiTestingSetup : public TestingSetup {
 
         printf("Balance before %ld\n", pwalletMain->GetBalance());
         script = CScript() <<  ToByteVector(newKey/*coinbaseKey.GetPubKey()*/) << OP_CHECKSIG;
-        for (int i = 0; i < 200; i++)
+        for (int i = 0; i < 300; i++)
         {
             std::vector<CMutableTransaction> noTxns;
             CBlock b = CreateAndProcessBlock(noTxns, script);
@@ -73,7 +73,7 @@ struct ClientApiTestingSetup : public TestingSetup {
                 pwalletMain->AddToWalletIfInvolvingMe(b.vtx[i], &b, true);
         }
 
-        printf("Balance after 200 blocks: %ld\n", pwalletMain->GetBalance());
+        printf("Balance after 300 blocks: %ld\n", pwalletMain->GetBalance());
     }
 
     CBlock CreateBlock(const std::vector<CMutableTransaction>& txns,
@@ -169,7 +169,7 @@ BOOST_AUTO_TEST_CASE(api_status_test)
     cout << "result:" << result.write(4,0) << endl;
 
     BOOST_CHECK(!result.isNull());
-    }
+}
 
 BOOST_AUTO_TEST_CASE(blockchain_test)
 {
@@ -336,85 +336,105 @@ BOOST_AUTO_TEST_CASE(paymentrequest_test)
 
 BOOST_AUTO_TEST_CASE(mint_test)
 {
-    // Verify "Create" initially.
-    UniValue valRequest(UniValue::VOBJ);
-    UniValue data(UniValue::VOBJ);
-    UniValue denominations(UniValue::VOBJ);
-    UniValue result(UniValue::VOBJ);
+    vector<int> denominationTypes;
+    denominationTypes.push_back(1);
+    denominationTypes.push_back(10);
+    denominationTypes.push_back(25);
+    denominationTypes.push_back(50);
+    denominationTypes.push_back(100);
 
-    denominations.push_back(Pair("1", 1));
-    data.push_back(Pair("denominations", denominations));
+    BOOST_FOREACH(int denominationType, denominationTypes){
 
-    valRequest.push_back(Pair("type", "create"));
-    valRequest.push_back(Pair("collection", "mint"));
-    valRequest.push_back(Pair("data", data));
+        UniValue valRequest(UniValue::VOBJ);
+        UniValue data(UniValue::VOBJ);
+        UniValue denominations(UniValue::VOBJ);
+        UniValue result(UniValue::VOBJ);
 
-    result = CallAPI(valRequest, true);
+        denominations.push_back(Pair(to_string(denominationType), 1));
+        data.push_back(Pair("denominations", denominations));
 
-    BOOST_CHECK(result.isStr());
+        valRequest.push_back(Pair("type", "create"));
+        valRequest.push_back(Pair("collection", "mint"));
+        valRequest.push_back(Pair("data", data));
+
+        result = CallAPI(valRequest, true);
+
+        BOOST_CHECK(result.isStr());
+    }
 }
 
 BOOST_AUTO_TEST_CASE(sendprivate_test)
 {
     // Verify "Create" initially.
-    UniValue valRequest(UniValue::VOBJ);
-    UniValue data(UniValue::VOBJ);
-    UniValue denominationArr(UniValue::VARR);
-    UniValue denominationObj(UniValue::VOBJ);
-    UniValue result(UniValue::VOBJ);
+    vector<int> denominationTypes;
+    denominationTypes.push_back(1);
+    denominationTypes.push_back(10);
+    denominationTypes.push_back(25);
+    denominationTypes.push_back(50);
+    denominationTypes.push_back(100);
 
-    CPubKey newKey;
-    BOOST_CHECK(pwalletMain->GetKeyFromPool(newKey));
-    string address = CBitcoinAddress(newKey.GetID()).ToString();
+    BOOST_FOREACH(int denominationType, denominationTypes){
+        UniValue valRequest(UniValue::VOBJ);
+        UniValue data(UniValue::VOBJ);
+        UniValue denominationArr(UniValue::VARR);
+        UniValue denominationObj(UniValue::VOBJ);
+        UniValue result(UniValue::VOBJ);
 
+        CPubKey newKey;
+        BOOST_CHECK(pwalletMain->GetKeyFromPool(newKey));
+        string address = CBitcoinAddress(newKey.GetID()).ToString();
 
-    denominationObj.push_back(Pair("value", 1));
-    denominationObj.push_back(Pair("amount", 1));
-    denominationArr.push_back(denominationObj);
-    data.push_back(Pair("denomination", denominationArr));
-    data.push_back(Pair("address", address));
-    data.push_back(Pair("label", "label"));
+        denominationObj.push_back(Pair("value", denominationType));
+        denominationObj.push_back(Pair("amount", 1));
+        denominationArr.push_back(denominationObj);
+        data.push_back(Pair("denomination", denominationArr));
+        data.push_back(Pair("address", address));
+        data.push_back(Pair("label", "label"));
 
-    valRequest.push_back(Pair("type", "create"));
-    valRequest.push_back(Pair("collection", "sendPrivate"));
-    valRequest.push_back(Pair("data", data));
+        valRequest.push_back(Pair("type", "create"));
+        valRequest.push_back(Pair("collection", "sendPrivate"));
+        valRequest.push_back(Pair("data", data));
 
-    // try to send now, verify failure.
-    BOOST_CHECK_THROW(CallAPI(valRequest, true), runtime_error);
+        // try to send now, verify failure.
+        BOOST_CHECK_THROW(CallAPI(valRequest, true), runtime_error);
 
-    // mint two of denomination 1 and mine 6 blocks.
-    vector<pair<int,int>> denominationPairs;
-    std::vector<CMutableTransaction> MinTxns;
-    CWalletTx wtx;
+        // mint two of the denomination and mine 6 blocks.
+        vector<pair<int,int>> denominationPairs;
+        std::vector<CMutableTransaction> MinTxns;
+        CWalletTx wtx;
 
-    pwalletMain->SetBroadcastTransactions(true);
+        pwalletMain->SetBroadcastTransactions(true);
 
-    string stringError;
+        string stringError;
 
-    std::pair<int,int> denominationPair(1, 2);
-    denominationPairs.push_back(denominationPair);
+        std::pair<int,int> denominationPair(denominationType, 2);
+        denominationPairs.push_back(denominationPair);
 
-    BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denominationPairs), stringError + " - Create Mint failed");
+        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denominationPairs), stringError + " - Create Mint failed");
 
-    BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mint not added to mempool");
+        BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mint not added to mempool");
 
-    // add block
-    int previousHeight = chainActive.Height();
-    CBlock b = CreateAndProcessBlock(MinTxns, script);
-    wtx.Init(NULL);
-    //Add 5 more blocks
-    for (int i = 0; i < 5; i++)
-    {
-        std::vector<CMutableTransaction> noTxns;
-        b = CreateAndProcessBlock(noTxns, script);
+        // add block
+        int previousHeight = chainActive.Height();
+        CBlock b = CreateAndProcessBlock(MinTxns, script);
         wtx.Init(NULL);
-    }
-    BOOST_CHECK_MESSAGE(previousHeight + 6 == chainActive.Height(), "Block not added to chain");
-    previousHeight = chainActive.Height();
+        //Add 5 more blocks
+        for (int i = 0; i < 5; i++)
+        {
+            std::vector<CMutableTransaction> noTxns;
+            b = CreateAndProcessBlock(noTxns, script);
+            wtx.Init(NULL);
+        }
+        BOOST_CHECK_MESSAGE(previousHeight + 6 == chainActive.Height(), "Block not added to chain");
+        previousHeight = chainActive.Height();
 
-    // recall now that conditions are met.
-    result = CallAPI(valRequest, true);
-    BOOST_CHECK(!result["txids"].isNull());
+        // recall now that conditions are met.
+        result = CallAPI(valRequest, true);
+        BOOST_CHECK(!result["txids"].isNull());
+
+        MinTxns.clear();
+        mempool.clear();
+    }
 }
 
 BOOST_AUTO_TEST_CASE(statewallet_test)

@@ -53,6 +53,8 @@ CScript scriptPubKeyZmqServer;
 struct ZmqServerTestingSetup : public TestingSetup {
     ZmqServerTestingSetup() : TestingSetup(CBaseChainParams::REGTEST, "1")
     {
+        uiInterface.InitMessage.connect(SetAPIWarmupStatus);
+
         CPubKey newKey;
         BOOST_CHECK(pwalletMain->GetKeyFromPool(newKey));
 
@@ -84,7 +86,7 @@ struct ZmqServerTestingSetup : public TestingSetup {
         pzmqPublisherInterface = CZMQPublisherInterface::Create();
         pzmqReplierInterface = CZMQReplierInterface::Create();
  
-        // zregister publisher with validation interface
+        // register publisher with validation interface
         RegisterValidationInterface(pzmqPublisherInterface);
 
         // set up requester for ZMQ replier.
