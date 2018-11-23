@@ -6,6 +6,7 @@
 #include "chainparams.h"
 #include "consensus/merkle.h"
 #include "consensus/consensus.h"
+#include "zerocoin_params.h"
 
 #include "tinyformat.h"
 #include "util.h"
@@ -83,7 +84,9 @@ class CMainParams : public CChainParams {
 public:
     CMainParams() {
         strNetworkID = "main";
-        consensus.nSubsidyHalvingInterval = 210000;
+
+        consensus.chainType = Consensus::chainMain;        
+        consensus.nSubsidyHalvingInterval = 305000;
         consensus.nMajorityEnforceBlockUpgrade = 750;
         consensus.nMajorityRejectBlockOutdated = 950;
         consensus.nMajorityWindow = 1000;
@@ -115,8 +118,26 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].nStartTime = 1479168000; // November 15th, 2016.
         consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].nTimeout = 1510704000; // November 15th, 2017.
 
+        // Deployment of MTP
+        consensus.vDeployments[Consensus::DEPLOYMENT_MTP].bit = 12;
+        consensus.vDeployments[Consensus::DEPLOYMENT_MTP].nStartTime = SWITCH_TO_MTP_BLOCK_HEADER - 2*60; // 2 hours leeway
+        consensus.vDeployments[Consensus::DEPLOYMENT_MTP].nTimeout = SWITCH_TO_MTP_BLOCK_HEADER + consensus.nMinerConfirmationWindow*2 * 5*60;
+
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000708f98bf623f02e");
+
+        consensus.nCheckBugFixedAtBlock = ZC_CHECK_BUG_FIXED_AT_BLOCK;
+        consensus.nZnodePaymentsBugFixedAtBlock = ZC_ZNODE_PAYMENT_BUG_FIXED_AT_BLOCK;
+	    consensus.nSpendV15StartBlock = ZC_V1_5_STARTING_BLOCK;
+	    consensus.nSpendV2ID_1 = ZC_V2_SWITCH_ID_1;
+	    consensus.nSpendV2ID_10 = ZC_V2_SWITCH_ID_10;
+	    consensus.nSpendV2ID_25 = ZC_V2_SWITCH_ID_25;
+	    consensus.nSpendV2ID_50 = ZC_V2_SWITCH_ID_50;
+	    consensus.nSpendV2ID_100 = ZC_V2_SWITCH_ID_100;
+	    consensus.nModulusV2StartBlock = ZC_MODULUS_V2_START_BLOCK;
+        consensus.nModulusV1MempoolStopBlock = ZC_MODULUS_V1_MEMPOOL_STOP_BLOCK;
+	    consensus.nModulusV1StopBlock = ZC_MODULUS_V1_STOP_BLOCK;
+        consensus.nMultipleSpendInputsInOneTxStartBlock = ZC_MULTIPLE_SPEND_INPUT_STARTING_BLOCK;
 
         // znode params
         consensus.nZnodePaymentsStartBlock = HF_ZNODE_PAYMENT_START; // not true, but it's ok as long as it's less then nZnodePaymentsIncreaseBlock
@@ -126,6 +147,14 @@ public:
         // consensus.nBudgetPaymentsStartBlock = 328008; // actual historical value
         // consensus.nBudgetPaymentsCycleBlocks = 16616; // ~(60*24*30)/2.6, actual number of blocks per month is 200700 / 12 = 16725
         // consensus.nBudgetPaymentsWindowBlocks = 100;
+
+        consensus.nMTPSwitchTime = SWITCH_TO_MTP_BLOCK_HEADER;
+        consensus.nDifficultyAdjustStartBlock = 0;
+        consensus.nFixedDifficulty = 0x2000ffff;
+        consensus.nPowTargetSpacingMTP = 5*60;
+        consensus.nInitialMTPDifficulty = 0x1c021e57;
+        consensus.nMTPRewardReduction = 2;
+
         nMaxTipAge = 6 * 60 * 60; // ~144 blocks behind -> 2 x fork detection time, was 24 * 60 * 60 in bitcoin
 
         nPoolMaxTransactions = 3;
@@ -159,17 +188,21 @@ public:
         extraNonce[1] = 0x3f;
         extraNonce[2] = 0x00;
         extraNonce[3] = 0x00;
-        genesis = CreateGenesisBlock(1414776286, 142392, 0x1e0ffff0, 2, 0 * COIN, extraNonce);
+        genesis = CreateGenesisBlock(ZC_GENESIS_BLOCK_TIME, 142392, 0x1e0ffff0, 2, 0 * COIN, extraNonce);
         const std::string s = genesis.GetHash().ToString();
         // std::cout << "zcoin new hashMerkleRoot hash: " << genesis.hashMerkleRoot.ToString() << std::endl;
         consensus.hashGenesisBlock = genesis.GetHash();
         assert(consensus.hashGenesisBlock == uint256S("0x4381deb85b1b2c9843c222944b616d997516dcbd6a964e1eaf0def0830695233"));
         assert(genesis.hashMerkleRoot == uint256S("0x365d2aa75d061370c9aefdabac3985716b1e3b4bb7c4af4ed54f25e5aaa42783"));
-        vSeeds.push_back(CDNSSeedData("sf1.zcoin.io", "sf1.zcoin.io", false));
-        vSeeds.push_back(CDNSSeedData("sf2.zcoin.io", "sf2.zcoin.io", false));
+        vSeeds.push_back(CDNSSeedData("amsterdam.zcoin.io", "amsterdam.zcoin.io", false));
+        vSeeds.push_back(CDNSSeedData("australia.zcoin.io", "australia.zcoin.io", false));
+        vSeeds.push_back(CDNSSeedData("chicago.zcoin.io", "chicago.zcoin.io", false));
         vSeeds.push_back(CDNSSeedData("london.zcoin.io", "london.zcoin.io", false));
+        vSeeds.push_back(CDNSSeedData("frankfurt.zcoin.io", "frankfurt.zcoin.io", false));
+        vSeeds.push_back(CDNSSeedData("newjersey.zcoin.io", "newjersey.zcoin.io", false));
+        vSeeds.push_back(CDNSSeedData("sanfrancisco.zcoin.io", "sanfrancisco.zcoin.io", false));
+        vSeeds.push_back(CDNSSeedData("tokyo.zcoin.io", "tokyo.zcoin.io", false));
         vSeeds.push_back(CDNSSeedData("singapore.zcoin.io", "singapore.zcoin.io", false));
-        vSeeds.push_back(CDNSSeedData("nyc.zcoin.io", "nyc.zcoin.io", false));
         // Note that of those with the service bits flag, most only support a subset of possible options
         base58Prefixes[PUBKEY_ADDRESS] = std::vector < unsigned char > (1, 82);
         base58Prefixes[SCRIPT_ADDRESS] = std::vector < unsigned char > (1, 7);
@@ -211,7 +244,9 @@ class CTestNetParams : public CChainParams {
 public:
     CTestNetParams() {
         strNetworkID = "test";
-        consensus.nSubsidyHalvingInterval = 210000;
+
+        consensus.chainType = Consensus::chainTestnet;
+        consensus.nSubsidyHalvingInterval = 305000;
         consensus.nMajorityEnforceBlockUpgrade = 51;
         consensus.nMajorityRejectBlockOutdated = 75;
         consensus.nMajorityWindow = 100;
@@ -222,7 +257,7 @@ public:
         consensus.BIP34Hash = uint256S("0x0000000023b3a96d3484e5abb3755c413e7d41500f8e2a5c3f0dd01299cd8ef8");
         consensus.powLimit = uint256S("00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
         consensus.nPowTargetTimespan = 60 * 60; // 60 minutes between retargets
-        consensus.nPowTargetSpacing = 10 * 60; // 10 minute blocks
+        consensus.nPowTargetSpacing = 5 * 60; // 5 minute blocks
         consensus.fPowAllowMinDifficultyBlocks = true;
         consensus.fPowNoRetargeting = false;
         consensus.nRuleChangeActivationThreshold = 1512; // 75% for testchains
@@ -241,10 +276,30 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].nStartTime = 1462060800; // May 1st 2016
         consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].nTimeout = 1493596800; // May 1st 2017
 
+        // Deployment of MTP
+        consensus.vDeployments[Consensus::DEPLOYMENT_MTP].bit = 12;
+        consensus.vDeployments[Consensus::DEPLOYMENT_MTP].nStartTime = 1539172800 - 2*60;
+        consensus.vDeployments[Consensus::DEPLOYMENT_MTP].nTimeout = 1539172800 + consensus.nMinerConfirmationWindow*2 * 5*60;
+
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000708f98bf623f02e");
+
+	    consensus.nSpendV15StartBlock = 5000;
+        consensus.nCheckBugFixedAtBlock = 1;
+        consensus.nZnodePaymentsBugFixedAtBlock = 1;
+
+	    consensus.nSpendV2ID_1 = ZC_V2_TESTNET_SWITCH_ID_1;
+	    consensus.nSpendV2ID_10 = ZC_V2_TESTNET_SWITCH_ID_10;
+	    consensus.nSpendV2ID_25 = ZC_V2_TESTNET_SWITCH_ID_25;
+	    consensus.nSpendV2ID_50 = ZC_V2_TESTNET_SWITCH_ID_50;
+	    consensus.nSpendV2ID_100 = ZC_V2_TESTNET_SWITCH_ID_100;
+	    consensus.nModulusV2StartBlock = ZC_MODULUS_V2_TESTNET_START_BLOCK;
+        consensus.nModulusV1MempoolStopBlock = ZC_MODULUS_V1_TESTNET_MEMPOOL_STOP_BLOCK;
+	    consensus.nModulusV1StopBlock = ZC_MODULUS_V1_TESTNET_STOP_BLOCK;
+        consensus.nMultipleSpendInputsInOneTxStartBlock = 1;
+
         // Znode params testnet
-        consensus.nZnodePaymentsStartBlock = 5200; // not true, but it's ok as long as it's less then n
+        consensus.nZnodePaymentsStartBlock = 2200;
         //consensus.nZnodePaymentsIncreaseBlock = 360; // not used for now, probably later
         //consensus.nZnodePaymentsIncreasePeriod = 650; // not used for now, probably later
         //consensus.nSuperblockStartBlock = 61000;
@@ -252,6 +307,13 @@ public:
         //consensus.nBudgetPaymentsCycleBlocks = 50;
         //consensus.nBudgetPaymentsWindowBlocks = 10;
         nMaxTipAge = 0x7fffffff; // allow mining on top of old blocks for testnet
+
+        consensus.nMTPSwitchTime = 1539172800;
+        consensus.nDifficultyAdjustStartBlock = 100;
+        consensus.nFixedDifficulty = 0x2000ffff;
+        consensus.nPowTargetSpacingMTP = 5*60;
+        consensus.nInitialMTPDifficulty = 0x2000ffff;  // !!!! change it to the real value
+        consensus.nMTPRewardReduction = 2;
 
         nPoolMaxTransactions = 3;
         nFulfilledRequestExpireTime = 5*60; // fulfilled requests expire in 5 minutes
@@ -274,21 +336,24 @@ public:
         extraNonce[1] = 0x00;
         extraNonce[2] = 0x00;
         extraNonce[3] = 0x00;
-        genesis = CreateGenesisBlock(1414776313, 1620571, 0x1e0ffff0, 2, 0 * COIN, extraNonce);
+        genesis = CreateGenesisBlock(ZC_GENESIS_BLOCK_TIME, 3564781, 0x1e0ffff0, 2, 0 * COIN, extraNonce);
         consensus.hashGenesisBlock = genesis.GetHash();
-//        std::cout << "zcoin testnet genesisBlock hash: " << consensus.hashGenesisBlock.ToString() << std::endl;
-//        std::cout << "zcoin testnet hashMerkleRoot hash: " << genesis.hashMerkleRoot.ToString() << std::endl;
+        //std::cout << "zcoin testnet genesisBlock hash: " << consensus.hashGenesisBlock.ToString() << std::endl;
+        //std::cout << "zcoin testnet hashMerkleRoot hash: " << genesis.hashMerkleRoot.ToString() << std::endl;
         //btzc: update testnet zcoin hashGenesisBlock and hashMerkleRoot
         assert(consensus.hashGenesisBlock ==
-               uint256S("0x7ac038c193c2158c428c59f9ae0c02a07115141c6e9dc244ae96132e99b4e642"));
+               uint256S("0x1e3487fdb1a7d46dac3e8f3e58339c6eff54abf6aef353485f3ed64250a35e89"));
         assert(genesis.hashMerkleRoot ==
                uint256S("0x25b361d60bc7a66b311e72389bf5d9add911c735102bcb6425f63aceeff5b7b8"));
         vFixedSeeds.clear();
         vSeeds.clear();
         // nodes with support for servicebits filtering should be at the top
         // zcoin test seeds
-        vSeeds.push_back(CDNSSeedData("beta1.zcoin.io", "beta1.zcoin.io", false));
-        vSeeds.push_back(CDNSSeedData("beta2.zcoin.io", "beta2.zcoin.io", false));
+        // vSeeds.push_back(CDNSSeedData("beta1.zcoin.io", "beta1.zcoin.io", false));
+        // vSeeds.push_back(CDNSSeedData("beta2.zcoin.io", "beta2.zcoin.io", false));
+        // vSeeds.push_back(CDNSSeedData("45.76.182.254", "45.76.182.254", false));
+        vSeeds.push_back(CDNSSeedData("MTP1", "mtp1.zcoin.io", false));
+        vSeeds.push_back(CDNSSeedData("MTP2", "mtp2.zcoin.io", false));
 
 //        vSeeds.push_back(CDNSSeedData("testnetbitcoin.jonasschnelli.ch", "testnet-seed.bitcoin.jonasschnelli.ch", true));
 //        vSeeds.push_back(CDNSSeedData("petertodd.org", "seed.tbtc.petertodd.org", true));
@@ -308,7 +373,6 @@ public:
         fMineBlocksOnDemand = false;
         fTestnetToBeDeprecatedFieldRPC = true;
 
-
         checkpointData = (CCheckpointData) {
                 boost::assign::map_list_of
                         (0, uint256S("0x")),
@@ -316,7 +380,6 @@ public:
                         0,
                         100.0
         };
-
     }
 };
 
@@ -329,17 +392,20 @@ class CRegTestParams : public CChainParams {
 public:
     CRegTestParams() {
         strNetworkID = "regtest";
-        consensus.nSubsidyHalvingInterval = 150;
+
+        consensus.chainType = Consensus::chainRegtest;
+        consensus.nSubsidyHalvingInterval = 305000;
         consensus.nMajorityEnforceBlockUpgrade = 750;
         consensus.nMajorityRejectBlockOutdated = 950;
         consensus.nMajorityWindow = 1000;
         consensus.BIP34Height = -1; // BIP34 has not necessarily activated on regtest
         consensus.BIP34Hash = uint256();
         consensus.powLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
-        consensus.nPowTargetTimespan = 60 * 60; // 60 minutes between retargets
-        consensus.nPowTargetSpacing = 10 * 60; // 10 minute blocks
+        consensus.nPowTargetTimespan = 60 * 60 * 1000; // 60 minutes between retargets
+        consensus.nPowTargetSpacing = 1; // 10 minute blocks
         consensus.fPowAllowMinDifficultyBlocks = true;
         consensus.fPowNoRetargeting = true;
+        consensus.nZnodePaymentsStartBlock = 120;
         consensus.nRuleChangeActivationThreshold = 108; // 75% for testchains
         consensus.nMinerConfirmationWindow = 144; // Faster than normal for regtest (144 instead of 2016)
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
@@ -351,12 +417,35 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].bit = 1;
         consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].nStartTime = 0;
         consensus.vDeployments[Consensus::DEPLOYMENT_SEGWIT].nTimeout = 999999999999ULL;
+        consensus.vDeployments[Consensus::DEPLOYMENT_MTP].bit = 12;
+        consensus.vDeployments[Consensus::DEPLOYMENT_MTP].nStartTime = INT_MAX;
+        consensus.vDeployments[Consensus::DEPLOYMENT_MTP].nTimeout = 999999999999ULL;
 
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x00");
         // Znode code
         nFulfilledRequestExpireTime = 5*60; // fulfilled requests expire in 5 minutes
         nMaxTipAge = 6 * 60 * 60; // ~144 blocks behind -> 2 x fork detection time, was 24 * 60 * 60 in bitcoin
+
+        consensus.nCheckBugFixedAtBlock = 120;
+        consensus.nZnodePaymentsBugFixedAtBlock = 1;
+        consensus.nSpendV15StartBlock = 1;
+        consensus.nSpendV2ID_1 = 2;
+        consensus.nSpendV2ID_10 = 3;
+        consensus.nSpendV2ID_25 = 3;
+        consensus.nSpendV2ID_50 = 3;
+        consensus.nSpendV2ID_100 = 3;
+        consensus.nModulusV2StartBlock = 130;
+        consensus.nModulusV1MempoolStopBlock = 135;
+        consensus.nModulusV1StopBlock = 140;
+        consensus.nMultipleSpendInputsInOneTxStartBlock = 1;
+
+        consensus.nMTPSwitchTime = INT_MAX;
+        consensus.nDifficultyAdjustStartBlock = 5000;
+        consensus.nFixedDifficulty = 0x2000ffff;
+        consensus.nPowTargetSpacingMTP = 5*60;
+        consensus.nInitialMTPDifficulty = 0x2070ffff;  // !!!! change it to the real value
+        consensus.nMTPRewardReduction = 2;
 
         pchMessageStart[0] = 0xfa;
         pchMessageStart[1] = 0xbf;
@@ -375,16 +464,16 @@ public:
         extraNonce[1] = 0x00;
         extraNonce[2] = 0x00;
         extraNonce[3] = 0x00;
-        genesis = CreateGenesisBlock(1414776313, 414098458, 0x1d00ffff, 1, 0 * COIN, extraNonce);
+        genesis = CreateGenesisBlock(ZC_GENESIS_BLOCK_TIME, 414098459, 0x207fffff, 1, 0 * COIN, extraNonce);
         consensus.hashGenesisBlock = genesis.GetHash();
         //btzc: update regtest zcoin hashGenesisBlock and hashMerkleRoot
 //        std::cout << "zcoin regtest genesisBlock hash: " << consensus.hashGenesisBlock.ToString() << std::endl;
 //        std::cout << "zcoin regtest hashMerkleRoot hash: " << genesis.hashMerkleRoot.ToString() << std::endl;
         //btzc: update testnet zcoin hashGenesisBlock and hashMerkleRoot
-        assert(consensus.hashGenesisBlock ==
-               uint256S("0x0080c7bf30bb2579ed9c93213475bf8fafc1f53807da908cde19cf405b9eb55b"));
-        assert(genesis.hashMerkleRoot ==
-               uint256S("0x25b361d60bc7a66b311e72389bf5d9add911c735102bcb6425f63aceeff5b7b8"));
+        //assert(consensus.hashGenesisBlock ==
+        //       uint256S("0x0080c7bf30bb2579ed9c93213475bf8fafc1f53807da908cde19cf405b9eb55b"));
+        //assert(genesis.hashMerkleRoot ==
+        //       uint256S("0x25b361d60bc7a66b311e72389bf5d9add911c735102bcb6425f63aceeff5b7b8"));
 
         vFixedSeeds.clear(); //!< Regtest mode doesn't have any fixed seeds.
         vSeeds.clear();      //!< Regtest mode doesn't have any DNS seeds.

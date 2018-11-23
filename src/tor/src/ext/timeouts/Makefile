@@ -38,9 +38,9 @@ RM = rm -f
 # END MACROS
 
 SHRC = \
-        top_srcdir="$(top_srcdir)"; \
-        top_builddir="$(top_builddir)"; \
-        . "$${top_srcdir}/Rules.shrc"
+	top_srcdir="$(top_srcdir)"; \
+	top_builddir="$(top_builddir)"; \
+	. "$${top_srcdir}/Rules.shrc"
 
 LUA_APIS = 5.1 5.2 5.3
 
@@ -53,17 +53,16 @@ timeout.o: $(top_srcdir)/timeout.c
 test-timeout.o: $(top_srcdir)/test-timeout.c
 
 timeout.o test-timeout.o:
-        @$(SHRC); echo_cmd $(CC) $(ALL_CFLAGS) -c -o $@ $${top_srcdir}/$(@F:%.o=%.c) $(ALL_CPPFLAGS)
+	@$(SHRC); echo_cmd $(CC) $(ALL_CFLAGS) -c -o $@ $${top_srcdir}/$(@F:%.o=%.c) $(ALL_CPPFLAGS)
 
 test-timeout: timeout.o test-timeout.o
-        @$(SHRC); echo_cmd $(CC) $(ALL_CPPFLAGS) $(ALL_CFLAGS) -o $@ timeout.o test-timeout.o
+	@$(SHRC); echo_cmd $(CC) $(ALL_CPPFLAGS) $(ALL_CFLAGS) -o $@ timeout.o test-timeout.o
 
 .PHONY: clean clean~
 
 clean:
-        $(RM) $(top_builddir)/test-timeout $(top_builddir)/*.o
-        $(RM) -r $(top_builddir)/*.dSYM
+	$(RM) $(top_builddir)/test-timeout $(top_builddir)/*.o
+	$(RM) -r $(top_builddir)/*.dSYM
 
 clean~:
-        find $(top_builddir) $(top_srcdir) -name "*~" -exec $(RM) -- {} "+"
-
+	find $(top_builddir) $(top_srcdir) -name "*~" -exec $(RM) -- {} "+"

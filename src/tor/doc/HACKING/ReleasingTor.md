@@ -14,6 +14,9 @@ new Tor release:
 2. If this is going to be an important security release, give the packagers
    some advance warning: See this list of packagers in IV.3 below.
 
+3. Given the release date for Tor, ask the TB team about the likely release
+   date of a TB that contains it.  See note below in "commit, upload,
+   announce".
 
 === I. Make sure it works
 
@@ -22,6 +25,7 @@ new Tor release:
    resolve those.
 
    As applicable, merge the `maint-X` branch into the `release-X` branch.
+   But you've been doing that all along, right?
 
 2. Are all of the jenkins builders happy?  See jenkins.torproject.org.
 
@@ -30,7 +34,7 @@ new Tor release:
 
    What about Coverity Scan?
 
-   What about clan scan-build?
+   What about clang scan-build?
 
    Does 'make distcheck' complain?
 
@@ -134,6 +138,9 @@ new Tor release:
    either `make`, or `perl scripts/maint/updateVersions.pl`, depending on
    your version.)
 
+   When you merge the maint branch forward to the next maint branch, or into
+   master, merge it with "-s ours" to avoid a needless version bump.
+
 2. Make distcheck, put the tarball up in somewhere (how about your
    homedir on your homedir on people.torproject.org?) , and tell `#tor`
    about it. Wait a while to see if anybody has problems building it.
@@ -146,6 +153,9 @@ new Tor release:
         gpg -ba <the_tarball>
         git tag -u <keyid> tor-0.3.x.y-status
         git push origin tag tor-0.3.x.y-status
+
+   (You must do this before you update the website: it relies on finding
+   the version by tag.)
 
 2. scp the tarball and its sig to the dist website, i.e.
    `/srv/dist-master.torproject.org/htdocs/` on dist-master. When you want
@@ -171,7 +181,10 @@ new Tor release:
        - {mike} at tig dot as
        - {tails-rm} at boum dot org
        - {simon} at sdeziel.info
-       - {yuri} at rawbw.com
+       - {yuri} at freebsd.org
+       - {mh+tor} at scrit.ch
+
+   Also, email tor-packagers@lists.torproject.org.
 
 4. Add the version number to Trac.  To do this, go to Trac, log in,
     select "Admin" near the top of the screen, then select "Versions" from
@@ -180,7 +193,11 @@ new Tor release:
     0.2.2.23-alpha" (or whatever the version is), and we select the date as
     the date in the ChangeLog.
 
-5. Mail the release blurb and ChangeLog to tor-talk (development release) or
+5. Double-check: did the version get recommended in the consensus yet?  Is
+   the website updated?  If not, don't announce until they have the
+   up-to-date versions, or people will get confused.
+
+6. Mail the release blurb and ChangeLog to tor-talk (development release) or
    tor-announce (stable).
 
    Post the changelog on the blog as well. You can generate a

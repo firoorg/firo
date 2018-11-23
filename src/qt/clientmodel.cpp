@@ -33,7 +33,9 @@ ClientModel::ClientModel(OptionsModel *optionsModel, QObject *parent) :
     optionsModel(optionsModel),
     peerTableModel(0),
     banTableModel(0),
-    pollTimer(0)
+    pollTimer(0),
+    lockedExodusStateChanged(false),
+    lockedExodusBalanceChanged(false)
 {
     peerTableModel = new PeerTableModel(this);
     banTableModel = new BanTableModel(this);
@@ -123,6 +125,51 @@ void ClientModel::updateNumConnections(int numConnections)
     Q_EMIT numConnectionsChanged(numConnections);
 }
 
+
+void ClientModel::invalidateExodusState()
+{
+    Q_EMIT reinitExodusState();
+}
+
+void ClientModel::updateExodusState()
+{
+    lockedExodusStateChanged = false;
+    Q_EMIT refreshExodusState();
+}
+
+bool ClientModel::tryLockExodusStateChanged()
+{
+    // Try to avoid Exodus queuing too many messages for the UI
+    if (lockedExodusStateChanged) {
+        return false;
+    }
+
+    lockedExodusStateChanged = true;
+    return true;
+}
+
+void ClientModel::updateExodusBalance()
+{
+    lockedExodusBalanceChanged = false;
+    Q_EMIT refreshExodusBalance();
+}
+
+bool ClientModel::tryLockExodusBalanceChanged()
+{
+    // Try to avoid Omni queuing too many messages for the UI
+    if (lockedExodusBalanceChanged) {
+        return false;
+    }
+
+    lockedExodusBalanceChanged = true;
+    return true;
+}
+
+void ClientModel::updateExodusPending(bool pending)
+{
+    Q_EMIT refreshExodusPending(pending);
+}
+
 void ClientModel::updateAlert()
 {
     Q_EMIT alertsChanged(getStatusBarWarnings());
@@ -196,6 +243,34 @@ void ClientModel::updateBanlist()
 }
 
 // Handlers for core signals
+static void ExodusStateInvalidated(ClientModel *clientmodel)
+{
+    // This will be triggered if a reorg invalidates the state
+    QMetaObject::invokeMethod(clientmodel, "invalidateExodusState", Qt::QueuedConnection);
+}
+
+static void ExodusStateChanged(ClientModel *clientmodel)
+{
+    // This will be triggered for each block that contains Omni layer transactions
+    if (clientmodel->tryLockExodusStateChanged()) {
+        QMetaObject::invokeMethod(clientmodel, "updateExodusState", Qt::QueuedConnection);
+    }
+}
+
+static void ExodusBalanceChanged(ClientModel *clientmodel)
+{
+    // Triggered when a balance for a wallet address changes
+    if (clientmodel->tryLockExodusBalanceChanged()) {
+        QMetaObject::invokeMethod(clientmodel, "updateExodusBalance", Qt::QueuedConnection);
+    }
+}
+
+static void ExodusPendingChanged(ClientModel *clientmodel, bool pending)
+{
+    // Triggered when Exodus pending map adds/removes transactions
+    QMetaObject::invokeMethod(clientmodel, "updateExodusPending", Qt::QueuedConnection, Q_ARG(bool, pending));
+}
+
 static void ShowProgress(ClientModel *clientmodel, const std::string &title, int nProgress)
 {
     // emits signal "showProgress"
@@ -262,6 +337,12 @@ void ClientModel::subscribeToCoreSignals()
     uiInterface.NotifyBlockTip.connect(boost::bind(BlockTipChanged, this, _1, _2, false));
     uiInterface.NotifyHeaderTip.connect(boost::bind(BlockTipChanged, this, _1, _2, true));
     uiInterface.NotifyAdditionalDataSyncProgressChanged.connect(boost::bind(NotifyAdditionalDataSyncProgressChanged, this, _1, _2));
+
+    // Connect Exodus signals
+    uiInterface.ExodusStateChanged.connect(boost::bind(ExodusStateChanged, this));
+    uiInterface.ExodusPendingChanged.connect(boost::bind(ExodusPendingChanged, this, _1));
+    uiInterface.ExodusBalanceChanged.connect(boost::bind(ExodusBalanceChanged, this));
+    uiInterface.ExodusStateInvalidated.connect(boost::bind(ExodusStateInvalidated, this));
 }
 
 void ClientModel::unsubscribeFromCoreSignals()
@@ -274,4 +355,10 @@ void ClientModel::unsubscribeFromCoreSignals()
     uiInterface.NotifyBlockTip.disconnect(boost::bind(BlockTipChanged, this, _1, _2, false));
     uiInterface.NotifyHeaderTip.disconnect(boost::bind(BlockTipChanged, this, _1, _2, true));
     uiInterface.NotifyAdditionalDataSyncProgressChanged.disconnect(boost::bind(NotifyAdditionalDataSyncProgressChanged, this, _1, _2));
+
+    // Disconnect Omni signals
+    uiInterface.ExodusStateChanged.disconnect(boost::bind(ExodusStateChanged, this));
+    uiInterface.ExodusPendingChanged.disconnect(boost::bind(ExodusPendingChanged, this, _1));
+    uiInterface.ExodusBalanceChanged.disconnect(boost::bind(ExodusBalanceChanged, this));
+	uiInterface.ExodusStateInvalidated.disconnect(boost::bind(ExodusStateInvalidated, this));
 }

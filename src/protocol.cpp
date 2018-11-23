@@ -41,6 +41,7 @@ namespace NetMsgType {
     const char *CMPCTBLOCK = "cmpctblock";
     const char *GETBLOCKTXN = "getblocktxn";
     const char *BLOCKTXN = "blocktxn";
+    const char *DANDELIONTX="dandeliontx";
 //znode
     const char *TXLOCKVOTE="txlvote";
     const char *SPORK = "spork";
@@ -95,6 +96,7 @@ const static std::string allNetMessageTypes[] = {
         NetMsgType::CMPCTBLOCK,
         NetMsgType::GETBLOCKTXN,
         NetMsgType::BLOCKTXN,
+		NetMsgType::DANDELIONTX,
         //znode
         NetMsgType::TXLOCKREQUEST,
         NetMsgType::ZNODEPAYMENTVOTE,
@@ -203,6 +205,7 @@ const char* CInv::GetCommand() const
         case MSG_BLOCK:                 return NetMsgType::BLOCK;
         case MSG_FILTERED_BLOCK:        return NetMsgType::MERKLEBLOCK;
         case MSG_CMPCT_BLOCK:           return NetMsgType::CMPCTBLOCK;
+        case MSG_DANDELION_TX:   		return NetMsgType::DANDELIONTX;
         case MSG_TXLOCK_REQUEST:        return NetMsgType::TXLOCKREQUEST;
         case MSG_TXLOCK_VOTE:           return NetMsgType::TXLOCKVOTE;
         case MSG_SPORK:                 return NetMsgType::SPORK;
@@ -220,6 +223,11 @@ const char* CInv::GetCommand() const
 
 std::string CInv::ToString() const
 {
+    const char* command = GetCommand();
+    if (strcmp(command, "error") == 0)
+    {
+        return strprintf("Error %d %s", type, hash.ToString());
+    }
     return strprintf("%s %s", GetCommand(), hash.ToString());
 }
 

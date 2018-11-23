@@ -54,6 +54,7 @@ public:
     };
 
     const Consensus::Params& GetConsensus() const { return consensus; }
+    void SetRegTestMtpSwitchTime(uint32_t time) { if(consensus.chainType == Consensus::chainRegtest) consensus.nMTPSwitchTime = time;}
     const CMessageHeader::MessageStartChars& MessageStart() const { return pchMessageStart; }
     int GetDefaultPort() const { return nDefaultPort; }
 
@@ -81,6 +82,7 @@ public:
     int FulfilledRequestExpireTime() const { return nFulfilledRequestExpireTime; }
     std::string SporkPubKey() const { return strSporkPubKey; }
     std::string ZnodePaymentPubKey() const { return strZnodePaymentsPubKey; }
+	
 protected:
     CChainParams() {}
 
@@ -99,6 +101,7 @@ protected:
     bool fMineBlocksOnDemand;
     bool fTestnetToBeDeprecatedFieldRPC;
     CCheckpointData checkpointData;
+	
     /** znode params*/
     long nMaxTipAge;
     int nPoolMaxTransactions;

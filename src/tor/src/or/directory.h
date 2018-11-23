@@ -51,7 +51,9 @@ int directory_must_use_begindir(const or_options_t *options);
  */
 typedef struct directory_request_t directory_request_t;
 directory_request_t *directory_request_new(uint8_t dir_purpose);
-void directory_request_free(directory_request_t *req);
+void directory_request_free_(directory_request_t *req);
+#define directory_request_free(req) \
+  FREE_AND_NULL(directory_request_t, directory_request_free_, (req))
 void directory_request_set_or_addr_port(directory_request_t *req,
                                         const tor_addr_port_t *p);
 void directory_request_set_dir_addr_port(directory_request_t *req,
@@ -130,29 +132,19 @@ time_t download_status_increment_attempt(download_status_t *dls,
                                     time(NULL))
 
 void download_status_reset(download_status_t *dls);
-static int download_status_is_ready(download_status_t *dls, time_t now,
-                                    int max_failures);
+static int download_status_is_ready(download_status_t *dls, time_t now);
 time_t download_status_get_next_attempt_at(const download_status_t *dls);
 
 /** Return true iff, as of <b>now</b>, the resource tracked by <b>dls</b> is
  * ready to get its download reattempted. */
 static inline int
-download_status_is_ready(download_status_t *dls, time_t now,
-                         int max_failures)
+download_status_is_ready(download_status_t *dls, time_t now)
 {
   /* dls wasn't reset before it was used */
   if (dls->next_attempt_at == 0) {
     download_status_reset(dls);
   }
 
-  if (dls->backoff == DL_SCHED_DETERMINISTIC) {
-    /* Deterministic schedules can hit an endpoint; exponential backoff
-     * schedules just wait longer and longer. */
-    int under_failure_limit = (dls->n_download_failures <= max_failures
-                               && dls->n_download_attempts <= max_failures);
-    if (!under_failure_limit)
-      return 0;
-  }
   return download_status_get_next_attempt_at(dls) <= now;
 }
 
@@ -238,6 +230,9 @@ STATIC int handle_response_fetch_hsdesc_v3(dir_connection_t *conn,
 STATIC int handle_response_fetch_microdesc(dir_connection_t *conn,
                                  const response_handler_args_t *args);
 
+STATIC int handle_response_fetch_consensus(dir_connection_t *conn,
+                                         const response_handler_args_t *args);
+
 #endif /* defined(DIRECTORY_PRIVATE) */
 
 #ifdef TOR_UNIT_TESTS
@@ -255,8 +250,7 @@ MOCK_DECL(STATIC int, directory_handle_command_post,(dir_connection_t *conn,
                                                      const char *body,
                                                      size_t body_len));
 STATIC int download_status_schedule_get_delay(download_status_t *dls,
-                                              const smartlist_t *schedule,
-                                              int min_delay, int max_delay,
+                                              int min_delay,
                                               time_t now);
 
 STATIC int handle_post_hs_descriptor(const char *url, const char *body);
@@ -265,15 +259,11 @@ STATIC char* authdir_type_to_string(dirinfo_type_t auth);
 STATIC const char * dir_conn_purpose_to_string(int purpose);
 STATIC int should_use_directory_guards(const or_options_t *options);
 STATIC compression_level_t choose_compression_level(ssize_t n_bytes);
-STATIC const smartlist_t *find_dl_schedule(const download_status_t *dls,
-                                           const or_options_t *options);
-STATIC void find_dl_min_and_max_delay(download_status_t *dls,
-                                      const or_options_t *options,
-                                      int *min, int *max);
+STATIC int find_dl_min_delay(const download_status_t *dls,
+                             const or_options_t *options);
 
 STATIC int next_random_exponential_delay(int delay,
-                                         int base_delay,
-                                         int max_delay);
+                                         int base_delay);
 
 STATIC void next_random_exponential_delay_range(int *low_bound_out,
                                                 int *high_bound_out,

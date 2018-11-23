@@ -63,7 +63,7 @@ public:
     {
         init();
     }
-
+	
     CBigNum(const CBigNum& b)
     {
         init();
@@ -80,6 +80,13 @@ public:
             throw bignum_error("CBigNum::operator= : BN_copy failed");
         return (*this);
     }
+
+	CBigNum(const char *hexString)
+	{
+		init();
+		if (!SetHexBool(hexString))
+			throw bignum_error("CBigNum::CBigNum(const char *) : invalid hex string");
+	}
 
     ~CBigNum()
     {

@@ -173,15 +173,15 @@ void OverviewPage::handleEnabledTorChanged(){
 
 	if(ui->checkboxEnabledTor->isChecked()){
 		if (WriteBinaryFileTor(pathTorSetting.string().c_str(), "1")) {
-			msgBox.setText("Please restart the Zcoin wallet to route your connection to TOR to protect your IP address. \nSyncing your wallet might be slower with TOR.");
+			msgBox.setText("Please restart the Zcoin wallet to route your connection through Tor to protect your IP address. \nSyncing your wallet might be slower with TOR.");
 		} else {
-			msgBox.setText("Anonymous communication cannot enable");
+			msgBox.setText("Anonymous communication cannot be enabled");
 		}
 	}else{
 		if (WriteBinaryFileTor(pathTorSetting.string().c_str(), "0")) {
-			msgBox.setText("Please restart the Zcoin wallet to disable route your connection to TOR to protect your IP address.");
+			msgBox.setText("Please restart the Zcoin wallet to disable routing of your connection through Tor to protect your IP address.");
 		} else {
-			msgBox.setText("Anonymous communication cannot disable");
+			msgBox.setText("Anonymous communication cannot be disabled");
 		}
 	}
 	msgBox.exec();

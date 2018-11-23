@@ -1,0 +1,89 @@
+EXODUS_H = \
+  exodus/activation.h \
+  exodus/consensushash.h \
+  exodus/convert.h \
+  exodus/createpayload.h \
+  exodus/createtx.h \
+  exodus/dex.h \
+  exodus/encoding.h \
+  exodus/errors.h \
+  exodus/fees.h \
+  exodus/fetchwallettx.h \
+  exodus/log.h \
+  exodus/mbstring.h \
+  exodus/mdex.h \
+  exodus/notifications.h \
+  exodus/exodus.h \
+  exodus/parse_string.h \
+  exodus/pending.h \
+  exodus/persistence.h \
+  exodus/rpc.h \
+  exodus/rpcpayload.h \
+  exodus/rpcrawtx.h \
+  exodus/rpcrequirements.h \
+  exodus/rpctx.h \
+  exodus/rpctxobject.h \
+  exodus/rpcvalues.h \
+  exodus/rules.h \
+  exodus/script.h \
+  exodus/sp.h \
+  exodus/sto.h \
+  exodus/tally.h \
+  exodus/tx.h \
+  exodus/uint256_extensions.h \
+  exodus/utils.h \
+  exodus/utilsbitcoin.h \
+  exodus/version.h \
+  exodus/walletcache.h \
+  exodus/wallettxs.h
+
+EXODUS_CPP = \
+  exodus/activation.cpp \
+  exodus/consensushash.cpp \
+  exodus/convert.cpp \
+  exodus/createpayload.cpp \
+  exodus/createtx.cpp \
+  exodus/dex.cpp \
+  exodus/encoding.cpp \
+  exodus/fees.cpp \
+  exodus/fetchwallettx.cpp \
+  exodus/log.cpp \
+  exodus/mbstring.cpp \
+  exodus/mdex.cpp \
+  exodus/notifications.cpp \
+  exodus/exodus.cpp \
+  exodus/parse_string.cpp \
+  exodus/pending.cpp \
+  exodus/persistence.cpp \
+  exodus/rpc.cpp \
+  exodus/rpcpayload.cpp \
+  exodus/rpcrawtx.cpp \
+  exodus/rpcrequirements.cpp \
+  exodus/rpctx.cpp \
+  exodus/rpctxobject.cpp \
+  exodus/rpcvalues.cpp \
+  exodus/rules.cpp \
+  exodus/script.cpp \
+  exodus/sp.cpp \
+  exodus/sto.cpp \
+  exodus/tally.cpp \
+  exodus/tx.cpp \
+  exodus/utils.cpp \
+  exodus/utilsbitcoin.cpp \
+  exodus/version.cpp \
+  exodus/walletcache.cpp \
+  exodus/wallettxs.cpp
+
+libbitcoin_server_a_SOURCES += \
+  $(EXODUS_CPP) \
+  $(EXODUS_H)
+
+exodus/libbitcoin_server_a-version.$(OBJEXT): obj/build.h # build info
+
+CLEAN_EXODUS = exodus/*.gcda exodus/*.gcno
+
+CLEANFILES += $(CLEAN_EXODUS)
+
+if ENABLE_TESTS
+include Makefile.exodustest.include
+endif

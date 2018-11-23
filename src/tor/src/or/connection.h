@@ -26,9 +26,12 @@ entry_connection_t *entry_connection_new(int type, int socket_family);
 control_connection_t *control_connection_new(int socket_family);
 listener_connection_t *listener_connection_new(int type, int socket_family);
 connection_t *connection_new(int type, int socket_family);
-
+int connection_init_accepted_conn(connection_t *conn,
+                                  const listener_connection_t *listener);
 void connection_link_connections(connection_t *conn_a, connection_t *conn_b);
-MOCK_DECL(void,connection_free,(connection_t *conn));
+MOCK_DECL(void,connection_free_,(connection_t *conn));
+#define connection_free(conn) \
+  FREE_AND_NULL(connection_t, connection_free_, (conn))
 void connection_free_all(void);
 void connection_about_to_close_connection(connection_t *conn);
 void connection_close_immediate(connection_t *conn);
@@ -119,7 +122,13 @@ void connection_mark_all_noncontrol_connections(void);
 ssize_t connection_bucket_write_limit(connection_t *conn, time_t now);
 int global_write_bucket_low(connection_t *conn, size_t attempt, int priority);
 void connection_bucket_init(void);
-void connection_bucket_refill(int seconds_elapsed, time_t now);
+void connection_bucket_adjust(const or_options_t *options);
+void connection_bucket_refill_all(time_t now,
+                                  uint32_t now_ts);
+void connection_read_bw_exhausted(connection_t *conn, bool is_global_bw);
+void connection_write_bw_exhausted(connection_t *conn, bool is_global_bw);
+void connection_consider_empty_read_buckets(connection_t *conn);
+void connection_consider_empty_write_buckets(connection_t *conn);
 
 int connection_handle_read(connection_t *conn);
 
@@ -155,6 +164,7 @@ connection_buf_add_compress(const char *string, size_t len,
 {
   connection_write_to_buf_impl_(string, len, TO_CONN(conn), done ? -1 : 1);
 }
+void connection_buf_add_buf(connection_t *conn, buf_t *buf);
 
 /* DOCDOC connection_get_inbuf_len */
 static size_t connection_get_inbuf_len(connection_t *conn);
@@ -243,11 +253,11 @@ char *alloc_http_authenticator(const char *authenticator);
 void assert_connection_ok(connection_t *conn, time_t now);
 int connection_or_nonopen_was_started_here(or_connection_t *conn);
 void connection_dump_buffer_mem_stats(int severity);
-void remove_file_if_very_old(const char *fname, time_t now);
 
-void clock_skew_warning(const connection_t *conn, long apparent_skew,
-                        int trusted, log_domain_mask_t domain,
-                        const char *received, const char *source);
+MOCK_DECL(void, clock_skew_warning,
+          (const connection_t *conn, long apparent_skew, int trusted,
+           log_domain_mask_t domain, const char *received,
+           const char *source));
 
 /** Check if a connection is on the way out so the OOS handler doesn't try
  * to kill more than it needs. */
@@ -266,16 +276,9 @@ connection_is_moribund(connection_t *conn)
 void connection_check_oos(int n_socks, int failed);
 
 #ifdef CONNECTION_PRIVATE
-STATIC void connection_free_(connection_t *conn);
+STATIC void connection_free_minimal(connection_t *conn);
 
 /* Used only by connection.c and test*.c */
-uint32_t bucket_millis_empty(int tokens_before, uint32_t last_empty_time,
-                             int tokens_after, int milliseconds_elapsed,
-                             const struct timeval *tvnow);
-void connection_buckets_note_empty_ts(uint32_t *timestamp_var,
-                                      int tokens_before,
-                                      size_t tokens_removed,
-                                      const struct timeval *tvnow);
 MOCK_DECL(STATIC int,connection_connect_sockaddr,
                                             (connection_t *conn,
                                              const struct sockaddr *sa,

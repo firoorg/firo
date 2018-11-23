@@ -8,6 +8,12 @@ name = "tor_util"
 path = "lib.rs"
 crate_type = ["rlib", "staticlib"]
 
+[dependencies.tor_allocate]
+path = "../tor_allocate"
+
+[dependencies.tor_log]
+path = "../tor_log"
+
 [dependencies]
-libc = "*"
+libc = "=0.2.39"
 

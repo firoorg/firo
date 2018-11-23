@@ -28,7 +28,7 @@
  *
  **/
 
-#define TOR_CIRCUITMUX_EWMA_C_
+#define CIRCUITMUX_EWMA_PRIVATE
 
 #include "orconfig.h"
 
@@ -37,6 +37,7 @@
 #include "or.h"
 #include "circuitmux.h"
 #include "circuitmux_ewma.h"
+#include "crypto_rand.h"
 #include "networkstatus.h"
 
 /*** EWMA parameter #defines ***/
@@ -169,8 +170,6 @@ TO_EWMA_POL_CIRC_DATA(circuitmux_policy_circ_data_t *pol)
 
 static void add_cell_ewma(ewma_policy_data_t *pol, cell_ewma_t *ewma);
 static int compare_cell_ewma_counts(const void *p1, const void *p2);
-static unsigned cell_ewma_tick_from_timeval(const struct timeval *now,
-                                            double *remainder_out);
 static circuit_t * cell_ewma_to_circuit(cell_ewma_t *ewma);
 static inline double get_scale_factor(unsigned from_tick, unsigned to_tick);
 static cell_ewma_t * pop_first_cell_ewma(ewma_policy_data_t *pol);
@@ -223,8 +222,6 @@ ewma_cmp_cmux(circuitmux_t *cmux_1, circuitmux_policy_data_t *pol_data_1,
  * has value ewma_scale_factor ** N.)
  */
 static double ewma_scale_factor = 0.1;
-/* DOCDOC ewma_enabled */
-static int ewma_enabled = 0;
 
 /*** EWMA circuitmux_policy_t method table ***/
 
@@ -241,7 +238,25 @@ circuitmux_policy_t ewma_policy = {
   /*.cmp_cmux =*/ ewma_cmp_cmux
 };
 
+/** Have we initialized the ewma tick-counting logic? */
+static int ewma_ticks_initialized = 0;
+/** At what monotime_coarse_t did the current tick begin? */
+static monotime_coarse_t start_of_current_tick;
+/** What is the number of the current tick? */
+static unsigned current_tick_num;
+
 /*** EWMA method implementations using the below EWMA helper functions ***/
+
+/** Compute and return the current cell_ewma tick. */
+static inline unsigned int
+cell_ewma_get_tick(void)
+{
+  monotime_coarse_t now;
+  monotime_coarse_get(&now);
+  int32_t msec_diff = monotime_coarse_diff_msec32(&start_of_current_tick,
+                                                  &now);
+  return current_tick_num + msec_diff / (1000*EWMA_TICK_LEN);
+}
 
 /**
  * Allocate an ewma_policy_data_t and upcast it to a circuitmux_policy_data_t;
@@ -416,8 +431,6 @@ ewma_notify_xmit_cells(circuitmux_t *cmux,
   ewma_policy_circ_data_t *cdata = NULL;
   unsigned int tick;
   double fractional_tick, ewma_increment;
-  /* The current (hi-res) time */
-  struct timeval now_hires;
   cell_ewma_t *cell_ewma, *tmp;
 
   tor_assert(cmux);
@@ -430,8 +443,7 @@ ewma_notify_xmit_cells(circuitmux_t *cmux,
   cdata = TO_EWMA_POL_CIRC_DATA(pol_circ_data);
 
   /* Rescale the EWMAs if needed */
-  tor_gettimeofday_cached(&now_hires);
-  tick = cell_ewma_tick_from_timeval(&now_hires, &fractional_tick);
+  tick = cell_ewma_get_current_tick_and_fraction(&fractional_tick);
 
   if (tick != pol->active_circuit_pqueue_last_recalibrated) {
     scale_active_circuits(pol, tick);
@@ -592,79 +604,122 @@ cell_ewma_to_circuit(cell_ewma_t *ewma)
    rescale.
  */
 
-/** Given a timeval <b>now</b>, compute the cell_ewma tick in which it occurs
- * and the fraction of the tick that has elapsed between the start of the tick
- * and <b>now</b>.  Return the former and store the latter in
- * *<b>remainder_out</b>.
+/**
+ * Initialize the system that tells which ewma tick we are in.
+ */
+STATIC void
+cell_ewma_initialize_ticks(void)
+{
+  if (ewma_ticks_initialized)
+    return;
+  monotime_coarse_get(&start_of_current_tick);
+  crypto_rand((char*)&current_tick_num, sizeof(current_tick_num));
+  ewma_ticks_initialized = 1;
+}
+
+/** Compute the current cell_ewma tick and the fraction of the tick that has
+ * elapsed between the start of the tick and the current time.  Return the
+ * former and store the latter in *<b>remainder_out</b>.
  *
  * These tick values are not meant to be shared between Tor instances, or used
  * for other purposes. */
-
-static unsigned
-cell_ewma_tick_from_timeval(const struct timeval *now,
-                            double *remainder_out)
+STATIC unsigned
+cell_ewma_get_current_tick_and_fraction(double *remainder_out)
 {
-  unsigned res = (unsigned) (now->tv_sec / EWMA_TICK_LEN);
-  /* rem */
-  double rem = (now->tv_sec % EWMA_TICK_LEN) +
-    ((double)(now->tv_usec)) / 1.0e6;
-  *remainder_out = rem / EWMA_TICK_LEN;
-  return res;
+  if (BUG(!ewma_ticks_initialized)) {
+    cell_ewma_initialize_ticks(); // LCOV_EXCL_LINE
+  }
+  monotime_coarse_t now;
+  monotime_coarse_get(&now);
+  int32_t msec_diff = monotime_coarse_diff_msec32(&start_of_current_tick,
+                                                  &now);
+  if (msec_diff > (1000*EWMA_TICK_LEN)) {
+    unsigned ticks_difference = msec_diff / (1000*EWMA_TICK_LEN);
+    monotime_coarse_add_msec(&start_of_current_tick,
+                             &start_of_current_tick,
+                             ticks_difference * 1000 * EWMA_TICK_LEN);
+    current_tick_num += ticks_difference;
+    msec_diff %= 1000*EWMA_TICK_LEN;
+  }
+  *remainder_out = ((double)msec_diff) / (1.0e3 * EWMA_TICK_LEN);
+  return current_tick_num;
 }
 
-/** Tell the caller whether ewma_enabled is set */
-int
-cell_ewma_enabled(void)
-{
-  return ewma_enabled;
-}
+/* Default value for the CircuitPriorityHalflifeMsec consensus parameter in
+ * msec. */
+#define CMUX_PRIORITY_HALFLIFE_MSEC_DEFAULT 30000
+/* Minimum and maximum value for the CircuitPriorityHalflifeMsec consensus
+ * parameter. */
+#define CMUX_PRIORITY_HALFLIFE_MSEC_MIN 1
+#define CMUX_PRIORITY_HALFLIFE_MSEC_MAX INT32_MAX
 
-/** Compute and return the current cell_ewma tick. */
-unsigned int
-cell_ewma_get_tick(void)
+/* Return the value of the circuit priority halflife from the options if
+ * available or else from the consensus (in that order). If none can be found,
+ * a default value is returned.
+ *
+ * The source_msg points to a string describing from where the value was
+ * picked so it can be used for logging. */
+static double
+get_circuit_priority_halflife(const or_options_t *options,
+                              const networkstatus_t *consensus,
+                              const char **source_msg)
 {
-  return ((unsigned)approx_time() / EWMA_TICK_LEN);
+  int32_t halflife_ms;
+  double halflife;
+  /* Compute the default value now. We might need it. */
+  double halflife_default =
+    ((double) CMUX_PRIORITY_HALFLIFE_MSEC_DEFAULT) / 1000.0;
+
+  /* Try to get it from configuration file first. */
+  if (options && options->CircuitPriorityHalflife >= -EPSILON) {
+    halflife = options->CircuitPriorityHalflife;
+    *source_msg = "CircuitPriorityHalflife in configuration";
+    goto end;
+  }
+
+  /* Try to get the msec value from the consensus. */
+  halflife_ms = networkstatus_get_param(consensus,
+                                        "CircuitPriorityHalflifeMsec",
+                                        CMUX_PRIORITY_HALFLIFE_MSEC_DEFAULT,
+                                        CMUX_PRIORITY_HALFLIFE_MSEC_MIN,
+                                        CMUX_PRIORITY_HALFLIFE_MSEC_MAX);
+  halflife = ((double) halflife_ms) / 1000.0;
+  *source_msg = "CircuitPriorityHalflifeMsec in consensus";
+
+ end:
+  /* We should never go below the EPSILON else we would consider it disabled
+   * and we can't have that. */
+  if (halflife < EPSILON) {
+    log_warn(LD_CONFIG, "CircuitPriorityHalflife is too small (%f). "
+                        "Adjusting to the smallest value allowed: %f.",
+             halflife, halflife_default);
+    halflife = halflife_default;
+  }
+  return halflife;
 }
 
 /** Adjust the global cell scale factor based on <b>options</b> */
 void
-cell_ewma_set_scale_factor(const or_options_t *options,
-                           const networkstatus_t *consensus)
+cmux_ewma_set_options(const or_options_t *options,
+                      const networkstatus_t *consensus)
 {
-  int32_t halflife_ms;
   double halflife;
   const char *source;
-  if (options && options->CircuitPriorityHalflife >= -EPSILON) {
-    halflife = options->CircuitPriorityHalflife;
-    source = "CircuitPriorityHalflife in configuration";
-  } else if (consensus && (halflife_ms = networkstatus_get_param(
-                 consensus, "CircuitPriorityHalflifeMsec",
-                 -1, -1, INT32_MAX)) >= 0) {
-    halflife = ((double)halflife_ms)/1000.0;
-    source = "CircuitPriorityHalflifeMsec in consensus";
-  } else {
-    halflife = EWMA_DEFAULT_HALFLIFE;
-    source = "Default value";
-  }
 
-  if (halflife <= EPSILON) {
-    /* The cell EWMA algorithm is disabled. */
-    ewma_scale_factor = 0.1;
-    ewma_enabled = 0;
-    log_info(LD_OR,
-             "Disabled cell_ewma algorithm because of value in %s",
-             source);
-  } else {
-    /* convert halflife into halflife-per-tick. */
-    halflife /= EWMA_TICK_LEN;
-    /* compute per-tick scale factor. */
-    ewma_scale_factor = exp( LOG_ONEHALF / halflife );
-    ewma_enabled = 1;
-    log_info(LD_OR,
-             "Enabled cell_ewma algorithm because of value in %s; "
-             "scale factor is %f per %d seconds",
-             source, ewma_scale_factor, EWMA_TICK_LEN);
-  }
+  cell_ewma_initialize_ticks();
+
+  /* Both options and consensus can be NULL. This assures us to either get a
+   * valid configured value or the default one. */
+  halflife = get_circuit_priority_halflife(options, consensus, &source);
+
+  /* convert halflife into halflife-per-tick. */
+  halflife /= EWMA_TICK_LEN;
+  /* compute per-tick scale factor. */
+  ewma_scale_factor = exp( LOG_ONEHALF / halflife );
+  log_info(LD_OR,
+           "Enabled cell_ewma algorithm because of value in %s; "
+           "scale factor is %f per %d seconds",
+           source, ewma_scale_factor, EWMA_TICK_LEN);
 }
 
 /** Return the multiplier necessary to convert the value of a cell sent in
@@ -761,5 +816,14 @@ pop_first_cell_ewma(ewma_policy_data_t *pol)
   return smartlist_pqueue_pop(pol->active_circuit_pqueue,
                               compare_cell_ewma_counts,
                               offsetof(cell_ewma_t, heap_index));
+}
+
+/**
+ * Drop all resources held by circuitmux_ewma.c, and deinitialize the
+ * module. */
+void
+circuitmux_ewma_free_all(void)
+{
+  ewma_ticks_initialized = 0;
 }
 

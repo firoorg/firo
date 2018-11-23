@@ -19,6 +19,8 @@
 #include "versionbits.h"
 #include "timedata.h"
 #include "chainparams.h"
+#include "spentindex.h"
+
 
 #include <algorithm>
 #include <exception>
@@ -141,6 +143,9 @@ static const int64_t DEFAULT_MAX_TIP_AGE = 24 * 60 * 60;
 static const bool DEFAULT_PERMIT_BAREMULTISIG = true;
 static const bool DEFAULT_CHECKPOINTS_ENABLED = true;
 static const bool DEFAULT_TXINDEX = true;
+static const bool DEFAULT_TIMESTAMPINDEX = false;
+static const bool DEFAULT_ADDRESSINDEX = false;
+static const bool DEFAULT_SPENTINDEX = false;
 static const unsigned int DEFAULT_BANSCORE_THRESHOLD = 100;
 
 static const bool DEFAULT_TESTSAFEMODE = false;
@@ -177,6 +182,7 @@ struct BlockHasher
 extern CScript COINBASE_FLAGS;
 extern CCriticalSection cs_main;
 extern CTxMemPool mempool;
+extern CTxMemPool stempool;
 typedef boost::unordered_map<uint256, CBlockIndex*, BlockHasher> BlockMap;
 extern BlockMap mapBlockIndex;
 extern uint64_t nLastBlockTx;
@@ -321,6 +327,10 @@ void UnlinkPrunedFiles(std::set<int>& setFilesToPrune);
 
 /** Create a new block index entry for a given block hash */
 CBlockIndex * InsertBlockIndex(uint256 hash);
+/** Abort with a message */
+bool AbortNode(const std::string &strMessage, const std::string &userMessage);
+/* Sends out an alert */
+void AlertNotify(const std::string &strMessage);
 /** Get statistics from node state */
 bool GetNodeStateStats(NodeId nodeid, CNodeStateStats &stats);
 /** Increase a node's misbehavior score. */
@@ -331,8 +341,17 @@ void FlushStateToDisk();
 void PruneAndFlush();
 
 /** (try to) add transaction to memory pool **/
-bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransaction &tx, bool fCheckInputs, bool fLimitFree,
-                        bool* pfMissingInputs,  bool fOverrideMempoolLimit=false, const CAmount nAbsurdFee=0, bool isCheckWalletTransaction = false);
+bool AcceptToMemoryPool(
+        CTxMemPool& pool,
+        CValidationState &state,
+        const CTransaction &tx,
+        bool fCheckInputs,
+        bool fLimitFree,
+        bool* pfMissingInputs,
+        bool fOverrideMempoolLimit=false,
+        const CAmount nAbsurdFee=0,
+        bool isCheckWalletTransaction = false,
+        bool markZcoinSpendTransactionSerial = true);
 
 /** Convert CValidationState to a human-readable message for logging */
 std::string FormatStateMessage(const CValidationState &state);
@@ -427,7 +446,12 @@ bool SequenceLocks(const CTransaction &tx, int flags, std::vector<int>* prevHeig
  *
  * See consensus/consensus.h for flag definitions.
  */
-bool CheckSequenceLocks(const CTransaction &tx, int flags, LockPoints* lp = NULL, bool useExistingLockPoints = false);
+bool CheckSequenceLocks(const CTxMemPool& pool, 
+                        const CTransaction &tx, 
+                        int flags, 
+                        LockPoints* lp = NULL,
+                        bool useExistingLockPoints = false);
+         
 
 /**
  * Return true if hash can be found in chainActive at nBlockHeight height.
@@ -473,6 +497,13 @@ public:
     ScriptError GetScriptError() const { return error; }
 };
 
+bool GetTimestampIndex(const unsigned int &high, const unsigned int &low, std::vector<uint256> &hashes);
+bool GetSpentIndex(CSpentIndexKey &key, CSpentIndexValue &value);
+bool GetAddressIndex(uint160 addressHash, int type,
+                     std::vector<std::pair<CAddressIndexKey, CAmount> > &addressIndex,
+                     int start = 0, int end = 0);
+bool GetAddressUnspent(uint160 addressHash, int type,
+                       std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > &unspentOutputs);
 
 /** Functions for disk access for blocks */
 bool WriteBlockToDisk(const CBlock& block, CDiskBlockPos& pos, const CMessageHeader::MessageStartChars& messageStart);
@@ -488,7 +519,7 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
 /** Context-dependent validity checks.
  *  By "context", we mean only the previous block headers, but not the UTXO
  *  set; UTXO-related validity checks are done in ConnectBlock(). */
-bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& state, const Consensus::Params& consensusParams, CBlockIndex* pindexPrev, int64_t nAdjustedTime);
+bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationState& state, const Consensus::Params& consensusParams, CBlockIndex* pindexPrev, int64_t nAdjustedTime, bool isTestBlockValidity = false);
 bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIndex *pindexPrev);
 
 /** Apply the effects of this block (with given index) on the UTXO set represented by coins.
@@ -511,7 +542,7 @@ int GetUTXOHeight(const COutPoint& outpoint);
 int GetInputAge(const CTxIn &txin);
 int GetInputAgeIX(const uint256 &nTXHash, const CTxIn &txin);
 int GetIXConfirmations(const uint256 &nTXHash);
-CAmount GetZnodePayment(int nHeight, CAmount blockValue = 50 * COIN);
+CAmount GetZnodePayment(const Consensus::Params &params, bool fMTP);
 
 /** Check a block is completely valid from start to finish (only works on top of our current best block, with cs_main held) */
 bool TestBlockValidity(CValidationState& state, const CChainParams& chainparams, const CBlock& block, CBlockIndex* pindexPrev, bool fCheckPOW = true, bool fCheckMerkleRoot = true);

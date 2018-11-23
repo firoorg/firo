@@ -11,6 +11,7 @@
 
 #include "or.h"
 #include "config.h"
+#include "crypto_util.h"
 #include "hs_ident.h"
 #include "hs_common.h"
 #include "hs_client.h"
@@ -52,9 +53,12 @@ lookup_v3_desc_as_dir(const uint8_t *key)
   return digest256map_get(hs_cache_v3_dir, key);
 }
 
+#define cache_dir_desc_free(val) \
+  FREE_AND_NULL(hs_cache_dir_descriptor_t, cache_dir_desc_free_, (val))
+
 /* Free a directory descriptor object. */
 static void
-cache_dir_desc_free(hs_cache_dir_descriptor_t *desc)
+cache_dir_desc_free_(hs_cache_dir_descriptor_t *desc)
 {
   if (desc == NULL) {
     return;
@@ -67,10 +71,9 @@ cache_dir_desc_free(hs_cache_dir_descriptor_t *desc)
 /* Helper function: Use by the free all function using the digest256map
  * interface to cache entries. */
 static void
-cache_dir_desc_free_(void *ptr)
+cache_dir_desc_free_void(void *ptr)
 {
-  hs_cache_dir_descriptor_t *desc = ptr;
-  cache_dir_desc_free(desc);
+  cache_dir_desc_free_(ptr);
 }
 
 /* Create a new directory cache descriptor object from a encoded descriptor.
@@ -417,9 +420,12 @@ cache_client_desc_new(const char *desc_str,
   return client_desc;
 }
 
+#define cache_client_desc_free(val) \
+  FREE_AND_NULL(hs_cache_client_descriptor_t, cache_client_desc_free_, (val))
+
 /** Free memory allocated by <b>desc</b>. */
 static void
-cache_client_desc_free(hs_cache_client_descriptor_t *desc)
+cache_client_desc_free_(hs_cache_client_descriptor_t *desc)
 {
   if (desc == NULL) {
     return;
@@ -433,7 +439,7 @@ cache_client_desc_free(hs_cache_client_descriptor_t *desc)
 
 /** Helper function: Use by the free all function to clear the client cache */
 static void
-cache_client_desc_free_(void *ptr)
+cache_client_desc_free_void(void *ptr)
 {
   hs_cache_client_descriptor_t *desc = ptr;
   cache_client_desc_free(desc);
@@ -448,18 +454,21 @@ cache_intro_state_new(void)
   return state;
 }
 
+#define cache_intro_state_free(val) \
+  FREE_AND_NULL(hs_cache_intro_state_t, cache_intro_state_free_, (val))
+
 /* Free an hs_cache_intro_state_t object. */
 static void
-cache_intro_state_free(hs_cache_intro_state_t *state)
+cache_intro_state_free_(hs_cache_intro_state_t *state)
 {
   tor_free(state);
 }
 
 /* Helper function: use by the free all function. */
 static void
-cache_intro_state_free_(void *state)
+cache_intro_state_free_void(void *state)
 {
-  cache_intro_state_free(state);
+  cache_intro_state_free_(state);
 }
 
 /* Return a newly allocated and initialized hs_cache_client_intro_state_t
@@ -472,22 +481,26 @@ cache_client_intro_state_new(void)
   return cache;
 }
 
+#define cache_client_intro_state_free(val)              \
+  FREE_AND_NULL(hs_cache_client_intro_state_t,          \
+                cache_client_intro_state_free_, (val))
+
 /* Free a cache client intro state object. */
 static void
-cache_client_intro_state_free(hs_cache_client_intro_state_t *cache)
+cache_client_intro_state_free_(hs_cache_client_intro_state_t *cache)
 {
   if (cache == NULL) {
     return;
   }
-  digest256map_free(cache->intro_points, cache_intro_state_free_);
+  digest256map_free(cache->intro_points, cache_intro_state_free_void);
   tor_free(cache);
 }
 
 /* Helper function: use by the free all function. */
 static void
-cache_client_intro_state_free_(void *entry)
+cache_client_intro_state_free_void(void *entry)
 {
-  cache_client_intro_state_free(entry);
+  cache_client_intro_state_free_(entry);
 }
 
 /* For the given service identity key service_pk and an introduction
@@ -624,8 +637,8 @@ cache_store_as_client(hs_cache_client_descriptor_t *client_desc)
   if (cache_entry != NULL) {
     /* If we have an entry in our cache that has a revision counter greater
      * than the one we just fetched, discard the one we fetched. */
-    if (BUG(cache_entry->desc->plaintext_data.revision_counter >
-            client_desc->desc->plaintext_data.revision_counter)) {
+    if (cache_entry->desc->plaintext_data.revision_counter >
+        client_desc->desc->plaintext_data.revision_counter) {
       cache_client_desc_free(client_desc);
       goto done;
     }
@@ -690,7 +703,7 @@ cache_clean_v3_as_client(time_t now)
     /* Entry is not in the cache anymore, destroy it. */
     cache_client_desc_free(entry);
     /* Update our OOM. We didn't use the remove() function because we are in
-     * a loop so we have to explicitely decrement. */
+     * a loop so we have to explicitly decrement. */
     rend_cache_decrement_allocation(entry_size);
     /* Logging. */
     {
@@ -703,6 +716,24 @@ cache_clean_v3_as_client(time_t now)
   } DIGEST256MAP_FOREACH_END;
 
   return bytes_removed;
+}
+
+/** Public API: Given the HS ed25519 identity public key in <b>key</b>, return
+ *  its HS encoded descriptor if it's stored in our cache, or NULL if not. */
+const char *
+hs_cache_lookup_encoded_as_client(const ed25519_public_key_t *key)
+{
+  hs_cache_client_descriptor_t *cached_desc = NULL;
+
+  tor_assert(key);
+
+  cached_desc = lookup_v3_desc_as_client(key->pubkey);
+  if (cached_desc) {
+    tor_assert(cached_desc->encoded_desc);
+    return cached_desc->encoded_desc;
+  }
+
+  return NULL;
 }
 
 /** Public API: Given the HS ed25519 identity public key in <b>key</b>, return
@@ -775,7 +806,7 @@ hs_cache_purge_as_client(void)
     MAP_DEL_CURRENT(key);
     cache_client_desc_free(entry);
     /* Update our OOM. We didn't use the remove() function because we are in
-     * a loop so we have to explicitely decrement. */
+     * a loop so we have to explicitly decrement. */
     rend_cache_decrement_allocation(entry_size);
   } DIGEST256MAP_FOREACH_END;
 
@@ -933,14 +964,14 @@ hs_cache_init(void)
 void
 hs_cache_free_all(void)
 {
-  digest256map_free(hs_cache_v3_dir, cache_dir_desc_free_);
+  digest256map_free(hs_cache_v3_dir, cache_dir_desc_free_void);
   hs_cache_v3_dir = NULL;
 
-  digest256map_free(hs_cache_v3_client, cache_client_desc_free_);
+  digest256map_free(hs_cache_v3_client, cache_client_desc_free_void);
   hs_cache_v3_client = NULL;
 
   digest256map_free(hs_cache_client_intro_state,
-                    cache_client_intro_state_free_);
+                    cache_client_intro_state_free_void);
   hs_cache_client_intro_state = NULL;
 }
 

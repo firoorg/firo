@@ -19,6 +19,7 @@
 #include "wallet/rpcwallet.h"
 #include "../base58.h"
 #include "zerocoin_params.h"
+#include "univalue.h"
 
 #include <algorithm>
 #include <map>
@@ -242,8 +243,16 @@ public:
 
     bool IsInMainChain() const { const CBlockIndex *pindexRet; return GetDepthInMainChain(pindexRet) > 0; }
     int GetBlocksToMaturity() const;
+
     /** Pass this transaction to the mempool. Fails if absolute fee exceeds absurd fee. */
-    bool AcceptToMemoryPool(bool fLimitFree, const CAmount nAbsurdFee, CValidationState& state, bool fCheckInputs,  bool isCheckWalletTransaction = false);
+    bool AcceptToMemoryPool(
+        bool fLimitFree, 
+        const CAmount nAbsurdFee,
+        CValidationState& state,
+        bool fCheckInputs,
+        bool isCheckWalletTransaction = false,
+        bool markZcoinSpendTransactionSerial = true);
+
     bool hashUnset() const { return (hashBlock.IsNull() || hashBlock == ABANDON_HASH); }
     bool isAbandoned() const { return (hashBlock == ABANDON_HASH); }
     void setAbandoned() { hashBlock = ABANDON_HASH; }
@@ -427,6 +436,7 @@ public:
     bool IsEquivalentTo(const CWalletTx& tx) const;
 
     bool InMempool() const;
+    bool InStempool() const;
     bool IsTrusted() const;
 
     int64_t GetTxTime() const;
@@ -833,15 +843,25 @@ public:
                            std::string& strFailReason, const CCoinControl *coinControl = NULL, bool sign = true);
     bool CreateZerocoinMintTransaction(CScript pubCoin, int64_t nValue,
                                        CWalletTx& wtxNew, CReserveKey& reservekey, int64_t& nFeeRet, std::string& strFailReason, const CCoinControl *coinControl=NULL);
-    bool CreateZerocoinSpendTransaction(int64_t nValue, libzerocoin::CoinDenomination denomination,
-                                        CWalletTx& wtxNew, CReserveKey& reservekey, CBigNum& coinSerial, uint256& txHash, CBigNum& zcSelectedValue, bool& zcSelectedIsUsed,  std::string& strFailReason);
+    bool CreateZerocoinSpendTransaction(std::string& thirdPartyaddress, int64_t nValue, libzerocoin::CoinDenomination denomination,
+                                        CWalletTx& wtxNew, CReserveKey& reservekey, CBigNum& coinSerial, uint256& txHash, CBigNum& zcSelectedValue, bool& zcSelectedIsUsed,  std::string& strFailReason, bool forceUsed = false);
+    bool CreateMultipleZerocoinSpendTransaction(std::string& thirdPartyaddress, const std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>>& denominations,
+                                        CWalletTx& wtxNew, CReserveKey& reservekey, vector<CBigNum>& coinSerials, uint256& txHash, vector<CBigNum>& zcSelectedValues, std::string& strFailReason, bool forceUsed = false);
     bool CommitZerocoinSpendTransaction(CWalletTx& wtxNew, CReserveKey& reservekey);
     std::string SendMoney(CScript scriptPubKey, int64_t nValue, CWalletTx& wtxNew, bool fAskFee=false);
     std::string SendMoneyToDestination(const CTxDestination &address, int64_t nValue, CWalletTx& wtxNew, bool fAskFee=false);
     std::string MintZerocoin(CScript pubCoin, int64_t nValue, CWalletTx& wtxNew, bool fAskFee=false);
-    std::string SpendZerocoin(int64_t nValue, libzerocoin::CoinDenomination denomination, CWalletTx& wtxNew, CBigNum& coinSerial, uint256& txHash, CBigNum& zcSelectedValue, bool& zcSelectedIsUsed);
+    std::string MintAndStoreZerocoin(vector<CRecipient> vecSend, vector<libzerocoin::PrivateCoin> privCoins, CWalletTx &wtxNew, bool fAskFee=false);
+    std::string SpendZerocoin(std::string& thirdPartyaddress, int64_t nValue, libzerocoin::CoinDenomination denomination, CWalletTx& wtxNew, CBigNum& coinSerial, uint256& txHash, CBigNum& zcSelectedValue, bool& zcSelectedIsUsed, bool forceUsed = false);
+    std::string SpendMultipleZerocoin(std::string& thirdPartyaddress, const std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>>& denominations, CWalletTx& wtxNew, vector<CBigNum>& coinSerials, uint256& txHash, vector<CBigNum>& zcSelectedValues, bool forceUsed = false);
+
     bool CreateZerocoinMintModel(string &stringError, string denomAmount);
-    bool CreateZerocoinSpendModel(string &stringError, string denomAmount);
+
+    bool CreateZerocoinMintModel(string &stringError, vector<string> denomAmounts);
+    bool CreateZerocoinMintModel(string &stringError, std::vector<std::pair<int,int>> denominationPairs);
+    bool CreateZerocoinSpendModel(string &stringError, string thirdPartyAddress, string denomAmount, bool forceUsed = false);
+    bool CreateZerocoinSpendModel(CWalletTx& wtx, string &stringError, string& thirdPartyAddress, const vector<string>& denomAmounts, bool forceUsed = false);
+
     bool SetZerocoinBook(const CZerocoinEntry& zerocoinEntry);
 
     bool CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey);
@@ -906,12 +926,10 @@ public:
 
     void Inventory(const uint256 &hash)
     {
-        {
-            LOCK(cs_wallet);
-            std::map<uint256, int>::iterator mi = mapRequestCount.find(hash);
-            if (mi != mapRequestCount.end())
-                (*mi).second++;
-        }
+        LOCK(cs_wallet);
+        std::map<uint256, int>::iterator mi = mapRequestCount.find(hash);
+        if (mi != mapRequestCount.end())
+            (*mi).second++;
     }
 
     void GetScriptForMining(boost::shared_ptr<CReserveScript> &script);
