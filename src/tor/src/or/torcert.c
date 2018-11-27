@@ -27,7 +27,7 @@
 
 #include "or.h"
 #include "config.h"
-#include "crypto.h"
+#include "crypto_util.h"
 #include "torcert.h"
 #include "ed25519_cert.h"
 #include "torlog.h"
@@ -93,7 +93,8 @@ tor_cert_sign_impl(const ed25519_keypair_t *signing_key,
 
   if (tor_cert_checksig(torcert, &signing_key->pubkey, now) < 0) {
     /* LCOV_EXCL_START */
-    log_warn(LD_BUG, "Generated a certificate whose signature we can't check");
+    log_warn(LD_BUG, "Generated a certificate whose signature we can't "
+             "check: %s", tor_cert_describe_signature_status(torcert));
     goto err;
     /* LCOV_EXCL_STOP */
   }
@@ -137,7 +138,7 @@ tor_cert_create(const ed25519_keypair_t *signing_key,
 
 /** Release all storage held for <b>cert</b>. */
 void
-tor_cert_free(tor_cert_t *cert)
+tor_cert_free_(tor_cert_t *cert)
 {
   if (! cert)
     return;
@@ -264,6 +265,24 @@ tor_cert_checksig(tor_cert_t *cert,
     }
     cert->cert_valid = 1;
     return 0;
+  }
+}
+
+/** Return a string describing the status of the signature on <b>cert</b>
+ *
+ * Will always be "unchecked" unless tor_cert_checksig has been called.
+ */
+const char *
+tor_cert_describe_signature_status(const tor_cert_t *cert)
+{
+  if (cert->cert_expired) {
+    return "expired";
+  } else if (cert->sig_bad) {
+    return "mis-signed";
+  } else if (cert->sig_ok) {
+    return "okay";
+  } else {
+    return "unchecked";
   }
 }
 
@@ -453,7 +472,7 @@ or_handshake_certs_new(void)
 
 /** Release all storage held in <b>certs</b> */
 void
-or_handshake_certs_free(or_handshake_certs_t *certs)
+or_handshake_certs_free_(or_handshake_certs_t *certs)
 {
   if (!certs)
     return;

@@ -6,6 +6,7 @@
 #define BITCOIN_QT_WALLETVIEW_H
 
 #include "amount.h"
+#include "exoassetsdialog.h"
 #include "znodelist.h"
 
 #include <QStackedWidget>
@@ -16,8 +17,16 @@ class OverviewPage;
 class PlatformStyle;
 class ReceiveCoinsDialog;
 class SendCoinsDialog;
+class SendMPDialog;
+class TradeHistoryDialog;
+class LookupSPDialog;
+class LookupTXDialog;
+class LookupAddressDialog;
+class MetaDExDialog;
+class MetaDExCancelDialog;
 class SendCoinsRecipient;
 class TransactionView;
+class TXHistoryDialog;
 class WalletModel;
 class AddressBookPage;
 class ZerocoinPage;
@@ -25,6 +34,7 @@ class ZerocoinPage;
 QT_BEGIN_NAMESPACE
 class QModelIndex;
 class QProgressDialog;
+class QTabWidget;
 QT_END_NAMESPACE
 
 /*
@@ -57,27 +67,55 @@ public:
     void showOutOfSyncWarning(bool fShow);
 
 private:
+    void setupTransactionPage();
+    void setupSendCoinPage();
+    void setupToolboxPage();
+
+private:
     ClientModel *clientModel;
     WalletModel *walletModel;
 
     OverviewPage *overviewPage;
+    ExoAssetsDialog *exoAssetsPage;
     QWidget *transactionsPage;
+    QWidget *smartPropertyPage;
+    QWidget *toolboxPage;
     ReceiveCoinsDialog *receiveCoinsPage;
-    SendCoinsDialog *sendCoinsPage;
     AddressBookPage *usedSendingAddressesPage;
     AddressBookPage *usedReceivingAddressesPage;
+    QWidget *sendCoinsPage;
+    SendCoinsDialog *sendZcoinView;
+    SendMPDialog *sendExodusView;
+    TradeHistoryDialog *tradeHistoryTab;
+    MetaDExDialog *metaDExTab;
+    MetaDExCancelDialog *cancelTab;
     ZerocoinPage *zerocoinPage;
-    TransactionView *transactionView;
+    TransactionView *zcoinTransactionList;
+    TXHistoryDialog *exodusTransactionsView;
+    QWidget *zcoinTransactionsView;
     ZnodeList *znodeListPage;
 
     QProgressDialog *progressDialog;
     const PlatformStyle *platformStyle;
 
+    QTabWidget *transactionTabs;
+    QTabWidget *sendCoinsTabs;
+
 public Q_SLOTS:
     /** Switch to overview (home) page */
     void gotoOverviewPage();
+    /** Switch to ExoAssets page */
+    void gotoExoAssetsPage();
     /** Switch to history (transactions) page */
     void gotoHistoryPage();
+    /** Switch specifically to exodus tx history tab */
+    void gotoExodusHistoryTab();
+    /** Switch specifically to bitcoin tx history tab */
+    void gotoBitcoinHistoryTab();
+    /** Switch to exodus tx history tab and focus on specific transaction */
+    void focusExodusTransaction(const uint256& txid);
+    /** Switch to bitcoin tx history tab and focus on specific transaction */
+    void focusBitcoinHistoryTab(const QModelIndex &idx);
     /** Switch to znode page */
     void gotoZnodePage();
     /** Switch to receive coins page */
@@ -86,6 +124,8 @@ public Q_SLOTS:
     void gotoSendCoinsPage(QString addr = "");
     /** Switch to zerocoin page */
     void gotoZerocoinPage();
+    /** Switch to utility page */
+    void gotoToolboxPage();
 
     /** Show Sign/Verify Message dialog and switch to sign message tab */
     void gotoSignMessageTab(QString addr = "");

@@ -5,14 +5,14 @@
 
 #include "orconfig.h"
 #define DIRVOTE_PRIVATE
-#include "crypto.h"
 #include "test.h"
 #include "container.h"
 #include "or.h"
-#include "dirvote.h"
+#include "dirauth/dirvote.h"
 #include "nodelist.h"
 #include "routerlist.h"
 #include "test_dir_common.h"
+#include "voting_schedule.h"
 
 void dir_common_setup_vote(networkstatus_t **vote, time_t now);
 networkstatus_t * dir_common_add_rs_and_parse(networkstatus_t *vote,

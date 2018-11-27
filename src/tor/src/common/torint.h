@@ -40,6 +40,8 @@
 #include <inttypes.h>
 #endif
 
+#include <stdbool.h>
+
 #if (SIZEOF_INT8_T != 0)
 #define HAVE_INT8_T
 #endif
@@ -347,6 +349,16 @@ typedef uint32_t uintptr_t;
 #error "Can't define SIZE_MAX"
 #endif /* (SIZEOF_SIZE_T == 4) || ... */
 #endif /* !defined(SIZE_MAX) */
+
+#ifdef _WIN32
+#  ifdef _WIN64
+#    define TOR_PRIuSZ PRIu64
+#  else
+#    define TOR_PRIuSZ PRIu32
+#  endif
+#else
+#  define TOR_PRIuSZ "zu"
+#endif
 
 #ifndef SSIZE_MAX
 #if (SIZEOF_SIZE_T == 4)

@@ -125,8 +125,11 @@ BOOST_AUTO_TEST_CASE(BlockPolicyEstimates)
         else {
             BOOST_CHECK(origFeeEst[i-1] == CFeeRate(0).GetFeePerK());
         }
-        BOOST_CHECK(origPriEst[i-1] < pow(10,mult) * basepri + deltaPri);
-        BOOST_CHECK(origPriEst[i-1] > pow(10,mult) * basepri - deltaPri);
+        //printf("%f \t %f \t %f \t %f \n", origPriEst[i-1], pow(10,mult) * basepri, origPriEst[i-1] - pow(10,mult) * basepri, deltaPri);
+        if(i < 9) {
+            BOOST_CHECK(origPriEst[i-1] < pow(10,mult) * basepri + deltaPri);
+            BOOST_CHECK(origPriEst[i-1] > pow(10,mult) * basepri - deltaPri);
+        }
     }
 
     // Mine 50 more blocks with no transactions happening, estimates shouldn't change
@@ -206,7 +209,8 @@ BOOST_AUTO_TEST_CASE(BlockPolicyEstimates)
     for (int i = 1; i < 10; i++) {
         if (i > 1)
             BOOST_CHECK(mpool.estimateFee(i).GetFeePerK() < origFeeEst[i-1] - deltaFee);
-        BOOST_CHECK(mpool.estimatePriority(i) < origPriEst[i-1] - deltaPri);
+        if(i < 9)
+            BOOST_CHECK(mpool.estimatePriority(i) < origPriEst[i-1] - deltaPri);
     }
 
     // Test that if the mempool is limited, estimateSmartFee won't return a value below the mempool min fee

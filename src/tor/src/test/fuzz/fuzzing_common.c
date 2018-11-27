@@ -9,9 +9,6 @@
 #include "crypto.h"
 #include "crypto_ed25519.h"
 
-extern const char tor_git_revision[];
-const char tor_git_revision[] = "";
-
 static or_options_t *mock_options = NULL;
 static const or_options_t *
 mock_get_options(void)
@@ -113,6 +110,9 @@ global_init(void)
 
   /* Make BUG() and nonfatal asserts crash */
   tor_set_failed_assertion_callback(abort);
+
+  /* Make protocol warnings handled correctly. */
+  init_protocol_warning_severity_level();
 }
 
 #ifdef LLVM_FUZZ

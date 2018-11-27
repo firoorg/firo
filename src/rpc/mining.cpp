@@ -34,6 +34,8 @@
 
 using namespace std;
 
+extern CTxMemPool stempool;
+
 /**
  * Return average network hashes per second based on the last 'lookup' blocks,
  * or from the last difficulty change if 'lookup' is nonpositive.
@@ -356,6 +358,10 @@ UniValue prioritisetransaction(const UniValue& params, bool fHelp)
     CAmount nAmount = params[2].get_int64();
 
     mempool.PrioritiseTransaction(hash, params[0].get_str(), params[1].get_real(), nAmount);
+
+    // Changes to mempool should also be made to Dandelion stempool
+    stempool.PrioritiseTransaction(hash, params[0].get_str(), params[1].get_real(), nAmount);
+
     return true;
 }
 
@@ -646,7 +652,7 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
     }
 
     if(chainActive.Height() + 1 > SWITCH_TO_MORE_SPEND_TXS){
-        MAX_SPEND_ZC_TX_PER_BLOCK = 1;
+        MAX_SPEND_ZC_TX_PER_BLOCK = 5;
     }
 
     BOOST_FOREACH (CTransaction& tx, pblock->vtx) {
