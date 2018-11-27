@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #include "main.h"
 #include "client-api/server.h"
+#include "client-api/protocol.h"
 #include "rpc/server.h"
 #include "znode-sync.h"
 #include "core_io.h"
@@ -86,7 +87,7 @@ UniValue transaction(Type type, const UniValue& data, const UniValue& auth, bool
     UniValue ret(UniValue::VOBJ);
     CTransaction transaction;
     if (!DecodeHexTx(transaction, find_value(data, "txRaw").get_str()))
-        throw runtime_error("invalid transaction encoding");
+        throw JSONAPIError(API_DESERIALIZATION_ERROR, "Error parsing or validating structure in raw format");
 
     LogPrintf("transaction string: %s\n", transaction.ToString());
     CWalletTx wtx(pwalletMain, transaction);
@@ -102,8 +103,13 @@ UniValue transaction(Type type, const UniValue& data, const UniValue& auth, bool
 UniValue block(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
 
     UniValue getblockObj(UniValue::VOBJ);
+    string blockhash;
 
-    string blockhash = find_value(data, "hashBlock").get_str();
+    try{
+        blockhash = find_value(data, "hashBlock").get_str();
+    }catch (const std::exception& e){
+        throw JSONAPIError(API_WRONG_TYPE_CALLED, "wrong key passed/value type for method");
+    }
 
     StateBlock(getblockObj, blockhash);
 

@@ -33,13 +33,21 @@ UniValue mint(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
     vector<CRecipient> vecSend;
     vector<libzerocoin::PrivateCoin> privCoins;
     CWalletTx wtx;
-
-    UniValue sendTo = data[0].get_obj();
+    UniValue sendTo(UniValue::VOBJ);
+    try {
+        sendTo = data[0].get_obj();
+    }catch (const std::exception& e){
+        throw JSONAPIError(API_WRONG_TYPE_CALLED, "wrong key passed/value type for method");
+    }
 
     vector<string> keys = sendTo.getKeys();
     BOOST_FOREACH(const string& denominationStr, keys){
 
-        denominationInt = stoi(denominationStr.c_str());
+        try {
+            denominationInt = stoi(denominationStr.c_str());
+        }catch (const std::exception& e){
+            throw JSONAPIError(API_WRONG_TYPE_CALLED, "wrong key passed/value type for method");
+        }
 
         switch(denominationInt){
             case 1:
@@ -70,7 +78,7 @@ UniValue mint(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
         
         if(amount < 0){
                 throw runtime_error(
-                    "mintzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n");
+                    "Mint amount must be 1 of (1,10,25,50,100)\n");
         }
 
         for(int64_t i=0; i<amount; i++){
@@ -125,6 +133,11 @@ UniValue sendprivate(Type type, const UniValue& data, const UniValue& auth, bool
             UniValue txMetadataData(UniValue::VOBJ);
             UniValue txMetadataEntry(UniValue::VOBJ);
             UniValue txMetadataSubEntry(UniValue::VOBJ);
+
+            UniValue inputs(UniValue::VARR);;
+            string addressStr;
+            string label;
+
             getTxMetadata(txMetadataUni, txMetadataData);
 
             if(txMetadataUni.empty()){
@@ -140,23 +153,25 @@ UniValue sendprivate(Type type, const UniValue& data, const UniValue& auth, bool
             int64_t value = 0;
             int64_t amount = 0;
             libzerocoin::CoinDenomination denomination;
-            std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>> denominations; 
+            std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>> denominations;
 
-            UniValue inputs = find_value(data, "denomination");
-
-            string address_str = find_value(data, "address").get_str();
-
-            string label = find_value(data, "label").get_str();
+            try {
+                inputs = find_value(data, "denomination");
+                addressStr = find_value(data, "address").get_str();
+                label = find_value(data, "label").get_str();
+            }catch (const std::exception& e){
+                throw JSONAPIError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
+            }
 
             int64_t totalAmount = 0;
 
             for(size_t i=0; i<inputs.size();i++) {
 
-                const UniValue& input_obj = inputs[i].get_obj();
+                const UniValue& inputObj = inputs[i].get_obj();
 
-                amount = find_value(input_obj, "amount").get_int();
+                amount = find_value(inputObj, "amount").get_int();
 
-                value = find_value(input_obj, "value").get_int();
+                value = find_value(inputObj, "value").get_int();
 
                 switch(value){
                     case 1:
@@ -186,14 +201,14 @@ UniValue sendprivate(Type type, const UniValue& data, const UniValue& auth, bool
             }
             txMetadataSubEntry.push_back(Pair("amount", totalAmount));
             txMetadataSubEntry.push_back(Pair("label", label));
-            txMetadataEntry.push_back(Pair(address_str, txMetadataSubEntry));
+            txMetadataEntry.push_back(Pair(addressStr, txMetadataSubEntry));
 
             string thirdPartyaddress = "";
-            if (!(address_str == "")){
-                CBitcoinAddress address(address_str);
+            if (!(addressStr == "")){
+                CBitcoinAddress address(addressStr);
                 if (!address.IsValid())
                     throw JSONAPIError(API_INVALID_ADDRESS_OR_KEY, "Invalid Zcoin address");
-                thirdPartyaddress = address_str;
+                thirdPartyaddress = addressStr;
             }
 
             EnsureWalletIsUnlocked();

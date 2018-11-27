@@ -114,14 +114,21 @@ UniValue getNewAddress()
 }
 
 UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
-{
-    UniValue feeperkb = find_value(data,"feePerKb");
+{   
+    UniValue feePerKb;
+    UniValue sendTo(UniValue::VOBJ);
+    try{
+        feePerKb = find_value(data,"feePerKb");
+        sendTo = find_value(data,"addresses").get_obj();
+    }catch (const std::exception& e){
+        throw JSONAPIError(API_WRONG_TYPE_CALLED, "wrong key passed/value type for method");
+    }
+
     UniValue txid(UniValue::VOBJ);
-    setTxFee(feeperkb);
+    setTxFee(feePerKb);
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
-    UniValue sendTo = find_value(data,"addresses").get_obj();
     int nMinDepth = 1;
 
     CWalletTx wtx;
@@ -150,7 +157,11 @@ UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool f
     {
         
         UniValue entry(UniValue::VOBJ);
-        entry = find_value(sendTo, name_).get_obj();
+        try{
+            entry = find_value(sendTo, name_).get_obj();
+        }catch (const std::exception& e){
+            throw JSONAPIError(API_WRONG_TYPE_CALLED, "wrong key passed/value type for method");
+        }
         UniValue txMetadataSubEntry(UniValue::VOBJ);
 
         CBitcoinAddress address(name_);
@@ -233,14 +244,17 @@ UniValue txfee(Type type, const UniValue& data, const UniValue& auth, bool fHelp
         return NullUniValue;
 
     UniValue ret(UniValue::VOBJ);
+    UniValue feePerKb;
+    UniValue sendTo(UniValue::VOBJ);
+    try{
+        feePerKb = find_value(data, "feePerKb");
+        sendTo = find_value(data, "addresses").get_obj();
+    }catch (const std::exception& e){
+        throw JSONAPIError(API_WRONG_TYPE_CALLED, "wrong key passed/value type for method");
+    }
+    setTxFee(feePerKb);
 
-    UniValue feeperkb = find_value(data, "feePerKb");
-
-    setTxFee(feeperkb);
-
-    LOCK2(cs_main, pwalletMain->cs_wallet);
-    
-    UniValue sendTo = find_value(data, "addresses").get_obj();
+    LOCK2(cs_main, pwalletMain->cs_wallet); 
 
     CWalletTx wtx;
     wtx.strFromAccount = "";
@@ -263,7 +277,15 @@ UniValue txfee(Type type, const UniValue& data, const UniValue& auth, bool fHelp
         setAddress.insert(address);
 
         CScript scriptPubKey = GetScriptForDestination(address.Get());
-        CAmount nAmount = sendTo[name_].get_int64();
+        CAmount nAmount;
+        try{
+            feePerKb = find_value(data, "feePerKb");
+            sendTo = find_value(data, "addresses").get_obj();
+            nAmount = sendTo[name_].get_int64();
+        }catch (const std::exception& e){
+            throw JSONAPIError(API_WRONG_TYPE_CALLED, "wrong key passed/value type for method");
+        }
+
         LogPrintf("nAmount gettransactionfee: %s\n", nAmount);
         if (nAmount <= 0)
             throw JSONAPIError(API_TYPE_ERROR, "Invalid amount for send");
@@ -312,7 +334,7 @@ UniValue paymentrequest(Type type, const UniValue& data, const UniValue& auth, b
         case Initial: {
             LogPrintf ("API: returning initial layout..\n");
             return paymentRequestData;
-            break; 
+            break;
         }
         case Create: {     
             UniValue newAddress = getNewAddress();
@@ -324,9 +346,14 @@ UniValue paymentrequest(Type type, const UniValue& data, const UniValue& auth, b
             LogPrintf("data write: %s\n", data.write());
             entry.push_back(Pair("address", newAddress.get_str()));
             entry.push_back(Pair("createdAt", createdAt.get_int64()));
-            entry.push_back(Pair("amount", find_value(data, "amount")));
-            entry.push_back(Pair("message", find_value(data, "message").get_str()));
-            entry.push_back(Pair("label", find_value(data, "label").get_str()));
+
+            try{
+                entry.push_back(Pair("amount", find_value(data, "amount")));
+                entry.push_back(Pair("message", find_value(data, "message").get_str()));
+                entry.push_back(Pair("label", find_value(data, "label").get_str()));
+            }catch (const std::exception& e){
+                throw JSONAPIError(API_WRONG_TYPE_CALLED, "wrong key passed/value type for method");
+            }
             
             paymentRequestData.push_back(Pair(newAddress.get_str(), entry));
             LogPrintf("paymentRequestData write: %s\n", paymentRequestData.write());
@@ -343,9 +370,12 @@ UniValue paymentrequest(Type type, const UniValue& data, const UniValue& auth, b
             const UniValue addressObj = find_value(paymentRequestData, id);
             if(addressObj.isNull()){
                 throw JSONAPIError(API_INVALID_PARAMETER, "Invalid data, id does not exist");
-            }  
+            }
 
             const UniValue addressStr = find_value(addressObj, "address");
+            if(addressStr.isNull()){
+                throw JSONAPIError(API_INVALID_PARAMETER, "Invalid data, address not found");
+            }
 
             paymentRequestData.erase(addressStr);
 
@@ -357,13 +387,19 @@ UniValue paymentrequest(Type type, const UniValue& data, const UniValue& auth, b
         }
 
         case Update: {
-            string id = find_value(data, "id").get_str();
+            string id;
+            std::vector<std::string> dataKeys;
+            try{
+                id = find_value(data, "id").get_str();
+                dataKeys = data.getKeys();
+            }catch (const std::exception& e){
+                throw JSONAPIError(API_WRONG_TYPE_CALLED, "wrong key passed/value type for method");
+            }
+
             entry = find_value(paymentRequestData, id);
             if(entry.isNull()){
                 throw JSONAPIError(API_INVALID_PARAMETER, "Invalid data, id does not exist");
             }
-
-            std::vector<std::string> dataKeys = data.getKeys();
 
             for (std::vector<std::string>::iterator it = dataKeys.begin(); it != dataKeys.end(); it++){
                 string key = (*it);

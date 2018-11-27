@@ -16,9 +16,13 @@
 using namespace std;
 
 UniValue znodecontrol(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
-
-    string method = find_value(data, "method").get_str();
-
+    string method;
+    try {
+        method = find_value(data, "method").get_str();
+    }catch (const std::exception& e){
+        throw JSONAPIError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
+    }
+    
     UniValue overall(UniValue::VOBJ);
     UniValue detail(UniValue::VOBJ);
     UniValue ret(UniValue::VOBJ);
@@ -28,7 +32,12 @@ UniValue znodecontrol(Type type, const UniValue& data, const UniValue& auth, boo
 
     if (method == "start-alias") {
 
-        string alias = find_value(data, "alias").get_str();
+        string alias;
+        try {
+            alias = find_value(data, "alias").get_str();
+        }catch (const std::exception& e){
+            throw JSONAPIError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
+        }
 
         bool fFound = false;
 
@@ -165,7 +174,12 @@ UniValue znodelist(Type type, const UniValue& data, const UniValue& auth, bool f
 
 UniValue znodeupdate(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
     UniValue ret(UniValue::VOBJ);
-    string payee = find_value(data, "payeeAddress").get_str();
+    string payee;
+    try {
+        payee = find_value(data, "payeeAddress").get_str();
+    }catch (const std::exception& e){
+        throw JSONAPIError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
+    }
     ret.push_back(Pair(payee, data));
     return ret;
 }

@@ -466,12 +466,16 @@ UniValue setpassphrase(Type type, const UniValue& data, const UniValue& auth, bo
         case Update: {
             if(pwalletMain && pwalletMain->IsCrypted()){
                 SecureString strOldWalletPass;
-                strOldWalletPass.reserve(100);
-                strOldWalletPass = find_value(auth, "passphrase").get_str().c_str();
-
                 SecureString strNewWalletPass;
+                strOldWalletPass.reserve(100);
                 strNewWalletPass.reserve(100);
-                strNewWalletPass = find_value(auth, "newPassphrase").get_str().c_str();
+                try{
+                    strOldWalletPass = find_value(auth, "passphrase").get_str().c_str();
+                    strNewWalletPass = find_value(auth, "newPassphrase").get_str().c_str();
+
+                }catch(const std::exception& e){
+                    throw JSONAPIError(API_WRONG_TYPE_CALLED, "wrong key passed/value type for method");
+                }
 
                 if (strOldWalletPass.length() < 1 || strNewWalletPass.length() < 1)
                     throw runtime_error("");
@@ -492,7 +496,13 @@ UniValue setpassphrase(Type type, const UniValue& data, const UniValue& auth, bo
 
             SecureString strWalletPass;
             strWalletPass.reserve(100);
-            strWalletPass = find_value(auth, "passphrase").get_str().c_str();
+
+            try{
+                strWalletPass = find_value(auth, "passphrase").get_str().c_str();
+
+            }catch(const std::exception& e){
+                throw JSONAPIError(API_WRONG_TYPE_CALLED, "wrong key passed/value type for method");
+            }
 
             if (strWalletPass.length() < 1)
                 throw runtime_error(
@@ -559,9 +569,12 @@ UniValue unlockwallet(Type type, const UniValue& data, const UniValue& auth, boo
     // TODO: get rid of this .c_str() by implementing SecureString::operator=(std::string)
     // Alternately, find a way to make data[0] mlock()'d to begin with.
 
-    UniValue passphrase = find_value(auth, "passphrase");
+    try{
+        strWalletPass = find_value(auth, "passphrase").get_str().c_str();
 
-    strWalletPass = passphrase.get_str().c_str();
+    }catch(const std::exception& e){
+        throw JSONAPIError(API_WRONG_TYPE_CALLED, "wrong key passed/value type for method");
+    }
 
     if (strWalletPass.length() > 0)
     {
@@ -570,9 +583,7 @@ UniValue unlockwallet(Type type, const UniValue& data, const UniValue& auth, boo
 
     }
     else //TODO length error
-        throw runtime_error(
-            "walletunlock <passphrase>\n"
-            "Stores the wallet decryption key in memory.");
+        throw JSONAPIError(API_WALLET_PASSPHRASE_INCORRECT, "The wallet passphrase entered was incorrect");
 
     pwalletMain->TopUpKeyPool();
     return true;
