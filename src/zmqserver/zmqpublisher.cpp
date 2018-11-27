@@ -206,7 +206,13 @@ bool CZMQTransactionEvent::NotifyTransaction(const CTransaction &transaction)
 
     if(listReceived.size() > 0 || listSent.size() > 0){
         UniValue requestData(UniValue::VOBJ);
-        requestData.push_back(Pair("txRaw",EncodeHexTx(transaction)));
+        string encodedTx;
+        try{
+            encodedTx = EncodeHexTx(transaction);
+        }catch(const std::exception& e){
+            throw JSONAPIError(API_DESERIALIZATION_ERROR, "Error parsing or validating structure in raw format"); 
+        }
+        requestData.push_back(Pair("txRaw",encodedTx));
         request.replace("data", requestData);
         Execute();
     }
@@ -227,7 +233,7 @@ bool CZMQBlockEvent::NotifyBlock(const CBlockIndex *pindex){
     // Otherwise, publish on an update to wallet tx's
     CBlock block;
     if(!ReadBlockFromDisk(block, pindex, Params().GetConsensus())){
-        LogPrintf("can't read block from disk.\n");
+        throw JSONAPIError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
     }
     BOOST_FOREACH(const CTransaction&tx, block.vtx)
     {
@@ -252,8 +258,11 @@ bool CZMQZnodeEvent::NotifyZnodeUpdate(CZnode &znode){
 bool CZMQMintStatusEvent::NotifyMintStatusUpdate(std::string update){
     LogPrintf("update in NotifyMintStatusUpdate: %s\n", update);
     UniValue updateObj(UniValue::VOBJ);
-    updateObj.read(update);
-    //updateObj.push_back(Pair("result", update));
+    try{
+        updateObj.read(update);
+    }catch(const std::exception& e){
+       throw JSONAPIError(API_PARSE_ERROR, "Could not read mint update"); 
+    }
     request.replace("data", updateObj);
     Execute();
 
