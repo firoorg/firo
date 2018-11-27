@@ -641,7 +641,6 @@ include Makefile.qt.include
 endif
 
 if ENABLE_TESTS
-include Makefile.gtest.include
 include Makefile.test.include
 endif
 
