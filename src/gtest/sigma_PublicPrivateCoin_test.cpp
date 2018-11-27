@@ -17,7 +17,8 @@ TEST(sigma_PublicPrivateCoin_test, test)
     PublicCoinV3 publicCoin(coin, ZQ_GOLDWASSER);
     CDataStream serializedCoin(SER_NETWORK, PROTOCOL_VERSION);
     serializedCoin << publicCoin;
-    PublicCoinV3 publicCoinNew(serializedCoin);
+    PublicCoinV3 publicCoinNew;
+    serializedCoin >> publicCoinNew;
     EXPECT_TRUE(publicCoin == publicCoinNew);
 
     // mint test

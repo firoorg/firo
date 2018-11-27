@@ -16,7 +16,7 @@ template<class Exponent, class GroupElement>
 void SigmaPlusProver<Exponent, GroupElement>::proof(
         const std::vector<GroupElement>& commits,
         int l,
-        Exponent r,
+        const Exponent& r,
         SigmaPlusProof<Exponent, GroupElement>& proof_out) {
     int N = commits.size();
     Exponent rB;

@@ -3795,9 +3795,9 @@ bool CheckBlock(const CBlock &block, CValidationState &state, const Consensus::P
         if (nHeight == INT_MAX)
             nHeight = ZerocoinGetNHeight(block.GetBlockHeader());
         if (block.zerocoinTxInfo == NULL)
-            block.zerocoinTxInfo = new CZerocoinTxInfo();
+            block.zerocoinTxInfo.reset(new CZerocoinTxInfo());
         BOOST_FOREACH(const CTransaction &tx, block.vtx)
-        if (!CheckTransaction(tx, state, tx.GetHash(), isVerifyDB, nHeight, false, block.zerocoinTxInfo)) {
+        if (!CheckTransaction(tx, state, tx.GetHash(), isVerifyDB, nHeight, false, block.zerocoinTxInfo.get())) {
             LogPrintf("block=%s\n", block.ToString());
             return state.Invalid(false, state.GetRejectCode(), state.GetRejectReason(),
                                  strprintf("Transaction check failed (tx hash %s) %s", tx.GetHash().ToString(),

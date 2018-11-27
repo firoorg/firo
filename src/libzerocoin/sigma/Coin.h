@@ -7,28 +7,29 @@
 
 namespace sigma {
 
-enum  CoinDenominationV3 {
+enum CoinDenominationV3 {
     ZQ_LOVELACE = 1,
     ZQ_GOLDWASSER = 10,
     ZQ_RACKOFF = 25,
     ZQ_PEDERSEN = 50,
-    ZQ_WILLIAMSON = 100 // Malcolm J. Williamson,
-                    // the scientist who actually invented
-                    // Public key cryptography
+    ZQ_WILLIAMSON = 100
 };
 
-class PublicCoinV3{
+class PublicCoinV3 {
 public:
-    template<typename Stream>
-    PublicCoinV3(Stream& strm){
-        strm >> *this;
-    }
+    // Better just use it as is, with "operator>>".
+    //template<typename Stream>
+    //PublicCoinV3(Stream& strm) {
+    //    strm >> *this;
+    //}
 
     PublicCoinV3();
 
     PublicCoinV3(const GroupElement& coin, const CoinDenominationV3 d);
 
     const GroupElement& getValue() const;
+    CoinDenominationV3 getDenomination() const;
+
     bool operator==(const PublicCoinV3& other) const;
     bool operator!=(const PublicCoinV3& other) const;
     bool validate() const;
@@ -54,7 +55,7 @@ public:
         s >> denomination;
     }
 
-private:
+// private: TODO: change back to private
     GroupElement value;
     int denomination;
 };

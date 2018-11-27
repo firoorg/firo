@@ -2,15 +2,24 @@
 namespace sigma{
 
 //class PublicCoin
-PublicCoinV3::PublicCoinV3(): denomination(ZQ_LOVELACE) {
+PublicCoinV3::PublicCoinV3()
+    : denomination(ZQ_LOVELACE) 
+{
+
 }
 
-PublicCoinV3::PublicCoinV3(const GroupElement& coin, const CoinDenominationV3 d):
-    value(coin), denomination(d) {
+PublicCoinV3::PublicCoinV3(const GroupElement& coin, const CoinDenominationV3 d)
+    : value(coin)
+    , denomination(d)
+{
 }
 
 const GroupElement& PublicCoinV3::getValue() const{
     return this->value;
+}
+
+CoinDenominationV3 PublicCoinV3::getDenomination() const {
+    return static_cast<CoinDenominationV3>(this->denomination);
 }
 
 bool PublicCoinV3::operator==(const PublicCoinV3& other) const{

@@ -120,7 +120,5 @@ int64_t GetBlockWeight(const CBlock& block)
 }
 
 void CBlock::ZerocoinClean() const {
-    if (zerocoinTxInfo != NULL)
-        delete zerocoinTxInfo;
-    zerocoinTxInfo = NULL;
+    zerocoinTxInfo = nullptr;
 }

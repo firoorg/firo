@@ -46,4 +46,11 @@ const std::vector<GroupElement>& ParamsV3::get_h() const{
     return h_;
 }
 
+uint64_t ParamsV3::get_n() const{
+    return n_;
+}
+uint64_t ParamsV3::get_m() const{
+    return m_;
+}
+
 } //namespace sigma

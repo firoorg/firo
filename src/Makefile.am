@@ -200,14 +200,16 @@ BITCOIN_CORE_H = \
   zmq/zmqnotificationinterface.h \
   zmq/zmqpublishnotifier.h \
   zerocoin.h \
+  hash_functions.h \
+  zerocoin_v3.h \
   zerocoin_params.h \
-	sigma/GKEllipticCurve.hpp \
-	sigma/GKGroups.hpp \
-	sigma/GKInteger.hpp \
-	sigma/GKNumbers.hpp \
-	sigma/GKSchema.hpp \
-	sigma/GKZerocoin.hpp \
-	sigma/GKDebug.hpp
+  sigma/GKEllipticCurve.hpp \
+  sigma/GKGroups.hpp \
+  sigma/GKInteger.hpp \
+  sigma/GKNumbers.hpp \
+  sigma/GKSchema.hpp \
+  sigma/GKZerocoin.hpp \
+  sigma/GKDebug.hpp
 
 obj/build.h: FORCE
 	@$(MKDIR_P) $(builddir)/obj
@@ -256,11 +258,13 @@ libbitcoin_server_a_SOURCES = \
   validationinterface.cpp \
   versionbits.cpp \
   zerocoin.cpp \
-	sigma/GKEllipticCurve.cpp \
-	sigma/GKGroups.cpp \
-	sigma/GKNumbers.cpp \
-	sigma/GKDebug.cpp \
-	$(BITCOIN_CORE_H)
+  hash_functions.cpp \
+  zerocoin_v3.cpp \
+  sigma/GKEllipticCurve.cpp \
+  sigma/GKGroups.cpp \
+  sigma/GKNumbers.cpp \
+  sigma/GKDebug.cpp \
+  $(BITCOIN_CORE_H)
 
 if ENABLE_ZMQ
 libbitcoin_zmq_a_CPPFLAGS = $(BITCOIN_INCLUDES) $(ZMQ_CFLAGS)
@@ -447,6 +451,8 @@ libsigma_a_SOURCES = \
   libzerocoin/sigma/SigmaPrimitives.h \
   libzerocoin/sigma/Coin.h \
   libzerocoin/sigma/Coin.cpp \
+  libzerocoin/sigma/CoinSpend.cpp \
+  libzerocoin/sigma/CoinSpend.h \
   libzerocoin/sigma/Params.h \
   libzerocoin/sigma/Params.cpp
 
