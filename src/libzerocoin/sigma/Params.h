@@ -14,6 +14,8 @@ public:
     const GroupElement& get_g() const;
     const GroupElement& get_h0() const;
     const std::vector<GroupElement>& get_h() const;
+    uint64_t get_n() const;
+    uint64_t get_m() const;
 
 private:
    ParamsV3(const GroupElement& g, const GroupElement& h, int n, int m);

@@ -232,6 +232,19 @@ public:
                 //   (the tx=... number in the SetBestChain debug.log lines)
                 1200.0     // * estimated number of transactions per day after checkpoint
         };
+	    
+	    nSpendV15StartBlock = ZC_V1_5_STARTING_BLOCK;
+	    nSpendV2ID_1 = ZC_V2_SWITCH_ID_1;
+	    nSpendV2ID_10 = ZC_V2_SWITCH_ID_10;
+	    nSpendV2ID_25 = ZC_V2_SWITCH_ID_25;
+	    nSpendV2ID_50 = ZC_V2_SWITCH_ID_50;
+	    nSpendV2ID_100 = ZC_V2_SWITCH_ID_100;
+	    nModulusV2StartBlock = ZC_MODULUS_V2_START_BLOCK;
+        nModulusV1MempoolStopBlock = ZC_MODULUS_V1_MEMPOOL_STOP_BLOCK;
+	    nModulusV1StopBlock = ZC_MODULUS_V1_STOP_BLOCK;
+
+        // Zerocoin V3 sigma related values.
+	    nSpendV2StartBlock = ZC_V2_STARTING_BLOCK;
     }
 };
 
@@ -380,6 +393,15 @@ public:
                         0,
                         100.0
         };
+	    nSpendV15StartBlock = ZC_V1_5_TESTNET_STARTING_BLOCK;
+	    nSpendV2ID_1 = ZC_V2_TESTNET_SWITCH_ID_1;
+	    nSpendV2ID_10 = ZC_V2_TESTNET_SWITCH_ID_10;
+	    nSpendV2ID_25 = ZC_V2_TESTNET_SWITCH_ID_25;
+	    nSpendV2ID_50 = ZC_V2_TESTNET_SWITCH_ID_50;
+	    nSpendV2ID_100 = ZC_V2_TESTNET_SWITCH_ID_100;
+	    nModulusV2StartBlock = ZC_MODULUS_V2_TESTNET_START_BLOCK;
+        nModulusV1MempoolStopBlock = ZC_MODULUS_V1_TESTNET_MEMPOOL_STOP_BLOCK;
+	    nModulusV1StopBlock = ZC_MODULUS_V1_TESTNET_STOP_BLOCK;
     }
 };
 
@@ -496,6 +518,16 @@ public:
         base58Prefixes[SECRET_KEY] = std::vector < unsigned char > (1, 239);
         base58Prefixes[EXT_PUBLIC_KEY] = boost::assign::list_of(0x04)(0x35)(0x87)(0xCF).convert_to_container < std::vector < unsigned char > > ();
         base58Prefixes[EXT_SECRET_KEY] = boost::assign::list_of(0x04)(0x35)(0x83)(0x94).convert_to_container < std::vector < unsigned char > > ();
+
+	    nSpendV15StartBlock = ZC_V1_5_TESTNET_STARTING_BLOCK;
+	    nSpendV2ID_1 = ZC_V2_TESTNET_SWITCH_ID_1;
+	    nSpendV2ID_10 = ZC_V2_TESTNET_SWITCH_ID_10;
+	    nSpendV2ID_25 = ZC_V2_TESTNET_SWITCH_ID_25;
+	    nSpendV2ID_50 = ZC_V2_TESTNET_SWITCH_ID_50;
+	    nSpendV2ID_100 = ZC_V2_TESTNET_SWITCH_ID_100;
+	    nModulusV2StartBlock = ZC_MODULUS_V2_TESTNET_START_BLOCK;
+        nModulusV1MempoolStopBlock = ZC_MODULUS_V1_TESTNET_MEMPOOL_STOP_BLOCK;
+	    nModulusV1StopBlock = ZC_MODULUS_V1_TESTNET_STOP_BLOCK;
     }
 
     void UpdateBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout) {

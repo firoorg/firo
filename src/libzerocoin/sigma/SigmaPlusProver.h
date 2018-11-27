@@ -14,7 +14,7 @@ public:
                     const std::vector<GroupElement>& h_gens, int n, int m);
     void proof(const std::vector<GroupElement>& commits,
                int l,
-               Exponent r,
+               const Exponent& r,
                SigmaPlusProof<Exponent, GroupElement>& proof_out);
 
 private:

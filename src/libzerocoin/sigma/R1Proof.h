@@ -13,7 +13,7 @@ class R1Proof{
 public:
     R1Proof() = default;
 
-    inline int memoryRequired() {
+    inline int memoryRequired() const {
         return A_.memoryRequired() * 3 + ZA_.memoryRequired() * (f_.size() + 2);
     }
 

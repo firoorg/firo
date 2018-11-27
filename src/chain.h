@@ -12,12 +12,17 @@
 #include "tinyformat.h"
 #include "uint256.h"
 #include "libzerocoin/bitcoin_bignum/bignum.h"
+#include <secp256k1/include/Scalar.h>
+#include <secp256k1/include/GroupElement.h>
+#include "libzerocoin/sigma/Coin.h"
 #include "zerocoin_params.h"
 #include "util.h"
 #include "chainparams.h"
+#include "hash_functions.h"
 #include "streams.h"
 
 #include <vector>
+#include <unordered_set>
 
 
 class CBlockFileInfo
@@ -226,6 +231,15 @@ public:
 	
     //! Values of coin serials spent in this block
 	set<CBigNum> spentSerials;
+
+/////////////////////// Zerocoin V3 Sigma index entries. ////////////////////////////////////////////
+
+    //! Public coin values of mints in this block, ordered by serialized value of public coin
+    //! Maps <denomination,id> to vector of public coins
+    map<pair<int,int>, vector<sigma::PublicCoinV3>> mintedPubCoinsV3;
+
+    //! Values of coin serials spent in this block
+	unordered_set<secp_primitives::Scalar, sigma::CScalarHash> spentSerialsV3;
 
     void SetNull()
     {

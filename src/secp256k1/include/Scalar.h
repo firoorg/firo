@@ -6,8 +6,10 @@
 #include <cstring>
 #include <random>
 #include "secp256k1.h"
-#include "../src/util.h"
+#include "../src/util.h" // Must be before ../src/scalar.h, otherwise gives a compile error.
 #include "../src/scalar.h"
+
+#undef VERSION // Because there's a VERSION defined in zcoin, we need to undef the secp version.
 
 namespace secp_primitives {
 
