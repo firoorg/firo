@@ -24,7 +24,7 @@ env:
     - SDK_URL=https://bitcoincore.org/depends-sources/sdks
     - PYTHON_DEBUG=1
     - WINEDEBUG=fixme-all
-    - DOCKER_PACKAGES="build-essential libtool autotools-dev automake pkg-config libssl-dev libevent-dev bsdmainutils libboost-all-dev libdb4.8-dev libdb4.8++-dev libgmp-dev libgtest-dev libgmock-dev"
+    - DOCKER_PACKAGES="build-essential libtool autotools-dev automake pkg-config libssl-dev libevent-dev bsdmainutils libboost-all-dev libdb4.8-dev libdb4.8++-dev"
   matrix:
 # Win32
     - >-
@@ -41,7 +41,7 @@ env:
 # x86_64 Linux
     - >-
       HOST=x86_64-unknown-linux-gnu
-      PACKAGES="libminiupnpc-dev libzmq3-dev libqt5gui5 libqt5core5a libqt5dbus5 qttools5-dev qttools5-dev-tools libprotobuf-dev protobuf-compiler libqrencode-dev curl"
+      PACKAGES="libminiupnpc-dev libzmq3-dev libqt5gui5 libqt5core5a libqt5dbus5 qttools5-dev qttools5-dev-tools libprotobuf-dev protobuf-compiler libqrencode-dev curl libgmp-dev"
       NO_DEPENDS=1
 # Cross-Mac
     - >-
