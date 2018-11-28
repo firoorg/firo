@@ -22,7 +22,8 @@
 #define EXIT_POLICY_REJECT_PRIVATE           (1 << 1)
 #define EXIT_POLICY_ADD_DEFAULT              (1 << 2)
 #define EXIT_POLICY_REJECT_LOCAL_INTERFACES  (1 << 3)
-#define EXIT_POLICY_OPTION_MAX             EXIT_POLICY_REJECT_LOCAL_INTERFACES
+#define EXIT_POLICY_ADD_REDUCED              (1 << 4)
+#define EXIT_POLICY_OPTION_MAX             EXIT_POLICY_ADD_REDUCED
 /* All options set: used for unit testing */
 #define EXIT_POLICY_OPTION_ALL             ((EXIT_POLICY_OPTION_MAX << 1) - 1)
 
@@ -54,13 +55,13 @@ int fascist_firewall_allows_dir_server(const dir_server_t *ds,
                                        firewall_connection_t fw_connection,
                                        int pref_only);
 
-int fascist_firewall_choose_address_rs(const routerstatus_t *rs,
-                                       firewall_connection_t fw_connection,
-                                       int pref_only, tor_addr_port_t* ap);
-int fascist_firewall_choose_address_node(const node_t *node,
-                                         firewall_connection_t fw_connection,
-                                         int pref_only, tor_addr_port_t* ap);
-int fascist_firewall_choose_address_dir_server(const dir_server_t *ds,
+void fascist_firewall_choose_address_rs(const routerstatus_t *rs,
+                                        firewall_connection_t fw_connection,
+                                        int pref_only, tor_addr_port_t* ap);
+void fascist_firewall_choose_address_node(const node_t *node,
+                                          firewall_connection_t fw_connection,
+                                          int pref_only, tor_addr_port_t* ap);
+void fascist_firewall_choose_address_dir_server(const dir_server_t *ds,
                                           firewall_connection_t fw_connection,
                                           int pref_only, tor_addr_port_t* ap);
 
@@ -114,15 +115,21 @@ int getinfo_helper_policies(control_connection_t *conn,
 int policy_write_item(char *buf, size_t buflen, const addr_policy_t *item,
                       int format_for_desc);
 
-void addr_policy_list_free(smartlist_t *p);
-void addr_policy_free(addr_policy_t *p);
+void addr_policy_list_free_(smartlist_t *p);
+#define addr_policy_list_free(lst) \
+  FREE_AND_NULL(smartlist_t, addr_policy_list_free_, (lst))
+void addr_policy_free_(addr_policy_t *p);
+#define addr_policy_free(p) \
+  FREE_AND_NULL(addr_policy_t, addr_policy_free_, (p))
 void policies_free_all(void);
 
 char *policy_summarize(smartlist_t *policy, sa_family_t family);
 
 short_policy_t *parse_short_policy(const char *summary);
 char *write_short_policy(const short_policy_t *policy);
-void short_policy_free(short_policy_t *policy);
+void short_policy_free_(short_policy_t *policy);
+#define short_policy_free(p) \
+  FREE_AND_NULL(short_policy_t, short_policy_free_, (p))
 int short_policy_is_reject_star(const short_policy_t *policy);
 addr_policy_result_t compare_tor_addr_to_short_policy(
                           const tor_addr_t *addr, uint16_t port,

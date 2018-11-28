@@ -108,6 +108,8 @@ endif
 # bitcoin core #
 BITCOIN_CORE_H = \
   activeznode.h \
+  addressindex.h \
+  spentindex.h \
   addrman.h \
   base58.h \
   bloom.h \
@@ -140,6 +142,7 @@ BITCOIN_CORE_H = \
   keystore.h \
   dbwrapper.h \
   limitedmap.h \
+  threadinterrupt.h \
   main.h \
   znode.h \
   znode-payments.h \
@@ -194,6 +197,7 @@ BITCOIN_CORE_H = \
   wallet/rpcwallet.h \
   wallet/wallet.h \
   wallet/walletdb.h \
+  wallet/authhelper.h \
   definition.h \
   zmq/zmqabstractnotifier.h \
   zmq/zmqconfig.h\
@@ -202,6 +206,7 @@ BITCOIN_CORE_H = \
   zerocoin.h \
   hash_functions.h \
   zerocoin_v3.h \
+  mtpstate.h \
   zerocoin_params.h \
   sigma/GKEllipticCurve.hpp \
   sigma/GKGroups.hpp \
@@ -230,6 +235,7 @@ libbitcoin_server_a_SOURCES = \
   httpserver.cpp \
   init.cpp \
   dbwrapper.cpp \
+  threadinterrupt.cpp \
   main.cpp \
   merkleblock.cpp \
   miner.cpp \
@@ -264,6 +270,7 @@ libbitcoin_server_a_SOURCES = \
   sigma/GKGroups.cpp \
   sigma/GKNumbers.cpp \
   sigma/GKDebug.cpp \
+  mtpstate.cpp \
   $(BITCOIN_CORE_H)
 
 if ENABLE_ZMQ
@@ -295,6 +302,7 @@ libbitcoin_wallet_a_SOURCES = \
   wallet/rpcwallet.cpp \
   wallet/wallet.cpp \
   wallet/walletdb.cpp \
+  wallet/authhelper.cpp \
   policy/rbf.cpp \
   $(BITCOIN_CORE_H)
 
@@ -305,6 +313,8 @@ crypto_libbitcoin_crypto_a_SOURCES = \
   crypto/aes.cpp \
   crypto/aes.h \
   crypto/common.h \
+  crypto/chacha20.h \                           
+  crypto/chacha20.cpp \    
   crypto/hmac_sha256.cpp \
   crypto/hmac_sha256.h \
   crypto/hmac_sha512.cpp \
@@ -364,7 +374,21 @@ libbitcoin_consensus_a_SOURCES = \
   crypto/Lyra2Z/sph_blake.h \
   crypto/Lyra2Z/sph_types.h \
   crypto/Lyra2Z/Sponge.c \
-  crypto/Lyra2Z/Sponge.h
+  crypto/Lyra2Z/Sponge.h \
+  crypto/MerkleTreeProof/mtp.h \
+  crypto/MerkleTreeProof/argon2.h \
+  crypto/MerkleTreeProof/thread.h \
+  crypto/MerkleTreeProof/merkle-tree.hpp \
+  crypto/MerkleTreeProof/core.h \
+  crypto/MerkleTreeProof/ref.h \
+  crypto/MerkleTreeProof/blake2/blake2.h \
+  crypto/MerkleTreeProof/blake2/blamka-round-opt.h \
+  crypto/MerkleTreeProof/blake2/blake2-impl.h \
+  crypto/MerkleTreeProof/blake2/blamka-round-ref.h \
+  crypto/MerkleTreeProof/thread.c \
+  crypto/MerkleTreeProof/core.c \
+  crypto/MerkleTreeProof/ref.c \
+  crypto/MerkleTreeProof/blake2/blake2b.c
 
 # common: shared between zcoind, and zcoin-qt and non-server tools
 libbitcoin_common_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
@@ -436,6 +460,8 @@ libbitcoin_util_a_SOURCES = \
   libzerocoin/SpendMetaData.h \
   libzerocoin/SpendMetaData.cpp \
   libzerocoin/Zerocoin.h \
+  crypto/MerkleTreeProof/mtp.cpp \
+  crypto/MerkleTreeProof/merkle-tree.cpp \
   $(BITCOIN_CORE_H)
 
 libsigma_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
@@ -621,5 +647,8 @@ include Makefile.qt.include
 endif
 
 if ENABLE_TESTS
-include Makefile.gtest.include
+include Makefile.test.include
 endif
+
+# Exodus
+include Makefile.exodus.include

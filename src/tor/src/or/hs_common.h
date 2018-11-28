@@ -130,6 +130,17 @@ typedef enum {
   HS_AUTH_KEY_TYPE_ED25519 = 2,
 } hs_auth_key_type_t;
 
+/* Return value when adding an ephemeral service through the ADD_ONION
+ * control port command. Both v2 and v3 share these. */
+typedef enum {
+  RSAE_BADAUTH     = -5, /**< Invalid auth_type/auth_clients */
+  RSAE_BADVIRTPORT = -4, /**< Invalid VIRTPORT/TARGET(s) */
+  RSAE_ADDREXISTS  = -3, /**< Onion address collision */
+  RSAE_BADPRIVKEY  = -2, /**< Invalid public key */
+  RSAE_INTERNAL    = -1, /**< Internal error */
+  RSAE_OKAY        = 0   /**< Service added as expected */
+} hs_service_add_ephemeral_status_t;
+
 /* Represents the mapping from a virtual port of a rendezvous service to a
  * real port on some IP. */
 typedef struct rend_service_port_config_t {
@@ -145,19 +156,6 @@ typedef struct rend_service_port_config_t {
   char unix_addr[FLEXIBLE_ARRAY_MEMBER];
 } rend_service_port_config_t;
 
-/* Hidden service directory index used in a node_t which is set once we set
- * the consensus. */
-typedef struct hsdir_index_t {
-  /* HSDir index to use when fetching a descriptor. */
-  uint8_t fetch[DIGEST256_LEN];
-
-  /* HSDir index used by services to store their first and second
-   * descriptor. The first descriptor is chronologically older than the second
-   * one and uses older TP and SRV values. */
-  uint8_t store_first[DIGEST256_LEN];
-  uint8_t store_second[DIGEST256_LEN];
-} hsdir_index_t;
-
 void hs_init(void);
 void hs_free_all(void);
 
@@ -166,6 +164,8 @@ void hs_cleanup_circ(circuit_t *circ);
 int hs_check_service_private_dir(const char *username, const char *path,
                                  unsigned int dir_group_readable,
                                  unsigned int create);
+int hs_get_service_max_rend_failures(void);
+
 char *hs_path_from_filename(const char *directory, const char *filename);
 void hs_build_address(const ed25519_public_key_t *key, uint8_t version,
                       char *addr_out);
@@ -183,7 +183,9 @@ void hs_build_blinded_keypair(const ed25519_keypair_t *kp,
                               ed25519_keypair_t *kp_out);
 int hs_service_requires_uptime_circ(const smartlist_t *ports);
 
-void rend_data_free(rend_data_t *data);
+void rend_data_free_(rend_data_t *data);
+#define rend_data_free(data) \
+  FREE_AND_NULL(rend_data_t, rend_data_free_, (data))
 rend_data_t *rend_data_dup(const rend_data_t *data);
 rend_data_t *rend_data_client_create(const char *onion_address,
                                      const char *desc_id,

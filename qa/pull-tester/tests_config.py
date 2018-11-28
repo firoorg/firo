@@ -3,8 +3,8 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-SRCDIR="/home/david/crypto-projects/zcoin-sigma"
-BUILDDIR="/home/david/crypto-projects/zcoin-sigma"
+SRCDIR="/home/thebevrishot/project/zcoin-sigma"
+BUILDDIR="/home/thebevrishot/project/zcoin-sigma"
 EXEEXT=""
 
 # These will turn into comments if they were disabled when configuring.

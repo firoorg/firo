@@ -11,6 +11,10 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 XZC mininput
 
 // There were bugs before this block, don't do some checks on early blocks
 #define ZC_CHECK_BUG_FIXED_AT_BLOCK         61168
+
+// Before this block we allowed not paying to the znodes.
+#define ZC_ZNODE_PAYMENT_BUG_FIXED_AT_BLOCK         107246
+
 // Do strict check on duplicate minted public coin value after this block
 #define ZC_CHECK_DUPLICATE_MINT_AT_BLOCK    70000
 
@@ -40,7 +44,6 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 XZC mininput
 #define ZC_V2_STARTING_BLOCK          115819 // TODO(martun): change this to actual block height.
 #define ZC_V2_TESTNET_STARTING_BLOCK  47954
 
-
 #define ZC_MODULUS_V2_START_BLOCK		89300
 #define ZC_MODULUS_V1_MEMPOOL_STOP_BLOCK        89500
 #define ZC_MODULUS_V1_STOP_BLOCK		89800
@@ -50,6 +53,8 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 XZC mininput
 #define ZC_MODULUS_V1_TESTNET_STOP_BLOCK        88000
 
 #define ZC_MODULUS_V2_BASE_ID			1000
+
+#define ZC_MULTIPLE_SPEND_INPUT_STARTING_BLOCK  119000
 
 // Number of coins per id in spend v1/v1.5
 #define ZC_SPEND_V1_COINSPERID			10
@@ -63,5 +68,13 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 XZC mininput
 
 // number of mint confirmations needed to spend coin
 #define ZC_MINT_CONFIRMATIONS               6
+
+// Genesis block timestamp
+#define ZC_GENESIS_BLOCK_TIME               1414776286
+
+#define SWITCH_TO_MTP_BLOCK_HEADER 1544443200 // 2018 December 10th 12:00 UTC
+
+// Number of zerocoin spends allowed per block and per transaction
+#define ZC_SPEND_LIMIT         5
 
 #endif

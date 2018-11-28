@@ -16,13 +16,13 @@ static const int HF_LYRA2_HEIGHT = 8192;
 static const int HF_LYRA2Z_HEIGHT = 20500;
 static const int HF_ZNODE_HEIGHT = 66550;
 static const int HF_ZNODE_PAYMENT_START = HF_ZNODE_HEIGHT + 150; // 66700 - about 25h after HF
-//static const int HF_MTP_HEIGHT = 70000;
+static const int HF_MTP_HEIGHT = 88888;
 
 static const int HF_LYRA2VAR_HEIGHT_TESTNET = 10;
 static const int HF_LYRA2_HEIGHT_TESTNET = 25; // for consistent purpose since the algo hash is so low
 static const int HF_LYRA2Z_HEIGHT_TESTNET = 30;
 static const int HF_ZNODE_HEIGHT_TESTNET = 500;
-//static const int HF_MTP_HEIGHT_TESTNET = 30;
+static const int HF_MTP_HEIGHT_TESTNET = 9999;
 
 static const int HF_ZEROSPEND_FIX = 22000;
 

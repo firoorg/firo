@@ -108,7 +108,7 @@ typedef struct rend_service_t {
   /** If true, we don't close circuits for making requests to unsupported
    * ports. */
   int allow_unknown_ports;
-  /** The maximum number of simultanious streams-per-circuit that are allowed
+  /** The maximum number of simultaneous streams-per-circuit that are allowed
    * to be established, or 0 if no limit is set.
    */
   int max_streams_per_circuit;
@@ -117,7 +117,9 @@ typedef struct rend_service_t {
   int max_streams_close_circuit;
 } rend_service_t;
 
-STATIC void rend_service_free(rend_service_t *service);
+STATIC void rend_service_free_(rend_service_t *service);
+#define rend_service_free(s) \
+  FREE_AND_NULL(rend_service_t, rend_service_free_, (s))
 STATIC char *rend_service_sos_poison_path(const rend_service_t *service);
 STATIC int rend_service_verify_single_onion_poison(
                                                   const rend_service_t *s,
@@ -160,7 +162,11 @@ int rend_service_receive_introduction(origin_circuit_t *circuit,
 int rend_service_decrypt_intro(rend_intro_cell_t *request,
                                crypto_pk_t *key,
                                char **err_msg_out);
-void rend_service_free_intro(rend_intro_cell_t *request);
+void rend_service_free_intro_(rend_intro_cell_t *request);
+#define rend_service_free_intro(req) do {       \
+    rend_service_free_intro_(req);              \
+    (req) = NULL;                               \
+  } while (0)
 rend_intro_cell_t * rend_service_begin_parse_intro(const uint8_t *request,
                                                    size_t request_len,
                                                    uint8_t type,
@@ -183,20 +189,17 @@ void rend_service_init(void);
 rend_service_port_config_t *rend_service_parse_port_config(const char *string,
                                                            const char *sep,
                                                            char **err_msg_out);
-void rend_service_port_config_free(rend_service_port_config_t *p);
+void rend_service_port_config_free_(rend_service_port_config_t *p);
+#define rend_service_port_config_free(p) \
+  FREE_AND_NULL(rend_service_port_config_t, rend_service_port_config_free_, \
+                (p))
 
-void rend_authorized_client_free(rend_authorized_client_t *client);
+void rend_authorized_client_free_(rend_authorized_client_t *client);
+#define rend_authorized_client_free(client) \
+  FREE_AND_NULL(rend_authorized_client_t, rend_authorized_client_free_, \
+                (client))
 
-/** Return value from rend_service_add_ephemeral. */
-typedef enum {
-  RSAE_BADAUTH = -5, /**< Invalid auth_type/auth_clients */
-  RSAE_BADVIRTPORT = -4, /**< Invalid VIRTPORT/TARGET(s) */
-  RSAE_ADDREXISTS = -3, /**< Onion address collision */
-  RSAE_BADPRIVKEY = -2, /**< Invalid public key */
-  RSAE_INTERNAL = -1, /**< Internal error */
-  RSAE_OKAY = 0 /**< Service added as expected */
-} rend_service_add_ephemeral_status_t;
-rend_service_add_ephemeral_status_t rend_service_add_ephemeral(crypto_pk_t *pk,
+hs_service_add_ephemeral_status_t rend_service_add_ephemeral(crypto_pk_t *pk,
                                smartlist_t *ports,
                                int max_streams_per_circuit,
                                int max_streams_close_circuit,

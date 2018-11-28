@@ -244,6 +244,11 @@ extern const char *GETBLOCKTXN;
  */
 extern const char *BLOCKTXN;
 
+/**
+ * The Dandelion tx message transmits a single Dandelion transaction.
+*/
+extern const char *DANDELIONTX;
+
 extern const char *TXLOCKVOTE;
 extern const char *SPORK;
 extern const char *GETSPORKS;
@@ -347,9 +352,11 @@ enum GetDataMsg
     // The following can only occur in getdata. Invs always use TX or BLOCK.
     MSG_FILTERED_BLOCK,
     MSG_CMPCT_BLOCK,
+	MSG_DANDELION_TX = 5, //!< Dandelion
     MSG_WITNESS_BLOCK = MSG_BLOCK | MSG_WITNESS_FLAG,
     MSG_WITNESS_TX = MSG_TX | MSG_WITNESS_FLAG,
     MSG_FILTERED_WITNESS_BLOCK = MSG_FILTERED_BLOCK | MSG_WITNESS_FLAG,
+	MSG_DANDELION_WITNESS_TX = MSG_DANDELION_TX | MSG_WITNESS_FLAG,
     MSG_SPORK,
     MSG_ZNODE_PAYMENT_VOTE,
     MSG_ZNODE_PAYMENT_BLOCK,

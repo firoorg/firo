@@ -29,6 +29,7 @@
 #include <boost/filesystem/path.hpp>
 #include <boost/signals2/signal.hpp>
 #include <boost/thread/exceptions.hpp>
+#include <boost/optional.hpp>
 
 static const bool DEFAULT_LOGTIMEMICROS = false;
 static const bool DEFAULT_LOGIPS        = false;
@@ -57,6 +58,9 @@ extern bool fLogTimeMicros;
 extern bool fLogIPs;
 extern std::atomic<bool> fReopenDebugLog;
 extern CTranslationInterface translationInterface;
+
+/** Flag to indicate, whether the Exodus log file should be reopened. */
+extern std::atomic<bool> fReopenExodusLog;
 
 extern const char * const BITCOIN_CONF_FILENAME;
 extern const char * const BITCOIN_PID_FILENAME;
@@ -183,6 +187,14 @@ int64_t GetArg(const std::string& strArg, int64_t nDefault);
  * @return command-line argument or default value
  */
 bool GetBoolArg(const std::string& strArg, bool fDefault);
+
+/**
+ * Return boost:optional<bool> for a specified argument
+ *
+ * @param strArg Argument to get (e.g. "-foo")
+ * @return command-line argument or default value
+ */
+boost::optional<bool> GetOptBoolArg(const std::string& strArg);
 
 /**
  * Set an argument if it doesn't already have a value

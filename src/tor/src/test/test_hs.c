@@ -258,8 +258,9 @@ test_hs_desc_event(void *arg)
             sizeof(desc_id_base32));
 
   /* test request event */
-  control_event_hs_descriptor_requested(&rend_query.base_, HSDIR_EXIST_ID,
-                                        STR_DESC_ID_BASE32);
+  control_event_hs_descriptor_requested(rend_query.onion_address,
+                                        rend_query.auth_type, HSDIR_EXIST_ID,
+                                        STR_DESC_ID_BASE32, NULL);
   expected_msg = "650 HS_DESC REQUESTED "STR_HS_ADDR" NO_AUTH "\
                   STR_HSDIR_EXIST_LONGNAME " " STR_DESC_ID_BASE32 "\r\n";
   tt_assert(received_msg);
@@ -268,8 +269,8 @@ test_hs_desc_event(void *arg)
 
   /* test received event */
   rend_query.auth_type = REND_BASIC_AUTH;
-  control_event_hs_descriptor_received(rend_query.onion_address,
-                                       &rend_query.base_, HSDIR_EXIST_ID);
+  control_event_hsv2_descriptor_received(rend_query.onion_address,
+                                         &rend_query.base_, HSDIR_EXIST_ID);
   expected_msg = "650 HS_DESC RECEIVED "STR_HS_ADDR" BASIC_AUTH "\
                   STR_HSDIR_EXIST_LONGNAME " " STR_DESC_ID_BASE32"\r\n";
   tt_assert(received_msg);
@@ -278,7 +279,7 @@ test_hs_desc_event(void *arg)
 
   /* test failed event */
   rend_query.auth_type = REND_STEALTH_AUTH;
-  control_event_hs_descriptor_failed(&rend_query.base_,
+  control_event_hsv2_descriptor_failed(&rend_query.base_,
                                      HSDIR_NONE_EXIST_ID,
                                      "QUERY_REJECTED");
   expected_msg = "650 HS_DESC FAILED "STR_HS_ADDR" STEALTH_AUTH "\
@@ -289,7 +290,7 @@ test_hs_desc_event(void *arg)
 
   /* test invalid auth type */
   rend_query.auth_type = 999;
-  control_event_hs_descriptor_failed(&rend_query.base_,
+  control_event_hsv2_descriptor_failed(&rend_query.base_,
                                      HSDIR_EXIST_ID,
                                      "QUERY_REJECTED");
   expected_msg = "650 HS_DESC FAILED "STR_HS_ADDR" UNKNOWN "\
@@ -301,7 +302,7 @@ test_hs_desc_event(void *arg)
 
   /* test no HSDir fingerprint type */
   rend_query.auth_type = REND_NO_AUTH;
-  control_event_hs_descriptor_failed(&rend_query.base_, NULL,
+  control_event_hsv2_descriptor_failed(&rend_query.base_, NULL,
                                      "QUERY_NO_HSDIR");
   expected_msg = "650 HS_DESC FAILED "STR_HS_ADDR" NO_AUTH " \
                  "UNKNOWN REASON=QUERY_NO_HSDIR\r\n";
@@ -360,6 +361,7 @@ test_pick_tor2web_rendezvous_node(void *arg)
 
   /* Parse Tor2webRendezvousPoints as a routerset. */
   options->Tor2webRendezvousPoints = routerset_new();
+  options->UseMicrodescriptors = 0;
   retval = routerset_parse(options->Tor2webRendezvousPoints,
                            tor2web_rendezvous_str,
                            "test_tor2web_rp");
@@ -565,10 +567,10 @@ test_hs_auth_cookies(void *arg)
 #define TEST_COOKIE_ENCODED_STEALTH "YWJjZGVmZ2hpamtsbW5vcB"
 #define TEST_COOKIE_ENCODED_INVALID "YWJjZGVmZ2hpamtsbW5vcD"
 
-  char *encoded_cookie;
+  char *encoded_cookie = NULL;
   uint8_t raw_cookie[REND_DESC_COOKIE_LEN];
   rend_auth_type_t auth_type;
-  char *err_msg;
+  char *err_msg = NULL;
   int re;
 
   (void)arg;
@@ -614,6 +616,9 @@ test_hs_auth_cookies(void *arg)
   tor_free(err_msg);
 
  done:
+  tor_free(encoded_cookie);
+  tor_free(err_msg);
+
   return;
 }
 
@@ -1009,7 +1014,7 @@ test_prune_services_on_reload(void *arg)
     set_rend_service_list(old);
     set_rend_rend_service_staging_list(new);
     rend_service_prune_list_impl_();
-    /* Check if they've all been transfered. */
+    /* Check if they've all been transferred. */
     tt_int_op(smartlist_len(old), OP_EQ, 0);
     tt_int_op(smartlist_len(new), OP_EQ, 2);
   }

@@ -85,14 +85,18 @@ private:
     QLabel *labelEncryptionIcon;
     QLabel *labelConnectionsIcon;
     QLabel *labelBlocksIcon;
+    QLabel *labelExodusPendingIcon;
+    QLabel *labelExodusPendingText;
     QLabel *progressBarLabel;
     QProgressBar *progressBar;
     QProgressDialog *progressDialog;
 
     QMenuBar *appMenuBar;
     QAction *overviewAction;
+    QAction *exoAssetsAction;
     QAction *historyAction;
     QAction *quitAction;
+    QAction *toolboxAction;
     QAction *sendCoinsAction;
     QAction *sendCoinsMenuAction;
     QAction *usedSendingAddressesAction;
@@ -174,6 +178,9 @@ public Q_SLOTS:
     */
     void setEncryptionStatus(int status);
 
+    /** Set the Exodus pending transactions label **/
+    void setExodusPendingStatus(bool pending);
+
     bool handlePaymentRequest(const SendCoinsRecipient& recipient);
 
     /** Show incoming transaction notification for new transactions. */
@@ -184,8 +191,16 @@ private Q_SLOTS:
 #ifdef ENABLE_WALLET
     /** Switch to overview (home) page */
     void gotoOverviewPage();
+    /** Switch to ExoAssets page */
+    void gotoExoAssetsPage();
     /** Switch to history (transactions) page */
     void gotoHistoryPage();
+    /** Switch directly to Exodus history tab */
+    void gotoExodusHistoryTab();
+    /** Switch directly to bitcoin history tab */
+    void gotoBitcoinHistoryTab();
+    /** Switch to utility page */
+    void gotoToolboxPage();
     /** Switch to znode page */
     void gotoZnodePage();
     /** Switch to receive coins page */
@@ -228,7 +243,7 @@ private Q_SLOTS:
 
     /** Show progress dialog e.g. for verifychain */
     void showProgress(const QString &title, int nProgress);
-    
+
     /** When hideTrayIcon setting is changed in OptionsModel hide or show the icon accordingly. */
     void setTrayIconVisible(bool);
 };

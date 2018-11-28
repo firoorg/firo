@@ -6,6 +6,7 @@
 #define BITCOIN_QT_OVERVIEWPAGE_H
 
 #include "amount.h"
+#include "uint256.h"
 
 #include <QWidget>
 #include <memory>
@@ -36,14 +37,18 @@ public:
     void setClientModel(ClientModel *clientModel);
     void setWalletModel(WalletModel *walletModel);
     void showOutOfSyncWarning(bool fShow);
+    void UpdatePropertyBalance(unsigned int propertyId, uint64_t available, uint64_t reserved);
 
 public Q_SLOTS:
     void setBalance(const CAmount& balance, const CAmount& unconfirmedBalance, const CAmount& immatureBalance,
                     const CAmount& watchOnlyBalance, const CAmount& watchUnconfBalance, const CAmount& watchImmatureBalance);
+    //void updateExodus();
+    //void reinitExodus();
 
 Q_SIGNALS:
     void transactionClicked(const QModelIndex &index);
     void enabledTorChanged();
+    void exodusTransactionClicked(const uint256& txid);
 
 private:
     Ui::OverviewPage *ui;

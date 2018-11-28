@@ -573,112 +573,28 @@ int CZerocoinStateV3::GetCoinSetForSpend(
     if (coinGroups.count(denomAndId) == 0)
         return 0;
 
-    /*
-       CoinGroupInfoV3 coinGroup = coinGroups[denomAndId];
-       CBlockIndex *lastBlock = coinGroup.lastBlock;
-
-       assert(lastBlock->accumulatorChanges.count(denomAndId) > 0);
-       assert(coinGroup.firstBlock->accumulatorChanges.count(denomAndId) > 0);
-
-    // is native modulus for denomination and id v2?
-    bool nativeModulusIsV2 = IsZerocoinTxV2((sigma::CoinDenominationV3)denomination, id);
-    // field in the block index structure for accesing accumulator changes
-    decltype(&CBlockIndex::accumulatorChanges) accChangeField;
-    if (nativeModulusIsV2 != useModulusV2) {
-    CalculateAlternativeModulusAccumulatorValues(chain, denomination, id);
-    accChangeField = &CBlockIndex::alternativeAccumulatorChanges;
-    }
-    else {
-    accChangeField = &CBlockIndex::accumulatorChanges;
-    }
+    CoinGroupInfoV3 coinGroup = coinGroups[denomAndId];
 
     int numberOfCoins = 0;
-    for (;;) {
-    map<pair<int,int>, pair<Scalar,int>> &accumulatorChanges = lastBlock->*accChangeField;
-    if (accumulatorChanges.count(denomAndId) > 0) {
-    if (lastBlock->nHeight <= maxHeight) {
-    if (numberOfCoins == 0) {
-    // latest block satisfying given conditions
-    // remember accumulator value and block hash
-    accumulator = accumulatorChanges[denomAndId].first;
-    blockHash = lastBlock->GetBlockHash();
-    }
-    numberOfCoins += accumulatorChanges[denomAndId].second;
-    }
-    }
-
-    if (lastBlock == coinGroup.firstBlock)
-    break;
-    else
-    lastBlock = lastBlock->pprev;
+    for (CBlockIndex *block = coinGroup.lastBlock;
+         block != coinGroup.firstBlock;
+         block = block->pprev) {
+        if (block->mintedPubCoinsV3[denomAndId].size() > 0) {
+            if (block->nHeight <= maxHeight) {
+                if (numberOfCoins == 0) {
+                    // latest block satisfying given conditions
+                    // remember block hash
+                    blockHash_out = block->GetBlockHash();
+                }
+                numberOfCoins += block->mintedPubCoinsV3[denomAndId].size();
+                coins_out.insert(coins_out.end(), 
+                                 block->mintedPubCoinsV3[denomAndId].begin(),
+                                 block->mintedPubCoinsV3[denomAndId].end());
+            }
+        }
     }
     return numberOfCoins;
-     */
-    return 0;
 }
-
-/*
-   libzerocoin::AccumulatorWitness CZerocoinStateV3::GetWitnessForSpend(
-   CChain *chain, 
-   int maxHeight, 
-   int denomination,
-   int id, 
-   const PublicCoinV3& pubCoin) {
-
-   sigma::CoinDenominationV3 d = (sigma::CoinDenominationV3)denomination;
-   pair<int, int> denomAndId = pair<int, int>(denomination, id);
-
-   assert(coinGroups.count(denomAndId) > 0);
-
-   CoinGroupInfoV3 coinGroup = coinGroups[denomAndId];
-
-   int coinId;
-   int mintHeight = GetMintedCoinHeightAndId(pubCoin, denomination, coinId);
-
-   assert(coinId == id);
-
-   sigma::ParamsV3 *zcParams = useModulusV2 ? ZCParamsV3V2 : ZCParamsV3;
-   bool nativeModulusIsV2 = IsZerocoinTxV2((sigma::CoinDenominationV3)denomination, id);
-   decltype(&CBlockIndex::accumulatorChanges) accChangeField;
-   if (nativeModulusIsV2 != useModulusV2) {
-   CalculateAlternativeModulusAccumulatorValues(chain, denomination, id);
-   accChangeField = &CBlockIndex::alternativeAccumulatorChanges;
-   }
-   else {
-   accChangeField = &CBlockIndex::accumulatorChanges;
-   }
-
-// Find accumulator value preceding mint operation
-CBlockIndex *mintBlock = (*chain)[mintHeight];
-CBlockIndex *block = mintBlock;
-libzerocoin::Accumulator accumulator(zcParams, d);
-if (block != coinGroup.firstBlock) {
-do {
-block = block->pprev;
-} while ((block->*accChangeField).count(denomAndId) == 0);
-accumulator = libzerocoin::Accumulator(zcParams, (block->*accChangeField)[denomAndId].first, d);
-}
-
-// Now add to the accumulator every coin minted since that moment except pubCoin
-block = coinGroup.lastBlock;
-for (;;) {
-if (block->nHeight <= maxHeight && block->mintedPubCoinsV3.count(denomAndId) > 0) {
-vector<Scalar> &pubCoins = block->mintedPubCoinsV3[denomAndId];
-for (const Scalar &coin: pubCoins) {
-if (block != mintBlock || coin != pubCoin)
-accumulator += sigma::PublicCoinV3(zcParams, coin, d);
-}
-}
-if (block != mintBlock)
-block = block->pprev;
-else
-break;
-}
-
-return libzerocoin::AccumulatorWitness(zcParams, accumulator, sigma::PublicCoinV3(zcParams, pubCoin, d));
-}
-
- */
 
 std::pair<int, int> CZerocoinStateV3::GetMintedCoinHeightAndId(
         const PublicCoinV3& pubCoin, 
