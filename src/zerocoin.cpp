@@ -532,6 +532,11 @@ bool CheckZerocoinTransaction(const CTransaction &tx,
     // Check Spend Zerocoin Transaction
     vector<libzerocoin::CoinDenomination> denominations;
     if(tx.IsZerocoinSpend()) {
+        if (tx.vout.size() > 1) {
+            // TODO: enable such spends after some block number
+            return state.DoS(100, error("Zerocoin spend with more than 1 output"));
+        }
+
         // First check number of inputs does not exceed transaction limit
         if(tx.vin.size() > ZC_SPEND_LIMIT){
             return false;
@@ -560,16 +565,18 @@ bool CheckZerocoinTransaction(const CTransaction &tx,
             denominations.push_back(newSpend.getDenomination());
             totalValue += newSpend.getDenomination();
         }
+
         // Check vOut
         // Only one loop, we checked on the format before enter this case
         BOOST_FOREACH(const CTxOut &txout, tx.vout)
         {
-            if(!isVerifyDB){
+            if(!isVerifyDB) {
                 if (txout.nValue == totalValue * COIN) {
                     if(!CheckSpendZcoinTransaction(tx, params, denominations, state, hashTx, isVerifyDB, nHeight, isCheckWallet, fStatefulZerocoinCheck, zerocoinTxInfo)){
                         return false;
                     }
-                }else{
+                }
+                else {
                     return state.DoS(100, error("CheckZerocoinTransaction : invalid spending txout value"));
                 }
             }
@@ -616,8 +623,13 @@ bool ConnectBlockZC(CValidationState &state, const CChainParams &chainParams, CB
             }
         }
 
-	    if (!fJustCheck)
+	    if (!fJustCheck) {
+            // clear the state
 			pindexNew->spentSerials.clear();
+            pindexNew->mintedPubCoins.clear();
+            pindexNew->accumulatorChanges.clear();
+            pindexNew->alternativeAccumulatorChanges.clear();
+        }
 	    
         if (pindexNew->nHeight > chainParams.GetConsensus().nCheckBugFixedAtBlock) {
             BOOST_FOREACH(const PAIRTYPE(CBigNum,int) &serial, pblock->zerocoinTxInfo->spentSerials) {
