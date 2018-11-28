@@ -98,7 +98,8 @@ BITCOIN_TESTS =\
   test/txvalidationcache_tests.cpp \
   test/uint256_tests.cpp \
   test/univalue_tests.cpp \
-  test/util_tests.cpp
+  test/util_tests.cpp \
+  libzerocoin/sigma/test/sigma_PublicPrivateCoin_test.cpp
 
 if ENABLE_WALLET
 BITCOIN_TESTS += \
@@ -137,6 +138,8 @@ test_test_bitcoin_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS) -s
 if ENABLE_ZMQ
 test_test_bitcoin_LDADD += $(LIBBITCOIN_ZMQ) $(ZMQ_LIBS)
 endif
+
+test_test_bitcoin_LDADD += $(LIBSIGMA)
 
 nodist_test_test_bitcoin_SOURCES = $(GENERATED_TEST_FILES)
 
