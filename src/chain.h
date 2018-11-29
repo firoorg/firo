@@ -19,6 +19,7 @@
 #include "util.h"
 #include "hash_functions.h"
 #include "chainparams.h"
+#include "hash_functions.h"
 #include "streams.h"
 
 #include <vector>

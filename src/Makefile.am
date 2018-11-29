@@ -206,7 +206,6 @@ BITCOIN_CORE_H = \
   zerocoin.h \
   hash_functions.h \
   zerocoin_v3.h \
-  mtpstate.h \
   zerocoin_params.h \
   sigma/GKEllipticCurve.hpp \
   sigma/GKGroups.hpp \
@@ -214,7 +213,8 @@ BITCOIN_CORE_H = \
   sigma/GKNumbers.hpp \
   sigma/GKSchema.hpp \
   sigma/GKZerocoin.hpp \
-  sigma/GKDebug.hpp
+  sigma/GKDebug.hpp \
+  mtpstate.h
 
 obj/build.h: FORCE
 	@$(MKDIR_P) $(builddir)/obj
