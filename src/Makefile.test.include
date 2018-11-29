@@ -42,6 +42,8 @@ BITCOIN_TESTS =\
   libzerocoin/sigma/test/coin_tests.cpp \
   libzerocoin/sigma/test/protocol_tests.cpp \
   libzerocoin/sigma/test/unit_tests.cpp \
+  libzerocoin/sigma/test/R1_test.cpp \
+  libzerocoin/sigma/test/serialize_test.cpp \
   test/zerocoin_tests.cpp \
   test/zerocoin_tests2.cpp \
   test/zerocoin_tests3.cpp \
