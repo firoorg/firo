@@ -403,17 +403,17 @@ bool ZerocoinBuildStateFromIndexV3(CChain *chain) {
 // CZerocoinTxInfoV3
 
 void CZerocoinTxInfoV3::Complete() {
-    /*
+
     // We need to sort mints lexicographically by serialized value of pubCoin. That's the way old code
     // works, we need to stick to it. Denomination doesn't matter but we will sort by it as well
     sort(mints.begin(), mints.end(),
-    [](decltype(mints)::const_reference m1, decltype(mints)::const_reference m2)->bool {
-    CDataStream ds1(SER_DISK, CLIENT_VERSION), ds2(SER_DISK, CLIENT_VERSION);
-    ds1 << m1.second;
-    ds2 << m2.second;
-    return (m1.first < m2.first) || ((m1.first == m2.first) && (ds1.str() < ds2.str()));
+        [](decltype(mints)::const_reference m1, decltype(mints)::const_reference m2)->bool {
+            CDataStream ds1(SER_DISK, CLIENT_VERSION), ds2(SER_DISK, CLIENT_VERSION);
+            ds1 << m1.second;
+            ds2 << m2.second;
+        return (m1.first < m2.first) || ((m1.first == m2.first) && (ds1.str() < ds2.str()));
     });
-     */
+
     // Mark this info as complete
     fInfoIsComplete = true;
 }
@@ -427,39 +427,40 @@ int CZerocoinStateV3::AddMint(
         CBlockIndex *index, 
         const PublicCoinV3 &pubCoin) {
     int     mintId = 1;
-    /*
-       if (latestCoinIds[denomination] < 1)
+
+    int denomination =  pubCoin.getDenomination();
+
+   if (latestCoinIds[denomination] < 1)
        latestCoinIds[denomination] = mintId;
-       else
+   else
        mintId = latestCoinIds[denomination];
 
-    // There is a limit of 10 coins per group but mints belonging to the same block must have the same id thus going
-    // beyond 10
+    // There is a limit of 15000 coins per group but mints belonging to the same block must have the same id thus going
+    // beyond 15000
     CoinGroupInfoV3 &coinGroup = coinGroups[make_pair(denomination, mintId)];
-    int coinsPerId = IsZerocoinTxV2((sigma::CoinDenominationV3)denomination, mintId) ? ZC_SPEND_V2_COINSPERID : ZC_SPEND_V1_COINSPERID;
+    int coinsPerId =  ZC_SPEND_V3_COINSPERID;
     if (coinGroup.nCoins < coinsPerId || coinGroup.lastBlock == index) {
-    if (coinGroup.nCoins++ == 0) {
-    // first groups of coins for given denomination
-    coinGroup.firstBlock = coinGroup.lastBlock = index;
+        if (coinGroup.nCoins++ == 0) {
+            // first groups of coins for given denomination
+            coinGroup.firstBlock = coinGroup.lastBlock = index;
+        }
+        else {
+            coinGroup.lastBlock = index;
+        }
     }
     else {
-    previousAccValue = coinGroup.lastBlock->accumulatorChanges[make_pair(denomination,mintId)].first;
-    coinGroup.lastBlock = index;
-    }
-    }
-    else {
-    latestCoinIds[denomination] = ++mintId;
-    CoinGroupInfoV3 &newCoinGroup = coinGroups[make_pair(denomination, mintId)];
-    newCoinGroup.firstBlock = newCoinGroup.lastBlock = index;
-    newCoinGroup.nCoins = 1;
+        latestCoinIds[denomination] = ++mintId;
+        CoinGroupInfoV3 &newCoinGroup = coinGroups[make_pair(denomination, mintId)];
+        newCoinGroup.firstBlock = newCoinGroup.lastBlock = index;
+        newCoinGroup.nCoins = 1;
     }
 
     CMintedCoinInfo coinInfo;
     coinInfo.denomination = denomination;
     coinInfo.id = mintId;
     coinInfo.nHeight = index->nHeight;
-    mintedPubCoinsV3.insert(pair<Scalar,CMintedCoinInfo>(pubCoin, coinInfo));
-     */
+    mintedPubCoins.insert(pair<PublicCoinV3,CMintedCoinInfo>(pubCoin, coinInfo));
+
     return mintId;
 }
 
@@ -468,79 +469,74 @@ void CZerocoinStateV3::AddSpend(const Scalar &serial) {
 }
 
 void CZerocoinStateV3::AddBlock(CBlockIndex *index) {
-    /*
-       BOOST_FOREACH(const PAIRTYPE(PAIRTYPE(int,int), PAIRTYPE(Scalar,int)) &accUpdate, index->accumulatorChanges)
-       {
-       CoinGroupInfoV3   &coinGroup = coinGroups[accUpdate.first];
+    BOOST_FOREACH(const PAIRTYPE(PAIRTYPE(int,int), vector<sigma::PublicCoinV3>)& coin, index->mintedPubCoinsV3)
+    {
+        if (!coin.second.empty()) {
+            CoinGroupInfoV3& coinGroup = coinGroups[coin.first];
 
-       if (coinGroup.firstBlock == NULL)
-       coinGroup.firstBlock = index;
-       coinGroup.lastBlock = index;
-       coinGroup.nCoins += accUpdate.second.second;
-       }
-
-       BOOST_FOREACH(const PAIRTYPE(PAIRTYPE(int,int),vector<Scalar>) &pubCoins, index->mintedPubCoinsV3) {
+            if (coinGroup.firstBlock == NULL)
+                coinGroup.firstBlock = index;
+            coinGroup.lastBlock = index;
+            coinGroup.nCoins += coin.second.size();
+        }
+    }
+    BOOST_FOREACH(const PAIRTYPE(PAIRTYPE(int,int),vector<PublicCoinV3>) &pubCoins, index->mintedPubCoinsV3) {
        latestCoinIds[pubCoins.first.first] = pubCoins.first.second;
-       BOOST_FOREACH(const Scalar &coin, pubCoins.second) {
-       CMintedCoinInfo coinInfo;
-       coinInfo.denomination = pubCoins.first.first;
-       coinInfo.id = pubCoins.first.second;
-       coinInfo.nHeight = index->nHeight;
-       mintedPubCoinsV3.insert(pair<Scalar,CMintedCoinInfo>(coin, coinInfo));
+       BOOST_FOREACH(const PublicCoinV3 &coin, pubCoins.second) {
+           CMintedCoinInfo coinInfo;
+           coinInfo.denomination = pubCoins.first.first;
+           coinInfo.id = pubCoins.first.second;
+           coinInfo.nHeight = index->nHeight;
+           mintedPubCoins.insert(pair<PublicCoinV3,CMintedCoinInfo>(coin, coinInfo));
        }
-       }
+    }
 
-       if (index->nHeight > Params().nCheckBugFixedAtBlock) {
-       BOOST_FOREACH(const Scalar &serial, index->spentSerialsV3) {
-       usedCoinSerials.insert(serial);
-       }
-       }
-     */
+    BOOST_FOREACH(const Scalar &serial, index->spentSerialsV3) {
+        usedCoinSerials.insert(serial);
+    }
 }
 
 void CZerocoinStateV3::RemoveBlock(CBlockIndex *index) {
-    /*
     // roll back accumulator updates
-    BOOST_FOREACH(const PAIRTYPE(PAIRTYPE(int,int), PAIRTYPE(Scalar,int)) &accUpdate, index->accumulatorChanges)
+    BOOST_FOREACH(const PAIRTYPE(PAIRTYPE(int,int),vector<PublicCoinV3>) &coin, index->mintedPubCoinsV3)
     {
-    CoinGroupInfoV3   &coinGroup = coinGroups[accUpdate.first];
-    int  nMintsToForget = accUpdate.second.second;
+        CoinGroupInfoV3   &coinGroup = coinGroups[coin.first];
+        int  nMintsToForget = coin.second.size();
 
-    assert(coinGroup.nCoins >= nMintsToForget);
+        assert(coinGroup.nCoins >= nMintsToForget);
 
-    if ((coinGroup.nCoins -= nMintsToForget) == 0) {
-    // all the coins of this group have been erased, remove the group altogether
-    coinGroups.erase(accUpdate.first);
-    // decrease pubcoin id for this denomination
-    latestCoinIds[accUpdate.first.first]--;
+        if ((coinGroup.nCoins -= nMintsToForget) == 0) {
+            // all the coins of this group have been erased, remove the group altogether
+            coinGroups.erase(coin.first);
+            // decrease pubcoin id for this denomination
+            latestCoinIds[coin.first.first]--;
+        }
+        else {
+            // roll back lastBlock to previous position
+            do {
+                assert(coinGroup.lastBlock != coinGroup.firstBlock);
+                coinGroup.lastBlock = coinGroup.lastBlock->pprev;
+            } while (coinGroup.lastBlock->mintedPubCoinsV3.count(coin.first) == 0);
+        }
     }
-    else {
-    // roll back lastBlock to previous position
-    do {
-    assert(coinGroup.lastBlock != coinGroup.firstBlock);
-    coinGroup.lastBlock = coinGroup.lastBlock->pprev;
-    } while (coinGroup.lastBlock->accumulatorChanges.count(accUpdate.first) == 0);
-    }
-    }
-
+//
     // roll back mints
-    BOOST_FOREACH(const PAIRTYPE(PAIRTYPE(int,int),vector<Scalar>) &pubCoins, index->mintedPubCoinsV3) {
-    BOOST_FOREACH(const Scalar &coin, pubCoins.second) {
-    auto coins = mintedPubCoinsV3.equal_range(coin);
-    auto coinIt = find_if(coins.first, coins.second, [=](const decltype(mintedPubCoinsV3)::value_type &v) {
-    return v.second.denomination == pubCoins.first.first &&
-    v.second.id == pubCoins.first.second;
-    });
-    assert(coinIt != coins.second);
-    mintedPubCoinsV3.erase(coinIt);
-    }
+    BOOST_FOREACH(const PAIRTYPE(PAIRTYPE(int,int),vector<PublicCoinV3>) &pubCoins, index->mintedPubCoinsV3) {
+        BOOST_FOREACH(const PublicCoinV3 &coin, pubCoins.second) {
+            auto coins = mintedPubCoins.equal_range(coin);
+            auto coinIt = find_if(coins.first, coins.second, [=](const decltype(mintedPubCoins)::value_type &v) {
+            return v.second.denomination == pubCoins.first.first &&
+                    v.second.id == pubCoins.first.second;
+            });
+            assert(coinIt != coins.second);
+            mintedPubCoins.erase(coinIt);
+        }
     }
 
     // roll back spends
     BOOST_FOREACH(const Scalar &serial, index->spentSerialsV3) {
-    usedCoinSerials.erase(serial);
+        usedCoinSerials.erase(serial);
     }
-     */
 }
 
 bool CZerocoinStateV3::GetCoinGroupInfo(int denomination, int id, CoinGroupInfoV3 &result) {
@@ -673,7 +669,7 @@ bool CZerocoinStateV3::CanAddSpendToMempool(const Scalar& coinSerial) {
 
 void CZerocoinStateV3::Reset() {
     coinGroups.clear();
-    all_minted_coins.clear();
+//    all_minted_coins.clear();
     usedCoinSerials.clear();
     latestCoinIds.clear();
     mempoolCoinSerials.clear();

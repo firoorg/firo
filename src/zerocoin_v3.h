@@ -126,7 +126,7 @@ public:
     std::unordered_map<pair<int, int>, CoinGroupInfoV3, pairhash> coinGroups;
 
     // Map from <denomination, coin set id> to a vector of public coins minted for each coin set.
-    std::unordered_map<pair<int, int>, std::vector<PublicCoinV3>, pairhash> all_minted_coins;
+//    std::unordered_map<pair<int, int>, std::vector<PublicCoinV3>, pairhash> all_minted_coins;
     
     // Set of all minted pubCoin values, keyed by the public coin. 
     // Used for checking if the given coin already exists.
