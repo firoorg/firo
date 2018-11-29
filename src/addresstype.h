@@ -5,7 +5,7 @@ enum struct AddressType
 {
       unknown = 0
     , payToPubKeyHash = 1
-    , payToScryptHash = 2
+    , payToScriptHash = 2
     , zerocoinMint = 3
     , zerocoinSpend = 4
 };

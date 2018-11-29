@@ -435,7 +435,7 @@ std::pair<AddressType, uint160> classifyAddress(txnouttype type, vector<vector<u
         CPubKey pubKey(addresses.front().begin(), addresses.front().end());
         result.second = pubKey.GetID();
     } else if(type == TX_SCRIPTHASH) {
-        result.first = AddressType::payToScryptHash;
+        result.first = AddressType::payToScriptHash;
         result.second = uint160(std::vector<unsigned char>(addresses.front().begin(), addresses.front().end()));
     } else if(type == TX_PUBKEYHASH) {
         result.first = AddressType::payToPubKeyHash;

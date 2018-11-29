@@ -2515,11 +2515,10 @@ bool DisconnectBlock(const CBlock &block, CValidationState &state, const CBlockI
                 AbortNode(state, "Failed to write address unspent index");
                 return error("Failed to write address unspent index");
             }
-        }
-
-        if (!pblocktree->AddTotalSupply(-(block.vtx[0].GetValueOut() - nFees))) {
-            AbortNode(state, "Failed to write total supply");
-            return error("Failed to write total supply");
+            if (!pblocktree->AddTotalSupply(-(block.vtx[0].GetValueOut() - nFees))) {
+                AbortNode(state, "Failed to write total supply");
+                return error("Failed to write total supply");
+            }
         }
     }
 
@@ -2904,13 +2903,14 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
         if (!pblocktree->WriteTxIndex(vPos))
             return AbortNode(state, "Failed to write transaction index");
     if (fAddressIndex) {
-        if (!pblocktree->WriteAddressIndex(dbIndexHelper.getAddressIndex())) {
+        if (!pblocktree->WriteAddressIndex(dbIndexHelper.getAddressIndex()))
             return AbortNode(state, "Failed to write address index");
-        }
 
-        if (!pblocktree->UpdateAddressUnspentIndex(dbIndexHelper.getAddressUnspentIndex())) {
+        if (!pblocktree->UpdateAddressUnspentIndex(dbIndexHelper.getAddressUnspentIndex()))
             return AbortNode(state, "Failed to write address unspent index");
-        }
+
+        if (!pblocktree->AddTotalSupply(block.vtx[0].GetValueOut() - nFees))
+            return AbortNode(state, "Failed to write total supply");
     }
 
     if (fSpentIndex)
@@ -2921,9 +2921,6 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
     if (fTimestampIndex)
         if (!pblocktree->WriteTimestampIndex(CTimestampIndexKey(pindex->nTime, pindex->GetBlockHash())))
             return AbortNode(state, "Failed to write timestamp index");
-
-    if (!pblocktree->AddTotalSupply(block.vtx[0].GetValueOut() - nFees))
-        return AbortNode(state, "Failed to write total supply");
 
     // add this block to the view's block chain
     view.SetBestBlock(pindex->GetBlockHash());

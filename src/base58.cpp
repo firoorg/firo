@@ -279,7 +279,7 @@ bool CBitcoinAddress::GetIndexKey(uint160& hashBytes, AddressType & type) const
         return true;
     } else if (vchVersion == Params().Base58Prefix(CChainParams::SCRIPT_ADDRESS)) {
         memcpy(&hashBytes, &vchData[0], 20);
-        type = AddressType::payToScryptHash;
+        type = AddressType::payToScriptHash;
         return true;
     }
 

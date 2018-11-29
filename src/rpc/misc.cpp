@@ -492,7 +492,7 @@ UniValue setmocktime(const UniValue& params, bool fHelp)
 
 bool getAddressFromIndex(AddressType const & type, const uint160 &hash, std::string &address)
 {
-    if (type == AddressType::payToScryptHash) {
+    if (type == AddressType::payToScriptHash) {
         address = CBitcoinAddress(CScriptID(hash)).ToString();
     } else if (type == AddressType::payToPubKeyHash) {
         address = CBitcoinAddress(CKeyID(hash)).ToString();
@@ -1022,7 +1022,7 @@ UniValue gettotalsupply(const UniValue& params, bool fHelp)
     CAmount total = 0;
 
     if(!pblocktree->ReadTotalSupply(total))
-        throw JSONRPCError(RPC_DATABASE_ERROR, "Cannot read the total supply from the database");
+        throw JSONRPCError(RPC_DATABASE_ERROR, "Cannot read the total supply from the database. This functionality requires -addressindex to be enabled. Enabling -addressindex requires reindexing.");
 
     UniValue result(UniValue::VOBJ);
     result.push_back(Pair("total", total));
@@ -1099,7 +1099,7 @@ UniValue getzerocoinsupply(const UniValue& params, bool fHelp)
     CAmount total = 0;
 
     if(!getZerocoinSupply(total))
-        throw JSONRPCError(RPC_DATABASE_ERROR, "Cannot read the total supply from the database");
+        throw JSONRPCError(RPC_DATABASE_ERROR, "Cannot read the zerocoin supply from the database. This functionality requires -addressindex to be enabled. Enabling -addressindex requires reindexing.");
 
     UniValue result(UniValue::VOBJ);
     result.push_back(Pair("total", total));
