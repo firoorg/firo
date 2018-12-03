@@ -1109,7 +1109,7 @@ int64_t GetTransactionSigOpCost(const CTransaction &tx, const CCoinsViewCache &i
 
 
 //static libzerocoin::Params *ZCParams;
-bool CheckTransaction(const CTransaction &tx, CValidationState &state, uint256 hashTx,  bool isVerifyDB, int nHeight, bool isCheckWallet, CZerocoinTxInfo *zerocoinTxInfo) {
+bool CheckTransaction(const CTransaction &tx, CValidationState &state, uint256 hashTx,  bool isVerifyDB, int nHeight, bool isCheckWallet, bool fStatefulZerocoinCheck, CZerocoinTxInfo *zerocoinTxInfo) {
     LogPrintf("CheckTransaction nHeight=%s, isVerifyDB=%s, isCheckWallet=%s, txHash=%s\n", nHeight, isVerifyDB, isCheckWallet, tx.GetHash().ToString());
 //    LogPrintf("transaction = %s\n", tx.ToString());
     // Basic checks that don't depend on any context
@@ -1162,7 +1162,7 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, uint256 h
 			    return state.DoS(10, false, REJECT_INVALID, "bad-txns-prevout-null");
 		    }
 	    }
-        if (!CheckZerocoinTransaction(tx, state, Params().GetConsensus(), hashTx, isVerifyDB, nHeight, isCheckWallet, zerocoinTxInfo))
+        if (!CheckZerocoinTransaction(tx, state, Params().GetConsensus(), hashTx, isVerifyDB, nHeight, isCheckWallet, fStatefulZerocoinCheck, zerocoinTxInfo))
 		    return false;
     }
     return true;
@@ -2748,6 +2748,8 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
     set<uint256> txIds;
     bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
 
+    block.zerocoinTxInfo = std::make_shared<CZerocoinTxInfo>();
+
     for (unsigned int i = 0; i < block.vtx.size(); i++) {
         const CTransaction &tx = block.vtx[i];
 
@@ -2789,6 +2791,13 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
             }
         }
 
+        if (tx.IsZerocoinSpend() || tx.IsZerocoinMint()) {
+            // Check transaction against zerocoin state
+            if (!CheckTransaction(tx, state, txHash, false, pindex->nHeight, false, true, block.zerocoinTxInfo.get()))
+                return state.DoS(100, error("stateful zerocoin check failed"),
+                                 REJECT_INVALID, "bad-txns-zerocoin");
+        }
+
         if (!fJustCheck)
             dbIndexHelper.ConnectTransaction(tx, pindex->nHeight, i, view);
 
@@ -2823,6 +2832,9 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
         vPos.push_back(std::make_pair(tx.GetHash(), pos));
         pos.nTxOffset += ::GetSerializeSize(tx, SER_DISK, CLIENT_VERSION);
     }
+
+    block.zerocoinTxInfo->Complete();
+
     int64_t nTime3 = GetTimeMicros();
     nTimeConnect += nTime3 - nTime2;
     LogPrint("bench", "      - Connect %u transactions: %.2fms (%.3fms/tx, %.3fms/txin) [%.2fs]\n",
@@ -3114,6 +3126,10 @@ void static UpdateTip(CBlockIndex *pindexNew, const CChainParams &chainParams) {
         int nUpgraded = 0;
         const CBlockIndex *pindex = chainActive.Tip();
         for (int bit = 0; bit < VERSIONBITS_NUM_BITS; bit++) {
+            // Bit 12 (MTP) has different rules, do not produce any warning on it
+            if (bit == 12)
+                continue;
+
             WarningBitsConditionChecker checker(bit);
             ThresholdState state = checker.GetStateFor(pindex, chainParams.GetConsensus(), warningcache[bit]);
             if (state == THRESHOLD_ACTIVE || state == THRESHOLD_LOCKED_IN) {
@@ -4157,22 +4173,20 @@ bool CheckBlock(const CBlock &block, CValidationState &state,
         // Check transactions
         if (nHeight == INT_MAX)
             nHeight = ZerocoinGetNHeight(block.GetBlockHeader());
-        if (block.zerocoinTxInfo == NULL)
-            block.zerocoinTxInfo = std::make_shared<CZerocoinTxInfo>();
 
         if (!CheckZerocoinFoundersInputs(block.vtx[0], state, Params().GetConsensus(), nHeight, block.IsMTP())) {
             return state.Invalid(false, state.GetRejectCode(), state.GetRejectReason(), "Zerocoin founders input check failure");
         }
 
         BOOST_FOREACH(const CTransaction &tx, block.vtx) {
-            if (!CheckTransaction(tx, state, tx.GetHash(), isVerifyDB, nHeight, false, block.zerocoinTxInfo.get())) {
+            // We don't check transactions against zerocoin state here, we'll check it again later in ConnectBlock
+            if (!CheckTransaction(tx, state, tx.GetHash(), isVerifyDB, nHeight, false, false, NULL)) {
                 LogPrintf("block=%s\n", block.ToString());
                 return state.Invalid(false, state.GetRejectCode(), state.GetRejectReason(),
                                  strprintf("Transaction check failed (tx hash %s) %s", tx.GetHash().ToString(),
                                            state.GetDebugMessage()));
             }
         }
-        block.zerocoinTxInfo->Complete();
 
         unsigned int nSigOps = 0;
         BOOST_FOREACH(
@@ -4548,9 +4562,6 @@ bool ProcessNewBlock(CValidationState &state, const CChainParams &chainparams, C
         // Store to disk
         CBlockIndex *pindex = NULL;
         bool fNewBlock = false;
-        if (nHeight > chainActive.Height() + 1) {
-            return true;
-        }
         bool ret = AcceptBlock(*pblock, state, chainparams, &pindex, fRequested, dbp, &fNewBlock);
         if (pindex && pfrom) {
             mapBlockSource[pindex->GetBlockHash()] = std::make_pair(pfrom->GetId(), fMayBanPeerIfInvalid);
