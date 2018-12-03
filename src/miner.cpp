@@ -1105,7 +1105,7 @@ void static ZcoinMiner(const CChainParams &chainparams) {
                         fvNodesEmpty = vNodes.empty();
                     }
                     {
-                        LOCK(cs_main);
+                        LOCK2(cs_main, mempool.cs);
                         int nCount = 0;
                         fHasZnodesWinnerForNextBlock = 
                                 params.IsRegtest() ||
