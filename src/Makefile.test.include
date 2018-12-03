@@ -39,6 +39,11 @@ RAW_TEST_FILES =
 GENERATED_TEST_FILES = $(JSON_TEST_FILES:.json=.json.h) $(RAW_TEST_FILES:.raw=.raw.h)
 
 BITCOIN_TESTS =\
+  libzerocoin/sigma/test/coin_tests.cpp \
+  libzerocoin/sigma/test/protocol_tests.cpp \
+  libzerocoin/sigma/test/unit_tests.cpp \
+  libzerocoin/sigma/test/R1_test.cpp \
+  libzerocoin/sigma/test/serialize_test.cpp \
   test/zerocoin_tests.cpp \
   test/zerocoin_tests2.cpp \
   test/zerocoin_tests3.cpp \
@@ -118,7 +123,7 @@ test_test_bitcoin_LDADD = $(LIBBITCOIN_SERVER) tor/src/or/libtor.a \
 	tor/src/common/libcurve25519_donna.a \
 	tor/src/ext/ed25519/donna/libed25519_donna.a \
 	tor/src/ext/ed25519/ref10/libed25519_ref10.a \
-	tor/src/ext/keccak-tiny/libkeccak-tiny.a $(ZLIB_LIBS) -lz
+	tor/src/ext/keccak-tiny/libkeccak-tiny.a $(LIBSIGMA) $(ZLIB_LIBS) -lz
 
 test_test_bitcoin_SOURCES = $(BITCOIN_TESTS) $(JSON_TEST_FILES) $(RAW_TEST_FILES)
 test_test_bitcoin_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) -I$(builddir)/test/ $(TESTDEFS)

@@ -1,4 +1,5 @@
-#include <gtest/gtest.h>
+#include <boost/test/unit_test.hpp>
+
 #include <libzerocoin/sigma/R1Proof.h>
 #include <libzerocoin/sigma/R1ProofGenerator.h>
 #include <libzerocoin/sigma/R1ProofVerifier.h>
@@ -17,8 +18,9 @@ bool test(secp_primitives::GroupElement& g, std::vector<secp_primitives::GroupEl
     return verifier.verify(proof);
 }
 
+BOOST_AUTO_TEST_SUITE(sigma_R1_test)
 
-TEST(sigma_R1_test, fixed_size_test)
+BOOST_AUTO_TEST_CASE(fixed_size_test)
 {
     int n = 4;
     int m = 16;
@@ -39,10 +41,10 @@ TEST(sigma_R1_test, fixed_size_test)
         }
     }
 
-    EXPECT_TRUE(test(g, h_, b, n, m));
+    BOOST_CHECK(test(g, h_, b, n, m));
 }
 
-TEST(sigma_R1_test, random_size_test)
+BOOST_AUTO_TEST_CASE(random_size_test)
 {
     int n = rand() % 64 + 16;
     int m = rand() % 32 + 16;
@@ -61,11 +63,11 @@ TEST(sigma_R1_test, random_size_test)
         }
     }
 
-    EXPECT_TRUE(test(g, h_, b, n, m));
+    BOOST_CHECK(test(g, h_, b, n, m));
 }
 
 
-TEST(sigma_R1_test, all_positions)
+BOOST_AUTO_TEST_CASE(all_positions)
 {
     int n = 32;
     int m = 16;
@@ -85,13 +87,13 @@ TEST(sigma_R1_test, all_positions)
                     b.push_back(secp_primitives::Scalar(uint64_t(0)));
             }
         }
-        EXPECT_TRUE(test(g, h_, b, n, m));
+        BOOST_CHECK(test(g, h_, b, n, m));
         h_.clear();
         b.clear();
     }
 }
 
-TEST(sigma_R1_test, one_in_random_position)
+BOOST_AUTO_TEST_CASE(one_in_random_position)
 {
     int n = 32;
     int m = 16;
@@ -112,11 +114,11 @@ TEST(sigma_R1_test, one_in_random_position)
                 b.push_back(secp_primitives::Scalar(uint64_t(0)));
         }
     }
-    EXPECT_TRUE(test(g, h_, b, n, m));
+    BOOST_CHECK(test(g, h_, b, n, m));
 }
 
 
-TEST(sigma_R1_test, all_0s_in_random_row)
+BOOST_AUTO_TEST_CASE(all_0s_in_random_row)
 {
     int n = 32;
     int m = 16;
@@ -136,10 +138,10 @@ TEST(sigma_R1_test, all_0s_in_random_row)
                 b.push_back(secp_primitives::Scalar(uint64_t(0)));
         }
     }
-    EXPECT_FALSE(test(g, h_, b, n, m));
+    BOOST_CHECK(!test(g, h_, b, n, m)); // expect false
 }
 
-TEST(sigma_R1_test, all_1s_in_random_row)
+BOOST_AUTO_TEST_CASE(all_1s_in_random_row)
 {
     int n = 32;
     int m = 16;
@@ -159,11 +161,11 @@ TEST(sigma_R1_test, all_1s_in_random_row)
                 b.push_back(secp_primitives::Scalar(uint64_t(0)));
         }
     }
-    EXPECT_FALSE(test(g, h_, b, n, m));
+    BOOST_CHECK(!test(g, h_, b, n, m)); // expect false
 }
 
 
-TEST(sigma_R1_test, two_1s_in_random_row)
+BOOST_AUTO_TEST_CASE(two_1s_in_random_row)
 {
     int n = 32;
     int m = 16;
@@ -186,5 +188,7 @@ TEST(sigma_R1_test, two_1s_in_random_row)
                 b.push_back(secp_primitives::Scalar(uint64_t(0)));
         }
     }
-    EXPECT_FALSE(test(g, h_, b, n, m));
+    BOOST_CHECK(!test(g, h_, b, n, m)); // expect false
 }
+
+BOOST_AUTO_TEST_SUITE_END()

@@ -1,13 +1,16 @@
-#include <gtest/gtest.h>
+#include <boost/test/unit_test.hpp>
+
+#include "test/test_bitcoin.h"
+
 #include <libzerocoin/sigma/R1Proof.h>
 #include <libzerocoin/sigma/R1ProofGenerator.h>
 #include <libzerocoin/sigma/SigmaPrimitives.h>
 using  namespace secp_primitives;
 using  namespace sigma;
 namespace {
-class sigma_unit_tests : public ::testing::Test {
-protected:
-    sigma_unit_tests() = default;
+struct sigma_unit_tests_fixture {
+    // struct sigma_unit_tests_fixture : public TestingSetup {
+    // sigma_unit_tests_fixture() = default;
     int N;
     int n;
     int m;
@@ -26,7 +29,8 @@ protected:
     secp_primitives::Scalar r;
     std::vector<secp_primitives::GroupElement> commits;
 
-    virtual void SetUp()  {
+    sigma_unit_tests_fixture() {
+        // sigma_unit_tests_fixture() : TestingSetup(CBaseChainParams::REGTEST) {
         N = 16;
         n = 4;
         index = 13;
@@ -85,11 +89,12 @@ protected:
         f_= f;
     }
 
-    void TearDown() override {
-    }
+    ~sigma_unit_tests_fixture(){}
 };
 
-TEST_F(sigma_unit_tests, f_and_p_x)
+BOOST_FIXTURE_TEST_SUITE(sigma_unit_tests,sigma_unit_tests_fixture)
+
+BOOST_AUTO_TEST_CASE(unit_f_and_p_x)
 {
     for(int i = 0; i < N; ++i){
         std::vector<uint64_t> I = SigmaPrimitives<Scalar,GroupElement>::convert_to_nal(i, n, m);
@@ -101,11 +106,11 @@ TEST_F(sigma_unit_tests, f_and_p_x)
         }
         if(i==index)
             p_i_x += (P_i_k[i][m]*x.exponent(m));
-        EXPECT_TRUE(f_i==p_i_x);
+        BOOST_CHECK(f_i==p_i_x);
     }
 }
 
-TEST_F(sigma_unit_tests, commits)
+BOOST_AUTO_TEST_CASE(unit_commits)
 {
     Scalar z;
     z = r * x.exponent(uint64_t(m));
@@ -124,10 +129,10 @@ TEST_F(sigma_unit_tests, commits)
     }
     commits_ += (commits[index] * x.exponent(m));
 
-    EXPECT_TRUE(coommit == commits_);
+    BOOST_CHECK(coommit == commits_);
 }
 
-TEST_F(sigma_unit_tests, G_k_prime)
+BOOST_AUTO_TEST_CASE(unit_G_k_prime)
 {
     std::vector<Scalar> f_i_;
     for(int i = 0; i < N; ++i){
@@ -148,7 +153,9 @@ TEST_F(sigma_unit_tests, G_k_prime)
             Gk_prime += commits[i] * P_i_k[i][k];
             G += (Gk_prime)* ((x.exponent(k)).negate());
     }
-    EXPECT_TRUE((C + G) == (commits[index] * (x.exponent(m))));
+    BOOST_CHECK((C + G) == (commits[index] * (x.exponent(m))));
 }
 
+
+BOOST_AUTO_TEST_SUITE_END()
 }

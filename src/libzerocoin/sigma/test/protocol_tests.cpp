@@ -1,14 +1,17 @@
-#include <gtest/gtest.h>
-#include <libzerocoin/sigma/SigmaPlusProver.h>
-#include <libzerocoin/sigma/SigmaPlusVerifier.h>
+#include "../SigmaPlusProver.h"
+#include "../SigmaPlusVerifier.h"
 
-TEST(test_1_out_of_N, EC_group)
+#include <boost/test/unit_test.hpp>
+
+BOOST_AUTO_TEST_SUITE(sigma_protocol_tests)
+
+BOOST_AUTO_TEST_CASE(one_out_of_n)
 {
     int N = 16;
     int n = 4;
     int index = 0;
 
-    int m = (int)(log(N) / log(n));;
+    int m = (int)(log(N) / log(n));
 
     secp_primitives::GroupElement g;
     g.randomize();
@@ -41,6 +44,8 @@ TEST(test_1_out_of_N, EC_group)
     prover.proof(commits, index, r, proof);
 
     sigma::SigmaPlusVerifier<secp_primitives::Scalar,secp_primitives::GroupElement> verifier(g, h_gens, n, m);
-   EXPECT_TRUE(verifier.verify(commits, proof));
 
+    BOOST_CHECK(verifier.verify(commits, proof));
 }
+
+BOOST_AUTO_TEST_SUITE_END()

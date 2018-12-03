@@ -1,8 +1,11 @@
-#include <gtest/gtest.h>
+#include <boost/test/unit_test.hpp>
+
 #include <libzerocoin/sigma/SigmaPlusProver.h>
 #include <libzerocoin/sigma/SigmaPlusVerifier.h>
 
-TEST(sigma_serialize_tests, group_element_serialize)
+BOOST_AUTO_TEST_SUITE(sigma_serialize_tests)
+
+BOOST_AUTO_TEST_CASE(group_element_serialize)
 {
     secp_primitives::GroupElement initial;
     initial.randomize();
@@ -10,20 +13,20 @@ TEST(sigma_serialize_tests, group_element_serialize)
     initial.serialize(buffer);
     secp_primitives::GroupElement resulted;
     resulted.deserialize(buffer);
-    EXPECT_TRUE(initial == resulted);
+    BOOST_CHECK(initial == resulted);
 }
 
-TEST(sigma_serialize_tests, group_element_serialize_infinity)
+BOOST_AUTO_TEST_CASE(group_element_serialize_infinity)
 {
     secp_primitives::GroupElement initial;
     unsigned char buffer [initial.memoryRequired()];
     initial.serialize(buffer);
     secp_primitives::GroupElement resulted;
     resulted.deserialize(buffer);
-    EXPECT_TRUE(initial == resulted);
+    BOOST_CHECK(initial == resulted);
 }
 
-TEST(sigma_serialize_tests, scalar_serialize)
+BOOST_AUTO_TEST_CASE(scalar_serialize)
 {
     secp_primitives::Scalar initial;
     initial.randomize();
@@ -31,10 +34,10 @@ TEST(sigma_serialize_tests, scalar_serialize)
     initial.serialize(buffer);
     secp_primitives::Scalar resulted;
     resulted.deserialize(buffer);
-    EXPECT_TRUE(initial == resulted);
+    BOOST_CHECK(initial == resulted);
 }
 
-TEST(sigma_serialize_tests, proof_serialize)
+BOOST_AUTO_TEST_CASE(proof_serialize)
 {
     int N = 16;
     int n = 4;
@@ -77,13 +80,15 @@ TEST(sigma_serialize_tests, proof_serialize)
     sigma::SigmaPlusProof<secp_primitives::Scalar,secp_primitives::GroupElement> resulted_proof;
     resulted_proof.deserialize(buffer, n, m);
 
-    EXPECT_TRUE(initial_proof.B_ == resulted_proof.B_);
-    EXPECT_TRUE(initial_proof.r1Proof_.A_ == resulted_proof.r1Proof_.A_);
-    EXPECT_TRUE(initial_proof.r1Proof_.C_ == resulted_proof.r1Proof_.C_);
-    EXPECT_TRUE(initial_proof.r1Proof_.D_ == resulted_proof.r1Proof_.D_);
-    EXPECT_TRUE(initial_proof.r1Proof_.f_ == resulted_proof.r1Proof_.f_);
-    EXPECT_TRUE(initial_proof.r1Proof_.ZA_ == resulted_proof.r1Proof_.ZA_);
-    EXPECT_TRUE(initial_proof.r1Proof_.ZC_ == resulted_proof.r1Proof_.ZC_);
-    EXPECT_TRUE(initial_proof.Gk_ == resulted_proof.Gk_);
-    EXPECT_TRUE(initial_proof.z_ == resulted_proof.z_);
+    BOOST_CHECK(initial_proof.B_ == resulted_proof.B_);
+    BOOST_CHECK(initial_proof.r1Proof_.A_ == resulted_proof.r1Proof_.A_);
+    BOOST_CHECK(initial_proof.r1Proof_.C_ == resulted_proof.r1Proof_.C_);
+    BOOST_CHECK(initial_proof.r1Proof_.D_ == resulted_proof.r1Proof_.D_);
+    BOOST_CHECK(initial_proof.r1Proof_.f_ == resulted_proof.r1Proof_.f_);
+    BOOST_CHECK(initial_proof.r1Proof_.ZA_ == resulted_proof.r1Proof_.ZA_);
+    BOOST_CHECK(initial_proof.r1Proof_.ZC_ == resulted_proof.r1Proof_.ZC_);
+    BOOST_CHECK(initial_proof.Gk_ == resulted_proof.Gk_);
+    BOOST_CHECK(initial_proof.z_ == resulted_proof.z_);
 }
+
+BOOST_AUTO_TEST_SUITE_END()
