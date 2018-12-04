@@ -1,11 +1,11 @@
-macOS Build Instructions and Notes
+Mac OS X Build Instructions and Notes
 ====================================
 The commands in this guide should be executed in a Terminal application.
 The built-in one is located in `/Applications/Utilities/Terminal.app`.
 
 Preparation
 -----------
-Install the macOS command line tools:
+Install the OS X command line tools:
 
 `xcode-select --install`
 
@@ -16,33 +16,35 @@ Then install [Homebrew](http://brew.sh).
 Dependencies
 ----------------------
 
-    brew install automake berkeley-db4 libtool boost miniupnpc openssl pkg-config protobuf python3 qt libevent
-
-If you want to build the disk image with `make deploy` (.dmg / optional), you need RSVG
-
-    brew install librsvg
+    brew install automake berkeley-db4 libtool boost --c++11 miniupnpc openssl pkg-config homebrew/versions/protobuf260 --c++11 qt5 libevent
 
 NOTE: Building with Qt4 is still supported, however, could result in a broken UI. Building with Qt5 is recommended.
 
+In case you want to build the disk image with `make deploy` (.dmg / optional), you need RSVG
+
+      brew install librsvg
+      
 Build Zcoin Core
 ------------------------
 1.  Build Zcoin-core:
 
     Configure and build the headless bitcoin binaries as well as the GUI (if Qt is found).
-
+    
+    In case you want to build the disk image with `make deploy` (.dmg / optional), by passing `--with-gui` to configure.
+    
     You can disable the GUI build by passing `--without-gui` to configure.
         
         ./autogen.sh
-        ./configure --with-boost-libdir=/usr/local/Cellar/boost/1.66.0/lib
+        ./configure
         make
 
 2.  It is recommended to build and run the unit tests:
 
-        make check
+       ` make check`
+        
+3.   You can also create a .dmg that contains the .app bundle (optional):
 
-3.  You can also create a .dmg that contains the .app bundle (optional):
-
-        make deploy
+       ` make deploy`
 
 
 Running
@@ -92,3 +94,4 @@ Notes
 * Tested on OS X 10.11 through 10.12 on 64-bit Intel processors only.
 
 * Building with downloaded Qt binaries is not officially supported. See the notes in [#7714](https://github.com/bitcoin/bitcoin/issues/7714)
+
