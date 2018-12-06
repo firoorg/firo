@@ -105,6 +105,10 @@ bool Scalar::operator==(const Scalar& other)const {
     return secp256k1_scalar_eq(value_.get(), other.value_.get());
 }
 
+bool Scalar::operator!=(const Scalar& other)const {
+    return !(secp256k1_scalar_eq(value_.get(), other.value_.get()));
+}
+
 const secp256k1_scalar &Scalar::get_value() const {
     return *value_;
 }
@@ -221,6 +225,29 @@ unsigned char* Scalar::deserialize(unsigned char* buffer)  {
         throw "Scalar: decoding overflowed";
     }
     return buffer + 32;
+}
+
+std::string Scalar::GetHex() const{
+    unsigned char buffer[32];
+    serialize(buffer);
+    std::stringstream ss;
+    for(int i = 0; i < 32; ++i)
+    {
+        ss << buffer[i] / 16;
+        ss << buffer[i] % 16;
+    }
+
+}
+
+void Scalar::SetHex(const std::string& str) const{
+    unsigned char buffer[32];
+    for(int i = 0; i < 32; i+=2)
+        buffer[i] =  str[i] * 16 + str[i + 1];
+    int overflow = 0;
+    secp256k1_scalar_set_b32(value_.get(),buffer,&overflow);
+    if (overflow) {
+        throw "Scalar: decoding overflowed";
+    }
 }
 
 void Scalar::get_bits(std::vector<bool>& bits) const{

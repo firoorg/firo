@@ -55,6 +55,7 @@ public:
     Scalar& operator-=(const Scalar& other);
 
     bool operator==(const Scalar& other) const;
+    bool operator!=(const Scalar& other) const;
 
     Scalar inverse() const;
 
@@ -89,6 +90,27 @@ public:
 
     unsigned char* serialize(unsigned char* buffer) const;
     unsigned char* deserialize(unsigned char* buffer);
+
+    std::string GetHex() const;
+    void SetHex(const std::string& str) const;
+    //this functions are for READWRITE() in serialize.h
+    template<typename Stream>
+    inline void Serialize(Stream& s, int nType, int nVersion) const {
+        int size = memoryRequired();
+        unsigned char buffer[size];
+        serialize(buffer);
+        char* b = (char*)buffer;
+        s.write(b, size);
+    }
+
+    template<typename Stream>
+    inline void Unserialize(Stream& s, int nType, int nVersion) {
+        int size = memoryRequired();
+        unsigned char buffer[size];
+        char* b = (char*)buffer;
+        s.read(b, size);
+        deserialize(buffer);
+    }
 
     void get_bits(std::vector<bool>& bits) const;
 

@@ -50,8 +50,8 @@ public:
         int size = value.memoryRequired();
         unsigned char buffer[size];
         char* b = (char*)buffer;
-        value.deserialize(buffer);
         s.read(b, size);
+        value.deserialize(buffer);
         s >> denomination;
     }
 

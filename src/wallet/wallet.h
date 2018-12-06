@@ -8,6 +8,7 @@
 
 #include "amount.h"
 #include "../libzerocoin/bitcoin_bignum/bignum.h"
+#include "../libzerocoin/sigma/Coin.h"
 #include "streams.h"
 #include "tinyformat.h"
 #include "ui_interface.h"
@@ -845,22 +846,33 @@ public:
                                        CWalletTx& wtxNew, CReserveKey& reservekey, int64_t& nFeeRet, std::string& strFailReason, const CCoinControl *coinControl=NULL);
     bool CreateZerocoinSpendTransaction(std::string& thirdPartyaddress, int64_t nValue, libzerocoin::CoinDenomination denomination,
                                         CWalletTx& wtxNew, CReserveKey& reservekey, CBigNum& coinSerial, uint256& txHash, CBigNum& zcSelectedValue, bool& zcSelectedIsUsed,  std::string& strFailReason, bool forceUsed = false);
+    bool CreateZerocoinSpendTransactionV3(std::string& thirdPartyaddress, int64_t nValue, sigma::CoinDenominationV3 denomination,
+                                        CWalletTx& wtxNew, CReserveKey& reservekey, Scalar& coinSerial, uint256& txHash, GroupElement& zcSelectedValue, bool& zcSelectedIsUsed,  std::string& strFailReason, bool forceUsed = false);
     bool CreateMultipleZerocoinSpendTransaction(std::string& thirdPartyaddress, const std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>>& denominations,
                                         CWalletTx& wtxNew, CReserveKey& reservekey, vector<CBigNum>& coinSerials, uint256& txHash, vector<CBigNum>& zcSelectedValues, std::string& strFailReason, bool forceUsed = false);
+    bool CreateMultipleZerocoinSpendTransactionV3(std::string& thirdPartyaddress, const std::vector<std::pair<int64_t, sigma::CoinDenominationV3>>& denominations,
+                                                CWalletTx& wtxNew, CReserveKey& reservekey, vector<Scalar>& coinSerials, uint256& txHash, vector<GroupElement>& zcSelectedValues, std::string& strFailReason, bool forceUsed = false);
     bool CommitZerocoinSpendTransaction(CWalletTx& wtxNew, CReserveKey& reservekey);
     std::string SendMoney(CScript scriptPubKey, int64_t nValue, CWalletTx& wtxNew, bool fAskFee=false);
     std::string SendMoneyToDestination(const CTxDestination &address, int64_t nValue, CWalletTx& wtxNew, bool fAskFee=false);
     std::string MintZerocoin(CScript pubCoin, int64_t nValue, CWalletTx& wtxNew, bool fAskFee=false);
     std::string MintAndStoreZerocoin(vector<CRecipient> vecSend, vector<libzerocoin::PrivateCoin> privCoins, CWalletTx &wtxNew, bool fAskFee=false);
+    std::string MintAndStoreZerocoinV3(vector<CRecipient> vecSend, vector<sigma::PrivateCoinV3> privCoins, CWalletTx &wtxNew, bool fAskFee=false);
     std::string SpendZerocoin(std::string& thirdPartyaddress, int64_t nValue, libzerocoin::CoinDenomination denomination, CWalletTx& wtxNew, CBigNum& coinSerial, uint256& txHash, CBigNum& zcSelectedValue, bool& zcSelectedIsUsed, bool forceUsed = false);
+    std::string SpendZerocoinV3(std::string& thirdPartyaddress, int64_t nValue, sigma::CoinDenominationV3 denomination, CWalletTx& wtxNew, Scalar& coinSerial, uint256& txHash, GroupElement& zcSelectedValue, bool& zcSelectedIsUsed, bool forceUsed = false);
     std::string SpendMultipleZerocoin(std::string& thirdPartyaddress, const std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>>& denominations, CWalletTx& wtxNew, vector<CBigNum>& coinSerials, uint256& txHash, vector<CBigNum>& zcSelectedValues, bool forceUsed = false);
+    std::string SpendMultipleZerocoinV3(std::string& thirdPartyaddress, const std::vector<std::pair<int64_t, sigma::CoinDenominationV3>>& denominations, CWalletTx& wtxNew, vector<Scalar>& coinSerials, uint256& txHash, vector<GroupElement>& zcSelectedValues, bool forceUsed = false);
 
     bool CreateZerocoinMintModel(string &stringError, string denomAmount);
 
     bool CreateZerocoinMintModel(string &stringError, vector<string> denomAmounts);
     bool CreateZerocoinMintModel(string &stringError, std::vector<std::pair<int,int>> denominationPairs);
+    bool CreateZerocoinMintModelV3(string &stringError, std::vector<std::pair<int,int>> denominationPairs);
+    bool CreateZerocoinMintModelOld(string &stringError, std::vector<std::pair<int,int>> denominationPairs);
     bool CreateZerocoinSpendModel(string &stringError, string thirdPartyAddress, string denomAmount, bool forceUsed = false);
+    bool CreateZerocoinSpendModelV3(string &stringError, string thirdPartyAddress, string denomAmount, bool forceUsed = false);
     bool CreateZerocoinSpendModel(CWalletTx& wtx, string &stringError, string& thirdPartyAddress, const vector<string>& denomAmounts, bool forceUsed = false);
+    bool CreateZerocoinSpendModelV3(CWalletTx& wtx, string &stringError, string& thirdPartyAddress, const vector<string>& denomAmounts, bool forceUsed = false);
 
     bool SetZerocoinBook(const CZerocoinEntry& zerocoinEntry);
 
@@ -869,7 +881,10 @@ public:
     bool CreateCollateralTransaction(CMutableTransaction& txCollateral, std::string& strReason);
     bool ConvertList(std::vector<CTxIn> vecTxIn, std::vector<CAmount>& vecAmounts);
 
-    bool AddAccountingEntry(const CAccountingEntry&, CWalletDB & pwalletdb);
+    bool AddAccountingEntry(const CAccountingEntry&, CWalletDB& pwalletdb);
+
+    bool CheckDenomination(string denomAmount, int64_t& nAmount, libzerocoin::CoinDenomination& denomination);
+    bool CheckHasV2Mint(libzerocoin::CoinDenomination denomination, bool forceUsed);
 
     static CFeeRate minTxFee;
     static CFeeRate fallbackFee;
@@ -1158,6 +1173,84 @@ public:
 };
 
 
+class CZerocoinEntryV3
+{
+private:
+    template <typename Stream>
+    auto is_eof_helper(Stream &s, bool) -> decltype(s.eof()) {
+        return s.eof();
+    }
+
+    template <typename Stream>
+    bool is_eof_helper(Stream &s, int) {
+        return false;
+    }
+
+    template<typename Stream>
+    bool is_eof(Stream &s) {
+        return is_eof_helper(s, true);
+    }
+
+public:
+    //public
+    GroupElement value;
+    int denomination;
+    //private
+    Scalar randomness;
+    Scalar serialNumber;
+//    vector<unsigned char> ecdsaSecretKey;
+    bool IsUsed;
+    int nHeight;
+    int id;
+
+    CZerocoinEntryV3()
+    {
+        SetNull();
+    }
+
+    void SetNull()
+    {
+        IsUsed = false;
+        randomness = Scalar(uint64_t(0));
+        serialNumber = Scalar(uint64_t(0));
+        value = GroupElement();
+        denomination = -1;
+        nHeight = -1;
+        id = -1;
+    }
+
+    bool IsCorrectV3Mint() const {
+        return randomness.isMember() && serialNumber.isMember();
+    }
+
+    ADD_SERIALIZE_METHODS;
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+        READWRITE(IsUsed);
+        READWRITE(randomness);
+        READWRITE(serialNumber);
+        READWRITE(value);
+        READWRITE(denomination);
+        READWRITE(nHeight);
+        READWRITE(id);
+        if (ser_action.ForRead()) {
+            if (!is_eof(s)) {
+                int nStoredVersion = 0;
+                READWRITE(nStoredVersion);
+//                if (nStoredVersion >= ZC_ADVANCED_WALLETDB_MINT_VERSION)
+//                    READWRITE(ecdsaSecretKey);
+            }
+        }
+        else {
+            READWRITE(nVersion);
+//            READWRITE(ecdsaSecretKey);
+        }
+    }
+
+};
+
+
 class CZerocoinSpendEntry
 {
 public:
@@ -1192,6 +1285,42 @@ public:
     }
 };
 
+class CZerocoinSpendEntryV3
+{
+public:
+    Scalar coinSerial;
+    uint256 hashTx;
+    GroupElement pubCoin;
+    int denomination;
+    int id;
+
+    CZerocoinSpendEntryV3()
+    {
+        SetNull();
+    }
+
+    void SetNull()
+    {
+        coinSerial = Scalar(uint64_t(0));
+//        hashTx =
+        pubCoin = GroupElement();
+        denomination = 0;
+        id = 0;
+    }
+    ADD_SERIALIZE_METHODS;
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+        READWRITE(coinSerial);
+        READWRITE(hashTx);
+        READWRITE(pubCoin);
+        READWRITE(denomination);
+        READWRITE(id);
+    }
+};
+
 bool CompHeight(const CZerocoinEntry & a, const CZerocoinEntry & b);
+bool CompHeightV3(const CZerocoinEntryV3& a, const CZerocoinEntryV3& b);
 bool CompID(const CZerocoinEntry & a, const CZerocoinEntry & b);
+bool CompIDV3(const CZerocoinEntryV3& a, const CZerocoinEntryV3& b);
 #endif // BITCOIN_WALLET_WALLET_H

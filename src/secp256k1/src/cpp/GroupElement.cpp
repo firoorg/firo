@@ -135,7 +135,6 @@ bool GroupElement::operator!=(const  GroupElement& other) const
     return !(*this == other);
 }
 
-
 bool GroupElement::isMember() const
 {
     secp256k1_ge v1 = to_ge();
@@ -220,6 +219,30 @@ std::string GroupElement::tostring() const {
 
     if (ge.infinity) {
     return std::string("O");
+    }
+
+    char str[512];
+    unsigned char buffer[32];
+    char* ptr = str;
+
+    *ptr++ = '(';
+    secp256k1_fe_get_b32(buffer,&ge.x);
+    ptr = _convertToString(ptr,buffer,base);
+    *ptr++ = ',';
+    secp256k1_fe_get_b32(buffer,&ge.y);
+    ptr = _convertToString(ptr,buffer,base);
+    *ptr++ = ')';
+    *ptr++ = '\0';
+
+    return std::string(str);
+}
+
+std::string GroupElement::GetHex() const {
+    int base = 16;
+    secp256k1_ge ge = to_ge();
+
+    if (ge.infinity) {
+        return std::string("O");
     }
 
     char str[512];
@@ -337,6 +360,14 @@ unsigned char* GroupElement::deserialize(unsigned char* buffer) {
     result.infinity = infinity;
     secp256k1_gej_set_ge(&g_, &result);
     return buffer + 34;
+}
+
+std::vector<unsigned char> GroupElement::getvch() const {
+    unsigned char buffer[memoryRequired()];
+    serialize(buffer);
+    std::vector<unsigned char> result;
+    result.insert(result.begin(), buffer, buffer + memoryRequired());
+    return result;
 }
 
 } // namespace secp_primitives

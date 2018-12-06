@@ -50,7 +50,6 @@ public:
   // Operator for adding to another element.
   GroupElement& operator+=(const GroupElement& other);
 
-
   GroupElement inverse() const;
 
   void square();
@@ -63,21 +62,51 @@ public:
 
   GroupElement& generate(unsigned char* seed);
 
- void sha256(unsigned char* result) const;
+  void sha256(unsigned char* result) const;
 
   void randomize();
 
   std::string tostring() const;
+
+  std::string GetHex() const;
 
   friend std::ostream& operator<< ( std::ostream& os, const GroupElement& s ) {
         os << s.tostring() ;
         return os;
   }
 
-    size_t memoryRequired() const;
-    unsigned char* serialize() const;
-    unsigned char* serialize(unsigned char* buffer) const;
-    unsigned char* deserialize(unsigned char* buffer);
+  size_t memoryRequired() const;
+  unsigned char* serialize() const;
+  unsigned char* serialize(unsigned char* buffer) const;
+  unsigned char* deserialize(unsigned char* buffer);
+  //this functions are for READWRITE() in serialize.h
+  template<typename Stream>
+  inline void Serialize(Stream& s, int nType, int nVersion) const {
+        int size = memoryRequired();
+        unsigned char buffer[size];
+        serialize(buffer);
+        char* b = (char*)buffer;
+        s.write(b, size);
+  }
+
+  template<typename Stream>
+  inline void Unserialize(Stream& s, int nType, int nVersion) {
+        int size = memoryRequired();
+        unsigned char buffer[size];
+        char* b = (char*)buffer;
+        s.read(b, size);
+        deserialize(buffer);
+  }
+  //function name like in CBignum
+  std::vector<unsigned char> getvch() const;
+
+  struct hasher {
+  public:
+      std::size_t operator()(const GroupElement& x) const
+      {
+          return std::hash<std::string>()(x.tostring());
+      }
+  };
 
 private:
 

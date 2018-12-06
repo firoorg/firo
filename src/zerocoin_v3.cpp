@@ -21,8 +21,8 @@
 using namespace std;
 
 // Settings
-int64_t nTransactionFee = 0;
-int64_t nMinimumInputValue = DUST_HARD_LIMIT;
+//int64_t nTransactionFee = 0;
+//int64_t nMinimumInputValue = DUST_HARD_LIMIT;
 
 // Set up the Zerocoin Params object
 sigma::ParamsV3* ZCParamsV3 = sigma::ParamsV3::get_default();
@@ -666,7 +666,7 @@ void CZerocoinStateV3::Reset() {
 	mempoolCoinSerials.clear();
 }
 
-CZerocoinStateV3 *CZerocoinStateV3::GetZerocoinState() {
+CZerocoinStateV3* CZerocoinStateV3::GetZerocoinState() {
 	return &zerocoinStateV3;
 }
 

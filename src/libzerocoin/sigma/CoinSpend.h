@@ -66,10 +66,11 @@ public:
         s >> accumulatorBlockHash;
         int size = sigmaProof.memoryRequired() + coinSerialNumber.memoryRequired();
         unsigned char buffer[size];
+        char* b = (char*)buffer;
+        s.read(b, size);
         unsigned char* current = coinSerialNumber.deserialize(buffer);
         sigmaProof.deserialize(current, params->get_n(), params->get_m());
-        char* b = (char*)buffer;
-        s.write(b, size);
+
     }
 
 private:

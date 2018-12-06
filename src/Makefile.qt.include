@@ -462,7 +462,7 @@ endif
 qt_zcoin_qt_LDADD = qt/libzcoinqt.a $(LIBBITCOIN_SERVER)
 
 if ENABLE_WALLET
-qt_zcoin_qt_LDADD += $(LIBBITCOIN_WALLET)
+qt_zcoin_qt_LDADD += $(LIBSIGMA) $(LIBBITCOIN_WALLET)
 endif
 if ENABLE_ZMQ
 qt_zcoin_qt_LDADD += $(LIBBITCOIN_ZMQ) $(ZMQ_LIBS)

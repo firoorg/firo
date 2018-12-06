@@ -133,7 +133,7 @@ test_test_bitcoin_LDADD += $(LIBBITCOIN_CLI) $(LIBBITCOIN_COMMON) $(LIBBITCOIN_U
 
 test_test_bitcoin_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 if ENABLE_WALLET
-test_test_bitcoin_LDADD += libbitcoin_server_a-netfulfilledman.o $(LIBBITCOIN_WALLET)
+test_test_bitcoin_LDADD += libbitcoin_server_a-netfulfilledman.o $(LIBBITCOIN_WALLET) $(LIBSIGMA)
 endif
 
 test_test_bitcoin_LDADD += $(LIBBITCOIN_CONSENSUS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS)

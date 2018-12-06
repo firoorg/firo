@@ -210,7 +210,7 @@ public:
     // Remove spend from the mempool (usually as the result of adding tx to the block)
     void RemoveSpendFromMempool(const Scalar& coinSerial);
 
-    static CZerocoinStateV3 *GetZerocoinState();
+    static CZerocoinStateV3* GetZerocoinState();
 };
 
 #endif // _MAIN_ZEROCOIN_V3_H__

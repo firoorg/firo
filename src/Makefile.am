@@ -265,7 +265,6 @@ libbitcoin_server_a_SOURCES = \
   versionbits.cpp \
   zerocoin.cpp \
   hash_functions.cpp \
-  zerocoin_v3.cpp \
   sigma/GKEllipticCurve.cpp \
   sigma/GKGroups.cpp \
   sigma/GKNumbers.cpp \
@@ -296,6 +295,7 @@ libbitcoin_wallet_a_SOURCES = \
   znode-sync.cpp \
   znodeconfig.cpp \
   znodeman.cpp \
+  zerocoin_v3.cpp \
   wallet/crypter.cpp \
   wallet/db.cpp \
   wallet/rpcdump.cpp \
@@ -512,12 +512,14 @@ zcoind_LDADD = \
   $(LIBUNIVALUE) \
   $(LIBBITCOIN_UTIL) \
   $(LIBBITCOIN_WALLET) \
+  $(LIBSIGMA) \
   $(LIBBITCOIN_ZMQ) \
   $(LIBBITCOIN_CONSENSUS) \
   $(LIBBITCOIN_CRYPTO) \
   $(LIBLEVELDB) \
   $(LIBMEMENV) \
   $(LIBSECP256K1)
+
 
 
 zcoind_LDADD += $(TOR_LIBS) $(BOOST_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS) -lz

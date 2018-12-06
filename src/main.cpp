@@ -38,6 +38,7 @@
 #include "util.h"
 #include "wallet/wallet.h"
 #include "wallet/walletdb.h"
+#include "zerocoin_v3.h"
 #include "utilmoneystr.h"
 #include "utilstrencodings.h"
 #include "validationinterface.h"
@@ -1167,6 +1168,73 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, uint256 h
     }
     return true;
 }
+//CheckTransaction for V3
+bool CheckTransactionV3(
+        const CTransaction &tx,
+        CValidationState &state,
+        uint256 hashTx,
+        bool isVerifyDB,
+        int nHeight,
+        bool isCheckWallet,
+        CZerocoinTxInfoV3 *zerocoinTxInfo) {
+    LogPrintf("CheckTransaction nHeight=%s, isVerifyDB=%s, isCheckWallet=%s, txHash=%s\n", nHeight, isVerifyDB, isCheckWallet, tx.GetHash().ToString());
+//    LogPrintf("transaction = %s\n", tx.ToString());
+    // Basic checks that don't depend on any context
+    if (tx.vin.empty())
+        return state.DoS(10, false, REJECT_INVALID, "bad-txns-vin-empty");
+    if (tx.vout.empty())
+        return state.DoS(10, false, REJECT_INVALID, "bad-txns-vout-empty");
+    // Size limits (this doesn't take the witness into account, as that hasn't been checked for malleability)
+    if (::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION | SERIALIZE_TRANSACTION_NO_WITNESS) > MAX_BLOCK_BASE_SIZE)
+        return state.DoS(100, false, REJECT_INVALID, "bad-txns-oversize");
+
+    // Check for negative or overflow output values
+    CAmount nValueOut = 0;
+    BOOST_FOREACH(const CTxOut &txout, tx.vout)
+    {
+        if (txout.nValue < 0)
+            return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-negative");
+        if (txout.nValue > MAX_MONEY)
+            return state.DoS(100, false, REJECT_INVALID, "bad-txns-vout-toolarge");
+        nValueOut += txout.nValue;
+        if (!MoneyRange(nValueOut))
+            return state.DoS(100, false, REJECT_INVALID, "bad-txns-txouttotal-toolarge");
+    }
+
+    // Check for duplicate inputs
+    set <COutPoint> vInOutPoints;
+    set <CScript> spendScripts;
+    BOOST_FOREACH(
+    const CTxIn &txin, tx.vin)
+    {
+        if(tx.IsZerocoinSpend()){
+            if(spendScripts.count(txin.scriptSig)){
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-spend-inputs-duplicate");
+            }
+            spendScripts.insert(txin.scriptSig);
+        }else {
+            if (vInOutPoints.count(txin.prevout)){
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-inputs-duplicate");
+            }
+            vInOutPoints.insert(txin.prevout);
+        }
+    }
+
+    if (tx.IsCoinBase()) {
+        if (tx.vin[0].scriptSig.size() < 2 || tx.vin[0].scriptSig.size() > 100)
+            return state.DoS(100, false, REJECT_INVALID, "bad-cb-length");
+    } else {
+        BOOST_FOREACH(const CTxIn &txin, tx.vin) {
+            if (txin.prevout.IsNull() && !txin.scriptSig.IsZerocoinSpend()) {
+                return state.DoS(10, false, REJECT_INVALID, "bad-txns-prevout-null");
+            }
+        }
+        if (!CheckZerocoinTransactionV3(tx, state,  hashTx, isVerifyDB, nHeight, isCheckWallet, zerocoinTxInfo))
+            return false;
+    }
+    return true;
+}
+
 
 void LimitMempoolSize(CTxMemPool &pool, size_t limit, unsigned long age) {
     int expired = pool.Expire(GetTime() - age);
@@ -4224,7 +4292,7 @@ bool CheckBlock(const CBlock &block, CValidationState &state,
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-duplicate", true, "duplicate transaction");
             }
 
-                // Zcoin - MTP
+            // Zcoin - MTP
             if (block.IsMTP() && !CheckMerkleTreeProof(block, consensusParams))
                 return state.DoS(100, false, REJECT_INVALID, "bad-diffbits", false, "incorrect proof of work");
         }
@@ -4251,7 +4319,6 @@ bool CheckBlock(const CBlock &block, CValidationState &state,
                 LogPrintf("CheckBlock - more than one coinbase -> failed!\n");
                 return state.DoS(100, false, REJECT_INVALID, "bad-cb-multiple", false, "more than one coinbase");
             }
-
         }
 
         // DASH : CHECK TRANSACTIONS FOR INSTANTSEND
@@ -4286,23 +4353,40 @@ bool CheckBlock(const CBlock &block, CValidationState &state,
         // Check transactions
         if (nHeight == INT_MAX)
             nHeight = ZerocoinGetNHeight(block.GetBlockHeader());
-        if (block.zerocoinTxInfo == NULL)
-            block.zerocoinTxInfo = std::make_shared<CZerocoinTxInfo>();
 
         if (!CheckZerocoinFoundersInputs(block.vtx[0], state, Params().GetConsensus(), nHeight, block.IsMTP())) {
-            return state.Invalid(false, state.GetRejectCode(), state.GetRejectReason(), "Zerocoin founders input check failure");
+            return state.Invalid(
+                    false, state.GetRejectCode(), state.GetRejectReason(), "Zerocoin founders input check failure");
         }
 
-        BOOST_FOREACH(const CTransaction &tx, block.vtx) {
-            if (!CheckTransaction(tx, state, tx.GetHash(), isVerifyDB, nHeight, false, block.zerocoinTxInfo.get())) {
-                LogPrintf("block=%s\n", block.ToString());
-                return state.Invalid(false, state.GetRejectCode(), state.GetRejectReason(),
-                                 strprintf("Transaction check failed (tx hash %s) %s", tx.GetHash().ToString(),
-                                           state.GetDebugMessage()));
+        if (block.zerocoinTxInfo == NULL && block.zerocoinTxInfoV3 == NULL)
+            block.zerocoinTxInfoV3 = std::make_shared<CZerocoinTxInfoV3>();
+
+        if (block.zerocoinTxInfoV3 == NULL) {
+            // Our transaction is V1 or V2, so perform appropriate checks.
+            BOOST_FOREACH(const CTransaction& tx, block.vtx) {
+                if (!CheckTransaction(tx, state, tx.GetHash(), isVerifyDB, nHeight, false,
+                                      block.zerocoinTxInfo.get())) {
+                    LogPrintf("block=%s\n", block.ToString());
+                    return state.Invalid(false, state.GetRejectCode(), state.GetRejectReason(),
+                                         strprintf("Transaction check failed (tx hash %s) %s", tx.GetHash().ToString(),
+                                                   state.GetDebugMessage()));
+                }
             }
+            block.zerocoinTxInfo->Complete();
         }
-        block.zerocoinTxInfo->Complete();
-
+        else {
+            BOOST_FOREACH(const CTransaction& tx, block.vtx) {
+                if (!CheckTransactionV3(tx, state, tx.GetHash(), isVerifyDB, nHeight, false,
+                                      block.zerocoinTxInfoV3.get())) {
+                    LogPrintf("block=%s\n", block.ToString());
+                    return state.Invalid(false, state.GetRejectCode(), state.GetRejectReason(),
+                                         strprintf("Transaction check failed (tx hash %s) %s", tx.GetHash().ToString(),
+                                                   state.GetDebugMessage()));
+                }
+            }
+            block.zerocoinTxInfoV3->Complete();
+        }
         unsigned int nSigOps = 0;
         BOOST_FOREACH(
         const CTransaction &tx, block.vtx)
