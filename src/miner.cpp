@@ -33,6 +33,7 @@
 #include "crypto/Lyra2Z/Lyra2.h"
 #include "znode-payments.h"
 #include "znode-sync.h"
+#include "znodeman.h"
 #include "zerocoin.h"
 #include <algorithm>
 #include <boost/thread.hpp>
@@ -164,7 +165,6 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
     CBlockIndex* pindexPrev = chainActive.Tip();
     const int nHeight = pindexPrev->nHeight + 1;
 
-    // To founders and investors
     // To founders and investors
     if ((nHeight + 1 > 0) && (nHeight + 1 < 305000)) {
         CScript FOUNDER_1_SCRIPT;
@@ -915,15 +915,6 @@ void BlockAssembler::addPriorityTxs()
     typedef std::map<CTxMemPool::txiter, double, CTxMemPool::CompareIteratorByHash>::iterator waitPriIter;
     double actualPriority = -1;
 
-    unsigned int COUNT_SPEND_ZC_TX = 0;
-    unsigned int MAX_SPEND_ZC_TX_PER_BLOCK = 0;
-    if (chainActive.Height() + 1 > HF_ZEROSPEND_FIX) {
-        MAX_SPEND_ZC_TX_PER_BLOCK = 1;
-    }
-    if (nHeight + 1 > SWITCH_TO_MORE_SPEND_TXS) {
-        MAX_SPEND_ZC_TX_PER_BLOCK = ZC_SPEND_LIMIT;
-    }
-
     vecPriority.reserve(mempool.mapTx.size());
     for (CTxMemPool::indexed_transaction_set::iterator mi = mempool.mapTx.begin();
          mi != mempool.mapTx.end(); ++mi)
@@ -937,11 +928,6 @@ void BlockAssembler::addPriorityTxs()
         if (tx.IsCoinBase() || !CheckFinalTx(tx))
             continue;
         if (tx.IsZerocoinSpend()) {
-
-            if ((COUNT_SPEND_ZC_TX + tx.vin.size()) > MAX_SPEND_ZC_TX_PER_BLOCK) {
-                continue;
-            }
-
             //mempool.countZCSpend--;
             // Size limits
             unsigned int nTxSize = ::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION);
@@ -970,7 +956,6 @@ void BlockAssembler::addPriorityTxs()
             ++nBlockTx;
             nBlockSigOpsCost += nTxSigOps;
             nFees += nTxFees;
-            COUNT_SPEND_ZC_TX+=tx.vin.size();
             continue;
         }
     }
@@ -1095,7 +1080,7 @@ void static ZcoinMiner(const CChainParams &chainparams) {
 
     boost::shared_ptr<CReserveScript> coinbaseScript;
     GetMainSignals().ScriptForMining(coinbaseScript);
-    bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
+    bool fTestNet = chainparams.GetConsensus().IsTestnet();
     try {
         // Throw an error if no script was provided.  This can happen
         // due to some internal error but also if the keypool is empty.
@@ -1109,13 +1094,25 @@ void static ZcoinMiner(const CChainParams &chainparams) {
             if (chainparams.MiningRequiresPeers()) {
                 // Busy-wait for the network to come online so we don't waste time mining
                 // on an obsolete chain. In regtest mode we expect to fly solo.
+
+                // Also try to wait for znode winners unless we're on regtest chain
                 do {
                     bool fvNodesEmpty;
+                    bool fHasZnodesWinnerForNextBlock;
+                    const Consensus::Params &params = chainparams.GetConsensus();
                     {
                         LOCK(cs_vNodes);
                         fvNodesEmpty = vNodes.empty();
                     }
-                    if (!fvNodesEmpty && !IsInitialBlockDownload()) {
+                    {
+                        LOCK2(cs_main, mempool.cs);
+                        int nCount = 0;
+                        fHasZnodesWinnerForNextBlock = 
+                                params.IsRegtest() ||
+                                chainActive.Height() < params.nZnodePaymentsStartBlock ||
+                                mnodeman.GetNextZnodeInQueueForPayment(chainActive.Height(), true, nCount);
+                    }
+                    if (!fvNodesEmpty && fHasZnodesWinnerForNextBlock && !IsInitialBlockDownload()) {
                         break;
                     }
                     MilliSleep(1000);

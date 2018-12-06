@@ -645,15 +645,6 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
     UniValue transactions(UniValue::VARR);
     map<uint256, int64_t> setTxIndex;
     int i = 0;
-    unsigned int COUNT_SPEND_ZC_TX = 0;
-    unsigned int MAX_SPEND_ZC_TX_PER_BLOCK = 0;
-    if(chainActive.Height() + 1 > OLD_LIMIT_SPEND_TXS){
-        MAX_SPEND_ZC_TX_PER_BLOCK = 0;
-    }
-
-    if(chainActive.Height() + 1 > SWITCH_TO_MORE_SPEND_TXS){
-        MAX_SPEND_ZC_TX_PER_BLOCK = 5;
-    }
 
     BOOST_FOREACH (CTransaction& tx, pblock->vtx) {
         uint256 txHash = tx.GetHash();
@@ -661,17 +652,6 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
 
         if (tx.IsCoinBase())
             continue;
-
-        // https://github.com/zcoinofficial/zcoin/pull/26
-        // make order independence
-        // and easy to read for other people
-        if (tx.IsZerocoinSpend()) {
-            if (COUNT_SPEND_ZC_TX >= MAX_SPEND_ZC_TX_PER_BLOCK) {
-                continue;
-            }
-
-            COUNT_SPEND_ZC_TX++;
-        }
 
         UniValue entry(UniValue::VOBJ);
 
@@ -716,6 +696,10 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
     UniValue aRules(UniValue::VARR);
     UniValue vbavailable(UniValue::VOBJ);
     for (int i = 0; i < (int)Consensus::MAX_VERSION_BITS_DEPLOYMENTS; ++i) {
+        // MTP deployment has different set of rules
+        if (i == Consensus::DEPLOYMENT_MTP)
+            continue;
+            
         Consensus::DeploymentPos pos = Consensus::DeploymentPos(i);
         ThresholdState state = VersionBitsState(pindexPrev, consensusParams, pos, versionbitscache);
         switch (state) {

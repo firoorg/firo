@@ -86,6 +86,44 @@ static FILE* fileout = NULL;
 static boost::mutex* mutexDebugLog = NULL;
 /** Flag to indicate, whether the Exodus log file should be reopened. */
 extern std::atomic<bool> fReopenExodusLog;
+
+/**
+ * @return The current timestamp in the format: 2009-01-03 18:15:05
+ */
+static std::string GetTimestamp()
+{
+    return DateTimeStrFormat("%Y-%m-%d %H:%M:%S", GetTime());
+}
+
+/**
+ * Prints to the standard output, usually the console.
+ *
+ * The configuration option "-logtimestamps" can be used to indicate, whether
+ * the message should be prepended with a timestamp.
+ *
+ * @param str[in]  The message to print
+ * @return The total number of characters written
+ */
+static int ConsolePrint(const std::string& str)
+{
+    int ret = 0; // Number of characters written
+    static bool fStartedNewLine = true;
+
+    if (fLogTimestamps && fStartedNewLine) {
+        ret = fprintf(stdout, "%s %s", GetTimestamp().c_str(), str.c_str());
+    } else {
+        ret = fwrite(str.data(), 1, str.size(), stdout);
+    }
+    if (!str.empty() && str[str.size()-1] == '\n') {
+        fStartedNewLine = true;
+    } else {
+        fStartedNewLine = false;
+    }
+    fflush(stdout);
+
+    return ret;
+}
+
 /**
  * Returns path for debug log file.
  *
@@ -121,18 +159,10 @@ static void DebugLogInit()
     if (fileout) {
         setbuf(fileout, NULL); // Unbuffered
     } else {
-        PrintToConsole("Failed to open debug log file: %s\n", pathDebug.string());
+        ConsolePrint(tfm::format("Failed to open debug log file: %s\n", pathDebug.string()));
     }
 
     mutexDebugLog = new boost::mutex();
-}
-
-/**
- * @return The current timestamp in the format: 2009-01-03 18:15:05
- */
-static std::string GetTimestamp()
-{
-    return DateTimeStrFormat("%Y-%m-%d %H:%M:%S", GetTime());
 }
 
 /**
@@ -183,35 +213,6 @@ int LogFilePrint(const std::string& str)
         }
         ret += fwrite(str.data(), 1, str.size(), fileout);
     }
-
-    return ret;
-}
-
-/**
- * Prints to the standard output, usually the console.
- *
- * The configuration option "-logtimestamps" can be used to indicate, whether
- * the message should be prepended with a timestamp.
- *
- * @param str[in]  The message to print
- * @return The total number of characters written
- */
-int ConsolePrint(const std::string& str)
-{
-    int ret = 0; // Number of characters written
-    static bool fStartedNewLine = true;
-
-    if (fLogTimestamps && fStartedNewLine) {
-        ret = fprintf(stdout, "%s %s", GetTimestamp().c_str(), str.c_str());
-    } else {
-        ret = fwrite(str.data(), 1, str.size(), stdout);
-    }
-    if (!str.empty() && str[str.size()-1] == '\n') {
-        fStartedNewLine = true;
-    } else {
-        fStartedNewLine = false;
-    }
-    fflush(stdout);
 
     return ret;
 }
@@ -336,4 +337,3 @@ void ShrinkDebugLog()
         file = NULL;
     }
 }
-

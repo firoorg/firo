@@ -9,9 +9,6 @@
 /** Prints to the log file. */
 int LogFilePrint(const std::string& str);
 
-/** Prints to the console. */
-int ConsolePrint(const std::string& str);
-
 /** Determine whether to override compiled debug levels. */
 void InitDebugLogLevels();
 
@@ -66,16 +63,6 @@ extern bool exodus_debug_fees;
     static inline int PrintToLog(TINYFORMAT_VARARGS(n))                         \
     {                                                                           \
         return LogFilePrint(tfm::format("%s", TINYFORMAT_PASSARGS(n)));         \
-    }                                                                           \
-    template<TINYFORMAT_ARGTYPES(n)>                                            \
-    static inline int PrintToConsole(const char* format, TINYFORMAT_VARARGS(n)) \
-    {                                                                           \
-        return ConsolePrint(tfm::format(format, TINYFORMAT_PASSARGS(n)));       \
-    }                                                                           \
-    template<TINYFORMAT_ARGTYPES(n)>                                            \
-    static inline int PrintToConsole(TINYFORMAT_VARARGS(n))                     \
-    {                                                                           \
-        return ConsolePrint(tfm::format("%s", TINYFORMAT_PASSARGS(n)));         \
     }
 
 TINYFORMAT_FOREACH_ARGNUM(MAKE_EXODUS_ERROR_AND_LOG_FUNC)

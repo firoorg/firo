@@ -131,7 +131,7 @@ std::string xToString(const rational_t& value)
 // find the best match on the market
 // NOTE: sometimes I refer to the older order as seller & the newer order as buyer, in this trade
 // INPUT: property, desprop, desprice = of the new order being inserted; the new object being processed
-// RETURN: 
+// RETURN:
 static MatchReturnType x_Trade(CMPMetaDEx* const pnew)
 {
     const uint32_t propertyForSale = pnew->getProperty();
@@ -823,7 +823,7 @@ void exodus::MetaDEx_debug_print(bool bShowPriceLevel, bool bDisplay)
             for (md_Set::iterator it = indexes.begin(); it != indexes.end(); ++it) {
                 const CMPMetaDEx& obj = *it;
 
-                if (bDisplay) PrintToConsole("%s= %s\n", xToString(price), obj.ToString());
+                if (bDisplay) PrintToLog("%s= %s\n", xToString(price), obj.ToString());
                 else PrintToLog("%s= %s\n", xToString(price), obj.ToString());
             }
         }

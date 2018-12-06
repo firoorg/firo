@@ -2394,7 +2394,6 @@ int CMPTransaction::logicMath_Alert()
         if (sender == "48UM25xTXCxPRwnv36YjjJNaAK4whKR8Rd" || isNonMainNet()) {
             std::string msgText = "Client upgrade is required!  Shutting down due to unsupported consensus state!";
             PrintToLog(msgText);
-            PrintToConsole(msgText);
             if (!GetBoolArg("-overrideforcedshutdown", false)) {
                 boost::filesystem::path persistPath = GetDataDir() / "MP_persist";
                 if (boost::filesystem::exists(persistPath)) boost::filesystem::remove_all(persistPath); // prevent the node being restarted without a reparse after forced shutdown

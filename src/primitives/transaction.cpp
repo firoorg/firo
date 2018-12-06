@@ -205,18 +205,17 @@ bool CTransaction::IsCoinBase() const
 
 bool CTransaction::IsZerocoinSpend() const
 {
-    for (std::vector<CTxIn>::const_iterator it(vin.begin()); it != vin.end(); ++it)
-    {
-        if(!((*it).IsZerocoinSpend())) return false;
+    for (const CTxIn &txin: vin) {
+        if (txin.IsZerocoinSpend())
+            return true;
     }
-    return (vout.size()==1);
+    return false;
 }
 
-bool CTransaction::IsZerocoinMint(CTxOut& txout) const
+bool CTransaction::IsZerocoinMint() const
 {
-    for(unsigned long i=0;i<vout.size();i++){
-        txout = vout[i];
-        if(txout.scriptPubKey.IsZerocoinMint()){
+    for (const CTxOut &txout: vout) {
+        if (txout.scriptPubKey.IsZerocoinMint()){
             return true;
         }
     }

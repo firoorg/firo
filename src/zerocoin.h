@@ -53,6 +53,7 @@ bool CheckZerocoinTransaction(const CTransaction &tx,
 	bool isVerifyDB,
 	int nHeight,
     bool isCheckWallet,
+    bool fZerocoinStateCheck,
     CZerocoinTxInfo *zerocoinTxInfo);
 
 void DisconnectTipZC(CBlock &block, CBlockIndex *pindexDelete);

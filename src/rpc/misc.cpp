@@ -20,6 +20,8 @@
 #include "wallet/rpcwallet.h"
 #include "wallet/walletdb.h"
 #endif
+#include "txdb.h"
+#include "zerocoin.h"
 
 #include <stdint.h>
 
@@ -489,11 +491,11 @@ UniValue setmocktime(const UniValue& params, bool fHelp)
     return NullUniValue;
 }
 
-bool getAddressFromIndex(const int &type, const uint160 &hash, std::string &address)
+bool getAddressFromIndex(AddressType const & type, const uint160 &hash, std::string &address)
 {
-    if (type == 2) {
+    if (type == AddressType::payToScriptHash) {
         address = CBitcoinAddress(CScriptID(hash)).ToString();
-    } else if (type == 1) {
+    } else if (type == AddressType::payToPubKeyHash) {
         address = CBitcoinAddress(CKeyID(hash)).ToString();
     } else {
         return false;
@@ -501,12 +503,12 @@ bool getAddressFromIndex(const int &type, const uint160 &hash, std::string &addr
     return true;
 }
 
-bool getAddressesFromParams(const UniValue& params, std::vector<std::pair<uint160, int> > &addresses)
+bool getAddressesFromParams(const UniValue& params, std::vector<std::pair<uint160, AddressType> > &addresses)
 {
     if (params[0].isStr()) {
         CBitcoinAddress address(params[0].get_str());
         uint160 hashBytes;
-        int type = 0;
+        AddressType type = AddressType::unknown;
         if (!address.GetIndexKey(hashBytes, type)) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
         }
@@ -524,11 +526,54 @@ bool getAddressesFromParams(const UniValue& params, std::vector<std::pair<uint16
 
             CBitcoinAddress address(it->get_str());
             uint160 hashBytes;
-            int type = 0;
+            AddressType type = AddressType::unknown;
             if (!address.GetIndexKey(hashBytes, type)) {
                 throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
             }
             addresses.push_back(std::make_pair(hashBytes, type));
+        }
+    } else {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
+    }
+
+    return true;
+}
+
+namespace {
+void handleSingleAddress(const UniValue& uniAddress, std::vector<std::pair<uint160, AddressType> > &addresses)
+{
+    std::string const addr = uniAddress.get_str();
+    if(zerocoin::utils::isZerocoinMint(addr)) {
+        addresses.push_back(std::make_pair(uint160(), AddressType::zerocoinMint));
+    } else if(zerocoin::utils::isZerocoinSpend(addr)) {
+        addresses.push_back(std::make_pair(uint160(), AddressType::zerocoinSpend));
+    } else {
+        CBitcoinAddress address(addr);
+        uint160 hashBytes;
+        AddressType type = AddressType::unknown;
+        if (!address.GetIndexKey(hashBytes, type)) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
+        }
+        addresses.push_back(std::make_pair(hashBytes, type));
+    }
+}
+}
+
+bool getZerocoinAddressesFromParams(const UniValue& params, std::vector<std::pair<uint160, AddressType> > &addresses)
+{
+    if (params[0].isStr()) {
+        handleSingleAddress(params[0], addresses);
+    } else if (params[0].isObject()) {
+
+        UniValue addressValues = find_value(params[0].get_obj(), "addresses");
+        if (!addressValues.isArray()) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Addresses is expected to be an array");
+        }
+
+        std::vector<UniValue> values = addressValues.getValues();
+
+        for (std::vector<UniValue>::iterator it = values.begin(); it != values.end(); ++it) {
+            handleSingleAddress(*it, addresses);
         }
     } else {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
@@ -578,9 +623,9 @@ UniValue getaddressmempool(const UniValue& params, bool fHelp)
                 + HelpExampleRpc("getaddressmempool", "{\"addresses\": [\"XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwg\"]}")
         );
 
-    std::vector<std::pair<uint160, int> > addresses;
+    std::vector<std::pair<uint160, AddressType> > addresses;
 
-    if (!getAddressesFromParams(params, addresses)) {
+    if (!getZerocoinAddressesFromParams(params, addresses)) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
     }
 
@@ -647,7 +692,7 @@ UniValue getaddressutxos(const UniValue& params, bool fHelp)
                 + HelpExampleRpc("getaddressutxos", "{\"addresses\": [\"XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwg\"]}")
         );
 
-    std::vector<std::pair<uint160, int> > addresses;
+    std::vector<std::pair<uint160, AddressType> > addresses;
 
     if (!getAddressesFromParams(params, addresses)) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
@@ -655,7 +700,7 @@ UniValue getaddressutxos(const UniValue& params, bool fHelp)
 
     std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > unspentOutputs;
 
-    for (std::vector<std::pair<uint160, int> >::iterator it = addresses.begin(); it != addresses.end(); it++) {
+    for (std::vector<std::pair<uint160, AddressType> >::iterator it = addresses.begin(); it != addresses.end(); it++) {
         if (!GetAddressUnspent((*it).first, (*it).second, unspentOutputs)) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for address");
         }
@@ -731,7 +776,7 @@ UniValue getaddressdeltas(const UniValue& params, bool fHelp)
         }
     }
 
-    std::vector<std::pair<uint160, int> > addresses;
+    std::vector<std::pair<uint160, AddressType> > addresses;
 
     if (!getAddressesFromParams(params, addresses)) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
@@ -739,7 +784,7 @@ UniValue getaddressdeltas(const UniValue& params, bool fHelp)
 
     std::vector<std::pair<CAddressIndexKey, CAmount> > addressIndex;
 
-    for (std::vector<std::pair<uint160, int> >::iterator it = addresses.begin(); it != addresses.end(); it++) {
+    for (std::vector<std::pair<uint160, AddressType> >::iterator it = addresses.begin(); it != addresses.end(); it++) {
         if (start > 0 && end > 0) {
             if (!GetAddressIndex((*it).first, (*it).second, addressIndex, start, end)) {
                 throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for address");
@@ -796,15 +841,15 @@ UniValue getaddressbalance(const UniValue& params, bool fHelp)
                 + HelpExampleRpc("getaddressbalance", "{\"addresses\": [\"XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwg\"]}")
         );
 
-    std::vector<std::pair<uint160, int> > addresses;
+    std::vector<std::pair<uint160, AddressType> > addresses;
 
-    if (!getAddressesFromParams(params, addresses)) {
+    if (!getZerocoinAddressesFromParams(params, addresses)) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
     }
 
     std::vector<std::pair<CAddressIndexKey, CAmount> > addressIndex;
 
-    for (std::vector<std::pair<uint160, int> >::iterator it = addresses.begin(); it != addresses.end(); it++) {
+    for (std::vector<std::pair<uint160, AddressType> >::iterator it = addresses.begin(); it != addresses.end(); it++) {
         if (!GetAddressIndex((*it).first, (*it).second, addressIndex)) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for address. If this is not an address in your wallet, set addressindex=1 in the conf file.");
         }
@@ -854,9 +899,9 @@ UniValue getaddresstxids(const UniValue& params, bool fHelp)
                 + HelpExampleRpc("getaddresstxids", "{\"addresses\": [\"XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwg\"]}")
         );
 
-    std::vector<std::pair<uint160, int> > addresses;
+    std::vector<std::pair<uint160, AddressType> > addresses;
 
-    if (!getAddressesFromParams(params, addresses)) {
+    if (!getZerocoinAddressesFromParams(params, addresses)) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
     }
 
@@ -873,7 +918,7 @@ UniValue getaddresstxids(const UniValue& params, bool fHelp)
 
     std::vector<std::pair<CAddressIndexKey, CAmount> > addressIndex;
 
-    for (std::vector<std::pair<uint160, int> >::iterator it = addresses.begin(); it != addresses.end(); it++) {
+    for (std::vector<std::pair<uint160, AddressType> >::iterator it = addresses.begin(); it != addresses.end(); it++) {
         if (start > 0 && end > 0) {
             if (!GetAddressIndex((*it).first, (*it).second, addressIndex, start, end)) {
                 throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for address");
@@ -959,6 +1004,157 @@ UniValue getspentinfo(const UniValue& params, bool fHelp)
     return obj;
 }
 
+UniValue gettotalsupply(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() != 0)
+        throw runtime_error(
+                "gettotalsupply\n"
+                        "\nReturns the total coin amount produced in the coinbase transactions up until the latest block.\n"
+                        "\nArguments: none\n"
+                        "\nResult:\n"
+                        "{\n"
+                        "  \"total\"  (string) The total supply in duffs\n"
+                        "}\n"
+                        "\nExamples:\n"
+                + HelpExampleCli("gettotalsupply", "")
+                + HelpExampleRpc("gettotalsupply", "")
+        );
+
+    CAmount total = 0;
+
+    if(!pblocktree->ReadTotalSupply(total))
+        throw JSONRPCError(RPC_DATABASE_ERROR, "Cannot read the total supply from the database. This functionality requires -addressindex to be enabled. Enabling -addressindex requires reindexing.");
+
+    UniValue result(UniValue::VOBJ);
+    result.push_back(Pair("total", total));
+
+    return result;
+}
+
+namespace {
+bool getZerocoinSupply(CAmount & amount) {
+    using idx_rec = std::pair<CAddressIndexKey, CAmount>;
+    std::vector<idx_rec> addressIndex;
+
+    if(!GetAddressIndex(uint160(), AddressType::zerocoinSpend, addressIndex))
+        return false;
+
+    auto predicate = [](idx_rec const & lhs, idx_rec const & rhs) {
+        if(lhs.first.blockHeight < rhs.first.blockHeight)
+            return true;
+        if(lhs.first.blockHeight > rhs.first.blockHeight)
+            return false;
+        return lhs.first.txindex < lhs.first.txindex;
+    };
+
+    if(!std::is_sorted(addressIndex.begin(), addressIndex.end(), predicate))
+        std::sort(addressIndex.begin(), addressIndex.end(), predicate);
+
+    std::map<CBigNum, uint256> originalSerials;
+    CAmount amt = 0;
+
+    for(idx_rec const & idr : addressIndex) {
+        CTransaction tx;
+        uint256 hash;
+
+        if(!GetTransaction(idr.first.txhash, tx, Params().GetConsensus(), hash, true))
+            return false;
+
+        for(CTxIn const & in : tx.vin) {
+            if(!in.IsZerocoinSpend())
+                continue;
+
+            CBigNum const zspendSerial = ZerocoinGetSpendSerialNumber(tx, in);
+            if(zspendSerial == CBigNum(0))
+                return false;
+
+            auto const iter = originalSerials.find(zspendSerial);
+            if(iter == originalSerials.end())
+                originalSerials.insert({zspendSerial, tx.GetHash()});
+            else if(iter->second != tx.GetHash()){
+                amt += -idr.second;
+            }
+        }
+    }
+    amount = amt;
+    return true;
+}
+}
+
+UniValue getzerocoinsupply(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() > 1)
+        throw runtime_error(
+                "getzerocoinsupply\n"
+                        "\nReturns zerocoin amount. This function is very slow by design.\n"
+                        "\nArguments: none\n"
+                        "\nResult:\n"
+                        "{\n"
+                        "  \"total\"  (string) The total supply in duffs\n"
+                        "}\n"
+                        "\nExamples:\n"
+                + HelpExampleCli("getzerocoinsupply", "")
+                + HelpExampleRpc("getzerocoinsupply", "")
+        );
+
+    CAmount total = 0;
+
+    if(!getZerocoinSupply(total))
+        throw JSONRPCError(RPC_DATABASE_ERROR, "Cannot read the zerocoin supply from the database. This functionality requires -addressindex to be enabled. Enabling -addressindex requires reindexing.");
+
+    UniValue result(UniValue::VOBJ);
+    result.push_back(Pair("total", total));
+
+    return result;
+}
+
+UniValue getinfoex(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() != 0)
+    throw runtime_error(
+        "getinfoex\n"
+        "An engineering version of getinfo. Takes significant time to finish.\n"
+        "Returns an object containing various state info.\n"
+        "\nResult:\n"
+        "{\n"
+        "  \"version\": xxxxx,           (numeric) the server version\n"
+        "  \"protocolversion\": xxxxx,   (numeric) the protocol version\n"
+        "  \"walletversion\": xxxxx,     (numeric) the wallet version\n"
+        "  \"balance\": xxxxxxx,         (numeric) the total bitcoin balance of the wallet\n"
+        "  \"blocks\": xxxxxx,           (numeric) the current number of blocks processed in the server\n"
+        "  \"timeoffset\": xxxxx,        (numeric) the time offset\n"
+        "  \"connections\": xxxxx,       (numeric) the number of connections\n"
+        "  \"proxy\": \"host:port\",     (string, optional) the proxy used by the server\n"
+        "  \"difficulty\": xxxxxx,       (numeric) the current difficulty\n"
+        "  \"testnet\": true|false,      (boolean) if the server is using testnet or not\n"
+        "  \"keypoololdest\": xxxxxx,    (numeric) the timestamp (seconds since Unix epoch) of the oldest pre-generated key in the key pool\n"
+        "  \"keypoolsize\": xxxx,        (numeric) how many new keys are pre-generated\n"
+        "  \"unlocked_until\": ttt,      (numeric) the timestamp in seconds since epoch (midnight Jan 1 1970 GMT) that the wallet is unlocked for transfers, or 0 if the wallet is locked\n"
+        "  \"paytxfee\": x.xxxx,         (numeric) the transaction fee set in " + CURRENCY_UNIT + "/kB\n"
+        "  \"relayfee\": x.xxxx,         (numeric) minimum relay fee for non-free transactions in " + CURRENCY_UNIT + "/kB\n"
+        "  \"errors\": \"...\"           (string) any error messages\n"
+        "  \"moneysupply\": \"...\"      (numeric) current coinbase supply summed with the current zerocoin supply\n"
+        "}\n"
+        "\nExamples:\n"
+        + HelpExampleCli("getinfo", "")
+        + HelpExampleRpc("getinfo", "")
+    );
+
+    UniValue info = getinfo(params, fHelp);
+
+    CAmount total = 0, zerocoin = 0;
+
+    if(!pblocktree->ReadTotalSupply(total))
+        throw JSONRPCError(RPC_DATABASE_ERROR, "Cannot read the total supply from the database");
+
+    if(!getZerocoinSupply(zerocoin))
+        throw JSONRPCError(RPC_DATABASE_ERROR, "Cannot read the total supply from the database");
+
+    info.push_back(Pair("moneysupply", total + zerocoin));
+
+    return info;
+}
+
 
 static const CRPCCommand commands[] =
 { //  category              name                      actor (function)         okSafeMode
@@ -975,9 +1171,13 @@ static const CRPCCommand commands[] =
     { "addressindex",       "getaddressdeltas",       &getaddressdeltas,       false },
     { "addressindex",       "getaddresstxids",        &getaddresstxids,        false },
     { "addressindex",       "getaddressbalance",      &getaddressbalance,      false },
+    { "addressindex",       "gettotalsupply",         &gettotalsupply,         false },
 
     /* Not shown in help */
     { "hidden",             "setmocktime",            &setmocktime,            true  },
+    { "hidden",             "getzerocoinsupply",      &getzerocoinsupply,      false },
+    { "hidden",             "getinfoex",              &getinfoex,              false },
+
 };
 
 void RegisterMiscRPCCommands(CRPCTable &tableRPC)
