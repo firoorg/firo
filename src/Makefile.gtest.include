@@ -1,15 +1,3 @@
-TESTS += sigma_R1_test
-noinst_PROGRAMS += gtest/sigma_R1_test
-
-gtest_sigma_R1_test_SOURCES = \
-	gtest/main.cpp \
-	gtest/sigma_R1_test.cpp
-
-gtest_sigma_R1_test_CPPFLAGS = $(AM_CPPFLAGS) -DBINARY_OUTPUT -DCURVE_ALT_BN128 -DSTATIC $(BITCOIN_INCLUDES)
-gtest_sigma_R1_test_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-
-gtest_sigma_R1_test_LDADD = -lgtest  -lgmock $(BOOST_LIBS) $(BOOST_UNIT_TEST_FRAMEWORK_LIB) $(LIBSIGMA) $(LIBSECP256K1) $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO) -lgmp
-
 TESTS += sigma_plus_test
 noinst_PROGRAMS += gtest/sigma_plus_test
 gtest_sigma_plus_test_SOURCES = \
@@ -18,18 +6,7 @@ gtest_sigma_plus_test_SOURCES = \
 
 gtest_sigma_plus_test_CPPFLAGS = $(AM_CPPFLAGS) -DBINARY_OUTPUT -DCURVE_ALT_BN128 -DSTATIC $(BITCOIN_INCLUDES)
 gtest_sigma_plus_test_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-gtest_sigma_plus_test_LDADD = -lgtest  -lgmock $(BOOST_LIBS) $(BOOST_UNIT_TEST_FRAMEWORK_LIB) $(LIBSIGMA) $(LIBSECP256K1) $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO) -lgmp
-
-TESTS += sigma_unit_tests
-noinst_PROGRAMS += gtest/sigma_unit_tests
-gtest_sigma_unit_tests_SOURCES = \
-	gtest/main.cpp \
-	gtest/sigma_unit_tests.cpp
-
-gtest_sigma_unit_tests_CPPFLAGS = $(AM_CPPFLAGS) -DBINARY_OUTPUT -DCURVE_ALT_BN128 -DSTATIC $(BITCOIN_INCLUDES)
-gtest_sigma_unit_tests_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-gtest_sigma_unit_tests_LDADD = -lgtest  -lgmock $(BOOST_LIBS) $(BOOST_UNIT_TEST_FRAMEWORK_LIB) $(LIBSIGMA) $(LIBSECP256K1) $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO) -lgmp
-
+gtest_sigma_plus_test_LDADD = -lgtest  -lgmock $(BOOST_LIBS) $(BOOST_UNIT_TEST_FRAMEWORK_LIB) $(LIBNEXTGEN) $(LIBSECP256K1) -lcrypto $(SSL_LIBS)   $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO)  -lgmp
 
 TESTS += sigma_perform_test
 noinst_PROGRAMS += gtest/sigma_perform_test
@@ -38,7 +15,7 @@ gtest_sigma_perform_test_SOURCES = \
 
 gtest_sigma_perform_test_CPPFLAGS = $(AM_CPPFLAGS) -DBINARY_OUTPUT -DCURVE_ALT_BN128 -DSTATIC $(BITCOIN_INCLUDES)
 gtest_sigma_perform_test_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-gtest_sigma_perform_test_LDADD = -lgtest  -lgmock $(BOOST_LIBS) $(BOOST_UNIT_TEST_FRAMEWORK_LIB) $(LIBSIGMA) $(LIBSECP256K1) $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO) -lgmp
+gtest_sigma_perform_test_LDADD = -lgtest  -lgmock $(BOOST_LIBS) $(BOOST_UNIT_TEST_FRAMEWORK_LIB) $(LIBNEXTGEN) $(LIBSECP256K1) $(SSL_LIBS) -lcrypto  $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO)  -lgmp
 
 TESTS += sigma_serialize_test
 noinst_PROGRAMS += gtest/sigma_serialize_test
@@ -48,4 +25,24 @@ gtest_sigma_serialize_test_SOURCES = \
 
 gtest_sigma_serialize_test_CPPFLAGS = $(AM_CPPFLAGS) -DBINARY_OUTPUT -DCURVE_ALT_BN128 -DSTATIC $(BITCOIN_INCLUDES)
 gtest_sigma_serialize_test_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-gtest_sigma_serialize_test_LDADD = -lgtest  -lgmock $(BOOST_LIBS) $(BOOST_UNIT_TEST_FRAMEWORK_LIB) $(LIBSIGMA) $(LIBSECP256K1) $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO) -lgmp
+gtest_sigma_serialize_test_LDADD = -lgtest  -lgmock $(BOOST_LIBS) $(BOOST_UNIT_TEST_FRAMEWORK_LIB) $(LIBNEXTGEN) $(LIBSECP256K1) $(SSL_LIBS) -lcrypto  $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO)  -lgmp
+
+TESTS += schnorr_test
+noinst_PROGRAMS += gtest/schnorr_test
+gtest_schnorr_test_SOURCES = \
+	gtest/main.cpp \
+	gtest/schnorr_test.cpp
+
+gtest_schnorr_test_CPPFLAGS = $(AM_CPPFLAGS) -DBINARY_OUTPUT -DCURVE_ALT_BN128 -DSTATIC $(BITCOIN_INCLUDES)
+gtest_schnorr_test_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+gtest_schnorr_test_LDADD = -lgtest  -lgmock $(BOOST_LIBS) $(BOOST_UNIT_TEST_FRAMEWORK_LIB) $(LIBNEXTGEN) $(LIBSECP256K1) $(SSL_LIBS) -lcrypto  $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO)  -lgmp
+
+TESTS += nextgen_test
+noinst_PROGRAMS += gtest/nextgen_test
+gtest_nextgen_test_SOURCES = \
+	gtest/main.cpp \
+	gtest/nextgen_test.cpp
+
+gtest_nextgen_test_CPPFLAGS = $(AM_CPPFLAGS) -DBINARY_OUTPUT -DCURVE_ALT_BN128 -DSTATIC $(BITCOIN_INCLUDES)
+gtest_nextgen_test_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+gtest_nextgen_test_LDADD = -lgtest  -lgmock $(BOOST_LIBS) $(BOOST_UNIT_TEST_FRAMEWORK_LIB) $(LIBNEXTGEN) $(LIBSECP256K1) $(SSL_LIBS) -lcrypto  $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO)  -lgmp

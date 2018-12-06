@@ -1,16 +1,20 @@
 #ifndef ZCOIN_SIGMAPLUSVERIFIER_H
 #define ZCOIN_SIGMAPLUSVERIFIER_H
 
-#include "R1ProofVerifier.h"
+#include "NextGenPrimitives.h"
 
-namespace sigma {
+namespace nextgen {
 template<class Exponent, class GroupElement>
 class SigmaPlusVerifier{
 
 public:
     SigmaPlusVerifier(const GroupElement& g,
                       const std::vector<GroupElement>& h_gens,
-                      int n, int m_);
+                      uint64_t n, uint64_t m_);
+
+    bool verify(const std::vector<GroupElement>& commits,
+                const Exponent& x,
+                const SigmaPlusProof<Exponent, GroupElement>& proof) const;
 
     bool verify(const std::vector<GroupElement>& commits,
                 const SigmaPlusProof<Exponent, GroupElement>& proof) const;
@@ -18,11 +22,11 @@ public:
 private:
     GroupElement g_;
     zcoin_common::GeneratorVector<Exponent, GroupElement> h_;
-    int n;
-    int m;
+    uint64_t n;
+    uint64_t m;
 };
 
-} // namespace sigma
+} // namespace nextgen
 
 #include "SigmaPlusVerifier.hpp"
 

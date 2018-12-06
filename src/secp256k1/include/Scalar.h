@@ -25,6 +25,8 @@ public:
     // Copy constructor
     Scalar(const Scalar& other);
 
+    Scalar(const unsigned char *bin);
+
     Scalar(const char* str);
 
     // Move constructor
@@ -54,6 +56,8 @@ public:
 
     bool operator==(const Scalar& other) const;
 
+    bool operator!=(const Scalar& other) const;
+
     Scalar inverse() const;
 
     Scalar negate() const;
@@ -65,7 +69,7 @@ public:
 
     Scalar& randomize();
 
-    Scalar& randomize(std::mt19937& rand);
+    Scalar& generate(unsigned char* buff);
 
     Scalar& mod_p();
 

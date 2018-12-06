@@ -56,7 +56,7 @@ LIBBITCOIN_COMMON=libbitcoin_common.a
 LIBBITCOIN_CONSENSUS=libbitcoin_consensus.a
 LIBBITCOIN_CLI=libbitcoin_cli.a
 LIBBITCOIN_UTIL=libbitcoin_util.a
-LIBSIGMA=libsigma.a
+LIBNEXTGEN=libnextgen.a
 LIBBITCOIN_CRYPTO=crypto/libbitcoin_crypto.a
 LIBBITCOINQT=qt/libzcoinqt.a
 LIBSECP256K1=secp256k1/libsecp256k1.la
@@ -81,7 +81,7 @@ $(LIBSECP256K1): $(wildcard secp256k1/src/*) $(wildcard secp256k1/include/*)
 EXTRA_LIBRARIES += \
   $(LIBBITCOIN_CRYPTO) \
   $(LIBBITCOIN_UTIL) \
-  $(LIBSIGMA) \
+  $(LIBNEXTGEN) \
   $(LIBBITCOIN_COMMON) \
   $(LIBBITCOIN_CONSENSUS) \
   $(LIBBITCOIN_SERVER) \
@@ -434,17 +434,25 @@ libbitcoin_util_a_SOURCES = \
   libzerocoin/Zerocoin.h \
   $(BITCOIN_CORE_H)
 
-libsigma_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
-libsigma_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-libsigma_a_SOURCES = \
-  libzerocoin/common/GeneratorVector.h \
-  libzerocoin/sigma/R1Proof.h \
-  libzerocoin/sigma/R1ProofGenerator.h \
-  libzerocoin/sigma/R1ProofVerifier.h \
-  libzerocoin/sigma/SigmaPlusProof.h \
-  libzerocoin/sigma/SigmaPlusProver.h \
-  libzerocoin/sigma/SigmaPlusVerifier.h \
-  libzerocoin/sigma/SigmaPrimitives.h
+libnextgen_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
+libnextgen_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+libnextgen_a_SOURCES = \
+  common/GeneratorVector.h \
+  nextgen/SigmaPlusProof.h \
+  nextgensigma/SigmaPlusProver.h \
+  nextgen/SigmaPlusVerifier.h \
+  nextgen/NextGenPrimitives.h \
+  nextgen/NextGenProof \
+  nextgen/NextGenProver.h \
+  nextgen/NextGenVerifier \
+  nextgen/ShnorrProof.h \
+  nextgen/ShnorrProver.h \
+  nextgen/ShnorrVerifier.h \
+  nextgen/Coin.h \
+  nextgen/Coin.cpp \
+  nextgen/Params.h \
+  nextgen/Params.cpp
+
 
 if GLIBC_BACK_COMPAT
 libbitcoin_util_a_SOURCES += compat/glibc_compat.cpp

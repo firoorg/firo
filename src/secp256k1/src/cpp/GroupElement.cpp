@@ -1,7 +1,7 @@
 #include "include/GroupElement.h"
 #include <stdlib.h>
 #include "gmp.h"
-
+#include <openssl/rand.h>
 namespace secp_primitives {
 
 secp256k1_ecmult_context GroupElement::ctx;
@@ -146,18 +146,17 @@ bool GroupElement::isMember() const
 }
 
 void GroupElement::randomize(){
-    std::random_device rd;
-    std::mt19937 rand(rd());
-    randomize(rand);
-}
-
-void GroupElement::randomize(std::mt19937& rand){
     unsigned char temp[32] = { 0 };
 
-    for(int i = 0; i < ((sizeof(char) * 32) / sizeof(unsigned long));++i){
-        unsigned long term = rand();
-        std::memcpy(temp + i * sizeof(unsigned long), &term, sizeof(unsigned long));
-    }
+    do {
+        if (RAND_bytes(temp, 32) != 1) {
+            throw "Unable to generate random GroupElement";
+        }
+        generate(temp);
+    }while (!(this->isMember()));
+}
+
+GroupElement& GroupElement::generate(unsigned char* seed){
     unsigned char gen[33];
     static const unsigned char prefix1[16] = "1st generationn";
     static const unsigned char prefix2[16] = "2nd generationn";
@@ -169,14 +168,14 @@ void GroupElement::randomize(std::mt19937& rand){
     unsigned char b32[32];
     secp256k1_sha256_initialize(&sha256);
     secp256k1_sha256_write(&sha256, prefix1, 16);
-    secp256k1_sha256_write(&sha256, temp, 32);
+    secp256k1_sha256_write(&sha256, seed, 32);
     secp256k1_sha256_finalize(&sha256, b32);
     secp256k1_fe_set_b32(&t, b32);
     indifferent_hash(&add, &t);
     secp256k1_gej_set_ge(&accum, &add);
     secp256k1_sha256_initialize(&sha256);
     secp256k1_sha256_write(&sha256, prefix2, 16);
-    secp256k1_sha256_write(&sha256, temp, 32);
+    secp256k1_sha256_write(&sha256, seed, 32);
     secp256k1_sha256_finalize(&sha256, b32);
     secp256k1_fe_set_b32(&t, b32);
     indifferent_hash(&add, &t);
@@ -194,6 +193,16 @@ void GroupElement::randomize(std::mt19937& rand){
         secp256k1_ge_neg(&ge, &ge);
     }
     secp256k1_gej_set_ge(&g_, &ge);
+    return *this;
+}
+
+void GroupElement::sha256(unsigned char* result) const{
+    unsigned char buff[64];
+    secp256k1_fe_get_b32(&buff[0], &g_.x);
+    secp256k1_fe_get_b32(&buff[32], &g_.y);
+    secp256k1_rfc6979_hmac_sha256_t sha256;
+    secp256k1_rfc6979_hmac_sha256_initialize(&sha256, buff, 64);
+    secp256k1_rfc6979_hmac_sha256_generate(&sha256,  result, 32);
 }
 
 char* _convertToString(char* str,const unsigned char* buffer,int base) {

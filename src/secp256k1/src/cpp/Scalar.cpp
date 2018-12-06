@@ -3,10 +3,10 @@
 #include "../scalar_impl.h"
 #include "../hash_impl.h"
 #include "../hash.h"
-//#include "../../crypto/common.h"
 #include "../../crypto/sha256.h"
 #include <sstream>
 #include <iostream>
+#include <openssl/rand.h>
 
 namespace secp_primitives {
 
@@ -17,6 +17,10 @@ Scalar::Scalar()
 Scalar::Scalar(uint64_t value)
    : value_(new secp256k1_scalar()) {
     secp256k1_scalar_set_int(value_.get(), value);
+}
+
+Scalar::Scalar(const unsigned char *bin){
+    secp256k1_scalar_set_b32(value_.get(), bin, NULL);
 }
 
 Scalar::Scalar(const char* str)
@@ -105,6 +109,10 @@ bool Scalar::operator==(const Scalar& other)const {
     return secp256k1_scalar_eq(value_.get(), other.value_.get());
 }
 
+bool Scalar::operator!=(const Scalar& other)const {
+    return !(secp256k1_scalar_eq(value_.get(), other.value_.get()));
+}
+
 const secp256k1_scalar &Scalar::get_value() const {
     return *value_;
 }
@@ -155,15 +163,16 @@ bool Scalar::isMember() const{
     }
 
 Scalar& Scalar::randomize(){
-    std::random_device rd;
-    std::mt19937 rand(rd());
-    return randomize(rand);
+    unsigned char temp[32] = { 0 };
+    do {
+        if (RAND_bytes(temp, 32) != 1) {
+            throw "Unable to generate random Scalar";
+        }
+        generate(temp);
+    }while (!(this->isMember()));
 }
-Scalar& Scalar::randomize(std::mt19937& rand){
-    for(int i = 0; i < ((sizeof(secp256k1_scalar) / sizeof(unsigned long)));++i){
-       unsigned long term = rand();
-       std::memcpy((*value_.get()).d + i, &term, sizeof(unsigned long));
-    }
+Scalar& Scalar::generate(unsigned char* buff){
+    secp256k1_scalar_set_b32(value_.get(), buff, NULL);
     secp256k1_scalar zero;
      secp256k1_scalar_set_int(&zero, 0);
      secp256k1_scalar_add(value_.get(),value_.get(),&zero);
