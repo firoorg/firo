@@ -616,8 +616,8 @@ UniValue balance(Type type, const UniValue& data, const UniValue& auth, bool fHe
     CAmount zerocoinUnconfirmed = zerocoinAll - zerocoinConfirmed; 
 
     // // We now have all base units, derive return values.
-    CAmount total = xzcConfirmed + xzcUnconfirmed + xzcLocked + zerocoinAll + xzcImmature;
-    CAmount pending = total - xzcConfirmed - zerocoinConfirmed - xzcLocked;
+    CAmount total = xzcConfirmed + xzcUnconfirmed + zerocoinAll + xzcImmature;
+    CAmount pending = total - xzcConfirmed - zerocoinConfirmed;
     CAmount available = total - xzcLocked - xzcUnconfirmed - zerocoinUnconfirmed - xzcImmature;
 
     
