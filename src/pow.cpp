@@ -74,7 +74,9 @@ unsigned int GetNextWorkRequired(const CBlockIndex *pindexLast, const CBlockHead
         return params.nInitialMTPDifficulty;
     }
 
-    static const uint32_t BlocksTargetSpacing = fMTP ? params.nPowTargetSpacingMTP : params.nPowTargetSpacing; // 5 or 10 minutes
+    const uint32_t BlocksTargetSpacing = 
+        (params.nMTPFiveMinutesStartBlock == 0 && fMTP) || (params.nMTPFiveMinutesStartBlock > 0 && pindexLast->nHeight >= params.nMTPFiveMinutesStartBlock) ?
+            params.nPowTargetSpacingMTP : params.nPowTargetSpacing;
     unsigned int TimeDaySeconds = 60 * 60 * 24;
     int64_t PastSecondsMin = TimeDaySeconds * 0.25; // 21600
     int64_t PastSecondsMax = TimeDaySeconds * 7;// 604800
