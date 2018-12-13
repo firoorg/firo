@@ -101,6 +101,8 @@ struct Params {
 
     /** switch to MTP time */
     uint32_t nMTPSwitchTime;
+    /** block number to reduce distance between blocks */
+    int nMTPFiveMinutesStartBlock;
 
     /** don't adjust difficulty until some block number */
     int nDifficultyAdjustStartBlock;
