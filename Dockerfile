@@ -57,8 +57,16 @@ USER zcoind
 RUN mkdir /home/zcoind/.zcoin
 VOLUME [ "/home/zcoind/.zcoin" ]
 
+# Main network ports
 EXPOSE 8168
 EXPOSE 8888
+
+# Test network ports
+EXPOSE 18168
+EXPOSE 18888
+
+# Regression test network ports
 EXPOSE 18444
+EXPOSE 28888
 
 ENTRYPOINT [ "/usr/bin/zcoind" ]
