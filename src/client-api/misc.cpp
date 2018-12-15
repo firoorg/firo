@@ -4,6 +4,7 @@
 
 #include "znodeman.h"
 #include "main.h"
+#include "init.h"
 #include "client-api/server.h"
 #include "rpc/server.h"
 #include "znode-sync.h"
@@ -86,11 +87,25 @@ UniValue backup(Type type, const UniValue& data, const UniValue& auth, bool fHel
     return true;
 }
 
+UniValue stop(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
+{
+    // Accept the deprecated and ignored 'detach' boolean argument
+    if (fHelp)
+        throw runtime_error(
+            "stop\n"
+            "\nStop Zcoin server.");
+    // Event loop will exit after current HTTP requests have been handled, so
+    // this reply will get back to the client.
+    StartShutdown();
+    return true;
+}
+
 static const CAPICommand commands[] =
 { //  category              collection         actor (function)          authPort   authPassphrase   warmupOk
   //  --------------------- ------------       ----------------          -------- --------------   --------
     { "misc",               "apiStatus",       &apistatus,               false,     false,           true   },
-    { "misc",               "backup",          &backup,                  true,      false,           false  }
+    { "misc",               "backup",          &backup,                  true,      false,           false  },
+    { "misc",               "stop",            &stop,                    true,      false,           false  }
 };
 
 void RegisterMiscAPICommands(CAPITable &tableAPI)
