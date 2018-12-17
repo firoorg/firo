@@ -136,12 +136,29 @@ UniValue znodecontrol(Type type, const UniValue& data, const UniValue& auth, boo
 
 UniValue znodelist(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
 
-    if(!znodeSync.IsSynced()){
-        throw runtime_error("Znode data not yet finished syncing.");
+    // If the Znode list is not yet synced, return the wallet Znodes, as described in znode.conf
+    if(!znodeSync.IsSynced()){        
+        UniValue data(UniValue::VOBJ);
+        UniValue nodes(UniValue::VOBJ);
+
+        BOOST_FOREACH(CZnodeConfig::CZnodeEntry mne, znodeConfig.getEntries()) {
+            const std::string& txHash = mne.getTxHash();
+            CZnode* mn = mnodeman.Find(txHash);
+            std::string payee = CBitcoinAddress(mn->pubKeyCollateralAddress.GetID()).ToString();
+            nodes.replace(payee, mn->ToJSON());
+        }
+
+        data.push_back(Pair("nodes", nodes));
+        data.push_back(Pair("total", mnodeman.CountZnodes()));
+
+        return data;
     }
+
+    // Otherwise, return all Znodes.
     switch(type){
         case Initial: {
             UniValue data(UniValue::VOBJ);
+            UniValue nodes(UniValue::VOBJ);
 
             std::unordered_map<std::string, int> ranks;
 
@@ -153,12 +170,14 @@ UniValue znodelist(Type type, const UniValue& data, const UniValue& auth, bool f
             }
 
             std::vector <CZnode> vZnodes = mnodeman.GetFullZnodeVector();
-            BOOST_FOREACH(CZnode & mn, vZnodes)
-            {
+            BOOST_FOREACH(CZnode & mn, vZnodes) {
                 std::string payee = CBitcoinAddress(mn.pubKeyCollateralAddress.GetID()).ToString();
                 mn.SetRank(ranks[payee], false);
-                data.replace(payee, mn.ToJSON());
+                nodes.replace(payee, mn.ToJSON());
             }
+
+            data.push_back(Pair("nodes", nodes));
+            data.push_back(Pair("total", mnodeman.CountZnodes()));
 
             return data;
 
