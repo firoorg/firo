@@ -227,6 +227,7 @@ public:
     void DsegUpdate(CNode* pnode);
 
     /// Find an entry
+    CZnode* Find(const std::string &txHash);
     CZnode* Find(const CScript &payee);
     CZnode* Find(const CTxIn& vin);
     CZnode* Find(const CPubKey& pubKeyZnode);
