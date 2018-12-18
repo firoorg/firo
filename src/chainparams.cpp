@@ -299,7 +299,7 @@ public:
         consensus.nModulusV1MempoolStopBlock = ZC_MODULUS_V1_TESTNET_MEMPOOL_STOP_BLOCK;
 	    consensus.nModulusV1StopBlock = ZC_MODULUS_V1_TESTNET_STOP_BLOCK;
         consensus.nMultipleSpendInputsInOneTxStartBlock = 1;
-        consensus.nDontAllowDupTxsStartBlock = 1;
+        consensus.nDontAllowDupTxsStartBlock = 18825;
 
         // Znode params testnet
         consensus.nZnodePaymentsStartBlock = 2200;
