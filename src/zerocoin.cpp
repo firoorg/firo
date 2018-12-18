@@ -192,7 +192,7 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
 
         // check if there are spends with the same serial within one block
         // do not check for duplicates in case we've seen exact copy of this tx in this block before
-        if (!(zerocoinTxInfo && zerocoinTxInfo->zcTransactions.count(hashTx) > 0)) {
+        if (nHeight >= params.nDontAllowDupTxsStartBlock || !(zerocoinTxInfo && zerocoinTxInfo->zcTransactions.count(hashTx) > 0)) {
             if (!CheckZerocoinSpendSerial(state, params, zerocoinTxInfo, newSpend.getDenomination(), serial, nHeight, false))
                 return false;
         }
