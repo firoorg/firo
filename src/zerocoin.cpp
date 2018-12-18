@@ -69,12 +69,7 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
     bool hasZerocoinSpendInputs = false, hasNonZerocoinInputs = false;
     int vinIndex = -1;
 
-    // use temporary tx info in case of mempool check
-    std::shared_ptr<CZerocoinTxInfo> tempZerocoinTxInfo;
-    if (nHeight == INT_MAX && !zerocoinTxInfo) {
-        tempZerocoinTxInfo = std::make_shared<CZerocoinTxInfo>();
-        zerocoinTxInfo = tempZerocoinTxInfo.get();
-    }
+    set<CBigNum> serialsUsedInThisTx;
 
     BOOST_FOREACH(const CTxIn &txin, tx.vin){
         vinIndex++;
@@ -190,6 +185,10 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
         // check if there are spends with the same serial within one block
         // do not check for duplicates in case we've seen exact copy of this tx in this block before
         if (nHeight >= params.nDontAllowDupTxsStartBlock || !(zerocoinTxInfo && zerocoinTxInfo->zcTransactions.count(hashTx) > 0)) {
+            if (serialsUsedInThisTx.count(serial) > 0)
+                return state.DoS(0, error("CTransaction::CheckTransaction() : two or more spends with same serial in the same block"));
+            serialsUsedInThisTx.insert(serial);
+
             if (!CheckZerocoinSpendSerial(state, params, zerocoinTxInfo, newSpend.getDenomination(), serial, nHeight, false))
                 return false;
         }
