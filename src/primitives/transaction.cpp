@@ -52,6 +52,13 @@ bool CTxIn::IsZerocoinSpend() const
     return (prevout.IsNull() && scriptSig.size() > 0 && (scriptSig[0] == OP_ZEROCOINSPEND) );
 }
 
+bool CTxIn::IsZerocoinSpendV3() const
+{
+    return (prevout.IsNull() && scriptSig.size() > 0 && (scriptSig[0] == OP_ZEROCOINSPENDV3) );
+}
+
+
+
 std::string CTxIn::ToString() const
 {
     std::string str;
@@ -200,14 +207,26 @@ double CTransaction::ComputePriority(double dPriorityInputs, unsigned int nTxSiz
 
 bool CTransaction::IsCoinBase() const
 {
-    return (vin.size() == 1 && vin[0].prevout.IsNull() && (vin[0].scriptSig.size() == 0 || vin[0].scriptSig[0] != OP_ZEROCOINSPEND) );
+    // TODO(martun): not sure if OP_ZEROCOINSPENDV3 must be here.
+    return (vin.size() == 1 && vin[0].prevout.IsNull() && (vin[0].scriptSig.size() == 0 || (vin[0].scriptSig[0] != OP_ZEROCOINSPEND && vin[0].scriptSig[0] != OP_ZEROCOINSPENDV3)) );
 }
 
 bool CTransaction::IsZerocoinSpend() const
 {
     for (std::vector<CTxIn>::const_iterator it(vin.begin()); it != vin.end(); ++it)
     {
-        if(!((*it).IsZerocoinSpend())) return false;
+        if (!((*it).IsZerocoinSpend())) 
+            return false;
+    }
+    return (vout.size()==1);
+}
+
+bool CTransaction::IsZerocoinSpendV3() const
+{
+    for (std::vector<CTxIn>::const_iterator it(vin.begin()); it != vin.end(); ++it)
+    {
+        if (!((*it).IsZerocoinSpendV3())) 
+            return false;
     }
     return (vout.size()==1);
 }
@@ -220,6 +239,26 @@ bool CTransaction::IsZerocoinMint() const
             return true;
     }
     return false;
+}
+
+bool CTransaction::IsZerocoinMintV3() const
+{
+    for (std::vector<CTxOut>::const_iterator it(vout.begin()); it != vout.end(); ++it)
+    {
+        if (it->scriptPubKey.IsZerocoinMintV3())
+            return true;
+    }
+    return false;
+}
+
+bool CTransaction::IsZerocoinTransaction() const
+{
+    return IsZerocoinSpend() || IsZerocoinMint() || IsZerocoinSpendV3() || IsZerocoinMintV3();
+}
+
+bool CTransaction::IsZerocoinV3SigmaTransaction() const
+{
+    return IsZerocoinSpendV3() || IsZerocoinMintV3();
 }
 
 unsigned int CTransaction::CalculateModifiedSize(unsigned int nTxSize) const

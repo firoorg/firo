@@ -1164,14 +1164,14 @@ bool CheckTransaction(
     if (tx.IsCoinBase()) {
         if (tx.vin[0].scriptSig.size() < 2 || tx.vin[0].scriptSig.size() > 100)
             return state.DoS(100, false, REJECT_INVALID, "bad-cb-length");
-    } else {
+    } else if (tx.IsZerocoinTransaction()) {
 	    BOOST_FOREACH(const CTxIn &txin, tx.vin) {
-		    if (txin.prevout.IsNull() && !txin.scriptSig.IsZerocoinSpend()) {
+		    if (txin.prevout.IsNull() && !txin.scriptSig.IsZerocoinSpend()
+                    && !txin.scriptSig.IsZerocoinSpendV3()) {
 			    return state.DoS(10, false, REJECT_INVALID, "bad-txns-prevout-null");
 		    }
 	    }
-        if (true) {
-        //if (tx is v3) {
+        if (tx.IsZerocoinV3SigmaTransaction()) {
             if (!CheckZerocoinTransactionV3(
                     tx, 
                     state,
@@ -3023,7 +3023,8 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
     if (!fJustCheck)
         MTPState::GetMTPState()->SetLastBlock(pindex, chainparams.GetConsensus());
 
-    if (!ConnectBlockZC(state, chainparams, pindex, &block, fJustCheck))
+    if (!ConnectBlockZC(state, chainparams, pindex, &block, fJustCheck) ||
+        !ConnectBlockZCV3(state, chainparams, pindex, &block, fJustCheck))
         return false;
 
     if (fJustCheck)

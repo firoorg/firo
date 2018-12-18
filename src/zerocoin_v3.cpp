@@ -494,7 +494,8 @@ void CZerocoinStateV3::AddBlock(CBlockIndex *index) {
 
 void CZerocoinStateV3::RemoveBlock(CBlockIndex *index) {
 	// roll back accumulator updates
-	BOOST_FOREACH(const PAIRTYPE(PAIRTYPE(int,int),vector<PublicCoinV3>) &coin, index->mintedPubCoinsV3)
+	BOOST_FOREACH(const PAIRTYPE(PAIRTYPE(int,int),vector<PublicCoinV3>) &coin, 
+                  index->mintedPubCoinsV3)
 	{
 		CoinGroupInfoV3   &coinGroup = coinGroups[coin.first];
 		int  nMintsToForget = coin.second.size();
@@ -596,6 +597,7 @@ std::pair<int, int> CZerocoinStateV3::GetMintedCoinHeightAndId(
 }
 
 bool CZerocoinStateV3::TestValidity(CChain *chain) {
+    // TODO(martun): finish implementing this.
 	/*
 	   BOOST_FOREACH(const PAIRTYPE(PAIRTYPE(int,int), CoinGroupInfoV3) &coinGroup, coinGroups) {
 	   fprintf(stderr, "TestValidity[denomination=%d, id=%d]\n", coinGroup.first.first, coinGroup.first.second);

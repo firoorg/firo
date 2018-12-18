@@ -2753,11 +2753,11 @@ UniValue mintzerocoin(const UniValue& params, bool fHelp)
 UniValue mintzerocoinV3(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() > 1)
-        throw runtime_error("mintzerocoin <amount>(1,10,25,50,100)\n" + HelpRequiringPassphrase());
+        throw runtime_error("mintzerocoinV3 <amount>(1,10,25,50,100)\n" + HelpRequiringPassphrase());
 
     int64_t nAmount = 0;
     sigma::CoinDenominationV3 denomination;
-    // Amount
+    // Amount // TODO(martun): change the denominations over here.
     if (params[0].get_real() == 1.0) {
         denomination = sigma::ZQ_LOVELACE;
         nAmount = AmountFromValue(params[0]);
@@ -2794,7 +2794,7 @@ UniValue mintzerocoinV3(const UniValue& params, bool fHelp)
     // Validate
     if (pubCoin.validate()) {
         CScript scriptSerializedCoin =
-                CScript() << OP_ZEROCOINMINT << pubCoin.getValue().memoryRequired() << pubCoin.getValue().getvch();
+                CScript() << OP_ZEROCOINMINTV3 << pubCoin.getValue().memoryRequired() << pubCoin.getValue().getvch();
 
         if (pwalletMain->IsLocked())
             throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Error: Please enter the wallet passphrase with walletpassphrase first.");
@@ -3024,7 +3024,7 @@ UniValue mintmanyzerocoinV3(const UniValue& params, bool fHelp)
 
             // Create script for coin
             CScript scriptSerializedCoin =
-                    CScript() << OP_ZEROCOINMINT << pubCoin.getValue().memoryRequired() << pubCoin.getValue().getvch();
+                    CScript() << OP_ZEROCOINMINTV3 << pubCoin.getValue().memoryRequired() << pubCoin.getValue().getvch();
 
             CRecipient recipient = {scriptSerializedCoin, (denominationInt * COIN), false};
 
