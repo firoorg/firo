@@ -68,6 +68,14 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
     int txHeight = chainActive.Height();
     bool hasZerocoinSpendInputs = false, hasNonZerocoinInputs = false;
     int vinIndex = -1;
+
+    // use temporary tx info in case of mempool check
+    std::shared_ptr<CZerocoinTxInfo> tempZerocoinTxInfo;
+    if (nHeight == INT_MAX && !zerocoinTxInfo) {
+        tempZerocoinTxInfo = std::make_shared<CZerocoinTxInfo>();
+        zerocoinTxInfo = tempZerocoinTxInfo.get();
+    }
+
     BOOST_FOREACH(const CTxIn &txin, tx.vin){
         vinIndex++;
         if (txin.scriptSig.IsZerocoinSpend()) {
