@@ -455,7 +455,7 @@ public:
 
     bool IsZerocoinSpend() const;
 
-    bool IsZerocoinMint(const CTransaction& tx) const;
+    bool IsZerocoinMint() const;
 
 
     friend bool operator==(const CTransaction& a, const CTransaction& b)

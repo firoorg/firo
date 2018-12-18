@@ -212,11 +212,11 @@ bool CTransaction::IsZerocoinSpend() const
     return (vout.size()==1);
 }
 
-bool CTransaction::IsZerocoinMint(const CTransaction& tx) const
+bool CTransaction::IsZerocoinMint() const
 {
-    for (std::vector<CTxOut>::const_iterator it(tx.vout.begin()); it != tx.vout.end(); ++it)
+    for (std::vector<CTxOut>::const_iterator it(vout.begin()); it != vout.end(); ++it)
     {
-        if (it -> scriptPubKey.IsZerocoinMint())
+        if (it->scriptPubKey.IsZerocoinMint())
             return true;
     }
     return false;

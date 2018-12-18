@@ -204,8 +204,8 @@ BITCOIN_CORE_H = \
   zmq/zmqnotificationinterface.h \
   zmq/zmqpublishnotifier.h \
   zerocoin.h \
-  hash_functions.h \
   zerocoin_v3.h \
+  hash_functions.h \
   zerocoin_params.h \
   sigma/GKEllipticCurve.hpp \
   sigma/GKGroups.hpp \
@@ -264,6 +264,7 @@ libbitcoin_server_a_SOURCES = \
   validationinterface.cpp \
   versionbits.cpp \
   zerocoin.cpp \
+  zerocoin_v3.cpp \
   hash_functions.cpp \
   sigma/GKEllipticCurve.cpp \
   sigma/GKGroups.cpp \
@@ -538,6 +539,7 @@ zcoin_cli_LDADD = \
   $(LIBBITCOIN_CLI) \
   $(LIBUNIVALUE) \
   $(LIBBITCOIN_UTIL) \
+  #(LIBSIGMA) \
   $(LIBBITCOIN_CRYPTO)
 
 zcoin_cli_LDADD += $(BOOST_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(EVENT_LIBS)
