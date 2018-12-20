@@ -389,7 +389,7 @@ void CZnode::SetBlockLastPaid(int newBlockLastPaid) {
 void CZnode::SetRank(int newRank, bool nPublish) {
      if(nRank!=newRank){
         nRank = newRank;
-        if(nRank < 0) ? nRank = 0;
+        if(nRank < 0) nRank = 0;
         if(nPublish){
             GetMainSignals().UpdatedZnode(*this);
         }
