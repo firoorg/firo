@@ -7,6 +7,7 @@
 #include "init.h"
 #include "util.h"
 #include "client-api/server.h"
+#include "client-api/protocol.h"
 #include "rpc/server.h"
 #include "znode-sync.h"
 #include "wallet/wallet.h"
