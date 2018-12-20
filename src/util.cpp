@@ -111,14 +111,6 @@ int nWalletBackups = 10;
 const char * const BITCOIN_CONF_FILENAME = "zcoin.conf";
 const char * const BITCOIN_PID_FILENAME = "zcoind.pid";
 
-const char * const PERSISTENT_FILENAME = "persistent";
-
-const char * const PAYMENT_REQUEST_FILENAME = "payment_request.json";
-const char * const TX_METADATA_FILENAME = "tx_metadata.json";
-const char * const ZEROCOIN_FILENAME = "zerocoin.json";
-const char * const SETTINGS_FILENAME = "settings.json";
-const char * const TX_TIMESTAMP_FILENAME = "tx_timestamp.json";
-
 map<string, string> mapArgs;
 map<string, vector<string> > mapMultiArgs;
 bool fDebug = false;
@@ -771,17 +763,45 @@ void CreatePidFile(const boost::filesystem::path &path, pid_t pid)
 }
 #endif
 
+/*
+ * Creates a ZIP file -
+    after specifying an absolute path to a "root" directory, all filepaths derived from this path are stored in the ZIP file,
+    with only files and their paths from the root preserved.
+    eg. root path:                 /a/b/c/d/
+        filepaths(from root path): e/f.txt
+                                   g.dat
 
-bool CreateZipFile (std::vector<std::string> paths, std::string destinationPath)
+    paths to folders (again, from a root) can be provided - in this case the method derives all sub-files and adds to "filePaths".
+    eg. folder path:  h/i
+        derives files: h/i/j.exe
+                       h/i/k.o
+                       h/i/l/m.jpeg
+
+    Breaking up the root and derived paths allows for easy unzipping from the same directory - the layout is preserved.
+*/
+bool CreateZipFile (std::string rootPath, std::vector<string> folderPaths, vector<string> filePaths, std::string destinationPath)
 {
     zipFile zf = zipOpen(destinationPath.c_str(), APPEND_STATUS_CREATE);
     if (zf == NULL)
         return 1;
 
-    bool _return = true;
-    for (size_t i = 0; i < paths.size(); i++)
+    BOOST_FOREACH(std::string folderPath, folderPaths){
+        std::string fullFolderPath = rootPath + folderPath;
+        for (const auto & entry : boost::filesystem::directory_iterator(fullFolderPath)){
+            std::string fullFolderFilePath = entry.path().string();
+            std::string folderFilePath = fullFolderFilePath.substr(rootPath.length());
+            filePaths.push_back(folderFilePath);
+        }
+    }
+
+    bool failed = false;
+    BOOST_FOREACH(string filePath, filePaths)
     {
-        std::fstream file(paths[i].c_str(), std::ios::binary | std::ios::in);
+        if(failed){
+            break;
+        }
+        std::string fullPath = rootPath + filePath;
+        std::fstream file(fullPath.c_str(), std::ios::binary | std::ios::in);
         if (file.is_open())
         {
             file.seekg(0, std::ios::end);
@@ -789,18 +809,17 @@ bool CreateZipFile (std::vector<std::string> paths, std::string destinationPath)
             file.seekg(0, std::ios::beg);
 
             std::vector<char> buffer(size);
-            if (size == 0 || file.read(&buffer[0], size))
-            {
+            if (size == 0 || file.read(&buffer[0], size)){
                 zip_fileinfo zfi = { 0 };
-                std::string fileName = paths[i].substr(paths[i].rfind('\\')+1);
-
-                if (zipOpenNewFileInZip(zf, std::string(fileName.begin(), fileName.end()).c_str(), &zfi, NULL, 0, NULL, 0, NULL, Z_DEFLATED, Z_DEFAULT_COMPRESSION))
+                if (ZIP_OK == zipOpenNewFileInZip(zf, filePath.c_str(), &zfi, NULL, 0, NULL, 0, NULL, Z_DEFLATED, Z_DEFAULT_COMPRESSION))
                 {
-                    if (zipWriteInFileInZip(zf, size == 0 ? "" : &buffer[0], size))
-                        _return = false;
+                    if (ZIP_OK != zipWriteInFileInZip(zf, size == 0 ? "" : &buffer[0], size)){
+                        failed = true;
+                    }
 
-                    if (zipCloseFileInZip(zf))
-                        _return = false;
+                    if (ZIP_OK != zipCloseFileInZip(zf)){
+                        failed = true;
+                    }
 
                     file.close();
                     continue;
@@ -808,14 +827,15 @@ bool CreateZipFile (std::vector<std::string> paths, std::string destinationPath)
             }
             file.close();
         }
-        _return = false;
+        failed = true;
     }
 
-    if (zipClose(zf, NULL))
-        return 3;
+    zipClose(zf, NULL);
 
-    if (!_return)
-        return 4;
+    if (failed){
+        return false;
+    }
+
     return true;
 }
 
