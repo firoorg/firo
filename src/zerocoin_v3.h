@@ -194,9 +194,6 @@ public:
     // Reset to initial values
     void Reset();
 
-    // Test function
-    bool TestValidity(CChain *chain);
-
     // Check if there is a conflicting tx in the blockchain or mempool
     bool CanAddSpendToMempool(const Scalar& coinSerial);
 

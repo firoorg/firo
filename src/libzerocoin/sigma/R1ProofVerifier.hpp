@@ -37,6 +37,10 @@ bool R1ProofVerifier<Exponent,GroupElement>::verify(
             return false;
     }
 
+    if(!(proof_.ZA_.isMember() &&
+         proof_.ZC_.isMember()))
+        return false;
+
     Exponent x;
     SigmaPrimitives<Exponent, GroupElement>::get_x(proof_.A_,proof_.C_, proof_.D_, x);
     x_ = x;

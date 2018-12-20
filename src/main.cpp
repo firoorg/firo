@@ -1284,14 +1284,16 @@ bool AcceptToMemoryPoolWorker(
     //btzc
     CZerocoinState *zcState = CZerocoinState::GetZerocoinState();
     vector<CBigNum> zcSpendSerials;
-    CBigNum zcSpendSerial;
+
+    // V3 sigma spends.
+    CZerocoinStateV3 *zcStateV3 = CZerocoinStateV3::GetZerocoinState();
+    vector<Scalar> zcSpendSerialsV3;
     {
         LOCK(pool.cs); // protect pool.mapNextTx
         if (tx.IsZerocoinSpend()) {
-            BOOST_FOREACH(
-            const CTxIn &txin, tx.vin)
+            BOOST_FOREACH(const CTxIn &txin, tx.vin)
             {
-                zcSpendSerial = ZerocoinGetSpendSerialNumber(tx, txin);
+                CBigNum zcSpendSerial = ZerocoinGetSpendSerialNumber(tx, txin);
                 if (!zcSpendSerial)
                     return state.Invalid(false, REJECT_INVALID, "txn-invalid-zerocoin-spend");
                 if (!zcState->CanAddSpendToMempool(zcSpendSerial)) {
@@ -1299,6 +1301,25 @@ bool AcceptToMemoryPoolWorker(
                     return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
                 }
                 zcSpendSerials.push_back(zcSpendSerial);
+            }
+        }
+        else if (tx.IsZerocoinSpendV3()) {
+            Scalar zcSpendSerial = ZerocoinGetSpendSerialNumberV3(tx);
+            Scalar zero;
+            // Allow only single spends for now.
+            if (tx.vin.size() != 1) {
+                LogPrintf("AcceptToMemoryPool(): sigma spend tramsactopn %s has multiple inputs\n", zcSpendSerial.tostring());
+                return state.Invalid(false, REJECT_INVALID, "txn-zerocoin-spend-with-multiple-inputs");
+            }
+            BOOST_FOREACH(const CTxIn &txin, tx.vin)
+            {
+                if (zcSpendSerial == zero)
+                    return state.Invalid(false, REJECT_INVALID, "txn-invalid-zerocoin-spend");
+                if (!zcStateV3->CanAddSpendToMempool(zcSpendSerial)) {
+                    LogPrintf("AcceptToMemoryPool(): sigma serial number %s has been used\n", zcSpendSerial.tostring());
+                    return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
+                }
+                zcSpendSerialsV3.push_back(zcSpendSerial);
             }
         }
         else {
@@ -1392,7 +1413,7 @@ bool AcceptToMemoryPoolWorker(
             }
         } // LOCK
 
-        if (!tx.IsZerocoinSpend() && fCheckInputs) {
+        if (!tx.IsZerocoinSpend() && !tx.IsZerocoinSpendV3() && fCheckInputs) {
 
             // Check for non-standard pay-to-script-hash in inputs
             if (!fTestNet && fRequireStandard && !AreInputsStandard(tx, view)) {
@@ -1736,6 +1757,11 @@ bool AcceptToMemoryPoolWorker(
 
     if (tx.IsZerocoinSpend() && markZcoinSpendTransactionSerial)
         zcState->AddSpendToMempool(zcSpendSerials, hash);
+    if (tx.IsZerocoinSpendV3() && markZcoinSpendTransactionSerial) {
+        BOOST_FOREACH(const Scalar& coinSerial, zcSpendSerialsV3) {
+            zcStateV3->AddSpendToMempool(coinSerial, hash);
+        }
+    }
 
     SyncWithWallets(tx, NULL, NULL);
     LogPrintf("AcceptToMemoryPoolWorker -> OK\n");
@@ -2839,7 +2865,7 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
 
         nInputs += tx.vin.size();
 
-        if (!tx.IsCoinBase() && !tx.IsZerocoinSpend()) {
+        if (!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsZerocoinSpendV3()) {
             if (!view.HaveInputs(tx))
                 return state.DoS(100, error("ConnectBlock(): inputs missing/spent"),
                                  REJECT_INVALID, "bad-txns-inputs-missingorspent");
@@ -3094,6 +3120,7 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
 
     // Erase conflicting zerocoin txs from the mempool
     CZerocoinState *zcState = CZerocoinState::GetZerocoinState();
+    CZerocoinStateV3 *zcStateV3 = CZerocoinStateV3::GetZerocoinState();
     BOOST_FOREACH(const CTransaction &tx, block.vtx) {
         if (tx.IsZerocoinSpend()) {
             BOOST_FOREACH(
@@ -3114,7 +3141,25 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
                 // In any case we need to remove serial from mempool set
                 zcState->RemoveSpendFromMempool(zcSpendSerial);
             }
-        }
+       } else if (tx.IsZerocoinSpendV3()) {
+            BOOST_FOREACH(const CTxIn &txin, tx.vin)
+            {
+                Scalar zcSpendSerial = ZerocoinGetSpendSerialNumberV3(tx);
+                uint256 thisTxHash = tx.GetHash();
+                uint256 conflictingTxHash = zcStateV3->GetMempoolConflictingTxHash(zcSpendSerial);
+                if (!conflictingTxHash.IsNull() && conflictingTxHash != thisTxHash) {
+                    std::list<CTransaction> removed;
+                    auto pTx = mempool.get(conflictingTxHash);
+                    if (pTx)
+                        mempool.removeRecursive(*pTx, removed);
+                    LogPrintf("ConnectBlock: removed conflicting zerocoin sigma spend tx %s from the mempool\n",
+                              conflictingTxHash.ToString());
+                }
+
+                // In any case we need to remove serial from mempool set
+                zcStateV3->RemoveSpendFromMempool(zcSpendSerial);
+            }
+       }
     }
 
     int64_t nTime6 = GetTimeMicros();
@@ -3339,6 +3384,7 @@ bool static DisconnectTip(CValidationState &state, const CChainParams &chainpara
     LogPrint("bench", "- Disconnect block: %.2fms\n", (GetTimeMicros() - nStart) * 0.001);
 
 	DisconnectTipZC(block, pindexDelete);
+	DisconnectTipZCV3(block, pindexDelete);
     // Roll back MTP state
     MTPState::GetMTPState()->SetLastBlock(pindexDelete->pprev, chainparams.GetConsensus());
 
@@ -4222,6 +4268,11 @@ bool CheckBlockHeader(const CBlockHeader &block, CValidationState &state, const 
 bool CheckBlock(const CBlock &block, CValidationState &state,
                 const Consensus::Params &consensusParams, bool fCheckPOW,
                 bool fCheckMerkleRoot, int nHeight, bool isVerifyDB) {
+    // CheckBlock not only checks the block, but also fills up zerocoinTxInfo and zerocoinTxInfoV3.
+    if (!block.zerocoinTxInfo)
+        block.zerocoinTxInfo = std::make_shared<CZerocoinTxInfo>();
+    if (!block.zerocoinTxInfoV3)
+        block.zerocoinTxInfoV3 = std::make_shared<CZerocoinTxInfoV3>();
     LogPrintf("CheckBlock() nHeight=%s, blockHash= %s, isVerifyDB = %s\n",
               nHeight, block.GetHash().ToString(), isVerifyDB);
     try {
@@ -4320,9 +4371,6 @@ bool CheckBlock(const CBlock &block, CValidationState &state,
             return state.Invalid(
                     false, state.GetRejectCode(), state.GetRejectReason(), "Zerocoin founders input check failure");
         }
-
-        //if (block.zerocoinTxInfo == NULL && block.zerocoinTxInfoV3 == NULL)
-        //    block.zerocoinTxInfoV3 = std::make_shared<CZerocoinTxInfoV3>();
 
         // Our transaction is V1 or V2, so perform appropriate checks.
         BOOST_FOREACH(const CTransaction& tx, block.vtx) {
@@ -5055,6 +5103,7 @@ bool static LoadBlockIndexDB() {
     // some blocks in index can change as a result of ZerocoinBuildStateFromIndex() call
     set<CBlockIndex *> changes;
     ZerocoinBuildStateFromIndex(&chainActive, changes);
+    ZerocoinBuildStateFromIndexV3(&chainActive);
     if (!changes.empty()) {
         setDirtyBlockIndex.insert(changes.begin(), changes.end());
         FlushStateToDisk();

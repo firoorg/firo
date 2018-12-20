@@ -20,10 +20,6 @@
 
 using namespace std;
 
-// Settings
-//int64_t nTransactionFee = 0;
-//int64_t nMinimumInputValue = DUST_HARD_LIMIT;
-
 // Set up the Zerocoin Params object
 sigma::ParamsV3* ZCParamsV3 = sigma::ParamsV3::get_default();
 
@@ -74,7 +70,7 @@ bool CheckSpendZcoinTransactionV3(
 
 	BOOST_FOREACH(const CTxIn &txin, tx.vin)
 	{
-		if (!txin.scriptSig.IsZerocoinSpend())
+		if (!txin.scriptSig.IsZerocoinSpendV3())
 			continue;
 
 		if (tx.vin.size() > 1)
@@ -110,7 +106,7 @@ bool CheckSpendZcoinTransactionV3(
 		// Obtain the hash of the transaction sans the zerocoin part
 		CMutableTransaction txTemp = tx;
 		BOOST_FOREACH(CTxIn &txTempIn, txTemp.vin) {
-			if (txTempIn.scriptSig.IsZerocoinSpend()) {
+			if (txTempIn.scriptSig.IsZerocoinSpendV3()) {
 				txTempIn.scriptSig.clear();
 				txTempIn.prevout.SetNull();
 			}
@@ -259,14 +255,14 @@ bool CheckZerocoinTransactionV3(
 {
 	// Check Mint Zerocoin Transaction
 	BOOST_FOREACH(const CTxOut &txout, tx.vout) {
-		if (!txout.scriptPubKey.empty() && txout.scriptPubKey.IsZerocoinMint()) {
+		if (!txout.scriptPubKey.empty() && txout.scriptPubKey.IsZerocoinMintV3()) {
 			if (!CheckMintZcoinTransactionV3(txout, state, hashTx, zerocoinTxInfoV3))
 				return false;
 		}
 	}
 
 	// Check Spend Zerocoin Transaction
-	if(tx.IsZerocoinSpend()) {
+	if(tx.IsZerocoinSpendV3()) {
 		// Check vOut
 		// Only one loop, we checked on the format before entering this case
 		BOOST_FOREACH(const CTxOut &txout, tx.vout)
@@ -297,7 +293,7 @@ void DisconnectTipZCV3(CBlock & /*block*/, CBlockIndex *pindexDelete) {
 }
 
 Scalar ZerocoinGetSpendSerialNumberV3(const CTransaction &tx) {
-	if (!tx.IsZerocoinSpend() || tx.vin.size() != 1)
+	if (!tx.IsZerocoinSpendV3() || tx.vin.size() != 1)
 		return Scalar(uint64_t(0));
 
 	const CTxIn &txin = tx.vin[0];
@@ -594,47 +590,6 @@ std::pair<int, int> CZerocoinStateV3::GetMintedCoinHeightAndId(
 	}
 	else
 		return std::make_pair(-1, -1);
-}
-
-bool CZerocoinStateV3::TestValidity(CChain *chain) {
-    // TODO(martun): finish implementing this.
-	/*
-	   BOOST_FOREACH(const PAIRTYPE(PAIRTYPE(int,int), CoinGroupInfoV3) &coinGroup, coinGroups) {
-	   fprintf(stderr, "TestValidity[denomination=%d, id=%d]\n", coinGroup.first.first, coinGroup.first.second);
-
-	   bool fModulusV2 = IsZerocoinTxV2((sigma::CoinDenominationV3)coinGroup.first.first, coinGroup.first.second);
-	   sigma::ParamsV3 *zcParams = fModulusV2 ? ZCParamsV3V2 : ZCParamsV3;
-
-	   libzerocoin::Accumulator acc(&zcParams->accumulatorParams, (sigma::CoinDenominationV3)coinGroup.first.first);
-
-	   CBlockIndex *block = coinGroup.second.firstBlock;
-	   for (;;) {
-	   if (block->accumulatorChanges.count(coinGroup.first) > 0) {
-	   if (block->mintedPubCoinsV3.count(coinGroup.first) == 0) {
-	   fprintf(stderr, "  no minted coins\n");
-	   return false;
-	   }
-
-	   BOOST_FOREACH(const Scalar &pubCoin, block->mintedPubCoinsV3[coinGroup.first]) {
-	   acc += sigma::PublicCoinV3(zcParams, pubCoin, (sigma::CoinDenominationV3)coinGroup.first.first);
-	   }
-
-	   if (block->accumulatorChanges[coinGroup.first].second != (int)block->mintedPubCoinsV3[coinGroup.first].size()) {
-	   fprintf(stderr, "  number of minted coins mismatch at height %d\n", block->nHeight);
-	   return false;
-	   }
-	   }
-
-	   if (block != coinGroup.second.lastBlock)
-	   block = (*chain)[block->nHeight+1];
-	   else
-	   break;
-	   }
-
-	   fprintf(stderr, "  verified ok\n");
-	   }
-	   */
-	return true;
 }
 
 bool CZerocoinStateV3::AddSpendToMempool(const Scalar &coinSerial, uint256 txHash) {

@@ -29,6 +29,9 @@ bool  SigmaPlusVerifier<Exponent, GroupElement>::verify(
         if (!Gk[k].isMember())
             return false;
     }
+
+    if(!proof.z_.isMember())
+        return false;
     int N = commits.size();
     std::vector<Exponent> f_i_;
     f_i_.reserve(N);
@@ -47,7 +50,6 @@ bool  SigmaPlusVerifier<Exponent, GroupElement>::verify(
     GroupElement t2;
     Exponent x = r1ProofVerifier.x_;
     Exponent x_k(uint64_t(1));
-    std::vector<Exponent> x_k_;
     for(int k = 0; k < m; ++k){
         t2 += (Gk[k] * (x_k.negate()));
         x_k *= x;
