@@ -517,7 +517,7 @@ zcoin_cli_LDADD = \
   $(LIBBITCOIN_UTIL) \
   $(LIBBITCOIN_CRYPTO)
 
-zcoin_cli_LDADD += $(BOOST_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(EVENT_LIBS)
+zcoin_cli_LDADD += $(BOOST_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(EVENT_LIBS) $(MINIZIP_LIBS)
 #
 
 # bitcoin-tx binary #
@@ -538,7 +538,7 @@ zcoin_tx_LDADD = \
   $(LIBBITCOIN_CRYPTO) \
   $(LIBSECP256K1)
 
-zcoin_tx_LDADD += $(BOOST_LIBS) $(CRYPTO_LIBS)
+zcoin_tx_LDADD += $(BOOST_LIBS) $(CRYPTO_LIBS) $(MINIZIP_LIBS)
 #
 
 # bitcoinconsensus library #
