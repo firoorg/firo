@@ -26,6 +26,9 @@
 #include <string>
 #include <vector>
 
+// #include "minizip/zip.h"
+// #include "minizip/unzip.h"
+
 #include <boost/filesystem/path.hpp>
 #include <boost/signals2/signal.hpp>
 #include <boost/thread/exceptions.hpp>
@@ -151,6 +154,8 @@ boost::filesystem::path GetZnodeConfigFile();
 boost::filesystem::path GetPidFile();
 void CreatePidFile(const boost::filesystem::path &path, pid_t pid);
 #endif
+
+bool CreateZipFile(std::vector<std::string> paths, std::string destinationPath);
 void ReadConfigFile(std::map<std::string, std::string>& mapSettingsRet, std::map<std::string, std::vector<std::string> >& mapMultiSettingsRet);
 #ifdef WIN32
 boost::filesystem::path GetSpecialFolderPath(int nFolder, bool fCreate = true);

@@ -787,7 +787,8 @@ if test x$use_pkgconfig = xyes; then
     [
       PKG_CHECK_MODULES([SSL], [libssl],, [AC_MSG_ERROR(openssl  not found.)])
       PKG_CHECK_MODULES([CRYPTO], [libcrypto],,[AC_MSG_ERROR(libcrypto  not found.)])
-      PKG_CHECK_MODULES(ZLIB, [zlib], [], [AC_MSG_ERROR([zlib not found])])
+      PKG_CHECK_MODULES([ZLIB], [zlib], [], [AC_MSG_ERROR([zlib not found])])
+      PKG_CHECK_MODULES([MINIZIP], [minizip], [], [AC_MSG_ERROR([minizip not found])])
       PKG_CHECK_MODULES([ZMQ],[libzmq >= 4],,[AC_MSG_ERROR(libzmq version 4.x or greater not found)])
       BITCOIN_QT_CHECK([PKG_CHECK_MODULES([PROTOBUF], [protobuf], [have_protobuf=yes], [BITCOIN_QT_FAIL(libprotobuf not found)])])
       if test x$use_qr != xno; then
@@ -810,6 +811,10 @@ else
 
   AC_CHECK_HEADER([zmq.h],,AC_MSG_ERROR(zmq.h not found))
   AC_CHECK_LIB([zmq],      [zmq_ctx_shutdown],ZMQ_LIBS=-lzmq, AC_MSG_ERROR(libzmq >= 4.0 not found))
+
+  AC_CHECK_HEADER([zip.h],,AC_MSG_ERROR(zip.h not found))
+  AC_CHECK_LIB([minizip],      [main],MINIZIP_LIBS=-lz, AC_MSG_ERROR(minizip not found))
+
 
   if test x$build_bitcoin_utils$build_bitcoind$bitcoin_enable_qt$use_tests != xnononono; then
     AC_CHECK_HEADER([event2/event.h],, AC_MSG_ERROR(libevent headers missing),)
@@ -1084,6 +1089,7 @@ AC_SUBST(SSL_LIBS)
 AC_SUBST(EVENT_LIBS)
 AC_SUBST(EVENT_PTHREADS_LIBS)
 AC_SUBST(ZMQ_LIBS)
+AC_SUBST(MINIZIP_LIBS)
 AC_SUBST(PROTOBUF_LIBS)
 AC_SUBST(QR_LIBS)
 AC_CONFIG_FILES([Makefile src/Makefile share/setup.nsi share/qt/Info.plist src/test/buildenv.py])
