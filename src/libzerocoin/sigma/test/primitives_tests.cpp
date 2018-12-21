@@ -4,7 +4,7 @@
 #include <secp256k1/include/Scalar.h>
 #include <secp256k1/include/GroupElement.h>
 
-BOOST_AUTO_TEST_SUITE(sima_primitives_tests)
+BOOST_AUTO_TEST_SUITE(sigma_primitives_tests)
 
 BOOST_AUTO_TEST_CASE(pedersen_commitment_test)
 {
