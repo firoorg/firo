@@ -80,7 +80,7 @@ BOOST_AUTO_TEST_CASE(out_of_anonymity_set)
     anonymity_set3.push_back(pubcoin3);
 
     // pubcoin of privcoin isn't in [pubcoin3]
-    BOOST_CHECK_THROW(sigma::CoinSpendV3 coin3(params,privcoin,anonymity_set3),std::exception);
+    BOOST_CHECK_THROW(sigma::CoinSpendV3(params,privcoin,anonymity_set3),std::exception);
 }
 
 BOOST_AUTO_TEST_CASE(verify_test)
