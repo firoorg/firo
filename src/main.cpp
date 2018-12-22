@@ -65,6 +65,8 @@
 #include <boost/math/distributions/poisson.hpp>
 #include <boost/thread.hpp>
 
+#include <iostream> // delete me
+
 using namespace std;
 
 #if defined(NDEBUG)
@@ -1146,15 +1148,21 @@ bool CheckTransaction(
     // Check for duplicate inputs
     set <COutPoint> vInOutPoints;
     set <CScript> spendScripts;
+    set <CScript> spendV3Scripts;
     BOOST_FOREACH(const CTxIn &txin, tx.vin)
     {
-        if (tx.IsZerocoinSpend()){
+        if (tx.IsZerocoinSpend()) {
             if(spendScripts.count(txin.scriptSig)){
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-spend-inputs-duplicate");
             }
             spendScripts.insert(txin.scriptSig);
+        } else if (tx.IsZerocoinSpendV3()){
+            if(spendV3Scripts.count(txin.scriptSig)) {
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-spend-V3-inputs-duplicate");
+            }
+            spendV3Scripts.insert(txin.scriptSig);
         } else {
-            if (vInOutPoints.count(txin.prevout)){
+            if (vInOutPoints.count(txin.prevout)) {
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-inputs-duplicate");
             }
             vInOutPoints.insert(txin.prevout);
@@ -2168,6 +2176,12 @@ void static InvalidChainFound(CBlockIndex *pindexNew) {
               log(pindexNew->nChainWork.getdouble()) / log(2.0), DateTimeStrFormat("%Y-%m-%d %H:%M:%S",
                                                                                    pindexNew->GetBlockTime()));
     CBlockIndex *tip = chainActive.Tip();
+    if (!tip) {
+        int x = 5;
+        ++x;
+        --x;
+        //debugging.
+    }
     assert(tip);
     LogPrintf("%s:  current best=%s  height=%d  log2_work=%.8g  date=%s\n", __func__,
               tip->GetBlockHash().ToString(), chainActive.Height(), log(tip->nChainWork.getdouble()) / log(2.0),
@@ -4375,8 +4389,8 @@ bool CheckBlock(const CBlock &block, CValidationState &state,
         // Our transaction is V1 or V2, so perform appropriate checks.
         BOOST_FOREACH(const CTransaction& tx, block.vtx) {
             if (!CheckTransaction(tx, state, tx.GetHash(), isVerifyDB, nHeight, false,
-                                  block.zerocoinTxInfo.get()),
-                                  block.zerocoinTxInfoV3.get()) {
+                                  block.zerocoinTxInfo.get(),
+                                  block.zerocoinTxInfoV3.get())) {
                 LogPrintf("block=%s\n", block.ToString());
                 return state.Invalid(false, state.GetRejectCode(), state.GetRejectReason(),
                                      strprintf("Transaction check failed (tx hash %s) %s", tx.GetHash().ToString(),

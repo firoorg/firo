@@ -3658,7 +3658,8 @@ bool CWallet::CreateZerocoinSpendModel(
     bool v2MintFound = false;
     if (CheckDenomination(denomAmount, nAmount, denomination)) {
         // If requested denomination can be a V2 denomination, check if there is any
-        // mint of given denomination.
+        // mint of given denomination. Mints which do not have 
+        // 6 confirmations will NOT be considered.
         v2MintFound = CheckHasV2Mint(denomination, forceUsed);
     }
 
@@ -3678,7 +3679,7 @@ bool CWallet::CreateZerocoinSpendModel(
             zcSelectedIsUsed, forceUsed);
     } else {
         sigma::CoinDenominationV3 denomination_v3; 
-        if (CheckDenominationV3(denomAmount, nAmount, denomination_v3)) {
+        if (!CheckDenominationV3(denomAmount, nAmount, denomination_v3)) {
             return false;
         }
         // Spend V3 sigma mint.
@@ -3742,6 +3743,8 @@ bool CWallet::CreateZerocoinSpendModel(CWalletTx& wtx, string &stringError, stri
     return true;
  }
 
+// TODO(martun): check this function. We may want to merge this with CreateZerocoinSpendModel, so
+// we can check what mints we have and spend correspondingly.
 bool CWallet::CreateZerocoinSpendModelV3(CWalletTx& wtx, string &stringError, string& thirdPartyAddress, const vector<string>& denomAmounts, bool forceUsed) {
     if (!fFileBacked)
         return false;
