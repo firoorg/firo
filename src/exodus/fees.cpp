@@ -271,7 +271,7 @@ void CExodusFeeCache::PruneCache(const uint32_t &propertyId, int block)
 // Show Fee Cache DB statistics
 void CExodusFeeCache::printStats()
 {
-    PrintToConsole("CExodusFeeCache stats: nWritten= %d , nRead= %d\n", nWritten, nRead);
+    PrintToLog("CExodusFeeCache stats: nWritten= %d , nRead= %d\n", nWritten, nRead);
 }
 
 // Show Fee Cache DB records
@@ -281,7 +281,7 @@ void CExodusFeeCache::printAll()
     leveldb::Iterator* it = NewIterator();
     for(it->SeekToFirst(); it->Valid(); it->Next()) {
         ++count;
-        PrintToConsole("entry #%8d= %s:%s\n", count, it->key().ToString(), it->value().ToString());
+        PrintToLog("entry #%8d= %s:%s\n", count, it->key().ToString(), it->value().ToString());
     }
     delete it;
 }
@@ -306,7 +306,7 @@ std::set<feeCacheItem> CExodusFeeCache::GetCacheHistory(const uint32_t &property
         std::vector<std::string> vCacheHistoryItem;
         boost::split(vCacheHistoryItem, *it, boost::is_any_of(":"), boost::token_compress_on);
         if (2 != vCacheHistoryItem.size()) {
-            PrintToConsole("ERROR: vCacheHistoryItem has unexpected number of elements: %d (raw %s)!\n", vCacheHistoryItem.size(), *it);
+            PrintToLog("ERROR: vCacheHistoryItem has unexpected number of elements: %d (raw %s)!\n", vCacheHistoryItem.size(), *it);
             printAll();
             continue;
         }
@@ -321,7 +321,7 @@ std::set<feeCacheItem> CExodusFeeCache::GetCacheHistory(const uint32_t &property
 // Show Fee History DB statistics
 void CExodusFeeHistory::printStats()
 {
-    PrintToConsole("CExodusFeeHistory stats: nWritten= %d , nRead= %d\n", nWritten, nRead);
+    PrintToLog("CExodusFeeHistory stats: nWritten= %d , nRead= %d\n", nWritten, nRead);
 }
 
 // Show Fee History DB records
@@ -331,7 +331,7 @@ void CExodusFeeHistory::printAll()
     leveldb::Iterator* it = NewIterator();
     for(it->SeekToFirst(); it->Valid(); it->Next()) {
         ++count;
-        PrintToConsole("entry #%8d= %s-%s\n", count, it->key().ToString(), it->value().ToString());
+        PrintToLog("entry #%8d= %s-%s\n", count, it->key().ToString(), it->value().ToString());
         PrintToLog("entry #%8d= %s-%s\n", count, it->key().ToString(), it->value().ToString());
     }
     delete it;
@@ -387,7 +387,7 @@ std::set<int> CExodusFeeHistory::GetDistributionsForProperty(const uint32_t &pro
         std::vector<std::string> vFeeHistoryDetail;
         boost::split(vFeeHistoryDetail, strValue, boost::is_any_of(":"), boost::token_compress_on);
         if (4 != vFeeHistoryDetail.size()) {
-            PrintToConsole("ERROR: vFeeHistoryDetail has unexpected number of elements: %d !\n", vFeeHistoryDetail.size());
+            PrintToLog("ERROR: vFeeHistoryDetail has unexpected number of elements: %d !\n", vFeeHistoryDetail.size());
             printAll();
             continue; // bad data
         }
@@ -417,7 +417,7 @@ bool CExodusFeeHistory::GetDistributionData(int id, uint32_t *propertyId, int *b
     std::vector<std::string> vFeeHistoryDetail;
     boost::split(vFeeHistoryDetail, strValue, boost::is_any_of(":"), boost::token_compress_on);
     if (4 != vFeeHistoryDetail.size()) {
-        PrintToConsole("ERROR: vFeeHistoryDetail has unexpected number of elements: %d !\n", vFeeHistoryDetail.size());
+        PrintToLog("ERROR: vFeeHistoryDetail has unexpected number of elements: %d !\n", vFeeHistoryDetail.size());
         printAll();
         return false; // bad data
     }
@@ -443,7 +443,7 @@ std::set<feeHistoryItem> CExodusFeeHistory::GetFeeDistribution(int id)
     std::vector<std::string> vFeeHistoryDetail;
     boost::split(vFeeHistoryDetail, strValue, boost::is_any_of(":"), boost::token_compress_on);
     if (4 != vFeeHistoryDetail.size()) {
-        PrintToConsole("ERROR: vFeeHistoryDetail has unexpected number of elements: %d !\n", vFeeHistoryDetail.size());
+        PrintToLog("ERROR: vFeeHistoryDetail has unexpected number of elements: %d !\n", vFeeHistoryDetail.size());
         printAll();
         return sFeeHistoryItems; // bad data, return empty set
     }
@@ -453,7 +453,7 @@ std::set<feeHistoryItem> CExodusFeeHistory::GetFeeDistribution(int id)
         std::vector<std::string> vFeeHistoryItem;
         boost::split(vFeeHistoryItem, *it, boost::is_any_of("="), boost::token_compress_on);
         if (2 != vFeeHistoryItem.size()) {
-            PrintToConsole("ERROR: vFeeHistoryItem has unexpected number of elements: %d (raw %s)!\n", vFeeHistoryItem.size(), *it);
+            PrintToLog("ERROR: vFeeHistoryItem has unexpected number of elements: %d (raw %s)!\n", vFeeHistoryItem.size(), *it);
             printAll();
             continue;
         }
@@ -487,4 +487,3 @@ void CExodusFeeHistory::RecordFeeDistribution(const uint32_t &propertyId, int bl
     leveldb::Status status = pdb->Put(writeoptions, key, value);
     if (exodus_debug_fees) PrintToLog("Added fee distribution to feeCacheHistory - key=%s value=%s [%s]\n", key, value, status.ToString());
 }
-

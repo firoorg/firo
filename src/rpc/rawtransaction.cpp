@@ -83,19 +83,18 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
             o.push_back(Pair("asm", ScriptToAsmStr(txin.scriptSig, true)));
             o.push_back(Pair("hex", HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
             in.push_back(Pair("scriptSig", o));
-            // Add address and value info if spentindex enabled
-            CSpentIndexValue spentInfo;
-            CSpentIndexKey spentKey(txin.prevout.hash, txin.prevout.n);
-            LogPrintf("It came here!\n");
-            if (GetSpentIndex(spentKey, spentInfo)) {
-                LogPrintf("But it's not entered here");
-                in.push_back(Pair("value", ValueFromAmount(spentInfo.satoshis)));
-                in.push_back(Pair("valueSat", spentInfo.satoshis));
-                if (spentInfo.addressType == 1) {
-                    in.push_back(Pair("address", CBitcoinAddress(CKeyID(spentInfo.addressHash)).ToString()));
-                } else if (spentInfo.addressType == 2)  {
-                    in.push_back(Pair("address", CBitcoinAddress(CScriptID(spentInfo.addressHash)).ToString()));
-                }
+
+            CTransaction prevTx;
+            uint256 hashBlock;
+            if (GetTransaction(txin.prevout.hash, prevTx, Params().GetConsensus(), hashBlock, true)) {
+                CTxOut const & txOut = prevTx.vout.at(txin.prevout.n);
+
+                in.push_back(Pair("value", ValueFromAmount(txOut.nValue)));
+                in.push_back(Pair("valueSat", txOut.nValue));
+
+                CTxDestination dstAddr;
+                if(ExtractDestination(txOut.scriptPubKey, dstAddr))
+                    in.push_back(Pair("address", CBitcoinAddress(dstAddr).ToString()));
             }
         }
         if (!tx.wit.IsNull()) {

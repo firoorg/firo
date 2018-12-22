@@ -26,9 +26,7 @@
 using namespace std;
 
 
-// static const unsigned int MAX_SIZE = 0x02000000;
-// Zcoin - MTP
-static const unsigned int MAX_SIZE = 0x20000000;
+static const unsigned int MAX_SIZE = 0x02000000;
 
 /**
  * Used to bypass the rule against non-const reference to temporary

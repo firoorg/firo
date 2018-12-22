@@ -208,7 +208,8 @@ BITCOIN_CORE_H = \
   zmqserver/zmqreplier.h \
   zerocoin.h \
   zerocoin_params.h \
-  mtpstate.h
+  mtpstate.h \
+  addresstype.h
 
 obj/build.h: FORCE
 	@$(MKDIR_P) $(builddir)/obj

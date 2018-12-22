@@ -45,6 +45,7 @@ BITCOIN_TESTS =\
   test/znode_tests.cpp \
   test/mtp_trans_tests.cpp \
   test/mtp_halving_tests.cpp \
+  test/mtp_malformed_tests.cpp \
   test/mtp_tests.cpp \
   test/arith_uint256_tests.cpp \
   test/scriptnum10.h \
@@ -68,6 +69,7 @@ BITCOIN_TESTS =\
   test/key_tests.cpp \
   test/limitedmap_tests.cpp \
   test/dbwrapper_tests.cpp \
+  test/txdb_tests.cpp \
   test/main_tests.cpp \
   test/mempool_tests.cpp \
   test/merkle_tests.cpp \

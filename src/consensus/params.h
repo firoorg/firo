@@ -17,6 +17,9 @@ enum DeploymentPos
     DEPLOYMENT_TESTDUMMY,
     DEPLOYMENT_CSV, // Deployment of BIP68, BIP112, and BIP113.
     DEPLOYMENT_SEGWIT, // Deployment of BIP141, BIP143, and BIP147.
+
+    DEPLOYMENT_MTP, // Deployment of MTP
+
     // NOTE: Also add new deployments to VersionBitsDeploymentInfo in versionbits.cpp
     MAX_VERSION_BITS_DEPLOYMENTS
 };
@@ -96,8 +99,12 @@ struct Params {
     
     int nMultipleSpendInputsInOneTxStartBlock;
 
+    int nDontAllowDupTxsStartBlock;
+
     /** switch to MTP time */
     uint32_t nMTPSwitchTime;
+    /** block number to reduce distance between blocks */
+    int nMTPFiveMinutesStartBlock;
 
     /** don't adjust difficulty until some block number */
     int nDifficultyAdjustStartBlock;

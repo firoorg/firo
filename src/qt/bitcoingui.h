@@ -93,7 +93,7 @@ private:
 
     QMenuBar *appMenuBar;
     QAction *overviewAction;
-    QAction *balancesAction;
+    QAction *exoAssetsAction;
     QAction *historyAction;
     QAction *quitAction;
     QAction *toolboxAction;
@@ -191,8 +191,8 @@ private Q_SLOTS:
 #ifdef ENABLE_WALLET
     /** Switch to overview (home) page */
     void gotoOverviewPage();
-    /** Switch to balances page */
-    void gotoBalancesPage();
+    /** Switch to ExoAssets page */
+    void gotoExoAssetsPage();
     /** Switch to history (transactions) page */
     void gotoHistoryPage();
     /** Switch directly to Exodus history tab */
@@ -243,7 +243,7 @@ private Q_SLOTS:
 
     /** Show progress dialog e.g. for verifychain */
     void showProgress(const QString &title, int nProgress);
-    
+
     /** When hideTrayIcon setting is changed in OptionsModel hide or show the icon accordingly. */
     void setTrayIconVisible(bool);
 };

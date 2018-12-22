@@ -20,7 +20,6 @@
 #include "exodus/persistence.h"
 #include "exodus/rules.h"
 #include "exodus/script.h"
-#include "exodus/seedblocks.h"
 #include "exodus/sp.h"
 #include "exodus/tally.h"
 #include "exodus/tx.h"
@@ -147,6 +146,11 @@ static bool writePersistence(int block_now)
   if (GetHeight() > (block_now + MAX_STATE_HISTORY)) return false;
 
   return true;
+}
+
+bool isExodusEnabled()
+{
+    return GetBoolArg("-exodus", false);
 }
 
 std::string exodus::strMPProperty(uint32_t propertyId)
@@ -1294,7 +1298,7 @@ public:
                 "Still scanning.. at block %d of %d.\nProgress: %.2f %% (about %s remaining)",
                 nCurrentBlock, nLastBlock, dProgress, remainingTimeAsString(nRemainingTime));
 
-        PrintToConsole(strProgress);
+        PrintToLog(strProgress);
         uiInterface.InitMessage(strProgressUI);
     }
 };
@@ -1322,20 +1326,16 @@ static int exodus_initial_scan(int nFirstBlock)
 {
     int nTimeBetweenProgressReports = GetArg("-exodusprogressfrequency", 30);  // seconds
     int64_t nNow = GetTime();
-    unsigned int nTxsTotal = 0;
-    unsigned int nTxsFoundTotal = 0;
+    size_t nTxsTotal = 0, nTxsFoundTotal = 0;
     int nBlock = 999999;
     const int nLastBlock = GetHeight();
 
     // this function is useless if there are not enough blocks in the blockchain yet!
     if (nFirstBlock < 0 || nLastBlock < nFirstBlock) return -1;
-    PrintToConsole("Scanning for transactions in block %d to block %d..\n", nFirstBlock, nLastBlock);
+    PrintToLog("Scanning for transactions in block %d to block %d..\n", nFirstBlock, nLastBlock);
 
     // used to print the progress to the console and notifies the UI
     ProgressReporter progressReporter(chainActive[nFirstBlock], chainActive[nLastBlock]);
-
-    // check if using seed block filter should be disabled
-    bool seedBlockFilterEnabled = GetBoolArg("-exodusseedblockfilter", true);
 
     for (nBlock = nFirstBlock; nBlock <= nLastBlock; ++nBlock)
     {
@@ -1356,30 +1356,36 @@ static int exodus_initial_scan(int nFirstBlock)
             nNow = GetTime();
         }
 
-        unsigned int nTxNum = 0;
-        unsigned int nTxsFoundInBlock = 0;
+        // Get block to parse.
+        CBlock block;
+
+        if (!ReadBlockFromDisk(block, pblockindex, Params().GetConsensus())) {
+            break;
+        }
+
+        // Parse block.
+        unsigned parsed = 0;
+
         exodus_handler_block_begin(nBlock, pblockindex);
 
-        if (!seedBlockFilterEnabled || !SkipBlock(nBlock)) {
-            CBlock block;
-            if (!ReadBlockFromDisk(block, pblockindex, Params().GetConsensus())) break;
-
-            BOOST_FOREACH(const CTransaction&tx, block.vtx) {
-                if (exodus_handler_tx(tx, nBlock, nTxNum, pblockindex)) ++nTxsFoundInBlock;
-                ++nTxNum;
+        for (unsigned i = 0; i < block.vtx.size(); i++) {
+            if (exodus_handler_tx(block.vtx[i], nBlock, i, pblockindex)) {
+                parsed++;
             }
         }
 
-        nTxsFoundTotal += nTxsFoundInBlock;
-        nTxsTotal += nTxNum;
-        exodus_handler_block_end(nBlock, pblockindex, nTxsFoundInBlock);
+        exodus_handler_block_end(nBlock, pblockindex, parsed);
+
+        // Sum total parsed.
+        nTxsFoundTotal += parsed;
+        nTxsTotal += block.vtx.size();
     }
 
     if (nBlock < nLastBlock) {
-        PrintToConsole("Scan stopped early at block %d of block %d\n", nBlock, nLastBlock);
+        PrintToLog("Scan stopped early at block %d of block %d\n", nBlock, nLastBlock);
     }
 
-    PrintToConsole("%d transactions processed, %d meta transactions found\n", nTxsTotal, nTxsFoundTotal);
+    PrintToLog("%zu transactions processed, %zu meta transactions found\n", nTxsTotal, nTxsFoundTotal);
 
     return 0;
 }
@@ -2126,8 +2132,6 @@ int exodus_init()
         return 0;
     }
 
-    PrintToConsole("Initializing Exodus v%s [%s]\n", ExodusVersion(), Params().NetworkIDString());
-
     PrintToLog("\nInitializing Exodus v%s [%s]\n", ExodusVersion(), Params().NetworkIDString());
     PrintToLog("Startup time: %s\n", DateTimeStrFormat("%Y-%m-%d %H:%M:%S", GetTime()));
 
@@ -2170,7 +2174,6 @@ int exodus_init()
             startClean = true;
         } catch (const boost::filesystem::filesystem_error& e) {
             PrintToLog("Failed to delete persistence folders: %s\n", e.what());
-            PrintToConsole("Failed to delete persistence folders: %s\n", e.what());
         }
     }
 
@@ -2199,13 +2202,13 @@ int exodus_init()
     }
 
     if (nWaterlineBlock > 0) {
-        PrintToConsole("Loading persistent state: OK [block %d]\n", nWaterlineBlock);
+        PrintToLog("Loading persistent state: OK [block %d]\n", nWaterlineBlock);
     } else {
         std::string strReason = "unknown";
         if (wrongDBVersion) strReason = "client version changed";
         if (noPreviousState) strReason = "no usable previous state found";
         if (startClean) strReason = "-startclean parameter used";
-        PrintToConsole("Loading persistent state: NONE (%s)\n", strReason);
+        PrintToLog("Loading persistent state: NONE (%s)\n", strReason);
     }
 
     if (nWaterlineBlock < 0) {
@@ -2251,10 +2254,9 @@ int exodus_init()
 
     // display Exodus balance
     int64_t exodus_balance = getMPbalance(exodus_address, EXODUS_PROPERTY_EXODUS, BALANCE);
-    PrintToLog("Exodus balance after initialization: %s\n", FormatDivisibleMP(exodus_balance));
 
-    PrintToConsole("Exodus balance: %s EXODUS\n", FormatDivisibleMP(exodus_balance));
-    PrintToConsole("Exodus initialization completed\n");
+    PrintToLog("Exodus balance after initialization: %s\n", FormatDivisibleMP(exodus_balance));
+    PrintToLog("Exodus initialization completed\n");
 
     return 0;
 }
@@ -2304,8 +2306,6 @@ int exodus_shutdown()
 
     PrintToLog("\nExodus Core shutdown completed\n");
     PrintToLog("Shutdown time: %s\n", DateTimeStrFormat("%Y-%m-%d %H:%M:%S", GetTime()));
-
-    PrintToConsole("Exodus Core shutdown completed\n");
 
     return 0;
 }
@@ -3161,7 +3161,7 @@ Slice skey, svalue;
     skey = it->key();
     svalue = it->value();
     ++count;
-    PrintToConsole("entry #%8d= %s:%s\n", count, skey.ToString(), svalue.ToString());
+    PrintToLog("entry #%8d= %s:%s\n", count, skey.ToString(), svalue.ToString());
   }
 
   delete it;
@@ -3398,7 +3398,7 @@ void CMPSTOList::printAll()
     skey = it->key();
     svalue = it->value();
     ++count;
-    PrintToConsole("entry #%8d= %s:%s\n", count, skey.ToString(), svalue.ToString());
+    PrintToLog("entry #%8d= %s:%s\n", count, skey.ToString(), svalue.ToString());
   }
 
   delete it;
@@ -3745,7 +3745,7 @@ void CMPTradeList::printAll()
     skey = it->key();
     svalue = it->value();
     ++count;
-    PrintToConsole("entry #%8d= %s:%s\n", count, skey.ToString(), svalue.ToString());
+    PrintToLog("entry #%8d= %s:%s\n", count, skey.ToString(), svalue.ToString());
   }
 
   delete it;

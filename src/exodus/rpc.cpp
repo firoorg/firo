@@ -599,7 +599,7 @@ UniValue exodusrpc(const UniValue& params, bool fHelp)
     if (1 < params.size()) extra2 = atoi(params[1].get_str());
     if (2 < params.size()) extra3 = atoi(params[2].get_str());
 
-    PrintToConsole("%s(extra=%d,extra2=%d,extra3=%d)\n", __FUNCTION__, extra, extra2, extra3);
+    PrintToLog("%s(extra=%d,extra2=%d,extra3=%d)\n", __FUNCTION__, extra, extra2, extra3);
 
     bool bDivisible = isPropertyDivisible(extra2);
 
@@ -611,10 +611,10 @@ UniValue exodusrpc(const UniValue& params, bool fHelp)
             int64_t total = 0;
             // display all balances
             for (std::unordered_map<std::string, CMPTally>::iterator my_it = mp_tally_map.begin(); my_it != mp_tally_map.end(); ++my_it) {
-                PrintToConsole("%34s => ", my_it->first);
+                PrintToLog("%34s => ", my_it->first);
                 total += (my_it->second).print(extra2, bDivisible);
             }
-            PrintToConsole("total for property %d  = %X is %s\n", extra2, extra2, FormatDivisibleMP(total));
+            PrintToLog("total for property %d  = %X is %s\n", extra2, extra2, FormatDivisibleMP(total));
             break;
         }
         case 1:
@@ -638,13 +638,13 @@ UniValue exodusrpc(const UniValue& params, bool fHelp)
             uint32_t id = 0;
             // for each address display all currencies it holds
             for (std::unordered_map<std::string, CMPTally>::iterator my_it = mp_tally_map.begin(); my_it != mp_tally_map.end(); ++my_it) {
-                PrintToConsole("%34s => ", my_it->first);
+                PrintToLog("%34s => ", my_it->first);
                 (my_it->second).print(extra2);
                 (my_it->second).init();
                 while (0 != (id = (my_it->second).next())) {
-                    PrintToConsole("Id: %u=0x%X ", id, id);
+                    PrintToLog("Id: %u=0x%X ", id, id);
                 }
-                PrintToConsole("\n");
+                PrintToLog("\n");
             }
             break;
         }
@@ -659,7 +659,7 @@ UniValue exodusrpc(const UniValue& params, bool fHelp)
         case 5:
         {
             LOCK(cs_tally);
-            PrintToConsole("isMPinBlockRange(%d,%d)=%s\n", extra2, extra3, isMPinBlockRange(extra2, extra3, false) ? "YES" : "NO");
+            PrintToLog("isMPinBlockRange(%d,%d)=%s\n", extra2, extra3, isMPinBlockRange(extra2, extra3, false) ? "YES" : "NO");
             break;
         }
         case 6:
@@ -686,27 +686,27 @@ UniValue exodusrpc(const UniValue& params, bool fHelp)
         }
         case 9:
         {
-            PrintToConsole("Locking cs_tally for %d milliseconds..\n", extra2);
+            PrintToLog("Locking cs_tally for %d milliseconds..\n", extra2);
             LOCK(cs_tally);
             MilliSleep(extra2);
-            PrintToConsole("Unlocking cs_tally now\n");
+            PrintToLog("Unlocking cs_tally now\n");
             break;
         }
         case 10:
         {
-            PrintToConsole("Locking cs_main for %d milliseconds..\n", extra2);
+            PrintToLog("Locking cs_main for %d milliseconds..\n", extra2);
             LOCK(cs_main);
             MilliSleep(extra2);
-            PrintToConsole("Unlocking cs_main now\n");
+            PrintToLog("Unlocking cs_main now\n");
             break;
         }
 #ifdef ENABLE_WALLET
         case 11:
         {
-            PrintToConsole("Locking pwalletMain->cs_wallet for %d milliseconds..\n", extra2);
+            PrintToLog("Locking pwalletMain->cs_wallet for %d milliseconds..\n", extra2);
             LOCK(pwalletMain->cs_wallet);
             MilliSleep(extra2);
-            PrintToConsole("Unlocking pwalletMain->cs_wallet now\n");
+            PrintToLog("Unlocking pwalletMain->cs_wallet now\n");
             break;
         }
 #endif
@@ -730,11 +730,11 @@ UniValue exodusrpc(const UniValue& params, bool fHelp)
             int64_t dd = d/z;
             int64_t ee = e/z;
 
-            PrintToConsole("%d / %d = %d\n",a,z,aa);
-            PrintToConsole("%d / %d = %d\n",b,z,bb);
-            PrintToConsole("%d / %d = %d\n",c,z,cc);
-            PrintToConsole("%d / %d = %d\n",d,z,dd);
-            PrintToConsole("%d / %d = %d\n",e,z,ee);
+            PrintToLog("%d / %d = %d\n",a,z,aa);
+            PrintToLog("%d / %d = %d\n",b,z,bb);
+            PrintToLog("%d / %d = %d\n",c,z,cc);
+            PrintToLog("%d / %d = %d\n",d,z,dd);
+            PrintToLog("%d / %d = %d\n",e,z,ee);
 
             break;
         }

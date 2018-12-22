@@ -456,7 +456,7 @@ public:
 
     bool IsZerocoinSpend() const;
 
-    bool IsZerocoinMint(CTxOut& txout=_txout) const;
+    bool IsZerocoinMint() const;
 
     friend bool operator==(const CTransaction& a, const CTransaction& b)
     {
