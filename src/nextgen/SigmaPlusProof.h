@@ -10,15 +10,23 @@ class SigmaPlusProof{
 public:
     SigmaPlusProof() = default;
 
-    inline int memoryRequired() {
+    inline int memoryRequired() const {
         return B_.memoryRequired() * 4
                + ZA_.memoryRequired() * (f_.size() + 2)
                + B_.memoryRequired() * Gk_.size() * 2
                + zR_.memoryRequired() * 2;
     }
 
+    inline int memoryRequired(int n, int m) const {
+        return B_.memoryRequired() * 4
+               + ZA_.memoryRequired() * (m*(n - 1) + 2)
+               + B_.memoryRequired() * m * 2
+               + zR_.memoryRequired() * 2;
+    }
+
     inline unsigned char* serialize(unsigned char* buffer) const {
-        unsigned char* current = A_.serialize(buffer);
+        unsigned char* current = buffer;
+        current = A_.serialize(current);
         current = B_.serialize(current);
         current = C_.serialize(current);
         current = D_.serialize(current);
@@ -35,7 +43,8 @@ public:
     }
 
     inline unsigned char* deserialize(unsigned char* buffer, int n, int m) {
-        unsigned char* current = A_.deserialize(buffer);
+        unsigned char* current = buffer;
+        current = A_.deserialize(current);
         current = B_.deserialize(current);
         current = C_.deserialize(current);
         current = D_.deserialize(current);

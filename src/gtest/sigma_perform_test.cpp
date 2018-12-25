@@ -1,4 +1,3 @@
-
 #include <nextgen/SigmaPlusProver.h>
 #include <nextgen/SigmaPlusVerifier.h>
 #include <chrono>
@@ -54,12 +53,13 @@ void test( int N, int n, int index){
 }
 
 int main(){
-    test(16384, 4, 0);
     test(8192, 2, 0);
+    test(16384, 4, 0);
     test(32768, 8, 0);
     test(65536, 4, 0);
     test(65536, 16, 0);
     test(262144, 8, 0);
     test(262144, 64, 0);
+    test(1048576, 10, 0);
 	return 0;
 }

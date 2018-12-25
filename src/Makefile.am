@@ -438,13 +438,16 @@ libnextgen_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 libnextgen_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libnextgen_a_SOURCES = \
   common/GeneratorVector.h \
-  nextgen/SigmaPlusProof.h \
-  nextgensigma/SigmaPlusProver.h \
-  nextgen/SigmaPlusVerifier.h \
   nextgen/NextGenPrimitives.h \
   nextgen/NextGenProof \
   nextgen/NextGenProver.h \
-  nextgen/NextGenVerifier \
+  nextgen/NextGenProver.cpp \
+  nextgen/NextGenVerifier.h \
+  nextgen/NextGenVerifier.cpp \
+  nextgen/SigmaPlusProof.h \
+  nextgensigma/SigmaPlusProver.h \
+  nextgen/SigmaPlusVerifier.h \
+  nextgen/SigmaPlusVerifier.hpp \
   nextgen/ShnorrProof.h \
   nextgen/ShnorrProver.h \
   nextgen/ShnorrVerifier.h \

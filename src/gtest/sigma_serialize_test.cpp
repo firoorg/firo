@@ -2,37 +2,59 @@
 #include <nextgen/SigmaPlusProver.h>
 #include <nextgen/SigmaPlusVerifier.h>
 
-//TEST(sigma_serialize_tests, group_element_serialize)
-//{
-//    secp_primitives::GroupElement initial;
-//    initial.randomize();
-//    unsigned char buffer [initial.memoryRequired()];
-//    initial.serialize(buffer);
-//    secp_primitives::GroupElement resulted;
-//    resulted.deserialize(buffer);
-//    EXPECT_TRUE(initial == resulted);
-//}
-//
-//TEST(sigma_serialize_tests, group_element_serialize_infinity)
-//{
-//    secp_primitives::GroupElement initial;
-//    unsigned char buffer [initial.memoryRequired()];
-//    initial.serialize(buffer);
-//    secp_primitives::GroupElement resulted;
-//    resulted.deserialize(buffer);
-//    EXPECT_TRUE(initial == resulted);
-//}
-//
-//TEST(sigma_serialize_tests, scalar_serialize)
-//{
-//    secp_primitives::Scalar initial;
-//    initial.randomize();
-//    unsigned char buffer [initial.memoryRequired()];
-//    initial.serialize(buffer);
-//    secp_primitives::Scalar resulted;
-//    resulted.deserialize(buffer);
-//    EXPECT_TRUE(initial == resulted);
-//}
+#include <stdio.h>
+
+TEST(sigma_serialize_tests, group_element_serialize)
+{
+    secp_primitives::GroupElement initial;
+    initial.randomize();
+    unsigned char buffer [initial.memoryRequired()];
+    initial.serialize(buffer);
+    secp_primitives::GroupElement resulted;
+    resulted.deserialize(buffer);
+    EXPECT_EQ(initial, resulted);
+}
+
+TEST(sigma_serialize_tests, group_element_serialize_infinity)
+{
+    secp_primitives::GroupElement initial;
+    unsigned char buffer [initial.memoryRequired()];
+    initial.serialize(buffer);
+    secp_primitives::GroupElement resulted;
+    resulted.deserialize(buffer);
+    EXPECT_EQ(initial, resulted);
+}
+
+TEST(sigma_serialize_tests, scalar_serialize)
+{
+    secp_primitives::Scalar initial;
+    initial.randomize();
+    unsigned char buffer [initial.memoryRequired()];
+    initial.serialize(buffer);
+    secp_primitives::Scalar resulted;
+    resulted.deserialize(buffer);
+    EXPECT_EQ(initial, resulted);
+}
+
+TEST(sigma_serialize_tests, group_element_readwrite_infrom_file)
+{
+    secp_primitives::GroupElement initial;
+    initial.randomize();
+    unsigned char buffer [initial.memoryRequired()];
+    initial.serialize(buffer);
+    FILE* out = fopen("src/gtest/GroupElement.txt", "w");
+    for(int i = 0; i < initial.memoryRequired(); ++i)
+        std::putc(buffer[i], out);
+    fclose(out);
+    secp_primitives::GroupElement resulted;
+    unsigned char buffer_result [resulted.memoryRequired()];
+    FILE* in = fopen("src/gtest/GroupElement.txt", "r");
+    for(int i = 0; i < resulted.memoryRequired(); ++i)
+        buffer_result[i] = std::getc(in);
+    fclose(in);
+    resulted.deserialize(buffer_result);
+    EXPECT_EQ(initial, resulted);
+}
 
 TEST(sigma_serialize_tests, proof_serialize)
 {
@@ -78,14 +100,15 @@ TEST(sigma_serialize_tests, proof_serialize)
     nextgen::SigmaPlusProof<secp_primitives::Scalar,secp_primitives::GroupElement> resulted_proof;
     resulted_proof.deserialize(buffer, n, m);
 
-    EXPECT_TRUE(initial_proof.B_ == resulted_proof.B_);
-    EXPECT_TRUE(initial_proof.A_ == resulted_proof.A_);
-    EXPECT_TRUE(initial_proof.C_ == resulted_proof.C_);
-    EXPECT_TRUE(initial_proof.D_ == resulted_proof.D_);
-    EXPECT_TRUE(initial_proof.f_ == resulted_proof.f_);
-    EXPECT_TRUE(initial_proof.ZA_ == resulted_proof.ZA_);
-    EXPECT_TRUE(initial_proof.ZC_ == resulted_proof.ZC_);
-    EXPECT_TRUE(initial_proof.Gk_ == resulted_proof.Gk_);
-    EXPECT_TRUE(initial_proof.zV_ == resulted_proof.zV_);
-    EXPECT_TRUE(initial_proof.zR_ == resulted_proof.zR_);
+    EXPECT_EQ(initial_proof.B_, resulted_proof.B_);
+    EXPECT_EQ(initial_proof.A_, resulted_proof.A_);
+    EXPECT_EQ(initial_proof.C_, resulted_proof.C_);
+    EXPECT_EQ(initial_proof.D_, resulted_proof.D_);
+    EXPECT_EQ(initial_proof.f_, resulted_proof.f_);
+    EXPECT_EQ(initial_proof.ZA_, resulted_proof.ZA_);
+    EXPECT_EQ(initial_proof.ZC_, resulted_proof.ZC_);
+    EXPECT_EQ(initial_proof.Gk_, resulted_proof.Gk_);
+    EXPECT_EQ(initial_proof.Qk, resulted_proof.Qk);
+    EXPECT_EQ(initial_proof.zV_, resulted_proof.zV_);
+    EXPECT_EQ(initial_proof.zR_, resulted_proof.zR_);
 }

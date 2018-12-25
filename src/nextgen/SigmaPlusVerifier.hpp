@@ -25,7 +25,135 @@ bool  SigmaPlusVerifier<Exponent, GroupElement>::verify(
         const std::vector<GroupElement>& commits,
         const Exponent& x,
         const SigmaPlusProof<Exponent, GroupElement>& proof) const {
+    if(!membership_checks(proof))
+        return false;
 
+    std::vector<Exponent> f_;
+    compute_fs(proof, x, f_);
+
+    if(!abcd_checks(proof, x, f_))
+        return false;
+
+    int N = commits.size();
+    std::vector<Exponent> f_i_;
+    f_i_.reserve(N);
+    for(int i = 0; i < N; ++i){
+        std::vector<uint64_t> I = NextGenPrimitives<Exponent, GroupElement>::convert_to_nal(i, n, m);
+        Exponent f_i(uint64_t(1));
+        for(int j = 0; j < m; ++j){
+            f_i *= f_[j*n + I[j]];
+        }
+        f_i_.emplace_back(f_i);
+    }
+
+    GroupElement t1;
+    const int window_size = 7;
+    zcoin_common::GeneratorVector<Exponent, GroupElement> c_(commits, window_size);
+    c_.get_vector_multiple(f_i_, t1);
+
+
+
+    const std::vector <GroupElement>& Gk = proof.Gk_;
+    const std::vector <GroupElement>& Qk = proof.Qk;
+    GroupElement t2;
+    Exponent x_k(uint64_t(1));
+    for(int k = 0; k < m; ++k){
+        t2 += ((Gk[k] + Qk[k] )* (x_k.negate()));
+        x_k *= x;
+    }
+
+    GroupElement left(t1 + t2);
+    if(left != NextGenPrimitives<Exponent, GroupElement>::double_commit(g_, Exponent(uint64_t(0)), h_.get_g(0), proof.zV_, h_.get_g(1), proof.zR_))
+        return false;
+
+    return true;
+}
+
+template<class Exponent, class GroupElement>
+bool SigmaPlusVerifier<Exponent, GroupElement>::batchverify(
+        const std::vector<GroupElement>& commits,
+        const Exponent& x,
+        const std::vector<Exponent>& serials,
+        const vector<SigmaPlusProof<Exponent, GroupElement>>& proofs) const {
+    int M = proofs.size();
+    int N = commits.size();
+
+    for(int t = 0; t < M; ++t)
+        if(!membership_checks(proofs[t]))
+            return false;
+    std::vector<std::vector<Exponent>> f_;
+    f_.resize(M);
+    for(int t = 0; t < M; ++t) {
+        compute_fs(proofs[t], x, f_[t]);
+        if(!abcd_checks(proofs[t], x, f_[t]))
+            return false;
+    }
+    std::vector<Exponent> y;
+    y.resize(M);
+    for(int t = 0; t < M; ++t)
+         y[t].randomize();
+    std::vector<std::vector<Exponent>> f_i_;
+    f_i_.resize(M);
+    std::vector<Exponent> f_i_t;
+    f_i_t.reserve(N);
+    for(int t = 0; t < M; ++t) {
+       f_i_[t].reserve(N);
+       for(int i = 0; i < N; ++i) {
+         std::vector <uint64_t> I = NextGenPrimitives<Exponent, GroupElement>::convert_to_nal(i, n, m);
+         Exponent f_i(uint64_t(1));
+         for(int j = 0; j < m; ++j){
+             f_i *= f_[t][j*n + I[j]];
+         }
+         f_i_[t].emplace_back(f_i);
+       }
+
+    }
+
+    for(int i = 0; i < N; ++i){
+        Exponent f_i;
+        for(int t = 0; t < M;++t)
+            f_i += f_i_[t][i] * y[t];
+        f_i_t.emplace_back(f_i);
+    }
+
+    GroupElement t1;
+    const int window_size = 7;
+    zcoin_common::GeneratorVector<Exponent, GroupElement> c_(commits, window_size);
+    c_.get_vector_multiple(f_i_t, t1);
+
+    GroupElement t2;
+    for(int t = 0; t < M; ++t) {
+        const std::vector <GroupElement>& Gk = proofs[t].Gk_;
+        const std::vector <GroupElement>& Qk = proofs[t].Qk;
+        GroupElement term;
+        Exponent x_k(uint64_t(1));
+        for (int k = 0; k < m; ++k) {
+            term += ((Gk[k] + Qk[k]) * (x_k.negate()));
+            x_k *= x;
+        }
+        term *= y[t];
+        t2 += term;
+    }
+    GroupElement left(t1 + t2);
+
+    GroupElement right;
+    Exponent exp;
+    for(int t = 0; t < M; ++t){
+       right += (NextGenPrimitives<Exponent, GroupElement>::double_commit(g_, Exponent(uint64_t(0)), h_.get_g(0), proofs[t].zV_, h_.get_g(1), proofs[t].zR_)) * y[t];
+       Exponent e;
+       for(int i = 0; i < N; ++i)
+            e += f_i_[t][i];
+       e *= serials[t] * y[t];
+       exp += e;
+    }
+    right += g_ * exp;
+    if(left != right)
+         return false;
+    return true;
+}
+
+template<class Exponent, class GroupElement>
+bool SigmaPlusVerifier<Exponent, GroupElement>::membership_checks(const SigmaPlusProof<Exponent, GroupElement>& proof) const {
     if(!(proof.A_.isMember() &&
          proof.B_.isMember()  &&
          proof.C_.isMember() &&
@@ -35,7 +163,26 @@ bool  SigmaPlusVerifier<Exponent, GroupElement>::verify(
     for(int i = 0; i < proof.f_.size(); i++)
         if(!proof.f_[i].isMember())
             return false;
-    std::vector<Exponent> f_;
+
+    const std::vector <GroupElement>& Gk = proof.Gk_;
+    const std::vector <GroupElement>& Qk = proof.Qk;
+    for (int k = 0; k < m; ++k) {
+        if (!(Gk[k].isMember() && Qk[k].isMember()))
+            return false;
+    }
+    if(!(proof.ZA_.isMember() &&
+         proof.ZC_.isMember() &&
+         proof.zV_.isMember() &&
+         proof.zR_.isMember()))
+        return false;
+    return true;
+}
+
+template<class Exponent, class GroupElement>
+void SigmaPlusVerifier<Exponent, GroupElement>::compute_fs(
+        const SigmaPlusProof<Exponent, GroupElement>& proof,
+        const Exponent& x,
+        std::vector<Exponent>& f_) const {
     f_.reserve(n * m);
     for(int j = 0; j < m; ++j){
         f_.push_back(Exponent(uint64_t(0)));
@@ -47,7 +194,14 @@ bool  SigmaPlusVerifier<Exponent, GroupElement>::verify(
         }
         f_[j * n] = x - temp;
     }
+}
 
+
+template<class Exponent, class GroupElement>
+bool SigmaPlusVerifier<Exponent, GroupElement>::abcd_checks(
+        const SigmaPlusProof<Exponent, GroupElement>& proof,
+        const Exponent& x,
+        const std::vector<Exponent>& f_) const {
     GroupElement one;
     NextGenPrimitives<Exponent, GroupElement>::commit(g_, h_, f_, proof.ZA_, one);
     if((proof.B_ * x + proof.A_) != one)
@@ -61,44 +215,8 @@ bool  SigmaPlusVerifier<Exponent, GroupElement>::verify(
     NextGenPrimitives<Exponent, GroupElement>::commit(g_, h_, f_prime, proof.ZC_, two);
     if((proof.C_ * x + proof.D_) != two)
         return false;
-
-    if (!(proof.B_).isMember())
-        return false;
-
-    const std::vector <GroupElement>& Gk = proof.Gk_;
-    const std::vector <GroupElement>& Qk = proof.Qk;
-    for (int k = 0; k < m; ++k) {
-        if (!(Gk[k].isMember() && Qk[k].isMember()))
-            return false;
-    }
-    int N = commits.size();
-    std::vector<Exponent> f_i_;
-    f_i_.reserve(N);
-    for(int i = 0; i < N; ++i){
-        std::vector<uint64_t> I = NextGenPrimitives<Exponent, GroupElement>::convert_to_nal(i, n, m);
-        Exponent f_i(uint64_t(1));
-        for(int j = 0; j < m; ++j){
-            f_i *= f_[j*n + I[j]];
-        }
-        f_i_.emplace_back(f_i);
-    }
-    GroupElement t1;
-    const int window_size = 7;
-    zcoin_common::GeneratorVector<Exponent, GroupElement> c_(commits, window_size);
-    c_.get_vector_multiple(f_i_, t1);
-    GroupElement t2;
-    Exponent x_k(uint64_t(1));
-    std::vector<Exponent> x_k_;
-    for(int k = 0; k < m; ++k){
-        t2 += ((Gk[k] + Qk[k] )* (x_k.negate()));
-        x_k *= x;
-    }
-
-    GroupElement left(t1 + t2);
-    if(left != NextGenPrimitives<Exponent, GroupElement>::double_commit(g_, Exponent(uint64_t(0)), h_.get_g(0), proof.zV_, h_.get_g(1), proof.zR_))
-        return false;
-
     return true;
 }
+
 
 } //namespace nextgen
