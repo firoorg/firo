@@ -4,6 +4,7 @@
 #include "SigmaPrimitives.h"
 #include <libzerocoin/Zerocoin.h>
 #include "Params.h"
+#include "consensus/validation.h"
 
 namespace sigma {
 
@@ -15,14 +16,12 @@ enum CoinDenominationV3 {
     ZQ_WILLIAMSON = 100
 };
 
+// Functions to convert denominations to/from an integer value.
+bool DenominationToInteger(CoinDenominationV3 denom, int& denom_out, CValidationState &state);
+bool IntegerToDenomination(int value, CoinDenominationV3& denom_out, CValidationState &state);
+
 class PublicCoinV3 {
 public:
-    // Better just use it as is, with "operator>>".
-    //template<typename Stream>
-    //PublicCoinV3(Stream& strm) {
-    //    strm >> *this;
-    //}
-
     PublicCoinV3();
 
     PublicCoinV3(const GroupElement& coin, const CoinDenominationV3 d);

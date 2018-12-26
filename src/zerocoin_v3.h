@@ -18,26 +18,6 @@ using namespace sigma;
 // zerocoin parameters
 extern sigma::ParamsV3 *ZCParamsV3;
 
-// Test for zerocoin transaction version 3, TODO(martun): change the denominations in enum CoinDenominationV3 and here.
-inline bool IsZerocoinTxV3(sigma::CoinDenominationV3 denomination, int coinId) {
-  bool fTestNet = Params().NetworkIDString() == CBaseChainParams::TESTNET;
-
-  if (fTestNet) {
-    return ((denomination == CoinDenominationV3::ZQ_LOVELACE) && (coinId >= ZC_V2_TESTNET_SWITCH_ID_1))
-      || ((denomination == CoinDenominationV3::ZQ_GOLDWASSER) && (coinId >= ZC_V2_TESTNET_SWITCH_ID_10))
-      || ((denomination == CoinDenominationV3::ZQ_RACKOFF) && (coinId >= ZC_V2_TESTNET_SWITCH_ID_25))
-      || ((denomination == CoinDenominationV3::ZQ_PEDERSEN) && (coinId >= ZC_V2_TESTNET_SWITCH_ID_50))
-      || ((denomination == CoinDenominationV3::ZQ_WILLIAMSON) && (coinId >= ZC_V2_TESTNET_SWITCH_ID_100));
-  }
-  else {
-    return ((denomination == CoinDenominationV3::ZQ_LOVELACE) && (coinId >= ZC_V2_SWITCH_ID_1))
-      || ((denomination == CoinDenominationV3::ZQ_GOLDWASSER) && (coinId >= ZC_V2_SWITCH_ID_10))
-      || ((denomination == CoinDenominationV3::ZQ_RACKOFF) && (coinId >= ZC_V2_SWITCH_ID_25))
-      || ((denomination == CoinDenominationV3::ZQ_PEDERSEN) && (coinId >= ZC_V2_SWITCH_ID_50))
-      || ((denomination == CoinDenominationV3::ZQ_WILLIAMSON) && (coinId >= ZC_V2_SWITCH_ID_100));
-  }
-}
-
 // Zerocoin transaction info, added to the CBlock to ensure zerocoin mint/spend transactions got their info stored into
 // index
 class CZerocoinTxInfoV3 {
@@ -45,9 +25,8 @@ public:
     // all the zerocoin transactions encountered so far
     std::set<uint256> zcTransactions;
 
-    // <denomination, pubCoin> for all the mints
-    // TODO(martun): remove denomination from here, it's already present in the pubCoin itself.
-    std::vector<pair<int, PublicCoinV3> > mints;
+    // Vector of <pubCoin> for all the mints.
+    std::vector<PublicCoinV3> mints;
   
     // serial for every spend (map from serial to denomination)
     std::unordered_map<Scalar, int, sigma::CScalarHash> spentSerials;

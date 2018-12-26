@@ -1172,7 +1172,7 @@ bool CheckTransaction(
     if (tx.IsCoinBase()) {
         if (tx.vin[0].scriptSig.size() < 2 || tx.vin[0].scriptSig.size() > 100)
             return state.DoS(100, false, REJECT_INVALID, "bad-cb-length");
-    } else if (tx.IsZerocoinTransaction()) {
+    } else {
 	    BOOST_FOREACH(const CTxIn &txin, tx.vin) {
 		    if (txin.prevout.IsNull() && !txin.scriptSig.IsZerocoinSpend()
                     && !txin.scriptSig.IsZerocoinSpendV3()) {
@@ -1189,7 +1189,7 @@ bool CheckTransaction(
                     isCheckWallet,
                     zerocoinTxInfoV3))
             return false;
-        } else { 
+        } else if (tx.IsZerocoinTransaction()) {
             if (!CheckZerocoinTransaction(
                     tx,
                     state,

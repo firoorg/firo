@@ -198,8 +198,8 @@ bool CheckMintZcoinTransactionV3(
 	bool hasCoin = zerocoinStateV3.HasCoin(pubCoin);
 
 	if (!hasCoin && zerocoinTxInfoV3 && !zerocoinTxInfoV3->fInfoIsComplete) {
-		BOOST_FOREACH(const PAIRTYPE(int, PublicCoinV3)& mint, zerocoinTxInfoV3->mints) {
-			if (mint.second == pubCoin) {
+		BOOST_FOREACH(const PublicCoinV3& mint, zerocoinTxInfoV3->mints) {
+			if (mint == pubCoin) {
 				hasCoin = true;
 				break;
 			}
@@ -235,7 +235,7 @@ bool CheckMintZcoinTransactionV3(
 
 			if (zerocoinTxInfoV3 != NULL && !zerocoinTxInfoV3->fInfoIsComplete) {
 				// Update public coin list in the info
-				zerocoinTxInfoV3->mints.push_back(make_pair(denomination, pubCoin));
+				zerocoinTxInfoV3->mints.push_back(pubCoin);
 				zerocoinTxInfoV3->zcTransactions.insert(hashTx);
 			}
 			break;
@@ -268,20 +268,14 @@ bool CheckZerocoinTransactionV3(
 		BOOST_FOREACH(const CTxOut &txout, tx.vout)
 		{
 			if (!isVerifyDB) {
-				switch (txout.nValue) {
-					default:
-						return state.DoS(100, error("CheckZerocoinTransaction : invalid spending txout value"));
-					case CoinDenominationV3::ZQ_LOVELACE*COIN:
-					case CoinDenominationV3::ZQ_GOLDWASSER*COIN:
-					case CoinDenominationV3::ZQ_RACKOFF*COIN:
-					case CoinDenominationV3::ZQ_PEDERSEN*COIN:
-					case CoinDenominationV3::ZQ_WILLIAMSON*COIN:
-						sigma::CoinDenominationV3 denomination = (sigma::CoinDenominationV3)(txout.nValue / COIN);
-						if(!CheckSpendZcoinTransactionV3(
-									tx, denomination, state, hashTx, isVerifyDB, nHeight, 
-									isCheckWallet, zerocoinTxInfoV3))
-							return false;
-				}
+            	sigma::CoinDenominationV3 denomination;
+                if (!IntegerToDenomination(txout.nValue / COIN, denomination, state))
+                      return false;
+				if(!CheckSpendZcoinTransactionV3(
+							tx, denomination, state, hashTx, isVerifyDB, nHeight, 
+							isCheckWallet, zerocoinTxInfoV3)) {
+					return false;
+                }
 			}
 		}
 	}
@@ -364,15 +358,15 @@ bool ConnectBlockZCV3(
 			return true;
 
 		// Update pindexNew.mintedPubCoinsV3
-		BOOST_FOREACH(const PAIRTYPE(int,PublicCoinV3) &mint, pblock->zerocoinTxInfoV3->mints) {
-			int denomination = mint.first;            
+		BOOST_FOREACH(const PublicCoinV3& mint, pblock->zerocoinTxInfoV3->mints) {
+			CoinDenominationV3 denomination = mint.getDenomination();            
 			int mintId = zerocoinStateV3.AddMint(
 					pindexNew,
-					mint.second);
+					mint);
 
 			LogPrintf("ConnectTipZC: mint added denomination=%d, id=%d\n", denomination, mintId);
 			pair<int,int> denomAndId = make_pair(denomination, mintId);
-			pindexNew->mintedPubCoinsV3[denomAndId].push_back(mint.second);
+			pindexNew->mintedPubCoinsV3[denomAndId].push_back(mint);
 		}               
 	}
 	else if (!fJustCheck) {
@@ -404,9 +398,9 @@ void CZerocoinTxInfoV3::Complete() {
 	sort(mints.begin(), mints.end(),
 			[](decltype(mints)::const_reference m1, decltype(mints)::const_reference m2)->bool {
 			CDataStream ds1(SER_DISK, CLIENT_VERSION), ds2(SER_DISK, CLIENT_VERSION);
-			ds1 << m1.second;
-			ds2 << m2.second;
-			return (m1.first < m2.first) || ((m1.first == m2.first) && (ds1.str() < ds2.str()));
+			ds1 << m1;
+			ds2 << m2;
+			return ds1.str() < ds2.str();
 			});
 
 	// Mark this info as complete

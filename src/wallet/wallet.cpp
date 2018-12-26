@@ -4499,7 +4499,7 @@ bool CWallet::CreateZerocoinSpendTransactionV3(
             privateCoin.setPublicCoin(pubCoinSelected);
             privateCoin.setRandomness(coinToUse.randomness);
             privateCoin.setSerialNumber(coinToUse.serialNumber);
-            // TODO(martun): take care of ecdsaSecretKey.
+            // We do NOT need an ecdsaSecretKey for V3 sigma mints.
 //          privateCoin.setEcdsaSeckey(coinToUse.ecdsaSecretKey);
 
             sigma::CoinSpendV3 spend(zcParams, privateCoin, anonimity_set, blockHash);

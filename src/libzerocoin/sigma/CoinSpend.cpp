@@ -54,7 +54,10 @@ const Scalar& CoinSpendV3::getCoinSerialNumber() {
 }
 
 CoinDenominationV3 CoinSpendV3::getDenomination() const {
-    return static_cast<CoinDenominationV3>(this->denomination);
+    CoinDenominationV3 denom;
+    CValidationState dummy_state;
+    IntegerToDenomination(this->denomination, denom, dummy_state);
+    return denom;
 }
 
 

@@ -1,5 +1,43 @@
 #include "Coin.h"
+#include "util.h"
+
 namespace sigma{
+
+bool DenominationToInteger(CoinDenominationV3 denom, int& denom_out, CValidationState &state) {
+    switch (denom) {
+        default:
+            return state.DoS(100, error("CheckZerocoinTransaction : invalid denomination value, unable to convert to integer"));
+        case CoinDenominationV3::ZQ_LOVELACE:
+            denom_out = 1;
+        case CoinDenominationV3::ZQ_GOLDWASSER:
+            denom_out = 10;
+        case CoinDenominationV3::ZQ_RACKOFF:
+            denom_out = 25;
+        case CoinDenominationV3::ZQ_PEDERSEN:
+            denom_out = 50;
+        case CoinDenominationV3::ZQ_WILLIAMSON:
+            denom_out = 100;
+    }
+return true;
+}
+
+bool IntegerToDenomination(int value, CoinDenominationV3& denom_out, CValidationState &state) {
+    switch (value) {
+        default:
+            return state.DoS(100, error("CheckZerocoinTransaction : invalid denomination value, unable to convert to enum"));
+        case 1:
+            denom_out = CoinDenominationV3::ZQ_LOVELACE;
+        case 10:
+            denom_out = CoinDenominationV3::ZQ_GOLDWASSER;
+        case 25:
+            denom_out = CoinDenominationV3::ZQ_RACKOFF;
+        case 50:
+            denom_out = CoinDenominationV3::ZQ_PEDERSEN;
+        case 100:
+            denom_out = CoinDenominationV3::ZQ_WILLIAMSON;
+    }
+return true;
+}
 
 //class PublicCoin
 PublicCoinV3::PublicCoinV3()

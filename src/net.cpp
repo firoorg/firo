@@ -2522,7 +2522,7 @@ void CNode::CheckDandelionEmbargoes()
                 /*&lRemovedTxn, */
                 false, /* fOverrideMempoolLimit */
                 0, /* nAbsurdFee */
-                false /*isCheckWalletTransaction*/ // TODO(martun): check what all these booleans do!
+                false /*isCheckWalletTransaction*/ 
                 );
             LogPrintf("AcceptToMemoryPool: accepted %s (poolsz %u txn, %u kB)\n",
                       iter->first.ToString(), 
