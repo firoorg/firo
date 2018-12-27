@@ -59,11 +59,6 @@ bool CheckSpendZcoinTransactionV3(
 		int nHeight,
 		bool isCheckWallet,
 		CZerocoinTxInfoV3 *zerocoinTxInfoV3) {
-
-	// TODO(martun): add support of fHasSpendV1 and fHasSpendV2,
-	// I'm thinking of making these checks somewhere else, for example adding a switch
-	// based on spend txn version in ConnectBlockZCV3.
-
 	// Check for inputs only, everything else was checked before
 	LogPrintf("CheckSpendZcoinTransactionV3 denomination=%d nHeight=%d\n", 
 			targetDenomination, nHeight);
@@ -86,8 +81,6 @@ bool CheckSpendZcoinTransactionV3(
 					NSEQUENCE_INCORRECT,
 					"CTransaction::CheckTransaction() : Error: zerocoin spend nSequence is incorrect");
 		}
-
-		// pubcoinId -= ZC_MODULUS_V3_BASE_ID; TODO(martun): check if we need to fix the base id for V3 transactions and deduce that number here.
 
 		if (txin.scriptSig.size() < 4)
 			return state.DoS(100,
@@ -116,11 +109,6 @@ bool CheckSpendZcoinTransactionV3(
 		LogPrintf("CheckSpendZcoinTransactionV3: tx version=%d, tx metadata hash=%s, serial=%s\n", 
 				newSpend.getVersion(), txHashForMetadata.ToString(),
 				newSpend.getCoinSerialNumber().tostring());
-
-		const CChainParams& chainParams = Params();
-		int txHeight = chainActive.Height();
-
-		libzerocoin::SpendMetaData newMetadata(txin.nSequence, txHashForMetadata);
 
 		CZerocoinStateV3::CoinGroupInfoV3 coinGroup;
 		if (!zerocoinStateV3.GetCoinGroupInfo(targetDenomination, pubcoinId, coinGroup))
@@ -187,13 +175,20 @@ bool CheckMintZcoinTransactionV3(
 		return state.DoS(100,
 				false,
 				PUBCOIN_NOT_VALIDATE,
-				"CTransaction::CheckTransaction() : PubCoin validation failed");
+				"CTransaction::CheckTransactionV3() : PubCoin validation failed");
 
 	vector<unsigned char> coin_serialised(txout.scriptPubKey.begin() + 6, txout.scriptPubKey.end());
 	secp_primitives::GroupElement pubCoinValue;
 	pubCoinValue.deserialize(&coin_serialised[0]);
 
-	sigma::CoinDenominationV3 denomination = (sigma::CoinDenominationV3)(txout.nValue / COIN);
+	sigma::CoinDenominationV3 denomination;
+    if (!IntegerToDenomination(txout.nValue, denomination, state)) {
+        return state.DoS(100,
+                false,
+                PUBCOIN_NOT_VALIDATE,
+                "CTransaction::CheckTransactionV3() : "
+                "PubCoin validation failed, unknown denomination");
+    }
 	PublicCoinV3 pubCoin(pubCoinValue, denomination);
 	bool hasCoin = zerocoinStateV3.HasCoin(pubCoin);
 
@@ -375,18 +370,20 @@ bool ConnectBlockZCV3(
 	return true;
 }
 
+
 bool ZerocoinBuildStateFromIndexV3(CChain *chain) {
 	zerocoinStateV3.Reset();
 	for (CBlockIndex *blockIndex = chain->Genesis(); blockIndex; blockIndex=chain->Next(blockIndex))
 		zerocoinStateV3.AddBlock(blockIndex);
 
 	// DEBUG
-	LogPrintf("Latest IDs are %d, %d, %d, %d, %d\n",
-			zerocoinStateV3.latestCoinIds[1],
-			zerocoinStateV3.latestCoinIds[10],
-			zerocoinStateV3.latestCoinIds[25],
-			zerocoinStateV3.latestCoinIds[50],
-			zerocoinStateV3.latestCoinIds[100]);
+	LogPrintf(
+        "Latest IDs are %d, %d, %d, %d, %d\n",
+		zerocoinStateV3.GetLatestCoinID(1),
+		zerocoinStateV3.GetLatestCoinID(10),
+		zerocoinStateV3.GetLatestCoinID(25),
+		zerocoinStateV3.GetLatestCoinID(50),
+		zerocoinStateV3.GetLatestCoinID(100));
 	return true;
 }
 
@@ -611,7 +608,6 @@ bool CZerocoinStateV3::CanAddSpendToMempool(const Scalar& coinSerial) {
 
 void CZerocoinStateV3::Reset() {
 	coinGroups.clear();
-	//    all_minted_coins.clear();
 	usedCoinSerials.clear();
 	latestCoinIds.clear();
 	mempoolCoinSerials.clear();
@@ -621,3 +617,10 @@ CZerocoinStateV3* CZerocoinStateV3::GetZerocoinState() {
 	return &zerocoinStateV3;
 }
 
+int CZerocoinStateV3::GetLatestCoinID(int denomination) const {
+    auto iter = latestCoinIds.find(denomination);
+    if (iter == latestCoinIds.end()) {
+        throw "Unable to find the given denomination in CZerocoinStateV3::GetLatestCoinID.";
+    }
+    return iter->second;
+}

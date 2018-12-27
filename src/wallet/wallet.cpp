@@ -3744,7 +3744,8 @@ bool CWallet::CreateZerocoinSpendModel(CWalletTx& wtx, string &stringError, stri
  }
 
 // TODO(martun): check this function. We may want to merge this with CreateZerocoinSpendModel, so
-// we can check what mints we have and spend correspondingly.
+// we can check what mints we have and spend correspondingly. Not looking at this for now,
+// let's make single mint/spend work first.
 bool CWallet::CreateZerocoinSpendModelV3(CWalletTx& wtx, string &stringError, string& thirdPartyAddress, const vector<string>& denomAmounts, bool forceUsed) {
     if (!fFileBacked)
         return false;

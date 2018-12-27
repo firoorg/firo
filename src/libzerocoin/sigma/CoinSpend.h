@@ -14,7 +14,9 @@ public:
     template<typename Stream>
     CoinSpendV3(const ParamsV3* p,  Stream& strm):
         params(p),
-        denomination(ZQ_LOVELACE){
+        denomination(ZQ_LOVELACE),
+        sigmaProof(p) {
+
             strm >> * this;
         }
 
@@ -69,7 +71,7 @@ public:
         char* b = (char*)buffer;
         s.read(b, size);
         unsigned char* current = coinSerialNumber.deserialize(buffer);
-        sigmaProof.deserialize(current, params->get_n(), params->get_m());
+        sigmaProof.deserialize(current);
 
     }
 

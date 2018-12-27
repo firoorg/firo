@@ -1,5 +1,5 @@
 #include <boost/test/unit_test.hpp>
-
+#include "../Params.h"
 #include <libzerocoin/sigma/SigmaPlusProver.h>
 #include <libzerocoin/sigma/SigmaPlusVerifier.h>
 
@@ -39,11 +39,11 @@ BOOST_AUTO_TEST_CASE(scalar_serialize)
 
 BOOST_AUTO_TEST_CASE(proof_serialize)
 {
-    int N = 16;
-    int n = 4;
+    auto params = sigma::ParamsV3::get_default();
+    int N = 16384;
+    int n = params->get_n();
+    int m = params->get_m();
     int index = 0;
-
-    int m = (int)(log(N) / log(n));;
 
     secp_primitives::GroupElement g;
     g.randomize();
@@ -71,14 +71,14 @@ BOOST_AUTO_TEST_CASE(proof_serialize)
         }
     }
 
-    sigma::SigmaPlusProof<secp_primitives::Scalar,secp_primitives::GroupElement> initial_proof;
+    sigma::SigmaPlusProof<secp_primitives::Scalar,secp_primitives::GroupElement> initial_proof(params);
 
     prover.proof(commits, index, r, initial_proof);
 
     unsigned char buffer [initial_proof.memoryRequired()];
     initial_proof.serialize(buffer);
-    sigma::SigmaPlusProof<secp_primitives::Scalar,secp_primitives::GroupElement> resulted_proof;
-    resulted_proof.deserialize(buffer, n, m);
+    sigma::SigmaPlusProof<secp_primitives::Scalar,secp_primitives::GroupElement> resulted_proof(params);
+    resulted_proof.deserialize(buffer);
 
     BOOST_CHECK(initial_proof.B_ == resulted_proof.B_);
     BOOST_CHECK(initial_proof.r1Proof_.A_ == resulted_proof.r1Proof_.A_);

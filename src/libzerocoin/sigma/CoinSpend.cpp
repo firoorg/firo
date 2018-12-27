@@ -8,6 +8,7 @@ CoinSpendV3::CoinSpendV3(
         const std::vector<PublicCoinV3>& anonymity_set,
         uint256 _accumulatorBlockHash) :
         params(p),
+        sigmaProof(p),
         denomination(coin.getPublicCoin().getDenomination()),
         coinSerialNumber(coin.getSerialNumber()),
         accumulatorBlockHash(_accumulatorBlockHash)

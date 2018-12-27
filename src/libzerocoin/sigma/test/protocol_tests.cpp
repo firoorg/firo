@@ -1,5 +1,6 @@
 #include "../SigmaPlusProver.h"
 #include "../SigmaPlusVerifier.h"
+#include "../Params.h"
 
 #include <boost/test/unit_test.hpp>
 
@@ -7,11 +8,11 @@ BOOST_AUTO_TEST_SUITE(sigma_protocol_tests)
 
 BOOST_AUTO_TEST_CASE(one_out_of_n)
 {
-    int N = 16;
-    int n = 4;
+    auto params = sigma::ParamsV3::get_default();
+    int N = 16384;
+    int n = params->get_n();
+    int m = params->get_m();
     int index = 0;
-
-    int m = (int)(log(N) / log(n));
 
     secp_primitives::GroupElement g;
     g.randomize();
@@ -38,8 +39,7 @@ BOOST_AUTO_TEST_CASE(one_out_of_n)
             commits[i].randomize();
         }
     }
-
-    sigma::SigmaPlusProof<secp_primitives::Scalar,secp_primitives::GroupElement> proof;
+    sigma::SigmaPlusProof<secp_primitives::Scalar,secp_primitives::GroupElement> proof(params);
 
     prover.proof(commits, index, r, proof);
 

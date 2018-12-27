@@ -340,26 +340,25 @@ unsigned char* GroupElement::serialize(unsigned char* buffer) const {
     secp256k1_fe x = value.x;
     secp256k1_fe y = value.y;
     secp256k1_fe_normalize(&x);
-    secp256k1_fe_normalize(&x);
-    char oddness = secp256k1_fe_is_odd(&y);
-    char infinity = value.infinity;
-    memcpy(buffer,&x,sizeof(secp256k1_fe));
+    secp256k1_fe_normalize(&y);
+    unsigned char oddness = secp256k1_fe_is_odd(&y);
+    unsigned char infinity = value.infinity;
     secp256k1_fe_get_b32(buffer, &x);
-    memcpy(buffer + 32,&oddness,sizeof(char));
-    memcpy(buffer + 33,&infinity,sizeof(char));
-    return buffer + 34;
+    buffer[32] = oddness;
+    buffer[33] = infinity;
+    return buffer + memoryRequired();
 }
 
 unsigned char* GroupElement::deserialize(unsigned char* buffer) {
     secp256k1_fe x;
     secp256k1_fe_set_b32(&x, buffer);
-    int oddness = buffer[32];
-    int infinity = buffer[33];
+    unsigned char oddness = buffer[32];
+    unsigned char infinity = buffer[33];
     secp256k1_ge result;
-    secp256k1_ge_set_xo_var(&result, &x, oddness);
-    result.infinity = infinity;
+    secp256k1_ge_set_xo_var(&result, &x, (int)oddness);
+    result.infinity = (int)infinity;
     secp256k1_gej_set_ge(&g_, &result);
-    return buffer + 34;
+    return buffer + memoryRequired();
 }
 
 std::vector<unsigned char> GroupElement::getvch() const {

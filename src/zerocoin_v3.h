@@ -85,7 +85,6 @@ public:
         int nCoins;
     };
 
-// private: TODO(martun): change back to public later on.
     struct CMintedCoinInfo {
         int         denomination;
         int         id;
@@ -100,26 +99,6 @@ public:
             return std::hash<T>()(x.first) ^ std::hash<U>()(x.second);
           }
     };
-
-    // Collection of coin groups. Map from <denomination,id> to CoinGroupInfoV3 structure
-    std::unordered_map<pair<int, int>, CoinGroupInfoV3, pairhash> coinGroups;
-
-    // Map from <denomination, coin set id> to a vector of public coins minted for each coin set.
-//    std::unordered_map<pair<int, int>, std::vector<PublicCoinV3>, pairhash> all_minted_coins;
-    
-    // Set of all minted pubCoin values, keyed by the public coin. 
-    // Used for checking if the given coin already exists.
-    unordered_map<PublicCoinV3, CMintedCoinInfo, sigma::CPublicCoinHash> mintedPubCoins;
-
-    // Latest IDs of coins by denomination
-    std::unordered_map<int, int> latestCoinIds;
-
-    // Set of all used coin serials.
-    std::unordered_set<Scalar, sigma::CScalarHash> usedCoinSerials;
-
-    // serials of spends currently in the mempool mapped to tx hashes
-    std::unordered_map<Scalar, uint256, sigma::CScalarHash> mempoolCoinSerials;
-
 public:
     CZerocoinStateV3();
 
@@ -157,14 +136,6 @@ public:
         uint256& blockHash_out, 
         std::vector<PublicCoinV3>& coins_out);
 
-    // Get witness
-    //libzerocoin::AccumulatorWitness GetWitnessForSpend(
-    //    CChain *chain, 
-    //    int maxHeight, 
-    //    int denomination, 
-    //    int id, 
-    //    const PublicCoinV3& pubCoin);
-
     // Return height of mint transaction and id of minted coin
     std::pair<int, int> GetMintedCoinHeightAndId(
         const PublicCoinV3& pubCoin,
@@ -187,6 +158,26 @@ public:
     void RemoveSpendFromMempool(const Scalar& coinSerial);
 
     static CZerocoinStateV3* GetZerocoinState();
+
+    int GetLatestCoinID(int denomination) const;
+
+private:
+    // Collection of coin groups. Map from <denomination,id> to CoinGroupInfoV3 structure
+    std::unordered_map<pair<int, int>, CoinGroupInfoV3, pairhash> coinGroups;
+
+    // Set of all minted pubCoin values, keyed by the public coin. 
+    // Used for checking if the given coin already exists.
+    unordered_map<PublicCoinV3, CMintedCoinInfo, sigma::CPublicCoinHash> mintedPubCoins;
+
+    // Latest IDs of coins by denomination
+    std::unordered_map<int, int> latestCoinIds;
+
+    // Set of all used coin serials.
+    std::unordered_set<Scalar, sigma::CScalarHash> usedCoinSerials;
+
+    // serials of spends currently in the mempool mapped to tx hashes
+    std::unordered_map<Scalar, uint256, sigma::CScalarHash> mempoolCoinSerials;
+
 };
 
 #endif // _MAIN_ZEROCOIN_V3_H__
