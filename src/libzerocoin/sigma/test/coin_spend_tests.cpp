@@ -28,7 +28,7 @@ BOOST_AUTO_TEST_CASE(serialize_deserialize_test)
     // deserialize
     sigma::CoinSpendV3 new_coin(params,serialized);
 
-    BOOST_TEST(coin.getAccumulatorBlockHash() == new_coin.getAccumulatorBlockHash());
+    BOOST_TEST(coin.getAccumulatorBlockHash().Compare(new_coin.getAccumulatorBlockHash())==0);
     BOOST_TEST(coin.getCoinSerialNumber() == new_coin.getCoinSerialNumber());
     BOOST_TEST(coin.getDenomination() == new_coin.getDenomination());
     BOOST_TEST(coin.getVersion() == new_coin.getVersion());

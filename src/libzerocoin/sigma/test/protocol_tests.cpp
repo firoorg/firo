@@ -50,11 +50,11 @@ BOOST_AUTO_TEST_CASE(one_out_of_n)
 
 BOOST_AUTO_TEST_CASE(prove_and_verify_in_different_set)
 {
-    int N = 16;
-    int n = 4;
+    auto params = sigma::ParamsV3::get_default();
+    int N = 16384;
+    int n = params->get_n();
+    int m = params->get_m();
     int index = 0;
-
-    int m = (int)(log(N) / log(n));
 
     secp_primitives::GroupElement g;
     g.randomize();
@@ -82,7 +82,7 @@ BOOST_AUTO_TEST_CASE(prove_and_verify_in_different_set)
         }
     }
 
-    sigma::SigmaPlusProof<secp_primitives::Scalar,secp_primitives::GroupElement> proof;
+    sigma::SigmaPlusProof<secp_primitives::Scalar,secp_primitives::GroupElement> proof(params);
 
     prover.proof(commits, index, r, proof);
 
@@ -99,10 +99,10 @@ BOOST_AUTO_TEST_CASE(prove_and_verify_in_different_set)
 
 BOOST_AUTO_TEST_CASE(prove_coin_out_of_index)
 {
-    int N = 16;
-    int n = 4;
-
-    int m = (int)(log(N) / log(n));
+    auto params = sigma::ParamsV3::get_default();
+    int N = 16384;
+    int n = params->get_n();
+    int m = params->get_m();
 
     secp_primitives::GroupElement g;
     g.randomize();
@@ -121,7 +121,7 @@ BOOST_AUTO_TEST_CASE(prove_coin_out_of_index)
         commits[i].randomize();
     }
 
-    sigma::SigmaPlusProof<secp_primitives::Scalar,secp_primitives::GroupElement> proof;
+    sigma::SigmaPlusProof<secp_primitives::Scalar,secp_primitives::GroupElement> proof(params);
 
     prover.proof(commits, commits.size(), r, proof);
 
@@ -131,12 +131,11 @@ BOOST_AUTO_TEST_CASE(prove_coin_out_of_index)
 
 BOOST_AUTO_TEST_CASE(prove_coin_not_in_set)
 {
-    int N = 16;
-    int n = 4;
+    auto params = sigma::ParamsV3::get_default();
+    int N = 16384;
+    int n = params->get_n();
+    int m = params->get_m();
     int index = 0;
-
-    int m = (int)(log(N) / log(n));
-
     secp_primitives::GroupElement g;
     g.randomize();
     std::vector<secp_primitives::GroupElement> h_gens;
@@ -154,7 +153,7 @@ BOOST_AUTO_TEST_CASE(prove_coin_not_in_set)
         commits[i].randomize();
     }
 
-    sigma::SigmaPlusProof<secp_primitives::Scalar,secp_primitives::GroupElement> proof;
+    sigma::SigmaPlusProof<secp_primitives::Scalar,secp_primitives::GroupElement> proof(params);
 
     prover.proof(commits, index, r, proof);
 
