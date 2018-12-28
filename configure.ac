@@ -812,7 +812,7 @@ else
   AC_CHECK_HEADER([zmq.h],,AC_MSG_ERROR(zmq.h not found))
   AC_CHECK_LIB([zmq],      [zmq_ctx_shutdown],ZMQ_LIBS=-lzmq, AC_MSG_ERROR(libzmq >= 4.0 not found))
 
-  AC_CHECK_HEADER([zip.h],,AC_MSG_ERROR(zip.h not found))
+  AC_CHECK_HEADER([minizip/zip.h],,AC_MSG_ERROR(zip.h not found))
   AC_CHECK_LIB([minizip],      [main],MINIZIP_LIBS=-lz, AC_MSG_ERROR(minizip not found))
 
 
