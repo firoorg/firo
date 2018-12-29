@@ -203,6 +203,10 @@ static FILE* fileout = NULL;
 static boost::mutex* mutexDebugLog = NULL;
 static list<string> *vMsgsBeforeOpenLog;
 
+/////////////////////////////////////////////////////////////////////// // themis
+static FILE* fileoutVM = nullptr;
+///////////////////////////////////////////////////////////////////////
+
 static int FileWriteStr(const std::string &str, FILE *fp)
 {
     return fwrite(str.data(), 1, str.size(), fp);
@@ -221,9 +225,13 @@ void OpenDebugLog()
     boost::mutex::scoped_lock scoped_lock(*mutexDebugLog);
 
     assert(fileout == NULL);
+	assert(fileoutVM == nullptr); // themis
     assert(vMsgsBeforeOpenLog);
     boost::filesystem::path pathDebug = GetDataDir() / "debug.log";
+	boost::filesystem::path pathDebugVM = GetDataDir() / "vm.log"; // themis
     fileout = fopen(pathDebug.string().c_str(), "a");
+	fileoutVM = fopen(pathDebugVM.string().c_str(), "a"); // themis
+
     if (fileout) setbuf(fileout, NULL); // unbuffered
 
     // dump buffered messages from before we opened the log
@@ -231,6 +239,17 @@ void OpenDebugLog()
         FileWriteStr(vMsgsBeforeOpenLog->front(), fileout);
         vMsgsBeforeOpenLog->pop_front();
     }
+
+	///////////////////////////////////////////// // themis
+	if (fileoutVM) {
+		setbuf(fileoutVM, nullptr); // unbuffered
+									// dump buffered messages from before we opened the log
+		while (!vMsgsBeforeOpenLog->empty()) {
+			FileWriteStr(vMsgsBeforeOpenLog->front(), fileoutVM);
+			vMsgsBeforeOpenLog->pop_front();
+		}
+	}
+	/////////////////////////////////////////////
 
     delete vMsgsBeforeOpenLog;
     vMsgsBeforeOpenLog = NULL;
@@ -296,6 +315,13 @@ static std::string LogTimestampStr(const std::string &str, bool *fStartedNewLine
 
 int LogPrintStr(const std::string &str)
 {
+	//////////////////////////////// // themis
+	FILE* file = fileout;
+	if (useVMLog) {
+		file = fileoutVM;
+	}
+	////////////////////////////////
+
     int ret = 0; // Returns total number of characters written
     static bool fStartedNewLine = true;
 

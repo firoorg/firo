@@ -134,6 +134,47 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
     return result;
 }
 
+//////////////////////////////////////////////////////////////////////////// // themis
+UniValue executionResultToJSON(const dev::eth::ExecutionResult& exRes)
+{
+	UniValue result(UniValue::VOBJ);
+	result.push_back(Pair("gasUsed", CAmount(exRes.gasUsed)));
+	std::stringstream ss;
+	ss << exRes.excepted;
+	result.push_back(Pair("excepted", ss.str()));
+	result.push_back(Pair("newAddress", exRes.newAddress.hex()));
+	result.push_back(Pair("output", HexStr(exRes.output)));
+	result.push_back(Pair("codeDeposit", static_cast<int32_t>(exRes.codeDeposit)));
+	result.push_back(Pair("gasRefunded", CAmount(exRes.gasRefunded)));
+	result.push_back(Pair("depositSize", static_cast<int32_t>(exRes.depositSize)));
+	result.push_back(Pair("gasForDeposit", CAmount(exRes.gasForDeposit)));
+	return result;
+}
+
+UniValue transactionReceiptToJSON(const dev::eth::TransactionReceipt& txRec)
+{
+	UniValue result(UniValue::VOBJ);
+	result.push_back(Pair("stateRoot", txRec.stateRoot().hex()));
+	result.push_back(Pair("gasUsed", CAmount(txRec.gasUsed())));
+	result.push_back(Pair("bloom", txRec.bloom().hex()));
+	UniValue logEntries(UniValue::VARR);
+	dev::eth::LogEntries logs = txRec.log();
+	for (dev::eth::LogEntry log : logs) {
+		UniValue logEntrie(UniValue::VOBJ);
+		logEntrie.push_back(Pair("address", log.address.hex()));
+		UniValue topics(UniValue::VARR);
+		for (dev::h256 l : log.topics) {
+			topics.push_back(l.hex());
+		}
+		logEntrie.push_back(Pair("topics", topics));
+		logEntrie.push_back(Pair("data", HexStr(log.data)));
+		logEntries.push_back(logEntrie);
+	}
+	result.push_back(Pair("log", logEntries));
+	return result;
+}
+////////////////////////////////////////////////////////////////////////////
+
 UniValue getblockcount(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 0)
@@ -679,6 +720,638 @@ UniValue getblock(const UniValue& params, bool fHelp)
     }
 
     return blockToJSON(block, pblockindex);
+}
+
+// qtum
+UniValue callcontract(const JSONRPCRequest& request)
+{
+	if (request.fHelp || request.params.size() < 2)
+		throw std::runtime_error(
+			"callcontract \"address\" \"data\" ( address )\n"
+			"\nArgument:\n"
+			"1. \"address\"          (string, required) The account address\n"
+			"2. \"data\"             (string, required) The data hex string\n"
+			"3. address              (string, optional) The sender address hex string\n"
+			"4. gasLimit             (string, optional) The gas limit for executing the contract\n"
+		);
+
+	LOCK(cs_main);
+
+	std::string strAddr = request.params[0].get_str();
+	std::string data = request.params[1].get_str();
+
+	if (data.size() % 2 != 0 || !CheckHex(data))
+		throw JSONRPCError(RPC_TYPE_ERROR, "Invalid data (data not hex)");
+
+	if (strAddr.size() != 40 || !CheckHex(strAddr))
+		throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Incorrect address");
+
+	dev::Address addrAccount(strAddr);
+	if (!globalState->addressInUse(addrAccount))
+		throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Address does not exist");
+
+	dev::Address senderAddress;
+	if (request.params.size() == 3) {
+		CTxDestination qtumSenderAddress = DecodeDestination(request.params[2].get_str());
+		if (IsValidDestination(qtumSenderAddress)) {
+			const CKeyID *keyid = boost::get<CKeyID>(&qtumSenderAddress);
+			senderAddress = dev::Address(HexStr(valtype(keyid->begin(), keyid->end())));
+		}
+		else {
+			senderAddress = dev::Address(request.params[2].get_str());
+		}
+
+	}
+	uint64_t gasLimit = 0;
+	if (request.params.size() == 4) {
+		gasLimit = request.params[3].get_int();
+	}
+
+
+	std::vector<ResultExecute> execResults = CallContract(addrAccount, ParseHex(data), senderAddress, gasLimit);
+
+	if (fRecordLogOpcodes) {
+		writeVMlog(execResults);
+	}
+
+	UniValue result(UniValue::VOBJ);
+	result.push_back(Pair("address", strAddr));
+	result.push_back(Pair("executionResult", executionResultToJSON(execResults[0].execRes)));
+	result.push_back(Pair("transactionReceipt", transactionReceiptToJSON(execResults[0].txRec)));
+
+	return result;
+}
+
+void assignJSON(UniValue& entry, const TransactionReceiptInfo& resExec) {
+	entry.push_back(Pair("blockHash", resExec.blockHash.GetHex()));
+	entry.push_back(Pair("blockNumber", uint64_t(resExec.blockNumber)));
+	entry.push_back(Pair("transactionHash", resExec.transactionHash.GetHex()));
+	entry.push_back(
+		Pair("transactionIndex", uint64_t(resExec.transactionIndex)));
+	entry.push_back(Pair("from", resExec.from.hex()));
+	entry.push_back(Pair("to", resExec.to.hex()));
+	entry.push_back(
+		Pair("cumulativeGasUsed", CAmount(resExec.cumulativeGasUsed)));
+	entry.push_back(Pair("gasUsed", CAmount(resExec.gasUsed)));
+	entry.push_back(Pair("contractAddress", resExec.contractAddress.hex()));
+	std::stringstream ss;
+	ss << resExec.excepted;
+	entry.push_back(Pair("excepted", ss.str()));
+}
+
+void assignJSON(UniValue& logEntry, const dev::eth::LogEntry& log,
+	bool includeAddress) {
+	if (includeAddress) {
+		logEntry.push_back(Pair("address", log.address.hex()));
+	}
+
+	UniValue topics(UniValue::VARR);
+	for (dev::h256 hash : log.topics) {
+		topics.push_back(hash.hex());
+	}
+	logEntry.push_back(Pair("topics", topics));
+	logEntry.push_back(Pair("data", HexStr(log.data)));
+}
+
+void transactionReceiptInfoToJSON(const TransactionReceiptInfo& resExec, UniValue& entry) {
+	assignJSON(entry, resExec);
+
+	const auto& logs = resExec.logs;
+	UniValue logEntries(UniValue::VARR);
+	for (const auto&log : logs) {
+		UniValue logEntry(UniValue::VOBJ);
+		assignJSON(logEntry, log, true);
+		logEntries.push_back(logEntry);
+	}
+	entry.push_back(Pair("log", logEntries));
+}
+
+size_t parseUInt(const UniValue& val, size_t defaultVal) {
+	if (val.isNull()) {
+		return defaultVal;
+	}
+	else {
+		int n = val.get_int();
+		if (n < 0) {
+			throw JSONRPCError(RPC_INVALID_PARAMS, "Expects unsigned integer");
+		}
+
+		return n;
+	}
+}
+
+int parseBlockHeight(const UniValue& val) {
+	if (val.isStr()) {
+		auto blockKey = val.get_str();
+
+		if (blockKey == "latest") {
+			return latestblock.height;
+		}
+		else {
+			throw JSONRPCError(RPC_INVALID_PARAMS, "invalid block number");
+		}
+	}
+
+	if (val.isNum()) {
+		int blockHeight = val.get_int();
+
+		if (blockHeight < 0) {
+			return latestblock.height;
+		}
+
+		return blockHeight;
+	}
+
+	throw JSONRPCError(RPC_INVALID_PARAMS, "invalid block number");
+}
+
+int parseBlockHeight(const UniValue& val, int defaultVal) {
+	if (val.isNull()) {
+		return defaultVal;
+	}
+	else {
+		return parseBlockHeight(val);
+	}
+}
+
+dev::h160 parseParamH160(const UniValue& val) {
+	if (!val.isStr()) {
+		throw JSONRPCError(RPC_INVALID_PARAMS, "Invalid hex 160");
+	}
+
+	auto addrStr = val.get_str();
+
+	if (addrStr.length() != 40 || !CheckHex(addrStr)) {
+		throw JSONRPCError(RPC_INVALID_PARAMS, "Invalid hex 160 string");
+	}
+	return dev::h160(addrStr);
+}
+
+void parseParam(const UniValue& val, std::vector<dev::h160> &h160s) {
+	if (val.isNull()) {
+		return;
+	}
+
+	// Treat a string as an array of length 1
+	if (val.isStr()) {
+		h160s.push_back(parseParamH160(val.get_str()));
+		return;
+	}
+
+	if (!val.isArray()) {
+		throw JSONRPCError(RPC_INVALID_PARAMS, "Expect an array of hex 160 strings");
+	}
+
+	auto vals = val.getValues();
+	h160s.resize(vals.size());
+
+	std::transform(vals.begin(), vals.end(), h160s.begin(), [](UniValue val) -> dev::h160 {
+		return parseParamH160(val);
+	});
+}
+
+void parseParam(const UniValue& val, std::set<dev::h160> &h160s) {
+	std::vector<dev::h160> v;
+	parseParam(val, v);
+	h160s.insert(v.begin(), v.end());
+}
+
+void parseParam(const UniValue& val, std::vector<boost::optional<dev::h256>> &h256s) {
+	if (val.isNull()) {
+		return;
+	}
+
+	if (!val.isArray()) {
+		throw JSONRPCError(RPC_INVALID_PARAMS, "Expect an array of hex 256 strings");
+	}
+
+	auto vals = val.getValues();
+	h256s.resize(vals.size());
+
+	std::transform(vals.begin(), vals.end(), h256s.begin(), [](UniValue val) -> boost::optional<dev::h256> {
+		if (val.isNull()) {
+			return boost::optional<dev::h256>();
+		}
+
+		if (!val.isStr()) {
+			throw JSONRPCError(RPC_INVALID_PARAMS, "Invalid hex 256 string");
+		}
+
+		auto addrStr = val.get_str();
+
+		if (addrStr.length() != 64 || !CheckHex(addrStr)) {
+			throw JSONRPCError(RPC_INVALID_PARAMS, "Invalid hex 256 string");
+		}
+
+		return boost::optional<dev::h256>(dev::h256(addrStr));
+	});
+}
+
+class WaitForLogsParams {
+public:
+	int fromBlock;
+	int toBlock;
+
+	int minconf;
+
+	std::set<dev::h160> addresses;
+	std::vector<boost::optional<dev::h256>> topics;
+
+	// bool wait;
+
+	WaitForLogsParams(const UniValue& params) {
+		std::unique_lock<std::mutex> lock(cs_blockchange);
+
+		fromBlock = parseBlockHeight(params[0], latestblock.height + 1);
+		toBlock = parseBlockHeight(params[1], -1);
+
+		parseFilter(params[2]);
+		minconf = parseUInt(params[3], 6);
+	}
+
+private:
+	void parseFilter(const UniValue& val) {
+		if (val.isNull()) {
+			return;
+		}
+
+		parseParam(val["addresses"], addresses);
+		parseParam(val["topics"], topics);
+	}
+};
+
+UniValue waitforlogs(const JSONRPCRequest& request_) {
+	// this is a long poll function. force cast to non const pointer
+	JSONRPCRequest& request = (JSONRPCRequest&)request_;
+
+	if (request.fHelp) {
+		throw std::runtime_error(
+			"waitforlogs (fromBlock) (toBlock) (filter) (minconf)\n"
+			"requires -logevents to be enabled\n"
+			"\nWaits for a new logs and return matching log entries. When the call returns, it also specifies the next block number to start waiting for new logs.\n"
+			"By calling waitforlogs repeatedly using the returned `nextBlock` number, a client can receive a stream of up-to-date log entires.\n"
+			"\nThis call is different from the similarly named `waitforlogs`. This call returns individual matching log entries, `searchlogs` returns a transaction receipt if one of the log entries of that transaction matches the filter conditions.\n"
+			"\nArguments:\n"
+			"1. fromBlock (int | \"latest\", optional, default=null) The block number to start looking for logs. ()\n"
+			"2. toBlock   (int | \"latest\", optional, default=null) The block number to stop looking for logs. If null, will wait indefinitely into the future.\n"
+			"3. filter    ({ addresses?: Hex160String[], topics?: Hex256String[] }, optional default={}) Filter conditions for logs. Addresses and topics are specified as array of hexadecimal strings\n"
+			"4. minconf   (uint, optional, default=6) Minimal number of confirmations before a log is returned\n"
+			"\nResult:\n"
+			"An object with the following properties:\n"
+			"1. logs (LogEntry[]) Array of matchiing log entries. This may be empty if `filter` removed all entries."
+			"2. count (int) How many log entries are returned."
+			"3. nextBlock (int) To wait for new log entries haven't seen before, use this number as `fromBlock`"
+			"\nUsage:\n"
+			"`waitforlogs` waits for new logs, starting from the tip of the chain.\n"
+			"`waitforlogs 600` waits for new logs, but starting from block 600. If there are logs available, this call will return immediately.\n"
+			"`waitforlogs 600 700` waits for new logs, but only up to 700th block\n"
+			"`waitforlogs null null` this is equivalent to `waitforlogs`, using default parameter values\n"
+			"`waitforlogs null null` { \"addresses\": [ \"ff0011...\" ], \"topics\": [ \"c0fefe\"] }` waits for logs in the future matching the specified conditions\n"
+			"\nSample Output:\n"
+			"{\n  \"entries\": [\n    {\n      \"blockHash\": \"56d5f1f5ec239ef9c822d9ed600fe9aa63727071770ac7c0eabfc903bf7316d4\",\n      \"blockNumber\": 3286,\n      \"transactionHash\": \"00aa0f041ce333bc3a855b2cba03c41427cda04f0334d7f6cb0acad62f338ddc\",\n      \"transactionIndex\": 2,\n      \"from\": \"3f6866e2b59121ada1ddfc8edc84a92d9655675f\",\n      \"to\": \"8e1ee0b38b719abe8fa984c986eabb5bb5071b6b\",\n      \"cumulativeGasUsed\": 23709,\n      \"gasUsed\": 23709,\n      \"contractAddress\": \"8e1ee0b38b719abe8fa984c986eabb5bb5071b6b\",\n      \"topics\": [\n        \"f0e1159fa6dc12bb31e0098b7a1270c2bd50e760522991c6f0119160028d9916\",\n        \"0000000000000000000000000000000000000000000000000000000000000002\"\n      ],\n      \"data\": \"00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000003\"\n    }\n  ],\n\n  \"count\": 7,\n  \"nextblock\": 801\n}\n"
+		);
+	}
+
+	if (!fLogEvents)
+		throw JSONRPCError(RPC_INTERNAL_ERROR, "Events indexing disabled");
+
+	if (!request.req)
+		throw JSONRPCError(RPC_INTERNAL_ERROR, "HTTP connection not available");
+
+	WaitForLogsParams params(request.params);
+
+	request.PollStart();
+
+	std::vector<std::vector<uint256>> hashesToBlock;
+
+	int curheight = 0;
+
+	auto& addresses = params.addresses;
+	auto& filterTopics = params.topics;
+
+	while (curheight == 0) {
+		{
+			LOCK(cs_main);
+			curheight = pblocktree->ReadHeightIndex(params.fromBlock, params.toBlock, params.minconf,
+				hashesToBlock, addresses);
+		}
+
+		// if curheight >= fromBlock. Blockchain extended with new log entries. Return next block height to client.
+		//    nextBlock = curheight + 1
+		// if curheight == 0. No log entry found in index. Wait for new block then try again.
+		//    nextBlock = fromBlock
+		// if curheight == -1. Incorrect parameters has entered.
+		//
+		// if curheight advanced, but all filtered out, API should return empty array, but advancing the cursor anyway.
+
+		if (curheight > 0) {
+			break;
+		}
+
+		if (curheight == -1) {
+			throw JSONRPCError(RPC_INVALID_PARAMETER, "Incorrect params");
+		}
+
+		// wait for a new block to arrive
+		{
+			while (true) {
+				std::unique_lock<std::mutex> lock(cs_blockchange);
+				auto blockHeight = latestblock.height;
+
+				request.PollPing();
+
+				cond_blockchange.wait_for(lock, std::chrono::milliseconds(1000));
+				if (latestblock.height > blockHeight) {
+					break;
+				}
+
+				// TODO: maybe just merge `IsRPCRunning` this into PollAlive
+				if (!request.PollAlive() || !IsRPCRunning()) {
+					LogPrintf("waitforlogs client disconnected\n");
+					return NullUniValue;
+				}
+			}
+		}
+	}
+
+	LOCK(cs_main);
+
+	UniValue jsonLogs(UniValue::VARR);
+
+	std::set<uint256> dupes;
+
+	for (const auto& txHashes : hashesToBlock) {
+		for (const auto& txHash : txHashes) {
+
+			if (dupes.find(txHash) != dupes.end()) {
+				continue;
+			}
+			dupes.insert(txHash);
+
+			std::vector<TransactionReceiptInfo> receipts = pstorageresult->getResult(
+				uintToh256(txHash));
+
+			for (const auto& receipt : receipts) {
+				for (const auto& log : receipt.logs) {
+
+					bool includeLog = true;
+
+					if (!filterTopics.empty()) {
+						for (size_t i = 0; i < filterTopics.size(); i++) {
+							auto filterTopic = filterTopics[i];
+
+							if (!filterTopic) {
+								continue;
+							}
+
+							auto filterTopicContent = filterTopic.get();
+							auto topicContent = log.topics[i];
+
+							if (topicContent != filterTopicContent) {
+								includeLog = false;
+								break;
+							}
+						}
+					}
+
+
+					if (!includeLog) {
+						continue;
+					}
+
+					UniValue jsonLog(UniValue::VOBJ);
+
+					assignJSON(jsonLog, receipt);
+					assignJSON(jsonLog, log, false);
+
+					jsonLogs.push_back(jsonLog);
+				}
+			}
+		}
+	}
+
+	UniValue result(UniValue::VOBJ);
+	result.push_back(Pair("entries", jsonLogs));
+	result.push_back(Pair("count", (int)jsonLogs.size()));
+	result.push_back(Pair("nextblock", curheight + 1));
+
+	return result;
+}
+
+class SearchLogsParams {
+public:
+	size_t fromBlock;
+	size_t toBlock;
+	size_t minconf;
+
+	std::set<dev::h160> addresses;
+	std::vector<boost::optional<dev::h256>> topics;
+
+	SearchLogsParams(const UniValue& params) {
+		std::unique_lock<std::mutex> lock(cs_blockchange);
+
+		setFromBlock(params[0]);
+		setToBlock(params[1]);
+
+		parseParam(params[2]["addresses"], addresses);
+		parseParam(params[3]["topics"], topics);
+
+		minconf = parseUInt(params[4], 0);
+	}
+
+private:
+	void setFromBlock(const UniValue& val) {
+		if (!val.isNull()) {
+			fromBlock = parseBlockHeight(val);
+		}
+		else {
+			fromBlock = latestblock.height;
+		}
+	}
+
+	void setToBlock(const UniValue& val) {
+		if (!val.isNull()) {
+			toBlock = parseBlockHeight(val);
+		}
+		else {
+			toBlock = latestblock.height;
+		}
+	}
+
+};
+
+UniValue searchlogs(const JSONRPCRequest& request)
+{
+	if (request.fHelp || request.params.size() < 2)
+		throw std::runtime_error(
+			"searchlogs <fromBlock> <toBlock> (address) (topics)\n"
+			"requires -logevents to be enabled"
+			"\nArgument:\n"
+			"1. \"fromBlock\"        (numeric, required) The number of the earliest block (latest may be given to mean the most recent block).\n"
+			"2. \"toBlock\"          (string, required) The number of the latest block (-1 may be given to mean the most recent block).\n"
+			"3. \"address\"          (string, optional) An address or a list of addresses to only get logs from particular account(s).\n"
+			"4. \"topics\"           (string, optional) An array of values from which at least one must appear in the log entries. The order is important, if you want to leave topics out use null, e.g. [\"null\", \"0x00...\"]. \n"
+			"5. \"minconf\"          (uint, optional, default=0) Minimal number of confirmations before a log is returned\n"
+			"\nExamples:\n"
+			+ HelpExampleCli("searchlogs", "0 100 '{\"addresses\": [\"12ae42729af478ca92c8c66773a3e32115717be4\"]}' '{\"topics\": [\"null\",\"b436c2bf863ccd7b8f63171201efd4792066b4ce8e543dde9c3e9e9ab98e216c\"]}'")
+			+ HelpExampleRpc("searchlogs", "0 100 {\"addresses\": [\"12ae42729af478ca92c8c66773a3e32115717be4\"]} {\"topics\": [\"null\",\"b436c2bf863ccd7b8f63171201efd4792066b4ce8e543dde9c3e9e9ab98e216c\"]}")
+		);
+
+	if (!fLogEvents)
+		throw JSONRPCError(RPC_INTERNAL_ERROR, "Events indexing disabled");
+
+	int curheight = 0;
+
+	LOCK(cs_main);
+
+	SearchLogsParams params(request.params);
+
+	std::vector<std::vector<uint256>> hashesToBlock;
+
+	curheight = pblocktree->ReadHeightIndex(params.fromBlock, params.toBlock, params.minconf, hashesToBlock, params.addresses);
+
+	if (curheight == -1) {
+		throw JSONRPCError(RPC_INVALID_PARAMETER, "Incorrect params");
+	}
+
+	UniValue result(UniValue::VARR);
+
+	auto topics = params.topics;
+
+	std::set<uint256> dupes;
+
+	for (const auto& hashesTx : hashesToBlock)
+	{
+		for (const auto& e : hashesTx)
+		{
+
+			if (dupes.find(e) != dupes.end()) {
+				continue;
+			}
+			dupes.insert(e);
+
+			std::vector<TransactionReceiptInfo> receipts = pstorageresult->getResult(uintToh256(e));
+
+			for (const auto& receipt : receipts) {
+				if (receipt.logs.empty()) {
+					continue;
+				}
+
+				if (!topics.empty()) {
+					for (size_t i = 0; i < topics.size(); i++) {
+						const auto& tc = topics[i];
+
+						if (!tc) {
+							continue;
+						}
+
+						for (const auto& log : receipt.logs) {
+							auto filterTopicContent = tc.get();
+
+							if (i >= log.topics.size()) {
+								continue;
+							}
+
+							if (filterTopicContent == log.topics[i]) {
+								goto push;
+							}
+						}
+					}
+
+					// Skip the log if none of the topics are matched
+					continue;
+				}
+
+			push:
+
+				UniValue tri(UniValue::VOBJ);
+				transactionReceiptInfoToJSON(receipt, tri);
+				result.push_back(tri);
+			}
+		}
+	}
+
+	return result;
+}
+
+UniValue gettransactionreceipt(const JSONRPCRequest& request)
+{
+	if (request.fHelp || request.params.size() < 1)
+		throw std::runtime_error(
+			"gettransactionreceipt \"hash\"\n"
+			"requires -logevents to be enabled"
+			"\nArgument:\n"
+			"1. \"hash\"          (string, required) The transaction hash\n"
+		);
+
+	if (!fLogEvents)
+		throw JSONRPCError(RPC_INTERNAL_ERROR, "Events indexing disabled");
+
+	LOCK(cs_main);
+
+	std::string hashTemp = request.params[0].get_str();
+	if (hashTemp.size() != 64) {
+		throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Incorrect hash");
+	}
+
+	uint256 hash(uint256S(hashTemp));
+
+	std::vector<TransactionReceiptInfo> transactionReceiptInfo = pstorageresult->getResult(uintToh256(hash));
+
+	UniValue result(UniValue::VARR);
+	for (TransactionReceiptInfo& t : transactionReceiptInfo) {
+		UniValue tri(UniValue::VOBJ);
+		transactionReceiptInfoToJSON(t, tri);
+		result.push_back(tri);
+	}
+	return result;
+}
+//////////////////////////////////////////////////////////////////////
+
+UniValue listcontracts(const JSONRPCRequest& request)
+{
+	if (request.fHelp)
+		throw std::runtime_error(
+			"listcontracts (start maxDisplay)\n"
+			"\nArgument:\n"
+			"1. start     (numeric or string, optional) The starting account index, default 1\n"
+			"2. maxDisplay       (numeric or string, optional) Max accounts to list, default 20\n"
+		);
+
+	LOCK(cs_main);
+
+	int start = 1;
+	if (request.params.size() > 0) {
+		start = request.params[0].get_int();
+		if (start <= 0)
+			throw JSONRPCError(RPC_TYPE_ERROR, "Invalid start, min=1");
+	}
+
+	int maxDisplay = 20;
+	if (request.params.size() > 1) {
+		maxDisplay = request.params[1].get_int();
+		if (maxDisplay <= 0)
+			throw JSONRPCError(RPC_TYPE_ERROR, "Invalid maxDisplay");
+	}
+
+	UniValue result(UniValue::VOBJ);
+
+	auto map = globalState->addresses();
+	int contractsCount = (int)map.size();
+
+	if (contractsCount>0 && start > contractsCount)
+		throw JSONRPCError(RPC_TYPE_ERROR, "start greater than max index " + itostr(contractsCount));
+
+	int itStartPos = std::min(start - 1, contractsCount);
+	int i = 0;
+	for (auto it = std::next(map.begin(), itStartPos); it != map.end(); it++)
+	{
+		result.push_back(Pair(it->first.hex(), ValueFromAmount(CAmount(globalState->balance(it->first)))));
+		i++;
+		if (i == maxDisplay)break;
+	}
+
+	return result;
 }
 
 struct CCoinsStats

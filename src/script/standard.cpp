@@ -185,6 +185,80 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, vector<vector<unsi
                 else
                     break;
             }
+			/////////////////////////////////////////////////////////// themis
+			else if (opcode2 == OP_VERSION)
+			{
+				if (0 <= opcode1 && opcode1 <= OP_PUSHDATA4)
+				{
+					if (vch1.empty() || vch1.size() > 4 || (vch1.back() & 0x80))
+						return false;
+
+					version = VersionVM::fromRaw(CScriptNum::vch_to_uint64(vch1));
+					if (!(version.toRaw() == VersionVM::GetEVMDefault().toRaw() || version.toRaw() == VersionVM::GetNoExec().toRaw())) {
+						// only allow standard EVM and no-exec transactions to live in mempool
+						return false;
+					}
+				}
+			}
+			else if (opcode2 == OP_GAS_LIMIT) {
+				try {
+					uint64_t val = CScriptNum::vch_to_uint64(vch1);
+					if (contractConsensus) {
+						//consensus rules (this is checked more in depth later using DGP)
+						if (version.rootVM != 0 && val < 1) {
+							return false;
+						}
+						if (val > MAX_BLOCK_GAS_LIMIT_DGP) {
+							//do not allow transactions that could use more gas than is in a block
+							return false;
+						}
+					}
+					else {
+						//standard mempool rules for contracts
+						//consensus rules for contracts
+						if (version.rootVM != 0 && val < STANDARD_MINIMUM_GAS_LIMIT) {
+							return false;
+						}
+						if (val > DEFAULT_BLOCK_GAS_LIMIT_DGP / 2) {
+							//don't allow transactions that use more than 1/2 block of gas to be broadcast on the mempool
+							return false;
+						}
+
+					}
+				}
+				catch (const scriptnum_error &err) {
+					return false;
+				}
+			}
+			else if (opcode2 == OP_GAS_PRICE) {
+				try {
+					uint64_t val = CScriptNum::vch_to_uint64(vch1);
+					if (contractConsensus) {
+						//consensus rules (this is checked more in depth later using DGP)
+						if (version.rootVM != 0 && val < 1) {
+							return false;
+						}
+					}
+					else {
+						//standard mempool rules
+						if (version.rootVM != 0 && val < STANDARD_MINIMUM_GAS_PRICE) {
+							return false;
+						}
+					}
+				}
+				catch (const scriptnum_error &err) {
+					return false;
+				}
+			}
+			else if (opcode2 == OP_DATA)
+			{
+				if (0 <= opcode1 && opcode1 <= OP_PUSHDATA4)
+				{
+					if (vch1.empty())
+						break;
+				}
+			}
+			///////////////////////////////////////////////////////////
             else if (opcode1 != opcode2 || vch1 != vch2)
             {
                 // Others must match exactly

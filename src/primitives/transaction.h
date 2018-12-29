@@ -457,6 +457,10 @@ public:
 
     bool IsZerocoinMint() const;
 
+	//////////////////////////////////////// // themis
+	bool HasCreateOrCall() const;
+	bool HasOpSpend() const;
+	////////////////////////////////////////
 
     friend bool operator==(const CTransaction& a, const CTransaction& b)
     {

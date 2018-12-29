@@ -523,6 +523,12 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
         pblock->vtx[0] = coinbaseTx;
         pblocktemplate->vTxFees[0] = -nFees;
 
+		//////////////////////////////////////////////////////// themis
+		//state shouldn't change here for an empty block, but if it's not valid it'll fail in CheckBlock later
+		pblock->hashStateRoot = uint256(h256Touint(dev::h256(globalState->rootHash())));
+		pblock->hashUTXORoot = uint256(h256Touint(dev::h256(globalState->rootHashUTXO())));
+		////////////////////////////////////////////////////////
+
         // Fill in header
         pblock->hashPrevBlock  = pindexPrev->GetBlockHash();
         UpdateTime(pblock, chainparams.GetConsensus(), pindexPrev);

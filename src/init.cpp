@@ -1370,6 +1370,11 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     if (fPrintToDebugLog)
         OpenDebugLog();
 
+	////////////////////////////////////////////////////////////////////// // themis
+	dev::g_logPost = [&](std::string const& s, char const* c) { LogPrintStr(s + '\n', true); };
+	dev::g_logPost(std::string("\n\n\n\n\n\n\n\n\n\n"), NULL);
+	//////////////////////////////////////////////////////////////////////
+
     if (!fLogTimestamps)
         LogPrintf("Startup time: %s\n", DateTimeStrFormat("%Y-%m-%d %H:%M:%S", GetTime()));
     LogPrintf("Default data directory %s\n", GetDefaultDataDir().string());
@@ -1672,6 +1677,46 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
                     strLoadError = _("Error initializing block database");
                     break;
                 }
+
+				/////////////////////////////////////////////////////////// themis
+				if ((gArgs.IsArgSet("-dgpstorage") && gArgs.IsArgSet("-dgpevm")) || (!gArgs.IsArgSet("-dgpstorage") && gArgs.IsArgSet("-dgpevm")) ||
+					(!gArgs.IsArgSet("-dgpstorage") && !gArgs.IsArgSet("-dgpevm"))) {
+					fGettingValuesDGP = true;
+				}
+				else {
+					fGettingValuesDGP = false;
+				}
+
+				dev::eth::Ethash::init();
+				fs::path themisStateDir = GetDataDir() / "stateThemis";
+				bool fStatus = fs::exists(themisStateDir);
+				const std::string dirQtum(themisStateDir.string());
+				const dev::h256 hashDB(dev::sha3(dev::rlp("")));
+				dev::eth::BaseState existsThemisstate = fStatus ? dev::eth::BaseState::PreExisting : dev::eth::BaseState::Empty;
+				globalState = std::unique_ptr<ThemisState>(new ThemisState(dev::u256(0), ThemisState::openDB(dirThemis, hashDB, dev::WithExisting::Trust), dirThemis, existsThemisstate));
+				dev::eth::ChainParams cp((dev::eth::genesisInfo(dev::eth::Network::themisMainNetwork)));
+				globalSealEngine = std::unique_ptr<dev::eth::SealEngineFace>(cp.createSealEngine());
+
+				pstorageresult.reset(new StorageResults(themisStateDir.string()));
+				if (fReset) {
+					pstorageresult->wipeResults();
+				}
+
+				if (chainActive.Tip() != nullptr) {
+					globalState->setRoot(uintToh256(chainActive.Tip()->hashStateRoot));
+					globalState->setRootUTXO(uintToh256(chainActive.Tip()->hashUTXORoot));
+				}
+				else {
+					globalState->setRoot(dev::sha3(dev::rlp("")));
+					globalState->setRootUTXO(uintToh256(chainparams.GenesisBlock().hashUTXORoot));
+					globalState->populateFrom(cp.genesisState);
+				}
+				globalState->db().commit();
+				globalState->dbUtxo().commit();
+
+				fRecordLogOpcodes = gArgs.IsArgSet("-record-log-opcodes");
+				fIsVMlogFile = fs::exists(GetDataDir() / "vmExecLogs.json");
+				///////////////////////////////////////////////////////////
 
                 // Check for changed -txindex state
                 if (fTxIndex != GetBoolArg("-txindex", DEFAULT_TXINDEX)) {

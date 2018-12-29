@@ -166,6 +166,18 @@ private:
 
 public:
     BlockAssembler(const CChainParams& chainparams);
+
+	///////////////////////////////////////////// // themis
+	ByteCodeExecResult bceResult;
+	uint64_t minGasPrice = 1;
+	uint64_t hardBlockGasLimit;
+	uint64_t softBlockGasLimit;
+	uint64_t txGasLimit;
+	/////////////////////////////////////////////
+
+	// The original constructed reward tx (either coinbase or coinstake) without gas refund adjustments
+	CMutableTransaction originalRewardTx; // themis
+
     /** Construct a new block template with coinbase to scriptPubKeyIn */
     CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn);
     CBlockTemplate* CreateNewBlockWithKey(CReserveKey& reservekey);
