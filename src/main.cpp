@@ -1122,7 +1122,6 @@ bool CheckTransaction(
         CZerocoinTxInfoV3 *zerocoinTxInfoV3) 
 {
     LogPrintf("CheckTransaction nHeight=%s, isVerifyDB=%s, isCheckWallet=%s, txHash=%s\n", nHeight, isVerifyDB, isCheckWallet, tx.GetHash().ToString());
-//    LogPrintf("transaction = %s\n", tx.ToString());
     // Basic checks that don't depend on any context
     if (tx.vin.empty())
         return state.DoS(10, false, REJECT_INVALID, "bad-txns-vin-empty");

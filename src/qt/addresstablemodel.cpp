@@ -527,7 +527,10 @@ bool AddressTableModel::zerocoinMint(string &stringError, string denomAmount)
         // Unlock wallet failed or was cancelled
         return false;
     }
-    return wallet->CreateZerocoinMintModel(stringError, denomAmount);
+    // Use sigma mint algorithm after this change is released.
+    // TODO(martun): maybe check the current time(0) and switch the algorithm from 
+    // ZEROCOIN to ZIGMA on the next line.
+    return wallet->CreateZerocoinMintModel(stringError, denomAmount, SIGMA);
 }
 
 bool AddressTableModel::zerocoinSpend(string &stringError, string thirdPartyAddress, string denomAmount)

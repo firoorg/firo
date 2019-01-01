@@ -38,11 +38,14 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 XZC mininput
 #define ZC_V1_5_GRACEFUL_MEMPOOL_PERIOD	500
 #define ZC_V1_5_GRACEFUL_PERIOD			1500
 
-#define ZC_V2_GRACEFUL_MEMPOOL_PERIOD	500
-#define ZC_V2_GRACEFUL_PERIOD			1500
 
-#define ZC_V2_STARTING_BLOCK          115819 // TODO(martun): change this to actual block height.
-#define ZC_V2_TESTNET_STARTING_BLOCK  47954
+// Number of blocks after ZC_V3_MINT_STARTING_BLOCK during which we still accept V2 zerocoin mints.
+#define ZC_V2_GRACEFUL_MEMPOOL_PERIOD	500
+#define ZC_V2_GRACEFUL_PERIOD			1500 
+
+// TODO(martun): change this to actual block height.
+#define ZC_V3_MINT_STARTING_BLOCK          115819 
+#define ZC_V3_MINT_TESTNET_STARTING_BLOCK  47954
 
 #define ZC_MODULUS_V2_START_BLOCK		89300
 #define ZC_MODULUS_V1_MEMPOOL_STOP_BLOCK        89500

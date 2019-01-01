@@ -579,6 +579,10 @@ private:
     std::vector<char> _ssExtra;
 };
 
+enum MintAlgorithm {
+    ZEROCOIN = 1,
+    SIGMA = 2
+};
 
 /**
  * A CWallet is an extension of a keystore, which also maintains a set of transactions and balances,
@@ -863,14 +867,20 @@ public:
     std::string SpendMultipleZerocoin(std::string& thirdPartyaddress, const std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>>& denominations, CWalletTx& wtxNew, vector<CBigNum>& coinSerials, uint256& txHash, vector<CBigNum>& zcSelectedValues, bool forceUsed = false);
     std::string SpendMultipleZerocoinV3(std::string& thirdPartyaddress, const std::vector<std::pair<int64_t, sigma::CoinDenominationV3>>& denominations, CWalletTx& wtxNew, vector<Scalar>& coinSerials, uint256& txHash, vector<GroupElement>& zcSelectedValues, bool forceUsed = false);
 
-    bool CreateZerocoinMintModel(string &stringError, const string& denomAmount);
+    bool CreateZerocoinMintModel(string &stringError,
+                                 const string& denomAmount,
+                                 MintAlgorithm algo = ZEROCOIN);
+
     bool CreateZerocoinMintModelV2(string &stringError, const string& denomAmount);
     bool CreateZerocoinMintModelV3(string &stringError, const string& denomAmount);
 
-    bool CreateZerocoinMintModel(string &stringError, vector<string> denomAmounts);
-    bool CreateZerocoinMintModel(string &stringError, std::vector<std::pair<int,int>> denominationPairs);
-    bool CreateZerocoinMintModelV3(string &stringError, std::vector<std::pair<int,int>> denominationPairs);
-    bool CreateZerocoinMintModelV2(string &stringError, std::vector<std::pair<int,int>> denominationPairs);
+    bool CreateZerocoinMintModel(string &stringError,
+                                 vector<string> denomAmounts, 
+                                 MintAlgorithm algo = ZEROCOIN);
+
+    bool CreateZerocoinMintModel(string &stringError, const std::vector<std::pair<int,int>>& denominationPairs, MintAlgorithm algo = ZEROCOIN);
+    bool CreateZerocoinMintModelV3(string &stringError, const std::vector<std::pair<int,int>>& denominationPairs);
+    bool CreateZerocoinMintModelV2(string &stringError, const std::vector<std::pair<int,int>>& denominationPairs);
     bool CreateZerocoinSpendModel(string &stringError, string thirdPartyAddress, string denomAmount, bool forceUsed = false);
     bool CreateZerocoinSpendModelV3(string &stringError, string thirdPartyAddress, string denomAmount, bool forceUsed = false);
     bool CreateZerocoinSpendModel(CWalletTx& wtx, string &stringError, string& thirdPartyAddress, const vector<string>& denomAmounts, bool forceUsed = false);

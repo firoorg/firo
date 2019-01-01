@@ -92,7 +92,7 @@ public:
 	int nModulusV1StopBlock;
 
     // Zerocoin V3 sigma related block numbers.	
-	int nSpendV2StartBlock;
+	int nMintV3SigmaStartBlock;
     
 protected:
     CChainParams() {}

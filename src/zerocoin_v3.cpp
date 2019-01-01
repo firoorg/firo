@@ -312,23 +312,16 @@ bool ConnectBlockZCV3(
 		bool fJustCheck) {
 	// Add zerocoin transaction information to index
 	if (pblock && pblock->zerocoinTxInfoV3) {
-		// Don't allow spend v1s after some point of time
-		if (pblock->zerocoinTxInfoV3->fHasSpendV1) {
-			int allowV1Height = Params().nSpendV15StartBlock;
-			if (pindexNew->nHeight >= allowV1Height + ZC_V1_5_GRACEFUL_PERIOD) {
-				LogPrintf("ConnectTipZC: spend v1 is not allowed after block %d\n", allowV1Height);
-				return false;
-			}
-		}
-
+        // Martun: Commented out the next code, uncomment if we decide to stop zerocoin V2 spends
+        // after some point in time. The current decision is to allow them forever.
 		// Also don't allow spend v2s after some other point in time.
-		if (pblock->zerocoinTxInfoV3->fHasSpendV2) {
-			int allowV2Height = Params().nSpendV2StartBlock;
-			if (pindexNew->nHeight >= allowV2Height + ZC_V2_GRACEFUL_PERIOD) {
-				LogPrintf("ConnectTipZC: spend v2 is not allowed after block %d\n", allowV2Height);
-				return false;
-			}
-		}
+		//if (pblock->zerocoinTxInfoV3->fHasSpendV2) {
+		//	int allowV2Height = Params().nSpendV2StartBlock;
+		//	if (pindexNew->nHeight >= allowV2Height + ZC_V2_GRACEFUL_PERIOD) {
+		//		LogPrintf("ConnectTipZC: spend v2 is not allowed after block %d\n", allowV2Height);
+		//		return false;
+		//	}
+		//}
 
 		if (!fJustCheck)
 			pindexNew->spentSerialsV3.clear();
@@ -348,7 +341,12 @@ bool ConnectBlockZCV3(
 				zerocoinStateV3.AddSpend(serial.first);
 			}
 		}
+        // Shows if V3 sigma mints are now allowed.
+        bool V3MintsAllowed = (pindexNew->nHeight >= Params().nMintV3SigmaStartBlock);
 
+        // If V3 mints are not allowed in this block, but some client tries to mint.
+        if (!V3MintsAllowed && !pblock->zerocoinTxInfoV3->mints.empty()) 
+		    return state.DoS(0, error("ConnectBlockZCV3 : V3 sigma mints not allowed until a given block"));
 		if (fJustCheck)
 			return true;
 

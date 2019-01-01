@@ -1,22 +1,25 @@
 #include "Coin.h"
 #include "util.h"
+#include "amount.h"
 
-namespace sigma{
+namespace sigma {
 
 bool DenominationToInteger(CoinDenominationV3 denom, int& denom_out, CValidationState &state) {
+    // static const CAmount COIN = 100000000; in amount.h
+
     switch (denom) {
         default:
             return state.DoS(100, error("CheckZerocoinTransaction : invalid denomination value, unable to convert to integer"));
         case CoinDenominationV3::ZQ_LOVELACE:
-            denom_out = 1;
+            denom_out = 1 * COIN;
         case CoinDenominationV3::ZQ_GOLDWASSER:
-            denom_out = 10;
+            denom_out = 10 * COIN;
         case CoinDenominationV3::ZQ_RACKOFF:
-            denom_out = 25;
+            denom_out = 25 * COIN;
         case CoinDenominationV3::ZQ_PEDERSEN:
-            denom_out = 50;
+            denom_out = 50 * COIN;
         case CoinDenominationV3::ZQ_WILLIAMSON:
-            denom_out = 100;
+            denom_out = 100 * COIN;
     }
 return true;
 }
@@ -25,15 +28,15 @@ bool IntegerToDenomination(int value, CoinDenominationV3& denom_out, CValidation
     switch (value) {
         default:
             return state.DoS(100, error("CheckZerocoinTransaction : invalid denomination value, unable to convert to enum"));
-        case 1:
+        case 1 * COIN:
             denom_out = CoinDenominationV3::ZQ_LOVELACE;
-        case 10:
+        case 10 * COIN:
             denom_out = CoinDenominationV3::ZQ_GOLDWASSER;
-        case 25:
+        case 25 * COIN:
             denom_out = CoinDenominationV3::ZQ_RACKOFF;
-        case 50:
+        case 50 * COIN:
             denom_out = CoinDenominationV3::ZQ_PEDERSEN;
-        case 100:
+        case 100 * COIN:
             denom_out = CoinDenominationV3::ZQ_WILLIAMSON;
     }
 return true;

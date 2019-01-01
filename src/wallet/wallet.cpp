@@ -3209,16 +3209,20 @@ bool CWallet::EraseFromWallet(uint256 hash) {
     return true;
 }
 
-bool CWallet::CreateZerocoinMintModel(string &stringError, std::vector<std::pair<int,int>> denominationPairs) {
-   bool version_is_3 = false;
-   //TODO(martun) check if it's time to start minting V3 sigma spends.
-   if(version_is_3)
+bool CWallet::CreateZerocoinMintModel(
+        string &stringError,
+        const std::vector<std::pair<int,int>>& denominationPairs,
+        MintAlgorithm algo) {
+   if(algo == SIGMA)
         return CreateZerocoinMintModelV3(stringError, denominationPairs);
-    else
+    else if (algo == ZEROCOIN)
         return CreateZerocoinMintModelV2(stringError,denominationPairs);
+    else
+        return false;
 }
 
-bool CWallet::CreateZerocoinMintModelV3(string &stringError, std::vector<std::pair<int,int>> denominationPairs) {
+bool CWallet::CreateZerocoinMintModelV3(
+        string &stringError, const std::vector<std::pair<int,int>>& denominationPairs) {
     sigma::CoinDenominationV3 denomination;
 
     vector<CRecipient> vecSend;
@@ -3226,32 +3230,18 @@ bool CWallet::CreateZerocoinMintModelV3(string &stringError, std::vector<std::pa
     CWalletTx wtx;
 
     std::pair<int,int> denominationPair;
-    BOOST_FOREACH(denominationPair, denominationPairs){
+    BOOST_FOREACH(denominationPair, denominationPairs) {
         int denominationValue = denominationPair.first;
-        switch(denominationValue){
-            case 1:
-                denomination = sigma::ZQ_LOVELACE;
-                break;
-            case 10:
-                denomination = sigma::ZQ_GOLDWASSER;
-                break;
-            case 25:
-                denomination = sigma::ZQ_RACKOFF;
-                break;
-            case 50:
-                denomination = sigma::ZQ_PEDERSEN;
-                break;
-            case 100:
-                denomination = sigma::ZQ_WILLIAMSON;
-                break;
-            default:
-                throw runtime_error(
-                        "mintzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n");
+        CValidationState dummy_state;
+        if (!IntegerToDenomination(denominationPair.first * COIN, denomination, dummy_state)) {
+            throw runtime_error(
+                "mintzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n");
         }
 
         int64_t amount = denominationPair.second;
 
-        LogPrintf("rpcWallet.mintzerocoin() denomination = %s, nAmount = %s \n", denominationValue, amount);
+        LogPrintf("rpcWallet.mintzerocoin() denomination = %s, nAmount = %s \n", 
+            denominationValue, amount);
 
         if(amount < 0){
             throw runtime_error(
@@ -3302,7 +3292,9 @@ bool CWallet::CreateZerocoinMintModelV3(string &stringError, std::vector<std::pa
     return true;
 }
 
-bool CWallet::CreateZerocoinMintModelV2(string &stringError, std::vector<std::pair<int,int>> denominationPairs) {
+bool CWallet::CreateZerocoinMintModelV2(
+        string &stringError,
+        const std::vector<std::pair<int,int>>& denominationPairs) {
     libzerocoin::CoinDenomination denomination;
     // Always use modulus v2
     libzerocoin::Params *zcParams = ZCParamsV2;
@@ -3386,13 +3378,15 @@ bool CWallet::CreateZerocoinMintModelV2(string &stringError, std::vector<std::pa
     return true;
 }
 
-bool CWallet::CreateZerocoinMintModel(string &stringError, const string& denomAmount) {
-    bool version_is_3 = false;
-    //TODO(martun) check if it is time to start minting v3 sigma mints.
-    if(version_is_3)
+bool CWallet::CreateZerocoinMintModel(string &stringError, const string& denomAmount, MintAlgorithm algo) {
+    //TODO(martun) check if it is time to start minting v3 sigma mints. Not sure how we can 
+    // access the current block number in the waller side, so adding an algo parameter.
+    if(algo == SIGMA)
         return CreateZerocoinMintModelV3(stringError, denomAmount);
-    else
+    else if (algo == ZEROCOIN)
         return CreateZerocoinMintModelV2(stringError, denomAmount);
+    else
+        return false;
 }
 
 bool CWallet::CreateZerocoinMintModelV3(string &stringError, const string& denomAmount) {
@@ -3440,7 +3434,8 @@ bool CWallet::CreateZerocoinMintModelV3(string &stringError, const string& denom
     if (pubCoin.validate()) {
         //TODOS
         CScript scriptSerializedCoin =
-                CScript() << OP_ZEROCOINMINT << pubCoin.getValue().memoryRequired() << pubCoin.getValue().getvch();
+                CScript() << OP_ZEROCOINMINTV3 << pubCoin.getValue().memoryRequired() 
+                    << pubCoin.getValue().getvch();
 
         // Wallet comments
         CWalletTx wtx;
@@ -3457,6 +3452,7 @@ bool CWallet::CreateZerocoinMintModelV3(string &stringError, const string& denom
         zerocoinTx.value = pubCoin.getValue();
         zerocoinTx.randomness = newCoin.getRandomness();
         zerocoinTx.serialNumber = newCoin.getSerialNumber();
+        // TODO(martun): ecdsaSecretKey looks like unnecessary, but take another look.
         // zerocoinTx.ecdsaSecretKey = std::vector<unsigned char>(ecdsaSecretKey, ecdsaSecretKey+32);
         LogPrintf("CreateZerocoinMintModel() -> NotifyZerocoinChanged\n");
         LogPrintf("pubcoin=%s, isUsed=%s\n", zerocoinTx.value.GetHex(), zerocoinTx.IsUsed);

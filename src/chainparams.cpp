@@ -243,7 +243,8 @@ class CMainParams : public CChainParams {
         consensus.nModulusV1StopBlock = ZC_MODULUS_V1_STOP_BLOCK;
 
         // Zerocoin V3 sigma related values.
-        consensus.nSpendV2StartBlock = ZC_V2_STARTING_BLOCK;
+        consensus.nMintV3SigmaStartBlock = ZC_V3_MINT_STARTING_BLOCK;
+        consensus.nMintV2GracefulPeriod = ZC_V2_GRACEFUL_PERIOD;
     }
 };
 
@@ -311,7 +312,8 @@ class CTestNetParams : public CChainParams {
             consensus.nMultipleSpendInputsInOneTxStartBlock = 1;
 
             // Zerocoin V3 sigma related values.
-            consensus.nSpendV2StartBlock = ZC_V2_TESTNET_STARTING_BLOCK;
+            consensus.nMintV3SigmaStartBlock = ZC_V3_MINT_TESTNET_STARTING_BLOCK;
+            consensus.nMintV2GracefulPeriod = ZC_V2_GRACEFUL_PERIOD;
 
             // Znode params testnet
             consensus.nZnodePaymentsStartBlock = 2200;
@@ -472,8 +474,9 @@ class CRegTestParams : public CChainParams {
             consensus.nInitialMTPDifficulty = 0x2070ffff;  // !!!! change it to the real value
             consensus.nMTPRewardReduction = 2;
 
-            // Zerocoin V3 sigma related values.
-            consensus.nSpendV2StartBlock = 2;
+            // Zerocoin V3 sigma related values for regtest.
+            consensus.nMintV3SigmaStartBlock = 180;
+            consensus.nMintV2GracefulPeriod = 2;
 
             pchMessageStart[0] = 0xfa;
             pchMessageStart[1] = 0xbf;

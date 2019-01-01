@@ -100,7 +100,9 @@ struct Params {
     int nMultipleSpendInputsInOneTxStartBlock;
 
     // Values for Zerocoin V3 sigma implementation.
-	int nSpendV2StartBlock;
+    // The block number after which V3 sigma mints are accepted.
+	int nMintV3SigmaStartBlock;
+    int nMintV2GracefulPeriod;
 
     /** switch to MTP time */
     uint32_t nMTPSwitchTime;
