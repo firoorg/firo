@@ -850,6 +850,7 @@ OPTIONAL: not a necessary parameter to pass.
         passphrase: STRING
     }
 ``` 
+
 *Returns:*
 ```
 { 
@@ -867,23 +868,46 @@ OPTIONAL: not a necessary parameter to pass.
 }
 ```
 
+`update`:
+```
+    data: {
+        txid: STRING,
+        address: STRING,
+        label: STRING
+    }
+    auth: {
+        passphrase: STRING
+    }
+``` 
+*Returns:*
+```
+{ 
+    data: {
+        true
+    }, 
+    meta:{
+       status: 200
+    }
+}
+```
+
 ### `sendZcoin`
 `create`:
 ```
     data: {
-          addresses: {
-              STRING (address): {
-                amount: INT,
-                label: STRING
-              },
-              STRING (address): {
-                amount: INT,
-                label: STRING
-              },
-              ...
+        addresses: {
+          STRING (address): {
+            amount: INT,
+            label: STRING
           },
-          feePerKb(sats): INT
-      },
+          STRING (address): {
+            amount: INT,
+            label: STRING
+          },
+          ...
+        },
+        feePerKb(sats): INT
+    },
     auth: {
         passphrase: STRING
     }
@@ -893,11 +917,31 @@ OPTIONAL: not a necessary parameter to pass.
 { 
     data: {
         txids: {
-           STRING (txid),
-           STRING (txid),
-           STRING (txid),
-           ...
+           STRING (txid)
        }
+    }, 
+    meta:{
+       status: 200
+    }
+}
+```
+
+`update`:
+```
+    data: {
+        txid: STRING,
+        address: STRING,
+        label: STRING
+    }
+    auth: {
+        passphrase: STRING
+    }
+``` 
+*Returns:*
+```
+{ 
+    data: {
+        true
     }, 
     meta:{
        status: 200

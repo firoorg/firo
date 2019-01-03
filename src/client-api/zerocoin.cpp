@@ -124,29 +124,30 @@ UniValue mint(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
 
 UniValue sendprivate(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
 
+    UniValue txMetadataUni(UniValue::VOBJ);
+    UniValue txMetadataData(UniValue::VOBJ);
+    UniValue txMetadataEntry(UniValue::VOBJ);
+
+    getTxMetadata(txMetadataUni, txMetadataData);
+
+    if(txMetadataUni.empty()){
+        UniValue txMetadataUni(UniValue::VOBJ);
+    }
+
+    if(txMetadataData.empty()){
+        UniValue txMetadataData(UniValue::VOBJ);
+    }
+
     switch(type){
         case Create: {
+            
+            UniValue txMetadataSubEntry(UniValue::VOBJ);
             UniValue ret(UniValue::VOBJ);
             UniValue txids(UniValue::VARR);
-
-            UniValue txMetadataUni(UniValue::VOBJ);
-            UniValue txMetadataData(UniValue::VOBJ);
-            UniValue txMetadataEntry(UniValue::VOBJ);
-            UniValue txMetadataSubEntry(UniValue::VOBJ);
 
             UniValue inputs(UniValue::VARR);;
             string addressStr;
             string label;
-
-            getTxMetadata(txMetadataUni, txMetadataData);
-
-            if(txMetadataUni.empty()){
-                UniValue txMetadataUni(UniValue::VOBJ);
-            }
-
-            if(txMetadataData.empty()){
-                UniValue txMetadataData(UniValue::VOBJ);
-            }
 
             LOCK2(cs_main, pwalletMain->cs_wallet);
 
@@ -292,6 +293,41 @@ UniValue sendprivate(Type type, const UniValue& data, const UniValue& auth, bool
             txids.push_back(wtx.GetHash().GetHex());
             ret.push_back(Pair("txids", txids));
             return ret;
+        }
+        /*
+        Allows updating a label for a specific address in a transaction.
+        */
+        case Update: {
+            UniValue txMetadataTxid(UniValue::VOBJ);
+            UniValue txMetadataAddress(UniValue::VOBJ);
+            string txid;
+            string address;
+            string label;
+            try {
+                txid = find_value(data, "txid").get_str();
+                address = find_value(data, "address").get_str();
+                label = find_value(data, "label").get_str();
+            }catch (const std::exception& e){
+                throw JSONAPIError(API_WRONG_TYPE_CALLED, "wrong key passed/value type for method");
+            }
+
+            try{
+                txMetadataTxid = find_value(txMetadataData, txid);
+                txMetadataAddress = find_value(txMetadataTxid, address);
+            }catch (const std::exception& e){
+                throw JSONAPIError(API_INVALID_PARAMETER, "Invalid data, key not found");
+            }
+
+            txMetadataAddress.replace("label", label);
+            txMetadataTxid.replace(address, txMetadataAddress);
+            txMetadataData.replace(txid, txMetadataTxid);
+
+            if(!txMetadataUni.replace("data", txMetadataData)){
+                throw runtime_error("Could not replace key/value pair.");
+            }
+            setTxMetadata(txMetadataUni);
+
+            return true;
         }
      
         default: {
