@@ -385,7 +385,11 @@ UniValue paymentrequest(Type type, const UniValue& data, const UniValue& auth, b
             return true;
             break;      
         }
-
+        /*
+          "Update" can be used to either:
+            - Update an existing address and metadata associated with a payment request
+            - Create a new entry for address and metadata that was NOT created through a payment request (eg. created with the Qt application).
+        */
         case Update: {
             string id;
             std::vector<std::string> dataKeys;
@@ -397,14 +401,18 @@ UniValue paymentrequest(Type type, const UniValue& data, const UniValue& auth, b
             }
 
             entry = find_value(paymentRequestData, id);
-            if(entry.isNull()){
-                throw JSONAPIError(API_INVALID_PARAMETER, "Invalid data, id does not exist");
-            }
+
+            // If null, declare the object again.
+             if(entry.isNull()){
+                 entry.setObject();
+                 entry.push_back(Pair("address", id));
+             }
 
             for (std::vector<std::string>::iterator it = dataKeys.begin(); it != dataKeys.end(); it++){
                 string key = (*it);
+                UniValue value = find_value(data, key);
                 if(!(key=="id")){
-                    entry.replace(key, find_value(data, key)); //todo might have to specify type
+                    entry.replace(key, value); //todo might have to specify type
                 }
             }
 

@@ -615,7 +615,7 @@ OPTIONAL: not a necessary parameter to pass.
 ```
     data: {
         address: STRING,
-        amount: 2, (OPTIONAL)
+        amount: INT, (OPTIONAL)
         label: STRING, (OPTIONAL)
         message: STRING (OPTIONAL)
     },
