@@ -171,13 +171,16 @@ bool CheckMintZcoinTransactionV3(
 	LogPrintf("CheckMintZcoinTransactionV3 txHash = %s\n", txout.GetHash().ToString());
 	LogPrintf("nValue = %d\n", txout.nValue);
 
-	if (txout.scriptPubKey.size() < 6)
+	if (txout.scriptPubKey.size() < 4)
 		return state.DoS(100,
 				false,
 				PUBCOIN_NOT_VALIDATE,
 				"CTransaction::CheckTransactionV3() : PubCoin validation failed");
 
-	vector<unsigned char> coin_serialised(txout.scriptPubKey.begin() + 6, txout.scriptPubKey.end());
+    // If you wonder why +4, go to file wallet.cpp and read the comments in function 
+    // CWallet::CreateZerocoinMintModelV3 around "scriptSerializedCoin << OP_ZEROCOINMINTV3";
+	vector<unsigned char> coin_serialised(txout.scriptPubKey.begin() + 4, 
+                                          txout.scriptPubKey.end());
 	secp_primitives::GroupElement pubCoinValue;
 	pubCoinValue.deserialize(&coin_serialised[0]);
 
@@ -210,33 +213,19 @@ bool CheckMintZcoinTransactionV3(
 				txout.GetHash().ToString());
 	}
 
-	switch (txout.nValue) {
-		default:
-			return state.DoS(100,
-					false,
-					PUBCOIN_NOT_VALIDATE,
-					"CheckZerocoinTransactionV3 : PubCoin denomination is invalid");
+    if (!pubCoin.validate())
+        return state.DoS(100,
+                false,
+                PUBCOIN_NOT_VALIDATE,
+                "CheckZerocoinTransaction : PubCoin validation failed");
 
-		case CoinDenominationV3::ZQ_LOVELACE*COIN:
-		case CoinDenominationV3::ZQ_GOLDWASSER*COIN:
-		case CoinDenominationV3::ZQ_RACKOFF*COIN:
-		case CoinDenominationV3::ZQ_PEDERSEN*COIN:
-		case CoinDenominationV3::ZQ_WILLIAMSON*COIN:
-			if (!pubCoin.validate())
-				return state.DoS(100,
-						false,
-						PUBCOIN_NOT_VALIDATE,
-						"CheckZerocoinTransaction : PubCoin validation failed");
+    if (zerocoinTxInfoV3 != NULL && !zerocoinTxInfoV3->fInfoIsComplete) {
+        // Update public coin list in the info
+        zerocoinTxInfoV3->mints.push_back(pubCoin);
+        zerocoinTxInfoV3->zcTransactions.insert(hashTx);
+    }
 
-			if (zerocoinTxInfoV3 != NULL && !zerocoinTxInfoV3->fInfoIsComplete) {
-				// Update public coin list in the info
-				zerocoinTxInfoV3->mints.push_back(pubCoin);
-				zerocoinTxInfoV3->zcTransactions.insert(hashTx);
-			}
-			break;
-	}
-
-	return true;
+    return true;
 }
 
 bool CheckZerocoinTransactionV3(
@@ -264,7 +253,7 @@ bool CheckZerocoinTransactionV3(
 		{
 			if (!isVerifyDB) {
             	sigma::CoinDenominationV3 denomination;
-                if (!IntegerToDenomination(txout.nValue / COIN, denomination, state))
+                if (!IntegerToDenomination(txout.nValue, denomination, state))
                       return false;
 				if(!CheckSpendZcoinTransactionV3(
 							tx, denomination, state, hashTx, isVerifyDB, nHeight, 
@@ -328,13 +317,14 @@ bool ConnectBlockZCV3(
 
 		BOOST_FOREACH(auto& serial, pblock->zerocoinTxInfoV3->spentSerials) {
 			if (!CheckZerocoinSpendSerialV3(
-						state, 
-						pblock->zerocoinTxInfoV3.get(), 
-						serial.first, 
-						pindexNew->nHeight, 
-						true /* fConnectTip */
-						))
+					state, 
+					pblock->zerocoinTxInfoV3.get(), 
+					serial.first, 
+					pindexNew->nHeight, 
+					true /* fConnectTip */
+					)) {
 				return false;
+            }
 
 			if (!fJustCheck) {
 				pindexNew->spentSerialsV3.insert(serial.first);
@@ -353,16 +343,14 @@ bool ConnectBlockZCV3(
 		// Update pindexNew.mintedPubCoinsV3
 		BOOST_FOREACH(const PublicCoinV3& mint, pblock->zerocoinTxInfoV3->mints) {
 			CoinDenominationV3 denomination = mint.getDenomination();            
-			int mintId = zerocoinStateV3.AddMint(
-					pindexNew,
-					mint);
+			int mintId = zerocoinStateV3.AddMint(pindexNew,	mint);
 
 			LogPrintf("ConnectTipZC: mint added denomination=%d, id=%d\n", denomination, mintId);
 			pair<int,int> denomAndId = make_pair(denomination, mintId);
 			pindexNew->mintedPubCoinsV3[denomAndId].push_back(mint);
 		}               
 	}
-	else if (!fJustCheck) {
+	else if (!fJustCheck) { // TODO(martun): not sure if this else is necessary here. Check again later.
 		zerocoinStateV3.AddBlock(pindexNew);
 	}
 	return true;
@@ -410,21 +398,22 @@ CZerocoinStateV3::CZerocoinStateV3() {
 int CZerocoinStateV3::AddMint(
 		CBlockIndex *index, 
 		const PublicCoinV3 &pubCoin) {
-	int     mintId = 1;
-	int denomination =  pubCoin.getDenomination();
+	int denomination = pubCoin.getDenomination();
 
 	if (latestCoinIds[denomination] < 1)
-		latestCoinIds[denomination] = mintId;
-	else
-		mintId = latestCoinIds[denomination];
+		latestCoinIds[denomination] = 1;
+    int	mintCoinGroupId = latestCoinIds[denomination];
 
-	// There is a limit of 15000 coins per group but mints belonging to the same block must have the same id thus going
-	// beyond 15000
-	CoinGroupInfoV3 &coinGroup = coinGroups[make_pair(denomination, mintId)];
-	int coinsPerId =  ZC_SPEND_V3_COINSPERID;
-	if (coinGroup.nCoins < coinsPerId || coinGroup.lastBlock == index) {
+    // ZC_SPEND_V3_COINSPERID = 15.000, yet the actual limit of coins per accumlator is 16.000.
+    // We need to cut at 15.000, such that we always have enough space for new mints. Mints for 
+    // each block will end up in the same accumulator.
+	CoinGroupInfoV3 &coinGroup = coinGroups[make_pair(denomination, mintCoinGroupId)];
+	int coinsPerId = ZC_SPEND_V3_COINSPERID;
+	if (coinGroup.nCoins < coinsPerId // there's still space in the accumulator
+        || coinGroup.lastBlock == index // or we have already placed some coins from current block.
+        ) {
 		if (coinGroup.nCoins++ == 0) {
-			// first groups of coins for given denomination
+			// first group of coins for given denomination
 			coinGroup.firstBlock = coinGroup.lastBlock = index;
 		}
 		else {
@@ -432,17 +421,17 @@ int CZerocoinStateV3::AddMint(
 		}
 	}
 	else {
-		latestCoinIds[denomination] = ++mintId;
-		CoinGroupInfoV3& newCoinGroup = coinGroups[make_pair(denomination, mintId)];
+		latestCoinIds[denomination] = ++mintCoinGroupId;
+		CoinGroupInfoV3& newCoinGroup = coinGroups[std::make_pair(denomination, mintCoinGroupId)];
 		newCoinGroup.firstBlock = newCoinGroup.lastBlock = index;
 		newCoinGroup.nCoins = 1;
 	}
 	CMintedCoinInfo coinInfo;
 	coinInfo.denomination = denomination;
-	coinInfo.id = mintId;
+	coinInfo.id = mintCoinGroupId;
 	coinInfo.nHeight = index->nHeight;
-	mintedPubCoins.insert(pair<PublicCoinV3,CMintedCoinInfo>(pubCoin, coinInfo));
-	return mintId;
+	mintedPubCoins.insert(std::make_pair(pubCoin, coinInfo));
+	return mintCoinGroupId;
 }
 
 void CZerocoinStateV3::AddSpend(const Scalar &serial) {
@@ -468,7 +457,7 @@ void CZerocoinStateV3::AddBlock(CBlockIndex *index) {
 			coinInfo.denomination = pubCoins.first.first;
 			coinInfo.id = pubCoins.first.second;
 			coinInfo.nHeight = index->nHeight;
-			mintedPubCoins.insert(pair<PublicCoinV3,CMintedCoinInfo>(coin, coinInfo));
+			mintedPubCoins.insert(pair<PublicCoinV3, CMintedCoinInfo>(coin, coinInfo));
 		}
 	}
 

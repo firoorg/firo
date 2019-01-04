@@ -1,4 +1,4 @@
-#include "main.h"
+ // This is the ID of accumulator, not the coin itself.#include "main.h"
 #include "zerocoin.h"
 #include "timedata.h"
 #include "chainparams.h"
@@ -742,11 +742,10 @@ CZerocoinState::CZerocoinState() {
 }
 
 int CZerocoinState::AddMint(CBlockIndex *index, int denomination, const CBigNum &pubCoin, CBigNum &previousAccValue) {
-
-    int     mintId = 1;
+    int mintId = 1;
 
     if (latestCoinIds[denomination] < 1)
-        latestCoinIds[denomination] = mintId;
+        latestCoinIds[denomination] = 1;
     else
         mintId = latestCoinIds[denomination];
 
@@ -757,7 +756,7 @@ int CZerocoinState::AddMint(CBlockIndex *index, int denomination, const CBigNum 
                         Params().GetConsensus(), mintId) ? ZC_SPEND_V2_COINSPERID : ZC_SPEND_V1_COINSPERID;
     if (coinGroup.nCoins < coinsPerId || coinGroup.lastBlock == index) {
         if (coinGroup.nCoins++ == 0) {
-            // first groups of coins for given denomination
+            // first group of coins for given denomination
             coinGroup.firstBlock = coinGroup.lastBlock = index;
         }
         else {

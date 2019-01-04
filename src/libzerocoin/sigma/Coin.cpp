@@ -146,4 +146,4 @@ void PrivateCoinV3::mintCoin(const CoinDenominationV3 denomination){
     publicCoin = PublicCoinV3(commit, denomination);
 }
 
-}//namespace sigma
+} // namespace sigma

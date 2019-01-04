@@ -3261,20 +3261,22 @@ bool CWallet::CreateZerocoinMintModelV3(
 
             sigma::PublicCoinV3 pubCoin = newCoin.getPublicCoin();
 
-            //Validate
-            bool validCoin = pubCoin.validate();
-
-            // loop until we find a valid coin
-            if (!validCoin) {
+            // Validate
+            if (!pubCoin.validate()) {
                 stringError = "Unable to mint a V3 sigma coin.";
                 return false;
             }
 
             // Create script for coin
-            CScript scriptSerializedCoin =
-                    CScript() << OP_ZEROCOINMINTV3
-                        << pubCoin.getValue().memoryRequired()
-                        << pubCoin.getValue().getvch();
+            CScript scriptSerializedCoin; 
+            // opcode is inserted as 1 byte according to file script/script.h
+            scriptSerializedCoin << OP_ZEROCOINMINTV3; 
+
+            // this one will probably be written as int64_t, which means it will be written in as few bytes as necessary, and one more byte for sign. In our case our 34 will take 2 bytes, 1 for the number 34 and another one for the sign.
+            scriptSerializedCoin << pubCoin.getValue().memoryRequired();
+            
+            // and this one will write the size in different byte lengths depending on the length of vector. If vector size is <0.4c, which is 76, will write the size of vector in just 1 byte. In our case the size is always 34, so must write that 34 in 1 byte.
+            scriptSerializedCoin << pubCoin.getValue().getvch(); 
 
             CRecipient recipient = {scriptSerializedCoin, (denominationValue * COIN), false};
 
@@ -3434,7 +3436,8 @@ bool CWallet::CreateZerocoinMintModelV3(string &stringError, const string& denom
     if (pubCoin.validate()) {
         //TODOS
         CScript scriptSerializedCoin =
-                CScript() << OP_ZEROCOINMINTV3 << pubCoin.getValue().memoryRequired() 
+                CScript() << OP_ZEROCOINMINTV3 
+                    << pubCoin.getValue().memoryRequired() 
                     << pubCoin.getValue().getvch();
 
         // Wallet comments

@@ -87,7 +87,7 @@ public:
 
     struct CMintedCoinInfo {
         int         denomination;
-        int         id;
+        int         id; // This is the ID of accumulator, not the coin itself.
         int         nHeight;
     };
 
