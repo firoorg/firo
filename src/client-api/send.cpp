@@ -237,41 +237,6 @@ UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool f
 
             txid.push_back(Pair("txid", txidStr));
             return txid;
-        } 
-        /*
-        Allows updating a label for a specific address in a transaction.
-        */
-        case Update: {
-            UniValue txMetadataTxid(UniValue::VOBJ);
-            UniValue txMetadataAddress(UniValue::VOBJ);
-            string txid;
-            string address;
-            string label;
-            try {
-                txid = find_value(data, "txid").get_str();
-                address = find_value(data, "address").get_str();
-                label = find_value(data, "label").get_str();
-            }catch (const std::exception& e){
-                throw JSONAPIError(API_WRONG_TYPE_CALLED, "wrong key passed/value type for method");
-            }
-
-            try{
-                txMetadataTxid = find_value(txMetadataData, txid);
-                txMetadataAddress = find_value(txMetadataTxid, address);
-            }catch (const std::exception& e){
-                throw JSONAPIError(API_INVALID_PARAMETER, "Invalid data, key not found");
-            }
-
-            txMetadataAddress.replace("label", label);
-            txMetadataTxid.replace(address, txMetadataAddress);
-            txMetadataData.replace(txid, txMetadataTxid);
-
-            if(!txMetadataUni.replace("data", txMetadataData)){
-                throw runtime_error("Could not replace key/value pair.");
-            }
-            setTxMetadata(txMetadataUni);
-
-            return true;
         }
         default: {
 
@@ -357,6 +322,77 @@ UniValue txfee(Type type, const UniValue& data, const UniValue& auth, bool fHelp
     LogPrintf("API: returning from txfee\n");
     ret.push_back(Pair("fee", nFeeRequired));
     return ret;
+}
+
+UniValue updatelabels(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
+{
+    UniValue txMetadataUni(UniValue::VOBJ);
+    UniValue txMetadataData(UniValue::VOBJ);
+
+    UniValue txidValue(UniValue::VOBJ);
+    UniValue addressValue(UniValue::VOBJ);
+
+    string txidKey;
+    UniValue addressKeyObj(UniValue::VOBJ);
+    string addressKey;
+
+    string label;
+
+    getTxMetadata(txMetadataUni, txMetadataData);
+
+    if(txMetadataUni.empty()){
+        txMetadataUni.setObject();
+    }
+
+    if(txMetadataData.empty()){
+        txMetadataData.setObject();
+    }
+
+    try {
+        txidKey = find_value(data, "txid").get_str();
+        label = find_value(data, "label").get_str();
+    }catch (const std::exception& e){
+        throw JSONAPIError(API_WRONG_TYPE_CALLED, "wrong key passed/value type for method");
+    }
+
+    /* 
+     * If txid object found, we proceed with an update. 
+     * Otherwise this is new data, so the logic following this block will create it.
+     */
+    txidValue = find_value(txMetadataData, txidKey);
+    if(!txidValue.isNull()){
+        // If no "address" key, this is a private spend label update.
+        addressKeyObj = find_value(data, "address");
+        if(addressKeyObj.isNull()){
+            addressKey = txidValue.getKeys()[0];
+            addressValue = txidValue.getValues()[0];
+        }else{
+            addressKey = addressKeyObj.get_str();
+            try{
+                addressValue = find_value(txidValue, addressKey);
+            }catch (const std::exception& e){
+                throw JSONAPIError(API_INVALID_PARAMETER, "Invalid data, key not found");
+            }  
+        }
+    }else{
+        try{
+            addressKey = find_value(data, "address").get_str();
+        }catch (const std::exception& e){
+            throw JSONAPIError(API_INVALID_PARAMETER, "Invalid data, key not found");
+        } 
+        txidValue.setObject();
+    }
+
+    addressValue.replace("label", label);
+    txidValue.replace(addressKey, addressValue);
+    txMetadataData.replace(txidKey, txidValue);
+
+    if(!txMetadataUni.replace("data", txMetadataData)){
+        throw runtime_error("Could not replace key/value pair.");
+    }
+    setTxMetadata(txMetadataUni);
+
+    return true;
 }
 
 UniValue paymentrequest(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
@@ -486,7 +522,9 @@ static const CAPICommand commands[] =
   //  --------------------- ------------       ----------------          -------- --------------   --------
     { "send",            "paymentRequest",  &paymentrequest,          true,      false,           false  },
     { "send",            "txFee",           &txfee,                   true,      false,           false  },
+    { "send",            "updateLabels",    &updatelabels,            true,      false,           false  },
     { "send",            "sendZcoin",       &sendzcoin,               true,      true,            false  }
+
 };
 
 void RegisterSendAPICommands(CAPITable &tableAPI)

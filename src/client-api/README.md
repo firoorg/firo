@@ -47,6 +47,7 @@ A function with one or more operations.
 | [paymentRequest](#paymentrequest) | Bundles of information related to a Zcoin payment. | 🔐 | – | – |
 | [txFee](#txfee)                   | Gets the transaction fee required for the size of the tx passed + fee per kb. | 🔐 | – | – |
 | [znodeList](#znodelist)           | list information related to all Znodes. | 🔐 | – | – |
+| [updateLabels](#updateLabels)     | Update transaction labels stored in the persistent tx metadata file. | 🔐 | – | – |
 | [stop](#stop)                     | Stop the Zcoin daemon. | 🔐 | - | – |
 | [znodeControl](#znodecontrol)     | Start/stop Znode(s) by alias. | 🔐 | ✅ | – |
 | [mint](#mint)                     | Mint 1 or more Zerocoins. | 🔐 | ✅ | – |
@@ -763,6 +764,27 @@ OPTIONAL: not a necessary parameter to pass.
 }
 ```
 
+### `updateLabels`
+`update`:
+```
+    data: {
+        txid: STRING,
+        label: STRING,
+        address: STRING (OPTIONAL)
+      }
+```
+*Returns:*
+```
+{
+    data: {
+        true
+    },
+    meta:{
+       status: 200
+    }
+}
+```
+
 ### `znodeControl`
 ```
     data: {
@@ -868,17 +890,6 @@ OPTIONAL: not a necessary parameter to pass.
 }
 ```
 
-`update`:
-```
-    data: {
-        txid: STRING,
-        address: STRING,
-        label: STRING
-    }
-    auth: {
-        passphrase: STRING
-    }
-``` 
 *Returns:*
 ```
 { 
@@ -919,29 +930,6 @@ OPTIONAL: not a necessary parameter to pass.
         txids: {
            STRING (txid)
        }
-    }, 
-    meta:{
-       status: 200
-    }
-}
-```
-
-`update`:
-```
-    data: {
-        txid: STRING,
-        address: STRING,
-        label: STRING
-    }
-    auth: {
-        passphrase: STRING
-    }
-``` 
-*Returns:*
-```
-{ 
-    data: {
-        true
     }, 
     meta:{
        status: 200
