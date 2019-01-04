@@ -35,16 +35,16 @@
 #include <boost/unordered_map.hpp>
 
 /////////////////////////////////////////// themis
-#include <qtum/qtumstate.h>
-#include <qtum/qtumDGP.h>
+#include <themis/themisstate.h>
+#include <themis/themisDGP.h>
 #include <libethereum/ChainParams.h>
 #include <libethashseal/Ethash.h>
 #include <libethashseal/GenesisInfo.h>
 #include <script/standard.h>
-#include <qtum/storageresults.h>
+#include <themis/storageresults.h>
 
 
-extern std::unique_ptr<QtumState> globalState;
+extern std::unique_ptr<ThemisState> globalState;
 extern std::shared_ptr<dev::eth::SealEngineFace> globalSealEngine;
 extern bool fRecordLogOpcodes;
 extern bool fIsVMlogFile;
@@ -52,7 +52,7 @@ extern bool fGettingValuesDGP;
 
 struct EthTransactionParams;
 using valtype = std::vector<unsigned char>;
-using ExtractQtumTX = std::pair<std::vector<QtumTransaction>, std::vector<EthTransactionParams>>;
+using ExtractThemisTX = std::pair<std::vector<ThemisTransaction>, std::vector<EthTransactionParams>>;
 ///////////////////////////////////////////
 
 class CBlockIndex;
@@ -68,6 +68,13 @@ class CValidationState;
 struct PrecomputedTransactionData;
 struct CNodeStateStats;
 struct LockPoints;
+
+// themis
+/** Minimum gas limit that is allowed in a transaction within a block - prevent various types of tx and mempool spam **/
+static const uint64_t MINIMUM_GAS_LIMIT = 10000;
+
+static const uint64_t MEMPOOL_MIN_GAS_LIMIT = 22000;
+//
 
 /** btzc: update zcoin config */
 /** Default for DEFAULT_WHITELISTRELAY. */
@@ -675,6 +682,10 @@ extern CCoinsViewCache *pcoinsTip;
 /** Global variable that points to the active block tree (protected by cs_main) */
 extern CBlockTreeDB *pblocktree;
 
+/////////////////////////////////////////////////////////// themis
+extern std::unique_ptr<StorageResults> pstorageresult;
+///////////////////////////////////////////////////////////
+
 /**
  * Return the spend height, which is one more than the inputs.GetBestBlock().
  * While checking, GetBestBlock() refers to the parent block. (protected by cs_main)
@@ -744,7 +755,7 @@ public:
 
 	ThemisTxConverter(CTransaction tx, CCoinsViewCache* v = NULL, const std::vector<CTransactionRef>* blockTxs = NULL) : txBit(tx), view(v), blockTransactions(blockTxs) {}
 
-	bool extractionThemisTransactions(ExtractQtumTX& qtumTx);
+	bool extractionThemisTransactions(ExtractThemisTX& themisTx);
 
 private:
 

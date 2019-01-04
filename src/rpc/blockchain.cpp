@@ -722,7 +722,7 @@ UniValue getblock(const UniValue& params, bool fHelp)
     return blockToJSON(block, pblockindex);
 }
 
-// qtum
+// themis
 UniValue callcontract(const JSONRPCRequest& request)
 {
 	if (request.fHelp || request.params.size() < 2)
@@ -752,9 +752,9 @@ UniValue callcontract(const JSONRPCRequest& request)
 
 	dev::Address senderAddress;
 	if (request.params.size() == 3) {
-		CTxDestination qtumSenderAddress = DecodeDestination(request.params[2].get_str());
-		if (IsValidDestination(qtumSenderAddress)) {
-			const CKeyID *keyid = boost::get<CKeyID>(&qtumSenderAddress);
+		CTxDestination themisSenderAddress = DecodeDestination(request.params[2].get_str());
+		if (IsValidDestination(themisSenderAddress)) {
+			const CKeyID *keyid = boost::get<CKeyID>(&themisSenderAddress);
 			senderAddress = dev::Address(HexStr(valtype(keyid->begin(), keyid->end())));
 		}
 		else {

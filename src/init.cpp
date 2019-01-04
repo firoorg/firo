@@ -1371,7 +1371,8 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
         OpenDebugLog();
 
 	////////////////////////////////////////////////////////////////////// // themis
-	dev::g_logPost = [&](std::string const& s, char const* c) { LogPrintStr(s + '\n', true); };
+	// dev::g_logPost = [&](std::string const& s, char const* c) { LogPrintStr(s + '\n', true); };
+	dev::g_logPost = [&](std::string const& s, char const* c) { LogPrintStr(s + '\n'); };
 	dev::g_logPost(std::string("\n\n\n\n\n\n\n\n\n\n"), NULL);
 	//////////////////////////////////////////////////////////////////////
 
@@ -1679,8 +1680,8 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
                 }
 
 				/////////////////////////////////////////////////////////// themis
-				if ((gArgs.IsArgSet("-dgpstorage") && gArgs.IsArgSet("-dgpevm")) || (!gArgs.IsArgSet("-dgpstorage") && gArgs.IsArgSet("-dgpevm")) ||
-					(!gArgs.IsArgSet("-dgpstorage") && !gArgs.IsArgSet("-dgpevm"))) {
+				if ((GetBoolArg("-dgpstorage", false) && GetBoolArg("-dgpevm", false)) || (!GetBoolArg("-dgpstorage", false) && GetBoolArg("-dgpevm", false)) ||
+					(!GetBoolArg("-dgpstorage", false) && !GetBoolArg("-dgpevm", false))) {
 					fGettingValuesDGP = true;
 				}
 				else {
@@ -1690,7 +1691,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
 				dev::eth::Ethash::init();
 				fs::path themisStateDir = GetDataDir() / "stateThemis";
 				bool fStatus = fs::exists(themisStateDir);
-				const std::string dirQtum(themisStateDir.string());
+				const std::string dirThemis(themisStateDir.string());
 				const dev::h256 hashDB(dev::sha3(dev::rlp("")));
 				dev::eth::BaseState existsThemisstate = fStatus ? dev::eth::BaseState::PreExisting : dev::eth::BaseState::Empty;
 				globalState = std::unique_ptr<ThemisState>(new ThemisState(dev::u256(0), ThemisState::openDB(dirThemis, hashDB, dev::WithExisting::Trust), dirThemis, existsThemisstate));
@@ -1703,18 +1704,18 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
 				}
 
 				if (chainActive.Tip() != nullptr) {
-					globalState->setRoot(uintToh256(chainActive.Tip()->hashStateRoot));
-					globalState->setRootUTXO(uintToh256(chainActive.Tip()->hashUTXORoot));
+					globalState->setRoot(uintToh256(chainActive.Tip()->reserved[0]));
+					globalState->setRootUTXO(uintToh256(chainActive.Tip()->reserved[1]));
 				}
 				else {
 					globalState->setRoot(dev::sha3(dev::rlp("")));
-					globalState->setRootUTXO(uintToh256(chainparams.GenesisBlock().hashUTXORoot));
+					globalState->setRootUTXO(uintToh256(chainparams.GenesisBlock().reserved[1]));
 					globalState->populateFrom(cp.genesisState);
 				}
 				globalState->db().commit();
 				globalState->dbUtxo().commit();
 
-				fRecordLogOpcodes = gArgs.IsArgSet("-record-log-opcodes");
+				fRecordLogOpcodes = GetBoolArg("-record-log-opcodes", false);
 				fIsVMlogFile = fs::exists(GetDataDir() / "vmExecLogs.json");
 				///////////////////////////////////////////////////////////
 

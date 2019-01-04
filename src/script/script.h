@@ -190,6 +190,19 @@ enum opcodetype
     // zerocoin params
     OP_ZEROCOINMINT = 0xc1,
     OP_ZEROCOINSPEND = 0xc2,
+
+	//////////////////////////////////////// themis
+	// Execute EXT byte code.
+    OP_CREATE = 0xc3,
+    OP_CALL = 0xc4,
+    OP_SPEND = 0xc5,
+
+    // template matching params
+    OP_GAS_PRICE = 0xf5,
+    OP_VERSION = 0xf6,
+    OP_GAS_LIMIT = 0xf7,
+    OP_DATA = 0xf8,
+	////////////////////////////////////////
 };
 
 const char* GetOpName(opcodetype opcode);
@@ -321,7 +334,7 @@ public:
         return serialize(m_value);
     }
 
-	///////////////////////////////// qtum
+	///////////////////////////////// themis
 	static uint64_t vch_to_uint64(const std::vector<unsigned char>& vch)
 	{
 		if (vch.size() > 8) {

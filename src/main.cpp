@@ -1209,7 +1209,9 @@ bool AcceptToMemoryPoolWorker(
         const CAmount &nAbsurdFee,
         std::vector <uint256> &vHashTxnToUncache,
         bool isCheckWalletTransaction,
-        bool markZcoinSpendTransactionSerial) {
+        bool markZcoinSpendTransactionSerial,
+		bool rawTx // themis
+	) {
     bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
     LogPrintf("AcceptToMemoryPoolWorker(),fCheckInputs=%s, tx.IsZerocoinSpend()=%s, fTestNet=%s\n",
               fCheckInputs, tx.IsZerocoinSpend(), fTestNet);
@@ -1387,6 +1389,8 @@ bool AcceptToMemoryPoolWorker(
             }
             int64_t nSigOpsCost = GetTransactionSigOpCost(tx, view, STANDARD_SCRIPT_VERIFY_FLAGS);
 					
+			CAmount nValueOut = tx.GetValueOut();
+			CAmount nFees = nValueIn - nValueOut;
 
 			//////////////////////////////////////////////////////////// // themis
 			dev::u256 txMinGasPrice = 0;
@@ -1396,24 +1400,24 @@ bool AcceptToMemoryPoolWorker(
 					return state.DoS(1, false, REJECT_INVALID, "bad-txns-invalid-sender-script");
 				}
 
-				QtumDGP qtumDGP(globalState.get(), fGettingValuesDGP);
-				uint64_t minGasPrice = qtumDGP.getMinGasPrice(chainActive.Tip()->nHeight + 1);
-				uint64_t blockGasLimit = qtumDGP.getBlockGasLimit(chainActive.Tip()->nHeight + 1);
+				ThemisDGP themisDGP(globalState.get(), fGettingValuesDGP);
+				uint64_t minGasPrice = themisDGP.getMinGasPrice(chainActive.Tip()->nHeight + 1);
+				uint64_t blockGasLimit = themisDGP.getBlockGasLimit(chainActive.Tip()->nHeight + 1);
 				size_t count = 0;
 				for (const CTxOut& o : tx.vout)
 					count += o.scriptPubKey.HasOpCreate() || o.scriptPubKey.HasOpCall() ? 1 : 0;
-				QtumTxConverter converter(tx, NULL);
-				ExtractQtumTX resultConverter;
-				if (!converter.extractionQtumTransactions(resultConverter)) {
+				ThemisTxConverter converter(tx, NULL);
+				ExtractThemisTX resultConverter;
+				if (!converter.extractionThemisTransactions(resultConverter)) {
 					return state.DoS(100, error("AcceptToMempool(): Contract transaction of the wrong format"), REJECT_INVALID, "bad-tx-bad-contract-format");
 				}
-				std::vector<QtumTransaction> qtumTransactions = resultConverter.first;
-				std::vector<EthTransactionParams> qtumETP = resultConverter.second;
+				std::vector<ThemisTransaction> themisTransactions = resultConverter.first;
+				std::vector<EthTransactionParams> themisETP = resultConverter.second;
 
 				dev::u256 sumGas = dev::u256(0);
 				dev::u256 gasAllTxs = dev::u256(0);
-				for (QtumTransaction qtumTransaction : qtumTransactions) {
-					sumGas += qtumTransaction.gas() * qtumTransaction.gasPrice();
+				for (ThemisTransaction themisTransaction : themisTransactions) {
+					sumGas += themisTransaction.gas() * themisTransaction.gasPrice();
 
 					if (sumGas > dev::u256(INT64_MAX)) {
 						return state.DoS(100, error("AcceptToMempool(): Transaction's gas stipend overflows"), REJECT_INVALID, "bad-tx-gas-stipend-overflow");
@@ -1424,12 +1428,12 @@ bool AcceptToMemoryPoolWorker(
 					}
 
 					if (txMinGasPrice != 0) {
-						txMinGasPrice = std::min(txMinGasPrice, qtumTransaction.gasPrice());
+						txMinGasPrice = std::min(txMinGasPrice, themisTransaction.gasPrice());
 					}
 					else {
-						txMinGasPrice = qtumTransaction.gasPrice();
+						txMinGasPrice = themisTransaction.gasPrice();
 					}
-					VersionVM v = qtumTransaction.getVersion();
+					VersionVM v = themisTransaction.getVersion();
 					if (v.format != 0)
 						return state.DoS(100, error("AcceptToMempool(): Contract execution uses unknown version format"), REJECT_INVALID, "bad-tx-version-format");
 					if (v.rootVM != 1)
@@ -1440,29 +1444,29 @@ bool AcceptToMemoryPoolWorker(
 						return state.DoS(100, error("AcceptToMempool(): Contract execution uses unknown flag options"), REJECT_INVALID, "bad-tx-version-flags");
 
 					//check gas limit is not less than minimum mempool gas limit
-					if (qtumTransaction.gas() < gArgs.GetArg("-minmempoolgaslimit", MEMPOOL_MIN_GAS_LIMIT))
+					if (themisTransaction.gas() < GetArg("-minmempoolgaslimit", MEMPOOL_MIN_GAS_LIMIT))
 						return state.DoS(100, error("AcceptToMempool(): Contract execution has lower gas limit than allowed to accept into mempool"), REJECT_INVALID, "bad-tx-too-little-mempool-gas");
 
 					//check gas limit is not less than minimum gas limit (unless it is a no-exec tx)
-					if (qtumTransaction.gas() < MINIMUM_GAS_LIMIT && v.rootVM != 0)
+					if (themisTransaction.gas() < MINIMUM_GAS_LIMIT && v.rootVM != 0)
 						return state.DoS(100, error("AcceptToMempool(): Contract execution has lower gas limit than allowed"), REJECT_INVALID, "bad-tx-too-little-gas");
 
-					if (qtumTransaction.gas() > UINT32_MAX)
+					if (themisTransaction.gas() > UINT32_MAX)
 						return state.DoS(100, error("AcceptToMempool(): Contract execution can not specify greater gas limit than can fit in 32-bits"), REJECT_INVALID, "bad-tx-too-much-gas");
 
-					gasAllTxs += qtumTransaction.gas();
+					gasAllTxs += themisTransaction.gas();
 					if (gasAllTxs > dev::u256(blockGasLimit))
 						return state.DoS(1, false, REJECT_INVALID, "bad-txns-gas-exceeds-blockgaslimit");
 
 					//don't allow less than DGP set minimum gas price to prevent MPoS greedy mining/spammers
-					if (v.rootVM != 0 && (uint64_t)qtumTransaction.gasPrice() < minGasPrice)
+					if (v.rootVM != 0 && (uint64_t)themisTransaction.gasPrice() < minGasPrice)
 						return state.DoS(100, error("AcceptToMempool(): Contract execution has lower gas price than allowed"), REJECT_INVALID, "bad-tx-low-gas-price");
 				}
 
-				if (!CheckMinGasPrice(qtumETP, minGasPrice))
+				if (!CheckMinGasPrice(themisETP, minGasPrice))
 					return state.DoS(100, false, REJECT_INVALID, "bad-txns-small-gasprice");
 
-				if (count > qtumTransactions.size())
+				if (count > themisTransactions.size())
 					return state.DoS(100, false, REJECT_INVALID, "bad-txns-incorrect-format");
 
 				if (rawTx && nAbsurdFee && dev::u256(nFees) > dev::u256(nAbsurdFee) + sumGas)
@@ -1471,9 +1475,7 @@ bool AcceptToMemoryPoolWorker(
 						strprintf("%d > %d", nFees, nAbsurdFee));
 			}
 			////////////////////////////////////////////////////////////
-
-            CAmount nValueOut = tx.GetValueOut();
-            CAmount nFees = nValueIn - nValueOut;
+            
             // nModifiedFees includes any fee deltas from PrioritiseTransaction
             CAmount nModifiedFees = nFees;
             double nPriorityDummy = 0;
@@ -1819,7 +1821,9 @@ bool AcceptToMemoryPool(
 	    bool fOverrideMempoolLimit,
 	    const CAmount nAbsurdFee,
         bool isCheckWalletTransaction,
-        bool markZcoinSpendTransactionSerial) {
+        bool markZcoinSpendTransactionSerial,
+		bool rawTx = false // themis
+	) {
     LogPrintf("AcceptToMemoryPool(), transaction: %s, fCheckInputs=%s\n",
               tx.GetHash().ToString(),
               fCheckInputs);
@@ -1828,7 +1832,7 @@ bool AcceptToMemoryPool(
         pool, state, tx, fCheckInputs, fLimitFree, pfMissingInputs,
         fOverrideMempoolLimit, nAbsurdFee,
         vHashTxToUncache, isCheckWalletTransaction,
-        markZcoinSpendTransactionSerial);
+        markZcoinSpendTransactionSerial, rawTx);
     if (res) {
         LogPrintf("AcceptToMemoryPool: Successfully added txn %s to %s.\n",
                   tx.ToString(),
@@ -2587,8 +2591,8 @@ bool DisconnectBlock(const CBlock &block, CValidationState &state, const CBlockI
     view.SetBestBlock(pindex->pprev->GetBlockHash());
     block.InvalidateCachedPoWHash(pindex->nHeight);
 
-	globalState->setRoot(uintToh256(pindex->pprev->hashStateRoot)); // themis
-	globalState->setRootUTXO(uintToh256(pindex->pprev->hashUTXORoot)); // themis
+	globalState->setRoot(uintToh256(pindex->pprev->reserved[0])); // themis
+	globalState->setRootUTXO(uintToh256(pindex->pprev->reserved[1])); // themis
 
     //The pfClean flag is specified only when called from CVerifyDB::VerifyDB.
     //When called from there, no real disconnect happens.
@@ -2703,8 +2707,9 @@ static int64_t nTimeTotal = 0;
 
 /////////////////////////////////////////////////////////////////////// themis
 bool CheckSenderScript(const CCoinsViewCache& view, const CTransaction& tx) {
-	CScript script = view.AccessCoin(tx.vin[0].prevout).out.scriptPubKey;
-	if (!script.IsPayToPubkeyHash() && !script.IsPayToPubkey()) {
+	const CTxIn input = tx.vin[0];
+	const CTxOut &prevout = view.GetOutputFor(input);
+	if (!prevout.scriptPubKey.IsPayToPubkeyHash() && !prevout.scriptPubKey.IsPayToPubkey()) {
 		return false;
 	}
 	return true;
@@ -2932,7 +2937,7 @@ void writeVMlog(const std::vector<ResultExecute>& res, const CTransaction& tx, c
 }
 
 bool ByteCodeExec::performByteCode(dev::eth::Permanence type) {
-	for (QtumTransaction& tx : txs) {
+	for (ThemisTransaction& tx : txs) {
 		//validate VM version
 		if (tx.getVersion().toRaw() != VersionVM::GetEVMDefault().toRaw()) {
 			return false;
@@ -3575,8 +3580,8 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
 
 	////////////////////////////////////////////////////////////////// // themis
 	checkBlock.hashMerkleRoot = BlockMerkleRoot(checkBlock);
-	checkBlock.hashStateRoot = h256Touint(globalState->rootHash());
-	checkBlock.hashUTXORoot = h256Touint(globalState->rootHashUTXO());
+	checkBlock.reserved[0] = h256Touint(globalState->rootHash());
+	checkBlock.reserved[1] = h256Touint(globalState->rootHashUTXO());
 
 	//If this error happens, it probably means that something with AAL created transactions didn't match up to what is expected
 	if ((checkBlock.GetHash() != block.GetHash()) && !fJustCheck)
