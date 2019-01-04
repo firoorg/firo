@@ -263,11 +263,11 @@ bool CWalletDB::WriteZerocoinEntry(const CZerocoinEntry &zerocoin) {
 }
 
 bool CWalletDB::WriteZerocoinEntry(const CZerocoinEntryV3 &zerocoin) {
-    return Write(make_pair(string("zerocoin"), zerocoin.value), zerocoin, true);
+    return Write(make_pair(string("zerocoin_sigma"), zerocoin.value), zerocoin, true);
 }
 
 bool CWalletDB::EraseZerocoinEntry(const CZerocoinEntryV3 &zerocoin) {
-    return Erase(make_pair(string("zerocoin"), zerocoin.value));
+    return Erase(make_pair(string("zerocoin_sigma"), zerocoin.value));
 }
 
 bool CWalletDB::EraseZerocoinEntry(const CZerocoinEntry &zerocoin) {
@@ -320,13 +320,13 @@ void CWalletDB::ListPubCoin(std::list <CZerocoinEntry> &listPubCoin) {
 void CWalletDB::ListPubCoinV3(std::list <CZerocoinEntryV3> &listPubCoin) {
     Dbc *pcursor = GetCursor();
     if (!pcursor)
-        throw runtime_error("CWalletDB::ListPubCoin() : cannot create DB cursor");
+        throw runtime_error("CWalletDB::ListPubCoinV3() : cannot create DB cursor");
     unsigned int fFlags = DB_SET_RANGE;
     while (true) {
         // Read next record
         CDataStream ssKey(SER_DISK, CLIENT_VERSION);
         if (fFlags == DB_SET_RANGE)
-            ssKey << make_pair(string("zerocoin"), GroupElement());
+            ssKey << make_pair(string("zerocoin_sigma"), GroupElement());
         CDataStream ssValue(SER_DISK, CLIENT_VERSION);
         int ret = ReadAtCursor(pcursor, ssKey, ssValue, fFlags);
         fFlags = DB_NEXT;
@@ -334,12 +334,12 @@ void CWalletDB::ListPubCoinV3(std::list <CZerocoinEntryV3> &listPubCoin) {
             break;
         else if (ret != 0) {
             pcursor->close();
-            throw runtime_error("CWalletDB::ListPubCoin() : error scanning DB");
+            throw runtime_error("CWalletDB::ListPubCoinV3() : error scanning DB");
         }
         // Unserialize
         string strType;
         ssKey >> strType;
-        if (strType != "zerocoin")
+        if (strType != "zerocoin_sigma")
             break;
         GroupElement value;
         ssKey >> value;

@@ -150,7 +150,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_v3)
         BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
 
         previousHeight = chainActive.Height();
-        //Add 5 more blocks and verify that Mint can not be spent until 6 blocks verification
+        // Add 5 more blocks and verify that Mint can not be spent until 6 blocks verification
         for (int i = 0; i < 5; i++)
         {
             BOOST_CHECK_MESSAGE(!pwalletMain->CreateZerocoinSpendModel(stringError, "", denomination.c_str()), "Spend succeeded although not confirmed by 6 blocks");
@@ -189,28 +189,14 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_v3)
 
         BOOST_CHECK_MESSAGE(previousHeight + 5 == chainActive.Height(), "Block not added to chain");
 
-        //Create two spend transactions using the same mint.
-        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(stringError, "", denomination.c_str()), "Spend failed");
-        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(stringError, "", denomination.c_str(), true), stringError + " - Spend failed");
+        // Create two spend transactions using the same mint.
+        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(
+            stringError, "", denomination.c_str()), stringError + "Spend failed");
+        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(
+            stringError, "", denomination.c_str(), true), stringError + " - Spend failed");
 
         //Try to put two in the same block and it will fail, expect 1
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Spends was not added to mempool");
-
-        //NOT POSSIBLE - Hacky method of forcing double spends to be added to same block
-        // vtxid.clear();
-        // mempool.queryHashes(vtxid);
-        // MinTxns.clear();
-        // MinTxns.push_back(*mempool.get(vtxid.at(0)));
-        // MinTxns.push_back(*mempool.get(vtxid.at(1)));
-        // b = CreateBlock(MinTxns, scriptPubKey_v3);
-        // //Reset zerocoinTxInfo to perform check again as if we received the block from another node
-        // b.zerocoinTxInfo = std::make_shared<CZerocoinTxInfo>();
-        // previousHeight = chainActive.Height();
-        // BOOST_CHECK_MESSAGE(!ProcessBlock(b), "ProcessBlock succeeded and should have failed on double spend");
-        // BOOST_CHECK_MESSAGE(previousHeight == chainActive.Height(), "Double spend - Block added to chain even though two same spends in same block");
-        // mempool.clear();
-        // //Create a new spend transaction from a mint that wallet think is used
-        // BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(stringError, "", denomination.c_str(), true), "Spend failed");
 
         //Verify spend got into mempool
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Spend was not added to mempool");

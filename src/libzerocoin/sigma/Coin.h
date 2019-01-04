@@ -19,6 +19,9 @@ enum CoinDenominationV3 {
 // Functions to convert denominations to/from an integer value.
 bool DenominationToInteger(CoinDenominationV3 denom, int& denom_out, CValidationState &state);
 bool IntegerToDenomination(int value, CoinDenominationV3& denom_out, CValidationState &state);
+bool DenominationToInteger(CoinDenominationV3 denom, int& denom_out);
+bool IntegerToDenomination(int value, CoinDenominationV3& denom_out);
+
 
 class PublicCoinV3 {
 public:

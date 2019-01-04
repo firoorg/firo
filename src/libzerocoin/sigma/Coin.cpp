@@ -4,6 +4,11 @@
 
 namespace sigma {
 
+bool DenominationToInteger(CoinDenominationV3 denom, int& denom_out) {
+    CValidationState dummy_state;
+    return DenominationToInteger(denom, denom_out, dummy_state);
+}
+
 bool DenominationToInteger(CoinDenominationV3 denom, int& denom_out, CValidationState &state) {
     // static const CAmount COIN = 100000000; in amount.h
 
@@ -12,16 +17,26 @@ bool DenominationToInteger(CoinDenominationV3 denom, int& denom_out, CValidation
             return state.DoS(100, error("CheckZerocoinTransaction : invalid denomination value, unable to convert to integer"));
         case CoinDenominationV3::ZQ_LOVELACE:
             denom_out = 1 * COIN;
+            break;
         case CoinDenominationV3::ZQ_GOLDWASSER:
             denom_out = 10 * COIN;
+            break;
         case CoinDenominationV3::ZQ_RACKOFF:
             denom_out = 25 * COIN;
+            break;
         case CoinDenominationV3::ZQ_PEDERSEN:
             denom_out = 50 * COIN;
+            break;
         case CoinDenominationV3::ZQ_WILLIAMSON:
             denom_out = 100 * COIN;
+            break;
     }
 return true;
+}
+
+bool IntegerToDenomination(int value, CoinDenominationV3& denom_out) {
+    CValidationState dummy_state;
+    return IntegerToDenomination(value, denom_out, dummy_state);
 }
 
 bool IntegerToDenomination(int value, CoinDenominationV3& denom_out, CValidationState &state) {
@@ -30,14 +45,19 @@ bool IntegerToDenomination(int value, CoinDenominationV3& denom_out, CValidation
             return state.DoS(100, error("CheckZerocoinTransaction : invalid denomination value, unable to convert to enum"));
         case 1 * COIN:
             denom_out = CoinDenominationV3::ZQ_LOVELACE;
+            break;
         case 10 * COIN:
             denom_out = CoinDenominationV3::ZQ_GOLDWASSER;
+            break;
         case 25 * COIN:
             denom_out = CoinDenominationV3::ZQ_RACKOFF;
+            break;
         case 50 * COIN:
             denom_out = CoinDenominationV3::ZQ_PEDERSEN;
+            break;
         case 100 * COIN:
             denom_out = CoinDenominationV3::ZQ_WILLIAMSON;
+            break;
     }
 return true;
 }

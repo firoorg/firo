@@ -570,15 +570,13 @@ int CZerocoinStateV3::GetCoinSetForSpend(
 }
 
 std::pair<int, int> CZerocoinStateV3::GetMintedCoinHeightAndId(
-		const PublicCoinV3& pubCoin, 
-		int denomination) {
+		const PublicCoinV3& pubCoin) {
 	auto coinIt = mintedPubCoins.find(pubCoin);
 
 	if (coinIt != mintedPubCoins.end()) {
 		return std::make_pair(coinIt->second.nHeight, coinIt->second.id);
 	}
-	else
-		return std::make_pair(-1, -1);
+    return std::make_pair(-1, -1);
 }
 
 bool CZerocoinStateV3::AddSpendToMempool(const Scalar &coinSerial, uint256 txHash) {

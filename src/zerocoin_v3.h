@@ -137,9 +137,7 @@ public:
         std::vector<PublicCoinV3>& coins_out);
 
     // Return height of mint transaction and id of minted coin
-    std::pair<int, int> GetMintedCoinHeightAndId(
-        const PublicCoinV3& pubCoin,
-        int denomination);
+    std::pair<int, int> GetMintedCoinHeightAndId(const PublicCoinV3& pubCoin);
 
     // Reset to initial values
     void Reset();

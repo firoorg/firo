@@ -3232,8 +3232,7 @@ bool CWallet::CreateZerocoinMintModelV3(
     std::pair<int,int> denominationPair;
     BOOST_FOREACH(denominationPair, denominationPairs) {
         int denominationValue = denominationPair.first;
-        CValidationState dummy_state;
-        if (!IntegerToDenomination(denominationPair.first * COIN, denomination, dummy_state)) {
+        if (!IntegerToDenomination(denominationPair.first * COIN, denomination)) {
             throw runtime_error(
                 "mintzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n");
         }
@@ -3250,7 +3249,7 @@ bool CWallet::CreateZerocoinMintModelV3(
 
         sigma::ParamsV3* zcParams = sigma::ParamsV3::get_default();
 
-        for(int64_t i=0; i<amount; i++){
+        for(int64_t i=0; i < amount; i++) {
             // The following constructor does all the work of minting a brand
             // new zerocoin. It stores all the private values inside the
             // PrivateCoin object. This includes the coin secrets, which must be
@@ -3266,15 +3265,16 @@ bool CWallet::CreateZerocoinMintModelV3(
             bool validCoin = pubCoin.validate();
 
             // loop until we find a valid coin
-            while(!validCoin){
-                sigma::PrivateCoinV3 newCoin(zcParams, denomination, ZEROCOIN_TX_VERSION_3);
-                sigma::PublicCoinV3 pubCoin = newCoin.getPublicCoin();
-                validCoin = pubCoin.validate();
+            if (!validCoin) {
+                stringError = "Unable to mint a V3 sigma coin.";
+                return false;
             }
 
             // Create script for coin
             CScript scriptSerializedCoin =
-                    CScript() << OP_ZEROCOINMINTV3 << pubCoin.getValue().memoryRequired() << pubCoin.getValue().getvch();
+                    CScript() << OP_ZEROCOINMINTV3
+                        << pubCoin.getValue().memoryRequired()
+                        << pubCoin.getValue().getvch();
 
             CRecipient recipient = {scriptSerializedCoin, (denominationValue * COIN), false};
 
@@ -3283,9 +3283,9 @@ bool CWallet::CreateZerocoinMintModelV3(
         }
     }
 
-    string strError = pwalletMain->MintAndStoreZerocoinV3(vecSend, privCoins, wtx);
+    stringError = pwalletMain->MintAndStoreZerocoinV3(vecSend, privCoins, wtx);
 
-    if (strError != ""){
+    if (stringError != ""){
         return false;
     }
 
@@ -3369,9 +3369,9 @@ bool CWallet::CreateZerocoinMintModelV2(
         }
     }
 
-    string strError = pwalletMain->MintAndStoreZerocoin(vecSend, privCoins, wtx);
+    stringError = pwalletMain->MintAndStoreZerocoin(vecSend, privCoins, wtx);
 
-    if (strError != ""){
+    if (stringError != ""){
         return false;
     }
 
@@ -3646,6 +3646,9 @@ bool CWallet::CreateZerocoinSpendModel(
         string thirdPartyAddress,
         string denomAmount,
         bool forceUsed) {
+    // Clean the stringError, otherwise even if the Spend passes, it returns false.
+    stringError = "";
+
     if (!fFileBacked)
         return false;
 
@@ -3697,7 +3700,6 @@ bool CWallet::CreateZerocoinSpendModel(
         return false;
 
     return true;
-
 }
 
 bool CWallet::CreateZerocoinSpendModel(CWalletTx& wtx, string &stringError, string& thirdPartyAddress, const vector<string>& denomAmounts, bool forceUsed) {
@@ -4383,17 +4385,14 @@ bool CWallet::CreateZerocoinSpendTransactionV3(
             txNew.vin.clear();
             txNew.vout.clear();
             txNew.wit.SetNull();
-            //wtxNew.fFromMe = true;
-
 
             CScript scriptChange;
-            if(thirdPartyaddress == ""){
+            if(thirdPartyaddress == "") {
                 // Reserve a new key pair from key pool
                 CPubKey vchPubKey;
                 assert(reservekey.GetReservedKey(vchPubKey)); // should never fail, as we just unlocked
                 scriptChange = GetScriptForDestination(vchPubKey.GetID());
-            }else{
-
+            } else {
                 CBitcoinAddress address(thirdPartyaddress);
                 if (!address.IsValid()){
                     strFailReason = _("Invalid zcoin address");
@@ -4431,15 +4430,25 @@ bool CWallet::CreateZerocoinSpendTransactionV3(
             int coinHeight;
 
             BOOST_FOREACH(const CZerocoinEntryV3 &minIdPubcoin, listPubCoin) {
-                if (minIdPubcoin.denomination == denomination
+                CoinDenominationV3 minIdPubcoin_denom;
+                if (!IntegerToDenomination(minIdPubcoin.denomination * COIN, 
+                                           minIdPubcoin_denom) ) {
+                    continue;
+                }
+                if (minIdPubcoin_denom == denomination
                     && ((minIdPubcoin.IsUsed == false && !forceUsed) || (minIdPubcoin.IsUsed == true && forceUsed))
                     && minIdPubcoin.randomness != uint64_t(0)
                     && minIdPubcoin.serialNumber != uint64_t(0)) {
 
                     int id;
+                    sigma::CoinDenominationV3 denomination;
+                    if (!IntegerToDenomination(minIdPubcoin.denomination * COIN, 
+                                               denomination)) {
+                        strFailReason = "Unknown coin denomination";
+                        return false;
+                    }
                     std::pair<int, int> coinHeightAndId = zerocoinState->GetMintedCoinHeightAndId(
-                            PublicCoinV3(minIdPubcoin.value, static_cast<sigma::CoinDenominationV3>(minIdPubcoin.denomination))
-                            , minIdPubcoin.denomination);
+                            PublicCoinV3(minIdPubcoin.value, denomination));
                     coinHeight = coinHeightAndId.first;
                     id = coinHeightAndId.second;
                     if (coinHeight > 0
@@ -4458,7 +4467,7 @@ bool CWallet::CreateZerocoinSpendTransactionV3(
                 }
             }
 
-            if (coinId == INT_MAX){
+            if (coinId == INT_MAX) {
                 strFailReason = _("it has to have at least two mint coins with at least 6 confirmation in order to spend a coin");
                 return false;
             }
@@ -4993,9 +5002,14 @@ bool CWallet::CreateMultipleZerocoinSpendTransactionV3(
                         && minIdPubcoin.serialNumber != uint64_t(0)
                         && (tempCoinsToUse.find(minIdPubcoin.value)==tempCoinsToUse.end())) {
                         int id;
+                        sigma::CoinDenominationV3 denomination;
+                        if (!IntegerToDenomination(minIdPubcoin.denomination * COIN, 
+                                denomination)) {
+                            strFailReason = "Unknown coin denomination";
+                            return false;
+                        }
                         std::pair<int, int> coinHeightAndId = zerocoinState->GetMintedCoinHeightAndId(
-                                PublicCoinV3(minIdPubcoin.value, static_cast<sigma::CoinDenominationV3>(minIdPubcoin.denomination))
-                                , minIdPubcoin.denomination);
+                                PublicCoinV3(minIdPubcoin.value, denomination));
                         coinHeight = coinHeightAndId.first;
                         id = coinHeightAndId.second;
                         if (coinHeight > 0
@@ -5364,6 +5378,7 @@ string CWallet::MintAndStoreZerocoinV3(vector<CRecipient> vecSend,
         }
         zerocoinTx.randomness = privCoin.getRandomness();
         zerocoinTx.serialNumber = privCoin.getSerialNumber();
+        // TODO(martun): check this again, but looks like in Sigma we do not need ecdsaSecretKey.
 //        const unsigned char *ecdsaSecretKey = privCoin.getEcdsaSeckey();
 //        zerocoinTx.ecdsaSecretKey = std::vector<unsigned char>(ecdsaSecretKey, ecdsaSecretKey+32);
         walletdb.WriteZerocoinEntry(zerocoinTx);
