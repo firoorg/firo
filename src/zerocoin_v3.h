@@ -159,7 +159,7 @@ public:
 
     int GetLatestCoinID(int denomination) const;
 
-private:
+// private: // martun: Changed to public just for unit tests.
     // Collection of coin groups. Map from <denomination,id> to CoinGroupInfoV3 structure
     std::unordered_map<pair<int, int>, CoinGroupInfoV3, pairhash> coinGroups;
 

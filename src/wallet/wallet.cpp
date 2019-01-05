@@ -3287,7 +3287,7 @@ bool CWallet::CreateZerocoinMintModelV3(
 
     stringError = pwalletMain->MintAndStoreZerocoinV3(vecSend, privCoins, wtx);
 
-    if (stringError != ""){
+    if (stringError != "") {
         return false;
     }
 
@@ -3706,6 +3706,19 @@ bool CWallet::CreateZerocoinSpendModel(
 }
 
 bool CWallet::CreateZerocoinSpendModel(CWalletTx& wtx, string &stringError, string& thirdPartyAddress, const vector<string>& denomAmounts, bool forceUsed) {
+    // try to spend V2 coins, if fails, try to spend V3 sigma coins.
+    if (!CreateZerocoinSpendModelV2(wtx, stringError, thirdPartyAddress, denomAmounts, forceUsed)) {
+        return CreateZerocoinSpendModelV3(wtx, stringError, thirdPartyAddress, denomAmounts, forceUsed);
+    }
+return true;
+}
+
+bool CWallet::CreateZerocoinSpendModelV2(
+        CWalletTx& wtx,
+        string &stringError,
+        string& thirdPartyAddress,
+        const vector<string>& denomAmounts,
+        bool forceUsed) {
     if (!fFileBacked)
         return false;
      
@@ -3733,7 +3746,7 @@ bool CWallet::CreateZerocoinSpendModel(CWalletTx& wtx, string &stringError, stri
         } else {
             return false;
         }
-         denominations.push_back(make_pair(nAmount, denomination));
+        denominations.push_back(make_pair(nAmount, denomination));
     }
     vector<CBigNum> coinSerials;
     uint256 txHash;
@@ -5017,7 +5030,7 @@ bool CWallet::CreateMultipleZerocoinSpendTransactionV3(
                                 denomination,
                                 id,
                                 blockHash,
-                                anonimity_set) >1 ) {
+                                anonimity_set) > 1 ) {
                             coinId = id;
                             coinToUse = minIdPubcoin;
                             tempCoinsToUse.insert(minIdPubcoin.value);
@@ -5027,7 +5040,7 @@ bool CWallet::CreateMultipleZerocoinSpendTransactionV3(
                 }
 
                 // If no suitable coin found, fail.
-                if (coinId == INT_MAX){
+                if (coinId == INT_MAX) {
                     strFailReason = _("it has to have at least two mint coins with at least 6 confirmation in order to spend a coin");
                     return false;
                 }
@@ -5063,7 +5076,6 @@ bool CWallet::CreateMultipleZerocoinSpendTransactionV3(
                 privateCoin.setRandomness(coinToUse.randomness);
                 privateCoin.setSerialNumber(coinToUse.serialNumber);
 //                privateCoin.setEcdsaSeckey(coinToUse.ecdsaSecretKey);
-
 
                 LogPrintf("creating tempStorage object..\n");
                 // Push created TxIn values into a tempStorage object (used in the next loop)
@@ -5103,7 +5115,8 @@ bool CWallet::CreateMultipleZerocoinSpendTransactionV3(
             uint256 txHashForMetadata = txTemp.GetHash();
             LogPrintf("txNew.GetHash: %s\n", txHashForMetadata.ToString());
 
-            for (std::vector<std::pair<int64_t, sigma::CoinDenominationV3>>::const_iterator it = denominations.begin(); it != denominations.end(); it++)
+            // Iterator of std::vector<std::pair<int64_t, sigma::CoinDenominationV3>>::const_iterator
+            for (auto it = denominations.begin(); it != denominations.end(); it++)
             {
                 unsigned index = it - denominations.begin();
 
@@ -5173,7 +5186,7 @@ bool CWallet::CreateMultipleZerocoinSpendTransactionV3(
             }
 
             // After transaction creation and verification, this last loop is to notify the wallet of changes to zerocoin spend info.
-            for (std::vector<std::pair<int64_t, sigma::CoinDenominationV3>>::const_iterator it = denominations.begin(); it != denominations.end(); it++)
+            for (auto it = denominations.begin(); it != denominations.end(); it++)
             {
                 unsigned index = it - denominations.begin();
                 TempStorage tempStorage = tempStorages.at(index);

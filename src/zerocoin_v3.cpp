@@ -129,12 +129,15 @@ bool CheckSpendZcoinTransactionV3(
 		// the block on which the spend occured.
 		// This list of public coins is required by function "Verify" of CoinSpendV3.
 		std::vector<PublicCoinV3> anonymity_set;
-		while (index != coinGroup.firstBlock) {
+        while(true) {
 			BOOST_FOREACH(const sigma::PublicCoinV3& pubCoinValue, 
 					index->mintedPubCoinsV3[std::make_pair(targetDenomination, pubcoinId)]) {
 				anonymity_set.push_back(pubCoinValue);
 			}
-		}
+            if (index == coinGroup.firstBlock)
+                break;
+			index = index->pprev;
+        }
 
 		passVerify = newSpend.Verify(anonymity_set);
 		if (passVerify) {
@@ -530,7 +533,7 @@ int CZerocoinStateV3::GetCoinSetForSpend(
 		uint256& blockHash_out,
 		std::vector<PublicCoinV3>& coins_out) {
 
-	pair<int, int> denomAndId = pair<int, int>(denomination, coinGroupID);
+	pair<int, int> denomAndId = std::make_pair(denomination, coinGroupID);
 
 	if (coinGroups.count(denomAndId) == 0)
 		return 0;

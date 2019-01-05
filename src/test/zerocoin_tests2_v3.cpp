@@ -25,6 +25,7 @@
 #include "rpc/server.h"
 #include "rpc/register.h"
 #include "zerocoin.h"
+#include "zerocoin_v3.h"
 
 #include "test/testutil.h"
 
@@ -117,11 +118,12 @@ BOOST_FIXTURE_TEST_SUITE(zerocoin_tests2_v3, ZerocoinTestingSetup2)
 
 BOOST_AUTO_TEST_CASE(zerocoin_mintspend2_v3)
 {
+    CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
     vector<uint256> vtxid;
     std::vector<CMutableTransaction> MinTxns;
     //109 blocks already minted
 
-    for (int d=1; d<=10; d*=10) {
+    for (int d = 1; d <= 10; d *= 10) {
         string denomination = to_string(d);
 
         printf("Testing denomination %s\n", denomination.c_str());
@@ -254,6 +256,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend2_v3)
     vtxid.clear();
     MinTxns.clear();
     mempool.clear();
+    zerocoinState->Reset();
 }
 
 BOOST_AUTO_TEST_SUITE_END()

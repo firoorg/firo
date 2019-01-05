@@ -26,6 +26,7 @@
 #include "rpc/server.h"
 #include "rpc/register.h"
 #include "zerocoin.h"
+#include "zerocoin_v3.h"
 
 #include "test/testutil.h"
 
@@ -123,6 +124,7 @@ BOOST_FIXTURE_TEST_SUITE(zerocoin_tests_v3, ZerocoinTestingSetup)
 
 BOOST_AUTO_TEST_CASE(zerocoin_mintspend_v3)
 {
+    CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
     string denomination;
     vector<uint256> vtxid;
     std::vector<CMutableTransaction> MinTxns;
@@ -231,7 +233,6 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_v3)
         BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool not empty although mempool should reject double spend");
 
         //Temporary disable usedCoinSerials check to force double spend in mempool
-        CZerocoinState *zerocoinState = CZerocoinState::GetZerocoinState();
         auto tempSerials = zerocoinState->usedCoinSerials;
         zerocoinState->usedCoinSerials.clear();
 
@@ -261,6 +262,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_v3)
         MinTxns.clear();
         mempool.clear();
     }
+    zerocoinState->Reset();
 }
 
 BOOST_AUTO_TEST_CASE(zerocoin_mintspend_many_v3)
@@ -275,7 +277,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_many_v3)
 
     std::vector<std::string> denominations = {"1", "10", "25", "50", "100"};
 
-    CZerocoinState *zerocoinState = CZerocoinState::GetZerocoinState();
+    CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
 
     pwalletMain->SetBroadcastTransactions(true);
 
@@ -287,13 +289,14 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_many_v3)
         denominationsForTx.clear();
         denominationsForTx.push_back(denominations[i]);
         denominationsForTx.push_back(denominations[i+1]); 
-        printf("Testing denominations %s and %s\n", denominationsForTx[0].c_str(), denominationsForTx[1].c_str());
+        printf("Testing denominations %s and %s\n", 
+               denominationsForTx[0].c_str(), denominationsForTx[1].c_str());
         string stringError;
         //Make sure that transactions get to mempool
         pwalletMain->SetBroadcastTransactions(true);
         denominationPairs.clear();
         //Verify Mint is successful
-        for(int i=0;i<2;i++){
+        for(int i = 0; i < 2; ++i) {
              std::pair<int,int> denominationPair(stoi(denominationsForTx[i]), 1);
              denominationPairs.push_back(denominationPair);
         }
@@ -301,7 +304,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_many_v3)
         BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(
             stringError, denominationPairs, SIGMA), stringError + " - Create Mint failed");
 
-        //Verify mint tx get added in the mempool
+        // Verify mint tx get added in the mempool
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mint tx was not added to mempool");
 
         int previousHeight = chainActive.Height();
@@ -323,8 +326,12 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_many_v3)
         BOOST_CHECK_MESSAGE(previousHeight + 5 == chainActive.Height(), "Block not added to chain");
 
         wtx.Init(NULL);
-        BOOST_CHECK_MESSAGE(!pwalletMain->CreateZerocoinSpendModel(wtx, stringError, thirdPartyAddress, denominationsForTx), "Spend succeeded although not at least two mints");
-        BOOST_CHECK_MESSAGE(stringError == "it has to have at least two mint coins with at least 6 confirmation in order to spend a coin", stringError + " - Incorrect error message");
+        BOOST_CHECK_MESSAGE(!pwalletMain->CreateZerocoinSpendModel(
+            wtx, stringError, thirdPartyAddress, denominationsForTx), 
+            "Spend succeeded although not at least two mints");
+        BOOST_CHECK_MESSAGE(
+            stringError == "it has to have at least two mint coins with at least 6 confirmation in order to spend a coin", 
+            stringError + " - Incorrect error message");
 
         BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(
             stringError, denominationPairs, SIGMA), stringError + "Create Mint failed");
@@ -352,7 +359,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_many_v3)
 
         BOOST_CHECK_MESSAGE(previousHeight + 5 == chainActive.Height(), "Block not added to chain");
 
-        //Create two spend transactions using the same mints
+        // Create two spend transactions using the same mints
         BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(wtx, stringError, thirdPartyAddress, denominationsForTx), "Spend failed");
         BOOST_CHECK_MESSAGE(wtx.vin.size() == 2, "Incorrect inputs size");
         BOOST_CHECK_MESSAGE(wtx.vout.size() == 1, "Incorrect output size");
@@ -522,6 +529,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_many_v3)
         mempool.clear();
         zerocoinState->mempoolCoinSerials.clear();
     }
+    zerocoinState->Reset();
 }
 
 BOOST_AUTO_TEST_CASE(zerocoin_mintspend_usedinput_v3){
@@ -536,7 +544,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_usedinput_v3){
 
     std::vector<std::string> denominations = {"1", "10", "25", "50", "100"};
 
-    CZerocoinState *zerocoinState = CZerocoinState::GetZerocoinState();
+    CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
 
     pwalletMain->SetBroadcastTransactions(true);
 
@@ -606,7 +614,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_usedinput_v3){
     vtxid.clear();
     MinTxns.clear();
     mempool.clear();
-    zerocoinState->mempoolCoinSerials.clear();
+    zerocoinState->Reset();
 }
 
 BOOST_AUTO_TEST_CASE(zerocoin_mintspend_numinputs_v3){
@@ -623,7 +631,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_numinputs_v3){
     int denominationIndexA = rand() % 5;
     int denominationIndexB = (denominationIndexA + 5) %4; //guarantees a different number in the range
 
-    CZerocoinState *zerocoinState = CZerocoinState::GetZerocoinState();
+    CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
 
     pwalletMain->SetBroadcastTransactions(true);
 
@@ -679,7 +687,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_numinputs_v3){
     vtxid.clear();
     MinTxns.clear();
     mempool.clear();
-    zerocoinState->mempoolCoinSerials.clear();
+    zerocoinState->Reset();
 }
 BOOST_AUTO_TEST_SUITE_END()
 

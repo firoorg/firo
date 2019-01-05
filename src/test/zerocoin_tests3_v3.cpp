@@ -25,6 +25,7 @@
 #include "rpc/server.h"
 #include "rpc/register.h"
 #include "zerocoin.h"
+#include "zerocoin_v3.h"
 
 #include "test/testutil.h"
 
@@ -121,6 +122,7 @@ BOOST_FIXTURE_TEST_SUITE(zerocoin_tests3_v3, ZerocoinTestingSetup3)
 
 BOOST_AUTO_TEST_CASE(zerocoin_mintspend_v3)
 {
+    CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
     string denomination;
     vector<uint256> vtxid;
     std::vector<CMutableTransaction> MinTxns;
@@ -194,7 +196,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_v3)
         BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool not cleared");
 
         //Delete usedCoinSerials since we deleted the mempool
-        CZerocoinState *zerocoinStatex = CZerocoinState::GetZerocoinState();
+        CZerocoinStateV3 *zerocoinStatex = CZerocoinStateV3::GetZerocoinState();
         zerocoinStatex->usedCoinSerials.clear();
         zerocoinStatex->mempoolCoinSerials.clear();
 
@@ -228,6 +230,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_v3)
         MinTxns.clear();
         mempool.clear();
     }
+    zerocoinState->Reset();
 }
 
 BOOST_AUTO_TEST_SUITE_END()
