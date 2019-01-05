@@ -4443,7 +4443,6 @@ bool CWallet::CreateZerocoinSpendTransactionV3(
                     && minIdPubcoin.randomness != uint64_t(0)
                     && minIdPubcoin.serialNumber != uint64_t(0)) {
 
-                    int id;
                     sigma::CoinDenominationV3 denomination;
                     if (!IntegerToDenomination(minIdPubcoin.denomination * COIN, 
                                                denomination)) {
@@ -4453,18 +4452,18 @@ bool CWallet::CreateZerocoinSpendTransactionV3(
                     std::pair<int, int> coinHeightAndId = zerocoinState->GetMintedCoinHeightAndId(
                             PublicCoinV3(minIdPubcoin.value, denomination));
                     coinHeight = coinHeightAndId.first;
-                    id = coinHeightAndId.second;
+                    int coinGroupID = coinHeightAndId.second;
                     if (coinHeight > 0
-                        && id < coinId
+                        && coinGroupID < coinId // Always spend coin with smallest ID that matches.
                         && coinHeight + (ZC_MINT_CONFIRMATIONS-1) <= chainActive.Height()
                         && zerocoinState->GetCoinSetForSpend(
                             &chainActive,
                             chainActive.Height()-(ZC_MINT_CONFIRMATIONS-1),
                             denomination,
-                            id,
+                            coinGroupID,
                             blockHash,
                             anonimity_set) > 1 )  {
-                        coinId = id;
+                        coinId = coinGroupID;
                         coinToUse = minIdPubcoin;
                     }
                 }
@@ -4475,7 +4474,6 @@ bool CWallet::CreateZerocoinSpendTransactionV3(
                 return false;
             }
 
-//            libzerocoin::Accumulator accumulator(zcParams, accumulatorValue, denomination);
             // 2. Get pubcoin from the private coin
             sigma::PublicCoinV3 pubCoinSelected(coinToUse.value, denomination);
 
@@ -4537,11 +4535,6 @@ bool CWallet::CreateZerocoinSpendTransactionV3(
                 strFailReason = _("Transaction too large");
                 return false;
             }
-
-            /*zerocoinSelected.IsUsed = true;
-        zerocoinSelected.randomness = 0;
-        zerocoinSelected.serialNumber = 0;
-        CWalletDB(strWalletFile).WriteZerocoinEntry(zerocoinSelected);*/
 
             std::list <CZerocoinSpendEntryV3> listCoinSpendSerial;
             CWalletDB(strWalletFile).ListCoinSpendSerial(listCoinSpendSerial);

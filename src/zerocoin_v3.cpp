@@ -526,11 +526,11 @@ int CZerocoinStateV3::GetCoinSetForSpend(
 		CChain *chain,
 		int maxHeight,
 		int denomination,
-		int id,
+		int coinGroupID,
 		uint256& blockHash_out,
 		std::vector<PublicCoinV3>& coins_out) {
 
-	pair<int, int> denomAndId = pair<int, int>(denomination, id);
+	pair<int, int> denomAndId = pair<int, int>(denomination, coinGroupID);
 
 	if (coinGroups.count(denomAndId) == 0)
 		return 0;
@@ -539,7 +539,7 @@ int CZerocoinStateV3::GetCoinSetForSpend(
 
 	int numberOfCoins = 0;
 	for (CBlockIndex *block = coinGroup.lastBlock;
-			block != coinGroup.firstBlock;
+			;
 			block = block->pprev) {
 		if (block->mintedPubCoinsV3[denomAndId].size() > 0) {
 			if (block->nHeight <= maxHeight) {
@@ -554,6 +554,9 @@ int CZerocoinStateV3::GetCoinSetForSpend(
 						block->mintedPubCoinsV3[denomAndId].end());
 			}
 		}
+        if (block == coinGroup.firstBlock) {
+            break ;
+        }
 	}
 	return numberOfCoins;
 }

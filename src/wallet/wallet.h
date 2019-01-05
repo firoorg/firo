@@ -850,8 +850,20 @@ public:
                                        CWalletTx& wtxNew, CReserveKey& reservekey, int64_t& nFeeRet, std::string& strFailReason, const CCoinControl *coinControl=NULL);
     bool CreateZerocoinSpendTransaction(std::string& thirdPartyaddress, int64_t nValue, libzerocoin::CoinDenomination denomination,
                                         CWalletTx& wtxNew, CReserveKey& reservekey, CBigNum& coinSerial, uint256& txHash, CBigNum& zcSelectedValue, bool& zcSelectedIsUsed,  std::string& strFailReason, bool forceUsed = false);
-    bool CreateZerocoinSpendTransactionV3(std::string& thirdPartyaddress, int64_t nValue, sigma::CoinDenominationV3 denomination,
-                                        CWalletTx& wtxNew, CReserveKey& reservekey, Scalar& coinSerial, uint256& txHash, GroupElement& zcSelectedValue, bool& zcSelectedIsUsed,  std::string& strFailReason, bool forceUsed = false);
+
+    bool CreateZerocoinSpendTransactionV3(
+        std::string& thirdPartyaddress,
+        int64_t nValue,
+        sigma::CoinDenominationV3 denomination,
+        CWalletTx& wtxNew,
+        CReserveKey& reservekey,
+        Scalar& coinSerial,
+        uint256& txHash,
+        GroupElement& zcSelectedValue,
+        bool& zcSelectedIsUsed,
+        std::string& strFailReason,
+        bool forceUsed = false);
+
     bool CreateMultipleZerocoinSpendTransaction(std::string& thirdPartyaddress, const std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>>& denominations,
                                         CWalletTx& wtxNew, CReserveKey& reservekey, vector<CBigNum>& coinSerials, uint256& txHash, vector<CBigNum>& zcSelectedValues, std::string& strFailReason, bool forceUsed = false);
     bool CreateMultipleZerocoinSpendTransactionV3(std::string& thirdPartyaddress, const std::vector<std::pair<int64_t, sigma::CoinDenominationV3>>& denominations,

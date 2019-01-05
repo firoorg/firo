@@ -9,6 +9,7 @@
 
 #include "base58.h"
 #include "wallet/wallet.h"
+#include "main.h"
 
 #include <boost/foreach.hpp>
 
@@ -527,10 +528,14 @@ bool AddressTableModel::zerocoinMint(string &stringError, string denomAmount)
         // Unlock wallet failed or was cancelled
         return false;
     }
-    // Use sigma mint algorithm after this change is released.
-    // TODO(martun): maybe check the current time(0) and switch the algorithm from 
-    // ZEROCOIN to ZIGMA on the next line.
-    return wallet->CreateZerocoinMintModel(stringError, denomAmount, SIGMA);
+
+    // TODO(martun): test this vigorously. I'm not sure if all the wallets are aware of chainActive.Height().
+    MintAlgorithm algo = ZEROCOIN;
+    if (chainActive.Height() > Params().nMintV3SigmaStartBlock) {
+        // Use sigma mint algorithm after block nMintV3SigmaStartBlock.
+        algo = SIGMA;
+    }
+    return wallet->CreateZerocoinMintModel(stringError, denomAmount, algo);
 }
 
 bool AddressTableModel::zerocoinSpend(string &stringError, string thirdPartyAddress, string denomAmount)

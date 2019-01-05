@@ -1,4 +1,4 @@
- // This is the ID of accumulator, not the coin itself.#include "main.h"
+#include "main.h"
 #include "zerocoin.h"
 #include "timedata.h"
 #include "chainparams.h"
