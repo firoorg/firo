@@ -361,18 +361,23 @@ UniValue updatelabels(Type type, const UniValue& data, const UniValue& auth, boo
      */
     txidValue = find_value(txMetadataData, txidKey);
     if(!txidValue.isNull()){
-        // If no "address" key, this is a private spend label update.
+        /* 
+         * If no "address" key in the call, this is a private spend label update.
+         * therefore we simply select the only address in the txid and modify that.
+         *
+         * if "address" key exists, we check for the existince of the object for that address, and use it if found.
+         * if not found, reset the object so it can be used again. 
+         */
         addressKeyObj = find_value(data, "address");
         if(addressKeyObj.isNull()){
             addressKey = txidValue.getKeys()[0];
             addressValue = txidValue.getValues()[0];
         }else{
             addressKey = addressKeyObj.get_str();
-            try{
-                addressValue = find_value(txidValue, addressKey);
-            }catch (const std::exception& e){
-                throw JSONAPIError(API_INVALID_PARAMETER, "Invalid data, key not found");
-            }  
+            addressValue = find_value(txidValue, addressKey);
+            if(addressValue.isNull()){
+                addressValue.setObject();
+            }
         }
     }else{
         try{
@@ -392,7 +397,7 @@ UniValue updatelabels(Type type, const UniValue& data, const UniValue& auth, boo
     }
     setTxMetadata(txMetadataUni);
 
-    return true;
+    return txidValue;
 }
 
 UniValue paymentrequest(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
