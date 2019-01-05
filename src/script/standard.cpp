@@ -286,6 +286,7 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, vector<vector<unsi
     return false;
 }
 
+/*
 bool ExtractDestination(const CScript& scriptPubKey, CTxDestination& addressRet)
 {
     vector<valtype> vSolutions;
@@ -314,7 +315,63 @@ bool ExtractDestination(const CScript& scriptPubKey, CTxDestination& addressRet)
     }
     // Multisig txns have more than one address...
     return false;
+}*/
+
+// themis
+bool ExtractDestination(const CScript& scriptPubKey, CTxDestination& addressRet, txnouttype *typeRet)
+{
+	std::vector<valtype> vSolutions;
+	txnouttype whichType;
+	if (!Solver(scriptPubKey, whichType, vSolutions))
+		return false;
+
+	if (typeRet) {
+		*typeRet = whichType;
+	}
+
+	if (whichType == TX_PUBKEY)
+	{
+		CPubKey pubKey(vSolutions[0]);
+		if (!pubKey.IsValid())
+			return false;
+
+		addressRet = pubKey.GetID();
+		return true;
+	}
+	else if (whichType == TX_PUBKEYHASH)
+	{
+		addressRet = CKeyID(uint160(vSolutions[0]));
+		return true;
+	}
+	else if (whichType == TX_SCRIPTHASH)
+	{
+		addressRet = CScriptID(uint160(vSolutions[0]));
+		return true;
+	}
+	else if (whichType == TX_WITNESS_V0_KEYHASH) {
+		WitnessV0KeyHash hash;
+		std::copy(vSolutions[0].begin(), vSolutions[0].end(), hash.begin());
+		addressRet = hash;
+		return true;
+	}
+	else if (whichType == TX_WITNESS_V0_SCRIPTHASH) {
+		WitnessV0ScriptHash hash;
+		std::copy(vSolutions[0].begin(), vSolutions[0].end(), hash.begin());
+		addressRet = hash;
+		return true;
+	}
+	else if (whichType == TX_WITNESS_UNKNOWN) {
+		WitnessUnknown unk;
+		unk.version = vSolutions[0][0];
+		std::copy(vSolutions[1].begin(), vSolutions[1].end(), unk.program);
+		unk.length = vSolutions[1].size();
+		addressRet = unk;
+		return true;
+	}
+	// Multisig txns have more than one address...
+	return false;
 }
+//
 
 bool ExtractDestinations(const CScript& scriptPubKey, txnouttype& typeRet, vector<CTxDestination>& addressRet, int& nRequiredRet)
 {
@@ -430,3 +487,16 @@ CScript GetScriptForWitness(const CScript& redeemscript)
     ret << OP_0 << ToByteVector(hash);
     return ret;
 }
+
+
+// themis
+bool IsValidDestination(const CTxDestination& dest) {
+	return dest.which() != 0;
+}
+
+bool IsValidContractSenderAddress(const CTxDestination &dest)
+{
+	const CKeyID *keyID = boost::get<CKeyID>(&dest);
+	return keyID != 0;
+}
+//

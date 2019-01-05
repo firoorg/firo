@@ -18,9 +18,22 @@
 #include <boost/function.hpp>
 
 #include <univalue.h>
+#include <mutex>
+#include <condition_variable>
 
 static const unsigned int DEFAULT_RPC_SERIALIZE_VERSION = 1;
 
+// themis
+struct CUpdatedBlock
+{
+	uint256 hash;
+	int height;
+};
+
+static std::mutex cs_blockchange;
+static std::condition_variable cond_blockchange;
+static CUpdatedBlock latestblock;
+//
 class CRPCCommand;
 
 namespace RPCServer

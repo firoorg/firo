@@ -753,7 +753,7 @@ class ThemisTxConverter {
 
 public:
 
-	ThemisTxConverter(CTransaction tx, CCoinsViewCache* v = NULL, const std::vector<CTransactionRef>* blockTxs = NULL) : txBit(tx), view(v), blockTransactions(blockTxs) {}
+	ThemisTxConverter(CTransaction tx, CCoinsViewCache* v = NULL, const std::vector<CTransaction>* blockTxs = NULL) : txBit(tx), view(v), blockTransactions(blockTxs) {}
 
 	bool extractionThemisTransactions(ExtractThemisTX& themisTx);
 
@@ -769,7 +769,7 @@ private:
 	const CCoinsViewCache* view;
 	std::vector<valtype> stack;
 	opcodetype opcode;
-	const std::vector<CTransactionRef> *blockTransactions;
+	const std::vector<CTransaction> *blockTransactions;
 
 };
 

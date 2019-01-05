@@ -1717,7 +1717,25 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
 
 				fRecordLogOpcodes = GetBoolArg("-record-log-opcodes", false);
 				fIsVMlogFile = fs::exists(GetDataDir() / "vmExecLogs.json");
+
+				/*
+				// Check for changed -logevents state
+				if (fLogEvents != GetBoolArg("-logevents", DEFAULT_LOGEVENTS) && !fLogEvents) {
+					strLoadError = _("You need to rebuild the database using -reindex-chainstate to enable -logevents");
+					break;
+				}
+
+				if (!GetBoolArg("-logevents", DEFAULT_LOGEVENTS))
+				{
+					pstorageresult->wipeResults();
+					pblocktree->WipeHeightIndex();
+					fLogEvents = false;
+					pblocktree->WriteFlag("logevents", fLogEvents);
+				}
+				*/
+
 				///////////////////////////////////////////////////////////
+
 
                 // Check for changed -txindex state
                 if (fTxIndex != GetBoolArg("-txindex", DEFAULT_TXINDEX)) {

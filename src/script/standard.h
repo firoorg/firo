@@ -71,10 +71,19 @@ public:
  */
 typedef boost::variant<CNoDestination, CKeyID, CScriptID> CTxDestination;
 
+// themis
+/** Check whether a CTxDestination is a CNoDestination. */
+bool IsValidDestination(const CTxDestination& dest);
+
+/** Check whether a CTxDestination can be used as contract sender address. */
+bool IsValidContractSenderAddress(const CTxDestination& dest);
+//
+
 const char* GetTxnOutputType(txnouttype t);
 
 bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, std::vector<std::vector<unsigned char> >& vSolutionsRet, bool contractConsensus = false);
-bool ExtractDestination(const CScript& scriptPubKey, CTxDestination& addressRet);
+//bool ExtractDestination(const CScript& scriptPubKey, CTxDestination& addressRet);
+bool ExtractDestination(const CScript& scriptPubKey, CTxDestination& addressRet, txnouttype* typeRet = NULL);
 bool ExtractDestinations(const CScript& scriptPubKey, txnouttype& typeRet, std::vector<CTxDestination>& addressRet, int& nRequiredRet);
 
 CScript GetScriptForRawPubKey(const CPubKey& pubkey);

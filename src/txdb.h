@@ -10,6 +10,7 @@
 #include "dbwrapper.h"
 #include "chain.h"
 #include "spentindex.h"
+#include "main.h"
 
 #include <map>
 #include <string>

@@ -281,4 +281,7 @@ std::pair<bool,std::string> ReadBinaryFileTor(const std::string &filename, size_
  */
 bool WriteBinaryFileTor(const std::string &filename, const std::string &data);
 
+// themis
+bool CheckHex(const std::string& str);
+
 #endif // BITCOIN_UTIL_H

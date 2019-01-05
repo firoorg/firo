@@ -19,6 +19,9 @@
 #include "util.h"
 #include "utilstrencodings.h"
 #include "hash.h"
+// themis
+#include "base58.h"
+//
 
 #include <stdint.h>
 
@@ -723,9 +726,9 @@ UniValue getblock(const UniValue& params, bool fHelp)
 }
 
 // themis
-UniValue callcontract(const JSONRPCRequest& request)
+UniValue callcontract(const UniValue& params, bool fHelp)
 {
-	if (request.fHelp || request.params.size() < 2)
+	if (fHelp || params.size() < 2)
 		throw std::runtime_error(
 			"callcontract \"address\" \"data\" ( address )\n"
 			"\nArgument:\n"
@@ -737,8 +740,8 @@ UniValue callcontract(const JSONRPCRequest& request)
 
 	LOCK(cs_main);
 
-	std::string strAddr = request.params[0].get_str();
-	std::string data = request.params[1].get_str();
+	std::string strAddr = params[0].get_str();
+	std::string data = params[1].get_str();
 
 	if (data.size() % 2 != 0 || !CheckHex(data))
 		throw JSONRPCError(RPC_TYPE_ERROR, "Invalid data (data not hex)");
@@ -751,20 +754,20 @@ UniValue callcontract(const JSONRPCRequest& request)
 		throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Address does not exist");
 
 	dev::Address senderAddress;
-	if (request.params.size() == 3) {
-		CTxDestination themisSenderAddress = DecodeDestination(request.params[2].get_str());
+	if (params.size() == 3) {
+		CTxDestination themisSenderAddress = DecodeDestination(params[2].get_str());
 		if (IsValidDestination(themisSenderAddress)) {
 			const CKeyID *keyid = boost::get<CKeyID>(&themisSenderAddress);
 			senderAddress = dev::Address(HexStr(valtype(keyid->begin(), keyid->end())));
 		}
 		else {
-			senderAddress = dev::Address(request.params[2].get_str());
+			senderAddress = dev::Address(params[2].get_str());
 		}
 
 	}
 	uint64_t gasLimit = 0;
-	if (request.params.size() == 4) {
-		gasLimit = request.params[3].get_int();
+	if (params.size() == 4) {
+		gasLimit = params[3].get_int();
 	}
 
 
@@ -980,11 +983,12 @@ private:
 	}
 };
 
-UniValue waitforlogs(const JSONRPCRequest& request_) {
+/*
+UniValue waitforlogs(const UniValue& params, bool fHelp) {
 	// this is a long poll function. force cast to non const pointer
-	JSONRPCRequest& request = (JSONRPCRequest&)request_;
+	// JSONRPCRequest& request = (JSONRPCRequest&)request_;
 
-	if (request.fHelp) {
+	if (fHelp) {
 		throw std::runtime_error(
 			"waitforlogs (fromBlock) (toBlock) (filter) (minconf)\n"
 			"requires -logevents to be enabled\n"
@@ -1015,12 +1019,12 @@ UniValue waitforlogs(const JSONRPCRequest& request_) {
 	if (!fLogEvents)
 		throw JSONRPCError(RPC_INTERNAL_ERROR, "Events indexing disabled");
 
-	if (!request.req)
+	if (!req)
 		throw JSONRPCError(RPC_INTERNAL_ERROR, "HTTP connection not available");
 
-	WaitForLogsParams params(request.params);
+	WaitForLogsParams params(params);
 
-	request.PollStart();
+	PollStart();
 
 	std::vector<std::vector<uint256>> hashesToBlock;
 
@@ -1058,7 +1062,7 @@ UniValue waitforlogs(const JSONRPCRequest& request_) {
 				std::unique_lock<std::mutex> lock(cs_blockchange);
 				auto blockHeight = latestblock.height;
 
-				request.PollPing();
+				PollPing();
 
 				cond_blockchange.wait_for(lock, std::chrono::milliseconds(1000));
 				if (latestblock.height > blockHeight) {
@@ -1138,6 +1142,8 @@ UniValue waitforlogs(const JSONRPCRequest& request_) {
 	return result;
 }
 
+*/
+
 class SearchLogsParams {
 public:
 	size_t fromBlock;
@@ -1180,9 +1186,10 @@ private:
 
 };
 
-UniValue searchlogs(const JSONRPCRequest& request)
+/*
+UniValue searchlogs(const UniValue& params, bool fHelp)
 {
-	if (request.fHelp || request.params.size() < 2)
+	if (fHelp || params.size() < 2)
 		throw std::runtime_error(
 			"searchlogs <fromBlock> <toBlock> (address) (topics)\n"
 			"requires -logevents to be enabled"
@@ -1204,7 +1211,7 @@ UniValue searchlogs(const JSONRPCRequest& request)
 
 	LOCK(cs_main);
 
-	SearchLogsParams params(request.params);
+	SearchLogsParams params(params);
 
 	std::vector<std::vector<uint256>> hashesToBlock;
 
@@ -1273,10 +1280,11 @@ UniValue searchlogs(const JSONRPCRequest& request)
 
 	return result;
 }
+*/
 
-UniValue gettransactionreceipt(const JSONRPCRequest& request)
+UniValue gettransactionreceipt(const UniValue& params, bool fHelp)
 {
-	if (request.fHelp || request.params.size() < 1)
+	if (fHelp || params.size() < 1)
 		throw std::runtime_error(
 			"gettransactionreceipt \"hash\"\n"
 			"requires -logevents to be enabled"
@@ -1284,12 +1292,13 @@ UniValue gettransactionreceipt(const JSONRPCRequest& request)
 			"1. \"hash\"          (string, required) The transaction hash\n"
 		);
 
-	if (!fLogEvents)
+	/*if (!fLogEvents)
 		throw JSONRPCError(RPC_INTERNAL_ERROR, "Events indexing disabled");
+	*/
 
 	LOCK(cs_main);
 
-	std::string hashTemp = request.params[0].get_str();
+	std::string hashTemp = params[0].get_str();
 	if (hashTemp.size() != 64) {
 		throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Incorrect hash");
 	}
@@ -1308,9 +1317,9 @@ UniValue gettransactionreceipt(const JSONRPCRequest& request)
 }
 //////////////////////////////////////////////////////////////////////
 
-UniValue listcontracts(const JSONRPCRequest& request)
+UniValue listcontracts(const UniValue& params, bool fHelp)
 {
-	if (request.fHelp)
+	if (fHelp)
 		throw std::runtime_error(
 			"listcontracts (start maxDisplay)\n"
 			"\nArgument:\n"
@@ -1321,15 +1330,15 @@ UniValue listcontracts(const JSONRPCRequest& request)
 	LOCK(cs_main);
 
 	int start = 1;
-	if (request.params.size() > 0) {
-		start = request.params[0].get_int();
+	if (params.size() > 0) {
+		start = params[0].get_int();
 		if (start <= 0)
 			throw JSONRPCError(RPC_TYPE_ERROR, "Invalid start, min=1");
 	}
 
 	int maxDisplay = 20;
-	if (request.params.size() > 1) {
-		maxDisplay = request.params[1].get_int();
+	if (params.size() > 1) {
+		maxDisplay = params[1].get_int();
 		if (maxDisplay <= 0)
 			throw JSONRPCError(RPC_TYPE_ERROR, "Invalid maxDisplay");
 	}
