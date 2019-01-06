@@ -338,6 +338,8 @@ UniValue updatelabels(Type type, const UniValue& data, const UniValue& auth, boo
 
     string label;
 
+    UniValue returnObj(UniValue::VOBJ);
+
     getTxMetadata(txMetadataUni, txMetadataData);
 
     if(txMetadataUni.empty()){
@@ -397,7 +399,11 @@ UniValue updatelabels(Type type, const UniValue& data, const UniValue& auth, boo
     }
     setTxMetadata(txMetadataUni);
 
-    return txidValue;
+    returnObj.push_back(Pair("txid",txidKey));
+    returnObj.push_back(Pair("address",addressKey));
+    returnObj.push_back(Pair("label", label));
+
+    return returnObj;
 }
 
 UniValue paymentrequest(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
