@@ -777,16 +777,9 @@ OPTIONAL: not a necessary parameter to pass.
 ```
 {
     data: {
-        STRING (txid): {
-            STRING (address): {
-                INT (amount) (OPTIONAL),
-                STRING (label),
-            },
-            STRING (address): {
-                INT (amount) (OPTIONAL),
-                STRING (label),
-            },
-        ...
+        txid: STRING,
+        address: STRING,
+        label: STRING
     },
     meta:{
        status: 200
