@@ -1006,7 +1006,10 @@ bool CWallet::AbandonTransaction(const uint256 &hashTx) {
             assert(wtx.vin.size() == 1);
 
             const CTxIn &txin = wtx.vin[0];
-            CDataStream serializedCoinSpend((const char *)&*(txin.scriptSig.begin() + 4),
+            // NOTE(martun): +1 on the next line stands for 1 byte in which the opcode of
+            // OP_ZEROCOINSPENDV3 is written. In zerocoin you will see +4 instead,
+            // because the size of serialized spend is also written, probably in 3 bytes.
+            CDataStream serializedCoinSpend((const char *)&*(txin.scriptSig.begin() + 1),
                                             (const char *)&*txin.scriptSig.end(),
                                             SER_NETWORK, PROTOCOL_VERSION);
             sigma::CoinSpendV3 spend(sigma::ParamsV3::get_default(),

@@ -3836,7 +3836,10 @@ UniValue listspendzerocoinsV3(const UniValue &params, bool fHelp) {
         if (fModulusV2)
             pubcoinId -= ZC_MODULUS_V2_BASE_ID;
 
-        CDataStream serializedCoinSpend((const char *)&*(txin.scriptSig.begin() + 4),
+        // NOTE(martun): +1 on the next line stands for 1 byte in which the opcode of
+        // OP_ZEROCOINSPENDV3 is written. In zerocoin you will see +4 instead,
+        // because the size of serialized spend is also written, probably in 3 bytes.
+        CDataStream serializedCoinSpend((const char *)&*(txin.scriptSig.begin() + 1),
                                         (const char *)&*txin.scriptSig.end(),
                                         SER_NETWORK, PROTOCOL_VERSION);
         sigma::ParamsV3* zcParams = sigma::ParamsV3::get_default();
