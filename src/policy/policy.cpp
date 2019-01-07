@@ -136,7 +136,7 @@ bool IsStandardTx(const CTransaction& tx, std::string& reason, const bool witnes
 
 bool AreInputsStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs)
 {
-    if (tx.IsCoinBase() || tx.IsZerocoinSpend())
+    if (tx.IsCoinBase() || tx.IsZerocoinSpend() || tx.IsZerocoinSpendV3())
         return true; // Coinbases don't use vin normally
     for (unsigned int i = 0; i < tx.vin.size(); i++)
     {
@@ -169,7 +169,7 @@ bool AreInputsStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs)
 
 bool IsWitnessStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs)
 {
-    if (tx.IsCoinBase() || tx.IsZerocoinSpend())
+    if (tx.IsCoinBase() || tx.IsZerocoinSpend() || tx.IsZerocoinSpendV3())
         return true; // Coinbases are skipped
 
     for (unsigned int i = 0; i < tx.vin.size(); i++)

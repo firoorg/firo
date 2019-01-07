@@ -1419,6 +1419,9 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
                 else if(wtx.IsZerocoinSpend()){
                     entry.push_back(Pair("category", "spend"));
                 }
+                else if(wtx.IsZerocoinSpendV3()){
+                    entry.push_back(Pair("category", "spend"));
+                }
                 else {
                     entry.push_back(Pair("category", "receive"));
                 }
@@ -3814,7 +3817,7 @@ UniValue listspendzerocoinsV3(const UniValue &params, bool fHelp) {
     for (CWallet::TxItems::const_reverse_iterator it = txOrdered.rbegin(); it != txOrdered.rend(); ++it) {
         CWalletTx *const pwtx = (*it).second.first;
 
-        if (!pwtx || !pwtx->IsZerocoinSpend() || pwtx->vin.size() != 1)
+        if (!pwtx || !pwtx->IsZerocoinSpendV3() || pwtx->vin.size() != 1)
             continue;
 
         UniValue entry(UniValue::VOBJ);

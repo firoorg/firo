@@ -665,7 +665,7 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
         // https://github.com/zcoinofficial/zcoin/pull/26
         // make order independence
         // and easy to read for other people
-        if (tx.IsZerocoinSpend()) {
+        if (tx.IsZerocoinSpend() || tx.IsZerocoinSpendV3()) {
             if (COUNT_SPEND_ZC_TX >= MAX_SPEND_ZC_TX_PER_BLOCK) {
                 continue;
             }

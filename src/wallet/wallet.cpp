@@ -552,7 +552,7 @@ void CWallet::AddToSpends(const COutPoint &outpoint, const uint256 &wtxid) {
 void CWallet::AddToSpends(const uint256 &wtxid) {
     assert(mapWallet.count(wtxid));
     CWalletTx &thisTx = mapWallet[wtxid];
-    if (thisTx.IsCoinBase() || thisTx.IsZerocoinSpend()) // Coinbases don't spend anything!
+    if (thisTx.IsCoinBase() || thisTx.IsZerocoinSpend() || thisTx.IsZerocoinSpendV3()) // Coinbases don't spend anything!
         return;
 
     BOOST_FOREACH(const CTxIn &txin, thisTx.vin)
@@ -1001,6 +1001,38 @@ bool CWallet::AbandonTransaction(const uint256 &hashTx) {
                 }
             }
 
+        } else if (wtx.IsZerocoinSpendV3()) {
+            // find out coin serial number
+            assert(wtx.vin.size() == 1);
+
+            const CTxIn &txin = wtx.vin[0];
+            CDataStream serializedCoinSpend((const char *)&*(txin.scriptSig.begin() + 4),
+                                            (const char *)&*txin.scriptSig.end(),
+                                            SER_NETWORK, PROTOCOL_VERSION);
+            sigma::CoinSpendV3 spend(sigma::ParamsV3::get_default(),
+                                         serializedCoinSpend);
+
+            Scalar serial = spend.getCoinSerialNumber();
+
+            // mark corresponding mint as unspent
+            list <CZerocoinEntryV3> pubCoins;
+            walletdb.ListPubCoinV3(pubCoins);
+
+            BOOST_FOREACH(const CZerocoinEntryV3 &zerocoinItem, pubCoins) {
+                if (zerocoinItem.serialNumber == serial) {
+                    CZerocoinEntryV3 modifiedItem = zerocoinItem;
+                    modifiedItem.IsUsed = false;
+                    pwalletMain->NotifyZerocoinChanged(pwalletMain, zerocoinItem.value.GetHex(),
+                                                       std::string("New (") + std::to_string(zerocoinItem.denomination) + "mint)",
+                                                       CT_UPDATED);
+                    walletdb.WriteZerocoinEntry(modifiedItem);
+
+                    // erase zerocoin spend entry
+                    CZerocoinSpendEntryV3 spendEntry;
+                    spendEntry.coinSerial = serial;
+                    walletdb.EraseCoinSpendSerialEntry(spendEntry);
+                }
+            }
         }
     }
 

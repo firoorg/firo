@@ -109,7 +109,7 @@ struct ZerocoinTestingSetup : public TestingSetup {
     // Create a new block with just given transactions, coinbase paying to
     // scriptPubKey_v3, and try to add it to the current chain.
     CBlock CreateAndProcessBlock(const std::vector<CMutableTransaction>& txns,
-                                 const CScript& scriptPubKey_v3) {
+                                 const CScript& scriptPubKey_v3){
 
         CBlock block = CreateBlock(txns, scriptPubKey_v3);
         BOOST_CHECK_MESSAGE(ProcessBlock(block), "Processing block failed");
@@ -121,7 +121,6 @@ struct ZerocoinTestingSetup : public TestingSetup {
 };
 
 BOOST_FIXTURE_TEST_SUITE(zerocoin_tests_v3, ZerocoinTestingSetup)
-
 
 BOOST_AUTO_TEST_CASE(zerocoin_mintspend_v3)
 {
@@ -289,8 +288,8 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_many_v3)
         thirdPartyAddress = "";
         denominationsForTx.clear();
         denominationsForTx.push_back(denominations[i]);
-        denominationsForTx.push_back(denominations[i+1]); 
-        printf("Testing denominations %s and %s\n", 
+        denominationsForTx.push_back(denominations[i+1]);
+        printf("Testing denominations %s and %s\n",
                denominationsForTx[0].c_str(), denominationsForTx[1].c_str());
         string stringError;
         //Make sure that transactions get to mempool
@@ -301,7 +300,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_many_v3)
              std::pair<int,int> denominationPair(stoi(denominationsForTx[i]), 1);
              denominationPairs.push_back(denominationPair);
         }
-                
+
         BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(
             stringError, denominationPairs, SIGMA), stringError + " - Create Mint failed");
 
@@ -328,10 +327,10 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_many_v3)
 
         wtx.Init(NULL);
         BOOST_CHECK_MESSAGE(!pwalletMain->CreateZerocoinSpendModel(
-            wtx, stringError, thirdPartyAddress, denominationsForTx), 
+            wtx, stringError, thirdPartyAddress, denominationsForTx),
             "Spend succeeded although not at least two mints");
         BOOST_CHECK_MESSAGE(
-            stringError == "it has to have at least two mint coins with at least 6 confirmation in order to spend a coin", 
+            stringError == "it has to have at least two mint coins with at least 6 confirmation in order to spend a coin",
             stringError + " - Incorrect error message");
 
         BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(
@@ -487,7 +486,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_many_v3)
     {
         denominationsForTx.clear();
         denominationsForTx.push_back(denominations[i]);
-        denominationsForTx.push_back(denominations[i]); 
+        denominationsForTx.push_back(denominations[i]);
         string stringError;
         printf("Testing denominations %s and %s\n", denominationsForTx[0].c_str(), denominationsForTx[1].c_str());
         denominationPairs.clear();
@@ -551,7 +550,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_usedinput_v3){
     // attempt to add a mixed input spend in one block, and use of the inputs into another tx in the next block.
     denominationsForTx.clear();
     denominationsForTx.push_back(denominations[rand() % 5]);
-    denominationsForTx.push_back(denominations[rand() % 5]); 
+    denominationsForTx.push_back(denominations[rand() % 5]);
     printf("Testing denominations %s and %s\n", denominationsForTx[0].c_str(), denominationsForTx[1].c_str());
     string stringError;
 
@@ -647,7 +646,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_numinputs_v3){
             denominationsForTx.push_back(denominations[denominationIndexA]);
         }
     }
-    
+
     BOOST_CHECK_MESSAGE(mempool.size() == (ZC_SPEND_LIMIT+1)*4, "Num input mints not added to mempool");
 
     // add block
@@ -669,24 +668,20 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_numinputs_v3){
     BOOST_CHECK_MESSAGE(!pwalletMain->CreateZerocoinSpendModel(wtx, stringError, thirdPartyAddress, denominationsForTx), "Spend succeeded even though number of inputs > ZC_SPEND_LIMIT");
 
     // Next add 3 transactions with 2 inputs each, verify mempool==3. mine a block. Verify mempool still has 1 tx.
-    for(int i = 0; i < 3; i++){
+    for(int i=0;i<3;i++){
         denominationsForTx.clear();
         denominationsForTx.push_back(denominations[denominationIndexA]);
         denominationsForTx.push_back(denominations[denominationIndexB]);
         BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(wtx, stringError, thirdPartyAddress, denominationsForTx), "Spend Failed");
     }
 
-    BOOST_CHECK_MESSAGE(
-        mempool.size() == 3,
-        "Num input spends not added to mempool");
+    BOOST_CHECK_MESSAGE(mempool.size() == 3, "Num input spends not added to mempool");
 
     // add block
     b = CreateAndProcessBlock(MinTxns, scriptPubKey_v3);
     wtx.Init(NULL);
 
-    BOOST_CHECK_MESSAGE(
-        mempool.size() != 3 && mempool.size() == 1 && mempool.size() != 0,
-        "Mempool not correctly cleared: Block spend limit not enforced.");
+    BOOST_CHECK_MESSAGE(mempool.size() != 3 && mempool.size() == 1 && mempool.size() != 0, "Mempool not correctly cleared: Block spend limit not enforced.");
 
     vtxid.clear();
     MinTxns.clear();

@@ -936,7 +936,7 @@ void BlockAssembler::addPriorityTxs()
         //add zcoin validation
         if (tx.IsCoinBase() || !CheckFinalTx(tx))
             continue;
-        if (tx.IsZerocoinSpend()) {
+        if (tx.IsZerocoinSpend() || tx.IsZerocoinSpendV3()) {
 
             if ((COUNT_SPEND_ZC_TX + tx.vin.size()) > MAX_SPEND_ZC_TX_PER_BLOCK) {
                 continue;

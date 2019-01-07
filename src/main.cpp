@@ -1096,7 +1096,7 @@ unsigned int GetP2SHSigOpCount(const CTransaction &tx, const CCoinsViewCache &in
 int64_t GetTransactionSigOpCost(const CTransaction &tx, const CCoinsViewCache &inputs, int flags) {
     int64_t nSigOps = GetLegacySigOpCount(tx) * WITNESS_SCALE_FACTOR;
 
-    if (tx.IsCoinBase() || tx.IsZerocoinSpend())
+    if (tx.IsCoinBase() || tx.IsZerocoinSpend() || tx.IsZerocoinSpendV3())
         return nSigOps;
 
     if (flags & SCRIPT_VERIFY_P2SH) {
@@ -1238,7 +1238,7 @@ bool AcceptToMemoryPoolWorker(
         bool markZcoinSpendTransactionSerial) {
     bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
     LogPrintf("AcceptToMemoryPoolWorker(),fCheckInputs=%s, tx.IsZerocoinSpend()=%s, fTestNet=%s\n",
-              fCheckInputs, tx.IsZerocoinSpend(), fTestNet);
+              fCheckInputs, tx.IsZerocoinSpend() || tx.IsZerocoinSpendV3(), fTestNet);
     uint256 hash = tx.GetHash();
     AssertLockHeld(cs_main);
     if (pfMissingInputs)
@@ -1379,7 +1379,7 @@ bool AcceptToMemoryPoolWorker(
                 return state.Invalid(false, REJECT_ALREADY_KNOWN, "txn-already-known");
             }
 
-            if (!tx.IsZerocoinSpend() && fCheckInputs) {
+            if (!tx.IsZerocoinSpend() && !tx.IsZerocoinSpendV3() && fCheckInputs) {
                 // do all inputs exist?
                 // Note that this does not check for the presence of actual outputs (see the next check for that),
                 // and only helps with filling in pfMissingInputs (to determine missing vs spent).
@@ -2213,7 +2213,7 @@ void static InvalidBlockFound(CBlockIndex *pindex, const CValidationState &state
 
 void UpdateCoins(const CTransaction &tx, CCoinsViewCache &inputs, CTxUndo &txundo, int nHeight) {
     // mark inputs spent
-    if (!tx.IsCoinBase() && !tx.IsZerocoinSpend()) {
+    if (!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsZerocoinSpendV3()) {
         txundo.vprevout.reserve(tx.vin.size());
         BOOST_FOREACH(
         const CTxIn &txin, tx.vin) {
@@ -2308,7 +2308,7 @@ namespace Consensus {
 bool CheckInputs(const CTransaction &tx, CValidationState &state, const CCoinsViewCache &inputs, bool fScriptChecks,
                  unsigned int flags, bool cacheStore, PrecomputedTransactionData &txdata,
                  std::vector <CScriptCheck> *pvChecks) {
-    if (!tx.IsCoinBase() && !tx.IsZerocoinSpend()) {
+    if (!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsZerocoinSpendV3()) {
 
         if (!Consensus::CheckTxInputs(tx, state, inputs, GetSpendHeight(inputs))) {
             LogPrintf("CheckTxInputs() failed!\n");
@@ -2567,7 +2567,7 @@ bool DisconnectBlock(const CBlock &block, CValidationState &state, const CBlockI
         }
 
         // restore inputs
-        if (!tx.IsCoinBase() && !tx.IsZerocoinSpend()) { // not coinbases
+        if (!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsZerocoinSpendV3()) { // not coinbases
             const CTxUndo &txundo = blockUndo.vtxundo[i - 1];
             if (txundo.vprevout.size() != tx.vin.size())
                 return error("DisconnectBlock(): transaction and undo data inconsistent");
@@ -3000,7 +3000,7 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
                              REJECT_INVALID, "bad-blk-sigops");
 
         txdata.emplace_back(tx);
-        if (!tx.IsCoinBase() && !tx.IsZerocoinSpend()) {
+        if (!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsZerocoinSpendV3()) {
             nFees += view.GetValueIn(tx) - tx.GetValueOut();
 
             std::vector <CScriptCheck> vChecks;
@@ -6853,7 +6853,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand,
 
         pfrom->setAskFor.erase(inv.hash);
         mapAlreadyAskedFor.erase(inv.hash);
-        if (!AlreadyHave(inv) && !tx.IsZerocoinSpend()  &&
+        if (!AlreadyHave(inv) && !tx.IsZerocoinSpend() && !tx.IsZerocoinSpendV3() &&
             AcceptToMemoryPool(mempool, state, tx, true, true, &fMissingInputs, false, 0, true)) {
             LogPrintf("Transaction %s received and added to the mempool.\n",
                       tx.GetHash().ToString());
@@ -6974,7 +6974,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand,
             EraseOrphanTx(hash);
             //btzc: zcoin condition
         } else if (
-            !AlreadyHave(inv) && tx.IsZerocoinSpend() &&
+            !AlreadyHave(inv) && tx.IsZerocoinSpend() && !tx.IsZerocoinSpendV3() &&
             AcceptToMemoryPool(mempool, state, tx, false, true, &fMissingInputsZerocoin, false, 0, true)) {
             // Changes to mempool should also be made to Dandelion stempool
             AcceptToMemoryPool(
