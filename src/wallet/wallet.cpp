@@ -4536,7 +4536,14 @@ bool CWallet::CreateZerocoinSpendTransactionV3(
             CDataStream serializedCoinSpend(SER_NETWORK, PROTOCOL_VERSION);
             serializedCoinSpend << spend;
 
-            CScript tmp = CScript() << OP_ZEROCOINSPENDV3 << serializedCoinSpend.size();
+            CScript tmp = CScript() << OP_ZEROCOINSPENDV3;
+            // NOTE(martun): Do not write the size first, doesn't look like necessary. 
+            // If we write it, it will get written in different number of bytes depending 
+            // on the number itself, and "CScript" does not provide a function to read 
+            // it back properly.
+            // << serializedCoinSpend.size();             
+            // NOTE(martun): "insert" is not the same as "operator<<", as operator<< 
+            // also writes the vector size before the vector itself.
             tmp.insert(tmp.end(), serializedCoinSpend.begin(), serializedCoinSpend.end());
             txNew.vin[0].scriptSig.assign(tmp.begin(), tmp.end());
 
@@ -5143,7 +5150,15 @@ bool CWallet::CreateMultipleZerocoinSpendTransactionV3(
                 serializedCoinSpend << spend;
 
                 // Insert the spend script into the tx object
-                CScript tmp = CScript() << OP_ZEROCOINSPENDV3 << serializedCoinSpend.size();
+                CScript tmp = CScript() << OP_ZEROCOINSPENDV3;
+
+                // NOTE(martun): Do not write the size first, doesn't look like necessary. 
+                // If we write it, it will get written in different number of bytes depending 
+                // on the number itself, and "CScript" does not provide a function to read 
+                // it back properly.
+                // << serializedCoinSpend.size();
+                // NOTE(martun): "insert" is not the same as "operator<<", as operator<< 
+                // also writes the vector size before the vector itself.
                 tmp.insert(tmp.end(), serializedCoinSpend.begin(), serializedCoinSpend.end());
                 txNew.vin[index].scriptSig.assign(tmp.begin(), tmp.end());
 

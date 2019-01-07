@@ -109,7 +109,7 @@ struct ZerocoinTestingSetup : public TestingSetup {
     // Create a new block with just given transactions, coinbase paying to
     // scriptPubKey_v3, and try to add it to the current chain.
     CBlock CreateAndProcessBlock(const std::vector<CMutableTransaction>& txns,
-                                 const CScript& scriptPubKey_v3){
+                                 const CScript& scriptPubKey_v3) {
 
         CBlock block = CreateBlock(txns, scriptPubKey_v3);
         BOOST_CHECK_MESSAGE(ProcessBlock(block), "Processing block failed");
@@ -121,6 +121,7 @@ struct ZerocoinTestingSetup : public TestingSetup {
 };
 
 BOOST_FIXTURE_TEST_SUITE(zerocoin_tests_v3, ZerocoinTestingSetup)
+
 
 BOOST_AUTO_TEST_CASE(zerocoin_mintspend_v3)
 {
@@ -527,9 +528,8 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_many_v3)
         vtxid.clear();
         MinTxns.clear();
         mempool.clear();
-        zerocoinState->mempoolCoinSerials.clear();
+        zerocoinState->Reset();
     }
-    zerocoinState->Reset();
 }
 
 BOOST_AUTO_TEST_CASE(zerocoin_mintspend_usedinput_v3){
@@ -669,20 +669,24 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_numinputs_v3){
     BOOST_CHECK_MESSAGE(!pwalletMain->CreateZerocoinSpendModel(wtx, stringError, thirdPartyAddress, denominationsForTx), "Spend succeeded even though number of inputs > ZC_SPEND_LIMIT");
 
     // Next add 3 transactions with 2 inputs each, verify mempool==3. mine a block. Verify mempool still has 1 tx.
-    for(int i=0;i<3;i++){
+    for(int i = 0; i < 3; i++){
         denominationsForTx.clear();
         denominationsForTx.push_back(denominations[denominationIndexA]);
         denominationsForTx.push_back(denominations[denominationIndexB]);
         BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(wtx, stringError, thirdPartyAddress, denominationsForTx), "Spend Failed");
     }
 
-    BOOST_CHECK_MESSAGE(mempool.size() == 3, "Num input spends not added to mempool");
+    BOOST_CHECK_MESSAGE(
+        mempool.size() == 3,
+        "Num input spends not added to mempool");
 
     // add block
     b = CreateAndProcessBlock(MinTxns, scriptPubKey_v3);
     wtx.Init(NULL);
 
-    BOOST_CHECK_MESSAGE(mempool.size() != 3 && mempool.size() == 1 && mempool.size() != 0, "Mempool not correctly cleared: Block spend limit not enforced.");
+    BOOST_CHECK_MESSAGE(
+        mempool.size() != 3 && mempool.size() == 1 && mempool.size() != 0,
+        "Mempool not correctly cleared: Block spend limit not enforced.");
 
     vtxid.clear();
     MinTxns.clear();

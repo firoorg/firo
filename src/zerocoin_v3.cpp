@@ -89,7 +89,10 @@ bool CheckSpendZcoinTransactionV3(
 					"CheckSpendZcoinTransactionV3: invalid spend transaction");
 
 		// Deserialize the CoinSpend into a fresh object
-		CDataStream serializedCoinSpend((const char *)&*(txin.scriptSig.begin() + 4),
+        // NOTE(martun): +1 on the next line stands for 1 byte in which the opcode of 
+        // OP_ZEROCOINSPENDV3 is written. In zerocoin you will see +4 instead,
+        // because the size of serialized spend is also written, probably in 3 bytes.
+		CDataStream serializedCoinSpend((const char *)&*(txin.scriptSig.begin() + 1),
 				(const char *)&*txin.scriptSig.end(),
 				SER_NETWORK, PROTOCOL_VERSION);
 		sigma::CoinSpendV3 newSpend(ZCParamsV3, serializedCoinSpend);
@@ -280,8 +283,11 @@ Scalar ZerocoinGetSpendSerialNumberV3(const CTransaction &tx) {
 	const CTxIn &txin = tx.vin[0];
 
 	try {
+        // NOTE(martun): +1 on the next line stands for 1 byte in which the opcode of 
+        // OP_ZEROCOINSPENDV3 is written. In zerocoin you will see +4 instead,
+        // because the size of serialized spend is also written, probably in 3 bytes.	
 		CDataStream serializedCoinSpend(
-				(const char *)&*(txin.scriptSig.begin() + 4),
+				(const char *)&*(txin.scriptSig.begin() + 1),
 				(const char *)&*txin.scriptSig.end(),
 				SER_NETWORK, PROTOCOL_VERSION);
 		sigma::CoinSpendV3 spend(ZCParamsV3, serializedCoinSpend);
