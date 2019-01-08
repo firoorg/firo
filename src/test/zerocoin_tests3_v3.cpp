@@ -127,8 +127,8 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_v3)
     vector<uint256> vtxid;
     std::vector<CMutableTransaction> MinTxns;
     std::vector<string> denominations = {"1", "10", "25", "50", "100"};
-//    for(int i = 0; i < 1; i++)
-    for(int i = 0; i < 5; i++)
+    for(int i = 0; i < 1; i++)
+//    for(int i = 0; i < 5; i++)
     {
         denomination = denominations[i];
         printf("Testing denomination %s\n", denomination.c_str());
@@ -197,35 +197,35 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_v3)
         BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool not cleared");
 
         // Delete usedCoinSerials since we deleted the mempool
-//        CZerocoinStateV3 *zerocoinStatex = CZerocoinStateV3::GetZerocoinState();
-//        zerocoinStatex->usedCoinSerials.clear();
-//        zerocoinStatex->mempoolCoinSerials.clear();
-//
-//        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(stringError, "", denomination.c_str(), true), "Spend created although double");
-//        BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mempool did not receive the transaction");
-//
-//        BOOST_CHECK_MESSAGE(ProcessBlock(b), "ProcessBlock failed although valid spend inside");
-//        BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
-//
-//        //Since new block contained a TX with the same serial as the TX in mempool, confirm that mempool is cleared
-//        BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool not cleared");
-//
-//        //Confirm that on disconnect block transaction is returned to mempool
-//        DisconnectBlocks(1);
-//        LOCK(cs_main);
-//        {
-//            CValidationState state;
-//            const CChainParams& chainparams = Params();
-//            InvalidateBlock(state, chainparams, mapBlockIndex[b.GetHash()]);
-//        }
-//
-//        BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mempool should get the transaction of disconnected block");
-//
-//        //This mint is just to create a block with the new hash
-//        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denomination.c_str(), SIGMA), stringError + "Create Mint failed");
-//
-//        std::vector<CMutableTransaction> noTxns;
-//        b = CreateAndProcessBlock(noTxns, scriptPubKey3_v3);
+        CZerocoinStateV3 *zerocoinStatex = CZerocoinStateV3::GetZerocoinState();
+        zerocoinStatex->usedCoinSerials.clear();
+        zerocoinStatex->mempoolCoinSerials.clear();
+
+        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(stringError, "", denomination.c_str(), true), "Spend created although double");
+        BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mempool did not receive the transaction");
+
+        BOOST_CHECK_MESSAGE(ProcessBlock(b), "ProcessBlock failed although valid spend inside");
+        BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
+
+        //Since new block contained a TX with the same serial as the TX in mempool, confirm that mempool is cleared
+        BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool not cleared");
+
+        //Confirm that on disconnect block transaction is returned to mempool
+        DisconnectBlocks(1);
+        LOCK(cs_main);
+        {
+            CValidationState state;
+            const CChainParams& chainparams = Params();
+            InvalidateBlock(state, chainparams, mapBlockIndex[b.GetHash()]);
+        }
+
+        BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mempool should get the transaction of disconnected block");
+
+        //This mint is just to create a block with the new hash
+        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denomination.c_str(), SIGMA), stringError + "Create Mint failed");
+
+        std::vector<CMutableTransaction> noTxns;
+        b = CreateAndProcessBlock(noTxns, scriptPubKey3_v3);
 
         vtxid.clear();
         MinTxns.clear();

@@ -261,8 +261,8 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_v3)
         vtxid.clear();
         MinTxns.clear();
         mempool.clear();
+        zerocoinState->Reset();
     }
-    zerocoinState->Reset();
 }
 
 BOOST_AUTO_TEST_CASE(zerocoin_mintspend_many_v3)
@@ -476,7 +476,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_many_v3)
         vtxid.clear();
         MinTxns.clear();
         mempool.clear();
-        zerocoinState->mempoolCoinSerials.clear();
+        zerocoinState->Reset();
     }
 
     thirdPartyAddress = "";

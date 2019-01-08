@@ -40,26 +40,26 @@ public:
     template<typename Stream>
     inline void Serialize(Stream& s, int nType, int nVersion) const {
         int size = value.memoryRequired();
-        unsigned char buffer[size];
+        unsigned char buffer[size + sizeof(int32_t)];
         value.serialize(buffer);
+        std::memcpy(buffer + size, &denomination, sizeof(denomination));
         char* b = (char*)buffer;
-        s.write(b, size);
-        s << denomination;
+        s.write(b, size + sizeof(int32_t));
     }
 
     template<typename Stream>
     inline void Unserialize(Stream& s, int nType, int nVersion) {
         int size = value.memoryRequired();
-        unsigned char buffer[size];
+        unsigned char buffer[size + sizeof(int32_t)];
         char* b = (char*)buffer;
-        s.read(b, size);
+        s.read(b, size + sizeof(int32_t));
         value.deserialize(buffer);
-        s >> denomination;
+        std::memcpy(&denomination, buffer + size, sizeof(denomination));
     }
 
 // private: TODO: change back to private
     GroupElement value;
-    int denomination;
+    int32_t denomination;
 };
 
 class PrivateCoinV3{

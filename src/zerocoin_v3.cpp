@@ -183,9 +183,9 @@ bool CheckMintZcoinTransactionV3(
 				PUBCOIN_NOT_VALIDATE,
 				"CTransaction::CheckTransactionV3() : PubCoin validation failed");
 
-    // If you wonder why +4, go to file wallet.cpp and read the comments in function 
+    // If you wonder why +1, go to file wallet.cpp and read the comments in function
     // CWallet::CreateZerocoinMintModelV3 around "scriptSerializedCoin << OP_ZEROCOINMINTV3";
-	vector<unsigned char> coin_serialised(txout.scriptPubKey.begin() + 4, 
+	vector<unsigned char> coin_serialised(txout.scriptPubKey.begin() + 1,
                                           txout.scriptPubKey.end());
 	secp_primitives::GroupElement pubCoinValue;
 	pubCoinValue.deserialize(&coin_serialised[0]);

@@ -2796,8 +2796,18 @@ UniValue mintzerocoinV3(const UniValue& params, bool fHelp)
 
     // Validate
     if (pubCoin.validate()) {
-        CScript scriptSerializedCoin =
-                CScript() << OP_ZEROCOINMINTV3 << pubCoin.getValue().memoryRequired() << pubCoin.getValue().getvch();
+        CScript scriptSerializedCoin;
+
+        // opcode is inserted as 1 byte according to file script/script.h
+        scriptSerializedCoin << OP_ZEROCOINMINTV3;
+
+        // MARTUN: Commenting this for now.
+        // this one will probably be written as int64_t, which means it will be written in as few bytes as necessary, and one more byte for sign. In our case our 34 will take 2 bytes, 1 for the number 34 and another one for the sign.
+        // scriptSerializedCoin << pubCoin.getValue().memoryRequired();
+
+        // and this one will write the size in different byte lengths depending on the length of vector. If vector size is <0.4c, which is 76, will write the size of vector in just 1 byte. In our case the size is always 34, so must write that 34 in 1 byte.
+        std::vector<unsigned char> vch = pubCoin.getValue().getvch();
+        scriptSerializedCoin.insert(scriptSerializedCoin.end(), vch.begin(), vch.end());
 
         if (pwalletMain->IsLocked())
             throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Error: Please enter the wallet passphrase with walletpassphrase first.");
@@ -3026,8 +3036,17 @@ UniValue mintmanyzerocoinV3(const UniValue& params, bool fHelp)
             }
 
             // Create script for coin
-            CScript scriptSerializedCoin =
-                    CScript() << OP_ZEROCOINMINTV3 << pubCoin.getValue().memoryRequired() << pubCoin.getValue().getvch();
+            CScript scriptSerializedCoin;
+            // opcode is inserted as 1 byte according to file script/script.h
+            scriptSerializedCoin << OP_ZEROCOINMINTV3;
+
+            // MARTUN: Commenting this for now.
+            // this one will probably be written as int64_t, which means it will be written in as few bytes as necessary, and one more byte for sign. In our case our 34 will take 2 bytes, 1 for the number 34 and another one for the sign.
+            // scriptSerializedCoin << pubCoin.getValue().memoryRequired();
+
+            // and this one will write the size in different byte lengths depending on the length of vector. If vector size is <0.4c, which is 76, will write the size of vector in just 1 byte. In our case the size is always 34, so must write that 34 in 1 byte.
+            std::vector<unsigned char> vch = pubCoin.getValue().getvch();
+            scriptSerializedCoin.insert(scriptSerializedCoin.end(), vch.begin(), vch.end());
 
             CRecipient recipient = {scriptSerializedCoin, (denominationInt * COIN), false};
 

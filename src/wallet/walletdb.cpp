@@ -230,7 +230,7 @@ bool CWalletDB::WriteCoinSpendSerialEntry(const CZerocoinSpendEntry &zerocoinSpe
 }
 
 bool CWalletDB::WriteCoinSpendSerialEntry(const CZerocoinSpendEntryV3 &zerocoinSpend) {
-    return Write(make_pair(string("zcserial"), zerocoinSpend.coinSerial), zerocoinSpend, true);
+    return Write(make_pair(string("zcserial_sigma"), zerocoinSpend.coinSerial), zerocoinSpend, true);
 }
 
 bool CWalletDB::EraseCoinSpendSerialEntry(const CZerocoinSpendEntry &zerocoinSpend) {
@@ -238,7 +238,7 @@ bool CWalletDB::EraseCoinSpendSerialEntry(const CZerocoinSpendEntry &zerocoinSpe
 }
 
 bool CWalletDB::EraseCoinSpendSerialEntry(const CZerocoinSpendEntryV3 &zerocoinSpend) {
-    return Erase(make_pair(string("zcserial"), zerocoinSpend.coinSerial));
+    return Erase(make_pair(string("zcserial_sigma"), zerocoinSpend.coinSerial));
 }
 
 bool
@@ -394,7 +394,7 @@ void CWalletDB::ListCoinSpendSerial(std::list <CZerocoinSpendEntryV3> &listCoinS
         // Read next record
         CDataStream ssKey(SER_DISK, CLIENT_VERSION);
         if (fFlags == DB_SET_RANGE)
-            ssKey << make_pair(string("zcserial"), GroupElement());
+            ssKey << make_pair(string("zcserial_sigma"), GroupElement());
         CDataStream ssValue(SER_DISK, CLIENT_VERSION);
         int ret = ReadAtCursor(pcursor, ssKey, ssValue, fFlags);
         fFlags = DB_NEXT;
@@ -408,9 +408,9 @@ void CWalletDB::ListCoinSpendSerial(std::list <CZerocoinSpendEntryV3> &listCoinS
         // Unserialize
         string strType;
         ssKey >> strType;
-        if (strType != "zcserial")
+        if (strType != "zcserial_sigma")
             break;
-        GroupElement value;
+        Scalar value;
         ssKey >> value;
         CZerocoinSpendEntryV3 zerocoinSpendItem;
         ssValue >> zerocoinSpendItem;
