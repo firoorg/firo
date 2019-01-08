@@ -17,7 +17,7 @@ class GetChainTipsTest (BitcoinTestFramework):
         self.setup_clean_chain = False
 
     def run_test (self):
-
+        print('test started')
         tips = self.nodes[0].getchaintips ()
         assert_equal (len (tips), 1)
         assert_equal (tips[0]['branchlen'], 0)
