@@ -49,6 +49,7 @@ A function with one or more operations.
 | [znodeList](#znodelist)           | list information related to all Znodes. | 🔐 | – | – |
 | [updateLabels](#updateLabels)     | Update transaction labels stored in the persistent tx metadata file. | 🔐 | – | – |
 | [stop](#stop)                     | Stop the Zcoin daemon. | 🔐 | - | – |
+| [setting](#setting)               | Interact with settings. | 🔐 | - | – |
 | [znodeControl](#znodecontrol)     | Start/stop Znode(s) by alias. | 🔐 | ✅ | – |
 | [mint](#mint)                     | Mint 1 or more Zerocoins. | 🔐 | ✅ | – |
 | [sendPrivate](#sendprivate)       | Spend 1 or more Zerocoins. Allows specifying third party addresses to spend to. | 🔐    | ✅ | – |
@@ -777,16 +778,9 @@ OPTIONAL: not a necessary parameter to pass.
 ```
 {
     data: {
-        STRING (txid): {
-            STRING (address): {
-                INT (amount) (OPTIONAL),
-                STRING (label),
-            },
-            STRING (address): {
-                INT (amount) (OPTIONAL),
-                STRING (label),
-            },
-        ...
+        txid: STRING,
+        address: STRING,
+        label: STRING
     },
     meta:{
        status: 200
@@ -958,6 +952,153 @@ OPTIONAL: not a necessary parameter to pass.
     data: {
         true
     }, 
+    meta:{
+       status: 200
+    }
+}
+```
+
+### `setting`
+`initial`:
+```
+    data: {
+      }
+```
+*Returns:*
+```
+{
+    data: {
+        client: {
+            STRING (setting): {
+                data: STRING,
+                changed: BOOL,
+                restartRequired: BOOL
+            },
+            STRING (setting): {
+                data: STRING,
+                changed: BOOL,
+                restartRequired: BOOL
+            },
+            ...
+        },
+        daemon: {
+            STRING (setting): {
+                data: STRING,
+                changed: BOOL,
+                restartRequired: BOOL
+            },
+            STRING (setting): {
+                data: STRING,
+                changed: BOOL,
+                restartRequired: BOOL
+            },
+            ...
+        },
+        restartNow: false
+    },
+    meta:{
+       status: 200
+    }
+}
+```
+
+`create`:
+```
+    data: {
+        STRING (setting): {
+            data: STRING,
+            restartRequired: BOOL
+        },
+        STRING (setting): {
+            data: STRING,
+            restartRequired: BOOL
+        },
+        ...
+        }
+    }
+```
+*Returns:*
+```
+{
+    data: {
+        true
+    },
+    meta:{
+       status: 200
+    }
+}
+```
+
+`update`:
+```
+    data: {
+        STRING (setting): {
+            data: STRING, (OPTIONAL)
+            restartRequired: (OPTIONAL) (VAR: program=="client")
+        },
+        STRING (setting): {
+            data: STRING, (OPTIONAL)
+            restartRequired: (OPTIONAL) (VAR: program=="client")
+        },
+        ...
+    }
+```
+*Returns:*
+```
+{
+    data: {
+        true
+    },
+    meta:{
+       status: 200
+    }
+}
+```
+
+`delete`:
+```
+{
+    data: {
+        settings: [STRING,STRING,...]
+    }
+}
+```
+*Returns:*
+```
+{
+    data: {
+        true
+    },
+    meta:{
+       status: 200
+    }
+}
+```
+
+`get`:
+```
+{
+    data: {
+        settings: [STRING,STRING,...]
+    }
+}
+```
+*Returns:*
+```
+{
+    data: {
+        STRING (setting): {
+            data: STRING,
+            changed: BOOL,
+            restartRequired: BOOL
+        },
+        STRING (setting): {
+            data: STRING,
+            changed: BOOL,
+            restartRequired: BOOL
+        },
+        ...
+    },
     meta:{
        status: 200
     }

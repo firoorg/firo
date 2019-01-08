@@ -5,9 +5,13 @@
 #include "rpc/server.h"
 #include "client-api/server.h"
 #include "client-api/settings.h"
+#include "client-api/protocol.h"
 #include "util.h"
 #include "univalue.h"
 #include <fstream>
+#include "utilstrencodings.h"
+#include <boost/foreach.hpp>
+
 
 namespace fs = boost::filesystem;
 using namespace std;
@@ -168,18 +172,18 @@ bool SettingsStartup(){
 }
 
 // get Client or Daemon settings
-string GetSettingsProgram(UniValue data, string name){
+bool GetSettingsProgram(UniValue data, string name, string& program){
     UniValue client = find_value(data, "client");
     UniValue daemon = find_value(data, "daemon");
     if(!find_value(client, name).isNull()){
-        return "client";
+        program = "client";
+        return true;
     }
     if(!find_value(daemon, name).isNull()){
-        return "daemon";
+        program = "daemon";
+        return true;
     }
-    else {
-        return "";
-    }
+    return false;
 }
 
 bool CheckSettingLayout(UniValue& setting){
@@ -204,7 +208,7 @@ bool SetRestartNow(UniValue& data){
         names = (i==0) ? client.getKeys() : daemon.getKeys();
         for (vector<string>::iterator it = names.begin(); it != names.end(); it++) {
             string name = (*it);
-            setting = find_value(client, name);
+            setting = find_value((i==0) ? client : daemon, name);
             if(find_value(setting, "restartRequired").get_bool()==true &&
                find_value(setting,         "changed").get_bool()==true){
                 data.replace("restartNow", true);
@@ -218,87 +222,118 @@ bool SetRestartNow(UniValue& data){
 UniValue setting(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
 {
     UniValue settingsData = ReadSettingsData();
-    vector<string> names = data.getKeys();
+    vector<UniValue> settings;
+    UniValue setting(UniValue::VOBJ);
+    string name;
+    string program;
+    bool writeBack = false;
+
     switch(type){
         case Initial: {
-
             return settingsData;
             break;   
         }
-        case Get: {                    
-            UniValue result;
-            for (vector<string>::iterator it = names.begin(); it != names.end(); it++) {
-                string name = (*it);
-                string program = GetSettingsProgram(settingsData, name);
-                if(program==""){
-                    break;
-                }
-                UniValue setting(UniValue::VOBJ);
-                if(!ReadAPISetting(settingsData, setting, name, program)){
-                    break;
-                }
-                result.push_back(setting);         
-            }
-
-            return result;
-            break;        
-        }
         case Create: {
-            for (vector<string>::iterator it = names.begin(); it != names.end(); it++) {
-                string name = (*it);
+            vector<string> names = data.getKeys();
+            BOOST_FOREACH(const std::string& name, names)
+            {
                 // fail out if the setting already exists
-                if(GetSettingsProgram(settingsData, name)!=""){
-                    break;
+                if(GetSettingsProgram(settingsData, name, program)){
+                   throw JSONRPCError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
                 }
-                UniValue setting(UniValue::VOBJ);
                 setting = find_value(data, name);
                 // check the setting has the correct layout
                 if(!CheckSettingLayout(setting)){
-                    break;
+                    throw JSONRPCError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
                 }
                 setting.push_back(Pair("name", name));
                 setting.push_back(Pair("changed", false));
-                WriteAPISetting(settingsData, setting, "client");             
+                WriteAPISetting(settingsData, setting, "client");
             }
 
+            writeBack = true;
             break;             
         }
-        case Update: {
-            UniValue settingUni(UniValue::VOBJ);
-            string name;
-            string program;
-            for (vector<string>::iterator it = names.begin(); it != names.end(); it++) {
-                name = (*it);
-                program = GetSettingsProgram(settingsData, name);
-                UniValue setting(UniValue::VOBJ);
-                setting = find_value(data, name);
-                setting.push_back(Pair("name", name));    
-                WriteAPISetting(settingsData, setting, program);             
-            }
-
-            SetRestartNow(settingsData); 
-            break;   
-        }
         case Delete: {
-            // can only delete client data not daemon..
+            // can only delete client data, not daemon..
             UniValue client(UniValue::VOBJ);
             client = find_value(settingsData, "client");
-            for (vector<string>::iterator it = names.begin(); it != names.end(); it++) {
-                string name = (*it);        
-                UniValue setting(UniValue::VOBJ);
+
+            UniValue names(UniValue::VARR);
+            names = find_value(data, "settings").get_array();
+            for(size_t index=0; index<names.size();index++){
+                string name = names[index].get_str();
                 setting = find_value(client, name);
-                if(!setting.isNull()){
-                    client.erase(setting); //todo get setting name as univalue
+                if(setting.isNull()){
+                    throw JSONRPCError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
                 }
+                client.erase(name);
             }
 
             settingsData.replace("client", client);
-            WriteSettingsData(settingsData);
+            writeBack = true;
+            break;
+        }
+        case Update: {
+            vector<string> names = data.getKeys();
+            //for (vector<string>::iterator it = names.begin(); it != names.end(); it++) {
+            BOOST_FOREACH(const std::string& name, names){
+                // fail out if setting not found
+                if(!GetSettingsProgram(settingsData, name, program)){
+                   throw JSONRPCError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
+                }
+                setting = find_value(data, name);
+                // Do not permit updating daemon "restartRequired" entry
+                if(program=="daemon" && !find_value(setting,"restartRequired").isNull()){
+                    throw JSONRPCError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
+                }
+                setting.push_back(Pair("name", name));    
+                WriteAPISetting(settingsData, setting, program);   
+            }
+                
+            SetRestartNow(settingsData); 
+            writeBack = true;
+            break;   
+        }
+        case Get: {
+            UniValue result(UniValue::VOBJ);
+            UniValue names(UniValue::VARR);
+            names = find_value(data, "settings").get_array();
+            for(size_t index=0; index<names.size();index++){
+                string name = names[index].get_str();
+                if(!GetSettingsProgram(settingsData, name, program)){
+                    throw JSONRPCError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
+                }
+                UniValue setting(UniValue::VOBJ);
+                if(!ReadAPISetting(settingsData, setting, name, program)){
+                    throw JSONRPCError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
+                }
+                result.push_back(Pair(name,setting));
+            }
+
+            return result;
+            break;
+        }
+        default: {
+
         }
     }
+
+    if(writeBack){
+        WriteSettingsData(settingsData);
+    }
+
+    return true;
 }
 
-// static const CClientSettings settings[] =
-// { //  category              settingName         restartRequired  
-//   //  --------------------- ------------       ----------------
-//     { "misc",               "clientSettingName",           true }
+static const CAPICommand commands[] =
+{ //  category              collection         actor (function)          authPort   authPassphrase   warmupOk
+  //  --------------------- ------------       ----------------          --------   --------------   --------
+    { "wallet",             "setting",         &setting,                 true,      false,           false  }
+};
+
+void RegisterSettingsAPICommands(CAPITable &tableAPI)
+{
+    for (unsigned int vcidx = 0; vcidx < ARRAYLEN(commands); vcidx++)
+        tableAPI.appendCommand(commands[vcidx].collection, &commands[vcidx]);
+}

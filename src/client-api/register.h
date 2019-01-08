@@ -21,6 +21,9 @@ void RegisterBlockchainAPICommands(CAPITable &tableAPI);
 /** Register send API commands */
 void RegisterSendAPICommands(CAPITable &tableAPI);
 
+/** Register settings API commands */
+void RegisterSettingsAPICommands(CAPITable &tableAPI);
+
 /** Register znode API commands */
 void RegisterZnodeAPICommands(CAPITable &tableAPI);
 
@@ -33,6 +36,7 @@ static inline void RegisterAllCoreAPICommands(CAPITable &tableAPI)
     RegisterWalletAPICommands(tableAPI);
     RegisterBlockchainAPICommands(tableAPI);
     RegisterSendAPICommands(tableAPI);
+    RegisterSettingsAPICommands(tableAPI);
     RegisterZnodeAPICommands(tableAPI);
     RegisterZerocoinAPICommands(tableAPI);
 }
