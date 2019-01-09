@@ -43,7 +43,7 @@ $(TOR_LIBS): tor.timestamp
 		rm -f tor.timestamp; \
 		$(MAKE) $(AM_MAKEFLAGS) tor.timestamp; \
 	fi
-	
+
 BITCOIN_CONFIG_INCLUDES=-I$(builddir)/config
 BITCOIN_INCLUDES=-I$(builddir) -I$(builddir)/obj $(BDB_CPPFLAGS) $(BOOST_CPPFLAGS) $(LEVELDB_CPPFLAGS) $(CRYPTO_CFLAGS) $(SSL_CFLAGS) -I$(srcdir)/cpp-ethereum/utils
 
@@ -299,8 +299,8 @@ crypto_libbitcoin_crypto_a_SOURCES = \
   crypto/aes.cpp \
   crypto/aes.h \
   crypto/common.h \
-  crypto/chacha20.h \                           
-  crypto/chacha20.cpp \    
+  crypto/chacha20.h \
+  crypto/chacha20.cpp \
   crypto/hmac_sha256.cpp \
   crypto/hmac_sha256.h \
   crypto/hmac_sha512.cpp \
@@ -328,10 +328,6 @@ crypto_libbitcoin_crypto_a_SOURCES = \
   cpp-ethereum/utils/libscrypt/slowequals.c \
   cpp-ethereum/utils/libscrypt/slowequals.h \
   cpp-ethereum/utils/libscrypt/sysendian.h
-
-if USE_ASM
-crypto_libbitcoin_crypto_a_SOURCES += crypto/sha256_sse4.cpp
-endif
 
 # consensus: shared between all executables that validate any consensus rules.
 libbitcoin_consensus_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(PIC_FLAGS)
