@@ -216,6 +216,27 @@ public:
 
 	void clear() { m_data.fill(0); }
 
+	/// Serialization supports.
+
+	unsigned int GetSerializeSize(int, int) const
+	{
+		return size;
+	}
+
+	template <typename Stream>
+	void Serialize(Stream& os, int nType, int nVersion) const
+	{
+		os << asBytes();
+	}
+
+	template<typename Stream>
+	void Unserialize(Stream& is, int nType, int nVersion)
+	{
+		byte buf[size];
+		is.read(reinterpret_cast<char *>(buf), size);
+		*this = FixedHash<N>(buf, ConstructFromPointer);
+	}
+
 private:
 	std::array<byte, N> m_data;		///< The binary data.
 };
