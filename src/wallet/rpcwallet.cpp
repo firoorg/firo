@@ -59,6 +59,22 @@ void EnsureWalletIsUnlocked()
         throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Error: Please enter the wallet passphrase with walletpassphrase first.");
 }
 
+bool MintBalanceAvailable(const UniValue& data){
+    vector<string> keys = data.getKeys();
+    CAmount total = 0;
+    int denomination;
+    int64_t amount;
+    BOOST_FOREACH(const string& denominationStr, keys){
+        denomination = stoi(denominationStr.c_str());
+        amount = data[denominationStr].get_int();
+
+        total += denomination * amount * COIN;
+    }
+
+    return (total <= pwalletMain->GetBalance());
+
+}
+
 void WalletTxToJSON(const CWalletTx& wtx, UniValue& entry)
 {
     int confirms = wtx.GetDepthInMainChain();
@@ -2750,7 +2766,7 @@ UniValue mintzerocoin(const UniValue& params, bool fHelp)
 
 UniValue mintmanyzerocoin(const UniValue& params, bool fHelp)
 {
-    if (fHelp || params.size() > 1)
+    if (fHelp || params.size() != 1)
         throw runtime_error(
                 "mintmanyzerocoin {<denomination>(1,10,25,50,100):\"amount\"...}\n"
                 + HelpRequiringPassphrase()
@@ -2762,8 +2778,12 @@ UniValue mintmanyzerocoin(const UniValue& params, bool fHelp)
                     "      ,...\n"
                     "    }\n"
                 "\nExamples:\n"
-                    + HelpExampleCli("mintmanyzerocoin", "\"\" \"{\\\"25\\\":10,\\\"10\\\":5}\"")
+                    + HelpExampleCli("mintmanyzerocoin", "\"{\\\"25\\\":10,\\\"10\\\":5}\"")
         );
+
+    if(!MintBalanceAvailable(params[0].get_obj())){
+        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Insufficient funds");
+    }
 
     int64_t denominationInt = 0;
     libzerocoin::CoinDenomination denomination;
