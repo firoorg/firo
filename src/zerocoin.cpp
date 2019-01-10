@@ -68,6 +68,9 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
     int txHeight = chainActive.Height();
     bool hasZerocoinSpendInputs = false, hasNonZerocoinInputs = false;
     int vinIndex = -1;
+
+    set<CBigNum> serialsUsedInThisTx;
+
     BOOST_FOREACH(const CTxIn &txin, tx.vin){
         vinIndex++;
         if (txin.scriptSig.IsZerocoinSpend()) {
@@ -175,7 +178,21 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
                                  "CheckSpendZcoinTransaction: cannon use modulus v1 at this point");
         }
 
+        if (!fStatefulZerocoinCheck)
+            continue;
+
         CBigNum serial = newSpend.getCoinSerialNumber();
+        // check if there are spends with the same serial within one block
+        // do not check for duplicates in case we've seen exact copy of this tx in this block before
+        if (nHeight >= params.nDontAllowDupTxsStartBlock || !(zerocoinTxInfo && zerocoinTxInfo->zcTransactions.count(hashTx) > 0)) {
+            if (serialsUsedInThisTx.count(serial) > 0)
+                return state.DoS(0, error("CTransaction::CheckTransaction() : two or more spends with same serial in the same block"));
+            serialsUsedInThisTx.insert(serial);
+
+            if (!CheckZerocoinSpendSerial(state, params, zerocoinTxInfo, newSpend.getDenomination(), serial, nHeight, false))
+                return false;
+        }
+
         if(!isVerifyDB && !isCheckWallet) {
             if (zerocoinTxInfo && !zerocoinTxInfo->fInfoIsComplete) {
                 // add spend information to the index
@@ -187,15 +204,6 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
             }
         }
 
-        if (!fStatefulZerocoinCheck)
-            continue;
-
-        // check if there are spends with the same serial within one block
-        // do not check for duplicates in case we've seen exact copy of this tx in this block before
-        if (!(zerocoinTxInfo && zerocoinTxInfo->zcTransactions.count(hashTx) > 0)) {
-            if (!CheckZerocoinSpendSerial(state, params, zerocoinTxInfo, newSpend.getDenomination(), serial, nHeight, false))
-                return false;
-        }
 
         libzerocoin::SpendMetaData newMetadata(txin.nSequence, txHashForMetadata);
 
