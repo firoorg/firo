@@ -70,7 +70,6 @@ class HTTPBasicsTest (BitcoinTestFramework):
         conn.connect()
         conn.request('POST', '/', '{"method": "getbestblockhash"}', headers)
         resp = conn.getresponse()
-        print('DONE')
         assert_equal(resp.status==401, False)
         conn.close()
 

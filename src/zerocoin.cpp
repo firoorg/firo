@@ -204,7 +204,6 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
             }
         }
 
-
         libzerocoin::SpendMetaData newMetadata(txin.nSequence, txHashForMetadata);
 
         CZerocoinState::CoinGroupInfo coinGroup;
