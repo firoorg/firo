@@ -312,7 +312,7 @@ def start_node(i, dirname, extra_args=None, rpchost=None, timewait=None, binary=
     if binary is None:
         binary = os.getenv("ZCOIND", "zcoind")
         print(binary)
-    args = [ binary, "-datadir="+datadir, "-server", "-keypool=1", "-discover=0", "-rest", "-mocktime="+str(get_mocktime()) ]
+    args = [ binary, "-datadir="+datadir, "-server", "-keypool=1", "-discover=0", "-rest", "-reindex", -mocktime="+str(get_mocktime()) ]
     if extra_args is not None: args.extend(extra_args)
     print("Starting a process with: " + " ".join(args))
     bitcoind_processes[i] = subprocess.Popen(args)
