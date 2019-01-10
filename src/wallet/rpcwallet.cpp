@@ -59,19 +59,21 @@ void EnsureWalletIsUnlocked()
         throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Error: Please enter the wallet passphrase with walletpassphrase first.");
 }
 
-bool MintBalanceAvailable(const UniValue& data){
+bool ValidMultiMint(const UniValue& data){
     vector<string> keys = data.getKeys();
-    CAmount total = 0;
+    CAmount totalValue = 0;
+    int totalInputs = 0;
     int denomination;
     int64_t amount;
     BOOST_FOREACH(const string& denominationStr, keys){
         denomination = stoi(denominationStr.c_str());
         amount = data[denominationStr].get_int();
-
-        total += denomination * amount * COIN;
+        totalInputs += amount;
+        totalValue += denomination * amount * COIN;
     }
 
-    return (total <= pwalletMain->GetBalance());
+    return ((totalValue <= pwalletMain->GetBalance()) &&
+            (totalInputs <= ZC_MINT_LIMIT));
 
 }
 
@@ -2781,8 +2783,8 @@ UniValue mintmanyzerocoin(const UniValue& params, bool fHelp)
                     + HelpExampleCli("mintmanyzerocoin", "\"{\\\"25\\\":10,\\\"10\\\":5}\"")
         );
 
-    if(!MintBalanceAvailable(params[0].get_obj())){
-        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Insufficient funds");
+    if(!ValidMultiMint(params[0].get_obj())){
+        throw JSONRPCError(RPC_WALLET_ERROR, "Insufficient funds/mint inputs out of range");
     }
 
     int64_t denominationInt = 0;
