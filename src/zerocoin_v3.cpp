@@ -262,7 +262,7 @@ bool CheckZerocoinTransactionV3(
                 if (!IntegerToDenomination(txout.nValue, denomination, state))
                       return false;
 				if(!CheckSpendZcoinTransactionV3(
-							tx, denomination, state, hashTx, isVerifyDB, nHeight, 
+							tx, denomination, state, hashTx, isVerifyDB, nHeight,
 							isCheckWallet, zerocoinTxInfoV3)) {
 					return false;
                 }
@@ -499,7 +499,7 @@ void CZerocoinStateV3::RemoveBlock(CBlockIndex *index) {
 			} while (coinGroup.lastBlock->mintedPubCoinsV3.count(coin.first) == 0);
 		}
 	}
-	//
+
 	// roll back mints
 	BOOST_FOREACH(const PAIRTYPE(PAIRTYPE(int,int),vector<PublicCoinV3>) &pubCoins, index->mintedPubCoinsV3) {
 		BOOST_FOREACH(const PublicCoinV3 &coin, pubCoins.second) {
@@ -512,6 +512,10 @@ void CZerocoinStateV3::RemoveBlock(CBlockIndex *index) {
 			mintedPubCoins.erase(coinIt);
 		}
 	}
+    // roll back spends
+    BOOST_FOREACH(const Scalar &serial, index->spentSerialsV3) {
+        usedCoinSerials.erase(serial);
+    }
 }
 
 bool CZerocoinStateV3::GetCoinGroupInfo(int denomination, int id, CoinGroupInfoV3 &result) {

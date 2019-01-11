@@ -50,29 +50,28 @@ public:
 
     template<typename Stream>
     inline void Serialize(Stream& s, int nType, int nVersion) const {
-        s << version;
-        s << denomination;
-        s << accumulatorBlockHash;
         int size = sigmaProof.memoryRequired() + coinSerialNumber.memoryRequired();
-        unsigned char buffer[size];
+        unsigned char buffer[size + sizeof(uint32_t) + sizeof(int32_t) + sizeof(uint256)];
         unsigned char* current = coinSerialNumber.serialize(buffer);
-        sigmaProof.serialize(current);
+        current = sigmaProof.serialize(current);
+        std::memcpy(current, &version, sizeof(version));
+        std::memcpy(current + sizeof(uint32_t), &denomination, sizeof(denomination));
+        std::memcpy(current + sizeof(uint32_t) + sizeof(int32_t), &accumulatorBlockHash, sizeof(accumulatorBlockHash));
         char* b = (char*)buffer;
-        s.write(b, size);
+        s.write(b, size + sizeof(uint32_t) + sizeof(int32_t) + sizeof(uint256));
     }
 
     template<typename Stream>
     inline void Unserialize(Stream& s, int nType, int nVersion) {
-        s >> version;
-        s >> denomination;
-        s >> accumulatorBlockHash;
         int size = sigmaProof.memoryRequired() + coinSerialNumber.memoryRequired();
-        unsigned char buffer[size];
+        unsigned char buffer[size + sizeof(uint32_t) + sizeof(int32_t) + sizeof(uint256)];
         char* b = (char*)buffer;
-        s.read(b, size);
+        s.read(b, size + + sizeof(uint32_t) + sizeof(int32_t) + sizeof(uint256));
         unsigned char* current = coinSerialNumber.deserialize(buffer);
-        sigmaProof.deserialize(current);
-
+        current = sigmaProof.deserialize(current);
+        std::memcpy(&version, current, sizeof(version));
+        std::memcpy(&denomination, current + sizeof(uint32_t), sizeof(denomination));
+        std::memcpy(&accumulatorBlockHash, current + sizeof(uint32_t) + sizeof(int32_t), sizeof(accumulatorBlockHash));
     }
 
 private:
