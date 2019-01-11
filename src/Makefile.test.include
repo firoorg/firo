@@ -52,6 +52,7 @@ BITCOIN_TESTS =\
   test/zerocoin_tests_v3.cpp \
   test/zerocoin_tests2_v3.cpp \
   test/zerocoin_tests3_v3.cpp \
+  test/zerocoin_sigma_tests.cpp \
   test/znode_tests.cpp \
   test/mtp_trans_tests.cpp \
   test/mtp_halving_tests.cpp \
