@@ -9,7 +9,9 @@
 #include "script/script.h"
 #include "util.h"
 #include "utilstrencodings.h"
-
+#include <themis/themisstate.h>
+#include <themis/themistransaction.h>
+#include <themis/themisDGP.h>
 #include <boost/foreach.hpp>
 
 using namespace std;
@@ -34,6 +36,8 @@ const char* GetTxnOutputType(txnouttype t)
     case TX_WITNESS_V0_KEYHASH: return "witness_v0_keyhash";
     case TX_WITNESS_V0_SCRIPTHASH: return "witness_v0_scripthash";
     case TX_ZEROCOINMINT: return "zerocoinmint";
+	case TX_CREATE: return "create";
+	case TX_CALL: return "call";
     }
     return NULL;
 }
@@ -348,7 +352,7 @@ bool ExtractDestination(const CScript& scriptPubKey, CTxDestination& addressRet,
 		addressRet = CScriptID(uint160(vSolutions[0]));
 		return true;
 	}
-	else if (whichType == TX_WITNESS_V0_KEYHASH) {
+	/*else if (whichType == TX_WITNESS_V0_KEYHASH) {
 		WitnessV0KeyHash hash;
 		std::copy(vSolutions[0].begin(), vSolutions[0].end(), hash.begin());
 		addressRet = hash;
@@ -367,7 +371,7 @@ bool ExtractDestination(const CScript& scriptPubKey, CTxDestination& addressRet,
 		unk.length = vSolutions[1].size();
 		addressRet = unk;
 		return true;
-	}
+	}*/
 	// Multisig txns have more than one address...
 	return false;
 }

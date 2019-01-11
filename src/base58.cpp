@@ -3,7 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "base58.h"
-
+#include "bech32.h"
 #include "hash.h"
 #include "uint256.h"
 #include "addresstype.h"
@@ -336,32 +336,6 @@ bool CBitcoinSecret::SetString(const std::string& strSecret)
 
 // themis
 
-std::string EncodeDestination(const CTxDestination& dest)
-{
-	return boost::apply_visitor(DestinationEncoder(Params()), dest);
-}
-
-CTxDestination DecodeDestination(const std::string& str)
-{
-	return DecodeDestination(str, Params());
-}
-
-
-bool IsValidDestinationString(const std::string& str, const CChainParams& params)
-{
-	return IsValidDestination(DecodeDestination(str, params));
-}
-
-bool IsValidDestinationString(const std::string& str)
-{
-	return IsValidDestinationString(str, Params());
-}
-
-bool IsValidContractSenderAddressString(const std::string &str)
-{
-	return IsValidContractSenderAddress(DecodeDestination(str));
-}
-
 
 namespace
 {
@@ -387,7 +361,7 @@ namespace
 			return EncodeBase58Check(data);
 		}
 
-		std::string operator()(const WitnessV0KeyHash& id) const
+		/*std::string operator()(const WitnessV0KeyHash& id) const
 		{
 			std::vector<unsigned char> data = { 0 };
 			ConvertBits<8, 5, true>(data, id.begin(), id.end());
@@ -409,7 +383,7 @@ namespace
 			std::vector<unsigned char> data = { (unsigned char)id.version };
 			ConvertBits<8, 5, true>(data, id.program, id.program + id.length);
 			return bech32::Encode(m_params.Bech32HRP(), data);
-		}
+		}*/
 
 		std::string operator()(const CNoDestination& no) const { return {}; }
 	};
@@ -437,7 +411,7 @@ namespace
 		}
 		data.clear();
 		auto bech = bech32::Decode(str);
-		if (bech.second.size() > 0 && bech.first == params.Bech32HRP()) {
+		/*if (bech.second.size() > 0 && bech.first == params.Bech32HRP()) {
 			// Bech32 decoding
 			int version = bech.second[0]; // The first 5 bit symbol is the witness version (0-16)
 										  // The rest of the symbols are converted witness program bytes.
@@ -468,7 +442,33 @@ namespace
 				unk.length = data.size();
 				return unk;
 			}
-		}
+		}*/
 		return CNoDestination();
 	}
 } // namespace
+
+std::string EncodeDestination(const CTxDestination& dest)
+{
+	return boost::apply_visitor(DestinationEncoder(Params()), dest);
+}
+
+CTxDestination DecodeDestination(const std::string& str)
+{
+	return DecodeDestination(str, Params());
+}
+
+bool IsValidDestinationString(const std::string& str, const CChainParams& params)
+{
+	return IsValidDestination(DecodeDestination(str, params));
+}
+
+bool IsValidDestinationString(const std::string& str)
+{
+	return IsValidDestinationString(str, Params());
+}
+
+bool IsValidContractSenderAddressString(const std::string &str)
+{
+	return IsValidContractSenderAddress(DecodeDestination(str));
+}
+
