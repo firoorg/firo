@@ -766,7 +766,7 @@ CZerocoinState::CZerocoinState() {
 
 int CZerocoinState::AddMint(CBlockIndex *index, int denomination, const CBigNum &pubCoin, CBigNum &previousAccValue) {
 
-    int     mintId = 1;
+    int mintId = 1;
 
     if (latestCoinIds[denomination] < 1)
         latestCoinIds[denomination] = mintId;
