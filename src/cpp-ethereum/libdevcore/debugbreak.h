@@ -100,7 +100,7 @@ enum { HAVE_TRAP_INSTRUCTION = 0, };
 __attribute__((gnu_inline, always_inline))
 static void __inline__ debug_break(void)
 {
-#ifdef QTUM_BUILD
+#ifdef THEMIS_BUILD
     __builtin_trap();
 #else
 	if (HAVE_TRAP_INSTRUCTION) {

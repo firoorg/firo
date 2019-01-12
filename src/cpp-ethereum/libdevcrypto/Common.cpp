@@ -355,7 +355,7 @@ void dev::crypto::ecdh::agree(Secret const& _s, Public const& _r, Secret& o_s)
 	auto r = secp256k1_ec_pubkey_parse(ctx, &rawPubkey, serializedPubKey.data(), serializedPubKey.size());
 	assert(r == 1);
 	std::array<byte, 33> compressedPoint;
-#ifdef QTUM_BUILD
+#ifdef THEMIS_BUILD
     r = secp256k1_ecdh(ctx, compressedPoint.data(), &rawPubkey, _s.data());
 #else
     r = secp256k1_ecdh_raw(ctx, compressedPoint.data(), &rawPubkey, _s.data());

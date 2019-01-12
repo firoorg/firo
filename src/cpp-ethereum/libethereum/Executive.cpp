@@ -19,7 +19,7 @@
 #include "Executive.h"
 
 #include <boost/timer.hpp>
-#ifndef QTUM_BUILD
+#ifndef THEMIS_BUILD
 #include <json/json.h>
 #endif
 #include <libdevcore/CommonIO.h>
@@ -38,7 +38,7 @@ using namespace dev::eth;
 const char* VMTraceChannel::name() { return "EVM"; }
 const char* ExecutiveWarnChannel::name() { return WarnChannel::name(); }
 
-#ifdef QTUM_BUILD
+#ifdef THEMIS_BUILD
 StandardTrace::StandardTrace()
 {}
 #else
@@ -70,7 +70,7 @@ bool changesStorage(Instruction _inst)
 
 void StandardTrace::operator()(uint64_t _steps, uint64_t PC, Instruction inst, bigint newMemSize, bigint gasCost, bigint gas, VM* voidVM, ExtVMFace const* voidExt)
 {
-#ifdef QTUM_BUILD
+#ifdef THEMIS_BUILD
     return;
 #else
 	(void)_steps;
@@ -149,7 +149,7 @@ void StandardTrace::operator()(uint64_t _steps, uint64_t PC, Instruction inst, b
 
 string StandardTrace::json(bool _styled) const
 {
-#ifdef QTUM_BUILD
+#ifdef THEMIS_BUILD
     return "";
 #else
 	return _styled ? Json::StyledWriter().write(m_trace) : Json::FastWriter().write(m_trace);

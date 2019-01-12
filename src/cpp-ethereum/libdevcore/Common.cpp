@@ -22,7 +22,7 @@
 #include "Common.h"
 #include "Exceptions.h"
 #include "Log.h"
-#ifndef QTUM_BUILD
+#ifndef THEMIS_BUILD
 #include "BuildInfo.h"
 #endif
 using namespace std;
@@ -30,7 +30,7 @@ using namespace dev;
 
 namespace dev
 {
-#ifdef QTUM_BUILD
+#ifdef THEMIS_BUILD
 #define ETH_PROJECT_VERSION "1.3.0"
 #endif
 char const* Version = ETH_PROJECT_VERSION;

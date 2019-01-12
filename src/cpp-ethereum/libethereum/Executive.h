@@ -19,7 +19,7 @@
 #pragma once
 
 #include <functional>
-#ifndef QTUM_BUILD
+#ifndef THEMIS_BUILD
 #include <json/json.h>
 #endif
 #include <libdevcore/Log.h>
@@ -76,7 +76,7 @@ private:
 	bool m_showMnemonics = false;
 	std::vector<Instruction> m_lastInst;
 	bytes m_lastCallData;
-#ifndef QTUM_BUILD
+#ifndef THEMIS_BUILD
 	Json::Value m_trace;
 #endif
 	DebugOptions m_options;

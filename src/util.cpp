@@ -313,7 +313,7 @@ static std::string LogTimestampStr(const std::string &str, bool *fStartedNewLine
     return strStamped;
 }
 
-int LogPrintStr(const std::string &str)
+int LogPrintStr(const std::string &str, bool useVMLog)
 {
 	//////////////////////////////// // themis
 	FILE* file = fileout;

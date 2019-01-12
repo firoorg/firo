@@ -169,7 +169,7 @@ extern "C" __declspec(dllimport) void __stdcall OutputDebugStringA(const char* l
 
 string dev::getThreadName()
 {
-#ifdef QTUM_BUILD
+#ifdef THEMIS_BUILD
     return "";
 #else
 #if defined(__GLIBC__) || defined(__APPLE__)
@@ -185,7 +185,7 @@ string dev::getThreadName()
 
 void dev::setThreadName(string const& _n)
 {
-#ifndef QTUM_BUILD
+#ifndef THEMIS_BUILD
 #if defined(__GLIBC__)
 	pthread_setname_np(pthread_self(), _n.c_str());
 #elif defined(__APPLE__)
