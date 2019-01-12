@@ -147,5 +147,6 @@ static inline int hash(uint8_t* out, size_t outlen,
 	}
 
 /*** FIPS202 SHA3 FOFs ***/
-defsha3(256)
-defsha3(512)
+// themis, it defined in TOR libs, so I need to comment out.
+//defsha3(256)
+//defsha3(512)

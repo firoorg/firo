@@ -34,5 +34,17 @@
 #include "validationinterface.h"
 #include "versionbits.h"
 
+////////////////////////////// qtum
+#include <iostream>
+#include <bitset>
+#include "pubkey.h"
+#include <univalue.h>
+
+std::unique_ptr<ThemisState> globalState;
+std::shared_ptr<dev::eth::SealEngineFace> globalSealEngine;
+bool fRecordLogOpcodes = false;
+bool fIsVMlogFile = false;
+bool fGettingValuesDGP = false;
+//////////////////////////////
 
 
