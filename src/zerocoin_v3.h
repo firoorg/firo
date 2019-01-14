@@ -66,7 +66,7 @@ bool ConnectBlockZCV3(
 
 bool ZerocoinBuildStateFromIndexV3(CChain *chain);
 
-Scalar ZerocoinGetSpendSerialNumberV3(const CTransaction &tx);
+Scalar ZerocoinGetSpendSerialNumberV3(const CTransaction &tx, const CTxIn &txin);
 
 /*
  * State of minted/spent coins as extracted from the index
@@ -148,6 +148,10 @@ public:
     // Add spend into the mempool.
     // Check if there is a coin with such serial in either blockchain or mempool
     bool AddSpendToMempool(const Scalar &coinSerial, uint256 txHash);
+
+    // Add spend into the mempool.
+    // Check if there is a coin with such serial in either blockchain or mempool
+    bool AddSpendToMempool(const vector<Scalar> &coinSerials, uint256 txHash);
 
     // Get conflicting tx hash by coin serial number
     uint256 GetMempoolConflictingTxHash(const Scalar& coinSerial);

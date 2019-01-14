@@ -11,6 +11,8 @@
 #include "crypto/sha256.h"
 #include "libzerocoin/sigma/CoinSpend.h"
 #include "libzerocoin/sigma/Coin.h"
+#include "znode-payments.h"
+#include "znode-sync.h"
 
 #include <atomic>
 #include <sstream>
@@ -32,8 +34,8 @@ static bool CheckZerocoinSpendSerialV3(
 		int nHeight,
 		bool fConnectTip) {
 	// check for zerocoin transaction in this block as well
-	if (zerocoinTxInfoV3 && 
-			!zerocoinTxInfoV3->fInfoIsComplete && 
+	if (zerocoinTxInfoV3 &&
+			!zerocoinTxInfoV3->fInfoIsComplete &&
 			zerocoinTxInfoV3->spentSerials.find(serial) != zerocoinTxInfoV3->spentSerials.end())
 		return state.DoS(0, error("CTransaction::CheckTransaction() : two or more spends with same serial in the same block"));
 
@@ -52,26 +54,24 @@ static bool CheckZerocoinSpendSerialV3(
 // Mixing V2 and V3 spends into the same transaction will fail.
 bool CheckSpendZcoinTransactionV3(
 		const CTransaction &tx,
-		sigma::CoinDenominationV3 targetDenomination,
+		const vector<sigma::CoinDenominationV3>& targetDenominations,
 		CValidationState &state,
 		uint256 hashTx,
 		bool isVerifyDB,
 		int nHeight,
 		bool isCheckWallet,
 		CZerocoinTxInfoV3 *zerocoinTxInfoV3) {
-	// Check for inputs only, everything else was checked before
-	LogPrintf("CheckSpendZcoinTransactionV3 denomination=%d nHeight=%d\n", 
-			targetDenomination, nHeight);
+	int txHeight = chainActive.Height();
+	bool hasZerocoinSpendInputs = false, hasNonZerocoinInputs = false;
+	int vinIndex = -1;
 
 	BOOST_FOREACH(const CTxIn &txin, tx.vin)
 	{
-		if (!txin.scriptSig.IsZerocoinSpendV3())
-			continue;
-
-		if (tx.vin.size() > 1)
-			return state.DoS(100, false,
-					REJECT_MALFORMED,
-					"CheckSpendZcoinTransactionV3: can't have more than one input");
+		vinIndex++;
+		if (txin.scriptSig.IsZerocoinSpendV3())
+			hasZerocoinSpendInputs = true;
+		else
+			hasNonZerocoinInputs = true;
 
 		uint32_t pubcoinId = txin.nSequence;
 		if (pubcoinId < 1 || pubcoinId >= INT_MAX) {
@@ -97,6 +97,13 @@ bool CheckSpendZcoinTransactionV3(
 				SER_NETWORK, PROTOCOL_VERSION);
 		sigma::CoinSpendV3 newSpend(ZCParamsV3, serializedCoinSpend);
 
+		if (newSpend.getVersion() != ZEROCOIN_TX_VERSION_3) {
+			return state.DoS(100,
+							 false,
+							 NSEQUENCE_INCORRECT,
+							 "CTransaction::CheckTransaction() : Error: incorrect spend transaction verion");
+		}
+
 		uint256 txHashForMetadata;
 
 		// Obtain the hash of the transaction sans the zerocoin part
@@ -114,13 +121,13 @@ bool CheckSpendZcoinTransactionV3(
 				newSpend.getCoinSerialNumber().tostring());
 
 		CZerocoinStateV3::CoinGroupInfoV3 coinGroup;
-		if (!zerocoinStateV3.GetCoinGroupInfo(targetDenomination, pubcoinId, coinGroup))
+		if (!zerocoinStateV3.GetCoinGroupInfo(targetDenominations[vinIndex], pubcoinId, coinGroup))
 			return state.DoS(100, false, NO_MINT_ZEROCOIN, 
 					"CheckSpendZcoinTransactionV3: Error: no coins were minted with such parameters");
 
 		bool passVerify = false;
 		CBlockIndex *index = coinGroup.lastBlock;
-		pair<int,int> denominationAndId = std::make_pair(targetDenomination, pubcoinId);
+		pair<int,int> denominationAndId = std::make_pair(targetDenominations[vinIndex], pubcoinId);
 
 		uint256 accumulatorBlockHash = newSpend.getAccumulatorBlockHash();
 
@@ -134,7 +141,7 @@ bool CheckSpendZcoinTransactionV3(
 		std::vector<PublicCoinV3> anonymity_set;
         while(true) {
 			BOOST_FOREACH(const sigma::PublicCoinV3& pubCoinValue, 
-					index->mintedPubCoinsV3[std::make_pair(targetDenomination, pubcoinId)]) {
+					index->mintedPubCoinsV3[std::make_pair(targetDenominations[vinIndex], pubcoinId)]) {
 				anonymity_set.push_back(pubCoinValue);
 			}
             if (index == coinGroup.firstBlock)
@@ -166,6 +173,17 @@ bool CheckSpendZcoinTransactionV3(
 			return false;
 		}
 	}
+
+	if (hasZerocoinSpendInputs) {
+		if (hasNonZerocoinInputs) {
+			// mixing zerocoin spend input with non-zerocoin inputs is prohibited
+			return state.DoS(100, false,
+							 REJECT_MALFORMED,
+							 "CheckSpendZcoinTransaction: can't mix zerocoin spend input with regular ones");
+		}
+	}
+
+
 	return true;
 }
 
@@ -253,20 +271,53 @@ bool CheckZerocoinTransactionV3(
 
 	// Check Spend Zerocoin Transaction
 	if(tx.IsZerocoinSpendV3()) {
+		// First check number of inputs does not exceed transaction limit
+		if(tx.vin.size() > ZC_SPEND_LIMIT){
+			return false;
+		}
+		vector<sigma::CoinDenominationV3> denominations;
+		uint64_t totalValue = 0;
+		BOOST_FOREACH(const CTxIn &txin, tx.vin){
+			if(!txin.scriptSig.IsZerocoinSpendV3()) {
+				return state.DoS(100, false,
+								 REJECT_MALFORMED,
+								 "CheckSpendZcoinTransaction: can't mix zerocoin spend input with regular ones");
+			}
+			// Get the CoinDenomination value of each vin for the CheckSpendZcoinTransaction function
+			uint32_t pubcoinId = txin.nSequence;
+			if (pubcoinId < 1 || pubcoinId >= INT_MAX) {
+				// coin id should be positive integer
+				return false;
+			}
+
+			CDataStream serializedCoinSpend((const char *)&*(txin.scriptSig.begin() + 1),
+											(const char *)&*txin.scriptSig.end(),
+											SER_NETWORK, PROTOCOL_VERSION);
+			sigma::CoinSpendV3 newSpend(ZCParamsV3, serializedCoinSpend);
+			uint64_t denom = newSpend.getIntDenomination() * COIN;
+			totalValue += denom;
+			sigma::CoinDenominationV3 denomination;
+			if (!IntegerToDenomination(denom, denomination, state))
+				return false;
+			denominations.push_back(denomination);
+		}
+
 		// Check vOut
 		// Only one loop, we checked on the format before entering this case
-		BOOST_FOREACH(const CTxOut &txout, tx.vout)
-		{
-			if (!isVerifyDB) {
-            	sigma::CoinDenominationV3 denomination;
-                if (!IntegerToDenomination(txout.nValue, denomination, state))
-                      return false;
-				if(!CheckSpendZcoinTransactionV3(
-							tx, denomination, state, hashTx, isVerifyDB, nHeight,
-							isCheckWallet, zerocoinTxInfoV3)) {
-					return false;
-                }
+		if (!isVerifyDB) {
+			BOOST_FOREACH(const CTxOut &txout, tx.vout)
+			{
+				if (txout.nValue == totalValue){
+					if (!CheckSpendZcoinTransactionV3(
+						tx, denominations, state, hashTx, isVerifyDB, nHeight,
+						isCheckWallet, zerocoinTxInfoV3)) {
+							return false;
+					}
+				}
 			}
+
+		}else {
+			return state.DoS(100, error("CheckZerocoinTransaction : invalid spending txout value"));
 		}
 	}
 	return true;
@@ -276,11 +327,9 @@ void DisconnectTipZCV3(CBlock & /*block*/, CBlockIndex *pindexDelete) {
 	zerocoinStateV3.RemoveBlock(pindexDelete);
 }
 
-Scalar ZerocoinGetSpendSerialNumberV3(const CTransaction &tx) {
-	if (!tx.IsZerocoinSpendV3() || tx.vin.size() != 1)
+Scalar ZerocoinGetSpendSerialNumberV3(const CTransaction &tx, const CTxIn &txin) {
+	if (!tx.IsZerocoinSpendV3())
 		return Scalar(uint64_t(0));
-
-	const CTxIn &txin = tx.vin[0];
 
 	try {
         // NOTE(martun): +1 on the next line stands for 1 byte in which the opcode of 
@@ -584,6 +633,17 @@ std::pair<int, int> CZerocoinStateV3::GetMintedCoinHeightAndId(
     return std::make_pair(-1, -1);
 }
 
+bool CZerocoinStateV3::AddSpendToMempool(const vector<Scalar> &coinSerials, uint256 txHash) {
+    BOOST_FOREACH(Scalar coinSerial, coinSerials){
+        if (IsUsedCoinSerial(coinSerial) || mempoolCoinSerials.count(coinSerial))
+            return false;
+
+        mempoolCoinSerials[coinSerial] = txHash;
+    }
+
+    return true;
+}
+
 bool CZerocoinStateV3::AddSpendToMempool(const Scalar &coinSerial, uint256 txHash) {
 	if (IsUsedCoinSerial(coinSerial) || mempoolCoinSerials.count(coinSerial))
 		return false;
@@ -611,6 +671,7 @@ void CZerocoinStateV3::Reset() {
 	coinGroups.clear();
 	usedCoinSerials.clear();
 	latestCoinIds.clear();
+	mintedPubCoins.clear();
 	mempoolCoinSerials.clear();
 }
 

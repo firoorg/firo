@@ -1180,7 +1180,7 @@ bool CheckTransaction(
 	    }
         if (tx.IsZerocoinV3SigmaTransaction()) {
             if (!CheckZerocoinTransactionV3(
-                    tx, 
+                    tx,
                     state,
                     hashTx,
                     isVerifyDB,
@@ -1311,15 +1311,11 @@ bool AcceptToMemoryPoolWorker(
             }
         }
         else if (tx.IsZerocoinSpendV3()) {
-            Scalar zcSpendSerial = ZerocoinGetSpendSerialNumberV3(tx);
-            Scalar zero;
-            // Allow only single spends for now.
-            if (tx.vin.size() != 1) {
-                LogPrintf("AcceptToMemoryPool(): sigma spend tramsactopn %s has multiple inputs\n", zcSpendSerial.tostring());
-                return state.Invalid(false, REJECT_INVALID, "txn-zerocoin-spend-with-multiple-inputs");
-            }
             BOOST_FOREACH(const CTxIn &txin, tx.vin)
             {
+                Scalar zcSpendSerial = ZerocoinGetSpendSerialNumberV3(tx, txin);
+                Scalar zero;
+
                 if (zcSpendSerial == zero)
                     return state.Invalid(false, REJECT_INVALID, "txn-invalid-zerocoin-spend");
                 if (!zcStateV3->CanAddSpendToMempool(zcSpendSerial)) {
@@ -1764,11 +1760,8 @@ bool AcceptToMemoryPoolWorker(
 
     if (tx.IsZerocoinSpend() && markZcoinSpendTransactionSerial)
         zcState->AddSpendToMempool(zcSpendSerials, hash);
-    if (tx.IsZerocoinSpendV3() && markZcoinSpendTransactionSerial) {
-        BOOST_FOREACH(const Scalar& coinSerial, zcSpendSerialsV3) {
-            zcStateV3->AddSpendToMempool(coinSerial, hash);
-        }
-    }
+    if (tx.IsZerocoinSpendV3() && markZcoinSpendTransactionSerial)
+            zcStateV3->AddSpendToMempool(zcSpendSerialsV3, hash);
 
     SyncWithWallets(tx, NULL, NULL);
     LogPrintf("AcceptToMemoryPoolWorker -> OK\n");
@@ -3157,7 +3150,7 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
        } else if (tx.IsZerocoinSpendV3()) {
             BOOST_FOREACH(const CTxIn &txin, tx.vin)
             {
-                Scalar zcSpendSerial = ZerocoinGetSpendSerialNumberV3(tx);
+                Scalar zcSpendSerial = ZerocoinGetSpendSerialNumberV3(tx, txin);
                 uint256 thisTxHash = tx.GetHash();
                 uint256 conflictingTxHash = zcStateV3->GetMempoolConflictingTxHash(zcSpendSerial);
                 if (!conflictingTxHash.IsNull() && conflictingTxHash != thisTxHash) {
@@ -3814,7 +3807,6 @@ static bool ActivateBestChainStep(CValidationState &state, const CChainParams &c
             }
         }
     }
-
 
     if (fBlocksDisconnected) {
         mempool.removeForReorg(

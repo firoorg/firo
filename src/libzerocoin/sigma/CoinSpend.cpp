@@ -61,6 +61,10 @@ CoinDenominationV3 CoinSpendV3::getDenomination() const {
     return denom;
 }
 
+int CoinSpendV3::getIntDenomination() const {
+    return denomination;
+}
+
 
 bool CoinSpendV3::HasValidSerial() const {
     return coinSerialNumber.isMember();

@@ -30,6 +30,8 @@ public:
 
     CoinDenominationV3 getDenomination() const;
 
+    int getIntDenomination() const;
+
     void setVersion(unsigned int nVersion){
         version = nVersion;
     }
