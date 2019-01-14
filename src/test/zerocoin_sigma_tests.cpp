@@ -347,4 +347,84 @@ BOOST_AUTO_TEST_CASE(zerocoin_sigma_reset)
     BOOST_CHECK_MESSAGE(zerocoinState->mempoolCoinSerials.size() == 0, \
      "Unexpected mintedPubCoin size after reset."); 
 }
+
+BOOST_AUTO_TEST_CASE(zerocoin_sigma_addblock_nonexist_index)
+{
+    CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
+    CScript scriptPubKey2;
+    auto params = sigma::ParamsV3::get_default();
+
+    const sigma::PrivateCoinV3 privcoin(params);
+    sigma::PublicCoinV3 pubcoin;
+    pubcoin = privcoin.getPublicCoin();
+    CBlockIndex index = CreateBlockIndex(1);
+    
+	zerocoinState->AddBlock(&index);
+	BOOST_CHECK_MESSAGE(zerocoinState->mintedPubCoins.size() == 0, \
+	  "Unexpected mintedPubCoins size, add new block without minted txs.");
+
+	BOOST_CHECK_MESSAGE(zerocoinState->usedCoinSerials.size() == 0, \
+	  "Unexpected usedCoinSerials size, add new block without spend txs.");
+}
+
+BOOST_AUTO_TEST_CASE(zerocoin_sigma_addblock_minted_spend)
+{
+    CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
+    CScript scriptPubKey2;
+    auto params = sigma::ParamsV3::get_default();
+
+    const sigma::PrivateCoinV3 privcoin1(params);
+    sigma::PublicCoinV3 pubcoin1;
+    pubcoin1 = privcoin1.getPublicCoin();
+
+    const sigma::PrivateCoinV3 privcoin2(params);
+    sigma::PublicCoinV3 pubcoin2;
+    pubcoin2 = privcoin2.getPublicCoin();
+
+    CBlockIndex index = CreateBlockIndex(1);
+    std::pair<int,int> denomination1Group1(1,1);
+    
+	index.mintedPubCoinsV3[denomination1Group1].push_back(pubcoin1);
+	index.mintedPubCoinsV3[denomination1Group1].push_back(pubcoin2);
+    
+	zerocoinState->AddBlock(&index);
+	BOOST_CHECK_MESSAGE(zerocoinState->mintedPubCoins.size() == 2, \
+	  "Unexpected mintedPubCoins size, add new block with 2 minted txs.");
+
+	BOOST_CHECK_MESSAGE(zerocoinState->usedCoinSerials.size() == 0, \
+	  "Unexpected usedCoinSerials size, add new block without spend txs.");
+
+	// spend
+    std::vector<sigma::PublicCoinV3> anonymity_set;
+    anonymity_set.push_back(pubcoin1);
+    anonymity_set.push_back(pubcoin2);
+    sigma::CoinSpendV3 coinSpend(params,privcoin1,anonymity_set);
+
+	auto spendSerial = coinSpend.getCoinSerialNumber();
+
+    CBlockIndex index2 = CreateBlockIndex(2);
+	index2.spentSerialsV3.clear();
+	index2.spentSerialsV3.insert(spendSerial);
+	zerocoinState->AddBlock(&index2);
+	BOOST_CHECK_MESSAGE(zerocoinState->mintedPubCoins.size() == 2, \
+	  "Unexpected mintedPubCoins size, add new block without additional minted.");
+
+	BOOST_CHECK_MESSAGE(zerocoinState->usedCoinSerials.size() == 1, \
+	  "Unexpected usedCoinSerials size, add new block with 1 spend txs.");
+
+    // minted more coin
+    const sigma::PrivateCoinV3 privcoin3(params);
+    sigma::PublicCoinV3 pubcoin3;
+    pubcoin3 = privcoin3.getPublicCoin();
+    CBlockIndex index3 = CreateBlockIndex(3);
+
+    index3.mintedPubCoinsV3[denomination1Group1].push_back(pubcoin3);
+    zerocoinState->AddBlock(&index3);
+    BOOST_CHECK_MESSAGE(zerocoinState->mintedPubCoins.size() == 3, \
+	  "Unexpected mintedPubCoins size, add new block with one more minted.");
+
+	BOOST_CHECK_MESSAGE(zerocoinState->usedCoinSerials.size() == 1, \
+	  "Unexpected usedCoinSerials size, add new block without new spend");
+}
+
 BOOST_AUTO_TEST_SUITE_END()
