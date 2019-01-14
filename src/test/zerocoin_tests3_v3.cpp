@@ -127,8 +127,8 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_v3)
     vector<uint256> vtxid;
     std::vector<CMutableTransaction> MinTxns;
     std::vector<string> denominations = {"1", "10", "25", "50", "100"};
-    for(int i = 0; i < 1; i++)
-//    for(int i = 0; i < 5; i++)
+
+    for(int i = 0; i < 5; i++)
     {
         denomination = denominations[i];
         printf("Testing denomination %s\n", denomination.c_str());
@@ -212,6 +212,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_v3)
 
         //Confirm that on disconnect block transaction is returned to mempool
         DisconnectBlocks(1);
+
         LOCK(cs_main);
         {
             CValidationState state;
@@ -230,8 +231,9 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_v3)
         vtxid.clear();
         MinTxns.clear();
         mempool.clear();
-        zerocoinState->Reset();
+
     }
+    zerocoinState->Reset();
 }
 
 BOOST_AUTO_TEST_SUITE_END()

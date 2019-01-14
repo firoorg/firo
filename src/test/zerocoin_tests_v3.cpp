@@ -261,8 +261,8 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_v3)
         vtxid.clear();
         MinTxns.clear();
         mempool.clear();
-        zerocoinState->Reset();
     }
+    zerocoinState->Reset();
 }
 
 BOOST_AUTO_TEST_CASE(zerocoin_mintspend_many_v3)
@@ -366,7 +366,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_many_v3)
         wtx.Init(NULL);
         BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(wtx, stringError, thirdPartyAddress, denominationsForTx, true), stringError + " - Spend failed");
 
-        //Try to put two in the same block and it will fail, expect 1
+//        Try to put two in the same block and it will fail, expect 1
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Spends was not added to mempool");
 
         vtxid.clear();

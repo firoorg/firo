@@ -405,7 +405,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
                 continue;
             }
 
-            if (tx.IsZerocoinSpend()) {
+            if (tx.IsZerocoinSpend() || tx.IsZerocoinSpendV3()) {
                 LogPrintf("try to include zerocoinspend tx=%s\n", tx.GetHash().ToString());
                 LogPrintf("COUNT_SPEND_ZC_TX =%s\n", COUNT_SPEND_ZC_TX);
                 LogPrintf("MAX_SPEND_ZC_TX_PER_BLOCK =%s\n", MAX_SPEND_ZC_TX_PER_BLOCK);
