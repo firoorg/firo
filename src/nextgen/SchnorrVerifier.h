@@ -1,7 +1,6 @@
 #ifndef ZCOIN_SCHNORRVERIFIER_H
 #define ZCOIN_SCHNORRVERIFIER_H
 
-#include "SchnorrProof.h"
 #include "NextGenPrimitives.h"
 
 namespace nextgen {

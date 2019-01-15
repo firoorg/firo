@@ -1,4 +1,4 @@
-namespace nextgen{
+namespace nextgen {
 
 template<class Exponent, class GroupElement>
 void NextGenPrimitives<Exponent, GroupElement>::commit(const GroupElement& g,
@@ -140,6 +140,21 @@ void NextGenPrimitives<Exponent, GroupElement>::new_factor(
 }
 
 template<class Exponent, class GroupElement>
+void NextGenPrimitives<Exponent, GroupElement>::commit(
+        const GroupElement& h,
+        const Exponent& h_exp,
+        const zcoin_common::GeneratorVector<Exponent, GroupElement>& g_,
+        const std::vector<Exponent>& L,
+        const zcoin_common::GeneratorVector<Exponent, GroupElement>& h_,
+        const std::vector<Exponent>& R,
+        GroupElement& result_out){
+    result_out += h * h_exp;
+    g_.get_vector_multiple(L, result_out);
+    h_.get_vector_multiple(R, result_out);
+
+}
+
+template<class Exponent, class GroupElement>
 void NextGenPrimitives<Exponent, GroupElement>::get_c(const GroupElement& u, Exponent& result){
     secp256k1_sha256_t hash;
     secp256k1_sha256_initialize(&hash);
@@ -149,6 +164,89 @@ void NextGenPrimitives<Exponent, GroupElement>::get_c(const GroupElement& u, Exp
     unsigned char result_data[32];
     secp256k1_sha256_finalize(&hash, result_data);
     result = result_data;
+}
+
+template <class Exponent, class GroupElement>
+void NextGenPrimitives<Exponent, GroupElement>::get_x(const GroupElement& L, const GroupElement& R, Exponent& result) {
+    secp256k1_sha256_t hash;
+    secp256k1_sha256_initialize(&hash);
+    unsigned char data[2 * L.memoryRequired()];
+    L.serialize(data);
+    R.serialize(data + 34);
+    secp256k1_sha256_write(&hash, &data[0], 2 * 34);
+    unsigned char result_data[32];
+    secp256k1_sha256_finalize(&hash, result_data);
+    result = result_data;
+}
+
+template <class Exponent, class GroupElement>
+void NextGenPrimitives<Exponent, GroupElement>::get_x(const GroupElement& P, Exponent& result) {
+    secp256k1_sha256_t hash;
+    secp256k1_sha256_initialize(&hash);
+    unsigned char data[P.memoryRequired()];
+    P.serialize(data);
+    secp256k1_sha256_write(&hash, &data[0],34);
+    unsigned char result_data[32];
+    secp256k1_sha256_finalize(&hash, result_data);
+    result = result_data;
+}
+
+template <class Exponent, class GroupElement>
+Exponent NextGenPrimitives<Exponent, GroupElement>::scalar_dot_product(
+        typename std::vector<Exponent>::const_iterator a_start,
+        typename std::vector<Exponent>::const_iterator a_end,
+        typename std::vector<Exponent>::const_iterator b_start,
+        typename std::vector<Exponent>::const_iterator b_end) {
+    Exponent result(uint64_t(0));
+    auto itr_a = a_start;
+    auto itr_b = b_start;
+    while(itr_a != a_end || itr_b != b_end) {
+        result += ((*itr_a) * (*itr_b));
+        ++itr_a;
+        ++itr_b;
+    }
+    return result;
+}
+
+
+template <class Exponent, class GroupElement>
+zcoin_common::GeneratorVector<Exponent, GroupElement> NextGenPrimitives<Exponent, GroupElement>::g_prime(
+        const zcoin_common::GeneratorVector<Exponent, GroupElement>& g_,
+        const Exponent& x){
+    Exponent x_inverse = x.inverse();
+    std::vector<GroupElement> g;
+    for(int i = 0; i < g_.size() / 2; ++i){
+        g.push_back(((g_.get_g(i) * x_inverse) + (g_.get_g(g_.size() / 2 + i) * x)));
+    }
+    return  g;
+}
+
+template <class Exponent, class GroupElement>
+zcoin_common::GeneratorVector<Exponent, GroupElement> NextGenPrimitives<Exponent, GroupElement>::h_prime(
+        const zcoin_common::GeneratorVector<Exponent, GroupElement>& h_,
+        const Exponent& x) {
+    Exponent x_inverse = x.inverse();
+    std::vector <GroupElement> h;
+    for (int i = 0; i < h_.size() / 2; ++i) {
+        h.push_back(((h_.get_g(i) * x) + (h_.get_g(h_.size() / 2 + i) * x_inverse)));
+    }
+    return h;
+}
+
+template <class Exponent, class GroupElement>
+GroupElement NextGenPrimitives<Exponent, GroupElement>::p_prime(
+        const GroupElement& P_,
+        const GroupElement& L,
+        const GroupElement& R,
+        const Exponent& x){
+    Exponent x_square = x.square();
+    return L * x_square + P_ + R * (x_square.inverse());
+}
+
+template <class Exponent, class GroupElement>
+Exponent NextGenPrimitives<Exponent, GroupElement>::delta(const Exponent& y, const Exponent& z, uint64_t n){
+    return (z - z.square()) * y.exponent(Exponent(n * (n + 1)) * Exponent(uint64_t(2)).inverse()) -
+            z.exponent(uint64_t(3)) * Exponent(uint64_t(2)).exponent(Exponent(n * (n + 1)) * Exponent(uint64_t(2)).inverse());
 }
 
 }//namespace nextgen

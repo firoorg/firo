@@ -21,6 +21,7 @@ public:
             const Scalar& f,
             NextGenProof& proof_out);
 
+private:
     void generate_sigma_proofs(
             const std::vector<PublicCoin>& c,
             const std::vector<PrivateCoin>& Cin,

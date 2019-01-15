@@ -445,12 +445,14 @@ libnextgen_a_SOURCES = \
   nextgen/NextGenVerifier.h \
   nextgen/NextGenVerifier.cpp \
   nextgen/SigmaPlusProof.h \
-  nextgensigma/SigmaPlusProver.h \
+  nextgen/SigmaPlusProver.h \
   nextgen/SigmaPlusVerifier.h \
-  nextgen/SigmaPlusVerifier.hpp \
   nextgen/ShnorrProof.h \
   nextgen/ShnorrProver.h \
   nextgen/ShnorrVerifier.h \
+  nextgen/InnerProductProof.h \
+  nextgen/InnerProductProofVerifier.h \
+  nextgen/InnerProductProofGenerator.h \
   nextgen/Coin.h \
   nextgen/Coin.cpp \
   nextgen/Params.h \
