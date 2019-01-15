@@ -180,12 +180,14 @@ public:
 /** Track confirm delays up to 25 blocks, can't estimate beyond that */
 static const unsigned int MAX_BLOCK_CONFIRMS = 25;
 
+/** Decay of .962 is a half-life of 18 blocks or about 1.5 hours */
 static const double DEFAULT_DECAY = .962;
 
 /** Require greater than 95% of X fee transactions to be confirmed within Y blocks for X to be big enough */
 static const double MIN_SUCCESS_PCT = .95;
 static const double UNLIKELY_PCT = .5;
 
+/** Require an avg of 1 tx in the combined fee bucket per block to have stat significance */
 static const double SUFFICIENT_FEETXS = 0.03;
 
 /** Require only an avg of 1 tx every 5 blocks in the combined pri bucket (way less pri txs) */
