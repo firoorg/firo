@@ -1,15 +1,15 @@
 #include "main.h"
-#include "zerocoin_v3.h"
+#include "stdlib.h"
 
-#include <boost/test/unit_test.hpp>
-#include <libzerocoin/sigma/CoinSpend.h>
-#include <libzerocoin/sigma/Coin.h>
+#include "../zerocoin_v3.h"
+#include "../boost/test/unit_test.hpp"
+#include "../libzerocoin/sigma/Params.h"
+#include "../libzerocoin/sigma/CoinSpend.h"
+#include "../libzerocoin/sigma/Coin.h"
 
-using namespace std;
+BOOST_AUTO_TEST_SUITE(sigma_state_test)
 
-BOOST_AUTO_TEST_SUITE(zerocoin_sigma_test)
-
-const uint256 txHash = uint256S("a64bf7b459d3bb09653e444d75a942e9848ed8e1f30e2890f999426ed6dd4a2c");
+static const uint256 txHash = uint256S("a64bf7b459d3bb09653e444d75a942e9848ed8e1f30e2890f999426ed6dd4a2c");
 
 CBlockIndex CreateBlockIndex(int nHeight)
 {
@@ -20,7 +20,7 @@ CBlockIndex CreateBlockIndex(int nHeight)
 }
 
 // Checking AddSpend
-BOOST_AUTO_TEST_CASE(zerocoin_sigma_addspend)
+BOOST_AUTO_TEST_CASE(sigma_addspend)
 {
     CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
     auto params = sigma::ParamsV3::get_default();
@@ -44,7 +44,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_sigma_addspend)
 }
 
 // Checking HasCoin when coin does not exist
-BOOST_AUTO_TEST_CASE(zerocoin_sigma_hascoin_false)
+BOOST_AUTO_TEST_CASE(sigma_hascoin_false)
 {
     CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
     auto params = sigma::ParamsV3::get_default();
@@ -59,7 +59,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_sigma_hascoin_false)
 }
 
 // Checking HasCoin when coin exists
-BOOST_AUTO_TEST_CASE(zerocoin_sigma_hascoin_true)
+BOOST_AUTO_TEST_CASE(sigma_hascoin_true)
 {
     CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
     CScript scriptPubKey2;
@@ -78,7 +78,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_sigma_hascoin_true)
 }
 
 // Checking GetMintedCoinHeightAndId when coin exists
-BOOST_AUTO_TEST_CASE(zerocoin_sigma_getmintcoinheightandid_true)
+BOOST_AUTO_TEST_CASE(sigma_getmintcoinheightandid_true)
 {
     CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
     CScript scriptPubKey2;
@@ -98,7 +98,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_sigma_getmintcoinheightandid_true)
 }
 
 // Checking GetMintedCoinHeightAndId when coin does not exist
-BOOST_AUTO_TEST_CASE(zerocoin_sigma_get_mintcoin_height_and_id_false)
+BOOST_AUTO_TEST_CASE(sigma_get_mintcoin_height_and_id_false)
 {
     CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
     CScript scriptPubKey2;
@@ -116,7 +116,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_sigma_get_mintcoin_height_and_id_false)
 }
 
 // Checking AddMint two times with same coin
-BOOST_AUTO_TEST_CASE(zerocoin_sigma_addmint_double)
+BOOST_AUTO_TEST_CASE(sigma_addmint_double)
 {
     CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
     CScript scriptPubKey2;
@@ -143,18 +143,19 @@ BOOST_AUTO_TEST_CASE(zerocoin_sigma_addmint_double)
 }
 
 // Checking AddMint two different coins on one block
-BOOST_AUTO_TEST_CASE(zerocoin_sigma_addmint_two)
+BOOST_AUTO_TEST_CASE(sigma_addmint_two)
 {
     CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
     CScript scriptPubKey2;
-    auto params = sigma::ParamsV3::get_default();
-
-    const sigma::PrivateCoinV3 privcoin(params);
+    auto params1 = sigma::ParamsV3::get_default();
+    const sigma::PrivateCoinV3 privcoin1(params1);
     sigma::PublicCoinV3 pubcoin1;
-    sigma::PublicCoinV3 pubcoin2;
+    pubcoin1 = privcoin1.getPublicCoin();
 
-    pubcoin1 = privcoin.getPublicCoin();
-    pubcoin2 = privcoin.getPublicCoin();
+    auto params2 = sigma::ParamsV3::get_default();
+    const sigma::PrivateCoinV3 privcoin2(params2);
+    sigma::PublicCoinV3 pubcoin2;
+    pubcoin2 = privcoin2.getPublicCoin();
 
     CBlockIndex index = CreateBlockIndex(1);
     zerocoinState->AddMint(&index, pubcoin1);
@@ -167,8 +168,105 @@ BOOST_AUTO_TEST_CASE(zerocoin_sigma_addmint_two)
     zerocoinState->Reset();
 }
 
+// Checking AddMint ZC_SPEND_V3_COINSPERID+1 coins on one block should pass
+BOOST_AUTO_TEST_CASE(sigma_addmint_more_than_restriction_in_one)
+{
+    CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
+    CScript scriptPubKey2;
+    CBlockIndex index = CreateBlockIndex(1);
+    for (int i = 0; i <= ZC_SPEND_V3_COINSPERID; ++i){
+        auto params = sigma::ParamsV3::get_default();
+        const sigma::PrivateCoinV3 privcoin(params);
+        auto pubcoin = privcoin.getPublicCoin();
+        zerocoinState->AddMint(&index, pubcoin);
+    }
+    auto mintedPubCoin = zerocoinState->mintedPubCoins;
+    BOOST_CHECK_MESSAGE(mintedPubCoin.size() == 15001, "Unexpected mintedPubCoin size in one block of one group.");
+
+    zerocoinState->Reset();
+}
+
+// This is a correct case, but should be commented till fix of code
+// Cause code of creating another coin group is not in the state class itself
+/*
+// Checking AddMint ZC_SPEND_V3_COINSPERID+1 coins on different blocks should have two group id
+BOOST_AUTO_TEST_CASE(sigma_addmint_more_than_restriction_in_diff)
+{
+    CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
+    CScript scriptPubKey2;
+    sigma::PublicCoinV3 pubcoin;
+    CBlockIndex index;
+    for (int i = 0; i <= ZC_SPEND_V3_COINSPERID; ++i){
+        index = CreateBlockIndex(i+1);
+        auto params = sigma::ParamsV3::get_default();
+        const sigma::PrivateCoinV3 privcoin(params);
+        pubcoin = privcoin.getPublicCoin();
+        zerocoinState->AddMint(&index, pubcoin);
+    }
+    auto mintedPubCoin = zerocoinState->mintedPubCoins;
+    BOOST_CHECK_MESSAGE(mintedPubCoin.size() == 15001,
+         "Unexpected mintedPubCoin size in diff block of one group.");
+
+    BOOST_CHECK_MESSAGE(zerocoinState->latestCoinIds[pubcoin.getDenomination()] == 2, 
+        "Unexpected latest coin id of common denomination.");
+
+    zerocoinState->RemoveBlock(&index);
+    BOOST_CHECK_MESSAGE(zerocoinState->latestCoinIds[pubcoin.getDenomination()] == 1, 
+         "Unexpected latestcoin id of common denomination after remove 15001 block.");
+
+    zerocoinState->Reset();
+} */
+
+// Checking RemoveSpendFromMempool, when coin is in mempool
+BOOST_AUTO_TEST_CASE(sigma_remove_spend_from_mempool_coin_in)
+{
+    CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
+    auto params = sigma::ParamsV3::get_default();
+
+    const sigma::PrivateCoinV3 privcoin(params);
+    sigma::PublicCoinV3 pubcoin;
+    pubcoin = privcoin.getPublicCoin();
+
+    std::vector<sigma::PublicCoinV3> anonymity_set;
+    anonymity_set.push_back(pubcoin);
+    sigma::CoinSpendV3 coin(params,privcoin,anonymity_set);
+
+    auto coinSerial = coin.getCoinSerialNumber();
+
+    zerocoinState->AddSpendToMempool(coinSerial, txHash);
+    BOOST_CHECK_MESSAGE(zerocoinState->mempoolCoinSerials.size() == 1, \
+     "Unexpected mempoolCoinSerials size after call AddSpendToMempool."); 
+    
+    zerocoinState->RemoveSpendFromMempool(coinSerial);
+        BOOST_CHECK_MESSAGE(zerocoinState->mempoolCoinSerials.size() == 0, \
+     "Unexpected mempoolCoinSerials size after call AddSpendToMempool."); 
+    zerocoinState->Reset();
+}
+
+// Checking RemoveSpendFromMempool, when coin is not in mempool
+BOOST_AUTO_TEST_CASE(sigma_remove_spend_from_mempool_coin_not_in)
+{
+    CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
+    auto params = sigma::ParamsV3::get_default();
+
+    const sigma::PrivateCoinV3 privcoin(params);
+    sigma::PublicCoinV3 pubcoin;
+    pubcoin = privcoin.getPublicCoin();
+
+    std::vector<sigma::PublicCoinV3> anonymity_set;
+    anonymity_set.push_back(pubcoin);
+    sigma::CoinSpendV3 coin(params,privcoin,anonymity_set);
+
+    auto coinSerial = coin.getCoinSerialNumber();
+    
+    zerocoinState->RemoveSpendFromMempool(coinSerial);
+        BOOST_CHECK_MESSAGE(zerocoinState->mempoolCoinSerials.size() == 0, \
+     "Unexpected mempoolCoinSerials size after call AddSpendToMempool."); 
+    zerocoinState->Reset();
+}
+
 // Checking AddSpendToMempool, when coin was used (in usedCoinSerials)
-BOOST_AUTO_TEST_CASE(zerocoin_sigma_addspend_to_mempool_coin_used)
+BOOST_AUTO_TEST_CASE(sigma_addspend_to_mempool_coin_used)
 {
     CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
     auto params = sigma::ParamsV3::get_default();
@@ -195,7 +293,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_sigma_addspend_to_mempool_coin_used)
 }
 
 // Checking AddSpendToMempool, when coin was not used
-BOOST_AUTO_TEST_CASE(zerocoin_sigma_addspendtomempool)
+BOOST_AUTO_TEST_CASE(sigma_addspendtomempool)
 {
     CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
     auto params = sigma::ParamsV3::get_default();
@@ -218,7 +316,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_sigma_addspendtomempool)
 }
 
 // Checking AddSpendToMempool, when coin is already in mempool
-BOOST_AUTO_TEST_CASE(zerocoin_sigma_addspendtomempool_coinin)
+BOOST_AUTO_TEST_CASE(sigma_addspendtomempool_coinin)
 {
     CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
     auto params = sigma::ParamsV3::get_default();
@@ -229,7 +327,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_sigma_addspendtomempool_coinin)
 
     std::vector<sigma::PublicCoinV3> anonymity_set;
     anonymity_set.push_back(pubcoin);
-    sigma::CoinSpendV3 coin(params,privcoin,anonymity_set);
+    sigma::CoinSpendV3 coin(params,privcoin, anonymity_set);
 
     auto coinSerial = coin.getCoinSerialNumber();
 
@@ -245,7 +343,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_sigma_addspendtomempool_coinin)
 }
 
 // Checking CanAddSpendToMempool, when coin is already in mempool
-BOOST_AUTO_TEST_CASE(zerocoin_sigma_canaddspendtomempool_inmempool)
+BOOST_AUTO_TEST_CASE(sigma_canaddspendtomempool_inmempool)
 {
     CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
     auto params = sigma::ParamsV3::get_default();
@@ -272,7 +370,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_sigma_canaddspendtomempool_inmempool)
 }
 
 // Checking CanAddSpendToMempool, when coin is already used
-BOOST_AUTO_TEST_CASE(zerocoin_sigma_canaddspendtomempool_used)
+BOOST_AUTO_TEST_CASE(sigma_canaddspendtomempool_used)
 {
     CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
     auto params = sigma::ParamsV3::get_default();
@@ -296,7 +394,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_sigma_canaddspendtomempool_used)
 }
 
 // Checking Reset 
-BOOST_AUTO_TEST_CASE(zerocoin_sigma_reset)
+BOOST_AUTO_TEST_CASE(sigma_reset)
 {
     CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
     CScript scriptPubKey2;
@@ -346,6 +444,56 @@ BOOST_AUTO_TEST_CASE(zerocoin_sigma_reset)
      "Unexpected mintedPubCoin size after reset.");
     BOOST_CHECK_MESSAGE(zerocoinState->mempoolCoinSerials.size() == 0, \
      "Unexpected mintedPubCoin size after reset."); 
+}
+
+// Checking GetCoinGroupInfo, when coingroup is exist
+BOOST_AUTO_TEST_CASE(sigma_getcoingroupinfo_existing)
+{
+    CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
+    CScript scriptPubKey2;
+    auto params = sigma::ParamsV3::get_default();
+
+    const sigma::PrivateCoinV3 privcoin(params);
+    sigma::PublicCoinV3 pubcoin;
+    pubcoin = privcoin.getPublicCoin();
+    CBlockIndex index = CreateBlockIndex(1);
+    
+    zerocoinState->AddMint(&index, pubcoin);
+    auto mintedPubCoin = zerocoinState->mintedPubCoins;
+    
+    BOOST_CHECK_MESSAGE(mintedPubCoin.size() == 1, 
+        "Unexpected mintedPubCoin size after first call.");
+
+    CZerocoinStateV3::CoinGroupInfoV3 result;
+    zerocoinState->GetCoinGroupInfo(pubcoin.getDenomination(), 1, result);
+    BOOST_CHECK_MESSAGE(result.nCoins == 1, 
+        "Unexpected number of coins in group.");
+    BOOST_CHECK_MESSAGE(result.firstBlock->mintedPubCoins.size() == index.mintedPubCoins.size(), 
+        "Unexpected first block index for Group info.");
+    BOOST_CHECK_MESSAGE(result.lastBlock->mintedPubCoins.size() == index.mintedPubCoins.size(), 
+        "Unexpected last block index for Group info.");
+
+    zerocoinState->Reset();
+}
+
+// Checking GetCoinGroupInfo, when coingroup is not minted
+BOOST_AUTO_TEST_CASE(sigma_getcoingroupinfo_not_minted)
+{
+    CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
+    CScript scriptPubKey2;
+    auto params = sigma::ParamsV3::get_default();
+
+    const sigma::PrivateCoinV3 privcoin(params);
+    sigma::PublicCoinV3 pubcoin;
+    pubcoin = privcoin.getPublicCoin();
+    CBlockIndex index = CreateBlockIndex(1);
+
+    CZerocoinStateV3::CoinGroupInfoV3 result;
+    zerocoinState->GetCoinGroupInfo(pubcoin.getDenomination(), 1, result);
+    BOOST_CHECK_MESSAGE(result.nCoins == 0, 
+        "Unexpected number of coins in group.");
+        
+    zerocoinState->Reset();
 }
 
 BOOST_AUTO_TEST_CASE(zerocoin_sigma_addblock_nonexist_index)
