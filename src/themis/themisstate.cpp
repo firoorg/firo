@@ -3,6 +3,7 @@
 #include <validation.h>
 #include <chainparams.h>
 #include <themis/themisstate.h>
+#include <main.h>
 
 using namespace std;
 using namespace dev;

@@ -79,7 +79,8 @@ bool AcceptToMemoryPool(
         bool fOverrideMempoolLimit=false,
         const CAmount nAbsurdFee=0,
         bool isCheckWalletTransaction = false,
-        bool markZcoinSpendTransactionSerial = true);
+        bool markZcoinSpendTransactionSerial = true,
+		bool rawTx = false);
 
 namespace {
     const int MAX_OUTBOUND_CONNECTIONS = 8;
@@ -2463,7 +2464,8 @@ void CNode::RelayDandelionTransaction(const CTransaction& tx, CNode* pfrom)
             /*&lRemovedTxn, */
             false, /* fOverrideMempoolLimit */
             0, /* nAbsurdFee */
-            false /*isCheckWalletTransaction*/ 
+            false, /*isCheckWalletTransaction*/ 
+			false /*rawTx*/
             );
         //LogPrint(
         //    "mempool", "AcceptToMemoryPool: peer=%d: accepted %s (poolsz %u txn, %u kB)\n",
@@ -2522,7 +2524,8 @@ void CNode::CheckDandelionEmbargoes()
                 /*&lRemovedTxn, */
                 false, /* fOverrideMempoolLimit */
                 0, /* nAbsurdFee */
-                false /*isCheckWalletTransaction*/ // TODO(martun): check what all these booleans do!
+                false, /*isCheckWalletTransaction*/ // TODO(martun): check what all these booleans do!
+				false /*rawTx*/
                 );
             LogPrintf("AcceptToMemoryPool: accepted %s (poolsz %u txn, %u kB)\n",
                       iter->first.ToString(), 

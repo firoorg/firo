@@ -1825,7 +1825,7 @@ bool AcceptToMemoryPool(
 	    const CAmount nAbsurdFee,
         bool isCheckWalletTransaction,
         bool markZcoinSpendTransactionSerial,
-		bool rawTx = false // themis
+		bool rawTx
 	) {
     LogPrintf("AcceptToMemoryPool(), transaction: %s, fCheckInputs=%s\n",
               tx.GetHash().ToString(),
@@ -3705,6 +3705,10 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
 
     return true;
 }
+
+std::unique_ptr<CCoinsViewDB> pcoinsdbview;
+std::unique_ptr<StorageResults> pstorageresult;
+
 
 enum FlushStateMode {
     FLUSH_STATE_NONE,
@@ -7415,7 +7419,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand,
         pfrom->setAskFor.erase(inv.hash);
         mapAlreadyAskedFor.erase(inv.hash);
         if (!AlreadyHave(inv) && !tx.IsZerocoinSpend()  &&
-            AcceptToMemoryPool(mempool, state, tx, true, true, &fMissingInputs, false, 0, true)) {
+            AcceptToMemoryPool(mempool, state, tx, true, true, &fMissingInputs, false, 0, true, false)) {
             LogPrintf("Transaction %s received and added to the mempool.\n",
                       tx.GetHash().ToString());
 

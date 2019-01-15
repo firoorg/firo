@@ -234,6 +234,10 @@ public:
                 //   (the tx=... number in the SetBestChain debug.log lines)
                 1200.0     // * estimated number of transactions per day after checkpoint
         };
+
+		// themis
+		consensus.nFixUTXOCacheHFHeight = 0;
+		//
     }
 };
 
@@ -384,6 +388,10 @@ public:
                         0,
                         100.0
         };
+
+		// themis
+		consensus.nFixUTXOCacheHFHeight = 0;
+		//
     }
 };
 
@@ -502,7 +510,11 @@ public:
         base58Prefixes[SECRET_KEY] = std::vector < unsigned char > (1, 239);
         base58Prefixes[EXT_PUBLIC_KEY] = boost::assign::list_of(0x04)(0x35)(0x87)(0xCF).convert_to_container < std::vector < unsigned char > > ();
         base58Prefixes[EXT_SECRET_KEY] = boost::assign::list_of(0x04)(0x35)(0x83)(0x94).convert_to_container < std::vector < unsigned char > > ();
-    }
+		
+		// themis
+		consensus.nFixUTXOCacheHFHeight = 0;
+		//
+	}
 
     void UpdateBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout) {
         consensus.vDeployments[d].nStartTime = nStartTime;
