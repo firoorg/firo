@@ -257,6 +257,10 @@ libbitcoin_server_a_SOURCES = \
   versionbits.cpp \
   zerocoin.cpp \
   mtpstate.cpp \
+  themis/storageresults.cpp \
+  themis/themisDGP.cpp \
+  themis/themisstate.cpp \
+  themis/themistransaction.cpp \
   $(BITCOIN_CORE_H)
 
 if ENABLE_ZMQ
