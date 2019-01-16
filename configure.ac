@@ -813,7 +813,7 @@ else
   AC_CHECK_LIB([zmq],      [zmq_ctx_shutdown],ZMQ_LIBS=-lzmq, AC_MSG_ERROR(libzmq >= 4.0 not found))
 
   AC_CHECK_HEADER([minizip/zip.h],,AC_MSG_ERROR(zip.h not found))
-  AC_CHECK_LIB([minizip],      [main],MINIZIP_LIBS=-lz, AC_MSG_ERROR(minizip not found))
+  AC_CHECK_LIB([minizip],      [main],MINIZIP_LIBS=-lminizip, AC_MSG_ERROR(minizip not found))
 
 
   if test x$build_bitcoin_utils$build_bitcoind$bitcoin_enable_qt$use_tests != xnononono; then
