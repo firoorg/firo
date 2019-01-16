@@ -19,6 +19,26 @@ CBlockIndex CreateBlockIndex(int nHeight)
     return index;
 }
 
+std::vector<PrivateCoinV3> generateCoins(const ParamsV3* params,int n)
+{
+    std::vector<sigma::PrivateCoinV3> privCoins;
+
+    for(int i =0 ;i< n;i++)
+        privCoins.push_back(sigma::PrivateCoinV3(params));
+
+    return privCoins;
+}
+
+std::vector<PublicCoinV3> getPubcoins(const std::vector<PrivateCoinV3> coins)
+{
+    std::vector<sigma::PublicCoinV3> pubCoins;
+    
+    BOOST_FOREACH(auto& coin, coins)
+        pubCoins.push_back(coin.getPublicCoin());
+    
+    return pubCoins;
+}
+
 // Checking AddSpend
 BOOST_AUTO_TEST_CASE(sigma_addspend)
 {
@@ -513,6 +533,8 @@ BOOST_AUTO_TEST_CASE(zerocoin_sigma_addblock_nonexist_index)
 
 	BOOST_CHECK_MESSAGE(zerocoinState->usedCoinSerials.size() == 0, \
 	  "Unexpected usedCoinSerials size, add new block without spend txs.");
+
+    zerocoinState->Reset();
 }
 
 BOOST_AUTO_TEST_CASE(zerocoin_sigma_addblock_minted_spend)
@@ -573,6 +595,78 @@ BOOST_AUTO_TEST_CASE(zerocoin_sigma_addblock_minted_spend)
 
 	BOOST_CHECK_MESSAGE(zerocoinState->usedCoinSerials.size() == 1, \
 	  "Unexpected usedCoinSerials size, add new block without new spend");
+
+    zerocoinState->Reset();
+}
+
+BOOST_AUTO_TEST_CASE(zerocoin_sigma_removeblock_remove)
+{
+    CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
+    CScript scriptPubKey2;
+    auto params = sigma::ParamsV3::get_default();
+
+    // add index 1 with 10 minted
+    auto coins = generateCoins(params,10);
+    auto pubCoins = getPubcoins(coins);
+
+    auto index1 = CreateBlockIndex(1);
+    std::pair<int,int> denomination1Group1( \
+        CoinDenominationV3::ZQ_LOVELACE,1);
+    index1.mintedPubCoinsV3[denomination1Group1] = pubCoins;
+    
+    // add index 2 with 10 minted and 1 spend
+    auto coins2 = generateCoins(params,10);
+    auto pubCoins2 = getPubcoins(coins2);
+
+    auto index2 = CreateBlockIndex(2);
+    std::pair<int,int> denomination1Group2( \
+        CoinDenominationV3::ZQ_LOVELACE,2);
+    index2.mintedPubCoinsV3[denomination1Group2] = pubCoins2;
+
+    sigma::CoinSpendV3 coinSpend(params,coins[0],pubCoins);
+
+    index2.spentSerialsV3.clear();
+	index2.spentSerialsV3.insert(coinSpend.getCoinSerialNumber());
+
+    zerocoinState->AddBlock(&index1);
+    zerocoinState->AddBlock(&index2);
+
+    BOOST_CHECK_MESSAGE(zerocoinState->latestCoinIds[CoinDenominationV3::ZQ_LOVELACE] == 2, \
+      "Unexpected lastestcoinId");
+    BOOST_CHECK_MESSAGE(zerocoinState->HasCoin(pubCoins2[0]), \
+      "Coin isn't in state before remove index 2");
+
+    // remove one
+    zerocoinState->RemoveBlock(&index2);
+    BOOST_CHECK_MESSAGE(zerocoinState->mintedPubCoins.size() == 10, \
+	  "Unexpected mintedPubCoins size, remove index contain 10 minteds.");
+
+	BOOST_CHECK_MESSAGE(zerocoinState->usedCoinSerials.size() == 0, \
+	  "Unexpected usedCoinSerials size, remove index contain 1 spend.");
+    
+    BOOST_CHECK_MESSAGE(zerocoinState->latestCoinIds[CoinDenominationV3::ZQ_LOVELACE] == 1, \
+      "Unexpected lastestcoinId");
+
+    BOOST_CHECK_MESSAGE(zerocoinState->HasCoin(pubCoins[0]), \
+      "Coin isn't in state before remove index 1");
+    BOOST_CHECK_MESSAGE(!zerocoinState->HasCoin(pubCoins2[0]), \
+      "Coin is in state after remove index 2");
+
+    // remove all
+    zerocoinState->RemoveBlock(&index1);
+    BOOST_CHECK_MESSAGE(zerocoinState->mintedPubCoins.size() == 0, \
+	  "Unexpected mintedPubCoins size, remove index contain 10 minteds.");
+
+	BOOST_CHECK_MESSAGE(zerocoinState->usedCoinSerials.size() == 0, \
+	  "Unexpected usedCoinSerials size, remove index contain no spend.");
+    
+    BOOST_CHECK_MESSAGE(zerocoinState->latestCoinIds[CoinDenominationV3::ZQ_LOVELACE] == 0, \
+      "Unexpected lastestcoinId remove all");
+
+    BOOST_CHECK_MESSAGE(!zerocoinState->HasCoin(pubCoins[0]), \
+      "Coin is in state after remove index 1");
+
+    zerocoinState->Reset();
 }
 
 BOOST_AUTO_TEST_SUITE_END()
