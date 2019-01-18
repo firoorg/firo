@@ -694,4 +694,128 @@ BOOST_AUTO_TEST_CASE(getmempoolconflictingtxhash_added_yes)
     BOOST_TEST(state.GetMempoolConflictingTxHash(serial) == txid);
 }
 
+BOOST_AUTO_TEST_CASE(zerocoingetspendserialnumberv3_valid_tx_valid_vin)
+{
+    // setup
+    CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
+    CScript scriptPubKey2;
+    auto params = sigma::ParamsV3::get_default();
+
+    // spend
+    auto coins = generateCoins(params,10);
+    auto pubCoins = getPubcoins(coins);
+
+    sigma::CoinSpendV3 coinSpend(params,coins[0],pubCoins);
+
+    CDataStream serializedCoinSpend(SER_NETWORK, PROTOCOL_VERSION);
+    serializedCoinSpend << coinSpend;
+
+    // create tx and vin
+    
+    CTxIn newTxIn;
+    newTxIn.scriptSig = CScript();
+    newTxIn.prevout.SetNull();
+
+    CScript tmp = CScript() << OP_ZEROCOINSPENDV3;
+    tmp.insert(tmp.end(),serializedCoinSpend.begin(),serializedCoinSpend.end());
+
+    newTxIn.scriptSig.assign(tmp.begin(),tmp.end());
+
+    CMutableTransaction newtx;
+    newtx.vin.clear();
+    newtx.vout.clear();
+
+    newtx.vin.push_back(newTxIn);
+
+    // mock vout
+    CTxOut newTxOut(0, CScript());
+    newtx.vout.push_back(newTxOut);
+
+    CTransaction ctx(newtx);
+
+    // check
+    BOOST_CHECK_MESSAGE(ZerocoinGetSpendSerialNumberV3(ctx,newTxIn) != Scalar(uint64_t(0)), \
+      "Expect serial number, got 0");
+
+    // add more spend vin
+    sigma::CoinSpendV3 coinSpend2(params,coins[1],pubCoins);
+
+    CDataStream serializedCoinSpend2(SER_NETWORK, PROTOCOL_VERSION);
+    serializedCoinSpend2 << coinSpend2;
+
+    CTxIn newTxIn2;
+    newTxIn2.scriptSig = CScript();
+    newTxIn2.prevout.SetNull();
+
+    CScript tmp2 = CScript() << OP_ZEROCOINSPENDV3;
+    tmp2.insert(tmp2.end(),serializedCoinSpend2.begin(),serializedCoinSpend2.end());
+
+    newTxIn2.scriptSig.assign(tmp2.begin(),tmp2.end());
+    newtx.vin.push_back(newTxIn);
+
+    CTransaction ctx2(newtx);
+
+    // check
+    BOOST_CHECK_MESSAGE(ZerocoinGetSpendSerialNumberV3(ctx2,newTxIn2) != Scalar(uint64_t(0)), \
+      "2 vin, Expect serial number, got 0");
+
+    // not allow unspend vin
+    // add unspend vin
+    CTxIn newTxVin3;
+    newtx.vin.push_back(newTxVin3);
+    
+    CTransaction ctx3(newtx);
+
+    BOOST_CHECK_MESSAGE(ZerocoinGetSpendSerialNumberV3(ctx3,newTxIn) == Scalar(uint64_t(0)), \
+      "Expect 0 got serial");
+    BOOST_CHECK_MESSAGE(ZerocoinGetSpendSerialNumberV3(ctx3,newTxIn2) == Scalar(uint64_t(0)), \
+      "Expect 0 got serial");
+    BOOST_CHECK_MESSAGE(ZerocoinGetSpendSerialNumberV3(ctx3,newTxVin3) == Scalar(uint64_t(0)), \
+      "Expect 0 got serial");
+}
+
+BOOST_AUTO_TEST_CASE(zerocoingetspendserialnumberv3_invalid_script)
+{
+    // setup
+    CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
+    CScript scriptPubKey2;
+    auto params = sigma::ParamsV3::get_default();
+
+    // spend
+    auto coins = generateCoins(params,10);
+    auto pubCoins = getPubcoins(coins);
+
+    sigma::CoinSpendV3 coinSpend(params,coins[0],pubCoins);
+
+    CDataStream serializedCoinSpend(SER_NETWORK, PROTOCOL_VERSION);
+    serializedCoinSpend << coinSpend;
+
+    // create tx and vin
+    
+    CTxIn newTxIn;
+    newTxIn.scriptSig = CScript();
+    newTxIn.prevout.SetNull();
+
+    CScript tmp = CScript() << OP_ZEROCOINSPENDV3;
+    auto itr = serializedCoinSpend.begin();
+    // ignore first byte to make it invalid
+    tmp.insert(tmp.end(),++itr,serializedCoinSpend.end());
+
+    CMutableTransaction newtx;
+    newtx.vin.clear();
+    newtx.vout.clear();
+
+    newtx.vin.push_back(newTxIn);
+
+    // mock vout
+    CTxOut newTxOut(0, CScript());
+    newtx.vout.push_back(newTxOut);
+
+    CTransaction ctx(newtx);
+
+    // check
+    BOOST_CHECK_MESSAGE(ZerocoinGetSpendSerialNumberV3(ctx,newTxIn) == Scalar(uint64_t(0)), \
+      "Expect 0 got serial, Wrong script");
+}
+
 BOOST_AUTO_TEST_SUITE_END()
