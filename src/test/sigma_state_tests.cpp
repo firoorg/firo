@@ -818,4 +818,10 @@ BOOST_AUTO_TEST_CASE(zerocoingetspendserialnumberv3_invalid_script)
       "Expect 0 got serial, Wrong script");
 }
 
+BOOST_AUTO_TEST_CASE(getzerocoinstate_not_null)
+{
+    BOOST_CHECK_MESSAGE(CZerocoinStateV3::GetZerocoinState() != NULL, \
+      "GetZerocoinState() return null");
+}
+
 BOOST_AUTO_TEST_SUITE_END()
