@@ -2827,7 +2827,7 @@ UniValue mintmanyzerocoin(const UniValue& params, bool fHelp)
                 break;
             default:
                 throw runtime_error(
-                    "mintmanyzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n");
+                    "denomination must be one of (1,10,25,50,100)\n");
         }
 
 
@@ -2838,7 +2838,7 @@ UniValue mintmanyzerocoin(const UniValue& params, bool fHelp)
         
         if(amount < 0){
                 throw runtime_error(
-                    "mintmanyzerocoin {<denomination>(1,10,25,50,100):\"amount\"...}\n");
+                    "amounts must be greater than 0.\n");
         }
 
         for(int64_t i=0; i<amount; i++){
