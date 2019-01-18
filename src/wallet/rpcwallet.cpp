@@ -2688,7 +2688,7 @@ UniValue listunspentmintzerocoins(const UniValue &params, bool fHelp) {
 UniValue mintzerocoin(const UniValue& params, bool fHelp)
 {
 
-    if (fHelp || params.size() > 1)
+    if (fHelp || params.size() != 1)
         throw runtime_error("mintzerocoin <amount>(1,10,25,50,100)\n" + HelpRequiringPassphrase());
 
     int64_t nAmount = 0;
@@ -2768,22 +2768,30 @@ UniValue mintzerocoin(const UniValue& params, bool fHelp)
 
 UniValue mintmanyzerocoin(const UniValue& params, bool fHelp)
 {
-    if (fHelp || params.size() != 1)
+    if (fHelp || params.size() == 0 || params.size() % 2 != 0 || params.size() > 10)
         throw runtime_error(
-                "mintmanyzerocoin {<denomination>(1,10,25,50,100):\"amount\"...}\n"
+                "mintmanyzerocoin <denomination>(1,10,25,50,100), amount, ... }\n"
                 + HelpRequiringPassphrase()
                 + "\nMint 1 or more zerocoins in a single transaction. Amounts must be of denominations specified.\n"
+                + "Specify each denomination followed by it's amount, for all denominations desired.\n"
+                + "Total amount for all must be less than " + to_string(ZC_MINT_LIMIT) + ".  \n"
                 "\nArguments:\n"
-                "1. \"denominations\"             (object, required) A json object with amounts and denominations\n"
-                    "    {\n"
-                    "      \"denomination\":amount The denomination of zerocoin to mint (must be one of (1,10,25,50,100)) followed by the amount of the denomination to mint.\n"
-                    "      ,...\n"
-                    "    }\n"
+                "1. \"denomination\"             (integer, required) zerocoin denomination\n"
+                "2. \"amount\"                   (integer, required) amount of mints for chosen denomination\n"
                 "\nExamples:\n"
-                    + HelpExampleCli("mintmanyzerocoin", "\"{\\\"25\\\":10,\\\"10\\\":5}\"")
+                    + HelpExampleCli("mintmanyzerocoin", "1 1")
+                    + HelpExampleCli("mintmanyzerocoin", "25 10 10 5")
         );
 
-    if(!ValidMultiMint(params[0].get_obj())){
+    UniValue sendTo(UniValue::VOBJ);
+
+    for(size_t i=0; i<params.size(); i+=2){
+        string denomination = params[i].get_str();
+        string amount = params[i+1].get_str();
+        sendTo.push_back(Pair(denomination, stoi(amount)));
+    }
+
+    if(!ValidMultiMint(sendTo)){
         throw JSONRPCError(RPC_WALLET_ERROR, "Insufficient funds/mint inputs out of range");
     }
 
@@ -2795,8 +2803,6 @@ UniValue mintmanyzerocoin(const UniValue& params, bool fHelp)
     vector<CRecipient> vecSend;
     vector<libzerocoin::PrivateCoin> privCoins;
     CWalletTx wtx;
-
-    UniValue sendTo = params[0].get_obj();
 
     vector<string> keys = sendTo.getKeys();
     BOOST_FOREACH(const string& denominationStr, keys){
@@ -2821,7 +2827,7 @@ UniValue mintmanyzerocoin(const UniValue& params, bool fHelp)
                 break;
             default:
                 throw runtime_error(
-                    "mintzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n");
+                    "mintmanyzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n");
         }
 
 
