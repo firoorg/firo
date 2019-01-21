@@ -92,6 +92,9 @@ if __name__ == "__main__":
     mintstatusfilter = b"mintStatus"
     socket.setsockopt(zmq.SUBSCRIBE, mintstatusfilter)
 
+    settingsfilter = b"settings"
+    socket.setsockopt(zmq.SUBSCRIBE, settingsfilter)
+
     while True:
       message = socket.recv()
       print("Received reply [%s]" % (message))

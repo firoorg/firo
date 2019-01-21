@@ -136,6 +136,7 @@ CZMQPublisherInterface* CZMQPublisherInterface::Create()
     factories["pubbalance"] = CZMQAbstract::Create<CZMQBalanceTopic>;
     factories["pubznodeupdate"] = CZMQAbstract::Create<CZMQZnodeTopic>;
     factories["pubmintstatus"] = CZMQAbstract::Create<CZMQMintStatusTopic>;
+    factories["pubsettings"] = CZMQAbstract::Create<CZMQSettingsTopic>;
     
     std::string address = BaseParams().APIAddr() + to_string(BaseParams().APIPUBPort());
 
@@ -252,6 +253,23 @@ void CZMQPublisherInterface::UpdatedMintStatus(std::string update)
     {
         CZMQAbstract *notifier = *i;
         if (notifier->NotifyMintStatusUpdate(update))
+        {
+            i++;
+        }
+        else
+        {
+            notifier->Shutdown();
+            i = notifiers.erase(i);
+        }
+    }
+}
+
+void CZMQPublisherInterface::UpdatedSettings(std::string update)
+{
+    for (std::list<CZMQAbstract*>::iterator i = notifiers.begin(); i!=notifiers.end(); )
+    {
+        CZMQAbstract *notifier = *i;
+        if (notifier->NotifySettingsUpdate(update))
         {
             i++;
         }

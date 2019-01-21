@@ -1413,7 +1413,6 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     if (!StartAPI())
         return false; 
 
-    SettingsStartup();
     CreatePaymentRequestFile();
     CreateTxTimestampFile();
     CreateTxMetadataFile();
@@ -2072,6 +2071,8 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     SetRPCWarmupFinished();
     SetAPIWarmupFinished();
     uiInterface.InitMessage(_("Done loading"));
+
+    SettingsStartup();
 
 #ifdef ENABLE_WALLET
     if (pwalletMain) {

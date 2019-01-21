@@ -70,7 +70,7 @@ class CZMQSettingsEvent : virtual public CZMQAbstractPublisher
      /* Settings updated
     */   
 public:
-    bool NotifySettingsUpdate();
+    bool NotifySettingsUpdate(std::string update);
 };
 
 class CZMQZnodeEvent : virtual public CZMQAbstractPublisher
@@ -128,7 +128,7 @@ class CZMQSettingsTopic : public CZMQSettingsEvent
 {
 public:
     void SetTopic(){ topic = "settings";}
-    void SetMethod(){ method= "settings";}
+    void SetMethod(){ method= "readSettings";}
 };
 
 class CZMQZnodeTopic : public CZMQZnodeEvent

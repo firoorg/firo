@@ -11,11 +11,14 @@
 #include <fstream>
 #include "utilstrencodings.h"
 #include <boost/foreach.hpp>
-
+#include <validationinterface.h>
 
 namespace fs = boost::filesystem;
 using namespace std;
 
+UniValue settings(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
+    return data;
+}
 
 bool ReadAPISetting(UniValue& data, UniValue& setting, string name, string program){
     UniValue programUni(UniValue::VOBJ);
@@ -168,6 +171,8 @@ bool SettingsStartup(){
 
     WriteDaemonSettings();
 
+    GetMainSignals().UpdatedSettings(ReadSettingsData().write());
+
     return true;
 }
 
@@ -217,6 +222,10 @@ bool SetRestartNow(UniValue& data){
         }
     }
     return true;
+}
+
+UniValue readsettings(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
+    return data;
 }
 
 UniValue setting(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
@@ -321,6 +330,7 @@ UniValue setting(Type type, const UniValue& data, const UniValue& auth, bool fHe
 
     if(writeBack){
         WriteSettingsData(settingsData);
+        GetMainSignals().UpdatedSettings(ReadSettingsData().write());
     }
 
     return true;
@@ -329,7 +339,8 @@ UniValue setting(Type type, const UniValue& data, const UniValue& auth, bool fHe
 static const CAPICommand commands[] =
 { //  category              collection         actor (function)          authPort   authPassphrase   warmupOk
   //  --------------------- ------------       ----------------          --------   --------------   --------
-    { "wallet",             "setting",         &setting,                 true,      false,           false  }
+    { "wallet",             "setting",         &setting,                 true,      false,           false  },
+    { "wallet",             "readSettings",    &readsettings,            true,      false,           false  }
 };
 
 void RegisterSettingsAPICommands(CAPITable &tableAPI)

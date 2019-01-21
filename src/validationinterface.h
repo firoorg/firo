@@ -46,6 +46,7 @@ protected:
     virtual void UpdateSyncStatus() {}
     virtual void UpdatedZnode(CZnode &znode) {}
     virtual void UpdatedMintStatus(std::string update) {};
+    virtual void UpdatedSettings(std::string update) {};
     friend void ::RegisterValidationInterface(CValidationInterface*);
     friend void ::UnregisterValidationInterface(CValidationInterface*);
     friend void ::UnregisterAllValidationInterfaces();
@@ -78,6 +79,8 @@ struct CMainSignals {
     boost::signals2::signal<void (CZnode &)> UpdatedZnode;
     /** Notifies listeners of an updated mint status */
     boost::signals2::signal<void (std::string)> UpdatedMintStatus;
+    /** Notifies listeners of settings following an update */
+    boost::signals2::signal<void (std::string)> UpdatedSettings;
 };
 
 CMainSignals& GetMainSignals();

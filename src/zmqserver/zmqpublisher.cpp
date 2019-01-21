@@ -268,3 +268,17 @@ bool CZMQMintStatusEvent::NotifyMintStatusUpdate(std::string update){
 
     return true;
 }
+
+bool CZMQSettingsEvent::NotifySettingsUpdate(std::string update){
+    LogPrintf("update in NotifySettingsUpdate: %s\n", update);
+    UniValue updateObj(UniValue::VOBJ);
+    try{
+        updateObj.read(update);
+    }catch(const std::exception& e){
+       throw JSONAPIError(API_PARSE_ERROR, "Could not read settings update");
+    }
+    request.replace("data", updateObj);
+    Execute();
+
+    return true;
+}
