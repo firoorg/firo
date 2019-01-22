@@ -135,7 +135,6 @@ UniValue znodecontrol(Type type, const UniValue& data, const UniValue& auth, boo
 }
 
 UniValue znodelist(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
-
     // If the Znode list is not yet synced, return the wallet Znodes, as described in znode.conf
     if(!znodeSync.IsSynced()){        
         UniValue data(UniValue::VOBJ);
@@ -143,9 +142,11 @@ UniValue znodelist(Type type, const UniValue& data, const UniValue& auth, bool f
 
         BOOST_FOREACH(CZnodeConfig::CZnodeEntry mne, znodeConfig.getEntries()) {
             const std::string& txHash = mne.getTxHash();
-            CZnode* mn = mnodeman.Find(txHash);
-            std::string payee = CBitcoinAddress(mn->pubKeyCollateralAddress.GetID()).ToString();
-            nodes.replace(payee, mn->ToJSON());
+            const std::string& outputIndex = mne.getOutputIndex();
+            std::string key = txHash + outputIndex;
+            CZnode* mn = mnodeman.Find(txHash, outputIndex);
+
+            nodes.replace(key, !(mn==NULL) ? mn->ToJSON() : mne.ToJSON());
         }
 
         data.push_back(Pair("nodes", nodes));
@@ -173,12 +174,16 @@ UniValue znodelist(Type type, const UniValue& data, const UniValue& auth, bool f
             BOOST_FOREACH(CZnode & mn, vZnodes) {
                 std::string payee = CBitcoinAddress(mn.pubKeyCollateralAddress.GetID()).ToString();
                 mn.SetRank(ranks[payee], false);
-                nodes.replace(payee, mn.ToJSON());
+
+                std::string txHash = mn.vin.prevout.hash.ToString().substr(0,64);
+                std::string outputIndex = to_string(mn.vin.prevout.n);
+                std::string key = txHash + outputIndex;
+
+                nodes.replace(key, mn.ToJSON());
             }
 
             data.push_back(Pair("nodes", nodes));
             data.push_back(Pair("total", mnodeman.CountZnodes()));
-
             return data;
 
             break;
