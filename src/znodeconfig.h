@@ -89,6 +89,7 @@ public:
             authorityObj.push_back(Pair("port", port));
 
             ret.push_back(Pair("label", getAlias()));
+            ret.push_back(Pair("isMine", true));
             ret.push_back(Pair("outpoint", outpoint));
             ret.push_back(Pair("authority", authorityObj));
 
