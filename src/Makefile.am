@@ -207,13 +207,6 @@ BITCOIN_CORE_H = \
   zerocoin_v3.h \
   hash_functions.h \
   zerocoin_params.h \
-  sigma/GKEllipticCurve.hpp \
-  sigma/GKGroups.hpp \
-  sigma/GKInteger.hpp \
-  sigma/GKNumbers.hpp \
-  sigma/GKSchema.hpp \
-  sigma/GKZerocoin.hpp \
-  sigma/GKDebug.hpp \
   mtpstate.h
 
 obj/build.h: FORCE
@@ -266,10 +259,6 @@ libbitcoin_server_a_SOURCES = \
   zerocoin.cpp \
   zerocoin_v3.cpp \
   hash_functions.cpp \
-  sigma/GKEllipticCurve.cpp \
-  sigma/GKGroups.cpp \
-  sigma/GKNumbers.cpp \
-  sigma/GKDebug.cpp \
   mtpstate.cpp \
   $(BITCOIN_CORE_H)
 
