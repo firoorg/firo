@@ -21,7 +21,7 @@ using namespace std;
 
 BOOST_FIXTURE_TEST_SUITE(sigma_wallet_tests, WalletTestingSetup)
 
-static bool add_sigma_coin(const sigma::PrivateCoinV3& coin, const sigma::CoinDenominationV3 denomination)
+static bool addSigmaCoin(const sigma::PrivateCoinV3& coin, const sigma::CoinDenominationV3 denomination)
 {
     sigma::PublicCoinV3 pubCoin = coin.getPublicCoin();
 
@@ -31,9 +31,6 @@ static bool add_sigma_coin(const sigma::PrivateCoinV3& coin, const sigma::CoinDe
     zerocoinTx.value = pubCoin.getValue();
     zerocoinTx.randomness = coin.getRandomness();
     zerocoinTx.serialNumber = coin.getSerialNumber();
-
-    LogPrintf("Create coin serial %s, denomination %d\n", \
-      zerocoinTx.serialNumber,zerocoinTx.denomination);
 
     return CWalletDB(pwalletMain->strWalletFile).WriteZerocoinEntry(zerocoinTx);
 }
@@ -45,7 +42,7 @@ static bool generateWalletCoin( const std::vector<std::pair<sigma::CoinDenominat
     {
         for(int i =0;i<coin.second;i++){
             sigma::PrivateCoinV3 privCoin(params);
-            add_sigma_coin(privCoin,coin.first);
+            addSigmaCoin(privCoin,coin.first);
         }
     }
 
@@ -89,8 +86,6 @@ static bool checkDenominationCoins(const std::vector<std::pair<sigma::CoinDenomi
 
 BOOST_AUTO_TEST_CASE(auto_no_coin)
 {
-    pwalletMain->SetNull();
-
     CAmount require(0);
     require += sigma::ZQ_LOVELACE;
 
@@ -106,7 +101,6 @@ BOOST_AUTO_TEST_CASE(auto_no_coin)
 
 BOOST_AUTO_TEST_CASE(auto_different_denomination)
 {
-    pwalletMain->SetNull();
     std::vector<std::pair<sigma::CoinDenominationV3,int>> newCoins;
     newCoins.push_back(std::pair<sigma::CoinDenominationV3,int>(sigma::ZQ_LOVELACE,2));
     newCoins.push_back(std::pair<sigma::CoinDenominationV3,int>(sigma::ZQ_GOLDWASSER,1));
@@ -139,7 +133,6 @@ BOOST_AUTO_TEST_CASE(auto_different_denomination)
 
 BOOST_AUTO_TEST_CASE(auto_not_enough)
 {
-    pwalletMain->SetNull();
     std::vector<std::pair<sigma::CoinDenominationV3,int>> newCoins;
     newCoins.push_back(std::pair<sigma::CoinDenominationV3,int>(sigma::ZQ_LOVELACE,1));
     newCoins.push_back(std::pair<sigma::CoinDenominationV3,int>(sigma::ZQ_GOLDWASSER,1));
@@ -172,7 +165,6 @@ BOOST_AUTO_TEST_CASE(auto_not_enough)
 
 BOOST_AUTO_TEST_CASE(auto_large_coin_first)
 {
-    pwalletMain->SetNull();
     std::vector<std::pair<sigma::CoinDenominationV3,int>> newCoins;
     newCoins.push_back(std::pair<sigma::CoinDenominationV3,int>(sigma::ZQ_PEDERSEN,2));
     newCoins.push_back(std::pair<sigma::CoinDenominationV3,int>(sigma::ZQ_WILLIAMSON,1));
@@ -194,7 +186,6 @@ BOOST_AUTO_TEST_CASE(auto_large_coin_first)
 
 BOOST_AUTO_TEST_CASE(auto_minimize_coins_spend)
 {
-    pwalletMain->SetNull();
     std::vector<std::pair<sigma::CoinDenominationV3,int>> newCoins;
     newCoins.push_back(std::pair<sigma::CoinDenominationV3,int>(sigma::ZQ_RACKOFF,2));
     newCoins.push_back(std::pair<sigma::CoinDenominationV3,int>(sigma::ZQ_WILLIAMSON,1));

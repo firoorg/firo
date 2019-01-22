@@ -1912,6 +1912,58 @@ CAmount CWallet::GetDenominatedBalance(bool unconfirmed) const {
     return nTotal;
 }
 
+CAmount CWallet::GetMintCoins(const CAmount required, std::vector<CZerocoinEntryV3>& out){
+
+    list<CZerocoinEntryV3> listPubCoin;
+    CWalletDB(strWalletFile).ListPubCoinV3(listPubCoin);
+    // sort by denomination desc and height asc
+    listPubCoin.sort(CompDenominationHeightV3);
+
+    CAmount sum(0);
+    for(auto it = listPubCoin.begin();it != listPubCoin.end();)
+    {
+        // enough coin
+        if(sum >= required)
+            break;
+        
+        // choose largest coin if don't exceed required
+        if(sum + it->denomination <= required)
+        {
+            out.push_back(*it);
+            sum += it->denomination;
+            it++;
+            continue;
+        }
+
+        // seek to next denomination
+        auto it2 = it;
+        while(it2->denomination == it->denomination)
+            it2++;
+
+        // if can use lower denomination dont use this
+        CAmount lowerDenomination(0);
+        if(it2 != listPubCoin.end())
+        {
+            lowerDenomination += it2->denomination;
+        }
+        
+        // if lower denomination coin can't full fill using large coin
+        if(sum + lowerDenomination < required)
+        {
+            out.push_back(*it);
+            sum += it->denomination;
+            it++;
+            continue;
+        }
+
+        // go to next denomination
+        int currentDenomination = it->denomination;
+        while(it != listPubCoin.end() && currentDenomination == it->denomination)
+            it++;
+    }
+
+    return sum;
+}
 
 CAmount CWallet::GetUnconfirmedBalance() const {
     CAmount nTotal = 0;
@@ -6916,3 +6968,8 @@ bool CompHeightV3(const CZerocoinEntryV3 &a, const CZerocoinEntryV3 &b) { return
 
 bool CompID(const CZerocoinEntry &a, const CZerocoinEntry &b) { return a.id < b.id; }
 bool CompIDV3(const CZerocoinEntryV3 &a, const CZerocoinEntryV3 &b) { return a.id < b.id; }
+
+bool CompDenominationHeightV3(const CZerocoinEntryV3 &a, const CZerocoinEntryV3 &b) { 
+    return a.denomination != b.denomination? a.denomination > b.denomination : a.nHeight < b.nHeight; 
+}
+

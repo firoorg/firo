@@ -826,6 +826,8 @@ public:
 //    CAmount GetNormalizedAnonymizedBalance() const;
     CAmount GetNeedsToBeAnonymizedBalance(CAmount nMinBalance = 0) const;
     CAmount GetDenominatedBalance(bool unconfirmed=false) const;
+
+    CAmount GetMintCoins(const CAmount required, std::vector<CZerocoinEntryV3>& out);
     /**
      * Insert additional inputs into the transaction by
      * calling CreateTransaction();
@@ -1411,4 +1413,5 @@ bool CompHeight(const CZerocoinEntry & a, const CZerocoinEntry & b);
 bool CompHeightV3(const CZerocoinEntryV3& a, const CZerocoinEntryV3& b);
 bool CompID(const CZerocoinEntry & a, const CZerocoinEntry & b);
 bool CompIDV3(const CZerocoinEntryV3& a, const CZerocoinEntryV3& b);
+bool CompDenominationHeightV3(const CZerocoinEntryV3 &a, const CZerocoinEntryV3 &b);
 #endif // BITCOIN_WALLET_WALLET_H

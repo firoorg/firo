@@ -8,11 +8,11 @@
 #include "wallet/db.h"
 #include "wallet/wallet.h"
 
+#include <exception>
+
 WalletTestingSetup::WalletTestingSetup(const std::string& chainName):
     TestingSetup(chainName)
 {
-    bitdb.MakeMock();
-
     bool fFirstRun;
     pwalletMain = new CWallet("wallet_test.dat");
     pwalletMain->LoadWallet(fFirstRun);
@@ -26,7 +26,4 @@ WalletTestingSetup::~WalletTestingSetup()
     UnregisterValidationInterface(pwalletMain);
     delete pwalletMain;
     pwalletMain = NULL;
-
-    bitdb.Flush(true);
-    bitdb.Reset();
 }
