@@ -198,13 +198,15 @@ UniValue znodelist(Type type, const UniValue& data, const UniValue& auth, bool f
 
 UniValue znodeupdate(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
     UniValue ret(UniValue::VOBJ);
-    string payee;
+    UniValue outpoint(UniValue::VOBJ);
+    string key;
     try {
-        payee = find_value(data, "payeeAddress").get_str();
+        outpoint = find_value(data, "outpoint").get_obj();
+        key = find_value(outpoint, "txid").get_str() +  find_value(outpoint, "index").get_str();
     }catch (const std::exception& e){
         throw JSONAPIError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
     }
-    ret.push_back(Pair(payee, data));
+    ret.push_back(Pair(key, data));
     return ret;
 }
 
