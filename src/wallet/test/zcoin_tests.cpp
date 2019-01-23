@@ -84,13 +84,13 @@ static bool checkDenominationCoins(const std::vector<std::pair<sigma::CoinDenomi
     return true;
 }
 
-BOOST_AUTO_TEST_CASE(auto_no_coin)
+BOOST_AUTO_TEST_CASE(get_coin_no_coin)
 {
     CAmount require(0);
     require += sigma::ZQ_LOVELACE;
 
     std::vector<CZerocoinEntryV3> coins;
-    BOOST_CHECK_MESSAGE(pwalletMain->GetMintCoins(require,coins) == 0, \
+    BOOST_CHECK_MESSAGE(pwalletMain->GetCoinsToSpend(require,coins) == 0, \
       "Expect enough coin and equal to one for each denomination with more ZQ_LOVELACE");
 
     std::vector<std::pair<sigma::CoinDenominationV3,int>> needCoins;
@@ -99,7 +99,7 @@ BOOST_AUTO_TEST_CASE(auto_no_coin)
       "Expect one for each denomination with onemore ZQ_LOVELACE");
 }
 
-BOOST_AUTO_TEST_CASE(auto_different_denomination)
+BOOST_AUTO_TEST_CASE(get_coin_different_denomination)
 {
     std::vector<std::pair<sigma::CoinDenominationV3,int>> newCoins;
     newCoins.push_back(std::pair<sigma::CoinDenominationV3,int>(sigma::ZQ_LOVELACE,2));
@@ -117,7 +117,7 @@ BOOST_AUTO_TEST_CASE(auto_different_denomination)
     require += sigma::ZQ_WILLIAMSON;
 
     std::vector<CZerocoinEntryV3> coins;
-    BOOST_CHECK_MESSAGE(pwalletMain->GetMintCoins(require,coins) == require, \
+    BOOST_CHECK_MESSAGE(pwalletMain->GetCoinsToSpend(require,coins) == require, \
       "Expect enough coin and equal to one for each denomination with more ZQ_LOVELACE");
 
     std::vector<std::pair<sigma::CoinDenominationV3,int>> needCoins;
@@ -131,7 +131,7 @@ BOOST_AUTO_TEST_CASE(auto_different_denomination)
       "Expect one for each denomination with onemore ZQ_LOVELACE");
 }
 
-BOOST_AUTO_TEST_CASE(auto_not_enough)
+BOOST_AUTO_TEST_CASE(get_coin_not_enough)
 {
     std::vector<std::pair<sigma::CoinDenominationV3,int>> newCoins;
     newCoins.push_back(std::pair<sigma::CoinDenominationV3,int>(sigma::ZQ_LOVELACE,1));
@@ -149,7 +149,7 @@ BOOST_AUTO_TEST_CASE(auto_not_enough)
     require += sigma::ZQ_WILLIAMSON;
     
     std::vector<CZerocoinEntryV3> coins;
-    BOOST_CHECK_MESSAGE(pwalletMain->GetMintCoins(require,coins) == require-sigma::ZQ_LOVELACE, \
+    BOOST_CHECK_MESSAGE(pwalletMain->GetCoinsToSpend(require,coins) == require-sigma::ZQ_LOVELACE, \
       "Expect not enough coin and equal to one for each denomination");
 
     std::vector<std::pair<sigma::CoinDenominationV3,int>> needCoins;
@@ -163,7 +163,7 @@ BOOST_AUTO_TEST_CASE(auto_not_enough)
       "Expect one for each denomination");
 }
 
-BOOST_AUTO_TEST_CASE(auto_large_coin_first)
+BOOST_AUTO_TEST_CASE(get_coin_minimize_coins_spend_fit_amount)
 {
     std::vector<std::pair<sigma::CoinDenominationV3,int>> newCoins;
     newCoins.push_back(std::pair<sigma::CoinDenominationV3,int>(sigma::ZQ_PEDERSEN,2));
@@ -174,7 +174,7 @@ BOOST_AUTO_TEST_CASE(auto_large_coin_first)
     require += sigma::ZQ_WILLIAMSON;
     
     std::vector<CZerocoinEntryV3> coins;
-    BOOST_CHECK_MESSAGE(pwalletMain->GetMintCoins(require,coins) == sigma::ZQ_WILLIAMSON, \
+    BOOST_CHECK_MESSAGE(pwalletMain->GetCoinsToSpend(require,coins) == sigma::ZQ_WILLIAMSON, \
       "Expect enough coin and equal to one ZQ_WILLIAMSON");
 
     std::vector<std::pair<sigma::CoinDenominationV3,int>> needCoins;
@@ -184,7 +184,7 @@ BOOST_AUTO_TEST_CASE(auto_large_coin_first)
       "Expect only one ZQ_WALLIAMSON");
 }
 
-BOOST_AUTO_TEST_CASE(auto_minimize_coins_spend)
+BOOST_AUTO_TEST_CASE(get_coin_minimize_coins_spend)
 {
     std::vector<std::pair<sigma::CoinDenominationV3,int>> newCoins;
     newCoins.push_back(std::pair<sigma::CoinDenominationV3,int>(sigma::ZQ_RACKOFF,2));
@@ -195,7 +195,7 @@ BOOST_AUTO_TEST_CASE(auto_minimize_coins_spend)
     require += sigma::ZQ_PEDERSEN;
     
     std::vector<CZerocoinEntryV3> coins;
-    BOOST_CHECK_MESSAGE(pwalletMain->GetMintCoins(require,coins) == sigma::ZQ_WILLIAMSON, \
+    BOOST_CHECK_MESSAGE(pwalletMain->GetCoinsToSpend(require,coins) == sigma::ZQ_WILLIAMSON, \
       "Expect enough coin and equal one ZQ_WILLIAMSON");
 
     std::vector<std::pair<sigma::CoinDenominationV3,int>> needCoins;
@@ -205,7 +205,7 @@ BOOST_AUTO_TEST_CASE(auto_minimize_coins_spend)
       "Expect only one ZQ_WALLIAMSON");;
 }
 
-BOOST_AUTO_TEST_CASE(auto_choose_smallest_enough)
+BOOST_AUTO_TEST_CASE(get_coin_choose_smallest_enough)
 {
     std::vector<std::pair<sigma::CoinDenominationV3,int>> newCoins;
     newCoins.push_back(std::pair<sigma::CoinDenominationV3,int>(sigma::ZQ_WILLIAMSON,1));
@@ -217,7 +217,7 @@ BOOST_AUTO_TEST_CASE(auto_choose_smallest_enough)
     require += sigma::ZQ_GOLDWASSER;
     
     std::vector<CZerocoinEntryV3> coins;
-    BOOST_CHECK_MESSAGE(pwalletMain->GetMintCoins(require,coins) == sigma::ZQ_RACKOFF, \
+    BOOST_CHECK_MESSAGE(pwalletMain->GetCoinsToSpend(require,coins) == sigma::ZQ_RACKOFF, \
       "Expect enough coin and equal one ZQ_RACKOFF");
 
     std::vector<std::pair<sigma::CoinDenominationV3,int>> needCoins;
