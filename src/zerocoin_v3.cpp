@@ -418,11 +418,12 @@ bool ConnectBlockZCV3(
 bool ZerocoinBuildStateFromIndexV3(CChain *chain) {
 	zerocoinStateV3.Reset();
 	for (CBlockIndex *blockIndex = chain->Genesis(); blockIndex; blockIndex=chain->Next(blockIndex))
+    {
 		zerocoinStateV3.AddBlock(blockIndex);
-
+    }
 	// DEBUG
 	LogPrintf(
-        "Latest IDs are %d, %d, %d, %d, %d\n",
+        "Latest IDs for sigma coin groups are %d, %d, %d, %d, %d\n",
 		zerocoinStateV3.GetLatestCoinID(1),
 		zerocoinStateV3.GetLatestCoinID(10),
 		zerocoinStateV3.GetLatestCoinID(25),
@@ -497,18 +498,16 @@ void CZerocoinStateV3::AddSpend(const Scalar &serial) {
 }
 
 void CZerocoinStateV3::AddBlock(CBlockIndex *index) {
-	BOOST_FOREACH(const PAIRTYPE(PAIRTYPE(int,int), vector<sigma::PublicCoinV3>)& coin, index->mintedPubCoinsV3)
-	{
-		if (!coin.second.empty()) {
-			CoinGroupInfoV3& coinGroup = coinGroups[coin.first];
+	BOOST_FOREACH(const PAIRTYPE(PAIRTYPE(int,int),vector<PublicCoinV3>) &pubCoins, index->mintedPubCoinsV3) {
+        if (!pubCoins.second.empty()) {
+			CoinGroupInfoV3& coinGroup = coinGroups[pubCoins.first];
 
 			if (coinGroup.firstBlock == NULL)
 				coinGroup.firstBlock = index;
 			coinGroup.lastBlock = index;
-			coinGroup.nCoins += coin.second.size();
+			coinGroup.nCoins += pubCoins.second.size();
 		}
-	}
-	BOOST_FOREACH(const PAIRTYPE(PAIRTYPE(int,int),vector<PublicCoinV3>) &pubCoins, index->mintedPubCoinsV3) {
+
 		latestCoinIds[pubCoins.first.first] = pubCoins.first.second;
 		BOOST_FOREACH(const PublicCoinV3 &coin, pubCoins.second) {
 			CMintedCoinInfo coinInfo;
@@ -682,7 +681,8 @@ CZerocoinStateV3* CZerocoinStateV3::GetZerocoinState() {
 int CZerocoinStateV3::GetLatestCoinID(int denomination) const {
     auto iter = latestCoinIds.find(denomination);
     if (iter == latestCoinIds.end()) {
-        throw "Unable to find the given denomination in CZerocoinStateV3::GetLatestCoinID.";
+        // Do not throw here, if there was no sigma mint, that's fine.
+        return 0;
     }
     return iter->second;
 }
