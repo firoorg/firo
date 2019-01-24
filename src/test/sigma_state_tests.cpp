@@ -824,4 +824,146 @@ BOOST_AUTO_TEST_CASE(getzerocoinstate_not_null)
       "GetZerocoinState() return null");
 }
 
+BOOST_AUTO_TEST_CASE(sigma_build_state)
+{
+    CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
+    auto params = sigma::ParamsV3::get_default();
+
+    CBlockIndex index0 = CreateBlockIndex(0);
+    chainActive.SetTip(&index0);
+
+    CBlockIndex index1 = CreateBlockIndex(1);
+
+    // add index 1 with 10 ZQ_LOVELACE
+    auto coins = generateCoins(params,10);
+    auto pubCoins = getPubcoins(coins);
+    std::pair<int,int> denomination1Group1( \
+        CoinDenominationV3::ZQ_LOVELACE,1);
+    std::pair<int,int> denomination1Group10( \
+        CoinDenominationV3::ZQ_GOLDWASSER,1);
+
+    index1.mintedPubCoinsV3[denomination1Group1] = pubCoins;
+
+    // REMOVEME(panu): remove more three coin below
+    // after remove debug log from ZerocoinBuildStateFromIndexV3
+    std::pair<int,int> denomination1Group25( \
+        CoinDenominationV3::ZQ_RACKOFF,1);
+    std::pair<int,int> denomination1Group50( \
+        CoinDenominationV3::ZQ_PEDERSEN,1);
+    std::pair<int,int> denomination1Group100( \
+        CoinDenominationV3::ZQ_WILLIAMSON,1);
+
+    auto fillCoins = generateCoins(params,3);
+    auto fillPubCoins = getPubcoins(fillCoins);
+
+    index1.mintedPubCoinsV3[denomination1Group25] =
+        std::vector<sigma::PublicCoinV3>(fillPubCoins.begin(),fillPubCoins.begin()+1);
+    index1.mintedPubCoinsV3[denomination1Group50] =
+        std::vector<sigma::PublicCoinV3>(fillPubCoins.begin()+1,fillPubCoins.begin()+2);
+    index1.mintedPubCoinsV3[denomination1Group100] =
+        std::vector<sigma::PublicCoinV3>(fillPubCoins.begin()+2,fillPubCoins.begin()+3);
+    // remove until this line
+
+    chainActive.SetTip(&index1);
+
+    CBlockIndex index2 = CreateBlockIndex(2);
+    // add index 2 with 1 ZQ_LOVELACE 1  mints and 1 spend
+    auto coins2 = generateCoins(params,1);
+    auto pubCoins2 = getPubcoins(coins2);
+    auto coins3 = generateCoins(params,1);
+    auto pubCoins3 = getPubcoins(coins3);
+
+    // mock spend
+    secp_primitives::Scalar serial;
+    serial.randomize();
+
+    index2.spentSerialsV3.insert(serial);
+
+    index2.mintedPubCoinsV3[denomination1Group1] = pubCoins2;
+    index2.mintedPubCoinsV3[denomination1Group10] = pubCoins3;
+
+    chainActive.SetTip(&index2);
+
+    for(int i =3 ;i<=100;i++){
+		CBlockIndex index = CreateBlockIndex(i);
+        chainActive.SetTip(&index);
+	}
+
+    ZerocoinBuildStateFromIndexV3(&chainActive);
+
+    // check group
+    CZerocoinStateV3::CoinGroupInfoV3 group;
+    zerocoinState->GetCoinGroupInfo(CoinDenominationV3::ZQ_LOVELACE,1,group);
+    BOOST_CHECK_MESSAGE(group.firstBlock->nHeight == index1.nHeight, "Expect firstBlock == index1");
+    BOOST_CHECK_MESSAGE(group.lastBlock->nHeight == index2.nHeight, "Expect lastBlock == index2");
+    BOOST_CHECK_MESSAGE(group.nCoins == 11, "Expect nCoins == 11");
+
+    CZerocoinStateV3::CoinGroupInfoV3 group2;
+    zerocoinState->GetCoinGroupInfo(CoinDenominationV3::ZQ_GOLDWASSER,1,group2);
+    BOOST_CHECK_MESSAGE(group2.firstBlock->nHeight == index2.nHeight, "Expect firstBlock == index2");
+    BOOST_CHECK_MESSAGE(group2.lastBlock->nHeight == index2.nHeight, "Expect lastBlock == index2");
+    BOOST_CHECK_MESSAGE(group2.nCoins == 1, "Expect nCoins == 1");
+
+    // check serial
+    secp_primitives::Scalar notFoundSerial;
+    notFoundSerial.randomize();
+    BOOST_CHECK_MESSAGE(zerocoinState->IsUsedCoinSerial(serial), "Expect found serial");
+    BOOST_CHECK_MESSAGE(!zerocoinState->IsUsedCoinSerial(notFoundSerial), "Expect not found serial");
+
+    // has coin
+    auto notFoundCoins = generateCoins(params,10);
+    auto notFoundPubCoins = getPubcoins(notFoundCoins);
+    BOOST_CHECK_MESSAGE(zerocoinState->HasCoin(pubCoins[0]), "Expect found pubcoin");
+    BOOST_CHECK_MESSAGE(zerocoinState->HasCoin(pubCoins3[0]), "Expect found pubcoin");
+    BOOST_CHECK_MESSAGE(!zerocoinState->HasCoin(notFoundPubCoins[0]), "Expect not found pubcoin");
+
+    // get mint coin heigh and id
+    std::pair<int,int> groupHeightAndID = zerocoinState->GetMintedCoinHeightAndId(pubCoins2[0]);
+    BOOST_CHECK_MESSAGE(groupHeightAndID.first == index2.nHeight, "Expect pubcoin on index2");
+    BOOST_CHECK_MESSAGE(groupHeightAndID.second == 1, "Expect pubcoin id == 1");
+
+    std::pair<int,int> notFoundGroupHeightAndID = zerocoinState->GetMintedCoinHeightAndId(notFoundPubCoins[0]);
+    BOOST_CHECK_MESSAGE(notFoundGroupHeightAndID == std::make_pair(-1,-1),"Expect not found return -1,-1");
+
+    zerocoinState->Reset();
+}
+
+// TODO(panu): uncomment when remove print debug in function ZerocoinBuildStateFromIndexV3
+// BOOST_AUTO_TEST_CASE(sigma_build_state_no_sigma)
+// {
+//     CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
+//     auto params = sigma::ParamsV3::get_default();
+
+//     std::vector<CBlockIndex> indexs;
+//     indexs.resize(101);
+//     for(int i =0 ;i<=100;i++){
+// 		CBlockIndex index = CreateBlockIndex(i);
+//         chainActive.SetTip(&index);
+//         indexs[i] = index;
+// 	}
+
+//     ZerocoinBuildStateFromIndexV3(&chainActive);
+
+//     // check group
+//     CZerocoinStateV3::CoinGroupInfoV3 group;
+//     bool found = zerocoinState->GetCoinGroupInfo(CoinDenominationV3::ZQ_LOVELACE,1,group);
+//     BOOST_CHECK_MESSAGE(!found, "Expect group not found");
+
+//     // check serial
+//     secp_primitives::Scalar notFoundSerial;
+//     notFoundSerial.randomize();
+//     BOOST_CHECK_MESSAGE(!zerocoinState->IsUsedCoinSerial(notFoundSerial), "Expect not found serial");
+
+//     // has coin
+//     auto notFoundCoins = generateCoins(params,10);
+//     auto notFoundPubCoins = getPubcoins(notFoundCoins);
+//     BOOST_CHECK_MESSAGE(!zerocoinState->HasCoin(notFoundPubCoins[0]), "Expect not found pubcoin");
+
+//     // get mint coin heigh and id
+//     std::pair<int,int> notFoundGroupHeightAndID = zerocoinState->GetMintedCoinHeightAndId(notFoundPubCoins[0]);
+//     BOOST_CHECK_MESSAGE(notFoundGroupHeightAndID == std::make_pair(-1,-1),"Expect not found return -1,-1");
+
+//     zerocoinState->Reset();
+// }
+
 BOOST_AUTO_TEST_SUITE_END()
