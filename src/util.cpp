@@ -783,7 +783,7 @@ bool CreateZipFile (std::string rootPath, std::vector<string> folderPaths, vecto
 {
     zipFile zf = zipOpen(destinationPath.c_str(), APPEND_STATUS_CREATE);
     if (zf == NULL)
-        return 1;
+        return false;
 
     BOOST_FOREACH(std::string folderPath, folderPaths){
         std::string fullFolderPath = rootPath + folderPath;
