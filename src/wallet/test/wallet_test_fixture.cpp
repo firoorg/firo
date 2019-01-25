@@ -8,8 +8,6 @@
 #include "wallet/db.h"
 #include "wallet/wallet.h"
 
-#include <exception>
-
 WalletTestingSetup::WalletTestingSetup(const std::string& chainName):
     TestingSetup(chainName)
 {

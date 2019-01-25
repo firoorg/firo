@@ -1413,5 +1413,4 @@ bool CompHeight(const CZerocoinEntry & a, const CZerocoinEntry & b);
 bool CompHeightV3(const CZerocoinEntryV3& a, const CZerocoinEntryV3& b);
 bool CompID(const CZerocoinEntry & a, const CZerocoinEntry & b);
 bool CompIDV3(const CZerocoinEntryV3& a, const CZerocoinEntryV3& b);
-bool CompDenominationHeightV3(const CZerocoinEntryV3 &a, const CZerocoinEntryV3 &b);
 #endif // BITCOIN_WALLET_WALLET_H

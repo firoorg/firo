@@ -1912,52 +1912,56 @@ CAmount CWallet::GetDenominatedBalance(bool unconfirmed) const {
     return nTotal;
 }
 
-CAmount CWallet::GetCoinsToSpend(const CAmount required, std::vector<CZerocoinEntryV3>& out){
+CAmount CWallet::GetCoinsToSpend(const CAmount required, std::vector<CZerocoinEntryV3>& selected)
+{
+	// this function support only coin set that no larger denomination that can not be divided by lower denomination
+	
+	// TODO(panu): Refactor if denomination change
 
-    list<CZerocoinEntryV3> listPubCoin;
-    CWalletDB(strWalletFile).ListPubCoinV3(listPubCoin);
-    listPubCoin.sort(CompDenominationHeightV3);
+    std::list<CZerocoinEntryV3> coins;
+    CWalletDB(strWalletFile).ListPubCoinV3(coins);
+
+    // sort by highest denomination. if it is same denomination we will prefer the previous block
+    auto comparer = [](const CZerocoinEntryV3& a, const CZerocoinEntryV3& b) -> bool {
+        return a.denomination != b.denomination ? a.denomination > b.denomination : a.nHeight < b.nHeight;
+    };
+    coins.sort(comparer);
 
     CAmount sum(0);
-    for(auto it = listPubCoin.begin();it != listPubCoin.end();)
-    {
-        if(sum >= required)
+
+    while (sum < required) {
+        // no coin to choose
+        if (coins.empty())
             break;
+
+        CAmount need = required - sum;
+        CZerocoinEntryV3 chosenCoin;
         
-        // choose large denomination if don't exceed required
-        if(sum + it->denomination <= required)
-        {
-            out.push_back(*it);
-            sum += it->denomination;
-            it++;
-            continue;
-        }
+        auto highestCoin = coins.begin();
+        if (need >= highestCoin->denomination * COIN) {
 
-        // seek to next denomination
-        auto it2 = it;
-        while(it2->denomination == it->denomination)
-            it2++;
+            // case 1 need >= highest coin, choose highest
+            chosenCoin = *highestCoin;
+            coins.erase(highestCoin);
+        } else {
 
-        // if can use lower denomination dont use current denomination
-        CAmount lowerDenomination(0);
-        if(it2 != listPubCoin.end())
-        {
-            lowerDenomination += it2->denomination;
+            // case 2 highest coin > need, choose best fit
+            // start from lowest to highest denomination to find best fit and lowest block
+            for (auto coinIt = coins.rbegin(); coinIt != coins.rend(); coinIt++) {
+
+                auto nextCoinIt = coinIt;
+                nextCoinIt++;
+
+                if (coinIt->denomination*COIN >= need &&
+                    (nextCoinIt == coins.rend() || nextCoinIt->denomination != coinIt->denomination)) {
+                    chosenCoin = *coinIt;
+                    break;
+                }
+            }
         }
         
-        // if lower denomination coin can't full fill use large coin
-        if(sum + lowerDenomination < required)
-        {
-            out.push_back(*it);
-            sum += it->denomination;
-            it++;
-            continue;
-        }
-
-        // next denomination
-        int currentDenomination = it->denomination;
-        while(it != listPubCoin.end() && currentDenomination == it->denomination)
-            it++;
+        sum += chosenCoin.denomination * COIN;
+        selected.push_back(chosenCoin);
     }
 
     return sum;
@@ -6966,8 +6970,4 @@ bool CompHeightV3(const CZerocoinEntryV3 &a, const CZerocoinEntryV3 &b) { return
 
 bool CompID(const CZerocoinEntry &a, const CZerocoinEntry &b) { return a.id < b.id; }
 bool CompIDV3(const CZerocoinEntryV3 &a, const CZerocoinEntryV3 &b) { return a.id < b.id; }
-
-bool CompDenominationHeightV3(const CZerocoinEntryV3 &a, const CZerocoinEntryV3 &b) { 
-    return a.denomination != b.denomination? a.denomination > b.denomination : a.nHeight < b.nHeight; 
-}
 
