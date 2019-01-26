@@ -111,6 +111,8 @@ CZMQReplierInterface* CZMQReplierInterface::Create()
 
 CZMQPublisherInterface::CZMQPublisherInterface()
 {
+    // Create worker
+    worker = new boost::thread(boost::bind(&CZMQThreadPublisher::Thread));
 }
 
 CZMQPublisherInterface::~CZMQPublisherInterface()
@@ -121,6 +123,9 @@ CZMQPublisherInterface::~CZMQPublisherInterface()
     {
         delete *i;
     }
+
+    //destroy worker
+    worker->interrupt();
 }
 
 CZMQPublisherInterface* CZMQPublisherInterface::Create()
@@ -137,6 +142,7 @@ CZMQPublisherInterface* CZMQPublisherInterface::Create()
     factories["pubznodeupdate"] = CZMQAbstract::Create<CZMQZnodeTopic>;
     factories["pubmintstatus"] = CZMQAbstract::Create<CZMQMintStatusTopic>;
     factories["pubsettings"] = CZMQAbstract::Create<CZMQSettingsTopic>;
+    factories["pubstatus"] = CZMQAbstract::Create<CZMQAPIStatusTopic>;
     
     std::string address = BaseParams().APIAddr() + to_string(BaseParams().APIPUBPort());
 
@@ -168,6 +174,23 @@ void CZMQPublisherInterface::UpdateSyncStatus()
     {
         CZMQAbstract *notifier = *i;
         if (notifier->NotifyStatus())
+        {
+            i++;
+        }
+        else
+        {
+            notifier->Shutdown();
+            i = notifiers.erase(i);
+        }
+    }
+}
+
+void CZMQPublisherInterface::NotifyAPIStatus()
+{
+    for (std::list<CZMQAbstract*>::iterator i = notifiers.begin(); i!=notifiers.end(); )
+    {
+        CZMQAbstract *notifier = *i;
+        if (notifier->NotifyAPIStatus())
         {
             i++;
         }

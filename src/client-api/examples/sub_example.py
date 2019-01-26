@@ -95,6 +95,9 @@ if __name__ == "__main__":
     settingsfilter = b"settings"
     socket.setsockopt(zmq.SUBSCRIBE, settingsfilter)
 
+    apistatusfilter = b"apiStatus"
+    socket.setsockopt(zmq.SUBSCRIBE, apistatusfilter)
+
     while True:
       message = socket.recv()
       print("Received reply [%s]" % (message))

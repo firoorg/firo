@@ -15,6 +15,8 @@
 #include "client-api/protocol.h"
 #include "univalue.h"
 
+#include <boost/thread/thread.hpp>
+
 extern CWallet *pwalletMain;
 
 static std::multimap<std::string, CZMQAbstractPublisher*> mapPublishers;
@@ -22,6 +24,7 @@ static std::multimap<std::string, CZMQAbstractPublisher*> mapPublishers;
 bool CZMQAbstractPublisher::Initialize()
 {
     LogPrint(NULL, "zmq: Initialize notification interface\n");
+
     assert(!pcontext);
 
     pcontext = zmq_init(1);
@@ -47,7 +50,7 @@ bool CZMQAbstractPublisher::Initialize()
     // set publish univalue as an object
     publish.setObject();
 
-    // check if address is being used by other publish notifier
+    // check if address is being used by any other publish notifier
     std::multimap<std::string, CZMQAbstractPublisher*>::iterator i = mapPublishers.find(address);
 
     // check if address is being used by other publisher
@@ -182,6 +185,12 @@ bool CZMQAbstractPublisher::Publish(){
 }
 
 bool CZMQStatusEvent::NotifyStatus()
+{
+    Execute();
+    return true;
+}
+
+bool CZMQAPIStatusEvent::NotifyAPIStatus()
 {
     Execute();
     return true;

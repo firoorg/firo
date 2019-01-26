@@ -25,6 +25,7 @@ public:
     CZMQAbstract() : psocket(0),pcontext(0) { }
     virtual ~CZMQAbstract();
 
+
     template <typename T>
     static CZMQAbstract* Create()
     {
@@ -56,6 +57,7 @@ public:
     virtual bool NotifyTransaction(const CTransaction &transaction);
     virtual bool NotifyConnections();
     virtual bool NotifyStatus();
+    virtual bool NotifyAPIStatus();
     virtual bool NotifyZnodeUpdate(CZnode &znode);
     virtual bool NotifyMintStatusUpdate(std::string update);
     virtual bool NotifySettingsUpdate(std::string update);

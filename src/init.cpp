@@ -1576,8 +1576,8 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     const std::string &strDest, mapMultiArgs["-seednode"])
     AddOneShot(strDest);
 
-    pzmqPublisherInterface = CZMQPublisherInterface::Create();
-    pzmqReplierInterface = CZMQReplierInterface::Create();
+    pzmqPublisherInterface = pzmqPublisherInterface->Create();
+    pzmqReplierInterface = pzmqReplierInterface->Create();
 
     if(!(pzmqPublisherInterface) || !(pzmqReplierInterface))
         return InitError(_("Unable to start ZMQ API. See debug log for details."));
@@ -2049,7 +2049,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     //     LogPrint"Failed to load fulfilled requests cache from netfulfilled.dat");
     // }
 
-    // ********************************************************* Step 11c: update block tip in Dash modules
+    // ********************************************************* Step 11c: update block tip in Zcoin modules
 
     // force UpdatedBlockTip to initialize pCurrentBlockIndex for DS, MN payments and budgets
     // but don't call it directly to prevent triggering of other listeners like zmq etc.

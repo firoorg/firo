@@ -8,6 +8,9 @@
 #include "zmqabstract.h"
 #include "univalue.h"
 #include "znode.h"
+#include "client-api/server.h"
+#include <boost/thread/thread.hpp>
+#include <boost/chrono.hpp>
 
 class CBlockIndex;
 
@@ -22,12 +25,30 @@ public:
 
     virtual void SetMethod() = 0;
     virtual void SetTopic() = 0;
-
+    
 protected:
     std::string method;
     UniValue request;
     UniValue publish;
+    boost::thread* worker;
 
+};
+
+/* Special Instance of the CZMQAbstractPublisher class to handle threads. */
+class CZMQThreadPublisher : public CZMQAbstractPublisher
+{
+public:
+
+    static void* Thread(){
+        LogPrintf("CZMQAbstractPublisher Thread started.");
+        const int PUBLISH_TIME_SECS = 1;
+        while(true){
+            boost::this_thread::sleep_for(boost::chrono::seconds(PUBLISH_TIME_SECS));
+            if(!APIIsInWarmup()){
+                GetMainSignals().NotifyAPIStatus();
+            }
+        }
+    };
 };
 
 /* Event classes. Each one is a specific notifier in ValidationInterface. 
@@ -63,6 +84,14 @@ class CZMQStatusEvent : virtual public CZMQAbstractPublisher
     */
 public:
     bool NotifyStatus();
+};
+
+class CZMQAPIStatusEvent : virtual public CZMQAbstractPublisher
+{
+    /* API Status notification
+    */
+public:
+    bool NotifyAPIStatus();
 };
 
 class CZMQSettingsEvent : virtual public CZMQAbstractPublisher
@@ -129,6 +158,13 @@ class CZMQSettingsTopic : public CZMQSettingsEvent
 public:
     void SetTopic(){ topic = "settings";}
     void SetMethod(){ method= "readSettings";}
+};
+
+class CZMQAPIStatusTopic : public CZMQAPIStatusEvent
+{
+public:
+    void SetTopic(){ topic = "apiStatus";}
+    void SetMethod(){ method= "apiStatus";}
 };
 
 class CZMQZnodeTopic : public CZMQZnodeEvent
