@@ -2755,32 +2755,17 @@ UniValue mintzerocoin(const UniValue& params, bool fHelp)
 
 UniValue mintzerocoinV3(const UniValue& params, bool fHelp)
 {
+    // TODO(martun): change the denominations over here.
     if (fHelp || params.size() > 1)
         throw runtime_error("mintzerocoinV3 <amount>(1,10,25,50,100)\n" + HelpRequiringPassphrase());
 
     int64_t nAmount = 0;
     sigma::CoinDenominationV3 denomination;
-    // Amount // TODO(martun): change the denominations over here.
-    if (params[0].get_real() == 1.0) {
-        denomination = sigma::ZQ_LOVELACE;
-        nAmount = AmountFromValue(params[0]);
-    } else if (params[0].get_real() == 10.0) {
-        denomination = sigma::ZQ_GOLDWASSER;
-        nAmount = AmountFromValue(params[0]);
-    } else if (params[0].get_real() == 25.0) {
-        denomination = sigma::ZQ_RACKOFF;
-        nAmount = AmountFromValue(params[0]);
-    } else if (params[0].get_real() == 50.0) {
-        denomination = sigma::ZQ_PEDERSEN;
-        nAmount = AmountFromValue(params[0]);
-    } else if (params[0].get_real() == 100.0) {
-        denomination = sigma::ZQ_WILLIAMSON;
-        nAmount = AmountFromValue(params[0]);
-    } else {
-        throw runtime_error("mintzerocoin <amount>(1,10,25,50,100)\n");
-    }
-    LogPrintf("rpcWallet.mintzerocoin() denomination = %s, nAmount = %s \n", denomination, nAmount);
 
+    if (!RealNumberToDenomination(params[0].get_real(), denomination)) 
+        throw runtime_error("mintzerocoin <amount>(1,10,25,50,100)\n");
+    DenominationToInteger(denomination, nAmount);
+    LogPrintf("rpcWallet.mintzerocoin() denomination = %s, nAmount = %s \n", denomination, nAmount);
 
     sigma::ParamsV3* zcParams = sigma::ParamsV3::get_default();
 
@@ -2965,9 +2950,6 @@ UniValue mintmanyzerocoinV3(const UniValue& params, bool fHelp)
                 + HelpExampleCli("mintmanyzerocoin", "\"\" \"{\\\"25\\\":10,\\\"10\\\":5}\"")
         );
 
-    int64_t denominationInt = 0;
-    sigma::CoinDenominationV3 denomination;
-
     sigma::ParamsV3* zcParams = sigma::ParamsV3::get_default();
 
     vector<CRecipient> vecSend;
@@ -2975,45 +2957,27 @@ UniValue mintmanyzerocoinV3(const UniValue& params, bool fHelp)
     CWalletTx wtx;
 
     UniValue sendTo = params[0].get_obj();
+    sigma::CoinDenominationV3 denomination;
 
     vector<string> keys = sendTo.getKeys();
     BOOST_FOREACH(const string& denominationStr, keys){
-
-        denominationInt = stoi(denominationStr.c_str());
-
-        switch(denominationInt){
-            case 1:
-                denomination = sigma::ZQ_LOVELACE;
-                break;
-            case 10:
-                denomination = sigma::ZQ_GOLDWASSER;
-                break;
-            case 25:
-                denomination = sigma::ZQ_RACKOFF;
-                break;
-            case 50:
-                denomination = sigma::ZQ_PEDERSEN;
-                break;
-            case 100:
-                denomination = sigma::ZQ_WILLIAMSON;
-                break;
-            default:
-                throw runtime_error(
-                        "mintzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n");
+        if (!StringToDenomination(denominationStr, denomination)) {
+            throw runtime_error(
+                "mintzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n");
         }
+        int64_t coinValue;
+        DenominationToInteger(denomination, coinValue);
+        int64_t numberOfCoins = sendTo[denominationStr].get_int();
 
+        LogPrintf("rpcWallet.mintmanyzerocoin() denomination = %s, nAmount = %s \n", 
+            denominationStr, numberOfCoins);
 
-        int64_t amount = sendTo[denominationStr].get_int();
-
-        LogPrintf("rpcWallet.mintmanyzerocoin() denomination = %s, nAmount = %s \n", denominationStr, amount);
-
-
-        if(amount < 0){
+        if(numberOfCoins < 0) {
             throw runtime_error(
                     "mintmanyzerocoin {<denomination>(1,10,25,50,100):\"amount\"...}\n");
         }
 
-        for(int64_t i=0; i<amount; i++){
+        for(int64_t i = 0; i < numberOfCoins; ++i) {
             // The following constructor does all the work of minting a brand
             // new zerocoin. It stores all the private values inside the
             // PrivateCoin object. This includes the coin secrets, which must be
@@ -3028,12 +2992,12 @@ UniValue mintmanyzerocoinV3(const UniValue& params, bool fHelp)
             //Validate
             bool validCoin = pubCoin.validate();
 
-            // loop until we find a valid coin
-            while(!validCoin){
-                sigma::PrivateCoinV3 newCoin(zcParams, denomination, ZEROCOIN_TX_VERSION_3);
-                sigma::PublicCoinV3 pubCoin = newCoin.getPublicCoin();
-                validCoin = pubCoin.validate();
-            }
+            // no need to loop until we find a valid coin for sigma coins, they are always valid.
+            //while(!validCoin){
+            //    sigma::PrivateCoinV3 newCoin(zcParams, denomination, ZEROCOIN_TX_VERSION_3);
+            //    sigma::PublicCoinV3 pubCoin = newCoin.getPublicCoin();
+            //    validCoin = pubCoin.validate();
+            //}
 
             // Create script for coin
             CScript scriptSerializedCoin;
@@ -3048,7 +3012,7 @@ UniValue mintmanyzerocoinV3(const UniValue& params, bool fHelp)
             std::vector<unsigned char> vch = pubCoin.getValue().getvch();
             scriptSerializedCoin.insert(scriptSerializedCoin.end(), vch.begin(), vch.end());
 
-            CRecipient recipient = {scriptSerializedCoin, (denominationInt * COIN), false};
+            CRecipient recipient = {scriptSerializedCoin, coinValue, false};
 
             vecSend.push_back(recipient);
             privCoins.push_back(newCoin);
@@ -3145,29 +3109,13 @@ UniValue spendzerocoinV3(const UniValue& params, bool fHelp) {
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
-    int64_t nAmount = 0;
+    int64_t nAmount = AmountFromValue(params[0]);
     sigma::CoinDenominationV3 denomination;
-    // Amount
-    if (params[0].get_real() == 1.0) {
-        denomination = sigma::ZQ_LOVELACE;
-        nAmount = AmountFromValue(params[0]);
-    } else if (params[0].get_real() == 10.0) {
-        denomination = sigma::ZQ_GOLDWASSER;
-        nAmount = AmountFromValue(params[0]);
-    } else if (params[0].get_real() == 25.0) {
-        denomination = sigma::ZQ_RACKOFF;
-        nAmount = AmountFromValue(params[0]);
-    } else if (params[0].get_real() == 50.0) {
-        denomination = sigma::ZQ_PEDERSEN;
-        nAmount = AmountFromValue(params[0]);
-    } else if (params[0].get_real() == 100.0) {
-        denomination = sigma::ZQ_WILLIAMSON;
-        nAmount = AmountFromValue(params[0]);
-    } else {
+    if (!RealNumberToDenomination(params[0].get_real(), denomination)) {
         throw runtime_error(
-                "spendzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n");
+            "spendzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n");
     }
-
+    
     CBitcoinAddress address;
     string thirdPartyaddress = "";
     if (params.size() > 1){
@@ -3187,8 +3135,9 @@ UniValue spendzerocoinV3(const UniValue& params, bool fHelp) {
     GroupElement zcSelectedValue;
     bool zcSelectedIsUsed;
 
-    string strError = pwalletMain->SpendZerocoinV3(thirdPartyaddress, nAmount, denomination, wtx, coinSerial, txHash, zcSelectedValue,
-                                                 zcSelectedIsUsed);
+    string strError = pwalletMain->SpendZerocoinV3(
+        thirdPartyaddress, nAmount, denomination, wtx, 
+        coinSerial, txHash, zcSelectedValue, zcSelectedIsUsed);
 
     if (strError != "")
         throw JSONRPCError(RPC_WALLET_ERROR, strError);
@@ -3340,26 +3289,9 @@ UniValue spendmanyzerocoinV3(const UniValue& params, bool fHelp) {
         amount = find_value(inputObj, "amount").get_int();
 
         value = find_value(inputObj, "value").get_int();
-
-        switch(value){
-            case 1:
-                denomination = sigma::ZQ_LOVELACE;
-                break;
-            case 10:
-                denomination = sigma::ZQ_GOLDWASSER;
-                break;
-            case 25:
-                denomination = sigma::ZQ_RACKOFF;
-                break;
-            case 50:
-                denomination = sigma::ZQ_PEDERSEN;
-                break;
-            case 100:
-                denomination = sigma::ZQ_WILLIAMSON;
-                break;
-            default:
-                throw runtime_error(
-                        "spendmanyzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n");
+        if (!IntegerToDenomination(value * COIN, denomination)) {
+            throw runtime_error(
+                "spendmanyzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n");
         }
         for(int64_t j=0; j<amount; j++){
             denominations.push_back(std::make_pair(value * COIN, denomination));

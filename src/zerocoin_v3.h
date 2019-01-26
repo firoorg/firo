@@ -31,12 +31,6 @@ public:
     // serial for every spend (map from serial to denomination)
     std::unordered_map<Scalar, int, sigma::CScalarHash> spentSerials;
 
-    // are there v1 spends in the block?
-    bool fHasSpendV1;
-
-    // are there v2 spends in the block?
-    bool fHasSpendV2;
-
     // information about transactions in the block is complete
     bool fInfoIsComplete;
 

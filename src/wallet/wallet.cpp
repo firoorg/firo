@@ -3436,24 +3436,10 @@ bool CWallet::CreateZerocoinMintModelV3(string &stringError, const string& denom
     int64_t nAmount = 0;
     sigma::CoinDenominationV3 denomination;
     // Amount
-    if (denomAmount == "1") {
-        denomination = sigma::ZQ_LOVELACE;
-        nAmount = roundint64(1 * COIN);
-    } else if (denomAmount == "10") {
-        denomination = sigma::ZQ_GOLDWASSER;
-        nAmount = roundint64(10 * COIN);
-    } else if (denomAmount == "25") {
-        denomination = sigma::ZQ_RACKOFF;
-        nAmount = roundint64(25 * COIN);
-    } else if (denomAmount == "50") {
-        denomination = sigma::ZQ_PEDERSEN;
-        nAmount = roundint64(50 * COIN);
-    } else if (denomAmount == "100") {
-        denomination = sigma::ZQ_WILLIAMSON;
-        nAmount = roundint64(100 * COIN);
-    } else {
+    if (!StringToDenomination(denomAmount, denomination)) {
         return false;
     }
+    DenominationToInteger(denomination, nAmount);
 
     // Set up the Zerocoin Params object
     sigma::ParamsV3 *zcParams = sigma::ParamsV3::get_default();
@@ -3625,24 +3611,10 @@ bool CWallet::CheckDenominationV3(
         int64_t& nAmount,
         sigma::CoinDenominationV3& denomination){
     // Amount
-    if (denomAmount == "1") {
-        denomination = sigma::ZQ_LOVELACE;
-        nAmount = roundint64(1 * COIN);
-    } else if (denomAmount == "10") {
-        denomination = sigma::ZQ_GOLDWASSER;
-        nAmount = roundint64(10 * COIN);
-    } else if (denomAmount == "25") {
-        denomination = sigma::ZQ_RACKOFF;
-        nAmount = roundint64(25 * COIN);
-    } else if (denomAmount == "50") {
-        denomination = sigma::ZQ_PEDERSEN;
-        nAmount = roundint64(50 * COIN);
-    } else if (denomAmount == "100") {
-        denomination = sigma::ZQ_WILLIAMSON;
-        nAmount = roundint64(100 * COIN);
-    } else {
+    if (!StringToDenomination(denomAmount, denomination)) {
         return false;
     }
+    DenominationToInteger(denomination, nAmount);
     return true;
 }
 
@@ -3814,30 +3786,19 @@ bool CWallet::CreateZerocoinSpendModelV3(CWalletTx& wtx, string &stringError, st
         int64_t nAmount = 0;
         sigma::CoinDenominationV3 denomination;
         // Amount
-        if (denomAmount == "1") {
-            denomination = sigma::ZQ_LOVELACE;
-            nAmount = roundint64(1 * COIN);
-        } else if (denomAmount == "10") {
-            denomination = sigma::ZQ_GOLDWASSER;
-            nAmount = roundint64(10 * COIN);
-        } else if (denomAmount == "25") {
-            denomination = sigma::ZQ_RACKOFF;
-            nAmount = roundint64(25 * COIN);
-        } else if (denomAmount == "50") {
-            denomination = sigma::ZQ_PEDERSEN;
-            nAmount = roundint64(50 * COIN);
-        } else if (denomAmount == "100") {
-            denomination = sigma::ZQ_WILLIAMSON;
-            nAmount = roundint64(100 * COIN);
-        } else {
+        if (!StringToDenomination(denomAmount, denomination)) {
+            stringError = "Unable to convert denomination.";
             return false;
         }
+        DenominationToInteger(denomination, nAmount);
         denominations.push_back(make_pair(nAmount, denomination));
     }
     vector<Scalar> coinSerials;
     uint256 txHash;
     vector<GroupElement> zcSelectedValues;
-    stringError = SpendMultipleZerocoinV3(thirdPartyAddress, denominations, wtx, coinSerials, txHash, zcSelectedValues, forceUsed);
+    stringError = SpendMultipleZerocoinV3(
+        thirdPartyAddress, denominations, wtx, 
+        coinSerials, txHash, zcSelectedValues, forceUsed);
     if (stringError != "")
         return false;
     return true;

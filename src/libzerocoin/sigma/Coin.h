@@ -9,19 +9,20 @@
 namespace sigma {
 
 enum CoinDenominationV3 {
-    ZQ_LOVELACE = 1,
-    ZQ_GOLDWASSER = 10,
-    ZQ_RACKOFF = 25,
-    ZQ_PEDERSEN = 50,
-    ZQ_WILLIAMSON = 100
+    SIGMA_DENOM_1 = 1,
+    SIGMA_DENOM_10 = 10,
+    SIGMA_DENOM_25 = 25,
+    SIGMA_DENOM_50 = 50,
+    SIGMA_DENOM_100 = 100
 };
 
 // Functions to convert denominations to/from an integer value.
-bool DenominationToInteger(CoinDenominationV3 denom, int& denom_out, CValidationState &state);
-bool IntegerToDenomination(int value, CoinDenominationV3& denom_out, CValidationState &state);
-bool DenominationToInteger(CoinDenominationV3 denom, int& denom_out);
-bool IntegerToDenomination(int value, CoinDenominationV3& denom_out);
-
+bool DenominationToInteger(CoinDenominationV3 denom, int64_t& denom_out, CValidationState &state);
+bool IntegerToDenomination(int64_t value, CoinDenominationV3& denom_out, CValidationState &state);
+bool DenominationToInteger(CoinDenominationV3 denom, int64_t& denom_out);
+bool IntegerToDenomination(int64_t value, CoinDenominationV3& denom_out);
+bool StringToDenomination(const std::string& str, CoinDenominationV3& denom_out);
+bool RealNumberToDenomination(const double& value, CoinDenominationV3& denom_out);
 
 class PublicCoinV3 {
 public:
@@ -69,7 +70,8 @@ public:
         strm >> *this;
     }
 
-    PrivateCoinV3(const ParamsV3* p,CoinDenominationV3 denomination = ZQ_LOVELACE, int version = ZEROCOIN_TX_VERSION_3);
+    PrivateCoinV3(const ParamsV3* p,CoinDenominationV3 denomination = SIGMA_DENOM_1, 
+        int version = ZEROCOIN_TX_VERSION_3);
     const PublicCoinV3& getPublicCoin() const;
     const Scalar& getSerialNumber() const;
     const Scalar& getRandomness() const;

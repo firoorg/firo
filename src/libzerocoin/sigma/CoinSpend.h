@@ -14,9 +14,8 @@ public:
     template<typename Stream>
     CoinSpendV3(const ParamsV3* p,  Stream& strm):
         params(p),
-        denomination(ZQ_LOVELACE),
+        denomination(SIGMA_DENOM_1),
         sigmaProof(p) {
-
             strm >> * this;
         }
 
