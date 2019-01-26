@@ -83,8 +83,8 @@ struct ZmqServerTestingSetup : public TestingSetup {
 
         CZMQAbstract::createCerts(true);
 
-        pzmqPublisherInterface = CZMQPublisherInterface::Create();
-        pzmqReplierInterface = CZMQReplierInterface::Create();
+        pzmqPublisherInterface = pzmqPublisherInterface->Create();
+        pzmqReplierInterface = pzmqReplierInterface->Create();
  
         // register publisher with validation interface
         RegisterValidationInterface(pzmqPublisherInterface);
