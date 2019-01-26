@@ -1050,7 +1050,8 @@ bool getZerocoinSupply(CAmount & amount) {
     if(!std::is_sorted(addressIndex.begin(), addressIndex.end(), predicate))
         std::sort(addressIndex.begin(), addressIndex.end(), predicate);
 
-    std::map<CBigNum, uint256> originalSerials;
+    using spend_value = std::pair<uint256, size_t>;
+    std::map<CBigNum, spend_value> originalSerials;
     CAmount amt = 0;
 
     for(idx_rec const & idr : addressIndex) {
@@ -1060,19 +1061,32 @@ bool getZerocoinSupply(CAmount & amount) {
         if(!GetTransaction(idr.first.txhash, tx, Params().GetConsensus(), hash, true))
             return false;
 
+        size_t num = 0;
         for(CTxIn const & in : tx.vin) {
+            ++num;
             if(!in.IsZerocoinSpend())
                 continue;
 
-            CBigNum const zspendSerial = ZerocoinGetSpendSerialNumber(tx, in);
-            if(zspendSerial == CBigNum(0))
-                return false;
+            CBigNum zspendSerial = CBigNum(0);
+            libzerocoin::CoinDenomination zspendAmount;
+
+            try {
+                CDataStream serializedCoinSpend((const char *)&*(in.scriptSig.begin() + 4),
+                                            (const char *)&*in.scriptSig.end(),
+                                            SER_NETWORK, PROTOCOL_VERSION);
+                libzerocoin::CoinSpend spend(in.nSequence >= ZC_MODULUS_V2_BASE_ID ? ZCParamsV2 : ZCParams, serializedCoinSpend);
+                zspendSerial = spend.getCoinSerialNumber();
+                zspendAmount = spend.getDenomination();
+            }
+            catch (const std::runtime_error &) {
+                continue;
+            }
 
             auto const iter = originalSerials.find(zspendSerial);
             if(iter == originalSerials.end())
-                originalSerials.insert({zspendSerial, tx.GetHash()});
-            else if(iter->second != tx.GetHash()){
-                amt += -idr.second;
+                originalSerials.insert({zspendSerial, spend_value(tx.GetHash(), num)});
+            else if(iter->second != spend_value(tx.GetHash(), num)){
+                amt += zspendAmount * COIN;
             }
         }
     }
