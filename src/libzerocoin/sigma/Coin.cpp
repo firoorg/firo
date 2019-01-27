@@ -2,6 +2,8 @@
 #include "util.h"
 #include "amount.h"
 
+#include <sstream>
+
 namespace sigma {
 
 bool DenominationToInteger(CoinDenominationV3 denom, int64_t& denom_out) {
@@ -35,43 +37,14 @@ return true;
 }
 
 bool RealNumberToDenomination(const double& value, CoinDenominationV3& denom_out) {
-    if (value == 1.0) {
-        denom_out = sigma::SIGMA_DENOM_1;
-        return true;
-    } else if (value == 10.0) {
-        denom_out = sigma::SIGMA_DENOM_10;
-        return true;
-    } else if (value == 25.0) {
-        denom_out = sigma::SIGMA_DENOM_25;
-        return true;
-    } else if (value == 50.0) {
-        denom_out = sigma::SIGMA_DENOM_50;
-        return true; 
-    } else if (value == 100.0) {
-        denom_out = sigma::SIGMA_DENOM_100;
-        return true;
-    }
-return false;
+    return IntegerToDenomination(value * COIN, denom_out);
 }
 
 bool StringToDenomination(const std::string& str, CoinDenominationV3& denom_out) {
-    if (str == "1") {
-        denom_out = sigma::SIGMA_DENOM_1;
-        return true;
-    } else if (str == "10") {
-        denom_out = sigma::SIGMA_DENOM_10;
-        return true;
-    } else if (str == "25") {
-        denom_out = sigma::SIGMA_DENOM_25;
-        return true;
-    } else if (str == "50") {
-        denom_out = sigma::SIGMA_DENOM_50;
-        return true; 
-    } else if (str == "100") {
-        denom_out = sigma::SIGMA_DENOM_100;
-        return true;
-    }
-return false;
+    std::istringstream iss(str);
+    int64_t denom_number;
+    iss >> denom_number;
+    return IntegerToDenomination(denom_number * COIN, denom_out);
 }
 
 bool IntegerToDenomination(int64_t value, CoinDenominationV3& denom_out) {

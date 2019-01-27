@@ -2808,7 +2808,7 @@ UniValue mintzerocoinV3(const UniValue& params, bool fHelp)
         CWalletDB walletdb(pwalletMain->strWalletFile);
         CZerocoinEntryV3 zerocoinTx;
         zerocoinTx.IsUsed = false;
-        zerocoinTx.denomination = denomination;
+        zerocoinTx.set_denomination(denomination);
         zerocoinTx.value = pubCoin.getValue();
         sigma::PublicCoinV3 checkPubCoin(zerocoinTx.value, denomination);
         if (!checkPubCoin.validate()) {
@@ -3372,7 +3372,7 @@ UniValue resetmintzerocoinV3(const UniValue& params, bool fHelp) {
         if (zerocoinItem.randomness != uint64_t(0) && zerocoinItem.serialNumber != uint64_t(0)) {
             CZerocoinEntryV3 zerocoinTx;
             zerocoinTx.IsUsed = false;
-            zerocoinTx.denomination = zerocoinItem.denomination;
+            zerocoinTx.set_denomination_value(zerocoinItem.get_denomination_value());
             zerocoinTx.value = zerocoinItem.value;
             zerocoinTx.serialNumber = zerocoinItem.serialNumber;
             zerocoinTx.nHeight = -1;
@@ -3445,7 +3445,7 @@ UniValue listmintzerocoinsV3(const UniValue& params, bool fHelp) {
             UniValue entry(UniValue::VOBJ);
             entry.push_back(Pair("id", zerocoinItem.id));
             entry.push_back(Pair("IsUsed", zerocoinItem.IsUsed));
-            entry.push_back(Pair("denomination", zerocoinItem.denomination));
+            entry.push_back(Pair("denomination", zerocoinItem.get_denomination_value()));
             entry.push_back(Pair("value", zerocoinItem.value.GetHex()));
             entry.push_back(Pair("serialNumber", zerocoinItem.serialNumber.GetHex()));
             entry.push_back(Pair("nHeight", zerocoinItem.nHeight));
@@ -3504,7 +3504,7 @@ UniValue listpubcoinsV3(const UniValue& params, bool fHelp) {
                 "\nResults are an array of Objects, each of which has:\n"
                 "{id, IsUsed, denomination, value, serialNumber, nHeight, randomness}");
 
-    int denomination = -1;
+    int64_t denomination = -1;
     if (params.size() > 0) {
         denomination = params[0].get_int();
     }
@@ -3516,11 +3516,12 @@ UniValue listpubcoinsV3(const UniValue& params, bool fHelp) {
     listPubcoin.sort(CompHeightV3);
 
     BOOST_FOREACH(const CZerocoinEntryV3 &zerocoinItem, listPubcoin) {
-        if (zerocoinItem.id > 0 && (denomination < 0 || zerocoinItem.denomination == denomination)) {
+        if (zerocoinItem.id > 0 && 
+            (denomination < 0 || zerocoinItem.get_denomination_value() == denomination)) {
             UniValue entry(UniValue::VOBJ);
             entry.push_back(Pair("id", zerocoinItem.id));
             entry.push_back(Pair("IsUsed", zerocoinItem.IsUsed));
-            entry.push_back(Pair("denomination", zerocoinItem.denomination));
+            entry.push_back(Pair("denomination", zerocoinItem.get_denomination_value()));
             entry.push_back(Pair("value", zerocoinItem.value.GetHex()));
             entry.push_back(Pair("serialNumber", zerocoinItem.serialNumber.GetHex()));
             entry.push_back(Pair("nHeight", zerocoinItem.nHeight));
@@ -3625,15 +3626,16 @@ UniValue setmintzerocoinstatusV3(const UniValue& params, bool fHelp) {
                 CZerocoinEntryV3 zerocoinTx;
                 zerocoinTx.id = zerocoinItem.id;
                 zerocoinTx.IsUsed = fStatus;
-                zerocoinTx.denomination = zerocoinItem.denomination;
+                zerocoinTx.set_denomination_value(zerocoinItem.get_denomination_value());
                 zerocoinTx.value = zerocoinItem.value;
                 zerocoinTx.serialNumber = zerocoinItem.serialNumber;
                 zerocoinTx.nHeight = zerocoinItem.nHeight;
                 zerocoinTx.randomness = zerocoinItem.randomness;
 //                zerocoinTx.ecdsaSecretKey = zerocoinItem.ecdsaSecretKey;
-                const std::string& isUsedDenomStr = zerocoinTx.IsUsed
-                                                    ? "Used (" + std::to_string(zerocoinTx.denomination) + " mint)"
-                                                    : "New (" + std::to_string(zerocoinTx.denomination) + " mint)";
+                const std::string& isUsedDenomStr = 
+                    zerocoinTx.IsUsed
+                    ? "Used (" + std::to_string(zerocoinTx.get_denomination_value()) + " mint)"
+                    : "New (" + std::to_string(zerocoinTx.get_denomination_value()) + " mint)";
                 pwalletMain->NotifyZerocoinChanged(pwalletMain, zerocoinTx.value.GetHex(), isUsedDenomStr, CT_UPDATED);
                 walletdb.WriteZerocoinEntry(zerocoinTx);
 
@@ -3647,7 +3649,7 @@ UniValue setmintzerocoinstatusV3(const UniValue& params, bool fHelp) {
                 UniValue entry(UniValue::VOBJ);
                 entry.push_back(Pair("id", zerocoinTx.id));
                 entry.push_back(Pair("IsUsed", zerocoinTx.IsUsed));
-                entry.push_back(Pair("denomination", zerocoinTx.denomination));
+                entry.push_back(Pair("denomination", zerocoinTx.get_denomination_value()));
                 entry.push_back(Pair("value", zerocoinTx.value.GetHex()));
                 entry.push_back(Pair("serialNumber", zerocoinTx.serialNumber.GetHex()));
                 entry.push_back(Pair("nHeight", zerocoinTx.nHeight));

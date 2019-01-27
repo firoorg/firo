@@ -9,11 +9,11 @@
 namespace sigma {
 
 enum CoinDenominationV3 {
-    SIGMA_DENOM_1 = 1,
-    SIGMA_DENOM_10 = 10,
-    SIGMA_DENOM_25 = 25,
-    SIGMA_DENOM_50 = 50,
-    SIGMA_DENOM_100 = 100
+    SIGMA_DENOM_1 = 0,
+    SIGMA_DENOM_10 = 1,
+    SIGMA_DENOM_25 = 2,
+    SIGMA_DENOM_50 = 3,
+    SIGMA_DENOM_100 = 4
 };
 
 // Functions to convert denominations to/from an integer value.

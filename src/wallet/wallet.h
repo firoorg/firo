@@ -1205,26 +1205,25 @@ public:
 
 class CZerocoinEntryV3
 {
-private:
-    template <typename Stream>
-    auto is_eof_helper(Stream &s, bool) -> decltype(s.eof()) {
-        return s.eof();
-    }
-
-    template <typename Stream>
-    bool is_eof_helper(Stream &s, int) {
-        return false;
-    }
-
-    template<typename Stream>
-    bool is_eof(Stream &s) {
-        return is_eof_helper(s, true);
-    }
-
 public:
+    void set_denomination(sigma::CoinDenominationV3 denom) {
+        DenominationToInteger(denom, denomination);
+    }
+    void set_denomination_value(int64_t new_denomination) {
+        denomination = new_denomination;
+    }
+    int64_t get_denomination_value() const {
+        return denomination;
+    }
+    sigma::CoinDenominationV3 get_denomination() const {
+        sigma::CoinDenominationV3 result;
+        IntegerToDenomination(denomination, result); 
+        return result;
+    }
+
     //public
     GroupElement value;
-    int denomination;
+
     //private
     Scalar randomness;
     Scalar serialNumber;
@@ -1232,6 +1231,17 @@ public:
     bool IsUsed;
     int nHeight;
     int id;
+
+private:
+    // NOTE(martun): made this one private to make sure people don't 
+    // misuse it and try to assign a value of type sigma::CoinDenominationV3 
+    // to it. In these cases the value is automatically converted to int, 
+    // which is not what we want.
+    // Starting from Version 3 == sigma, this number is coin value * COIN,
+    // I.E. it is set to 100.000.000 for 1 zcoin.
+    int64_t denomination;
+
+public:
 
     CZerocoinEntryV3()
     {
@@ -1277,7 +1287,21 @@ public:
 //            READWRITE(ecdsaSecretKey);
         }
     }
+private:
+    template <typename Stream>
+    auto is_eof_helper(Stream &s, bool) -> decltype(s.eof()) {
+        return s.eof();
+    }
 
+    template <typename Stream>
+    bool is_eof_helper(Stream &s, int) {
+        return false;
+    }
+
+    template<typename Stream>
+    bool is_eof(Stream &s) {
+        return is_eof_helper(s, true);
+    }
 };
 
 
@@ -1321,8 +1345,25 @@ public:
     Scalar coinSerial;
     uint256 hashTx;
     GroupElement pubCoin;
-    int denomination;
     int id;
+
+    void set_denomination(sigma::CoinDenominationV3 denom) {
+        DenominationToInteger(denom, denomination);
+    }
+
+    void set_denomination_value(int64_t new_denomination) {
+        denomination = new_denomination;
+    }
+
+    int64_t get_denomination_value() const {
+        return denomination;
+    }
+
+    sigma::CoinDenominationV3 get_denomination() const {
+        sigma::CoinDenominationV3 result;
+        IntegerToDenomination(denomination, result); 
+        return result;
+    }
 
     CZerocoinSpendEntryV3()
     {
@@ -1347,6 +1388,14 @@ public:
         READWRITE(denomination);
         READWRITE(id);
     }
+private:
+    // NOTE(martun): made this one private to make sure people don't 
+    // misuse it and try to assign a value of type sigma::CoinDenominationV3 
+    // to it. In these cases the value is automatically converted to int, 
+    // which is not what we want.
+    // Starting from Version 3 == sigma, this number is coin value * COIN,
+    // I.E. it is set to 100.000.000 for 1 zcoin.
+    int64_t denomination;
 };
 
 bool CompHeight(const CZerocoinEntry & a, const CZerocoinEntry & b);
