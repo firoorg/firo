@@ -39,7 +39,7 @@ public:
     std::string GetAddress() const { return address; }
     void SetAddress(const std::string &a) { address = a; }
     // address + port combination
-    std::string GetAuthority() const { return address + port; }
+    std::string GetAuthority() const { return authority; }
     void SetAuthority(const std::string &a) { authority = a; }
 
     /* static certificate handling */

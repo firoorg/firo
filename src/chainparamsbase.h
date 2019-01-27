@@ -24,7 +24,8 @@ public:
     int RPCPort() const { return nRPCPort; }
     int APIAuthREPPort() const { return nAPIAuthREPPort; }
     int APIOpenREPPort() const { return nAPIOpenREPPort; }
-    int APIPUBPort() const { return nAPIPUBPort; }
+    int APIAuthPUBPort() const { return nAPIAuthPUBPort; }
+    int APIOpenPUBPort() const { return nAPIOpenPUBPort; }
     std::string APIAddr() const { return nAPIAddr; }
 
 protected:
@@ -33,7 +34,8 @@ protected:
     std::string nAPIAddr;
     int nAPIAuthREPPort;
     int nAPIOpenREPPort;
-    int nAPIPUBPort;
+    int nAPIAuthPUBPort;
+    int nAPIOpenPUBPort;
     int nRPCPort;
     std::string strDataDir;
 };

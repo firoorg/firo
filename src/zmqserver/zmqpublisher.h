@@ -38,7 +38,6 @@ protected:
 class CZMQThreadPublisher : public CZMQAbstractPublisher
 {
 public:
-
     static void* Thread(){
         LogPrintf("CZMQAbstractPublisher Thread started.");
         const int PUBLISH_TIME_SECS = 1;
