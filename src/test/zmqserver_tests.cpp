@@ -119,7 +119,7 @@ struct ZmqServerTestingSetup : public TestingSetup {
             zmq_setsockopt(pSubSocket, ZMQ_CURVE_PUBLICKEY, public_key.c_str(), 40); 
         }
 
-        string address = BaseParams().APIAddr() + to_string(BaseParams().APIPUBPort());
+        string address = BaseParams().APIAddr() + to_string(BaseParams().APIAuthPUBPort());
         int rc = zmq_connect(pSubSocket, address.c_str());
         BOOST_CHECK(rc!=-1);
 
