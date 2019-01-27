@@ -36,7 +36,7 @@ public:
         nAPIAuthREPPort = 15557;
         nAPIOpenREPPort = 25558;
         nAPIAuthPUBPort = 18332;
-        nAPIOpenPUBPort = 18333;
+        nAPIOpenPUBPort = 28333;
         nRPCPort = 8888;
     }
 };
@@ -73,7 +73,7 @@ public:
         nAPIAuthREPPort = 35557;
         nAPIOpenREPPort = 25558;
         nAPIAuthPUBPort = 38332;
-        nAPIOpenPUBPort = 38333;
+        nAPIOpenPUBPort = 28333;
         nRPCPort = 28888;
         strDataDir = "regtest";
     }
