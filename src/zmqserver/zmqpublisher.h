@@ -43,9 +43,7 @@ public:
         const int PUBLISH_TIME_SECS = 1;
         while(true){
             boost::this_thread::sleep_for(boost::chrono::seconds(PUBLISH_TIME_SECS));
-            if(!APIIsInWarmup()){
-                GetMainSignals().NotifyAPIStatus();
-            }
+            GetMainSignals().NotifyAPIStatus();
         }
     };
 };
