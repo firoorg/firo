@@ -6,6 +6,13 @@
 
 namespace sigma {
 
+std::ostream& operator<<(std::ostream& stream, CoinDenominationV3 denomination) {
+    int64_t denom_value;
+    DenominationToInteger(denomination, denom_value);
+    stream << denom_value;
+    return stream;
+}
+
 bool DenominationToInteger(CoinDenominationV3 denom, int64_t& denom_out) {
     CValidationState dummy_state;
     return DenominationToInteger(denom, denom_out, dummy_state);
@@ -77,7 +84,7 @@ return true;
 
 //class PublicCoin
 PublicCoinV3::PublicCoinV3()
-    : denomination(SIGMA_DENOM_1 ) 
+    : denomination(CoinDenominationV3::SIGMA_DENOM_1 ) 
 {
 
 }
@@ -93,7 +100,7 @@ const GroupElement& PublicCoinV3::getValue() const{
 }
 
 CoinDenominationV3 PublicCoinV3::getDenomination() const {
-    return static_cast<CoinDenominationV3>(this->denomination);
+    return denomination;
 }
 
 bool PublicCoinV3::operator==(const PublicCoinV3& other) const{
@@ -113,8 +120,9 @@ size_t PublicCoinV3::GetSerializeSize(int nType, int nVersion) const{
 }
 
 //class PrivateCoin
-PrivateCoinV3::PrivateCoinV3(const ParamsV3* p,CoinDenominationV3 denomination, int version):
-    params(p) {
+PrivateCoinV3::PrivateCoinV3(const ParamsV3* p, CoinDenominationV3 denomination, int version)
+    : params(p)
+{
         this->version = version;
         this->mintCoin(denomination);
 }

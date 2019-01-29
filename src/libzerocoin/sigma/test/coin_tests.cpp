@@ -11,7 +11,7 @@ BOOST_AUTO_TEST_CASE(pubcoin_serialization)
     secp_primitives::GroupElement coin;
     coin.randomize();
 
-    sigma::PublicCoinV3 pubcoin(coin, sigma::SIGMA_DENOM_10);
+    sigma::PublicCoinV3 pubcoin(coin, sigma::CoinDenominationV3::SIGMA_DENOM_10);
 
     CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
     serialized << pubcoin;

@@ -80,9 +80,11 @@ public:
     };
 
     struct CMintedCoinInfo {
-        int         denomination;
-        int         id; // This is the ID of accumulator, not the coin itself.
-        int         nHeight;
+        sigma::CoinDenominationV3 denomination;
+        
+        // ID of coin group.
+        int id;
+        int nHeight;
     };
 
     struct pairhash {
@@ -111,7 +113,8 @@ public:
     void RemoveBlock(CBlockIndex *index);
 
     // Query coin group with given denomination and id
-    bool GetCoinGroupInfo(int denomination, int id, CoinGroupInfoV3 &result);
+    bool GetCoinGroupInfo(sigma::CoinDenominationV3 denomination,
+        int group_id, CoinGroupInfoV3 &result);
 
     // Query if the coin serial was previously used
     bool IsUsedCoinSerial(const Scalar& coinSerial);
@@ -125,7 +128,7 @@ public:
     int GetCoinSetForSpend(
         CChain *chain, 
         int maxHeight, 
-        int denomination, 
+        sigma::CoinDenominationV3 denomination, 
         int id, 
         uint256& blockHash_out, 
         std::vector<PublicCoinV3>& coins_out);
@@ -155,18 +158,18 @@ public:
 
     static CZerocoinStateV3* GetZerocoinState();
 
-    int GetLatestCoinID(int denomination) const;
+    int GetLatestCoinID(sigma::CoinDenominationV3 denomination) const;
 
 // private: // martun: Changed to public just for unit tests.
     // Collection of coin groups. Map from <denomination,id> to CoinGroupInfoV3 structure
-    std::unordered_map<pair<int, int>, CoinGroupInfoV3, pairhash> coinGroups;
+    std::unordered_map<pair<sigma::CoinDenominationV3, int>, CoinGroupInfoV3, pairhash> coinGroups;
 
     // Set of all minted pubCoin values, keyed by the public coin. 
     // Used for checking if the given coin already exists.
     unordered_map<PublicCoinV3, CMintedCoinInfo, sigma::CPublicCoinHash> mintedPubCoins;
 
     // Latest IDs of coins by denomination
-    std::unordered_map<int, int> latestCoinIds;
+    std::unordered_map<sigma::CoinDenominationV3, int> latestCoinIds;
 
     // Set of all used coin serials.
     std::unordered_set<Scalar, sigma::CScalarHash> usedCoinSerials;

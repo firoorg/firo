@@ -4550,6 +4550,7 @@ bool CWallet::CreateZerocoinSpendTransactionV3(
             txNew.vin[0].scriptSig.assign(tmp.begin(), tmp.end());
 
             // Embed the constructed transaction data in wtxNew.
+            // NOTE(martun): change the next line, it's not good coding style.
             *static_cast<CTransaction *>(&wtxNew) = CTransaction(txNew);
 
             // Limit size
@@ -4560,7 +4561,7 @@ bool CWallet::CreateZerocoinSpendTransactionV3(
 
             std::list <CZerocoinSpendEntryV3> listCoinSpendSerial;
             CWalletDB(strWalletFile).ListCoinSpendSerial(listCoinSpendSerial);
-            BOOST_FOREACH(const CZerocoinSpendEntryV3 &item, listCoinSpendSerial){
+            BOOST_FOREACH(const CZerocoinSpendEntryV3 &item, listCoinSpendSerial) {
                 if (!forceUsed && spend.getCoinSerialNumber() == item.coinSerial) {
                     // THIS SELECEDTED COIN HAS BEEN USED, SO UPDATE ITS STATUS
                     CZerocoinEntryV3 pubCoinTx;

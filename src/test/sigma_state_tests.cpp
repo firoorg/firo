@@ -530,7 +530,8 @@ BOOST_AUTO_TEST_CASE(zerocoin_sigma_addblock_minted_spend)
     pubcoin2 = privcoin2.getPublicCoin();
 
     CBlockIndex index = CreateBlockIndex(1);
-    std::pair<int,int> denomination1Group1(1,1);
+    std::pair<CoinDenominationV3, int> denomination1Group1(
+        CoinDenominationV3::SIGMA_DENOM_1,1);
     
 	index.mintedPubCoinsV3[denomination1Group1].push_back(pubcoin1);
 	index.mintedPubCoinsV3[denomination1Group1].push_back(pubcoin2);
