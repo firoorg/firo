@@ -3136,7 +3136,7 @@ UniValue spendzerocoinV3(const UniValue& params, bool fHelp) {
     bool zcSelectedIsUsed;
 
     string strError = pwalletMain->SpendZerocoinV3(
-        thirdPartyaddress, nAmount, denomination, wtx, 
+        thirdPartyaddress, denomination, wtx, 
         coinSerial, txHash, zcSelectedValue, zcSelectedIsUsed);
 
     if (strError != "")
@@ -3276,7 +3276,7 @@ UniValue spendmanyzerocoinV3(const UniValue& params, bool fHelp) {
     int64_t value = 0;
     int64_t amount = 0;
     sigma::CoinDenominationV3 denomination;
-    std::vector<std::pair<int64_t, sigma::CoinDenominationV3>> denominations;
+    std::vector<sigma::CoinDenominationV3> denominations;
 
     UniValue inputs = find_value(data, "denominations");
 
@@ -3293,8 +3293,8 @@ UniValue spendmanyzerocoinV3(const UniValue& params, bool fHelp) {
             throw runtime_error(
                 "spendmanyzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n");
         }
-        for(int64_t j=0; j<amount; j++){
-            denominations.push_back(std::make_pair(value * COIN, denomination));
+        for(int64_t j = 0; j < amount; j++){
+            denominations.push_back(denomination);
         }
     }
 
@@ -3324,7 +3324,14 @@ UniValue spendmanyzerocoinV3(const UniValue& params, bool fHelp) {
         return strError;
     }
 
-    strError = pwalletMain->SpendMultipleZerocoinV3(thirdPartyAddress, denominations, wtx, coinSerials, txHash, zcSelectedValues, false);
+    strError = pwalletMain->SpendMultipleZerocoinV3(
+        thirdPartyAddress,
+        denominations,
+        wtx,
+        coinSerials,
+        txHash,
+        zcSelectedValues,
+        false);
     if (strError != "")
         throw JSONRPCError(RPC_WALLET_ERROR, strError);
 
@@ -3634,8 +3641,8 @@ UniValue setmintzerocoinstatusV3(const UniValue& params, bool fHelp) {
 //                zerocoinTx.ecdsaSecretKey = zerocoinItem.ecdsaSecretKey;
                 const std::string& isUsedDenomStr = 
                     zerocoinTx.IsUsed
-                    ? "Used (" + std::to_string(zerocoinTx.get_denomination_value()) + " mint)"
-                    : "New (" + std::to_string(zerocoinTx.get_denomination_value()) + " mint)";
+                    ? "Used (" + std::to_string(zerocoinTx.get_denomination_value() / COIN) + " mint)"
+                    : "New (" + std::to_string(zerocoinTx.get_denomination_value() / COIN) + " mint)";
                 pwalletMain->NotifyZerocoinChanged(pwalletMain, zerocoinTx.value.GetHex(), isUsedDenomStr, CT_UPDATED);
                 walletdb.WriteZerocoinEntry(zerocoinTx);
 

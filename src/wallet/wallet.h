@@ -853,7 +853,6 @@ public:
 
     bool CreateZerocoinSpendTransactionV3(
         std::string& thirdPartyaddress,
-        int64_t nValue,
         sigma::CoinDenominationV3 denomination,
         CWalletTx& wtxNew,
         CReserveKey& reservekey,
@@ -866,8 +865,17 @@ public:
 
     bool CreateMultipleZerocoinSpendTransaction(std::string& thirdPartyaddress, const std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>>& denominations,
                                         CWalletTx& wtxNew, CReserveKey& reservekey, vector<CBigNum>& coinSerials, uint256& txHash, vector<CBigNum>& zcSelectedValues, std::string& strFailReason, bool forceUsed = false);
-    bool CreateMultipleZerocoinSpendTransactionV3(std::string& thirdPartyaddress, const std::vector<std::pair<int64_t, sigma::CoinDenominationV3>>& denominations,
-                                                CWalletTx& wtxNew, CReserveKey& reservekey, vector<Scalar>& coinSerials, uint256& txHash, vector<GroupElement>& zcSelectedValues, std::string& strFailReason, bool forceUsed = false);
+    bool CreateMultipleZerocoinSpendTransactionV3(
+        std::string& thirdPartyaddress,
+        const std::vector<sigma::CoinDenominationV3>& denominations,
+        CWalletTx& wtxNew,
+        CReserveKey& reservekey,
+        vector<Scalar>& coinSerials,
+        uint256& txHash,
+        vector<GroupElement>& zcSelectedValues,
+        std::string& strFailReason,
+        bool forceUsed = false);
+
     bool CommitZerocoinSpendTransaction(CWalletTx& wtxNew, CReserveKey& reservekey);
     std::string SendMoney(CScript scriptPubKey, int64_t nValue, CWalletTx& wtxNew, bool fAskFee=false);
     std::string SendMoneyToDestination(const CTxDestination &address, int64_t nValue, CWalletTx& wtxNew, bool fAskFee=false);
@@ -875,9 +883,10 @@ public:
     std::string MintAndStoreZerocoin(vector<CRecipient> vecSend, vector<libzerocoin::PrivateCoin> privCoins, CWalletTx &wtxNew, bool fAskFee=false);
     std::string MintAndStoreZerocoinV3(vector<CRecipient> vecSend, vector<sigma::PrivateCoinV3> privCoins, CWalletTx &wtxNew, bool fAskFee=false);
     std::string SpendZerocoin(std::string& thirdPartyaddress, int64_t nValue, libzerocoin::CoinDenomination denomination, CWalletTx& wtxNew, CBigNum& coinSerial, uint256& txHash, CBigNum& zcSelectedValue, bool& zcSelectedIsUsed, bool forceUsed = false);
-    std::string SpendZerocoinV3(std::string& thirdPartyaddress, int64_t nValue, sigma::CoinDenominationV3 denomination, CWalletTx& wtxNew, Scalar& coinSerial, uint256& txHash, GroupElement& zcSelectedValue, bool& zcSelectedIsUsed, bool forceUsed = false);
+    std::string SpendZerocoinV3(std::string& thirdPartyaddress, sigma::CoinDenominationV3 denomination, CWalletTx& wtxNew, Scalar& coinSerial, uint256& txHash, GroupElement& zcSelectedValue, bool& zcSelectedIsUsed, bool forceUsed = false);
     std::string SpendMultipleZerocoin(std::string& thirdPartyaddress, const std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>>& denominations, CWalletTx& wtxNew, vector<CBigNum>& coinSerials, uint256& txHash, vector<CBigNum>& zcSelectedValues, bool forceUsed = false);
-    std::string SpendMultipleZerocoinV3(std::string& thirdPartyaddress, const std::vector<std::pair<int64_t, sigma::CoinDenominationV3>>& denominations, CWalletTx& wtxNew, vector<Scalar>& coinSerials, uint256& txHash, vector<GroupElement>& zcSelectedValues, bool forceUsed = false);
+
+    std::string SpendMultipleZerocoinV3(std::string& thirdPartyaddress, const std::vector<sigma::CoinDenominationV3>& denominations, CWalletTx& wtxNew, vector<Scalar>& coinSerials, uint256& txHash, vector<GroupElement>& zcSelectedValues, bool forceUsed = false);
 
     bool CreateZerocoinMintModel(string &stringError,
                                  const string& denomAmount,
@@ -909,11 +918,7 @@ public:
     bool AddAccountingEntry(const CAccountingEntry&, CWalletDB& pwalletdb);
 
     bool CheckDenomination(string denomAmount, int64_t& nAmount, libzerocoin::CoinDenomination& denomination);
-    bool CheckDenominationV3(
-        string denomAmount,
-        int64_t& nAmount,
-        sigma::CoinDenominationV3& denomination);
-
+    
     bool CheckHasV2Mint(libzerocoin::CoinDenomination denomination, bool forceUsed);
 
     static CFeeRate minTxFee;

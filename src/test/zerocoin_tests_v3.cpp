@@ -198,7 +198,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_v3)
             stringError, "", denomination.c_str(), true), stringError + " - Spend failed");
 
         //Try to put two in the same block and it will fail, expect 1
-        BOOST_CHECK_MESSAGE(mempool.size() == 1, "Spends was not added to mempool");
+        BOOST_CHECK_MESSAGE(mempool.size() == 1, "Spend was not added to mempool");
 
         //Verify spend got into mempool
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Spend was not added to mempool");

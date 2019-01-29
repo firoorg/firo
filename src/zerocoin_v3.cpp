@@ -295,7 +295,7 @@ bool CheckZerocoinTransactionV3(
 											(const char *)&*txin.scriptSig.end(),
 											SER_NETWORK, PROTOCOL_VERSION);
 			sigma::CoinSpendV3 newSpend(ZCParamsV3, serializedCoinSpend);
-			uint64_t denom = newSpend.getIntDenomination() * COIN;
+			uint64_t denom = newSpend.getIntDenomination();
 			totalValue += denom;
 			sigma::CoinDenominationV3 denomination;
 			if (!IntegerToDenomination(denom, denomination, state))
