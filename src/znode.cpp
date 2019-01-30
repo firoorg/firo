@@ -389,7 +389,7 @@ void CZnode::SetBlockLastPaid(int newBlockLastPaid) {
 void CZnode::SetRank(int newRank, bool nPublish) {
      if(nRank!=newRank){
         nRank = newRank;
-        if(nRank < 0) nRank = 0;
+        if(nRank < 0 || nRank > mnodeman.GetFullZnodeVector().size()) nRank = 0;
         if(nPublish){
             GetMainSignals().UpdatedZnode(*this);
         }
@@ -433,7 +433,7 @@ UniValue CZnode::ToJSON() const {
     std::string ip   = authority.substr(0, authority.find(":"));
     std::string port = authority.substr(authority.find(":")+1, authority.length());
     authorityObj.push_back(Pair("ip", ip));
-    authorityObj.push_back(Pair("port", stoi(port)));
+    authorityObj.push_back(Pair("port", port));
     
     // get myZnode data
     bool isMine = false;

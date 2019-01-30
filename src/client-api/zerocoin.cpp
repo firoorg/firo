@@ -305,8 +305,8 @@ static const CAPICommand commands[] =
 { //  category              collection         actor (function)          authPort   authPassphrase   warmupOk
   //  --------------------- ------------       ----------------          -------- --------------   --------
     { "zerocoin",           "mint",            &mint,                    true,      true,            false  },
-    { "zerocoin",           "mintStatus",      &mintstatus,              true,      true,            false  }, 
     { "zerocoin",           "sendPrivate",     &sendprivate,             true,      true,            false  },
+    { "zerocoin",           "mintStatus",      &mintstatus,              true,      false,           false  }
 };
 void RegisterZerocoinAPICommands(CAPITable &tableAPI)
 {
