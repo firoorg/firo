@@ -40,8 +40,6 @@
 extern CCriticalSection cs_main;
 using namespace std;
 
-CScript scriptPubKey;
-
 bool no_check( std::runtime_error const& ex ) { return true; }
 
 BOOST_FIXTURE_TEST_SUITE(zerocoin_tests, ZerocoinTestingSetup200)

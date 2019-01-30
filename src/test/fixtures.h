@@ -40,9 +40,7 @@
 extern CCriticalSection cs_main;
 using namespace std;
 
-CScript scriptPubKey;
-
-bool no_check_v3( std::runtime_error const& ex ) { return true; }
+static CScript scriptPubKey;
 
 struct ZerocoinTestingSetup200 : public TestingSetup {
     ZerocoinTestingSetup200() : TestingSetup(CBaseChainParams::REGTEST, "1")
