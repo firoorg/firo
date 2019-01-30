@@ -1,24 +1,48 @@
 #include "include/GroupElement.h"
-#include <stdlib.h>
-#include "gmp.h"
+
+#include "../field.h"
+#include "../field_impl.h"
+#include "../group.h"
+#include "../group_impl.h"
+#include "../hash.h"
+#include "../hash_impl.h"
+#include "../ecmult.h"
+#include "../ecmult_impl.h"
+#include "../scalar.h"
+#include "../scalar_impl.h"
+
+#include <gmp.h>
 #include <openssl/rand.h>
+
+#include <stdlib.h>
+
+static secp256k1_ecmult_context ctx;
+
+// Converts the value from secp256k1_gej to secp256k1_ge and returns.
+static secp256k1_ge gej_to_ge(const secp256k1_gej &gej)
+{
+    secp256k1_ge ge;
+    secp256k1_gej j(gej);
+    secp256k1_ge_set_gej(&ge, &j);
+    return ge;
+}
+
 namespace secp_primitives {
 
-secp256k1_ecmult_context GroupElement::ctx;
-
 GroupElement::GroupElement()
+        : g_(new secp256k1_gej())
 {
-    secp256k1_gej_clear(&g_);
-    g_.infinity = 1;
+    secp256k1_gej_clear(g_.get());
+    g_->infinity = 1;
 }
 
 GroupElement::GroupElement(const GroupElement& other)
-        : g_(other.g_)
+        : g_(new secp256k1_gej(*other.g_))
 {
 }
 
-GroupElement::GroupElement(const secp256k1_gej& g)
-        : g_(secp256k1_gej(g))
+GroupElement::GroupElement(const secp256k1_gej *g)
+        : g_(new secp256k1_gej(*g))
 {
 }
 
@@ -37,38 +61,28 @@ void _convertToFieldElement(secp256k1_fe *r,const char* str,int base) {
 }
 
 GroupElement::GroupElement(const char* x,const char* y, int base)
+        : g_(new secp256k1_gej())
 {
-    secp256k1_gej_clear(&g_);
+    secp256k1_gej_clear(g_.get());
     secp256k1_ge element;
     _convertToFieldElement(&element.x,x,base);
     _convertToFieldElement(&element.y,y,base);
     element.infinity = 0;
-    secp256k1_gej_set_ge(&g_,&element);
+    secp256k1_gej_set_ge(g_.get(),&element);
 }
 
 GroupElement::~GroupElement()
 {
 }
 
-
-secp256k1_ge GroupElement::to_ge() const
-{
-    secp256k1_ge g_ge;
-    secp256k1_gej gej(g_);
-    // gej = g_;
-    secp256k1_ge_set_gej(&g_ge, &gej);
-    return g_ge;
-}
-
 GroupElement& GroupElement::operator=(const GroupElement &other)
 {
-    g_ = other.g_;
-    return *this;
+    return set(other);
 }
 
 GroupElement& GroupElement::set(const GroupElement &other)
 {
-    g_ = other.g_;
+    g_.reset(new secp256k1_gej(*other.g_));
     return *this;
 }
 
@@ -77,51 +91,51 @@ GroupElement GroupElement::operator*(const Scalar& multiplier) const
     secp256k1_gej result;
     secp256k1_scalar ng;
     secp256k1_scalar_set_int(&ng,0);
-    secp256k1_ecmult(&ctx,&result,&g_, &multiplier.get_value(),&ng);
-    return  std::move(result);
+    secp256k1_ecmult(&ctx,&result,g_.get(), multiplier.get_value(),&ng);
+    return &result;
 }
 
 GroupElement& GroupElement::operator*=(const Scalar& multiplier)
 {
     secp256k1_scalar ng;
     secp256k1_scalar_set_int(&ng,0);
-    secp256k1_ecmult(&ctx,&g_,&g_, &multiplier.get_value(),&ng);
+    secp256k1_ecmult(&ctx,g_.get(),g_.get(), multiplier.get_value(),&ng);
     return *this;
 }
 
 GroupElement GroupElement::operator+(const GroupElement &other) const
 {
     secp256k1_gej result_gej;
-    secp256k1_gej_add_var(&result_gej, &g_, &(other.g_), NULL);
-    return std::move(result_gej);
+    secp256k1_gej_add_var(&result_gej, g_.get(), other.g_.get(), NULL);
+    return &result_gej;
 }
 
 GroupElement& GroupElement::operator+=(const GroupElement& other)
 {
-    secp256k1_gej_add_var(&g_, &g_, &(other.g_), NULL);
+    secp256k1_gej_add_var(g_.get(), g_.get(), other.g_.get(), NULL);
     return *this;
 }
 
 GroupElement GroupElement::inverse() const
 {
     secp256k1_gej result_gej;
-    secp256k1_gej_neg(&result_gej,&g_);
-    return std::move(result_gej);
+    secp256k1_gej_neg(&result_gej,g_.get());
+    return &result_gej;
 }
 
 void GroupElement::square()
 {
-    secp256k1_gej_double_var(&g_, &g_, NULL);
+    secp256k1_gej_double_var(g_.get(), g_.get(), NULL);
 }
 
 bool GroupElement::operator==(const  GroupElement& other) const
 {
-    if(g_.infinity && other.g_.infinity)
+    if(g_->infinity && other.g_->infinity)
         return true;
-    if(g_.infinity != other.g_.infinity)
+    if(g_->infinity != other.g_->infinity)
         return false;
-    secp256k1_ge this_ge = to_ge();
-    secp256k1_ge other_ge = other.to_ge();
+    secp256k1_ge this_ge = gej_to_ge(*g_);
+    secp256k1_ge other_ge = gej_to_ge(*other.g_);
     if(!secp256k1_fe_equal(&this_ge.x, &other_ge.x))
         return false;
     if(!secp256k1_fe_equal(&this_ge.y, &other_ge.y))
@@ -137,7 +151,7 @@ bool GroupElement::operator!=(const  GroupElement& other) const
 
 bool GroupElement::isMember() const
 {
-    secp256k1_ge v1 = to_ge();
+    secp256k1_ge v1 = gej_to_ge(*g_);
     if (secp256k1_ge_is_infinity(&v1)) {
         return true;
     }
@@ -191,14 +205,14 @@ GroupElement& GroupElement::generate(unsigned char* seed){
     if (gen[0] & 1) {
         secp256k1_ge_neg(&ge, &ge);
     }
-    secp256k1_gej_set_ge(&g_, &ge);
+    secp256k1_gej_set_ge(g_.get(), &ge);
     return *this;
 }
 
 void GroupElement::sha256(unsigned char* result) const{
     unsigned char buff[64];
-    secp256k1_fe_get_b32(&buff[0], &g_.x);
-    secp256k1_fe_get_b32(&buff[32], &g_.y);
+    secp256k1_fe_get_b32(&buff[0], &g_->x);
+    secp256k1_fe_get_b32(&buff[32], &g_->y);
     secp256k1_rfc6979_hmac_sha256_t sha256;
     secp256k1_rfc6979_hmac_sha256_initialize(&sha256, buff, 64);
     secp256k1_rfc6979_hmac_sha256_generate(&sha256,  result, 32);
@@ -215,7 +229,7 @@ return str + strlen(str);
 
 std::string GroupElement::tostring() const {
     int base = 10;
-    secp256k1_ge ge = to_ge();
+    secp256k1_ge ge = gej_to_ge(*g_);
 
     if (ge.infinity) {
     return std::string("O");
@@ -239,7 +253,7 @@ std::string GroupElement::tostring() const {
 
 std::string GroupElement::GetHex() const {
     int base = 16;
-    secp256k1_ge ge = to_ge();
+    secp256k1_ge ge = gej_to_ge(*g_);
 
     if (ge.infinity) {
         return std::string("O");
@@ -330,13 +344,13 @@ size_t GroupElement::memoryRequired() const  {
 
 unsigned char* GroupElement::serialize() const {
     unsigned char* data = new unsigned char[ 2 * sizeof(secp256k1_fe)];
-    memcpy(&data[0], &g_.x.n[0], sizeof(secp256k1_fe));
-    memcpy(&data[0] + sizeof(secp256k1_fe), &g_.y.n[0], sizeof(secp256k1_fe));
+    memcpy(&data[0], &g_->x.n[0], sizeof(secp256k1_fe));
+    memcpy(&data[0] + sizeof(secp256k1_fe), &g_->y.n[0], sizeof(secp256k1_fe));
     return data;
 }
 
 unsigned char* GroupElement::serialize(unsigned char* buffer) const {
-    secp256k1_ge value = to_ge();
+    secp256k1_ge value = gej_to_ge(*g_);
     secp256k1_fe x = value.x;
     secp256k1_fe y = value.y;
     secp256k1_fe_normalize(&x);
@@ -357,7 +371,7 @@ unsigned char* GroupElement::deserialize(unsigned char* buffer) {
     secp256k1_ge result;
     secp256k1_ge_set_xo_var(&result, &x, (int)oddness);
     result.infinity = (int)infinity;
-    secp256k1_gej_set_ge(&g_, &result);
+    secp256k1_gej_set_ge(g_.get(), &result);
     return buffer + memoryRequired();
 }
 

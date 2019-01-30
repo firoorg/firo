@@ -9,9 +9,9 @@
 
 #include "include/secp256k1_recovery.h"
 
-static void secp256k1_ecdsa_recoverable_signature_load(const secp256k1_context* ctx, secp256k1_scalar* r, secp256k1_scalar* s, int* recid, const secp256k1_ecdsa_recoverable_signature* sig) {
+static void secp256k1_ecdsa_recoverable_signature_load(const secp256k1_context* ctx, struct secp256k1_scalar* r, struct secp256k1_scalar* s, int* recid, const secp256k1_ecdsa_recoverable_signature* sig) {
     (void)ctx;
-    if (sizeof(secp256k1_scalar) == 32) {
+    if (sizeof(struct secp256k1_scalar) == 32) {
         /* When the secp256k1_scalar type is exactly 32 byte, use its
          * representation inside secp256k1_ecdsa_signature, as conversion is very fast.
          * Note that secp256k1_ecdsa_signature_save must use the same representation. */
@@ -24,8 +24,8 @@ static void secp256k1_ecdsa_recoverable_signature_load(const secp256k1_context* 
     *recid = sig->data[64];
 }
 
-static void secp256k1_ecdsa_recoverable_signature_save(secp256k1_ecdsa_recoverable_signature* sig, const secp256k1_scalar* r, const secp256k1_scalar* s, int recid) {
-    if (sizeof(secp256k1_scalar) == 32) {
+static void secp256k1_ecdsa_recoverable_signature_save(secp256k1_ecdsa_recoverable_signature* sig, const struct secp256k1_scalar* r, const struct secp256k1_scalar* s, int recid) {
+    if (sizeof(struct secp256k1_scalar) == 32) {
         memcpy(&sig->data[0], r, 32);
         memcpy(&sig->data[32], s, 32);
     } else {
@@ -36,7 +36,7 @@ static void secp256k1_ecdsa_recoverable_signature_save(secp256k1_ecdsa_recoverab
 }
 
 int secp256k1_ecdsa_recoverable_signature_parse_compact(const secp256k1_context* ctx, secp256k1_ecdsa_recoverable_signature* sig, const unsigned char *input64, int recid) {
-    secp256k1_scalar r, s;
+    struct secp256k1_scalar r, s;
     int ret = 1;
     int overflow = 0;
 
@@ -58,7 +58,7 @@ int secp256k1_ecdsa_recoverable_signature_parse_compact(const secp256k1_context*
 }
 
 int secp256k1_ecdsa_recoverable_signature_serialize_compact(const secp256k1_context* ctx, unsigned char *output64, int *recid, const secp256k1_ecdsa_recoverable_signature* sig) {
-    secp256k1_scalar r, s;
+    struct secp256k1_scalar r, s;
 
     (void)ctx;
     ARG_CHECK(output64 != NULL);
@@ -72,7 +72,7 @@ int secp256k1_ecdsa_recoverable_signature_serialize_compact(const secp256k1_cont
 }
 
 int secp256k1_ecdsa_recoverable_signature_convert(const secp256k1_context* ctx, secp256k1_ecdsa_signature* sig, const secp256k1_ecdsa_recoverable_signature* sigin) {
-    secp256k1_scalar r, s;
+    struct secp256k1_scalar r, s;
     int recid;
 
     (void)ctx;
@@ -84,13 +84,13 @@ int secp256k1_ecdsa_recoverable_signature_convert(const secp256k1_context* ctx, 
     return 1;
 }
 
-static int secp256k1_ecdsa_sig_recover(const secp256k1_ecmult_context *ctx, const secp256k1_scalar *sigr, const secp256k1_scalar* sigs, secp256k1_ge *pubkey, const secp256k1_scalar *message, int recid) {
+static int secp256k1_ecdsa_sig_recover(const secp256k1_ecmult_context *ctx, const struct secp256k1_scalar *sigr, const struct secp256k1_scalar* sigs, struct secp256k1_ge *pubkey, const struct secp256k1_scalar *message, int recid) {
     unsigned char brx[32];
-    secp256k1_fe fx;
-    secp256k1_ge x;
-    secp256k1_gej xj;
-    secp256k1_scalar rn, u1, u2;
-    secp256k1_gej qj;
+    struct secp256k1_fe fx;
+    struct secp256k1_ge x;
+    struct secp256k1_gej xj;
+    struct secp256k1_scalar rn, u1, u2;
+    struct secp256k1_gej qj;
     int r;
 
     if (secp256k1_scalar_is_zero(sigr) || secp256k1_scalar_is_zero(sigs)) {
@@ -121,8 +121,8 @@ static int secp256k1_ecdsa_sig_recover(const secp256k1_ecmult_context *ctx, cons
 }
 
 int secp256k1_ecdsa_sign_recoverable(const secp256k1_context* ctx, secp256k1_ecdsa_recoverable_signature *signature, const unsigned char *msg32, const unsigned char *seckey, secp256k1_nonce_function noncefp, const void* noncedata) {
-    secp256k1_scalar r, s;
-    secp256k1_scalar sec, non, msg;
+    struct secp256k1_scalar r, s;
+    struct secp256k1_scalar sec, non, msg;
     int recid;
     int ret = 0;
     int overflow = 0;
@@ -168,9 +168,9 @@ int secp256k1_ecdsa_sign_recoverable(const secp256k1_context* ctx, secp256k1_ecd
 }
 
 int secp256k1_ecdsa_recover(const secp256k1_context* ctx, secp256k1_pubkey *pubkey, const secp256k1_ecdsa_recoverable_signature *signature, const unsigned char *msg32) {
-    secp256k1_ge q;
-    secp256k1_scalar r, s;
-    secp256k1_scalar m;
+    struct secp256k1_ge q;
+    struct secp256k1_scalar r, s;
+    struct secp256k1_scalar m;
     int recid;
     VERIFY_CHECK(ctx != NULL);
     ARG_CHECK(secp256k1_ecmult_context_is_built(&ctx->ecmult_ctx));

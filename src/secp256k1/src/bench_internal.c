@@ -19,10 +19,10 @@
 #include "secp256k1.c"
 
 typedef struct {
-    secp256k1_scalar scalar_x, scalar_y;
-    secp256k1_fe fe_x, fe_y;
-    secp256k1_ge ge_x, ge_y;
-    secp256k1_gej gej_x, gej_y;
+    struct secp256k1_scalar scalar_x, scalar_y;
+    struct secp256k1_fe fe_x, fe_y;
+    struct secp256k1_ge ge_x, ge_y;
+    struct secp256k1_gej gej_x, gej_y;
     unsigned char data[64];
     int wnaf[256];
 } bench_inv_t;
@@ -98,7 +98,7 @@ void bench_scalar_split(void* arg) {
     bench_inv_t *data = (bench_inv_t*)arg;
 
     for (i = 0; i < 20000; i++) {
-        secp256k1_scalar l, r;
+        struct secp256k1_scalar l, r;
         secp256k1_scalar_split_lambda(&l, &r, &data->scalar_x);
         secp256k1_scalar_add(&data->scalar_x, &data->scalar_x, &data->scalar_y);
     }

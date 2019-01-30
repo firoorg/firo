@@ -25,8 +25,8 @@ Scalar::Scalar(const char* str)
     secp256k1_scalar_set_b32(value_.get(),str_,0);
 }
 
-Scalar::Scalar(const secp256k1_scalar &value)
-   : value_(new secp256k1_scalar(value)) {
+Scalar::Scalar(const secp256k1_scalar *value)
+   : value_(new secp256k1_scalar(*value)) {
 
 }
 
@@ -40,13 +40,16 @@ Scalar::Scalar(Scalar&& other)
     other.value_ = nullptr;
 }
 
+Scalar::~Scalar() {
+}
+
 Scalar& Scalar::operator=(const Scalar& other) {
     *value_ = *other.value_;
     return *this;
 }
 
 Scalar& Scalar::operator=(Scalar&& other) noexcept {
-    value_ = std::exchange(other.value_, nullptr);
+    value_ = std::move(other.value_);
     return *this;
 }
 
@@ -68,7 +71,7 @@ Scalar& Scalar::set(const Scalar& other) {
 Scalar Scalar::operator*(const Scalar& other) const {
     secp256k1_scalar result;
     secp256k1_scalar_mul(&result, value_.get(), other.value_.get());
-    return std::move(result);
+    return &result;
 }
 
 Scalar& Scalar::operator*=(const Scalar& other) {
@@ -79,7 +82,7 @@ Scalar& Scalar::operator*=(const Scalar& other) {
 Scalar Scalar::operator+(const Scalar& other) const {
     secp256k1_scalar result;
     secp256k1_scalar_add(&result, value_.get(), other.value_.get());
-    return std::move(result);
+    return &result;
 }
 
 Scalar& Scalar::operator+=(const Scalar& other) {
@@ -91,7 +94,7 @@ Scalar Scalar::operator-(const Scalar& other) const {
     secp256k1_scalar result;
     secp256k1_scalar_negate(&result,other.value_.get());
     secp256k1_scalar_add(&result,&result,value_.get());
-    return std::move(result);
+    return &result;
 }
 
 Scalar& Scalar::operator-=(const Scalar& other) {
@@ -109,26 +112,26 @@ bool Scalar::operator!=(const Scalar& other)const {
     return !(secp256k1_scalar_eq(value_.get(), other.value_.get()));
 }
 
-const secp256k1_scalar &Scalar::get_value() const {
-    return *value_;
+const secp256k1_scalar * Scalar::get_value() const {
+    return value_.get();
 }
 
 Scalar Scalar::inverse() const {
     secp256k1_scalar result;
     secp256k1_scalar_inverse(&result, value_.get());
- return std::move(result);
+ return &result;
 }
 
 Scalar Scalar::negate() const {
     secp256k1_scalar result;
     secp256k1_scalar_negate(&result, value_.get());
-    return std::move(result);
+    return &result;
 }
 
 Scalar Scalar::square() const{
     secp256k1_scalar result;
     secp256k1_scalar_sqr(&result, value_.get());
- return std::move(result);
+ return &result;
 }
 
 Scalar Scalar::exponent(const Scalar& exp) const {
@@ -143,7 +146,7 @@ Scalar Scalar::exponent(const Scalar& exp) const {
            secp256k1_scalar_shr_int(&exp_,1);
            secp256k1_scalar_sqr(&value, &value);
     }
-     return std::move(result);
+     return &result;
     }
 
 Scalar Scalar::exponent(uint64_t exp) const {
@@ -192,7 +195,7 @@ Scalar Scalar::hash(const unsigned char* data,size_t len)  {
     if (overflow) {
      throw "Scalar: hashing overflowed";
     }
-    Scalar result_(result);
+    Scalar result_(&result);
     result_.mod_p();
     return result_;
 }
@@ -262,4 +265,3 @@ void Scalar::get_bits(std::vector<bool>& bits) const{
 }
 
 } // namespace secp_primitives
-

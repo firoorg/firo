@@ -1,23 +1,13 @@
 #ifndef SECP_GROUP_ELEMENT_H__
 #define SECP_GROUP_ELEMENT_H__
 
+#include "Scalar.h"
+
+#include "secp256k1_field.h"
+#include "secp256k1_group.h"
+
 #include <memory>
 #include <cstring>
-
-#include "Scalar.h"
-#include "secp256k1.h"
-#include "../src/util.h"
-#include "../src/group.h"
-#include "../src/group_impl.h"
-#include "../src/ecmult_impl.h"
-#include "../src/ecmult_const_impl.h"
-#include "../src/hash.h"
-#include "../src/hash_impl.h"
-#include "../src/field.h"
-#include "../src/field_impl.h"
-#include "../src/scalar_impl.h"
-#include "../src/scalar.h"
-
 
 namespace secp_primitives {
 
@@ -28,7 +18,7 @@ public:
 
   ~GroupElement();
 
-  GroupElement(const secp256k1_gej& g);
+  GroupElement(const secp256k1_gej *g);
 
   GroupElement(const GroupElement& other);
 
@@ -37,7 +27,7 @@ public:
   GroupElement& set(const GroupElement& other);
 
   GroupElement& operator=(const GroupElement& other);
-	
+
   // Operator for multiplying with a scalar number.
   GroupElement operator*(const Scalar& multiplier) const;
 
@@ -110,19 +100,15 @@ public:
 
 private:
 
-	// Converts the value from secp256k1_gej to secp256k1_ge and returns.
-	secp256k1_ge to_ge() const;
-
 //	Implements the algorithm from:
 //   Indifferentiable Hashing to Barreto-Naehrig Curves
 //    Pierre-Alain Fouque and Mehdi Tibouchi
 //    Latincrypt 2012
 //
    void indifferent_hash(secp256k1_ge* ge, const secp256k1_fe* t);
-   static secp256k1_ecmult_context ctx;
 
 private:
-  secp256k1_gej g_;
+    std::unique_ptr<secp256k1_gej> g_;
 
 };
 

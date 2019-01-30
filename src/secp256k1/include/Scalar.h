@@ -1,20 +1,17 @@
 #ifndef SCALAR_H__
 #define SCALAR_H__
 
+#include "secp256k1_scalar.h"
+
 #include <stdint.h>
 #include <memory>
 #include <cstring>
 #include <random>
-#include "secp256k1.h"
-#include "../src/util.h" // Must be before ../src/scalar.h, otherwise gives a compile error.
-#include "../src/scalar.h"
-
-#undef VERSION // Because there's a VERSION defined in zcoin, we need to undef the secp version.
 
 namespace secp_primitives {
 
 // A wrapper over scalar value of Secp library.
-class Scalar {
+class Scalar final {
 public:
 
     Scalar();
@@ -22,7 +19,7 @@ public:
     Scalar(uint64_t value);
 
     // Constructor from secp object.
-    Scalar(const secp256k1_scalar &value);
+    Scalar(const secp256k1_scalar *value);
 
     // Copy constructor
     Scalar(const Scalar& other);
@@ -31,6 +28,8 @@ public:
 
     // Move constructor
     Scalar(Scalar&& other);
+
+    ~Scalar();
 
     Scalar& set(const Scalar& other);
 
@@ -77,7 +76,7 @@ public:
     bool isMember() const;
 
     // Returns the secp object inside it.
-    const secp256k1_scalar& get_value() const;
+    const secp256k1_scalar * get_value() const;
 
     friend std::ostream& operator<< ( std::ostream& os, const Scalar& c) {
         os << c.tostring();
