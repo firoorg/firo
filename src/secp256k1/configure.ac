@@ -112,7 +112,7 @@ AC_ARG_ENABLE(exhaustive_tests,
     [use_exhaustive_tests=yes])
 
 AC_ARG_ENABLE(endomorphism,
-    AS_HELP_STRING([--enable-endomorphism],[enable endomorphism (default is no)]),
+    AS_HELP_STRING([--enable-endomorphism],[enable endomorphism (default is yes)]),
     [use_endomorphism=$enableval],
     [use_endomorphism=yes])
 
