@@ -36,10 +36,6 @@
 #include <boost/test/unit_test.hpp>
 #include <boost/thread.hpp>
 
-
-extern CCriticalSection cs_main;
-using namespace std;
-
 static CScript scriptPubKey;
 
 struct ZerocoinTestingSetup200 : public TestingSetup {
