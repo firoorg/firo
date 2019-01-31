@@ -3108,12 +3108,8 @@ UniValue mintmanyzerocoin(const UniValue& params, bool fHelp)
 
             // loop until we find a valid coin
             while(!validCoin){
-                libzerocoin::PrivateCoin newCoin(zcParams, denomination, ZEROCOIN_TX_VERSION_2);
-                // Get a copy of the 'public' portion of the coin. You should
-                // embed this into a Zerocoin 'MINT' transaction along with a series
-                // of currency inputs totaling the assigned value of one zerocoin.
-                
-                libzerocoin::PublicCoin pubCoin = newCoin.getPublicCoin();
+                newCoin = libzerocoin::PrivateCoin(zcParams, denomination, ZEROCOIN_TX_VERSION_2);
+                pubCoin = newCoin.getPublicCoin();
                 validCoin = pubCoin.validate();
             }
 
