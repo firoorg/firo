@@ -2291,31 +2291,7 @@ bool CWallet::GetVinAndKeysFromOutput(COutput out, CTxIn &txinRet, CPubKey &pubK
     return true;
 }
 
-bool CWallet::MintExists(CTxOut txout){
-    LOCK(cs_wallet);
-
-    if(!txout.scriptPubKey.IsZerocoinMint()){
-        throw runtime_error(std::string(__func__) + ": txout is not a ZEROCOIN_MINT\n");
-    }
-
-    list <CZerocoinEntry> listPubCoin = list<CZerocoinEntry>();
-    CWalletDB walletdb(pwalletMain->strWalletFile);
-    walletdb.ListPubCoin(listPubCoin);
-    vector<unsigned char> vchZeroMint;
-    vchZeroMint.insert(vchZeroMint.end(), txout.scriptPubKey.begin() + 6,
-                       txout.scriptPubKey.begin() + txout.scriptPubKey.size());
-
-    CBigNum pubCoin;
-    pubCoin.setvch(vchZeroMint);
-    BOOST_FOREACH(const CZerocoinEntry &pubCoinItem, listPubCoin) {
-        if (pubCoinItem.value == pubCoin){
-            return true;
-        }
-    }
-    return false;
-}
-
-bool CWallet::IsMintFromTxOutUsed(CTxOut txout){
+bool CWallet::IsMintFromTxOutUsed(CTxOut txout, bool& fIsUsed){
     LOCK(cs_wallet);
 
     if(!txout.scriptPubKey.IsZerocoinMint()){
@@ -2334,14 +2310,15 @@ bool CWallet::IsMintFromTxOutUsed(CTxOut txout){
     LogPrintf("Pubcoin=%s\n", pubCoin.GetHex());
     BOOST_FOREACH(const CZerocoinEntry &pubCoinItem, listPubCoin) {
         if (pubCoinItem.value == pubCoin){
-            return pubCoinItem.IsUsed;
+            fIsUsed = pubCoinItem.IsUsed;
+            return true;
         }
     }
-    throw runtime_error(std::string(__func__) + ": Pubcoin for mint not found");
+    return false;
 }
 
 //[zcoin]
-uint256 CWallet::GetTxidForPubcoin(const CZerocoinEntry &pubCoinItem) const {
+bool CWallet::GetTxInfoForPubcoin(const CZerocoinEntry &pubCoinItem, std::string& fTxid, unsigned int& fIndex) const {
 
     LOCK(cs_wallet);
     list <CZerocoinEntry> listPubCoin = list<CZerocoinEntry>();
@@ -2381,13 +2358,15 @@ uint256 CWallet::GetTxidForPubcoin(const CZerocoinEntry &pubCoinItem) const {
                 LogPrintf("Pubcoin=%s\n", pubCoin.ToString());
                 if (pubCoinItem.value == pubCoin) {
                     LogPrintf("found pubcoin\n");
-                    return pcoin->GetHash();
+                    fTxid = pcoin->GetHash().ToString();
+                    fIndex = i;
+                    return true;
                 }
             }
         }
     }
 
-    return uint256();
+    return false;
 }
 
 //[zcoin]
@@ -4433,10 +4412,18 @@ bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddr
                             tempCoinsToUse.insert(minIdPubcoin.value);
 
                             UniValue entry(UniValue::VOBJ);
-                            uint256 mintTxHash = GetTxidForPubcoin(minIdPubcoin);
+                            std::string txid;
+                            unsigned int index;
+                            if(!GetTxInfoForPubcoin(minIdPubcoin, txid, index)){
+                                strFailReason = _("Mint tx not found!");
+                                return false;
+                            }
 
+                            string key = txid + to_string(index);
+                            entry.push_back(Pair("txid", txid));
+                            entry.push_back(Pair("index", to_string(index)));
                             entry.push_back(Pair("used", true));
-                            mintUpdates.push_back(Pair(mintTxHash.GetHex(), entry));
+                            mintUpdates.push_back(Pair(key, entry));
                             LogPrintf("mintUpdates: %s\n", mintUpdates.write());
                             break;
                         }

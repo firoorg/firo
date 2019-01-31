@@ -438,6 +438,7 @@ UniValue CZnode::ToJSON() const {
     // get myZnode data
     bool isMine = false;
     string label;
+    int fIndex=0;
     BOOST_FOREACH(CZnodeConfig::CZnodeEntry mne, znodeConfig.getEntries()) {
         CTxIn myVin = CTxIn(uint256S(mne.getTxHash()), uint32_t(atoi(mne.getOutputIndex().c_str())));
         if(outpoint.ToStringShort()==myVin.prevout.ToStringShort()){
@@ -445,6 +446,7 @@ UniValue CZnode::ToJSON() const {
             label = mne.getAlias();
             break;
         }
+        fIndex++;
     }
 
     ret.push_back(Pair("rank", nRank));
@@ -460,6 +462,7 @@ UniValue CZnode::ToJSON() const {
     ret.push_back(Pair("isMine", isMine));
     if(isMine){
         ret.push_back(Pair("label", label));
+        ret.push_back(Pair("position", fIndex));
     }
 
     UniValue qualify(UniValue::VOBJ);

@@ -838,10 +838,10 @@ public:
      * Add zerocoin Mint and Spend function
      */
     bool MintExists(CTxOut pcoin);
-    bool IsMintFromTxOutUsed(CTxOut pcoin);
+    bool IsMintFromTxOutUsed(CTxOut txout, bool& fIsUsed);
     void ListAvailableCoinsMintCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed=true) const;
 
-    uint256 GetTxidForPubcoin(const CZerocoinEntry &pubCoinItem) const;
+    bool GetTxInfoForPubcoin(const CZerocoinEntry &pubCoinItem, std::string& fTxid, unsigned int& fIndex) const;
     
     void GetAvailableMintCoinBalance(CAmount& balance, bool fOnlyConfirmed=true) const;
     bool CreateZerocoinMintTransaction(const std::vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet, int& nChangePosInOut,

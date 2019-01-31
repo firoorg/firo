@@ -1561,11 +1561,13 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
             entry.push_back(Pair("account", strSentAccount));
             MaybePushAddress(entry, s.destination, addr);
             if(wtx.vout[s.vout].scriptPubKey.IsZerocoinMint()){
-                    if(!pwalletMain->MintExists(wtx.vout[s.vout]))
-                        continue;
                     entry.push_back(Pair("category", "mint"));
                     if(pwalletMain){
-                        entry.push_back(Pair("used", pwalletMain->IsMintFromTxOutUsed(wtx.vout[s.vout])));
+                        bool isUsed;
+                        if(!pwalletMain->IsMintFromTxOutUsed(wtx.vout[s.vout], isUsed)){
+                            continue;
+                        }
+                        entry.push_back(Pair("used", isUsed));
                     }
                 }
             else if(wtx.vin[s.vout].IsZerocoinSpend()){

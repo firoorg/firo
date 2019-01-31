@@ -213,12 +213,14 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
             string voutIndex = to_string(s.vout);
             
             if(wtx.vout[s.vout].scriptPubKey.IsZerocoinMint()){
-                if(!pwalletMain->MintExists(wtx.vout[s.vout]))
-                    continue;
                 category = "mint";
                 addrStr = "ZEROCOIN_MINT";
                 if(pwalletMain){
-                    entry.push_back(Pair("used", pwalletMain->IsMintFromTxOutUsed(wtx.vout[s.vout])));
+                    bool isUsed;
+                    if(!pwalletMain->IsMintFromTxOutUsed(wtx.vout[s.vout], isUsed)){
+                        continue;
+                    }
+                    entry.push_back(Pair("used", isUsed));
                 }
             }
             else if(wtx.vin[s.vout].IsZerocoinSpend()){
