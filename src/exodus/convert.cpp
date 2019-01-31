@@ -18,9 +18,9 @@ static bool isBigEndian()
   return 1 == bint.c[0];
 }
 
-uint64_t rounduint64(long double ld)
+uint64_t rounduint64(double ld)
 {
-    return static_cast<uint64_t>(roundl(fabsl(ld)));
+    return static_cast<uint64_t>(round(fabs(ld)));
 }
 
 void swapByteOrder16(uint16_t& us)

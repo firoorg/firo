@@ -1670,6 +1670,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
                     LogPrintf("mapBlockIndex contains %d blocks.\n", mapBlockIndex.size());
                     return InitError(_("Incorrect or no genesis block found. Wrong datadir for network?"));
                 }
+
                 // Initialize the block index (no-op if non-empty database was already loaded)
                 if (!InitBlockIndex(chainparams)) {
                     strLoadError = _("Error initializing block database");
@@ -2001,25 +2002,27 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     // ********************************************************* Step 11b: Load cache data
 
     // LOAD SERIALIZED DAT FILES INTO DATA CACHES FOR INTERNAL USE
-    uiInterface.InitMessage(_("Loading znode cache..."));
-    CFlatDB<CZnodeMan> flatdb1("zncache.dat", "magicZnodeCache");
-    if (!flatdb1.Load(mnodeman)) {
-        return InitError("Failed to load znode cache from zncache.dat");
-    }
-
-    if (mnodeman.size()) {
-        uiInterface.InitMessage(_("Loading Znode payment cache..."));
-        CFlatDB<CZnodePayments> flatdb2("znpayments.dat", "magicZnodePaymentsCache");
-        if (!flatdb2.Load(mnpayments)) {
-            return InitError("Failed to load znode payments cache from znpayments.dat");
+    if (GetBoolArg("-persistentznodestate", true)) {
+        uiInterface.InitMessage(_("Loading znode cache..."));
+        CFlatDB<CZnodeMan> flatdb1("zncache.dat", "magicZnodeCache");
+        if (!flatdb1.Load(mnodeman)) {
+            return InitError("Failed to load znode cache from zncache.dat");
         }
-    } else {
-        uiInterface.InitMessage(_("Znode cache is empty, skipping payments cache..."));
-    }
 
-    uiInterface.InitMessage(_("Loading fulfilled requests cache..."));
-    CFlatDB<CNetFulfilledRequestManager> flatdb4("netfulfilled.dat", "magicFulfilledCache");
-	flatdb4.Load(netfulfilledman);
+        if (mnodeman.size()) {
+            uiInterface.InitMessage(_("Loading Znode payment cache..."));
+            CFlatDB<CZnodePayments> flatdb2("znpayments.dat", "magicZnodePaymentsCache");
+            if (!flatdb2.Load(mnpayments)) {
+                return InitError("Failed to load znode payments cache from znpayments.dat");
+            }
+        } else {
+            uiInterface.InitMessage(_("Znode cache is empty, skipping payments cache..."));
+        }
+
+        uiInterface.InitMessage(_("Loading fulfilled requests cache..."));
+        CFlatDB<CNetFulfilledRequestManager> flatdb4("netfulfilled.dat", "magicFulfilledCache");
+        flatdb4.Load(netfulfilledman);
+    }
 
     // if (!flatdb4.Load(netfulfilledman)) {
     //     LogPrint"Failed to load fulfilled requests cache from netfulfilled.dat");

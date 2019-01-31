@@ -915,15 +915,6 @@ void BlockAssembler::addPriorityTxs()
     typedef std::map<CTxMemPool::txiter, double, CTxMemPool::CompareIteratorByHash>::iterator waitPriIter;
     double actualPriority = -1;
 
-    unsigned int COUNT_SPEND_ZC_TX = 0;
-    unsigned int MAX_SPEND_ZC_TX_PER_BLOCK = 0;
-    if (chainActive.Height() + 1 > HF_ZEROSPEND_FIX) {
-        MAX_SPEND_ZC_TX_PER_BLOCK = 1;
-    }
-    if (nHeight + 1 > SWITCH_TO_MORE_SPEND_TXS) {
-        MAX_SPEND_ZC_TX_PER_BLOCK = ZC_SPEND_LIMIT;
-    }
-
     vecPriority.reserve(mempool.mapTx.size());
     for (CTxMemPool::indexed_transaction_set::iterator mi = mempool.mapTx.begin();
          mi != mempool.mapTx.end(); ++mi)
@@ -937,11 +928,6 @@ void BlockAssembler::addPriorityTxs()
         if (tx.IsCoinBase() || !CheckFinalTx(tx))
             continue;
         if (tx.IsZerocoinSpend() || tx.IsZerocoinSpendV3()) {
-
-            if ((COUNT_SPEND_ZC_TX + tx.vin.size()) > MAX_SPEND_ZC_TX_PER_BLOCK) {
-                continue;
-            }
-
             //mempool.countZCSpend--;
             // Size limits
             unsigned int nTxSize = ::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION);
@@ -970,7 +956,6 @@ void BlockAssembler::addPriorityTxs()
             ++nBlockTx;
             nBlockSigOpsCost += nTxSigOps;
             nFees += nTxFees;
-            COUNT_SPEND_ZC_TX+=tx.vin.size();
             continue;
         }
     }
@@ -1120,7 +1105,7 @@ void static ZcoinMiner(const CChainParams &chainparams) {
                         fvNodesEmpty = vNodes.empty();
                     }
                     {
-                        LOCK(cs_main);
+                        LOCK2(cs_main, mempool.cs);
                         int nCount = 0;
                         fHasZnodesWinnerForNextBlock = 
                                 params.IsRegtest() ||

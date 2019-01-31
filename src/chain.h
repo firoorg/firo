@@ -17,13 +17,13 @@
 #include "libzerocoin/sigma/Coin.h"
 #include "zerocoin_params.h"
 #include "util.h"
-#include "hash_functions.h"
 #include "chainparams.h"
 #include "hash_functions.h"
 #include "streams.h"
 
 #include <vector>
 #include <unordered_set>
+
 
 
 class CBlockFileInfo
