@@ -2830,8 +2830,8 @@ UniValue mintmanyzerocoin(const UniValue& params, bool fHelp)
 
             // loop until we find a valid coin
             while(!validCoin){
-                libzerocoin::PrivateCoin newCoin(zcParams, denomination, ZEROCOIN_TX_VERSION_2);
-                libzerocoin::PublicCoin pubCoin = newCoin.getPublicCoin();
+                newCoin = libzerocoin::PrivateCoin(zcParams, denomination, ZEROCOIN_TX_VERSION_2);
+                pubCoin = newCoin.getPublicCoin();
                 validCoin = pubCoin.validate();
             }
 
