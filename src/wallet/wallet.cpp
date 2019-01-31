@@ -2291,6 +2291,30 @@ bool CWallet::GetVinAndKeysFromOutput(COutput out, CTxIn &txinRet, CPubKey &pubK
     return true;
 }
 
+bool CWallet::MintExists(CTxOut txout){
+    LOCK(cs_wallet);
+
+    if(!txout.scriptPubKey.IsZerocoinMint()){
+        throw runtime_error(std::string(__func__) + ": txout is not a ZEROCOIN_MINT\n");
+    }
+
+    list <CZerocoinEntry> listPubCoin = list<CZerocoinEntry>();
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+    walletdb.ListPubCoin(listPubCoin);
+    vector<unsigned char> vchZeroMint;
+    vchZeroMint.insert(vchZeroMint.end(), txout.scriptPubKey.begin() + 6,
+                       txout.scriptPubKey.begin() + txout.scriptPubKey.size());
+
+    CBigNum pubCoin;
+    pubCoin.setvch(vchZeroMint);
+    BOOST_FOREACH(const CZerocoinEntry &pubCoinItem, listPubCoin) {
+        if (pubCoinItem.value == pubCoin){
+            return true;
+        }
+    }
+    return false;
+}
+
 bool CWallet::IsMintFromTxOutUsed(CTxOut txout){
     LOCK(cs_wallet);
 
@@ -2313,9 +2337,7 @@ bool CWallet::IsMintFromTxOutUsed(CTxOut txout){
             return pubCoinItem.IsUsed;
         }
     }
-    LogPrintf("mint not yet added to db\n");
-    // mint tx not yet added to db, so not used.
-    return false;
+    throw runtime_error(std::string(__func__) + ": Pubcoin for mint not found");
 }
 
 //[zcoin]

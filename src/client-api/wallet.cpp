@@ -213,6 +213,8 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
             string voutIndex = to_string(s.vout);
             
             if(wtx.vout[s.vout].scriptPubKey.IsZerocoinMint()){
+                if(!pwalletMain->MintExists(wtx.vout[s.vout]))
+                    continue;
                 category = "mint";
                 addrStr = "ZEROCOIN_MINT";
                 if(pwalletMain){
