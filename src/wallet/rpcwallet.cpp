@@ -2757,6 +2757,7 @@ UniValue mintzerocoin(const UniValue& params, bool fHelp)
         zerocoinTx.serialNumber = newCoin.getSerialNumber();
         const unsigned char *ecdsaSecretKey = newCoin.getEcdsaSeckey();
         zerocoinTx.ecdsaSecretKey = std::vector<unsigned char>(ecdsaSecretKey, ecdsaSecretKey+32);
+        pwalletMain->NotifyZerocoinChanged(pwalletMain, zerocoinTx.value.GetHex(), "New (" + std::to_string(zerocoinTx.denomination) + " mint)", CT_NEW);
         walletdb.WriteZerocoinEntry(zerocoinTx);
 
         return wtx.GetHash().GetHex();
@@ -2770,17 +2771,17 @@ UniValue mintmanyzerocoin(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() == 0 || params.size() % 2 != 0 || params.size() > 10)
         throw runtime_error(
-                "mintmanyzerocoin <denomination>(1,10,25,50,100), amount, ... }\n"
+                "mintmanyzerocoin <denomination>(1,10,25,50,100), numberOfMints, <denomination>(1,10,25,50,100), numberOfMints, ... }\n"
                 + HelpRequiringPassphrase()
                 + "\nMint 1 or more zerocoins in a single transaction. Amounts must be of denominations specified.\n"
-                + "Specify each denomination followed by it's amount, for all denominations desired.\n"
+                + "Specify each denomination followed by the number of them to mint, for all denominations desired.\n"
                 + "Total amount for all must be less than " + to_string(ZC_MINT_LIMIT) + ".  \n"
                 "\nArguments:\n"
                 "1. \"denomination\"             (integer, required) zerocoin denomination\n"
-                "2. \"amount\"                   (integer, required) amount of mints for chosen denomination\n"
-                "\nExamples:\n"
+                "2. \"numberOfMints\"            (integer, required) amount of mints for chosen denomination\n"
+                "\nExamples:\nThe first example mints denomination 1, one time, for a total XZC valuation of 1.\nThe next example mints denomination 25, ten times, and denomination 50, five times, for a total XZC valuation of 500.\n"
                     + HelpExampleCli("mintmanyzerocoin", "1 1")
-                    + HelpExampleCli("mintmanyzerocoin", "25 10 10 5")
+                    + HelpExampleCli("mintmanyzerocoin", "25 10 50 5")
         );
 
     UniValue sendTo(UniValue::VOBJ);
