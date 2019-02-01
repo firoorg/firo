@@ -1,5 +1,7 @@
 pipeline {
-    agent any
+    agent {
+        docker { image 'zcoinofficial/zcoin-builder:latest' }
+    }
     stages {
         stage('Build') {
             steps {
