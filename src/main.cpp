@@ -1947,7 +1947,7 @@ bool ReadBlockHeaderFromDisk(CBlock &block, const CDiskBlockPos &pos) {
 
 CAmount GetBlockSubsidy(int nHeight, const Consensus::Params &consensusParams, int nTime) {
     // Just want to make sure no one gets a dime before 28 Sep 2016 12:00 AM UTC
-    if (nTime < nStartRewardTime && !consensusParams.IsMain())
+    if (nTime < nStartRewardTime && consensusParams.IsMain())
         return 0;
 
     // Genesis block is 0 coin
