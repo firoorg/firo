@@ -136,8 +136,8 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend)
         pwalletMain->SetBroadcastTransactions(true);
 
         //Verify Mint is successful
-        vector<pair<int,int>> denominationPairs;
-        std::pair<int,int> denominationPair(stoi(denomination), 1);
+        vector<pair<std::string, int>> denominationPairs;
+        std::pair<std::string, int> denominationPair(denomination, 1);
         denominationPairs.push_back(denominationPair);
         BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denominationPairs), stringError + " - Create Mint failed");
 
@@ -291,7 +291,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_many)
 
     pwalletMain->SetBroadcastTransactions(true);
 
-    vector<pair<int,int>> denominationPairs;
+    vector<pair<std::string, int>> denominationPairs;
 
     for(int i = 0; i < 4; i++)
     {
@@ -305,8 +305,8 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_many)
         pwalletMain->SetBroadcastTransactions(true);
         denominationPairs.clear();
         //Verify Mint is successful
-        for(int i=0;i<2;i++){
-             std::pair<int,int> denominationPair(stoi(denominationsForTx[i]), 1);
+        for(int i = 0; i < 2; ++i) {
+             std::pair<std::string, int> denominationPair(denominationsForTx[i], 1);
              denominationPairs.push_back(denominationPair);
         }
                 
@@ -440,7 +440,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_many)
         // mint two of each denom
         denominationPairs.clear();
         for(int i=0;i<2;i++){
-             std::pair<int,int> denominationPair(stoi(denominationsForTx[i]), 2);
+             std::pair<std::string, int> denominationPair(denominationsForTx[i], 2);
              denominationPairs.push_back(denominationPair);
         }
         BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denominationPairs), stringError + " - Create Mint failed");
@@ -493,7 +493,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_many)
         string stringError;
         printf("Testing denominations %s and %s\n", denominationsForTx[0].c_str(), denominationsForTx[1].c_str());
         denominationPairs.clear();
-        std::pair<int,int> denominationPair(stoi(denominations[i].c_str()), 2);
+        std::pair<std::string, int> denominationPair(denominations[i].c_str(), 2);
         denominationPairs.push_back(denominationPair);
 
         BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denominationPairs), stringError + " - Create Mint failed");
@@ -535,7 +535,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_many)
 
 BOOST_AUTO_TEST_CASE(zerocoin_mintspend_usedinput){
     vector<string> denominationsForTx;
-    vector<pair<int,int>> denominationPairs;
+    vector<pair<std::string, int>> denominationPairs;
     vector<uint256> vtxid;
     std::vector<CMutableTransaction> MinTxns;
     string thirdPartyAddress;
@@ -558,7 +558,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_usedinput){
 
     denominationPairs.clear();
     for (int i = 0; i < 2; i++){
-        std::pair<int,int> denominationPair(stoi(denominationsForTx[i].c_str()), 2);
+        std::pair<std::string, int> denominationPair(denominationsForTx[i].c_str(), 2);
         denominationPairs.push_back(denominationPair);
     }
 
@@ -603,7 +603,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_usedinput){
 
     // Now mint two more of the first denomination, but don't mine the needed blocks, preventing their usage. verify transaction creation fails
     denominationPairs.clear();
-    std::pair<int,int> denominationPair(stoi(denominationsForTx[0]), 2);
+    std::pair<std::string, int> denominationPair(denominationsForTx[0], 2);
     denominationPairs.push_back(denominationPair);
     BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denominationPairs), stringError + " - Create Mint failed");
 

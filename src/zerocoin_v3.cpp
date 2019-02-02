@@ -425,10 +425,10 @@ bool ZerocoinBuildStateFromIndexV3(CChain *chain) {
 	// DEBUG
 	LogPrintf(
         "Latest IDs for sigma coin groups are %d, %d, %d, %d, %d\n",
+		zerocoinStateV3.GetLatestCoinID(CoinDenominationV3::SIGMA_DENOM_0_1),
+		zerocoinStateV3.GetLatestCoinID(CoinDenominationV3::SIGMA_DENOM_0_5),
 		zerocoinStateV3.GetLatestCoinID(CoinDenominationV3::SIGMA_DENOM_1),
 		zerocoinStateV3.GetLatestCoinID(CoinDenominationV3::SIGMA_DENOM_10),
-		zerocoinStateV3.GetLatestCoinID(CoinDenominationV3::SIGMA_DENOM_25),
-		zerocoinStateV3.GetLatestCoinID(CoinDenominationV3::SIGMA_DENOM_50),
 		zerocoinStateV3.GetLatestCoinID(CoinDenominationV3::SIGMA_DENOM_100));
 	return true;
 }

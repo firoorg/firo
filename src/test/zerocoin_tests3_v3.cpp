@@ -126,7 +126,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_v3)
     string denomination;
     vector<uint256> vtxid;
     std::vector<CMutableTransaction> MinTxns;
-    std::vector<string> denominations = {"1", "10", "25", "50", "100"};
+    std::vector<string> denominations = {"0.1", "0.5", "1", "10", "100"};
 
     for(int i = 0; i < 5; i++)
     {

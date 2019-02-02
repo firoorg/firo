@@ -895,13 +895,17 @@ public:
     bool CreateZerocoinMintModelV2(string &stringError, const string& denomAmount);
     bool CreateZerocoinMintModelV3(string &stringError, const string& denomAmount);
 
-    bool CreateZerocoinMintModel(string &stringError,
-                                 vector<string> denomAmounts, 
-                                 MintAlgorithm algo = ZEROCOIN);
+    bool CreateZerocoinMintModel(
+        string &stringError,
+        const std::vector<std::pair<std::string, int>>& denominationPairs,
+        MintAlgorithm algo = ZEROCOIN);
 
-    bool CreateZerocoinMintModel(string &stringError, const std::vector<std::pair<int,int>>& denominationPairs, MintAlgorithm algo = ZEROCOIN);
-    bool CreateZerocoinMintModelV3(string &stringError, const std::vector<std::pair<int,int>>& denominationPairs);
+    bool CreateZerocoinMintModelV3(
+        string &stringError,
+        const std::vector<std::pair<sigma::CoinDenominationV3, int>>& denominationPairs);
+
     bool CreateZerocoinMintModelV2(string &stringError, const std::vector<std::pair<int,int>>& denominationPairs);
+
     bool CreateZerocoinSpendModel(string &stringError, string thirdPartyAddress, string denomAmount, bool forceUsed = false);
     bool CreateZerocoinSpendModelV3(string &stringError, string thirdPartyAddress, string denomAmount, bool forceUsed = false);
     bool CreateZerocoinSpendModel(CWalletTx& wtx, string &stringError, string& thirdPartyAddress, const vector<string>& denomAmounts, bool forceUsed = false);

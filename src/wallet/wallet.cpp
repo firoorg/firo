@@ -3248,46 +3248,60 @@ bool CWallet::EraseFromWallet(uint256 hash) {
 
 bool CWallet::CreateZerocoinMintModel(
         string &stringError,
-        const std::vector<std::pair<int,int>>& denominationPairs,
+        const std::vector<std::pair<std::string,int>>& denominationPairs,
         MintAlgorithm algo) {
-   if(algo == SIGMA)
-        return CreateZerocoinMintModelV3(stringError, denominationPairs);
-    else if (algo == ZEROCOIN)
-        return CreateZerocoinMintModelV2(stringError,denominationPairs);
+    if(algo == SIGMA) {
+        // Convert denominations from string to sigma denominations.
+        std::vector<std::pair<sigma::CoinDenominationV3, int>> sigma_denominations;
+        for(const std::pair<std::string,int>& pair: denominationPairs) {
+            sigma::CoinDenominationV3 denom;
+            if (!StringToDenomination(pair.first, denom)) {
+                stringError = "Unrecognized sigma denomination " + pair.first;
+                return false;
+            }
+            sigma_denominations.push_back(std::make_pair(denom, pair.second));
+        }
+        return CreateZerocoinMintModelV3(stringError, sigma_denominations);
+    }
+    else if (algo == ZEROCOIN) {
+        // Convert denominations from string to integers.
+        std::vector<std::pair<int, int>> int_denominations;
+        for(const std::pair<std::string,int>& pair: denominationPairs) {
+            int_denominations.push_back(std::make_pair(std::atoi(pair.first.c_str()), pair.second));
+        }
+        return CreateZerocoinMintModelV2(stringError, int_denominations);
+    }
     else
         return false;
 }
 
 bool CWallet::CreateZerocoinMintModelV3(
         string &stringError,
-        const std::vector<std::pair<int,int>>& denominationPairs) {
-    sigma::CoinDenominationV3 denomination;
-
+        const std::vector<std::pair<sigma::CoinDenominationV3, int>>& denominationPairs) {
     vector<CRecipient> vecSend;
     vector<sigma::PrivateCoinV3> privCoins;
     CWalletTx wtx;
 
-    std::pair<int,int> denominationPair;
-    BOOST_FOREACH(denominationPair, denominationPairs) {
-        int denominationValue = denominationPair.first;
-        if (!IntegerToDenomination(denominationValue * COIN, denomination)) {
+    for(const std::pair<sigma::CoinDenominationV3, int>& denominationPair: denominationPairs) {
+        sigma::CoinDenominationV3 denomination = denominationPair.first;
+        int64_t denominationValue;
+        if (!DenominationToInteger(denomination, denominationValue)) {
             throw runtime_error(
-                "mintzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n");
+                "mintzerocoin <amount>(0.1, 0.5, 1, 10, 100) (\"zcoinaddress\")\n");
         }
 
-        int64_t amount = denominationPair.second;
+        int64_t coinCount = denominationPair.second;
 
         LogPrintf("rpcWallet.mintzerocoin() denomination = %s, nAmount = %s \n", 
-            denominationValue, amount);
+            denominationValue, coinCount);
 
-        if(amount < 0){
-            throw runtime_error(
-                    "mintzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n");
+        if(coinCount < 0) {
+            throw runtime_error("Coin count negative (\"zcoinaddress\")\n");
         }
 
         sigma::ParamsV3* zcParams = sigma::ParamsV3::get_default();
 
-        for(int64_t i=0; i < amount; i++) {
+        for(int64_t i = 0; i < coinCount; i++) {
             // The following constructor does all the work of minting a brand
             // new zerocoin. It stores all the private values inside the
             // PrivateCoin object. This includes the coin secrets, which must be
@@ -3318,7 +3332,7 @@ bool CWallet::CreateZerocoinMintModelV3(
             std::vector<unsigned char> vch = pubCoin.getValue().getvch();
             scriptSerializedCoin.insert(scriptSerializedCoin.end(), vch.begin(), vch.end());
 
-            CRecipient recipient = {scriptSerializedCoin, (denominationValue * COIN), false};
+            CRecipient recipient = {scriptSerializedCoin, denominationValue, false};
 
             vecSend.push_back(recipient);
             privCoins.push_back(newCoin);

@@ -24,17 +24,17 @@ bool DenominationToInteger(CoinDenominationV3 denom, int64_t& denom_out, CValida
     switch (denom) {
         default:
             return state.DoS(100, error("CheckZerocoinTransaction : invalid denomination value, unable to convert to integer"));
-        case CoinDenominationV3::SIGMA_DENOM_1 :
-            denom_out = 1 * COIN;
+        case CoinDenominationV3::SIGMA_DENOM_0_1: 
+            denom_out = COIN / 10;
+            break;
+        case CoinDenominationV3::SIGMA_DENOM_0_5:
+            denom_out = COIN / 2;
+            break;
+        case CoinDenominationV3::SIGMA_DENOM_1:
+            denom_out = COIN;
             break;
         case CoinDenominationV3::SIGMA_DENOM_10:
             denom_out = 10 * COIN;
-            break;
-        case CoinDenominationV3::SIGMA_DENOM_25:
-            denom_out = 25 * COIN;
-            break;
-        case CoinDenominationV3::SIGMA_DENOM_50:
-            denom_out = 50 * COIN;
             break;
         case CoinDenominationV3::SIGMA_DENOM_100:
             denom_out = 100 * COIN;
@@ -48,11 +48,28 @@ bool RealNumberToDenomination(const double& value, CoinDenominationV3& denom_out
 }
 
 bool StringToDenomination(const std::string& str, CoinDenominationV3& denom_out) {
-    std::istringstream iss(str);
-    int64_t denom_number;
-    iss >> denom_number;
-    return IntegerToDenomination(denom_number * COIN, denom_out);
-}
+    if (str == "0.1") {
+        denom_out = CoinDenominationV3::SIGMA_DENOM_0_1;
+        return true;
+    }
+    if (str == "0.5") {
+        denom_out = CoinDenominationV3::SIGMA_DENOM_0_5;
+        return true;
+    }
+    if (str == "1") {
+        denom_out = CoinDenominationV3::SIGMA_DENOM_1;
+        return true;
+    }
+    if (str == "10") {
+        denom_out = CoinDenominationV3::SIGMA_DENOM_10;
+        return true;
+    }
+    if (str == "100") {
+        denom_out = CoinDenominationV3::SIGMA_DENOM_100;
+        return true;
+    }
+    return false;
+} 
 
 bool IntegerToDenomination(int64_t value, CoinDenominationV3& denom_out) {
     CValidationState dummy_state;
@@ -63,17 +80,17 @@ bool IntegerToDenomination(int64_t value, CoinDenominationV3& denom_out, CValida
     switch (value) {
         default:
             return state.DoS(100, error("CheckZerocoinTransaction : invalid denomination value, unable to convert to enum"));
+        case COIN / 10:
+            denom_out = CoinDenominationV3::SIGMA_DENOM_0_1;
+            break;
+        case COIN / 2:
+            denom_out = CoinDenominationV3::SIGMA_DENOM_0_5;
+            break;
         case 1 * COIN:
-            denom_out = CoinDenominationV3::SIGMA_DENOM_1 ;
+            denom_out = CoinDenominationV3::SIGMA_DENOM_1;
             break;
         case 10 * COIN:
             denom_out = CoinDenominationV3::SIGMA_DENOM_10;
-            break;
-        case 25 * COIN:
-            denom_out = CoinDenominationV3::SIGMA_DENOM_25;
-            break;
-        case 50 * COIN:
-            denom_out = CoinDenominationV3::SIGMA_DENOM_50;
             break;
         case 100 * COIN:
             denom_out = CoinDenominationV3::SIGMA_DENOM_100;
@@ -84,7 +101,7 @@ return true;
 
 //class PublicCoin
 PublicCoinV3::PublicCoinV3()
-    : denomination(CoinDenominationV3::SIGMA_DENOM_1 ) 
+    : denomination(CoinDenominationV3::SIGMA_DENOM_1)
 {
 
 }
