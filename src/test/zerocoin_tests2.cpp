@@ -26,7 +26,7 @@
 #include "rpc/register.h"
 #include "zerocoin.h"
 
-#include "test/fixtures.cpp"
+#include "test/fixtures.h"
 #include "test/testutil.h"
 
 #include "wallet/db.h"
