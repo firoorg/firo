@@ -62,3 +62,37 @@ TEST(RangeProofTests, Proof_notVerify_out_of_range)
     EXPECT_FALSE(rangeVerifier.verify_optimised(V, proof));
 
 }
+
+TEST(RangeProofTests, fake_Proof_notVerify)
+{
+    uint64_t n = 16;
+    secp_primitives::GroupElement g_gen, h_gen;
+    g_gen.randomize();
+    h_gen.randomize();
+    //creating generators g, h
+    std::vector <secp_primitives::GroupElement> g_;
+    std::vector <secp_primitives::GroupElement> h_;
+    for (int i = 0; i < n; ++i) {
+        secp_primitives::GroupElement g;
+        secp_primitives::GroupElement h;
+        g.randomize();
+        g_.push_back(g);
+        h.randomize();
+        h_.push_back(h);
+    }
+
+    nextgen::RangeProver<secp_primitives::Scalar, secp_primitives::GroupElement> rangeProver(g_gen, h_gen, g_, h_, n);
+    nextgen::RangeProof<secp_primitives::Scalar, secp_primitives::GroupElement> proof;
+    secp_primitives::Scalar v(uint64_t(71)), r;
+    r.randomize();
+    rangeProver.proof(v, r, proof);
+    secp_primitives::GroupElement V = g_gen * v +  h_gen * r;
+    nextgen::RangeVerifier<secp_primitives::Scalar, secp_primitives::GroupElement> rangeVerifier(g_gen, h_gen, g_, h_, n);
+
+    secp_primitives::GroupElement V_fake;
+    V_fake.randomize();
+    EXPECT_FALSE(rangeVerifier.verify(V_fake, proof));
+    EXPECT_FALSE(rangeVerifier.verify_fast(V_fake, proof));
+    EXPECT_FALSE(rangeVerifier.verify_optimised(V_fake, proof));
+
+}

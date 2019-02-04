@@ -135,8 +135,10 @@ bool RangeVerifier<Exponent, GroupElement>::verify_optimised(const GroupElement&
     //computing challenges
     Exponent x, x_u, y, z;
     NextGenPrimitives<Exponent, GroupElement>::get_x(proof.A, proof.S, y);
+    Exponent y_inv =  y.inverse();
     NextGenPrimitives<Exponent, GroupElement>::get_x(proof.S, proof.A, z);
     NextGenPrimitives<Exponent, GroupElement>::get_x(proof.T1, proof.T2, x);
+    Exponent x_neg = x.negate();
     NextGenPrimitives<Exponent, GroupElement>::get_x(proof.A, x_u);
     uint64_t log_n = (int)(log(n) / log(2));
     const InnerProductProof<Exponent, GroupElement>& innerProductProof = proof.innerProductProof;
@@ -153,7 +155,7 @@ bool RangeVerifier<Exponent, GroupElement>::verify_optimised(const GroupElement&
     //check line 97
     GroupElement left = NextGenPrimitives<Exponent, GroupElement>::commit(g, (innerProductProof.c_ - delta), h, proof.T_x);
     left += V * (z_square_neg);
-    left += proof.T1 * (x.negate());
+    left += proof.T1 * x_neg;
     left += proof.T2 * ((x.square()).negate());
     if(!left.isOne())
         return false;
@@ -177,8 +179,8 @@ bool RangeVerifier<Exponent, GroupElement>::verify_optimised(const GroupElement&
 
         }
         l[i] = x_il * innerProductProof.a_ + z;
-        r[i] = y_n_.inverse() * (x_ir * innerProductProof.b_ + (z_square_neg * two_n_)) - z;
-        y_n_ *= y;
+        r[i] = y_n_ * (x_ir * innerProductProof.b_ + (z_square_neg * two_n_)) - z;
+        y_n_ *= y_inv;
         two_n_ *= Exponent(uint64_t(2));
     }
 //
@@ -224,7 +226,7 @@ bool RangeVerifier<Exponent, GroupElement>::verify_optimised(const GroupElement&
     left_ += g * (x_u *  (innerProductProof.a_ * innerProductProof.b_ - innerProductProof.c_));
     left_ += h * proof.u;
     left_ += proof.A.inverse();
-    left_ += (proof.S * x).inverse();
+    left_ += proof.S * x_neg;
     /////
     zcoin_common::GeneratorVector<Exponent, GroupElement> L(innerProductProof.L_);
     zcoin_common::GeneratorVector<Exponent, GroupElement> R(innerProductProof.R_);

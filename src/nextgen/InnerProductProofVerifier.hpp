@@ -92,9 +92,8 @@ bool InnerProductProofVerifier<Exponent, GroupElement>::verify_fast_util(
     GroupElement right = P_;
     GroupElement multi;
     Exponent two(uint64_t(2));
-    two = two.negate();
     for(int j = 0; j < log_n; ++j)
-        multi += (proof.L_[j] * (x_j[j].square()) + proof.R_[j] * (x_j[j].exponent(two)));
+        multi += (proof.L_[j] * (x_j[j].square()) + proof.R_[j] * (x_j[j].exponent(two).inverse()));
     right += multi;
     if(left != right)
         return false;
