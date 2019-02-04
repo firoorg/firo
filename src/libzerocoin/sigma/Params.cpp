@@ -1,28 +1,31 @@
 #include "Params.h"
 
 namespace sigma {
-    ParamsV3* ParamsV3::instance;
+ParamsV3* ParamsV3::instance;
 ParamsV3* ParamsV3::get_default() {
     if(instance != nullptr)
         return instance;
     else {
-        //fixing generator G and H;
-       GroupElement g("9216064434961179932092223867844635691966339998754536116709681652691785432045",
-                      "33986433546870000256104618635743654523665060392313886665479090285075695067131");
-       GroupElement h("50204771751011461524623624559944050110546921468100198079190811223951215371253",
-                      "71960464583475414858258501028406090652116947054627619400863446545880957517934");
-       //fixing n and m; N = n^m = 16,384
-       int n = 4;
-       int m = 7;
-       instance = new ParamsV3(g, h, n, m);
+        //fixing generator G;
+        GroupElement g("9216064434961179932092223867844635691966339998754536116709681652691785432045",
+                       "33986433546870000256104618635743654523665060392313886665479090285075695067131");
+        //fixing n and m; N = n^m = 16,384
+        int n = 4;
+        int m = 7;
+        instance = new ParamsV3(g, n, m);
         return instance;
     }
 }
 
-ParamsV3::ParamsV3(const GroupElement& g, const GroupElement& h, int n, int m):
-    n_(n), m_(m), g_(g){
+ParamsV3::ParamsV3(const GroupElement& g, int n, int m):
+        n_(n), m_(m), g_(g){
+
+    unsigned char buff0[32] = {0};
+    g.sha256(buff0);
+    GroupElement h0;
+    h0.generate(buff0);
     h_.reserve(28);
-    h_.emplace_back(h);
+    h_.emplace_back(h0);
     for(int i = 1; i < n*m; ++i) {
         h_.push_back(GroupElement());
         unsigned char buff[32] = {0};
