@@ -832,7 +832,7 @@ BOOST_AUTO_TEST_CASE(sigma_build_state)
     auto coins = generateCoins(params, 10);
     auto pubCoins = getPubcoins(coins);
     std::pair<CoinDenominationV3, int> denomination1Group1(CoinDenominationV3::SIGMA_DENOM_1, 1);
-    std::pair<CoinDenominationV3, int> denomination10Group1(CoinDenominationV3::SIGMA_DENOM_1, 1);
+    std::pair<CoinDenominationV3, int> denomination10Group1(CoinDenominationV3::SIGMA_DENOM_10, 1);
 
     index1.mintedPubCoinsV3[denomination1Group1] = pubCoins;
 
