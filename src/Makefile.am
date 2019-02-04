@@ -453,6 +453,9 @@ libnextgen_a_SOURCES = \
   nextgen/InnerProductProof.h \
   nextgen/InnerProductProofVerifier.h \
   nextgen/InnerProductProofGenerator.h \
+  nextgen/RangeProof.h \
+  nextgen/RangeProver.h \
+  nextgen/RangeVerifier.h \
   nextgen/Coin.h \
   nextgen/Coin.cpp \
   nextgen/Params.h \

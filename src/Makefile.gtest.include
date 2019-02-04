@@ -65,3 +65,22 @@ gtest_inner_product_test_SOURCES = \
 gtest_inner_product_test_CPPFLAGS = $(AM_CPPFLAGS) -DBINARY_OUTPUT -DCURVE_ALT_BN128 -DSTATIC $(BITCOIN_INCLUDES)
 gtest_inner_product_test_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 gtest_inner_product_test_LDADD = -lgtest  -lgmock $(BOOST_LIBS) $(BOOST_UNIT_TEST_FRAMEWORK_LIB) $(LIBNEXTGEN) $(LIBSECP256K1) $(SSL_LIBS) -lcrypto  $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO)  -lgmp
+
+TESTS += range_proof_test
+noinst_PROGRAMS += gtest/range_proof_test
+gtest_range_proof_test_SOURCES = \
+	gtest/main.cpp \
+	gtest/range_proof_test.cpp
+
+gtest_range_proof_test_CPPFLAGS = $(AM_CPPFLAGS) -DBINARY_OUTPUT -DCURVE_ALT_BN128 -DSTATIC $(BITCOIN_INCLUDES)
+gtest_range_proof_test_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+gtest_range_proof_test_LDADD = -lgtest  -lgmock $(BOOST_LIBS) $(BOOST_UNIT_TEST_FRAMEWORK_LIB) $(LIBNEXTGEN) $(LIBSECP256K1) $(SSL_LIBS) -lcrypto  $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO)  -lgmp
+
+TESTS += bulletproofs_perform_test
+noinst_PROGRAMS += gtest/bulletproofs_perform_test
+gtest_bulletproofs_perform_test_SOURCES = \
+	gtest/bulletproofs_perform_test.cpp
+
+gtest_bulletproofs_perform_test_CPPFLAGS = $(AM_CPPFLAGS) -DBINARY_OUTPUT -DCURVE_ALT_BN128 -DSTATIC $(BITCOIN_INCLUDES)
+gtest_bulletproofs_perform_test_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+gtest_bulletproofs_perform_test_LDADD = -lgtest  -lgmock $(BOOST_LIBS) $(BOOST_UNIT_TEST_FRAMEWORK_LIB) $(LIBNEXTGEN) $(LIBSECP256K1) $(SSL_LIBS) -lcrypto  $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO)  -lgmp

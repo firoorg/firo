@@ -142,13 +142,13 @@ Scalar Scalar::exponent(const Scalar& exp) const {
     secp256k1_scalar exp_ = *exp.value_;
     while (!secp256k1_scalar_is_zero(&exp_))
     {
+       secp256k1_scalar_sqr(&value, &value);
        if(!secp256k1_scalar_is_even(&exp_))
            secp256k1_scalar_mul(&result,&result, &value);
-           secp256k1_scalar_shr_int(&exp_,1);
-           secp256k1_scalar_sqr(&value, &value);
+       secp256k1_scalar_shr_int(&exp_,1);
     }
-     return std::move(result);
-    }
+    return std::move(result);
+}
 
 Scalar Scalar::exponent(uint64_t exp) const {
     Scalar exp_(exp);

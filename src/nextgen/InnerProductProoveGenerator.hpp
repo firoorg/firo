@@ -28,12 +28,11 @@ template <class Exponent, class GroupElement>
 void InnerProductProoveGenerator<Exponent, GroupElement>::generate_proof(
         const std::vector<Exponent>& a,
         const std::vector<Exponent>& b,
+        const Exponent& x,
         InnerProductProof<Exponent, GroupElement>& proof_out) {
     int n = a.size() / 2;
     const Exponent c = NextGenPrimitives<Exponent, GroupElement>::scalar_dot_product(a.begin(), a.end(), b.begin(), b.end());
     compute_P(a.begin(), a.end(), b.begin(), b.end(), P_initial);
-    Exponent x;
-    NextGenPrimitives<Exponent, GroupElement>::get_x(P_initial, x);
     u_ *= x;
     proof_out.c_ = c;
     P_ = (P_initial + u_ * c);

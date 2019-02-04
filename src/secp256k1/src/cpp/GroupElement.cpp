@@ -145,6 +145,11 @@ bool GroupElement::isMember() const
     return secp256k1_ge_is_valid_var(&v1);
 }
 
+bool GroupElement::isOne() const
+{
+    return g_.infinity == 1;
+}
+
 void GroupElement::randomize(){
     unsigned char temp[32] = { 0 };
 

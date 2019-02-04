@@ -215,6 +215,7 @@ zcoin_common::GeneratorVector<Exponent, GroupElement> NextGenPrimitives<Exponent
         const Exponent& x){
     Exponent x_inverse = x.inverse();
     std::vector<GroupElement> g;
+    g.reserve(g_.size() / 2);
     for(int i = 0; i < g_.size() / 2; ++i){
         g.push_back(((g_.get_g(i) * x_inverse) + (g_.get_g(g_.size() / 2 + i) * x)));
     }
@@ -227,6 +228,7 @@ zcoin_common::GeneratorVector<Exponent, GroupElement> NextGenPrimitives<Exponent
         const Exponent& x) {
     Exponent x_inverse = x.inverse();
     std::vector <GroupElement> h;
+    h.reserve(h_.size() / 2);
     for (int i = 0; i < h_.size() / 2; ++i) {
         h.push_back(((h_.get_g(i) * x) + (h_.get_g(h_.size() / 2 + i) * x_inverse)));
     }
@@ -245,8 +247,19 @@ GroupElement NextGenPrimitives<Exponent, GroupElement>::p_prime(
 
 template <class Exponent, class GroupElement>
 Exponent NextGenPrimitives<Exponent, GroupElement>::delta(const Exponent& y, const Exponent& z, uint64_t n){
-    return (z - z.square()) * y.exponent(Exponent(n * (n + 1)) * Exponent(uint64_t(2)).inverse()) -
-            z.exponent(uint64_t(3)) * Exponent(uint64_t(2)).exponent(Exponent(n * (n + 1)) * Exponent(uint64_t(2)).inverse());
+    Exponent y_;
+    Exponent two;
+    Exponent y_n(uint64_t(1));
+    Exponent two_n(uint64_t(1));
+    for(int i = 0; i < n; ++i){
+        y_ += y_n;
+        two += two_n;
+        y_n *= y;
+        two_n *= uint64_t(2);
+    }
+
+    Exponent z_square = z.square();
+    return (z - z_square) * y_ - z * z_square * two;
 }
 
 }//namespace nextgen

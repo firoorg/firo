@@ -45,18 +45,19 @@ TEST(InnerProductProoveGeneratorTest, proof_verify)
     //    creating generator vectors g, h
     zcoin_common::GeneratorVector <secp_primitives::Scalar, secp_primitives::GroupElement> g_(gens_g);
     zcoin_common::GeneratorVector <secp_primitives::Scalar, secp_primitives::GroupElement> h_(gens_h);
-
+    secp_primitives::Scalar x;
+    x.randomize();
     //    //creating proof genertor
     nextgen::InnerProductProoveGenerator<secp_primitives::Scalar, secp_primitives::GroupElement> prooveGenerator(g_, h_, u_);
 
     //////    //generating proof
     nextgen::InnerProductProof<secp_primitives::Scalar, secp_primitives::GroupElement> proof;
-    prooveGenerator.generate_proof(a, b, proof);
+    prooveGenerator.generate_proof(a, b, x, proof);
 
     ////    //create verifier
     nextgen::InnerProductProofVerifier<secp_primitives::Scalar, secp_primitives::GroupElement> verifier(g_, h_, u_, prooveGenerator.get_P());
 
-    EXPECT_TRUE(verifier.verify(proof));
+    EXPECT_TRUE(verifier.verify(x, proof));
 
 }
 
@@ -73,19 +74,20 @@ TEST(InnerProductProoveGeneratorTest, fake_proof_notVerify)
     //    creating generator vectors g, h
     zcoin_common::GeneratorVector <secp_primitives::Scalar, secp_primitives::GroupElement> g_(gens_g);
     zcoin_common::GeneratorVector <secp_primitives::Scalar, secp_primitives::GroupElement> h_(gens_h);
-
+    secp_primitives::Scalar x;
+    x.randomize();
     //    //creating proof genertor
     nextgen::InnerProductProoveGenerator<secp_primitives::Scalar, secp_primitives::GroupElement> prooveGenerator(g_, h_, u_);
 
     //////    //generating proof
     nextgen::InnerProductProof<secp_primitives::Scalar, secp_primitives::GroupElement> proof;
-    prooveGenerator.generate_proof(a, b, proof);
+    prooveGenerator.generate_proof(a, b, x, proof);
 
     ////    //create verifier with fake P
     secp_primitives::GroupElement P;
     P.randomize();
     nextgen::InnerProductProofVerifier<secp_primitives::Scalar, secp_primitives::GroupElement> verifier(g_, h_, u_, P);
 
-    EXPECT_FALSE(verifier.verify(proof));
+    EXPECT_FALSE(verifier.verify(x, proof));
 
 }

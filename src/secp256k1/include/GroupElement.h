@@ -50,7 +50,6 @@ public:
   // Operator for adding to another element.
   GroupElement& operator+=(const GroupElement& other);
 
-
   GroupElement inverse() const;
 
   void square();
@@ -60,6 +59,8 @@ public:
   bool operator!=(const GroupElement&other) const;
 
   bool isMember() const;
+
+  bool isOne() const;
 
   GroupElement& generate(unsigned char* seed);
 

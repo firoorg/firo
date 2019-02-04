@@ -17,6 +17,7 @@ public:
     void generate_proof(
         const std::vector<Exponent>& a,
         const std::vector<Exponent>& b,
+        const Exponent& x,
         InnerProductProof<Exponent, GroupElement>& proof_out);
 
     GroupElement get_P();
