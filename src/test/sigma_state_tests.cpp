@@ -554,8 +554,9 @@ BOOST_AUTO_TEST_CASE(zerocoin_sigma_addblock_minted_spend)
     pubcoin2 = privcoin2.getPublicCoin();
 
     CBlockIndex index = CreateBlockIndex(1);
-    std::pair<int,int> denomination1Group1(1,1);
-
+    std::pair<CoinDenominationV3, int> denomination1Group1(
+        CoinDenominationV3::SIGMA_DENOM_1,1);
+    
 	index.mintedPubCoinsV3[denomination1Group1].push_back(pubcoin1);
 	index.mintedPubCoinsV3[denomination1Group1].push_back(pubcoin2);
 
@@ -612,7 +613,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_sigma_removeblock_remove)
     auto pubCoins = getPubcoins(coins);
 
     auto index1 = CreateBlockIndex(1);
-    std::pair<int,int> denomination1Group1(CoinDenominationV3::ZQ_LOVELACE,1);
+    std::pair<CoinDenominationV3, int> denomination1Group1(CoinDenominationV3::SIGMA_DENOM_1, 1);
     index1.mintedPubCoinsV3[denomination1Group1] = pubCoins;
     
     // add index 2 with 10 minted and 1 spend
@@ -620,7 +621,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_sigma_removeblock_remove)
     auto pubCoins2 = getPubcoins(coins2);
 
     auto index2 = CreateBlockIndex(2);
-    std::pair<int,int> denomination1Group2(CoinDenominationV3::ZQ_LOVELACE,2);
+    std::pair<CoinDenominationV3, int> denomination1Group2(CoinDenominationV3::SIGMA_DENOM_1, 2);
     index2.mintedPubCoinsV3[denomination1Group2] = pubCoins2;
 
     sigma::CoinSpendV3 coinSpend(params,coins[0],pubCoins);
@@ -631,7 +632,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_sigma_removeblock_remove)
     zerocoinState->AddBlock(&index1);
     zerocoinState->AddBlock(&index2);
 
-    BOOST_CHECK_MESSAGE(zerocoinState->latestCoinIds[CoinDenominationV3::ZQ_LOVELACE] == 2,
+    BOOST_CHECK_MESSAGE(zerocoinState->latestCoinIds[CoinDenominationV3::SIGMA_DENOM_1] == 2,
       "Unexpected lastestcoinId");
     BOOST_CHECK_MESSAGE(zerocoinState->HasCoin(pubCoins2[0]),
       "Coin isn't in state before remove index 2");
@@ -644,7 +645,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_sigma_removeblock_remove)
 	BOOST_CHECK_MESSAGE(zerocoinState->usedCoinSerials.size() == 0,
 	  "Unexpected usedCoinSerials size, remove index contain 1 spend.");
     
-    BOOST_CHECK_MESSAGE(zerocoinState->latestCoinIds[CoinDenominationV3::ZQ_LOVELACE] == 1,
+    BOOST_CHECK_MESSAGE(zerocoinState->latestCoinIds[CoinDenominationV3::SIGMA_DENOM_1] == 1,
       "Unexpected lastestcoinId");
 
     BOOST_CHECK_MESSAGE(zerocoinState->HasCoin(pubCoins[0]),
@@ -660,7 +661,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_sigma_removeblock_remove)
 	BOOST_CHECK_MESSAGE(zerocoinState->usedCoinSerials.size() == 0,
 	  "Unexpected usedCoinSerials size, remove index contain no spend.");
     
-    BOOST_CHECK_MESSAGE(zerocoinState->latestCoinIds[CoinDenominationV3::ZQ_LOVELACE] == 0,
+    BOOST_CHECK_MESSAGE(zerocoinState->latestCoinIds[CoinDenominationV3::SIGMA_DENOM_1] == 0,
       "Unexpected lastestcoinId remove all");
 
     BOOST_CHECK_MESSAGE(!zerocoinState->HasCoin(pubCoins[0]),
@@ -676,7 +677,7 @@ BOOST_AUTO_TEST_CASE(getmempoolconflictingtxhash_added_no)
     secp_primitives::Scalar serial;
     serial.randomize();
 
-    BOOST_TEST(state.GetMempoolConflictingTxHash(serial) == uint256());
+    BOOST_CHECK(state.GetMempoolConflictingTxHash(serial) == uint256());
 }
 
 BOOST_AUTO_TEST_CASE(getmempoolconflictingtxhash_added_yes)
@@ -689,13 +690,12 @@ BOOST_AUTO_TEST_CASE(getmempoolconflictingtxhash_added_yes)
     auto txid = uint256S("c8cdacf6b51275a3de9496073c75708abde26cb2f6cb164e0a1a0ed942c3c6e7");
 
     BOOST_TEST(state.AddSpendToMempool(serial, txid));
-    BOOST_TEST(state.GetMempoolConflictingTxHash(serial) == txid);
+    BOOST_CHECK(state.GetMempoolConflictingTxHash(serial) == txid);
 }
 
 BOOST_AUTO_TEST_CASE(zerocoingetspendserialnumberv3_valid_tx_valid_vin)
 {
     // setup
-    CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
     CScript scriptPubKey2;
     auto params = sigma::ParamsV3::get_default();
 
@@ -706,7 +706,6 @@ BOOST_AUTO_TEST_CASE(zerocoingetspendserialnumberv3_valid_tx_valid_vin)
     sigma::CoinSpendV3 coinSpend(params,coins[0],pubCoins);
 
     CDataStream serializedCoinSpend(SER_NETWORK, PROTOCOL_VERSION);
-    serializedCoinSpend << coinSpend;
 
     // create tx and vin
     
@@ -775,7 +774,6 @@ BOOST_AUTO_TEST_CASE(zerocoingetspendserialnumberv3_valid_tx_valid_vin)
 BOOST_AUTO_TEST_CASE(zerocoingetspendserialnumberv3_invalid_script)
 {
     // setup
-    CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
     CScript scriptPubKey2;
     auto params = sigma::ParamsV3::get_default();
 
@@ -830,32 +828,18 @@ BOOST_AUTO_TEST_CASE(sigma_build_state)
 
     CBlockIndex index1 = CreateBlockIndex(1);
 
-    // add index 1 with 10 ZQ_LOVELACE
-    auto coins = generateCoins(params,10);
+    // add index 1 with 10 SIGMA_DENOM_1
+    auto coins = generateCoins(params, 10);
     auto pubCoins = getPubcoins(coins);
-    std::pair<int,int> denomination1Group1(CoinDenominationV3::ZQ_LOVELACE,1);
-    std::pair<int,int> denomination10Group1(CoinDenominationV3::ZQ_GOLDWASSER,1);
+    std::pair<CoinDenominationV3, int> denomination1Group1(CoinDenominationV3::SIGMA_DENOM_1, 1);
+    std::pair<CoinDenominationV3, int> denomination10Group1(CoinDenominationV3::SIGMA_DENOM_10, 1);
 
     index1.mintedPubCoinsV3[denomination1Group1] = pubCoins;
-
-    // REMOVEME(panu): remove more three coin below
-    // after remove debug log from ZerocoinBuildStateFromIndexV3
-    std::pair<int,int> denomination25Group1(CoinDenominationV3::ZQ_RACKOFF,1);
-    std::pair<int,int> denomination50Group1(CoinDenominationV3::ZQ_PEDERSEN,1);
-    std::pair<int,int> denomination100Group1(CoinDenominationV3::ZQ_WILLIAMSON,1);
-
-    auto fillCoins = generateCoins(params,3);
-    auto fillPubCoins = getPubcoins(fillCoins);
-
-    index1.mintedPubCoinsV3[denomination25Group1].push_back(fillPubCoins[0]);
-    index1.mintedPubCoinsV3[denomination50Group1].push_back(fillPubCoins[1]);
-    index1.mintedPubCoinsV3[denomination100Group1].push_back(fillPubCoins[2]);
-    // remove until this line
 
     chainActive.SetTip(&index1);
 
     CBlockIndex index2 = CreateBlockIndex(2);
-    // add index 2 with 1 ZQ_LOVELACE 1  mints and 1 spend
+    // add index 2 with 1 DENOMINATIO_1  mints and 1 spend
     auto coins2 = generateCoins(params,1);
     auto pubCoins2 = getPubcoins(coins2);
     auto coins3 = generateCoins(params,1);
@@ -881,13 +865,13 @@ BOOST_AUTO_TEST_CASE(sigma_build_state)
 
     // check group
     CZerocoinStateV3::CoinGroupInfoV3 group;
-    zerocoinState->GetCoinGroupInfo(CoinDenominationV3::ZQ_LOVELACE,1,group);
+    zerocoinState->GetCoinGroupInfo(CoinDenominationV3::SIGMA_DENOM_1, 1, group);
     BOOST_CHECK_MESSAGE(group.firstBlock->nHeight == index1.nHeight, "Expect firstBlock == index1");
     BOOST_CHECK_MESSAGE(group.lastBlock->nHeight == index2.nHeight, "Expect lastBlock == index2");
     BOOST_CHECK_MESSAGE(group.nCoins == 11, "Expect nCoins == 11");
 
     CZerocoinStateV3::CoinGroupInfoV3 group2;
-    zerocoinState->GetCoinGroupInfo(CoinDenominationV3::ZQ_GOLDWASSER,1,group2);
+    zerocoinState->GetCoinGroupInfo(CoinDenominationV3::SIGMA_DENOM_10, 1, group2);
     BOOST_CHECK_MESSAGE(group2.firstBlock->nHeight == index2.nHeight, "Expect firstBlock == index2");
     BOOST_CHECK_MESSAGE(group2.lastBlock->nHeight == index2.nHeight, "Expect lastBlock == index2");
     BOOST_CHECK_MESSAGE(group2.nCoins == 1, "Expect nCoins == 1");
@@ -933,7 +917,7 @@ BOOST_AUTO_TEST_CASE(sigma_build_state_no_sigma)
 
     // check group
     CZerocoinStateV3::CoinGroupInfoV3 group;
-    bool found = zerocoinState->GetCoinGroupInfo(CoinDenominationV3::ZQ_LOVELACE,1,group);
+    bool found = zerocoinState->GetCoinGroupInfo(CoinDenominationV3::SIGMA_DENOM_1, 1, group);
     BOOST_CHECK_MESSAGE(!found, "Expect group not found");
 
     // check serial

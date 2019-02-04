@@ -14,7 +14,7 @@ public:
     template<typename Stream>
     CoinSpendV3(const ParamsV3* p,  Stream& strm):
         params(p),
-        denomination(SIGMA_DENOM_1),
+        denomination(CoinDenominationV3::SIGMA_DENOM_1),
         sigmaProof(p) {
             strm >> * this;
         }
@@ -29,7 +29,7 @@ public:
 
     CoinDenominationV3 getDenomination() const;
 
-    int getIntDenomination() const;
+    int64_t getIntDenomination() const;
 
     void setVersion(unsigned int nVersion){
         version = nVersion;
@@ -78,7 +78,7 @@ public:
 private:
     const ParamsV3* params;
     unsigned int version = 0;
-    int denomination;
+    CoinDenominationV3 denomination;
     uint256 accumulatorBlockHash;
     Scalar coinSerialNumber;
     SigmaPlusProof<Scalar, GroupElement> sigmaProof;

@@ -853,7 +853,6 @@ public:
 
     bool CreateZerocoinSpendTransactionV3(
         std::string& thirdPartyaddress,
-        int64_t nValue,
         sigma::CoinDenominationV3 denomination,
         CWalletTx& wtxNew,
         CReserveKey& reservekey,
@@ -866,8 +865,17 @@ public:
 
     bool CreateMultipleZerocoinSpendTransaction(std::string& thirdPartyaddress, const std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>>& denominations,
                                         CWalletTx& wtxNew, CReserveKey& reservekey, vector<CBigNum>& coinSerials, uint256& txHash, vector<CBigNum>& zcSelectedValues, std::string& strFailReason, bool forceUsed = false);
-    bool CreateMultipleZerocoinSpendTransactionV3(std::string& thirdPartyaddress, const std::vector<std::pair<int64_t, sigma::CoinDenominationV3>>& denominations,
-                                                CWalletTx& wtxNew, CReserveKey& reservekey, vector<Scalar>& coinSerials, uint256& txHash, vector<GroupElement>& zcSelectedValues, std::string& strFailReason, bool forceUsed = false);
+    bool CreateMultipleZerocoinSpendTransactionV3(
+        std::string& thirdPartyaddress,
+        const std::vector<sigma::CoinDenominationV3>& denominations,
+        CWalletTx& wtxNew,
+        CReserveKey& reservekey,
+        vector<Scalar>& coinSerials,
+        uint256& txHash,
+        vector<GroupElement>& zcSelectedValues,
+        std::string& strFailReason,
+        bool forceUsed = false);
+
     bool CommitZerocoinSpendTransaction(CWalletTx& wtxNew, CReserveKey& reservekey);
     std::string SendMoney(CScript scriptPubKey, int64_t nValue, CWalletTx& wtxNew, bool fAskFee=false);
     std::string SendMoneyToDestination(const CTxDestination &address, int64_t nValue, CWalletTx& wtxNew, bool fAskFee=false);
@@ -875,9 +883,10 @@ public:
     std::string MintAndStoreZerocoin(vector<CRecipient> vecSend, vector<libzerocoin::PrivateCoin> privCoins, CWalletTx &wtxNew, bool fAskFee=false);
     std::string MintAndStoreZerocoinV3(vector<CRecipient> vecSend, vector<sigma::PrivateCoinV3> privCoins, CWalletTx &wtxNew, bool fAskFee=false);
     std::string SpendZerocoin(std::string& thirdPartyaddress, int64_t nValue, libzerocoin::CoinDenomination denomination, CWalletTx& wtxNew, CBigNum& coinSerial, uint256& txHash, CBigNum& zcSelectedValue, bool& zcSelectedIsUsed, bool forceUsed = false);
-    std::string SpendZerocoinV3(std::string& thirdPartyaddress, int64_t nValue, sigma::CoinDenominationV3 denomination, CWalletTx& wtxNew, Scalar& coinSerial, uint256& txHash, GroupElement& zcSelectedValue, bool& zcSelectedIsUsed, bool forceUsed = false);
+    std::string SpendZerocoinV3(std::string& thirdPartyaddress, sigma::CoinDenominationV3 denomination, CWalletTx& wtxNew, Scalar& coinSerial, uint256& txHash, GroupElement& zcSelectedValue, bool& zcSelectedIsUsed, bool forceUsed = false);
     std::string SpendMultipleZerocoin(std::string& thirdPartyaddress, const std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>>& denominations, CWalletTx& wtxNew, vector<CBigNum>& coinSerials, uint256& txHash, vector<CBigNum>& zcSelectedValues, bool forceUsed = false);
-    std::string SpendMultipleZerocoinV3(std::string& thirdPartyaddress, const std::vector<std::pair<int64_t, sigma::CoinDenominationV3>>& denominations, CWalletTx& wtxNew, vector<Scalar>& coinSerials, uint256& txHash, vector<GroupElement>& zcSelectedValues, bool forceUsed = false);
+
+    std::string SpendMultipleZerocoinV3(std::string& thirdPartyaddress, const std::vector<sigma::CoinDenominationV3>& denominations, CWalletTx& wtxNew, vector<Scalar>& coinSerials, uint256& txHash, vector<GroupElement>& zcSelectedValues, bool forceUsed = false);
 
     bool CreateZerocoinMintModel(string &stringError,
                                  const string& denomAmount,
@@ -886,13 +895,17 @@ public:
     bool CreateZerocoinMintModelV2(string &stringError, const string& denomAmount);
     bool CreateZerocoinMintModelV3(string &stringError, const string& denomAmount);
 
-    bool CreateZerocoinMintModel(string &stringError,
-                                 vector<string> denomAmounts, 
-                                 MintAlgorithm algo = ZEROCOIN);
+    bool CreateZerocoinMintModel(
+        string &stringError,
+        const std::vector<std::pair<std::string, int>>& denominationPairs,
+        MintAlgorithm algo = ZEROCOIN);
 
-    bool CreateZerocoinMintModel(string &stringError, const std::vector<std::pair<int,int>>& denominationPairs, MintAlgorithm algo = ZEROCOIN);
-    bool CreateZerocoinMintModelV3(string &stringError, const std::vector<std::pair<int,int>>& denominationPairs);
+    bool CreateZerocoinMintModelV3(
+        string &stringError,
+        const std::vector<std::pair<sigma::CoinDenominationV3, int>>& denominationPairs);
+
     bool CreateZerocoinMintModelV2(string &stringError, const std::vector<std::pair<int,int>>& denominationPairs);
+
     bool CreateZerocoinSpendModel(string &stringError, string thirdPartyAddress, string denomAmount, bool forceUsed = false);
     bool CreateZerocoinSpendModelV3(string &stringError, string thirdPartyAddress, string denomAmount, bool forceUsed = false);
     bool CreateZerocoinSpendModel(CWalletTx& wtx, string &stringError, string& thirdPartyAddress, const vector<string>& denomAmounts, bool forceUsed = false);
@@ -909,11 +922,7 @@ public:
     bool AddAccountingEntry(const CAccountingEntry&, CWalletDB& pwalletdb);
 
     bool CheckDenomination(string denomAmount, int64_t& nAmount, libzerocoin::CoinDenomination& denomination);
-    bool CheckDenominationV3(
-        string denomAmount,
-        int64_t& nAmount,
-        sigma::CoinDenominationV3& denomination);
-
+    
     bool CheckHasV2Mint(libzerocoin::CoinDenomination denomination, bool forceUsed);
 
     static CFeeRate minTxFee;
@@ -1205,26 +1214,25 @@ public:
 
 class CZerocoinEntryV3
 {
-private:
-    template <typename Stream>
-    auto is_eof_helper(Stream &s, bool) -> decltype(s.eof()) {
-        return s.eof();
-    }
-
-    template <typename Stream>
-    bool is_eof_helper(Stream &s, int) {
-        return false;
-    }
-
-    template<typename Stream>
-    bool is_eof(Stream &s) {
-        return is_eof_helper(s, true);
-    }
-
 public:
+    void set_denomination(sigma::CoinDenominationV3 denom) {
+        DenominationToInteger(denom, denomination);
+    }
+    void set_denomination_value(int64_t new_denomination) {
+        denomination = new_denomination;
+    }
+    int64_t get_denomination_value() const {
+        return denomination;
+    }
+    sigma::CoinDenominationV3 get_denomination() const {
+        sigma::CoinDenominationV3 result;
+        IntegerToDenomination(denomination, result); 
+        return result;
+    }
+
     //public
     GroupElement value;
-    int denomination;
+
     //private
     Scalar randomness;
     Scalar serialNumber;
@@ -1232,6 +1240,17 @@ public:
     bool IsUsed;
     int nHeight;
     int id;
+
+private:
+    // NOTE(martun): made this one private to make sure people don't 
+    // misuse it and try to assign a value of type sigma::CoinDenominationV3 
+    // to it. In these cases the value is automatically converted to int, 
+    // which is not what we want.
+    // Starting from Version 3 == sigma, this number is coin value * COIN,
+    // I.E. it is set to 100.000.000 for 1 zcoin.
+    int64_t denomination;
+
+public:
 
     CZerocoinEntryV3()
     {
@@ -1277,7 +1296,21 @@ public:
 //            READWRITE(ecdsaSecretKey);
         }
     }
+private:
+    template <typename Stream>
+    auto is_eof_helper(Stream &s, bool) -> decltype(s.eof()) {
+        return s.eof();
+    }
 
+    template <typename Stream>
+    bool is_eof_helper(Stream &s, int) {
+        return false;
+    }
+
+    template<typename Stream>
+    bool is_eof(Stream &s) {
+        return is_eof_helper(s, true);
+    }
 };
 
 
@@ -1321,8 +1354,25 @@ public:
     Scalar coinSerial;
     uint256 hashTx;
     GroupElement pubCoin;
-    int denomination;
     int id;
+
+    void set_denomination(sigma::CoinDenominationV3 denom) {
+        DenominationToInteger(denom, denomination);
+    }
+
+    void set_denomination_value(int64_t new_denomination) {
+        denomination = new_denomination;
+    }
+
+    int64_t get_denomination_value() const {
+        return denomination;
+    }
+
+    sigma::CoinDenominationV3 get_denomination() const {
+        sigma::CoinDenominationV3 result;
+        IntegerToDenomination(denomination, result); 
+        return result;
+    }
 
     CZerocoinSpendEntryV3()
     {
@@ -1347,6 +1397,14 @@ public:
         READWRITE(denomination);
         READWRITE(id);
     }
+private:
+    // NOTE(martun): made this one private to make sure people don't 
+    // misuse it and try to assign a value of type sigma::CoinDenominationV3 
+    // to it. In these cases the value is automatically converted to int, 
+    // which is not what we want.
+    // Starting from Version 3 == sigma, this number is coin value * COIN,
+    // I.E. it is set to 100.000.000 for 1 zcoin.
+    int64_t denomination;
 };
 
 bool CompHeight(const CZerocoinEntry & a, const CZerocoinEntry & b);
