@@ -1028,7 +1028,7 @@ bool CWallet::AbandonTransaction(const uint256 &hashTx) {
                     pwalletMain->NotifyZerocoinChanged(
                         pwalletMain,
                         zerocoinItem.value.GetHex(),
-                        std::string("New (") + std::to_string(zerocoinItem.get_denomination_value() / COIN) + "mint)",                               
+                        std::string("New (") + std::to_string((double)zerocoinItem.get_denomination_value() / COIN) + "mint)",                               
                         CT_UPDATED);
                     walletdb.WriteZerocoinEntry(modifiedItem);
 

@@ -3641,8 +3641,8 @@ UniValue setmintzerocoinstatusV3(const UniValue& params, bool fHelp) {
 //                zerocoinTx.ecdsaSecretKey = zerocoinItem.ecdsaSecretKey;
                 const std::string& isUsedDenomStr = 
                     zerocoinTx.IsUsed
-                    ? "Used (" + std::to_string(zerocoinTx.get_denomination_value() / COIN) + " mint)"
-                    : "New (" + std::to_string(zerocoinTx.get_denomination_value() / COIN) + " mint)";
+                    ? "Used (" + std::to_string((double)zerocoinTx.get_denomination_value() / COIN) + " mint)"
+                    : "New (" + std::to_string((double)zerocoinTx.get_denomination_value() / COIN) + " mint)";
                 pwalletMain->NotifyZerocoinChanged(pwalletMain, zerocoinTx.value.GetHex(), isUsedDenomStr, CT_UPDATED);
                 walletdb.WriteZerocoinEntry(zerocoinTx);
 
