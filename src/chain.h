@@ -237,7 +237,7 @@ public:
 
     //! Public coin values of mints in this block, ordered by serialized value of public coin
     //! Maps <denomination,id> to vector of public coins
-    map<pair<int,int>, vector<sigma::PublicCoinV3>> mintedPubCoinsV3;
+    std::map<pair<sigma::CoinDenominationV3, int>, vector<sigma::PublicCoinV3>> mintedPubCoinsV3;
 
     //! Values of coin serials spent in this block
 	unordered_set<secp_primitives::Scalar, sigma::CScalarHash> spentSerialsV3;

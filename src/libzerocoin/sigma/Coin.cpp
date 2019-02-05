@@ -2,7 +2,16 @@
 #include "util.h"
 #include "amount.h"
 
+#include <sstream>
+
 namespace sigma {
+
+std::ostream& operator<<(std::ostream& stream, CoinDenominationV3 denomination) {
+    int64_t denom_value;
+    DenominationToInteger(denomination, denom_value);
+    stream << denom_value;
+    return stream;
+}
 
 bool DenominationToInteger(CoinDenominationV3 denom, int64_t& denom_out) {
     CValidationState dummy_state;
@@ -15,17 +24,17 @@ bool DenominationToInteger(CoinDenominationV3 denom, int64_t& denom_out, CValida
     switch (denom) {
         default:
             return state.DoS(100, error("CheckZerocoinTransaction : invalid denomination value, unable to convert to integer"));
-        case CoinDenominationV3::SIGMA_DENOM_1 :
-            denom_out = 1 * COIN;
+        case CoinDenominationV3::SIGMA_DENOM_0_1: 
+            denom_out = COIN / 10;
+            break;
+        case CoinDenominationV3::SIGMA_DENOM_0_5:
+            denom_out = COIN / 2;
+            break;
+        case CoinDenominationV3::SIGMA_DENOM_1:
+            denom_out = COIN;
             break;
         case CoinDenominationV3::SIGMA_DENOM_10:
             denom_out = 10 * COIN;
-            break;
-        case CoinDenominationV3::SIGMA_DENOM_25:
-            denom_out = 25 * COIN;
-            break;
-        case CoinDenominationV3::SIGMA_DENOM_50:
-            denom_out = 50 * COIN;
             break;
         case CoinDenominationV3::SIGMA_DENOM_100:
             denom_out = 100 * COIN;
@@ -35,44 +44,32 @@ return true;
 }
 
 bool RealNumberToDenomination(const double& value, CoinDenominationV3& denom_out) {
-    if (value == 1.0) {
-        denom_out = sigma::SIGMA_DENOM_1;
-        return true;
-    } else if (value == 10.0) {
-        denom_out = sigma::SIGMA_DENOM_10;
-        return true;
-    } else if (value == 25.0) {
-        denom_out = sigma::SIGMA_DENOM_25;
-        return true;
-    } else if (value == 50.0) {
-        denom_out = sigma::SIGMA_DENOM_50;
-        return true; 
-    } else if (value == 100.0) {
-        denom_out = sigma::SIGMA_DENOM_100;
-        return true;
-    }
-return false;
+    return IntegerToDenomination(value * COIN, denom_out);
 }
 
 bool StringToDenomination(const std::string& str, CoinDenominationV3& denom_out) {
-    if (str == "1") {
-        denom_out = sigma::SIGMA_DENOM_1;
-        return true;
-    } else if (str == "10") {
-        denom_out = sigma::SIGMA_DENOM_10;
-        return true;
-    } else if (str == "25") {
-        denom_out = sigma::SIGMA_DENOM_25;
-        return true;
-    } else if (str == "50") {
-        denom_out = sigma::SIGMA_DENOM_50;
-        return true; 
-    } else if (str == "100") {
-        denom_out = sigma::SIGMA_DENOM_100;
+    if (str == "0.1") {
+        denom_out = CoinDenominationV3::SIGMA_DENOM_0_1;
         return true;
     }
-return false;
-}
+    if (str == "0.5") {
+        denom_out = CoinDenominationV3::SIGMA_DENOM_0_5;
+        return true;
+    }
+    if (str == "1") {
+        denom_out = CoinDenominationV3::SIGMA_DENOM_1;
+        return true;
+    }
+    if (str == "10") {
+        denom_out = CoinDenominationV3::SIGMA_DENOM_10;
+        return true;
+    }
+    if (str == "100") {
+        denom_out = CoinDenominationV3::SIGMA_DENOM_100;
+        return true;
+    }
+    return false;
+} 
 
 bool IntegerToDenomination(int64_t value, CoinDenominationV3& denom_out) {
     CValidationState dummy_state;
@@ -83,17 +80,17 @@ bool IntegerToDenomination(int64_t value, CoinDenominationV3& denom_out, CValida
     switch (value) {
         default:
             return state.DoS(100, error("CheckZerocoinTransaction : invalid denomination value, unable to convert to enum"));
+        case COIN / 10:
+            denom_out = CoinDenominationV3::SIGMA_DENOM_0_1;
+            break;
+        case COIN / 2:
+            denom_out = CoinDenominationV3::SIGMA_DENOM_0_5;
+            break;
         case 1 * COIN:
-            denom_out = CoinDenominationV3::SIGMA_DENOM_1 ;
+            denom_out = CoinDenominationV3::SIGMA_DENOM_1;
             break;
         case 10 * COIN:
             denom_out = CoinDenominationV3::SIGMA_DENOM_10;
-            break;
-        case 25 * COIN:
-            denom_out = CoinDenominationV3::SIGMA_DENOM_25;
-            break;
-        case 50 * COIN:
-            denom_out = CoinDenominationV3::SIGMA_DENOM_50;
             break;
         case 100 * COIN:
             denom_out = CoinDenominationV3::SIGMA_DENOM_100;
@@ -104,7 +101,7 @@ return true;
 
 //class PublicCoin
 PublicCoinV3::PublicCoinV3()
-    : denomination(SIGMA_DENOM_1 ) 
+    : denomination(CoinDenominationV3::SIGMA_DENOM_1)
 {
 
 }
@@ -120,7 +117,7 @@ const GroupElement& PublicCoinV3::getValue() const{
 }
 
 CoinDenominationV3 PublicCoinV3::getDenomination() const {
-    return static_cast<CoinDenominationV3>(this->denomination);
+    return denomination;
 }
 
 bool PublicCoinV3::operator==(const PublicCoinV3& other) const{
@@ -140,8 +137,9 @@ size_t PublicCoinV3::GetSerializeSize(int nType, int nVersion) const{
 }
 
 //class PrivateCoin
-PrivateCoinV3::PrivateCoinV3(const ParamsV3* p,CoinDenominationV3 denomination, int version):
-    params(p) {
+PrivateCoinV3::PrivateCoinV3(const ParamsV3* p, CoinDenominationV3 denomination, int version)
+    : params(p)
+{
         this->version = version;
         this->mintCoin(denomination);
 }

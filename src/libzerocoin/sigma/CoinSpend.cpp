@@ -55,19 +55,17 @@ const Scalar& CoinSpendV3::getCoinSerialNumber() {
 }
 
 CoinDenominationV3 CoinSpendV3::getDenomination() const {
-    CoinDenominationV3 denom;
-    CValidationState dummy_state;
-    IntegerToDenomination(this->denomination, denom, dummy_state);
-    return denom;
-}
-
-int CoinSpendV3::getIntDenomination() const {
     return denomination;
 }
 
+int64_t CoinSpendV3::getIntDenomination() const {
+    int64_t denom_value;
+    DenominationToInteger(this->denomination, denom_value);
+    return denom_value;
+}
 
 bool CoinSpendV3::HasValidSerial() const {
     return coinSerialNumber.isMember();
 }
 
-}//namespace sigma
+} //namespace sigma

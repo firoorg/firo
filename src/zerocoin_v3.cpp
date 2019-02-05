@@ -127,7 +127,8 @@ bool CheckSpendZcoinTransactionV3(
 
 		bool passVerify = false;
 		CBlockIndex *index = coinGroup.lastBlock;
-		pair<int,int> denominationAndId = std::make_pair(targetDenominations[vinIndex], pubcoinId);
+		pair<sigma::CoinDenominationV3, int> denominationAndId = std::make_pair(
+            targetDenominations[vinIndex], pubcoinId);
 
 		uint256 accumulatorBlockHash = newSpend.getAccumulatorBlockHash();
 
@@ -141,7 +142,7 @@ bool CheckSpendZcoinTransactionV3(
 		std::vector<PublicCoinV3> anonymity_set;
         while(true) {
 			BOOST_FOREACH(const sigma::PublicCoinV3& pubCoinValue, 
-					index->mintedPubCoinsV3[std::make_pair(targetDenominations[vinIndex], pubcoinId)]) {
+					index->mintedPubCoinsV3[denominationAndId]) {
 				anonymity_set.push_back(pubCoinValue);
 			}
             if (index == coinGroup.firstBlock)
@@ -294,7 +295,7 @@ bool CheckZerocoinTransactionV3(
 											(const char *)&*txin.scriptSig.end(),
 											SER_NETWORK, PROTOCOL_VERSION);
 			sigma::CoinSpendV3 newSpend(ZCParamsV3, serializedCoinSpend);
-			uint64_t denom = newSpend.getIntDenomination() * COIN;
+			uint64_t denom = newSpend.getIntDenomination();
 			totalValue += denom;
 			sigma::CoinDenominationV3 denomination;
 			if (!IntegerToDenomination(denom, denomination, state))
@@ -404,7 +405,7 @@ bool ConnectBlockZCV3(
 			int mintId = zerocoinStateV3.AddMint(pindexNew,	mint);
 
 			LogPrintf("ConnectTipZC: mint added denomination=%d, id=%d\n", denomination, mintId);
-			pair<int,int> denomAndId = make_pair(denomination, mintId);
+			pair<CoinDenominationV3, int> denomAndId = make_pair(denomination, mintId);
 			pindexNew->mintedPubCoinsV3[denomAndId].push_back(mint);
 		}               
 	}
@@ -424,11 +425,11 @@ bool ZerocoinBuildStateFromIndexV3(CChain *chain) {
 	// DEBUG
 	LogPrintf(
         "Latest IDs for sigma coin groups are %d, %d, %d, %d, %d\n",
-		zerocoinStateV3.GetLatestCoinID(1),
-		zerocoinStateV3.GetLatestCoinID(10),
-		zerocoinStateV3.GetLatestCoinID(25),
-		zerocoinStateV3.GetLatestCoinID(50),
-		zerocoinStateV3.GetLatestCoinID(100));
+		zerocoinStateV3.GetLatestCoinID(CoinDenominationV3::SIGMA_DENOM_0_1),
+		zerocoinStateV3.GetLatestCoinID(CoinDenominationV3::SIGMA_DENOM_0_5),
+		zerocoinStateV3.GetLatestCoinID(CoinDenominationV3::SIGMA_DENOM_1),
+		zerocoinStateV3.GetLatestCoinID(CoinDenominationV3::SIGMA_DENOM_10),
+		zerocoinStateV3.GetLatestCoinID(CoinDenominationV3::SIGMA_DENOM_100));
 	return true;
 }
 
@@ -457,7 +458,7 @@ CZerocoinStateV3::CZerocoinStateV3() {
 int CZerocoinStateV3::AddMint(
 		CBlockIndex *index, 
 		const PublicCoinV3 &pubCoin) {
-	int denomination = pubCoin.getDenomination();
+	sigma::CoinDenominationV3 denomination = pubCoin.getDenomination();
 
 	if (latestCoinIds[denomination] < 1)
 		latestCoinIds[denomination] = 1;
@@ -498,7 +499,9 @@ void CZerocoinStateV3::AddSpend(const Scalar &serial) {
 }
 
 void CZerocoinStateV3::AddBlock(CBlockIndex *index) {
-	BOOST_FOREACH(const PAIRTYPE(PAIRTYPE(int,int),vector<PublicCoinV3>) &pubCoins, index->mintedPubCoinsV3) {
+	BOOST_FOREACH(
+        const PAIRTYPE(PAIRTYPE(sigma::CoinDenominationV3, int), vector<PublicCoinV3>) &pubCoins,
+            index->mintedPubCoinsV3) {
         if (!pubCoins.second.empty()) {
 			CoinGroupInfoV3& coinGroup = coinGroups[pubCoins.first];
 
@@ -525,8 +528,9 @@ void CZerocoinStateV3::AddBlock(CBlockIndex *index) {
 
 void CZerocoinStateV3::RemoveBlock(CBlockIndex *index) {
 	// roll back accumulator updates
-	BOOST_FOREACH(const PAIRTYPE(PAIRTYPE(int,int),vector<PublicCoinV3>) &coin, 
-                  index->mintedPubCoinsV3)
+	BOOST_FOREACH(
+        const PAIRTYPE(PAIRTYPE(sigma::CoinDenominationV3, int),vector<PublicCoinV3>) &coin, 
+        index->mintedPubCoinsV3)
 	{
 		CoinGroupInfoV3   &coinGroup = coinGroups[coin.first];
 		int  nMintsToForget = coin.second.size();
@@ -549,13 +553,16 @@ void CZerocoinStateV3::RemoveBlock(CBlockIndex *index) {
 	}
 
 	// roll back mints
-	BOOST_FOREACH(const PAIRTYPE(PAIRTYPE(int,int),vector<PublicCoinV3>) &pubCoins, index->mintedPubCoinsV3) {
+	BOOST_FOREACH(const PAIRTYPE(PAIRTYPE(CoinDenominationV3, int),vector<PublicCoinV3>) &pubCoins, 
+                  index->mintedPubCoinsV3) {
 		BOOST_FOREACH(const PublicCoinV3 &coin, pubCoins.second) {
 			auto coins = mintedPubCoins.equal_range(coin);
-			auto coinIt = find_if(coins.first, coins.second, [=](const decltype(mintedPubCoins)::value_type &v) {
+			auto coinIt = find_if(
+                coins.first, coins.second, 
+                [=](const decltype(mintedPubCoins)::value_type &v) {
 					return v.second.denomination == pubCoins.first.first &&
-					v.second.id == pubCoins.first.second;
-					});
+					    v.second.id == pubCoins.first.second;
+			    });
 			assert(coinIt != coins.second);
 			mintedPubCoins.erase(coinIt);
 		}
@@ -566,8 +573,12 @@ void CZerocoinStateV3::RemoveBlock(CBlockIndex *index) {
     }
 }
 
-bool CZerocoinStateV3::GetCoinGroupInfo(int denomination, int id, CoinGroupInfoV3 &result) {
-	pair<int,int> key = make_pair(denomination, id);
+bool CZerocoinStateV3::GetCoinGroupInfo(
+        sigma::CoinDenominationV3 denomination,
+        int group_id,
+        CoinGroupInfoV3& result) {
+	std::pair<sigma::CoinDenominationV3, int> key = 
+        std::make_pair(denomination, group_id);
 	if (coinGroups.count(key) == 0)
 		return false;
 
@@ -586,12 +597,12 @@ bool CZerocoinStateV3::HasCoin(const PublicCoinV3& pubCoin) {
 int CZerocoinStateV3::GetCoinSetForSpend(
 		CChain *chain,
 		int maxHeight,
-		int denomination,
+		sigma::CoinDenominationV3 denomination,
 		int coinGroupID,
 		uint256& blockHash_out,
 		std::vector<PublicCoinV3>& coins_out) {
 
-	pair<int, int> denomAndId = std::make_pair(denomination, coinGroupID);
+	pair<sigma::CoinDenominationV3, int> denomAndId = std::make_pair(denomination, coinGroupID);
 
 	if (coinGroups.count(denomAndId) == 0)
 		return 0;
@@ -678,7 +689,7 @@ CZerocoinStateV3* CZerocoinStateV3::GetZerocoinState() {
 	return &zerocoinStateV3;
 }
 
-int CZerocoinStateV3::GetLatestCoinID(int denomination) const {
+int CZerocoinStateV3::GetLatestCoinID(sigma::CoinDenominationV3 denomination) const {
     auto iter = latestCoinIds.find(denomination);
     if (iter == latestCoinIds.end()) {
         // Do not throw here, if there was no sigma mint, that's fine.

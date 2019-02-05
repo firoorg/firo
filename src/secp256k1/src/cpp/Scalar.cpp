@@ -143,11 +143,12 @@ Scalar Scalar::exponent(const Scalar& exp) const {
     {
        if(!secp256k1_scalar_is_even(&exp_))
            secp256k1_scalar_mul(&result,&result, &value);
-           secp256k1_scalar_shr_int(&exp_,1);
-           secp256k1_scalar_sqr(&value, &value);
+       secp256k1_scalar_sqr(&value, &value);
+       secp256k1_scalar_shr_int(&exp_,1);
+
     }
      return &result;
-    }
+}
 
 Scalar Scalar::exponent(uint64_t exp) const {
     Scalar exp_(exp);

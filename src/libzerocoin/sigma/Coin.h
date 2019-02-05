@@ -8,13 +8,16 @@
 
 namespace sigma {
 
-enum CoinDenominationV3 {
-    SIGMA_DENOM_1 = 1,
-    SIGMA_DENOM_10 = 10,
-    SIGMA_DENOM_25 = 25,
-    SIGMA_DENOM_50 = 50,
-    SIGMA_DENOM_100 = 100
+enum class CoinDenominationV3 {
+    SIGMA_DENOM_0_1 = 0,
+    SIGMA_DENOM_0_5 = 1,
+    SIGMA_DENOM_1 = 2,
+    SIGMA_DENOM_10 = 3,
+    SIGMA_DENOM_100 = 4
 };
+
+// for LogPrintf.
+std::ostream& operator<<(std::ostream& stream, CoinDenominationV3 denomination);
 
 // Functions to convert denominations to/from an integer value.
 bool DenominationToInteger(CoinDenominationV3 denom, int64_t& denom_out, CValidationState &state);
@@ -58,9 +61,9 @@ public:
         std::memcpy(&denomination, buffer + size, sizeof(denomination));
     }
 
-// private: TODO: change back to private
+// private: TODO(martun): change back to private
     GroupElement value;
-    int32_t denomination;
+    CoinDenominationV3 denomination;
 };
 
 class PrivateCoinV3{
@@ -70,8 +73,10 @@ public:
         strm >> *this;
     }
 
-    PrivateCoinV3(const ParamsV3* p,CoinDenominationV3 denomination = SIGMA_DENOM_1, 
+    PrivateCoinV3(const ParamsV3* p,
+        CoinDenominationV3 denomination = CoinDenominationV3::SIGMA_DENOM_1, 
         int version = ZEROCOIN_TX_VERSION_3);
+
     const PublicCoinV3& getPublicCoin() const;
     const Scalar& getSerialNumber() const;
     const Scalar& getRandomness() const;

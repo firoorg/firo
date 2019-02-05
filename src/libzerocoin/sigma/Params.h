@@ -18,7 +18,7 @@ public:
     uint64_t get_m() const;
 
 private:
-   ParamsV3(const GroupElement& g, const GroupElement& h, int n, int m);
+   ParamsV3(const GroupElement& g, int n, int m);
     ~ParamsV3();
 
 private:

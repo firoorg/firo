@@ -128,7 +128,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_v3)
     string denomination;
     vector<uint256> vtxid;
     std::vector<CMutableTransaction> MinTxns;
-    std::vector<std::string> denominations = {"1", "10", "25", "50", "100"};
+    std::vector<string> denominations = {"0.1", "0.5", "1", "10", "100"};
     for(int i = 0; i < 5; i++)
     {
         denomination = denominations[i];
@@ -138,8 +138,8 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_v3)
         pwalletMain->SetBroadcastTransactions(true);
 
         // Verify Mint is successful
-        vector<pair<int,int>> denominationPairs;
-        std::pair<int,int> denominationPair(stoi(denomination), 1);
+        vector<pair<std::string, int>> denominationPairs;
+        std::pair<std::string, int> denominationPair(denomination, 1);
         denominationPairs.push_back(denominationPair);
         BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(
             stringError, denominationPairs, SIGMA), stringError + " - Create Mint failed");
@@ -198,7 +198,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_v3)
             stringError, "", denomination.c_str(), true), stringError + " - Spend failed");
 
         //Try to put two in the same block and it will fail, expect 1
-        BOOST_CHECK_MESSAGE(mempool.size() == 1, "Spends was not added to mempool");
+        BOOST_CHECK_MESSAGE(mempool.size() == 1, "Spend was not added to mempool");
 
         //Verify spend got into mempool
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Spend was not added to mempool");
@@ -275,13 +275,13 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_many_v3)
     CBlock b;
     CWalletTx wtx;
 
-    std::vector<std::string> denominations = {"1", "10", "25", "50", "100"};
+    std::vector<std::string> denominations = {"0.1", "0.5", "1", "10", "100"};
 
     CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
 
     pwalletMain->SetBroadcastTransactions(true);
 
-    vector<pair<int,int>> denominationPairs;
+    vector<pair<std::string, int>> denominationPairs;
 
     for(int i = 0; i < 4; i++)
     {
@@ -297,7 +297,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_many_v3)
         denominationPairs.clear();
         //Verify Mint is successful
         for(int i = 0; i < 2; ++i) {
-             std::pair<int,int> denominationPair(stoi(denominationsForTx[i]), 1);
+             std::pair<std::string, int> denominationPair(denominationsForTx[i], 1);
              denominationPairs.push_back(denominationPair);
         }
 
@@ -436,7 +436,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_many_v3)
         // mint two of each denom
         denominationPairs.clear();
         for(int i=0;i<2;i++){
-             std::pair<int,int> denominationPair(stoi(denominationsForTx[i]), 2);
+             std::pair<std::string, int> denominationPair(denominationsForTx[i], 2);
              denominationPairs.push_back(denominationPair);
         }
         BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(
@@ -490,7 +490,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_many_v3)
         string stringError;
         printf("Testing denominations %s and %s\n", denominationsForTx[0].c_str(), denominationsForTx[1].c_str());
         denominationPairs.clear();
-        std::pair<int,int> denominationPair(stoi(denominations[i].c_str()), 2);
+        std::pair<std::string, int> denominationPair(denominations[i].c_str(), 2);
         denominationPairs.push_back(denominationPair);
 
         BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(
@@ -533,7 +533,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_many_v3)
 
 BOOST_AUTO_TEST_CASE(zerocoin_mintspend_usedinput_v3){
     vector<string> denominationsForTx;
-    vector<pair<int,int>> denominationPairs;
+    vector<pair<std::string, int>> denominationPairs;
     vector<uint256> vtxid;
     std::vector<CMutableTransaction> MinTxns;
     string thirdPartyAddress;
@@ -541,7 +541,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_usedinput_v3){
     CBlock b;
     CWalletTx wtx;
 
-    std::vector<std::string> denominations = {"1", "10", "25", "50", "100"};
+    std::vector<std::string> denominations = {"0.1", "0.5", "1", "10", "100"};
 
     CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
 
@@ -556,7 +556,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_usedinput_v3){
 
     denominationPairs.clear();
     for (int i = 0; i < 2; i++){
-        std::pair<int,int> denominationPair(stoi(denominationsForTx[i].c_str()), 2);
+        std::pair<std::string, int> denominationPair(denominationsForTx[i].c_str(), 2);
         denominationPairs.push_back(denominationPair);
     }
 
@@ -602,7 +602,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_usedinput_v3){
 
     // Now mint two more of the first denomination, but don't mine the needed blocks, preventing their usage. verify transaction creation fails
     denominationPairs.clear();
-    std::pair<int,int> denominationPair(stoi(denominationsForTx[0]), 2);
+    std::pair<std::string, int> denominationPair(denominationsForTx[0], 2);
     denominationPairs.push_back(denominationPair);
     BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(
         stringError, denominationPairs, SIGMA), stringError + " - Create Mint failed");
@@ -626,7 +626,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_numinputs_v3){
     CWalletTx wtx;
     string stringError;
 
-    std::vector<std::string> denominations = {"1", "10", "25", "50", "100"};
+    std::vector<std::string> denominations = {"0.1", "0.5", "1", "10", "100"};
     int denominationIndexA = rand() % 5;
     int denominationIndexB = (denominationIndexA + 5) %4; //guarantees a different number in the range
 
