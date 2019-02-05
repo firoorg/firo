@@ -2814,6 +2814,7 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
     bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
 
     block.zerocoinTxInfo = std::make_shared<CZerocoinTxInfo>();
+    block.zerocoinTxInfoV3 = std::make_shared<CZerocoinTxInfoV3>();
 
     for (unsigned int i = 0; i < block.vtx.size(); i++) {
         const CTransaction &tx = block.vtx[i];
@@ -4271,7 +4272,7 @@ bool CheckBlock(const CBlock &block, CValidationState &state,
 
         BOOST_FOREACH(const CTransaction &tx, block.vtx) {
             // We don't check transactions against zerocoin state here, we'll check it again later in ConnectBlock
-            if (!CheckTransaction(tx, state, tx.GetHash(), isVerifyDB, nHeight, false, false, NULL)) {
+            if (!CheckTransaction(tx, state, tx.GetHash(), isVerifyDB, nHeight, false, false, NULL, NULL)) {
                 LogPrintf("block=%s\n", block.ToString());
                 return state.Invalid(false, state.GetRejectCode(), state.GetRejectReason(),
                                  strprintf("Transaction check failed (tx hash %s) %s", tx.GetHash().ToString(),
