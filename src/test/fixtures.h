@@ -1,33 +1,9 @@
-#include "util.h"
-
-#include "clientversion.h"
 #include "primitives/transaction.h"
-#include "random.h"
-#include "sync.h"
-#include "utilstrencodings.h"
-#include "utilmoneystr.h"
 #include "test/test_bitcoin.h"
-
-#include "chainparams.h"
-#include "consensus/consensus.h"
-#include "consensus/validation.h"
-#include "key.h"
-#include "main.h"
-#include "miner.h"
-#include "pubkey.h"
-#include "random.h"
-#include "txdb.h"
-#include "txmempool.h"
-#include "ui_interface.h"
 #include "zerocoin.h"
-
 #include "test/testutil.h"
 
-#include "wallet/db.h"
-
-#include <boost/filesystem.hpp>
 #include <boost/test/unit_test.hpp>
-#include <boost/thread.hpp>
 
 static CScript scriptPubKey;
 
