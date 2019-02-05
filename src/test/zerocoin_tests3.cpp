@@ -147,16 +147,16 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend)
         //Add 5 more blocks and verify that Mint can not be spent until 6 blocks verification
         for (int i = 0; i < 5; i++)
         {
-            BOOST_CHECK_MESSAGE(!pwalletMain->CreateZerocoinSpendModel(stringError, "", denomination.c_str()), "Spend succeeded although not confirmed by 6 blocks");
-            BOOST_CHECK_MESSAGE(stringError == "it has to have at least two mint coins with at least 6 confirmation in order to spend a coin", stringError + " - Incorrect error message");
+            BOOST_CHECK_MESSAGE(!pwalletMain->CreateZerocoinSpendModel(stringError, "", denomination, false, true), "Spend succeeded although not confirmed by 6 blocks");
+            BOOST_CHECK_MESSAGE(stringError == "No zerocoin mints to spend, spending sigma mints disabled. At least 2 mints with at least 6 confirmations are required to spend a coin.", stringError + " - Incorrect error message");
 
             std::vector<CMutableTransaction> noTxns;
             CBlock b = CreateAndProcessBlock(noTxns, scriptPubKey3);
         }
         BOOST_CHECK_MESSAGE(previousHeight + 5 == chainActive.Height(), "Block not added to chain");
 
-        BOOST_CHECK_MESSAGE(!pwalletMain->CreateZerocoinSpendModel(stringError, "", denomination.c_str()), "Spend succeeded although not at least two mints");
-        BOOST_CHECK_MESSAGE(stringError == "it has to have at least two mint coins with at least 6 confirmation in order to spend a coin", stringError + " - Incorrect error message");
+        BOOST_CHECK_MESSAGE(!pwalletMain->CreateZerocoinSpendModel(stringError, "", denomination, false, true), "Spend succeeded although not at least two mints");
+        BOOST_CHECK_MESSAGE(stringError == "No zerocoin mints to spend, spending sigma mints disabled. At least 2 mints with at least 6 confirmations are required to spend a coin.", stringError + " - Incorrect error message");
 
         BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denomination.c_str()), stringError + "Create Mint failed");
 
@@ -173,15 +173,15 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend)
         //Add 5 more blocks and verify that Mint can not be spent until 6 blocks verification
         for (int i = 0; i < 5; i++)
         {
-            BOOST_CHECK_MESSAGE(!pwalletMain->CreateZerocoinSpendModel(stringError, "", denomination.c_str()), "Spend succeeded although not confirmed by 6 blocks");
-            BOOST_CHECK_MESSAGE(stringError == "it has to have at least two mint coins with at least 6 confirmation in order to spend a coin", stringError + " - Incorrect error message");
+            BOOST_CHECK_MESSAGE(!pwalletMain->CreateZerocoinSpendModel(stringError, "", denomination, false, true), "Spend succeeded although not confirmed by 6 blocks");
+            BOOST_CHECK_MESSAGE(stringError == "No zerocoin mints to spend, spending sigma mints disabled. At least 2 mints with at least 6 confirmations are required to spend a coin.", stringError + " - Incorrect error message");
             std::vector<CMutableTransaction> noTxns;
             CBlock b = CreateAndProcessBlock(noTxns, scriptPubKey3);
         }
 
         BOOST_CHECK_MESSAGE(previousHeight + 5 == chainActive.Height(), "Block not added to chain");
 
-        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(stringError, "", denomination.c_str()), "Spend failed");
+        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(stringError, "", denomination, false, true), "Spend failed");
 
         // Verify spend got into mempool
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Spend was not added to mempool");
@@ -198,7 +198,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend)
         zerocoinStatex->usedCoinSerials.clear();
         zerocoinStatex->mempoolCoinSerials.clear();
 
-        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(stringError, "", denomination.c_str(), true), "Spend created although double");
+        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(stringError, "", denomination, true, true), "Spend created although double");
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mempool did not receive the transaction");
 
         BOOST_CHECK_MESSAGE(ProcessBlock(b), "ProcessBlock failed although valid spend inside");
