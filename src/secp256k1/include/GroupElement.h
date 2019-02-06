@@ -3,22 +3,21 @@
 
 #include "Scalar.h"
 
-#include "secp256k1_field.h"
-#include "secp256k1_group.h"
+#include <cstddef>
+#include <ostream>
+#include <string>
+#include <vector>
 
-#include <memory>
-#include <cstring>
+#include <stddef.h>
 
 namespace secp_primitives {
 
-class GroupElement {
+class GroupElement final {
 public:
 
   GroupElement();
 
   ~GroupElement();
-
-  GroupElement(const secp256k1_gej *g);
 
   GroupElement(const GroupElement& other);
 
@@ -99,16 +98,10 @@ public:
   };
 
 private:
-
-//	Implements the algorithm from:
-//   Indifferentiable Hashing to Barreto-Naehrig Curves
-//    Pierre-Alain Fouque and Mehdi Tibouchi
-//    Latincrypt 2012
-//
-   void indifferent_hash(secp256k1_ge* ge, const secp256k1_fe* t);
+    GroupElement(const void *g);
 
 private:
-    std::unique_ptr<secp256k1_gej> g_;
+    void *g_; // secp256k1_gej
 
 };
 
