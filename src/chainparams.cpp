@@ -85,8 +85,8 @@ class CMainParams : public CChainParams {
         CMainParams() {
             strNetworkID = "main";
 
-            consensus.chainType = Consensus::chainMain;        
-            consensus.nSubsidyHalvingInterval = 305000;
+        consensus.chainType = Consensus::chainMain;        
+        consensus.nSubsidyHalvingInterval = 305000;
             consensus.nMajorityEnforceBlockUpgrade = 750;
             consensus.nMajorityRejectBlockOutdated = 950;
             consensus.nMajorityWindow = 1000;
@@ -126,18 +126,19 @@ class CMainParams : public CChainParams {
             // The best chain should have at least this much work.
             consensus.nMinimumChainWork = uint256S("0x0000000000000000000000000000000000000000000000000708f98bf623f02e");
 
-            consensus.nCheckBugFixedAtBlock = ZC_CHECK_BUG_FIXED_AT_BLOCK;
-            consensus.nZnodePaymentsBugFixedAtBlock = ZC_ZNODE_PAYMENT_BUG_FIXED_AT_BLOCK;
-            consensus.nSpendV15StartBlock = ZC_V1_5_STARTING_BLOCK;
-            consensus.nSpendV2ID_1 = ZC_V2_SWITCH_ID_1;
-            consensus.nSpendV2ID_10 = ZC_V2_SWITCH_ID_10;
-            consensus.nSpendV2ID_25 = ZC_V2_SWITCH_ID_25;
-            consensus.nSpendV2ID_50 = ZC_V2_SWITCH_ID_50;
-            consensus.nSpendV2ID_100 = ZC_V2_SWITCH_ID_100;
-            consensus.nModulusV2StartBlock = ZC_MODULUS_V2_START_BLOCK;
-            consensus.nModulusV1MempoolStopBlock = ZC_MODULUS_V1_MEMPOOL_STOP_BLOCK;
-            consensus.nModulusV1StopBlock = ZC_MODULUS_V1_STOP_BLOCK;
-            consensus.nMultipleSpendInputsInOneTxStartBlock = ZC_MULTIPLE_SPEND_INPUT_STARTING_BLOCK;
+        consensus.nCheckBugFixedAtBlock = ZC_CHECK_BUG_FIXED_AT_BLOCK;
+        consensus.nZnodePaymentsBugFixedAtBlock = ZC_ZNODE_PAYMENT_BUG_FIXED_AT_BLOCK;
+	    consensus.nSpendV15StartBlock = ZC_V1_5_STARTING_BLOCK;
+	    consensus.nSpendV2ID_1 = ZC_V2_SWITCH_ID_1;
+	    consensus.nSpendV2ID_10 = ZC_V2_SWITCH_ID_10;
+	    consensus.nSpendV2ID_25 = ZC_V2_SWITCH_ID_25;
+	    consensus.nSpendV2ID_50 = ZC_V2_SWITCH_ID_50;
+	    consensus.nSpendV2ID_100 = ZC_V2_SWITCH_ID_100;
+	    consensus.nModulusV2StartBlock = ZC_MODULUS_V2_START_BLOCK;
+        consensus.nModulusV1MempoolStopBlock = ZC_MODULUS_V1_MEMPOOL_STOP_BLOCK;
+	    consensus.nModulusV1StopBlock = ZC_MODULUS_V1_STOP_BLOCK;
+        consensus.nMultipleSpendInputsInOneTxStartBlock = ZC_MULTIPLE_SPEND_INPUT_STARTING_BLOCK;
+        consensus.nDontAllowDupTxsStartBlock = 119700;
 
             // znode params
             consensus.nZnodePaymentsStartBlock = HF_ZNODE_PAYMENT_START; // not true, but it's ok as long as it's less then nZnodePaymentsIncreaseBlock
@@ -148,12 +149,13 @@ class CMainParams : public CChainParams {
             // consensus.nBudgetPaymentsCycleBlocks = 16616; // ~(60*24*30)/2.6, actual number of blocks per month is 200700 / 12 = 16725
             // consensus.nBudgetPaymentsWindowBlocks = 100;
 
-            consensus.nMTPSwitchTime = SWITCH_TO_MTP_BLOCK_HEADER;
-            consensus.nDifficultyAdjustStartBlock = 0;
-            consensus.nFixedDifficulty = 0x2000ffff;
-            consensus.nPowTargetSpacingMTP = 5*60;
-            consensus.nInitialMTPDifficulty = 0x1c021e57;
-            consensus.nMTPRewardReduction = 2;
+        consensus.nMTPSwitchTime = SWITCH_TO_MTP_BLOCK_HEADER;
+        consensus.nMTPFiveMinutesStartBlock = SWITCH_TO_MTP_5MIN_BLOCK;
+        consensus.nDifficultyAdjustStartBlock = 0;
+        consensus.nFixedDifficulty = 0x2000ffff;
+        consensus.nPowTargetSpacingMTP = 5*60;
+        consensus.nInitialMTPDifficulty = 0x1c021e57;
+        consensus.nMTPRewardReduction = 2;
 
             nMaxTipAge = 6 * 60 * 60; // ~144 blocks behind -> 2 x fork detection time, was 24 * 60 * 60 in bitcoin
 
@@ -194,14 +196,14 @@ class CMainParams : public CChainParams {
             consensus.hashGenesisBlock = genesis.GetHash();
             assert(consensus.hashGenesisBlock == uint256S("0x4381deb85b1b2c9843c222944b616d997516dcbd6a964e1eaf0def0830695233"));
             assert(genesis.hashMerkleRoot == uint256S("0x365d2aa75d061370c9aefdabac3985716b1e3b4bb7c4af4ed54f25e5aaa42783"));
-            vSeeds.push_back(CDNSSeedData("amsterdam.zcoin.io", "amsterdam.zcoin.io", false));
-            vSeeds.push_back(CDNSSeedData("australia.zcoin.io", "australia.zcoin.io", false));
-            vSeeds.push_back(CDNSSeedData("chicago.zcoin.io", "chicago.zcoin.io", false));
+        vSeeds.push_back(CDNSSeedData("amsterdam.zcoin.io", "amsterdam.zcoin.io", false));
+        vSeeds.push_back(CDNSSeedData("australia.zcoin.io", "australia.zcoin.io", false));
+        vSeeds.push_back(CDNSSeedData("chicago.zcoin.io", "chicago.zcoin.io", false));
             vSeeds.push_back(CDNSSeedData("london.zcoin.io", "london.zcoin.io", false));
-            vSeeds.push_back(CDNSSeedData("frankfurt.zcoin.io", "frankfurt.zcoin.io", false));
-            vSeeds.push_back(CDNSSeedData("newjersey.zcoin.io", "newjersey.zcoin.io", false));
-            vSeeds.push_back(CDNSSeedData("sanfrancisco.zcoin.io", "sanfrancisco.zcoin.io", false));
-            vSeeds.push_back(CDNSSeedData("tokyo.zcoin.io", "tokyo.zcoin.io", false));
+        vSeeds.push_back(CDNSSeedData("frankfurt.zcoin.io", "frankfurt.zcoin.io", false));
+        vSeeds.push_back(CDNSSeedData("newjersey.zcoin.io", "newjersey.zcoin.io", false));
+        vSeeds.push_back(CDNSSeedData("sanfrancisco.zcoin.io", "sanfrancisco.zcoin.io", false));
+        vSeeds.push_back(CDNSSeedData("tokyo.zcoin.io", "tokyo.zcoin.io", false));
             vSeeds.push_back(CDNSSeedData("singapore.zcoin.io", "singapore.zcoin.io", false));
             // Note that of those with the service bits flag, most only support a subset of possible options
             base58Prefixes[PUBKEY_ADDRESS] = std::vector < unsigned char > (1, 82);
@@ -226,9 +228,10 @@ class CMainParams : public CChainParams {
                     (14002, uint256S("0x8c8c67106b0b612b08edd13e846c97c24ad0b59066efdb3ad6666e20f90d4bfa"))
                     (14003, uint256S("0xaccfa7c7bb153135def08bb54dadb1835744d9521afb36661a91aa2f70df9abd"))
                     (14271, uint256S("0xf15088099a30f98e85a09789880f74cadca42f725c0cc1666484865539d2f335"))
-                    (20580, uint256S("0x591b00ac1ba7d30b9f440efc467072400805a900e92f04f272e6f70cb55ab026")),
-                    1486809257, // * UNIX timestamp of last checkpoint block
-                    109007,    // * total number of transactions between genesis and last checkpoint
+                        (20580, uint256S("0x591b00ac1ba7d30b9f440efc467072400805a900e92f04f272e6f70cb55ab026"))
+			(121378, uint256S("0xa7d9a56dd2986442b5c10ad036eb4e6555eaa8d9f6645c7b9620597792a153ac")),
+                1545712287, // * UNIX timestamp of last checkpoint block
+                933513,    // * total number of transactions between genesis and last checkpoint
                     //   (the tx=... number in the SetBestChain debug.log lines)
                     1200.0     // * estimated number of transactions per day after checkpoint
             };
@@ -301,15 +304,16 @@ class CTestNetParams : public CChainParams {
             consensus.nCheckBugFixedAtBlock = 1;
             consensus.nZnodePaymentsBugFixedAtBlock = 1;
 
-            consensus.nSpendV2ID_1 = ZC_V2_TESTNET_SWITCH_ID_1;
-            consensus.nSpendV2ID_10 = ZC_V2_TESTNET_SWITCH_ID_10;
-            consensus.nSpendV2ID_25 = ZC_V2_TESTNET_SWITCH_ID_25;
-            consensus.nSpendV2ID_50 = ZC_V2_TESTNET_SWITCH_ID_50;
-            consensus.nSpendV2ID_100 = ZC_V2_TESTNET_SWITCH_ID_100;
-            consensus.nModulusV2StartBlock = ZC_MODULUS_V2_TESTNET_START_BLOCK;
-            consensus.nModulusV1MempoolStopBlock = ZC_MODULUS_V1_TESTNET_MEMPOOL_STOP_BLOCK;
-            consensus.nModulusV1StopBlock = ZC_MODULUS_V1_TESTNET_STOP_BLOCK;
-            consensus.nMultipleSpendInputsInOneTxStartBlock = 1;
+	    consensus.nSpendV2ID_1 = ZC_V2_TESTNET_SWITCH_ID_1;
+	    consensus.nSpendV2ID_10 = ZC_V2_TESTNET_SWITCH_ID_10;
+	    consensus.nSpendV2ID_25 = ZC_V2_TESTNET_SWITCH_ID_25;
+	    consensus.nSpendV2ID_50 = ZC_V2_TESTNET_SWITCH_ID_50;
+	    consensus.nSpendV2ID_100 = ZC_V2_TESTNET_SWITCH_ID_100;
+	    consensus.nModulusV2StartBlock = ZC_MODULUS_V2_TESTNET_START_BLOCK;
+        consensus.nModulusV1MempoolStopBlock = ZC_MODULUS_V1_TESTNET_MEMPOOL_STOP_BLOCK;
+	    consensus.nModulusV1StopBlock = ZC_MODULUS_V1_TESTNET_STOP_BLOCK;
+        consensus.nMultipleSpendInputsInOneTxStartBlock = 1;
+        consensus.nDontAllowDupTxsStartBlock = 18825;
 
             // Zerocoin V3 sigma related values.
             consensus.nMintV3SigmaStartBlock = ZC_V3_MINT_TESTNET_STARTING_BLOCK;
@@ -325,12 +329,13 @@ class CTestNetParams : public CChainParams {
             //consensus.nBudgetPaymentsWindowBlocks = 10;
             nMaxTipAge = 0x7fffffff; // allow mining on top of old blocks for testnet
 
-            consensus.nMTPSwitchTime = 1539172800;
-            consensus.nDifficultyAdjustStartBlock = 100;
-            consensus.nFixedDifficulty = 0x2000ffff;
-            consensus.nPowTargetSpacingMTP = 5*60;
-            consensus.nInitialMTPDifficulty = 0x2000ffff;  // !!!! change it to the real value
-            consensus.nMTPRewardReduction = 2;
+        consensus.nMTPSwitchTime = 1539172800;
+        consensus.nMTPFiveMinutesStartBlock = 0;
+        consensus.nDifficultyAdjustStartBlock = 100;
+        consensus.nFixedDifficulty = 0x2000ffff;
+        consensus.nPowTargetSpacingMTP = 5*60;
+        consensus.nInitialMTPDifficulty = 0x2000ffff;  // !!!! change it to the real value
+        consensus.nMTPRewardReduction = 2;
 
             nPoolMaxTransactions = 3;
             nFulfilledRequestExpireTime = 5*60; // fulfilled requests expire in 5 minutes
@@ -397,7 +402,6 @@ class CTestNetParams : public CChainParams {
                     0,
                     100.0
             };
-
         consensus.nSpendV15StartBlock = ZC_V1_5_TESTNET_STARTING_BLOCK;
         consensus.nSpendV2ID_1 = ZC_V2_TESTNET_SWITCH_ID_1;
         consensus.nSpendV2ID_10 = ZC_V2_TESTNET_SWITCH_ID_10;
@@ -466,8 +470,10 @@ class CRegTestParams : public CChainParams {
             consensus.nModulusV1MempoolStopBlock = 135;
             consensus.nModulusV1StopBlock = 140;
             consensus.nMultipleSpendInputsInOneTxStartBlock = 1;
+            consensus.nDontAllowDupTxsStartBlock = 1;
 
             consensus.nMTPSwitchTime = INT_MAX;
+            consensus.nMTPFiveMinutesStartBlock = 0;
             consensus.nDifficultyAdjustStartBlock = 5000;
             consensus.nFixedDifficulty = 0x2000ffff;
             consensus.nPowTargetSpacingMTP = 5*60;

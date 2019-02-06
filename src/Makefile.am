@@ -207,6 +207,7 @@ BITCOIN_CORE_H = \
   zerocoin_v3.h \
   hash_functions.h \
   zerocoin_params.h \
+  addresstype.h \
   mtpstate.h
 
 obj/build.h: FORCE
@@ -303,8 +304,8 @@ crypto_libbitcoin_crypto_a_SOURCES = \
   crypto/aes.cpp \
   crypto/aes.h \
   crypto/common.h \
-  crypto/chacha20.h \
-  crypto/chacha20.cpp \
+  crypto/chacha20.h \                           
+  crypto/chacha20.cpp \    
   crypto/hmac_sha256.cpp \
   crypto/hmac_sha256.h \
   crypto/hmac_sha512.cpp \
@@ -645,3 +646,4 @@ endif
 
 # Exodus
 include Makefile.exodus.include
+#

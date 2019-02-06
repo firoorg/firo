@@ -12,10 +12,10 @@ namespace exodus
  * is greater or equal than .5, then the result is rounded
  * up and down otherwise.
  */
-uint64_t rounduint64(long double);
+uint64_t rounduint64(double);
 
 /**
- * Swaps byte order on little-endian systems and does nothing 
+ * Swaps byte order on little-endian systems and does nothing
  * otherwise. swapByteOrder cycles on LE systems.
  */
 void swapByteOrder16(uint16_t&);
