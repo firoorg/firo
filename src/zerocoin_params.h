@@ -78,6 +78,7 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 XZC mininput
 #define ZC_GENESIS_BLOCK_TIME               1414776286
 
 #define SWITCH_TO_MTP_BLOCK_HEADER 1544443200 // 2018 December 10th 12:00 UTC
+#define SWITCH_TO_MTP_5MIN_BLOCK            118600
 
 // Number of zerocoin spends allowed per block and per transaction
 #define ZC_SPEND_LIMIT         5

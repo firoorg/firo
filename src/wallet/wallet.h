@@ -906,7 +906,9 @@ public:
 
     bool CreateZerocoinMintModelV2(string &stringError, const std::vector<std::pair<int,int>>& denominationPairs);
 
-    bool CreateZerocoinSpendModel(string &stringError, string thirdPartyAddress, string denomAmount, bool forceUsed = false);
+    // If dontSpendSigma is set, spends only old zcoin mints if any. Used in old unit tests.
+    bool CreateZerocoinSpendModel(string &stringError, string thirdPartyAddress, string denomAmount, bool forceUsed = false, bool dontSpendSigma = false);
+
     bool CreateZerocoinSpendModelV3(string &stringError, string thirdPartyAddress, string denomAmount, bool forceUsed = false);
     bool CreateZerocoinSpendModel(CWalletTx& wtx, string &stringError, string& thirdPartyAddress, const vector<string>& denomAmounts, bool forceUsed = false);
     bool CreateZerocoinSpendModelV2(CWalletTx& wtx, string &stringError, string& thirdPartyAddress, const vector<string>& denomAmounts, bool forceUsed = false);
