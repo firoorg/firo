@@ -140,13 +140,21 @@ UniValue znodelist(Type type, const UniValue& data, const UniValue& auth, bool f
         UniValue data(UniValue::VOBJ);
         UniValue nodes(UniValue::VOBJ);
 
+        int fIndex = 0;
         BOOST_FOREACH(CZnodeConfig::CZnodeEntry mne, znodeConfig.getEntries()) {
             const std::string& txHash = mne.getTxHash();
             const std::string& outputIndex = mne.getOutputIndex();
             std::string key = txHash + outputIndex;
             CZnode* mn = mnodeman.Find(txHash, outputIndex);
 
-            nodes.replace(key, !(mn==NULL) ? mn->ToJSON() : mne.ToJSON());
+            UniValue node(UniValue::VOBJ);
+            if(mn==NULL){
+                node = mne.ToJSON();
+                node.push_back(Pair("position", fIndex++));
+            }else{
+                node = mn->ToJSON();
+            }
+            nodes.replace(key, node);
         }
 
         data.push_back(Pair("nodes", nodes));
