@@ -3724,7 +3724,8 @@ bool CWallet::CreateZerocoinSpendModel(
         string &stringError, 
         string thirdPartyAddress,
         string denomAmount,
-        bool forceUsed) {
+        bool forceUsed,
+        bool dontSpendSigma) {
     // Clean the stringError, otherwise even if the Spend passes, it returns false.
     stringError = "";
 
@@ -3755,9 +3756,10 @@ bool CWallet::CreateZerocoinSpendModel(
             thirdPartyAddress, nAmount, denomination, 
             wtx, coinSerial, txHash, zcSelectedValue,
             zcSelectedIsUsed, forceUsed);
-    } else {
+    } else if (!dontSpendSigma) {
         sigma::CoinDenominationV3 denomination_v3; 
         if (!StringToDenomination(denomAmount, denomination_v3)) {
+            stringError = "Unable to convert denomination string to value.";
             return false;
         }
         // Spend V3 sigma mint.
@@ -3772,6 +3774,9 @@ bool CWallet::CreateZerocoinSpendModel(
                 zcSelectedValue,
                 zcSelectedIsUsed,
                 forceUsed);
+    } else {
+        // There were no V2 mints we could spend, and dontSpendSigma flag is passed, report  an error
+        stringError = "No zerocoin mints to spend, spending sigma mints disabled. At least 2 mints with at least 6 confirmations are required to spend a coin.";
     }
 
     if (stringError != "")

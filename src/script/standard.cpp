@@ -69,6 +69,14 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, vector<vector<unsi
         return true;
     }
 
+    if (scriptPubKey.IsPayToPublicKeyHash())
+    {
+        typeRet = TX_PUBKEYHASH;
+        vector<unsigned char> hashBytes(scriptPubKey.begin()+3, scriptPubKey.begin()+23);
+        vSolutionsRet.push_back(hashBytes);
+        return true;
+    }
+
     // Zerocoin
     if (scriptPubKey.IsZerocoinMint())
     {
