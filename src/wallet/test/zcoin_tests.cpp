@@ -33,7 +33,7 @@ bool AddSigmaCoin(const sigma::PrivateCoinV3& coin, const sigma::CoinDenominatio
     return CWalletDB(pwalletMain->strWalletFile).WriteZerocoinEntry(zerocoinTx);
 }
 
-bool GenerateWalletCoin( const std::vector<std::pair<sigma::CoinDenominationV3,int>> coins)
+bool GenerateWalletCoin(const std::vector<std::pair<sigma::CoinDenominationV3, int>> coins)
 {
     auto params = sigma::ParamsV3::get_default();
 
@@ -47,20 +47,20 @@ bool GenerateWalletCoin( const std::vector<std::pair<sigma::CoinDenominationV3,i
     return true;
 }
 
-bool CheckDenominationCoins(const std::vector<std::pair<sigma::CoinDenominationV3,int>>& need, const std::vector<CZerocoinEntryV3>& gots)
+bool CheckDenominationCoins(const std::vector<std::pair<sigma::CoinDenominationV3, int>>& need, const std::vector<CZerocoinEntryV3>& gots)
 {
     // flatter need
     std::vector<sigma::CoinDenominationV3> needDenominations;
 
-    for (auto& denominationNeed: need){
-        for (int i =0; i < denominationNeed.second; i++){
+    for (auto& denominationNeed : need) {
+        for (int i = 0; i < denominationNeed.second; i++) {
             needDenominations.push_back(denominationNeed.first);
         }
     }
 
     // got denominations set for `got` vector
     std::vector<sigma::CoinDenominationV3> gotDenominations;
-    for(auto& got: gots){
+    for (auto& got : gots) {
         gotDenominations.push_back(got.get_denomination());
     }
 
@@ -72,15 +72,22 @@ bool CheckDenominationCoins(const std::vector<std::pair<sigma::CoinDenominationV
     std::sort(gotDenominations.begin(), gotDenominations.end());
 
     // denominations must be match
-    for (int i =0; i < needDenominations.size(); i++)
-        if (needDenominations[i] != gotDenominations[i])
+    for (int i =0; i < needDenominations.size(); i++) {
+        if (needDenominations[i] != gotDenominations[i]) {
             return false;
+        }
+    }
 
     return true;
 }
 
-CAmount GetCoinSetByDenominationAmount(std::vector<std::pair<sigma::CoinDenominationV3, int> >& coins,
-int D01 = 0, int D05 = 0, int D1 = 0, int D10 = 0, int D100 = 0)
+CAmount GetCoinSetByDenominationAmount(
+    std::vector<std::pair<sigma::CoinDenominationV3, int> >& coins,
+    int D01 = 0,
+    int D05 = 0,
+    int D1 = 0,
+    int D10 = 0,
+    int D100 = 0)
 {
     coins.clear();
 
@@ -91,7 +98,7 @@ int D01 = 0, int D05 = 0, int D1 = 0, int D10 = 0, int D100 = 0)
     coins.push_back(std::pair<sigma::CoinDenominationV3, int>(sigma::CoinDenominationV3::SIGMA_DENOM_100, D100));
 
     CAmount sum(0);
-    for(auto coin: coins){
+    for (auto coin : coins) {
         CAmount r;
         sigma::DenominationToInteger(coin.first, r);
         sum += r * coin.second;
@@ -108,7 +115,7 @@ BOOST_AUTO_TEST_CASE(get_coin_no_coin)
     BOOST_CHECK_MESSAGE(pwalletMain->GetCoinsToSpend(require, coins) == 0,
       "Expect no coin in group");
 
-    std::vector<std::pair<sigma::CoinDenominationV3,int>> needCoins;
+    std::vector<std::pair<sigma::CoinDenominationV3, int>> needCoins;
 
     BOOST_CHECK_MESSAGE(CheckDenominationCoins(needCoins, coins),
       "Expect no coin in group");
@@ -139,7 +146,7 @@ BOOST_AUTO_TEST_CASE(get_coin_not_enough)
     CAmount require(111 * COIN + 7 * COIN / 10); // 111.7
     
     std::vector<CZerocoinEntryV3> coins;
-    BOOST_CHECK_MESSAGE(pwalletMain->GetCoinsToSpend(require,coins) == (111 * COIN + 6 * COIN / 10), // 111.6
+    BOOST_CHECK_MESSAGE(pwalletMain->GetCoinsToSpend(require, coins) == (111 * COIN + 6 * COIN / 10), // 111.6
       "Expect not enough coin and equal to one for each denomination");
 
     std::vector<std::pair<sigma::CoinDenominationV3, int>> expectedCoins;
@@ -196,7 +203,7 @@ BOOST_AUTO_TEST_CASE(get_coin_choose_smallest_enough)
     CAmount require(9 * COIN / 10); // 0.9
     
     std::vector<CZerocoinEntryV3> coins;
-    BOOST_CHECK_MESSAGE(pwalletMain->GetCoinsToSpend(require,coins) == 1 * COIN,
+    BOOST_CHECK_MESSAGE(pwalletMain->GetCoinsToSpend(require, coins) == 1 * COIN,
       "Expect enough coin and equal one SIGMA_DENOM_1");
 
     std::vector<std::pair<sigma::CoinDenominationV3, int>> expectedCoins;
