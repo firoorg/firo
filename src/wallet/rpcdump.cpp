@@ -555,6 +555,7 @@ UniValue dumpprivkey(const UniValue& params, bool fHelp)
 
 UniValue dumpprivkey_zcoin(const UniValue& params, bool fHelp)
 {
+#ifndef UNSAFE_DUMPPRIVKEY
     if (fHelp || params.size() < 1 || params.size() > 2)
         throw runtime_error(
             "dumpprivkey \"bitcoinaddress\"\n"
@@ -589,6 +590,7 @@ UniValue dumpprivkey_zcoin(const UniValue& params, bool fHelp)
             ;
         throw runtime_error(warning);
     }
+#endif
 
     UniValue dumpParams;
     dumpParams.setArray();

@@ -99,6 +99,8 @@ struct Params {
     
     int nMultipleSpendInputsInOneTxStartBlock;
 
+    int nDontAllowDupTxsStartBlock;
+
     /** switch to MTP time */
     uint32_t nMTPSwitchTime;
     /** block number to reduce distance between blocks */
