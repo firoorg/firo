@@ -3409,8 +3409,8 @@ bool CWallet::CreateZerocoinMintModelV2(
 
             // loop until we find a valid coin
             while(!validCoin){
-                libzerocoin::PrivateCoin newCoin(zcParams, denomination, ZEROCOIN_TX_VERSION_2);
-                libzerocoin::PublicCoin pubCoin = newCoin.getPublicCoin();
+                newCoin = libzerocoin::PrivateCoin(zcParams, denomination, ZEROCOIN_TX_VERSION_2);
+                pubCoin = newCoin.getPublicCoin();
                 validCoin = pubCoin.validate();
             }
 
@@ -5358,6 +5358,7 @@ string CWallet::MintAndStoreZerocoin(vector<CRecipient> vecSend,
         zerocoinTx.serialNumber = privCoin.getSerialNumber();
         const unsigned char *ecdsaSecretKey = privCoin.getEcdsaSeckey();
         zerocoinTx.ecdsaSecretKey = std::vector<unsigned char>(ecdsaSecretKey, ecdsaSecretKey+32);
+        NotifyZerocoinChanged(this, zerocoinTx.value.GetHex(), "New (" + std::to_string(zerocoinTx.denomination) + " mint)", CT_NEW);
         walletdb.WriteZerocoinEntry(zerocoinTx);
     }
 
@@ -5680,6 +5681,7 @@ string CWallet::SpendMultipleZerocoin(std::string &thirdPartyaddress, const std:
                     pubCoinTx.serialNumber = pubCoinItem.serialNumber;
                     pubCoinTx.denomination = pubCoinItem.denomination;
                     pubCoinTx.ecdsaSecretKey = pubCoinItem.ecdsaSecretKey;
+                    NotifyZerocoinChanged(this, pubCoinTx.value.GetHex(), "New", CT_UPDATED);
                     CWalletDB(strWalletFile).WriteZerocoinEntry(pubCoinTx);
                     LogPrintf("SpendZerocoin failed, re-updated status -> NotifyZerocoinChanged\n");
                     LogPrintf("pubcoin=%s, isUsed=New\n", pubCoinItem.value.GetHex());
