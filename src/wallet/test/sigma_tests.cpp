@@ -14,12 +14,11 @@
 #include "wallet_test_fixture.h"
 #include "../../zerocoin_v3.h"
 
-#include <boost/foreach.hpp>
 #include <boost/test/unit_test.hpp>
 
 BOOST_FIXTURE_TEST_SUITE(wallet_sigma_tests, WalletTestingSetup)
 
-bool AddSigmaCoin(const sigma::PrivateCoinV3& coin, const sigma::CoinDenominationV3 denomination)
+static bool AddSigmaCoin(const sigma::PrivateCoinV3& coin, const sigma::CoinDenominationV3 denomination)
 {
     sigma::PublicCoinV3 pubCoin(coin.getPublicCoin());
 
@@ -33,21 +32,21 @@ bool AddSigmaCoin(const sigma::PrivateCoinV3& coin, const sigma::CoinDenominatio
     return CWalletDB(pwalletMain->strWalletFile).WriteZerocoinEntry(zerocoinTx);
 }
 
-bool GenerateWalletCoin(const std::vector<std::pair<sigma::CoinDenominationV3, int>> coins)
+static bool GenerateWalletCoin(const std::vector<std::pair<sigma::CoinDenominationV3, int>>& coins)
 {
     auto params = sigma::ParamsV3::get_default();
 
     for (auto& coin : coins) {
         for (int i = 0; i < coin.second; i++) {
-            sigma::PrivateCoinV3 privCoin(params);
-            AddSigmaCoin(privCoin,coin.first);
+            sigma::PrivateCoinV3 privCoin(params, coin.first);
+            AddSigmaCoin(privCoin, coin.first);
         }
     }
 
     return true;
 }
 
-bool CheckDenominationCoins(const std::vector<std::pair<sigma::CoinDenominationV3, int>>& need, const std::vector<CZerocoinEntryV3>& gots)
+static bool CheckDenominationCoins(const std::vector<std::pair<sigma::CoinDenominationV3, int>>& need, const std::vector<CZerocoinEntryV3>& gots)
 {
     // flatter need
     std::vector<sigma::CoinDenominationV3> needDenominations;
@@ -72,7 +71,7 @@ bool CheckDenominationCoins(const std::vector<std::pair<sigma::CoinDenominationV
     std::sort(gotDenominations.begin(), gotDenominations.end());
 
     // denominations must be match
-    for (int i =0; i < needDenominations.size(); i++) {
+    for (int i = 0; i < needDenominations.size(); i++) {
         if (needDenominations[i] != gotDenominations[i]) {
             return false;
         }
@@ -81,8 +80,8 @@ bool CheckDenominationCoins(const std::vector<std::pair<sigma::CoinDenominationV
     return true;
 }
 
-CAmount GetCoinSetByDenominationAmount(
-    std::vector<std::pair<sigma::CoinDenominationV3, int> >& coins,
+static CAmount GetCoinSetByDenominationAmount(
+    std::vector<std::pair<sigma::CoinDenominationV3, int>>& coins,
     int D01 = 0,
     int D05 = 0,
     int D1 = 0,
@@ -98,7 +97,7 @@ CAmount GetCoinSetByDenominationAmount(
     coins.push_back(std::pair<sigma::CoinDenominationV3, int>(sigma::CoinDenominationV3::SIGMA_DENOM_100, D100));
 
     CAmount sum(0);
-    for (auto coin : coins) {
+    for (auto& coin : coins) {
         CAmount r;
         sigma::DenominationToInteger(coin.first, r);
         sum += r * coin.second;

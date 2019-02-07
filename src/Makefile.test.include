@@ -121,7 +121,7 @@ BITCOIN_TESTS += \
   wallet/test/accounting_tests.cpp \
   wallet/test/wallet_tests.cpp \
   wallet/test/crypto_tests.cpp \
-  wallet/test/zcoin_tests.cpp
+  wallet/test/sigma_tests.cpp
 endif
 
 test_test_bitcoin_LDADD = $(LIBBITCOIN_SERVER) tor/src/or/libtor.a \
