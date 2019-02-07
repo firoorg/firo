@@ -3,7 +3,7 @@ AC_PREREQ([2.60])
 define(_CLIENT_VERSION_MAJOR, 0)
 define(_CLIENT_VERSION_MINOR, 13)
 define(_CLIENT_VERSION_REVISION, 7)
-define(_CLIENT_VERSION_BUILD, 5)
+define(_CLIENT_VERSION_BUILD, 7)
 define(_CLIENT_VERSION_IS_RELEASE, true)
 define(_COPYRIGHT_YEAR, 2018)
 define(_COPYRIGHT_HOLDERS,[The %s developers])
@@ -251,6 +251,16 @@ AC_ARG_WITH([daemon],
   [build bitcoind daemon (default=yes)])],
   [build_bitcoind=$withval],
   [build_bitcoind=yes])
+
+AC_ARG_ENABLE(unsafe-dumpprivkey,
+    [],
+    [unsafe_dumpprivkey=x$enableval],
+    [unsafe_dumpprivkey=xno])
+
+
+AS_IF([test "x$enable_unsafe_dumpprivkey" != "xno"], [
+    CPPFLAGS="$CPPFLAGS -DUNSAFE_DUMPPRIVKEY"
+])
 
 use_pkgconfig=yes
 case $host in

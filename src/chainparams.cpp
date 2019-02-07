@@ -138,6 +138,7 @@ public:
         consensus.nModulusV1MempoolStopBlock = ZC_MODULUS_V1_MEMPOOL_STOP_BLOCK;
 	    consensus.nModulusV1StopBlock = ZC_MODULUS_V1_STOP_BLOCK;
         consensus.nMultipleSpendInputsInOneTxStartBlock = ZC_MULTIPLE_SPEND_INPUT_STARTING_BLOCK;
+        consensus.nDontAllowDupTxsStartBlock = 119700;
 
         // znode params
         consensus.nZnodePaymentsStartBlock = HF_ZNODE_PAYMENT_START; // not true, but it's ok as long as it's less then nZnodePaymentsIncreaseBlock
@@ -227,9 +228,10 @@ public:
                         (14002, uint256S("0x8c8c67106b0b612b08edd13e846c97c24ad0b59066efdb3ad6666e20f90d4bfa"))
                         (14003, uint256S("0xaccfa7c7bb153135def08bb54dadb1835744d9521afb36661a91aa2f70df9abd"))
                         (14271, uint256S("0xf15088099a30f98e85a09789880f74cadca42f725c0cc1666484865539d2f335"))
-                        (20580, uint256S("0x591b00ac1ba7d30b9f440efc467072400805a900e92f04f272e6f70cb55ab026")),
-                1486809257, // * UNIX timestamp of last checkpoint block
-                109007,    // * total number of transactions between genesis and last checkpoint
+                        (20580, uint256S("0x591b00ac1ba7d30b9f440efc467072400805a900e92f04f272e6f70cb55ab026"))
+			(121378, uint256S("0xa7d9a56dd2986442b5c10ad036eb4e6555eaa8d9f6645c7b9620597792a153ac")),
+                1545712287, // * UNIX timestamp of last checkpoint block
+                933513,    // * total number of transactions between genesis and last checkpoint
                 //   (the tx=... number in the SetBestChain debug.log lines)
                 1200.0     // * estimated number of transactions per day after checkpoint
         };
@@ -298,6 +300,7 @@ public:
         consensus.nModulusV1MempoolStopBlock = ZC_MODULUS_V1_TESTNET_MEMPOOL_STOP_BLOCK;
 	    consensus.nModulusV1StopBlock = ZC_MODULUS_V1_TESTNET_STOP_BLOCK;
         consensus.nMultipleSpendInputsInOneTxStartBlock = 1;
+        consensus.nDontAllowDupTxsStartBlock = 18825;
 
         // Znode params testnet
         consensus.nZnodePaymentsStartBlock = 2200;
@@ -441,6 +444,7 @@ public:
         consensus.nModulusV1MempoolStopBlock = 135;
         consensus.nModulusV1StopBlock = 140;
         consensus.nMultipleSpendInputsInOneTxStartBlock = 1;
+        consensus.nDontAllowDupTxsStartBlock = 1;
 
         consensus.nMTPSwitchTime = INT_MAX;
         consensus.nMTPFiveMinutesStartBlock = 0;
