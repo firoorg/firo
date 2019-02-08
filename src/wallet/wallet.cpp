@@ -2291,7 +2291,7 @@ bool CWallet::GetVinAndKeysFromOutput(COutput out, CTxIn &txinRet, CPubKey &pubK
     return true;
 }
 
-bool CWallet::IsMintFromTxOutUsed(CTxOut txout, bool& fIsUsed){
+bool CWallet::IsMintFromTxOutAvailable(CTxOut txout, bool& fIsAvailable){
     LOCK(cs_wallet);
 
     if(!txout.scriptPubKey.IsZerocoinMint()){
@@ -2310,7 +2310,9 @@ bool CWallet::IsMintFromTxOutUsed(CTxOut txout, bool& fIsUsed){
     LogPrintf("Pubcoin=%s\n", pubCoin.GetHex());
     BOOST_FOREACH(const CZerocoinEntry &pubCoinItem, listPubCoin) {
         if (pubCoinItem.value == pubCoin){
-            fIsUsed = pubCoinItem.IsUsed;
+            fIsAvailable = (pubCoinItem.IsUsed || 
+                           (pubCoinItem.randomness != 0 && 
+                            pubCoinItem.serialNumber != 0));
             return true;
         }
     }

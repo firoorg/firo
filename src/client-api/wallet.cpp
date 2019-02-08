@@ -216,11 +216,11 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
                 category = "mint";
                 addrStr = "ZEROCOIN_MINT";
                 if(pwalletMain){
-                    bool isUsed;
-                    if(!pwalletMain->IsMintFromTxOutUsed(wtx.vout[s.vout], isUsed)){
+                    bool isAvailable;
+                    if(!pwalletMain->IsMintFromTxOutAvailable(wtx.vout[s.vout], isAvailable)){
                         continue;
                     }
-                    entry.push_back(Pair("used", isUsed));
+                    entry.push_back(Pair("used", isAvailable));
                 }
             }
             else if(wtx.vin[s.vout].IsZerocoinSpend()){

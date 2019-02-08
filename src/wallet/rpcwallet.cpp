@@ -1563,11 +1563,11 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
             if(wtx.vout[s.vout].scriptPubKey.IsZerocoinMint()){
                     entry.push_back(Pair("category", "mint"));
                     if(pwalletMain){
-                        bool isUsed;
-                        if(!pwalletMain->IsMintFromTxOutUsed(wtx.vout[s.vout], isUsed)){
+                        bool isAvailable;
+                        if(!pwalletMain->IsMintFromTxOutAvailable(wtx.vout[s.vout], isAvailable)){
                             continue;
                         }
-                        entry.push_back(Pair("used", isUsed));
+                        entry.push_back(Pair("available", isAvailable));
                     }
                 }
             else if(wtx.vin[s.vout].IsZerocoinSpend()){
