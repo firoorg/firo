@@ -6,6 +6,51 @@ namespace secp_primitives {
 
 secp256k1_ecmult_context GroupElement::ctx;
 
+int _convertBase(
+    unsigned char *dst,
+    int dstLen,
+    int dstBase,
+    const unsigned char *src,
+    int srcLen,
+    int srcBase)
+{
+    memset(dst, 0, dstLen);
+
+    int resLen = 0;
+    for (int d = 0; d < srcLen; d++) {
+        int adt = src[d];
+
+        for (int i = 0; i < resLen || adt != 0; i++) {
+            if (i == resLen) {
+                resLen++;
+            }
+
+            if (resLen > dstLen) {
+                throw "GroupElement::GroupElement: invalid count";
+            }
+
+            int sum = adt + srcBase * dst[i];
+            dst[i] = sum % dstBase;
+            adt = sum / dstBase;
+        }
+    }
+
+    for (int i = 0; i < dstLen / 2; i++){
+        unsigned char tmp;
+        tmp = dst[i];
+        dst[i] = dst[dstLen - i - 1];
+        dst[dstLen - i - 1] = tmp;
+    }
+
+    return dstLen;
+}
+
+void _negate(unsigned char *num, int length){
+    for (int i = 0; i < length; i++) {
+        num[i] ^= 255;
+    }
+}
+
 GroupElement::GroupElement()
 {
     secp256k1_gej_clear(&g_);
@@ -22,17 +67,35 @@ GroupElement::GroupElement(const secp256k1_gej& g)
 {
 }
 
-void _convertToFieldElement(secp256k1_fe *r,const char* str,int base) {
-     unsigned char buffer[128];
-    mpz_t value;
-    mpz_init(value);
-    mpz_set_str(value,str,base);
-    size_t count = 0;
-    mpz_export((void*)buffer,&count,1,32,1,0,value);
-    mpz_clear(value);
-    if (count != 1) {
-         throw "GroupElement::GroupElement: invalid count";
+void _convertToFieldElement(secp256k1_fe *r, const char* str, int base) {
+    int strLen = strlen(str);
+    unsigned char buffer[128];
+    std::unique_ptr<unsigned char[]> src(new unsigned char[strLen]);
+    memset(src.get(), 0, strLen * sizeof(unsigned char));
+
+    for (int i = 0; i < strLen; i++) {
+        char ch = str[i];
+        switch (base) {
+        case 10:
+            src[i] = ch - '0';
+            break;
+        
+        case 16:
+            if (ch >= '0' && ch <= '9') {
+                src[i] = ch - '0';
+            } else if (ch >= 'a' && ch <= 'f') {
+                src[i] = 10 + ch - 'a';
+            } else {
+                src[i] = 10 + ch - 'A';
+            }
+            break;
+
+        default:
+            break;
         }
+    }
+
+    _convertBase((unsigned char*)buffer, 32, 256, src.get(), strLen, base);
     secp256k1_fe_set_b32(r,buffer);
 }
 
@@ -204,13 +267,37 @@ void GroupElement::sha256(unsigned char* result) const{
     secp256k1_rfc6979_hmac_sha256_generate(&sha256,  result, 32);
 }
 
-char* _convertToString(char* str,const unsigned char* buffer,int base) {
-    mpz_t value;
-    mpz_init(value);
-    mpz_import(value,1,1,32,1,0,(void*)buffer);
-    mpz_get_str(str,base,value);
-    mpz_clear(value);
-return str + strlen(str);
+char* _convertToString(char* str, const unsigned char* buffer, int base) {
+    unsigned char dst[128];
+    int strLen = _convertBase((unsigned char*)dst, 128, base, buffer, 32, 256);
+
+    int startAt = 0;
+    while (dst[startAt] == 0) {
+        startAt++;
+    }
+
+    for (int i = startAt; i < strLen; i++) {
+        unsigned char v = dst[i];
+        switch (base) {
+        case 10:
+            v = '0' + v;
+            break;
+        case 16:
+            if (v >= 0 && v <= 9) {
+                v = '0' + v;
+            } else {
+                v = 'a' + v;
+            }
+            break;
+        default:
+            break;
+        }
+
+        str[i - startAt] = v;
+    }
+    str[strLen - startAt] = 0;
+
+    return str + strlen(str);
 }
 
 std::string GroupElement::tostring() const {
