@@ -1,6 +1,5 @@
 #include "include/GroupElement.h"
 #include <stdlib.h>
-#include "gmp.h"
 #include <openssl/rand.h>
 namespace secp_primitives {
 
