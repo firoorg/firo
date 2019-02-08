@@ -103,6 +103,13 @@ tests_CPPFLAGS = -DSECP256K1_BUILD -DVERIFY -I$(top_srcdir)/src -I$(top_srcdir)/
 tests_LDADD = $(SECP_LIBS) $(SECP_TEST_LIBS) $(COMMON_LIB)
 tests_LDFLAGS = -static
 TESTS += tests
+
+noinst_PROGRAMS += tests_cpp
+tests_cpp_SOURCES = src/cpp/tests.cpp
+tests_cpp_CPPFLAGS = -DSECP256K1_BUILD -DVERIFY -I$(top_srcdir)/src -I$(top_srcdir)/include $(SECP_INCLUDES) $(SECP_TEST_INCLUDES)
+tests_cpp_LDADD = libsecp256k1.la $(JNI_LIB) $(SECP_LIBS) $(SECP_TEST_LIBS) $(COMMON_LIB)
+tests_cpp_LDFLAGS = -static
+TESTS += tests_cpp
 endif
 
 if USE_EXHAUSTIVE_TESTS

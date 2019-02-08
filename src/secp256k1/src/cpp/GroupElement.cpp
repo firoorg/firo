@@ -35,20 +35,13 @@ int _convertBase(
         }
     }
 
-    for (int i = 0; i < dstLen / 2; i++){
-        unsigned char tmp;
-        tmp = dst[i];
+    for (int i = 0; i < dstLen / 2; i++) {
+        unsigned char tmp = dst[i];
         dst[i] = dst[dstLen - i - 1];
         dst[dstLen - i - 1] = tmp;
     }
 
     return dstLen;
-}
-
-void _negate(unsigned char *num, int length){
-    for (int i = 0; i < length; i++) {
-        num[i] ^= 255;
-    }
 }
 
 GroupElement::GroupElement()
@@ -70,11 +63,13 @@ GroupElement::GroupElement(const secp256k1_gej& g)
 void _convertToFieldElement(secp256k1_fe *r, const char* str, int base) {
     int strLen = strlen(str);
     unsigned char buffer[128];
+
     std::unique_ptr<unsigned char[]> src(new unsigned char[strLen]);
     memset(src.get(), 0, strLen * sizeof(unsigned char));
 
     for (int i = 0; i < strLen; i++) {
         char ch = str[i];
+
         switch (base) {
         case 10:
             src[i] = ch - '0';
@@ -96,7 +91,7 @@ void _convertToFieldElement(secp256k1_fe *r, const char* str, int base) {
     }
 
     _convertBase((unsigned char*)buffer, 32, 256, src.get(), strLen, base);
-    secp256k1_fe_set_b32(r,buffer);
+    secp256k1_fe_set_b32(r, buffer);
 }
 
 GroupElement::GroupElement(const char* x,const char* y, int base)
@@ -278,22 +273,23 @@ char* _convertToString(char* str, const unsigned char* buffer, int base) {
 
     for (int i = startAt; i < strLen; i++) {
         unsigned char v = dst[i];
+        char ch;
         switch (base) {
         case 10:
-            v = '0' + v;
+            ch = '0' + v;
             break;
         case 16:
             if (v >= 0 && v <= 9) {
-                v = '0' + v;
+                ch = '0' + v;
             } else {
-                v = 'a' + v;
+                ch = 'a' + v - 10;
             }
             break;
         default:
             break;
         }
 
-        str[i - startAt] = v;
+        str[i - startAt] = ch;
     }
     str[strLen - startAt] = 0;
 

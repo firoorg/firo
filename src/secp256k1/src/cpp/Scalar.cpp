@@ -3,7 +3,6 @@
 #include "../scalar_impl.h"
 #include "../hash_impl.h"
 #include "../hash.h"
-#include "../../crypto/sha256.h"
 #include <sstream>
 #include <iostream>
 #include <openssl/rand.h>
@@ -183,9 +182,13 @@ Scalar& Scalar::generate(unsigned char* buff){
     return *this;
 }
 
-Scalar Scalar::hash(const unsigned char* data,size_t len)  {
-    unsigned char hash[CSHA256::OUTPUT_SIZE];
-    CSHA256().Write(data,len).Finalize(hash);
+Scalar Scalar::hash(const unsigned char* data, size_t len)  {
+    unsigned char hash[32];
+
+    secp256k1_sha256_t sha256;
+    secp256k1_sha256_initialize(&sha256);
+    secp256k1_sha256_write(&sha256, data, len);
+    secp256k1_sha256_finalize(&sha256, hash);
 
     int overflow = 0;
     secp256k1_scalar result;
