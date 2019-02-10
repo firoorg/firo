@@ -346,7 +346,7 @@ const uint32_t MSG_TYPE_MASK    = 0xffffffff >> 2;
 enum GetDataMsg
 {
     UNDEFINED = 0,
-    MSG_TX = 1,
+    MSG_TX,
     MSG_BLOCK,
     MSG_TYPE_MAX = MSG_BLOCK,
     // The following can only occur in getdata. Invs always use TX or BLOCK.
@@ -374,7 +374,6 @@ class CInv
 {
 public:
     CInv();
-//    CInv(const std::string& strType, const uint256& hashIn);
     CInv(int typeIn, const uint256& hashIn);
 
     ADD_SERIALIZE_METHODS;
@@ -388,9 +387,7 @@ public:
 
     friend bool operator<(const CInv& a, const CInv& b);
 
-//    bool IsKnownType() const;
-//    std::string GetCommand() const;
-    const char* GetCommand() const;
+    std::string GetCommand() const;
     std::string ToString() const;
 
     // TODO: make private (improves encapsulation)

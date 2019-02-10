@@ -37,7 +37,7 @@ struct AddressTableEntry
     AddressTableEntry(Type type, const QString &label, const QString &address):
         type(type), label(label), address(address) {}
     AddressTableEntry(Type type, const QString &pubcoin):
-            type(type), pubcoin(pubcoin) {}
+        type(type), pubcoin(pubcoin) {}
 };
 
 struct AddressTableEntryLessThan

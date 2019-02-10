@@ -34,10 +34,8 @@
 bool IsStandard(const CScript& scriptPubKey, txnouttype& whichType, const bool witnessEnabled)
 {
     std::vector<std::vector<unsigned char> > vSolutions;
-    if (!Solver(scriptPubKey, whichType, vSolutions)) {
-        LogPrintf("Solver(scriptPubKey, whichType, vSolutions), whichType=%s\n", whichType);
+    if (!Solver(scriptPubKey, whichType, vSolutions))
         return false;
-    }
 
     if (whichType == TX_MULTISIG)
     {
@@ -109,7 +107,6 @@ bool IsStandardTx(const CTransaction& tx, std::string& reason, const bool witnes
     txnouttype whichType;
     BOOST_FOREACH(const CTxOut& txout, tx.vout) {
         if (!::IsStandard(txout.scriptPubKey, whichType, witnessEnabled)) {
-            LogPrintf("txout = %s\n", txout.ToString());
             reason = "scriptpubkey";
             return false;
         }
@@ -138,6 +135,7 @@ bool AreInputsStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs)
 {
     if (tx.IsCoinBase() || tx.IsZerocoinSpend())
         return true; // Coinbases don't use vin normally
+        
     for (unsigned int i = 0; i < tx.vin.size(); i++)
     {
         const CTxOut& prev = mapInputs.GetOutputFor(tx.vin[i]);

@@ -133,9 +133,6 @@ private:
     //! keeps track of whether Unlock has run a thorough check before
     bool fDecryptionThoroughlyChecked;
 
-    //! if fOnlyMixingAllowed is true, only mixing should be allowed in unlocked wallet
-    bool fOnlyMixingAllowed;
-
 protected:
     bool SetCrypted();
 
@@ -154,7 +151,7 @@ public:
         return fUseCrypto;
     }
 
-    bool IsLocked(bool fForMixing = false) const
+    bool IsLocked() const
     {
         if (!IsCrypted())
             return false;
@@ -163,7 +160,6 @@ public:
             LOCK(cs_KeyStore);
             result = vMasterKey.empty();
         }
-//        if(!fForMixing && fOnlyMixingAllowed) return true;
         return result;
     }
 

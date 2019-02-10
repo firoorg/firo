@@ -84,7 +84,8 @@ int64_t UpdateTime(CBlockHeader* pblock, const Consensus::Params& consensusParam
     return nNewTime - nOldTime;
 }
 
-BlockAssembler::BlockAssembler(const CChainParams& _chainparams) : chainparams(_chainparams)
+BlockAssembler::BlockAssembler(const CChainParams& _chainparams)
+    : chainparams(_chainparams)
 {
     // Block resource limits
     // If neither -blockmaxsize or -blockmaxweight is given, limit to DEFAULT_BLOCK_MAX_*
@@ -620,26 +621,12 @@ bool BlockAssembler::TestPackageTransactions(const CTxMemPool::setEntries& packa
 
 bool BlockAssembler::TestForBlock(CTxMemPool::txiter iter)
 {
-    LogPrintf("\nTestForBlock ######################################\n");
-    LogPrintf("nBlockMaxSize = %d\n", nBlockMaxSize);
-    LogPrintf("nBlockSize = %d\n", nBlockSize);
-    int nTxSize = ::GetSerializeSize(iter->GetTx(), SER_NETWORK, PROTOCOL_VERSION);
-    LogPrintf("nTxSize = %d\n", nTxSize);
-    LogPrintf("nBlockSize + nTxSize  = %d\n", nBlockSize + nTxSize);
-    LogPrintf("######################################\n\n\n");
-    LogPrintf("nBlockWeight = %d\n", nBlockWeight);
-    LogPrintf("iter->GetTxWeight() = %d\n", iter->GetTxWeight());
-    LogPrintf("nBlockWeight = %d\n", nBlockWeight);
-    LogPrintf("lastFewTxs = %d\n", lastFewTxs);
-    LogPrintf("######################################\n\n\n");
-
     if (nBlockWeight + iter->GetTxWeight() >= nBlockMaxWeight) {
         // If the block is so close to full that no more txs will fit
         // or if we've tried more than 50 times to fill remaining space
         // then flag that the block is finished
         if (nBlockWeight >  nBlockMaxWeight - 400 || lastFewTxs > 50) {
              blockFinished = true;
-             LogPrintf("\nTestForBlock -> FAIL: blockFinished = true\n");
              return false;
         }
         // Once we're within 4000 weight of a full block, only look at 50 more txs
@@ -647,7 +634,6 @@ bool BlockAssembler::TestForBlock(CTxMemPool::txiter iter)
         if (nBlockWeight > nBlockMaxWeight - 4000) {
             lastFewTxs++;
         }
-        LogPrintf("\nTestForBlock -> FAIL: nBlockWeight + iter->GetTxWeight() >= nBlockMaxWeight\n");
         return false;
     }
 
@@ -655,13 +641,11 @@ bool BlockAssembler::TestForBlock(CTxMemPool::txiter iter)
         if (nBlockSize + ::GetSerializeSize(iter->GetTx(), SER_NETWORK, PROTOCOL_VERSION) >= nBlockMaxSize) {
             if (nBlockSize >  nBlockMaxSize - 100 || lastFewTxs > 50) {
                  blockFinished = true;
-                 LogPrintf("\nTestForBlock -> FAIL: fNeedSizeAccounting: blockFinished = true\n");
                  return false;
             }
             if (nBlockSize > nBlockMaxSize - 1000) {
                 lastFewTxs++;
             }
-            LogPrintf("\nTestForBlock -> FAIL: fNeedSizeAccounting\n");
             return false;
         }
     }
@@ -671,24 +655,19 @@ bool BlockAssembler::TestForBlock(CTxMemPool::txiter iter)
         // flag that the block is finished
         if (nBlockSigOpsCost > MAX_BLOCK_SIGOPS_COST - 8) {
             blockFinished = true;
-            LogPrintf("\nTestForBlock -> FAIL: nBlockSigOpsCost: blockFinished = true\n");
             return false;
         }
         // Otherwise attempt to find another tx with fewer sigops
         // to put in the block.
-        LogPrintf("\nTestForBlock -> FAIL: nBlockSigOpsCost\n");
         return false;
     }
 
     // Must check that lock times are still valid
     // This can be removed once MTP is always enforced
     // as long as reorgs keep the mempool consistent.
-    if (!IsFinalTx(iter->GetTx(), nHeight, nLockTimeCutoff)) {
-        LogPrintf("\nTestForBlock -> FAIL: !IsFinalTx()\n");
+    if (!IsFinalTx(iter->GetTx(), nHeight, nLockTimeCutoff))
         return false;
-    }
 
-    LogPrintf("\nTestForBlock -> OK\n");
     return true;
 }
 
@@ -1282,4 +1261,3 @@ void IncrementExtraNonce(CBlock* pblock, const CBlockIndex* pindexPrev, unsigned
     pblock->vtx[0] = txCoinbase;
     pblock->hashMerkleRoot = BlockMerkleRoot(*pblock);
 }
-

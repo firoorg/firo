@@ -5,7 +5,6 @@
 
 #ifndef BITCOIN_WALLET_WALLETDB_H
 #define BITCOIN_WALLET_WALLETDB_H
-//#define loop                for (;;)
 
 #include "amount.h"
 #include "primitives/transaction.h"

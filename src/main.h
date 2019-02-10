@@ -160,8 +160,6 @@ static const unsigned int MAX_BLOCKS_TO_ANNOUNCE = 8;
 /** Maximum number of unconnecting headers announcements before DoS score */
 static const int MAX_UNCONNECTING_HEADERS = 10;
 
-static std::map<int, CBlock> mapBlockData;
-
 static const bool DEFAULT_PEERBLOOMFILTERS = true;
 
 // Block Height Lyra2Z
@@ -341,17 +339,8 @@ void FlushStateToDisk();
 void PruneAndFlush();
 
 /** (try to) add transaction to memory pool **/
-bool AcceptToMemoryPool(
-        CTxMemPool& pool,
-        CValidationState &state,
-        const CTransaction &tx,
-        bool fCheckInputs,
-        bool fLimitFree,
-        bool* pfMissingInputs,
-        bool fOverrideMempoolLimit=false,
-        const CAmount nAbsurdFee=0,
-        bool isCheckWalletTransaction = false,
-        bool markZcoinSpendTransactionSerial = true);
+bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransaction &tx, bool fCheckInputs, bool fLimitFree,
+                        bool* pfMissingInputs, bool fOverrideMempoolLimit=false, const CAmount nAbsurdFee=0, bool isCheckWalletTransaction=false, bool markZcoinSpendTransactionSerial=true);
 
 /** Convert CValidationState to a human-readable message for logging */
 std::string FormatStateMessage(const CValidationState &state);
@@ -407,7 +396,6 @@ void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, int nHeight);
 /** Context-independent validity checks */
 //BTZC: ADD params for zcoin works
 bool CheckTransaction(const CTransaction& tx, CValidationState& state, uint256 hashTx, bool isVerifyDB, int nHeight = INT_MAX, bool isCheckWallet = false, bool fStatefulZerocoinCheck = true, CZerocoinTxInfo *zerocoinTxInfo = NULL);
-//bool CheckTransaction(const CTransaction& tx, CValidationState& state);
 
 /**
  * Check if transaction is final and can be included in a block with the
@@ -446,12 +434,7 @@ bool SequenceLocks(const CTransaction &tx, int flags, std::vector<int>* prevHeig
  *
  * See consensus/consensus.h for flag definitions.
  */
-bool CheckSequenceLocks(const CTxMemPool& pool, 
-                        const CTransaction &tx, 
-                        int flags, 
-                        LockPoints* lp = NULL,
-                        bool useExistingLockPoints = false);
-         
+bool CheckSequenceLocks(const CTxMemPool& pool, const CTransaction &tx, int flags, LockPoints* lp = NULL, bool useExistingLockPoints = false);
 
 /**
  * Return true if hash can be found in chainActive at nBlockHeight height.

@@ -1304,7 +1304,7 @@ void CDarksendPool::CompletedTransaction(PoolMessage nMessageID) {
 //
 bool CDarksendPool::DoAutomaticDenominating(bool fDryRun) {
     if (!fEnablePrivateSend || fZNode || !pCurrentBlockIndex) return false;
-    if (!pwalletMain || pwalletMain->IsLocked(true)) return false;
+    if (!pwalletMain || pwalletMain->IsLocked()) return false;
     if (nState != POOL_STATE_IDLE) return false;
 
     if (!znodeSync.IsZnodeListSynced()) {
@@ -1383,7 +1383,7 @@ bool CDarksendPool::DoAutomaticDenominating(bool fDryRun) {
         return false;
     }
 
-    if (!fDryRun && pwalletMain->IsLocked(true)) {
+    if (!fDryRun && pwalletMain->IsLocked()) {
         strAutoDenomResult = _("Wallet is locked.");
         return false;
     }
@@ -1684,7 +1684,7 @@ bool CDarksendPool::SubmitDenominate() {
 }
 
 bool CDarksendPool::PrepareDenominate(int nMinRounds, int nMaxRounds, std::string &strErrorRet, std::vector <CTxIn> &vecTxInRet, std::vector <CTxOut> &vecTxOutRet) {
-    if (pwalletMain->IsLocked(true)) {
+    if (pwalletMain->IsLocked()) {
         strErrorRet = "Wallet locked, unable to create transaction!";
         return false;
     }

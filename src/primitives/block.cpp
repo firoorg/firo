@@ -58,18 +58,14 @@ bool CBlockHeader::IsMTP() const {
 }
 
 uint256 CBlockHeader::GetPoWHash(int nHeight, bool forceCalc) const {
-//    int64_t start = std::chrono::duration_cast<std::chrono::milliseconds>(
-//            std::chrono::system_clock::now().time_since_epoch()).count();
     bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
     if (!fTestNet) {
         if (nHeight < 20500) {
             if (!mapPoWHash.count(1)) {
-//            std::cout << "Start Build Map" << std::endl;
                 buildMapPoWHash();
             }
         }
         if (!forceCalc && mapPoWHash.count(nHeight)) {
-//        std::cout << "GetPowHash nHeight=" << nHeight << ", hash= " << mapPoWHash[nHeight].ToString() << std::endl;
             return mapPoWHash[nHeight];
         }
     }
@@ -84,7 +80,6 @@ uint256 CBlockHeader::GetPoWHash(int nHeight, bool forceCalc) const {
             LYRA2(BEGIN(powHash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, 8192, 256);
         } else if (!fTestNet && nHeight >= HF_LYRA2VAR_HEIGHT) {
             LYRA2(BEGIN(powHash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, nHeight, 256);
-		//} else if (fTestNet	&& nHeight  >= HF_MTP_HEIGHT_TESTNET) { // testnet
 		} else if (fTestNet && nHeight >= HF_LYRA2Z_HEIGHT_TESTNET) { // testnet
             lyra2z_hash(BEGIN(nVersion), BEGIN(powHash));
         } else if (fTestNet && nHeight >= HF_LYRA2_HEIGHT_TESTNET) { // testnet
@@ -97,11 +92,7 @@ uint256 CBlockHeader::GetPoWHash(int nHeight, bool forceCalc) const {
     } catch (std::exception &e) {
         LogPrintf("excepetion: %s", e.what());
     }
-//    int64_t end = std::chrono::duration_cast<std::chrono::milliseconds>(
-//            std::chrono::system_clock::now().time_since_epoch()).count();
-//    std::cout << "GetPowHash nHeight=" << nHeight << ", hash= " << powHash.ToString() << " done in= " << (end - start) << " miliseconds" << std::endl;
     mapPoWHash.insert(make_pair(nHeight, powHash));
-//    SetPoWHash(thash);
     return powHash;
 }
 
@@ -112,19 +103,20 @@ void CBlockHeader::InvalidateCachedPoWHash(int nHeight) const {
 
 std::string CBlock::ToString() const {
     std::stringstream s;
-    s << strprintf(
-            "CBlock(hash=%s, ver=0x%08x, hashPrevBlock=%s, hashMerkleRoot=%s, nTime=%u, nBits=%08x, nNonce=%u, vtx=%u)\n",
-            GetHash().ToString(),
-            nVersion,
-            hashPrevBlock.ToString(),
-            hashMerkleRoot.ToString(),
-            nTime, nBits, nNonce,
-            vtx.size());
-    for (unsigned int i = 0; i < vtx.size(); i++) {
+    s << strprintf("CBlock(hash=%s, ver=0x%08x, hashPrevBlock=%s, hashMerkleRoot=%s, nTime=%u, nBits=%08x, nNonce=%u, vtx=%u)\n",
+        GetHash().ToString(),
+        nVersion,
+        hashPrevBlock.ToString(),
+        hashMerkleRoot.ToString(),
+        nTime, nBits, nNonce,
+        vtx.size());
+    for (unsigned int i = 0; i < vtx.size(); i++)
+    {
         s << "  " << vtx[i].ToString() << "\n";
     }
     return s.str();
 }
+
 int64_t GetBlockWeight(const CBlock& block)
 {
 //     This implements the weight = (stripped_size * 4) + witness_size formula,

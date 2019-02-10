@@ -13,7 +13,8 @@
 #include "txmempool.h"
 #include "util.h"
 
-void TxConfirmStats::Initialize(std::vector<double>& defaultBuckets, unsigned int maxConfirms, double _decay, std::string _dataTypeString)
+void TxConfirmStats::Initialize(std::vector<double>& defaultBuckets,
+                                unsigned int maxConfirms, double _decay, std::string _dataTypeString)
 {
     decay = _decay;
     dataTypeString = _dataTypeString;
@@ -361,14 +362,10 @@ void CBlockPolicyEstimator::processTransaction(const CTxMemPoolEntry& entry, boo
 
     // Only want to be updating estimates when our blockchain is synced,
     // otherwise we'll miscalculate how many blocks its taking to get included.
-
-    if (!fCurrentEstimate) {
-        LogPrint("estimatefee", "fCurrentEstimate\n");
+    if (!fCurrentEstimate)
         return;
-    }
 
     if (!entry.WasClearAtEntry()) {
-        LogPrint("estimatefee", "entry.WasClearAtEntry()\n");
         // This transaction depends on other transactions in the mempool to
         // be included in a block before it will be able to be included, so
         // we shouldn't include it in our calculations
@@ -386,21 +383,19 @@ void CBlockPolicyEstimator::processTransaction(const CTxMemPoolEntry& entry, boo
 
     LogPrint("estimatefee", "entry.GetFee()=%s XZC\n", entry.GetFee()/100000000);
     // Record this as a priority estimate
-//    if (entry.GetFee() == 0 || isPriDataPoint(feeRate, c) {
-    if (entry.GetFee() == 0) {
+    if (entry.GetFee() == 0 || isPriDataPoint(feeRate, curPri)) {
         mapMemPoolTxs[hash].stats = &priStats;
-//        mapMemPoolTxs[hash].bucketIndex =  priStats.NewTx(txHeight, curPri);
-        mapMemPoolTxs[hash].bucketIndex =  priStats.NewTx(txHeight, (double)entry.GetFee());
+        mapMemPoolTxs[hash].bucketIndex =  priStats.NewTx(txHeight, curPri);
     }
     // Record this as a fee estimate
-//    else if (isFeeDataPoint(feeRate, curPri)) {
-    else {
+    else if (isFeeDataPoint(feeRate, curPri)) {
         mapMemPoolTxs[hash].stats = &feeStats;
-        mapMemPoolTxs[hash].bucketIndex = feeStats.NewTx(txHeight, (double)entry.GetFee());
+        mapMemPoolTxs[hash].bucketIndex = feeStats.NewTx(txHeight, (double)feeRate.GetFeePerK());
     }
-//    else {
-//        LogPrint("estimatefee", "not adding");
-//    }
+    else {
+        LogPrint("estimatefee", "not adding");
+    }
+    LogPrint("estimatefee", "\n");
 }
 
 void CBlockPolicyEstimator::processBlockTx(unsigned int nBlockHeight, const CTxMemPoolEntry& entry)

@@ -164,9 +164,7 @@ static bool rest_headers(HTTPRequest* req,
 
     CDataStream ssHeader(SER_NETWORK, PROTOCOL_VERSION);
     BOOST_FOREACH(const CBlockIndex *pindex, headers) {
-    	CBlock block;
-    	ReadBlockFromDisk(block, pindex, Params().GetConsensus());
-        ssHeader << block.GetBlockHeader();
+        ssHeader << pindex->GetBlockHeader();
     }
 
     switch (rf) {

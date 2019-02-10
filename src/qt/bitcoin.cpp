@@ -50,6 +50,7 @@
 #include <QThread>
 #include <QTimer>
 #include <QTranslator>
+#include <QSslConfiguration>
 
 #if defined(QT_STATICPLUGIN)
 #include <QtPlugin>
@@ -365,8 +366,6 @@ void BitcoinApplication::createWindow(const NetworkStyle *networkStyle)
 
 void BitcoinApplication::createSplashScreen(const NetworkStyle *networkStyle)
 {
-//    SplashScreen *splash = new SplashScreen(0, networkStyle);
-//    SplashScreen splash(QPixmap(), 0);
     SplashScreen *splash = new SplashScreen(QPixmap(), 0);
     // We don't hold a direct pointer to the splash screen after creation, but the splash
     // screen will take care of deleting itself when slotFinish happens.

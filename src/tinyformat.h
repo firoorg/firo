@@ -905,32 +905,17 @@ void format(std::ostream& out, const char* fmt, const T1& v1, const Args&... arg
 template<typename T1, typename... Args>
 std::string format(const char* fmt, const T1& v1, const Args&... args)
 {
-    try {
-        std::ostringstream oss;
-        format(oss, fmt, v1, args...);
-        return oss.str();
-    } catch (const std::exception &e) {
-        std::cout << "Exception at: " << fmt << std::endl;
-    } catch (...) {
-        std::cout << "Exception at: " << fmt << std::endl;
-    }
-    return "Exception happen!";
+    std::ostringstream oss;
+    format(oss, fmt, v1, args...);
+    return oss.str();
 }
 
 template<typename T1, typename... Args>
 std::string format(const std::string &fmt, const T1& v1, const Args&... args)
 {
-    try {
-        std::ostringstream oss;
-        format(oss, fmt.c_str(), v1, args...);
-        return oss.str();
-    } catch (const std::exception &e) {
-        std::cout << "Exception at: " << fmt << std::endl;
-    } catch (...) {
-        std::cout << "Exception at: " << fmt << std::endl;
-    }
-    return fmt;
-
+    std::ostringstream oss;
+    format(oss, fmt.c_str(), v1, args...);
+    return oss.str();
 }
 
 template<typename T1, typename... Args>
