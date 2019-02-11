@@ -309,13 +309,11 @@ UniValue txfee(Type type, const UniValue& data, const UniValue& auth, bool fHelp
         vecSend.push_back(recipient);
     }
 
-    EnsureWalletIsUnlocked();
-
     CReserveKey keyChange(pwalletMain);
     CAmount nFeeRequired = 0;
     int nChangePosRet = -1;
     string strFailReason;
-    bool fCreated = pwalletMain->CreateTransaction(vecSend, wtx, keyChange, nFeeRequired, nChangePosRet, strFailReason);
+    bool fCreated = pwalletMain->CreateTransaction(vecSend, wtx, keyChange, nFeeRequired, nChangePosRet, strFailReason, NULL, false);
     if (!fCreated)
         throw JSONAPIError(API_WALLET_INSUFFICIENT_FUNDS, strFailReason);
     
