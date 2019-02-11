@@ -405,7 +405,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
                 continue;
             }
 
-            if (tx.IsZerocoinSpend() || tx.IsZerocoinSpendV3()) {
+            if (tx.IsZerocoinSpend()) {
                 LogPrintf("try to include zerocoinspend tx=%s\n", tx.GetHash().ToString());
                 LogPrintf("COUNT_SPEND_ZC_TX =%s\n", COUNT_SPEND_ZC_TX);
                 LogPrintf("MAX_SPEND_ZC_TX_PER_BLOCK =%s\n", MAX_SPEND_ZC_TX_PER_BLOCK);
@@ -450,7 +450,53 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
                 COUNT_SPEND_ZC_TX += tx.vin.size();
                 inBlock.insert(iter);
                 continue;
+            } else if (tx.IsZerocoinSpendV3()) {
+                LogPrintf("try to include zerocoinspend tx=%s\n", tx.GetHash().ToString());
+                LogPrintf("COUNT_SPEND_ZC_TX =%s\n", COUNT_SPEND_ZC_TX);
+                LogPrintf("MAX_SPEND_ZC_TX_PER_BLOCK =%s\n", MAX_SPEND_ZC_TX_PER_BLOCK);
+                if ((COUNT_SPEND_ZC_TX + tx.vin.size()) > MAX_SPEND_ZC_TX_PER_BLOCK) {
+                    continue;
+                }
+
+                //mempool.countZCSpend--;
+                // Size limits
+                unsigned int nTxSize = ::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION);
+
+                LogPrintf("\n\n######################################\n");
+                LogPrintf("nBlockMaxSize = %d\n", nBlockMaxSize);
+                LogPrintf("nBlockSize = %d\n", nBlockSize);
+                LogPrintf("nTxSize = %d\n", nTxSize);
+                LogPrintf("nBlockSize + nTxSize  = %d\n", nBlockSize + nTxSize);
+                LogPrintf("nBlockSigOpsCost  = %d\n", nBlockSigOpsCost);
+                LogPrintf("GetLegacySigOpCount  = %d\n", GetLegacySigOpCount(tx));
+                LogPrintf("######################################\n\n\n");
+
+                if (nBlockSize + nTxSize >= nBlockMaxSize) {
+                    LogPrintf("failed by sized\n");
+                    continue;
+                }
+
+                // Legacy limits on sigOps:
+                unsigned int nTxSigOps = GetLegacySigOpCount(tx);
+                if (nBlockSigOpsCost + nTxSigOps >= MAX_BLOCK_SIGOPS_COST) {
+                    LogPrintf("failed by sized\n");
+                    continue;
+                }
+
+                CAmount nTxFees = iter->GetFee();
+
+                pblock->vtx.push_back(tx);
+                pblocktemplate->vTxFees.push_back(nTxFees);
+                pblocktemplate->vTxSigOpsCost.push_back(nTxSigOps);
+                nBlockSize += nTxSize;
+                ++nBlockTx;
+                nBlockSigOpsCost += nTxSigOps;
+                nFees += nTxFees;
+                COUNT_SPEND_ZC_TX += tx.vin.size();
+                inBlock.insert(iter);
+                continue;
             }
+
             unsigned int nTxSigOps = iter->GetSigOpCost();
             LogPrintf("nTxSigOps=%s\n", nTxSigOps);
             LogPrintf("nBlockSigOps=%s\n", nBlockSigOps);
@@ -927,7 +973,7 @@ void BlockAssembler::addPriorityTxs()
         //add zcoin validation
         if (tx.IsCoinBase() || !CheckFinalTx(tx))
             continue;
-        if (tx.IsZerocoinSpend() || tx.IsZerocoinSpendV3()) {
+        if (tx.IsZerocoinSpend()) {
             //mempool.countZCSpend--;
             // Size limits
             unsigned int nTxSize = ::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION);
@@ -948,6 +994,36 @@ void BlockAssembler::addPriorityTxs()
                 continue;
 
             int64_t nTxFees = 0;
+
+            pblock->vtx.push_back(tx);
+            pblocktemplate->vTxFees.push_back(nTxFees);
+            pblocktemplate->vTxSigOpsCost.push_back(nTxSigOps);
+            nBlockSize += nTxSize;
+            ++nBlockTx;
+            nBlockSigOpsCost += nTxSigOps;
+            nFees += nTxFees;
+            continue;
+        }  else if (tx.IsZerocoinSpendV3()) {
+            //mempool.countZCSpend--;
+            // Size limits
+            unsigned int nTxSize = ::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION);
+
+            LogPrintf("\n\n######################################\n");
+            LogPrintf("nBlockMaxSize = %d\n", nBlockMaxSize);
+            LogPrintf("nBlockSize = %d\n", nBlockSize);
+            LogPrintf("nTxSize = %d\n", nTxSize);
+            LogPrintf("nBlockSize + nTxSize  = %d\n", nBlockSize + nTxSize);
+            LogPrintf("######################################\n\n\n");
+
+            if (nBlockSize + nTxSize >= nBlockMaxSize)
+                continue;
+
+            // Legacy limits on sigOps:
+            unsigned int nTxSigOps = GetLegacySigOpCount(tx);
+            if (nBlockSigOpsCost + nTxSigOps >= MAX_BLOCK_SIGOPS_COST)
+                continue;
+
+            CAmount nTxFees = mi->GetFee();
 
             pblock->vtx.push_back(tx);
             pblocktemplate->vTxFees.push_back(nTxFees);

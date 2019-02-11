@@ -856,12 +856,14 @@ public:
         sigma::CoinDenominationV3 denomination,
         CWalletTx& wtxNew,
         CReserveKey& reservekey,
+        CAmount& nFeeRet,
         Scalar& coinSerial,
         uint256& txHash,
         GroupElement& zcSelectedValue,
         bool& zcSelectedIsUsed,
         std::string& strFailReason,
-        bool forceUsed = false);
+        bool forceUsed = false,
+        const CCoinControl *coinControl = NULL);
 
     bool CreateMultipleZerocoinSpendTransaction(std::string& thirdPartyaddress, const std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>>& denominations,
                                         CWalletTx& wtxNew, CReserveKey& reservekey, vector<CBigNum>& coinSerials, uint256& txHash, vector<CBigNum>& zcSelectedValues, std::string& strFailReason, bool forceUsed = false);

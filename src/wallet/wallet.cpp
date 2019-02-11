@@ -3937,11 +3937,11 @@ bool CWallet::CreateZerocoinMintTransaction(const vector <CRecipient> &vecSend, 
 
                 CAmount nChange = nValueIn - nValueToSelect;
                 // NOTE: this depends on the exact behaviour of GetMinFee
-                if (nFeeRet < CTransaction::nMinTxFee && nChange > 0 && nChange < CENT) {
-                    int64_t nMoveToFee = min(nChange, CTransaction::nMinTxFee - nFeeRet);
-                    nChange -= nMoveToFee;
-                    nFeeRet += nMoveToFee;
-                }
+//                if (nFeeRet < CTransaction::nMinTxFee && nChange > 0 && nChange < CENT) {
+//                    int64_t nMoveToFee = min(nChange, CTransaction::nMinTxFee - nFeeRet);
+//                    nChange -= nMoveToFee;
+//                    nFeeRet += nMoveToFee;
+//                }
                 if (nChange > 0) {
                     // Fill a vout to ourself
                     // TODO: pass in scriptChange instead of reservekey so
@@ -4082,21 +4082,14 @@ bool CWallet::CreateZerocoinMintTransaction(const vector <CRecipient> &vecSend, 
                     if (dPriority >= dPriorityNeeded && AllowFree(dPriority))
                         break;
                 }
-                int64_t nPayFee = payTxFee.GetFeePerK() * (1 + (int64_t) GetTransactionWeight(txNew) / 1000);
-//                bool fAllowFree = false;					// No free TXs in XZC
-                int64_t nMinFee = wtxNew.GetMinFee(1, false, GMF_SEND);
-
-                int64_t nFeeNeeded = nPayFee;
-                if (nFeeNeeded < nMinFee) {
-                    nFeeNeeded = nMinFee;
+                CAmount nFeeNeeded = GetMinimumFee(nBytes, nTxConfirmTarget, mempool);
+//                LogPrintf("nFeeNeeded=%s\n", nFeeNeeded);
+                if (coinControl && nFeeNeeded > 0 && coinControl->nMinimumTotalFee > nFeeNeeded) {
+                    nFeeNeeded = coinControl->nMinimumTotalFee;
                 }
 //                LogPrintf("nFeeNeeded=%s\n", nFeeNeeded);
-//                if (coinControl && nFeeNeeded > 0 && coinControl->nMinimumTotalFee > nFeeNeeded) {
-//                    nFeeNeeded = coinControl->nMinimumTotalFee;
-//                }
-//                LogPrintf("nFeeNeeded=%s\n", nFeeNeeded);
-//                if (coinControl && coinControl->fOverrideFeeRate)
-//                    nFeeNeeded = coinControl->nFeeRate.GetFee(nBytes);
+                if (coinControl && coinControl->fOverrideFeeRate)
+                    nFeeNeeded = coinControl->nFeeRate.GetFee(nBytes);
 //                LogPrintf("nFeeNeeded=%s\n", nFeeNeeded);
 //                LogPrintf("nFeeRet=%s\n", nFeeRet);
                 // If we made it here and we aren't even able to meet the relay fee on the next pass, give up
@@ -4405,9 +4398,11 @@ bool CWallet::CreateZerocoinSpendTransaction(std::string &thirdPartyaddress, int
 bool CWallet::CreateZerocoinSpendTransactionV3(
         std::string &thirdPartyaddress, 
         sigma::CoinDenominationV3 denomination,
-        CWalletTx &wtxNew, CReserveKey &reservekey, Scalar &coinSerial,
+        CWalletTx &wtxNew, CReserveKey &reservekey,
+        CAmount& nFeeRet, Scalar &coinSerial,
         uint256 &txHash, GroupElement &zcSelectedValue, bool &zcSelectedIsUsed,
-        std::string &strFailReason, bool forceUsed) {
+        std::string &strFailReason,  bool forceUsed,
+        const CCoinControl *coinControl) {
     int64_t nValue;
     if (!DenominationToInteger(denomination, nValue)) {
         strFailReason = _("Unable to convert denomination to integer.");
@@ -4419,6 +4414,7 @@ bool CWallet::CreateZerocoinSpendTransactionV3(
     {
         LOCK2(cs_main, cs_wallet);
         {
+            nFeeRet = payTxFee.GetFeePerK();
             txNew.vin.clear();
             txNew.vout.clear();
             txNew.wit.SetNull();
@@ -4621,6 +4617,16 @@ bool CWallet::CreateZerocoinSpendTransactionV3(
                 CT_UPDATED);
         }
     }
+
+    unsigned int nBytes = GetVirtualTransactionSize(txNew);
+    CAmount nFeeNeeded = GetMinimumFee(nBytes, nTxConfirmTarget, mempool);
+    if (coinControl && nFeeNeeded > 0 && coinControl->nMinimumTotalFee > nFeeNeeded) {
+        nFeeNeeded = coinControl->nMinimumTotalFee;
+    }
+    if (coinControl && coinControl->fOverrideFeeRate)
+        nFeeNeeded = coinControl->nFeeRate.GetFee(nBytes);
+
+    nFeeRet = nFeeNeeded;
 
     return true;
 }
@@ -5585,14 +5591,27 @@ string CWallet::SpendZerocoinV3(
         LogPrintf("SpendZerocoin() : %s", strError);
         return strError;
     }
-
+    int64_t nFeeRequired;
     string strError;
+    int64_t nValue;
+    if (!DenominationToInteger(denomination, nValue)) {
+        strError = _("Unable to convert denomination to integer.");
+        return strError;
+    }
+
     if (!CreateZerocoinSpendTransactionV3(
-            thirdPartyaddress, denomination, wtxNew, reservekey, coinSerial, txHash,
+            thirdPartyaddress, denomination, wtxNew, reservekey, nFeeRequired, coinSerial, txHash,
             zcSelectedValue, zcSelectedIsUsed, strError, forceUsed)) {
+        if (nValue + nFeeRequired > GetBalance())
+            return strprintf(
+                    _("Error: This transaction requires a transaction fee of at least %s because of its amount, complexity, or use of recently received funds!"),
+                    FormatMoney(nFeeRequired).c_str());
         LogPrintf("SpendZerocoin() : %s\n", strError.c_str());
         return strError;
     }
+
+    if (!uiInterface.ThreadSafeAskFee(nFeeRequired))
+        return "ABORTED";
 
     if (!CommitZerocoinSpendTransaction(wtxNew, reservekey)) {
         LogPrintf("CommitZerocoinSpendTransaction() -> FAILED!\n");
