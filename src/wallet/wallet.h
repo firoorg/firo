@@ -826,6 +826,8 @@ public:
 //    CAmount GetNormalizedAnonymizedBalance() const;
     CAmount GetNeedsToBeAnonymizedBalance(CAmount nMinBalance = 0) const;
     CAmount GetDenominatedBalance(bool unconfirmed=false) const;
+
+    CAmount GetCoinsToSpend(const CAmount required, std::vector<CZerocoinEntryV3>& out);
     /**
      * Insert additional inputs into the transaction by
      * calling CreateTransaction();
