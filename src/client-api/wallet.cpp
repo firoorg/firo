@@ -220,7 +220,7 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
                     if(!pwalletMain->IsMintFromTxOutAvailable(wtx.vout[s.vout], isAvailable)){
                         continue;
                     }
-                    entry.push_back(Pair("used", isAvailable));
+                    entry.push_back(Pair("available", isAvailable));
                 }
             }
             else if(wtx.vin[s.vout].IsZerocoinSpend()){

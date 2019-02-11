@@ -345,7 +345,7 @@ BOOST_AUTO_TEST_CASE(event_tests)
     boost::this_thread::sleep_for(boost::chrono::milliseconds(100));
 
     // // mintUpdates
-    entry.push_back(Pair("used", true));
+    entry.push_back(Pair("available", false));
     // use an arbitrary hash for the index.
     mintUpdates.push_back(Pair(chainActive.Tip()->phashBlock->ToString(), entry));
     cout << "Calling UpdatedMintStatus.." << endl;

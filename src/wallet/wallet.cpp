@@ -4425,7 +4425,7 @@ bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddr
                             string key = txid + to_string(index);
                             entry.push_back(Pair("txid", txid));
                             entry.push_back(Pair("index", to_string(index)));
-                            entry.push_back(Pair("used", true));
+                            entry.push_back(Pair("available", false));
                             mintUpdates.push_back(Pair(key, entry));
                             LogPrintf("mintUpdates: %s\n", mintUpdates.write());
                             break;
