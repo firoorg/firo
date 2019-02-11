@@ -2310,9 +2310,10 @@ bool CWallet::IsMintFromTxOutAvailable(CTxOut txout, bool& fIsAvailable){
     LogPrintf("Pubcoin=%s\n", pubCoin.GetHex());
     BOOST_FOREACH(const CZerocoinEntry &pubCoinItem, listPubCoin) {
         if (pubCoinItem.value == pubCoin){
-            fIsAvailable = (pubCoinItem.IsUsed || 
-                           (pubCoinItem.randomness != 0 && 
-                            pubCoinItem.serialNumber != 0));
+            fIsAvailable = !(pubCoinItem.IsUsed ||
+                           (!pubCoinItem.IsUsed &&
+                            (pubCoinItem.randomness == 0 ||
+                             pubCoinItem.serialNumber == 0)));
             return true;
         }
     }
