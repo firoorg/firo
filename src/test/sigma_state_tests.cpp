@@ -706,6 +706,7 @@ BOOST_AUTO_TEST_CASE(zerocoingetspendserialnumberv3_valid_tx_valid_vin)
     sigma::CoinSpendV3 coinSpend(params,coins[0],pubCoins);
 
     CDataStream serializedCoinSpend(SER_NETWORK, PROTOCOL_VERSION);
+    serializedCoinSpend << coinSpend;
 
     // create tx and vin
     
@@ -745,9 +746,9 @@ BOOST_AUTO_TEST_CASE(zerocoingetspendserialnumberv3_valid_tx_valid_vin)
     newTxIn2.prevout.SetNull();
 
     CScript tmp2 = CScript() << OP_ZEROCOINSPENDV3;
-    tmp2.insert(tmp2.end(),serializedCoinSpend2.begin(),serializedCoinSpend2.end());
+    tmp2.insert(tmp2.end(), serializedCoinSpend2.begin(), serializedCoinSpend2.end());
 
-    newTxIn2.scriptSig.assign(tmp2.begin(),tmp2.end());
+    newTxIn2.scriptSig.assign(tmp2.begin(), tmp2.end());
     newtx.vin.push_back(newTxIn);
 
     CTransaction ctx2(newtx);
@@ -759,15 +760,17 @@ BOOST_AUTO_TEST_CASE(zerocoingetspendserialnumberv3_valid_tx_valid_vin)
     // not allow unspend vin
     // add unspend vin
     CTxIn newTxVin3;
+    newTxVin3.scriptSig = CScript();
+    newTxVin3.prevout.SetNull();
+
+    CScript tmp3 = CScript() << OP_RETURN;
+    newTxVin3.scriptSig.assign(tmp3.begin(), tmp3.end());
+
     newtx.vin.push_back(newTxVin3);
     
     CTransaction ctx3(newtx);
 
-    BOOST_CHECK_MESSAGE(ZerocoinGetSpendSerialNumberV3(ctx3,newTxIn) == Scalar(uint64_t(0)),
-      "Expect 0 got serial");
-    BOOST_CHECK_MESSAGE(ZerocoinGetSpendSerialNumberV3(ctx3,newTxIn2) == Scalar(uint64_t(0)),
-      "Expect 0 got serial");
-    BOOST_CHECK_MESSAGE(ZerocoinGetSpendSerialNumberV3(ctx3,newTxVin3) == Scalar(uint64_t(0)),
+    BOOST_CHECK_MESSAGE(ZerocoinGetSpendSerialNumberV3(ctx3, newTxVin3) == Scalar(uint64_t(0)),
       "Expect 0 got serial");
 }
 
@@ -913,7 +916,7 @@ BOOST_AUTO_TEST_CASE(sigma_build_state_no_sigma)
         indexs[i] = index;
 	}
 
-    BOOST_CHECK_THROW(ZerocoinBuildStateFromIndexV3(&chainActive), std::string);
+    ZerocoinBuildStateFromIndexV3(&chainActive);
 
     // check group
     CZerocoinStateV3::CoinGroupInfoV3 group;
