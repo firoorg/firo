@@ -18,6 +18,7 @@ CBlockIndex CreateBlockIndex(int nHeight)
     CBlockIndex index;
     index.nHeight = nHeight;
     index.pprev = chainActive.Tip();
+    index.phashBlock = new uint256();
     return index;
 }
 
@@ -945,67 +946,83 @@ BOOST_AUTO_TEST_CASE(sigma_getcoinsetforspend)
 {
     CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
     auto params = sigma::ParamsV3::get_default();
+    int nextIndex = 0;
+    std::vector<CBlockIndex> indexes;
+    indexes.resize(101);
+    
+    // nextIndex = 0
+    indexes[nextIndex] = CreateBlockIndex(nextIndex);
+    chainActive.SetTip(&indexes[nextIndex]);
 
-    CBlockIndex index0 = CreateBlockIndex(0);
-    chainActive.SetTip(&index0);
+    // nextIndex = 1
+    nextIndex++;
+    indexes[nextIndex] = CreateBlockIndex(nextIndex);
 
-    CBlockIndex index1 = CreateBlockIndex(1);
+    std::pair<CoinDenominationV3, int> denomination1Group1(CoinDenominationV3::SIGMA_DENOM_1, 1);
+    std::pair<CoinDenominationV3, int> denomination10Group1(CoinDenominationV3::SIGMA_DENOM_10, 1);
 
     // add index 1 with 10 SIGMA_DENOM_1
     auto coins = generateCoins(params, 10);
     auto pubCoins = getPubcoins(coins);
-    std::pair<CoinDenominationV3, int> denomination1Group1(CoinDenominationV3::SIGMA_DENOM_1, 1);
-    std::pair<CoinDenominationV3, int> denomination10Group1(CoinDenominationV3::SIGMA_DENOM_10, 1);
-
-    index1.mintedPubCoinsV3[denomination1Group1] = pubCoins;
-
-    chainActive.SetTip(&index1);
-
-    CBlockIndex index2 = CreateBlockIndex(2);
+    
     // add index 2 with 1 DENOM_1  mints and 1 spend
-    auto coins2 = generateCoins(params,1);
+    auto coins2 = generateCoins(params, 1);
     auto pubCoins2 = getPubcoins(coins2);
-    auto coins3 = generateCoins(params,5);
+    auto coins3 = generateCoins(params, 5);
     auto pubCoins3 = getPubcoins(coins3);
+
+    indexes[nextIndex].mintedPubCoinsV3[denomination1Group1] = pubCoins;
+    chainActive.SetTip(&indexes[nextIndex]);
+
+    nextIndex++;
+    indexes[nextIndex] = CreateBlockIndex(nextIndex);
 
     // mock spend
     secp_primitives::Scalar serial;
     serial.randomize();
 
-    index2.spentSerialsV3.insert(serial);
+    indexes[nextIndex].spentSerialsV3.insert(serial);
+    indexes[nextIndex].mintedPubCoinsV3[denomination1Group1] = pubCoins2;
+    indexes[nextIndex].mintedPubCoinsV3[denomination10Group1] = pubCoins3;
 
-    index2.mintedPubCoinsV3[denomination1Group1] = pubCoins2;
-    index2.mintedPubCoinsV3[denomination10Group1] = pubCoins3;
-
-    chainActive.SetTip(&index2);
-
-    for(int i =3 ;i<=100;i++){
-		CBlockIndex index = CreateBlockIndex(i);
+    chainActive.SetTip(&indexes[nextIndex]);
+    
+    // nextIndex = 3
+    nextIndex++;
+    for( ; nextIndex<=100; nextIndex++){
+		CBlockIndex index = CreateBlockIndex(nextIndex);
         chainActive.SetTip(&index);
+        indexes[nextIndex] = index;
 	}
 
     ZerocoinBuildStateFromIndexV3(&chainActive);
 
     uint256 blockHash_out;
-    std::vector<PublicCoinV3> coins_out;
+    uint256 blockHash_empty;
 
+    std::vector<PublicCoinV3> coins_out3;
+    // maxheight < blockheight
+    auto coins_amount = zerocoinState->GetCoinSetForSpend(&chainActive, 1,
+    CoinDenominationV3::SIGMA_DENOM_10, 1, blockHash_out, coins_out3);
+    BOOST_CHECK_MESSAGE(coins_amount == 0, "Unexpected Coins amount for spend, should be 0.");
+    BOOST_CHECK_MESSAGE(coins_out3.size() == 0, "Unexpected coins out, should be 0.");
+    BOOST_CHECK_MESSAGE(blockHash_out == blockHash_empty , "Unexpected blockhash for small height.");
+
+    std::vector<PublicCoinV3> coins_out1;
     // maxheight > blockheight
-    auto coins_amount = zerocoinState->GetCoinSetForSpend(&chainActive, 4, 
-    CoinDenominationV3::SIGMA_DENOM_10, 1, blockHash_out, coins_out);
+    coins_amount = zerocoinState->GetCoinSetForSpend(&chainActive, nextIndex, 
+    CoinDenominationV3::SIGMA_DENOM_10, 1, blockHash_out, coins_out1);
     BOOST_CHECK_MESSAGE(coins_amount == 5, "Unexpected Coins amount for spend, should be 5.");
-    BOOST_CHECK_MESSAGE(coins_out == pubCoins3, "Unexpected coins out for denom 10.");
-
-    // maxheight > blockheight another denom
-    coins_amount = zerocoinState->GetCoinSetForSpend(&chainActive, 4, 
-    CoinDenominationV3::SIGMA_DENOM_1, 1, blockHash_out, coins_out);
-    BOOST_CHECK_MESSAGE(coins_amount == 11, "Unexpected Coins amount for spend, should be 11.");
+    BOOST_CHECK_MESSAGE(coins_out1 == pubCoins3, "Unexpected coins out for denom 10.");
+    BOOST_CHECK_MESSAGE(blockHash_out == indexes[2].GetBlockHash(), "Unexpected blockhash for denom 10.");
 
     std::vector<PublicCoinV3> coins_out2;
-    // maxheight < blockheight
-    coins_amount = zerocoinState->GetCoinSetForSpend(&chainActive, 1,
-    CoinDenominationV3::SIGMA_DENOM_10, 1, blockHash_out, coins_out2);
-    BOOST_CHECK_MESSAGE(coins_amount == 0, "Unexpected Coins amount for spend, should be 0.");
-    BOOST_CHECK_MESSAGE(coins_out2.size() == 0, "Unexpected coins out, should be 0.");
+    // maxheight > blockheight another denom
+    coins_amount = zerocoinState->GetCoinSetForSpend(&chainActive, nextIndex, 
+    CoinDenominationV3::SIGMA_DENOM_1, 1, blockHash_out, coins_out2);
+    BOOST_CHECK_MESSAGE(coins_amount == 11, "Unexpected Coins amount for spend, should be 11.");
+    BOOST_CHECK_MESSAGE(coins_out2.size() == pubCoins2.size() + pubCoins.size(), "Unexpected coins out for denom 1.");
+    BOOST_CHECK_MESSAGE(blockHash_out == indexes[2].GetBlockHash(), "Unexpected blockhash for denom 1.");
 
     zerocoinState->Reset();
 }
