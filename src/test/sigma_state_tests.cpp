@@ -979,7 +979,7 @@ BOOST_AUTO_TEST_CASE(sigma_getcoinsetforspend)
 
     chainActive.SetTip(&index2);
 
-    for(int i =3 ;i<=100;i++){
+    for(int i=3; i<=100; i++){
 		CBlockIndex index = CreateBlockIndex(i);
         chainActive.SetTip(&index);
 	}
@@ -989,14 +989,16 @@ BOOST_AUTO_TEST_CASE(sigma_getcoinsetforspend)
     uint256 blockHash_out;
     std::vector<PublicCoinV3> coins_out;
 
+    int maxHeight = 100;
+
     // maxheight > blockheight
-    auto coins_amount = zerocoinState->GetCoinSetForSpend(&chainActive, 4, 
+    auto coins_amount = zerocoinState->GetCoinSetForSpend(&chainActive, maxHeight, 
     CoinDenominationV3::SIGMA_DENOM_10, 1, blockHash_out, coins_out);
     BOOST_CHECK_MESSAGE(coins_amount == 5, "Unexpected Coins amount for spend, should be 5.");
     BOOST_CHECK_MESSAGE(coins_out == pubCoins3, "Unexpected coins out for denom 10.");
 
     // maxheight > blockheight another denom
-    coins_amount = zerocoinState->GetCoinSetForSpend(&chainActive, 4, 
+    coins_amount = zerocoinState->GetCoinSetForSpend(&chainActive, maxHeight, 
     CoinDenominationV3::SIGMA_DENOM_1, 1, blockHash_out, coins_out);
     BOOST_CHECK_MESSAGE(coins_amount == 11, "Unexpected Coins amount for spend, should be 11.");
 
