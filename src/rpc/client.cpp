@@ -120,7 +120,6 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "getaddressmempool", 0},
     { "setmininput", 0 },
     { "mintzerocoin", 0 },
-    { "mintmanyzerocoin", 0 },
     { "spendzerocoin", 0 },
     { "spendmanyzerocoin", 0 },
     { "setgenerate", 0 },

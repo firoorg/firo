@@ -60,6 +60,24 @@ void EnsureWalletIsUnlocked()
         throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Error: Please enter the wallet passphrase with walletpassphrase first.");
 }
 
+bool ValidMultiMint(const UniValue& data){
+    vector<string> keys = data.getKeys();
+    CAmount totalValue = 0;
+    int totalInputs = 0;
+    int denomination;
+    int64_t amount;
+    BOOST_FOREACH(const string& denominationStr, keys){
+        denomination = stoi(denominationStr.c_str());
+        amount = data[denominationStr].get_int();
+        totalInputs += amount;
+        totalValue += denomination * amount * COIN;
+    }
+
+    return ((totalValue <= pwalletMain->GetBalance()) &&
+            (totalInputs <= ZC_MINT_LIMIT));
+
+}
+
 void WalletTxToJSON(const CWalletTx& wtx, UniValue& entry)
 {
     int confirms = wtx.GetDepthInMainChain();
@@ -2934,7 +2952,7 @@ UniValue listunspentmintzerocoins(const UniValue &params, bool fHelp) {
 UniValue mintzerocoin(const UniValue& params, bool fHelp)
 {
 
-    if (fHelp || params.size() > 1)
+    if (fHelp || params.size() != 1)
         throw runtime_error("mintzerocoin <amount>(1,10,25,50,100)\n" + HelpRequiringPassphrase());
 
     int64_t nAmount = 0;
@@ -3003,6 +3021,7 @@ UniValue mintzerocoin(const UniValue& params, bool fHelp)
         zerocoinTx.serialNumber = newCoin.getSerialNumber();
         const unsigned char *ecdsaSecretKey = newCoin.getEcdsaSeckey();
         zerocoinTx.ecdsaSecretKey = std::vector<unsigned char>(ecdsaSecretKey, ecdsaSecretKey+32);
+        pwalletMain->NotifyZerocoinChanged(pwalletMain, zerocoinTx.value.GetHex(), "New (" + std::to_string(zerocoinTx.denomination) + " mint)", CT_NEW);
         walletdb.WriteZerocoinEntry(zerocoinTx);
 
         return wtx.GetHash().GetHex();
@@ -3014,20 +3033,32 @@ UniValue mintzerocoin(const UniValue& params, bool fHelp)
 
 UniValue mintmanyzerocoin(const UniValue& params, bool fHelp)
 {
-    if (fHelp || params.size() > 1)
+    if (fHelp || params.size() == 0 || params.size() % 2 != 0 || params.size() > 10)
         throw runtime_error(
-                "mintmanyzerocoin {<denomination>(1,10,25,50,100):\"amount\"...}\n"
+                "mintmanyzerocoin <denomination>(1,10,25,50,100), numberOfMints, <denomination>(1,10,25,50,100), numberOfMints, ... }\n"
                 + HelpRequiringPassphrase()
                 + "\nMint 1 or more zerocoins in a single transaction. Amounts must be of denominations specified.\n"
+                + "Specify each denomination followed by the number of them to mint, for all denominations desired.\n"
+                + "Total amount for all must be less than " + to_string(ZC_MINT_LIMIT) + ".  \n"
                 "\nArguments:\n"
-                "1. \"denominations\"             (object, required) A json object with amounts and denominations\n"
-                    "    {\n"
-                    "      \"denomination\":amount The denomination of zerocoin to mint (must be one of (1,10,25,50,100)) followed by the amount of the denomination to mint.\n"
-                    "      ,...\n"
-                    "    }\n"
-                "\nExamples:\n"
-                    + HelpExampleCli("mintmanyzerocoin", "\"\" \"{\\\"25\\\":10,\\\"10\\\":5}\"")
+                "1. \"denomination\"             (integer, required) zerocoin denomination\n"
+                "2. \"numberOfMints\"            (integer, required) amount of mints for chosen denomination\n"
+                "\nExamples:\nThe first example mints denomination 1, one time, for a total XZC valuation of 1.\nThe next example mints denomination 25, ten times, and denomination 50, five times, for a total XZC valuation of 500.\n"
+                    + HelpExampleCli("mintmanyzerocoin", "1 1")
+                    + HelpExampleCli("mintmanyzerocoin", "25 10 50 5")
         );
+
+    UniValue sendTo(UniValue::VOBJ);
+
+    for(size_t i=0; i<params.size(); i+=2){
+        string denomination = params[i].get_str();
+        string amount = params[i+1].get_str();
+        sendTo.push_back(Pair(denomination, stoi(amount)));
+    }
+
+    if(!ValidMultiMint(sendTo)){
+        throw JSONRPCError(RPC_WALLET_ERROR, "Insufficient funds/mint inputs out of range");
+    }
 
     int64_t denominationInt = 0;
     libzerocoin::CoinDenomination denomination;
@@ -3037,8 +3068,6 @@ UniValue mintmanyzerocoin(const UniValue& params, bool fHelp)
     vector<CRecipient> vecSend;
     vector<libzerocoin::PrivateCoin> privCoins;
     CWalletTx wtx;
-
-    UniValue sendTo = params[0].get_obj();
 
     vector<string> keys = sendTo.getKeys();
     BOOST_FOREACH(const string& denominationStr, keys){
@@ -3063,7 +3092,7 @@ UniValue mintmanyzerocoin(const UniValue& params, bool fHelp)
                 break;
             default:
                 throw runtime_error(
-                    "mintzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n");
+                    "denomination must be one of (1,10,25,50,100)\n");
         }
 
         if (fHelp || params.size() > 1)
@@ -3088,7 +3117,7 @@ UniValue mintmanyzerocoin(const UniValue& params, bool fHelp)
         
         if(amount < 0){
                 throw runtime_error(
-                    "mintmanyzerocoin {<denomination>(1,10,25,50,100):\"amount\"...}\n");
+                    "amounts must be greater than 0.\n");
         }
 
         for(int64_t i=0; i<amount; i++){
