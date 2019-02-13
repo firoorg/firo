@@ -1966,9 +1966,6 @@ bool AcceptToMemoryPoolWorker(
 
             CTxMemPool::setEntries setAncestors;
             pool.addUnchecked(hash, entry, setAncestors, !IsInitialBlockDownload());
-            if (tx.IsZerocoinSpend()) {
-                pool.countZCSpend++;
-            }
         } else {
             LockPoints lp;
             double dPriority = 0;

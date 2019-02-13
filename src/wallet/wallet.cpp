@@ -4414,7 +4414,6 @@ bool CWallet::CreateZerocoinSpendTransactionV3(
     {
         LOCK2(cs_main, cs_wallet);
         {
-            nFeeRet = payTxFee.GetFeePerK();
             txNew.vin.clear();
             txNew.vout.clear();
             txNew.wit.SetNull();
@@ -5583,7 +5582,8 @@ string CWallet::SpendZerocoinV3(
         uint256 &txHash,
         GroupElement &zcSelectedValue,
         bool &zcSelectedIsUsed,
-        bool forceUsed) {
+        bool forceUsed,
+        bool fAskFee) {
     CReserveKey reservekey(this);
 
     if (IsLocked()) {
@@ -5602,15 +5602,11 @@ string CWallet::SpendZerocoinV3(
     if (!CreateZerocoinSpendTransactionV3(
             thirdPartyaddress, denomination, wtxNew, reservekey, nFeeRequired, coinSerial, txHash,
             zcSelectedValue, zcSelectedIsUsed, strError, forceUsed)) {
-        if (nValue + nFeeRequired > GetBalance())
-            return strprintf(
-                    _("Error: This transaction requires a transaction fee of at least %s because of its amount, complexity, or use of recently received funds!"),
-                    FormatMoney(nFeeRequired).c_str());
         LogPrintf("SpendZerocoin() : %s\n", strError.c_str());
         return strError;
     }
 
-    if (!uiInterface.ThreadSafeAskFee(nFeeRequired))
+    if (fAskFee && !uiInterface.ThreadSafeAskFee(nFeeRequired))
         return "ABORTED";
 
     if (!CommitZerocoinSpendTransaction(wtxNew, reservekey)) {
