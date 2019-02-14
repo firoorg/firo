@@ -1,3 +1,5 @@
+#include "../../crypto/sha256.h"
+
 namespace sigma{
 
 template<class Exponent, class GroupElement>
@@ -74,15 +76,14 @@ void SigmaPrimitives<Exponent, GroupElement>::get_x(
         const GroupElement& C,
         const GroupElement& D,
         Exponent& result_out) {
-    secp256k1_sha256_t hash;
-    secp256k1_sha256_initialize(&hash);
+    CSHA256 hash;
     unsigned char data[3 * A.memoryRequired()];
     unsigned char* current = A.serialize(data);
     current = C.serialize(current);
     D.serialize(current);
-    secp256k1_sha256_write(&hash, &data[0], 3 * 34);
+    hash.Write(data, 3 * 34);
     unsigned char result_data[32];
-    secp256k1_sha256_finalize(&hash, result_data);
+    hash.Finalize(result_data);
     result_out = result_data;
 }
 

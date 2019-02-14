@@ -1912,6 +1912,58 @@ CAmount CWallet::GetDenominatedBalance(bool unconfirmed) const {
     return nTotal;
 }
 
+CAmount CWallet::GetCoinsToSpend(const CAmount required, std::vector<CZerocoinEntryV3>& selected)
+{
+	// this function support only coin set that no larger denomination that can not be divided by lower denomination
+
+    std::list<CZerocoinEntryV3> coins;
+    CWalletDB(strWalletFile).ListPubCoinV3(coins);
+
+    // sort by highest denomination. if it is same denomination we will prefer the previous block
+    auto comparer = [](const CZerocoinEntryV3& a, const CZerocoinEntryV3& b) -> bool {
+        return a.get_denomination_value() != b.get_denomination_value() ? a.get_denomination_value() > b.get_denomination_value() : a.nHeight < b.nHeight;
+    };
+    coins.sort(comparer);
+
+    CAmount sum(0);
+
+    while (sum < required) {
+        // no coin to choose
+        if (coins.empty())
+            break;
+
+        CAmount need = required - sum;
+        CZerocoinEntryV3 chosenCoin;
+        
+        auto highestCoin = coins.begin();
+        if (need >= highestCoin->get_denomination_value()) {
+
+            // case 1: need >= highest coin, choose highest
+            chosenCoin = *highestCoin;
+            coins.erase(highestCoin);
+        } else {
+
+            // case 2: highest coin > need, choose best fit
+            // start from lowest to highest denomination to find best fit and lowest block
+            for (auto coinIt = coins.rbegin(); coinIt != coins.rend(); coinIt++) {
+
+                auto nextCoinIt = coinIt;
+                nextCoinIt++;
+
+                if (coinIt->get_denomination_value() >= need &&
+                    (nextCoinIt == coins.rend() || nextCoinIt->get_denomination_value() != coinIt->get_denomination_value())) {
+                    chosenCoin = *coinIt;
+                    break;
+                }
+            }
+        }
+        
+        sum += chosenCoin.get_denomination_value();
+        selected.push_back(chosenCoin);
+    }
+
+    return sum;
+}
 
 CAmount CWallet::GetUnconfirmedBalance() const {
     CAmount nTotal = 0;
@@ -6921,3 +6973,4 @@ bool CompHeightV3(const CZerocoinEntryV3 &a, const CZerocoinEntryV3 &b) { return
 
 bool CompID(const CZerocoinEntry &a, const CZerocoinEntry &b) { return a.id < b.id; }
 bool CompIDV3(const CZerocoinEntryV3 &a, const CZerocoinEntryV3 &b) { return a.id < b.id; }
+
