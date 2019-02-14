@@ -1,46 +1,67 @@
 #include "include/GroupElement.h"
+
 #include <stdlib.h>
 #include <openssl/rand.h>
+
 namespace secp_primitives {
 
 secp256k1_ecmult_context GroupElement::ctx;
 
-int _convertBase(
-    unsigned char *dst,
-    int dstLen,
-    int dstBase,
-    const unsigned char *src,
-    int srcLen,
-    int srcBase)
+template<class Value, class Iter, std::size_t Len>
+static int _convertBase(
+    Iter begin,
+    Iter end,
+    int from,
+    Value(&dst)[Len],
+    int to)
 {
-    memset(dst, 0, dstLen);
+    memset(dst, 0, sizeof(Value) * Len);
 
     int resLen = 0;
-    for (int d = 0; d < srcLen; d++) {
-        int adt = src[d];
+    for (auto iter = begin; iter != end; iter++) {
+        int adt = *iter;
 
         for (int i = 0; i < resLen || adt != 0; i++) {
             if (i == resLen) {
                 resLen++;
             }
 
-            if (resLen > dstLen) {
+            if (resLen > Len) {
                 throw "GroupElement::GroupElement: invalid count";
             }
 
-            int sum = adt + srcBase * dst[i];
-            dst[i] = sum % dstBase;
-            adt = sum / dstBase;
+            int sum = adt + from * dst[i];
+            dst[i] = sum % to;
+            adt = sum / to;
         }
     }
 
-    for (int i = 0; i < dstLen / 2; i++) {
+    for (int i = 0; i < Len / 2; i++) {
         unsigned char tmp = dst[i];
-        dst[i] = dst[dstLen - i - 1];
-        dst[dstLen - i - 1] = tmp;
+        dst[i] = dst[Len - i - 1];
+        dst[Len - i - 1] = tmp;
     }
 
-    return dstLen;
+    return resLen;
+}
+
+template<std::size_t Len>
+static void _negate (uint8_t(&num) [Len])
+{
+    for (auto i = 0; i < Len; i++) {
+        num[i] ^= 0xFF;
+    }
+
+    int adt = 1;
+    for (auto i = Len-1; i >= 0 && adt > 0; i--) {
+        auto sum = adt + num[i];
+        num[i] = sum % 256;
+        adt = sum / 256;
+    }
+
+    if (adt != 0) {
+        throw "GroupElement::GroupElement: overflow while negate";
+    }
 }
 
 GroupElement::GroupElement()
@@ -59,19 +80,26 @@ GroupElement::GroupElement(const secp256k1_gej& g)
 {
 }
 
-void _convertToFieldElement(secp256k1_fe *r, const char* str, int base) {
-    int strLen = strlen(str);
-    unsigned char buffer[128];
+static void _convertToFieldElement(secp256k1_fe *r, const char* str, int base) {
+    uint8_t buffer[32];
+    auto negative = *str == '-';
+    if (negative) {
+        str++;
+    }
 
-    std::unique_ptr<unsigned char[]> src(new unsigned char[strLen]);
-    memset(src.get(), 0, strLen * sizeof(unsigned char));
+    auto strLen = strlen(str);
+    std::vector<uint8_t> src(strLen, 0);
 
     for (int i = 0; i < strLen; i++) {
         char ch = str[i];
 
         switch (base) {
         case 10:
-            src[i] = ch - '0';
+            if (ch >= '0' && ch <= '9') {
+                src[i] = ch - '0';
+            } else {
+                throw std::invalid_argument("invalid number base 10");
+            }
             break;
         
         case 16:
@@ -79,8 +107,10 @@ void _convertToFieldElement(secp256k1_fe *r, const char* str, int base) {
                 src[i] = ch - '0';
             } else if (ch >= 'a' && ch <= 'f') {
                 src[i] = 10 + ch - 'a';
-            } else {
+            } else if (ch >= 'A' && ch <= 'F') {
                 src[i] = 10 + ch - 'A';
+            } else {
+                throw std::invalid_argument("invalid number base 16");
             }
             break;
 
@@ -89,7 +119,11 @@ void _convertToFieldElement(secp256k1_fe *r, const char* str, int base) {
         }
     }
 
-    _convertBase((unsigned char*)buffer, 32, 256, src.get(), strLen, base);
+    _convertBase(src.begin(), src.end(), base, buffer, 256);
+    if (negative) {
+        _negate(buffer);
+    }
+
     secp256k1_fe_set_b32(r, buffer);
 }
 
@@ -262,16 +296,26 @@ void GroupElement::sha256(unsigned char* result) const{
 }
 
 char* _convertToString(char* str, const unsigned char* buffer, int base) {
+    uint8_t val[32];
+    memcpy(val, buffer, 32 * sizeof(unsigned char));
+
+    auto negative = base == 10 && ((buffer[0] & 0x80) > 0);
+    if (negative) {
+        _negate(val);
+        str[0] = '-';
+        str++;
+    }
+
     unsigned char dst[128];
-    int strLen = _convertBase((unsigned char*)dst, 128, base, buffer, 32, 256);
+    int strLen = _convertBase(val, val + 32, 256, dst, base);
 
     int startAt = 0;
     while (dst[startAt] == 0) {
         startAt++;
     }
 
-    for (int i = startAt; i < strLen; i++) {
-        unsigned char v = dst[i];
+    for (int i = 0; i < strLen; i++) {
+        unsigned char v = dst[startAt + i];
         char ch;
         switch (base) {
         case 10:
@@ -288,9 +332,9 @@ char* _convertToString(char* str, const unsigned char* buffer, int base) {
             break;
         }
 
-        str[i - startAt] = ch;
+        str[i] = ch;
     }
-    str[strLen - startAt] = 0;
+    str[strLen] = 0;
 
     return str + strlen(str);
 }

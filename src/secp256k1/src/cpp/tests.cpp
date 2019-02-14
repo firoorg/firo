@@ -2,6 +2,8 @@
 #include "libsecp256k1-config.h"
 #endif
 
+#include <iostream>
+
 #include "../secp256k1.c"
 #include "../include/secp256k1.h"
 
@@ -22,6 +24,8 @@ int main(int argc, char* argv[])
         "33986433546870000256104618635743654523665060392313886665479090285075695067131"));
     testcases.push_back(std::make_pair("7143275630583997983432964947790981761478339235433352888289260750805571589245",
         "11700086115751491157288596384709446578503357013980342842588483174733971680454"));
+    testcases.push_back(std::make_pair("7143275630583997983432964947790981761478339235433352888289260750805571589245",
+        "-11700086115751491157288596384709446578503357013980342842588483174733971680454"));
 
     std::vector<std::pair<const char*, const char*>> hexTestcases;
     hexTestcases.push_back(std::make_pair("14601b8cdf761d4ed94554865ef0ef5c451e275f3dfc0a667fea04fa5a833bed",
@@ -30,6 +34,8 @@ int main(int argc, char* argv[])
         "4b23a3c385114c40cb4fbf02d1a52f731b4edf61c247372d038470eea90edffb"));
     hexTestcases.push_back(std::make_pair("fcaf3630cd86c0b9dc6b122aeca20b065a14f861c291cd53a989f0e9fe1d47d",
         "19de0399d7578731a20abff9283e66117f8cc02be53c4cc86eb5ac3378c36cc6"));
+    hexTestcases.push_back(std::make_pair("fcaf3630cd86c0b9dc6b122aeca20b065a14f861c291cd53a989f0e9fe1d47d",
+        "e621fc6628a878ce5df54006d7c199ee80733fd41ac3b337914a53cc873c933a"));
 
     std::vector<const char*> expecteds;
     expecteds.push_back(
@@ -41,6 +47,9 @@ int main(int argc, char* argv[])
     expecteds.push_back(
         "(7143275630583997983432964947790981761478339235433352888289260750805571589245,"
         "11700086115751491157288596384709446578503357013980342842588483174733971680454)");
+    expecteds.push_back(
+        "(7143275630583997983432964947790981761478339235433352888289260750805571589245,"
+        "-11700086115751491157288596384709446578503357013980342842588483174733971680454)");
     
 
     std::vector<const char*> expectedHexs;
@@ -53,33 +62,36 @@ int main(int argc, char* argv[])
     expectedHexs.push_back(
         "(fcaf3630cd86c0b9dc6b122aeca20b065a14f861c291cd53a989f0e9fe1d47d,"
         "19de0399d7578731a20abff9283e66117f8cc02be53c4cc86eb5ac3378c36cc6)");
+    expectedHexs.push_back(
+        "(fcaf3630cd86c0b9dc6b122aeca20b065a14f861c291cd53a989f0e9fe1d47d,"
+        "e621fc6628a878ce5df54006d7c199ee80733fd41ac3b337914a53cc873c933a)");
 
     for (int i = 0; i < testcases.size(); i++) {
-        auto t = testcases[i];
+        auto& t = testcases[i];
         secp_primitives::GroupElement g(t.first, t.second);
 
         if (expecteds[i] != g.tostring()) {
-            printf("expected: %s, get: %s\n", expecteds[i], g.tostring());
+            std::cout<< "expected:" << expecteds[i] << ", get: " << g.tostring() << std::endl;
             return EXIT_FAILURE;
         }
 
-        if (expectedHexs[i] != g.GetHex()) {
-            printf("expected: %s, get: %s\n", expectedHexs[i], g.tostring());
+        if (expectedHexs[i] != "" && expectedHexs[i] != g.GetHex()) {
+            std::cout<< "expected[hex]:" << expectedHexs[i] << ", get: " << g.GetHex() << std::endl;
             return EXIT_FAILURE;
         }
     }
 
     for (int i = 0; i < hexTestcases.size(); i++) {
-        auto t = hexTestcases[i];
+        auto& t = hexTestcases[i];
         secp_primitives::GroupElement g(t.first, t.second, 16);
 
         if (expecteds[i] != g.tostring()) {
-            printf("expected: %s, get: %s\n", expecteds[i], g.tostring());
+            std::cout<< "expected:" << expecteds[i] << ", get: " << g.tostring() << std::endl;
             return EXIT_FAILURE;
         }
 
-        if (expectedHexs[i] != g.GetHex()) {
-            printf("expected: %s, get: %s\n", expectedHexs[i], g.tostring());
+        if (expectedHexs[i] != "" && expectedHexs[i] != g.GetHex()) {
+            std::cout<< "expected[hex]:" << expectedHexs[i] << ", get: " << g.GetHex() << std::endl;
             return EXIT_FAILURE;
         }
     }
