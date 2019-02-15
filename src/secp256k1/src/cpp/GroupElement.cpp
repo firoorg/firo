@@ -14,6 +14,7 @@
 
 #include <openssl/rand.h>
 #include <stdlib.h>
+#include <sstream>
 
 static secp256k1_ecmult_context ctx;
 
@@ -108,20 +109,20 @@ static int _convertBase(
 
     int resLen = 0;
     for (auto iter = begin; iter != end; iter++) {
-        int adt = *iter;
+        int carry = *iter;
 
-        for (int i = 0; i < resLen || adt != 0; i++) {
+        for (int i = 0; i < resLen || carry != 0; i++) {
             if (i == resLen) {
                 resLen++;
             }
 
             if (resLen > Len) {
-                throw "GroupElement::GroupElement: invalid count";
+                throw std::overflow_error("GroupElement::GroupElement: invalid count");
             }
 
-            int sum = adt + from * dst[i];
+            int sum = carry + from * dst[i];
             dst[i] = sum % to;
-            adt = sum / to;
+            carry = sum / to;
         }
     }
 
@@ -137,19 +138,19 @@ static int _convertBase(
 template<std::size_t Len>
 static void _negate (uint8_t(&num) [Len])
 {
-    for (auto i = 0; i < Len; i++) {
-        num[i] ^= 0xFF;
+    for (uint8_t& v : num) {
+        v ^= 0xFF;
     }
 
-    int adt = 1;
-    for (auto i = Len-1; i >= 0 && adt > 0; i--) {
-        auto sum = adt + num[i];
+    int carry = 1;
+    for (int i = Len - 1; i >= 0 && carry > 0; i--) {
+        auto sum = carry + num[i];
         num[i] = sum % 256;
-        adt = sum / 256;
+        carry = sum / 256;
     }
 
-    if (adt != 0) {
-        throw "GroupElement::GroupElement: overflow while negate";
+    if (carry != 0) {
+        throw std::overflow_error("GroupElement::GroupElement: overflow while negate");
     }
 }
 
@@ -386,19 +387,20 @@ void GroupElement::sha256(unsigned char* result) const{
     secp256k1_rfc6979_hmac_sha256_generate(&sha256,  result, 32);
 }
 
-char* _convertToString(char* str, const unsigned char* buffer, int base) {
+template<std::size_t Len>
+std::string _convertToString(const unsigned char(&buffer) [Len], int base) {
     uint8_t val[32];
-    memcpy(val, buffer, 32 * sizeof(unsigned char));
+    memcpy(val, buffer, sizeof(val));
 
-    auto negative = base == 10 && ((buffer[0] & 0x80) > 0);
+    std::stringstream str;
+    auto negative = base == 10 && (buffer[0] & 0x80);
     if (negative) {
         _negate(val);
-        str[0] = '-';
-        str++;
+        str << '-';
     }
 
     unsigned char dst[128];
-    int strLen = _convertBase(val, val + 32, 256, dst, base);
+    int strLen = _convertBase(val, &val[std::extent<decltype(val)>::value], 256, dst, base);
 
     int startAt = 0;
     while (dst[startAt] == 0) {
@@ -423,11 +425,10 @@ char* _convertToString(char* str, const unsigned char* buffer, int base) {
             break;
         }
 
-        str[i] = ch;
+        str << ch;
     }
-    str[strLen] = 0;
 
-    return str + strlen(str);
+    return str.str();
 }
 
 std::string GroupElement::tostring() const {
@@ -438,20 +439,18 @@ std::string GroupElement::tostring() const {
     return std::string("O");
     }
 
-    char str[512];
+    std::stringstream str;
     unsigned char buffer[32];
-    char* ptr = str;
 
-    *ptr++ = '(';
+    str << '(';
     secp256k1_fe_get_b32(buffer,&ge.x);
-    ptr = _convertToString(ptr,buffer,base);
-    *ptr++ = ',';
+    str << _convertToString(buffer, base);
+    str << ',';
     secp256k1_fe_get_b32(buffer,&ge.y);
-    ptr = _convertToString(ptr,buffer,base);
-    *ptr++ = ')';
-    *ptr++ = '\0';
+    str << _convertToString(buffer, base);
+    str << ')';
 
-    return std::string(str);
+    return str.str();
 }
 
 std::string GroupElement::GetHex() const {
@@ -462,20 +461,18 @@ std::string GroupElement::GetHex() const {
         return std::string("O");
     }
 
-    char str[512];
+    std::stringstream str;
     unsigned char buffer[32];
-    char* ptr = str;
 
-    *ptr++ = '(';
+    str << '(';
     secp256k1_fe_get_b32(buffer,&ge.x);
-    ptr = _convertToString(ptr,buffer,base);
-    *ptr++ = ',';
+    str << _convertToString(buffer, base);
+    str << ',';
     secp256k1_fe_get_b32(buffer,&ge.y);
-    ptr = _convertToString(ptr,buffer,base);
-    *ptr++ = ')';
-    *ptr++ = '\0';
+    str << _convertToString(buffer, base);
+    str << ')';
 
-    return std::string(str);
+    return str.str();
 }
 
 size_t GroupElement::memoryRequired() const  {
