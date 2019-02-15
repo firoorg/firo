@@ -197,6 +197,7 @@ BITCOIN_CORE_H = \
   wallet/rpcwallet.h \
   wallet/wallet.h \
   wallet/walletdb.h \
+  wallet/walletexcept.h \
   wallet/authhelper.h \
   definition.h \
   zmq/zmqabstractnotifier.h \
@@ -293,6 +294,7 @@ libbitcoin_wallet_a_SOURCES = \
   wallet/rpcwallet.cpp \
   wallet/wallet.cpp \
   wallet/walletdb.cpp \
+  wallet/walletexcept.cpp \
   wallet/authhelper.cpp \
   policy/rbf.cpp \
   $(BITCOIN_CORE_H)
@@ -304,8 +306,8 @@ crypto_libbitcoin_crypto_a_SOURCES = \
   crypto/aes.cpp \
   crypto/aes.h \
   crypto/common.h \
-  crypto/chacha20.h \                           
-  crypto/chacha20.cpp \    
+  crypto/chacha20.h \
+  crypto/chacha20.cpp \
   crypto/hmac_sha256.cpp \
   crypto/hmac_sha256.h \
   crypto/hmac_sha512.cpp \
