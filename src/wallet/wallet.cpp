@@ -4876,6 +4876,73 @@ bool CWallet::CreateZerocoinSpendTransactionV3(
     return true;
 }
 
+static InputDescriptor GetInputDescriptorForSigmaSpend(const CZerocoinEntryV3& coin)
+{
+    auto state = CZerocoinStateV3::GetZerocoinState();
+    auto params = sigma::ParamsV3::get_default();
+    auto denom = coin.get_denomination();
+
+    sigma::PublicCoinV3 pub(coin.value, denom);
+
+    if (!pub.validate()) {
+        throw WalletError(_("one of the minted coin is invalid"));
+    }
+
+    // construct private part of the mint
+    sigma::PrivateCoinV3 priv(params, denom, ZEROCOIN_TX_VERSION_3);
+
+    priv.setSerialNumber(coin.serialNumber);
+    priv.setRandomness(coin.randomness);
+    priv.setPublicCoin(pub);
+
+    // get block number & group id of the mint
+    int block, groupId;
+
+    std::tie(block, groupId) = state->GetMintedCoinHeightAndId(pub);
+
+    if (block < 0) {
+        throw WalletError(_("one of minted coin does not found in the chain"));
+    }
+
+    // get public part of all minted coins in the group
+    std::vector<sigma::PublicCoinV3> group;
+    uint256 lastBlockOfGroup;
+
+    if (state->GetCoinSetForSpend(
+        &chainActive,
+        chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1), // required 6 confirmation for mint to spend
+        denom,
+        groupId,
+        lastBlockOfGroup,
+        group) < 2) {
+        throw WalletError(_("it has to have at least two mint coins with at least 6 confirmation in order to spend a coin"));
+    }
+
+    // construct spend script
+    sigma::CoinSpendV3 spend(params, priv, group, lastBlockOfGroup);
+    spend.setVersion(priv.getVersion());
+
+    if (!spend.Verify(group)) {
+        throw WalletError(_("the spend coin transaction did not verify"));
+    }
+
+    CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
+    serialized << spend;
+
+    // setup input descriptor
+    InputDescriptor input;
+
+    input.vin.nSequence = groupId;
+    input.vin.prevout.SetNull();
+    input.vin.scriptSig << OP_ZEROCOINSPENDV3;
+    std::copy(serialized.begin(), serialized.end(), std::back_inserter(input.vin.scriptSig));
+
+    input.amount = coin.get_denomination_value();
+    input.txDepth = chainActive.Height() - block + 1;
+
+    return input;
+}
+
 void CWallet::CreateZerocoinSpendTransactionV3(
     const std::vector<CRecipient>& recipients,
     CWalletTx& result,
@@ -4899,7 +4966,9 @@ void CWallet::CreateZerocoinSpendTransactionV3(
         }
 
         // populate input list
-        // TODO:
+        for (auto& coin : coins) {
+            inputs.push_back(GetInputDescriptorForSigmaSpend(coin));
+        }
 
         return total;
     };
@@ -4908,11 +4977,13 @@ void CWallet::CreateZerocoinSpendTransactionV3(
     auto addChanges = [](CMutableTransaction& tx, CAmount amount, bool subtractFee) -> CAmount {
         // TODO: modify tx to add changes output to meet amount then return the remaining amount.
         // subtractFee mean we need to reduce the output amount so it will become fee.
+        return amount;
     };
 
     // post process on transaction
     auto postProcessTx = [](CMutableTransaction& tx, const std::vector<InputDescriptor>& inputs) -> unsigned {
         // TODO: do the post processes on tx and return the size of tx.
+        return GetVirtualTransactionSize(tx);
     };
 
     // adjust fee
@@ -4921,7 +4992,7 @@ void CWallet::CreateZerocoinSpendTransactionV3(
         return need;
     };
 
-    // create transactions
+    // create transaction
     CreateTransaction(recipients, result, fee, getInputs, addChanges, postProcessTx, adjustFee);
 }
 
