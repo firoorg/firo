@@ -3240,7 +3240,7 @@ bool CWallet::CreateTransaction(const vector <CRecipient> &vecSend, CWalletTx &w
                 // Embed the constructed transaction data in wtxNew.
                 *static_cast<CTransaction *>(&wtxNew) = CTransaction(txNew);
 
-                // Limit size
+                 // Limit size
                 if (GetTransactionWeight(txNew) >= MAX_STANDARD_TX_WEIGHT) {
                     strFailReason = _("Transaction too large");
                     return false;
@@ -3967,7 +3967,7 @@ bool CWallet::CreateZerocoinMintTransaction(const vector <CRecipient> &vecSend, 
                 // Embed the constructed transaction data in wtxNew.
                 *static_cast<CTransaction *>(&wtxNew) = CTransaction(txNew);
 
-                // Limit size
+                 // Limit size
                 if (GetTransactionWeight(txNew) >= MAX_STANDARD_TX_WEIGHT) {
                     strFailReason = _("Transaction too large");
                     return false;
@@ -4598,7 +4598,7 @@ bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddr
                         LogPrintf("CreateZerocoinSpendTransaction() -> NotifyZerocoinChanged\n");
                         LogPrintf("pubcoin=%s, isUsed=Used\n", coinToUse.value.GetHex());
                         pwalletMain->NotifyZerocoinChanged(pwalletMain, coinToUse, "Used (" + std::to_string(coinToUse.denomination) + " mint)", CT_UPDATED);
-                        //pwalletMain->NotifyZerocoinChanged(pwalletMain, coinToUse.value.GetHex(), "Used (" + std::to_string(coinToUse.denomination) + " mint)", CT_UPDATED);
+                        //pwalletMain->NotifyZerocoinChanged(pwalletMain, coinToUse, "Used (" + std::to_string(coinToUse.denomination) + " mint)", CT_UPDATED);
                         strFailReason = _("the coin spend has been used");
                         return false;
                     }
@@ -4748,7 +4748,7 @@ string CWallet::MintAndStoreZerocoin(vector<CRecipient> vecSend,
         zerocoinTx.serialNumber = privCoin.getSerialNumber();
         const unsigned char *ecdsaSecretKey = privCoin.getEcdsaSeckey();
         zerocoinTx.ecdsaSecretKey = std::vector<unsigned char>(ecdsaSecretKey, ecdsaSecretKey+32);
-        NotifyZerocoinChanged(this, zerocoinTx.value.GetHex(), "New (" + std::to_string(zerocoinTx.denomination) + " mint)", CT_NEW);
+        NotifyZerocoinChanged(this, zerocoinTx, "New (" + std::to_string(zerocoinTx.denomination) + " mint)", CT_NEW);
         walletdb.WriteZerocoinEntry(zerocoinTx);
     }
 
@@ -4948,7 +4948,7 @@ string CWallet::SpendMultipleZerocoin(std::string &thirdPartyaddress, const std:
                     pubCoinTx.serialNumber = pubCoinItem.serialNumber;
                     pubCoinTx.denomination = pubCoinItem.denomination;
                     pubCoinTx.ecdsaSecretKey = pubCoinItem.ecdsaSecretKey;
-                    NotifyZerocoinChanged(this, pubCoinTx.value.GetHex(), "New", CT_UPDATED);
+                    NotifyZerocoinChanged(this, pubCoinTx, "New", CT_UPDATED);
                     CWalletDB(strWalletFile).WriteZerocoinEntry(pubCoinTx);
                     LogPrintf("SpendZerocoin failed, re-updated status -> NotifyZerocoinChanged\n");
                     LogPrintf("pubcoin=%s, isUsed=New\n", pubCoinItem.value.GetHex());

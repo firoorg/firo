@@ -3021,7 +3021,7 @@ UniValue mintzerocoin(const UniValue& params, bool fHelp)
         zerocoinTx.serialNumber = newCoin.getSerialNumber();
         const unsigned char *ecdsaSecretKey = newCoin.getEcdsaSeckey();
         zerocoinTx.ecdsaSecretKey = std::vector<unsigned char>(ecdsaSecretKey, ecdsaSecretKey+32);
-        pwalletMain->NotifyZerocoinChanged(pwalletMain, zerocoinTx.value.GetHex(), "New (" + std::to_string(zerocoinTx.denomination) + " mint)", CT_NEW);
+        pwalletMain->NotifyZerocoinChanged(pwalletMain, zerocoinTx, "New (" + std::to_string(zerocoinTx.denomination) + " mint)", CT_NEW);
         walletdb.WriteZerocoinEntry(zerocoinTx);
 
         return wtx.GetHash().GetHex();
@@ -3094,21 +3094,6 @@ UniValue mintmanyzerocoin(const UniValue& params, bool fHelp)
                 throw runtime_error(
                     "denomination must be one of (1,10,25,50,100)\n");
         }
-
-        if (fHelp || params.size() > 1)
-            throw runtime_error(
-                    "mintzerocoin {\"amount\":<denomination>(1,10,25,50,100),...}\n"
-                    + HelpRequiringPassphrase()
-                    + "\nMint 1 or more zerocoins. Amounts must be of denominations specified.\n"
-                    "\nArguments:\n"
-                    "1. \"addresses\"             (object, required) A json object with amounts and denominations\n"
-                        "    {\n"
-                        "      \"amount\":denomination The amount of zerocoins to mint for this denomination followed by the denomination itself (must be one of (1,10,25,50,100))\n"
-                        "      ,...\n"
-                        "    }\n"
-                    "\nExamples:\n"
-                        + HelpExampleCli("mintmanyzerocoin", "\"\" \"{\\\"25\\\":10,\\\"10\\\":5}\"")
-            );
 
         int64_t amount = sendTo[denominationStr].get_int();
 
@@ -3250,6 +3235,8 @@ UniValue spendmanyzerocoin(const UniValue& params, bool fHelp) {
                     + HelpExampleCli("spendmanyzerocoin", "\"{\\\"address\\\":\\\"\\\", \\\"denominations\\\": [{\\\"value\\\":1, \\\"amount\\\":2}]}\"")
         );
 
+    EnsureWalletIsUnlocked();
+
     UniValue data = params[0].get_obj();
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
@@ -3303,8 +3290,6 @@ UniValue spendmanyzerocoin(const UniValue& params, bool fHelp) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Zcoin address");
         thirdPartyAddress = addressStr;
     }
-
-    EnsureWalletIsUnlocked();
 
     // Wallet comments
     CWalletTx wtx;
