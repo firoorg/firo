@@ -111,7 +111,8 @@ BOOST_AUTO_TEST_CASE(get_coin_no_coin)
     CAmount require = COIN / 10;
 
     std::vector<CZerocoinEntryV3> coins;
-    BOOST_CHECK_MESSAGE(pwalletMain->GetCoinsToSpend(require, coins) == 0,
+    std::vector<sigma::CoinDenominationV3> coinsToMint;
+    BOOST_CHECK_MESSAGE(pwalletMain->GetCoinsToSpend(require, coins, coinsToMint) == 0,
       "Expect no coin in group");
 
     std::vector<std::pair<sigma::CoinDenominationV3, int>> needCoins;
@@ -129,7 +130,8 @@ BOOST_AUTO_TEST_CASE(get_coin_different_denomination)
     CAmount require(111 * COIN + 7 * COIN / 10); // 111.7
 
     std::vector<CZerocoinEntryV3> coins;
-    BOOST_CHECK_MESSAGE(pwalletMain->GetCoinsToSpend(require, coins) == (111 * COIN + 7 * COIN / 10), // 111.7
+    std::vector<sigma::CoinDenominationV3> coinsToMint;
+    BOOST_CHECK_MESSAGE(pwalletMain->GetCoinsToSpend(require, coins, coinsToMint) == (111 * COIN + 7 * COIN / 10), // 111.7
       "Expect enough for requirement");
 
     BOOST_CHECK_MESSAGE(CheckDenominationCoins(newCoins, coins),
@@ -143,9 +145,10 @@ BOOST_AUTO_TEST_CASE(get_coin_not_enough)
     GenerateWalletCoin(newCoins);
 
     CAmount require(111 * COIN + 7 * COIN / 10); // 111.7
-    
+
     std::vector<CZerocoinEntryV3> coins;
-    BOOST_CHECK_MESSAGE(pwalletMain->GetCoinsToSpend(require, coins) == (111 * COIN + 6 * COIN / 10), // 111.6
+    std::vector<sigma::CoinDenominationV3> coinsToMint;
+    BOOST_CHECK_MESSAGE(pwalletMain->GetCoinsToSpend(require, coins, coinsToMint) == (111 * COIN + 6 * COIN / 10), // 111.6
       "Expect not enough coin and equal to one for each denomination");
 
     std::vector<std::pair<sigma::CoinDenominationV3, int>> expectedCoins;
@@ -162,9 +165,10 @@ BOOST_AUTO_TEST_CASE(get_coin_minimize_coins_spend_fit_amount)
     GenerateWalletCoin(newCoins);
 
     CAmount require(100 * COIN);
-    
+
     std::vector<CZerocoinEntryV3> coins;
-    BOOST_CHECK_MESSAGE(pwalletMain->GetCoinsToSpend(require, coins) == 100 * COIN,
+    std::vector<sigma::CoinDenominationV3> coinsToMint;
+    BOOST_CHECK_MESSAGE(pwalletMain->GetCoinsToSpend(require, coins,coinsToMint) == 100 * COIN,
       "Expect enough coin and equal to one SIGMA_DENOM_100");
 
     std::vector<std::pair<sigma::CoinDenominationV3, int>> expectedCoins;
@@ -177,20 +181,21 @@ BOOST_AUTO_TEST_CASE(get_coin_minimize_coins_spend_fit_amount)
 BOOST_AUTO_TEST_CASE(get_coin_minimize_coins_spend)
 {
     std::vector<std::pair<sigma::CoinDenominationV3, int>> newCoins;
-    GetCoinSetByDenominationAmount(newCoins, 0, 0, 0, 2, 1);
+    GetCoinSetByDenominationAmount(newCoins, 0, 0, 7, 1, 1);
     GenerateWalletCoin(newCoins);
 
-    CAmount require(20 * COIN);
-    
+    CAmount require(17 * COIN);
+
     std::vector<CZerocoinEntryV3> coins;
-    BOOST_CHECK_MESSAGE(pwalletMain->GetCoinsToSpend(require, coins) == 100 * COIN,
-      "Expect enough coin and equal one SIGMA_DENOM_100");
+    std::vector<sigma::CoinDenominationV3> coinsToMint;
+    BOOST_CHECK_MESSAGE(pwalletMain->GetCoinsToSpend(require, coins,coinsToMint) == 17 * COIN,
+      "Expect enough for requirement");
 
     std::vector<std::pair<sigma::CoinDenominationV3, int>> expectedCoins;
-    GetCoinSetByDenominationAmount(expectedCoins, 0, 0, 0, 0, 1);
+    GetCoinSetByDenominationAmount(expectedCoins, 0, 0, 7, 1, 0);
 
     BOOST_CHECK_MESSAGE(CheckDenominationCoins(expectedCoins, coins),
-      "Expect only one SIGMA_DENOM_100");;
+      "Expect only one SIGMA_DENOM_10 and 7 SIGMA_DENOM_1");
 }
 
 BOOST_AUTO_TEST_CASE(get_coin_choose_smallest_enough)
@@ -200,9 +205,10 @@ BOOST_AUTO_TEST_CASE(get_coin_choose_smallest_enough)
     GenerateWalletCoin(newCoins);
 
     CAmount require(9 * COIN / 10); // 0.9
-    
+
     std::vector<CZerocoinEntryV3> coins;
-    BOOST_CHECK_MESSAGE(pwalletMain->GetCoinsToSpend(require, coins) == 1 * COIN,
+    std::vector<sigma::CoinDenominationV3> coinsToMint;
+    BOOST_CHECK_MESSAGE(pwalletMain->GetCoinsToSpend(require, coins,coinsToMint) == 1 * COIN,
       "Expect enough coin and equal one SIGMA_DENOM_1");
 
     std::vector<std::pair<sigma::CoinDenominationV3, int>> expectedCoins;

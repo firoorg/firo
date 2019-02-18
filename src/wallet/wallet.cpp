@@ -1912,57 +1912,123 @@ CAmount CWallet::GetDenominatedBalance(bool unconfirmed) const {
     return nTotal;
 }
 
-CAmount CWallet::GetCoinsToSpend(const CAmount required, std::vector<CZerocoinEntryV3>& selected)
+//coinsIn has to be sorted from bigger to smaller
+int GetMinCoin(const CAmount required, const std::vector<sigma::CoinDenominationV3>& denominations){
+    CAmount val = required;
+    int result = 0;
+    for (int i = 0; i < denominations.size(); i++)
+    {
+        CAmount denom;
+        DenominationToInteger(denominations[i], denom);
+        while (val >= denom) {
+            val -= denom;
+            result++;
+        }
+    }
+
+    return result;
+}
+
+//coinsIn has to be sorted from bigger to smaller
+CAmount GetMinCoin(const CAmount required, const std::vector<sigma::CoinDenominationV3>& denominations, std::vector<sigma::CoinDenominationV3>& coinsOut){
+
+    CAmount val = required;
+    for (int i = 0; i < denominations.size(); i++)
+    {
+        CAmount denom;
+        DenominationToInteger(denominations[i], denom);
+        while (val >= denom)
+        {
+            val -= denom;
+            coinsOut.push_back(denominations[i]);
+        }
+    }
+
+    return required - val;
+}
+
+//coinsIn has to be sorted from bigger to smaller
+CAmount GetMinCoin(const CAmount required, const std::list<CZerocoinEntryV3>& coinsIn, std::vector<CZerocoinEntryV3>& coinsOut){
+
+    CAmount val = required;
+    for (auto coinIt = coinsIn.begin(); coinIt != coinsIn.end(); coinIt++)
+    {   if(coinIt->IsUsed)
+          continue;
+        CAmount denom = coinIt->get_denomination_value();
+        if (val >= denom)
+        {
+            val -= denom;
+            coinsOut.push_back(*coinIt);
+        }
+    }
+
+    return required - val;
+}
+
+CAmount CWallet::GetCoinsToSpend(const CAmount required, std::vector<CZerocoinEntryV3>& coinsToSpend, std::vector<sigma::CoinDenominationV3>& coinsToMint)
 {
-	// this function support only coin set that no larger denomination that can not be divided by lower denomination
+    // this function support only coin set that no larger denomination that can not be divided by lower denomination
 
     std::list<CZerocoinEntryV3> coins;
     CWalletDB(strWalletFile).ListPubCoinV3(coins);
-
+    if (coins.empty())
+        return 0;
     // sort by highest denomination. if it is same denomination we will prefer the previous block
     auto comparer = [](const CZerocoinEntryV3& a, const CZerocoinEntryV3& b) -> bool {
         return a.get_denomination_value() != b.get_denomination_value() ? a.get_denomination_value() > b.get_denomination_value() : a.nHeight < b.nHeight;
     };
     coins.sort(comparer);
 
-    CAmount sum(0);
+    std::vector<sigma::CoinDenominationV3> denominations;
+    sigma::GetAllDenoms(denominations);
 
-    while (sum < required) {
-        // no coin to choose
-        if (coins.empty())
-            break;
+    //We have Coins denomination * 2^8, we remove last 7 0's  and add 2 * 100 denomination
+    uint64_t zeros = 10000000;
+    CAmount val = required / zeros + 1000;
 
-        CAmount need = required - sum;
-        CZerocoinEntryV3 chosenCoin;
-        
-        auto highestCoin = coins.begin();
-        if (need >= highestCoin->get_denomination_value()) {
+    //We need only last 2 rows of matrix
+    std::vector<uint64_t> prev_row;
+    prev_row.resize(val + 1);
+    std::vector<uint64_t> next_row;
+    next_row.resize(val + 1);
 
-            // case 1: need >= highest coin, choose highest
-            chosenCoin = *highestCoin;
-            coins.erase(highestCoin);
-        } else {
+    for(int i = 0; i <= val; i++)
+        next_row[i] = (INT_MAX-1)/2;
 
-            // case 2: highest coin > need, choose best fit
-            // start from lowest to highest denomination to find best fit and lowest block
-            for (auto coinIt = coins.rbegin(); coinIt != coins.rend(); coinIt++) {
+    auto coinIt = coins.rbegin();
+    next_row[coinIt->get_denomination_value() / zeros] = 1;
+    ++coinIt;
 
-                auto nextCoinIt = coinIt;
-                nextCoinIt++;
-
-                if (coinIt->get_denomination_value() >= need &&
-                    (nextCoinIt == coins.rend() || nextCoinIt->get_denomination_value() != coinIt->get_denomination_value())) {
-                    chosenCoin = *coinIt;
-                    break;
-                }
+    for(; coinIt != coins.rend(); coinIt++) {
+        if(coinIt->IsUsed)
+            continue;
+        std::swap(prev_row, next_row);
+        CAmount denom_i = coinIt->get_denomination_value() / zeros;
+        for(int j = 1; j <= val; j++) {
+            next_row[j] = prev_row[j];
+            if(j >= denom_i &&  next_row[j] > prev_row[j - denom_i] + 1) {
+                    next_row[j] =  prev_row[j - denom_i] + 1;
             }
         }
-        
-        sum += chosenCoin.get_denomination_value();
-        selected.push_back(chosenCoin);
+
     }
 
-    return sum;
+    int index = val;
+    uint64_t best_spend_val = val;
+
+    int minimum = INT_MAX-1;
+    while(index >= required / zeros){
+        int temp_min = (next_row[index] + GetMinCoin((index * zeros) - required, denominations));
+        if(minimum > temp_min && next_row[index] != (INT_MAX-1)/2) {
+            best_spend_val = index;
+            minimum = temp_min;
+        }
+        --index;
+    }
+    best_spend_val *= zeros;
+
+    GetMinCoin(best_spend_val - required, coinsToMint);
+    return GetMinCoin(best_spend_val, coins, coinsToSpend);
 }
 
 CAmount CWallet::GetUnconfirmedBalance() const {

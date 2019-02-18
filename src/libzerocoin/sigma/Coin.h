@@ -26,6 +26,7 @@ bool DenominationToInteger(CoinDenominationV3 denom, int64_t& denom_out);
 bool IntegerToDenomination(int64_t value, CoinDenominationV3& denom_out);
 bool StringToDenomination(const std::string& str, CoinDenominationV3& denom_out);
 bool RealNumberToDenomination(const double& value, CoinDenominationV3& denom_out);
+void GetAllDenoms(std::vector<sigma::CoinDenominationV3>& denominations);
 
 class PublicCoinV3 {
 public:
