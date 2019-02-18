@@ -2,6 +2,9 @@ pipeline {
     agent {
         docker { image 'zcoinofficial/zcoin-builder:latest' }
     }
+    environment {
+        CCACHE_DIR = '/tmp/.ccache'
+    }
     stages {
         stage('Build') {
             steps {
