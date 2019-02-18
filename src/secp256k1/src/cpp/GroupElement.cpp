@@ -12,10 +12,9 @@
 #include "../ecmult.h"
 #include "../ecmult_impl.h"
 
-#include <gmp.h>
 #include <openssl/rand.h>
-
 #include <stdlib.h>
+#include <sstream>
 
 static secp256k1_ecmult_context ctx;
 
@@ -98,6 +97,63 @@ static void indifferent_hash(secp256k1_ge* ge, const secp256k1_fe* t)
 
 namespace secp_primitives {
 
+template<class Value, class Iter, std::size_t Len>
+static int _convertBase(
+    Iter begin,
+    Iter end,
+    int from,
+    Value(&dst)[Len],
+    int to)
+{
+    memset(dst, 0, sizeof(Value) * Len);
+
+    int resLen = 0;
+    for (auto iter = begin; iter != end; iter++) {
+        int carry = *iter;
+
+        for (int i = 0; i < resLen || carry != 0; i++) {
+            if (i == resLen) {
+                resLen++;
+            }
+
+            if (resLen > Len) {
+                throw std::overflow_error("GroupElement::GroupElement: invalid count");
+            }
+
+            int sum = carry + from * dst[i];
+            dst[i] = sum % to;
+            carry = sum / to;
+        }
+    }
+
+    for (int i = 0; i < Len / 2; i++) {
+        unsigned char tmp = dst[i];
+        dst[i] = dst[Len - i - 1];
+        dst[Len - i - 1] = tmp;
+    }
+
+    return resLen;
+}
+
+template<int Len>
+static void _negate (uint8_t(&num) [Len])
+{
+    for (uint8_t& v : num) {
+        v ^= 0xFF;
+    }
+
+    int carry = 1;
+    for (int i = Len - 1; i >= 0 && carry > 0; i--) {
+        auto sum = carry + num[i];
+        num[i] = sum % 256;
+        carry = sum / 256;
+    }
+
+    if (carry != 0) {
+        throw std::overflow_error("GroupElement::GroupElement: overflow while negate");
+    }
+}
+
 GroupElement::GroupElement()
         : g_(new secp256k1_gej())
 {
@@ -116,18 +172,51 @@ GroupElement::GroupElement(const void *g)
 {
 }
 
-void _convertToFieldElement(secp256k1_fe *r,const char* str,int base) {
-     unsigned char buffer[128];
-    mpz_t value;
-    mpz_init(value);
-    mpz_set_str(value,str,base);
-    size_t count = 0;
-    mpz_export((void*)buffer,&count,1,32,1,0,value);
-    mpz_clear(value);
-    if (count != 1) {
-         throw "GroupElement::GroupElement: invalid count";
+static void _convertToFieldElement(secp256k1_fe *r, const char* str, int base) {
+    uint8_t buffer[32];
+    auto negative = *str == '-';
+    if (negative) {
+        str++;
+    }
+
+    auto strLen = strlen(str);
+    std::vector<uint8_t> src(strLen, 0);
+
+    for (int i = 0; i < strLen; i++) {
+        char ch = str[i];
+
+        switch (base) {
+        case 10:
+            if (ch >= '0' && ch <= '9') {
+                src[i] = ch - '0';
+            } else {
+                throw std::invalid_argument("invalid number base 10");
+            }
+            break;
+        
+        case 16:
+            if (ch >= '0' && ch <= '9') {
+                src[i] = ch - '0';
+            } else if (ch >= 'a' && ch <= 'f') {
+                src[i] = 10 + ch - 'a';
+            } else if (ch >= 'A' && ch <= 'F') {
+                src[i] = 10 + ch - 'A';
+            } else {
+                throw std::invalid_argument("invalid number base 16");
+            }
+            break;
+
+        default:
+            break;
         }
-    secp256k1_fe_set_b32(r,buffer);
+    }
+
+    _convertBase(src.begin(), src.end(), base, buffer, 256);
+    if (negative) {
+        _negate(buffer);
+    }
+
+    secp256k1_fe_set_b32(r, buffer);
 }
 
 GroupElement::GroupElement(const char* x,const char* y, int base)
@@ -298,13 +387,52 @@ void GroupElement::sha256(unsigned char* result) const{
     secp256k1_rfc6979_hmac_sha256_generate(&sha256,  result, 32);
 }
 
-char* _convertToString(char* str,const unsigned char* buffer,int base) {
-    mpz_t value;
-    mpz_init(value);
-    mpz_import(value,1,1,32,1,0,(void*)buffer);
-    mpz_get_str(str,base,value);
-    mpz_clear(value);
-return str + strlen(str);
+template<std::size_t Len>
+std::string _convertToString(const unsigned char(&buffer) [Len], int base) {
+    if (Len != 32) {
+        throw std::invalid_argument("invalid buffer size");
+    }
+
+    uint8_t val[32];
+    memcpy(val, buffer, sizeof(val));
+
+    std::stringstream str;
+    auto negative = base == 10 && (buffer[0] & 0x80);
+    if (negative) {
+        _negate(val);
+        str << '-';
+    }
+
+    unsigned char dst[128];
+    int strLen = _convertBase(val, &val[std::extent<decltype(val)>::value], 256, dst, base);
+
+    int startAt = 0;
+    while (dst[startAt] == 0) {
+        startAt++;
+    }
+
+    for (int i = 0; i < strLen; i++) {
+        unsigned char v = dst[startAt + i];
+        char ch;
+        switch (base) {
+        case 10:
+            ch = '0' + v;
+            break;
+        case 16:
+            if (v >= 0 && v <= 9) {
+                ch = '0' + v;
+            } else {
+                ch = 'a' + v - 10;
+            }
+            break;
+        default:
+            break;
+        }
+
+        str << ch;
+    }
+
+    return str.str();
 }
 
 std::string GroupElement::tostring() const {
@@ -315,20 +443,18 @@ std::string GroupElement::tostring() const {
     return std::string("O");
     }
 
-    char str[512];
+    std::stringstream str;
     unsigned char buffer[32];
-    char* ptr = str;
 
-    *ptr++ = '(';
+    str << '(';
     secp256k1_fe_get_b32(buffer,&ge.x);
-    ptr = _convertToString(ptr,buffer,base);
-    *ptr++ = ',';
+    str << _convertToString(buffer, base);
+    str << ',';
     secp256k1_fe_get_b32(buffer,&ge.y);
-    ptr = _convertToString(ptr,buffer,base);
-    *ptr++ = ')';
-    *ptr++ = '\0';
+    str << _convertToString(buffer, base);
+    str << ')';
 
-    return std::string(str);
+    return str.str();
 }
 
 std::string GroupElement::GetHex() const {
@@ -339,20 +465,18 @@ std::string GroupElement::GetHex() const {
         return std::string("O");
     }
 
-    char str[512];
+    std::stringstream str;
     unsigned char buffer[32];
-    char* ptr = str;
 
-    *ptr++ = '(';
+    str << '(';
     secp256k1_fe_get_b32(buffer,&ge.x);
-    ptr = _convertToString(ptr,buffer,base);
-    *ptr++ = ',';
+    str << _convertToString(buffer, base);
+    str << ',';
     secp256k1_fe_get_b32(buffer,&ge.y);
-    ptr = _convertToString(ptr,buffer,base);
-    *ptr++ = ')';
-    *ptr++ = '\0';
+    str << _convertToString(buffer, base);
+    str << ')';
 
-    return std::string(str);
+    return str.str();
 }
 
 size_t GroupElement::memoryRequired() const  {
