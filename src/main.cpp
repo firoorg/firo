@@ -1457,8 +1457,8 @@ bool AcceptToMemoryPoolWorker(
                                   inChainInputValue, fSpendsCoinbase, nSigOpsCost, lp);
 
             // Don't accept it if it can't get into a block
-//            int64_t txMinFee = tx.GetMinFee(1000, true, GMF_RELAY);
-            int64_t txMinFee = 0;
+            int64_t txMinFee = tx.GetMinFee(1000, true, GMF_RELAY);
+
             if (fLimitFree && nFees < txMinFee) {
                 LogPrintf("not enough fee, nFees=%d, txMinFee=%d\n", nFees, txMinFee);
                 return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "not enough fee", false, strprintf("nFees=%d, txMinFee=%d", nFees, txMinFee));
