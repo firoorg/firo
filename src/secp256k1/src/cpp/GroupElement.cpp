@@ -135,7 +135,7 @@ static int _convertBase(
     return resLen;
 }
 
-template<std::size_t Len>
+template<int Len>
 static void _negate (uint8_t(&num) [Len])
 {
     for (uint8_t& v : num) {
@@ -389,6 +389,10 @@ void GroupElement::sha256(unsigned char* result) const{
 
 template<std::size_t Len>
 std::string _convertToString(const unsigned char(&buffer) [Len], int base) {
+    if (Len != 32) {
+        throw std::invalid_argument("invalid buffer size");
+    }
+
     uint8_t val[32];
     memcpy(val, buffer, sizeof(val));
 
