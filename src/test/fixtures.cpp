@@ -38,8 +38,50 @@
 #include <boost/thread.hpp>
 
 
- ZerocoinTestingSetup200::ZerocoinTestingSetup200() :
-    TestingSetup(CBaseChainParams::REGTEST, "1")
+ ZerocoinTestingSetupBase::ZerocoinTestingSetupBase() :
+    TestingSetup(CBaseChainParams::REGTEST, "1"){};
+    
+    CBlock ZerocoinTestingSetupBase::CreateBlock(const std::vector<CMutableTransaction>& txns,
+                       const CScript& scriptPubKey) {
+        const CChainParams& chainparams = Params();
+        CBlockTemplate *pblocktemplate = BlockAssembler(chainparams).CreateNewBlock(scriptPubKey);
+        CBlock& block = pblocktemplate->block;
+
+        // Replace mempool-selected txns with just coinbase plus passed-in txns:
+        if(txns.size() > 0) {
+            block.vtx.resize(1);
+            BOOST_FOREACH(const CMutableTransaction& tx, txns)
+                block.vtx.push_back(tx);
+        }
+        // IncrementExtraNonce creates a valid coinbase and merkleRoot
+        unsigned int extraNonce = 0;
+        IncrementExtraNonce(&block, chainActive.Tip(), extraNonce);
+
+        while (!CheckProofOfWork(block.GetHash(), block.nBits, chainparams.GetConsensus())){
+            ++block.nNonce;
+        }
+
+        //delete pblocktemplate;
+        return block;
+    }
+
+    bool ZerocoinTestingSetupBase::ProcessBlock(CBlock &block) {
+        const CChainParams& chainparams = Params();
+        CValidationState state;
+        return ProcessNewBlock(state, chainparams, NULL, &block, true, NULL, false);
+    }
+
+    // Create a new block with just given transactions, coinbase paying to
+    // scriptPubKey, and try to add it to the current chain.
+    CBlock ZerocoinTestingSetupBase::CreateAndProcessBlock(const std::vector<CMutableTransaction>& txns,
+                                 const CScript& scriptPubKey){
+
+        CBlock block = CreateBlock(txns, scriptPubKey);
+        BOOST_CHECK_MESSAGE(ProcessBlock(block), "Processing block failed");
+        return block;
+    }
+
+ ZerocoinTestingSetup200::ZerocoinTestingSetup200():ZerocoinTestingSetupBase()
     {
         CPubKey newKey;
         BOOST_CHECK(pwalletMain->GetKeyFromPool(newKey));
@@ -70,49 +112,9 @@
         printf("Balance after 200 blocks: %ld\n", pwalletMain->GetBalance());
     }
 
-    CBlock ZerocoinTestingSetup200::CreateBlock(const std::vector<CMutableTransaction>& txns,
-                       const CScript& scriptPubKey) {
-        const CChainParams& chainparams = Params();
-        CBlockTemplate *pblocktemplate = BlockAssembler(chainparams).CreateNewBlock(scriptPubKey);
-        CBlock& block = pblocktemplate->block;
-
-        // Replace mempool-selected txns with just coinbase plus passed-in txns:
-        if(txns.size() > 0) {
-            block.vtx.resize(1);
-            BOOST_FOREACH(const CMutableTransaction& tx, txns)
-                block.vtx.push_back(tx);
-        }
-        // IncrementExtraNonce creates a valid coinbase and merkleRoot
-        unsigned int extraNonce = 0;
-        IncrementExtraNonce(&block, chainActive.Tip(), extraNonce);
-
-        while (!CheckProofOfWork(block.GetHash(), block.nBits, chainparams.GetConsensus())){
-            ++block.nNonce;
-        }
-
-        //delete pblocktemplate;
-        return block;
-    }
-
-    bool ZerocoinTestingSetup200::ProcessBlock(CBlock &block) {
-        const CChainParams& chainparams = Params();
-        CValidationState state;
-        return ProcessNewBlock(state, chainparams, NULL, &block, true, NULL, false);
-    }
-
-    // Create a new block with just given transactions, coinbase paying to
-    // scriptPubKey, and try to add it to the current chain.
-    CBlock ZerocoinTestingSetup200::CreateAndProcessBlock(const std::vector<CMutableTransaction>& txns,
-                                 const CScript& scriptPubKey){
-
-        CBlock block = CreateBlock(txns, scriptPubKey);
-        BOOST_CHECK_MESSAGE(ProcessBlock(block), "Processing block failed");
-        return block;
-    }
-
 
  ZerocoinTestingSetup109::ZerocoinTestingSetup109() :
-    TestingSetup(CBaseChainParams::REGTEST)
+    ZerocoinTestingSetupBase()
     {
         CPubKey newKey;
         BOOST_CHECK(pwalletMain->GetKeyFromPool(newKey));
@@ -136,44 +138,4 @@
         }
 
         printf("Balance after 109 blocks: %ld\n", pwalletMain->GetBalance());
-    }
-
-    CBlock ZerocoinTestingSetup109::CreateBlock(const std::vector<CMutableTransaction>& txns,
-                       const CScript& scriptPubKey) {
-        const CChainParams& chainparams = Params();
-        CBlockTemplate *pblocktemplate = BlockAssembler(chainparams).CreateNewBlock(scriptPubKey);
-        CBlock& block = pblocktemplate->block;
-
-        // Replace mempool-selected txns with just coinbase plus passed-in txns:
-        if(txns.size() > 0) {
-            block.vtx.resize(1);
-            BOOST_FOREACH(const CMutableTransaction& tx, txns)
-                block.vtx.push_back(tx);
-        }
-        // IncrementExtraNonce creates a valid coinbase and merkleRoot
-        unsigned int extraNonce = 0;
-        IncrementExtraNonce(&block, chainActive.Tip(), extraNonce);
-
-        while (!CheckProofOfWork(block.GetHash(), block.nBits, chainparams.GetConsensus())){
-            ++block.nNonce;
-        }
-
-        //delete pblocktemplate;
-        return block;
-    }
-
-    bool ZerocoinTestingSetup109::ProcessBlock(CBlock &block) {
-        const CChainParams& chainparams = Params();
-        CValidationState state;
-        return ProcessNewBlock(state, chainparams, NULL, &block, true, NULL, false);
-    }
-
-    // Create a new block with just given transactions, coinbase paying to
-    // scriptPubKey, and try to add it to the current chain.
-    CBlock ZerocoinTestingSetup109::CreateAndProcessBlock(const std::vector<CMutableTransaction>& txns,
-                                 const CScript& scriptPubKey){
-
-        CBlock block = CreateBlock(txns, scriptPubKey);
-        BOOST_CHECK_MESSAGE(ProcessBlock(block), "Processing block failed");
-        return block;
     }
