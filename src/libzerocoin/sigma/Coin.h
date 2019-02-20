@@ -66,7 +66,7 @@ public:
     CoinDenominationV3 denomination;
 };
 
-class PrivateCoinV3{
+class PrivateCoinV3 {
 public:
     template<typename Stream>
     PrivateCoinV3(const ParamsV3* p, Stream& strm): params(p), publicCoin() {
@@ -74,7 +74,7 @@ public:
     }
 
     PrivateCoinV3(const ParamsV3* p,
-        CoinDenominationV3 denomination = CoinDenominationV3::SIGMA_DENOM_1, 
+        CoinDenominationV3 denomination, 
         int version = ZEROCOIN_TX_VERSION_3);
 
     const PublicCoinV3& getPublicCoin() const;
