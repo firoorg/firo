@@ -1749,10 +1749,10 @@ bool AcceptToMemoryPoolWorker(
             double dPriority = 0;
             double fSpendsCoinbase = false;
             CAmount inChainInputValue = 0;
+
             CAmount nValueOut = tx.GetValueOut();
-
+            nValueIn = GetSpendTransactionInputV3(tx);
             CAmount nFees = nValueIn - nValueOut;
-
             CAmount nModifiedFees = nFees;
             double nPriorityDummy = 0;
             pool.ApplyDeltas(hash, nPriorityDummy, nModifiedFees);
@@ -1791,7 +1791,6 @@ bool AcceptToMemoryPoolWorker(
             }
 
             if (nAbsurdFee && nFees > CTransaction::nMinRelayTxFee * 1000) {
-                std::cout<<  "Reached here" << std::endl;
                 return state.Invalid(false, REJECT_HIGHFEE, "insane fee",
                                      strprintf("%d > %d", nFees, CTransaction::nMinRelayTxFee * 1000));
             }
@@ -1986,7 +1985,7 @@ bool AcceptToMemoryPoolWorker(
     if (tx.IsZerocoinSpend() && markZcoinSpendTransactionSerial)
         zcState->AddSpendToMempool(zcSpendSerials, hash);
     if (tx.IsZerocoinSpendV3() && markZcoinSpendTransactionSerial)
-            zcStateV3->AddSpendToMempool(zcSpendSerialsV3, hash);
+        zcStateV3->AddSpendToMempool(zcSpendSerialsV3, hash);
 
     SyncWithWallets(tx, NULL, NULL);
     LogPrintf("AcceptToMemoryPoolWorker -> OK\n");
@@ -2203,6 +2202,7 @@ bool ReadBlockFromDisk(CBlock &block, const CDiskBlockPos &pos, int nHeight, con
 bool ReadBlockFromDisk(CBlock &block, const CBlockIndex *pindex, const Consensus::Params &consensusParams) {
     if (!ReadBlockFromDisk(block, pindex->GetBlockPos(), pindex->nHeight, consensusParams))
         return false;
+
     if (block.GetHash() != pindex->GetBlockHash()) {
         return error("ReadBlockFromDisk(CBlock&, CBlockIndex*): GetHash() doesn't match index for %s at %s",
                      pindex->ToString(), pindex->GetBlockPos().ToString());
@@ -2719,6 +2719,7 @@ bool DisconnectBlock(const CBlock &block, CValidationState &state, const CBlockI
 
     CBlockUndo blockUndo;
     CDiskBlockPos pos = pindex->GetUndoPos();
+
     if (pos.IsNull())
         return error("DisconnectBlock(): no undo data available");
     if (!UndoReadFromDisk(blockUndo, pos, pindex->pprev->GetBlockHash()))
@@ -2734,6 +2735,7 @@ bool DisconnectBlock(const CBlock &block, CValidationState &state, const CBlockI
     // undo transactions in reverse order
     for (int i = block.vtx.size() - 1; i >= 0; i--) {
         const CTransaction &tx = block.vtx[i];
+
         uint256 hash = tx.GetHash();
 
         dbIndexHelper.DisconnectTransactionOutputs(tx, pindex->nHeight, i, view);
@@ -2770,6 +2772,9 @@ bool DisconnectBlock(const CBlock &block, CValidationState &state, const CBlockI
             }
             nFees += view.GetValueIn(tx) - tx.GetValueOut();
         }
+
+        if(tx.IsZerocoinSpendV3())
+            nFees += GetSpendTransactionInputV3(tx) - tx.GetValueOut();
 
         dbIndexHelper.DisconnectTransactionInputs(tx, pindex->nHeight, i, view);
     }
@@ -3079,6 +3084,8 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
         }
 
         if (tx.IsZerocoinSpend() || tx.IsZerocoinMint() || tx.IsZerocoinSpendV3() || tx.IsZerocoinMintV3() ) {
+            if( tx.IsZerocoinSpendV3())
+                nFees += GetSpendTransactionInputV3(tx) - tx.GetValueOut();
             // Check transaction against zerocoin state
             if (!CheckTransaction(tx, state, txHash, false, pindex->nHeight, false, true, block.zerocoinTxInfo.get(), block.zerocoinTxInfoV3.get()))
                 return state.DoS(100, error("stateful zerocoin check failed"),
@@ -3118,6 +3125,7 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
 
         vPos.push_back(std::make_pair(tx.GetHash(), pos));
         pos.nTxOffset += ::GetSerializeSize(tx, SER_DISK, CLIENT_VERSION);
+
     }
 
     block.zerocoinTxInfo->Complete();
@@ -3493,6 +3501,7 @@ bool static DisconnectTip(CValidationState &state, const CChainParams &chainpara
     CBlock block;
     if (!ReadBlockFromDisk(block, pindexDelete, chainparams.GetConsensus()))
         return AbortNode(state, "Failed to read block");
+
     // Apply the block atomically to the chain state.
     int64_t nStart = GetTimeMicros();
     {

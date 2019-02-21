@@ -4590,6 +4590,18 @@ bool CWallet::CreateZerocoinSpendTransactionV3(
             }
 
             coinSerial = spend.getCoinSerialNumber();
+
+            unsigned int nBytes = GetVirtualTransactionSize(txNew);
+            CAmount nFeeNeeded = GetMinimumFee(nBytes, nTxConfirmTarget, mempool);
+            if (coinControl && nFeeNeeded > 0 && coinControl->nMinimumTotalFee > nFeeNeeded) {
+                nFeeNeeded = coinControl->nMinimumTotalFee;
+            }
+            if (coinControl && coinControl->fOverrideFeeRate)
+                nFeeNeeded = coinControl->nFeeRate.GetFee(nBytes);
+            nFeeRet = nFeeNeeded;
+
+            wtxNew.vout[0].nValue -= nFeeRet;
+            wtxNew.UpdateHash();
             txHash = wtxNew.GetHash();
             LogPrintf("txHash:\n%s", txHash.ToString());
             zcSelectedValue = coinToUse.value;
@@ -4616,16 +4628,6 @@ bool CWallet::CreateZerocoinSpendTransactionV3(
                 CT_UPDATED);
         }
     }
-
-    unsigned int nBytes = GetVirtualTransactionSize(txNew);
-    CAmount nFeeNeeded = GetMinimumFee(nBytes, nTxConfirmTarget, mempool);
-    if (coinControl && nFeeNeeded > 0 && coinControl->nMinimumTotalFee > nFeeNeeded) {
-        nFeeNeeded = coinControl->nMinimumTotalFee;
-    }
-    if (coinControl && coinControl->fOverrideFeeRate)
-        nFeeNeeded = coinControl->nFeeRate.GetFee(nBytes);
-
-    nFeeRet = nFeeNeeded;
 
     return true;
 }
@@ -5808,6 +5810,7 @@ CAmount CWallet::GetMinimumFee(unsigned int nTxBytes, unsigned int nConfirmTarge
     // But always obey the maximum
     if (nFeeNeeded > maxTxFee)
         nFeeNeeded = maxTxFee;
+
     return nFeeNeeded;
 }
 
