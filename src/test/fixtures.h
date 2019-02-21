@@ -27,21 +27,9 @@ struct ZerocoinTestingSetupBase : public TestingSetup {
 
 struct ZerocoinTestingSetup200 : public ZerocoinTestingSetupBase {
         ZerocoinTestingSetup200();
-
-        using ZerocoinTestingSetupBase::CreateBlock;
-        using ZerocoinTestingSetupBase::ProcessBlock;
-        using ZerocoinTestingSetupBase::CreateAndProcessBlock;
-        using ZerocoinTestingSetupBase::coinbaseTxns;
-        using ZerocoinTestingSetupBase::coinbaseKey;
 };
 
 
 struct ZerocoinTestingSetup109 : public ZerocoinTestingSetupBase {
         ZerocoinTestingSetup109();
-
-        using ZerocoinTestingSetupBase::CreateBlock;
-        using ZerocoinTestingSetupBase::ProcessBlock;
-        using ZerocoinTestingSetupBase::CreateAndProcessBlock;
-        using ZerocoinTestingSetupBase::coinbaseTxns;
-        using ZerocoinTestingSetupBase::coinbaseKey;
 };
