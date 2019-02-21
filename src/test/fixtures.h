@@ -7,8 +7,9 @@
 
 static CScript scriptPubKey;
 
-struct ZerocoinTestingSetup200 : public TestingSetup {
-    ZerocoinTestingSetup200();
+
+struct ZerocoinTestingSetupBase : public TestingSetup {
+    ZerocoinTestingSetupBase();
     
     CBlock CreateBlock(const std::vector<CMutableTransaction>&,
                        const CScript&);
@@ -20,24 +21,27 @@ struct ZerocoinTestingSetup200 : public TestingSetup {
     CBlock CreateAndProcessBlock(const std::vector<CMutableTransaction>&,
                                  const CScript&);
 
-    std::vector<CTransaction> coinbaseTxns; // For convenience, coinbase transactions
+    std::vector<CTransaction> coinbaseTxns; // For convenience, coinbase transactionsl
     CKey coinbaseKey; // private/public key needed to spend coinbase transactions
 };
 
+struct ZerocoinTestingSetup200 : public ZerocoinTestingSetupBase {
+        ZerocoinTestingSetup200();
 
-struct ZerocoinTestingSetup109 : public TestingSetup {
-    ZerocoinTestingSetup109();
+        using ZerocoinTestingSetupBase::CreateBlock;
+        using ZerocoinTestingSetupBase::ProcessBlock;
+        using ZerocoinTestingSetupBase::CreateAndProcessBlock;
+        using ZerocoinTestingSetupBase::coinbaseTxns;
+        using ZerocoinTestingSetupBase::coinbaseKey;
+};
 
-    CBlock CreateBlock(const std::vector<CMutableTransaction>&,
-                       const CScript&);
 
-    bool ProcessBlock(CBlock&);
+struct ZerocoinTestingSetup109 : public ZerocoinTestingSetupBase {
+        ZerocoinTestingSetup109();
 
-    // Create a new block with just given transactions, coinbase paying to
-    // scriptPubKey, and try to add it to the current chain.
-    CBlock CreateAndProcessBlock(const std::vector<CMutableTransaction>&,
-                                 const CScript&);
-
-    std::vector<CTransaction> coinbaseTxns; // For convenience, coinbase transactions
-    CKey coinbaseKey; // private/public key needed to spend coinbase transactions
+        using ZerocoinTestingSetupBase::CreateBlock;
+        using ZerocoinTestingSetupBase::ProcessBlock;
+        using ZerocoinTestingSetupBase::CreateAndProcessBlock;
+        using ZerocoinTestingSetupBase::coinbaseTxns;
+        using ZerocoinTestingSetupBase::coinbaseKey;
 };
