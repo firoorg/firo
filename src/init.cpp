@@ -484,6 +484,9 @@ std::string HelpMessage(HelpMessageMode mode) {
     strUsage += HelpMessageOpt("-timeout=<n>",
                                strprintf(_("Specify connection timeout in milliseconds (minimum: 1, default: %d)"),
                                          DEFAULT_CONNECT_TIMEOUT));
+    strUsage += HelpMessageOpt("-torsetup=<n>",
+                               strprintf(_("Anonymous communication with TOR - Quickstart (default: %d)"),
+                                         DEFAULT_TOR_SETUP));
     strUsage += HelpMessageOpt("-torcontrol=<ip>:<port>",
                                strprintf(_("Tor control port to use if onion listening enabled (default: %s)"),
                                          DEFAULT_TOR_CONTROL));
@@ -1475,9 +1478,8 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     }
 
     // start tor
-    boost::filesystem::path pathTorSetting = GetDataDir()/"torsetting.dat";
-    std::pair<bool,std::string> torEnabledArg = ReadBinaryFileTor(pathTorSetting.string().c_str());
-    if(torEnabledArg.second != "" && torEnabledArg.second != "0"){
+    bool torEnabled = GetBoolArg("-torsetup", DEFAULT_TOR_SETUP);
+    if(torEnabled){
     	StartTorEnabled(threadGroup, scheduler);
         SetLimited(NET_TOR);
         SetLimited(NET_IPV4);
