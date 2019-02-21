@@ -155,10 +155,9 @@ boost::filesystem::path CreateZerocoinFile(bool fNetSpecific=true);
 boost::filesystem::path CreateSettingsFile(bool fNetSpecific=true);
 boost::filesystem::path CreateTxTimestampFile(bool fNetSpecific=true);
 boost::filesystem::path GetZnodeConfigFile();
-#ifndef WIN32
 boost::filesystem::path GetPidFile();
+int GetPidFromFile();
 void CreatePidFile(const boost::filesystem::path &path, pid_t pid);
-#endif
 
 bool CreateZipFile(std::string rootPath, std::vector<std::string> folderPaths, std::vector<std::string> filePaths, std::string destinationPath);
 void ReadConfigFile(std::map<std::string, std::string>& mapSettingsRet, std::map<std::string, std::vector<std::string> >& mapMultiSettingsRet);

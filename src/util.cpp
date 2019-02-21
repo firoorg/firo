@@ -744,12 +744,22 @@ void ReadConfigFile(map<string, string>& mapSettingsRet,
     ClearDatadirCache();
 }
 
-#ifndef WIN32
 boost::filesystem::path GetPidFile()
 {
     boost::filesystem::path pathPidFile(GetArg("-pid", BITCOIN_PID_FILENAME));
     if (!pathPidFile.is_complete()) pathPidFile = GetDataDir() / pathPidFile;
     return pathPidFile;
+}
+
+int GetPidFromFile()
+{
+    boost::filesystem::path pidFile = GetPidFile();
+    std::ifstream ifs(pidFile.string());
+    std::string pidString( (std::istreambuf_iterator<char>(ifs) ),
+                           (std::istreambuf_iterator<char>()    ) );
+    // Remove newline and cast
+    int pid = stoi(pidString.erase(pidString.length()-1));
+    return pid;
 }
 
 void CreatePidFile(const boost::filesystem::path &path, pid_t pid)
@@ -761,7 +771,6 @@ void CreatePidFile(const boost::filesystem::path &path, pid_t pid)
         fclose(file);
     }
 }
-#endif
 
 /*
  * Creates a ZIP file -

@@ -304,13 +304,11 @@ void Shutdown() {
 
     pzmqReplierInterface->Shutdown();
 
-#ifndef WIN32
     try {
         boost::filesystem::remove(GetPidFile());
     } catch (const boost::filesystem::filesystem_error &e) {
         LogPrintf("%s: Unable to remove pidfile: %s\n", __func__, e.what());
     }
-#endif
     UnregisterAllValidationInterfaces();
 #ifdef ENABLE_WALLET
     delete pwalletMain;
@@ -405,9 +403,7 @@ std::string HelpMessage(HelpMessageMode mode) {
     strUsage += HelpMessageOpt("-par=<n>", strprintf(
             _("Set the number of script verification threads (%u to %d, 0 = auto, <0 = leave that many cores free, default: %d)"),
             -GetNumCores(), MAX_SCRIPTCHECK_THREADS, DEFAULT_SCRIPTCHECK_THREADS));
-#ifndef WIN32
     strUsage += HelpMessageOpt("-pid=<file>", strprintf(_("Specify pid file (default: %s)"), BITCOIN_PID_FILENAME));
-#endif
     strUsage += HelpMessageOpt("-prune=<n>", strprintf(
             _("Reduce storage requirements by pruning (deleting) old blocks. This mode is incompatible with -txindex and -rescan. "
                       "Warning: Reverting this setting requires re-downloading the entire blockchain. "
@@ -1371,7 +1367,9 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
                           strDataDir, _(PACKAGE_NAME), e.what()));
     }
 
-#ifndef WIN32
+#ifdef WIN32
+    CreatePidFile(GetPidFile(), _getpid());
+#else
     CreatePidFile(GetPidFile(), getpid());
 #endif
     if (GetBoolArg("-shrinkdebugfile", !fDebug))
