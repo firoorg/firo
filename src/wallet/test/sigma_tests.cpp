@@ -451,4 +451,59 @@ BOOST_AUTO_TEST_CASE(create_spend_with_coins_more_than_1)
     BOOST_TEST(tx.vout[1].scriptPubKey == GetScriptForDestination(randomAddr2.Get()));
 }
 
+BOOST_AUTO_TEST_CASE(spend)
+{
+    CWalletTx tx;
+    CAmount fee;
+    std::vector<CRecipient> recipients;
+
+    GenerateBlockWithCoins(uint256S("c0c53331e3d96dbe4a20976196c0a214124bef9a7829df574f00f4e5a1b7ae52"), { std::make_pair(sigma::CoinDenominationV3::SIGMA_DENOM_10, 2) });
+    GenerateBlockWithCoins(uint256S("bdf3fe560c2a65f563111afa39247fc2584fc9315118f86a9c9e2f93f974bace"), {});
+    GenerateBlockWithCoins(uint256S("2663970914b4e4617e68955147651758b0626c8cd27070d1a15a2b952bf88ae4"), {});
+    GenerateBlockWithCoins(uint256S("3df15a7adf7567a58fa73bf5a95689522fc1e577f919761c49269da114db588c"), {});
+    GenerateBlockWithCoins(uint256S("03c3ec77f27dc60fd7b195aa81291fbe3af120bac42be18cf4e5c42157d165f0"), {});
+    GenerateBlockWithCoins(uint256S("9112757a6575496bc9c5887ef24aa3470d622a56bf72868729e05b2a327bf42c"), {});
+
+    recipients.push_back(CRecipient());
+    recipients.back().scriptPubKey = GetScriptForDestination(randomAddr1.Get());
+    recipients.back().nAmount = 5 * COIN;
+    recipients.back().fSubtractFeeFromAmount = false;
+
+    auto selected = pwalletMain->SpendZerocoinV3(recipients, tx, fee);
+
+    CWalletDB db(pwalletMain->strWalletFile);
+
+    std::list<CZerocoinSpendEntryV3> spends;
+    db.ListCoinSpendSerial(spends);
+
+    std::list<CZerocoinEntryV3> coins;
+    db.ListPubCoinV3(coins);
+
+    BOOST_TEST(selected.size() == 1);
+    BOOST_TEST(selected[0].get_denomination() == sigma::CoinDenominationV3::SIGMA_DENOM_10);
+    BOOST_TEST(selected[0].id == 1);
+    BOOST_TEST(selected[0].IsUsed);
+    BOOST_TEST(selected[0].nHeight == 1);
+
+    BOOST_TEST(spends.size() == 1);
+    BOOST_TEST(spends.front().coinSerial == selected[0].serialNumber);
+    BOOST_TEST(spends.front().hashTx == tx.GetHash());
+    BOOST_TEST(spends.front().pubCoin == selected[0].value);
+    BOOST_TEST(spends.front().id == selected[0].id);
+    BOOST_TEST(spends.front().get_denomination() == selected[0].get_denomination());
+
+    for (auto& coin : coins) {
+        if (std::find_if(
+            selected.begin(),
+            selected.end(),
+            [&coin](const CZerocoinEntryV3& e) { return e.serialNumber == coin.serialNumber; }) != selected.end()) {
+            continue;
+        }
+
+        BOOST_TEST(coin.IsUsed == false);
+        BOOST_TEST(coin.id == -1);
+        BOOST_TEST(coin.nHeight == -1);
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
