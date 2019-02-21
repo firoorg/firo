@@ -487,7 +487,7 @@ BOOST_AUTO_TEST_CASE(spend)
 
     BOOST_TEST(spends.size() == 1);
     BOOST_TEST(spends.front().coinSerial == selected[0].serialNumber);
-    BOOST_TEST(spends.front().hashTx == tx.GetHash());
+    BOOST_TEST((spends.front().hashTx == tx.GetHash()));
     BOOST_TEST(spends.front().pubCoin == selected[0].value);
     BOOST_TEST(spends.front().id == selected[0].id);
     BOOST_TEST(spends.front().get_denomination() == selected[0].get_denomination());
