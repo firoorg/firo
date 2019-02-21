@@ -9,7 +9,7 @@
 
 #include <stdlib.h>
 
-BOOST_AUTO_TEST_SUITE(sigma_state_test)
+BOOST_AUTO_TEST_SUITE(sigma_state_tests)
 
 static const uint256 txHash = uint256S("a64bf7b459d3bb09653e444d75a942e9848ed8e1f30e2890f999426ed6dd4a2c");
 
@@ -18,6 +18,7 @@ CBlockIndex CreateBlockIndex(int nHeight)
     CBlockIndex index;
     index.nHeight = nHeight;
     index.pprev = chainActive.Tip();
+    index.phashBlock = new uint256();
     return index;
 }
 
@@ -936,6 +937,91 @@ BOOST_AUTO_TEST_CASE(sigma_build_state_no_sigma)
     // get mint coin heigh and id
     std::pair<int,int> notFoundGroupHeightAndID = zerocoinState->GetMintedCoinHeightAndId(notFoundPubCoins[0]);
     BOOST_CHECK_MESSAGE(notFoundGroupHeightAndID == std::make_pair(-1,-1),"Expect not found return -1,-1");
+
+    zerocoinState->Reset();
+}
+
+
+BOOST_AUTO_TEST_CASE(sigma_getcoinsetforspend)
+{
+    CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
+    auto params = sigma::ParamsV3::get_default();
+    int nextIndex = 0;
+    std::vector<CBlockIndex> indexes;
+    indexes.resize(101);
+    
+    // nextIndex = 0
+    indexes[nextIndex] = CreateBlockIndex(nextIndex);
+    chainActive.SetTip(&indexes[nextIndex]);
+
+    // nextIndex = 1
+    nextIndex++;
+    indexes[nextIndex] = CreateBlockIndex(nextIndex);
+
+    std::pair<CoinDenominationV3, int> denomination1Group1(CoinDenominationV3::SIGMA_DENOM_1, 1);
+    std::pair<CoinDenominationV3, int> denomination10Group1(CoinDenominationV3::SIGMA_DENOM_10, 1);
+
+    // add index 1 with 10 SIGMA_DENOM_1
+    auto coins = generateCoins(params, 10);
+    auto pubCoins = getPubcoins(coins);
+    
+    // add index 2 with 1 DENOM_1  mints and 1 spend
+    auto coins2 = generateCoins(params, 1);
+    auto pubCoins2 = getPubcoins(coins2);
+    auto coins3 = generateCoins(params, 5);
+    auto pubCoins3 = getPubcoins(coins3);
+
+    indexes[nextIndex].mintedPubCoinsV3[denomination1Group1] = pubCoins;
+    chainActive.SetTip(&indexes[nextIndex]);
+
+    nextIndex++;
+    indexes[nextIndex] = CreateBlockIndex(nextIndex);
+
+    // mock spend
+    secp_primitives::Scalar serial;
+    serial.randomize();
+
+    indexes[nextIndex].spentSerialsV3.insert(serial);
+    indexes[nextIndex].mintedPubCoinsV3[denomination1Group1] = pubCoins2;
+    indexes[nextIndex].mintedPubCoinsV3[denomination10Group1] = pubCoins3;
+
+    chainActive.SetTip(&indexes[nextIndex]);
+    
+    // nextIndex = 3
+    nextIndex++;
+    for( ; nextIndex<=100; nextIndex++){
+		indexes[nextIndex] = CreateBlockIndex(nextIndex);
+        chainActive.SetTip(&indexes[nextIndex]);
+	}
+
+    ZerocoinBuildStateFromIndexV3(&chainActive);
+
+    uint256 blockHash_out;
+    uint256 blockHash_empty;
+
+    std::vector<PublicCoinV3> coins_out3;
+    // maxheight < blockheight
+    auto coins_amount = zerocoinState->GetCoinSetForSpend(&chainActive, 1,
+    CoinDenominationV3::SIGMA_DENOM_10, 1, blockHash_out, coins_out3);
+    BOOST_CHECK_MESSAGE(coins_amount == 0, "Unexpected Coins amount for spend, should be 0.");
+    BOOST_CHECK_MESSAGE(coins_out3.size() == 0, "Unexpected coins out, should be 0.");
+    BOOST_CHECK_MESSAGE(blockHash_out == blockHash_empty , "Unexpected blockhash for small height.");
+
+    std::vector<PublicCoinV3> coins_out1;
+    // maxheight > blockheight
+    coins_amount = zerocoinState->GetCoinSetForSpend(&chainActive, nextIndex, 
+    CoinDenominationV3::SIGMA_DENOM_10, 1, blockHash_out, coins_out1);
+    BOOST_CHECK_MESSAGE(coins_amount == 5, "Unexpected Coins amount for spend, should be 5.");
+    BOOST_CHECK_MESSAGE(coins_out1 == pubCoins3, "Unexpected coins out for denom 10.");
+    BOOST_CHECK_MESSAGE(blockHash_out == indexes[2].GetBlockHash(), "Unexpected blockhash for denom 10.");
+
+    std::vector<PublicCoinV3> coins_out2;
+    // maxheight > blockheight another denom
+    coins_amount = zerocoinState->GetCoinSetForSpend(&chainActive, nextIndex, 
+    CoinDenominationV3::SIGMA_DENOM_1, 1, blockHash_out, coins_out2);
+    BOOST_CHECK_MESSAGE(coins_amount == 11, "Unexpected Coins amount for spend, should be 11.");
+    BOOST_CHECK_MESSAGE(coins_out2.size() == pubCoins2.size() + pubCoins.size(), "Unexpected coins out for denom 1.");
+    BOOST_CHECK_MESSAGE(blockHash_out == indexes[2].GetBlockHash(), "Unexpected blockhash for denom 1.");
 
     zerocoinState->Reset();
 }
