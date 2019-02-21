@@ -913,8 +913,8 @@ public:
     std::string SpendMultipleZerocoin(std::string& thirdPartyaddress, const std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>>& denominations, CWalletTx& wtxNew, vector<CBigNum>& coinSerials, uint256& txHash, vector<CBigNum>& zcSelectedValues, bool forceUsed = false);
     std::string SpendMultipleZerocoinV3(std::string& thirdPartyaddress, const std::vector<sigma::CoinDenominationV3>& denominations, CWalletTx& wtxNew, vector<Scalar>& coinSerials, uint256& txHash, vector<GroupElement>& zcSelectedValues, bool forceUsed = false);
 
-    uint256 SpendZerocoinV3(const std::vector<CRecipient>& recipients, CWalletTx& result);
-    uint256 SpendZerocoinV3(const std::vector<CRecipient>& recipients, CWalletTx& result, CAmount& fee, std::vector<sigma::PrivateCoinV3>& selected);
+    std::vector<CZerocoinEntryV3> SpendZerocoinV3(const std::vector<CRecipient>& recipients, CWalletTx& result);
+    std::vector<CZerocoinEntryV3> SpendZerocoinV3(const std::vector<CRecipient>& recipients, CWalletTx& result, CAmount& fee);
 
     bool CreateZerocoinMintModel(string &stringError,
                                  const string& denomAmount,
@@ -944,6 +944,7 @@ public:
 
     bool SetZerocoinBook(const CZerocoinEntry& zerocoinEntry);
 
+    void CommitTransaction(CWalletTx& tx);
     bool CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey);
 
     bool CreateCollateralTransaction(CMutableTransaction& txCollateral, std::string& strReason);

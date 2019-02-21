@@ -3432,6 +3432,40 @@ bool CWallet::CreateTransaction(const vector <CRecipient> &vecSend, CWalletTx &w
     return true;
 }
 
+void CWallet::CommitTransaction(CWalletTx& tx)
+{
+    LOCK2(cs_main, cs_wallet);
+
+    LogPrintf("CommitTransaction fBroadcastTransactions = %B:\n%s", fBroadcastTransactions, tx.ToString());
+
+    {
+        // This is only to keep the database open to defeat the auto-flush for the
+        // duration of this scope.  This is the only place where this optimization
+        // maybe makes sense; please don't do it anywhere else.
+        std::unique_ptr<CWalletDB> db(fFileBacked ? new CWalletDB(strWalletFile, "r+") : nullptr);
+
+        // Add tx to wallet, because if it has change it's also ours,
+        // otherwise just for transaction history.
+        AddToWallet(tx, false, db.get());
+    }
+
+    // Track how many getdata requests our transaction gets
+    mapRequestCount[tx.GetHash()] = 0;
+
+    if (fBroadcastTransactions) {
+        bool zeroSpend = tx.IsZerocoinSpend() || tx.IsZerocoinSpendV3();
+        CValidationState state;
+
+        if (!tx.AcceptToMemoryPool(false, maxTxFee, state, !zeroSpend, zeroSpend)) {
+            LogPrintf("CommitTransaction(): Transaction cannot be broadcast immediately, %s\n", state.GetRejectReason());
+            // TODO: if we expect the failure to be long term or permanent, instead delete wtx from the wallet and return failure.
+        } else {
+            LogPrintf("Successfully accepted txn %s to mempool/stempool, relaying!\n", tx.GetHash().ToString());
+            tx.RelayWalletTransaction(!zeroSpend);
+        }
+    }
+}
+
 /**
  * Call after CreateTransaction unless you want to abort
  */
@@ -4955,18 +4989,16 @@ void CWallet::CreateZerocoinSpendTransactionV3(
     }
 
     // get coins to spend
-    auto getInputs = [this](std::vector<InputDescriptor>& inputs, CAmount required) -> CAmount {
+    auto getInputs = [this, &selected](std::vector<InputDescriptor>& inputs, CAmount required) -> CAmount {
         // get all minted coins for wallet
-        std::vector<CZerocoinEntryV3> coins;
-
-        CAmount total = GetCoinsToSpend(required, coins);
+        CAmount total = GetCoinsToSpend(required, selected);
 
         if (total < required) {
             throw InsufficientFunds();
         }
 
         // populate input list
-        for (auto& coin : coins) {
+        for (auto& coin : selected) {
             inputs.push_back(GetInputDescriptorForSigmaSpend(coin));
         }
 
@@ -6135,15 +6167,77 @@ string CWallet::SpendMultipleZerocoinV3(
     return "";
 }
 
-uint256 CWallet::SpendZerocoinV3(const std::vector<CRecipient>& recipients, CWalletTx& result) {
+std::vector<CZerocoinEntryV3> CWallet::SpendZerocoinV3(const std::vector<CRecipient>& recipients, CWalletTx& result)
+{
     CAmount fee;
-    std::vector<sigma::PrivateCoinV3> selected;
 
-    return SpendZerocoinV3(recipients, result, fee, selected);
+    return SpendZerocoinV3(recipients, result, fee);
 }
 
-uint256 CWallet::SpendZerocoinV3(const std::vector<CRecipient>& recipients, CWalletTx& result, CAmount& fee, std::vector<sigma::PrivateCoinV3>& selected) {
-    // TODO: create a transaction and commit it.
+std::vector<CZerocoinEntryV3> CWallet::SpendZerocoinV3(
+    const std::vector<CRecipient>& recipients,
+    CWalletTx& result,
+    CAmount& fee)
+{
+    // create transaction
+    std::vector<CZerocoinEntryV3> coins;
+
+    CreateZerocoinSpendTransactionV3(recipients, result, fee, coins);
+
+    // commit
+    try {
+        CommitTransaction(result);
+    } catch (...) {
+        const char *error =
+            "Error: The transaction was rejected! This might happen if some of "
+            "the coins in your wallet were already spent, such as if you used "
+            "a copy of wallet.dat and coins were spent in the copy but not "
+            "marked as spent here.";
+
+        std::throw_with_nested(WalletError(error));
+    }
+
+    // mark selected coins as used
+    auto state = CZerocoinStateV3::GetZerocoinState();
+    CWalletDB db(strWalletFile);
+
+    for (auto& coin : coins) {
+        // get coin id & height
+        int height, id;
+
+        std::tie(height, id) = state->GetMintedCoinHeightAndId(sigma::PublicCoinV3(coin.value, coin.get_denomination()));
+
+        // add CZerocoinSpendEntryV3
+        CZerocoinSpendEntryV3 spend;
+
+        spend.coinSerial = coin.serialNumber;
+        spend.hashTx = result.GetHash();
+        spend.pubCoin = coin.value;
+        spend.id = id;
+        spend.set_denomination_value(coin.get_denomination_value());
+
+        if (!db.WriteCoinSpendSerialEntry(spend)) {
+            throw WalletError(_("it cannot write coin serial number into wallet"));
+        }
+
+        // update CZerocoinEntryV3
+        coin.IsUsed = true;
+        coin.id = id;
+        coin.nHeight = height;
+
+        if (!db.WriteZerocoinEntry(coin)) {
+            throw WalletError(_("Failed to mark Zerocoin as used"));
+        }
+
+        // raise event
+        NotifyZerocoinChanged(
+            this,
+            coin.value.GetHex(),
+            "Used (" + std::to_string(coin.get_denomination()) + " mint)",
+            CT_UPDATED);
+    }
+
+    return coins;
 }
 
 bool CWallet::AddAccountingEntry(const CAccountingEntry &acentry, CWalletDB &pwalletdb) {

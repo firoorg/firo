@@ -66,7 +66,7 @@ public:
     CoinDenominationV3 denomination;
 };
 
-class PrivateCoinV3 {
+class PrivateCoinV3{
 public:
     template<typename Stream>
     PrivateCoinV3(const ParamsV3* p, Stream& strm): params(p), publicCoin() {
@@ -97,5 +97,11 @@ private:
 };
 
 }// namespace sigma
+
+namespace std {
+
+string to_string(::sigma::CoinDenominationV3 denom);
+
+} // namespace std
 
 #endif //ZCOIN_SIGMA_COIN_H
