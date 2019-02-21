@@ -5,6 +5,7 @@
 #include "../wallet.h"
 #include "../walletexcept.h"
 
+#include "../../libzerocoin/sigma/CoinSpend.h"
 #include "../../main.h"
 
 #include <set>
@@ -123,6 +124,38 @@ static bool CheckDenominationCoins(const std::vector<std::pair<sigma::CoinDenomi
         if (needDenominations[i] != gotDenominations[i]) {
             return false;
         }
+    }
+
+    return true;
+}
+
+static bool CheckSpend(const CTxIn& vin, const CZerocoinEntryV3& expected)
+{
+    // check vin properties
+    if (!vin.IsZerocoinSpendV3()) {
+        return false;
+    }
+
+    if (vin.nSequence != 1) {
+        return false;
+    }
+
+    if (!vin.prevout.IsNull()) {
+        return false;
+    }
+
+    // check spend script
+    CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
+    serialized.write(reinterpret_cast<const char *>(&vin.scriptSig[1]), vin.scriptSig.size() - 1);
+
+    sigma::CoinSpendV3 spend(sigma::ParamsV3::get_default(), serialized);
+
+    if (!spend.HasValidSerial() || spend.getCoinSerialNumber() != expected.serialNumber) {
+        return false;
+    }
+
+    if (spend.getDenomination() != expected.get_denomination()) {
+        return false;
     }
 
     return true;
@@ -402,14 +435,20 @@ BOOST_AUTO_TEST_CASE(create_spend_with_coins_more_than_1)
     pwalletMain->CreateZerocoinSpendTransactionV3(recipients, tx, fee, selected);
 
     BOOST_TEST(tx.vin.size() == 2);
-    BOOST_TEST(tx.vin[0].IsZerocoinSpendV3());
-    BOOST_TEST(tx.vin[1].IsZerocoinSpendV3());
     BOOST_TEST(tx.vout.size() == 2);
-    BOOST_TEST(tx.vout[0].nValue == 5 * COIN);
-    BOOST_TEST(tx.vout[1].nValue == 10 * COIN);
+    BOOST_TEST(fee > 0);
+
     BOOST_TEST(selected.size() == 2);
     BOOST_TEST(selected[0].get_denomination() == sigma::CoinDenominationV3::SIGMA_DENOM_10);
     BOOST_TEST(selected[1].get_denomination() == sigma::CoinDenominationV3::SIGMA_DENOM_10);
+
+    BOOST_TEST(CheckSpend(tx.vin[0], selected[0]));
+    BOOST_TEST(CheckSpend(tx.vin[1], selected[1]));
+
+    BOOST_TEST(tx.vout[0].nValue == 5 * COIN);
+    BOOST_TEST(tx.vout[0].scriptPubKey == GetScriptForDestination(randomAddr1.Get()));
+    BOOST_TEST(tx.vout[1].nValue == 10 * COIN);
+    BOOST_TEST(tx.vout[1].scriptPubKey == GetScriptForDestination(randomAddr2.Get()));
 }
 
 BOOST_AUTO_TEST_SUITE_END()
