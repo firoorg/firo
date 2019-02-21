@@ -990,9 +990,8 @@ BOOST_AUTO_TEST_CASE(sigma_getcoinsetforspend)
     // nextIndex = 3
     nextIndex++;
     for( ; nextIndex<=100; nextIndex++){
-		CBlockIndex index = CreateBlockIndex(nextIndex);
-        chainActive.SetTip(&index);
-        indexes[nextIndex] = index;
+		indexes[nextIndex] = CreateBlockIndex(nextIndex);
+        chainActive.SetTip(&indexes[nextIndex]);
 	}
 
     ZerocoinBuildStateFromIndexV3(&chainActive);
