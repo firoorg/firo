@@ -1371,7 +1371,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     }
 
 #ifdef WIN32
-    CreatePidFile(GetPidFile(), _getpid());
+    CreatePidFile(GetPidFile(), GetCurrentProcessId());
 #else
     CreatePidFile(GetPidFile(), getpid());
 #endif

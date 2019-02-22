@@ -751,17 +751,6 @@ boost::filesystem::path GetPidFile()
     return pathPidFile;
 }
 
-int GetPidFromFile()
-{
-    boost::filesystem::path pidFile = GetPidFile();
-    std::ifstream ifs(pidFile.string());
-    std::string pidString( (std::istreambuf_iterator<char>(ifs) ),
-                           (std::istreambuf_iterator<char>()    ) );
-    // Remove newline and cast
-    int pid = stoi(pidString.erase(pidString.length()-1));
-    return pid;
-}
-
 void CreatePidFile(const boost::filesystem::path &path, pid_t pid)
 {
     FILE* file = fopen(path.string().c_str(), "w");

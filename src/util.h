@@ -156,7 +156,6 @@ boost::filesystem::path CreateSettingsFile(bool fNetSpecific=true);
 boost::filesystem::path CreateTxTimestampFile(bool fNetSpecific=true);
 boost::filesystem::path GetZnodeConfigFile();
 boost::filesystem::path GetPidFile();
-int GetPidFromFile();
 void CreatePidFile(const boost::filesystem::path &path, pid_t pid);
 
 bool CreateZipFile(std::string rootPath, std::vector<std::string> folderPaths, std::vector<std::string> filePaths, std::string destinationPath);
