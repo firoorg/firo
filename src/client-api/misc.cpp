@@ -62,7 +62,7 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
     obj.push_back(Pair("devAuth",       CZMQAbstract::DEV_AUTH));
     obj.push_back(Pair("synced",        znodeSync.GetBlockchainSynced()));
 #ifdef WIN32
-    obj.push_back(Pair("pid",           GetCurrentProcessId()));
+    obj.push_back(Pair("pid",           (int)GetCurrentProcessId()));
 #else
     obj.push_back(Pair("pid",           getpid()));
 #endif
