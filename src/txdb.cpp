@@ -33,6 +33,7 @@ static const char DB_FLAG = 'F';
 static const char DB_REINDEX_FLAG = 'R';
 static const char DB_LAST_BLOCK = 'l';
 static const char DB_TOTAL_SUPPLY = 'S';
+static const char DB_ADDR_BALANCE = 'L';
 
 
 CCoinsViewDB::CCoinsViewDB(size_t nCacheSize, bool fMemory, bool fWipe) : db(GetDataDir() / "chainstate", nCacheSize, fMemory, fWipe, true) 
@@ -223,8 +224,12 @@ bool CBlockTreeDB::ReadAddressUnspentIndex(uint160 addressHash, AddressType type
 
 bool CBlockTreeDB::WriteAddressIndex(const std::vector<std::pair<CAddressIndexKey, CAmount > >&vect) {
     CDBBatch batch(*this);
-    for (std::vector<std::pair<CAddressIndexKey, CAmount> >::const_iterator it=vect.begin(); it!=vect.end(); it++)
-    batch.Write(make_pair(DB_ADDRESSINDEX, it->first), it->second);
+    std::map<CAddressIndexBase, CAmount> addressBalances;
+    for (std::vector<std::pair<CAddressIndexKey, CAmount> >::const_iterator it=vect.begin(); it!=vect.end(); it++) {
+        batch.Write(make_pair(DB_ADDRESSINDEX, it->first), it->second);
+        addressBalances[CAddressIndexBase(it->first.type, it->first.hashBytes)] += it->second;
+    }
+    UpdateAddressBalances(addressBalances);
     return WriteBatch(batch);
 }
 
@@ -406,6 +411,38 @@ bool CBlockTreeDB::ReadTotalSupply(CAmount & supply)
         return true;
     }
     return false;
+}
+
+bool CBlockTreeDB::UpdateAddressBalances(std::map<CAddressIndexBase, CAmount> const & balances)
+{
+    CDBBatch batch(*this);
+    for(auto const & balance : balances)
+    {
+        CAmount current = 0;
+        Read(std::make_pair(DB_ADDR_BALANCE, balance.first), current);
+        current += balance.second;
+        batch.Write(std::make_pair(DB_ADDR_BALANCE, balance.first), current);
+    }
+    return WriteBatch(batch);
+}
+
+bool CBlockTreeDB::ReadAddressBalances(std::map<CAmount, CAddressIndexBase> & balances)
+{
+    boost::scoped_ptr<CDBIterator> pcursor(NewIterator());
+    pcursor->Seek(make_pair(DB_ADDR_BALANCE, uint160()));
+    while (pcursor->Valid()) {
+        std::pair<char, CAddressIndexBase> key;
+        if (pcursor->GetKey(key) && key.first == DB_ADDR_BALANCE) {
+            CAmount balance = 0;
+            pcursor->GetValue(balance);
+            if(balance != 0)
+                balances[balance] = key.second;
+            pcursor->Next();
+        } else {
+            break;
+        }
+    }
+    return true;
 }
 
 /******************************************************************************/
