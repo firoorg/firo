@@ -23,7 +23,8 @@
 
 BOOST_FIXTURE_TEST_SUITE(sigma_tests, ZerocoinTestingSetup200)
 
-BOOST_AUTO_TEST_CASE(sigma_mintspend_numinputs){
+BOOST_AUTO_TEST_CASE(sigma_mintspend_numinputs)
+{
     vector<string> denominationsForTx;
     vector<uint256> vtxid;
     std::vector<CMutableTransaction> MinTxns;
