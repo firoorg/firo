@@ -26,7 +26,7 @@ BOOST_AUTO_TEST_CASE(pubcoin_validate)
 {
     auto params = sigma::ParamsV3::get_default();
 
-    sigma::PrivateCoinV3 privcoin(params);
+    sigma::PrivateCoinV3 privcoin(params, sigma::CoinDenominationV3::SIGMA_DENOM_1);
     auto& pubcoin = privcoin.getPublicCoin();
 
     BOOST_CHECK(pubcoin.validate());
@@ -36,8 +36,8 @@ BOOST_AUTO_TEST_CASE(getter_setter_priv)
 {
     auto params = sigma::ParamsV3::get_default();
 
-    sigma::PrivateCoinV3 privcoin(params);
-    sigma::PrivateCoinV3 new_privcoin(params);
+    sigma::PrivateCoinV3 privcoin(params, sigma::CoinDenominationV3::SIGMA_DENOM_1);
+    sigma::PrivateCoinV3 new_privcoin(params, sigma::CoinDenominationV3::SIGMA_DENOM_1);
 
     BOOST_CHECK(privcoin.getPublicCoin() != new_privcoin.getPublicCoin());
     BOOST_CHECK(privcoin.getSerialNumber() != new_privcoin.getSerialNumber());

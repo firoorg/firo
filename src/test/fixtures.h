@@ -10,6 +10,7 @@ static bool no_check( std::runtime_error const& ex ) { return true; }
 
 struct ZerocoinTestingSetupBase : public TestingSetup {
     ZerocoinTestingSetupBase();
+    ~ZerocoinTestingSetupBase();
     
     CBlock CreateBlock(const std::vector<CMutableTransaction>&,
                        const CScript&);

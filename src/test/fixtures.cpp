@@ -40,6 +40,7 @@
 
  ZerocoinTestingSetupBase::ZerocoinTestingSetupBase() :
     TestingSetup(CBaseChainParams::REGTEST, "1"){};
+    ZerocoinTestingSetupBase::~ZerocoinTestingSetupBase(){};
     
     CBlock ZerocoinTestingSetupBase::CreateBlock(const std::vector<CMutableTransaction>& txns,
                        const CScript& scriptPubKey) {

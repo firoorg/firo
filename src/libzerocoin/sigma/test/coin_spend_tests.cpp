@@ -12,7 +12,7 @@ BOOST_AUTO_TEST_CASE(serialize_deserialize_test)
 {
     auto params = sigma::ParamsV3::get_default();
 
-    const sigma::PrivateCoinV3 privcoin(params);
+    const sigma::PrivateCoinV3 privcoin(params, sigma::CoinDenominationV3::SIGMA_DENOM_1);
     sigma::PublicCoinV3 pubcoin;
     pubcoin = privcoin.getPublicCoin();
 
@@ -38,7 +38,7 @@ BOOST_AUTO_TEST_CASE(different_anonymity_set)
 {
     auto params = sigma::ParamsV3::get_default();
 
-    const sigma::PrivateCoinV3 privcoin(params);
+    const sigma::PrivateCoinV3 privcoin(params, sigma::CoinDenominationV3::SIGMA_DENOM_1);
     sigma::PublicCoinV3 pubcoin;
     pubcoin = privcoin.getPublicCoin();
 
@@ -51,7 +51,7 @@ BOOST_AUTO_TEST_CASE(different_anonymity_set)
     BOOST_TEST(coin.getCoinSerialNumber() == coin2.getCoinSerialNumber());
 
     // use different anonymity_set
-    const sigma::PrivateCoinV3 privcoin3(params);
+    const sigma::PrivateCoinV3 privcoin3(params, sigma::CoinDenominationV3::SIGMA_DENOM_1);
     sigma::PublicCoinV3 pubcoin3;
     pubcoin3 = privcoin3.getPublicCoin();
 
@@ -68,10 +68,10 @@ BOOST_AUTO_TEST_CASE(out_of_anonymity_set)
 {
     auto params = sigma::ParamsV3::get_default();
 
-    const sigma::PrivateCoinV3 privcoin(params);
+    const sigma::PrivateCoinV3 privcoin(params, sigma::CoinDenominationV3::SIGMA_DENOM_1);
 
     // use different anonymity_set
-    const sigma::PrivateCoinV3 privcoin3(params);
+    const sigma::PrivateCoinV3 privcoin3(params, sigma::CoinDenominationV3::SIGMA_DENOM_1);
     sigma::PublicCoinV3 pubcoin3;
     pubcoin3 = privcoin3.getPublicCoin();
 
@@ -87,7 +87,7 @@ BOOST_AUTO_TEST_CASE(verify_test)
 {
     auto params = sigma::ParamsV3::get_default();
 
-    const sigma::PrivateCoinV3 privcoin(params);
+    const sigma::PrivateCoinV3 privcoin(params, sigma::CoinDenominationV3::SIGMA_DENOM_1);
     sigma::PublicCoinV3 pubcoin;
     pubcoin = privcoin.getPublicCoin();
 
@@ -103,11 +103,11 @@ BOOST_AUTO_TEST_CASE(verify_test_valid_set_plus_one)
 {
     auto params = sigma::ParamsV3::get_default();
 
-    const sigma::PrivateCoinV3 privcoin(params);
+    const sigma::PrivateCoinV3 privcoin(params, sigma::CoinDenominationV3::SIGMA_DENOM_1);
     sigma::PublicCoinV3 pubcoin;
     pubcoin = privcoin.getPublicCoin();
 
-    const sigma::PrivateCoinV3 privcoin2(params);
+    const sigma::PrivateCoinV3 privcoin2(params, sigma::CoinDenominationV3::SIGMA_DENOM_1);
     sigma::PublicCoinV3 pubcoin2;
     pubcoin2 = privcoin2.getPublicCoin();
 
@@ -129,11 +129,11 @@ BOOST_AUTO_TEST_CASE(verify_test_valid_set_subtract_one)
 {
     auto params = sigma::ParamsV3::get_default();
 
-    const sigma::PrivateCoinV3 privcoin(params);
+    const sigma::PrivateCoinV3 privcoin(params, sigma::CoinDenominationV3::SIGMA_DENOM_1);
     sigma::PublicCoinV3 pubcoin;
     pubcoin = privcoin.getPublicCoin();
 
-    const sigma::PrivateCoinV3 privcoin2(params);
+    const sigma::PrivateCoinV3 privcoin2(params, sigma::CoinDenominationV3::SIGMA_DENOM_1);
     sigma::PublicCoinV3 pubcoin2;
     pubcoin2 = privcoin2.getPublicCoin();
 
@@ -155,7 +155,7 @@ BOOST_AUTO_TEST_CASE(verify_test_with_accumulatorBlockHash)
 {
     auto params = sigma::ParamsV3::get_default();
 
-    const sigma::PrivateCoinV3 privcoin(params);
+    const sigma::PrivateCoinV3 privcoin(params, sigma::CoinDenominationV3::SIGMA_DENOM_1);
     sigma::PublicCoinV3 pubcoin;
     pubcoin = privcoin.getPublicCoin();
 
