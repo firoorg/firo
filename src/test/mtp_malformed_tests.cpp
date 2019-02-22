@@ -27,6 +27,7 @@
 #include "zerocoin.h"
 
 #include "test/testutil.h"
+#include "test/fixtures.h"
 #include "consensus/merkle.h"
 
 #include "wallet/db.h"
@@ -40,92 +41,6 @@
 extern CCriticalSection cs_main;
 using namespace std;
 
-CScript scriptPubKeyMtpMalformed;
-
-bool no_check( std::runtime_error const& ex );
-
-struct MtpMalformedTestingSetup : public TestingSetup {
-    MtpMalformedTestingSetup() : TestingSetup(CBaseChainParams::REGTEST)
-    {
-        CPubKey newKey;
-        BOOST_CHECK(pwalletMain->GetKeyFromPool(newKey));
-
-        string strAddress = CBitcoinAddress(newKey.GetID()).ToString();
-        pwalletMain->SetAddressBook(CBitcoinAddress(strAddress).Get(), "",
-                               ( "receive"));
-
-        printf("Balance before %ld\n", pwalletMain->GetBalance());
-        scriptPubKeyMtpMalformed = CScript() <<  ToByteVector(newKey/*coinbaseKey.GetPubKey()*/) << OP_CHECKSIG;
-        bool mtp = false;
-        CBlock b;
-        for (int i = 0; i < 150; i++)
-        {
-            std::vector<CMutableTransaction> noTxns;
-            b = CreateAndProcessBlock(noTxns, scriptPubKeyMtpMalformed, mtp);
-            coinbaseTxns.push_back(b.vtx[0]);
-            LOCK(cs_main);
-            {
-                LOCK(pwalletMain->cs_wallet);
-                pwalletMain->AddToWalletIfInvolvingMe(b.vtx[0], &b, true);
-            }   
-        }
-        printf("Balance after 150 blocks: %ld\n", pwalletMain->GetBalance());
-    }
-
-    CBlock CreateBlock(const std::vector<CMutableTransaction>& txns,
-                       const CScript& scriptPubKeyMtpMalformed, bool mtp = false) {
-        const CChainParams& chainparams = Params();
-        CBlockTemplate *pblocktemplate = BlockAssembler(chainparams).CreateNewBlock(scriptPubKeyMtpMalformed);
-        CBlock& block = pblocktemplate->block;
-
-        // Replace mempool-selected txns with just coinbase plus passed-in txns:
-        if(txns.size() > 0) {
-            block.vtx.resize(1);
-            BOOST_FOREACH(const CMutableTransaction& tx, txns)
-                block.vtx.push_back(tx);
-        }
-        // IncrementExtraNonce creates a valid coinbase and merkleRoot
-        unsigned int extraNonce = 0;
-        IncrementExtraNonce(&block, chainActive.Tip(), extraNonce);
-
-        while (!CheckProofOfWork(block.GetHash(), block.nBits, chainparams.GetConsensus())){
-            ++block.nNonce;
-        }
-        if(mtp) {
-            while (!CheckMerkleTreeProof(block, chainparams.GetConsensus())){
-                block.mtpHashValue = mtp::hash(block, Params().GetConsensus().powLimit);
-            }
-        }
-        else {
-            while (!CheckProofOfWork(block.GetHash(), block.nBits, chainparams.GetConsensus())){
-                ++block.nNonce;
-            }
-        }
-
-        //delete pblocktemplate;
-        return block;
-    }
-
-    bool ProcessBlock(CBlock &block) {
-        const CChainParams& chainparams = Params();
-        CValidationState state;
-        return ProcessNewBlock(state, chainparams, NULL, &block, true, NULL, false);
-    }
-
-    // Create a new block with just given transactions, coinbase paying to
-    // scriptPubKeyMtpMalformed, and try to add it to the current chain.
-    CBlock CreateAndProcessBlock(const std::vector<CMutableTransaction>& txns,
-                                 const CScript& scriptPubKeyMtpMalformed, bool mtp = false){
-
-        CBlock block = CreateBlock(txns, scriptPubKeyMtpMalformed, mtp);
-        BOOST_CHECK_MESSAGE(ProcessBlock(block), "Processing block failed");
-        return block;
-    }
-
-    std::vector<CTransaction> coinbaseTxns; // For convenience, coinbase transactions
-    CKey coinbaseKey; // private/public key needed to spend coinbase transactions
-};
-
 BOOST_FIXTURE_TEST_SUITE(mtp_malformed_tests, MtpMalformedTestingSetup)
 
 BOOST_AUTO_TEST_CASE(mtp_malformed)
@@ -138,7 +53,7 @@ BOOST_AUTO_TEST_CASE(mtp_malformed)
     //const CChainParams& chainparams = Params();
 
     std::vector<CMutableTransaction> noTxns;
-    b = CreateBlock(noTxns, scriptPubKeyMtpMalformed, mtp);
+    b = CreateBlock(noTxns, scriptPubKey, mtp);
     CAmount blockReward = 0;
     for(auto txout : b.vtx[0].vout)
         blockReward += txout.nValue;
@@ -153,7 +68,7 @@ BOOST_AUTO_TEST_CASE(mtp_malformed)
     mtp = true;
     Params(CBaseChainParams::REGTEST).SetRegTestMtpSwitchTime(GetAdjustedTime());
 
-    CBlock bMtp = CreateBlock(noTxns, scriptPubKeyMtpMalformed, mtp);
+    CBlock bMtp = CreateBlock(noTxns, scriptPubKey, mtp);
     previousHeight = chainActive.Height();
     memset(bMtp.mtpHashData->hashRootMTP, 0, sizeof(bMtp.mtpHashData->hashRootMTP));
     memset(bMtp.mtpHashData->nBlockMTP, 0, sizeof(bMtp.mtpHashData->nBlockMTP));
@@ -164,13 +79,13 @@ BOOST_AUTO_TEST_CASE(mtp_malformed)
     ProcessBlock(bMtp);
     BOOST_CHECK_MESSAGE(previousHeight == chainActive.Height(), "Block connected with incorrect proof");
 
-    bMtp = CreateBlock(noTxns, scriptPubKeyMtpMalformed, mtp);
+    bMtp = CreateBlock(noTxns, scriptPubKey, mtp);
     bMtp.mtpHashData = make_shared<CMTPHashData>();
     ProcessBlock(bMtp);
     BOOST_CHECK_MESSAGE(previousHeight == chainActive.Height(), "Block connected with missing proof");
 
 
-    bMtp = CreateBlock(noTxns, scriptPubKeyMtpMalformed, mtp);
+    bMtp = CreateBlock(noTxns, scriptPubKey, mtp);
     for(unsigned int i = 0; i < 192; i++)
         for(unsigned int j = 0; j < bMtp.mtpHashData->nProofMTP[i].size(); j++)
             for(unsigned int k = 0; k < bMtp.mtpHashData->nProofMTP[i][j].size(); k++)
@@ -178,7 +93,7 @@ BOOST_AUTO_TEST_CASE(mtp_malformed)
     ProcessBlock(bMtp);
     BOOST_CHECK_MESSAGE(previousHeight == chainActive.Height(), "Block connected with missing proof");
 
-    bMtp = CreateBlock(noTxns, scriptPubKeyMtpMalformed, mtp);
+    bMtp = CreateBlock(noTxns, scriptPubKey, mtp);
     previousHeight = chainActive.Height();
     for(unsigned int i = 0; i < sizeof(bMtp.mtpHashData->hashRootMTP); i++)
         bMtp.mtpHashData->hashRootMTP[i] = rand()%256;
@@ -192,7 +107,7 @@ BOOST_AUTO_TEST_CASE(mtp_malformed)
     ProcessBlock(bMtp);
     BOOST_CHECK_MESSAGE(previousHeight == chainActive.Height(), "Block connected with incorrect proof");
 
-    bMtp = CreateBlock(noTxns, scriptPubKeyMtpMalformed, mtp);
+    bMtp = CreateBlock(noTxns, scriptPubKey, mtp);
     previousHeight = chainActive.Height();
     for(unsigned int i = 0; i < 192; i++)
         for(unsigned int j = 0; j < bMtp.mtpHashData->nProofMTP[i].size(); j++)
@@ -200,7 +115,7 @@ BOOST_AUTO_TEST_CASE(mtp_malformed)
     ProcessBlock(bMtp);
     BOOST_CHECK_MESSAGE(previousHeight == chainActive.Height(), "Block connected with incorrect proof");
 
-    bMtp = CreateBlock(noTxns, scriptPubKeyMtpMalformed, mtp);
+    bMtp = CreateBlock(noTxns, scriptPubKey, mtp);
     CDataStream mybufstream(SER_NETWORK, PROTOCOL_VERSION);
     mybufstream << *bMtp.mtpHashData;
     CMTPHashData outh;

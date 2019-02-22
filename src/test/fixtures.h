@@ -6,7 +6,7 @@
 #include <boost/test/unit_test.hpp>
 
 static CScript scriptPubKey;
-
+static bool no_check( std::runtime_error const& ex ) { return true; }
 
 struct ZerocoinTestingSetupBase : public TestingSetup {
     ZerocoinTestingSetupBase();
@@ -29,7 +29,16 @@ struct ZerocoinTestingSetup200 : public ZerocoinTestingSetupBase {
         ZerocoinTestingSetup200();
 };
 
-
 struct ZerocoinTestingSetup109 : public ZerocoinTestingSetupBase {
         ZerocoinTestingSetup109();
+};
+
+struct MtpMalformedTestingSetup : public ZerocoinTestingSetupBase {
+        MtpMalformedTestingSetup();
+
+    CBlock CreateBlock(const std::vector<CMutableTransaction>&,
+                       const CScript&, bool);
+
+    CBlock CreateAndProcessBlock(const std::vector<CMutableTransaction>&,
+                                 const CScript&, bool);
 };
