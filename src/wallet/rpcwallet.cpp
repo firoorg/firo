@@ -1348,7 +1348,7 @@ UniValue listreceivedbyaccount(const UniValue& params, bool fHelp)
 }
 
 static void MaybePushAddress(UniValue & entry, const CTxDestination &dest, CBitcoinAddress &addr)
-{  
+{
     if (addr.Set(dest))
         entry.push_back(Pair("address", addr.ToString()));
 }
@@ -1418,7 +1418,7 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
                     CScript payee;
 
                     mnpayments.GetBlockPayee(txHeight, payee);
-                    //compare address of payee to addr. 
+                    //compare address of payee to addr.
                     CTxDestination payeeDest;
                     ExtractDestination(payee, payeeDest);
                     CBitcoinAddress payeeAddr(payeeDest);
@@ -1590,6 +1590,115 @@ UniValue listtransactions(const UniValue& params, bool fHelp)
     ret.clear();
     ret.setArray();
     ret.push_backV(arrTmp);
+
+    return ret;
+}
+
+// This for supporting casino. Ask Reuben if you need more information.
+UniValue listtransactionsfrom(const UniValue& params, bool fHelp)
+{
+    if (!EnsureWalletIsAvailable(fHelp))
+        return NullUniValue;
+
+    if (fHelp || params.size() > 4)
+        throw runtime_error(
+            "listtransactions ( \"account\" count from includeWatchonly)\n"
+            "\nReturns up to 'count' most recent transactions skipping the first 'from' transactions for account 'account'.\n"
+            "\nArguments:\n"
+            "1. \"account\"    (string, optional) DEPRECATED. The account name. Should be \"*\".\n"
+            "2. count          (numeric, optional, default=10) The number of transactions to return\n"
+            "3. from           (numeric, optional, default=0) The number of transactions to skip\n"
+            "4. includeWatchonly (bool, optional, default=false) Include transactions to watchonly addresses (see 'importaddress')\n"
+            "\nResult:\n"
+            "[\n"
+            "  {\n"
+            "    \"account\":\"accountname\",       (string) DEPRECATED. The account name associated with the transaction. \n"
+            "                                                It will be \"\" for the default account.\n"
+            "    \"address\":\"zcoinaddress\",    (string) The zcoin address of the transaction. Not present for \n"
+            "                                                move transactions (category = move).\n"
+            "    \"category\":\"send|receive|move\", (string) The transaction category. 'move' is a local (off blockchain)\n"
+            "                                                transaction between accounts, and not associated with an address,\n"
+            "                                                transaction id or block. 'send' and 'receive' transactions are \n"
+            "                                                associated with an address, transaction id and block details\n"
+            "    \"amount\": x.xxx,          (numeric) The amount in " + CURRENCY_UNIT + ". This is negative for the 'send' category, and for the\n"
+            "                                         'move' category for moves outbound. It is positive for the 'receive' category,\n"
+            "                                         and for the 'move' category for inbound funds.\n"
+            "    \"vout\": n,                (numeric) the vout value\n"
+            "    \"fee\": x.xxx,             (numeric) The amount of the fee in " + CURRENCY_UNIT + ". This is negative and only available for the \n"
+            "                                         'send' category of transactions.\n"
+            "    \"abandoned\": xxx          (bool) 'true' if the transaction has been abandoned (inputs are respendable).\n"
+            "    \"confirmations\": n,       (numeric) The number of confirmations for the transaction. Available for 'send' and \n"
+            "                                         'receive' category of transactions. Negative confirmations indicate the\n"
+            "                                         transaction conflicts with the block chain\n"
+            "    \"trusted\": xxx            (bool) Whether we consider the outputs of this unconfirmed transaction safe to spend.\n"
+            "    \"blockhash\": \"hashvalue\", (string) The block hash containing the transaction. Available for 'send' and 'receive'\n"
+            "                                          category of transactions.\n"
+            "    \"blockindex\": n,          (numeric) The index of the transaction in the block that includes it. Available for 'send' and 'receive'\n"
+            "                                          category of transactions.\n"
+            "    \"blocktime\": xxx,         (numeric) The block time in seconds since epoch (1 Jan 1970 GMT).\n"
+            "    \"txid\": \"transactionid\", (string) The transaction id. Available for 'send' and 'receive' category of transactions.\n"
+            "    \"time\": xxx,              (numeric) The transaction time in seconds since epoch (midnight Jan 1 1970 GMT).\n"
+            "    \"timereceived\": xxx,      (numeric) The time received in seconds since epoch (midnight Jan 1 1970 GMT). Available \n"
+            "                                          for 'send' and 'receive' category of transactions.\n"
+            "    \"comment\": \"...\",       (string) If a comment is associated with the transaction.\n"
+            "    \"label\": \"label\"        (string) A comment for the address/transaction, if any\n"
+            "    \"otheraccount\": \"accountname\",  (string) For the 'move' category of transactions, the account the funds came \n"
+            "                                          from (for receiving funds, positive amounts), or went to (for sending funds,\n"
+            "                                          negative amounts).\n"
+            "    \"bip125-replaceable\": \"yes|no|unknown\"  (string) Whether this transaction could be replaced due to BIP125 (replace-by-fee);\n"
+            "                                                     may be unknown for unconfirmed transactions not in the mempool\n"
+            "  }\n"
+            "]\n"
+
+            "\nExamples:\n"
+            "\nList the most recent 10 transactions in the systems\n"
+            + HelpExampleCli("listtransactions", "") +
+            "\nList transactions 100 to 120\n"
+            + HelpExampleCli("listtransactions", "\"*\" 20 100") +
+            "\nAs a json rpc call\n"
+            + HelpExampleRpc("listtransactions", "\"*\", 20, 100")
+        );
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    string strAccount = "*";
+    if (params.size() > 0)
+        strAccount = params[0].get_str();
+    int nCount = 10;
+    if (params.size() > 1)
+        nCount = params[1].get_int();
+    int nFrom = 0;
+    if (params.size() > 2)
+        nFrom = params[2].get_int();
+    isminefilter filter = ISMINE_SPENDABLE;
+    if(params.size() > 3)
+        if(params[3].get_bool())
+            filter = filter | ISMINE_WATCH_ONLY;
+
+    if (nCount < 0)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Negative count");
+    if (nFrom < 0)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Negative from");
+
+    UniValue ret(UniValue::VARR);
+
+    const CWallet::TxItems & txOrdered = pwalletMain->wtxOrdered;
+
+    if (txOrdered.size() < static_cast<unsigned>(nFrom)) {
+        return ret;
+    }
+
+    auto it = txOrdered.begin();
+    std::advance(it, nFrom);
+
+    for (int cnt = 0; (it != txOrdered.end()) && (cnt < nCount); it++, cnt++) {
+        CWalletTx *const pwtx = (*it).second.first;
+        if (pwtx != 0)
+            ListTransactions(*pwtx, strAccount, 0, true, ret, filter);
+        CAccountingEntry *const pacentry = (*it).second.second;
+        if (pacentry != 0)
+            AcentryToJSON(*pacentry, strAccount, ret);
+    }
 
     return ret;
 }
@@ -2824,7 +2933,7 @@ UniValue mintmanyzerocoin(const UniValue& params, bool fHelp)
                 denomination = libzerocoin::ZQ_PEDERSEN;
                 break;
             case 100:
-                denomination = libzerocoin::ZQ_WILLIAMSON;                                                
+                denomination = libzerocoin::ZQ_WILLIAMSON;
                 break;
             default:
                 throw runtime_error(
@@ -2836,7 +2945,7 @@ UniValue mintmanyzerocoin(const UniValue& params, bool fHelp)
 
         LogPrintf("rpcWallet.mintmanyzerocoin() denomination = %s, nAmount = %s \n", denominationStr, amount);
 
-        
+
         if(amount < 0){
                 throw runtime_error(
                     "amounts must be greater than 0.\n");
@@ -2851,9 +2960,9 @@ UniValue mintmanyzerocoin(const UniValue& params, bool fHelp)
             // Get a copy of the 'public' portion of the coin. You should
             // embed this into a Zerocoin 'MINT' transaction along with a series
             // of currency inputs totaling the assigned value of one zerocoin.
-            
+
             libzerocoin::PublicCoin pubCoin = newCoin.getPublicCoin();
-            
+
             //Validate
             bool validCoin = pubCoin.validate();
 
@@ -2979,7 +3088,7 @@ UniValue spendmanyzerocoin(const UniValue& params, bool fHelp) {
     int64_t value = 0;
     int64_t amount = 0;
     libzerocoin::CoinDenomination denomination;
-    std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>> denominations; 
+    std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>> denominations;
 
     UniValue inputs = find_value(data, "denominations");
 
@@ -3007,7 +3116,7 @@ UniValue spendmanyzerocoin(const UniValue& params, bool fHelp) {
                 denomination = libzerocoin::ZQ_PEDERSEN;
                 break;
             case 100:
-                denomination = libzerocoin::ZQ_WILLIAMSON;                                                
+                denomination = libzerocoin::ZQ_WILLIAMSON;
                 break;
             default:
                 throw runtime_error(
@@ -3043,7 +3152,7 @@ UniValue spendmanyzerocoin(const UniValue& params, bool fHelp) {
         LogPrintf("SpendZerocoin() : %s", strError.c_str());
         return strError;
     }
-    
+
     strError = pwalletMain->SpendMultipleZerocoin(thirdPartyAddress, denominations, wtx, coinSerials, txHash, zcSelectedValues, false);
     if (strError != "")
         throw JSONRPCError(RPC_WALLET_ERROR, strError);
@@ -3380,6 +3489,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "listreceivedbyaddress",    &listreceivedbyaddress,    false },
     { "wallet",             "listsinceblock",           &listsinceblock,           false },
     { "wallet",             "listtransactions",         &listtransactions,         false },
+    { "hidden",             "listtransactionsfrom",     &listtransactionsfrom,     false },
     { "wallet",             "listunspent",              &listunspent,              false },
     { "wallet",             "lockunspent",              &lockunspent,              true  },
     { "wallet",             "move",                     &movecmd,                  false },
