@@ -25,12 +25,6 @@ Scalar::Scalar(uint64_t value)
     secp256k1_scalar_set_int(reinterpret_cast<secp256k1_scalar *>(value_), value);
 }
 
-Scalar::Scalar(const char* str)
-     : value_(new secp256k1_scalar()) {
-    const unsigned char* str_ = reinterpret_cast<const unsigned char *>( &str );
-    secp256k1_scalar_set_b32(reinterpret_cast<secp256k1_scalar *>(value_),str_,0);
-}
-
 Scalar::Scalar(const void *value)
    : value_(new secp256k1_scalar(*reinterpret_cast<const secp256k1_scalar *>(value))) {
 
@@ -71,7 +65,11 @@ Scalar Scalar::operator*(const Scalar& other) const {
 }
 
 Scalar& Scalar::operator*=(const Scalar& other) {
-    secp256k1_scalar_mul(reinterpret_cast<secp256k1_scalar *>(value_), &(*reinterpret_cast<const secp256k1_scalar *>(value_)), reinterpret_cast<const secp256k1_scalar *>(other.value_));
+    secp256k1_scalar result;
+
+    secp256k1_scalar_mul(&result, reinterpret_cast<const secp256k1_scalar *>(value_), reinterpret_cast<const secp256k1_scalar *>(other.value_));
+    *reinterpret_cast<secp256k1_scalar *>(value_) = result;
+
     return *this;
 }
 
@@ -82,21 +80,30 @@ Scalar Scalar::operator+(const Scalar& other) const {
 }
 
 Scalar& Scalar::operator+=(const Scalar& other) {
-    secp256k1_scalar_add(reinterpret_cast<secp256k1_scalar *>(value_), reinterpret_cast<const secp256k1_scalar *>(value_), reinterpret_cast<const secp256k1_scalar *>(other.value_));
+    secp256k1_scalar result;
+
+    secp256k1_scalar_add(&result, reinterpret_cast<const secp256k1_scalar *>(value_), reinterpret_cast<const secp256k1_scalar *>(other.value_));
+    *reinterpret_cast<secp256k1_scalar *>(value_) = result;
+
     return *this;
 }
 
 Scalar Scalar::operator-(const Scalar& other) const {
-    secp256k1_scalar result;
-    secp256k1_scalar_negate(&result,reinterpret_cast<const secp256k1_scalar *>(other.value_));
-    secp256k1_scalar_add(&result,&result,reinterpret_cast<const secp256k1_scalar *>(value_));
+    secp256k1_scalar negated, result;
+
+    secp256k1_scalar_negate(&negated, reinterpret_cast<const secp256k1_scalar *>(other.value_));
+    secp256k1_scalar_add(&result, &negated, reinterpret_cast<const secp256k1_scalar *>(value_));
+
     return &result;
 }
 
 Scalar& Scalar::operator-=(const Scalar& other) {
-    secp256k1_scalar temp;
-    secp256k1_scalar_negate(&temp,reinterpret_cast<const secp256k1_scalar *>(other.value_));
-    secp256k1_scalar_add(reinterpret_cast<secp256k1_scalar *>(value_),reinterpret_cast<const secp256k1_scalar *>(value_),&temp);
+    secp256k1_scalar negated, result;
+
+    secp256k1_scalar_negate(&negated, reinterpret_cast<const secp256k1_scalar *>(other.value_));
+    secp256k1_scalar_add(&result, reinterpret_cast<const secp256k1_scalar *>(value_), &negated);
+    *reinterpret_cast<secp256k1_scalar *>(value_) = result;
+
     return *this;
 }
 
@@ -131,19 +138,27 @@ Scalar Scalar::square() const{
 }
 
 Scalar Scalar::exponent(const Scalar& exp) const {
+    secp256k1_scalar value(*reinterpret_cast<const secp256k1_scalar *>(value_));
+    secp256k1_scalar exp_(*reinterpret_cast<const secp256k1_scalar *>(exp.value_));
     secp256k1_scalar result;
-    secp256k1_scalar value = *reinterpret_cast<const secp256k1_scalar *>(value_);
-    secp256k1_scalar_set_int(&result, 1);
-    secp256k1_scalar exp_ = *reinterpret_cast<const secp256k1_scalar *>(exp.value_);
-    while (!secp256k1_scalar_is_zero(&exp_))
-    {
-       if(!secp256k1_scalar_is_even(&exp_))
-           secp256k1_scalar_mul(&result,&result, &value);
-       secp256k1_scalar_sqr(&value, &value);
-       secp256k1_scalar_shr_int(&exp_,1);
 
+    secp256k1_scalar_set_int(&result, 1);
+
+    while (!secp256k1_scalar_is_zero(&exp_)) {
+        secp256k1_scalar tmp;
+
+        if (!secp256k1_scalar_is_even(&exp_)) {
+            secp256k1_scalar_mul(&tmp, &result, &value);
+            result = tmp;
+        }
+
+        secp256k1_scalar_sqr(&tmp, &value);
+        value = tmp;
+
+        secp256k1_scalar_shr_int(&exp_, 1);
     }
-     return &result;
+
+    return &result;
 }
 
 Scalar Scalar::exponent(uint64_t exp) const {
@@ -152,37 +167,48 @@ Scalar Scalar::exponent(uint64_t exp) const {
 
 }
 
-bool Scalar::isMember() const{
+bool Scalar::isMember() const {
     Scalar temp(*this);
     temp.mod_p();
-     return *this == temp;
-    }
+    return *this == temp;
+}
 
-Scalar& Scalar::randomize(){
+Scalar& Scalar::randomize() {
     unsigned char temp[32] = { 0 };
+
     do {
         if (RAND_bytes(temp, 32) != 1) {
             throw "Unable to generate random Scalar";
         }
         generate(temp);
-    }while (!(this->isMember()));
-}
-Scalar& Scalar::generate(unsigned char* buff){
-    secp256k1_scalar_set_b32(reinterpret_cast<secp256k1_scalar *>(value_), buff, NULL);
-    secp256k1_scalar zero;
-     secp256k1_scalar_set_int(&zero, 0);
-     secp256k1_scalar_add(reinterpret_cast<secp256k1_scalar *>(value_),reinterpret_cast<const secp256k1_scalar *>(value_),&zero);
-     return *this;
-    }
+    } while (!this->isMember());
 
-    Scalar& Scalar::mod_p() {
-    secp256k1_scalar zero;
-    secp256k1_scalar_clear(&zero);
-    secp256k1_scalar_add(reinterpret_cast<secp256k1_scalar *>(value_),reinterpret_cast<const secp256k1_scalar *>(value_),&zero);
     return *this;
 }
 
-Scalar Scalar::hash(const unsigned char* data, size_t len)  {
+Scalar& Scalar::generate(unsigned char* buff) {
+    secp256k1_scalar zero, result;
+
+    secp256k1_scalar_set_b32(reinterpret_cast<secp256k1_scalar *>(value_), buff, nullptr);
+    secp256k1_scalar_set_int(&zero, 0);
+
+    secp256k1_scalar_add(&result, reinterpret_cast<const secp256k1_scalar *>(value_), &zero);
+    *reinterpret_cast<secp256k1_scalar *>(value_) = result;
+
+    return *this;
+}
+
+Scalar& Scalar::mod_p() {
+    secp256k1_scalar zero, result;
+
+    secp256k1_scalar_clear(&zero);
+    secp256k1_scalar_add(&result, reinterpret_cast<const secp256k1_scalar *>(value_), &zero);
+    *reinterpret_cast<secp256k1_scalar *>(value_) = result;
+
+    return *this;
+}
+
+Scalar Scalar::hash(const unsigned char* data, size_t len) {
     unsigned char hash[32];
 
     secp256k1_sha256_t sha256;
@@ -204,59 +230,72 @@ Scalar Scalar::hash(const unsigned char* data, size_t len)  {
 
 std::string Scalar::tostring() const {
     unsigned char buffer[32];
-    secp256k1_scalar_get_b32(buffer,reinterpret_cast<const secp256k1_scalar *>(value_));
     std::stringstream ss;
-    for(int i = 0; i < 32; ++i){
-        ss <<  (int)buffer[i];
+
+    secp256k1_scalar_get_b32(buffer, reinterpret_cast<const secp256k1_scalar *>(value_));
+
+    for (int i = 0; i < 32; ++i) {
+        ss << (int)buffer[i];
     }
 
-return ss.str();
+    return ss.str();
 }
 
-size_t Scalar::memoryRequired() const  {
+size_t Scalar::memoryRequired() const {
     return 32;
 }
 
 unsigned char* Scalar::serialize(unsigned char* buffer) const {
-    secp256k1_scalar_get_b32(buffer,reinterpret_cast<const secp256k1_scalar *>(value_));
-return buffer + 32;
-}
-
-unsigned char* Scalar::deserialize(unsigned char* buffer)  {
-    int overflow = 0;
-    secp256k1_scalar_set_b32(reinterpret_cast<secp256k1_scalar *>(value_),buffer,&overflow);
-    if (overflow) {
-        throw "Scalar: decoding overflowed";
-    }
+    secp256k1_scalar_get_b32(buffer, reinterpret_cast<const secp256k1_scalar *>(value_));
     return buffer + 32;
 }
 
-std::string Scalar::GetHex() const{
+unsigned char* Scalar::deserialize(unsigned char* buffer) {
+    int overflow = 0;
+
+    secp256k1_scalar_set_b32(reinterpret_cast<secp256k1_scalar *>(value_), buffer, &overflow);
+
+    if (overflow) {
+        throw "Scalar: decoding overflowed";
+    }
+
+    return buffer + 32;
+}
+
+std::string Scalar::GetHex() const {
     unsigned char buffer[32];
-    serialize(buffer);
     std::stringstream ss;
-    for(int i = 0; i < 32; ++i)
-    {
+
+    serialize(buffer);
+
+    for (int i = 0; i < 32; ++i) {
         ss << buffer[i] / 16;
         ss << buffer[i] % 16;
     }
 
+    return ss.str();
 }
 
-void Scalar::SetHex(const std::string& str) const{
+void Scalar::SetHex(const std::string& str) const {
     unsigned char buffer[32];
-    for(int i = 0; i < 32; i+=2)
+
+    for (int i = 0; i < 32; i+=2)
         buffer[i] =  str[i] * 16 + str[i + 1];
+
     int overflow = 0;
-    secp256k1_scalar_set_b32(reinterpret_cast<secp256k1_scalar *>(value_),buffer,&overflow);
+
+    secp256k1_scalar_set_b32(reinterpret_cast<secp256k1_scalar *>(value_), buffer, &overflow);
+
     if (overflow) {
         throw "Scalar: decoding overflowed";
     }
 }
 
-void Scalar::get_bits(std::vector<bool>& bits) const{
+void Scalar::get_bits(std::vector<bool>& bits) const {
     unsigned char bin[32];
+
     secp256k1_scalar_get_b32(bin, reinterpret_cast<const secp256k1_scalar *>(value_));
+
     for (int i = 0; i < 32; ++i) {
         int32_t val = bin[i];
         for (int j = 7; j >= 0; j--) {
