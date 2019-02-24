@@ -19,6 +19,8 @@ public:
     bool verify_fast(const GroupElement& V, const RangeProof<Exponent, GroupElement>& proof);
     bool verify_optimised(const GroupElement& V, const RangeProof<Exponent, GroupElement>& proof);
 
+    bool verify_batch(const std::vector<GroupElement>& V, const RangeProof<Exponent, GroupElement>& proof);
+
 private:
     GroupElement g;
     GroupElement h;

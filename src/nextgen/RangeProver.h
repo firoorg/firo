@@ -16,6 +16,7 @@ public:
             , uint64_t n);
 
     void proof(const Exponent& v, const Exponent& randomness, RangeProof<Exponent, GroupElement>& proof_out);
+    void batch_proof(const std::vector<Exponent>& v, const std::vector<Exponent>& randomness, RangeProof<Exponent, GroupElement>& proof_out);
 
 private:
     GroupElement g;

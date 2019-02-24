@@ -262,4 +262,30 @@ Exponent NextGenPrimitives<Exponent, GroupElement>::delta(const Exponent& y, con
     return (z - z_square) * y_ - z * z_square * two;
 }
 
+template <class Exponent, class GroupElement>
+Exponent NextGenPrimitives<Exponent, GroupElement>::delta(const Exponent& y, const Exponent& z, uint64_t n,  uint64_t m){
+    Exponent y_;
+    Exponent two;
+    Exponent y_n(uint64_t(1));
+    Exponent two_n(uint64_t(1));
+    Exponent z_j =  z.exponent(uint64_t(3));
+    Exponent z_sum(uint64_t(0));
+
+    for(int j = 1; j <= m; ++j){
+        for(int i = 0; i < n; ++i){
+            y_ += y_n;
+            y_n *= y;
+        }
+        z_sum += z_j;
+        z_j *= z;
+    }
+
+    for(int i = 0; i < n; ++i){
+        two += two_n;
+        two_n *= uint64_t(2);
+    }
+
+    return (z - z.square()) * y_ - z_sum * two;
+}
+
 }//namespace nextgen

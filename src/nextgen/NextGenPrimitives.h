@@ -83,6 +83,8 @@ public:
 
     static Exponent delta(const Exponent& y, const Exponent& z, uint64_t n);
 
+    static Exponent delta(const Exponent& y, const Exponent& z, uint64_t n, uint64_t m);
+
 };
 
 }// namespace nextgen
