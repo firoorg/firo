@@ -1240,7 +1240,11 @@ public:
     //private
     Scalar randomness;
     Scalar serialNumber;
-//    vector<unsigned char> ecdsaSecretKey;
+
+    // Signature over partial transaction 
+    // to make sure the outputs are not changed by attacker.
+    vector<unsigned char> ecdsaSecretKey;
+
     bool IsUsed;
     int nHeight;
     int id;

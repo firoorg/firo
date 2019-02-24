@@ -2,7 +2,9 @@
 #include "util.h"
 #include "amount.h"
 
+#include <openssl/rand.h>
 #include <sstream>
+#include "OpenSSL_context.h"
 
 namespace sigma {
 
@@ -156,11 +158,22 @@ const Scalar& PrivateCoinV3::getRandomness() const{
     return this->randomness;
 }
 
-unsigned int PrivateCoinV3::getVersion() const{
+const unsigned char* PrivateCoinV3::getEcdsaSeckey() const {
+     return this->ecdsaSeckey;
+}
+
+void PrivateCoinV3::setEcdsaSeckey(const vector<unsigned char> &seckey) {
+    if (seckey.size() == sizeof(ecdsaSeckey))
+        std::copy(seckey.cbegin(), seckey.cend(), &ecdsaSeckey[0]);
+    else
+        throw "EcdsaSeckey size does not match.";
+}
+
+unsigned int PrivateCoinV3::getVersion() const {
     return this->version;
 }
 
-void PrivateCoinV3::setPublicCoin(PublicCoinV3 p){
+void PrivateCoinV3::setPublicCoin(const PublicCoinV3& p) {
     publicCoin = p;
 }
 
@@ -177,11 +190,49 @@ void PrivateCoinV3::setVersion(unsigned int nVersion){
 }
 
 void PrivateCoinV3::mintCoin(const CoinDenominationV3 denomination){
-    serialNumber.randomize();
+    // Create a key pair
+    secp256k1_pubkey pubkey;
+    do {
+        if (RAND_bytes(this->ecdsaSeckey, sizeof(this->ecdsaSeckey)) != 1) {
+            throw ZerocoinException("Unable to generate randomness");
+        }
+    } while (!secp256k1_ec_pubkey_create(
+        OpenSSLContext::get_context(), &pubkey, this->ecdsaSeckey));
+
+    // Hash the public key in the group to obtain a serial number
+    serialNumber = serialNumberFromSerializedPublicKey(
+        OpenSSLContext::get_context(), &pubkey);
+
     randomness.randomize();
     GroupElement commit = SigmaPrimitives<Scalar, GroupElement>::commit(
             params->get_g(), serialNumber, params->get_h0(), randomness);
     publicCoin = PublicCoinV3(commit, denomination);
+}
+
+const Scalar PrivateCoinV3::serialNumberFromSerializedPublicKey(
+        secp256k1_context *context,
+        secp256k1_pubkey *pubkey) {
+    std::vector<unsigned char> pubkey_hash(32, 0);
+
+    static const unsigned char one[32] = {
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01
+    };
+
+    // We use secp256k1_ecdh instead of secp256k1_serialize_pubkey to avoid a timing channel.
+    secp256k1_ecdh(context, pubkey_hash.data(), pubkey, &one[0]);
+
+	std::string zpts(ZEROCOIN_PUBLICKEY_TO_SERIALNUMBER);
+	std::vector<unsigned char> pre(zpts.begin(), zpts.end());
+    std::copy(pubkey_hash.begin(), pubkey_hash.end(), std::back_inserter(pre));
+
+	unsigned char hash[CSHA256::OUTPUT_SIZE];
+    CSHA256().Write(pre.data(), pre.size()).Finalize(hash);
+
+    // Use 32 bytes of hash as coin serial.
+    return Scalar((const char*)hash);
 }
 
 } // namespace sigma

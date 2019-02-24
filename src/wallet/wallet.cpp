@@ -16,6 +16,7 @@
 #include "zerocoin.h"
 #include "zerocoin_v3.h"
 #include "../libzerocoin/sigma/CoinSpend.h"
+#include "../libzerocoin/sigma/SpendMetaDataV3.h"
 #include "net.h"
 #include "policy/policy.h"
 #include "primitives/block.h"
@@ -3546,15 +3547,14 @@ bool CWallet::CreateZerocoinMintModelV3(string &stringError, const string& denom
         if (stringError != "")
             return false;
 
-        // const unsigned char *ecdsaSecretKey = newCoin.getEcdsaSeckey();
+        const unsigned char *ecdsaSecretKey = newCoin.getEcdsaSeckey();
         CZerocoinEntryV3 zerocoinTx;
         zerocoinTx.IsUsed = false;
         zerocoinTx.set_denomination(denomination);
         zerocoinTx.value = pubCoin.getValue();
         zerocoinTx.randomness = newCoin.getRandomness();
         zerocoinTx.serialNumber = newCoin.getSerialNumber();
-        // TODO(martun): ecdsaSecretKey looks like unnecessary, but take another look.
-        // zerocoinTx.ecdsaSecretKey = std::vector<unsigned char>(ecdsaSecretKey, ecdsaSecretKey+32);
+        zerocoinTx.ecdsaSecretKey = std::vector<unsigned char>(ecdsaSecretKey, ecdsaSecretKey+32);
         LogPrintf("CreateZerocoinMintModel() -> NotifyZerocoinChanged\n");
         LogPrintf("pubcoin=%s, isUsed=%s\n", zerocoinTx.value.GetHex(), zerocoinTx.IsUsed);
         LogPrintf("randomness=%s, serialNumber=%s\n", zerocoinTx.randomness, zerocoinTx.serialNumber);
@@ -4569,6 +4569,9 @@ bool CWallet::CreateZerocoinSpendTransactionV3(
             newTxIn.prevout.SetNull();
             txNew.vin.push_back(newTxIn);
 
+            // We use incomplete transaction hash as metadata.
+            sigma::SpendMetaDataV3 metaData(serializedId, blockHash, txNew.GetHash());
+ 
             // Construct the CoinSpend object. This acts like a signature on the
             // transaction.
             sigma::PrivateCoinV3 privateCoin(zcParams, denomination);
@@ -4581,15 +4584,14 @@ bool CWallet::CreateZerocoinSpendTransactionV3(
             privateCoin.setPublicCoin(pubCoinSelected);
             privateCoin.setRandomness(coinToUse.randomness);
             privateCoin.setSerialNumber(coinToUse.serialNumber);
-            // We do NOT need an ecdsaSecretKey for V3 sigma mints.
-//          privateCoin.setEcdsaSeckey(coinToUse.ecdsaSecretKey);
+            privateCoin.setEcdsaSeckey(coinToUse.ecdsaSecretKey);
 
-            sigma::CoinSpendV3 spend(zcParams, privateCoin, anonimity_set, blockHash);
+            sigma::CoinSpendV3 spend(zcParams, privateCoin, anonimity_set, metaData);
             spend.setVersion(txVersion);
 
             // This is a sanity check. The CoinSpend object should always verify,
             // but why not check before we put it onto the wire?
-            if (!spend.Verify(anonimity_set)) {
+            if (!spend.Verify(anonimity_set, metaData)) {
                 strFailReason = _("the spend coin transaction did not verify");
                 return false;
             }
@@ -4632,7 +4634,7 @@ bool CWallet::CreateZerocoinSpendTransactionV3(
                     pubCoinTx.randomness = coinToUse.randomness;
                     pubCoinTx.serialNumber = coinToUse.serialNumber;
                     pubCoinTx.value = coinToUse.value;
-//                    pubCoinTx.ecdsaSecretKey = coinToUse.ecdsaSecretKey;
+                    pubCoinTx.ecdsaSecretKey = coinToUse.ecdsaSecretKey;
                     CWalletDB(strWalletFile).WriteZerocoinEntry(pubCoinTx);
                     LogPrintf("CreateZerocoinSpendTransaction() -> NotifyZerocoinChanged\n");
                     LogPrintf("pubcoin=%s, isUsed=Used\n", coinToUse.value.GetHex());
@@ -5153,7 +5155,7 @@ bool CWallet::CreateMultipleZerocoinSpendTransactionV3(
                 privateCoin.setPublicCoin(pubCoinSelected);
                 privateCoin.setRandomness(coinToUse.randomness);
                 privateCoin.setSerialNumber(coinToUse.serialNumber);
-//                privateCoin.setEcdsaSeckey(coinToUse.ecdsaSecretKey);
+                privateCoin.setEcdsaSeckey(coinToUse.ecdsaSecretKey);
 
                 LogPrintf("creating tempStorage object..\n");
                 // Push created TxIn values into a tempStorage object (used in the next loop)
@@ -5198,6 +5200,13 @@ bool CWallet::CreateMultipleZerocoinSpendTransactionV3(
             {
                 unsigned index = it - denominations.begin();
 
+                // We use incomplete transaction hash for now as a metadata
+                sigma::SpendMetaDataV3 metaData(
+                    tempStorages[index].serializedId,
+                    tempStorages[index].blockHash,
+                    txHashForMetadata);
+
+
                 TempStorage tempStorage = tempStorages.at(index);
                 CZerocoinEntryV3 coinToUse = tempStorage.coinToUse;
 
@@ -5208,11 +5217,11 @@ bool CWallet::CreateMultipleZerocoinSpendTransactionV3(
                 sigma::CoinSpendV3 spend(zcParams,
                                          tempStorage.privateCoin,
                                          tempStorage.anonimity_set,
-                                         tempStorage.blockHash);
+                                         metaData);
                 spend.setVersion(tempStorage.txVersion);
 
                 // Verify the coinSpend
-                if (!spend.Verify(tempStorage.anonimity_set)) {
+                if (!spend.Verify(tempStorage.anonimity_set, metaData)) {
                     strFailReason = _("the spend coin transaction did not verify");
                     return false;
                 }
@@ -5248,7 +5257,7 @@ bool CWallet::CreateMultipleZerocoinSpendTransactionV3(
                         pubCoinTx.randomness = coinToUse.randomness;
                         pubCoinTx.serialNumber = coinToUse.serialNumber;
                         pubCoinTx.value = coinToUse.value;
-//                        pubCoinTx.ecdsaSecretKey = coinToUse.ecdsaSecretKey;
+                        pubCoinTx.ecdsaSecretKey = coinToUse.ecdsaSecretKey;
                         CWalletDB(strWalletFile).WriteZerocoinEntry(pubCoinTx);
                         LogPrintf("CreateZerocoinSpendTransaction() -> NotifyZerocoinChanged\n");
                         LogPrintf("pubcoin=%s, isUsed=Used\n", coinToUse.value.GetHex());
@@ -5481,9 +5490,8 @@ string CWallet::MintAndStoreZerocoinV3(vector<CRecipient> vecSend,
         }
         zerocoinTx.randomness = privCoin.getRandomness();
         zerocoinTx.serialNumber = privCoin.getSerialNumber();
-        // TODO(martun): check this again, but looks like in Sigma we do not need ecdsaSecretKey.
-//        const unsigned char *ecdsaSecretKey = privCoin.getEcdsaSeckey();
-//        zerocoinTx.ecdsaSecretKey = std::vector<unsigned char>(ecdsaSecretKey, ecdsaSecretKey+32);
+        const unsigned char *ecdsaSecretKey = privCoin.getEcdsaSeckey();
+        zerocoinTx.ecdsaSecretKey = std::vector<unsigned char>(ecdsaSecretKey, ecdsaSecretKey+32);
         walletdb.WriteZerocoinEntry(zerocoinTx);
     }
 
@@ -5664,7 +5672,7 @@ string CWallet::SpendZerocoinV3(
                 pubCoinTx.randomness = pubCoinItem.randomness;
                 pubCoinTx.serialNumber = pubCoinItem.serialNumber;
                 pubCoinTx.set_denomination_value(pubCoinItem.get_denomination_value());
-//                pubCoinTx.ecdsaSecretKey = pubCoinItem.ecdsaSecretKey;
+                pubCoinTx.ecdsaSecretKey = pubCoinItem.ecdsaSecretKey;
                 CWalletDB(strWalletFile).WriteZerocoinEntry(pubCoinTx);
                 LogPrintf("SpendZerocoin failed, re-updated status -> NotifyZerocoinChanged\n");
                 LogPrintf("pubcoin=%s, isUsed=New\n", pubCoinItem.value.GetHex());
@@ -5795,7 +5803,7 @@ string CWallet::SpendMultipleZerocoinV3(
                     pubCoinTx.randomness = pubCoinItem.randomness;
                     pubCoinTx.serialNumber = pubCoinItem.serialNumber;
                     pubCoinTx.set_denomination_value(pubCoinItem.get_denomination_value());
-//                    pubCoinTx.ecdsaSecretKey = pubCoinItem.ecdsaSecretKey;
+                    pubCoinTx.ecdsaSecretKey = pubCoinItem.ecdsaSecretKey;
                     CWalletDB(strWalletFile).WriteZerocoinEntry(pubCoinTx);
                     LogPrintf("SpendZerocoin failed, re-updated status -> NotifyZerocoinChanged\n");
                     LogPrintf("pubcoin=%s, isUsed=New\n", pubCoinItem.value.GetHex());

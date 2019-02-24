@@ -5,9 +5,11 @@
 #include "SigmaPlusProof.h"
 #include "SigmaPlusProver.h"
 #include "SigmaPlusVerifier.h"
+#include "SpendMetaDataV3.h"
 
 using namespace secp_primitives;
-namespace sigma{
+
+namespace sigma {
 
 class CoinSpendV3 {
 public:
@@ -23,7 +25,7 @@ public:
     CoinSpendV3(const ParamsV3* p,
               const PrivateCoinV3& coin,
               const std::vector<PublicCoinV3>& anonymity_set,
-              uint256 _accumulatorBlockHash=uint256());
+              const SpendMetaDataV3& m);
 
     const Scalar& getCoinSerialNumber();
 
@@ -45,7 +47,7 @@ public:
 
     bool HasValidSerial() const;
 
-    bool Verify(const std::vector<PublicCoinV3>& anonymity_set) const;
+    bool Verify(const std::vector<PublicCoinV3>& anonymity_set, const SpendMetaDataV3 &m) const;
 
     size_t GetSerializeSize(int nType, int nVersion) const;
 
@@ -60,6 +62,10 @@ public:
         std::memcpy(current + sizeof(uint32_t) + sizeof(int32_t), &accumulatorBlockHash, sizeof(accumulatorBlockHash));
         char* b = (char*)buffer;
         s.write(b, size + sizeof(uint32_t) + sizeof(int32_t) + sizeof(uint256));
+
+        // Write size of ecdsaPubkey followed by ecdsaPubkey itself,
+        // then size of ecdsaSignature, followed by ecdsaSignature itself.
+        // TODO(martun): Add this in serialize/unserialize.
     }
 
     template<typename Stream>
@@ -75,12 +81,16 @@ public:
         std::memcpy(&accumulatorBlockHash, current + sizeof(uint32_t) + sizeof(int32_t), sizeof(accumulatorBlockHash));
     }
 
+    const uint256 signatureHash(const SpendMetaDataV3& m) const;
+
 private:
     const ParamsV3* params;
     unsigned int version = 0;
     CoinDenominationV3 denomination;
     uint256 accumulatorBlockHash;
     Scalar coinSerialNumber;
+    std::vector<unsigned char> ecdsaSignature;
+    std::vector<unsigned char> ecdsaPubkey;
     SigmaPlusProof<Scalar, GroupElement> sigmaProof;
 
 };
