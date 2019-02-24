@@ -288,7 +288,6 @@ bool RangeVerifier<Exponent, GroupElement>::verify_batch(const std::vector<Group
     Exponent y_n_(uint64_t(1));
     Exponent two(uint64_t(2));
     Exponent z_j = z.square();
-    Exponent z_j_sum = z_j;
     for (uint64_t j = 0; j < m ; ++j) {
         Exponent two_n_(uint64_t(1));
         for (uint64_t k = 0; k < n; ++k) {
@@ -306,12 +305,11 @@ bool RangeVerifier<Exponent, GroupElement>::verify_batch(const std::vector<Group
 
             }
             l[i] = x_il * innerProductProof.a_ + z;
-            r[i] = y_n_ * (x_ir * innerProductProof.b_ - (z_j_sum * two_n_)) - z;
+            r[i] = y_n_ * (x_ir * innerProductProof.b_ - (z_j * two_n_)) - z;
             y_n_ *= y_inv;
             two_n_ *= two;
         }
         z_j *= z;
-        z_j_sum += z_j;
     }
     //check line 105
     GroupElement left_;

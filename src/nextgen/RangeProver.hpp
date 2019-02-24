@@ -163,7 +163,6 @@ void RangeProver<Exponent, GroupElement>::batch_proof(
     Exponent y_nm(uint64_t(1));
 
     Exponent z_j = z.square();
-    Exponent z_j_sum = z_j;
     Exponent z_sum(uint64_t(0));
     for(int j = 0; j < m; ++j) {
         Exponent two_n(uint64_t(1));
@@ -172,7 +171,7 @@ void RangeProver<Exponent, GroupElement>::batch_proof(
             l_x[index].push_back(aL[index] - z);
             l_x[index].push_back(sL[index]);
 
-            r_x[index].push_back(y_nm * (aR[index] + z) + z_j_sum * two_n);
+            r_x[index].push_back(y_nm * (aR[index] + z) + z_j * two_n);
             r_x[index].push_back(y_nm * sR[index]);
             //
             y_nm *= y;
@@ -180,7 +179,6 @@ void RangeProver<Exponent, GroupElement>::batch_proof(
         }
         z_sum += z_j * randomness[j];
         z_j *= z;
-        z_j_sum += z_j;
     }
     //compute t1 and t2 coefficients
     Exponent t0, t1, t2;
