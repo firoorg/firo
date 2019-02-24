@@ -12,7 +12,6 @@ namespace sigma {
 enum class CoinDenominationV3 {
     SIGMA_DENOM_0_1 = 0,
     SIGMA_DENOM_0_5 = 1,
-
     SIGMA_DENOM_1 = 2,
     SIGMA_DENOM_10 = 3,
     SIGMA_DENOM_100 = 4

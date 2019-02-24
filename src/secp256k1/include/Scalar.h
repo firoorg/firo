@@ -84,7 +84,14 @@ public:
 
     std::string GetHex() const;
     void SetHex(const std::string& str) const;
-    //this functions are for READWRITE() in serialize.h
+
+    // These functions are for READWRITE() in serialize.h
+
+    unsigned int GetSerializeSize(int nType=0, int nVersion=0) const
+    {
+        return memoryRequired();
+    }
+
     template<typename Stream>
     inline void Serialize(Stream& s, int nType, int nVersion) const {
         int size = memoryRequired();
