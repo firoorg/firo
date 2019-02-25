@@ -132,7 +132,14 @@ OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) 
     ui->setupUi(this);
 
     // read config
-    bool torEnabled = settings.value("fTorSetup").toBool() || GetBoolArg("-torsetup", DEFAULT_TOR_SETUP);
+    bool torEnabled;
+    if(mapArgs.count("-torsetup")){
+        torEnabled = GetBoolArg("-torsetup", DEFAULT_TOR_SETUP);
+    }else{
+        torEnabled = settings.value("fTorSetup").toBool();
+    }
+
+    //bool torEnabled = settings.value("fTorSetup").toBool() || GetBoolArg("-torsetup", DEFAULT_TOR_SETUP);
 
     if(torEnabled){
 		ui->checkboxEnabledTor->setChecked(true);
@@ -170,10 +177,10 @@ void OverviewPage::handleEnabledTorChanged(){
 	QMessageBox msgBox;
 	if(ui->checkboxEnabledTor->isChecked()){
 		settings.setValue("fTorSetup", true);
-		msgBox.setText("Please restart the Zcoin wallet to route your connection through Tor to protect your IP address. \nSyncing your wallet might be slower with TOR. \nNote that -torsetup set in zcoin.conf will always override this checkbox.");
+		msgBox.setText("Please restart the Zcoin wallet to route your connection through Tor to protect your IP address. \nSyncing your wallet might be slower with TOR. \nNote that -torsetup in zcoin.conf will always override any changes made here.");
 	}else{
 		settings.setValue("fTorSetup", false);
-		msgBox.setText("Please restart the Zcoin wallet to disable routing of your connection through Tor to protect your IP address. \nNote that -torsetup set in zcoin.conf will always override this checkbox.");
+		msgBox.setText("Please restart the Zcoin wallet to disable routing of your connection through Tor to protect your IP address. \nNote that -torsetup in zcoin.conf will always override any changes made here.");
 	}
 	msgBox.exec();
 }
