@@ -4991,6 +4991,8 @@ void CWallet::CreateZerocoinSpendTransactionV3(
     // get coins to spend
     auto getInputs = [this, &selected](std::vector<InputDescriptor>& inputs, CAmount required) -> CAmount {
         // get all minted coins for wallet
+        selected.clear();
+
         CAmount total = GetCoinsToSpend(required, selected);
 
         if (total < required) {
