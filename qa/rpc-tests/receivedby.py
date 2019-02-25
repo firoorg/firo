@@ -41,9 +41,10 @@ class ReceivedByTest(BitcoinTestFramework):
         '''
         listreceivedbyaddress Test
         '''
+
         # Send from node 0 to 1
         addr = self.nodes[1].getnewaddress()
-        txid = self.nodes[0].sendtoaddress(addr, 0.1)
+        txid = self.nodes[0].sendtoaddress(addr, 10)
         self.sync_all()
 
         #Check not listed in listreceivedbyaddress because has 0 confirmations
@@ -56,11 +57,11 @@ class ReceivedByTest(BitcoinTestFramework):
         self.sync_all()
         assert_array_result(self.nodes[1].listreceivedbyaddress(),
                            {"address":addr},
-                           {"address":addr, "account":"", "amount":Decimal("0.1"), "confirmations":10, "txids":[txid,]})
+                           {"address":addr, "account":"", "amount":Decimal("10"), "confirmations":10, "txids":[txid,]})
         #With min confidence < 10
         assert_array_result(self.nodes[1].listreceivedbyaddress(5),
                            {"address":addr},
-                           {"address":addr, "account":"", "amount":Decimal("0.1"), "confirmations":10, "txids":[txid,]})
+                           {"address":addr, "account":"", "amount":Decimal("10"), "confirmations":10, "txids":[txid,]})
         #With min confidence > 10, should not find Tx
         assert_array_result(self.nodes[1].listreceivedbyaddress(11),{"address":addr},{ },True)
 
