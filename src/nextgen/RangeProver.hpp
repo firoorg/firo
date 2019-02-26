@@ -2,122 +2,23 @@ namespace nextgen{
 template<class Exponent, class GroupElement>
 RangeProver<Exponent, GroupElement>::RangeProver(
         const GroupElement& g,
-        const GroupElement& h,
+        const GroupElement& h1,
+        const GroupElement& h2,
         const std::vector<GroupElement>& g_vector,
         const std::vector<GroupElement>& h_vector,
         uint64_t n)
     : g (g)
-    , h (h)
+    , h1 (h1)
+    , h2 (h2)
     , g_(g_vector)
     , h_(h_vector)
     , n (n)
 {}
 
 template<class Exponent, class GroupElement>
-void RangeProver<Exponent, GroupElement>::proof(
-        const Exponent& v,
-        const Exponent& randomness,
-        RangeProof<Exponent, GroupElement>& proof_out){
-    std::vector<bool> bits;
-    v.get_bits(bits);
-
-    std::vector<Exponent> aL, aR;
-    aL.reserve(n);
-    aR.reserve(n);
-    for(int i = 1; i <= n; ++i) {
-        aL.push_back(uint64_t(bits[bits.size() - i]));
-        aR.push_back(Exponent(uint64_t(bits[bits.size() - i])) - Exponent(uint64_t(1)));
-    }
-
-    Exponent alpha;
-    alpha.randomize();
-    NextGenPrimitives<Exponent, GroupElement>::commit(h, alpha, g_, aL, h_, aR, proof_out.A);
-
-    std::vector<Exponent> sL, sR;
-    sL.resize(n);
-    sR.resize(n);
-    for(int i = 0; i < n; ++i) {
-        sL[i].randomize();
-        sR[i].randomize();
-    }
-
-    Exponent ro;
-    ro.randomize();
-    NextGenPrimitives<Exponent, GroupElement>::commit(h, ro, g_, sL, h_, sR, proof_out.S);
-
-    Exponent y, z;
-    NextGenPrimitives<Exponent, GroupElement>::get_x(proof_out.A, proof_out.S, y);
-    NextGenPrimitives<Exponent, GroupElement>::get_x(proof_out.S, proof_out.A, z);
-
-    //compute l(x) and r(x) polynomials
-    std::vector<std::vector<Exponent>> l_x, r_x;
-    l_x.resize(n);
-    r_x.resize(n);
-    Exponent y_n(uint64_t(1));
-    Exponent two_n(uint64_t(1));
-    Exponent z_square = z.square();
-    for(int i = 0; i < n; ++i){
-        l_x[i].push_back(aL[i] - z);
-        l_x[i].push_back(sL[i]);
-        r_x[i].push_back(y_n * (aR[i] + z) + z_square * two_n);
-        r_x[i].push_back(y_n * sR[i]);
-        //
-        y_n *= y;
-        two_n *= Exponent(uint64_t(2));
-    }
-    //compute t1 and t2 coefficients
-    Exponent t0, t1, t2;
-    for(int i = 0; i < n; ++i){
-        t0 += l_x[i][0] * r_x[i][0];
-        t1 += l_x[i][0] * r_x[i][1] + l_x[i][1] * r_x[i][0];
-        t2 += l_x[i][1] * r_x[i][1];
-    }
-    //computing T1 T2;
-    Exponent T_1, T_2;
-    T_1.randomize();
-    T_2.randomize();
-    proof_out.T1 = NextGenPrimitives<Exponent, GroupElement>::commit(g, t1, h, T_1);
-    proof_out.T2 = NextGenPrimitives<Exponent, GroupElement>::commit(g, t2, h, T_2);
-
-    Exponent x;
-    NextGenPrimitives<Exponent, GroupElement>::get_x(proof_out.T1, proof_out.T2, x);
-    //computing l and r
-    std::vector<Exponent> l;
-    std::vector<Exponent> r;
-    l.reserve(n);
-    r.reserve(n);
-    for(int i = 0; i < n; i++){
-        l.push_back(l_x[i][0] + l_x[i][1] * x);
-        r.push_back(r_x[i][0] + r_x[i][1] * x);
-    }
-
-    proof_out.T_x = T_2 * x.square() + T_1 * x + z_square * randomness;
-    proof_out.u = alpha + ro * x;
-    /////for linear size proof
-//    proof_out.l = l;
-//    proof_out.r = r;
-//    proof_out.t_ = NextGenPrimitives<Exponent, GroupElement>::scalar_dot_product(l.begin(), l.end(), r.begin(), r.end());
-
-////// for inner product proof
-    //compute h'
-    std::vector<GroupElement> h_prime;
-    h_prime.reserve(h_.size());
-    Exponent y_i(uint64_t(1));
-    for(int i = 0; i < h_.size(); ++i) {
-        h_prime.push_back(h_.get_g(i) * y_i.inverse());
-        y_i *= y;
-    }
-    zcoin_common::GeneratorVector<Exponent, GroupElement> h_prime_(h_prime);
-    InnerProductProoveGenerator<Exponent, GroupElement> innerProductProoveGenerator(g_, h_prime_, g);
-    //   t^ is calculated inside inner product proof generation with name c
-    Exponent x_u;
-    NextGenPrimitives<Exponent, GroupElement>::get_x(proof_out.A, x_u);
-    innerProductProoveGenerator.generate_proof(l, r, x_u, proof_out.innerProductProof);
-}
-
-template<class Exponent, class GroupElement>
 void RangeProver<Exponent, GroupElement>::batch_proof(
         const std::vector<Exponent>& v,
+        const std::vector<Exponent>& serialNumbers,
         const std::vector<Exponent>& randomness,
         RangeProof<Exponent, GroupElement>& proof_out){
     uint64_t m = v.size();
@@ -138,7 +39,7 @@ void RangeProver<Exponent, GroupElement>::batch_proof(
 
     Exponent alpha;
     alpha.randomize();
-    NextGenPrimitives<Exponent, GroupElement>::commit(h, alpha, g_, aL, h_, aR, proof_out.A);
+    NextGenPrimitives<Exponent, GroupElement>::commit(h1, alpha, g_, aL, h_, aR, proof_out.A);
 
     std::vector<Exponent> sL, sR;
     sL.resize(n * m);
@@ -150,7 +51,7 @@ void RangeProver<Exponent, GroupElement>::batch_proof(
 
     Exponent ro;
     ro.randomize();
-    NextGenPrimitives<Exponent, GroupElement>::commit(h, ro, g_, sL, h_, sR, proof_out.S);
+    NextGenPrimitives<Exponent, GroupElement>::commit(h1, ro, g_, sL, h_, sR, proof_out.S);
 
     Exponent y, z;
     NextGenPrimitives<Exponent, GroupElement>::get_x(proof_out.A, proof_out.S, y);
@@ -163,7 +64,8 @@ void RangeProver<Exponent, GroupElement>::batch_proof(
     Exponent y_nm(uint64_t(1));
 
     Exponent z_j = z.square();
-    Exponent z_sum(uint64_t(0));
+    Exponent z_sum1(uint64_t(0));
+    Exponent z_sum2(uint64_t(0));
     for(int j = 0; j < m; ++j) {
         Exponent two_n(uint64_t(1));
         for(int i = 0; i < n; ++i) {
@@ -177,7 +79,8 @@ void RangeProver<Exponent, GroupElement>::batch_proof(
             y_nm *= y;
             two_n *= Exponent(uint64_t(2));
         }
-        z_sum += z_j * randomness[j];
+        z_sum1 += z_j * randomness[j];
+        z_sum2 += z_j * serialNumbers[j];
         z_j *= z;
     }
     //compute t1 and t2 coefficients
@@ -187,12 +90,14 @@ void RangeProver<Exponent, GroupElement>::batch_proof(
         t1 += l_x[i][0] * r_x[i][1] + l_x[i][1] * r_x[i][0];
         t2 += l_x[i][1] * r_x[i][1];
     }
-    //computing T1 T2;
-    Exponent T_1, T_2;
-    T_1.randomize();
-    T_2.randomize();
-    proof_out.T1 = NextGenPrimitives<Exponent, GroupElement>::commit(g, t1, h, T_1);
-    proof_out.T2 = NextGenPrimitives<Exponent, GroupElement>::commit(g, t2, h, T_2);
+    //computing T11 T12 T21 T22;
+    Exponent T_11, T_12, T_21, T_22;
+    T_11.randomize();
+    T_12.randomize();
+    T_21.randomize();
+    T_22.randomize();
+    proof_out.T1 = NextGenPrimitives<Exponent, GroupElement>::double_commit(g, t1, h1, T_11, h2, T_21);
+    proof_out.T2 = NextGenPrimitives<Exponent, GroupElement>::double_commit(g, t2, h1, T_12, h2, T_22);
 
     Exponent x;
     NextGenPrimitives<Exponent, GroupElement>::get_x(proof_out.T1, proof_out.T2, x);
@@ -206,7 +111,8 @@ void RangeProver<Exponent, GroupElement>::batch_proof(
         r.push_back(r_x[i][0] + r_x[i][1] * x);
     }
 
-    proof_out.T_x = T_2 * x.square() + T_1 * x + z_sum;
+    proof_out.T_x1 = T_12 * x.square() + T_11 * x + z_sum1;
+    proof_out.T_x2 = T_22 * x.square() + T_21 * x + z_sum2;
     proof_out.u = alpha + ro * x;
 
     //compute h'

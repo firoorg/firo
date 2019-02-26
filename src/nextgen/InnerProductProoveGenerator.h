@@ -35,17 +35,6 @@ private:
             const std::vector<Exponent>& b,
             InnerProductProof<Exponent, GroupElement>& proof_out);
 
-//    void hash(typename std::vector<Exponent>::const_iterator a1_start,
-//              typename std::vector<Exponent>::const_iterator a1_end,
-//              typename std::vector<Exponent>::const_iterator a2_start,
-//              typename std::vector<Exponent>::const_iterator a2_end,
-//              typename std::vector<Exponent>::const_iterator b1_start,
-//              typename std::vector<Exponent>::const_iterator b1_end,
-//              typename std::vector<Exponent>::const_iterator b2_start,
-//              typename std::vector<Exponent>::const_iterator b2_end,
-//              const Exponent& c,
-//              GroupElement& result_out);
-
     void l(typename std::vector<Exponent>::const_iterator a_start,
            typename std::vector<Exponent>::const_iterator a_end,
            typename std::vector<Exponent>::const_iterator b_start,

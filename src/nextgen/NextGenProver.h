@@ -3,7 +3,7 @@
 
 #include "SchnorrProver.h"
 #include "SigmaPlusProver.h"
-#include "NextGenPrimitives.h"
+#include "RangeProver.h"
 #include "Coin.h"
 
 namespace nextgen {
@@ -11,6 +11,7 @@ namespace nextgen {
 class NextGenProver {
 public:
     NextGenProver(const Params* p);
+    //c is anonymity set of public coins
     void proof(
             const std::vector <PublicCoin>& c,
             const Scalar& Vin,
@@ -28,6 +29,10 @@ private:
             const std::vector<uint64_t>& indexes,
             Scalar& x,
             std::vector<SigmaPlusProof<Scalar, GroupElement>>& sigma_proofs);
+
+    void generate_bulletproofs(
+            const std::vector <PrivateCoin>& Cout,
+            RangeProof<Scalar, GroupElement>& bulletproofs);
 
 private:
     const Params* params;

@@ -13,25 +13,46 @@ bool NextGenVerifier::verify(
         const Scalar f,
         const std::vector<PublicCoin>& Cout,
         const NextGenProof& proof){
+    //sigma verification
     const std::vector<SigmaPlusProof<Scalar, GroupElement>>& sigma_proofs = proof.sigma_proofs;
     Scalar x;
     NextGenPrimitives<Scalar, GroupElement>::get_x(sigma_proofs, x);
     SigmaPlusVerifier<Scalar, GroupElement> sigmaVerifier(params->get_g(), params->get_h(), params->get_n(), params->get_m());
     Scalar zV, zR;
+
+    std::vector<GroupElement> C_;
     for(int i = 0; i < sigma_proofs.size(); ++i){
-        GroupElement gs = params->get_g() * Sin[i].negate();
-        std::vector<GroupElement> C_;
         C_.reserve(c.size());
         for(int j = 0; j < c.size(); ++j)
-            C_.emplace_back(c[j].getValue() + gs);
-        if(!sigmaVerifier.verify(C_, x, sigma_proofs[i]))
-            return false;
+            C_.emplace_back(c[j].getValue());
         zV += sigma_proofs[i].zV_;
         zR += sigma_proofs[i].zR_;
     }
 
-    GroupElement A;
+    if(!sigmaVerifier.batchverify(C_, x, Sin, sigma_proofs))
+        return false;
 
+    //range proof verification
+    int n = params->get_bulletproofs_n();
+    int m = Cout.size();
+    std::vector<GroupElement> g_, h_;
+    g_.reserve(n * m);
+    h_.reserve(n * m);
+    for(int i = 0; i < n * m; ++i ){
+        g_.push_back(params->get_bulletproofs_g()[i]);
+        h_.push_back(params->get_bulletproofs_h()[i]);
+    }
+    std::vector<GroupElement> V;
+    V.reserve(Cout.size());
+    for(int i = 0; i < Cout.size(); ++i)
+        V.push_back(Cout[i].getValue());
+
+    RangeVerifier<Scalar, GroupElement> rangeVerifier(params->get_h0(), params->get_h1(), params->get_g(), g_, h_, n);
+    if(!rangeVerifier.verify_batch(V, proof.bulletproofs))
+        return false;
+
+    //schnorr proof verification
+    GroupElement A;
     for(int i = 0; i < Cout.size(); ++i)
         A += Cout[i].getValue();
     if(Cout.size() > 0)

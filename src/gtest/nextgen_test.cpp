@@ -10,7 +10,7 @@ TEST(nextgen_test, proof_verify)
     int N = 1;
 
     std::vector <PrivateCoin> Cin;
-    Scalar v1(uint64_t(1));
+    Scalar v1(uint64_t(5));
     PrivateCoin input_coin1(params ,v1);
     Cin.push_back(input_coin1);
     std::vector <uint64_t> indexes;
@@ -24,11 +24,10 @@ TEST(nextgen_test, proof_verify)
      }
 
     Scalar Vin(uint64_t(5));
-    Scalar Vout(uint64_t(5));
+    Scalar Vout(uint64_t(6));
     std::vector <PrivateCoin> Cout;
-//    Cout.push_back(PrivateCoin(params ,Scalar(uint64_t(2))));
-//    Cout.push_back(PrivateCoin(params ,Scalar(uint64_t(1))));
-//    Cout.push_back(PrivateCoin(params ,Scalar(uint64_t(1))));
+    Cout.push_back(PrivateCoin(params ,Scalar(uint64_t(2))));
+    Cout.push_back(PrivateCoin(params ,Scalar(uint64_t(1))));
     Scalar f(uint64_t(1));
 
     NextGenProof proof;

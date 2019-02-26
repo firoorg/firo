@@ -26,6 +26,7 @@ void NextGenProver::proof(
         throw "Input and output are not equal";
     Scalar x;
     generate_sigma_proofs(c, Cin, indexes, x, proof_out.sigma_proofs);
+    generate_bulletproofs(Cout, proof_out.bulletproofs);
     Scalar X_;
     Scalar So;
     Scalar Ro;
@@ -89,6 +90,35 @@ void NextGenProver::generate_sigma_proofs(
         const Scalar& r = Cin[i].getRandomness();
         sigmaProver.sigma_response(sigma[i], a[i], rA[i], rB[i], rC[i], rD[i], v, r, Tk[i], Pk[i], x, sigma_proofs[i]);
     }
+}
+
+void NextGenProver::generate_bulletproofs(
+        const std::vector <PrivateCoin>& Cout,
+        RangeProof<Scalar, GroupElement>& bulletproofs){
+    std::vector<secp_primitives::Scalar> v_s, serials, randoms;
+    int n = params->get_bulletproofs_n();
+    int m = Cout.size();
+    v_s.reserve(m);
+    serials.reserve(m);
+    randoms.reserve(m);
+    for(int i = 0; i < m; ++i){
+        v_s.push_back(Cout[i].getPublicCoin().get_v());
+        serials.push_back(Cout[i].getSerialNumber());
+        randoms.push_back(Cout[i].getRandomness());
+    }
+
+    std::vector<GroupElement> g_, h_;
+    g_.reserve(n * m);
+    h_.reserve(n * m);
+
+    for(int i = 0; i < n * m; ++i ){
+        g_.push_back(params->get_bulletproofs_g()[i]);
+        h_.push_back(params->get_bulletproofs_h()[i]);
+    }
+
+    RangeProver<Scalar, GroupElement> rangeProver(params->get_h0(), params->get_h1(), params->get_g(), g_, h_, n);
+    rangeProver.batch_proof(v_s, serials, randoms, bulletproofs);
+
 }
 
 }//namespace nextgen

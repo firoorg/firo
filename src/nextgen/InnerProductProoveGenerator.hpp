@@ -78,31 +78,6 @@ void InnerProductProoveGenerator<Exponent, GroupElement>::generate_proof_util(
     InnerProductProoveGenerator(g_p, h_p, u_, p_p).generate_proof_util(a_p, b_p, proof_out);
 }
 
-//template <class Exponent, class GroupElement>
-//void InnerProductProoveGenerator<Exponent, GroupElement>::hash(
-//        typename std::vector<Exponent>::const_iterator a1_start,
-//        typename std::vector<Exponent>::const_iterator a1_end,
-//        typename std::vector<Exponent>::const_iterator a2_start,
-//        typename std::vector<Exponent>::const_iterator a2_end,
-//        typename std::vector<Exponent>::const_iterator b1_start,
-//        typename std::vector<Exponent>::const_iterator b1_end,
-//        typename std::vector<Exponent>::const_iterator b2_start,
-//        typename std::vector<Exponent>::const_iterator b2_end,
-//        const Exponent& c,
-//        GroupElement& result_out) {
-//    GroupElement g1, g2, h1, h2, uc;
-//
-//    g_.get_vector_multiple(0, g_.size()/2, a1_start, a1_end, g1);
-//    g_.get_vector_multiple(g_.size() / 2, g_.size(), a2_start, a2_end, g2);
-//
-//    h_.get_vector_multiple(0, h_.size() / 2, b1_start, b1_end, h1);
-//    h_.get_vector_multiple(h_.size() / 2, h_.size(), b2_start, b2_end, h2);
-//
-//    uc = u_ * c;
-//
-//    result_out = g1 + g2 + h1 + h2 + uc;
-//}
-
 template <class Exponent, class GroupElement>
 void InnerProductProoveGenerator<Exponent, GroupElement>::compute_P(
         typename std::vector<Exponent>::const_iterator a_start,

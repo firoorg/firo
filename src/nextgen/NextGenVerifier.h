@@ -3,6 +3,7 @@
 
 #include "SchnorrVerifier.h"
 #include "SigmaPlusVerifier.h"
+#include "RangeVerifier.h"
 #include "NextGenPrimitives.h"
 #include "Coin.h"
 namespace nextgen {
