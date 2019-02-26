@@ -1295,13 +1295,12 @@ public:
             if (!is_eof(s)) {
                 int nStoredVersion = 0;
                 READWRITE(nStoredVersion);
-//                if (nStoredVersion >= ZC_ADVANCED_WALLETDB_MINT_VERSION)
-//                    READWRITE(ecdsaSecretKey);
+                READWRITE(ecdsaSecretKey);
             }
         }
         else {
             READWRITE(nVersion);
-//            READWRITE(ecdsaSecretKey);
+            READWRITE(ecdsaSecretKey);
         }
     }
 private:
