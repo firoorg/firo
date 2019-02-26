@@ -5,9 +5,12 @@
 #include <libzerocoin/sigma/R1Proof.h>
 #include <libzerocoin/sigma/R1ProofGenerator.h>
 #include <libzerocoin/sigma/SigmaPrimitives.h>
+
 using  namespace secp_primitives;
 using  namespace sigma;
+
 namespace {
+
 struct sigma_unit_tests_fixture {
     // struct sigma_unit_tests_fixture : public TestingSetup {
     // sigma_unit_tests_fixture() = default;

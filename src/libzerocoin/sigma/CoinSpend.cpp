@@ -111,7 +111,8 @@ bool CoinSpendV3::Verify(
     }
 
     // Recompute and compare hash of public key
-    if (coinSerialNumber != PrivateCoinV3::serialNumberFromSerializedPublicKey(OpenSSLContext::get_context(), &pubkey)) {
+    Scalar coinSerialNumberExpected = PrivateCoinV3::serialNumberFromSerializedPublicKey(OpenSSLContext::get_context(), &pubkey);
+    if (coinSerialNumber != coinSerialNumberExpected) {
         return false;
     }
 

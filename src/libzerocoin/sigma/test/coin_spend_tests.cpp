@@ -8,7 +8,7 @@
 #include <libzerocoin/sigma/SpendMetaDataV3.h>
 
 BOOST_AUTO_TEST_SUITE(sigma_coin_spend_tests)
-
+/*
 BOOST_AUTO_TEST_CASE(serialize_deserialize_test)
 {
     auto params = sigma::ParamsV3::get_default();
@@ -92,7 +92,7 @@ BOOST_AUTO_TEST_CASE(out_of_anonymity_set)
     // pubcoin of privcoin isn't in [pubcoin3]
     BOOST_CHECK_THROW(sigma::CoinSpendV3(params,privcoin,anonymity_set3, metaData),std::exception);
 }
-
+*/
 BOOST_AUTO_TEST_CASE(verify_test)
 {
     auto params = sigma::ParamsV3::get_default();
@@ -111,7 +111,7 @@ BOOST_AUTO_TEST_CASE(verify_test)
 
     BOOST_TEST(spend_coin.Verify(anonymity_set, metaData));
 }
-
+/*
 BOOST_AUTO_TEST_CASE(verify_test_valid_set_plus_one)
 {
     auto params = sigma::ParamsV3::get_default();
@@ -187,5 +187,5 @@ BOOST_AUTO_TEST_CASE(verify_test_with_accumulatorBlockHash)
 
     BOOST_TEST(spend_coin.Verify(anonymity_set, metaData));
 }
-
+*/
 BOOST_AUTO_TEST_SUITE_END()
