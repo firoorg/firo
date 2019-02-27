@@ -98,6 +98,8 @@ TestingSetup::~TestingSetup()
         delete pcoinsTip;
         delete pcoinsdbview;
         delete pblocktree;
+        delete pwalletMain;
+        pwalletMain = NULL;
 	try {
 		boost::filesystem::remove_all(pathTemp);
 	}
