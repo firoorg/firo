@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
-#include <nextgen/RangeProver.h>
-#include <nextgen/RangeVerifier.h>
+#include <liblelantus/RangeProver.h>
+#include <liblelantus/RangeVerifier.h>
 
 TEST(RangeProofTests, Proof_verify_batch)
 {
@@ -34,10 +34,10 @@ TEST(RangeProofTests, Proof_verify_batch)
         V.push_back(g_gen * v +  h_gen1 * random + h_gen2 * serial);
     }
 
-    nextgen::RangeProver<secp_primitives::Scalar, secp_primitives::GroupElement> rangeProver(g_gen, h_gen1, h_gen2, g_, h_, n);
-    nextgen::RangeProof<secp_primitives::Scalar, secp_primitives::GroupElement> proof;
+    lelantus::RangeProver<secp_primitives::Scalar, secp_primitives::GroupElement> rangeProver(g_gen, h_gen1, h_gen2, g_, h_, n);
+    lelantus::RangeProof<secp_primitives::Scalar, secp_primitives::GroupElement> proof;
     rangeProver.batch_proof(v_s, serials, randoms, proof);
 
-    nextgen::RangeVerifier<secp_primitives::Scalar, secp_primitives::GroupElement> rangeVerifier(g_gen, h_gen1, h_gen2, g_, h_, n);
+    lelantus::RangeVerifier<secp_primitives::Scalar, secp_primitives::GroupElement> rangeVerifier(g_gen, h_gen1, h_gen2, g_, h_, n);
     EXPECT_TRUE(rangeVerifier.verify_batch(V, proof));
 }

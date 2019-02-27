@@ -6,7 +6,7 @@ gtest_sigma_plus_test_SOURCES = \
 
 gtest_sigma_plus_test_CPPFLAGS = $(AM_CPPFLAGS) -DBINARY_OUTPUT -DCURVE_ALT_BN128 -DSTATIC $(BITCOIN_INCLUDES)
 gtest_sigma_plus_test_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-gtest_sigma_plus_test_LDADD = -lgtest  -lgmock $(BOOST_LIBS) $(BOOST_UNIT_TEST_FRAMEWORK_LIB) $(LIBNEXTGEN) $(LIBSECP256K1) -lcrypto $(SSL_LIBS)   $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO)  -lgmp
+gtest_sigma_plus_test_LDADD = -lgtest  -lgmock $(BOOST_LIBS) $(BOOST_UNIT_TEST_FRAMEWORK_LIB) $(LIBLELANTUS) $(LIBSECP256K1) -lcrypto $(SSL_LIBS)   $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO)  -lgmp
 
 TESTS += sigma_perform_test
 noinst_PROGRAMS += gtest/sigma_perform_test
@@ -15,7 +15,7 @@ gtest_sigma_perform_test_SOURCES = \
 
 gtest_sigma_perform_test_CPPFLAGS = $(AM_CPPFLAGS) -DBINARY_OUTPUT -DCURVE_ALT_BN128 -DSTATIC $(BITCOIN_INCLUDES)
 gtest_sigma_perform_test_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-gtest_sigma_perform_test_LDADD = -lgtest  -lgmock $(BOOST_LIBS) $(BOOST_UNIT_TEST_FRAMEWORK_LIB) $(LIBNEXTGEN) $(LIBSECP256K1) $(SSL_LIBS) -lcrypto  $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO)  -lgmp
+gtest_sigma_perform_test_LDADD = -lgtest  -lgmock $(BOOST_LIBS) $(BOOST_UNIT_TEST_FRAMEWORK_LIB) $(LIBLELANTUS) $(LIBSECP256K1) $(SSL_LIBS) -lcrypto  $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO)  -lgmp
 
 TESTS += sigma_perform_test
 noinst_PROGRAMS += gtest/sigma_batch_verify_perform_test
@@ -24,7 +24,7 @@ gtest_sigma_batch_verify_perform_test_SOURCES = \
 
 gtest_sigma_batch_verify_perform_test_CPPFLAGS = $(AM_CPPFLAGS) -DBINARY_OUTPUT -DCURVE_ALT_BN128 -DSTATIC $(BITCOIN_INCLUDES)
 gtest_sigma_batch_verify_perform_test_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-gtest_sigma_batch_verify_perform_test_LDADD = -lgtest  -lgmock $(BOOST_LIBS) $(BOOST_UNIT_TEST_FRAMEWORK_LIB) $(LIBNEXTGEN) $(LIBSECP256K1) $(SSL_LIBS) -lcrypto  $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO)  -lgmp
+gtest_sigma_batch_verify_perform_test_LDADD = -lgtest  -lgmock $(BOOST_LIBS) $(BOOST_UNIT_TEST_FRAMEWORK_LIB) $(LIBLELANTUS) $(LIBSECP256K1) $(SSL_LIBS) -lcrypto  $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO)  -lgmp
 
 TESTS += sigma_serialize_test
 noinst_PROGRAMS += gtest/sigma_serialize_test
@@ -34,7 +34,7 @@ gtest_sigma_serialize_test_SOURCES = \
 
 gtest_sigma_serialize_test_CPPFLAGS = $(AM_CPPFLAGS) -DBINARY_OUTPUT -DCURVE_ALT_BN128 -DSTATIC $(BITCOIN_INCLUDES)
 gtest_sigma_serialize_test_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-gtest_sigma_serialize_test_LDADD = -lgtest  -lgmock $(BOOST_LIBS) $(BOOST_UNIT_TEST_FRAMEWORK_LIB) $(LIBNEXTGEN) $(LIBSECP256K1) $(SSL_LIBS) -lcrypto  $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO)  -lgmp
+gtest_sigma_serialize_test_LDADD = -lgtest  -lgmock $(BOOST_LIBS) $(BOOST_UNIT_TEST_FRAMEWORK_LIB) $(LIBLELANTUS) $(LIBSECP256K1) $(SSL_LIBS) -lcrypto  $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO)  -lgmp
 
 TESTS += schnorr_test
 noinst_PROGRAMS += gtest/schnorr_test
@@ -44,17 +44,17 @@ gtest_schnorr_test_SOURCES = \
 
 gtest_schnorr_test_CPPFLAGS = $(AM_CPPFLAGS) -DBINARY_OUTPUT -DCURVE_ALT_BN128 -DSTATIC $(BITCOIN_INCLUDES)
 gtest_schnorr_test_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-gtest_schnorr_test_LDADD = -lgtest  -lgmock $(BOOST_LIBS) $(BOOST_UNIT_TEST_FRAMEWORK_LIB) $(LIBNEXTGEN) $(LIBSECP256K1) $(SSL_LIBS) -lcrypto  $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO)  -lgmp
+gtest_schnorr_test_LDADD = -lgtest  -lgmock $(BOOST_LIBS) $(BOOST_UNIT_TEST_FRAMEWORK_LIB) $(LIBLELANTUS) $(LIBSECP256K1) $(SSL_LIBS) -lcrypto  $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO)  -lgmp
 
-TESTS += nextgen_test
-noinst_PROGRAMS += gtest/nextgen_test
-gtest_nextgen_test_SOURCES = \
+TESTS += lelantus_test
+noinst_PROGRAMS += gtest/lelantus_test
+gtest_lelantus_test_SOURCES = \
 	gtest/main.cpp \
-	gtest/nextgen_test.cpp
+	gtest/lelantus_test.cpp
 
-gtest_nextgen_test_CPPFLAGS = $(AM_CPPFLAGS) -DBINARY_OUTPUT -DCURVE_ALT_BN128 -DSTATIC $(BITCOIN_INCLUDES)
-gtest_nextgen_test_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-gtest_nextgen_test_LDADD = -lgtest  -lgmock $(BOOST_LIBS) $(BOOST_UNIT_TEST_FRAMEWORK_LIB) $(LIBNEXTGEN) $(LIBSECP256K1) $(SSL_LIBS) -lcrypto  $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO)  -lgmp
+gtest_lelantus_test_CPPFLAGS = $(AM_CPPFLAGS) -DBINARY_OUTPUT -DCURVE_ALT_BN128 -DSTATIC $(BITCOIN_INCLUDES)
+gtest_lelantus_test_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+gtest_lelantus_test_LDADD = -lgtest  -lgmock $(BOOST_LIBS) $(BOOST_UNIT_TEST_FRAMEWORK_LIB) $(LIBLELANTUS) $(LIBSECP256K1) $(SSL_LIBS) -lcrypto  $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO)  -lgmp
 
 TESTS += inner_product_test
 noinst_PROGRAMS += gtest/inner_product_test
@@ -64,7 +64,7 @@ gtest_inner_product_test_SOURCES = \
 
 gtest_inner_product_test_CPPFLAGS = $(AM_CPPFLAGS) -DBINARY_OUTPUT -DCURVE_ALT_BN128 -DSTATIC $(BITCOIN_INCLUDES)
 gtest_inner_product_test_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-gtest_inner_product_test_LDADD = -lgtest  -lgmock $(BOOST_LIBS) $(BOOST_UNIT_TEST_FRAMEWORK_LIB) $(LIBNEXTGEN) $(LIBSECP256K1) $(SSL_LIBS) -lcrypto  $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO)  -lgmp
+gtest_inner_product_test_LDADD = -lgtest  -lgmock $(BOOST_LIBS) $(BOOST_UNIT_TEST_FRAMEWORK_LIB) $(LIBLELANTUS) $(LIBSECP256K1) $(SSL_LIBS) -lcrypto  $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO)  -lgmp
 
 TESTS += range_proof_test
 noinst_PROGRAMS += gtest/range_proof_test
@@ -74,7 +74,7 @@ gtest_range_proof_test_SOURCES = \
 
 gtest_range_proof_test_CPPFLAGS = $(AM_CPPFLAGS) -DBINARY_OUTPUT -DCURVE_ALT_BN128 -DSTATIC $(BITCOIN_INCLUDES)
 gtest_range_proof_test_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-gtest_range_proof_test_LDADD = -lgtest  -lgmock $(BOOST_LIBS) $(BOOST_UNIT_TEST_FRAMEWORK_LIB) $(LIBNEXTGEN) $(LIBSECP256K1) $(SSL_LIBS) -lcrypto  $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO)  -lgmp
+gtest_range_proof_test_LDADD = -lgtest  -lgmock $(BOOST_LIBS) $(BOOST_UNIT_TEST_FRAMEWORK_LIB) $(LIBLELANTUS) $(LIBSECP256K1) $(SSL_LIBS) -lcrypto  $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO)  -lgmp
 
 TESTS += bulletproofs_perform_test
 noinst_PROGRAMS += gtest/bulletproofs_perform_test
@@ -83,4 +83,4 @@ gtest_bulletproofs_perform_test_SOURCES = \
 
 gtest_bulletproofs_perform_test_CPPFLAGS = $(AM_CPPFLAGS) -DBINARY_OUTPUT -DCURVE_ALT_BN128 -DSTATIC $(BITCOIN_INCLUDES)
 gtest_bulletproofs_perform_test_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-gtest_bulletproofs_perform_test_LDADD = -lgtest  -lgmock $(BOOST_LIBS) $(BOOST_UNIT_TEST_FRAMEWORK_LIB) $(LIBNEXTGEN) $(LIBSECP256K1) $(SSL_LIBS) -lcrypto  $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO)  -lgmp
+gtest_bulletproofs_perform_test_LDADD = -lgtest  -lgmock $(BOOST_LIBS) $(BOOST_UNIT_TEST_FRAMEWORK_LIB) $(LIBNLELANTUS) $(LIBSECP256K1) $(SSL_LIBS) -lcrypto  $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO)  -lgmp

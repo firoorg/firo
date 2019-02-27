@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
-#include <nextgen/SigmaPlusProver.h>
-#include <nextgen/SigmaPlusVerifier.h>
+#include <liblelantus/SigmaPlusProver.h>
+#include <liblelantus/SigmaPlusVerifier.h>
 
 #include <stdio.h>
 
@@ -74,14 +74,14 @@ TEST(sigma_serialize_tests, proof_serialize)
     secp_primitives::Scalar v, r;
     v.randomize();
     r.randomize();
-    nextgen::SigmaPlusProver<secp_primitives::Scalar,secp_primitives::GroupElement> prover(g,h_gens, n, m);
+    lelantus::SigmaPlusProver<secp_primitives::Scalar,secp_primitives::GroupElement> prover(g,h_gens, n, m);
 
     std::vector<secp_primitives::GroupElement> commits;
     for(int i = 0; i < N; ++i){
         if(i == index){
             secp_primitives::GroupElement c;
             secp_primitives::Scalar zero(uint64_t(0));
-            c = nextgen::NextGenPrimitives<secp_primitives::Scalar,secp_primitives::GroupElement>::double_commit(g, zero, h_gens[0], v, h_gens[1], r);
+            c = lelantus::LelantusPrimitives<secp_primitives::Scalar,secp_primitives::GroupElement>::double_commit(g, zero, h_gens[0], v, h_gens[1], r);
             commits.push_back(c);
 
         }
@@ -91,13 +91,13 @@ TEST(sigma_serialize_tests, proof_serialize)
         }
     }
 
-    nextgen::SigmaPlusProof<secp_primitives::Scalar,secp_primitives::GroupElement> initial_proof;
+    lelantus::SigmaPlusProof<secp_primitives::Scalar,secp_primitives::GroupElement> initial_proof;
 
     prover.proof(commits, index, v, r, initial_proof);
 
     unsigned char buffer [initial_proof.memoryRequired()];
     initial_proof.serialize(buffer);
-    nextgen::SigmaPlusProof<secp_primitives::Scalar,secp_primitives::GroupElement> resulted_proof;
+    lelantus::SigmaPlusProof<secp_primitives::Scalar,secp_primitives::GroupElement> resulted_proof;
     resulted_proof.deserialize(buffer, n, m);
 
     EXPECT_EQ(initial_proof.B_, resulted_proof.B_);

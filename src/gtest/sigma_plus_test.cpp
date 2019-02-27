@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
-#include <nextgen/SigmaPlusProver.h>
-#include <nextgen/SigmaPlusVerifier.h>
+#include <liblelantus/SigmaPlusProver.h>
+#include <liblelantus/SigmaPlusVerifier.h>
 
 TEST(test_1_out_of_N, proof_verify)
 {
@@ -20,14 +20,14 @@ TEST(test_1_out_of_N, proof_verify)
     secp_primitives::Scalar v, r;
     v.randomize();
     r.randomize();
-    nextgen::SigmaPlusProver<secp_primitives::Scalar,secp_primitives::GroupElement> prover(g,h_gens, n, m);
+    lelantus::SigmaPlusProver<secp_primitives::Scalar,secp_primitives::GroupElement> prover(g,h_gens, n, m);
 
     std::vector<secp_primitives::GroupElement> commits;
     for(int i = 0; i < N; ++i){
         if(i == index){
             secp_primitives::GroupElement c;
             secp_primitives::Scalar zero(uint64_t(0));
-            c = nextgen::NextGenPrimitives<secp_primitives::Scalar,secp_primitives::GroupElement>::double_commit(g, zero, h_gens[0], v, h_gens[1], r);
+            c = lelantus::LelantusPrimitives<secp_primitives::Scalar,secp_primitives::GroupElement>::double_commit(g, zero, h_gens[0], v, h_gens[1], r);
             commits.push_back(c);
 
         }
@@ -37,11 +37,11 @@ TEST(test_1_out_of_N, proof_verify)
         }
     }
 
-    nextgen::SigmaPlusProof<secp_primitives::Scalar,secp_primitives::GroupElement> proof;
+    lelantus::SigmaPlusProof<secp_primitives::Scalar,secp_primitives::GroupElement> proof;
 
     prover.proof(commits, index, v, r, proof);
 
-    nextgen::SigmaPlusVerifier<secp_primitives::Scalar,secp_primitives::GroupElement> verifier(g, h_gens, n, m);
+    lelantus::SigmaPlusVerifier<secp_primitives::Scalar,secp_primitives::GroupElement> verifier(g, h_gens, n, m);
    EXPECT_TRUE(verifier.verify(commits, proof));
 
 }
@@ -65,14 +65,14 @@ TEST(test_1_out_of_N, proof_serialize_deserialize_verify)
     secp_primitives::Scalar v, r;
     v.randomize();
     r.randomize();
-    nextgen::SigmaPlusProver<secp_primitives::Scalar,secp_primitives::GroupElement> prover(g,h_gens, n, m);
+    lelantus::SigmaPlusProver<secp_primitives::Scalar,secp_primitives::GroupElement> prover(g,h_gens, n, m);
 
     std::vector<secp_primitives::GroupElement> commits;
     for(int i = 0; i < N; ++i){
         if(i == index){
             secp_primitives::GroupElement c;
             secp_primitives::Scalar zero(uint64_t(0));
-            c = nextgen::NextGenPrimitives<secp_primitives::Scalar,secp_primitives::GroupElement>::double_commit(g, zero, h_gens[0], v, h_gens[1], r);
+            c = lelantus::LelantusPrimitives<secp_primitives::Scalar,secp_primitives::GroupElement>::double_commit(g, zero, h_gens[0], v, h_gens[1], r);
             commits.push_back(c);
 
         }
@@ -82,14 +82,14 @@ TEST(test_1_out_of_N, proof_serialize_deserialize_verify)
         }
     }
 
-    nextgen::SigmaPlusProof<secp_primitives::Scalar,secp_primitives::GroupElement> proof;
+    lelantus::SigmaPlusProof<secp_primitives::Scalar,secp_primitives::GroupElement> proof;
 
     prover.proof(commits, index, v, r, proof);
     unsigned char data[proof.memoryRequired()];
     proof.serialize(data);
-    nextgen::SigmaPlusProof<secp_primitives::Scalar,secp_primitives::GroupElement> new_proof;
+    lelantus::SigmaPlusProof<secp_primitives::Scalar,secp_primitives::GroupElement> new_proof;
     new_proof.deserialize(data, n, m);
-    nextgen::SigmaPlusVerifier<secp_primitives::Scalar,secp_primitives::GroupElement> verifier(g, h_gens, n, m);
+    lelantus::SigmaPlusVerifier<secp_primitives::Scalar,secp_primitives::GroupElement> verifier(g, h_gens, n, m);
    EXPECT_TRUE(verifier.verify(commits, new_proof));
 
 }
@@ -108,7 +108,7 @@ TEST(test_1_out_of_N, batch_verify_test)
         h_gens[i].randomize();
     }
 
-    nextgen::SigmaPlusProver<secp_primitives::Scalar,secp_primitives::GroupElement> prover(g,h_gens, n, m);
+    lelantus::SigmaPlusProver<secp_primitives::Scalar,secp_primitives::GroupElement> prover(g,h_gens, n, m);
 
     std::vector<secp_primitives::GroupElement> commits;
     std::vector<secp_primitives::Scalar> serials;
@@ -127,7 +127,7 @@ TEST(test_1_out_of_N, batch_verify_test)
             indexes.push_back(i);
 
             secp_primitives::GroupElement c;
-            c = nextgen::NextGenPrimitives<secp_primitives::Scalar,secp_primitives::GroupElement>::double_commit(g, s, h_gens[0], v, h_gens[1], r);
+            c = lelantus::LelantusPrimitives<secp_primitives::Scalar,secp_primitives::GroupElement>::double_commit(g, s, h_gens[0], v, h_gens[1], r);
             commits.push_back(c);
         }
         else{
@@ -136,7 +136,7 @@ TEST(test_1_out_of_N, batch_verify_test)
         }
     }
 
-    std::vector<nextgen::SigmaPlusProof<secp_primitives::Scalar,secp_primitives::GroupElement>> proofs;
+    std::vector<lelantus::SigmaPlusProof<secp_primitives::Scalar,secp_primitives::GroupElement>> proofs;
     proofs.reserve(serials.size());
 
 
@@ -153,7 +153,7 @@ TEST(test_1_out_of_N, batch_verify_test)
     std::vector<std::vector<secp_primitives::Scalar>> a;
     a.resize(N);
     for(int i = 0; i < serials.size(); ++i){
-        nextgen::SigmaPlusProof<secp_primitives::Scalar,secp_primitives::GroupElement> proof;
+        lelantus::SigmaPlusProof<secp_primitives::Scalar,secp_primitives::GroupElement> proof;
         proofs.push_back(proof);
         std::vector<secp_primitives::GroupElement> commits_;
         secp_primitives::GroupElement gs = g * serials[i].negate();
@@ -171,11 +171,11 @@ TEST(test_1_out_of_N, batch_verify_test)
         prover.sigma_commit(commits_, indexes[i], rA[i], rB[i], rC[i], rD[i], a[i], Tk[i], Pk[i], sigma[i], proofs[i]);
     }
     secp_primitives::Scalar x;
-    nextgen::NextGenPrimitives<Scalar, GroupElement>::get_x(proofs, x);
+    lelantus::LelantusPrimitives<Scalar, GroupElement>::get_x(proofs, x);
 
     for(int i = 0; i < serials.size(); ++i)
         prover.sigma_response(sigma[i], a[i], rA[i], rB[i], rC[i], rD[i], v_[i], r_[i], Tk[i], Pk[i], x, proofs[i]);
 
-    nextgen::SigmaPlusVerifier<secp_primitives::Scalar,secp_primitives::GroupElement> verifier(g, h_gens, n, m);
+    lelantus::SigmaPlusVerifier<secp_primitives::Scalar,secp_primitives::GroupElement> verifier(g, h_gens, n, m);
     EXPECT_TRUE(verifier.batchverify(commits, x, serials, proofs));
 }

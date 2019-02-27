@@ -1,5 +1,5 @@
-#include <nextgen/SigmaPlusProver.h>
-#include <nextgen/SigmaPlusVerifier.h>
+#include <liblelantus/SigmaPlusProver.h>
+#include <liblelantus/SigmaPlusVerifier.h>
 #include <chrono>
 #include <ctime>
 
@@ -15,14 +15,14 @@ void test( int N, int n, int index){
     secp_primitives::Scalar v, r;
     v.randomize();
     r.randomize();
-    nextgen::SigmaPlusProver<secp_primitives::Scalar,secp_primitives::GroupElement> prover(g,h_gens, n, m);
+    lelantus::SigmaPlusProver<secp_primitives::Scalar,secp_primitives::GroupElement> prover(g,h_gens, n, m);
 
     std::vector<secp_primitives::GroupElement> commits;
     for(int i = 0; i < N; ++i){
         if(i == index){
             secp_primitives::GroupElement c;
             secp_primitives::Scalar zero(uint64_t(0));
-            c = nextgen::NextGenPrimitives<secp_primitives::Scalar,secp_primitives::GroupElement>::double_commit(g, zero, h_gens[0], v, h_gens[1], r);
+            c = lelantus::LelantusPrimitives<secp_primitives::Scalar,secp_primitives::GroupElement>::double_commit(g, zero, h_gens[0], v, h_gens[1], r);
             commits.push_back(c);
 
         }
@@ -34,7 +34,7 @@ void test( int N, int n, int index){
 
     std::clock_t proof_start = std::clock();
 
-    nextgen::SigmaPlusProof<secp_primitives::Scalar,secp_primitives::GroupElement> proof;
+    lelantus::SigmaPlusProof<secp_primitives::Scalar,secp_primitives::GroupElement> proof;
     prover.proof(commits, index, v, r, proof);
     std::cout <<"N = " << N << " n = " << n << "m = " <<m;
     std::cout << " Proof size  " << proof.memoryRequired() ;
@@ -44,7 +44,7 @@ void test( int N, int n, int index){
 
 
 
-    nextgen::SigmaPlusVerifier<secp_primitives::Scalar,secp_primitives::GroupElement> verifier(g, h_gens, n, m);
+    lelantus::SigmaPlusVerifier<secp_primitives::Scalar,secp_primitives::GroupElement> verifier(g, h_gens, n, m);
     std::clock_t verify_start = std::clock();
     verifier.verify(commits, proof);
 

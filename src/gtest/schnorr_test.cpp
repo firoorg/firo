@@ -1,9 +1,9 @@
 #include <gtest/gtest.h>
-#include <nextgen/SchnorrProof.h>
-#include <nextgen/SchnorrProver.h>
-#include <nextgen/SchnorrVerifier.h>
+#include <liblelantus/SchnorrProof.h>
+#include <liblelantus/SchnorrProver.h>
+#include <liblelantus/SchnorrVerifier.h>
 using  namespace secp_primitives;
-using  namespace nextgen;
+using  namespace lelantus;
 
 TEST(schnorr_test, proof_verify)
 {
@@ -13,7 +13,7 @@ TEST(schnorr_test, proof_verify)
     Scalar P, T;
     P.randomize();
     T.randomize();
-    GroupElement y = NextGenPrimitives<Scalar, GroupElement>::commit(g, P, h, T);
+    GroupElement y = LelantusPrimitives<Scalar, GroupElement>::commit(g, P, h, T);
     SchnorrProver<Scalar, GroupElement> prover(g, h);
     SchnorrProof<Scalar, GroupElement> proof;
     prover.proof(P, T, proof);
@@ -29,7 +29,7 @@ TEST(schnorr_test, proof_serialize_deserialize_verify)
     Scalar P, T;
     P.randomize();
     T.randomize();
-    GroupElement y = NextGenPrimitives<Scalar, GroupElement>::commit(g, P, h, T);
+    GroupElement y = LelantusPrimitives<Scalar, GroupElement>::commit(g, P, h, T);
     SchnorrProver<Scalar, GroupElement> prover(g, h);
     SchnorrProof<Scalar, GroupElement> proof;
     prover.proof(P, T, proof);

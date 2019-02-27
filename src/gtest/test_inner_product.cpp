@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
-#include <nextgen/InnerProductProoveGenerator.h>
-#include <nextgen/InnerProductProofVerifier.h>
+#include <liblelantus/InnerProductProoveGenerator.h>
+#include <liblelantus/InnerProductProofVerifier.h>
 
 void generate(
         int n,
@@ -48,14 +48,14 @@ TEST(InnerProductProoveGeneratorTest, proof_verify)
     secp_primitives::Scalar x;
     x.randomize();
     //    //creating proof genertor
-    nextgen::InnerProductProoveGenerator<secp_primitives::Scalar, secp_primitives::GroupElement> prooveGenerator(g_, h_, u_);
+    lelantus::InnerProductProoveGenerator<secp_primitives::Scalar, secp_primitives::GroupElement> prooveGenerator(g_, h_, u_);
 
     //////    //generating proof
-    nextgen::InnerProductProof<secp_primitives::Scalar, secp_primitives::GroupElement> proof;
+    lelantus::InnerProductProof<secp_primitives::Scalar, secp_primitives::GroupElement> proof;
     prooveGenerator.generate_proof(a, b, x, proof);
 
     ////    //create verifier
-    nextgen::InnerProductProofVerifier<secp_primitives::Scalar, secp_primitives::GroupElement> verifier(g_, h_, u_, prooveGenerator.get_P());
+    lelantus::InnerProductProofVerifier<secp_primitives::Scalar, secp_primitives::GroupElement> verifier(g_, h_, u_, prooveGenerator.get_P());
 
     EXPECT_TRUE(verifier.verify(x, proof));
 
@@ -77,16 +77,16 @@ TEST(InnerProductProoveGeneratorTest, fake_proof_notVerify)
     secp_primitives::Scalar x;
     x.randomize();
     //    //creating proof genertor
-    nextgen::InnerProductProoveGenerator<secp_primitives::Scalar, secp_primitives::GroupElement> prooveGenerator(g_, h_, u_);
+    lelantus::InnerProductProoveGenerator<secp_primitives::Scalar, secp_primitives::GroupElement> prooveGenerator(g_, h_, u_);
 
     //////    //generating proof
-    nextgen::InnerProductProof<secp_primitives::Scalar, secp_primitives::GroupElement> proof;
+    lelantus::InnerProductProof<secp_primitives::Scalar, secp_primitives::GroupElement> proof;
     prooveGenerator.generate_proof(a, b, x, proof);
 
     ////    //create verifier with fake P
     secp_primitives::GroupElement P;
     P.randomize();
-    nextgen::InnerProductProofVerifier<secp_primitives::Scalar, secp_primitives::GroupElement> verifier(g_, h_, u_, P);
+    lelantus::InnerProductProofVerifier<secp_primitives::Scalar, secp_primitives::GroupElement> verifier(g_, h_, u_, P);
 
     EXPECT_FALSE(verifier.verify(x, proof));
 
