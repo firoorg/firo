@@ -1243,7 +1243,7 @@ public:
 
     // Signature over partial transaction 
     // to make sure the outputs are not changed by attacker.
-    vector<unsigned char> ecdsaSecretKey;
+    std::vector<unsigned char> ecdsaSecretKey;
 
     bool IsUsed;
     int nHeight;

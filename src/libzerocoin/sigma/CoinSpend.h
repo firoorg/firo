@@ -53,7 +53,7 @@ public:
 
 /*
     template<typename Stream>
-    inline void Serialize(Stream& s, int nType, int nVersion) const {
+    void Serialize(Stream& s, int nType, int nVersion) const {
         int size = sigmaProof.memoryRequired() + coinSerialNumber.memoryRequired();
         std::vector<unsigned char> buffer;
         buffer.resize(size + sizeof(uint32_t) + sizeof(int32_t) + sizeof(uint256));
@@ -83,7 +83,7 @@ public:
     }
 
     template<typename Stream>
-    inline void Unserialize(Stream& s, int nType, int nVersion) {
+    void Unserialize(Stream& s, int nType, int nVersion) {
         int size = sigmaProof.memoryRequired() + coinSerialNumber.memoryRequired();
         std::vector<unsigned char> buffer;
         buffer.resize(size + sizeof(uint32_t) + sizeof(int32_t) + sizeof(uint256));
@@ -114,7 +114,7 @@ public:
 
     ADD_SERIALIZE_METHODS;
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+    void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
         READWRITE(sigmaProof);
         READWRITE(coinSerialNumber);
         READWRITE(version);
@@ -132,7 +132,7 @@ public:
         READWRITE(ecdsaSignature);
     }
     
-    const uint256 signatureHash(const SpendMetaDataV3& m) const;
+    uint256 signatureHash(const SpendMetaDataV3& m) const;
 
 private:
     const ParamsV3* params;

@@ -21,7 +21,7 @@ public:
     // Copy constructor
     Scalar(const Scalar& other);
 
-    Scalar(const char* str);
+    Scalar(const unsigned char* str);
 
     ~Scalar();
 

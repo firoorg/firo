@@ -16,9 +16,13 @@ public:
 	/**
 	 * Creates meta data associated with a coin spend
 	 * @param accumulatorId Number of the coingroup, in which this spend happens.
-	 * @param txHash hash of transaction
+	 * @param blockHash hash of the block against which the spend is made.
+	 * @param txHash hash of transaction.
 	 */
-    SpendMetaDataV3(arith_uint256 accumulatorId, uint256 blockHash, uint256 txHash);
+    SpendMetaDataV3(
+        const arith_uint256& accumulatorId,
+        const uint256& blockHash,
+        const uint256& txHash);
 
 
     // Coin group ID to which the coin being spent belongs to.

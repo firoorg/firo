@@ -83,15 +83,15 @@ public:
     const Scalar& getRandomness() const;
     unsigned int getVersion() const;
     void setPublicCoin(const PublicCoinV3& p);
-    void setRandomness(Scalar n);
-    void setSerialNumber(Scalar n);
+    void setRandomness(const Scalar& n);
+    void setSerialNumber(const Scalar& n);
     void setVersion(unsigned int nVersion);
     const unsigned char* getEcdsaSeckey() const;
 
-    void setEcdsaSeckey(const vector<unsigned char> &seckey); 
+    void setEcdsaSeckey(const std::vector<unsigned char> &seckey); 
 
-    static const Scalar serialNumberFromSerializedPublicKey(
-        secp256k1_context *context,
+    static Scalar serialNumberFromSerializedPublicKey(
+        const secp256k1_context *context,
         secp256k1_pubkey *pubkey);
 
 private:

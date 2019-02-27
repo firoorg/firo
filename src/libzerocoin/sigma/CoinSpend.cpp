@@ -74,7 +74,7 @@ CoinSpendV3::CoinSpendV3(
         OpenSSLContext::get_context(), &this->ecdsaSignature[0], &sig);
 }
 
-const uint256 CoinSpendV3::signatureHash(const SpendMetaDataV3& m) const {
+uint256 CoinSpendV3::signatureHash(const SpendMetaDataV3& m) const {
     CHashWriter h(0,0);
     std::vector<unsigned char> buffer;
     buffer.resize(sigmaProof.memoryRequired());

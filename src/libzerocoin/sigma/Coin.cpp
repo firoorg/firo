@@ -162,11 +162,11 @@ const unsigned char* PrivateCoinV3::getEcdsaSeckey() const {
      return this->ecdsaSeckey;
 }
 
-void PrivateCoinV3::setEcdsaSeckey(const vector<unsigned char> &seckey) {
+void PrivateCoinV3::setEcdsaSeckey(const std::vector<unsigned char> &seckey) {
     if (seckey.size() == sizeof(ecdsaSeckey))
         std::copy(seckey.cbegin(), seckey.cend(), &ecdsaSeckey[0]);
     else
-        throw "EcdsaSeckey size does not match.";
+        throw std::invalid_argument("EcdsaSeckey size does not match.");
 }
 
 unsigned int PrivateCoinV3::getVersion() const {
@@ -177,11 +177,11 @@ void PrivateCoinV3::setPublicCoin(const PublicCoinV3& p) {
     publicCoin = p;
 }
 
-void PrivateCoinV3::setRandomness(Scalar n){
+void PrivateCoinV3::setRandomness(const Scalar& n) {
     randomness = n;
 }
 
-void PrivateCoinV3::setSerialNumber(Scalar n){
+void PrivateCoinV3::setSerialNumber(const Scalar& n) {
     serialNumber = n;
 }
 
@@ -209,8 +209,8 @@ void PrivateCoinV3::mintCoin(const CoinDenominationV3 denomination){
     publicCoin = PublicCoinV3(commit, denomination);
 }
 
-const Scalar PrivateCoinV3::serialNumberFromSerializedPublicKey(
-        secp256k1_context *context,
+Scalar PrivateCoinV3::serialNumberFromSerializedPublicKey(
+        const secp256k1_context *context,
         secp256k1_pubkey *pubkey) {
     std::vector<unsigned char> pubkey_hash(32, 0);
 
@@ -222,7 +222,9 @@ const Scalar PrivateCoinV3::serialNumberFromSerializedPublicKey(
     };
 
     // We use secp256k1_ecdh instead of secp256k1_serialize_pubkey to avoid a timing channel.
-    secp256k1_ecdh(context, pubkey_hash.data(), pubkey, &one[0]);
+    if (1 != secp256k1_ecdh(context, pubkey_hash.data(), pubkey, &one[0])) {
+        throw ZerocoinException("Unable to compute public key hash with secp256k1_ecdh.");
+    }
 
 	std::string zpts(ZEROCOIN_PUBLICKEY_TO_SERIALNUMBER);
 	std::vector<unsigned char> pre(zpts.begin(), zpts.end());
@@ -232,7 +234,7 @@ const Scalar PrivateCoinV3::serialNumberFromSerializedPublicKey(
     CSHA256().Write(pre.data(), pre.size()).Finalize(hash);
 
     // Use 32 bytes of hash as coin serial.
-    return Scalar((const char*)hash);
+    return Scalar(hash);
 }
 
 } // namespace sigma
