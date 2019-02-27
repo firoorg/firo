@@ -827,7 +827,12 @@ public:
     CAmount GetNeedsToBeAnonymizedBalance(CAmount nMinBalance = 0) const;
     CAmount GetDenominatedBalance(bool unconfirmed=false) const;
 
-    CAmount GetCoinsToSpend(const CAmount required, std::vector<CZerocoinEntryV3>& coinsToSpend, std::vector<sigma::CoinDenominationV3>& coinsToMint);
+    // Returns true, if it was possible to spend exactly required amount using coins we have.
+    bool GetCoinsToSpend(
+        const CAmount& required,
+        std::vector<CZerocoinEntryV3>& coinsToSpend_out,
+        std::vector<sigma::CoinDenominationV3>& coinsToMint_out) const;
+
     /**
      * Insert additional inputs into the transaction by
      * calling CreateTransaction();

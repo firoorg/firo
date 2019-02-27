@@ -131,7 +131,7 @@ BOOST_AUTO_TEST_CASE(get_coin_different_denomination)
 
     std::vector<CZerocoinEntryV3> coins;
     std::vector<sigma::CoinDenominationV3> coinsToMint;
-    BOOST_CHECK_MESSAGE(pwalletMain->GetCoinsToSpend(require, coins, coinsToMint) == (111 * COIN + 7 * COIN / 10), // 111.7
+    BOOST_CHECK_MESSAGE(pwalletMain->GetCoinsToSpend(require, coins, coinsToMint),
       "Expect enough for requirement");
 
     BOOST_CHECK_MESSAGE(CheckDenominationCoins(newCoins, coins),
@@ -148,14 +148,8 @@ BOOST_AUTO_TEST_CASE(get_coin_not_enough)
 
     std::vector<CZerocoinEntryV3> coins;
     std::vector<sigma::CoinDenominationV3> coinsToMint;
-    BOOST_CHECK_MESSAGE(pwalletMain->GetCoinsToSpend(require, coins, coinsToMint) == (111 * COIN + 6 * COIN / 10), // 111.6
-      "Expect not enough coin and equal to one for each denomination");
-
-    std::vector<std::pair<sigma::CoinDenominationV3, int>> expectedCoins;
-    GetCoinSetByDenominationAmount(expectedCoins, 1, 1, 1, 1, 1);
-
-    BOOST_CHECK_MESSAGE(CheckDenominationCoins(expectedCoins, coins),
-      "Expect one for each denomination");
+    BOOST_CHECK_MESSAGE(!pwalletMain->GetCoinsToSpend(require, coins, coinsToMint),
+        "Expect not enough coin and equal to one for each denomination");
 }
 
 BOOST_AUTO_TEST_CASE(get_coin_minimize_coins_spend_fit_amount)
@@ -168,7 +162,7 @@ BOOST_AUTO_TEST_CASE(get_coin_minimize_coins_spend_fit_amount)
 
     std::vector<CZerocoinEntryV3> coins;
     std::vector<sigma::CoinDenominationV3> coinsToMint;
-    BOOST_CHECK_MESSAGE(pwalletMain->GetCoinsToSpend(require, coins,coinsToMint) == 100 * COIN,
+    BOOST_CHECK_MESSAGE(pwalletMain->GetCoinsToSpend(require, coins,coinsToMint),
       "Expect enough coin and equal to one SIGMA_DENOM_100");
 
     std::vector<std::pair<sigma::CoinDenominationV3, int>> expectedCoins;
@@ -181,15 +175,15 @@ BOOST_AUTO_TEST_CASE(get_coin_minimize_coins_spend_fit_amount)
 BOOST_AUTO_TEST_CASE(get_coin_minimize_coins_spend)
 {
     std::vector<std::pair<sigma::CoinDenominationV3, int>> newCoins;
-    GetCoinSetByDenominationAmount(newCoins, 0, 0, 7, 1, 1);
+    GetCoinSetByDenominationAmount(newCoins, 1, 0, 7, 1, 1);
     GenerateWalletCoin(newCoins);
 
     CAmount require(17 * COIN);
 
     std::vector<CZerocoinEntryV3> coins;
     std::vector<sigma::CoinDenominationV3> coinsToMint;
-    BOOST_CHECK_MESSAGE(pwalletMain->GetCoinsToSpend(require, coins,coinsToMint) == 17 * COIN,
-      "Expect enough for requirement");
+    BOOST_CHECK_MESSAGE(pwalletMain->GetCoinsToSpend(require, coins, coinsToMint),
+      "Coins to spend value is not equal to required amount.");
 
     std::vector<std::pair<sigma::CoinDenominationV3, int>> expectedCoins;
     GetCoinSetByDenominationAmount(expectedCoins, 0, 0, 7, 1, 0);
@@ -208,7 +202,7 @@ BOOST_AUTO_TEST_CASE(get_coin_choose_smallest_enough)
 
     std::vector<CZerocoinEntryV3> coins;
     std::vector<sigma::CoinDenominationV3> coinsToMint;
-    BOOST_CHECK_MESSAGE(pwalletMain->GetCoinsToSpend(require, coins,coinsToMint) == 1 * COIN,
+    BOOST_CHECK_MESSAGE(pwalletMain->GetCoinsToSpend(require, coins,coinsToMint),
       "Expect enough coin and equal one SIGMA_DENOM_1");
 
     std::vector<std::pair<sigma::CoinDenominationV3, int>> expectedCoins;
