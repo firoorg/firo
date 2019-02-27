@@ -170,7 +170,7 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_test)
         vtxid.clear();
         MinTxns.clear();
         mempool.clear();
+        zerocoinState->Reset();
     }
-    zerocoinState->Reset();
 }
 BOOST_AUTO_TEST_SUITE_END()
