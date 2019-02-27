@@ -36,6 +36,8 @@ bool ReadAPISetting(UniValue& data, UniValue& setting, string name, string progr
 
 bool WriteAPISetting(UniValue& data, UniValue& setting, string program){
     UniValue programUni(UniValue::VOBJ);
+    UniValue restartRequiredUni(UniValue::VOBJ);
+
     programUni = find_value(data, program);
     if(programUni.isNull()){
         programUni.setObject();
@@ -43,7 +45,19 @@ bool WriteAPISetting(UniValue& data, UniValue& setting, string program){
 
     string name = find_value(setting, "name").get_str();
     string value = find_value(setting, "data").get_str();
-    bool restartRequired = find_value(setting, "restartRequired").get_bool();
+
+    /* if daemon, restartRequired is always true.
+     * if client, it's whatever is passed, and if no parameter, it's set to false.
+     */
+    bool restartRequired = true;
+    if(program=="client"){
+        restartRequiredUni = find_value(setting, "restartRequired");
+        if(restartRequiredUni.isNull()){
+            restartRequired = false;
+        }else{
+            restartRequired = restartRequiredUni.get_bool();
+        }
+    }
 
     UniValue settingUni(UniValue::VOBJ);
     settingUni = find_value(programUni, name);
@@ -209,7 +223,8 @@ bool SetRestartNow(UniValue& data){
     vector<string> names;
     UniValue setting(UniValue::VOBJ);
 
-    for(int i=0; i<=1;i++){
+    // Only consider client object if it's not null.
+    for(int i=(!client.isNull() ? 0 : 1); i<=1;i++){
         names = (i==0) ? client.getKeys() : daemon.getKeys();
         for (vector<string>::iterator it = names.begin(); it != names.end(); it++) {
             string name = (*it);
