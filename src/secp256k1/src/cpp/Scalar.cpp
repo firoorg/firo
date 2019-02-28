@@ -25,6 +25,12 @@ Scalar::Scalar(uint64_t value)
     secp256k1_scalar_set_int(reinterpret_cast<secp256k1_scalar *>(value_), value);
 }
 
+Scalar::Scalar(const char* str)
+     : value_(new secp256k1_scalar()) {
+    const unsigned char* str_ = reinterpret_cast<const unsigned char *>( &str );
+    secp256k1_scalar_set_b32(reinterpret_cast<secp256k1_scalar *>(value_),str_,0);
+}
+
 Scalar::Scalar(const void *value)
    : value_(new secp256k1_scalar(*reinterpret_cast<const secp256k1_scalar *>(value))) {
 
