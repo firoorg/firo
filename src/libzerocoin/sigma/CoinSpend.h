@@ -49,69 +49,6 @@ public:
 
     bool Verify(const std::vector<PublicCoinV3>& anonymity_set, const SpendMetaDataV3 &m) const;
 
-    // size_t GetSerializeSize(int nType, int nVersion) const;
-
-/*
-    template<typename Stream>
-    void Serialize(Stream& s, int nType, int nVersion) const {
-        int size = sigmaProof.memoryRequired() + coinSerialNumber.memoryRequired();
-        std::vector<unsigned char> buffer;
-        buffer.resize(size + sizeof(uint32_t) + sizeof(int32_t) + sizeof(uint256));
-
-        unsigned char* current = coinSerialNumber.serialize(buffer);
-        current = sigmaProof.serialize(current);
-        std::memcpy(current, &version, sizeof(version));
-        std::memcpy(current + sizeof(uint32_t), &denomination, sizeof(denomination));
-        std::memcpy(current + sizeof(uint32_t) + sizeof(int32_t), &accumulatorBlockHash, sizeof(accumulatorBlockHash));
-        char* b = (char*)buffer;
-
-        // Write size of ecdsaPubkey followed by ecdsaPubkey itself,
-        uint32_t size_of_ecdsaPubkey = ecdsaPubkey.size();
-        uint32_t size_of_b = b.size();
-        b.resize(size_of_b + sizeof(size_of_ecdsaPubkey));
-        std::memcpy(&b[size_of_b], &size_of_ecdsaPubkey, sizeof(size_of_ecdsaPubkey));
-        b.insert(b.end(), ecdsaPubkey.begin(), ecdsaPubkey.end());
-
-        // Write size of ecdsaSignature, followed by ecdsaSignature itself.
-        uint32_t size_of_ecdsaSignature = ecdsaSignature.size();
-        size_of_b = b.size();
-        b.resize(size_of_b + sizeof(size_of_ecdsaSignature));
-        std::memcpy(&b[size_of_b], &size_of_ecdsaSignature, sizeof(size_of_ecdsaSignature));
-        b.insert(b.end(), size_of_ecdsaSignature.begin(), size_of_ecdsaSignature.end());
-
-        s.write(&b[0], b.size());
-    }
-
-    template<typename Stream>
-    void Unserialize(Stream& s, int nType, int nVersion) {
-        int size = sigmaProof.memoryRequired() + coinSerialNumber.memoryRequired();
-        std::vector<unsigned char> buffer;
-        buffer.resize(size + sizeof(uint32_t) + sizeof(int32_t) + sizeof(uint256));
-
-        char* b = (char*)buffer;
-        s.read(b, size + + sizeof(uint32_t) + sizeof(int32_t) + sizeof(uint256));
-        unsigned char* current = coinSerialNumber.deserialize(buffer);
-        current = sigmaProof.deserialize(current);
-        std::memcpy(&version, current, sizeof(version));
-        std::memcpy(&denomination, current + sizeof(uint32_t), sizeof(denomination));
-        std::memcpy(&accumulatorBlockHash, current + sizeof(uint32_t) + sizeof(int32_t), sizeof(accumulatorBlockHash));
-
-        // Read size of ecdsaPubkey followed by ecdsaPubkey itself,
-        uint32_t size_of_ecdsaPubkey = ecdsaPubkey.size();
-        uint32_t size_of_b = b.size();
-        b.resize(size_of_b + sizeof(size_of_ecdsaPubkey));
-        std::memcpy(&b[size_of_b], &size_of_ecdsaPubkey, sizeof(size_of_ecdsaPubkey));
-        b.insert(b.end(), ecdsaPubkey.begin(), ecdsaPubkey.end());
-
-        // Read size of ecdsaSignature, followed by ecdsaSignature itself.
-        uint32_t size_of_ecdsaSignature = ecdsaSignature.size();
-        size_of_b = b.size();
-        b.resize(size_of_b + sizeof(size_of_ecdsaSignature));
-        std::memcpy(&b[size_of_b], &size_of_ecdsaSignature, sizeof(size_of_ecdsaSignature));
-        b.insert(b.end(), size_of_ecdsaSignature.begin(), size_of_ecdsaSignature.end());
-    }
-*/
-
     ADD_SERIALIZE_METHODS;
     template <typename Stream, typename Operation>
     void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {

@@ -63,15 +63,21 @@ CoinSpendV3::CoinSpendV3(
             OpenSSLContext::get_context(), &pubkey, coin.getEcdsaSeckey())) {
 		throw ZerocoinException("Invalid secret key");
 	}
-	secp256k1_ec_pubkey_serialize(
-        OpenSSLContext::get_context(),
-        &this->ecdsaPubkey[0], &len, &pubkey, SECP256K1_EC_COMPRESSED);
+	if (1 != secp256k1_ec_pubkey_serialize(
+            OpenSSLContext::get_context(),
+            &this->ecdsaPubkey[0], &len, &pubkey, SECP256K1_EC_COMPRESSED)) {
+		throw ZerocoinException("Unable to serialize public key.");
+    }
 
-	secp256k1_ecdsa_sign(
-        OpenSSLContext::get_context(), &sig,
-        metahash.begin(), coin.getEcdsaSeckey(), NULL, NULL);
-	secp256k1_ecdsa_signature_serialize_compact(
-        OpenSSLContext::get_context(), &this->ecdsaSignature[0], &sig);
+	if (1 != secp256k1_ecdsa_sign(
+           OpenSSLContext::get_context(), &sig,
+           metahash.begin(), coin.getEcdsaSeckey(), NULL, NULL)) {
+		throw ZerocoinException("Unable to sign with EcdsaSeckey.");
+    }
+	if (1 != secp256k1_ecdsa_signature_serialize_compact(
+            OpenSSLContext::get_context(), &this->ecdsaSignature[0], &sig)) {
+       throw ZerocoinException("Unable to serialize ecdsa_signature."); 
+    }
 }
 
 uint256 CoinSpendV3::signatureHash(const SpendMetaDataV3& m) const {
@@ -116,7 +122,9 @@ bool CoinSpendV3::Verify(
         return false;
     }
 
-    secp256k1_ecdsa_signature_parse_compact(OpenSSLContext::get_context(), &signature, ecdsaSignature.data());
+    if (1 != secp256k1_ecdsa_signature_parse_compact(OpenSSLContext::get_context(), &signature, ecdsaSignature.data()) ) {
+        return false;
+    }
     if (!secp256k1_ecdsa_verify(
             OpenSSLContext::get_context(), &signature, metahash.begin(), &pubkey)) {
         return false;
