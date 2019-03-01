@@ -8,6 +8,7 @@ pipeline {
     stages {
         stage('Build') {
             steps {
+                sh 'git clean -d -f -f -q -x'
                 sh './autogen.sh'
                 sh './configure'
                 sh 'make -j4'

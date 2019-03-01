@@ -1,5 +1,6 @@
-#ifndef ZCOIN_UTILS_H
-#define ZCOIN_UTILS_H
+#ifndef SIGMA_PRIMITIVES_H__
+#define SIGMA_PRIMITIVES_H__
+
 #include <vector>
 #include <secp256k1/include/Scalar.h>
 #include <secp256k1/include/GroupElement.h>
@@ -33,4 +34,4 @@ public:
 
 #include "SigmaPrimitives.hpp"
 
-#endif //ZCOIN_UTILS_H
+#endif //SIGMA_PRIMITIVES_H__

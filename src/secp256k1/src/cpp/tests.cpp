@@ -11,11 +11,11 @@
 
 #ifdef ENABLE_OPENSSL_TESTS
 #include "include/GroupElement.h"
+#include "include/Scalar.h"
 #endif
 
 int main(int argc, char* argv[])
 {
-
 #ifdef ENABLE_OPENSSL_TESTS
     std::vector<std::pair<const char*, const char*>> testcases;
     testcases.push_back(std::make_pair("9216064434961179932092223867844635691966339998754536116709681652691785432045",
@@ -50,7 +50,7 @@ int main(int argc, char* argv[])
     expecteds.push_back(
         "(7143275630583997983432964947790981761478339235433352888289260750805571589245,"
         "-11700086115751491157288596384709446578503357013980342842588483174733971680454)");
-    
+
 
     std::vector<const char*> expectedHexs;
     expectedHexs.push_back(
@@ -95,6 +95,10 @@ int main(int argc, char* argv[])
             return EXIT_FAILURE;
         }
     }
+
+    // test scalar infinite loop bugs on GCC 8
+    secp_primitives::Scalar scalar;
+    scalar.randomize();
 #endif
 
     return EXIT_SUCCESS;
