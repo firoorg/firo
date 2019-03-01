@@ -25,6 +25,8 @@
 
 #include <stdio.h>
 
+#include "client-api/settings.h"
+
 /* Introduction text for doxygen: */
 
 /*! \mainpage Developer documentation
@@ -42,6 +44,7 @@
  */
 
 static bool fDaemon;
+static bool fApi;
 
 void WaitForShutdown(boost::thread_group* threadGroup)
 {
@@ -166,6 +169,10 @@ bool AppInit(int argc, char* argv[])
         // Set this early so that parameter interactions go to console
         InitLogging();
         InitParameterInteraction();
+        fApi = GetBoolArg("-api", false);
+        if(fApi){
+            ReadAPISettingsFile();
+        }
         fRet = AppInit2(threadGroup, scheduler);
         LogPrintf("AppInit done!\n");
     }

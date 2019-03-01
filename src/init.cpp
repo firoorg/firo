@@ -2074,8 +2074,6 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     SetAPIWarmupFinished();
     uiInterface.InitMessage(_("Done loading"));
 
-    SettingsStartup();
-
 #ifdef ENABLE_WALLET
     if (pwalletMain) {
         LogPrintf("Step 12: ReacceptWalletTransactions\n");

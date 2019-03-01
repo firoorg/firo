@@ -16,66 +16,36 @@
 namespace fs = boost::filesystem;
 using namespace std;
 
+std::set<std::string> guiSettings = { "-torsetup" };
+
 UniValue settings(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
     return data;
 }
 
-bool ReadAPISetting(UniValue& data, UniValue& setting, string name, string program){
-    UniValue programUni(UniValue::VOBJ);
-    programUni = find_value(data, program);
-    if(programUni.isNull()){
-        return false;
-    }
-
-    setting = find_value(programUni, name);
+bool ReadAPISetting(UniValue& data, UniValue& setting, string name){
+    setting = find_value(data, name);
     if(!setting.isNull()){
         return true;
     }
     return false;
 }
 
-bool WriteAPISetting(UniValue& data, UniValue& setting, string program){
-    UniValue programUni(UniValue::VOBJ);
-    UniValue restartRequiredUni(UniValue::VOBJ);
-
-    programUni = find_value(data, program);
-    if(programUni.isNull()){
-        programUni.setObject();
-    }
-
+bool WriteAPISetting(UniValue& data, UniValue& setting, bool changed){
     string name = find_value(setting, "name").get_str();
     string value = find_value(setting, "data").get_str();
 
-    /* if daemon, restartRequired is always true.
-     * if client, it's whatever is passed, and if no parameter, it's set to false.
-     */
-    bool restartRequired = true;
-    if(program=="client"){
-        restartRequiredUni = find_value(setting, "restartRequired");
-        if(restartRequiredUni.isNull()){
-            restartRequired = false;
-        }else{
-            restartRequired = restartRequiredUni.get_bool();
-        }
-    }
-
     UniValue settingUni(UniValue::VOBJ);
-    settingUni = find_value(programUni, name);
-    if(!settingUni.isNull()){
-        settingUni.replace("data", value);
-        settingUni.replace("changed", true);
-    }else{
+    settingUni = find_value(data, name);
+    if(settingUni.isNull()){
         settingUni.setObject();
-        settingUni.replace("data", value);
-        settingUni.replace("changed", false);
-        settingUni.replace("restartRequired", restartRequired);
     }
-    programUni.replace(name, settingUni);
-    data.replace(program, programUni);
+    settingUni.replace("data", value);
+    settingUni.replace("changed", changed);
+    data.replace(name, settingUni);
     return true;
 }
 
-bool WriteDaemonSettings(){
+bool WriteSettings(){
     UniValue settingsData(UniValue::VOBJ);
     settingsData = ReadSettingsData();
 
@@ -87,24 +57,17 @@ bool WriteDaemonSettings(){
         value = (*it).second;
         UniValue setting(UniValue::VOBJ);
         setting.push_back(Pair("data", value));
-        setting.push_back(Pair("restartRequired", true));
         setting.push_back(Pair("name", name));
 
-        WriteAPISetting(settingsData, setting, "daemon");
+        WriteAPISetting(settingsData, setting, false);
     }
 
-    WriteSettingsData(settingsData);
+    WriteSettingsToFS(settingsData);
 
     return true;
 }
 
-
-bool WriteClientSettings(){
-    // read from table defined below
-    return true;
-}
-
-bool WriteSettingsData(UniValue& data){
+bool WriteSettingsToFS(UniValue& data){
     fs::path path;
     UniValue SettingsUni(UniValue::VOBJ);
     GetSettings(SettingsUni, path);
@@ -147,96 +110,93 @@ UniValue ReadSettingsData(){
     return SettingsData;
 }
 
-// called at startup to initialize data.
-// - clears data in daemon sub univalue
-// - sets "changed" value to false for all client univalue
-// - sets restartNow = false
-bool SettingsStartup(){
-
-    UniValue data(UniValue::VOBJ);
-    UniValue client(UniValue::VOBJ);
-    UniValue daemon(UniValue::VOBJ);
-
-    data = ReadSettingsData();
-
-    client = find_value(data, "client");
-    daemon = find_value(data, "daemon");
-
-    if(!daemon.isNull()){
-        data.replace("daemon", NullUniValue);
-    }
-
-    if(!client.isNull()){
-        vector<string> names = client.getKeys();
-        UniValue settingUni(UniValue::VOBJ);
-        string name;
-        for (vector<string>::iterator it = names.begin(); it != names.end(); it++) {
-            name = *(it);
-            settingUni = find_value(client, name);
-            settingUni.replace("changed", false);
-            client.replace(name, settingUni);
-        }
-        data.replace("client", client);
-    }
-
-    data.replace("restartNow", false);
-
-    WriteSettingsData(data);
-
-    WriteDaemonSettings();
-
-    GetMainSignals().UpdatedSettings(ReadSettingsData().write());
-
-    return true;
-}
-
-// get Client or Daemon settings
-bool GetSettingsProgram(UniValue data, string name, string& program){
-    UniValue client = find_value(data, "client");
-    UniValue daemon = find_value(data, "daemon");
-    if(!find_value(client, name).isNull()){
-        program = "client";
-        return true;
-    }
-    if(!find_value(daemon, name).isNull()){
-        program = "daemon";
+bool SettingExists(UniValue data, string name){
+    if(!find_value(data, name).isNull()){
         return true;
     }
     return false;
 }
 
 bool CheckSettingLayout(UniValue& setting){
-    if( find_value(setting,            "data").isNull()
-      ||find_value(setting, "restartRequired").isNull()){
+    if(find_value(setting, "data").isNull()){
         return false;
     }
-    if(setting.getKeys().size()!=2){
+    if(setting.getKeys().size()!=1){
         return false;
     }
     return true;
 }
 
 bool SetRestartNow(UniValue& data){
-    UniValue client = find_value(data, "client");
-    UniValue daemon = find_value(data, "daemon");
-
     vector<string> names;
     UniValue setting(UniValue::VOBJ);
 
-    // Only consider client object if it's not null.
-    for(int i=(!client.isNull() ? 0 : 1); i<=1;i++){
-        names = (i==0) ? client.getKeys() : daemon.getKeys();
-        for (vector<string>::iterator it = names.begin(); it != names.end(); it++) {
-            string name = (*it);
-            setting = find_value((i==0) ? client : daemon, name);
-            if(find_value(setting, "restartRequired").get_bool()==true &&
-               find_value(setting,         "changed").get_bool()==true){
-                data.replace("restartNow", true);
-                break;
-            }
+    names = data.getKeys();
+    for (vector<string>::iterator it = names.begin(); it != names.end(); it++) {
+        string name = (*it);
+        setting = find_value(data, name);
+        if(find_value(setting, "changed").get_bool()==true){
+            data.replace("restartNow", true);
+            break;
         }
     }
     return true;
+}
+
+/* Read daemon settings stored in settings.json into mapArgs.
+ * It is on the lowest end of the hierarchy: ie cli -> conf file -> settings.json.
+
+   - mapArgs is the final data structure with values.
+   - if setting is in both conf and settings.json, conf takes precedence.
+     meaning do not update mapArgs. and set disabled: true in settings.json
+   - if setting is in mapArgs but not setting.json:
+     Add to setting.json
+   - if gui specific setting in setting.json, but not conf:
+     update mapArgs to use this setting.
+     else remove (if not just added from mapArgs)
+ */
+void ReadAPISettingsFile()
+{
+    UniValue settingsData(UniValue::VOBJ);
+    settingsData = ReadSettingsData();
+
+    settingsData.erase("restartNow");
+
+    UniValue setting(UniValue::VOBJ);
+
+    for(std::map<std::string, std::string>:: iterator it = mapArgs.begin(); it != mapArgs.end(); it++){
+        string name = (*it).first;
+        string value = (*it).second;
+        setting.setObject();
+        setting.replace("data", value);
+        setting.replace("changed", false);
+        setting.replace("disabled", true);
+        settingsData.replace(name, setting);
+    }
+
+    vector<string> keys = settingsData.getKeys();
+    BOOST_FOREACH(const std::string& strKey, keys)
+    {
+        setting.setObject();
+        setting = find_value(settingsData, strKey);
+        if(guiSettings.count(strKey)){
+            if(!mapArgs.count(strKey)){
+                string value = find_value(setting, "data").get_str();
+                mapArgs[strKey] = value;
+                setting.replace("changed", false);
+                setting.replace("disabled", false);
+                settingsData.replace(strKey, setting);
+            }
+        }else{
+            if(!mapArgs.count(strKey)){
+                settingsData.erase(strKey);
+            }
+        }
+    }
+
+    // write back to FS
+    settingsData.replace("restartNow", false);
+    WriteSettingsToFS(settingsData);
 }
 
 UniValue readsettings(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
@@ -249,7 +209,6 @@ UniValue setting(Type type, const UniValue& data, const UniValue& auth, bool fHe
     vector<UniValue> settings;
     UniValue setting(UniValue::VOBJ);
     string name;
-    string program;
     bool writeBack = false;
 
     switch(type){
@@ -262,7 +221,7 @@ UniValue setting(Type type, const UniValue& data, const UniValue& auth, bool fHe
             BOOST_FOREACH(const std::string& name, names)
             {
                 // fail out if the setting already exists
-                if(GetSettingsProgram(settingsData, name, program)){
+                if(SettingExists(settingsData, name)){
                    throw JSONRPCError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
                 }
                 setting = find_value(data, name);
@@ -270,49 +229,24 @@ UniValue setting(Type type, const UniValue& data, const UniValue& auth, bool fHe
                 if(!CheckSettingLayout(setting)){
                     throw JSONRPCError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
                 }
-                setting.push_back(Pair("name", name));
-                setting.push_back(Pair("changed", false));
-                WriteAPISetting(settingsData, setting, "client");
+                setting.replace("name", name);
+                setting.replace("disabled", false);
+                setting.replace("changed", false);
+                WriteAPISetting(settingsData, setting, true);
             }
 
             writeBack = true;
             break;             
         }
-        case Delete: {
-            // can only delete client data, not daemon..
-            UniValue client(UniValue::VOBJ);
-            client = find_value(settingsData, "client");
-
-            UniValue names(UniValue::VARR);
-            names = find_value(data, "settings").get_array();
-            for(size_t index=0; index<names.size();index++){
-                string name = names[index].get_str();
-                setting = find_value(client, name);
-                if(setting.isNull()){
-                    throw JSONRPCError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
-                }
-                client.erase(name);
-            }
-
-            settingsData.replace("client", client);
-            writeBack = true;
-            break;
-        }
         case Update: {
             vector<string> names = data.getKeys();
-            //for (vector<string>::iterator it = names.begin(); it != names.end(); it++) {
             BOOST_FOREACH(const std::string& name, names){
                 // fail out if setting not found
-                if(!GetSettingsProgram(settingsData, name, program)){
+                if(!SettingExists(settingsData, name)){
                    throw JSONRPCError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
                 }
                 setting = find_value(data, name);
-                // Do not permit updating daemon "restartRequired" entry
-                if(program=="daemon" && !find_value(setting,"restartRequired").isNull()){
-                    throw JSONRPCError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
-                }
-                setting.push_back(Pair("name", name));    
-                WriteAPISetting(settingsData, setting, program);   
+                WriteAPISetting(settingsData, setting, true);
             }
                 
             SetRestartNow(settingsData); 
@@ -325,11 +259,11 @@ UniValue setting(Type type, const UniValue& data, const UniValue& auth, bool fHe
             names = find_value(data, "settings").get_array();
             for(size_t index=0; index<names.size();index++){
                 string name = names[index].get_str();
-                if(!GetSettingsProgram(settingsData, name, program)){
+                if(!SettingExists(settingsData, name)){
                     throw JSONRPCError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
                 }
                 UniValue setting(UniValue::VOBJ);
-                if(!ReadAPISetting(settingsData, setting, name, program)){
+                if(!ReadAPISetting(settingsData, setting, name)){
                     throw JSONRPCError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
                 }
                 result.push_back(Pair(name,setting));
@@ -344,7 +278,7 @@ UniValue setting(Type type, const UniValue& data, const UniValue& auth, bool fHe
     }
 
     if(writeBack){
-        WriteSettingsData(settingsData);
+        WriteSettingsToFS(settingsData);
         GetMainSignals().UpdatedSettings(ReadSettingsData().write());
     }
 
