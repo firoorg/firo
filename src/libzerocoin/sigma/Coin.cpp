@@ -99,12 +99,12 @@ bool IntegerToDenomination(int64_t value, CoinDenominationV3& denom_out, CValida
 return true;
 }
 
-void GetAllDenoms(std::vector<sigma::CoinDenominationV3>& denominations){
-    denominations.push_back(CoinDenominationV3::SIGMA_DENOM_100);
-    denominations.push_back(CoinDenominationV3::SIGMA_DENOM_10);
-    denominations.push_back(CoinDenominationV3::SIGMA_DENOM_1);
-    denominations.push_back(CoinDenominationV3::SIGMA_DENOM_0_5);
-    denominations.push_back(CoinDenominationV3::SIGMA_DENOM_0_1);
+void GetAllDenoms(std::vector<sigma::CoinDenominationV3>& denominations_out) {
+    denominations_out.push_back(CoinDenominationV3::SIGMA_DENOM_100);
+    denominations_out.push_back(CoinDenominationV3::SIGMA_DENOM_10);
+    denominations_out.push_back(CoinDenominationV3::SIGMA_DENOM_1);
+    denominations_out.push_back(CoinDenominationV3::SIGMA_DENOM_0_5);
+    denominations_out.push_back(CoinDenominationV3::SIGMA_DENOM_0_1);
 }
 
 //class PublicCoin

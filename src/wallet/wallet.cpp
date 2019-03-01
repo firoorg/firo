@@ -4,6 +4,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "wallet/wallet.h"
+#include "amount.h"
 #include "base58.h"
 #include "checkpoints.h"
 #include "chain.h"
@@ -1987,17 +1988,24 @@ bool CWallet::GetCoinsToSpend(
         std::vector<CZerocoinEntryV3>& coinsToSpend_out,
         std::vector<sigma::CoinDenominationV3>& coinsToMint_out) const
 {
+    // We have Coins denomination * 10^8, we remove last 7 0's  and add one coin of denomination 100 
+    const uint64_t zeros = 10000000;
+
+    if (required % zeros != 0) {
+        throw std::invalid_argument("Request to spend amount which is not a multiple of 0.1 zcoins.\n");
+    }
+
     // Sanity check to make sure this function is never called with a too large 
     // amount to spend, resulting to a possible crash due to out of memory condition.
-    const uint64_t MAX_COIN_EVER = 21000000;
-    if (required / COIN >  MAX_COIN_EVER) {
-        throw runtime_error("Request to spend more than 21 MLN Zcoins.\n");
+    if (!MoneyRange(required)) {
+        throw std::invalid_argument("Request to spend more than 21 MLN Zcoins.\n");
     }
     
     std::list<CZerocoinEntryV3> coins;
     CWalletDB(strWalletFile).ListPubCoinV3(coins);
     if (coins.empty())
-        return 0;
+        return false;
+
     // sort by highest denomination. if it is same denomination we will prefer the previous block
     auto comparer = [](const CZerocoinEntryV3& a, const CZerocoinEntryV3& b) -> bool {
         return a.get_denomination_value() != b.get_denomination_value() ? a.get_denomination_value() > b.get_denomination_value() : a.nHeight < b.nHeight;
@@ -2007,12 +2015,9 @@ bool CWallet::GetCoinsToSpend(
     std::vector<sigma::CoinDenominationV3> denominations;
     sigma::GetAllDenoms(denominations);
 
-    // We have Coins denomination * 10^8, we remove last 7 0's  and add one coin of denomination 100 
-    const uint64_t zeros = 10000000;
-
     // Value of the largest coin, I.E. 100 for now.
     CAmount max_coin_value;
-    if (!DenominationToInteger(*denominations.rbegin(), max_coin_value)) {
+    if (!DenominationToInteger(denominations[0], max_coin_value)) {
         throw runtime_error("Unknown sigma denomination.\n");
     }
 
@@ -2022,11 +2027,7 @@ bool CWallet::GetCoinsToSpend(
     std::vector<uint64_t> prev_row;
     prev_row.resize(val + 1);
 
-    std::vector<uint64_t> next_row;
-    next_row.resize(val + 1);
-
-    for(int i = 0; i <= val; i++)
-        next_row[i] = (INT_MAX-1)/2;
+    std::vector<uint64_t> next_row(val + 1, (INT_MAX - 1) / 2);
 
     auto coinIt = coins.rbegin();
     next_row[0] = 0;
