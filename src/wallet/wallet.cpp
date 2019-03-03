@@ -3936,12 +3936,6 @@ bool CWallet::CreateZerocoinMintTransaction(const vector <CRecipient> &vecSend, 
                 }
 
                 CAmount nChange = nValueIn - nValueToSelect;
-                // NOTE: this depends on the exact behaviour of GetMinFee
-//                if (nFeeRet < CTransaction::nMinTxFee && nChange > 0 && nChange < CENT) {
-//                    int64_t nMoveToFee = min(nChange, CTransaction::nMinTxFee - nFeeRet);
-//                    nChange -= nMoveToFee;
-//                    nFeeRet += nMoveToFee;
-//                }
                 if (nChange > 0) {
                     // Fill a vout to ourself
                     // TODO: pass in scriptChange instead of reservekey so
