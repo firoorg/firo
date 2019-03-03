@@ -1984,22 +1984,21 @@ static CAmount SelectSpendCoinsForAmount(
 } // end of unnamed namespace.
 
 bool CWallet::GetCoinsToSpend(
-        const CAmount& required,
+        CAmount required,
         std::vector<CZerocoinEntryV3>& coinsToSpend_out,
         std::vector<sigma::CoinDenominationV3>& coinsToMint_out) const
 {
-    // We have Coins denomination * 10^8, we remove last 7 0's  and add one coin of denomination 100 
-    const uint64_t zeros = 10000000;
-
-    if (required % zeros != 0) {
-        throw std::invalid_argument("Request to spend amount which is not a multiple of 0.1 zcoins.\n");
-    }
-
     // Sanity check to make sure this function is never called with a too large 
     // amount to spend, resulting to a possible crash due to out of memory condition.
     if (!MoneyRange(required)) {
         throw std::invalid_argument("Request to spend more than 21 MLN Zcoins.\n");
     }
+
+    // We have Coins denomination * 10^8, we remove last 7 0's  and add one coin of denomination 100 
+    const uint64_t zeros = 10000000;
+
+    // Anything below 0.1 zerocoin goes to the miners as a fee.
+    required /= zeros;
     
     std::list<CZerocoinEntryV3> coins;
     CWalletDB(strWalletFile).ListPubCoinV3(coins);
@@ -2021,7 +2020,7 @@ bool CWallet::GetCoinsToSpend(
         throw runtime_error("Unknown sigma denomination.\n");
     }
 
-    CAmount val = (required + max_coin_value) / zeros;
+    CAmount val = required + max_coin_value / zeros;
 
     // We need only last 2 rows of matrix of knapsack algorithm.
     std::vector<uint64_t> prev_row;
@@ -2051,9 +2050,9 @@ bool CWallet::GetCoinsToSpend(
     uint64_t best_spend_val = val;
 
     int minimum = INT_MAX - 1;
-    while(index >= required / zeros) {
+    while(index >= required) {
         int temp_min = (next_row[index] + GetRequiredCoinCountForAmount(
-            (index * zeros) - required, denominations));
+            (index - required) * zeros, denominations));
         if (minimum > temp_min && next_row[index] != (INT_MAX - 1) / 2) {
             best_spend_val = index;
             minimum = temp_min;
@@ -2065,8 +2064,7 @@ bool CWallet::GetCoinsToSpend(
     if (minimum == INT_MAX - 1)
         return false;
 
-    if (SelectMintCoinsForAmount(best_spend_val - required, denominations, coinsToMint_out) != 
-        best_spend_val - required) {
+    if (SelectMintCoinsForAmount(best_spend_val - required * zeros, denominations, coinsToMint_out) != best_spend_val - required * zeros) {
         throw std::runtime_error(
             "Problem with coin selection for re-mint while spending.\n");
     }

@@ -829,7 +829,7 @@ public:
 
     // Returns true, if it was possible to spend exactly required amount using coins we have.
     bool GetCoinsToSpend(
-        const CAmount& required,
+        CAmount required,
         std::vector<CZerocoinEntryV3>& coinsToSpend_out,
         std::vector<sigma::CoinDenominationV3>& coinsToMint_out) const;
 
