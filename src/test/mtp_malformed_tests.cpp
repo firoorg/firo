@@ -38,9 +38,6 @@
 #include <boost/thread.hpp>
 #include <boost/interprocess/streams/bufferstream.hpp>
 
-extern CCriticalSection cs_main;
-using namespace std;
-
 BOOST_FIXTURE_TEST_SUITE(mtp_malformed_tests, MtpMalformedTestingSetup)
 
 BOOST_AUTO_TEST_CASE(mtp_malformed)

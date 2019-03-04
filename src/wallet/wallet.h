@@ -827,7 +827,17 @@ public:
     CAmount GetNeedsToBeAnonymizedBalance(CAmount nMinBalance = 0) const;
     CAmount GetDenominatedBalance(bool unconfirmed=false) const;
 
-    CAmount GetCoinsToSpend(const CAmount required, std::vector<CZerocoinEntryV3>& out);
+    /** \brief Selects coins to spend, and coins to re-mint based on the required amount to spend, provided by the user. As the lower denomination now is 0.1 zcoin, user's request will be rounded up to the nearest 0.1. This difference between the user's requested value, and the actually spent value will be left to the miners as a fee.
+     * \param[in] required Required amount to spend.
+     * \param[out] coinsToSpend_out Coins which user needs to spend.
+     * \param[out] coinsToMint_out Coins which will be re-minted by the user to get the change back.
+     * \returns true, if it was possible to spend exactly required(rounded up to 0.1 zcoin) amount using coins we have.
+     */ 
+    bool GetCoinsToSpend(
+        CAmount required,
+        std::vector<CZerocoinEntryV3>& coinsToSpend_out,
+        std::vector<sigma::CoinDenominationV3>& coinsToMint_out) const;
+
     /**
      * Insert additional inputs into the transaction by
      * calling CreateTransaction();

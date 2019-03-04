@@ -38,9 +38,9 @@
 #include <boost/thread.hpp>
 
 
- ZerocoinTestingSetupBase::ZerocoinTestingSetupBase() :
+ ZerocoinTestingSetupBase::ZerocoinTestingSetupBase():
     TestingSetup(CBaseChainParams::REGTEST, "1"){};
-    
+
     CBlock ZerocoinTestingSetupBase::CreateBlock(const std::vector<CMutableTransaction>& txns,
                        const CScript& scriptPubKey) {
         const CChainParams& chainparams = Params();
@@ -81,7 +81,7 @@
         return block;
     }
 
- ZerocoinTestingSetup200::ZerocoinTestingSetup200():ZerocoinTestingSetupBase()
+ ZerocoinTestingSetup200::ZerocoinTestingSetup200()
     {
         CPubKey newKey;
         BOOST_CHECK(pwalletMain->GetKeyFromPool(newKey));
@@ -113,8 +113,7 @@
     }
 
 
- ZerocoinTestingSetup109::ZerocoinTestingSetup109() :
-    ZerocoinTestingSetupBase()
+ ZerocoinTestingSetup109::ZerocoinTestingSetup109()
     {
         CPubKey newKey;
         BOOST_CHECK(pwalletMain->GetKeyFromPool(newKey));
@@ -140,8 +139,7 @@
         printf("Balance after 109 blocks: %ld\n", pwalletMain->GetBalance());
     }
 
-MtpMalformedTestingSetup::MtpMalformedTestingSetup() :
-    ZerocoinTestingSetupBase()
+MtpMalformedTestingSetup::MtpMalformedTestingSetup()
     {
         CPubKey newKey;
         BOOST_CHECK(pwalletMain->GetKeyFromPool(newKey));

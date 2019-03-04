@@ -21,7 +21,7 @@
 #include <boost/test/unit_test.hpp>
 #include <boost/thread.hpp>
 
-BOOST_FIXTURE_TEST_SUITE(sigma_tests, ZerocoinTestingSetup200)
+BOOST_FIXTURE_TEST_SUITE(sigma_mintspend, ZerocoinTestingSetup200)
 
 /*
 * 1. Create one denomination pair and check it can't be spend till 6 conf of mint

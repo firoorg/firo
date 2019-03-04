@@ -21,7 +21,7 @@
 #include <boost/test/unit_test.hpp>
 #include <boost/thread.hpp>
 
-BOOST_FIXTURE_TEST_SUITE(sigma_tests, ZerocoinTestingSetup200)
+BOOST_FIXTURE_TEST_SUITE(sigma_mintspend_numinputs, ZerocoinTestingSetup200)
 
 BOOST_AUTO_TEST_CASE(sigma_mintspend_numinputs)
 {
