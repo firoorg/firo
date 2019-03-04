@@ -1998,7 +1998,12 @@ bool CWallet::GetCoinsToSpend(
     const uint64_t zeros = 10000000;
 
     // Anything below 0.1 zerocoin goes to the miners as a fee.
-    required /= zeros;
+    if (required % zeros != 0) {
+        required /= zeros;
+        ++required;
+    } else {
+        required /= zeros;
+    }
     
     std::list<CZerocoinEntryV3> coins;
     CWalletDB(strWalletFile).ListPubCoinV3(coins);
