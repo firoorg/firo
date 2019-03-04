@@ -22,12 +22,13 @@ CBlockIndex CreateBlockIndex(int nHeight)
     return index;
 }
 
-std::vector<PrivateCoinV3> generateCoins(const ParamsV3* params,int n)
+std::vector<PrivateCoinV3> generateCoins(
+    const ParamsV3* params, int n, sigma::CoinDenominationV3 denom = sigma::CoinDenominationV3::SIGMA_DENOM_1)
 {
     std::vector<sigma::PrivateCoinV3> privCoins;
 
     for(int i =0 ;i< n;i++)
-        privCoins.push_back(sigma::PrivateCoinV3(params, sigma::CoinDenominationV3::SIGMA_DENOM_1));
+        privCoins.push_back(sigma::PrivateCoinV3(params, denom));
 
     return privCoins;
 }
@@ -894,7 +895,7 @@ BOOST_AUTO_TEST_CASE(sigma_build_state)
     // add index 2 with 1 DENOMINATIO_1  mints and 1 spend
     auto coins2 = generateCoins(params,1);
     auto pubCoins2 = getPubcoins(coins2);
-    auto coins3 = generateCoins(params,1);
+    auto coins3 = generateCoins(params, 1, CoinDenominationV3::SIGMA_DENOM_10);
     auto pubCoins3 = getPubcoins(coins3);
 
     // mock spend
@@ -1016,7 +1017,7 @@ BOOST_AUTO_TEST_CASE(sigma_getcoinsetforspend)
     // add index 2 with 1 DENOM_1  mints and 1 spend
     auto coins2 = generateCoins(params, 1);
     auto pubCoins2 = getPubcoins(coins2);
-    auto coins3 = generateCoins(params, 5);
+    auto coins3 = generateCoins(params, 5, CoinDenominationV3::SIGMA_DENOM_10);
     auto pubCoins3 = getPubcoins(coins3);
 
     indexes[nextIndex].mintedPubCoinsV3[denomination1Group1] = pubCoins;
