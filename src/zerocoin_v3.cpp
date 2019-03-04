@@ -132,6 +132,12 @@ bool CheckSpendZcoinTransactionV3(
 
 		uint256 accumulatorBlockHash = newSpend.getAccumulatorBlockHash();
 
+        // We use incomplete transaction hash as metadata.
+        sigma::SpendMetaDataV3 newMetaData(
+            txin.nSequence,
+            accumulatorBlockHash,
+            txHashForMetadata);
+
 		// find index for block with hash of accumulatorBlockHash or set index to the coinGroup.firstBlock if not found
 		while (index != coinGroup.firstBlock && index->GetBlockHash() != accumulatorBlockHash)
 			index = index->pprev;
@@ -150,7 +156,7 @@ bool CheckSpendZcoinTransactionV3(
 			index = index->pprev;
         }
 
-		passVerify = newSpend.Verify(anonymity_set);
+		passVerify = newSpend.Verify(anonymity_set, newMetaData);
 		if (passVerify) {
 			Scalar serial = newSpend.getCoinSerialNumber();
 			// do not check for duplicates in case we've seen exact copy of this tx in this block before

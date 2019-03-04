@@ -34,6 +34,15 @@ public:
         return z_.deserialize(current);
     }
 
+    ADD_SERIALIZE_METHODS;
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+        READWRITE(B_);
+        READWRITE(r1Proof_);
+        READWRITE(Gk_);
+        READWRITE(z_);
+    }
+
 public:
     const ParamsV3* params;
     GroupElement B_;

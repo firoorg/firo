@@ -1240,7 +1240,11 @@ public:
     //private
     Scalar randomness;
     Scalar serialNumber;
-//    vector<unsigned char> ecdsaSecretKey;
+
+    // Signature over partial transaction 
+    // to make sure the outputs are not changed by attacker.
+    std::vector<unsigned char> ecdsaSecretKey;
+
     bool IsUsed;
     int nHeight;
     int id;
@@ -1291,13 +1295,12 @@ public:
             if (!is_eof(s)) {
                 int nStoredVersion = 0;
                 READWRITE(nStoredVersion);
-//                if (nStoredVersion >= ZC_ADVANCED_WALLETDB_MINT_VERSION)
-//                    READWRITE(ecdsaSecretKey);
+                READWRITE(ecdsaSecretKey);
             }
         }
         else {
             READWRITE(nVersion);
-//            READWRITE(ecdsaSecretKey);
+            READWRITE(ecdsaSecretKey);
         }
     }
 private:

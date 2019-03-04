@@ -93,11 +93,11 @@ TestingSetup::~TestingSetup()
         threadGroup.interrupt_all();
         threadGroup.join_all();
         UnloadBlockIndex();
+        delete pwalletMain;
+        pwalletMain = NULL;
         delete pcoinsTip;
         delete pcoinsdbview;
         delete pblocktree;
-        delete pwalletMain;
-        pwalletMain = NULL;
 	try {
 		boost::filesystem::remove_all(pathTemp);
 	}

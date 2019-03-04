@@ -68,7 +68,13 @@ public:
   unsigned char* serialize() const;
   unsigned char* serialize(unsigned char* buffer) const;
   unsigned char* deserialize(unsigned char* buffer);
-  //this functions are for READWRITE() in serialize.h
+
+  // These functions are for READWRITE() in serialize.h
+  unsigned int GetSerializeSize(int nType=0, int nVersion=0) const
+  {
+     return memoryRequired();    
+  }
+
   template<typename Stream>
   inline void Serialize(Stream& s, int nType, int nVersion) const {
         int size = memoryRequired();
@@ -86,6 +92,7 @@ public:
         s.read(b, size);
         deserialize(buffer);
   }
+
   //function name like in CBignum
   std::vector<unsigned char> getvch() const;
 
