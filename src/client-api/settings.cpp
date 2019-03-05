@@ -225,10 +225,6 @@ UniValue setting(Type type, const UniValue& data, const UniValue& auth, bool fHe
                    throw JSONRPCError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
                 }
                 setting = find_value(data, name);
-                // check the setting has the correct layout
-                if(!CheckSettingLayout(setting)){
-                    throw JSONRPCError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
-                }
                 setting.replace("name", name);
                 setting.replace("disabled", false);
                 setting.replace("changed", false);

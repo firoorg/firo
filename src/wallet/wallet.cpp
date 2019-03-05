@@ -4319,7 +4319,6 @@ bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddr
                                              std::string &strFailReason, UniValue& mintUpdates, bool forceUsed) 
 {
     wtxNew.BindWallet(this);
-    mintUpdates.setObject();
     CMutableTransaction txNew;
     {
         LOCK2(cs_main, cs_wallet);
@@ -4605,9 +4604,6 @@ bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddr
                 }
             }
 
-            txHash = wtxNew.GetHash();
-            LogPrintf("wtxNew.txHash:%s\n", txHash.ToString());
-
             // Embed the constructed transaction data in wtxNew.
             *static_cast<CTransaction *>(&wtxNew) = CTransaction(txNew);
              // Limit size
@@ -4615,6 +4611,9 @@ bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddr
                 strFailReason = _("Transaction too large");
                 return false;
             }
+
+            txHash = wtxNew.GetHash();
+            LogPrintf("wtxNew.txHash:%s\n", txHash.ToString());
 
             // After transaction creation and verification, this last loop is to notify the wallet of changes to zerocoin spend info.
             for (std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>>::const_iterator it = denominations.begin(); it != denominations.end(); it++)
