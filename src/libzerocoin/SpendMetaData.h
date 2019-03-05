@@ -16,7 +16,6 @@
 #include "../arith_uint256.h"
 #include "../serialize.h"
 
-using namespace std;
 namespace libzerocoin {
 
 /** Any meta data needed for actual bitcoin integration.
@@ -49,5 +48,6 @@ public:
 	}
 };
 
-} /* namespace libzerocoin */
-#endif /* SPENDMETADATA_H_ */
+} // namespace libzerocoin
+
+#endif // SPENDMETADATA_H_

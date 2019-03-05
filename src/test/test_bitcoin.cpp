@@ -95,6 +95,8 @@ TestingSetup::~TestingSetup()
         threadGroup.interrupt_all();
         threadGroup.join_all();
         UnloadBlockIndex();
+        delete pwalletMain;
+        pwalletMain = NULL;
         delete pcoinsTip;
         delete pcoinsdbview;
         delete pblocktree;

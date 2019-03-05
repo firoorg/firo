@@ -472,6 +472,8 @@ libsigma_a_SOURCES = \
   libzerocoin/sigma/Coin.cpp \
   libzerocoin/sigma/CoinSpend.cpp \
   libzerocoin/sigma/CoinSpend.h \
+  libzerocoin/sigma/SpendMetaDataV3.cpp \
+  libzerocoin/sigma/SpendMetaDataV3.h \
   libzerocoin/sigma/Params.h \
   libzerocoin/sigma/Params.cpp
 

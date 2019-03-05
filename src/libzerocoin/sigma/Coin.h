@@ -8,6 +8,7 @@
 
 namespace sigma {
 
+
 enum class CoinDenominationV3 {
     SIGMA_DENOM_0_1 = 0,
     SIGMA_DENOM_0_5 = 1,
@@ -26,6 +27,9 @@ bool DenominationToInteger(CoinDenominationV3 denom, int64_t& denom_out);
 bool IntegerToDenomination(int64_t value, CoinDenominationV3& denom_out);
 bool StringToDenomination(const std::string& str, CoinDenominationV3& denom_out);
 bool RealNumberToDenomination(const double& value, CoinDenominationV3& denom_out);
+
+/// \brief Returns a list of all possible denominations in descending order of value.
+void GetAllDenoms(std::vector<sigma::CoinDenominationV3>& denominations_out);
 
 class PublicCoinV3 {
 public:
@@ -81,10 +85,17 @@ public:
     const Scalar& getSerialNumber() const;
     const Scalar& getRandomness() const;
     unsigned int getVersion() const;
-    void setPublicCoin(PublicCoinV3 p);
-    void setRandomness(Scalar n);
-    void setSerialNumber(Scalar n);
+    void setPublicCoin(const PublicCoinV3& p);
+    void setRandomness(const Scalar& n);
+    void setSerialNumber(const Scalar& n);
     void setVersion(unsigned int nVersion);
+    const unsigned char* getEcdsaSeckey() const;
+
+    void setEcdsaSeckey(const std::vector<unsigned char> &seckey); 
+
+    static Scalar serialNumberFromSerializedPublicKey(
+        const secp256k1_context *context,
+        secp256k1_pubkey *pubkey);
 
 private:
     const ParamsV3* params;
@@ -92,8 +103,10 @@ private:
     Scalar randomness;
     Scalar serialNumber;
     unsigned int version = 0;
+    unsigned char ecdsaSeckey[32];
 
     void mintCoin(const CoinDenominationV3 denomination);
+
 };
 
 }// namespace sigma

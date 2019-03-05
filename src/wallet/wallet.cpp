@@ -4,6 +4,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "wallet/wallet.h"
+#include "amount.h"
 #include "base58.h"
 #include "checkpoints.h"
 #include "chain.h"
@@ -16,6 +17,7 @@
 #include "zerocoin.h"
 #include "zerocoin_v3.h"
 #include "../libzerocoin/sigma/CoinSpend.h"
+#include "../libzerocoin/sigma/SpendMetaDataV3.h"
 #include "net.h"
 #include "policy/policy.h"
 #include "primitives/block.h"
@@ -1913,12 +1915,102 @@ CAmount CWallet::GetDenominatedBalance(bool unconfirmed) const {
     return nTotal;
 }
 
-CAmount CWallet::GetCoinsToSpend(const CAmount required, std::vector<CZerocoinEntryV3>& selected)
-{
-	// this function support only coin set that no larger denomination that can not be divided by lower denomination
+namespace { 
 
+// coinsIn has to be sorted in descending order.
+static int GetRequiredCoinCountForAmount(
+        const CAmount& required,
+        const std::vector<sigma::CoinDenominationV3>& denominations) {
+    CAmount val = required;
+    int result = 0;
+    for (int i = 0; i < denominations.size(); i++)
+    {
+        CAmount denom;
+        DenominationToInteger(denominations[i], denom);
+        while (val >= denom) {
+            val -= denom;
+            result++;
+        }
+    }
+
+    return result;
+}
+
+/** \brief denominations has to be sorted in descending order. Each denomination can be used multiple times.
+ * 
+ *  \returns The amount which was possible to actually mint.
+ */
+static CAmount SelectMintCoinsForAmount(
+        const CAmount& required,
+        const std::vector<sigma::CoinDenominationV3>& denominations,
+        std::vector<sigma::CoinDenominationV3>& coinsOut) {
+    CAmount val = required;
+    for (int i = 0; i < denominations.size(); i++)
+    {
+        CAmount denom;
+        DenominationToInteger(denominations[i], denom);
+        while (val >= denom)
+        {
+            val -= denom;
+            coinsOut.push_back(denominations[i]);
+        }
+    }
+
+    return required - val;
+}
+
+/** \brief coinsIn has to be sorted in descending order. Each coin can be used only once.
+ *
+ *  \returns The amount which was possible to actually spend.
+ */
+static CAmount SelectSpendCoinsForAmount(
+        const CAmount& required,
+        const std::list<CZerocoinEntryV3>& coinsIn,
+        std::vector<CZerocoinEntryV3>& coinsOut) {
+    CAmount val = required;
+    for (auto coinIt = coinsIn.begin(); coinIt != coinsIn.end(); coinIt++)
+    {   
+        if (coinIt->IsUsed)
+          continue;
+        CAmount denom = coinIt->get_denomination_value();
+        if (val >= denom)
+        {
+            val -= denom;
+            coinsOut.push_back(*coinIt);
+        }
+    }
+
+    return required - val;
+}
+
+} // end of unnamed namespace.
+
+bool CWallet::GetCoinsToSpend(
+        CAmount required,
+        std::vector<CZerocoinEntryV3>& coinsToSpend_out,
+        std::vector<sigma::CoinDenominationV3>& coinsToMint_out) const
+{
+    // Sanity check to make sure this function is never called with a too large 
+    // amount to spend, resulting to a possible crash due to out of memory condition.
+    if (!MoneyRange(required)) {
+        throw std::invalid_argument("Request to spend more than 21 MLN Zcoins.\n");
+    }
+
+    // We have Coins denomination * 10^8, we remove last 7 0's  and add one coin of denomination 100 
+    const uint64_t zeros = 10000000;
+
+    // Anything below 0.1 zerocoin goes to the miners as a fee.
+    if (required % zeros != 0) {
+        required /= zeros;
+        ++required;
+    } else {
+        required /= zeros;
+    }
+    
     std::list<CZerocoinEntryV3> coins;
     CWalletDB(strWalletFile).ListPubCoinV3(coins);
+    if (coins.empty())
+        return false;
 
     // sort by highest denomination. if it is same denomination we will prefer the previous block
     auto comparer = [](const CZerocoinEntryV3& a, const CZerocoinEntryV3& b) -> bool {
@@ -1926,44 +2018,68 @@ CAmount CWallet::GetCoinsToSpend(const CAmount required, std::vector<CZerocoinEn
     };
     coins.sort(comparer);
 
-    CAmount sum(0);
+    std::vector<sigma::CoinDenominationV3> denominations;
+    sigma::GetAllDenoms(denominations);
 
-    while (sum < required) {
-        // no coin to choose
-        if (coins.empty())
-            break;
-
-        CAmount need = required - sum;
-        CZerocoinEntryV3 chosenCoin;
-
-        auto highestCoin = coins.begin();
-        if (need >= highestCoin->get_denomination_value()) {
-
-            // case 1: need >= highest coin, choose highest
-            chosenCoin = *highestCoin;
-            coins.erase(highestCoin);
-        } else {
-
-            // case 2: highest coin > need, choose best fit
-            // start from lowest to highest denomination to find best fit and lowest block
-            for (auto coinIt = coins.rbegin(); coinIt != coins.rend(); coinIt++) {
-
-                auto nextCoinIt = coinIt;
-                nextCoinIt++;
-
-                if (coinIt->get_denomination_value() >= need &&
-                    (nextCoinIt == coins.rend() || nextCoinIt->get_denomination_value() != coinIt->get_denomination_value())) {
-                    chosenCoin = *coinIt;
-                    break;
-                }
-            }
-        }
-
-        sum += chosenCoin.get_denomination_value();
-        selected.push_back(chosenCoin);
+    // Value of the largest coin, I.E. 100 for now.
+    CAmount max_coin_value;
+    if (!DenominationToInteger(denominations[0], max_coin_value)) {
+        throw runtime_error("Unknown sigma denomination.\n");
     }
 
-    return sum;
+    CAmount val = required + max_coin_value / zeros;
+
+    // We need only last 2 rows of matrix of knapsack algorithm.
+    std::vector<uint64_t> prev_row;
+    prev_row.resize(val + 1);
+
+    std::vector<uint64_t> next_row(val + 1, (INT_MAX - 1) / 2);
+
+    auto coinIt = coins.rbegin();
+    next_row[0] = 0;
+    next_row[coinIt->get_denomination_value() / zeros] = 1;
+    ++coinIt;
+
+    for(; coinIt != coins.rend(); coinIt++) {
+        if (coinIt->IsUsed)
+            continue;
+        std::swap(prev_row, next_row);
+        CAmount denom_i = coinIt->get_denomination_value() / zeros;
+        for(int j = 1; j <= val; j++) {
+            next_row[j] = prev_row[j];
+            if(j >= denom_i &&  next_row[j] > prev_row[j - denom_i] + 1) {
+                    next_row[j] = prev_row[j - denom_i] + 1;
+            }
+        }
+    }
+
+    int index = val;
+    uint64_t best_spend_val = val;
+
+    int minimum = INT_MAX - 1;
+    while(index >= required) {
+        int temp_min = (next_row[index] + GetRequiredCoinCountForAmount(
+            (index - required) * zeros, denominations));
+        if (minimum > temp_min && next_row[index] != (INT_MAX - 1) / 2) {
+            best_spend_val = index;
+            minimum = temp_min;
+        }
+        --index;
+    }
+    best_spend_val *= zeros;
+
+    if (minimum == INT_MAX - 1)
+        return false;
+
+    if (SelectMintCoinsForAmount(best_spend_val - required * zeros, denominations, coinsToMint_out) != best_spend_val - required * zeros) {
+        throw std::runtime_error(
+            "Problem with coin selection for re-mint while spending.\n");
+    }
+    if (SelectSpendCoinsForAmount(best_spend_val, coins, coinsToSpend_out) != best_spend_val) {
+        throw std::runtime_error(
+            "Problem with coin selection for spend.\n");
+    }
+    return true;
 }
 
 CAmount CWallet::GetUnconfirmedBalance() const {
@@ -2375,10 +2491,10 @@ void CWallet::ListAvailableCoinsMintCoins(vector <COutput> &vCoins, bool fOnlyCo
     vCoins.clear();
     {
         LOCK(cs_wallet);
-        list <CZerocoinEntry> listPubCoin = list<CZerocoinEntry>();
+        list <CZerocoinEntry> listOwnCoins = list<CZerocoinEntry>();
         CWalletDB walletdb(pwalletMain->strWalletFile);
-        walletdb.ListPubCoin(listPubCoin);
-        LogPrintf("listPubCoin.size()=%s\n", listPubCoin.size());
+        walletdb.ListPubCoin(listOwnCoins);
+        LogPrintf("listOwnCoins.size()=%s\n", listOwnCoins.size());
         for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it) {
             const CWalletTx *pcoin = &(*it).second;
 //            LogPrintf("pcoin=%s\n", pcoin->GetHash().ToString());
@@ -2415,14 +2531,14 @@ void CWallet::ListAvailableCoinsMintCoins(vector <COutput> &vCoins, bool fOnlyCo
                     pubCoin.setvch(vchZeroMint);
                     LogPrintf("Pubcoin=%s\n", pubCoin.ToString());
                     // CHECKING PROCESS
-                    BOOST_FOREACH(const CZerocoinEntry &pubCoinItem, listPubCoin) {
+                    BOOST_FOREACH(const CZerocoinEntry &ownCoinItem, listOwnCoins) {
 //                        LogPrintf("*******\n");
-//                        LogPrintf("pubCoinItem.value=%s,\n", pubCoinItem.value.ToString());
-//                        LogPrintf("pubCoinItem.IsUsed=%s\n, ", pubCoinItem.IsUsed);
-//                        LogPrintf("pubCoinItem.randomness=%s\n, ", pubCoinItem.randomness);
-//                        LogPrintf("pubCoinItem.serialNumber=%s\n, ", pubCoinItem.serialNumber);
-                        if (pubCoinItem.value == pubCoin && pubCoinItem.IsUsed == false &&
-                            pubCoinItem.randomness != 0 && pubCoinItem.serialNumber != 0) {
+//                        LogPrintf("ownCoinItem.value=%s,\n", ownCoinItem.value.ToString());
+//                        LogPrintf("ownCoinItem.IsUsed=%s\n, ", ownCoinItem.IsUsed);
+//                        LogPrintf("ownCoinItem.randomness=%s\n, ", ownCoinItem.randomness);
+//                        LogPrintf("ownCoinItem.serialNumber=%s\n, ", ownCoinItem.serialNumber);
+                        if (ownCoinItem.value == pubCoin && ownCoinItem.IsUsed == false &&
+                            ownCoinItem.randomness != 0 && ownCoinItem.serialNumber != 0) {
                             vCoins.push_back(COutput(pcoin, i, nDepth, true, true));
                             LogPrintf("-->OK\n");
                         }
@@ -3779,15 +3895,14 @@ bool CWallet::CreateZerocoinMintModelV3(string &stringError, const string& denom
         if (stringError != "")
             return false;
 
-        // const unsigned char *ecdsaSecretKey = newCoin.getEcdsaSeckey();
+        const unsigned char *ecdsaSecretKey = newCoin.getEcdsaSeckey();
         CZerocoinEntryV3 zerocoinTx;
         zerocoinTx.IsUsed = false;
         zerocoinTx.set_denomination(denomination);
         zerocoinTx.value = pubCoin.getValue();
         zerocoinTx.randomness = newCoin.getRandomness();
         zerocoinTx.serialNumber = newCoin.getSerialNumber();
-        // TODO(martun): ecdsaSecretKey looks like unnecessary, but take another look.
-        // zerocoinTx.ecdsaSecretKey = std::vector<unsigned char>(ecdsaSecretKey, ecdsaSecretKey+32);
+        zerocoinTx.ecdsaSecretKey = std::vector<unsigned char>(ecdsaSecretKey, ecdsaSecretKey+32);
         LogPrintf("CreateZerocoinMintModel() -> NotifyZerocoinChanged\n");
         LogPrintf("pubcoin=%s, isUsed=%s\n", zerocoinTx.value.GetHex(), zerocoinTx.IsUsed);
         LogPrintf("randomness=%s, serialNumber=%s\n", zerocoinTx.randomness, zerocoinTx.serialNumber);
@@ -3914,9 +4029,9 @@ bool CWallet::CheckDenomination(string denomAmount, int64_t& nAmount, libzerocoi
 bool CWallet::CheckHasV2Mint(libzerocoin::CoinDenomination denomination, bool forceUsed){
     // Check if there is v2 mint, spend it first
     bool result = false;
-    list <CZerocoinEntry> listPubCoin;
-    CWalletDB(strWalletFile).ListPubCoin(listPubCoin);
-    listPubCoin.sort(CompHeight);
+    list <CZerocoinEntry> listOwnCoins;
+    CWalletDB(strWalletFile).ListPubCoin(listOwnCoins);
+    listOwnCoins.sort(CompHeight);
     CZerocoinEntry coinToUse;
     bool fModulusV2 = chainActive.Height() >= Params().GetConsensus().nModulusV2StartBlock;
     CZerocoinState *zerocoinState = CZerocoinState::GetZerocoinState();
@@ -3926,7 +4041,7 @@ bool CWallet::CheckHasV2Mint(libzerocoin::CoinDenomination denomination, bool fo
 
     int coinId = INT_MAX;
     int coinHeight;
-    BOOST_FOREACH(const CZerocoinEntry &minIdPubcoin, listPubCoin) {
+    BOOST_FOREACH(const CZerocoinEntry &minIdPubcoin, listOwnCoins) {
         if (minIdPubcoin.denomination == denomination
             && ((minIdPubcoin.IsUsed == false && !forceUsed) || (minIdPubcoin.IsUsed == true && forceUsed))
             && minIdPubcoin.randomness != 0
@@ -4498,9 +4613,9 @@ bool CWallet::CreateZerocoinSpendTransaction(std::string &thirdPartyaddress, int
 
             // Select not yet used coin from the wallet with minimal possible id
 
-            list <CZerocoinEntry> listPubCoin;
-            CWalletDB(strWalletFile).ListPubCoin(listPubCoin);
-            listPubCoin.sort(CompHeight);
+            list <CZerocoinEntry> listOwnCoins;
+            CWalletDB(strWalletFile).ListPubCoin(listOwnCoins);
+            listOwnCoins.sort(CompHeight);
             CZerocoinEntry coinToUse;
             CZerocoinState *zerocoinState = CZerocoinState::GetZerocoinState();
 
@@ -4510,7 +4625,7 @@ bool CWallet::CreateZerocoinSpendTransaction(std::string &thirdPartyaddress, int
             int coinId = INT_MAX;
             int coinHeight;
 
-            BOOST_FOREACH(const CZerocoinEntry &minIdPubcoin, listPubCoin) {
+            BOOST_FOREACH(const CZerocoinEntry &minIdPubcoin, listOwnCoins) {
                 if (minIdPubcoin.denomination == denomination
                         && ((minIdPubcoin.IsUsed == false && !forceUsed) || (minIdPubcoin.IsUsed == true && forceUsed))
                         && minIdPubcoin.randomness != 0
@@ -4739,9 +4854,9 @@ bool CWallet::CreateZerocoinSpendTransactionV3(
 
             // Select not yet used coin from the wallet with minimal possible id
 
-            list <CZerocoinEntryV3> listPubCoin;
-            CWalletDB(strWalletFile).ListPubCoinV3(listPubCoin);
-            listPubCoin.sort(CompHeightV3);
+            list <CZerocoinEntryV3> listOwnCoins;
+            CWalletDB(strWalletFile).ListPubCoinV3(listOwnCoins);
+            listOwnCoins.sort(CompHeightV3);
             CZerocoinEntryV3 coinToUse;
             CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
 
@@ -4751,7 +4866,7 @@ bool CWallet::CreateZerocoinSpendTransactionV3(
             int coinId = INT_MAX;
             int coinHeight;
 
-            BOOST_FOREACH(const CZerocoinEntryV3 &minIdPubcoin, listPubCoin) {
+            BOOST_FOREACH(const CZerocoinEntryV3 &minIdPubcoin, listOwnCoins) {
                 if (minIdPubcoin.get_denomination() == denomination
                     && ((minIdPubcoin.IsUsed == false && !forceUsed) || (minIdPubcoin.IsUsed == true && forceUsed))
                     && minIdPubcoin.randomness != uint64_t(0)
@@ -4802,6 +4917,9 @@ bool CWallet::CreateZerocoinSpendTransactionV3(
             newTxIn.prevout.SetNull();
             txNew.vin.push_back(newTxIn);
 
+            // We use incomplete transaction hash as metadata.
+            sigma::SpendMetaDataV3 metaData(serializedId, blockHash, txNew.GetHash());
+ 
             // Construct the CoinSpend object. This acts like a signature on the
             // transaction.
             sigma::PrivateCoinV3 privateCoin(zcParams, denomination);
@@ -4814,15 +4932,14 @@ bool CWallet::CreateZerocoinSpendTransactionV3(
             privateCoin.setPublicCoin(pubCoinSelected);
             privateCoin.setRandomness(coinToUse.randomness);
             privateCoin.setSerialNumber(coinToUse.serialNumber);
-            // We do NOT need an ecdsaSecretKey for V3 sigma mints.
-//          privateCoin.setEcdsaSeckey(coinToUse.ecdsaSecretKey);
+            privateCoin.setEcdsaSeckey(coinToUse.ecdsaSecretKey);
 
-            sigma::CoinSpendV3 spend(zcParams, privateCoin, anonimity_set, blockHash);
+            sigma::CoinSpendV3 spend(zcParams, privateCoin, anonimity_set, metaData);
             spend.setVersion(txVersion);
 
             // This is a sanity check. The CoinSpend object should always verify,
             // but why not check before we put it onto the wire?
-            if (!spend.Verify(anonimity_set)) {
+            if (!spend.Verify(anonimity_set, metaData)) {
                 strFailReason = _("the spend coin transaction did not verify");
                 return false;
             }
@@ -4865,7 +4982,7 @@ bool CWallet::CreateZerocoinSpendTransactionV3(
                     pubCoinTx.randomness = coinToUse.randomness;
                     pubCoinTx.serialNumber = coinToUse.serialNumber;
                     pubCoinTx.value = coinToUse.value;
-//                    pubCoinTx.ecdsaSecretKey = coinToUse.ecdsaSecretKey;
+                    pubCoinTx.ecdsaSecretKey = coinToUse.ecdsaSecretKey;
                     CWalletDB(strWalletFile).WriteZerocoinEntry(pubCoinTx);
                     LogPrintf("CreateZerocoinSpendTransaction() -> NotifyZerocoinChanged\n");
                     LogPrintf("pubcoin=%s, isUsed=Used\n", coinToUse.value.GetHex());
@@ -5107,16 +5224,16 @@ bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddr
 
                 // Fill vin
                 // Select not yet used coin from the wallet with minimal possible id
-                list <CZerocoinEntry> listPubCoin;
-                CWalletDB(strWalletFile).ListPubCoin(listPubCoin);
-                listPubCoin.sort(CompHeight);
+                list <CZerocoinEntry> listOwnCoins;
+                CWalletDB(strWalletFile).ListPubCoin(listOwnCoins);
+                listOwnCoins.sort(CompHeight);
                 CZerocoinEntry coinToUse;
                 CZerocoinState *zerocoinState = CZerocoinState::GetZerocoinState();
                 CBigNum accumulatorValue;
                 uint256 accumulatorBlockHash;      // to be used in zerocoin spend v2
                 int coinId = INT_MAX;
                 int coinHeight;
-                BOOST_FOREACH(const CZerocoinEntry &minIdPubcoin, listPubCoin) {
+                BOOST_FOREACH(const CZerocoinEntry &minIdPubcoin, listOwnCoins) {
                     if (minIdPubcoin.denomination == denomination
                         && ((minIdPubcoin.IsUsed == false && !forceUsed) || (minIdPubcoin.IsUsed == true && forceUsed))
                         && minIdPubcoin.randomness != 0
@@ -5431,16 +5548,16 @@ bool CWallet::CreateMultipleZerocoinSpendTransactionV3(
 
                 // Fill vin
                 // Select not yet used coin from the wallet with minimal possible id
-                list <CZerocoinEntryV3> listPubCoin;
-                CWalletDB(strWalletFile).ListPubCoinV3(listPubCoin);
-                listPubCoin.sort(CompHeightV3);
+                list <CZerocoinEntryV3> listOwnCoins;
+                CWalletDB(strWalletFile).ListPubCoinV3(listOwnCoins);
+                listOwnCoins.sort(CompHeightV3);
                 CZerocoinEntryV3 coinToUse;
                 CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
                 std::vector<PublicCoinV3> anonimity_set;
                 uint256 blockHash;
                 int coinId = INT_MAX;
                 int coinHeight;
-                BOOST_FOREACH(const CZerocoinEntryV3 &minIdPubcoin, listPubCoin) {
+                BOOST_FOREACH(const CZerocoinEntryV3 &minIdPubcoin, listOwnCoins) {
                     if (minIdPubcoin.get_denomination() == (*it)
                         && ((minIdPubcoin.IsUsed == false && !forceUsed) || (minIdPubcoin.IsUsed == true && forceUsed))
                         && minIdPubcoin.randomness != uint64_t(0)
@@ -5506,7 +5623,7 @@ bool CWallet::CreateMultipleZerocoinSpendTransactionV3(
                 privateCoin.setPublicCoin(pubCoinSelected);
                 privateCoin.setRandomness(coinToUse.randomness);
                 privateCoin.setSerialNumber(coinToUse.serialNumber);
-//                privateCoin.setEcdsaSeckey(coinToUse.ecdsaSecretKey);
+                privateCoin.setEcdsaSeckey(coinToUse.ecdsaSecretKey);
 
                 LogPrintf("creating tempStorage object..\n");
                 // Push created TxIn values into a tempStorage object (used in the next loop)
@@ -5551,6 +5668,13 @@ bool CWallet::CreateMultipleZerocoinSpendTransactionV3(
             {
                 unsigned index = it - denominations.begin();
 
+                // We use incomplete transaction hash for now as a metadata
+                sigma::SpendMetaDataV3 metaData(
+                    tempStorages[index].serializedId,
+                    tempStorages[index].blockHash,
+                    txHashForMetadata);
+
+
                 TempStorage tempStorage = tempStorages.at(index);
                 CZerocoinEntryV3 coinToUse = tempStorage.coinToUse;
 
@@ -5561,11 +5685,11 @@ bool CWallet::CreateMultipleZerocoinSpendTransactionV3(
                 sigma::CoinSpendV3 spend(zcParams,
                                          tempStorage.privateCoin,
                                          tempStorage.anonimity_set,
-                                         tempStorage.blockHash);
+                                         metaData);
                 spend.setVersion(tempStorage.txVersion);
 
                 // Verify the coinSpend
-                if (!spend.Verify(tempStorage.anonimity_set)) {
+                if (!spend.Verify(tempStorage.anonimity_set, metaData)) {
                     strFailReason = _("the spend coin transaction did not verify");
                     return false;
                 }
@@ -5601,7 +5725,7 @@ bool CWallet::CreateMultipleZerocoinSpendTransactionV3(
                         pubCoinTx.randomness = coinToUse.randomness;
                         pubCoinTx.serialNumber = coinToUse.serialNumber;
                         pubCoinTx.value = coinToUse.value;
-//                        pubCoinTx.ecdsaSecretKey = coinToUse.ecdsaSecretKey;
+                        pubCoinTx.ecdsaSecretKey = coinToUse.ecdsaSecretKey;
                         CWalletDB(strWalletFile).WriteZerocoinEntry(pubCoinTx);
                         LogPrintf("CreateZerocoinSpendTransaction() -> NotifyZerocoinChanged\n");
                         LogPrintf("pubcoin=%s, isUsed=Used\n", coinToUse.value.GetHex());
@@ -5834,9 +5958,8 @@ string CWallet::MintAndStoreZerocoinV3(vector<CRecipient> vecSend,
         }
         zerocoinTx.randomness = privCoin.getRandomness();
         zerocoinTx.serialNumber = privCoin.getSerialNumber();
-        // TODO(martun): check this again, but looks like in Sigma we do not need ecdsaSecretKey.
-//        const unsigned char *ecdsaSecretKey = privCoin.getEcdsaSeckey();
-//        zerocoinTx.ecdsaSecretKey = std::vector<unsigned char>(ecdsaSecretKey, ecdsaSecretKey+32);
+        const unsigned char *ecdsaSecretKey = privCoin.getEcdsaSeckey();
+        zerocoinTx.ecdsaSecretKey = std::vector<unsigned char>(ecdsaSecretKey, ecdsaSecretKey+32);
         walletdb.WriteZerocoinEntry(zerocoinTx);
     }
 
@@ -5941,25 +6064,25 @@ string CWallet::SpendZerocoin(std::string &thirdPartyaddress, int64_t nValue, li
     if (!CommitZerocoinSpendTransaction(wtxNew, reservekey)) {
         LogPrintf("CommitZerocoinSpendTransaction() -> FAILED!\n");
         CZerocoinEntry pubCoinTx;
-        list <CZerocoinEntry> listPubCoin;
-        listPubCoin.clear();
+        list <CZerocoinEntry> listOwnCoins;
+        listOwnCoins.clear();
 
         CWalletDB walletdb(pwalletMain->strWalletFile);
-        walletdb.ListPubCoin(listPubCoin);
-        BOOST_FOREACH(const CZerocoinEntry &pubCoinItem, listPubCoin) {
-            if (zcSelectedValue == pubCoinItem.value) {
-                pubCoinTx.id = pubCoinItem.id;
+        walletdb.ListPubCoin(listOwnCoins);
+        BOOST_FOREACH(const CZerocoinEntry &ownCoinItem, listOwnCoins) {
+            if (zcSelectedValue == ownCoinItem.value) {
+                pubCoinTx.id = ownCoinItem.id;
                 pubCoinTx.IsUsed = false; // having error, so set to false, to be able to use again
-                pubCoinTx.value = pubCoinItem.value;
-                pubCoinTx.nHeight = pubCoinItem.nHeight;
-                pubCoinTx.randomness = pubCoinItem.randomness;
-                pubCoinTx.serialNumber = pubCoinItem.serialNumber;
-                pubCoinTx.denomination = pubCoinItem.denomination;
-                pubCoinTx.ecdsaSecretKey = pubCoinItem.ecdsaSecretKey;
+                pubCoinTx.value = ownCoinItem.value;
+                pubCoinTx.nHeight = ownCoinItem.nHeight;
+                pubCoinTx.randomness = ownCoinItem.randomness;
+                pubCoinTx.serialNumber = ownCoinItem.serialNumber;
+                pubCoinTx.denomination = ownCoinItem.denomination;
+                pubCoinTx.ecdsaSecretKey = ownCoinItem.ecdsaSecretKey;
                 CWalletDB(strWalletFile).WriteZerocoinEntry(pubCoinTx);
                 LogPrintf("SpendZerocoin failed, re-updated status -> NotifyZerocoinChanged\n");
-                LogPrintf("pubcoin=%s, isUsed=New\n", pubCoinItem.value.GetHex());
-                pwalletMain->NotifyZerocoinChanged(pwalletMain, pubCoinItem.value.GetHex(), "New", CT_UPDATED);
+                LogPrintf("pubcoin=%s, isUsed=New\n", ownCoinItem.value.GetHex());
+                pwalletMain->NotifyZerocoinChanged(pwalletMain, ownCoinItem.value.GetHex(), "New", CT_UPDATED);
             }
         }
         CZerocoinSpendEntry entry;
@@ -6003,25 +6126,25 @@ string CWallet::SpendZerocoinV3(
     if (!CommitZerocoinSpendTransaction(wtxNew, reservekey)) {
         LogPrintf("CommitZerocoinSpendTransaction() -> FAILED!\n");
         CZerocoinEntryV3 pubCoinTx;
-        list <CZerocoinEntryV3> listPubCoin;
-        listPubCoin.clear();
+        list <CZerocoinEntryV3> listOwnCoins;
+        listOwnCoins.clear();
 
         CWalletDB walletdb(pwalletMain->strWalletFile);
-        walletdb.ListPubCoinV3(listPubCoin);
-        BOOST_FOREACH(const CZerocoinEntryV3 &pubCoinItem, listPubCoin) {
-            if (zcSelectedValue == pubCoinItem.value) {
-                pubCoinTx.id = pubCoinItem.id;
+        walletdb.ListPubCoinV3(listOwnCoins);
+        BOOST_FOREACH(const CZerocoinEntryV3 &ownCoinItem, listOwnCoins) {
+            if (zcSelectedValue == ownCoinItem.value) {
+                pubCoinTx.id = ownCoinItem.id;
                 pubCoinTx.IsUsed = false; // having error, so set to false, to be able to use again
-                pubCoinTx.value = pubCoinItem.value;
-                pubCoinTx.nHeight = pubCoinItem.nHeight;
-                pubCoinTx.randomness = pubCoinItem.randomness;
-                pubCoinTx.serialNumber = pubCoinItem.serialNumber;
-                pubCoinTx.set_denomination_value(pubCoinItem.get_denomination_value());
-//                pubCoinTx.ecdsaSecretKey = pubCoinItem.ecdsaSecretKey;
+                pubCoinTx.value = ownCoinItem.value;
+                pubCoinTx.nHeight = ownCoinItem.nHeight;
+                pubCoinTx.randomness = ownCoinItem.randomness;
+                pubCoinTx.serialNumber = ownCoinItem.serialNumber;
+                pubCoinTx.set_denomination_value(ownCoinItem.get_denomination_value());
+                pubCoinTx.ecdsaSecretKey = ownCoinItem.ecdsaSecretKey;
                 CWalletDB(strWalletFile).WriteZerocoinEntry(pubCoinTx);
                 LogPrintf("SpendZerocoin failed, re-updated status -> NotifyZerocoinChanged\n");
-                LogPrintf("pubcoin=%s, isUsed=New\n", pubCoinItem.value.GetHex());
-                pwalletMain->NotifyZerocoinChanged(pwalletMain, pubCoinItem.value.GetHex(), "New", CT_UPDATED);
+                LogPrintf("pubcoin=%s, isUsed=New\n", ownCoinItem.value.GetHex());
+                pwalletMain->NotifyZerocoinChanged(pwalletMain, ownCoinItem.value.GetHex(), "New", CT_UPDATED);
             }
         }
         CZerocoinSpendEntryV3 entry;
@@ -6068,28 +6191,28 @@ string CWallet::SpendMultipleZerocoin(std::string &thirdPartyaddress, const std:
     if (!CommitZerocoinSpendTransaction(wtxNew, reservekey)) {
         LogPrintf("CommitZerocoinSpendTransaction() -> FAILED!\n");
         CZerocoinEntry pubCoinTx;
-        list <CZerocoinEntry> listPubCoin;
-        listPubCoin.clear();
+        list <CZerocoinEntry> listOwnCoins;
+        listOwnCoins.clear();
         CWalletDB walletdb(pwalletMain->strWalletFile);
-        walletdb.ListPubCoin(listPubCoin);
+        walletdb.ListPubCoin(listOwnCoins);
 
         for (std::vector<CBigNum>::iterator it = coinSerials.begin(); it != coinSerials.end(); it++){
             unsigned index = it - coinSerials.begin();
             CBigNum zcSelectedValue = zcSelectedValues[index];
-            BOOST_FOREACH(const CZerocoinEntry &pubCoinItem, listPubCoin) {
-                if (zcSelectedValue == pubCoinItem.value) {
-                    pubCoinTx.id = pubCoinItem.id;
+            BOOST_FOREACH(const CZerocoinEntry &ownCoinItem, listOwnCoins) {
+                if (zcSelectedValue == ownCoinItem.value) {
+                    pubCoinTx.id = ownCoinItem.id;
                     pubCoinTx.IsUsed = false; // having error, so set to false, to be able to use again
-                    pubCoinTx.value = pubCoinItem.value;
-                    pubCoinTx.nHeight = pubCoinItem.nHeight;
-                    pubCoinTx.randomness = pubCoinItem.randomness;
-                    pubCoinTx.serialNumber = pubCoinItem.serialNumber;
-                    pubCoinTx.denomination = pubCoinItem.denomination;
-                    pubCoinTx.ecdsaSecretKey = pubCoinItem.ecdsaSecretKey;
+                    pubCoinTx.value = ownCoinItem.value;
+                    pubCoinTx.nHeight = ownCoinItem.nHeight;
+                    pubCoinTx.randomness = ownCoinItem.randomness;
+                    pubCoinTx.serialNumber = ownCoinItem.serialNumber;
+                    pubCoinTx.denomination = ownCoinItem.denomination;
+                    pubCoinTx.ecdsaSecretKey = ownCoinItem.ecdsaSecretKey;
                     NotifyZerocoinChanged(this, pubCoinTx.value.GetHex(), "New", CT_UPDATED);
                     CWalletDB(strWalletFile).WriteZerocoinEntry(pubCoinTx);
                     LogPrintf("SpendZerocoin failed, re-updated status -> NotifyZerocoinChanged\n");
-                    LogPrintf("pubcoin=%s, isUsed=New\n", pubCoinItem.value.GetHex());
+                    LogPrintf("pubcoin=%s, isUsed=New\n", ownCoinItem.value.GetHex());
                 }
             }
             CZerocoinSpendEntry entry;
@@ -6131,27 +6254,27 @@ string CWallet::SpendMultipleZerocoinV3(
     if (!CommitZerocoinSpendTransaction(wtxNew, reservekey)) {
         LogPrintf("CommitZerocoinSpendTransaction() -> FAILED!\n");
         CZerocoinEntryV3 pubCoinTx;
-        list <CZerocoinEntryV3> listPubCoin;
-        listPubCoin.clear();
+        list <CZerocoinEntryV3> listOwnCoins;
+        listOwnCoins.clear();
         CWalletDB walletdb(pwalletMain->strWalletFile);
-        walletdb.ListPubCoinV3(listPubCoin);
+        walletdb.ListPubCoinV3(listOwnCoins);
 
         for (std::vector<Scalar>::iterator it = coinSerials.begin(); it != coinSerials.end(); it++){
             unsigned index = it - coinSerials.begin();
             GroupElement zcSelectedValue = zcSelectedValues[index];
-            BOOST_FOREACH(const CZerocoinEntryV3 &pubCoinItem, listPubCoin) {
-                if (zcSelectedValue == pubCoinItem.value) {
-                    pubCoinTx.id = pubCoinItem.id;
+            BOOST_FOREACH(const CZerocoinEntryV3 &ownCoinItem, listOwnCoins) {
+                if (zcSelectedValue == ownCoinItem.value) {
+                    pubCoinTx.id = ownCoinItem.id;
                     pubCoinTx.IsUsed = false; // having error, so set to false, to be able to use again
-                    pubCoinTx.value = pubCoinItem.value;
-                    pubCoinTx.nHeight = pubCoinItem.nHeight;
-                    pubCoinTx.randomness = pubCoinItem.randomness;
-                    pubCoinTx.serialNumber = pubCoinItem.serialNumber;
-                    pubCoinTx.set_denomination_value(pubCoinItem.get_denomination_value());
-//                    pubCoinTx.ecdsaSecretKey = pubCoinItem.ecdsaSecretKey;
+                    pubCoinTx.value = ownCoinItem.value;
+                    pubCoinTx.nHeight = ownCoinItem.nHeight;
+                    pubCoinTx.randomness = ownCoinItem.randomness;
+                    pubCoinTx.serialNumber = ownCoinItem.serialNumber;
+                    pubCoinTx.set_denomination_value(ownCoinItem.get_denomination_value());
+                    pubCoinTx.ecdsaSecretKey = ownCoinItem.ecdsaSecretKey;
                     CWalletDB(strWalletFile).WriteZerocoinEntry(pubCoinTx);
                     LogPrintf("SpendZerocoin failed, re-updated status -> NotifyZerocoinChanged\n");
-                    LogPrintf("pubcoin=%s, isUsed=New\n", pubCoinItem.value.GetHex());
+                    LogPrintf("pubcoin=%s, isUsed=New\n", ownCoinItem.value.GetHex());
                 }
             }
             CZerocoinSpendEntryV3 entry;
@@ -7338,32 +7461,32 @@ int CMerkleTx::GetBlocksToMaturity() const {
 
 
 bool CMerkleTx::AcceptToMemoryPool(
-        bool fLimitFree,
-        CAmount nAbsurdFee,
-        CValidationState &state,
+        bool fLimitFree, 
+        CAmount nAbsurdFee, 
+        CValidationState &state, 
         bool fCheckInputs,
         bool isCheckWalletTransaction,
         bool markZcoinSpendTransactionSerial) {
-    LogPrintf("CMerkleTx::AcceptToMemoryPool(), transaction %s, fCheckInputs=%s\n",
-              GetHash().ToString(),
+    LogPrintf("CMerkleTx::AcceptToMemoryPool(), transaction %s, fCheckInputs=%s\n", 
+              GetHash().ToString(), 
               fCheckInputs);
     if (GetBoolArg("-dandelion", true)) {
         bool res = ::AcceptToMemoryPool(
-            stempool,
-            state,
-            *this,
-            fCheckInputs,
-            fLimitFree,
+            stempool, 
+            state, 
+            *this, 
+            fCheckInputs, 
+            fLimitFree, 
             NULL, /* pfMissingInputs */
             false, /* fOverrideMempoolLimit */
-            nAbsurdFee,
+            nAbsurdFee, 
             isCheckWalletTransaction,
             false /* markZcoinSpendTransactionSerial */
         );
         if (!res) {
             LogPrintf(
-                "CMerkleTx::AcceptToMemoryPool, failed to add txn %s to dandelion stempool: %s.\n",
-                GetHash().ToString(),
+                "CMerkleTx::AcceptToMemoryPool, failed to add txn %s to dandelion stempool: %s.\n", 
+                GetHash().ToString(), 
                 state.GetRejectReason());
         }
         return res;
@@ -7371,27 +7494,27 @@ bool CMerkleTx::AcceptToMemoryPool(
         // Changes to mempool should also be made to Dandelion stempool
         CValidationState dummyState;
         ::AcceptToMemoryPool(
-            stempool,
-            dummyState,
-            *this,
-            fCheckInputs,
-            fLimitFree,
-            NULL, /* pfMissingInputs */
+            stempool, 
+            dummyState, 
+            *this, 
+            fCheckInputs, 
+            fLimitFree, 
+            NULL, /* pfMissingInputs */ 
             false, /* fOverrideMempoolLimit */
-            nAbsurdFee,
+            nAbsurdFee, 
             isCheckWalletTransaction,
             false /* markZcoinSpendTransactionSerial */
         );
         return ::AcceptToMemoryPool(
-            mempool,
-            state,
-            *this,
-            fCheckInputs,
-            fLimitFree,
+            mempool, 
+            state, 
+            *this, 
+            fCheckInputs, 
+            fLimitFree, 
             NULL, /* pfMissingInputs */
             false, /* fOverrideMempoolLimit */
-            nAbsurdFee,
-            isCheckWalletTransaction,
+            nAbsurdFee, 
+            isCheckWalletTransaction, 
             markZcoinSpendTransactionSerial);
     }
 }
@@ -7401,3 +7524,4 @@ bool CompHeightV3(const CZerocoinEntryV3 &a, const CZerocoinEntryV3 &b) { return
 
 bool CompID(const CZerocoinEntry &a, const CZerocoinEntry &b) { return a.id < b.id; }
 bool CompIDV3(const CZerocoinEntryV3 &a, const CZerocoinEntryV3 &b) { return a.id < b.id; }
+
