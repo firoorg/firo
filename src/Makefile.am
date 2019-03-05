@@ -195,9 +195,9 @@ BITCOIN_CORE_H = \
   wallet/crypter.h \
   wallet/db.h \
   wallet/rpcwallet.h \
+  wallet/txbuilder.h \
   wallet/wallet.h \
   wallet/walletdb.h \
-  wallet/walletexcept.h \
   wallet/authhelper.h \
   definition.h \
   zmq/zmqabstractnotifier.h \
@@ -292,9 +292,9 @@ libbitcoin_wallet_a_SOURCES = \
   wallet/db.cpp \
   wallet/rpcdump.cpp \
   wallet/rpcwallet.cpp \
+  wallet/txbuilder.cpp \
   wallet/wallet.cpp \
   wallet/walletdb.cpp \
-  wallet/walletexcept.cpp \
   wallet/authhelper.cpp \
   policy/rbf.cpp \
   $(BITCOIN_CORE_H)

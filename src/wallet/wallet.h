@@ -584,13 +584,6 @@ enum MintAlgorithm {
     SIGMA = 2
 };
 
-struct InputDescriptor
-{
-    CTxIn vin;
-    CAmount amount;
-    int txDepth;
-};
-
 /**
  * A CWallet is an extension of a keystore, which also maintains a set of transactions and balances,
  * and provides the ability to create new transactions.
@@ -604,15 +597,6 @@ private:
      * if they are not ours
      */
     bool SelectCoins(const std::vector<COutput>& vAvailableCoins, const CAmount& nTargetValue, std::set<std::pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet, const CCoinControl *coinControl = NULL, AvailableCoinsType nCoinType = ALL_COINS, bool fUseInstantSend = false) const;
-
-    void CreateTransaction(
-        const std::vector<CRecipient>& recipients,
-        CWalletTx& result,
-        CAmount& fee,
-        const std::function<CAmount(std::vector<InputDescriptor>& inputs, CAmount required)>& getInputs,
-        const std::function<CAmount(CMutableTransaction& tx, CAmount amount, bool subtractFee)>& addChangeOutputs,
-        const std::function<unsigned(CMutableTransaction& tx, const std::vector<InputDescriptor>& inputs)>& postProcess,
-        const std::function<CAmount(CAmount need, unsigned size)>& adjustFee);
 
     CWalletDB *pwalletdbEncryption;
 
@@ -848,7 +832,7 @@ public:
      * \param[out] coinsToSpend_out Coins which user needs to spend.
      * \param[out] coinsToMint_out Coins which will be re-minted by the user to get the change back.
      * \returns true, if it was possible to spend exactly required(rounded up to 0.1 zcoin) amount using coins we have.
-     */ 
+     */
     bool GetCoinsToSpend(
         CAmount required,
         std::vector<CZerocoinEntryV3>& coinsToSpend_out,
@@ -891,9 +875,8 @@ public:
         std::string& strFailReason,
         bool forceUsed = false);
 
-    void CreateZerocoinSpendTransactionV3(
+    CWalletTx CreateZerocoinSpendTransactionV3(
         const std::vector<CRecipient>& recipients,
-        CWalletTx& result,
         CAmount& fee,
         std::vector<CZerocoinEntryV3>& selected);
 
@@ -1278,7 +1261,7 @@ public:
     Scalar randomness;
     Scalar serialNumber;
 
-    // Signature over partial transaction 
+    // Signature over partial transaction
     // to make sure the outputs are not changed by attacker.
     std::vector<unsigned char> ecdsaSecretKey;
 
