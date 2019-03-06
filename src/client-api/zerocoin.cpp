@@ -154,7 +154,7 @@ UniValue sendprivate(Type type, const UniValue& data, const UniValue& auth, bool
             // Storage of errors
             string strError = "";
 
-            // To ensure atomic updates, spend creation/validation and broadcasting.
+            // To ensure atomic updates, spend creation/validation and broadcasting are separated.
             // As a result we need to temporarily store transaction related data, until the broadcasting stage.
             struct TempSpend {
                 CWalletTx wtx;

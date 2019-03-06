@@ -30,40 +30,13 @@ bool ReadAPISetting(UniValue& data, UniValue& setting, string name){
     return false;
 }
 
-bool WriteAPISetting(UniValue& data, UniValue& setting, bool changed){
-    string name = find_value(setting, "name").get_str();
-    string value = find_value(setting, "data").get_str();
-
+bool WriteAPISetting(UniValue& data, string name, UniValue& setting){
     UniValue settingUni(UniValue::VOBJ);
     settingUni = find_value(data, name);
     if(settingUni.isNull()){
         settingUni.setObject();
     }
-    settingUni.replace("data", value);
-    settingUni.replace("changed", changed);
-    data.replace(name, settingUni);
-    return true;
-}
-
-bool WriteSettings(){
-    UniValue settingsData(UniValue::VOBJ);
-    settingsData = ReadSettingsData();
-
-    string name;
-    string value;
-
-    for(std::map<std::string, std::string>:: iterator it = mapArgs.begin(); it != mapArgs.end(); it++){
-        name = (*it).first;
-        value = (*it).second;
-        UniValue setting(UniValue::VOBJ);
-        setting.push_back(Pair("data", value));
-        setting.push_back(Pair("name", name));
-
-        WriteAPISetting(settingsData, setting, false);
-    }
-
-    WriteSettingsToFS(settingsData);
-
+    data.replace(name, setting);
     return true;
 }
 
@@ -135,7 +108,8 @@ bool SetRestartNow(UniValue& data){
     for (vector<string>::iterator it = names.begin(); it != names.end(); it++) {
         string name = (*it);
         setting = find_value(data, name);
-        if(find_value(setting, "changed").get_bool()==true){
+        if(name != "restartNow" && 
+           find_value(setting, "changed").get_bool()==true){
             data.replace("restartNow", true);
             break;
         }
@@ -225,10 +199,9 @@ UniValue setting(Type type, const UniValue& data, const UniValue& auth, bool fHe
                    throw JSONRPCError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
                 }
                 setting = find_value(data, name);
-                setting.replace("name", name);
                 setting.replace("disabled", false);
-                setting.replace("changed", false);
-                WriteAPISetting(settingsData, setting, true);
+                setting.replace("changed", true);
+                WriteAPISetting(settingsData, name, setting);
             }
 
             writeBack = true;
@@ -241,8 +214,11 @@ UniValue setting(Type type, const UniValue& data, const UniValue& auth, bool fHe
                 if(!SettingExists(settingsData, name)){
                    throw JSONRPCError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
                 }
+                bool disabled = find_value(find_value(settingsData, name), "disabled").get_bool();
                 setting = find_value(data, name);
-                WriteAPISetting(settingsData, setting, true);
+                setting.replace("changed", true);
+                setting.replace("disabled", disabled);
+                WriteAPISetting(settingsData, name, setting);
             }
                 
             SetRestartNow(settingsData); 
