@@ -169,7 +169,7 @@ bool AppInit(int argc, char* argv[])
         // Set this early so that parameter interactions go to console
         InitLogging();
         InitParameterInteraction();
-        fApi = GetBoolArg("-api", false);
+        fApi = GetBoolArg("-clientapi", false);
         if(fApi){
             ReadAPISettingsFile();
         }
