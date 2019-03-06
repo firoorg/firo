@@ -46,7 +46,7 @@ CWalletTx TxBuilder::Build(const std::vector<CRecipient>& recipients, CAmount& f
         auto& recipient = recipients[i];
 
         if (recipient.nAmount < 0) {
-            throw std::invalid_argument(boost::str(boost::format(_("Recipient %zu has negative amount")) % i));
+            throw std::invalid_argument(boost::str(boost::format(_("Recipient %1% has negative amount")) % i));
         }
 
         spend += recipient.nAmount;
@@ -117,7 +117,7 @@ CWalletTx TxBuilder::Build(const std::vector<CRecipient>& recipients, CAmount& f
             CTxOut vout(recipient.nAmount, recipient.scriptPubKey);
 
             if (vout.IsDust(minRelayTxFee)) {
-                throw std::invalid_argument(boost::str(boost::format(_("Amount for recipient %zu is too small")) % i));
+                throw std::invalid_argument(boost::str(boost::format(_("Amount for recipient %1% is too small")) % i));
             }
 
             tx.vout.push_back(vout);
