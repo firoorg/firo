@@ -81,6 +81,7 @@ public:
         CoinDenominationV3 denomination,
         int version = ZEROCOIN_TX_VERSION_3);
 
+    const ParamsV3 * getParams() const;
     const PublicCoinV3& getPublicCoin() const;
     const Scalar& getSerialNumber() const;
     const Scalar& getRandomness() const;
@@ -91,7 +92,7 @@ public:
     void setVersion(unsigned int nVersion);
     const unsigned char* getEcdsaSeckey() const;
 
-    void setEcdsaSeckey(const std::vector<unsigned char> &seckey); 
+    void setEcdsaSeckey(const std::vector<unsigned char> &seckey);
 
     static Scalar serialNumberFromSerializedPublicKey(
         const secp256k1_context *context,

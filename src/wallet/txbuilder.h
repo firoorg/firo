@@ -4,37 +4,42 @@
 #include "wallet.h"
 
 #include "../amount.h"
+#include "../script/script.h"
 #include "../primitives/transaction.h"
+#include "../uint256.h"
 
+#include <memory>
 #include <vector>
+
+#include <inttypes.h>
+
+class InputSigner
+{
+public:
+    COutPoint output;
+    uint32_t sequence;
+
+public:
+    virtual ~InputSigner() {}
+
+    virtual CScript Sign(const CMutableTransaction& tx, const uint256& sig) = 0;
+};
 
 class TxBuilder
 {
 public:
+    CWallet& wallet;
+
+public:
+    TxBuilder(CWallet& wallet) noexcept;
     virtual ~TxBuilder();
 
-    CWalletTx Build(const std::vector<CRecipient>& recipients, CAmount& fee) const;
+    CWalletTx Build(const std::vector<CRecipient>& recipients, CAmount& fee);
 
 protected:
-    TxBuilder(CWallet& wallet) noexcept;
-
-    virtual CAmount SetupInputs(CMutableTransaction& tx, CAmount required) const = 0;
-    virtual CAmount AdjustFee(CAmount needed, unsigned txSize) const;
-
-    CWallet& wallet;
-};
-
-class SigmaSpendBuilder : public TxBuilder
-{
-public:
-    SigmaSpendBuilder(CWallet& wallet, std::vector<CZerocoinEntryV3>& selected);
-    ~SigmaSpendBuilder() override;
-
-protected:
-    CAmount SetupInputs(CMutableTransaction& tx, CAmount required) const override;
-
-private:
-    std::vector<CZerocoinEntryV3>& selected;
+    virtual CAmount GetInputs(std::vector<std::unique_ptr<InputSigner>>& signers, CAmount required) = 0;
+    virtual CAmount GetChanges(std::vector<CTxOut>& outputs, CAmount amount) = 0;
+    virtual CAmount AdjustFee(CAmount needed, unsigned txSize);
 };
 
 #endif
