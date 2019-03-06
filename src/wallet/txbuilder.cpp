@@ -91,7 +91,7 @@ CWalletTx TxBuilder::Build(const std::vector<CRecipient>& recipients, CAmount& f
     // e.g. high-latency mix networks and some CoinJoin implementations, have
     // better privacy.
     if (GetRandInt(10) == 0) {
-        tx.nLockTime = std::max(0U, tx.nLockTime - GetRandInt(100));
+        tx.nLockTime = std::max(0, static_cast<int>(tx.nLockTime) - GetRandInt(100));
     }
 
     assert(tx.nLockTime <= static_cast<unsigned>(chainActive.Height()));

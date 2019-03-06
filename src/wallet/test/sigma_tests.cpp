@@ -13,6 +13,7 @@
 #include <vector>
 #include <exception>
 #include <algorithm>
+#include <list>
 
 #include "wallet_test_fixture.h"
 #include "../../zerocoin_v3.h"
@@ -23,23 +24,15 @@ static const CBitcoinAddress randomAddr1("aBydwLXzmGc7j4mr4CVf461NvBjBFk71U1");
 static const CBitcoinAddress randomAddr2("aLTSv7QbTZbkgorYEhbNx2gH4hGYNLsoGv");
 static const CBitcoinAddress randomAddr3("a6r15E8Q9gqgWZSLLxZRQs4CWNkaaP5Y5b");
 
+static std::list<std::pair<uint256, CBlockIndex>> blocks;
+
 struct WalletSigmaTestingSetup : WalletTestingSetup
 {
     ~WalletSigmaTestingSetup()
     {
-        auto block = chainActive.Tip();
-
-        while (block && block != chainActive.Genesis()) {
-            auto current = block;
-            block = block->pprev;
-
-            delete current->phashBlock;
-            delete current;
-        }
+        blocks.clear();
     }
 };
-
-BOOST_FIXTURE_TEST_SUITE(wallet_sigma_tests, WalletSigmaTestingSetup)
 
 static void AddSigmaCoin(const sigma::PrivateCoinV3& coin, const sigma::CoinDenominationV3 denomination)
 {
@@ -50,11 +43,12 @@ static void AddSigmaCoin(const sigma::PrivateCoinV3& coin, const sigma::CoinDeno
     zerocoinTx.value = coin.getPublicCoin().getValue();
     zerocoinTx.randomness = coin.getRandomness();
     zerocoinTx.serialNumber = coin.getSerialNumber();
+    zerocoinTx.ecdsaSecretKey.resize(32);
 
-    std::copy_n(coin.getEcdsaSeckey(), 32, std::back_inserter(zerocoinTx.ecdsaSecretKey));
+    std::copy_n(coin.getEcdsaSeckey(), 32, zerocoinTx.ecdsaSecretKey.begin());
 
     if (!CWalletDB(pwalletMain->strWalletFile).WriteZerocoinEntry(zerocoinTx)) {
-        throw std::runtime_error("failed to update zerocoin entry");
+        throw std::runtime_error("Failed to add zerocoin to wallet");
     }
 }
 
@@ -62,13 +56,13 @@ static void GenerateBlockWithCoins(const uint256& hash, const std::vector<std::p
 {
     auto params = sigma::ParamsV3::get_default();
     auto state = CZerocoinStateV3::GetZerocoinState();
-    auto block = std::unique_ptr<CBlockIndex>(new CBlockIndex());
-    auto h = std::unique_ptr<uint256>(new uint256(hash));
+    auto block = blocks.emplace(blocks.end());
 
     // setup block
-    block->pprev = chainActive.Tip();
-    block->phashBlock = h.get();
-    block->nHeight = block->pprev->nHeight + 1;
+    block->first = hash;
+    block->second.phashBlock = &block->first;
+    block->second.pprev = chainActive.Tip();
+    block->second.nHeight = block->second.pprev->nHeight + 1;
 
     // generate coins
     for (auto& coin : coins) {
@@ -76,26 +70,16 @@ static void GenerateBlockWithCoins(const uint256& hash, const std::vector<std::p
             sigma::PrivateCoinV3 priv(params, coin.first);
             auto& pub = priv.getPublicCoin();
 
-            block->mintedPubCoinsV3[std::make_pair(coin.first, 1)].push_back(pub);
-            state->AddBlock(block.get());
+            block->second.mintedPubCoinsV3[std::make_pair(coin.first, 1)].push_back(pub);
 
             AddSigmaCoin(priv, coin.first);
         }
     }
 
     // add block
-    auto ptr = block.release();
-
-    try {
-        chainActive.SetTip(ptr);
-        h.release();
-    } catch (...) {
-        delete ptr;
-        throw;
-    }
+    state->AddBlock(&block->second);
+    chainActive.SetTip(&block->second);
 }
-
-
 
 static bool CheckDenominationCoins(
         const std::vector<std::pair<sigma::CoinDenominationV3, int>>& expected,
@@ -208,6 +192,8 @@ static CAmount GetCoinSetByDenominationAmount(
 
     return sum;
 }
+
+BOOST_FIXTURE_TEST_SUITE(wallet_sigma_tests, WalletSigmaTestingSetup)
 
 BOOST_AUTO_TEST_CASE(get_coin_no_coin)
 {
