@@ -6,6 +6,7 @@
 
 #include "../../libzerocoin/sigma/CoinSpend.h"
 #include "../../main.h"
+#include "../../random.h"
 
 #include <set>
 #include <stdint.h>
@@ -52,14 +53,14 @@ static void AddSigmaCoin(const sigma::PrivateCoinV3& coin, const sigma::CoinDeno
     }
 }
 
-static void GenerateBlockWithCoins(const uint256& hash, const std::vector<std::pair<sigma::CoinDenominationV3, int>>& coins)
+static void GenerateBlockWithCoins(const std::vector<std::pair<sigma::CoinDenominationV3, int>>& coins)
 {
     auto params = sigma::ParamsV3::get_default();
     auto state = CZerocoinStateV3::GetZerocoinState();
     auto block = blocks.emplace(blocks.end());
 
     // setup block
-    block->first = hash;
+    block->first = GetRandHash();
     block->second.phashBlock = &block->first;
     block->second.pprev = chainActive.Tip();
     block->second.nHeight = block->second.pprev->nHeight + 1;
@@ -214,7 +215,7 @@ BOOST_AUTO_TEST_CASE(get_coin_different_denomination)
 {
     std::vector<std::pair<sigma::CoinDenominationV3, int>> newCoins;
     GetCoinSetByDenominationAmount(newCoins, 2, 1, 1, 1, 1);
-    GenerateBlockWithCoins(uint256S("c0c53331e3d96dbe4a20976196c0a214124bef9a7829df574f00f4e5a1b7ae52"), newCoins);
+    GenerateBlockWithCoins(newCoins);
 
     CAmount require(111 * COIN + 7 * COIN / 10); // 111.7
 
@@ -231,7 +232,7 @@ BOOST_AUTO_TEST_CASE(get_coin_round_up)
 {
     std::vector<std::pair<sigma::CoinDenominationV3, int>> newCoins;
     GetCoinSetByDenominationAmount(newCoins, 5, 5, 5, 5, 5);
-    GenerateBlockWithCoins(uint256S("c0c53331e3d96dbe4a20976196c0a214124bef9a7829df574f00f4e5a1b7ae52"), newCoins);
+    GenerateBlockWithCoins(newCoins);
 
     // This must get rounded up to 111.8
     CAmount require(111 * COIN + 7 * COIN / 10 + 5 * COIN / 100); // 111.75
@@ -259,7 +260,7 @@ BOOST_AUTO_TEST_CASE(get_coin_not_enough)
 {
     std::vector<std::pair<sigma::CoinDenominationV3, int>> newCoins;
     GetCoinSetByDenominationAmount(newCoins, 1, 1, 1, 1, 1);
-    GenerateBlockWithCoins(uint256S("c0c53331e3d96dbe4a20976196c0a214124bef9a7829df574f00f4e5a1b7ae52"), newCoins);
+    GenerateBlockWithCoins(newCoins);
 
     CAmount require(111 * COIN + 7 * COIN / 10); // 111.7
 
@@ -273,7 +274,7 @@ BOOST_AUTO_TEST_CASE(get_coin_minimize_coins_spend_fit_amount)
 {
     std::vector<std::pair<sigma::CoinDenominationV3, int>> newCoins;
     GetCoinSetByDenominationAmount(newCoins, 0, 0, 0, 10, 1);
-    GenerateBlockWithCoins(uint256S("c0c53331e3d96dbe4a20976196c0a214124bef9a7829df574f00f4e5a1b7ae52"), newCoins);
+    GenerateBlockWithCoins(newCoins);
 
     CAmount require(100 * COIN);
 
@@ -293,7 +294,7 @@ BOOST_AUTO_TEST_CASE(get_coin_minimize_coins_spend)
 {
     std::vector<std::pair<sigma::CoinDenominationV3, int>> newCoins;
     GetCoinSetByDenominationAmount(newCoins, 1, 0, 7, 1, 1);
-    GenerateBlockWithCoins(uint256S("c0c53331e3d96dbe4a20976196c0a214124bef9a7829df574f00f4e5a1b7ae52"), newCoins);
+    GenerateBlockWithCoins(newCoins);
 
     CAmount require(17 * COIN);
 
@@ -313,7 +314,7 @@ BOOST_AUTO_TEST_CASE(get_coin_choose_smallest_enough)
 {
     std::vector<std::pair<sigma::CoinDenominationV3, int>> newCoins;
     GetCoinSetByDenominationAmount(newCoins, 1, 1, 1, 1, 1);
-    GenerateBlockWithCoins(uint256S("c0c53331e3d96dbe4a20976196c0a214124bef9a7829df574f00f4e5a1b7ae52"), newCoins);
+    GenerateBlockWithCoins(newCoins);
 
     CAmount require(9 * COIN / 10); // 0.9
 
@@ -346,10 +347,11 @@ BOOST_AUTO_TEST_CASE(create_spend_with_some_recipients_have_negative_amount)
     std::vector<CZerocoinEntryV3> selected;
     std::vector<CRecipient> recipients;
 
-    recipients.push_back(CRecipient());
-    recipients.back().scriptPubKey = GetScriptForDestination(randomAddr1.Get());
-    recipients.back().nAmount = -1;
-    recipients.back().fSubtractFeeFromAmount = false;
+    recipients.push_back(CRecipient{
+        .scriptPubKey = GetScriptForDestination(randomAddr1.Get()),
+        .nAmount = -1,
+        .fSubtractFeeFromAmount = false
+    });
 
     BOOST_CHECK_EXCEPTION(
         pwalletMain->CreateZerocoinSpendTransactionV3(recipients, fee, selected),
@@ -364,22 +366,25 @@ BOOST_AUTO_TEST_CASE(create_spend_with_insufficient_coins)
     std::vector<CZerocoinEntryV3> selected;
     std::vector<CRecipient> recipients;
 
-    GenerateBlockWithCoins(uint256S("c0c53331e3d96dbe4a20976196c0a214124bef9a7829df574f00f4e5a1b7ae52"), { std::make_pair(sigma::CoinDenominationV3::SIGMA_DENOM_10, 1) });
+    GenerateBlockWithCoins({ std::make_pair(sigma::CoinDenominationV3::SIGMA_DENOM_10, 1) });
 
-    recipients.push_back(CRecipient());
-    recipients.back().scriptPubKey = GetScriptForDestination(randomAddr1.Get());
-    recipients.back().nAmount = 5 * COIN;
-    recipients.back().fSubtractFeeFromAmount = false;
+    recipients.push_back(CRecipient{
+        .scriptPubKey = GetScriptForDestination(randomAddr1.Get()),
+        .nAmount = 5 * COIN,
+        .fSubtractFeeFromAmount = false
+    });
 
-    recipients.push_back(CRecipient());
-    recipients.back().scriptPubKey = GetScriptForDestination(randomAddr2.Get());
-    recipients.back().nAmount = 5 * COIN;
-    recipients.back().fSubtractFeeFromAmount = false;
+    recipients.push_back(CRecipient{
+        .scriptPubKey = GetScriptForDestination(randomAddr2.Get()),
+        .nAmount = 5 * COIN,
+        .fSubtractFeeFromAmount = false
+    });
 
-    recipients.push_back(CRecipient());
-    recipients.back().scriptPubKey = GetScriptForDestination(randomAddr3.Get());
-    recipients.back().nAmount = 1 * COIN;
-    recipients.back().fSubtractFeeFromAmount = false;
+    recipients.push_back(CRecipient{
+        .scriptPubKey = GetScriptForDestination(randomAddr3.Get()),
+        .nAmount = 1 * COIN,
+        .fSubtractFeeFromAmount = false
+    });
 
     BOOST_CHECK_EXCEPTION(
         pwalletMain->CreateZerocoinSpendTransactionV3(recipients, fee, selected),
@@ -393,22 +398,25 @@ BOOST_AUTO_TEST_CASE(create_spend_with_confirmation_less_than_6)
     std::vector<CZerocoinEntryV3> selected;
     std::vector<CRecipient> recipients;
 
-    GenerateBlockWithCoins(uint256S("c0c53331e3d96dbe4a20976196c0a214124bef9a7829df574f00f4e5a1b7ae52"), { std::make_pair(sigma::CoinDenominationV3::SIGMA_DENOM_10, 2) });
+    GenerateBlockWithCoins({ std::make_pair(sigma::CoinDenominationV3::SIGMA_DENOM_10, 2) });
 
-    recipients.push_back(CRecipient());
-    recipients.back().scriptPubKey = GetScriptForDestination(randomAddr1.Get());
-    recipients.back().nAmount = 5 * COIN;
-    recipients.back().fSubtractFeeFromAmount = false;
+    recipients.push_back(CRecipient{
+        .scriptPubKey = GetScriptForDestination(randomAddr1.Get()),
+        .nAmount = 5 * COIN,
+        .fSubtractFeeFromAmount = false
+    });
 
-    recipients.push_back(CRecipient());
-    recipients.back().scriptPubKey = GetScriptForDestination(randomAddr2.Get());
-    recipients.back().nAmount = 5 * COIN;
-    recipients.back().fSubtractFeeFromAmount = false;
+    recipients.push_back(CRecipient{
+        .scriptPubKey = GetScriptForDestination(randomAddr2.Get()),
+        .nAmount = 5 * COIN,
+        .fSubtractFeeFromAmount = false
+    });
 
-    recipients.push_back(CRecipient());
-    recipients.back().scriptPubKey = GetScriptForDestination(randomAddr3.Get());
-    recipients.back().nAmount = 1 * COIN;
-    recipients.back().fSubtractFeeFromAmount = false;
+    recipients.push_back(CRecipient{
+        .scriptPubKey = GetScriptForDestination(randomAddr3.Get()),
+        .nAmount = 1 * COIN,
+        .fSubtractFeeFromAmount = false
+    });
 
     BOOST_CHECK_EXCEPTION(
         pwalletMain->CreateZerocoinSpendTransactionV3(recipients, fee, selected),
@@ -422,17 +430,18 @@ BOOST_AUTO_TEST_CASE(create_spend_with_coins_less_than_2)
     std::vector<CZerocoinEntryV3> selected;
     std::vector<CRecipient> recipients;
 
-    GenerateBlockWithCoins(uint256S("c0c53331e3d96dbe4a20976196c0a214124bef9a7829df574f00f4e5a1b7ae52"), { std::make_pair(sigma::CoinDenominationV3::SIGMA_DENOM_10, 1) });
-    GenerateBlockWithCoins(uint256S("bdf3fe560c2a65f563111afa39247fc2584fc9315118f86a9c9e2f93f974bace"), {});
-    GenerateBlockWithCoins(uint256S("2663970914b4e4617e68955147651758b0626c8cd27070d1a15a2b952bf88ae4"), {});
-    GenerateBlockWithCoins(uint256S("3df15a7adf7567a58fa73bf5a95689522fc1e577f919761c49269da114db588c"), {});
-    GenerateBlockWithCoins(uint256S("03c3ec77f27dc60fd7b195aa81291fbe3af120bac42be18cf4e5c42157d165f0"), {});
-    GenerateBlockWithCoins(uint256S("9112757a6575496bc9c5887ef24aa3470d622a56bf72868729e05b2a327bf42c"), {});
+    GenerateBlockWithCoins({ std::make_pair(sigma::CoinDenominationV3::SIGMA_DENOM_10, 1) });
+    GenerateBlockWithCoins({});
+    GenerateBlockWithCoins({});
+    GenerateBlockWithCoins({});
+    GenerateBlockWithCoins({});
+    GenerateBlockWithCoins({});
 
-    recipients.push_back(CRecipient());
-    recipients.back().scriptPubKey = GetScriptForDestination(randomAddr1.Get());
-    recipients.back().nAmount = 5 * COIN;
-    recipients.back().fSubtractFeeFromAmount = false;
+    recipients.push_back(CRecipient{
+        .scriptPubKey = GetScriptForDestination(randomAddr1.Get()),
+        .nAmount = 5 * COIN,
+        .fSubtractFeeFromAmount = false
+    });
 
     BOOST_CHECK_EXCEPTION(
         pwalletMain->CreateZerocoinSpendTransactionV3(recipients, fee, selected),
@@ -446,22 +455,24 @@ BOOST_AUTO_TEST_CASE(create_spend_with_coins_more_than_1)
     std::vector<CZerocoinEntryV3> selected;
     std::vector<CRecipient> recipients;
 
-    GenerateBlockWithCoins(uint256S("c0c53331e3d96dbe4a20976196c0a214124bef9a7829df574f00f4e5a1b7ae52"), { std::make_pair(sigma::CoinDenominationV3::SIGMA_DENOM_10, 2) });
-    GenerateBlockWithCoins(uint256S("bdf3fe560c2a65f563111afa39247fc2584fc9315118f86a9c9e2f93f974bace"), {});
-    GenerateBlockWithCoins(uint256S("2663970914b4e4617e68955147651758b0626c8cd27070d1a15a2b952bf88ae4"), {});
-    GenerateBlockWithCoins(uint256S("3df15a7adf7567a58fa73bf5a95689522fc1e577f919761c49269da114db588c"), {});
-    GenerateBlockWithCoins(uint256S("03c3ec77f27dc60fd7b195aa81291fbe3af120bac42be18cf4e5c42157d165f0"), {});
-    GenerateBlockWithCoins(uint256S("9112757a6575496bc9c5887ef24aa3470d622a56bf72868729e05b2a327bf42c"), {});
+    GenerateBlockWithCoins({ std::make_pair(sigma::CoinDenominationV3::SIGMA_DENOM_10, 2) });
+    GenerateBlockWithCoins({});
+    GenerateBlockWithCoins({});
+    GenerateBlockWithCoins({});
+    GenerateBlockWithCoins({});
+    GenerateBlockWithCoins({});
 
-    recipients.push_back(CRecipient());
-    recipients.back().scriptPubKey = GetScriptForDestination(randomAddr1.Get());
-    recipients.back().nAmount = 5 * COIN;
-    recipients.back().fSubtractFeeFromAmount = false;
+    recipients.push_back(CRecipient{
+        .scriptPubKey = GetScriptForDestination(randomAddr1.Get()),
+        .nAmount = 5 * COIN,
+        .fSubtractFeeFromAmount = false
+    });
 
-    recipients.push_back(CRecipient());
-    recipients.back().scriptPubKey = GetScriptForDestination(randomAddr2.Get());
-    recipients.back().nAmount = 10 * COIN;
-    recipients.back().fSubtractFeeFromAmount = false;
+    recipients.push_back(CRecipient{
+        .scriptPubKey = GetScriptForDestination(randomAddr2.Get()),
+        .nAmount = 10 * COIN,
+        .fSubtractFeeFromAmount = false
+    });
 
     CWalletTx tx = pwalletMain->CreateZerocoinSpendTransactionV3(recipients, fee, selected);
 
@@ -488,17 +499,18 @@ BOOST_AUTO_TEST_CASE(spend)
     CAmount fee;
     std::vector<CRecipient> recipients;
 
-    GenerateBlockWithCoins(uint256S("c0c53331e3d96dbe4a20976196c0a214124bef9a7829df574f00f4e5a1b7ae52"), { std::make_pair(sigma::CoinDenominationV3::SIGMA_DENOM_10, 2) });
-    GenerateBlockWithCoins(uint256S("bdf3fe560c2a65f563111afa39247fc2584fc9315118f86a9c9e2f93f974bace"), {});
-    GenerateBlockWithCoins(uint256S("2663970914b4e4617e68955147651758b0626c8cd27070d1a15a2b952bf88ae4"), {});
-    GenerateBlockWithCoins(uint256S("3df15a7adf7567a58fa73bf5a95689522fc1e577f919761c49269da114db588c"), {});
-    GenerateBlockWithCoins(uint256S("03c3ec77f27dc60fd7b195aa81291fbe3af120bac42be18cf4e5c42157d165f0"), {});
-    GenerateBlockWithCoins(uint256S("9112757a6575496bc9c5887ef24aa3470d622a56bf72868729e05b2a327bf42c"), {});
+    GenerateBlockWithCoins({ std::make_pair(sigma::CoinDenominationV3::SIGMA_DENOM_10, 2) });
+    GenerateBlockWithCoins({});
+    GenerateBlockWithCoins({});
+    GenerateBlockWithCoins({});
+    GenerateBlockWithCoins({});
+    GenerateBlockWithCoins({});
 
-    recipients.push_back(CRecipient());
-    recipients.back().scriptPubKey = GetScriptForDestination(randomAddr1.Get());
-    recipients.back().nAmount = 5 * COIN;
-    recipients.back().fSubtractFeeFromAmount = false;
+    recipients.push_back(CRecipient{
+        .scriptPubKey = GetScriptForDestination(randomAddr1.Get()),
+        .nAmount = 5 * COIN,
+        .fSubtractFeeFromAmount = false
+    });
 
     auto selected = pwalletMain->SpendZerocoinV3(recipients, tx, fee);
 
