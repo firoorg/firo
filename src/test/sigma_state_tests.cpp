@@ -23,11 +23,11 @@ CBlockIndex CreateBlockIndex(int nHeight)
 }
 
 std::vector<PrivateCoinV3> generateCoins(
-    const ParamsV3* params, int n, sigma::CoinDenominationV3 denom = sigma::CoinDenominationV3::SIGMA_DENOM_0_1)
+    const ParamsV3* params, int n, sigma::CoinDenominationV3 denom)
 {
     std::vector<sigma::PrivateCoinV3> privCoins;
 
-    for(int i =0 ;i< n;i++)
+    for(int i =0; i<n; i++)
         privCoins.push_back(sigma::PrivateCoinV3(params, denom));
 
     return privCoins;
@@ -744,7 +744,7 @@ BOOST_AUTO_TEST_CASE(zerocoingetspendserialnumberv3_valid_tx_valid_vin)
     auto params = sigma::ParamsV3::get_default();
 
     // spend
-    auto coins = generateCoins(params,10);
+    auto coins = generateCoins(params, 10, sigma::CoinDenominationV3::SIGMA_DENOM_0_1);
     auto pubCoins = getPubcoins(coins);
 
     // Doesn't really matter what metadata we give here, it must pass.
@@ -828,7 +828,7 @@ BOOST_AUTO_TEST_CASE(zerocoingetspendserialnumberv3_invalid_script)
     auto params = sigma::ParamsV3::get_default();
 
     // spend
-    auto coins = generateCoins(params,10);
+    auto coins = generateCoins(params, 10, sigma::CoinDenominationV3::SIGMA_DENOM_0_1);
     auto pubCoins = getPubcoins(coins);
 
     // Doesn't really matter what metadata we give here, it must pass.
@@ -936,7 +936,7 @@ BOOST_AUTO_TEST_CASE(sigma_build_state)
     BOOST_CHECK_MESSAGE(!zerocoinState->IsUsedCoinSerial(notFoundSerial), "Expect not found serial");
 
     // has coin
-    auto notFoundCoins = generateCoins(params,10);
+    auto notFoundCoins = generateCoins(params, 10, sigma::CoinDenominationV3::SIGMA_DENOM_0_1);
     auto notFoundPubCoins = getPubcoins(notFoundCoins);
     BOOST_CHECK_MESSAGE(zerocoinState->HasCoin(pubCoins[0]), "Expect found pubcoin");
     BOOST_CHECK_MESSAGE(zerocoinState->HasCoin(pubCoins3[0]), "Expect found pubcoin");
@@ -979,7 +979,7 @@ BOOST_AUTO_TEST_CASE(sigma_build_state_no_sigma)
     BOOST_CHECK_MESSAGE(!zerocoinState->IsUsedCoinSerial(notFoundSerial), "Expect not found serial");
 
     // has coin
-    auto notFoundCoins = generateCoins(params,10);
+    auto notFoundCoins = generateCoins(params,10, sigma::CoinDenominationV3::SIGMA_DENOM_0_1);
     auto notFoundPubCoins = getPubcoins(notFoundCoins);
     BOOST_CHECK_MESSAGE(!zerocoinState->HasCoin(notFoundPubCoins[0]), "Expect not found pubcoin");
 
