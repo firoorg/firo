@@ -4,12 +4,13 @@
 #include "../main.h"
 #include "../secp256k1/include/Scalar.h"
 #include "../zerocoin_v3.h"
+#include "./test_bitcoin.h"
 
 #include <boost/test/unit_test.hpp>
 
 #include <stdlib.h>
 
-BOOST_AUTO_TEST_SUITE(sigma_state_tests)
+BOOST_FIXTURE_TEST_SUITE(sigma_state_tests, TestingSetup)
 
 static const uint256 txHash = uint256S("a64bf7b459d3bb09653e444d75a942e9848ed8e1f30e2890f999426ed6dd4a2c");
 
