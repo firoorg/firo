@@ -116,6 +116,12 @@ namespace std {
 
 string to_string(::sigma::CoinDenominationV3 denom);
 
-} // namespace std
+template<> struct hash<sigma::CoinDenominationV3> {
+    std::size_t operator()(const sigma::CoinDenominationV3 &f) const {
+        return std::hash<int>{}(static_cast<int>(f));
+    }
+};
+
+}// namespace std
 
 #endif //ZCOIN_SIGMA_COIN_H
