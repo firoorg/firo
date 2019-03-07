@@ -195,6 +195,8 @@ BITCOIN_CORE_H = \
   wallet/crypter.h \
   wallet/db.h \
   wallet/rpcwallet.h \
+  wallet/sigmaspendbuilder.h \
+  wallet/txbuilder.h \
   wallet/wallet.h \
   wallet/walletdb.h \
   wallet/authhelper.h \
@@ -291,6 +293,8 @@ libbitcoin_wallet_a_SOURCES = \
   wallet/db.cpp \
   wallet/rpcdump.cpp \
   wallet/rpcwallet.cpp \
+  wallet/sigmaspendbuilder.cpp \
+  wallet/txbuilder.cpp \
   wallet/wallet.cpp \
   wallet/walletdb.cpp \
   wallet/authhelper.cpp \
@@ -304,8 +308,8 @@ crypto_libbitcoin_crypto_a_SOURCES = \
   crypto/aes.cpp \
   crypto/aes.h \
   crypto/common.h \
-  crypto/chacha20.h \                           
-  crypto/chacha20.cpp \    
+  crypto/chacha20.h \
+  crypto/chacha20.cpp \
   crypto/hmac_sha256.cpp \
   crypto/hmac_sha256.h \
   crypto/hmac_sha512.cpp \

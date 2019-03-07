@@ -30,6 +30,7 @@
 #include <boost/test/unit_test.hpp>
 #include <boost/thread.hpp>
 #include "zerocoin.h"
+#include "zerocoin_v3.h"
 
 extern bool fPrintToConsole;
 extern void noui_connect();
@@ -62,6 +63,7 @@ TestingSetup::TestingSetup(const std::string& chainName, std::string suf) : Basi
         // Ideally we'd move all the RPC tests to the functional testing framework
         // instead of unit tests, but for now we need these here.
         CZerocoinState::GetZerocoinState()->Reset();
+        CZerocoinStateV3::GetZerocoinState()->Reset();
         RegisterAllCoreRPCCommands(tableRPC);
         ClearDatadirCache();
         pathTemp = GetTempPath() / strprintf("test_bitcoin_%lu_%i", (unsigned long)GetTime(), (int)(GetRand(100000)));
@@ -107,7 +109,7 @@ TestingSetup::~TestingSetup()
 			boost::filesystem::remove_all(std::wstring(L"\\\\?\\") + pathTemp.wstring());
 		}
 		catch(...) {
-				
+
 		}
 	}
         bitdb.RemoveDb("wallet_test.dat");

@@ -4,49 +4,83 @@
 
 #include "../wallet.h"
 
+#include "../../libzerocoin/sigma/CoinSpend.h"
+#include "../../main.h"
+#include "../../random.h"
+
 #include <set>
 #include <stdint.h>
 #include <utility>
 #include <vector>
 #include <exception>
 #include <algorithm>
+#include <list>
 
 #include "wallet_test_fixture.h"
 #include "../../zerocoin_v3.h"
 
 #include <boost/test/unit_test.hpp>
 
-BOOST_FIXTURE_TEST_SUITE(wallet_sigma_tests, WalletTestingSetup)
+static const CBitcoinAddress randomAddr1("aBydwLXzmGc7j4mr4CVf461NvBjBFk71U1");
+static const CBitcoinAddress randomAddr2("aLTSv7QbTZbkgorYEhbNx2gH4hGYNLsoGv");
+static const CBitcoinAddress randomAddr3("a6r15E8Q9gqgWZSLLxZRQs4CWNkaaP5Y5b");
 
-static bool AddSigmaCoin(const sigma::PrivateCoinV3& coin, const sigma::CoinDenominationV3 denomination)
+static std::list<std::pair<uint256, CBlockIndex>> blocks;
+
+struct WalletSigmaTestingSetup : WalletTestingSetup
 {
-    sigma::PublicCoinV3 pubCoin(coin.getPublicCoin());
+    ~WalletSigmaTestingSetup()
+    {
+        blocks.clear();
+    }
+};
 
+static void AddSigmaCoin(const sigma::PrivateCoinV3& coin, const sigma::CoinDenominationV3 denomination)
+{
     CZerocoinEntryV3 zerocoinTx;
+
     zerocoinTx.IsUsed = false;
     zerocoinTx.set_denomination(denomination);
-    zerocoinTx.value = pubCoin.getValue();
+    zerocoinTx.value = coin.getPublicCoin().getValue();
     zerocoinTx.randomness = coin.getRandomness();
     zerocoinTx.serialNumber = coin.getSerialNumber();
+    zerocoinTx.ecdsaSecretKey.resize(32);
 
-    return CWalletDB(pwalletMain->strWalletFile).WriteZerocoinEntry(zerocoinTx);
+    std::copy_n(coin.getEcdsaSeckey(), 32, zerocoinTx.ecdsaSecretKey.begin());
+
+    if (!CWalletDB(pwalletMain->strWalletFile).WriteZerocoinEntry(zerocoinTx)) {
+        throw std::runtime_error("Failed to add zerocoin to wallet");
+    }
 }
 
-static bool GenerateWalletCoin(const std::vector<std::pair<sigma::CoinDenominationV3, int>>& coins)
+static void GenerateBlockWithCoins(const std::vector<std::pair<sigma::CoinDenominationV3, int>>& coins)
 {
     auto params = sigma::ParamsV3::get_default();
+    auto state = CZerocoinStateV3::GetZerocoinState();
+    auto block = blocks.emplace(blocks.end());
 
+    // setup block
+    block->first = GetRandHash();
+    block->second.phashBlock = &block->first;
+    block->second.pprev = chainActive.Tip();
+    block->second.nHeight = block->second.pprev->nHeight + 1;
+
+    // generate coins
     for (auto& coin : coins) {
         for (int i = 0; i < coin.second; i++) {
-            sigma::PrivateCoinV3 privCoin(params, coin.first);
-            AddSigmaCoin(privCoin, coin.first);
+            sigma::PrivateCoinV3 priv(params, coin.first);
+            auto& pub = priv.getPublicCoin();
+
+            block->second.mintedPubCoinsV3[std::make_pair(coin.first, 1)].push_back(pub);
+
+            AddSigmaCoin(priv, coin.first);
         }
     }
 
-    return true;
+    // add block
+    state->AddBlock(&block->second);
+    chainActive.SetTip(&block->second);
 }
-
-
 
 static bool CheckDenominationCoins(
         const std::vector<std::pair<sigma::CoinDenominationV3, int>>& expected,
@@ -102,6 +136,38 @@ static bool CheckDenominationCoins(
     return expectedDenominations == actualDenominations;
 }
 
+static bool CheckSpend(const CTxIn& vin, const CZerocoinEntryV3& expected)
+{
+    // check vin properties
+    if (!vin.IsZerocoinSpendV3()) {
+        return false;
+    }
+
+    if (vin.nSequence != 1) {
+        return false;
+    }
+
+    if (!vin.prevout.IsNull()) {
+        return false;
+    }
+
+    // check spend script
+    CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
+    serialized.write(reinterpret_cast<const char *>(&vin.scriptSig[1]), vin.scriptSig.size() - 1);
+
+    sigma::CoinSpendV3 spend(sigma::ParamsV3::get_default(), serialized);
+
+    if (!spend.HasValidSerial() || spend.getCoinSerialNumber() != expected.serialNumber) {
+        return false;
+    }
+
+    if (spend.getDenomination() != expected.get_denomination()) {
+        return false;
+    }
+
+    return true;
+}
+
 static CAmount GetCoinSetByDenominationAmount(
     std::vector<std::pair<sigma::CoinDenominationV3, int>>& coins,
     int D01 = 0,
@@ -128,6 +194,8 @@ static CAmount GetCoinSetByDenominationAmount(
     return sum;
 }
 
+BOOST_FIXTURE_TEST_SUITE(wallet_sigma_tests, WalletSigmaTestingSetup)
+
 BOOST_AUTO_TEST_CASE(get_coin_no_coin)
 {
     CAmount require = COIN / 10;
@@ -147,7 +215,7 @@ BOOST_AUTO_TEST_CASE(get_coin_different_denomination)
 {
     std::vector<std::pair<sigma::CoinDenominationV3, int>> newCoins;
     GetCoinSetByDenominationAmount(newCoins, 2, 1, 1, 1, 1);
-    GenerateWalletCoin(newCoins);
+    GenerateBlockWithCoins(newCoins);
 
     CAmount require(111 * COIN + 7 * COIN / 10); // 111.7
 
@@ -164,7 +232,7 @@ BOOST_AUTO_TEST_CASE(get_coin_round_up)
 {
     std::vector<std::pair<sigma::CoinDenominationV3, int>> newCoins;
     GetCoinSetByDenominationAmount(newCoins, 5, 5, 5, 5, 5);
-    GenerateWalletCoin(newCoins);
+    GenerateBlockWithCoins(newCoins);
 
     // This must get rounded up to 111.8
     CAmount require(111 * COIN + 7 * COIN / 10 + 5 * COIN / 100); // 111.75
@@ -191,8 +259,8 @@ BOOST_AUTO_TEST_CASE(get_coin_round_up)
 BOOST_AUTO_TEST_CASE(get_coin_not_enough)
 {
     std::vector<std::pair<sigma::CoinDenominationV3, int>> newCoins;
-    CAmount have = GetCoinSetByDenominationAmount(newCoins, 1, 1, 1, 1, 1);
-    GenerateWalletCoin(newCoins);
+    GetCoinSetByDenominationAmount(newCoins, 1, 1, 1, 1, 1);
+    GenerateBlockWithCoins(newCoins);
 
     CAmount require(111 * COIN + 7 * COIN / 10); // 111.7
 
@@ -206,7 +274,7 @@ BOOST_AUTO_TEST_CASE(get_coin_minimize_coins_spend_fit_amount)
 {
     std::vector<std::pair<sigma::CoinDenominationV3, int>> newCoins;
     GetCoinSetByDenominationAmount(newCoins, 0, 0, 0, 10, 1);
-    GenerateWalletCoin(newCoins);
+    GenerateBlockWithCoins(newCoins);
 
     CAmount require(100 * COIN);
 
@@ -226,7 +294,7 @@ BOOST_AUTO_TEST_CASE(get_coin_minimize_coins_spend)
 {
     std::vector<std::pair<sigma::CoinDenominationV3, int>> newCoins;
     GetCoinSetByDenominationAmount(newCoins, 1, 0, 7, 1, 1);
-    GenerateWalletCoin(newCoins);
+    GenerateBlockWithCoins(newCoins);
 
     CAmount require(17 * COIN);
 
@@ -246,7 +314,7 @@ BOOST_AUTO_TEST_CASE(get_coin_choose_smallest_enough)
 {
     std::vector<std::pair<sigma::CoinDenominationV3, int>> newCoins;
     GetCoinSetByDenominationAmount(newCoins, 1, 1, 1, 1, 1);
-    GenerateWalletCoin(newCoins);
+    GenerateBlockWithCoins(newCoins);
 
     CAmount require(9 * COIN / 10); // 0.9
 
@@ -260,6 +328,225 @@ BOOST_AUTO_TEST_CASE(get_coin_choose_smallest_enough)
 
     BOOST_CHECK_MESSAGE(CheckDenominationCoins(expectedCoins, coins),
       "Expect only one SIGMA_DENOM_1");
+}
+
+BOOST_AUTO_TEST_CASE(create_spend_with_empty_recipients)
+{
+    CAmount fee;
+    std::vector<CZerocoinEntryV3> selected;
+
+    BOOST_CHECK_EXCEPTION(
+        pwalletMain->CreateZerocoinSpendTransactionV3({}, fee, selected),
+        std::invalid_argument,
+        [](const std::invalid_argument& e) { return e.what() == std::string("No recipients"); });
+}
+
+BOOST_AUTO_TEST_CASE(create_spend_with_some_recipients_have_negative_amount)
+{
+    CAmount fee;
+    std::vector<CZerocoinEntryV3> selected;
+    std::vector<CRecipient> recipients;
+
+    recipients.push_back(CRecipient{
+        .scriptPubKey = GetScriptForDestination(randomAddr1.Get()),
+        .nAmount = -1,
+        .fSubtractFeeFromAmount = false
+    });
+
+    BOOST_CHECK_EXCEPTION(
+        pwalletMain->CreateZerocoinSpendTransactionV3(recipients, fee, selected),
+        std::invalid_argument,
+        [](const std::invalid_argument& e) { return e.what() == std::string("Recipient 0 has negative amount"); });
+}
+
+BOOST_AUTO_TEST_CASE(create_spend_with_insufficient_coins)
+{
+    CAmount fee;
+    CWalletTx tx;
+    std::vector<CZerocoinEntryV3> selected;
+    std::vector<CRecipient> recipients;
+
+    GenerateBlockWithCoins({ std::make_pair(sigma::CoinDenominationV3::SIGMA_DENOM_10, 1) });
+
+    recipients.push_back(CRecipient{
+        .scriptPubKey = GetScriptForDestination(randomAddr1.Get()),
+        .nAmount = 5 * COIN,
+        .fSubtractFeeFromAmount = false
+    });
+
+    recipients.push_back(CRecipient{
+        .scriptPubKey = GetScriptForDestination(randomAddr2.Get()),
+        .nAmount = 5 * COIN,
+        .fSubtractFeeFromAmount = false
+    });
+
+    recipients.push_back(CRecipient{
+        .scriptPubKey = GetScriptForDestination(randomAddr3.Get()),
+        .nAmount = 1 * COIN,
+        .fSubtractFeeFromAmount = false
+    });
+
+    BOOST_CHECK_EXCEPTION(
+        pwalletMain->CreateZerocoinSpendTransactionV3(recipients, fee, selected),
+        std::runtime_error,
+        [](const std::runtime_error& e) { return e.what() == std::string("Insufficient funds"); });
+}
+
+BOOST_AUTO_TEST_CASE(create_spend_with_confirmation_less_than_6)
+{
+    CAmount fee;
+    std::vector<CZerocoinEntryV3> selected;
+    std::vector<CRecipient> recipients;
+
+    GenerateBlockWithCoins({ std::make_pair(sigma::CoinDenominationV3::SIGMA_DENOM_10, 2) });
+
+    recipients.push_back(CRecipient{
+        .scriptPubKey = GetScriptForDestination(randomAddr1.Get()),
+        .nAmount = 5 * COIN,
+        .fSubtractFeeFromAmount = false
+    });
+
+    recipients.push_back(CRecipient{
+        .scriptPubKey = GetScriptForDestination(randomAddr2.Get()),
+        .nAmount = 5 * COIN,
+        .fSubtractFeeFromAmount = false
+    });
+
+    recipients.push_back(CRecipient{
+        .scriptPubKey = GetScriptForDestination(randomAddr3.Get()),
+        .nAmount = 1 * COIN,
+        .fSubtractFeeFromAmount = false
+    });
+
+    BOOST_CHECK_EXCEPTION(
+        pwalletMain->CreateZerocoinSpendTransactionV3(recipients, fee, selected),
+        std::runtime_error,
+        [](const std::runtime_error& e) { return e.what() == std::string("Has to have at least two mint coins with at least 6 confirmation in order to spend a coin"); });
+}
+
+BOOST_AUTO_TEST_CASE(create_spend_with_coins_less_than_2)
+{
+    CAmount fee;
+    std::vector<CZerocoinEntryV3> selected;
+    std::vector<CRecipient> recipients;
+
+    GenerateBlockWithCoins({ std::make_pair(sigma::CoinDenominationV3::SIGMA_DENOM_10, 1) });
+    GenerateBlockWithCoins({});
+    GenerateBlockWithCoins({});
+    GenerateBlockWithCoins({});
+    GenerateBlockWithCoins({});
+    GenerateBlockWithCoins({});
+
+    recipients.push_back(CRecipient{
+        .scriptPubKey = GetScriptForDestination(randomAddr1.Get()),
+        .nAmount = 5 * COIN,
+        .fSubtractFeeFromAmount = false
+    });
+
+    BOOST_CHECK_EXCEPTION(
+        pwalletMain->CreateZerocoinSpendTransactionV3(recipients, fee, selected),
+        std::runtime_error,
+        [](const std::runtime_error& e) { return e.what() == std::string("Has to have at least two mint coins with at least 6 confirmation in order to spend a coin"); });
+}
+
+BOOST_AUTO_TEST_CASE(create_spend_with_coins_more_than_1)
+{
+    CAmount fee;
+    std::vector<CZerocoinEntryV3> selected;
+    std::vector<CRecipient> recipients;
+
+    GenerateBlockWithCoins({ std::make_pair(sigma::CoinDenominationV3::SIGMA_DENOM_10, 2) });
+    GenerateBlockWithCoins({});
+    GenerateBlockWithCoins({});
+    GenerateBlockWithCoins({});
+    GenerateBlockWithCoins({});
+    GenerateBlockWithCoins({});
+
+    recipients.push_back(CRecipient{
+        .scriptPubKey = GetScriptForDestination(randomAddr1.Get()),
+        .nAmount = 5 * COIN,
+        .fSubtractFeeFromAmount = false
+    });
+
+    recipients.push_back(CRecipient{
+        .scriptPubKey = GetScriptForDestination(randomAddr2.Get()),
+        .nAmount = 10 * COIN,
+        .fSubtractFeeFromAmount = false
+    });
+
+    CWalletTx tx = pwalletMain->CreateZerocoinSpendTransactionV3(recipients, fee, selected);
+
+    BOOST_TEST(tx.vin.size() == 2);
+    BOOST_TEST(tx.vout.size() == 2);
+    BOOST_TEST(fee > 0);
+
+    BOOST_TEST(selected.size() == 2);
+    BOOST_TEST(selected[0].get_denomination() == sigma::CoinDenominationV3::SIGMA_DENOM_10);
+    BOOST_TEST(selected[1].get_denomination() == sigma::CoinDenominationV3::SIGMA_DENOM_10);
+
+    BOOST_TEST(CheckSpend(tx.vin[0], selected[0]));
+    BOOST_TEST(CheckSpend(tx.vin[1], selected[1]));
+
+    BOOST_TEST(tx.vout[0].nValue == 5 * COIN);
+    BOOST_TEST(tx.vout[0].scriptPubKey == GetScriptForDestination(randomAddr1.Get()));
+    BOOST_TEST(tx.vout[1].nValue == 10 * COIN);
+    BOOST_TEST(tx.vout[1].scriptPubKey == GetScriptForDestination(randomAddr2.Get()));
+}
+
+BOOST_AUTO_TEST_CASE(spend)
+{
+    CWalletTx tx;
+    CAmount fee;
+    std::vector<CRecipient> recipients;
+
+    GenerateBlockWithCoins({ std::make_pair(sigma::CoinDenominationV3::SIGMA_DENOM_10, 2) });
+    GenerateBlockWithCoins({});
+    GenerateBlockWithCoins({});
+    GenerateBlockWithCoins({});
+    GenerateBlockWithCoins({});
+    GenerateBlockWithCoins({});
+
+    recipients.push_back(CRecipient{
+        .scriptPubKey = GetScriptForDestination(randomAddr1.Get()),
+        .nAmount = 5 * COIN,
+        .fSubtractFeeFromAmount = false
+    });
+
+    auto selected = pwalletMain->SpendZerocoinV3(recipients, tx, fee);
+
+    CWalletDB db(pwalletMain->strWalletFile);
+
+    std::list<CZerocoinSpendEntryV3> spends;
+    db.ListCoinSpendSerial(spends);
+
+    std::list<CZerocoinEntryV3> coins;
+    db.ListPubCoinV3(coins);
+
+    BOOST_TEST(selected.size() == 1);
+    BOOST_TEST(selected[0].get_denomination() == sigma::CoinDenominationV3::SIGMA_DENOM_10);
+    BOOST_TEST(selected[0].id == 1);
+    BOOST_TEST(selected[0].IsUsed);
+    BOOST_TEST(selected[0].nHeight == 1);
+
+    BOOST_TEST(spends.size() == 1);
+    BOOST_TEST(spends.front().coinSerial == selected[0].serialNumber);
+    BOOST_TEST((spends.front().hashTx == tx.GetHash()));
+    BOOST_TEST(spends.front().pubCoin == selected[0].value);
+    BOOST_TEST(spends.front().id == selected[0].id);
+    BOOST_TEST(spends.front().get_denomination() == selected[0].get_denomination());
+
+    for (auto& coin : coins) {
+        if (std::find_if(
+            selected.begin(),
+            selected.end(),
+            [&coin](const CZerocoinEntryV3& e) { return e.serialNumber == coin.serialNumber; }) != selected.end()) {
+            continue;
+        }
+
+        BOOST_TEST(coin.IsUsed == false);
+        BOOST_TEST(coin.id == -1);
+        BOOST_TEST(coin.nHeight == -1);
+    }
 }
 
 BOOST_AUTO_TEST_SUITE_END()

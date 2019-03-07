@@ -247,7 +247,7 @@ public:
 
     /** Pass this transaction to the mempool. Fails if absolute fee exceeds absurd fee. */
     bool AcceptToMemoryPool(
-        bool fLimitFree, 
+        bool fLimitFree,
         const CAmount nAbsurdFee,
         CValidationState& state,
         bool fCheckInputs,
@@ -832,7 +832,7 @@ public:
      * \param[out] coinsToSpend_out Coins which user needs to spend.
      * \param[out] coinsToMint_out Coins which will be re-minted by the user to get the change back.
      * \returns true, if it was possible to spend exactly required(rounded up to 0.1 zcoin) amount using coins we have.
-     */ 
+     */
     bool GetCoinsToSpend(
         CAmount required,
         std::vector<CZerocoinEntryV3>& coinsToSpend_out,
@@ -875,6 +875,11 @@ public:
         std::string& strFailReason,
         bool forceUsed = false);
 
+    CWalletTx CreateZerocoinSpendTransactionV3(
+        const std::vector<CRecipient>& recipients,
+        CAmount& fee,
+        std::vector<CZerocoinEntryV3>& selected);
+
     bool CreateMultipleZerocoinSpendTransaction(std::string& thirdPartyaddress, const std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>>& denominations,
                                         CWalletTx& wtxNew, CReserveKey& reservekey, vector<CBigNum>& coinSerials, uint256& txHash, vector<CBigNum>& zcSelectedValues, std::string& strFailReason, bool forceUsed = false);
     bool CreateMultipleZerocoinSpendTransactionV3(
@@ -891,14 +896,18 @@ public:
     bool CommitZerocoinSpendTransaction(CWalletTx& wtxNew, CReserveKey& reservekey);
     std::string SendMoney(CScript scriptPubKey, int64_t nValue, CWalletTx& wtxNew, bool fAskFee=false);
     std::string SendMoneyToDestination(const CTxDestination &address, int64_t nValue, CWalletTx& wtxNew, bool fAskFee=false);
+
     std::string MintZerocoin(CScript pubCoin, int64_t nValue, CWalletTx& wtxNew, bool fAskFee=false);
     std::string MintAndStoreZerocoin(vector<CRecipient> vecSend, vector<libzerocoin::PrivateCoin> privCoins, CWalletTx &wtxNew, bool fAskFee=false);
     std::string MintAndStoreZerocoinV3(vector<CRecipient> vecSend, vector<sigma::PrivateCoinV3> privCoins, CWalletTx &wtxNew, bool fAskFee=false);
+
     std::string SpendZerocoin(std::string& thirdPartyaddress, int64_t nValue, libzerocoin::CoinDenomination denomination, CWalletTx& wtxNew, CBigNum& coinSerial, uint256& txHash, CBigNum& zcSelectedValue, bool& zcSelectedIsUsed, bool forceUsed = false);
     std::string SpendZerocoinV3(std::string& thirdPartyaddress, sigma::CoinDenominationV3 denomination, CWalletTx& wtxNew, Scalar& coinSerial, uint256& txHash, GroupElement& zcSelectedValue, bool& zcSelectedIsUsed, bool forceUsed = false);
     std::string SpendMultipleZerocoin(std::string& thirdPartyaddress, const std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>>& denominations, CWalletTx& wtxNew, vector<CBigNum>& coinSerials, uint256& txHash, vector<CBigNum>& zcSelectedValues, bool forceUsed = false);
-
     std::string SpendMultipleZerocoinV3(std::string& thirdPartyaddress, const std::vector<sigma::CoinDenominationV3>& denominations, CWalletTx& wtxNew, vector<Scalar>& coinSerials, uint256& txHash, vector<GroupElement>& zcSelectedValues, bool forceUsed = false);
+
+    std::vector<CZerocoinEntryV3> SpendZerocoinV3(const std::vector<CRecipient>& recipients, CWalletTx& result);
+    std::vector<CZerocoinEntryV3> SpendZerocoinV3(const std::vector<CRecipient>& recipients, CWalletTx& result, CAmount& fee);
 
     bool CreateZerocoinMintModel(string &stringError,
                                  const string& denomAmount,
@@ -928,6 +937,7 @@ public:
 
     bool SetZerocoinBook(const CZerocoinEntry& zerocoinEntry);
 
+    void CommitTransaction(CWalletTx& tx);
     bool CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey);
 
     bool CreateCollateralTransaction(CMutableTransaction& txCollateral, std::string& strReason);
@@ -936,7 +946,7 @@ public:
     bool AddAccountingEntry(const CAccountingEntry&, CWalletDB& pwalletdb);
 
     bool CheckDenomination(string denomAmount, int64_t& nAmount, libzerocoin::CoinDenomination& denomination);
-    
+
     bool CheckHasV2Mint(libzerocoin::CoinDenomination denomination, bool forceUsed);
 
     static CFeeRate minTxFee;
@@ -1240,7 +1250,7 @@ public:
     }
     sigma::CoinDenominationV3 get_denomination() const {
         sigma::CoinDenominationV3 result;
-        IntegerToDenomination(denomination, result); 
+        IntegerToDenomination(denomination, result);
         return result;
     }
 
@@ -1251,7 +1261,7 @@ public:
     Scalar randomness;
     Scalar serialNumber;
 
-    // Signature over partial transaction 
+    // Signature over partial transaction
     // to make sure the outputs are not changed by attacker.
     std::vector<unsigned char> ecdsaSecretKey;
 
@@ -1260,9 +1270,9 @@ public:
     int id;
 
 private:
-    // NOTE(martun): made this one private to make sure people don't 
-    // misuse it and try to assign a value of type sigma::CoinDenominationV3 
-    // to it. In these cases the value is automatically converted to int, 
+    // NOTE(martun): made this one private to make sure people don't
+    // misuse it and try to assign a value of type sigma::CoinDenominationV3
+    // to it. In these cases the value is automatically converted to int,
     // which is not what we want.
     // Starting from Version 3 == sigma, this number is coin value * COIN,
     // I.E. it is set to 100.000.000 for 1 zcoin.
@@ -1387,7 +1397,7 @@ public:
 
     sigma::CoinDenominationV3 get_denomination() const {
         sigma::CoinDenominationV3 result;
-        IntegerToDenomination(denomination, result); 
+        IntegerToDenomination(denomination, result);
         return result;
     }
 
@@ -1415,9 +1425,9 @@ public:
         READWRITE(id);
     }
 private:
-    // NOTE(martun): made this one private to make sure people don't 
-    // misuse it and try to assign a value of type sigma::CoinDenominationV3 
-    // to it. In these cases the value is automatically converted to int, 
+    // NOTE(martun): made this one private to make sure people don't
+    // misuse it and try to assign a value of type sigma::CoinDenominationV3
+    // to it. In these cases the value is automatically converted to int,
     // which is not what we want.
     // Starting from Version 3 == sigma, this number is coin value * COIN,
     // I.E. it is set to 100.000.000 for 1 zcoin.
