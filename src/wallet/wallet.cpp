@@ -4832,7 +4832,8 @@ bool CWallet::CreateZerocoinSpendTransactionV3(
 CWalletTx CWallet::CreateZerocoinSpendTransactionV3(
     const std::vector<CRecipient>& recipients,
     CAmount& fee,
-    std::vector<CZerocoinEntryV3>& selected)
+    std::vector<CZerocoinEntryV3>& selected,
+    std::vector<sigma::PrivateCoinV3>& mints)
 {
     // sanity check
     if (IsLocked()) {
@@ -4844,6 +4845,7 @@ CWalletTx CWallet::CreateZerocoinSpendTransactionV3(
 
     CWalletTx tx = builder.Build(recipients, fee);
     selected = builder.selected;
+    mints = builder.mints;
 
     return tx;
 }
@@ -6007,8 +6009,9 @@ std::vector<CZerocoinEntryV3> CWallet::SpendZerocoinV3(
 {
     // create transaction
     std::vector<CZerocoinEntryV3> coins;
+    std::vector<sigma::PrivateCoinV3> mints;
 
-    result = CreateZerocoinSpendTransactionV3(recipients, fee, coins);
+    result = CreateZerocoinSpendTransactionV3(recipients, fee, coins, mints);
 
     // commit
     try {
@@ -6062,6 +6065,32 @@ std::vector<CZerocoinEntryV3> CWallet::SpendZerocoinV3(
             coin.value.GetHex(),
             "Used (" + std::to_string(coin.get_denomination()) + " mint)",
             CT_UPDATED);
+    }
+
+    for (auto& mint : mints) {
+        CZerocoinEntryV3 zerocoinTx;
+        zerocoinTx.IsUsed = false;
+        zerocoinTx.set_denomination(mint.getPublicCoin().getDenomination());
+        zerocoinTx.value = mint.getPublicCoin().getValue();
+        sigma::PublicCoinV3 checkPubCoin(zerocoinTx.value, mint.getPublicCoin().getDenomination());
+        if (!checkPubCoin.validate()) {
+            throw std::runtime_error("error: pubCoin not validated.");
+        }
+
+        zerocoinTx.randomness = mint.getRandomness();
+        zerocoinTx.serialNumber = mint.getSerialNumber();
+        const unsigned char *ecdsaSecretKey = mint.getEcdsaSeckey();
+        zerocoinTx.ecdsaSecretKey = std::vector<unsigned char>(ecdsaSecretKey, ecdsaSecretKey+32);
+
+        if (!db.WriteZerocoinEntry(zerocoinTx)) {
+            throw std::runtime_error(_("Failed to store new Zerocoin"));
+        }
+
+        // raise event
+        NotifyZerocoinChanged(this,
+            zerocoinTx.value.GetHex(),
+            "New (" + std::to_string(zerocoinTx.get_denomination()) + " mint)",
+            CT_NEW);
     }
 
     return coins;

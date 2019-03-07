@@ -9,6 +9,7 @@ class SigmaSpendBuilder : public TxBuilder
 {
 public:
     std::vector<CZerocoinEntryV3> selected;
+    std::vector<sigma::PrivateCoinV3> mints;
 
 public:
     SigmaSpendBuilder(CWallet& wallet);

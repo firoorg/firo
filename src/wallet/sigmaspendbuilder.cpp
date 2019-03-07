@@ -140,5 +140,43 @@ CAmount SigmaSpendBuilder::GetInputs(std::vector<std::unique_ptr<InputSigner>>& 
 
 CAmount SigmaSpendBuilder::GetChanges(std::vector<CTxOut>& outputs, CAmount amount)
 {
+    outputs.clear();
+    mints.clear();
+
+    auto zcParams = sigma::ParamsV3::get_default();
+
+    // desc sorted
+    std::vector<sigma::CoinDenominationV3> denominations;
+    sigma::GetAllDenoms(denominations);
+
+    // get smallest denominations
+    CAmount smallestDenomination;
+    sigma::DenominationToInteger(denominations.back(), smallestDenomination);
+
+    for (const auto& denomination : denominations) {
+        CAmount denominationValue;
+        sigma::DenominationToInteger(denomination, denominationValue);
+
+        for (int i = 0; i < amount / denominationValue; i++) {
+            sigma::PrivateCoinV3 newCoin(zcParams, denomination, ZEROCOIN_TX_VERSION_3);
+            sigma::PublicCoinV3 pubCoin = newCoin.getPublicCoin();
+
+            if (!pubCoin.validate()) {
+                throw std::runtime_error("Unable to mint a V3 sigma coin.");
+            }
+
+            // Create script for coin
+            CScript scriptSerializedCoin;
+            scriptSerializedCoin << OP_ZEROCOINMINTV3;
+            std::vector<unsigned char> vch = pubCoin.getValue().getvch();
+            scriptSerializedCoin.insert(scriptSerializedCoin.end(), vch.begin(), vch.end());
+
+            outputs.push_back(CTxOut(denominationValue, scriptSerializedCoin));
+            mints.push_back(newCoin);
+        }
+
+        amount %= denominationValue;
+    }
+
     return amount;
 }
