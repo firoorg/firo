@@ -82,6 +82,25 @@ static void GenerateBlockWithCoins(const std::vector<std::pair<sigma::CoinDenomi
     chainActive.SetTip(&block->second);
 }
 
+static void GenerateEmptyBlocks(int number_of_blocks)
+{
+    for (int i = 0; i < number_of_blocks; ++i) {
+        auto params = sigma::ParamsV3::get_default();
+        auto state = CZerocoinStateV3::GetZerocoinState();
+        auto block = blocks.emplace(blocks.end());
+    
+        // setup block
+        block->first = GetRandHash();
+        block->second.phashBlock = &block->first;
+        block->second.pprev = chainActive.Tip();
+        block->second.nHeight = block->second.pprev->nHeight + 1;
+    
+        // add block
+        state->AddBlock(&block->second);
+        chainActive.SetTip(&block->second);
+    }
+}
+
 static bool CheckDenominationCoins(
         const std::vector<std::pair<sigma::CoinDenominationV3, int>>& expected,
         std::vector<sigma::CoinDenominationV3> actualDenominations)
@@ -216,6 +235,7 @@ BOOST_AUTO_TEST_CASE(get_coin_different_denomination)
     std::vector<std::pair<sigma::CoinDenominationV3, int>> newCoins;
     GetCoinSetByDenominationAmount(newCoins, 2, 1, 1, 1, 1);
     GenerateBlockWithCoins(newCoins);
+    GenerateEmptyBlocks(5);
 
     CAmount require(111 * COIN + 7 * COIN / 10); // 111.7
 
@@ -233,6 +253,7 @@ BOOST_AUTO_TEST_CASE(get_coin_round_up)
     std::vector<std::pair<sigma::CoinDenominationV3, int>> newCoins;
     GetCoinSetByDenominationAmount(newCoins, 5, 5, 5, 5, 5);
     GenerateBlockWithCoins(newCoins);
+    GenerateEmptyBlocks(5);
 
     // This must get rounded up to 111.8
     CAmount require(111 * COIN + 7 * COIN / 10 + 5 * COIN / 100); // 111.75
@@ -261,8 +282,25 @@ BOOST_AUTO_TEST_CASE(get_coin_not_enough)
     std::vector<std::pair<sigma::CoinDenominationV3, int>> newCoins;
     GetCoinSetByDenominationAmount(newCoins, 1, 1, 1, 1, 1);
     GenerateBlockWithCoins(newCoins);
+    GenerateEmptyBlocks(5);
 
     CAmount require(111 * COIN + 7 * COIN / 10); // 111.7
+
+    std::vector<CZerocoinEntryV3> coins;
+    std::vector<sigma::CoinDenominationV3> coinsToMint;
+    BOOST_CHECK_MESSAGE(!pwalletMain->GetCoinsToSpend(require, coins, coinsToMint),
+        "Expect not enough coin and equal to one for each denomination");
+}
+
+BOOST_AUTO_TEST_CASE(get_coin_cannot_spend_unconfirmed_coins)
+{
+    std::vector<std::pair<sigma::CoinDenominationV3, int>> newCoins;
+    GetCoinSetByDenominationAmount(newCoins, 1, 1, 1, 1, 1);
+    GenerateBlockWithCoins(newCoins);
+    // Intentionally do not create 5 more blocks after this one, so coins can not be spent.
+    // GenerateEmptyBlocks(5);
+
+    CAmount require(111 * COIN + 5 * COIN / 10); // 111.5
 
     std::vector<CZerocoinEntryV3> coins;
     std::vector<sigma::CoinDenominationV3> coinsToMint;
@@ -275,6 +313,7 @@ BOOST_AUTO_TEST_CASE(get_coin_minimize_coins_spend_fit_amount)
     std::vector<std::pair<sigma::CoinDenominationV3, int>> newCoins;
     GetCoinSetByDenominationAmount(newCoins, 0, 0, 0, 10, 1);
     GenerateBlockWithCoins(newCoins);
+    GenerateEmptyBlocks(5);
 
     CAmount require(100 * COIN);
 
@@ -295,6 +334,7 @@ BOOST_AUTO_TEST_CASE(get_coin_minimize_coins_spend)
     std::vector<std::pair<sigma::CoinDenominationV3, int>> newCoins;
     GetCoinSetByDenominationAmount(newCoins, 1, 0, 7, 1, 1);
     GenerateBlockWithCoins(newCoins);
+    GenerateEmptyBlocks(5);
 
     CAmount require(17 * COIN);
 
@@ -315,6 +355,7 @@ BOOST_AUTO_TEST_CASE(get_coin_choose_smallest_enough)
     std::vector<std::pair<sigma::CoinDenominationV3, int>> newCoins;
     GetCoinSetByDenominationAmount(newCoins, 1, 1, 1, 1, 1);
     GenerateBlockWithCoins(newCoins);
+    GenerateEmptyBlocks(5);
 
     CAmount require(9 * COIN / 10); // 0.9
 
@@ -367,6 +408,7 @@ BOOST_AUTO_TEST_CASE(create_spend_with_insufficient_coins)
     std::vector<CRecipient> recipients;
 
     GenerateBlockWithCoins({ std::make_pair(sigma::CoinDenominationV3::SIGMA_DENOM_10, 1) });
+    GenerateEmptyBlocks(5);
 
     recipients.push_back(CRecipient{
         .scriptPubKey = GetScriptForDestination(randomAddr1.Get()),
@@ -389,7 +431,7 @@ BOOST_AUTO_TEST_CASE(create_spend_with_insufficient_coins)
     BOOST_CHECK_EXCEPTION(
         pwalletMain->CreateZerocoinSpendTransactionV3(recipients, fee, selected),
         std::runtime_error,
-        [](const std::runtime_error& e) { return e.what() == std::string("Insufficient funds"); });
+        [](const std::runtime_error& e) { return e.what() == std::string("Insufficient funds, or some of the mints were not yet verified by 6 confirmation blocks."); });
 }
 
 BOOST_AUTO_TEST_CASE(create_spend_with_confirmation_less_than_6)
@@ -421,7 +463,7 @@ BOOST_AUTO_TEST_CASE(create_spend_with_confirmation_less_than_6)
     BOOST_CHECK_EXCEPTION(
         pwalletMain->CreateZerocoinSpendTransactionV3(recipients, fee, selected),
         std::runtime_error,
-        [](const std::runtime_error& e) { return e.what() == std::string("Has to have at least two mint coins with at least 6 confirmation in order to spend a coin"); });
+        [](const std::runtime_error& e) { return e.what() == std::string("Insufficient funds, or some of the mints were not yet verified by 6 confirmation blocks."); });
 }
 
 BOOST_AUTO_TEST_CASE(create_spend_with_coins_less_than_2)
@@ -431,11 +473,7 @@ BOOST_AUTO_TEST_CASE(create_spend_with_coins_less_than_2)
     std::vector<CRecipient> recipients;
 
     GenerateBlockWithCoins({ std::make_pair(sigma::CoinDenominationV3::SIGMA_DENOM_10, 1) });
-    GenerateBlockWithCoins({});
-    GenerateBlockWithCoins({});
-    GenerateBlockWithCoins({});
-    GenerateBlockWithCoins({});
-    GenerateBlockWithCoins({});
+    GenerateEmptyBlocks(5);
 
     recipients.push_back(CRecipient{
         .scriptPubKey = GetScriptForDestination(randomAddr1.Get()),
@@ -456,11 +494,7 @@ BOOST_AUTO_TEST_CASE(create_spend_with_coins_more_than_1)
     std::vector<CRecipient> recipients;
 
     GenerateBlockWithCoins({ std::make_pair(sigma::CoinDenominationV3::SIGMA_DENOM_10, 2) });
-    GenerateBlockWithCoins({});
-    GenerateBlockWithCoins({});
-    GenerateBlockWithCoins({});
-    GenerateBlockWithCoins({});
-    GenerateBlockWithCoins({});
+    GenerateEmptyBlocks(5);
 
     recipients.push_back(CRecipient{
         .scriptPubKey = GetScriptForDestination(randomAddr1.Get()),
@@ -500,11 +534,7 @@ BOOST_AUTO_TEST_CASE(spend)
     std::vector<CRecipient> recipients;
 
     GenerateBlockWithCoins({ std::make_pair(sigma::CoinDenominationV3::SIGMA_DENOM_10, 2) });
-    GenerateBlockWithCoins({});
-    GenerateBlockWithCoins({});
-    GenerateBlockWithCoins({});
-    GenerateBlockWithCoins({});
-    GenerateBlockWithCoins({});
+    GenerateEmptyBlocks(5);
 
     recipients.push_back(CRecipient{
         .scriptPubKey = GetScriptForDestination(randomAddr1.Get()),

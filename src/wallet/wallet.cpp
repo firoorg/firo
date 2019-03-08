@@ -1985,28 +1985,7 @@ static CAmount SelectSpendCoinsForAmount(
 
 } // end of unnamed namespace.
 
-bool CWallet::GetCoinsToSpend(
-        CAmount required,
-        std::vector<CZerocoinEntryV3>& coinsToSpend_out,
-        std::vector<sigma::CoinDenominationV3>& coinsToMint_out) const
-{
-    // Sanity check to make sure this function is never called with a too large
-    // amount to spend, resulting to a possible crash due to out of memory condition.
-    if (!MoneyRange(required)) {
-        throw std::invalid_argument("Request to spend more than 21 MLN Zcoins.\n");
-    }
-
-    // We have Coins denomination * 10^8, we remove last 7 0's  and add one coin of denomination 100
-    const uint64_t zeros = 10000000;
-
-    // Anything below 0.1 zerocoin goes to the miners as a fee.
-    if (required % zeros != 0) {
-        required /= zeros;
-        ++required;
-    } else {
-        required /= zeros;
-    }
-
+std::list<CZerocoinEntryV3> CWallet::GetAvailableCoins() const {
     std::list<CZerocoinEntryV3> coins;
     CWalletDB(strWalletFile).ListPubCoinV3(coins);
 
@@ -2031,7 +2010,32 @@ bool CWallet::GetCoinsToSpend(
             ++iter;
         }
     }
+    return std::move(coins);
+}
 
+bool CWallet::GetCoinsToSpend(
+        CAmount required,
+        std::vector<CZerocoinEntryV3>& coinsToSpend_out,
+        std::vector<sigma::CoinDenominationV3>& coinsToMint_out) const
+{
+    // Sanity check to make sure this function is never called with a too large
+    // amount to spend, resulting to a possible crash due to out of memory condition.
+    if (!MoneyRange(required)) {
+        throw std::invalid_argument("Request to spend more than 21 MLN Zcoins.\n");
+    }
+
+    // We have Coins denomination * 10^8, we remove last 7 0's  and add one coin of denomination 100
+    const uint64_t zeros = 10000000;
+
+    // Anything below 0.1 zerocoin goes to the miners as a fee.
+    if (required % zeros != 0) {
+        required /= zeros;
+        ++required;
+    } else {
+        required /= zeros;
+    }
+
+    std::list<CZerocoinEntryV3> coins = GetAvailableCoins();
     if (coins.empty())
         return false;
 

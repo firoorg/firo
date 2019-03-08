@@ -124,7 +124,7 @@ CAmount SigmaSpendBuilder::GetInputs(std::vector<std::unique_ptr<InputSigner>>& 
     selected.clear();
 
     if (!wallet.GetCoinsToSpend(required, selected, denomsToChanges)) {
-        throw std::runtime_error(_("Insufficient funds"));
+        throw std::runtime_error(_("Insufficient funds, or some of the mints were not yet verified by 6 confirmation blocks."));
     }
 
     // construct signers
