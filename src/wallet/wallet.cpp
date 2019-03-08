@@ -2009,6 +2009,29 @@ bool CWallet::GetCoinsToSpend(
 
     std::list<CZerocoinEntryV3> coins;
     CWalletDB(strWalletFile).ListPubCoinV3(coins);
+
+    // Filter out coins which are not confirmed, I.E. do not have at least 6 blocks
+    // above them, after they were minted.
+    // Also filter out used coins.
+    CZerocoinStateV3* zerocoinState = CZerocoinStateV3::GetZerocoinState();
+    for (auto iter = coins.begin(); iter != coins.end();) {
+        if (iter->IsUsed) {
+            iter = coins.erase(iter);
+            continue;
+        }
+
+        int coinHeight =  zerocoinState->GetMintedCoinHeightAndId(
+            PublicCoinV3(iter->value, iter->get_denomination())).first;
+        if (coinHeight + (ZC_MINT_CONFIRMATIONS - 1) > chainActive.Height()) {
+            // Remove the coin from the candidates list, since it does not have the 
+            // required number of confirmations.
+            iter = coins.erase(iter);
+        } else {
+            // Go to the next coin.
+            ++iter;
+        }
+    }
+
     if (coins.empty())
         return false;
 
@@ -2041,8 +2064,6 @@ bool CWallet::GetCoinsToSpend(
     ++coinIt;
 
     for(; coinIt != coins.rend(); coinIt++) {
-        if (coinIt->IsUsed)
-            continue;
         std::swap(prev_row, next_row);
         CAmount denom_i = coinIt->get_denomination_value() / zeros;
         for(int j = 1; j <= val; j++) {
