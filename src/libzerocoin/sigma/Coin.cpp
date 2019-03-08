@@ -154,6 +154,10 @@ PrivateCoinV3::PrivateCoinV3(const ParamsV3* p, CoinDenominationV3 denomination,
         this->mintCoin(denomination);
 }
 
+const ParamsV3 * PrivateCoinV3::getParams() const {
+    return this->params;
+}
+
 const PublicCoinV3& PrivateCoinV3::getPublicCoin() const{
     return this->publicCoin;
 }

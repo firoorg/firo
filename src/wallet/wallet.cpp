@@ -4,7 +4,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "wallet.h"
-#include "txbuilder.h"
+#include "sigmaspendbuilder.h"
 #include "amount.h"
 #include "base58.h"
 #include "checkpoints.h"
@@ -4861,9 +4861,12 @@ CWalletTx CWallet::CreateZerocoinSpendTransactionV3(
     }
 
     // create transaction
-    SigmaSpendBuilder builder(*this, selected);
+    SigmaSpendBuilder builder(*this);
 
-    return builder.Build(recipients, fee);
+    CWalletTx tx = builder.Build(recipients, fee);
+    selected = builder.selected;
+
+    return tx;
 }
 
 /**

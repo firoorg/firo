@@ -195,6 +195,7 @@ BITCOIN_CORE_H = \
   wallet/crypter.h \
   wallet/db.h \
   wallet/rpcwallet.h \
+  wallet/sigmaspendbuilder.h \
   wallet/txbuilder.h \
   wallet/wallet.h \
   wallet/walletdb.h \
@@ -292,6 +293,7 @@ libbitcoin_wallet_a_SOURCES = \
   wallet/db.cpp \
   wallet/rpcdump.cpp \
   wallet/rpcwallet.cpp \
+  wallet/sigmaspendbuilder.cpp \
   wallet/txbuilder.cpp \
   wallet/wallet.cpp \
   wallet/walletdb.cpp \

@@ -50,7 +50,6 @@ BITCOIN_TESTS =\
   test/zerocoin_tests.cpp \
   test/zerocoin_tests2.cpp \
   test/zerocoin_tests3.cpp \
-  test/zerocoin_tests_v3.cpp \
   test/zerocoin_tests2_v3.cpp \
   test/zerocoin_tests3_v3.cpp \
   test/znode_tests.cpp \
@@ -101,6 +100,9 @@ BITCOIN_TESTS =\
   test/serialize_tests.cpp \
   test/sighash_tests.cpp \
   test/sigma_state_tests.cpp \
+  test/sigma_mintspend_test.cpp \
+  test/sigma_manymintspend_test.cpp \
+  test/sigma_mintspend_numinputs.cpp \
   test/sigopcount_tests.cpp \
   test/skiplist_tests.cpp \
   test/streams_tests.cpp \

@@ -1,9 +1,5 @@
 #include "txbuilder.h"
 
-#include "../libzerocoin/sigma/Coin.h"
-#include "../libzerocoin/sigma/CoinSpend.h"
-#include "../libzerocoin/sigma/Params.h"
-#include "../libzerocoin/sigma/SpendMetaDataV3.h"
 #include "../main.h"
 #include "../policy/policy.h"
 #include "../random.h"
@@ -11,15 +7,12 @@
 #include "../txmempool.h"
 #include "../uint256.h"
 #include "../util.h"
-#include "../zerocoin_params.h"
-#include "../zerocoin_v3.h"
 
 #include <boost/format.hpp>
 
 #include <algorithm>
 #include <stdexcept>
 #include <string>
-#include <tuple>
 
 #include <assert.h>
 #include <stddef.h>
@@ -32,7 +25,7 @@ TxBuilder::~TxBuilder()
 {
 }
 
-CWalletTx TxBuilder::Build(const std::vector<CRecipient>& recipients, CAmount& fee) const
+CWalletTx TxBuilder::Build(const std::vector<CRecipient>& recipients, CAmount& fee)
 {
     if (recipients.empty()) {
         throw std::invalid_argument(_("No recipients"));
@@ -111,7 +104,7 @@ CWalletTx TxBuilder::Build(const std::vector<CRecipient>& recipients, CAmount& f
             required += fee;
         }
 
-        // outputs
+        // fill outputs
         for (size_t i = 0; i < recipients.size(); i++) {
             auto& recipient = recipients[i];
             CTxOut vout(recipient.nAmount, recipient.scriptPubKey);
@@ -123,8 +116,33 @@ CWalletTx TxBuilder::Build(const std::vector<CRecipient>& recipients, CAmount& f
             tx.vout.push_back(vout);
         }
 
-        // inputs
-        fee += SetupInputs(tx, required);
+        // get inputs
+        std::vector<std::unique_ptr<InputSigner>> signers;
+        CAmount total = GetInputs(signers, required);
+
+        // add changes
+        CAmount change = total - required;
+
+        if (change > 0) {
+            std::vector<CTxOut> changes;
+            fee += GetChanges(changes, change);
+
+            for (auto& output : changes) {
+                auto loc = tx.vout.begin() + GetRand(tx.vout.size() + 1);
+                tx.vout.insert(loc, output);
+            }
+        }
+
+        // fill inputs
+        for (auto& signer : signers) {
+            tx.vin.emplace_back(signer->output, CScript(), signer->sequence);
+        }
+
+        uint256 sig = tx.GetHash();
+
+        for (size_t i = 0; i < tx.vin.size(); i++) {
+            tx.vin[i].scriptSig = signers[i]->Sign(tx, sig);
+        }
 
         // check fee
         static_cast<CTransaction&>(result) = CTransaction(tx);
@@ -170,151 +188,7 @@ CWalletTx TxBuilder::Build(const std::vector<CRecipient>& recipients, CAmount& f
     return result;
 }
 
-CAmount TxBuilder::AdjustFee(CAmount needed, unsigned txSize) const
+CAmount TxBuilder::AdjustFee(CAmount needed, unsigned txSize)
 {
     return needed;
-}
-
-SigmaSpendBuilder::SigmaSpendBuilder(CWallet& wallet, std::vector<CZerocoinEntryV3>& selected) :
-    TxBuilder(wallet),
-    selected(selected)
-{
-    cs_main.lock();
-
-    try {
-        wallet.cs_wallet.lock();
-    } catch (...) {
-        cs_main.unlock();
-        throw;
-    }
-}
-
-SigmaSpendBuilder::~SigmaSpendBuilder()
-{
-    wallet.cs_wallet.unlock();
-    cs_main.unlock();
-}
-
-static CAmount GetPublicAndPrivateCoins(
-    const std::vector<CZerocoinEntryV3>& coins,
-    std::vector<sigma::PublicCoinV3>& publics,
-    std::vector<sigma::PrivateCoinV3>& privates)
-{
-    auto params = sigma::ParamsV3::get_default();
-    CAmount total = 0;
-
-    for (auto& coin : coins) {
-        auto denom = coin.get_denomination();
-
-        // construct public part of the mint
-        sigma::PublicCoinV3 pub(coin.value, denom);
-
-        if (!pub.validate()) {
-            throw std::runtime_error(_("One of the minted coin is invalid"));
-        }
-
-        // construct private part of the mint
-        sigma::PrivateCoinV3 priv(params, denom, ZEROCOIN_TX_VERSION_3);
-
-        priv.setSerialNumber(coin.serialNumber);
-        priv.setRandomness(coin.randomness);
-        priv.setEcdsaSeckey(coin.ecdsaSecretKey);
-        priv.setPublicCoin(pub);
-
-        publics.push_back(pub);
-        privates.push_back(priv);
-
-        total += coin.get_denomination_value();
-    }
-
-    return total;
-}
-
-static CScript CreateSigmaSpendScript(
-    int groupId,
-    const sigma::PublicCoinV3& pub,
-    const sigma::PrivateCoinV3& priv,
-    const uint256& metahash)
-{
-    auto state = CZerocoinStateV3::GetZerocoinState();
-    auto params = sigma::ParamsV3::get_default();
-    auto denom = pub.getDenomination();
-
-    // get all coins in the same group
-    std::vector<sigma::PublicCoinV3> group;
-    uint256 lastBlockOfGroup;
-
-    if (state->GetCoinSetForSpend(
-        &chainActive,
-        chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1), // required 6 confirmation for mint to spend
-        denom,
-        groupId,
-        lastBlockOfGroup,
-        group) < 2) {
-        throw std::runtime_error(_("Has to have at least two mint coins with at least 6 confirmation in order to spend a coin"));
-    }
-
-    // construct spend
-    sigma::SpendMetaDataV3 meta(groupId, lastBlockOfGroup, metahash);
-    sigma::CoinSpendV3 spend(params, priv, group, meta);
-
-    spend.setVersion(priv.getVersion());
-
-    if (!spend.Verify(group, meta)) {
-        throw std::runtime_error(_("The spend coin transaction failed to verify"));
-    }
-
-    // construct spend script
-    CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
-    serialized << spend;
-
-    CScript script;
-
-    script << OP_ZEROCOINSPENDV3;
-    script.insert(script.end(), serialized.begin(), serialized.end());
-
-    return script;
-}
-
-CAmount SigmaSpendBuilder::SetupInputs(CMutableTransaction& tx, CAmount required) const
-{
-    auto state = CZerocoinStateV3::GetZerocoinState();
-
-    // get coins to spend
-    std::vector<sigma::PublicCoinV3> publics;
-    std::vector<sigma::PrivateCoinV3> privates;
-    std::vector<sigma::CoinDenominationV3> denomsToChanges;
-
-    selected.clear();
-
-    if (!wallet.GetCoinsToSpend(required, selected, denomsToChanges)) {
-        throw std::runtime_error(_("Insufficient funds"));
-    }
-
-    CAmount total = GetPublicAndPrivateCoins(selected, publics, privates);
-
-    // fill inputs with empty spend script for calculate metadata
-    // we want to sign everything except spend script
-    tx.vin.resize(selected.size());
-
-    for (size_t i = 0; i < selected.size(); i++) {
-        int groupId;
-
-        std::tie(std::ignore, groupId) = state->GetMintedCoinHeightAndId(publics[i]);
-
-        if (groupId < 0) {
-            throw std::runtime_error(_("One of minted coin does not found in the chain"));
-        }
-
-        tx.vin[i].nSequence = groupId;
-    }
-
-    uint256 metahash = tx.GetHash();
-
-    // populate input list
-    for (size_t i = 0; i < selected.size(); i++) {
-        tx.vin[i].scriptSig = CreateSigmaSpendScript(tx.vin[i].nSequence, publics[i], privates[i], metahash);
-    }
-
-    return total - required;
 }
