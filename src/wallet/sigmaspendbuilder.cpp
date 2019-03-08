@@ -119,11 +119,11 @@ SigmaSpendBuilder::~SigmaSpendBuilder()
 CAmount SigmaSpendBuilder::GetInputs(std::vector<std::unique_ptr<InputSigner>>& signers, CAmount required)
 {
     // get coins to spend
-    std::vector<sigma::CoinDenominationV3> denomsToChanges;
 
     selected.clear();
+    denomChanges.clear();
 
-    if (!wallet.GetCoinsToSpend(required, selected, denomsToChanges)) {
+    if (!wallet.GetCoinsToSpend(required, selected, denomChanges)) {
         throw std::runtime_error(_("Insufficient funds"));
     }
 
@@ -141,41 +141,42 @@ CAmount SigmaSpendBuilder::GetInputs(std::vector<std::unique_ptr<InputSigner>>& 
 CAmount SigmaSpendBuilder::GetChanges(std::vector<CTxOut>& outputs, CAmount amount)
 {
     outputs.clear();
-    mints.clear();
+    changes.clear();
 
-    auto zcParams = sigma::ParamsV3::get_default();
+    auto params = sigma::ParamsV3::get_default();
 
-    // desc sorted
-    std::vector<sigma::CoinDenominationV3> denominations;
-    sigma::GetAllDenoms(denominations);
-
-    // get smallest denominations
-    CAmount smallestDenomination;
-    sigma::DenominationToInteger(denominations.back(), smallestDenomination);
-
-    for (const auto& denomination : denominations) {
+    for (const auto& denomination : denomChanges) {
         CAmount denominationValue;
         sigma::DenominationToInteger(denomination, denominationValue);
 
-        for (int i = 0; i < amount / denominationValue; i++) {
-            sigma::PrivateCoinV3 newCoin(zcParams, denomination, ZEROCOIN_TX_VERSION_3);
-            sigma::PublicCoinV3 pubCoin = newCoin.getPublicCoin();
+        sigma::PrivateCoinV3 newCoin(params, denomination, ZEROCOIN_TX_VERSION_3);
+        sigma::PublicCoinV3 pubCoin = newCoin.getPublicCoin();
 
-            if (!pubCoin.validate()) {
-                throw std::runtime_error("Unable to mint a V3 sigma coin.");
-            }
-
-            // Create script for coin
-            CScript scriptSerializedCoin;
-            scriptSerializedCoin << OP_ZEROCOINMINTV3;
-            std::vector<unsigned char> vch = pubCoin.getValue().getvch();
-            scriptSerializedCoin.insert(scriptSerializedCoin.end(), vch.begin(), vch.end());
-
-            outputs.push_back(CTxOut(denominationValue, scriptSerializedCoin));
-            mints.push_back(newCoin);
+        if (!pubCoin.validate()) {
+            throw std::runtime_error("Unable to mint a V3 sigma coin.");
         }
 
-        amount %= denominationValue;
+        // Create script for coin
+        CScript scriptSerializedCoin;
+        scriptSerializedCoin << OP_ZEROCOINMINTV3;
+        std::vector<unsigned char> vch = pubCoin.getValue().getvch();
+        scriptSerializedCoin.insert(scriptSerializedCoin.end(), vch.begin(), vch.end());
+
+        // Create zerocoinTx
+        CZerocoinEntryV3 zerocoinTx;
+        zerocoinTx.IsUsed = false;
+        zerocoinTx.set_denomination(newCoin.getPublicCoin().getDenomination());
+        zerocoinTx.value = newCoin.getPublicCoin().getValue();
+
+        zerocoinTx.randomness = newCoin.getRandomness();
+        zerocoinTx.serialNumber = newCoin.getSerialNumber();
+        const unsigned char *ecdsaSecretKey = newCoin.getEcdsaSeckey();
+        zerocoinTx.ecdsaSecretKey = std::vector<unsigned char>(ecdsaSecretKey, ecdsaSecretKey+32);
+
+        outputs.push_back(CTxOut(denominationValue, scriptSerializedCoin));
+        changes.push_back(zerocoinTx);
+
+        amount -= denominationValue;
     }
 
     return amount;

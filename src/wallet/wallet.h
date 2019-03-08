@@ -879,7 +879,7 @@ public:
         const std::vector<CRecipient>& recipients,
         CAmount& fee,
         std::vector<CZerocoinEntryV3>& selected,
-        std::vector<sigma::PrivateCoinV3>& mints);
+        std::vector<CZerocoinEntryV3>& changes);
 
     bool CreateMultipleZerocoinSpendTransaction(std::string& thirdPartyaddress, const std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>>& denominations,
                                         CWalletTx& wtxNew, CReserveKey& reservekey, vector<CBigNum>& coinSerials, uint256& txHash, vector<CBigNum>& zcSelectedValues, std::string& strFailReason, bool forceUsed = false);
