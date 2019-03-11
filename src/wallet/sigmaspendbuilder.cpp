@@ -150,7 +150,7 @@ CAmount SigmaSpendBuilder::GetChanges(std::vector<CTxOut>& outputs, CAmount amou
         sigma::DenominationToInteger(denomination, denominationValue);
 
         sigma::PrivateCoinV3 newCoin(params, denomination, ZEROCOIN_TX_VERSION_3);
-        sigma::PublicCoinV3 pubCoin = newCoin.getPublicCoin();
+        auto& pubCoin = newCoin.getPublicCoin();
 
         if (!pubCoin.validate()) {
             throw std::runtime_error("Unable to mint a V3 sigma coin.");
