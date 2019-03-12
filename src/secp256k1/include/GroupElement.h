@@ -72,7 +72,7 @@ public:
   // These functions are for READWRITE() in serialize.h
   unsigned int GetSerializeSize(int nType=0, int nVersion=0) const
   {
-     return memoryRequired();    
+     return memoryRequired();
   }
 
   template<typename Stream>
@@ -96,13 +96,7 @@ public:
   //function name like in CBignum
   std::vector<unsigned char> getvch() const;
 
-  struct hasher {
-  public:
-      std::size_t operator()(const GroupElement& x) const
-      {
-          return std::hash<std::string>()(x.tostring());
-      }
-  };
+  std::size_t hash() const;
 
 private:
     GroupElement(const void *g);
@@ -113,5 +107,16 @@ private:
 };
 
 } // namespace secp_primitives
+
+namespace std {
+    template<>
+    struct hash<secp_primitives::GroupElement>
+    {
+        size_t operator()(const secp_primitives::GroupElement& g) const
+        {
+            return g.hash();
+        }
+    };
+} // namespace std
 
 #endif // SECP_GROUP_ELEMENT_H__

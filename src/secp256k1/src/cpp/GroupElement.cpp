@@ -193,7 +193,7 @@ static void _convertToFieldElement(secp256k1_fe *r, const char* str, int base) {
                 throw std::invalid_argument("invalid number base 10");
             }
             break;
-        
+
         case 16:
             if (ch >= '0' && ch <= '9') {
                 src[i] = ch - '0';
@@ -524,6 +524,18 @@ std::vector<unsigned char> GroupElement::getvch() const {
     std::vector<unsigned char> result;
     result.insert(result.begin(), buffer, buffer + memoryRequired());
     return result;
+}
+
+std::size_t GroupElement::hash() const
+{
+    const unsigned char *g = reinterpret_cast<const unsigned char *>(g_);
+    std::size_t h = 0;
+
+    for (std::size_t i = 0; i < sizeof(secp256k1_gej); i++) {
+        h ^= g[i];
+    }
+
+    return h;
 }
 
 } // namespace secp_primitives

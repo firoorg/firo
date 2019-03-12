@@ -5226,7 +5226,7 @@ bool CWallet::CreateMultipleZerocoinSpendTransactionV3(
             vector<TempStorage> tempStorages;
 
             // object storing coins being used for this spend (to avoid duplicates being considered)
-            unordered_set<GroupElement, GroupElement::hasher> tempCoinsToUse;
+            unordered_set<GroupElement> tempCoinsToUse;
 
             // Total value of all inputs. Iteritively created in the following loop
             // The value is in multiples of COIN = 100 mln.
