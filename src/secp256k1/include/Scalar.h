@@ -1,42 +1,33 @@
 #ifndef SCALAR_H__
 #define SCALAR_H__
 
-#include <stdint.h>
-#include <memory>
-#include <cstring>
-#include <random>
-#include "secp256k1.h"
-#include "../src/util.h" // Must be before ../src/scalar.h, otherwise gives a compile error.
-#include "../src/scalar.h"
+#include <ostream>
+#include <string>
+#include <vector>
 
-#undef VERSION // Because there's a VERSION defined in zcoin, we need to undef the secp version.
+#include <inttypes.h>
+#include <stddef.h>
 
 namespace secp_primitives {
 
 // A wrapper over scalar value of Secp library.
-class Scalar {
+class Scalar final {
 public:
 
     Scalar();
     // Constructor from interger.
     Scalar(uint64_t value);
 
-    // Constructor from secp object.
-    Scalar(const secp256k1_scalar &value);
-
     // Copy constructor
     Scalar(const Scalar& other);
 
-    Scalar(const char* str);
+    Scalar(const unsigned char* str);
 
-    // Move constructor
-    Scalar(Scalar&& other);
+    ~Scalar();
 
     Scalar& set(const Scalar& other);
 
     Scalar& operator=(const Scalar& other);
-
-    Scalar& operator=(Scalar&& other) noexcept;
 
     Scalar& operator=(unsigned int i);
 
@@ -77,7 +68,7 @@ public:
     bool isMember() const;
 
     // Returns the secp object inside it.
-    const secp256k1_scalar& get_value() const;
+    const void * get_value() const;
 
     friend std::ostream& operator<< ( std::ostream& os, const Scalar& c) {
         os << c.tostring();
@@ -93,7 +84,14 @@ public:
 
     std::string GetHex() const;
     void SetHex(const std::string& str) const;
-    //this functions are for READWRITE() in serialize.h
+
+    // These functions are for READWRITE() in serialize.h
+
+    unsigned int GetSerializeSize(int nType=0, int nVersion=0) const
+    {
+        return memoryRequired();
+    }
+
     template<typename Stream>
     inline void Serialize(Stream& s, int nType, int nVersion) const {
         int size = memoryRequired();
@@ -115,7 +113,11 @@ public:
     void get_bits(std::vector<bool>& bits) const;
 
 private:
-    std::unique_ptr <secp256k1_scalar> value_;
+    // Constructor from secp object.
+    Scalar(const void *value);
+
+private:
+    void *value_; // secp256k1_scalar
 
 };
 

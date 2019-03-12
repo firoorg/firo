@@ -36,11 +36,6 @@
 #include <boost/test/unit_test.hpp>
 #include <boost/thread.hpp>
 
-extern CCriticalSection cs_main;
-using namespace std;
-
-bool no_check2( std::runtime_error const& ex ) { return true; }
-
 BOOST_FIXTURE_TEST_SUITE(zerocoin_tests2, ZerocoinTestingSetup109)
 
 BOOST_AUTO_TEST_CASE(zerocoin_mintspend2)

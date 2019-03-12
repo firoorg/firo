@@ -17,14 +17,13 @@ BOOST_AUTO_TEST_CASE(pedersen_commitment_test)
     secp_primitives::Scalar x(10);
     secp_primitives::Scalar r(20);
 
-    std::string expected;
-    expected = std::string("(61851512099084226466548221129323427278009818728918965264765669380819444390860,"
-    "74410384199099167977559468576631224214387698148107087854255519197692763637450)");
+    secp_primitives::GroupElement expected("61851512099084226466548221129323427278009818728918965264765669380819444390860",
+    "74410384199099167977559468576631224214387698148107087854255519197692763637450");
 
     secp_primitives::GroupElement c;
     c = sigma::SigmaPrimitives<secp_primitives::Scalar,secp_primitives::GroupElement>::commit(g, x, h, r);
 
-    BOOST_TEST(expected == c.tostring());
+    BOOST_TEST(expected == c);
 }
 
 BOOST_AUTO_TEST_CASE(homomorphic_test)
@@ -78,14 +77,13 @@ BOOST_AUTO_TEST_CASE(commit2_test)
     std::vector<secp_primitives::Scalar> x_;
     x_.push_back(secp_primitives::Scalar(20));
 
-    std::string expected;
-    expected = std::string("(61851512099084226466548221129323427278009818728918965264765669380819444390860,"
-    "74410384199099167977559468576631224214387698148107087854255519197692763637450)");
+    secp_primitives::GroupElement expected("61851512099084226466548221129323427278009818728918965264765669380819444390860",
+        "74410384199099167977559468576631224214387698148107087854255519197692763637450");
 
     secp_primitives::GroupElement resulted;
     sigma::SigmaPrimitives<secp_primitives::Scalar,secp_primitives::GroupElement>::commit(g,h_,x_,r,resulted);
 
-    BOOST_TEST(expected == resulted.tostring());
+    BOOST_TEST(expected == resulted);
 }
 
 BOOST_AUTO_TEST_CASE(commit2_vs_test)
@@ -109,14 +107,13 @@ BOOST_AUTO_TEST_CASE(commit2_vs_test)
     x_.push_back(secp_primitives::Scalar(20));
     x_.push_back(secp_primitives::Scalar(30));
 
-    std::string expected;
-    expected = std::string("(70526180889965554490147039875158729645670819462806403227314362575089997039220,"
-			"2222570326551458324082940637823059881421581507683863189059174257118412428198)");
+    secp_primitives::GroupElement expected("70526180889965554490147039875158729645670819462806403227314362575089997039220",
+	    "2222570326551458324082940637823059881421581507683863189059174257118412428198");
 
     secp_primitives::GroupElement resulted;
     sigma::SigmaPrimitives<secp_primitives::Scalar,secp_primitives::GroupElement>::commit(g,h_,x_,r,resulted);
 
-    BOOST_TEST(expected == resulted.tostring());
+    BOOST_TEST(expected == resulted);
 }
 
 BOOST_AUTO_TEST_CASE(commit2_homomorphic_test)

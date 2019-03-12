@@ -46,10 +46,10 @@ BITCOIN_TESTS =\
   libzerocoin/sigma/test/serialize_test.cpp \
   libzerocoin/sigma/test/primitives_tests.cpp \
   libzerocoin/sigma/test/coin_spend_tests.cpp \
+  libzerocoin/sigma/test/sigma_primitive_types_test.cpp \
   test/zerocoin_tests.cpp \
   test/zerocoin_tests2.cpp \
   test/zerocoin_tests3.cpp \
-  test/zerocoin_tests_v3.cpp \
   test/zerocoin_tests2_v3.cpp \
   test/zerocoin_tests3_v3.cpp \
   test/znode_tests.cpp \
@@ -100,6 +100,9 @@ BITCOIN_TESTS =\
   test/serialize_tests.cpp \
   test/sighash_tests.cpp \
   test/sigma_state_tests.cpp \
+  test/sigma_mintspend_test.cpp \
+  test/sigma_manymintspend_test.cpp \
+  test/sigma_mintspend_numinputs.cpp \
   test/sigopcount_tests.cpp \
   test/skiplist_tests.cpp \
   test/streams_tests.cpp \
@@ -120,7 +123,8 @@ BITCOIN_TESTS += \
   wallet/test/wallet_test_fixture.h \
   wallet/test/accounting_tests.cpp \
   wallet/test/wallet_tests.cpp \
-  wallet/test/crypto_tests.cpp
+  wallet/test/crypto_tests.cpp \
+  wallet/test/sigma_tests.cpp
 endif
 
 test_test_bitcoin_LDADD = $(LIBBITCOIN_SERVER) tor/src/or/libtor.a \

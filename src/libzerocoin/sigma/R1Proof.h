@@ -4,11 +4,12 @@
 #include <vector>
 #include <secp256k1/include/Scalar.h>
 #include <secp256k1/include/GroupElement.h>
+#include "../../serialize.h"
 
 namespace sigma {
 
 template <class Exponent, class GroupElement>
-class R1Proof{
+class R1Proof {
 
 public:
     R1Proof() = default;
@@ -36,6 +37,17 @@ public:
             current = f_[i].deserialize(current);
         current = ZA_.deserialize(current);
         return ZC_.deserialize(current);
+    }
+
+    ADD_SERIALIZE_METHODS;
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+        READWRITE(A_);
+        READWRITE(C_);
+        READWRITE(D_);
+        READWRITE(f_);
+        READWRITE(ZA_);
+        READWRITE(ZC_);
     }
 
     GroupElement A_;
