@@ -1,8 +1,8 @@
 #ifndef ZCOIN_SIGMAPROOFGENERATOR_H
 #define ZCOIN_SIGMAPROOFGENERATOR_H
 
-#include "R1Proof.h"
-#include "SigmaPrimitives.h"
+#include "r1proof.h"
+#include "sigmaprimitives.h"
 
 namespace sigma {
 
@@ -35,6 +35,6 @@ private:
 
 } //namespace sigma
 
-#include "R1ProofGenerator.hpp"
+#include "r1proofgenerator.hpp"
 
 #endif //ZCOIN_SIGMAPROOFGENERATOR_H

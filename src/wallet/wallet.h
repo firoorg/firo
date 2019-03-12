@@ -8,7 +8,7 @@
 
 #include "amount.h"
 #include "../libzerocoin/bitcoin_bignum/bignum.h"
-#include "../libzerocoin/sigma/Coin.h"
+#include "../sigma/coin.h"
 #include "streams.h"
 #include "tinyformat.h"
 #include "ui_interface.h"

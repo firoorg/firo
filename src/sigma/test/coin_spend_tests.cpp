@@ -3,9 +3,9 @@
 #include "../../../streams.h"
 #include "uint256.h"
 
-#include <libzerocoin/sigma/CoinSpend.h>
-#include <libzerocoin/sigma/Coin.h>
-#include <libzerocoin/sigma/SpendMetaDataV3.h>
+#include "../coinspend.h"
+#include "../coin.h"
+#include "../spendmetadatav3.h"
 
 BOOST_AUTO_TEST_SUITE(sigma_coin_spend_tests)
 

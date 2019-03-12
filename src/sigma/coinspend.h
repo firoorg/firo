@@ -1,11 +1,11 @@
 #ifndef ZCOIN_SIGMA_COINSPEND_H
 #define ZCOIN_SIGMA_COINSPEND_H
 
-#include "Coin.h"
-#include "SigmaPlusProof.h"
-#include "SigmaPlusProver.h"
-#include "SigmaPlusVerifier.h"
-#include "SpendMetaDataV3.h"
+#include "coin.h"
+#include "sigmaplusproof.h"
+#include "sigmaplusprover.h"
+#include "sigmaplusverifier.h"
+#include "spendmetadatav3.h"
 
 using namespace secp_primitives;
 

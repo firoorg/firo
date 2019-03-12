@@ -1,6 +1,6 @@
-#include "../SigmaPlusProver.h"
-#include "../SigmaPlusVerifier.h"
-#include "../Params.h"
+#include "../sigmaplusprover.h"
+#include "../sigmaplusverifier.h"
+#include "../params.h"
 
 #include <boost/test/unit_test.hpp>
 

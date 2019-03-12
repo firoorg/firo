@@ -1,9 +1,9 @@
 #ifndef ZCOIN_SIGMA_COIN_H
 #define ZCOIN_SIGMA_COIN_H
 
-#include "SigmaPrimitives.h"
+#include "sigmaprimitives.h"
 #include <libzerocoin/Zerocoin.h>
-#include "Params.h"
+#include "params.h"
 #include "consensus/validation.h"
 
 namespace sigma {

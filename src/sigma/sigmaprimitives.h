@@ -32,6 +32,6 @@ public:
 
 }// namespace sigma
 
-#include "SigmaPrimitives.hpp"
+#include "sigmaprimitives.hpp"
 
 #endif //SIGMA_PRIMITIVES_H__

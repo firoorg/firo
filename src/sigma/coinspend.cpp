@@ -1,5 +1,5 @@
-#include "CoinSpend.h"
-#include "OpenSSL_context.h"
+#include "coinspend.h"
+#include "openssl_context.h"
 
 namespace  sigma {
 

@@ -1,5 +1,5 @@
-#include "../Coin.h"
-#include "../Params.h"
+#include "../coin.h"
+#include "../params.h"
 #include "../../../streams.h"
 
 #include <boost/test/unit_test.hpp>

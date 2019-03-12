@@ -1,8 +1,8 @@
 #include <boost/test/unit_test.hpp>
 
-#include <libzerocoin/sigma/R1Proof.h>
-#include <libzerocoin/sigma/R1ProofGenerator.h>
-#include <libzerocoin/sigma/R1ProofVerifier.h>
+#include "../r1proof.h"
+#include "../r1proofgenerator.h"
+#include "../r1proofverifier.h"
 #include <stdlib.h>
 
 bool test(secp_primitives::GroupElement& g, std::vector<secp_primitives::GroupElement>& h_, std::vector<secp_primitives::Scalar>& b, int n, int m){

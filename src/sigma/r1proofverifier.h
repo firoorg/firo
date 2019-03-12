@@ -26,6 +26,6 @@ private:
 
 } // namespace sigma
 
-#include "R1ProofVerifier.hpp"
+#include "r1proofverifier.hpp"
 
 #endif //ZCOIN_R1PROOFVERIFIER_H

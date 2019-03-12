@@ -1,7 +1,7 @@
 #ifndef ZCOIN_SIGMAPLUSVERIFIER_H
 #define ZCOIN_SIGMAPLUSVERIFIER_H
 
-#include "R1ProofVerifier.h"
+#include "r1proofverifier.h"
 
 namespace sigma {
 template<class Exponent, class GroupElement>
@@ -24,6 +24,6 @@ private:
 
 } // namespace sigma
 
-#include "SigmaPlusVerifier.hpp"
+#include "sigmaplusverifier.hpp"
 
 #endif //ZCOIN_SIGMAPLUSVERIFIER_H

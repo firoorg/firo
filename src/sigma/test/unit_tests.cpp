@@ -2,9 +2,9 @@
 
 #include "test/test_bitcoin.h"
 
-#include <libzerocoin/sigma/R1Proof.h>
-#include <libzerocoin/sigma/R1ProofGenerator.h>
-#include <libzerocoin/sigma/SigmaPrimitives.h>
+#include "../r1proof.h"
+#include "../r1proofgenerator.h"
+#include "../sigmaprimitives.h"
 
 using  namespace secp_primitives;
 using  namespace sigma;

@@ -1,4 +1,4 @@
-#include "SpendMetaDataV3.h"
+#include "spendmetadatav3.h"
 
 namespace sigma {
 

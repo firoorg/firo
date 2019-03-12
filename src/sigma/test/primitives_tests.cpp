@@ -1,6 +1,6 @@
 #include <boost/test/unit_test.hpp>
 
-#include <libzerocoin/sigma/SigmaPrimitives.h>
+#include "../sigmaprimitives.h"
 #include <secp256k1/include/Scalar.h>
 #include <secp256k1/include/GroupElement.h>
 

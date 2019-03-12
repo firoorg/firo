@@ -4,7 +4,7 @@
 
 #include "../wallet.h"
 
-#include "../../libzerocoin/sigma/CoinSpend.h"
+#include "../../sigma/coinspend.h"
 #include "../../main.h"
 #include "../../random.h"
 
