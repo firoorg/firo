@@ -33,6 +33,8 @@ if test x"$ac_cv_prog_cc_c89" = x"no"; then
 fi
 AM_PROG_AS
 
+AX_CXX_COMPILE_STDCXX([11], [noext], [mandatory])
+
 case $host_os in
   *darwin*)
      if  test x$cross_compiling != xyes; then
