@@ -85,20 +85,8 @@ static void GenerateBlockWithCoins(const std::vector<std::pair<sigma::CoinDenomi
 static void GenerateEmptyBlocks(int number_of_blocks)
 {
     for (int i = 0; i < number_of_blocks; ++i) {
-        auto params = sigma::ParamsV3::get_default();
-        auto state = CZerocoinStateV3::GetZerocoinState();
-        auto block = blocks.emplace(blocks.end());
-    
-        // setup block
-        block->first = GetRandHash();
-        block->second.phashBlock = &block->first;
-        block->second.pprev = chainActive.Tip();
-        block->second.nHeight = block->second.pprev->nHeight + 1;
-    
-        // add block
-        state->AddBlock(&block->second);
-        chainActive.SetTip(&block->second);
-    }
+        GenerateBlockWithCoins({});
+   }
 }
 
 static bool CheckDenominationCoins(
