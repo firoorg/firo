@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "../wallet.h"
+#include "../walletexcept.h"
 
 #include "../../libzerocoin/sigma/CoinSpend.h"
 #include "../../main.h"
@@ -15,6 +16,7 @@
 #include <exception>
 #include <algorithm>
 #include <list>
+#include <numeric>
 
 #include "wallet_test_fixture.h"
 #include "../../zerocoin_v3.h"
@@ -201,6 +203,17 @@ static CAmount GetCoinSetByDenominationAmount(
     return sum;
 }
 
+static bool ContainTxOut(const std::vector<CTxOut>& outs, const std::pair<const CScript&, const CAmount&>& expected, int expectedOccurrence = -1) {
+
+    const auto occurrence = std::count_if(outs.begin(), outs.end(),
+        [&expected](const CTxOut& txout) {
+            return expected.first == txout.scriptPubKey && expected.second == txout.nValue;
+        });
+
+    // occurrence less than zero mean outs contain at least one expected
+    return (expectedOccurrence < 0 && occurrence > 0) || (occurrence == expectedOccurrence);
+}
+
 BOOST_FIXTURE_TEST_SUITE(wallet_sigma_tests, WalletSigmaTestingSetup)
 
 BOOST_AUTO_TEST_CASE(get_coin_no_coin)
@@ -363,9 +376,10 @@ BOOST_AUTO_TEST_CASE(create_spend_with_empty_recipients)
 {
     CAmount fee;
     std::vector<CZerocoinEntryV3> selected;
+    std::vector<CZerocoinEntryV3> changes;
 
     BOOST_CHECK_EXCEPTION(
-        pwalletMain->CreateZerocoinSpendTransactionV3({}, fee, selected),
+        pwalletMain->CreateZerocoinSpendTransactionV3({}, fee, selected, changes),
         std::invalid_argument,
         [](const std::invalid_argument& e) { return e.what() == std::string("No recipients"); });
 }
@@ -374,6 +388,7 @@ BOOST_AUTO_TEST_CASE(create_spend_with_some_recipients_have_negative_amount)
 {
     CAmount fee;
     std::vector<CZerocoinEntryV3> selected;
+    std::vector<CZerocoinEntryV3> changes;
     std::vector<CRecipient> recipients;
 
     recipients.push_back(CRecipient{
@@ -383,7 +398,7 @@ BOOST_AUTO_TEST_CASE(create_spend_with_some_recipients_have_negative_amount)
     });
 
     BOOST_CHECK_EXCEPTION(
-        pwalletMain->CreateZerocoinSpendTransactionV3(recipients, fee, selected),
+        pwalletMain->CreateZerocoinSpendTransactionV3(recipients, fee, selected, changes),
         std::invalid_argument,
         [](const std::invalid_argument& e) { return e.what() == std::string("Recipient 0 has negative amount"); });
 }
@@ -393,6 +408,7 @@ BOOST_AUTO_TEST_CASE(create_spend_with_insufficient_coins)
     CAmount fee;
     CWalletTx tx;
     std::vector<CZerocoinEntryV3> selected;
+    std::vector<CZerocoinEntryV3> changes;
     std::vector<CRecipient> recipients;
 
     GenerateBlockWithCoins({ std::make_pair(sigma::CoinDenominationV3::SIGMA_DENOM_10, 1) });
@@ -417,15 +433,16 @@ BOOST_AUTO_TEST_CASE(create_spend_with_insufficient_coins)
     });
 
     BOOST_CHECK_EXCEPTION(
-        pwalletMain->CreateZerocoinSpendTransactionV3(recipients, fee, selected),
-        std::runtime_error,
-        [](const std::runtime_error& e) { return e.what() == std::string("Insufficient funds, or some of the mints were not yet verified by 6 confirmation blocks."); });
+        pwalletMain->CreateZerocoinSpendTransactionV3(recipients, fee, selected, changes),
+        InsufficientFunds,
+        [](const InsufficientFunds& e) { return e.what() == std::string("Insufficient funds"); });
 }
 
 BOOST_AUTO_TEST_CASE(create_spend_with_confirmation_less_than_6)
 {
     CAmount fee;
     std::vector<CZerocoinEntryV3> selected;
+    std::vector<CZerocoinEntryV3> changes;
     std::vector<CRecipient> recipients;
 
     GenerateBlockWithCoins({ std::make_pair(sigma::CoinDenominationV3::SIGMA_DENOM_10, 2) });
@@ -449,15 +466,16 @@ BOOST_AUTO_TEST_CASE(create_spend_with_confirmation_less_than_6)
     });
 
     BOOST_CHECK_EXCEPTION(
-        pwalletMain->CreateZerocoinSpendTransactionV3(recipients, fee, selected),
-        std::runtime_error,
-        [](const std::runtime_error& e) { return e.what() == std::string("Insufficient funds, or some of the mints were not yet verified by 6 confirmation blocks."); });
+        pwalletMain->CreateZerocoinSpendTransactionV3(recipients, fee, selected, changes),
+        InsufficientFunds,
+        [](const InsufficientFunds& e) { return e.what() == std::string("Insufficient funds"); });
 }
 
 BOOST_AUTO_TEST_CASE(create_spend_with_coins_less_than_2)
 {
     CAmount fee;
     std::vector<CZerocoinEntryV3> selected;
+    std::vector<CZerocoinEntryV3> changes;
     std::vector<CRecipient> recipients;
 
     GenerateBlockWithCoins({ std::make_pair(sigma::CoinDenominationV3::SIGMA_DENOM_10, 1) });
@@ -470,7 +488,7 @@ BOOST_AUTO_TEST_CASE(create_spend_with_coins_less_than_2)
     });
 
     BOOST_CHECK_EXCEPTION(
-        pwalletMain->CreateZerocoinSpendTransactionV3(recipients, fee, selected),
+        pwalletMain->CreateZerocoinSpendTransactionV3(recipients, fee, selected, changes),
         std::runtime_error,
         [](const std::runtime_error& e) { return e.what() == std::string("Has to have at least two mint coins with at least 6 confirmation in order to spend a coin"); });
 }
@@ -479,6 +497,7 @@ BOOST_AUTO_TEST_CASE(create_spend_with_coins_more_than_1)
 {
     CAmount fee;
     std::vector<CZerocoinEntryV3> selected;
+    std::vector<CZerocoinEntryV3> changes;
     std::vector<CRecipient> recipients;
 
     GenerateBlockWithCoins({ std::make_pair(sigma::CoinDenominationV3::SIGMA_DENOM_10, 2) });
@@ -496,10 +515,13 @@ BOOST_AUTO_TEST_CASE(create_spend_with_coins_more_than_1)
         .fSubtractFeeFromAmount = false
     });
 
-    CWalletTx tx = pwalletMain->CreateZerocoinSpendTransactionV3(recipients, fee, selected);
+    CWalletTx tx = pwalletMain->CreateZerocoinSpendTransactionV3(recipients, fee, selected, changes);
 
     BOOST_TEST(tx.vin.size() == 2);
-    BOOST_TEST(tx.vout.size() == 2);
+
+    // 2 outputs to recipients 5 + 10 xzc
+    // 9 mints as changes, 1 * 4 + 0.5 * 1 + 0.1 * 4 xzc
+    BOOST_TEST(tx.vout.size() == 11);
     BOOST_TEST(fee > 0);
 
     BOOST_TEST(selected.size() == 2);
@@ -509,10 +531,39 @@ BOOST_AUTO_TEST_CASE(create_spend_with_coins_more_than_1)
     BOOST_TEST(CheckSpend(tx.vin[0], selected[0]));
     BOOST_TEST(CheckSpend(tx.vin[1], selected[1]));
 
-    BOOST_TEST(tx.vout[0].nValue == 5 * COIN);
-    BOOST_TEST(tx.vout[0].scriptPubKey == GetScriptForDestination(randomAddr1.Get()));
-    BOOST_TEST(tx.vout[1].nValue == 10 * COIN);
-    BOOST_TEST(tx.vout[1].scriptPubKey == GetScriptForDestination(randomAddr2.Get()));
+    BOOST_CHECK(ContainTxOut(tx.vout,
+        make_pair(GetScriptForDestination(randomAddr1.Get()), 5 * COIN ), 1));
+    BOOST_CHECK(ContainTxOut(tx.vout,
+        make_pair(GetScriptForDestination(randomAddr2.Get()), 10 * COIN ), 1));
+
+    CAmount remintsSum = std::accumulate(tx.vout.begin(), tx.vout.end(), 0, [](CAmount c, const CTxOut& v) {
+        return c + (v.scriptPubKey.IsZerocoinMintV3() ? v.nValue : 0);
+    });
+
+    BOOST_TEST(remintsSum == 49 * COIN / 10);
+
+    // check walletdb
+    std::list<CZerocoinEntryV3> coinList;
+    std::list<CZerocoinSpendEntryV3> spends;
+    CWalletDB db(pwalletMain->strWalletFile);
+
+    db.ListPubCoinV3(coinList);
+    BOOST_TEST(coinList.size() == 2);
+
+    db.ListCoinSpendSerial(spends);
+    BOOST_TEST(spends.empty());
+
+    pwalletMain->SpendZerocoinV3(recipients, tx, fee);
+
+    coinList.clear();
+    db.ListPubCoinV3(coinList);
+    BOOST_TEST(coinList.size() == 11);
+    BOOST_TEST(std::count_if(coinList.begin(), coinList.end(),
+        [](const CZerocoinEntryV3& coin){return !coin.IsUsed;}) == 9);
+
+    spends.clear();
+    db.ListCoinSpendSerial(spends);
+    BOOST_TEST(spends.size() == 2);
 }
 
 BOOST_AUTO_TEST_CASE(spend)
