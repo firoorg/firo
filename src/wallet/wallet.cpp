@@ -4846,7 +4846,8 @@ bool CWallet::CreateZerocoinSpendTransactionV3(
 CWalletTx CWallet::CreateZerocoinSpendTransactionV3(
     const std::vector<CRecipient>& recipients,
     CAmount& fee,
-    std::vector<CZerocoinEntryV3>& selected)
+    std::vector<CZerocoinEntryV3>& selected,
+    std::vector<CZerocoinEntryV3>& changes)
 {
     // sanity check
     if (IsLocked()) {
@@ -4858,6 +4859,7 @@ CWalletTx CWallet::CreateZerocoinSpendTransactionV3(
 
     CWalletTx tx = builder.Build(recipients, fee);
     selected = builder.selected;
+    changes = builder.changes;
 
     return tx;
 }
@@ -6070,8 +6072,9 @@ std::vector<CZerocoinEntryV3> CWallet::SpendZerocoinV3(
 {
     // create transaction
     std::vector<CZerocoinEntryV3> coins;
+    std::vector<CZerocoinEntryV3> changes;
 
-    result = CreateZerocoinSpendTransactionV3(recipients, fee, coins);
+    result = CreateZerocoinSpendTransactionV3(recipients, fee, coins, changes);
 
     // commit
     try {
@@ -6125,6 +6128,19 @@ std::vector<CZerocoinEntryV3> CWallet::SpendZerocoinV3(
             coin.value.GetHex(),
             "Used (" + std::to_string(coin.get_denomination()) + " mint)",
             CT_UPDATED);
+    }
+
+    for (auto& change : changes) {
+
+        if (!db.WriteZerocoinEntry(change)) {
+            throw std::runtime_error(_("Failed to store new Zerocoin"));
+        }
+
+        // raise event
+        NotifyZerocoinChanged(this,
+            change.value.GetHex(),
+            "New (" + std::to_string(change.get_denomination()) + " mint)",
+            CT_NEW);
     }
 
     return coins;
