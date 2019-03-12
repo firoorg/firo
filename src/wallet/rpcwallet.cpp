@@ -3205,12 +3205,8 @@ UniValue spendmanyzerocoin(const UniValue& params, bool fHelp) {
     int64_t value = 0;
     int64_t amount = 0;
     libzerocoin::CoinDenomination denomination;
-<<<<<<< HEAD
     std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>> denominations; 
     UniValue addressUni(UniValue::VOBJ);
-=======
-    std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>> denominations;
->>>>>>> c837769d5c5b84b0dffbc2e3d75693989ed7e732
 
     UniValue inputs = find_value(data, "denominations");
     if(inputs.isNull()){
