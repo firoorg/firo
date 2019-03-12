@@ -1,4 +1,5 @@
 #include "sigmaspendbuilder.h"
+#include "walletexcept.h"
 
 #include "../libzerocoin/sigma/Coin.h"
 #include "../libzerocoin/sigma/CoinSpend.h"
@@ -124,7 +125,7 @@ CAmount SigmaSpendBuilder::GetInputs(std::vector<std::unique_ptr<InputSigner>>& 
     denomChanges.clear();
 
     if (!wallet.GetCoinsToSpend(required, selected, denomChanges)) {
-        throw std::runtime_error(_("Insufficient funds"));
+        throw InsufficientFunds();
     }
 
     // construct signers
