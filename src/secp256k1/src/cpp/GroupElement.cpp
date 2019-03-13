@@ -13,8 +13,11 @@
 #include "../ecmult_impl.h"
 
 #include <openssl/rand.h>
-#include <stdlib.h>
+
 #include <sstream>
+#include <stdexcept>
+
+#include <stdlib.h>
 
 static secp256k1_ecmult_context ctx;
 

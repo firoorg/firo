@@ -17,7 +17,7 @@ BOOST_AUTO_TEST_CASE(scalar_test)
     secp_primitives::Scalar s2(s);
     
     // Make sure that copy constructor works correctly.
-    BOOST_TEST(s == s2);
+    BOOST_CHECK(s == s2);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
