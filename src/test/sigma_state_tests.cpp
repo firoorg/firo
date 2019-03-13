@@ -37,10 +37,10 @@ std::vector<PrivateCoinV3> generateCoins(
 std::vector<PublicCoinV3> getPubcoins(const std::vector<PrivateCoinV3> coins)
 {
     std::vector<sigma::PublicCoinV3> pubCoins;
-    
+
     BOOST_FOREACH(auto& coin, coins)
         pubCoins.push_back(coin.getPublicCoin());
-    
+
     return pubCoins;
 }
 
@@ -343,7 +343,7 @@ BOOST_AUTO_TEST_CASE(sigma_addspendtomempool)
 
     std::vector<sigma::PublicCoinV3> anonymity_set;
     anonymity_set.push_back(pubcoin);
-    
+
     // Doesn't really matter what metadata we give here, it must pass.
     sigma::SpendMetaDataV3 metaData(0, uint256S("120"), uint256S("120"));
 
@@ -432,7 +432,7 @@ BOOST_AUTO_TEST_CASE(sigma_canaddspendtomempool_used)
 
     std::vector<sigma::PublicCoinV3> anonymity_set;
     anonymity_set.push_back(pubcoin);
- 
+
     // Doesn't really matter what metadata we give here, it must pass.
     sigma::SpendMetaDataV3 metaData(0, uint256S("120"), uint256S("120"));
 
@@ -471,7 +471,7 @@ BOOST_AUTO_TEST_CASE(sigma_reset)
 
     std::vector<sigma::PublicCoinV3> anonymity_set;
     anonymity_set.push_back(pubcoin);
- 
+
     // Doesn't really matter what metadata we give here, it must pass.
     sigma::SpendMetaDataV3 metaData(0, uint256S("120"), uint256S("120"));
 
@@ -593,7 +593,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_sigma_addblock_minted_spend)
     CBlockIndex index = CreateBlockIndex(1);
     std::pair<CoinDenominationV3, int> denomination1Group1(
         CoinDenominationV3::SIGMA_DENOM_1,1);
-    
+
 	index.mintedPubCoinsV3[denomination1Group1].push_back(pubcoin1);
 	index.mintedPubCoinsV3[denomination1Group1].push_back(pubcoin2);
 
@@ -609,7 +609,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_sigma_addblock_minted_spend)
     anonymity_set.push_back(pubcoin1);
     anonymity_set.push_back(pubcoin2);
 
- 
+
     // Doesn't really matter what metadata we give here, it must pass.
     sigma::SpendMetaDataV3 metaData(0, uint256S("120"), uint256S("120"));
 
@@ -657,7 +657,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_sigma_removeblock_remove)
     auto index1 = CreateBlockIndex(1);
     std::pair<CoinDenominationV3, int> denomination1Group1(CoinDenominationV3::SIGMA_DENOM_1, 1);
     index1.mintedPubCoinsV3[denomination1Group1] = pubCoins;
-    
+
     // add index 2 with 10 minted and 1 spend
     auto coins2 = generateCoins(params,10, CoinDenominationV3::SIGMA_DENOM_1);
     auto pubCoins2 = getPubcoins(coins2);
@@ -689,7 +689,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_sigma_removeblock_remove)
 
 	BOOST_CHECK_MESSAGE(zerocoinState->usedCoinSerials.size() == 0,
 	  "Unexpected usedCoinSerials size, remove index contain 1 spend.");
-    
+
     BOOST_CHECK_MESSAGE(zerocoinState->latestCoinIds[CoinDenominationV3::SIGMA_DENOM_1] == 1,
       "Unexpected lastestcoinId");
 
@@ -705,7 +705,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_sigma_removeblock_remove)
 
 	BOOST_CHECK_MESSAGE(zerocoinState->usedCoinSerials.size() == 0,
 	  "Unexpected usedCoinSerials size, remove index contain no spend.");
-    
+
     BOOST_CHECK_MESSAGE(zerocoinState->latestCoinIds[CoinDenominationV3::SIGMA_DENOM_1] == 0,
       "Unexpected lastestcoinId remove all");
 
@@ -734,7 +734,7 @@ BOOST_AUTO_TEST_CASE(getmempoolconflictingtxhash_added_yes)
 
     auto txid = uint256S("c8cdacf6b51275a3de9496073c75708abde26cb2f6cb164e0a1a0ed942c3c6e7");
 
-    BOOST_TEST(state.AddSpendToMempool(serial, txid));
+    BOOST_CHECK(state.AddSpendToMempool(serial, txid));
     BOOST_CHECK(state.GetMempoolConflictingTxHash(serial) == txid);
 }
 
@@ -757,7 +757,7 @@ BOOST_AUTO_TEST_CASE(zerocoingetspendserialnumberv3_valid_tx_valid_vin)
     serializedCoinSpend << coinSpend;
 
     // create tx and vin
-    
+
     CTxIn newTxIn;
     newTxIn.scriptSig = CScript();
     newTxIn.prevout.SetNull();
@@ -815,7 +815,7 @@ BOOST_AUTO_TEST_CASE(zerocoingetspendserialnumberv3_valid_tx_valid_vin)
     newTxVin3.scriptSig.assign(tmp3.begin(), tmp3.end());
 
     newtx.vin.push_back(newTxVin3);
-    
+
     CTransaction ctx3(newtx);
 
     BOOST_CHECK_MESSAGE(ZerocoinGetSpendSerialNumberV3(ctx3, newTxVin3) == Scalar(uint64_t(0)),
@@ -841,7 +841,7 @@ BOOST_AUTO_TEST_CASE(zerocoingetspendserialnumberv3_invalid_script)
     serializedCoinSpend << coinSpend;
 
     // create tx and vin
-    
+
     CTxIn newTxIn;
     newTxIn.scriptSig = CScript();
     newTxIn.prevout.SetNull();
@@ -999,7 +999,7 @@ BOOST_AUTO_TEST_CASE(sigma_getcoinsetforspend)
     int nextIndex = 0;
     std::vector<CBlockIndex> indexes;
     indexes.resize(101);
-    
+
     // nextIndex = 0
     indexes[nextIndex] = CreateBlockIndex(nextIndex);
     chainActive.SetTip(&indexes[nextIndex]);
@@ -1014,7 +1014,7 @@ BOOST_AUTO_TEST_CASE(sigma_getcoinsetforspend)
     // add index 1 with 10 SIGMA_DENOM_1
     auto coins = generateCoins(params, 10, CoinDenominationV3::SIGMA_DENOM_1);
     auto pubCoins = getPubcoins(coins);
-    
+
     // add index 2 with 1 DENOM_1  mints and 1 spend
     auto coins2 = generateCoins(params, 1, CoinDenominationV3::SIGMA_DENOM_1);
     auto pubCoins2 = getPubcoins(coins2);
@@ -1036,7 +1036,7 @@ BOOST_AUTO_TEST_CASE(sigma_getcoinsetforspend)
     indexes[nextIndex].mintedPubCoinsV3[denomination10Group1] = pubCoins3;
 
     chainActive.SetTip(&indexes[nextIndex]);
-    
+
     // nextIndex = 3
     nextIndex++;
     for( ; nextIndex<=100; nextIndex++){
@@ -1059,7 +1059,7 @@ BOOST_AUTO_TEST_CASE(sigma_getcoinsetforspend)
 
     std::vector<PublicCoinV3> coins_out1;
     // maxheight > blockheight
-    coins_amount = zerocoinState->GetCoinSetForSpend(&chainActive, nextIndex, 
+    coins_amount = zerocoinState->GetCoinSetForSpend(&chainActive, nextIndex,
     CoinDenominationV3::SIGMA_DENOM_10, 1, blockHash_out, coins_out1);
     BOOST_CHECK_MESSAGE(coins_amount == 5, "Unexpected Coins amount for spend, should be 5.");
     BOOST_CHECK_MESSAGE(coins_out1 == pubCoins3, "Unexpected coins out for denom 10.");
@@ -1067,7 +1067,7 @@ BOOST_AUTO_TEST_CASE(sigma_getcoinsetforspend)
 
     std::vector<PublicCoinV3> coins_out2;
     // maxheight > blockheight another denom
-    coins_amount = zerocoinState->GetCoinSetForSpend(&chainActive, nextIndex, 
+    coins_amount = zerocoinState->GetCoinSetForSpend(&chainActive, nextIndex,
     CoinDenominationV3::SIGMA_DENOM_1, 1, blockHash_out, coins_out2);
     BOOST_CHECK_MESSAGE(coins_amount == 11, "Unexpected Coins amount for spend, should be 11.");
     BOOST_CHECK_MESSAGE(coins_out2.size() == pubCoins2.size() + pubCoins.size(), "Unexpected coins out for denom 1.");
