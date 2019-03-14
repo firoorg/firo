@@ -936,6 +936,9 @@ public:
     bool CreateZerocoinSpendModelV2(CWalletTx& wtx, string &stringError, string& thirdPartyAddress, const vector<string>& denomAmounts, bool forceUsed = false);
     bool CreateZerocoinSpendModelV3(CWalletTx& wtx, string &stringError, string& thirdPartyAddress, const vector<string>& denomAmounts, bool forceUsed = false);
 
+    //function for spending all old mints form v2 protocol
+    bool SpendOldMints(string& stringError);
+
     bool SetZerocoinBook(const CZerocoinEntry& zerocoinEntry);
 
     void CommitTransaction(CWalletTx& tx);
