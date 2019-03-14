@@ -5226,7 +5226,7 @@ bool CWallet::CreateMultipleZerocoinSpendTransactionV3(
             vector<TempStorage> tempStorages;
 
             // object storing coins being used for this spend (to avoid duplicates being considered)
-            unordered_set<GroupElement, GroupElement::hasher> tempCoinsToUse;
+            unordered_set<GroupElement> tempCoinsToUse;
 
             // Total value of all inputs. Iteritively created in the following loop
             // The value is in multiples of COIN = 100 mln.
@@ -5443,9 +5443,6 @@ bool CWallet::CreateMultipleZerocoinSpendTransactionV3(
                 }
             }
 
-            txHash = wtxNew.GetHash();
-            LogPrintf("wtxNew.txHash:%s\n", txHash.ToString());
-
             // Embed the constructed transaction data in wtxNew.
             *static_cast<CTransaction *>(&wtxNew) = CTransaction(txNew);
             // Limit size
@@ -5453,6 +5450,9 @@ bool CWallet::CreateMultipleZerocoinSpendTransactionV3(
                 strFailReason = _("Transaction too large");
                 return false;
             }
+
+            txHash = wtxNew.GetHash();
+            LogPrintf("wtxNew.txHash:%s\n", txHash.ToString());
 
             // After transaction creation and verification, this last loop is to notify the wallet of changes to zerocoin spend info.
             for (auto it = denominations.begin(); it != denominations.end(); it++)

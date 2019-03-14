@@ -494,19 +494,19 @@ BOOST_AUTO_TEST_CASE(create_spend_with_coins_more_than_1)
 
     CWalletTx tx = pwalletMain->CreateZerocoinSpendTransactionV3(recipients, fee, selected, changes);
 
-    BOOST_TEST(tx.vin.size() == 2);
+    BOOST_CHECK(tx.vin.size() == 2);
 
     // 2 outputs to recipients 5 + 10 xzc
     // 9 mints as changes, 1 * 4 + 0.5 * 1 + 0.1 * 4 xzc
-    BOOST_TEST(tx.vout.size() == 11);
-    BOOST_TEST(fee > 0);
+    BOOST_CHECK(tx.vout.size() == 11);
+    BOOST_CHECK(fee > 0);
 
-    BOOST_TEST(selected.size() == 2);
-    BOOST_TEST(selected[0].get_denomination() == sigma::CoinDenominationV3::SIGMA_DENOM_10);
-    BOOST_TEST(selected[1].get_denomination() == sigma::CoinDenominationV3::SIGMA_DENOM_10);
+    BOOST_CHECK(selected.size() == 2);
+    BOOST_CHECK(selected[0].get_denomination() == sigma::CoinDenominationV3::SIGMA_DENOM_10);
+    BOOST_CHECK(selected[1].get_denomination() == sigma::CoinDenominationV3::SIGMA_DENOM_10);
 
-    BOOST_TEST(CheckSpend(tx.vin[0], selected[0]));
-    BOOST_TEST(CheckSpend(tx.vin[1], selected[1]));
+    BOOST_CHECK(CheckSpend(tx.vin[0], selected[0]));
+    BOOST_CHECK(CheckSpend(tx.vin[1], selected[1]));
 
     BOOST_CHECK(ContainTxOut(tx.vout,
         make_pair(GetScriptForDestination(randomAddr1.Get()), 5 * COIN ), 1));
@@ -517,7 +517,7 @@ BOOST_AUTO_TEST_CASE(create_spend_with_coins_more_than_1)
         return c + (v.scriptPubKey.IsZerocoinMintV3() ? v.nValue : 0);
     });
 
-    BOOST_TEST(remintsSum == 49 * COIN / 10);
+    BOOST_CHECK(remintsSum == 49 * COIN / 10);
 
     // check walletdb
     std::list<CZerocoinEntryV3> coinList;
@@ -525,22 +525,22 @@ BOOST_AUTO_TEST_CASE(create_spend_with_coins_more_than_1)
     CWalletDB db(pwalletMain->strWalletFile);
 
     db.ListPubCoinV3(coinList);
-    BOOST_TEST(coinList.size() == 2);
+    BOOST_CHECK(coinList.size() == 2);
 
     db.ListCoinSpendSerial(spends);
-    BOOST_TEST(spends.empty());
+    BOOST_CHECK(spends.empty());
 
     pwalletMain->SpendZerocoinV3(recipients, tx, fee);
 
     coinList.clear();
     db.ListPubCoinV3(coinList);
-    BOOST_TEST(coinList.size() == 11);
-    BOOST_TEST(std::count_if(coinList.begin(), coinList.end(),
+    BOOST_CHECK(coinList.size() == 11);
+    BOOST_CHECK(std::count_if(coinList.begin(), coinList.end(),
         [](const CZerocoinEntryV3& coin){return !coin.IsUsed;}) == 9);
 
     spends.clear();
     db.ListCoinSpendSerial(spends);
-    BOOST_TEST(spends.size() == 2);
+    BOOST_CHECK(spends.size() == 2);
 }
 
 BOOST_AUTO_TEST_CASE(spend)
@@ -572,18 +572,18 @@ BOOST_AUTO_TEST_CASE(spend)
     std::list<CZerocoinEntryV3> coins;
     db.ListPubCoinV3(coins);
 
-    BOOST_TEST(selected.size() == 1);
-    BOOST_TEST(selected[0].get_denomination() == sigma::CoinDenominationV3::SIGMA_DENOM_10);
-    BOOST_TEST(selected[0].id == 1);
-    BOOST_TEST(selected[0].IsUsed);
-    BOOST_TEST(selected[0].nHeight == 1);
+    BOOST_CHECK(selected.size() == 1);
+    BOOST_CHECK(selected[0].get_denomination() == sigma::CoinDenominationV3::SIGMA_DENOM_10);
+    BOOST_CHECK(selected[0].id == 1);
+    BOOST_CHECK(selected[0].IsUsed);
+    BOOST_CHECK(selected[0].nHeight == 1);
 
-    BOOST_TEST(spends.size() == 1);
-    BOOST_TEST(spends.front().coinSerial == selected[0].serialNumber);
-    BOOST_TEST((spends.front().hashTx == tx.GetHash()));
-    BOOST_TEST(spends.front().pubCoin == selected[0].value);
-    BOOST_TEST(spends.front().id == selected[0].id);
-    BOOST_TEST(spends.front().get_denomination() == selected[0].get_denomination());
+    BOOST_CHECK(spends.size() == 1);
+    BOOST_CHECK(spends.front().coinSerial == selected[0].serialNumber);
+    BOOST_CHECK((spends.front().hashTx == tx.GetHash()));
+    BOOST_CHECK(spends.front().pubCoin == selected[0].value);
+    BOOST_CHECK(spends.front().id == selected[0].id);
+    BOOST_CHECK(spends.front().get_denomination() == selected[0].get_denomination());
 
     for (auto& coin : coins) {
         if (std::find_if(
@@ -593,9 +593,9 @@ BOOST_AUTO_TEST_CASE(spend)
             continue;
         }
 
-        BOOST_TEST(coin.IsUsed == false);
-        BOOST_TEST(coin.id == -1);
-        BOOST_TEST(coin.nHeight == -1);
+        BOOST_CHECK(coin.IsUsed == false);
+        BOOST_CHECK(coin.id == -1);
+        BOOST_CHECK(coin.nHeight == -1);
     }
 }
 
