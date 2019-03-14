@@ -316,12 +316,10 @@ bool CheckZerocoinTransactionV3(
 		if (!isVerifyDB) {
 			BOOST_FOREACH(const CTxOut &txout, tx.vout)
 			{
-				if (txout.nValue == totalValue){
-					if (!CheckSpendZcoinTransactionV3(
-						tx, denominations, state, hashTx, isVerifyDB, nHeight,
-						isCheckWallet, zerocoinTxInfoV3)) {
-							return false;
-					}
+				if (!CheckSpendZcoinTransactionV3(
+					tx, denominations, state, hashTx, isVerifyDB, nHeight,
+					isCheckWallet, zerocoinTxInfoV3)) {
+						return false;
 				}
 			}
 
