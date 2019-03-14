@@ -467,24 +467,24 @@ libsigma_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libsigma_a_SOURCES = \
   libzerocoin/common/GeneratorVector.h \
   libzerocoin/common/GeneratorVector.hpp \
-  sigma/r1proof.h \
-  sigma/r1proofgenerator.h \
-  sigma/r1proofgenerator.hpp \
-  sigma/r1proofverifier.h \
-  sigma/r1proofverifier.hpp \
-  sigma/sigmaplusproof.h \
-  sigma/sigmaplusprover.h \
-  sigma/sigmaplusprover.hpp \
-  sigma/sigmaplusverifier.h \
-  sigma/sigmaplusverifier.hpp \
-  sigma/sigmaprimitives.h \
-  sigma/sigmaprimitives.hpp \
+  sigma/r1_proof.h \
+  sigma/r1_proof_generator.h \
+  sigma/r1_proof_generator.hpp \
+  sigma/r1_proof_verifier.h \
+  sigma/r1_proof_verifier.hpp \
+  sigma/sigmaplus_proof.h \
+  sigma/sigmaplus_prover.h \
+  sigma/sigmaplus_prover.hpp \
+  sigma/sigmaplus_verifier.h \
+  sigma/sigmaplus_verifier.hpp \
+  sigma/sigma_primitives.h \
+  sigma/sigma_primitives.hpp \
   sigma/coin.h \
   sigma/coin.cpp \
   sigma/coinspend.cpp \
   sigma/coinspend.h \
-  sigma/spendmetadatav3.cpp \
-  sigma/spendmetadatav3.h \
+  sigma/spend_metadata.cpp \
+  sigma/spend_metadata.h \
   sigma/params.h \
   sigma/params.cpp \
   sigma/openssl_context.h

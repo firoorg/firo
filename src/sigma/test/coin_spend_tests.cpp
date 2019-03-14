@@ -1,11 +1,11 @@
-#include <boost/test/unit_test.hpp>
+#include "../coin.h"
+#include "../coinspend.h"
+#include "../spend_metadata.h"
 
 #include "../../../streams.h"
-#include "uint256.h"
+#include "../../../uint256.h"
 
-#include "../coinspend.h"
-#include "../coin.h"
-#include "../spendmetadatav3.h"
+#include <boost/test/unit_test.hpp>
 
 BOOST_AUTO_TEST_SUITE(sigma_coin_spend_tests)
 

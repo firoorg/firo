@@ -1,8 +1,8 @@
-#ifndef ZCOIN_SIGMAPLUSPROVER_H
-#define ZCOIN_SIGMAPLUSPROVER_H
+#ifndef ZCOIN_SIGMA_SIGMAPLUS_PROVER_H
+#define ZCOIN_SIGMA_SIGMAPLUS_PROVER_H
 
-#include "sigmaplusproof.h"
-#include "r1proofgenerator.h"
+#include "r1_proof_generator.h"
+#include "sigmaplus_proof.h"
 
 namespace sigma {
 
@@ -24,8 +24,8 @@ private:
     int m_;
 };
 
-}//namespace sigma
+} // namespace sigma
 
-#include "sigmaplusprover.hpp"
+#include "sigmaplus_prover.hpp"
 
-#endif //ZCOIN_SIGMAPLUSPROVER_H
+#endif // ZCOIN_SIGMA_SIGMAPLUS_PROVER_H

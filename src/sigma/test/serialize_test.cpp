@@ -1,7 +1,8 @@
-#include <boost/test/unit_test.hpp>
 #include "../params.h"
-#include "../sigmaplusprover.h"
-#include "../sigmaplusverifier.h"
+#include "../sigmaplus_prover.h"
+#include "../sigmaplus_verifier.h"
+
+#include <boost/test/unit_test.hpp>
 
 BOOST_AUTO_TEST_SUITE(sigma_serialize_tests)
 

@@ -18,7 +18,7 @@
 #include "zerocoin.h"
 #include "zerocoin_v3.h"
 #include "../sigma/coinspend.h"
-#include "../sigma/spendmetadatav3.h"
+#include "../sigma/spend_metadata.h"
 #include "net.h"
 #include "policy/policy.h"
 #include "primitives/block.h"

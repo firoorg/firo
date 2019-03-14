@@ -1,13 +1,13 @@
 #ifndef ZCOIN_SIGMA_COIN_H
 #define ZCOIN_SIGMA_COIN_H
 
-#include "sigmaprimitives.h"
-#include <libzerocoin/Zerocoin.h>
 #include "params.h"
-#include "consensus/validation.h"
+#include "sigma_primitives.h"
+
+#include "../consensus/validation.h"
+#include "../libzerocoin/Zerocoin.h"
 
 namespace sigma {
-
 
 enum class CoinDenominationV3 {
     SIGMA_DENOM_0_1 = 0,
@@ -124,4 +124,4 @@ template<> struct hash<sigma::CoinDenominationV3> {
 
 }// namespace std
 
-#endif //ZCOIN_SIGMA_COIN_H
+#endif // ZCOIN_SIGMA_COIN_H

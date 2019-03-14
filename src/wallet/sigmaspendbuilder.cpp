@@ -3,7 +3,7 @@
 
 #include "../sigma/coin.h"
 #include "../sigma/coinspend.h"
-#include "../sigma/spendmetadatav3.h"
+#include "../sigma/spend_metadata.h"
 
 #include "../main.h"
 #include "../serialize.h"
