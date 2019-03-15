@@ -1,9 +1,4 @@
 #!/usr/bin/env python3
-# Copyright (c) 2014-2016 The Bitcoin Core developers
-# Distributed under the MIT software license, see the accompanying
-# file COPYING or http://www.opensource.org/licenses/mit-license.php.
-
-# Exercise the listreceivedbyaddress API
 from decimal import *
 
 from test_framework.test_framework import BitcoinTestFramework
@@ -43,10 +38,10 @@ class ZcoinMintSpendManyTest(BitcoinTestFramework):
             assert Decimal(-denom*2) == mint_amount, \
                 f'Unexpected mint amount {mint_amount}' \
 
-            # fee is negative here
-            fee = info['fee']
+            # fee in transaction is negative
+            fee = -info['fee']
 
-            start_bal = start_bal - Decimal(2*denom - fee)
+            start_bal = start_bal - Decimal(2*denom + fee)
         
         # Generate confirmation blocks for mint
         self.nodes[0].generate(6)

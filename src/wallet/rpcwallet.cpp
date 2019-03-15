@@ -3217,7 +3217,7 @@ UniValue spendmanyzerocoin(const UniValue& params, bool fHelp) {
     if(addressUni.isNull()){
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
     }
-    string addressStr = addressUni.get_str();
+    std::string addressStr = addressUni.get_str();
 
     for(size_t i=0; i<inputs.size();i++) {
 

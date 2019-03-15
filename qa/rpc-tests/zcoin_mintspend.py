@@ -1,9 +1,4 @@
 #!/usr/bin/env python3
-# Copyright (c) 2014-2016 The Bitcoin Core developers
-# Distributed under the MIT software license, see the accompanying
-# file COPYING or http://www.opensource.org/licenses/mit-license.php.
-
-# Exercise the listreceivedbyaddress API
 from decimal import *
 
 from test_framework.test_framework import BitcoinTestFramework
@@ -40,11 +35,11 @@ class ZcoinMintSpendTest(BitcoinTestFramework):
             # Get last added transaction and fee for it
             info = self.nodes[0].gettransaction(mint_trans[-1])
 
-            # fee is negative here
-            fee = info['fee']
+            # fee in transaction is negative
+            fee = -info['fee']
 
             cur_bal = self.nodes[0].getbalance()
-            start_bal = start_bal - Decimal((denom - fee) * 2)
+            start_bal = start_bal - Decimal((denom + fee) * 2)
             assert start_bal == cur_bal, \
                 f'Unexpected current balance: {cur_bal}, should be minus two mints and two fee, ' \
                 f'but start was {start_bal}'
