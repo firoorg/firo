@@ -22,9 +22,6 @@
 #include <boost/test/unit_test.hpp>
 #include <boost/thread.hpp>
 
-static const CBitcoinAddress randomAddr1("TSUYFnC7KbNpYxe2LtV6J2YLYafC1sncEb");
-static const CBitcoinAddress randomAddr2("TKeQs4VELXhNbUypGrp9r37FXU974SQ712");
-
 static bool isNotEnoughCoinException(const std::runtime_error& e) {
     return strcmp(e.what(),
         std::runtime_error(_("Has to have at least two mint coins with at least 6 confirmation in order to spend a coin")).what()) == 0;
@@ -37,7 +34,7 @@ static bool addToMempool(const CWalletTx& tx) {
     return AcceptToMemoryPool(mempool, state, tx, true, false, &fMissingInputs, true, false, nMaxRawTxFee);
 }
 
-BOOST_FIXTURE_TEST_SUITE(sigma_partialspend, ZerocoinTestingSetup200)
+BOOST_FIXTURE_TEST_SUITE(sigma_partialspend_tests, ZerocoinTestingSetup200)
 
 /*
 * 1. Create one denomination pair and check it can't be spend till 6 conf of mint
@@ -45,31 +42,44 @@ BOOST_FIXTURE_TEST_SUITE(sigma_partialspend, ZerocoinTestingSetup200)
 * 3. Create two spend transactions using same mint
 * 4. Double spend with previous spend in last block
 */
-BOOST_AUTO_TEST_CASE(sigma_partialspend_test)
+BOOST_AUTO_TEST_CASE(partialspend)
 {
-    CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
-    string denomination;
-    vector<uint256> vtxid;
-    std::vector<CMutableTransaction> MinTxns;
-    std::vector<string> denominations = {"0.1", "0.5", "1", "10", "100"};
+    // Generate addresses
+    CPubKey newKey1, newKey2;
+    BOOST_CHECK_MESSAGE(pwalletMain->GetKeyFromPool(newKey1), "Fail to get new address");
+    BOOST_CHECK_MESSAGE(pwalletMain->GetKeyFromPool(newKey2), "Fail to get new address");
 
+    const CBitcoinAddress randomAddr1(newKey1.GetID());
+    const CBitcoinAddress randomAddr2(newKey2.GetID());
+
+    CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
+    std::string denomination;
+    std::vector<uint256> vtxid;
+    std::vector<CMutableTransaction> MinTxns;
+    std::vector<std::string> denominations = {"0.1", "0.5", "1", "10", "100"};
+
+    // Get smallest denomination value
+    std::vector<sigma::CoinDenominationV3> denoms;
+    sigma::GetAllDenoms(denoms);
     CAmount smallestDenomAmount;
-    sigma::DenominationToInteger(sigma::CoinDenominationV3::SIGMA_DENOM_0_1, smallestDenomAmount);
+    sigma::DenominationToInteger(denoms.back(), smallestDenomAmount);
 
     // foreach denom from denominations
     for (const auto& denomination : denominations) {
+
+        // Get denomination value
         sigma::CoinDenominationV3 denomId;
         CAmount denomAmount;
         sigma::StringToDenomination(denomination, denomId);
         sigma::DenominationToInteger(denomId, denomAmount);
 
         printf("Testing denomination %s\n", denomination.c_str());
-        string stringError;
+        std::string stringError;
         // Make sure that transactions get to mempool
         pwalletMain->SetBroadcastTransactions(true);
 
         // Verify Mint is successful
-        vector<pair<std::string, int>> denominationPairs = {{denomination, 1}};
+        std::vector<std::pair<std::string, int>> denominationPairs = {{denomination, 1}};
         BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(
             stringError, denominationPairs, SIGMA), stringError + " - Create Mint failed");
 
@@ -83,7 +93,7 @@ BOOST_AUTO_TEST_CASE(sigma_partialspend_test)
         previousHeight = chainActive.Height();
         // Add 5 more blocks and verify that Mint can not be spent until 6 blocks verification
 
-		std::vector<CRecipient> recipients = {
+        std::vector<CRecipient> recipients = {
             {GetScriptForDestination(randomAddr1.Get()), denomAmount / 2, false},
             {GetScriptForDestination(randomAddr2.Get()), denomAmount / 2 - CENT, false},
         };
@@ -91,10 +101,9 @@ BOOST_AUTO_TEST_CASE(sigma_partialspend_test)
             CWalletTx tx;
             BOOST_CHECK_EXCEPTION(
                 pwalletMain->SpendZerocoinV3(recipients, tx),
-                std::runtime_error,
-                [](const std::runtime_error& e) {
-                    return strcmp(e.what(), InsufficientFunds().what()) == 0;
-                });
+                InsufficientFunds,
+                no_check
+            );
             std::vector<CMutableTransaction> noTxns;
             CreateAndProcessBlock(noTxns, scriptPubKey);
         }
@@ -119,7 +128,6 @@ BOOST_AUTO_TEST_CASE(sigma_partialspend_test)
         CreateAndProcessBlock(MinTxns, scriptPubKey);
         BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
 
-
         previousHeight = chainActive.Height();
         // Add 5 more blocks and verify that Mint can not be spent until 6 blocks verification
         for (int i = 0; i < 5; i++) {
@@ -140,7 +148,7 @@ BOOST_AUTO_TEST_CASE(sigma_partialspend_test)
         std::vector<CZerocoinEntryV3> dSelected;
         std::vector<CZerocoinEntryV3> dChanges;
 
-        // Make dtx is not identical tx
+        // Make dtx is not identical to tx
         std::vector<CRecipient> dupRecipients = {
             {GetScriptForDestination(randomAddr2.Get()), denomAmount / 2, false},
             {GetScriptForDestination(randomAddr1.Get()), denomAmount / 2 - CENT, false},
@@ -187,22 +195,34 @@ BOOST_AUTO_TEST_CASE(sigma_partialspend_test)
         auto tempSerials = zerocoinState->usedCoinSerials;
         zerocoinState->usedCoinSerials.clear();
 
+        // Add invalid transaction to mempool, this will pass because we have removed serials from state
         BOOST_CHECK_MESSAGE(addToMempool(dtx), "Spend created although double");
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mempool not set");
+
+        // Bring serials back to zerocoin state
         zerocoinState->usedCoinSerials = tempSerials;
 
+        // CreateBlock throw exception because invalid transaction is in mempool
         MinTxns.clear();
         BOOST_CHECK_EXCEPTION(CreateBlock(MinTxns, scriptPubKey), std::runtime_error, no_check);
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mempool not set");
+
+        // Get all tx hashs from mempool
         vtxid.clear();
         mempool.queryHashes(vtxid);
+
+        // Add invalid tx too block manually
+        // it will work be cause we remove serials from state and don't bring it back before create block like previous test
         MinTxns.clear();
         MinTxns.push_back(*mempool.get(vtxid.at(0)));
         tempSerials = zerocoinState->usedCoinSerials;
         zerocoinState->usedCoinSerials.clear();
         CreateBlock(MinTxns, scriptPubKey);
+
+        // Bring serials back
         zerocoinState->usedCoinSerials = tempSerials;
 
+        // Create new block, last block should be remove because it contain invalid spend tx
         mempool.clear();
         previousHeight = chainActive.Height();
         BOOST_CHECK_MESSAGE(ProcessBlock(b), "ProcessBlock failed");
@@ -216,7 +236,16 @@ BOOST_AUTO_TEST_CASE(sigma_partialspend_test)
     }
 }
 
-BOOST_AUTO_TEST_CASE(sigma_remits_test) {
+BOOST_AUTO_TEST_CASE(partialspend_remint) {
+
+    // Generate addresses
+    CPubKey newKey1, newKey2;
+    BOOST_CHECK_MESSAGE(pwalletMain->GetKeyFromPool(newKey1), "Fail to get new address");
+    BOOST_CHECK_MESSAGE(pwalletMain->GetKeyFromPool(newKey2), "Fail to get new address");
+
+    const CBitcoinAddress randomAddr1(newKey1.GetID());
+    const CBitcoinAddress randomAddr2(newKey2.GetID());
+
     CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
     std::vector<CMutableTransaction> MinTxns;
 
@@ -225,12 +254,12 @@ BOOST_AUTO_TEST_CASE(sigma_remits_test) {
     sigma::DenominationToInteger(sigma::CoinDenominationV3::SIGMA_DENOM_1, denomAmount1);
     sigma::DenominationToInteger(sigma::CoinDenominationV3::SIGMA_DENOM_0_1, denomAmount01);
 
-    string stringError;
+    std::string stringError;
     // Make sure that transactions get to mempool
     pwalletMain->SetBroadcastTransactions(true);
 
     // Verify Mint is successful
-    vector<pair<std::string, int>> denominationPairs = {{"1", 2}};
+    std::vector<std::pair<std::string, int>> denominationPairs = {{"1", 2}};
     BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(
             stringError, denominationPairs, SIGMA), stringError + " - Create Mint failed");
 
@@ -253,10 +282,9 @@ BOOST_AUTO_TEST_CASE(sigma_remits_test) {
         CWalletTx tx;
         BOOST_CHECK_EXCEPTION(
             pwalletMain->SpendZerocoinV3(recipients, tx),
-            std::runtime_error,
-            [](const std::runtime_error& e) {
-                return strcmp(e.what(), InsufficientFunds().what()) == 0;
-            });
+            InsufficientFunds,
+            no_check
+        );
         std::vector<CMutableTransaction> noTxns;
         CreateAndProcessBlock(noTxns, scriptPubKey);
     }
@@ -287,10 +315,9 @@ BOOST_AUTO_TEST_CASE(sigma_remits_test) {
         CWalletTx tx;
         BOOST_CHECK_EXCEPTION(
             pwalletMain->SpendZerocoinV3(recipients, tx),
-            std::runtime_error,
-            [](const std::runtime_error& e) {
-                return strcmp(e.what(), InsufficientFunds().what()) == 0;
-            });
+            InsufficientFunds,
+            no_check
+        );
         std::vector<CMutableTransaction> noTxns;
         CreateAndProcessBlock(noTxns, scriptPubKey);
     }
