@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "../wallet.h"
+#include "../walletexcept.h"
 
 #include "../../libzerocoin/sigma/CoinSpend.h"
 #include "../../main.h"
@@ -81,6 +82,13 @@ static void GenerateBlockWithCoins(const std::vector<std::pair<sigma::CoinDenomi
     // add block
     state->AddBlock(&block->second);
     chainActive.SetTip(&block->second);
+}
+
+static void GenerateEmptyBlocks(int number_of_blocks)
+{
+    for (int i = 0; i < number_of_blocks; ++i) {
+        GenerateBlockWithCoins({});
+   }
 }
 
 static bool CheckDenominationCoins(
@@ -228,6 +236,7 @@ BOOST_AUTO_TEST_CASE(get_coin_different_denomination)
     std::vector<std::pair<sigma::CoinDenominationV3, int>> newCoins;
     GetCoinSetByDenominationAmount(newCoins, 2, 1, 1, 1, 1);
     GenerateBlockWithCoins(newCoins);
+    GenerateEmptyBlocks(5);
 
     CAmount require(111 * COIN + 7 * COIN / 10); // 111.7
 
@@ -245,6 +254,7 @@ BOOST_AUTO_TEST_CASE(get_coin_round_up)
     std::vector<std::pair<sigma::CoinDenominationV3, int>> newCoins;
     GetCoinSetByDenominationAmount(newCoins, 5, 5, 5, 5, 5);
     GenerateBlockWithCoins(newCoins);
+    GenerateEmptyBlocks(5);
 
     // This must get rounded up to 111.8
     CAmount require(111 * COIN + 7 * COIN / 10 + 5 * COIN / 100); // 111.75
@@ -273,8 +283,25 @@ BOOST_AUTO_TEST_CASE(get_coin_not_enough)
     std::vector<std::pair<sigma::CoinDenominationV3, int>> newCoins;
     GetCoinSetByDenominationAmount(newCoins, 1, 1, 1, 1, 1);
     GenerateBlockWithCoins(newCoins);
+    GenerateEmptyBlocks(5);
 
     CAmount require(111 * COIN + 7 * COIN / 10); // 111.7
+
+    std::vector<CZerocoinEntryV3> coins;
+    std::vector<sigma::CoinDenominationV3> coinsToMint;
+    BOOST_CHECK_MESSAGE(!pwalletMain->GetCoinsToSpend(require, coins, coinsToMint),
+        "Expect not enough coin and equal to one for each denomination");
+}
+
+BOOST_AUTO_TEST_CASE(get_coin_cannot_spend_unconfirmed_coins)
+{
+    std::vector<std::pair<sigma::CoinDenominationV3, int>> newCoins;
+    GetCoinSetByDenominationAmount(newCoins, 1, 1, 1, 1, 1);
+    GenerateBlockWithCoins(newCoins);
+    // Intentionally do not create 5 more blocks after this one, so coins can not be spent.
+    // GenerateEmptyBlocks(5);
+
+    CAmount require(111 * COIN + 5 * COIN / 10); // 111.5
 
     std::vector<CZerocoinEntryV3> coins;
     std::vector<sigma::CoinDenominationV3> coinsToMint;
@@ -287,6 +314,7 @@ BOOST_AUTO_TEST_CASE(get_coin_minimize_coins_spend_fit_amount)
     std::vector<std::pair<sigma::CoinDenominationV3, int>> newCoins;
     GetCoinSetByDenominationAmount(newCoins, 0, 0, 0, 10, 1);
     GenerateBlockWithCoins(newCoins);
+    GenerateEmptyBlocks(5);
 
     CAmount require(100 * COIN);
 
@@ -307,6 +335,7 @@ BOOST_AUTO_TEST_CASE(get_coin_minimize_coins_spend)
     std::vector<std::pair<sigma::CoinDenominationV3, int>> newCoins;
     GetCoinSetByDenominationAmount(newCoins, 1, 0, 7, 1, 1);
     GenerateBlockWithCoins(newCoins);
+    GenerateEmptyBlocks(5);
 
     CAmount require(17 * COIN);
 
@@ -327,6 +356,7 @@ BOOST_AUTO_TEST_CASE(get_coin_choose_smallest_enough)
     std::vector<std::pair<sigma::CoinDenominationV3, int>> newCoins;
     GetCoinSetByDenominationAmount(newCoins, 1, 1, 1, 1, 1);
     GenerateBlockWithCoins(newCoins);
+    GenerateEmptyBlocks(5);
 
     CAmount require(9 * COIN / 10); // 0.9
 
@@ -382,6 +412,7 @@ BOOST_AUTO_TEST_CASE(create_spend_with_insufficient_coins)
     std::vector<CRecipient> recipients;
 
     GenerateBlockWithCoins({ std::make_pair(sigma::CoinDenominationV3::SIGMA_DENOM_10, 1) });
+    GenerateEmptyBlocks(5);
 
     recipients.push_back(CRecipient{
         .scriptPubKey = GetScriptForDestination(randomAddr1.Get()),
@@ -403,8 +434,8 @@ BOOST_AUTO_TEST_CASE(create_spend_with_insufficient_coins)
 
     BOOST_CHECK_EXCEPTION(
         pwalletMain->CreateZerocoinSpendTransactionV3(recipients, fee, selected, changes),
-        std::runtime_error,
-        [](const std::runtime_error& e) { return e.what() == std::string("Insufficient funds"); });
+        InsufficientFunds,
+        [](const InsufficientFunds& e) { return e.what() == std::string("Insufficient funds"); });
 }
 
 BOOST_AUTO_TEST_CASE(create_spend_with_confirmation_less_than_6)
@@ -436,8 +467,8 @@ BOOST_AUTO_TEST_CASE(create_spend_with_confirmation_less_than_6)
 
     BOOST_CHECK_EXCEPTION(
         pwalletMain->CreateZerocoinSpendTransactionV3(recipients, fee, selected, changes),
-        std::runtime_error,
-        [](const std::runtime_error& e) { return e.what() == std::string("Has to have at least two mint coins with at least 6 confirmation in order to spend a coin"); });
+        InsufficientFunds,
+        [](const InsufficientFunds& e) { return e.what() == std::string("Insufficient funds"); });
 }
 
 BOOST_AUTO_TEST_CASE(create_spend_with_coins_less_than_2)
@@ -448,11 +479,7 @@ BOOST_AUTO_TEST_CASE(create_spend_with_coins_less_than_2)
     std::vector<CRecipient> recipients;
 
     GenerateBlockWithCoins({ std::make_pair(sigma::CoinDenominationV3::SIGMA_DENOM_10, 1) });
-    GenerateBlockWithCoins({});
-    GenerateBlockWithCoins({});
-    GenerateBlockWithCoins({});
-    GenerateBlockWithCoins({});
-    GenerateBlockWithCoins({});
+    GenerateEmptyBlocks(5);
 
     recipients.push_back(CRecipient{
         .scriptPubKey = GetScriptForDestination(randomAddr1.Get()),
@@ -474,11 +501,7 @@ BOOST_AUTO_TEST_CASE(create_spend_with_coins_more_than_1)
     std::vector<CRecipient> recipients;
 
     GenerateBlockWithCoins({ std::make_pair(sigma::CoinDenominationV3::SIGMA_DENOM_10, 2) });
-    GenerateBlockWithCoins({});
-    GenerateBlockWithCoins({});
-    GenerateBlockWithCoins({});
-    GenerateBlockWithCoins({});
-    GenerateBlockWithCoins({});
+    GenerateEmptyBlocks(5);
 
     recipients.push_back(CRecipient{
         .scriptPubKey = GetScriptForDestination(randomAddr1.Get()),
@@ -494,19 +517,19 @@ BOOST_AUTO_TEST_CASE(create_spend_with_coins_more_than_1)
 
     CWalletTx tx = pwalletMain->CreateZerocoinSpendTransactionV3(recipients, fee, selected, changes);
 
-    BOOST_TEST(tx.vin.size() == 2);
+    BOOST_CHECK(tx.vin.size() == 2);
 
     // 2 outputs to recipients 5 + 10 xzc
     // 9 mints as changes, 1 * 4 + 0.5 * 1 + 0.1 * 4 xzc
-    BOOST_TEST(tx.vout.size() == 11);
-    BOOST_TEST(fee > 0);
+    BOOST_CHECK(tx.vout.size() == 11);
+    BOOST_CHECK(fee > 0);
 
-    BOOST_TEST(selected.size() == 2);
-    BOOST_TEST(selected[0].get_denomination() == sigma::CoinDenominationV3::SIGMA_DENOM_10);
-    BOOST_TEST(selected[1].get_denomination() == sigma::CoinDenominationV3::SIGMA_DENOM_10);
+    BOOST_CHECK(selected.size() == 2);
+    BOOST_CHECK(selected[0].get_denomination() == sigma::CoinDenominationV3::SIGMA_DENOM_10);
+    BOOST_CHECK(selected[1].get_denomination() == sigma::CoinDenominationV3::SIGMA_DENOM_10);
 
-    BOOST_TEST(CheckSpend(tx.vin[0], selected[0]));
-    BOOST_TEST(CheckSpend(tx.vin[1], selected[1]));
+    BOOST_CHECK(CheckSpend(tx.vin[0], selected[0]));
+    BOOST_CHECK(CheckSpend(tx.vin[1], selected[1]));
 
     BOOST_CHECK(ContainTxOut(tx.vout,
         make_pair(GetScriptForDestination(randomAddr1.Get()), 5 * COIN ), 1));
@@ -517,7 +540,7 @@ BOOST_AUTO_TEST_CASE(create_spend_with_coins_more_than_1)
         return c + (v.scriptPubKey.IsZerocoinMintV3() ? v.nValue : 0);
     });
 
-    BOOST_TEST(remintsSum == 49 * COIN / 10);
+    BOOST_CHECK(remintsSum == 49 * COIN / 10);
 
     // check walletdb
     std::list<CZerocoinEntryV3> coinList;
@@ -525,22 +548,22 @@ BOOST_AUTO_TEST_CASE(create_spend_with_coins_more_than_1)
     CWalletDB db(pwalletMain->strWalletFile);
 
     db.ListPubCoinV3(coinList);
-    BOOST_TEST(coinList.size() == 2);
+    BOOST_CHECK(coinList.size() == 2);
 
     db.ListCoinSpendSerial(spends);
-    BOOST_TEST(spends.empty());
+    BOOST_CHECK(spends.empty());
 
     pwalletMain->SpendZerocoinV3(recipients, tx, fee);
 
     coinList.clear();
     db.ListPubCoinV3(coinList);
-    BOOST_TEST(coinList.size() == 11);
-    BOOST_TEST(std::count_if(coinList.begin(), coinList.end(),
+    BOOST_CHECK(coinList.size() == 11);
+    BOOST_CHECK(std::count_if(coinList.begin(), coinList.end(),
         [](const CZerocoinEntryV3& coin){return !coin.IsUsed;}) == 9);
 
     spends.clear();
     db.ListCoinSpendSerial(spends);
-    BOOST_TEST(spends.size() == 2);
+    BOOST_CHECK(spends.size() == 2);
 }
 
 BOOST_AUTO_TEST_CASE(spend)
@@ -550,11 +573,7 @@ BOOST_AUTO_TEST_CASE(spend)
     std::vector<CRecipient> recipients;
 
     GenerateBlockWithCoins({ std::make_pair(sigma::CoinDenominationV3::SIGMA_DENOM_10, 2) });
-    GenerateBlockWithCoins({});
-    GenerateBlockWithCoins({});
-    GenerateBlockWithCoins({});
-    GenerateBlockWithCoins({});
-    GenerateBlockWithCoins({});
+    GenerateEmptyBlocks(5);
 
     recipients.push_back(CRecipient{
         .scriptPubKey = GetScriptForDestination(randomAddr1.Get()),
@@ -572,18 +591,18 @@ BOOST_AUTO_TEST_CASE(spend)
     std::list<CZerocoinEntryV3> coins;
     db.ListPubCoinV3(coins);
 
-    BOOST_TEST(selected.size() == 1);
-    BOOST_TEST(selected[0].get_denomination() == sigma::CoinDenominationV3::SIGMA_DENOM_10);
-    BOOST_TEST(selected[0].id == 1);
-    BOOST_TEST(selected[0].IsUsed);
-    BOOST_TEST(selected[0].nHeight == 1);
+    BOOST_CHECK(selected.size() == 1);
+    BOOST_CHECK(selected[0].get_denomination() == sigma::CoinDenominationV3::SIGMA_DENOM_10);
+    BOOST_CHECK(selected[0].id == 1);
+    BOOST_CHECK(selected[0].IsUsed);
+    BOOST_CHECK(selected[0].nHeight == 1);
 
-    BOOST_TEST(spends.size() == 1);
-    BOOST_TEST(spends.front().coinSerial == selected[0].serialNumber);
-    BOOST_TEST((spends.front().hashTx == tx.GetHash()));
-    BOOST_TEST(spends.front().pubCoin == selected[0].value);
-    BOOST_TEST(spends.front().id == selected[0].id);
-    BOOST_TEST(spends.front().get_denomination() == selected[0].get_denomination());
+    BOOST_CHECK(spends.size() == 1);
+    BOOST_CHECK(spends.front().coinSerial == selected[0].serialNumber);
+    BOOST_CHECK((spends.front().hashTx == tx.GetHash()));
+    BOOST_CHECK(spends.front().pubCoin == selected[0].value);
+    BOOST_CHECK(spends.front().id == selected[0].id);
+    BOOST_CHECK(spends.front().get_denomination() == selected[0].get_denomination());
 
     for (auto& coin : coins) {
         if (std::find_if(
@@ -593,9 +612,9 @@ BOOST_AUTO_TEST_CASE(spend)
             continue;
         }
 
-        BOOST_TEST(coin.IsUsed == false);
-        BOOST_TEST(coin.id == -1);
-        BOOST_TEST(coin.nHeight == -1);
+        BOOST_CHECK(coin.IsUsed == false);
+        BOOST_CHECK(coin.id == -1);
+        BOOST_CHECK(coin.nHeight == -1);
     }
 }
 

@@ -1417,10 +1417,13 @@ bool AcceptToMemoryPoolWorker(
                 //                LogPrintf("cause by -> non-BIP68-final!\n");
                 //                return state.DoS(0, false, REJECT_NONSTANDARD, "non-BIP68-final");
                 //            }
+            } else if (tx.IsZerocoinSpendV3()){
+                nValueIn = GetSpendTransactionInputV3(tx);
             }
+
         } // LOCK
 
-        if (!tx.IsZerocoinSpend() && !tx.IsZerocoinSpendV3() && fCheckInputs) {
+        if (!tx.IsZerocoinSpend() && fCheckInputs) {
 
             // Check for non-standard pay-to-script-hash in inputs
             if (!fTestNet && fRequireStandard && !AreInputsStandard(tx, view)) {
@@ -1441,18 +1444,24 @@ bool AcceptToMemoryPoolWorker(
             double nPriorityDummy = 0;
             pool.ApplyDeltas(hash, nPriorityDummy, nModifiedFees);
 
-            CAmount inChainInputValue;
-            double dPriority = view.GetPriority(tx, chainActive.Height(), inChainInputValue);
-
-            // Keep track of transactions that spend a coinbase, which we re-scan
-            // during reorgs to ensure COINBASE_MATURITY is still met.
+            CAmount inChainInputValue = 0;
+            double dPriority = 0;
             bool fSpendsCoinbase = false;
-            BOOST_FOREACH(const CTxIn &txin, tx.vin) { const CCoins *coins = view.AccessCoins(txin.prevout.hash);
-                                                       if (coins->IsCoinBase()) {
-                                                           fSpendsCoinbase = true;
-                                                           break;
-                                                       }
-                                                     }
+            if(!tx.IsZerocoinSpendV3()) {
+                dPriority = view.GetPriority(tx, chainActive.Height(), inChainInputValue);
+
+                // Keep track of transactions that spend a coinbase, which we re-scan
+                // during reorgs to ensure COINBASE_MATURITY is still met.
+                BOOST_FOREACH(
+                const CTxIn& txin, tx.vin) {
+                    const CCoins* coins = view.AccessCoins(txin.prevout.hash);
+                    if (coins->IsCoinBase()) {
+                        fSpendsCoinbase = true;
+                        break;
+                    }
+                }
+            }
+
             CTxMemPoolEntry entry(tx, nFees, GetTime(), dPriority, chainActive.Height(), pool.HasNoInputsOf(tx),
                                   inChainInputValue, fSpendsCoinbase, nSigOpsCost, lp);
             
@@ -1745,98 +1754,7 @@ bool AcceptToMemoryPoolWorker(
                 if (!pool.exists(hash))
                     return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "mempool full");
             }
-        } else if (tx.IsZerocoinSpendV3()) {
-            LockPoints lp;
-            double dPriority = 0;
-            double fSpendsCoinbase = false;
-            CAmount inChainInputValue = 0;
-
-            CAmount nValueOut = tx.GetValueOut();
-            nValueIn = GetSpendTransactionInputV3(tx);
-            CAmount nFees = nValueIn - nValueOut;
-            CAmount nModifiedFees = nFees;
-            double nPriorityDummy = 0;
-            pool.ApplyDeltas(hash, nPriorityDummy, nModifiedFees);
-
-            int64_t txMinFee = tx.GetMinFee(1000, true, GMF_RELAY);;
-            if (fLimitFree && nFees < txMinFee) {
-                LogPrintf("not enough fee, nFees=%d, txMinFee=%d\n", nFees, txMinFee);
-                return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "not enough fee", false, strprintf("nFees=%d, txMinFee=%d", nFees, txMinFee));
-            }
-
-            int64_t nSigOpsCost = GetLegacySigOpCount(tx);
-            CTxMemPoolEntry entry(tx, nFees, GetTime(), dPriority, chainActive.Height(), pool.HasNoInputsOf(tx),
-                                  inChainInputValue, fSpendsCoinbase, nSigOpsCost, lp);
-
-            unsigned int nSize = entry.GetTxSize();
-
-            if (fLimitFree && nFees < CTransaction::nMinRelayTxFee) {
-                static CCriticalSection csFreeLimiter;
-                static double dFreeCount;
-                static int64_t nLastTime;
-                int64_t nNow = GetTime();
-
-                LOCK(csFreeLimiter);
-
-                // Use an exponentially decaying ~10-minute window:
-                dFreeCount *= pow(1.0 - 1.0 / 600.0, (double) (nNow - nLastTime));
-                nLastTime = nNow;
-                // -limitfreerelay unit is thousand-bytes-per-minute
-                // At default rate it would take over a month to fill 1GB
-                if (dFreeCount + nSize >= GetArg("-limitfreerelay", DEFAULT_LIMITFREERELAY) * 10 * 1000) {
-                    LogPrintf("cause by -> rate limited free transaction\n");
-                    return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "rate limited free transaction");
-                }
-                LogPrint("mempool", "Rate limit dFreeCount: %g => %g\n", dFreeCount, dFreeCount + nSize);
-                dFreeCount += nSize;
-            }
-
-            if (nAbsurdFee && nFees > CTransaction::nMinRelayTxFee * 1000) {
-                return state.Invalid(false, REJECT_HIGHFEE, "insane fee",
-                                     strprintf("%d > %d", nFees, CTransaction::nMinRelayTxFee * 1000));
-            }
-
-            // Check against previous transactions
-            // This is done last to help prevent CPU exhaustion denial-of-service attacks.
-            unsigned int scriptVerifyFlags = SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_STRICTENC;
-            //        if (!Params().RequireStandard()) {
-            //            scriptVerifyFlags = GetArg("-promiscuousmempoolflags", scriptVerifyFlags);
-            //        }
-            PrecomputedTransactionData txdata(tx);
-            if (!CheckInputs(tx, state, view, true, scriptVerifyFlags, true, txdata)) {
-                // SCRIPT_VERIFY_CLEANSTACK requires SCRIPT_VERIFY_WITNESS, so we
-                // need to turn both off, and compare against just turning off CLEANSTACK
-                // to see if the failure is specifically due to witness validation.
-                //            if (tx.wit.IsNull() && CheckInputs(tx, state, view, true,
-                //                                               scriptVerifyFlags &
-                //                                               ~(SCRIPT_VERIFY_WITNESS | SCRIPT_VERIFY_CLEANSTACK),
-                //                                               true, txdata) &&
-                //                !CheckInputs(tx, state, view, true, scriptVerifyFlags & ~SCRIPT_VERIFY_CLEANSTACK, true, txdata)) {
-                //                // Only the witness is missing, so the transaction itself may be fine.
-                //                state.SetCorruptionPossible();
-                //            }
-                LogPrintf("CheckInputs --> Failed!\n");
-                return false;
-            }
-
-            // Check again against just the consensus-critical mandatory script
-            // verification flags, in case of bugs in the standard flags that cause
-            // transactions to pass as valid when they're actually invalid. For
-            // instance the STRICTENC flag was incorrectly allowing certain
-            // CHECKSIG NOT scripts to pass, even though they were invalid.
-            //
-            // There is a similar check in CreateNewBlock() to prevent creating
-            // invalid blocks, however allowing such transactions into the mempool
-            // can be exploited as a DoS attack.
-            //        if (!CheckInputs(tx, state, view, true, MANDATORY_SCRIPT_VERIFY_FLAGS, true, txdata)) {
-            //            return error(
-            //                    "%s: BUG! PLEASE REPORT THIS! ConnectInputs failed against MANDATORY but not STANDARD flags %s, %s",
-            //                    __func__, hash.ToString(), FormatStateMessage(state));
-            //        }
-
-            CTxMemPool::setEntries setAncestors;
-            pool.addUnchecked(hash, entry, setAncestors, !IsInitialBlockDownload());
-        } else {
+        }  else {
             LockPoints lp;
             double dPriority = 0;
             double fSpendsCoinbase = false;

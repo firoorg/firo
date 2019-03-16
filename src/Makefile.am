@@ -465,13 +465,19 @@ libsigma_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 libsigma_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libsigma_a_SOURCES = \
   libzerocoin/common/GeneratorVector.h \
+  libzerocoin/common/GeneratorVector.hpp \
   libzerocoin/sigma/R1Proof.h \
   libzerocoin/sigma/R1ProofGenerator.h \
+  libzerocoin/sigma/R1ProofGenerator.hpp \
   libzerocoin/sigma/R1ProofVerifier.h \
+  libzerocoin/sigma/R1ProofVerifier.hpp \
   libzerocoin/sigma/SigmaPlusProof.h \
   libzerocoin/sigma/SigmaPlusProver.h \
+  libzerocoin/sigma/SigmaPlusProver.hpp \
   libzerocoin/sigma/SigmaPlusVerifier.h \
+  libzerocoin/sigma/SigmaPlusVerifier.hpp \
   libzerocoin/sigma/SigmaPrimitives.h \
+  libzerocoin/sigma/SigmaPrimitives.hpp \
   libzerocoin/sigma/Coin.h \
   libzerocoin/sigma/Coin.cpp \
   libzerocoin/sigma/CoinSpend.cpp \
@@ -479,7 +485,8 @@ libsigma_a_SOURCES = \
   libzerocoin/sigma/SpendMetaDataV3.cpp \
   libzerocoin/sigma/SpendMetaDataV3.h \
   libzerocoin/sigma/Params.h \
-  libzerocoin/sigma/Params.cpp
+  libzerocoin/sigma/Params.cpp \
+  libzerocoin/sigma/OpenSSL_context.h
 
 if GLIBC_BACK_COMPAT
 libbitcoin_util_a_SOURCES += compat/glibc_compat.cpp
