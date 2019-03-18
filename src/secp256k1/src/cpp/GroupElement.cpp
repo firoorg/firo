@@ -15,10 +15,9 @@
 #include <openssl/rand.h>
 
 #include <array>
-#include <climits>
-#include <limits>
 #include <sstream>
 #include <stdexcept>
+#include <string>
 
 #include <stdlib.h>
 
@@ -535,24 +534,16 @@ std::vector<unsigned char> GroupElement::getvch() const {
 std::size_t GroupElement::hash() const
 {
     auto ge = gej_to_ge(*reinterpret_cast<secp256k1_gej *>(g_));
-    std::size_t h = 0;
-
-    if (ge.infinity) {
-        return h;
-    }
-
-    constexpr auto nlow = std::numeric_limits<decltype(h)>::digits - CHAR_BIT;
-    constexpr auto top = static_cast<decltype(h)>(~0) << nlow;
     std::array<unsigned char, 32 * 2> coord;
 
-    secp256k1_fe_get_b32(&coord[0], &ge.x);
-    secp256k1_fe_get_b32(&coord[32], &ge.y);
-
-    for (auto b : coord) {
-        h = (h << CHAR_BIT) | (((h & top) >> nlow) ^ b);
+    if (ge.infinity) {
+        coord.fill(0);
+    } else {
+        secp256k1_fe_get_b32(&coord[0], &ge.x);
+        secp256k1_fe_get_b32(&coord[32], &ge.y);
     }
 
-    return h;
+    return std::hash<std::string>()(std::string(coord.begin(), coord.end()));
 }
 
 } // namespace secp_primitives
