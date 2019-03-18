@@ -64,6 +64,11 @@ void SelectBaseParams(const std::string& chain);
 std::string ChainNameFromCommandLine();
 
 /**
+ * Checks if the port parameter is the same as any ZMQ port for base params.
+ */
+bool IsZMQPort(int64_t port);
+
+/**
  * Return true if SelectBaseParamsFromCommandLine() has been called to select
  * a network.
  */

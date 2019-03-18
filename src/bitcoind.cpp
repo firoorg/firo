@@ -121,6 +121,11 @@ bool AppInit(int argc, char* argv[])
             fprintf(stderr, "Error: %s\n", e.what());
             return false;
         }
+        int port = GetArg("-rpcport", BaseParams().RPCPort());
+        if(IsZMQPort(port)){
+            fprintf(stderr, "Error: Cannot Initialize RPC: Port crossover with ZMQ. Please restart with a different port number for -rpcport.\n");
+            exit(EXIT_FAILURE);
+        }
 
         // parse znode.conf
         std::string strErr;
