@@ -56,7 +56,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_oldmints)
 
     vector<pair<std::string, int>> denominationPairs;
 
-    for(int i = 0; i < 4; i++)
+    for(int i = 0; i < denominations.size(); i++)
     {
         thirdPartyAddress = "";
         denominationsForTx.clear();
