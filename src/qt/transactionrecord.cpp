@@ -42,7 +42,42 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
     uint256 hash = wtx.GetHash();
     std::map<std::string, std::string> mapValue = wtx.mapValue;
 
-    if (nNet > 0 || wtx.IsCoinBase())
+    if(wtx.IsZerocoinSpend() || wtx.IsZerocoinSpendV3())
+    {
+        BOOST_FOREACH(const CTxOut& txout, wtx.vout)
+        {
+            isminetype mine = wallet->IsMine(txout);
+
+            TransactionRecord sub(hash, nTime);
+            CTxDestination address;
+            
+            sub.involvesWatchAddress = mine & ISMINE_WATCH_ONLY;
+            if(mine)
+            {
+                if (ExtractDestination(txout.scriptPubKey, address) && IsMine(*wallet, address))
+                {
+                    sub.type = TransactionRecord::SpendToSelf;
+                    sub.address = CBitcoinAddress(address).ToString();
+                }
+            }
+            else {
+                sub.type = TransactionRecord::SpendToAddress;
+                sub.address = CBitcoinAddress(address).ToString();
+            }
+            parts.append(sub);
+        }
+    }
+    else if(wtx.IsZerocoinMint() || wtx.IsZerocoinMintV3())
+    {
+        TransactionRecord sub(hash, nTime);
+        BOOST_FOREACH(const CTxIn& txin, wtx.vin)
+        {
+
+            sub.type = TransactionRecord::Mint;
+            parts.append(sub);
+        }
+    }
+    else if (nNet > 0 || wtx.IsCoinBase())
     {
         //
         // Credit
@@ -67,7 +102,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                 {
                     // Received by IP connection (deprecated features), or a multisignature or other non-simple transaction
                     sub.type = TransactionRecord::RecvFromOther;
-                    sub.address = mapValue["from"];
+                     sub.address = mapValue["from"];
                 }
                 if (wtx.IsCoinBase())
                 {
