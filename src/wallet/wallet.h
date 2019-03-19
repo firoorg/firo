@@ -827,7 +827,21 @@ public:
     CAmount GetNeedsToBeAnonymizedBalance(CAmount nMinBalance = 0) const;
     CAmount GetDenominatedBalance(bool unconfirmed=false) const;
 
-    // Returns a list of unspent and verified coins, I.E. coins which are ready 
+    static int GetRequiredCoinCountForAmount(
+        const CAmount& required,
+        const std::vector<sigma::CoinDenominationV3>& denominations);
+
+    static CAmount SelectMintCoinsForAmount(
+        const CAmount& required,
+        const std::vector<sigma::CoinDenominationV3>& denominations,
+        std::vector<sigma::CoinDenominationV3>& coinsOut);
+
+    static CAmount SelectSpendCoinsForAmount(
+        const CAmount& required,
+        const std::list<CZerocoinEntryV3>& coinsIn,
+        std::vector<CZerocoinEntryV3>& coinsOut);
+
+    // Returns a list of unspent and verified coins, I.E. coins which are ready
     // to be spent.
     std::list<CZerocoinEntryV3> GetAvailableCoins() const;
 

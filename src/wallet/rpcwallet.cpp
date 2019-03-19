@@ -2691,6 +2691,74 @@ UniValue listunspentmintzerocoins(const UniValue &params, bool fHelp) {
     return results;
 }
 
+UniValue mint(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() != 1)
+        throw std::invalid_argument("mint <amount>\n" + HelpRequiringPassphrase());
+
+    int64_t nAmount(params[0].get_real() * COIN);
+    LogPrintf("rpcWallet.mint() denomination = %s, nAmount = %d \n", params[0].get_real(), nAmount);
+
+    std::vector<sigma::CoinDenominationV3> denominations;
+    sigma::GetAllDenoms(denominations);
+
+    CAmount smallestDenom;
+    DenominationToInteger(denominations.back(), smallestDenom);
+
+    if (nAmount % smallestDenom != 0 ) {
+        throw std::invalid_argument("Amount to spend is invalid.\n");
+    }
+
+    std::vector<sigma::CoinDenominationV3> mints;
+    if (CWallet::SelectMintCoinsForAmount(nAmount, denominations, mints) != nAmount) {
+        throw std::runtime_error(
+            "Problem with coin selection for re-mint while spending.\n");
+    }
+
+    sigma::ParamsV3* zcParams = sigma::ParamsV3::get_default();
+
+    vector<CRecipient> vecSend;
+    vector<sigma::PrivateCoinV3> privCoins;
+    CWalletTx wtx;
+
+    for (const auto& denom : mints) {
+
+        CAmount coinValue;
+        DenominationToInteger(denom, coinValue);
+
+        // The following constructor does all the work of minting a brand
+        // new zerocoin. It stores all the private values inside the
+        // PrivateCoin object. This includes the coin secrets, which must be
+        // stored in a secure location (wallet) at the client.
+        sigma::PrivateCoinV3 newCoin(zcParams, denom, ZEROCOIN_TX_VERSION_3);
+        // Get a copy of the 'public' portion of the coin. You should
+        // embed this into a Zerocoin 'MINT' transaction along with a series
+        // of currency inputs totaling the assigned value of one zerocoin.
+        sigma::PublicCoinV3 pubCoin = newCoin.getPublicCoin();
+
+        // Create script for coin
+        CScript scriptSerializedCoin;
+        // opcode is inserted as 1 byte according to file script/script.h
+        scriptSerializedCoin << OP_ZEROCOINMINTV3;
+
+        // and this one will write the size in different byte lengths depending on the length of vector. If vector size is <0.4c, which is 76, will write the size of vector in just 1 byte. In our case the size is always 34, so must write that 34 in 1 byte.
+        std::vector<unsigned char> vch = pubCoin.getValue().getvch();
+        scriptSerializedCoin.insert(scriptSerializedCoin.end(), vch.begin(), vch.end());
+
+        CRecipient recipient = {scriptSerializedCoin, coinValue, false};
+
+        vecSend.push_back(recipient);
+        privCoins.push_back(newCoin);
+    }
+
+    string strError = pwalletMain->MintAndStoreZerocoinV3(vecSend, privCoins, wtx);
+
+    if (strError != "")
+        throw runtime_error(strError);
+
+    return wtx.GetHash().GetHex();
+}
+
 UniValue mintzerocoin(const UniValue& params, bool fHelp)
 {
 
@@ -4062,6 +4130,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "removeprunedfunds",        &removeprunedfunds,        true  },
     { "wallet",             "setmininput",              &setmininput,              false },
     { "wallet",             "listunspentmintzerocoins",             &listunspentmintzerocoins,             false },
+    { "wallet",             "mint",                     &mint,                     false },
     { "wallet",             "mintzerocoin",             &mintzerocoin,             false },
     { "wallet",             "mintmanyzerocoin",             &mintmanyzerocoin,             false },
     { "wallet",             "spendzerocoin",            &spendzerocoin,            false },

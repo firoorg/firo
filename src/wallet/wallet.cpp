@@ -1915,10 +1915,8 @@ CAmount CWallet::GetDenominatedBalance(bool unconfirmed) const {
     return nTotal;
 }
 
-namespace {
-
 // coinsIn has to be sorted in descending order.
-static int GetRequiredCoinCountForAmount(
+int CWallet::GetRequiredCoinCountForAmount(
         const CAmount& required,
         const std::vector<sigma::CoinDenominationV3>& denominations) {
     CAmount val = required;
@@ -1940,7 +1938,7 @@ static int GetRequiredCoinCountForAmount(
  *
  *  \returns The amount which was possible to actually mint.
  */
-static CAmount SelectMintCoinsForAmount(
+CAmount CWallet::SelectMintCoinsForAmount(
         const CAmount& required,
         const std::vector<sigma::CoinDenominationV3>& denominations,
         std::vector<sigma::CoinDenominationV3>& coinsOut) {
@@ -1963,7 +1961,7 @@ static CAmount SelectMintCoinsForAmount(
  *
  *  \returns The amount which was possible to actually spend.
  */
-static CAmount SelectSpendCoinsForAmount(
+CAmount CWallet::SelectSpendCoinsForAmount(
         const CAmount& required,
         const std::list<CZerocoinEntryV3>& coinsIn,
         std::vector<CZerocoinEntryV3>& coinsOut) {
@@ -1982,8 +1980,6 @@ static CAmount SelectSpendCoinsForAmount(
 
     return required - val;
 }
-
-} // end of unnamed namespace.
 
 std::list<CZerocoinEntryV3> CWallet::GetAvailableCoins() const {
     std::list<CZerocoinEntryV3> coins;
@@ -2004,7 +2000,7 @@ std::list<CZerocoinEntryV3> CWallet::GetAvailableCoins() const {
             throw std::runtime_error("Unable to determine the coin height.\n");
         }
         if (coinHeight + (ZC_MINT_CONFIRMATIONS - 1) > chainActive.Height()) {
-            // Remove the coin from the candidates list, since it does not have the 
+            // Remove the coin from the candidates list, since it does not have the
             // required number of confirmations.
             return true;
         }
