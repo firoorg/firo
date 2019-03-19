@@ -60,7 +60,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                     sub.address = CBitcoinAddress(address).ToString();
                 }
             }
-            else {
+            else if(ExtractDestination(txout.scriptPubKey, address)){
                 sub.type = TransactionRecord::SpendToAddress;
                 sub.address = CBitcoinAddress(address).ToString();
             }
