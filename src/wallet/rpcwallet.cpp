@@ -2693,11 +2693,18 @@ UniValue listunspentmintzerocoins(const UniValue &params, bool fHelp) {
 
 UniValue mint(const UniValue& params, bool fHelp)
 {
-    if (fHelp || params.size() != 1)
-        throw std::invalid_argument("mint <amount>\n" + HelpRequiringPassphrase());
+    if (!EnsureWalletIsAvailable(fHelp)) {
+        return NullUniValue;
+    }
 
-    int64_t nAmount(params[0].get_real() * COIN);
-    LogPrintf("rpcWallet.mint() denomination = %s, nAmount = %d \n", params[0].get_real(), nAmount);
+    if (fHelp || params.size() != 1)
+        throw std::runtime_error(
+            "mint amount\n"
+            "\nAutomatically choose denominations to mint by amount\n" +
+            HelpRequiringPassphrase());
+
+    CAmount nAmount = AmountFromValue(params[0]);
+    LogPrintf("rpcWallet.mint() denomination = %s, nAmount = %d \n", params[0].getValStr(), nAmount);
 
     std::vector<sigma::CoinDenominationV3> denominations;
     sigma::GetAllDenoms(denominations);
@@ -2705,20 +2712,20 @@ UniValue mint(const UniValue& params, bool fHelp)
     CAmount smallestDenom;
     DenominationToInteger(denominations.back(), smallestDenom);
 
-    if (nAmount % smallestDenom != 0 ) {
-        throw std::invalid_argument("Amount to spend is invalid.\n");
+    if (nAmount % smallestDenom != 0) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Amount to mint is invalid.\n");
     }
 
     std::vector<sigma::CoinDenominationV3> mints;
     if (CWallet::SelectMintCoinsForAmount(nAmount, denominations, mints) != nAmount) {
-        throw std::runtime_error(
-            "Problem with coin selection for re-mint while spending.\n");
+        throw JSONRPCError(RPC_WALLET_ERROR,
+            "Problem with coin selection.\n");
     }
 
     sigma::ParamsV3* zcParams = sigma::ParamsV3::get_default();
 
-    vector<CRecipient> vecSend;
-    vector<sigma::PrivateCoinV3> privCoins;
+    std::vector<CRecipient> vecSend;
+    std::vector<sigma::PrivateCoinV3> privCoins;
     CWalletTx wtx;
 
     for (const auto& denom : mints) {
@@ -2734,7 +2741,7 @@ UniValue mint(const UniValue& params, bool fHelp)
         // Get a copy of the 'public' portion of the coin. You should
         // embed this into a Zerocoin 'MINT' transaction along with a series
         // of currency inputs totaling the assigned value of one zerocoin.
-        sigma::PublicCoinV3 pubCoin = newCoin.getPublicCoin();
+        auto& pubCoin = newCoin.getPublicCoin();
 
         // Create script for coin
         CScript scriptSerializedCoin;
@@ -2751,10 +2758,10 @@ UniValue mint(const UniValue& params, bool fHelp)
         privCoins.push_back(newCoin);
     }
 
-    string strError = pwalletMain->MintAndStoreZerocoinV3(vecSend, privCoins, wtx);
+    std::string strError = pwalletMain->MintAndStoreZerocoinV3(vecSend, privCoins, wtx);
 
     if (strError != "")
-        throw runtime_error(strError);
+        throw JSONRPCError(RPC_WALLET_ERROR, strError);
 
     return wtx.GetHash().GetHex();
 }
@@ -3273,7 +3280,7 @@ UniValue spendmanyzerocoin(const UniValue& params, bool fHelp) {
     int64_t value = 0;
     int64_t amount = 0;
     libzerocoin::CoinDenomination denomination;
-    std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>> denominations; 
+    std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>> denominations;
     UniValue addressUni(UniValue::VOBJ);
 
     UniValue inputs = find_value(data, "denominations");
