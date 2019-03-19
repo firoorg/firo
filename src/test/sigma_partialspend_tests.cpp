@@ -125,22 +125,14 @@ BOOST_AUTO_TEST_CASE(partialspend)
         MinTxns.clear();
 
         previousHeight = chainActive.Height();
-        CreateAndProcessBlock(MinTxns, scriptPubKey);
-        BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
 
-        previousHeight = chainActive.Height();
-        // Add 5 more blocks and verify that Mint can not be spent until 6 blocks verification
-        for (int i = 0; i < 5; i++) {
-            // CWalletTx tx;
-            BOOST_CHECK_EXCEPTION(
-                pwalletMain->SpendZerocoinV3(recipients, tx),
-                std::runtime_error,
-                isNotEnoughCoinException);
-            std::vector<CMutableTransaction> noTxns;
+        // Add 6 more blocks
+        std::vector<CMutableTransaction> noTxns;
+        for (int i = 0; i < 6; i++) {
             CreateAndProcessBlock(noTxns, scriptPubKey);
         }
 
-        BOOST_CHECK_MESSAGE(previousHeight + 5 == chainActive.Height(), "Block not added to chain");
+        BOOST_CHECK_MESSAGE(previousHeight + 6 == chainActive.Height(), "Block not added to chain");
 
         // Create tx to do double spend before spend
         CWalletTx dtx;
@@ -309,7 +301,7 @@ BOOST_AUTO_TEST_CASE(partialspend_remint) {
     };
 
     previousHeight = chainActive.Height();
-    // Add 5 more blocks and verify that Mint can not be spent until 6 blocks verification
+    // Add 5 more blocks and verify that re-minted coin can not be spent until 6 blocks verification
 
     for (int i = 0; i < 5; i++) {
         CWalletTx tx;
