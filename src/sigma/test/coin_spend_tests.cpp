@@ -2,8 +2,8 @@
 #include "../coinspend.h"
 #include "../spend_metadata.h"
 
-#include "../../../streams.h"
-#include "../../../uint256.h"
+#include "../../streams.h"
+#include "../../uint256.h"
 
 #include <boost/test/unit_test.hpp>
 
@@ -19,7 +19,7 @@ BOOST_AUTO_TEST_CASE(serialize_deserialize_test)
 
     // Doesn't really matter what metadata we give here, it must pass.
     sigma::SpendMetaDataV3 metaData(0, uint256S("120"), uint256S("120"));
- 
+
     std::vector<sigma::PublicCoinV3> anonymity_set;
     anonymity_set.push_back(pubcoin);
 
@@ -51,7 +51,7 @@ BOOST_AUTO_TEST_CASE(different_anonymity_set)
 
     // Doesn't really matter what metadata we give here, it must pass.
     sigma::SpendMetaDataV3 metaData(0, uint256S("120"), uint256S("120"));
- 
+
     sigma::CoinSpendV3 coin(params,privcoin,anonymity_set, metaData);
     sigma::CoinSpendV3 coin2(params,privcoin,anonymity_set, metaData);
 
@@ -68,7 +68,7 @@ BOOST_AUTO_TEST_CASE(different_anonymity_set)
 
     sigma::CoinSpendV3 coin3(params, privcoin, anonymity_set3, metaData);
 
-    BOOST_CHECK(coin.getCoinSerialNumber() == coin3.getCoinSerialNumber());    
+    BOOST_CHECK(coin.getCoinSerialNumber() == coin3.getCoinSerialNumber());
 }
 
 BOOST_AUTO_TEST_CASE(out_of_anonymity_set)
@@ -88,7 +88,7 @@ BOOST_AUTO_TEST_CASE(out_of_anonymity_set)
 
     // Doesn't really matter what metadata we give here, it must pass.
     sigma::SpendMetaDataV3 metaData(0, uint256S("120"), uint256S("120"));
- 
+
     // pubcoin of privcoin isn't in [pubcoin3]
     BOOST_CHECK_THROW(sigma::CoinSpendV3(params,privcoin,anonymity_set3, metaData),std::exception);
 }
@@ -106,7 +106,7 @@ BOOST_AUTO_TEST_CASE(verify_test)
 
     // Doesn't really matter what metadata we give here, it must pass.
     sigma::SpendMetaDataV3 metaData(0, uint256S("120"), uint256S("120"));
- 
+
     sigma::CoinSpendV3 spend_coin(params, privcoin, anonymity_set, metaData);
 
     BOOST_CHECK(spend_coin.Verify(anonymity_set, metaData));
