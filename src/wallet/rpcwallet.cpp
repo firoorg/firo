@@ -2722,42 +2722,12 @@ UniValue mint(const UniValue& params, bool fHelp)
             "Problem with coin selection.\n");
     }
 
-    sigma::ParamsV3* zcParams = sigma::ParamsV3::get_default();
-
     std::vector<CRecipient> vecSend;
     std::vector<sigma::PrivateCoinV3> privCoins;
+
+    CWallet::GetCoinsToMint(mints, vecSend, privCoins);
+
     CWalletTx wtx;
-
-    for (const auto& denom : mints) {
-
-        CAmount coinValue;
-        DenominationToInteger(denom, coinValue);
-
-        // The following constructor does all the work of minting a brand
-        // new zerocoin. It stores all the private values inside the
-        // PrivateCoin object. This includes the coin secrets, which must be
-        // stored in a secure location (wallet) at the client.
-        sigma::PrivateCoinV3 newCoin(zcParams, denom, ZEROCOIN_TX_VERSION_3);
-        // Get a copy of the 'public' portion of the coin. You should
-        // embed this into a Zerocoin 'MINT' transaction along with a series
-        // of currency inputs totaling the assigned value of one zerocoin.
-        auto& pubCoin = newCoin.getPublicCoin();
-
-        // Create script for coin
-        CScript scriptSerializedCoin;
-        // opcode is inserted as 1 byte according to file script/script.h
-        scriptSerializedCoin << OP_ZEROCOINMINTV3;
-
-        // and this one will write the size in different byte lengths depending on the length of vector. If vector size is <0.4c, which is 76, will write the size of vector in just 1 byte. In our case the size is always 34, so must write that 34 in 1 byte.
-        std::vector<unsigned char> vch = pubCoin.getValue().getvch();
-        scriptSerializedCoin.insert(scriptSerializedCoin.end(), vch.begin(), vch.end());
-
-        CRecipient recipient = {scriptSerializedCoin, coinValue, false};
-
-        vecSend.push_back(recipient);
-        privCoins.push_back(newCoin);
-    }
-
     std::string strError = pwalletMain->MintAndStoreZerocoinV3(vecSend, privCoins, wtx);
 
     if (strError != "")
