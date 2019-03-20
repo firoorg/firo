@@ -872,12 +872,14 @@ public:
         sigma::CoinDenominationV3 denomination,
         CWalletTx& wtxNew,
         CReserveKey& reservekey,
+        CAmount& nFeeRet,
         Scalar& coinSerial,
         uint256& txHash,
         GroupElement& zcSelectedValue,
         bool& zcSelectedIsUsed,
         std::string& strFailReason,
-        bool forceUsed = false);
+        bool forceUsed = false,
+        const CCoinControl *coinControl = NULL);
 
     CWalletTx CreateZerocoinSpendTransactionV3(
         const std::vector<CRecipient>& recipients,
@@ -892,11 +894,13 @@ public:
         const std::vector<sigma::CoinDenominationV3>& denominations,
         CWalletTx& wtxNew,
         CReserveKey& reservekey,
+        CAmount& nFeeRet,
         vector<Scalar>& coinSerials,
         uint256& txHash,
         vector<GroupElement>& zcSelectedValues,
         std::string& strFailReason,
-        bool forceUsed = false);
+        bool forceUsed = false,
+        const CCoinControl *coinControl = NULL);
 
     bool CommitZerocoinSpendTransaction(CWalletTx& wtxNew, CReserveKey& reservekey);
     std::string SendMoney(CScript scriptPubKey, int64_t nValue, CWalletTx& wtxNew, bool fAskFee=false);
@@ -907,9 +911,10 @@ public:
     std::string MintAndStoreZerocoinV3(vector<CRecipient> vecSend, vector<sigma::PrivateCoinV3> privCoins, CWalletTx &wtxNew, bool fAskFee=false);
 
     std::string SpendZerocoin(std::string& thirdPartyaddress, int64_t nValue, libzerocoin::CoinDenomination denomination, CWalletTx& wtxNew, CBigNum& coinSerial, uint256& txHash, CBigNum& zcSelectedValue, bool& zcSelectedIsUsed, bool forceUsed = false);
-    std::string SpendZerocoinV3(std::string& thirdPartyaddress, sigma::CoinDenominationV3 denomination, CWalletTx& wtxNew, Scalar& coinSerial, uint256& txHash, GroupElement& zcSelectedValue, bool& zcSelectedIsUsed, bool forceUsed = false);
+    std::string SpendZerocoinV3(std::string& thirdPartyaddress, sigma::CoinDenominationV3 denomination, CWalletTx& wtxNew, Scalar& coinSerial, uint256& txHash, GroupElement& zcSelectedValue, bool& zcSelectedIsUsed, bool forceUsed = false, bool fAskFee=false);
     std::string SpendMultipleZerocoin(std::string& thirdPartyaddress, const std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>>& denominations, CWalletTx& wtxNew, vector<CBigNum>& coinSerials, uint256& txHash, vector<CBigNum>& zcSelectedValues, bool forceUsed = false);
-    std::string SpendMultipleZerocoinV3(std::string& thirdPartyaddress, const std::vector<sigma::CoinDenominationV3>& denominations, CWalletTx& wtxNew, vector<Scalar>& coinSerials, uint256& txHash, vector<GroupElement>& zcSelectedValues, bool forceUsed = false);
+
+    std::string SpendMultipleZerocoinV3(std::string& thirdPartyaddress, const std::vector<sigma::CoinDenominationV3>& denominations, CWalletTx& wtxNew, vector<Scalar>& coinSerials, uint256& txHash, vector<GroupElement>& zcSelectedValues, bool forceUsed = false, bool fAskFee=false);
 
     std::vector<CZerocoinEntryV3> SpendZerocoinV3(const std::vector<CRecipient>& recipients, CWalletTx& result);
     std::vector<CZerocoinEntryV3> SpendZerocoinV3(const std::vector<CRecipient>& recipients, CWalletTx& result, CAmount& fee);
