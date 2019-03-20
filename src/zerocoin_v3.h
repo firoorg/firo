@@ -61,6 +61,7 @@ bool ConnectBlockZCV3(
 bool ZerocoinBuildStateFromIndexV3(CChain *chain);
 
 Scalar ZerocoinGetSpendSerialNumberV3(const CTransaction &tx, const CTxIn &txin);
+CAmount GetSpendTransactionInputV3(const CTransaction &tx);
 
 /*
  * State of minted/spent coins as extracted from the index

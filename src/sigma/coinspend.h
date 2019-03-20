@@ -27,6 +27,8 @@ public:
               const std::vector<PublicCoinV3>& anonymity_set,
               const SpendMetaDataV3& m);
 
+    void updateMetaData(const PrivateCoinV3& coin, const SpendMetaDataV3& m);
+
     const Scalar& getCoinSerialNumber();
 
     CoinDenominationV3 getDenomination() const;

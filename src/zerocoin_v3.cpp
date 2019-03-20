@@ -316,12 +316,10 @@ bool CheckZerocoinTransactionV3(
 		if (!isVerifyDB) {
 			BOOST_FOREACH(const CTxOut &txout, tx.vout)
 			{
-				if (txout.nValue == totalValue){
-					if (!CheckSpendZcoinTransactionV3(
-						tx, denominations, state, hashTx, isVerifyDB, nHeight,
-						isCheckWallet, zerocoinTxInfoV3)) {
-							return false;
-					}
+				if (!CheckSpendZcoinTransactionV3(
+					tx, denominations, state, hashTx, isVerifyDB, nHeight,
+					isCheckWallet, zerocoinTxInfoV3)) {
+						return false;
 				}
 			}
 
@@ -355,6 +353,31 @@ Scalar ZerocoinGetSpendSerialNumberV3(const CTransaction &tx, const CTxIn &txin)
 		return Scalar(uint64_t(0));
 	}
 }
+
+CAmount GetSpendTransactionInputV3(const CTransaction &tx) {
+	if (!tx.IsZerocoinSpendV3())
+		return CAmount(0);
+
+	try {
+		CAmount sum(0);
+		BOOST_FOREACH(const CTxIn& txin, tx.vin){
+			// NOTE(martun): +1 on the next line stands for 1 byte in which the opcode of
+			// OP_ZEROCOINSPENDV3 is written. In zerocoin you will see +4 instead,
+			// because the size of serialized spend is also written, probably in 3 bytes.
+			CDataStream serializedCoinSpend(
+					(const char *)&*(txin.scriptSig.begin() + 1),
+					(const char *)&*txin.scriptSig.end(),
+					SER_NETWORK, PROTOCOL_VERSION);
+			sigma::CoinSpendV3 spend(ZCParamsV3, serializedCoinSpend);
+			sum += spend.getIntDenomination();
+		}
+		return sum;
+	}
+	catch (const std::runtime_error &) {
+		return CAmount(0);
+	}
+}
+
 
 /**
  * Connect a new ZCblock to chainActive. pblock is either NULL or a pointer to a CBlock

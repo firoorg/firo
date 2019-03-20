@@ -3205,11 +3205,19 @@ UniValue spendmanyzerocoin(const UniValue& params, bool fHelp) {
     int64_t value = 0;
     int64_t amount = 0;
     libzerocoin::CoinDenomination denomination;
-    std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>> denominations;
+    std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>> denominations; 
+    UniValue addressUni(UniValue::VOBJ);
 
     UniValue inputs = find_value(data, "denominations");
+    if(inputs.isNull()){
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
+    }
 
-    string addressStr = find_value(data, "address").get_str();
+    addressUni = find_value(data, "address");
+    if(addressUni.isNull()){
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
+    }
+    std::string addressStr = addressUni.get_str();
 
     for(size_t i=0; i<inputs.size();i++) {
 
