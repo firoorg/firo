@@ -322,9 +322,6 @@ bool CheckZerocoinTransactionV3(
 						return false;
 				}
 			}
-
-		}else {
-			return state.DoS(100, error("CheckZerocoinTransaction : invalid spending txout value"));
 		}
 	}
 	return true;
