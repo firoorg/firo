@@ -32,10 +32,9 @@ static bool addToMempool(const CWalletTx& tx) {
 BOOST_FIXTURE_TEST_SUITE(sigma_partialspend_mempool_tests, ZerocoinTestingSetup200)
 
 /*
-* 1. Create one denomination pair and check it can't be spend till 6 conf of mint
-* 2. Make one more mint of denom pair and check it can't be spend till 6 conf
-* 3. Create two spend transactions using same mint
-* 4. Double spend with previous spend in last block
+* 1. Make two mint of denom pair
+* 2. Create two spend transactions using same mint
+* 3. Double spend with previous spend in last block
 */
 BOOST_AUTO_TEST_CASE(partialspend)
 {
@@ -199,6 +198,11 @@ BOOST_AUTO_TEST_CASE(partialspend)
     }
 }
 
+/*
+* 1. Create two mints with denomination 1 in same transaction
+* 2. Spend all old coin and expect new coin from remint
+* 3. Spend reminted coins
+*/
 BOOST_AUTO_TEST_CASE(partialspend_remint) {
 
     // Generate addresses
