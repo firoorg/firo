@@ -5601,6 +5601,9 @@ bool CWallet::SpendOldMints(string& stringError)
     std::string thirdPartyaddress = "";
     CWalletTx wtx;
 
+    // Because each transaction has a limit of around 75 KB, and each
+    // spend has size 25 KB, we're not able to fit more than 2 old zerocoin spends
+    // in a single transaction.
     for(int i = 0; i < denomAmounts.size(); i += 2) {
         wtx.Init(NULL);
         vector<string> denoms;
