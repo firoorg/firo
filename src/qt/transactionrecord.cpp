@@ -42,42 +42,8 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
     uint256 hash = wtx.GetHash();
     std::map<std::string, std::string> mapValue = wtx.mapValue;
 
-    if(wtx.IsZerocoinSpend() || wtx.IsZerocoinSpendV3())
-    {
-        BOOST_FOREACH(const CTxOut& txout, wtx.vout)
-        {
-            isminetype mine = wallet->IsMine(txout);
-
-            TransactionRecord sub(hash, nTime);
-            CTxDestination address;
-            
-            sub.involvesWatchAddress = mine & ISMINE_WATCH_ONLY;
-            if(mine)
-            {
-                if (ExtractDestination(txout.scriptPubKey, address) && IsMine(*wallet, address))
-                {
-                    sub.type = TransactionRecord::SpendToSelf;
-                    sub.address = CBitcoinAddress(address).ToString();
-                }
-            }
-            else if(ExtractDestination(txout.scriptPubKey, address))
-            {
-                sub.type = TransactionRecord::SpendToAddress;
-                sub.address = CBitcoinAddress(address).ToString();
-            }
-            parts.append(sub);
-        }
-    }
-    else if(wtx.IsZerocoinMint() || wtx.IsZerocoinMintV3())
-    {
-        TransactionRecord sub(hash, nTime);
-        BOOST_FOREACH(const CTxIn& txin, wtx.vin)
-        {
-            sub.type = TransactionRecord::Mint;
-            parts.append(sub);
-        }
-    }
-    else if (nNet > 0 || wtx.IsCoinBase())
+    if (nNet > 0 || wtx.IsCoinBase() || 
+        wtx.IsZerocoinSpend() || wtx.IsZerocoinSpendV3())
     {
         //
         // Credit
@@ -85,14 +51,34 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
         BOOST_FOREACH(const CTxOut& txout, wtx.vout)
         {
             isminetype mine = wallet->IsMine(txout);
-            if(mine)
+
+            TransactionRecord sub(hash, nTime);
+            CTxDestination address;
+            sub.idx = parts.size(); // sequence number
+            sub.credit = txout.nValue;
+            
+            if(wtx.IsZerocoinSpend() || wtx.IsZerocoinSpendV3())
             {
-                TransactionRecord sub(hash, nTime);
-                CTxDestination address;
-                sub.idx = parts.size(); // sequence number
-                sub.credit = txout.nValue;
+                if (mine)
+                { 
+                    sub.involvesWatchAddress = mine & ISMINE_WATCH_ONLY;
+                    if (ExtractDestination(txout.scriptPubKey, address) && IsMine(*wallet, address))
+                    {
+                        sub.type = TransactionRecord::SpendToSelf;
+                        sub.address = CBitcoinAddress(address).ToString();
+                    }
+                }
+                else
+                {
+                    ExtractDestination(txout.scriptPubKey, address);
+                    sub.type = TransactionRecord::SpendToAddress;
+                    sub.address = CBitcoinAddress(address).ToString();
+                }
+            }
+            else if(mine)
+            {
                 sub.involvesWatchAddress = mine & ISMINE_WATCH_ONLY;
-                if (ExtractDestination(txout.scriptPubKey, address) && IsMine(*wallet, address))
+                if(ExtractDestination(txout.scriptPubKey, address) && IsMine(*wallet, address))
                 {
                     // Received by Bitcoin Address
                     sub.type = TransactionRecord::RecvWithAddress;
@@ -102,16 +88,15 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                 {
                     // Received by IP connection (deprecated features), or a multisignature or other non-simple transaction
                     sub.type = TransactionRecord::RecvFromOther;
-                     sub.address = mapValue["from"];
+                    sub.address = mapValue["from"];
                 }
                 if (wtx.IsCoinBase())
                 {
                     // Generated
                     sub.type = TransactionRecord::Generated;
                 }
-
-                parts.append(sub);
             }
+            parts.append(sub);
         }
     }
     else
@@ -169,6 +154,10 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                     // Sent to Bitcoin Address
                     sub.type = TransactionRecord::SendToAddress;
                     sub.address = CBitcoinAddress(address).ToString();
+                }
+                else if(wtx.IsZerocoinMint() || wtx.IsZerocoinMintV3())
+                {
+                    sub.type = TransactionRecord::Mint;
                 }
                 else
                 {
