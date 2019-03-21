@@ -1417,10 +1417,13 @@ bool AcceptToMemoryPoolWorker(
                 //                LogPrintf("cause by -> non-BIP68-final!\n");
                 //                return state.DoS(0, false, REJECT_NONSTANDARD, "non-BIP68-final");
                 //            }
+            } else if (tx.IsZerocoinSpendV3()){
+                nValueIn = GetSpendTransactionInputV3(tx);
             }
+
         } // LOCK
 
-        if (!tx.IsZerocoinSpend() && !tx.IsZerocoinSpendV3() && fCheckInputs) {
+        if (!tx.IsZerocoinSpend() && fCheckInputs) {
 
             // Check for non-standard pay-to-script-hash in inputs
             if (!fTestNet && fRequireStandard && !AreInputsStandard(tx, view)) {
@@ -1441,25 +1444,31 @@ bool AcceptToMemoryPoolWorker(
             double nPriorityDummy = 0;
             pool.ApplyDeltas(hash, nPriorityDummy, nModifiedFees);
 
-            CAmount inChainInputValue;
-            double dPriority = view.GetPriority(tx, chainActive.Height(), inChainInputValue);
-
-            // Keep track of transactions that spend a coinbase, which we re-scan
-            // during reorgs to ensure COINBASE_MATURITY is still met.
+            CAmount inChainInputValue = 0;
+            double dPriority = 0;
             bool fSpendsCoinbase = false;
-            BOOST_FOREACH(const CTxIn &txin, tx.vin) { const CCoins *coins = view.AccessCoins(txin.prevout.hash);
-                                                       if (coins->IsCoinBase()) {
-                                                           fSpendsCoinbase = true;
-                                                           break;
-                                                       }
-                                                     }
+            if(!tx.IsZerocoinSpendV3()) {
+                dPriority = view.GetPriority(tx, chainActive.Height(), inChainInputValue);
+
+                // Keep track of transactions that spend a coinbase, which we re-scan
+                // during reorgs to ensure COINBASE_MATURITY is still met.
+                BOOST_FOREACH(
+                const CTxIn& txin, tx.vin) {
+                    const CCoins* coins = view.AccessCoins(txin.prevout.hash);
+                    if (coins->IsCoinBase()) {
+                        fSpendsCoinbase = true;
+                        break;
+                    }
+                }
+            }
+
             CTxMemPoolEntry entry(tx, nFees, GetTime(), dPriority, chainActive.Height(), pool.HasNoInputsOf(tx),
                                   inChainInputValue, fSpendsCoinbase, nSigOpsCost, lp);
-
-            // Don't accept it if it can't get into a block
+            
             // TODO: Temporarily disable this condition (by setting txMinFee = 0) to accept zero-fee TX (from old 0.8 client)
             // int64_t txMinFee = tx.GetMinFee(1000, true, GMF_RELAY);
             int64_t txMinFee = 0;
+
             if (fLimitFree && nFees < txMinFee) {
                 LogPrintf("not enough fee, nFees=%d, txMinFee=%d\n", nFees, txMinFee);
                 return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "not enough fee", false, strprintf("nFees=%d, txMinFee=%d", nFees, txMinFee));
@@ -1745,7 +1754,7 @@ bool AcceptToMemoryPoolWorker(
                 if (!pool.exists(hash))
                     return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "mempool full");
             }
-        } else {
+        }  else {
             LockPoints lp;
             double dPriority = 0;
             double fSpendsCoinbase = false;
@@ -1765,7 +1774,7 @@ bool AcceptToMemoryPoolWorker(
     if (tx.IsZerocoinSpend() && markZcoinSpendTransactionSerial)
         zcState->AddSpendToMempool(zcSpendSerials, hash);
     if (tx.IsZerocoinSpendV3() && markZcoinSpendTransactionSerial)
-            zcStateV3->AddSpendToMempool(zcSpendSerialsV3, hash);
+        zcStateV3->AddSpendToMempool(zcSpendSerialsV3, hash);
 
     SyncWithWallets(tx, NULL, NULL);
     LogPrintf("AcceptToMemoryPoolWorker -> OK\n");
@@ -1982,6 +1991,7 @@ bool ReadBlockFromDisk(CBlock &block, const CDiskBlockPos &pos, int nHeight, con
 bool ReadBlockFromDisk(CBlock &block, const CBlockIndex *pindex, const Consensus::Params &consensusParams) {
     if (!ReadBlockFromDisk(block, pindex->GetBlockPos(), pindex->nHeight, consensusParams))
         return false;
+
     if (block.GetHash() != pindex->GetBlockHash()) {
         return error("ReadBlockFromDisk(CBlock&, CBlockIndex*): GetHash() doesn't match index for %s at %s",
                      pindex->ToString(), pindex->GetBlockPos().ToString());
@@ -2494,6 +2504,7 @@ bool DisconnectBlock(const CBlock &block, CValidationState &state, const CBlockI
 
     CBlockUndo blockUndo;
     CDiskBlockPos pos = pindex->GetUndoPos();
+
     if (pos.IsNull())
         return error("DisconnectBlock(): no undo data available");
     if (!UndoReadFromDisk(blockUndo, pos, pindex->pprev->GetBlockHash()))
@@ -2509,6 +2520,7 @@ bool DisconnectBlock(const CBlock &block, CValidationState &state, const CBlockI
     // undo transactions in reverse order
     for (int i = block.vtx.size() - 1; i >= 0; i--) {
         const CTransaction &tx = block.vtx[i];
+
         uint256 hash = tx.GetHash();
 
         dbIndexHelper.DisconnectTransactionOutputs(tx, pindex->nHeight, i, view);
@@ -2545,6 +2557,9 @@ bool DisconnectBlock(const CBlock &block, CValidationState &state, const CBlockI
             }
             nFees += view.GetValueIn(tx) - tx.GetValueOut();
         }
+
+        if(tx.IsZerocoinSpendV3())
+            nFees += GetSpendTransactionInputV3(tx) - tx.GetValueOut();
 
         dbIndexHelper.DisconnectTransactionInputs(tx, pindex->nHeight, i, view);
     }
@@ -2854,6 +2869,8 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
         }
 
         if (tx.IsZerocoinSpend() || tx.IsZerocoinMint() || tx.IsZerocoinSpendV3() || tx.IsZerocoinMintV3() ) {
+            if( tx.IsZerocoinSpendV3())
+                nFees += GetSpendTransactionInputV3(tx) - tx.GetValueOut();
             // Check transaction against zerocoin state
             if (!CheckTransaction(tx, state, txHash, false, pindex->nHeight, false, true, block.zerocoinTxInfo.get(), block.zerocoinTxInfoV3.get()))
                 return state.DoS(100, error("stateful zerocoin check failed"),
@@ -2893,6 +2910,7 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
 
         vPos.push_back(std::make_pair(tx.GetHash(), pos));
         pos.nTxOffset += ::GetSerializeSize(tx, SER_DISK, CLIENT_VERSION);
+
     }
 
     block.zerocoinTxInfo->Complete();
@@ -3268,6 +3286,7 @@ bool static DisconnectTip(CValidationState &state, const CChainParams &chainpara
     CBlock block;
     if (!ReadBlockFromDisk(block, pindexDelete, chainparams.GetConsensus()))
         return AbortNode(state, "Failed to read block");
+
     // Apply the block atomically to the chain state.
     int64_t nStart = GetTimeMicros();
     {

@@ -20,6 +20,8 @@
 
 #include <boost/foreach.hpp>
 
+#include <ios>
+
 using namespace std;
 
 // Set up the Zerocoin Params object
@@ -28,7 +30,7 @@ sigma::ParamsV3* ZCParamsV3 = sigma::ParamsV3::get_default();
 static CZerocoinStateV3 zerocoinStateV3;
 
 static bool CheckZerocoinSpendSerialV3(
-		CValidationState &state, 
+		CValidationState &state,
 		CZerocoinTxInfoV3 *zerocoinTxInfoV3,
 		const Scalar &serial,
 		int nHeight,
@@ -49,7 +51,7 @@ static bool CheckZerocoinSpendSerialV3(
 	return true;
 }
 
-// This function will not report an error only if the transaction is zerocoin spend V3. 
+// This function will not report an error only if the transaction is zerocoin spend V3.
 // Will return false for V1, V1.5 and V2 spends.
 // Mixing V2 and V3 spends into the same transaction will fail.
 bool CheckSpendZcoinTransactionV3(
@@ -89,7 +91,7 @@ bool CheckSpendZcoinTransactionV3(
 					"CheckSpendZcoinTransactionV3: invalid spend transaction");
 
 		// Deserialize the CoinSpend into a fresh object
-        // NOTE(martun): +1 on the next line stands for 1 byte in which the opcode of 
+        // NOTE(martun): +1 on the next line stands for 1 byte in which the opcode of
         // OP_ZEROCOINSPENDV3 is written. In zerocoin you will see +4 instead,
         // because the size of serialized spend is also written, probably in 3 bytes.
 		CDataStream serializedCoinSpend((const char *)&*(txin.scriptSig.begin() + 1),
@@ -116,13 +118,13 @@ bool CheckSpendZcoinTransactionV3(
 		}
 		txHashForMetadata = txTemp.GetHash();
 
-		LogPrintf("CheckSpendZcoinTransactionV3: tx version=%d, tx metadata hash=%s, serial=%s\n", 
+		LogPrintf("CheckSpendZcoinTransactionV3: tx version=%d, tx metadata hash=%s, serial=%s\n",
 				newSpend.getVersion(), txHashForMetadata.ToString(),
 				newSpend.getCoinSerialNumber().tostring());
 
 		CZerocoinStateV3::CoinGroupInfoV3 coinGroup;
 		if (!zerocoinStateV3.GetCoinGroupInfo(targetDenominations[vinIndex], pubcoinId, coinGroup))
-			return state.DoS(100, false, NO_MINT_ZEROCOIN, 
+			return state.DoS(100, false, NO_MINT_ZEROCOIN,
 					"CheckSpendZcoinTransactionV3: Error: no coins were minted with such parameters");
 
 		bool passVerify = false;
@@ -147,7 +149,7 @@ bool CheckSpendZcoinTransactionV3(
 		// This list of public coins is required by function "Verify" of CoinSpendV3.
 		std::vector<PublicCoinV3> anonymity_set;
         while(true) {
-			BOOST_FOREACH(const sigma::PublicCoinV3& pubCoinValue, 
+			BOOST_FOREACH(const sigma::PublicCoinV3& pubCoinValue,
 					index->mintedPubCoinsV3[denominationAndId]) {
 				anonymity_set.push_back(pubCoinValue);
 			}
@@ -240,7 +242,7 @@ bool CheckMintZcoinTransactionV3(
 		//                 false,
 		//                 PUBCOIN_NOT_VALIDATE,
 		//                 "CheckZerocoinTransaction: duplicate mint");
-		LogPrintf("CheckMintZerocoinTransactionV3: double mint, tx=%s\n", 
+		LogPrintf("CheckMintZerocoinTransactionV3: double mint, tx=%s\n",
 				txout.GetHash().ToString());
 	}
 
@@ -314,12 +316,10 @@ bool CheckZerocoinTransactionV3(
 		if (!isVerifyDB) {
 			BOOST_FOREACH(const CTxOut &txout, tx.vout)
 			{
-				if (txout.nValue == totalValue){
-					if (!CheckSpendZcoinTransactionV3(
-						tx, denominations, state, hashTx, isVerifyDB, nHeight,
-						isCheckWallet, zerocoinTxInfoV3)) {
-							return false;
-					}
+				if (!CheckSpendZcoinTransactionV3(
+					tx, denominations, state, hashTx, isVerifyDB, nHeight,
+					isCheckWallet, zerocoinTxInfoV3)) {
+						return false;
 				}
 			}
 
@@ -339,9 +339,9 @@ Scalar ZerocoinGetSpendSerialNumberV3(const CTransaction &tx, const CTxIn &txin)
 		return Scalar(uint64_t(0));
 
 	try {
-        // NOTE(martun): +1 on the next line stands for 1 byte in which the opcode of 
+        // NOTE(martun): +1 on the next line stands for 1 byte in which the opcode of
         // OP_ZEROCOINSPENDV3 is written. In zerocoin you will see +4 instead,
-        // because the size of serialized spend is also written, probably in 3 bytes.	
+        // because the size of serialized spend is also written, probably in 3 bytes.
 		CDataStream serializedCoinSpend(
 				(const char *)&*(txin.scriptSig.begin() + 1),
 				(const char *)&*txin.scriptSig.end(),
@@ -349,10 +349,35 @@ Scalar ZerocoinGetSpendSerialNumberV3(const CTransaction &tx, const CTxIn &txin)
 		sigma::CoinSpendV3 spend(ZCParamsV3, serializedCoinSpend);
 		return spend.getCoinSerialNumber();
 	}
-	catch (const std::runtime_error &) {
+	catch (const std::ios_base::failure &) {
 		return Scalar(uint64_t(0));
 	}
 }
+
+CAmount GetSpendTransactionInputV3(const CTransaction &tx) {
+	if (!tx.IsZerocoinSpendV3())
+		return CAmount(0);
+
+	try {
+		CAmount sum(0);
+		BOOST_FOREACH(const CTxIn& txin, tx.vin){
+			// NOTE(martun): +1 on the next line stands for 1 byte in which the opcode of
+			// OP_ZEROCOINSPENDV3 is written. In zerocoin you will see +4 instead,
+			// because the size of serialized spend is also written, probably in 3 bytes.
+			CDataStream serializedCoinSpend(
+					(const char *)&*(txin.scriptSig.begin() + 1),
+					(const char *)&*txin.scriptSig.end(),
+					SER_NETWORK, PROTOCOL_VERSION);
+			sigma::CoinSpendV3 spend(ZCParamsV3, serializedCoinSpend);
+			sum += spend.getIntDenomination();
+		}
+		return sum;
+	}
+	catch (const std::runtime_error &) {
+		return CAmount(0);
+	}
+}
+
 
 /**
  * Connect a new ZCblock to chainActive. pblock is either NULL or a pointer to a CBlock
@@ -382,10 +407,10 @@ bool ConnectBlockZCV3(
 
 		BOOST_FOREACH(auto& serial, pblock->zerocoinTxInfoV3->spentSerials) {
 			if (!CheckZerocoinSpendSerialV3(
-					state, 
-					pblock->zerocoinTxInfoV3.get(), 
-					serial.first, 
-					pindexNew->nHeight, 
+					state,
+					pblock->zerocoinTxInfoV3.get(),
+					serial.first,
+					pindexNew->nHeight,
 					true /* fConnectTip */
 					)) {
 				return false;
@@ -400,20 +425,20 @@ bool ConnectBlockZCV3(
         bool V3MintsAllowed = (pindexNew->nHeight >= Params().nMintV3SigmaStartBlock);
 
         // If V3 mints are not allowed in this block, but some client tries to mint.
-        if (!V3MintsAllowed && !pblock->zerocoinTxInfoV3->mints.empty()) 
+        if (!V3MintsAllowed && !pblock->zerocoinTxInfoV3->mints.empty())
 		    return state.DoS(0, error("ConnectBlockZCV3 : V3 sigma mints not allowed until a given block"));
 		if (fJustCheck)
 			return true;
 
 		// Update pindexNew.mintedPubCoinsV3
 		BOOST_FOREACH(const PublicCoinV3& mint, pblock->zerocoinTxInfoV3->mints) {
-			CoinDenominationV3 denomination = mint.getDenomination();            
+			CoinDenominationV3 denomination = mint.getDenomination();
 			int mintId = zerocoinStateV3.AddMint(pindexNew,	mint);
 
 			LogPrintf("ConnectTipZC: mint added denomination=%d, id=%d\n", denomination, mintId);
 			pair<CoinDenominationV3, int> denomAndId = make_pair(denomination, mintId);
 			pindexNew->mintedPubCoinsV3[denomAndId].push_back(mint);
-		}               
+		}
 	}
 	else if (!fJustCheck) { // TODO(martun): not sure if this else is necessary here. Check again later.
 		zerocoinStateV3.AddBlock(pindexNew);
@@ -462,7 +487,7 @@ CZerocoinStateV3::CZerocoinStateV3() {
 }
 
 int CZerocoinStateV3::AddMint(
-		CBlockIndex *index, 
+		CBlockIndex *index,
 		const PublicCoinV3 &pubCoin) {
 	sigma::CoinDenominationV3 denomination = pubCoin.getDenomination();
 
@@ -471,7 +496,7 @@ int CZerocoinStateV3::AddMint(
     int	mintCoinGroupId = latestCoinIds[denomination];
 
     // ZC_SPEND_V3_COINSPERID = 15.000, yet the actual limit of coins per accumlator is 16.000.
-    // We need to cut at 15.000, such that we always have enough space for new mints. Mints for 
+    // We need to cut at 15.000, such that we always have enough space for new mints. Mints for
     // each block will end up in the same accumulator.
 	CoinGroupInfoV3 &coinGroup = coinGroups[make_pair(denomination, mintCoinGroupId)];
 	int coinsPerId = ZC_SPEND_V3_COINSPERID;
@@ -535,7 +560,7 @@ void CZerocoinStateV3::AddBlock(CBlockIndex *index) {
 void CZerocoinStateV3::RemoveBlock(CBlockIndex *index) {
 	// roll back accumulator updates
 	BOOST_FOREACH(
-        const PAIRTYPE(PAIRTYPE(sigma::CoinDenominationV3, int),vector<PublicCoinV3>) &coin, 
+        const PAIRTYPE(PAIRTYPE(sigma::CoinDenominationV3, int),vector<PublicCoinV3>) &coin,
         index->mintedPubCoinsV3)
 	{
 		CoinGroupInfoV3   &coinGroup = coinGroups[coin.first];
@@ -559,12 +584,12 @@ void CZerocoinStateV3::RemoveBlock(CBlockIndex *index) {
 	}
 
 	// roll back mints
-	BOOST_FOREACH(const PAIRTYPE(PAIRTYPE(CoinDenominationV3, int),vector<PublicCoinV3>) &pubCoins, 
+	BOOST_FOREACH(const PAIRTYPE(PAIRTYPE(CoinDenominationV3, int),vector<PublicCoinV3>) &pubCoins,
                   index->mintedPubCoinsV3) {
 		BOOST_FOREACH(const PublicCoinV3 &coin, pubCoins.second) {
 			auto coins = mintedPubCoins.equal_range(coin);
 			auto coinIt = find_if(
-                coins.first, coins.second, 
+                coins.first, coins.second,
                 [=](const decltype(mintedPubCoins)::value_type &v) {
 					return v.second.denomination == pubCoins.first.first &&
 					    v.second.id == pubCoins.first.second;
@@ -583,7 +608,7 @@ bool CZerocoinStateV3::GetCoinGroupInfo(
         sigma::CoinDenominationV3 denomination,
         int group_id,
         CoinGroupInfoV3& result) {
-	std::pair<sigma::CoinDenominationV3, int> key = 
+	std::pair<sigma::CoinDenominationV3, int> key =
         std::make_pair(denomination, group_id);
 	if (coinGroups.count(key) == 0)
 		return false;
@@ -627,7 +652,7 @@ int CZerocoinStateV3::GetCoinSetForSpend(
 					blockHash_out = block->GetBlockHash();
 				}
 				numberOfCoins += block->mintedPubCoinsV3[denomAndId].size();
-				coins_out.insert(coins_out.end(), 
+				coins_out.insert(coins_out.end(),
 						block->mintedPubCoinsV3[denomAndId].begin(),
 						block->mintedPubCoinsV3[denomAndId].end());
 			}

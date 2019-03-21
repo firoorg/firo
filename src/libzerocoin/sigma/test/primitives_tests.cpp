@@ -23,7 +23,7 @@ BOOST_AUTO_TEST_CASE(pedersen_commitment_test)
     secp_primitives::GroupElement c;
     c = sigma::SigmaPrimitives<secp_primitives::Scalar,secp_primitives::GroupElement>::commit(g, x, h, r);
 
-    BOOST_TEST(expected == c);
+    BOOST_CHECK(expected == c);
 }
 
 BOOST_AUTO_TEST_CASE(homomorphic_test)
@@ -83,7 +83,7 @@ BOOST_AUTO_TEST_CASE(commit2_test)
     secp_primitives::GroupElement resulted;
     sigma::SigmaPrimitives<secp_primitives::Scalar,secp_primitives::GroupElement>::commit(g,h_,x_,r,resulted);
 
-    BOOST_TEST(expected == resulted);
+    BOOST_CHECK(expected == resulted);
 }
 
 BOOST_AUTO_TEST_CASE(commit2_vs_test)
@@ -113,7 +113,7 @@ BOOST_AUTO_TEST_CASE(commit2_vs_test)
     secp_primitives::GroupElement resulted;
     sigma::SigmaPrimitives<secp_primitives::Scalar,secp_primitives::GroupElement>::commit(g,h_,x_,r,resulted);
 
-    BOOST_TEST(expected == resulted);
+    BOOST_CHECK(expected == resulted);
 }
 
 BOOST_AUTO_TEST_CASE(commit2_homomorphic_test)
