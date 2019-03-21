@@ -226,10 +226,10 @@ public:
     //! Accumulator updates. Contains only changes made by mints in this block
     //! Maps <denomination, id> to <accumulator value (CBigNum), number of such mints in this block>
     map<pair<int,int>, pair<CBigNum,int>> accumulatorChanges;
-	
+
 	//! Same as accumulatorChanges but for alternative modulus
 	map<pair<int,int>, pair<CBigNum,int>> alternativeAccumulatorChanges;
-	
+
     //! Values of coin serials spent in this block
 	set<CBigNum> spentSerials;
 
@@ -267,8 +267,10 @@ public:
         mtpHashValue = reserved[0] = reserved[1] = uint256();
 
         mintedPubCoins.clear();
+        mintedPubCoinsV3.clear();
         accumulatorChanges.clear();
         spentSerials.clear();
+        spentSerialsV3.clear();
     }
 
     CBlockIndex()
@@ -463,6 +465,11 @@ public:
 		    READWRITE(accumulatorChanges);
             READWRITE(spentSerials);
 	    }
+
+        if (!(nType & SER_GETHASH)) {
+            READWRITE(mintedPubCoinsV3);
+            READWRITE(spentSerialsV3);
+        }
 
         nDiskBlockVersion = nVersion;
     }
