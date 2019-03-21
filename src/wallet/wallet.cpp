@@ -1915,48 +1915,38 @@ CAmount CWallet::GetDenominatedBalance(bool unconfirmed) const {
     return nTotal;
 }
 
-bool CWallet::GetCoinsToMint(
-    const std::vector<sigma::CoinDenominationV3>& denominations,
-    std::vector<CRecipient>& vecSend,
-    std::vector<sigma::PrivateCoinV3>& coins)
+std::vector<CRecipient> CWallet::CreateSigmaMintRecipients(
+    const std::vector<sigma::PrivateCoinV3>& coins)
 {
-    vecSend.clear();
-    coins.clear();
+    std::vector<CRecipient> vecSend;
+    std::transform(coins.begin(), coins.end(), std::back_inserter(vecSend),
+        [](const sigma::PrivateCoinV3& coin) -> CRecipient {
+            // Get a copy of the 'public' portion of the coin. You should
+            // embed this into a Zerocoin 'MINT' transaction along with a series
+            // of currency inputs totaling the assigned value of one zerocoin.
+            auto& pubCoin = coin.getPublicCoin();
 
-    sigma::ParamsV3* params = sigma::ParamsV3::get_default();
+            if (!pubCoin.validate()) {
+                throw std::runtime_error("Unable to mint a V3 sigma coin.");
+            }
 
-    for (const auto& denom : denominations) {
-        CAmount coinValue;
-        DenominationToInteger(denom, coinValue);
+            // Create script for coin
+            CScript scriptSerializedCoin;
+            // opcode is inserted as 1 byte according to file script/script.h
+            scriptSerializedCoin << OP_ZEROCOINMINTV3;
 
-        // The following constructor does all the work of minting a brand
-        // new zerocoin. It stores all the private values inside the
-        // PrivateCoin object. This includes the coin secrets, which must be
-        // stored in a secure location (wallet) at the client.
-        sigma::PrivateCoinV3 newCoin(params, denom, ZEROCOIN_TX_VERSION_3);
-        // Get a copy of the 'public' portion of the coin. You should
-        // embed this into a Zerocoin 'MINT' transaction along with a series
-        // of currency inputs totaling the assigned value of one zerocoin.
-        auto& pubCoin = newCoin.getPublicCoin();
+            // and this one will write the size in different byte lengths depending on the length of vector. If vector size is <0.4c, which is 76, will write the size of vector in just 1 byte. In our case the size is always 34, so must write that 34 in 1 byte.
+            std::vector<unsigned char> vch = pubCoin.getValue().getvch();
+            scriptSerializedCoin.insert(scriptSerializedCoin.end(), vch.begin(), vch.end());
 
-        if (!pubCoin.validate()) {
-            throw std::runtime_error("Unable to mint a V3 sigma coin.");
+            CAmount v;
+            DenominationToInteger(pubCoin.getDenomination(), v);
+
+            return {scriptSerializedCoin, v, false};
         }
+    );
 
-        // Create script for coin
-        CScript scriptSerializedCoin;
-        // opcode is inserted as 1 byte according to file script/script.h
-        scriptSerializedCoin << OP_ZEROCOINMINTV3;
-
-        // and this one will write the size in different byte lengths depending on the length of vector. If vector size is <0.4c, which is 76, will write the size of vector in just 1 byte. In our case the size is always 34, so must write that 34 in 1 byte.
-        std::vector<unsigned char> vch = pubCoin.getValue().getvch();
-        scriptSerializedCoin.insert(scriptSerializedCoin.end(), vch.begin(), vch.end());
-
-        vecSend.push_back({scriptSerializedCoin, coinValue, false});
-        coins.push_back(newCoin);
-    }
-
-    return true;
+    return vecSend;
 }
 
 // coinsIn has to be sorted in descending order.

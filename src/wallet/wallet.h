@@ -827,10 +827,8 @@ public:
     CAmount GetNeedsToBeAnonymizedBalance(CAmount nMinBalance = 0) const;
     CAmount GetDenominatedBalance(bool unconfirmed=false) const;
 
-    static bool GetCoinsToMint(
-        const std::vector<sigma::CoinDenominationV3>& denominations,
-        std::vector<CRecipient>& vecSend,
-        std::vector<sigma::PrivateCoinV3>& coins);
+    static std::vector<CRecipient> CreateSigmaMintRecipients(
+        const std::vector<sigma::PrivateCoinV3>& coins);
 
     static int GetRequiredCoinCountForAmount(
         const CAmount& required,

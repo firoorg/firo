@@ -2718,14 +2718,18 @@ UniValue mint(const UniValue& params, bool fHelp)
 
     std::vector<sigma::CoinDenominationV3> mints;
     if (CWallet::SelectMintCoinsForAmount(nAmount, denominations, mints) != nAmount) {
-        throw JSONRPCError(RPC_WALLET_ERROR,
-            "Problem with coin selection.\n");
+        throw JSONRPCError(RPC_WALLET_ERROR, "Problem with coin selection.\n");
     }
 
-    std::vector<CRecipient> vecSend;
     std::vector<sigma::PrivateCoinV3> privCoins;
 
-    CWallet::GetCoinsToMint(mints, vecSend, privCoins);
+    const auto& zcParams = sigma::ParamsV3::get_default();
+    std::transform(mints.begin(), mints.end(), std::back_inserter(privCoins),
+        [zcParams](const sigma::CoinDenominationV3& denom) -> sigma::PrivateCoinV3 {
+            return sigma::PrivateCoinV3(zcParams, denom);
+        });
+
+    auto vecSend = CWallet::CreateSigmaMintRecipients(privCoins);
 
     CWalletTx wtx;
     std::string strError = pwalletMain->MintAndStoreZerocoinV3(vecSend, privCoins, wtx);
