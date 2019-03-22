@@ -11,12 +11,21 @@ pipeline {
                 sh 'git clean -d -f -f -q -x'
                 sh './autogen.sh'
                 sh './configure'
-                sh 'make -j4'
+                sh 'make dist'
+                sh 'mkdir -p tmp'
+                sh 'tar xf zcoin-*.tar.gz -C tmp'
+                sh 'mv tmp/zcoin-* tmp/zcoin'
+                dir('tmp/zcoin') {
+                    sh './configure'
+                    sh 'make -j6'
+                }
             }
         }
         stage('Test') {
             steps {
-                sh 'make check'
+                dir('tmp/zcoin') {
+                    sh 'make check'
+                }
             }
         }
     }
