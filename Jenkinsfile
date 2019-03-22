@@ -12,10 +12,9 @@ pipeline {
                 sh './autogen.sh'
                 sh './configure'
                 sh 'make dist'
-                sh 'mkdir -p tmp'
-                sh 'tar xf zcoin-*.tar.gz -C tmp'
-                sh 'mv tmp/zcoin-* tmp/zcoin'
-                dir('tmp/zcoin') {
+                sh 'mkdir -p dist'
+                sh 'tar -C dist --strip-components=1 -xzf zcoin-*.tar.gz'
+                dir('dist') {
                     sh './configure'
                     sh 'make -j6'
                 }
@@ -23,7 +22,7 @@ pipeline {
         }
         stage('Test') {
             steps {
-                dir('tmp/zcoin') {
+                dir('dist') {
                     sh 'make check'
                 }
             }
