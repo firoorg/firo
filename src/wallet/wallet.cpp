@@ -1915,10 +1915,42 @@ CAmount CWallet::GetDenominatedBalance(bool unconfirmed) const {
     return nTotal;
 }
 
-namespace {
+std::vector<CRecipient> CWallet::CreateSigmaMintRecipients(
+    const std::vector<sigma::PrivateCoinV3>& coins)
+{
+    std::vector<CRecipient> vecSend;
+    std::transform(coins.begin(), coins.end(), std::back_inserter(vecSend),
+        [](const sigma::PrivateCoinV3& coin) -> CRecipient {
+            // Get a copy of the 'public' portion of the coin. You should
+            // embed this into a Zerocoin 'MINT' transaction along with a series
+            // of currency inputs totaling the assigned value of one zerocoin.
+            auto& pubCoin = coin.getPublicCoin();
+
+            if (!pubCoin.validate()) {
+                throw std::runtime_error("Unable to mint a V3 sigma coin.");
+            }
+
+            // Create script for coin
+            CScript scriptSerializedCoin;
+            // opcode is inserted as 1 byte according to file script/script.h
+            scriptSerializedCoin << OP_ZEROCOINMINTV3;
+
+            // and this one will write the size in different byte lengths depending on the length of vector. If vector size is <0.4c, which is 76, will write the size of vector in just 1 byte. In our case the size is always 34, so must write that 34 in 1 byte.
+            std::vector<unsigned char> vch = pubCoin.getValue().getvch();
+            scriptSerializedCoin.insert(scriptSerializedCoin.end(), vch.begin(), vch.end());
+
+            CAmount v;
+            DenominationToInteger(pubCoin.getDenomination(), v);
+
+            return {scriptSerializedCoin, v, false};
+        }
+    );
+
+    return vecSend;
+}
 
 // coinsIn has to be sorted in descending order.
-static int GetRequiredCoinCountForAmount(
+int CWallet::GetRequiredCoinCountForAmount(
         const CAmount& required,
         const std::vector<sigma::CoinDenominationV3>& denominations) {
     CAmount val = required;
@@ -1940,7 +1972,7 @@ static int GetRequiredCoinCountForAmount(
  *
  *  \returns The amount which was possible to actually mint.
  */
-static CAmount SelectMintCoinsForAmount(
+CAmount CWallet::SelectMintCoinsForAmount(
         const CAmount& required,
         const std::vector<sigma::CoinDenominationV3>& denominations,
         std::vector<sigma::CoinDenominationV3>& coinsOut) {
@@ -1963,7 +1995,7 @@ static CAmount SelectMintCoinsForAmount(
  *
  *  \returns The amount which was possible to actually spend.
  */
-static CAmount SelectSpendCoinsForAmount(
+CAmount CWallet::SelectSpendCoinsForAmount(
         const CAmount& required,
         const std::list<CZerocoinEntryV3>& coinsIn,
         std::vector<CZerocoinEntryV3>& coinsOut) {
@@ -1982,8 +2014,6 @@ static CAmount SelectSpendCoinsForAmount(
 
     return required - val;
 }
-
-} // end of unnamed namespace.
 
 std::list<CZerocoinEntryV3> CWallet::GetAvailableCoins() const {
     std::list<CZerocoinEntryV3> coins;
@@ -2004,7 +2034,7 @@ std::list<CZerocoinEntryV3> CWallet::GetAvailableCoins() const {
             throw std::runtime_error("Unable to determine the coin height.\n");
         }
         if (coinHeight + (ZC_MINT_CONFIRMATIONS - 1) > chainActive.Height()) {
-            // Remove the coin from the candidates list, since it does not have the 
+            // Remove the coin from the candidates list, since it does not have the
             // required number of confirmations.
             return true;
         }
