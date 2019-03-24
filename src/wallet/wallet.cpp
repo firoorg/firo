@@ -5570,7 +5570,7 @@ bool CWallet::SpendOldMints(string& stringError)
     vector<string> denomAmounts;
 
     int coinHeight;
-    bool fHasUnconfirmed = true;
+    bool NoUnconfirmedCoins = true;
     BOOST_FOREACH(const CZerocoinEntry &pubcoin, listPubCoin) {
         if((pubcoin.IsUsed == false)
            && pubcoin.randomness != 0
@@ -5594,7 +5594,7 @@ bool CWallet::SpendOldMints(string& stringError)
                 }
                 denomAmounts.push_back(denomAmount);
             } else
-                fHasUnconfirmed = false;
+                NoUnconfirmedCoins = false;
         }
     }
     //if we pass empty string as thirdPartyaddress, it will spend coins to self
@@ -5604,7 +5604,7 @@ bool CWallet::SpendOldMints(string& stringError)
     // Because each transaction has a limit of around 75 KB, and each
     // spend has size 25 KB, we're not able to fit more than 2 old zerocoin spends
     // in a single transaction.
-    for(int i = 0; i < denomAmounts.size(); i += 2) {
+    for(unsigned int i = 0; i < denomAmounts.size(); i += 2) {
         wtx.Init(NULL);
         vector<string> denoms;
         denoms.push_back(denomAmounts[i]);
@@ -5613,7 +5613,7 @@ bool CWallet::SpendOldMints(string& stringError)
         if (!CreateZerocoinSpendModelV2(wtx, stringError, thirdPartyaddress, denoms))
             return false;
     }
-    return fHasUnconfirmed;
+    return NoUnconfirmedCoins;
 }
 
 bool CWallet::CommitZerocoinSpendTransaction(CWalletTx &wtxNew, CReserveKey &reservekey) {
