@@ -56,7 +56,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_oldmints)
 
     vector<pair<std::string, int>> denominationPairs;
 
-    for(int i = 0; i < denominations.size() - 1; i++)
+    for(unsigned int i = 0; i < denominations.size() - 1; i++)
     {
         thirdPartyAddress = "";
         denominationsForTx.clear();
@@ -110,7 +110,6 @@ BOOST_AUTO_TEST_CASE(zerocoin_oldmints)
         b = CreateAndProcessBlock(MinTxns, scriptPubKey);
         BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
 
-
         previousHeight = chainActive.Height();
         //Add 5 more blocks and verify that Mint can not be spent until 6 blocks verification
         wtx.Init(NULL);
@@ -124,6 +123,8 @@ BOOST_AUTO_TEST_CASE(zerocoin_oldmints)
         }
 
         BOOST_CHECK_MESSAGE(pwalletMain->SpendOldMints(stringError), stringError);
+
+        BOOST_CHECK_MESSAGE(mempool.size() == 2, "Spends were not added to mempool");
 
         vtxid.clear();
         MinTxns.clear();
