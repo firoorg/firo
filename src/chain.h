@@ -14,7 +14,7 @@
 #include "libzerocoin/bitcoin_bignum/bignum.h"
 #include <secp256k1/include/Scalar.h>
 #include <secp256k1/include/GroupElement.h>
-#include "libzerocoin/sigma/Coin.h"
+#include "sigma/coin.h"
 #include "zerocoin_params.h"
 #include "util.h"
 #include "chainparams.h"

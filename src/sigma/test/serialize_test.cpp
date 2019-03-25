@@ -1,7 +1,8 @@
+#include "../params.h"
+#include "../sigmaplus_prover.h"
+#include "../sigmaplus_verifier.h"
+
 #include <boost/test/unit_test.hpp>
-#include "../Params.h"
-#include <libzerocoin/sigma/SigmaPlusProver.h>
-#include <libzerocoin/sigma/SigmaPlusVerifier.h>
 
 BOOST_AUTO_TEST_SUITE(sigma_serialize_tests)
 

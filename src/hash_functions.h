@@ -2,7 +2,7 @@
 #define HASH_FUNCTIONS_H__
 
 #include <secp256k1/include/Scalar.h>
-#include "libzerocoin/sigma/Coin.h"
+#include "sigma/coin.h"
 
 namespace sigma {
 
