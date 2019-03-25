@@ -90,10 +90,7 @@ BOOST_AUTO_TEST_CASE(partialspend)
         previousHeight = chainActive.Height();
 
         // Add 5 more blocks and verify that Mint can not be spent until 6 blocks verification
-        for (int i = 0; i < 5; i++) {
-            std::vector<CMutableTransaction> noTxns;
-            CreateAndProcessBlock(noTxns, scriptPubKey);
-        }
+        CreateAndProcessEmptyBlocks(5, scriptPubKey);
 
         BOOST_CHECK_MESSAGE(previousHeight + 5 == chainActive.Height(), "Block not added to chain");
 
@@ -247,11 +244,7 @@ BOOST_AUTO_TEST_CASE(partialspend_remint) {
 
     previousHeight = chainActive.Height();
     // Add 5 more blocks and verify that Mint can not be spent until 6 blocks verification
-
-    for (int i = 0; i < 5; i++) {
-        std::vector<CMutableTransaction> noTxns;
-        CreateAndProcessBlock(noTxns, scriptPubKey);
-    }
+    CreateAndProcessEmptyBlocks(5, scriptPubKey);
 
     BOOST_CHECK_MESSAGE(previousHeight + 5 == chainActive.Height(), "Block not added to chain");
 
@@ -270,11 +263,7 @@ BOOST_AUTO_TEST_CASE(partialspend_remint) {
 
     previousHeight = chainActive.Height();
     // Add 5 more blocks and verify that re-minted coin can not be spent until 6 blocks verification
-
-    for (int i = 0; i < 5; i++) {
-        std::vector<CMutableTransaction> noTxns;
-        CreateAndProcessBlock(noTxns, scriptPubKey);
-    }
+    CreateAndProcessEmptyBlocks(5, scriptPubKey);
 
     BOOST_CHECK_MESSAGE(previousHeight + 5 == chainActive.Height(), "Block not added to chain");
 
