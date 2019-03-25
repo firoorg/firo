@@ -27,5 +27,12 @@ pipeline {
                 }
             }
         }
+        stage('RPC Tests') {
+            steps {
+                dir('dist') {
+                    sh 'TIMEOUT=120 qa/pull-tester/run-bitcoind-for-test.sh qa/pull-tester/rpc-tests.py -extended'
+                }
+            }
+        }
     }
 }
