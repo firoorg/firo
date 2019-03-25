@@ -3436,7 +3436,7 @@ void CWallet::CommitTransaction(CWalletTx& tx)
             // TODO: if we expect the failure to be long term or permanent, instead delete wtx from the wallet and return failure.
         } else {
             LogPrintf("Successfully accepted txn %s to mempool/stempool, relaying!\n", tx.GetHash().ToString());
-            tx.RelayWalletTransaction(!tx.IsZerocoinSpend());
+            tx.RelayWalletTransaction(!tx.IsZerocoinSpend() /* fCheckInputs */);
         }
     }
 }
@@ -5629,7 +5629,7 @@ bool CWallet::CommitZerocoinSpendTransaction(CWalletTx &wtxNew, CReserveKey &res
                 // TODO: if we expect the failure to be long term or permanent,
                 // instead delete wtx from the wallet and return failure.
             } else {
-                wtxNew.RelayWalletTransaction(wtxNew.IsZerocoinSpendV3());
+                wtxNew.RelayWalletTransaction(wtxNew.IsZerocoinSpendV3() /* fCheckInputs */);
             }
         }
     }
