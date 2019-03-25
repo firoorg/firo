@@ -32,6 +32,9 @@ RUN useradd -m -U zcoind
 # Build Zcoin
 COPY . /tmp/zcoin/
 
+# Install requrements for python tests
+RUN pip install -r ./tmp/zcoin/qa/requirements.txt
+
 RUN cd /tmp/zcoin && \
     ./autogen.sh && \
     ./configure --without-gui --prefix=/usr && \
