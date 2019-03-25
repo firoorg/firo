@@ -86,10 +86,8 @@ void InnerProductProoveGenerator<Exponent, GroupElement>::compute_P(
         typename std::vector<Exponent>::const_iterator b_end,
         GroupElement& result_out) {
     GroupElement g, h;
-
     g_.get_vector_multiple(0, g_.size(), a_start, a_end, g);
     h_.get_vector_multiple(0, h_.size(), b_start, b_end, h);
-
     result_out = (g + h);
 }
 
@@ -102,7 +100,6 @@ void InnerProductProoveGenerator<Exponent, GroupElement>::l(
         const Exponent& cL,
         GroupElement& result_out) {
     GroupElement g, h, ucL;
-
     g_.get_vector_multiple(g_.size() / 2 , g_.size(), a_start, a_end, g);
     h_.get_vector_multiple(0, h_.size() / 2, b_start, b_end, h);
     result_out = g + h + u_ * cL;
@@ -117,7 +114,6 @@ void InnerProductProoveGenerator<Exponent, GroupElement>::r(
         const Exponent& cR,
         GroupElement& result_out) {
     GroupElement g, h, ucR;
-
     g_.get_vector_multiple(0, g_.size() / 2, a_start, a_end, g);
     h_.get_vector_multiple(h_.size() / 2, h_.size(), b_start, b_end, h);
     result_out = g + h + u_ * cR;
@@ -131,7 +127,8 @@ std::vector<Exponent> InnerProductProoveGenerator<Exponent, GroupElement>::a_pri
     Exponent x_inverse  = x.inverse();
     std::vector<Exponent> result;
     result.reserve(a.size() / 2);
-    for(int i = 0; i < a.size() / 2; ++i){
+    for(int i = 0; i < a.size() / 2; ++i)
+    {
         result.push_back(a[i] * x + a[a.size() / 2 + i] * x_inverse);
     }
     return  result;
@@ -140,11 +137,12 @@ std::vector<Exponent> InnerProductProoveGenerator<Exponent, GroupElement>::a_pri
 template <class Exponent, class GroupElement>
 std::vector<Exponent> InnerProductProoveGenerator<Exponent, GroupElement>::b_prime(
         const Exponent& x,
-        const std::vector<Exponent>& b){
+        const std::vector<Exponent>& b) {
     Exponent x_inverse  = x.inverse();
     std::vector<Exponent> result;
     result.reserve(b.size() / 2);
-    for(int i = 0; i < b.size() / 2; ++i){
+    for(int i = 0; i < b.size() / 2; ++i)
+    {
         result.push_back(b[i] * x_inverse + b[b.size() / 2 + i] * x);
     }
     return  result;

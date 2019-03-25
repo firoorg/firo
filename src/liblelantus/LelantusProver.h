@@ -28,6 +28,7 @@ private:
             const std::vector<PrivateCoin>& Cin,
             const std::vector<uint64_t>& indexes,
             Scalar& x,
+            std::vector<Scalar>& Yk_sum,
             std::vector<SigmaPlusProof<Scalar, GroupElement>>& sigma_proofs);
 
     void generate_bulletproofs(

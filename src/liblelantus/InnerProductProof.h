@@ -20,21 +20,22 @@ public:
         unsigned char* current = a_.serialize(buffer);
         current = b_.serialize(current);
         current = c_.serialize(current);
-        for(int i = 0; i < L_.size(); ++i)
+        for (int i = 0; i < L_.size(); ++i)
             current = L_[i].serialize(current);
-        for(int i = 0; i < R_.size(); ++i)
+        for (int i = 0; i < R_.size(); ++i)
             current = R_[i].serialize(current);
         return current;
     }
+
     inline unsigned char* deserialize(unsigned char* buffer, int size) {
         unsigned char* current = a_.deserialize(buffer);
         current = b_.deserialize(current);
         current = c_.deserialize(current);
         L_.resize(size);
-        for(int i = 0; i < size; ++i)
+        for (int i = 0; i < size; ++i)
             current = L_[i].deserialize(current);
         R_.resize(size);
-        for(int i = 0; i < size; ++i)
+        for (int i = 0; i < size; ++i)
             current = R_[i].deserialize(current);
         return current;
     }

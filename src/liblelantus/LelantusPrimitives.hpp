@@ -5,7 +5,7 @@ void LelantusPrimitives<Exponent, GroupElement>::commit(const GroupElement& g,
         const zcoin_common::GeneratorVector<Exponent, GroupElement>& h,
         const std::vector<Exponent>& exp,
         const Exponent& r,
-        GroupElement& result_out)  {
+        GroupElement& result_out) {
     result_out += g * r;
     h.get_vector_multiple(exp, result_out);
 }
@@ -15,7 +15,7 @@ GroupElement LelantusPrimitives<Exponent, GroupElement>::commit(
         const GroupElement& g,
         const Exponent& m,
         const GroupElement& h,
-        const Exponent& r){
+        const Exponent& r) {
     return g * m + h * r;
 }
 
@@ -26,12 +26,8 @@ GroupElement LelantusPrimitives<Exponent, GroupElement>::double_commit(
         const GroupElement& hV,
         const Exponent& v,
         const GroupElement& hR,
-        const Exponent& r){
-    GroupElement result;
-    result += g*m;
-    result += hV*v;
-    result += hR*r;
-    return result;
+        const Exponent& r) {
+    return g * m + hV * v + hR * r;
 }
 
 template<class Exponent, class GroupElement>
@@ -39,26 +35,27 @@ void LelantusPrimitives<Exponent, GroupElement>::convert_to_sigma(
         uint64_t num,
         uint64_t n,
         uint64_t m,
-        std::vector<Exponent>& out){
+        std::vector<Exponent>& out) {
     int rem, nalNumber = 0;
     int j = 0;
 
-    while (num != 0)
+    for (; num != 0; num /= n, j++)
     {
         rem = num % n;
-        num /= n;
-        for(int i = 0; i < n; ++i){
+        for (int i = 0; i < n; ++i)
+        {
             if(i == rem)
                 out.push_back(Exponent(uint64_t(1)));
             else
                 out.push_back(Exponent(uint64_t(0)));
         }
-        j++;
     }
 
-    for(int k = j; k < m; ++k){
+    for (; j < m; j++)
+    {
         out.push_back(Exponent(uint64_t(1)));
-        for(int i = 1; i < n; ++i){
+        for (int i = 1; i < n; ++i)
+        {
             out.push_back(Exponent(uint64_t(0)));
         }
     }
@@ -68,16 +65,14 @@ template<class Exponent, class GroupElement>
 std::vector<uint64_t> LelantusPrimitives<Exponent, GroupElement>::convert_to_nal(
         uint64_t num,
         uint64_t n,
-        uint64_t m){
+        uint64_t m) {
     std::vector<uint64_t> result;
     uint64_t rem, nalNumber = 0;
     uint64_t j = 0;
-    while (num != 0)
+    for (; num != 0; num /= n, j++)
     {
         rem = num % n;
-        num /= n;
-        result.push_back(rem);
-        j++;
+        result.push_back(rem);;
     }
     result.resize(m);
     return result;
@@ -103,8 +98,10 @@ void LelantusPrimitives<Exponent, GroupElement>::get_x(
 }
 
 template<class Exponent, class GroupElement>
-void  LelantusPrimitives<Exponent, GroupElement>::get_x(const std::vector<SigmaPlusProof<Exponent, GroupElement>>& proofs, Exponent& result_out) {
-    if (proofs.size() > 0){
+void  LelantusPrimitives<Exponent, GroupElement>::get_x(
+        const std::vector<SigmaPlusProof<Exponent, GroupElement>>& proofs,
+        Exponent& result_out) {
+    if (proofs.size() > 0) {
         secp256k1_sha256_t hash;
         secp256k1_sha256_initialize(&hash);
         unsigned char data[3 * proofs.size() * 34];
@@ -123,8 +120,6 @@ void  LelantusPrimitives<Exponent, GroupElement>::get_x(const std::vector<SigmaP
         result_out = uint64_t(1);
 }
 
-
-
 template<class Exponent, class GroupElement>
 void LelantusPrimitives<Exponent, GroupElement>::new_factor(
         Exponent x,
@@ -132,9 +127,9 @@ void LelantusPrimitives<Exponent, GroupElement>::new_factor(
         std::vector<Exponent>& coefficients) {
     std::vector<Exponent> temp;
     temp.resize(coefficients.size() + 1);
-    for(int j = 0; j < coefficients.size(); j++)
+    for (int j = 0; j < coefficients.size(); j++)
         temp[j] += x * coefficients[j];
-    for(int j = 0; j < coefficients.size(); j++)
+    for (int j = 0; j < coefficients.size(); j++)
         temp[j + 1] += a * coefficients[j];
     coefficients = temp;
 }
@@ -147,7 +142,7 @@ void LelantusPrimitives<Exponent, GroupElement>::commit(
         const std::vector<Exponent>& L,
         const zcoin_common::GeneratorVector<Exponent, GroupElement>& h_,
         const std::vector<Exponent>& R,
-        GroupElement& result_out){
+        GroupElement& result_out) {
     result_out += h * h_exp;
     g_.get_vector_multiple(L, result_out);
     h_.get_vector_multiple(R, result_out);
@@ -155,7 +150,7 @@ void LelantusPrimitives<Exponent, GroupElement>::commit(
 }
 
 template<class Exponent, class GroupElement>
-void LelantusPrimitives<Exponent, GroupElement>::get_c(const GroupElement& u, Exponent& result){
+void LelantusPrimitives<Exponent, GroupElement>::get_c(const GroupElement& u, Exponent& result) {
     secp256k1_sha256_t hash;
     secp256k1_sha256_initialize(&hash);
     unsigned char data[34];
@@ -167,7 +162,10 @@ void LelantusPrimitives<Exponent, GroupElement>::get_c(const GroupElement& u, Ex
 }
 
 template <class Exponent, class GroupElement>
-void LelantusPrimitives<Exponent, GroupElement>::get_x(const GroupElement& L, const GroupElement& R, Exponent& result) {
+void LelantusPrimitives<Exponent, GroupElement>::get_x(
+        const GroupElement& L,
+        const GroupElement& R,
+        Exponent& result) {
     secp256k1_sha256_t hash;
     secp256k1_sha256_initialize(&hash);
     unsigned char data[2 * L.memoryRequired()];
@@ -200,7 +198,8 @@ Exponent LelantusPrimitives<Exponent, GroupElement>::scalar_dot_product(
     Exponent result(uint64_t(0));
     auto itr_a = a_start;
     auto itr_b = b_start;
-    while(itr_a != a_end || itr_b != b_end) {
+    while (itr_a != a_end || itr_b != b_end)
+    {
         result += ((*itr_a) * (*itr_b));
         ++itr_a;
         ++itr_b;
@@ -216,7 +215,8 @@ zcoin_common::GeneratorVector<Exponent, GroupElement> LelantusPrimitives<Exponen
     Exponent x_inverse = x.inverse();
     std::vector<GroupElement> g;
     g.reserve(g_.size() / 2);
-    for(int i = 0; i < g_.size() / 2; ++i){
+    for (int i = 0; i < g_.size() / 2; ++i)
+    {
         g.push_back(((g_.get_g(i) * x_inverse) + (g_.get_g(g_.size() / 2 + i) * x)));
     }
     return  g;
@@ -229,7 +229,8 @@ zcoin_common::GeneratorVector<Exponent, GroupElement> LelantusPrimitives<Exponen
     Exponent x_inverse = x.inverse();
     std::vector <GroupElement> h;
     h.reserve(h_.size() / 2);
-    for (int i = 0; i < h_.size() / 2; ++i) {
+    for (int i = 0; i < h_.size() / 2; ++i)
+    {
         h.push_back(((h_.get_g(i) * x) + (h_.get_g(h_.size() / 2 + i) * x_inverse)));
     }
     return h;
@@ -246,23 +247,6 @@ GroupElement LelantusPrimitives<Exponent, GroupElement>::p_prime(
 }
 
 template <class Exponent, class GroupElement>
-Exponent LelantusPrimitives<Exponent, GroupElement>::delta(const Exponent& y, const Exponent& z, uint64_t n){
-    Exponent y_;
-    Exponent two;
-    Exponent y_n(uint64_t(1));
-    Exponent two_n(uint64_t(1));
-    for(int i = 0; i < n; ++i){
-        y_ += y_n;
-        two += two_n;
-        y_n *= y;
-        two_n *= uint64_t(2);
-    }
-
-    Exponent z_square = z.square();
-    return (z - z_square) * y_ - z * z_square * two;
-}
-
-template <class Exponent, class GroupElement>
 Exponent LelantusPrimitives<Exponent, GroupElement>::delta(const Exponent& y, const Exponent& z, uint64_t n,  uint64_t m){
     Exponent y_;
     Exponent two;
@@ -271,8 +255,10 @@ Exponent LelantusPrimitives<Exponent, GroupElement>::delta(const Exponent& y, co
     Exponent z_j =  z.exponent(uint64_t(3));
     Exponent z_sum(uint64_t(0));
 
-    for(int j = 1; j <= m; ++j){
-        for(int i = 0; i < n; ++i){
+    for(int j = 1; j <= m; ++j)
+    {
+        for(int i = 0; i < n; ++i)
+        {
             y_ += y_n;
             y_n *= y;
         }
@@ -280,7 +266,8 @@ Exponent LelantusPrimitives<Exponent, GroupElement>::delta(const Exponent& y, co
         z_j *= z;
     }
 
-    for(int i = 0; i < n; ++i){
+    for(int i = 0; i < n; ++i)
+    {
         two += two_n;
         two_n *= uint64_t(2);
     }

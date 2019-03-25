@@ -29,7 +29,8 @@ Params::Params(const GroupElement& g, int n, int m, int _n, int max_m):
     unsigned char buff0[32] = {0};
     g.sha256(buff0);
     h_[0].generate(buff0);
-    for(int i = 1; i < n * m; ++i) {
+    for (int i = 1; i < n * m; ++i)
+    {
         unsigned char buff[32] = {0};
         h_[i - 1].sha256(buff);
         h_[i].generate(buff);
@@ -41,7 +42,8 @@ Params::Params(const GroupElement& g, int n, int m, int _n, int max_m):
     unsigned char buff1[32] = {0};
     g_rangeProof[0].sha256(buff1);
     h_rangeProof[0].generate(buff1);
-    for(int i = 1; i < _n * max_m; ++i){
+    for (int i = 1; i < _n * max_m; ++i)
+    {
         unsigned char buff[32] = {0};
         h_rangeProof[i-1].sha256(buff);
         g_rangeProof[i].generate(buff);

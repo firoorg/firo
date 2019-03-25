@@ -17,6 +17,7 @@ public:
         + bulletproofs.memoryRequired(bulletproof_n, bulletproof_m)
         + schnorrProof.memoryRequired();
     }
+
     inline unsigned char* serialize(unsigned char* buffer) const {
         unsigned char* current = buffer;
         for(int i = 0; i < sigma_proofs.size(); ++i)
@@ -24,6 +25,7 @@ public:
         current = bulletproofs.serialize(current);
         return schnorrProof.serialize(current);
     }
+
     inline unsigned char* deserialize(const Params* params, unsigned char* buffer, int size, int b_m) {
         unsigned char* current = buffer;
         for(int i = 0; i < size; ++i)

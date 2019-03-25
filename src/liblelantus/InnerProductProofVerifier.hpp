@@ -14,7 +14,9 @@ InnerProductProofVerifier<Exponent, GroupElement>::InnerProductProofVerifier(
 }
 
 template <class Exponent, class GroupElement>
-bool InnerProductProofVerifier<Exponent, GroupElement>::verify(const Exponent& x, const InnerProductProof<Exponent, GroupElement>& proof) {
+bool InnerProductProofVerifier<Exponent, GroupElement>::verify(
+        const Exponent& x,
+        const InnerProductProof<Exponent, GroupElement>& proof) {
     auto itr_l = proof.L_.begin();
     auto itr_r = proof.R_.begin();
     u_  *= x;
@@ -27,7 +29,7 @@ bool InnerProductProofVerifier<Exponent, GroupElement>::verify_util(
                                            const InnerProductProof<Exponent, GroupElement>& proof,
                                            typename std::vector<GroupElement>::const_iterator itr_l,
                                            typename std::vector<GroupElement>::const_iterator itr_r) {
-    if((itr_l) == proof.L_.end()){
+    if(itr_l == proof.L_.end()){
         Exponent c = proof.a_ * proof.b_;
         GroupElement uc = u_ * c;
         GroupElement P = g_.get_g(0) * proof.a_ + h_.get_g(0) * proof.b_ + uc;
@@ -47,13 +49,10 @@ bool InnerProductProofVerifier<Exponent, GroupElement>::verify_util(
 
 template <class Exponent, class GroupElement>
 bool InnerProductProofVerifier<Exponent, GroupElement>::verify_fast(uint64_t n, const Exponent& x, const InnerProductProof<Exponent, GroupElement>& proof) {
-    auto itr_l = proof.L_.begin();
-    auto itr_r = proof.R_.begin();
     u_  *= x;
     P_ += u_ * proof.c_;
     return verify_fast_util(n, proof);
-};
-
+}
 
 template <class Exponent, class GroupElement>
 bool InnerProductProofVerifier<Exponent, GroupElement>::verify_fast_util(
@@ -62,15 +61,18 @@ bool InnerProductProofVerifier<Exponent, GroupElement>::verify_fast_util(
     int log_n = proof.L_.size();
     std::vector<Exponent> x_j, x_j_inv;
     x_j.resize(log_n);
-    for(int i = 0; i < log_n; ++i) {
+    for (int i = 0; i < log_n; ++i)
+    {
         LelantusPrimitives<Exponent, GroupElement>::get_x(proof.L_[i], proof.R_[i], x_j[i]);
     }
     std::vector<Exponent> s, s_inv;
     s.resize(n);
     s_inv.resize(n);
-    for(uint64_t i = 0; i < n; ++i){
+    for (uint64_t i = 0; i < n; ++i)
+    {
         Exponent x_i(uint64_t(1));
-        for(int j = 0; j < log_n; ++j) {
+        for (int j = 0; j < log_n; ++j)
+        {
             if((i >> j) & 1) {
                 x_i *= x_j[log_n - j - 1];
             } else{
@@ -92,7 +94,7 @@ bool InnerProductProofVerifier<Exponent, GroupElement>::verify_fast_util(
     GroupElement right = P_;
     GroupElement multi;
     Exponent two(uint64_t(2));
-    for(int j = 0; j < log_n; ++j)
+    for (int j = 0; j < log_n; ++j)
         multi += (proof.L_[j] * (x_j[j].square()) + proof.R_[j] * (x_j[j].exponent(two).inverse()));
     right += multi;
     if(left != right)

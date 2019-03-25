@@ -27,6 +27,7 @@ public:
         current = innerProductProof.serialize(current);
         return current;
     }
+
     inline unsigned char* deserialize(unsigned char* buffer, int n) {
         int size = (int)(log(n) / log(2));
         unsigned char* current = A.deserialize(buffer);

@@ -79,9 +79,11 @@ public:
             const zcoin_common::GeneratorVector<Exponent, GroupElement>& h_,
             const Exponent& x);
 
-    static GroupElement p_prime(const GroupElement& P_, const GroupElement& L,const GroupElement& R, const Exponent& x);
-
-    static Exponent delta(const Exponent& y, const Exponent& z, uint64_t n);
+    static GroupElement p_prime(
+            const GroupElement& P_,
+            const GroupElement& L,
+            const GroupElement& R,
+            const Exponent& x);
 
     static Exponent delta(const Exponent& y, const Exponent& z, uint64_t n, uint64_t m);
 

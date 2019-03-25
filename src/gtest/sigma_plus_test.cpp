@@ -147,9 +147,10 @@ TEST(test_1_out_of_N, batch_verify_test)
     rD.resize(N);
     std::vector<std::vector<secp_primitives::Scalar>> sigma;
     sigma.resize(N);
-    std::vector<std::vector<secp_primitives::Scalar>> Tk, Pk;
+    std::vector<std::vector<secp_primitives::Scalar>> Tk, Pk, Yk;
     Tk.resize(N);
     Pk.resize(N);
+    Yk.resize(N);
     std::vector<std::vector<secp_primitives::Scalar>> a;
     a.resize(N);
     for(int i = 0; i < serials.size(); ++i){
@@ -167,8 +168,9 @@ TEST(test_1_out_of_N, batch_verify_test)
         rD[i].randomize();
         Tk[i].resize(m);
         Pk[i].resize(m);
+        Yk[i].resize(m);
         a[i].resize(n * m);
-        prover.sigma_commit(commits_, indexes[i], rA[i], rB[i], rC[i], rD[i], a[i], Tk[i], Pk[i], sigma[i], proofs[i]);
+        prover.sigma_commit(commits_, indexes[i], rA[i], rB[i], rC[i], rD[i], a[i], Tk[i], Pk[i], Yk[i], sigma[i], proofs[i]);
     }
     secp_primitives::Scalar x;
     lelantus::LelantusPrimitives<Scalar, GroupElement>::get_x(proofs, x);

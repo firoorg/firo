@@ -24,10 +24,18 @@ public:
                      const Exponent& x,
                      const std::vector<Exponent>& serials,
                      const vector<SigmaPlusProof<Exponent, GroupElement>>& proofs) const;
+
+private:
     //auxiliary functions
     bool membership_checks(const SigmaPlusProof<Exponent, GroupElement>& proof) const;
-    void compute_fs(const SigmaPlusProof<Exponent, GroupElement>& proof, const Exponent& x, std::vector<Exponent>& f_) const;
-    bool abcd_checks(const SigmaPlusProof<Exponent, GroupElement>& proof, const Exponent& x, const std::vector<Exponent>& f_) const;
+    void compute_fs(
+            const SigmaPlusProof<Exponent, GroupElement>& proof,
+            const Exponent& x,
+            std::vector<Exponent>& f_) const;
+    bool abcd_checks(
+            const SigmaPlusProof<Exponent, GroupElement>& proof,
+            const Exponent& x,
+            const std::vector<Exponent>& f_) const;
 private:
     GroupElement g_;
     zcoin_common::GeneratorVector<Exponent, GroupElement> h_;

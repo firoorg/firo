@@ -27,6 +27,7 @@ public:
             std::vector <Exponent>& a,
             std::vector <Exponent>& Tk,
             std::vector <Exponent>& Pk,
+            std::vector <Exponent>& Yk,
             std::vector <Exponent>& sigma,
             SigmaPlusProof<Exponent, GroupElement>& proof_out);
 

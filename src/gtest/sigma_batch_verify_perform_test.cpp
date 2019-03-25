@@ -51,9 +51,10 @@ void generate_batch_proofs(
     rD.resize(N);
     std::vector<std::vector<secp_primitives::Scalar>> sigma;
     sigma.resize(N);
-    std::vector<std::vector<secp_primitives::Scalar>> Tk, Pk;
+    std::vector<std::vector<secp_primitives::Scalar>> Tk, Pk, Yk;
     Tk.resize(N);
     Pk.resize(N);
+    Yk.resize(N);
     std::vector<std::vector<secp_primitives::Scalar>> a;
     a.resize(N);
 
@@ -73,7 +74,7 @@ void generate_batch_proofs(
         Tk[i].resize(m);
         Pk[i].resize(m);
         a[i].resize(n * m);
-        prover.sigma_commit(commits_, indexes[i], rA[i], rB[i], rC[i], rD[i], a[i], Tk[i], Pk[i], sigma[i], proofs[i]);
+        prover.sigma_commit(commits_, indexes[i], rA[i], rB[i], rC[i], rD[i], a[i], Tk[i], Pk[i], Yk[i], sigma[i], proofs[i]);
     }
     lelantus::LelantusPrimitives<Scalar, GroupElement>::get_x(proofs, x);
 
