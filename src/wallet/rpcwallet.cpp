@@ -3378,48 +3378,50 @@ UniValue spendmanyzerocoinV3(const UniValue& params, bool fHelp) {
 
 UniValue spendmany(const UniValue& params, bool fHelp) {
 
-    if (fHelp || params.size() < 1 || params.size() > 3)
+    if (fHelp || params.size() < 2 || params.size() > 5)
         throw std::runtime_error(
-                "spendmany {\"address\":amount,...} ( \"comment\" [\"address\",...] )\n"
-                "\nSpend multiple zerocoins and remint in a single transaction by specify addresses and amount for each address.\n"
+                "spendmany \"fromaccount\" {\"address\":amount,...} ( minconf \"comment\" [\"address\",...] )\n"
+                "\nSpend multiple zerocoins and remint changes in a single transaction by specify addresses and amount for each address."
                 + HelpRequiringPassphrase() + "\n"
                 "\nArguments:\n"
-                "1. \"amounts\"               (string, required) A json object with addresses and amounts\n"
+                "1. \"fromaccount\"         (string, required) DEPRECATED. The account to send the funds from. Should be \"\" for the default account\n"
+                "2. \"amounts\"             (string, required) A json object with addresses and amounts\n"
                 "    {\n"
-                "      \"address\":amount     (numeric or string) The zcoin address is the key, the numeric amount (can be string) in " + CURRENCY_UNIT + " is the value\n"
+                "      \"address\":amount   (numeric or string) The zcoin address is the key, the numeric amount (can be string) in " + CURRENCY_UNIT + " is the value\n"
                 "      ,...\n"
                 "    }\n"
-                "2. \"comment\"               (string, optional) A comment\n"
-                "3. subtractfeefromamount     (string, optional) A json array with addresses.\n"
-                "                             The fee will be equally deducted from the amount of each selected address.\n"
-                "                             Those recipients will receive less zcoins than you enter in their corresponding amount field.\n"
-                "                             If no addresses are specified here, the sender pays the fee.\n"
+                "3. minconf                 (numeric, optional, default=6) NOT IMPLEMENTED. Only use the balance confirmed at least this many times.\n"
+                "4. \"comment\"             (string, optional) A comment\n"
+                "5. subtractfeefromamount   (string, optional) A json array with addresses.\n"
+                "                           The fee will be equally deducted from the amount of each selected address.\n"
+                "                           Those recipients will receive less zcoins than you enter in their corresponding amount field.\n"
+                "                           If no addresses are specified here, the sender pays the fee.\n"
                 "    [\n"
                 "      \"address\"            (string) Subtract fee from this address\n"
                 "      ,...\n"
                 "    ]\n"
                 "\nResult:\n"
-                "\"transactionid\"            (string) The transaction id for the send. Only 1 transaction is created regardless of \n"
-                "                             the number of addresses.\n"
+                "\"transactionid\"          (string) The transaction id for the send. Only 1 transaction is created regardless of \n"
+                "                                    the number of addresses.\n"
                 "\nExamples:\n"
                 "\nSend two amounts to two different addresses:\n"
-                + HelpExampleCli("spendmany", "\"{\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XZ\\\":0.01,\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\":0.02}\"") +
+                + HelpExampleCli("spendmany", "\"\" \"{\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XZ\\\":0.01,\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\":0.02}\"") +
                 "\nSend two amounts to two different addresses and subtract fee from amount:\n"
-                + HelpExampleCli("spendmany", "\"{\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XZ\\\":0.01,\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\":0.02}\" \"testing\" \"[\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XZ\\\",\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\"]\"")
+                + HelpExampleCli("spendmany", "\"\" \"{\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XZ\\\":0.01,\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\":0.02}\" 6 \"testing\" \"[\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XZ\\\",\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\"]\"")
         );
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
-    UniValue sendTo = params[0].get_obj();
+    UniValue sendTo = params[1].get_obj();
 
     CWalletTx wtx;
-    if (params.size() > 1 && !params[1].isNull() && !params[1].get_str().empty())
-        wtx.mapValue["comment"] = params[1].get_str();
+    if (params.size() > 3 && !params[3].isNull() && !params[3].get_str().empty())
+        wtx.mapValue["comment"] = params[3].get_str();
 
     std::unordered_set<std::string> subtractFeeFromAmountSet;
     UniValue subtractFeeFromAmount(UniValue::VARR);
-    if (params.size() > 2) {
-        subtractFeeFromAmount = params[2].get_array();
+    if (params.size() > 4) {
+        subtractFeeFromAmount = params[4].get_array();
         for (int i = subtractFeeFromAmount.size(); i--;) {
             subtractFeeFromAmountSet.insert(subtractFeeFromAmount[i].get_str());
         }
