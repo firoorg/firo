@@ -1,10 +1,10 @@
-#include "Coin.h"
+#include "coin.h"
 #include "util.h"
 #include "amount.h"
 
 #include <openssl/rand.h>
 #include <sstream>
-#include "OpenSSL_context.h"
+#include "openssl_context.h"
 
 namespace sigma {
 

@@ -1,4 +1,4 @@
-#include "SpendMetaDataV3.h"
+#include "spend_metadata.h"
 
 namespace sigma {
 
@@ -13,4 +13,4 @@ SpendMetaDataV3::SpendMetaDataV3(
 
 }
 
-} /* namespace libzerocoin */
+} // namespace sigma

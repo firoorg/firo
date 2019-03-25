@@ -1,10 +1,10 @@
+#include "../r1_proof.h"
+#include "../r1_proof_generator.h"
+#include "../sigma_primitives.h"
+
+#include "../../test/test_bitcoin.h"
+
 #include <boost/test/unit_test.hpp>
-
-#include "test/test_bitcoin.h"
-
-#include <libzerocoin/sigma/R1Proof.h>
-#include <libzerocoin/sigma/R1ProofGenerator.h>
-#include <libzerocoin/sigma/SigmaPrimitives.h>
 
 using  namespace secp_primitives;
 using  namespace sigma;

@@ -1,8 +1,9 @@
-#ifndef ZCOIN_SIGMAPLUSPROOF_H
-#define ZCOIN_SIGMAPLUSPROOF_H
+#ifndef ZCOIN_SIGMA_SIGMAPLUS_PROOF_H
+#define ZCOIN_SIGMA_SIGMAPLUS_PROOF_H
 
-#include "R1Proof.h"
-#include "Params.h"
+#include "params.h"
+#include "r1_proof.h"
+
 namespace sigma {
 
 template<class Exponent, class GroupElement>
@@ -53,4 +54,4 @@ public:
 
 } //namespace sigma
 
-#endif //ZCOIN_SIGMAPLUSPROOF_H
+#endif // ZCOIN_SIGMA_SIGMAPLUS_PROOF_H
