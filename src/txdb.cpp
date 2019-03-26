@@ -35,7 +35,7 @@ static const char DB_LAST_BLOCK = 'l';
 static const char DB_TOTAL_SUPPLY = 'S';
 
 
-CCoinsViewDB::CCoinsViewDB(size_t nCacheSize, bool fMemory, bool fWipe) : db(GetDataDir() / "chainstate", nCacheSize, fMemory, fWipe, true) 
+CCoinsViewDB::CCoinsViewDB(size_t nCacheSize, bool fMemory, bool fWipe) : db(GetDataDir() / "chainstate", nCacheSize, fMemory, fWipe, true)
 {
 }
 
@@ -348,11 +348,14 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
                     pindexNew->mtpHashValue = diskindex.mtpHashValue;
                     pindexNew->reserved[0] = diskindex.reserved[0];
                     pindexNew->reserved[1] = diskindex.reserved[1];
-                }                
+                }
 
                 pindexNew->accumulatorChanges = diskindex.accumulatorChanges;
                 pindexNew->mintedPubCoins     = diskindex.mintedPubCoins;
                 pindexNew->spentSerials       = diskindex.spentSerials;
+
+                pindexNew->mintedPubCoinsV3   = diskindex.mintedPubCoinsV3;
+                pindexNew->spentSerialsV3     = diskindex.spentSerialsV3;
 
                 if (!CheckProofOfWork(pindexNew->GetBlockPoWHash(), pindexNew->nBits, consensusParams))
                     if (!CheckProofOfWork(pindexNew->GetBlockPoWHash(true), pindexNew->nBits, consensusParams))
@@ -492,12 +495,12 @@ void handleOutput(const CTxOut &out, size_t outNo, uint256 const & txHash, int h
     if(!addressIndex)
         return;
 
-    if(out.scriptPubKey.IsZerocoinMint()) 
+    if(out.scriptPubKey.IsZerocoinMint())
         addressIndex->push_back(make_pair(CAddressIndexKey(AddressType::zerocoinMint, uint160(), height, txNumber, txHash, outNo, false), out.nValue));
 
     txnouttype type;
     vector<vector<unsigned char> > addresses;
-  
+
     if(!Solver(out.scriptPubKey, type, addresses)) {
         LogPrint("CDbIndexHelper", "Encountered an unsoluble script in block:%i, txHash: %s, outNo: %i\n", height, txHash.ToString().c_str(), outNo);
         return;

@@ -7,9 +7,12 @@
 #include "../consensus/validation.h"
 #include "../libzerocoin/Zerocoin.h"
 
+#include <cinttypes>
+
 namespace sigma {
 
-enum class CoinDenominationV3 {
+
+enum class CoinDenominationV3 : std::uint8_t {
     SIGMA_DENOM_0_1 = 0,
     SIGMA_DENOM_0_5 = 1,
     SIGMA_DENOM_1 = 2,
@@ -109,6 +112,28 @@ private:
     void mintCoin(const CoinDenominationV3 denomination);
 
 };
+
+
+// Serialization support for CoinDenominationV3
+
+inline unsigned int GetSerializeSize(CoinDenominationV3 d, int nType, int nVersion)
+{
+    return sizeof(d);
+}
+
+template<typename Stream>
+void Serialize(Stream& os, CoinDenominationV3 d, int nType, int nVersion)
+{
+    Serialize(os, static_cast<std::uint8_t>(d), nType, nVersion);
+}
+
+template<typename Stream>
+void Unserialize(Stream& is, CoinDenominationV3& d, int nType, int nVersion)
+{
+    std::uint8_t v;
+    Unserialize(is, v, nType, nVersion);
+    d = static_cast<CoinDenominationV3>(v);
+}
 
 }// namespace sigma
 
