@@ -3175,12 +3175,14 @@ UniValue spendzerocoin(const UniValue& params, bool fHelp) {
 UniValue spendoldmints(const UniValue& params, bool fHelp) {
 
     if (fHelp || params.size() >= 1)
-        throw runtime_error();
+        throw runtime_error(
+                "spend old mints\n"
+                "\nAutomatically spends all old mints to self\n" );
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
     string strError;
-    bool result = SpendOldMints(strError);
+    bool result = pwalletMain->SpendOldMints(strError);
     if (strError != "")
         throw JSONRPCError(RPC_WALLET_ERROR, strError);
     else if(strError == "" && !result)
