@@ -438,7 +438,10 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
                     continue;
                 }
 
-                int64_t nTxFees = 0;
+                CAmount nTxFees(0);
+                if (tx.IsZerocoinSpendV3()) {
+                    nTxFees = iter->GetFee();
+                }
 
                 pblock->vtx.push_back(tx);
                 pblocktemplate->vTxFees.push_back(nTxFees);
@@ -451,6 +454,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
                 inBlock.insert(iter);
                 continue;
             }
+
             unsigned int nTxSigOps = iter->GetSigOpCost();
             LogPrintf("nTxSigOps=%s\n", nTxSigOps);
             LogPrintf("nBlockSigOps=%s\n", nBlockSigOps);
@@ -947,7 +951,9 @@ void BlockAssembler::addPriorityTxs()
             if (nBlockSigOpsCost + nTxSigOps >= MAX_BLOCK_SIGOPS_COST)
                 continue;
 
-            int64_t nTxFees = 0;
+            CAmount nTxFees(0);
+            if (tx.IsZerocoinSpendV3())
+                nTxFees = mi->GetFee();
 
             pblock->vtx.push_back(tx);
             pblocktemplate->vTxFees.push_back(nTxFees);

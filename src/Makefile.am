@@ -56,10 +56,11 @@ LIBBITCOIN_COMMON=libbitcoin_common.a
 LIBBITCOIN_CONSENSUS=libbitcoin_consensus.a
 LIBBITCOIN_CLI=libbitcoin_cli.a
 LIBBITCOIN_UTIL=libbitcoin_util.a
-LIBSIGMA=libsigma.a
 LIBBITCOIN_CRYPTO=crypto/libbitcoin_crypto.a
 LIBBITCOINQT=qt/libzcoinqt.a
 LIBSECP256K1=secp256k1/libsecp256k1.la
+
+LIBZCOIN_SIGMA=libsigma.a
 
 if ENABLE_ZMQ
 LIBBITCOIN_ZMQ=libbitcoin_zmq.a
@@ -81,13 +82,13 @@ $(LIBSECP256K1): $(wildcard secp256k1/src/*) $(wildcard secp256k1/include/*)
 EXTRA_LIBRARIES += \
   $(LIBBITCOIN_CRYPTO) \
   $(LIBBITCOIN_UTIL) \
-  $(LIBSIGMA) \
   $(LIBBITCOIN_COMMON) \
   $(LIBBITCOIN_CONSENSUS) \
   $(LIBBITCOIN_SERVER) \
   $(LIBBITCOIN_CLI) \
   $(LIBBITCOIN_WALLET) \
-  $(LIBBITCOIN_ZMQ)
+  $(LIBBITCOIN_ZMQ) \
+  $(LIBZCOIN_SIGMA)
 
 lib_LTLIBRARIES = $(LIBBITCOINCONSENSUS)
 
@@ -466,27 +467,27 @@ libsigma_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libsigma_a_SOURCES = \
   libzerocoin/common/GeneratorVector.h \
   libzerocoin/common/GeneratorVector.hpp \
-  libzerocoin/sigma/R1Proof.h \
-  libzerocoin/sigma/R1ProofGenerator.h \
-  libzerocoin/sigma/R1ProofGenerator.hpp \
-  libzerocoin/sigma/R1ProofVerifier.h \
-  libzerocoin/sigma/R1ProofVerifier.hpp \
-  libzerocoin/sigma/SigmaPlusProof.h \
-  libzerocoin/sigma/SigmaPlusProver.h \
-  libzerocoin/sigma/SigmaPlusProver.hpp \
-  libzerocoin/sigma/SigmaPlusVerifier.h \
-  libzerocoin/sigma/SigmaPlusVerifier.hpp \
-  libzerocoin/sigma/SigmaPrimitives.h \
-  libzerocoin/sigma/SigmaPrimitives.hpp \
-  libzerocoin/sigma/Coin.h \
-  libzerocoin/sigma/Coin.cpp \
-  libzerocoin/sigma/CoinSpend.cpp \
-  libzerocoin/sigma/CoinSpend.h \
-  libzerocoin/sigma/SpendMetaDataV3.cpp \
-  libzerocoin/sigma/SpendMetaDataV3.h \
-  libzerocoin/sigma/Params.h \
-  libzerocoin/sigma/Params.cpp \
-  libzerocoin/sigma/OpenSSL_context.h
+  sigma/r1_proof.h \
+  sigma/r1_proof_generator.h \
+  sigma/r1_proof_generator.hpp \
+  sigma/r1_proof_verifier.h \
+  sigma/r1_proof_verifier.hpp \
+  sigma/sigmaplus_proof.h \
+  sigma/sigmaplus_prover.h \
+  sigma/sigmaplus_prover.hpp \
+  sigma/sigmaplus_verifier.h \
+  sigma/sigmaplus_verifier.hpp \
+  sigma/sigma_primitives.h \
+  sigma/sigma_primitives.hpp \
+  sigma/coin.h \
+  sigma/coin.cpp \
+  sigma/coinspend.cpp \
+  sigma/coinspend.h \
+  sigma/spend_metadata.cpp \
+  sigma/spend_metadata.h \
+  sigma/params.h \
+  sigma/params.cpp \
+  sigma/openssl_context.h
 
 if GLIBC_BACK_COMPAT
 libbitcoin_util_a_SOURCES += compat/glibc_compat.cpp
@@ -518,7 +519,7 @@ zcoind_LDADD = \
   $(LIBUNIVALUE) \
   $(LIBBITCOIN_UTIL) \
   $(LIBBITCOIN_WALLET) \
-  $(LIBSIGMA) \
+  $(LIBZCOIN_SIGMA) \
   $(LIBBITCOIN_ZMQ) \
   $(LIBBITCOIN_CONSENSUS) \
   $(LIBBITCOIN_CRYPTO) \
@@ -544,7 +545,6 @@ zcoin_cli_LDADD = \
   $(LIBBITCOIN_CLI) \
   $(LIBUNIVALUE) \
   $(LIBBITCOIN_UTIL) \
-  #(LIBSIGMA) \
   $(LIBBITCOIN_CRYPTO)
 
 zcoin_cli_LDADD += $(BOOST_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(EVENT_LIBS)

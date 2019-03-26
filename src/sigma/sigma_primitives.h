@@ -1,13 +1,15 @@
-#ifndef SIGMA_PRIMITIVES_H__
-#define SIGMA_PRIMITIVES_H__
+#ifndef ZCOIN_SIGMA_SIGMA_PRIMITIVES_H
+#define ZCOIN_SIGMA_SIGMA_PRIMITIVES_H
 
-#include <vector>
-#include <secp256k1/include/Scalar.h>
-#include <secp256k1/include/GroupElement.h>
-#include <libzerocoin/common/GeneratorVector.h>
+#include "../libzerocoin/common/GeneratorVector.h"
+#include "../secp256k1/include/GroupElement.h"
+#include "../secp256k1/include/Scalar.h"
+
 #include <algorithm>
+#include <vector>
 
 namespace sigma {
+
 template<class Exponent, class GroupElement>
 class SigmaPrimitives {
 
@@ -30,8 +32,8 @@ public:
 
     };
 
-}// namespace sigma
+} // namespace sigma
 
-#include "SigmaPrimitives.hpp"
+#include "sigma_primitives.hpp"
 
-#endif //SIGMA_PRIMITIVES_H__
+#endif // ZCOIN_SIGMA_SIGMA_PRIMITIVES_H

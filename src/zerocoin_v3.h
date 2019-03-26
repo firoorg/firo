@@ -3,11 +3,11 @@
 
 #include "amount.h"
 #include "chain.h"
-#include "libzerocoin/sigma/Coin.h"
+#include "sigma/coin.h"
 #include "consensus/validation.h"
 #include <secp256k1/include/Scalar.h>
 #include <secp256k1/include/GroupElement.h>
-#include "libzerocoin/sigma/Params.h"
+#include "sigma/params.h"
 #include <unordered_set>
 #include <unordered_map>
 #include <functional>
@@ -61,6 +61,7 @@ bool ConnectBlockZCV3(
 bool ZerocoinBuildStateFromIndexV3(CChain *chain);
 
 Scalar ZerocoinGetSpendSerialNumberV3(const CTransaction &tx, const CTxIn &txin);
+CAmount GetSpendTransactionInputV3(const CTransaction &tx);
 
 /*
  * State of minted/spent coins as extracted from the index

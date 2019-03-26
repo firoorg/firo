@@ -1,8 +1,9 @@
-#include <boost/test/unit_test.hpp>
+#include "../sigma_primitives.h"
 
-#include <libzerocoin/sigma/SigmaPrimitives.h>
-#include <secp256k1/include/Scalar.h>
-#include <secp256k1/include/GroupElement.h>
+#include "../../secp256k1/include/GroupElement.h"
+#include "../../secp256k1/include/Scalar.h"
+
+#include <boost/test/unit_test.hpp>
 
 BOOST_AUTO_TEST_SUITE(sigma_primitives_tests)
 

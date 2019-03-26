@@ -1,5 +1,5 @@
-#include "CoinSpend.h"
-#include "OpenSSL_context.h"
+#include "coinspend.h"
+#include "openssl_context.h"
 
 namespace  sigma {
 
@@ -44,39 +44,43 @@ CoinSpendV3::CoinSpendV3(
 
     sigmaProver.proof(C_, coinIndex, coin.getRandomness(), sigmaProof);
 
-	// Proves that the coin is correct w.r.t. serial number and hidden coin secret
-	// (This proof is bound to the coin 'metadata', i.e., transaction hash)
-	uint256 metahash = signatureHash(m);
+    updateMetaData(coin, m);
+}
+
+void CoinSpendV3::updateMetaData(const PrivateCoinV3& coin, const SpendMetaDataV3& m){
+    // Proves that the coin is correct w.r.t. serial number and hidden coin secret
+    // (This proof is bound to the coin 'metadata', i.e., transaction hash)
+    uint256 metahash = signatureHash(m);
 
     // TODO(martun): check why this was necessary.
     //this->serialNumberSoK = SerialNumberSignatureOfKnowledge(
     //    p, coin, fullCommitmentToCoinUnderSerialParams, metahash);
 
-	// 5. Sign the transaction under the public key associate with the serial number.
-	secp256k1_pubkey pubkey;
-	size_t len = 33;
-	secp256k1_ecdsa_signature sig;
+    // 5. Sign the transaction under the public key associate with the serial number.
+    secp256k1_pubkey pubkey;
+    size_t len = 33;
+    secp256k1_ecdsa_signature sig;
 
-	// TODO timing channel, since secp256k1_ec_pubkey_serialize does not expect its output to be secret.
-	// See main_impl.h of ecdh module on secp256k1
-	if (!secp256k1_ec_pubkey_create(
+    // TODO timing channel, since secp256k1_ec_pubkey_serialize does not expect its output to be secret.
+    // See main_impl.h of ecdh module on secp256k1
+    if (!secp256k1_ec_pubkey_create(
             OpenSSLContext::get_context(), &pubkey, coin.getEcdsaSeckey())) {
-		throw ZerocoinException("Invalid secret key");
-	}
-	if (1 != secp256k1_ec_pubkey_serialize(
+        throw ZerocoinException("Invalid secret key");
+    }
+    if (1 != secp256k1_ec_pubkey_serialize(
             OpenSSLContext::get_context(),
             &this->ecdsaPubkey[0], &len, &pubkey, SECP256K1_EC_COMPRESSED)) {
-		throw ZerocoinException("Unable to serialize public key.");
+        throw ZerocoinException("Unable to serialize public key.");
     }
 
-	if (1 != secp256k1_ecdsa_sign(
-           OpenSSLContext::get_context(), &sig,
-           metahash.begin(), coin.getEcdsaSeckey(), NULL, NULL)) {
-		throw ZerocoinException("Unable to sign with EcdsaSeckey.");
+    if (1 != secp256k1_ecdsa_sign(
+            OpenSSLContext::get_context(), &sig,
+            metahash.begin(), coin.getEcdsaSeckey(), NULL, NULL)) {
+        throw ZerocoinException("Unable to sign with EcdsaSeckey.");
     }
-	if (1 != secp256k1_ecdsa_signature_serialize_compact(
+    if (1 != secp256k1_ecdsa_signature_serialize_compact(
             OpenSSLContext::get_context(), &this->ecdsaSignature[0], &sig)) {
-       throw ZerocoinException("Unable to serialize ecdsa_signature."); 
+        throw ZerocoinException("Unable to serialize ecdsa_signature.");
     }
 }
 

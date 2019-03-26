@@ -1,11 +1,11 @@
 #ifndef ZCOIN_SIGMA_COINSPEND_H
 #define ZCOIN_SIGMA_COINSPEND_H
 
-#include "Coin.h"
-#include "SigmaPlusProof.h"
-#include "SigmaPlusProver.h"
-#include "SigmaPlusVerifier.h"
-#include "SpendMetaDataV3.h"
+#include "coin.h"
+#include "sigmaplus_proof.h"
+#include "sigmaplus_prover.h"
+#include "sigmaplus_verifier.h"
+#include "spend_metadata.h"
 
 using namespace secp_primitives;
 
@@ -26,6 +26,8 @@ public:
               const PrivateCoinV3& coin,
               const std::vector<PublicCoinV3>& anonymity_set,
               const SpendMetaDataV3& m);
+
+    void updateMetaData(const PrivateCoinV3& coin, const SpendMetaDataV3& m);
 
     const Scalar& getCoinSerialNumber();
 
@@ -82,5 +84,7 @@ private:
     SigmaPlusProof<Scalar, GroupElement> sigmaProof;
 
 };
-}//namespace sigma
-#endif //ZCOIN_SIGMA_COINSPEND_H
+
+} //namespace sigma
+
+#endif // ZCOIN_SIGMA_COINSPEND_H
