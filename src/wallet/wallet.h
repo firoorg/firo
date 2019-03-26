@@ -8,7 +8,7 @@
 
 #include "amount.h"
 #include "../libzerocoin/bitcoin_bignum/bignum.h"
-#include "../libzerocoin/sigma/Coin.h"
+#include "../sigma/coin.h"
 #include "streams.h"
 #include "tinyformat.h"
 #include "ui_interface.h"
@@ -827,7 +827,24 @@ public:
     CAmount GetNeedsToBeAnonymizedBalance(CAmount nMinBalance = 0) const;
     CAmount GetDenominatedBalance(bool unconfirmed=false) const;
 
-    // Returns a list of unspent and verified coins, I.E. coins which are ready 
+    static std::vector<CRecipient> CreateSigmaMintRecipients(
+        const std::vector<sigma::PrivateCoinV3>& coins);
+
+    static int GetRequiredCoinCountForAmount(
+        const CAmount& required,
+        const std::vector<sigma::CoinDenominationV3>& denominations);
+
+    static CAmount SelectMintCoinsForAmount(
+        const CAmount& required,
+        const std::vector<sigma::CoinDenominationV3>& denominations,
+        std::vector<sigma::CoinDenominationV3>& coinsOut);
+
+    static CAmount SelectSpendCoinsForAmount(
+        const CAmount& required,
+        const std::list<CZerocoinEntryV3>& coinsIn,
+        std::vector<CZerocoinEntryV3>& coinsOut);
+
+    // Returns a list of unspent and verified coins, I.E. coins which are ready
     // to be spent.
     std::list<CZerocoinEntryV3> GetAvailableCoins() const;
 
@@ -944,6 +961,9 @@ public:
     bool CreateZerocoinSpendModel(CWalletTx& wtx, string &stringError, string& thirdPartyAddress, const vector<string>& denomAmounts, bool forceUsed = false);
     bool CreateZerocoinSpendModelV2(CWalletTx& wtx, string &stringError, string& thirdPartyAddress, const vector<string>& denomAmounts, bool forceUsed = false);
     bool CreateZerocoinSpendModelV3(CWalletTx& wtx, string &stringError, string& thirdPartyAddress, const vector<string>& denomAmounts, bool forceUsed = false);
+
+    //function for spending all old mints form v2 protocol
+    bool SpendOldMints(string& stringError);
 
     bool SetZerocoinBook(const CZerocoinEntry& zerocoinEntry);
 

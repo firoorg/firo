@@ -1,4 +1,4 @@
-#include "Params.h"
+#include "params.h"
 
 namespace sigma {
 ParamsV3* ParamsV3::instance;

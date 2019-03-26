@@ -11,7 +11,7 @@
 #include "main.h"
 #include "zerocoin.h"
 #include "zerocoin_v3.h"
-#include "../libzerocoin/sigma/CoinSpend.h"
+#include "../sigma/coinspend.h"
 #include "net.h"
 #include "netbase.h"
 #include "policy/rbf.h"
@@ -2691,6 +2691,55 @@ UniValue listunspentmintzerocoins(const UniValue &params, bool fHelp) {
     return results;
 }
 
+UniValue mint(const UniValue& params, bool fHelp)
+{
+    if (!EnsureWalletIsAvailable(fHelp)) {
+        return NullUniValue;
+    }
+
+    if (fHelp || params.size() != 1)
+        throw std::runtime_error(
+            "mint amount\n"
+            "\nAutomatically choose denominations to mint by amount\n" +
+            HelpRequiringPassphrase());
+
+    CAmount nAmount = AmountFromValue(params[0]);
+    LogPrintf("rpcWallet.mint() denomination = %s, nAmount = %d \n", params[0].getValStr(), nAmount);
+
+    std::vector<sigma::CoinDenominationV3> denominations;
+    sigma::GetAllDenoms(denominations);
+
+    CAmount smallestDenom;
+    DenominationToInteger(denominations.back(), smallestDenom);
+
+    if (nAmount % smallestDenom != 0) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Amount to mint is invalid.\n");
+    }
+
+    std::vector<sigma::CoinDenominationV3> mints;
+    if (CWallet::SelectMintCoinsForAmount(nAmount, denominations, mints) != nAmount) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Problem with coin selection.\n");
+    }
+
+    std::vector<sigma::PrivateCoinV3> privCoins;
+
+    const auto& zcParams = sigma::ParamsV3::get_default();
+    std::transform(mints.begin(), mints.end(), std::back_inserter(privCoins),
+        [zcParams](const sigma::CoinDenominationV3& denom) -> sigma::PrivateCoinV3 {
+            return sigma::PrivateCoinV3(zcParams, denom);
+        });
+
+    auto vecSend = CWallet::CreateSigmaMintRecipients(privCoins);
+
+    CWalletTx wtx;
+    std::string strError = pwalletMain->MintAndStoreZerocoinV3(vecSend, privCoins, wtx);
+
+    if (strError != "")
+        throw JSONRPCError(RPC_WALLET_ERROR, strError);
+
+    return wtx.GetHash().GetHex();
+}
+
 UniValue mintzerocoin(const UniValue& params, bool fHelp)
 {
 
@@ -3221,7 +3270,7 @@ UniValue spendmanyzerocoin(const UniValue& params, bool fHelp) {
     int64_t value = 0;
     int64_t amount = 0;
     libzerocoin::CoinDenomination denomination;
-    std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>> denominations; 
+    std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>> denominations;
     UniValue addressUni(UniValue::VOBJ);
 
     UniValue inputs = find_value(data, "denominations");
@@ -4078,6 +4127,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "removeprunedfunds",        &removeprunedfunds,        true  },
     { "wallet",             "setmininput",              &setmininput,              false },
     { "wallet",             "listunspentmintzerocoins",             &listunspentmintzerocoins,             false },
+    { "wallet",             "mint",                     &mint,                     false },
     { "wallet",             "mintzerocoin",             &mintzerocoin,             false },
     { "wallet",             "mintmanyzerocoin",             &mintmanyzerocoin,             false },
     { "wallet",             "spendzerocoin",            &spendzerocoin,            false },

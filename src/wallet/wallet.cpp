@@ -17,8 +17,8 @@
 #include "main.h"
 #include "zerocoin.h"
 #include "zerocoin_v3.h"
-#include "../libzerocoin/sigma/CoinSpend.h"
-#include "../libzerocoin/sigma/SpendMetaDataV3.h"
+#include "../sigma/coinspend.h"
+#include "../sigma/spend_metadata.h"
 #include "net.h"
 #include "policy/policy.h"
 #include "primitives/block.h"
@@ -1915,10 +1915,42 @@ CAmount CWallet::GetDenominatedBalance(bool unconfirmed) const {
     return nTotal;
 }
 
-namespace {
+std::vector<CRecipient> CWallet::CreateSigmaMintRecipients(
+    const std::vector<sigma::PrivateCoinV3>& coins)
+{
+    std::vector<CRecipient> vecSend;
+    std::transform(coins.begin(), coins.end(), std::back_inserter(vecSend),
+        [](const sigma::PrivateCoinV3& coin) -> CRecipient {
+            // Get a copy of the 'public' portion of the coin. You should
+            // embed this into a Zerocoin 'MINT' transaction along with a series
+            // of currency inputs totaling the assigned value of one zerocoin.
+            auto& pubCoin = coin.getPublicCoin();
+
+            if (!pubCoin.validate()) {
+                throw std::runtime_error("Unable to mint a V3 sigma coin.");
+            }
+
+            // Create script for coin
+            CScript scriptSerializedCoin;
+            // opcode is inserted as 1 byte according to file script/script.h
+            scriptSerializedCoin << OP_ZEROCOINMINTV3;
+
+            // and this one will write the size in different byte lengths depending on the length of vector. If vector size is <0.4c, which is 76, will write the size of vector in just 1 byte. In our case the size is always 34, so must write that 34 in 1 byte.
+            std::vector<unsigned char> vch = pubCoin.getValue().getvch();
+            scriptSerializedCoin.insert(scriptSerializedCoin.end(), vch.begin(), vch.end());
+
+            CAmount v;
+            DenominationToInteger(pubCoin.getDenomination(), v);
+
+            return {scriptSerializedCoin, v, false};
+        }
+    );
+
+    return vecSend;
+}
 
 // coinsIn has to be sorted in descending order.
-static int GetRequiredCoinCountForAmount(
+int CWallet::GetRequiredCoinCountForAmount(
         const CAmount& required,
         const std::vector<sigma::CoinDenominationV3>& denominations) {
     CAmount val = required;
@@ -1940,7 +1972,7 @@ static int GetRequiredCoinCountForAmount(
  *
  *  \returns The amount which was possible to actually mint.
  */
-static CAmount SelectMintCoinsForAmount(
+CAmount CWallet::SelectMintCoinsForAmount(
         const CAmount& required,
         const std::vector<sigma::CoinDenominationV3>& denominations,
         std::vector<sigma::CoinDenominationV3>& coinsOut) {
@@ -1963,7 +1995,7 @@ static CAmount SelectMintCoinsForAmount(
  *
  *  \returns The amount which was possible to actually spend.
  */
-static CAmount SelectSpendCoinsForAmount(
+CAmount CWallet::SelectSpendCoinsForAmount(
         const CAmount& required,
         const std::list<CZerocoinEntryV3>& coinsIn,
         std::vector<CZerocoinEntryV3>& coinsOut) {
@@ -1982,8 +2014,6 @@ static CAmount SelectSpendCoinsForAmount(
 
     return required - val;
 }
-
-} // end of unnamed namespace.
 
 std::list<CZerocoinEntryV3> CWallet::GetAvailableCoins() const {
     std::list<CZerocoinEntryV3> coins;
@@ -2004,7 +2034,7 @@ std::list<CZerocoinEntryV3> CWallet::GetAvailableCoins() const {
             throw std::runtime_error("Unable to determine the coin height.\n");
         }
         if (coinHeight + (ZC_MINT_CONFIRMATIONS - 1) > chainActive.Height()) {
-            // Remove the coin from the candidates list, since it does not have the 
+            // Remove the coin from the candidates list, since it does not have the
             // required number of confirmations.
             return true;
         }
@@ -3399,12 +3429,14 @@ void CWallet::CommitTransaction(CWalletTx& tx)
         bool zeroSpend = tx.IsZerocoinSpend() || tx.IsZerocoinSpendV3();
         CValidationState state;
 
-        if (!tx.AcceptToMemoryPool(false, maxTxFee, state, !zeroSpend, zeroSpend)) {
+        // The old Zerocoin spend use a special way to check inputs but not for Sigma spend.
+        // The Sigma spend will share the same logic as normal transactions for inputs checking.
+        if (!tx.AcceptToMemoryPool(false, maxTxFee, state, !tx.IsZerocoinSpend(), zeroSpend)) {
             LogPrintf("CommitTransaction(): Transaction cannot be broadcast immediately, %s\n", state.GetRejectReason());
             // TODO: if we expect the failure to be long term or permanent, instead delete wtx from the wallet and return failure.
         } else {
             LogPrintf("Successfully accepted txn %s to mempool/stempool, relaying!\n", tx.GetHash().ToString());
-            tx.RelayWalletTransaction(!zeroSpend);
+            tx.RelayWalletTransaction(!tx.IsZerocoinSpend() /* fCheckInputs */);
         }
     }
 }
@@ -5561,6 +5593,61 @@ bool CWallet::CreateMultipleZerocoinSpendTransactionV3(
     return true;
 }
 
+bool CWallet::SpendOldMints(string& stringError)
+{
+    list <CZerocoinEntry> listPubCoin;
+    CWalletDB(strWalletFile).ListPubCoin(listPubCoin);
+
+    CZerocoinState *zerocoinState = CZerocoinState::GetZerocoinState();
+    vector<string> denomAmounts;
+
+    int coinHeight;
+    bool NoUnconfirmedCoins = true;
+    BOOST_FOREACH(const CZerocoinEntry &pubcoin, listPubCoin) {
+        if((pubcoin.IsUsed == false)
+           && pubcoin.randomness != 0
+           && pubcoin.serialNumber != 0) {
+            int id;
+            coinHeight = zerocoinState->GetMintedCoinHeightAndId(pubcoin.value, pubcoin.denomination, id);
+            if (coinHeight > 0 && coinHeight + (ZC_MINT_CONFIRMATIONS - 1) <= chainActive.Height()) {
+                string denomAmount;
+                if (pubcoin.denomination == libzerocoin::ZQ_LOVELACE) {
+                    denomAmount = "1";
+                } else if (pubcoin.denomination == libzerocoin::ZQ_GOLDWASSER) {
+                    denomAmount = "10";
+                } else if (pubcoin.denomination == libzerocoin::ZQ_RACKOFF) {
+                    denomAmount = "25";
+                } else if (pubcoin.denomination == libzerocoin::ZQ_PEDERSEN) {
+                    denomAmount = "50";
+                } else if (pubcoin.denomination == libzerocoin::ZQ_WILLIAMSON) {
+                    denomAmount = "100";
+                } else {
+                    return false;
+                }
+                denomAmounts.push_back(denomAmount);
+            } else
+                NoUnconfirmedCoins = false;
+        }
+    }
+    //if we pass empty string as thirdPartyaddress, it will spend coins to self
+    std::string thirdPartyaddress = "";
+    CWalletTx wtx;
+
+    // Because each transaction has a limit of around 75 KB, and each
+    // spend has size 25 KB, we're not able to fit more than 2 old zerocoin spends
+    // in a single transaction.
+    for(unsigned int i = 0; i < denomAmounts.size(); i += 2) {
+        wtx.Init(NULL);
+        vector<string> denoms;
+        denoms.push_back(denomAmounts[i]);
+        if(i + 1 < denomAmounts.size())
+            denoms.push_back(denomAmounts[i + 1]);
+        if (!CreateZerocoinSpendModelV2(wtx, stringError, thirdPartyaddress, denoms))
+            return false;
+    }
+    return NoUnconfirmedCoins;
+}
+
 bool CWallet::CommitZerocoinSpendTransaction(CWalletTx &wtxNew, CReserveKey &reservekey) {
     {
         LOCK2(cs_main, cs_wallet);
@@ -5588,14 +5675,16 @@ bool CWallet::CommitZerocoinSpendTransaction(CWalletTx &wtxNew, CReserveKey &res
 
         if (fBroadcastTransactions) {
             CValidationState state;
-            // Broadcast
-            if (!wtxNew.AcceptToMemoryPool(false, maxTxFee, state, false, true)) {
+
+            // The old Zerocoin spend use a special way to check inputs but not for Sigma spend.
+            // The Sigma spend will share the same logic as normal transactions for inputs checking.
+            if (!wtxNew.AcceptToMemoryPool(false, maxTxFee, state, wtxNew.IsZerocoinSpendV3(), true)) {
                 LogPrintf("CommitZerocoinSpendTransaction(): Transaction cannot be broadcast immediately, %s\n",
                           state.GetRejectReason());
                 // TODO: if we expect the failure to be long term or permanent,
                 // instead delete wtx from the wallet and return failure.
             } else {
-                wtxNew.RelayWalletTransaction(false);
+                wtxNew.RelayWalletTransaction(wtxNew.IsZerocoinSpendV3() /* fCheckInputs */);
             }
         }
     }

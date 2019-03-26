@@ -1,9 +1,9 @@
 #include "sigmaspendbuilder.h"
 #include "walletexcept.h"
 
-#include "../libzerocoin/sigma/Coin.h"
-#include "../libzerocoin/sigma/CoinSpend.h"
-#include "../libzerocoin/sigma/SpendMetaDataV3.h"
+#include "../sigma/coin.h"
+#include "../sigma/coinspend.h"
+#include "../sigma/spend_metadata.h"
 
 #include "../main.h"
 #include "../serialize.h"

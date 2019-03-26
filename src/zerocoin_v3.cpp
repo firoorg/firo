@@ -9,8 +9,8 @@
 #include "wallet/wallet.h"
 #include "wallet/walletdb.h"
 #include "crypto/sha256.h"
-#include "libzerocoin/sigma/CoinSpend.h"
-#include "libzerocoin/sigma/Coin.h"
+#include "sigma/coinspend.h"
+#include "sigma/coin.h"
 #include "znode-payments.h"
 #include "znode-sync.h"
 
@@ -322,9 +322,6 @@ bool CheckZerocoinTransactionV3(
 						return false;
 				}
 			}
-
-		}else {
-			return state.DoS(100, error("CheckZerocoinTransaction : invalid spending txout value"));
 		}
 	}
 	return true;

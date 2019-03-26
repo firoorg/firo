@@ -39,14 +39,14 @@ RAW_TEST_FILES =
 GENERATED_TEST_FILES = $(JSON_TEST_FILES:.json=.json.h) $(RAW_TEST_FILES:.raw=.raw.h)
 
 BITCOIN_TESTS =\
-  libzerocoin/sigma/test/coin_tests.cpp \
-  libzerocoin/sigma/test/protocol_tests.cpp \
-  libzerocoin/sigma/test/unit_tests.cpp \
-  libzerocoin/sigma/test/R1_test.cpp \
-  libzerocoin/sigma/test/serialize_test.cpp \
-  libzerocoin/sigma/test/primitives_tests.cpp \
-  libzerocoin/sigma/test/coin_spend_tests.cpp \
-  libzerocoin/sigma/test/sigma_primitive_types_test.cpp \
+  sigma/test/coin_tests.cpp \
+  sigma/test/protocol_tests.cpp \
+  sigma/test/unit_tests.cpp \
+  sigma/test/r1_test.cpp \
+  sigma/test/serialize_test.cpp \
+  sigma/test/primitives_tests.cpp \
+  sigma/test/coin_spend_tests.cpp \
+  sigma/test/sigma_primitive_types_test.cpp \
   test/zerocoin_tests.cpp \
   test/zerocoin_tests2.cpp \
   test/zerocoin_tests3.cpp \
@@ -103,6 +103,7 @@ BITCOIN_TESTS =\
   test/sigma_mintspend_test.cpp \
   test/sigma_manymintspend_test.cpp \
   test/sigma_mintspend_numinputs.cpp \
+  test/spend_all_oldmints_test.cpp \
   test/sigopcount_tests.cpp \
   test/skiplist_tests.cpp \
   test/streams_tests.cpp \
@@ -136,17 +137,21 @@ test_test_bitcoin_LDADD = $(LIBBITCOIN_SERVER) tor/src/or/libtor.a \
 	tor/src/common/libcurve25519_donna.a \
 	tor/src/ext/ed25519/donna/libed25519_donna.a \
 	tor/src/ext/ed25519/ref10/libed25519_ref10.a \
-	tor/src/ext/keccak-tiny/libkeccak-tiny.a $(LIBSIGMA) $(ZLIB_LIBS) -lz
+	tor/src/ext/keccak-tiny/libkeccak-tiny.a $(ZLIB_LIBS) -lz
 
 test_test_bitcoin_SOURCES = $(BITCOIN_TESTS) $(JSON_TEST_FILES) $(RAW_TEST_FILES)
 test_test_bitcoin_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) -I$(builddir)/test/ $(TESTDEFS)
-test_test_bitcoin_LDADD += $(LIBBITCOIN_CLI) $(LIBBITCOIN_COMMON) $(LIBBITCOIN_UTIL) $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO) $(LIBUNIVALUE) $(LIBLEVELDB) $(LIBMEMENV) \
-  $(BOOST_LIBS) $(BOOST_UNIT_TEST_FRAMEWORK_LIB) $(LIBSECP256K1) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) \
-  $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(ZMQ_LIBS) $(ZLIB_LIBS)
+
+test_test_bitcoin_LDADD += $(LIBBITCOIN_CLI) $(LIBBITCOIN_COMMON) \
+  $(LIBBITCOIN_UTIL) $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO) \
+  $(LIBZCOIN_SIGMA) $(LIBUNIVALUE) $(LIBLEVELDB) $(LIBMEMENV) $(BOOST_LIBS) \
+  $(BOOST_UNIT_TEST_FRAMEWORK_LIB) $(LIBSECP256K1) $(EVENT_PTHREADS_LIBS) \
+  $(EVENT_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) \
+  $(ZMQ_LIBS) $(ZLIB_LIBS)
 
 test_test_bitcoin_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 if ENABLE_WALLET
-test_test_bitcoin_LDADD += libbitcoin_server_a-netfulfilledman.o $(LIBBITCOIN_WALLET) $(LIBSIGMA)
+test_test_bitcoin_LDADD += libbitcoin_server_a-netfulfilledman.o $(LIBBITCOIN_WALLET)
 endif
 
 test_test_bitcoin_LDADD += $(LIBBITCOIN_CONSENSUS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS)
