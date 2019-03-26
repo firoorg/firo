@@ -127,6 +127,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "listpubcoins", 0 },
     { "listspendzerocoins", 0 },
     { "listspendzerocoins", 1 },
+	{ "spendoldmints", 0 },
     /* Exodus - data retrieval calls */
 	{ "exodus_gettradehistoryforaddress", 1 },
 	{ "exodus_gettradehistoryforaddress", 2 },
