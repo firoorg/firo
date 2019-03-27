@@ -4760,9 +4760,8 @@ bool CWallet::CreateZerocoinSpendTransactionV3(
             int serializedId = coinId;
 
             CTxIn newTxIn;
-            newTxIn.nSequence = serializedId;
             newTxIn.scriptSig = CScript();
-            newTxIn.prevout.SetNull();
+            newTxIn.prevout.n = serializedId;
             txNew.vin.push_back(newTxIn);
 
             // We use incomplete transaction hash as metadata.
@@ -4848,7 +4847,6 @@ bool CWallet::CreateZerocoinSpendTransactionV3(
 
             CMutableTransaction txTemp(txNew);
             txTemp.vin[0].scriptSig.clear();
-            txTemp.vin[0].prevout.SetNull();
             // We use incomplete transaction hash as metadata.
             sigma::SpendMetaDataV3 metaDataNew(serializedId, blockHash, txTemp.GetHash());
             spend.updateMetaData(privateCoin, metaDataNew);
@@ -5384,9 +5382,8 @@ bool CWallet::CreateMultipleZerocoinSpendTransactionV3(
                 // Generate TxIn info
                 int serializedId = coinId;
                 CTxIn newTxIn;
-                newTxIn.nSequence = serializedId;
                 newTxIn.scriptSig = CScript();
-                newTxIn.prevout.SetNull();
+                newTxIn.prevout.n = serializedId;
                 txNew.vin.push_back(newTxIn);
 
                 // Construct the CoinSpend object. This acts like a signature on the
@@ -5435,7 +5432,6 @@ bool CWallet::CreateMultipleZerocoinSpendTransactionV3(
             CMutableTransaction txTemp = txNew;
             BOOST_FOREACH(CTxIn &txTempIn, txTemp.vin) {
                 txTempIn.scriptSig.clear();
-                txTempIn.prevout.SetNull();
             }
 
             uint256 txHashForMetadata = txTemp.GetHash();
@@ -5529,7 +5525,6 @@ bool CWallet::CreateMultipleZerocoinSpendTransactionV3(
             BOOST_FOREACH(CTxIn &txTempIn, txTempNew.vin) {
                 if (txTempIn.scriptSig.IsZerocoinSpendV3()) {
                     txTempIn.scriptSig.clear();
-                    txTempIn.prevout.SetNull();
                 }
             }
 

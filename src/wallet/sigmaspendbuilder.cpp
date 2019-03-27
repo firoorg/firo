@@ -1,6 +1,8 @@
 #include "sigmaspendbuilder.h"
 #include "walletexcept.h"
 
+#include "../primitives/transaction.h"
+
 #include "../sigma/coin.h"
 #include "../sigma/coinspend.h"
 #include "../sigma/spend_metadata.h"
@@ -30,7 +32,7 @@ public:
     CScript Sign(const CMutableTransaction& tx, const uint256& sig) override
     {
         // construct spend
-        sigma::SpendMetaDataV3 meta(sequence, lastBlockOfGroup, sig);
+        sigma::SpendMetaDataV3 meta(output.n, lastBlockOfGroup, sig);
         sigma::CoinSpendV3 spend(coin.getParams(), coin, group, meta);
 
         spend.setVersion(coin.getVersion());
@@ -84,7 +86,8 @@ static std::unique_ptr<SigmaSpendSigner> CreateSigner(const CZerocoinEntryV3& co
         throw std::runtime_error(_("One of minted coin does not found in the chain"));
     }
 
-    signer->sequence = groupId;
+    signer->output.n = static_cast<uint32_t>(groupId);
+    signer->sequence = CTxIn::SEQUENCE_FINAL;
 
     if (state->GetCoinSetForSpend(
         &chainActive,
