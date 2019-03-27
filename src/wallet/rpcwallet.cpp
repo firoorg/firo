@@ -3172,23 +3172,25 @@ UniValue spendzerocoin(const UniValue& params, bool fHelp) {
 
 }
 
-UniValue spendoldmints(const UniValue& params, bool fHelp) {
+UniValue spendallzerocoin(const UniValue& params, bool fHelp) {
 
     if (fHelp || params.size() >= 1)
         throw runtime_error(
                 "spend old mints\n"
-                "\nAutomatically spends all old mints to self\n" );
+                "\nAutomatically spends all zerocoin mints to self\n" );
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    bool hasUnspendableMints = false;
 
     string strError;
     bool result = pwalletMain->SpendOldMints(strError);
     if (strError != "")
         throw JSONRPCError(RPC_WALLET_ERROR, strError);
     else if(strError == "" && !result)
-        throw JSONRPCError(RPC_WALLET_ERROR, "There are unconfirmed mints remaining.");
+        hasUnspendableMints = true;
 
-    return  NullUniValue;
+    return  hasUnspendableMints;
 }
 
 UniValue spendzerocoinV3(const UniValue& params, bool fHelp) {
@@ -4142,7 +4144,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "removetxmempool",          &removetxmempool,          false },
     { "wallet",             "removetxwallet",           &removetxwallet,           false },
     { "wallet",             "listspendzerocoins",       &listspendzerocoins,       false },
-    { "wallet",             "spendoldmints",            &spendoldmints,            false}
+    { "wallet",             "spendallzerocoin",            &spendallzerocoin,            false}
 };
 
 void RegisterWalletRPCCommands(CRPCTable &tableRPC)
