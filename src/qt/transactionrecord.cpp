@@ -46,28 +46,26 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
     {
         BOOST_FOREACH(const CTxOut& txout, wtx.vout)
         {
+            if (txout.scriptPubKey.IsZerocoinMintV3()) {
+                continue;
+            }
             isminetype mine = wallet->IsMine(txout);
 
             TransactionRecord sub(hash, nTime);
             CTxDestination address;
             sub.credit = txout.nValue;
-            
+
             if (mine)
-            { 
+            {
                 sub.involvesWatchAddress = mine & ISMINE_WATCH_ONLY;
                 if (ExtractDestination(txout.scriptPubKey, address) && IsMine(*wallet, address))
                 {
                     sub.type = TransactionRecord::SpendToSelf;
                     sub.address = CBitcoinAddress(address).ToString();
                 }
+
+                parts.append(sub);
             }
-            else
-            {
-                ExtractDestination(txout.scriptPubKey, address);
-                sub.type = TransactionRecord::SpendToAddress;
-                sub.address = CBitcoinAddress(address).ToString();
-            }
-            parts.append(sub);
         }
     }
     else if (nNet > 0 || wtx.IsCoinBase())
