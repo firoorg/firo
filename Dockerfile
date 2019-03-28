@@ -15,8 +15,7 @@ RUN apt-get update && apt-get install -y \
     make \
     openjdk-8-jdk \
     pkg-config \
-    zlib1g-dev \
-    python3-zmq
+    zlib1g-dev
 
 
 # Install Berkeley DB 4.8
