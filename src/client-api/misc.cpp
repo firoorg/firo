@@ -47,8 +47,6 @@ UniValue apistatus(Type type, const UniValue& data, const UniValue& auth, bool f
     obj.push_back(Pair("protocolVersion", PROTOCOL_VERSION));
     if (pwalletMain) {
         obj.push_back(Pair("walletVersion", pwalletMain->GetVersion()));
-    }
-    if (pwalletMain){
         obj.push_back(Pair("walletLock",    pwalletMain->IsCrypted()));
         if(nWalletUnlockTime>0){
             obj.push_back(Pair("unlockedUntil", nWalletUnlockTime));

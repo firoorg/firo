@@ -37,24 +37,23 @@ A function with one or more operations.
 | :------------- | :--------------- | :----- | :--------- | :--------- |
 | [apiStatus](#apistatus)           | Initial status of core. | 👁  | – |   ✅   |
 | [backup](#backup)                 | Creates a zip file from wallet.dat and the `persistent/` folder, and stores in the filepath specified, as `zcoin_backup-{TIMESTAMP}.zip`.  | 🔐 | – |  – |
-| [lockWallet](#lockwallet)         | Lock core wallet, should it be encrypted.  | 🔐 | – | – |
-| [unlockWallet](#unlockwallet)     | Unlock core wallet, should it be encrypted. | 🔐 | – | – |
-| [stateWallet](#statewallet)       | Returns all information related to addresses in the wallet.  | 🔐 | – | – |
-| [setPassphrase](#setpassphrase)   |  Set, or update, the passphrase for the encryption of the wallet. | 🔐 | – | – |
 | [balance](#balance)               | Coin balance of a number of different categories. | 🔐 | – | – |
-| [blockchain](#blockchain)         | Information related to chain sync status and tip. | 🔐 | – | – |
 | [block](#block)                   | All transaction information from, and including, the blockHash parameter passed. | 🔐 | – | – |
-| [paymentRequest](#paymentrequest) | Bundles of information related to a Zcoin payment. | 🔐 | – | – |
-| [txFee](#txfee)                   | Gets the transaction fee required for the size of the tx passed + fee per kb. | 🔐 | – | – |
-| [znodeList](#znodelist)           | list information related to all Znodes. | 🔐 | – | – |
-| [updateLabels](#updateLabels)     | Update transaction labels stored in the persistent tx metadata file. | 🔐 | – | – |
-| [stop](#stop)                     | Stop the Zcoin daemon. | 🔐 | - | – |
-| [setting](#setting)               | Interact with settings. | 🔐 | - | – |
-| [znodeControl](#znodecontrol)     | Start/stop Znode(s) by alias. | 🔐 | ✅ | – |
+| [blockchain](#blockchain)         | Information related to chain sync status and tip. | 🔐 | – | – |
+| [lockWallet](#lockwallet)         | Lock core wallet, should it be encrypted.  | 🔐 | – | – |
 | [mint](#mint)                     | Mint 1 or more Zerocoins. | 🔐 | ✅ | – |
+| [paymentRequest](#paymentrequest) | Bundles of information related to a Zcoin payment. | 🔐 | – | – |
 | [sendPrivate](#sendprivate)       | Spend 1 or more Zerocoins. Allows specifying third party addresses to spend to. | 🔐    | ✅ | – |
 | [sendZcoin](#sendzcoin)           | Send Zcoin to the specified address(es). | 🔐 | ✅ | – |
-
+| [setPassphrase](#setpassphrase)   |  Set, or update, the passphrase for the encryption of the wallet. | 🔐 | – | – |
+| [setting](#setting)               | Interact with settings. | 🔐 | - | – |
+| [stateWallet](#statewallet)       | Returns all information related to addresses in the wallet.  | 🔐 | – | – |
+| [stop](#stop)                     | Stop the Zcoin daemon. | 🔐 | - | – |
+| [txFee](#txfee)                   | Gets the transaction fee required for the size of the tx passed + fee per kb. | 🔐 | – | – |
+| [unlockWallet](#unlockwallet)     | Unlock core wallet, should it be encrypted. | 🔐 | – | – |
+| [updateLabels](#updatelabels)     | Update transaction labels stored in the persistent tx metadata file. | 🔐 | – | – |
+| [znodeControl](#znodecontrol)     | Start/stop Znode(s) by alias. | 🔐 | ✅ | – |
+| [znodeList](#znodelist)           | list information related to all Znodes. | 🔐 | – | – |
 
 ## data
 to be passed with `type` to be performed on `collection`.
@@ -89,8 +88,8 @@ OPTIONAL: not a necessary parameter to pass.
     data: { 
         version: INT,
         protocolVersion: INT,
-        walletVersion: INT,
-        walletLock: BOOL, 
+        walletVersion: INT, (VAR: Wallet initialized)
+        walletLock: BOOL,  (VAR: Wallet initialized)
         unlockedUntil: INT, (VAR : wallet is unlocked)
         dataDir: STRING,
         network: STRING("main"|"testnet"|"regtest"),
@@ -98,10 +97,47 @@ OPTIONAL: not a necessary parameter to pass.
         connections: INT,
         devAuth: BOOL,
         synced: BOOL,
+        pid: INT,
         modules: {
             API: BOOL,
             Znode: BOOL
-        }
+        },
+        myZnode: (VAR: Wallet has Znode) {
+            STRING: { (payeeAddress)
+            rank: INT,
+            outpoint: {
+                txid: STRING,
+                index: STRING
+            },
+            status: STRING,
+            protocolVersion: INT,
+            payeeAddress: STRING,
+            lastSeen: INT,
+            activeSince: INT,
+            lastPaidTime: INT,
+            lastPaidBlock: INT,
+            authority: {
+                ip: STRING,
+                port: STRING
+            }
+            isMine: BOOL,
+            label: STRING, (VAR: isMine==true)
+            position: INT, (VAR: isMine==true)
+            qualify: {
+                result: BOOL,
+                description: STRING ["Is scheduled"             ||
+                                     "Invalid nProtocolVersion" ||
+                                     "Too new"                  ||
+                                     "collateralAge < znCount"] (VAR: result==false)
+                data: { (VAR: result==false)
+                    nProtocolVersion: INT, (VAR: description=="Invalid nProtocolVersion")
+                    sigTime:          INT, (VAR: description=="Too new"),
+                    qualifiedAfter:   INT, (VAR: description=="Too new"),
+                    collateralAge:    INT, (VAR: description=="collateralAge < znCount"),
+                    znCount:          INT, (VAR: description=="collateralAge < znCount")
+                }
+            }
+        },
     },
     meta:{
        status: 200
@@ -125,6 +161,231 @@ OPTIONAL: not a necessary parameter to pass.
     }
 ```
 
+### `balance`
+`get`:
+```
+    data: {
+    }
+```
+*Returns:*
+```
+{ 
+    data: {
+        total: {
+            all: INT,
+            pending: INT,
+            available: INT
+        },
+        xzc: {
+            confirmed: INT,
+            unconfirmed: INT,
+            locked: INT,
+        },
+        zerocoin: {
+            confirmed: INT,
+            unconfirmed: INT,
+        }
+    }, 
+    meta:{
+        status: 200
+    }
+}
+```
+
+### `block`
+`GET`:
+```
+    data: {
+        blockHash: STRING
+    }
+``` 
+*Returns:*
+```
+    data: {
+        [STRING | "ZEROMINT"]: (address)
+            { 
+                txids: 
+                    {
+                        STRING: (txid)
+                            { 
+                            ["mined"|"send"|"receive"|"znode"|"spend"|"mint"]: (category) 
+                                 {
+                                    address: STRING,
+                                    category: STRING("mined"|"send"|"receive"|"znode"|"spend"|"mint"),
+                                    amount: INT,
+                                    fee: INT(sats),
+                                    label: STRING (VAR : address is part of zcoind "account")
+                                    firstSeenAt: INT(secs), 
+                                    blockHash: STRING,
+                                    blockTime: INT(secs),                            
+                                    blockHeight: INT,
+                                    txid: STRING
+                                },
+                            ["mined"|"send"|"receive"|"znode"|"spend"|"mint"]: (category) 
+                                 {
+                                    address: STRING,
+                                    category: STRING("mined"|"send"|"receive"|"znode"|"spend"|"mint"),
+                                    amount: INT,
+                                    fee: INT(sats),
+                                    label: STRING (VAR : address is part of zcoind "account")
+                                    firstSeenAt: INT(secs), 
+                                    blockHash: STRING,
+                                    blockTime: INT(secs),                            
+                                    blockHeight: INT,
+                                    txid: STRING
+                                },
+                                ...
+                            },
+                        STRING: (txid)
+                            { 
+                            ["mined"|"send"|"receive"|"znode"|"spend"|"mint"]: (category) 
+                                 {
+                                    address: STRING,
+                                    category: STRING("mined"|"send"|"receive"|"znode"|"spend"|"mint"),
+                                    amount: INT,
+                                    fee: INT(sats),
+                                    label: STRING (VAR : address is part of zcoind "account")
+                                    firstSeenAt: INT(secs), 
+                                    blockHash: STRING,
+                                    blockTime: INT(secs),                            
+                                    blockHeight: INT,
+                                    txid: STRING                                    
+                                },
+                            ["mined"|"send"|"receive"|"znode"|"spend"|"mint"]: (category) 
+                                 {
+                                    address: STRING,
+                                    category: STRING("mined"|"send"|"receive"|"znode"|"spend"|"mint"),
+                                    amount: INT,
+                                    fee: INT(sats),
+                                    label: STRING (VAR : address is part of zcoind "account")
+                                    firstSeenAt: INT(secs), 
+                                    blockHash: STRING,
+                                    blockTime: INT(secs),                            
+                                    blockHeight: INT,
+                                    txid: STRING 
+                                },
+                                ...
+                            },
+                        ...
+                    },
+                total: 
+                    {
+                        sent: INT, (VAR : category=="send"|"mint"|"spend")
+                        balance: INT, (VAR: category=="mined"|"znode"|"receive"|)
+                    } 
+            },
+        [STRING | "ZEROMINT"]: (address)
+            { 
+                txids: 
+                    {
+                        STRING: (txid)
+                            { 
+                            ["mined"|"send"|"receive"|"znode"|"spend"|"mint"]: (category) 
+                                 {
+                                    address: STRING,
+                                    category: STRING("mined"|"send"|"receive"|"znode"|"spend"|"mint"),
+                                    amount: INT,
+                                    fee: INT(sats),
+                                    label: STRING (VAR : address is part of zcoind "account")
+                                    firstSeenAt: INT(secs), 
+                                    blockHash: STRING,
+                                    blockTime: INT(secs),                            
+                                    blockHeight: INT,
+                                    txid: STRING 
+                                },
+                            ["mined"|"send"|"receive"|"znode"|"spend"|"mint"]: (category) 
+                                 {
+                                    address: STRING,
+                                    category: STRING("mined"|"send"|"receive"|"znode"|"spend"|"mint"),
+                                    amount: INT,
+                                    fee: INT(sats),
+                                    label: STRING (VAR : address is part of zcoind "account")
+                                    firstSeenAt: INT(secs), 
+                                    blockHash: STRING,
+                                    blockTime: INT(secs),                            
+                                    blockHeight: INT,
+                                    txid: STRING 
+                                },
+                                ...
+                            },
+                        STRING: (txid)
+                            { 
+                            ["mined"|"send"|"receive"|"znode"|"spend"|"mint"]: (category) 
+                                 {
+                                    address: STRING,
+                                    category: STRING("mined"|"send"|"receive"|"znode"|"spend"|"mint"),
+                                    amount: INT,
+                                    fee: INT(sats),
+                                    label: STRING (VAR : address is part of zcoind "account")
+                                    firstSeenAt: INT(secs), 
+                                    blockHash: STRING,
+                                    blockTime: INT(secs),                            
+                                    blockHeight: INT,
+                                    txid: STRING 
+                                },
+                            ["mined"|"send"|"receive"|"znode"|"spend"|"mint"]: (category) 
+                                 {
+                                    address: STRING,
+                                    category: STRING("mined"|"send"|"receive"|"znode"|"spend"|"mint"),
+                                    amount: INT,
+                                    fee: INT(sats),
+                                    label: STRING (VAR : address is part of zcoind "account")
+                                    firstSeenAt: INT(secs), 
+                                    blockHash: STRING,
+                                    blockTime: INT(secs),                            
+                                    blockHeight: INT,
+                                    txid: STRING 
+                                },
+                                ...
+                            },
+                        ...
+                    },
+                total: 
+                    {
+                        sent: INT, (VAR : category=="send"|"mint"|"spend")
+                        balance: INT, (VAR: category=="mined"|"znode"|"receive"|)
+                    }  
+            },
+        ...
+        },
+    meta: {
+        status: 200
+    }
+```
+
+### `blockchain`
+`get`:
+```
+    data: {
+    }
+```
+*Returns:*
+```
+{ 
+    data: {
+        testnet: BOOL,
+        connections: INT,
+        type: STRING,
+        status: {
+            isBlockchainSynced: BOOL,
+            isZnodeListSynced: BOOL,
+            isWinnersListSynced: BOOL,
+            isSynced: BOOL,
+            isFailed: BOOL
+        },
+        currentBlock: {
+            height: INT,
+            timestamp: INT,
+        },
+        avgBlockTime(secs): INT,
+        timeUntilSynced(secs): INT (VAR: !isBlockchainSynced)
+    } 
+    meta:{
+        status: 200
+    }
+}
+```
+
 ### `lockWallet`:
 `None`:
 ```
@@ -143,10 +404,194 @@ OPTIONAL: not a necessary parameter to pass.
 }
 ```
 
-### `unlockWallet`:
-`None`:
+### `mint`
+`create`:
 ```
     data: {
+        denominations: {
+            STRING (denomination) : INT (amount),
+            STRING (denomination) : INT (amount),
+            STRING (denomination) : INT (amount),
+            ...
+        }
+    },
+    auth: {
+        passphrase: STRING
+    }
+``` 
+*Returns:*
+```
+{ 
+    txids: {
+       STRING (txid),
+       STRING (txid),
+       STRING (txid),
+       ...
+   },
+    meta:{
+       status: 200
+    }
+}
+```
+
+### `paymentRequest`
+`create`:
+```
+    data: {
+        amount: INT (OPTIONAL),
+        label: STRING,
+        message: STRING
+    }
+```
+*Returns:*
+```
+    data: {
+        address: STRING, 
+        createdAt:
+        amount: INT,
+        label: STRING,
+        message: STRING
+    },
+    meta:{
+        status: 200
+    }
+```
+
+`update`:
+```
+    data: {
+        id: STRING,
+        amount: INT, (OPTIONAL)
+        label: STRING, (OPTIONAL)
+        message: STRING, (OPTIONAL)
+    }
+```
+*Returns:*
+```
+    data: {
+        address: STRING,
+        amount: INT, (OPTIONAL)
+        label: STRING, (OPTIONAL)
+        message: STRING (OPTIONAL)
+    },
+    meta:{
+        status: 200
+    }
+```
+
+`delete`:
+```
+    data: {
+        id: STRING
+    }
+```
+*Returns:*
+```
+    data: {
+        true
+    },
+    meta:{
+        status: 200
+    }
+```
+
+`initial`:
+```
+    data: {
+    }
+```
+*Returns:*
+```
+   data: {
+        STRING (address): {
+            "amount": INT,
+            "createdAt": INT,
+            "label": STRING,
+            "message": STRING
+        },
+        STRING (address): {
+            "amount": INT,
+            "created_at": INT,
+            "label": STRING,
+            "message": STRING
+        },
+    ...
+    },
+    meta:{
+        status: 200
+    }
+```
+
+### `sendPrivate`
+`create`:
+```
+    data: {
+        address: STRING,
+        denomination: [
+            {
+                value: INT,
+                amount: INT
+            },
+            {
+                value: INT,
+                amount: INT
+            },
+            ...
+        ],
+        label: STRING
+    }
+    auth: {
+        passphrase: STRING
+    }
+``` 
+
+*Returns:*
+```
+{ 
+    data: {
+        txids: {
+           STRING (txid),
+           STRING (txid),
+           STRING (txid),
+           ...
+       }
+    }, 
+    meta:{
+        status: 200
+    }
+}
+```
+
+*Returns:*
+```
+{ 
+    data: {
+        true
+    }, 
+    meta:{
+       status: 200
+    }
+}
+```
+
+### `sendZcoin`
+`create`:
+```
+    data: {
+        addresses: {
+          STRING (address): {
+            amount: INT,
+            label: STRING
+          },
+          STRING (address): {
+            amount: INT,
+            label: STRING
+          },
+          ...
+        },
+        feePerKb(sats): INT
+    },
+    auth: {
         passphrase: STRING
     }
 ``` 
@@ -154,8 +599,161 @@ OPTIONAL: not a necessary parameter to pass.
 ```
 { 
     data: {
+        txids: {
+           STRING (txid)
+       }
+    }, 
+    meta:{
+       status: 200
+    }
+}
+```
+
+### `setPassphrase`
+`create`:
+```
+    data: {
+    },
+    auth: {
+        passphrase: STRING
+    }
+```
+
+*Returns:*
+```
+{ 
+    data: {
         true
     }, 
+    meta:{
+        status: 200
+    }
+}
+```
+
+`update`:
+```
+    data: {
+    },
+    auth: {
+        passphrase: STRING,
+        newPassphrase: STRING
+    }
+```
+*Returns:*
+```
+{ 
+    data: {
+        true
+    }, 
+    meta:{
+        status: 200
+    }
+}
+```
+
+### `setting`
+`initial`:
+```
+    data: {
+      }
+```
+*Returns:*
+```
+{
+    data: {
+        STRING (setting): {
+            data: STRING,
+            changed: BOOL,
+            disabled: BOOL
+        },
+        STRING (setting): {
+            data: STRING,
+            changed: BOOL,
+            disabled: BOOL
+        },
+        ...
+        restartNow: BOOL
+    },
+    meta:{
+       status: 200
+    }
+}
+```
+
+`create`:
+```
+    data: {
+        STRING (setting): {
+            data: STRING
+        },
+        STRING (setting): {
+            data: STRING
+        },
+        ...
+        }
+    }
+```
+*Returns:*
+```
+{
+    data: {
+        true
+    },
+    meta:{
+       status: 200
+    }
+}
+```
+
+`update`:
+```
+    data: {
+        STRING (setting): {
+            data: STRING
+        },
+        STRING (setting): {
+            data: STRING
+        },
+        ...
+    }
+```
+*Returns:*
+```
+{
+    data: {
+        true
+    },
+    meta:{
+       status: 200
+    }
+}
+```
+
+`get`:
+```
+{
+    data: {
+        settings: [STRING,STRING,...]
+    }
+}
+```
+*Returns:*
+```
+{
+    data: {
+        STRING (setting): {
+            data: STRING,
+            changed: BOOL,
+            restartRequired: BOOL
+        },
+        STRING (setting): {
+            data: STRING,
+            changed: BOOL,
+            restartRequired: BOOL
+        },
+        ...
+    },
     meta:{
        status: 200
     }
@@ -322,22 +920,12 @@ OPTIONAL: not a necessary parameter to pass.
     }
 ```
 
-### `setPassphrase`
-`create`:
+### `stop`
+`initial`:
 ```
-    auth: {
-        passphrase: STRING
-        }
-    }
-```
-`update`:
-```
-    auth: {
-        passphrase: STRING,
-        newPassphrase: STRING
-        }
-    }
-```
+    data: {
+      }
+``` 
 *Returns:*
 ```
 { 
@@ -345,87 +933,309 @@ OPTIONAL: not a necessary parameter to pass.
         true
     }, 
     meta:{
-        status: 200
+       status: 200
     }
 }
 ```
 
-### `balance`
-`get`:
+### `txFee`
 ```
     data: {
-        }
-    }
-```
+          addresses: {
+              STRING (address): INT (amount),
+              STRING (address): INT (amount),
+              ...
+          },
+          feePerKb(sats): INT,
+      }
+``` 
 *Returns:*
 ```
 { 
     data: {
-        total: {
-            all: INT,
-            pending: INT,
-            available: INT
-        },
-        xzc: {
-            confirmed: INT,
-            unconfirmed: INT,
-            locked: INT,
-        },
-        zerocoin: {
-            confirmed: INT,
-            unconfirmed: INT,
-        }
+        fee: INT(sats),
     }, 
     meta:{
-        status: 200
+       status: 200
     }
 }
 ```
 
-### `blockchain`
-`get`:
+### `unlockWallet`:
+`None`:
 ```
-    data: {
-        }
-    }
-```
-*Returns:*
-```
-{ 
-    data: {
-        status: {
-            isBlockchainSynced: BOOL,
-            isZnodeListSynced: BOOL,
-            isWinnersListSynced: BOOL,
-            isSynced: BOOL,
-            isFailed: BOOL
-        },
-        testnet: BOOL,
-        connections: INT,
-        type: STRING,
-        currentBlock: {
-            height: INT,
-            timestamp: INT,
-        },
-        avgBlockTime(secs): INT,
-        timeUntilSynced(secs): INT
-    } 
-    meta:{
-        status: 200
-    }
-}
-```
-
-
-### `block`
-`GET`:
-```
-    data: {
-        blockHash: STRING
+    auth: {
+        passphrase: STRING
     }
 ``` 
 *Returns:*
 ```
+{ 
+    data: {
+        true
+    }, 
+    meta:{
+       status: 200
+    }
+}
+```
+
+### `updateLabels`
+```
+    data: {
+          "txid": STRING,
+          "label": STRING
+      }
+``` 
+*Returns:*
+```
+{ 
+    data: {
+          "txid": STRING,
+          "label": STRING,
+          "address": STRING
+      }
+    meta:{
+       status: 200
+    }
+}
+```
+
+### `znodeControl`
+```
+    data: {
+        method: STRING, ["start-all" || "start-missing" || "start-alias"]
+        alias: STRING (VAR: method=="start-alias")
+      }
+``` 
+*Returns:*
+```
+{ 
+    data: {
+        detail: {
+            status: {
+                alias: STRING,
+                success: BOOL,
+                info: STRING (VAR: success==false)
+            },
+            status: {
+                alias: STRING,
+                success: BOOL,
+                info: STRING (VAR: success==false)
+            },
+            ...
+        },
+        overall: {
+          successful: INT,
+          failed: INT,
+          total: INT 
+        }
+    }, 
+    meta:{
+       status: 200
+    }
+}
+```
+
+### `znodeList`
+`initial`:
+```
+    data: {
+      }
+``` 
+*Returns:*
+```
+{
+
+    data: (VAR: Znodes not synced) {
+        nodes: {
+            STRING: (txid) {
+                label: STRING,
+                isMine: BOOL,
+                outpoint: {
+                    txid: STRING,
+                    index: INT
+                },
+                authority: {
+                    ip: STRING,
+                    port: STRING
+                },
+                position: INT
+            },
+            STRING: (txid) {
+                label: STRING,
+                isMine: BOOL,
+                outpoint: {
+                    txid: STRING,
+                    index: INT
+                },
+                authority: {
+                    ip: STRING,
+                    port: STRING
+                },
+                position: INT
+            },
+            ...
+            }
+        },
+        total: INT
+    },
+
+    data: (VAR: Znodes synced) {
+        STRING: { (payeeAddress)
+            rank: INT,
+            outpoint: {
+                txid: STRING,
+                index: STRING
+            },
+            status: STRING,
+            protocolVersion: INT,
+            payeeAddress: STRING,
+            lastSeen: INT,
+            activeSince: INT,
+            lastPaidTime: INT,
+            lastPaidBlock: INT,
+            authority: {
+                ip: STRING,
+                port: STRING
+            }
+            isMine: BOOL,
+            label: STRING, (VAR: isMine==true)
+            position: INT, (VAR: isMine==true)
+            qualify: {
+                result: BOOL,
+                description: STRING ["Is scheduled"             ||
+                                     "Invalid nProtocolVersion" ||
+                                     "Too new"                  ||
+                                     "collateralAge < znCount"] (VAR: result==false)
+                data: { (VAR: result==false)
+                    nProtocolVersion: INT, (VAR: description=="Invalid nProtocolVersion")
+                    sigTime:          INT, (VAR: description=="Too new"),
+                    qualifiedAfter:   INT, (VAR: description=="Too new"),
+                    collateralAge:    INT, (VAR: description=="collateralAge < znCount"),
+                    znCount:          INT, (VAR: description=="collateralAge < znCount")
+                }
+            }
+        },
+        STRING: { (payeeAddress)
+            rank: INT,
+            outpoint: {
+                txid: STRING,
+                index: STRING
+            },
+            status: STRING,
+            protocolVersion: INT,
+            payeeAddress: STRING,
+            lastSeen: INT,
+            activeSince: INT,
+            lastPaidTime: INT,
+            lastPaidBlock: INT,
+            authority: {
+                ip: STRING,
+                port: STRING
+            }
+            isMine: BOOL,
+            label: STRING, (VAR: isMine==true)
+            position: INT, (VAR: isMine==true)
+            qualify: {
+                result: BOOL,
+                description: STRING ["Is scheduled"             ||
+                                     "Invalid nProtocolVersion" ||
+                                     "Too new"                  ||
+                                     "collateralAge < znCount"] (VAR: result==false)
+                data: { (VAR: result==false)
+                    nProtocolVersion: INT, (VAR: description=="Invalid nProtocolVersion")
+                    sigTime:          INT, (VAR: description=="Too new"),
+                    qualifiedAfter:   INT, (VAR: description=="Too new"),
+                    collateralAge:    INT, (VAR: description=="collateralAge < znCount"),
+                    znCount:          INT, (VAR: description=="collateralAge < znCount")
+                }
+            }
+        },
+        ...
+    }, 
+    meta:{
+       status: 200
+    }
+}
+```
+
+# Publish
+The publisher module is comprised of various _topics_ that are triggered under specific conditions, called _events_. Both topics and events have a 1 to N relationship with each other; ie. 1 event may trigger 1 to N topics, and 1 topic may be triggered by 1 to N events.
+
+
+|               | _Event_       | NotifyAPIStatus  | SyncTransaction | NumConnectionsChanged | UpdatedBlockTip | UpdatedMintStatus  | UpdatedSettings | UpdatedZnode | UpdateSyncStatus |
+| ------------- | ------------- | ---------------  | --------------- | --------------------- | --------------- | -----------------  | --------------- | ------------ | ---------------- |
+| **_Topic_**   | Description   | API status notification | new transactions | zcoind peer list updated | blockchain head updated | mint transaction added/up dated | settings changed/updated | Znode update | Blockchain sync update
+**address** (triggers [block](#block))                 | block tx data.                            | -  | -  | -  | ✅ | -  | -  | -  | -  |
+**apiStatus** (triggers [apiStatus](#apistatus))       | Status of API                             | ✅ | -  | -  | -  | -  | -  | -  | -  |
+**balance** (triggers [balance](#balance))             | Balance info                              | -  | -  | -  | ✅ | -  | -  | -  | -  |
+**block** (triggers [blockchain](#blockchain))         | general block data (sync status + header) | -  | -  | ✅ | ✅ | -  | -  | -  | ✅ |
+**mintStatus** (triggers [mintStatus](#mintstatus))    | status of new mint                        | -  | -  | -  | -  | ✅ | -  | -  | -  |
+**settings** (triggers [readSettings](#readsettings))  | settings changed                          | -  | -  | -  | -  | -  | ✅ | -  | -  |
+**transaction** (triggers [transaction](#transaction)) | new transaction data                      | -  | ✅ | -  | -  | -  | -  | -  | -  |
+**znode** (triggers [znodeUpdate](#znodeupdate))       | update to znode                           | -  | -  | -  | -  | -  | -  | ✅ | -  |
+
+## Methods
+
+Methods specific to the publisher.
+
+### `mintStatus` 
+*Returns:*
+```
+{
+    "data": {
+        STRING: (txid + index) {
+            txid: STRING,
+            index: STRING,
+            available: BOOL
+        },
+        STRING: (txid + index) {
+            txid: STRING,
+            index: STRING,
+            available: BOOL
+        },
+        ...
+    },
+    meta: {
+        status: 200
+    },
+    error: null
+}
+```
+
+### `readSettings` 
+*Returns:*
+```
+{
+    data: {
+        STRING: (setting) {
+            data: STRING,
+            changed: BOOL,
+            disabled: BOOL
+        },
+        STRING: (setting) {
+            data: STRING,
+            changed: BOOL,
+            disabled: BOOL
+        },
+        ...
+        restartNow: BOOL
+    }
+
+    "meta": {
+        "status": 200
+    },
+    "error": null
+}
+```
+
+
+
+### `transaction` 
+*Returns:*
+```
+{ 
     data: {
         [STRING | "ZEROMINT"]: (address)
             { 
@@ -576,145 +1386,34 @@ OPTIONAL: not a necessary parameter to pass.
     meta: {
         status: 200
     }
-```
-
-
-
-
-### `paymentRequest`
-`create`:
-```
-    data: {
-        amount: INT (OPTIONAL),
-        label: STRING,
-        message: STRING
-    }
-```
-*Returns:*
-```
-    data: {
-        address: STRING, 
-        createdAt:
-        amount: INT,
-        label: STRING,
-        message: STRING
-    },
-    meta:{
-        status: 200
-    }
-```
-
-`update`:
-```
-    data: {
-        id: STRING,
-        amount: INT, (OPTIONAL)
-        label: STRING, (OPTIONAL)
-        message: STRING, (OPTIONAL)
-    }
-```
-*Returns:*
-```
-    data: {
-        address: STRING,
-        amount: INT, (OPTIONAL)
-        label: STRING, (OPTIONAL)
-        message: STRING (OPTIONAL)
-    },
-    meta:{
-        status: 200
-    }
-```
-
-`delete`:
-```
-    data: {
-        id: STRING
-    }
-```
-*Returns:*
-```
-    data: {
-        true
-    },
-    meta:{
-        status: 200
-    }
-```
-
-`initial`:
-```
-    data: {
-    }
-```
-*Returns:*
-```
-   data: {
-        STRING (address): {
-            "amount": INT,
-            "createdAt": INT,
-            "label": STRING,
-            "message": STRING
-        },
-        STRING (address): {
-            "amount": INT,
-            "created_at": INT,
-            "label": STRING,
-            "message": STRING
-        },
-    ...
-    },
-    meta:{
-        status: 200
-    }
-```
-
-
-### `txFee`
-```
-    data: {
-          addresses: {
-              STRING (address): INT (amount),
-              STRING (address): INT (amount),
-              ...
-          },
-          feePerKb(sats): INT,
-      }
-``` 
-*Returns:*
-```
-{ 
-    data: {
-        fee: INT(sats),
-    }, 
-    meta:{
-       status: 200
-    }
 }
 ```
 
-### `znodeList`
-`initial`:
-```
-    data: {
-      }
-``` 
+### `znodeUpdate` 
 *Returns:*
 ```
-{ 
-    data: {
-        STRING: { (payeeAddress)
+{
+    "data": {
+        STRING: (txid + index) {
             rank: INT,
-            outpoint: STRING,
+            outpoint: {
+                txid: STRING,
+                index: STRING
+            },
             status: STRING,
             protocolVersion: INT,
             payeeAddress: STRING,
             lastSeen: INT,
-            activeSeconds: INT,
+            activeSince: INT,
             lastPaidTime: INT,
             lastPaidBlock: INT,
-            authority: STRING,
+            authority: {
+                ip: STRING,
+                port: STRING
+            }
             isMine: BOOL,
+            label: STRING, (VAR: isMine==true)
+            position: INT, (VAR: isMine==true)
             qualify: {
                 result: BOOL,
                 description: STRING ["Is scheduled"             ||
@@ -729,391 +1428,11 @@ OPTIONAL: not a necessary parameter to pass.
                     znCount:          INT, (VAR: description=="collateralAge < znCount")
                 }
             }
-        },
-        STRING: { (payeeAddress)
-            rank: INT,
-            outpoint: STRING,
-            status: STRING,
-            protocolVersion: INT,
-            payeeAddress: STRING,
-            lastSeen: INT,
-            activeSeconds: INT,
-            lastPaidTime: INT,
-            lastPaidBlock: INT,
-            authority: STRING,
-            isMine: BOOL,
-            qualify: {
-                result: BOOL,
-                description: STRING ["Is scheduled"             ||
-                                     "Invalid nProtocolVersion" ||
-                                     "Too new"                  ||
-                                     "collateralAge < znCount"] (VAR: result==false)
-                data: { (VAR: result==false)
-                    nProtocolVersion: INT, (VAR: description=="Invalid nProtocolVersion")
-                    sigTime:          INT, (VAR: description=="Too new"),
-                    qualifiedAfter:   INT, (VAR: description=="Too new"),
-                    collateralAge:    INT, (VAR: description=="collateralAge < znCount"),
-                    znCount:          INT, (VAR: description=="collateralAge < znCount")
-                }
-            }
-        },
-        ...
-    }, 
-    meta:{
-       status: 200
-    }
-}
-```
-
-### `updateLabels`
-`update`:
-```
-    data: {
-        txid: STRING,
-        label: STRING,
-        address: STRING (OPTIONAL)
-      }
-```
-*Returns:*
-```
-{
-    data: {
-        txid: STRING,
-        address: STRING,
-        label: STRING
-    },
-    meta:{
-       status: 200
-    }
-}
-```
-
-### `znodeControl`
-```
-    data: {
-        method: STRING, ["start-all" || "start-missing" || "start-alias"]
-        alias: STRING (VAR: method=="start-alias")
-      }
-``` 
-*Returns:*
-```
-{ 
-    data: {
-        detail: {
-            status: {
-                alias: STRING,
-                success: BOOL,
-                info: STRING (VAR: success==false)
-            },
-            status: {
-                alias: STRING,
-                success: BOOL,
-                info: STRING (VAR: success==false)
-            },
-            ...
-        },
-        overall: {
-          successful: INT,
-          failed: INT,
-          total: INT 
-        }
-    }, 
-    meta:{
-       status: 200
-    }
-}
-```
-
-### `mint`
-`create`:
-```
-    data: {
-        denominations: {
-            STRING (denomination) : INT (amount),
-            STRING (denomination) : INT (amount),
-            STRING (denomination) : INT (amount),
-            ...
         }
     },
-    auth: {
-        passphrase: STRING
-    }
-``` 
-*Returns:*
-```
-{ 
-    txids: {
-       STRING (txid),
-       STRING (txid),
-       STRING (txid),
-       ...
-   },
-    meta:{
-       status: 200
-    }
-}
-```
-
-### `sendPrivate`
-`create`:
-```
-    data: {
-        address: STRING,
-        denomination: [
-            {
-                value: INT,
-                amount: INT
-            },
-            {
-                value: INT,
-                amount: INT
-            }
-        ],
-        label: STRING
-    }
-    auth: {
-        passphrase: STRING
-    }
-``` 
-
-*Returns:*
-```
-{ 
-    data: {
-        txids: {
-           STRING (txid),
-           STRING (txid),
-           STRING (txid),
-           ...
-       }
-    }, 
-    meta:{
-        status: 200
-    }
-}
-```
-
-*Returns:*
-```
-{ 
-    data: {
-        true
-    }, 
-    meta:{
-       status: 200
-    }
-}
-```
-
-### `sendZcoin`
-`create`:
-```
-    data: {
-        addresses: {
-          STRING (address): {
-            amount: INT,
-            label: STRING
-          },
-          STRING (address): {
-            amount: INT,
-            label: STRING
-          },
-          ...
-        },
-        feePerKb(sats): INT
+    "meta": {
+        "status": 200
     },
-    auth: {
-        passphrase: STRING
-    }
-``` 
-*Returns:*
-```
-{ 
-    data: {
-        txids: {
-           STRING (txid)
-       }
-    }, 
-    meta:{
-       status: 200
-    }
+    "error": null
 }
 ```
-
-### `stop`
-`initial`:
-```
-    data: {
-      }
-``` 
-*Returns:*
-```
-{ 
-    data: {
-        true
-    }, 
-    meta:{
-       status: 200
-    }
-}
-```
-
-### `setting`
-`initial`:
-```
-    data: {
-      }
-```
-*Returns:*
-```
-{
-    data: {
-        client: {
-            STRING (setting): {
-                data: STRING,
-                changed: BOOL,
-                restartRequired: BOOL
-            },
-            STRING (setting): {
-                data: STRING,
-                changed: BOOL,
-                restartRequired: BOOL
-            },
-            ...
-        },
-        daemon: {
-            STRING (setting): {
-                data: STRING,
-                changed: BOOL,
-                restartRequired: BOOL
-            },
-            STRING (setting): {
-                data: STRING,
-                changed: BOOL,
-                restartRequired: BOOL
-            },
-            ...
-        },
-        restartNow: false
-    },
-    meta:{
-       status: 200
-    }
-}
-```
-
-`create`:
-```
-    data: {
-        STRING (setting): {
-            data: STRING,
-            restartRequired: BOOL
-        },
-        STRING (setting): {
-            data: STRING,
-            restartRequired: BOOL
-        },
-        ...
-        }
-    }
-```
-*Returns:*
-```
-{
-    data: {
-        true
-    },
-    meta:{
-       status: 200
-    }
-}
-```
-
-`update`:
-```
-    data: {
-        STRING (setting): {
-            data: STRING, (OPTIONAL)
-            restartRequired: (OPTIONAL) (VAR: program=="client")
-        },
-        STRING (setting): {
-            data: STRING, (OPTIONAL)
-            restartRequired: (OPTIONAL) (VAR: program=="client")
-        },
-        ...
-    }
-```
-*Returns:*
-```
-{
-    data: {
-        true
-    },
-    meta:{
-       status: 200
-    }
-}
-```
-
-`delete`:
-```
-{
-    data: {
-        settings: [STRING,STRING,...]
-    }
-}
-```
-*Returns:*
-```
-{
-    data: {
-        true
-    },
-    meta:{
-       status: 200
-    }
-}
-```
-
-`get`:
-```
-{
-    data: {
-        settings: [STRING,STRING,...]
-    }
-}
-```
-*Returns:*
-```
-{
-    data: {
-        STRING (setting): {
-            data: STRING,
-            changed: BOOL,
-            restartRequired: BOOL
-        },
-        STRING (setting): {
-            data: STRING,
-            changed: BOOL,
-            restartRequired: BOOL
-        },
-        ...
-    },
-    meta:{
-       status: 200
-    }
-}
-```
-
-# Publish
-The publisher module is comprised of various _topics_ that are triggered under specific conditions, called _events_. Both topics and events have a 1 to N relationship with each other; ie. 1 event may trigger 1 to N topics, and 1 topic may be triggered by 1 to N events.
-
-
-|               | _Event_         | updatedBlockTip  | syncUpdated | newTransaction | connectionsChanged |
-| ------------- | ------------- | -------------    | ----------- | -------------- | ------------------ |
-| **_Topic_**         | Description   | blockchain head updated | blockchain syncing update | new transaction detected | number of node connections changed                   
-| **address**       | block tx data.|    ✅        |     -       |       -        |       -            |
-| **block**         | general block data (sync status + header) | ✅  | ✅ | - | ✅  |
-| **transaction**   | new transaction data | - | - | ✅ | - |
-| **balance**       | Balance info  | ✅ | - | ✅ | - |
-| **settings**       | settings changed  | TBD | TBD | TBD | TBD |

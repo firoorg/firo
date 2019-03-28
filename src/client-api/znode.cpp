@@ -208,6 +208,7 @@ UniValue znodeupdate(Type type, const UniValue& data, const UniValue& auth, bool
     UniValue ret(UniValue::VOBJ);
     UniValue outpoint(UniValue::VOBJ);
     string key;
+    // We already have the return data in the "data" object, here we simply form the key.
     try {
         outpoint = find_value(data, "outpoint").get_obj();
         key = find_value(outpoint, "txid").get_str() +  find_value(outpoint, "index").get_str();
