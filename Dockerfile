@@ -17,7 +17,6 @@ RUN apt-get update && apt-get install -y \
     pkg-config \
     zlib1g-dev
 
-
 # Install Berkeley DB 4.8
 RUN curl -L http://download.oracle.com/berkeley-db/db-4.8.30.tar.gz | tar -xz -C /tmp && \
     cd /tmp/db-4.8.30/build_unix && \
