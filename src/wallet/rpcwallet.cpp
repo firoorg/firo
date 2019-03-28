@@ -3025,7 +3025,7 @@ UniValue mintmanyzerocoinV3(const UniValue& params, bool fHelp)
                   "      ,...\n"
                   "    }\n"
                   "\nExamples:\n"
-                + HelpExampleCli("mintmanyzerocoin", "\"\" \"{\\\"10\\\":1,\\\"1\\\":0.5}\"")
+                + HelpExampleCli("mintmanyzerocoin", "\"\" \"{\\\"10\\\":1,\\\"0.5\\\":2}\"")
         );
 
     sigma::ParamsV3* zcParams = sigma::ParamsV3::get_default();
@@ -3176,7 +3176,7 @@ UniValue spendallzerocoin(const UniValue& params, bool fHelp) {
 
     if (fHelp || params.size() >= 1)
         throw runtime_error(
-                "spend old mints\n"
+                "spendallzerocoin\n"
                 "\nAutomatically spends all zerocoin mints to self\n" );
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
