@@ -3447,83 +3447,83 @@ UniValue spendmanyzerocoinV3(const UniValue& params, bool fHelp) {
 
 UniValue spendmany(const UniValue& params, bool fHelp) {
 
-    if (fHelp || params.size() < 1)
-        throw runtime_error(
-                "spendmany \"{\"address\":amount,...}\""
+    if (fHelp || params.size() < 2 || params.size() > 5)
+        throw std::runtime_error(
+                "spendmany \"fromaccount\" {\"address\":amount,...} ( minconf \"comment\" [\"address\",...] )\n"
+                "\nSpend multiple zerocoins and remint changes in a single transaction by specify addresses and amount for each address."
                 + HelpRequiringPassphrase() + "\n"
-                + "\nSpend multiple zerocoins and remint in a single transaction by specify addresses and amount for each address.\n"
-                  "\nArguments:\n"
-				  "1. \"amounts\"               (string, required) A json object with addresses and amounts\n"
-                  "    {\n"
-                  "      \"address\":amount     (numeric or string) The zcoin address is the key, the numeric amount (can be string) in " + CURRENCY_UNIT + " is the value\n"
-                  "      ,...\n"
-                  "    }\n"
-                  "2. \"comment\"               (string, optional) A comment\n"
-                  "3. subtractfeefromamount     (string, optional) A json array with addresses.\n"
-                  "                             The fee will be equally deducted from the amount of each selected address.\n"
-                  "                             Those recipients will receive less bitcoins than you enter in their corresponding amount field.\n"
-                  "                             If no addresses are specified here, the sender pays the fee.\n"
-                  "    [\n"
-                  "      \"address\"            (string) Subtract fee from this address\n"
-                  "      ,...\n"
-                  "    ]\n"
-                  "\nResult:\n"
-                  "\"transactionid\"            (string) The transaction id for the send. Only 1 transaction is created regardless of \n"
-                  "                             the number of addresses.\n"
-                  "\nExamples:\n"
-                  "\nSend two amounts to two different addresses:\n"
-                  + HelpExampleCli("spendandremint", "\"\" \"{\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XZ\\\":0.01,\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\":0.02}\"")
-                  + "\nSend two amounts to two different addresses, subtract fee from amount:\n"
-                  + HelpExampleCli("spendandremint", "\"\" \"{\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XZ\\\":0.01,\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\":0.02}\" \"testing\" \"[\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XZ\\\",\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\"]\"")
+                "\nArguments:\n"
+                "1. \"fromaccount\"         (string, required) DEPRECATED. The account to send the funds from. Should be \"\" for the default account\n"
+                "2. \"amounts\"             (string, required) A json object with addresses and amounts\n"
+                "    {\n"
+                "      \"address\":amount   (numeric or string) The zcoin address is the key, the numeric amount (can be string) in " + CURRENCY_UNIT + " is the value\n"
+                "      ,...\n"
+                "    }\n"
+                "3. minconf                 (numeric, optional, default=6) NOT IMPLEMENTED. Only use the balance confirmed at least this many times.\n"
+                "4. \"comment\"             (string, optional) A comment\n"
+                "5. subtractfeefromamount   (string, optional) A json array with addresses.\n"
+                "                           The fee will be equally deducted from the amount of each selected address.\n"
+                "                           Those recipients will receive less zcoins than you enter in their corresponding amount field.\n"
+                "                           If no addresses are specified here, the sender pays the fee.\n"
+                "    [\n"
+                "      \"address\"            (string) Subtract fee from this address\n"
+                "      ,...\n"
+                "    ]\n"
+                "\nResult:\n"
+                "\"transactionid\"          (string) The transaction id for the send. Only 1 transaction is created regardless of \n"
+                "                                    the number of addresses.\n"
+                "\nExamples:\n"
+                "\nSend two amounts to two different addresses:\n"
+                + HelpExampleCli("spendmany", "\"\" \"{\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XZ\\\":0.01,\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\":0.02}\"") +
+                "\nSend two amounts to two different addresses and subtract fee from amount:\n"
+                + HelpExampleCli("spendmany", "\"\" \"{\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XZ\\\":0.01,\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\":0.02}\" 6 \"testing\" \"[\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XZ\\\",\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\"]\"")
         );
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
-    UniValue sendTo = params[0].get_obj();
+    UniValue sendTo = params[1].get_obj();
 
     CWalletTx wtx;
-    if (params.size() > 1 && !params[1].isNull() && !params[1].get_str().empty())
-        wtx.mapValue["comment"] = params[1].get_str();
+    if (params.size() > 3 && !params[3].isNull() && !params[3].get_str().empty())
+        wtx.mapValue["comment"] = params[3].get_str();
 
+    std::unordered_set<std::string> subtractFeeFromAmountSet;
     UniValue subtractFeeFromAmount(UniValue::VARR);
-    if (params.size() > 2)
-        subtractFeeFromAmount = params[2].get_array();
-
-    set<CBitcoinAddress> setAddress;
-    vector<CRecipient> vecSend;
-
-    CAmount totalAmount = 0;
-    vector<string> keys = sendTo.getKeys();
-    if (keys.size() <= 0) {
-        throw JSONRPCError(RPC_INVALID_PARAMETER, string("Required at least an address to send"));
+    if (params.size() > 4) {
+        subtractFeeFromAmount = params[4].get_array();
+        for (int i = subtractFeeFromAmount.size(); i--;) {
+            subtractFeeFromAmountSet.insert(subtractFeeFromAmount[i].get_str());
+        }
     }
 
-    for (const auto& name : keys) {
-        CBitcoinAddress address(name);
-        if (!address.IsValid())
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, string("Invalid zcoin address: ") + name);
+    std::set<CBitcoinAddress> setAddress;
+    std::vector<CRecipient> vecSend;
 
-        if (setAddress.count(address))
-            throw JSONRPCError(RPC_INVALID_PARAMETER, string("Invalid parameter, duplicated address: ") + name);
-        setAddress.insert(address);
+    CAmount totalAmount = 0;
+    auto keys = sendTo.getKeys();
+    if (keys.size() <= 0) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Required at least an address to send");
+    }
+
+    for (const auto& strAddr : keys) {
+        CBitcoinAddress address(strAddr);
+        if (!address.IsValid())
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid zcoin address: " + strAddr);
+
+        if (!setAddress.insert(address).second)
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, duplicated address: " + strAddr);
 
         CScript scriptPubKey = GetScriptForDestination(address.Get());
-        CAmount nAmount = AmountFromValue(sendTo[name]);
+        CAmount nAmount = AmountFromValue(sendTo[strAddr]);
         if (nAmount <= 0) {
             throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
         }
         totalAmount += nAmount;
 
-        bool fSubtractFeeFromAmount = false;
-        for (unsigned int idx = 0; idx < subtractFeeFromAmount.size(); idx++) {
-            const UniValue& addr = subtractFeeFromAmount[idx];
-            if (addr.get_str() == name) {
-                fSubtractFeeFromAmount = true;
-            }
-        }
+        bool fSubtractFeeFromAmount =
+            subtractFeeFromAmountSet.find(strAddr) != subtractFeeFromAmountSet.end();
 
-        CRecipient recipient = {scriptPubKey, nAmount, fSubtractFeeFromAmount};
-        vecSend.push_back(recipient);
+        vecSend.push_back({scriptPubKey, nAmount, fSubtractFeeFromAmount});
     }
 
     EnsureWalletIsUnlocked();
@@ -3531,7 +3531,7 @@ UniValue spendmany(const UniValue& params, bool fHelp) {
     CAmount nFeeRequired = 0;
 
     try {
-        std::vector<CZerocoinEntryV3> selected = pwalletMain->SpendZerocoinV3(vecSend, wtx, nFeeRequired);
+        pwalletMain->SpendZerocoinV3(vecSend, wtx, nFeeRequired);
     }
     catch (const InsufficientFunds& e) {
         throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, e.what());

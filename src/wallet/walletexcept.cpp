@@ -1,4 +1,5 @@
 #include "walletexcept.h"
+#include "../util.h"
 
 // WalletError
 
@@ -12,12 +13,12 @@ WalletError::WalletError(const std::string &what) : runtime_error(what)
 
 // WalletLocked
 
-WalletLocked::WalletLocked() : WalletError("Wallet locked, unable to create transaction!")
+WalletLocked::WalletLocked() : WalletError(_("Wallet locked, unable to create transaction!"))
 {
 }
 
 // InsufficientFunds
 
-InsufficientFunds::InsufficientFunds() : WalletError("Insufficient funds")
+InsufficientFunds::InsufficientFunds() : WalletError(_("Insufficient funds"))
 {
 }
