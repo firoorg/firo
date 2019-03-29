@@ -2824,15 +2824,14 @@ UniValue mintzerocoin(const UniValue& params, bool fHelp)
 
 UniValue mintzerocoinV3(const UniValue& params, bool fHelp)
 {
-    // TODO(martun): change the denominations over here.
     if (fHelp || params.size() > 1)
-        throw runtime_error("mintzerocoinV3 <amount>(1,10,25,50,100)\n" + HelpRequiringPassphrase());
+        throw runtime_error("mintzerocoinV3 <amount>(0.1,0.5,1,10,100)\n" + HelpRequiringPassphrase());
 
     int64_t nAmount = 0;
     sigma::CoinDenominationV3 denomination;
 
     if (!RealNumberToDenomination(params[0].get_real(), denomination))
-        throw runtime_error("mintzerocoin <amount>(1,10,25,50,100)\n");
+        throw runtime_error("mintzerocoin <amount>(0.1,0.5,1,10,100)\n");
     DenominationToInteger(denomination, nAmount);
     LogPrintf("rpcWallet.mintzerocoin() denomination = %s, nAmount = %s \n", denomination, nAmount);
 
@@ -3016,17 +3015,17 @@ UniValue mintmanyzerocoinV3(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() > 1)
         throw runtime_error(
-                "mintmanyzerocoin {<denomination>(1,10,25,50,100):\"amount\"...}\n"
+                "mintmanyzerocoin {<denomination>(0.1,0.5,1,10,100):\"amount\"...}\n"
                 + HelpRequiringPassphrase()
                 + "\nMint 1 or more zerocoins in a single transaction. Amounts must be of denominations specified.\n"
                   "\nArguments:\n"
                   "1. \"denominations\"             (object, required) A json object with amounts and denominations\n"
                   "    {\n"
-                  "      \"denomination\":amount The denomination of zerocoin to mint (must be one of (1,10,25,50,100)) followed by the amount of the denomination to mint.\n"
+                  "      \"denomination\":amount The denomination of zerocoin to mint (must be one of (0.1,0.5,1,10,100)) followed by the amount of the denomination to mint.\n"
                   "      ,...\n"
                   "    }\n"
                   "\nExamples:\n"
-                + HelpExampleCli("mintmanyzerocoin", "\"\" \"{\\\"25\\\":10,\\\"10\\\":5}\"")
+                + HelpExampleCli("mintmanyzerocoin", "\"\" \"{\\\"10\\\":1,\\\"0.5\\\":2}\"")
         );
 
     sigma::ParamsV3* zcParams = sigma::ParamsV3::get_default();
@@ -3042,7 +3041,7 @@ UniValue mintmanyzerocoinV3(const UniValue& params, bool fHelp)
     BOOST_FOREACH(const string& denominationStr, keys){
         if (!StringToDenomination(denominationStr, denomination)) {
             throw runtime_error(
-                "mintzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n");
+                "mintzerocoin <amount>(0.1,0.5,1,10,100) (\"zcoinaddress\")\n");
         }
         int64_t coinValue;
         DenominationToInteger(denomination, coinValue);
@@ -3053,7 +3052,7 @@ UniValue mintmanyzerocoinV3(const UniValue& params, bool fHelp)
 
         if(numberOfCoins < 0) {
             throw runtime_error(
-                    "mintmanyzerocoin {<denomination>(1,10,25,50,100):\"amount\"...}\n");
+                    "mintmanyzerocoin {<denomination>(0.1,0.5,1,10,100):\"amount\"...}\n");
         }
 
         for(int64_t i = 0; i < numberOfCoins; ++i) {
@@ -3173,14 +3172,35 @@ UniValue spendzerocoin(const UniValue& params, bool fHelp) {
 
 }
 
+UniValue spendallzerocoin(const UniValue& params, bool fHelp) {
+
+    if (fHelp || params.size() >= 1)
+        throw runtime_error(
+                "spendallzerocoin\n"
+                "\nAutomatically spends all zerocoin mints to self\n" );
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    bool hasUnspendableMints = false;
+
+    string strError;
+    bool result = pwalletMain->SpendOldMints(strError);
+    if (strError != "")
+        throw JSONRPCError(RPC_WALLET_ERROR, strError);
+    else if(strError == "" && !result)
+        hasUnspendableMints = true;
+
+    return  hasUnspendableMints;
+}
+
 UniValue spendzerocoinV3(const UniValue& params, bool fHelp) {
 
     if (fHelp || params.size() < 1 || params.size() > 2)
         throw runtime_error(
-                "spendzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n"
+                "spendzerocoin <amount>(0.1,0.5,1,10,100) (\"zcoinaddress\")\n"
                 + HelpRequiringPassphrase() +
                 "\nArguments:\n"
-                "1. \"amount\"      (numeric or string, required) The amount in " + CURRENCY_UNIT + " to send. currently options are following 1, 10, 25, 50 and 100 only\n"
+                "1. \"amount\"      (numeric or string, required) The amount in " + CURRENCY_UNIT + " to send. currently options are following 0.1, 0.5, 1, 10 and 100 only\n"
                                                                                                     "2. \"zcoinaddress\"  (string, optional) The zcoin address to send to third party.\n"
                                                                                                     "\nExamples:\n"
                 + HelpExampleCli("spendzerocoin", "10 \"a1kCCGddf5pMXSipLVD9hBG2MGGVNaJ15U\"")
@@ -3192,7 +3212,7 @@ UniValue spendzerocoinV3(const UniValue& params, bool fHelp) {
     sigma::CoinDenominationV3 denomination;
     if (!RealNumberToDenomination(params[0].get_real(), denomination)) {
         throw runtime_error(
-            "spendzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n");
+            "spendzerocoin <amount>(0.1,0.5,1,10,100) (\"zcoinaddress\")\n");
     }
 
     CBitcoinAddress address;
@@ -3338,7 +3358,7 @@ UniValue spendmanyzerocoinV3(const UniValue& params, bool fHelp) {
 
     if (fHelp || params.size() != 1)
         throw runtime_error(
-                "spendmanyzerocoin \"{\"address\":\"<third party address or blank for internal>\", \"denominations\": [{\"value\":(1,10,25,50,100), \"amount\":<>}, {\"value\":(1,10,25,50,100), \"amount\":<>},...]}\"\n"
+                "spendmanyzerocoin \"{\"address\":\"<third party address or blank for internal>\", \"denominations\": [{\"value\":(0.1,0.5,1,10,100), \"amount\":<>}, {\"value\":(0.1,0.5,1,10,100), \"amount\":<>},...]}\"\n"
                 + HelpRequiringPassphrase()
                 + "\nSpend multiple zerocoins in a single transaction. Amounts must be of denominations specified.\n"
                   "\nArguments:\n"
@@ -3346,7 +3366,7 @@ UniValue spendmanyzerocoinV3(const UniValue& params, bool fHelp) {
                   " denominations: "
                   "    [\n"
                   "    {"
-                  "      \"value\": ,   (numeric) The numeric value must be one of (1,10,25,50,100)\n"
+                  "      \"value\": ,   (numeric) The numeric value must be one of (0.1,0.5,1,10,100)\n"
                   "      \"amount\" :,  (numeric or string) The amount of spends of this value.\n"
                   "    }"
                   "    ,...\n"
@@ -3378,7 +3398,7 @@ UniValue spendmanyzerocoinV3(const UniValue& params, bool fHelp) {
         value = find_value(inputObj, "value").get_int();
         if (!IntegerToDenomination(value * COIN, denomination)) {
             throw runtime_error(
-                "spendmanyzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n");
+                "spendmanyzerocoin <amount>(0.1,0.5,1,10,100) (\"zcoinaddress\")\n");
         }
         for(int64_t j = 0; j < amount; j++){
             denominations.push_back(denomination);
@@ -3692,7 +3712,7 @@ UniValue listpubcoinsV3(const UniValue& params, bool fHelp) {
         throw runtime_error(
                 "listpubcoin <all>(1/10/25/50/100)\n"
                 "\nArguments:\n"
-                "1. <all> (int, optional) 1,10,25,50,100 (default) to return all pubcoin with denomination. empty to return all pubcoin.\n"
+                "1. <all> (int, optional) 0.1,0.5,1,10,100 (default) to return all pubcoin with denomination. empty to return all pubcoin.\n"
                 "\nResults are an array of Objects, each of which has:\n"
                 "{id, IsUsed, denomination, value, serialNumber, nHeight, randomness}");
 
@@ -3943,7 +3963,7 @@ UniValue listspendzerocoinsV3(const UniValue &params, bool fHelp) {
                 "    \"txid\": \"transactionid\",      (string) The transaction hash\n"
                 "    \"denomination\": d,            (numeric) Denomination\n"
                 "    \"spendid\": id,                (numeric) Spend group id\n"
-                "    \"version\": \"v\",               (string) Spend version (1.0, 1.5 or 2.0)\n"
+                "    \"version\": \"v\",               (string) Spend version (3.0)\n"
                 "    \"modversion\": mv,             (numeric) Modulus version (1 or 2)\n"
                 "    \"serial\": \"s\",                (string) Serial number of the coin\n"
                 "    \"abandoned\": xxx,             (bool) True if the transaction was already abandoned\n"
@@ -4123,7 +4143,8 @@ static const CRPCCommand commands[] =
     { "wallet",             "listpubcoins",        &listpubcoins,        false },
     { "wallet",             "removetxmempool",          &removetxmempool,          false },
     { "wallet",             "removetxwallet",           &removetxwallet,           false },
-    { "wallet",             "listspendzerocoins",       &listspendzerocoins,       false }
+    { "wallet",             "listspendzerocoins",       &listspendzerocoins,       false },
+    { "wallet",             "spendallzerocoin",            &spendallzerocoin,            false}
 };
 
 void RegisterWalletRPCCommands(CRPCTable &tableRPC)
