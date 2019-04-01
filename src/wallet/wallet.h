@@ -979,6 +979,8 @@ public:
 
     bool CheckHasV2Mint(libzerocoin::CoinDenomination denomination, bool forceUsed);
 
+    bool IsSigmaSpendFromMe(const CTransaction& tx) const;
+
     static CFeeRate minTxFee;
     static CFeeRate fallbackFee;
     /**

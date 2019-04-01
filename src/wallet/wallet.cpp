@@ -3927,6 +3927,28 @@ bool CWallet::CheckHasV2Mint(libzerocoin::CoinDenomination denomination, bool fo
     return result;
 }
 
+bool CWallet::IsSigmaSpendFromMe(const CTransaction& tx) const {
+    if (!tx.IsZerocoinSpendV3()) {
+        return false;
+    }
+
+    std::list<CZerocoinEntryV3> coins;
+    CWalletDB(strWalletFile).ListPubCoinV3(coins);
+
+    std::unordered_set<secp_primitives::Scalar, sigma::CScalarHash> serials;
+    for (const auto& c : coins) {
+        serials.insert(c.serialNumber);
+    }
+
+    for (const auto& vin : tx.vin) {
+        if (serials.find(ZerocoinGetSpendSerialNumberV3(tx, vin)) != serials.end()) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 bool CWallet::CreateZerocoinSpendModel(
         string &stringError,
         string thirdPartyAddress,

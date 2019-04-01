@@ -42,7 +42,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
     uint256 hash = wtx.GetHash();
     std::map<std::string, std::string> mapValue = wtx.mapValue;
 
-    if(wtx.IsZerocoinSpend() || wtx.IsZerocoinSpendV3())
+    if(wtx.IsZerocoinSpend() || wallet->IsSigmaSpendFromMe(wtx))
     {
         BOOST_FOREACH(const CTxOut& txout, wtx.vout)
         {
@@ -63,9 +63,13 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                     sub.type = TransactionRecord::SpendToSelf;
                     sub.address = CBitcoinAddress(address).ToString();
                 }
-
-                parts.append(sub);
+            }else {
+                ExtractDestination(txout.scriptPubKey, address);
+                sub.type = TransactionRecord::SpendToAddress;
+                sub.address = CBitcoinAddress(address).ToString();
+                sub.credit = -txout.nValue;
             }
+            parts.append(sub);
         }
     }
     else if (nNet > 0 || wtx.IsCoinBase())
