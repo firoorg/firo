@@ -372,37 +372,6 @@ BOOST_AUTO_TEST_CASE(get_coin_choose_smallest_enough)
       "Expect only one SIGMA_DENOM_1");
 }
 
-BOOST_AUTO_TEST_CASE(create_spend_with_empty_recipients)
-{
-    CAmount fee;
-    std::vector<CZerocoinEntryV3> selected;
-    std::vector<CZerocoinEntryV3> changes;
-
-    BOOST_CHECK_EXCEPTION(
-        pwalletMain->CreateZerocoinSpendTransactionV3({}, fee, selected, changes),
-        std::invalid_argument,
-        [](const std::invalid_argument& e) { return e.what() == std::string("No recipients"); });
-}
-
-BOOST_AUTO_TEST_CASE(create_spend_with_some_recipients_have_negative_amount)
-{
-    CAmount fee;
-    std::vector<CZerocoinEntryV3> selected;
-    std::vector<CZerocoinEntryV3> changes;
-    std::vector<CRecipient> recipients;
-
-    recipients.push_back(CRecipient{
-        .scriptPubKey = GetScriptForDestination(randomAddr1.Get()),
-        .nAmount = -1,
-        .fSubtractFeeFromAmount = false
-    });
-
-    BOOST_CHECK_EXCEPTION(
-        pwalletMain->CreateZerocoinSpendTransactionV3(recipients, fee, selected, changes),
-        std::invalid_argument,
-        [](const std::invalid_argument& e) { return e.what() == std::string("Recipient 0 has negative amount"); });
-}
-
 BOOST_AUTO_TEST_CASE(create_spend_with_insufficient_coins)
 {
     CAmount fee;
