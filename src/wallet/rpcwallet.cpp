@@ -1379,7 +1379,7 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
                 entry.push_back(Pair("involvesWatchonly", true));
             entry.push_back(Pair("account", strSentAccount));
             MaybePushAddress(entry, s.destination, addr);
-            if(wtx.IsZerocoinMint()) {
+            if (wtx.IsZerocoinMint() || wtx.IsZerocoinMintV3()) {
                 entry.push_back(Pair("category", "mint"));
             }
             else if(wtx.IsZerocoinSpend()){
