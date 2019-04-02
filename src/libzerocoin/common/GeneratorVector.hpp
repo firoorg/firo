@@ -3,20 +3,20 @@ namespace zcoin_common {
 template<class EXPONENT, class GROUP_ELEMENT>
 GeneratorVector<EXPONENT, GROUP_ELEMENT>::GeneratorVector(
         const std::vector<GROUP_ELEMENT>& generators,
-        int precomp)
+        std::size_t precomp)
         : precomp_(precomp) {
 
     powers_bits.resize(BIT_LENGTH);
     for (int j = 0; j < BIT_LENGTH; ++j) {
         powers_bits[j].resize(generators.size());
     }
-//    std::copy(generators_.begin(), generators.begin(), generators.end());
-    for (int i = 0; i < generators.size(); ++i) {
+
+    for (std::size_t i = 0; i < generators.size(); ++i) {
         generators_.push_back(generators[i]);
     }
     precomp_table_.resize(generators.size() / precomp + 1);
     GROUP_ELEMENT zero;
-    int i;
+    std::size_t i;
     for (i = 0; i < generators.size() / precomp; i++) {
         precomp_table_[i].reserve(1 << precomp);
         rec_precompute(i, precomp, 0, zero);
@@ -30,7 +30,7 @@ GeneratorVector<EXPONENT, GROUP_ELEMENT>::GeneratorVector(
 
 template<class EXPONENT, class GROUP_ELEMENT>
 void GeneratorVector<EXPONENT, GROUP_ELEMENT>::rec_precompute(
-        int i, int precomp, int current_id,
+        std::size_t i, std::size_t precomp, std::size_t current_id,
         const GROUP_ELEMENT& current) {
     if (current_id == precomp) {
         // save the result.
@@ -52,10 +52,10 @@ const GROUP_ELEMENT &GeneratorVector<EXPONENT, GROUP_ELEMENT>::get_g(int i) cons
 template<class EXPONENT, class GROUP_ELEMENT>
 void GeneratorVector<EXPONENT, GROUP_ELEMENT>::get_vector_subset_sum(
         const std::vector<bool>& bits, GROUP_ELEMENT &result_out) const {
-    int i;
+    std::size_t i;
     for (i = 0; i < bits.size() / precomp_; i++) {
         int index = 0;
-        for (int j = 0; j < precomp_; ++j) {
+        for (std::size_t j = 0; j < precomp_; ++j) {
             index <<= 1;
             index += bits[i * precomp_ + j];
         }
@@ -64,7 +64,7 @@ void GeneratorVector<EXPONENT, GROUP_ELEMENT>::get_vector_subset_sum(
     }
     if(bits.size() % precomp_) {
         int index = 0;
-        for (int j = 0; j < bits.size() % precomp_; ++j) {
+        for (std::size_t j = 0; j < bits.size() % precomp_; ++j) {
             index <<= 1;
             index += bits[i * precomp_ + j];
         }
@@ -105,7 +105,7 @@ void GeneratorVector<EXPONENT, GROUP_ELEMENT>::get_vector_multiple(
         const std::vector<EXPONENT>& powers,
         GROUP_ELEMENT &result_out) const {
     GROUP_ELEMENT result;
-    for (int i = 0; i < powers.size(); ++i) {
+    for (std::size_t i = 0; i < powers.size(); ++i) {
         std::vector<bool> bits;
         powers[i].get_bits(bits);
         for (int j = 0; j < BIT_LENGTH; ++j) {

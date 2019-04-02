@@ -1,5 +1,5 @@
-#ifndef ZCOIN_R1PROOF_H
-#define ZCOIN_R1PROOF_H
+#ifndef ZCOIN_SIGMA_R1_PROOF_H
+#define ZCOIN_SIGMA_R1_PROOF_H
 
 #include <vector>
 #include <secp256k1/include/Scalar.h>
@@ -22,7 +22,7 @@ public:
         unsigned char* current = A_.serialize(buffer);
         current = C_.serialize(current);
         current = D_.serialize(current);
-        for(int i = 0; i < f_.size(); ++i)
+        for (std::size_t i = 0; i < f_.size(); ++i)
             current = f_[i].serialize(current);
         current = ZA_.serialize(current);
         return ZC_.serialize(current);
@@ -58,5 +58,6 @@ public:
     Exponent ZC_;
 };
 
-}// namespace sigma
-#endif //ZCOIN_R1PROOF_H
+} // namespace sigma
+
+#endif // ZCOIN_SIGMA_R1_PROOF_H

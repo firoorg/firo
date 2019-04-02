@@ -485,7 +485,7 @@ std::string GroupElement::GetHex() const {
 }
 
 size_t GroupElement::memoryRequired() const  {
-    return 34;
+    return serialize_size;
 }
 
 

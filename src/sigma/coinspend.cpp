@@ -1,20 +1,21 @@
 #include "coinspend.h"
 #include "openssl_context.h"
 
-namespace  sigma {
+namespace sigma {
 
 CoinSpendV3::CoinSpendV3(
-        const ParamsV3* p,
-        const PrivateCoinV3& coin,
-        const std::vector<PublicCoinV3>& anonymity_set,
-        const SpendMetaDataV3& m)
-        : params(p)
-        , sigmaProof(p)
-        , denomination(coin.getPublicCoin().getDenomination())
-        , coinSerialNumber(coin.getSerialNumber())
-        , ecdsaSignature(64, 0)
-        , ecdsaPubkey(33, 0)
-        , accumulatorBlockHash(m.blockHash)
+    const ParamsV3* p,
+    const PrivateCoinV3& coin,
+    const std::vector<PublicCoinV3>& anonymity_set,
+    const SpendMetaDataV3& m)
+    :
+    params(p),
+    denomination(coin.getPublicCoin().getDenomination()),
+    accumulatorBlockHash(m.blockHash),
+    coinSerialNumber(coin.getSerialNumber()),
+    ecdsaSignature(64, 0),
+    ecdsaPubkey(33, 0),
+    sigmaProof(p)
 {
     if (!HasValidSerial()) {
         throw ZerocoinException("Invalid serial # range");
@@ -28,9 +29,10 @@ CoinSpendV3::CoinSpendV3(
     GroupElement gs = (params->get_g() * coinSerialNumber).inverse();
     std::vector<GroupElement> C_;
     C_.reserve(anonymity_set.size());
-    int coinIndex;
+    std::size_t coinIndex;
     bool indexFound = false;
-    for(int j = 0; j < anonymity_set.size(); ++j){
+
+    for (std::size_t j = 0; j < anonymity_set.size(); ++j) {
         if(anonymity_set[j] == coin.getPublicCoin()){
             coinIndex = j;
             indexFound = true;
@@ -101,7 +103,7 @@ bool CoinSpendV3::Verify(
     GroupElement gs = (params->get_g() * coinSerialNumber).inverse();
     std::vector<GroupElement> C_;
     C_.reserve(anonymity_set.size());
-    for(int j = 0; j < anonymity_set.size(); ++j)
+    for(std::size_t j = 0; j < anonymity_set.size(); ++j)
         C_.emplace_back(anonymity_set[j].getValue() + gs);
 
     uint256 metahash = signatureHash(m);

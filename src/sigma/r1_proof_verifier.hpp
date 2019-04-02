@@ -32,7 +32,7 @@ bool R1ProofVerifier<Exponent,GroupElement>::verify(
          proof_.D_.isMember()))
         return false;
     const std::vector<Exponent>& f = proof_.f_;
-    for(int i = 0; i < f.size(); i++){
+    for (std::size_t i = 0; i < f.size(); i++) {
         if(!f[i].isMember())
             return false;
     }
@@ -63,7 +63,7 @@ bool R1ProofVerifier<Exponent,GroupElement>::verify(
 
     std::vector<Exponent> f_prime;
     f_prime.reserve(f_.size());
-    for(int i = 0; i < f_.size(); i++)
+    for (std::size_t i = 0; i < f_.size(); i++)
         f_prime.emplace_back(f_[i] * (x - f_[i]));
     GroupElement two;
     SigmaPrimitives<Exponent, GroupElement>::commit(g_, h_, f_prime, proof_.ZC_, two);
@@ -73,4 +73,4 @@ bool R1ProofVerifier<Exponent,GroupElement>::verify(
     return true;
 }
 
-} //namespace sigma
+} // namespace sigma

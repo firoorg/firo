@@ -1,6 +1,7 @@
 #ifndef ZCOIN_GENERATORVECTOR_H
 #define ZCOIN_GENERATORVECTOR_H
 
+#include <cstddef>
 #include <iostream>
 #include <vector>
 #include <secp256k1/include/Scalar.h>
@@ -12,7 +13,7 @@ template <class EXPONENT, class GROUP_ELEMENT>
 class GeneratorVector {
 
 public:
-    GeneratorVector(const std::vector<GROUP_ELEMENT>& generators, int precomp = 8);
+    GeneratorVector(const std::vector<GROUP_ELEMENT>& generators, std::size_t precomp = 8);
 
     /**
      * \param[in] power The power of g which we want to compute.
@@ -39,14 +40,14 @@ public:
 
 private:
     void rec_precompute(
-            int i, int precomp, int current_id,
+            std::size_t i, std::size_t precomp, std::size_t current_id,
             const GROUP_ELEMENT& current);
 
 private:
     // bit representation of powers
     mutable std::vector<std::vector<bool>> powers_bits;
     std::vector<GROUP_ELEMENT> generators_;
-    int precomp_;
+    std::size_t precomp_;
     static const int BIT_LENGTH = 256;
     //precomputing all possible powers for every window
     std::vector<std::vector<GROUP_ELEMENT>> precomp_table_;
@@ -57,4 +58,3 @@ private:
 #include "GeneratorVector.hpp"
 
 #endif //ZCOIN_GENERATORVECTOR_H
-

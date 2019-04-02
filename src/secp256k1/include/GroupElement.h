@@ -14,6 +14,9 @@ namespace secp_primitives {
 
 class GroupElement final {
 public:
+    static constexpr std::size_t serialize_size = 34;
+
+public:
 
   GroupElement();
 
