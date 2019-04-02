@@ -81,8 +81,8 @@ void SigmaPrimitives<Exponent, GroupElement>::get_x(
     unsigned char* current = A.serialize(data);
     current = C.serialize(current);
     D.serialize(current);
-    hash.Write(data, 3 * 34);
-    unsigned char result_data[32];
+    hash.Write(data, 3 * A.memoryRequired());
+    unsigned char result_data[CSHA256::OUTPUT_SIZE];
     hash.Finalize(result_data);
     result_out = result_data;
 }
