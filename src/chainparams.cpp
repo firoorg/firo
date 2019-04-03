@@ -85,8 +85,12 @@ class CMainParams : public CChainParams {
         CMainParams() {
             strNetworkID = "main";
 
-        consensus.chainType = Consensus::chainMain;        
-        consensus.nSubsidyHalvingInterval = 305000;
+            consensus.chainType = Consensus::chainMain;
+
+            consensus.nSubsidyHalvingFirst = 302438;
+            consensus.nSubsidyHalvingInterval = 420000;
+            consensus.nSubsidyHalvingStopBlock = 3647360;
+
             consensus.nMajorityEnforceBlockUpgrade = 750;
             consensus.nMajorityRejectBlockOutdated = 950;
             consensus.nMajorityWindow = 1000;
@@ -262,7 +266,11 @@ class CTestNetParams : public CChainParams {
             strNetworkID = "test";
 
             consensus.chainType = Consensus::chainTestnet;
-            consensus.nSubsidyHalvingInterval = 305000;
+
+            consensus.nSubsidyHalvingFirst = 302438;
+            consensus.nSubsidyHalvingInterval = 420000;
+            consensus.nSubsidyHalvingStopBlock = 3647360;
+
             consensus.nMajorityEnforceBlockUpgrade = 51;
             consensus.nMajorityRejectBlockOutdated = 75;
             consensus.nMajorityWindow = 100;
@@ -427,7 +435,11 @@ class CRegTestParams : public CChainParams {
             strNetworkID = "regtest";
 
             consensus.chainType = Consensus::chainRegtest;
-            consensus.nSubsidyHalvingInterval = 305000;
+
+            consensus.nSubsidyHalvingFirst = 302438;
+            consensus.nSubsidyHalvingInterval = 420000;
+            consensus.nSubsidyHalvingStopBlock = 3647360;
+            
             consensus.nMajorityEnforceBlockUpgrade = 750;
             consensus.nMajorityRejectBlockOutdated = 950;
             consensus.nMajorityWindow = 1000;

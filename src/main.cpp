@@ -2018,7 +2018,10 @@ CAmount GetBlockSubsidy(int nHeight, const Consensus::Params &consensusParams, i
     // Genesis block is 0 coin
     if (nHeight == 0)
         return 0;
-    int halvings = nHeight / consensusParams.nSubsidyHalvingInterval;
+    // Stop subsidy after some point
+    if (nHeight >= consensusParams.nSubsidyHalvingStopBlock)
+        return 0;
+    int halvings = nHeight < consensusParams.nSubsidyHalvingFirst ? 0 : (nHeight - consensusParams.nSubsidyHalvingFirst) / consensusParams.nSubsidyHalvingInterval + 1;
     // Force block reward to zero when right shift is undefined.
     if (halvings >= 64)
         return 0;
