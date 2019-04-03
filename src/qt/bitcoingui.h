@@ -116,6 +116,7 @@ private:
     QAction *openAction;
     QAction *showHelpMessageAction;
     QAction *zerocoinAction;
+    QAction *sigmaAction;
     QAction *znodeAction;
     QAction *zerocoinMenuAction;
 
@@ -209,6 +210,8 @@ private Q_SLOTS:
     void gotoSendCoinsPage(QString addr = "");
     /** Switch to zerocoin page */
     void gotoZerocoinPage();
+     /** Switch to sigma page */
+    void gotoSigmaPage();
 
     /** Show Sign/Verify Message dialog and switch to sign message tab */
     void gotoSignMessageTab(QString addr = "");

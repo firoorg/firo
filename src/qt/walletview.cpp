@@ -6,6 +6,7 @@
 
 #include "addressbookpage.h"
 #include "zerocoinpage.h"
+#include "sigmapage.h"
 #include "askpassphrasedialog.h"
 #include "bitcoingui.h"
 #include "clientmodel.h"
@@ -50,6 +51,7 @@ WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
     walletModel(0),
     overviewPage(0),
     sendExodusView(0),
+    sigmaPage(0),
     exodusTransactionsView(0),
     zcoinTransactionsView(0),
     platformStyle(platformStyle),
@@ -63,6 +65,7 @@ WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
     usedSendingAddressesPage = new AddressBookPage(platformStyle, AddressBookPage::ForEditing, AddressBookPage::SendingTab, this);
     usedReceivingAddressesPage = new AddressBookPage(platformStyle, AddressBookPage::ForEditing, AddressBookPage::ReceivingTab, this);
     zerocoinPage = new ZerocoinPage(platformStyle, ZerocoinPage::ForEditing, this);
+    sigmaPage = new SigmaPage(platformStyle, this);
     sendCoinsPage = new QWidget(this);
     toolboxPage = new QWidget(this);
     znodeListPage = new ZnodeList(platformStyle);
@@ -77,6 +80,7 @@ WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
     addWidget(receiveCoinsPage);
     addWidget(sendCoinsPage);
     addWidget(zerocoinPage);
+    addWidget(sigmaPage);
     addWidget(toolboxPage);
     addWidget(znodeListPage);
 
@@ -234,6 +238,8 @@ void WalletView::setWalletModel(WalletModel *walletModel)
     overviewPage->setWalletModel(walletModel);
     receiveCoinsPage->setModel(walletModel);
     zerocoinPage->setModel(walletModel->getAddressTableModel());
+    // TODO: we need this line in the future. uncomment this after define setModel for SigmaPage class
+    // sigmaPage->setModel(walletModel);
     usedReceivingAddressesPage->setModel(walletModel->getAddressTableModel());
     usedSendingAddressesPage->setModel(walletModel->getAddressTableModel());
     znodeListPage->setWalletModel(walletModel);
@@ -353,6 +359,12 @@ void WalletView::gotoZerocoinPage()
 {
     setCurrentWidget(zerocoinPage);
 }
+
+void WalletView::gotoSigmaPage()
+{
+    setCurrentWidget(sigmaPage);
+}
+
 
 void WalletView::gotoToolboxPage()
 {
