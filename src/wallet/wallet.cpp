@@ -2016,6 +2016,8 @@ CAmount CWallet::SelectSpendCoinsForAmount(
 }
 
 std::list<CZerocoinEntryV3> CWallet::GetAvailableCoins() const {
+    LOCK2(cs_main, cs_wallet);
+
     std::list<CZerocoinEntryV3> coins;
     CWalletDB(strWalletFile).ListPubCoinV3(coins);
 
@@ -2031,15 +2033,19 @@ std::list<CZerocoinEntryV3> CWallet::GetAvailableCoins() const {
             PublicCoinV3(coin.value, coin.get_denomination())).first;
 
         if (coinHeight == -1) {
-            throw std::runtime_error("Unable to determine the coin height.\n");
+            // Coin still in the mempool.
+            return true;
         }
+
         if (coinHeight + (ZC_MINT_CONFIRMATIONS - 1) > chainActive.Height()) {
             // Remove the coin from the candidates list, since it does not have the
             // required number of confirmations.
             return true;
         }
+
         return false;
     });
+
     return coins;
 }
 
