@@ -1134,8 +1134,7 @@ isminetype CWallet::IsMine(const CTxIn &txin) const {
             CWalletDB(strWalletFile).ListPubCoinV3(coins);
 
             CDataStream serializedCoinSpend(
-                (const char *)&*(txin.scriptSig.begin() + 1),
-                (const char *)&*txin.scriptSig.end(),
+                std::vector<char>(txin.scriptSig.begin() + 1, txin.scriptSig.end()),
                 SER_NETWORK, PROTOCOL_VERSION);
             sigma::CoinSpendV3 spend(ZCParamsV3, serializedCoinSpend);
 

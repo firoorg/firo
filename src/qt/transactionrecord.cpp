@@ -42,11 +42,13 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
     uint256 hash = wtx.GetHash();
     std::map<std::string, std::string> mapValue = wtx.mapValue;
 
-    bool isAllSigmaSpendFromMe = wtx.IsZerocoinSpendV3() &&
-        std::accumulate(std::next(wtx.vin.begin()), wtx.vin.end(), wallet->IsMine(wtx.vin[0]) == ISMINE_SPENDABLE,
-        [&](bool acc, const CTxIn& vin) -> bool {
-            return acc && (wallet->IsMine(vin) == ISMINE_SPENDABLE);
-        });
+    bool isAllSigmaSpendFromMe = wtx.IsZerocoinSpendV3();
+
+    for (const auto& vin : wtx.vin) {
+        isAllSigmaSpendFromMe = wallet->IsMine(vin) & ISMINE_SPENDABLE;
+        if (!isAllSigmaSpendFromMe)
+            break;
+    }
 
     if (wtx.IsZerocoinSpend() || isAllSigmaSpendFromMe) {
         for (const CTxOut& txout : wtx.vout) {
