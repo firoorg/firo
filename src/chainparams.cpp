@@ -89,7 +89,7 @@ class CMainParams : public CChainParams {
 
             consensus.nSubsidyHalvingFirst = 302438;
             consensus.nSubsidyHalvingInterval = 420000;
-            consensus.nSubsidyHalvingStopBlock = 3647360;
+            consensus.nSubsidyHalvingStopBlock = 3646849;
 
             consensus.nMajorityEnforceBlockUpgrade = 750;
             consensus.nMajorityRejectBlockOutdated = 950;
@@ -269,7 +269,7 @@ class CTestNetParams : public CChainParams {
 
             consensus.nSubsidyHalvingFirst = 302438;
             consensus.nSubsidyHalvingInterval = 420000;
-            consensus.nSubsidyHalvingStopBlock = 3647360;
+            consensus.nSubsidyHalvingStopBlock = 3646849;
 
             consensus.nMajorityEnforceBlockUpgrade = 51;
             consensus.nMajorityRejectBlockOutdated = 75;
@@ -438,7 +438,7 @@ class CRegTestParams : public CChainParams {
 
             consensus.nSubsidyHalvingFirst = 302438;
             consensus.nSubsidyHalvingInterval = 420000;
-            consensus.nSubsidyHalvingStopBlock = 3647360;
+            consensus.nSubsidyHalvingStopBlock = 3646849;
             
             consensus.nMajorityEnforceBlockUpgrade = 750;
             consensus.nMajorityRejectBlockOutdated = 950;
