@@ -337,7 +337,7 @@ void BitcoinGUI::createActions()
 	tabGroup->addAction(zerocoinAction);
 
 	sigmaAction = new QAction(platformStyle->SingleColorIcon(":/icons/sigma"), tr("Si&gma"), this);
-	sigmaAction->setStatusTip(tr("Show the list of public coin that have been minted"));
+	sigmaAction->setStatusTip(tr("Show the list of public coins that have been minted"));
 	sigmaAction->setToolTip(sigmaAction->statusTip());
 	sigmaAction->setCheckable(true);
 	sigmaAction->setShortcut(QKeySequence(Qt::ALT +  key++));
