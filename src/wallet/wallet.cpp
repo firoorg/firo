@@ -1128,6 +1128,25 @@ void CWallet::SyncTransaction(const CTransaction &tx, const CBlockIndex *pindex,
 isminetype CWallet::IsMine(const CTxIn &txin) const {
     {
         LOCK(cs_wallet);
+
+        if (txin.IsZerocoinSpendV3()) {
+            std::list<CZerocoinEntryV3> coins;
+            CWalletDB(strWalletFile).ListPubCoinV3(coins);
+
+            CDataStream serializedCoinSpend(
+                std::vector<char>(txin.scriptSig.begin() + 1, txin.scriptSig.end()),
+                SER_NETWORK, PROTOCOL_VERSION);
+            sigma::CoinSpendV3 spend(ZCParamsV3, serializedCoinSpend);
+
+            if (std::find_if(coins.begin(), coins.end(), [&](const CZerocoinEntryV3& c) -> bool {
+                return spend.getCoinSerialNumber() == c.serialNumber;
+            }) != coins.end()) {
+                return ISMINE_SPENDABLE;
+            }
+
+            return ISMINE_NO;
+        }
+
         map<uint256, CWalletTx>::const_iterator mi = mapWallet.find(txin.prevout.hash);
         if (mi != mapWallet.end()) {
             const CWalletTx &prev = (*mi).second;
