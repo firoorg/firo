@@ -5790,6 +5790,13 @@ bool CWallet::InitLoadWallet() {
         }
 
         walletInstance->SetBestChain(chainActive.GetLocator());
+
+        // Check for the existence of the "persistent" folder, if found (from previous wallet), delete
+        boost::filesystem::path path = GetDataDir() / PERSISTENT_FILENAME;
+        if(boost::filesystem::exists(path)){
+            boost::filesystem::remove_all(path);
+        }
+
     } else if (mapArgs.count("-usehd")) {
         bool useHD = GetBoolArg("-usehd", DEFAULT_USE_HD_WALLET);
         if (!walletInstance->hdChain.masterKeyID.IsNull() && !useHD)

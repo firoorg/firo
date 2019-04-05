@@ -245,7 +245,6 @@ UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool f
     }
 
     return NullUniValue;
-
 }
 
 UniValue txfee(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
