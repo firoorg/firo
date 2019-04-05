@@ -152,11 +152,11 @@ static bool CheckSpend(const CTxIn& vin, const CZerocoinEntryV3& expected)
         return false;
     }
 
-    if (vin.nSequence != 1) {
+    if (vin.nSequence != CTxIn::SEQUENCE_FINAL) {
         return false;
     }
 
-    if (!vin.prevout.IsNull()) {
+    if (!vin.prevout.IsSigmaMintGroup()) {
         return false;
     }
 

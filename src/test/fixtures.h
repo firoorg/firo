@@ -5,7 +5,7 @@
 
 #include <boost/test/unit_test.hpp>
 
-static bool no_check( std::runtime_error const& ex ) { return true; }
+inline bool no_check( std::runtime_error const& ex ) { return true; }
 
 struct ZerocoinTestingSetupBase : public TestingSetup {
     ZerocoinTestingSetupBase();
