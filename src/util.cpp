@@ -630,6 +630,13 @@ boost::filesystem::path CreateTxMetadataFile(bool fNetSpecific)
     return pathConfigFile;
 }
 
+void CreatePersistentFiles(bool fNetSpecific){
+    CreatePaymentRequestFile(fNetSpecific);
+    CreateTxTimestampFile(fNetSpecific);
+    CreateTxMetadataFile(fNetSpecific);
+    CreateZerocoinFile(fNetSpecific);
+}
+
 boost::filesystem::path CreatePaymentRequestFile(bool fNetSpecific)
 {
     boost::filesystem::path pathConfigFile = GetJsonDataDir(fNetSpecific,PAYMENT_REQUEST_FILENAME);

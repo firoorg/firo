@@ -197,9 +197,10 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
     if ((!listSent.empty() || nFee != 0))
     {
         BOOST_FOREACH(const COutputEntry& s, listSent)
-        {   
+        {
             UniValue address(UniValue::VOBJ);         
             UniValue total(UniValue::VOBJ);
+            UniValue totalCategory(UniValue::VOBJ);
             UniValue txids(UniValue::VOBJ);
             UniValue vouts(UniValue::VOBJ);
             UniValue entry(UniValue::VOBJ);
@@ -263,13 +264,19 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
                 vouts = txids[categoryIndex];
             }
 
-            if(!total["sent"].isNull()){
-                UniValue totalSent = find_value(total, "sent");
+            if(!total[category].isNull()){
+                totalCategory = total[category];
+            }
+
+            if(!totalCategory["sent"].isNull()){
+                UniValue totalSent = find_value(totalCategory, "sent");
                 UniValue newTotal = totalSent.get_int64() + amount;
-                total.replace("sent", newTotal);
+                totalCategory.replace("sent", newTotal);
+                total.replace(category, totalCategory);
             }
             else{
-                total.push_back(Pair("sent", amount));
+                totalCategory.push_back(Pair("sent", amount));
+                total.replace(category, totalCategory);
             }
             vouts.replace(txid.GetHex(), entry);
             txids.replace(categoryIndex, vouts);
@@ -287,6 +294,7 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
         {
             UniValue address(UniValue::VOBJ);         
             UniValue total(UniValue::VOBJ);
+            UniValue totalCategory(UniValue::VOBJ);
             UniValue txids(UniValue::VOBJ);
             UniValue vouts(UniValue::VOBJ);
             UniValue entry(UniValue::VOBJ);
@@ -353,13 +361,19 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
                 vouts = txids[categoryIndex];
             }
 
-            if(!total["balance"].isNull()){
-                UniValue totalBalance = find_value(total, "balance");
+            if(!total[category].isNull()){
+                totalCategory = total[category];
+            }
+
+            if(!totalCategory["balance"].isNull()){
+                UniValue totalBalance = find_value(totalCategory, "balance");
                 UniValue newTotal = totalBalance.get_int64() + amount;
-                total.replace("balance", newTotal);
+                totalCategory.replace("balance", newTotal);
+                total.replace(category, totalCategory);
             }
             else{
-                total.push_back(Pair("balance", amount));
+                totalCategory.push_back(Pair("balance", amount));
+                total.replace(category, totalCategory);
             }
             
             vouts.replace(txid.GetHex(), entry);

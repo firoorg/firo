@@ -149,6 +149,7 @@ void ClearDatadirCache();
 boost::filesystem::path GetPersistentDataDir(bool fNetSpecific = true);
 boost::filesystem::path GetJsonDataDir(bool fNetSpecific, const char* filename);
 boost::filesystem::path GetConfigFile();
+void CreatePersistentFiles(bool fNetSpecific=true);
 boost::filesystem::path CreateTxMetadataFile(bool fNetSpecific=true);
 boost::filesystem::path CreatePaymentRequestFile(bool fNetSpecific=true);
 boost::filesystem::path CreateZerocoinFile(bool fNetSpecific=true);

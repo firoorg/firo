@@ -1412,7 +1412,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     }
 
     if (!StartAPI())
-        return false; 
+        return false;
 
     CreatePaymentRequestFile();
     CreateTxTimestampFile();

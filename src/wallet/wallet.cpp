@@ -5809,6 +5809,9 @@ bool CWallet::InitLoadWallet() {
                               walletFile));
     }
 
+    // Add files for persistent storage (client-api)
+    CreatePersistentFiles();
+
     LogPrintf(" wallet      %15dms\n", GetTimeMillis() - nStart);
 
     RegisterValidationInterface(walletInstance);

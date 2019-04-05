@@ -39,7 +39,7 @@ class CZMQThreadPublisher : public CZMQAbstractPublisher
 {
 public:
     static void* Thread(){
-        LogPrintf("CZMQAbstractPublisher Thread started.");
+        LogPrintf("CZMQAbstractPublisher Thread started.\n");
         const int PUBLISH_TIME_SECS = 1;
         while(true){
             boost::this_thread::sleep_for(boost::chrono::seconds(PUBLISH_TIME_SECS));
