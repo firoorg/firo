@@ -282,6 +282,7 @@ RES_ICONS = \
   qt/res/icons/bitcoin.png \
   qt/res/icons/zcoin.png \
   qt/res/icons/zerocoin.png \
+  qt/res/icons/sigma.png \
   qt/res/icons/znodes.png \
   qt/res/icons/qrcode.png \
   qt/res/icons/chevron.png \
