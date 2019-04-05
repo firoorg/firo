@@ -18,6 +18,12 @@ namespace fs = boost::filesystem;
 using namespace boost::chrono;
 using namespace std;
 
+std::map<std::string, int> nStates = {
+        {"active",0},
+        {"deleted",1},
+        {"hidden",2},
+        {"archived",3}
+};
 
 bool getTxMetadata(UniValue &txMetadataUni, UniValue &txMetadataData){
     fs::path const &path = CreateTxMetadataFile();

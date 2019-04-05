@@ -6,13 +6,6 @@
 #include <univalue.h>
 #include <string>
 
-std::map<std::string, int> nStates = {
-        {"active",0},
-        {"deleted",1},
-        {"hidden",2},
-        {"archived",3}
-};
-
 bool getPaymentRequest(UniValue &paymentRequestUni, UniValue &paymentRequestData);
 
 bool getPaymentRequestEntry(string address, UniValue &entry);
