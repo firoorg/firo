@@ -54,6 +54,8 @@
 #include "znodeman.h"
 #include "coins.h"
 
+#include "sigma/coinspend.h"
+
 #include <atomic>
 #include <sstream>
 #include <chrono>
@@ -2370,6 +2372,29 @@ bool CheckInputs(const CTransaction &tx, CValidationState &state, const CCoinsVi
                                                                            ScriptErrorString(check.GetScriptError())));
                 }
             }
+        }
+    } else if (tx.IsZerocoinSpendV3()) {
+        // Total sum of inputs of transaction.
+        CAmount totalInputValue = 0;
+
+        BOOST_FOREACH(const CTxIn &txin, tx.vin) {
+            if(!txin.scriptSig.IsZerocoinSpendV3()) {
+                return state.DoS(
+                    100, false,
+                    REJECT_MALFORMED,
+                    "CheckSpendZcoinTransaction: can't mix zerocoin spend input with regular ones");
+            }
+            CDataStream serializedCoinSpend((const char *)&*(txin.scriptSig.begin() + 1),
+                                            (const char *)&*txin.scriptSig.end(),
+                                            SER_NETWORK, PROTOCOL_VERSION);
+            sigma::CoinSpendV3 newSpend(ZCParamsV3, serializedCoinSpend);
+            uint64_t denom = newSpend.getIntDenomination();
+            totalInputValue += denom;
+        }
+        if (totalInputValue < tx.GetValueOut()) {
+            return state.DoS(
+                100,
+                error("Spend transaction outputs larger than the inputs."));
         }
     }
 
