@@ -447,10 +447,11 @@ OPTIONAL: not a necessary parameter to pass.
 ```
     data: {
         address: STRING, 
-        createdAt:
+        createdAt: INT(secs)
         amount: INT,
         label: STRING,
         message: STRING
+        state: STRING ("active")
     },
     meta:{
         status: 200
@@ -464,6 +465,7 @@ OPTIONAL: not a necessary parameter to pass.
         amount: INT, (OPTIONAL)
         label: STRING, (OPTIONAL)
         message: STRING, (OPTIONAL)
+        state: STRING, (OPTIONAL) ("active"|"hidden"|"deleted"|"archived")
     }
 ```
 *Returns:*
@@ -473,6 +475,7 @@ OPTIONAL: not a necessary parameter to pass.
         amount: INT, (OPTIONAL)
         label: STRING, (OPTIONAL)
         message: STRING (OPTIONAL)
+        state: STRING, (OPTIONAL) ("active"|"hidden"|"deleted"|"archived")
     },
     meta:{
         status: 200
@@ -507,13 +510,15 @@ OPTIONAL: not a necessary parameter to pass.
             "amount": INT,
             "createdAt": INT,
             "label": STRING,
-            "message": STRING
+            "message": STRING,
+            state: STRING, ("active"|"hidden"|"deleted"|"archived")
         },
         STRING (address): {
             "amount": INT,
             "created_at": INT,
             "label": STRING,
-            "message": STRING
+            "message": STRING,
+            state: STRING, ("active"|"hidden"|"deleted"|"archived")
         },
     ...
     },

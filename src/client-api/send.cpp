@@ -4,6 +4,7 @@
 
 #include "amount.h"
 #include "main.h"
+#include "send.h"
 #include "client-api/server.h"
 #include "util.h"
 #include "wallet/wallet.h"
@@ -243,6 +244,8 @@ UniValue sendzcoin(Type type, const UniValue& data, const UniValue& auth, bool f
         }
     }
 
+    return NullUniValue;
+
 }
 
 UniValue txfee(Type type, const UniValue& data, const UniValue& auth, bool fHelp){
@@ -433,6 +436,7 @@ UniValue paymentrequest(Type type, const UniValue& data, const UniValue& auth, b
             LogPrintf("data write: %s\n", data.write());
             entry.push_back(Pair("address", newAddress.get_str()));
             entry.push_back(Pair("createdAt", createdAt.get_int64()));
+            entry.push_back(Pair("state", "active"));
 
             try{
                 entry.push_back(Pair("amount", find_value(data, "amount")));
@@ -499,6 +503,11 @@ UniValue paymentrequest(Type type, const UniValue& data, const UniValue& auth, b
                 string key = (*it);
                 UniValue value = find_value(data, key);
                 if(!(key=="id")){
+                    if(key=="state"){
+                        // Only update state should it be a valid value
+                        if(!(value.getType()==UniValue::VSTR) && !nStates.count(value.get_str()))
+                          throw JSONAPIError(API_WRONG_TYPE_CALLED, "wrong key passed/value type for method");
+                    }
                     entry.replace(key, value); //todo might have to specify type
                 }
             }

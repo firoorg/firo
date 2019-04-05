@@ -1339,7 +1339,7 @@ void CWalletTx::GetAmounts(list <COutputEntry> &listReceived,
         }
 
         // If we are receiving the output, add it as a "received" entry
-        if (fIsMine & filter || (IsZerocoinSpend() && (fIsMine & filter))){
+        if (fIsMine & filter){
             listReceived.push_back(output);  
         }
     }
@@ -2484,7 +2484,7 @@ void CWallet::GetAvailableMintCoinBalance(CAmount& balance, bool fOnlyConfirmed)
                         pubCoinItem.randomness != 0 && pubCoinItem.serialNumber != 0 //assigned a value
                     ) {
                         if(fOnlyConfirmed){
-                            if (pcoin->IsTrusted() && pcoin->GetDepthInMainChain() != 0 && !pcoin->InMempool())
+                            if (pcoin->IsTrusted() && pcoin->GetDepthInMainChain() >= ZC_MINT_CONFIRMATIONS && !pcoin->InMempool())
                                 balance += pubCoinItem.denomination * COIN;
                         }else {
                             balance += pubCoinItem.denomination * COIN;

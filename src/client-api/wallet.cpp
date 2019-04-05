@@ -169,7 +169,7 @@ void APIWalletTxToJSON(const CWalletTx& wtx, UniValue& entry)
         if(timestamp.isNull()){ 
             timestamp = blocktime.get_int64() * 1000;
         }
-        entry.push_back(Pair("firstSeenAt", timestamp));    
+        entry.push_back(Pair("firstSeenAt", timestamp));
     }
     else {
         entry.push_back(Pair("firstSeenAt", setInitialTimestamp(hash)));
