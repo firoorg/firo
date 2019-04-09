@@ -20,7 +20,9 @@ public:
     uint32_t sequence;
 
 public:
-    virtual ~InputSigner() {}
+    InputSigner();
+    explicit InputSigner(const COutPoint& output, uint32_t seq = CTxIn::SEQUENCE_FINAL);
+    virtual ~InputSigner();
 
     virtual CScript Sign(const CMutableTransaction& tx, const uint256& sig) = 0;
 };
@@ -31,7 +33,7 @@ public:
     CWallet& wallet;
 
 public:
-    TxBuilder(CWallet& wallet) noexcept;
+    explicit TxBuilder(CWallet& wallet) noexcept;
     virtual ~TxBuilder();
 
     CWalletTx Build(const std::vector<CRecipient>& recipients, CAmount& fee);
