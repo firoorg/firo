@@ -383,7 +383,7 @@ bool CheckMintZcoinTransaction(const CTxOut &txout,
 
 bool CheckZerocoinFoundersInputs(const CTransaction &tx, CValidationState &state, const Consensus::Params &params, int nHeight, bool fMTP) {
     // Check for founders inputs
-    if ((nHeight > params.nCheckBugFixedAtBlock) && (nHeight < 305000)) {
+    if ((nHeight > params.nCheckBugFixedAtBlock) && (nHeight < params.nSubsidyHalvingFirst)) {
         // Reduce everything by a factor of two when MTP is in place
         int reductionFactor = fMTP ? params.nMTPRewardReduction : 1;
 

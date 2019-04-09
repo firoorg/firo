@@ -2017,13 +2017,17 @@ CAmount GetBlockSubsidy(int nHeight, const Consensus::Params &consensusParams, i
     // Genesis block is 0 coin
     if (nHeight == 0)
         return 0;
-    int halvings = nHeight / consensusParams.nSubsidyHalvingInterval;
+
+    // Subsidy is cut in half after nSubsidyHalvingFirst block, then every nSubsidyHalvingInterval blocks.
+    // After block nSubsidyHalvingStopBlock there will be no subsidy at all
+    if (nHeight >= consensusParams.nSubsidyHalvingStopBlock)
+        return 0;
+    int halvings = nHeight < consensusParams.nSubsidyHalvingFirst ? 0 : (nHeight - consensusParams.nSubsidyHalvingFirst) / consensusParams.nSubsidyHalvingInterval + 1;
     // Force block reward to zero when right shift is undefined.
     if (halvings >= 64)
         return 0;
 
     CAmount nSubsidy = 50 * COIN;
-    // Subsidy is cut in half every 300,000 blocks which will occur approximately every 4 years.
     nSubsidy >>= halvings;
 
     if (nHeight > 0 && nTime >= (int)consensusParams.nMTPSwitchTime)

@@ -52,7 +52,12 @@ struct Params {
     ChainType chainType;
 
     uint256 hashGenesisBlock;
+    /** First subsidy halving */
+    int nSubsidyHalvingFirst;
+    /** Subsequent subsidy halving intervals */
     int nSubsidyHalvingInterval;
+    /** Stop subsidy at this block number */
+    int nSubsidyHalvingStopBlock;
     /** Used to check majorities for block version upgrade */
     int nMajorityEnforceBlockUpgrade;
     int nMajorityRejectBlockOutdated;
