@@ -5,13 +5,13 @@
 
 #include <boost/test/unit_test.hpp>
 
-static bool no_check( std::runtime_error const& ex ) { return true; }
+inline bool no_check( std::runtime_error const& ex ) { return true; }
 
 struct ZerocoinTestingSetupBase : public TestingSetup {
     ZerocoinTestingSetupBase();
-    
+
     CScript scriptPubKey;
-    
+
     CBlock CreateBlock(const std::vector<CMutableTransaction>&,
                        const CScript&);
 
@@ -21,6 +21,8 @@ struct ZerocoinTestingSetupBase : public TestingSetup {
     // scriptPubKey, and try to add it to the current chain.
     CBlock CreateAndProcessBlock(const std::vector<CMutableTransaction>&,
                                  const CScript&);
+
+    void CreateAndProcessEmptyBlocks(size_t block_numbers, const CScript& script);
 
     std::vector<CTransaction> coinbaseTxns; // For convenience, coinbase transactionsl
     CKey coinbaseKey; // private/public key needed to spend coinbase transactions

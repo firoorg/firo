@@ -8,6 +8,7 @@
 #include "amount.h"
 #include "exoassetsdialog.h"
 #include "znodelist.h"
+#include "sigmapage.h"
 
 #include <QStackedWidget>
 
@@ -90,6 +91,7 @@ private:
     MetaDExDialog *metaDExTab;
     MetaDExCancelDialog *cancelTab;
     ZerocoinPage *zerocoinPage;
+    SigmaPage *sigmaPage;
     TransactionView *zcoinTransactionList;
     TXHistoryDialog *exodusTransactionsView;
     QWidget *zcoinTransactionsView;
@@ -124,6 +126,8 @@ public Q_SLOTS:
     void gotoSendCoinsPage(QString addr = "");
     /** Switch to zerocoin page */
     void gotoZerocoinPage();
+    /** Switch to sigma page */
+    void gotoSigmaPage();
     /** Switch to utility page */
     void gotoToolboxPage();
 

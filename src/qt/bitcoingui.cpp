@@ -330,11 +330,18 @@ void BitcoinGUI::createActions()
 	tabGroup->addAction(historyAction);
 
 	zerocoinAction = new QAction(platformStyle->SingleColorIcon(":/icons/zerocoin"), tr("&Zerocoin"), this);
-	zerocoinAction->setStatusTip(tr("Show the list of public coin that have been minted"));
+	zerocoinAction->setStatusTip(tr("Show the list of public coins that have been minted"));
 	zerocoinAction->setToolTip(zerocoinAction->statusTip());
 	zerocoinAction->setCheckable(true);
 	zerocoinAction->setShortcut(QKeySequence(Qt::ALT +  key++));
 	tabGroup->addAction(zerocoinAction);
+
+	sigmaAction = new QAction(platformStyle->SingleColorIcon(":/icons/sigma"), tr("Si&gma"), this);
+	sigmaAction->setStatusTip(tr("Show the list of public coins that have been minted"));
+	sigmaAction->setToolTip(sigmaAction->statusTip());
+	sigmaAction->setCheckable(true);
+	sigmaAction->setShortcut(QKeySequence(Qt::ALT +  key++));
+	tabGroup->addAction(sigmaAction);
 
 	zerocoinMenuAction = new QAction(platformStyle->TextColorIcon(":/icons/zerocoin"), zerocoinAction->text(), this);
 	zerocoinMenuAction->setStatusTip(zerocoinAction->statusTip());
@@ -388,6 +395,7 @@ void BitcoinGUI::createActions()
 	connect(historyAction, SIGNAL(triggered()), this, SLOT(gotoHistoryPage()));
 	connect(zerocoinAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
 	connect(zerocoinAction, SIGNAL(triggered()), this, SLOT(gotoZerocoinPage()));
+	connect(sigmaAction, SIGNAL(triggered()), this, SLOT(gotoSigmaPage()));
 
     if (exodusEnabled) {
         connect(exoAssetsAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
@@ -530,6 +538,7 @@ void BitcoinGUI::createToolBars()
         toolbar->addAction(receiveCoinsAction);
         toolbar->addAction(historyAction);
         toolbar->addAction(zerocoinAction);
+        toolbar->addAction(sigmaAction);
         toolbar->addAction(znodeAction);
 
         if (isExodusEnabled()) {
@@ -640,6 +649,7 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
     receiveCoinsMenuAction->setEnabled(enabled);
     historyAction->setEnabled(enabled);
     zerocoinAction->setEnabled(enabled);
+    sigmaAction->setEnabled(enabled);
     znodeAction->setEnabled(enabled);
     encryptWalletAction->setEnabled(enabled);
     backupWalletAction->setEnabled(enabled);
@@ -827,6 +837,11 @@ void BitcoinGUI::gotoSignMessageTab(QString addr)
 void BitcoinGUI::gotoZerocoinPage()
 {
     if (walletFrame) walletFrame->gotoZerocoinPage();
+}
+
+void BitcoinGUI::gotoSigmaPage()
+{
+    if (walletFrame) walletFrame->gotoSigmaPage();
 }
 
 void BitcoinGUI::gotoVerifyMessageTab(QString addr)

@@ -166,7 +166,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
     const int nHeight = pindexPrev->nHeight + 1;
 
     // To founders and investors
-    if ((nHeight + 1 > 0) && (nHeight + 1 < 305000)) {
+    if ((nHeight + 1 > 0) && (nHeight + 1 < params.nSubsidyHalvingFirst)) {
         CScript FOUNDER_1_SCRIPT;
         CScript FOUNDER_2_SCRIPT;
         CScript FOUNDER_3_SCRIPT;

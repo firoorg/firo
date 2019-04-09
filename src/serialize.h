@@ -17,6 +17,7 @@
 #include <stdint.h>
 #include <string>
 #include <string.h>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 #include <deque>
@@ -48,7 +49,7 @@ inline T* NCONST_PTR(const T* val)
     return const_cast<T*>(val);
 }
 
-/** 
+/**
  * Get begin pointer of vector (non-const version).
  * @note These functions avoid the undefined case of indexing into an empty
  * vector, as well as that of indexing after the end of the vector.
@@ -179,11 +180,11 @@ enum
 
 #define READWRITE(obj)      (::SerReadWrite(s, (obj), nType, nVersion, ser_action))
 
-/** 
+/**
  * Implement three methods for serializable objects. These are actually wrappers over
  * "SerializationOp" template, which implements the body of each class' serialization
  * code. Adding "ADD_SERIALIZE_METHODS" in the body of the class causes these wrappers to be
- * added as members. 
+ * added as members.
  */
 #define ADD_SERIALIZE_METHODS                                                          \
     size_t GetSerializeSize(int nType, int nVersion) const {                         \
@@ -347,16 +348,16 @@ uint64_t ReadCompactSize(Stream& is)
  * sure the encoding is one-to-one, one is subtracted from all but the last digit.
  * Thus, the byte sequence a[] with length len, where all but the last byte
  * has bit 128 set, encodes the number:
- * 
+ *
  *  (a[len-1] & 0x7F) + sum(i=1..len-1, 128^i*((a[len-i-1] & 0x7F)+1))
- * 
+ *
  * Properties:
  * * Very small (0-127: 1 byte, 128-16511: 2 bytes, 16512-2113663: 3 bytes)
  * * Every integer has exactly one encoding
  * * Encoding does not depend on size of original integer type
  * * No redundancy: every (infinite) byte sequence corresponds to a list
  *   of encoded integers.
- * 
+ *
  * 0:         [0x00]  256:        [0x81 0x00]
  * 1:         [0x01]  16383:      [0xFE 0x7F]
  * 127:       [0x7F]  16384:      [0xFF 0x00]
@@ -414,7 +415,7 @@ I ReadVarInt(Stream& is)
 #define COMPACTSIZE(obj) REF(CCompactSize(REF(obj)))
 #define LIMITED_STRING(obj,n) REF(LimitedString< n >(REF(obj)))
 
-/** 
+/**
  * Wrapper for serializing arrays and POD.
  */
 class CFlatData
@@ -615,6 +616,13 @@ template<typename Stream, typename K, typename T, typename Pred, typename A> voi
 template<typename K, typename Pred, typename A> unsigned int GetSerializeSize(const std::set<K, Pred, A>& m, int nType, int nVersion);
 template<typename Stream, typename K, typename Pred, typename A> void Serialize(Stream& os, const std::set<K, Pred, A>& m, int nType, int nVersion);
 template<typename Stream, typename K, typename Pred, typename A> void Unserialize(Stream& is, std::set<K, Pred, A>& m, int nType, int nVersion);
+
+/**
+ * unordered_set
+ */
+template<typename K, typename H, typename E, typename A> unsigned int GetSerializeSize(const std::unordered_set<K, H, E, A>& s, int nType, int nVersion);
+template<typename Stream, typename K, typename H, typename E, typename A> void Serialize(Stream& os, const std::unordered_set<K, H, E, A>& s, int nType, int nVersion);
+template<typename Stream, typename K, typename H, typename E, typename A> void Unserialize(Stream& is, std::unordered_set<K, H, E, A>& s, int nType, int nVersion);
 
 
 /**
@@ -1108,6 +1116,50 @@ void Unserialize(Stream& is, std::set<K, Pred, A>& m, int nType, int nVersion)
         K key;
         Unserialize(is, key, nType, nVersion);
         it = m.insert(it, key);
+    }
+}
+
+/**
+ * unordered_set
+ */
+
+template<typename K, typename H, typename E, typename A>
+unsigned int GetSerializeSize(const std::unordered_set<K, H, E, A>& s, int nType, int nVersion)
+{
+    unsigned size = GetSizeOfCompactSize(s.size());
+
+    for (auto& i : s) {
+        size += GetSerializeSize(i, nType, nVersion);
+    }
+
+    return size;
+}
+
+template<typename Stream, typename K, typename H, typename E, typename A>
+void Serialize(Stream& os, const std::unordered_set<K, H, E, A>& s, int nType, int nVersion)
+{
+    WriteCompactSize(os, s.size());
+
+    for (auto& i : s) {
+        Serialize(os, i, nType, nVersion);
+    }
+}
+
+template<typename Stream, typename K, typename H, typename E, typename A>
+void Unserialize(Stream& is, std::unordered_set<K, H, E, A>& s, int nType, int nVersion)
+{
+    unsigned size = ReadCompactSize(is);
+
+    s.clear();
+
+    for (unsigned i = 0; i < size; i++) {
+        K key;
+
+        Unserialize(is, key, nType, nVersion);
+
+        if (!s.insert(key).second) {
+            throw std::ios_base::failure("Duplicated item at " + std::to_string(i));
+        }
     }
 }
 

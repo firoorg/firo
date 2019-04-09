@@ -75,7 +75,7 @@ bool CheckSpendZcoinTransactionV3(
 		else
 			hasNonZerocoinInputs = true;
 
-		uint32_t pubcoinId = txin.nSequence;
+		uint32_t pubcoinId = txin.prevout.n;
 		if (pubcoinId < 1 || pubcoinId >= INT_MAX) {
 			// coin id should be positive integer
 			return state.DoS(100,
@@ -113,7 +113,6 @@ bool CheckSpendZcoinTransactionV3(
 		BOOST_FOREACH(CTxIn &txTempIn, txTemp.vin) {
 			if (txTempIn.scriptSig.IsZerocoinSpendV3()) {
 				txTempIn.scriptSig.clear();
-				txTempIn.prevout.SetNull();
 			}
 		}
 		txHashForMetadata = txTemp.GetHash();
@@ -136,7 +135,7 @@ bool CheckSpendZcoinTransactionV3(
 
         // We use incomplete transaction hash as metadata.
         sigma::SpendMetaDataV3 newMetaData(
-            txin.nSequence,
+            pubcoinId,
             accumulatorBlockHash,
             txHashForMetadata);
 
@@ -293,7 +292,7 @@ bool CheckZerocoinTransactionV3(
 								 "CheckSpendZcoinTransaction: can't mix zerocoin spend input with regular ones");
 			}
 			// Get the CoinDenomination value of each vin for the CheckSpendZcoinTransaction function
-			uint32_t pubcoinId = txin.nSequence;
+			uint32_t pubcoinId = txin.prevout.n;
 			if (pubcoinId < 1 || pubcoinId >= INT_MAX) {
 				// coin id should be positive integer
 				return false;
@@ -322,9 +321,6 @@ bool CheckZerocoinTransactionV3(
 						return false;
 				}
 			}
-
-		}else {
-			return state.DoS(100, error("CheckZerocoinTransaction : invalid spending txout value"));
 		}
 	}
 	return true;

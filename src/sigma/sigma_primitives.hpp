@@ -27,14 +27,14 @@ void SigmaPrimitives<Exponent, GroupElement>::convert_to_sigma(
         uint64_t n,
         uint64_t m,
         std::vector<Exponent>& out){
-    int rem, nalNumber = 0;
-    int j = 0;
+    uint64_t rem;
+    uint64_t j = 0;
 
     while (num != 0)
     {
         rem = num % n;
         num /= n;
-        for(int i = 0; i < n; ++i){
+        for (uint64_t i = 0; i < n; ++i) {
             if(i == rem)
                 out.push_back(Exponent(uint64_t(1)));
             else
@@ -43,9 +43,9 @@ void SigmaPrimitives<Exponent, GroupElement>::convert_to_sigma(
         j++;
     }
 
-    for(int k = j; k < m; ++k){
+    for (uint64_t k = j; k < m; ++k) {
         out.push_back(Exponent(uint64_t(1)));
-        for(int i = 1; i < n; ++i){
+        for (uint64_t i = 1; i < n; ++i) {
             out.push_back(Exponent(uint64_t(0)));
         }
     }
@@ -57,7 +57,7 @@ std::vector<uint64_t> SigmaPrimitives<Exponent, GroupElement>::convert_to_nal(
         uint64_t n,
         uint64_t m){
     std::vector<uint64_t> result;
-    uint64_t rem, nalNumber = 0;
+    uint64_t rem;
     uint64_t j = 0;
     while (num != 0)
     {
@@ -77,17 +77,15 @@ void SigmaPrimitives<Exponent, GroupElement>::get_x(
         const GroupElement& D,
         Exponent& result_out) {
     CSHA256 hash;
-    unsigned char data[3 * A.memoryRequired()];
+    unsigned char data[3 * A.serialize_size];
     unsigned char* current = A.serialize(data);
     current = C.serialize(current);
     D.serialize(current);
-    hash.Write(data, 3 * 34);
-    unsigned char result_data[32];
+    hash.Write(data, 3 * A.memoryRequired());
+    unsigned char result_data[CSHA256::OUTPUT_SIZE];
     hash.Finalize(result_data);
     result_out = result_data;
 }
-
-
 
 template<class Exponent, class GroupElement>
 void SigmaPrimitives<Exponent, GroupElement>::new_factor(
@@ -96,11 +94,11 @@ void SigmaPrimitives<Exponent, GroupElement>::new_factor(
         std::vector<Exponent>& coefficients) {
     std::vector<Exponent> temp;
     temp.resize(coefficients.size() + 1);
-    for(int j = 0; j < coefficients.size(); j++)
+    for (std::size_t j = 0; j < coefficients.size(); j++)
         temp[j] += x * coefficients[j];
-    for(int j = 0; j < coefficients.size(); j++)
+    for(std::size_t j = 0; j < coefficients.size(); j++)
         temp[j + 1] += a * coefficients[j];
     coefficients = temp;
 }
 
-}//namespace sigma
+} // namespace sigma

@@ -21,7 +21,7 @@ public:
     inline unsigned char* serialize(unsigned char* buffer) const {
         unsigned char* current = B_.serialize(buffer);
         current = r1Proof_.serialize(current);
-        for(int i = 0; i < Gk_.size(); ++i)
+        for (std::size_t i = 0; i < Gk_.size(); ++i)
             current = Gk_[i].serialize(current);
         return z_.serialize(current);
     }

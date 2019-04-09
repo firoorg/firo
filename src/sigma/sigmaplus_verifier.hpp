@@ -44,7 +44,7 @@ bool  SigmaPlusVerifier<Exponent, GroupElement>::verify(
         f_i_.emplace_back(f_i);
     }
     GroupElement t1;
-    const int window_size = 7;
+    const std::size_t window_size = 7;
     zcoin_common::GeneratorVector<Exponent, GroupElement> c_(commits, window_size);
     c_.get_vector_multiple(f_i_, t1);
     GroupElement t2;
@@ -62,4 +62,4 @@ bool  SigmaPlusVerifier<Exponent, GroupElement>::verify(
     return true;
 }
 
-} //namespace sigma
+} // namespace sigma

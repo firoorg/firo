@@ -1120,7 +1120,7 @@ bool CheckTransaction(
         bool isCheckWallet,
         bool fStatefulZerocoinCheck,
         CZerocoinTxInfo *zerocoinTxInfo,
-        CZerocoinTxInfoV3 *zerocoinTxInfoV3) 
+        CZerocoinTxInfoV3 *zerocoinTxInfoV3)
 {
     LogPrintf("CheckTransaction nHeight=%s, isVerifyDB=%s, isCheckWallet=%s, txHash=%s\n", nHeight, isVerifyDB, isCheckWallet, tx.GetHash().ToString());
 //    LogPrintf("transaction = %s\n", tx.ToString());
@@ -1175,8 +1175,7 @@ bool CheckTransaction(
             return state.DoS(100, false, REJECT_INVALID, "bad-cb-length");
     } else {
 	    BOOST_FOREACH(const CTxIn &txin, tx.vin) {
-		    if (txin.prevout.IsNull() && !txin.scriptSig.IsZerocoinSpend()
-                    && !txin.scriptSig.IsZerocoinSpendV3()) {
+		    if (txin.prevout.IsNull() && !txin.scriptSig.IsZerocoinSpend()) {
 			    return state.DoS(10, false, REJECT_INVALID, "bad-txns-prevout-null");
 		    }
 	    }
@@ -1417,7 +1416,7 @@ bool AcceptToMemoryPoolWorker(
                 //                LogPrintf("cause by -> non-BIP68-final!\n");
                 //                return state.DoS(0, false, REJECT_NONSTANDARD, "non-BIP68-final");
                 //            }
-            } else if (tx.IsZerocoinSpendV3()){
+            } else if (tx.IsZerocoinSpendV3() && fCheckInputs) {
                 nValueIn = GetSpendTransactionInputV3(tx);
             }
 
@@ -1464,7 +1463,7 @@ bool AcceptToMemoryPoolWorker(
 
             CTxMemPoolEntry entry(tx, nFees, GetTime(), dPriority, chainActive.Height(), pool.HasNoInputsOf(tx),
                                   inChainInputValue, fSpendsCoinbase, nSigOpsCost, lp);
-            
+
             // TODO: Temporarily disable this condition (by setting txMinFee = 0) to accept zero-fee TX (from old 0.8 client)
             // int64_t txMinFee = tx.GetMinFee(1000, true, GMF_RELAY);
             int64_t txMinFee = 0;
@@ -2018,13 +2017,17 @@ CAmount GetBlockSubsidy(int nHeight, const Consensus::Params &consensusParams, i
     // Genesis block is 0 coin
     if (nHeight == 0)
         return 0;
-    int halvings = nHeight / consensusParams.nSubsidyHalvingInterval;
+
+    // Subsidy is cut in half after nSubsidyHalvingFirst block, then every nSubsidyHalvingInterval blocks.
+    // After block nSubsidyHalvingStopBlock there will be no subsidy at all
+    if (nHeight >= consensusParams.nSubsidyHalvingStopBlock)
+        return 0;
+    int halvings = nHeight < consensusParams.nSubsidyHalvingFirst ? 0 : (nHeight - consensusParams.nSubsidyHalvingFirst) / consensusParams.nSubsidyHalvingInterval + 1;
     // Force block reward to zero when right shift is undefined.
     if (halvings >= 64)
         return 0;
 
     CAmount nSubsidy = 50 * COIN;
-    // Subsidy is cut in half every 300,000 blocks which will occur approximately every 4 years.
     nSubsidy >>= halvings;
 
     if (nHeight > 0 && nTime >= (int)consensusParams.nMTPSwitchTime)
@@ -4294,7 +4297,7 @@ bool CheckBlock(const CBlock &block, CValidationState &state,
                                            state.GetDebugMessage()));
             }
         }
-        
+
         unsigned int nSigOps = 0;
         BOOST_FOREACH(
         const CTransaction &tx, block.vtx)
@@ -6747,7 +6750,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand,
 
         pfrom->setAskFor.erase(inv.hash);
         mapAlreadyAskedFor.erase(inv.hash);
-        if (!AlreadyHave(inv) && !tx.IsZerocoinSpend() && !tx.IsZerocoinSpendV3() &&
+        if (!AlreadyHave(inv) && !tx.IsZerocoinSpend() &&
             AcceptToMemoryPool(mempool, state, tx, true, true, &fMissingInputs, false, 0, true)) {
             LogPrintf("Transaction %s received and added to the mempool.\n",
                       tx.GetHash().ToString());
@@ -6782,7 +6785,9 @@ bool static ProcessMessage(CNode *pfrom, string strCommand,
 
             RelayTransaction(tx);
             for (unsigned int i = 0; i < tx.vout.size(); i++) {
-                vWorkQueue.emplace_back(inv.hash, i);
+                if (!tx.vout[i].scriptPubKey.IsZerocoinMintV3()) {
+                    vWorkQueue.emplace_back(inv.hash, i);
+                }
             }
 
             pfrom->nLastTXTime = GetTime();

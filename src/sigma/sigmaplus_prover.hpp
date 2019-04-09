@@ -15,7 +15,7 @@ SigmaPlusProver<Exponent, GroupElement>::SigmaPlusProver(
 template<class Exponent, class GroupElement>
 void SigmaPlusProver<Exponent, GroupElement>::proof(
         const std::vector<GroupElement>& commits,
-        int l,
+        std::size_t l,
         const Exponent& r,
         SigmaPlusProof<Exponent, GroupElement>& proof_out) {
     int N = commits.size();
@@ -37,7 +37,7 @@ void SigmaPlusProver<Exponent, GroupElement>::proof(
     Exponent x = r1prover.x_;
     std::vector <std::vector<Exponent>> P_i_k;
     P_i_k.resize(N);
-    for (int i = 0; i < commits.size(); ++i) {
+    for (std::size_t i = 0; i < commits.size(); ++i) {
         std::vector <Exponent>& coefficients = P_i_k[i];
         std::vector<uint64_t> I = SigmaPrimitives<Exponent, GroupElement>::convert_to_nal(i, n_, m_);
         coefficients.push_back(sigma[I[0]]);
@@ -50,7 +50,7 @@ void SigmaPlusProver<Exponent, GroupElement>::proof(
 
     //computing G_k`s;
     std::vector <GroupElement> Gk;
-    const int window_size = 7;
+    const std::size_t window_size = 7;
     zcoin_common::GeneratorVector <Exponent, GroupElement> c_(commits, window_size);
     for (int k = 0; k < m_; ++k) {
         std::vector <Exponent> P_i;
@@ -77,4 +77,4 @@ void SigmaPlusProver<Exponent, GroupElement>::proof(
     proof_out.z_ = z;
 }
 
-}//namespace sigma
+} // namespace sigma

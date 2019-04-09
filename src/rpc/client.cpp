@@ -118,8 +118,9 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "mintzerocoin", 0 },
     { "spendzerocoin", 0 },
     { "spendmanyzerocoin", 0 },
-    { "spendmany", 0 },
+    { "spendmany", 1 },
     { "spendmany", 2 },
+    { "spendmany", 4 },
     { "setgenerate", 0 },
     { "setgenerate", 1 },
     { "setmintzerocoinstatus", 2 },
@@ -128,6 +129,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "listpubcoins", 0 },
     { "listspendzerocoins", 0 },
     { "listspendzerocoins", 1 },
+	{ "spendallzerocoin", 0 },
     /* Exodus - data retrieval calls */
 	{ "exodus_gettradehistoryforaddress", 1 },
 	{ "exodus_gettradehistoryforaddress", 2 },

@@ -103,6 +103,8 @@ BITCOIN_TESTS =\
   test/sigma_mintspend_test.cpp \
   test/sigma_manymintspend_test.cpp \
   test/sigma_mintspend_numinputs.cpp \
+  test/sigma_partialspend_mempool_tests.cpp \
+  test/spend_all_oldmints_test.cpp \
   test/sigopcount_tests.cpp \
   test/skiplist_tests.cpp \
   test/streams_tests.cpp \
@@ -124,7 +126,8 @@ BITCOIN_TESTS += \
   wallet/test/accounting_tests.cpp \
   wallet/test/wallet_tests.cpp \
   wallet/test/crypto_tests.cpp \
-  wallet/test/sigma_tests.cpp
+  wallet/test/sigma_tests.cpp \
+  wallet/test/txbuilder_tests.cpp
 endif
 
 test_test_bitcoin_LDADD = $(LIBBITCOIN_SERVER) tor/src/or/libtor.a \

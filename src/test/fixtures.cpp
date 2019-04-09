@@ -81,6 +81,12 @@
         return block;
     }
 
+    void ZerocoinTestingSetupBase::CreateAndProcessEmptyBlocks(size_t block_numbers, const CScript& script) {
+        while (block_numbers--) {
+            CreateAndProcessBlock({}, script);
+        }
+    }
+
  ZerocoinTestingSetup200::ZerocoinTestingSetup200()
     {
         CPubKey newKey;
@@ -161,7 +167,7 @@ MtpMalformedTestingSetup::MtpMalformedTestingSetup()
             {
                 LOCK(pwalletMain->cs_wallet);
                 pwalletMain->AddToWalletIfInvolvingMe(b.vtx[0], &b, true);
-            }   
+            }
         }
         printf("Balance after 150 blocks: %ld\n", pwalletMain->GetBalance());
     }

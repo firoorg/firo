@@ -1,6 +1,7 @@
 #include "params.h"
 
 namespace sigma {
+
 ParamsV3* ParamsV3::instance;
 ParamsV3* ParamsV3::get_default() {
     if(instance != nullptr)
@@ -17,9 +18,11 @@ ParamsV3* ParamsV3::get_default() {
     }
 }
 
-ParamsV3::ParamsV3(const GroupElement& g, int n, int m):
-        n_(n), m_(m), g_(g){
-
+ParamsV3::ParamsV3(const GroupElement& g, int n, int m) :
+    g_(g),
+    m_(m),
+    n_(n)
+{
     unsigned char buff0[32] = {0};
     g.sha256(buff0);
     GroupElement h0;

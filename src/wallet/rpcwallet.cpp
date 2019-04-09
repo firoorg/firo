@@ -1379,7 +1379,7 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
                 entry.push_back(Pair("involvesWatchonly", true));
             entry.push_back(Pair("account", strSentAccount));
             MaybePushAddress(entry, s.destination, addr);
-            if(wtx.IsZerocoinMint()) {
+            if (wtx.IsZerocoinMint() || wtx.IsZerocoinMintV3()) {
                 entry.push_back(Pair("category", "mint"));
             }
             else if(wtx.IsZerocoinSpend()){
@@ -2793,8 +2793,8 @@ UniValue mintzerocoin(const UniValue& params, bool fHelp)
 
         // Wallet comments
         CWalletTx wtx;
-
-        string strError = pwalletMain->MintZerocoin(scriptSerializedCoin, nAmount, wtx);
+        bool isSigmaMint = false;
+        string strError = pwalletMain->MintZerocoin(scriptSerializedCoin, nAmount, isSigmaMint, wtx);
 
         if (strError != "")
             throw JSONRPCError(RPC_WALLET_ERROR, strError);
@@ -2824,15 +2824,14 @@ UniValue mintzerocoin(const UniValue& params, bool fHelp)
 
 UniValue mintzerocoinV3(const UniValue& params, bool fHelp)
 {
-    // TODO(martun): change the denominations over here.
     if (fHelp || params.size() > 1)
-        throw runtime_error("mintzerocoinV3 <amount>(1,10,25,50,100)\n" + HelpRequiringPassphrase());
+        throw runtime_error("mintzerocoinV3 <amount>(0.1,0.5,1,10,100)\n" + HelpRequiringPassphrase());
 
     int64_t nAmount = 0;
     sigma::CoinDenominationV3 denomination;
 
     if (!RealNumberToDenomination(params[0].get_real(), denomination))
-        throw runtime_error("mintzerocoin <amount>(1,10,25,50,100)\n");
+        throw runtime_error("mintzerocoin <amount>(0.1,0.5,1,10,100)\n");
     DenominationToInteger(denomination, nAmount);
     LogPrintf("rpcWallet.mintzerocoin() denomination = %s, nAmount = %s \n", denomination, nAmount);
 
@@ -2868,8 +2867,8 @@ UniValue mintzerocoinV3(const UniValue& params, bool fHelp)
 
         // Wallet comments
         CWalletTx wtx;
-
-        string strError = pwalletMain->MintZerocoin(scriptSerializedCoin, nAmount, wtx);
+        bool isSigmaMint = true;
+        string strError = pwalletMain->MintZerocoin(scriptSerializedCoin, nAmount, isSigmaMint, wtx);
 
         if (strError != "")
             throw JSONRPCError(RPC_WALLET_ERROR, strError);
@@ -3016,17 +3015,17 @@ UniValue mintmanyzerocoinV3(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() > 1)
         throw runtime_error(
-                "mintmanyzerocoin {<denomination>(1,10,25,50,100):\"amount\"...}\n"
+                "mintmanyzerocoin {<denomination>(0.1,0.5,1,10,100):\"amount\"...}\n"
                 + HelpRequiringPassphrase()
                 + "\nMint 1 or more zerocoins in a single transaction. Amounts must be of denominations specified.\n"
                   "\nArguments:\n"
                   "1. \"denominations\"             (object, required) A json object with amounts and denominations\n"
                   "    {\n"
-                  "      \"denomination\":amount The denomination of zerocoin to mint (must be one of (1,10,25,50,100)) followed by the amount of the denomination to mint.\n"
+                  "      \"denomination\":amount The denomination of zerocoin to mint (must be one of (0.1,0.5,1,10,100)) followed by the amount of the denomination to mint.\n"
                   "      ,...\n"
                   "    }\n"
                   "\nExamples:\n"
-                + HelpExampleCli("mintmanyzerocoin", "\"\" \"{\\\"25\\\":10,\\\"10\\\":5}\"")
+                + HelpExampleCli("mintmanyzerocoin", "\"\" \"{\\\"10\\\":1,\\\"0.5\\\":2}\"")
         );
 
     sigma::ParamsV3* zcParams = sigma::ParamsV3::get_default();
@@ -3042,7 +3041,7 @@ UniValue mintmanyzerocoinV3(const UniValue& params, bool fHelp)
     BOOST_FOREACH(const string& denominationStr, keys){
         if (!StringToDenomination(denominationStr, denomination)) {
             throw runtime_error(
-                "mintzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n");
+                "mintzerocoin <amount>(0.1,0.5,1,10,100) (\"zcoinaddress\")\n");
         }
         int64_t coinValue;
         DenominationToInteger(denomination, coinValue);
@@ -3053,7 +3052,7 @@ UniValue mintmanyzerocoinV3(const UniValue& params, bool fHelp)
 
         if(numberOfCoins < 0) {
             throw runtime_error(
-                    "mintmanyzerocoin {<denomination>(1,10,25,50,100):\"amount\"...}\n");
+                    "mintmanyzerocoin {<denomination>(0.1,0.5,1,10,100):\"amount\"...}\n");
         }
 
         for(int64_t i = 0; i < numberOfCoins; ++i) {
@@ -3173,14 +3172,35 @@ UniValue spendzerocoin(const UniValue& params, bool fHelp) {
 
 }
 
+UniValue spendallzerocoin(const UniValue& params, bool fHelp) {
+
+    if (fHelp || params.size() >= 1)
+        throw runtime_error(
+                "spendallzerocoin\n"
+                "\nAutomatically spends all zerocoin mints to self\n" );
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    bool hasUnspendableMints = false;
+
+    string strError;
+    bool result = pwalletMain->SpendOldMints(strError);
+    if (strError != "")
+        throw JSONRPCError(RPC_WALLET_ERROR, strError);
+    else if(strError == "" && !result)
+        hasUnspendableMints = true;
+
+    return  hasUnspendableMints;
+}
+
 UniValue spendzerocoinV3(const UniValue& params, bool fHelp) {
 
     if (fHelp || params.size() < 1 || params.size() > 2)
         throw runtime_error(
-                "spendzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n"
+                "spendzerocoin <amount>(0.1,0.5,1,10,100) (\"zcoinaddress\")\n"
                 + HelpRequiringPassphrase() +
                 "\nArguments:\n"
-                "1. \"amount\"      (numeric or string, required) The amount in " + CURRENCY_UNIT + " to send. currently options are following 1, 10, 25, 50 and 100 only\n"
+                "1. \"amount\"      (numeric or string, required) The amount in " + CURRENCY_UNIT + " to send. currently options are following 0.1, 0.5, 1, 10 and 100 only\n"
                                                                                                     "2. \"zcoinaddress\"  (string, optional) The zcoin address to send to third party.\n"
                                                                                                     "\nExamples:\n"
                 + HelpExampleCli("spendzerocoin", "10 \"a1kCCGddf5pMXSipLVD9hBG2MGGVNaJ15U\"")
@@ -3192,7 +3212,7 @@ UniValue spendzerocoinV3(const UniValue& params, bool fHelp) {
     sigma::CoinDenominationV3 denomination;
     if (!RealNumberToDenomination(params[0].get_real(), denomination)) {
         throw runtime_error(
-            "spendzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n");
+            "spendzerocoin <amount>(0.1,0.5,1,10,100) (\"zcoinaddress\")\n");
     }
 
     CBitcoinAddress address;
@@ -3338,7 +3358,7 @@ UniValue spendmanyzerocoinV3(const UniValue& params, bool fHelp) {
 
     if (fHelp || params.size() != 1)
         throw runtime_error(
-                "spendmanyzerocoin \"{\"address\":\"<third party address or blank for internal>\", \"denominations\": [{\"value\":(1,10,25,50,100), \"amount\":<>}, {\"value\":(1,10,25,50,100), \"amount\":<>},...]}\"\n"
+                "spendmanyzerocoin \"{\"address\":\"<third party address or blank for internal>\", \"denominations\": [{\"value\":(0.1,0.5,1,10,100), \"amount\":<>}, {\"value\":(0.1,0.5,1,10,100), \"amount\":<>},...]}\"\n"
                 + HelpRequiringPassphrase()
                 + "\nSpend multiple zerocoins in a single transaction. Amounts must be of denominations specified.\n"
                   "\nArguments:\n"
@@ -3346,7 +3366,7 @@ UniValue spendmanyzerocoinV3(const UniValue& params, bool fHelp) {
                   " denominations: "
                   "    [\n"
                   "    {"
-                  "      \"value\": ,   (numeric) The numeric value must be one of (1,10,25,50,100)\n"
+                  "      \"value\": ,   (numeric) The numeric value must be one of (0.1,0.5,1,10,100)\n"
                   "      \"amount\" :,  (numeric or string) The amount of spends of this value.\n"
                   "    }"
                   "    ,...\n"
@@ -3378,7 +3398,7 @@ UniValue spendmanyzerocoinV3(const UniValue& params, bool fHelp) {
         value = find_value(inputObj, "value").get_int();
         if (!IntegerToDenomination(value * COIN, denomination)) {
             throw runtime_error(
-                "spendmanyzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n");
+                "spendmanyzerocoin <amount>(0.1,0.5,1,10,100) (\"zcoinaddress\")\n");
         }
         for(int64_t j = 0; j < amount; j++){
             denominations.push_back(denomination);
@@ -3427,83 +3447,83 @@ UniValue spendmanyzerocoinV3(const UniValue& params, bool fHelp) {
 
 UniValue spendmany(const UniValue& params, bool fHelp) {
 
-    if (fHelp || params.size() < 1)
-        throw runtime_error(
-                "spendmany \"{\"address\":amount,...}\""
+    if (fHelp || params.size() < 2 || params.size() > 5)
+        throw std::runtime_error(
+                "spendmany \"fromaccount\" {\"address\":amount,...} ( minconf \"comment\" [\"address\",...] )\n"
+                "\nSpend multiple zerocoins and remint changes in a single transaction by specify addresses and amount for each address."
                 + HelpRequiringPassphrase() + "\n"
-                + "\nSpend multiple zerocoins and remint in a single transaction by specify addresses and amount for each address.\n"
-                  "\nArguments:\n"
-				  "1. \"amounts\"               (string, required) A json object with addresses and amounts\n"
-                  "    {\n"
-                  "      \"address\":amount     (numeric or string) The zcoin address is the key, the numeric amount (can be string) in " + CURRENCY_UNIT + " is the value\n"
-                  "      ,...\n"
-                  "    }\n"
-                  "2. \"comment\"               (string, optional) A comment\n"
-                  "3. subtractfeefromamount     (string, optional) A json array with addresses.\n"
-                  "                             The fee will be equally deducted from the amount of each selected address.\n"
-                  "                             Those recipients will receive less bitcoins than you enter in their corresponding amount field.\n"
-                  "                             If no addresses are specified here, the sender pays the fee.\n"
-                  "    [\n"
-                  "      \"address\"            (string) Subtract fee from this address\n"
-                  "      ,...\n"
-                  "    ]\n"
-                  "\nResult:\n"
-                  "\"transactionid\"            (string) The transaction id for the send. Only 1 transaction is created regardless of \n"
-                  "                             the number of addresses.\n"
-                  "\nExamples:\n"
-                  "\nSend two amounts to two different addresses:\n"
-                  + HelpExampleCli("spendandremint", "\"\" \"{\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XZ\\\":0.01,\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\":0.02}\"")
-                  + "\nSend two amounts to two different addresses, subtract fee from amount:\n"
-                  + HelpExampleCli("spendandremint", "\"\" \"{\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XZ\\\":0.01,\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\":0.02}\" \"testing\" \"[\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XZ\\\",\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\"]\"")
+                "\nArguments:\n"
+                "1. \"fromaccount\"         (string, required) DEPRECATED. The account to send the funds from. Should be \"\" for the default account\n"
+                "2. \"amounts\"             (string, required) A json object with addresses and amounts\n"
+                "    {\n"
+                "      \"address\":amount   (numeric or string) The zcoin address is the key, the numeric amount (can be string) in " + CURRENCY_UNIT + " is the value\n"
+                "      ,...\n"
+                "    }\n"
+                "3. minconf                 (numeric, optional, default=6) NOT IMPLEMENTED. Only use the balance confirmed at least this many times.\n"
+                "4. \"comment\"             (string, optional) A comment\n"
+                "5. subtractfeefromamount   (string, optional) A json array with addresses.\n"
+                "                           The fee will be equally deducted from the amount of each selected address.\n"
+                "                           Those recipients will receive less zcoins than you enter in their corresponding amount field.\n"
+                "                           If no addresses are specified here, the sender pays the fee.\n"
+                "    [\n"
+                "      \"address\"            (string) Subtract fee from this address\n"
+                "      ,...\n"
+                "    ]\n"
+                "\nResult:\n"
+                "\"transactionid\"          (string) The transaction id for the send. Only 1 transaction is created regardless of \n"
+                "                                    the number of addresses.\n"
+                "\nExamples:\n"
+                "\nSend two amounts to two different addresses:\n"
+                + HelpExampleCli("spendmany", "\"\" \"{\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XZ\\\":0.01,\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\":0.02}\"") +
+                "\nSend two amounts to two different addresses and subtract fee from amount:\n"
+                + HelpExampleCli("spendmany", "\"\" \"{\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XZ\\\":0.01,\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\":0.02}\" 6 \"testing\" \"[\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XZ\\\",\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\"]\"")
         );
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
-    UniValue sendTo = params[0].get_obj();
+    UniValue sendTo = params[1].get_obj();
 
     CWalletTx wtx;
-    if (params.size() > 1 && !params[1].isNull() && !params[1].get_str().empty())
-        wtx.mapValue["comment"] = params[1].get_str();
+    if (params.size() > 3 && !params[3].isNull() && !params[3].get_str().empty())
+        wtx.mapValue["comment"] = params[3].get_str();
 
+    std::unordered_set<std::string> subtractFeeFromAmountSet;
     UniValue subtractFeeFromAmount(UniValue::VARR);
-    if (params.size() > 2)
-        subtractFeeFromAmount = params[2].get_array();
-
-    set<CBitcoinAddress> setAddress;
-    vector<CRecipient> vecSend;
-
-    CAmount totalAmount = 0;
-    vector<string> keys = sendTo.getKeys();
-    if (keys.size() <= 0) {
-        throw JSONRPCError(RPC_INVALID_PARAMETER, string("Required at least an address to send"));
+    if (params.size() > 4) {
+        subtractFeeFromAmount = params[4].get_array();
+        for (int i = subtractFeeFromAmount.size(); i--;) {
+            subtractFeeFromAmountSet.insert(subtractFeeFromAmount[i].get_str());
+        }
     }
 
-    for (const auto& name : keys) {
-        CBitcoinAddress address(name);
-        if (!address.IsValid())
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, string("Invalid zcoin address: ") + name);
+    std::set<CBitcoinAddress> setAddress;
+    std::vector<CRecipient> vecSend;
 
-        if (setAddress.count(address))
-            throw JSONRPCError(RPC_INVALID_PARAMETER, string("Invalid parameter, duplicated address: ") + name);
-        setAddress.insert(address);
+    CAmount totalAmount = 0;
+    auto keys = sendTo.getKeys();
+    if (keys.size() <= 0) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Required at least an address to send");
+    }
+
+    for (const auto& strAddr : keys) {
+        CBitcoinAddress address(strAddr);
+        if (!address.IsValid())
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid zcoin address: " + strAddr);
+
+        if (!setAddress.insert(address).second)
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, duplicated address: " + strAddr);
 
         CScript scriptPubKey = GetScriptForDestination(address.Get());
-        CAmount nAmount = AmountFromValue(sendTo[name]);
+        CAmount nAmount = AmountFromValue(sendTo[strAddr]);
         if (nAmount <= 0) {
             throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
         }
         totalAmount += nAmount;
 
-        bool fSubtractFeeFromAmount = false;
-        for (unsigned int idx = 0; idx < subtractFeeFromAmount.size(); idx++) {
-            const UniValue& addr = subtractFeeFromAmount[idx];
-            if (addr.get_str() == name) {
-                fSubtractFeeFromAmount = true;
-            }
-        }
+        bool fSubtractFeeFromAmount =
+            subtractFeeFromAmountSet.find(strAddr) != subtractFeeFromAmountSet.end();
 
-        CRecipient recipient = {scriptPubKey, nAmount, fSubtractFeeFromAmount};
-        vecSend.push_back(recipient);
+        vecSend.push_back({scriptPubKey, nAmount, fSubtractFeeFromAmount});
     }
 
     EnsureWalletIsUnlocked();
@@ -3511,7 +3531,7 @@ UniValue spendmany(const UniValue& params, bool fHelp) {
     CAmount nFeeRequired = 0;
 
     try {
-        std::vector<CZerocoinEntryV3> selected = pwalletMain->SpendZerocoinV3(vecSend, wtx, nFeeRequired);
+        pwalletMain->SpendZerocoinV3(vecSend, wtx, nFeeRequired);
     }
     catch (const InsufficientFunds& e) {
         throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, e.what());
@@ -3692,7 +3712,7 @@ UniValue listpubcoinsV3(const UniValue& params, bool fHelp) {
         throw runtime_error(
                 "listpubcoin <all>(1/10/25/50/100)\n"
                 "\nArguments:\n"
-                "1. <all> (int, optional) 1,10,25,50,100 (default) to return all pubcoin with denomination. empty to return all pubcoin.\n"
+                "1. <all> (int, optional) 0.1,0.5,1,10,100 (default) to return all pubcoin with denomination. empty to return all pubcoin.\n"
                 "\nResults are an array of Objects, each of which has:\n"
                 "{id, IsUsed, denomination, value, serialNumber, nHeight, randomness}");
 
@@ -3943,7 +3963,7 @@ UniValue listspendzerocoinsV3(const UniValue &params, bool fHelp) {
                 "    \"txid\": \"transactionid\",      (string) The transaction hash\n"
                 "    \"denomination\": d,            (numeric) Denomination\n"
                 "    \"spendid\": id,                (numeric) Spend group id\n"
-                "    \"version\": \"v\",               (string) Spend version (1.0, 1.5 or 2.0)\n"
+                "    \"version\": \"v\",               (string) Spend version (3.0)\n"
                 "    \"modversion\": mv,             (numeric) Modulus version (1 or 2)\n"
                 "    \"serial\": \"s\",                (string) Serial number of the coin\n"
                 "    \"abandoned\": xxx,             (bool) True if the transaction was already abandoned\n"
@@ -4123,7 +4143,8 @@ static const CRPCCommand commands[] =
     { "wallet",             "listpubcoins",        &listpubcoins,        false },
     { "wallet",             "removetxmempool",          &removetxmempool,          false },
     { "wallet",             "removetxwallet",           &removetxwallet,           false },
-    { "wallet",             "listspendzerocoins",       &listspendzerocoins,       false }
+    { "wallet",             "listspendzerocoins",       &listspendzerocoins,       false },
+    { "wallet",             "spendallzerocoin",            &spendallzerocoin,            false}
 };
 
 void RegisterWalletRPCCommands(CRPCTable &tableRPC)

@@ -4,6 +4,8 @@
 #include "r1_proof_generator.h"
 #include "sigmaplus_proof.h"
 
+#include <cstddef>
+
 namespace sigma {
 
 template <class Exponent, class GroupElement>
@@ -13,7 +15,7 @@ public:
     SigmaPlusProver(const GroupElement& g,
                     const std::vector<GroupElement>& h_gens, int n, int m);
     void proof(const std::vector<GroupElement>& commits,
-               int l,
+               std::size_t l,
                const Exponent& r,
                SigmaPlusProof<Exponent, GroupElement>& proof_out);
 

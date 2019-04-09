@@ -54,10 +54,8 @@ bool CTxIn::IsZerocoinSpend() const
 
 bool CTxIn::IsZerocoinSpendV3() const
 {
-    return (prevout.IsNull() && scriptSig.size() > 0 && (scriptSig[0] == OP_ZEROCOINSPENDV3) );
+    return (prevout.IsSigmaMintGroup() && scriptSig.size() > 0 && (scriptSig[0] == OP_ZEROCOINSPENDV3) );
 }
-
-
 
 std::string CTxIn::ToString() const
 {
@@ -207,7 +205,7 @@ double CTransaction::ComputePriority(double dPriorityInputs, unsigned int nTxSiz
 
 bool CTransaction::IsCoinBase() const
 {
-    return (vin.size() == 1 && vin[0].prevout.IsNull() && (vin[0].scriptSig.size() == 0 || (vin[0].scriptSig[0] != OP_ZEROCOINSPEND && vin[0].scriptSig[0] != OP_ZEROCOINSPENDV3)) );
+    return (vin.size() == 1 && vin[0].prevout.IsNull() && (vin[0].scriptSig.size() == 0 || vin[0].scriptSig[0] != OP_ZEROCOINSPEND));
 }
 
 bool CTransaction::IsZerocoinSpend() const
