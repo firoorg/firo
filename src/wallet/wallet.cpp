@@ -1126,27 +1126,40 @@ void CWallet::SyncTransaction(const CTransaction &tx, const CBlockIndex *pindex,
 
 
 isminetype CWallet::IsMine(const CTxIn &txin) const {
-    {
-        LOCK(cs_wallet);
+    LOCK(cs_wallet);
 
-        if (txin.IsZerocoinSpendV3()) {
-            std::list<CZerocoinEntryV3> coins;
-            CWalletDB(strWalletFile).ListPubCoinV3(coins);
+    if (txin.IsZerocoinSpend()) {
+        CWalletDB db(strWalletFile);
+        uint32_t groupId = txin.nSequence;
 
-            CDataStream serializedCoinSpend(
-                std::vector<char>(txin.scriptSig.begin() + 1, txin.scriptSig.end()),
-                SER_NETWORK, PROTOCOL_VERSION);
-            sigma::CoinSpendV3 spend(ZCParamsV3, serializedCoinSpend);
-
-            if (std::find_if(coins.begin(), coins.end(), [&](const CZerocoinEntryV3& c) -> bool {
-                return spend.getCoinSerialNumber() == c.serialNumber;
-            }) != coins.end()) {
-                return ISMINE_SPENDABLE;
-            }
-
-            return ISMINE_NO;
+        bool v2 = groupId >= ZC_MODULUS_V2_BASE_ID;
+        if (v2) {
+            groupId -= ZC_MODULUS_V2_BASE_ID;
         }
 
+        CDataStream data(
+            std::vector<unsigned char>(txin.scriptSig.begin() + 4, txin.scriptSig.end()),
+            SER_NETWORK,
+            PROTOCOL_VERSION
+        );
+
+        libzerocoin::CoinSpend spend(v2 ? ZCParamsV2 : ZCParams, data);
+
+        if (db.HasCoinSpendSerialEntry(spend.getCoinSerialNumber())) {
+            return ISMINE_SPENDABLE;
+        }
+    } else if (txin.IsZerocoinSpendV3()) {
+        CWalletDB db(strWalletFile);
+
+        CDataStream serializedCoinSpend(
+            std::vector<char>(txin.scriptSig.begin() + 1, txin.scriptSig.end()),
+            SER_NETWORK, PROTOCOL_VERSION);
+        sigma::CoinSpendV3 spend(ZCParamsV3, serializedCoinSpend);
+
+        if (db.HasCoinSpendSerialEntry(spend.getCoinSerialNumber())) {
+            return ISMINE_SPENDABLE;
+        }
+    } else {
         map<uint256, CWalletTx>::const_iterator mi = mapWallet.find(txin.prevout.hash);
         if (mi != mapWallet.end()) {
             const CWalletTx &prev = (*mi).second;
@@ -1154,12 +1167,40 @@ isminetype CWallet::IsMine(const CTxIn &txin) const {
                 return IsMine(prev.vout[txin.prevout.n]);
         }
     }
+
     return ISMINE_NO;
 }
 
 CAmount CWallet::GetDebit(const CTxIn &txin, const isminefilter &filter) const {
-    {
-        LOCK(cs_wallet);
+    LOCK(cs_wallet);
+
+    if (txin.IsZerocoinSpend()) {
+        CWalletDB db(strWalletFile);
+        std::unique_ptr<libzerocoin::CoinSpend> spend;
+
+        try {
+            std::tie(spend, std::ignore) = ParseZerocoinSpend(txin);
+        } catch (CBadTxIn&) {
+            goto end;
+        }
+
+        if (db.HasCoinSpendSerialEntry(spend->getCoinSerialNumber())) {
+            return spend->getDenomination() * COIN;
+        }
+    } else if (txin.IsZerocoinSpendV3()) {
+        CWalletDB db(strWalletFile);
+        std::unique_ptr<sigma::CoinSpendV3> spend;
+
+        try {
+            std::tie(spend, std::ignore) = ParseSigmaSpend(txin);
+        } catch (CBadTxIn&) {
+            goto end;
+        }
+
+        if (db.HasCoinSpendSerialEntry(spend->getCoinSerialNumber())) {
+            return spend->getIntDenomination();
+        }
+    } else {
         map<uint256, CWalletTx>::const_iterator mi = mapWallet.find(txin.prevout.hash);
         if (mi != mapWallet.end()) {
             const CWalletTx &prev = (*mi).second;
@@ -1168,11 +1209,39 @@ CAmount CWallet::GetDebit(const CTxIn &txin, const isminefilter &filter) const {
                     return prev.vout[txin.prevout.n].nValue;
         }
     }
+
+end:
     return 0;
 }
 
 isminetype CWallet::IsMine(const CTxOut &txout) const {
-    return ::IsMine(*this, txout.scriptPubKey);
+    LOCK(cs_wallet);
+
+    if (txout.scriptPubKey.IsZerocoinMint()) {
+        CWalletDB db(strWalletFile);
+        CBigNum pub;
+
+        try {
+            pub = ParseZerocoinMintScript(txout.scriptPubKey);
+        } catch (std::invalid_argument&) {
+            return ISMINE_NO;
+        }
+
+        return db.HasZerocoinEntry(pub) ? ISMINE_SPENDABLE : ISMINE_NO;
+    } else if (txout.scriptPubKey.IsZerocoinMintV3()) {
+        CWalletDB db(strWalletFile);
+        secp_primitives::GroupElement pub;
+
+        try {
+            pub = ParseSigmaMintScript(txout.scriptPubKey);
+        } catch (std::invalid_argument&) {
+            return ISMINE_NO;
+        }
+
+        return db.HasZerocoinEntry(pub) ? ISMINE_SPENDABLE : ISMINE_NO;
+    } else {
+        return ::IsMine(*this, txout.scriptPubKey);
+    }
 }
 
 CAmount CWallet::GetCredit(const CTxOut &txout, const isminefilter &filter) const {
@@ -1364,7 +1433,9 @@ void CWalletTx::GetAmounts(list <COutputEntry> &listReceived,
         // In either case, we need to get the destination address
         CTxDestination address;
 
-        if (!ExtractDestination(txout.scriptPubKey, address) && !txout.scriptPubKey.IsUnspendable()) {
+        if (txout.scriptPubKey.IsZerocoinMint() || txout.scriptPubKey.IsZerocoinMintV3()) {
+            address = CNoDestination();
+        } else if (!ExtractDestination(txout.scriptPubKey, address) && !txout.scriptPubKey.IsUnspendable()) {
             LogPrintf("CWalletTx::GetAmounts: Unknown transaction type found, txid %s\n",
                       this->GetHash().ToString());
             address = CNoDestination();
