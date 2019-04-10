@@ -45,6 +45,9 @@ public:
     void Complete();
 };
 
+CBigNum ParseZerocoinMintScript(const CScript& script);
+std::pair<std::unique_ptr<libzerocoin::CoinSpend>, uint32_t> ParseZerocoinSpend(const CTxIn& in);
+
 bool CheckZerocoinFoundersInputs(const CTransaction &tx, CValidationState &state, const Consensus::Params &params, int nHeight, bool fMTP);
 bool CheckZerocoinTransaction(const CTransaction &tx,
 	CValidationState &state,

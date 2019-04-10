@@ -54,6 +54,43 @@ static bool CheckZerocoinSpendSerial(CValidationState &state, const Consensus::P
     return true;
 }
 
+CBigNum ParseZerocoinMintScript(const CScript& script)
+{
+    if (script.size() < 6) {
+        throw std::invalid_argument("Script is not a valid Zerocoin mint");
+    }
+
+    return CBigNum(std::vector<unsigned char>(script.begin() + 6, script.end()));
+}
+
+std::pair<std::unique_ptr<libzerocoin::CoinSpend>, uint32_t> ParseZerocoinSpend(const CTxIn& in)
+{
+    // Check arguments.
+    uint32_t groupId = in.nSequence;
+
+    if (groupId < 1 || groupId >= INT_MAX) {
+        throw CBadSequence();
+    }
+
+    if (in.scriptSig.size() < 4) {
+        throw CBadTxIn();
+    }
+
+    // Determine if version 2 spend.
+    bool v2 = groupId >= ZC_MODULUS_V2_BASE_ID;
+
+    // Deserialize spend.
+    CDataStream serialized(
+        std::vector<unsigned char>(in.scriptSig.begin() + 4, in.scriptSig.end()),
+        SER_NETWORK,
+        PROTOCOL_VERSION
+    );
+
+    std::unique_ptr<libzerocoin::CoinSpend> spend(new libzerocoin::CoinSpend(v2 ? ZCParamsV2 : ZCParams, serialized));
+
+    return std::make_pair(std::move(spend), groupId);
+}
+
 bool CheckSpendZcoinTransaction(const CTransaction &tx,
                                 const Consensus::Params &params,
                                 const vector<libzerocoin::CoinDenomination>& targetDenominations,
@@ -71,7 +108,10 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
 
     set<CBigNum> serialsUsedInThisTx;
 
-    BOOST_FOREACH(const CTxIn &txin, tx.vin){
+    for (const CTxIn &txin : tx.vin) {
+        std::unique_ptr<libzerocoin::CoinSpend> spend;
+        uint32_t pubcoinId;
+
         vinIndex++;
         if (txin.scriptSig.IsZerocoinSpend()) {
             hasZerocoinSpendInputs = true;
@@ -80,13 +120,18 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
             hasNonZerocoinInputs = true;
         }
 
-        uint32_t pubcoinId = txin.nSequence;
-        if (pubcoinId < 1 || pubcoinId >= INT_MAX) {
-             // coin id should be positive integer
+        try {
+            std::tie(spend, pubcoinId) = ParseZerocoinSpend(txin);
+        } catch (CBadSequence&) {
             return state.DoS(100,
                 false,
                 NSEQUENCE_INCORRECT,
                 "CTransaction::CheckTransaction() : Error: zerocoin spend nSequence is incorrect");
+        } catch (CBadTxIn&) {
+            return state.DoS(100,
+                false,
+                REJECT_MALFORMED,
+                "CheckSpendZcoinTransaction: invalid spend transaction");
         }
 
         bool fModulusV2 = pubcoinId >= ZC_MODULUS_V2_BASE_ID, fModulusV2InIndex = false;
@@ -94,19 +139,7 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
             pubcoinId -= ZC_MODULUS_V2_BASE_ID;
         libzerocoin::Params *zcParams = fModulusV2 ? ZCParamsV2 : ZCParams;
 
-        if (txin.scriptSig.size() < 4)
-            return state.DoS(100,
-                             false,
-                             REJECT_MALFORMED,
-                             "CheckSpendZcoinTransaction: invalid spend transaction");
-
-        // Deserialize the CoinSpend intro a fresh object
-        CDataStream serializedCoinSpend((const char *)&*(txin.scriptSig.begin() + 4),
-                                        (const char *)&*txin.scriptSig.end(),
-                                        SER_NETWORK, PROTOCOL_VERSION);
-        libzerocoin::CoinSpend newSpend(zcParams, serializedCoinSpend);
-
-        int spendVersion = newSpend.getVersion();
+        int spendVersion = spend->getVersion();
         if (spendVersion != ZEROCOIN_TX_VERSION_1 &&
                 spendVersion != ZEROCOIN_TX_VERSION_1_5 &&
                 spendVersion != ZEROCOIN_TX_VERSION_2) {
@@ -129,7 +162,7 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
             // old spends v2.0s are probably incorrect, force spend to version 1
             if (spendVersion == ZEROCOIN_TX_VERSION_2) {
                 spendVersion = ZEROCOIN_TX_VERSION_1;
-                newSpend.setVersion(ZEROCOIN_TX_VERSION_1);
+                spend->setVersion(ZEROCOIN_TX_VERSION_1);
             }
         }
 
@@ -150,7 +183,7 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
             txHashForMetadata = txTemp.GetHash();
         }
 
-        LogPrintf("CheckSpendZcoinTransaction: tx version=%d, tx metadata hash=%s, serial=%s\n", newSpend.getVersion(), txHashForMetadata.ToString(), newSpend.getCoinSerialNumber().ToString());
+        LogPrintf("CheckSpendZcoinTransaction: tx version=%d, tx metadata hash=%s, serial=%s\n", spend->getVersion(), txHashForMetadata.ToString(), spend->getCoinSerialNumber().ToString());
 
         int txHeight = chainActive.Height();
 
@@ -181,7 +214,7 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
         if (!fStatefulZerocoinCheck)
             continue;
 
-        CBigNum serial = newSpend.getCoinSerialNumber();
+        CBigNum serial = spend->getCoinSerialNumber();
         // check if there are spends with the same serial within one block
         // do not check for duplicates in case we've seen exact copy of this tx in this block before
         if (nHeight >= params.nDontAllowDupTxsStartBlock || !(zerocoinTxInfo && zerocoinTxInfo->zcTransactions.count(hashTx) > 0)) {
@@ -189,17 +222,17 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
                 return state.DoS(0, error("CTransaction::CheckTransaction() : two or more spends with same serial in the same block"));
             serialsUsedInThisTx.insert(serial);
 
-            if (!CheckZerocoinSpendSerial(state, params, zerocoinTxInfo, newSpend.getDenomination(), serial, nHeight, false))
+            if (!CheckZerocoinSpendSerial(state, params, zerocoinTxInfo, spend->getDenomination(), serial, nHeight, false))
                 return false;
         }
 
         if(!isVerifyDB && !isCheckWallet) {
             if (zerocoinTxInfo && !zerocoinTxInfo->fInfoIsComplete) {
                 // add spend information to the index
-                zerocoinTxInfo->spentSerials[serial] = (int)newSpend.getDenomination();
+                zerocoinTxInfo->spentSerials[serial] = (int)spend->getDenomination();
                 zerocoinTxInfo->zcTransactions.insert(hashTx);
 
-                if (newSpend.getVersion() == ZEROCOIN_TX_VERSION_1)
+                if (spend->getVersion() == ZEROCOIN_TX_VERSION_1)
                     zerocoinTxInfo->fHasSpendV1 = true;
             }
         }
@@ -214,14 +247,14 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
         CBlockIndex *index = coinGroup.lastBlock;
 
         pair<int,int> denominationAndId = make_pair(targetDenominations[vinIndex], pubcoinId);
-        
+
         bool spendHasBlockHash = false;
-        
+
         // Zerocoin v1.5/v2 transaction can cointain block hash of the last mint tx seen at the moment of spend. It speeds
         // up verification
-        if (spendVersion > ZEROCOIN_TX_VERSION_1 && !newSpend.getAccumulatorBlockHash().IsNull()) {
+        if (spendVersion > ZEROCOIN_TX_VERSION_1 && !spend->getAccumulatorBlockHash().IsNull()) {
 			spendHasBlockHash = true;
-			uint256 accumulatorBlockHash = newSpend.getAccumulatorBlockHash();
+			uint256 accumulatorBlockHash = spend->getAccumulatorBlockHash();
 
 			// find index for block with hash of accumulatorBlockHash or set index to the coinGroup.firstBlock if not found
 			while (index != coinGroup.firstBlock && index->GetBlockHash() != accumulatorBlockHash)
@@ -239,7 +272,7 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
                                                      (index->*accChanges)[denominationAndId].first,
                                                      targetDenominations[vinIndex]);
                 LogPrintf("CheckSpendZcoinTransaction: accumulator=%s\n", accumulator.getValue().ToString().substr(0,15));
-                passVerify = newSpend.Verify(accumulator, newMetadata);
+                passVerify = spend->Verify(accumulator, newMetadata);
             }
 
             // if spend has block hash we don't need to look further
@@ -270,7 +303,7 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
             BOOST_FOREACH(const CBigNum &pubCoin, pubCoins) {
                 accumulator += libzerocoin::PublicCoin(zcParams, pubCoin, (libzerocoin::CoinDenomination)targetDenominations[vinIndex]);
                 LogPrintf("CheckSpendZcoinTransaction: accumulator=%s\n", accumulator.getValue().ToString().substr(0,15));
-                if ((passVerify = newSpend.Verify(accumulator, newMetadata)) == true)
+                if ((passVerify = spend->Verify(accumulator, newMetadata)) == true)
                     break;
             }
 
@@ -281,7 +314,7 @@ bool CheckSpendZcoinTransaction(const CTransaction &tx,
                 BOOST_REVERSE_FOREACH(const CBigNum &pubCoin, pubCoins) {
                     accumulator += libzerocoin::PublicCoin(zcParams, pubCoin, (libzerocoin::CoinDenomination)targetDenominations[vinIndex]);
                     LogPrintf("CheckSpendZcoinTransaction: accumulatorRev=%s\n", accumulator.getValue().ToString().substr(0,15));
-                    if ((passVerify = newSpend.Verify(accumulator, newMetadata)) == true)
+                    if ((passVerify = spend->Verify(accumulator, newMetadata)) == true)
                         break;
                 }
             }
@@ -318,17 +351,19 @@ bool CheckMintZcoinTransaction(const CTxOut &txout,
                                CValidationState &state,
                                uint256 hashTx,
                                CZerocoinTxInfo *zerocoinTxInfo) {
+    CBigNum pubCoin;
 
     LogPrintf("CheckMintZcoinTransaction txHash = %s\n", txout.GetHash().ToString());
     LogPrintf("nValue = %d\n", txout.nValue);
 
-    if (txout.scriptPubKey.size() < 6)
+    try {
+        pubCoin = ParseZerocoinMintScript(txout.scriptPubKey);
+    } catch (std::invalid_argument&) {
         return state.DoS(100,
             false,
             PUBCOIN_NOT_VALIDATE,
             "CTransaction::CheckTransaction() : PubCoin validation failed");
-
-    CBigNum pubCoin(vector<unsigned char>(txout.scriptPubKey.begin()+6, txout.scriptPubKey.end()));
+    }
 
     bool hasCoin = zerocoinState.HasCoin(pubCoin);
 
@@ -637,12 +672,12 @@ bool ConnectBlockZC(CValidationState &state, const CChainParams &chainParams, CB
             pindexNew->accumulatorChanges.clear();
             pindexNew->alternativeAccumulatorChanges.clear();
         }
-	    
+
         if (pindexNew->nHeight > chainParams.GetConsensus().nCheckBugFixedAtBlock) {
             BOOST_FOREACH(const PAIRTYPE(CBigNum,int) &serial, pblock->zerocoinTxInfo->spentSerials) {
                 if (!CheckZerocoinSpendSerial(state, chainParams.GetConsensus(), pblock->zerocoinTxInfo.get(), (libzerocoin::CoinDenomination)serial.second, serial.first, pindexNew->nHeight, true))
                     return false;
-                
+
                 if (!fJustCheck) {
                     pindexNew->spentSerials.insert(serial.first);
                     zerocoinState.AddSpend(serial.first);
@@ -660,7 +695,7 @@ bool ConnectBlockZC(CValidationState &state, const CChainParams &chainParams, CB
             int denomination = mint.first;
             int mintId = zerocoinState.AddMint(pindexNew, denomination, mint.second, oldAccValue);
 
-            libzerocoin::Params *zcParams = IsZerocoinTxV2((libzerocoin::CoinDenomination)denomination, 
+            libzerocoin::Params *zcParams = IsZerocoinTxV2((libzerocoin::CoinDenomination)denomination,
                                                 chainParams.GetConsensus(), mintId) ? ZCParamsV2 : ZCParams;
 
             if (!oldAccValue)
@@ -1144,7 +1179,7 @@ bool CZerocoinState::AddSpendToMempool(const vector<CBigNum> &coinSerials, uint2
         if (IsUsedCoinSerial(coinSerial) || mempoolCoinSerials.count(coinSerial))
             return false;
 
-        mempoolCoinSerials[coinSerial] = txHash;        
+        mempoolCoinSerials[coinSerial] = txHash;
     }
 
     return true;
@@ -1184,5 +1219,3 @@ void CZerocoinState::Reset() {
 CZerocoinState *CZerocoinState::GetZerocoinState() {
     return &zerocoinState;
 }
-
-
