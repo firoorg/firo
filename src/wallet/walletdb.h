@@ -175,6 +175,8 @@ public:
 
     bool WriteZerocoinEntry(const CZerocoinEntry& zerocoin);
     bool WriteZerocoinEntry(const CZerocoinEntryV3& zerocoin);
+    bool HasZerocoinEntry(const Bignum& pub);
+    bool HasZerocoinEntry(const secp_primitives::GroupElement& pub);
     bool EraseZerocoinEntry(const CZerocoinEntry& zerocoin);
     bool EraseZerocoinEntry(const CZerocoinEntryV3& zerocoin);
     void ListPubCoin(std::list<CZerocoinEntry>& listPubCoin);
@@ -183,6 +185,8 @@ public:
     void ListCoinSpendSerial(std::list<CZerocoinSpendEntryV3>& listCoinSpendSerial);
     bool WriteCoinSpendSerialEntry(const CZerocoinSpendEntry& zerocoinSpend);
     bool WriteCoinSpendSerialEntry(const CZerocoinSpendEntryV3& zerocoinSpend);
+    bool HasCoinSpendSerialEntry(const Bignum& serial);
+    bool HasCoinSpendSerialEntry(const secp_primitives::Scalar& serial);
     bool EraseCoinSpendSerialEntry(const CZerocoinSpendEntry& zerocoinSpend);
     bool EraseCoinSpendSerialEntry(const CZerocoinSpendEntryV3& zerocoinSpend);
     bool WriteZerocoinAccumulator(libzerocoin::Accumulator accumulator, libzerocoin::CoinDenomination denomination, int pubcoinid);
