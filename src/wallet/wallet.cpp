@@ -1181,30 +1181,19 @@ CAmount CWallet::GetCredit(const CTxOut &txout, const isminefilter &filter) cons
     return ((IsMine(txout) & filter) ? txout.nValue : 0);
 }
 
-bool CWallet::IsChange(const CTxOut &txout) const {
-    // TODO: fix handling of 'change' outputs. The assumption is that any
-    // payment to a script that is ours, but is not in the address book
-    // is change. That assumption is likely to break when we implement multisignature
-    // wallets that return change back into a multi-signature-protected address;
-    // a better way of identifying which outputs are 'the send' and which are
-    // 'the change' will need to be implemented (maybe extend CWalletTx to remember
-    // which output, if any, was change).
-    if (::IsMine(*this, txout.scriptPubKey)) {
-        CTxDestination address;
-        if (!ExtractDestination(txout.scriptPubKey, address))
-            return true;
-
-        LOCK(cs_wallet);
-        if (!mapAddressBook.count(address))
-            return true;
+bool CWallet::IsChange(const uint256& tx, const CTxOut &txout) const {
+    auto wtx = GetWalletTx(tx);
+    if (!wtx) {
+        throw std::invalid_argument("The specified transaction hash is not belong to the wallet");
     }
-    return false;
+
+    return wtx->IsChange(txout);
 }
 
-CAmount CWallet::GetChange(const CTxOut &txout) const {
+CAmount CWallet::GetChange(const uint256& tx, const CTxOut &txout) const {
     if (!MoneyRange(txout.nValue))
         throw std::runtime_error(std::string(__func__) + ": value out of range");
-    return (IsChange(txout) ? txout.nValue : 0);
+    return (IsChange(tx, txout) ? txout.nValue : 0);
 }
 
 bool CWallet::IsMine(const CTransaction &tx) const {
@@ -1244,7 +1233,7 @@ CAmount CWallet::GetChange(const CTransaction &tx) const {
     CAmount nChange = 0;
     BOOST_FOREACH(const CTxOut &txout, tx.vout)
     {
-        nChange += GetChange(txout);
+        nChange += GetChange(tx.GetHash(), txout);
         if (!MoneyRange(nChange))
             throw std::runtime_error(std::string(__func__) + ": value out of range");
     }
@@ -1367,7 +1356,7 @@ void CWalletTx::GetAmounts(list <COutputEntry> &listReceived,
         //   2) the output is to us (received)
         if (nDebit > 0) {
             // Don't report 'change' txouts
-            if (pwallet->IsChange(txout))
+            if (IsChange(static_cast<uint32_t>(i)))
                 continue;
         } else if (!(fIsMine & filter))
             continue;
@@ -1743,6 +1732,40 @@ bool CWalletTx::IsTrusted() const {
             return false;
     }
     return true;
+}
+
+bool CWalletTx::IsChange(uint32_t out) const {
+    if (out >= vout.size()) {
+        throw std::invalid_argument("The specified output index is not valid");
+    }
+
+    if (changes.count(out)) {
+        return true;
+    }
+
+    // Legacy transaction handling.
+    if (::IsMine(*pwallet, vout[out].scriptPubKey)) {
+        CTxDestination address;
+        if (!ExtractDestination(vout[out].scriptPubKey, address)) {
+            return true;
+        }
+
+        LOCK(pwallet->cs_wallet);
+        if (!pwallet->mapAddressBook.count(address)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool CWalletTx::IsChange(const CTxOut& out) const {
+    auto it = std::find(vout.begin(), vout.end(), out);
+    if (it == vout.end()) {
+        throw std::invalid_argument("The specified output does not belong to the transaction");
+    }
+
+    return IsChange(it - vout.begin());
 }
 
 bool CWalletTx::IsEquivalentTo(const CWalletTx &tx) const {
@@ -3188,8 +3211,10 @@ bool CWallet::CreateTransaction(const vector <CRecipient> &vecSend, CWalletTx &w
                 txNew.vin.clear();
                 txNew.vout.clear();
                 txNew.wit.SetNull();
+
                 wtxNew.fFromMe = true;
-//                bool fFirst = true;
+                wtxNew.changes.clear();
+
                 CAmount nValueToSelect = nValue;
                 if (nSubtractFeeFromAmount == 0)
                     nValueToSelect += nFeeRet;
@@ -3321,6 +3346,7 @@ bool CWallet::CreateTransaction(const vector <CRecipient> &vecSend, CWalletTx &w
 
                             vector<CTxOut>::iterator position = txNew.vout.begin() + nChangePosInOut;
                             txNew.vout.insert(position, newTxOut);
+                            wtxNew.changes.insert(static_cast<uint32_t>(nChangePosInOut));
                         }
                     }
                 } else
@@ -4159,8 +4185,9 @@ bool CWallet::CreateZerocoinMintTransaction(const vector <CRecipient> &vecSend, 
                 txNew.vin.clear();
                 txNew.vout.clear();
                 txNew.wit.SetNull();
+
                 wtxNew.fFromMe = true;
-//                bool fFirst = true;
+                wtxNew.changes.clear();
 
                 CAmount nValueToSelect = nValue + nFeeRet;
 //                if (nSubtractFeeFromAmount == 0)
@@ -4300,6 +4327,7 @@ bool CWallet::CreateZerocoinMintTransaction(const vector <CRecipient> &vecSend, 
 
                         vector<CTxOut>::iterator position = txNew.vout.begin() + nChangePosInOut;
                         txNew.vout.insert(position, newTxOut);
+                        wtxNew.changes.insert(static_cast<uint32_t>(nChangePosInOut));
                     }
                 } else
                     reservekey.ReturnKey();
@@ -6633,12 +6661,14 @@ set <set<CTxDestination>> CWallet::GetAddressGroupings() {
 
             // group change with input addresses
             if (any_mine) {
-                BOOST_FOREACH(CTxOut txout, pcoin->vout)
-                if (IsChange(txout)) {
-                    CTxDestination txoutAddr;
-                    if (!ExtractDestination(txout.scriptPubKey, txoutAddr))
-                        continue;
-                    grouping.insert(txoutAddr);
+                for (uint32_t i = 0; i < pcoin->vout.size(); i++) {
+                    if (pcoin->IsChange(i)) {
+                        CTxDestination addr;
+                        if (!ExtractDestination(pcoin->vout[i].scriptPubKey, addr)) {
+                            continue;
+                        }
+                        grouping.insert(addr);
+                    }
                 }
             }
             if (grouping.size() > 0) {
