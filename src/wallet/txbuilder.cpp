@@ -11,6 +11,7 @@
 #include <boost/format.hpp>
 
 #include <algorithm>
+#include <random>
 #include <stdexcept>
 #include <string>
 
@@ -141,7 +142,7 @@ CWalletTx TxBuilder::Build(const std::vector<CRecipient>& recipients, CAmount& f
                 outputs.push_back(std::make_pair(std::ref(output), true));
             }
 
-            std::shuffle(outputs.begin(), outputs.end(), []() { return GetRandInt(INT_MAX); });
+            std::shuffle(outputs.begin(), outputs.end(), std::random_device());
 
             // replace outputs with shuffled one
             std::vector<CTxOut> shuffled;

@@ -4,6 +4,7 @@
 #include "amount.h"
 #include "chain.h"
 #include "sigma/coin.h"
+#include "sigma/coinspend.h"
 #include "consensus/validation.h"
 #include <secp256k1/include/Scalar.h>
 #include <secp256k1/include/GroupElement.h>
