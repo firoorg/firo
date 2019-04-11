@@ -693,7 +693,7 @@ bool WalletModel::transactionCanBeAbandoned(uint256 hash) const
 {
     LOCK2(cs_main, wallet->cs_wallet);
     const CWalletTx *wtx = wallet->GetWalletTx(hash);
-    if (!wtx || wtx->isAbandoned() || wtx->GetDepthInMainChain() > 0 || 
+    if (!wtx || wtx->isAbandoned() || wtx->GetDepthInMainChain() > 0 ||
         wtx->InMempool() || wtx->InStempool())
         return false;
     return true;
@@ -740,4 +740,120 @@ bool WalletModel::rebroadcastTransaction(uint256 hash)
 
     RelayTransaction((CTransaction)*wtx);
     return true;
+}
+
+// Sigma
+WalletModel::SendCoinsReturn WalletModel::prepareSigmaSpendTransaction(
+    WalletModelTransaction &transaction,
+    std::vector<CZerocoinEntryV3> &selectedCoins,
+    std::vector<CZerocoinEntryV3> &changes)
+{
+    QList<SendCoinsRecipient> recipients = transaction.getRecipients();
+    std::vector<CRecipient> sendRecipients;
+
+    if (recipients.empty()) {
+        return OK;
+    }
+
+    QSet<QString> addresses; // Used to detect duplicates
+
+    for (const auto& rcp : recipients) {
+        if (!validateAddress(rcp.address)) {
+            return InvalidAmount;
+        }
+        addresses.insert(rcp.address);
+
+        CScript scriptPubKey = GetScriptForDestination(CBitcoinAddress(rcp.address.toStdString()).Get());
+        CRecipient recipient = {scriptPubKey, rcp.amount, rcp.fSubtractFeeFromAmount};
+        sendRecipients.push_back(recipient);
+    }
+
+    if (addresses.size() != recipients.size()) {
+        return DuplicateAddress;
+    }
+
+    // create transaction
+    CAmount fee;
+
+    CWalletTx *newTx = transaction.getTransaction();
+    try {
+        *newTx = wallet->CreateZerocoinSpendTransactionV3(sendRecipients, fee, selectedCoins, changes);
+    } catch (const std::runtime_error& err) {
+        Q_EMIT message(tr("Send Coins"), QString::fromStdString(err.what()),
+                         CClientUIInterface::MSG_ERROR);
+        return TransactionCreationFailed;
+    }
+
+    transaction.setTransactionFee(fee);
+
+    return SendCoinsReturn(OK);
+}
+
+WalletModel::SendCoinsReturn WalletModel::sendSigma(WalletModelTransaction &transaction,
+    std::vector<CZerocoinEntryV3>& coins, std::vector<CZerocoinEntryV3>& changes)
+{
+    QByteArray transaction_array; /* store serialized transaction */
+
+    {
+        LOCK2(cs_main, wallet->cs_wallet);
+        CWalletTx *newTx = transaction.getTransaction();
+
+        for (const auto& rcp : transaction.getRecipients()) {
+            if (rcp.paymentRequest.IsInitialized())
+            {
+                // Make sure any payment requests involved are still valid.
+                if (PaymentServer::verifyExpired(rcp.paymentRequest.getDetails())) {
+                    return PaymentRequestExpired;
+                }
+
+                // Store PaymentRequests in wtx.vOrderForm in wallet.
+                std::string key("PaymentRequest");
+                std::string value;
+                rcp.paymentRequest.SerializeToString(&value);
+                newTx->vOrderForm.push_back(std::make_pair(key, value));
+            } else if (!rcp.message.isEmpty()) {
+                // Message from normal bitcoin:URI (bitcoin:123...?message=example)
+                newTx->vOrderForm.push_back(std::make_pair("Message", rcp.message.toStdString()));
+            }
+        }
+
+        try {
+            wallet->CommitSigmaTransaction(*newTx, coins, changes);
+        } catch (...) {
+            return TransactionCommitFailed;
+        }
+
+        CTransaction* t = newTx;
+        CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
+        ssTx << *t;
+        transaction_array.append(&(ssTx[0]), ssTx.size());
+    }
+
+    // Add addresses / update labels that we've sent to to the address book,
+    // and emit coinsSent signal for each recipient
+    for (const auto& rcp : transaction.getRecipients()) {
+        // Don't touch the address book when we have a payment request
+        if (!rcp.paymentRequest.IsInitialized()) {
+            std::string address = rcp.address.toStdString();
+            CTxDestination dest = CBitcoinAddress(address).Get();
+            std::string label = rcp.label.toStdString();
+            {
+                LOCK(wallet->cs_wallet);
+
+                auto mi = wallet->mapAddressBook.find(dest);
+
+                // Check if we have a new address or an updated label
+                if (mi == wallet->mapAddressBook.end()) {
+                    wallet->SetAddressBook(dest, label, "send");
+                }
+                else if (mi->second.name != label) {
+                    wallet->SetAddressBook(dest, label, ""); // "" means don't change purpose
+                }
+            }
+        }
+        Q_EMIT coinsSent(wallet, rcp, transaction_array);
+    }
+    checkBalanceChanged();
+
+    return SendCoinsReturn(OK);
 }

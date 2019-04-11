@@ -1,40 +1,312 @@
-#include "ui_sigmapage.h"
 #include "sigmapage.h"
-#include "sendcoinsentry.h"
-#include "platformstyle.h"
+#include "ui_sigmapage.h"
 
+#include "bitcoinunits.h"
+#include "guiutil.h"
 #include "manualmintdialog.h"
+#include "optionsmodel.h"
+#include "platformstyle.h"
+#include "sendcoinsdialog.h"
+#include "sendcoinsentry.h"
+#include "walletmodel.h"
+
+#include "wallet/wallet.h"
+#include "wallet/walletdb.h"
+
+#include <QMessageBox>
+#include <QScrollBar>
+#include <QTextDocument>
+#include <QTimer>
+
+#define SEND_CONFIRM_DELAY   3
 
 SigmaPage::SigmaPage(const PlatformStyle *platformStyle, QWidget *parent) :
     QWidget(parent),
     ui(new Ui::SigmaPage),
+    model(0),
+    isNewRecipientAllowed(true),
     platformStyle(platformStyle)
 {
     ui->setupUi(this);
     setWindowTitle(tr("Sigma"));
 
+    ui->scrollArea->setBackgroundRole(QPalette::Base);
+
     if (platformStyle->getImagesOnButtons()) {
-        ui->spendButton->setIcon(platformStyle->SingleColorIcon(":/icons/export"));
-        ui->clearAllButton->setIcon(platformStyle->SingleColorIcon(":/icons/quit"));
-        ui->addRecipientButton->setIcon(platformStyle->SingleColorIcon(":/icons/add"));
+        ui->sendButton->setIcon(platformStyle->SingleColorIcon(":/icons/export"));
+        ui->clearButton->setIcon(platformStyle->SingleColorIcon(":/icons/quit"));
+        ui->addButton->setIcon(platformStyle->SingleColorIcon(":/icons/add"));
 
         ui->mintButton->setIcon(platformStyle->SingleColorIcon(":/icons/add"));
         ui->selectDenomsButton->setIcon(platformStyle->SingleColorIcon(":/icons/edit"));
     } else {
-        ui->spendButton->setIcon(QIcon());
-        ui->clearAllButton->setIcon(QIcon());
-        ui->addRecipientButton->setIcon(QIcon());
+        ui->sendButton->setIcon(QIcon());
+        ui->clearButton->setIcon(QIcon());
+        ui->addButton->setIcon(QIcon());
 
         ui->mintButton->setIcon(QIcon());
         ui->selectDenomsButton->setIcon(QIcon());
     }
 
-    connect(ui->selectDenomsButton, SIGNAL(clicked()), this, SLOT(coinSelectionButtonClicked()));
+    addEntry();
+
+    // spend
+    connect(ui->addButton, SIGNAL(clicked()), this, SLOT(addEntry()));
+    connect(ui->clearButton, SIGNAL(clicked()), this, SLOT(clear()));
 }
 
-void SigmaPage::coinSelectionButtonClicked() {
-    ManualMintDialog dlg(platformStyle);
-    // TODO: need this in the future
-    // dlg.setModel();
-    dlg.exec();
+void SigmaPage::setModel(WalletModel *model)
+{
+    this->model = model;
+
+    if (model && model->getOptionsModel()) {
+        for (int i = 0; i < ui->entries->count(); ++i) {
+            SendCoinsEntry *entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
+            if (entry) {
+                entry->setModel(model);
+            }
+        }
+    }
+}
+
+SigmaPage::~SigmaPage()
+{
+    delete ui;
+}
+
+void SigmaPage::on_sendButton_clicked()
+{
+    if (!model || !model->getOptionsModel())
+        return;
+
+    QList<SendCoinsRecipient> recipients;
+    bool valid = true;
+
+    for (int i = 0; i < ui->entries->count(); ++i) {
+        SendCoinsEntry *entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
+        if (entry) {
+            if (entry->validate()) {
+                recipients.append(entry->getValue());
+            } else {
+                valid = false;
+            }
+        }
+    }
+
+    if (!valid || recipients.isEmpty()) {
+        return;
+    }
+
+    isNewRecipientAllowed = false;
+    WalletModel::UnlockContext ctx(model->requestUnlock());
+    if (!ctx.isValid()) {
+        isNewRecipientAllowed = true;
+        return;
+    }
+
+    // prepare transaction for getting txFee earlier
+    std::vector<CZerocoinEntryV3> selectedCoins;
+    std::vector<CZerocoinEntryV3> changes;
+    WalletModelTransaction currentTransaction(recipients);
+    auto prepareStatus = model->prepareSigmaSpendTransaction(currentTransaction, selectedCoins, changes);
+
+    // process prepareStatus and on error generate message shown to user
+    processSpendCoinsReturn(prepareStatus,
+        BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), currentTransaction.getTransactionFee()));
+
+    if (prepareStatus.status != WalletModel::OK) {
+        isNewRecipientAllowed = true;
+        return;
+    }
+
+    CAmount txFee = currentTransaction.getTransactionFee();
+
+    // Format confirmation message
+    QStringList formatted;
+    for (const auto& rcp : currentTransaction.getRecipients()) {
+        // generate bold amount string
+        QString amount = "<b>" + BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), rcp.amount);
+        amount.append("</b>");
+
+        // generate monospace address string
+        QString address = "<span style='font-family: monospace;'>" + rcp.address;
+        address.append("</span>");
+
+        QString recipientElement;
+
+        if (!rcp.paymentRequest.IsInitialized()) {
+            if (rcp.label.length() > 0) { // label with address
+                recipientElement = tr("%1 to %2").arg(amount, GUIUtil::HtmlEscape(rcp.label));
+                recipientElement.append(QString(" (%1)").arg(address));
+            } else { // just address
+                recipientElement = tr("%1 to %2").arg(amount, address);
+            }
+        } else if (!rcp.authenticatedMerchant.isEmpty()) { // authenticated payment request
+            recipientElement = tr("%1 to %2").arg(amount, GUIUtil::HtmlEscape(rcp.authenticatedMerchant));
+        } else { // unauthenticated payment request
+            recipientElement = tr("%1 to %2").arg(amount, address);
+        }
+
+        formatted.append(recipientElement);
+    }
+
+    QString questionString = tr("Are you sure you want to spend?");
+    questionString.append("<br /><br />%1");
+
+    if (txFee > 0) {
+        // append fee string if a fee is required
+        questionString.append("<hr /><span style='color:#aa0000;'>");
+        questionString.append(BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), txFee));
+        questionString.append("</span> ");
+        questionString.append(tr("added as transaction fee"));
+
+        // append transaction size
+        questionString.append(" (" + QString::number((double)currentTransaction.getTransactionSize() / 1000) + " kB)");
+    }
+
+    // add total amount in all subdivision units
+    questionString.append("<hr />");
+    CAmount totalAmount = currentTransaction.getTotalTransactionAmount() + txFee;
+    QStringList alternativeUnits;
+    Q_FOREACH(BitcoinUnits::Unit u, BitcoinUnits::availableUnits()) {
+        if (u != model->getOptionsModel()->getDisplayUnit())
+            alternativeUnits.append(BitcoinUnits::formatHtmlWithUnit(u, totalAmount));
+    }
+    questionString.append(tr("Total Amount %1")
+        .arg(BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), totalAmount)));
+    questionString.append(QString("<span style='font-size:10pt;font-weight:normal;'><br />(=%2)</span>")
+        .arg(alternativeUnits.join(" " + tr("or") + "<br />")));
+
+    questionString.append(QString("<span style='font-size:8pt;font-weight:normal;float:right;'> <br/> <br/> %1</span>")
+        .arg("Change will be reminted and amounts smaller than 0.1 will be paid as fees to miners."));
+
+    SendConfirmationDialog confirmationDialog(tr("Confirm spend coins"),
+        questionString.arg(formatted.join("<br />")), SEND_CONFIRM_DELAY, this);
+
+    confirmationDialog.exec();
+    QMessageBox::StandardButton retval = (QMessageBox::StandardButton)confirmationDialog.result();
+
+    if (retval != QMessageBox::Yes) {
+        isNewRecipientAllowed = true;
+        return;
+    }
+
+    // now send the prepared transaction
+    WalletModel::SendCoinsReturn sendStatus = model->sendSigma(currentTransaction, selectedCoins, changes);
+    // process sendStatus and on error generate message shown to user
+    processSpendCoinsReturn(sendStatus);
+
+    isNewRecipientAllowed = true;
+}
+
+void SigmaPage::clear()
+{
+    // Remove entries until only one left
+    while (ui->entries->count()) {
+        ui->entries->takeAt(0)->widget()->deleteLater();
+    }
+    addEntry();
+
+    updateTabsAndLabels();
+}
+
+SendCoinsEntry *SigmaPage::addEntry() {
+    SendCoinsEntry *entry = new SendCoinsEntry(platformStyle, this);
+    entry->setModel(model);
+    ui->entries->addWidget(entry);
+    connect(entry, SIGNAL(removeEntry(SendCoinsEntry*)), this, SLOT(removeEntry(SendCoinsEntry*)));
+
+    // Focus the field, so that entry can start immediately
+    entry->clear();
+    entry->setFocus();
+    ui->scrollAreaWidgetContents->resize(ui->scrollAreaWidgetContents->sizeHint());
+    qApp->processEvents();
+    QScrollBar* bar = ui->scrollArea->verticalScrollBar();
+    if (bar)
+        bar->setSliderPosition(bar->maximum());
+
+    updateTabsAndLabels();
+    return entry;
+}
+
+void SigmaPage::updateTabsAndLabels()
+{
+    setupTabChain(0);
+}
+
+
+void SigmaPage::removeEntry(SendCoinsEntry* entry)
+{
+    entry->hide();
+
+    // If the last entry is about to be removed add an empty one
+    if (ui->entries->count() == 1)
+        addEntry();
+
+    entry->deleteLater();
+
+    updateTabsAndLabels();
+}
+
+QWidget *SigmaPage::setupTabChain(QWidget *prev)
+{
+    for (int i = 0; i < ui->entries->count(); ++i) {
+        SendCoinsEntry *entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
+        if (entry) {
+            prev = entry->setupTabChain(prev);
+        }
+    }
+    QWidget::setTabOrder(prev, ui->sendButton);
+    QWidget::setTabOrder(ui->sendButton, ui->clearButton);
+    QWidget::setTabOrder(ui->clearButton, ui->addButton);
+    return ui->addButton;
+}
+
+void SigmaPage::processSpendCoinsReturn(const WalletModel::SendCoinsReturn &sendCoinsReturn, const QString &msgArg)
+{
+    QPair<QString, CClientUIInterface::MessageBoxFlags> msgParams;
+    // Default to a warning message, override if error message is needed
+    msgParams.second = CClientUIInterface::MSG_WARNING;
+
+    // This comment is specific to SendCoinsDialog usage of WalletModel::SendCoinsReturn.
+    // WalletModel::TransactionCommitFailed is used only in WalletModel::sendCoins()
+    // all others are used only in WalletModel::prepareTransaction()
+    switch (sendCoinsReturn.status) {
+    case WalletModel::InvalidAddress:
+        msgParams.first = tr("The recipient address is not valid. Please recheck.");
+        break;
+    case WalletModel::InvalidAmount:
+        msgParams.first = tr("The amount to pay must be larger than 0.");
+        break;
+    case WalletModel::AmountExceedsBalance:
+        msgParams.first = tr("The amount exceeds your balance.");
+        break;
+    case WalletModel::AmountWithFeeExceedsBalance:
+        msgParams.first = tr("The total exceeds your balance when the %1 transaction fee is included.").arg(msgArg);
+        break;
+    case WalletModel::DuplicateAddress:
+        msgParams.first = tr("Duplicate address found: addresses should only be used once each.");
+        break;
+    case WalletModel::TransactionCreationFailed:
+        msgParams.first = tr("Transaction creation failed!");
+        msgParams.second = CClientUIInterface::MSG_ERROR;
+        break;
+    case WalletModel::TransactionCommitFailed:
+        msgParams.first = tr("The transaction was rejected! This might happen if some of the coins in your wallet were already spent, such as if you used a copy of wallet.dat and coins were spent in the copy but not marked as spent here.");
+        msgParams.second = CClientUIInterface::MSG_ERROR;
+        break;
+    // case WalletModel::AbsurdFee:
+    //     msgParams.first = tr("A fee higher than %1 is considered an absurdly high fee.").arg(BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), maxTxFee));
+    //     break;
+    case WalletModel::PaymentRequestExpired:
+        msgParams.first = tr("Payment request expired.");
+        msgParams.second = CClientUIInterface::MSG_ERROR;
+        break;
+    // included to prevent a compiler warning.
+    case WalletModel::OK:
+    default:
+        return;
+    }
+
+    Q_EMIT message(tr("Send Coins"), msgParams.first, msgParams.second);
 }

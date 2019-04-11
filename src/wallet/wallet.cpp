@@ -6229,9 +6229,15 @@ std::vector<CZerocoinEntryV3> CWallet::SpendZerocoinV3(
 
     result = CreateZerocoinSpendTransactionV3(recipients, fee, coins, changes);
 
+    CommitSigmaTransaction(result, coins, changes);
+
+    return coins;
+}
+
+bool CWallet::CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CZerocoinEntryV3>& selectedCoins, std::vector<CZerocoinEntryV3>& changes) {
     // commit
     try {
-        CommitTransaction(result);
+        CommitTransaction(wtxNew);
     } catch (...) {
         auto error = _(
             "Error: The transaction was rejected! This might happen if some of "
@@ -6247,7 +6253,7 @@ std::vector<CZerocoinEntryV3> CWallet::SpendZerocoinV3(
     auto state = CZerocoinStateV3::GetZerocoinState();
     CWalletDB db(strWalletFile);
 
-    for (auto& coin : coins) {
+    for (auto& coin : selectedCoins) {
         // get coin id & height
         int height, id;
 
@@ -6257,7 +6263,7 @@ std::vector<CZerocoinEntryV3> CWallet::SpendZerocoinV3(
         CZerocoinSpendEntryV3 spend;
 
         spend.coinSerial = coin.serialNumber;
-        spend.hashTx = result.GetHash();
+        spend.hashTx = wtxNew.GetHash();
         spend.pubCoin = coin.value;
         spend.id = id;
         spend.set_denomination_value(coin.get_denomination_value());
@@ -6296,7 +6302,7 @@ std::vector<CZerocoinEntryV3> CWallet::SpendZerocoinV3(
             CT_NEW);
     }
 
-    return coins;
+    return true;
 }
 
 bool CWallet::AddAccountingEntry(const CAccountingEntry &acentry, CWalletDB &pwalletdb) {
