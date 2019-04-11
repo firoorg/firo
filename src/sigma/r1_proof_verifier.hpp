@@ -3,7 +3,7 @@ namespace sigma {
 template<class Exponent, class GroupElement>
 R1ProofVerifier<Exponent,GroupElement>::R1ProofVerifier(
         const GroupElement& g,
-        const zcoin_common::GeneratorVector<Exponent, GroupElement>& h_gens,
+        const std::vector<GroupElement>& h_gens,
         const GroupElement& B,
         int n ,
         int m)

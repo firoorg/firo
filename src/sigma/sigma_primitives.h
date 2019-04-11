@@ -1,7 +1,7 @@
 #ifndef ZCOIN_SIGMA_SIGMA_PRIMITIVES_H
 #define ZCOIN_SIGMA_SIGMA_PRIMITIVES_H
 
-#include "../libzerocoin/common/GeneratorVector.h"
+#include "../secp256k1/include/MultiExponent.h"
 #include "../secp256k1/include/GroupElement.h"
 #include "../secp256k1/include/Scalar.h"
 
@@ -15,7 +15,7 @@ class SigmaPrimitives {
 
 public:
     static void commit(const GroupElement& g,
-            const zcoin_common::GeneratorVector<Exponent, GroupElement>& h,
+            const std::vector<GroupElement>& h,
             const std::vector<Exponent>& exp,
             const Exponent& r,
             GroupElement& result_out);

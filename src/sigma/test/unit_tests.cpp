@@ -19,7 +19,7 @@ struct sigma_unit_tests_fixture {
     int m;
     int index;
     GroupElement g;
-    std::unique_ptr<zcoin_common::GeneratorVector <Scalar, GroupElement>> h_;
+    std::vector<GroupElement> h_gens;
     Scalar rB;
     std::vector <Scalar> sigma;
     std::unique_ptr<R1ProofGenerator<Scalar, GroupElement>> r1prover;
@@ -39,16 +39,14 @@ struct sigma_unit_tests_fixture {
         index = 13;
         m = (int)(log(N) / log(n));
         g.randomize();
-        std::vector<GroupElement> h_gens;
+
         for(int i = 0; i < n * m; ++i ){
             h_gens.push_back(secp_primitives::GroupElement());
             h_gens[i].randomize();
         }
-
-        h_.reset(new zcoin_common::GeneratorVector <Scalar, GroupElement>(h_gens));
         rB.randomize();
         SigmaPrimitives<Scalar,GroupElement>::convert_to_sigma(index, n, m, sigma);
-        r1prover.reset(new R1ProofGenerator<Scalar, GroupElement>(g, *h_, sigma, rB, n, m));
+        r1prover.reset(new R1ProofGenerator<Scalar, GroupElement>(g, h_gens, sigma, rB, n, m));
 
         Pk.resize(m);
         for (int k = 0; k < m; ++k) {
@@ -124,11 +122,11 @@ BOOST_AUTO_TEST_CASE(unit_commits)
         x_k *= x;
     }
     z -= sum;
-    GroupElement coommit = SigmaPrimitives<Scalar,GroupElement>::commit(g, Scalar(uint64_t(0)), (*h_).get_g(0), z);
+    GroupElement coommit = SigmaPrimitives<Scalar,GroupElement>::commit(g, Scalar(uint64_t(0)), h_gens[0], z);
     GroupElement commits_;
     for(int k = 0; k< m; ++k){
         commits_ += (SigmaPrimitives<Scalar,GroupElement>::commit(
-                g, Scalar(uint64_t(0)), (*h_).get_g(0), Pk[k])) * (x.exponent(k)).negate();
+                g, Scalar(uint64_t(0)), h_gens[0], Pk[k])) * (x.exponent(k)).negate();
     }
     commits_ += (commits[index] * x.exponent(m));
 
@@ -146,9 +144,10 @@ BOOST_AUTO_TEST_CASE(unit_G_k_prime)
         }
         f_i_.push_back(f_i);
     }
-    zcoin_common::GeneratorVector<Scalar, GroupElement> cc_(commits);
-    GroupElement C;
-    cc_.get_vector_multiple(f_i_, C);
+
+    secp_primitives::MultiExponent mult(commits, f_i_);
+    GroupElement C = mult.get_multiple();
+
     GroupElement G;
     for(int k = 0; k < m; ++k){
         GroupElement Gk_prime;
