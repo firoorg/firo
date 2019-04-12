@@ -1823,7 +1823,9 @@ bool CWalletTx::IsChange(uint32_t out) const {
     }
 
     // Legacy transaction handling.
-    if (::IsMine(*pwallet, vout[out].scriptPubKey)) {
+    // Zerocoin spend have one special output mode to spend to yourself with change address,
+    // we don't want to identify that output as change.
+    if (!IsZerocoinSpend() && ::IsMine(*pwallet, vout[out].scriptPubKey)) {
         CTxDestination address;
         if (!ExtractDestination(vout[out].scriptPubKey, address)) {
             return true;
