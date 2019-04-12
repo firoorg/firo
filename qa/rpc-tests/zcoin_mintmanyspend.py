@@ -76,8 +76,7 @@ class ZcoinMintSpendManyTest(BitcoinTestFramework):
 
             start_bal += fee
 
-        # Verify, that balance did not change, cause we did not confirm the operation
-        # Start balance increase on generated blocks to confirm
+        # Verify, that balance reduced correctly by spend fee
         start_bal += 40 * 6
         cur_bal = self.nodes[0].getbalance()
         assert start_bal == cur_bal, \
