@@ -1736,7 +1736,8 @@ CAmount CWalletTx::GetAvailableCredit(bool fUseCache) const {
     if (IsCoinBase() && GetBlocksToMaturity() > 0)
         return 0;
 
-    if (fUseCache && fAvailableCreditCached)
+    // We cannot use cache if vout contains mints due to it will not update when it spend
+    if (fUseCache && fAvailableCreditCached && !IsZerocoinMint() && !IsZerocoinMintV3())
         return nAvailableCreditCached;
 
     CAmount nCredit = 0;
