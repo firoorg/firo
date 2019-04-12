@@ -527,6 +527,37 @@ void CWallet::SyncMetaData(pair <TxSpends::iterator, TxSpends::iterator> range) 
  * spends it:
  */
 bool CWallet::IsSpent(const uint256 &hash, unsigned int n) const {
+    auto tx = GetWalletTx(hash);
+
+    // Try to handle mint output first.
+    if (tx && tx->vout.size() > n) {
+        LOCK(cs_wallet);
+
+        auto& script = tx->vout[n].scriptPubKey;
+        CWalletDB db(strWalletFile);
+
+        if (script.IsZerocoinMint()) {
+            auto pub = ParseZerocoinMintScript(script);
+            CZerocoinEntry data;
+
+            if (!db.ReadZerocoinEntry(pub, data)) {
+                return false;
+            }
+
+            return data.IsUsed;
+        } else if (script.IsZerocoinMintV3()) {
+            auto pub = ParseSigmaMintScript(script);
+            CZerocoinEntryV3 data;
+
+            if (!db.ReadZerocoinEntry(pub, data)) {
+                return false;
+            }
+
+            return data.IsUsed;
+        }
+    }
+
+    // Normal output.
     const COutPoint outpoint(hash, n);
     pair <TxSpends::const_iterator, TxSpends::const_iterator> range;
     range = mapTxSpends.equal_range(outpoint);
@@ -555,11 +586,14 @@ void CWallet::AddToSpends(const COutPoint &outpoint, const uint256 &wtxid) {
 void CWallet::AddToSpends(const uint256 &wtxid) {
     assert(mapWallet.count(wtxid));
     CWalletTx &thisTx = mapWallet[wtxid];
-    if (thisTx.IsCoinBase() || thisTx.IsZerocoinSpend() || thisTx.IsZerocoinSpendV3()) // Coinbases don't spend anything!
+    if (thisTx.IsCoinBase()) // Coinbases don't spend anything!
         return;
 
-    BOOST_FOREACH(const CTxIn &txin, thisTx.vin)
-    AddToSpends(txin.prevout, wtxid);
+    for (const CTxIn &txin : thisTx.vin) {
+        if (!txin.IsZerocoinSpend() && !txin.IsZerocoinSpend()) {
+            AddToSpends(txin.prevout, wtxid);
+        }
+    }
 }
 
 bool CWallet::EncryptWallet(const SecureString &strWalletPassphrase) {

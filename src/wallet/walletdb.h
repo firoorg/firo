@@ -178,6 +178,8 @@ public:
 
     bool WriteZerocoinEntry(const CZerocoinEntry& zerocoin);
     bool WriteZerocoinEntry(const CZerocoinEntryV3& zerocoin);
+    bool ReadZerocoinEntry(const Bignum& pub, CZerocoinEntry& entry);
+    bool ReadZerocoinEntry(const secp_primitives::GroupElement& pub, CZerocoinEntryV3& entry);
     bool HasZerocoinEntry(const Bignum& pub);
     bool HasZerocoinEntry(const secp_primitives::GroupElement& pub);
     bool EraseZerocoinEntry(const CZerocoinEntry& zerocoin);

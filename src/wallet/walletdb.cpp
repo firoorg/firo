@@ -274,6 +274,14 @@ bool CWalletDB::WriteZerocoinEntry(const CZerocoinEntryV3 &zerocoin) {
     return Write(std::make_pair(std::string("sigma_mint"), zerocoin.value), zerocoin, true);
 }
 
+bool CWalletDB::ReadZerocoinEntry(const Bignum& pub, CZerocoinEntry& entry) {
+    return Read(std::make_pair(std::string("zerocoin"), pub), entry);
+}
+
+bool CWalletDB::ReadZerocoinEntry(const secp_primitives::GroupElement& pub, CZerocoinEntryV3& entry) {
+    return Read(std::make_pair(std::string("sigma_mint"), pub), entry);
+}
+
 bool CWalletDB::HasZerocoinEntry(const Bignum& pub) {
     return Exists(std::make_pair(std::string("zerocoin"), pub));
 }
