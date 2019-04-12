@@ -17,8 +17,7 @@ class ZcoinMintSpendManyTest(BitcoinTestFramework):
         return start_nodes(self.num_nodes, self.options.tmpdir)
 
     def run_test(self):
-        # Decimal formating: 6 digits for balance will be enought 000.000 
-        getcontext().prec = 6
+        getcontext().prec = 16
 
         # old denomination
         # TODO should be changed after RPC will be updated
@@ -35,29 +34,28 @@ class ZcoinMintSpendManyTest(BitcoinTestFramework):
             info = self.nodes[0].gettransaction(mint_trans[-1])
 
             mint_amount = Decimal(info['amount'])
-            assert Decimal(-denom*2) == mint_amount, \
-                f'Unexpected mint amount {mint_amount}' \
+            fee = Decimal(info['fee']) # fee in transaction is negative
 
-            # fee in transaction is negative
-            fee = -info['fee']
+            # mint is treated as send to yourself so the amount will be zero
+            assert mint_amount == 0, \
+                f'Unexpected mint amount {mint_amount}'
 
-            start_bal = start_bal - Decimal(2*denom + fee)
-        
+            start_bal += fee
+
         # Generate confirmation blocks for mint
         self.nodes[0].generate(6)
         self.sync_all()
 
         # Many spend to yourself
         spend_trans = list()
-        spend_total = Decimal(0)
+
         for denom in denoms:
             val = {'value': denom, 'amount': 2}
-            args = { 
+            args = {
                  'address': '',
                  'denominations': [val]
                  }
             spend_trans.append(self.nodes[0].spendmanyzerocoin(args))
-            spend_total += 2*denom
 
             info = self.nodes[0].gettransaction(spend_trans[-1])
             confrms = info['confirmations']
@@ -70,18 +68,20 @@ class ZcoinMintSpendManyTest(BitcoinTestFramework):
             assert tr_type == 'spend', 'Unexpected transaction type'
 
             cur_amount = Decimal(info['amount'])
-            exp_spend = Decimal(denom) * 2
-            assert exp_spend == cur_amount, \
-                f'Unexpected spend amount {cur_amount}' \
-                f' but should be: {exp_spend}.'
+            fee = Decimal(info['fee']) # fee in transaction is negative
+
+            # this is send to yourself so the amount will be zero
+            assert cur_amount == 0, \
+                f'Unexpected spend amount {cur_amount}'
+
+            start_bal += fee
 
         # Verify, that balance did not change, cause we did not confirm the operation
         # Start balance increase on generated blocks to confirm
         start_bal += 40 * 6
         cur_bal = self.nodes[0].getbalance()
         assert start_bal == cur_bal, \
-            f'Unexpected current balance: {cur_bal}, should not change after spend, ' \
-            f' while we do not confirm, but start was {start_bal}'
+            f'Unexpected current balance: {cur_bal} {start_bal}'
 
         # Verify, that after one confirmation balance would NOT be updated on spends
         # Cause MAX_SPEND_ZC_TX_PER_BLOCK=5
@@ -116,13 +116,6 @@ class ZcoinMintSpendManyTest(BitcoinTestFramework):
             f'Confirmations should be 11, for 5 manyspend operations size of 2' \
             f'due to 3 blocks was generated after transaction was created ' \
             f'and MAX_SPEND_ZC_TX_PER_BLOCK=5, but was {confrms_2}.'
-
-        cur_bal = self.nodes[0].getbalance()
-        start_bal = start_bal + spend_total
-        assert start_bal == cur_bal, \
-            f'Unexpected current balance: {cur_bal}, should increase on {spend_total}, ' \
-            f'but start was {start_bal}'
-
 
 if __name__ == '__main__':
     ZcoinMintSpendManyTest().main()
