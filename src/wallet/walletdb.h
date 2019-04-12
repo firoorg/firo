@@ -12,6 +12,9 @@
 #include "wallet/db.h"
 #include "key.h"
 
+#include "../secp256k1/include/GroupElement.h"
+#include "../secp256k1/include/Scalar.h"
+
 #include <list>
 #include <stdint.h>
 #include <string>
