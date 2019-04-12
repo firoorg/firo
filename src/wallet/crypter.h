@@ -199,6 +199,9 @@ public:
         }
     }
 
+    bool GetDeterministicSeed(const uint256& hashSeed, uint256& seed);
+    bool AddDeterministicSeed(const uint256& seed);
+    
     /**
      * Wallet status (encrypted, locked) changed.
      * Note: Called without locks held.

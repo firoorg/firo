@@ -5,7 +5,7 @@ includedir=${prefix}/include
 
 Name: Zcoin Core consensus library
 Description: Library for the Bitcoin consensus protocol.
-Version: 0.13.7
+Version: 0.13.8
 Libs: -L${libdir} -lbitcoinconsensus
 Cflags: -I${includedir}
 Requires.private: libcrypto

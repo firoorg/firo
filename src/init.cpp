@@ -88,6 +88,10 @@
 #include "zmq/zmqnotificationinterface.h"
 #endif
 
+#ifdef ENABLE_WALLET
+CWallet* pwalletMain = NULL;
+CZerocoinWallet* zwalletMain = NULL;
+#endif
 
 bool fFeeEstimatesInitialized = false;
 static const bool DEFAULT_PROXYRANDOMIZE = true;
@@ -241,6 +245,8 @@ void Shutdown() {
 #ifdef ENABLE_WALLET
     if (pwalletMain)
         pwalletMain->Flush(false);
+    delete zwalletMain;
+    zwalletMain = NULL;
 #endif
     GenerateBitcoins(false, 0, Params());
     StopNode();
@@ -845,6 +851,16 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
         LogPrintf("Stopping after block import\n");
         StartShutdown();
     }
+
+    // With Zerocoin data up to date, initialize ZerocoinWallet
+    uiInterface.InitMessage(_("Syncing Zerocoin wallet..."));
+
+#ifdef ENABLE_WALLET
+    //Load zerocoin mint hashes to memory
+    pwalletMain->zerocoinTracker->Init();
+    zwalletMain->LoadMintPoolFromDB();
+    zwalletMain->SyncWithChain();
+#endif
 }
 
 /** Sanity checks
@@ -1815,6 +1831,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     LogPrintf("Step 8: load wallet ************************************\n");
     if (fDisableWallet) {
         pwalletMain = NULL;
+        zwalletMain = NULL;
         LogPrintf("Wallet disabled!\n");
     } else {
         CWallet::InitLoadWallet();

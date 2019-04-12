@@ -24,6 +24,7 @@
 #include "prevector.h"
 #include <memory>
 #include "definition.h"
+#include "libzerocoin/Denominations.h"
 using namespace std;
 
 
@@ -215,6 +216,7 @@ inline unsigned int GetSerializeSize(int64_t a,   int, int=0) { return 8; }
 inline unsigned int GetSerializeSize(uint64_t a,  int, int=0) { return 8; }
 inline unsigned int GetSerializeSize(float a,     int, int=0) { return 4; }
 inline unsigned int GetSerializeSize(double a,    int, int=0) { return 8; }
+inline unsigned int GetSerializeSize(libzerocoin::CoinDenomination a, int, int = 0) { return sizeof(libzerocoin::CoinDenomination); }
 
 template<typename Stream> inline void Serialize(Stream& s, char a,         int, int=0) { ser_writedata8(s, a); } // TODO Get rid of bare char
 template<typename Stream> inline void Serialize(Stream& s, int8_t a,       int, int=0) { ser_writedata8(s, a); }
@@ -243,6 +245,20 @@ template<typename Stream> inline void Unserialize(Stream& s, double& a,    int, 
 inline unsigned int GetSerializeSize(bool a, int, int=0)                          { return sizeof(char); }
 template<typename Stream> inline void Serialize(Stream& s, bool a, int, int=0)    { char f=a; ser_writedata8(s, f); }
 template<typename Stream> inline void Unserialize(Stream& s, bool& a, int, int=0) { char f=ser_readdata8(s); a=f; }
+
+//Serialization for libzerocoin::CoinDenomination
+template <typename Stream> inline void Serialize(Stream& s, libzerocoin::CoinDenomination a, int, int = 0)
+{
+    int f = libzerocoin::ZerocoinDenominationToInt(a);
+    ser_writedata64(s, f);
+}
+
+ template <typename Stream> inline void Unserialize(Stream& s, libzerocoin::CoinDenomination& a, int, int = 0)
+{
+    int f=0;
+    f = ser_readdata64(s);
+    a = libzerocoin::IntToZerocoinDenomination(f);
+}
 
 /**
  * Please note that zcoin drops support for big-endian architectures and thus these functions are simple read/writes

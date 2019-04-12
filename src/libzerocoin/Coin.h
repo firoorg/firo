@@ -16,17 +16,9 @@
 #include <secp256k1_recovery.h>
 #include "bitcoin_bignum/bignum.h"
 #include "Params.h"
+#include "Denominations.h"
+#include "uint256.h"
 namespace libzerocoin {
-
-enum  CoinDenomination {
-    ZQ_LOVELACE = 1,
-    ZQ_GOLDWASSER = 10,
-    ZQ_RACKOFF = 25,
-    ZQ_PEDERSEN = 50,
-    ZQ_WILLIAMSON = 100 // Malcolm J. Williamson,
-                    // the scientist who actually invented
-                    // Public key cryptography
-};
 
 /** A Public coin is the part of a coin that
  * is published to the network and what is handled
@@ -123,6 +115,11 @@ public:
     void setEcdsaSeckey(const std::vector<unsigned char> &seckey) {
         if (seckey.size() == sizeof(ecdsaSeckey))
             std::copy(seckey.cbegin(), seckey.cend(), &ecdsaSeckey[0]);
+    }
+
+    void setEcdsaSeckey(uint256 &seckey) {
+        if (seckey.size() == sizeof(ecdsaSeckey))
+            std::copy(seckey.begin(), seckey.end(), &ecdsaSeckey[0]);
     }
 
     template <typename Stream, typename Operation>

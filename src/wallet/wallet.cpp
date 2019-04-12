@@ -36,6 +36,11 @@
 #include "znode.h"
 #include "znode-sync.h"
 #include "random.h"
+#include "init.h"
+#include "zerocoinwallet.h"
+#include "rpc/protocol.h"
+
+#include "zerocointracker.h"
 
 #include <assert.h>
 #include <boost/algorithm/string/replace.hpp>
@@ -6303,6 +6308,29 @@ bool CWallet::CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CZerocoinEnt
     }
 
     return true;
+}
+
+bool CWallet::GetMint(const uint256& hashSerial, CZerocoinEntry& zerocoin)
+{
+    CMintMeta meta;
+    if(!pwalletMain->zerocoinTracker->Get(hashSerial, meta))
+        return error("%s: serialhash %s is not in tracker", __func__, hashSerial.GetHex());
+
+     if (meta.isDeterministic) {
+        CDeterministicMint dMint;
+        CWalletDB walletdb(strWalletFile);
+        if (!walletdb.ReadDeterministicMint(GetPubCoinHash(meta.pubcoin), dMint))
+            return error("%s: failed to read deterministic mint", __func__);
+        if (!zwalletMain->RegenerateMint(dMint, zerocoin))
+            return error("%s: failed to generate mint", __func__);
+
+         return true;
+    }
+    // } else if (!walletdb.ReadZerocoinEntry(meta.pubcoin, zerocoin)) {
+    //     return error("%s: failed to read zerocoinmint from database", __func__);
+    // }
+
+     return true;
 }
 
 bool CWallet::AddAccountingEntry(const CAccountingEntry &acentry, CWalletDB &pwalletdb) {

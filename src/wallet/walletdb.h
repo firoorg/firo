@@ -9,6 +9,8 @@
 
 #include "amount.h"
 #include "primitives/transaction.h"
+#include "primitives/zerocoin.h"
+#include "primitives/deterministicmint.h"
 #include "wallet/db.h"
 #include "key.h"
 
@@ -175,6 +177,7 @@ public:
 
     bool WriteZerocoinEntry(const CZerocoinEntry& zerocoin);
     bool WriteZerocoinEntry(const CZerocoinEntryV3& zerocoin);
+    bool ReadZerocoinEntry(const CBigNum &bnPubCoinValue, CZerocoinEntry& zerocoin);
     bool EraseZerocoinEntry(const CZerocoinEntry& zerocoin);
     bool EraseZerocoinEntry(const CZerocoinEntryV3& zerocoin);
     void ListPubCoin(std::list<CZerocoinEntry>& listPubCoin);
@@ -199,6 +202,27 @@ public:
     DBErrors ZapSelectTx(CWallet* pwallet, std::vector<uint256>& vHashIn, std::vector<uint256>& vHashOut);
     static bool Recover(CDBEnv& dbenv, const std::string& filename, bool fOnlyKeys);
     static bool Recover(CDBEnv& dbenv, const std::string& filename);
+
+    bool ReadCurrentSeedHash(uint256& hashSeed);
+    bool WriteCurrentSeedHash(const uint256& hashSeed);
+    bool ReadZerocoinSeed(const uint256& hashSeed, vector<unsigned char>& seed);
+    bool WriteZerocoinSeed(const uint256& hashSeed, const vector<unsigned char>& seed);
+
+    bool ReadZerocoinCount(uint32_t& nCount);
+    bool WriteZerocoinCount(const uint32_t& nCount);
+
+    bool ArchiveMintOrphan(const CZerocoinEntry& zerocoin);
+    bool ArchiveDeterministicOrphan(const CDeterministicMint& dMint);
+    bool UnarchiveZerocoinMint(const uint256& hashPubcoin, CZerocoinEntry& zerocoin);
+    bool UnarchiveDeterministicMint(const uint256& hashPubcoin, CDeterministicMint& dMint);
+
+    bool WriteDeterministicMint(const CDeterministicMint& dMint);
+    bool ReadDeterministicMint(const uint256& hashPubcoin, CDeterministicMint& dMint);
+
+     std::list<CDeterministicMint> ListDeterministicMints();
+
+     std::map<uint256, std::vector<pair<uint256, uint32_t> > > MapMintPool();
+    bool WriteMintPoolPair(const uint256& hashMasterSeed, const uint256& hashPubcoin, const uint32_t& nCount);
 
     //! write the hdchain model (external chain child index counter)
     bool WriteHDChain(const CHDChain& chain);
