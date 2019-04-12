@@ -1784,8 +1784,9 @@ bool CWalletTx::InStempool() const {
 }
 
 bool CWalletTx::IsTrusted() const {
-    // Quick answer in most cases
-    if (!CheckFinalTx(*this))
+    // Quick answer in most cases.
+    // Zerocoin spend is always false due to it use nSequence incorrectly.
+    if (!IsZerocoinSpend() && !CheckFinalTx(*this))
         return false;
     int nDepth = GetDepthInMainChain();
     if (nDepth >= 1)
@@ -1802,14 +1803,21 @@ bool CWalletTx::IsTrusted() const {
     // Trusted if all inputs are from us and are in the mempool:
     BOOST_FOREACH(const CTxIn &txin, vin)
     {
-        // Transactions not sent by us: not trusted
-        const CWalletTx *parent = pwallet->GetWalletTx(txin.prevout.hash);
-        if (parent == NULL)
-            return false;
-        const CTxOut &parentOut = parent->vout[txin.prevout.n];
-        if (pwallet->IsMine(parentOut) != ISMINE_SPENDABLE)
-            return false;
+        if (txin.IsZerocoinSpend() || txin.IsZerocoinSpendV3()) {
+            if (!(pwallet->IsMine(txin) & ISMINE_SPENDABLE)) {
+                return false;
+            }
+        } else {
+            // Transactions not sent by us: not trusted
+            const CWalletTx *parent = pwallet->GetWalletTx(txin.prevout.hash);
+            if (parent == NULL)
+                return false;
+            const CTxOut &parentOut = parent->vout[txin.prevout.n];
+            if (pwallet->IsMine(parentOut) != ISMINE_SPENDABLE)
+                return false;
+        }
     }
+
     return true;
 }
 
