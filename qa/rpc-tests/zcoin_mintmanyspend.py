@@ -24,7 +24,7 @@ class ZcoinMintSpendManyTest(BitcoinTestFramework):
         denoms = [1, 10, 25, 50, 100]
 
         start_bal = self.nodes[0].getbalance()
-        assert start_bal == 1000.000, f'Unexpected start balance: {start_bal}'
+        assert start_bal == 1000.000, 'Unexpected start balance: {}'.format(start_bal)
 
         mint_trans = list()
         for denom in denoms:
@@ -38,7 +38,7 @@ class ZcoinMintSpendManyTest(BitcoinTestFramework):
 
             # mint is treated as send to yourself so the amount will be zero
             assert mint_amount == 0, \
-                f'Unexpected mint amount {mint_amount}'
+                'Unexpected mint amount {}'.format(mint_amount)
 
             start_bal += fee
 
@@ -60,9 +60,9 @@ class ZcoinMintSpendManyTest(BitcoinTestFramework):
             info = self.nodes[0].gettransaction(spend_trans[-1])
             confrms = info['confirmations']
             assert confrms == 0, \
-                f'Confirmations should be 0, ' \
-                f'due to 0 blocks was generated after transaction was created,' \
-                f'but was {confrms}.'
+                'Confirmations should be 0, ' \
+                'due to 0 blocks was generated after transaction was created,' \
+                'but was {}.'.format(confrms)
 
             tr_type = info['details'][0]['category']
             assert tr_type == 'spend', 'Unexpected transaction type'
@@ -72,7 +72,7 @@ class ZcoinMintSpendManyTest(BitcoinTestFramework):
 
             # this is send to yourself so the amount will be zero
             assert cur_amount == 0, \
-                f'Unexpected spend amount {cur_amount}'
+                'Unexpected spend amount {}'.format(cur_amount)
 
             start_bal += fee
 
@@ -81,7 +81,7 @@ class ZcoinMintSpendManyTest(BitcoinTestFramework):
         start_bal += 40 * 6
         cur_bal = self.nodes[0].getbalance()
         assert start_bal == cur_bal, \
-            f'Unexpected current balance: {cur_bal} {start_bal}'
+            'Unexpected current balance: {}'.format(cur_bal)
 
         # Verify, that after one confirmation balance would NOT be updated on spends
         # Cause MAX_SPEND_ZC_TX_PER_BLOCK=5
@@ -97,9 +97,9 @@ class ZcoinMintSpendManyTest(BitcoinTestFramework):
             confrms_1 += info['confirmations']
 
         assert confrms_1 == 2, \
-            f'Total confirmations should be 2 for 5 manyspend operations size of 2, ' \
-            f'due to 1 blocks was generated after transaction was created ' \
-            f'and MAX_SPEND_ZC_TX_PER_BLOCK=5, but was {confrms_1}.'
+            'Total confirmations should be 2 for 5 manyspend operations size of 2, ' \
+            'due to 1 blocks was generated after transaction was created ' \
+            'and MAX_SPEND_ZC_TX_PER_BLOCK=5, but was {}.'.format(confrms_1)
 
         # Start balance increase on generated blocks to confirm
         start_bal += 40 * 2
@@ -113,9 +113,9 @@ class ZcoinMintSpendManyTest(BitcoinTestFramework):
             confrms_2 += info['confirmations']
 
         assert confrms_2 == 11, \
-            f'Confirmations should be 11, for 5 manyspend operations size of 2' \
-            f'due to 3 blocks was generated after transaction was created ' \
-            f'and MAX_SPEND_ZC_TX_PER_BLOCK=5, but was {confrms_2}.'
+            'Confirmations should be 11, for 5 manyspend operations size of 2' \
+            'due to 3 blocks was generated after transaction was created ' \
+            'and MAX_SPEND_ZC_TX_PER_BLOCK=5, but was {}.'.format(confrms_2)
 
 if __name__ == '__main__':
     ZcoinMintSpendManyTest().main()

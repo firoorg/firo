@@ -2787,8 +2787,8 @@ UniValue mintzerocoin(const UniValue& params, bool fHelp)
 
         // Wallet comments
         CWalletTx wtx;
-
-        string strError = pwalletMain->MintZerocoin(scriptSerializedCoin, nAmount, wtx);
+        bool isSigmaMint = false;
+        string strError = pwalletMain->MintZerocoin(scriptSerializedCoin, nAmount, isSigmaMint, wtx);
 
         if (strError != "")
             throw JSONRPCError(RPC_WALLET_ERROR, strError);
@@ -2861,8 +2861,8 @@ UniValue mintzerocoinV3(const UniValue& params, bool fHelp)
 
         // Wallet comments
         CWalletTx wtx;
-
-        string strError = pwalletMain->MintZerocoin(scriptSerializedCoin, nAmount, wtx);
+        bool isSigmaMint = true;
+        string strError = pwalletMain->MintZerocoin(scriptSerializedCoin, nAmount, isSigmaMint, wtx);
 
         if (strError != "")
             throw JSONRPCError(RPC_WALLET_ERROR, strError);

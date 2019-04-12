@@ -238,8 +238,7 @@ void WalletView::setWalletModel(WalletModel *walletModel)
     overviewPage->setWalletModel(walletModel);
     receiveCoinsPage->setModel(walletModel);
     zerocoinPage->setModel(walletModel->getAddressTableModel());
-    // TODO: we need this line in the future. uncomment this after define setModel for SigmaPage class
-    // sigmaPage->setModel(walletModel);
+    sigmaPage->setModel(walletModel);
     usedReceivingAddressesPage->setModel(walletModel->getAddressTableModel());
     usedSendingAddressesPage->setModel(walletModel->getAddressTableModel());
     znodeListPage->setWalletModel(walletModel);

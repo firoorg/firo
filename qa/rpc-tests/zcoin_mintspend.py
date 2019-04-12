@@ -25,7 +25,7 @@ class ZcoinMintSpendTest(BitcoinTestFramework):
         denoms = [1, 10, 25, 50, 100]
 
         start_bal = self.nodes[0].getbalance()
-        assert start_bal == 1000.000, f'Unexpected start balance: {start_bal}'
+        assert start_bal == 1000.000, 'Unexpected start balance: {}'.format(start_bal)
 
         mint_trans = list()
         for denom in denoms:
@@ -41,8 +41,8 @@ class ZcoinMintSpendTest(BitcoinTestFramework):
             cur_bal = self.nodes[0].getbalance()
             start_bal = start_bal - Decimal((denom + fee) * 2)
             assert start_bal == cur_bal, \
-                f'Unexpected current balance: {cur_bal}, should be minus two mints and two fee, ' \
-                f'but start was {start_bal}'
+                'Unexpected current balance: {}, should be minus two mints and two fee, ' \
+                'but start was {}'.format(cur_bal, start_bal)
 
         # confirmations should be i due to less than 6 blocks was generated after transactions send
         for i in range(5):
@@ -51,9 +51,9 @@ class ZcoinMintSpendTest(BitcoinTestFramework):
                 confrms = info['confirmations']
                 tr_type = info['details'][0]['category']
                 assert confrms == i, \
-                    f'Confirmations should be {i}, '\
-                    f'due to {i} blocks was generated after transaction was created,' \
-                    f'but was {confrms}' 
+                    'Confirmations should be {}, '\
+                    'due to {} blocks was generated after transaction was created,' \
+                    'but was {}' .format(i, i, confrms)
 
                 assert tr_type == 'mint', 'Unexpected transaction type'
             for denom in denoms:
@@ -77,9 +77,9 @@ class ZcoinMintSpendTest(BitcoinTestFramework):
             confrms = info['confirmations']
             tr_type = info['details'][0]['category']
             assert confrms == 6, \
-                f'Confirmations should be 6, ' \
-                f'due to 6 blocks was generated after transaction was created,' \
-                f'but was {confrms}.'
+                'Confirmations should be 6, ' \
+                'due to 6 blocks was generated after transaction was created,' \
+                'but was {}.'.format(confrms)
             assert tr_type == 'mint', 'Unexpected transaction type'
 
         spend_trans = list()  
@@ -92,24 +92,24 @@ class ZcoinMintSpendTest(BitcoinTestFramework):
             confrms = info['confirmations']
             tr_type = info['details'][0]['category']
             assert confrms == 0, \
-                f'Confirmations should be 0, ' \
-                f'due to 0 blocks was generated after transaction was created,' \
-                f'but was {confrms}.' 
+                'Confirmations should be 0, ' \
+                'due to 0 blocks was generated after transaction was created,' \
+                'but was {}.'.format(confrms)
             assert tr_type == 'spend', 'Unexpected transaction type'
 
             spend_amount = Decimal(info['amount'])
             exp_spend = Decimal(denom)
             assert exp_spend == spend_amount, \
-                f'Unexpected spend amount {spend_amount}' \
-                f' but should be: {exp_spend}.'
+                'Unexpected spend amount {}' \
+                ' but should be: {}.'.format(spend_amount, exp_spend)
 
         # Verify, that balance did not change, cause we did not confirm the operation
         # Start balance increase on generated blocks to confirm
         start_bal += 40 * 6
         cur_bal = self.nodes[0].getbalance()
         assert start_bal == cur_bal, \
-            f'Unexpected current balance: {cur_bal}, should not change after spend, ' \
-            f' while we do not confirm, but start was {start_bal}'
+            'Unexpected current balance: {}, should not change after spend, ' \
+            ' while we do not confirm, but start was {}'.format(cur_bal, start_bal)
 
         # Verify, that after one confirmation balance will be updated on spends
         self.nodes[0].generate(1)
@@ -120,8 +120,8 @@ class ZcoinMintSpendTest(BitcoinTestFramework):
         cur_bal = self.nodes[0].getbalance()
         start_bal = start_bal + spend_total
         assert start_bal == cur_bal, \
-            f'Unexpected current balance: {cur_bal}, should increase on {spend_total}, ' \
-            f'but start was {start_bal}'
+            'Unexpected current balance: {}, should increase on {}, ' \
+            'but start was {}'.format(cur_bal, spend_total, start_bal)
 
         for tr in spend_trans:
             info = self.nodes[0].gettransaction(tr)
@@ -129,9 +129,9 @@ class ZcoinMintSpendTest(BitcoinTestFramework):
             confrms = info['confirmations']
             tr_type = info['details'][0]['category']
             assert confrms == 1, \
-                f'Confirmations should be 1, ' \
-                f'due to 1 blocks was generated after transaction was created,' \
-                f'but was {confrms}.' 
+                'Confirmations should be 1, ' \
+                'due to 1 blocks was generated after transaction was created,' \
+                'but was {}.'.format(confrms) 
             assert tr_type == 'spend', 'Unexpected transaction type'
 
 

@@ -10,6 +10,8 @@
 
 #include "support/allocators/secure.h"
 
+#include "wallet/walletdb.h"
+
 #include <map>
 #include <vector>
 
@@ -206,6 +208,14 @@ public:
 
     bool transactionCanBeRebroadcast(uint256 hash) const;
     bool rebroadcastTransaction(uint256 hash);
+
+    // Sigma
+    SendCoinsReturn prepareSigmaSpendTransaction(WalletModelTransaction &transaction,
+        std::vector<CZerocoinEntryV3>& coins, std::vector<CZerocoinEntryV3>& changes);
+
+    // Send coins to a list of recipients
+    SendCoinsReturn sendSigma(WalletModelTransaction &transaction,
+        std::vector<CZerocoinEntryV3>& coins, std::vector<CZerocoinEntryV3>& changes);
 
 private:
     CWallet *wallet;

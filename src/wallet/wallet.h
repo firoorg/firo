@@ -900,9 +900,9 @@ public:
      */
     void ListAvailableCoinsMintCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed=true) const;
     bool CreateZerocoinMintTransaction(const std::vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet, int& nChangePosInOut,
-                           std::string& strFailReason, const CCoinControl *coinControl = NULL, bool sign = true);
+                           std::string& strFailReason, bool isSigmaMint, const CCoinControl *coinControl = NULL, bool sign = true);
     bool CreateZerocoinMintTransaction(CScript pubCoin, int64_t nValue,
-                                       CWalletTx& wtxNew, CReserveKey& reservekey, int64_t& nFeeRet, std::string& strFailReason, const CCoinControl *coinControl=NULL);
+                                       CWalletTx& wtxNew, CReserveKey& reservekey, int64_t& nFeeRet, std::string& strFailReason, bool isSigmaMint, const CCoinControl *coinControl=NULL);
     bool CreateZerocoinSpendTransaction(std::string& thirdPartyaddress, int64_t nValue, libzerocoin::CoinDenomination denomination,
                                         CWalletTx& wtxNew, CReserveKey& reservekey, CBigNum& coinSerial, uint256& txHash, CBigNum& zcSelectedValue, bool& zcSelectedIsUsed,  std::string& strFailReason, bool forceUsed = false);
 
@@ -942,10 +942,11 @@ public:
         const CCoinControl *coinControl = NULL);
 
     bool CommitZerocoinSpendTransaction(CWalletTx& wtxNew, CReserveKey& reservekey);
+    bool CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CZerocoinEntryV3>& selectedCoins, std::vector<CZerocoinEntryV3>& changes);
     std::string SendMoney(CScript scriptPubKey, int64_t nValue, CWalletTx& wtxNew, bool fAskFee=false);
     std::string SendMoneyToDestination(const CTxDestination &address, int64_t nValue, CWalletTx& wtxNew, bool fAskFee=false);
 
-    std::string MintZerocoin(CScript pubCoin, int64_t nValue, CWalletTx& wtxNew, bool fAskFee=false);
+    std::string MintZerocoin(CScript pubCoin, int64_t nValue, bool isSigmaMint, CWalletTx& wtxNew, bool fAskFee=false);
     std::string MintAndStoreZerocoin(vector<CRecipient> vecSend, vector<libzerocoin::PrivateCoin> privCoins, CWalletTx &wtxNew, bool fAskFee=false);
     std::string MintAndStoreZerocoinV3(vector<CRecipient> vecSend, vector<sigma::PrivateCoinV3> privCoins, CWalletTx &wtxNew, bool fAskFee=false);
 

@@ -1,5 +1,6 @@
 #include "txbuilder.h"
 
+#include "../amount.h"
 #include "../main.h"
 #include "../policy/policy.h"
 #include "../random.h"
@@ -18,6 +19,18 @@
 #include <assert.h>
 #include <stddef.h>
 
+InputSigner::InputSigner() : InputSigner(COutPoint())
+{
+}
+
+InputSigner::InputSigner(const COutPoint& output, uint32_t seq) : output(output), sequence(seq)
+{
+}
+
+InputSigner::~InputSigner()
+{
+}
+
 TxBuilder::TxBuilder(CWallet& wallet) noexcept : wallet(wallet)
 {
 }
@@ -34,22 +47,20 @@ CWalletTx TxBuilder::Build(const std::vector<CRecipient>& recipients, CAmount& f
 
     // calculate total value to spend
     CAmount spend = 0;
-    bool subtractFee = false;
+    unsigned recipientsToSubtractFee = 0;
 
     for (size_t i = 0; i < recipients.size(); i++) {
         auto& recipient = recipients[i];
 
-        if (recipient.nAmount < 0) {
-            throw std::invalid_argument(boost::str(boost::format(_("Recipient %1% has negative amount")) % i));
+        if (!MoneyRange(recipient.nAmount)) {
+            throw std::invalid_argument(boost::str(boost::format(_("Recipient %1% has invalid amount")) % i));
         }
 
         spend += recipient.nAmount;
 
-        if (spend < 0) {
-            throw std::overflow_error(_("Total amount to spend is too large"));
+        if (recipient.fSubtractFeeFromAmount) {
+            recipientsToSubtractFee++;
         }
-
-        subtractFee |= recipient.fSubtractFeeFromAmount;
     }
 
     CWalletTx result;
@@ -102,17 +113,43 @@ CWalletTx TxBuilder::Build(const std::vector<CRecipient>& recipients, CAmount& f
         result.fFromMe = true;
         result.changes.clear();
 
-        if (!subtractFee) {
+        // If no any recipients to subtract fee then the sender need to pay by themself.
+        if (!recipientsToSubtractFee) {
             required += fee;
         }
 
         // fill outputs
+        bool remainderSubtracted = false;
+
         for (size_t i = 0; i < recipients.size(); i++) {
             auto& recipient = recipients[i];
             CTxOut vout(recipient.nAmount, recipient.scriptPubKey);
 
+            if (recipient.fSubtractFeeFromAmount) {
+                // Subtract fee equally from each selected recipient.
+                vout.nValue -= fee / recipientsToSubtractFee;
+
+                if (!remainderSubtracted) {
+                    // First receiver pays the remainder not divisible by output count.
+                    vout.nValue -= fee % recipientsToSubtractFee;
+                    remainderSubtracted = true;
+                }
+            }
+
             if (vout.IsDust(minRelayTxFee)) {
-                throw std::invalid_argument(boost::str(boost::format(_("Amount for recipient %1% is too small")) % i));
+                std::string err;
+
+                if (recipient.fSubtractFeeFromAmount && fee > 0) {
+                    if (vout.nValue < 0) {
+                        err = boost::str(boost::format(_("Amount for recipient %1% is too small to pay the fee")) % i);
+                    } else {
+                        err = boost::str(boost::format(_("Amount for recipient %1% is too small to send after the fee has been deducted")) % i);
+                    }
+                } else {
+                    err = boost::str(boost::format(_("Amount for recipient %1% is too small")) % i);
+                }
+
+                throw std::invalid_argument(err);
             }
 
             tx.vout.push_back(vout);
@@ -166,6 +203,7 @@ CWalletTx TxBuilder::Build(const std::vector<CRecipient>& recipients, CAmount& f
             tx.vin.emplace_back(signer->output, CScript(), signer->sequence);
         }
 
+        // now every fields is populated then we can sign transaction
         uint256 sig = tx.GetHash();
 
         for (size_t i = 0; i < tx.vin.size(); i++) {
