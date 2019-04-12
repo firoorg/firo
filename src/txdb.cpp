@@ -480,13 +480,16 @@ void handleInput(CTxIn const & input, size_t inputNo, uint256 const & txHash, in
 
 template <class Iterator>
 void handleZerocoinSpend(Iterator const begin, Iterator const end, uint256 const & txHash, int height, int txNumber, CCoinsViewCache const & view,
-        AddressIndexPtr & addressIndex)
+        AddressIndexPtr & addressIndex, bool isV3)
 {
+    if(!addressIndex)
+        return;
+
     CAmount spendAmount = 0;
     for(Iterator iter = begin; iter != end; ++iter)
         spendAmount += iter->nValue;
-    if(addressIndex)
-    addressIndex->push_back(make_pair(CAddressIndexKey(AddressType::zerocoinSpend, uint160(), height, txNumber, txHash, 0, true), -spendAmount));
+
+    addressIndex->push_back(make_pair(CAddressIndexKey(isV3 ? AddressType::sigmaSpend : AddressType::zerocoinSpend, uint160(), height, txNumber, txHash, 0, true), -spendAmount));
 }
 
 void handleOutput(const CTxOut &out, size_t outNo, uint256 const & txHash, int height, int txNumber, CCoinsViewCache const & view, bool coinbase,
@@ -497,6 +500,9 @@ void handleOutput(const CTxOut &out, size_t outNo, uint256 const & txHash, int h
 
     if(out.scriptPubKey.IsZerocoinMint())
         addressIndex->push_back(make_pair(CAddressIndexKey(AddressType::zerocoinMint, uint160(), height, txNumber, txHash, outNo, false), out.nValue));
+
+    if(out.scriptPubKey.IsZerocoinMintV3())
+        addressIndex->push_back(make_pair(CAddressIndexKey(AddressType::sigmaMint, uint160(), height, txNumber, txHash, outNo, false), out.nValue));
 
     txnouttype type;
     vector<vector<unsigned char> > addresses;
@@ -530,7 +536,7 @@ void CDbIndexHelper::ConnectTransaction(CTransaction const & tx, int height, int
         }
 
     if(tx.IsZerocoinSpend() || tx.IsZerocoinSpendV3())
-        handleZerocoinSpend(tx.vout.begin(), tx.vout.end(), tx.GetHash(), height, txNumber, view, addressIndex);
+        handleZerocoinSpend(tx.vout.begin(), tx.vout.end(), tx.GetHash(), height, txNumber, view, addressIndex, tx.IsZerocoinSpendV3());
 
     no = 0;
     bool const txIsCoinBase = tx.IsCoinBase();
@@ -575,7 +581,7 @@ void CDbIndexHelper::DisconnectTransactionInputs(CTransaction const & tx, int he
 void CDbIndexHelper::DisconnectTransactionOutputs(CTransaction const & tx, int height, int txNumber, CCoinsViewCache const & view)
 {
     if(tx.IsZerocoinSpend() || tx.IsZerocoinSpendV3())
-        handleZerocoinSpend(tx.vout.begin(), tx.vout.end(), tx.GetHash(), height, txNumber, view, addressIndex);
+        handleZerocoinSpend(tx.vout.begin(), tx.vout.end(), tx.GetHash(), height, txNumber, view, addressIndex, tx.IsZerocoinSpendV3());
 
     size_t no = 0;
     bool const txIsCoinBase = tx.IsCoinBase();
