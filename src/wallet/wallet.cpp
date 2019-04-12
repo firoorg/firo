@@ -1175,6 +1175,10 @@ CAmount CWallet::GetDebit(const CTxIn &txin, const isminefilter &filter) const {
     LOCK(cs_wallet);
 
     if (txin.IsZerocoinSpend()) {
+        if (!(filter & ISMINE_SPENDABLE)) {
+            goto end;
+        }
+
         CWalletDB db(strWalletFile);
         std::unique_ptr<libzerocoin::CoinSpend> spend;
 
@@ -1188,6 +1192,10 @@ CAmount CWallet::GetDebit(const CTxIn &txin, const isminefilter &filter) const {
             return spend->getDenomination() * COIN;
         }
     } else if (txin.IsZerocoinSpendV3()) {
+        if (!(filter & ISMINE_SPENDABLE)) {
+            goto end;
+        }
+
         CWalletDB db(strWalletFile);
         std::unique_ptr<sigma::CoinSpendV3> spend;
 
