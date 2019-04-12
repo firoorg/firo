@@ -20,6 +20,8 @@
 #include "wallet/walletdb.h" // for BackupWallet
 #include "txmempool.h"
 #include "consensus/validation.h"
+#include "zerocoin_v3.h"
+#include "sigma/coin.h"
 
 #include <stdint.h>
 
@@ -134,6 +136,41 @@ void WalletModel::pollBalanceChanged()
         checkBalanceChanged();
         if(transactionTableModel)
             transactionTableModel->updateConfirmations();
+
+        // check sigma
+        checkSigmaAmount(false);
+    }
+}
+
+void WalletModel::updateSigmaCoins(const QString &pubCoin, const QString &isUsed, int status)
+{
+    if (status == ChangeType::CT_UPDATED) {
+        // some coin have been updated to be used
+        LOCK2(cs_main, wallet->cs_wallet);
+        checkSigmaAmount(true);
+
+    } else if (status == ChangeType::CT_NEW) {
+        // new mint
+        LOCK2(cs_main, wallet->cs_wallet);
+        CZerocoinStateV3* zerocoinState = CZerocoinStateV3::GetZerocoinState();
+        std::list<CZerocoinEntryV3> coins;
+        CWalletDB(wallet->strWalletFile).ListPubCoinV3(coins);
+
+        int block = cachedNumBlocks;
+        for (const auto& coin : coins) {
+            if (!coin.IsUsed) {
+                int coinHeight =  zerocoinState->GetMintedCoinHeightAndId(
+                    PublicCoinV3(coin.value, coin.get_denomination())).first;
+                if (coinHeight == -1
+                    || (coinHeight <= block && coinHeight > block - ZC_MINT_CONFIRMATIONS)) {
+                    cachedHavePendingCoin = true;
+                }
+            }
+        }
+
+        if (cachedHavePendingCoin) {
+            checkSigmaAmount(true);
+        }
     }
 }
 
@@ -163,6 +200,55 @@ void WalletModel::checkBalanceChanged()
         cachedWatchImmatureBalance = newWatchImmatureBalance;
         Q_EMIT balanceChanged(newBalance, newUnconfirmedBalance, newImmatureBalance,
                             newWatchOnlyBalance, newWatchUnconfBalance, newWatchImmatureBalance);
+    }
+}
+
+void WalletModel::checkSigmaAmount(bool forced)
+{
+    if ((cachedHavePendingCoin && cachedNumBlocks > lastBlockCheckSigma) || forced ) {
+        std::list<CZerocoinEntryV3> coins;
+        CWalletDB(wallet->strWalletFile).ListPubCoinV3(coins);
+
+        std::vector<CZerocoinEntryV3> spendable, pending;
+
+        std::vector<PublicCoinV3> anonimity_set;
+        uint256 blockHash;
+
+        CZerocoinStateV3* zerocoinState = CZerocoinStateV3::GetZerocoinState();
+
+        cachedHavePendingCoin = false;
+
+        for (const auto& coin : coins) {
+
+            if (coin.IsUsed) {
+                // ignore spended coin
+                continue;
+            }
+
+            auto coinHeightAndId =  zerocoinState->GetMintedCoinHeightAndId(
+                PublicCoinV3(coin.value, coin.get_denomination()));
+
+            int coinHeight = coinHeightAndId.first;
+            int coinGroupID = coinHeightAndId.second;
+
+            if (coinHeight > 0
+                && coinHeight + (ZC_MINT_CONFIRMATIONS-1) <= chainActive.Height()
+                && zerocoinState->GetCoinSetForSpend(
+                    &chainActive,
+                    chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1),
+                    coin.get_denomination(),
+                    coinGroupID,
+                    blockHash,
+                    anonimity_set) > 1)  {
+                spendable.push_back(coin);
+            } else {
+                cachedHavePendingCoin = true;
+                pending.push_back(coin);
+            }
+        }
+
+        lastBlockCheckSigma = chainActive.Height();
+        Q_EMIT notifySigmaChanged(spendable, pending);
     }
 }
 
@@ -487,6 +573,10 @@ static void NotifyZerocoinChanged(WalletModel *walletmodel, CWallet *wallet, con
 //    qDebug() << "NotifyZerocoinChanged %s %s status=%i\n", pubCoin.c_str(), isUsed.c_str(), status);
     qDebug() << "NotifyZerocoinChanged:" + QString::fromStdString(pubCoin) + " " + QString::fromStdString(isUsed) + " status=" + QString::number(status);
     QMetaObject::invokeMethod(walletmodel, "updateAddressBook", Qt::QueuedConnection,
+                              Q_ARG(QString, QString::fromStdString(pubCoin)),
+                              Q_ARG(QString, QString::fromStdString(isUsed)),
+                              Q_ARG(int, status));
+    QMetaObject::invokeMethod(walletmodel, "updateSigmaCoins", Qt::QueuedConnection,
                               Q_ARG(QString, QString::fromStdString(pubCoin)),
                               Q_ARG(QString, QString::fromStdString(isUsed)),
                               Q_ARG(int, status));
