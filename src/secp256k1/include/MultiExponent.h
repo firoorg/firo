@@ -16,8 +16,8 @@ public:
     GroupElement get_multiple();
 
 private:
-    void  *sc_; // secp256k1_scalar
-    void  *pt_; // secp256k1_gej
+    void  *sc_; // secp256k1_scalar[]
+    void  *pt_; // secp256k1_gej[]
     int n_points;
 };
 

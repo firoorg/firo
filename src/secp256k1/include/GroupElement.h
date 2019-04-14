@@ -101,6 +101,8 @@ public:
 
   std::size_t hash() const;
 
+  friend class MultiExponent;
+private:
     // Returns the secp object inside it.
     const void * get_value() const;
 

@@ -28,10 +28,15 @@ int ecmult_multi_callback(secp256k1_scalar *sc, secp256k1_gej *pt, size_t idx, v
 namespace secp_primitives {
 
 MultiExponent::MultiExponent(const MultiExponent& other)
-        : sc_(new secp256k1_scalar(*reinterpret_cast<secp256k1_scalar *>(other.sc_)))
-        , pt_(new secp256k1_gej(*reinterpret_cast<secp256k1_gej *>(other.pt_)))
+        : sc_(new secp256k1_scalar[other.n_points])
+        , pt_(new secp256k1_gej[other.n_points])
         , n_points(other.n_points)
 {
+    for(int i = 0; i < n_points; ++i)
+    {
+        (reinterpret_cast<secp256k1_scalar *>(sc_))[i] = (reinterpret_cast<secp256k1_scalar *>(other.sc_))[i];
+        (reinterpret_cast<secp256k1_gej *>(pt_))[i] = (reinterpret_cast<secp256k1_gej *>(other.pt_))[i];
+    }
 }
 
 MultiExponent::MultiExponent(const std::vector<GroupElement>& generators, const std::vector<Scalar>& powers){
