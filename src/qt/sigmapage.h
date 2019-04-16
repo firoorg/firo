@@ -41,6 +41,7 @@ private:
 private Q_SLOTS:
     void on_sendButton_clicked();
     void removeEntry(SendCoinsEntry* entry);
+    void updateCoins(const std::vector<CZerocoinEntryV3>& spendable, const std::vector<CZerocoinEntryV3>& pending);
 
 Q_SIGNALS:
     // Fired when a message should be reported to the user

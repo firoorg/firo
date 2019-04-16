@@ -12,11 +12,14 @@
 
 #include "wallet/wallet.h"
 #include "wallet/walletdb.h"
+#include "sigma/coin.h"
 
 #include <QMessageBox>
 #include <QScrollBar>
 #include <QTextDocument>
 #include <QTimer>
+
+#include <unordered_map>
 
 #define SEND_CONFIRM_DELAY   3
 
@@ -60,6 +63,9 @@ void SigmaPage::setModel(WalletModel *model)
     this->model = model;
 
     if (model && model->getOptionsModel()) {
+        connect(model, SIGNAL(notifySigmaChanged(const std::vector<CZerocoinEntryV3>, const std::vector<CZerocoinEntryV3>)),
+            this, SLOT(updateCoins(const std::vector<CZerocoinEntryV3>, const std::vector<CZerocoinEntryV3>)));
+        model->checkSigmaAmount(true);
         for (int i = 0; i < ui->entries->count(); ++i) {
             SendCoinsEntry *entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
             if (entry) {
@@ -234,7 +240,6 @@ void SigmaPage::updateTabsAndLabels()
     setupTabChain(0);
 }
 
-
 void SigmaPage::removeEntry(SendCoinsEntry* entry)
 {
     entry->hide();
@@ -309,4 +314,57 @@ void SigmaPage::processSpendCoinsReturn(const WalletModel::SendCoinsReturn &send
     }
 
     Q_EMIT message(tr("Send Coins"), msgParams.first, msgParams.second);
+}
+
+static QString formatAmount(CAmount n)
+{
+    qint64 coin = BitcoinUnits::factor(BitcoinUnits::Unit::BTC);
+
+    qint64 n_abs = (n > 0 ? n : -n);
+    qint64 quotient = n_abs / coin;
+    qint64 remainder = (n_abs % coin) * 10 / coin;
+
+    QString quotient_str = QString::number(quotient);
+    QString remainder_str = QString::number(remainder).rightJustified(1, '0');
+
+    if (n < 0)
+        quotient_str.insert(0, '-');
+    return quotient_str + QString(".") + remainder_str;
+}
+
+void SigmaPage::updateCoins(const std::vector<CZerocoinEntryV3>& spendable, const std::vector<CZerocoinEntryV3>& pending)
+{
+    std::unordered_map<sigma::CoinDenominationV3, int> spendableDenominationCoins;
+
+    CAmount sum(0);
+    for (const auto& c : spendable) {
+        spendableDenominationCoins[c.get_denomination()]++;
+        sum += c.get_denomination_value();
+    }
+
+    // update coins amount
+    int denom100Amount = spendableDenominationCoins[sigma::CoinDenominationV3::SIGMA_DENOM_100];
+    int denom10Amount = spendableDenominationCoins[sigma::CoinDenominationV3::SIGMA_DENOM_10];
+    int denom1Amount = spendableDenominationCoins[sigma::CoinDenominationV3::SIGMA_DENOM_1];
+    int denom05Amount = spendableDenominationCoins[sigma::CoinDenominationV3::SIGMA_DENOM_0_5];
+    int denom01Amount = spendableDenominationCoins[sigma::CoinDenominationV3::SIGMA_DENOM_0_1];
+
+    ui->amountDenom100->setText(QString::fromStdString(std::to_string(denom100Amount)));
+    ui->amountDenom10->setText(QString::fromStdString(std::to_string(denom10Amount)));
+    ui->amountDenom1->setText(QString::fromStdString(std::to_string(denom1Amount)));
+    ui->amountDenom05->setText(QString::fromStdString(std::to_string(denom05Amount)));
+    ui->amountDenom01->setText(QString::fromStdString(std::to_string(denom01Amount)));
+
+    CAmount pendingSum(0);
+    for (const auto& c : pending) {
+        pendingSum += c.get_denomination_value();
+    }
+
+    QString pendingAmount = QString("<span style='white-space: nowrap;'>%1</span>").arg(formatAmount(pendingSum));
+    QString spendableAmount = QString("<span style='white-space: nowrap;'>%1</span>").arg(formatAmount(sum));
+    QString totalAmount = QString("<span style='white-space: nowrap;'>%1</span>").arg(formatAmount(sum + pendingSum));
+
+    ui->pending->setText(pendingAmount);
+    ui->spendable->setText(spendableAmount);
+    ui->total->setText(totalAmount);
 }
