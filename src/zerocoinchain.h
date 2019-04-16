@@ -19,9 +19,9 @@ class CValidationState;
 class CZerocoinEntry;
 class uint256;
 
-bool IsSerialInBlockchain(const CBigNum& bnSerial, int& nHeightTx);
+bool IsSerialInBlockchain(const Scalar& bnSerial, int& nHeightTx);
 bool IsSerialInBlockchain(const uint256& hashSerial, int& nHeightTx, uint256& txidSpend);
 bool IsSerialInBlockchain(const uint256& hashSerial, int& nHeightTx, uint256& txidSpend, CTransaction& tx);
-bool TxOutToPublicCoin(const CTxOut& txout, libzerocoin::PublicCoin& pubCoin, CValidationState& state);
+bool TxOutToPublicCoin(const CTxOut& txout, sigma::PublicCoinV3& pubCoin, CValidationState& state);
 
 #endif //ZCOIN_ZEROCOINCHAIN_H

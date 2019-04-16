@@ -7,20 +7,21 @@
 #include "init.h"
 #include "txdb.h"
 #include "ui_interface.h"
-#include "zerocoin.h"
+#include "zerocoin_v3.h"
 #include "wallet/wallet.h"
+#include "sigma/coin.h"
 
 // 6 comes from OPCODE (1) + vch.size() (1) + BIGNUM size (4)
 #define SCRIPT_OFFSET 6
 // For Script size (BIGNUM/Uint256 size)
 #define BIGNUM_SIZE   4
 
-bool IsSerialInBlockchain(const CBigNum& bnSerial, int& nHeightTx)
+bool IsSerialInBlockchain(const Scalar& bnSerial, int& nHeightTx)
 {
     uint256 txHash;
     txHash.SetNull();
     // if not in zerocoinState then its not in the blockchain
-    if (!CZerocoinState::GetZerocoinState()->IsUsedCoinSerial(bnSerial))
+    if (!CZerocoinStateV3::GetZerocoinState()->IsUsedCoinSerial(bnSerial))
         return false;
 
     return IsTransactionInChain(txHash, nHeightTx);
@@ -30,8 +31,8 @@ bool IsSerialInBlockchain(const uint256& hashSerial, int& nHeightTx, uint256& tx
 {
     txidSpend.SetNull();
     CMintMeta mMeta;
-    Bignum bnSerial;
-    if (!CZerocoinState::GetZerocoinState()->IsUsedCoinSerialHash(bnSerial, hashSerial))
+    Scalar bnSerial;
+    if (!CZerocoinStateV3::GetZerocoinState()->IsUsedCoinSerialHash(bnSerial, hashSerial))
         return false;
 
     if(!pwalletMain->zerocoinTracker->Get(hashSerial, mMeta))
@@ -42,20 +43,22 @@ bool IsSerialInBlockchain(const uint256& hashSerial, int& nHeightTx, uint256& tx
     return IsTransactionInChain(txidSpend, nHeightTx, tx);
 }
 
-bool TxOutToPublicCoin(const CTxOut& txout, libzerocoin::PublicCoin& pubCoin, CValidationState& state)
+bool TxOutToPublicCoin(const CTxOut& txout, sigma::PublicCoinV3& pubCoin, CValidationState& state)
 {
-    CBigNum publicZerocoin;
-    vector<unsigned char> vchZeroMint;
-    vchZeroMint.insert(vchZeroMint.end(), txout.scriptPubKey.begin() + SCRIPT_OFFSET,
-                       txout.scriptPubKey.begin() + txout.scriptPubKey.size());
-    publicZerocoin.setvch(vchZeroMint);
+    // If you wonder why +1, go to file wallet.cpp and read the comments in function
+    // CWallet::CreateZerocoinMintModelV3 around "scriptSerializedCoin << OP_ZEROCOINMINTV3";
+    vector<unsigned char> coin_serialised(txout.scriptPubKey.begin() + 1,
+                                          txout.scriptPubKey.end());
+    secp_primitives::GroupElement publicZerocoin;
+    publicZerocoin.deserialize(&coin_serialised[0]);
 
-    libzerocoin::CoinDenomination denomination = libzerocoin::AmountToZerocoinDenomination(txout.nValue);
+    sigma::CoinDenominationV3 denomination;
+    IntegerToDenomination(txout.nValue, denomination);
     LogPrint("zero", "%s ZCPRINT denomination %d pubcoin %s\n", __func__, denomination, publicZerocoin.GetHex());
-    if (denomination == libzerocoin::ZQ_ERROR)
+    if (denomination == CoinDenominationV3::SIGMA_ERROR)
         return state.DoS(100, error("TxOutToPublicCoin : txout.nValue is not correct"));
 
-    libzerocoin::PublicCoin checkPubCoin(ZCParamsV2, publicZerocoin, denomination);
+    sigma::PublicCoinV3 checkPubCoin(publicZerocoin, denomination);
     pubCoin = checkPubCoin;
 
     return true;

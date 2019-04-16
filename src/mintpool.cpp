@@ -19,9 +19,9 @@ CMintPool::CMintPool(uint32_t nCount)
     this->nCountLastGenerated = nCount;
 }
 
-void CMintPool::Add(const CBigNum& bnValue, const uint32_t& nCount)
+void CMintPool::Add(const GroupElement& bnValue, const uint32_t& nCount)
 {
-    uint256 hash = GetPubCoinHash(bnValue);
+    uint256 hash = GetPubCoinValueHash(bnValue);
     Add(make_pair(hash, nCount));
     LogPrintf("%s : add %s to mint pool, nCountLastGenerated=%d\n", __func__, bnValue.GetHex().substr(0, 6), nCountLastGenerated);
 }
@@ -36,14 +36,14 @@ void CMintPool::Add(const pair<uint256, uint32_t>& pMint, bool fVerbose)
         LogPrintf("%s : add %s count %d to mint pool\n", __func__, pMint.first.GetHex().substr(0, 6), pMint.second);
 }
 
-bool CMintPool::Has(const CBigNum& bnValue)
+bool CMintPool::Has(const GroupElement& bnValue)
 {
-    return static_cast<bool>(count(GetPubCoinHash(bnValue)));
+    return static_cast<bool>(count(GetPubCoinValueHash(bnValue)));
 }
 
-std::pair<uint256, uint32_t> CMintPool::Get(const CBigNum& bnValue)
+std::pair<uint256, uint32_t> CMintPool::Get(const GroupElement& bnValue)
 {
-    auto it = find(GetPubCoinHash(bnValue));
+    auto it = find(GetPubCoinValueHash(bnValue));
     return *it;
 }
 
@@ -89,9 +89,9 @@ bool CMintPool::Next(pair<uint256, uint32_t>& pMint)
     return true;
 }
 
-void CMintPool::Remove(const CBigNum& bnValue)
+void CMintPool::Remove(const GroupElement& bnValue)
 {
-    Remove(GetPubCoinHash(bnValue));
+    Remove(GetPubCoinValueHash(bnValue));
     LogPrintf("%s : remove %s from mint pool\n", __func__, bnValue.GetHex().substr(0, 6));
 }
 

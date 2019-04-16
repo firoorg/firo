@@ -17,7 +17,8 @@ enum class CoinDenominationV3 : std::uint8_t {
     SIGMA_DENOM_0_5 = 1,
     SIGMA_DENOM_1 = 2,
     SIGMA_DENOM_10 = 3,
-    SIGMA_DENOM_100 = 4
+    SIGMA_DENOM_100 = 4,
+    SIGMA_ERROR = 5
 };
 
 // for LogPrintf.
@@ -96,6 +97,7 @@ public:
     const unsigned char* getEcdsaSeckey() const;
 
     void setEcdsaSeckey(const std::vector<unsigned char> &seckey);
+    void setEcdsaSeckey(uint256 &seckey);
 
     static Scalar serialNumberFromSerializedPublicKey(
         const secp256k1_context *context,

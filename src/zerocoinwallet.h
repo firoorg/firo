@@ -30,17 +30,17 @@ public:
     bool SetMasterSeed(const uint256& seedMaster, bool fResetCount = false);
     uint256 GetMasterSeed() { return seedMaster; }
     void SyncWithChain(bool fGenerateMintPool = true);
-    void GenerateDeterministicZerocoin(libzerocoin::CoinDenomination denom, libzerocoin::PrivateCoin& coin, CDeterministicMint& dMint, bool fGenerateOnly = false);
-    void GenerateMint(const uint32_t& nCount, const libzerocoin::CoinDenomination denom, libzerocoin::PrivateCoin& coin, CDeterministicMint& dMint);
+    void GenerateDeterministicZerocoin(sigma::CoinDenominationV3 denom, sigma::PrivateCoinV3& coin, CDeterministicMint& dMint, bool fGenerateOnly = false);
+    void GenerateMint(const uint32_t& nCount, const sigma::CoinDenominationV3 denom, sigma::PrivateCoinV3& coin, CDeterministicMint& dMint);
     void GetState(int& nCount, int& nLastGenerated);
-    bool RegenerateMint(const CDeterministicMint& dMint, CZerocoinEntry& zerocoin);
+    bool RegenerateMint(const CDeterministicMint& dMint, CZerocoinEntryV3& zerocoin);
     void GenerateMintPool(uint32_t nCountStart = 0, uint32_t nCountEnd = 0);
     bool LoadMintPoolFromDB();
     void RemoveMintsFromPool(const std::vector<uint256>& vPubcoinHashes);
-    bool SetMintSeen(const CBigNum& bnValue, const int& nHeight, const uint256& txid, const libzerocoin::CoinDenomination& denom);
-    bool IsInMintPool(const CBigNum& bnValue) { return mintPool.Has(bnValue); }
+    bool SetMintSeen(const GroupElement& bnValue, const int& nHeight, const uint256& txid, const sigma::CoinDenominationV3& denom);
+    bool IsInMintPool(const GroupElement& bnValue) { return mintPool.Has(bnValue); }
     void Lock();
-    void SeedToZerocoin(const uint512& seedZerocoin, CBigNum& bnValue, libzerocoin::PrivateCoin& coin);
+    void SeedToZerocoin(const uint512& seedZerocoin, GroupElement& bnValue, sigma::PrivateCoinV3& coin);
     bool CheckSeed(const CDeterministicMint& dMint);
     // Count updating functions
     uint32_t GetCount();

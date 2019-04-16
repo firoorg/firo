@@ -26,12 +26,12 @@ private:
 public:
     CMintPool();
     explicit CMintPool(uint32_t nCount);
-    void Add(const CBigNum& bnValue, const uint32_t& nCount);
+    void Add(const GroupElement& bnValue, const uint32_t& nCount);
     void Add(const std::pair<uint256, uint32_t>& pMint, bool fVerbose = false);
-    bool Has(const CBigNum& bnValue);
-    void Remove(const CBigNum& bnValue);
+    bool Has(const GroupElement& bnValue);
+    void Remove(const GroupElement& bnValue);
     void Remove(const uint256& hashPubcoin);
-    std::pair<uint256, uint32_t> Get(const CBigNum& bnValue);
+    std::pair<uint256, uint32_t> Get(const GroupElement& bnValue);
     std::list<std::pair<uint256, uint32_t> > List();
     void Reset();
 

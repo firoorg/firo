@@ -500,7 +500,7 @@ DBErrors CWalletDB::ReorderTransactions(CWallet *pwallet) {
 
 bool CWalletDB::WriteDeterministicMint(const CDeterministicMint& dMint)
 {
-    uint256 hash = dMint.GetPubcoinHash();
+    uint256 hash = dMint.GetPubCoinHash();
     return Write(make_pair(string("hdmint"), hash), dMint, true);
 }
 
@@ -1410,10 +1410,10 @@ bool CWalletDB::ArchiveMintOrphan(const CZerocoinEntry& zerocoin)
 
 bool CWalletDB::ArchiveDeterministicOrphan(const CDeterministicMint& dMint)
 {
-    if (!Write(make_pair(string("dzco"), dMint.GetPubcoinHash()), dMint))
+    if (!Write(make_pair(string("dzco"), dMint.GetPubCoinHash()), dMint))
         return error("%s: write failed", __func__);
 
-    if (!Erase(make_pair(string("hdmint"), dMint.GetPubcoinHash())))
+    if (!Erase(make_pair(string("hdmint"), dMint.GetPubCoinHash())))
         return error("%s: failed to erase", __func__);
 
     return true;
@@ -1427,13 +1427,13 @@ bool CWalletDB::UnarchiveDeterministicMint(const uint256& hashPubcoin, CDetermin
     if (!WriteDeterministicMint(dMint))
         return error("%s: failed to write deterministic mint", __func__);
 
-    if (!Erase(make_pair(string("dzco"), dMint.GetPubcoinHash())))
+    if (!Erase(make_pair(string("dzco"), dMint.GetPubCoinHash())))
         return error("%s : failed to erase archived deterministic mint", __func__);
 
     return true;
 }
 
-bool CWalletDB::UnarchiveZerocoinMint(const uint256& hashPubcoin, CZerocoinEntry& zerocoin)
+bool CWalletDB::UnarchiveZerocoinMint(const uint256& hashPubcoin, CZerocoinEntryV3& zerocoin)
 {
     if (!Read(make_pair(string("zco"), hashPubcoin), zerocoin))
         return error("%s: failed to retrieve zerocoinmint from archive", __func__);
@@ -1441,7 +1441,7 @@ bool CWalletDB::UnarchiveZerocoinMint(const uint256& hashPubcoin, CZerocoinEntry
     if (!WriteZerocoinEntry(zerocoin))
         return error("%s: failed to write zerocoinmint", __func__);
 
-    uint256 hash = GetPubCoinHash(zerocoin.value);
+    uint256 hash = GetPubCoinValueHash(zerocoin.value);
     if (!Erase(make_pair(string("zco"), hash)))
         return error("%s : failed to erase archived zerocoin mint", __func__);
 

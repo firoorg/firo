@@ -213,7 +213,7 @@ public:
 
     bool ArchiveMintOrphan(const CZerocoinEntry& zerocoin);
     bool ArchiveDeterministicOrphan(const CDeterministicMint& dMint);
-    bool UnarchiveZerocoinMint(const uint256& hashPubcoin, CZerocoinEntry& zerocoin);
+    bool UnarchiveZerocoinMint(const uint256& hashPubcoin, CZerocoinEntryV3& zerocoin);
     bool UnarchiveDeterministicMint(const uint256& hashPubcoin, CDeterministicMint& dMint);
 
     bool WriteDeterministicMint(const CDeterministicMint& dMint);

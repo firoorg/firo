@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <primitives/deterministicmint.h>
+#include <primitives/zerocoin.h>
 #include "zerocointracker.h"
 #include "util.h"
 #include "sync.h"
@@ -12,7 +13,7 @@
 #include "zerocoinwallet.h"
 #include "libzerocoin/Zerocoin.h"
 #include "main.h"
-#include "zerocoin.h"
+#include "zerocoin_v3.h"
 //#include "accumulators.h"
 
 using namespace std;
@@ -42,14 +43,14 @@ void CZerocoinTracker::Init()
 
 bool CZerocoinTracker::Archive(CMintMeta& meta)
 {
-    uint256 hashPubcoin = GetPubCoinHash(meta.pubcoin);
+    uint256 hashPubcoin = GetPubCoinValueHash(meta.pubCoinValue);
 
     if (HasSerialHash(meta.hashSerial))
         mapSerialHashes.at(meta.hashSerial).isArchived = true;
 
     CWalletDB walletdb(strWalletFile);
-    CZerocoinEntry zerocoin;
-    // if (walletdb.ReadZerocoinEntry(meta.pubcoin, zerocoin)) {
+    CZerocoinEntryV3 zerocoin;
+    // if (walletdb.ReadZerocoinEntry(meta.pubCoinValue, zerocoin)) {
     //     if (!CWalletDB(strWalletFile).ArchiveMintOrphan(zerocoin))
     //         return error("%s: failed to archive zerocoinmint", __func__);
     // } else {
@@ -74,7 +75,7 @@ bool CZerocoinTracker::UnArchive(const uint256& hashPubcoin, bool isDeterministi
             return error("%s: failed to unarchive deterministic mint", __func__);
         Add(dMint, false);
     } else {
-        CZerocoinEntry zerocoin;
+        CZerocoinEntryV3 zerocoin;
         if (!walletdb.UnarchiveZerocoinMint(hashPubcoin, zerocoin))
             return error("%s: failed to unarchivezerocoin mint", __func__);
         Add(zerocoin, false);
@@ -98,7 +99,7 @@ CMintMeta CZerocoinTracker::GetMetaFromPubcoin(const uint256& hashPubcoin)
 {
     for (auto it : mapSerialHashes) {
         CMintMeta meta = it.second;
-        if (GetPubCoinHash(meta.pubcoin) == hashPubcoin)
+        if (GetPubCoinValueHash(meta.pubCoinValue) == hashPubcoin)
             return meta;
     }
 
@@ -123,9 +124,12 @@ CAmount CZerocoinTracker::GetBalance(bool fConfirmedOnly, bool fUnconfirmedOnly)
 {
     CAmount nTotal = 0;
     //! zerocoin specific fields
-    std::map<libzerocoin::CoinDenomination, unsigned int> myZerocoinSupply;
-    for (auto& denom : libzerocoin::zerocoinDenomList) {
-        myZerocoinSupply.insert(make_pair(denom, 0));
+
+    std::map<sigma::CoinDenominationV3, unsigned int> myZerocoinSupply;
+    std::vector<sigma::CoinDenominationV3> denominations;
+    GetAllDenoms(denominations);
+    BOOST_FOREACH(sigma::CoinDenominationV3 denomination, denominations){
+        myZerocoinSupply.insert(make_pair(denomination, 0));
     }
 
     {
@@ -140,8 +144,9 @@ CAmount CZerocoinTracker::GetBalance(bool fConfirmedOnly, bool fUnconfirmedOnly)
                 continue;
             if (fUnconfirmedOnly && fConfirmed)
                 continue;
-
-            nTotal += libzerocoin::ZerocoinDenominationToAmount(meta.denom);
+            int64_t nValue;
+            sigma::DenominationToInteger(meta.denom, nValue);
+            nTotal += nValue;
             myZerocoinSupply.at(meta.denom)++;
         }
     }
@@ -182,10 +187,10 @@ bool CZerocoinTracker::HasMintTx(const uint256& txid)
     return false;
 }
 
-bool CZerocoinTracker::HasPubcoin(const CBigNum &pubcoin) const
+bool CZerocoinTracker::HasPubcoin(const GroupElement &pubcoin) const
 {
     // Check if this mint's pubcoin value belongs to our mapSerialHashes (which includes hashpubcoin values)
-    uint256 hash = GetPubCoinHash(pubcoin);
+    uint256 hash = GetPubCoinValueHash(pubcoin);
     return HasPubcoinHash(hash);
 }
 
@@ -193,13 +198,13 @@ bool CZerocoinTracker::HasPubcoinHash(const uint256& hashPubcoin) const
 {
     for (auto it : mapSerialHashes) {
         CMintMeta meta = it.second;
-        if (GetPubCoinHash(meta.pubcoin) == hashPubcoin)
+        if (GetPubCoinValueHash(meta.pubCoinValue) == hashPubcoin)
             return true;
     }
     return false;
 }
 
-bool CZerocoinTracker::HasSerial(const CBigNum& bnSerial) const
+bool CZerocoinTracker::HasSerial(const Scalar& bnSerial) const
 {
     uint256 hash = GetSerialHash(bnSerial);
     return HasSerialHash(hash);
@@ -211,7 +216,7 @@ bool CZerocoinTracker::HasSerialHash(const uint256& hashSerial) const
     return it != mapSerialHashes.end();
 }
 
-bool CZerocoinTracker::UpdateZerocoinEntry(const CZerocoinEntry& zerocoin)
+bool CZerocoinTracker::UpdateZerocoinEntry(const CZerocoinEntryV3& zerocoin)
 {
     if (!HasSerial(zerocoin.serialNumber))
         return error("%s: zerocoin %s is not known", __func__, zerocoin.value.GetHex());
@@ -222,7 +227,7 @@ bool CZerocoinTracker::UpdateZerocoinEntry(const CZerocoinEntry& zerocoin)
     CMintMeta meta;
     Get(hashSerial, meta);
     meta.isUsed = zerocoin.IsUsed;
-    meta.denom = (libzerocoin::CoinDenomination)zerocoin.denomination;
+    meta.denom = zerocoin.get_denomination();
     meta.nHeight = zerocoin.nHeight;
     mapSerialHashes.at(hashSerial) = meta;
 
@@ -232,7 +237,7 @@ bool CZerocoinTracker::UpdateZerocoinEntry(const CZerocoinEntry& zerocoin)
 
 bool CZerocoinTracker::UpdateState(const CMintMeta& meta)
 {
-    uint256 hashPubcoin = GetPubCoinHash(meta.pubcoin);
+    uint256 hashPubcoin = GetPubCoinValueHash(meta.pubCoinValue);
     CWalletDB walletdb(strWalletFile);
 
     if (meta.isDeterministic) {
@@ -255,14 +260,14 @@ bool CZerocoinTracker::UpdateState(const CMintMeta& meta)
         if (!walletdb.WriteDeterministicMint(dMint))
             return error("%s: failed to update deterministic mint when writing to db", __func__);
     } else {
-        CZerocoinEntry zerocoin;
-        // if (!walletdb.ReadZerocoinEntry(meta.pubcoin, zerocoin))
+        CZerocoinEntryV3 zerocoin;
+        // if (!walletdb.ReadZerocoinEntry(meta.pubCoinValue, zerocoin))
         //     return error("%s: failed to read mint from database", __func__);
 
         zerocoin.nHeight = meta.nHeight;
         zerocoin.id = meta.nId;
         zerocoin.IsUsed = meta.isUsed;
-        zerocoin.denomination = meta.denom;
+        zerocoin.set_denomination(meta.denom);
 
         if (!walletdb.WriteZerocoinEntry(zerocoin))
             return error("%s: failed to write mint to database", __func__);
@@ -277,7 +282,7 @@ void CZerocoinTracker::Add(const CDeterministicMint& dMint, bool isNew, bool isA
 {
     bool iszerocoinWalletInitialized = (NULL != zerocoinWallet);
     CMintMeta meta;
-    meta.pubcoin = dMint.GetPubcoin();
+    meta.pubCoinValue = dMint.GetPubcoinValue();
     meta.nHeight = dMint.GetHeight();
     meta.nId = dMint.GetId();
     meta.txid = dMint.GetTxHash();
@@ -297,16 +302,16 @@ void CZerocoinTracker::Add(const CDeterministicMint& dMint, bool isNew, bool isA
         CWalletDB(strWalletFile).WriteDeterministicMint(dMint);
 }
 
-void CZerocoinTracker::Add(const CZerocoinEntry& zerocoin, bool isNew, bool isArchived)
+void CZerocoinTracker::Add(const CZerocoinEntryV3& zerocoin, bool isNew, bool isArchived)
 {
     CMintMeta meta;
-    meta.pubcoin = zerocoin.value;
+    meta.pubCoinValue = zerocoin.value;
     meta.nHeight = zerocoin.nHeight;
     meta.nId = zerocoin.id;
     //meta.txid = zerocoin.GetTxHash();
     meta.isUsed = zerocoin.IsUsed;
     meta.hashSerial = GetSerialHash(zerocoin.serialNumber);
-    meta.denom = (libzerocoin::CoinDenomination)zerocoin.denomination;
+    meta.denom = zerocoin.get_denomination();
     meta.isArchived = isArchived;
     meta.isDeterministic = false;
     meta.isSeedCorrect = true;
@@ -354,18 +359,18 @@ void CZerocoinTracker::RemovePending(const uint256& txid)
 
 bool CZerocoinTracker::UpdateStatusInternal(const std::set<uint256>& setMempool, CMintMeta& mint)
 {
-    uint256 hashPubcoin = GetPubCoinHash(mint.pubcoin);
+    uint256 hashPubcoin = GetPubCoinValueHash(mint.pubCoinValue);
     //! Check whether this mint has been spent and is considered 'pending' or 'confirmed'
     // If there is not a record of the block height, then look it up and assign it
     uint256 txidMint;
-    bool isMintInChain = ZerocoinGetMintTxHash(txidMint, mint.pubcoin);
+    bool isMintInChain = ZerocoinGetMintTxHashV3(txidMint, mint.pubCoinValue);
 
     //See if there is internal record of spending this mint (note this is memory only, would reset on restart)
     bool isPendingSpend = static_cast<bool>(mapPendingSpends.count(mint.hashSerial));
 
     // See if there is a blockchain record of spending this mint
-    CZerocoinState *zerocoinState = CZerocoinState::GetZerocoinState();
-    CBigNum bnSerial;
+    CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
+    Scalar bnSerial;
     bool isConfirmedSpend = zerocoinState->IsUsedCoinSerialHash(bnSerial, mint.hashSerial);
 
     // Double check the mempool for pending spend
@@ -417,13 +422,12 @@ bool CZerocoinTracker::UpdateStatusInternal(const std::set<uint256>& setMempool,
 
                 return true;
             }else if((mint.nHeight==-1) || (mint.nId<=0)){ // assign nHeight if not present
-                int nId;
-                int nHeight;
-                nHeight = zerocoinState->GetMintedCoinHeightAndId(mint.pubcoin, mint.denom, nId);
-                LogPrintf("%s : Set mint %s nHeight to %d\n", __func__, hashPubcoin.GetHex(), nHeight);
-                LogPrintf("%s : Set mint %s nId to %d\n", __func__, hashPubcoin.GetHex(), nId);
-                mint.nHeight = nHeight;
-                mint.nId = nId;
+                sigma::PublicCoinV3 pubcoin(mint.pubCoinValue, mint.denom);
+                auto MintedCoinHeightAndId = zerocoinState->GetMintedCoinHeightAndId(pubcoin);
+                mint.nHeight = MintedCoinHeightAndId.first;
+                mint.nId = MintedCoinHeightAndId.second;
+                LogPrintf("%s : Set mint %s nHeight to %d\n", __func__, hashPubcoin.GetHex(), mint.nHeight);
+                LogPrintf("%s : Set mint %s nId to %d\n", __func__, hashPubcoin.GetHex(), mint.nId);
                 isUpdated = true;
             }
         }
@@ -441,8 +445,8 @@ bool CZerocoinTracker::UpdateStatusInternal(const std::set<uint256>& setMempool,
     return false;
 }
 
-bool CZerocoinTracker::MintMetaToZerocoinEntries(std::list <CZerocoinEntry>& entries, std::list<CMintMeta> listMints) const {
-    CZerocoinEntry entry;
+bool CZerocoinTracker::MintMetaToZerocoinEntries(std::list <CZerocoinEntryV3>& entries, std::list<CMintMeta> listMints) const {
+    CZerocoinEntryV3 entry;
     for (const CMintMeta& mint : listMints) {
         if (pwalletMain->GetMint(mint.hashSerial, entry))
             entries.push_back(entry);
@@ -457,9 +461,9 @@ bool CZerocoinTracker::UpdateMints(std::set<uint256> serialHashes, bool fReset, 
     if(fReset && fUpdateStatus)
         return false;
 
-    std::list<CZerocoinEntry> listMintsDB;
+    std::list<CZerocoinEntryV3> listMintsDB;
     CWalletDB walletdb(strWalletFile);
-    walletdb.ListPubCoin(listMintsDB);
+    walletdb.ListPubCoinV3(listMintsDB);
     for (auto& mint : listMintsDB){
         if(fReset){
             mint.nHeight = -1;
@@ -496,13 +500,13 @@ bool CZerocoinTracker::UpdateMints(std::set<uint256> serialHashes, bool fReset, 
     return true;
 }
 
-std::set<CMintMeta> CZerocoinTracker::ListMints(bool fUnusedOnly, bool fMatureOnly, bool fUpdateStatus, bool fWrongSeed)
+std::vector<CMintMeta> CZerocoinTracker::ListMints(bool fUnusedOnly, bool fMatureOnly, bool fUpdateStatus, bool fWrongSeed)
 {
-    std::set<CMintMeta> setMints;
+    std::vector<CMintMeta> setMints;
     CWalletDB walletdb(strWalletFile);
     if (fUpdateStatus) {
-        std::list<CZerocoinEntry> listMintsDB;
-        walletdb.ListPubCoin(listMintsDB);
+        std::list<CZerocoinEntryV3> listMintsDB;
+        walletdb.ListPubCoinV3(listMintsDB);
         for (auto& mint : listMintsDB){
             Add(mint);
         }
@@ -552,7 +556,7 @@ std::set<CMintMeta> CZerocoinTracker::ListMints(bool fUnusedOnly, bool fMatureOn
         if (!fWrongSeed && !mint.isSeedCorrect)
             continue;
 
-        setMints.insert(mint);
+        setMints.push_back(mint);
     }
 
     //overwrite any updates

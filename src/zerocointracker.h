@@ -23,11 +23,11 @@ public:
     CZerocoinTracker(std::string strWalletFile);
     ~CZerocoinTracker();
     void Add(const CDeterministicMint& dMint, bool isNew = false, bool isArchived = false, CZerocoinWallet* zerocoinWallet = NULL);
-    void Add(const CZerocoinEntry& zerocoin, bool isNew = false, bool isArchived = false);
+    void Add(const CZerocoinEntryV3& zerocoin, bool isNew = false, bool isArchived = false);
     bool Archive(CMintMeta& meta);
-    bool HasPubcoin(const CBigNum& pubcoin) const;
+    bool HasPubcoin(const GroupElement& pubcoin) const;
     bool HasPubcoinHash(const uint256& hashPubcoin) const;
-    bool HasSerial(const CBigNum& bnSerial) const;
+    bool HasSerial(const Scalar& bnSerial) const;
     bool HasSerialHash(const uint256& hashSerial) const;
     bool HasMintTx(const uint256& txid);
     bool IsEmpty() const { return mapSerialHashes.empty(); }
@@ -39,13 +39,13 @@ public:
     bool UpdateMints(std::set<uint256> serialHashes, bool fReset, bool fUpdateStatus, bool fStatus=false);
     std::list<CMintMeta> GetMints(bool fConfirmedOnly, bool fInactive = true) const;
     CAmount GetUnconfirmedBalance() const;
-    bool MintMetaToZerocoinEntries(std::list <CZerocoinEntry>& entries, std::list<CMintMeta> setMints) const;
-    std::set<CMintMeta> ListMints(bool fUnusedOnly, bool fMatureOnly, bool fUpdateStatus, bool fWrongSeed = false);
+    bool MintMetaToZerocoinEntries(std::list <CZerocoinEntryV3>& entries, std::list<CMintMeta> setMints) const;
+    std::vector<CMintMeta> ListMints(bool fUnusedOnly, bool fMatureOnly, bool fUpdateStatus, bool fWrongSeed = false);
     void RemovePending(const uint256& txid);
     void SetPubcoinUsed(const uint256& hashPubcoin, const uint256& txid);
     void SetPubcoinNotUsed(const uint256& hashPubcoin);
     bool UnArchive(const uint256& hashPubcoin, bool isDeterministic);
-    bool UpdateZerocoinEntry(const CZerocoinEntry& zerocoin);
+    bool UpdateZerocoinEntry(const CZerocoinEntryV3& zerocoin);
     bool UpdateState(const CMintMeta& meta);
     void SetMetaNonDeterministic();
     void Clear();

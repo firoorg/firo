@@ -7,9 +7,10 @@
 #include "txdb.h"
 #include "init.h"
 #include "primitives/deterministicmint.h"
+#include "sigma/openssl_context.h"
 #include "wallet/walletdb.h"
 #include "wallet/wallet.h"
-#include "zerocoin.h"
+#include "zerocoin_v3.h"
 #include "zerocoinchain.h"
 
 CZerocoinWallet::CZerocoinWallet(std::string strWalletFile)
@@ -123,13 +124,13 @@ void CZerocoinWallet::GenerateMintPool(uint32_t nCountStart, uint32_t nCountEnd)
             continue;
 
         uint512 seedZerocoin = GetZerocoinSeed(i);
-        CBigNum bnValue;
+        GroupElement bnValue;
         CKey key;
-        libzerocoin::PrivateCoin coin(ZCParamsV2);
+        sigma::PrivateCoinV3 coin(sigma::ParamsV3::get_default(), sigma::CoinDenominationV3::SIGMA_DENOM_1);
         SeedToZerocoin(seedZerocoin, bnValue, coin);
 
         mintPool.Add(bnValue, i);
-        CWalletDB(strWalletFile).WriteMintPoolPair(hashSeed, GetPubCoinHash(bnValue), i);
+        CWalletDB(strWalletFile).WriteMintPoolPair(hashSeed, GetPubCoinValueHash(bnValue), i);
         LogPrintf("%s : %s count=%d\n", __func__, bnValue.GetHex().substr(0, 6), i);
     }
 }
@@ -189,7 +190,7 @@ void CZerocoinWallet::SyncWithChain(bool fGenerateMintPool)
             }
 
             uint256 txHash;
-            if (ZerocoinGetMintTxHash(txHash, pMint.first)) {
+            if (ZerocoinGetMintTxHashV3(txHash, pMint.first)) {
                 //this mint has already occurred on the chain, increment counter's state to reflect this
                 LogPrintf("%s : Found wallet coin mint=%s count=%d tx=%s\n", __func__, pMint.first.GetHex(), pMint.second, txHash.GetHex());
                 found = true;
@@ -204,14 +205,14 @@ void CZerocoinWallet::SyncWithChain(bool fGenerateMintPool)
                 }
 
                 //Find the denomination
-                libzerocoin::CoinDenomination denomination = libzerocoin::CoinDenomination::ZQ_ERROR;
+                sigma::CoinDenominationV3 denomination = sigma::CoinDenominationV3::SIGMA_ERROR;
                 bool fFoundMint = false;
-                CBigNum bnValue = 0;
+                GroupElement bnValue;
                 for (const CTxOut& out : tx.vout) {
                     if (!out.scriptPubKey.IsZerocoinMint())
                         continue;
 
-                    libzerocoin::PublicCoin pubcoin(ZCParamsV2);
+                    sigma::PublicCoinV3 pubcoin;
                     CValidationState state;
                     if (!TxOutToPublicCoin(out, pubcoin, state)) {
                         LogPrintf("%s : failed to get mint from txout for %s!\n", __func__, pMint.first.GetHex());
@@ -219,7 +220,7 @@ void CZerocoinWallet::SyncWithChain(bool fGenerateMintPool)
                     }
 
                     // See if this is the mint that we are looking for
-                    uint256 hashPubcoin = GetPubCoinHash(pubcoin.getValue());
+                    uint256 hashPubcoin = GetPubCoinValueHash(pubcoin.getValue());
                     if (pMint.first == hashPubcoin) {
                         denomination = pubcoin.getDenomination();
                         bnValue = pubcoin.getValue();
@@ -228,7 +229,7 @@ void CZerocoinWallet::SyncWithChain(bool fGenerateMintPool)
                     }
                 }
 
-                if (!fFoundMint || denomination == libzerocoin::CoinDenomination::ZQ_ERROR) {
+                if (!fFoundMint || denomination == sigma::CoinDenominationV3::SIGMA_ERROR) {
                     LogPrintf("%s : failed to get mint %s from tx %s!\n", __func__, pMint.first.GetHex(), tx.GetHash().GetHex());
                     found = false;
                     break;
@@ -259,7 +260,7 @@ void CZerocoinWallet::SyncWithChain(bool fGenerateMintPool)
     }
 }
 
-bool CZerocoinWallet::SetMintSeen(const CBigNum& bnValue, const int& nHeight, const uint256& txid, const libzerocoin::CoinDenomination& denom)
+bool CZerocoinWallet::SetMintSeen(const GroupElement& bnValue, const int& nHeight, const uint256& txid, const sigma::CoinDenominationV3& denom)
 {
     if (!mintPool.Has(bnValue))
         return error("%s: value not in pool", __func__);
@@ -267,8 +268,8 @@ bool CZerocoinWallet::SetMintSeen(const CBigNum& bnValue, const int& nHeight, co
 
     // Regenerate the mint
     uint512 seedZerocoin = GetZerocoinSeed(pMint.second);
-    CBigNum bnValueGen;
-    libzerocoin::PrivateCoin coin(ZCParamsV2, denom, false);
+    GroupElement bnValueGen;
+    sigma::PrivateCoinV3 coin(sigma::ParamsV3::get_default(), denom, false);
     SeedToZerocoin(seedZerocoin, bnValueGen, coin);
     CWalletDB walletdb(strWalletFile);
 
@@ -310,23 +311,13 @@ bool CZerocoinWallet::SetMintSeen(const CBigNum& bnValue, const int& nHeight, co
     }
 
     //remove from the pool
-    mintPool.Remove(dMint.GetPubcoinHash());
+    mintPool.Remove(dMint.GetPubCoinHash());
 
     return true;
 }
 
-// Check if the value of the commitment meets requirements
-bool IsValidCoinValue(const CBigNum& bnValue)
+void CZerocoinWallet::SeedToZerocoin(const uint512& seedZerocoin, GroupElement& commit, sigma::PrivateCoinV3& coin)
 {
-    return bnValue >= ZCParamsV2->accumulatorParams.minCoinValue &&
-    bnValue <= ZCParamsV2->accumulatorParams.maxCoinValue &&
-    bnValue.isPrime();
-}
-
-void CZerocoinWallet::SeedToZerocoin(const uint512& seedZerocoin, CBigNum& bnValue, libzerocoin::PrivateCoin& coin)
-{
-    CBigNum bnRandomness;
-
     //convert state seed into a seed for the private key
     uint256 nSeedPrivKey = seedZerocoin.trim256();
     nSeedPrivKey = Hash(nSeedPrivKey.begin(), nSeedPrivKey.end());
@@ -334,50 +325,24 @@ void CZerocoinWallet::SeedToZerocoin(const uint512& seedZerocoin, CBigNum& bnVal
 
     // Create a key pair
     secp256k1_pubkey pubkey;
-    if (!secp256k1_ec_pubkey_create(libzerocoin::ctx, &pubkey, coin.getEcdsaSeckey())){
+    if (!secp256k1_ec_pubkey_create(OpenSSLContext::get_context(), &pubkey, coin.getEcdsaSeckey())){
         throw ZerocoinException("Unable to create public key.");
     }
-
     // Hash the public key in the group to obtain a serial number
-    Bignum serialNumber = coin.serialNumberFromSerializedPublicKey(libzerocoin::ctx, &pubkey); 
+    Scalar serialNumber = coin.serialNumberFromSerializedPublicKey(OpenSSLContext::get_context(), &pubkey); 
     coin.setSerialNumber(serialNumber);
 
-    //hash randomness seed with Bottom 256 bits of seedZerocoin & attempts256 which is initially 0
-    uint256 randomnessSeed = ArithToUint512(UintToArith512(seedZerocoin) >> 256).trim256();
-    uint256 hashRandomness = Hash(randomnessSeed.begin(), randomnessSeed.end());
-    bnRandomness.setuint256(UintToArith256(hashRandomness));
-    bnRandomness = bnRandomness % ZCParamsV2->coinCommitmentGroup.groupOrder;
+    //hash randomness seed with Bottom 256 bits of seedZerocoin
+    Scalar randomness;
+    uint256 nSeedRandomness = ArithToUint512(UintToArith512(seedZerocoin) >> 256).trim256();
+    nSeedRandomness = Hash(nSeedRandomness.begin(), nSeedRandomness.end());
+    // TODO make sure this is ok
+    randomness.memberFromSeed(nSeedRandomness.begin());
+    coin.setRandomness(randomness);
 
-    //See if serial and randomness make a valid commitment
     // Generate a Pedersen commitment to the serial number
-    CBigNum commitmentValue = ZCParamsV2->coinCommitmentGroup.g.pow_mod(coin.getSerialNumber(), ZCParamsV2->coinCommitmentGroup.modulus).mul_mod(
-                        ZCParamsV2->coinCommitmentGroup.h.pow_mod(bnRandomness, ZCParamsV2->coinCommitmentGroup.modulus),
-                        ZCParamsV2->coinCommitmentGroup.modulus);
-
-    CBigNum random;
-    arith_uint256 attempts256Arith = 0;
-    // Iterate on Randomness until a valid commitmentValue is found
-    while (true) {
-        // Now verify that the commitment is a prime number
-        // in the appropriate range. If not, we'll throw this coin
-        // away and generate a new one.
-        if (IsValidCoinValue(commitmentValue)) {
-            coin.setRandomness(bnRandomness);
-            bnValue = commitmentValue;
-
-            return;
-        }
-
-        //Did not create a valid commitment value.
-        //Change randomness to something new and (deterministically) random and try again
-        attempts256Arith++;
-        uint256 attempts256 = ArithToUint256(attempts256Arith);
-        hashRandomness = Hash(randomnessSeed.begin(), randomnessSeed.end(),
-                              attempts256.begin(), attempts256.end());
-        random.setuint256(UintToArith256(hashRandomness));
-        bnRandomness = (bnRandomness + random) % ZCParamsV2->coinCommitmentGroup.groupOrder;
-        commitmentValue = commitmentValue.mul_mod(ZCParamsV2->coinCommitmentGroup.h.pow_mod(random, ZCParamsV2->coinCommitmentGroup.modulus), ZCParamsV2->coinCommitmentGroup.modulus);
-    }
+    commit = SigmaPrimitives<Scalar, GroupElement>::commit(
+             coin.getParams()->get_g(), coin.getSerialNumber(), coin.getParams()->get_h0(), coin.getRandomness());
 }
 
 uint512 CZerocoinWallet::GetZerocoinSeed(uint32_t n)
@@ -415,7 +380,7 @@ void CZerocoinWallet::UpdateCount()
     UpdateCountDB();
 }
 
-void CZerocoinWallet::GenerateDeterministicZerocoin(libzerocoin::CoinDenomination denom, libzerocoin::PrivateCoin& coin, CDeterministicMint& dMint, bool fGenerateOnly)
+void CZerocoinWallet::GenerateDeterministicZerocoin(sigma::CoinDenominationV3 denom, sigma::PrivateCoinV3& coin, CDeterministicMint& dMint, bool fGenerateOnly)
 {
     GenerateMint(nCountLastUsed + 1, denom, coin, dMint);
     if (fGenerateOnly)
@@ -425,13 +390,13 @@ void CZerocoinWallet::GenerateDeterministicZerocoin(libzerocoin::CoinDenominatio
     //LogPrintf("%s : Generated new deterministic mint. Count=%d pubcoin=%s seed=%s\n", __func__, nCount, coin.getPublicCoin().getValue().GetHex().substr(0,6), seedZerocoin.GetHex().substr(0, 4));
 }
 
-void CZerocoinWallet::GenerateMint(const uint32_t& nCount, const libzerocoin::CoinDenomination denom, libzerocoin::PrivateCoin& coin, CDeterministicMint& dMint)
+void CZerocoinWallet::GenerateMint(const uint32_t& nCount, const sigma::CoinDenominationV3 denom, sigma::PrivateCoinV3& coin, CDeterministicMint& dMint)
 {
     uint512 seedZerocoin = GetZerocoinSeed(nCount);
-    CBigNum commitmentValue;
+    GroupElement commitmentValue;
     SeedToZerocoin(seedZerocoin, commitmentValue, coin);
 
-    coin.setPublicCoin(libzerocoin::PublicCoin(ZCParamsV2, commitmentValue, denom));
+    coin.setPublicCoin(sigma::PublicCoinV3(commitmentValue, denom));
 
     uint256 hashSeed = Hash(seedMaster.begin(), seedMaster.end());
     uint256 hashSerial = GetSerialHash(coin.getSerialNumber());
@@ -446,7 +411,7 @@ bool CZerocoinWallet::CheckSeed(const CDeterministicMint& dMint)
     return hashSeed == dMint.GetSeedHash();
 }
 
-bool CZerocoinWallet::RegenerateMint(const CDeterministicMint& dMint, CZerocoinEntry& zerocoin)
+bool CZerocoinWallet::RegenerateMint(const CDeterministicMint& dMint, CZerocoinEntryV3& zerocoin)
 {
     if (!CheckSeed(dMint)) {
         uint256 hashSeed = Hash(seedMaster.begin(), seedMaster.end());
@@ -454,21 +419,21 @@ bool CZerocoinWallet::RegenerateMint(const CDeterministicMint& dMint, CZerocoinE
     }
 
     //Generate the coin
-    libzerocoin::PrivateCoin coin(ZCParamsV2, dMint.GetDenomination(), false);
+    sigma::PrivateCoinV3 coin(sigma::ParamsV3::get_default(), dMint.GetDenomination(), false);
     CDeterministicMint dMintDummy;
     GenerateMint(dMint.GetCount(), dMint.GetDenomination(), coin, dMintDummy);
 
     //Fill in the zerocoinmint object's details
-    CBigNum bnValue = coin.getPublicCoin().getValue();
-    if (GetPubCoinHash(bnValue) != dMint.GetPubcoinHash())
+    GroupElement bnValue = coin.getPublicCoin().getValue();
+    if (GetPubCoinValueHash(bnValue) != dMint.GetPubCoinHash())
         return error("%s: failed to correctly generate mint, pubcoin hash mismatch", __func__);
     zerocoin.value = bnValue;
 
-    CBigNum bnSerial = coin.getSerialNumber();
+    Scalar bnSerial = coin.getSerialNumber();
     if (GetSerialHash(bnSerial) != dMint.GetSerialHash())
         return error("%s: failed to correctly generate mint, serial hash mismatch", __func__);
 
-    zerocoin.denomination = dMint.GetDenomination();
+    zerocoin.set_denomination(dMint.GetDenomination());
     zerocoin.randomness = coin.getRandomness();
     zerocoin.serialNumber = bnSerial;
     zerocoin.IsUsed = dMint.IsUsed();

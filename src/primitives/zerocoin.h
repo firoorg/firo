@@ -6,6 +6,7 @@
 #define PRIMITIVES_ZEROCOIN_H
 
 #include <amount.h>
+#include <streams.h>
 #include <limits.h>
 #include "libzerocoin/bitcoin_bignum/bignum.h"
 #include "libzerocoin/Zerocoin.h"
@@ -14,26 +15,35 @@
 #include "serialize.h"
 #include "zerocoin_params.h"
 
+uint256 GetSerialHash(const Scalar& bnSerial)
+{
+    CDataStream ss(SER_GETHASH, 0);
+    ss << bnSerial;
+    return Hash(ss.begin(), ss.end());
+}
+
+uint256 GetPubCoinValueHash(const GroupElement& bnValue)
+{
+    CDataStream ss(SER_GETHASH, 0);
+    ss << bnValue;
+    return Hash(ss.begin(), ss.end());
+}
+
 //struct that is safe to store essential mint data, without holding any information that allows for actual spending (serial, randomness, private key)
 struct CMintMeta
 {
     int nHeight;
     int nId;
-    CBigNum pubcoin;
+    GroupElement pubCoinValue;
     uint256 hashSerial;
     uint8_t nVersion;
-    libzerocoin::CoinDenomination denom;
+    sigma::CoinDenominationV3 denom;
     uint256 txid;
     bool isUsed;
     bool isArchived;
     bool isDeterministic;
     bool isSeedCorrect;
-
-    bool operator <(const CMintMeta& a) const;
 };
-
-uint256 GetSerialHash(const CBigNum& bnSerial);
-uint256 GetPubCoinHash(const CBigNum& bnValue);
 
 class CZerocoinEntry
 {

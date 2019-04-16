@@ -2835,13 +2835,22 @@ UniValue mintzerocoinV3(const UniValue& params, bool fHelp)
     DenominationToInteger(denomination, nAmount);
     LogPrintf("rpcWallet.mintzerocoin() denomination = %s, nAmount = %s \n", denomination, nAmount);
 
+    // Ensures deterministic mint pool has been generated
+    EnsureWalletIsUnlocked();
+
     sigma::ParamsV3* zcParams = sigma::ParamsV3::get_default();
+
+    CDeterministicMint dMint;
 
     // The following constructor does all the work of minting a brand
     // new zerocoin. It stores all the private values inside the
     // PrivateCoin object. This includes the coin secrets, which must be
     // stored in a secure location (wallet) at the client.
     sigma::PrivateCoinV3 newCoin(zcParams, denomination, ZEROCOIN_TX_VERSION_3);
+
+    // Generate and store secrets deterministically in the following function.
+    zwalletMain->GenerateDeterministicZerocoin(denomination, newCoin, dMint);
+
     // Get a copy of the 'public' portion of the coin. You should
     // embed this into a Zerocoin 'MINT' transaction along with a series
     // of currency inputs totaling the assigned value of one zerocoin.
@@ -2874,6 +2883,14 @@ UniValue mintzerocoinV3(const UniValue& params, bool fHelp)
             throw JSONRPCError(RPC_WALLET_ERROR, strError);
 
         CWalletDB walletdb(pwalletMain->strWalletFile);
+
+        dMint.SetTxHash(wtx.GetHash());
+        pwalletMain->zerocoinTracker->Add(dMint, true);
+
+        // Now that coin is verified and sent, update the count. (If not verified, we will repeat the same count on the next attempt)
+        zwalletMain->UpdateCount();
+        pwalletMain->NotifyZerocoinChanged(pwalletMain, pubCoin.getValue().GetHex(), "New (" + std::to_string(denomination) + " mint)", CT_NEW);
+
         CZerocoinEntryV3 zerocoinTx;
         zerocoinTx.IsUsed = false;
         zerocoinTx.set_denomination(denomination);

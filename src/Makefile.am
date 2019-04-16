@@ -299,7 +299,6 @@ libbitcoin_wallet_a_SOURCES = \
   znodeman.cpp \
   mintpool.cpp \
   zerocoinwallet.cpp \
-  primitives/zerocoin.cpp \
   zerocoin_v3.cpp \
   wallet/crypter.cpp \
   wallet/db.cpp \
@@ -412,7 +411,6 @@ libbitcoin_common_a_SOURCES = \
   core_read.cpp \
   core_write.cpp \
   primitives/deterministicmint.cpp \
-  primitives/zerocoin.cpp \
   key.cpp \
   keystore.cpp \
   netbase.cpp \
@@ -458,9 +456,7 @@ libbitcoin_util_a_SOURCES = \
   libzerocoin/CoinSpend.h \
   libzerocoin/CoinSpend.cpp \
   libzerocoin/Commitment.h \
-  libzerocoin/Commitment.cpp \
-  libzerocoin/Denominations.h \
-  libzerocoin/Denominations.cpp \  
+  libzerocoin/Commitment.cpp \ 
   libzerocoin/ParallelTasks.h \
   libzerocoin/ParallelTasks.cpp \
   libzerocoin/ParamGeneration.h \

@@ -178,6 +178,23 @@ bool Scalar::isMember() const {
     return *this == temp;
 }
 
+Scalar& Scalar::memberFromSeed(unsigned char* seed){
+    // Initially store seed in object
+    deserialize(seed);
+    do {
+        // Take out of object
+        serialize(seed);
+        // Hash, store in object
+        *this = hash(seed, 32);
+        // Take out of object
+        serialize(seed);
+        // Generate 
+        generate(seed);
+    }while (!(this->isMember()));
+
+    return *this;
+}
+
 Scalar& Scalar::randomize() {
     unsigned char temp[32] = { 0 };
 

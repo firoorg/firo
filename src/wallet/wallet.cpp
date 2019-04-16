@@ -6310,7 +6310,7 @@ bool CWallet::CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CZerocoinEnt
     return true;
 }
 
-bool CWallet::GetMint(const uint256& hashSerial, CZerocoinEntry& zerocoin)
+bool CWallet::GetMint(const uint256& hashSerial, CZerocoinEntryV3& zerocoin)
 {
     CMintMeta meta;
     if(!pwalletMain->zerocoinTracker->Get(hashSerial, meta))
@@ -6319,7 +6319,7 @@ bool CWallet::GetMint(const uint256& hashSerial, CZerocoinEntry& zerocoin)
      if (meta.isDeterministic) {
         CDeterministicMint dMint;
         CWalletDB walletdb(strWalletFile);
-        if (!walletdb.ReadDeterministicMint(GetPubCoinHash(meta.pubcoin), dMint))
+        if (!walletdb.ReadDeterministicMint(GetPubCoinValueHash(meta.pubCoinValue), dMint))
             return error("%s: failed to read deterministic mint", __func__);
         if (!zwalletMain->RegenerateMint(dMint, zerocoin))
             return error("%s: failed to generate mint", __func__);

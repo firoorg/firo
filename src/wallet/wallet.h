@@ -954,7 +954,7 @@ public:
     std::vector<CZerocoinEntryV3> SpendZerocoinV3(const std::vector<CRecipient>& recipients, CWalletTx& result);
     std::vector<CZerocoinEntryV3> SpendZerocoinV3(const std::vector<CRecipient>& recipients, CWalletTx& result, CAmount& fee);
 
-    bool GetMint(const uint256& hashSerial, CZerocoinEntry& zerocoin);
+    bool GetMint(const uint256& hashSerial, CZerocoinEntryV3& zerocoin);
 
     bool CreateZerocoinMintModel(string &stringError,
                                  const string& denomAmount,
