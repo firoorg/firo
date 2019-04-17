@@ -1369,6 +1369,8 @@ bool AcceptToMemoryPoolWorker(
             LOCK(pool.cs);
             CCoinsViewMemPool viewMemPool(pcoinsTip, pool);
             view.SetBackend(viewMemPool);
+	    //Reset view.base with the dummy instance at scope exit
+	    std::shared_ptr<CCoinsView> at_scope_exit (&dummy, [&view](CCoinsView * dummy){view.SetBackend(*dummy);});
 
             // do we already have it?
             bool fHadTxInCache = pcoinsTip->HaveCoinsInCache(hash);
