@@ -217,7 +217,10 @@ public:
     SendCoinsReturn sendSigma(WalletModelTransaction &transaction,
         std::vector<CZerocoinEntryV3>& coins, std::vector<CZerocoinEntryV3>& changes);
 
+    // Mint sigma
+    bool sigmaMint(const CAmount& n);
     void checkSigmaAmount(bool forced);
+
 
 private:
     CWallet *wallet;

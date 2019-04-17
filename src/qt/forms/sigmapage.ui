@@ -352,7 +352,7 @@
       <string notr="true"/>
      </property>
      <property name="currentIndex">
-      <number>1</number>
+      <number>0</number>
      </property>
      <widget class="QWidget" name="tabMint">
       <attribute name="title">
@@ -371,24 +371,24 @@
             </widget>
            </item>
            <item>
-            <widget class="QLineEdit" name="lineEdit">
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-               <horstretch>0</horstretch>
-               <verstretch>0</verstretch>
-              </sizepolicy>
-             </property>
+            <widget class="QDoubleSpinBox" name="amountToMint">
              <property name="minimumSize">
               <size>
-               <width>200</width>
+               <width>120</width>
                <height>0</height>
               </size>
              </property>
-             <property name="maximumSize">
-              <size>
-               <width>200</width>
-               <height>16777215</height>
-              </size>
+             <property name="alignment">
+              <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+             </property>
+             <property name="decimals">
+              <number>1</number>
+             </property>
+             <property name="maximum">
+              <double>21000000.000000000000000</double>
+             </property>
+             <property name="singleStep">
+              <double>0.100000000000000</double>
              </property>
             </widget>
            </item>
@@ -407,7 +407,7 @@
             </widget>
            </item>
            <item>
-            <widget class="QLabel" name="availableAmountLabel">
+            <widget class="QLabel" name="availableAmount">
              <property name="sizePolicy">
               <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
                <horstretch>0</horstretch>
@@ -427,17 +427,10 @@
               </font>
              </property>
              <property name="text">
-              <string>0.00000000</string>
+              <string>0.00000000 XZC</string>
              </property>
              <property name="alignment">
               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QLabel" name="label_5">
-             <property name="text">
-              <string>XZC</string>
              </property>
             </widget>
            </item>
@@ -471,6 +464,9 @@
            </item>
            <item>
             <widget class="QPushButton" name="selectDenomsButton">
+             <property name="enabled">
+              <bool>false</bool>
+             </property>
              <property name="text">
               <string>Select Denominations</string>
              </property>

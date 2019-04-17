@@ -39,8 +39,10 @@ private:
     void processSpendCoinsReturn(const WalletModel::SendCoinsReturn &sendCoinsReturn, const QString &msgArg = QString());
 
 private Q_SLOTS:
+    void on_mintButton_clicked();
     void on_sendButton_clicked();
     void removeEntry(SendCoinsEntry* entry);
+    void updateAvailableToMintBalance(const CAmount& balance);
     void updateCoins(const std::vector<CZerocoinEntryV3>& spendable, const std::vector<CZerocoinEntryV3>& pending);
 
 Q_SIGNALS:

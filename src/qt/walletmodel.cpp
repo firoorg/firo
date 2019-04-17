@@ -947,3 +947,31 @@ WalletModel::SendCoinsReturn WalletModel::sendSigma(WalletModelTransaction &tran
 
     return SendCoinsReturn(OK);
 }
+
+bool WalletModel::sigmaMint(const CAmount& n)
+{
+    std::vector<sigma::CoinDenominationV3> denominations;
+    sigma::GetAllDenoms(denominations);
+
+    std::vector<sigma::CoinDenominationV3> mints;
+    if (CWallet::SelectMintCoinsForAmount(n, denominations, mints) != n) {
+        throw std::runtime_error("Problem with coin selection.\n");
+    }
+
+    std::vector<sigma::PrivateCoinV3> privCoins;
+
+    const auto& zcParams = sigma::ParamsV3::get_default();
+    std::transform(mints.begin(), mints.end(), std::back_inserter(privCoins),
+        [zcParams](const sigma::CoinDenominationV3& denom) -> sigma::PrivateCoinV3 {
+            return sigma::PrivateCoinV3(zcParams, denom);
+        });
+
+    auto recipients = CWallet::CreateSigmaMintRecipients(privCoins);
+
+    CWalletTx wtx;
+    std::string strError = pwalletMain->MintAndStoreZerocoinV3(recipients, privCoins, wtx);
+
+    if (strError != "") {
+        throw std::range_error(strError);
+    }
+}

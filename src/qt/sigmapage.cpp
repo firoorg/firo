@@ -63,6 +63,9 @@ void SigmaPage::setModel(WalletModel *model)
     this->model = model;
 
     if (model && model->getOptionsModel()) {
+        connect(model, SIGNAL(balanceChanged(CAmount, CAmount, CAmount, CAmount, CAmount, CAmount)),
+            this, SLOT(updateAvailableToMintBalance(CAmount)));
+        updateAvailableToMintBalance(model->getBalance());
         connect(model, SIGNAL(notifySigmaChanged(const std::vector<CZerocoinEntryV3>, const std::vector<CZerocoinEntryV3>)),
             this, SLOT(updateCoins(const std::vector<CZerocoinEntryV3>, const std::vector<CZerocoinEntryV3>)));
         model->checkSigmaAmount(true);
@@ -78,6 +81,31 @@ void SigmaPage::setModel(WalletModel *model)
 SigmaPage::~SigmaPage()
 {
     delete ui;
+}
+
+void SigmaPage::on_mintButton_clicked()
+{
+    auto rawAmount = ui->amountToMint->value();
+    CAmount amount(rawAmount * COIN);
+
+    // round any thing smaller than 0.1
+    // if more than or equal 0.05 round to 0.1 otherwise round to 0.0
+    amount = amount / CENT * CENT + ((amount % CENT >= CENT / 2) ? CENT : 0);
+
+    try {
+        model->sigmaMint(amount);
+    } catch (const std::runtime_error& e) {
+        QMessageBox::critical(this, tr("Error"),
+            tr("You cannot mint Sigma because %1").arg(tr(e.what())),
+            QMessageBox::Ok, QMessageBox::Ok);
+        return;
+    }
+
+    QMessageBox::information(this, tr("Success"),
+        tr("Sigma successfully minted"),
+        QMessageBox::Ok, QMessageBox::Ok);
+
+    ui->amountToMint->setValue(0);
 }
 
 void SigmaPage::on_sendButton_clicked()
@@ -251,6 +279,12 @@ void SigmaPage::removeEntry(SendCoinsEntry* entry)
     entry->deleteLater();
 
     updateTabsAndLabels();
+}
+
+void SigmaPage::updateAvailableToMintBalance(const CAmount& balance)
+{
+    QString formattedBalance = BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), balance);
+    ui->availableAmount->setText(formattedBalance);
 }
 
 QWidget *SigmaPage::setupTabChain(QWidget *prev)
