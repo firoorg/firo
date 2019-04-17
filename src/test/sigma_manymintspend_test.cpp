@@ -27,7 +27,6 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_many)
 {
     vector<string> denominationsForTx;
     vector<uint256> vtxid;
-    std::vector<CMutableTransaction> MinTxns;
     string thirdPartyAddress;
     int previousHeight;
     CBlock b;
@@ -36,6 +35,9 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_many)
     std::vector<std::string> denominations = {"0.1", "0.5", "1", "10", "100"};
 
     CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
+
+    // Create 400-200+1 = 201 new empty blocks. // consensus.nMintV3SigmaStartBlock = 400
+    CreateAndProcessEmptyBlocks(201, scriptPubKey);
 
     pwalletMain->SetBroadcastTransactions(true);
 
@@ -66,7 +68,7 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_many)
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mint tx was not added to mempool");
 
         int previousHeight = chainActive.Height();
-        b = CreateAndProcessBlock(MinTxns, scriptPubKey);
+        b = CreateAndProcessBlock({}, scriptPubKey);
         BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
 
         previousHeight = chainActive.Height();
@@ -77,8 +79,7 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_many)
             BOOST_CHECK_MESSAGE(!pwalletMain->CreateZerocoinSpendModel(wtx, stringError, thirdPartyAddress, denominationsForTx), "Spend succeeded although not confirmed by 6 blocks");
             BOOST_CHECK_MESSAGE(stringError == "it has to have at least two mint coins with at least 6 confirmation in order to spend a coin", stringError + " - Incorrect error message");
 
-            std::vector<CMutableTransaction> noTxns;
-            b = CreateAndProcessBlock(noTxns, scriptPubKey);
+            b = CreateAndProcessBlock({}, scriptPubKey);
             wtx.Init(NULL);
         }
         BOOST_CHECK_MESSAGE(previousHeight + 5 == chainActive.Height(), "Block not added to chain");
@@ -96,10 +97,8 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_many)
 
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mint tx was not added to mempool");
 
-        MinTxns.clear();
-
         previousHeight = chainActive.Height();
-        b = CreateAndProcessBlock(MinTxns, scriptPubKey);
+        b = CreateAndProcessBlock({}, scriptPubKey);
         BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
 
 
@@ -110,8 +109,7 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_many)
         {
             BOOST_CHECK_MESSAGE(!pwalletMain->CreateZerocoinSpendModel(wtx, stringError, thirdPartyAddress, denominationsForTx), "Spend succeeded although not confirmed by 6 blocks");
             BOOST_CHECK_MESSAGE(stringError == "it has to have at least two mint coins with at least 6 confirmation in order to spend a coin", stringError + " - Incorrect error message");
-            std::vector<CMutableTransaction> noTxns;
-            b = CreateAndProcessBlock(noTxns, scriptPubKey);
+            b = CreateAndProcessBlock({}, scriptPubKey);
             wtx.Init(NULL);
         }
 
@@ -127,10 +125,7 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_many)
 //        Try to put two in the same block and it will fail, expect 1
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Spends was not added to mempool");
 
-        vtxid.clear();
-        MinTxns.clear();
-
-        b = CreateBlock(MinTxns, scriptPubKey);
+        b = CreateBlock({}, scriptPubKey);
         previousHeight = chainActive.Height();
         BOOST_CHECK_MESSAGE(ProcessBlock(b), "ProcessBlock failed although valid spend inside");
         BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
@@ -144,9 +139,7 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_many)
         //Verify spend got into mempool
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Spend was not added to mempool");
 
-        MinTxns.clear();
-
-        b = CreateBlock(MinTxns, scriptPubKey);
+        b = CreateBlock({}, scriptPubKey);
         previousHeight = chainActive.Height();
         BOOST_CHECK_MESSAGE(ProcessBlock(b), "ProcessBlock failed although valid spend inside");
         BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
@@ -167,16 +160,14 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_many)
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "mempool not set after used coin serials removed");
         zerocoinState->usedCoinSerials = tempSerials;
 
-        MinTxns.clear();
-        BOOST_CHECK_EXCEPTION(CreateBlock(MinTxns, scriptPubKey), std::runtime_error, no_check);
+        BOOST_CHECK_EXCEPTION(CreateBlock({}, scriptPubKey), std::runtime_error, no_check);
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "mempool not set after block created");
         vtxid.clear();
         mempool.queryHashes(vtxid);
-        MinTxns.clear();
-        MinTxns.push_back(*mempool.get(vtxid.at(0)));
+        vtxid.resize(1);
         tempSerials = zerocoinState->usedCoinSerials;
         zerocoinState->usedCoinSerials.clear();
-        CreateBlock(MinTxns, scriptPubKey);
+        CreateBlock(vtxid, scriptPubKey);
         zerocoinState->usedCoinSerials = tempSerials;
 
         mempool.clear();
@@ -186,7 +177,6 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_many)
         BOOST_CHECK_MESSAGE(previousHeight == chainActive.Height(), "Double spend - Block added to chain even though same spend in previous block");
 
         vtxid.clear();
-        MinTxns.clear();
         mempool.clear();
         zerocoinState->mempoolCoinSerials.clear();
 
@@ -205,13 +195,12 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_many)
 
         // add block
         previousHeight = chainActive.Height();
-        b = CreateAndProcessBlock(MinTxns, scriptPubKey);
+        b = CreateAndProcessBlock({}, scriptPubKey);
         wtx.Init(NULL);
         //Add 5 more blocks
         for (int i = 0; i < 5; i++)
         {
-            std::vector<CMutableTransaction> noTxns;
-            b = CreateAndProcessBlock(noTxns, scriptPubKey);
+            b = CreateAndProcessBlock({}, scriptPubKey);
             wtx.Init(NULL);
         }
 
@@ -226,13 +215,12 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_many)
 
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "third party spend not added to mempool");
 
-        b = CreateAndProcessBlock(MinTxns, scriptPubKey);
+        b = CreateAndProcessBlock({}, scriptPubKey);
         wtx.Init(NULL);
 
         BOOST_CHECK_MESSAGE(mempool.size() == 0, "third party spend not succeeded");
 
         vtxid.clear();
-        MinTxns.clear();
         mempool.clear();
         zerocoinState->Reset();
     }
@@ -258,13 +246,12 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_many)
 
         // add block
         previousHeight = chainActive.Height();
-        b = CreateAndProcessBlock(MinTxns, scriptPubKey);
+        b = CreateAndProcessBlock({}, scriptPubKey);
         wtx.Init(NULL);
         //Add 5 more blocks
         for (int i = 0; i < 5; i++)
         {
-            std::vector<CMutableTransaction> noTxns;
-            b = CreateAndProcessBlock(noTxns, scriptPubKey);
+            b = CreateAndProcessBlock({}, scriptPubKey);
             wtx.Init(NULL);
         }
         // printf("%d\n", chainActive.Height());
@@ -277,13 +264,12 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_many)
 
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Same denom spend not added to mempool");
 
-        b = CreateAndProcessBlock(MinTxns, scriptPubKey);
+        b = CreateAndProcessBlock({}, scriptPubKey);
         wtx.Init(NULL);
 
         BOOST_CHECK_MESSAGE(mempool.size() == 0, "Same denom spend not succeeded");
 
         vtxid.clear();
-        MinTxns.clear();
         mempool.clear();
         zerocoinState->Reset();
     }
@@ -293,7 +279,6 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_usedinput){
     vector<string> denominationsForTx;
     vector<pair<std::string, int>> denominationPairs;
     vector<uint256> vtxid;
-    std::vector<CMutableTransaction> MinTxns;
     string thirdPartyAddress;
     int previousHeight;
     CBlock b;
@@ -302,6 +287,9 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_usedinput){
     std::vector<std::string> denominations = {"0.1", "0.5", "1", "10", "100"};
 
     CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
+
+    // Create 400-200+1 = 201 new empty blocks. // consensus.nMintV3SigmaStartBlock = 400
+    CreateAndProcessEmptyBlocks(201, scriptPubKey);
 
     pwalletMain->SetBroadcastTransactions(true);
 
@@ -325,13 +313,12 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_usedinput){
 
     // add block
     previousHeight = chainActive.Height();
-    b = CreateAndProcessBlock(MinTxns, scriptPubKey);
+    b = CreateAndProcessBlock({}, scriptPubKey);
     wtx.Init(NULL);
     //Add 5 more blocks
     for (int i = 0; i < 5; i++)
     {
-        std::vector<CMutableTransaction> noTxns;
-        b = CreateAndProcessBlock(noTxns, scriptPubKey);
+        b = CreateAndProcessBlock({}, scriptPubKey);
         wtx.Init(NULL);
     }
     // printf("%d\n", chainActive.Height());
@@ -348,7 +335,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_usedinput){
 
     BOOST_CHECK_MESSAGE(mempool.size() == 2, "Same denom spend not added to mempool");
 
-    b = CreateAndProcessBlock(MinTxns, scriptPubKey);
+    b = CreateAndProcessBlock({}, scriptPubKey);
     wtx.Init(NULL);
 
     BOOST_CHECK_MESSAGE(mempool.size() == 0, "Same denom spend not succeeded");
@@ -369,7 +356,6 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_usedinput){
     BOOST_CHECK_MESSAGE(stringError=="it has to have at least two mint coins with at least 6 confirmation in order to spend a coin", "Incorrect error message: " + stringError);
 
     vtxid.clear();
-    MinTxns.clear();
     mempool.clear();
     zerocoinState->Reset();
 }

@@ -418,7 +418,7 @@ bool ConnectBlockZCV3(
 			}
 		}
         // Shows if V3 sigma mints are now allowed.
-        bool V3MintsAllowed = (pindexNew->nHeight >= Params().nMintV3SigmaStartBlock);
+        bool V3MintsAllowed = (pindexNew->nHeight >= Params().GetConsensus().nMintV3SigmaStartBlock);
 
         // If V3 mints are not allowed in this block, but some client tries to mint.
         if (!V3MintsAllowed && !pblock->zerocoinTxInfoV3->mints.empty())

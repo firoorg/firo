@@ -132,14 +132,15 @@ void BlockAssembler::resetBlock()
     blockFinished = false;
 }
 
-CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
+CBlockTemplate* BlockAssembler::CreateNewBlock(
+    const CScript& scriptPubKeyIn,
+    const vector<uint256>& tx_ids)
 {
     // Create new block
     LogPrintf("BlockAssembler::CreateNewBlock()\n");
 
     const Consensus::Params &params = Params().GetConsensus();
     uint32_t nBlockTime;
-    bool fTestNet = params.IsTestnet();
     bool fMTP;
     {
         LOCK2(cs_main, mempool.cs);
@@ -347,6 +348,10 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
             const CTransaction& tx = iter->GetTx();
             LogPrintf("Trying to add tx=%s\n", tx.GetHash().ToString());
 
+            if (!tx_ids.empty() && std::find(tx_ids.begin(), tx_ids.end(), tx.GetHash()) == tx_ids.end()) {
+                continue; // Skip because we were asked to include only transactions in tx_ids.
+            }
+    
             bool fOrphan = false;
             BOOST_FOREACH(CTxMemPool::txiter parent, mempool.GetMemPoolParents(iter))
             {
@@ -561,7 +566,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlockWithKey(CReserveKey &reservekey) {
 
     CScript scriptPubKey = CScript() << pubkey << OP_CHECKSIG;
 //    CScript scriptPubKey = GetScriptForDestination(pubkey.GetID());;
-    return CreateNewBlock(scriptPubKey);
+    return CreateNewBlock(scriptPubKey, {});
 }
 
 bool BlockAssembler::isStillDependent(CTxMemPool::txiter iter)
@@ -1133,7 +1138,8 @@ void static ZcoinMiner(const CChainParams &chainparams) {
                 LogPrintf("loop pindexPrev->nHeight=%s\n", pindexPrev->nHeight);
             }
             LogPrintf("BEFORE: pblocktemplate\n");
-            auto_ptr <CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(coinbaseScript->reserveScript));
+            auto_ptr <CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(
+                coinbaseScript->reserveScript, {}));
             LogPrintf("AFTER: pblocktemplate\n");
             if (!pblocktemplate.get()) {
                 LogPrintf("Error in ZcoinMiner: Keypool ran out, please call keypoolrefill before restarting the mining thread\n");

@@ -109,8 +109,19 @@ struct Params {
     // Values for Zerocoin V3 sigma implementation.
     // The block number after which V3 sigma mints are accepted.
 	int nMintV3SigmaStartBlock;
+
+    // Number of blocks after nMintV3SigmaStartBlock during which we still accept V2 zerocoin mintsto newly mined blocks.
     int nMintV2GracefulPeriod;
-    
+
+    // Number of blocks after nMintV3SigmaStartBlock during which we still accept V2 zerocoin mintsinto mempool.
+    int nMintV2MempoolGracefulPeriod;
+
+    // The block number after which zerocoin V2 spends are not accepted to mempool any more.
+	int nZerocoinV2SpendStopBlock;
+
+    // The block number after which zerocoin V2 spends are not accepted to blocks any more.
+	int nZerocoinV2SpendStopBlockInBlocks;
+
     /** switch to MTP time */
     uint32_t nMTPSwitchTime;
     /** block number to reduce distance between blocks */
