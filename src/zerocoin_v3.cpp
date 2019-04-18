@@ -268,11 +268,16 @@ bool CheckZerocoinTransactionV3(
 		bool isCheckWallet,
 		CZerocoinTxInfoV3 *zerocoinTxInfoV3)
 {
+    auto& consensus = Params().GetConsensus();
+    bool allowSigma = (nHeight >= consensus.nSigmaStartBlock);
+
 	// Check Mint Zerocoin Transaction
-	BOOST_FOREACH(const CTxOut &txout, tx.vout) {
-		if (!txout.scriptPubKey.empty() && txout.scriptPubKey.IsZerocoinMintV3()) {
-			if (!CheckMintZcoinTransactionV3(txout, state, hashTx, zerocoinTxInfoV3))
-				return false;
+	if (allowSigma) {
+		for (const CTxOut &txout : tx.vout) {
+			if (!txout.scriptPubKey.empty() && txout.scriptPubKey.IsZerocoinMintV3()) {
+				if (!CheckMintZcoinTransactionV3(txout, state, hashTx, zerocoinTxInfoV3))
+					return false;
+			}
 		}
 	}
 
