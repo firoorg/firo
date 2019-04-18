@@ -66,6 +66,7 @@ bool CheckSpendZcoinTransactionV3(
 	int txHeight = chainActive.Height();
 	bool hasZerocoinSpendInputs = false, hasNonZerocoinInputs = false;
 	int vinIndex = -1;
+	std::unordered_set<Scalar, sigma::CScalarHash> txSerials;
 
 	BOOST_FOREACH(const CTxIn &txin, tx.vin)
 	{
@@ -165,6 +166,12 @@ bool CheckSpendZcoinTransactionV3(
 				if (!CheckZerocoinSpendSerialV3(
 							state, zerocoinTxInfoV3, serial, nHeight, false))
 					return false;
+			}
+
+			// check duplicated serials in same transaction.
+			if (!txSerials.insert(serial).second) {
+				return state.DoS(0,
+				error("CheckSpendZcoinTransactionV3: two or more spends with same serial in the same transaction"));
 			}
 
 			if(!isVerifyDB && !isCheckWallet) {
