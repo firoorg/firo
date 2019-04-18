@@ -528,10 +528,18 @@ bool CheckZerocoinTransaction(const CTransaction &tx,
                               bool fStatefulZerocoinCheck,
                               CZerocoinTxInfo *zerocoinTxInfo)
 {
+    // nHeight have special mode which value is INT_MAX so we need this.
+    int realHeight;
+
+    {
+        LOCK(cs_main);
+        realHeight = chainActive.Height();
+    }
+
     // Check Mint Zerocoin Transaction
     for (const CTxOut &txout : tx.vout) {
         if (!txout.scriptPubKey.empty() && txout.scriptPubKey.IsZerocoinMint()) {
-            if (nHeight > params.nSigmaStartBlock + params.nZerocoinV2MintGracefulPeriod) {
+            if (realHeight > params.nSigmaStartBlock + params.nZerocoinV2MintGracefulPeriod) {
                 return state.DoS(100, false, REJECT_OBSOLETE, "bad-txns-mint-obsolete");
             }
 
@@ -543,7 +551,7 @@ bool CheckZerocoinTransaction(const CTransaction &tx,
     // Check Spend Zerocoin Transaction
     vector<libzerocoin::CoinDenomination> denominations;
     if (tx.IsZerocoinSpend()) {
-        if (nHeight > params.nSigmaStartBlock + params.nZerocoinV2SpendGracefulPeriod) {
+        if (realHeight > params.nSigmaStartBlock + params.nZerocoinV2SpendGracefulPeriod) {
             return state.DoS(100, false, REJECT_OBSOLETE, "bad-txns-spend-obsolete");
         }
 

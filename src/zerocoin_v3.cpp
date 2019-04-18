@@ -268,8 +268,15 @@ bool CheckZerocoinTransactionV3(
 		bool isCheckWallet,
 		CZerocoinTxInfoV3 *zerocoinTxInfoV3)
 {
-    auto& consensus = Params().GetConsensus();
-    bool allowSigma = (nHeight >= consensus.nSigmaStartBlock);
+    // nHeight have special mode which value is INT_MAX so we need this.
+    int realHeight;
+
+    {
+        LOCK(cs_main);
+        realHeight = chainActive.Height();
+    }
+
+    bool allowSigma = (realHeight >= Params().GetConsensus().nSigmaStartBlock);
 
 	// Check Mint Zerocoin Transaction
 	if (allowSigma) {
