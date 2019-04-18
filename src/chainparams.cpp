@@ -250,8 +250,12 @@ class CMainParams : public CChainParams {
         consensus.nModulusV1StopBlock = ZC_MODULUS_V1_STOP_BLOCK;
 
         // Zerocoin V3 sigma related values.
-        consensus.nMintV3SigmaStartBlock = ZC_V3_MINT_STARTING_BLOCK;
+        consensus.nMintV3SigmaStartBlock = ZC_SIGMA_MINT_STARTING_BLOCK;
         consensus.nMintV2GracefulPeriod = ZC_V2_GRACEFUL_PERIOD;
+        consensus.nMintV2MempoolGracefulPeriod = ZC_V2_GRACEFUL_MEMPOOL_PERIOD;
+        consensus.nZerocoinV2SpendStopBlock = ZC_V2_SPEND_STOP_BLOCK;
+        consensus.nZerocoinV2SpendStopBlockInBlocks = ZC_V2_SPEND_STOP_BLOCK_IN_BLOCKS;
+        
     }
 };
 
@@ -324,8 +328,12 @@ class CTestNetParams : public CChainParams {
         consensus.nDontAllowDupTxsStartBlock = 18825;
 
             // Zerocoin V3 sigma related values.
-            consensus.nMintV3SigmaStartBlock = ZC_V3_MINT_TESTNET_STARTING_BLOCK;
+            consensus.nMintV3SigmaStartBlock = ZC_SIGMA_MINT_TESTNET_STARTING_BLOCK;
             consensus.nMintV2GracefulPeriod = ZC_V2_GRACEFUL_PERIOD;
+            consensus.nMintV2MempoolGracefulPeriod = ZC_V2_GRACEFUL_MEMPOOL_PERIOD;
+            consensus.nZerocoinV2SpendStopBlock = ZC_V2_SPEND_TESTNET_STOP_BLOCK;
+            consensus.nZerocoinV2SpendStopBlockInBlocks = ZC_V2_SPEND_TESTNET_STOP_BLOCK_IN_BLOCKS;
+
 
             // Znode params testnet
             consensus.nZnodePaymentsStartBlock = 2200;
@@ -495,8 +503,12 @@ class CRegTestParams : public CChainParams {
             consensus.nMTPRewardReduction = 2;
 
             // Zerocoin V3 sigma related values for regtest.
-            consensus.nMintV3SigmaStartBlock = 180;
-            consensus.nMintV2GracefulPeriod = 2;
+            consensus.nMintV3SigmaStartBlock = 400;
+            consensus.nMintV2MempoolGracefulPeriod = 2;
+            consensus.nMintV2GracefulPeriod = 5;
+            consensus.nZerocoinV2SpendStopBlock = 410;
+            consensus.nZerocoinV2SpendStopBlockInBlocks = 420;
+
 
             pchMessageStart[0] = 0xfa;
             pchMessageStart[1] = 0xbf;

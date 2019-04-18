@@ -54,6 +54,8 @@
 #include "znodeman.h"
 #include "coins.h"
 
+#include "sigma/coinspend.h"
+
 #include <atomic>
 #include <sstream>
 #include <chrono>
@@ -1238,11 +1240,35 @@ bool AcceptToMemoryPoolWorker(
         std::vector <uint256> &vHashTxnToUncache,
         bool isCheckWalletTransaction,
         bool markZcoinSpendTransactionSerial) {
+    AssertLockHeld(cs_main);
+    if (tx.IsZerocoinMint()) {
+        // Shows if old zerocoin mints are allowed yet in the mempool.
+        bool V2ZerocoinMintsAllowedInMempool = (chainActive.Height() <= Params().GetConsensus().nMintV3SigmaStartBlock + Params().GetConsensus().nMintV2MempoolGracefulPeriod);
+
+        if (!V2ZerocoinMintsAllowedInMempool)
+            return state.DoS(100, error("Old zerocoin mints no more allowed in mempool"),
+                             REJECT_INVALID, "bad-txns-zerocoin");
+    }
+    if (tx.IsZerocoinSpend()) {
+        // Shows if old zerocoin spends are allowed yet in the mempool.
+        bool V2ZerocoinSpendsAllowedInMempool = (chainActive.Height() <= Params().GetConsensus().nZerocoinV2SpendStopBlock);
+
+        if (!V2ZerocoinSpendsAllowedInMempool)
+            return state.DoS(100, error("Old zerocoin spends no more allowed in mempool"),
+                             REJECT_INVALID, "bad-txns-zerocoin");
+    }
+    if (tx.IsZerocoinSpendV3() || tx.IsZerocoinMintV3()) {
+        // Shows if V3 sigma mints are already allowed.
+        bool V3MintsAllowedInBlock = (chainActive.Height() >= Params().GetConsensus().nMintV3SigmaStartBlock);
+        if (!V3MintsAllowedInBlock)
+            return state.DoS(100, error("Sigma transactions not allowed yet"),
+                             REJECT_INVALID, "bad-txns-zerocoin");
+    }
+
     bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
     LogPrintf("AcceptToMemoryPoolWorker(),fCheckInputs=%s, tx.IsZerocoinSpend()=%s, fTestNet=%s\n",
               fCheckInputs, tx.IsZerocoinSpend() || tx.IsZerocoinSpendV3(), fTestNet);
     uint256 hash = tx.GetHash();
-    AssertLockHeld(cs_main);
     if (pfMissingInputs)
         *pfMissingInputs = false;
 
@@ -1314,6 +1340,7 @@ bool AcceptToMemoryPoolWorker(
             }
         }
         else if (tx.IsZerocoinSpendV3()) {
+
             BOOST_FOREACH(const CTxIn &txin, tx.vin)
             {
                 Scalar zcSpendSerial = ZerocoinGetSpendSerialNumberV3(tx, txin);
@@ -1369,6 +1396,8 @@ bool AcceptToMemoryPoolWorker(
             LOCK(pool.cs);
             CCoinsViewMemPool viewMemPool(pcoinsTip, pool);
             view.SetBackend(viewMemPool);
+	    //Reset view.base with the dummy instance at scope exit
+	    std::shared_ptr<CCoinsView> at_scope_exit (&dummy, [&view](CCoinsView * dummy){view.SetBackend(*dummy);});
 
             // do we already have it?
             bool fHadTxInCache = pcoinsTip->HaveCoinsInCache(hash);
@@ -2374,6 +2403,29 @@ bool CheckInputs(const CTransaction &tx, CValidationState &state, const CCoinsVi
                 }
             }
         }
+    } else if (tx.IsZerocoinSpendV3()) {
+        // Total sum of inputs of transaction.
+        CAmount totalInputValue = 0;
+
+        BOOST_FOREACH(const CTxIn &txin, tx.vin) {
+            if(!txin.scriptSig.IsZerocoinSpendV3()) {
+                return state.DoS(
+                    100, false,
+                    REJECT_MALFORMED,
+                    "CheckSpendZcoinTransaction: can't mix zerocoin spend input with regular ones");
+            }
+            CDataStream serializedCoinSpend((const char *)&*(txin.scriptSig.begin() + 1),
+                                            (const char *)&*txin.scriptSig.end(),
+                                            SER_NETWORK, PROTOCOL_VERSION);
+            sigma::CoinSpendV3 newSpend(ZCParamsV3, serializedCoinSpend);
+            uint64_t denom = newSpend.getIntDenomination();
+            totalInputValue += denom;
+        }
+        if (totalInputValue < tx.GetValueOut()) {
+            return state.DoS(
+                100,
+                error("Spend transaction outputs larger than the inputs."));
+        }
     }
 
     return true;
@@ -2872,8 +2924,33 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
         }
 
         if (tx.IsZerocoinSpend() || tx.IsZerocoinMint() || tx.IsZerocoinSpendV3() || tx.IsZerocoinMintV3() ) {
+            // Shows if V3 sigma mints are now allowed.
+            bool V3MintsAllowedInBlock = (pindex->nHeight >= Params().GetConsensus().nMintV3SigmaStartBlock);
+
+            if ((tx.IsZerocoinSpendV3() || tx.IsZerocoinMintV3()) && !V3MintsAllowedInBlock) {
+                return state.DoS(100, error("Sigma transactions not allowed yet"),
+                                 REJECT_INVALID, "bad-txns-zerocoin");
+            }
+
+            // Shows if old zerocoin mints are allowed yet.
+            bool V2ZerocoinMintsAllowedInBlock = (pindex->nHeight < Params().GetConsensus().nMintV3SigmaStartBlock + Params().GetConsensus().nMintV2GracefulPeriod);
+
+            if (tx.IsZerocoinMint() && !V2ZerocoinMintsAllowedInBlock) {
+                return state.DoS(100, error("Old zerocoin mints no more allowed in blocks"),
+                                 REJECT_INVALID, "bad-txns-zerocoin");
+            }
+
+            // Shows if old zerocoin spends are allowed yet.
+            bool V2ZerocoinSpendsAllowedInBlock = (pindex->nHeight < Params().GetConsensus().nZerocoinV2SpendStopBlockInBlocks);
+
+            if (tx.IsZerocoinSpend() && !V2ZerocoinSpendsAllowedInBlock) {
+                return state.DoS(100, error("Old zerocoin spends no more allowed in blocks"),
+                                 REJECT_INVALID, "bad-txns-zerocoin");
+            }
+
             if( tx.IsZerocoinSpendV3())
                 nFees += GetSpendTransactionInputV3(tx) - tx.GetValueOut();
+            
             // Check transaction against zerocoin state
             if (!CheckTransaction(tx, state, txHash, false, pindex->nHeight, false, true, block.zerocoinTxInfo.get(), block.zerocoinTxInfoV3.get()))
                 return state.DoS(100, error("stateful zerocoin check failed"),

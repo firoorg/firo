@@ -59,8 +59,7 @@ struct MtpTransTestingSetup : public TestingSetup {
         //Create 150 height chain
         for (int i = 0; i < 150; i++)
         {
-            std::vector<CMutableTransaction> noTxns;
-            b = CreateAndProcessBlock(noTxns, scriptPubKeyMtp, mtp);
+            b = CreateAndProcessBlock({}, scriptPubKeyMtp, mtp);
             coinbaseTxns.push_back(b.vtx[0]);
             LOCK(cs_main);
             {
@@ -73,18 +72,14 @@ struct MtpTransTestingSetup : public TestingSetup {
         printf("Balance after 150 blocks: %ld\n", pwalletMain->GetBalance());
     }
 
-    CBlock CreateBlock(const std::vector<CMutableTransaction>& txns,
-                       const CScript& scriptPubKeyMtp, bool mtp = false) {
+    CBlock CreateBlock(
+            const vector<uint256>& tx_ids,
+            const CScript& scriptPubKeyMtp, bool mtp = false) {
         const CChainParams& chainparams = Params();
-        CBlockTemplate *pblocktemplate = BlockAssembler(chainparams).CreateNewBlock(scriptPubKeyMtp);
+        CBlockTemplate *pblocktemplate = BlockAssembler(chainparams).CreateNewBlock(
+            scriptPubKeyMtp, tx_ids);
         CBlock& block = pblocktemplate->block;
 
-        // Replace mempool-selected txns with just coinbase plus passed-in txns:
-        if(txns.size() > 0) {
-            block.vtx.resize(1);
-            BOOST_FOREACH(const CMutableTransaction& tx, txns)
-                block.vtx.push_back(tx);
-        }
         // IncrementExtraNonce creates a valid coinbase and merkleRoot
         unsigned int extraNonce = 0;
         IncrementExtraNonce(&block, chainActive.Tip(), extraNonce);
@@ -116,10 +111,11 @@ struct MtpTransTestingSetup : public TestingSetup {
 
     // Create a new block with just given transactions, coinbase paying to
     // scriptPubKeyMtp, and try to add it to the current chain.
-    CBlock CreateAndProcessBlock(const std::vector<CMutableTransaction>& txns,
-                                 const CScript& scriptPubKeyMtp, bool mtp = false){
+    CBlock CreateAndProcessBlock(
+            const vector<uint256>& tx_ids,
+            const CScript& scriptPubKeyMtp, bool mtp = false){
 
-        CBlock block = CreateBlock(txns, scriptPubKeyMtp, mtp);
+        CBlock block = CreateBlock(tx_ids, scriptPubKeyMtp, mtp);
         BOOST_CHECK_MESSAGE(ProcessBlock(block), "Processing block failed");
         return block;
     }
@@ -140,8 +136,7 @@ BOOST_AUTO_TEST_CASE(mtp_transition)
     Params(CBaseChainParams::REGTEST).SetRegTestMtpSwitchTime(GetAdjustedTime());
 
     int previousHeight = chainActive.Height();
-    std::vector<CMutableTransaction> noTxns;
-    b = CreateAndProcessBlock(noTxns, scriptPubKeyMtp, mtp);
+    b = CreateAndProcessBlock({}, scriptPubKeyMtp, mtp);
     BOOST_CHECK_MESSAGE(previousHeight == chainActive.Height() - 1, "Block not connected");
     coinbaseTxns.push_back(b.vtx[0]);
     LOCK(cs_main);
@@ -168,7 +163,7 @@ BOOST_AUTO_TEST_CASE(mtp_transition)
 
     previousHeight = chainActive.Height();
 
-    b = CreateAndProcessBlock(noTxns, scriptPubKeyMtp, mtp);
+    b = CreateAndProcessBlock({}, scriptPubKeyMtp, mtp);
     coinbaseTxns.push_back(b.vtx[0]);
     {
         LOCK(pwalletMain->cs_wallet);
@@ -182,7 +177,7 @@ BOOST_AUTO_TEST_CASE(mtp_transition)
     Params(CBaseChainParams::REGTEST).SetRegTestMtpSwitchTime(GetAdjustedTime());
 
     previousHeight = chainActive.Height();
-    b = CreateAndProcessBlock(noTxns, scriptPubKeyMtp, mtp);
+    b = CreateAndProcessBlock({}, scriptPubKeyMtp, mtp);
     coinbaseTxns.push_back(b.vtx[0]);
     {
         LOCK(pwalletMain->cs_wallet);

@@ -41,7 +41,6 @@ BOOST_FIXTURE_TEST_SUITE(zerocoin_tests2, ZerocoinTestingSetup109)
 BOOST_AUTO_TEST_CASE(zerocoin_mintspend2)
 {
     vector<uint256> vtxid;
-    std::vector<CMutableTransaction> MinTxns;
     //109 blocks already minted
 
     for (int d=1; d<=10; d*=10) {
@@ -63,12 +62,9 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend2)
 
         vtxid.clear();
         mempool.queryHashes(vtxid);
-        MinTxns.clear();
-        for(int i = 0; i < 5; i++)
-            MinTxns.push_back(*mempool.get(vtxid.at(i)));
-
+        vtxid.resize(5);
         int previousHeight = chainActive.Height();
-        CBlock b = CreateAndProcessBlock(MinTxns, scriptPubKey);
+        CBlock b = CreateAndProcessBlock(vtxid, scriptPubKey);
         BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
         BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool not cleared");
 
@@ -82,19 +78,15 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend2)
 
         vtxid.clear();
         mempool.queryHashes(vtxid);
-        MinTxns.clear();
-        for(int i = 0; i < 6; i++)
-            MinTxns.push_back(*mempool.get(vtxid.at(i)));
-
+        vtxid.resize(6);
         previousHeight = chainActive.Height();
-        b = CreateAndProcessBlock(MinTxns, scriptPubKey);
+        b = CreateAndProcessBlock(vtxid, scriptPubKey);
         BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
         BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool not cleared");
 
         for (int i = 0; i < 5; i++)
         {
-            std::vector<CMutableTransaction> noTxns;
-            CBlock b = CreateAndProcessBlock(noTxns, scriptPubKey);
+            CBlock b = CreateAndProcessBlock({}, scriptPubKey);
         }
 
         printf("Creating 10 mints and one spend at height %d\n", chainActive.Height() + 1);
@@ -108,12 +100,9 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend2)
 
         vtxid.clear();
         mempool.queryHashes(vtxid);
-        MinTxns.clear();
-        for(int i = 0; i < 11; i++)
-            MinTxns.push_back(*mempool.get(vtxid.at(i)));
-
+        vtxid.resize(11);
         previousHeight = chainActive.Height();
-        b = CreateAndProcessBlock(MinTxns, scriptPubKey);
+        b = CreateAndProcessBlock(vtxid, scriptPubKey);
         BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
         BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool not cleared");
 
@@ -125,10 +114,9 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend2)
             BOOST_CHECK_MESSAGE(mempool.size() == 1, "Spends were not added to mempool");
             vtxid.clear();
             mempool.queryHashes(vtxid);
-            MinTxns.clear();
-            MinTxns.push_back(*mempool.get(vtxid.at(0)));
+            vtxid.resize(1);
             previousHeight = chainActive.Height();
-            b = CreateAndProcessBlock(MinTxns, scriptPubKey);
+            b = CreateAndProcessBlock(vtxid, scriptPubKey);
             BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
             BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool not cleared");
         }
@@ -143,19 +131,15 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend2)
 
         vtxid.clear();
         mempool.queryHashes(vtxid);
-        MinTxns.clear();
-        for(int i = 0; i < 19; i++)
-            MinTxns.push_back(*mempool.get(vtxid.at(i)));
-
+        vtxid.resize(19);
         previousHeight = chainActive.Height();
-        b = CreateAndProcessBlock(MinTxns, scriptPubKey);
+        b = CreateAndProcessBlock(vtxid, scriptPubKey);
         BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
         BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool not cleared");
 
         for (int i = 0; i < 5; i++)
         {
-            std::vector<CMutableTransaction> noTxns;
-            CBlock b = CreateAndProcessBlock(noTxns, scriptPubKey);
+            CBlock b = CreateAndProcessBlock({}, scriptPubKey);
         }
 
         printf("Creating 19 blocks with 1 spend each starting at height %d\n", chainActive.Height() + 1);
@@ -165,17 +149,15 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend2)
             BOOST_CHECK_MESSAGE(mempool.size() == 1, "Spends were not added to mempool");
             vtxid.clear();
             mempool.queryHashes(vtxid);
-            MinTxns.clear();
-            MinTxns.push_back(*mempool.get(vtxid.at(0)));
+            vtxid.resize(1);
             previousHeight = chainActive.Height();
-            b = CreateAndProcessBlock(MinTxns, scriptPubKey);
+            b = CreateAndProcessBlock(vtxid, scriptPubKey);
             BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
             BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool not cleared");
         }
     }
 
     vtxid.clear();
-    MinTxns.clear();
     mempool.clear();
 }
 

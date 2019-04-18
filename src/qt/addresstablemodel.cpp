@@ -529,9 +529,8 @@ bool AddressTableModel::zerocoinMint(string &stringError, string denomAmount)
         return false;
     }
 
-    // TODO(martun): test this vigorously. I'm not sure if all the wallets are aware of chainActive.Height().
     MintAlgorithm algo = ZEROCOIN;
-    if (chainActive.Height() > Params().nMintV3SigmaStartBlock) {
+    if (chainActive.Height() > Params().GetConsensus().nMintV3SigmaStartBlock) {
         // Use sigma mint algorithm after block nMintV3SigmaStartBlock.
         algo = SIGMA;
     }

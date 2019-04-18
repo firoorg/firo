@@ -51,8 +51,7 @@ BOOST_AUTO_TEST_CASE(mtp_malformed)
     BOOST_CHECK_MESSAGE(!b.fChecked, "fChecked must be initialized to false");
     //const CChainParams& chainparams = Params();
 
-    std::vector<CMutableTransaction> noTxns;
-    b = CreateBlock(noTxns, scriptPubKey, mtp);
+    b = CreateBlock({}, scriptPubKey, mtp);
     CAmount blockReward = 0;
     for(auto txout : b.vtx[0].vout)
         blockReward += txout.nValue;
@@ -67,7 +66,7 @@ BOOST_AUTO_TEST_CASE(mtp_malformed)
     mtp = true;
     Params(CBaseChainParams::REGTEST).SetRegTestMtpSwitchTime(GetAdjustedTime());
 
-    CBlock bMtp = CreateBlock(noTxns, scriptPubKey, mtp);
+    CBlock bMtp = CreateBlock({}, scriptPubKey, mtp);
     previousHeight = chainActive.Height();
     memset(bMtp.mtpHashData->hashRootMTP, 0, sizeof(bMtp.mtpHashData->hashRootMTP));
     memset(bMtp.mtpHashData->nBlockMTP, 0, sizeof(bMtp.mtpHashData->nBlockMTP));
@@ -78,13 +77,13 @@ BOOST_AUTO_TEST_CASE(mtp_malformed)
     ProcessBlock(bMtp);
     BOOST_CHECK_MESSAGE(previousHeight == chainActive.Height(), "Block connected with incorrect proof");
 
-    bMtp = CreateBlock(noTxns, scriptPubKey, mtp);
+    bMtp = CreateBlock({}, scriptPubKey, mtp);
     bMtp.mtpHashData = make_shared<CMTPHashData>();
     ProcessBlock(bMtp);
     BOOST_CHECK_MESSAGE(previousHeight == chainActive.Height(), "Block connected with missing proof");
 
 
-    bMtp = CreateBlock(noTxns, scriptPubKey, mtp);
+    bMtp = CreateBlock({}, scriptPubKey, mtp);
     for(unsigned int i = 0; i < 192; i++)
         for(unsigned int j = 0; j < bMtp.mtpHashData->nProofMTP[i].size(); j++)
             for(unsigned int k = 0; k < bMtp.mtpHashData->nProofMTP[i][j].size(); k++)
@@ -92,7 +91,7 @@ BOOST_AUTO_TEST_CASE(mtp_malformed)
     ProcessBlock(bMtp);
     BOOST_CHECK_MESSAGE(previousHeight == chainActive.Height(), "Block connected with missing proof");
 
-    bMtp = CreateBlock(noTxns, scriptPubKey, mtp);
+    bMtp = CreateBlock({}, scriptPubKey, mtp);
     previousHeight = chainActive.Height();
     for(unsigned int i = 0; i < sizeof(bMtp.mtpHashData->hashRootMTP); i++)
         bMtp.mtpHashData->hashRootMTP[i] = rand()%256;
@@ -106,7 +105,7 @@ BOOST_AUTO_TEST_CASE(mtp_malformed)
     ProcessBlock(bMtp);
     BOOST_CHECK_MESSAGE(previousHeight == chainActive.Height(), "Block connected with incorrect proof");
 
-    bMtp = CreateBlock(noTxns, scriptPubKey, mtp);
+    bMtp = CreateBlock({}, scriptPubKey, mtp);
     previousHeight = chainActive.Height();
     for(unsigned int i = 0; i < 192; i++)
         for(unsigned int j = 0; j < bMtp.mtpHashData->nProofMTP[i].size(); j++)
@@ -114,7 +113,7 @@ BOOST_AUTO_TEST_CASE(mtp_malformed)
     ProcessBlock(bMtp);
     BOOST_CHECK_MESSAGE(previousHeight == chainActive.Height(), "Block connected with incorrect proof");
 
-    bMtp = CreateBlock(noTxns, scriptPubKey, mtp);
+    bMtp = CreateBlock({}, scriptPubKey, mtp);
     CDataStream mybufstream(SER_NETWORK, PROTOCOL_VERSION);
     mybufstream << *bMtp.mtpHashData;
     CMTPHashData outh;

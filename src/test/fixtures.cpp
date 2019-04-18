@@ -41,18 +41,14 @@
  ZerocoinTestingSetupBase::ZerocoinTestingSetupBase():
     TestingSetup(CBaseChainParams::REGTEST, "1"){};
 
-    CBlock ZerocoinTestingSetupBase::CreateBlock(const std::vector<CMutableTransaction>& txns,
-                       const CScript& scriptPubKey) {
+    CBlock ZerocoinTestingSetupBase::CreateBlock(
+            const vector<uint256>& tx_ids,
+            const CScript& scriptPubKey) {
         const CChainParams& chainparams = Params();
-        CBlockTemplate *pblocktemplate = BlockAssembler(chainparams).CreateNewBlock(scriptPubKey);
+        CBlockTemplate *pblocktemplate = BlockAssembler(chainparams).CreateNewBlock(
+            scriptPubKey, tx_ids);
         CBlock& block = pblocktemplate->block;
 
-        // Replace mempool-selected txns with just coinbase plus passed-in txns:
-        if(txns.size() > 0) {
-            block.vtx.resize(1);
-            BOOST_FOREACH(const CMutableTransaction& tx, txns)
-                block.vtx.push_back(tx);
-        }
         // IncrementExtraNonce creates a valid coinbase and merkleRoot
         unsigned int extraNonce = 0;
         IncrementExtraNonce(&block, chainActive.Tip(), extraNonce);
@@ -73,10 +69,11 @@
 
     // Create a new block with just given transactions, coinbase paying to
     // scriptPubKey, and try to add it to the current chain.
-    CBlock ZerocoinTestingSetupBase::CreateAndProcessBlock(const std::vector<CMutableTransaction>& txns,
-                                 const CScript& scriptPubKey){
+    CBlock ZerocoinTestingSetupBase::CreateAndProcessBlock(
+            const vector<uint256>& tx_ids,
+            const CScript& scriptPubKey) {
 
-        CBlock block = CreateBlock(txns, scriptPubKey);
+        CBlock block = CreateBlock(tx_ids, scriptPubKey);
         BOOST_CHECK_MESSAGE(ProcessBlock(block), "Processing block failed");
         return block;
     }
@@ -105,8 +102,7 @@
         scriptPubKey = CScript() <<  ToByteVector(newKey/*coinbaseKey.GetPubKey()*/) << OP_CHECKSIG;
         for (int i = 0; i < 200; i++)
         {
-            std::vector<CMutableTransaction> noTxns;
-            CBlock b = CreateAndProcessBlock(noTxns, scriptPubKey);
+            CBlock b = CreateAndProcessBlock({}, scriptPubKey);
             coinbaseTxns.push_back(b.vtx[0]);
             LOCK(cs_main);
             {
@@ -132,8 +128,7 @@
         scriptPubKey = CScript() <<  ToByteVector(newKey/*coinbaseKey.GetPubKey()*/) << OP_CHECKSIG;
         for (int i = 0; i < 109; i++)
         {
-            std::vector<CMutableTransaction> noTxns;
-            CBlock b = CreateAndProcessBlock(noTxns, scriptPubKey);
+            CBlock b = CreateAndProcessBlock({}, scriptPubKey);
             coinbaseTxns.push_back(b.vtx[0]);
             LOCK(cs_main);
             {
@@ -160,8 +155,7 @@ MtpMalformedTestingSetup::MtpMalformedTestingSetup()
         CBlock b;
         for (int i = 0; i < 150; i++)
         {
-            std::vector<CMutableTransaction> noTxns;
-            b = CreateAndProcessBlock(noTxns, scriptPubKey, mtp);
+            b = CreateAndProcessBlock({}, scriptPubKey, mtp);
             coinbaseTxns.push_back(b.vtx[0]);
             LOCK(cs_main);
             {
@@ -172,18 +166,13 @@ MtpMalformedTestingSetup::MtpMalformedTestingSetup()
         printf("Balance after 150 blocks: %ld\n", pwalletMain->GetBalance());
     }
 
-        CBlock MtpMalformedTestingSetup::CreateBlock(const std::vector<CMutableTransaction>& txns,
-                       const CScript& scriptPubKeyMtpMalformed, bool mtp = false) {
+        CBlock MtpMalformedTestingSetup::CreateBlock(
+            const vector<uint256>& tx_ids,
+            const CScript& scriptPubKeyMtpMalformed, bool mtp = false) {
         const CChainParams& chainparams = Params();
-        CBlockTemplate *pblocktemplate = BlockAssembler(chainparams).CreateNewBlock(scriptPubKeyMtpMalformed);
+        CBlockTemplate *pblocktemplate = BlockAssembler(chainparams).CreateNewBlock(scriptPubKeyMtpMalformed, tx_ids);
         CBlock& block = pblocktemplate->block;
 
-        // Replace mempool-selected txns with just coinbase plus passed-in txns:
-        if(txns.size() > 0) {
-            block.vtx.resize(1);
-            BOOST_FOREACH(const CMutableTransaction& tx, txns)
-                block.vtx.push_back(tx);
-        }
         // IncrementExtraNonce creates a valid coinbase and merkleRoot
         unsigned int extraNonce = 0;
         IncrementExtraNonce(&block, chainActive.Tip(), extraNonce);
@@ -209,10 +198,12 @@ MtpMalformedTestingSetup::MtpMalformedTestingSetup()
 
     // Create a new block with just given transactions, coinbase paying to
     // scriptPubKeyMtpMalformed, and try to add it to the current chain.
-    CBlock MtpMalformedTestingSetup::CreateAndProcessBlock(const std::vector<CMutableTransaction>& txns,
-                                 const CScript& scriptPubKeyMtpMalformed, bool mtp = false){
+    CBlock MtpMalformedTestingSetup::CreateAndProcessBlock(
+            const vector<uint256>& tx_ids,
+            const CScript& scriptPubKeyMtpMalformed,
+            bool mtp = false) {
 
-        CBlock block = CreateBlock(txns, scriptPubKeyMtpMalformed, mtp);
+        CBlock block = CreateBlock(tx_ids, scriptPubKeyMtpMalformed, mtp);
         BOOST_CHECK_MESSAGE(ProcessBlock(block), "Processing block failed");
         return block;
     }
