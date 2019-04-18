@@ -1243,7 +1243,7 @@ bool AcceptToMemoryPoolWorker(
     AssertLockHeld(cs_main);
     if (tx.IsZerocoinMint()) {
         // Shows if old zerocoin mints are allowed yet in the mempool.
-        bool V2ZerocoinMintsAllowedInMempool = (chainActive.Height() <= Params().GetConsensus().nSigmaMintStartBlock + Params().GetConsensus().nZerocoinV2MintMempoolGracefulPeriod);
+        bool V2ZerocoinMintsAllowedInMempool = (chainActive.Height() <= Params().GetConsensus().nSigmaStartBlock + Params().GetConsensus().nZerocoinV2MintMempoolGracefulPeriod);
 
         if (!V2ZerocoinMintsAllowedInMempool)
             return state.DoS(100, error("Old zerocoin mints no more allowed in mempool"),
@@ -1251,7 +1251,7 @@ bool AcceptToMemoryPoolWorker(
     }
     if (tx.IsZerocoinSpend()) {
         // Shows if old zerocoin spends are allowed yet in the mempool.
-        bool V2ZerocoinSpendsAllowedInMempool = (chainActive.Height() <= Params().GetConsensus().nZerocoinV2SpendStopBlock);
+        bool V2ZerocoinSpendsAllowedInMempool = (chainActive.Height() <= Params().GetConsensus().nSigmaStartBlock + Params().GetConsensus().nZerocoinV2SpendMempoolGracefulPeriod);
 
         if (!V2ZerocoinSpendsAllowedInMempool)
             return state.DoS(100, error("Old zerocoin spends no more allowed in mempool"),
@@ -1259,7 +1259,7 @@ bool AcceptToMemoryPoolWorker(
     }
     if (tx.IsZerocoinSpendV3() || tx.IsZerocoinMintV3()) {
         // Shows if V3 sigma mints are already allowed.
-        bool V3MintsAllowedInBlock = (chainActive.Height() >= Params().GetConsensus().nSigmaMintStartBlock);
+        bool V3MintsAllowedInBlock = (chainActive.Height() >= Params().GetConsensus().nSigmaStartBlock);
         if (!V3MintsAllowedInBlock)
             return state.DoS(100, error("Sigma transactions not allowed yet"),
                              REJECT_INVALID, "bad-txns-zerocoin");
@@ -2925,7 +2925,7 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
 
         if (tx.IsZerocoinSpend() || tx.IsZerocoinMint() || tx.IsZerocoinSpendV3() || tx.IsZerocoinMintV3() ) {
             // Shows if V3 sigma mints are now allowed.
-            bool V3MintsAllowedInBlock = (pindex->nHeight >= Params().GetConsensus().nSigmaMintStartBlock);
+            bool V3MintsAllowedInBlock = (pindex->nHeight >= Params().GetConsensus().nSigmaStartBlock);
 
             if ((tx.IsZerocoinSpendV3() || tx.IsZerocoinMintV3()) && !V3MintsAllowedInBlock) {
                 return state.DoS(100, error("Sigma transactions not allowed yet"),
@@ -2933,7 +2933,7 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
             }
 
             // Shows if old zerocoin mints are allowed yet.
-            bool V2ZerocoinMintsAllowedInBlock = (pindex->nHeight < Params().GetConsensus().nSigmaMintStartBlock + Params().GetConsensus().nZerocoinV2MintGracefulPeriod);
+            bool V2ZerocoinMintsAllowedInBlock = (pindex->nHeight < Params().GetConsensus().nSigmaStartBlock + Params().GetConsensus().nZerocoinV2MintGracefulPeriod);
 
             if (tx.IsZerocoinMint() && !V2ZerocoinMintsAllowedInBlock) {
                 return state.DoS(100, error("Old zerocoin mints no more allowed in blocks"),
@@ -2941,7 +2941,7 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
             }
 
             // Shows if old zerocoin spends are allowed yet.
-            bool V2ZerocoinSpendsAllowedInBlock = (pindex->nHeight < Params().GetConsensus().nZerocoinV2SpendStopBlockInBlocks);
+            bool V2ZerocoinSpendsAllowedInBlock = (pindex->nHeight < Params().GetConsensus().nSigmaStartBlock + Params().GetConsensus().nZerocoinV2SpendGracefulPeriod);
 
             if (tx.IsZerocoinSpend() && !V2ZerocoinSpendsAllowedInBlock) {
                 return state.DoS(100, error("Old zerocoin spends no more allowed in blocks"),

@@ -108,20 +108,20 @@ struct Params {
 
     // Values for sigma implementation.
 
-    // The block number after which sigma mints are accepted.
-    int nSigmaMintStartBlock;
-
-    // Number of blocks after nSigmaMintStartBlock during which we still accept zerocoin V2 mints to newly mined blocks.
-    int nZerocoinV2MintGracefulPeriod;
+    // The block number after which sigma are accepted.
+    int nSigmaStartBlock;
 
     // Number of blocks after nSigmaMintStartBlock during which we still accept zerocoin V2 mints into mempool.
     int nZerocoinV2MintMempoolGracefulPeriod;
 
-    // The block number after which zerocoin V2 spends are not accepted to mempool any more.
-	int nZerocoinV2SpendStopBlock;
+    // Number of blocks after nSigmaMintStartBlock during which we still accept zerocoin V2 mints to newly mined blocks.
+    int nZerocoinV2MintGracefulPeriod;
 
-    // The block number after which zerocoin V2 spends are not accepted to blocks any more.
-	int nZerocoinV2SpendStopBlockInBlocks;
+    // Number of blocks after nSigmaMintStartBlock during which we still accept zerocoin V2 spend into mempool.
+    int nZerocoinV2SpendMempoolGracefulPeriod;
+
+    // Number of blocks after nSigmaMintStartBlock during which we still accept zerocoin V2 spend to newly mined blocks.
+    int nZerocoinV2SpendGracefulPeriod;
 
     /** switch to MTP time */
     uint32_t nMTPSwitchTime;

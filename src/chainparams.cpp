@@ -250,11 +250,11 @@ class CMainParams : public CChainParams {
         consensus.nModulusV1StopBlock = ZC_MODULUS_V1_STOP_BLOCK;
 
         // Sigma related values.
-        consensus.nSigmaMintStartBlock = ZC_SIGMA_MINT_STARTING_BLOCK;
-        consensus.nZerocoinV2MintGracefulPeriod = ZC_V2_GRACEFUL_PERIOD;
-        consensus.nZerocoinV2MintMempoolGracefulPeriod = ZC_V2_GRACEFUL_MEMPOOL_PERIOD;
-        consensus.nZerocoinV2SpendStopBlock = ZC_V2_SPEND_STOP_BLOCK;
-        consensus.nZerocoinV2SpendStopBlockInBlocks = ZC_V2_SPEND_STOP_BLOCK_IN_BLOCKS;
+        consensus.nSigmaStartBlock = ZC_SIGMA_STARTING_BLOCK;
+        consensus.nZerocoinV2MintMempoolGracefulPeriod = ZC_V2_MINT_GRACEFUL_MEMPOOL_PERIOD;
+        consensus.nZerocoinV2MintGracefulPeriod = ZC_V2_MINT_GRACEFUL_PERIOD;
+        consensus.nZerocoinV2SpendMempoolGracefulPeriod = ZC_V2_SPEND_GRACEFUL_MEMPOOL_PERIOD;
+        consensus.nZerocoinV2SpendGracefulPeriod = ZC_V2_SPEND_GRACEFUL_PERIOD;
     }
 };
 
@@ -325,13 +325,6 @@ class CTestNetParams : public CChainParams {
             consensus.nModulusV1StopBlock = ZC_MODULUS_V1_TESTNET_STOP_BLOCK;
             consensus.nMultipleSpendInputsInOneTxStartBlock = 1;
             consensus.nDontAllowDupTxsStartBlock = 18825;
-
-            // Sigma related values.
-            consensus.nSigmaMintStartBlock = ZC_SIGMA_MINT_TESTNET_STARTING_BLOCK;
-            consensus.nZerocoinV2MintGracefulPeriod = ZC_V2_GRACEFUL_PERIOD;
-            consensus.nZerocoinV2MintMempoolGracefulPeriod = ZC_V2_GRACEFUL_MEMPOOL_PERIOD;
-            consensus.nZerocoinV2SpendStopBlock = ZC_V2_SPEND_TESTNET_STOP_BLOCK;
-            consensus.nZerocoinV2SpendStopBlockInBlocks = ZC_V2_SPEND_TESTNET_STOP_BLOCK_IN_BLOCKS;
 
             // Znode params testnet
             consensus.nZnodePaymentsStartBlock = 2200;
@@ -418,16 +411,24 @@ class CTestNetParams : public CChainParams {
                     0,
                     100.0
             };
-        consensus.nSpendV15StartBlock = ZC_V1_5_TESTNET_STARTING_BLOCK;
-        consensus.nSpendV2ID_1 = ZC_V2_TESTNET_SWITCH_ID_1;
-        consensus.nSpendV2ID_10 = ZC_V2_TESTNET_SWITCH_ID_10;
-        consensus.nSpendV2ID_25 = ZC_V2_TESTNET_SWITCH_ID_25;
-        consensus.nSpendV2ID_50 = ZC_V2_TESTNET_SWITCH_ID_50;
-        consensus.nSpendV2ID_100 = ZC_V2_TESTNET_SWITCH_ID_100;
-        consensus.nModulusV2StartBlock = ZC_MODULUS_V2_TESTNET_START_BLOCK;
-        consensus.nModulusV1MempoolStopBlock = ZC_MODULUS_V1_TESTNET_MEMPOOL_STOP_BLOCK;
-        consensus.nModulusV1StopBlock = ZC_MODULUS_V1_TESTNET_STOP_BLOCK;
-    }
+
+            consensus.nSpendV15StartBlock = ZC_V1_5_TESTNET_STARTING_BLOCK;
+            consensus.nSpendV2ID_1 = ZC_V2_TESTNET_SWITCH_ID_1;
+            consensus.nSpendV2ID_10 = ZC_V2_TESTNET_SWITCH_ID_10;
+            consensus.nSpendV2ID_25 = ZC_V2_TESTNET_SWITCH_ID_25;
+            consensus.nSpendV2ID_50 = ZC_V2_TESTNET_SWITCH_ID_50;
+            consensus.nSpendV2ID_100 = ZC_V2_TESTNET_SWITCH_ID_100;
+            consensus.nModulusV2StartBlock = ZC_MODULUS_V2_TESTNET_START_BLOCK;
+            consensus.nModulusV1MempoolStopBlock = ZC_MODULUS_V1_TESTNET_MEMPOOL_STOP_BLOCK;
+            consensus.nModulusV1StopBlock = ZC_MODULUS_V1_TESTNET_STOP_BLOCK;
+
+            // Sigma related values.
+            consensus.nSigmaStartBlock = ZC_SIGMA_TESTNET_STARTING_BLOCK;
+            consensus.nZerocoinV2MintMempoolGracefulPeriod = ZC_V2_MINT_TESTNET_GRACEFUL_MEMPOOL_PERIOD;
+            consensus.nZerocoinV2MintGracefulPeriod = ZC_V2_MINT_TESTNET_GRACEFUL_PERIOD;
+            consensus.nZerocoinV2SpendMempoolGracefulPeriod = ZC_V2_SPEND_TESTNET_GRACEFUL_MEMPOOL_PERIOD;
+            consensus.nZerocoinV2SpendGracefulPeriod = ZC_V2_SPEND_TESTNET_GRACEFUL_PERIOD;
+        }
 };
 
 static CTestNetParams testNetParams;
@@ -500,14 +501,6 @@ class CRegTestParams : public CChainParams {
             consensus.nInitialMTPDifficulty = 0x2070ffff;  // !!!! change it to the real value
             consensus.nMTPRewardReduction = 2;
 
-            // Sigma related values for regtest.
-            consensus.nSigmaMintStartBlock = 400;
-            consensus.nZerocoinV2MintMempoolGracefulPeriod = 2;
-            consensus.nZerocoinV2MintGracefulPeriod = 5;
-            consensus.nZerocoinV2SpendStopBlock = 410;
-            consensus.nZerocoinV2SpendStopBlockInBlocks = 420;
-
-
             pchMessageStart[0] = 0xfa;
             pchMessageStart[1] = 0xbf;
             pchMessageStart[2] = 0xb5;
@@ -567,6 +560,13 @@ class CRegTestParams : public CChainParams {
             nModulusV2StartBlock = ZC_MODULUS_V2_TESTNET_START_BLOCK;
             nModulusV1MempoolStopBlock = ZC_MODULUS_V1_TESTNET_MEMPOOL_STOP_BLOCK;
             nModulusV1StopBlock = ZC_MODULUS_V1_TESTNET_STOP_BLOCK;
+
+            // Sigma related values.
+            consensus.nSigmaStartBlock = 400;
+            consensus.nZerocoinV2MintMempoolGracefulPeriod = 2;
+            consensus.nZerocoinV2MintGracefulPeriod = 5;
+            consensus.nZerocoinV2SpendMempoolGracefulPeriod = 10;
+            consensus.nZerocoinV2SpendGracefulPeriod = 20;
         }
 
         void UpdateBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout) {
