@@ -76,6 +76,8 @@ GroupElement MultiExponent::get_multiple(){
 
     secp256k1_ecmult_multi_var(&ctx, scratch, &r, NULL, ecmult_multi_callback, &data, n_points);
 
+    secp256k1_scratch_destroy(scratch);
+
     return  reinterpret_cast<secp256k1_scalar *>(&r);
 }
 

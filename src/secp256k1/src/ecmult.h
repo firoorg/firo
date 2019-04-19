@@ -39,6 +39,14 @@ typedef int (secp256k1_ecmult_multi_callback)(secp256k1_scalar *sc, secp256k1_ge
  * size. Resets and overwrites the given scratch space. If the points do not
  * fit in the scratch space the algorithm is repeatedly run with batches of
  * points.
+ * \param[in] ctx   - context which keeps G
+ *            inp_g_sc - exponent of G
+ *            scratch - space for precomputation
+ *            cbdata - data which keeps scalars and group elements
+ *            cb    - functions which extracts scalars and group elements from cbdata
+ *            n     - number of scalars and group elements
+ * \param[out] r    - resulted group element of multiexponentation
+ *
  * Returns: 1 on success (including when inp_g_sc is NULL and n is 0)
  *          0 if there is not enough scratch space for a single point or
  *          callback returns 0

@@ -728,91 +728,33 @@ static int secp256k1_ecmult_pippenger_wnaf(secp256k1_gej *buckets, int bucket_wi
  * set of buckets) for a given number of points.
  */
 static int secp256k1_pippenger_bucket_window(size_t n) {
+    size_t i;
 #ifdef USE_ENDOMORPHISM
-    if (n <= 1) {
-        return 1;
-    } else if (n <= 4) {
-        return 2;
-    } else if (n <= 20) {
-        return 3;
-    } else if (n <= 57) {
-        return 4;
-    } else if (n <= 136) {
-        return 5;
-    } else if (n <= 235) {
-        return 6;
-    } else if (n <= 1260) {
-        return 7;
-    } else if (n <= 4420) {
-        return 9;
-    } else if (n <= 7880) {
-        return 10;
-    } else if (n <= 16050) {
-        return 11;
-    } else {
-        return PIPPENGER_MAX_BUCKET_WINDOW;
-    }
+    unsigned int size[11]= {4, 20, 57, 136, 235,1260, 4420, 7880, 16050};
 #else
-    if (n <= 1) {
-        return 1;
-    } else if (n <= 11) {
-        return 2;
-    } else if (n <= 45) {
-        return 3;
-    } else if (n <= 100) {
-        return 4;
-    } else if (n <= 275) {
-        return 5;
-    } else if (n <= 625) {
-        return 6;
-    } else if (n <= 1850) {
-        return 7;
-    } else if (n <= 3400) {
-        return 8;
-    } else if (n <= 9630) {
-        return 9;
-    } else if (n <= 17900) {
-        return 10;
-    } else if (n <= 32800) {
-        return 11;
-    } else {
-        return PIPPENGER_MAX_BUCKET_WINDOW;
-    }
+    unsigned int size[11]= {11, 45,100,275,625,1850,3400,9630,17900,32800};
 #endif
+    for(i = 1; i <= 11; ++i){
+        if(n <= size[i])
+            return i;
+    }
+
+    return PIPPENGER_MAX_BUCKET_WINDOW;
 }
 
 /**
  * Returns the maximum optimal number of points for a bucket_window.
  */
 static size_t secp256k1_pippenger_bucket_window_inv(int bucket_window) {
-    switch(bucket_window) {
+    int i;
 #ifdef USE_ENDOMORPHISM
-        case 1: return 1;
-        case 2: return 4;
-        case 3: return 20;
-        case 4: return 57;
-        case 5: return 136;
-        case 6: return 235;
-        case 7: return 1260;
-        case 8: return 1260;
-        case 9: return 4420;
-        case 10: return 7880;
-        case 11: return 16050;
-        case PIPPENGER_MAX_BUCKET_WINDOW: return SIZE_MAX;
+    int size[11]= {4, 20, 57, 136, 235,1260, 4420, 7880, 16050};
 #else
-        case 1: return 1;
-        case 2: return 11;
-        case 3: return 45;
-        case 4: return 100;
-        case 5: return 275;
-        case 6: return 625;
-        case 7: return 1850;
-        case 8: return 3400;
-        case 9: return 9630;
-        case 10: return 17900;
-        case 11: return 32800;
-        case PIPPENGER_MAX_BUCKET_WINDOW: return SIZE_MAX;
+    int size[11]= {11, 45,100,275,625,1850,3400,9630,17900,32800};
 #endif
+    for(i = 1; i <= 11; ++i){
+        if(bucket_window == i)
+            return size[i];
     }
     return 0;
 }
