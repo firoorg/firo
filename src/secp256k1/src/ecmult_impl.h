@@ -728,16 +728,18 @@ static int secp256k1_ecmult_pippenger_wnaf(secp256k1_gej *buckets, int bucket_wi
  * set of buckets) for a given number of points.
  */
 static int secp256k1_pippenger_bucket_window(size_t n) {
-    size_t i;
+    int i;
 #ifdef USE_ENDOMORPHISM
-    unsigned int size[11]= {4, 20, 57, 136, 235,1260, 4420, 7880, 16050};
+    unsigned int size[10]= {1, 4, 20, 57, 136, 235, 1260, 1260, 4420, 7880, 16050};
 #else
-    unsigned int size[11]= {11, 45,100,275,625,1850,3400,9630,17900,32800};
+    unsigned int size[11]= {1, 11, 45, 100, 275, 625, 1850, 3400, 9630, 17900, 32800};
 #endif
+
     for(i = 1; i <= 11; ++i){
-        if(n <= size[i])
+        if(n <= size[i - 1])
             return i;
     }
+
 
     return PIPPENGER_MAX_BUCKET_WINDOW;
 }
@@ -748,13 +750,13 @@ static int secp256k1_pippenger_bucket_window(size_t n) {
 static size_t secp256k1_pippenger_bucket_window_inv(int bucket_window) {
     int i;
 #ifdef USE_ENDOMORPHISM
-    int size[11]= {4, 20, 57, 136, 235,1260, 4420, 7880, 16050};
+    int size[11]= {1, 4, 20, 57, 136, 235, 1260, 1260, 4420, 7880, 16050};
 #else
-    int size[11]= {11, 45,100,275,625,1850,3400,9630,17900,32800};
+    int size[11]= {1, 11, 45, 100, 275, 625, 1850, 3400, 9630, 17900, 32800};
 #endif
     for(i = 1; i <= 11; ++i){
         if(bucket_window == i)
-            return size[i];
+            return size[i - 1];
     }
     return 0;
 }
