@@ -278,4 +278,66 @@ BOOST_AUTO_TEST_CASE(partialspend_remint) {
     zerocoinState->Reset();
 }
 
+BOOST_AUTO_TEST_CASE(same_serial_in_a_transaction) {
+    // Generate addresses
+    CPubKey newKey1, newKey2;
+    BOOST_CHECK_MESSAGE(pwalletMain->GetKeyFromPool(newKey1), "Fail to get new address");
+    BOOST_CHECK_MESSAGE(pwalletMain->GetKeyFromPool(newKey2), "Fail to get new address");
+
+    const CBitcoinAddress randomAddr1(newKey1.GetID());
+    const CBitcoinAddress randomAddr2(newKey2.GetID());
+
+    CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
+
+    // Create 400-200+1 = 201 new empty blocks. // consensus.nMintV3SigmaStartBlock = 400
+    CreateAndProcessEmptyBlocks(201, scriptPubKey);
+
+    CAmount denomAmount;
+    sigma::DenominationToInteger(sigma::CoinDenominationV3::SIGMA_DENOM_1, denomAmount);
+
+    // Make sure that transactions get to mempool
+    pwalletMain->SetBroadcastTransactions(true);
+
+    // mint 2 coins
+    // Verify Mint is successful
+    std::string stringError;
+    std::vector<std::pair<std::string, int>> denominationPairs = {{"1", 2}};
+    BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(
+        stringError, denominationPairs, SIGMA), stringError + " - Create Mint failed");
+
+    BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mint was not added to mempool " + stringError);
+    CreateAndProcessBlock({}, scriptPubKey);
+    BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool was not cleared");
+
+    // Add 5 more blocks and verify that Mint can not be spent until 6 blocks verification
+    CreateAndProcessEmptyBlocks(5, scriptPubKey);
+
+    std::vector<CRecipient> recipients = {
+        {GetScriptForDestination(randomAddr1.Get()), denomAmount , false},
+        {GetScriptForDestination(randomAddr2.Get()), denomAmount - CENT, false}, // reserve a CENT to pay fee
+    };
+
+    // Create tx
+    CAmount fee;
+    std::vector<CZerocoinEntryV3> selected;
+    std::vector<CZerocoinEntryV3> changes;
+    auto tx = pwalletMain->CreateZerocoinSpendTransactionV3(recipients, fee, selected, changes);
+
+    // Expect 2 spends
+    BOOST_CHECK_EQUAL(tx.vin.size(), 2);
+
+    // construct double spend transaction
+    auto extendedScript = CScript();
+    extendedScript.insert(extendedScript.end(), tx.vin[0].scriptSig.begin(), tx.vin[0].scriptSig.end());
+
+    const std::string extended = "test";
+    extendedScript.insert(extendedScript.end(), extended.begin(), extended.end());
+
+    tx.vin[1].scriptSig = extendedScript;
+
+    // Add invalid transaction to mempool,
+    BOOST_CHECK_MESSAGE(!addToMempool(tx), "Double spend transaction have been accepted");
+    BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool accept invalid transaction");
+}
+
 BOOST_AUTO_TEST_SUITE_END()
