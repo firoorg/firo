@@ -3501,6 +3501,10 @@ UniValue spendmany(const UniValue& params, bool fHelp) {
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
+    // Only account "" have sigma coins.
+    if (!params[0].isNull() && !params[0].get_str().empty())
+        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Account has insufficient funds");
+
     UniValue sendTo = params[1].get_obj();
 
     CWalletTx wtx;
