@@ -38,24 +38,25 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 XZC mininput
 #define ZC_V1_5_GRACEFUL_MEMPOOL_PERIOD	500
 #define ZC_V1_5_GRACEFUL_PERIOD			1500
 
+// Block after which sigma mints are activated.
+#define ZC_SIGMA_STARTING_BLOCK         300000
+#define ZC_SIGMA_TESTNET_STARTING_BLOCK 50000
 
-// Number of blocks after ZC_SIGMA_MINT_STARTING_BLOCK during which we still accept V2 zerocoin mintsinto mempool.
-#define ZC_V2_GRACEFUL_MEMPOOL_PERIOD	4500
-// Number of blocks after ZC_SIGMA_MINT_STARTING_BLOCK during which we still accept V2 zerocoin mintsto newly mined blocks.
-#define ZC_V2_GRACEFUL_PERIOD			5000
+// Number of blocks after ZC_SIGMA_STARTING_BLOCK during which we still accept zerocoin V2 mints into mempool.
+#define ZC_V2_MINT_GRACEFUL_MEMPOOL_PERIOD          4500
+#define ZC_V2_MINT_TESTNET_GRACEFUL_MEMPOOL_PERIOD  500
 
-// Block number after which we do not accept zerocoin spends to mempool any more.
-#define ZC_V2_SPEND_STOP_BLOCK          125000
-#define ZC_V2_SPEND_TESTNET_STOP_BLOCK   55000
+// Number of blocks after ZC_SIGMA_STARTING_BLOCK during which we still accept zerocoin V2 mints to newly mined blocks.
+#define ZC_V2_MINT_GRACEFUL_PERIOD          5000
+#define ZC_V2_MINT_TESTNET_GRACEFUL_PERIOD  1000
 
-// Block number after which we do not accept zerocoin spends in blocks any more.
-#define ZC_V2_SPEND_STOP_BLOCK_IN_BLOCKS           126000
-#define ZC_V2_SPEND_TESTNET_STOP_BLOCK_IN_BLOCKS   56000
+// Number of blocks after ZC_SIGMA_STARTING_BLOCK during which we still accept zerocoin V2 spends into mempool.
+#define ZC_V2_SPEND_GRACEFUL_MEMPOOL_PERIOD         9000
+#define ZC_V2_SPEND_TESTNET_GRACEFUL_MEMPOOL_PERIOD 1500
 
-// Block after which sigma mints are activated. Any updated clients will start to mint sigma
-// coins instead of zerocoin coins after this block.
-#define ZC_SIGMA_MINT_STARTING_BLOCK          174292 
-#define ZC_SIGMA_MINT_TESTNET_STARTING_BLOCK   50000
+// Number of blocks after ZC_SIGMA_STARTING_BLOCK during which we still accept zerocoin V2 spends to newly mined blocks.
+#define ZC_V2_SPEND_GRACEFUL_PERIOD         10000
+#define ZC_V2_SPEND_TESTNET_GRACEFUL_PERIOD 2000
 
 #define ZC_MODULUS_V2_START_BLOCK		89300
 #define ZC_MODULUS_V1_MEMPOOL_STOP_BLOCK        89500

@@ -529,12 +529,7 @@ bool AddressTableModel::zerocoinMint(string &stringError, string denomAmount)
         return false;
     }
 
-    MintAlgorithm algo = ZEROCOIN;
-    if (chainActive.Height() > Params().GetConsensus().nMintV3SigmaStartBlock) {
-        // Use sigma mint algorithm after block nMintV3SigmaStartBlock.
-        algo = SIGMA;
-    }
-    return wallet->CreateZerocoinMintModel(stringError, denomAmount, algo);
+    return wallet->CreateZerocoinMintModel(stringError, denomAmount, ZEROCOIN);
 }
 
 bool AddressTableModel::zerocoinSpend(string &stringError, string thirdPartyAddress, string denomAmount)
