@@ -590,7 +590,7 @@ void CWallet::AddToSpends(const uint256 &wtxid) {
         return;
 
     for (const CTxIn &txin : thisTx.vin) {
-        if (!txin.IsZerocoinSpend() && !txin.IsZerocoinSpend()) {
+        if (!txin.IsZerocoinSpend() && !txin.IsZerocoinSpendV3()) {
             AddToSpends(txin.prevout, wtxid);
         }
     }
