@@ -735,9 +735,9 @@ static int secp256k1_pippenger_bucket_window(size_t n) {
     unsigned int size[11]= {1, 11, 45, 100, 275, 625, 1850, 3400, 9630, 17900, 32800};
 #endif
 
-    for(i = 1; i <= 11; ++i){
-        if(n <= size[i - 1])
-            return i;
+    for (i = 0; i < 11; ++i){
+        if (n <= size[i])
+            return i + 1;
     }
 
 
@@ -754,11 +754,11 @@ static size_t secp256k1_pippenger_bucket_window_inv(int bucket_window) {
 #else
     int size[11]= {1, 11, 45, 100, 275, 625, 1850, 3400, 9630, 17900, 32800};
 #endif
-    for(i = 1; i <= 11; ++i){
-        if(bucket_window == i)
-            return size[i - 1];
-    }
-    return 0;
+
+    if (bucket_window == PIPPENGER_MAX_BUCKET_WINDOW )
+        return SIZE_MAX;
+
+    return size[bucket_window - 1];
 }
 
 #ifdef USE_ENDOMORPHISM
