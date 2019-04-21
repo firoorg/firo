@@ -758,7 +758,9 @@ static size_t secp256k1_pippenger_bucket_window_inv(int bucket_window) {
     if (bucket_window == PIPPENGER_MAX_BUCKET_WINDOW )
         return SIZE_MAX;
 
-    return size[bucket_window - 1];
+    else if(bucket_window >= 1 && bucket_window <= 11)
+        return size[bucket_window - 1];
+    return 0;
 }
 
 #ifdef USE_ENDOMORPHISM
