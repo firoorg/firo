@@ -40,16 +40,11 @@ BOOST_AUTO_TEST_CASE(sigma_transition_test)
     // Make sure that transactions get to mempool
     pwalletMain->SetBroadcastTransactions(true);
 
-    // Try to create a sigma mint. It must not be added to the mempool, because 
+    // Try to create a sigma mint. It must not be added to the mempool, because
     // Sigma is enabled at block "nMintV3SigmaStartBlock=400 for regtest".
     vector<pair<std::string, int>> denominationPairs;
     std::pair<std::string, int> denominationPair(denomination, 1);
     denominationPairs.push_back(denominationPair);
-    BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(
-        stringError, denominationPairs, SIGMA), stringError + " - Create Mint failed");
-
-    // Verify Mint does NOT get into the mempool
-    BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mint was not added to mempool");
 
     // Create 400-200+1 = 201 new empty blocks. // consensus.nMintV3SigmaStartBlock = 400
     CreateAndProcessEmptyBlocks(201, scriptPubKey);
@@ -81,14 +76,14 @@ BOOST_AUTO_TEST_CASE(sigma_transition_test)
     mempool.queryHashes(vtxid);
     vtxid.resize(1);
 
-    // Process one more block. After this one, old zerocoin mints must not be allowed to mempool 
+    // Process one more block. After this one, old zerocoin mints must not be allowed to mempool
     // any more, because for regtest consensus.nMintV2MempoolGracefulPeriod = 2.
     previousHeight = chainActive.Height();
 
     b = CreateAndProcessBlock(vtxid, scriptPubKey);
     BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
 
-    // Now this new mint must not be added to the mempool any more, 
+    // Now this new mint must not be added to the mempool any more,
     // because consensus.nMintV2MempoolGracefulPeriod = 2;
     BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(
         stringError, denominationPairs, ZEROCOIN), stringError + " - Create Mint failed");
@@ -118,7 +113,7 @@ BOOST_AUTO_TEST_CASE(sigma_transition_test)
     // Create 5 more empty blocks, such that nZerocoinV2SpendStopBlock = 410 passes.
     CreateAndProcessEmptyBlocks(5, scriptPubKey);
 
-    // Create an old spend, it must not be added to the mempool, 
+    // Create an old spend, it must not be added to the mempool,
     // since nZerocoinV2SpendStopBlock = 410 have passed.
     BOOST_CHECK_MESSAGE(
         pwalletMain->CreateZerocoinSpendModel(stringError, "", denomination.c_str(), false, true),

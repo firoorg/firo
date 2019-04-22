@@ -97,30 +97,31 @@ struct Params {
     int nZnodePaymentsBugFixedAtBlock;
 	int nSpendV15StartBlock;
 	int nSpendV2ID_1, nSpendV2ID_10, nSpendV2ID_25, nSpendV2ID_50, nSpendV2ID_100;
-	
+
 	int nModulusV2StartBlock;
     int nModulusV1MempoolStopBlock;
 	int nModulusV1StopBlock;
-    
+
     int nMultipleSpendInputsInOneTxStartBlock;
 
     int nDontAllowDupTxsStartBlock;
-    
-    // Values for Zerocoin V3 sigma implementation.
-    // The block number after which V3 sigma mints are accepted.
-	int nMintV3SigmaStartBlock;
 
-    // Number of blocks after nMintV3SigmaStartBlock during which we still accept V2 zerocoin mintsto newly mined blocks.
-    int nMintV2GracefulPeriod;
+    // Values for sigma implementation.
 
-    // Number of blocks after nMintV3SigmaStartBlock during which we still accept V2 zerocoin mintsinto mempool.
-    int nMintV2MempoolGracefulPeriod;
+    // The block number after which sigma are accepted.
+    int nSigmaStartBlock;
 
-    // The block number after which zerocoin V2 spends are not accepted to mempool any more.
-	int nZerocoinV2SpendStopBlock;
+    // Number of blocks after nSigmaMintStartBlock during which we still accept zerocoin V2 mints into mempool.
+    int nZerocoinV2MintMempoolGracefulPeriod;
 
-    // The block number after which zerocoin V2 spends are not accepted to blocks any more.
-	int nZerocoinV2SpendStopBlockInBlocks;
+    // Number of blocks after nSigmaMintStartBlock during which we still accept zerocoin V2 mints to newly mined blocks.
+    int nZerocoinV2MintGracefulPeriod;
+
+    // Number of blocks after nSigmaMintStartBlock during which we still accept zerocoin V2 spend into mempool.
+    int nZerocoinV2SpendMempoolGracefulPeriod;
+
+    // Number of blocks after nSigmaMintStartBlock during which we still accept zerocoin V2 spend to newly mined blocks.
+    int nZerocoinV2SpendGracefulPeriod;
 
     /** switch to MTP time */
     uint32_t nMTPSwitchTime;
@@ -140,7 +141,7 @@ struct Params {
 
     /** reduction coefficient for rewards after MTP kicks in */
     int nMTPRewardReduction;
-	
+
     int64_t DifficultyAdjustmentInterval(bool fMTP = false) const { return nPowTargetTimespan / (fMTP ? nPowTargetSpacingMTP : nPowTargetSpacing); }
     uint256 nMinimumChainWork;
 

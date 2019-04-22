@@ -63,7 +63,6 @@ bool CheckSpendZcoinTransactionV3(
 		int nHeight,
 		bool isCheckWallet,
 		CZerocoinTxInfoV3 *zerocoinTxInfoV3) {
-	int txHeight = chainActive.Height();
 	bool hasZerocoinSpendInputs = false, hasNonZerocoinInputs = false;
 	int vinIndex = -1;
 
@@ -269,11 +268,23 @@ bool CheckZerocoinTransactionV3(
 		bool isCheckWallet,
 		CZerocoinTxInfoV3 *zerocoinTxInfoV3)
 {
+    // nHeight have special mode which value is INT_MAX so we need this.
+    int realHeight;
+
+    {
+        LOCK(cs_main);
+        realHeight = chainActive.Height();
+    }
+
+    bool allowSigma = (realHeight >= Params().GetConsensus().nSigmaStartBlock);
+
 	// Check Mint Zerocoin Transaction
-	BOOST_FOREACH(const CTxOut &txout, tx.vout) {
-		if (!txout.scriptPubKey.empty() && txout.scriptPubKey.IsZerocoinMintV3()) {
-			if (!CheckMintZcoinTransactionV3(txout, state, hashTx, zerocoinTxInfoV3))
-				return false;
+	if (allowSigma) {
+		for (const CTxOut &txout : tx.vout) {
+			if (!txout.scriptPubKey.empty() && txout.scriptPubKey.IsZerocoinMintV3()) {
+				if (!CheckMintZcoinTransactionV3(txout, state, hashTx, zerocoinTxInfoV3))
+					return false;
+			}
 		}
 	}
 
@@ -313,16 +324,14 @@ bool CheckZerocoinTransactionV3(
 		// Check vOut
 		// Only one loop, we checked on the format before entering this case
 		if (!isVerifyDB) {
-			BOOST_FOREACH(const CTxOut &txout, tx.vout)
-			{
-				if (!CheckSpendZcoinTransactionV3(
-					tx, denominations, state, hashTx, isVerifyDB, nHeight,
-					isCheckWallet, zerocoinTxInfoV3)) {
-						return false;
-				}
+			if (!CheckSpendZcoinTransactionV3(
+				tx, denominations, state, hashTx, isVerifyDB, nHeight,
+				isCheckWallet, zerocoinTxInfoV3)) {
+					return false;
 			}
 		}
 	}
+
 	return true;
 }
 
@@ -418,7 +427,7 @@ bool ConnectBlockZCV3(
 			}
 		}
         // Shows if V3 sigma mints are now allowed.
-        bool V3MintsAllowed = (pindexNew->nHeight >= Params().GetConsensus().nMintV3SigmaStartBlock);
+        bool V3MintsAllowed = (pindexNew->nHeight >= Params().GetConsensus().nSigmaStartBlock);
 
         // If V3 mints are not allowed in this block, but some client tries to mint.
         if (!V3MintsAllowed && !pblock->zerocoinTxInfoV3->mints.empty())
