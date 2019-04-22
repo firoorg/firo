@@ -80,8 +80,8 @@ void SigmaPrimitives<Exponent, GroupElement>::generate_challenge(
 
 template<class Exponent, class GroupElement>
 void SigmaPrimitives<Exponent, GroupElement>::new_factor(
-        const Exponent x,
-        const Exponent a,
+        const Exponent& x,
+        const Exponent& a,
         std::vector<Exponent>& coefficients) {
     std::vector<Exponent> temp;
     temp.resize(coefficients.size() + 1);

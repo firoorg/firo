@@ -88,13 +88,11 @@ void R1ProofGenerator<Exponent,GroupElement>::generate_final_response(
         const Exponent& challenge_x,
         R1Proof<Exponent, GroupElement>& proof_out) {
     //f
-    std::vector<Exponent> f;
-    f.reserve(m_ * (n_ - 1));
+    proof_out.f_.reserve(m_ * (n_ - 1));
     for(int j = 0; j < m_; j++) {
         for(int i = 1; i < n_; i++)
-        f.emplace_back(b_[(j * n_) + i] * challenge_x + a[(j * n_) + i]);
+        proof_out.f_.emplace_back(b_[(j * n_) + i] * challenge_x + a[(j * n_) + i]);
     }
-    proof_out.f_ =  f;
 
     //zA
     proof_out.ZA_ = r * challenge_x + rA_;

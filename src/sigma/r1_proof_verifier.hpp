@@ -57,14 +57,15 @@ bool R1ProofVerifier<Exponent,GroupElement>::verify_final_response(
             const R1Proof<Exponent, GroupElement>& proof,
             const Exponent& challenge_x,
             std::vector<Exponent>& f_out) const {
+    const std::vector<Exponent>& f = proof.f_;
     f_out.reserve(n_ * m_);
     for(int j = 0; j < m_; ++j) {
         f_out.push_back(Exponent(uint64_t(0)));
         Exponent temp;
         int k = n_ - 1;
         for(int i = 0; i < k; ++i) {
-            temp += f_out[j * k + i];
-            f_out.emplace_back(f_out[j * k + i]);
+            temp += f[j * k + i];
+            f_out.emplace_back(f[j * k + i]);
         }
         f_out[j * n_] = challenge_x - temp;
     }

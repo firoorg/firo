@@ -29,7 +29,10 @@ public:
     static void generate_challenge(const std::vector<GroupElement>& group_elements, 
                                    Exponent& result_out);
 
-    static void new_factor(Exponent x, Exponent a, std::vector<Exponent>& coefficients);
+    /** \brief Adds a factor of (x*x + a) to the given polynomial in coefficients.
+     *  \param[in,out] coefficients Coefficients of the polynomial created.
+     */
+    static void new_factor(const Exponent& x, const Exponent& a, std::vector<Exponent>& coefficients);
 
     };
 
