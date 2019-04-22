@@ -7211,7 +7211,9 @@ bool CWallet::InitLoadWallet() {
     }
 
     LogPrintf(" wallet      %15dms\n", GetTimeMillis() - nStart);
-
+    zwalletMain = new CZerocoinWallet(pwalletMain->strWalletFile);
+    walletInstance->setZWallet(zwalletMain);
+    
     RegisterValidationInterface(walletInstance);
 
     CBlockIndex *pindexRescan = chainActive.Tip();

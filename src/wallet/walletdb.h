@@ -177,7 +177,6 @@ public:
 
     bool WriteZerocoinEntry(const CZerocoinEntry& zerocoin);
     bool WriteZerocoinEntry(const CZerocoinEntryV3& zerocoin);
-    bool ReadZerocoinEntry(const CBigNum &bnPubCoinValue, CZerocoinEntry& zerocoin);
     bool EraseZerocoinEntry(const CZerocoinEntry& zerocoin);
     bool EraseZerocoinEntry(const CZerocoinEntryV3& zerocoin);
     void ListPubCoin(std::list<CZerocoinEntry>& listPubCoin);

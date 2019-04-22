@@ -258,19 +258,6 @@ CWalletDB::ReadZerocoinAccumulator(libzerocoin::Accumulator &accumulator, libzer
 //    return Erase(std::make_tuple(string("zcaccumulator"), (unsigned int) denomination, pubcoinid), accumulator);
 //}
 
-bool CWalletDB::ReadZerocoinEntry(const CBigNum &bnPubCoinValue, CZerocoinEntry &zerocoin) {
-    list <CZerocoinEntry> listPubcoin;
-    ListPubCoin(listPubcoin);
-
-     BOOST_FOREACH(const CZerocoinEntry &zerocoinItem, listPubcoin){
-        if (zerocoinItem.value == bnPubCoinValue) {
-            zerocoin = CZerocoinEntry(zerocoinItem);
-            return true;
-        }
-    }
-    return false;
-}
-
 bool CWalletDB::WriteZerocoinEntry(const CZerocoinEntry &zerocoin) {
     return Write(make_pair(string("zerocoin"), zerocoin.value), zerocoin, true);
 }

@@ -116,6 +116,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "setmininput", 0 },
     { "mint", 0 },
     { "mintzerocoin", 0 },
+    { "mintzerocoinV3", 0 },
     { "spendzerocoin", 0 },
     { "spendmanyzerocoin", 0 },
     { "spendmany", 1 },

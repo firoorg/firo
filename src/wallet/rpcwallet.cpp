@@ -2893,20 +2893,6 @@ UniValue mintzerocoinV3(const UniValue& params, bool fHelp)
         zwalletMain->UpdateCount();
         pwalletMain->NotifyZerocoinChanged(pwalletMain, pubCoin.getValue().GetHex(), "New (" + std::to_string(denomination) + " mint)", CT_NEW);
 
-        CZerocoinEntryV3 zerocoinTx;
-        zerocoinTx.IsUsed = false;
-        zerocoinTx.set_denomination(denomination);
-        zerocoinTx.value = pubCoin.getValue();
-        sigma::PublicCoinV3 checkPubCoin(zerocoinTx.value, denomination);
-        if (!checkPubCoin.validate()) {
-            return false;
-        }
-        zerocoinTx.randomness = newCoin.getRandomness();
-        zerocoinTx.serialNumber = newCoin.getSerialNumber();
-//        const unsigned char *ecdsaSecretKey = newCoin.getEcdsaSeckey();
-//        zerocoinTx.ecdsaSecretKey = std::vector<unsigned char>(ecdsaSecretKey, ecdsaSecretKey+32);
-        walletdb.WriteZerocoinEntry(zerocoinTx);
-
         return wtx.GetHash().GetHex();
     } else {
         return "";
@@ -4161,6 +4147,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "listunspentmintzerocoins",             &listunspentmintzerocoins,             false },
     { "wallet",             "mint",                     &mint,                     false },
     { "wallet",             "mintzerocoin",             &mintzerocoin,             false },
+    { "wallet",             "mintzerocoinV3",             &mintzerocoinV3,             false },
     { "wallet",             "mintmanyzerocoin",             &mintmanyzerocoin,             false },
     { "wallet",             "spendzerocoin",            &spendzerocoin,            false },
     { "wallet",             "spendmanyzerocoin",            &spendmanyzerocoin,            false },
