@@ -4,12 +4,12 @@ namespace sigma{
 
 template<class Exponent, class GroupElement>
 void SigmaPrimitives<Exponent, GroupElement>::commit(const GroupElement& g,
-        const zcoin_common::GeneratorVector<Exponent, GroupElement>& h,
+        const std::vector<GroupElement>& h,
         const std::vector<Exponent>& exp,
         const Exponent& r,
         GroupElement& result_out)  {
-    result_out += g * r;
-    h.get_vector_multiple(exp, result_out);
+    secp_primitives::MultiExponent mult(h, exp);
+    result_out += g * r + mult.get_multiple();
 }
 
 template<class Exponent, class GroupElement>

@@ -11,7 +11,7 @@ class R1ProofGenerator{
 
 public:
     R1ProofGenerator(const GroupElement& g,
-                     const zcoin_common::GeneratorVector<Exponent, GroupElement>& h_gens,
+                     const std::vector<GroupElement>& h_gens,
                      const std::vector<Exponent>& b,
                      const Exponent& r,
                      int n, int m);
@@ -26,7 +26,7 @@ public:
 
 private:
     const GroupElement& g_;
-    const zcoin_common::GeneratorVector<Exponent, GroupElement>& h_;
+    const std::vector<GroupElement>& h_;
     std::vector<Exponent> b_;
     Exponent r;
     GroupElement B_Commit;

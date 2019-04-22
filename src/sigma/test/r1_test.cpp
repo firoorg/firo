@@ -10,12 +10,11 @@ bool test(secp_primitives::GroupElement& g, std::vector<secp_primitives::GroupEl
 
     secp_primitives::Scalar r;
     r.randomize();
-    zcoin_common::GeneratorVector<secp_primitives::Scalar, secp_primitives::GroupElement> h_gens(h_);
-    sigma::R1ProofGenerator<secp_primitives::Scalar, secp_primitives::GroupElement> prover(g, h_gens, b, r, n, m);
+    sigma::R1ProofGenerator<secp_primitives::Scalar, secp_primitives::GroupElement> prover(g, h_, b, r, n, m);
     sigma::R1Proof<secp_primitives::Scalar, secp_primitives::GroupElement> proof;
     prover.proof(proof);
 
-    sigma::R1ProofVerifier<secp_primitives::Scalar, secp_primitives::GroupElement> verifier(g,h_gens,prover.get_B(), n, m);
+    sigma::R1ProofVerifier<secp_primitives::Scalar, secp_primitives::GroupElement> verifier(g,h_,prover.get_B(), n, m);
     return verifier.verify(proof);
 }
 
@@ -44,12 +43,11 @@ BOOST_AUTO_TEST_CASE(serialize_deserialize_proof)
 
     secp_primitives::Scalar r;
     r.randomize();
-    zcoin_common::GeneratorVector<secp_primitives::Scalar, secp_primitives::GroupElement> h_gens(h_);
-    sigma::R1ProofGenerator<secp_primitives::Scalar, secp_primitives::GroupElement> prover(g, h_gens, b, r, n, m);
+    sigma::R1ProofGenerator<secp_primitives::Scalar, secp_primitives::GroupElement> prover(g, h_, b, r, n, m);
     sigma::R1Proof<secp_primitives::Scalar, secp_primitives::GroupElement> proof;
     prover.proof(proof);
 
-    sigma::R1ProofVerifier<secp_primitives::Scalar, secp_primitives::GroupElement> verifier(g,h_gens,prover.get_B(), n, m);
+    sigma::R1ProofVerifier<secp_primitives::Scalar, secp_primitives::GroupElement> verifier(g,h_,prover.get_B(), n, m);
     BOOST_CHECK(verifier.verify(proof));
 
     unsigned char buffer [proof.memoryRequired(n, m)];

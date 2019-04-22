@@ -8,7 +8,7 @@ class R1ProofVerifier {
 
 public:
     R1ProofVerifier(const GroupElement& g,
-            const zcoin_common::GeneratorVector<Exponent, GroupElement>& h_gens,
+            const std::vector<GroupElement>& h_gens,
             const GroupElement& B, int n , int m);
 
     bool verify(const R1Proof<Exponent, GroupElement>& proof_) const;
@@ -19,7 +19,7 @@ public:
 
 private:
     const GroupElement& g_;
-    const zcoin_common::GeneratorVector<Exponent, GroupElement>& h_;
+    const std::vector<GroupElement>& h_;
     GroupElement B_Commit;
     int n_, m_;
 };

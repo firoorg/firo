@@ -546,4 +546,8 @@ std::size_t GroupElement::hash() const
     return std::hash<std::string>()(std::string(coord.begin(), coord.end()));
 }
 
+const void* GroupElement::get_value() const {
+    return g_;
+}
+
 } // namespace secp_primitives

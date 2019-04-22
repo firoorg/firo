@@ -50,17 +50,16 @@ void SigmaPlusProver<Exponent, GroupElement>::proof(
 
     //computing G_k`s;
     std::vector <GroupElement> Gk;
-    const std::size_t window_size = 7;
-    zcoin_common::GeneratorVector <Exponent, GroupElement> c_(commits, window_size);
+    Gk.reserve(m_);
     for (int k = 0; k < m_; ++k) {
         std::vector <Exponent> P_i;
         P_i.reserve(N);
         for (int i = 0; i < N; ++i){
             P_i.emplace_back(P_i_k[i][k]);
         }
-        GroupElement c_k;
-        c_.get_vector_multiple(P_i, c_k);
-        c_k += SigmaPrimitives<Exponent, GroupElement>::commit(g_, Exponent(uint64_t(0)), h_.get_g(0), Pk[k]);
+        secp_primitives::MultiExponent mult(commits, P_i);
+        GroupElement c_k = mult.get_multiple();
+        c_k += SigmaPrimitives<Exponent, GroupElement>::commit(g_, Exponent(uint64_t(0)), h_[0], Pk[k]);
         Gk.emplace_back(c_k);
     }
     proof_out.Gk_ = Gk;
