@@ -1396,11 +1396,11 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
                 entry.push_back(Pair("involvesWatchonly", true));
             entry.push_back(Pair("account", strSentAccount));
             MaybePushAddress(entry, s.destination, addr);
-            if (wtx.IsZerocoinMint() || wtx.IsZerocoinMintV3()) {
-                entry.push_back(Pair("category", "mint"));
-            }
-            else if(wtx.IsZerocoinSpend()){
+            if (wtx.IsZerocoinSpend() || wtx.IsZerocoinSpendV3()) {
                 entry.push_back(Pair("category", "spend"));
+            }
+            else if (wtx.IsZerocoinMint() || wtx.IsZerocoinMintV3()) {
+                entry.push_back(Pair("category", "mint"));
             }
             else {
                 entry.push_back(Pair("category", "send"));
@@ -1451,12 +1451,6 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
                         entry.push_back(Pair("category", "immature"));
                     else
                         entry.push_back(Pair("category", "generate"));
-                }
-                else if(wtx.IsZerocoinSpend()){
-                    entry.push_back(Pair("category", "spend"));
-                }
-                else if(wtx.IsZerocoinSpendV3()){
-                    entry.push_back(Pair("category", "spend"));
                 }
                 else {
                     entry.push_back(Pair("category", "receive"));
