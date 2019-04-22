@@ -1,0 +1,27 @@
+path_classifiers:
+  docs:
+    - "exclude: /"
+    - "ZNODE.md"
+  generated:
+    - "exclude: /"
+    - "src/qt/moc_*.cpp"
+  library:
+    - "exclude: /"
+    - "src/tor"
+  template:
+    - "exclude: /"
+    - "qa/pull-tester/run-bitcoind-for-test.sh.in"
+  test:
+    - "exclude: /"
+    - "src/test/*_tests.cpp"
+extraction:
+  cpp:
+    prepare:
+      packages:
+        - libboost-all-dev
+    configure:
+      command:
+        - ./configure
+    index:
+      build_command:
+        - make
