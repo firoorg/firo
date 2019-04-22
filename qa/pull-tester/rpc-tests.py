@@ -121,7 +121,7 @@ testScripts = [
     # 'rawtransactions.py',
      'rest.py',
     # 'mempool_spendcoinbase.py',
-    # 'mempool_reorg.py',
+     'mempool_reorg.py',
     # 'mempool_limit.py',
      'httpbasics.py',
      'reindex.py',
