@@ -21,6 +21,8 @@
 #include "utilmoneystr.h"
 #include "wallet.h"
 #include "walletdb.h"
+#include "zerocointracker.h"
+#include "znode-sync.h"
 #include "zerocoin.h"
 #include "walletexcept.h"
 
@@ -2728,11 +2730,11 @@ UniValue mint(const UniValue& params, bool fHelp)
         [zcParams](const sigma::CoinDenominationV3& denom) -> sigma::PrivateCoinV3 {
             return sigma::PrivateCoinV3(zcParams, denom);
         });
-
-    auto vecSend = CWallet::CreateSigmaMintRecipients(privCoins);
+    vector<CHDMint> vDMints;
+    auto vecSend = CWallet::CreateSigmaMintRecipients(privCoins, vDMints);
 
     CWalletTx wtx;
-    std::string strError = pwalletMain->MintAndStoreZerocoinV3(vecSend, privCoins, wtx);
+    std::string strError = pwalletMain->MintAndStoreZerocoinV3(vecSend, privCoins, vDMints, wtx);
 
     if (strError != "")
         throw JSONRPCError(RPC_WALLET_ERROR, strError);
@@ -2840,7 +2842,7 @@ UniValue mintzerocoinV3(const UniValue& params, bool fHelp)
 
     sigma::ParamsV3* zcParams = sigma::ParamsV3::get_default();
 
-    CDeterministicMint dMint;
+    CHDMint dMint;
 
     // The following constructor does all the work of minting a brand
     // new zerocoin. It stores all the private values inside the
@@ -3054,6 +3056,11 @@ UniValue mintmanyzerocoinV3(const UniValue& params, bool fHelp)
     UniValue sendTo = params[0].get_obj();
     sigma::CoinDenominationV3 denomination;
 
+    vector<CHDMint> vDMints;
+    CHDMint dMint;
+
+    uint32_t nCountLastUsed = zwalletMain->GetCount();
+
     vector<string> keys = sendTo.getKeys();
     BOOST_FOREACH(const string& denominationStr, keys){
         if (!StringToDenomination(denominationStr, denomination)) {
@@ -3078,10 +3085,13 @@ UniValue mintmanyzerocoinV3(const UniValue& params, bool fHelp)
             // PrivateCoin object. This includes the coin secrets, which must be
             // stored in a secure location (wallet) at the client.
             sigma::PrivateCoinV3 newCoin(zcParams, denomination, ZEROCOIN_TX_VERSION_3);
+
+            // Generate and store secrets deterministically in the following function.
+            zwalletMain->GenerateDeterministicZerocoin(denomination, newCoin, dMint);
+
             // Get a copy of the 'public' portion of the coin. You should
             // embed this into a Zerocoin 'MINT' transaction along with a series
             // of currency inputs totaling the assigned value of one zerocoin.
-
             sigma::PublicCoinV3 pubCoin = newCoin.getPublicCoin();
 
             //Validate
@@ -3111,10 +3121,11 @@ UniValue mintmanyzerocoinV3(const UniValue& params, bool fHelp)
 
             vecSend.push_back(recipient);
             privCoins.push_back(newCoin);
+            vDMints.push_back(dMint);
         }
     }
 
-    string strError = pwalletMain->MintAndStoreZerocoinV3(vecSend, privCoins, wtx);
+    string strError = pwalletMain->MintAndStoreZerocoinV3(vecSend, privCoins, vDMints, wtx);
 
     if (strError != "")
         throw runtime_error(strError);

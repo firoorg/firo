@@ -8,7 +8,7 @@
 #include "primitives/zerocoin.h"
 #include <list>
 
-class CDeterministicMint;
+class CHDMint;
 class CZerocoinWallet;
 
 class CZerocoinTracker
@@ -22,7 +22,7 @@ private:
 public:
     CZerocoinTracker(std::string strWalletFile);
     ~CZerocoinTracker();
-    void Add(const CDeterministicMint& dMint, bool isNew = false, bool isArchived = false, CZerocoinWallet* zerocoinWallet = NULL);
+    void Add(const CHDMint& dMint, bool isNew = false, bool isArchived = false, CZerocoinWallet* zerocoinWallet = NULL);
     void Add(const CZerocoinEntryV3& zerocoin, bool isNew = false, bool isArchived = false);
     bool Archive(CMintMeta& meta);
     bool HasPubcoin(const GroupElement& pubcoin) const;

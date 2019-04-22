@@ -105,8 +105,8 @@ void SigmaPage::on_sendButton_clicked()
     }
 
     // prepare transaction for getting txFee earlier
-    std::vector<CZerocoinEntryV3> selectedCoins;
-    std::vector<CZerocoinEntryV3> changes;
+    std::vector<CHDMint> selectedCoins;
+    std::vector<CHDMint> changes;
     WalletModelTransaction currentTransaction(recipients);
     auto prepareStatus = model->prepareSigmaSpendTransaction(currentTransaction, selectedCoins, changes);
 

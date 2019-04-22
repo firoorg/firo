@@ -10,7 +10,7 @@
 #include "amount.h"
 #include "primitives/transaction.h"
 #include "primitives/zerocoin.h"
-#include "primitives/deterministicmint.h"
+#include "primitives/hdmint.h"
 #include "wallet/db.h"
 #include "key.h"
 
@@ -212,14 +212,14 @@ public:
     bool WriteZerocoinCount(const uint32_t& nCount);
 
     bool ArchiveMintOrphan(const CZerocoinEntry& zerocoin);
-    bool ArchiveDeterministicOrphan(const CDeterministicMint& dMint);
+    bool ArchiveDeterministicOrphan(const CHDMint& dMint);
     bool UnarchiveZerocoinMint(const uint256& hashPubcoin, CZerocoinEntryV3& zerocoin);
-    bool UnarchiveDeterministicMint(const uint256& hashPubcoin, CDeterministicMint& dMint);
+    bool UnarchiveHDMint(const uint256& hashPubcoin, CHDMint& dMint);
 
-    bool WriteDeterministicMint(const CDeterministicMint& dMint);
-    bool ReadDeterministicMint(const uint256& hashPubcoin, CDeterministicMint& dMint);
+    bool WriteHDMint(const CHDMint& dMint);
+    bool ReadHDMint(const uint256& hashPubcoin, CHDMint& dMint);
 
-     std::list<CDeterministicMint> ListDeterministicMints();
+     std::list<CHDMint> ListHDMints();
 
      std::map<uint256, std::vector<pair<uint256, uint32_t> > > MapMintPool();
     bool WriteMintPoolPair(const uint256& hashMasterSeed, const uint256& hashPubcoin, const uint32_t& nCount);

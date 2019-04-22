@@ -13,7 +13,7 @@
 #include "wallet/wallet.h"
 
 
-class CDeterministicMint;
+class CHDMint;
 
 class CZerocoinWallet
 {
@@ -30,10 +30,10 @@ public:
     bool SetMasterSeed(const uint256& seedMaster, bool fResetCount = false);
     uint256 GetMasterSeed() { return seedMaster; }
     void SyncWithChain(bool fGenerateMintPool = true);
-    void GenerateDeterministicZerocoin(sigma::CoinDenominationV3 denom, sigma::PrivateCoinV3& coin, CDeterministicMint& dMint, bool fGenerateOnly = false);
-    void GenerateMint(const uint32_t& nCount, const sigma::CoinDenominationV3 denom, sigma::PrivateCoinV3& coin, CDeterministicMint& dMint);
+    void GenerateDeterministicZerocoin(sigma::CoinDenominationV3 denom, sigma::PrivateCoinV3& coin, CHDMint& dMint, bool fGenerateOnly = false);
+    void GenerateMint(const uint32_t& nCount, const sigma::CoinDenominationV3 denom, sigma::PrivateCoinV3& coin, CHDMint& dMint);
     void GetState(int& nCount, int& nLastGenerated);
-    bool RegenerateMint(const CDeterministicMint& dMint, CZerocoinEntryV3& zerocoin);
+    bool RegenerateMint(const CHDMint& dMint, CZerocoinEntryV3& zerocoin);
     void GenerateMintPool(uint32_t nCountStart = 0, uint32_t nCountEnd = 0);
     bool LoadMintPoolFromDB();
     void RemoveMintsFromPool(const std::vector<uint256>& vPubcoinHashes);
@@ -41,7 +41,7 @@ public:
     bool IsInMintPool(const GroupElement& bnValue) { return mintPool.Has(bnValue); }
     void Lock();
     void SeedToZerocoin(const uint512& seedZerocoin, GroupElement& bnValue, sigma::PrivateCoinV3& coin);
-    bool CheckSeed(const CDeterministicMint& dMint);
+    bool CheckSeed(const CHDMint& dMint);
     // Count updating functions
     uint32_t GetCount();
     void SetCount(uint32_t nCount);

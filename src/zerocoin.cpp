@@ -710,6 +710,7 @@ int ZerocoinGetNHeight(const CBlockHeader &block) {
     return nHeight;
 }
 
+
 bool ZerocoinBuildStateFromIndex(CChain *chain, set<CBlockIndex *> &changes) {
     auto params = Params().GetConsensus();
 

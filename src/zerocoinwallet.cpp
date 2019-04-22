@@ -6,7 +6,7 @@
 #include "main.h"
 #include "txdb.h"
 #include "init.h"
-#include "primitives/deterministicmint.h"
+#include "primitives/hdmint.h"
 #include "sigma/openssl_context.h"
 #include "wallet/walletdb.h"
 #include "wallet/wallet.h"
@@ -280,7 +280,7 @@ bool CZerocoinWallet::SetMintSeen(const GroupElement& bnValue, const int& nHeigh
     // Create mint object and database it
     uint256 hashSeed = Hash(seedMaster.begin(), seedMaster.end());
     uint256 hashSerial = GetSerialHash(coin.getSerialNumber());
-    CDeterministicMint dMint(pMint.second, hashSeed, hashSerial, bnValue);
+    CHDMint dMint(pMint.second, hashSeed, hashSerial, bnValue);
     dMint.SetDenomination(denom);
     dMint.SetHeight(nHeight);
 
@@ -380,7 +380,7 @@ void CZerocoinWallet::UpdateCount()
     UpdateCountDB();
 }
 
-void CZerocoinWallet::GenerateDeterministicZerocoin(sigma::CoinDenominationV3 denom, sigma::PrivateCoinV3& coin, CDeterministicMint& dMint, bool fGenerateOnly)
+void CZerocoinWallet::GenerateDeterministicZerocoin(sigma::CoinDenominationV3 denom, sigma::PrivateCoinV3& coin, CHDMint& dMint, bool fGenerateOnly)
 {
     GenerateMint(nCountLastUsed + 1, denom, coin, dMint);
     if (fGenerateOnly)
@@ -390,7 +390,7 @@ void CZerocoinWallet::GenerateDeterministicZerocoin(sigma::CoinDenominationV3 de
     //LogPrintf("%s : Generated new deterministic mint. Count=%d pubcoin=%s seed=%s\n", __func__, nCount, coin.getPublicCoin().getValue().GetHex().substr(0,6), seedZerocoin.GetHex().substr(0, 4));
 }
 
-void CZerocoinWallet::GenerateMint(const uint32_t& nCount, const sigma::CoinDenominationV3 denom, sigma::PrivateCoinV3& coin, CDeterministicMint& dMint)
+void CZerocoinWallet::GenerateMint(const uint32_t& nCount, const sigma::CoinDenominationV3 denom, sigma::PrivateCoinV3& coin, CHDMint& dMint)
 {
     uint512 seedZerocoin = GetZerocoinSeed(nCount);
     GroupElement commitmentValue;
@@ -400,18 +400,18 @@ void CZerocoinWallet::GenerateMint(const uint32_t& nCount, const sigma::CoinDeno
 
     uint256 hashSeed = Hash(seedMaster.begin(), seedMaster.end());
     uint256 hashSerial = GetSerialHash(coin.getSerialNumber());
-    dMint = CDeterministicMint(nCount, hashSeed, hashSerial, coin.getPublicCoin().getValue());
+    dMint = CHDMint(nCount, hashSeed, hashSerial, coin.getPublicCoin().getValue());
     dMint.SetDenomination(denom);
 }
 
-bool CZerocoinWallet::CheckSeed(const CDeterministicMint& dMint)
+bool CZerocoinWallet::CheckSeed(const CHDMint& dMint)
 {
     //Check that the seed is correct    todo:handling of incorrect, or multiple seeds
     uint256 hashSeed = Hash(seedMaster.begin(), seedMaster.end());
     return hashSeed == dMint.GetSeedHash();
 }
 
-bool CZerocoinWallet::RegenerateMint(const CDeterministicMint& dMint, CZerocoinEntryV3& zerocoin)
+bool CZerocoinWallet::RegenerateMint(const CHDMint& dMint, CZerocoinEntryV3& zerocoin)
 {
     if (!CheckSeed(dMint)) {
         uint256 hashSeed = Hash(seedMaster.begin(), seedMaster.end());
@@ -420,7 +420,7 @@ bool CZerocoinWallet::RegenerateMint(const CDeterministicMint& dMint, CZerocoinE
 
     //Generate the coin
     sigma::PrivateCoinV3 coin(sigma::ParamsV3::get_default(), dMint.GetDenomination(), false);
-    CDeterministicMint dMintDummy;
+    CHDMint dMintDummy;
     GenerateMint(dMint.GetCount(), dMint.GetDenomination(), coin, dMintDummy);
 
     //Fill in the zerocoinmint object's details

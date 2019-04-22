@@ -162,7 +162,7 @@ BITCOIN_CORE_H = \
   policy/rbf.h \
   fixed.h \
   pow.h \
-  primitives/deterministicmint.h \
+  primitives/hdmint.h \
   primitives/zerocoin.h \
   protocol.h \
   random.h \
@@ -290,7 +290,7 @@ libbitcoin_wallet_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_wallet_a_SOURCES = \
   activeznode.cpp \
   darksend.cpp \
-  primitives/deterministicmint.cpp \
+  primitives/hdmint.cpp \
   znode.cpp \
   instantx.cpp \
   znode-payments.cpp \
@@ -410,7 +410,7 @@ libbitcoin_common_a_SOURCES = \
   compressor.cpp \
   core_read.cpp \
   core_write.cpp \
-  primitives/deterministicmint.cpp \
+  primitives/hdmint.cpp \
   key.cpp \
   keystore.cpp \
   netbase.cpp \
@@ -456,7 +456,7 @@ libbitcoin_util_a_SOURCES = \
   libzerocoin/CoinSpend.h \
   libzerocoin/CoinSpend.cpp \
   libzerocoin/Commitment.h \
-  libzerocoin/Commitment.cpp \ 
+  libzerocoin/Commitment.cpp \
   libzerocoin/ParallelTasks.h \
   libzerocoin/ParallelTasks.cpp \
   libzerocoin/ParamGeneration.h \

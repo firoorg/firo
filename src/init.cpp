@@ -293,6 +293,8 @@ void Shutdown() {
 #ifdef ENABLE_WALLET
     if (pwalletMain)
         pwalletMain->Flush(true);
+    delete zwalletMain;
+    zwalletMain = NULL;
 #endif
 
 #if ENABLE_ZMQ

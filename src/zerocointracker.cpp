@@ -2,7 +2,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <primitives/deterministicmint.h>
+#include <primitives/hdmint.h>
 #include <primitives/zerocoin.h>
 #include "zerocointracker.h"
 #include "util.h"
@@ -34,7 +34,7 @@ CZerocoinTracker::~CZerocoinTracker()
 
 void CZerocoinTracker::Init()
 {
-    //Load all CZerocoinEntries and CDeterministicMints from the database
+    //Load all CZerocoinEntries and CHDMints from the database
     if (!fInitialized) {
         ListMints(false, false, true);
         fInitialized = true;
@@ -55,8 +55,8 @@ bool CZerocoinTracker::Archive(CMintMeta& meta)
     //         return error("%s: failed to archive zerocoinmint", __func__);
     // } else {
     //     //failed to read mint from DB, try reading deterministic
-    //     CDeterministicMint dMint;
-    //     if (!walletdb.ReadDeterministicMint(hashPubcoin, dMint))
+    //     CHDMint dMint;
+    //     if (!walletdb.ReadHDMint(hashPubcoin, dMint))
     //         return error("%s: could not find pubcoinhash %s in db", __func__, hashPubcoin.GetHex());
     //     if (!walletdb.ArchiveDeterministicOrphan(dMint))
     //         return error("%s: failed to archive deterministic ophaned mint", __func__);
@@ -70,8 +70,8 @@ bool CZerocoinTracker::UnArchive(const uint256& hashPubcoin, bool isDeterministi
 {
     CWalletDB walletdb(strWalletFile);
     if (isDeterministic) {
-        CDeterministicMint dMint;
-        if (!walletdb.UnarchiveDeterministicMint(hashPubcoin, dMint))
+        CHDMint dMint;
+        if (!walletdb.UnarchiveHDMint(hashPubcoin, dMint))
             return error("%s: failed to unarchive deterministic mint", __func__);
         Add(dMint, false);
     } else {
@@ -241,14 +241,14 @@ bool CZerocoinTracker::UpdateState(const CMintMeta& meta)
     CWalletDB walletdb(strWalletFile);
 
     if (meta.isDeterministic) {
-        CDeterministicMint dMint;
-        if (!walletdb.ReadDeterministicMint(hashPubcoin, dMint)) {
+        CHDMint dMint;
+        if (!walletdb.ReadHDMint(hashPubcoin, dMint)) {
             // Check archive just in case
             if (!meta.isArchived)
                 return error("%s: failed to read deterministic mint from database", __func__);
 
             // Unarchive this mint since it is being requested and updated
-            if (!walletdb.UnarchiveDeterministicMint(hashPubcoin, dMint))
+            if (!walletdb.UnarchiveHDMint(hashPubcoin, dMint))
                 return error("%s: failed to unarchive deterministic mint from database", __func__);
         }
 
@@ -257,7 +257,7 @@ bool CZerocoinTracker::UpdateState(const CMintMeta& meta)
         dMint.SetUsed(meta.isUsed);
         dMint.SetDenomination(meta.denom);
 
-        if (!walletdb.WriteDeterministicMint(dMint))
+        if (!walletdb.WriteHDMint(dMint))
             return error("%s: failed to update deterministic mint when writing to db", __func__);
     } else {
         CZerocoinEntryV3 zerocoin;
@@ -278,7 +278,7 @@ bool CZerocoinTracker::UpdateState(const CMintMeta& meta)
     return true;
 }
 
-void CZerocoinTracker::Add(const CDeterministicMint& dMint, bool isNew, bool isArchived, CZerocoinWallet* zerocoinWallet)
+void CZerocoinTracker::Add(const CHDMint& dMint, bool isNew, bool isArchived, CZerocoinWallet* zerocoinWallet)
 {
     bool iszerocoinWalletInitialized = (NULL != zerocoinWallet);
     CMintMeta meta;
@@ -299,7 +299,7 @@ void CZerocoinTracker::Add(const CDeterministicMint& dMint, bool isNew, bool isA
     mapSerialHashes[meta.hashSerial] = meta;
 
     if (isNew)
-        CWalletDB(strWalletFile).WriteDeterministicMint(dMint);
+        CWalletDB(strWalletFile).WriteHDMint(dMint);
 }
 
 void CZerocoinTracker::Add(const CZerocoinEntryV3& zerocoin, bool isNew, bool isArchived)
@@ -478,7 +478,7 @@ bool CZerocoinTracker::UpdateMints(std::set<uint256> serialHashes, bool fReset, 
             Add(mint);
         }
     }
-    std::list<CDeterministicMint> listDeterministicDB = walletdb.ListDeterministicMints();
+    std::list<CHDMint> listDeterministicDB = walletdb.ListHDMints();
 
     CZerocoinWallet* zerocoinWallet = new CZerocoinWallet(strWalletFile);
     for (auto& dMint : listDeterministicDB) {
@@ -512,7 +512,7 @@ std::vector<CMintMeta> CZerocoinTracker::ListMints(bool fUnusedOnly, bool fMatur
         }
         LogPrint("zero", "%s: added %d zerocoinmints from DB\n", __func__, listMintsDB.size());
 
-        std::list<CDeterministicMint> listDeterministicDB = walletdb.ListDeterministicMints();
+        std::list<CHDMint> listDeterministicDB = walletdb.ListHDMints();
 
         CZerocoinWallet* zerocoinWallet = new CZerocoinWallet(strWalletFile);
         for (auto& dMint : listDeterministicDB) {

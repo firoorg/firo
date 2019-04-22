@@ -498,13 +498,13 @@ DBErrors CWalletDB::ReorderTransactions(CWallet *pwallet) {
     return DB_LOAD_OK;
 }
 
-bool CWalletDB::WriteDeterministicMint(const CDeterministicMint& dMint)
+bool CWalletDB::WriteHDMint(const CHDMint& dMint)
 {
     uint256 hash = dMint.GetPubCoinHash();
     return Write(make_pair(string("hdmint"), hash), dMint, true);
 }
 
-bool CWalletDB::ReadDeterministicMint(const uint256& hashPubcoin, CDeterministicMint& dMint)
+bool CWalletDB::ReadHDMint(const uint256& hashPubcoin, CHDMint& dMint)
 {
     return Read(make_pair(string("hdmint"), hashPubcoin), dMint);
 }
@@ -1346,9 +1346,9 @@ std::map<uint256, std::vector<pair<uint256, uint32_t> > > CWalletDB::MapMintPool
     return mapPool;
 }
 
-std::list<CDeterministicMint> CWalletDB::ListDeterministicMints()
+std::list<CHDMint> CWalletDB::ListHDMints()
 {
-    std::list<CDeterministicMint> listMints;
+    std::list<CHDMint> listMints;
     Dbc* pcursor = GetCursor();
     if (!pcursor)
         throw runtime_error(std::string(__func__)+" : cannot create DB cursor");
@@ -1379,7 +1379,7 @@ std::list<CDeterministicMint> CWalletDB::ListDeterministicMints()
         uint256 hashPubcoin;
         ssKey >> hashPubcoin;
 
-        CDeterministicMint mint;
+        CHDMint mint;
         ssValue >> mint;
 
         listMints.emplace_back(mint);
@@ -1408,7 +1408,7 @@ bool CWalletDB::ArchiveMintOrphan(const CZerocoinEntry& zerocoin)
     return true;
 }
 
-bool CWalletDB::ArchiveDeterministicOrphan(const CDeterministicMint& dMint)
+bool CWalletDB::ArchiveDeterministicOrphan(const CHDMint& dMint)
 {
     if (!Write(make_pair(string("dzco"), dMint.GetPubCoinHash()), dMint))
         return error("%s: write failed", __func__);
@@ -1419,12 +1419,12 @@ bool CWalletDB::ArchiveDeterministicOrphan(const CDeterministicMint& dMint)
     return true;
 }
 
-bool CWalletDB::UnarchiveDeterministicMint(const uint256& hashPubcoin, CDeterministicMint& dMint)
+bool CWalletDB::UnarchiveHDMint(const uint256& hashPubcoin, CHDMint& dMint)
 {
     if (!Read(make_pair(string("dzco"), hashPubcoin), dMint))
         return error("%s: failed to retrieve deterministic mint from archive", __func__);
 
-    if (!WriteDeterministicMint(dMint))
+    if (!WriteHDMint(dMint))
         return error("%s: failed to write deterministic mint", __func__);
 
     if (!Erase(make_pair(string("dzco"), dMint.GetPubCoinHash())))

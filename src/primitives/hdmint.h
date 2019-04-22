@@ -2,13 +2,13 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef ZCOIN_DETERMINISTICMINT_H
-#define ZCOIN_DETERMINISTICMINT_H
+#ifndef ZCOIN_HDMINT_H
+#define ZCOIN_HDMINT_H
 
 #include "primitives/zerocoin.h"
 
 //struct that is safe to store essential mint data, without holding any information that allows for actual spending (serial, randomness, private key)
-class CDeterministicMint
+class CHDMint
 {
 private:
     uint32_t nCount;
@@ -22,13 +22,16 @@ private:
     bool isUsed;
 
 public:
-    CDeterministicMint();
-    CDeterministicMint(const uint32_t& nCount, const uint256& hashSeed, const uint256& hashSerial, const GroupElement& pubCoinValue);
+    CHDMint();
+    CHDMint(const uint32_t& nCount, const uint256& hashSeed, const uint256& hashSerial, const GroupElement& pubCoinValue);
 
     sigma::CoinDenominationV3 GetDenomination() const {
         sigma::CoinDenominationV3 value;
         IntegerToDenomination(denom, value);
         return value;
+    }
+    int GetDenominationValue() const {
+        return denom;
     }
     uint32_t GetCount() const { return nCount; }
     int GetHeight() const { return nHeight; }
@@ -44,11 +47,13 @@ public:
         DenominationToInteger(value, denom);
         this->denom = denom;
     };
+    void SetDenominationValue(const int& denom) { this->denom = denom; }
     void SetHeight(const int& nHeight) { this->nHeight = nHeight; }
     void SetId(const int& nId) { this->nId = nId; }
     void SetNull();
     void SetTxHash(const uint256& txid) { this->txid = txid; }
     void SetUsed(const bool isUsed) { this->isUsed = isUsed; }
+    void SetPubcoinValue(const GroupElement pubCoinValue) { this->pubCoinValue = pubCoinValue; }
     std::string ToString() const;
 
     ADD_SERIALIZE_METHODS;
@@ -68,4 +73,4 @@ public:
     };
 };
 
-#endif //ZCOIN_DETERMINISTICMINT_H
+#endif //ZCOIN_HDMINT_H

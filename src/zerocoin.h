@@ -125,8 +125,7 @@ public:
     bool GetCoinGroupInfo(int denomination, int id, CoinGroupInfo &result);
 
     // Query if the coin serial was previously used
-    bool IsUsedCoinSerial(const CBigNum &coinSerial);
-    
+    bool IsUsedCoinSerial(const CBigNum &coinSerial);    
     // Query if there is a coin with given pubCoin value
     bool HasCoin(const CBigNum &pubCoin);
 

@@ -3,14 +3,14 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <tinyformat.h>
-#include "deterministicmint.h"
+#include "hdmint.h"
 
-CDeterministicMint::CDeterministicMint()
+CHDMint::CHDMint()
 {
     SetNull();
 }
 
-CDeterministicMint::CDeterministicMint(const uint32_t& nCount, const uint256& hashSeed, const uint256& hashSerial, const GroupElement& pubCoinValue)
+CHDMint::CHDMint(const uint32_t& nCount, const uint256& hashSeed, const uint256& hashSerial, const GroupElement& pubCoinValue)
 {
     SetNull();
     this->nCount = nCount;
@@ -19,7 +19,7 @@ CDeterministicMint::CDeterministicMint(const uint32_t& nCount, const uint256& ha
     this->pubCoinValue = pubCoinValue;
 }
 
-void CDeterministicMint::SetNull()
+void CHDMint::SetNull()
 {
     nCount = 0;
     hashSeed.SetNull();
@@ -31,8 +31,8 @@ void CDeterministicMint::SetNull()
     isUsed = false;
 }
 
-std::string CDeterministicMint::ToString() const
+std::string CHDMint::ToString() const
 {
-    return strprintf(" DeterministicMint:\n   count=%d\n   hashseed=%s\n   hashSerial=%s\n   hashpubCoinValue=%s\n   txid=%s\n   height=%d\n   id=%d\n   denom=%d\n   isUsed=%d\n",
+    return strprintf(" HDMint:\n   count=%d\n   hashseed=%s\n   hashSerial=%s\n   hashpubCoinValue=%s\n   txid=%s\n   height=%d\n   id=%d\n   denom=%d\n   isUsed=%d\n",
     nCount, hashSeed.GetHex(), hashSerial.GetHex(), GetPubCoinHash().GetHex(), txid.GetHex(), nHeight, nId, denom, isUsed);
 }

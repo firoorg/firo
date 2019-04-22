@@ -41,7 +41,7 @@ class CBloomFilter;
 class CChainParams;
 class CInv;
 class CScriptCheck;
-//class CTxMemPool;
+class CTxMemPool;
 class CValidationInterface;
 class CValidationState;
 
