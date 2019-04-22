@@ -26,7 +26,8 @@ public:
 
     static std::vector<uint64_t> convert_to_nal(uint64_t num, uint64_t n, uint64_t m);
 
-    static void get_x(const GroupElement& A, const GroupElement& C, const GroupElement& D, Exponent& result_out);
+    static void generate_challenge(const std::vector<GroupElement>& group_elements, 
+                                   Exponent& result_out);
 
     static void new_factor(Exponent x, Exponent a, std::vector<Exponent>& coefficients);
 
