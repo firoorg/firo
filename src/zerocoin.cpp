@@ -529,12 +529,7 @@ bool CheckZerocoinTransaction(const CTransaction &tx,
                               CZerocoinTxInfo *zerocoinTxInfo)
 {
     // nHeight have special mode which value is INT_MAX so we need this.
-    int realHeight;
-
-    {
-        LOCK(cs_main);
-        realHeight = chainActive.Height();
-    }
+    int realHeight = chainActive.Height();
 
     // Check Mint Zerocoin Transaction
     for (const CTxOut &txout : tx.vout) {

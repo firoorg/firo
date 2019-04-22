@@ -23,6 +23,7 @@
 
 #include <vector>
 #include <unordered_set>
+#include <mutex>
 
 
 
@@ -509,6 +510,7 @@ public:
 class CChain {
 private:
     std::vector<CBlockIndex*> vChain;
+    mutable std::mutex chain_mutex;
 
 public:
     /** Returns the index entry for the genesis block of this chain, or NULL if none. */
@@ -549,6 +551,7 @@ public:
 
     /** Return the maximal height in the chain. Is equal to chain.Tip() ? chain.Tip()->nHeight : -1. */
     int Height() const {
+        std::lock_guard<std::mutex> _(chain_mutex);
         return vChain.size() - 1;
     }
 
