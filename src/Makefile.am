@@ -476,9 +476,9 @@ liblelantus_a_SOURCES = \
   liblelantus/SigmaPlusProof.h \
   liblelantus/SigmaPlusProver.h \
   liblelantus/SigmaPlusVerifier.h \
-  liblelantus/ShnorrProof.h \
-  liblelantus/ShnorrProver.h \
-  liblelantus/ShnorrVerifier.h \
+  liblelantus/SchnorrProof.h \
+  liblelantus/SchnorrProver.h \
+  liblelantus/SchnorrVerifier.h \
   liblelantus/InnerProductProof.h \
   liblelantus/InnerProductProofVerifier.h \
   liblelantus/InnerProductProofGenerator.h \
