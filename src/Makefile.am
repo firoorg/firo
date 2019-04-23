@@ -468,7 +468,7 @@ liblelantus_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 liblelantus_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 liblelantus_a_SOURCES = \
   liblelantus/LelantusPrimitives.h \
-  liblelantus/LelantusProof \
+  liblelantus/LelantusProof.h \
   liblelantus/LelantusProver.h \
   liblelantus/LelantusProver.cpp \
   liblelantus/LelantusVerifier.h \
