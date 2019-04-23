@@ -65,7 +65,7 @@ public:
 
     Scalar& mod_p();
 
-    Scalar hash(const unsigned char* data,size_t len);
+    Scalar hash(const unsigned char* data,size_t len, bool mod=true);
 
     bool isMember() const;
 

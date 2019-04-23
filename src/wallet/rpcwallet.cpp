@@ -4150,6 +4150,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "mintzerocoinV3",             &mintzerocoinV3,             false },
     { "wallet",             "mintmanyzerocoin",             &mintmanyzerocoin,             false },
     { "wallet",             "spendzerocoin",            &spendzerocoin,            false },
+    { "wallet",             "spendzerocoinV3",            &spendzerocoinV3,            false },
     { "wallet",             "spendmanyzerocoin",            &spendmanyzerocoin,            false },
     { "wallet",             "spendmany",                &spendmany,                false },
     { "wallet",             "resetmintzerocoin",        &resetmintzerocoin,        false },

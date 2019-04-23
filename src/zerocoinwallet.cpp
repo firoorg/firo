@@ -209,7 +209,7 @@ void CZerocoinWallet::SyncWithChain(bool fGenerateMintPool)
                 bool fFoundMint = false;
                 GroupElement bnValue;
                 for (const CTxOut& out : tx.vout) {
-                    if (!out.scriptPubKey.IsZerocoinMint())
+                    if (!out.scriptPubKey.IsZerocoinMintV3())
                         continue;
 
                     sigma::PublicCoinV3 pubcoin;
@@ -335,8 +335,6 @@ void CZerocoinWallet::SeedToZerocoin(const uint512& seedZerocoin, GroupElement& 
     //hash randomness seed with Bottom 256 bits of seedZerocoin
     Scalar randomness;
     uint256 nSeedRandomness = ArithToUint512(UintToArith512(seedZerocoin) >> 256).trim256();
-    nSeedRandomness = Hash(nSeedRandomness.begin(), nSeedRandomness.end());
-    // TODO make sure this is ok
     randomness.memberFromSeed(nSeedRandomness.begin());
     coin.setRandomness(randomness);
 

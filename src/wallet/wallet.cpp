@@ -6081,28 +6081,12 @@ string CWallet::SpendZerocoinV3(
 
     if (!CommitZerocoinSpendTransaction(wtxNew, reservekey)) {
         LogPrintf("CommitZerocoinSpendTransaction() -> FAILED!\n");
-        CZerocoinEntryV3 pubCoinTx;
-        list <CZerocoinEntryV3> listOwnCoins;
-        listOwnCoins.clear();
 
-        CWalletDB walletdb(pwalletMain->strWalletFile);
-        walletdb.ListPubCoinV3(listOwnCoins);
-        BOOST_FOREACH(const CZerocoinEntryV3 &ownCoinItem, listOwnCoins) {
-            if (zcSelectedValue == ownCoinItem.value) {
-                pubCoinTx.id = ownCoinItem.id;
-                pubCoinTx.IsUsed = false; // having error, so set to false, to be able to use again
-                pubCoinTx.value = ownCoinItem.value;
-                pubCoinTx.nHeight = ownCoinItem.nHeight;
-                pubCoinTx.randomness = ownCoinItem.randomness;
-                pubCoinTx.serialNumber = ownCoinItem.serialNumber;
-                pubCoinTx.set_denomination_value(ownCoinItem.get_denomination_value());
-                pubCoinTx.ecdsaSecretKey = ownCoinItem.ecdsaSecretKey;
-                CWalletDB(strWalletFile).WriteZerocoinEntry(pubCoinTx);
-                LogPrintf("SpendZerocoin failed, re-updated status -> NotifyZerocoinChanged\n");
-                LogPrintf("pubcoin=%s, isUsed=New\n", ownCoinItem.value.GetHex());
-                pwalletMain->NotifyZerocoinChanged(pwalletMain, ownCoinItem.value.GetHex(), "New", CT_UPDATED);
-            }
-        }
+        //reset mint
+        uint256 hashPubcoin = GetPubCoinValueHash(zcSelectedValue);
+        pwalletMain->zerocoinTracker->SetPubcoinNotUsed(hashPubcoin);
+        pwalletMain->NotifyZerocoinChanged(pwalletMain, zcSelectedValue.GetHex(), "New", CT_UPDATED);
+
         CZerocoinSpendEntryV3 entry;
         entry.coinSerial = coinSerial;
         entry.hashTx = txHash;
@@ -6112,6 +6096,18 @@ string CWallet::SpendZerocoinV3(
         }
         return _(
                 "Error: The transaction was rejected! This might happen if some of the coins in your wallet were already spent, such as if you used a copy of wallet.dat and coins were spent in the copy but not marked as spent here.");
+    }
+
+    //Set spent mint as used
+    uint256 txidSpend = wtxNew.GetHash();
+
+    uint256 hashPubcoin = GetPubCoinValueHash(zcSelectedValue);
+    pwalletMain->zerocoinTracker->SetPubcoinUsed(hashPubcoin, txidSpend);
+
+    CMintMeta metaCheck = pwalletMain->zerocoinTracker->GetMetaFromPubcoin(hashPubcoin);
+    if (!metaCheck.isUsed) {
+        strError = "Error, mint with pubcoin hash " + hashPubcoin.GetHex() + " did not get marked as used";
+        LogPrintf("SpendZerocoin() : %s\n", strError.c_str());
     }
 
     // Update the count in the database (no effect if no new coins are minted)
@@ -7213,7 +7209,7 @@ bool CWallet::InitLoadWallet() {
     LogPrintf(" wallet      %15dms\n", GetTimeMillis() - nStart);
     zwalletMain = new CZerocoinWallet(pwalletMain->strWalletFile);
     walletInstance->setZWallet(zwalletMain);
-    
+
     RegisterValidationInterface(walletInstance);
 
     CBlockIndex *pindexRescan = chainActive.Tip();
