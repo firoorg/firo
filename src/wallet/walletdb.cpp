@@ -230,7 +230,15 @@ bool CWalletDB::WriteCoinSpendSerialEntry(const CZerocoinSpendEntry &zerocoinSpe
 }
 
 bool CWalletDB::WriteCoinSpendSerialEntry(const CZerocoinSpendEntryV3 &zerocoinSpend) {
-    return Write(make_pair(string("zcserial_sigma"), zerocoinSpend.coinSerial), zerocoinSpend, true);
+    return Write(std::make_pair(std::string("sigma_spend"), zerocoinSpend.coinSerial), zerocoinSpend, true);
+}
+
+bool CWalletDB::HasCoinSpendSerialEntry(const Bignum& serial) {
+    return Exists(std::make_pair(std::string("zcserial"), serial));
+}
+
+bool CWalletDB::HasCoinSpendSerialEntry(const secp_primitives::Scalar& serial) {
+    return Exists(std::make_pair(std::string("sigma_spend"), serial));
 }
 
 bool CWalletDB::EraseCoinSpendSerialEntry(const CZerocoinSpendEntry &zerocoinSpend) {
@@ -238,7 +246,7 @@ bool CWalletDB::EraseCoinSpendSerialEntry(const CZerocoinSpendEntry &zerocoinSpe
 }
 
 bool CWalletDB::EraseCoinSpendSerialEntry(const CZerocoinSpendEntryV3 &zerocoinSpend) {
-    return Erase(make_pair(string("zcserial_sigma"), zerocoinSpend.coinSerial));
+    return Erase(std::make_pair(std::string("sigma_spend"), zerocoinSpend.coinSerial));
 }
 
 bool
@@ -263,11 +271,27 @@ bool CWalletDB::WriteZerocoinEntry(const CZerocoinEntry &zerocoin) {
 }
 
 bool CWalletDB::WriteZerocoinEntry(const CZerocoinEntryV3 &zerocoin) {
-    return Write(make_pair(string("zerocoin_sigma"), zerocoin.value), zerocoin, true);
+    return Write(std::make_pair(std::string("sigma_mint"), zerocoin.value), zerocoin, true);
+}
+
+bool CWalletDB::ReadZerocoinEntry(const Bignum& pub, CZerocoinEntry& entry) {
+    return Read(std::make_pair(std::string("zerocoin"), pub), entry);
+}
+
+bool CWalletDB::ReadZerocoinEntry(const secp_primitives::GroupElement& pub, CZerocoinEntryV3& entry) {
+    return Read(std::make_pair(std::string("sigma_mint"), pub), entry);
+}
+
+bool CWalletDB::HasZerocoinEntry(const Bignum& pub) {
+    return Exists(std::make_pair(std::string("zerocoin"), pub));
+}
+
+bool CWalletDB::HasZerocoinEntry(const secp_primitives::GroupElement& pub) {
+    return Exists(std::make_pair(std::string("sigma_mint"), pub));
 }
 
 bool CWalletDB::EraseZerocoinEntry(const CZerocoinEntryV3 &zerocoin) {
-    return Erase(make_pair(string("zerocoin_sigma"), zerocoin.value));
+    return Erase(std::make_pair(std::string("sigma_mint"), zerocoin.value));
 }
 
 bool CWalletDB::EraseZerocoinEntry(const CZerocoinEntry &zerocoin) {
@@ -326,7 +350,7 @@ void CWalletDB::ListPubCoinV3(std::list <CZerocoinEntryV3> &listPubCoin) {
         // Read next record
         CDataStream ssKey(SER_DISK, CLIENT_VERSION);
         if (fFlags == DB_SET_RANGE)
-            ssKey << make_pair(string("zerocoin_sigma"), GroupElement());
+            ssKey << std::make_pair(std::string("sigma_mint"), secp_primitives::GroupElement());
         CDataStream ssValue(SER_DISK, CLIENT_VERSION);
         int ret = ReadAtCursor(pcursor, ssKey, ssValue, fFlags);
         fFlags = DB_NEXT;
@@ -339,7 +363,7 @@ void CWalletDB::ListPubCoinV3(std::list <CZerocoinEntryV3> &listPubCoin) {
         // Unserialize
         string strType;
         ssKey >> strType;
-        if (strType != "zerocoin_sigma")
+        if (strType != "sigma_mint")
             break;
         GroupElement value;
         ssKey >> value;
@@ -394,7 +418,7 @@ void CWalletDB::ListCoinSpendSerial(std::list <CZerocoinSpendEntryV3> &listCoinS
         // Read next record
         CDataStream ssKey(SER_DISK, CLIENT_VERSION);
         if (fFlags == DB_SET_RANGE)
-            ssKey << make_pair(string("zcserial_sigma"), GroupElement());
+            ssKey << std::make_pair(std::string("sigma_spend"), secp_primitives::GroupElement());
         CDataStream ssValue(SER_DISK, CLIENT_VERSION);
         int ret = ReadAtCursor(pcursor, ssKey, ssValue, fFlags);
         fFlags = DB_NEXT;
@@ -408,7 +432,7 @@ void CWalletDB::ListCoinSpendSerial(std::list <CZerocoinSpendEntryV3> &listCoinS
         // Unserialize
         string strType;
         ssKey >> strType;
-        if (strType != "zcserial_sigma")
+        if (strType != "sigma_spend")
             break;
         Scalar value;
         ssKey >> value;

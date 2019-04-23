@@ -21,7 +21,7 @@ public:
 
 private:
     GroupElement g_;
-    zcoin_common::GeneratorVector<Exponent, GroupElement> h_;
+    std::vector<GroupElement> h_;
     int n_;
     int m_;
 };

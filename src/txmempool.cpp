@@ -304,7 +304,7 @@ void CTxMemPool::UpdateForRemoveFromMempool(const setEntries &entriesToRemove, b
         // should be a bit faster.
         // However, if we happen to be in the middle of processing a reorg, then
         // the mempool can be in an inconsistent state.  In this case, the set
-        // of ancestors reachable via mapLinks will be the same as the set of 
+        // of ancestors reachable via mapLinks will be the same as the set of
         // ancestors whose packages include this transaction, because when we
         // add a new transaction to the mempool in addUnchecked(), we assume it
         // has no children, and in the case of a reorg where that assumption is
@@ -508,6 +508,10 @@ void CTxMemPool::addAddressIndex(const CTxMemPoolEntry &entry, const CCoinsViewC
     uint256 txhash = tx.GetHash();
     for (unsigned int j = 0; j < tx.vin.size(); j++) {
         const CTxIn input = tx.vin[j];
+        if (input.IsZerocoinSpendV3()) {
+            continue;
+        }
+
         const CTxOut &prevout = view.GetOutputFor(input);
         if (prevout.scriptPubKey.IsPayToScriptHash()) {
             vector<unsigned char> hashBytes(prevout.scriptPubKey.begin()+2, prevout.scriptPubKey.begin()+22);
@@ -583,6 +587,10 @@ void CTxMemPool::addSpentIndex(const CTxMemPoolEntry &entry, const CCoinsViewCac
     uint256 txhash = tx.GetHash();
     for (unsigned int j = 0; j < tx.vin.size(); j++) {
         const CTxIn input = tx.vin[j];
+        if (input.IsZerocoinSpendV3()) {
+            continue;
+        }
+
         const CTxOut &prevout = view.GetOutputFor(input);
         uint160 addressHash;
         AddressType addressType;

@@ -27,7 +27,6 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_numinputs)
 {
     vector<string> denominationsForTx;
     vector<uint256> vtxid;
-    std::vector<CMutableTransaction> MinTxns;
     string thirdPartyAddress;
     int previousHeight;
     CBlock b;
@@ -39,6 +38,9 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_numinputs)
     int denominationIndexB = (denominationIndexA + 5) %4; //guarantees a different number in the range
 
     CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
+
+    // Create 400-200+1 = 201 new empty blocks. // consensus.nMintV3SigmaStartBlock = 400
+    CreateAndProcessEmptyBlocks(201, scriptPubKey);
 
     pwalletMain->SetBroadcastTransactions(true);
 
@@ -59,13 +61,12 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_numinputs)
 
     // add block
     previousHeight = chainActive.Height();
-    b = CreateAndProcessBlock(MinTxns, scriptPubKey);
+    b = CreateAndProcessBlock({}, scriptPubKey);
     wtx.Init(NULL);
     //Add 5 more blocks
     for (int i = 0; i < 5; i++)
     {
-        std::vector<CMutableTransaction> noTxns;
-        b = CreateAndProcessBlock(noTxns, scriptPubKey);
+        b = CreateAndProcessBlock({}, scriptPubKey);
         wtx.Init(NULL);
     }
 
@@ -86,13 +87,12 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_numinputs)
     BOOST_CHECK_MESSAGE(mempool.size() == 3, "Num input spends not added to mempool");
 
     // add block
-    b = CreateAndProcessBlock(MinTxns, scriptPubKey);
+    b = CreateAndProcessBlock({}, scriptPubKey);
     wtx.Init(NULL);
 
     BOOST_CHECK_MESSAGE(mempool.size() != 3 && mempool.size() == 1 && mempool.size() != 0, "Mempool not correctly cleared: Block spend limit not enforced.");
 
     vtxid.clear();
-    MinTxns.clear();
     mempool.clear();
     zerocoinState->Reset();
 }

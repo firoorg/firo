@@ -331,7 +331,7 @@ bool GroupElement::isMember() const
     return secp256k1_ge_is_valid_var(&v1);
 }
 
-void GroupElement::randomize(){
+void GroupElement::randomize() {
     unsigned char temp[32] = { 0 };
 
     do {
@@ -339,7 +339,7 @@ void GroupElement::randomize(){
             throw "Unable to generate random GroupElement";
         }
         generate(temp);
-    }while (!(this->isMember()));
+    } while (!(this->isMember()));
 }
 
 GroupElement& GroupElement::generate(unsigned char* seed){
@@ -544,6 +544,10 @@ std::size_t GroupElement::hash() const
     }
 
     return std::hash<std::string>()(std::string(coord.begin(), coord.end()));
+}
+
+const void* GroupElement::get_value() const {
+    return g_;
 }
 
 } // namespace secp_primitives

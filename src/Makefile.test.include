@@ -101,6 +101,7 @@ BITCOIN_TESTS =\
   test/sighash_tests.cpp \
   test/sigma_state_tests.cpp \
   test/sigma_mintspend_test.cpp \
+  test/sigma_transition_test.cpp \
   test/sigma_manymintspend_test.cpp \
   test/sigma_mintspend_numinputs.cpp \
   test/sigma_partialspend_mempool_tests.cpp \
@@ -117,7 +118,8 @@ BITCOIN_TESTS =\
   test/txvalidationcache_tests.cpp \
   test/uint256_tests.cpp \
   test/univalue_tests.cpp \
-  test/util_tests.cpp
+  test/util_tests.cpp \
+  test/multiexponentation_test.cpp
 
 if ENABLE_WALLET
 BITCOIN_TESTS += \

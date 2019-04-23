@@ -26,6 +26,7 @@ static bool addToMempool(const CWalletTx& tx) {
     CValidationState state;
     bool fMissingInputs;
     CAmount nMaxRawTxFee = maxTxFee;
+    LOCK(cs_main);
     return AcceptToMemoryPool(mempool, state, tx, true, false, &fMissingInputs, true, false, nMaxRawTxFee);
 }
 
@@ -48,7 +49,6 @@ BOOST_AUTO_TEST_CASE(partialspend)
 
     CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
     std::vector<uint256> vtxid;
-    std::vector<CMutableTransaction> MinTxns;
     std::vector<std::string> denominations = {"0.1", "0.5", "1", "10", "100"};
 
     // Get smallest denomination value
@@ -56,6 +56,9 @@ BOOST_AUTO_TEST_CASE(partialspend)
     sigma::GetAllDenoms(denoms);
     CAmount smallestDenomAmount;
     sigma::DenominationToInteger(denoms.back(), smallestDenomAmount);
+
+    // Create 400-200+1 = 201 new empty blocks. // consensus.nMintV3SigmaStartBlock = 400
+    CreateAndProcessEmptyBlocks(201, scriptPubKey);
 
     // foreach denom from denominations
     for (const auto& denomination : denominations) {
@@ -81,7 +84,7 @@ BOOST_AUTO_TEST_CASE(partialspend)
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mint was not added to mempool");
 
         int previousHeight = chainActive.Height();
-        CBlock b = CreateAndProcessBlock(MinTxns, scriptPubKey);
+        CBlock b = CreateAndProcessBlock({}, scriptPubKey);
         BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
 
         // Verify Mint is mined
@@ -122,9 +125,7 @@ BOOST_AUTO_TEST_CASE(partialspend)
         // And verify spend got into mempool
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Spend was not added to mempool");
 
-        MinTxns.clear();
-
-        b = CreateBlock(MinTxns, scriptPubKey);
+        b = CreateBlock({}, scriptPubKey);
         previousHeight = chainActive.Height();
         BOOST_CHECK_MESSAGE(ProcessBlock(b), "ProcessBlock failed although valid spend inside");
         BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
@@ -136,9 +137,7 @@ BOOST_AUTO_TEST_CASE(partialspend)
         //Verify spend got into mempool
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Spend was not added to mempool");
 
-        MinTxns.clear();
-
-        b = CreateBlock(MinTxns, scriptPubKey);
+        b = CreateBlock({}, scriptPubKey);
         previousHeight = chainActive.Height();
         BOOST_CHECK_MESSAGE(ProcessBlock(b), "ProcessBlock failed although valid spend inside");
         BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
@@ -162,8 +161,7 @@ BOOST_AUTO_TEST_CASE(partialspend)
         zerocoinState->usedCoinSerials = tempSerials;
 
         // CreateBlock throw exception because invalid transaction is in mempool
-        MinTxns.clear();
-        BOOST_CHECK_EXCEPTION(CreateBlock(MinTxns, scriptPubKey), std::runtime_error, no_check);
+        BOOST_CHECK_EXCEPTION(CreateBlock({}, scriptPubKey), std::runtime_error, no_check);
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mempool not set");
 
         // Get all tx hashs from mempool
@@ -172,11 +170,10 @@ BOOST_AUTO_TEST_CASE(partialspend)
 
         // Add invalid tx too block manually
         // it will work be cause we remove serials from state and don't bring it back before create block like previous test
-        MinTxns.clear();
-        MinTxns.push_back(*mempool.get(vtxid.at(0)));
+        vtxid.resize(1);
         tempSerials = zerocoinState->usedCoinSerials;
         zerocoinState->usedCoinSerials.clear();
-        CreateBlock(MinTxns, scriptPubKey);
+        CreateBlock(vtxid, scriptPubKey);
 
         // Bring serials back
         zerocoinState->usedCoinSerials = tempSerials;
@@ -189,7 +186,6 @@ BOOST_AUTO_TEST_CASE(partialspend)
         BOOST_CHECK_MESSAGE(previousHeight == chainActive.Height(), "Double spend - Block added to chain even though same spend in previous block");
 
         vtxid.clear();
-        MinTxns.clear();
         mempool.clear();
         zerocoinState->Reset();
     }
@@ -211,7 +207,9 @@ BOOST_AUTO_TEST_CASE(partialspend_remint) {
     const CBitcoinAddress randomAddr2(newKey2.GetID());
 
     CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
-    std::vector<CMutableTransaction> MinTxns;
+
+    // Create 400-200+1 = 201 new empty blocks. // consensus.nMintV3SigmaStartBlock = 400
+    CreateAndProcessEmptyBlocks(201, scriptPubKey);
 
     CAmount denomAmount1;
     CAmount denomAmount01;
@@ -232,14 +230,15 @@ BOOST_AUTO_TEST_CASE(partialspend_remint) {
     BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mint was not added to mempool");
 
     int previousHeight = chainActive.Height();
-    CBlock b = CreateAndProcessBlock(MinTxns, scriptPubKey);
+    CBlock b = CreateAndProcessBlock({}, scriptPubKey);
     BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
 
     BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool was not cleared");
 
+    // Fees are expected to be less than 0.2 zcoin.
     std::vector<CRecipient> recipients = {
         {GetScriptForDestination(randomAddr1.Get()), denomAmount1 , false},
-        {GetScriptForDestination(randomAddr2.Get()), denomAmount1 - CENT - 2 * denomAmount01, false},
+        {GetScriptForDestination(randomAddr2.Get()), denomAmount1 - 4 * denomAmount01, false},
     };
 
     previousHeight = chainActive.Height();
@@ -257,7 +256,7 @@ BOOST_AUTO_TEST_CASE(partialspend_remint) {
     BOOST_CHECK_MESSAGE(mempool.size() == 1, "Spend was not added to mempool");
 
     previousHeight = chainActive.Height();
-    CreateAndProcessBlock(MinTxns, scriptPubKey);
+    CreateAndProcessBlock({}, scriptPubKey);
     BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
     BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool was not cleared");
 
@@ -275,7 +274,6 @@ BOOST_AUTO_TEST_CASE(partialspend_remint) {
     // Use remints
     BOOST_CHECK_NO_THROW(pwalletMain->SpendZerocoinV3(recipients, tx));
 
-    MinTxns.clear();
     mempool.clear();
     zerocoinState->Reset();
 }

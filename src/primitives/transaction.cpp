@@ -246,7 +246,7 @@ bool CTransaction::IsZerocoinMintV3() const
 
 bool CTransaction::IsZerocoinTransaction() const
 {
-    return IsZerocoinSpend() || IsZerocoinMint() || IsZerocoinSpendV3() || IsZerocoinMintV3();
+    return IsZerocoinSpend() || IsZerocoinMint();
 }
 
 bool CTransaction::IsZerocoinV3SigmaTransaction() const

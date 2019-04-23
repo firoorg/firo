@@ -284,6 +284,7 @@ public:
     char fFromMe;
     std::string strFromAccount;
     int64_t nOrderPos; //!< position in ordered transaction list
+    std::unordered_set<uint32_t> changes; //!< positions of changes in vout
 
     // memory only
     mutable bool fDebitCached;
@@ -354,19 +355,27 @@ public:
         nImmatureWatchCreditCached = 0;
         nChangeCached = 0;
         nOrderPos = -1;
+        changes.clear();
     }
 
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+        constexpr uint32_t FLAG_WITH_CHANGES = 0x00000001;
+
         if (ser_action.ForRead())
             Init(NULL);
+
         char fSpent = false;
+        uint32_t flags = 0;
 
         if (!ser_action.ForRead())
         {
+            flags = FLAG_WITH_CHANGES;
+
             mapValue["fromaccount"] = strFromAccount;
+            mapValue["flags"] = strprintf("0x%x", flags);
 
             WriteOrderPos(nOrderPos, mapValue);
 
@@ -391,6 +400,15 @@ public:
             ReadOrderPos(nOrderPos, mapValue);
 
             nTimeSmart = mapValue.count("timesmart") ? (unsigned int)atoi64(mapValue["timesmart"]) : 0;
+
+            auto it = mapValue.find("flags");
+            if (it != mapValue.end()) {
+                flags = static_cast<uint32_t>(std::strtoul(it->second.c_str(), nullptr, 0));
+            }
+        }
+
+        if (flags & FLAG_WITH_CHANGES) {
+            READWRITE(changes);
         }
 
         mapValue.erase("fromaccount");
@@ -398,6 +416,7 @@ public:
         mapValue.erase("spent");
         mapValue.erase("n");
         mapValue.erase("timesmart");
+        mapValue.erase("flags");
     }
 
     //! make sure balances are recalculated
@@ -446,6 +465,9 @@ public:
     bool InMempool() const;
     bool InStempool() const;
     bool IsTrusted() const;
+
+    bool IsChange(uint32_t out) const;
+    bool IsChange(const CTxOut& out) const;
 
     int64_t GetTxTime() const;
     int GetRequestCount() const;
@@ -1033,8 +1055,8 @@ public:
     CAmount GetDebit(const CTxIn& txin, const isminefilter& filter) const;
     isminetype IsMine(const CTxOut& txout) const;
     CAmount GetCredit(const CTxOut& txout, const isminefilter& filter) const;
-    bool IsChange(const CTxOut& txout) const;
-    CAmount GetChange(const CTxOut& txout) const;
+    bool IsChange(const uint256& tx, const CTxOut& txout) const;
+    CAmount GetChange(const uint256& tx, const CTxOut& txout) const;
     bool IsMine(const CTransaction& tx) const;
     /** should probably be renamed to IsRelevantToMe */
     bool IsFromMe(const CTransaction& tx) const;

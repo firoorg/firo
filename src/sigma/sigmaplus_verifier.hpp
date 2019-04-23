@@ -43,10 +43,9 @@ bool  SigmaPlusVerifier<Exponent, GroupElement>::verify(
         }
         f_i_.emplace_back(f_i);
     }
-    GroupElement t1;
-    const std::size_t window_size = 7;
-    zcoin_common::GeneratorVector<Exponent, GroupElement> c_(commits, window_size);
-    c_.get_vector_multiple(f_i_, t1);
+
+    secp_primitives::MultiExponent mult(commits, f_i_);
+    GroupElement t1 = mult.get_multiple();
     GroupElement t2;
     Exponent x = r1ProofVerifier.x_;
     Exponent x_k(uint64_t(1));
@@ -56,7 +55,7 @@ bool  SigmaPlusVerifier<Exponent, GroupElement>::verify(
     }
 
     GroupElement left(t1 + t2);
-    if(left != SigmaPrimitives<Exponent, GroupElement>::commit(g_, Exponent(uint64_t(0)), h_.get_g(0), proof.z_))
+    if(left != SigmaPrimitives<Exponent, GroupElement>::commit(g_, Exponent(uint64_t(0)), h_[0], proof.z_))
         return false;
 
     return true;
