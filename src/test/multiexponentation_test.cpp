@@ -6,7 +6,7 @@
 
 BOOST_AUTO_TEST_CASE(multiexponentation_test)
 {
-    std::vector<int> sizes = {10, 100, 1000, 5000};
+    std::vector<int> sizes = {1, 4, 20, 57,136, 235, 1260, 4420, 7880, 16050, 10, 100, 1000, 5000};
 
     for(unsigned int j = 0; j < sizes.size(); ++j){
         int size = sizes[j];
