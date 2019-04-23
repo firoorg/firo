@@ -69,6 +69,6 @@ private:
 
 } // namespace lelantus
 
-#include "InnerProductProoveGenerator.hpp"
+#include "InnerProductProofGenerator.hpp"
 
 #endif //ZCOIN_INNERP_RODUCT_PROOF_GENERATOR_H

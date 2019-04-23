@@ -1,7 +1,7 @@
 #ifndef ZCOIN_RANGEPROVER_H
 #define ZCOIN_RANGEPROVER_H
 
-#include "InnerProductProoveGenerator.h"
+#include "InnerProductProofGenerator.h"
 
 namespace lelantus {
 
