@@ -1,0 +1,42 @@
+path_classifiers:
+  docs:
+    - "exclude: /"
+    - "ZNODE.md"
+  generated:
+    - "exclude: /"
+    - "src/qt/moc_*.cpp"
+  library:
+    - "exclude: /"
+    - "src/tor"
+  template:
+    - "exclude: /"
+    - "qa/pull-tester/run-bitcoind-for-test.sh.in"
+  test:
+    - "exclude: /"
+    - "src/test/*_tests.cpp"
+extraction:
+  cpp:
+    prepare:
+      packages:
+        - bsdmainutils
+        - libboost-all-dev
+        - libbz2-dev
+        - libcap-dev
+        - libdb5.3-dev
+        - libdb5.3++-dev
+        - libevent-dev
+        - libminiupnpc-dev
+        - libprotobuf-dev
+        - libqrencode-dev
+        - libssl-dev
+        - libzmq3-dev
+        - protobuf-compiler
+        - qtbase5-dev
+        - qttools5-dev-tools
+    configure:
+      command:
+        - ./autogen.sh
+        - ./configure --with-incompatible-bdb
+    index:
+      build_command:
+        - make
