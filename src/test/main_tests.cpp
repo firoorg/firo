@@ -17,43 +17,57 @@ static void TestBlockSubsidyHalvings(const Consensus::Params& consensusParams)
     int maxHalvings = 64;
     CAmount nInitialSubsidy = 50 * COIN;
 
-    CAmount nPreviousSubsidy = nInitialSubsidy * 2; // for height == 0
-    BOOST_CHECK_EQUAL(nPreviousSubsidy, nInitialSubsidy * 2);
-    for (int nHalvings = 0; nHalvings < maxHalvings; nHalvings++) {
-        int nHeight = nHalvings * consensusParams.nSubsidyHalvingInterval;
-        CAmount nSubsidy = GetBlockSubsidy(nHeight, consensusParams, 1475020800);
-        BOOST_CHECK(nSubsidy <= nInitialSubsidy);
-        BOOST_CHECK_EQUAL(nSubsidy, nPreviousSubsidy / 2);
-        nPreviousSubsidy = nSubsidy;
-    }
-    BOOST_CHECK_EQUAL(GetBlockSubsidy(maxHalvings * consensusParams.nSubsidyHalvingInterval, consensusParams), 0);
-}
+    BOOST_CHECK_EQUAL(GetBlockSubsidy(1, consensusParams, consensusParams.nMTPSwitchTime-1000), nInitialSubsidy);
+    nInitialSubsidy /= consensusParams.nMTPRewardReduction;
+    BOOST_CHECK_EQUAL(GetBlockSubsidy(2, consensusParams, consensusParams.nMTPSwitchTime), nInitialSubsidy);
 
-static void TestBlockSubsidyHalvings(int nSubsidyHalvingInterval)
-{
-    Consensus::Params consensusParams;
-    consensusParams.nSubsidyHalvingInterval = nSubsidyHalvingInterval;
-    TestBlockSubsidyHalvings(consensusParams);
+    CAmount nPreviousSubsidy = nInitialSubsidy;
+    for (int nHalvings = 1; nHalvings < maxHalvings; nHalvings++) {
+        int nHeight = consensusParams.nSubsidyHalvingFirst + (nHalvings-1) * consensusParams.nSubsidyHalvingInterval;
+        if (nHeight >= consensusParams.nSubsidyHalvingStopBlock)
+            break;
+        CAmount nSubsidy = GetBlockSubsidy(nHeight, consensusParams, consensusParams.nMTPSwitchTime);
+        BOOST_CHECK(nSubsidy <= nInitialSubsidy);
+        if(nHeight > 0)
+            BOOST_CHECK_EQUAL(nSubsidy, nPreviousSubsidy / 2);
+        nPreviousSubsidy = nPreviousSubsidy / 2;
+    }
+    BOOST_CHECK_EQUAL(GetBlockSubsidy(consensusParams.nSubsidyHalvingStopBlock, consensusParams), 0);
 }
 
 BOOST_AUTO_TEST_CASE(block_subsidy_test)
 {
     TestBlockSubsidyHalvings(Params(CBaseChainParams::MAIN).GetConsensus()); // As in main
-    TestBlockSubsidyHalvings(150); // As in regtest
-    TestBlockSubsidyHalvings(1000); // Just another interval
+    //TestBlockSubsidyHalvings(1000); // Just another interval
 }
 
 BOOST_AUTO_TEST_CASE(subsidy_limit_test)
 {
-    const Consensus::Params& consensusParams = Params(CBaseChainParams::MAIN).GetConsensus();
+    Consensus::Params consensusParams = Params(CBaseChainParams::MAIN).GetConsensus();
     CAmount nSum = 0;
-    for (int nHeight = 0; nHeight < 14000000; nHeight += 1000) {
-        CAmount nSubsidy = GetBlockSubsidy(nHeight, consensusParams);
+    const int nMTPFirstBlock = 117564;
+    int lastHalving = (consensusParams.nSubsidyHalvingStopBlock - consensusParams.nSubsidyHalvingFirst)/consensusParams.nSubsidyHalvingInterval;
+    int lastHalvingBlock = consensusParams.nSubsidyHalvingFirst + lastHalving*consensusParams.nSubsidyHalvingInterval;
+
+    int step = 1;
+
+    for(int nHeight = 0; nHeight < 14000000; nHeight += step)
+    {
+        if (nHeight == consensusParams.nSubsidyHalvingFirst)
+            step = 1000;
+        else if (nHeight == lastHalvingBlock)
+            step = 1;
+        else if (nHeight == consensusParams.nSubsidyHalvingStopBlock)
+            step = 10000;
+
+        CAmount nSubsidy = GetBlockSubsidy(nHeight, consensusParams, nHeight<nMTPFirstBlock ? consensusParams.nMTPSwitchTime-1000 : consensusParams.nMTPSwitchTime);
+        if (nHeight == 0)
+            nSubsidy = 50*COIN;
         BOOST_CHECK(nSubsidy <= 50 * COIN);
-        nSum += nSubsidy * 1000;
+        nSum += nSubsidy * step;
         BOOST_CHECK(MoneyRange(nSum));
     }
-    BOOST_CHECK_EQUAL(nSum, 2099999997690000ULL);
+    BOOST_CHECK_EQUAL(nSum, 2095751201171875ULL);
 }
 
 bool ReturnFalse() { return false; }

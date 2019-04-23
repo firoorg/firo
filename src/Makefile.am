@@ -61,6 +61,8 @@ LIBBITCOIN_CRYPTO=crypto/libbitcoin_crypto.a
 LIBBITCOINQT=qt/libzcoinqt.a
 LIBSECP256K1=secp256k1/libsecp256k1.la
 
+LIBZCOIN_SIGMA=libsigma.a
+
 if ENABLE_ZMQ
 LIBBITCOIN_ZMQ=libbitcoin_zmq.a
 endif
@@ -87,7 +89,8 @@ EXTRA_LIBRARIES += \
   $(LIBBITCOIN_SERVER) \
   $(LIBBITCOIN_CLI) \
   $(LIBBITCOIN_WALLET) \
-  $(LIBBITCOIN_ZMQ)
+  $(LIBBITCOIN_ZMQ) \
+  $(LIBZCOIN_SIGMA)
 
 lib_LTLIBRARIES = $(LIBBITCOINCONSENSUS)
 
@@ -108,6 +111,8 @@ endif
 # bitcoin core #
 BITCOIN_CORE_H = \
   activeznode.h \
+  addressindex.h \
+  spentindex.h \
   addrman.h \
   base58.h \
   bloom.h \
@@ -140,6 +145,7 @@ BITCOIN_CORE_H = \
   keystore.h \
   dbwrapper.h \
   limitedmap.h \
+  threadinterrupt.h \
   main.h \
   znode.h \
   znode-payments.h \
@@ -192,22 +198,23 @@ BITCOIN_CORE_H = \
   wallet/crypter.h \
   wallet/db.h \
   wallet/rpcwallet.h \
+  wallet/sigmaspendbuilder.h \
+  wallet/txbuilder.h \
   wallet/wallet.h \
+  wallet/walletexcept.h \
   wallet/walletdb.h \
+  wallet/authhelper.h \
   definition.h \
   zmq/zmqabstractnotifier.h \
   zmq/zmqconfig.h\
   zmq/zmqnotificationinterface.h \
   zmq/zmqpublishnotifier.h \
   zerocoin.h \
+  zerocoin_v3.h \
+  hash_functions.h \
   zerocoin_params.h \
-	sigma/GKEllipticCurve.hpp \
-	sigma/GKGroups.hpp \
-	sigma/GKInteger.hpp \
-	sigma/GKNumbers.hpp \
-	sigma/GKSchema.hpp \
-	sigma/GKZerocoin.hpp \
-	sigma/GKDebug.hpp
+  addresstype.h \
+  mtpstate.h
 
 obj/build.h: FORCE
 	@$(MKDIR_P) $(builddir)/obj
@@ -228,6 +235,7 @@ libbitcoin_server_a_SOURCES = \
   httpserver.cpp \
   init.cpp \
   dbwrapper.cpp \
+  threadinterrupt.cpp \
   main.cpp \
   merkleblock.cpp \
   miner.cpp \
@@ -256,11 +264,10 @@ libbitcoin_server_a_SOURCES = \
   validationinterface.cpp \
   versionbits.cpp \
   zerocoin.cpp \
-	sigma/GKEllipticCurve.cpp \
-	sigma/GKGroups.cpp \
-	sigma/GKNumbers.cpp \
-	sigma/GKDebug.cpp \
-	$(BITCOIN_CORE_H)
+  zerocoin_v3.cpp \
+  hash_functions.cpp \
+  mtpstate.cpp \
+  $(BITCOIN_CORE_H)
 
 if ENABLE_ZMQ
 libbitcoin_zmq_a_CPPFLAGS = $(BITCOIN_INCLUDES) $(ZMQ_CFLAGS)
@@ -285,12 +292,17 @@ libbitcoin_wallet_a_SOURCES = \
   znode-sync.cpp \
   znodeconfig.cpp \
   znodeman.cpp \
+  zerocoin_v3.cpp \
   wallet/crypter.cpp \
   wallet/db.cpp \
   wallet/rpcdump.cpp \
   wallet/rpcwallet.cpp \
+  wallet/sigmaspendbuilder.cpp \
+  wallet/txbuilder.cpp \
+  wallet/walletexcept.cpp \
   wallet/wallet.cpp \
   wallet/walletdb.cpp \
+  wallet/authhelper.cpp \
   policy/rbf.cpp \
   $(BITCOIN_CORE_H)
 
@@ -301,6 +313,8 @@ crypto_libbitcoin_crypto_a_SOURCES = \
   crypto/aes.cpp \
   crypto/aes.h \
   crypto/common.h \
+  crypto/chacha20.h \
+  crypto/chacha20.cpp \
   crypto/hmac_sha256.cpp \
   crypto/hmac_sha256.h \
   crypto/hmac_sha512.cpp \
@@ -360,7 +374,21 @@ libbitcoin_consensus_a_SOURCES = \
   crypto/Lyra2Z/sph_blake.h \
   crypto/Lyra2Z/sph_types.h \
   crypto/Lyra2Z/Sponge.c \
-  crypto/Lyra2Z/Sponge.h
+  crypto/Lyra2Z/Sponge.h \
+  crypto/MerkleTreeProof/mtp.h \
+  crypto/MerkleTreeProof/argon2.h \
+  crypto/MerkleTreeProof/thread.h \
+  crypto/MerkleTreeProof/merkle-tree.hpp \
+  crypto/MerkleTreeProof/core.h \
+  crypto/MerkleTreeProof/ref.h \
+  crypto/MerkleTreeProof/blake2/blake2.h \
+  crypto/MerkleTreeProof/blake2/blamka-round-opt.h \
+  crypto/MerkleTreeProof/blake2/blake2-impl.h \
+  crypto/MerkleTreeProof/blake2/blamka-round-ref.h \
+  crypto/MerkleTreeProof/thread.c \
+  crypto/MerkleTreeProof/core.c \
+  crypto/MerkleTreeProof/ref.c \
+  crypto/MerkleTreeProof/blake2/blake2b.c
 
 # common: shared between zcoind, and zcoin-qt and non-server tools
 libbitcoin_common_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
@@ -432,12 +460,13 @@ libbitcoin_util_a_SOURCES = \
   libzerocoin/SpendMetaData.h \
   libzerocoin/SpendMetaData.cpp \
   libzerocoin/Zerocoin.h \
+  crypto/MerkleTreeProof/mtp.cpp \
+  crypto/MerkleTreeProof/merkle-tree.cpp \
   $(BITCOIN_CORE_H)
 
 liblelantus_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 liblelantus_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 liblelantus_a_SOURCES = \
-  common/GeneratorVector.h \
   liblelantus/LelantusPrimitives.h \
   liblelantus/LelantusProof \
   liblelantus/LelantusProver.h \
@@ -461,6 +490,30 @@ liblelantus_a_SOURCES = \
   liblelantus/Params.h \
   liblelantus/Params.cpp
 
+libsigma_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) -Werror
+libsigma_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS) -Werror
+libsigma_a_SOURCES = \
+  sigma/r1_proof.h \
+  sigma/r1_proof_generator.h \
+  sigma/r1_proof_generator.hpp \
+  sigma/r1_proof_verifier.h \
+  sigma/r1_proof_verifier.hpp \
+  sigma/sigmaplus_proof.h \
+  sigma/sigmaplus_prover.h \
+  sigma/sigmaplus_prover.hpp \
+  sigma/sigmaplus_verifier.h \
+  sigma/sigmaplus_verifier.hpp \
+  sigma/sigma_primitives.h \
+  sigma/sigma_primitives.hpp \
+  sigma/coin.h \
+  sigma/coin.cpp \
+  sigma/coinspend.cpp \
+  sigma/coinspend.h \
+  sigma/spend_metadata.cpp \
+  sigma/spend_metadata.h \
+  sigma/params.h \
+  sigma/params.cpp \
+  sigma/openssl_context.h
 
 if GLIBC_BACK_COMPAT
 libbitcoin_util_a_SOURCES += compat/glibc_compat.cpp
@@ -492,12 +545,14 @@ zcoind_LDADD = \
   $(LIBUNIVALUE) \
   $(LIBBITCOIN_UTIL) \
   $(LIBBITCOIN_WALLET) \
+  $(LIBZCOIN_SIGMA) \
   $(LIBBITCOIN_ZMQ) \
   $(LIBBITCOIN_CONSENSUS) \
   $(LIBBITCOIN_CRYPTO) \
   $(LIBLEVELDB) \
   $(LIBMEMENV) \
   $(LIBSECP256K1)
+
 
 
 zcoind_LDADD += $(TOR_LIBS) $(BOOST_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS) -lz
@@ -627,5 +682,9 @@ include Makefile.qt.include
 endif
 
 if ENABLE_TESTS
-include Makefile.gtest.include
+include Makefile.test.include
 endif
+
+# Exodus
+include Makefile.exodus.include
+#

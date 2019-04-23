@@ -2,10 +2,10 @@ dnl require autoconf 2.60 (AS_ECHO/AS_ECHO_N)
 AC_PREREQ([2.60])
 define(_CLIENT_VERSION_MAJOR, 0)
 define(_CLIENT_VERSION_MINOR, 13)
-define(_CLIENT_VERSION_REVISION, 5)
-define(_CLIENT_VERSION_BUILD, 6)
+define(_CLIENT_VERSION_REVISION, 8)
+define(_CLIENT_VERSION_BUILD, 1)
 define(_CLIENT_VERSION_IS_RELEASE, true)
-define(_COPYRIGHT_YEAR, 2018)
+define(_COPYRIGHT_YEAR, 2019)
 define(_COPYRIGHT_HOLDERS,[The %s developers])
 define(_COPYRIGHT_HOLDERS_SUBSTITUTION,[[Zcoin Core]])
 AC_INIT([Zcoin Core],[_CLIENT_VERSION_MAJOR._CLIENT_VERSION_MINOR._CLIENT_VERSION_REVISION],[https://github.com/zcoinofficial/zcoin/issues],[zcoin],[https://zcoin.io/])
@@ -92,11 +92,7 @@ AC_PATH_TOOL(OBJCOPY, objcopy)
 AC_ARG_VAR(PYTHONPATH, Augments the default search path for python module files)
 
 # Enable wallet
-AC_ARG_ENABLE([wallet],
-  [AS_HELP_STRING([--disable-wallet],
-  [disable wallet (enabled by default)])],
-  [enable_wallet=$enableval],
-  [enable_wallet=yes])
+enable_wallet=yes
 
 AC_ARG_WITH([miniupnpc],
   [AS_HELP_STRING([--with-miniupnpc],
@@ -110,10 +106,17 @@ AC_ARG_ENABLE([upnp-default],
   [use_upnp_default=$enableval],
   [use_upnp_default=no])
 
+zusetests=no
+case $host in
+  *linux*)
+     zusetests=yes
+  ;;
+esac
+
 AC_ARG_ENABLE(tests,
     AS_HELP_STRING([--disable-tests],[do not compile tests (default is to compile)]),
     [use_tests=$enableval],
-    [use_tests=yes])
+    [use_tests=$zusetests])
 
 AC_ARG_ENABLE(gui-tests,
     AS_HELP_STRING([--disable-gui-tests],[do not compile GUI tests (default is to compile if GUI and tests enabled)]),
@@ -197,11 +200,11 @@ AC_ARG_ENABLE([debug],
     [enable_debug=$enableval],
     [enable_debug=no])
 
+AC_ARG_ENABLE(seccomp,
+    AS_HELP_STRING(--disable-seccomp, [do not attempt to use libseccomp]))
+
 AC_LANG_PUSH([C++])
 AX_CHECK_COMPILE_FLAG([-Werror],[CXXFLAG_WERROR="-Werror"],[CXXFLAG_WERROR=""])
-
-AC_CHECK_LIB(gmp, __gmpz_init, ,
-  [AC_MSG_ERROR([GNU MP not found, see https://gmplib.org/])])
 
 if test "x$enable_debug" = xyes; then
     CPPFLAGS="$CPPFLAGS -DDEBUG -DDEBUG_LOCKORDER"
@@ -219,6 +222,7 @@ if test "x$CXXFLAGS_overridden" = "xno"; then
   AX_CHECK_COMPILE_FLAG([-Wextra],[CXXFLAGS="$CXXFLAGS -Wextra"],,[[$CXXFLAG_WERROR]])
   AX_CHECK_COMPILE_FLAG([-Wformat],[CXXFLAGS="$CXXFLAGS -Wformat"],,[[$CXXFLAG_WERROR]])
   AX_CHECK_COMPILE_FLAG([-Wformat-security],[CXXFLAGS="$CXXFLAGS -Wformat-security"],,[[$CXXFLAG_WERROR]])
+  AX_CHECK_COMPILE_FLAG([-Wno-implicit-fallthrough],[CXXFLAGS="$CXXFLAGS -Wno-implicit-fallthrough"],,[[$CXXFLAG_WERROR]])
 
   ## Some compilers (gcc) ignore unknown -Wno-* options, but warn about all
   ## unknown options if any other warning is produced. Test the -Wfoo case, and
@@ -247,6 +251,16 @@ AC_ARG_WITH([daemon],
   [build bitcoind daemon (default=yes)])],
   [build_bitcoind=$withval],
   [build_bitcoind=yes])
+
+AC_ARG_ENABLE(unsafe-dumpprivkey,
+    [],
+    [unsafe_dumpprivkey=x$enableval],
+    [unsafe_dumpprivkey=xno])
+
+
+AS_IF([test "x$enable_unsafe_dumpprivkey" != "xno"], [
+    CPPFLAGS="$CPPFLAGS -DUNSAFE_DUMPPRIVKEY"
+])
 
 use_pkgconfig=yes
 case $host in
@@ -891,6 +905,20 @@ fi
 
 fi
 
+dnl ============================================================
+dnl Check for libseccomp
+
+if test "x$enable_seccomp" != "xno"; then
+  AC_CHECK_HEADERS([seccomp.h])
+  AC_SEARCH_LIBS(seccomp_init, [seccomp])
+fi
+
+dnl ============================================================
+dnl Check for libcap
+
+AC_CHECK_HEADERS([sys/capability.h])
+AC_SEARCH_LIBS(cap_get_proc, [cap])
+
 ac_configure_args="${ac_configure_args} --disable-shared"
 
 AM_CONDITIONAL([EMBEDDED_UNIVALUE],[test x$need_bundled_univalue = xyes])
@@ -1131,7 +1159,7 @@ if test x$need_bundled_univalue = xyes; then
 fi
 
 AX_SUBDIRS_CONFIGURE([src/secp256k1], [[--disable-shared], [--with-pic], [--with-bignum=no], [--enable-module-recovery], [--enable-experimental], [--enable-module-ecdh]])
-AX_SUBDIRS_CONFIGURE([src/tor], [[--disable-unittests], [--disable-system-torrc], [--disable-systemd], [--disable-lzma], [--disable-asciidoc], [--with-openssl-dir=$($PKG_CONFIG --variable=libdir openssl)], [CFLAGS=$($PKG_CONFIG --cflags openssl) -O2]])
+AX_SUBDIRS_CONFIGURE([src/tor], [[--disable-unittests], [--disable-system-torrc], [--disable-systemd], [--disable-lzma], [--disable-zstd], [--disable-asciidoc]])
 
 
 AC_OUTPUT

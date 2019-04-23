@@ -9,6 +9,7 @@
 
 #include "base58.h"
 #include "wallet/wallet.h"
+#include "main.h"
 
 #include <boost/foreach.hpp>
 
@@ -104,12 +105,14 @@ public:
             {
                 if(item.randomness != 0 && item.serialNumber != 0){
                     const std::string& pubCoin = item.value.GetHex();
-                    const std::string& isUsed = item.IsUsed ? "Used" : "New";
+                    // const std::string& isUsed = item.IsUsed ? "Used" : "New";
+                    const std::string& isUsedDenomStr = item.IsUsed
+                            ? "Used (" + std::to_string(item.denomination) + " mint)"
+                            : "New (" + std::to_string(item.denomination) + " mint)";
                     cachedAddressTable.append(AddressTableEntry(AddressTableEntry::Zerocoin,
-                                                                QString::fromStdString(isUsed),
+                                                                QString::fromStdString(isUsedDenomStr),
                                                                 QString::fromStdString(pubCoin)));
                 }
-
             }
         }
         // qLowerBound() and qUpperBound() require our cachedAddressTable list to be sorted in asc order
@@ -398,6 +401,7 @@ void AddressTableModel::updateEntry(const QString &address,
     // Update address book model from Bitcoin core
     priv->updateEntry(address, label, isMine, purpose, status);
 }
+
 //[zcoin] AddressTableModel.updateEntry()
 void AddressTableModel::updateEntry(const QString &pubCoin, const QString &isUsed, int status)
 {
@@ -524,10 +528,11 @@ bool AddressTableModel::zerocoinMint(string &stringError, string denomAmount)
         // Unlock wallet failed or was cancelled
         return false;
     }
-    return wallet->CreateZerocoinMintModel(stringError, denomAmount);
+
+    return wallet->CreateZerocoinMintModel(stringError, denomAmount, ZEROCOIN);
 }
 
-bool AddressTableModel::zerocoinSpend(string &stringError, string denomAmount)
+bool AddressTableModel::zerocoinSpend(string &stringError, string thirdPartyAddress, string denomAmount)
 {
     WalletModel::UnlockContext ctx(walletModel->requestUnlock());
     if(!ctx.isValid())
@@ -536,5 +541,5 @@ bool AddressTableModel::zerocoinSpend(string &stringError, string denomAmount)
         return false;
     }
 
-    return wallet->CreateZerocoinSpendModel(stringError, denomAmount);
+    return wallet->CreateZerocoinSpendModel(stringError, thirdPartyAddress, denomAmount);
 }

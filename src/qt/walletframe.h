@@ -53,8 +53,16 @@ private:
 public Q_SLOTS:
     /** Switch to overview (home) page */
     void gotoOverviewPage();
+    /** Switch to ExoAssets page */
+    void gotoExoAssetsPage();
     /** Switch to history (transactions) page */
     void gotoHistoryPage();
+    /** Switch directory to Exodus tx history tab */
+    void gotoExodusHistoryTab();
+    /** Switch directory to bitcoin tx history tab */
+    void gotoBitcoinHistoryTab();
+    /** Switch to utility page */
+    void gotoToolboxPage();
     /** Switch to znode page */
     void gotoZnodePage();
     /** Switch to receive coins page */
@@ -63,6 +71,8 @@ public Q_SLOTS:
     void gotoSendCoinsPage(QString addr = "");
     /** Switch to zerocoin page */
     void gotoZerocoinPage();
+    /** Switch to sigma page */
+    void gotoSigmaPage();
 
     /** Show Sign/Verify Message dialog and switch to sign message tab */
     void gotoSignMessageTab(QString addr = "");

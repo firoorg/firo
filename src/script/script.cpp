@@ -146,6 +146,9 @@ const char* GetOpName(opcodetype opcode)
     // zerocoin
     case OP_ZEROCOINMINT           : return "OP_ZEROCOINMINT";
     case OP_ZEROCOINSPEND          : return "OP_ZEROCOINSPEND";
+    case OP_ZEROCOINMINTV3         : return "OP_ZEROCOINMINT_V3";
+    case OP_ZEROCOINSPENDV3        : return "OP_ZEROCOINSPEND_V3";
+
 
     // Note:
     //  The template matching params OP_SMALLINTEGER/etc are defined in opcodetype enum
@@ -229,6 +232,18 @@ bool CScript::IsNormalPaymentScript() const
     return true;
 }
 
+
+bool CScript::IsPayToPublicKeyHash() const
+{
+    // Extra-fast test for pay-to-pubkey-hash CScripts:
+    return (this->size() == 25 &&
+            (*this)[0] == OP_DUP &&
+            (*this)[1] == OP_HASH160 &&
+            (*this)[2] == 0x14 &&
+            (*this)[23] == OP_EQUALVERIFY &&
+            (*this)[24] == OP_CHECKSIG);
+}
+
 bool CScript::IsPayToScriptHash() const
 {
     // Extra-fast test for pay-to-script-hash CScripts:
@@ -274,6 +289,18 @@ bool CScript::IsZerocoinMint() const
 bool CScript::IsZerocoinSpend() const {
     return (this->size() > 0 &&
             (*this)[0] == OP_ZEROCOINSPEND);
+}
+
+bool CScript::IsZerocoinMintV3() const
+{
+    // Extra-fast test for Zerocoin Mint CScripts:
+    return (this->size() > 0 &&
+            (*this)[0] == OP_ZEROCOINMINTV3);
+}
+
+bool CScript::IsZerocoinSpendV3() const {
+    return (this->size() > 0 &&
+            (*this)[0] == OP_ZEROCOINSPENDV3);
 }
 
 bool CScript::HasCanonicalPushes() const

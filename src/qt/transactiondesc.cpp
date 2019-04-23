@@ -38,8 +38,18 @@ QString TransactionDesc::FormatTxStatus(const CWalletTx& wtx)
             return tr("conflicted with a transaction with %1 confirmations").arg(-nDepth);
         else if (GetAdjustedTime() - wtx.nTimeReceived > 2 * 60 && wtx.GetRequestCount() == 0)
             return tr("%1/offline").arg(nDepth);
-        else if (nDepth == 0)
-            return tr("0/unconfirmed, %1").arg((wtx.InMempool() ? tr("in memory pool") : tr("not in memory pool"))) + (wtx.isAbandoned() ? ", "+tr("abandoned") : "");
+        else if (nDepth == 0) {
+            if (wtx.InMempool()) {
+                return "0/unconfirmed, in memory pool" + 
+                    (wtx.isAbandoned() ? ", "+tr("abandoned") : "");
+            } else if (wtx.InStempool()) {
+                return "0/unconfirmed, in dandelion stem pool"+ 
+                    (wtx.isAbandoned() ? ", "+tr("abandoned") : "");
+            } else {
+                return "0/unconfirmed, not in memory pool" + 
+                    (wtx.isAbandoned() ? ", "+tr("abandoned") : "");
+            }
+        }
         else if (nDepth < 6)
             return tr("%1/unconfirmed").arg(nDepth);
         else
@@ -76,7 +86,7 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
     //
     // From
     //
-    if (wtx.IsCoinBase() ||  wtx.IsZerocoinSpend())
+    if (wtx.IsCoinBase() ||  wtx.IsZerocoinSpend() || wtx.IsZerocoinSpendV3())
     {
         strHTML += "<b>" + tr("Source") + ":</b> " + tr("Generated") + "<br>";
     }
@@ -127,7 +137,7 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
     //
     // Amount
     //
-    if ((wtx.IsCoinBase()||  wtx.IsZerocoinSpend()) && nCredit == 0)
+    if ((wtx.IsCoinBase() ||  wtx.IsZerocoinSpend() || wtx.IsZerocoinSpendV3()) && nCredit == 0)
     {
         //
         // Coinbase

@@ -2,8 +2,8 @@ namespace lelantus {
 
 template <class Exponent, class GroupElement>
 InnerProductProoveGenerator<Exponent, GroupElement>::InnerProductProoveGenerator(
-        const zcoin_common::GeneratorVector<Exponent, GroupElement>& g,
-        const zcoin_common::GeneratorVector<Exponent, GroupElement>& h,
+        const std::vector<GroupElement>& g,
+        const std::vector<GroupElement>& h,
         const GroupElement& u)
         : g_(g)
         , h_(h)
@@ -13,8 +13,8 @@ InnerProductProoveGenerator<Exponent, GroupElement>::InnerProductProoveGenerator
 
 template <class Exponent, class GroupElement>
 InnerProductProoveGenerator<Exponent, GroupElement>::InnerProductProoveGenerator(
-        const zcoin_common::GeneratorVector<Exponent, GroupElement>& g,
-        const zcoin_common::GeneratorVector<Exponent, GroupElement>& h,
+        const std::vector<GroupElement>& g,
+        const std::vector<GroupElement>& h,
         const GroupElement& u,
         const GroupElement& P)
         : g_(g)
@@ -32,7 +32,7 @@ void InnerProductProoveGenerator<Exponent, GroupElement>::generate_proof(
         InnerProductProof<Exponent, GroupElement>& proof_out) {
     int n = a.size() / 2;
     const Exponent c = LelantusPrimitives<Exponent, GroupElement>::scalar_dot_product(a.begin(), a.end(), b.begin(), b.end());
-    compute_P(a.begin(), a.end(), b.begin(), b.end(), P_initial);
+    compute_P(a, b, P_initial);
     u_ *= x;
     proof_out.c_ = c;
     P_ = (P_initial + u_ * c);
@@ -67,8 +67,10 @@ void InnerProductProoveGenerator<Exponent, GroupElement>::generate_proof_util(
     Exponent x;
     LelantusPrimitives<Exponent, GroupElement>::get_x(L, R, x);
 //    //Compute g prime and p prime
-    zcoin_common::GeneratorVector<Exponent, GroupElement> g_p = LelantusPrimitives<Exponent, GroupElement>::g_prime(g_, x);
-    zcoin_common::GeneratorVector<Exponent, GroupElement> h_p = LelantusPrimitives<Exponent, GroupElement>::h_prime(h_, x);
+    std::vector<GroupElement> g_p;
+    LelantusPrimitives<Exponent, GroupElement>::g_prime(g_, x, g_p);
+    std::vector<GroupElement> h_p;
+    LelantusPrimitives<Exponent, GroupElement>::h_prime(h_, x, h_p);
 //    //Compute a prime and b prime
     std::vector<Exponent> a_p = a_prime(x, a);
     std::vector<Exponent> b_p = b_prime(x, b);
@@ -80,14 +82,14 @@ void InnerProductProoveGenerator<Exponent, GroupElement>::generate_proof_util(
 
 template <class Exponent, class GroupElement>
 void InnerProductProoveGenerator<Exponent, GroupElement>::compute_P(
-        typename std::vector<Exponent>::const_iterator a_start,
-        typename std::vector<Exponent>::const_iterator a_end,
-        typename std::vector<Exponent>::const_iterator b_start,
-        typename std::vector<Exponent>::const_iterator b_end,
+        const std::vector<Exponent>& a,
+        const std::vector<Exponent>& b,
         GroupElement& result_out) {
-    GroupElement g, h;
-    g_.get_vector_multiple(0, g_.size(), a_start, a_end, g);
-    h_.get_vector_multiple(0, h_.size(), b_start, b_end, h);
+
+    secp_primitives::MultiExponent g_mult(g_, a);
+    secp_primitives::MultiExponent h_mult(h_, b);
+    GroupElement g = g_mult.get_multiple();
+    GroupElement h = h_mult.get_multiple();
     result_out = (g + h);
 }
 
@@ -99,10 +101,28 @@ void InnerProductProoveGenerator<Exponent, GroupElement>::l(
         typename std::vector<Exponent>::const_iterator b_end,
         const Exponent& cL,
         GroupElement& result_out) {
-    GroupElement g, h, ucL;
-    g_.get_vector_multiple(g_.size() / 2 , g_.size(), a_start, a_end, g);
-    h_.get_vector_multiple(0, h_.size() / 2, b_start, b_end, h);
-    result_out = g + h + u_ * cL;
+    GroupElement g, h;
+    std::vector<Exponent> a, b;
+    std::vector<GroupElement> gens_g, gens_h;
+    gens_g.reserve(g_.size() / 2 + 1);
+    gens_h.reserve(h_.size() / 2 + 1);
+    a.reserve(g_.size() / 2 + 1);
+    b.reserve(h_.size() / 2 + 1);
+    for (int i = g_.size() / 2; i < g_.size(); ++i)
+    {
+        gens_g.emplace_back(g_[i]);
+        a.emplace_back(*a_start);
+        a_start++;
+    }
+
+    for (int i = 0; i < h_.size() / 2; ++i)
+    {
+        gens_h.emplace_back(h_[i]);
+        b.emplace_back(*b_start);
+        b_start++;
+    }
+
+    LelantusPrimitives<Exponent, GroupElement>::commit(u_, cL, gens_g, a, gens_h, b, result_out);
 }
 
 template <class Exponent, class GroupElement>
@@ -114,9 +134,27 @@ void InnerProductProoveGenerator<Exponent, GroupElement>::r(
         const Exponent& cR,
         GroupElement& result_out) {
     GroupElement g, h, ucR;
-    g_.get_vector_multiple(0, g_.size() / 2, a_start, a_end, g);
-    h_.get_vector_multiple(h_.size() / 2, h_.size(), b_start, b_end, h);
-    result_out = g + h + u_ * cR;
+    std::vector<Exponent> a, b;
+    std::vector<GroupElement> gens_g, gens_h;
+    gens_g.reserve(g_.size() / 2 + 1);
+    gens_h.reserve(h_.size() / 2 + 1);
+    a.reserve(g_.size() / 2 + 1);
+    b.reserve(h_.size() / 2 + 1);
+
+    for (int i = 0; i < g_.size() / 2; ++i)
+    {
+        gens_g.emplace_back(g_[i]);
+        a.emplace_back(*a_start);
+        a_start++;
+    }
+
+    for (int i = h_.size() / 2; i < h_.size(); ++i)
+    {
+        gens_h.emplace_back(h_[i]);
+        b.emplace_back(*b_start);
+        b_start++;
+    }
+    LelantusPrimitives<Exponent, GroupElement>::commit(u_, cR, gens_g, a, gens_h, b, result_out);
 }
 
 

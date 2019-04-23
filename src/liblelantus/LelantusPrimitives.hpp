@@ -2,12 +2,12 @@ namespace lelantus {
 
 template<class Exponent, class GroupElement>
 void LelantusPrimitives<Exponent, GroupElement>::commit(const GroupElement& g,
-        const zcoin_common::GeneratorVector<Exponent, GroupElement>& h,
-        const std::vector<Exponent>& exp,
-        const Exponent& r,
-        GroupElement& result_out) {
-    result_out += g * r;
-    h.get_vector_multiple(exp, result_out);
+                                                        const std::vector<GroupElement>& h,
+                                                        const std::vector<Exponent>& exp,
+                                                        const Exponent& r,
+                                                        GroupElement& result_out) {
+    secp_primitives::Multiexponent<secp_primitives::Scalar, secp_primitives::GroupElement> mult(h, exp);
+    result_out += g * r + mult.get_multiple();
 }
 
 template<class Exponent, class GroupElement>
@@ -138,15 +138,14 @@ template<class Exponent, class GroupElement>
 void LelantusPrimitives<Exponent, GroupElement>::commit(
         const GroupElement& h,
         const Exponent& h_exp,
-        const zcoin_common::GeneratorVector<Exponent, GroupElement>& g_,
+        const std::vector<GroupElement>& g_,
         const std::vector<Exponent>& L,
-        const zcoin_common::GeneratorVector<Exponent, GroupElement>& h_,
+        const std::vector<GroupElement>& h_,
         const std::vector<Exponent>& R,
         GroupElement& result_out) {
-    result_out += h * h_exp;
-    g_.get_vector_multiple(L, result_out);
-    h_.get_vector_multiple(R, result_out);
-
+    secp_primitives::MultiExponent g_mult(g_, L);
+    secp_primitives::MultiExponent h_mult(h_, R);
+    result_out += h * h_exp + g_mult.get_multiple() + h_mult.get_multiple();
 }
 
 template<class Exponent, class GroupElement>
@@ -209,31 +208,29 @@ Exponent LelantusPrimitives<Exponent, GroupElement>::scalar_dot_product(
 
 
 template <class Exponent, class GroupElement>
-zcoin_common::GeneratorVector<Exponent, GroupElement> LelantusPrimitives<Exponent, GroupElement>::g_prime(
-        const zcoin_common::GeneratorVector<Exponent, GroupElement>& g_,
-        const Exponent& x){
+void LelantusPrimitives<Exponent, GroupElement>::g_prime(
+        const std::vector<GroupElement>& g_,
+        const Exponent& x,
+        std::vector<GroupElement>& result){
     Exponent x_inverse = x.inverse();
-    std::vector<GroupElement> g;
-    g.reserve(g_.size() / 2);
+    result.reserve(g_.size() / 2);
     for (int i = 0; i < g_.size() / 2; ++i)
     {
-        g.push_back(((g_.get_g(i) * x_inverse) + (g_.get_g(g_.size() / 2 + i) * x)));
+        result.push_back(((g_[i] * x_inverse) + (g_[g_.size() / 2 + i] * x)));
     }
-    return  g;
 }
 
 template <class Exponent, class GroupElement>
-zcoin_common::GeneratorVector<Exponent, GroupElement> LelantusPrimitives<Exponent, GroupElement>::h_prime(
-        const zcoin_common::GeneratorVector<Exponent, GroupElement>& h_,
-        const Exponent& x) {
+void LelantusPrimitives<Exponent, GroupElement>::h_prime(
+        const std::vector<GroupElement>& h_,
+        const Exponent& x,
+        std::vector<GroupElement>& result) {
     Exponent x_inverse = x.inverse();
-    std::vector <GroupElement> h;
-    h.reserve(h_.size() / 2);
+    result.reserve(h_.size() / 2);
     for (int i = 0; i < h_.size() / 2; ++i)
     {
-        h.push_back(((h_.get_g(i) * x) + (h_.get_g(h_.size() / 2 + i) * x_inverse)));
+        result.push_back(((h_[i] * x) + (h_[h_.size() / 2 + i] * x_inverse)));
     }
-    return h;
 }
 
 template <class Exponent, class GroupElement>

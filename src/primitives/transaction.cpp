@@ -47,6 +47,16 @@ CTxIn::CTxIn(uint256 hashPrevTx, uint32_t nOut, CScript scriptSigIn, uint32_t nS
     nSequence = nSequenceIn;
 }
 
+bool CTxIn::IsZerocoinSpend() const
+{
+    return (prevout.IsNull() && scriptSig.size() > 0 && (scriptSig[0] == OP_ZEROCOINSPEND) );
+}
+
+bool CTxIn::IsZerocoinSpendV3() const
+{
+    return (prevout.IsSigmaMintGroup() && scriptSig.size() > 0 && (scriptSig[0] == OP_ZEROCOINSPENDV3) );
+}
+
 std::string CTxIn::ToString() const
 {
     std::string str;
@@ -195,22 +205,53 @@ double CTransaction::ComputePriority(double dPriorityInputs, unsigned int nTxSiz
 
 bool CTransaction::IsCoinBase() const
 {
-    return (vin.size() == 1 && vin[0].prevout.IsNull() && (vin[0].scriptSig[0] != OP_ZEROCOINSPEND) );
+    return (vin.size() == 1 && vin[0].prevout.IsNull() && (vin[0].scriptSig.size() == 0 || vin[0].scriptSig[0] != OP_ZEROCOINSPEND));
 }
 
 bool CTransaction::IsZerocoinSpend() const
 {
-    return (vin.size() == 1 && vin[0].prevout.IsNull() && (vin[0].scriptSig[0] == OP_ZEROCOINSPEND) && (vout.size() == 1) );
-}
-
-bool CTransaction::IsZerocoinMint(const CTransaction& tx) const
-{
-    for (std::vector<CTxOut>::const_iterator it(tx.vout.begin()); it != tx.vout.end(); ++it)
-    {
-        if (it -> scriptPubKey.IsZerocoinMint())
+    for (const CTxIn &txin: vin) {
+        if (txin.IsZerocoinSpend())
             return true;
     }
     return false;
+}
+
+bool CTransaction::IsZerocoinSpendV3() const
+{
+    for (const CTxIn &txin: vin) {
+        if (txin.IsZerocoinSpendV3())
+            return true;
+    }
+    return false;
+}
+
+bool CTransaction::IsZerocoinMint() const
+{
+    for (const CTxOut &txout: vout) {
+        if (txout.scriptPubKey.IsZerocoinMint())
+            return true;
+    }
+    return false;
+}
+
+bool CTransaction::IsZerocoinMintV3() const
+{
+    for (const CTxOut &txout: vout) {
+        if (txout.scriptPubKey.IsZerocoinMintV3())
+            return true;
+    }
+    return false;
+}
+
+bool CTransaction::IsZerocoinTransaction() const
+{
+    return IsZerocoinSpend() || IsZerocoinMint();
+}
+
+bool CTransaction::IsZerocoinV3SigmaTransaction() const
+{
+    return IsZerocoinSpendV3() || IsZerocoinMintV3();
 }
 
 unsigned int CTransaction::CalculateModifiedSize(unsigned int nTxSize) const

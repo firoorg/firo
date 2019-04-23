@@ -14,6 +14,9 @@
 #include "util.h"
 #include "chainparams.h"
 #include "libzerocoin/bitcoin_bignum/bignum.h"
+#include "utilstrencodings.h"
+#include "crypto/MerkleTreeProof/mtp.h"
+#include "mtpstate.h"
 #include "fixed.h"
 
 static CBigNum bnProofOfWorkLimit(~arith_uint256(0) >> 8);
@@ -36,44 +39,24 @@ double GetDifficultyHelper(unsigned int nBits) {
 
 // zcoin GetNextWorkRequired
 unsigned int GetNextWorkRequired(const CBlockIndex *pindexLast, const CBlockHeader *pblock, const Consensus::Params &params) {
-    bool fTestNet = Params().NetworkIDString() == CBaseChainParams::TESTNET;
+    if (!pindexLast || pindexLast->nHeight < params.nDifficultyAdjustStartBlock)
+        return params.nFixedDifficulty;
 
-    // allow instamine first x blocks on testnet for distribution testing
-	if(fTestNet && pindexLast->nHeight < 5000){
-		return bnProofOfWorkLimit.GetCompact();
-	}
-
-	if (pindexLast == NULL) {
-        return bnProofOfWorkLimit.GetCompact();
-    }
-
-    static const uint32_t BlocksTargetSpacing = 10 * 60; // 10 minutes
-    unsigned int TimeDaySeconds = 60 * 60 * 24;
-    int64_t PastSecondsMin = TimeDaySeconds * 0.25; // 21600
-    int64_t PastSecondsMax = TimeDaySeconds * 7;// 604800
-    uint32_t PastBlocksMin = PastSecondsMin / BlocksTargetSpacing; // 36 blocks
-    uint32_t PastBlocksMax = PastSecondsMax / BlocksTargetSpacing; // 1008 blocks
-
-    if (fTestNet) {
+    if (params.IsTestnet()) {
         // If the new block's timestamp is more than nTargetSpacing*6
         // then allow mining of a min-difficulty block
         if (pblock->nTime > pindexLast->nTime + params.nPowTargetTimespan * 1) {
-            return bnProofOfWorkLimit.GetCompact();
+            return params.nFixedDifficulty;
         }
     }
 
     // 9/29/2016 - Reset to Lyra2(2,block_height,256) due to ASIC KnC Miner Scrypt
     // 36 block look back, reset to mininmum diff
-    if (!fTestNet && pindexLast->nHeight + 1 >= HF_LYRA2VAR_HEIGHT && pindexLast->nHeight + 1 <= HF_LYRA2VAR_HEIGHT + 36 - 1) {
-        return bnProofOfWorkLimit.GetCompact();
+    if (params.IsMain() && pindexLast->nHeight + 1 >= HF_LYRA2VAR_HEIGHT && pindexLast->nHeight + 1 <= HF_LYRA2VAR_HEIGHT + 36 - 1) {
+        return params.nFixedDifficulty;
     }
-    // reset to minimum diff at testnet after scrypt_n, 6 block look back
-    if (fTestNet && pindexLast->nHeight + 1 >= HF_LYRA2VAR_HEIGHT_TESTNET && pindexLast->nHeight + 1 <= HF_LYRA2VAR_HEIGHT_TESTNET + 6 - 1) {
-        return bnProofOfWorkLimit.GetCompact();
-    }
-
     // 02/11/2017 - Increase diff to match with new hashrates of Lyra2Z algo
-    if ((!fTestNet && pindexLast->nHeight + 1 == HF_LYRA2Z_HEIGHT) || (fTestNet && pindexLast->nHeight + 1 == HF_LYRA2Z_HEIGHT_TESTNET)) {
+    if (params.IsMain() && pindexLast->nHeight + 1 == HF_LYRA2Z_HEIGHT) {
         CBigNum bnNew;
         bnNew.SetCompact(pindexLast->nBits);
         bnNew /= 20000; // increase the diff by 20000x since the new hashrate is approx. 20000 times higher
@@ -83,7 +66,33 @@ unsigned int GetNextWorkRequired(const CBlockIndex *pindexLast, const CBlockHead
         return bnNew.GetCompact();
     }
 
-    if ((pindexLast->nHeight + 1) % params.DifficultyAdjustmentInterval() != 0) // Retarget every nInterval blocks
+    int nFirstMTPBlock = MTPState::GetMTPState()->GetFirstMTPBlockNumber(params, pindexLast);
+    bool fMTP = nFirstMTPBlock > 0;
+
+    if (pblock->IsMTP() && !fMTP) {
+        // first MTP block ever
+        return params.nInitialMTPDifficulty;
+    }
+
+    const uint32_t BlocksTargetSpacing = 
+        (params.nMTPFiveMinutesStartBlock == 0 && fMTP) || (params.nMTPFiveMinutesStartBlock > 0 && pindexLast->nHeight >= params.nMTPFiveMinutesStartBlock) ?
+            params.nPowTargetSpacingMTP : params.nPowTargetSpacing;
+    unsigned int TimeDaySeconds = 60 * 60 * 24;
+    int64_t PastSecondsMin = TimeDaySeconds * 0.25; // 21600
+    int64_t PastSecondsMax = TimeDaySeconds * 7;// 604800
+    uint32_t PastBlocksMin = PastSecondsMin / BlocksTargetSpacing; // 36 blocks
+    uint32_t PastBlocksMax = PastSecondsMax / BlocksTargetSpacing; // 1008 blocks
+    uint32_t StartingPoWBlock = 0;
+
+    if (nFirstMTPBlock > 1) {
+        // There are both legacy and MTP blocks in the chain. Limit PoW calculation scope to MTP blocks only
+        uint32_t numberOfMTPBlocks = pindexLast->nHeight - nFirstMTPBlock + 1;
+        PastBlocksMin = std::min(PastBlocksMin, numberOfMTPBlocks);
+        PastBlocksMax = std::min(PastBlocksMax, numberOfMTPBlocks);
+        StartingPoWBlock = nFirstMTPBlock;
+    }
+
+    if ((pindexLast->nHeight + 1 - StartingPoWBlock) % params.DifficultyAdjustmentInterval(fMTP) != 0) // Retarget every nInterval blocks
     {
         return pindexLast->nBits;
     }
@@ -113,6 +122,24 @@ unsigned int CalculateNextWorkRequired(const CBlockIndex *pindexLast, int64_t nF
         bnNew = bnPowLimit;
 
     return bnNew.GetCompact();
+}
+
+// Zcoin - MTP
+bool CheckMerkleTreeProof(const CBlockHeader &block, const Consensus::Params &params) {
+    if (!block.IsMTP())
+	    return true;
+
+    if (!block.mtpHashData)
+        return false;
+
+    uint256 calculatedMtpHashValue;
+    bool isVerified = mtp::verify(block.nNonce, block, Params().GetConsensus().powLimit, &calculatedMtpHashValue) &&
+        block.mtpHashValue == calculatedMtpHashValue;
+
+    if(!isVerified)
+        return false;
+
+    return true;
 }
 
 bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params &params) {

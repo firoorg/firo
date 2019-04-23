@@ -298,6 +298,35 @@ UniValue getrawmempool(const UniValue& params, bool fHelp)
     return mempoolToJSON(fVerbose);
 }
 
+UniValue clearmempool(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() > 0)
+        throw runtime_error(
+            "clearmempool\n"
+            "\nClears the memory pool and returns a list of the removed transactions.\n"
+            "\nResult:\n"
+            "[                     (json array of string)\n"
+            "  \"hash\"              (string) The transaction hash\n"
+            "  ,...\n"
+            "]\n"
+            "\nExamples\n"
+            + HelpExampleCli("clearmempool", "")
+            + HelpExampleRpc("clearmempool", "")
+        );
+
+    std::vector<uint256> vtxid;
+    mempool.queryHashes(vtxid);
+
+    UniValue removed(UniValue::VARR);
+    BOOST_FOREACH(const uint256& hash, vtxid)
+        removed.push_back(hash.ToString());
+
+    mempool.clear();
+
+    return removed;
+}
+
+
 UniValue getmempoolancestors(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() < 1 || params.size() > 2) {
@@ -459,6 +488,40 @@ UniValue getmempoolentry(const UniValue& params, bool fHelp)
     return info;
 }
 
+UniValue getblockhashes(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() < 3)
+        throw runtime_error(
+                "getblockhashes timestamp\n"
+                        "\nReturns array of hashes of blocks within the timestamp range provided.\n"
+                        "\nArguments:\n"
+                        "1. high         (numeric, required) The newer block timestamp\n"
+                        "2. low          (numeric, required) The older block timestamp\n"
+                        "\nResult:\n"
+                        "[\n"
+                        "  \"hash\"         (string) The block hash\n"
+                        "]\n"
+                        "\nExamples:\n"
+                + HelpExampleCli("getblockhashes", "1231614698 1231024505")
+                + HelpExampleRpc("getblockhashes", "1231614698, 1231024505")
+        );
+
+    unsigned int high = params[0].get_int();
+    unsigned int low = params[1].get_int();
+    std::vector<uint256> blockHashes;
+    if (!GetTimestampIndex(high, low, blockHashes)) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for block hashes");
+    }
+
+    UniValue result(UniValue::VARR);
+    for (std::vector<uint256>::const_iterator it=blockHashes.begin(); it!=blockHashes.end(); it++) {
+        result.push_back(it->GetHex());
+    }
+
+    return result;
+}
+
+
 UniValue getblockhash(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 1)
@@ -534,8 +597,10 @@ UniValue getblockheader(const UniValue& params, bool fHelp)
 
     if (!fVerbose)
     {
+    	CBlock block;
+    	ReadBlockFromDisk(block, pblockindex, Params().GetConsensus());
         CDataStream ssBlock(SER_NETWORK, PROTOCOL_VERSION);
-        ssBlock << pblockindex->GetBlockHeader();
+        ssBlock << block.GetBlockHeader();
         std::string strHex = HexStr(ssBlock.begin(), ssBlock.end());
         return strHex;
     }
@@ -1194,6 +1259,7 @@ static const CRPCCommand commands[] =
     { "blockchain",         "getblockcount",          &getblockcount,          true  },
     { "blockchain",         "getblock",               &getblock,               true  },
     { "blockchain",         "getblockhash",           &getblockhash,           true  },
+    { "blockchain",         "getblockhashes",         &getblockhashes,         true  },
     { "blockchain",         "getblockheader",         &getblockheader,         true  },
     { "blockchain",         "getchaintips",           &getchaintips,           true  },
     { "blockchain",         "getdifficulty",          &getdifficulty,          true  },
@@ -1202,6 +1268,7 @@ static const CRPCCommand commands[] =
     { "blockchain",         "getmempoolentry",        &getmempoolentry,        true  },
     { "blockchain",         "getmempoolinfo",         &getmempoolinfo,         true  },
     { "blockchain",         "getrawmempool",          &getrawmempool,          true  },
+    { "blockchain",         "clearmempool",           &clearmempool,           true  },
     { "blockchain",         "gettxout",               &gettxout,               true  },
     { "blockchain",         "gettxoutsetinfo",        &gettxoutsetinfo,        true  },
     { "blockchain",         "verifychain",            &verifychain,            true  },

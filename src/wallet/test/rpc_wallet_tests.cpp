@@ -10,6 +10,7 @@
 #include "wallet/wallet.h"
 
 #include "wallet/test/wallet_test_fixture.h"
+#include "wallet/authhelper.h"
 
 #include <boost/algorithm/string.hpp>
 #include <boost/test/unit_test.hpp>
@@ -224,6 +225,20 @@ BOOST_AUTO_TEST_CASE(rpc_wallet)
      *********************************/
     BOOST_CHECK_THROW(CallRPC("fundrawtransaction 28z"), runtime_error);
     BOOST_CHECK_THROW(CallRPC("fundrawtransaction 01000000000180969800000000001976a91450ce0a4b0ee0ddeb633da85199728b940ac3fe9488ac00000000"), runtime_error);
+}
+
+//This code is disabled for now. Anyway, this integrity test can be copied somewhere.
+BOOST_AUTO_TEST_CASE(rpc_wallet_authorization)
+{
+    auto & ah = AuthorizationHelper::inst();
+    std::string code = ah.generateAuthorizationCode("function");
+    BOOST_CHECK(true == ah.authorize("function", code));
+
+    code = ah.generateAuthorizationCode("function");
+    ++code[0];
+    BOOST_CHECK(false == ah.authorize("function", code));
+    --code[0];
+    BOOST_CHECK(true == ah.authorize("function", code));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

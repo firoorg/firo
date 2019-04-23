@@ -38,7 +38,7 @@ private:
             const std::vector<Exponent>& f_) const;
 private:
     GroupElement g_;
-    zcoin_common::GeneratorVector<Exponent, GroupElement> h_;
+    std::vector<GroupElement> h_;
     uint64_t n;
     uint64_t m;
 };

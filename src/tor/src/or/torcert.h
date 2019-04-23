@@ -57,7 +57,8 @@ tor_cert_t *tor_cert_create(const ed25519_keypair_t *signing_key,
 
 tor_cert_t *tor_cert_parse(const uint8_t *cert, size_t certlen);
 
-void tor_cert_free(tor_cert_t *cert);
+void tor_cert_free_(tor_cert_t *cert);
+#define tor_cert_free(cert) FREE_AND_NULL(tor_cert_t, tor_cert_free_, (cert))
 
 int tor_cert_get_checkable_sig(ed25519_checkable_t *checkable_out,
                                const tor_cert_t *out,
@@ -66,6 +67,7 @@ int tor_cert_get_checkable_sig(ed25519_checkable_t *checkable_out,
 
 int tor_cert_checksig(tor_cert_t *cert,
                       const ed25519_public_key_t *pubkey, time_t now);
+const char *tor_cert_describe_signature_status(const tor_cert_t *cert);
 
 tor_cert_t *tor_cert_dup(const tor_cert_t *cert);
 int tor_cert_eq(const tor_cert_t *cert1, const tor_cert_t *cert2);
@@ -83,7 +85,9 @@ rsa_ed25519_crosscert_check, (const uint8_t *crosscert,
                               const time_t reject_if_expired_before));
 
 or_handshake_certs_t *or_handshake_certs_new(void);
-void or_handshake_certs_free(or_handshake_certs_t *certs);
+void or_handshake_certs_free_(or_handshake_certs_t *certs);
+#define or_handshake_certs_free(certs) \
+  FREE_AND_NULL(or_handshake_certs_t, or_handshake_certs_free_, (certs))
 int or_handshake_certs_rsa_ok(int severity,
                               or_handshake_certs_t *certs,
                               tor_tls_t *tls,

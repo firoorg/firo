@@ -8,12 +8,12 @@ RangeProver<Exponent, GroupElement>::RangeProver(
         const std::vector<GroupElement>& g_vector,
         const std::vector<GroupElement>& h_vector,
         uint64_t n)
-    : g (g)
-    , h1 (h1)
-    , h2 (h2)
-    , g_(g_vector)
-    , h_(h_vector)
-    , n (n)
+        : g (g)
+        , h1 (h1)
+        , h2 (h2)
+        , g_(g_vector)
+        , h_(h_vector)
+        , n (n)
 {}
 
 template<class Exponent, class GroupElement>
@@ -129,11 +129,11 @@ void RangeProver<Exponent, GroupElement>::batch_proof(
     Exponent y_i(uint64_t(1));
     for (int i = 0; i < h_.size(); ++i)
     {
-        h_prime.push_back(h_.get_g(i) * y_i.inverse());
+        h_prime.push_back(h_[i] * y_i.inverse());
         y_i *= y;
     }
-    zcoin_common::GeneratorVector<Exponent, GroupElement> h_prime_(h_prime);
-    InnerProductProoveGenerator<Exponent, GroupElement> innerProductProoveGenerator(g_, h_prime_, g);
+
+    InnerProductProoveGenerator<Exponent, GroupElement> innerProductProoveGenerator(g_, h_prime, g);
     //   t^ is calculated inside inner product proof generation with name c
     Exponent x_u;
     LelantusPrimitives<Exponent, GroupElement>::get_x(proof_out.A, x_u);

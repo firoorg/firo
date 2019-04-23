@@ -17,6 +17,9 @@ enum DeploymentPos
     DEPLOYMENT_TESTDUMMY,
     DEPLOYMENT_CSV, // Deployment of BIP68, BIP112, and BIP113.
     DEPLOYMENT_SEGWIT, // Deployment of BIP141, BIP143, and BIP147.
+
+    DEPLOYMENT_MTP, // Deployment of MTP
+
     // NOTE: Also add new deployments to VersionBitsDeploymentInfo in versionbits.cpp
     MAX_VERSION_BITS_DEPLOYMENTS
 };
@@ -34,11 +37,27 @@ struct BIP9Deployment {
 };
 
 /**
+ * Type of chain
+ */
+enum ChainType {
+    chainMain,
+    chainTestnet,
+    chainRegtest
+};
+
+/**
  * Parameters that influence chain consensus.
  */
 struct Params {
+    ChainType chainType;
+
     uint256 hashGenesisBlock;
+    /** First subsidy halving */
+    int nSubsidyHalvingFirst;
+    /** Subsequent subsidy halving intervals */
     int nSubsidyHalvingInterval;
+    /** Stop subsidy at this block number */
+    int nSubsidyHalvingStopBlock;
     /** Used to check majorities for block version upgrade */
     int nMajorityEnforceBlockUpgrade;
     int nMajorityRejectBlockOutdated;
@@ -73,8 +92,62 @@ struct Params {
     //int nZnodePaymentsIncreasePeriod; // in blocks
     //int nSuperblockStartBlock;
 
-    int64_t DifficultyAdjustmentInterval() const { return nPowTargetTimespan / nPowTargetSpacing; }
+	/** Zerocoin-related block numbers when features are changed */
+    int nCheckBugFixedAtBlock;
+    int nZnodePaymentsBugFixedAtBlock;
+	int nSpendV15StartBlock;
+	int nSpendV2ID_1, nSpendV2ID_10, nSpendV2ID_25, nSpendV2ID_50, nSpendV2ID_100;
+
+	int nModulusV2StartBlock;
+    int nModulusV1MempoolStopBlock;
+	int nModulusV1StopBlock;
+
+    int nMultipleSpendInputsInOneTxStartBlock;
+
+    int nDontAllowDupTxsStartBlock;
+
+    // Values for sigma implementation.
+
+    // The block number after which sigma are accepted.
+    int nSigmaStartBlock;
+
+    // Number of blocks after nSigmaMintStartBlock during which we still accept zerocoin V2 mints into mempool.
+    int nZerocoinV2MintMempoolGracefulPeriod;
+
+    // Number of blocks after nSigmaMintStartBlock during which we still accept zerocoin V2 mints to newly mined blocks.
+    int nZerocoinV2MintGracefulPeriod;
+
+    // Number of blocks after nSigmaMintStartBlock during which we still accept zerocoin V2 spend into mempool.
+    int nZerocoinV2SpendMempoolGracefulPeriod;
+
+    // Number of blocks after nSigmaMintStartBlock during which we still accept zerocoin V2 spend to newly mined blocks.
+    int nZerocoinV2SpendGracefulPeriod;
+
+    /** switch to MTP time */
+    uint32_t nMTPSwitchTime;
+    /** block number to reduce distance between blocks */
+    int nMTPFiveMinutesStartBlock;
+
+    /** don't adjust difficulty until some block number */
+    int nDifficultyAdjustStartBlock;
+    /** fixed diffuculty to use before adjustment takes place */
+    int nFixedDifficulty;
+
+    /** pow target spacing after switch to MTP */
+    int64_t nPowTargetSpacingMTP;
+
+    /** initial MTP difficulty */
+    int nInitialMTPDifficulty;
+
+    /** reduction coefficient for rewards after MTP kicks in */
+    int nMTPRewardReduction;
+
+    int64_t DifficultyAdjustmentInterval(bool fMTP = false) const { return nPowTargetTimespan / (fMTP ? nPowTargetSpacingMTP : nPowTargetSpacing); }
     uint256 nMinimumChainWork;
+
+    bool IsMain() const { return chainType == chainMain; }
+    bool IsTestnet() const { return chainType == chainTestnet; }
+    bool IsRegtest() const { return chainType == chainRegtest; }
 };
 } // namespace Consensus
 

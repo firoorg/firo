@@ -1,34 +1,27 @@
 #ifndef SECP_GROUP_ELEMENT_H__
 #define SECP_GROUP_ELEMENT_H__
 
-#include <memory>
-#include <cstring>
-
 #include "Scalar.h"
-#include "secp256k1.h"
-#include "../src/util.h"
-#include "../src/group.h"
-#include "../src/group_impl.h"
-#include "../src/ecmult_impl.h"
-#include "../src/ecmult_const_impl.h"
-#include "../src/hash.h"
-#include "../src/hash_impl.h"
-#include "../src/field.h"
-#include "../src/field_impl.h"
-#include "../src/scalar_impl.h"
-#include "../src/scalar.h"
+
+#include <cstddef>
+#include <ostream>
+#include <string>
+#include <vector>
+
+#include <stddef.h>
 
 
 namespace secp_primitives {
 
-class GroupElement {
+class GroupElement final {
+public:
+    static constexpr std::size_t serialize_size = 34;
+
 public:
 
   GroupElement();
 
   ~GroupElement();
-
-  GroupElement(const secp256k1_gej& g);
 
   GroupElement(const GroupElement& other);
 
@@ -37,7 +30,7 @@ public:
   GroupElement& set(const GroupElement& other);
 
   GroupElement& operator=(const GroupElement& other);
-	
+
   // Operator for multiplying with a scalar number.
   GroupElement operator*(const Scalar& multiplier) const;
 
@@ -70,34 +63,70 @@ public:
 
   std::string tostring() const;
 
+  std::string GetHex() const;
+
   friend std::ostream& operator<< ( std::ostream& os, const GroupElement& s ) {
         os << s.tostring() ;
         return os;
   }
 
-    size_t memoryRequired() const;
-    unsigned char* serialize() const;
-    unsigned char* serialize(unsigned char* buffer) const;
-    unsigned char* deserialize(unsigned char* buffer);
+  size_t memoryRequired() const;
+  unsigned char* serialize() const;
+  unsigned char* serialize(unsigned char* buffer) const;
+  unsigned char* deserialize(unsigned char* buffer);
+
+  // These functions are for READWRITE() in serialize.h
+  unsigned int GetSerializeSize(int nType=0, int nVersion=0) const
+  {
+     return memoryRequired();
+  }
+
+  template<typename Stream>
+  inline void Serialize(Stream& s, int nType, int nVersion) const {
+        int size = memoryRequired();
+        unsigned char buffer[size];
+        serialize(buffer);
+        char* b = (char*)buffer;
+        s.write(b, size);
+  }
+
+  template<typename Stream>
+  inline void Unserialize(Stream& s, int nType, int nVersion) {
+        int size = memoryRequired();
+        unsigned char buffer[size];
+        char* b = (char*)buffer;
+        s.read(b, size);
+        deserialize(buffer);
+  }
+
+  //function name like in CBignum
+  std::vector<unsigned char> getvch() const;
+
+  std::size_t hash() const;
+
+  friend class MultiExponent;
+private:
+    // Returns the secp object inside it.
+    const void * get_value() const;
+
+    GroupElement(const void *g);
 
 private:
-
-	// Converts the value from secp256k1_gej to secp256k1_ge and returns.
-	secp256k1_ge to_ge() const;
-
-//	Implements the algorithm from:
-//   Indifferentiable Hashing to Barreto-Naehrig Curves
-//    Pierre-Alain Fouque and Mehdi Tibouchi
-//    Latincrypt 2012
-//
-   void indifferent_hash(secp256k1_ge* ge, const secp256k1_fe* t);
-   static secp256k1_ecmult_context ctx;
-
-private:
-  secp256k1_gej g_;
+    void *g_; // secp256k1_gej
 
 };
 
 } // namespace secp_primitives
+
+namespace std {
+    template<>
+    struct hash<secp_primitives::GroupElement>
+    {
+        size_t operator()(const secp_primitives::GroupElement& g) const
+        {
+            return g.hash();
+        }
+    };
+} // namespace std
 
 #endif // SECP_GROUP_ELEMENT_H__

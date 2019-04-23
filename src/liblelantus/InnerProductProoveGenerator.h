@@ -10,23 +10,23 @@ class InnerProductProoveGenerator {
 
 public:
     InnerProductProoveGenerator(
-            const zcoin_common::GeneratorVector<Exponent, GroupElement>& g,
-            const zcoin_common::GeneratorVector<Exponent, GroupElement>& h,
+            const std::vector<GroupElement>& g,
+            const std::vector<GroupElement>& h,
             const GroupElement& u);
 
     void generate_proof(
-        const std::vector<Exponent>& a,
-        const std::vector<Exponent>& b,
-        const Exponent& x,
-        InnerProductProof<Exponent, GroupElement>& proof_out);
+            const std::vector<Exponent>& a,
+            const std::vector<Exponent>& b,
+            const Exponent& x,
+            InnerProductProof<Exponent, GroupElement>& proof_out);
 
     GroupElement get_P();
 
 private:
 
     InnerProductProoveGenerator(
-            const zcoin_common::GeneratorVector<Exponent, GroupElement>& g,
-            const zcoin_common::GeneratorVector<Exponent, GroupElement>& h,
+            const std::vector<GroupElement>& g,
+            const std::vector<GroupElement>& h,
             const GroupElement& u,
             const GroupElement& P);
 
@@ -54,15 +54,13 @@ private:
     std::vector<Exponent> b_prime(const Exponent& x, const std::vector<Exponent>& b);
 
     void compute_P(
-            typename std::vector<Exponent>::const_iterator a_start,
-            typename std::vector<Exponent>::const_iterator a_end,
-            typename std::vector<Exponent>::const_iterator b_start,
-            typename std::vector<Exponent>::const_iterator b_end,
+            const std::vector<Exponent>& a,
+            const std::vector<Exponent>& b,
             GroupElement& result_out);
 
 private:
-    const zcoin_common::GeneratorVector<Exponent, GroupElement>& g_;
-    const zcoin_common::GeneratorVector<Exponent, GroupElement>& h_;
+    const std::vector<GroupElement>& g_;
+    const std::vector<GroupElement>& h_;
     GroupElement u_;
     GroupElement P_;
     GroupElement P_initial;

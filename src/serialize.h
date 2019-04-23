@@ -17,8 +17,10 @@
 #include <stdint.h>
 #include <string>
 #include <string.h>
+#include <unordered_set>
 #include <utility>
 #include <vector>
+#include <deque>
 #include "prevector.h"
 #include <memory>
 #include "definition.h"
@@ -47,7 +49,7 @@ inline T* NCONST_PTR(const T* val)
     return const_cast<T*>(val);
 }
 
-/** 
+/**
  * Get begin pointer of vector (non-const version).
  * @note These functions avoid the undefined case of indexing into an empty
  * vector, as well as that of indexing after the end of the vector.
@@ -99,6 +101,13 @@ template<typename Stream> inline void ser_writedata64(Stream &s, uint64_t obj)
     obj = htole64(obj);
     s.write((char*)&obj, 8);
 }
+
+template<typename Stream> inline void ser_writedata32be(Stream &s, uint32_t obj)
+{
+    obj = htobe32(obj);
+    s.write((char*)&obj, 4);
+}
+
 template<typename Stream> inline uint8_t ser_readdata8(Stream &s)
 {
     uint8_t obj;
@@ -122,6 +131,12 @@ template<typename Stream> inline uint64_t ser_readdata64(Stream &s)
     uint64_t obj;
     s.read((char*)&obj, 8);
     return le64toh(obj);
+}
+template<typename Stream> inline uint32_t ser_readdata32be(Stream &s)
+{
+    uint32_t obj;
+    s.read((char*)&obj, 4);
+    return be32toh(obj);
 }
 inline uint64_t ser_double_to_uint64(double x)
 {
@@ -165,11 +180,11 @@ enum
 
 #define READWRITE(obj)      (::SerReadWrite(s, (obj), nType, nVersion, ser_action))
 
-/** 
+/**
  * Implement three methods for serializable objects. These are actually wrappers over
  * "SerializationOp" template, which implements the body of each class' serialization
  * code. Adding "ADD_SERIALIZE_METHODS" in the body of the class causes these wrappers to be
- * added as members. 
+ * added as members.
  */
 #define ADD_SERIALIZE_METHODS                                                          \
     size_t GetSerializeSize(int nType, int nVersion) const {                         \
@@ -229,30 +244,31 @@ inline unsigned int GetSerializeSize(bool a, int, int=0)                        
 template<typename Stream> inline void Serialize(Stream& s, bool a, int, int=0)    { char f=a; ser_writedata8(s, f); }
 template<typename Stream> inline void Unserialize(Stream& s, bool& a, int, int=0) { char f=ser_readdata8(s); a=f; }
 
+/**
+ * Please note that zcoin drops support for big-endian architectures and thus these functions are simple read/writes
+ * It significantly improves MTP structures serialization performance
+ */
 
-inline unsigned int GetSerializeSize(const unsigned char a[32], int, int=0){
-    return sizeof(unsigned char) * 32;
-}
+template <typename ItemType>
+using CArithType = typename std::enable_if<std::is_arithmetic<ItemType>::value>::type;
 
-template<typename Stream> inline void Serialize(Stream& s, const unsigned char a[32], int, int=0)
-{
-    int r;
-    for( r = 0; r < 32; r++){
-        WRITEDATA(s, a[r]);
-    }
-}
+template<typename Stream, typename ItemType, int ArraySize, typename = CArithType<ItemType>>
+inline void Serialize(Stream &s, const ItemType (&a) [ArraySize], int, int=0) { s.write((const char *)&a, sizeof(a)); }
 
-template<typename Stream> inline void Unserialize(Stream& s, unsigned char a[32], int, int=0)
-{
-    int r;
-    for( r = 0; r < 32; r++){
-        READDATA(s, a[r]);
-    }
+template<typename Stream, typename ItemType, int ArraySize, typename = CArithType<ItemType>>
+inline void Unserialize(Stream &s, ItemType (&a)[ArraySize], int, int=0) { s.read((char *)&a, sizeof(a)); }
 
-}
+template<typename Stream, typename ItemType, int ArraySize, typename = CArithType<ItemType>>
+inline unsigned int GetSerializeSize(const ItemType (&a)[ArraySize], int, int=0) { return sizeof(ItemType[ArraySize]); }
 
+template<typename Stream, typename ItemType, int ArraySize1, int ArraySize2, typename = CArithType<ItemType>>
+inline void Serialize(Stream &s, const ItemType (&a)[ArraySize1][ArraySize2], int, int=0) { s.write((const char *)&a, sizeof(a)); }
 
+template<typename Stream, typename ItemType, int ArraySize1, int ArraySize2, typename = CArithType<ItemType>>
+inline void Unserialize(Stream &s, ItemType (&a)[ArraySize1][ArraySize2], int, int=0) { s.read((char *)&a, sizeof(a)); }
 
+template<typename Stream, typename ItemType, int ArraySize1, int ArraySize2, typename = CArithType<ItemType>>
+inline unsigned int GetSerializeSize(const ItemType (&a)[ArraySize1][ArraySize2], int, int=0) { return sizeof(ItemType[ArraySize1][ArraySize2]); }
 
 /**
  * Compact Size
@@ -332,16 +348,16 @@ uint64_t ReadCompactSize(Stream& is)
  * sure the encoding is one-to-one, one is subtracted from all but the last digit.
  * Thus, the byte sequence a[] with length len, where all but the last byte
  * has bit 128 set, encodes the number:
- * 
+ *
  *  (a[len-1] & 0x7F) + sum(i=1..len-1, 128^i*((a[len-i-1] & 0x7F)+1))
- * 
+ *
  * Properties:
  * * Very small (0-127: 1 byte, 128-16511: 2 bytes, 16512-2113663: 3 bytes)
  * * Every integer has exactly one encoding
  * * Encoding does not depend on size of original integer type
  * * No redundancy: every (infinite) byte sequence corresponds to a list
  *   of encoded integers.
- * 
+ *
  * 0:         [0x00]  256:        [0x81 0x00]
  * 1:         [0x01]  16383:      [0xFE 0x7F]
  * 127:       [0x7F]  16384:      [0xFF 0x00]
@@ -399,7 +415,7 @@ I ReadVarInt(Stream& is)
 #define COMPACTSIZE(obj) REF(CCompactSize(REF(obj)))
 #define LIMITED_STRING(obj,n) REF(LimitedString< n >(REF(obj)))
 
-/** 
+/**
  * Wrapper for serializing arrays and POD.
  */
 class CFlatData
@@ -601,6 +617,13 @@ template<typename K, typename Pred, typename A> unsigned int GetSerializeSize(co
 template<typename Stream, typename K, typename Pred, typename A> void Serialize(Stream& os, const std::set<K, Pred, A>& m, int nType, int nVersion);
 template<typename Stream, typename K, typename Pred, typename A> void Unserialize(Stream& is, std::set<K, Pred, A>& m, int nType, int nVersion);
 
+/**
+ * unordered_set
+ */
+template<typename K, typename H, typename E, typename A> unsigned int GetSerializeSize(const std::unordered_set<K, H, E, A>& s, int nType, int nVersion);
+template<typename Stream, typename K, typename H, typename E, typename A> void Serialize(Stream& os, const std::unordered_set<K, H, E, A>& s, int nType, int nVersion);
+template<typename Stream, typename K, typename H, typename E, typename A> void Unserialize(Stream& is, std::unordered_set<K, H, E, A>& s, int nType, int nVersion);
+
 
 /**
  * shared_ptr
@@ -615,6 +638,95 @@ void Serialize(Stream &s, const std::shared_ptr <T> &item, int nType, int nVersi
 template<typename Stream, typename T>
 void Unserialize(Stream &s, std::shared_ptr <T> &item, int nType, int nVersion);
 
+
+// Zcoin - MTP
+/**
+ * deque
+ */
+template<typename T, typename A>
+unsigned int GetSerializeSize_impl(const std::deque<T, A>& v, int nType, int nVersion, const unsigned char&)
+{
+    return (GetSizeOfCompactSize(v.size()) + v.size() * sizeof(T));
+}
+
+template<typename T, typename A, typename V>
+unsigned int GetSerializeSize_impl(const std::deque<T, A>& v, int nType, int nVersion, const V&)
+{
+    unsigned int nSize = GetSizeOfCompactSize(v.size());
+    for (typename std::deque<T, A>::const_iterator vi = v.begin(); vi != v.end(); ++vi)
+        nSize += GetSerializeSize((*vi), nType, nVersion);
+    return nSize;
+}
+
+template<typename T, typename A>
+inline unsigned int GetSerializeSize(const std::deque<T, A>& v, int nType, int nVersion)
+{
+    return GetSerializeSize_impl(v, nType, nVersion, T());
+}
+
+
+template<typename Stream, typename T, typename A>
+void Serialize_impl(Stream& os, const std::deque<T, A>& v, int nType, int nVersion, const unsigned char&)
+{
+    WriteCompactSize(os, v.size());
+    if (!v.empty())
+        os.write((char*)&v[0], v.size() * sizeof(T));
+}
+
+template<typename Stream, typename T, typename A, typename V>
+void Serialize_impl(Stream& os, const std::deque<T, A>& v, int nType, int nVersion, const V&)
+{
+    WriteCompactSize(os, v.size());
+    for (typename std::deque<T, A>::const_iterator vi = v.begin(); vi != v.end(); ++vi)
+        ::Serialize(os, (*vi), nType, nVersion);
+}
+
+template<typename Stream, typename T, typename A>
+inline void Serialize(Stream& os, const std::deque<T, A>& v, int nType, int nVersion)
+{
+    Serialize_impl(os, v, nType, nVersion, T());
+}
+
+
+template<typename Stream, typename T, typename A>
+void Unserialize_impl(Stream& is, std::deque<T, A>& v, int nType, int nVersion, const unsigned char&)
+{
+    // Limit size per read so bogus size value won't cause out of memory
+    v.clear();
+    unsigned int nSize = ReadCompactSize(is);
+    unsigned int i = 0;
+    while (i < nSize)
+    {
+        unsigned int blk = std::min(nSize - i, (unsigned int)(1 + 4999999 / sizeof(T)));
+        v.resize(i + blk);
+        is.read((char*)&v[i], blk * sizeof(T));
+        i += blk;
+    }
+}
+
+template<typename Stream, typename T, typename A, typename V>
+void Unserialize_impl(Stream& is, std::deque<T, A>& v, int nType, int nVersion, const V&)
+{
+    v.clear();
+    unsigned int nSize = ReadCompactSize(is);
+    unsigned int i = 0;
+    unsigned int nMid = 0;
+    while (nMid < nSize)
+    {
+        nMid += 5000000 / sizeof(T);
+        if (nMid > nSize)
+            nMid = nSize;
+        v.resize(nMid);
+        for (; i < nMid; i++)
+            Unserialize(is, v[i], nType, nVersion);
+    }
+}
+
+template<typename Stream, typename T, typename A>
+inline void Unserialize(Stream& is, std::deque<T, A>& v, int nType, int nVersion)
+{
+    Unserialize_impl(is, v, nType, nVersion, T());
+}
 
 /**
  * If none of the specialized versions above matched, default to calling member function.
@@ -1008,6 +1120,50 @@ void Unserialize(Stream& is, std::set<K, Pred, A>& m, int nType, int nVersion)
 }
 
 /**
+ * unordered_set
+ */
+
+template<typename K, typename H, typename E, typename A>
+unsigned int GetSerializeSize(const std::unordered_set<K, H, E, A>& s, int nType, int nVersion)
+{
+    unsigned size = GetSizeOfCompactSize(s.size());
+
+    for (auto& i : s) {
+        size += GetSerializeSize(i, nType, nVersion);
+    }
+
+    return size;
+}
+
+template<typename Stream, typename K, typename H, typename E, typename A>
+void Serialize(Stream& os, const std::unordered_set<K, H, E, A>& s, int nType, int nVersion)
+{
+    WriteCompactSize(os, s.size());
+
+    for (auto& i : s) {
+        Serialize(os, i, nType, nVersion);
+    }
+}
+
+template<typename Stream, typename K, typename H, typename E, typename A>
+void Unserialize(Stream& is, std::unordered_set<K, H, E, A>& s, int nType, int nVersion)
+{
+    unsigned size = ReadCompactSize(is);
+
+    s.clear();
+
+    for (unsigned i = 0; i < size; i++) {
+        K key;
+
+        Unserialize(is, key, nType, nVersion);
+
+        if (!s.insert(key).second) {
+            throw std::ios_base::failure("Duplicated item at " + std::to_string(i));
+        }
+    }
+}
+
+/**
  * shared_ptr
  */
 template<typename T>
@@ -1034,6 +1190,10 @@ void Unserialize(Stream &os, std::shared_ptr <T> &item, int nType, int nVersion)
         item.reset();
     }
 }
+
+
+
+
 
 /**
  * Support for ADD_SERIALIZE_METHODS and READWRITE macro

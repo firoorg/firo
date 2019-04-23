@@ -1,3 +1,15 @@
+/**
+* @file       ParallelTasks.cpp
+*
+* @brief      ParallelTasks class for the Zerocoin library.
+*
+* @author     Peter Shugalev
+* @date       Nov 2017
+*
+* @copyright  Copyright 2017 Peter Shugalev
+* @license    This project is released under the MIT license.
+**/
+
 #include "Zerocoin.h"
 #include "ParallelTasks.h"
 

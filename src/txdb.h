@@ -9,6 +9,7 @@
 #include "coins.h"
 #include "dbwrapper.h"
 #include "chain.h"
+#include "spentindex.h"
 
 #include <map>
 #include <string>
@@ -114,10 +115,57 @@ public:
     bool ReadReindexing(bool &fReindex);
     bool ReadTxIndex(const uint256 &txid, CDiskTxPos &pos);
     bool WriteTxIndex(const std::vector<std::pair<uint256, CDiskTxPos> > &list);
+    bool ReadSpentIndex(CSpentIndexKey &key, CSpentIndexValue &value);
+    bool UpdateSpentIndex(const std::vector<std::pair<CSpentIndexKey, CSpentIndexValue> >&vect);
+    bool UpdateAddressUnspentIndex(const std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue > >&vect);
+    bool ReadAddressUnspentIndex(uint160 addressHash, AddressType type,
+                                 std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > &vect);
+    bool WriteAddressIndex(const std::vector<std::pair<CAddressIndexKey, CAmount> > &vect);
+    bool EraseAddressIndex(const std::vector<std::pair<CAddressIndexKey, CAmount> > &vect);
+    bool ReadAddressIndex(uint160 addressHash, AddressType type,
+                          std::vector<std::pair<CAddressIndexKey, CAmount> > &addressIndex,
+                          int start = 0, int end = 0);
+
+    bool WriteTimestampIndex(const CTimestampIndexKey &timestampIndex);
+    bool ReadTimestampIndex(const unsigned int &high, const unsigned int &low, std::vector<uint256> &vect);
     bool WriteFlag(const std::string &name, bool fValue);
     bool ReadFlag(const std::string &name, bool &fValue);
     bool LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256&)> insertBlockIndex);
-	int GetBlockIndexVersion();
+    int GetBlockIndexVersion();
+    bool AddTotalSupply(CAmount const & supply);
+    bool ReadTotalSupply(CAmount & supply);
+};
+
+
+/**
+ * This class was introduced as the logic for address and tx indices became too intricate.
+ *
+ * @param addressIndex, spentIndex - true if to update the corresponding index
+ *
+ * It is undefined behavior if the helper was created with addressIndex == false
+ * and getAddressIndex was called later (same for spentIndex and unspentIndex).
+ */
+class CDbIndexHelper : boost::noncopyable
+{
+public:
+    CDbIndexHelper(bool addressIndex, bool spentIndex);
+
+    void ConnectTransaction(CTransaction const & tx, int height, int txNumber, CCoinsViewCache const & view);
+    void DisconnectTransactionInputs(CTransaction const & tx, int height, int txNumber, CCoinsViewCache const & view);
+    void DisconnectTransactionOutputs(CTransaction const & tx, int height, int txNumber, CCoinsViewCache const & view);
+
+    using AddressIndex = std::vector<std::pair<CAddressIndexKey, CAmount> >;
+    using AddressUnspentIndex = std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> >;
+    using SpentIndex = std::vector<std::pair<CSpentIndexKey, CSpentIndexValue> >;
+
+    AddressIndex const & getAddressIndex() const;
+    AddressUnspentIndex const & getAddressUnspentIndex() const;
+    SpentIndex const & getSpentIndex() const;
+
+private:
+    boost::optional<AddressIndex> addressIndex;
+    boost::optional<AddressUnspentIndex> addressUnspentIndex;
+    boost::optional<SpentIndex> spentIndex;
 };
 
 #endif // BITCOIN_TXDB_H

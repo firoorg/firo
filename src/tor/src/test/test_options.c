@@ -377,17 +377,11 @@ fixed_get_uname(void)
 }
 
 #define TEST_OPTIONS_OLD_VALUES   "TestingV3AuthInitialVotingInterval 1800\n" \
-  "ClientBootstrapConsensusMaxDownloadTries 7\n" \
-  "ClientBootstrapConsensusAuthorityOnlyMaxDownloadTries 4\n" \
   "ClientBootstrapConsensusMaxInProgressTries 3\n" \
   "TestingV3AuthInitialVoteDelay 300\n"   \
   "TestingV3AuthInitialDistDelay 300\n" \
   "TestingClientMaxIntervalWithoutRequest 600\n" \
   "TestingDirConnectionMaxStall 600\n" \
-  "TestingConsensusMaxDownloadTries 8\n" \
-  "TestingDescriptorMaxDownloadTries 8\n" \
-  "TestingMicrodescMaxDownloadTries 8\n" \
-  "TestingCertMaxDownloadTries 8\n"
 
 #define TEST_OPTIONS_DEFAULT_VALUES TEST_OPTIONS_OLD_VALUES \
   "MaxClientCircuitsPending 1\n"                                        \
@@ -906,7 +900,7 @@ test_options_validate__authdir(void *ignored)
                                 "Address 100.200.10.1\n"
                                 "BridgeAuthoritativeDir 1\n"
                                 "ContactInfo hello@hello.com\n"
-                                "V3BandwidthsFile non-existant-file\n");
+                                "V3BandwidthsFile non-existent-file\n");
   mock_clean_saved_logs();
   options_validate(tdata->old_opt, tdata->opt, tdata->def_opt, 0, &msg);
   tt_str_op(msg, OP_EQ,
@@ -918,7 +912,7 @@ test_options_validate__authdir(void *ignored)
                                 "Address 100.200.10.1\n"
                                 "BridgeAuthoritativeDir 1\n"
                                 "ContactInfo hello@hello.com\n"
-                                "V3BandwidthsFile non-existant-file\n");
+                                "V3BandwidthsFile non-existent-file\n");
   mock_clean_saved_logs();
   options_validate(NULL, tdata->opt, tdata->def_opt, 0, &msg);
   tt_str_op(msg, OP_EQ,
@@ -930,7 +924,7 @@ test_options_validate__authdir(void *ignored)
                                 "Address 100.200.10.1\n"
                                 "BridgeAuthoritativeDir 1\n"
                                 "ContactInfo hello@hello.com\n"
-                                "GuardfractionFile non-existant-file\n");
+                                "GuardfractionFile non-existent-file\n");
   mock_clean_saved_logs();
   options_validate(tdata->old_opt, tdata->opt, tdata->def_opt, 0, &msg);
   tt_str_op(msg, OP_EQ,
@@ -942,7 +936,7 @@ test_options_validate__authdir(void *ignored)
                                 "Address 100.200.10.1\n"
                                 "BridgeAuthoritativeDir 1\n"
                                 "ContactInfo hello@hello.com\n"
-                                "GuardfractionFile non-existant-file\n");
+                                "GuardfractionFile non-existent-file\n");
   mock_clean_saved_logs();
   options_validate(NULL, tdata->opt, tdata->def_opt, 0, &msg);
   tt_str_op(msg, OP_EQ,
@@ -1112,7 +1106,7 @@ test_options_validate__transproxy(void *ignored)
 
   // Test unknown trans proxy
   free_options_test_data(tdata);
-  tdata = get_options_test_data("TransProxyType non-existant\n");
+  tdata = get_options_test_data("TransProxyType non-existent\n");
   ret = options_validate(tdata->old_opt, tdata->opt, tdata->def_opt, 0, &msg);
   tt_int_op(ret, OP_EQ, -1);
   tt_str_op(msg, OP_EQ, "Unrecognized value for TransProxyType");
@@ -2073,18 +2067,14 @@ test_options_validate__testing(void *ignored)
   ENSURE_DEFAULT(TestingV3AuthVotingStartOffset, 3000);
   ENSURE_DEFAULT(TestingAuthDirTimeToLearnReachability, 3000);
   ENSURE_DEFAULT(TestingEstimatedDescriptorPropagationTime, 3000);
-  ENSURE_DEFAULT(TestingServerDownloadSchedule, 3000);
-  ENSURE_DEFAULT(TestingClientDownloadSchedule, 3000);
-  ENSURE_DEFAULT(TestingServerConsensusDownloadSchedule, 3000);
-  ENSURE_DEFAULT(TestingClientConsensusDownloadSchedule, 3000);
-  ENSURE_DEFAULT(TestingBridgeDownloadSchedule, 3000);
-  ENSURE_DEFAULT(TestingBridgeBootstrapDownloadSchedule, 3000);
+  ENSURE_DEFAULT(TestingServerDownloadInitialDelay, 3000);
+  ENSURE_DEFAULT(TestingClientDownloadInitialDelay, 3000);
+  ENSURE_DEFAULT(TestingServerConsensusDownloadInitialDelay, 3000);
+  ENSURE_DEFAULT(TestingClientConsensusDownloadInitialDelay, 3000);
+  ENSURE_DEFAULT(TestingBridgeDownloadInitialDelay, 3000);
+  ENSURE_DEFAULT(TestingBridgeBootstrapDownloadInitialDelay, 3000);
   ENSURE_DEFAULT(TestingClientMaxIntervalWithoutRequest, 3000);
   ENSURE_DEFAULT(TestingDirConnectionMaxStall, 3000);
-  ENSURE_DEFAULT(TestingConsensusMaxDownloadTries, 3000);
-  ENSURE_DEFAULT(TestingDescriptorMaxDownloadTries, 3000);
-  ENSURE_DEFAULT(TestingMicrodescMaxDownloadTries, 3000);
-  ENSURE_DEFAULT(TestingCertMaxDownloadTries, 3000);
   ENSURE_DEFAULT(TestingAuthKeyLifetime, 3000);
   ENSURE_DEFAULT(TestingLinkCertLifetime, 3000);
   ENSURE_DEFAULT(TestingSigningKeySlop, 3000);
@@ -2428,37 +2418,6 @@ test_options_validate__circuits(void *ignored)
   policies_free_all();
   teardown_capture_of_logs();
   free_options_test_data(tdata);
-  tor_free(msg);
-}
-
-static void
-test_options_validate__port_forwarding(void *ignored)
-{
-  (void)ignored;
-  int ret;
-  char *msg;
-  options_test_data_t *tdata = NULL;
-
-  free_options_test_data(tdata);
-  tdata = get_options_test_data(TEST_OPTIONS_DEFAULT_VALUES
-                                "PortForwarding 1\nSandbox 1\n");
-  ret = options_validate(tdata->old_opt, tdata->opt, tdata->def_opt, 0, &msg);
-  tt_int_op(ret, OP_EQ, -1);
-  tt_str_op(msg, OP_EQ, "PortForwarding is not compatible with Sandbox;"
-            " at most one can be set");
-  tor_free(msg);
-
-  free_options_test_data(tdata);
-  tdata = get_options_test_data(TEST_OPTIONS_DEFAULT_VALUES
-                                "PortForwarding 1\nSandbox 0\n");
-  ret = options_validate(tdata->old_opt, tdata->opt, tdata->def_opt, 0, &msg);
-  tt_int_op(ret, OP_EQ, 0);
-  tt_assert(!msg);
-  tor_free(msg);
-
- done:
-  free_options_test_data(tdata);
-  policies_free_all();
   tor_free(msg);
 }
 
@@ -4069,15 +4028,6 @@ test_options_validate__testing_options(void *ignored)
                       "is way too low.");
   TEST_TESTING_OPTION(TestingDirConnectionMaxStall, 1, 3601,
                       "is way too low.");
-  // TODO: I think this points to a bug/regression in options_validate
-  TEST_TESTING_OPTION(TestingConsensusMaxDownloadTries, 1, 801,
-                      "must be greater than 2.");
-  TEST_TESTING_OPTION(TestingDescriptorMaxDownloadTries, 1, 801,
-                      "must be greater than 1.");
-  TEST_TESTING_OPTION(TestingMicrodescMaxDownloadTries, 1, 801,
-                      "must be greater than 1.");
-  TEST_TESTING_OPTION(TestingCertMaxDownloadTries, 1, 801,
-                      "must be greater than 1.");
 
   free_options_test_data(tdata);
   tdata = get_options_test_data(TEST_OPTIONS_DEFAULT_VALUES
@@ -4149,16 +4099,6 @@ test_options_validate__testing_options(void *ignored)
   ret = options_validate(tdata->old_opt, tdata->opt, tdata->def_opt, 0, &msg);
   tt_int_op(ret, OP_EQ, 0);
   tt_assert(!msg);
-  tor_free(msg);
-
-  free_options_test_data(tdata);
-  tdata = get_options_test_data(TEST_OPTIONS_DEFAULT_VALUES
-                                "TestingEnableTbEmptyEvent 1\n"
-                                );
-  ret = options_validate(tdata->old_opt, tdata->opt, tdata->def_opt, 0, &msg);
-  tt_int_op(ret, OP_EQ, -1);
-  tt_str_op(msg, OP_EQ, "TestingEnableTbEmptyEvent may only be changed "
-            "in testing Tor networks!");
   tor_free(msg);
 
   free_options_test_data(tdata);
@@ -4280,7 +4220,6 @@ struct testcase_t options_tests[] = {
   LOCAL_VALIDATE_TEST(path_bias),
   LOCAL_VALIDATE_TEST(bandwidth),
   LOCAL_VALIDATE_TEST(circuits),
-  LOCAL_VALIDATE_TEST(port_forwarding),
   LOCAL_VALIDATE_TEST(tor2web),
   LOCAL_VALIDATE_TEST(rend),
   LOCAL_VALIDATE_TEST(single_onion),

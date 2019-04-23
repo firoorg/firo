@@ -35,6 +35,12 @@ class BitcoinTestFramework(object):
         self.num_nodes = 4
         self.setup_clean_chain = False
         self.nodes = None
+        self.set_test_params()
+
+    # Methods to override in subclass test scripts.
+    def set_test_params(self):
+        """Tests must implement this method to change default values for number of nodes, topology, etc"""
+        pass #raise NotImplementedError, do not raise an exception, as not all tests implement this.
 
     def run_test(self):
         raise NotImplementedError
@@ -194,10 +200,10 @@ class ComparisonTestFramework(BitcoinTestFramework):
 
     def add_options(self, parser):
         parser.add_option("--testbinary", dest="testbinary",
-                          default=os.getenv("BITCOIND", "bitcoind"),
+                          default=os.getenv("ZCOIND", "zcoind"),
                           help="bitcoind binary to test")
         parser.add_option("--refbinary", dest="refbinary",
-                          default=os.getenv("BITCOIND", "bitcoind"),
+                          default=os.getenv("ZCOIND", "zcoind"),
                           help="bitcoind binary to use for reference nodes (if any)")
 
     def setup_network(self):

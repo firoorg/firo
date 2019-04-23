@@ -113,11 +113,39 @@ void WalletFrame::gotoOverviewPage()
         i.value()->gotoOverviewPage();
 }
 
+void WalletFrame::gotoExoAssetsPage()
+{
+    QMap<QString, WalletView*>::const_iterator i;
+    for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i)
+        i.value()->gotoExoAssetsPage();
+}
+
 void WalletFrame::gotoHistoryPage()
 {
     QMap<QString, WalletView*>::const_iterator i;
     for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i)
         i.value()->gotoHistoryPage();
+}
+
+void WalletFrame::gotoExodusHistoryTab()
+{
+    QMap<QString, WalletView*>::const_iterator i;
+    for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i)
+        i.value()->gotoExodusHistoryTab();
+}
+
+void WalletFrame::gotoBitcoinHistoryTab()
+{
+    QMap<QString, WalletView*>::const_iterator i;
+    for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i)
+        i.value()->gotoBitcoinHistoryTab();
+}
+
+void WalletFrame::gotoToolboxPage()
+{
+    QMap<QString, WalletView*>::const_iterator i;
+    for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i)
+        i.value()->gotoToolboxPage();
 }
 
 void WalletFrame::gotoZnodePage()
@@ -155,6 +183,12 @@ void WalletFrame::gotoZerocoinPage()
         i.value()->gotoZerocoinPage();
 }
 
+void WalletFrame::gotoSigmaPage()
+{
+    QMap<QString, WalletView*>::const_iterator i;
+    for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i)
+        i.value()->gotoSigmaPage();
+}
 
 void WalletFrame::gotoVerifyMessageTab(QString addr)
 {
@@ -209,4 +243,3 @@ WalletView *WalletFrame::currentWalletView()
 {
     return qobject_cast<WalletView*>(walletStack->currentWidget());
 }
-

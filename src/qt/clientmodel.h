@@ -76,6 +76,10 @@ public:
     QString formatClientStartupTime() const;
     QString dataDir() const;
 
+    // Try to avoid Exodus queuing too many messages
+    bool tryLockExodusStateChanged();
+    bool tryLockExodusBalanceChanged();
+
 private:
     OptionsModel *optionsModel;
     PeerTableModel *peerTableModel;
@@ -86,6 +90,10 @@ private:
     void subscribeToCoreSignals();
     void unsubscribeFromCoreSignals();
 
+    // Locks for Exodus state changes
+    bool lockedExodusStateChanged;
+    bool lockedExodusBalanceChanged;
+
 Q_SIGNALS:
     void numConnectionsChanged(int count);
     void numBlocksChanged(int count, const QDateTime& blockDate, double nVerificationProgress, bool header);
@@ -93,6 +101,12 @@ Q_SIGNALS:
     void alertsChanged(const QString &warnings);
     void bytesChanged(quint64 totalBytesIn, quint64 totalBytesOut);
     void additionalDataSyncProgressChanged(int count, double nSyncProgress);
+
+    // Additional Exodus signals
+    void reinitExodusState();
+    void refreshExodusState();
+    void refreshExodusBalance();
+    void refreshExodusPending(bool pending);
 
     //! Fired when a message should be reported to the user
     void message(const QString &title, const QString &message, unsigned int style);
@@ -105,6 +119,12 @@ public Q_SLOTS:
     void updateNumConnections(int numConnections);
     void updateAlert();
     void updateBanlist();
+
+    // Additional Exodus slots
+    void invalidateExodusState();
+    void updateExodusState();
+    void updateExodusBalance();
+    void updateExodusPending(bool pending);
 };
 
 #endif // BITCOIN_QT_CLIENTMODEL_H

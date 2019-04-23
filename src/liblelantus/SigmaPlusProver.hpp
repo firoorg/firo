@@ -6,10 +6,10 @@ SigmaPlusProver<Exponent, GroupElement>::SigmaPlusProver(
         const std::vector<GroupElement>& h_gens,
         uint64_t n,
         uint64_t m)
-    : g_(g)
-    , h_(h_gens)
-    , n_(n)
-    , m_(m) {
+        : g_(g)
+        , h_(h_gens)
+        , n_(n)
+        , m_(m) {
 }
 
 template<class Exponent, class GroupElement>
@@ -104,8 +104,6 @@ void SigmaPlusProver<Exponent, GroupElement>::sigma_commit(
 
     proof_out.Gk_.reserve(m_);
     proof_out.Qk.reserve(m_);
-    const int window_size = 7;
-    zcoin_common::GeneratorVector <Exponent, GroupElement> c_(commits, window_size);
     for (int k = 0; k < m_; ++k)
     {
         std::vector <Exponent> P_i;
@@ -113,10 +111,10 @@ void SigmaPlusProver<Exponent, GroupElement>::sigma_commit(
         for (int i = 0; i < N; ++i){
             P_i.emplace_back(P_i_k[i][k]);
         }
-        GroupElement c_k;
-        c_.get_vector_multiple(P_i, c_k);
-        proof_out.Gk_.emplace_back(c_k + h_.get_g(1) * Yk[k].negate());
-        proof_out.Qk.emplace_back(LelantusPrimitives<Exponent, GroupElement>::double_commit(g_, Exponent(uint64_t(0)), h_.get_g(0), Pk[k], h_.get_g(1), Tk[k]) + h_.get_g(1) * Yk[k]);
+        secp_primitives::MultiExponent mult(commits, P_i);
+        GroupElement c_k = mult.get_multiple();
+        proof_out.Gk_.emplace_back(c_k + h_[1] * Yk[k].negate());
+        proof_out.Qk.emplace_back(LelantusPrimitives<Exponent, GroupElement>::double_commit(g_, Exponent(uint64_t(0)), h_[0], Pk[k], h_[1], Tk[k]) + h_[1] * Yk[k]);
 
     }
 }

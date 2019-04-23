@@ -6,6 +6,7 @@
 
 #include "addressbookpage.h"
 #include "zerocoinpage.h"
+#include "sigmapage.h"
 #include "askpassphrasedialog.h"
 #include "bitcoingui.h"
 #include "clientmodel.h"
@@ -15,78 +16,180 @@
 #include "platformstyle.h"
 #include "receivecoinsdialog.h"
 #include "sendcoinsdialog.h"
+#include "sendmpdialog.h"
+#include "lookupspdialog.h"
+#include "lookuptxdialog.h"
+#include "lookupaddressdialog.h"
+#include "metadexcanceldialog.h"
+#include "metadexdialog.h"
 #include "signverifymessagedialog.h"
+#include "tradehistorydialog.h"
 #include "transactiontablemodel.h"
 #include "transactionview.h"
+#include "txhistorydialog.h"
 #include "walletmodel.h"
 
 #include "ui_interface.h"
 
+#include <exodus/exodus.h>
+
 #include <QAction>
 #include <QActionGroup>
+#include <QDebug>
+#include <QDialog>
 #include <QFileDialog>
+#include <QHeaderView>
 #include <QHBoxLayout>
 #include <QProgressDialog>
 #include <QPushButton>
+#include <QTableView>
 #include <QVBoxLayout>
 
 WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
     QStackedWidget(parent),
     clientModel(0),
     walletModel(0),
-    platformStyle(platformStyle)
+    overviewPage(0),
+    sendExodusView(0),
+    sigmaPage(0),
+    exodusTransactionsView(0),
+    zcoinTransactionsView(0),
+    platformStyle(platformStyle),
+    transactionTabs(0),
+    sendCoinsTabs(0)
 {
-    // Create tabs
     overviewPage = new OverviewPage(platformStyle);
-
     transactionsPage = new QWidget(this);
-    QVBoxLayout *vbox = new QVBoxLayout();
-    QHBoxLayout *hbox_buttons = new QHBoxLayout();
-    transactionView = new TransactionView(platformStyle, this);
-    vbox->addWidget(transactionView);
-    QPushButton *exportButton = new QPushButton(tr("&Export"), this);
-    exportButton->setToolTip(tr("Export the data in the current tab to a file"));
-    if (platformStyle->getImagesOnButtons()) {
-        exportButton->setIcon(platformStyle->SingleColorIcon(":/icons/export"));
-    }
-    hbox_buttons->addStretch();
-    hbox_buttons->addWidget(exportButton);
-    vbox->addLayout(hbox_buttons);
-    transactionsPage->setLayout(vbox);
-
+    exoAssetsPage = new ExoAssetsDialog();
     receiveCoinsPage = new ReceiveCoinsDialog(platformStyle);
-    sendCoinsPage = new SendCoinsDialog(platformStyle);
-
     usedSendingAddressesPage = new AddressBookPage(platformStyle, AddressBookPage::ForEditing, AddressBookPage::SendingTab, this);
     usedReceivingAddressesPage = new AddressBookPage(platformStyle, AddressBookPage::ForEditing, AddressBookPage::ReceivingTab, this);
     zerocoinPage = new ZerocoinPage(platformStyle, ZerocoinPage::ForEditing, this);
+    sigmaPage = new SigmaPage(platformStyle, this);
+    sendCoinsPage = new QWidget(this);
+    toolboxPage = new QWidget(this);
+    znodeListPage = new ZnodeList(platformStyle);
 
+    setupTransactionPage();
+    setupSendCoinPage();
+    setupToolboxPage();
 
     addWidget(overviewPage);
+    addWidget(exoAssetsPage);
     addWidget(transactionsPage);
     addWidget(receiveCoinsPage);
     addWidget(sendCoinsPage);
     addWidget(zerocoinPage);
-    znodeListPage = new ZnodeList(platformStyle);
+    addWidget(sigmaPage);
+    addWidget(toolboxPage);
     addWidget(znodeListPage);
 
     // Clicking on a transaction on the overview pre-selects the transaction on the transaction history page
-    connect(overviewPage, SIGNAL(transactionClicked(QModelIndex)), transactionView, SLOT(focusTransaction(QModelIndex)));
-
-    // Double-clicking on a transaction on the transaction history page shows details
-    connect(transactionView, SIGNAL(doubleClicked(QModelIndex)), transactionView, SLOT(showDetails()));
-
-    // Clicking on "Export" allows to export the transaction list
-    connect(exportButton, SIGNAL(clicked()), transactionView, SLOT(exportClicked()));
-
-    // Pass through messages from sendCoinsPage
-    connect(sendCoinsPage, SIGNAL(message(QString,QString,unsigned int)), this, SIGNAL(message(QString,QString,unsigned int)));
-    // Pass through messages from transactionView
-    connect(transactionView, SIGNAL(message(QString,QString,unsigned int)), this, SIGNAL(message(QString,QString,unsigned int)));
+    connect(overviewPage, SIGNAL(transactionClicked(QModelIndex)), this, SLOT(focusBitcoinHistoryTab(QModelIndex)));
+    connect(overviewPage, SIGNAL(exodusTransactionClicked(uint256)), this, SLOT(focusExodusTransaction(uint256)));
 }
 
 WalletView::~WalletView()
 {
+}
+
+void WalletView::setupTransactionPage()
+{
+    // Create Zcoin transactions list
+    zcoinTransactionList = new TransactionView(platformStyle);
+
+    connect(zcoinTransactionList, SIGNAL(doubleClicked(QModelIndex)), zcoinTransactionList, SLOT(showDetails()));
+    connect(zcoinTransactionList, SIGNAL(message(QString, QString, unsigned int)), this, SIGNAL(message(QString, QString, unsigned int)));
+
+    // Create export panel for Zcoin transactions
+    auto exportButton = new QPushButton(tr("&Export"));
+
+    exportButton->setToolTip(tr("Export the data in the current tab to a file"));
+
+    if (platformStyle->getImagesOnButtons()) {
+        exportButton->setIcon(platformStyle->SingleColorIcon(":/icons/export"));
+    }
+
+    connect(exportButton, SIGNAL(clicked()), zcoinTransactionList, SLOT(exportClicked()));
+
+    auto exportLayout = new QHBoxLayout();
+    exportLayout->addStretch();
+    exportLayout->addWidget(exportButton);
+
+    // Compose transaction list and export panel together
+    auto zcoinLayout = new QVBoxLayout();
+    zcoinLayout->addWidget(zcoinTransactionList);
+    zcoinLayout->addLayout(exportLayout);
+
+    zcoinTransactionsView = new QWidget();
+    zcoinTransactionsView->setLayout(zcoinLayout);
+
+    // Create tabs for transaction categories
+    if (isExodusEnabled()) {
+        exodusTransactionsView = new TXHistoryDialog();
+
+        transactionTabs = new QTabWidget();
+        transactionTabs->addTab(zcoinTransactionsView, tr("Zcoin"));
+        transactionTabs->addTab(exodusTransactionsView, tr("Exodus"));
+    }
+
+    // Set layout for transaction page
+    auto pageLayout = new QVBoxLayout();
+
+    if (transactionTabs) {
+        pageLayout->addWidget(transactionTabs);
+    } else {
+        pageLayout->addWidget(zcoinTransactionsView);
+    }
+
+    transactionsPage->setLayout(pageLayout);
+}
+
+void WalletView::setupSendCoinPage()
+{
+    sendZcoinView = new SendCoinsDialog(platformStyle);
+
+    connect(sendZcoinView, SIGNAL(message(QString, QString, unsigned int)), this, SIGNAL(message(QString, QString, unsigned int)));
+
+    // Create tab for coin type
+    if (isExodusEnabled()) {
+        sendExodusView = new SendMPDialog(platformStyle);
+
+        sendCoinsTabs = new QTabWidget();
+        sendCoinsTabs->addTab(sendZcoinView, tr("Zcoin"));
+        sendCoinsTabs->addTab(sendExodusView, tr("Exodus"));
+    }
+
+    // Set layout for send coin page
+    auto pageLayout = new QVBoxLayout();
+
+    if (sendCoinsTabs) {
+        pageLayout->addWidget(sendCoinsTabs);
+    } else {
+        pageLayout->addWidget(sendZcoinView);
+    }
+
+    sendCoinsPage->setLayout(pageLayout);
+}
+
+void WalletView::setupToolboxPage()
+{
+    // Create tools widget
+    auto lookupAddress = new LookupAddressDialog();
+    auto lookupProperty = new LookupSPDialog();
+    auto lookupTransaction = new LookupTXDialog();
+
+    // Create tab for each tool
+    auto tabs = new QTabWidget();
+
+    tabs->addTab(lookupAddress, tr("Lookup Address"));
+    tabs->addTab(lookupProperty, tr("Lookup Property"));
+    tabs->addTab(lookupTransaction, tr("Lookup Transaction"));
+
+    // Set layout for toolbox page
+    auto pageLayout = new QVBoxLayout();
+    pageLayout->addWidget(tabs);
+    toolboxPage->setLayout(pageLayout);
 }
 
 void WalletView::setBitcoinGUI(BitcoinGUI *gui)
@@ -94,7 +197,8 @@ void WalletView::setBitcoinGUI(BitcoinGUI *gui)
     if (gui)
     {
         // Clicking on a transaction on the overview page simply sends you to transaction history page
-        connect(overviewPage, SIGNAL(transactionClicked(QModelIndex)), gui, SLOT(gotoHistoryPage()));
+        connect(overviewPage, SIGNAL(transactionClicked(QModelIndex)), gui, SLOT(gotoBitcoinHistoryTab()));
+        connect(overviewPage, SIGNAL(exodusTransactionClicked(uint256)), gui, SLOT(gotoExodusHistoryTab()));
 
         // Receive and report messages
         connect(this, SIGNAL(message(QString,QString,unsigned int)), gui, SLOT(message(QString,QString,unsigned int)));
@@ -112,8 +216,17 @@ void WalletView::setClientModel(ClientModel *clientModel)
     this->clientModel = clientModel;
 
     overviewPage->setClientModel(clientModel);
-    sendCoinsPage->setClientModel(clientModel);
+    sendZcoinView->setClientModel(clientModel);
     znodeListPage->setClientModel(clientModel);
+    exoAssetsPage->setClientModel(clientModel);
+
+    if (exodusTransactionsView) {
+        exodusTransactionsView->setClientModel(clientModel);
+    }
+
+    if (sendExodusView) {
+        sendExodusView->setClientModel(clientModel);
+    }
 }
 
 void WalletView::setWalletModel(WalletModel *walletModel)
@@ -121,14 +234,24 @@ void WalletView::setWalletModel(WalletModel *walletModel)
     this->walletModel = walletModel;
 
     // Put transaction list in tabs
-    transactionView->setModel(walletModel);
+    zcoinTransactionList->setModel(walletModel);
     overviewPage->setWalletModel(walletModel);
     receiveCoinsPage->setModel(walletModel);
-    sendCoinsPage->setModel(walletModel);
     zerocoinPage->setModel(walletModel->getAddressTableModel());
+    sigmaPage->setModel(walletModel);
     usedReceivingAddressesPage->setModel(walletModel->getAddressTableModel());
     usedSendingAddressesPage->setModel(walletModel->getAddressTableModel());
     znodeListPage->setWalletModel(walletModel);
+    sendZcoinView->setModel(walletModel);
+    exoAssetsPage->setWalletModel(walletModel);
+
+    if (exodusTransactionsView) {
+        exodusTransactionsView->setWalletModel(walletModel);
+    }
+
+    if (sendExodusView) {
+        sendExodusView->setWalletModel(walletModel);
+    }
 
     if (walletModel)
     {
@@ -176,9 +299,49 @@ void WalletView::gotoOverviewPage()
     setCurrentWidget(overviewPage);
 }
 
+void WalletView::gotoExoAssetsPage()
+{
+    setCurrentWidget(exoAssetsPage);
+}
+
 void WalletView::gotoHistoryPage()
 {
     setCurrentWidget(transactionsPage);
+}
+
+void WalletView::gotoExodusHistoryTab()
+{
+    if (!transactionTabs) {
+        return;
+    }
+
+    setCurrentWidget(transactionsPage);
+    transactionTabs->setCurrentIndex(1);
+}
+
+void WalletView::gotoBitcoinHistoryTab()
+{
+    setCurrentWidget(transactionsPage);
+
+    if (transactionTabs) {
+        transactionTabs->setCurrentIndex(0);
+    }
+}
+
+void WalletView::focusExodusTransaction(const uint256& txid)
+{
+    if (!exodusTransactionsView) {
+        return;
+    }
+
+    gotoExodusHistoryTab();
+    exodusTransactionsView->focusTransaction(txid);
+}
+
+void WalletView::focusBitcoinHistoryTab(const QModelIndex &idx)
+{
+    gotoBitcoinHistoryTab();
+    zcoinTransactionList->focusTransaction(idx);
 }
 
 void WalletView::gotoZnodePage()
@@ -196,12 +359,24 @@ void WalletView::gotoZerocoinPage()
     setCurrentWidget(zerocoinPage);
 }
 
+void WalletView::gotoSigmaPage()
+{
+    setCurrentWidget(sigmaPage);
+}
+
+
+void WalletView::gotoToolboxPage()
+{
+    setCurrentWidget(toolboxPage);
+}
+
 void WalletView::gotoSendCoinsPage(QString addr)
 {
     setCurrentWidget(sendCoinsPage);
 
-    if (!addr.isEmpty())
-        sendCoinsPage->setAddress(addr);
+    if (!addr.isEmpty()){
+        sendZcoinView->setAddress(addr);
+    }
 }
 
 void WalletView::gotoSignMessageTab(QString addr)
@@ -230,7 +405,11 @@ void WalletView::gotoVerifyMessageTab(QString addr)
 
 bool WalletView::handlePaymentRequest(const SendCoinsRecipient& recipient)
 {
-    return sendCoinsPage->handlePaymentRequest(recipient);
+    if (sendCoinsTabs) {
+        sendCoinsTabs->setCurrentIndex(0);
+    }
+
+    return sendZcoinView->handlePaymentRequest(recipient);
 }
 
 void WalletView::showOutOfSyncWarning(bool fShow)

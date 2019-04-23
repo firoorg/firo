@@ -3,7 +3,7 @@
 #include <vector>
 #include <secp256k1/include/Scalar.h>
 #include <secp256k1/include/GroupElement.h>
-#include <common/GeneratorVector.h>
+#include <secp256k1/include/MultiExponent.h>
 #include "SigmaPlusProof.h"
 #include "LelantusProof.h"
 #include "SchnorrProof.h"
@@ -34,7 +34,7 @@ public:
 ////functions for sigma
     static void commit(
             const GroupElement& g,
-            const zcoin_common::GeneratorVector<Exponent, GroupElement>& h,
+            const std::vector<GroupElement>& h,
             const std::vector<Exponent>& exp,
             const Exponent& r,
             GroupElement& result_out);
@@ -52,9 +52,9 @@ public:
     static void commit(
             const GroupElement& h,
             const Exponent& h_exp,
-            const zcoin_common::GeneratorVector<Exponent, GroupElement>& g_,
+            const std::vector<GroupElement>& g_,
             const std::vector<Exponent>& L,
-            const zcoin_common::GeneratorVector<Exponent, GroupElement>& h_,
+            const std::vector<GroupElement>& h_,
             const std::vector<Exponent>& R,
             GroupElement& result_out);
 
@@ -71,13 +71,15 @@ public:
             typename std::vector<Exponent>::const_iterator b_start,
             typename std::vector<Exponent>::const_iterator b_end);
 
-    static zcoin_common::GeneratorVector<Exponent, GroupElement> g_prime(
-            const zcoin_common::GeneratorVector<Exponent, GroupElement>& g_,
-            const Exponent& x);
+    static void g_prime(
+            const std::vector<GroupElement>& g_,
+            const Exponent& x,
+            std::vector<GroupElement>& result);
 
-    static zcoin_common::GeneratorVector<Exponent, GroupElement> h_prime(
-            const zcoin_common::GeneratorVector<Exponent, GroupElement>& h_,
-            const Exponent& x);
+    static void h_prime(
+            const std::vector<GroupElement>& h_,
+            const Exponent& x,
+            std::vector<GroupElement>& result);
 
     static GroupElement p_prime(
             const GroupElement& P_,

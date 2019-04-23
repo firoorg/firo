@@ -69,10 +69,29 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, vector<vector<unsi
         return true;
     }
 
+    if (scriptPubKey.IsPayToPublicKeyHash())
+    {
+        typeRet = TX_PUBKEYHASH;
+        vector<unsigned char> hashBytes(scriptPubKey.begin()+3, scriptPubKey.begin()+23);
+        vSolutionsRet.push_back(hashBytes);
+        return true;
+    }
+
     // Zerocoin
     if (scriptPubKey.IsZerocoinMint())
     {
         typeRet = TX_ZEROCOINMINT;
+        if(scriptPubKey.size() > 150) return false;
+        vector<unsigned char> hashBytes(scriptPubKey.begin()+2, scriptPubKey.end());
+        vSolutionsRet.push_back(hashBytes);
+        return true;
+    }
+    // Zerocoin V3 SIGMA
+    if (scriptPubKey.IsZerocoinMintV3())
+    {
+        typeRet = TX_ZEROCOINMINT;
+        // TODO(martun): check how large our mint is, it's still a fixed value, just like 
+        // in zerocoin, but most probably it's 33 bytes instead of 150.
         if(scriptPubKey.size() > 150) return false;
         vector<unsigned char> hashBytes(scriptPubKey.begin()+2, scriptPubKey.end());
         vSolutionsRet.push_back(hashBytes);

@@ -142,7 +142,10 @@ void PrivateCoin::mintCoin(const CoinDenomination denomination) {
 				&& coin.getCommitmentValue()
 						>= params->accumulatorParams.minCoinValue
 				&& coin.getCommitmentValue()
-						<= params->accumulatorParams.maxCoinValue) {
+                        <= params->accumulatorParams.maxCoinValue
+                // for historical reasons we need all the public coins to have the same size in bytes
+                && coin.getCommitmentValue().bitSize()
+                        > params->coinCommitmentGroup.modulus.bitSize()-8) {
 			// Found a valid coin. Store it.
 			this->serialNumber = s;
 			this->randomness = coin.getRandomness();
@@ -196,7 +199,10 @@ void PrivateCoin::mintCoinFast(const CoinDenomination denomination) {
 		// away and generate a new one.
 		if (commitmentValue.isPrime(ZEROCOIN_MINT_PRIME_PARAM) &&
 			commitmentValue >= params->accumulatorParams.minCoinValue &&
-			commitmentValue <= params->accumulatorParams.maxCoinValue) {
+            commitmentValue <= params->accumulatorParams.maxCoinValue &&
+            // for historical reasons we need all the public coins to have the same size in bytes
+            commitmentValue.bitSize() > params->coinCommitmentGroup.modulus.bitSize()-8) {
+
 			// Found a valid coin. Store it.
 			this->serialNumber = s;
 			this->randomness = r;
@@ -226,7 +232,7 @@ const PublicCoin& PrivateCoin::getPublicCoin() const {
 }
 
 
-const Bignum PrivateCoin::serialNumberFromSerializedPublicKey(secp256k1_context *context, secp256k1_pubkey *pubkey)  {
+Bignum PrivateCoin::serialNumberFromSerializedPublicKey(secp256k1_context *context, secp256k1_pubkey *pubkey)  {
     std::vector<unsigned char> pubkey_hash(32, 0);
 
     static const unsigned char one[32] = {

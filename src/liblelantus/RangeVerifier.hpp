@@ -43,7 +43,6 @@ bool RangeVerifier<Exponent, GroupElement>::verify_batch(const std::vector<Group
     Exponent z_square_neg = (z.square()).negate();
     Exponent delta = LelantusPrimitives<Exponent, GroupElement>::delta(y, z, n, m);
     //check line 97
-    GroupElement left = LelantusPrimitives<Exponent, GroupElement>::double_commit(g, (innerProductProof.c_ - delta), h1, proof.T_x1, h2, proof.T_x2);
     GroupElement V_z;
     Exponent z_m(uint64_t(1));
     for (int j = 0; j < m; ++j)
@@ -51,10 +50,6 @@ bool RangeVerifier<Exponent, GroupElement>::verify_batch(const std::vector<Group
         V_z += V[j] * (z_square_neg * z_m);
         z_m *= z;
     }
-
-    left += V_z + proof.T1 * x_neg + proof.T2 * ((x.square()).negate());
-    if(!left.isOne())
-        return false;
 
     std::vector<Exponent> l, r;
     l.resize(n * m);
@@ -90,23 +85,29 @@ bool RangeVerifier<Exponent, GroupElement>::verify_batch(const std::vector<Group
     }
     //check line 105
     GroupElement left_;
-    g_.get_vector_multiple(l, left_);
-    h_.get_vector_multiple(r, left_);
-    left_ += g * (x_u *  (innerProductProof.a_ * innerProductProof.b_ - innerProductProof.c_))
-            + h1 * proof.u
-            + proof.A.inverse()
-            + proof.S * x_neg;
+    Exponent c;
+    c.randomize();
+    left_ += LelantusPrimitives<Exponent, GroupElement>::double_commit(g, (innerProductProof.c_ - delta) * c, h1, proof.T_x1 * c, h2, proof.T_x2 * c);
+    left_ += V_z * c + proof.T1 * x_neg * c + proof.T2 * ((x.square()).negate() * c);
 
-    zcoin_common::GeneratorVector<Exponent, GroupElement> L(innerProductProof.L_);
-    zcoin_common::GeneratorVector<Exponent, GroupElement> R(innerProductProof.R_);
+    secp_primitives::MultiExponent g_mult(g_, l);
+    secp_primitives::MultiExponent h_mult(h_, r);
+    left_ += g_mult.get_multiple() + h_mult.get_multiple();;
+
+    left_ += g * (x_u *  (innerProductProof.a_ * innerProductProof.b_ - innerProductProof.c_))
+             + h1 * proof.u
+             + proof.A.inverse()
+             + proof.S * x_neg;
+
     std::vector<Exponent> x_j_sq_neg, x_j_sq_inv_neg;
     for (int j = 0; j < log_n; ++j)
     {
         x_j_sq_neg.push_back(x_j[j].square().negate());
         x_j_sq_inv_neg.push_back(x_j_inv[j].square().negate());
     }
-    L.get_vector_multiple(x_j_sq_neg, left_);
-    R.get_vector_multiple(x_j_sq_inv_neg, left_);
+    secp_primitives::MultiExponent L(innerProductProof.L_, x_j_sq_neg);
+    secp_primitives::MultiExponent R(innerProductProof.R_, x_j_sq_inv_neg);
+    left_ += L.get_multiple() + R.get_multiple();
 
     if(!left_.isOne())
         return false;
@@ -116,15 +117,15 @@ bool RangeVerifier<Exponent, GroupElement>::verify_batch(const std::vector<Group
 template<class Exponent, class GroupElement>
 bool RangeVerifier<Exponent, GroupElement>::membership_checks(const RangeProof<Exponent, GroupElement>& proof) {
     if(!(proof.A.isMember()
-        && proof.S.isMember()
-        && proof.T1.isMember()
-        && proof.T1.isMember()
-        && proof.T_x1.isMember()
-        && proof.T_x2.isMember()
-        && proof.u.isMember()
-        && proof.innerProductProof.a_.isMember()
-        && proof.innerProductProof.b_.isMember())
-        && proof.innerProductProof.c_.isMember())
+         && proof.S.isMember()
+         && proof.T1.isMember()
+         && proof.T1.isMember()
+         && proof.T_x1.isMember()
+         && proof.T_x2.isMember()
+         && proof.u.isMember()
+         && proof.innerProductProof.a_.isMember()
+         && proof.innerProductProof.b_.isMember())
+       && proof.innerProductProof.c_.isMember())
         return false;
 
     for (int i = 0; i < proof.innerProductProof.L_.size(); ++i)

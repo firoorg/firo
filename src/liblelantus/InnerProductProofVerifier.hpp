@@ -2,8 +2,8 @@ namespace lelantus {
 
 template <class Exponent, class GroupElement>
 InnerProductProofVerifier<Exponent, GroupElement>::InnerProductProofVerifier(
-        const zcoin_common::GeneratorVector<Exponent, GroupElement>& g,
-        const zcoin_common::GeneratorVector<Exponent, GroupElement>& h,
+        const std::vector<GroupElement>& g,
+        const std::vector<GroupElement>& h,
         const GroupElement& u,
         const GroupElement& P)
         : g_(g)
@@ -26,13 +26,13 @@ bool InnerProductProofVerifier<Exponent, GroupElement>::verify(
 
 template <class Exponent, class GroupElement>
 bool InnerProductProofVerifier<Exponent, GroupElement>::verify_util(
-                                           const InnerProductProof<Exponent, GroupElement>& proof,
-                                           typename std::vector<GroupElement>::const_iterator itr_l,
-                                           typename std::vector<GroupElement>::const_iterator itr_r) {
+        const InnerProductProof<Exponent, GroupElement>& proof,
+        typename std::vector<GroupElement>::const_iterator itr_l,
+        typename std::vector<GroupElement>::const_iterator itr_r) {
     if(itr_l == proof.L_.end()){
         Exponent c = proof.a_ * proof.b_;
         GroupElement uc = u_ * c;
-        GroupElement P = g_.get_g(0) * proof.a_ + h_.get_g(0) * proof.b_ + uc;
+        GroupElement P = g_[0] * proof.a_ + h_[0] * proof.b_ + uc;
         return P_ == P;
     }
 
@@ -40,8 +40,10 @@ bool InnerProductProofVerifier<Exponent, GroupElement>::verify_util(
     Exponent x;
     LelantusPrimitives<Exponent, GroupElement>::get_x(*itr_l, *itr_r, x);
     //Compute g prime and p prime
-    zcoin_common::GeneratorVector<Exponent, GroupElement> g_p = LelantusPrimitives<Exponent, GroupElement>::g_prime(g_, x);
-    zcoin_common::GeneratorVector<Exponent, GroupElement> h_p = LelantusPrimitives<Exponent, GroupElement>::h_prime(h_, x);
+    std::vector<GroupElement> g_p;
+    LelantusPrimitives<Exponent, GroupElement>::g_prime(g_, x, g_p);
+    std::vector<GroupElement> h_p;
+    LelantusPrimitives<Exponent, GroupElement>::h_prime(h_, x, h_p);
     //Compute P prime
     GroupElement p_p = LelantusPrimitives<Exponent, GroupElement>::p_prime(P_, *itr_l, *itr_r, x);
     return InnerProductProofVerifier(g_p, h_p, u_, p_p).verify_util(proof, ++itr_l, ++itr_r);
@@ -84,10 +86,10 @@ bool InnerProductProofVerifier<Exponent, GroupElement>::verify_fast_util(
         s_inv[i] = x_i.inverse();
     }
 
-    GroupElement g;
-    GroupElement h;
-    g_.get_vector_multiple(s, g);
-    h_.get_vector_multiple(s_inv, h);
+    secp_primitives::MultiExponent g_mult(g_, s);
+    secp_primitives::MultiExponent h_mult(h_, s_inv);
+    GroupElement g = g_mult.get_multiple();
+    GroupElement h = h_mult.get_multiple();
 
     GroupElement left;
     left += g * proof.a_ +  h * proof.b_ + u_ * (proof.a_ * proof.b_);

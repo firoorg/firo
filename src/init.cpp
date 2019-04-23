@@ -17,6 +17,7 @@
 #include "checkpoints.h"
 #include "compat/sanity.h"
 #include "consensus/validation.h"
+#include "exodus/exodus.h"
 #include "httpserver.h"
 #include "httprpc.h"
 #include "key.h"
@@ -39,6 +40,7 @@
 #include "utilmoneystr.h"
 #include "validationinterface.h"
 #include "validation.h"
+#include "mtpstate.h"
 
 #ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
@@ -117,6 +119,7 @@ enum BindFlags {
 
 static const char *FEE_ESTIMATES_FILENAME = "fee_estimates.dat";
 
+extern CTxMemPool stempool;
 
 namespace fs = boost::filesystem;
 
@@ -228,6 +231,8 @@ void Shutdown() {
     /// module was initialized.
     RenameThread("bitcoin-shutoff");
     mempool.AddTransactionsUpdated(1);
+    // Changes to mempool should also be made to Dandelion stempool
+    stempool.AddTransactionsUpdated(1);
 
     StopHTTPRPC();
     StopREST();
@@ -240,14 +245,12 @@ void Shutdown() {
     GenerateBitcoins(false, 0, Params());
     StopNode();
 
-    // STORE DATA CACHES INTO SERIALIZED DAT FILES
-    // TODO: https://github.com/zcoinofficial/zcoin/issues/182
-    //    CFlatDB<CZnodeMan> flatdb1("zncache.dat", "magicZnodeCache");
-    //    flatdb1.Dump(mnodeman);
-    //    CFlatDB<CZnodePayments> flatdb2("znpayments.dat", "magicZnodePaymentsCache");
-    //    flatdb2.Dump(mnpayments);
-    //    CFlatDB<CNetFulfilledRequestManager> flatdb4("netfulfilled.dat", "magicFulfilledCache");
-    //    flatdb4.Dump(netfulfilledman);
+    CFlatDB<CZnodeMan> flatdb1("zncache.dat", "magicZnodeCache");
+    flatdb1.Dump(mnodeman);
+    CFlatDB<CZnodePayments> flatdb2("znpayments.dat", "magicZnodePaymentsCache");
+    flatdb2.Dump(mnpayments);
+    CFlatDB<CNetFulfilledRequestManager> flatdb4("netfulfilled.dat", "magicFulfilledCache");
+    flatdb4.Dump(netfulfilledman);
 
     StopTorControl();
     UnregisterNodeSignals(GetNodeSignals());
@@ -276,6 +279,11 @@ void Shutdown() {
         delete pblocktree;
         pblocktree = NULL;
     }
+
+    if (isExodusEnabled()) {
+        exodus_shutdown();
+    }
+
 #ifdef ENABLE_WALLET
     if (pwalletMain)
         pwalletMain->Flush(true);
@@ -315,6 +323,7 @@ void HandleSIGTERM(int) {
 
 void HandleSIGHUP(int) {
     fReopenDebugLog = true;
+    fReopenExodusLog = true;
 }
 
 bool static Bind(const CService &addr, unsigned int flags) {
@@ -406,6 +415,9 @@ std::string HelpMessage(HelpMessageMode mode) {
     strUsage += HelpMessageOpt("-txindex", strprintf(
             _("Maintain a full transaction index, used by the getrawtransaction rpc call (default: %u)"),
             DEFAULT_TXINDEX));
+    strUsage += HelpMessageOpt("-addressindex", strprintf(_("Maintain a full address index, used to query for the balance, txids and unspent outputs for addresses (default: %u)"), DEFAULT_ADDRESSINDEX));
+    strUsage += HelpMessageOpt("-timestampindex", strprintf(_("Maintain a timestamp index for block hashes, used to query blocks hashes by a range of timestamps (default: %u)"), DEFAULT_TIMESTAMPINDEX));
+    strUsage += HelpMessageOpt("-spentindex", strprintf(_("Maintain a full spent index, used to query the spending txid and input index for an outpoint (default: %u)"), DEFAULT_SPENTINDEX));
 
     strUsage += HelpMessageGroup(_("Connection options:"));
     strUsage += HelpMessageOpt("-addnode=<ip>", _("Add a node to connect to and attempt to keep the connection open"));
@@ -648,14 +660,31 @@ std::string HelpMessage(HelpMessageMode mode) {
                                              DEFAULT_HTTP_WORKQUEUE));
         strUsage += HelpMessageOpt("-rpcservertimeout=<n>", strprintf("Timeout during HTTP requests (default: %d)",
                                                                       DEFAULT_HTTP_SERVER_TIMEOUT));
+
+        strUsage += HelpMessageOpt("-rpcforceutf8", strprintf("Replace invalid UTF-8 encoded characters with question marks in RPC response (default: %d)", 1));
     }
+
+    strUsage += HelpMessageGroup("Exodus options:");
+    strUsage += HelpMessageOpt("-exodus", "Enable Exodus");
+    strUsage += HelpMessageOpt("-startclean", "Clear all persistence files on startup; triggers reparsing of Exodus transactions");
+    strUsage += HelpMessageOpt("-exodustxcache=<num>", "The maximum number of transactions in the input transaction cache (default: 500000)");
+    strUsage += HelpMessageOpt("-exodusprogressfrequency=<seconds>", "Time in seconds after which the initial scanning progress is reported (default: 30)");
+    strUsage += HelpMessageOpt("-exodusdebug=<category>", "Enable or disable log categories, can be \"all\" or \"none\"");
+    strUsage += HelpMessageOpt("-autocommit=<flag>", "Enable or disable broadcasting of transactions, when creating transactions (default: 1)");
+    strUsage += HelpMessageOpt("-overrideforcedshutdown=<flag>", "Disable force shutdown when error (default: 0)");
+    strUsage += HelpMessageOpt("-exodusalertallowsender=<addr>", "Whitelist senders of alerts, can be \"any\")");
+    strUsage += HelpMessageOpt("-exodusalertignoresender=<addr>", "Ignore senders of alerts");
+    strUsage += HelpMessageOpt("-exodusactivationignoresender=<addr>", "Ignore senders of activations");
+    strUsage += HelpMessageOpt("-exodusactivationallowsender=<addr>", "Whitelist senders of activations");
+    strUsage += HelpMessageOpt("-exodusuiwalletscope=<number>", "Max. transactions to show in trade and transaction history (default: 65535)");
+    strUsage += HelpMessageOpt("-exodusshowblockconsensushash=<number>", "Calculate and log the consensus hash for the specified block");
 
     return strUsage;
 }
 
 std::string LicenseInfo() {
-    const std::string URL_SOURCE_CODE = "<https://github.com/bitcoin/bitcoin>";
-    const std::string URL_WEBSITE = "<https://bitcoincore.org>";
+    const std::string URL_SOURCE_CODE = "<https://github.com/zcoinofficial/zcoin>";
+    const std::string URL_WEBSITE = "<https://zcoin.io/>";
     // todo: remove urls from translations on next change
     return CopyrightHolders(strprintf(_("Copyright (C) %i-%i"), 2009, COPYRIGHT_YEAR) + " ") + "\n" +
            "\n" +
@@ -759,6 +788,7 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
     CImportingNow imp;
     // -reindex
     if (fReindex) {
+        MTPState::GetMTPState()->Reset();
         int nFile = 0;
         while (true) {
             CDiskBlockPos pos(nFile, 0);
@@ -1166,6 +1196,8 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
                               1000000);
     if (ratio != 0) {
         mempool.setSanityCheck(1.0 / ratio);
+        // Changes to mempool should also be made to Dandelion stempool
+        stempool.setSanityCheck(1.0 / ratio);
     }
     fCheckBlockIndex = GetBoolArg("-checkblockindex", chainparams.DefaultConsistencyChecks());
     fCheckpointsEnabled = GetBoolArg("-checkpoints", DEFAULT_CHECKPOINTS_ENABLED);
@@ -1603,7 +1635,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
                 delete pblocktree;
 
                 pblocktree = new CBlockTreeDB(nBlockTreeDBCache, false, fReindex);
-	            
+
 	            if (!fReindex) {
                     // Check existing block index database version, reindex if needed
                     if (pblocktree->GetBlockIndexVersion() < ZC_ADVANCED_INDEX_VERSION) {
@@ -1613,7 +1645,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
                         pblocktree = new CBlockTreeDB(nBlockTreeDBCache, false, fReindex);
 		            }
 	            }
-	            
+
                 pcoinsdbview = new CCoinsViewDB(nCoinDBCache, false, fReindex || fReindexChainState);
                 pcoinscatcher = new CCoinsViewErrorCatcher(pcoinsdbview);
                 pcoinsTip = new CCoinsViewCache(pcoinscatcher);
@@ -1632,8 +1664,12 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
 
                 // If the loaded chain has a wrong genesis, bail out immediately
                 // (we're likely using a testnet datadir, or the other way around).
-                if (!mapBlockIndex.empty() && mapBlockIndex.count(chainparams.GetConsensus().hashGenesisBlock) == 0)
+                if (!mapBlockIndex.empty() && mapBlockIndex.count(chainparams.GetConsensus().hashGenesisBlock) == 0) {
+                    LogPrintf("Genesis block hash %s not found.\n", 
+                        chainparams.GetConsensus().hashGenesisBlock.ToString());
+                    LogPrintf("mapBlockIndex contains %d blocks.\n", mapBlockIndex.size());
                     return InitError(_("Incorrect or no genesis block found. Wrong datadir for network?"));
+                }
 
                 // Initialize the block index (no-op if non-empty database was already loaded)
                 if (!InitBlockIndex(chainparams)) {
@@ -1731,6 +1767,48 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
         mempool.ReadFeeEstimates(est_filein);
     fFeeEstimatesInitialized = true;
 
+    // ********************************************************* Step 7.5: load exodus
+
+    if (isExodusEnabled()) {
+        if (!fTxIndex) {
+            // ask the user if they would like us to modify their config file for them
+            std::string msg = _("Disabled transaction index detected.\n\n"
+                                "Exodus requires an enabled transaction index. To enable "
+                                "transaction indexing, please use the \"-txindex\" option as "
+                                "command line argument or add \"txindex=1\" to your client "
+                                "configuration file within your data directory.\n\n"
+                                "Configuration file"); // allow translation of main text body while still allowing differing config file string
+            msg += ": " + GetConfigFile().string() + "\n\n";
+            msg += _("Would you like Exodus to attempt to update your configuration file accordingly?");
+            bool fRet = uiInterface.ThreadSafeMessageBox(msg, "", CClientUIInterface::MSG_INFORMATION | CClientUIInterface::BTN_OK | CClientUIInterface::MODAL | CClientUIInterface::BTN_ABORT);
+            if (fRet) {
+                // add txindex=1 to config file in GetConfigFile()
+                boost::filesystem::path configPathInfo = GetConfigFile();
+                FILE *fp = fopen(configPathInfo.string().c_str(), "at");
+                if (!fp) {
+                    std::string failMsg = _("Unable to update configuration file at");
+                    failMsg += ":\n" + GetConfigFile().string() + "\n\n";
+                    failMsg += _("The file may be write protected or you may not have the required permissions to edit it.\n");
+                    failMsg += _("Please add txindex=1 to your configuration file manually.\n\nExodus will now shutdown.");
+                    return InitError(failMsg);
+                }
+                fprintf(fp, "\ntxindex=1\n");
+                fflush(fp);
+                fclose(fp);
+                std::string strUpdated = _(
+                        "Your configuration file has been updated.\n\n"
+                        "Exodus will now shutdown - please restart the client for your new configuration to take effect.");
+                uiInterface.ThreadSafeMessageBox(strUpdated, "", CClientUIInterface::MSG_INFORMATION | CClientUIInterface::BTN_OK | CClientUIInterface::MODAL);
+                return false;
+            } else {
+                return InitError(_("Please add txindex=1 to your configuration file manually.\n\nOmni Core will now shutdown."));
+            }
+        }
+
+        uiInterface.InitMessage(_("Parsing Exodus transactions..."));
+        exodus_init();
+    }
+
     // ********************************************************* Step 8: load wallet
 
 #ifdef ENABLE_WALLET
@@ -1746,6 +1824,11 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
 #else // ENABLE_WALLET
     LogPrintf("No wallet support compiled in!\n");
 #endif // !ENABLE_WALLET
+
+    // Exodus code should be initialized and wallet should now be loaded, perform an initial populate
+    if (isExodusEnabled()) {
+        CheckWalletUpdate();
+    }
 
     // ********************************************************* Step 9: data directory maintenance
     LogPrintf("Step 9: data directory maintenance **********************\n");
@@ -1795,7 +1878,11 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
         vImportFiles.push_back(strFile);
     }
 
-    threadGroup.create_thread(boost::bind(&ThreadImport, vImportFiles));
+    // Temporary measure: refactor and changing data structures needed to fix high stack usage
+    boost::thread_attributes threadAttr;
+    threadAttr.set_stack_size(4*1024*1024);
+
+    threadGroup.add_thread(new boost::thread(threadAttr, boost::bind(&ThreadImport, vImportFiles)));
 
     // Wait for genesis block to be processed
     {
@@ -1852,7 +1939,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
         if (!strZnodePrivKey.empty()) {
             if (!darkSendSigner.GetKeysFromSecret(strZnodePrivKey, activeZnode.keyZnode,
                                                   activeZnode.pubKeyZnode))
-                return InitError(_("Invalid znodeprivkey. Please see documenation."));
+                return InitError(_("Invalid znodeprivkey. Please see documentation."));
 
             LogPrintf("  pubKeyZnode: %s\n", CBitcoinAddress(activeZnode.pubKeyZnode.GetID()).ToString());
         } else {
@@ -1882,59 +1969,61 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
         }
     }
 
-
     nLiquidityProvider = GetArg("-liquidityprovider", nLiquidityProvider);
     nLiquidityProvider = std::min(std::max(nLiquidityProvider, 0), 100);
     darkSendPool.SetMinBlockSpacing(nLiquidityProvider * 15);
 
-    fEnablePrivateSend = GetBoolArg("-enableprivatesend", 0);
-    fPrivateSendMultiSession = GetBoolArg("-privatesendmultisession", DEFAULT_PRIVATESEND_MULTISESSION);
-    nPrivateSendRounds = GetArg("-privatesendrounds", DEFAULT_PRIVATESEND_ROUNDS);
-    nPrivateSendRounds = std::min(std::max(nPrivateSendRounds, 2), nLiquidityProvider ? 99999 : 16);
-    nPrivateSendAmount = GetArg("-privatesendamount", DEFAULT_PRIVATESEND_AMOUNT);
-    nPrivateSendAmount = std::min(std::max(nPrivateSendAmount, 2), 999999);
+    fEnablePrivateSend = false;
+//    fEnablePrivateSend = GetBoolArg("-enableprivatesend", 0);
+//    fPrivateSendMultiSession = GetBoolArg("-privatesendmultisession", DEFAULT_PRIVATESEND_MULTISESSION);
+//    nPrivateSendRounds = GetArg("-privatesendrounds", DEFAULT_PRIVATESEND_ROUNDS);
+//    nPrivateSendRounds = std::min(std::max(nPrivateSendRounds, 2), nLiquidityProvider ? 99999 : 16);
+//    nPrivateSendAmount = GetArg("-privatesendamount", DEFAULT_PRIVATESEND_AMOUNT);
+//    nPrivateSendAmount = std::min(std::max(nPrivateSendAmount, 2), 999999);
 
-    fEnableInstantSend = GetBoolArg("-enableinstantsend", 1);
-    nInstantSendDepth = GetArg("-instantsenddepth", DEFAULT_INSTANTSEND_DEPTH);
-    nInstantSendDepth = std::min(std::max(nInstantSendDepth, 0), 60);
+    fEnableInstantSend = false;
+//    fEnableInstantSend = GetBoolArg("-enableinstantsend", 1);
+//    nInstantSendDepth = GetArg("-instantsenddepth", DEFAULT_INSTANTSEND_DEPTH);
+//    nInstantSendDepth = std::min(std::max(nInstantSendDepth, 0), 60);
 
-    //lite mode disables all Znode and Darksend related functionality
+    // lite mode disables all Znode and Darksend related functionality
     fLiteMode = GetBoolArg("-litemode", false);
     if (fZNode && fLiteMode) {
         return InitError("You can not start a znode in litemode");
     }
 
     LogPrintf("fLiteMode %d\n", fLiteMode);
-    LogPrintf("nInstantSendDepth %d\n", nInstantSendDepth);
-    LogPrintf("PrivateSend rounds %d\n", nPrivateSendRounds);
-    LogPrintf("PrivateSend amount %d\n", nPrivateSendAmount);
+//    LogPrintf("nInstantSendDepth %d\n", nInstantSendDepth);
+//    LogPrintf("PrivateSend rounds %d\n", nPrivateSendRounds);
+//    LogPrintf("PrivateSend amount %d\n", nPrivateSendAmount);
 
     darkSendPool.InitDenominations();
 
     // ********************************************************* Step 11b: Load cache data
 
     // LOAD SERIALIZED DAT FILES INTO DATA CACHES FOR INTERNAL USE
-    // TODO: https://github.com/zcoinofficial/zcoin/issues/182
-    /* uiInterface.InitMessage(_("Loading znode cache..."));
-    CFlatDB<CZnodeMan> flatdb1("zncache.dat", "magicZnodeCache");
-    if (!flatdb1.Load(mnodeman)) {
-        return InitError("Failed to load znode cache from zncache.dat");
+    if (GetBoolArg("-persistentznodestate", true)) {
+        uiInterface.InitMessage(_("Loading znode cache..."));
+        CFlatDB<CZnodeMan> flatdb1("zncache.dat", "magicZnodeCache");
+        if (!flatdb1.Load(mnodeman)) {
+            return InitError("Failed to load znode cache from zncache.dat");
+        }
+
+        if (mnodeman.size()) {
+            uiInterface.InitMessage(_("Loading Znode payment cache..."));
+            CFlatDB<CZnodePayments> flatdb2("znpayments.dat", "magicZnodePaymentsCache");
+            if (!flatdb2.Load(mnpayments)) {
+                return InitError("Failed to load znode payments cache from znpayments.dat");
+            }
+        } else {
+            uiInterface.InitMessage(_("Znode cache is empty, skipping payments cache..."));
+        }
+
+        uiInterface.InitMessage(_("Loading fulfilled requests cache..."));
+        CFlatDB<CNetFulfilledRequestManager> flatdb4("netfulfilled.dat", "magicFulfilledCache");
+        flatdb4.Load(netfulfilledman);
     }
 
-    if (mnodeman.size()) {
-        uiInterface.InitMessage(_("Loading Znode payment cache..."));
-        CFlatDB<CZnodePayments> flatdb2("znpayments.dat", "magicZnodePaymentsCache");
-        if (!flatdb2.Load(mnpayments)) {
-            return InitError("Failed to load znode payments cache from znpayments.dat");
-        }
-    } else {
-        uiInterface.InitMessage(_("Znode cache is empty, skipping payments and governance cache..."));
-    } */
-
-    // uiInterface.InitMessage(_("Loading fulfilled requests cache..."));
-    CFlatDB<CNetFulfilledRequestManager> flatdb4("netfulfilled.dat", "magicFulfilledCache");
-	flatdb4.Load(netfulfilledman);
-	
     // if (!flatdb4.Load(netfulfilledman)) {
     //     LogPrint"Failed to load fulfilled requests cache from netfulfilled.dat");
     // }

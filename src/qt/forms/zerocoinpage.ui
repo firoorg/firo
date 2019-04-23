@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>760</width>
-    <height>380</height>
+    <width>830</width>
+    <height>455</height>
    </rect>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
@@ -50,11 +50,11 @@
     </widget>
    </item>
    <item>
-    <layout class="QHBoxLayout" name="horizontalLayout">
+    <layout class="QHBoxLayout" name="horizontalLayout_3">
      <item>
       <widget class="QLabel" name="denomination">
        <property name="text">
-        <string>Select denomination</string>
+        <string>Select Denomination</string>
        </property>
       </widget>
      </item>
@@ -62,41 +62,7 @@
       <widget class="QComboBox" name="zerocoinAmount"/>
      </item>
      <item>
-      <widget class="QPushButton" name="zerocoinMintButton">
-       <property name="toolTip">
-        <string>Mint Zerocoin</string>
-       </property>
-       <property name="text">
-        <string>&amp;Mint Zerocoin</string>
-       </property>
-       <property name="icon">
-        <iconset>
-         <normaloff>../res/icons/add.png</normaloff>../res/icons/add.png</iconset>
-       </property>
-       <property name="autoDefault">
-        <bool>false</bool>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QPushButton" name="zerocoinSpendButton">
-       <property name="toolTip">
-        <string>Spend Zerocoin</string>
-       </property>
-       <property name="text">
-        <string>&amp;Spend Zerocoin</string>
-       </property>
-       <property name="icon">
-        <iconset>
-         <normaloff>../res/icons/edit.png</normaloff>../res/icons/edit.png</iconset>
-       </property>
-       <property name="autoDefault">
-        <bool>false</bool>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <spacer name="horizontalSpacer">
+      <spacer name="horizontalSpacer_2">
        <property name="orientation">
         <enum>Qt::Horizontal</enum>
        </property>
@@ -123,6 +89,152 @@
        <property name="autoDefault">
         <bool>false</bool>
        </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="Line" name="line_2">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="horizontalLayout" stretch="0">
+     <item>
+      <widget class="QTabWidget" name="tabWidget">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>138</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>16777215</width>
+         <height>200</height>
+        </size>
+       </property>
+       <property name="currentIndex">
+        <number>1</number>
+       </property>
+       <widget class="QWidget" name="tab">
+        <attribute name="title">
+         <string>Mint</string>
+        </attribute>
+        <widget class="QPushButton" name="zerocoinMintButton">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>10</y>
+           <width>123</width>
+           <height>25</height>
+          </rect>
+         </property>
+         <property name="toolTip">
+          <string>Mint Zerocoin</string>
+         </property>
+         <property name="text">
+          <string>&amp;Mint Zerocoin</string>
+         </property>
+         <property name="icon">
+          <iconset>
+           <normaloff>../res/icons/add.png</normaloff>../res/icons/add.png</iconset>
+         </property>
+         <property name="autoDefault">
+          <bool>false</bool>
+         </property>
+        </widget>
+       </widget>
+       <widget class="QWidget" name="tab_2">
+        <attribute name="title">
+         <string>Spend</string>
+        </attribute>
+        <widget class="QLabel" name="label">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>10</y>
+           <width>812</width>
+           <height>20</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>Spend To</string>
+         </property>
+        </widget>
+        <widget class="QPushButton" name="zerocoinSpendButton">
+         <property name="geometry">
+          <rect>
+           <x>90</x>
+           <y>70</y>
+           <width>134</width>
+           <height>25</height>
+          </rect>
+         </property>
+         <property name="toolTip">
+          <string>Spend Zerocoin</string>
+         </property>
+         <property name="text">
+          <string>&amp;Spend Zerocoin</string>
+         </property>
+         <property name="icon">
+          <iconset>
+           <normaloff>../res/icons/edit.png</normaloff>../res/icons/edit.png</iconset>
+         </property>
+         <property name="autoDefault">
+          <bool>false</bool>
+         </property>
+        </widget>
+        <widget class="QLineEdit" name="spendToThirdPartyAddress">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+         <property name="geometry">
+          <rect>
+           <x>90</x>
+           <y>10</y>
+           <width>701</width>
+           <height>25</height>
+          </rect>
+         </property>
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>16777215</width>
+           <height>16777215</height>
+          </size>
+         </property>
+        </widget>
+        <widget class="QCheckBox" name="zerocoinSpendToMeCheckBox">
+         <property name="geometry">
+          <rect>
+           <x>90</x>
+           <y>40</y>
+           <width>810</width>
+           <height>23</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>Spend To Me</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </widget>
       </widget>
      </item>
     </layout>

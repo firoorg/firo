@@ -34,6 +34,8 @@
 
 using namespace std;
 
+extern CTxMemPool stempool;
+
 /**
  * Return average network hashes per second based on the last 'lookup' blocks,
  * or from the last difficulty change if 'lookup' is nonpositive.
@@ -115,7 +117,8 @@ UniValue generateBlocks(boost::shared_ptr<CReserveScript> coinbaseScript, int nG
     UniValue blockHashes(UniValue::VARR);
     while (nHeight < nHeightEnd)
     {
-        std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(coinbaseScript->reserveScript));
+        vector<uint256> tx_ids;
+        std::unique_ptr<CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(coinbaseScript->reserveScript, tx_ids));
         if (!pblocktemplate.get())
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Couldn't create new block");
         CBlock *pblock = &pblocktemplate->block;
@@ -356,6 +359,10 @@ UniValue prioritisetransaction(const UniValue& params, bool fHelp)
     CAmount nAmount = params[2].get_int64();
 
     mempool.PrioritiseTransaction(hash, params[0].get_str(), params[1].get_real(), nAmount);
+
+    // Changes to mempool should also be made to Dandelion stempool
+    stempool.PrioritiseTransaction(hash, params[0].get_str(), params[1].get_real(), nAmount);
+
     return true;
 }
 
@@ -616,7 +623,7 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
             pblocktemplate = NULL;
         }
         CScript scriptDummy = CScript() << OP_TRUE;
-        pblocktemplate = BlockAssembler(Params()).CreateNewBlock(scriptDummy);
+        pblocktemplate = BlockAssembler(Params()).CreateNewBlock(scriptDummy, {});
         if (!pblocktemplate)
             throw JSONRPCError(RPC_OUT_OF_MEMORY, "Out of memory");
 
@@ -639,15 +646,6 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
     UniValue transactions(UniValue::VARR);
     map<uint256, int64_t> setTxIndex;
     int i = 0;
-    unsigned int COUNT_SPEND_ZC_TX = 0;
-    unsigned int MAX_SPEND_ZC_TX_PER_BLOCK = 0;
-    if(chainActive.Height() + 1 > OLD_LIMIT_SPEND_TXS){
-        MAX_SPEND_ZC_TX_PER_BLOCK = 0;
-    }
-
-    if(chainActive.Height() + 1 > SWITCH_TO_MORE_SPEND_TXS){
-        MAX_SPEND_ZC_TX_PER_BLOCK = 1;
-    }
 
     BOOST_FOREACH (CTransaction& tx, pblock->vtx) {
         uint256 txHash = tx.GetHash();
@@ -655,17 +653,6 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
 
         if (tx.IsCoinBase())
             continue;
-
-        // https://github.com/zcoinofficial/zcoin/pull/26
-        // make order independence
-        // and easy to read for other people
-        if (tx.IsZerocoinSpend()) {
-            if (COUNT_SPEND_ZC_TX >= MAX_SPEND_ZC_TX_PER_BLOCK) {
-                continue;
-            }
-
-            COUNT_SPEND_ZC_TX++;
-        }
 
         UniValue entry(UniValue::VOBJ);
 
@@ -710,6 +697,10 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
     UniValue aRules(UniValue::VARR);
     UniValue vbavailable(UniValue::VOBJ);
     for (int i = 0; i < (int)Consensus::MAX_VERSION_BITS_DEPLOYMENTS; ++i) {
+        // MTP deployment has different set of rules
+        if (i == Consensus::DEPLOYMENT_MTP)
+            continue;
+            
         Consensus::DeploymentPos pos = Consensus::DeploymentPos(i);
         ThresholdState state = VersionBitsState(pindexPrev, consensusParams, pos, versionbitscache);
         switch (state) {

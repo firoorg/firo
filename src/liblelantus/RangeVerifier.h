@@ -9,7 +9,7 @@ template<class Exponent, class GroupElement>
 class RangeVerifier {
 public:
     RangeVerifier(
-              const GroupElement& g
+            const GroupElement& g
             , const GroupElement& h1
             , const GroupElement& h2
             , const std::vector<GroupElement>& g_vector
@@ -25,8 +25,8 @@ private:
     GroupElement g;
     GroupElement h1;
     GroupElement h2;
-    zcoin_common::GeneratorVector<Exponent, GroupElement> g_;
-    zcoin_common::GeneratorVector<Exponent, GroupElement> h_;
+    const std::vector<GroupElement>& g_;
+    const std::vector<GroupElement>& h_;
     uint64_t n;
 };
 

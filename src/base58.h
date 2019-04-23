@@ -20,6 +20,7 @@
 #include "script/script.h"
 #include "script/standard.h"
 #include "support/allocators/zeroafterfree.h"
+#include "addresstype.h"
 
 #include <string>
 #include <vector>
@@ -115,6 +116,7 @@ public:
     CBitcoinAddress(const char* pszAddress) { SetString(pszAddress); }
 
     CTxDestination Get() const;
+    bool GetIndexKey(uint160& hashBytes, AddressType & type) const;
     bool GetKeyID(CKeyID &keyID) const;
     bool IsScript() const;
 };

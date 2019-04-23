@@ -35,6 +35,8 @@ public:
     void SetNull() { hash.SetNull(); n = (uint32_t) -1; }
     bool IsNull() const { return (hash.IsNull() && n == (uint32_t) -1); }
 
+    bool IsSigmaMintGroup() const { return hash.IsNull() && n >= 1; }
+
     friend bool operator<(const COutPoint& a, const COutPoint& b)
     {
         int cmp = a.hash.Compare(b.hash);
@@ -129,6 +131,8 @@ public:
     }
 
     std::string ToString() const;
+    bool IsZerocoinSpend() const;
+    bool IsZerocoinSpendV3() const;
 };
 
 /** An output of a transaction.  It contains the public key that the next input
@@ -154,6 +158,8 @@ public:
     inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
         READWRITE(nValue);
         READWRITE(*(CScriptBase*)(&scriptPubKey));
+        if (ser_action.ForRead())
+            nRounds = -10;
     }
 
     void SetNull()
@@ -217,8 +223,8 @@ public:
     friend bool operator==(const CTxOut& a, const CTxOut& b)
     {
         return (a.nValue       == b.nValue &&
-                a.scriptPubKey == b.scriptPubKey &&
-                a.nRounds      == b.nRounds);
+                a.scriptPubKey == b.scriptPubKey);// &&
+                //a.nRounds      == b.nRounds);
     }
 
     friend bool operator!=(const CTxOut& a, const CTxOut& b)
@@ -450,9 +456,17 @@ public:
 
     bool IsCoinBase() const;
 
-    bool IsZerocoinSpend() const;
+    // Returns true, if this is any zerocoin transaction.
+    bool IsZerocoinTransaction() const;
 
-    bool IsZerocoinMint(const CTransaction& tx) const;
+    // Returns true, if this is a V3 zerocoin mint or spend, made with sigma algorithm.
+    bool IsZerocoinV3SigmaTransaction() const;
+
+    bool IsZerocoinSpend() const;
+    bool IsZerocoinMint() const;
+
+    bool IsZerocoinSpendV3() const;
+    bool IsZerocoinMintV3() const;
 
 
     friend bool operator==(const CTransaction& a, const CTransaction& b)
