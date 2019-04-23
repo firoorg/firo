@@ -2714,6 +2714,16 @@ UniValue mint(const UniValue& params, bool fHelp)
             "\nAutomatically choose denominations to mint by amount\n" +
             HelpRequiringPassphrase());
 
+    // Ensure Sigma mints is already accepted by network so users will not lost their coins
+    // due to other nodes will treat it as garbage data.
+    {
+        LOCK(cs_main);
+
+        if (chainActive.Height() < Params().GetConsensus().nSigmaStartBlock) {
+            throw JSONRPCError(RPC_WALLET_ERROR, "Sigma is not activated yet");
+        }
+    }
+
     CAmount nAmount = AmountFromValue(params[0]);
     LogPrintf("rpcWallet.mint() denomination = %s, nAmount = %d \n", params[0].getValStr(), nAmount);
 

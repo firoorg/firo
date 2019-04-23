@@ -453,6 +453,9 @@
           <layout class="QHBoxLayout" name="horizontalLayout">
            <item>
             <widget class="QPushButton" name="mintButton">
+             <property name="enabled">
+              <bool>false</bool>
+             </property>
              <property name="text">
               <string>&amp;Mint</string>
              </property>
@@ -595,8 +598,8 @@
                <rect>
                 <x>0</x>
                 <y>0</y>
-                <width>685</width>
-                <height>169</height>
+                <width>697</width>
+                <height>189</height>
                </rect>
               </property>
               <property name="autoFillBackground">
