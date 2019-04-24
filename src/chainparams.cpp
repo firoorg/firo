@@ -157,7 +157,7 @@ public:
         consensus.nInitialMTPDifficulty = 0x1c021e57;
         consensus.nMTPRewardReduction = 2;
 
-        consensus.nDisableZerocoinStartBlock = 156300;
+        consensus.nDisableZerocoinStartBlock = 157000;
 
         nMaxTipAge = 6 * 60 * 60; // ~144 blocks behind -> 2 x fork detection time, was 24 * 60 * 60 in bitcoin
 
