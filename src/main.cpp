@@ -1394,8 +1394,6 @@ bool AcceptToMemoryPoolWorker(
             LOCK(pool.cs);
             CCoinsViewMemPool viewMemPool(pcoinsTip, pool);
             view.SetBackend(viewMemPool);
-	    //Reset view.base with the dummy instance at scope exit
-	    std::shared_ptr<CCoinsView> at_scope_exit (&dummy, [&view](CCoinsView * dummy){view.SetBackend(*dummy);});
 
             // do we already have it?
             bool fHadTxInCache = pcoinsTip->HaveCoinsInCache(hash);
@@ -1431,9 +1429,6 @@ bool AcceptToMemoryPoolWorker(
 
                 nValueIn = view.GetValueIn(tx);
 
-                // we have all inputs cached now, so switch back to dummy, so we don't need to keep lock on mempool
-                view.SetBackend(dummy);
-
                 // Only accept BIP68 sequence locked transactions that can be mined in the next
                 // block; we don't want our mempool filled up with transactions that can't
                 // be mined yet.
@@ -1447,6 +1442,8 @@ bool AcceptToMemoryPoolWorker(
                 nValueIn = GetSpendTransactionInputV3(tx);
             }
 
+            // we have all inputs cached now, so switch back to dummy, so we don't need to keep lock on mempool
+            view.SetBackend(dummy);
         } // LOCK
 
         if (!tx.IsZerocoinSpend() && fCheckInputs) {
