@@ -92,7 +92,7 @@ BOOST_AUTO_TEST_CASE(partialspend)
 
         previousHeight = chainActive.Height();
 
-        // Add 5 more blocks and verify that Mint can not be spent until 6 blocks verification
+        // Add 5 more blocks to makesure sigma coins can be spend
         CreateAndProcessEmptyBlocks(5, scriptPubKey);
 
         BOOST_CHECK_MESSAGE(previousHeight + 5 == chainActive.Height(), "Block not added to chain");
@@ -330,6 +330,8 @@ BOOST_AUTO_TEST_CASE(same_serial_in_a_transaction) {
     auto extendedScript = CScript();
     extendedScript.insert(extendedScript.end(), tx.vin[0].scriptSig.begin(), tx.vin[0].scriptSig.end());
 
+    // append string "test" to make scriptSigs in vin 1 and 2 difference. but still share same serial.
+    // vin[1].scriptSig = vin[0].scriptSig + "test"
     const std::string extended = "test";
     extendedScript.insert(extendedScript.end(), extended.begin(), extended.end());
 

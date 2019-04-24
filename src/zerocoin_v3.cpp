@@ -170,8 +170,8 @@ bool CheckSpendZcoinTransactionV3(
 
 			// check duplicated serials in same transaction.
 			if (!txSerials.insert(serial).second) {
-				return state.DoS(0,
-				error("CheckSpendZcoinTransactionV3: two or more spends with same serial in the same transaction"));
+				return state.DoS(100,
+				    error("CheckSpendZcoinTransactionV3: two or more spends with same serial in the same transaction"));
 			}
 
 			if(!isVerifyDB && !isCheckWallet) {
