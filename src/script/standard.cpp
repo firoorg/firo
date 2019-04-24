@@ -86,6 +86,17 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, vector<vector<unsi
         vSolutionsRet.push_back(hashBytes);
         return true;
     }
+    // Zerocoin V3 SIGMA
+    if (scriptPubKey.IsZerocoinMintV3())
+    {
+        typeRet = TX_ZEROCOINMINT;
+        // TODO(martun): check how large our mint is, it's still a fixed value, just like 
+        // in zerocoin, but most probably it's 33 bytes instead of 150.
+        if(scriptPubKey.size() > 150) return false;
+        vector<unsigned char> hashBytes(scriptPubKey.begin()+2, scriptPubKey.end());
+        vSolutionsRet.push_back(hashBytes);
+        return true;
+    }
 
     int witnessversion;
     std::vector<unsigned char> witnessprogram;

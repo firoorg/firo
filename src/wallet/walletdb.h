@@ -12,6 +12,9 @@
 #include "wallet/db.h"
 #include "key.h"
 
+#include "../secp256k1/include/GroupElement.h"
+#include "../secp256k1/include/Scalar.h"
+
 #include <list>
 #include <stdint.h>
 #include <string>
@@ -32,7 +35,9 @@ class CWalletTx;
 class uint160;
 class uint256;
 class CZerocoinEntry;
+class CZerocoinEntryV3;
 class CZerocoinSpendEntry;
+class CZerocoinSpendEntryV3;
 
 /** Error statuses for the wallet database */
 enum DBErrors
@@ -172,11 +177,23 @@ public:
     void ListAccountCreditDebit(const std::string& strAccount, std::list<CAccountingEntry>& acentries);
 
     bool WriteZerocoinEntry(const CZerocoinEntry& zerocoin);
+    bool WriteZerocoinEntry(const CZerocoinEntryV3& zerocoin);
+    bool ReadZerocoinEntry(const Bignum& pub, CZerocoinEntry& entry);
+    bool ReadZerocoinEntry(const secp_primitives::GroupElement& pub, CZerocoinEntryV3& entry);
+    bool HasZerocoinEntry(const Bignum& pub);
+    bool HasZerocoinEntry(const secp_primitives::GroupElement& pub);
     bool EraseZerocoinEntry(const CZerocoinEntry& zerocoin);
+    bool EraseZerocoinEntry(const CZerocoinEntryV3& zerocoin);
     void ListPubCoin(std::list<CZerocoinEntry>& listPubCoin);
+    void ListPubCoinV3(std::list<CZerocoinEntryV3>& listPubCoin);
     void ListCoinSpendSerial(std::list<CZerocoinSpendEntry>& listCoinSpendSerial);
+    void ListCoinSpendSerial(std::list<CZerocoinSpendEntryV3>& listCoinSpendSerial);
     bool WriteCoinSpendSerialEntry(const CZerocoinSpendEntry& zerocoinSpend);
+    bool WriteCoinSpendSerialEntry(const CZerocoinSpendEntryV3& zerocoinSpend);
+    bool HasCoinSpendSerialEntry(const Bignum& serial);
+    bool HasCoinSpendSerialEntry(const secp_primitives::Scalar& serial);
     bool EraseCoinSpendSerialEntry(const CZerocoinSpendEntry& zerocoinSpend);
+    bool EraseCoinSpendSerialEntry(const CZerocoinSpendEntryV3& zerocoinSpend);
     bool WriteZerocoinAccumulator(libzerocoin::Accumulator accumulator, libzerocoin::CoinDenomination denomination, int pubcoinid);
     bool ReadZerocoinAccumulator(libzerocoin::Accumulator& accumulator, libzerocoin::CoinDenomination denomination, int pubcoinid);
     // bool EraseZerocoinAccumulator(libzerocoin::Accumulator& accumulator, libzerocoin::CoinDenomination denomination, int pubcoinid);

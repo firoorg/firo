@@ -232,7 +232,7 @@ const PublicCoin& PrivateCoin::getPublicCoin() const {
 }
 
 
-const Bignum PrivateCoin::serialNumberFromSerializedPublicKey(secp256k1_context *context, secp256k1_pubkey *pubkey)  {
+Bignum PrivateCoin::serialNumberFromSerializedPublicKey(secp256k1_context *context, secp256k1_pubkey *pubkey)  {
     std::vector<unsigned char> pubkey_hash(32, 0);
 
     static const unsigned char one[32] = {

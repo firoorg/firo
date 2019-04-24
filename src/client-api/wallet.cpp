@@ -213,10 +213,11 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
             string category;
             string voutIndex = to_string(s.vout);
             
-            if(wtx.vout[s.vout].scriptPubKey.IsZerocoinMint()){
+            if(wtx.vout[s.vout].scriptPubKey.IsZerocoinMint() ||
+               wtx.vout[s.vout].scriptPubKey.IsZerocoinMintV3()){
                 category = "mint";
                 addrStr = "ZEROCOIN_MINT";
-                if(pwalletMain){
+                if(pwalletMain && wtx.vout[s.vout].scriptPubKey.IsZerocoinMint()){
                     bool isAvailable;
                     if(!pwalletMain->IsMintFromTxOutAvailable(wtx.vout[s.vout], isAvailable)){
                         continue;
@@ -224,7 +225,8 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
                     entry.push_back(Pair("available", isAvailable));
                 }
             }
-            else if(wtx.vin[s.vout].IsZerocoinSpend()){
+            else if(wtx.vin[s.vout].IsZerocoinSpend() ||
+                    wtx.vin[s.vout].IsZerocoinSpendV3()){
                 category = "spendOut";                
             }
             else {
@@ -330,7 +332,8 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
                 else
                     category = "mined";
             }
-            else if(wtx.vin[r.vout].IsZerocoinSpend()){
+            else if(wtx.vin[r.vout].IsZerocoinSpend() ||
+                    wtx.vin[r.vout].IsZerocoinSpendV3()){
                 category = "spendIn";
             }
             else {

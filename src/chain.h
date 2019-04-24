@@ -12,13 +12,19 @@
 #include "tinyformat.h"
 #include "uint256.h"
 #include "libzerocoin/bitcoin_bignum/bignum.h"
+#include <secp256k1/include/Scalar.h>
+#include <secp256k1/include/GroupElement.h>
+#include "sigma/coin.h"
 #include "zerocoin_params.h"
 #include "util.h"
 #include "univalue.h"
 #include "chainparams.h"
+#include "hash_functions.h"
 #include "streams.h"
 
 #include <vector>
+#include <unordered_set>
+
 
 
 class CBlockFileInfo
@@ -221,12 +227,21 @@ public:
     //! Accumulator updates. Contains only changes made by mints in this block
     //! Maps <denomination, id> to <accumulator value (CBigNum), number of such mints in this block>
     map<pair<int,int>, pair<CBigNum,int>> accumulatorChanges;
-	
+
 	//! Same as accumulatorChanges but for alternative modulus
 	map<pair<int,int>, pair<CBigNum,int>> alternativeAccumulatorChanges;
-	
+
     //! Values of coin serials spent in this block
 	set<CBigNum> spentSerials;
+
+/////////////////////// Zerocoin V3 Sigma index entries. ////////////////////////////////////////////
+
+    //! Public coin values of mints in this block, ordered by serialized value of public coin
+    //! Maps <denomination,id> to vector of public coins
+    std::map<pair<sigma::CoinDenominationV3, int>, vector<sigma::PublicCoinV3>> mintedPubCoinsV3;
+
+    //! Values of coin serials spent in this block
+	unordered_set<secp_primitives::Scalar, sigma::CScalarHash> spentSerialsV3;
 
     void SetNull()
     {
@@ -253,8 +268,10 @@ public:
         mtpHashValue = reserved[0] = reserved[1] = uint256();
 
         mintedPubCoins.clear();
+        mintedPubCoinsV3.clear();
         accumulatorChanges.clear();
         spentSerials.clear();
+        spentSerialsV3.clear();
     }
 
     CBlockIndex()
@@ -472,6 +489,11 @@ public:
 		    READWRITE(accumulatorChanges);
             READWRITE(spentSerials);
 	    }
+
+        if (!(nType & SER_GETHASH)) {
+            READWRITE(mintedPubCoinsV3);
+            READWRITE(spentSerialsV3);
+        }
 
         nDiskBlockVersion = nVersion;
     }

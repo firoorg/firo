@@ -55,7 +55,7 @@ static const bool DEFAULT_WHITELISTRELAY = true;
 static const bool DEFAULT_WHITELISTFORCERELAY = true;
 /** Default for -minrelaytxfee, minimum relay fee for transactions */
 //btzc: update zcoin fee
-static const unsigned int DEFAULT_MIN_RELAY_TX_FEE = CENT / 10; //0.001 zcoin,
+static const unsigned int DEFAULT_MIN_RELAY_TX_FEE = CENT / 1000; //0.00001 zcoin,
 static const unsigned int MAX_STANDARD_TX_SIZE = 300000;
 //! -maxtxfee default
 static const CAmount DEFAULT_TRANSACTION_MAXFEE = 1000 * CENT;
@@ -407,9 +407,7 @@ void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, int nHeight);
 
 /** Context-independent validity checks */
 //BTZC: ADD params for zcoin works
-bool CheckTransaction(const CTransaction& tx, CValidationState& state, uint256 hashTx, bool isVerifyDB, int nHeight = INT_MAX, bool isCheckWallet = false, bool fStatefulZerocoinCheck = true, CZerocoinTxInfo *zerocoinTxInfo = NULL);
-//bool CheckTransaction(const CTransaction& tx, CValidationState& state);
-
+bool CheckTransaction(const CTransaction& tx, CValidationState& state, uint256 hashTx, bool isVerifyDB, int nHeight = INT_MAX, bool isCheckWallet = false, bool fStatefulZerocoinCheck = true, CZerocoinTxInfo *zerocoinTxInfo = NULL, CZerocoinTxInfoV3 *zerocoinTxInfoV3 = NULL);
 /**
  * Check if transaction is final and can be included in a block with the
  * specified height and time. Consensus critical.

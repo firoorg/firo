@@ -2,10 +2,10 @@ dnl require autoconf 2.60 (AS_ECHO/AS_ECHO_N)
 AC_PREREQ([2.60])
 define(_CLIENT_VERSION_MAJOR, 0)
 define(_CLIENT_VERSION_MINOR, 13)
-define(_CLIENT_VERSION_REVISION, 7)
-define(_CLIENT_VERSION_BUILD, 7)
+define(_CLIENT_VERSION_REVISION, 8)
+define(_CLIENT_VERSION_BUILD, 1)
 define(_CLIENT_VERSION_IS_RELEASE, true)
-define(_COPYRIGHT_YEAR, 2018)
+define(_COPYRIGHT_YEAR, 2019)
 define(_COPYRIGHT_HOLDERS,[The %s developers])
 define(_COPYRIGHT_HOLDERS_SUBSTITUTION,[[Zcoin Core]])
 AC_INIT([Zcoin Core],[_CLIENT_VERSION_MAJOR._CLIENT_VERSION_MINOR._CLIENT_VERSION_REVISION],[https://github.com/zcoinofficial/zcoin/issues],[zcoin],[https://zcoin.io/])
@@ -1138,7 +1138,7 @@ if test x$need_bundled_univalue = xyes; then
 fi
 
 AX_SUBDIRS_CONFIGURE([src/secp256k1], [[--disable-shared], [--with-pic], [--with-bignum=no], [--enable-module-recovery], [--enable-experimental], [--enable-module-ecdh]])
-AX_SUBDIRS_CONFIGURE([src/tor], [[--disable-unittests], [--disable-system-torrc], [--disable-systemd], [--disable-lzma], [--disable-zstd], [--disable-asciidoc], [--with-openssl-dir=$($PKG_CONFIG --variable=libdir openssl)], [CFLAGS=$($PKG_CONFIG --cflags openssl) -O2]])
+AX_SUBDIRS_CONFIGURE([src/tor], [[--disable-unittests], [--disable-system-torrc], [--disable-systemd], [--disable-lzma], [--disable-zstd], [--disable-asciidoc]])
 
 
 AC_OUTPUT

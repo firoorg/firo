@@ -132,14 +132,15 @@ void BlockAssembler::resetBlock()
     blockFinished = false;
 }
 
-CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
+CBlockTemplate* BlockAssembler::CreateNewBlock(
+    const CScript& scriptPubKeyIn,
+    const vector<uint256>& tx_ids)
 {
     // Create new block
     LogPrintf("BlockAssembler::CreateNewBlock()\n");
 
     const Consensus::Params &params = Params().GetConsensus();
     uint32_t nBlockTime;
-    bool fTestNet = params.IsTestnet();
     bool fMTP;
     {
         LOCK2(cs_main, mempool.cs);
@@ -166,7 +167,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
     const int nHeight = pindexPrev->nHeight + 1;
 
     // To founders and investors
-    if ((nHeight + 1 > 0) && (nHeight + 1 < 305000)) {
+    if ((nHeight + 1 > 0) && (nHeight + 1 < params.nSubsidyHalvingFirst)) {
         CScript FOUNDER_1_SCRIPT;
         CScript FOUNDER_2_SCRIPT;
         CScript FOUNDER_3_SCRIPT;
@@ -347,6 +348,10 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
             const CTransaction& tx = iter->GetTx();
             LogPrintf("Trying to add tx=%s\n", tx.GetHash().ToString());
 
+            if (!tx_ids.empty() && std::find(tx_ids.begin(), tx_ids.end(), tx.GetHash()) == tx_ids.end()) {
+                continue; // Skip because we were asked to include only transactions in tx_ids.
+            }
+    
             bool fOrphan = false;
             BOOST_FOREACH(CTxMemPool::txiter parent, mempool.GetMemPoolParents(iter))
             {
@@ -405,7 +410,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
                 continue;
             }
 
-            if (tx.IsZerocoinSpend()) {
+            if (tx.IsZerocoinSpend() || tx.IsZerocoinSpendV3()) {
                 LogPrintf("try to include zerocoinspend tx=%s\n", tx.GetHash().ToString());
                 LogPrintf("COUNT_SPEND_ZC_TX =%s\n", COUNT_SPEND_ZC_TX);
                 LogPrintf("MAX_SPEND_ZC_TX_PER_BLOCK =%s\n", MAX_SPEND_ZC_TX_PER_BLOCK);
@@ -438,7 +443,10 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
                     continue;
                 }
 
-                int64_t nTxFees = 0;
+                CAmount nTxFees(0);
+                if (tx.IsZerocoinSpendV3()) {
+                    nTxFees = iter->GetFee();
+                }
 
                 pblock->vtx.push_back(tx);
                 pblocktemplate->vTxFees.push_back(nTxFees);
@@ -451,6 +459,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(const CScript& scriptPubKeyIn)
                 inBlock.insert(iter);
                 continue;
             }
+
             unsigned int nTxSigOps = iter->GetSigOpCost();
             LogPrintf("nTxSigOps=%s\n", nTxSigOps);
             LogPrintf("nBlockSigOps=%s\n", nBlockSigOps);
@@ -557,7 +566,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlockWithKey(CReserveKey &reservekey) {
 
     CScript scriptPubKey = CScript() << pubkey << OP_CHECKSIG;
 //    CScript scriptPubKey = GetScriptForDestination(pubkey.GetID());;
-    return CreateNewBlock(scriptPubKey);
+    return CreateNewBlock(scriptPubKey, {});
 }
 
 bool BlockAssembler::isStillDependent(CTxMemPool::txiter iter)
@@ -927,7 +936,7 @@ void BlockAssembler::addPriorityTxs()
         //add zcoin validation
         if (tx.IsCoinBase() || !CheckFinalTx(tx))
             continue;
-        if (tx.IsZerocoinSpend()) {
+        if (tx.IsZerocoinSpend() || tx.IsZerocoinSpendV3()) {
             //mempool.countZCSpend--;
             // Size limits
             unsigned int nTxSize = ::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION);
@@ -947,7 +956,9 @@ void BlockAssembler::addPriorityTxs()
             if (nBlockSigOpsCost + nTxSigOps >= MAX_BLOCK_SIGOPS_COST)
                 continue;
 
-            int64_t nTxFees = 0;
+            CAmount nTxFees(0);
+            if (tx.IsZerocoinSpendV3())
+                nTxFees = mi->GetFee();
 
             pblock->vtx.push_back(tx);
             pblocktemplate->vTxFees.push_back(nTxFees);
@@ -1127,7 +1138,8 @@ void static ZcoinMiner(const CChainParams &chainparams) {
                 LogPrintf("loop pindexPrev->nHeight=%s\n", pindexPrev->nHeight);
             }
             LogPrintf("BEFORE: pblocktemplate\n");
-            auto_ptr <CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(coinbaseScript->reserveScript));
+            auto_ptr <CBlockTemplate> pblocktemplate(BlockAssembler(Params()).CreateNewBlock(
+                coinbaseScript->reserveScript, {}));
             LogPrintf("AFTER: pblocktemplate\n");
             if (!pblocktemplate.get()) {
                 LogPrintf("Error in ZcoinMiner: Keypool ran out, please call keypoolrefill before restarting the mining thread\n");

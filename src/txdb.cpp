@@ -35,7 +35,7 @@ static const char DB_LAST_BLOCK = 'l';
 static const char DB_TOTAL_SUPPLY = 'S';
 
 
-CCoinsViewDB::CCoinsViewDB(size_t nCacheSize, bool fMemory, bool fWipe) : db(GetDataDir() / "chainstate", nCacheSize, fMemory, fWipe, true) 
+CCoinsViewDB::CCoinsViewDB(size_t nCacheSize, bool fMemory, bool fWipe) : db(GetDataDir() / "chainstate", nCacheSize, fMemory, fWipe, true)
 {
 }
 
@@ -348,11 +348,14 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
                     pindexNew->mtpHashValue = diskindex.mtpHashValue;
                     pindexNew->reserved[0] = diskindex.reserved[0];
                     pindexNew->reserved[1] = diskindex.reserved[1];
-                }                
+                }
 
                 pindexNew->accumulatorChanges = diskindex.accumulatorChanges;
                 pindexNew->mintedPubCoins     = diskindex.mintedPubCoins;
                 pindexNew->spentSerials       = diskindex.spentSerials;
+
+                pindexNew->mintedPubCoinsV3   = diskindex.mintedPubCoinsV3;
+                pindexNew->spentSerialsV3     = diskindex.spentSerialsV3;
 
                 if (!CheckProofOfWork(pindexNew->GetBlockPoWHash(), pindexNew->nBits, consensusParams))
                     if (!CheckProofOfWork(pindexNew->GetBlockPoWHash(true), pindexNew->nBits, consensusParams))
@@ -477,13 +480,16 @@ void handleInput(CTxIn const & input, size_t inputNo, uint256 const & txHash, in
 
 template <class Iterator>
 void handleZerocoinSpend(Iterator const begin, Iterator const end, uint256 const & txHash, int height, int txNumber, CCoinsViewCache const & view,
-        AddressIndexPtr & addressIndex)
+        AddressIndexPtr & addressIndex, bool isV3)
 {
+    if(!addressIndex)
+        return;
+
     CAmount spendAmount = 0;
     for(Iterator iter = begin; iter != end; ++iter)
         spendAmount += iter->nValue;
-    if(addressIndex)
-    addressIndex->push_back(make_pair(CAddressIndexKey(AddressType::zerocoinSpend, uint160(), height, txNumber, txHash, 0, true), -spendAmount));
+
+    addressIndex->push_back(make_pair(CAddressIndexKey(isV3 ? AddressType::sigmaSpend : AddressType::zerocoinSpend, uint160(), height, txNumber, txHash, 0, true), -spendAmount));
 }
 
 void handleOutput(const CTxOut &out, size_t outNo, uint256 const & txHash, int height, int txNumber, CCoinsViewCache const & view, bool coinbase,
@@ -492,12 +498,15 @@ void handleOutput(const CTxOut &out, size_t outNo, uint256 const & txHash, int h
     if(!addressIndex)
         return;
 
-    if(out.scriptPubKey.IsZerocoinMint()) 
+    if(out.scriptPubKey.IsZerocoinMint())
         addressIndex->push_back(make_pair(CAddressIndexKey(AddressType::zerocoinMint, uint160(), height, txNumber, txHash, outNo, false), out.nValue));
+
+    if(out.scriptPubKey.IsZerocoinMintV3())
+        addressIndex->push_back(make_pair(CAddressIndexKey(AddressType::sigmaMint, uint160(), height, txNumber, txHash, outNo, false), out.nValue));
 
     txnouttype type;
     vector<vector<unsigned char> > addresses;
-  
+
     if(!Solver(out.scriptPubKey, type, addresses)) {
         LogPrint("CDbIndexHelper", "Encountered an unsoluble script in block:%i, txHash: %s, outNo: %i\n", height, txHash.ToString().c_str(), outNo);
         return;
@@ -520,14 +529,14 @@ void handleOutput(const CTxOut &out, size_t outNo, uint256 const & txHash, int h
 void CDbIndexHelper::ConnectTransaction(CTransaction const & tx, int height, int txNumber, CCoinsViewCache const & view)
 {
     size_t no = 0;
-    if(!tx.IsCoinBase() && !tx.IsZerocoinSpend())
+    if(!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsZerocoinSpendV3())
         for (std::vector<CTxIn>::const_iterator iter = tx.vin.begin(); iter != tx.vin.end(); ++iter) {
             CTxIn const & input = *iter;
             handleInput(input, no++, tx.GetHash(), height, txNumber, view, addressIndex, addressUnspentIndex, spentIndex);
         }
 
-    if(tx.IsZerocoinSpend())
-        handleZerocoinSpend(tx.vout.begin(), tx.vout.end(), tx.GetHash(), height, txNumber, view, addressIndex);
+    if(tx.IsZerocoinSpend() || tx.IsZerocoinSpendV3())
+        handleZerocoinSpend(tx.vout.begin(), tx.vout.end(), tx.GetHash(), height, txNumber, view, addressIndex, tx.IsZerocoinSpendV3());
 
     no = 0;
     bool const txIsCoinBase = tx.IsCoinBase();
@@ -551,7 +560,7 @@ void CDbIndexHelper::DisconnectTransactionInputs(CTransaction const & tx, int he
         pSpentBegin = spentIndex->size();
 
     size_t no = 0;
-    if(!tx.IsCoinBase() && !tx.IsZerocoinSpend())
+    if(!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsZerocoinSpendV3())
         for (std::vector<CTxIn>::const_iterator iter = tx.vin.begin(); iter != tx.vin.end(); ++iter) {
             CTxIn const & input = *iter;
             handleInput(input, no++, tx.GetHash(), height, txNumber, view, addressIndex, addressUnspentIndex, spentIndex);
@@ -571,8 +580,8 @@ void CDbIndexHelper::DisconnectTransactionInputs(CTransaction const & tx, int he
 
 void CDbIndexHelper::DisconnectTransactionOutputs(CTransaction const & tx, int height, int txNumber, CCoinsViewCache const & view)
 {
-    if(tx.IsZerocoinSpend())
-        handleZerocoinSpend(tx.vout.begin(), tx.vout.end(), tx.GetHash(), height, txNumber, view, addressIndex);
+    if(tx.IsZerocoinSpend() || tx.IsZerocoinSpendV3())
+        handleZerocoinSpend(tx.vout.begin(), tx.vout.end(), tx.GetHash(), height, txNumber, view, addressIndex, tx.IsZerocoinSpendV3());
 
     size_t no = 0;
     bool const txIsCoinBase = tx.IsCoinBase();

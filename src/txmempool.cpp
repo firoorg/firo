@@ -36,7 +36,7 @@ CTxMemPoolEntry::CTxMemPoolEntry(const CTransaction &_tx, const CAmount &_nFee,
     nSizeWithDescendants = GetTxSize();
     nModFeesWithDescendants = nFee;
     CAmount nValueIn = _tx.GetValueOut() + nFee;
-    if (!_tx.IsZerocoinSpend()) {
+    if (!_tx.IsZerocoinSpend() && !_tx.IsZerocoinSpendV3()) {
         assert(inChainInputValue <= nValueIn);
     }
 
@@ -304,7 +304,7 @@ void CTxMemPool::UpdateForRemoveFromMempool(const setEntries &entriesToRemove, b
         // should be a bit faster.
         // However, if we happen to be in the middle of processing a reorg, then
         // the mempool can be in an inconsistent state.  In this case, the set
-        // of ancestors reachable via mapLinks will be the same as the set of 
+        // of ancestors reachable via mapLinks will be the same as the set of
         // ancestors whose packages include this transaction, because when we
         // add a new transaction to the mempool in addUnchecked(), we assume it
         // has no children, and in the case of a reorg where that assumption is
@@ -425,7 +425,7 @@ bool CTxMemPool::addUnchecked(const uint256 &hash, const CTxMemPoolEntry &entry,
     // further updated.)
     cachedInnerUsage += entry.DynamicMemoryUsage();
 
-    if (!entry.GetTx().IsZerocoinSpend()) {
+    if (!entry.GetTx().IsZerocoinSpend() && !entry.GetTx().IsZerocoinSpendV3()) {
 
         const CTransaction &tx = newit->GetTx();
         std::set <uint256> setParentTransactions;
@@ -464,8 +464,8 @@ bool CTxMemPool::addUnchecked(const uint256 &hash, const CTxMemPoolEntry &entry,
 
 void CTxMemPool::removeUnchecked(txiter it) {
     const uint256 hash = it->GetTx().GetHash();
-    LogPrintf("removeUnchecked txHash=%s, IsZerocoinSpend()=%s\n", hash.ToString(), it->GetTx().IsZerocoinSpend());
-    if (!it->GetTx().IsZerocoinSpend()) {
+    LogPrintf("removeUnchecked txHash=%s, IsZerocoinSpend()=%s\n", hash.ToString(), it->GetTx().IsZerocoinSpend() || it->GetTx().IsZerocoinSpendV3());
+    if (!it->GetTx().IsZerocoinSpend() && !it->GetTx().IsZerocoinSpendV3()) {
         BOOST_FOREACH(const CTxIn &txin, it->GetTx().vin)
             mapNextTx.erase(txin.prevout);
         if (vTxHashes.size() > 1) {
@@ -498,6 +498,10 @@ void CTxMemPool::addAddressIndex(const CTxMemPoolEntry &entry, const CCoinsViewC
     uint256 txhash = tx.GetHash();
     for (unsigned int j = 0; j < tx.vin.size(); j++) {
         const CTxIn input = tx.vin[j];
+        if (input.IsZerocoinSpendV3()) {
+            continue;
+        }
+
         const CTxOut &prevout = view.GetOutputFor(input);
         if (prevout.scriptPubKey.IsPayToScriptHash()) {
             vector<unsigned char> hashBytes(prevout.scriptPubKey.begin()+2, prevout.scriptPubKey.begin()+22);
@@ -573,6 +577,10 @@ void CTxMemPool::addSpentIndex(const CTxMemPoolEntry &entry, const CCoinsViewCac
     uint256 txhash = tx.GetHash();
     for (unsigned int j = 0; j < tx.vin.size(); j++) {
         const CTxIn input = tx.vin[j];
+        if (input.IsZerocoinSpendV3()) {
+            continue;
+        }
+
         const CTxOut &prevout = view.GetOutputFor(input);
         uint160 addressHash;
         AddressType addressType;
@@ -823,13 +831,13 @@ void CTxMemPool::check(const CCoinsViewCache *pcoins) const {
         txlinksMap::const_iterator linksiter = mapLinks.find(it);
         assert(linksiter != mapLinks.end());
         const TxLinks &links = linksiter->second;
-        if (!tx.IsZerocoinSpend())
+        if (!tx.IsZerocoinSpend() && !tx.IsZerocoinSpendV3())
         innerUsage += memusage::DynamicUsage(links.parents) + memusage::DynamicUsage(links.children);
         bool fDependsWait = false;
         setEntries setParentCheck;
         int64_t parentSizes = 0;
         int64_t parentSigOpCost = 0;
-        if (!tx.IsZerocoinSpend()) {
+        if (!tx.IsZerocoinSpend() && !tx.IsZerocoinSpendV3()) {
             BOOST_FOREACH(
             const CTxIn &txin, tx.vin) {
                 // Check that every mempool transaction's inputs refer to available coins, or other mempool tx's.

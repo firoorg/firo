@@ -10,6 +10,8 @@
 
 #include "support/allocators/secure.h"
 
+#include "wallet/walletdb.h"
+
 #include <map>
 #include <vector>
 
@@ -207,6 +209,19 @@ public:
     bool transactionCanBeRebroadcast(uint256 hash) const;
     bool rebroadcastTransaction(uint256 hash);
 
+    // Sigma
+    SendCoinsReturn prepareSigmaSpendTransaction(WalletModelTransaction &transaction,
+        std::vector<CZerocoinEntryV3>& coins, std::vector<CZerocoinEntryV3>& changes);
+
+    // Send coins to a list of recipients
+    SendCoinsReturn sendSigma(WalletModelTransaction &transaction,
+        std::vector<CZerocoinEntryV3>& coins, std::vector<CZerocoinEntryV3>& changes);
+
+    // Mint sigma
+    void sigmaMint(const CAmount& n);
+    void checkSigmaAmount(bool forced);
+
+
 private:
     CWallet *wallet;
     bool fHaveWatchOnly;
@@ -230,11 +245,17 @@ private:
     EncryptionStatus cachedEncryptionStatus;
     int cachedNumBlocks;
 
+    // Sigma
+    bool cachedHavePendingCoin = true;
+    int lastBlockCheckSigma = 0;
+
     QTimer *pollTimer;
 
     void subscribeToCoreSignals();
     void unsubscribeFromCoreSignals();
     void checkBalanceChanged();
+
+
 
 Q_SIGNALS:
     // Signal that balance in wallet changed
@@ -261,6 +282,9 @@ Q_SIGNALS:
     // Watch-only address added
     void notifyWatchonlyChanged(bool fHaveWatchonly);
 
+    // Update sigma changed
+    void notifySigmaChanged(const std::vector<CZerocoinEntryV3>& spendable, const std::vector<CZerocoinEntryV3>& pending);
+
 public Q_SLOTS:
     /* Wallet status might have changed */
     void updateStatus();
@@ -274,6 +298,9 @@ public Q_SLOTS:
     void updateWatchOnlyFlag(bool fHaveWatchonly);
     /* Current, immature or unconfirmed balance might have changed - emit 'balanceChanged' if so */
     void pollBalanceChanged();
+    /* Update Amount of sigma change */
+    void updateSigmaCoins(const QString &pubCoin, const QString &isUsed, int status);
+
 };
 
 #endif // BITCOIN_QT_WALLETMODEL_H
