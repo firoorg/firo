@@ -2716,12 +2716,8 @@ UniValue mint(const UniValue& params, bool fHelp)
 
     // Ensure Sigma mints is already accepted by network so users will not lost their coins
     // due to other nodes will treat it as garbage data.
-    {
-        LOCK(cs_main);
-
-        if (chainActive.Height() < Params().GetConsensus().nSigmaStartBlock) {
-            throw JSONRPCError(RPC_WALLET_ERROR, "Sigma is not activated yet");
-        }
+    if (!IsSigmaAllowed()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Sigma is not activated yet");
     }
 
     CAmount nAmount = AmountFromValue(params[0]);
@@ -3502,6 +3498,10 @@ UniValue spendmany(const UniValue& params, bool fHelp) {
                 "\nSend two amounts to two different addresses and subtract fee from amount:\n"
                 + HelpExampleCli("spendmany", "\"\" \"{\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XZ\\\":0.01,\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\":0.02}\" 6 \"testing\" \"[\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XZ\\\",\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\"]\"")
         );
+
+    if (!IsSigmaAllowed()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Sigma is not activated yet");
+    }
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
 

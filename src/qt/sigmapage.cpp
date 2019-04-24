@@ -10,9 +10,10 @@
 #include "sendcoinsentry.h"
 #include "walletmodel.h"
 
-#include "wallet/wallet.h"
-#include "wallet/walletdb.h"
-#include "sigma/coin.h"
+#include "../zerocoin_v3.h"
+#include "../wallet/wallet.h"
+#include "../wallet/walletdb.h"
+#include "../sigma/coin.h"
 
 #include <QMessageBox>
 #include <QScrollBar>
@@ -64,8 +65,12 @@ void SigmaPage::setClientModel(ClientModel *model)
     this->clientModel = model;
 
     if (model) {
+        bool sigmaAllowed = IsSigmaAllowed(model->getNumBlocks());
+
         connect(model, SIGNAL(numBlocksChanged(int, const QDateTime&, double, bool)), this, SLOT(numBlocksChanged(int, const QDateTime&, double, bool)));
-        ui->mintButton->setEnabled(model->getNumBlocks() >= Params().GetConsensus().nSigmaStartBlock);
+
+        ui->mintButton->setEnabled(sigmaAllowed);
+        ui->sendButton->setEnabled(sigmaAllowed);
     }
 }
 
@@ -97,7 +102,10 @@ SigmaPage::~SigmaPage()
 void SigmaPage::numBlocksChanged(int count, const QDateTime& blockDate, double nVerificationProgress, bool header)
 {
     if (!header) {
-        ui->mintButton->setEnabled(count >= Params().GetConsensus().nSigmaStartBlock);
+        bool sigmaAllowed = IsSigmaAllowed(count);
+
+        ui->mintButton->setEnabled(sigmaAllowed);
+        ui->sendButton->setEnabled(sigmaAllowed);
     }
 }
 

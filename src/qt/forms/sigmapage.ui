@@ -352,7 +352,7 @@
       <string notr="true"/>
      </property>
      <property name="currentIndex">
-      <number>0</number>
+      <number>1</number>
      </property>
      <widget class="QWidget" name="tabMint">
       <attribute name="title">
@@ -522,6 +522,9 @@
           <layout class="QHBoxLayout" name="horizontalLayout_6">
            <item>
             <widget class="QPushButton" name="sendButton">
+             <property name="enabled">
+              <bool>false</bool>
+             </property>
              <property name="text">
               <string>&amp;Spend</string>
              </property>
