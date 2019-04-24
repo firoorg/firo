@@ -66,6 +66,8 @@ template<class Exponent, class GroupElement>
 void SigmaPrimitives<Exponent, GroupElement>::generate_challenge(
         const std::vector<GroupElement>& group_elements,
         Exponent& result_out) {
+    if (group_elements.empty())
+        throw ZerocoinException("Group elements empty while generating a challenge.");
     CSHA256 hash;
     std::vector<unsigned char> data(group_elements.size() * group_elements[0].memoryRequired());
     unsigned char* current = data.data();

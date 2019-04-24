@@ -88,6 +88,7 @@ void R1ProofGenerator<Exponent,GroupElement>::generate_final_response(
         const Exponent& challenge_x,
         R1Proof<Exponent, GroupElement>& proof_out) {
     //f
+    proof_out.f_.clear();
     proof_out.f_.reserve(m_ * (n_ - 1));
     for(int j = 0; j < m_; j++) {
         for(int i = 1; i < n_; i++)
