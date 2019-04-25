@@ -2933,7 +2933,7 @@ void CWallet::ListAvailableCoinsMintCoins(vector <COutput> &vCoins, bool fOnlyCo
 void CWallet::GetAvailableMintCoinBalance(CAmount& balance, bool fOnlyConfirmed) const {
 
     LOCK(cs_wallet);
-    list <CZerocoinEntry> listPubCoin = list<CZerocoinEntry>();
+    list <CZerocoinEntryV3> listPubCoin = list<CZerocoinEntryV3>();
     CWalletDB walletdb(pwalletMain->strWalletFile);
     walletdb.ListPubCoinV3(listPubCoin);
     LogPrintf("listPubCoin.size() in GetAvailableMintCoinBalance=%s\n", listPubCoin.size());
@@ -2975,7 +2975,7 @@ void CWallet::GetAvailableMintCoinBalance(CAmount& balance, bool fOnlyConfirmed)
 //                        LogPrintf("pubCoinItem.serialNumber=%s\n, ", pubCoinItem.serialNumber);
                     if (pubCoinItem.value == pubCoin && //pubcoin found
                         pubCoinItem.IsUsed == false && //unused
-                        pubCoinItem.randomness != 0 && pubCoinItem.serialNumber != 0 //assigned a value
+                        pubCoinItem.randomness != uint64_t(0) && pubCoinItem.serialNumber != uint64_t(0) //assigned a value
                     ) {
                         if(fOnlyConfirmed){
                             if (pcoin->IsTrusted() && pcoin->GetDepthInMainChain() >= ZC_MINT_CONFIRMATIONS && !pcoin->InMempool())

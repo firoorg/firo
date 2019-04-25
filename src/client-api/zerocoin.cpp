@@ -8,10 +8,12 @@
 #include "util.h"
 #include "client-api/wallet.h"
 #include "wallet/wallet.h"
+#include "wallet/walletexcept.h"
 #include "base58.h"
 #include "client-api/send.h"
 #include "client-api/protocol.h"
 #include <zerocoin.h>
+#include <vector>
 
 #include "univalue.h"
 
@@ -117,191 +119,99 @@ UniValue sendprivate(Type type, const UniValue& data, const UniValue& auth, bool
 
     switch(type){
         case Create: {
-            // return object
-            UniValue ret(UniValue::VOBJ);
-            // data for return object
-            UniValue txids(UniValue::VARR);
-            // denominations
-            UniValue inputs(UniValue::VARR);
-            // Updates to mints are stored in here
-            UniValue mintUpdates(UniValue::VOBJ);
-            // receiving address
-            string addressStr;
-            // transaction label
-            string label;
-            // Storage of errors
-            string strError = "";
-
-            // To ensure atomic updates, spend creation/validation and broadcasting are separated.
-            // As a result we need to temporarily store transaction related data, until the broadcasting stage.
-            struct TempSpend {
-                CWalletTx wtx;
-                vector<CBigNum> coinSerials;
-                uint256 txHash;
-                vector<CBigNum> zcSelectedValues;
-                CReserveKey reservekey;
-            };
-            vector<TempSpend> tempSpends;
-
             LOCK2(cs_main, pwalletMain->cs_wallet);
+            UniValue outputs(UniValue::VARR);
+            outputs = find_value(data, "outputs").get_array();
+            std::string label = find_value(data, "label").get_str();
 
-            libzerocoin::CoinDenomination denomination;
+            CWalletTx wtx; 
+
+            std::set<CBitcoinAddress> setAddress;
+            std::vector<CRecipient> vecSend;
+
+            CAmount totalAmount = 0;
+            if (outputs.size() <= 0) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "Required at least an address to send");
+            }
+
+            UniValue txMetadataEntry(UniValue::VOBJ);
+            UniValue output(UniValue::VOBJ);
+            for(size_t index=0; index<outputs.size(); index++){
+                output = outputs[index];
+                std::string strAddr = find_value(output, "address").get_str();
+                int64_t amount = find_value(output, "amount").get_int64();
+                CBitcoinAddress address(strAddr);
+                CAmount nAmount = AmountFromValue(amount);
+                CScript scriptPubKey = GetScriptForDestination(address.Get());
+
+                if (!address.IsValid())
+                    throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid zcoin address: " + strAddr);
+
+                if (!setAddress.insert(address).second)
+                    throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, duplicated address: " + strAddr);
+
+                if (nAmount <= 0) {
+                    throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount for send");
+                }
+                totalAmount += nAmount;
+
+                bool fSubtractFeeFromAmount = false;
+                vecSend.push_back({scriptPubKey, nAmount, fSubtractFeeFromAmount});
+
+                UniValue txMetadataSubEntry(UniValue::VOBJ);
+
+                // write label and amount to entry object
+                txMetadataSubEntry.push_back(Pair("amount", amount * COIN));
+                txMetadataSubEntry.push_back(Pair("label", label));
+                txMetadataEntry.push_back(Pair(strAddr, txMetadataSubEntry));
+            }
+
+            EnsureWalletIsUnlocked();
+
+            CAmount nFeeRequired = 0;
+            std::vector<CZerocoinEntryV3> coins;
 
             try {
-                inputs = find_value(data, "denomination");
-                addressStr = find_value(data, "address").get_str();
-                label = find_value(data, "label").get_str();
-            }catch (const std::exception& e){
-                throw JSONAPIError(API_INVALID_PARAMETER, "Invalid, missing or duplicate parameter");
+                coins = pwalletMain->SpendZerocoinV3(vecSend, wtx, nFeeRequired);
+            }
+            catch (const InsufficientFunds& e) {
+                throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, e.what());
+            }
+            catch (const std::exception& e) {
+                throw JSONRPCError(RPC_WALLET_ERROR, e.what());
             }
 
-            for(size_t i=0; i<inputs.size();i++) {
 
-                const UniValue& inputObj = inputs[i].get_obj();
+            // publish spent mint data to API
+            UniValue mintUpdates(UniValue::VOBJ);
+            unsigned int index;
+            string txid;
 
-                int64_t amount = find_value(inputObj, "amount").get_int();
-
-                int64_t value = find_value(inputObj, "value").get_int();
-
-                switch(value){
-                    case 1:
-                        denomination = libzerocoin::ZQ_LOVELACE;
-                        break;
-                    case 10:
-                        denomination = libzerocoin::ZQ_GOLDWASSER;
-                        break;
-                    case 25:
-                        denomination = libzerocoin::ZQ_RACKOFF;
-                        break;
-                    case 50:
-                        denomination = libzerocoin::ZQ_PEDERSEN;
-                        break;
-                    case 100:
-                        denomination = libzerocoin::ZQ_WILLIAMSON;                                                
-                        break;
-                    default:
-                        throw runtime_error(
-                            "spendmanyzerocoin <amount>(1,10,25,50,100) (\"zcoinaddress\")\n");
+            BOOST_FOREACH(CZerocoinEntryV3 coin, coins){
+                if(!pwalletMain->GetTxInfoForPubcoinV3(coin, txid, index)){
+                    throw runtime_error("Mint tx not found!");
                 }
-                for(int64_t j=0; j<amount; j++){
-                    UniValue txMetadataEntry(UniValue::VOBJ);
-                    UniValue txMetadataSubEntry(UniValue::VOBJ);
-                    std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>> denominations;
-                    denominations.push_back(std::make_pair(value * COIN, denomination));
-                        
-                    // write label and amount to entry object
-                    txMetadataSubEntry.push_back(Pair("amount", value * COIN));
-                    txMetadataSubEntry.push_back(Pair("label", label));
-                    txMetadataEntry.push_back(Pair(addressStr, txMetadataSubEntry));
-
-                    string thirdPartyaddress = "";
-                    if (!(addressStr == "")){
-                        CBitcoinAddress address(addressStr);
-                        if (!address.IsValid())
-                            throw JSONAPIError(API_INVALID_ADDRESS_OR_KEY, "Invalid Zcoin address");
-                        thirdPartyaddress = addressStr;
-                    }
-
-                    EnsureWalletIsUnlocked();
-
-                    // Wallet comments
-                    CWalletTx wtx;
-                    vector<CBigNum> coinSerials;
-                    uint256 txHash;
-                    vector<CBigNum> zcSelectedValues;
-                    CReserveKey reservekey(pwalletMain);
-
-                    if (pwalletMain->IsLocked()) {
-                        strError = _("Error: Wallet locked, unable to create transaction!");
-                        LogPrintf("SpendZerocoin() : %s", strError);
-                        throw JSONAPIError(API_WALLET_ERROR, strError);
-                    }
-
-                    if (!pwalletMain->CreateMultipleZerocoinSpendTransactionV3(thirdPartyaddress, denominations, wtx, reservekey, coinSerials, txHash,
-                                                        zcSelectedValues, strError, mintUpdates)) {
-                        LogPrintf("SpendZerocoin() : %s\n", strError);
-                        throw JSONAPIError(API_WALLET_ERROR, strError);
-                    }
-
-                    TempSpend tempSpend {
-                        wtx,
-                        coinSerials,
-                        txHash,
-                        zcSelectedValues,
-                        reservekey,
-                    };
-                    tempSpends.push_back(tempSpend);
-
-                    string txidStr = wtx.GetHash().GetHex();
-                    // write tx metadata to data object
-                    txMetadataData.push_back(Pair(txidStr, txMetadataEntry));
-                    if(!txMetadataUni.replace("data", txMetadataData)){
-                        throw runtime_error("Could not replace key/value pair.");
-                    }
-                }
+                string key = txid + to_string(index);
+                UniValue entry(UniValue::VOBJ);
+                entry.push_back(Pair("txid", txid));
+                entry.push_back(Pair("index", to_string(index)));
+                entry.push_back(Pair("available", false));
+                mintUpdates.push_back(Pair(key, entry));
             }
+            LogPrintf("mintUpdates: %s\n", mintUpdates.write());
+            GetMainSignals().UpdatedMintStatus(mintUpdates.write());
 
-            // Start broadcasting logic.
-            BOOST_FOREACH(TempSpend tempSpend, tempSpends){
-                CWalletTx wtx = tempSpend.wtx;
-                CReserveKey reservekey = tempSpend.reservekey;
-                if (!pwalletMain->CommitZerocoinSpendTransaction(wtx, reservekey)) {
-                    LogPrintf("CommitZerocoinSpendTransaction() -> FAILED!\n");
-                    vector<CBigNum> coinSerials = tempSpend.coinSerials;
-                    uint256 txHash = tempSpend.txHash;
-                    vector<CBigNum> zcSelectedValues = tempSpend.zcSelectedValues;
-
-                    CZerocoinEntry pubCoinTx;
-                    list <CZerocoinEntry> listPubCoin;
-                    listPubCoin.clear();
-                    CWalletDB walletdb(pwalletMain->strWalletFile);
-                    walletdb.ListPubCoin(listPubCoin);
-
-                    for (std::vector<CBigNum>::iterator it = coinSerials.begin(); it != coinSerials.end(); it++){
-                        unsigned index = it - coinSerials.begin();
-                        CBigNum zcSelectedValue = zcSelectedValues[index];
-                        BOOST_FOREACH(const CZerocoinEntry &pubCoinItem, listPubCoin) {
-                            if (zcSelectedValue == pubCoinItem.value) {
-                                pubCoinTx.id = pubCoinItem.id;
-                                pubCoinTx.IsUsed = false; // having error, so set to false, to be able to use again
-                                pubCoinTx.value = pubCoinItem.value;
-                                pubCoinTx.nHeight = pubCoinItem.nHeight;
-                                pubCoinTx.randomness = pubCoinItem.randomness;
-                                pubCoinTx.serialNumber = pubCoinItem.serialNumber;
-                                pubCoinTx.denomination = pubCoinItem.denomination;
-                                pubCoinTx.ecdsaSecretKey = pubCoinItem.ecdsaSecretKey;
-                                CWalletDB(pwalletMain->strWalletFile).WriteZerocoinEntry(pubCoinTx);
-                                LogPrintf("SpendZerocoin failed, re-updated status -> NotifyZerocoinChanged\n");
-                                LogPrintf("pubcoin=%s, isUsed=New\n", pubCoinItem.value.GetHex());
-                            }
-                        }
-                        CZerocoinSpendEntry entry;
-                        entry.coinSerial = coinSerials[index];
-                        entry.hashTx = txHash;
-                        entry.pubCoin = zcSelectedValue;
-                        if (!CWalletDB(pwalletMain->strWalletFile).EraseCoinSpendSerialEntry(entry)) {
-                            strError.append("Error: It cannot delete coin serial number in wallet.\n");
-                        }
-                    }
-                    strError.append("Error: The transaction was rejected! This might happen if some of the coins in your wallet were already spent, such as if you used a copy of wallet.dat and coins were spent in the copy but not marked as spent here.");
-                }
-                txids.push_back(wtx.GetHash().GetHex());
+            string txidStr = wtx.GetHash().GetHex();
+            txMetadataData.push_back(Pair(txidStr, txMetadataEntry));
+            if(!txMetadataUni.replace("data", txMetadataData)){
+                throw runtime_error("Could not replace key/value pair.");
             }
-
-            if (strError != "")
-                throw JSONAPIError(API_WALLET_ERROR, strError);
-
             //write back tx metadata to FS
             setTxMetadata(txMetadataUni);
 
-            // publish mintUpdates
-            GetMainSignals().UpdatedMintStatus(mintUpdates.write());
-
-            // Populate return object
-            ret.push_back(Pair("txids", txids));
-            return ret;
+            return txidStr;
         }
-     
+
         default: {
            throw JSONAPIError(API_TYPE_NOT_IMPLEMENTED, "Error: type does not exist for method called, or no type passed where method requires it."); 
         }

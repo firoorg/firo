@@ -531,14 +531,13 @@ OPTIONAL: not a necessary parameter to pass.
 `create`:
 ```
     data: {
-        address: STRING,
-        denomination: [
+        outputs: [
             {
-                value: INT,
+                address: STRING,
                 amount: INT
             },
             {
-                value: INT,
+                address: STRING,
                 amount: INT
             },
             ...
