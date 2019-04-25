@@ -528,7 +528,7 @@ bool CheckZerocoinTransaction(const CTransaction &tx,
                               bool fStatefulZerocoinCheck,
                               CZerocoinTxInfo *zerocoinTxInfo)
 {
-    if ((tx.IsZerocoinSpend() || tx.IsZerocoinMint()) {
+    if (tx.IsZerocoinSpend() || tx.IsZerocoinMint()) {
         if ((nHeight != INT_MAX && nHeight >= params.nDisableZerocoinStartBlock)    // transaction is a part of block: disable after specific block number
                     || (nHeight == INT_MAX && !isVerifyDB))                         // transaction is accepted to the memory pool: always disable
             return state.DoS(1, error("Zerocoin is disabled at this point"));
