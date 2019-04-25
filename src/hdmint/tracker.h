@@ -2,16 +2,16 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef ZCOIN_ZEROCOINTRACKER_H
-#define ZCOIN_ZEROCOINTRACKER_H
+#ifndef ZCOIN_HDMINTTRACKER_H
+#define ZCOIN_HDMINTTRACKER_H
 
 #include "primitives/zerocoin.h"
 #include <list>
 
 class CHDMint;
-class CZerocoinWallet;
+class CHDMintWallet;
 
-class CZerocoinTracker
+class CHDMintTracker
 {
 private:
     bool fInitialized;
@@ -20,9 +20,9 @@ private:
     std::map<uint256, uint256> mapPendingSpends; //serialhash, txid of spend
     bool UpdateStatusInternal(const std::set<uint256>& setMempool, CMintMeta& mint);
 public:
-    CZerocoinTracker(std::string strWalletFile);
-    ~CZerocoinTracker();
-    void Add(const CHDMint& dMint, bool isNew = false, bool isArchived = false, CZerocoinWallet* zerocoinWallet = NULL);
+    CHDMintTracker(std::string strWalletFile);
+    ~CHDMintTracker();
+    void Add(const CHDMint& dMint, bool isNew = false, bool isArchived = false, CHDMintWallet* zerocoinWallet = NULL);
     void Add(const CZerocoinEntryV3& zerocoin, bool isNew = false, bool isArchived = false);
     bool Archive(CMintMeta& meta);
     bool HasPubcoin(const GroupElement& pubcoin) const;
@@ -51,4 +51,4 @@ public:
     void Clear();
 };
 
-#endif //ZCOIN_ZEROCOINTRACKER_H
+#endif //ZCOIN_HDMINTTRACKER_H

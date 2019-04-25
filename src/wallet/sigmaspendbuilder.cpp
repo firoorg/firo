@@ -13,7 +13,7 @@
 #include "../util.h"
 #include "../version.h"
 #include "../zerocoin_v3.h"
-#include "../zerocoinwallet.h"
+#include "../hdmint/wallet.h"
 
 #include <stdexcept>
 #include <tuple>
@@ -161,7 +161,7 @@ CAmount SigmaSpendBuilder::GetChanges(std::vector<CTxOut>& outputs, CAmount amou
         sigma::DenominationToInteger(denomination, denominationValue);
 
         sigma::PrivateCoinV3 newCoin(params, denomination, ZEROCOIN_TX_VERSION_3);
-        zwalletMain->GenerateDeterministicZerocoin(denomination, newCoin, hdMint);
+        zwalletMain->GenerateHDMint(denomination, newCoin, hdMint);
         auto& pubCoin = newCoin.getPublicCoin();
 
         if (!pubCoin.validate()) {

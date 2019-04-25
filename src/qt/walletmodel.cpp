@@ -966,10 +966,11 @@ bool WalletModel::sigmaMint(const CAmount& n)
             return sigma::PrivateCoinV3(zcParams, denom);
         });
 
-    auto recipients = CWallet::CreateSigmaMintRecipients(privCoins);
+    vector<CHDMint> vDMints;
+    auto recipients = CWallet::CreateSigmaMintRecipients(privCoins, vDMints);
 
     CWalletTx wtx;
-    std::string strError = pwalletMain->MintAndStoreZerocoinV3(recipients, privCoins, wtx);
+    std::string strError = pwalletMain->MintAndStoreZerocoinV3(recipients, privCoins, vDMints, wtx);
 
     if (strError != "") {
         throw std::range_error(strError);

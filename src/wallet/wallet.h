@@ -22,8 +22,8 @@
 #include "zerocoin_params.h"
 #include "univalue.h"
 
-#include "zerocointracker.h"
-#include "zerocoinwallet.h"
+#include "hdmint/tracker.h"
+#include "hdmint/wallet.h"
 
 #include "primitives/zerocoin.h"
 
@@ -40,7 +40,7 @@
 #include <boost/shared_ptr.hpp>
 
 extern CWallet* pwalletMain;
-extern CZerocoinWallet* zwalletMain;
+extern CHDMintWallet* zwalletMain;
 
 /**
  * Settings
@@ -672,7 +672,7 @@ public:
      */
     mutable CCriticalSection cs_wallet;
 
-    CZerocoinWallet* zwallet;
+    CHDMintWallet* zwallet;
 
     bool fFileBacked;
     std::string strWalletFile;
@@ -686,7 +686,7 @@ public:
     MasterKeyMap mapMasterKeys;
     unsigned int nMasterKeyMaxID;
 
-    std::unique_ptr<CZerocoinTracker> zerocoinTracker;
+    std::unique_ptr<CHDMintTracker> hdMintTracker;
 
     CWallet()
     {
@@ -743,10 +743,10 @@ public:
 
     int64_t nTimeFirstKey;
 
-    void setZWallet(CZerocoinWallet* zwallet)
+    void setZWallet(CHDMintWallet* zwallet)
     {
         this->zwallet = zwallet;
-        zerocoinTracker = std::unique_ptr<CZerocoinTracker>(new CZerocoinTracker(strWalletFile));
+        hdMintTracker = std::unique_ptr<CHDMintTracker>(new CHDMintTracker(strWalletFile));
     }
 
     const CWalletTx* GetWalletTx(const uint256& hash) const;

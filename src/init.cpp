@@ -90,7 +90,7 @@
 
 #ifdef ENABLE_WALLET
 CWallet* pwalletMain = NULL;
-CZerocoinWallet* zwalletMain = NULL;
+CHDMintWallet* zwalletMain = NULL;
 #endif
 
 bool fFeeEstimatesInitialized = false;
@@ -859,7 +859,7 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
 
 #ifdef ENABLE_WALLET
     //Load zerocoin mint hashes to memory
-    pwalletMain->zerocoinTracker->Init();
+    pwalletMain->hdMintTracker->Init();
     zwalletMain->LoadMintPoolFromDB();
     zwalletMain->SyncWithChain();
 #endif

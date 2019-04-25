@@ -2,7 +2,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "zerocoinchain.h"
+#include "hdmint/chain.h"
 #include "main.h"
 #include "init.h"
 #include "txdb.h"
@@ -35,7 +35,7 @@ bool IsSerialInBlockchain(const uint256& hashSerial, int& nHeightTx, uint256& tx
     if (!CZerocoinStateV3::GetZerocoinState()->IsUsedCoinSerialHash(bnSerial, hashSerial))
         return false;
 
-    if(!pwalletMain->zerocoinTracker->Get(hashSerial, mMeta))
+    if(!pwalletMain->hdMintTracker->Get(hashSerial, mMeta))
         return false;
 
     txidSpend = mMeta.txid;

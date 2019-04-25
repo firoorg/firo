@@ -10,7 +10,7 @@
 
 class CScheduler;
 class CWallet;
-class CZerocoinWallet;
+class CHDMintWallet;
 
 namespace boost
 {

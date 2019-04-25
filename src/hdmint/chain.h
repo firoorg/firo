@@ -2,8 +2,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef ZCOIN_ZEROCOINCHAIN_H
-#define ZCOIN_ZEROCOINCHAIN_H
+#ifndef ZCOIN_HDMINTCHAIN_H
+#define ZCOIN_HDMINTCHAIN_H
 
 #include "libzerocoin/Zerocoin.h"
 #include "zerocoin.h"
@@ -24,4 +24,4 @@ bool IsSerialInBlockchain(const uint256& hashSerial, int& nHeightTx, uint256& tx
 bool IsSerialInBlockchain(const uint256& hashSerial, int& nHeightTx, uint256& txidSpend, CTransaction& tx);
 bool TxOutToPublicCoin(const CTxOut& txout, sigma::PublicCoinV3& pubCoin, CValidationState& state);
 
-#endif //ZCOIN_ZEROCOINCHAIN_H
+#endif //ZCOIN_HDMINTCHAIN_H

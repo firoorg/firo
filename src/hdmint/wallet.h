@@ -2,12 +2,12 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef ZCOIN_ZEROCOINWALLET_H
-#define ZCOIN_ZEROCOINWALLET_H
+#ifndef ZCOIN_HDMINTWALLET_H
+#define ZCOIN_HDMINTWALLET_H
 
 #include <map>
 #include "libzerocoin/Zerocoin.h"
-#include "mintpool.h"
+#include "hdmint/mintpool.h"
 #include "uint256.h"
 #include "primitives/zerocoin.h"
 #include "wallet/wallet.h"
@@ -15,7 +15,7 @@
 
 class CHDMint;
 
-class CZerocoinWallet
+class CHDMintWallet
 {
 private:
     uint256 seedMaster;
@@ -24,13 +24,13 @@ private:
     CMintPool mintPool;
 
 public:
-    CZerocoinWallet(std::string strWalletFile);
+    CHDMintWallet(std::string strWalletFile);
 
     void AddToMintPool(const std::pair<uint256, uint32_t>& pMint, bool fVerbose);
     bool SetMasterSeed(const uint256& seedMaster, bool fResetCount = false);
     uint256 GetMasterSeed() { return seedMaster; }
     void SyncWithChain(bool fGenerateMintPool = true);
-    void GenerateDeterministicZerocoin(sigma::CoinDenominationV3 denom, sigma::PrivateCoinV3& coin, CHDMint& dMint, bool fGenerateOnly = false);
+    void GenerateHDMint(sigma::CoinDenominationV3 denom, sigma::PrivateCoinV3& coin, CHDMint& dMint, bool fGenerateOnly = false);
     void GenerateMint(const uint32_t& nCount, const sigma::CoinDenominationV3 denom, sigma::PrivateCoinV3& coin, CHDMint& dMint);
     void GetState(int& nCount, int& nLastGenerated);
     bool RegenerateMint(const CHDMint& dMint, CZerocoinEntryV3& zerocoin);
@@ -53,4 +53,4 @@ private:
     uint512 GetZerocoinSeed(uint32_t n);
 };
 
-#endif //ZCOIN_ZEROCOINWALLET_H
+#endif //ZCOIN_HDMINTWALLET_H

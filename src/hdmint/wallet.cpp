@@ -2,18 +2,18 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "zerocoinwallet.h"
+#include "hdmint/wallet.h"
 #include "main.h"
 #include "txdb.h"
 #include "init.h"
-#include "primitives/hdmint.h"
+#include "hdmint/hdmint.h"
 #include "sigma/openssl_context.h"
 #include "wallet/walletdb.h"
 #include "wallet/wallet.h"
 #include "zerocoin_v3.h"
-#include "zerocoinchain.h"
+#include "hdmint/chain.h"
 
-CZerocoinWallet::CZerocoinWallet(std::string strWalletFile)
+CHDMintWallet::CHDMintWallet(std::string strWalletFile)
 {
     this->strWalletFile = strWalletFile;
     CWalletDB walletdb(strWalletFile);
@@ -50,7 +50,7 @@ CZerocoinWallet::CZerocoinWallet(std::string strWalletFile)
     this->mintPool = CMintPool(nCountLastUsed);
 }
 
-bool CZerocoinWallet::SetMasterSeed(const uint256& seedMaster, bool fResetCount)
+bool CHDMintWallet::SetMasterSeed(const uint256& seedMaster, bool fResetCount)
 {
 
     CWalletDB walletdb(strWalletFile);
@@ -75,18 +75,18 @@ bool CZerocoinWallet::SetMasterSeed(const uint256& seedMaster, bool fResetCount)
     return true;
 }
 
-void CZerocoinWallet::Lock()
+void CHDMintWallet::Lock()
 {
     seedMaster.SetNull();
 }
 
-void CZerocoinWallet::AddToMintPool(const std::pair<uint256, uint32_t>& pMint, bool fVerbose)
+void CHDMintWallet::AddToMintPool(const std::pair<uint256, uint32_t>& pMint, bool fVerbose)
 {
     mintPool.Add(pMint, fVerbose);
 }
 
 // //Add the next 20 mints to the mint pool
-void CZerocoinWallet::GenerateMintPool(uint32_t nCountStart, uint32_t nCountEnd)
+void CHDMintWallet::GenerateMintPool(uint32_t nCountStart, uint32_t nCountEnd)
 {
 
     //Is locked
@@ -136,7 +136,7 @@ void CZerocoinWallet::GenerateMintPool(uint32_t nCountStart, uint32_t nCountEnd)
 }
 
 // pubcoin hashes are stored to db so that a full accounting of mints belonging to the seed can be tracked without regenerating
-bool CZerocoinWallet::LoadMintPoolFromDB()
+bool CHDMintWallet::LoadMintPoolFromDB()
 {
     map<uint256, vector<pair<uint256, uint32_t> > > mapMintPool = CWalletDB(strWalletFile).MapMintPool();
 
@@ -147,20 +147,20 @@ bool CZerocoinWallet::LoadMintPoolFromDB()
     return true;
 }
 
-void CZerocoinWallet::RemoveMintsFromPool(const std::vector<uint256>& vPubcoinHashes)
+void CHDMintWallet::RemoveMintsFromPool(const std::vector<uint256>& vPubcoinHashes)
 {
     for (const uint256& hash : vPubcoinHashes)
         mintPool.Remove(hash);
 }
 
-void CZerocoinWallet::GetState(int& nCount, int& nLastGenerated)
+void CHDMintWallet::GetState(int& nCount, int& nLastGenerated)
 {
     nCount = this->nCountLastUsed + 1;
     nLastGenerated = mintPool.CountOfLastGenerated();
 }
 
 //Catch the counter up with the chain
-void CZerocoinWallet::SyncWithChain(bool fGenerateMintPool)
+void CHDMintWallet::SyncWithChain(bool fGenerateMintPool)
 {
     uint32_t nLastCountUsed = 0;
     bool found = true;
@@ -184,7 +184,7 @@ void CZerocoinWallet::SyncWithChain(bool fGenerateMintPool)
             if (ShutdownRequested())
                 return;
 
-            if (pwalletMain->zerocoinTracker->HasPubcoinHash(pMint.first)) {
+            if (pwalletMain->hdMintTracker->HasPubcoinHash(pMint.first)) {
                 mintPool.Remove(pMint.first);
                 continue;
             }
@@ -260,7 +260,7 @@ void CZerocoinWallet::SyncWithChain(bool fGenerateMintPool)
     }
 }
 
-bool CZerocoinWallet::SetMintSeen(const GroupElement& bnValue, const int& nHeight, const uint256& txid, const sigma::CoinDenominationV3& denom)
+bool CHDMintWallet::SetMintSeen(const GroupElement& bnValue, const int& nHeight, const uint256& txid, const sigma::CoinDenominationV3& denom)
 {
     if (!mintPool.Has(bnValue))
         return error("%s: value not in pool", __func__);
@@ -301,8 +301,8 @@ bool CZerocoinWallet::SetMintSeen(const GroupElement& bnValue, const int& nHeigh
         pwalletMain->AddToWallet(wtx, false, &walletdb);
     }
 
-    // Add to zerocoinTracker which also adds to database
-    pwalletMain->zerocoinTracker->Add(dMint, true);
+    // Add to hdMintTracker which also adds to database
+    pwalletMain->hdMintTracker->Add(dMint, true);
 
     //Update the count if it is less than the mint's count
     if (nCountLastUsed < pMint.second) {
@@ -316,7 +316,7 @@ bool CZerocoinWallet::SetMintSeen(const GroupElement& bnValue, const int& nHeigh
     return true;
 }
 
-void CZerocoinWallet::SeedToZerocoin(const uint512& seedZerocoin, GroupElement& commit, sigma::PrivateCoinV3& coin)
+void CHDMintWallet::SeedToZerocoin(const uint512& seedZerocoin, GroupElement& commit, sigma::PrivateCoinV3& coin)
 {
     //convert state seed into a seed for the private key
     uint256 nSeedPrivKey = seedZerocoin.trim256();
@@ -343,7 +343,7 @@ void CZerocoinWallet::SeedToZerocoin(const uint512& seedZerocoin, GroupElement& 
              coin.getParams()->get_g(), coin.getSerialNumber(), coin.getParams()->get_h0(), coin.getRandomness());
 }
 
-uint512 CZerocoinWallet::GetZerocoinSeed(uint32_t n)
+uint512 CHDMintWallet::GetZerocoinSeed(uint32_t n)
 {
     CDataStream ss(SER_GETHASH, 0);
     ss << seedMaster << n;
@@ -351,34 +351,34 @@ uint512 CZerocoinWallet::GetZerocoinSeed(uint32_t n)
     return zerocoinSeed;
 }
 
-uint32_t CZerocoinWallet::GetCount()
+uint32_t CHDMintWallet::GetCount()
 {
     return nCountLastUsed;
 }
 
-void CZerocoinWallet::SetCount(uint32_t nCount)
+void CHDMintWallet::SetCount(uint32_t nCount)
 {
     nCountLastUsed = nCount;
 }
 
-void CZerocoinWallet::UpdateCountLocal()
+void CHDMintWallet::UpdateCountLocal()
 {
     nCountLastUsed++;
 }
 
-void CZerocoinWallet::UpdateCountDB()
+void CHDMintWallet::UpdateCountDB()
 {
     CWalletDB walletdb(strWalletFile);
     walletdb.WriteZerocoinCount(nCountLastUsed);
 }
 
-void CZerocoinWallet::UpdateCount()
+void CHDMintWallet::UpdateCount()
 {
     UpdateCountLocal();
     UpdateCountDB();
 }
 
-void CZerocoinWallet::GenerateDeterministicZerocoin(sigma::CoinDenominationV3 denom, sigma::PrivateCoinV3& coin, CHDMint& dMint, bool fGenerateOnly)
+void CHDMintWallet::GenerateHDMint(sigma::CoinDenominationV3 denom, sigma::PrivateCoinV3& coin, CHDMint& dMint, bool fGenerateOnly)
 {
     GenerateMint(nCountLastUsed + 1, denom, coin, dMint);
     if (fGenerateOnly)
@@ -388,7 +388,7 @@ void CZerocoinWallet::GenerateDeterministicZerocoin(sigma::CoinDenominationV3 de
     //LogPrintf("%s : Generated new deterministic mint. Count=%d pubcoin=%s seed=%s\n", __func__, nCount, coin.getPublicCoin().getValue().GetHex().substr(0,6), seedZerocoin.GetHex().substr(0, 4));
 }
 
-void CZerocoinWallet::GenerateMint(const uint32_t& nCount, const sigma::CoinDenominationV3 denom, sigma::PrivateCoinV3& coin, CHDMint& dMint)
+void CHDMintWallet::GenerateMint(const uint32_t& nCount, const sigma::CoinDenominationV3 denom, sigma::PrivateCoinV3& coin, CHDMint& dMint)
 {
     uint512 seedZerocoin = GetZerocoinSeed(nCount);
     GroupElement commitmentValue;
@@ -402,14 +402,14 @@ void CZerocoinWallet::GenerateMint(const uint32_t& nCount, const sigma::CoinDeno
     dMint.SetDenomination(denom);
 }
 
-bool CZerocoinWallet::CheckSeed(const CHDMint& dMint)
+bool CHDMintWallet::CheckSeed(const CHDMint& dMint)
 {
     //Check that the seed is correct    todo:handling of incorrect, or multiple seeds
     uint256 hashSeed = Hash(seedMaster.begin(), seedMaster.end());
     return hashSeed == dMint.GetSeedHash();
 }
 
-bool CZerocoinWallet::RegenerateMint(const CHDMint& dMint, CZerocoinEntryV3& zerocoin)
+bool CHDMintWallet::RegenerateMint(const CHDMint& dMint, CZerocoinEntryV3& zerocoin)
 {
     if (!CheckSeed(dMint)) {
         uint256 hashSeed = Hash(seedMaster.begin(), seedMaster.end());
