@@ -468,6 +468,7 @@ liblelantus_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 liblelantus_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 liblelantus_a_SOURCES = \
   liblelantus/LelantusPrimitives.h \
+  liblelantus/LelantusPrimitives.hpp \
   liblelantus/LelantusProof.h \
   liblelantus/LelantusProver.h \
   liblelantus/LelantusProver.cpp \
@@ -475,16 +476,24 @@ liblelantus_a_SOURCES = \
   liblelantus/LelantusVerifier.cpp \
   liblelantus/SigmaPlusProof.h \
   liblelantus/SigmaPlusProver.h \
+  liblelantus/SigmaPlusProver.hpp \
   liblelantus/SigmaPlusVerifier.h \
+  liblelantus/SigmaPlusVerifier.hpp \
   liblelantus/SchnorrProof.h \
   liblelantus/SchnorrProver.h \
+  liblelantus/SchnorrProver.hpp \
   liblelantus/SchnorrVerifier.h \
+  liblelantus/SchnorrVerifier.hpp \
   liblelantus/InnerProductProof.h \
   liblelantus/InnerProductProofVerifier.h \
+  liblelantus/InnerProductProofVerifier.hpp \
   liblelantus/InnerProductProofGenerator.h \
+  liblelantus/InnerProductProofGenerator.hpp \
   liblelantus/RangeProof.h \
   liblelantus/RangeProver.h \
+  liblelantus/RangeProver.hpp \
   liblelantus/RangeVerifier.h \
+  liblelantus/RangeVerifier.hpp \
   liblelantus/Coin.h \
   liblelantus/Coin.cpp \
   liblelantus/Params.h \
