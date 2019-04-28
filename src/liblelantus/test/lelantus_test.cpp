@@ -5,13 +5,11 @@
 
 BOOST_AUTO_TEST_SUITE(lelantus_protocol_tests)
 
-using namespace secp_primitives;
-
 BOOST_AUTO_TEST_CASE(prove_verify)
 {
     auto params = lelantus::Params::get_default();
     std::vector <lelantus::PublicCoin> anonymity_set;
-    int N = 1;
+    int N = 100;
 
     std::vector <lelantus::PrivateCoin> Cin;
     secp_primitives::Scalar v1(uint64_t(5));
@@ -21,7 +19,7 @@ BOOST_AUTO_TEST_CASE(prove_verify)
     indexes.push_back(0);
     anonymity_set.reserve(N);
     anonymity_set.push_back(Cin[0].getPublicCoin());
-    for(int i = 0; i < N; ++i){
+    for(int i = 1; i < N; ++i){
           secp_primitives::GroupElement coin;
           coin.randomize();
           anonymity_set.push_back(lelantus::PublicCoin(coin, uint64_t(15)));

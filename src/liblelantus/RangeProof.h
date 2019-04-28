@@ -38,7 +38,7 @@ public:
         current = T_x1.deserialize(current);
         current = T_x2.deserialize(current);
         current = u.deserialize(current);
-        current = innerProductProof.deserialize(current, n);
+        current = innerProductProof.deserialize(current, size);
         return current;
     }
 

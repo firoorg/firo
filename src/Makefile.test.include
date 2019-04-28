@@ -52,6 +52,7 @@ BITCOIN_TESTS =\
   liblelantus/test/schnorr_test.cpp \
   liblelantus/test/sigma_plus_test.cpp \
   liblelantus/test/lelantus_test.cpp \
+  liblelantus/test/serialize_test.cpp \
   test/zerocoin_tests.cpp \
   test/zerocoin_tests2.cpp \
   test/zerocoin_tests3.cpp \

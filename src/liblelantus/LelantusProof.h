@@ -13,9 +13,9 @@ class LelantusProof {
 public:
     //n is the number of input coins, bulletproof_n is number of output coins,
     inline int memoryRequired(int n, int bulletproof_n, int bulletproof_m) {
-        sigma_proofs[0].memoryRequired() * n
-        + bulletproofs.memoryRequired(bulletproof_n, bulletproof_m)
-        + schnorrProof.memoryRequired();
+        return  sigma_proofs[0].memoryRequired() * n
+                + bulletproofs.memoryRequired(bulletproof_n, bulletproof_m)
+                + schnorrProof.memoryRequired();
     }
 
     inline unsigned char* serialize(unsigned char* buffer) const {
@@ -28,6 +28,7 @@ public:
 
     inline unsigned char* deserialize(const Params* params, unsigned char* buffer, int size, int b_m) {
         unsigned char* current = buffer;
+        sigma_proofs.resize(size);
         for(int i = 0; i < size; ++i)
             current = sigma_proofs[i].deserialize(current, params->get_n(), params->get_m());
         current = bulletproofs.deserialize(current, params->get_bulletproofs_n() * b_m);
