@@ -47,6 +47,11 @@ BITCOIN_TESTS =\
   sigma/test/primitives_tests.cpp \
   sigma/test/coin_spend_tests.cpp \
   sigma/test/sigma_primitive_types_test.cpp \
+  liblelantus/test/inner_product_test.cpp \
+  liblelantus/test/range_proof_test.cpp \
+  liblelantus/test/schnorr_test.cpp \
+  liblelantus/test/sigma_plus_test.cpp \
+  liblelantus/test/lelantus_test.cpp \
   test/zerocoin_tests.cpp \
   test/zerocoin_tests2.cpp \
   test/zerocoin_tests3.cpp \
@@ -148,7 +153,7 @@ test_test_bitcoin_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) -I$(builddir)/te
 
 test_test_bitcoin_LDADD += $(LIBBITCOIN_CLI) $(LIBBITCOIN_COMMON) \
   $(LIBBITCOIN_UTIL) $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO) \
-  $(LIBZCOIN_SIGMA) $(LIBUNIVALUE) $(LIBLEVELDB) $(LIBMEMENV) $(BOOST_LIBS) \
+  $(LIBZCOIN_SIGMA) $(LIBLELANTUS) $(LIBUNIVALUE) $(LIBLEVELDB) $(LIBMEMENV) $(BOOST_LIBS) \
   $(BOOST_UNIT_TEST_FRAMEWORK_LIB) $(LIBSECP256K1) $(EVENT_PTHREADS_LIBS) \
   $(EVENT_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) \
   $(ZMQ_LIBS) $(ZLIB_LIBS)

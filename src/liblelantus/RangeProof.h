@@ -2,6 +2,7 @@
 #define ZCOIN_RANGEPROOF_H
 
 #include "InnerProductProof.h"
+#include <math.h>
 
 namespace lelantus {
 

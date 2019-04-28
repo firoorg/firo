@@ -1,3 +1,5 @@
+#include "../../crypto/sha256.h"
+
 namespace lelantus {
 
 template<class Exponent, class GroupElement>
@@ -6,7 +8,7 @@ void LelantusPrimitives<Exponent, GroupElement>::commit(const GroupElement& g,
                                                         const std::vector<Exponent>& exp,
                                                         const Exponent& r,
                                                         GroupElement& result_out) {
-    secp_primitives::Multiexponent<secp_primitives::Scalar, secp_primitives::GroupElement> mult(h, exp);
+    secp_primitives::MultiExponent mult(h, exp);
     result_out += g * r + mult.get_multiple();
 }
 
@@ -84,15 +86,14 @@ void LelantusPrimitives<Exponent, GroupElement>::get_x(
         const GroupElement& C,
         const GroupElement& D,
         Exponent& result_out) {
-    secp256k1_sha256_t hash;
-    secp256k1_sha256_initialize(&hash);
-    unsigned char data[3 * A.memoryRequired()];
+    CSHA256 hash;
+    unsigned char data[3 * A.serialize_size];
     unsigned char* current = A.serialize(data);
     current = C.serialize(current);
     D.serialize(current);
-    secp256k1_sha256_write(&hash, &data[0], 3 * 34);
-    unsigned char result_data[32];
-    secp256k1_sha256_finalize(&hash, result_data);
+    hash.Write(data, 3 * A.memoryRequired());
+    unsigned char result_data[CSHA256::OUTPUT_SIZE];
+    hash.Finalize(result_data);
     result_out = result_data;
 
 }
@@ -102,8 +103,7 @@ void  LelantusPrimitives<Exponent, GroupElement>::get_x(
         const std::vector<SigmaPlusProof<Exponent, GroupElement>>& proofs,
         Exponent& result_out) {
     if (proofs.size() > 0) {
-        secp256k1_sha256_t hash;
-        secp256k1_sha256_initialize(&hash);
+        CSHA256 hash;
         unsigned char data[3 * proofs.size() * 34];
         unsigned char* current = data;
         for (int i = 0; i < proofs.size(); ++i) {
@@ -111,9 +111,9 @@ void  LelantusPrimitives<Exponent, GroupElement>::get_x(
             current = proofs[i].C_.serialize(current);
             current = proofs[i].D_.serialize(current);
         }
-        secp256k1_sha256_write(&hash, data, 3 * proofs.size() * 34);
+        hash.Write(data, 3 * proofs.size() * 34);
         unsigned char result_data[32];
-        secp256k1_sha256_finalize(&hash, result_data);
+        hash.Finalize(result_data);
         result_out = result_data;
     }
     else
@@ -150,13 +150,12 @@ void LelantusPrimitives<Exponent, GroupElement>::commit(
 
 template<class Exponent, class GroupElement>
 void LelantusPrimitives<Exponent, GroupElement>::get_c(const GroupElement& u, Exponent& result) {
-    secp256k1_sha256_t hash;
-    secp256k1_sha256_initialize(&hash);
+    CSHA256 hash;
     unsigned char data[34];
     u.serialize(data);
-    secp256k1_sha256_write(&hash, &data[0], 34);
+    hash.Write(&data[0], 34);
     unsigned char result_data[32];
-    secp256k1_sha256_finalize(&hash, result_data);
+    hash.Finalize(result_data);
     result = result_data;
 }
 
@@ -165,26 +164,24 @@ void LelantusPrimitives<Exponent, GroupElement>::get_x(
         const GroupElement& L,
         const GroupElement& R,
         Exponent& result) {
-    secp256k1_sha256_t hash;
-    secp256k1_sha256_initialize(&hash);
+    CSHA256 hash;
     unsigned char data[2 * L.memoryRequired()];
     L.serialize(data);
     R.serialize(data + 34);
-    secp256k1_sha256_write(&hash, &data[0], 2 * 34);
+    hash.Write(&data[0], 2 * 34);
     unsigned char result_data[32];
-    secp256k1_sha256_finalize(&hash, result_data);
+    hash.Finalize(result_data);
     result = result_data;
 }
 
 template <class Exponent, class GroupElement>
 void LelantusPrimitives<Exponent, GroupElement>::get_x(const GroupElement& P, Exponent& result) {
-    secp256k1_sha256_t hash;
-    secp256k1_sha256_initialize(&hash);
+    CSHA256 hash;
     unsigned char data[P.memoryRequired()];
     P.serialize(data);
-    secp256k1_sha256_write(&hash, &data[0],34);
+    hash.Write(&data[0],34);
     unsigned char result_data[32];
-    secp256k1_sha256_finalize(&hash, result_data);
+    hash.Finalize(result_data);
     result = result_data;
 }
 
