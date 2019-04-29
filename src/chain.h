@@ -490,7 +490,7 @@ public:
             READWRITE(spentSerials);
 	    }
 
-        if (!(nType & SER_GETHASH)) {
+        if (!(nType & SER_GETHASH) && nHeight >= Params().GetConsensus().nSigmaStartBlock) {
             READWRITE(mintedPubCoinsV3);
             READWRITE(spentSerialsV3);
         }

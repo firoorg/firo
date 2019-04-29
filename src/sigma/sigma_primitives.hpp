@@ -1,13 +1,13 @@
 #include "../../crypto/sha256.h"
 
-namespace sigma{
+namespace sigma {
 
 template<class Exponent, class GroupElement>
 void SigmaPrimitives<Exponent, GroupElement>::commit(const GroupElement& g,
         const std::vector<GroupElement>& h,
         const std::vector<Exponent>& exp,
         const Exponent& r,
-        GroupElement& result_out)  {
+        GroupElement& result_out) {
     secp_primitives::MultiExponent mult(h, exp);
     result_out += g * r + mult.get_multiple();
 }
@@ -26,11 +26,11 @@ void SigmaPrimitives<Exponent, GroupElement>::convert_to_sigma(
         uint64_t num,
         uint64_t n,
         uint64_t m,
-        std::vector<Exponent>& out){
+        std::vector<Exponent>& out) {
     uint64_t rem;
     uint64_t j = 0;
 
-    while (num != 0)
+    for (j = 0; j < m; ++j)
     {
         rem = num % n;
         num /= n;
@@ -40,14 +40,6 @@ void SigmaPrimitives<Exponent, GroupElement>::convert_to_sigma(
             else
                 out.push_back(Exponent(uint64_t(0)));
         }
-        j++;
-    }
-
-    for (uint64_t k = j; k < m; ++k) {
-        out.push_back(Exponent(uint64_t(1)));
-        for (uint64_t i = 1; i < n; ++i) {
-            out.push_back(Exponent(uint64_t(0)));
-        }
     }
 }
 
@@ -55,7 +47,7 @@ template<class Exponent, class GroupElement>
 std::vector<uint64_t> SigmaPrimitives<Exponent, GroupElement>::convert_to_nal(
         uint64_t num,
         uint64_t n,
-        uint64_t m){
+        uint64_t m) {
     std::vector<uint64_t> result;
     uint64_t rem;
     uint64_t j = 0;
@@ -71,17 +63,18 @@ std::vector<uint64_t> SigmaPrimitives<Exponent, GroupElement>::convert_to_nal(
 }
 
 template<class Exponent, class GroupElement>
-void SigmaPrimitives<Exponent, GroupElement>::get_x(
-        const GroupElement& A,
-        const GroupElement& C,
-        const GroupElement& D,
+void SigmaPrimitives<Exponent, GroupElement>::generate_challenge(
+        const std::vector<GroupElement>& group_elements,
         Exponent& result_out) {
+    if (group_elements.empty())
+        throw std::runtime_error("Group elements empty while generating a challenge.");
     CSHA256 hash;
-    unsigned char data[3 * A.serialize_size];
-    unsigned char* current = A.serialize(data);
-    current = C.serialize(current);
-    D.serialize(current);
-    hash.Write(data, 3 * A.memoryRequired());
+    std::vector<unsigned char> data(group_elements.size() * group_elements[0].memoryRequired());
+    unsigned char* current = data.data();
+    for (size_t i = 0; i < group_elements.size(); ++i) {
+        current = group_elements[i].serialize(current);
+    }
+    hash.Write(data.data(), data.size());
     unsigned char result_data[CSHA256::OUTPUT_SIZE];
     hash.Finalize(result_data);
     result_out = result_data;
@@ -89,16 +82,16 @@ void SigmaPrimitives<Exponent, GroupElement>::get_x(
 
 template<class Exponent, class GroupElement>
 void SigmaPrimitives<Exponent, GroupElement>::new_factor(
-        Exponent x,
-        Exponent a,
+        const Exponent& x,
+        const Exponent& a,
         std::vector<Exponent>& coefficients) {
     std::vector<Exponent> temp;
     temp.resize(coefficients.size() + 1);
     for (std::size_t j = 0; j < coefficients.size(); j++)
-        temp[j] += x * coefficients[j];
+        temp[j] = x * coefficients[j];
     for(std::size_t j = 0; j < coefficients.size(); j++)
         temp[j + 1] += a * coefficients[j];
-    coefficients = temp;
+    coefficients = std::move(temp);
 }
 
 } // namespace sigma
