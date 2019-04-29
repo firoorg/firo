@@ -41,6 +41,9 @@ public:
     void Complete();
 };
 
+bool IsSigmaAllowed();
+bool IsSigmaAllowed(int height);
+
 secp_primitives::GroupElement ParseSigmaMintScript(const CScript& script);
 std::pair<std::unique_ptr<sigma::CoinSpendV3>, uint32_t> ParseSigmaSpend(const CTxIn& in);
 

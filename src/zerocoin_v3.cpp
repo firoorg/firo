@@ -51,6 +51,17 @@ static bool CheckZerocoinSpendSerialV3(
 	return true;
 }
 
+bool IsSigmaAllowed()
+{
+	LOCK(cs_main);
+	return IsSigmaAllowed(chainActive.Height());
+}
+
+bool IsSigmaAllowed(int height)
+{
+	return height >= Params().GetConsensus().nSigmaStartBlock;
+}
+
 secp_primitives::GroupElement ParseSigmaMintScript(const CScript& script)
 {
 	if (script.size() < 1) {

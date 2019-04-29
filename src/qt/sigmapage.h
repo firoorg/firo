@@ -1,11 +1,12 @@
 #ifndef ZCOIN_QT_SIGMAPAGE_H
 #define ZCOIN_QT_SIGMAPAGE_H
 
-#include <QWidget>
-
 #include "addresstablemodel.h"
-#include "sendcoinsentry.h"
+#include "clientmodel.h"
 #include "platformstyle.h"
+#include "sendcoinsentry.h"
+
+#include <QWidget>
 
 namespace Ui {
     class SigmaPage;
@@ -19,7 +20,8 @@ public:
     SigmaPage(const PlatformStyle *platformStyle, QWidget *parent = 0);
     ~SigmaPage();
 
-    void setModel(WalletModel *model);
+    void setClientModel(ClientModel *model);
+    void setWalletModel(WalletModel *model);
 
     /** Set up the tab chain manually, as Qt messes up the tab chain by default in some cases (issue https://bugreports.qt-project.org/browse/QTBUG-10907).
      */
@@ -32,13 +34,15 @@ public Q_SLOTS:
 
 private:
     Ui::SigmaPage *ui;
-    WalletModel *model;
+    ClientModel *clientModel;
+    WalletModel *walletModel;
     bool isNewRecipientAllowed;
     const PlatformStyle *platformStyle;
 
     void processSpendCoinsReturn(const WalletModel::SendCoinsReturn &sendCoinsReturn, const QString &msgArg = QString());
 
 private Q_SLOTS:
+    void numBlocksChanged(int count, const QDateTime& blockDate, double nVerificationProgress, bool header);
     void on_mintButton_clicked();
     void on_sendButton_clicked();
     void removeEntry(SendCoinsEntry* entry);
