@@ -55,7 +55,7 @@ MultiExponent::~MultiExponent(){
     delete []reinterpret_cast<secp256k1_gej *>(pt_);
 }
 
-GroupElement MultiExponent::get_multiple(){
+GroupElement MultiExponent::get_multiple() {
     secp256k1_gej r;
 
     ecmult_multi_data data;
