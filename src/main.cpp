@@ -1181,6 +1181,7 @@ bool CheckTransaction(
 			    return state.DoS(10, false, REJECT_INVALID, "bad-txns-prevout-null");
 		    }
 	    }
+
         if (tx.IsZerocoinV3SigmaTransaction()) {
             if (!CheckZerocoinTransactionV3(
                     tx,
@@ -1191,20 +1192,22 @@ bool CheckTransaction(
                     isCheckWallet,
                     zerocoinTxInfoV3))
             return false;
-        } else if (tx.IsZerocoinTransaction()) {
-            if (!CheckZerocoinTransaction(
-                    tx,
-                    state,
-                    Params().GetConsensus(),
-                    hashTx,
-                    isVerifyDB,
-                    nHeight,
-                    isCheckWallet,
-                    fStatefulZerocoinCheck,
-                    zerocoinTxInfo))
-		        return false;
+        }
+
+        if (!CheckZerocoinTransaction(
+            tx,
+            state,
+            Params().GetConsensus(),
+            hashTx,
+            isVerifyDB,
+            nHeight,
+            isCheckWallet,
+            fStatefulZerocoinCheck,
+            zerocoinTxInfo)) {
+            return false;
         }
     }
+
     return true;
 }
 
