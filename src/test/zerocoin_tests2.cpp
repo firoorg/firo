@@ -1,3 +1,6 @@
+//In late April 2019 the Zerocoin functionality has been disabled.
+//The tests are changed so to verify it is disabled but change as little functionality as possible
+//The initial functionality is left in here after comment //DZC
 #include "util.h"
 
 #include "clientversion.h"
@@ -133,10 +136,13 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend2)
         //Block 110 create 5 mints
         //Verify Mint is successful
         for(int i = 0; i < 5; i++)
-            BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denomination.c_str()), stringError + " - Create Mint failed");
+            //DZC BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denomination.c_str()), stringError + " - Create Mint failed");
+            BOOST_CHECK_MESSAGE(!pwalletMain->CreateZerocoinMintModel(stringError, denomination.c_str()), stringError + " - Create Mint not failed");
 
         //Put 5 in the same block
-        BOOST_CHECK_MESSAGE(mempool.size() == 5, "Mints were not added to mempool");
+        //DZC BOOST_CHECK_MESSAGE(mempool.size() == 5, "Mints were not added to mempool");
+        BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mints were added to mempool");
+        return;
 
         vtxid.clear();
         mempool.queryHashes(vtxid);

@@ -322,7 +322,7 @@ public:
         consensus.nInitialMTPDifficulty = 0x2000ffff;  // !!!! change it to the real value
         consensus.nMTPRewardReduction = 2;
 
-        consensus.nDisableZerocoinStartBlock = INT_MAX;
+        consensus.nDisableZerocoinStartBlock = 50500;
 
         nPoolMaxTransactions = 3;
         nFulfilledRequestExpireTime = 5*60; // fulfilled requests expire in 5 minutes
