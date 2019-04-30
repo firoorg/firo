@@ -2716,7 +2716,7 @@ UniValue mint(const UniValue& params, bool fHelp)
 
     if (fHelp || params.size() != 1)
         throw std::runtime_error(
-            "mint amount\n"
+            "mint <amount>(could not smaller than 0.1)\n"
             "\nAutomatically choose denominations to mint by amount\n" +
             HelpRequiringPassphrase());
 
@@ -3154,6 +3154,7 @@ UniValue spendmanyzerocoin(const UniValue& params, bool fHelp) {
 
     return wtx.GetHash().GetHex();
 }
+
 
 UniValue spendmany(const UniValue& params, bool fHelp) {
 
