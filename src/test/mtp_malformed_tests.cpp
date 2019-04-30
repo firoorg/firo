@@ -218,7 +218,7 @@ BOOST_AUTO_TEST_CASE(mtp_malformed)
     mybufstream.clear();
     mybufstream << *bMtp.mtpHashData;
     mybufstream.insert(mybufstream.begin(), 0);
-    BOOST_CHECK_EXCEPTION(mybufstream >> outh, std::runtime_error, no_check);
+    BOOST_CHECK_EXCEPTION(mybufstream >> outh, std::ios_base::failure, [](const std::ios_base::failure&) { return true; });
 
     mybufstream.clear();
     mybufstream << *bMtp.mtpHashData;
@@ -230,12 +230,12 @@ BOOST_AUTO_TEST_CASE(mtp_malformed)
     mybufstream << *bMtp.mtpHashData;
     for(auto &it : mybufstream)
         it = rand()%256;
-    BOOST_CHECK_EXCEPTION(mybufstream >> outh, std::runtime_error, no_check);
+    BOOST_CHECK_EXCEPTION(mybufstream >> outh, std::ios_base::failure, [](const std::ios_base::failure&) { return true; });
 
     mybufstream.clear();
     mybufstream << *bMtp.mtpHashData;
     mybufstream.resize(mybufstream.size()/2);
-    BOOST_CHECK_EXCEPTION(mybufstream >> outh, std::runtime_error, no_check);
+    BOOST_CHECK_EXCEPTION(mybufstream >> outh, std::ios_base::failure, [](const std::ios_base::failure&) { return true; });
     Params(CBaseChainParams::REGTEST).SetRegTestMtpSwitchTime(INT_MAX);
 }
 
