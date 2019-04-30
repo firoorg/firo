@@ -3977,11 +3977,12 @@ bool CWallet::CreateZerocoinMintModelV3(string &stringError, const string& denom
 
         CWalletDB walletdb(pwalletMain->strWalletFile);
 
+        // Now that coin is verified and sent, update the count. (If not verified, we will repeat the same count on the next attempt)
+        zwalletMain->UpdateCount();
+
         dMint.SetTxHash(wtx.GetHash());
         pwalletMain->hdMintTracker->Add(dMint, true);
 
-        // Now that coin is verified and sent, update the count. (If not verified, we will repeat the same count on the next attempt)
-        zwalletMain->UpdateCount();
         LogPrintf("CreateZerocoinMintModel() -> NotifyZerocoinChanged\n");
         LogPrintf("pubcoin=%s, isUsed=%s\n", newCoin.getPublicCoin().getValue().GetHex(), dMint.IsUsed());
         LogPrintf("randomness=%s, serialNumber=%s\n", newCoin.getRandomness(), newCoin.getSerialNumber());
@@ -4940,10 +4941,6 @@ bool CWallet::CreateZerocoinSpendTransactionV3(
             sigma::ParamsV3* zcParams = sigma::ParamsV3::get_default();
 
             // Select not yet used coin from the wallet with minimal possible id
-
-            list <CZerocoinEntryV3> listOwnCoins;
-            CWalletDB(strWalletFile).ListPubCoinV3(listOwnCoins);
-            listOwnCoins.sort(CompHeightV3);
             CZerocoinEntryV3 coinToUse;
             CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
 
@@ -6056,7 +6053,7 @@ string CWallet::MintAndStoreZerocoinV3(vector<CRecipient> vecSend,
         LogPrintf("CommitTransaction success!\n");
     }
 
-    // Now that all coins are verified and sent, update the count in the database.
+    // Update the count in the database (no effect if no change mints)
     zwalletMain->UpdateCountDB();
 
     //update mints with full transaction hash and then database them
@@ -6260,7 +6257,7 @@ string CWallet::SpendZerocoinV3(
         LogPrintf("SpendZerocoin() : %s\n", strError.c_str());
     }
 
-    // Update the count in the database (no effect if no new coins are minted)
+    // Update the count in the database (no effect if no change mints)
     zwalletMain->UpdateCountDB();
     return "";
 }
@@ -6494,6 +6491,9 @@ bool CWallet::CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CHDMint>& se
             "New (" + std::to_string(change.GetDenomination()) + " mint)",
             CT_NEW);
     }
+
+    // Update the count in the database (no effect if no change mints)
+    zwalletMain->UpdateCountDB();
 
     return true;
 }

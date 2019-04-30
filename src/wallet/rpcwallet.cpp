@@ -3256,9 +3256,6 @@ UniValue spendmany(const UniValue& params, bool fHelp) {
         throw JSONRPCError(RPC_WALLET_ERROR, e.what());
     }
 
-    // Update the count in the database (no effect if no change mints)
-    zwalletMain->UpdateCountDB();
-
     return wtx.GetHash().GetHex();
 }
 
