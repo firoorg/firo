@@ -835,8 +835,8 @@ bool WalletModel::rebroadcastTransaction(uint256 hash)
 // Sigma
 WalletModel::SendCoinsReturn WalletModel::prepareSigmaSpendTransaction(
     WalletModelTransaction &transaction,
-    std::vector<CZerocoinEntryV3> &selectedCoins,
-    std::vector<CZerocoinEntryV3> &changes)
+    std::vector<CHDMint> &selectedCoins,
+    std::vector<CHDMint> &changes)
 {
     QList<SendCoinsRecipient> recipients = transaction.getRecipients();
     std::vector<CRecipient> sendRecipients;
@@ -880,7 +880,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareSigmaSpendTransaction(
 }
 
 WalletModel::SendCoinsReturn WalletModel::sendSigma(WalletModelTransaction &transaction,
-    std::vector<CZerocoinEntryV3>& coins, std::vector<CZerocoinEntryV3>& changes)
+    std::vector<CHDMint>& coins, std::vector<CHDMint>& changes)
 {
     QByteArray transaction_array; /* store serialized transaction */
 
@@ -966,10 +966,11 @@ void WalletModel::sigmaMint(const CAmount& n)
             return sigma::PrivateCoinV3(zcParams, denom);
         });
 
-    auto recipients = CWallet::CreateSigmaMintRecipients(privCoins);
+    vector<CHDMint> vDMints;
+    auto recipients = CWallet::CreateSigmaMintRecipients(privCoins, vDMints);
 
     CWalletTx wtx;
-    std::string strError = pwalletMain->MintAndStoreZerocoinV3(recipients, privCoins, wtx);
+    std::string strError = pwalletMain->MintAndStoreZerocoinV3(recipients, privCoins, vDMints, wtx);
 
     if (strError != "") {
         throw std::range_error(strError);

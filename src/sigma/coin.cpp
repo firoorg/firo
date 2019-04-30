@@ -181,6 +181,13 @@ void PrivateCoinV3::setEcdsaSeckey(const std::vector<unsigned char> &seckey) {
         throw std::invalid_argument("EcdsaSeckey size does not match.");
 }
 
+void PrivateCoinV3::setEcdsaSeckey(uint256 &seckey) {
+    if (seckey.size() == sizeof(ecdsaSeckey))
+        std::copy(seckey.begin(), seckey.end(), &ecdsaSeckey[0]);
+    else
+        throw std::invalid_argument("EcdsaSeckey size does not match.");
+}
+
 unsigned int PrivateCoinV3::getVersion() const {
     return this->version;
 }

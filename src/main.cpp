@@ -4475,6 +4475,32 @@ ContextualCheckBlockHeader(const CBlockHeader &block, CValidationState &state, c
     return true;
 }
 
+bool IsBlockHashInChain(const uint256& hashBlock)
+{
+    if (hashBlock.IsNull() || !mapBlockIndex.count(hashBlock))
+        return false;
+
+    return chainActive.Contains(mapBlockIndex[hashBlock]);
+}
+
+bool IsTransactionInChain(const uint256& txId, int& nHeightTx, CTransaction& tx)
+{
+    uint256 hashBlock;
+    if (!GetTransaction(txId, tx, Params().GetConsensus(), hashBlock, true))
+        return false;
+    if (!IsBlockHashInChain(hashBlock))
+        return false;
+
+    nHeightTx = mapBlockIndex.at(hashBlock)->nHeight;
+    return true;
+}
+
+bool IsTransactionInChain(const uint256& txId, int& nHeightTx)
+{
+    CTransaction tx;
+    return IsTransactionInChain(txId, nHeightTx, tx);
+}
+
 bool ContextualCheckBlock(const CBlock &block, CValidationState &state, CBlockIndex *const pindexPrev) {
     const int nHeight = pindexPrev == NULL ? 0 : pindexPrev->nHeight + 1;
     const Consensus::Params &consensusParams = Params().GetConsensus();

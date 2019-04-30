@@ -8,8 +8,8 @@
 class SigmaSpendBuilder : public TxBuilder
 {
 public:
-    std::vector<CZerocoinEntryV3> selected;
-    std::vector<CZerocoinEntryV3> changes;
+    std::vector<CHDMint> selected;
+    std::vector<CHDMint> changes;
     std::vector<sigma::CoinDenominationV3> denomChanges;
 
 public:
@@ -18,6 +18,7 @@ public:
 
 protected:
     CAmount GetInputs(std::vector<std::unique_ptr<InputSigner>>& signers, CAmount required) override;
+    // remint change
     CAmount GetChanges(std::vector<CTxOut>& outputs, CAmount amount) override;
 };
 

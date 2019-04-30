@@ -65,6 +65,13 @@ bool ConnectBlockZCV3(
   const CBlock *pblock,
   bool fJustCheck=false);
 
+/*
+ * Get transaction hash from the chain using pubcoin value alone.
+ */
+bool ZerocoinGetMintTxHashV3(uint256& txHash, uint256 pubCoinValueHash);
+bool ZerocoinGetMintTxHashV3(uint256& txHash, GroupElement pubCoinValue);
+
+
 bool ZerocoinBuildStateFromIndexV3(CChain *chain);
 
 Scalar ZerocoinGetSpendSerialNumberV3(const CTransaction &tx, const CTxIn &txin);
@@ -126,9 +133,13 @@ public:
 
     // Query if the coin serial was previously used
     bool IsUsedCoinSerial(const Scalar& coinSerial);
+        // Query if the hash of a coin serial was previously used. If so, store preimage in coinSerial param
+    bool IsUsedCoinSerialHash(Scalar &coinSerial, const uint256 &coinSerialHash);
 
     // Query if there is a coin with given pubCoin value
     bool HasCoin(const PublicCoinV3& pubCoin);
+    // Query if there is a coin with given hash of a pubCoin value. If so, store preimage in pubCoin param
+    bool HasCoinHash(GroupElement &pubCoinValue, const uint256 &pubCoinValueHash);
 
     // Given denomination and id returns latest accumulator value and corresponding block hash
     // Do not take into account coins with height more than maxHeight

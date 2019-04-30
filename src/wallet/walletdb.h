@@ -9,6 +9,8 @@
 
 #include "amount.h"
 #include "primitives/transaction.h"
+#include "primitives/zerocoin.h"
+#include "hdmint/hdmint.h"
 #include "wallet/db.h"
 #include "key.h"
 
@@ -208,6 +210,27 @@ public:
     DBErrors ZapSelectTx(CWallet* pwallet, std::vector<uint256>& vHashIn, std::vector<uint256>& vHashOut);
     static bool Recover(CDBEnv& dbenv, const std::string& filename, bool fOnlyKeys);
     static bool Recover(CDBEnv& dbenv, const std::string& filename);
+
+    bool ReadCurrentSeedHash(uint256& hashSeed);
+    bool WriteCurrentSeedHash(const uint256& hashSeed);
+    bool ReadZerocoinSeed(const uint256& hashSeed, vector<unsigned char>& seed);
+    bool WriteZerocoinSeed(const uint256& hashSeed, const vector<unsigned char>& seed);
+
+    bool ReadZerocoinCount(uint32_t& nCount);
+    bool WriteZerocoinCount(const uint32_t& nCount);
+
+    bool ArchiveMintOrphan(const CZerocoinEntry& zerocoin);
+    bool ArchiveDeterministicOrphan(const CHDMint& dMint);
+    bool UnarchiveZerocoinMint(const uint256& hashPubcoin, CZerocoinEntryV3& zerocoin);
+    bool UnarchiveHDMint(const uint256& hashPubcoin, CHDMint& dMint);
+
+    bool WriteHDMint(const CHDMint& dMint);
+    bool ReadHDMint(const uint256& hashPubcoin, CHDMint& dMint);
+
+     std::list<CHDMint> ListHDMints();
+
+     std::map<uint256, std::vector<pair<uint256, uint32_t> > > MapMintPool();
+    bool WriteMintPoolPair(const uint256& hashMasterSeed, const uint256& hashPubcoin, const uint32_t& nCount);
 
     //! write the hdchain model (external chain child index counter)
     bool WriteHDChain(const CHDChain& chain);

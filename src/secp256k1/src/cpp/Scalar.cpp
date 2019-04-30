@@ -178,6 +178,23 @@ bool Scalar::isMember() const {
     return *this == temp;
 }
 
+Scalar& Scalar::memberFromSeed(unsigned char* seed){
+    // buffer -> object
+    deserialize(seed);
+    do {
+        // object -> buffer
+        serialize(seed);
+        // Hash from buffer, stores result in object
+        *this = hash(seed, 32, false);
+        // object -> buffer
+        serialize(seed);
+        // Generate from buffer, stores result in object
+        generate(seed);
+    }while (!(this->isMember()));
+
+    return *this;
+}
+
 Scalar& Scalar::randomize() {
     unsigned char temp[32] = { 0 };
 
@@ -213,7 +230,7 @@ Scalar& Scalar::mod_p() {
     return *this;
 }
 
-Scalar Scalar::hash(const unsigned char* data, size_t len) {
+Scalar Scalar::hash(const unsigned char* data, size_t len, bool mod) {
     unsigned char hash[32];
 
     secp256k1_sha256_t sha256;
@@ -228,7 +245,8 @@ Scalar Scalar::hash(const unsigned char* data, size_t len) {
      throw "Scalar: hashing overflowed";
     }
     Scalar result_(&result);
-    result_.mod_p();
+    if(mod)
+        result_.mod_p();
     return result_;
 }
 

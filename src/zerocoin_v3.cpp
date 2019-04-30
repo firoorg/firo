@@ -13,6 +13,7 @@
 #include "sigma/coin.h"
 #include "znode-payments.h"
 #include "znode-sync.h"
+#include "primitives/zerocoin.h"
 
 #include <atomic>
 #include <sstream>
@@ -481,6 +482,64 @@ bool ConnectBlockZCV3(
 	return true;
 }
 
+bool ZerocoinGetMintTxHashV3(uint256& txHash, GroupElement pubCoinValue) {
+	int mintHeight = 0;
+    int coinId = 0;
+
+    CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
+    std::vector<sigma::CoinDenominationV3> denominations;
+    GetAllDenoms(denominations);
+    BOOST_FOREACH(sigma::CoinDenominationV3 denomination, denominations){
+    	sigma::PublicCoinV3 pubCoin(pubCoinValue, denomination);
+        auto mintedCoinHeightAndId = zerocoinState->GetMintedCoinHeightAndId(pubCoin);
+        mintHeight = mintedCoinHeightAndId.first;
+        coinId = mintedCoinHeightAndId.second;
+        if(mintHeight!=-1 && coinId!=-1)
+            break;
+    }
+
+    if(mintHeight==-1 && coinId==-1)
+        return false;
+
+    // get block containing mint
+    CBlockIndex *mintBlock = chainActive[mintHeight];
+    CBlock block;
+    if(!ReadBlockFromDisk(block, mintBlock, Params().GetConsensus()))
+        LogPrintf("can't read block from disk.\n");
+
+    secp_primitives::GroupElement txPubCoinValue;
+    // cycle transaction hashes, looking for this pubcoin.
+    BOOST_FOREACH(CTransaction tx, block.vtx){   
+        if(tx.IsZerocoinMintV3()){
+            for (const CTxOut &txout: tx.vout) {
+                if (txout.scriptPubKey.IsZerocoinMintV3()){
+
+				    // If you wonder why +1, go to file wallet.cpp and read the comments in function
+				    // CWallet::CreateZerocoinMintModelV3 around "scriptSerializedCoin << OP_ZEROCOINMINTV3";
+				    vector<unsigned char> coin_serialised(txout.scriptPubKey.begin() + 1,
+				                                          txout.scriptPubKey.end());
+				    txPubCoinValue.deserialize(&coin_serialised[0]);
+                    if(pubCoinValue==txPubCoinValue){
+                        txHash = tx.GetHash();
+                        return true;
+                    }           
+                }
+            }
+        }
+    }
+
+    return false;
+}
+
+bool ZerocoinGetMintTxHashV3(uint256& txHash, uint256 pubCoinValueHash) {
+    GroupElement pubCoinValue;
+    if(!zerocoinStateV3.HasCoinHash(pubCoinValue, pubCoinValueHash)){
+        return false;
+    }
+
+    return ZerocoinGetMintTxHashV3(txHash, pubCoinValue);
+}
+
 
 bool ZerocoinBuildStateFromIndexV3(CChain *chain) {
 	zerocoinStateV3.Reset();
@@ -656,8 +715,29 @@ bool CZerocoinStateV3::IsUsedCoinSerial(const Scalar &coinSerial) {
 	return usedCoinSerials.count(coinSerial) != 0;
 }
 
+bool CZerocoinStateV3::IsUsedCoinSerialHash(Scalar &coinSerial, const uint256 &coinSerialHash) {
+    for ( auto it = usedCoinSerials.begin(); it != usedCoinSerials.end(); ++it ){
+        if(GetSerialHash(*it)==coinSerialHash){
+            coinSerial = *it;
+            return true;
+        }
+    }
+    return false;
+}
+
 bool CZerocoinStateV3::HasCoin(const PublicCoinV3& pubCoin) {
 	return mintedPubCoins.find(pubCoin) != mintedPubCoins.end();
+}
+
+bool CZerocoinStateV3::HasCoinHash(GroupElement &pubCoinValue, const uint256 &pubCoinValueHash) {
+    for ( auto it = mintedPubCoins.begin(); it != mintedPubCoins.end(); ++it ){
+    	sigma::PublicCoinV3 pubCoin = (*it).first;
+        if(GetPubCoinValueHash(pubCoin.value)==pubCoinValueHash){
+            pubCoinValue = pubCoin.value;
+            return true;
+        }
+    }
+    return false;
 }
 
 int CZerocoinStateV3::GetCoinSetForSpend(

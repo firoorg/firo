@@ -509,6 +509,17 @@ DBErrors CWalletDB::ReorderTransactions(CWallet *pwallet) {
     return DB_LOAD_OK;
 }
 
+bool CWalletDB::WriteHDMint(const CHDMint& dMint)
+{
+    uint256 hash = dMint.GetPubCoinHash();
+    return Write(make_pair(string("hdmint"), hash), dMint, true);
+}
+
+bool CWalletDB::ReadHDMint(const uint256& hashPubcoin, CHDMint& dMint)
+{
+    return Read(make_pair(string("hdmint"), hashPubcoin), dMint);
+}
+
 class CWalletScanState {
 public:
     unsigned int nKeys;
@@ -1249,4 +1260,201 @@ bool CWalletDB::EraseDestData(const std::string &address, const std::string &key
 bool CWalletDB::WriteHDChain(const CHDChain &chain) {
     nWalletDBUpdated++;
     return Write(std::string("hdchain"), chain);
+}
+
+bool CWalletDB::ReadCurrentSeedHash(uint256& hashSeed)
+{
+    return Read(string("seedhash"), hashSeed);
+}
+
+bool CWalletDB::WriteCurrentSeedHash(const uint256& hashSeed)
+{
+    return Write(string("seedhash"), hashSeed);
+}
+
+bool CWalletDB::ReadZerocoinSeed(const uint256& hashSeed, vector<unsigned char>& seed)
+{
+    return Read(make_pair(string("dzs"), hashSeed), seed);
+}
+
+bool CWalletDB::WriteZerocoinSeed(const uint256& hashSeed, const vector<unsigned char>& seed)
+{
+    if (!WriteCurrentSeedHash(hashSeed))
+        return error("%s: failed to write current seed hash", __func__);
+
+    return Write(make_pair(string("dzs"), hashSeed), seed);
+}
+
+bool CWalletDB::ReadZerocoinCount(uint32_t& nCount)
+{
+    return Read(string("dzc"), nCount);
+}
+
+bool CWalletDB::WriteZerocoinCount(const uint32_t& nCount)
+{
+    return Write(string("dzc"), nCount);
+}
+
+bool CWalletDB::WriteMintPoolPair(const uint256& hashMasterSeed, const uint256& hashPubcoin, const uint32_t& nCount)
+{
+    return Write(make_pair(string("mintpool"), hashPubcoin), make_pair(hashMasterSeed, nCount));
+}
+
+//! map with hashMasterSeed as the key, paired with vector of hashPubcoins and their count
+std::map<uint256, std::vector<pair<uint256, uint32_t> > > CWalletDB::MapMintPool()
+{
+    std::map<uint256, std::vector<pair<uint256, uint32_t> > > mapPool;
+    Dbc* pcursor = GetCursor();
+    if (!pcursor)
+        throw runtime_error(std::string(__func__)+" : cannot create DB cursor");
+    unsigned int fFlags = DB_SET_RANGE;
+    for (;;)
+    {
+        // Read next record
+        CDataStream ssKey(SER_DISK, CLIENT_VERSION);
+        if (fFlags == DB_SET_RANGE)
+            ssKey << make_pair(string("mintpool"), ArithToUint256(arith_uint256(0)));
+        CDataStream ssValue(SER_DISK, CLIENT_VERSION);
+        int ret = ReadAtCursor(pcursor, ssKey, ssValue, fFlags);
+        fFlags = DB_NEXT;
+        if (ret == DB_NOTFOUND)
+            break;
+        else if (ret != 0)
+        {
+            pcursor->close();
+            throw runtime_error(std::string(__func__)+" : error scanning DB");
+        }
+
+        // Unserialize
+        string strType;
+        ssKey >> strType;
+        if (strType != "mintpool")
+            break;
+
+        uint256 hashPubcoin;
+        ssKey >> hashPubcoin;
+
+        uint256 hashMasterSeed;
+        ssValue >> hashMasterSeed;
+
+        uint32_t nCount;
+        ssValue >> nCount;
+
+        pair<uint256, uint32_t> pMint;
+        pMint.first = hashPubcoin;
+        pMint.second = nCount;
+        if (mapPool.count(hashMasterSeed)) {
+            mapPool.at(hashMasterSeed).emplace_back(pMint);
+        } else {
+            vector<pair<uint256, uint32_t> > vPairs;
+            vPairs.emplace_back(pMint);
+            mapPool.insert(make_pair(hashMasterSeed, vPairs));
+        }
+    }
+
+    pcursor->close();
+
+    return mapPool;
+}
+
+std::list<CHDMint> CWalletDB::ListHDMints()
+{
+    std::list<CHDMint> listMints;
+    Dbc* pcursor = GetCursor();
+    if (!pcursor)
+        throw runtime_error(std::string(__func__)+" : cannot create DB cursor");
+    unsigned int fFlags = DB_SET_RANGE;
+    for (;;)
+    {
+        // Read next record
+        CDataStream ssKey(SER_DISK, CLIENT_VERSION);
+        if (fFlags == DB_SET_RANGE)
+            ssKey << make_pair(string("hdmint"), ArithToUint256(arith_uint256(0)));
+        CDataStream ssValue(SER_DISK, CLIENT_VERSION);
+        int ret = ReadAtCursor(pcursor, ssKey, ssValue, fFlags);
+        fFlags = DB_NEXT;
+        if (ret == DB_NOTFOUND)
+            break;
+        else if (ret != 0)
+        {
+            pcursor->close();
+            throw runtime_error(std::string(__func__)+" : error scanning DB");
+        }
+
+        // Unserialize
+        string strType;
+        ssKey >> strType;
+        if (strType != "hdmint")
+            break;
+
+        uint256 hashPubcoin;
+        ssKey >> hashPubcoin;
+
+        CHDMint mint;
+        ssValue >> mint;
+
+        listMints.emplace_back(mint);
+    }
+
+    pcursor->close();
+    return listMints;
+}
+
+bool CWalletDB::ArchiveMintOrphan(const CZerocoinEntry& zerocoin)
+{
+    CDataStream ss(SER_GETHASH, 0);
+    ss << zerocoin.value;
+    uint256 hash = Hash(ss.begin(), ss.end());;
+
+    if (!Write(make_pair(string("zco"), hash), zerocoin)) {
+        LogPrintf("%s : failed to database orphaned zerocoin mint\n", __func__);
+        return false;
+    }
+
+    if (!Erase(make_pair(string("zerocoin"), hash))) {
+        LogPrintf("%s : failed to erase orphaned zerocoin mint\n", __func__);
+        return false;
+    }
+
+    return true;
+}
+
+bool CWalletDB::ArchiveDeterministicOrphan(const CHDMint& dMint)
+{
+    if (!Write(make_pair(string("dzco"), dMint.GetPubCoinHash()), dMint))
+        return error("%s: write failed", __func__);
+
+    if (!Erase(make_pair(string("hdmint"), dMint.GetPubCoinHash())))
+        return error("%s: failed to erase", __func__);
+
+    return true;
+}
+
+bool CWalletDB::UnarchiveHDMint(const uint256& hashPubcoin, CHDMint& dMint)
+{
+    if (!Read(make_pair(string("dzco"), hashPubcoin), dMint))
+        return error("%s: failed to retrieve deterministic mint from archive", __func__);
+
+    if (!WriteHDMint(dMint))
+        return error("%s: failed to write deterministic mint", __func__);
+
+    if (!Erase(make_pair(string("dzco"), dMint.GetPubCoinHash())))
+        return error("%s : failed to erase archived deterministic mint", __func__);
+
+    return true;
+}
+
+bool CWalletDB::UnarchiveZerocoinMint(const uint256& hashPubcoin, CZerocoinEntryV3& zerocoin)
+{
+    if (!Read(make_pair(string("zco"), hashPubcoin), zerocoin))
+        return error("%s: failed to retrieve zerocoinmint from archive", __func__);
+
+    if (!WriteZerocoinEntry(zerocoin))
+        return error("%s: failed to write zerocoinmint", __func__);
+
+    uint256 hash = GetPubCoinValueHash(zerocoin.value);
+    if (!Erase(make_pair(string("zco"), hash)))
+        return error("%s : failed to erase archived zerocoin mint", __func__);
+
+    return true;
 }

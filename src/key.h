@@ -114,6 +114,8 @@ public:
      */
     CPrivKey GetPrivKey() const;
 
+    uint256 GetPrivKey_256();
+
     /**
      * Compute the public key from a private key.
      * This is expensive.
