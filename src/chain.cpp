@@ -11,7 +11,6 @@ using namespace std;
  * CChain implementation
  */
 void CChain::SetTip(CBlockIndex *pindex) {
-    std::lock_guard<std::mutex> _(chain_mutex);
     if (pindex == NULL) {
         vChain.clear();
         return;

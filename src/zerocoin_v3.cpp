@@ -269,7 +269,12 @@ bool CheckZerocoinTransactionV3(
 		CZerocoinTxInfoV3 *zerocoinTxInfoV3)
 {
     // nHeight have special mode which value is INT_MAX so we need this.
-    int realHeight = chainActive.Height();
+    int realHeight;
+
+    {
+        LOCK(cs_main);
+        realHeight = chainActive.Height();
+    }
 
     bool allowSigma = (realHeight >= Params().GetConsensus().nSigmaStartBlock);
 
