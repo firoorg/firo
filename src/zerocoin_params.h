@@ -96,4 +96,22 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 XZC mininput
 
 // Number of zerocoin mints allowed per transaction
 #define ZC_MINT_LIMIT         100
+
+/** Maximum number of outbound peers designated as Dandelion destinations */
+#define DANDELION_MAX_DESTINATIONS 2
+
+/** Expected time between Dandelion routing shuffles (in seconds). */
+#define DANDELION_SHUFFLE_INTERVAL 600
+
+/** The minimum amount of time a Dandelion transaction is embargoed (seconds) */
+#define DANDELION_EMBARGO_MINIMUM 10
+#define DANDELION_TESTNET_EMBARGO_MINIMUM 1
+
+/** The average additional embargo time beyond the minimum amount (seconds) */
+#define DANDELION_EMBARGO_AVG_ADD 20
+#define DANDELION_TESTNET_EMBARGO_AVG_ADD 1
+
+/** Probability (percentage) that a Dandelion transaction enters fluff phase */
+#define DANDELION_FLUFF 10
+
 #endif

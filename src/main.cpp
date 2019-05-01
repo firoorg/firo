@@ -7027,15 +7027,11 @@ bool static ProcessMessage(CNode *pfrom, string strCommand,
                              stempool.size(),
                              stempool.DynamicMemoryUsage() / 1000);
                     int64_t nCurrTime = GetTimeMicros();
-                    int64_t nEmbargo = 1000000 * DANDELION_EMBARGO_MINIMUM +
-                        PoissonNextSend(nCurrTime, DANDELION_EMBARGO_AVG_ADD);
+                    auto consensus = Params().GetConsensus();
+                    int64_t nEmbargo = 1000000 * consensus.nDandelionEmbargoMinimum +
+                        PoissonNextSend(nCurrTime, consensus.nDandelionEmbargoAvgAdd);
                     pfrom->insertDandelionEmbargo(tx.GetHash(), nEmbargo);
-                    //LogPrint(
-                    //    "dandelion",
-                    //    "dandeliontx %s embargoed for %d seconds\n",
-                    //    tx.GetHash().ToString(),
-                    //    (nEmbargo-nCurrTime) / 1000000);
-                }
+               }
                 int nDoS = 0;
                 if (state.IsInvalid(nDoS)) {
                     LogPrint(

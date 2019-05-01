@@ -255,6 +255,14 @@ class CMainParams : public CChainParams {
         consensus.nZerocoinV2MintGracefulPeriod = ZC_V2_MINT_GRACEFUL_PERIOD;
         consensus.nZerocoinV2SpendMempoolGracefulPeriod = ZC_V2_SPEND_GRACEFUL_MEMPOOL_PERIOD;
         consensus.nZerocoinV2SpendGracefulPeriod = ZC_V2_SPEND_GRACEFUL_PERIOD;
+
+
+        // Dandelion related values.
+        consensus.nDandelionEmbargoMinimum = DANDELION_EMBARGO_MINIMUM;
+        consensus.nDandelionEmbargoAvgAdd = DANDELION_EMBARGO_AVG_ADD;
+        consensus.nDandelionMaxDestinations = DANDELION_MAX_DESTINATIONS;
+        consensus.nDandelionShuffleInterval = DANDELION_SHUFFLE_INTERVAL;
+        consensus.nDandelionFluff = DANDELION_FLUFF;
     }
 };
 
@@ -428,6 +436,13 @@ class CTestNetParams : public CChainParams {
             consensus.nZerocoinV2MintGracefulPeriod = ZC_V2_MINT_TESTNET_GRACEFUL_PERIOD;
             consensus.nZerocoinV2SpendMempoolGracefulPeriod = ZC_V2_SPEND_TESTNET_GRACEFUL_MEMPOOL_PERIOD;
             consensus.nZerocoinV2SpendGracefulPeriod = ZC_V2_SPEND_TESTNET_GRACEFUL_PERIOD;
+
+            // Dandelion related values.
+            consensus.nDandelionEmbargoMinimum = DANDELION_TESTNET_EMBARGO_MINIMUM;
+            consensus.nDandelionEmbargoAvgAdd = DANDELION_TESTNET_EMBARGO_AVG_ADD;
+            consensus.nDandelionMaxDestinations = DANDELION_MAX_DESTINATIONS;
+            consensus.nDandelionShuffleInterval = DANDELION_SHUFFLE_INTERVAL;
+            consensus.nDandelionFluff = DANDELION_FLUFF;
         }
 };
 
@@ -567,6 +582,13 @@ class CRegTestParams : public CChainParams {
             consensus.nZerocoinV2MintGracefulPeriod = 5;
             consensus.nZerocoinV2SpendMempoolGracefulPeriod = 10;
             consensus.nZerocoinV2SpendGracefulPeriod = 20;
+
+            // Dandelion related values.
+            consensus.nDandelionEmbargoMinimum = 0;
+            consensus.nDandelionEmbargoAvgAdd = 1;
+            consensus.nDandelionMaxDestinations = DANDELION_MAX_DESTINATIONS;
+            consensus.nDandelionShuffleInterval = DANDELION_SHUFFLE_INTERVAL;
+            consensus.nDandelionFluff = DANDELION_FLUFF;
         }
 
         void UpdateBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout) {
