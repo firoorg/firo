@@ -6,6 +6,7 @@
 #define ZCOIN_HDMINT_H
 
 #include "primitives/zerocoin.h"
+#include "zerocoin_v3.h"
 
 //struct that is safe to store essential mint data, without holding any information that allows for actual spending (serial, randomness, private key)
 class CHDMint

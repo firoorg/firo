@@ -86,6 +86,11 @@ TestingSetup::TestingSetup(const std::string& chainName, std::string suf) : Basi
         for (int i=0; i < nScriptCheckThreads-1; i++)
             threadGroup.create_thread(&ThreadScriptCheck);
         RegisterNodeSignals(GetNodeSignals());
+
+        // Init HD mint
+        pwalletMain->hdMintTracker->Init();
+        zwalletMain->LoadMintPoolFromDB();
+        zwalletMain->SyncWithChain();
 }
 
 TestingSetup::~TestingSetup()

@@ -112,6 +112,11 @@
         }
 
         printf("Balance after 200 blocks: %ld\n", pwalletMain->GetBalance());
+
+        // Init HD mint
+        pwalletMain->hdMintTracker->Init();
+        zwalletMain->LoadMintPoolFromDB();
+        zwalletMain->SyncWithChain();
     }
 
 

@@ -34,6 +34,8 @@ public:
     void GenerateMint(const uint32_t& nCount, const sigma::CoinDenominationV3 denom, sigma::PrivateCoinV3& coin, CHDMint& dMint);
     void GetState(int& nCount, int& nLastGenerated);
     bool RegenerateMint(const CHDMint& dMint, CZerocoinEntryV3& zerocoin);
+    bool IsSerialInBlockchain(const uint256& hashSerial, int& nHeightTx, uint256& txidSpend, CTransaction& tx);
+    bool TxOutToPublicCoin(const CTxOut& txout, sigma::PublicCoinV3& pubCoin, CValidationState& state);
     void GenerateMintPool(uint32_t nCountStart = 0, uint32_t nCountEnd = 0);
     bool LoadMintPoolFromDB();
     void RemoveMintsFromPool(const std::vector<uint256>& vPubcoinHashes);

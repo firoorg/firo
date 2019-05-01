@@ -3,7 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "hdmint/mintpool.h"
-#include "util.h"
+#include "zerocoin_v3.h"
 
 using namespace std;
 

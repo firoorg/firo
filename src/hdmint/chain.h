@@ -5,8 +5,7 @@
 #ifndef ZCOIN_HDMINTCHAIN_H
 #define ZCOIN_HDMINTCHAIN_H
 
-#include "libzerocoin/Zerocoin.h"
-#include "zerocoin.h"
+#include <sigma/coin.h>
 #include <list>
 #include <string>
 
@@ -21,7 +20,5 @@ class uint256;
 
 bool IsSerialInBlockchain(const Scalar& bnSerial, int& nHeightTx);
 bool IsSerialInBlockchain(const uint256& hashSerial, int& nHeightTx, uint256& txidSpend);
-bool IsSerialInBlockchain(const uint256& hashSerial, int& nHeightTx, uint256& txidSpend, CTransaction& tx);
-bool TxOutToPublicCoin(const CTxOut& txout, sigma::PublicCoinV3& pubCoin, CValidationState& state);
 
 #endif //ZCOIN_HDMINTCHAIN_H

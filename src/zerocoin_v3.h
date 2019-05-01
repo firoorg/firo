@@ -74,6 +74,9 @@ bool ZerocoinGetMintTxHashV3(uint256& txHash, GroupElement pubCoinValue);
 
 bool ZerocoinBuildStateFromIndexV3(CChain *chain);
 
+uint256 GetSerialHash(const secp_primitives::Scalar& bnSerial);
+uint256 GetPubCoinValueHash(const secp_primitives::GroupElement& bnValue);
+
 Scalar ZerocoinGetSpendSerialNumberV3(const CTransaction &tx, const CTxIn &txin);
 CAmount GetSpendTransactionInputV3(const CTransaction &tx);
 

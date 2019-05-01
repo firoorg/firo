@@ -15,20 +15,6 @@
 #include "serialize.h"
 #include "zerocoin_params.h"
 
-uint256 GetSerialHash(const Scalar& bnSerial)
-{
-    CDataStream ss(SER_GETHASH, 0);
-    ss << bnSerial;
-    return Hash(ss.begin(), ss.end());
-}
-
-uint256 GetPubCoinValueHash(const GroupElement& bnValue)
-{
-    CDataStream ss(SER_GETHASH, 0);
-    ss << bnValue;
-    return Hash(ss.begin(), ss.end());
-}
-
 //struct that is safe to store essential mint data, without holding any information that allows for actual spending (serial, randomness, private key)
 struct CMintMeta
 {

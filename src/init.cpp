@@ -88,11 +88,6 @@
 #include "zmq/zmqnotificationinterface.h"
 #endif
 
-#ifdef ENABLE_WALLET
-CWallet* pwalletMain = NULL;
-CHDMintWallet* zwalletMain = NULL;
-#endif
-
 bool fFeeEstimatesInitialized = false;
 static const bool DEFAULT_PROXYRANDOMIZE = true;
 static const bool DEFAULT_REST_ENABLE = false;

@@ -100,8 +100,8 @@ BOOST_AUTO_TEST_CASE(partialspend)
         // Create tx to do double spend before spend
         CWalletTx dtx;
         CAmount dFee;
-        std::vector<CZerocoinEntryV3> dSelected;
-        std::vector<CZerocoinEntryV3> dChanges;
+        std::vector<CHDMint> dSelected;
+        std::vector<CHDMint> dChanges;
 
         // Make dtx is not identical to tx
         std::vector<CRecipient> dupRecipients = {
