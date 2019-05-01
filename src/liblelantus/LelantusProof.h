@@ -35,6 +35,15 @@ public:
         return schnorrProof.deserialize(current);
     }
 
+    ADD_SERIALIZE_METHODS;
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+        READWRITE(sigma_proofs);
+        READWRITE(bulletproofs);
+        READWRITE(schnorrProof);
+    }
+
+public:
     std::vector<SigmaPlusProof<Scalar, GroupElement>> sigma_proofs;
     RangeProof<Scalar, GroupElement> bulletproofs;
     SchnorrProof<Scalar, GroupElement> schnorrProof;

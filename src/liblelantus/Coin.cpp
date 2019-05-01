@@ -79,8 +79,4 @@ void PrivateCoin::mintCoin(const Scalar& v){
     publicCoin = PublicCoin(commit, v);
 }
 
-size_t PrivateCoin::GetSerializeSize(int nType, int nVersion) const{
-    return publicCoin.GetSerializeSize(nType, nVersion) + randomness.memoryRequired()*2 +  sizeof(unsigned int);
-}
-
 }//namespace lelantus

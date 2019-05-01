@@ -2,8 +2,7 @@
 #define ZCOIN_INNERPRODUCTPROOF_H
 
 #include <vector>
-#include <secp256k1/include/Scalar.h>
-#include <secp256k1/include/GroupElement.h>
+#include "Params.h"
 
 namespace lelantus {
 
@@ -38,6 +37,16 @@ public:
         for (int i = 0; i < size; ++i)
             current = R_[i].deserialize(current);
         return current;
+    }
+
+    ADD_SERIALIZE_METHODS;
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+        READWRITE(a_);
+        READWRITE(b_);
+        READWRITE(c_);
+        READWRITE(L_);
+        READWRITE(R_);
     }
 
     Exponent a_;

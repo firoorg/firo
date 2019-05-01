@@ -93,6 +93,7 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::batchverify(
     y.resize(M);
     for (int t = 0; t < M; ++t)
         y[t].randomize();
+    //TODO(levon) remove this matrix. we can only keep single row in each iteration. need some changes in logic.
     std::vector<std::vector<Exponent>> f_i_;
     f_i_.resize(M);
     std::vector<Exponent> f_i_t;

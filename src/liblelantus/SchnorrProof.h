@@ -1,7 +1,7 @@
 #ifndef ZCOIN_SCHNORRPROOF_H
 #define ZCOIN_SCHNORRPROOF_H
-#include <secp256k1/include/Scalar.h>
-#include <secp256k1/include/GroupElement.h>
+
+#include "Params.h"
 
 namespace lelantus {
 
@@ -24,6 +24,15 @@ public:
         return T1.deserialize(current);
     }
 
+    ADD_SERIALIZE_METHODS;
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+        READWRITE(u);
+        READWRITE(P1);
+        READWRITE(T1);
+    }
+
+public:
     GroupElement u;
     Exponent P1;
     Exponent T1;

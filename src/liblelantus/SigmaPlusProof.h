@@ -2,6 +2,7 @@
 #define ZCOIN_SIGMAPLUSPROOF_H
 
 #include <vector>
+#include "Params.h"
 
 namespace lelantus {
 
@@ -61,6 +62,22 @@ public:
             current = Qk[i].deserialize(current);
         current = zV_.deserialize(current);
         return zR_.deserialize(current);
+    }
+
+    ADD_SERIALIZE_METHODS;
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+        READWRITE(A_);
+        READWRITE(B_);
+        READWRITE(C_);
+        READWRITE(D_);
+        READWRITE(f_);
+        READWRITE(ZA_);
+        READWRITE(ZC_);
+        READWRITE(Gk_);
+        READWRITE(Qk);
+        READWRITE(zV_);
+        READWRITE(zR_);
     }
 
 public:

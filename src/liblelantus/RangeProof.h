@@ -42,6 +42,19 @@ public:
         return current;
     }
 
+    ADD_SERIALIZE_METHODS;
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+        READWRITE(A);
+        READWRITE(S);
+        READWRITE(T1);
+        READWRITE(T2);
+        READWRITE(T_x1);
+        READWRITE(T_x2);
+        READWRITE(u);
+        READWRITE(innerProductProof);
+    }
+
     GroupElement A;
     GroupElement S;
     GroupElement T1;
