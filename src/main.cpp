@@ -1248,7 +1248,7 @@ bool AcceptToMemoryPoolWorker(
     if (pfMissingInputs)
         *pfMissingInputs = false;
 
-    auto& consensus = Params().GetConsensus();
+    const Consensus::Params& consensus = Params().GetConsensus();
 
     if (tx.IsZerocoinMint()) {
         // Shows if old zerocoin mints are allowed yet in the mempool.

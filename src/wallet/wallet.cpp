@@ -2143,7 +2143,7 @@ CAmount CWallet::SelectMintCoinsForAmount(
         const std::vector<sigma::CoinDenominationV3>& denominations,
         std::vector<sigma::CoinDenominationV3>& coinsOut) {
     CAmount val = required;
-    for (int i = 0; i < denominations.size(); i++)
+    for (size_t i = 0; i < denominations.size(); i++)
     {
         CAmount denom;
         DenominationToInteger(denominations[i], denom);

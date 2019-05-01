@@ -1971,7 +1971,7 @@ bool OpenNetworkConnection(
         LOCK(cs_vNodes);
         // Dandelion: new outbound connection
         CNode::vDandelionOutbound.push_back(pnode);
-        auto consensus = Params().GetConsensus();
+        const Consensus::Params& consensus = Params().GetConsensus();
         if (CNode::vDandelionDestination.size() < consensus.nDandelionMaxDestinations) {
             CNode::vDandelionDestination.push_back(pnode);
         }
@@ -2209,7 +2209,7 @@ void CNode::DandelionShuffle() {
         //  (bookkeeping already done while iterating through mDandelionRoutes)
         vDandelionDestination.clear();
         // Repopulate vDandelionDestination
-        auto consensus = Params().GetConsensus();
+        const Consensus::Params& consensus = Params().GetConsensus();
         if (vDandelionDestination.size() < consensus.nDandelionMaxDestinations &&
             vDandelionDestination.size() < vDandelionOutbound.size()) {
             std::vector<CNode*> candidateDestinations;
@@ -2229,7 +2229,7 @@ void CNode::DandelionShuffle() {
             // Sample "vDandelionDestination.size() - DANDELION_MAX_DESTINATIONS" destinations
             // if there are that many to choose from.
             FastRandomContext rng;
-            auto consensus = Params().GetConsensus();
+            const Consensus::Params& consensus = Params().GetConsensus();
             while (vDandelionDestination.size() < consensus.nDandelionMaxDestinations &&
                    vDandelionDestination.size() < vDandelionOutbound.size() && 
                    candidateDestinations.size() > 0) {
@@ -2262,7 +2262,7 @@ void ThreadDandelionShuffle() {
     while (!CNode::interruptNet) {
         if (GetTimeMicros() > nNextDandelionShuffle) {
             CNode::DandelionShuffle();
-            auto consensus = Params().GetConsensus();
+            const Consensus::Params& consensus = Params().GetConsensus();
             nNextDandelionShuffle = PoissonNextSend(
                 GetTimeMicros(), consensus.nDandelionShuffleInterval);
             // Sleep for 1 second until the next shuffle time.
@@ -2450,7 +2450,7 @@ void CNode::RelayDandelionTransaction(const CTransaction& tx, CNode* pfrom)
         return; 
     }
     FastRandomContext rng; 
-    auto consensus = Params().GetConsensus();
+    const Consensus::Params& consensus = Params().GetConsensus();
     if (rng.randrange(100) < consensus.nDandelionFluff) {
         // Start fluffing current transaction.
 
