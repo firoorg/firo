@@ -58,7 +58,7 @@ public:
         READWRITE(coinSerialNumber);
         READWRITE(version);
 
-        int64_t denomination_value;
+        int64_t denomination_value = 0;
         if (ser_action.ForRead()) {
             READWRITE(denomination_value);
             IntegerToDenomination(denomination_value, this->denomination);

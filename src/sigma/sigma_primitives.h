@@ -1,7 +1,7 @@
 #ifndef ZCOIN_SIGMA_SIGMA_PRIMITIVES_H
 #define ZCOIN_SIGMA_SIGMA_PRIMITIVES_H
 
-#include "../libzerocoin/common/GeneratorVector.h"
+#include "../secp256k1/include/MultiExponent.h"
 #include "../secp256k1/include/GroupElement.h"
 #include "../secp256k1/include/Scalar.h"
 
@@ -15,7 +15,7 @@ class SigmaPrimitives {
 
 public:
     static void commit(const GroupElement& g,
-            const zcoin_common::GeneratorVector<Exponent, GroupElement>& h,
+            const std::vector<GroupElement>& h,
             const std::vector<Exponent>& exp,
             const Exponent& r,
             GroupElement& result_out);
@@ -26,9 +26,13 @@ public:
 
     static std::vector<uint64_t> convert_to_nal(uint64_t num, uint64_t n, uint64_t m);
 
-    static void get_x(const GroupElement& A, const GroupElement& C, const GroupElement& D, Exponent& result_out);
+    static void generate_challenge(const std::vector<GroupElement>& group_elements, 
+                                   Exponent& result_out);
 
-    static void new_factor(Exponent x, Exponent a, std::vector<Exponent>& coefficients);
+    /** \brief Adds a factor of (x*x + a) to the given polynomial in coefficients.
+     *  \param[in,out] coefficients Coefficients of the polynomial created.
+     */
+    static void new_factor(const Exponent& x, const Exponent& a, std::vector<Exponent>& coefficients);
 
     };
 

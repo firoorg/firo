@@ -1161,7 +1161,7 @@ bool CheckTransaction(
             spendScripts.insert(txin.scriptSig);
         } else if (tx.IsZerocoinSpendV3()){
             if(spendV3Scripts.count(txin.scriptSig)) {
-                return state.DoS(100, false, REJECT_INVALID, "bad-txns-spend-V3-inputs-duplicate");
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-inputs-duplicate");
             }
             spendV3Scripts.insert(txin.scriptSig);
         } else {
@@ -1181,6 +1181,7 @@ bool CheckTransaction(
 			    return state.DoS(10, false, REJECT_INVALID, "bad-txns-prevout-null");
 		    }
 	    }
+
         if (tx.IsZerocoinV3SigmaTransaction()) {
             if (!CheckZerocoinTransactionV3(
                     tx,
@@ -1191,20 +1192,22 @@ bool CheckTransaction(
                     isCheckWallet,
                     zerocoinTxInfoV3))
             return false;
-        } else if (tx.IsZerocoinTransaction()) {
-            if (!CheckZerocoinTransaction(
-                    tx,
-                    state,
-                    Params().GetConsensus(),
-                    hashTx,
-                    isVerifyDB,
-                    nHeight,
-                    isCheckWallet,
-                    fStatefulZerocoinCheck,
-                    zerocoinTxInfo))
-		        return false;
+        }
+
+        if (!CheckZerocoinTransaction(
+            tx,
+            state,
+            Params().GetConsensus(),
+            hashTx,
+            isVerifyDB,
+            nHeight,
+            isCheckWallet,
+            fStatefulZerocoinCheck,
+            zerocoinTxInfo)) {
+            return false;
         }
     }
+
     return true;
 }
 
@@ -1240,37 +1243,35 @@ bool AcceptToMemoryPoolWorker(
         std::vector <uint256> &vHashTxnToUncache,
         bool isCheckWalletTransaction,
         bool markZcoinSpendTransactionSerial) {
-    AssertLockHeld(cs_main);
-    if (tx.IsZerocoinMint()) {
-        // Shows if old zerocoin mints are allowed yet in the mempool.
-        bool V2ZerocoinMintsAllowedInMempool = (chainActive.Height() <= Params().GetConsensus().nMintV3SigmaStartBlock + Params().GetConsensus().nMintV2MempoolGracefulPeriod);
-
-        if (!V2ZerocoinMintsAllowedInMempool)
-            return state.DoS(100, error("Old zerocoin mints no more allowed in mempool"),
-                             REJECT_INVALID, "bad-txns-zerocoin");
-    }
-    if (tx.IsZerocoinSpend()) {
-        // Shows if old zerocoin spends are allowed yet in the mempool.
-        bool V2ZerocoinSpendsAllowedInMempool = (chainActive.Height() <= Params().GetConsensus().nZerocoinV2SpendStopBlock);
-
-        if (!V2ZerocoinSpendsAllowedInMempool)
-            return state.DoS(100, error("Old zerocoin spends no more allowed in mempool"),
-                             REJECT_INVALID, "bad-txns-zerocoin");
-    }
-    if (tx.IsZerocoinSpendV3() || tx.IsZerocoinMintV3()) {
-        // Shows if V3 sigma mints are already allowed.
-        bool V3MintsAllowedInBlock = (chainActive.Height() >= Params().GetConsensus().nMintV3SigmaStartBlock);
-        if (!V3MintsAllowedInBlock)
-            return state.DoS(100, error("Sigma transactions not allowed yet"),
-                             REJECT_INVALID, "bad-txns-zerocoin");
-    }
-
     bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
     LogPrintf("AcceptToMemoryPoolWorker(),fCheckInputs=%s, tx.IsZerocoinSpend()=%s, fTestNet=%s\n",
               fCheckInputs, tx.IsZerocoinSpend() || tx.IsZerocoinSpendV3(), fTestNet);
     uint256 hash = tx.GetHash();
+    AssertLockHeld(cs_main);
     if (pfMissingInputs)
         *pfMissingInputs = false;
+
+    auto& consensus = Params().GetConsensus();
+
+    if (tx.IsZerocoinMint()) {
+        // Shows if old zerocoin mints are allowed yet in the mempool.
+        bool allow = (chainActive.Height() <= consensus.nSigmaStartBlock + consensus.nZerocoinV2MintMempoolGracefulPeriod);
+
+        if (!allow) {
+            return state.DoS(100, error("Old zerocoin mints no more allowed in mempool"),
+                             REJECT_INVALID, "bad-txns-zerocoin");
+        }
+    }
+
+    if (tx.IsZerocoinSpend()) {
+        // Shows if old zerocoin spends are allowed yet in the mempool.
+        bool allow = (chainActive.Height() <= consensus.nSigmaStartBlock + consensus.nZerocoinV2SpendMempoolGracefulPeriod);
+
+        if (!allow) {
+            return state.DoS(100, error("Old zerocoin spends no more allowed in mempool"),
+                             REJECT_INVALID, "bad-txns-zerocoin");
+        }
+    }
 
     if (!CheckTransaction(tx, state, hash, false, INT_MAX, isCheckWalletTransaction)) {
         LogPrintf("CheckTransaction() failed!");
@@ -1396,8 +1397,6 @@ bool AcceptToMemoryPoolWorker(
             LOCK(pool.cs);
             CCoinsViewMemPool viewMemPool(pcoinsTip, pool);
             view.SetBackend(viewMemPool);
-	    //Reset view.base with the dummy instance at scope exit
-	    std::shared_ptr<CCoinsView> at_scope_exit (&dummy, [&view](CCoinsView * dummy){view.SetBackend(*dummy);});
 
             // do we already have it?
             bool fHadTxInCache = pcoinsTip->HaveCoinsInCache(hash);
@@ -1433,9 +1432,6 @@ bool AcceptToMemoryPoolWorker(
 
                 nValueIn = view.GetValueIn(tx);
 
-                // we have all inputs cached now, so switch back to dummy, so we don't need to keep lock on mempool
-                view.SetBackend(dummy);
-
                 // Only accept BIP68 sequence locked transactions that can be mined in the next
                 // block; we don't want our mempool filled up with transactions that can't
                 // be mined yet.
@@ -1449,6 +1445,8 @@ bool AcceptToMemoryPoolWorker(
                 nValueIn = GetSpendTransactionInputV3(tx);
             }
 
+            // we have all inputs cached now, so switch back to dummy, so we don't need to keep lock on mempool
+            view.SetBackend(dummy);
         } // LOCK
 
         if (!tx.IsZerocoinSpend() && fCheckInputs) {
@@ -2924,33 +2922,9 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
         }
 
         if (tx.IsZerocoinSpend() || tx.IsZerocoinMint() || tx.IsZerocoinSpendV3() || tx.IsZerocoinMintV3() ) {
-            // Shows if V3 sigma mints are now allowed.
-            bool V3MintsAllowedInBlock = (pindex->nHeight >= Params().GetConsensus().nMintV3SigmaStartBlock);
-
-            if ((tx.IsZerocoinSpendV3() || tx.IsZerocoinMintV3()) && !V3MintsAllowedInBlock) {
-                return state.DoS(100, error("Sigma transactions not allowed yet"),
-                                 REJECT_INVALID, "bad-txns-zerocoin");
-            }
-
-            // Shows if old zerocoin mints are allowed yet.
-            bool V2ZerocoinMintsAllowedInBlock = (pindex->nHeight < Params().GetConsensus().nMintV3SigmaStartBlock + Params().GetConsensus().nMintV2GracefulPeriod);
-
-            if (tx.IsZerocoinMint() && !V2ZerocoinMintsAllowedInBlock) {
-                return state.DoS(100, error("Old zerocoin mints no more allowed in blocks"),
-                                 REJECT_INVALID, "bad-txns-zerocoin");
-            }
-
-            // Shows if old zerocoin spends are allowed yet.
-            bool V2ZerocoinSpendsAllowedInBlock = (pindex->nHeight < Params().GetConsensus().nZerocoinV2SpendStopBlockInBlocks);
-
-            if (tx.IsZerocoinSpend() && !V2ZerocoinSpendsAllowedInBlock) {
-                return state.DoS(100, error("Old zerocoin spends no more allowed in blocks"),
-                                 REJECT_INVALID, "bad-txns-zerocoin");
-            }
-
             if( tx.IsZerocoinSpendV3())
                 nFees += GetSpendTransactionInputV3(tx) - tx.GetValueOut();
-            
+
             // Check transaction against zerocoin state
             if (!CheckTransaction(tx, state, txHash, false, pindex->nHeight, false, true, block.zerocoinTxInfo.get(), block.zerocoinTxInfoV3.get()))
                 return state.DoS(100, error("stateful zerocoin check failed"),

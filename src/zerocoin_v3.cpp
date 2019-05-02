@@ -51,6 +51,50 @@ static bool CheckZerocoinSpendSerialV3(
 	return true;
 }
 
+bool IsSigmaAllowed()
+{
+	LOCK(cs_main);
+	return IsSigmaAllowed(chainActive.Height());
+}
+
+bool IsSigmaAllowed(int height)
+{
+	return height >= Params().GetConsensus().nSigmaStartBlock;
+}
+
+secp_primitives::GroupElement ParseSigmaMintScript(const CScript& script)
+{
+	if (script.size() < 1) {
+		throw std::invalid_argument("Script is not a valid Sigma mint");
+	}
+
+	std::vector<unsigned char> serialized(script.begin() + 1, script.end());
+
+	secp_primitives::GroupElement pub;
+	pub.deserialize(serialized.data());
+
+	return pub;
+}
+
+std::pair<std::unique_ptr<sigma::CoinSpendV3>, uint32_t> ParseSigmaSpend(const CTxIn& in)
+{
+	uint32_t groupId = in.prevout.n;
+
+	if (groupId < 1 || groupId >= INT_MAX || in.scriptSig.size() < 1) {
+		throw CBadTxIn();
+	}
+
+	CDataStream serialized(
+		std::vector<unsigned char>(in.scriptSig.begin() + 1, in.scriptSig.end()),
+		SER_NETWORK,
+		PROTOCOL_VERSION
+	);
+
+	std::unique_ptr<sigma::CoinSpendV3> spend(new sigma::CoinSpendV3(ZCParamsV3, serialized));
+
+	return std::make_pair(std::move(spend), groupId);
+}
+
 // This function will not report an error only if the transaction is zerocoin spend V3.
 // Will return false for V1, V1.5 and V2 spends.
 // Mixing V2 and V3 spends into the same transaction will fail.
@@ -68,39 +112,27 @@ bool CheckSpendZcoinTransactionV3(
 	int vinIndex = -1;
 	std::unordered_set<Scalar, sigma::CScalarHash> txSerials;
 
-	BOOST_FOREACH(const CTxIn &txin, tx.vin)
+	for (const CTxIn &txin : tx.vin)
 	{
+		std::unique_ptr<sigma::CoinSpendV3> spend;
+		uint32_t pubcoinId;
+
 		vinIndex++;
 		if (txin.scriptSig.IsZerocoinSpendV3())
 			hasZerocoinSpendInputs = true;
 		else
 			hasNonZerocoinInputs = true;
 
-		uint32_t pubcoinId = txin.prevout.n;
-		if (pubcoinId < 1 || pubcoinId >= INT_MAX) {
-			// coin id should be positive integer
+		try {
+			std::tie(spend, pubcoinId) = ParseSigmaSpend(txin);
+		} catch (CBadTxIn&) {
 			return state.DoS(100,
-					false,
-					NSEQUENCE_INCORRECT,
-					"CTransaction::CheckTransaction() : Error: zerocoin spend nSequence is incorrect");
+				false,
+				REJECT_MALFORMED,
+				"CheckSpendZcoinTransactionV3: invalid spend transaction");
 		}
 
-		if (txin.scriptSig.size() < 4)
-			return state.DoS(100,
-					false,
-					REJECT_MALFORMED,
-					"CheckSpendZcoinTransactionV3: invalid spend transaction");
-
-		// Deserialize the CoinSpend into a fresh object
-        // NOTE(martun): +1 on the next line stands for 1 byte in which the opcode of
-        // OP_ZEROCOINSPENDV3 is written. In zerocoin you will see +4 instead,
-        // because the size of serialized spend is also written, probably in 3 bytes.
-		CDataStream serializedCoinSpend((const char *)&*(txin.scriptSig.begin() + 1),
-				(const char *)&*txin.scriptSig.end(),
-				SER_NETWORK, PROTOCOL_VERSION);
-		sigma::CoinSpendV3 newSpend(ZCParamsV3, serializedCoinSpend);
-
-		if (newSpend.getVersion() != ZEROCOIN_TX_VERSION_3) {
+		if (spend->getVersion() != ZEROCOIN_TX_VERSION_3) {
 			return state.DoS(100,
 							 false,
 							 NSEQUENCE_INCORRECT,
@@ -119,8 +151,8 @@ bool CheckSpendZcoinTransactionV3(
 		txHashForMetadata = txTemp.GetHash();
 
 		LogPrintf("CheckSpendZcoinTransactionV3: tx version=%d, tx metadata hash=%s, serial=%s\n",
-				newSpend.getVersion(), txHashForMetadata.ToString(),
-				newSpend.getCoinSerialNumber().tostring());
+				spend->getVersion(), txHashForMetadata.ToString(),
+				spend->getCoinSerialNumber().tostring());
 
 		CZerocoinStateV3::CoinGroupInfoV3 coinGroup;
 		if (!zerocoinStateV3.GetCoinGroupInfo(targetDenominations[vinIndex], pubcoinId, coinGroup))
@@ -132,7 +164,7 @@ bool CheckSpendZcoinTransactionV3(
 		pair<sigma::CoinDenominationV3, int> denominationAndId = std::make_pair(
             targetDenominations[vinIndex], pubcoinId);
 
-		uint256 accumulatorBlockHash = newSpend.getAccumulatorBlockHash();
+		uint256 accumulatorBlockHash = spend->getAccumulatorBlockHash();
 
         // We use incomplete transaction hash as metadata.
         sigma::SpendMetaDataV3 newMetaData(
@@ -158,9 +190,9 @@ bool CheckSpendZcoinTransactionV3(
 			index = index->pprev;
         }
 
-		passVerify = newSpend.Verify(anonymity_set, newMetaData);
+		passVerify = spend->Verify(anonymity_set, newMetaData);
 		if (passVerify) {
-			Scalar serial = newSpend.getCoinSerialNumber();
+			Scalar serial = spend->getCoinSerialNumber();
 			// do not check for duplicates in case we've seen exact copy of this tx in this block before
 			if (!(zerocoinTxInfoV3 && zerocoinTxInfoV3->zcTransactions.count(hashTx) > 0)) {
 				if (!CheckZerocoinSpendSerialV3(
@@ -178,7 +210,7 @@ bool CheckSpendZcoinTransactionV3(
 				if (zerocoinTxInfoV3 && !zerocoinTxInfoV3->fInfoIsComplete) {
 					// add spend information to the index
 					zerocoinTxInfoV3->spentSerials.insert(std::make_pair(
-								serial, (int)newSpend.getDenomination()));
+								serial, (int)spend->getDenomination()));
 				}
 			}
 		}
@@ -212,21 +244,19 @@ bool CheckMintZcoinTransactionV3(
 		CValidationState &state,
 		uint256 hashTx,
 		CZerocoinTxInfoV3 *zerocoinTxInfoV3) {
+	secp_primitives::GroupElement pubCoinValue;
+
 	LogPrintf("CheckMintZcoinTransactionV3 txHash = %s\n", txout.GetHash().ToString());
 	LogPrintf("nValue = %d\n", txout.nValue);
 
-	if (txout.scriptPubKey.size() < 4)
+	try {
+		pubCoinValue = ParseSigmaMintScript(txout.scriptPubKey);
+	} catch (std::invalid_argument&) {
 		return state.DoS(100,
-				false,
-				PUBCOIN_NOT_VALIDATE,
-				"CTransaction::CheckTransactionV3() : PubCoin validation failed");
-
-    // If you wonder why +1, go to file wallet.cpp and read the comments in function
-    // CWallet::CreateZerocoinMintModelV3 around "scriptSerializedCoin << OP_ZEROCOINMINTV3";
-	vector<unsigned char> coin_serialised(txout.scriptPubKey.begin() + 1,
-                                          txout.scriptPubKey.end());
-	secp_primitives::GroupElement pubCoinValue;
-	pubCoinValue.deserialize(&coin_serialised[0]);
+			false,
+			PUBCOIN_NOT_VALIDATE,
+			"CTransaction::CheckTransactionV3() : PubCoin validation failed");
+	}
 
 	sigma::CoinDenominationV3 denomination;
     if (!IntegerToDenomination(txout.nValue, denomination, state)) {
@@ -281,11 +311,23 @@ bool CheckZerocoinTransactionV3(
 		bool isCheckWallet,
 		CZerocoinTxInfoV3 *zerocoinTxInfoV3)
 {
+    // nHeight have special mode which value is INT_MAX so we need this.
+    int realHeight;
+
+    {
+        LOCK(cs_main);
+        realHeight = chainActive.Height();
+    }
+
+    bool allowSigma = (realHeight >= Params().GetConsensus().nSigmaStartBlock);
+
 	// Check Mint Zerocoin Transaction
-	BOOST_FOREACH(const CTxOut &txout, tx.vout) {
-		if (!txout.scriptPubKey.empty() && txout.scriptPubKey.IsZerocoinMintV3()) {
-			if (!CheckMintZcoinTransactionV3(txout, state, hashTx, zerocoinTxInfoV3))
-				return false;
+	if (allowSigma) {
+		for (const CTxOut &txout : tx.vout) {
+			if (!txout.scriptPubKey.empty() && txout.scriptPubKey.IsZerocoinMintV3()) {
+				if (!CheckMintZcoinTransactionV3(txout, state, hashTx, zerocoinTxInfoV3))
+					return false;
+			}
 		}
 	}
 
@@ -325,16 +367,14 @@ bool CheckZerocoinTransactionV3(
 		// Check vOut
 		// Only one loop, we checked on the format before entering this case
 		if (!isVerifyDB) {
-			BOOST_FOREACH(const CTxOut &txout, tx.vout)
-			{
-				if (!CheckSpendZcoinTransactionV3(
-					tx, denominations, state, hashTx, isVerifyDB, nHeight,
-					isCheckWallet, zerocoinTxInfoV3)) {
-						return false;
-				}
+			if (!CheckSpendZcoinTransactionV3(
+				tx, denominations, state, hashTx, isVerifyDB, nHeight,
+				isCheckWallet, zerocoinTxInfoV3)) {
+					return false;
 			}
 		}
 	}
+
 	return true;
 }
 
@@ -430,7 +470,7 @@ bool ConnectBlockZCV3(
 			}
 		}
         // Shows if V3 sigma mints are now allowed.
-        bool V3MintsAllowed = (pindexNew->nHeight >= Params().GetConsensus().nMintV3SigmaStartBlock);
+        bool V3MintsAllowed = (pindexNew->nHeight >= Params().GetConsensus().nSigmaStartBlock);
 
         // If V3 mints are not allowed in this block, but some client tries to mint.
         if (!V3MintsAllowed && !pblock->zerocoinTxInfoV3->mints.empty())

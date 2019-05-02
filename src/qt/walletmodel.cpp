@@ -718,7 +718,7 @@ void WalletModel::listCoins(std::map<QString, std::vector<COutput> >& mapCoins) 
     {
         COutput cout = out;
 
-        while (wallet->IsChange(cout.tx->vout[cout.i]) && cout.tx->vin.size() > 0 && wallet->IsMine(cout.tx->vin[0]))
+        while (cout.tx->IsChange(static_cast<uint32_t>(cout.i)) && cout.tx->vin.size() > 0 && wallet->IsMine(cout.tx->vin[0]))
         {
             if (!wallet->mapWallet.count(cout.tx->vin[0].prevout.hash)) break;
             cout = COutput(&wallet->mapWallet[cout.tx->vin[0].prevout.hash], cout.tx->vin[0].prevout.n, 0, true, true);
@@ -948,7 +948,7 @@ WalletModel::SendCoinsReturn WalletModel::sendSigma(WalletModelTransaction &tran
     return SendCoinsReturn(OK);
 }
 
-bool WalletModel::sigmaMint(const CAmount& n)
+void WalletModel::sigmaMint(const CAmount& n)
 {
     std::vector<sigma::CoinDenominationV3> denominations;
     sigma::GetAllDenoms(denominations);
