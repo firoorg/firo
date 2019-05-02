@@ -2716,9 +2716,18 @@ UniValue mint(const UniValue& params, bool fHelp)
 
     if (fHelp || params.size() != 1)
         throw std::runtime_error(
-            "mint <amount>(could not smaller than 0.1)\n"
-            "\nAutomatically choose denominations to mint by amount\n" +
-            HelpRequiringPassphrase());
+            "mint amount\n"
+            "\nAutomatically choose denominations to mint by amount."
+            + HelpRequiringPassphrase() + "\n"
+            "\nArguments:\n"
+            "1. \"amount\"      (numeric or string, required) The amount in " + CURRENCY_UNIT + " to mint but must not less than 0.1\n"
+            "\nResult:\n"
+            "\"transactionid\"  (string) The transaction id.\n"
+            "\nExamples:\n"
+            + HelpExampleCli("mint", "0.1")
+            + HelpExampleCli("mint", "100.9")
+            + HelpExampleRpc("mint", "0.1")
+        );
 
     CAmount nAmount = AmountFromValue(params[0]);
     LogPrintf("rpcWallet.mint() denomination = %s, nAmount = %d \n", params[0].getValStr(), nAmount);
@@ -3193,7 +3202,8 @@ UniValue spendmany(const UniValue& params, bool fHelp) {
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
     // Only account "" have sigma coins.
-    if (!params[0].isNull() && !params[0].get_str().empty())
+    string strAccount = AccountFromValue(params[0]);
+    if (!strAccount.empty())
         throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Account has insufficient funds");
 
     UniValue sendTo = params[1].get_obj();
