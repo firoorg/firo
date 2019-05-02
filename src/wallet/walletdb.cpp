@@ -776,7 +776,7 @@ DBErrors CWalletDB::LoadWallet(CWallet *pwallet) {
     DBErrors result = DB_LOAD_OK;
 
     try {
-        LOCK(pwallet->cs_wallet);
+        LOCK2(cs_main, pwallet->cs_wallet);
         int nMinVersion = 0;
         if (Read((string) "minversion", nMinVersion)) {
             if (nMinVersion > CLIENT_VERSION)
