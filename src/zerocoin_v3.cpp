@@ -179,13 +179,18 @@ bool CheckSpendZcoinTransactionV3(
 					// add spend information to the index
 					zerocoinTxInfoV3->spentSerials.insert(std::make_pair(
 								serial, (int)newSpend.getDenomination()));
-					zerocoinTxInfoV3->zcTransactions.insert(hashTx);
 				}
 			}
 		}
 		else {
 			LogPrintf("CheckSpendZCoinTransactionV3: verification failed at block %d\n", nHeight);
 			return false;
+		}
+	}
+
+	if(!isVerifyDB && !isCheckWallet) {
+		if (zerocoinTxInfoV3 && !zerocoinTxInfoV3->fInfoIsComplete && hasZerocoinSpendInputs) {
+			zerocoinTxInfoV3->zcTransactions.insert(hashTx);
 		}
 	}
 
