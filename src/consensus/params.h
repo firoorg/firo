@@ -142,6 +142,9 @@ struct Params {
     /** reduction coefficient for rewards after MTP kicks in */
     int nMTPRewardReduction;
 
+    /** block number to disable zerocoin on consensus level */
+    int nDisableZerocoinStartBlock;
+	
     int64_t DifficultyAdjustmentInterval(bool fMTP = false) const { return nPowTargetTimespan / (fMTP ? nPowTargetSpacingMTP : nPowTargetSpacing); }
     uint256 nMinimumChainWork;
 

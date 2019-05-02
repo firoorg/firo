@@ -3791,6 +3791,9 @@ bool CWallet::CreateZerocoinMintModelV3(
 bool CWallet::CreateZerocoinMintModelV2(
         string &stringError,
         const std::vector<std::pair<int,int>>& denominationPairs) {
+    // temporarily disable zerocoin
+    stringError = "Zerocoin functionality has been disabled until the pending Sigma release.";
+    return false;
     libzerocoin::CoinDenomination denomination;
     // Always use modulus v2
     libzerocoin::Params *zcParams = ZCParamsV2;
@@ -3959,7 +3962,9 @@ bool CWallet::CreateZerocoinMintModelV3(string &stringError, const string& denom
 }
 
 bool CWallet::CreateZerocoinMintModelV2(string &stringError, const string& denomAmount) {
-
+    // temporarily disable zerocoin
+    stringError = "Zerocoin functionality has been disabled until the pending Sigma release.";
+    return false;
     if (!fFileBacked)
         return false;
 
@@ -4113,6 +4118,9 @@ bool CWallet::CreateZerocoinSpendModel(
         string denomAmount,
         bool forceUsed,
         bool dontSpendSigma) {
+    // temporarily disable zerocoin
+    stringError = "Zerocoin functionality has been disabled until the pending Sigma release.";
+    return false;
     // Clean the stringError, otherwise even if the Spend passes, it returns false.
     stringError = "";
 
@@ -4186,6 +4194,9 @@ bool CWallet::CreateZerocoinSpendModelV2(
         string& thirdPartyAddress,
         const vector<string>& denomAmounts,
         bool forceUsed) {
+    // temporarily disable zerocoin
+    stringError = "Zerocoin functionality has been disabled until the pending Sigma release.";
+    return false;
     if (!fFileBacked)
         return false;
 
@@ -4272,6 +4283,12 @@ bool CWallet::CreateZerocoinMintTransaction(const vector <CRecipient> &vecSend, 
                                             CReserveKey &reservekey,
                                             CAmount &nFeeRet, int &nChangePosInOut, std::string &strFailReason, bool isSigmaMint,
                                             const CCoinControl *coinControl, bool sign) {
+    if (!isSigmaMint) {
+        // temporarily disable zerocoin
+        strFailReason = "Zerocoin functionality has been disabled until the pending Sigma release.";
+        return false;
+    }
+
     CAmount nValue = 0;
     int nChangePosRequest = nChangePosInOut;
     unsigned int nSubtractFeeFromAmount = 0;
@@ -4611,6 +4628,11 @@ bool CWallet::CreateZerocoinSpendTransaction(std::string &thirdPartyaddress, int
                                              CWalletTx &wtxNew, CReserveKey &reservekey, CBigNum &coinSerial,
                                              uint256 &txHash, CBigNum &zcSelectedValue, bool &zcSelectedIsUsed,
                                              std::string &strFailReason, bool forceUsed) {
+
+    // temporarily disable zerocoin
+    strFailReason = "Zerocoin functionality has been disabled until the pending Sigma release.";
+    return false;
+
     if (nValue <= 0) {
         strFailReason = _("Transaction amounts must be positive");
         return false;
@@ -5137,6 +5159,10 @@ bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddr
                                              CWalletTx &wtxNew, CReserveKey &reservekey, vector<CBigNum> &coinSerials, uint256 &txHash, vector<CBigNum> &zcSelectedValues,
                                              std::string &strFailReason, bool forceUsed)
 {
+    // temporarily disable zerocoin
+    strFailReason = "Zerocoin functionality has been disabled until the pending Sigma release.";
+    return false;
+
     wtxNew.BindWallet(this);
     CMutableTransaction txNew;
     {
@@ -5403,15 +5429,14 @@ bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddr
 
             // Embed the constructed transaction data in wtxNew.
             *static_cast<CTransaction *>(&wtxNew) = CTransaction(txNew);
-
-            txHash = wtxNew.GetHash();
-            LogPrintf("wtxNew.txHash:%s\n", txHash.ToString());
-
              // Limit size
             if (GetTransactionWeight(txNew) >= MAX_STANDARD_TX_WEIGHT) {
                 strFailReason = _("Transaction too large");
                 return false;
             }
+
+            txHash = wtxNew.GetHash();
+            LogPrintf("wtxNew.txHash:%s\n", txHash.ToString());
 
             // After transaction creation and verification, this last loop is to notify the wallet of changes to zerocoin spend info.
             for (std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>>::const_iterator it = denominations.begin(); it != denominations.end(); it++)
@@ -5890,6 +5915,9 @@ bool CWallet::CommitZerocoinSpendTransaction(CWalletTx &wtxNew, CReserveKey &res
 string CWallet::MintAndStoreZerocoin(vector<CRecipient> vecSend,
                                      vector<libzerocoin::PrivateCoin> privCoins,
                                      CWalletTx &wtxNew, bool fAskFee) {
+    // temporarily disable zerocoin
+    return "Zerocoin functionality has been disabled until the pending Sigma release.";
+
     string strError;
     if (IsLocked()) {
         strError = _("Error: Wallet locked, unable to create transaction!");
@@ -6045,6 +6073,8 @@ string CWallet::MintAndStoreZerocoinV3(vector<CRecipient> vecSend,
  * @return
  */
 string CWallet::MintZerocoin(CScript pubCoin, int64_t nValue, bool isSigmaMint, CWalletTx &wtxNew, bool fAskFee) {
+    // temporarily disable zerocoin
+    return "Zerocoin functionality has been disabled until the pending Sigma release.";
 
     LogPrintf("MintZerocoin: value = %s\n", nValue);
     // Check amount
@@ -6105,6 +6135,9 @@ string CWallet::MintZerocoin(CScript pubCoin, int64_t nValue, bool isSigmaMint, 
 string CWallet::SpendZerocoin(std::string &thirdPartyaddress, int64_t nValue, libzerocoin::CoinDenomination denomination, CWalletTx &wtxNew,
                               CBigNum &coinSerial, uint256 &txHash, CBigNum &zcSelectedValue,
                               bool &zcSelectedIsUsed, bool forceUsed) {
+    // temporarily disable zerocoin
+    return "Zerocoin functionality has been disabled until the pending Sigma release.";
+
     // Check amount
     if (nValue <= 0)
         return _("Invalid amount");
@@ -6248,6 +6281,9 @@ string CWallet::SpendZerocoinV3(
  */
 string CWallet::SpendMultipleZerocoin(std::string &thirdPartyaddress, const std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>>& denominations, CWalletTx &wtxNew,
                               vector<CBigNum> &coinSerials, uint256 &txHash, vector<CBigNum> &zcSelectedValues, bool forceUsed) {
+    // temporarily disable zerocoin
+    return "Zerocoin functionality has been disabled until the pending Sigma release.";
+
      CReserveKey reservekey(this);
      string strError = "";
      if (IsLocked()) {
