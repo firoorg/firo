@@ -31,7 +31,7 @@ BOOST_FIXTURE_TEST_SUITE(sigma_mintspend, ZerocoinTestingSetup200)
 */
 BOOST_AUTO_TEST_CASE(sigma_mintspend_test)
 {
-    CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
+    CZerocoinState *zerocoinState = CZerocoinState::GetZerocoinState();
     string denomination;
     vector<uint256> vtxid;
     std::vector<string> denominations = {"0.1", "0.5", "1", "10", "100"};

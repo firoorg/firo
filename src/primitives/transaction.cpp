@@ -52,7 +52,7 @@ bool CTxIn::IsZerocoinSpend() const
     return (prevout.IsNull() && scriptSig.size() > 0 && (scriptSig[0] == OP_ZEROCOINSPEND) );
 }
 
-bool CTxIn::IsZerocoinSpendV3() const
+bool CTxIn::IsSigmaSpend() const
 {
     return (prevout.IsSigmaMintGroup() && scriptSig.size() > 0 && (scriptSig[0] == OP_ZEROCOINSPENDV3) );
 }
@@ -217,10 +217,10 @@ bool CTransaction::IsZerocoinSpend() const
     return false;
 }
 
-bool CTransaction::IsZerocoinSpendV3() const
+bool CTransaction::IsSigmaSpend() const
 {
     for (const CTxIn &txin: vin) {
-        if (txin.IsZerocoinSpendV3())
+        if (txin.IsSigmaSpend())
             return true;
     }
     return false;
@@ -235,10 +235,10 @@ bool CTransaction::IsZerocoinMint() const
     return false;
 }
 
-bool CTransaction::IsZerocoinMintV3() const
+bool CTransaction::IsSigmaMint() const
 {
     for (const CTxOut &txout: vout) {
-        if (txout.scriptPubKey.IsZerocoinMintV3())
+        if (txout.scriptPubKey.IsSigmaMint())
             return true;
     }
     return false;
@@ -251,7 +251,7 @@ bool CTransaction::IsZerocoinTransaction() const
 
 bool CTransaction::IsZerocoinV3SigmaTransaction() const
 {
-    return IsZerocoinSpendV3() || IsZerocoinMintV3();
+    return IsSigmaSpend() || IsSigmaMint();
 }
 
 unsigned int CTransaction::CalculateModifiedSize(unsigned int nTxSize) const

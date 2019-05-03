@@ -35,7 +35,7 @@ class CWalletTx;
 class uint160;
 class uint256;
 class CZerocoinEntry;
-class CZerocoinEntryV3;
+class CSigmaEntry;
 class CZerocoinSpendEntry;
 class CZerocoinSpendEntryV3;
 
@@ -177,15 +177,15 @@ public:
     void ListAccountCreditDebit(const std::string& strAccount, std::list<CAccountingEntry>& acentries);
 
     bool WriteZerocoinEntry(const CZerocoinEntry& zerocoin);
-    bool WriteZerocoinEntry(const CZerocoinEntryV3& zerocoin);
+    bool WriteZerocoinEntry(const CSigmaEntry& zerocoin);
     bool ReadZerocoinEntry(const Bignum& pub, CZerocoinEntry& entry);
-    bool ReadZerocoinEntry(const secp_primitives::GroupElement& pub, CZerocoinEntryV3& entry);
+    bool ReadZerocoinEntry(const secp_primitives::GroupElement& pub, CSigmaEntry& entry);
     bool HasZerocoinEntry(const Bignum& pub);
     bool HasZerocoinEntry(const secp_primitives::GroupElement& pub);
     bool EraseZerocoinEntry(const CZerocoinEntry& zerocoin);
-    bool EraseZerocoinEntry(const CZerocoinEntryV3& zerocoin);
+    bool EraseZerocoinEntry(const CSigmaEntry& zerocoin);
     void ListPubCoin(std::list<CZerocoinEntry>& listPubCoin);
-    void ListPubCoinV3(std::list<CZerocoinEntryV3>& listPubCoin);
+    void ListSigmaPubCoin(std::list<CSigmaEntry>& listPubCoin);
     void ListCoinSpendSerial(std::list<CZerocoinSpendEntry>& listCoinSpendSerial);
     void ListCoinSpendSerial(std::list<CZerocoinSpendEntryV3>& listCoinSpendSerial);
     bool WriteCoinSpendSerialEntry(const CZerocoinSpendEntry& zerocoinSpend);

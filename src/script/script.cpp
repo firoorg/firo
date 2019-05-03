@@ -291,14 +291,14 @@ bool CScript::IsZerocoinSpend() const {
             (*this)[0] == OP_ZEROCOINSPEND);
 }
 
-bool CScript::IsZerocoinMintV3() const
+bool CScript::IsSigmaMint() const
 {
     // Extra-fast test for Zerocoin Mint CScripts:
     return (this->size() > 0 &&
             (*this)[0] == OP_ZEROCOINMINTV3);
 }
 
-bool CScript::IsZerocoinSpendV3() const {
+bool CScript::IsSigmaSpend() const {
     return (this->size() > 0 &&
             (*this)[0] == OP_ZEROCOINSPENDV3);
 }

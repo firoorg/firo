@@ -87,7 +87,7 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, vector<vector<unsi
         return true;
     }
     // Zerocoin V3 SIGMA
-    if (scriptPubKey.IsZerocoinMintV3())
+    if (scriptPubKey.IsSigmaMint())
     {
         typeRet = TX_ZEROCOINMINT;
         // TODO(martun): check how large our mint is, it's still a fixed value, just like 

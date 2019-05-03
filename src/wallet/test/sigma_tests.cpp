@@ -37,9 +37,9 @@ struct WalletSigmaTestingSetup : WalletTestingSetup
     }
 };
 
-static void AddSigmaCoin(const sigma::PrivateCoinV3& coin, const sigma::CoinDenominationV3 denomination)
+static void AddSigmaCoin(const sigma::PrivateCoin& coin, const sigma::CoinDenomination denomination)
 {
-    CZerocoinEntryV3 zerocoinTx;
+    CSigmaEntry zerocoinTx;
 
     zerocoinTx.IsUsed = false;
     zerocoinTx.set_denomination(denomination);
@@ -55,10 +55,10 @@ static void AddSigmaCoin(const sigma::PrivateCoinV3& coin, const sigma::CoinDeno
     }
 }
 
-static void GenerateBlockWithCoins(const std::vector<std::pair<sigma::CoinDenominationV3, int>>& coins)
+static void GenerateBlockWithCoins(const std::vector<std::pair<sigma::CoinDenomination, int>>& coins)
 {
-    auto params = sigma::ParamsV3::get_default();
-    auto state = CZerocoinStateV3::GetZerocoinState();
+    auto params = sigma::Params::get_default();
+    sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
     auto block = blocks.emplace(blocks.end());
 
     // setup block
@@ -70,17 +70,17 @@ static void GenerateBlockWithCoins(const std::vector<std::pair<sigma::CoinDenomi
     // generate coins
     for (auto& coin : coins) {
         for (int i = 0; i < coin.second; i++) {
-            sigma::PrivateCoinV3 priv(params, coin.first);
+            sigma::PrivateCoin priv(params, coin.first);
             auto& pub = priv.getPublicCoin();
 
-            block->second.mintedPubCoinsV3[std::make_pair(coin.first, 1)].push_back(pub);
+            block->second.sigmaMintedPubCoins[std::make_pair(coin.first, 1)].push_back(pub);
 
             AddSigmaCoin(priv, coin.first);
         }
     }
 
     // add block
-    state->AddBlock(&block->second);
+    sigmaState->AddBlock(&block->second);
     chainActive.SetTip(&block->second);
 }
 
@@ -92,11 +92,11 @@ static void GenerateEmptyBlocks(int number_of_blocks)
 }
 
 static bool CheckDenominationCoins(
-        const std::vector<std::pair<sigma::CoinDenominationV3, int>>& expected,
-        std::vector<sigma::CoinDenominationV3> actualDenominations)
+        const std::vector<std::pair<sigma::CoinDenomination, int>>& expected,
+        std::vector<sigma::CoinDenomination> actualDenominations)
 {
     // Flatten expected.
-    std::vector<sigma::CoinDenominationV3> expectedDenominations;
+    std::vector<sigma::CoinDenomination> expectedDenominations;
 
     for (auto& denominationExpected : expected) {
         for (int i = 0; i < denominationExpected.second; i++) {
@@ -116,11 +116,11 @@ static bool CheckDenominationCoins(
 }
 
 static bool CheckDenominationCoins(
-        const std::vector<std::pair<sigma::CoinDenominationV3, int>>& expected,
-        const std::vector<CZerocoinEntryV3>& actual)
+        const std::vector<std::pair<sigma::CoinDenomination, int>>& expected,
+        const std::vector<CSigmaEntry>& actual)
 {
     // Flatten expected.
-    std::vector<sigma::CoinDenominationV3> expectedDenominations;
+    std::vector<sigma::CoinDenomination> expectedDenominations;
 
     for (auto& denominationExpected : expected) {
         for (int i = 0; i < denominationExpected.second; i++) {
@@ -129,7 +129,7 @@ static bool CheckDenominationCoins(
     }
 
     // Get denominations set for `actual` vector
-    std::vector<sigma::CoinDenominationV3> actualDenominations;
+    std::vector<sigma::CoinDenomination> actualDenominations;
     for (auto& entry : actual) {
         actualDenominations.push_back(entry.get_denomination());
     }
@@ -145,10 +145,10 @@ static bool CheckDenominationCoins(
     return expectedDenominations == actualDenominations;
 }
 
-static bool CheckSpend(const CTxIn& vin, const CZerocoinEntryV3& expected)
+static bool CheckSpend(const CTxIn& vin, const CSigmaEntry& expected)
 {
     // check vin properties
-    if (!vin.IsZerocoinSpendV3()) {
+    if (!vin.IsSigmaSpend()) {
         return false;
     }
 
@@ -164,7 +164,7 @@ static bool CheckSpend(const CTxIn& vin, const CZerocoinEntryV3& expected)
     CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
     serialized.write(reinterpret_cast<const char *>(&vin.scriptSig[1]), vin.scriptSig.size() - 1);
 
-    sigma::CoinSpendV3 spend(sigma::ParamsV3::get_default(), serialized);
+    sigma::CoinSpend spend(sigma::Params::get_default(), serialized);
 
     if (!spend.HasValidSerial() || spend.getCoinSerialNumber() != expected.serialNumber) {
         return false;
@@ -178,7 +178,7 @@ static bool CheckSpend(const CTxIn& vin, const CZerocoinEntryV3& expected)
 }
 
 static CAmount GetCoinSetByDenominationAmount(
-    std::vector<std::pair<sigma::CoinDenominationV3, int>>& coins,
+    std::vector<std::pair<sigma::CoinDenomination, int>>& coins,
     int D01 = 0,
     int D05 = 0,
     int D1 = 0,
@@ -187,11 +187,11 @@ static CAmount GetCoinSetByDenominationAmount(
 {
     coins.clear();
 
-    coins.push_back(std::pair<sigma::CoinDenominationV3, int>(sigma::CoinDenominationV3::SIGMA_DENOM_0_1, D01));
-    coins.push_back(std::pair<sigma::CoinDenominationV3, int>(sigma::CoinDenominationV3::SIGMA_DENOM_0_5, D05));
-    coins.push_back(std::pair<sigma::CoinDenominationV3, int>(sigma::CoinDenominationV3::SIGMA_DENOM_1, D1));
-    coins.push_back(std::pair<sigma::CoinDenominationV3, int>(sigma::CoinDenominationV3::SIGMA_DENOM_10, D10));
-    coins.push_back(std::pair<sigma::CoinDenominationV3, int>(sigma::CoinDenominationV3::SIGMA_DENOM_100, D100));
+    coins.push_back(std::pair<sigma::CoinDenomination, int>(sigma::CoinDenomination::SIGMA_DENOM_0_1, D01));
+    coins.push_back(std::pair<sigma::CoinDenomination, int>(sigma::CoinDenomination::SIGMA_DENOM_0_5, D05));
+    coins.push_back(std::pair<sigma::CoinDenomination, int>(sigma::CoinDenomination::SIGMA_DENOM_1, D1));
+    coins.push_back(std::pair<sigma::CoinDenomination, int>(sigma::CoinDenomination::SIGMA_DENOM_10, D10));
+    coins.push_back(std::pair<sigma::CoinDenomination, int>(sigma::CoinDenomination::SIGMA_DENOM_100, D100));
 
     CAmount sum(0);
     for (auto& coin : coins) {
@@ -220,12 +220,12 @@ BOOST_AUTO_TEST_CASE(get_coin_no_coin)
 {
     CAmount require = COIN / 10;
 
-    std::vector<CZerocoinEntryV3> coins;
-    std::vector<sigma::CoinDenominationV3> coinsToMint;
+    std::vector<CSigmaEntry> coins;
+    std::vector<sigma::CoinDenomination> coinsToMint;
     BOOST_CHECK_MESSAGE(pwalletMain->GetCoinsToSpend(require, coins, coinsToMint) == 0,
       "Expect no coin in group");
 
-    std::vector<std::pair<sigma::CoinDenominationV3, int>> needCoins;
+    std::vector<std::pair<sigma::CoinDenomination, int>> needCoins;
 
     BOOST_CHECK_MESSAGE(CheckDenominationCoins(needCoins, coins),
       "Expect no coin in group");
@@ -233,15 +233,15 @@ BOOST_AUTO_TEST_CASE(get_coin_no_coin)
 
 BOOST_AUTO_TEST_CASE(get_coin_different_denomination)
 {
-    std::vector<std::pair<sigma::CoinDenominationV3, int>> newCoins;
+    std::vector<std::pair<sigma::CoinDenomination, int>> newCoins;
     GetCoinSetByDenominationAmount(newCoins, 2, 1, 1, 1, 1);
     GenerateBlockWithCoins(newCoins);
     GenerateEmptyBlocks(5);
 
     CAmount require(111 * COIN + 7 * COIN / 10); // 111.7
 
-    std::vector<CZerocoinEntryV3> coins;
-    std::vector<sigma::CoinDenominationV3> coinsToMint;
+    std::vector<CSigmaEntry> coins;
+    std::vector<sigma::CoinDenomination> coinsToMint;
     BOOST_CHECK_MESSAGE(pwalletMain->GetCoinsToSpend(require, coins, coinsToMint),
       "Expect enough for requirement");
 
@@ -251,7 +251,7 @@ BOOST_AUTO_TEST_CASE(get_coin_different_denomination)
 
 BOOST_AUTO_TEST_CASE(get_coin_round_up)
 {
-    std::vector<std::pair<sigma::CoinDenominationV3, int>> newCoins;
+    std::vector<std::pair<sigma::CoinDenomination, int>> newCoins;
     GetCoinSetByDenominationAmount(newCoins, 5, 5, 5, 5, 5);
     GenerateBlockWithCoins(newCoins);
     GenerateEmptyBlocks(5);
@@ -259,16 +259,16 @@ BOOST_AUTO_TEST_CASE(get_coin_round_up)
     // This must get rounded up to 111.8
     CAmount require(111 * COIN + 7 * COIN / 10 + 5 * COIN / 100); // 111.75
 
-    std::vector<CZerocoinEntryV3> coinsToSpend;
-    std::vector<sigma::CoinDenominationV3> coinsToMint;
+    std::vector<CSigmaEntry> coinsToSpend;
+    std::vector<sigma::CoinDenomination> coinsToMint;
     BOOST_CHECK_MESSAGE(pwalletMain->GetCoinsToSpend(require, coinsToSpend, coinsToMint),
       "Expect enough for requirement");
 
     // We would expect to spend 100 + 10 + 1 + 1 and re-mint 0.1 + 0.1.
-    std::vector<std::pair<sigma::CoinDenominationV3, int>> expectedToSpend;
+    std::vector<std::pair<sigma::CoinDenomination, int>> expectedToSpend;
     GetCoinSetByDenominationAmount(expectedToSpend, 0, 0, 2, 1, 1);
 
-    std::vector<std::pair<sigma::CoinDenominationV3, int>> expectedToMint;
+    std::vector<std::pair<sigma::CoinDenomination, int>> expectedToMint;
     GetCoinSetByDenominationAmount(expectedToMint, 2, 0, 0, 0, 0);
 
     BOOST_CHECK_MESSAGE(CheckDenominationCoins(expectedToSpend, coinsToSpend),
@@ -280,22 +280,22 @@ BOOST_AUTO_TEST_CASE(get_coin_round_up)
 
 BOOST_AUTO_TEST_CASE(get_coin_not_enough)
 {
-    std::vector<std::pair<sigma::CoinDenominationV3, int>> newCoins;
+    std::vector<std::pair<sigma::CoinDenomination, int>> newCoins;
     GetCoinSetByDenominationAmount(newCoins, 1, 1, 1, 1, 1);
     GenerateBlockWithCoins(newCoins);
     GenerateEmptyBlocks(5);
 
     CAmount require(111 * COIN + 7 * COIN / 10); // 111.7
 
-    std::vector<CZerocoinEntryV3> coins;
-    std::vector<sigma::CoinDenominationV3> coinsToMint;
+    std::vector<CSigmaEntry> coins;
+    std::vector<sigma::CoinDenomination> coinsToMint;
     BOOST_CHECK_MESSAGE(!pwalletMain->GetCoinsToSpend(require, coins, coinsToMint),
         "Expect not enough coin and equal to one for each denomination");
 }
 
 BOOST_AUTO_TEST_CASE(get_coin_cannot_spend_unconfirmed_coins)
 {
-    std::vector<std::pair<sigma::CoinDenominationV3, int>> newCoins;
+    std::vector<std::pair<sigma::CoinDenomination, int>> newCoins;
     GetCoinSetByDenominationAmount(newCoins, 1, 1, 1, 1, 1);
     GenerateBlockWithCoins(newCoins);
     // Intentionally do not create 5 more blocks after this one, so coins can not be spent.
@@ -303,27 +303,27 @@ BOOST_AUTO_TEST_CASE(get_coin_cannot_spend_unconfirmed_coins)
 
     CAmount require(111 * COIN + 5 * COIN / 10); // 111.5
 
-    std::vector<CZerocoinEntryV3> coins;
-    std::vector<sigma::CoinDenominationV3> coinsToMint;
+    std::vector<CSigmaEntry> coins;
+    std::vector<sigma::CoinDenomination> coinsToMint;
     BOOST_CHECK_MESSAGE(!pwalletMain->GetCoinsToSpend(require, coins, coinsToMint),
         "Expect not enough coin and equal to one for each denomination");
 }
 
 BOOST_AUTO_TEST_CASE(get_coin_minimize_coins_spend_fit_amount)
 {
-    std::vector<std::pair<sigma::CoinDenominationV3, int>> newCoins;
+    std::vector<std::pair<sigma::CoinDenomination, int>> newCoins;
     GetCoinSetByDenominationAmount(newCoins, 0, 0, 0, 10, 1);
     GenerateBlockWithCoins(newCoins);
     GenerateEmptyBlocks(5);
 
     CAmount require(100 * COIN);
 
-    std::vector<CZerocoinEntryV3> coins;
-    std::vector<sigma::CoinDenominationV3> coinsToMint;
+    std::vector<CSigmaEntry> coins;
+    std::vector<sigma::CoinDenomination> coinsToMint;
     BOOST_CHECK_MESSAGE(pwalletMain->GetCoinsToSpend(require, coins,coinsToMint),
       "Expect enough coin and equal to one SIGMA_DENOM_100");
 
-    std::vector<std::pair<sigma::CoinDenominationV3, int>> expectedCoins;
+    std::vector<std::pair<sigma::CoinDenomination, int>> expectedCoins;
     GetCoinSetByDenominationAmount(expectedCoins, 0, 0, 0, 0, 1);
 
     BOOST_CHECK_MESSAGE(CheckDenominationCoins(expectedCoins, coins),
@@ -332,19 +332,19 @@ BOOST_AUTO_TEST_CASE(get_coin_minimize_coins_spend_fit_amount)
 
 BOOST_AUTO_TEST_CASE(get_coin_minimize_coins_spend)
 {
-    std::vector<std::pair<sigma::CoinDenominationV3, int>> newCoins;
+    std::vector<std::pair<sigma::CoinDenomination, int>> newCoins;
     GetCoinSetByDenominationAmount(newCoins, 1, 0, 7, 1, 1);
     GenerateBlockWithCoins(newCoins);
     GenerateEmptyBlocks(5);
 
     CAmount require(17 * COIN);
 
-    std::vector<CZerocoinEntryV3> coins;
-    std::vector<sigma::CoinDenominationV3> coinsToMint;
+    std::vector<CSigmaEntry> coins;
+    std::vector<sigma::CoinDenomination> coinsToMint;
     BOOST_CHECK_MESSAGE(pwalletMain->GetCoinsToSpend(require, coins, coinsToMint),
       "Coins to spend value is not equal to required amount.");
 
-    std::vector<std::pair<sigma::CoinDenominationV3, int>> expectedCoins;
+    std::vector<std::pair<sigma::CoinDenomination, int>> expectedCoins;
     GetCoinSetByDenominationAmount(expectedCoins, 0, 0, 7, 1, 0);
 
     BOOST_CHECK_MESSAGE(CheckDenominationCoins(expectedCoins, coins),
@@ -353,19 +353,19 @@ BOOST_AUTO_TEST_CASE(get_coin_minimize_coins_spend)
 
 BOOST_AUTO_TEST_CASE(get_coin_choose_smallest_enough)
 {
-    std::vector<std::pair<sigma::CoinDenominationV3, int>> newCoins;
+    std::vector<std::pair<sigma::CoinDenomination, int>> newCoins;
     GetCoinSetByDenominationAmount(newCoins, 1, 1, 1, 1, 1);
     GenerateBlockWithCoins(newCoins);
     GenerateEmptyBlocks(5);
 
     CAmount require(9 * COIN / 10); // 0.9
 
-    std::vector<CZerocoinEntryV3> coins;
-    std::vector<sigma::CoinDenominationV3> coinsToMint;
+    std::vector<CSigmaEntry> coins;
+    std::vector<sigma::CoinDenomination> coinsToMint;
     BOOST_CHECK_MESSAGE(pwalletMain->GetCoinsToSpend(require, coins,coinsToMint),
       "Expect enough coin and equal one SIGMA_DENOM_1");
 
-    std::vector<std::pair<sigma::CoinDenominationV3, int>> expectedCoins;
+    std::vector<std::pair<sigma::CoinDenomination, int>> expectedCoins;
     GetCoinSetByDenominationAmount(expectedCoins, 0, 0, 1, 0, 0);
 
     BOOST_CHECK_MESSAGE(CheckDenominationCoins(expectedCoins, coins),
@@ -376,11 +376,11 @@ BOOST_AUTO_TEST_CASE(create_spend_with_insufficient_coins)
 {
     CAmount fee;
     CWalletTx tx;
-    std::vector<CZerocoinEntryV3> selected;
-    std::vector<CZerocoinEntryV3> changes;
+    std::vector<CSigmaEntry> selected;
+    std::vector<CSigmaEntry> changes;
     std::vector<CRecipient> recipients;
 
-    GenerateBlockWithCoins({ std::make_pair(sigma::CoinDenominationV3::SIGMA_DENOM_10, 1) });
+    GenerateBlockWithCoins({ std::make_pair(sigma::CoinDenomination::SIGMA_DENOM_10, 1) });
     GenerateEmptyBlocks(5);
 
     recipients.push_back(CRecipient{
@@ -410,11 +410,11 @@ BOOST_AUTO_TEST_CASE(create_spend_with_insufficient_coins)
 BOOST_AUTO_TEST_CASE(create_spend_with_confirmation_less_than_6)
 {
     CAmount fee;
-    std::vector<CZerocoinEntryV3> selected;
-    std::vector<CZerocoinEntryV3> changes;
+    std::vector<CSigmaEntry> selected;
+    std::vector<CSigmaEntry> changes;
     std::vector<CRecipient> recipients;
 
-    GenerateBlockWithCoins({ std::make_pair(sigma::CoinDenominationV3::SIGMA_DENOM_10, 2) });
+    GenerateBlockWithCoins({ std::make_pair(sigma::CoinDenomination::SIGMA_DENOM_10, 2) });
 
     recipients.push_back(CRecipient{
         .scriptPubKey = GetScriptForDestination(randomAddr1.Get()),
@@ -443,11 +443,11 @@ BOOST_AUTO_TEST_CASE(create_spend_with_confirmation_less_than_6)
 BOOST_AUTO_TEST_CASE(create_spend_with_coins_less_than_2)
 {
     CAmount fee;
-    std::vector<CZerocoinEntryV3> selected;
-    std::vector<CZerocoinEntryV3> changes;
+    std::vector<CSigmaEntry> selected;
+    std::vector<CSigmaEntry> changes;
     std::vector<CRecipient> recipients;
 
-    GenerateBlockWithCoins({ std::make_pair(sigma::CoinDenominationV3::SIGMA_DENOM_10, 1) });
+    GenerateBlockWithCoins({ std::make_pair(sigma::CoinDenomination::SIGMA_DENOM_10, 1) });
     GenerateEmptyBlocks(5);
 
     recipients.push_back(CRecipient{
@@ -465,11 +465,11 @@ BOOST_AUTO_TEST_CASE(create_spend_with_coins_less_than_2)
 BOOST_AUTO_TEST_CASE(create_spend_with_coins_more_than_1)
 {
     CAmount fee;
-    std::vector<CZerocoinEntryV3> selected;
-    std::vector<CZerocoinEntryV3> changes;
+    std::vector<CSigmaEntry> selected;
+    std::vector<CSigmaEntry> changes;
     std::vector<CRecipient> recipients;
 
-    GenerateBlockWithCoins({ std::make_pair(sigma::CoinDenominationV3::SIGMA_DENOM_10, 2) });
+    GenerateBlockWithCoins({ std::make_pair(sigma::CoinDenomination::SIGMA_DENOM_10, 2) });
     GenerateEmptyBlocks(5);
 
     recipients.push_back(CRecipient{
@@ -494,8 +494,8 @@ BOOST_AUTO_TEST_CASE(create_spend_with_coins_more_than_1)
     BOOST_CHECK(fee > 0);
 
     BOOST_CHECK(selected.size() == 2);
-    BOOST_CHECK(selected[0].get_denomination() == sigma::CoinDenominationV3::SIGMA_DENOM_10);
-    BOOST_CHECK(selected[1].get_denomination() == sigma::CoinDenominationV3::SIGMA_DENOM_10);
+    BOOST_CHECK(selected[0].get_denomination() == sigma::CoinDenomination::SIGMA_DENOM_10);
+    BOOST_CHECK(selected[1].get_denomination() == sigma::CoinDenomination::SIGMA_DENOM_10);
 
     BOOST_CHECK(CheckSpend(tx.vin[0], selected[0]));
     BOOST_CHECK(CheckSpend(tx.vin[1], selected[1]));
@@ -506,29 +506,29 @@ BOOST_AUTO_TEST_CASE(create_spend_with_coins_more_than_1)
         make_pair(GetScriptForDestination(randomAddr2.Get()), 10 * COIN ), 1));
 
     CAmount remintsSum = std::accumulate(tx.vout.begin(), tx.vout.end(), 0, [](CAmount c, const CTxOut& v) {
-        return c + (v.scriptPubKey.IsZerocoinMintV3() ? v.nValue : 0);
+        return c + (v.scriptPubKey.IsSigmaMint() ? v.nValue : 0);
     });
 
     BOOST_CHECK(remintsSum == 49 * COIN / 10);
 
     // check walletdb
-    std::list<CZerocoinEntryV3> coinList;
+    std::list<CSigmaEntry> coinList;
     std::list<CZerocoinSpendEntryV3> spends;
     CWalletDB db(pwalletMain->strWalletFile);
 
-    db.ListPubCoinV3(coinList);
+    db.ListSigmaPubCoin(coinList);
     BOOST_CHECK(coinList.size() == 2);
 
     db.ListCoinSpendSerial(spends);
     BOOST_CHECK(spends.empty());
 
-    pwalletMain->SpendZerocoinV3(recipients, tx, fee);
+    pwalletMain->SpendSigma(recipients, tx, fee);
 
     coinList.clear();
-    db.ListPubCoinV3(coinList);
+    db.ListSigmaPubCoin(coinList);
     BOOST_CHECK(coinList.size() == 11);
     BOOST_CHECK(std::count_if(coinList.begin(), coinList.end(),
-        [](const CZerocoinEntryV3& coin){return !coin.IsUsed;}) == 9);
+        [](const CSigmaEntry& coin){return !coin.IsUsed;}) == 9);
 
     spends.clear();
     db.ListCoinSpendSerial(spends);
@@ -541,7 +541,7 @@ BOOST_AUTO_TEST_CASE(spend)
     CAmount fee;
     std::vector<CRecipient> recipients;
 
-    GenerateBlockWithCoins({ std::make_pair(sigma::CoinDenominationV3::SIGMA_DENOM_10, 2) });
+    GenerateBlockWithCoins({ std::make_pair(sigma::CoinDenomination::SIGMA_DENOM_10, 2) });
     GenerateEmptyBlocks(5);
 
     recipients.push_back(CRecipient{
@@ -550,18 +550,18 @@ BOOST_AUTO_TEST_CASE(spend)
         .fSubtractFeeFromAmount = false
     });
 
-    auto selected = pwalletMain->SpendZerocoinV3(recipients, tx, fee);
+    auto selected = pwalletMain->SpendSigma(recipients, tx, fee);
 
     CWalletDB db(pwalletMain->strWalletFile);
 
     std::list<CZerocoinSpendEntryV3> spends;
     db.ListCoinSpendSerial(spends);
 
-    std::list<CZerocoinEntryV3> coins;
-    db.ListPubCoinV3(coins);
+    std::list<CSigmaEntry> coins;
+    db.ListSigmaPubCoin(coins);
 
     BOOST_CHECK(selected.size() == 1);
-    BOOST_CHECK(selected[0].get_denomination() == sigma::CoinDenominationV3::SIGMA_DENOM_10);
+    BOOST_CHECK(selected[0].get_denomination() == sigma::CoinDenomination::SIGMA_DENOM_10);
     BOOST_CHECK(selected[0].id == 1);
     BOOST_CHECK(selected[0].IsUsed);
     BOOST_CHECK(selected[0].nHeight == 1);
@@ -577,7 +577,7 @@ BOOST_AUTO_TEST_CASE(spend)
         if (std::find_if(
             selected.begin(),
             selected.end(),
-            [&coin](const CZerocoinEntryV3& e) { return e.serialNumber == coin.serialNumber; }) != selected.end()) {
+            [&coin](const CSigmaEntry& e) { return e.serialNumber == coin.serialNumber; }) != selected.end()) {
             continue;
         }
 

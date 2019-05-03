@@ -216,7 +216,12 @@ public:
 };
 
 class CZerocoinTxInfo;
-class CZerocoinTxInfoV3;
+
+namespace sigma {
+
+class CZerocoinTxInfo;
+
+} // namespace sigma
 
 class CBlock : public CBlockHeader
 {
@@ -233,7 +238,7 @@ public:
     mutable std::shared_ptr<CZerocoinTxInfo> zerocoinTxInfo;
 
     // memory only, zerocoin tx info after V3-sigma.
-    mutable std::shared_ptr<CZerocoinTxInfoV3> zerocoinTxInfoV3;
+    mutable std::shared_ptr<sigma::CZerocoinTxInfo> sigmaTxInfo;
 
     CBlock()
     {

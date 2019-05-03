@@ -270,7 +270,7 @@ bool CWalletDB::WriteZerocoinEntry(const CZerocoinEntry &zerocoin) {
     return Write(make_pair(string("zerocoin"), zerocoin.value), zerocoin, true);
 }
 
-bool CWalletDB::WriteZerocoinEntry(const CZerocoinEntryV3 &zerocoin) {
+bool CWalletDB::WriteZerocoinEntry(const CSigmaEntry &zerocoin) {
     return Write(std::make_pair(std::string("sigma_mint"), zerocoin.value), zerocoin, true);
 }
 
@@ -278,7 +278,7 @@ bool CWalletDB::ReadZerocoinEntry(const Bignum& pub, CZerocoinEntry& entry) {
     return Read(std::make_pair(std::string("zerocoin"), pub), entry);
 }
 
-bool CWalletDB::ReadZerocoinEntry(const secp_primitives::GroupElement& pub, CZerocoinEntryV3& entry) {
+bool CWalletDB::ReadZerocoinEntry(const secp_primitives::GroupElement& pub, CSigmaEntry& entry) {
     return Read(std::make_pair(std::string("sigma_mint"), pub), entry);
 }
 
@@ -290,7 +290,7 @@ bool CWalletDB::HasZerocoinEntry(const secp_primitives::GroupElement& pub) {
     return Exists(std::make_pair(std::string("sigma_mint"), pub));
 }
 
-bool CWalletDB::EraseZerocoinEntry(const CZerocoinEntryV3 &zerocoin) {
+bool CWalletDB::EraseZerocoinEntry(const CSigmaEntry &zerocoin) {
     return Erase(std::make_pair(std::string("sigma_mint"), zerocoin.value));
 }
 
@@ -341,10 +341,10 @@ void CWalletDB::ListPubCoin(std::list <CZerocoinEntry> &listPubCoin) {
     pcursor->close();
 }
 
-void CWalletDB::ListPubCoinV3(std::list <CZerocoinEntryV3> &listPubCoin) {
+void CWalletDB::ListSigmaPubCoin(std::list <CSigmaEntry> &listPubCoin) {
     Dbc *pcursor = GetCursor();
     if (!pcursor)
-        throw runtime_error("CWalletDB::ListPubCoinV3() : cannot create DB cursor");
+        throw runtime_error("CWalletDB::ListSigmaPubCoin() : cannot create DB cursor");
     unsigned int fFlags = DB_SET_RANGE;
     while (true) {
         // Read next record
@@ -358,7 +358,7 @@ void CWalletDB::ListPubCoinV3(std::list <CZerocoinEntryV3> &listPubCoin) {
             break;
         else if (ret != 0) {
             pcursor->close();
-            throw runtime_error("CWalletDB::ListPubCoinV3() : error scanning DB");
+            throw runtime_error("CWalletDB::ListSigmaPubCoin() : error scanning DB");
         }
         // Unserialize
         string strType;
@@ -367,7 +367,7 @@ void CWalletDB::ListPubCoinV3(std::list <CZerocoinEntryV3> &listPubCoin) {
             break;
         GroupElement value;
         ssKey >> value;
-        CZerocoinEntryV3 zerocoinItem;
+        CSigmaEntry zerocoinItem;
         ssValue >> zerocoinItem;
         listPubCoin.push_back(zerocoinItem);
     }

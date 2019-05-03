@@ -37,7 +37,7 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_numinputs)
     int denominationIndexA = rand() % 5;
     int denominationIndexB = (denominationIndexA + 5) %4; //guarantees a different number in the range
 
-    CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
+    CZerocoinState *zerocoinState = CZerocoinState::GetZerocoinState();
 
     // Create 400-200+1 = 201 new empty blocks. // consensus.nMintV3SigmaStartBlock = 400
     CreateAndProcessEmptyBlocks(201, scriptPubKey);

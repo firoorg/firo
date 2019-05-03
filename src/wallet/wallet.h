@@ -850,25 +850,25 @@ public:
     CAmount GetDenominatedBalance(bool unconfirmed=false) const;
 
     static std::vector<CRecipient> CreateSigmaMintRecipients(
-        const std::vector<sigma::PrivateCoinV3>& coins);
+        const std::vector<sigma::PrivateCoin>& coins);
 
     static int GetRequiredCoinCountForAmount(
         const CAmount& required,
-        const std::vector<sigma::CoinDenominationV3>& denominations);
+        const std::vector<sigma::CoinDenomination>& denominations);
 
     static CAmount SelectMintCoinsForAmount(
         const CAmount& required,
-        const std::vector<sigma::CoinDenominationV3>& denominations,
-        std::vector<sigma::CoinDenominationV3>& coinsOut);
+        const std::vector<sigma::CoinDenomination>& denominations,
+        std::vector<sigma::CoinDenomination>& coinsOut);
 
     static CAmount SelectSpendCoinsForAmount(
         const CAmount& required,
-        const std::list<CZerocoinEntryV3>& coinsIn,
-        std::vector<CZerocoinEntryV3>& coinsOut);
+        const std::list<CSigmaEntry>& coinsIn,
+        std::vector<CSigmaEntry>& coinsOut);
 
     // Returns a list of unspent and verified coins, I.E. coins which are ready
     // to be spent.
-    std::list<CZerocoinEntryV3> GetAvailableCoins() const;
+    std::list<CSigmaEntry> GetAvailableCoins() const;
 
     /** \brief Selects coins to spend, and coins to re-mint based on the required amount to spend, provided by the user. As the lower denomination now is 0.1 zcoin, user's request will be rounded up to the nearest 0.1. This difference between the user's requested value, and the actually spent value will be left to the miners as a fee.
      * \param[in] required Required amount to spend.
@@ -878,8 +878,8 @@ public:
      */
     bool GetCoinsToSpend(
         CAmount required,
-        std::vector<CZerocoinEntryV3>& coinsToSpend_out,
-        std::vector<sigma::CoinDenominationV3>& coinsToMint_out) const;
+        std::vector<CSigmaEntry>& coinsToSpend_out,
+        std::vector<sigma::CoinDenomination>& coinsToMint_out) const;
 
     /**
      * Insert additional inputs into the transaction by
@@ -908,7 +908,7 @@ public:
 
     bool CreateZerocoinSpendTransactionV3(
         std::string& thirdPartyaddress,
-        sigma::CoinDenominationV3 denomination,
+        sigma::CoinDenomination denomination,
         CWalletTx& wtxNew,
         CReserveKey& reservekey,
         CAmount& nFeeRet,
@@ -923,14 +923,14 @@ public:
     CWalletTx CreateZerocoinSpendTransactionV3(
         const std::vector<CRecipient>& recipients,
         CAmount& fee,
-        std::vector<CZerocoinEntryV3>& selected,
-        std::vector<CZerocoinEntryV3>& changes);
+        std::vector<CSigmaEntry>& selected,
+        std::vector<CSigmaEntry>& changes);
 
     bool CreateMultipleZerocoinSpendTransaction(std::string& thirdPartyaddress, const std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>>& denominations,
                                         CWalletTx& wtxNew, CReserveKey& reservekey, vector<CBigNum>& coinSerials, uint256& txHash, vector<CBigNum>& zcSelectedValues, std::string& strFailReason, bool forceUsed = false);
     bool CreateMultipleZerocoinSpendTransactionV3(
         std::string& thirdPartyaddress,
-        const std::vector<sigma::CoinDenominationV3>& denominations,
+        const std::vector<sigma::CoinDenomination>& denominations,
         CWalletTx& wtxNew,
         CReserveKey& reservekey,
         CAmount& nFeeRet,
@@ -942,22 +942,26 @@ public:
         const CCoinControl *coinControl = NULL);
 
     bool CommitZerocoinSpendTransaction(CWalletTx& wtxNew, CReserveKey& reservekey);
-    bool CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CZerocoinEntryV3>& selectedCoins, std::vector<CZerocoinEntryV3>& changes);
+    bool CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CSigmaEntry>& selectedCoins, std::vector<CSigmaEntry>& changes);
     std::string SendMoney(CScript scriptPubKey, int64_t nValue, CWalletTx& wtxNew, bool fAskFee=false);
     std::string SendMoneyToDestination(const CTxDestination &address, int64_t nValue, CWalletTx& wtxNew, bool fAskFee=false);
 
     std::string MintZerocoin(CScript pubCoin, int64_t nValue, bool isSigmaMint, CWalletTx& wtxNew, bool fAskFee=false);
     std::string MintAndStoreZerocoin(vector<CRecipient> vecSend, vector<libzerocoin::PrivateCoin> privCoins, CWalletTx &wtxNew, bool fAskFee=false);
-    std::string MintAndStoreZerocoinV3(vector<CRecipient> vecSend, vector<sigma::PrivateCoinV3> privCoins, CWalletTx &wtxNew, bool fAskFee=false);
+    std::string MintAndStoreSigma(
+        const vector<CRecipient>& vecSend,
+        const vector<sigma::PrivateCoin>& privCoins,
+        CWalletTx &wtxNew,
+        bool fAskFee=false);
 
     std::string SpendZerocoin(std::string& thirdPartyaddress, int64_t nValue, libzerocoin::CoinDenomination denomination, CWalletTx& wtxNew, CBigNum& coinSerial, uint256& txHash, CBigNum& zcSelectedValue, bool& zcSelectedIsUsed, bool forceUsed = false);
-    std::string SpendZerocoinV3(std::string& thirdPartyaddress, sigma::CoinDenominationV3 denomination, CWalletTx& wtxNew, Scalar& coinSerial, uint256& txHash, GroupElement& zcSelectedValue, bool& zcSelectedIsUsed, bool forceUsed = false, bool fAskFee=false);
+    std::string SpendSigma(std::string& thirdPartyaddress, sigma::CoinDenomination denomination, CWalletTx& wtxNew, Scalar& coinSerial, uint256& txHash, GroupElement& zcSelectedValue, bool& zcSelectedIsUsed, bool forceUsed = false, bool fAskFee=false);
     std::string SpendMultipleZerocoin(std::string& thirdPartyaddress, const std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>>& denominations, CWalletTx& wtxNew, vector<CBigNum>& coinSerials, uint256& txHash, vector<CBigNum>& zcSelectedValues, bool forceUsed = false);
 
-    std::string SpendMultipleZerocoinV3(std::string& thirdPartyaddress, const std::vector<sigma::CoinDenominationV3>& denominations, CWalletTx& wtxNew, vector<Scalar>& coinSerials, uint256& txHash, vector<GroupElement>& zcSelectedValues, bool forceUsed = false, bool fAskFee=false);
+    std::string SpendMultipleZerocoinV3(std::string& thirdPartyaddress, const std::vector<sigma::CoinDenomination>& denominations, CWalletTx& wtxNew, vector<Scalar>& coinSerials, uint256& txHash, vector<GroupElement>& zcSelectedValues, bool forceUsed = false, bool fAskFee=false);
 
-    std::vector<CZerocoinEntryV3> SpendZerocoinV3(const std::vector<CRecipient>& recipients, CWalletTx& result);
-    std::vector<CZerocoinEntryV3> SpendZerocoinV3(const std::vector<CRecipient>& recipients, CWalletTx& result, CAmount& fee);
+    std::vector<CSigmaEntry> SpendSigma(const std::vector<CRecipient>& recipients, CWalletTx& result);
+    std::vector<CSigmaEntry> SpendSigma(const std::vector<CRecipient>& recipients, CWalletTx& result, CAmount& fee);
 
     bool CreateZerocoinMintModel(string &stringError,
                                  const string& denomAmount,
@@ -973,7 +977,7 @@ public:
 
     bool CreateZerocoinMintModelV3(
         string &stringError,
-        const std::vector<std::pair<sigma::CoinDenominationV3, int>>& denominationPairs);
+        const std::vector<std::pair<sigma::CoinDenomination, int>>& denominationPairs);
 
     bool CreateZerocoinMintModelV2(string &stringError, const std::vector<std::pair<int,int>>& denominationPairs);
 
@@ -1289,10 +1293,10 @@ public:
 };
 
 
-class CZerocoinEntryV3
+class CSigmaEntry
 {
 public:
-    void set_denomination(sigma::CoinDenominationV3 denom) {
+    void set_denomination(sigma::CoinDenomination denom) {
         DenominationToInteger(denom, denomination);
     }
     void set_denomination_value(int64_t new_denomination) {
@@ -1301,8 +1305,8 @@ public:
     int64_t get_denomination_value() const {
         return denomination;
     }
-    sigma::CoinDenominationV3 get_denomination() const {
-        sigma::CoinDenominationV3 result;
+    sigma::CoinDenomination get_denomination() const {
+        sigma::CoinDenomination result;
         IntegerToDenomination(denomination, result);
         return result;
     }
@@ -1324,7 +1328,7 @@ public:
 
 private:
     // NOTE(martun): made this one private to make sure people don't
-    // misuse it and try to assign a value of type sigma::CoinDenominationV3
+    // misuse it and try to assign a value of type sigma::CoinDenomination
     // to it. In these cases the value is automatically converted to int,
     // which is not what we want.
     // Starting from Version 3 == sigma, this number is coin value * COIN,
@@ -1333,7 +1337,7 @@ private:
 
 public:
 
-    CZerocoinEntryV3()
+    CSigmaEntry()
     {
         SetNull();
     }
@@ -1436,7 +1440,7 @@ public:
     GroupElement pubCoin;
     int id;
 
-    void set_denomination(sigma::CoinDenominationV3 denom) {
+    void set_denomination(sigma::CoinDenomination denom) {
         DenominationToInteger(denom, denomination);
     }
 
@@ -1448,8 +1452,8 @@ public:
         return denomination;
     }
 
-    sigma::CoinDenominationV3 get_denomination() const {
-        sigma::CoinDenominationV3 result;
+    sigma::CoinDenomination get_denomination() const {
+        sigma::CoinDenomination result;
         IntegerToDenomination(denomination, result);
         return result;
     }
@@ -1479,7 +1483,7 @@ public:
     }
 private:
     // NOTE(martun): made this one private to make sure people don't
-    // misuse it and try to assign a value of type sigma::CoinDenominationV3
+    // misuse it and try to assign a value of type sigma::CoinDenomination
     // to it. In these cases the value is automatically converted to int,
     // which is not what we want.
     // Starting from Version 3 == sigma, this number is coin value * COIN,
@@ -1488,7 +1492,7 @@ private:
 };
 
 bool CompHeight(const CZerocoinEntry & a, const CZerocoinEntry & b);
-bool CompHeightV3(const CZerocoinEntryV3& a, const CZerocoinEntryV3& b);
+bool CompHeightV3(const CSigmaEntry& a, const CSigmaEntry& b);
 bool CompID(const CZerocoinEntry & a, const CZerocoinEntry & b);
-bool CompIDV3(const CZerocoinEntryV3& a, const CZerocoinEntryV3& b);
+bool CompIDV3(const CSigmaEntry& a, const CSigmaEntry& b);
 #endif // BITCOIN_WALLET_WALLET_H

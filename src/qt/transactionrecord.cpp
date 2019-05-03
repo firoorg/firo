@@ -42,7 +42,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
     uint256 hash = wtx.GetHash();
     std::map<std::string, std::string> mapValue = wtx.mapValue;
 
-    bool isAllSigmaSpendFromMe = wtx.IsZerocoinSpendV3();
+    bool isAllSigmaSpendFromMe = wtx.IsSigmaSpend();
 
     for (const auto& vin : wtx.vin) {
         isAllSigmaSpendFromMe = wallet->IsMine(vin) & ISMINE_SPENDABLE;
@@ -52,7 +52,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
 
     if (wtx.IsZerocoinSpend() || isAllSigmaSpendFromMe) {
         for (const CTxOut& txout : wtx.vout) {
-            if (txout.scriptPubKey.IsZerocoinMintV3()) {
+            if (txout.scriptPubKey.IsSigmaMint()) {
                 continue;
             }
             isminetype mine = wallet->IsMine(txout);
@@ -171,7 +171,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                     sub.type = TransactionRecord::SendToAddress;
                     sub.address = CBitcoinAddress(address).ToString();
                 }
-                else if(wtx.IsZerocoinMint() || wtx.IsZerocoinMintV3())
+                else if(wtx.IsZerocoinMint() || wtx.IsSigmaMint())
                 {
                     sub.type = TransactionRecord::Mint;
                 }

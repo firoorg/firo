@@ -647,8 +647,8 @@ public:
     bool IsZerocoinSpend() const;
 
     // Checks if the script is zerocoin v3 sigma mint/spend or not.
-    bool IsZerocoinMintV3() const;
-    bool IsZerocoinSpendV3() const;
+    bool IsSigmaMint() const;
+    bool IsSigmaSpend() const;
  
     // Called by IsStandardTx.
     bool HasCanonicalPushes() const;

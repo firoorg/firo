@@ -34,7 +34,7 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_many)
 
     std::vector<std::string> denominations = {"0.1", "0.5", "1", "10", "100"};
 
-    CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
+    CZerocoinState *zerocoinState = CZerocoinState::GetZerocoinState();
 
     // Create 400-200+1 = 201 new empty blocks. // consensus.nMintV3SigmaStartBlock = 400
     CreateAndProcessEmptyBlocks(201, scriptPubKey);
@@ -286,7 +286,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_usedinput){
 
     std::vector<std::string> denominations = {"0.1", "0.5", "1", "10", "100"};
 
-    CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
+    CZerocoinState *zerocoinState = CZerocoinState::GetZerocoinState();
 
     // Create 400-200+1 = 201 new empty blocks. // consensus.nMintV3SigmaStartBlock = 400
     CreateAndProcessEmptyBlocks(201, scriptPubKey);

@@ -66,8 +66,8 @@ void SigmaPage::setModel(WalletModel *model)
         connect(model, SIGNAL(balanceChanged(CAmount, CAmount, CAmount, CAmount, CAmount, CAmount)),
             this, SLOT(updateAvailableToMintBalance(CAmount)));
         updateAvailableToMintBalance(model->getBalance());
-        connect(model, SIGNAL(notifySigmaChanged(const std::vector<CZerocoinEntryV3>, const std::vector<CZerocoinEntryV3>)),
-            this, SLOT(updateCoins(const std::vector<CZerocoinEntryV3>, const std::vector<CZerocoinEntryV3>)));
+        connect(model, SIGNAL(notifySigmaChanged(const std::vector<CSigmaEntry>, const std::vector<CSigmaEntry>)),
+            this, SLOT(updateCoins(const std::vector<CSigmaEntry>, const std::vector<CSigmaEntry>)));
         model->checkSigmaAmount(true);
         for (int i = 0; i < ui->entries->count(); ++i) {
             SendCoinsEntry *entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
@@ -139,8 +139,8 @@ void SigmaPage::on_sendButton_clicked()
     }
 
     // prepare transaction for getting txFee earlier
-    std::vector<CZerocoinEntryV3> selectedCoins;
-    std::vector<CZerocoinEntryV3> changes;
+    std::vector<CSigmaEntry> selectedCoins;
+    std::vector<CSigmaEntry> changes;
     WalletModelTransaction currentTransaction(recipients);
     auto prepareStatus = model->prepareSigmaSpendTransaction(currentTransaction, selectedCoins, changes);
 
@@ -366,9 +366,9 @@ static QString formatAmount(CAmount n)
     return quotient_str + QString(".") + remainder_str;
 }
 
-void SigmaPage::updateCoins(const std::vector<CZerocoinEntryV3>& spendable, const std::vector<CZerocoinEntryV3>& pending)
+void SigmaPage::updateCoins(const std::vector<CSigmaEntry>& spendable, const std::vector<CSigmaEntry>& pending)
 {
-    std::unordered_map<sigma::CoinDenominationV3, int> spendableDenominationCoins;
+    std::unordered_map<sigma::CoinDenomination, int> spendableDenominationCoins;
 
     CAmount sum(0);
     for (const auto& c : spendable) {
@@ -377,11 +377,11 @@ void SigmaPage::updateCoins(const std::vector<CZerocoinEntryV3>& spendable, cons
     }
 
     // update coins amount
-    int denom100Amount = spendableDenominationCoins[sigma::CoinDenominationV3::SIGMA_DENOM_100];
-    int denom10Amount = spendableDenominationCoins[sigma::CoinDenominationV3::SIGMA_DENOM_10];
-    int denom1Amount = spendableDenominationCoins[sigma::CoinDenominationV3::SIGMA_DENOM_1];
-    int denom05Amount = spendableDenominationCoins[sigma::CoinDenominationV3::SIGMA_DENOM_0_5];
-    int denom01Amount = spendableDenominationCoins[sigma::CoinDenominationV3::SIGMA_DENOM_0_1];
+    int denom100Amount = spendableDenominationCoins[sigma::CoinDenomination::SIGMA_DENOM_100];
+    int denom10Amount = spendableDenominationCoins[sigma::CoinDenomination::SIGMA_DENOM_10];
+    int denom1Amount = spendableDenominationCoins[sigma::CoinDenomination::SIGMA_DENOM_1];
+    int denom05Amount = spendableDenominationCoins[sigma::CoinDenomination::SIGMA_DENOM_0_5];
+    int denom01Amount = spendableDenominationCoins[sigma::CoinDenomination::SIGMA_DENOM_0_1];
 
     ui->amountDenom100->setText(QString::fromStdString(std::to_string(denom100Amount)));
     ui->amountDenom10->setText(QString::fromStdString(std::to_string(denom10Amount)));
