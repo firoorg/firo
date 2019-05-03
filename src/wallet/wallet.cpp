@@ -2122,7 +2122,7 @@ int CWallet::GetRequiredCoinCountForAmount(
         const std::vector<sigma::CoinDenominationV3>& denominations) {
     CAmount val = required;
     int result = 0;
-    for (int i = 0; i < denominations.size(); i++)
+    for (std::size_t i = 0; i < denominations.size(); i++)
     {
         CAmount denom;
         DenominationToInteger(denominations[i], denom);
@@ -2144,7 +2144,7 @@ CAmount CWallet::SelectMintCoinsForAmount(
         const std::vector<sigma::CoinDenominationV3>& denominations,
         std::vector<sigma::CoinDenominationV3>& coinsOut) {
     CAmount val = required;
-    for (int i = 0; i < denominations.size(); i++)
+    for (std::size_t i = 0; i < denominations.size(); i++)
     {
         CAmount denom;
         DenominationToInteger(denominations[i], denom);
@@ -4118,9 +4118,6 @@ bool CWallet::CreateZerocoinSpendModel(
         string denomAmount,
         bool forceUsed,
         bool dontSpendSigma) {
-    // temporarily disable zerocoin
-    stringError = "Zerocoin functionality has been disabled until the pending Sigma release.";
-    return false;
     // Clean the stringError, otherwise even if the Spend passes, it returns false.
     stringError = "";
 
@@ -6073,8 +6070,10 @@ string CWallet::MintAndStoreZerocoinV3(vector<CRecipient> vecSend,
  * @return
  */
 string CWallet::MintZerocoin(CScript pubCoin, int64_t nValue, bool isSigmaMint, CWalletTx &wtxNew, bool fAskFee) {
-    // temporarily disable zerocoin
-    return "Zerocoin functionality has been disabled until the pending Sigma release.";
+    if (!isSigmaMint) {
+        // temporarily disable zerocoin
+        return "Zerocoin functionality has been disabled until the pending Sigma release.";
+    }
 
     LogPrintf("MintZerocoin: value = %s\n", nValue);
     // Check amount
