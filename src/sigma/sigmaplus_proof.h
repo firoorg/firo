@@ -7,7 +7,7 @@
 namespace sigma {
 
 template<class Exponent, class GroupElement>
-class SigmaPlusProof{
+class SigmaPlusProof {
 public:
     SigmaPlusProof(const Params* p): params(p) {};
 

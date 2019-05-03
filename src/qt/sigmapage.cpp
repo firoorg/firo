@@ -10,9 +10,10 @@
 #include "sendcoinsentry.h"
 #include "walletmodel.h"
 
-#include "wallet/wallet.h"
-#include "wallet/walletdb.h"
-#include "sigma/coin.h"
+#include "../zerocoin_v3.h"
+#include "../wallet/wallet.h"
+#include "../wallet/walletdb.h"
+#include "../sigma/coin.h"
 
 #include <QMessageBox>
 #include <QScrollBar>
@@ -26,7 +27,8 @@
 SigmaPage::SigmaPage(const PlatformStyle *platformStyle, QWidget *parent) :
     QWidget(parent),
     ui(new Ui::SigmaPage),
-    model(0),
+    clientModel(0),
+    walletModel(0),
     isNewRecipientAllowed(true),
     platformStyle(platformStyle)
 {
@@ -58,9 +60,23 @@ SigmaPage::SigmaPage(const PlatformStyle *platformStyle, QWidget *parent) :
     connect(ui->clearButton, SIGNAL(clicked()), this, SLOT(clear()));
 }
 
-void SigmaPage::setModel(WalletModel *model)
+void SigmaPage::setClientModel(ClientModel *model)
 {
-    this->model = model;
+    this->clientModel = model;
+
+    if (model) {
+        bool sigmaAllowed = IsSigmaAllowed(model->getNumBlocks());
+
+        connect(model, SIGNAL(numBlocksChanged(int, const QDateTime&, double, bool)), this, SLOT(numBlocksChanged(int, const QDateTime&, double, bool)));
+
+        ui->mintButton->setEnabled(sigmaAllowed);
+        ui->sendButton->setEnabled(sigmaAllowed);
+    }
+}
+
+void SigmaPage::setWalletModel(WalletModel *model)
+{
+    this->walletModel = model;
 
     if (model && model->getOptionsModel()) {
         connect(model, SIGNAL(balanceChanged(CAmount, CAmount, CAmount, CAmount, CAmount, CAmount)),
@@ -83,6 +99,16 @@ SigmaPage::~SigmaPage()
     delete ui;
 }
 
+void SigmaPage::numBlocksChanged(int count, const QDateTime& blockDate, double nVerificationProgress, bool header)
+{
+    if (!header) {
+        bool sigmaAllowed = IsSigmaAllowed(count);
+
+        ui->mintButton->setEnabled(sigmaAllowed);
+        ui->sendButton->setEnabled(sigmaAllowed);
+    }
+}
+
 void SigmaPage::on_mintButton_clicked()
 {
     auto rawAmount = ui->amountToMint->value();
@@ -93,7 +119,7 @@ void SigmaPage::on_mintButton_clicked()
     amount = amount / CENT * CENT + ((amount % CENT >= CENT / 2) ? CENT : 0);
 
     try {
-        model->sigmaMint(amount);
+        walletModel->sigmaMint(amount);
     } catch (const std::runtime_error& e) {
         QMessageBox::critical(this, tr("Error"),
             tr("You cannot mint Sigma because %1").arg(tr(e.what())),
@@ -110,7 +136,7 @@ void SigmaPage::on_mintButton_clicked()
 
 void SigmaPage::on_sendButton_clicked()
 {
-    if (!model || !model->getOptionsModel())
+    if (!walletModel || !walletModel->getOptionsModel())
         return;
 
     QList<SendCoinsRecipient> recipients;
@@ -132,7 +158,7 @@ void SigmaPage::on_sendButton_clicked()
     }
 
     isNewRecipientAllowed = false;
-    WalletModel::UnlockContext ctx(model->requestUnlock());
+    WalletModel::UnlockContext ctx(walletModel->requestUnlock());
     if (!ctx.isValid()) {
         isNewRecipientAllowed = true;
         return;
@@ -142,11 +168,11 @@ void SigmaPage::on_sendButton_clicked()
     std::vector<CSigmaEntry> selectedCoins;
     std::vector<CSigmaEntry> changes;
     WalletModelTransaction currentTransaction(recipients);
-    auto prepareStatus = model->prepareSigmaSpendTransaction(currentTransaction, selectedCoins, changes);
+    auto prepareStatus = walletModel->prepareSigmaSpendTransaction(currentTransaction, selectedCoins, changes);
 
     // process prepareStatus and on error generate message shown to user
     processSpendCoinsReturn(prepareStatus,
-        BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), currentTransaction.getTransactionFee()));
+        BitcoinUnits::formatWithUnit(walletModel->getOptionsModel()->getDisplayUnit(), currentTransaction.getTransactionFee()));
 
     if (prepareStatus.status != WalletModel::OK) {
         isNewRecipientAllowed = true;
@@ -159,7 +185,7 @@ void SigmaPage::on_sendButton_clicked()
     QStringList formatted;
     for (const auto& rcp : currentTransaction.getRecipients()) {
         // generate bold amount string
-        QString amount = "<b>" + BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), rcp.amount);
+        QString amount = "<b>" + BitcoinUnits::formatHtmlWithUnit(walletModel->getOptionsModel()->getDisplayUnit(), rcp.amount);
         amount.append("</b>");
 
         // generate monospace address string
@@ -190,7 +216,7 @@ void SigmaPage::on_sendButton_clicked()
     if (txFee > 0) {
         // append fee string if a fee is required
         questionString.append("<hr /><span style='color:#aa0000;'>");
-        questionString.append(BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), txFee));
+        questionString.append(BitcoinUnits::formatHtmlWithUnit(walletModel->getOptionsModel()->getDisplayUnit(), txFee));
         questionString.append("</span> ");
         questionString.append(tr("added as transaction fee"));
 
@@ -203,11 +229,11 @@ void SigmaPage::on_sendButton_clicked()
     CAmount totalAmount = currentTransaction.getTotalTransactionAmount() + txFee;
     QStringList alternativeUnits;
     Q_FOREACH(BitcoinUnits::Unit u, BitcoinUnits::availableUnits()) {
-        if (u != model->getOptionsModel()->getDisplayUnit())
+        if (u != walletModel->getOptionsModel()->getDisplayUnit())
             alternativeUnits.append(BitcoinUnits::formatHtmlWithUnit(u, totalAmount));
     }
     questionString.append(tr("Total Amount %1")
-        .arg(BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), totalAmount)));
+        .arg(BitcoinUnits::formatHtmlWithUnit(walletModel->getOptionsModel()->getDisplayUnit(), totalAmount)));
     questionString.append(QString("<span style='font-size:10pt;font-weight:normal;'><br />(=%2)</span>")
         .arg(alternativeUnits.join(" " + tr("or") + "<br />")));
 
@@ -226,7 +252,7 @@ void SigmaPage::on_sendButton_clicked()
     }
 
     // now send the prepared transaction
-    WalletModel::SendCoinsReturn sendStatus = model->sendSigma(currentTransaction, selectedCoins, changes);
+    WalletModel::SendCoinsReturn sendStatus = walletModel->sendSigma(currentTransaction, selectedCoins, changes);
     // process sendStatus and on error generate message shown to user
     processSpendCoinsReturn(sendStatus);
 
@@ -246,7 +272,7 @@ void SigmaPage::clear()
 
 SendCoinsEntry *SigmaPage::addEntry() {
     SendCoinsEntry *entry = new SendCoinsEntry(platformStyle, this);
-    entry->setModel(model);
+    entry->setModel(walletModel);
     ui->entries->addWidget(entry);
     connect(entry, SIGNAL(removeEntry(SendCoinsEntry*)), this, SLOT(removeEntry(SendCoinsEntry*)));
 
@@ -283,7 +309,7 @@ void SigmaPage::removeEntry(SendCoinsEntry* entry)
 
 void SigmaPage::updateAvailableToMintBalance(const CAmount& balance)
 {
-    QString formattedBalance = BitcoinUnits::formatHtmlWithUnit(model->getOptionsModel()->getDisplayUnit(), balance);
+    QString formattedBalance = BitcoinUnits::formatHtmlWithUnit(walletModel->getOptionsModel()->getDisplayUnit(), balance);
     ui->availableAmount->setText(formattedBalance);
 }
 

@@ -1181,6 +1181,7 @@ bool CheckTransaction(
 			    return state.DoS(10, false, REJECT_INVALID, "bad-txns-prevout-null");
 		    }
 	    }
+
         if (tx.IsZerocoinV3SigmaTransaction()) {
             if (!CheckSigmaTransaction(
                     tx,
@@ -1191,20 +1192,22 @@ bool CheckTransaction(
                     isCheckWallet,
                     sigmaTxInfo))
             return false;
-        } else if (tx.IsZerocoinTransaction()) {
-            if (!CheckZerocoinTransaction(
-                    tx,
-                    state,
-                    Params().GetConsensus(),
-                    hashTx,
-                    isVerifyDB,
-                    nHeight,
-                    isCheckWallet,
-                    fStatefulZerocoinCheck,
-                    zerocoinTxInfo))
-		        return false;
+        }
+
+        if (!CheckZerocoinTransaction(
+            tx,
+            state,
+            Params().GetConsensus(),
+            hashTx,
+            isVerifyDB,
+            nHeight,
+            isCheckWallet,
+            fStatefulZerocoinCheck,
+            zerocoinTxInfo)) {
+            return false;
         }
     }
+
     return true;
 }
 
@@ -1394,8 +1397,6 @@ bool AcceptToMemoryPoolWorker(
             LOCK(pool.cs);
             CCoinsViewMemPool viewMemPool(pcoinsTip, pool);
             view.SetBackend(viewMemPool);
-	    //Reset view.base with the dummy instance at scope exit
-	    std::shared_ptr<CCoinsView> at_scope_exit (&dummy, [&view](CCoinsView * dummy){view.SetBackend(*dummy);});
 
             // do we already have it?
             bool fHadTxInCache = pcoinsTip->HaveCoinsInCache(hash);
@@ -1431,9 +1432,6 @@ bool AcceptToMemoryPoolWorker(
 
                 nValueIn = view.GetValueIn(tx);
 
-                // we have all inputs cached now, so switch back to dummy, so we don't need to keep lock on mempool
-                view.SetBackend(dummy);
-
                 // Only accept BIP68 sequence locked transactions that can be mined in the next
                 // block; we don't want our mempool filled up with transactions that can't
                 // be mined yet.
@@ -1447,6 +1445,8 @@ bool AcceptToMemoryPoolWorker(
                 nValueIn = sigma::GetSigmaSpendInput(tx);
             }
 
+            // we have all inputs cached now, so switch back to dummy, so we don't need to keep lock on mempool
+            view.SetBackend(dummy);
         } // LOCK
 
         if (!tx.IsZerocoinSpend() && fCheckInputs) {

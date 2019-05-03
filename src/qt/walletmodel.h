@@ -218,7 +218,7 @@ public:
         std::vector<CSigmaEntry>& coins, std::vector<CSigmaEntry>& changes);
 
     // Mint sigma
-    bool sigmaMint(const CAmount& n);
+    void sigmaMint(const CAmount& n);
     void checkSigmaAmount(bool forced);
 
 

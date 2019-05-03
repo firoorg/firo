@@ -51,6 +51,17 @@ static bool CheckSigmaSpendSerial(
 	return true;
 }
 
+bool IsSigmaAllowed()
+{
+	LOCK(cs_main);
+	return IsSigmaAllowed(chainActive.Height());
+}
+
+bool IsSigmaAllowed(int height)
+{
+	return height >= Params().GetConsensus().nSigmaStartBlock;
+}
+
 secp_primitives::GroupElement ParseSigmaMintScript(const CScript& script)
 {
 	if (script.size() < 1) {
@@ -98,6 +109,7 @@ bool CheckSigmaSpendTransaction(
 		CZerocoinTxInfo *sigmaTxInfo) {
 	bool hasZerocoinSpendInputs = false, hasNonZerocoinInputs = false;
 	int vinIndex = -1;
+	std::unordered_set<Scalar, sigma::CScalarHash> txSerials;
 
 	for (const CTxIn &txin : tx.vin)
 	{
@@ -187,18 +199,29 @@ bool CheckSigmaSpendTransaction(
 					return false;
 			}
 
+			// check duplicated serials in same transaction.
+			if (!txSerials.insert(serial).second) {
+				return state.DoS(100,
+				    error("CheckSpendZcoinTransactionV3: two or more spends with same serial in the same transaction"));
+			}
+
 			if(!isVerifyDB && !isCheckWallet) {
 				if (sigmaTxInfo && !sigmaTxInfo->fInfoIsComplete) {
 					// add spend information to the index
 					sigmaTxInfo->spentSerials.insert(std::make_pair(
 								serial, (int)spend->getDenomination()));
-					sigmaTxInfo->zcTransactions.insert(hashTx);
 				}
 			}
 		}
 		else {
 			LogPrintf("CheckSpendZCoinTransactionV3: verification failed at block %d\n", nHeight);
 			return false;
+		}
+	}
+
+	if(!isVerifyDB && !isCheckWallet) {
+		if (zerocoinTxInfoV3 && !zerocoinTxInfoV3->fInfoIsComplete && hasZerocoinSpendInputs) {
+			zerocoinTxInfoV3->zcTransactions.insert(hashTx);
 		}
 	}
 

@@ -949,7 +949,7 @@ WalletModel::SendCoinsReturn WalletModel::sendSigma(WalletModelTransaction &tran
     return SendCoinsReturn(OK);
 }
 
-bool WalletModel::sigmaMint(const CAmount& n)
+void WalletModel::sigmaMint(const CAmount& n)
 {
     std::vector<sigma::CoinDenomination> denominations;
     sigma::GetAllDenoms(denominations);

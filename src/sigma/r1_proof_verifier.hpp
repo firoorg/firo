@@ -16,61 +16,78 @@ R1ProofVerifier<Exponent,GroupElement>::R1ProofVerifier(
 
 template<class Exponent, class GroupElement>
 bool R1ProofVerifier<Exponent,GroupElement>::verify(
-        const R1Proof<Exponent, GroupElement>& proof_) const {
-    std::vector<Exponent> f_;
-    return verify(proof_, f_);
+        const R1Proof<Exponent, GroupElement>& proof,
+        bool skip_final_response_verification) const {
+    std::vector<Exponent> f;
+    return verify(proof, f, skip_final_response_verification);
 }
 
 template<class Exponent, class GroupElement>
 bool R1ProofVerifier<Exponent,GroupElement>::verify(
-        const R1Proof<Exponent, GroupElement>& proof_,
-        std::vector<Exponent>& f_) const{
+        const R1Proof<Exponent, GroupElement>& proof,
+        std::vector<Exponent>& f_out, 
+        bool skip_final_response_verification) const{
 
-    if(!(proof_.A_.isMember() &&
+    if(!(proof.A_.isMember() &&
          B_Commit.isMember()  &&
-         proof_.C_.isMember() &&
-         proof_.D_.isMember()))
+         proof.C_.isMember() &&
+         proof.D_.isMember()))
         return false;
-    const std::vector<Exponent>& f = proof_.f_;
+    const std::vector<Exponent>& f = proof.f_;
     for (std::size_t i = 0; i < f.size(); i++) {
         if(!f[i].isMember())
             return false;
     }
 
-    if(!(proof_.ZA_.isMember() &&
-         proof_.ZC_.isMember()))
+    if(!(proof.ZA_.isMember() &&
+         proof.ZC_.isMember()))
         return false;
 
-    Exponent x;
-    SigmaPrimitives<Exponent, GroupElement>::get_x(proof_.A_,proof_.C_, proof_.D_, x);
-    x_ = x;
-    f_.reserve(n_ * m_);
-    for(int j = 0; j < m_; ++j){
-        f_.push_back(Exponent(uint64_t(0)));
+    if (!skip_final_response_verification) {
+        Exponent x;
+        std::vector<GroupElement> group_elements = {proof.A_, B_Commit, proof.C_, proof.D_};
+        SigmaPrimitives<Exponent, GroupElement>::generate_challenge(group_elements, x);
+        return verify_final_response(proof, x, f_out);
+    }
+    return true;
+}
+
+template<class Exponent, class GroupElement>
+bool R1ProofVerifier<Exponent,GroupElement>::verify_final_response(
+            const R1Proof<Exponent, GroupElement>& proof,
+            const Exponent& challenge_x,
+            std::vector<Exponent>& f_out) const {
+    const std::vector<Exponent>& f = proof.f_;
+    f_out.clear();
+    f_out.reserve(n_ * m_);
+    for(int j = 0; j < m_; ++j) {
+        f_out.push_back(Exponent(uint64_t(0)));
         Exponent temp;
         int k = n_ - 1;
-        for(int i = 0; i < k; ++i){
+        for(int i = 0; i < k; ++i) {
             temp += f[j * k + i];
-            f_.emplace_back(f[j * k + i]);
+            f_out.emplace_back(f[j * k + i]);
         }
-        f_[j * n_] = x - temp;
+        f_out[j * n_] = challenge_x - temp;
     }
 
     GroupElement one;
-    SigmaPrimitives<Exponent, GroupElement>::commit(g_, h_, f_, proof_.ZA_, one);
-    if((B_Commit * x + proof_.A_) != one)
+    SigmaPrimitives<Exponent, GroupElement>::commit(g_, h_, f_out, proof.ZA_, one);
+    if((B_Commit * challenge_x + proof.A_) != one)
         return false;
 
-    std::vector<Exponent> f_prime;
-    f_prime.reserve(f_.size());
-    for (std::size_t i = 0; i < f_.size(); i++)
-        f_prime.emplace_back(f_[i] * (x - f_[i]));
+    std::vector<Exponent> f_outprime;
+    f_outprime.reserve(f_out.size());
+    for (std::size_t i = 0; i < f_out.size(); i++) {
+        f_outprime.emplace_back(f_out[i] * (challenge_x - f_out[i]));
+    }
+
     GroupElement two;
-    SigmaPrimitives<Exponent, GroupElement>::commit(g_, h_, f_prime, proof_.ZC_, two);
-    if((proof_.C_ * x + proof_.D_) != two)
+    SigmaPrimitives<Exponent, GroupElement>::commit(g_, h_, f_outprime, proof.ZC_, two);
+    if ((proof.C_ * challenge_x + proof.D_) != two)
         return false;
 
     return true;
 }
-
+ 
 } // namespace sigma
