@@ -549,7 +549,7 @@ std::vector<CMintMeta> CHDMintTracker::ListMints(bool fUnusedOnly, bool fMatureO
 
         if (fMatureOnly) {
             // Not confirmed
-            if (!mint.nHeight || mint.nHeight > chainActive.Height() - ZC_MINT_CONFIRMATIONS)
+            if (!mint.nHeight || !(mint.nHeight + (ZC_MINT_CONFIRMATIONS-1) <= chainActive.Height()))
                 continue;
         }
 

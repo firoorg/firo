@@ -19,7 +19,7 @@ private:
     uint256 txid;
     int nHeight;
     int nId;
-    int denom;
+    int64_t denom;
     bool isUsed;
 
 public:
@@ -31,7 +31,7 @@ public:
         IntegerToDenomination(denom, value);
         return value;
     }
-    int GetDenominationValue() const {
+    int64_t GetDenominationValue() const {
         return denom;
     }
     uint32_t GetCount() const { return nCount; }
@@ -48,7 +48,7 @@ public:
         DenominationToInteger(value, denom);
         this->denom = denom;
     };
-    void SetDenominationValue(const int& denom) { this->denom = denom; }
+    void SetDenominationValue(const int64_t& denom) { this->denom = denom; }
     void SetHeight(const int& nHeight) { this->nHeight = nHeight; }
     void SetId(const int& nId) { this->nId = nId; }
     void SetNull();
@@ -75,3 +75,4 @@ public:
 };
 
 #endif //ZCOIN_HDMINT_H
+

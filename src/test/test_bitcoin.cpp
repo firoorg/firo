@@ -88,6 +88,8 @@ TestingSetup::TestingSetup(const std::string& chainName, std::string suf) : Basi
         RegisterNodeSignals(GetNodeSignals());
 
         // Init HD mint
+        zwalletMain = new CHDMintWallet(pwalletMain->strWalletFile);
+        pwalletMain->setZWallet(zwalletMain);
         pwalletMain->hdMintTracker->Init();
         zwalletMain->LoadMintPoolFromDB();
         zwalletMain->SyncWithChain();
