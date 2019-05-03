@@ -604,9 +604,8 @@ void DisconnectTipZC(CBlock & /*block*/, CBlockIndex *pindexDelete) {
 }
 
 CBigNum ZerocoinGetSpendSerialNumber(const CTransaction &tx, const CTxIn &txin) {
-    if (!tx.IsZerocoinSpend())
+    if (!txin.IsZerocoinSpend())
         return CBigNum(0);
-
     try {
         CDataStream serializedCoinSpend((const char *)&*(txin.scriptSig.begin() + 4),
                                     (const char *)&*txin.scriptSig.end(),

@@ -5586,24 +5586,63 @@ bool CWallet::InitLoadWallet() {
         nWalletDBUpdated++;
 
         // Restore wallet transaction metadata after -zapwallettxes=1
-        if (GetBoolArg("-zapwallettxes", false) && GetArg("-zapwallettxes", "1") != "2") {
-            CWalletDB walletdb(walletFile);
+        if (GetBoolArg("-zapwallettxes", false)) {
+            std::string zwtValue = GetArg("-zapwallettxes", "1");
+            if(zwtValue != "2") {
+                CWalletDB walletdb(walletFile);
 
-            BOOST_FOREACH(const CWalletTx &wtxOld, vWtx)
-            {
-                uint256 hash = wtxOld.GetHash();
-                std::map<uint256, CWalletTx>::iterator mi = walletInstance->mapWallet.find(hash);
-                if (mi != walletInstance->mapWallet.end()) {
-                    const CWalletTx *copyFrom = &wtxOld;
-                    CWalletTx *copyTo = &mi->second;
-                    copyTo->mapValue = copyFrom->mapValue;
-                    copyTo->vOrderForm = copyFrom->vOrderForm;
-                    copyTo->nTimeReceived = copyFrom->nTimeReceived;
-                    copyTo->nTimeSmart = copyFrom->nTimeSmart;
-                    copyTo->fFromMe = copyFrom->fFromMe;
-                    copyTo->strFromAccount = copyFrom->strFromAccount;
-                    copyTo->nOrderPos = copyFrom->nOrderPos;
-                    walletdb.WriteTx(*copyTo);
+                BOOST_FOREACH(const CWalletTx &wtxOld, vWtx)
+                {
+                    uint256 hash = wtxOld.GetHash();
+                    std::map<uint256, CWalletTx>::iterator mi = walletInstance->mapWallet.find(hash);
+                    if (mi != walletInstance->mapWallet.end()) {
+                        const CWalletTx *copyFrom = &wtxOld;
+                        CWalletTx *copyTo = &mi->second;
+                        copyTo->mapValue = copyFrom->mapValue;
+                        copyTo->vOrderForm = copyFrom->vOrderForm;
+                        copyTo->nTimeReceived = copyFrom->nTimeReceived;
+                        copyTo->nTimeSmart = copyFrom->nTimeSmart;
+                        copyTo->fFromMe = copyFrom->fFromMe;
+                        copyTo->strFromAccount = copyFrom->strFromAccount;
+                        copyTo->nOrderPos = copyFrom->nOrderPos;
+                        walletdb.WriteTx(*copyTo);
+                    }
+                }
+            } else if(zwtValue == "2") {
+                // Reset the used flag for Mint txs which lack corresponding spend tx
+                // The algorighm is like this:
+                //   1. Determine if there are used mints
+                //   2. Build list of spend serials for the wallet
+                //   3. Mark all used mints as not used if there is no matching spend serial
+                list <CZerocoinEntry> listPubCoin;
+                CWalletDB walletdb(walletFile);
+                walletdb.ListPubCoin(listPubCoin);
+                bool usedMintsFound = false;
+                BOOST_FOREACH(CZerocoinEntry const & entry, listPubCoin) {
+                    if(entry.IsUsed) {
+                       usedMintsFound = true;
+                       break;
+                    }
+                }
+
+                if(usedMintsFound) {
+                    CZerocoinState *zerocoinState = CZerocoinState::GetZerocoinState();
+                    std::list <CZerocoinSpendEntry> listCoinSpendSerial;
+                    walletdb.ListCoinSpendSerial(listCoinSpendSerial);
+                    BOOST_FOREACH(CZerocoinEntry & entry, listPubCoin) {
+                        if(entry.IsUsed) {
+                            if(!zerocoinState->IsUsedCoinSerial(entry.serialNumber)) {
+                                entry.IsUsed = false;
+                                walletdb.WriteZerocoinEntry(entry);
+                                std::list <CZerocoinSpendEntry>::const_iterator const
+                                    se_iter = std::find_if(listCoinSpendSerial.begin(), listCoinSpendSerial.end(),
+                                        [&entry](CZerocoinSpendEntry const & spendEntry){ return entry.serialNumber == spendEntry.coinSerial;});
+                                if(se_iter != listCoinSpendSerial.end())
+                                    walletdb.EraseCoinSpendSerialEntry(*se_iter);
+                            }
+                        }
+                    }
+
                 }
             }
         }
