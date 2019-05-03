@@ -109,6 +109,7 @@ bool CheckSpendZcoinTransactionV3(
 		CZerocoinTxInfoV3 *zerocoinTxInfoV3) {
 	bool hasZerocoinSpendInputs = false, hasNonZerocoinInputs = false;
 	int vinIndex = -1;
+	std::unordered_set<Scalar, sigma::CScalarHash> txSerials;
 
 	for (const CTxIn &txin : tx.vin)
 	{
@@ -198,18 +199,29 @@ bool CheckSpendZcoinTransactionV3(
 					return false;
 			}
 
+			// check duplicated serials in same transaction.
+			if (!txSerials.insert(serial).second) {
+				return state.DoS(100,
+				    error("CheckSpendZcoinTransactionV3: two or more spends with same serial in the same transaction"));
+			}
+
 			if(!isVerifyDB && !isCheckWallet) {
 				if (zerocoinTxInfoV3 && !zerocoinTxInfoV3->fInfoIsComplete) {
 					// add spend information to the index
 					zerocoinTxInfoV3->spentSerials.insert(std::make_pair(
 								serial, (int)spend->getDenomination()));
-					zerocoinTxInfoV3->zcTransactions.insert(hashTx);
 				}
 			}
 		}
 		else {
 			LogPrintf("CheckSpendZCoinTransactionV3: verification failed at block %d\n", nHeight);
 			return false;
+		}
+	}
+
+	if(!isVerifyDB && !isCheckWallet) {
+		if (zerocoinTxInfoV3 && !zerocoinTxInfoV3->fInfoIsComplete && hasZerocoinSpendInputs) {
+			zerocoinTxInfoV3->zcTransactions.insert(hashTx);
 		}
 	}
 
