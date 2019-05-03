@@ -107,7 +107,6 @@ bool CheckSpendZcoinTransactionV3(
 		int nHeight,
 		bool isCheckWallet,
 		CZerocoinTxInfoV3 *zerocoinTxInfoV3) {
-	int txHeight = chainActive.Height();
 	bool hasZerocoinSpendInputs = false, hasNonZerocoinInputs = false;
 	int vinIndex = -1;
 	std::unordered_set<Scalar, sigma::CScalarHash> txSerials;
