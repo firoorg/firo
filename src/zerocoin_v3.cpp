@@ -310,6 +310,8 @@ bool CheckZerocoinTransactionV3(
 		bool isCheckWallet,
 		CZerocoinTxInfoV3 *zerocoinTxInfoV3)
 {
+    auto& consensus = Params().GetConsensus();
+
     // nHeight have special mode which value is INT_MAX so we need this.
     int realHeight;
 
@@ -318,7 +320,7 @@ bool CheckZerocoinTransactionV3(
         realHeight = chainActive.Height();
     }
 
-    bool allowSigma = (realHeight >= Params().GetConsensus().nSigmaStartBlock);
+    bool allowSigma = (realHeight >= consensus.nSigmaStartBlock);
 
 	// Check Mint Zerocoin Transaction
 	if (allowSigma) {
@@ -333,9 +335,10 @@ bool CheckZerocoinTransactionV3(
 	// Check Spend Zerocoin Transaction
 	if(tx.IsZerocoinSpendV3()) {
 		// First check number of inputs does not exceed transaction limit
-		if(tx.vin.size() > ZC_SPEND_LIMIT){
+		if (tx.vin.size() > consensus.nMaxSigmaSpendPerBlock) {
 			return false;
 		}
+
 		vector<sigma::CoinDenominationV3> denominations;
 		uint64_t totalValue = 0;
 		BOOST_FOREACH(const CTxIn &txin, tx.vin){
