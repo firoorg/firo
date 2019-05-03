@@ -255,6 +255,7 @@ class CMainParams : public CChainParams {
         consensus.nZerocoinV2MintGracefulPeriod = ZC_V2_MINT_GRACEFUL_PERIOD;
         consensus.nZerocoinV2SpendMempoolGracefulPeriod = ZC_V2_SPEND_GRACEFUL_MEMPOOL_PERIOD;
         consensus.nZerocoinV2SpendGracefulPeriod = ZC_V2_SPEND_GRACEFUL_PERIOD;
+        consensus.nMaxSigmaSpendPerBlock = 5;
     }
 };
 
@@ -428,6 +429,7 @@ class CTestNetParams : public CChainParams {
             consensus.nZerocoinV2MintGracefulPeriod = ZC_V2_MINT_TESTNET_GRACEFUL_PERIOD;
             consensus.nZerocoinV2SpendMempoolGracefulPeriod = ZC_V2_SPEND_TESTNET_GRACEFUL_MEMPOOL_PERIOD;
             consensus.nZerocoinV2SpendGracefulPeriod = ZC_V2_SPEND_TESTNET_GRACEFUL_PERIOD;
+            consensus.nMaxSigmaSpendPerBlock = 30;
         }
 };
 
@@ -567,6 +569,7 @@ class CRegTestParams : public CChainParams {
             consensus.nZerocoinV2MintGracefulPeriod = 5;
             consensus.nZerocoinV2SpendMempoolGracefulPeriod = 10;
             consensus.nZerocoinV2SpendGracefulPeriod = 20;
+            consensus.nMaxSigmaSpendPerBlock = 5;
         }
 
         void UpdateBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout) {
