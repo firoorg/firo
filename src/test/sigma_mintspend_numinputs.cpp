@@ -37,27 +37,28 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_numinputs)
     int denominationIndexA = rand() % 5;
     int denominationIndexB = (denominationIndexA + 5) %4; //guarantees a different number in the range
 
-    CZerocoinState *zerocoinState = CZerocoinState::GetZerocoinState();
+    sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
+    auto& consensus = ::Params().GetConsensus();
 
     // Create 400-200+1 = 201 new empty blocks. // consensus.nMintV3SigmaStartBlock = 400
     CreateAndProcessEmptyBlocks(201, scriptPubKey);
 
     pwalletMain->SetBroadcastTransactions(true);
 
-    // attempt to create a zerocoin spend with more than ZC_SPEND_LIMIT inputs.
+    // attempt to create a zerocoin spend with more than inputs limit.
     printf("Testing number of inputs for denomination %s", denominations[denominationIndexA].c_str());
     denominationsForTx.clear();
 
-    for (int i = 0; i < (ZC_SPEND_LIMIT+1)*2; i++){
+    for (unsigned i = 0; i < (consensus.nMaxSigmaSpendPerBlock+1)*2; i++){
         denominationsForTx.push_back(denominations[denominationIndexA]);
         BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denominations[denominationIndexA].c_str(), SIGMA), stringError + " - Create Mint failed");
         BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denominations[denominationIndexB].c_str(), SIGMA), stringError + " - Create Mint failed");
-        if(i<=ZC_SPEND_LIMIT){
+        if (i <= consensus.nMaxSigmaSpendPerBlock) {
             denominationsForTx.push_back(denominations[denominationIndexA]);
         }
     }
 
-    BOOST_CHECK_MESSAGE(mempool.size() == (ZC_SPEND_LIMIT+1)*4, "Num input mints not added to mempool");
+    BOOST_CHECK_MESSAGE(mempool.size() == (consensus.nMaxSigmaSpendPerBlock+1)*4, "Num input mints not added to mempool");
 
     // add block
     previousHeight = chainActive.Height();
@@ -74,7 +75,7 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_numinputs)
     previousHeight = chainActive.Height();
 
     // Check that the tx creation fails.
-    BOOST_CHECK_MESSAGE(!pwalletMain->CreateZerocoinSpendModel(wtx, stringError, thirdPartyAddress, denominationsForTx), "Spend succeeded even though number of inputs > ZC_SPEND_LIMIT");
+    BOOST_CHECK_MESSAGE(!pwalletMain->CreateZerocoinSpendModel(wtx, stringError, thirdPartyAddress, denominationsForTx), "Spend succeeded even though number of inputs exceed the limits");
 
     // Next add 3 transactions with 2 inputs each, verify mempool==3. mine a block. Verify mempool still has 1 tx.
     for(int i=0;i<3;i++){
@@ -94,7 +95,7 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_numinputs)
 
     vtxid.clear();
     mempool.clear();
-    zerocoinState->Reset();
+    sigmaState->Reset();
 }
 BOOST_AUTO_TEST_SUITE_END()
 

@@ -294,7 +294,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
         pblock->nVersion = ComputeBlockVersion(pindexPrev, chainparams.GetConsensus());
         if (fMTP)
             pblock->nVersion |= 0x1000;
-            
+
         // -regtest only: allow overriding block.nVersion with
         // -blockversion=N to test forking scenarios
         if (chainparams.MineBlocksOnDemand())
@@ -320,6 +320,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
 
         CTxMemPool::indexed_transaction_set::nth_index<3>::type::iterator mi = mempool.mapTx.get<3>().begin();
         CTxMemPool::txiter iter;
+        std::size_t nSigmaSpend = 0;
 
         while (mi != mempool.mapTx.get<3>().end() || !clearedTxs.empty())
         {
@@ -351,7 +352,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
             if (!tx_ids.empty() && std::find(tx_ids.begin(), tx_ids.end(), tx.GetHash()) == tx_ids.end()) {
                 continue; // Skip because we were asked to include only transactions in tx_ids.
             }
-    
+
             bool fOrphan = false;
             BOOST_FOREACH(CTxMemPool::txiter parent, mempool.GetMemPoolParents(iter))
             {
@@ -412,10 +413,17 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
 
             if (tx.IsZerocoinSpend() || tx.IsSigmaSpend()) {
                 LogPrintf("try to include zerocoinspend tx=%s\n", tx.GetHash().ToString());
-                LogPrintf("COUNT_SPEND_ZC_TX =%s\n", COUNT_SPEND_ZC_TX);
-                LogPrintf("MAX_SPEND_ZC_TX_PER_BLOCK =%s\n", MAX_SPEND_ZC_TX_PER_BLOCK);
-                if ((COUNT_SPEND_ZC_TX + tx.vin.size()) > MAX_SPEND_ZC_TX_PER_BLOCK) {
-                    continue;
+
+                if (tx.IsSigmaSpend()) {
+                    if (tx.vin.size() + nSigmaSpend > params.nMaxSigmaSpendPerBlock) {
+                        continue;
+                    }
+                } else {
+                    LogPrintf("COUNT_SPEND_ZC_TX =%s\n", COUNT_SPEND_ZC_TX);
+                    LogPrintf("MAX_SPEND_ZC_TX_PER_BLOCK =%s\n", MAX_SPEND_ZC_TX_PER_BLOCK);
+                    if ((COUNT_SPEND_ZC_TX + tx.vin.size()) > MAX_SPEND_ZC_TX_PER_BLOCK) {
+                        continue;
+                    }
                 }
 
                 //mempool.countZCSpend--;
@@ -456,6 +464,9 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
                 nBlockSigOpsCost += nTxSigOps;
                 nFees += nTxFees;
                 COUNT_SPEND_ZC_TX += tx.vin.size();
+                if (tx.IsSigmaSpend()) {
+                    nSigmaSpend += tx.vin.size();
+                }
                 inBlock.insert(iter);
                 continue;
             }
@@ -1118,7 +1129,7 @@ void static ZcoinMiner(const CChainParams &chainparams) {
                     {
                         LOCK2(cs_main, mempool.cs);
                         int nCount = 0;
-                        fHasZnodesWinnerForNextBlock = 
+                        fHasZnodesWinnerForNextBlock =
                                 params.IsRegtest() ||
                                 chainActive.Height() < params.nZnodePaymentsStartBlock ||
                                 mnodeman.GetNextZnodeInQueueForPayment(chainActive.Height(), true, nCount);
