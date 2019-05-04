@@ -1044,7 +1044,7 @@ bool CWallet::AbandonTransaction(const uint256 &hashTx) {
 
             const CTxIn &txin = wtx.vin[0];
             // NOTE(martun): +1 on the next line stands for 1 byte in which the opcode of
-            // OP_ZEROCOINSPENDV3 is written. In zerocoin you will see +4 instead,
+            // OP_SIGMASPEND is written. In zerocoin you will see +4 instead,
             // because the size of serialized spend is also written, probably in 3 bytes.
             CDataStream serializedCoinSpend((const char *)&*(txin.scriptSig.begin() + 1),
                                             (const char *)&*txin.scriptSig.end(),
@@ -1070,7 +1070,7 @@ bool CWallet::AbandonTransaction(const uint256 &hashTx) {
                     walletdb.WriteZerocoinEntry(modifiedItem);
 
                     // erase zerocoin spend entry
-                    CZerocoinSpendEntryV3 spendEntry;
+                    CSigmaSpendEntry spendEntry;
                     spendEntry.coinSerial = serial;
                     walletdb.EraseCoinSpendSerialEntry(spendEntry);
                 }
@@ -1747,7 +1747,7 @@ CAmount CWalletTx::GetAvailableCredit(bool fUseCache) const {
     for (unsigned int i = 0; i < vout.size(); i++) {
         if (!pwallet->IsSpent(hashTx, i)) {
             const CTxOut &txout = vout[i];
-            bool isPrivate = txout.scriptPubKey.IsZerocoinMint() || txout.scriptPubKey.IsZerocoinMintV3();
+            bool isPrivate = txout.scriptPubKey.IsZerocoinMint() || txout.scriptPubKey.IsSigmaMint();
             nCredit += isPrivate ? 0 : pwallet->GetCredit(txout, ISMINE_SPENDABLE);
             if (!MoneyRange(nCredit))
                 throw std::runtime_error("CWalletTx::GetAvailableCredit() : value out of range");
@@ -2102,7 +2102,7 @@ std::vector<CRecipient> CWallet::CreateSigmaMintRecipients(
             // Create script for coin
             CScript scriptSerializedCoin;
             // opcode is inserted as 1 byte according to file script/script.h
-            scriptSerializedCoin << OP_ZEROCOINMINTV3;
+            scriptSerializedCoin << OP_SIGMAMINT;
 
             // and this one will write the size in different byte lengths depending on the length of vector. If vector size is <0.4c, which is 76, will write the size of vector in just 1 byte. In our case the size is always 34, so must write that 34 in 1 byte.
             std::vector<unsigned char> vch = pubCoin.getValue().getvch();
@@ -3703,7 +3703,7 @@ bool CWallet::CreateZerocoinMintModel(
             }
             sigma_denominations.push_back(std::make_pair(denom, pair.second));
         }
-        return CreateZerocoinMintModelV3(stringError, sigma_denominations);
+        return CreateSigmaMintModel(stringError, sigma_denominations);
     }
     else if (algo == ZEROCOIN) {
         // Convert denominations from string to integers.
@@ -3717,7 +3717,7 @@ bool CWallet::CreateZerocoinMintModel(
         return false;
 }
 
-bool CWallet::CreateZerocoinMintModelV3(
+bool CWallet::CreateSigmaMintModel(
         string &stringError,
         const std::vector<std::pair<sigma::CoinDenomination, int>>& denominationPairs) {
     vector<CRecipient> vecSend;
@@ -3764,7 +3764,7 @@ bool CWallet::CreateZerocoinMintModelV3(
             // Create script for coin
             CScript scriptSerializedCoin;
             // opcode is inserted as 1 byte according to file script/script.h
-            scriptSerializedCoin << OP_ZEROCOINMINTV3;
+            scriptSerializedCoin << OP_SIGMAMINT;
 
             // MARTUN: Commenting this for now.
             // this one will probably be written as int64_t, which means it will be written in as few bytes as necessary, and one more byte for sign. In our case our 34 will take 2 bytes, 1 for the number 34 and another one for the sign.
@@ -3880,14 +3880,14 @@ bool CWallet::CreateZerocoinMintModel(string &stringError, const string& denomAm
     //TODO(martun) check if it is time to start minting v3 sigma mints. Not sure how we can
     // access the current block number in the waller side, so adding an algo parameter.
     if(algo == SIGMA)
-        return CreateZerocoinMintModelV3(stringError, denomAmount);
+        return CreateSigmaMintModel(stringError, denomAmount);
     else if (algo == ZEROCOIN)
         return CreateZerocoinMintModelV2(stringError, denomAmount);
     else
         return false;
 }
 
-bool CWallet::CreateZerocoinMintModelV3(string &stringError, const string& denomAmount) {
+bool CWallet::CreateSigmaMintModel(string &stringError, const string& denomAmount) {
     if (!fFileBacked)
         return false;
 
@@ -3918,7 +3918,7 @@ bool CWallet::CreateZerocoinMintModelV3(string &stringError, const string& denom
         // Create script for coin
         CScript scriptSerializedCoin;
         // opcode is inserted as 1 byte according to file script/script.h
-        scriptSerializedCoin << OP_ZEROCOINMINTV3;
+        scriptSerializedCoin << OP_SIGMAMINT;
 
         // MARTUN: Commenting this for now.
         // this one will probably be written as int64_t, which means it will be written in as few bytes as necessary, and one more byte for sign. In our case our 34 will take 2 bytes, 1 for the number 34 and another one for the sign.
@@ -4177,7 +4177,7 @@ bool CWallet::CreateZerocoinSpendModel(
 bool CWallet::CreateZerocoinSpendModel(CWalletTx& wtx, string &stringError, string& thirdPartyAddress, const vector<string>& denomAmounts, bool forceUsed) {
     // try to spend V2 coins, if fails, try to spend V3 sigma coins.
     if (!CreateZerocoinSpendModelV2(wtx, stringError, thirdPartyAddress, denomAmounts, forceUsed)) {
-        return CreateZerocoinSpendModelV3(wtx, stringError, thirdPartyAddress, denomAmounts, forceUsed);
+        return CreateSigmaSpendModel(wtx, stringError, thirdPartyAddress, denomAmounts, forceUsed);
     }
 return true;
 }
@@ -4228,7 +4228,7 @@ bool CWallet::CreateZerocoinSpendModelV2(
 
 // TODO(martun): check this function. These string denominations which come from
 // outside may not be parsed properly.
-bool CWallet::CreateZerocoinSpendModelV3(
+bool CWallet::CreateSigmaSpendModel(
         CWalletTx& wtx,
         string &stringError,
         string& thirdPartyAddress,
@@ -4251,7 +4251,7 @@ bool CWallet::CreateZerocoinSpendModelV3(
     vector<Scalar> coinSerials;
     uint256 txHash;
     vector<GroupElement> zcSelectedValues;
-    stringError = SpendMultipleZerocoinV3(
+    stringError = SpendMultipleSigma(
         thirdPartyAddress, denominations, wtx,
         coinSerials, txHash, zcSelectedValues, forceUsed);
     if (stringError != "")
@@ -4851,7 +4851,7 @@ bool CWallet::CreateZerocoinSpendTransaction(std::string &thirdPartyaddress, int
     return true;
 }
 
-bool CWallet::CreateZerocoinSpendTransactionV3(
+bool CWallet::CreateSigmaSpendTransaction(
         std::string &thirdPartyaddress,
         sigma::CoinDenomination denomination,
         CWalletTx &wtxNew, CReserveKey &reservekey,
@@ -4907,7 +4907,7 @@ bool CWallet::CreateZerocoinSpendTransactionV3(
 
             list <CSigmaEntry> listOwnCoins;
             CWalletDB(strWalletFile).ListSigmaPubCoin(listOwnCoins);
-            listOwnCoins.sort(CompHeightV3);
+            listOwnCoins.sort(CompSigmaHeight);
             CSigmaEntry coinToUse;
             sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
 
@@ -4998,7 +4998,7 @@ bool CWallet::CreateZerocoinSpendTransactionV3(
             CDataStream serializedCoinSpend(SER_NETWORK, PROTOCOL_VERSION);
             serializedCoinSpend << spend;
 
-            CScript tmp = CScript() << OP_ZEROCOINSPENDV3;
+            CScript tmp = CScript() << OP_SIGMASPEND;
             // NOTE(martun): Do not write the size first, doesn't look like necessary.
             // If we write it, it will get written in different number of bytes depending
             // on the number itself, and "CScript" does not provide a function to read
@@ -5009,9 +5009,9 @@ bool CWallet::CreateZerocoinSpendTransactionV3(
             tmp.insert(tmp.end(), serializedCoinSpend.begin(), serializedCoinSpend.end());
             txNew.vin[0].scriptSig.assign(tmp.begin(), tmp.end());
 
-            std::list <CZerocoinSpendEntryV3> listCoinSpendSerial;
+            std::list <CSigmaSpendEntry> listCoinSpendSerial;
             CWalletDB(strWalletFile).ListCoinSpendSerial(listCoinSpendSerial);
-            BOOST_FOREACH(const CZerocoinSpendEntryV3 &item, listCoinSpendSerial) {
+            BOOST_FOREACH(const CSigmaSpendEntry &item, listCoinSpendSerial) {
                 if (!forceUsed && spend.getCoinSerialNumber() == item.coinSerial) {
                     // THIS SELECEDTED COIN HAS BEEN USED, SO UPDATE ITS STATUS
                     CSigmaEntry pubCoinTx;
@@ -5057,7 +5057,7 @@ bool CWallet::CreateZerocoinSpendTransactionV3(
             CDataStream serializedCoinSpendNew(SER_NETWORK, PROTOCOL_VERSION);
             serializedCoinSpendNew << spend;
 
-            CScript tmpNew = CScript() << OP_ZEROCOINSPENDV3;
+            CScript tmpNew = CScript() << OP_SIGMASPEND;
             tmpNew.insert(tmpNew.end(), serializedCoinSpendNew.begin(), serializedCoinSpendNew.end());
             txNew.vin[0].scriptSig.assign(tmpNew.begin(), tmpNew.end());
 
@@ -5076,7 +5076,7 @@ bool CWallet::CreateZerocoinSpendTransactionV3(
             zcSelectedValue = coinToUse.value;
             zcSelectedIsUsed = coinToUse.IsUsed;
 
-            CZerocoinSpendEntryV3 entry;
+            CSigmaSpendEntry entry;
             entry.coinSerial = coinSerial;
             entry.hashTx = txHash;
             entry.pubCoin = zcSelectedValue;
@@ -5101,7 +5101,7 @@ bool CWallet::CreateZerocoinSpendTransactionV3(
     return true;
 }
 
-CWalletTx CWallet::CreateZerocoinSpendTransactionV3(
+CWalletTx CWallet::CreateSigmaSpendTransaction(
     const std::vector<CRecipient>& recipients,
     CAmount& fee,
     std::vector<CSigmaEntry>& selected,
@@ -5447,7 +5447,7 @@ bool CWallet::CreateMultipleZerocoinSpendTransaction(std::string &thirdPartyaddr
      return true;
 }
 
-bool CWallet::CreateMultipleZerocoinSpendTransactionV3(
+bool CWallet::CreateMultipleSigmaSpendTransaction(
         std::string &thirdPartyaddress,
         const std::vector<sigma::CoinDenomination>& denominations,
         CWalletTx &wtxNew,
@@ -5529,7 +5529,7 @@ bool CWallet::CreateMultipleZerocoinSpendTransactionV3(
                 // Select not yet used coin from the wallet with minimal possible id
                 list <CSigmaEntry> listOwnCoins;
                 CWalletDB(strWalletFile).ListSigmaPubCoin(listOwnCoins);
-                listOwnCoins.sort(CompHeightV3);
+                listOwnCoins.sort(CompSigmaHeight);
                 CSigmaEntry coinToUse;
                 sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
                 std::vector<sigma::PublicCoin> anonimity_set;
@@ -5672,7 +5672,7 @@ bool CWallet::CreateMultipleZerocoinSpendTransactionV3(
                 serializedCoinSpend << spend;
 
                 // Insert the spend script into the tx object
-                CScript tmp = CScript() << OP_ZEROCOINSPENDV3;
+                CScript tmp = CScript() << OP_SIGMASPEND;
 
                 // NOTE(martun): Do not write the size first, doesn't look like necessary.
                 // If we write it, it will get written in different number of bytes depending
@@ -5686,9 +5686,9 @@ bool CWallet::CreateMultipleZerocoinSpendTransactionV3(
 
                 // Try to find this coin in the list of spent coin serials.
                 // If found, notify that a coin that was previously thought to be available is actually used, and fail.
-                std::list <CZerocoinSpendEntryV3> listCoinSpendSerial;
+                std::list <CSigmaSpendEntry> listCoinSpendSerial;
                 CWalletDB(strWalletFile).ListCoinSpendSerial(listCoinSpendSerial);
-                BOOST_FOREACH(const CZerocoinSpendEntryV3 &item, listCoinSpendSerial){
+                BOOST_FOREACH(const CSigmaSpendEntry &item, listCoinSpendSerial){
                     if (!forceUsed && spend.getCoinSerialNumber() == item.coinSerial) {
                         // THIS SELECTED COIN HAS BEEN USED, SO UPDATE ITS STATUS
                         CSigmaEntry pubCoinTx;
@@ -5738,7 +5738,7 @@ bool CWallet::CreateMultipleZerocoinSpendTransactionV3(
                 // Serialize the CoinSpend object into a buffer.
                 CDataStream serializedCoinSpendNew(SER_NETWORK, PROTOCOL_VERSION);
                 serializedCoinSpendNew << spends[i];
-                CScript tmpNew = CScript() << OP_ZEROCOINSPENDV3;
+                CScript tmpNew = CScript() << OP_SIGMASPEND;
                 tmpNew.insert(tmpNew.end(), serializedCoinSpendNew.begin(), serializedCoinSpendNew.end());
                 txNew.vin[i].scriptSig.assign(tmpNew.begin(), tmpNew.end());
             }
@@ -5766,7 +5766,7 @@ bool CWallet::CreateMultipleZerocoinSpendTransactionV3(
                 coinSerials.push_back(tempStorage.privateCoin.getSerialNumber());
                 zcSelectedValues.push_back(coinToUse.value);
 
-                CZerocoinSpendEntryV3 entry;
+                CSigmaSpendEntry entry;
                 entry.coinSerial = coinSerials[index];
                 entry.hashTx = txHash;
                 entry.pubCoin = coinToUse.value;
@@ -6187,7 +6187,7 @@ string CWallet::SpendSigma(
         return strError;
     }
 
-    if (!CreateZerocoinSpendTransactionV3(
+    if (!CreateSigmaSpendTransaction(
             thirdPartyaddress, denomination, wtxNew, reservekey, nFeeRequired, coinSerial, txHash,
             zcSelectedValue, zcSelectedIsUsed, strError, forceUsed)) {
         LogPrintf("SpendZerocoin() : %s\n", strError.c_str());
@@ -6221,7 +6221,7 @@ string CWallet::SpendSigma(
                 pwalletMain->NotifyZerocoinChanged(pwalletMain, ownCoinItem.value.GetHex(), "New", CT_UPDATED);
             }
         }
-        CZerocoinSpendEntryV3 entry;
+        CSigmaSpendEntry entry;
         entry.coinSerial = coinSerial;
         entry.hashTx = txHash;
         entry.pubCoin = zcSelectedValue;
@@ -6304,7 +6304,7 @@ string CWallet::SpendMultipleZerocoin(std::string &thirdPartyaddress, const std:
      return "";
  }
 
-string CWallet::SpendMultipleZerocoinV3(
+string CWallet::SpendMultipleSigma(
         std::string &thirdPartyaddress,
         const std::vector<sigma::CoinDenomination>& denominations,
         CWalletTx &wtxNew,
@@ -6322,7 +6322,7 @@ string CWallet::SpendMultipleZerocoinV3(
         return strError;
     }
 
-    if (!CreateMultipleZerocoinSpendTransactionV3(
+    if (!CreateMultipleSigmaSpendTransaction(
             thirdPartyaddress, denominations, wtxNew, reservekey,nFeeRequired, coinSerials, txHash,
             zcSelectedValues, strError, forceUsed)) {
         LogPrintf("SpendZerocoin() : %s\n", strError.c_str());
@@ -6358,7 +6358,7 @@ string CWallet::SpendMultipleZerocoinV3(
                     LogPrintf("pubcoin=%s, isUsed=New\n", ownCoinItem.value.GetHex());
                 }
             }
-            CZerocoinSpendEntryV3 entry;
+            CSigmaSpendEntry entry;
             entry.coinSerial = coinSerials[index];
             entry.hashTx = txHash;
             entry.pubCoin = zcSelectedValue;
@@ -6389,7 +6389,7 @@ std::vector<CSigmaEntry> CWallet::SpendSigma(
     std::vector<CSigmaEntry> coins;
     std::vector<CSigmaEntry> changes;
 
-    result = CreateZerocoinSpendTransactionV3(recipients, fee, coins, changes);
+    result = CreateSigmaSpendTransaction(recipients, fee, coins, changes);
 
     CommitSigmaTransaction(result, coins, changes);
 
@@ -6422,8 +6422,8 @@ bool CWallet::CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CSigmaEntry>
         std::tie(height, id) = sigmaState->GetMintedCoinHeightAndId(sigma::PublicCoin(
             coin.value, coin.get_denomination()));
 
-        // add CZerocoinSpendEntryV3
-        CZerocoinSpendEntryV3 spend;
+        // add CSigmaSpendEntry
+        CSigmaSpendEntry spend;
 
         spend.coinSerial = coin.serialNumber;
         spend.hashTx = wtxNew.GetHash();
@@ -7626,7 +7626,7 @@ bool CMerkleTx::AcceptToMemoryPool(
 }
 
 bool CompHeight(const CZerocoinEntry &a, const CZerocoinEntry &b) { return a.nHeight < b.nHeight; }
-bool CompHeightV3(const CSigmaEntry &a, const CSigmaEntry &b) { return a.nHeight < b.nHeight; }
+bool CompSigmaHeight(const CSigmaEntry &a, const CSigmaEntry &b) { return a.nHeight < b.nHeight; }
 
 bool CompID(const CZerocoinEntry &a, const CZerocoinEntry &b) { return a.id < b.id; }
-bool CompIDV3(const CSigmaEntry &a, const CSigmaEntry &b) { return a.id < b.id; }
+bool CompSigmaID(const CSigmaEntry &a, const CSigmaEntry &b) { return a.id < b.id; }

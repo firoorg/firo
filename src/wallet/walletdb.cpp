@@ -229,7 +229,7 @@ bool CWalletDB::WriteCoinSpendSerialEntry(const CZerocoinSpendEntry &zerocoinSpe
     return Write(make_pair(string("zcserial"), zerocoinSpend.coinSerial), zerocoinSpend, true);
 }
 
-bool CWalletDB::WriteCoinSpendSerialEntry(const CZerocoinSpendEntryV3 &zerocoinSpend) {
+bool CWalletDB::WriteCoinSpendSerialEntry(const CSigmaSpendEntry &zerocoinSpend) {
     return Write(std::make_pair(std::string("sigma_spend"), zerocoinSpend.coinSerial), zerocoinSpend, true);
 }
 
@@ -245,7 +245,7 @@ bool CWalletDB::EraseCoinSpendSerialEntry(const CZerocoinSpendEntry &zerocoinSpe
     return Erase(make_pair(string("zcserial"), zerocoinSpend.coinSerial));
 }
 
-bool CWalletDB::EraseCoinSpendSerialEntry(const CZerocoinSpendEntryV3 &zerocoinSpend) {
+bool CWalletDB::EraseCoinSpendSerialEntry(const CSigmaSpendEntry &zerocoinSpend) {
     return Erase(std::make_pair(std::string("sigma_spend"), zerocoinSpend.coinSerial));
 }
 
@@ -409,7 +409,7 @@ void CWalletDB::ListCoinSpendSerial(std::list <CZerocoinSpendEntry> &listCoinSpe
     pcursor->close();
 }
 
-void CWalletDB::ListCoinSpendSerial(std::list <CZerocoinSpendEntryV3> &listCoinSpendSerial) {
+void CWalletDB::ListCoinSpendSerial(std::list <CSigmaSpendEntry> &listCoinSpendSerial) {
     Dbc *pcursor = GetCursor();
     if (!pcursor)
         throw runtime_error("CWalletDB::ListCoinSpendSerial() : cannot create DB cursor");
@@ -436,7 +436,7 @@ void CWalletDB::ListCoinSpendSerial(std::list <CZerocoinSpendEntryV3> &listCoinS
             break;
         Scalar value;
         ssKey >> value;
-        CZerocoinSpendEntryV3 zerocoinSpendItem;
+        CSigmaSpendEntry zerocoinSpendItem;
         ssValue >> zerocoinSpendItem;
         listCoinSpendSerial.push_back(zerocoinSpendItem);
     }

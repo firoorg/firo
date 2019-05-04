@@ -146,8 +146,8 @@ const char* GetOpName(opcodetype opcode)
     // zerocoin
     case OP_ZEROCOINMINT           : return "OP_ZEROCOINMINT";
     case OP_ZEROCOINSPEND          : return "OP_ZEROCOINSPEND";
-    case OP_ZEROCOINMINTV3         : return "OP_ZEROCOINMINT_V3";
-    case OP_ZEROCOINSPENDV3        : return "OP_ZEROCOINSPEND_V3";
+    case OP_SIGMAMINT         : return "OP_ZEROCOINMINT_V3";
+    case OP_SIGMASPEND        : return "OP_ZEROCOINSPEND_V3";
 
 
     // Note:
@@ -295,12 +295,12 @@ bool CScript::IsSigmaMint() const
 {
     // Extra-fast test for Zerocoin Mint CScripts:
     return (this->size() > 0 &&
-            (*this)[0] == OP_ZEROCOINMINTV3);
+            (*this)[0] == OP_SIGMAMINT);
 }
 
 bool CScript::IsSigmaSpend() const {
     return (this->size() > 0 &&
-            (*this)[0] == OP_ZEROCOINSPENDV3);
+            (*this)[0] == OP_SIGMASPEND);
 }
 
 bool CScript::HasCanonicalPushes() const

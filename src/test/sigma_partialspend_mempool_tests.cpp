@@ -47,7 +47,7 @@ BOOST_AUTO_TEST_CASE(partialspend)
     const CBitcoinAddress randomAddr1(newKey1.GetID());
     const CBitcoinAddress randomAddr2(newKey2.GetID());
 
-    CZerocoinState *zerocoinState = CZerocoinState::GetZerocoinState();
+    sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
     std::vector<uint256> vtxid;
     std::vector<std::string> denominations = {"0.1", "0.5", "1", "10", "100"};
 
@@ -108,7 +108,7 @@ BOOST_AUTO_TEST_CASE(partialspend)
             {GetScriptForDestination(randomAddr2.Get()), denomAmount / 2, false},
             {GetScriptForDestination(randomAddr1.Get()), denomAmount / 2 - CENT, false},
         };
-        dtx = pwalletMain->CreateZerocoinSpendTransactionV3(dupRecipients, dFee, dSelected, dChanges);
+        dtx = pwalletMain->CreateSigmaSpendTransaction(dupRecipients, dFee, dSelected, dChanges);
 
         // Create partial spend transaction
         CWalletTx tx;
@@ -150,15 +150,15 @@ BOOST_AUTO_TEST_CASE(partialspend)
         BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool not empty although mempool should reject double spend");
 
         // Temporary disable usedCoinSerials check to force double spend in mempool
-        auto tempSerials = zerocoinState->usedCoinSerials;
-        zerocoinState->usedCoinSerials.clear();
+        auto tempSerials = sigmaState->usedCoinSerials;
+        sigmaState->usedCoinSerials.clear();
 
         // Add invalid transaction to mempool, this will pass because we have removed serials from state
         BOOST_CHECK_MESSAGE(addToMempool(dtx), "Spend created although double");
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mempool not set");
 
         // Bring serials back to zerocoin state
-        zerocoinState->usedCoinSerials = tempSerials;
+        sigmaState->usedCoinSerials = tempSerials;
 
         // CreateBlock throw exception because invalid transaction is in mempool
         BOOST_CHECK_EXCEPTION(CreateBlock({}, scriptPubKey), std::runtime_error, no_check);
@@ -171,12 +171,12 @@ BOOST_AUTO_TEST_CASE(partialspend)
         // Add invalid tx too block manually
         // it will work be cause we remove serials from state and don't bring it back before create block like previous test
         vtxid.resize(1);
-        tempSerials = zerocoinState->usedCoinSerials;
-        zerocoinState->usedCoinSerials.clear();
+        tempSerials = sigmaState->usedCoinSerials;
+        sigmaState->usedCoinSerials.clear();
         CreateBlock(vtxid, scriptPubKey);
 
         // Bring serials back
-        zerocoinState->usedCoinSerials = tempSerials;
+        sigmaState->usedCoinSerials = tempSerials;
 
         // Create new block, last block should be remove because it contain invalid spend tx
         mempool.clear();
@@ -187,7 +187,7 @@ BOOST_AUTO_TEST_CASE(partialspend)
 
         vtxid.clear();
         mempool.clear();
-        zerocoinState->Reset();
+        sigmaState->Reset();
     }
 }
 
@@ -206,7 +206,7 @@ BOOST_AUTO_TEST_CASE(partialspend_remint) {
     const CBitcoinAddress randomAddr1(newKey1.GetID());
     const CBitcoinAddress randomAddr2(newKey2.GetID());
 
-    CZerocoinState *zerocoinState = CZerocoinState::GetZerocoinState();
+    sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
 
     // Create 400-200+1 = 201 new empty blocks. // consensus.nMintV3SigmaStartBlock = 400
     CreateAndProcessEmptyBlocks(201, scriptPubKey);
@@ -275,7 +275,7 @@ BOOST_AUTO_TEST_CASE(partialspend_remint) {
     BOOST_CHECK_NO_THROW(pwalletMain->SpendSigma(recipients, tx));
 
     mempool.clear();
-    zerocoinState->Reset();
+    sigmaState->Reset();
 }
 
 BOOST_AUTO_TEST_CASE(same_serial_in_a_transaction) {
@@ -287,13 +287,13 @@ BOOST_AUTO_TEST_CASE(same_serial_in_a_transaction) {
     const CBitcoinAddress randomAddr1(newKey1.GetID());
     const CBitcoinAddress randomAddr2(newKey2.GetID());
 
-    CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
+    sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
 
     // Create 400-200+1 = 201 new empty blocks. // consensus.nMintV3SigmaStartBlock = 400
     CreateAndProcessEmptyBlocks(201, scriptPubKey);
 
     CAmount denomAmount;
-    sigma::DenominationToInteger(sigma::CoinDenominationV3::SIGMA_DENOM_1, denomAmount);
+    sigma::DenominationToInteger(sigma::CoinDenomination::SIGMA_DENOM_1, denomAmount);
 
     // Make sure that transactions get to mempool
     pwalletMain->SetBroadcastTransactions(true);
@@ -319,9 +319,9 @@ BOOST_AUTO_TEST_CASE(same_serial_in_a_transaction) {
 
     // Create tx
     CAmount fee;
-    std::vector<CZerocoinEntryV3> selected;
-    std::vector<CZerocoinEntryV3> changes;
-    auto tx = pwalletMain->CreateZerocoinSpendTransactionV3(recipients, fee, selected, changes);
+    std::vector<CSigmaEntry> selected;
+    std::vector<CSigmaEntry> changes;
+    auto tx = pwalletMain->CreateSigmaSpendTransaction(recipients, fee, selected, changes);
 
     // Expect 2 spends
     BOOST_CHECK_EQUAL(tx.vin.size(), 2);

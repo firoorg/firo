@@ -523,7 +523,7 @@ BOOST_AUTO_TEST_CASE(sigma_getcoingroupinfo_existing)
     BOOST_CHECK_MESSAGE(mintedPubCoin.size() == 1,
         "Unexpected mintedPubCoin size after first call.");
 
-    sigma::CSigmaState::CoinGroupInfoV3 result;
+    sigma::CSigmaState::SigmaCoinGroupInfo result;
     sigmaState->GetCoinGroupInfo(pubcoin.getDenomination(), 1, result);
     BOOST_CHECK_MESSAGE(result.nCoins == 1,
         "Unexpected number of coins in group.");
@@ -547,7 +547,7 @@ BOOST_AUTO_TEST_CASE(sigma_getcoingroupinfo_not_minted)
     pubcoin = privcoin.getPublicCoin();
     CBlockIndex index = CreateBlockIndex(1);
 
-    sigma::CSigmaState::CoinGroupInfoV3 result;
+    sigma::CSigmaState::SigmaCoinGroupInfo result;
     sigmaState->GetCoinGroupInfo(pubcoin.getDenomination(), 1, result);
     BOOST_CHECK_MESSAGE(result.nCoins == 0,
         "Unexpected number of coins in group.");
@@ -762,7 +762,7 @@ BOOST_AUTO_TEST_CASE(zerocoingetspendserialnumberv3_valid_tx_valid_vin)
     newTxIn.scriptSig = CScript();
     newTxIn.prevout.SetNull();
 
-    CScript tmp = CScript() << OP_ZEROCOINSPENDV3;
+    CScript tmp = CScript() << OP_SIGMASPEND;
     tmp.insert(tmp.end(),serializedCoinSpend.begin(),serializedCoinSpend.end());
 
     newTxIn.scriptSig.assign(tmp.begin(),tmp.end());
@@ -793,7 +793,7 @@ BOOST_AUTO_TEST_CASE(zerocoingetspendserialnumberv3_valid_tx_valid_vin)
     newTxIn2.scriptSig = CScript();
     newTxIn2.prevout.SetNull();
 
-    CScript tmp2 = CScript() << OP_ZEROCOINSPENDV3;
+    CScript tmp2 = CScript() << OP_SIGMASPEND;
     tmp2.insert(tmp2.end(), serializedCoinSpend2.begin(), serializedCoinSpend2.end());
 
     newTxIn2.scriptSig.assign(tmp2.begin(), tmp2.end());
@@ -846,7 +846,7 @@ BOOST_AUTO_TEST_CASE(zerocoingetspendserialnumberv3_invalid_script)
     newTxIn.scriptSig = CScript();
     newTxIn.prevout.SetNull();
 
-    CScript tmp = CScript() << OP_ZEROCOINSPENDV3;
+    CScript tmp = CScript() << OP_SIGMASPEND;
     auto itr = serializedCoinSpend.begin();
     // ignore first byte to make it invalid
     tmp.insert(tmp.end(),++itr,serializedCoinSpend.end());
@@ -918,13 +918,13 @@ BOOST_AUTO_TEST_CASE(sigma_build_state)
     sigma::BuildSigmaStateFromIndex(&chainActive);
 
     // check group
-    sigma::CSigmaState::CoinGroupInfoV3 group;
+    sigma::CSigmaState::SigmaCoinGroupInfo group;
     sigmaState->GetCoinGroupInfo(sigma::CoinDenomination::SIGMA_DENOM_1, 1, group);
     BOOST_CHECK_MESSAGE(group.firstBlock->nHeight == index1.nHeight, "Expect firstBlock == index1");
     BOOST_CHECK_MESSAGE(group.lastBlock->nHeight == index2.nHeight, "Expect lastBlock == index2");
     BOOST_CHECK_MESSAGE(group.nCoins == 11, "Expect nCoins == 11");
 
-    sigma::CSigmaState::CoinGroupInfoV3 group2;
+    sigma::CSigmaState::SigmaCoinGroupInfo group2;
     sigmaState->GetCoinGroupInfo(sigma::CoinDenomination::SIGMA_DENOM_10, 1, group2);
     BOOST_CHECK_MESSAGE(group2.firstBlock->nHeight == index2.nHeight, "Expect firstBlock == index2");
     BOOST_CHECK_MESSAGE(group2.lastBlock->nHeight == index2.nHeight, "Expect lastBlock == index2");
@@ -970,7 +970,7 @@ BOOST_AUTO_TEST_CASE(sigma_build_state_no_sigma)
     sigma::BuildSigmaStateFromIndex(&chainActive);
 
     // check group
-    sigma::CSigmaState::CoinGroupInfoV3 group;
+    sigma::CSigmaState::SigmaCoinGroupInfo group;
     bool found = sigmaState->GetCoinGroupInfo(sigma::CoinDenomination::SIGMA_DENOM_1, 1, group);
     BOOST_CHECK_MESSAGE(!found, "Expect group not found");
 

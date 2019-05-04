@@ -402,7 +402,7 @@ BOOST_AUTO_TEST_CASE(create_spend_with_insufficient_coins)
     });
 
     BOOST_CHECK_EXCEPTION(
-        pwalletMain->CreateZerocoinSpendTransactionV3(recipients, fee, selected, changes),
+        pwalletMain->CreateSigmaSpendTransaction(recipients, fee, selected, changes),
         InsufficientFunds,
         [](const InsufficientFunds& e) { return e.what() == std::string("Insufficient funds"); });
 }
@@ -435,7 +435,7 @@ BOOST_AUTO_TEST_CASE(create_spend_with_confirmation_less_than_6)
     });
 
     BOOST_CHECK_EXCEPTION(
-        pwalletMain->CreateZerocoinSpendTransactionV3(recipients, fee, selected, changes),
+        pwalletMain->CreateSigmaSpendTransaction(recipients, fee, selected, changes),
         InsufficientFunds,
         [](const InsufficientFunds& e) { return e.what() == std::string("Insufficient funds"); });
 }
@@ -457,7 +457,7 @@ BOOST_AUTO_TEST_CASE(create_spend_with_coins_less_than_2)
     });
 
     BOOST_CHECK_EXCEPTION(
-        pwalletMain->CreateZerocoinSpendTransactionV3(recipients, fee, selected, changes),
+        pwalletMain->CreateSigmaSpendTransaction(recipients, fee, selected, changes),
         std::runtime_error,
         [](const std::runtime_error& e) { return e.what() == std::string("Has to have at least two mint coins with at least 6 confirmation in order to spend a coin"); });
 }
@@ -484,7 +484,7 @@ BOOST_AUTO_TEST_CASE(create_spend_with_coins_more_than_1)
         .fSubtractFeeFromAmount = false
     });
 
-    CWalletTx tx = pwalletMain->CreateZerocoinSpendTransactionV3(recipients, fee, selected, changes);
+    CWalletTx tx = pwalletMain->CreateSigmaSpendTransaction(recipients, fee, selected, changes);
 
     BOOST_CHECK(tx.vin.size() == 2);
 
@@ -513,7 +513,7 @@ BOOST_AUTO_TEST_CASE(create_spend_with_coins_more_than_1)
 
     // check walletdb
     std::list<CSigmaEntry> coinList;
-    std::list<CZerocoinSpendEntryV3> spends;
+    std::list<CSigmaSpendEntry> spends;
     CWalletDB db(pwalletMain->strWalletFile);
 
     db.ListSigmaPubCoin(coinList);
@@ -554,7 +554,7 @@ BOOST_AUTO_TEST_CASE(spend)
 
     CWalletDB db(pwalletMain->strWalletFile);
 
-    std::list<CZerocoinSpendEntryV3> spends;
+    std::list<CSigmaSpendEntry> spends;
     db.ListCoinSpendSerial(spends);
 
     std::list<CSigmaEntry> coins;

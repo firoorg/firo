@@ -2716,7 +2716,7 @@ UniValue mint(const UniValue& params, bool fHelp)
 
     // Ensure Sigma mints is already accepted by network so users will not lost their coins
     // due to other nodes will treat it as garbage data.
-    if (!IsSigmaAllowed()) {
+    if (!sigma::IsSigmaAllowed()) {
         throw JSONRPCError(RPC_WALLET_ERROR, "Sigma is not activated yet");
     }
 
@@ -2870,7 +2870,7 @@ UniValue mintzerocoinV3(const UniValue& params, bool fHelp)
         CScript scriptSerializedCoin;
 
         // opcode is inserted as 1 byte according to file script/script.h
-        scriptSerializedCoin << OP_ZEROCOINMINTV3;
+        scriptSerializedCoin << OP_SIGMAMINT;
 
         // MARTUN: Commenting this for now.
         // this one will probably be written as int64_t, which means it will be written in as few bytes as necessary, and one more byte for sign. In our case our 34 will take 2 bytes, 1 for the number 34 and another one for the sign.
@@ -3031,7 +3031,7 @@ UniValue mintmanyzerocoin(const UniValue& params, bool fHelp)
     return wtx.GetHash().GetHex();
 }
 
-UniValue mintmanyzerocoinV3(const UniValue& params, bool fHelp)
+UniValue mintManySigma(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() > 1)
         throw runtime_error(
@@ -3100,7 +3100,7 @@ UniValue mintmanyzerocoinV3(const UniValue& params, bool fHelp)
             // Create script for coin
             CScript scriptSerializedCoin;
             // opcode is inserted as 1 byte according to file script/script.h
-            scriptSerializedCoin << OP_ZEROCOINMINTV3;
+            scriptSerializedCoin << OP_SIGMAMINT;
 
             // MARTUN: Commenting this for now.
             // this one will probably be written as int64_t, which means it will be written in as few bytes as necessary, and one more byte for sign. In our case our 34 will take 2 bytes, 1 for the number 34 and another one for the sign.
@@ -3213,7 +3213,7 @@ UniValue spendallzerocoin(const UniValue& params, bool fHelp) {
     return  hasUnspendableMints;
 }
 
-UniValue spendzerocoinV3(const UniValue& params, bool fHelp) {
+UniValue spendSigma(const UniValue& params, bool fHelp) {
 
     if (fHelp || params.size() < 1 || params.size() > 2)
         throw runtime_error(
@@ -3374,7 +3374,7 @@ UniValue spendmanyzerocoin(const UniValue& params, bool fHelp) {
     return wtx.GetHash().GetHex();
 }
 
-UniValue spendmanyzerocoinV3(const UniValue& params, bool fHelp) {
+UniValue spendManySigma(const UniValue& params, bool fHelp) {
 
     if (fHelp || params.size() != 1)
         throw runtime_error(
@@ -3451,7 +3451,7 @@ UniValue spendmanyzerocoinV3(const UniValue& params, bool fHelp) {
         return strError;
     }
 
-    strError = pwalletMain->SpendMultipleZerocoinV3(
+    strError = pwalletMain->SpendMultipleSigma(
         thirdPartyAddress,
         denominations,
         wtx,
@@ -3499,7 +3499,7 @@ UniValue spendmany(const UniValue& params, bool fHelp) {
                 + HelpExampleCli("spendmany", "\"\" \"{\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XZ\\\":0.01,\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\":0.02}\" 6 \"testing\" \"[\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XZ\\\",\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\"]\"")
         );
 
-    if (!IsSigmaAllowed()) {
+    if (!sigma::IsSigmaAllowed()) {
         throw JSONRPCError(RPC_WALLET_ERROR, "Sigma is not activated yet");
     }
 
@@ -3594,7 +3594,7 @@ UniValue resetmintzerocoin(const UniValue& params, bool fHelp) {
     return NullUniValue;
 }
 
-UniValue resetmintzerocoinV3(const UniValue& params, bool fHelp) {
+UniValue resetSigmaMint(const UniValue& params, bool fHelp) {
     if (fHelp || params.size() != 0)
         throw runtime_error(
                 "resetmintzerocoin"
@@ -3657,7 +3657,7 @@ UniValue listmintzerocoins(const UniValue& params, bool fHelp) {
     return results;
 }
 
-UniValue listmintzerocoinsV3(const UniValue& params, bool fHelp) {
+UniValue listSigmaMints(const UniValue& params, bool fHelp) {
     if (fHelp || params.size() > 1)
         throw runtime_error(
                 "listmintzerocoins <all>(false/true)\n"
@@ -3731,7 +3731,7 @@ UniValue listpubcoins(const UniValue& params, bool fHelp) {
     return results;
 }
 
-UniValue listpubcoinsV3(const UniValue& params, bool fHelp) {
+UniValue listSigmaPubCoins(const UniValue& params, bool fHelp) {
     if (fHelp || params.size() > 1)
         throw runtime_error(
                 "listpubcoin <all>(1/10/25/50/100)\n"
@@ -3749,7 +3749,7 @@ UniValue listpubcoinsV3(const UniValue& params, bool fHelp) {
     CWalletDB walletdb(pwalletMain->strWalletFile);
     walletdb.ListSigmaPubCoin(listPubcoin);
     UniValue results(UniValue::VARR);
-    listPubcoin.sort(CompHeightV3);
+    listPubcoin.sort(CompSigmaHeight);
 
     BOOST_FOREACH(const CSigmaEntry &zerocoinItem, listPubcoin) {
         if (zerocoinItem.id > 0 &&
@@ -3834,7 +3834,7 @@ UniValue setmintzerocoinstatus(const UniValue& params, bool fHelp) {
     return results;
 }
 
-UniValue setmintzerocoinstatusV3(const UniValue& params, bool fHelp) {
+UniValue setSigmaMintStatus(const UniValue& params, bool fHelp) {
     if (fHelp || params.size() != 2)
         throw runtime_error(
                 "setmintzerocoinstatus \"coinserial\" <isused>(true/false)\n"
@@ -3877,7 +3877,7 @@ UniValue setmintzerocoinstatusV3(const UniValue& params, bool fHelp) {
 
                 if (!fStatus) {
                     // erase zerocoin spend entry
-                    CZerocoinSpendEntryV3 spendEntry;
+                    CSigmaSpendEntry spendEntry;
                     spendEntry.coinSerial = coinSerial;
                     walletdb.EraseCoinSpendSerialEntry(spendEntry);
                 }
@@ -3973,7 +3973,7 @@ UniValue listspendzerocoins(const UniValue &params, bool fHelp) {
     return ret;
 }
 
-UniValue listspendzerocoinsV3(const UniValue &params, bool fHelp) {
+UniValue listSigmaSpends(const UniValue &params, bool fHelp) {
     if (fHelp || params.size() < 1 || params.size() > 2)
         throw runtime_error(
                 "listspendzerocoins\n"
@@ -4026,7 +4026,7 @@ UniValue listspendzerocoinsV3(const UniValue &params, bool fHelp) {
             pubcoinId -= ZC_MODULUS_V2_BASE_ID;
 
         // NOTE(martun): +1 on the next line stands for 1 byte in which the opcode of
-        // OP_ZEROCOINSPENDV3 is written. In zerocoin you will see +4 instead,
+        // OP_SIGMASPEND is written. In zerocoin you will see +4 instead,
         // because the size of serialized spend is also written, probably in 3 bytes.
         CDataStream serializedCoinSpend((const char *)&*(txin.scriptSig.begin() + 1),
                                         (const char *)&*txin.scriptSig.end(),

@@ -868,7 +868,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareSigmaSpendTransaction(
 
     CWalletTx *newTx = transaction.getTransaction();
     try {
-        *newTx = wallet->CreateZerocoinSpendTransactionV3(sendRecipients, fee, selectedCoins, changes);
+        *newTx = wallet->CreateSigmaSpendTransaction(sendRecipients, fee, selectedCoins, changes);
     } catch (const std::runtime_error& err) {
         Q_EMIT message(tr("Send Coins"), QString::fromStdString(err.what()),
                          CClientUIInterface::MSG_ERROR);

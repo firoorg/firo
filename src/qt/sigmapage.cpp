@@ -65,7 +65,7 @@ void SigmaPage::setClientModel(ClientModel *model)
     this->clientModel = model;
 
     if (model) {
-        bool sigmaAllowed = IsSigmaAllowed(model->getNumBlocks());
+        bool sigmaAllowed = sigma::IsSigmaAllowed(model->getNumBlocks());
 
         connect(model, SIGNAL(numBlocksChanged(int, const QDateTime&, double, bool)), this, SLOT(numBlocksChanged(int, const QDateTime&, double, bool)));
 
@@ -102,7 +102,7 @@ SigmaPage::~SigmaPage()
 void SigmaPage::numBlocksChanged(int count, const QDateTime& blockDate, double nVerificationProgress, bool header)
 {
     if (!header) {
-        bool sigmaAllowed = IsSigmaAllowed(count);
+        bool sigmaAllowed = sigma::IsSigmaAllowed(count);
 
         ui->mintButton->setEnabled(sigmaAllowed);
         ui->sendButton->setEnabled(sigmaAllowed);

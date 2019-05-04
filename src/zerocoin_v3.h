@@ -77,8 +77,8 @@ class CSigmaState {
 friend bool BuildSigmaStateFromIndex(CChain *, set<CBlockIndex *> &);
 public:
     // First and last block where mint with given denomination and id was seen
-    struct CoinGroupInfoV3 {
-        CoinGroupInfoV3() : firstBlock(NULL), lastBlock(NULL), nCoins(0) {}
+    struct SigmaCoinGroupInfo {
+        SigmaCoinGroupInfo() : firstBlock(NULL), lastBlock(NULL), nCoins(0) {}
 
         // first and last blocks having coins with given denomination and id minted
         CBlockIndex *firstBlock;
@@ -122,7 +122,7 @@ public:
 
     // Query coin group with given denomination and id
     bool GetCoinGroupInfo(sigma::CoinDenomination denomination,
-        int group_id, CoinGroupInfoV3 &result);
+        int group_id, SigmaCoinGroupInfo &result);
 
     // Query if the coin serial was previously used
     bool IsUsedCoinSerial(const Scalar& coinSerial);
@@ -169,8 +169,8 @@ public:
     int GetLatestCoinID(sigma::CoinDenomination denomination) const;
 
 // private: // martun: Changed to public just for unit tests.
-    // Collection of coin groups. Map from <denomination,id> to CoinGroupInfoV3 structure
-    std::unordered_map<pair<sigma::CoinDenomination, int>, CoinGroupInfoV3, pairhash> coinGroups;
+    // Collection of coin groups. Map from <denomination,id> to SigmaCoinGroupInfo structure
+    std::unordered_map<pair<sigma::CoinDenomination, int>, SigmaCoinGroupInfo, pairhash> coinGroups;
 
     // Set of all minted pubCoin values, keyed by the public coin.
     // Used for checking if the given coin already exists.

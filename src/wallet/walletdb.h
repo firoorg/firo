@@ -37,7 +37,7 @@ class uint256;
 class CZerocoinEntry;
 class CSigmaEntry;
 class CZerocoinSpendEntry;
-class CZerocoinSpendEntryV3;
+class CSigmaSpendEntry;
 
 /** Error statuses for the wallet database */
 enum DBErrors
@@ -187,13 +187,13 @@ public:
     void ListPubCoin(std::list<CZerocoinEntry>& listPubCoin);
     void ListSigmaPubCoin(std::list<CSigmaEntry>& listPubCoin);
     void ListCoinSpendSerial(std::list<CZerocoinSpendEntry>& listCoinSpendSerial);
-    void ListCoinSpendSerial(std::list<CZerocoinSpendEntryV3>& listCoinSpendSerial);
+    void ListCoinSpendSerial(std::list<CSigmaSpendEntry>& listCoinSpendSerial);
     bool WriteCoinSpendSerialEntry(const CZerocoinSpendEntry& zerocoinSpend);
-    bool WriteCoinSpendSerialEntry(const CZerocoinSpendEntryV3& zerocoinSpend);
+    bool WriteCoinSpendSerialEntry(const CSigmaSpendEntry& zerocoinSpend);
     bool HasCoinSpendSerialEntry(const Bignum& serial);
     bool HasCoinSpendSerialEntry(const secp_primitives::Scalar& serial);
     bool EraseCoinSpendSerialEntry(const CZerocoinSpendEntry& zerocoinSpend);
-    bool EraseCoinSpendSerialEntry(const CZerocoinSpendEntryV3& zerocoinSpend);
+    bool EraseCoinSpendSerialEntry(const CSigmaSpendEntry& zerocoinSpend);
     bool WriteZerocoinAccumulator(libzerocoin::Accumulator accumulator, libzerocoin::CoinDenomination denomination, int pubcoinid);
     bool ReadZerocoinAccumulator(libzerocoin::Accumulator& accumulator, libzerocoin::CoinDenomination denomination, int pubcoinid);
     // bool EraseZerocoinAccumulator(libzerocoin::Accumulator& accumulator, libzerocoin::CoinDenomination denomination, int pubcoinid);

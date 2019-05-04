@@ -190,8 +190,8 @@ enum opcodetype
     // zerocoin params
     OP_ZEROCOINMINT = 0xc1,
     OP_ZEROCOINSPEND = 0xc2,
-    OP_ZEROCOINMINTV3 = 0xc3,
-    OP_ZEROCOINSPENDV3 = 0xc4
+    OP_SIGMAMINT = 0xc3,
+    OP_SIGMASPEND = 0xc4
 };
 
 const char* GetOpName(opcodetype opcode);

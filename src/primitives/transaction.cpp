@@ -54,7 +54,7 @@ bool CTxIn::IsZerocoinSpend() const
 
 bool CTxIn::IsSigmaSpend() const
 {
-    return (prevout.IsSigmaMintGroup() && scriptSig.size() > 0 && (scriptSig[0] == OP_ZEROCOINSPENDV3) );
+    return (prevout.IsSigmaMintGroup() && scriptSig.size() > 0 && (scriptSig[0] == OP_SIGMASPEND) );
 }
 
 std::string CTxIn::ToString() const
