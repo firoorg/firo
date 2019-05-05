@@ -691,8 +691,17 @@ bool GetNodeStateStats(NodeId nodeid, CNodeStateStats &stats) {
     if (state == NULL)
         return false;
     stats.nMisbehavior = state->nMisbehavior;
-    stats.nSyncHeight = state->pindexBestKnownBlock ? state->pindexBestKnownBlock->nHeight : -1;
-    stats.nCommonHeight = state->pindexLastCommonBlock ? state->pindexLastCommonBlock->nHeight : -1;
+    // It should begin with nStartingHeight, not -1, if you don't know pindexBestKnownBlock or pindexLastCommonBlock
+    int nStartingHeight = 0;
+    BOOST_FOREACH(CNode* pNode, vNodes){
+	if(pNode->GetId() == nodeid){
+		nStartingHeight = pNode->nStartingHeight;
+	}
+    }
+    stats.nSyncHeight = state->pindexBestKnownBlock ? state->pindexBestKnownBlock->nHeight : nStartingHeight;
+    stats.nCommonHeight = state->pindexLastCommonBlock ? state->pindexLastCommonBlock->nHeight : nStartingHeight;
+    //stats.nSyncHeight = state->pindexBestKnownBlock ? state->pindexBestKnownBlock->nHeight : -1;
+    //stats.nCommonHeight = state->pindexLastCommonBlock ? state->pindexLastCommonBlock->nHeight : -1;
     BOOST_FOREACH(
     const QueuedBlock &queue, state->vBlocksInFlight) {
         if (queue.pindex)
