@@ -36,6 +36,10 @@ bool LelantusVerifier::verify(
     //range proof verification
     int n = params->get_bulletproofs_n();
     int m = Cout.size();
+
+    while(m & (m - 1))
+        m++;
+
     std::vector<GroupElement> g_, h_;
     g_.reserve(n * m);
     h_.reserve(n * m);
@@ -45,9 +49,12 @@ bool LelantusVerifier::verify(
         h_.push_back(params->get_bulletproofs_h()[i]);
     }
     std::vector<GroupElement> V;
-    V.reserve(Cout.size());
+    V.reserve(m);
     for (int i = 0; i < Cout.size(); ++i)
         V.push_back(Cout[i].getValue());
+
+    for (int i = Cout.size(); i < m; ++i)
+        V.push_back(GroupElement());
 
     RangeVerifier<Scalar, GroupElement> rangeVerifier(params->get_h0(), params->get_h1(), params->get_g(), g_, h_, n);
     if(!rangeVerifier.verify_batch(V, proof.bulletproofs))
