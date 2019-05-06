@@ -4954,11 +4954,11 @@ bool CWallet::CreateZerocoinSpendTransactionV3(
 
             // Get Mint metadata objects
             vector<CMintMeta> setMints;
-            setMints = pwalletMain->hdMintTracker->ListMints(true, true, true);
-            if(setMints.empty() && !forceUsed) {
-                strFailReason= _("Failed to find Zerocoins in wallet.dat");
-                return false;
-            }
+            setMints = pwalletMain->hdMintTracker->ListMints(!forceUsed, !forceUsed, !forceUsed);
+ //           if(setMints.empty() && !forceUsed) {
+ //               strFailReason= _("Failed to find Zerocoins in wallet.dat");
+ //               return false;
+ //           }
 
 
             // Cycle through metadata, looking for suitable coin
@@ -6497,7 +6497,7 @@ bool CWallet::CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CHDMint>& se
 
     for (auto& change : changes) {
 
-        pwalletMain->hdMintTracker->Add(change);
+        pwalletMain->hdMintTracker->Add(change, true);
 
         // raise event
         NotifyZerocoinChanged(this,

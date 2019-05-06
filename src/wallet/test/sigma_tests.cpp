@@ -37,34 +37,6 @@ struct WalletSigmaTestingSetup : WalletTestingSetup
     }
 };
 
-// static void AddSigmaCoin(const sigma::PrivateCoinV3& coin, const sigma::CoinDenominationV3 denomination)
-// {
-//     CZerocoinEntryV3 zerocoinTx;
-
-//     zerocoinTx.IsUsed = false;
-//     zerocoinTx.set_denomination(denomination);
-//     zerocoinTx.value = coin.getPublicCoin().getValue();
-//     zerocoinTx.randomness = coin.getRandomness();
-//     zerocoinTx.serialNumber = coin.getSerialNumber();
-//     zerocoinTx.ecdsaSecretKey.resize(32);
-
-//     std::copy_n(coin.getEcdsaSeckey(), 32, zerocoinTx.ecdsaSecretKey.begin());
-
-//     if (!CWalletDB(pwalletMain->strWalletFile).WriteZerocoinEntry(zerocoinTx)) {
-//         throw std::runtime_error("Failed to add zerocoin to wallet");
-//     }
-// }
-
-static void AddSigmaCoin(const sigma::PrivateCoinV3& coin, const sigma::CoinDenominationV3 denomination)
-{
-    CHDMint hdMint;
-
-    hdMint.SetUsed(false);
-    hdMint.SetDenomination(denomination);
-    hdMint.SetPubcoinValue(coin.getPublicCoin().getValue());
-    pwalletMain->hdMintTracker->Add(hdMint, true);
-}
-
 static void GenerateBlockWithCoins(const std::vector<std::pair<sigma::CoinDenominationV3, int>>& coins)
 {
     auto params = sigma::ParamsV3::get_default();
@@ -78,14 +50,21 @@ static void GenerateBlockWithCoins(const std::vector<std::pair<sigma::CoinDenomi
     block->second.nHeight = block->second.pprev->nHeight + 1;
 
     // generate coins
+    CHDMint dMint;
     for (auto& coin : coins) {
         for (int i = 0; i < coin.second; i++) {
             sigma::PrivateCoinV3 priv(params, coin.first);
+
+            // Generate and store secrets deterministically in the following function.
+            zwalletMain->GenerateHDMint(priv.getPublicCoin().getDenomination(), priv, dMint);
+
             auto& pub = priv.getPublicCoin();
 
             block->second.mintedPubCoinsV3[std::make_pair(coin.first, 1)].push_back(pub);
 
-            AddSigmaCoin(priv, coin.first);
+            pwalletMain->hdMintTracker->Add(dMint, true);
+
+            zwalletMain->UpdateCount();
         }
     }
 

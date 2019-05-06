@@ -12,6 +12,8 @@
 #include "wallet/wallet.h"
 #include "zerocoin_v3.h"
 #include "hdmint/chain.h"
+#include "crypto/hmac_sha256.h"
+#include "crypto/hmac_sha512.h"
 
 CHDMintWallet::CHDMintWallet(std::string strWalletFile)
 {
@@ -345,10 +347,14 @@ void CHDMintWallet::SeedToZerocoin(const uint512& seedZerocoin, GroupElement& co
 
 uint512 CHDMintWallet::GetZerocoinSeed(uint32_t n)
 {
-    CDataStream ss(SER_GETHASH, 0);
-    ss << seedMaster << n;
-    uint512 zerocoinSeed = Hash512(ss.begin(), ss.end());
-    return zerocoinSeed;
+    unsigned int KEY_SIZE = 64;
+    std::string count = to_string(n);
+    unsigned char *out = new unsigned char[KEY_SIZE];
+
+    CHMAC_SHA512(reinterpret_cast<const unsigned char*>(count.c_str()), count.size()).Write(seedMaster.begin(), seedMaster.size()).Finalize(out);
+    std::vector<unsigned char> outVec(out, out+KEY_SIZE);
+
+    return uint512(outVec);
 }
 
 uint32_t CHDMintWallet::GetCount()

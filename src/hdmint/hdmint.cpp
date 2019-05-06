@@ -26,7 +26,7 @@ void CHDMint::SetNull()
     hashSerial.SetNull();
     txid.SetNull();
     nHeight = -1;
-    nId = 0;
+    nId = -1;
     denom = 5; // SIGMA_ERROR
     isUsed = false;
 }
