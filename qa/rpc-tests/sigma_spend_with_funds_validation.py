@@ -51,6 +51,7 @@ class SigmaSpendValidationWithFundsTest(BitcoinTestFramework):
         self.nodes[0].mint(240.8)
         self.nodes[0].mint(2000)
         self.nodes[0].generate(200)
+        print(self.nodes[0].getblockcount())
         self.sync_all()
         for input_data, exp_err in zip(validation_inputs_with_funds, post_outputs_with_funds):
             case_name, denom = input_data

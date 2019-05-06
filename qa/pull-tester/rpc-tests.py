@@ -148,9 +148,6 @@ testScripts = [
     # 'nulldummy.py',
     'sigma_spend_with_funds_validation.py',
     'sigma_spend_with_funds_extra_validation.py',
-    'sigma_spend_no_funds_validation.py',
-    'sigma_spend_no_funds_extra_validation.py',
-    'sigma_mint_no_funds_validation.py',
     'sigma_mint_with_funds_validation.py'
 ]
 # if ENABLE_ZMQ:
