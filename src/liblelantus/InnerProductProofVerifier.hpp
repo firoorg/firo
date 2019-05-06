@@ -38,7 +38,8 @@ bool InnerProductProofVerifier<Exponent, GroupElement>::verify_util(
 
     //Get challenge x
     Exponent x;
-    LelantusPrimitives<Exponent, GroupElement>::get_x(*itr_l, *itr_r, x);
+    std::vector<GroupElement> group_elements = {*itr_l, *itr_r};
+    LelantusPrimitives<Exponent, GroupElement>::generate_challenge(group_elements, x);
     //Compute g prime and p prime
     std::vector<GroupElement> g_p;
     LelantusPrimitives<Exponent, GroupElement>::g_prime(g_, x, g_p);

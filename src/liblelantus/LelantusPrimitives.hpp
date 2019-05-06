@@ -3,6 +3,24 @@
 namespace lelantus {
 
 template<class Exponent, class GroupElement>
+void LelantusPrimitives<Exponent, GroupElement>::generate_challenge(
+        const std::vector<GroupElement>& group_elements,
+        Exponent& result_out) {
+    if (group_elements.empty())
+        throw std::runtime_error("Group elements empty while generating a challenge.");
+    CSHA256 hash;
+    std::vector<unsigned char> data(group_elements.size() * group_elements[0].memoryRequired());
+    unsigned char* current = data.data();
+    for (size_t i = 0; i < group_elements.size(); ++i) {
+        current = group_elements[i].serialize(current);
+    }
+    hash.Write(data.data(), data.size());
+    unsigned char result_data[CSHA256::OUTPUT_SIZE];
+    hash.Finalize(result_data);
+    result_out = result_data;
+}
+
+template<class Exponent, class GroupElement>
 void LelantusPrimitives<Exponent, GroupElement>::commit(const GroupElement& g,
                                                         const std::vector<GroupElement>& h,
                                                         const std::vector<Exponent>& exp,
@@ -81,40 +99,20 @@ std::vector<uint64_t> LelantusPrimitives<Exponent, GroupElement>::convert_to_nal
 }
 
 template<class Exponent, class GroupElement>
-void LelantusPrimitives<Exponent, GroupElement>::get_x(
-        const GroupElement& A,
-        const GroupElement& C,
-        const GroupElement& D,
-        Exponent& result_out) {
-    CSHA256 hash;
-    unsigned char data[3 * A.serialize_size];
-    unsigned char* current = A.serialize(data);
-    current = C.serialize(current);
-    D.serialize(current);
-    hash.Write(data, 3 * A.memoryRequired());
-    unsigned char result_data[CSHA256::OUTPUT_SIZE];
-    hash.Finalize(result_data);
-    result_out = result_data;
-
-}
-
-template<class Exponent, class GroupElement>
-void  LelantusPrimitives<Exponent, GroupElement>::get_x(
+void  LelantusPrimitives<Exponent, GroupElement>::generate_Lelantus_challange(
         const std::vector<SigmaPlusProof<Exponent, GroupElement>>& proofs,
         Exponent& result_out) {
     if (proofs.size() > 0) {
-        CSHA256 hash;
-        unsigned char data[3 * proofs.size() * 34];
-        unsigned char* current = data;
+        std::vector<GroupElement> group_elements;
         for (int i = 0; i < proofs.size(); ++i) {
-            current = proofs[i].A_.serialize(current);
-            current = proofs[i].C_.serialize(current);
-            current = proofs[i].D_.serialize(current);
+            group_elements.emplace_back(proofs[i].A_);
+            group_elements.emplace_back(proofs[i].B_);
+            group_elements.emplace_back(proofs[i].C_);
+            group_elements.emplace_back(proofs[i].D_);
+            group_elements.insert(group_elements.end(), proofs[i].Gk_.begin(), proofs[i].Gk_.end());
+            group_elements.insert(group_elements.end(), proofs[i].Qk.begin(), proofs[i].Qk.end());
         }
-        hash.Write(data, 3 * proofs.size() * 34);
-        unsigned char result_data[32];
-        hash.Finalize(result_data);
-        result_out = result_data;
+        LelantusPrimitives<Exponent, GroupElement>::generate_challenge(group_elements, result_out);
     }
     else
         result_out = uint64_t(1);
@@ -146,43 +144,6 @@ void LelantusPrimitives<Exponent, GroupElement>::commit(
     secp_primitives::MultiExponent g_mult(g_, L);
     secp_primitives::MultiExponent h_mult(h_, R);
     result_out += h * h_exp + g_mult.get_multiple() + h_mult.get_multiple();
-}
-
-template<class Exponent, class GroupElement>
-void LelantusPrimitives<Exponent, GroupElement>::get_c(const GroupElement& u, Exponent& result) {
-    CSHA256 hash;
-    unsigned char data[34];
-    u.serialize(data);
-    hash.Write(&data[0], 34);
-    unsigned char result_data[32];
-    hash.Finalize(result_data);
-    result = result_data;
-}
-
-template <class Exponent, class GroupElement>
-void LelantusPrimitives<Exponent, GroupElement>::get_x(
-        const GroupElement& L,
-        const GroupElement& R,
-        Exponent& result) {
-    CSHA256 hash;
-    unsigned char data[2 * L.memoryRequired()];
-    L.serialize(data);
-    R.serialize(data + 34);
-    hash.Write(&data[0], 2 * 34);
-    unsigned char result_data[32];
-    hash.Finalize(result_data);
-    result = result_data;
-}
-
-template <class Exponent, class GroupElement>
-void LelantusPrimitives<Exponent, GroupElement>::get_x(const GroupElement& P, Exponent& result) {
-    CSHA256 hash;
-    unsigned char data[P.memoryRequired()];
-    P.serialize(data);
-    hash.Write(&data[0],34);
-    unsigned char result_data[32];
-    hash.Finalize(result_data);
-    result = result_data;
 }
 
 template <class Exponent, class GroupElement>

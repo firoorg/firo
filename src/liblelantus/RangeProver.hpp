@@ -58,8 +58,10 @@ void RangeProver<Exponent, GroupElement>::batch_proof(
     LelantusPrimitives<Exponent, GroupElement>::commit(h1, ro, g_, sL, h_, sR, proof_out.S);
 
     Exponent y, z;
-    LelantusPrimitives<Exponent, GroupElement>::get_x(proof_out.A, proof_out.S, y);
-    LelantusPrimitives<Exponent, GroupElement>::get_x(proof_out.S, proof_out.A, z);
+    std::vector<GroupElement> group_elements = {proof_out.A,proof_out.S};
+    std::vector<GroupElement> group_elements2 = {proof_out.S,proof_out.A};
+    LelantusPrimitives<Exponent, GroupElement>::generate_challenge(group_elements, y);
+    LelantusPrimitives<Exponent, GroupElement>::generate_challenge(group_elements2, z);
 
     //compute l(x) and r(x) polynomials
     std::vector<std::vector<Exponent>> l_x, r_x;
@@ -107,7 +109,9 @@ void RangeProver<Exponent, GroupElement>::batch_proof(
     proof_out.T2 = LelantusPrimitives<Exponent, GroupElement>::double_commit(g, t2, h1, T_12, h2, T_22);
 
     Exponent x;
-    LelantusPrimitives<Exponent, GroupElement>::get_x(proof_out.T1, proof_out.T2, x);
+    group_elements.emplace_back(proof_out.T1);
+    group_elements.emplace_back(proof_out.T2);
+    LelantusPrimitives<Exponent, GroupElement>::generate_challenge(group_elements, x);
     //computing l and r
     std::vector<Exponent> l;
     std::vector<Exponent> r;
@@ -136,7 +140,10 @@ void RangeProver<Exponent, GroupElement>::batch_proof(
     InnerProductProoveGenerator<Exponent, GroupElement> innerProductProoveGenerator(g_, h_prime, g);
     //   t^ is calculated inside inner product proof generation with name c
     Exponent x_u;
-    LelantusPrimitives<Exponent, GroupElement>::get_x(proof_out.A, x_u);
+    group_elements2.emplace_back(proof_out.T1);
+    group_elements2.emplace_back(proof_out.T2);
+    LelantusPrimitives<Exponent, GroupElement>::generate_challenge(group_elements2, x_u);
+
     innerProductProoveGenerator.generate_proof(l, r, x_u, proof_out.innerProductProof);
 
 }

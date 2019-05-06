@@ -23,12 +23,23 @@ bool RangeVerifier<Exponent, GroupElement>::verify_batch(const std::vector<Group
     uint64_t m = V.size();
     //computing challenges
     Exponent x, x_u, y, z;
-    LelantusPrimitives<Exponent, GroupElement>::get_x(proof.A, proof.S, y);
+
+    std::vector<GroupElement> group_elements = {proof.A,proof.S};
+    std::vector<GroupElement> group_elements2 = {proof.S,proof.A};
+    LelantusPrimitives<Exponent, GroupElement>::generate_challenge(group_elements, y);
     Exponent y_inv =  y.inverse();
-    LelantusPrimitives<Exponent, GroupElement>::get_x(proof.S, proof.A, z);
-    LelantusPrimitives<Exponent, GroupElement>::get_x(proof.T1, proof.T2, x);
+
+    LelantusPrimitives<Exponent, GroupElement>::generate_challenge(group_elements2, z);
+
+    group_elements.emplace_back(proof.T1);
+    group_elements.emplace_back(proof.T2);
+    LelantusPrimitives<Exponent, GroupElement>::generate_challenge(group_elements, x);
     Exponent x_neg = x.negate();
-    LelantusPrimitives<Exponent, GroupElement>::get_x(proof.A, x_u);
+
+    group_elements2.emplace_back(proof.T1);
+    group_elements2.emplace_back(proof.T2);
+    LelantusPrimitives<Exponent, GroupElement>::generate_challenge(group_elements2, x_u);
+
     uint64_t log_n = (int)(log(n * m) / log(2));
     const InnerProductProof<Exponent, GroupElement>& innerProductProof = proof.innerProductProof;
     std::vector<Exponent> x_j, x_j_inv;
@@ -36,7 +47,8 @@ bool RangeVerifier<Exponent, GroupElement>::verify_batch(const std::vector<Group
     x_j_inv.reserve(log_n);
     for (int i = 0; i < log_n; ++i)
     {
-        LelantusPrimitives<Exponent, GroupElement>::get_x(innerProductProof.L_[i], innerProductProof.R_[i], x_j[i]);
+        std::vector<GroupElement> group_elements_i = {innerProductProof.L_[i], innerProductProof.R_[i]};
+        LelantusPrimitives<Exponent, GroupElement>::generate_challenge(group_elements_i, x_j[i]);
         x_j_inv.push_back((x_j[i].inverse()));
     }
 

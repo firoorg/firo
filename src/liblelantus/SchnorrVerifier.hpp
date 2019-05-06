@@ -12,7 +12,8 @@ bool SchnorrVerifier<Exponent, GroupElement>::verify(
 
     const GroupElement& u = proof.u;
     Exponent c;
-    LelantusPrimitives<Exponent, GroupElement>::get_c(u, c);
+    std::vector<GroupElement> group_elements = {u};
+    LelantusPrimitives<Exponent, GroupElement>::generate_challenge(group_elements, c);
     const Exponent P1 = proof.P1;
     const Exponent T1 = proof.T1;
 

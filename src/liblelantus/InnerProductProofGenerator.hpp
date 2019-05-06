@@ -65,7 +65,8 @@ void InnerProductProoveGenerator<Exponent, GroupElement>::generate_proof_util(
     proof_out.R_.push_back(R);
 //    //Get challenge x
     Exponent x;
-    LelantusPrimitives<Exponent, GroupElement>::get_x(L, R, x);
+    std::vector<GroupElement> group_elements = {L, R};
+    LelantusPrimitives<Exponent, GroupElement>::generate_challenge(group_elements, x);
 //    //Compute g prime and p prime
     std::vector<GroupElement> g_p;
     LelantusPrimitives<Exponent, GroupElement>::g_prime(g_, x, g_p);

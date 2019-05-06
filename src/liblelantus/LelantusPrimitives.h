@@ -18,6 +18,10 @@ class LelantusPrimitives {
 
 public:
 ////common functions
+    static void generate_challenge(
+            const std::vector<GroupElement>& group_elements,
+            Exponent& result_out);
+
     static GroupElement commit(
             const GroupElement& g,
             const Exponent& m,
@@ -43,9 +47,7 @@ public:
 
     static std::vector<uint64_t> convert_to_nal(uint64_t num, uint64_t n, uint64_t m);
 
-    static void get_x(const GroupElement& A, const GroupElement& C, const GroupElement& D, Exponent& result_out);
-
-    static void get_x(const std::vector<SigmaPlusProof<Exponent, GroupElement>>& proofs, Exponent& result_out);
+    static void generate_Lelantus_challange(const std::vector<SigmaPlusProof<Exponent, GroupElement>>& proofs, Exponent& result_out);
 
     static void new_factor(Exponent x, Exponent a, std::vector<Exponent>& coefficients);
 //// functions for bulletproofs
@@ -57,12 +59,6 @@ public:
             const std::vector<GroupElement>& h_,
             const std::vector<Exponent>& R,
             GroupElement& result_out);
-
-    static void get_c(const GroupElement& u, Exponent& result);
-
-    static void get_x(const GroupElement& L, const GroupElement& R, Exponent& result);
-
-    static void get_x(const GroupElement& P, Exponent& result);
 
     // computes dot product of two Scalar vectors
     static Exponent scalar_dot_product(

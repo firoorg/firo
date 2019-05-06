@@ -91,7 +91,8 @@ void LelantusProver::generate_sigma_proofs(
         a[i].resize(params->get_n() * params->get_m());
         sigmaProver.sigma_commit(C_, indexes[i], rA[i], rB[i], rC[i], rD[i], a[i], Tk[i], Pk[i], Yk[i], sigma[i], sigma_proofs[i]);
     }
-    LelantusPrimitives<Scalar, GroupElement>::get_x(sigma_proofs, x);
+
+    LelantusPrimitives<Scalar, GroupElement>::generate_Lelantus_challange(sigma_proofs, x);
 
     for (int i = 0; i < N; ++i) {
         Scalar x_k(uint64_t(1));

@@ -128,7 +128,7 @@ BOOST_AUTO_TEST_CASE(one_out_of_N_batch)
         prover.sigma_commit(commits_, indexes[i], rA[i], rB[i], rC[i], rD[i], a[i], Tk[i], Pk[i], Yk[i], sigma[i], proofs[i]);
     }
     secp_primitives::Scalar x;
-    lelantus::LelantusPrimitives<Scalar, GroupElement>::get_x(proofs, x);
+    lelantus::LelantusPrimitives<Scalar, GroupElement>::generate_Lelantus_challange(proofs, x);
 
     for(int i = 0; i < serials.size(); ++i)
         prover.sigma_response(sigma[i], a[i], rA[i], rB[i], rC[i], rD[i], v_[i], r_[i], Tk[i], Pk[i], x, proofs[i]);

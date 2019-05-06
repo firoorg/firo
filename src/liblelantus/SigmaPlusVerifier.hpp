@@ -17,7 +17,10 @@ bool  SigmaPlusVerifier<Exponent, GroupElement>::verify(
         const std::vector<GroupElement>& commits,
         const SigmaPlusProof<Exponent, GroupElement>& proof) const {
     Exponent x;
-    LelantusPrimitives<Exponent, GroupElement>::get_x(proof.A_, proof.C_, proof.D_,x);
+    std::vector<GroupElement> group_elements = {proof.A_, proof.B_, proof.C_, proof.D_};
+    group_elements.insert(group_elements.end(), proof.Gk_.begin(), proof.Gk_.end());
+    group_elements.insert(group_elements.end(), proof.Qk.begin(), proof.Qk.end());
+    LelantusPrimitives<Exponent, GroupElement>::generate_challenge(group_elements, x);
     return verify(commits, x, proof);
 }
 

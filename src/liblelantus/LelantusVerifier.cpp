@@ -16,7 +16,7 @@ bool LelantusVerifier::verify(
     //sigma verification
     const std::vector<SigmaPlusProof<Scalar, GroupElement>>& sigma_proofs = proof.sigma_proofs;
     Scalar x;
-    LelantusPrimitives<Scalar, GroupElement>::get_x(sigma_proofs, x);
+    LelantusPrimitives<Scalar, GroupElement>::generate_Lelantus_challange(sigma_proofs, x);
     SigmaPlusVerifier<Scalar, GroupElement> sigmaVerifier(params->get_g(), params->get_h(), params->get_n(), params->get_m());
     Scalar zV, zR;
 
