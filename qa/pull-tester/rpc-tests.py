@@ -149,7 +149,8 @@ testScripts = [
     'sigma_spend_with_funds_validation.py',
     'sigma_spend_with_funds_extra_validation.py',
     'sigma_mint_with_funds_validation.py',
-    'sigma_mintspend.py'
+    'sigma_mintspend.py',
+    'mempool_doublespend_oneblock.py'
 ]
 # if ENABLE_ZMQ:
 #     testScripts.append('zmq_test.py')
