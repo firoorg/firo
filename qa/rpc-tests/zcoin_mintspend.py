@@ -39,7 +39,7 @@ class ZcoinMintSpendTest(BitcoinTestFramework):
 
             # mint is treated as send to yourself so the balace will reduced by fee only
             cur_bal = self.nodes[0].getbalance()
-            start_bal += fee*2
+            start_bal += 2 * fee - 2 * denom
             assert start_bal == cur_bal, \
                 'Unexpected current balance: {}, should be minus two fee, ' \
                 'but start was {}'.format(cur_bal, start_bal)
@@ -109,6 +109,7 @@ class ZcoinMintSpendTest(BitcoinTestFramework):
 
         # Verify, that balance reduced correctly by spend fee
         start_bal += 40 * 6
+        start_bal += spend_total
         cur_bal = self.nodes[0].getbalance()
         assert start_bal == cur_bal, \
             'Unexpected current balance: {}'.format(cur_bal)
