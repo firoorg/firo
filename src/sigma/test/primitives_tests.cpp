@@ -71,8 +71,6 @@ BOOST_AUTO_TEST_CASE(commit2_test)
     std::vector<secp_primitives::GroupElement> h_;
     h_.push_back(h);
 
-    zcoin_common::GeneratorVector<secp_primitives::Scalar, secp_primitives::GroupElement> h_gens(h_);
-
     secp_primitives::Scalar r(10);
 
     std::vector<secp_primitives::Scalar> x_;
@@ -100,8 +98,6 @@ BOOST_AUTO_TEST_CASE(commit2_vs_test)
     h_.push_back(h1);
     h_.push_back(h2);
 
-    zcoin_common::GeneratorVector<secp_primitives::Scalar, secp_primitives::GroupElement> h_gens(h_);
-
     secp_primitives::Scalar r(10);
 
     std::vector<secp_primitives::Scalar> x_;
@@ -128,8 +124,6 @@ BOOST_AUTO_TEST_CASE(commit2_homomorphic_test)
     std::vector<secp_primitives::GroupElement> h_;
     h_.push_back(h1);
     h_.push_back(h2);
-
-    zcoin_common::GeneratorVector<secp_primitives::Scalar, secp_primitives::GroupElement> h_gens(h_);
 
     secp_primitives::GroupElement g;
     g.randomize();
@@ -162,15 +156,15 @@ BOOST_AUTO_TEST_CASE(commit2_homomorphic_test)
 
     // commit(x1,x2:r)
     secp_primitives::GroupElement t1;
-    sigma::SigmaPrimitives<secp_primitives::Scalar,secp_primitives::GroupElement>::commit(g, h_gens, x_, r,t1);
+    sigma::SigmaPrimitives<secp_primitives::Scalar,secp_primitives::GroupElement>::commit(g, h_, x_, r,t1);
 
     // commit(y1,y2:q)
     secp_primitives::GroupElement t2;
-    sigma::SigmaPrimitives<secp_primitives::Scalar,secp_primitives::GroupElement>::commit(g, h_gens, y_, q,t2);
+    sigma::SigmaPrimitives<secp_primitives::Scalar,secp_primitives::GroupElement>::commit(g, h_, y_, q,t2);
 
     // commit(x1+y1,x2+y2:r+q)
     secp_primitives::GroupElement t3;
-    sigma::SigmaPrimitives<secp_primitives::Scalar,secp_primitives::GroupElement>::commit(g, h_gens, xy_, r+q,t3);
+    sigma::SigmaPrimitives<secp_primitives::Scalar,secp_primitives::GroupElement>::commit(g, h_, xy_, r+q,t3);
 
     BOOST_CHECK(t1+t2 == t3);
 }

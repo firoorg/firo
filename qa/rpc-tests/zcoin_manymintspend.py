@@ -17,8 +17,7 @@ class ZcoinManyMintSpendTest(BitcoinTestFramework):
         return start_nodes(self.num_nodes, self.options.tmpdir)
 
     def run_test(self):
-        # Decimal formating: 6 digits for balance will be enought 000.000 
-        getcontext().prec = 6
+        getcontext().prec = 16
 
         # old denomination
         # TODO should be changed after RPC will be updated
@@ -35,11 +34,13 @@ class ZcoinManyMintSpendTest(BitcoinTestFramework):
             info = self.nodes[0].gettransaction(mint_trans[-1])
 
             # fee in transaction is negative
-            fee = -info['fee']
+            fee = info['fee']
+
+            # mint is treated as send to yourself so the balace will reduced by fee only
             cur_bal = self.nodes[0].getbalance()
-            start_bal = start_bal - Decimal(2*denom + fee)
+            start_bal += fee - 2 * denom
             assert start_bal == cur_bal, \
-                'Unexpected current balance: {}, should be minus two mints and 1 fee, ' \
+                'Unexpected current balance: {}, should be minus mint fee, ' \
                 'but start was {}'.format(cur_bal, start_bal)
 
 
@@ -52,21 +53,21 @@ class ZcoinManyMintSpendTest(BitcoinTestFramework):
                 assert confrms == i, \
                     'Confirmations should be {}, '\
                     'due to {} blocks was generated after transaction was created,' \
-                    'but was {}'.format(i, i, confrms) 
+                    'but was {}'.format(i, i, confrms)
 
                 assert tr_type == 'mint', 'Unexpected transaction type'
             for denom in denoms:
                 res = False
-                try: 
+                try:
                     res = self.nodes[0].spendzerocoin(denom)
                 except JSONRPCException as ex:
                     assert ex.error['message'] == \
                         'it has to have at least two mint coins with at least 6 confirmation in order to spend a coin'
                 assert not res, 'Did not raise spend exception, but should be.'
-                
+
             self.nodes[0].generate(1)
             self.sync_all()
-        
+
         # generate last confirmation block - now all transactions should be confimed
         self.nodes[0].generate(1)
         self.sync_all()
@@ -78,15 +79,18 @@ class ZcoinManyMintSpendTest(BitcoinTestFramework):
             assert confrms == 6, \
                 'Confirmations should be 6, ' \
                 'due to 6 blocks was generated after transaction was created,' \
-                'but was {}.'.format(confrms) 
+                'but was {}.'.format(confrms)
             assert tr_type == 'mint', 'Unexpected transaction type'
 
         # Verify that now we are able to spend
-        spend_trans = list()  
-        spend_total = Decimal(0)        
+        spend_trans = list()
+        spend_total = Decimal(0)
         for denom in denoms:
             spend_trans.append(self.nodes[0].spendzerocoin(denom))
-            spend_total += denom
+
+            # this is send to yourself so the amount will be zero
+            info = self.nodes[0].gettransaction(spend_trans[-1])
+            spend_total += Decimal(info['fee']) + denom
 
         # Verify, that after one confirmation balance will be updated on spends
         self.nodes[0].generate(1)

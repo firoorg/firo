@@ -8,20 +8,27 @@ class R1ProofVerifier {
 
 public:
     R1ProofVerifier(const GroupElement& g,
-            const zcoin_common::GeneratorVector<Exponent, GroupElement>& h_gens,
+            const std::vector<GroupElement>& h_gens,
             const GroupElement& B, int n , int m);
 
-    bool verify(const R1Proof<Exponent, GroupElement>& proof_) const;
+    bool verify(const R1Proof<Exponent, GroupElement>& proof,
+                bool skip_final_response_verification = false) const;
 
-    bool verify(const R1Proof<Exponent, GroupElement>& proof_, std::vector<Exponent>& f_) const;
+    bool verify(const R1Proof<Exponent, GroupElement>& proof,
+                std::vector<Exponent>& f_out,
+                bool skip_final_response_verification = false) const;
 
-    mutable Exponent x_;
+    bool verify_final_response(
+            const R1Proof<Exponent, GroupElement>& proof,
+            const Exponent& challenge_x,
+            std::vector<Exponent>& f_out) const;
 
 private:
     const GroupElement& g_;
-    const zcoin_common::GeneratorVector<Exponent, GroupElement>& h_;
+    const std::vector<GroupElement>& h_;
     GroupElement B_Commit;
-    int n_, m_;
+    int n_;
+    int m_;
 };
 
 } // namespace sigma
