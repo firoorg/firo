@@ -1129,10 +1129,15 @@ void static ZcoinMiner(const CChainParams &chainparams) {
                     {
                         LOCK2(cs_main, mempool.cs);
                         int nCount = 0;
-                        fHasZnodesWinnerForNextBlock =
-                                params.IsRegtest() ||
-                                chainActive.Height() < params.nZnodePaymentsStartBlock ||
-                                mnodeman.GetNextZnodeInQueueForPayment(chainActive.Height(), true, nCount);
+                        // Check you actually have znodes in network
+			            if(mnodeman.CountEnabled() > 0){
+                        	fHasZnodesWinnerForNextBlock =
+                                	params.IsRegtest() ||
+                                	chainActive.Height() < params.nZnodePaymentsStartBlock ||
+                                	mnodeman.GetNextZnodeInQueueForPayment(chainActive.Height(), true, nCount);
+                        }else{
+				            fHasZnodesWinnerForNextBlock = true; // we don't have Znode winner causes we don't have Znode on network
+			            }
                     }
                     if (!fvNodesEmpty && fHasZnodesWinnerForNextBlock && !IsInitialBlockDownload()) {
                         break;
