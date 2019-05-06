@@ -529,8 +529,10 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
         if (nHeight >= chainparams.GetConsensus().nZnodePaymentsStartBlock) {
             const Consensus::Params &params = chainparams.GetConsensus();
             CAmount znodePayment = GetZnodePayment(chainparams.GetConsensus(), nHeight > 0 && nBlockTime >= params.nMTPSwitchTime);
-            coinbaseTx.vout[0].nValue -= znodePayment;
-            FillBlockPayments(coinbaseTx, nHeight, znodePayment, pblock->txoutZnode, pblock->voutSuperblock);
+            if(mnodeman.CountEnabled() > 0){
+                coinbaseTx.vout[0].nValue -= znodePayment;
+                FillBlockPayments(coinbaseTx, nHeight, znodePayment, pblock->txoutZnode, pblock->voutSuperblock);
+            }
         }
 
         nLastBlockTx = nBlockTx;
