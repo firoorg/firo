@@ -95,20 +95,24 @@ class SigmaMintSpendTest(BitcoinTestFramework):
         total_spend_fee = 0
         for denom in denoms:
             myaddr = self.nodes[0].listreceivedbyaddress(0, True)[0]['address']
-
+            print(denom)
             args = {myaddr: denom}
 
             spend_trans.append(self.nodes[0].spendmany("", args))
+
             info = self.nodes[0].gettransaction(spend_trans[-1])
             confrms = info['confirmations']
             tr_type = info['details'][0]['category']
             total_spend_fee += -info['fee']
+            print(info['fee'])
+            print(self.nodes[0].getbalance())
             spend_total = float(spend_total) + denom
             assert confrms == 0, \
                 f'Confirmations should be 0, ' \
                 f'due to 0 blocks was generated after transaction was created,' \
                 f'but was {confrms}.'
             assert tr_type == 'spend', 'Unexpected transaction type'
+        print(self.nodes[0].getbalance())
 
         before_new = self.nodes[0].getbalance()
         self.nodes[0].generate(2)

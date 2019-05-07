@@ -22,7 +22,7 @@ class MempoolDoubleSpendOneBlock(BitcoinTestFramework):
         node0_address = self.nodes[0].getnewaddress()
         self.nodes[0].generate(200)
         b_count = self.nodes[0].getblockcount()
-        b = [self.nodes[0].getblockhash(n) for n in range(b_count-1, b_count)]
+        b = [self.nodes[0].getblockhash(n) for n in range(b_count-100, b_count-99)]
         coinbase_txids = [self.nodes[0].getblock(h)['tx'][0] for h in b]
         spends1_raw = [create_tx(self.nodes[0], txid, node0_address, 1) for txid in coinbase_txids]
         spends1_id = [self.nodes[0].sendrawtransaction(tx) for tx in spends1_raw]
