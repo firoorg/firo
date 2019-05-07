@@ -1449,7 +1449,7 @@ bool AcceptToMemoryPoolWorker(
             view.SetBackend(dummy);
         } // LOCK
 
-        if (!tx.IsZerocoinSpend() && !tx.IsZerocoinSpendV3() && fCheckInputs) {
+        if (!tx.IsZerocoinSpend() && fCheckInputs) {
 
             // Check for non-standard pay-to-script-hash in inputs
             if (!fTestNet && fRequireStandard && !AreInputsStandard(tx, view)) {
