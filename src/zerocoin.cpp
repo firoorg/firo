@@ -564,9 +564,9 @@ bool CheckZerocoinTransaction(const CTransaction &tx,
                               CZerocoinTxInfo *zerocoinTxInfo)
 {
     // nHeight have special mode which value is INT_MAX so we need this.
-    int realHeight;
+    int realHeight = params.nSigmaStartBlock;
 
-    {
+    if(!(isVerifyDB && nHeight == INT_MAX)) {
         LOCK(cs_main);
         realHeight = chainActive.Height();
     }
