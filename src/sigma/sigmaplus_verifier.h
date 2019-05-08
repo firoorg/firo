@@ -2,6 +2,7 @@
 #define ZCOIN_SIGMA_SIGMAPLUS_VERIFIER_H
 
 #include "r1_proof_verifier.h"
+#include "util.h"
 
 namespace sigma {
 template<class Exponent, class GroupElement>
