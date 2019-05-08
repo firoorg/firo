@@ -195,11 +195,10 @@ bool CheckSpendZcoinTransactionV3(
             // do not check for duplicates in case we've seen exact copy of this tx in this block before
             if (!(zerocoinTxInfoV3 && zerocoinTxInfoV3->zcTransactions.count(hashTx) > 0)) {
                 if (!CheckZerocoinSpendSerialV3(
-                            state, zerocoinTxInfoV3, serial, nHeight, false))
+                            state, zerocoinTxInfoV3, serial, nHeight, false)) {
                     LogPrintf("CheckSpendZcoinTransactionV3: serial check failed, serial=%s\n", serial);
-
-
                     return false;
+                }
             }
 
             // check duplicated serials in same transaction.
