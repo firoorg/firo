@@ -196,6 +196,9 @@ bool CheckSpendZcoinTransactionV3(
             if (!(zerocoinTxInfoV3 && zerocoinTxInfoV3->zcTransactions.count(hashTx) > 0)) {
                 if (!CheckZerocoinSpendSerialV3(
                             state, zerocoinTxInfoV3, serial, nHeight, false))
+                    LogPrintf("CheckSpendZcoinTransactionV3: serial check failed, serial=%s\n", serial);
+
+
                     return false;
             }
 
@@ -233,7 +236,6 @@ bool CheckSpendZcoinTransactionV3(
                              "CheckSpendZcoinTransaction: can't mix zerocoin spend input with regular ones");
         }
     }
-
 
     return true;
 }
