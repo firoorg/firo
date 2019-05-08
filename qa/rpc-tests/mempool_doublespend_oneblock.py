@@ -22,17 +22,29 @@ class MempoolDoubleSpendOneBlock(BitcoinTestFramework):
         node0_address = self.nodes[0].getnewaddress()
         self.nodes[0].generate(200)
         b_count = self.nodes[0].getblockcount()
-        b = [self.nodes[0].getblockhash(n) for n in range(b_count-100, b_count-99)]
-        coinbase_txids = [self.nodes[0].getblock(h)['tx'][0] for h in b]
-        spends1_raw = [create_tx(self.nodes[0], txid, node0_address, 1) for txid in coinbase_txids]
-        spends1_id = [self.nodes[0].sendrawtransaction(tx) for tx in spends1_raw]
-        spends2_id = [self.nodes[0].sendrawtransaction(tx) for tx in spends1_raw]
-
+        b1 = self.nodes[0].getblockhash(b_count - 100)
+        coinbase_txids1 = self.nodes[0].getblock(b1)['tx'][0]
+        spends1_raw = create_tx(self.nodes[0], coinbase_txids1, node0_address, 1)
+        spend1_id = self.nodes[0].sendrawtransaction(spends1_raw)
+        spend2_id = self.nodes[0].sendrawtransaction(spends1_raw)
+        assert_equal(len(self.nodes[0].getrawmempool()), 1)
         blocks = []
         blocks.extend(self.nodes[0].generate(1))
-
         # mempool should not be empty, one txn should be unconfirmed
-        assert_equal(len(self.nodes[0].getrawmempool()), 1)
+        assert_equal(len(self.nodes[0].getrawmempool()), 0)
+
+
+        print('check double regular spend in multiple spend')
+        b = self.nodes[0].getblockhash(b_count-101)
+        coinbase_txids2 = self.nodes[0].getblock(b)['tx'][0]
+        spends2_raw = try_create_tx_with_two_coinbase(self.nodes[0], coinbase_txids1, coinbase_txids2,  node0_address, node0_address, 1, 1)
+        spends2_id = self.nodes[0].sendrawtransaction(spends2_raw)
+        assert_equal(len(self.nodes[0].getrawmempool()), 0)
+        blocks.extend(self.nodes[0].generate(1))
+        # mempool should not be empty, one txn should be unconfirmed
+        assert_equal(len(self.nodes[0].getrawmempool()), 0)
+
+
 
 
 if __name__ == '__main__':
