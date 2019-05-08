@@ -19,7 +19,7 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::verify(
     R1ProofVerifier<Exponent, GroupElement> r1ProofVerifier(g_, h_, proof.B_, n, m);
     std::vector<Exponent> f;
     const R1Proof<Exponent, GroupElement>& r1Proof = proof.r1Proof_;
-    if (r1ProofVerifier.verify(r1Proof, f, true /* Skip verification of final response */)) {
+    if (!r1ProofVerifier.verify(r1Proof, f, true /* Skip verification of final response */)) {
         LogPrintf("Sigma spend failed due to r1 proof incorrect.");
         return false;
     }
