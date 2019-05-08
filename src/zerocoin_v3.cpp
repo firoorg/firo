@@ -441,19 +441,10 @@ bool ConnectBlockZCV3(
 		bool fJustCheck) {
 	// Add zerocoin transaction information to index
 	if (pblock && pblock->zerocoinTxInfoV3) {
-        // Martun: Commented out the next code, uncomment if we decide to stop zerocoin V2 spends
-        // after some point in time. The current decision is to allow them forever.
-		// Also don't allow spend v2s after some other point in time.
-		//if (pblock->zerocoinTxInfoV3->fHasSpendV2) {
-		//	int allowV2Height = Params().nSpendV2StartBlock;
-		//	if (pindexNew->nHeight >= allowV2Height + ZC_V2_GRACEFUL_PERIOD) {
-		//		LogPrintf("ConnectTipZC: spend v2 is not allowed after block %d\n", allowV2Height);
-		//		return false;
-		//	}
-		//}
-
-		if (!fJustCheck)
+		if (!fJustCheck) {
+			pindexNew->mintedPubCoinsV3.clear();
 			pindexNew->spentSerialsV3.clear();
+		}
 
 		BOOST_FOREACH(auto& serial, pblock->zerocoinTxInfoV3->spentSerials) {
 			if (!CheckZerocoinSpendSerialV3(
@@ -471,12 +462,7 @@ bool ConnectBlockZCV3(
 				zerocoinStateV3.AddSpend(serial.first);
 			}
 		}
-        // Shows if V3 sigma mints are now allowed.
-        bool V3MintsAllowed = (pindexNew->nHeight >= Params().GetConsensus().nSigmaStartBlock);
 
-        // If V3 mints are not allowed in this block, but some client tries to mint.
-        if (!V3MintsAllowed && !pblock->zerocoinTxInfoV3->mints.empty())
-		    return state.DoS(0, error("ConnectBlockZCV3 : V3 sigma mints not allowed until a given block"));
 		if (fJustCheck)
 			return true;
 
@@ -555,9 +541,15 @@ int CZerocoinStateV3::AddMint(
         ) {
 		if (coinGroup.nCoins++ == 0) {
 			// first group of coins for given denomination
+			assert(coinGroup.firstBlock == nullptr);
+			assert(coinGroup.lastBlock == nullptr);
+
 			coinGroup.firstBlock = coinGroup.lastBlock = index;
-		}
-		else {
+		} else {
+			assert(coinGroup.firstBlock != nullptr);
+			assert(coinGroup.lastBlock != nullptr);
+			assert(coinGroup.lastBlock->nHeight <= index->nHeight);
+
 			coinGroup.lastBlock = index;
 		}
 	}
@@ -626,6 +618,8 @@ void CZerocoinStateV3::RemoveBlock(CBlockIndex *index) {
 		}
 		else {
 			// roll back lastBlock to previous position
+			assert(coinGroup.lastBlock == index);
+
 			do {
 				assert(coinGroup.lastBlock != coinGroup.firstBlock);
 				coinGroup.lastBlock = coinGroup.lastBlock->pprev;
@@ -648,10 +642,15 @@ void CZerocoinStateV3::RemoveBlock(CBlockIndex *index) {
 			mintedPubCoins.erase(coinIt);
 		}
 	}
+
+	index->mintedPubCoinsV3.clear();
+
     // roll back spends
     BOOST_FOREACH(const Scalar &serial, index->spentSerialsV3) {
         usedCoinSerials.erase(serial);
     }
+
+	index->spentSerialsV3.clear();
 }
 
 bool CZerocoinStateV3::GetCoinGroupInfo(
