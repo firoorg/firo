@@ -10,11 +10,11 @@ CHDMint::CHDMint()
     SetNull();
 }
 
-CHDMint::CHDMint(const uint32_t& nCount, const uint256& hashSeed, const uint256& hashSerial, const GroupElement& pubCoinValue)
+CHDMint::CHDMint(const uint32_t& nCount, const CKeyID& seedId, const uint256& hashSerial, const GroupElement& pubCoinValue)
 {
     SetNull();
     this->nCount = nCount;
-    this->hashSeed = hashSeed;
+    this->seedId = seedId;
     this->hashSerial = hashSerial;
     this->pubCoinValue = pubCoinValue;
 }
@@ -22,7 +22,7 @@ CHDMint::CHDMint(const uint32_t& nCount, const uint256& hashSeed, const uint256&
 void CHDMint::SetNull()
 {
     nCount = 0;
-    hashSeed.SetNull();
+    seedId.SetNull();
     hashSerial.SetNull();
     txid.SetNull();
     nHeight = -1;
@@ -33,6 +33,6 @@ void CHDMint::SetNull()
 
 std::string CHDMint::ToString() const
 {
-    return strprintf(" HDMint:\n   count=%d\n   hashseed=%s\n   hashSerial=%s\n   hashpubCoinValue=%s\n   txid=%s\n   height=%d\n   id=%d\n   denom=%d\n   isUsed=%d\n",
-    nCount, hashSeed.GetHex(), hashSerial.GetHex(), GetPubCoinHash().GetHex(), txid.GetHex(), nHeight, nId, denom, isUsed);
+    return strprintf(" HDMint:\n   count=%d\n   seedId=%s\n   hashSerial=%s\n   hashPubCoinValue=%s\n   txid=%s\n   height=%d\n   id=%d\n   denom=%d\n   isUsed=%d\n",
+    nCount, seedId.ToString(), hashSerial.GetHex(), GetPubCoinHash().GetHex(), txid.GetHex(), nHeight, nId, denom, isUsed);
 }

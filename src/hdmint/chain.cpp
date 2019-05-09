@@ -4,7 +4,6 @@
 
 #include "hdmint/chain.h"
 #include "main.h"
-//#include "init.h"
 #include "txdb.h"
 #include "ui_interface.h"
 #include "zerocoin_v3.h"

@@ -206,22 +206,12 @@ bool CCryptoKeyStore::Unlock(const CKeyingMaterial& vMasterKeyIn)
         vMasterKey = vMasterKeyIn;
         fDecryptionThoroughlyChecked = true;
 
-       uint256 hashSeed;
-        if (CWalletDB(pwalletMain->strWalletFile).ReadCurrentSeedHash(hashSeed)) {
-
-             uint256 nSeed;
-            if (!GetDeterministicSeed(hashSeed, nSeed)) {
-                return error("Failed to read zerocoin seed from DB. Wallet is probably corrupt.");
-            }
-            pwalletMain->zwallet->SetMasterSeed(nSeed, false);
+        uint160 hashSeedMaster = pwalletMain->GetHDChain().masterKeyID;
+        if (CWalletDB(pwalletMain->strWalletFile).ReadCurrentSeedHash(hashSeedMaster)) {
+            pwalletMain->zwallet->SetHashSeedMaster(hashSeedMaster, false);
         } else {
-            // First time this wallet has been unlocked with HD mint
-            // Borrow random generator from the key class so that we don't have to worry about randomness
-            CKey key;
-            key.MakeNewKey(true);
-            uint256 seed = key.GetPrivKey_256();
-            LogPrintf("%s: first run of HDmint wallet detected, new seed generated. Seedhash=%s\n", __func__, Hash(seed.begin(), seed.end()).GetHex());
-            pwalletMain->zwallet->SetMasterSeed(seed, true);
+            // First time this wallet has been unlocked with HD mint enabled
+            pwalletMain->zwallet->SetHashSeedMaster(hashSeedMaster, true);
             pwalletMain->zwallet->GenerateMintPool();
         }
     }
@@ -322,81 +312,4 @@ bool CCryptoKeyStore::EncryptKeys(CKeyingMaterial& vMasterKeyIn)
         mapKeys.clear();
     }
     return true;
-}
-
-bool CCryptoKeyStore::AddDeterministicSeed(const uint256& seed)
-{
-    CWalletDB db(pwalletMain->strWalletFile);
-    string strErr;
-    uint256 hashSeed = Hash(seed.begin(), seed.end());
-
-     if(IsCrypted()) {
-        if (!IsLocked()) { //if we have password
-
-             CKeyingMaterial kmSeed(seed.begin(), seed.end());
-            vector<unsigned char> vchSeedSecret;
-
-
-             //attempt encrypt
-            if (EncryptSecret(vMasterKey, kmSeed, hashSeed, vchSeedSecret)) {
-                //write to wallet with hashSeed as unique key
-                if (db.WriteZerocoinSeed(hashSeed, vchSeedSecret)) {
-                    return true;
-                }
-            }
-            strErr = "encrypt seed";
-        }
-        strErr = "save since wallet is locked";
-    } else { //wallet not encrypted
-        if (db.WriteZerocoinSeed(hashSeed, ToByteVector(seed))) {
-            return true;
-        }
-        strErr = "save zerocoinseed to wallet";
-    }
-
-     return error("s%: Failed to %s\n", __func__, strErr);
-}
-
- bool CCryptoKeyStore::GetDeterministicSeed(const uint256& hashSeed, uint256& seedOut)
-{
-
-     CWalletDB db(pwalletMain->strWalletFile);
-    string strErr;
-    if (IsCrypted()) {
-        if(!IsLocked()) { //if we have password
-
-             vector<unsigned char> vchCryptedSeed;
-            //read encrypted seed
-            if (db.ReadZerocoinSeed(hashSeed, vchCryptedSeed)) {
-                uint256 seedRetrieved = uint256S(ReverseEndianString(HexStr(vchCryptedSeed)));
-                //this checks if the hash of the seed we just read matches the hash given, meaning it is not encrypted
-                //the use case for this is when not crypted, seed is set, then password set, the seed not yet crypted in memory
-                if(hashSeed == Hash(seedRetrieved.begin(), seedRetrieved.end())) {
-                    seedOut = seedRetrieved;
-                    return true;
-                }
-
-                 CKeyingMaterial kmSeed;
-                //attempt decrypt
-                if (DecryptSecret(vMasterKey, vchCryptedSeed, hashSeed, kmSeed)) {
-                    seedOut = uint256S(ReverseEndianString(HexStr(kmSeed)));
-                    return true;
-                }
-                strErr = "decrypt seed";
-            } else { strErr = "read seed from wallet"; }
-        } else { strErr = "read seed; wallet is locked"; }
-    } else {
-        vector<unsigned char> vchSeed;
-        // wallet not crypted
-        if (db.ReadZerocoinSeed(hashSeed, vchSeed)) {
-            seedOut = uint256S(ReverseEndianString(HexStr(vchSeed)));
-            return true;
-        }
-        strErr = "read seed from wallet";
-    }
-
-     return error("%s: Failed to %s\n", __func__, strErr);
-
-
- //    return error("Failed to decrypt deterministic seed %s", IsLocked() ? "Wallet is locked!" : "");
 }

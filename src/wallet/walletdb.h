@@ -56,10 +56,11 @@ enum DBErrors
 class CHDChain
 {
 public:
-    uint32_t nExternalChainCounter;
+    vector<uint32_t> nExternalChainCounters; // vector index corresponds to account value
     CKeyID masterKeyID; //!< master key hash160
 
     static const int CURRENT_VERSION = 1;
+    static const int N_ACCOUNTS = 2; // standard = 0, mint = 1
     int nVersion;
 
     CHDChain() { SetNull(); }
@@ -69,15 +70,17 @@ public:
     {
         READWRITE(this->nVersion);
         nVersion = this->nVersion;
-        READWRITE(nExternalChainCounter);
+        READWRITE(nExternalChainCounters);
         READWRITE(masterKeyID);
     }
 
     void SetNull()
     {
         nVersion = CHDChain::CURRENT_VERSION;
-        nExternalChainCounter = 0;
         masterKeyID.SetNull();
+        for(int index=0;index<N_ACCOUNTS;index++){
+            nExternalChainCounters.push_back(0);
+        }
     }
 };
 
@@ -90,6 +93,7 @@ public:
     int nVersion;
     int64_t nCreateTime; // 0 means unknown
     std::string hdKeypath; //optional HD/bip32 keypath
+    int64_t nChild; // HD/bip32 keypath child counter
     CKeyID hdMasterKeyID; //id of the HD masterkey used to derive this key
 
     CKeyMetadata()
@@ -121,6 +125,7 @@ public:
         nVersion = CKeyMetadata::CURRENT_VERSION;
         nCreateTime = 0;
         hdKeypath.clear();
+        nChild = 0;
         hdMasterKeyID.SetNull();
     }
 };
@@ -211,10 +216,8 @@ public:
     static bool Recover(CDBEnv& dbenv, const std::string& filename, bool fOnlyKeys);
     static bool Recover(CDBEnv& dbenv, const std::string& filename);
 
-    bool ReadCurrentSeedHash(uint256& hashSeed);
-    bool WriteCurrentSeedHash(const uint256& hashSeed);
-    bool ReadZerocoinSeed(const uint256& hashSeed, vector<unsigned char>& seed);
-    bool WriteZerocoinSeed(const uint256& hashSeed, const vector<unsigned char>& seed);
+    bool ReadCurrentSeedHash(uint160& hashSeed);
+    bool WriteCurrentSeedHash(const uint160& hashSeed);
 
     bool ReadZerocoinCount(uint32_t& nCount);
     bool WriteZerocoinCount(const uint32_t& nCount);
@@ -229,8 +232,8 @@ public:
 
      std::list<CHDMint> ListHDMints();
 
-     std::map<uint256, std::vector<pair<uint256, uint32_t> > > MapMintPool();
-    bool WriteMintPoolPair(const uint256& hashMasterSeed, const uint256& hashPubcoin, const uint32_t& nCount);
+     std::map<uint160, std::vector<pair<CKeyID, uint32_t> > > MapMintPool();
+    bool WriteMintPoolPair(const uint160& hashMasterSeed, const CKeyID& seedId, const uint32_t& nCount);
 
     //! write the hdchain model (external chain child index counter)
     bool WriteHDChain(const CHDChain& chain);

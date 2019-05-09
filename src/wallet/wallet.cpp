@@ -59,6 +59,8 @@ bool fSendFreeTransactions = DEFAULT_SEND_FREE_TRANSACTIONS;
 
 const char *DEFAULT_WALLET_DAT = "wallet.dat";
 const uint32_t BIP32_HARDENED_KEY_LIMIT = 0x80000000;
+const uint32_t BIP44_INDEX = 0x2C;
+const uint32_t BIP44_ZCOIN_INDEX = 0x88; // https://github.com/satoshilabs/slips/blob/master/slip-0044.md
 
 /**
  * Fees smaller than this (in satoshi) are considered zero fee (for transaction creation)
@@ -125,7 +127,7 @@ const CWalletTx *CWallet::GetWalletTx(const uint256 &hash) const {
     return &(it->second);
 }
 
-CPubKey CWallet::GenerateNewKey() {
+CPubKey CWallet::GenerateNewKey(uint32_t nAccount) {
     AssertLockHeld(cs_wallet); // mapKeyMetadata
     bool fCompressed = CanSupportFeature(
             FEATURE_COMPRPUBKEY); // default to compressed public keys if we want 0.6.0 wallets
@@ -138,12 +140,14 @@ CPubKey CWallet::GenerateNewKey() {
 
     // use HD key derivation if HD was enabled during wallet creation
     if (!hdChain.masterKeyID.IsNull()) {
-        // for now we use a fixed keypath scheme of m/0'/0'/k
+        // use BIP44 keypath: m / purpose' / coin_type' / account' / change / address_index
         CKey key;                      //master key seed (256bit)
         CExtKey masterKey;             //hd master key
-        CExtKey accountKey;            //key at m/0'
-        CExtKey externalChainChildKey; //key at m/0'/0'
-        CExtKey childKey;              //key at m/0'/0'/<n>'
+        CExtKey purposeKey;            //key at m/44'
+        CExtKey coinTypeKey;           //key at m/44'/136' (Zcoin Coin Type according to SLIP-0044)
+        CExtKey accountKey;            //key at m/44'/136'/<a>' (standard=0, mint=1)
+        CExtKey externalChainChildKey; //key at m/44'/136'/<a>'/0'
+        CExtKey childKey;              //key at m/44'/136'/<a>'/0'/<n>
 
         // try to get the master key
         if (!GetKey(hdChain.masterKeyID, key))
@@ -151,11 +155,17 @@ CPubKey CWallet::GenerateNewKey() {
 
         masterKey.SetMaster(key.begin(), key.size());
 
-        // derive m/0'
+        // derive m/44'
         // use hardened derivation (child keys >= 0x80000000 are hardened after bip32)
-        masterKey.Derive(accountKey, BIP32_HARDENED_KEY_LIMIT);
+        masterKey.Derive(purposeKey, BIP44_INDEX | BIP32_HARDENED_KEY_LIMIT);
 
-        // derive m/0'/0'
+        // derive m/44'/136'
+        purposeKey.Derive(coinTypeKey, BIP44_ZCOIN_INDEX | BIP32_HARDENED_KEY_LIMIT);
+
+        // derive m/44'/136'/<a>'
+        coinTypeKey.Derive(accountKey, nAccount | BIP32_HARDENED_KEY_LIMIT);
+
+        // derive m/44'/136'/<a>'/0'
         accountKey.Derive(externalChainChildKey, BIP32_HARDENED_KEY_LIMIT);
 
         // derive child key at next index, skip keys already known to the wallet
@@ -163,11 +173,12 @@ CPubKey CWallet::GenerateNewKey() {
             // always derive hardened keys
             // childIndex | BIP32_HARDENED_KEY_LIMIT = derive childIndex in hardened child-index-range
             // example: 1 | BIP32_HARDENED_KEY_LIMIT == 0x80000001 == 2147483649
-            externalChainChildKey.Derive(childKey, hdChain.nExternalChainCounter | BIP32_HARDENED_KEY_LIMIT);
-            metadata.hdKeypath = "m/0'/0'/" + std::to_string(hdChain.nExternalChainCounter) + "'";
+            externalChainChildKey.Derive(childKey, hdChain.nExternalChainCounters[nAccount] | BIP32_HARDENED_KEY_LIMIT);
+            metadata.hdKeypath = "m/44'/136'/" + std::to_string(nAccount) + "'/" + std::to_string(hdChain.nExternalChainCounters[nAccount]) + "'";
             metadata.hdMasterKeyID = hdChain.masterKeyID;
+            metadata.nChild = hdChain.nExternalChainCounters[nAccount];
             // increment childkey index
-            hdChain.nExternalChainCounter++;
+            hdChain.nExternalChainCounters[nAccount]++;
         } while (HaveKey(childKey.key.GetPubKey().GetID()));
         secret = childKey.key;
 
@@ -2100,6 +2111,7 @@ std::vector<CRecipient> CWallet::CreateSigmaMintRecipients(
         [&vDMints, &dMint](sigma::PrivateCoinV3& coin) -> CRecipient {
 
             // Generate and store secrets deterministically in the following function.
+            dMint.SetNull();
             zwalletMain->GenerateHDMint(coin.getPublicCoin().getDenomination(), coin, dMint);
 
             // Get a copy of the 'public' portion of the coin. You should
@@ -3775,6 +3787,7 @@ bool CWallet::CreateZerocoinMintModelV3(
             sigma::PrivateCoinV3 newCoin(zcParams, denomination, ZEROCOIN_TX_VERSION_3);
 
             // Generate and store secrets deterministically in the following function.
+            dMint.SetNull();
             zwalletMain->GenerateHDMint(denomination, newCoin, dMint);
 
             // Get a copy of the 'public' portion of the coin. You should
@@ -3946,6 +3959,7 @@ bool CWallet::CreateZerocoinMintModelV3(string &stringError, const string& denom
     sigma::PrivateCoinV3 newCoin(zcParams, denomination, ZEROCOIN_TX_VERSION_3);
 
     // Generate and store secrets deterministically in the following function.
+    dMint.SetNull();
     zwalletMain->GenerateHDMint(denomination, newCoin, dMint);
 
     // Get a copy of the 'public' portion of the coin. You should

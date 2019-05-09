@@ -14,7 +14,6 @@
 #include "libzerocoin/Zerocoin.h"
 #include "main.h"
 #include "zerocoin_v3.h"
-//#include "accumulators.h"
 
 using namespace std;
 
@@ -293,7 +292,7 @@ void CHDMintTracker::Add(const CHDMint& dMint, bool isNew, bool isArchived, CHDM
     meta.isDeterministic = true;
     if (! iszerocoinWalletInitialized)
         zerocoinWallet = new CHDMintWallet(strWalletFile);
-    meta.isSeedCorrect = zerocoinWallet->CheckSeed(dMint);
+    meta.isSeedCorrect = true;
     if (! iszerocoinWalletInitialized)
         delete zerocoinWallet;
     mapSerialHashes[meta.hashSerial] = meta;

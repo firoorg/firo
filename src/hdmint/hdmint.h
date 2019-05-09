@@ -13,7 +13,7 @@ class CHDMint
 {
 private:
     uint32_t nCount;
-    uint256 hashSeed;
+    CKeyID seedId;
     uint256 hashSerial;
     GroupElement pubCoinValue;
     uint256 txid;
@@ -24,7 +24,7 @@ private:
 
 public:
     CHDMint();
-    CHDMint(const uint32_t& nCount, const uint256& hashSeed, const uint256& hashSerial, const GroupElement& pubCoinValue);
+    CHDMint(const uint32_t& nCount, const CKeyID& seedId, const uint256& hashSerial, const GroupElement& pubCoinValue);
 
     sigma::CoinDenominationV3 GetDenomination() const {
         sigma::CoinDenominationV3 value;
@@ -37,7 +37,7 @@ public:
     uint32_t GetCount() const { return nCount; }
     int GetHeight() const { return nHeight; }
     int GetId() const { return nId; }
-    uint256 GetSeedHash() const { return hashSeed; }
+    CKeyID GetSeedId() const { return seedId; }
     uint256 GetSerialHash() const { return hashSerial; }
     GroupElement GetPubcoinValue() const { return pubCoinValue; }
     uint256 GetPubCoinHash() const { return GetPubCoinValueHash(pubCoinValue); }
@@ -63,7 +63,7 @@ public:
     inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
     {
         READWRITE(nCount);
-        READWRITE(hashSeed);
+        READWRITE(seedId);
         READWRITE(hashSerial);
         READWRITE(pubCoinValue);
         READWRITE(txid);

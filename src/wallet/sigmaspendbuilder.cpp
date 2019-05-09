@@ -161,6 +161,7 @@ CAmount SigmaSpendBuilder::GetChanges(std::vector<CTxOut>& outputs, CAmount amou
         sigma::DenominationToInteger(denomination, denominationValue);
 
         sigma::PrivateCoinV3 newCoin(params, denomination, ZEROCOIN_TX_VERSION_3);
+        hdMint.SetNull();
         zwalletMain->GenerateHDMint(denomination, newCoin, hdMint);
         auto& pubCoin = newCoin.getPublicCoin();
 
