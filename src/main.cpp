@@ -4363,8 +4363,10 @@ bool CheckBlock(const CBlock &block, CValidationState &state,
         return true;
     } catch (const std::exception &e) {
         PrintExceptionContinue(&e, "CheckBlock() 1\n");
+        return false;
     } catch (...) {
         PrintExceptionContinue(NULL, "CheckBlock() 2\n");
+        return false;
     }
     return true;
 }
