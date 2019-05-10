@@ -54,6 +54,7 @@ bool CheckZerocoinTransactionV3(
 	bool isVerifyDB,
 	int nHeight,
   bool isCheckWallet,
+  bool fStatefulSigmaCheck,
   CZerocoinTxInfoV3 *zerocoinTxInfo);
 
 void DisconnectTipZCV3(CBlock &block, CBlockIndex *pindexDelete);

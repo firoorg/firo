@@ -3019,10 +3019,10 @@ UniValue mint(const UniValue& params, bool fHelp)
 
 UniValue mintzerocoin(const UniValue& params, bool fHelp)
 {
-    EnsureZerocoinMintIsAllowed();
-
     if (fHelp || params.size() != 1)
         throw runtime_error("mintzerocoin <amount>(1,10,25,50,100)\n" + HelpRequiringPassphrase());
+
+    EnsureZerocoinMintIsAllowed();
 
     int64_t nAmount = 0;
     libzerocoin::CoinDenomination denomination;
@@ -3175,8 +3175,6 @@ UniValue mintzerocoinV3(const UniValue& params, bool fHelp)
 
 UniValue mintmanyzerocoin(const UniValue& params, bool fHelp)
 {
-    EnsureZerocoinMintIsAllowed();
-
     if (fHelp || params.size() == 0 || params.size() % 2 != 0 || params.size() > 10)
         throw runtime_error(
                 "mintmanyzerocoin <denomination>(1,10,25,50,100), numberOfMints, <denomination>(1,10,25,50,100), numberOfMints, ... }\n"
@@ -3191,6 +3189,8 @@ UniValue mintmanyzerocoin(const UniValue& params, bool fHelp)
                     + HelpExampleCli("mintmanyzerocoin", "1 1")
                     + HelpExampleCli("mintmanyzerocoin", "25 10 50 5")
         );
+
+    EnsureZerocoinMintIsAllowed();
 
     UniValue sendTo(UniValue::VOBJ);
 

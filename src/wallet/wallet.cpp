@@ -6169,7 +6169,7 @@ string CWallet::MintAndStoreZerocoin(vector<CRecipient> vecSend,
 
     LogPrintf("payTxFee.GetFeePerK()=%s\n", payTxFee.GetFeePerK());
     CReserveKey reservekey(this);
-    int64_t nFeeRequired;
+    int64_t nFeeRequired = 0;
 
     int nChangePosRet = -1;
     bool isSigmaMint = false;
@@ -6242,7 +6242,7 @@ string CWallet::MintAndStoreZerocoinV3(vector<CRecipient> vecSend,
 
     LogPrintf("payTxFee.GetFeePerK()=%s\n", payTxFee.GetFeePerK());
     CReserveKey reservekey(this);
-    int64_t nFeeRequired;
+    int64_t nFeeRequired = 0;
 
     int nChangePosRet = -1;
     bool isSigmaMint = true;
@@ -6313,7 +6313,7 @@ string CWallet::MintZerocoin(CScript pubCoin, int64_t nValue, bool isSigmaMint, 
         return _("Insufficient funds");
     LogPrintf("payTxFee.GetFeePerK()=%s\n", payTxFee.GetFeePerK());
     CReserveKey reservekey(this);
-    int64_t nFeeRequired;
+    int64_t nFeeRequired = 0;
 
     if (IsLocked()) {
         string strError = _("Error: Wallet locked, unable to create transaction!");
