@@ -58,9 +58,6 @@ bool bSpendZeroConfChange = DEFAULT_SPEND_ZEROCONF_CHANGE;
 bool fSendFreeTransactions = DEFAULT_SEND_FREE_TRANSACTIONS;
 
 const char *DEFAULT_WALLET_DAT = "wallet.dat";
-const uint32_t BIP32_HARDENED_KEY_LIMIT = 0x80000000;
-const uint32_t BIP44_INDEX = 0x2C;
-const uint32_t BIP44_ZCOIN_INDEX = 0x88; // https://github.com/satoshilabs/slips/blob/master/slip-0044.md
 
 /**
  * Fees smaller than this (in satoshi) are considered zero fee (for transaction creation)
@@ -127,7 +124,7 @@ const CWalletTx *CWallet::GetWalletTx(const uint256 &hash) const {
     return &(it->second);
 }
 
-CPubKey CWallet::GenerateNewKey(uint32_t nAccount) {
+CPubKey CWallet::GenerateNewKey(uint32_t nChange) {
     AssertLockHeld(cs_wallet); // mapKeyMetadata
     bool fCompressed = CanSupportFeature(
             FEATURE_COMPRPUBKEY); // default to compressed public keys if we want 0.6.0 wallets
@@ -145,9 +142,9 @@ CPubKey CWallet::GenerateNewKey(uint32_t nAccount) {
         CExtKey masterKey;             //hd master key
         CExtKey purposeKey;            //key at m/44'
         CExtKey coinTypeKey;           //key at m/44'/136' (Zcoin Coin Type according to SLIP-0044)
-        CExtKey accountKey;            //key at m/44'/136'/<a>' (standard=0, mint=1)
-        CExtKey externalChainChildKey; //key at m/44'/136'/<a>'/0'
-        CExtKey childKey;              //key at m/44'/136'/<a>'/0'/<n>
+        CExtKey accountKey;            //key at m/44'/136'/0'
+        CExtKey externalChainChildKey; //key at m/44'/136'/0'/<c>' (Standard: 0/1, Mints: 2)
+        CExtKey childKey;              //key at m/44'/136'/0'/<c>'/<n>
 
         // try to get the master key
         if (!GetKey(hdChain.masterKeyID, key))
@@ -162,23 +159,23 @@ CPubKey CWallet::GenerateNewKey(uint32_t nAccount) {
         // derive m/44'/136'
         purposeKey.Derive(coinTypeKey, BIP44_ZCOIN_INDEX | BIP32_HARDENED_KEY_LIMIT);
 
-        // derive m/44'/136'/<a>'
-        coinTypeKey.Derive(accountKey, nAccount | BIP32_HARDENED_KEY_LIMIT);
+        // derive m/44'/136'/0'
+        coinTypeKey.Derive(accountKey, BIP32_HARDENED_KEY_LIMIT);
 
-        // derive m/44'/136'/<a>'/0'
-        accountKey.Derive(externalChainChildKey, BIP32_HARDENED_KEY_LIMIT);
+        // derive m/44'/136'/0'/<c>'
+        accountKey.Derive(externalChainChildKey, nChange | BIP32_HARDENED_KEY_LIMIT);
 
         // derive child key at next index, skip keys already known to the wallet
         do {
             // always derive hardened keys
             // childIndex | BIP32_HARDENED_KEY_LIMIT = derive childIndex in hardened child-index-range
             // example: 1 | BIP32_HARDENED_KEY_LIMIT == 0x80000001 == 2147483649
-            externalChainChildKey.Derive(childKey, hdChain.nExternalChainCounters[nAccount] | BIP32_HARDENED_KEY_LIMIT);
-            metadata.hdKeypath = "m/44'/136'/" + std::to_string(nAccount) + "'/" + std::to_string(hdChain.nExternalChainCounters[nAccount]) + "'";
+            externalChainChildKey.Derive(childKey, hdChain.nExternalChainCounters[nChange] | BIP32_HARDENED_KEY_LIMIT);
+            metadata.hdKeypath = "m/44'/136'/0'/" + std::to_string(nChange) + "'/" + std::to_string(hdChain.nExternalChainCounters[nChange]) + "'";
             metadata.hdMasterKeyID = hdChain.masterKeyID;
-            metadata.nChild = hdChain.nExternalChainCounters[nAccount];
+            metadata.nChild = hdChain.nExternalChainCounters[nChange];
             // increment childkey index
-            hdChain.nExternalChainCounters[nAccount]++;
+            hdChain.nExternalChainCounters[nChange]++;
         } while (HaveKey(childKey.key.GetPubKey().GetID()));
         secret = childKey.key;
 

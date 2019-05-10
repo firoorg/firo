@@ -44,18 +44,18 @@ bool CHDMintWallet::SetHashSeedMaster(const uint160& hashSeedMaster, bool fReset
     if (pwalletMain->IsLocked())
         return false;
 
-    if (!hashSeedMaster.IsNull()) {
+    if (hashSeedMaster.IsNull()) {
         return error("%s: failed to set master seed.", __func__);
     }
 
     this->hashSeedMaster = hashSeedMaster;
 
-    nCountLastUsed = 0;
+    nCountLastUsed = COUNT_LAST_USED_DEFAULT;
 
     if (fResetCount)
         walletdb.WriteZerocoinCount(nCountLastUsed);
     else if (!walletdb.ReadZerocoinCount(nCountLastUsed))
-        nCountLastUsed = 0;
+        nCountLastUsed = COUNT_LAST_USED_DEFAULT;
 
     mintPool.Reset();
 
@@ -75,9 +75,9 @@ void CHDMintWallet::GenerateMintPool(uint32_t nCountStart, uint32_t nCountEnd)
     if (hashSeedMaster.IsNull())
         return;
 
-    uint32_t n = nCountLastUsed + 1;
+    uint32_t n = nCountLastUsed;
 
-    if (nCountStart > 0)
+    if (nCountStart > COUNT_LAST_USED_DEFAULT)
         n = nCountStart;
 
     uint32_t nStop = n + 20;
@@ -111,6 +111,8 @@ void CHDMintWallet::GenerateMintPool(uint32_t nCountStart, uint32_t nCountEnd)
         CWalletDB(strWalletFile).WriteMintPoolPair(hashSeedMaster, seedId, i);
         LogPrintf("%s : %s count=%d\n", __func__, seedId.GetHex(), i);
     }
+    // Load mint pool into DB following creation
+    LoadMintPoolFromDB();
 }
 
 bool CHDMintWallet::LoadMintPoolFromDB()
@@ -125,7 +127,7 @@ bool CHDMintWallet::LoadMintPoolFromDB()
 
 void CHDMintWallet::GetState(int& nCount, int& nLastGenerated)
 {
-    nCount = this->nCountLastUsed + 1;
+    nCount = this->nCountLastUsed;
     nLastGenerated = mintPool.CountOfLastGenerated();
 }
 
@@ -318,7 +320,7 @@ void CHDMintWallet::SeedToZerocoin(const uint512& seedZerocoin, GroupElement& co
 
 CKeyID CHDMintWallet::GetZerocoinSeedID(uint32_t n){
     // Get CKeyID for n from mintpool
-    std::pair<CKeyID,uint32_t> mintPoolEntry; 
+    std::pair<CKeyID,uint32_t> mintPoolEntry;
     if(!mintPool.Get(n, mintPoolEntry)){
         // Top up mintpool if empty
         GenerateMintPool();
@@ -330,12 +332,12 @@ CKeyID CHDMintWallet::GetZerocoinSeedID(uint32_t n){
 
 uint512 CHDMintWallet::GetZerocoinSeed(uint32_t n, CKeyID& seedId)
 { 
+    LOCK(pwalletMain->cs_wallet);
     CKey key;
     // if passed seedId, we assume generation of seed has occured.
     // Otherwise get new key to be used as seed
     if(seedId.IsNull()){
-        uint32_t MINT_ACCOUNT = 1;
-        CPubKey pubKey = pwalletMain->GenerateNewKey(MINT_ACCOUNT);
+        CPubKey pubKey = pwalletMain->GenerateNewKey(BIP44_MINT_INDEX);
         seedId = pubKey.GetID();
     }
 
@@ -383,7 +385,7 @@ void CHDMintWallet::UpdateCount()
 
 void CHDMintWallet::GenerateHDMint(sigma::CoinDenominationV3 denom, sigma::PrivateCoinV3& coin, CHDMint& dMint, bool fGenerateOnly)
 {
-    GenerateMint(nCountLastUsed + 1, denom, coin, dMint);
+    GenerateMint(nCountLastUsed, denom, dMint.GetSeedId(), coin, dMint);
     if (fGenerateOnly)
         return;
 
@@ -391,9 +393,8 @@ void CHDMintWallet::GenerateHDMint(sigma::CoinDenominationV3 denom, sigma::Priva
     //LogPrintf("%s : Generated new deterministic mint. Count=%d pubcoin=%s seed=%s\n", __func__, nCount, coin.getPublicCoin().getValue().GetHex().substr(0,6), seedZerocoin.GetHex().substr(0, 4));
 }
 
-void CHDMintWallet::GenerateMint(const uint32_t& nCount, const sigma::CoinDenominationV3 denom, sigma::PrivateCoinV3& coin, CHDMint& dMint)
+void CHDMintWallet::GenerateMint(const uint32_t& nCount, const sigma::CoinDenominationV3 denom, CKeyID seedId, sigma::PrivateCoinV3& coin, CHDMint& dMint)
 {
-    CKeyID seedId = dMint.GetSeedId();
     if(seedId.IsNull()){
         seedId = GetZerocoinSeedID(nCount);
     }
@@ -427,7 +428,7 @@ bool CHDMintWallet::RegenerateMint(const CHDMint& dMint, CZerocoinEntryV3& zeroc
     //Generate the coin
     sigma::PrivateCoinV3 coin(sigma::ParamsV3::get_default(), dMint.GetDenomination(), false);
     CHDMint dMintDummy;
-    GenerateMint(dMint.GetCount(), dMint.GetDenomination(), coin, dMintDummy);
+    GenerateMint(dMint.GetCount(), dMint.GetDenomination(), dMint.GetSeedId(), coin, dMintDummy);
 
     //Fill in the zerocoinmint object's details
     GroupElement bnValue = coin.getPublicCoin().getValue();

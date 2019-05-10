@@ -24,12 +24,14 @@ private:
     uint160 hashSeedMaster;
 
 public:
+    int static const COUNT_LAST_USED_DEFAULT = 0;
+
     CHDMintWallet(std::string strWalletFile);
 
     bool SetHashSeedMaster(const uint160& hashSeedMaster, bool fResetCount=false);
     void SyncWithChain(bool fGenerateMintPool = true);
     void GenerateHDMint(sigma::CoinDenominationV3 denom, sigma::PrivateCoinV3& coin, CHDMint& dMint, bool fGenerateOnly = false);
-    void GenerateMint(const uint32_t& nCount, const sigma::CoinDenominationV3 denom, sigma::PrivateCoinV3& coin, CHDMint& dMint);
+    void GenerateMint(const uint32_t& nCount, const sigma::CoinDenominationV3 denom, CKeyID seedId, sigma::PrivateCoinV3& coin, CHDMint& dMint);
     bool LoadMintPoolFromDB();
     void GetState(int& nCount, int& nLastGenerated);
     bool RegenerateMint(const CHDMint& dMint, CZerocoinEntryV3& zerocoin);

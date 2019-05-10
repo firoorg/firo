@@ -60,7 +60,7 @@ public:
     CKeyID masterKeyID; //!< master key hash160
 
     static const int CURRENT_VERSION = 1;
-    static const int N_ACCOUNTS = 2; // standard = 0, mint = 1
+    static const int N_CHANGES = 3; // standard = 0/1, mint = 2
     int nVersion;
 
     CHDChain() { SetNull(); }
@@ -78,7 +78,7 @@ public:
     {
         nVersion = CHDChain::CURRENT_VERSION;
         masterKeyID.SetNull();
-        for(int index=0;index<N_ACCOUNTS;index++){
+        for(int index=0;index<N_CHANGES;index++){
             nExternalChainCounters.push_back(0);
         }
     }

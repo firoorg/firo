@@ -28,7 +28,7 @@ void CMintPool::Add(const CKeyID& seedId, const uint32_t& nCount)
 void CMintPool::Add(const pair<CKeyID, uint32_t>& pMint, bool fVerbose)
 {
     insert(pMint);
-    if (pMint.second > nCountLastGenerated)
+    if (pMint.second >= nCountLastGenerated)
         nCountLastGenerated = pMint.second;
 
     if (fVerbose)
@@ -40,10 +40,10 @@ bool CMintPool::Has(const CKeyID& seedId)
     return static_cast<bool>(count(seedId));
 }
 
-bool CMintPool::Get(const CKeyID& seedId, std::pair<CKeyID, uint32_t> result)
+bool CMintPool::Get(const CKeyID& seedId, std::pair<CKeyID, uint32_t>& result)
 {
     for(std::list<pair<CKeyID, uint32_t>>::iterator it = List().begin(); it != List().end(); ++it){
-        if(it->first==seedId){
+        if((*it).first==seedId){
             result = *it;
             return true;
         }
@@ -51,10 +51,10 @@ bool CMintPool::Get(const CKeyID& seedId, std::pair<CKeyID, uint32_t> result)
     return false;
 }
 
-bool CMintPool::Get(const uint32_t& nCount, std::pair<CKeyID, uint32_t> result)
+bool CMintPool::Get(const uint32_t& nCount, std::pair<CKeyID, uint32_t>& result)
 {
     for(std::list<pair<CKeyID, uint32_t>>::iterator it = List().begin(); it != List().end(); ++it){
-        if(it->second==nCount){
+        if((*it).second==nCount){
             result = *it;
             return true;
         }

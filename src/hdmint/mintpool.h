@@ -29,8 +29,8 @@ public:
     void Add(const CKeyID& seedId, const uint32_t& nCount);
     void Add(const std::pair<CKeyID, uint32_t>& pMint, bool fVerbose = false);
     bool Has(const CKeyID& seedId);
-    bool Get(const uint32_t& nCount, std::pair<CKeyID, uint32_t> result);
-    bool Get(const CKeyID& seedId, std::pair<CKeyID, uint32_t> result);
+    bool Get(const uint32_t& nCount, std::pair<CKeyID, uint32_t>& result);
+    bool Get(const CKeyID& seedId, std::pair<CKeyID, uint32_t>& result);
     void Remove(const CKeyID& hashPubcoin);
     std::list<std::pair<CKeyID, uint32_t> > List();
     void Reset();
