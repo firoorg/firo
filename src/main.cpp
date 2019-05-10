@@ -1190,6 +1190,7 @@ bool CheckTransaction(
                     isVerifyDB,
                     nHeight,
                     isCheckWallet,
+                    fStatefulZerocoinCheck,
                     zerocoinTxInfoV3))
             return false;
         }
