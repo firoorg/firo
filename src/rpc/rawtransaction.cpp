@@ -92,8 +92,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
             } catch (CBadTxIn&) {
                 throw JSONRPCError(RPC_DATABASE_ERROR, "An error occurred during processing the Sigma spend information");
             }
-            in.push_back(Pair("anonymityGroup", int64_t(txin.prevout.n)));
-            in.push_back(Pair("groupId", int64_t(pubcoinId)));
+            in.push_back(Pair("anonymityGroup", int64_t(pubcoinId)));
             fillStdFields(in, txin);
 
             in.push_back(Pair("value", ValueFromAmount(spend->getIntDenomination())));
