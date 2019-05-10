@@ -106,6 +106,7 @@ bool CheckSpendZcoinTransactionV3(
         bool isVerifyDB,
         int nHeight,
         bool isCheckWallet,
+        bool fStatefulSigmaCheck,
         CZerocoinTxInfoV3 *zerocoinTxInfoV3) {
     bool hasZerocoinSpendInputs = false, hasNonZerocoinInputs = false;
     int vinIndex = -1;
@@ -152,6 +153,10 @@ bool CheckSpendZcoinTransactionV3(
         LogPrintf("CheckSpendZcoinTransactionV3: tx version=%d, tx metadata hash=%s, serial=%s\n",
                 spend->getVersion(), txHashForMetadata.ToString(),
                 spend->getCoinSerialNumber().tostring());
+
+        if (!fStatefulSigmaCheck) {
+            continue;
+        }
 
         CZerocoinStateV3::CoinGroupInfoV3 coinGroup;
         if (!zerocoinStateV3.GetCoinGroupInfo(targetDenominations[vinIndex], pubcoinId, coinGroup))
@@ -309,6 +314,7 @@ bool CheckZerocoinTransactionV3(
         bool isVerifyDB,
         int nHeight,
         bool isCheckWallet,
+        bool fStatefulSigmaCheck,
         CZerocoinTxInfoV3 *zerocoinTxInfoV3)
 {
     auto& consensus = Params().GetConsensus();
@@ -372,7 +378,7 @@ bool CheckZerocoinTransactionV3(
         if (!isVerifyDB) {
             if (!CheckSpendZcoinTransactionV3(
                 tx, denominations, state, hashTx, isVerifyDB, nHeight,
-                isCheckWallet, zerocoinTxInfoV3)) {
+                isCheckWallet, fStatefulSigmaCheck, zerocoinTxInfoV3)) {
                     return false;
             }
         }
