@@ -61,8 +61,6 @@ void ScriptPubKeyToJSON(const CScript& scriptPubKey, UniValue& out, bool fInclud
 
 namespace {
     void fillStdFields(UniValue & out, CTxIn const & txin) {
-        out.push_back(Pair("txid", txin.prevout.hash.GetHex()));
-        out.push_back(Pair("vout", (int64_t)txin.prevout.n));
         UniValue o(UniValue::VOBJ);
         o.push_back(Pair("asm", ScriptToAsmStr(txin.scriptSig, true)));
         o.push_back(Pair("hex", HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
@@ -88,16 +86,21 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
             in.push_back(Pair("coinbase", HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
         } else if (txin.IsZerocoinSpendV3()){
             std::unique_ptr<sigma::CoinSpendV3> spend;
+            uint32_t pubcoinId;
             try {
-                std::tie(spend, std::ignore) = ParseSigmaSpend(txin);
+                std::tie(spend, pubcoinId) = ParseSigmaSpend(txin);
             } catch (CBadTxIn&) {
                 throw JSONRPCError(RPC_DATABASE_ERROR, "An error occurred during processing the Sigma spend information");
             }
+            in.push_back(Pair("anonymityGroup", int64_t(txin.prevout.n)));
+            in.push_back(Pair("groupId", int64_t(pubcoinId)));
             fillStdFields(in, txin);
 
             in.push_back(Pair("value", ValueFromAmount(spend->getIntDenomination())));
             in.push_back(Pair("valueSat", spend->getIntDenomination()));
         } else {
+            in.push_back(Pair("txid", txin.prevout.hash.GetHex()));
+            in.push_back(Pair("vout", (int64_t)txin.prevout.n));
             fillStdFields(in, txin);
 
             CTransaction prevTx;
