@@ -140,6 +140,9 @@ struct Params {
     // Number of blocks after nSigmaMintStartBlock during which we still accept zerocoin V2 spend to newly mined blocks.
     int nZerocoinV2SpendGracefulPeriod;
 
+    // Number of maximum sigma spend per transaction.
+    unsigned nMaxSigmaSpendPerBlock;
+
     /** switch to MTP time */
     uint32_t nMTPSwitchTime;
     /** block number to reduce distance between blocks */

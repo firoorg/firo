@@ -41,6 +41,9 @@ public:
     void Complete();
 };
 
+bool IsSigmaAllowed();
+bool IsSigmaAllowed(int height);
+
 secp_primitives::GroupElement ParseSigmaMintScript(const CScript& script);
 std::pair<std::unique_ptr<sigma::CoinSpendV3>, uint32_t> ParseSigmaSpend(const CTxIn& in);
 
@@ -51,6 +54,7 @@ bool CheckZerocoinTransactionV3(
 	bool isVerifyDB,
 	int nHeight,
   bool isCheckWallet,
+  bool fStatefulSigmaCheck,
   CZerocoinTxInfoV3 *zerocoinTxInfo);
 
 void DisconnectTipZCV3(CBlock &block, CBlockIndex *pindexDelete);

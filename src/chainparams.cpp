@@ -256,13 +256,13 @@ class CMainParams : public CChainParams {
         consensus.nZerocoinV2SpendMempoolGracefulPeriod = ZC_V2_SPEND_GRACEFUL_MEMPOOL_PERIOD;
         consensus.nZerocoinV2SpendGracefulPeriod = ZC_V2_SPEND_GRACEFUL_PERIOD;
 
-
         // Dandelion related values.
         consensus.nDandelionEmbargoMinimum = DANDELION_EMBARGO_MINIMUM;
         consensus.nDandelionEmbargoAvgAdd = DANDELION_EMBARGO_AVG_ADD;
         consensus.nDandelionMaxDestinations = DANDELION_MAX_DESTINATIONS;
         consensus.nDandelionShuffleInterval = DANDELION_SHUFFLE_INTERVAL;
         consensus.nDandelionFluff = DANDELION_FLUFF;
+        consensus.nMaxSigmaSpendPerBlock = 5;
     }
 };
 
@@ -443,6 +443,7 @@ class CTestNetParams : public CChainParams {
             consensus.nDandelionMaxDestinations = DANDELION_MAX_DESTINATIONS;
             consensus.nDandelionShuffleInterval = DANDELION_SHUFFLE_INTERVAL;
             consensus.nDandelionFluff = DANDELION_FLUFF;
+            consensus.nMaxSigmaSpendPerBlock = 30;
         }
 };
 
@@ -589,6 +590,7 @@ class CRegTestParams : public CChainParams {
             consensus.nDandelionMaxDestinations = DANDELION_MAX_DESTINATIONS;
             consensus.nDandelionShuffleInterval = DANDELION_SHUFFLE_INTERVAL;
             consensus.nDandelionFluff = DANDELION_FLUFF;
+            consensus.nMaxSigmaSpendPerBlock = 5;
         }
 
         void UpdateBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout) {
