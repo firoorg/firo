@@ -7027,7 +7027,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand,
                              stempool.size(),
                              stempool.DynamicMemoryUsage() / 1000);
                     int64_t nCurrTime = GetTimeMicros();
-                    auto consensus = Params().GetConsensus();
+                    auto& consensus = Params().GetConsensus();
                     int64_t nEmbargo = 1000000 * consensus.nDandelionEmbargoMinimum +
                         PoissonNextSend(nCurrTime, consensus.nDandelionEmbargoAvgAdd);
                     pfrom->insertDandelionEmbargo(tx.GetHash(), nEmbargo);
