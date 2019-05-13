@@ -95,6 +95,49 @@ std::pair<std::unique_ptr<sigma::CoinSpendV3>, uint32_t> ParseSigmaSpend(const C
     return std::make_pair(std::move(spend), groupId);
 }
 
+CAmount GetSpendAmount(const CTxIn& in) {
+    if (in.IsZerocoinSpendV3()) {
+        auto spend = ParseSigmaSpend(in);
+        return spend.first->getIntDenomination();
+    }
+    return 0;
+}
+
+CAmount GetSpendAmount(const CTransaction& tx) {
+    CAmount sum(0);
+    for (const auto& vin : tx.vin) {
+        sum += GetSpendAmount(vin);
+    }
+    return sum;
+}
+
+bool CheckSigmaBlock(CValidationState &state, const CBlock& block) {
+    auto& consensus = Params().GetConsensus();
+
+    size_t spendsAmount = 0;
+    CAmount spendsValue(0);
+
+    for (const auto& tx : block.vtx) {
+        for (const auto& in : tx.vin) {
+            if (in.IsZerocoinSpendV3()) {
+                spendsAmount++;
+            }
+        }
+        spendsValue += GetSpendAmount(tx);
+    }
+
+    if (spendsAmount > consensus.nMaxAmountSigmaSpendPerBlock) {
+        return state.DoS(100, false, REJECT_INVALID,
+            "CheckSigmaBlock: amount of spends in the block is exceed limit");
+    }
+
+    if (spendsValue > consensus.nMaxValueSigmaSpendPerBlock) {
+        return state.DoS(100, false, REJECT_INVALID,
+            "CheckSigmaBlock: value of spends in the block is exceed limit");
+    }
+    return true;
+}
+
 // This function will not report an error only if the transaction is zerocoin spend V3.
 // Will return false for V1, V1.5 and V2 spends.
 // Mixing V2 and V3 spends into the same transaction will fail.
@@ -342,8 +385,15 @@ bool CheckZerocoinTransactionV3(
     // Check Spend Zerocoin Transaction
     if(tx.IsZerocoinSpendV3()) {
         // First check number of inputs does not exceed transaction limit
-        if (tx.vin.size() > consensus.nMaxSigmaSpendPerBlock) {
-            return false;
+        if (tx.vin.size() > consensus.nMaxAmountSigmaSpendPerBlock) {
+            return state.DoS(100, false,
+                REJECT_INVALID,
+                "CheckZerocoinTransactionV3: amount of spends is exceed limit");
+        }
+        if (GetSpendAmount(tx) > consensus.nMaxValueSigmaSpendPerBlock) {
+            return state.DoS(100, false,
+                REJECT_INVALID,
+                "CheckZerocoinTransactionV3: value of spends is exceed limit");
         }
 
         vector<sigma::CoinDenominationV3> denominations;
@@ -451,6 +501,10 @@ bool ConnectBlockZCV3(
         if (!fJustCheck) {
             pindexNew->mintedPubCoinsV3.clear();
             pindexNew->spentSerialsV3.clear();
+        }
+
+        if (!CheckSigmaBlock(state, *pblock)) {
+            return false;
         }
 
         BOOST_FOREACH(auto& serial, pblock->zerocoinTxInfoV3->spentSerials) {

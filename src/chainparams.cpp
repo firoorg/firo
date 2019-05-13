@@ -255,7 +255,8 @@ class CMainParams : public CChainParams {
         consensus.nZerocoinV2MintGracefulPeriod = ZC_V2_MINT_GRACEFUL_PERIOD;
         consensus.nZerocoinV2SpendMempoolGracefulPeriod = ZC_V2_SPEND_GRACEFUL_MEMPOOL_PERIOD;
         consensus.nZerocoinV2SpendGracefulPeriod = ZC_V2_SPEND_GRACEFUL_PERIOD;
-        consensus.nMaxSigmaSpendPerBlock = 5;
+        consensus.nMaxAmountSigmaSpendPerBlock = ZC_SIGMA_AMOUNT_SPEND_LIMIT;
+        consensus.nMaxValueSigmaSpendPerBlock = ZC_SIGMA_VALUE_SPEND_LIMIT;
     }
 };
 
@@ -429,7 +430,8 @@ class CTestNetParams : public CChainParams {
             consensus.nZerocoinV2MintGracefulPeriod = ZC_V2_MINT_TESTNET_GRACEFUL_PERIOD;
             consensus.nZerocoinV2SpendMempoolGracefulPeriod = ZC_V2_SPEND_TESTNET_GRACEFUL_MEMPOOL_PERIOD;
             consensus.nZerocoinV2SpendGracefulPeriod = ZC_V2_SPEND_TESTNET_GRACEFUL_PERIOD;
-            consensus.nMaxSigmaSpendPerBlock = 30;
+            consensus.nMaxAmountSigmaSpendPerBlock = ZC_SIGMA_AMOUNT_SPEND_LIMIT;
+            consensus.nMaxValueSigmaSpendPerBlock = ZC_SIGMA_VALUE_SPEND_LIMIT;
         }
 };
 
@@ -569,7 +571,8 @@ class CRegTestParams : public CChainParams {
             consensus.nZerocoinV2MintGracefulPeriod = 5;
             consensus.nZerocoinV2SpendMempoolGracefulPeriod = 10;
             consensus.nZerocoinV2SpendGracefulPeriod = 20;
-            consensus.nMaxSigmaSpendPerBlock = 5;
+            consensus.nMaxAmountSigmaSpendPerBlock = ZC_SIGMA_AMOUNT_SPEND_LIMIT;
+            consensus.nMaxValueSigmaSpendPerBlock = ZC_SIGMA_VALUE_SPEND_LIMIT;
         }
 
         void UpdateBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout) {

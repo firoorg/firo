@@ -49,16 +49,16 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_numinputs)
     printf("Testing number of inputs for denomination %s", denominations[denominationIndexA].c_str());
     denominationsForTx.clear();
 
-    for (unsigned i = 0; i < (consensus.nMaxSigmaSpendPerBlock+1)*2; i++){
+    for (unsigned i = 0; i < (consensus.nMaxAmountSigmaSpendPerBlock + 1) * 2; i++){
         denominationsForTx.push_back(denominations[denominationIndexA]);
         BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denominations[denominationIndexA].c_str(), SIGMA), stringError + " - Create Mint failed");
         BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denominations[denominationIndexB].c_str(), SIGMA), stringError + " - Create Mint failed");
-        if (i <= consensus.nMaxSigmaSpendPerBlock) {
+        if (i <= consensus.nMaxAmountSigmaSpendPerBlock) {
             denominationsForTx.push_back(denominations[denominationIndexA]);
         }
     }
 
-    BOOST_CHECK_MESSAGE(mempool.size() == (consensus.nMaxSigmaSpendPerBlock+1)*4, "Num input mints not added to mempool");
+    BOOST_CHECK_MESSAGE(mempool.size() == (consensus.nMaxAmountSigmaSpendPerBlock + 1) * 4, "Num input mints not added to mempool");
 
     // add block
     previousHeight = chainActive.Height();
