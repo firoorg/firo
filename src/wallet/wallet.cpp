@@ -4,6 +4,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "wallet.h"
+#include "walletexcept.h"
 #include "sigmaspendbuilder.h"
 #include "amount.h"
 #include "base58.h"
@@ -2219,7 +2220,8 @@ std::list<CZerocoinEntryV3> CWallet::GetAvailableCoins() const {
 bool CWallet::GetCoinsToSpend(
         CAmount required,
         std::vector<CZerocoinEntryV3>& coinsToSpend_out,
-        std::vector<sigma::CoinDenominationV3>& coinsToMint_out) const
+        std::vector<sigma::CoinDenominationV3>& coinsToMint_out,
+        const size_t coinsLimit) const
 {
     // Sanity check to make sure this function is never called with a too large
     // amount to spend, resulting to a possible crash due to out of memory condition.
@@ -2241,6 +2243,15 @@ bool CWallet::GetCoinsToSpend(
     std::list<CZerocoinEntryV3> coins = GetAvailableCoins();
     if (coins.empty())
         return false;
+
+    CAmount availableBalance(0);
+    for (const auto& coin : coins) {
+        availableBalance += coin.get_denomination_value();
+    }
+
+    if (required > availableBalance) {
+        throw InsufficientFunds();
+    }
 
     // sort by highest denomination. if it is same denomination we will prefer the previous block
     auto comparer = [](const CZerocoinEntryV3& a, const CZerocoinEntryV3& b) -> bool {
@@ -2270,12 +2281,12 @@ bool CWallet::GetCoinsToSpend(
     next_row[coinIt->get_denomination_value() / zeros] = 1;
     ++coinIt;
 
-    for(; coinIt != coins.rend(); coinIt++) {
+    for (; coinIt != coins.rend(); coinIt++) {
         std::swap(prev_row, next_row);
         CAmount denom_i = coinIt->get_denomination_value() / zeros;
-        for(int j = 1; j <= val; j++) {
+        for (int j = 1; j <= val; j++) {
             next_row[j] = prev_row[j];
-            if(j >= denom_i &&  next_row[j] > prev_row[j - denom_i] + 1) {
+            if (j >= denom_i &&  next_row[j] > prev_row[j - denom_i] + 1) {
                     next_row[j] = prev_row[j - denom_i] + 1;
             }
         }
@@ -2286,9 +2297,9 @@ bool CWallet::GetCoinsToSpend(
 
     int minimum = INT_MAX - 1;
     while(index >= required) {
-        int temp_min = (next_row[index] + GetRequiredCoinCountForAmount(
-            (index - required) * zeros, denominations));
-        if (minimum > temp_min && next_row[index] != (INT_MAX - 1) / 2) {
+        int temp_min = next_row[index] + GetRequiredCoinCountForAmount(
+            (index - required) * zeros, denominations);
+        if (minimum > temp_min && next_row[index] != (INT_MAX - 1) / 2 && temp_min <= coinsLimit) {
             best_spend_val = index;
             minimum = temp_min;
         }
@@ -2297,15 +2308,16 @@ bool CWallet::GetCoinsToSpend(
     best_spend_val *= zeros;
 
     if (minimum == INT_MAX - 1)
-        return false;
+        throw std::runtime_error(
+            _("Can not choose coins within limit."));
 
     if (SelectMintCoinsForAmount(best_spend_val - required * zeros, denominations, coinsToMint_out) != best_spend_val - required * zeros) {
         throw std::runtime_error(
-            "Problem with coin selection for re-mint while spending.\n");
+            _("Problem with coin selection for re-mint while spending."));
     }
     if (SelectSpendCoinsForAmount(best_spend_val, coins, coinsToSpend_out) != best_spend_val) {
         throw std::runtime_error(
-            "Problem with coin selection for spend.\n");
+            _("Problem with coin selection for spend."));
     }
     return true;
 }

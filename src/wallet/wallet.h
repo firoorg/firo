@@ -879,7 +879,8 @@ public:
     bool GetCoinsToSpend(
         CAmount required,
         std::vector<CZerocoinEntryV3>& coinsToSpend_out,
-        std::vector<sigma::CoinDenominationV3>& coinsToMint_out) const;
+        std::vector<sigma::CoinDenominationV3>& coinsToMint_out,
+        const size_t coinsLimit = SIZE_MAX) const;
 
     /**
      * Insert additional inputs into the transaction by
