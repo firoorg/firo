@@ -256,8 +256,6 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
     unsigned int nBlockMinSize = GetArg("-blockminsize", 0);
     nBlockMinSize = std::min(nBlockMaxSize, nBlockMinSize);
 
-    unsigned int COUNT_SPEND_ZC_TX = 0;
-
     // Collect memory pool transactions into the block
     CTxMemPool::setEntries inBlock;
     CTxMemPool::setEntries waitSet;
@@ -311,6 +309,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
 
         CTxMemPool::indexed_transaction_set::nth_index<3>::type::iterator mi = mempool.mapTx.get<3>().begin();
         CTxMemPool::txiter iter;
+        std::size_t nSigmaSpend = 0;
 
         while (mi != mempool.mapTx.get<3>().end() || !clearedTxs.empty())
         {
@@ -407,9 +406,8 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
 
             if (tx.IsZerocoinSpendV3()) {
                 LogPrintf("try to include sigma spend tx=%s\n", tx.GetHash().ToString());
-                LogPrintf("COUNT_SPEND_ZC_TX =%s\n", COUNT_SPEND_ZC_TX);
-                LogPrintf("ZC_SPEND_LIMIT =%s\n", ZC_SPEND_LIMIT);
-                if ((COUNT_SPEND_ZC_TX + tx.vin.size()) > ZC_SPEND_LIMIT) {
+
+                if (tx.vin.size() + nSigmaSpend > params.nMaxSigmaSpendPerBlock) {
                     continue;
                 }
 
@@ -447,7 +445,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
                 ++nBlockTx;
                 nBlockSigOpsCost += nTxSigOps;
                 nFees += nTxFees;
-                COUNT_SPEND_ZC_TX += tx.vin.size();
+                nSigmaSpend += tx.vin.size();
                 inBlock.insert(iter);
                 continue;
             }
