@@ -3031,7 +3031,7 @@ UniValue mintmanyzerocoin(const UniValue& params, bool fHelp)
     return wtx.GetHash().GetHex();
 }
 
-UniValue mintManySigma(const UniValue& params, bool fHelp)
+UniValue mintmanysigma(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() > 1)
         throw runtime_error(
@@ -3213,7 +3213,7 @@ UniValue spendallzerocoin(const UniValue& params, bool fHelp) {
     return  hasUnspendableMints;
 }
 
-UniValue spendSigma(const UniValue& params, bool fHelp) {
+UniValue spendsigma(const UniValue& params, bool fHelp) {
 
     if (fHelp || params.size() < 1 || params.size() > 2)
         throw runtime_error(
@@ -3374,7 +3374,7 @@ UniValue spendmanyzerocoin(const UniValue& params, bool fHelp) {
     return wtx.GetHash().GetHex();
 }
 
-UniValue spendManySigma(const UniValue& params, bool fHelp) {
+UniValue spendmanysigma(const UniValue& params, bool fHelp) {
 
     if (fHelp || params.size() != 1)
         throw runtime_error(
@@ -3594,7 +3594,7 @@ UniValue resetmintzerocoin(const UniValue& params, bool fHelp) {
     return NullUniValue;
 }
 
-UniValue resetSigmaMint(const UniValue& params, bool fHelp) {
+UniValue resetsigmamint(const UniValue& params, bool fHelp) {
     if (fHelp || params.size() != 0)
         throw runtime_error(
                 "resetmintzerocoin"
@@ -3731,7 +3731,7 @@ UniValue listpubcoins(const UniValue& params, bool fHelp) {
     return results;
 }
 
-UniValue listSigmaPubCoins(const UniValue& params, bool fHelp) {
+UniValue listsigmapubcoins(const UniValue& params, bool fHelp) {
     if (fHelp || params.size() > 1)
         throw runtime_error(
                 "listpubcoin <all>(1/10/25/50/100)\n"
@@ -3834,7 +3834,7 @@ UniValue setmintzerocoinstatus(const UniValue& params, bool fHelp) {
     return results;
 }
 
-UniValue setSigmaMintStatus(const UniValue& params, bool fHelp) {
+UniValue setsigmamintstatus(const UniValue& params, bool fHelp) {
     if (fHelp || params.size() != 2)
         throw runtime_error(
                 "setmintzerocoinstatus \"coinserial\" <isused>(true/false)\n"
@@ -3973,7 +3973,7 @@ UniValue listspendzerocoins(const UniValue &params, bool fHelp) {
     return ret;
 }
 
-UniValue listSigmaSpends(const UniValue &params, bool fHelp) {
+UniValue listsigmaspends(const UniValue &params, bool fHelp) {
     if (fHelp || params.size() < 1 || params.size() > 2)
         throw runtime_error(
                 "listspendzerocoins\n"
