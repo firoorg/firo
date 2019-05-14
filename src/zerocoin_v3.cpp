@@ -110,6 +110,7 @@ bool CheckSpendZcoinTransactionV3(
 		CZerocoinTxInfoV3 *zerocoinTxInfoV3) {
 	bool hasZerocoinSpendInputs = false, hasNonZerocoinInputs = false;
 	int vinIndex = -1;
+	std::unordered_set<Scalar, sigma::CScalarHash> txSerials;
 
 	for (const CTxIn &txin : tx.vin)
 	{
@@ -199,18 +200,29 @@ bool CheckSpendZcoinTransactionV3(
 					return false;
 			}
 
+			// check duplicated serials in same transaction.
+			if (!txSerials.insert(serial).second) {
+				return state.DoS(100,
+				    error("CheckSpendZcoinTransactionV3: two or more spends with same serial in the same transaction"));
+			}
+
 			if(!isVerifyDB && !isCheckWallet) {
 				if (zerocoinTxInfoV3 && !zerocoinTxInfoV3->fInfoIsComplete) {
 					// add spend information to the index
 					zerocoinTxInfoV3->spentSerials.insert(std::make_pair(
 								serial, (int)spend->getDenomination()));
-					zerocoinTxInfoV3->zcTransactions.insert(hashTx);
 				}
 			}
 		}
 		else {
 			LogPrintf("CheckSpendZCoinTransactionV3: verification failed at block %d\n", nHeight);
 			return false;
+		}
+	}
+
+	if(!isVerifyDB && !isCheckWallet) {
+		if (zerocoinTxInfoV3 && !zerocoinTxInfoV3->fInfoIsComplete && hasZerocoinSpendInputs) {
+			zerocoinTxInfoV3->zcTransactions.insert(hashTx);
 		}
 	}
 
@@ -299,6 +311,8 @@ bool CheckZerocoinTransactionV3(
 		bool isCheckWallet,
 		CZerocoinTxInfoV3 *zerocoinTxInfoV3)
 {
+    auto& consensus = Params().GetConsensus();
+
     // nHeight have special mode which value is INT_MAX so we need this.
     int realHeight;
 
@@ -307,7 +321,7 @@ bool CheckZerocoinTransactionV3(
         realHeight = chainActive.Height();
     }
 
-    bool allowSigma = (realHeight >= Params().GetConsensus().nSigmaStartBlock);
+    bool allowSigma = (realHeight >= consensus.nSigmaStartBlock);
 
 	// Check Mint Zerocoin Transaction
 	if (allowSigma) {
@@ -322,9 +336,10 @@ bool CheckZerocoinTransactionV3(
 	// Check Spend Zerocoin Transaction
 	if(tx.IsZerocoinSpendV3()) {
 		// First check number of inputs does not exceed transaction limit
-		if(tx.vin.size() > ZC_SPEND_LIMIT){
+		if (tx.vin.size() > consensus.nMaxSigmaSpendPerBlock) {
 			return false;
 		}
+
 		vector<sigma::CoinDenominationV3> denominations;
 		uint64_t totalValue = 0;
 		BOOST_FOREACH(const CTxIn &txin, tx.vin){

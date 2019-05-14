@@ -110,9 +110,6 @@ testScripts = [
     # 'wallet-hd.py',
     # 'wallet-dump.py',
     # 'listtransactions.py',
-     'zcoin_mintspend.py',
-     'zcoin_mintmanyspend.py',
-     'zcoin_manymintspend.py',
      'receivedby.py',
     # 'mempool_resurrect_test.py',
     # 'txn_doublespend.py --mineblock',
@@ -121,7 +118,7 @@ testScripts = [
     # 'rawtransactions.py',
      'rest.py',
     # 'mempool_spendcoinbase.py',
-    # 'mempool_reorg.py',
+     'mempool_reorg.py',
     # 'mempool_limit.py',
      'httpbasics.py',
      'reindex.py',
@@ -149,6 +146,11 @@ testScripts = [
     # 'signmessages.py',
     # 'p2p-compactblocks.py',
     # 'nulldummy.py',
+    'sigma_spend_with_funds_validation.py',
+    'sigma_spend_with_funds_extra_validation.py',
+    'sigma_mint_with_funds_validation.py',
+    'sigma_mintspend.py',
+    'mempool_doublespend_oneblock.py'
 ]
 # if ENABLE_ZMQ:
 #     testScripts.append('zmq_test.py')
