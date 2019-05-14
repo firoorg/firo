@@ -233,7 +233,7 @@ public:
     //! Values of coin serials spent in this block
 	set<CBigNum> spentSerials;
 
-/////////////////////// Zerocoin V3 Sigma index entries. ////////////////////////////////////////////
+/////////////////////// Sigma index entries. ////////////////////////////////////////////
 
     //! Public coin values of mints in this block, ordered by serialized value of public coin
     //! Maps <denomination,id> to vector of public coins

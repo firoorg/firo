@@ -21,7 +21,7 @@ extern Params *SigmaParams;
 
 // Zerocoin transaction info, added to the CBlock to ensure zerocoin mint/spend transactions got their info stored into
 // index
-class CZerocoinTxInfo {
+class CSigmaTxInfo {
 public:
     // all the zerocoin transactions encountered so far
     std::set<uint256> zcTransactions;
@@ -35,7 +35,7 @@ public:
     // information about transactions in the block is complete
     bool fInfoIsComplete;
 
-    CZerocoinTxInfo(): fInfoIsComplete(false) {}
+    CSigmaTxInfo(): fInfoIsComplete(false) {}
 
     // finalize everything
     void Complete();
@@ -54,7 +54,8 @@ bool CheckSigmaTransaction(
 	bool isVerifyDB,
 	int nHeight,
   bool isCheckWallet,
-  CZerocoinTxInfo *zerocoinTxInfo);
+  bool fStatefulSigmaCheck,
+  CSigmaTxInfo *zerocoinTxInfo);
 
 void DisconnectTipSigma(CBlock &block, CBlockIndex *pindexDelete);
 

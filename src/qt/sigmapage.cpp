@@ -58,6 +58,8 @@ SigmaPage::SigmaPage(const PlatformStyle *platformStyle, QWidget *parent) :
     // spend
     connect(ui->addButton, SIGNAL(clicked()), this, SLOT(addEntry()));
     connect(ui->clearButton, SIGNAL(clicked()), this, SLOT(clear()));
+
+    ui->amountToMint->setLocale(QLocale::c());
 }
 
 void SigmaPage::setClientModel(ClientModel *model)

@@ -1083,7 +1083,7 @@ unsigned int GetLegacySigOpCount(const CTransaction &tx) {
 }
 
 unsigned int GetP2SHSigOpCount(const CTransaction &tx, const CCoinsViewCache &inputs) {
-    if (tx.IsCoinBase() || tx.IsZerocoinSpend())
+    if (tx.IsCoinBase() || tx.IsZerocoinSpend() || tx.IsSigmaSpend())
         return 0;
 
     unsigned int nSigOps = 0;
@@ -1122,7 +1122,7 @@ bool CheckTransaction(
         bool isCheckWallet,
         bool fStatefulZerocoinCheck,
         CZerocoinTxInfo *zerocoinTxInfo,
-        sigma::CZerocoinTxInfo *sigmaTxInfo)
+        sigma::CSigmaTxInfo *sigmaTxInfo)
 {
     LogPrintf("CheckTransaction nHeight=%s, isVerifyDB=%s, isCheckWallet=%s, txHash=%s\n", nHeight, isVerifyDB, isCheckWallet, tx.GetHash().ToString());
 //    LogPrintf("transaction = %s\n", tx.ToString());
@@ -1177,7 +1177,7 @@ bool CheckTransaction(
             return state.DoS(100, false, REJECT_INVALID, "bad-cb-length");
     } else {
 	    BOOST_FOREACH(const CTxIn &txin, tx.vin) {
-		    if (txin.prevout.IsNull() && !txin.scriptSig.IsZerocoinSpend()) {
+            if (txin.prevout.IsNull() && !txin.scriptSig.IsZerocoinSpend()) {
 			    return state.DoS(10, false, REJECT_INVALID, "bad-txns-prevout-null");
 		    }
 	    }
@@ -1190,6 +1190,7 @@ bool CheckTransaction(
                     isVerifyDB,
                     nHeight,
                     isCheckWallet,
+                    fStatefulZerocoinCheck,
                     sigmaTxInfo))
             return false;
         }
@@ -2878,7 +2879,7 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
     bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
 
     block.zerocoinTxInfo = std::make_shared<CZerocoinTxInfo>();
-    block.sigmaTxInfo = std::make_shared<sigma::CZerocoinTxInfo>();
+    block.sigmaTxInfo = std::make_shared<sigma::CSigmaTxInfo>();
 
     for (unsigned int i = 0; i < block.vtx.size(); i++) {
         const CTransaction &tx = block.vtx[i];
@@ -4239,7 +4240,7 @@ bool CheckBlock(const CBlock &block, CValidationState &state,
     if (!block.zerocoinTxInfo)
         block.zerocoinTxInfo = std::make_shared<CZerocoinTxInfo>();
     if (!block.sigmaTxInfo)
-        block.sigmaTxInfo = std::make_shared<sigma::CZerocoinTxInfo>();
+        block.sigmaTxInfo = std::make_shared<sigma::CSigmaTxInfo>();
     LogPrintf("CheckBlock() nHeight=%s, blockHash= %s, isVerifyDB = %s\n",
               nHeight, block.GetHash().ToString(), isVerifyDB);
     try {
@@ -4363,8 +4364,10 @@ bool CheckBlock(const CBlock &block, CValidationState &state,
         return true;
     } catch (const std::exception &e) {
         PrintExceptionContinue(&e, "CheckBlock() 1\n");
+        return false;
     } catch (...) {
         PrintExceptionContinue(NULL, "CheckBlock() 2\n");
+        return false;
     }
     return true;
 }
