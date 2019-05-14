@@ -285,12 +285,13 @@ BOOST_AUTO_TEST_CASE(get_coin_not_enough)
     GenerateBlockWithCoins(newCoins);
     GenerateEmptyBlocks(5);
 
-    CAmount require(111 * COIN + 7 * COIN / 10); // 111.7
+    CAmount require(11170 * CENT); // 111.7
 
     std::vector<CZerocoinEntryV3> coins;
     std::vector<sigma::CoinDenominationV3> coinsToMint;
-    BOOST_CHECK_MESSAGE(!pwalletMain->GetCoinsToSpend(require, coins, coinsToMint),
-        "Expect not enough coin and equal to one for each denomination");
+    BOOST_CHECK_THROW(pwalletMain->GetCoinsToSpend(require, coins, coinsToMint), InsufficientFunds);
+    // BOOST_CHECK_MESSAGE(!pwalletMain->GetCoinsToSpend(require, coins, coinsToMint),
+    //     "Expect not enough coin and equal to one for each denomination");
 }
 
 BOOST_AUTO_TEST_CASE(get_coin_cannot_spend_unconfirmed_coins)
@@ -370,6 +371,25 @@ BOOST_AUTO_TEST_CASE(get_coin_choose_smallest_enough)
 
     BOOST_CHECK_MESSAGE(CheckDenominationCoins(expectedCoins, coins),
       "Expect only one SIGMA_DENOM_1");
+}
+
+BOOST_AUTO_TEST_CASE(get_coin_by_limit_max_to_1)
+{
+    std::vector<std::pair<sigma::CoinDenominationV3, int>> newCoins;
+    GetCoinSetByDenominationAmount(newCoins, 0, 0, 2, 0, 0);
+    GenerateBlockWithCoins(newCoins);
+    GenerateEmptyBlocks(5);
+
+    CAmount require(1 * COIN + 10 * CENT); // 1.1
+
+    std::vector<CZerocoinEntryV3> coins;
+    std::vector<sigma::CoinDenominationV3> coinsToMint;
+    BOOST_CHECK_EXCEPTION(pwalletMain->GetCoinsToSpend(require, coins, coinsToMint, 1),
+        std::runtime_error,
+        [](const std::runtime_error& e){
+            std::cout << e.what() << std::endl;
+            return e.what() == std::string("Can not choose coins within limit.");
+        });
 }
 
 BOOST_AUTO_TEST_CASE(create_spend_with_insufficient_coins)

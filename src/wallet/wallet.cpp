@@ -2249,7 +2249,7 @@ bool CWallet::GetCoinsToSpend(
         availableBalance += coin.get_denomination_value();
     }
 
-    if (required > availableBalance) {
+    if (required * zeros > availableBalance) {
         throw InsufficientFunds();
     }
 
