@@ -853,10 +853,12 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
     uiInterface.InitMessage(_("Syncing Zerocoin wallet..."));
 
 #ifdef ENABLE_WALLET
-    //Load zerocoin mint hashes to memory
-    pwalletMain->hdMintTracker->Init();
-    zwalletMain->LoadMintPoolFromDB();
-    zwalletMain->SyncWithChain();
+    if (!GetBoolArg("-disablewallet", false)) {
+        //Load zerocoin mint hashes to memory
+        pwalletMain->hdMintTracker->Init();
+        zwalletMain->LoadMintPoolFromDB();
+        zwalletMain->SyncWithChain();
+    }
 #endif
 }
 

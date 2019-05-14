@@ -53,7 +53,8 @@ bool CMintPool::Get(const CKeyID& seedId, std::pair<CKeyID, uint32_t>& result)
 
 bool CMintPool::Get(const uint32_t& nCount, std::pair<CKeyID, uint32_t>& result)
 {
-    for(std::list<pair<CKeyID, uint32_t>>::iterator it = List().begin(); it != List().end(); ++it){
+    std::list<pair<CKeyID, uint32_t> > listMints = List();
+    for(std::list<pair<CKeyID, uint32_t>>::iterator it = listMints.begin(); it != listMints.end(); ++it){
         if((*it).second==nCount){
             result = *it;
             return true;

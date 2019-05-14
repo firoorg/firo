@@ -319,8 +319,8 @@ BOOST_AUTO_TEST_CASE(same_serial_in_a_transaction) {
 
     // Create tx
     CAmount fee;
-    std::vector<CZerocoinEntryV3> selected;
-    std::vector<CZerocoinEntryV3> changes;
+    std::vector<CHDMint> selected;
+    std::vector<CHDMint> changes;
     auto tx = pwalletMain->CreateZerocoinSpendTransactionV3(recipients, fee, selected, changes);
 
     // Expect 2 spends

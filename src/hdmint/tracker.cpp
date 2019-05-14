@@ -251,8 +251,18 @@ bool CHDMintTracker::UpdateState(const CMintMeta& meta)
                 return error("%s: failed to unarchive deterministic mint from database", __func__);
         }
 
-        dMint.SetHeight(meta.nHeight);
-        dMint.SetId(meta.nId);
+        // get coin id & height
+        int height, id;
+        if(meta.nHeight<0 || meta.nId <= 0){
+            std::tie(height, id) = CZerocoinStateV3::GetZerocoinState()->GetMintedCoinHeightAndId(sigma::PublicCoinV3(dMint.GetPubcoinValue(), dMint.GetDenomination()));
+        }
+        else{
+            height = meta.nHeight;
+            id = meta.nId;
+        }
+
+        dMint.SetHeight(height);
+        dMint.SetId(id);
         dMint.SetUsed(meta.isUsed);
         dMint.SetDenomination(meta.denom);
 

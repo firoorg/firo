@@ -2104,6 +2104,7 @@ std::vector<CRecipient> CWallet::CreateSigmaMintRecipients(
 
     uint32_t nCountLastUsed = zwalletMain->GetCount();
 
+
     std::transform(coins.begin(), coins.end(), std::back_inserter(vecSend),
         [&vDMints, &dMint](sigma::PrivateCoinV3& coin) -> CRecipient {
 
@@ -6491,12 +6492,18 @@ bool CWallet::CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CHDMint>& se
             throw std::runtime_error(_("Failed to write coin serial number into wallet"));
         }
 
+        //Set spent mint as used
+        pwalletMain->hdMintTracker->SetPubcoinUsed(coin.GetPubCoinHash(), wtxNew.GetHash());
+        CMintMeta metaCheck = pwalletMain->hdMintTracker->GetMetaFromPubcoin(coin.GetPubCoinHash());
+        if (!metaCheck.isUsed) {
+            string strError = "Error, mint with pubcoin hash " + coin.GetPubCoinHash().GetHex() + " did not get marked as used";
+            LogPrintf("SpendZerocoin() : %s\n", strError.c_str());
+        }
+
         // update HDMint
         coin.SetUsed(true);
         coin.SetId(id);
         coin.SetHeight(height);
-
-        pwalletMain->hdMintTracker->Add(coin, true);
 
         // raise event
         NotifyZerocoinChanged(
@@ -6507,7 +6514,7 @@ bool CWallet::CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CHDMint>& se
     }
 
     for (auto& change : changes) {
-
+        change.SetTxHash(wtxNew.GetHash());
         pwalletMain->hdMintTracker->Add(change, true);
 
         // raise event
