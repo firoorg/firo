@@ -210,6 +210,7 @@ BITCOIN_CORE_H = \
   zmq/zmqnotificationinterface.h \
   zmq/zmqpublishnotifier.h \
   hdmint/chain.h \
+  hdmint/mintpool.h \
   hdmint/tracker.h \
   hdmint/wallet.h \
   zerocoin.h \
