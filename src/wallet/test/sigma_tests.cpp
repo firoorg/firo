@@ -290,8 +290,6 @@ BOOST_AUTO_TEST_CASE(get_coin_not_enough)
     std::vector<CZerocoinEntryV3> coins;
     std::vector<sigma::CoinDenominationV3> coinsToMint;
     BOOST_CHECK_THROW(pwalletMain->GetCoinsToSpend(require, coins, coinsToMint), InsufficientFunds);
-    // BOOST_CHECK_MESSAGE(!pwalletMain->GetCoinsToSpend(require, coins, coinsToMint),
-    //     "Expect not enough coin and equal to one for each denomination");
 }
 
 BOOST_AUTO_TEST_CASE(get_coin_cannot_spend_unconfirmed_coins)
@@ -386,8 +384,7 @@ BOOST_AUTO_TEST_CASE(get_coin_by_limit_max_to_1)
     std::vector<sigma::CoinDenominationV3> coinsToMint;
     BOOST_CHECK_EXCEPTION(pwalletMain->GetCoinsToSpend(require, coins, coinsToMint, 1),
         std::runtime_error,
-        [](const std::runtime_error& e){
-            std::cout << e.what() << std::endl;
+        [](const std::runtime_error& e) {
             return e.what() == std::string("Can not choose coins within limit.");
         });
 }

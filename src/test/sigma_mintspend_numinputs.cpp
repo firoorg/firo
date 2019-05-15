@@ -49,16 +49,16 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_numinputs)
     printf("Testing number of inputs for denomination %s", denominations[denominationIndexA].c_str());
     denominationsForTx.clear();
 
-    for (unsigned i = 0; i < (consensus.nMaxAmountSigmaSpendPerBlock + 1) * 2; i++){
+    for (unsigned i = 0; i < (consensus.nMaxSigmaInputPerBlock + 1) * 2; i++){
         denominationsForTx.push_back(denominations[denominationIndexA]);
         BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denominations[denominationIndexA].c_str(), SIGMA), stringError + " - Create Mint failed");
         BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denominations[denominationIndexB].c_str(), SIGMA), stringError + " - Create Mint failed");
-        if (i <= consensus.nMaxAmountSigmaSpendPerBlock) {
+        if (i <= consensus.nMaxSigmaInputPerBlock) {
             denominationsForTx.push_back(denominations[denominationIndexA]);
         }
     }
 
-    BOOST_CHECK_MESSAGE(mempool.size() == (consensus.nMaxAmountSigmaSpendPerBlock + 1) * 4, "Num input mints not added to mempool");
+    BOOST_CHECK_MESSAGE(mempool.size() == (consensus.nMaxSigmaInputPerBlock + 1) * 4, "Num input mints not added to mempool");
 
     // add block
     previousHeight = chainActive.Height();
@@ -78,7 +78,7 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_numinputs)
     // Check that the tx creation fails.
     BOOST_CHECK_MESSAGE(!pwalletMain->CreateZerocoinSpendModel(wtx, stringError, thirdPartyAddress, denominationsForTx), "Spend succeeded even though number of inputs exceed the limits");
 
-    unsigned spendsTransactionLimit = consensus.nMaxAmountSigmaSpendPerBlock / 2;
+    unsigned spendsTransactionLimit = consensus.nMaxSigmaInputPerBlock / 2;
     // Next add spendsTransactionLimit + 1 transactions with 2 inputs each, verify mempool==spendsTransactionLimit + 1. mine a block. Verify mempool still has 1 tx.
     for(unsigned i = 0; i < spendsTransactionLimit + 1; i++){
         denominationsForTx.clear();
@@ -110,7 +110,7 @@ BOOST_AUTO_TEST_CASE(spend_value_limit)
     const CBitcoinAddress randomAddr1(newKey1.GetID());
     const CBitcoinAddress randomAddr2(newKey2.GetID());
 
-    string stringError;
+    std::string stringError;
     auto& consensus = Params().GetConsensus();
 
     auto testDenomination = sigma::CoinDenominationV3::SIGMA_DENOM_100;

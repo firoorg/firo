@@ -118,11 +118,6 @@ CWalletTx TxBuilder::Build(const std::vector<CRecipient>& recipients, CAmount& f
             required += fee;
         }
 
-        if (required > Params().GetConsensus().nMaxValueSigmaSpendPerBlock) {
-            throw std::runtime_error(
-                _("Required amount exceed value spend limit"));
-        }
-
         // fill outputs
         bool remainderSubtracted = false;
 

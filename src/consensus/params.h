@@ -124,7 +124,7 @@ struct Params {
     int nZerocoinV2SpendGracefulPeriod;
 
     // Amount of maximum sigma spend per block.
-    unsigned nMaxAmountSigmaSpendPerBlock;
+    unsigned nMaxSigmaInputPerBlock;
 
     // Value of maximum sigma spend per block.
     int64_t nMaxValueSigmaSpendPerBlock;

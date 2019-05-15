@@ -5129,6 +5129,11 @@ CWalletTx CWallet::CreateZerocoinSpendTransactionV3(
     selected = builder.selected;
     changes = builder.changes;
 
+    if (GetSpendAmount(tx) > Params().GetConsensus().nMaxValueSigmaSpendPerBlock) {
+        throw std::runtime_error(
+            _("Required amount exceed value spend limit"));
+    };
+
     return tx;
 }
 

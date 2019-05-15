@@ -95,10 +95,10 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 XZC mininput
 #define ZC_SPEND_LIMIT         5
 
 // Value of sigma spends allowed per block
-#define ZC_SIGMA_VALUE_SPEND_LIMIT         50000000000
+#define ZC_SIGMA_VALUE_SPEND_LIMIT         (500 * COIN)
 
 // Amount of sigma spends allowed per block
-#define ZC_SIGMA_AMOUNT_SPEND_LIMIT         50
+#define ZC_SIGMA_INPUT_LIMIT         50
 
 // Number of zerocoin mints allowed per transaction
 #define ZC_MINT_LIMIT         100
