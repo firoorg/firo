@@ -2254,7 +2254,13 @@ bool CWallet::GetCoinsToSpend(
         throw InsufficientFunds();
     }
 
-    int limitVal = amountLimit/zeros;
+    int limitVal;
+    if (amountLimit > MAX_MONEY) {
+        limitVal = MAX_MONEY / zeros;
+    } else {
+        limitVal = amountLimit / zeros;
+    }
+
     if (required > limitVal) {
         throw std::runtime_error(
             _("Required amount exceed value spend limit"));
