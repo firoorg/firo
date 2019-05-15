@@ -1262,6 +1262,10 @@ bool CWalletDB::WriteHDChain(const CHDChain &chain) {
     return Write(std::string("hdchain"), chain);
 }
 
+bool CWalletDB::EraseHDChain(const CHDChain &chain) {
+    return Erase(make_pair(std::string("hdchain"), chain));
+}
+
 bool CWalletDB::ReadCurrentSeedHash(uint160& hashSeed)
 {
     return Read(string("seedhash"), hashSeed);

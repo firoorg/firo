@@ -1412,10 +1412,24 @@ bool CWallet::SetHDMasterKey(const CPubKey &pubkey) {
 
 bool CWallet::SetHDChain(const CHDChain &chain, bool memonly) {
     LOCK(cs_wallet);
-    if (!memonly && !CWalletDB(strWalletFile).WriteHDChain(chain))
-        throw runtime_error(std::string(__func__) + ": writing chain failed");
+    bool upgradeChain = (chain.nVersion==CHDChain::VERSION_BASIC);
+    if(upgradeChain){ // Upgrade HDChain to latest version
+        CHDChain newChain;
+        newChain.masterKeyID = chain.masterKeyID;
+        newChain.nExternalChainCounters[0] = chain.nExternalChainCounter;
 
-    hdChain = chain;
+        if (!memonly && !CWalletDB(strWalletFile).WriteHDChain(newChain))
+            throw runtime_error(std::string(__func__) + ": writing chain failed");
+
+        if (!memonly && !CWalletDB(strWalletFile).EraseHDChain(chain))
+            throw runtime_error(std::string(__func__) + ": erasing chain failed");
+        hdChain = newChain;
+    }else{
+        if (!memonly && !CWalletDB(strWalletFile).WriteHDChain(chain))
+            throw runtime_error(std::string(__func__) + ": writing chain failed");
+        hdChain = chain;
+    }
+
     return true;
 }
 
@@ -2214,8 +2228,15 @@ CAmount CWallet::SelectSpendCoinsForAmount(
 std::list<CHDMint> CWallet::GetAvailableCoins() const {
     LOCK2(cs_main, cs_wallet);
 
-    pwalletMain->hdMintTracker->ListMints(true, true, true);
-    std::list<CHDMint> coins = CWalletDB(strWalletFile).ListHDMints();
+    CWalletDB walletdb(strWalletFile);
+    std::list<CHDMint> coins;
+    std::vector<CMintMeta> vecMists = pwalletMain->hdMintTracker->ListMints(true, true, true);
+    list<CMintMeta> listMints(vecMists.begin(), vecMists.end());
+    for (const CMintMeta& mint : listMints) {
+        CHDMint hdMint;
+        walletdb.ReadHDMint(GetPubCoinValueHash(mint.pubCoinValue), hdMint);
+        coins.push_back(hdMint);
+    }
 
     // Filter out coins which are not confirmed, I.E. do not have at least 6 blocks
     // above them, after they were minted.
