@@ -1,5 +1,6 @@
 #include "coinspend.h"
 #include "openssl_context.h"
+#include "util.h"
 
 namespace sigma {
 
@@ -111,6 +112,7 @@ bool CoinSpendV3::Verify(
     // Verify ecdsa_signature, to make sure someone did not change the output of transaction.
     // Check sizes
     if (this->ecdsaPubkey.size() != 33 || this->ecdsaSignature.size() != 64) {
+        LogPrintf("Sigma spend failed due to incorrect size of ecdsaSignature.");
         return false;
     }
 
@@ -119,20 +121,24 @@ bool CoinSpendV3::Verify(
     secp256k1_ecdsa_signature signature;
 
     if (!secp256k1_ec_pubkey_parse(OpenSSLContext::get_context(), &pubkey, ecdsaPubkey.data(), 33)) {
+        LogPrintf("Sigma spend failed due to unable to parse ecdsaPubkey.");
         return false;
     }
 
     // Recompute and compare hash of public key
     Scalar coinSerialNumberExpected = PrivateCoinV3::serialNumberFromSerializedPublicKey(OpenSSLContext::get_context(), &pubkey);
     if (coinSerialNumber != coinSerialNumberExpected) {
+        LogPrintf("Sigma spend failed due to serial number does not match public key hash.");
         return false;
     }
 
     if (1 != secp256k1_ecdsa_signature_parse_compact(OpenSSLContext::get_context(), &signature, ecdsaSignature.data()) ) {
+        LogPrintf("Sigma spend failed due to signature cannot be parsed.");
         return false;
     }
     if (!secp256k1_ecdsa_verify(
             OpenSSLContext::get_context(), &signature, metahash.begin(), &pubkey)) {
+        LogPrintf("Sigma spend failed due to signature cannot be verified.");
         return false;
     }
 
