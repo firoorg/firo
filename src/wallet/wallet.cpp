@@ -2221,7 +2221,8 @@ bool CWallet::GetCoinsToSpend(
         CAmount required,
         std::vector<CZerocoinEntryV3>& coinsToSpend_out,
         std::vector<sigma::CoinDenominationV3>& coinsToMint_out,
-        const size_t coinsLimit) const
+        const size_t coinsLimit,
+        const CAmount amountLimit) const
 {
     // Sanity check to make sure this function is never called with a too large
     // amount to spend, resulting to a possible crash due to out of memory condition.
@@ -2253,6 +2254,12 @@ bool CWallet::GetCoinsToSpend(
         throw InsufficientFunds();
     }
 
+    int limitVal = amountLimit/zeros;
+    if (required > limitVal) {
+        throw std::runtime_error(
+            _("Required amount exceed value spend limit"));
+    }
+
     // sort by highest denomination. if it is same denomination we will prefer the previous block
     auto comparer = [](const CZerocoinEntryV3& a, const CZerocoinEntryV3& b) -> bool {
         return a.get_denomination_value() != b.get_denomination_value() ? a.get_denomination_value() > b.get_denomination_value() : a.nHeight < b.nHeight;
@@ -2268,7 +2275,11 @@ bool CWallet::GetCoinsToSpend(
         throw runtime_error("Unknown sigma denomination.\n");
     }
 
-    CAmount val = required + max_coin_value / zeros;
+
+    int val = required + max_coin_value / zeros;
+    if (val > limitVal) {
+        val = limitVal;
+    }
 
     // We need only last 2 rows of matrix of knapsack algorithm.
     std::vector<uint64_t> prev_row;
@@ -5128,11 +5139,6 @@ CWalletTx CWallet::CreateZerocoinSpendTransactionV3(
     CWalletTx tx = builder.Build(recipients, fee);
     selected = builder.selected;
     changes = builder.changes;
-
-    if (GetSpendAmount(tx) > Params().GetConsensus().nMaxValueSigmaSpendPerBlock) {
-        throw std::runtime_error(
-            _("Required amount exceed value spend limit"));
-    };
 
     return tx;
 }
