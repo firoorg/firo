@@ -270,8 +270,8 @@ bool CHDMintTracker::UpdateState(const CMintMeta& meta)
             return error("%s: failed to update deterministic mint when writing to db", __func__);
     } else {
         CZerocoinEntryV3 zerocoin;
-        // if (!walletdb.ReadZerocoinEntry(meta.pubCoinValue, zerocoin))
-        //     return error("%s: failed to read mint from database", __func__);
+        if (!walletdb.ReadZerocoinEntry(meta.pubCoinValue, zerocoin))
+            return error("%s: failed to read mint from database", __func__);
 
         zerocoin.nHeight = meta.nHeight;
         zerocoin.id = meta.nId;
@@ -402,8 +402,6 @@ bool CHDMintTracker::UpdateStatusInternal(const std::set<uint256>& setMempool, C
         if (mint.txid.IsNull()) {
             if (!isMintInChain) {
                 LogPrintf("%s : Failed to find mint in zerocoinDB %s\n", __func__, hashPubcoin.GetHex().substr(0, 6));
-                mint.isArchived = true;
-                Archive(mint);
                 return true;
             }
             mint.txid = txidMint;
