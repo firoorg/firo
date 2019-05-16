@@ -835,7 +835,7 @@ bool WalletModel::rebroadcastTransaction(uint256 hash)
 // Sigma
 WalletModel::SendCoinsReturn WalletModel::prepareSigmaSpendTransaction(
     WalletModelTransaction &transaction,
-    std::vector<CHDMint> &selectedCoins,
+    std::vector<CZerocoinEntryV3> &selectedCoins,
     std::vector<CHDMint> &changes)
 {
     QList<SendCoinsRecipient> recipients = transaction.getRecipients();
@@ -880,7 +880,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareSigmaSpendTransaction(
 }
 
 WalletModel::SendCoinsReturn WalletModel::sendSigma(WalletModelTransaction &transaction,
-    std::vector<CHDMint>& coins, std::vector<CHDMint>& changes)
+    std::vector<CZerocoinEntryV3>& coins, std::vector<CHDMint>& changes)
 {
     QByteArray transaction_array; /* store serialized transaction */
 

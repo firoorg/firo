@@ -137,8 +137,7 @@ CAmount SigmaSpendBuilder::GetInputs(std::vector<std::unique_ptr<InputSigner>>& 
     CZerocoinEntryV3 entry;
 
     for (auto& coin : selected) {
-        total += coin.GetDenominationValue();
-        zwalletMain->RegenerateMint(coin, entry);
+        total += coin.get_denomination_value();
         signers.push_back(CreateSigner(entry));
     }
 

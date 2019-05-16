@@ -886,12 +886,12 @@ public:
 
     static CAmount SelectSpendCoinsForAmount(
         const CAmount& required,
-        const std::list<CHDMint>& coinsIn,
-        std::vector<CHDMint>& coinsOut);
+        const std::list<CZerocoinEntryV3>& coinsIn,
+        std::vector<CZerocoinEntryV3>& coinsOut);
 
     // Returns a list of unspent and verified coins, I.E. coins which are ready
     // to be spent.
-    std::list<CHDMint> GetAvailableCoins() const;
+    std::list<CZerocoinEntryV3> GetAvailableCoins() const;
 
     /** \brief Selects coins to spend, and coins to re-mint based on the required amount to spend, provided by the user. As the lower denomination now is 0.1 zcoin, user's request will be rounded up to the nearest 0.1. This difference between the user's requested value, and the actually spent value will be left to the miners as a fee.
      * \param[in] required Required amount to spend.
@@ -901,7 +901,7 @@ public:
      */
     bool GetCoinsToSpend(
         CAmount required,
-        std::vector<CHDMint>& coinsToSpend_out,
+        std::vector<CZerocoinEntryV3>& coinsToSpend_out,
         std::vector<sigma::CoinDenominationV3>& coinsToMint_out) const;
 
     /**
@@ -946,7 +946,7 @@ public:
     CWalletTx CreateZerocoinSpendTransactionV3(
         const std::vector<CRecipient>& recipients,
         CAmount& fee,
-        std::vector<CHDMint>& selected,
+        std::vector<CZerocoinEntryV3>& selected,
         std::vector<CHDMint>& changes);
 
     bool CreateMultipleZerocoinSpendTransaction(std::string& thirdPartyaddress, const std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>>& denominations,
@@ -965,7 +965,7 @@ public:
         const CCoinControl *coinControl = NULL);
 
     bool CommitZerocoinSpendTransaction(CWalletTx& wtxNew, CReserveKey& reservekey);
-    bool CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CHDMint>& selectedCoins, std::vector<CHDMint>& changes);
+    bool CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CZerocoinEntryV3>& selectedCoins, std::vector<CHDMint>& changes);
     std::string SendMoney(CScript scriptPubKey, int64_t nValue, CWalletTx& wtxNew, bool fAskFee=false);
     std::string SendMoneyToDestination(const CTxDestination &address, int64_t nValue, CWalletTx& wtxNew, bool fAskFee=false);
 
@@ -979,10 +979,10 @@ public:
 
     std::string SpendMultipleZerocoinV3(std::string& thirdPartyaddress, const std::vector<sigma::CoinDenominationV3>& denominations, CWalletTx& wtxNew, vector<Scalar>& coinSerials, uint256& txHash, vector<GroupElement>& zcSelectedValues, bool forceUsed = false, bool fAskFee=false);
 
-    std::vector<CHDMint> SpendZerocoinV3(const std::vector<CRecipient>& recipients, CWalletTx& result);
-    std::vector<CHDMint> SpendZerocoinV3(const std::vector<CRecipient>& recipients, CWalletTx& result, CAmount& fee);
+    std::vector<CZerocoinEntryV3> SpendZerocoinV3(const std::vector<CRecipient>& recipients, CWalletTx& result);
+    std::vector<CZerocoinEntryV3> SpendZerocoinV3(const std::vector<CRecipient>& recipients, CWalletTx& result, CAmount& fee);
 
-    bool GetMint(const uint256& hashSerial, CZerocoinEntryV3& zerocoin);
+    bool GetMint(const uint256& hashSerial, CZerocoinEntryV3& zerocoin) const;
 
     bool CreateZerocoinMintModel(string &stringError,
                                  const string& denomAmount,

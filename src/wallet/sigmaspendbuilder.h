@@ -8,7 +8,7 @@
 class SigmaSpendBuilder : public TxBuilder
 {
 public:
-    std::vector<CHDMint> selected;
+    std::vector<CZerocoinEntryV3> selected;
     std::vector<CHDMint> changes;
     std::vector<sigma::CoinDenominationV3> denomChanges;
 
