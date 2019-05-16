@@ -57,6 +57,11 @@ bool CTxIn::IsSigmaSpend() const
     return (prevout.IsSigmaMintGroup() && scriptSig.size() > 0 && (scriptSig[0] == OP_SIGMASPEND) );
 }
 
+bool CTxIn::IsZerocoinRemint() const
+{
+    return (prevout.IsNull() && scriptSig.size() > 0 && (scriptSig[0] == OP_ZEROCOINREMINT));
+}
+
 std::string CTxIn::ToString() const
 {
     std::string str;
@@ -237,6 +242,9 @@ bool CTransaction::IsZerocoinMint() const
 
 bool CTransaction::IsSigmaMint() const
 {
+    if (IsZerocoinRemint())
+        return false;
+        
     for (const CTxOut &txout: vout) {
         if (txout.scriptPubKey.IsSigmaMint())
             return true;
@@ -252,6 +260,15 @@ bool CTransaction::IsZerocoinTransaction() const
 bool CTransaction::IsZerocoinV3SigmaTransaction() const
 {
     return IsSigmaSpend() || IsSigmaMint();
+}
+
+bool CTransaction::IsZerocoinRemint() const
+{
+    for (const CTxIn &txin: vin) {
+        if (txin.IsZerocoinRemint())
+            return true;
+    }
+    return false;
 }
 
 unsigned int CTransaction::CalculateModifiedSize(unsigned int nTxSize) const
