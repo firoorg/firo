@@ -493,6 +493,8 @@ libsigma_a_SOURCES = \
   sigma/coinspend.h \
   sigma/spend_metadata.cpp \
   sigma/spend_metadata.h \
+  sigma/remint.h \
+  sigma/remint.cpp \
   sigma/params.h \
   sigma/params.cpp \
   sigma/openssl_context.h
