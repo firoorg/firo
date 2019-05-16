@@ -2254,15 +2254,15 @@ bool CWallet::GetCoinsToSpend(
         throw InsufficientFunds();
     }
 
-    int limitVal;
     if (amountLimit > MAX_MONEY) {
-        limitVal = MAX_MONEY / zeros;
-    } else {
-        limitVal = amountLimit / zeros;
+        throw std::invalid_argument(
+            _("Amount limit is exceed max money"));
     }
 
+    size_t limitVal = amountLimit / zeros;
+
     if (required > limitVal) {
-        throw std::runtime_error(
+        throw std::invalid_argument(
             _("Required amount exceed value spend limit"));
     }
 
@@ -2281,8 +2281,10 @@ bool CWallet::GetCoinsToSpend(
         throw runtime_error("Unknown sigma denomination.\n");
     }
 
+    size_t val = required + max_coin_value / zeros;
 
-    int val = required + max_coin_value / zeros;
+    // val represent max value in range that we will search which may be over limit.
+    // then we trim it out because we never use it.
     if (val > limitVal) {
         val = limitVal;
     }

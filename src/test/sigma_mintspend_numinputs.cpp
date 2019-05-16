@@ -146,8 +146,8 @@ BOOST_AUTO_TEST_CASE(spend_value_limit)
     // This should fail because we need to use spends more than limit.
     BOOST_CHECK_EXCEPTION(
         pwalletMain->SpendZerocoinV3(recipients, tx),
-        std::runtime_error,
-        [](const std::runtime_error& e){return e.what() == std::string("Required amount exceed value spend limit");});
+        std::invalid_argument,
+        [](const std::invalid_argument& e){return e.what() == std::string("Required amount exceed value spend limit");});
 
     // Try to spend at value limit with two vout.
     recipients = {
@@ -157,8 +157,8 @@ BOOST_AUTO_TEST_CASE(spend_value_limit)
     // This should fail because we need to use spends more than limit.
     BOOST_CHECK_EXCEPTION(
         pwalletMain->SpendZerocoinV3(recipients, tx),
-        std::runtime_error,
-        [](const std::runtime_error& e){return e.what() == std::string("Required amount exceed value spend limit");});
+        std::invalid_argument,
+        [](const std::invalid_argument& e){return e.what() == std::string("Required amount exceed value spend limit");});
 
     // Try to spend two transactions which each transaction not over limit.
     // But sum of spend in both transaction exceed limit.
