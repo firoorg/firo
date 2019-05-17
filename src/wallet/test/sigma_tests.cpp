@@ -550,28 +550,35 @@ BOOST_AUTO_TEST_CASE(spend)
 
     BOOST_CHECK(selected.size() == 1);
     BOOST_CHECK(selected[0].get_denomination() == sigma::CoinDenominationV3::SIGMA_DENOM_10);
-    BOOST_CHECK(selected[0].GetId() == 1);
-    BOOST_CHECK(selected[0].IsUsed());
-    BOOST_CHECK(selected[0].GetHeight() == 1);
+    BOOST_CHECK(selected[0].id == 1);
+    BOOST_CHECK(selected[0].IsUsed);
+    BOOST_CHECK(selected[0].nHeight == 1);
 
     BOOST_CHECK(spends.size() == 1);
     BOOST_CHECK(spends.front().coinSerial == selected[0].serialNumber);
     BOOST_CHECK((spends.front().hashTx == tx.GetHash()));
-    BOOST_CHECK(spends.front().pubCoin == selected[0].GetPubcoinValue());
-    BOOST_CHECK(spends.front().id == selected[0].GetId());
+    BOOST_CHECK(spends.front().pubCoin == selected[0].value);
+    BOOST_CHECK(spends.front().id == selected[0].id);
     BOOST_CHECK(spends.front().get_denomination() == selected[0].get_denomination());
 
     for (auto& coin : coins) {
         if (std::find_if(
             selected.begin(),
             selected.end(),
-            [&coin](const CZerocoinEntryV3& e) { return e.serialNumber == coin.serialNumber; }) != selected.end()) {
+            [&coin](const CZerocoinEntryV3& e) { return e.value == coin.GetPubcoinValue(); }) != selected.end()) {
             continue;
         }
 
-        BOOST_CHECK(coin.IsUsed == false);
-        BOOST_CHECK(coin.id == -1);
-        BOOST_CHECK(coin.nHeight == -1);
+        BOOST_CHECK(coin.IsUsed() == false);
+
+        // First 2 mints mined (Either could be picked as "selected" coin)
+        if(coin.GetCount()==0 || coin.GetCount()==1){
+            BOOST_CHECK(coin.GetId() == 1);
+            BOOST_CHECK(coin.GetHeight() == 1);
+        }else{
+            BOOST_CHECK(coin.GetId() == -1);
+            BOOST_CHECK(coin.GetHeight() == -1);
+        }
     }
 }
 

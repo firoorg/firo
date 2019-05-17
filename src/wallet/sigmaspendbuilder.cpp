@@ -134,11 +134,9 @@ CAmount SigmaSpendBuilder::GetInputs(std::vector<std::unique_ptr<InputSigner>>& 
 
     // construct signers
     CAmount total = 0;
-    CZerocoinEntryV3 entry;
-
     for (auto& coin : selected) {
         total += coin.get_denomination_value();
-        signers.push_back(CreateSigner(entry));
+        signers.push_back(CreateSigner(coin));
     }
 
     return total;
@@ -170,7 +168,7 @@ CAmount SigmaSpendBuilder::GetChanges(std::vector<CTxOut>& outputs, CAmount amou
             throw std::runtime_error("Unable to mint a V3 sigma coin.");
         }
 
-        // Update local count (don't write back to DB until we know coin is verified)
+        // Update local count (don't write back to DB until we know coin is verified && change has been decided)
         zwalletMain->UpdateCountLocal();
 
         // Create script for coin

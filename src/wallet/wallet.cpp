@@ -1418,11 +1418,8 @@ bool CWallet::SetHDChain(const CHDChain &chain, bool memonly) {
         newChain.masterKeyID = chain.masterKeyID;
         newChain.nExternalChainCounters[0] = chain.nExternalChainCounter;
 
-        if (!memonly && !CWalletDB(strWalletFile).WriteHDChain(newChain))
+        if (!CWalletDB(strWalletFile).WriteHDChain(newChain))
             throw runtime_error(std::string(__func__) + ": writing chain failed");
-
-        if (!memonly && !CWalletDB(strWalletFile).EraseHDChain(chain))
-            throw runtime_error(std::string(__func__) + ": erasing chain failed");
         hdChain = newChain;
     }else{
         if (!memonly && !CWalletDB(strWalletFile).WriteHDChain(chain))
@@ -6490,7 +6487,6 @@ bool CWallet::CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CZerocoinEnt
     // mark selected coins as used
     auto state = CZerocoinStateV3::GetZerocoinState();
     CWalletDB db(strWalletFile);
-    CZerocoinEntryV3 entry;
 
     for (auto& coin : selectedCoins) {
         // get coin id & height
@@ -6503,7 +6499,7 @@ bool CWallet::CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CZerocoinEnt
 
         spend.coinSerial = coin.serialNumber;
         spend.hashTx = wtxNew.GetHash();
-        spend.pubCoin = entry.value;
+        spend.pubCoin = coin.value;
         spend.id = id;
         spend.set_denomination_value(coin.get_denomination_value());
 

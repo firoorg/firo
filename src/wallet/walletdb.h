@@ -62,6 +62,7 @@ public:
 
     static const int VERSION_BASIC = 1;
     static const int VERSION_WITH_BIP44 = 10;
+    static const int CURRENT_VERSION = VERSION_WITH_BIP44;
     static const int N_CHANGES = 3; // standard = 0/1, mint = 2
     int nVersion;
 
@@ -70,20 +71,21 @@ public:
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
     {
+
         READWRITE(this->nVersion);
         nVersion = this->nVersion;
-        if(nVersion == VERSION_BASIC){
-            READWRITE(nExternalChainCounter);
-        }else{
+        READWRITE(nExternalChainCounter);
+        READWRITE(masterKeyID);
+        if(this->nVersion >= VERSION_WITH_BIP44){
             READWRITE(nExternalChainCounters);
         }
-        READWRITE(masterKeyID);
     }
 
     void SetNull()
     {
-        nVersion = CHDChain::VERSION_WITH_BIP44;
+        nVersion = CHDChain::CURRENT_VERSION;
         masterKeyID.SetNull();
+        nExternalChainCounter = 0;
         for(int index=0;index<N_CHANGES;index++){
             nExternalChainCounters.push_back(0);
         }
@@ -243,9 +245,6 @@ public:
 
     //! write the hdchain model (external chain child index counter)
     bool WriteHDChain(const CHDChain& chain);
-
-    //! erase the hdchain model (Used for removal of old versions)
-    bool EraseHDChain(const CHDChain& chain);
 
 private:
     CWalletDB(const CWalletDB&);
