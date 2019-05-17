@@ -528,6 +528,9 @@ bool CheckZerocoinTransaction(const CTransaction &tx,
                               bool fStatefulZerocoinCheck,
                               CZerocoinTxInfo *zerocoinTxInfo)
 {
+    if ((tx.IsZerocoinSpend() || tx.IsZerocoinMint()) && nHeight >= params.nDisableZerocoinStartBlock)
+        return state.DoS(1, error("Zerocoin is disabled at this point"));
+
     // Check Mint Zerocoin Transaction
     BOOST_FOREACH(const CTxOut &txout, tx.vout) {
         if (!txout.scriptPubKey.empty() && txout.scriptPubKey.IsZerocoinMint()) {
