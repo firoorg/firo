@@ -10,7 +10,7 @@ pipeline {
             steps {
                 sh 'git clean -d -f -f -q -x'
                 sh './autogen.sh'
-                sh './configure'
+                sh './configure --enable-tests'
                 sh 'make -j4'
             }
         }
