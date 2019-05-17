@@ -2230,15 +2230,18 @@ bool CWallet::GetCoinsToSpend(
         throw std::invalid_argument("Request to spend more than 21 MLN Zcoins.\n");
     }
 
-    // We have Coins denomination * 10^8, we remove last 7 0's  and add one coin of denomination 100
-    const uint64_t zeros = 10000000;
+    if (!MoneyRange(amountLimit)) {
+        throw std::invalid_argument(
+            _("Amount limit is exceed max money"));
+    }
 
-    // Anything below 0.1 zerocoin goes to the miners as a fee.
+    // We have Coins denomination * 10^8, we remove last 7 0's  and add one coin of denomination 100
+    constexpr CAmount zeros(10000000);
+
+    // Rounding, Anything below 0.1 zerocoin goes to the miners as a fee.
+    int roundedRequired = required / zeros;
     if (required % zeros != 0) {
-        required /= zeros;
-        ++required;
-    } else {
-        required /= zeros;
+        ++roundedRequired;
     }
 
     std::list<CZerocoinEntryV3> coins = GetAvailableCoins();
@@ -2250,18 +2253,13 @@ bool CWallet::GetCoinsToSpend(
         availableBalance += coin.get_denomination_value();
     }
 
-    if (required * zeros > availableBalance) {
+    if (roundedRequired * zeros > availableBalance) {
         throw InsufficientFunds();
     }
 
-    if (amountLimit > MAX_MONEY) {
-        throw std::invalid_argument(
-            _("Amount limit is exceed max money"));
-    }
+    int limitVal = amountLimit / zeros;
 
-    size_t limitVal = amountLimit / zeros;
-
-    if (required > limitVal) {
+    if (roundedRequired > limitVal) {
         throw std::invalid_argument(
             _("Required amount exceed value spend limit"));
     }
@@ -2281,13 +2279,11 @@ bool CWallet::GetCoinsToSpend(
         throw runtime_error("Unknown sigma denomination.\n");
     }
 
-    size_t val = required + max_coin_value / zeros;
+    int val = roundedRequired + max_coin_value / zeros;
 
     // val represent max value in range that we will search which may be over limit.
     // then we trim it out because we never use it.
-    if (val > limitVal) {
-        val = limitVal;
-    }
+    val = std::min(val, limitVal);
 
     // We need only last 2 rows of matrix of knapsack algorithm.
     std::vector<uint64_t> prev_row;
@@ -2315,9 +2311,9 @@ bool CWallet::GetCoinsToSpend(
     uint64_t best_spend_val = val;
 
     int minimum = INT_MAX - 1;
-    while(index >= required) {
+    while(index >= roundedRequired) {
         int temp_min = next_row[index] + GetRequiredCoinCountForAmount(
-            (index - required) * zeros, denominations);
+            (index - roundedRequired) * zeros, denominations);
         if (minimum > temp_min && next_row[index] != (INT_MAX - 1) / 2 && temp_min <= coinsLimit) {
             best_spend_val = index;
             minimum = temp_min;
@@ -2330,7 +2326,7 @@ bool CWallet::GetCoinsToSpend(
         throw std::runtime_error(
             _("Can not choose coins within limit."));
 
-    if (SelectMintCoinsForAmount(best_spend_val - required * zeros, denominations, coinsToMint_out) != best_spend_val - required * zeros) {
+    if (SelectMintCoinsForAmount(best_spend_val - roundedRequired * zeros, denominations, coinsToMint_out) != best_spend_val - roundedRequired * zeros) {
         throw std::runtime_error(
             _("Problem with coin selection for re-mint while spending."));
     }
