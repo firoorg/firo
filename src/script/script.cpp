@@ -146,8 +146,8 @@ const char* GetOpName(opcodetype opcode)
     // zerocoin
     case OP_ZEROCOINMINT           : return "OP_ZEROCOINMINT";
     case OP_ZEROCOINSPEND          : return "OP_ZEROCOINSPEND";
-    case OP_SIGMAMINT         : return "OP_ZEROCOINMINT_V3";
-    case OP_SIGMASPEND        : return "OP_ZEROCOINSPEND_V3";
+    case OP_SIGMAMINT         : return "OP_SIGMAMINT";
+    case OP_SIGMASPEND        : return "OP_SIGMASPEND";
 
 
     // Note:

@@ -31,7 +31,7 @@ BOOST_FIXTURE_TEST_SUITE(sigma_mintspend, ZerocoinTestingSetup200)
 */
 BOOST_AUTO_TEST_CASE(sigma_mintspend_test)
 {
-    CZerocoinState *zerocoinState = CZerocoinState::GetZerocoinState();
+    sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
     string denomination;
     vector<uint256> vtxid;
     std::vector<string> denominations = {"0.1", "0.5", "1", "10", "100"};
@@ -136,22 +136,22 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_test)
         BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool not empty although mempool should reject double spend");
 
         //Temporary disable usedCoinSerials check to force double spend in mempool
-        auto tempSerials = zerocoinState->usedCoinSerials;
-        zerocoinState->usedCoinSerials.clear();
+        auto tempSerials = sigmaState->usedCoinSerials;
+        sigmaState->usedCoinSerials.clear();
 
         BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(stringError, "", denomination.c_str(), true), "Spend created although double");
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mempool not set");
-        zerocoinState->usedCoinSerials = tempSerials;
+        sigmaState->usedCoinSerials = tempSerials;
 
         BOOST_CHECK_EXCEPTION(CreateBlock({}, scriptPubKey), std::runtime_error, no_check);
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mempool not set");
         vtxid.clear();
         mempool.queryHashes(vtxid);
         vtxid.resize(1);
-        tempSerials = zerocoinState->usedCoinSerials;
-        zerocoinState->usedCoinSerials.clear();
+        tempSerials = sigmaState->usedCoinSerials;
+        sigmaState->usedCoinSerials.clear();
         CreateBlock(vtxid, scriptPubKey);
-        zerocoinState->usedCoinSerials = tempSerials;
+        sigmaState->usedCoinSerials = tempSerials;
 
         mempool.clear();
         previousHeight = chainActive.Height();
@@ -161,7 +161,7 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_test)
 
         vtxid.clear();
         mempool.clear();
-        zerocoinState->Reset();
+        sigmaState->Reset();
     }
 }
 BOOST_AUTO_TEST_SUITE_END()

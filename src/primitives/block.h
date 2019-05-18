@@ -222,12 +222,6 @@ public:
 
 class CZerocoinTxInfo;
 
-namespace sigma {
-
-class CZerocoinTxInfo;
-
-} // namespace sigma
-
 class CBlock : public CBlockHeader
 {
 public:
