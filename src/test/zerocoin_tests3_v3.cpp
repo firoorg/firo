@@ -41,7 +41,7 @@ BOOST_FIXTURE_TEST_SUITE(zerocoin_tests3_v3, ZerocoinTestingSetup200)
 
 BOOST_AUTO_TEST_CASE(zerocoin_mintspend_v3)
 {
-    CZerocoinState *zerocoinState = CZerocoinState::GetZerocoinState();
+    sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
     string denomination;
     vector<uint256> vtxid;
     std::vector<string> denominations = {"0.1", "0.5", "1", "10", "100"};
@@ -115,9 +115,9 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_v3)
         BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool not cleared");
 
         // Delete usedCoinSerials since we deleted the mempool
-        CZerocoinState *zerocoinStatex = CZerocoinState::GetZerocoinState();
-        zerocoinStatex->usedCoinSerials.clear();
-        zerocoinStatex->mempoolCoinSerials.clear();
+        sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
+        sigmaState->usedCoinSerials.clear();
+        sigmaState->mempoolCoinSerials.clear();
 
         BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(stringError, "", denomination.c_str(), true), "Spend created although double");
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mempool did not receive the transaction");
@@ -148,7 +148,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_v3)
         mempool.clear();
 
     }
-    zerocoinState->Reset();
+    sigmaState->Reset();
 }
 
 BOOST_AUTO_TEST_SUITE_END()

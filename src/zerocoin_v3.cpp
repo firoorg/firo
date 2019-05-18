@@ -549,7 +549,9 @@ int CSigmaState::AddMint(
         } else {
             assert(coinGroup.firstBlock != nullptr);
             assert(coinGroup.lastBlock != nullptr);
-            assert(coinGroup.lastBlock->nHeight <= index->nHeight);
+            if (coinGroup.lastBlock->nHeight > index->nHeight) { 
+                assert(coinGroup.lastBlock->nHeight <= index->nHeight);
+            }
 
             coinGroup.lastBlock = index;
         }
