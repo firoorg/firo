@@ -42,17 +42,17 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
     uint256 hash = wtx.GetHash();
     std::map<std::string, std::string> mapValue = wtx.mapValue;
 
-    bool isAllSigmaSpendFromMe = wtx.IsZerocoinSpendV3();
+    bool isAllSigmaSpendFromMe;
 
     for (const auto& vin : wtx.vin) {
-        isAllSigmaSpendFromMe = wallet->IsMine(vin) & ISMINE_SPENDABLE;
+        isAllSigmaSpendFromMe = (wallet->IsMine(vin) & ISMINE_SPENDABLE) && vin.IsZerocoinSpendV3();
         if (!isAllSigmaSpendFromMe)
             break;
     }
 
     if (wtx.IsZerocoinSpend() || isAllSigmaSpendFromMe) {
         for (const CTxOut& txout : wtx.vout) {
-            if (txout.scriptPubKey.IsZerocoinMintV3()) {
+            if (wtx.IsChange(txout)) {
                 continue;
             }
             isminetype mine = wallet->IsMine(txout);
@@ -136,12 +136,18 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
 
         if (fAllFromMe && fAllToMe)
         {
-            // Payment to self
             CAmount nChange = wtx.GetChange();
-
-            parts.append(TransactionRecord(hash, nTime, TransactionRecord::SendToSelf, "",
-                            -(nDebit - nChange), nCredit - nChange));
-            parts.last().involvesWatchAddress = involvesWatchAddress;   // maybe pass to TransactionRecord as constructor argument
+            if (wtx.IsZerocoinMintV3() || wtx.IsZerocoinMint())
+            {
+                // Mint to self
+                parts.append(TransactionRecord(hash, nTime, TransactionRecord::Mint, "",
+                    -(nDebit - nChange), 0));
+            } else {
+                // Payment to self
+                parts.append(TransactionRecord(hash, nTime, TransactionRecord::SendToSelf, "",
+                    -(nDebit - nChange), nCredit - nChange));
+                parts.last().involvesWatchAddress = involvesWatchAddress;   // maybe pass to TransactionRecord as constructor argument
+            }
         }
         else if (fAllFromMe)
         {
