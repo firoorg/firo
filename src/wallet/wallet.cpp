@@ -2217,12 +2217,21 @@ std::list<CZerocoinEntryV3> CWallet::GetAvailableCoins() const {
     return coins;
 }
 
+template<typename Iterator>
+static CAmount CalculateCoinsBalance(Iterator begin, Iterator end) {
+    CAmount balance(0);
+    for (auto start = begin; start != end; start++) {
+        balance += start->get_denomination_value();
+    }
+    return balance;
+}
+
 bool CWallet::GetCoinsToSpend(
         CAmount required,
         std::vector<CZerocoinEntryV3>& coinsToSpend_out,
         std::vector<sigma::CoinDenominationV3>& coinsToMint_out,
-        const size_t coinsLimit,
-        const CAmount amountLimit) const
+        const size_t coinsToSpendLimit,
+        const CAmount amountToSpendLimit) const
 {
     // Sanity check to make sure this function is never called with a too large
     // amount to spend, resulting to a possible crash due to out of memory condition.
@@ -2230,7 +2239,7 @@ bool CWallet::GetCoinsToSpend(
         throw std::invalid_argument("Request to spend more than 21 MLN Zcoins.\n");
     }
 
-    if (!MoneyRange(amountLimit)) {
+    if (!MoneyRange(amountToSpendLimit)) {
         throw std::invalid_argument(
             _("Amount limit is exceed max money"));
     }
@@ -2244,24 +2253,21 @@ bool CWallet::GetCoinsToSpend(
         ++roundedRequired;
     }
 
-    std::list<CZerocoinEntryV3> coins = GetAvailableCoins();
-    if (coins.empty())
-        return false;
-
-    CAmount availableBalance(0);
-    for (const auto& coin : coins) {
-        availableBalance += coin.get_denomination_value();
-    }
-
-    if (roundedRequired * zeros > availableBalance) {
-        throw InsufficientFunds();
-    }
-
-    int limitVal = amountLimit / zeros;
+    int limitVal = amountToSpendLimit / zeros;
 
     if (roundedRequired > limitVal) {
         throw std::invalid_argument(
             _("Required amount exceed value spend limit"));
+    }
+
+    std::list<CZerocoinEntryV3> coins = GetAvailableCoins();
+    if (coins.empty())
+        return false;
+
+    CAmount availableBalance = CalculateCoinsBalance(coins.begin(), coins.end());
+
+    if (roundedRequired * zeros > availableBalance) {
+        throw InsufficientFunds();
     }
 
     // sort by highest denomination. if it is same denomination we will prefer the previous block
@@ -2314,7 +2320,7 @@ bool CWallet::GetCoinsToSpend(
     while(index >= roundedRequired) {
         int temp_min = next_row[index] + GetRequiredCoinCountForAmount(
             (index - roundedRequired) * zeros, denominations);
-        if (minimum > temp_min && next_row[index] != (INT_MAX - 1) / 2 && temp_min <= coinsLimit) {
+        if (minimum > temp_min && next_row[index] != (INT_MAX - 1) / 2 && next_row[index] <= coinsToSpendLimit) {
             best_spend_val = index;
             minimum = temp_min;
         }
