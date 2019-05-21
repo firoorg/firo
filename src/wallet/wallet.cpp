@@ -135,16 +135,21 @@ CPubKey CWallet::GenerateNewKey(uint32_t nChange) {
     int64_t nCreationTime = GetTime();
     CKeyMetadata metadata(nCreationTime);
 
+    boost::optional<bool> regTest = GetOptBoolArg("-regtest")
+    , testNet = GetOptBoolArg("-testnet");
+
+    uint32_t nIndex = (regTest || testNet) ? BIP44_TEST_INDEX : BIP44_ZCOIN_INDEX;
+
     // use HD key derivation if HD was enabled during wallet creation
     if (!hdChain.masterKeyID.IsNull()) {
         // use BIP44 keypath: m / purpose' / coin_type' / account' / change / address_index
         CKey key;                      //master key seed (256bit)
         CExtKey masterKey;             //hd master key
         CExtKey purposeKey;            //key at m/44'
-        CExtKey coinTypeKey;           //key at m/44'/136' (Zcoin Coin Type according to SLIP-0044)
-        CExtKey accountKey;            //key at m/44'/136'/0'
-        CExtKey externalChainChildKey; //key at m/44'/136'/0'/<c>' (Standard: 0/1, Mints: 2)
-        CExtKey childKey;              //key at m/44'/136'/0'/<c>'/<n>
+        CExtKey coinTypeKey;           //key at m/44'/<1/136>' (Testnet or Zcoin Coin Type respectively, according to SLIP-0044)
+        CExtKey accountKey;            //key at m/44'/<1/136>'/0'
+        CExtKey externalChainChildKey; //key at m/44'/<1/136>'/0'/<c> (Standard: 0/1, Mints: 2)
+        CExtKey childKey;              //key at m/44'/<1/136>'/0'/<c>/<n>
 
         // try to get the master key
         if (!GetKey(hdChain.masterKeyID, key))
@@ -157,21 +162,18 @@ CPubKey CWallet::GenerateNewKey(uint32_t nChange) {
         masterKey.Derive(purposeKey, BIP44_INDEX | BIP32_HARDENED_KEY_LIMIT);
 
         // derive m/44'/136'
-        purposeKey.Derive(coinTypeKey, BIP44_ZCOIN_INDEX | BIP32_HARDENED_KEY_LIMIT);
+        purposeKey.Derive(coinTypeKey, nIndex | BIP32_HARDENED_KEY_LIMIT);
 
         // derive m/44'/136'/0'
         coinTypeKey.Derive(accountKey, BIP32_HARDENED_KEY_LIMIT);
 
-        // derive m/44'/136'/0'/<c>'
-        accountKey.Derive(externalChainChildKey, nChange | BIP32_HARDENED_KEY_LIMIT);
+        // derive m/44'/136'/0'/<c>
+        accountKey.Derive(externalChainChildKey, nChange);
 
         // derive child key at next index, skip keys already known to the wallet
         do {
-            // always derive hardened keys
-            // childIndex | BIP32_HARDENED_KEY_LIMIT = derive childIndex in hardened child-index-range
-            // example: 1 | BIP32_HARDENED_KEY_LIMIT == 0x80000001 == 2147483649
-            externalChainChildKey.Derive(childKey, hdChain.nExternalChainCounters[nChange] | BIP32_HARDENED_KEY_LIMIT);
-            metadata.hdKeypath = "m/44'/136'/0'/" + std::to_string(nChange) + "'/" + std::to_string(hdChain.nExternalChainCounters[nChange]) + "'";
+            externalChainChildKey.Derive(childKey, hdChain.nExternalChainCounters[nChange]);
+            metadata.hdKeypath = "m/44'/" + std::to_string(nIndex) + "'/0'/" + std::to_string(nChange) + "/" + std::to_string(hdChain.nExternalChainCounters[nChange]);
             metadata.hdMasterKeyID = hdChain.masterKeyID;
             metadata.nChild = hdChain.nExternalChainCounters[nChange];
             // increment childkey index
