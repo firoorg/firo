@@ -80,9 +80,9 @@ class SigmaMintSpendTest(BitcoinTestFramework):
             info = self.nodes[0].gettransaction(tr)
             confrms = info['confirmations']
             assert confrms == 6, \
-                f'Confirmations should be 6, ' \
-                f'due to 6 blocks was generated after transaction was created,' \
-                f'but was {confrms}.'
+                'Confirmations should be 6, ' \
+                'due to 6 blocks was generated after transaction was created,' \
+                'but was {}.'.format(confrms)
             tr_type = info['details'][0]['category']
             assert tr_type == 'mint', 'Unexpected transaction type'
 
@@ -109,9 +109,9 @@ class SigmaMintSpendTest(BitcoinTestFramework):
             print(self.nodes[0].getbalance())
             spend_total = float(spend_total) + denom
             assert confrms == 0, \
-                f'Confirmations should be 0, ' \
-                f'due to 0 blocks was generated after transaction was created,' \
-                f'but was {confrms}.'
+                'Confirmations should be 0, ' \
+                'due to 0 blocks was generated after transaction was created,' \
+                'but was {}.'.format(confrms)
             assert tr_type == 'spend', 'Unexpected transaction type'
         print(self.nodes[0].getbalance())
 
@@ -130,8 +130,8 @@ class SigmaMintSpendTest(BitcoinTestFramework):
         start_bal = start_bal + spend_total
 
         assert start_bal == cur_bal, \
-            f'Unexpected current balance: {cur_bal}, should increase on {spend_total}, ' \
-            f'but start was {start_bal}'
+            'Unexpected current balance: {}, should increase on {}, ' \
+            'but start was {}'.format(cur_bal, spend_total, start_bal)
 
         for tr in spend_trans:
             info = self.nodes[0].gettransaction(tr)
@@ -139,9 +139,9 @@ class SigmaMintSpendTest(BitcoinTestFramework):
             confrms = info['confirmations']
             tr_type = info['details'][0]['category']
             assert confrms >= 1, \
-                f'Confirmations should be 1 or more, ' \
-                f'due to 1 blocks was generated after transaction was created,' \
-                f'but was {confrms}.'
+                'Confirmations should be 1 or more, ' \
+                'due to 1 blocks was generated after transaction was created,' \
+                'but was {}.'.format(confrms)
             assert tr_type == 'spend', 'Unexpected transaction type'
 
 
