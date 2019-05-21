@@ -112,6 +112,10 @@ string ScriptToAsmStr(const CScript& script, const bool fAttemptSighashDecode)
         } else {
             str += GetOpName(opcode);
         }
+
+        if (opcode == opcodetype::OP_ZEROCOINSPENDV3 || opcode == opcodetype::OP_ZEROCOINMINTV3) {
+            break;
+        }
     }
     return str;
 }
