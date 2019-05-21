@@ -2197,8 +2197,25 @@ std::list<CZerocoinEntryV3> CWallet::GetAvailableCoins() const {
         if (coin.IsUsed)
             return true;
 
-        int coinHeight =  zerocoinState->GetMintedCoinHeightAndId(
-            PublicCoinV3(coin.value, coin.get_denomination())).first;
+        int coinHeight, coinId;
+        std::tie(coinHeight, coinId) =  zerocoinState->GetMintedCoinHeightAndId(
+            PublicCoinV3(coin.value, coin.get_denomination()));
+
+        // Check group size
+        uint256 hashOut;
+        std::vector<PublicCoinV3> coinOuts;
+        zerocoinState->GetCoinSetForSpend(
+            &chainActive,
+            chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1), // required 6 confirmation for mint to spend
+            coin.get_denomination(),
+            coinId,
+            hashOut,
+            coinOuts
+        );
+
+        if (coinOuts.size() < 2) {
+            return true;
+        }
 
         if (coinHeight == -1) {
             // Coin still in the mempool.
@@ -2240,8 +2257,7 @@ bool CWallet::GetCoinsToSpend(
     }
 
     if (!MoneyRange(amountToSpendLimit)) {
-        throw std::invalid_argument(
-            _("Amount limit is exceed max money"));
+        throw std::invalid_argument(_("Amount limit is exceed max money"));
     }
 
     // We have Coins denomination * 10^8, we remove last 7 0's  and add one coin of denomination 100
