@@ -2277,8 +2277,6 @@ bool CWallet::GetCoinsToSpend(
     }
 
     std::list<CZerocoinEntryV3> coins = GetAvailableCoins();
-    if (coins.empty())
-        return false;
 
     CAmount availableBalance = CalculateCoinsBalance(coins.begin(), coins.end());
 

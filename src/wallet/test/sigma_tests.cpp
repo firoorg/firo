@@ -55,7 +55,7 @@ static void AddSigmaCoin(const sigma::PrivateCoinV3& coin, const sigma::CoinDeno
     }
 }
 
-static void GenerateBlockWithCoins(const std::vector<std::pair<sigma::CoinDenominationV3, int>>& coins)
+static void GenerateBlockWithCoins(const std::vector<std::pair<sigma::CoinDenominationV3, int>>& coins, bool addToWallet = true)
 {
     auto params = sigma::ParamsV3::get_default();
     auto state = CZerocoinStateV3::GetZerocoinState();
@@ -75,7 +75,9 @@ static void GenerateBlockWithCoins(const std::vector<std::pair<sigma::CoinDenomi
 
             block->second.mintedPubCoinsV3[std::make_pair(coin.first, 1)].push_back(pub);
 
-            AddSigmaCoin(priv, coin.first);
+            if (addToWallet) {
+                AddSigmaCoin(priv, coin.first);
+            }
         }
     }
 
@@ -203,6 +205,13 @@ static CAmount GetCoinSetByDenominationAmount(
     return sum;
 }
 
+static void AddOneCoinForEachGroup()
+{
+    std::vector<std::pair<sigma::CoinDenominationV3, int>> coins;
+    GetCoinSetByDenominationAmount(coins, 1, 1, 1, 1, 1);
+    GenerateBlockWithCoins(coins, false);
+}
+
 static bool ContainTxOut(const std::vector<CTxOut>& outs, const std::pair<const CScript&, const CAmount&>& expected, int expectedOccurrence = -1) {
 
     const auto occurrence = std::count_if(outs.begin(), outs.end(),
@@ -222,8 +231,7 @@ BOOST_AUTO_TEST_CASE(get_coin_no_coin)
 
     std::vector<CZerocoinEntryV3> coins;
     std::vector<sigma::CoinDenominationV3> coinsToMint;
-    BOOST_CHECK_MESSAGE(pwalletMain->GetCoinsToSpend(require, coins, coinsToMint) == 0,
-      "Expect no coin in group");
+    BOOST_CHECK_THROW(pwalletMain->GetCoinsToSpend(require, coins, coinsToMint), InsufficientFunds);
 
     std::vector<std::pair<sigma::CoinDenominationV3, int>> needCoins;
 
@@ -242,11 +250,7 @@ BOOST_AUTO_TEST_CASE(get_coin_different_denomination)
 
     std::vector<CZerocoinEntryV3> coins;
     std::vector<sigma::CoinDenominationV3> coinsToMint;
-    BOOST_CHECK_MESSAGE(pwalletMain->GetCoinsToSpend(require, coins, coinsToMint),
-      "Expect enough for requirement");
-
-    BOOST_CHECK_MESSAGE(CheckDenominationCoins(newCoins, coins),
-      "Expect one for each denomination with onemore SIGMA_DENOM_0_1");
+    BOOST_CHECK_THROW(pwalletMain->GetCoinsToSpend(require, coins, coinsToMint), InsufficientFunds);
 }
 
 BOOST_AUTO_TEST_CASE(get_coin_round_up)
@@ -304,13 +308,13 @@ BOOST_AUTO_TEST_CASE(get_coin_cannot_spend_unconfirmed_coins)
 
     std::vector<CZerocoinEntryV3> coins;
     std::vector<sigma::CoinDenominationV3> coinsToMint;
-    BOOST_CHECK_MESSAGE(!pwalletMain->GetCoinsToSpend(require, coins, coinsToMint),
-        "Expect not enough coin and equal to one for each denomination");
+    BOOST_CHECK_THROW(pwalletMain->GetCoinsToSpend(require, coins, coinsToMint), InsufficientFunds);
 }
 
 BOOST_AUTO_TEST_CASE(get_coin_minimize_coins_spend_fit_amount)
 {
     std::vector<std::pair<sigma::CoinDenominationV3, int>> newCoins;
+    AddOneCoinForEachGroup();
     GetCoinSetByDenominationAmount(newCoins, 0, 0, 0, 10, 1);
     GenerateBlockWithCoins(newCoins);
     GenerateEmptyBlocks(5);
@@ -332,6 +336,7 @@ BOOST_AUTO_TEST_CASE(get_coin_minimize_coins_spend_fit_amount)
 BOOST_AUTO_TEST_CASE(get_coin_minimize_coins_spend)
 {
     std::vector<std::pair<sigma::CoinDenominationV3, int>> newCoins;
+    AddOneCoinForEachGroup();
     GetCoinSetByDenominationAmount(newCoins, 1, 0, 7, 1, 1);
     GenerateBlockWithCoins(newCoins);
     GenerateEmptyBlocks(5);
@@ -353,6 +358,7 @@ BOOST_AUTO_TEST_CASE(get_coin_minimize_coins_spend)
 BOOST_AUTO_TEST_CASE(get_coin_choose_smallest_enough)
 {
     std::vector<std::pair<sigma::CoinDenominationV3, int>> newCoins;
+    AddOneCoinForEachGroup();
     GetCoinSetByDenominationAmount(newCoins, 1, 1, 1, 1, 1);
     GenerateBlockWithCoins(newCoins);
     GenerateEmptyBlocks(5);
@@ -476,7 +482,7 @@ BOOST_AUTO_TEST_CASE(create_spend_with_coins_less_than_2)
     BOOST_CHECK_EXCEPTION(
         pwalletMain->CreateZerocoinSpendTransactionV3(recipients, fee, selected, changes),
         std::runtime_error,
-        [](const std::runtime_error& e) { return e.what() == std::string("Has to have at least two mint coins with at least 6 confirmation in order to spend a coin"); });
+        [](const std::runtime_error& e) {return e.what() == std::string("Insufficient funds");});
 }
 
 BOOST_AUTO_TEST_CASE(create_spend_with_coins_more_than_1)
