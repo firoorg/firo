@@ -69,8 +69,8 @@ class MempoolCoinbaseTest(BitcoinTestFramework):
         assert_raises(JSONRPCException, self.nodes[0].sendrawtransaction, timelock_tx)
 
         # Create 102_1 and 103_1:
-        spend_102_1_raw = create_tx(self.nodes[0], spend_102_id, node1_address, 0.1)
-        spend_103_1_raw = create_tx(self.nodes[0], spend_103_id, node1_address, 1)
+        spend_102_1_raw = create_tx(self.nodes[0], spend_102_id, node1_address, 0.01)
+        spend_103_1_raw = create_tx(self.nodes[0], spend_103_id, node1_address, 0.1)
 
         # Broadcast and mine 103_1:
         spend_103_1_id = self.nodes[0].sendrawtransaction(spend_103_1_raw)
