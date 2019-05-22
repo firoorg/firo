@@ -247,8 +247,13 @@ AC_ARG_WITH([daemon],
 
 AC_ARG_ENABLE(unsafe-dumpprivkey,
     [],
-    [unsafe_dumpprivkey=$enableval],
-    [unsafe_dumpprivkey=no])
+    [unsafe_dumpprivkey=x$enableval],
+    [unsafe_dumpprivkey=xno])
+
+
+AS_IF([test "x$enable_unsafe_dumpprivkey" != "xno"], [
+    CPPFLAGS="$CPPFLAGS -DUNSAFE_DUMPPRIVKEY"
+])
 
 use_pkgconfig=yes
 case $host in
@@ -1049,10 +1054,6 @@ fi
 
 if test x$build_bitcoin_utils$build_bitcoin_libs$build_bitcoind$bitcoin_enable_qt$use_bench$use_tests = xnononononono; then
   AC_MSG_ERROR([No targets! Please specify at least one of: --with-utils --with-libs --with-daemon --with-gui --enable-bench or --enable-tests])
-fi
-
-if test x$unsafe_dumpprivkey != xno; then
-    CPPFLAGS="$CPPFLAGS -DUNSAFE_DUMPPRIVKEY"
 fi
 
 AM_CONDITIONAL([TARGET_DARWIN], [test x$TARGET_OS = xdarwin])
