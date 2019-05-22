@@ -37,7 +37,7 @@ struct WalletSigmaTestingSetup : WalletTestingSetup
     }
 };
 
-static void GenerateBlockWithCoins(const std::vector<std::pair<sigma::CoinDenominationV3, int>>& coins, , bool addToWallet = true)
+static void GenerateBlockWithCoins(const std::vector<std::pair<sigma::CoinDenominationV3, int>>& coins, bool addToWallet = true)
 {
     auto params = sigma::ParamsV3::get_default();
     auto state = CZerocoinStateV3::GetZerocoinState();
