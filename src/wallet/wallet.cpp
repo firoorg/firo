@@ -1420,7 +1420,7 @@ bool CWallet::SetHDChain(const CHDChain &chain, bool memonly) {
         newChain.masterKeyID = chain.masterKeyID;
         newChain.nExternalChainCounters[0] = chain.nExternalChainCounter;
 
-        if (!CWalletDB(strWalletFile).WriteHDChain(newChain))
+        if (!memonly && !CWalletDB(strWalletFile).WriteHDChain(newChain))
             throw runtime_error(std::string(__func__) + ": writing chain failed");
         hdChain = newChain;
     }else{
