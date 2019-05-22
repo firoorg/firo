@@ -4361,6 +4361,10 @@ bool CheckBlock(const CBlock &block, CValidationState &state,
 
         if (fCheckPOW && fCheckMerkleRoot)
             block.fChecked = true;
+
+        if (!CheckSigmaBlock(state, block)) {
+            return false;
+        }
         return true;
     } catch (const std::exception &e) {
         PrintExceptionContinue(&e, "CheckBlock() 1\n");
