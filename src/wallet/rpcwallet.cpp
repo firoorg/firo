@@ -3657,7 +3657,7 @@ UniValue listmintzerocoins(const UniValue& params, bool fHelp) {
     return results;
 }
 
-UniValue listSigmaMints(const UniValue& params, bool fHelp) {
+UniValue listsigmamints(const UniValue& params, bool fHelp) {
     if (fHelp || params.size() > 1)
         throw runtime_error(
                 "listmintzerocoins <all>(false/true)\n"
