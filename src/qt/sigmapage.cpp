@@ -258,6 +258,10 @@ void SigmaPage::on_sendButton_clicked()
     // process sendStatus and on error generate message shown to user
     processSpendCoinsReturn(sendStatus);
 
+    if (sendStatus.status == WalletModel::OK) {
+        accept();
+    }
+
     isNewRecipientAllowed = true;
 }
 
@@ -270,6 +274,11 @@ void SigmaPage::clear()
     addEntry();
 
     updateTabsAndLabels();
+}
+
+void SigmaPage::accept()
+{
+    clear();
 }
 
 SendCoinsEntry *SigmaPage::addEntry() {
