@@ -29,6 +29,7 @@ public:
 
 public Q_SLOTS:
     void clear();
+    void accept();
     SendCoinsEntry* addEntry();
     void updateTabsAndLabels();
 
