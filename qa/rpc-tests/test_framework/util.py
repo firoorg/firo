@@ -631,6 +631,12 @@ def create_tx(node, coinbase, to_address, amount):
     assert_equal(signresult["complete"], True)
     return signresult["hex"]
 
+def create_tx_multi_input(node, inputs, outputs):
+    rawtx = node.createrawtransaction(inputs, outputs)
+    signresult = node.signrawtransaction(rawtx)
+    assert_equal(signresult["complete"], True)
+    return signresult["hex"]
+
 # Create a spend of each passed-in utxo, splicing in "txouts" to each raw
 # transaction to make it large.  See gen_return_txouts() above.
 def create_lots_of_big_transactions(node, txouts, utxos, fee):
