@@ -114,8 +114,6 @@ string ScriptToAsmStr(const CScript& script, const bool fAttemptSighashDecode)
         }
 
         if (opcode == opcodetype::OP_ZEROCOINSPENDV3 || opcode == opcodetype::OP_ZEROCOINMINTV3) {
-            vch.clear();
-            vch.assign(pc, script.end());
             str += " ";
             str += HexStr(vch);
             break;
