@@ -13,9 +13,9 @@ validation_inputs_with_funds = [
     ('ivalid_input_string', 'string'),
     ('valid_input_string_with_num', '1'),
     ('ivalid_input_empty', None),
-    ('valid_denom_1_address', (1, 'TFfXrFRs4eJStyBL9dSoNTUXL1MZ2fCwq4')),
-    ('valid_denom_1_invalid_address', (1, 'SomeAdress')),
-    ('invalid_denom_invalid_address', (10000000000000, 'SomeAdress')),
+    ('valid_denom_1_account', (1, '')),
+    ('valid_denom_1_invalid_account', (1, 'InvalidAccount')),
+    ('invalid_denom_invalid_account', (10000000000000, 'InvalidAccount')),
 ]
 
 post_outputs_with_funds = [
@@ -27,8 +27,8 @@ post_outputs_with_funds = [
     (None, None),
     (-3, 'Amount is not a number or string'),
     (None, None),
-    (None, None),
-    (-3, 'Invalid amount'),
+    (-6, 'Account has insufficient funds'),
+    (-6, 'Account has insufficient funds'),
 ]
 
 
