@@ -40,7 +40,8 @@ public:
     std::list<CMintMeta> GetMints(bool fConfirmedOnly, bool fInactive = true) const;
     CAmount GetUnconfirmedBalance() const;
     bool MintMetaToZerocoinEntries(std::list <CZerocoinEntryV3>& entries, std::list<CMintMeta> setMints) const;
-    std::vector<CMintMeta> ListMints(bool fUnusedOnly, bool fMatureOnly, bool fUpdateStatus, bool fWrongSeed = false);
+    list<CZerocoinEntryV3> MintsAsZerocoinEntries();
+    std::vector<CMintMeta> ListMints(bool fUnusedOnly = true, bool fMatureOnly = true, bool fUpdateStatus = true, bool fWrongSeed = false);
     void RemovePending(const uint256& txid);
     void SetPubcoinUsed(const uint256& hashPubcoin, const uint256& txid);
     void SetPubcoinNotUsed(const uint256& hashPubcoin);

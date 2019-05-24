@@ -345,15 +345,17 @@ uint512 CHDMintWallet::GetZerocoinSeed(uint32_t n, CKeyID& seedId)
         throw ZerocoinException("Unable to retrieve generated key for mint seed.");
     }
 
-    // HMAC-SHA512(count,key)
-    unsigned int KEY_SIZE = 64;
+    // HMAC-SHA512(SHA256(count),key)
+    unsigned char countHash[CSHA256().OUTPUT_SIZE];
+    unsigned char *result = new unsigned char[CSHA512().OUTPUT_SIZE];
+
     std::string nCount = to_string(n);
-    unsigned char *out = new unsigned char[KEY_SIZE];
+    CSHA256().Write(reinterpret_cast<const unsigned char*>(nCount.c_str()), nCount.size()).Finalize(countHash);
+    
+    CHMAC_SHA512(countHash, CSHA256().OUTPUT_SIZE).Write(key.begin(), key.size()).Finalize(result);
+    std::vector<unsigned char> resultVector(result, result+CSHA512().OUTPUT_SIZE);
 
-    CHMAC_SHA512(reinterpret_cast<const unsigned char*>(nCount.c_str()), nCount.size()).Write(key.begin(), key.size()).Finalize(out);
-    std::vector<unsigned char> outVec(out, out+KEY_SIZE);
-
-    return uint512(outVec);
+    return uint512(resultVector);
 }
 
 uint32_t CHDMintWallet::GetCount()

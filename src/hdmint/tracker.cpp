@@ -35,7 +35,7 @@ void CHDMintTracker::Init()
 {
     //Load all CZerocoinEntries and CHDMints from the database
     if (!fInitialized) {
-        ListMints(false, false, true);
+        ListMints(false, false);
         fInitialized = true;
     }
 }
@@ -505,6 +505,19 @@ bool CHDMintTracker::UpdateMints(std::set<uint256> serialHashes, bool fReset, bo
     delete zerocoinWallet;
 
     return true;
+}
+
+list<CZerocoinEntryV3> CHDMintTracker::MintsAsZerocoinEntries(){
+    list <CZerocoinEntryV3> listPubcoin;
+    CWalletDB walletdb(strWalletFile);
+    std::vector<CMintMeta> vecMists = ListMints();
+    list<CMintMeta> listMints(vecMists.begin(), vecMists.end());
+    for (const CMintMeta& mint : listMints) {
+        CZerocoinEntryV3 entry;
+        pwalletMain->GetMint(mint.hashSerial, entry);
+        listPubcoin.push_back(entry);
+    }
+    return listPubcoin;
 }
 
 std::vector<CMintMeta> CHDMintTracker::ListMints(bool fUnusedOnly, bool fMatureOnly, bool fUpdateStatus, bool fWrongSeed)

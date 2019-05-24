@@ -3294,7 +3294,7 @@ UniValue resetmintzerocoinV3(const UniValue& params, bool fHelp) {
 
     list <CZerocoinEntryV3> listPubcoin;
     CWalletDB walletdb(pwalletMain->strWalletFile);
-    walletdb.ListPubCoinV3(listPubcoin);
+    listPubcoin = pwalletMain->hdMintTracker->MintsAsZerocoinEntries();
 
     BOOST_FOREACH(const CZerocoinEntryV3 &zerocoinItem, listPubcoin){
         if (zerocoinItem.randomness != uint64_t(0) && zerocoinItem.serialNumber != uint64_t(0)) {
@@ -3365,7 +3365,7 @@ UniValue listmintzerocoinsV3(const UniValue& params, bool fHelp) {
 
     list <CZerocoinEntryV3> listPubcoin;
     CWalletDB walletdb(pwalletMain->strWalletFile);
-    walletdb.ListPubCoinV3(listPubcoin);
+    listPubcoin = pwalletMain->hdMintTracker->MintsAsZerocoinEntries();
     UniValue results(UniValue::VARR);
 
     BOOST_FOREACH(const CZerocoinEntryV3 &zerocoinItem, listPubcoin) {
@@ -3439,7 +3439,7 @@ UniValue listpubcoinsV3(const UniValue& params, bool fHelp) {
 
     list <CZerocoinEntryV3> listPubcoin;
     CWalletDB walletdb(pwalletMain->strWalletFile);
-    walletdb.ListPubCoinV3(listPubcoin);
+    listPubcoin = pwalletMain->hdMintTracker->MintsAsZerocoinEntries();
     UniValue results(UniValue::VARR);
     listPubcoin.sort(CompHeightV3);
 
@@ -3540,32 +3540,40 @@ UniValue setmintzerocoinstatusV3(const UniValue& params, bool fHelp) {
     bool fStatus = true;
     fStatus = params[1].get_bool();
 
-    list <CZerocoinEntryV3> listPubcoin;
+    std::vector <CMintMeta> listMints;
     CWalletDB walletdb(pwalletMain->strWalletFile);
-    walletdb.ListPubCoinV3(listPubcoin);
+    listMints = pwalletMain->hdMintTracker->ListMints(false, false);
 
     UniValue results(UniValue::VARR);
 
-    BOOST_FOREACH(const CZerocoinEntryV3 &zerocoinItem, listPubcoin) {
+    BOOST_FOREACH(CMintMeta &mint, listMints) {
+        CZerocoinEntryV3 zerocoinItem;
+        if(!pwalletMain->GetMint(mint.hashSerial, zerocoinItem))
+            continue;
+
+        CHDMint dMint;
+        if (!walletdb.ReadHDMint(GetPubCoinValueHash(mint.pubCoinValue), dMint)){
+            continue;
+        }
+
         if (zerocoinItem.serialNumber != uint64_t(0)) {
             LogPrintf("zerocoinItem.serialNumber = %s\n", zerocoinItem.serialNumber.GetHex());
             if (zerocoinItem.serialNumber == coinSerial) {
                 LogPrintf("setmintzerocoinstatus Found!\n");
-                CZerocoinEntryV3 zerocoinTx;
-                zerocoinTx.id = zerocoinItem.id;
-                zerocoinTx.IsUsed = fStatus;
-                zerocoinTx.set_denomination_value(zerocoinItem.get_denomination_value());
-                zerocoinTx.value = zerocoinItem.value;
-                zerocoinTx.serialNumber = zerocoinItem.serialNumber;
-                zerocoinTx.nHeight = zerocoinItem.nHeight;
-                zerocoinTx.randomness = zerocoinItem.randomness;
-//                zerocoinTx.ecdsaSecretKey = zerocoinItem.ecdsaSecretKey;
+
                 const std::string& isUsedDenomStr =
-                    zerocoinTx.IsUsed
-                    ? "Used (" + std::to_string((double)zerocoinTx.get_denomination_value() / COIN) + " mint)"
-                    : "New (" + std::to_string((double)zerocoinTx.get_denomination_value() / COIN) + " mint)";
-                pwalletMain->NotifyZerocoinChanged(pwalletMain, zerocoinTx.value.GetHex(), isUsedDenomStr, CT_UPDATED);
-                walletdb.WriteZerocoinEntry(zerocoinTx);
+                    fStatus
+                    ? "Used (" + std::to_string((double)zerocoinItem.get_denomination_value() / COIN) + " mint)"
+                    : "New (" + std::to_string((double)zerocoinItem.get_denomination_value() / COIN) + " mint)";
+                pwalletMain->NotifyZerocoinChanged(pwalletMain, zerocoinItem.value.GetHex(), isUsedDenomStr, CT_UPDATED);
+
+                if(!mint.isDeterministic){
+                    zerocoinItem.IsUsed = fStatus;
+                    pwalletMain->hdMintTracker->Add(zerocoinItem, true);
+                }else{
+                    dMint.SetUsed(fStatus);
+                    pwalletMain->hdMintTracker->Add(dMint, true);
+                }
 
                 if (!fStatus) {
                     // erase zerocoin spend entry
@@ -3575,13 +3583,13 @@ UniValue setmintzerocoinstatusV3(const UniValue& params, bool fHelp) {
                 }
 
                 UniValue entry(UniValue::VOBJ);
-                entry.push_back(Pair("id", zerocoinTx.id));
-                entry.push_back(Pair("IsUsed", zerocoinTx.IsUsed));
-                entry.push_back(Pair("denomination", zerocoinTx.get_denomination_value()));
-                entry.push_back(Pair("value", zerocoinTx.value.GetHex()));
-                entry.push_back(Pair("serialNumber", zerocoinTx.serialNumber.GetHex()));
-                entry.push_back(Pair("nHeight", zerocoinTx.nHeight));
-                entry.push_back(Pair("randomness", zerocoinTx.randomness.GetHex()));
+                entry.push_back(Pair("id", zerocoinItem.id));
+                entry.push_back(Pair("IsUsed", zerocoinItem.IsUsed));
+                entry.push_back(Pair("denomination", zerocoinItem.get_denomination_value()));
+                entry.push_back(Pair("value", zerocoinItem.value.GetHex()));
+                entry.push_back(Pair("serialNumber", zerocoinItem.serialNumber.GetHex()));
+                entry.push_back(Pair("nHeight", zerocoinItem.nHeight));
+                entry.push_back(Pair("randomness", zerocoinItem.randomness.GetHex()));
                 results.push_back(entry);
                 break;
             }
@@ -3854,12 +3862,16 @@ static const CRPCCommand commands[] =
     { "wallet",             "spendmanyzerocoin",            &spendmanyzerocoin,            false },
     { "wallet",             "spendmany",                &spendmany,                false },
     { "wallet",             "resetmintzerocoin",        &resetmintzerocoin,        false },
+    { "wallet",             "resetmintzerocoinV3",        &resetmintzerocoinV3,        false },
     { "wallet",             "setmintzerocoinstatus",        &setmintzerocoinstatus,        false },
+    { "wallet",             "setmintzerocoinstatusV3",        &setmintzerocoinstatusV3,        false },
     { "wallet",             "listmintzerocoins",        &listmintzerocoins,        false },
-    { "wallet",             "listpubcoins",        &listpubcoins,        false },
+    { "wallet",             "listmintzerocoinsV3",        &listmintzerocoinsV3,        false },
+    { "wallet",             "listpubcoinsV3",        &listpubcoinsV3,        false },
     { "wallet",             "removetxmempool",          &removetxmempool,          false },
     { "wallet",             "removetxwallet",           &removetxwallet,           false },
     { "wallet",             "listspendzerocoins",       &listspendzerocoins,       false },
+    { "wallet",             "listspendzerocoinsV3",       &listspendzerocoinsV3,       false },
     { "wallet",             "spendallzerocoin",            &spendallzerocoin,            false}
 };
 
