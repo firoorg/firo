@@ -1083,7 +1083,7 @@ unsigned int GetLegacySigOpCount(const CTransaction &tx) {
 }
 
 unsigned int GetP2SHSigOpCount(const CTransaction &tx, const CCoinsViewCache &inputs) {
-    if (tx.IsCoinBase() || tx.IsZerocoinSpend())
+    if (tx.IsCoinBase() || tx.IsZerocoinSpend() || tx.IsZerocoinSpendV3())
         return 0;
 
     unsigned int nSigOps = 0;
@@ -1177,10 +1177,11 @@ bool CheckTransaction(
             return state.DoS(100, false, REJECT_INVALID, "bad-cb-length");
     } else {
 	    BOOST_FOREACH(const CTxIn &txin, tx.vin) {
-		    if (txin.prevout.IsNull() && !txin.scriptSig.IsZerocoinSpend()) {
+            if (txin.prevout.IsNull() && !txin.scriptSig.IsZerocoinSpend()) {
 			    return state.DoS(10, false, REJECT_INVALID, "bad-txns-prevout-null");
 		    }
 	    }
+
         if (tx.IsZerocoinV3SigmaTransaction()) {
             if (!CheckZerocoinTransactionV3(
                     tx,
@@ -1189,22 +1190,25 @@ bool CheckTransaction(
                     isVerifyDB,
                     nHeight,
                     isCheckWallet,
+                    fStatefulZerocoinCheck,
                     zerocoinTxInfoV3))
             return false;
-        } else if (tx.IsZerocoinTransaction()) {
-            if (!CheckZerocoinTransaction(
-                    tx,
-                    state,
-                    Params().GetConsensus(),
-                    hashTx,
-                    isVerifyDB,
-                    nHeight,
-                    isCheckWallet,
-                    fStatefulZerocoinCheck,
-                    zerocoinTxInfo))
-		        return false;
+        }
+
+        if (!CheckZerocoinTransaction(
+            tx,
+            state,
+            Params().GetConsensus(),
+            hashTx,
+            isVerifyDB,
+            nHeight,
+            isCheckWallet,
+            fStatefulZerocoinCheck,
+            zerocoinTxInfo)) {
+            return false;
         }
     }
+
     return true;
 }
 
@@ -1394,8 +1398,6 @@ bool AcceptToMemoryPoolWorker(
             LOCK(pool.cs);
             CCoinsViewMemPool viewMemPool(pcoinsTip, pool);
             view.SetBackend(viewMemPool);
-	    //Reset view.base with the dummy instance at scope exit
-	    std::shared_ptr<CCoinsView> at_scope_exit (&dummy, [&view](CCoinsView * dummy){view.SetBackend(*dummy);});
 
             // do we already have it?
             bool fHadTxInCache = pcoinsTip->HaveCoinsInCache(hash);
@@ -1431,9 +1433,6 @@ bool AcceptToMemoryPoolWorker(
 
                 nValueIn = view.GetValueIn(tx);
 
-                // we have all inputs cached now, so switch back to dummy, so we don't need to keep lock on mempool
-                view.SetBackend(dummy);
-
                 // Only accept BIP68 sequence locked transactions that can be mined in the next
                 // block; we don't want our mempool filled up with transactions that can't
                 // be mined yet.
@@ -1447,6 +1446,8 @@ bool AcceptToMemoryPoolWorker(
                 nValueIn = GetSpendTransactionInputV3(tx);
             }
 
+            // we have all inputs cached now, so switch back to dummy, so we don't need to keep lock on mempool
+            view.SetBackend(dummy);
         } // LOCK
 
         if (!tx.IsZerocoinSpend() && fCheckInputs) {
@@ -4363,8 +4364,10 @@ bool CheckBlock(const CBlock &block, CValidationState &state,
         return true;
     } catch (const std::exception &e) {
         PrintExceptionContinue(&e, "CheckBlock() 1\n");
+        return false;
     } catch (...) {
         PrintExceptionContinue(NULL, "CheckBlock() 2\n");
+        return false;
     }
     return true;
 }

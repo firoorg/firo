@@ -2,6 +2,7 @@
 #define ZCOIN_SIGMA_SIGMAPLUS_VERIFIER_H
 
 #include "r1_proof_verifier.h"
+#include "util.h"
 
 namespace sigma {
 template<class Exponent, class GroupElement>
@@ -17,7 +18,7 @@ public:
 
 private:
     GroupElement g_;
-    zcoin_common::GeneratorVector<Exponent, GroupElement> h_;
+    std::vector<GroupElement> h_;
     int n;
     int m;
 };

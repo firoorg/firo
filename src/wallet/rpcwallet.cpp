@@ -1396,11 +1396,11 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
                 entry.push_back(Pair("involvesWatchonly", true));
             entry.push_back(Pair("account", strSentAccount));
             MaybePushAddress(entry, s.destination, addr);
-            if (wtx.IsZerocoinMint() || wtx.IsZerocoinMintV3()) {
-                entry.push_back(Pair("category", "mint"));
-            }
-            else if(wtx.IsZerocoinSpend()){
+            if (wtx.IsZerocoinSpend() || wtx.IsZerocoinSpendV3()) {
                 entry.push_back(Pair("category", "spend"));
+            }
+            else if (wtx.IsZerocoinMint() || wtx.IsZerocoinMintV3()) {
+                entry.push_back(Pair("category", "mint"));
             }
             else {
                 entry.push_back(Pair("category", "send"));
@@ -1451,12 +1451,6 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
                         entry.push_back(Pair("category", "immature"));
                     else
                         entry.push_back(Pair("category", "generate"));
-                }
-                else if(wtx.IsZerocoinSpend()){
-                    entry.push_back(Pair("category", "spend"));
-                }
-                else if(wtx.IsZerocoinSpendV3()){
-                    entry.push_back(Pair("category", "spend"));
                 }
                 else {
                     entry.push_back(Pair("category", "receive"));
@@ -2729,6 +2723,12 @@ UniValue mint(const UniValue& params, bool fHelp)
             + HelpExampleRpc("mint", "0.1")
         );
 
+    // Ensure Sigma mints is already accepted by network so users will not lost their coins
+    // due to other nodes will treat it as garbage data.
+    if (!IsSigmaAllowed()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Sigma is not activated yet");
+    }
+
     CAmount nAmount = AmountFromValue(params[0]);
     LogPrintf("rpcWallet.mint() denomination = %s, nAmount = %d \n", params[0].getValStr(), nAmount);
 
@@ -2768,10 +2768,10 @@ UniValue mint(const UniValue& params, bool fHelp)
 
 UniValue mintzerocoin(const UniValue& params, bool fHelp)
 {
-    EnsureZerocoinMintIsAllowed();
-
     if (fHelp || params.size() != 1)
         throw runtime_error("mintzerocoin <amount>(1,10,25,50,100)\n" + HelpRequiringPassphrase());
+
+    EnsureZerocoinMintIsAllowed();
 
     int64_t nAmount = 0;
     libzerocoin::CoinDenomination denomination;
@@ -2851,8 +2851,6 @@ UniValue mintzerocoin(const UniValue& params, bool fHelp)
 
 UniValue mintmanyzerocoin(const UniValue& params, bool fHelp)
 {
-    EnsureZerocoinMintIsAllowed();
-
     if (fHelp || params.size() == 0 || params.size() % 2 != 0 || params.size() > 10)
         throw runtime_error(
                 "mintmanyzerocoin <denomination>(1,10,25,50,100), numberOfMints, <denomination>(1,10,25,50,100), numberOfMints, ... }\n"
@@ -2867,6 +2865,8 @@ UniValue mintmanyzerocoin(const UniValue& params, bool fHelp)
                     + HelpExampleCli("mintmanyzerocoin", "1 1")
                     + HelpExampleCli("mintmanyzerocoin", "25 10 50 5")
         );
+
+    EnsureZerocoinMintIsAllowed();
 
     UniValue sendTo(UniValue::VOBJ);
 
@@ -3198,6 +3198,10 @@ UniValue spendmany(const UniValue& params, bool fHelp) {
                 "\nSend two amounts to two different addresses and subtract fee from amount:\n"
                 + HelpExampleCli("spendmany", "\"\" \"{\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XZ\\\":0.01,\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\":0.02}\" 6 \"testing\" \"[\\\"1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4XZ\\\",\\\"1353tsE8YMTA4EuV7dgUXGjNFf9KpVvKHz\\\"]\"")
         );
+
+    if (!IsSigmaAllowed()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Sigma is not activated yet");
+    }
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
 

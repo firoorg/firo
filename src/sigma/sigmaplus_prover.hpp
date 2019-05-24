@@ -18,27 +18,30 @@ void SigmaPlusProver<Exponent, GroupElement>::proof(
         std::size_t l,
         const Exponent& r,
         SigmaPlusProof<Exponent, GroupElement>& proof_out) {
-    int N = commits.size();
+    std::size_t N = commits.size();
     Exponent rB;
     rB.randomize();
-    std::vector <Exponent> sigma;
+
+    // Create table sigma of nxm bits.
+    std::vector<Exponent> sigma;
     SigmaPrimitives<Exponent, GroupElement>::convert_to_sigma(l, n_, m_, sigma);
-    std::vector <Exponent> Pk;
+
+    // Values of Ro_k from Figure 5.
+    std::vector<Exponent> Pk;
     Pk.resize(m_);
     for (int k = 0; k < m_; ++k) {
         Pk[k].randomize();
     }
     R1ProofGenerator<secp_primitives::Scalar, secp_primitives::GroupElement> r1prover(g_, h_, sigma, rB, n_, m_);
-    R1Proof<secp_primitives::Scalar, secp_primitives::GroupElement> r1proof;
-    std::vector<Exponent> a;
-    r1prover.proof(a, r1proof);
-    proof_out.r1Proof_ = r1proof;
     proof_out.B_ = r1prover.get_B();
-    Exponent x = r1prover.x_;
+    std::vector<Exponent> a;
+    r1prover.proof(a, proof_out.r1Proof_, true /*Skip generation of final response*/);
+
+    // Compute coefficients of Polynomials P_I(x), for all I from [0..N].
     std::vector <std::vector<Exponent>> P_i_k;
     P_i_k.resize(N);
-    for (std::size_t i = 0; i < commits.size(); ++i) {
-        std::vector <Exponent>& coefficients = P_i_k[i];
+    for (std::size_t i = 0; i < N; ++i) {
+        std::vector<Exponent>& coefficients = P_i_k[i];
         std::vector<uint64_t> I = SigmaPrimitives<Exponent, GroupElement>::convert_to_nal(i, n_, m_);
         coefficients.push_back(sigma[I[0]]);
         coefficients.push_back(a[I[0]]);
@@ -50,20 +53,29 @@ void SigmaPlusProver<Exponent, GroupElement>::proof(
 
     //computing G_k`s;
     std::vector <GroupElement> Gk;
-    const std::size_t window_size = 7;
-    zcoin_common::GeneratorVector <Exponent, GroupElement> c_(commits, window_size);
+    Gk.reserve(m_);
     for (int k = 0; k < m_; ++k) {
         std::vector <Exponent> P_i;
         P_i.reserve(N);
-        for (int i = 0; i < N; ++i){
+        for (size_t i = 0; i < N; ++i) {
             P_i.emplace_back(P_i_k[i][k]);
         }
-        GroupElement c_k;
-        c_.get_vector_multiple(P_i, c_k);
-        c_k += SigmaPrimitives<Exponent, GroupElement>::commit(g_, Exponent(uint64_t(0)), h_.get_g(0), Pk[k]);
+        secp_primitives::MultiExponent mult(commits, P_i);
+        GroupElement c_k = mult.get_multiple();
+        c_k += SigmaPrimitives<Exponent, GroupElement>::commit(g_, Exponent(uint64_t(0)), h_[0], Pk[k]);
         Gk.emplace_back(c_k);
     }
     proof_out.Gk_ = Gk;
+
+    // Compute value of challenge X, then continue R1 proof and sigma final response proof.
+    std::vector<GroupElement> group_elements = {
+        proof_out.r1Proof_.A_, proof_out.B_, proof_out.r1Proof_.C_, proof_out.r1Proof_.D_};
+
+    group_elements.insert(group_elements.end(), Gk.begin(), Gk.end());
+    Exponent x;
+    SigmaPrimitives<Exponent, GroupElement>::generate_challenge(group_elements, x);
+    r1prover.generate_final_response(a, x, proof_out.r1Proof_);
+
     //computing z
     Exponent z;
     z = r * x.exponent(uint64_t(m_));
