@@ -7,7 +7,8 @@ from test_framework.util import *
 # TODO fix to proper rpc_msgs after special card will be fixed.
 validation_inputs_with_funds = [
     ('valid_denom_101', 101),
-    ('valid_denom_1000', 1000),
+    ('valid_denom_400', 400),
+    ('valid_denom_1000_exceed_limit', 1000),
     ('valid_denom_1', 1),
     ('valid_denom_1.0', 1.0),
     ('ivalid_input_string', 'string'),
@@ -21,6 +22,7 @@ validation_inputs_with_funds = [
 post_outputs_with_funds = [
     (None, None),
     (None, None),
+    (-4, 'Required amount exceed value spend limit'),
     (None, None),
     (None, None),
     (-3, 'Invalid amount'),
