@@ -2713,8 +2713,17 @@ UniValue mint(const UniValue& params, bool fHelp)
     if (fHelp || params.size() != 1)
         throw std::runtime_error(
             "mint amount\n"
-            "\nAutomatically choose denominations to mint by amount\n" +
-            HelpRequiringPassphrase());
+            "\nAutomatically choose denominations to mint by amount."
+            + HelpRequiringPassphrase() + "\n"
+            "\nArguments:\n"
+            "1. \"amount\"      (numeric or string, required) The amount in " + CURRENCY_UNIT + " to mint, must be a multiple of 0.1\n"
+            "\nResult:\n"
+            "\"transactionid\"  (string) The transaction id.\n"
+            "\nExamples:\n"
+            + HelpExampleCli("mint", "0.1")
+            + HelpExampleCli("mint", "100.9")
+            + HelpExampleRpc("mint", "0.1")
+        );
 
     // Ensure Sigma mints is already accepted by network so users will not lost their coins
     // due to other nodes will treat it as garbage data.
@@ -3196,6 +3205,11 @@ UniValue spendmany(const UniValue& params, bool fHelp) {
     }
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    // Only account "" have sigma coins.
+    std::string strAccount = AccountFromValue(params[0]);
+    if (!strAccount.empty())
+        throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, "Account has insufficient funds");
 
     UniValue sendTo = params[1].get_obj();
 
