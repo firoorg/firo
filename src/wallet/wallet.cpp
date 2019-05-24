@@ -5624,6 +5624,11 @@ bool CWallet::CreateMultipleZerocoinSpendTransactionV3(
             // object storing coins being used for this spend (to avoid duplicates being considered)
             unordered_set<GroupElement> tempCoinsToUse;
 
+            // Get Mint metadata objects
+            vector<CMintMeta> setMints;
+            setMints = pwalletMain->hdMintTracker->ListMints(!forceUsed, !forceUsed, !forceUsed);
+            vector<CMintMeta> listMints(setMints.begin(), setMints.end());
+
             // Total value of all inputs. Iteritively created in the following loop
             // The value is in multiples of COIN = 100 mln.
             int64_t nValue = 0;
@@ -5661,12 +5666,10 @@ bool CWallet::CreateMultipleZerocoinSpendTransactionV3(
                 int coinHeight;
                 int coinGroupID;
 
-                // Get Mint metadata objects
-                vector<CMintMeta> setMints;
-                setMints = pwalletMain->hdMintTracker->ListMints(!forceUsed, !forceUsed, !forceUsed);
-                // Cycle through metadata, looking for suitable coin
-                list<CMintMeta> listMints(setMints.begin(), setMints.end());
+                // Cycle through metadata, looking for suitable coin 
+                int index = -1;
                 for (const CMintMeta& mint : listMints) {
+                    index++;
                     if (denomination == mint.denom
                         && ((mint.isUsed == false && !forceUsed) || (mint.isUsed == true && forceUsed))) {
 
@@ -5697,9 +5700,11 @@ bool CWallet::CreateMultipleZerocoinSpendTransactionV3(
                                 anonimity_set) > 1 )  {
                             coinId = coinGroupID;
                             tempCoinsToUse.insert(coinToUse.value);
+                            listMints.erase(listMints.begin()+index);
                             break;
                         }
                     }
+
                 }
 
 
