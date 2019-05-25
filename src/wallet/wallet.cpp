@@ -2802,12 +2802,7 @@ void CWallet::ListAvailableCoinsMintCoins(vector <COutput> &vCoins, bool fOnlyCo
             for (unsigned int i = 0; i < pcoin->vout.size(); i++) {
                 if (pcoin->vout[i].scriptPubKey.IsZerocoinMint()) {
                     CTxOut txout = pcoin->vout[i];
-                    vector<unsigned char> vchZeroMint;
-                    vchZeroMint.insert(vchZeroMint.end(), txout.scriptPubKey.begin() + 6,
-                                       txout.scriptPubKey.begin() + txout.scriptPubKey.size());
-
-                    CBigNum pubCoin;
-                    pubCoin.setvch(vchZeroMint);
+                    CBigNum pubCoin = ParseZerocoinMintScript(txout.scriptPubKey);
                     LogPrintf("Pubcoin=%s\n", pubCoin.ToString());
                     // CHECKING PROCESS
                     BOOST_FOREACH(const CZerocoinEntry &ownCoinItem, listOwnCoins) {
@@ -2823,6 +2818,57 @@ void CWallet::ListAvailableCoinsMintCoins(vector <COutput> &vCoins, bool fOnlyCo
                         }
                     }
 
+                }
+            }
+        }
+    }
+}
+
+void CWallet::ListAvailableSigmaMintCoins(vector<COutput> &vCoins, bool fOnlyConfirmed) const {
+    vCoins.clear();
+    LOCK(cs_wallet);
+    list<CZerocoinEntryV3> listOwnCoins = list<CZerocoinEntryV3>();
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+    walletdb.ListPubCoinV3(listOwnCoins);
+    LogPrintf("listOwnCoins.size()=%s\n", listOwnCoins.size());
+    for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it) {
+        const CWalletTx *pcoin = &(*it).second;
+//        LogPrintf("pcoin=%s\n", pcoin->GetHash().ToString());
+        if (!CheckFinalTx(*pcoin)) {
+            LogPrintf("!CheckFinalTx(*pcoin)=%s\n", !CheckFinalTx(*pcoin));
+            continue;
+        }
+
+        if (fOnlyConfirmed && !pcoin->IsTrusted()) {
+            LogPrintf("fOnlyConfirmed = %s, !pcoin->IsTrusted()\n", fOnlyConfirmed, !pcoin->IsTrusted());
+            continue;
+        }
+
+        if (pcoin->IsCoinBase() && pcoin->GetBlocksToMaturity() > 0) {
+            LogPrintf("Not trusted\n");
+            continue;
+        }
+
+        int nDepth = pcoin->GetDepthInMainChain();
+        if (nDepth < 0) {
+            LogPrintf("nDepth=%s\n", nDepth);
+            continue;
+        }
+        LogPrintf("pcoin->vout.size()=%s\n", pcoin->vout.size());
+
+        for (unsigned int i = 0; i < pcoin->vout.size(); i++) {
+            if (pcoin->vout[i].scriptPubKey.IsZerocoinMintV3()) {
+                CTxOut txout = pcoin->vout[i];
+                secp_primitives::GroupElement pubCoin = ParseSigmaMintScript(
+                    txout.scriptPubKey);
+                LogPrintf("Pubcoin=%s\n", pubCoin.tostring());
+                // CHECKING PROCESS
+                BOOST_FOREACH(const CZerocoinEntryV3 &ownCoinItem, listOwnCoins) {
+                   if (ownCoinItem.value == pubCoin && ownCoinItem.IsUsed == false &&
+                        ownCoinItem.randomness != uint64_t(0) && ownCoinItem.serialNumber != uint64_t(0)) {
+                        vCoins.push_back(COutput(pcoin, i, nDepth, true, true));
+                        LogPrintf("-->OK\n");
+                    }
                 }
             }
         }

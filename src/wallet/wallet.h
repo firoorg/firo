@@ -901,6 +901,8 @@ public:
      * Add zerocoin Mint and Spend function
      */
     void ListAvailableCoinsMintCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed=true) const;
+    void ListAvailableSigmaMintCoins(vector <COutput> &vCoins, bool fOnlyConfirmed) const;
+
     bool CreateZerocoinMintTransaction(const std::vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet, int& nChangePosInOut,
                            std::string& strFailReason, bool isSigmaMint, const CCoinControl *coinControl = NULL, bool sign = true);
     bool CreateZerocoinMintTransaction(CScript pubCoin, int64_t nValue,
@@ -1308,7 +1310,10 @@ public:
         IntegerToDenomination(denomination, result);
         return result;
     }
-
+    std::string get_string_denomination() const {
+        return DenominationToString(get_denomination());
+    }
+    
     //public
     GroupElement value;
 
