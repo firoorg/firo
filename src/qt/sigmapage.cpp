@@ -15,6 +15,9 @@
 #include "../wallet/walletdb.h"
 #include "../sigma/coin.h"
 
+#include <qt/coincontroldialog.h>
+#include <coincontrol.h>
+
 #include <QMessageBox>
 #include <QScrollBar>
 #include <QTextDocument>
@@ -121,6 +124,9 @@ void SigmaPage::on_mintButton_clicked()
     amount = amount / CENT * CENT + ((amount % CENT >= CENT / 2) ? CENT : 0);
 
     try {
+        if (walletModel->getOptionsModel()->getCoinControlFeatures())
+            g_coincontrol = *CoinControlDialog::coinControl;
+
         walletModel->sigmaMint(amount);
     } catch (const std::runtime_error& e) {
         QMessageBox::critical(this, tr("Error"),

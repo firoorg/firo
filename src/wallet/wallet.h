@@ -77,6 +77,9 @@ class CScript;
 class CTxMemPool;
 class CWalletTx;
 
+// global coin support for QT mint access
+extern CCoinControl g_coincontrol;
+
 /** (client) version numbers for particular wallet features */
 enum WalletFeature
 {

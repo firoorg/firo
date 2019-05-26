@@ -69,6 +69,8 @@ CFeeRate CWallet::fallbackFee = CFeeRate(DEFAULT_FALLBACK_FEE);
 
 const uint256 CMerkleTx::ABANDON_HASH(uint256S("0000000000000000000000000000000000000000000000000000000000000001"));
 
+CCoinControl g_coincontrol;
+
 /** @defgroup mapWallet
  *
  * @{
@@ -6027,6 +6029,10 @@ string CWallet::MintAndStoreZerocoinV3(vector<CRecipient> vecSend,
         totalValue += recipient.nAmount;
 
     }
+
+    // set global cc if being used in QT, defaults to null
+    CCoinControl coin_control = g_coincontrol;
+
     if ((totalValue + payTxFee.GetFeePerK()) > GetBalance())
         return _("Insufficient funds");
 
@@ -6036,7 +6042,8 @@ string CWallet::MintAndStoreZerocoinV3(vector<CRecipient> vecSend,
 
     int nChangePosRet = -1;
     bool isSigmaMint = true;
-    if (!CreateZerocoinMintTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError, isSigmaMint)) {
+
+    if (!CreateZerocoinMintTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError, isSigmaMint, &coin_control)) {
         LogPrintf("nFeeRequired=%s\n", nFeeRequired);
         if (totalValue + nFeeRequired > GetBalance())
             return strprintf(
@@ -6044,6 +6051,9 @@ string CWallet::MintAndStoreZerocoinV3(vector<CRecipient> vecSend,
                     FormatMoney(nFeeRequired).c_str());
         return strError;
     }
+
+    // reset global cc
+    g_coincontrol.SetNull();
 
     if (fAskFee && !uiInterface.ThreadSafeAskFee(nFeeRequired)){
         LogPrintf("MintZerocoin: returning aborted..\n");
