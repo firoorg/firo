@@ -563,10 +563,12 @@ bool CheckZerocoinTransaction(const CTransaction &tx,
                               bool fStatefulZerocoinCheck,
                               CZerocoinTxInfo *zerocoinTxInfo)
 {
-    // nHeight have special mode which value is INT_MAX so we need this.
-    int realHeight;
+    bool const isWalletCheck = (isVerifyDB && nHeight == INT_MAX);
 
-    {
+    // nHeight have special mode which value is INT_MAX so we need this.
+    int realHeight = 0;
+
+    if(!(isWalletCheck)) {
         LOCK(cs_main);
         realHeight = chainActive.Height();
     }
@@ -574,9 +576,8 @@ bool CheckZerocoinTransaction(const CTransaction &tx,
     // Check Mint Zerocoin Transaction
     for (const CTxOut &txout : tx.vout) {
         if (!txout.scriptPubKey.empty() && txout.scriptPubKey.IsZerocoinMint()) {
-            if (realHeight > params.nSigmaStartBlock + params.nZerocoinV2MintGracefulPeriod) {
+            if (!isWalletCheck && realHeight > params.nSigmaStartBlock + params.nZerocoinV2MintGracefulPeriod)
                 return state.DoS(100, false, REJECT_OBSOLETE, "bad-txns-mint-obsolete");
-            }
 
             if (!CheckMintZcoinTransaction(txout, state, hashTx, zerocoinTxInfo))
                 return false;
@@ -586,9 +587,8 @@ bool CheckZerocoinTransaction(const CTransaction &tx,
     // Check Spend Zerocoin Transaction
     vector<libzerocoin::CoinDenomination> denominations;
     if (tx.IsZerocoinSpend()) {
-        if (realHeight > params.nSigmaStartBlock + params.nZerocoinV2SpendGracefulPeriod) {
+        if (!isWalletCheck && realHeight > params.nSigmaStartBlock + params.nZerocoinV2SpendGracefulPeriod)
             return state.DoS(100, false, REJECT_OBSOLETE, "bad-txns-spend-obsolete");
-        }
 
         if (tx.vout.size() > 1) {
             // TODO: enable such spends after some block number

@@ -101,6 +101,9 @@ if ENABLE_ZMQ:
         raise
 
 testScripts = [
+    'mempool_doublesend_oneblock.py',
+    'mempool_reorg.py',
+    'mempool_spendcoinbase.py',
     # longest test should go first, to favor running tests in parallel
     # 'p2p-fullblocktest.py',
     # 'walletbackup.py',
@@ -110,9 +113,6 @@ testScripts = [
     # 'wallet-hd.py',
     # 'wallet-dump.py',
     # 'listtransactions.py',
-     'zcoin_mintspend.py',
-     'zcoin_mintmanyspend.py',
-     'zcoin_manymintspend.py',
      'receivedby.py',
     # 'mempool_resurrect_test.py',
     # 'txn_doublespend.py --mineblock',
@@ -120,8 +120,6 @@ testScripts = [
     # 'getchaintips.py',
     # 'rawtransactions.py',
      'rest.py',
-    # 'mempool_spendcoinbase.py',
-    # 'mempool_reorg.py',
     # 'mempool_limit.py',
      'httpbasics.py',
      'reindex.py',
@@ -149,6 +147,10 @@ testScripts = [
     # 'signmessages.py',
     # 'p2p-compactblocks.py',
     # 'nulldummy.py',
+    'sigma_spend_validation.py',
+    'sigma_spend_extra_validation.py',
+    'sigma_mint_validation.py',
+    'sigma_mintspend.py',
 ]
 # if ENABLE_ZMQ:
 #     testScripts.append('zmq_test.py')

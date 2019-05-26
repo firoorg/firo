@@ -58,6 +58,8 @@ SigmaPage::SigmaPage(const PlatformStyle *platformStyle, QWidget *parent) :
     // spend
     connect(ui->addButton, SIGNAL(clicked()), this, SLOT(addEntry()));
     connect(ui->clearButton, SIGNAL(clicked()), this, SLOT(clear()));
+
+    ui->amountToMint->setLocale(QLocale::c());
 }
 
 void SigmaPage::setClientModel(ClientModel *model)
@@ -256,6 +258,10 @@ void SigmaPage::on_sendButton_clicked()
     // process sendStatus and on error generate message shown to user
     processSpendCoinsReturn(sendStatus);
 
+    if (sendStatus.status == WalletModel::OK) {
+        accept();
+    }
+
     isNewRecipientAllowed = true;
 }
 
@@ -268,6 +274,11 @@ void SigmaPage::clear()
     addEntry();
 
     updateTabsAndLabels();
+}
+
+void SigmaPage::accept()
+{
+    clear();
 }
 
 SendCoinsEntry *SigmaPage::addEntry() {

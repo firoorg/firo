@@ -95,6 +95,60 @@ std::pair<std::unique_ptr<sigma::CoinSpendV3>, uint32_t> ParseSigmaSpend(const C
     return std::make_pair(std::move(spend), groupId);
 }
 
+CAmount GetSpendAmount(const CTxIn& in) {
+    if (in.IsZerocoinSpendV3()) {
+        std::unique_ptr<sigma::CoinSpendV3> spend;
+
+        try {
+            std::tie(spend, std::ignore) = ParseSigmaSpend(in);
+        } catch (const std::ios_base::failure& e) {
+            LogPrintf("GetSpendAmount: io error %s\n", e.what());
+            return 0;
+        } catch (const CBadTxIn& e) {
+            LogPrintf("GetSpendAmount: %s\n", e.what());
+            return 0;
+        }
+
+        return spend->getIntDenomination();
+    }
+    return 0;
+}
+
+CAmount GetSpendAmount(const CTransaction& tx) {
+    CAmount sum(0);
+    for (const auto& vin : tx.vin) {
+        sum += GetSpendAmount(vin);
+    }
+    return sum;
+}
+
+bool CheckSigmaBlock(CValidationState &state, const CBlock& block) {
+    auto& consensus = Params().GetConsensus();
+
+    size_t spendsAmount = 0;
+    CAmount spendsValue(0);
+
+    for (const auto& tx : block.vtx) {
+        for (const auto& in : tx.vin) {
+            if (in.IsZerocoinSpendV3()) {
+                spendsAmount++;
+            }
+        }
+        spendsValue += GetSpendAmount(tx);
+    }
+
+    if (spendsAmount > consensus.nMaxSigmaInputPerBlock) {
+        return state.DoS(100, false, REJECT_INVALID,
+            "bad-txns-spend-invalid");
+    }
+
+    if (spendsValue > consensus.nMaxValueSigmaSpendPerBlock) {
+        return state.DoS(100, false, REJECT_INVALID,
+            "bad-txns-spend-invalid");
+    }
+    return true;
+}
+
 // This function will not report an error only if the transaction is zerocoin spend V3.
 // Will return false for V1, V1.5 and V2 spends.
 // Mixing V2 and V3 spends into the same transaction will fail.
@@ -106,6 +160,7 @@ bool CheckSpendZcoinTransactionV3(
         bool isVerifyDB,
         int nHeight,
         bool isCheckWallet,
+        bool fStatefulSigmaCheck,
         CZerocoinTxInfoV3 *zerocoinTxInfoV3) {
     bool hasZerocoinSpendInputs = false, hasNonZerocoinInputs = false;
     int vinIndex = -1;
@@ -152,6 +207,10 @@ bool CheckSpendZcoinTransactionV3(
         LogPrintf("CheckSpendZcoinTransactionV3: tx version=%d, tx metadata hash=%s, serial=%s\n",
                 spend->getVersion(), txHashForMetadata.ToString(),
                 spend->getCoinSerialNumber().tostring());
+
+        if (!fStatefulSigmaCheck) {
+            continue;
+        }
 
         CZerocoinStateV3::CoinGroupInfoV3 coinGroup;
         if (!zerocoinStateV3.GetCoinGroupInfo(targetDenominations[vinIndex], pubcoinId, coinGroup))
@@ -309,6 +368,7 @@ bool CheckZerocoinTransactionV3(
         bool isVerifyDB,
         int nHeight,
         bool isCheckWallet,
+        bool fStatefulSigmaCheck,
         CZerocoinTxInfoV3 *zerocoinTxInfoV3)
 {
     auto& consensus = Params().GetConsensus();
@@ -336,8 +396,16 @@ bool CheckZerocoinTransactionV3(
     // Check Spend Zerocoin Transaction
     if(tx.IsZerocoinSpendV3()) {
         // First check number of inputs does not exceed transaction limit
-        if (tx.vin.size() > consensus.nMaxSigmaSpendPerBlock) {
-            return false;
+        if (tx.vin.size() > consensus.nMaxSigmaInputPerBlock) {
+            return state.DoS(100, false,
+                REJECT_INVALID,
+                "bad-txns-spend-invalid");
+        }
+
+        if (GetSpendAmount(tx) > consensus.nMaxValueSigmaSpendPerBlock) {
+            return state.DoS(100, false,
+                REJECT_INVALID,
+                "bad-txns-spend-invalid");
         }
 
         vector<sigma::CoinDenominationV3> denominations;
@@ -372,7 +440,7 @@ bool CheckZerocoinTransactionV3(
         if (!isVerifyDB) {
             if (!CheckSpendZcoinTransactionV3(
                 tx, denominations, state, hashTx, isVerifyDB, nHeight,
-                isCheckWallet, zerocoinTxInfoV3)) {
+                isCheckWallet, fStatefulSigmaCheck, zerocoinTxInfoV3)) {
                     return false;
             }
         }
@@ -445,6 +513,10 @@ bool ConnectBlockZCV3(
         if (!fJustCheck) {
             pindexNew->mintedPubCoinsV3.clear();
             pindexNew->spentSerialsV3.clear();
+        }
+
+        if (!CheckSigmaBlock(state, *pblock)) {
+            return false;
         }
 
         BOOST_FOREACH(auto& serial, pblock->zerocoinTxInfoV3->spentSerials) {
