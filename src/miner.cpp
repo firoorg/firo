@@ -35,6 +35,7 @@
 #include "znode-sync.h"
 #include "znodeman.h"
 #include "zerocoin.h"
+#include "zerocoin_v3.h"
 #include <algorithm>
 #include <boost/thread.hpp>
 #include <boost/tuple/tuple.hpp>
@@ -321,6 +322,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
         CTxMemPool::indexed_transaction_set::nth_index<3>::type::iterator mi = mempool.mapTx.get<3>().begin();
         CTxMemPool::txiter iter;
         std::size_t nSigmaSpend = 0;
+        CAmount nValueSigmaSpend(0);
 
         while (mi != mempool.mapTx.get<3>().end() || !clearedTxs.empty())
         {
@@ -418,6 +420,9 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
                     if (tx.vin.size() + nSigmaSpend > params.nMaxSigmaSpendPerBlock) {
                         continue;
                     }
+                    if (GetSpendAmount(tx) + nValueSigmaSpend > params.nMaxValueSigmaSpendPerBlock) {
+                        continue;
+                    }
                 } else {
                     LogPrintf("COUNT_SPEND_ZC_TX =%s\n", COUNT_SPEND_ZC_TX);
                     LogPrintf("MAX_SPEND_ZC_TX_PER_BLOCK =%s\n", MAX_SPEND_ZC_TX_PER_BLOCK);
@@ -466,6 +471,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
                 COUNT_SPEND_ZC_TX += tx.vin.size();
                 if (tx.IsSigmaSpend()) {
                     nSigmaSpend += tx.vin.size();
+                    nValueSigmaSpend += GetSpendAmount(tx);
                 }
                 inBlock.insert(iter);
                 continue;

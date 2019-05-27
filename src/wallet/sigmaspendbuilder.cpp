@@ -127,7 +127,8 @@ CAmount SigmaSpendBuilder::GetInputs(std::vector<std::unique_ptr<InputSigner>>& 
     selected.clear();
     denomChanges.clear();
 
-    if (!wallet.GetCoinsToSpend(required, selected, denomChanges)) {
+    if (!wallet.GetCoinsToSpend(required, selected, denomChanges,
+        Params().GetConsensus().nMaxSigmaInputPerBlock, Params().GetConsensus().nMaxValueSigmaSpendPerBlock)) {
         throw InsufficientFunds();
     }
 
