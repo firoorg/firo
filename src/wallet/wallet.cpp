@@ -2200,13 +2200,13 @@ std::list<CSigmaEntry> CWallet::GetAvailableCoins() const {
             return true;
 
         int coinHeight, coinId;
-        std::tie(coinHeight, coinId) =  zerocoinState->GetMintedCoinHeightAndId(
+        std::tie(coinHeight, coinId) =  sigmaState->GetMintedCoinHeightAndId(
             sigma::PublicCoin(coin.value, coin.get_denomination()));
 
         // Check group size
         uint256 hashOut;
-        std::vector<PublicCoinV3> coinOuts;
-        zerocoinState->GetCoinSetForSpend(
+        std::vector<sigma::PublicCoin> coinOuts;
+        sigmaState->GetCoinSetForSpend(
             &chainActive,
             chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1), // required 6 confirmation for mint to spend
             coin.get_denomination(),
@@ -2247,15 +2247,10 @@ static CAmount CalculateCoinsBalance(Iterator begin, Iterator end) {
 
 bool CWallet::GetCoinsToSpend(
         CAmount required,
-<<<<<<< HEAD
         std::vector<CSigmaEntry>& coinsToSpend_out,
-        std::vector<sigma::CoinDenomination>& coinsToMint_out) const
-=======
-        std::vector<CZerocoinEntryV3>& coinsToSpend_out,
-        std::vector<sigma::CoinDenominationV3>& coinsToMint_out,
+        std::vector<sigma::CoinDenomination>& coinsToMint_out,
         const size_t coinsToSpendLimit,
         const CAmount amountToSpendLimit) const
->>>>>>> origin/sigma
 {
     // Sanity check to make sure this function is never called with a too large
     // amount to spend, resulting to a possible crash due to out of memory condition.
@@ -2283,19 +2278,13 @@ bool CWallet::GetCoinsToSpend(
             _("Required amount exceed value spend limit"));
     }
 
-<<<<<<< HEAD
     std::list<CSigmaEntry> coins = GetAvailableCoins();
-    if (coins.empty())
-        return false;
-=======
-    std::list<CZerocoinEntryV3> coins = GetAvailableCoins();
 
     CAmount availableBalance = CalculateCoinsBalance(coins.begin(), coins.end());
 
     if (roundedRequired * zeros > availableBalance) {
         throw InsufficientFunds();
     }
->>>>>>> origin/sigma
 
     // sort by highest denomination. if it is same denomination we will prefer the previous block
     auto comparer = [](const CSigmaEntry& a, const CSigmaEntry& b) -> bool {

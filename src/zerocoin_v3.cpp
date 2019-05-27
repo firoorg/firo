@@ -97,8 +97,8 @@ std::pair<std::unique_ptr<sigma::CoinSpend>, uint32_t> ParseSigmaSpend(const CTx
 
 // This function will not report an error only if the transaction is sigma spend.
 CAmount GetSpendAmount(const CTxIn& in) {
-    if (in.IsZerocoinSpendV3()) {
-        std::unique_ptr<sigma::CoinSpendV3> spend;
+    if (in.IsSigmaSpend()) {
+        std::unique_ptr<sigma::CoinSpend> spend;
 
         try {
             std::tie(spend, std::ignore) = ParseSigmaSpend(in);
@@ -124,14 +124,14 @@ CAmount GetSpendAmount(const CTransaction& tx) {
 }
 
 bool CheckSigmaBlock(CValidationState &state, const CBlock& block) {
-    auto& consensus = Params().GetConsensus();
+    auto& consensus = ::Params().GetConsensus();
 
     size_t spendsAmount = 0;
     CAmount spendsValue(0);
 
     for (const auto& tx : block.vtx) {
         for (const auto& in : tx.vin) {
-            if (in.IsZerocoinSpendV3()) {
+            if (in.IsSigmaSpend()) {
                 spendsAmount++;
             }
         }
@@ -511,17 +511,12 @@ bool ConnectBlockSigma(
             pindexNew->sigmaSpentSerials.clear();
         }
 
-<<<<<<< HEAD
-        BOOST_FOREACH(auto& serial, pblock->sigmaTxInfo->spentSerials) {
-            if (!CheckSigmaSpendSerial(
-=======
         if (!CheckSigmaBlock(state, *pblock)) {
             return false;
         }
 
-        BOOST_FOREACH(auto& serial, pblock->zerocoinTxInfoV3->spentSerials) {
-            if (!CheckZerocoinSpendSerialV3(
->>>>>>> origin/sigma
+        BOOST_FOREACH(auto& serial, pblock->sigmaTxInfo->spentSerials) {
+            if (!CheckSigmaSpendSerial(
                     state,
                     pblock->sigmaTxInfo.get(),
                     serial.first,

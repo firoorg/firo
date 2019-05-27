@@ -4362,7 +4362,7 @@ bool CheckBlock(const CBlock &block, CValidationState &state,
         if (fCheckPOW && fCheckMerkleRoot)
             block.fChecked = true;
 
-        if (!CheckSigmaBlock(state, block)) {
+        if (!sigma::CheckSigmaBlock(state, block)) {
             return false;
         }
         return true;
