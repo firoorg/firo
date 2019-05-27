@@ -208,7 +208,7 @@ static CAmount GetCoinSetByDenominationAmount(
 
 static void AddOneCoinForEachGroup()
 {
-    std::vector<std::pair<sigma::CoinDenominationV3, int>> coins;
+    std::vector<std::pair<sigma::CoinDenomination, int>> coins;
     GetCoinSetByDenominationAmount(coins, 1, 1, 1, 1, 1);
     GenerateBlockWithCoins(coins, false);
 }
@@ -380,15 +380,15 @@ BOOST_AUTO_TEST_CASE(get_coin_choose_smallest_enough)
 
 BOOST_AUTO_TEST_CASE(get_coin_by_limit_max_to_1)
 {
-    std::vector<std::pair<sigma::CoinDenominationV3, int>> newCoins;
+    std::vector<std::pair<sigma::CoinDenomination, int>> newCoins;
     GetCoinSetByDenominationAmount(newCoins, 0, 0, 2, 0, 0);
     GenerateBlockWithCoins(newCoins);
     GenerateEmptyBlocks(5);
 
     CAmount require(1 * COIN + 10 * CENT); // 1.1
 
-    std::vector<CZerocoinEntryV3> coins;
-    std::vector<sigma::CoinDenominationV3> coinsToMint;
+    std::vector<CSigmaEntry> coins;
+    std::vector<sigma::CoinDenomination> coinsToMint;
     BOOST_CHECK_EXCEPTION(pwalletMain->GetCoinsToSpend(require, coins, coinsToMint, 1),
         std::runtime_error,
         [](const std::runtime_error& e) {
@@ -612,3 +612,4 @@ BOOST_AUTO_TEST_CASE(spend)
 }
 
 BOOST_AUTO_TEST_SUITE_END()
+
