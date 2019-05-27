@@ -262,7 +262,8 @@ class CMainParams : public CChainParams {
         consensus.nDandelionMaxDestinations = DANDELION_MAX_DESTINATIONS;
         consensus.nDandelionShuffleInterval = DANDELION_SHUFFLE_INTERVAL;
         consensus.nDandelionFluff = DANDELION_FLUFF;
-        consensus.nMaxSigmaSpendPerBlock = 5;
+        consensus.nMaxSigmaInputPerBlock = ZC_SIGMA_INPUT_LIMIT;
+        consensus.nMaxValueSigmaSpendPerBlock = ZC_SIGMA_VALUE_SPEND_LIMIT;
     }
 };
 
@@ -443,7 +444,8 @@ class CTestNetParams : public CChainParams {
             consensus.nDandelionMaxDestinations = DANDELION_MAX_DESTINATIONS;
             consensus.nDandelionShuffleInterval = DANDELION_SHUFFLE_INTERVAL;
             consensus.nDandelionFluff = DANDELION_FLUFF;
-            consensus.nMaxSigmaSpendPerBlock = 30;
+            consensus.nMaxSigmaInputPerBlock = ZC_SIGMA_INPUT_LIMIT;
+            consensus.nMaxValueSigmaSpendPerBlock = ZC_SIGMA_VALUE_SPEND_LIMIT;
         }
 };
 
@@ -590,7 +592,8 @@ class CRegTestParams : public CChainParams {
             consensus.nDandelionMaxDestinations = DANDELION_MAX_DESTINATIONS;
             consensus.nDandelionShuffleInterval = DANDELION_SHUFFLE_INTERVAL;
             consensus.nDandelionFluff = DANDELION_FLUFF;
-            consensus.nMaxSigmaSpendPerBlock = 5;
+            consensus.nMaxSigmaInputPerBlock = ZC_SIGMA_INPUT_LIMIT;
+            consensus.nMaxValueSigmaSpendPerBlock = ZC_SIGMA_VALUE_SPEND_LIMIT;
         }
 
         void UpdateBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout) {
