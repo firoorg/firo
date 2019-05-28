@@ -146,6 +146,12 @@ struct Params {
     // Value of maximum sigma spend per block.
     int64_t nMaxValueSigmaSpendPerBlock;
 
+    // Amount of maximum sigma spend per transaction.
+    unsigned nMaxSigmaInputPerTransaction;
+
+    // Value of maximum sigma spend per transaction.
+    int64_t nMaxValueSigmaSpendPerTransaction;
+
     /** switch to MTP time */
     uint32_t nMTPSwitchTime;
     /** block number to reduce distance between blocks */

@@ -417,10 +417,15 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
                 LogPrintf("try to include zerocoinspend tx=%s\n", tx.GetHash().ToString());
 
                 if (tx.IsZerocoinSpendV3()) {
+                    auto spendAmount = GetSpendAmount(tx);
+                    if (tx.vin.size() > params.nMaxSigmaInputPerTransaction ||
+                       spendAmount > params.nMaxValueSigmaSpendPerTransaction) {
+                        continue;
+                    }
                     if (tx.vin.size() + nSigmaSpend > params.nMaxSigmaInputPerBlock) {
                         continue;
                     }
-                    if (GetSpendAmount(tx) + nValueSigmaSpend > params.nMaxValueSigmaSpendPerBlock) {
+                    if (spendAmount + nValueSigmaSpend > params.nMaxValueSigmaSpendPerBlock) {
                         continue;
                     }
                 } else {

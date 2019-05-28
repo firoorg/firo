@@ -125,24 +125,39 @@ CAmount GetSpendAmount(const CTransaction& tx) {
 bool CheckSigmaBlock(CValidationState &state, const CBlock& block) {
     auto& consensus = Params().GetConsensus();
 
-    size_t spendsAmount = 0;
-    CAmount spendsValue(0);
+    size_t blockSpendsAmount = 0;
+    CAmount blockSpendsValue(0);
 
     for (const auto& tx : block.vtx) {
+        auto txSpendsValue = GetSpendAmount(tx);
+        size_t txSpendsAmount = 0;
+
         for (const auto& in : tx.vin) {
             if (in.IsZerocoinSpendV3()) {
-                spendsAmount++;
+                txSpendsAmount++;
             }
         }
-        spendsValue += GetSpendAmount(tx);
+
+        if (txSpendsAmount > consensus.nMaxSigmaInputPerTransaction) {
+            return state.DoS(100, false, REJECT_INVALID,
+                "bad-txns-spend-invalid");
+        }
+
+        if (txSpendsValue > consensus.nMaxValueSigmaSpendPerTransaction) {
+            return state.DoS(100, false, REJECT_INVALID,
+                "bad-txns-spend-invalid");
+        }
+
+        blockSpendsAmount += txSpendsAmount;
+        blockSpendsValue += txSpendsValue;
     }
 
-    if (spendsAmount > consensus.nMaxSigmaInputPerBlock) {
+    if (blockSpendsAmount > consensus.nMaxSigmaInputPerBlock) {
         return state.DoS(100, false, REJECT_INVALID,
             "bad-txns-spend-invalid");
     }
 
-    if (spendsValue > consensus.nMaxValueSigmaSpendPerBlock) {
+    if (blockSpendsValue > consensus.nMaxValueSigmaSpendPerBlock) {
         return state.DoS(100, false, REJECT_INVALID,
             "bad-txns-spend-invalid");
     }
@@ -396,13 +411,13 @@ bool CheckZerocoinTransactionV3(
     // Check Spend Zerocoin Transaction
     if(tx.IsZerocoinSpendV3()) {
         // First check number of inputs does not exceed transaction limit
-        if (tx.vin.size() > consensus.nMaxSigmaInputPerBlock) {
+        if (tx.vin.size() > consensus.nMaxSigmaInputPerTransaction) {
             return state.DoS(100, false,
                 REJECT_INVALID,
                 "bad-txns-spend-invalid");
         }
 
-        if (GetSpendAmount(tx) > consensus.nMaxValueSigmaSpendPerBlock) {
+        if (GetSpendAmount(tx) > consensus.nMaxValueSigmaSpendPerTransaction) {
             return state.DoS(100, false,
                 REJECT_INVALID,
                 "bad-txns-spend-invalid");
