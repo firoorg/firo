@@ -121,6 +121,10 @@ void SigmaPage::on_mintButton_clicked()
     amount = amount / CENT * CENT + ((amount % CENT >= CENT / 2) ? CENT : 0);
 
     try {
+        WalletModel::UnlockContext ctx(walletModel->requestUnlock());
+        if (!ctx.isValid()) {
+            return;
+        }
         walletModel->sigmaMint(amount);
     } catch (const std::runtime_error& e) {
         QMessageBox::critical(this, tr("Error"),
