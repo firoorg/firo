@@ -1971,7 +1971,8 @@ bool OpenNetworkConnection(
         LOCK(cs_vNodes);
         // Dandelion: new outbound connection
         CNode::vDandelionOutbound.push_back(pnode);
-        if (CNode::vDandelionDestination.size() < DANDELION_MAX_DESTINATIONS) {
+        const Consensus::Params& consensus = Params().GetConsensus();
+        if (CNode::vDandelionDestination.size() < consensus.nDandelionMaxDestinations) {
             CNode::vDandelionDestination.push_back(pnode);
         }
         //LogPrintf("Added outbound Dandelion connection:\n%s", 
@@ -2208,7 +2209,8 @@ void CNode::DandelionShuffle() {
         //  (bookkeeping already done while iterating through mDandelionRoutes)
         vDandelionDestination.clear();
         // Repopulate vDandelionDestination
-        if (vDandelionDestination.size() < DANDELION_MAX_DESTINATIONS &&
+        const Consensus::Params& consensus = Params().GetConsensus();
+        if (vDandelionDestination.size() < consensus.nDandelionMaxDestinations &&
             vDandelionDestination.size() < vDandelionOutbound.size()) {
             std::vector<CNode*> candidateDestinations;
             for (auto iteri = vDandelionOutbound.begin(); iteri != vDandelionOutbound.end();) {
@@ -2227,7 +2229,8 @@ void CNode::DandelionShuffle() {
             // Sample "vDandelionDestination.size() - DANDELION_MAX_DESTINATIONS" destinations
             // if there are that many to choose from.
             FastRandomContext rng;
-            while (vDandelionDestination.size() < DANDELION_MAX_DESTINATIONS &&
+            const Consensus::Params& consensus = Params().GetConsensus();
+            while (vDandelionDestination.size() < consensus.nDandelionMaxDestinations &&
                    vDandelionDestination.size() < vDandelionOutbound.size() && 
                    candidateDestinations.size() > 0) {
                 int rand_index = rng.randrange(candidateDestinations.size());
@@ -2259,7 +2262,9 @@ void ThreadDandelionShuffle() {
     while (!CNode::interruptNet) {
         if (GetTimeMicros() > nNextDandelionShuffle) {
             CNode::DandelionShuffle();
-            nNextDandelionShuffle = PoissonNextSend(GetTimeMicros(), DANDELION_SHUFFLE_INTERVAL);
+            const Consensus::Params& consensus = Params().GetConsensus();
+            nNextDandelionShuffle = PoissonNextSend(
+                GetTimeMicros(), consensus.nDandelionShuffleInterval);
             // Sleep for 1 second until the next shuffle time.
             // Sleeping for DANDELION_SHUFFLE_INTERVAL seconds at once
             // results to not being able to close zcoin.
@@ -2445,7 +2450,8 @@ void CNode::RelayDandelionTransaction(const CTransaction& tx, CNode* pfrom)
         return; 
     }
     FastRandomContext rng; 
-    if (rng.randrange(100) < DANDELION_FLUFF) {
+    const Consensus::Params& consensus = Params().GetConsensus();
+    if (rng.randrange(100) < consensus.nDandelionFluff) {
         // Start fluffing current transaction.
 
         // LogPrint("dandelion", "Dandelion fluff: %s\n", tx.GetHash().ToString());
@@ -2489,25 +2495,16 @@ void CNode::CheckDandelionEmbargoes()
     for (auto iter=mDandelionEmbargo.begin(); iter != mDandelionEmbargo.end();) {
         // If we got the embargoed transaction back, erase it.
         if (mempool.exists(iter->first)) {
-            //LogPrintf(
-            //    "Embargoed dandeliontx %s found in mempool; removing from embargo map.\n", 
-            //    iter->first.ToString());
-            iter = mDandelionEmbargo.erase(iter);
+           iter = mDandelionEmbargo.erase(iter);
         } else if (iter->second < nCurrTime) {
             // Embargo time is over, we did not "see" the transaction back in fluff phase, 
             // so start fluffing/relaying it.
-            //LogPrintf(
-            //    "dandeliontx %s embargo expired\n", 
-            //    iter->first.ToString());
             CValidationState state;
             shared_ptr<const CTransaction> ptx = stempool.get(iter->first);
             // If txn was not found in Stempool, then something went wrong,
             // Keep it embargoed for now.
             if (!ptx) {
-                //LogPrintf(
-                //    "ERROR: dandeliontx %s embargo expired, but not found in stempool.\n", 
-                //    iter->first.ToString());
-                iter = mDandelionEmbargo.erase(iter);
+               iter = mDandelionEmbargo.erase(iter);
                 continue;
             }
             bool fMissingInputs = false;
@@ -3129,8 +3126,6 @@ bool CNode::localDandelionDestinationPushInventory(const CInv& inv) {
 }
 
 bool CNode::insertDandelionEmbargo(const uint256& hash, const int64_t& embargo) {
-    // LogPrint("dandelion", "Embargoed txn %s.\n", hash.ToString());
-
     auto pair = mDandelionEmbargo.insert(std::make_pair(hash, embargo));
     return pair.second;
 }
