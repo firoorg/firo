@@ -13,6 +13,7 @@
 #include "client-api/send.h"
 #include "client-api/protocol.h"
 #include <zerocoin.h>
+#include <zerocoin_v3.h>
 #include <vector>
 
 #include "univalue.h"
@@ -25,6 +26,12 @@ UniValue mintstatus(Type type, const UniValue& data, const UniValue& auth, bool 
 
 UniValue mint(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
 {
+    // Ensure Sigma mints is already accepted by network so users will not lost their coins
+    // due to other nodes will treat it as garbage data.
+    if (!IsSigmaAllowed()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Sigma is not activated yet");
+    }
+
     sigma::ParamsV3* zcParams = sigma::ParamsV3::get_default();
 
     vector<CRecipient> vecSend;
@@ -64,16 +71,6 @@ UniValue mint(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
 
             sigma::PublicCoinV3 pubCoin = newCoin.getPublicCoin();
 
-            //Validate
-            bool validCoin = pubCoin.validate();
-
-            // no need to loop until we find a valid coin for sigma coins, they are always valid.
-            //while(!validCoin){
-            //    sigma::PrivateCoinV3 newCoin(zcParams, denomination, ZEROCOIN_TX_VERSION_3);
-            //    sigma::PublicCoinV3 pubCoin = newCoin.getPublicCoin();
-            //    validCoin = pubCoin.validate();
-            //}
-
             // Create script for coin
             CScript scriptSerializedCoin;
             // opcode is inserted as 1 byte according to file script/script.h
@@ -103,6 +100,12 @@ UniValue mint(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
 }
 
 UniValue sendprivate(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
+
+    // Ensure Sigma mints is already accepted by network so users will not lost their coins
+    // due to other nodes will treat it as garbage data.
+    if (!IsSigmaAllowed()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Sigma is not activated yet");
+    }
 
     // Initially grab the existing transaction metadata from the filesystem.
     UniValue txMetadataUni(UniValue::VOBJ);

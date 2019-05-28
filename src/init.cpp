@@ -219,7 +219,6 @@ void Interrupt(boost::thread_group &threadGroup) {
     InterruptAPI();
     InterruptREST();
     InterruptTorControl();
-    //InterruptAPI();
     threadGroup.interrupt_all();
 }
 
@@ -302,7 +301,9 @@ void Shutdown() {
         pzmqPublisherInterface = NULL;
     }
 
-    pzmqReplierInterface->Shutdown();
+    if (pzmqReplierInterface) {
+        pzmqReplierInterface->Shutdown();
+    }
 
     try {
         boost::filesystem::remove(GetPidFile());
@@ -1411,16 +1412,20 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
             return InitError(_("Unable to start HTTP server. See debug log for details."));
     }
 
-    if (!StartAPI())
-        return false;
+    bool fApi = GetBoolArg("-clientapi", false);
 
-    CreatePaymentRequestFile();
-    CreateTxTimestampFile();
-    CreateTxMetadataFile();
-    CreateZerocoinFile();
+    if(fApi){
+        if (!StartAPI())
+            return false;        
 
-    bool resetapicerts = GetBoolArg("-resetapicerts", DEFAULT_RESETAPICERTS);
-    CZMQAbstract::createCerts(resetapicerts);
+        CreatePaymentRequestFile();
+        CreateTxTimestampFile();
+        CreateTxMetadataFile();
+        CreateZerocoinFile();
+
+        bool resetapicerts = GetBoolArg("-resetapicerts", DEFAULT_RESETAPICERTS);
+        CZMQAbstract::createCerts(resetapicerts);
+    }
 
     int64_t nStart;
 
@@ -1576,17 +1581,19 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     const std::string &strDest, mapMultiArgs["-seednode"])
     AddOneShot(strDest);
 
-    pzmqPublisherInterface = pzmqPublisherInterface->Create();
-    pzmqReplierInterface = pzmqReplierInterface->Create();
+    if(fApi){
+        pzmqPublisherInterface = pzmqPublisherInterface->Create();
+        pzmqReplierInterface = pzmqReplierInterface->Create();
 
-    if(!(pzmqPublisherInterface) || !(pzmqReplierInterface))
-        return InitError(_("Unable to start ZMQ API. See debug log for details."));
+        if(!(pzmqPublisherInterface) || !(pzmqReplierInterface))
+            return InitError(_("Unable to start ZMQ API. See debug log for details."));
 
-    // register publisher with validation interface
-    RegisterValidationInterface(pzmqPublisherInterface);
+        // register publisher with validation interface
+        RegisterValidationInterface(pzmqPublisherInterface);
 
-    // ZMQ API
-    RegisterAllCoreAPICommands(tableAPI);
+        // ZMQ API
+        RegisterAllCoreAPICommands(tableAPI);
+    }
     
     if (mapArgs.count("-maxuploadtarget")) {
         CNode::SetMaxOutboundTarget(GetArg("-maxuploadtarget", DEFAULT_MAX_UPLOAD_TARGET) * 1024 * 1024);
@@ -2075,7 +2082,9 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     // ********************************************************* Step 12: finished
 
     SetRPCWarmupFinished();
-    SetAPIWarmupFinished();
+    if(fApi){
+        SetAPIWarmupFinished();
+    }
     uiInterface.InitMessage(_("Done loading"));
 
 #ifdef ENABLE_WALLET
