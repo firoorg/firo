@@ -40,8 +40,9 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_numinputs)
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
     auto& consensus = ::Params().GetConsensus();
 
-    // Create 400-200+1 = 201 new empty blocks. // consensus.nMintV3SigmaStartBlock = 400
-    CreateAndProcessEmptyBlocks(201, scriptPubKey);
+    // Create 2000 new empty blocks to get some funds. nMaxSigmaInputPerBlock == 500, so 
+    // we want to create 500 coins of each denomination. For denomination 100 we need 50.000 xzc.
+    CreateAndProcessEmptyBlocks(2000, scriptPubKey);
 
     pwalletMain->SetBroadcastTransactions(true);
 
