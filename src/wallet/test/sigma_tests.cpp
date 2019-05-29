@@ -31,10 +31,16 @@ static std::list<std::pair<uint256, CBlockIndex>> blocks;
 
 struct WalletSigmaTestingSetup : WalletTestingSetup
 {
+    WalletSigmaTestingSetup() 
+        : sigmaState(sigma::CSigmaState::GetState())
+    {
+    }
+
     ~WalletSigmaTestingSetup()
     {
         blocks.clear();
     }
+    sigma::CSigmaState *sigmaState;
 };
 
 static void AddSigmaCoin(const sigma::PrivateCoin& coin, const sigma::CoinDenomination denomination)
@@ -238,6 +244,7 @@ BOOST_AUTO_TEST_CASE(get_coin_no_coin)
 
     BOOST_CHECK_MESSAGE(CheckDenominationCoins(needCoins, coins),
       "Expect no coin in group");
+    sigmaState->Reset();
 }
 
 BOOST_AUTO_TEST_CASE(get_coin_different_denomination)
@@ -252,6 +259,7 @@ BOOST_AUTO_TEST_CASE(get_coin_different_denomination)
     std::vector<CSigmaEntry> coins;
     std::vector<sigma::CoinDenomination> coinsToMint;
     BOOST_CHECK_THROW(pwalletMain->GetCoinsToSpend(require, coins, coinsToMint), InsufficientFunds);
+    sigmaState->Reset();
 }
 
 BOOST_AUTO_TEST_CASE(get_coin_round_up)
@@ -281,6 +289,7 @@ BOOST_AUTO_TEST_CASE(get_coin_round_up)
 
     BOOST_CHECK_MESSAGE(CheckDenominationCoins(expectedToMint, coinsToMint),
       "Expected to re-mint coins with denominations 0.1 + 0.1.");
+    sigmaState->Reset();
 }
 
 BOOST_AUTO_TEST_CASE(get_coin_not_enough)
@@ -295,6 +304,7 @@ BOOST_AUTO_TEST_CASE(get_coin_not_enough)
     std::vector<CSigmaEntry> coins;
     std::vector<sigma::CoinDenomination> coinsToMint;
     BOOST_CHECK_THROW(pwalletMain->GetCoinsToSpend(require, coins, coinsToMint), InsufficientFunds);
+    sigmaState->Reset();
 }
 
 BOOST_AUTO_TEST_CASE(get_coin_cannot_spend_unconfirmed_coins)
@@ -310,6 +320,7 @@ BOOST_AUTO_TEST_CASE(get_coin_cannot_spend_unconfirmed_coins)
     std::vector<CSigmaEntry> coins;
     std::vector<sigma::CoinDenomination> coinsToMint;
     BOOST_CHECK_THROW(pwalletMain->GetCoinsToSpend(require, coins, coinsToMint), InsufficientFunds);
+    sigmaState->Reset();
 }
 
 BOOST_AUTO_TEST_CASE(get_coin_minimize_coins_spend_fit_amount)
@@ -332,6 +343,7 @@ BOOST_AUTO_TEST_CASE(get_coin_minimize_coins_spend_fit_amount)
 
     BOOST_CHECK_MESSAGE(CheckDenominationCoins(expectedCoins, coins),
       "Expect only one SIGMA_DENOM_100");
+    sigmaState->Reset();
 }
 
 BOOST_AUTO_TEST_CASE(get_coin_minimize_coins_spend)
@@ -354,6 +366,7 @@ BOOST_AUTO_TEST_CASE(get_coin_minimize_coins_spend)
 
     BOOST_CHECK_MESSAGE(CheckDenominationCoins(expectedCoins, coins),
       "Expect only one SIGMA_DENOM_10 and 7 SIGMA_DENOM_1");
+    sigmaState->Reset();
 }
 
 BOOST_AUTO_TEST_CASE(get_coin_choose_smallest_enough)
@@ -376,6 +389,7 @@ BOOST_AUTO_TEST_CASE(get_coin_choose_smallest_enough)
 
     BOOST_CHECK_MESSAGE(CheckDenominationCoins(expectedCoins, coins),
       "Expect only one SIGMA_DENOM_1");
+    sigmaState->Reset();
 }
 
 BOOST_AUTO_TEST_CASE(get_coin_by_limit_max_to_1)
@@ -394,6 +408,7 @@ BOOST_AUTO_TEST_CASE(get_coin_by_limit_max_to_1)
         [](const std::runtime_error& e) {
             return e.what() == std::string("Can not choose coins within limit.");
         });
+    sigmaState->Reset();
 }
 
 BOOST_AUTO_TEST_CASE(create_spend_with_insufficient_coins)
@@ -429,6 +444,7 @@ BOOST_AUTO_TEST_CASE(create_spend_with_insufficient_coins)
         pwalletMain->CreateSigmaSpendTransaction(recipients, fee, selected, changes),
         InsufficientFunds,
         [](const InsufficientFunds& e) { return e.what() == std::string("Insufficient funds"); });
+    sigmaState->Reset();
 }
 
 BOOST_AUTO_TEST_CASE(create_spend_with_confirmation_less_than_6)
@@ -462,6 +478,7 @@ BOOST_AUTO_TEST_CASE(create_spend_with_confirmation_less_than_6)
         pwalletMain->CreateSigmaSpendTransaction(recipients, fee, selected, changes),
         InsufficientFunds,
         [](const InsufficientFunds& e) { return e.what() == std::string("Insufficient funds"); });
+    sigmaState->Reset();
 }
 
 BOOST_AUTO_TEST_CASE(create_spend_with_coins_less_than_2)
@@ -484,6 +501,7 @@ BOOST_AUTO_TEST_CASE(create_spend_with_coins_less_than_2)
         pwalletMain->CreateSigmaSpendTransaction(recipients, fee, selected, changes),
         std::runtime_error,
         [](const std::runtime_error& e) {return e.what() == std::string("Insufficient funds");});
+    sigmaState->Reset();
 }
 
 BOOST_AUTO_TEST_CASE(create_spend_with_coins_more_than_1)
@@ -557,6 +575,7 @@ BOOST_AUTO_TEST_CASE(create_spend_with_coins_more_than_1)
     spends.clear();
     db.ListCoinSpendSerial(spends);
     BOOST_CHECK(spends.size() == 2);
+    sigmaState->Reset();
 }
 
 BOOST_AUTO_TEST_CASE(spend)
@@ -609,6 +628,7 @@ BOOST_AUTO_TEST_CASE(spend)
         BOOST_CHECK(coin.id == -1);
         BOOST_CHECK(coin.nHeight == -1);
     }
+    sigmaState->Reset();
 }
 
 BOOST_AUTO_TEST_SUITE_END()
