@@ -292,6 +292,9 @@ BOOST_AUTO_TEST_CASE(same_serial_in_a_transaction) {
     // Create 400-200+1 = 201 new empty blocks. // consensus.nMintV3SigmaStartBlock = 400
     CreateAndProcessEmptyBlocks(201, scriptPubKey);
 
+    CAmount denomAmount01;
+    sigma::DenominationToInteger(sigma::CoinDenomination::SIGMA_DENOM_0_1, denomAmount01);
+
     CAmount denomAmount;
     sigma::DenominationToInteger(sigma::CoinDenomination::SIGMA_DENOM_1, denomAmount);
 
@@ -312,9 +315,10 @@ BOOST_AUTO_TEST_CASE(same_serial_in_a_transaction) {
     // Add 5 more blocks and verify that Mint can not be spent until 6 blocks verification
     CreateAndProcessEmptyBlocks(5, scriptPubKey);
 
+    // - denomAmount01 stands for fees. We'll normally payt a fee of 0.1.
     std::vector<CRecipient> recipients = {
         {GetScriptForDestination(randomAddr1.Get()), denomAmount , false},
-        {GetScriptForDestination(randomAddr2.Get()), denomAmount - CENT, false}, // reserve a CENT to pay fee
+        {GetScriptForDestination(randomAddr2.Get()), denomAmount - denomAmount01, false}, // reserve a CENT to pay fee
     };
 
     // Create tx
