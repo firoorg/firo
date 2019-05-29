@@ -34,15 +34,16 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_numinputs)
     string stringError;
 
     std::vector<std::string> denominations = {"0.1", "0.5", "1", "10", "100"};
-    int denominationIndexA = rand() % 5;
-    int denominationIndexB = (denominationIndexA + 5) %4; //guarantees a different number in the range
+
+    // Test with small denominations to limit required coins.
+    int denominationIndexA = 0; // 0.1
+    int denominationIndexB = 1; // 0.5
 
     CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
     auto& consensus = Params().GetConsensus();
 
-    // Create 2000 new empty blocks to get some funds. nMaxSigmaInputPerBlock == 500, so 
-    // we want to create 500 coins of each denomination. For denomination 100 we need 50.000 xzc.
-    CreateAndProcessEmptyBlocks(2000, scriptPubKey);
+    // Create 200 new empty blocks to get some funds. nMaxSigmaInputPerBlock == 50, so
+    CreateAndProcessEmptyBlocks(200, scriptPubKey);
 
     pwalletMain->SetBroadcastTransactions(true);
 
