@@ -73,7 +73,9 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_test)
         }
         BOOST_CHECK_MESSAGE(previousHeight + 5 == chainActive.Height(), "Block not added to chain");
 
-        BOOST_CHECK_MESSAGE(!pwalletMain->CreateZerocoinSpendModel(stringError, "", denomination.c_str()), "Spend succeeded although not at least two mints");
+        BOOST_CHECK_MESSAGE(!pwalletMain->CreateZerocoinSpendModel(
+            stringError, "", denomination.c_str()),
+            "Spend succeeded although not at least two mints");
         BOOST_CHECK_MESSAGE(stringError == "it has to have at least two mint coins with at least 6 confirmation in order to spend a coin", stringError + " - Incorrect error message");
 
 
