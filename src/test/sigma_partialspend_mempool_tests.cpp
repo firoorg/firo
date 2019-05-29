@@ -49,7 +49,8 @@ BOOST_AUTO_TEST_CASE(partialspend)
 
     sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
     std::vector<uint256> vtxid;
-    std::vector<std::string> denominations = {"0.1", "0.5", "1", "10", "100"};
+    // Can't test denomination 0.1, because we're unable to pay the fees.
+    std::vector<std::string> denominations = {"0.5", "1", "10", "100"};
 
     // Get smallest denomination value
     std::vector<sigma::CoinDenomination> denoms;
@@ -68,7 +69,6 @@ BOOST_AUTO_TEST_CASE(partialspend)
         CAmount denomAmount;
         sigma::StringToDenomination(denomination, denomId);
         sigma::DenominationToInteger(denomId, denomAmount);
-
         printf("Testing denomination %s\n", denomination.c_str());
         std::string stringError;
 
@@ -103,10 +103,13 @@ BOOST_AUTO_TEST_CASE(partialspend)
         std::vector<CSigmaEntry> dSelected;
         std::vector<CSigmaEntry> dChanges;
 
+        CAmount denomAmount01;
+        sigma::DenominationToInteger(sigma::CoinDenomination::SIGMA_DENOM_0_1, denomAmount01);
+
         // Make dtx is not identical to tx
         std::vector<CRecipient> dupRecipients = {
             {GetScriptForDestination(randomAddr2.Get()), denomAmount / 2, false},
-            {GetScriptForDestination(randomAddr1.Get()), denomAmount / 2 - CENT, false},
+            {GetScriptForDestination(randomAddr1.Get()), denomAmount / 2 - denomAmount01 - CENT, false},
         };
         dtx = pwalletMain->CreateSigmaSpendTransaction(dupRecipients, dFee, dSelected, dChanges);
 
@@ -115,7 +118,7 @@ BOOST_AUTO_TEST_CASE(partialspend)
 
         std::vector<CRecipient> recipients = {
             {GetScriptForDestination(randomAddr1.Get()), denomAmount / 2, false},
-            {GetScriptForDestination(randomAddr2.Get()), denomAmount / 2 - CENT, false},
+            {GetScriptForDestination(randomAddr2.Get()), denomAmount / 2 - denomAmount01 - CENT, false},
         };
 
         // Create two spend transactions using the same mint.
@@ -266,9 +269,9 @@ BOOST_AUTO_TEST_CASE(partialspend_remint) {
 
     BOOST_CHECK_MESSAGE(previousHeight + 5 == chainActive.Height(), "Block not added to chain");
 
+    // Can't use the other 0.1, it goes to fees.
     recipients = {
         {GetScriptForDestination(randomAddr1.Get()), denomAmount01 , false},
-        {GetScriptForDestination(randomAddr2.Get()), denomAmount01 - CENT, false},
     };
 
     // Use remints
@@ -318,7 +321,7 @@ BOOST_AUTO_TEST_CASE(same_serial_in_a_transaction) {
     // - denomAmount01 stands for fees. We'll normally payt a fee of 0.1.
     std::vector<CRecipient> recipients = {
         {GetScriptForDestination(randomAddr1.Get()), denomAmount , false},
-        {GetScriptForDestination(randomAddr2.Get()), denomAmount - denomAmount01, false}, // reserve a CENT to pay fee
+        {GetScriptForDestination(randomAddr2.Get()), denomAmount - denomAmount01 - CENT, false}, // reserve a CENT to pay fee
     };
 
     // Create tx
@@ -344,6 +347,8 @@ BOOST_AUTO_TEST_CASE(same_serial_in_a_transaction) {
     // Add invalid transaction to mempool,
     BOOST_CHECK_MESSAGE(!addToMempool(tx), "Double spend transaction have been accepted");
     BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool accept invalid transaction");
+
+    sigmaState->Reset();
 }
 
 BOOST_AUTO_TEST_SUITE_END()
