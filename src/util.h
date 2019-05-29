@@ -271,14 +271,4 @@ template <typename Callable> void TraceThread(const char* name,  Callable func)
 
 std::string CopyrightHolders(const std::string& strPrefix);
 
-
-
-std::pair<bool,std::string> ReadBinaryFileTor(const std::string &filename, size_t maxsize=std::numeric_limits<size_t>::max());
-
-
-/** Write contents of std::string to a file.
- * @return true on success.
- */
-bool WriteBinaryFileTor(const std::string &filename, const std::string &data);
-
 #endif // BITCOIN_UTIL_H
