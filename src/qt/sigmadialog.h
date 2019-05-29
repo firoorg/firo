@@ -5,20 +5,21 @@
 #include "clientmodel.h"
 #include "platformstyle.h"
 #include "sendcoinsentry.h"
+#include "coincontroldialog.h"
 
 #include <QWidget>
 
 namespace Ui {
-    class SigmaPage;
+    class SigmaDialog;
 }
 
-class SigmaPage : public QWidget
+class SigmaDialog : public QDialog
 {
     Q_OBJECT
 
 public:
-    SigmaPage(const PlatformStyle *platformStyle, QWidget *parent = 0);
-    ~SigmaPage();
+    SigmaDialog(const PlatformStyle *platformStyle, QWidget *parent = 0);
+    ~SigmaDialog();
 
     void setClientModel(ClientModel *model);
     void setWalletModel(WalletModel *model);
@@ -31,14 +32,28 @@ public Q_SLOTS:
     void clear();
     void accept();
     SendCoinsEntry* addEntry();
+    void coinControlFeatureChanged(bool);
     void updateTabsAndLabels();
+    void coinControlUpdateLabels();
+    void coinControlClipboardQuantity();
+    void coinControlClipboardAmount();
+    void coinControlClipboardFee();
+    void coinControlClipboardAfterFee();
+    void coinControlClipboardBytes();
+    void coinControlClipboardPriority();
+    void coinControlClipboardLowOutput();
+    void coinControlClipboardChange();
+    void coinControlButtonClicked();
+    void coinControlChangeChecked(int);
+    void coinControlChangeEdited(const QString &);
 
 private:
-    Ui::SigmaPage *ui;
+    Ui::SigmaDialog *ui;
     ClientModel *clientModel;
     WalletModel *walletModel;
     bool isNewRecipientAllowed;
     const PlatformStyle *platformStyle;
+    QDialog *sigmaDialog;
 
     void processSpendCoinsReturn(const WalletModel::SendCoinsReturn &sendCoinsReturn, const QString &msgArg = QString());
 
