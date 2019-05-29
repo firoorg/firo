@@ -73,6 +73,7 @@ WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
     setupTransactionPage();
     setupSendCoinPage();
     setupToolboxPage();
+    setupSigmaPage();
 
     addWidget(overviewPage);
     addWidget(exoAssetsPage);
@@ -87,11 +88,6 @@ WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
     // Clicking on a transaction on the overview pre-selects the transaction on the transaction history page
     connect(overviewPage, SIGNAL(transactionClicked(QModelIndex)), this, SLOT(focusBitcoinHistoryTab(QModelIndex)));
     connect(overviewPage, SIGNAL(exodusTransactionClicked(uint256)), this, SLOT(focusExodusTransaction(uint256)));
-
-    setupSigmaPage();
-
-    // Subscribe message from sigma tab.
-    //connect(sigmaPage, SIGNAL(message(QString, QString, unsigned int)), this, SIGNAL(message(QString, QString, unsigned int)));
 }
 
 WalletView::~WalletView()
