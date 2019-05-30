@@ -33,7 +33,7 @@ class ImportPrunedFundsTest(BitcoinTestFramework):
         address2_pubkey = self.nodes[0].validateaddress(address2)['pubkey']                 # Using pubkey
         # privkey
         address3 = self.nodes[0].getnewaddress()
-        address3_privkey = self.nodes[0].dumpprivkey(address3)                              # Using privkey
+        address3_privkey = dumpprivkey_otac(self.nodes[0], address3)                        # Using privkey
 
         #Check only one address
         address_info = self.nodes[0].validateaddress(address1)

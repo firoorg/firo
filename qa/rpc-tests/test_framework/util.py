@@ -661,3 +661,20 @@ def create_lots_of_big_transactions(node, txouts, utxos, fee):
 def get_bip9_status(node, key):
     info = node.getblockchaininfo()
     return info['bip9_softforks'][key]
+
+def dumpprivkey_otac(node, address):
+    import re
+    error_text = ''
+    try:
+        return node.dumpprivkey(address)
+    except JSONRPCException as e:
+        error_text = e.error
+    else:
+        raise
+
+    otac_match = re.search("Your one time authorization code is: ([a-zA-Z0-9]+)", error_text['message'])
+    if not otac_match:
+        raise JSONRPCException(error_text)
+    return node.dumpprivkey(address, otac_match.groups()[0])
+
+
