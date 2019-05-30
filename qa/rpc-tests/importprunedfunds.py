@@ -25,9 +25,19 @@ class ImportPrunedFundsTest(BitcoinTestFramework):
         self.nodes[0].generate(101)
 
         self.sync_all()
-        
+
+
         # address
         address1 = self.nodes[0].getnewaddress()
+
+        # Check that dumpprivkey requests OTAC
+        error_message = ''
+        try:
+            self.nodes[0].dumpprivkey(address1)
+        except JSONRPCException as e:
+            error_message = e.error['message']
+        assert_greater_than(error_message.find('Your one time authorization code is:'), -1)
+
         # pubkey
         address2 = self.nodes[0].getnewaddress()
         address2_pubkey = self.nodes[0].validateaddress(address2)['pubkey']                 # Using pubkey
