@@ -124,7 +124,8 @@ QT_FORMS_UI = \
   qt/forms/metadexcanceldialog.ui \
   qt/forms/metadexdialog.ui \
   qt/forms/tradehistorydialog.ui \
-  qt/forms/exoassetsdialog.ui
+  qt/forms/exoassetsdialog.ui \
+  qt/forms/zc2sigmapage.ui
 
 QT_MOC_CPP = \
   qt/moc_addressbookpage.cpp \
@@ -184,7 +185,9 @@ QT_MOC_CPP = \
   qt/moc_exoassetsdialog.cpp \
   qt/moc_metadexdialog.cpp \
   qt/moc_metadexcanceldialog.cpp \
-  qt/moc_tradehistorydialog.cpp
+  qt/moc_tradehistorydialog.cpp \
+  qt/moc_zc2sigmapage.cpp \
+  qt/moc_zc2sigmamodel.cpp
 
 BITCOIN_MM = \
   qt/macdockiconhandler.mm \
@@ -272,7 +275,9 @@ BITCOIN_QT_H = \
   qt/metadexcanceldialog.h \
   qt/tradehistorydialog.h \
   qt/sendmpdialog.h \
-  qt/exodus_qtutils.h
+  qt/exodus_qtutils.h \
+  qt/zc2sigmapage.h \
+  qt/zc2sigmamodel.h
 
 RES_ICONS = \
   qt/res/icons/add.png \
@@ -416,7 +421,9 @@ BITCOIN_QT_WALLET_CPP = \
   qt/exoassetsdialog.cpp \
   qt/metadexdialog.cpp \
   qt/metadexcanceldialog.cpp \
-  qt/tradehistorydialog.cpp
+  qt/tradehistorydialog.cpp \
+  qt/zc2sigmapage.cpp \
+  qt/zc2sigmamodel.cpp
 
 BITCOIN_QT_CPP = $(BITCOIN_QT_BASE_CPP)
 if TARGET_WINDOWS

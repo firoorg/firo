@@ -110,7 +110,6 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *platformStyle, const NetworkStyle *n
     signMessageAction(0),
     verifyMessageAction(0),
     aboutAction(0),
-    znodeAction(0),
     receiveCoinsAction(0),
     receiveCoinsMenuAction(0),
     optionsAction(0),
@@ -122,6 +121,8 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *platformStyle, const NetworkStyle *n
     openRPCConsoleAction(0),
     openAction(0),
     showHelpMessageAction(0),
+    zc2SigmaAction(0),
+    znodeAction(0),
     trayIcon(0),
     trayIconMenu(0),
     notificator(0),
@@ -336,6 +337,13 @@ void BitcoinGUI::createActions()
 	sigmaAction->setShortcut(QKeySequence(Qt::ALT +  key++));
 	tabGroup->addAction(sigmaAction);
 
+        zc2SigmaAction = new QAction(platformStyle->SingleColorIcon(":/icons/zerocoin"), tr("&Remint"), this);
+        zc2SigmaAction->setStatusTip(tr("Show the list of public coins that have been minted"));
+        zc2SigmaAction->setToolTip(zc2SigmaAction->statusTip());
+        zc2SigmaAction->setCheckable(true);
+        zc2SigmaAction->setShortcut(QKeySequence(Qt::ALT +  key++));
+        tabGroup->addAction(zc2SigmaAction);
+
 #ifdef ENABLE_WALLET
     // These showNormalIfMinimized are needed because Send Coins and Receive Coins
     // can be triggered from the tray menu, and need to show the GUI to be useful.
@@ -383,6 +391,7 @@ void BitcoinGUI::createActions()
 	connect(historyAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
 	connect(historyAction, SIGNAL(triggered()), this, SLOT(gotoHistoryPage()));
 	connect(sigmaAction, SIGNAL(triggered()), this, SLOT(gotoSigmaPage()));
+        connect(zc2SigmaAction, SIGNAL(triggered()), this, SLOT(gotoZc2SigmaPage()));
 
     if (exodusEnabled) {
         connect(exoAssetsAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
@@ -525,6 +534,7 @@ void BitcoinGUI::createToolBars()
         toolbar->addAction(receiveCoinsAction);
         toolbar->addAction(historyAction);
         toolbar->addAction(sigmaAction);
+        toolbar->addAction(zc2SigmaAction);
         toolbar->addAction(znodeAction);
 
         if (isExodusEnabled()) {
@@ -822,6 +832,11 @@ void BitcoinGUI::gotoSignMessageTab(QString addr)
 void BitcoinGUI::gotoSigmaPage()
 {
     if (walletFrame) walletFrame->gotoSigmaPage();
+}
+
+void BitcoinGUI::gotoZc2SigmaPage()
+{
+    if (walletFrame) walletFrame->gotoZc2SigmaPage();
 }
 
 void BitcoinGUI::gotoVerifyMessageTab(QString addr)
