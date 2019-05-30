@@ -3510,7 +3510,7 @@ UniValue listsigmapubcoins(const UniValue& params, bool fHelp) {
         }
     }
 
-    list <CSigmaEntry> listPubcoin;
+    list<CSigmaEntry> listPubcoin;
     CWalletDB walletdb(pwalletMain->strWalletFile);
     walletdb.ListSigmaPubCoin(listPubcoin);
     UniValue results(UniValue::VARR);
@@ -3675,13 +3675,23 @@ UniValue listsigmaspends(const UniValue &params, bool fHelp) {
                 "[\n"
                 "  {\n"
                 "    \"txid\": \"transactionid\",      (string) The transaction hash\n"
+                "    \"confirmations\": n,             (numeric) The number of confirmations for the transaction\n"
+                "    \"abandoned\": xxx,               (bool) True if the transaction was already abandoned\n"
+                "    \"spends\": \n" 
                 "    [\n"
-                "      \"denomination\": d,            (string) Denomination\n"
-                "      \"spendid\": id,                (numeric) Spend group id\n"
-                "      \"serial\": \"s\",                (string) Serial number of the coin\n"
-                "      \"abandoned\": xxx,             (bool) True if the transaction was already abandoned\n"
+                "      {\n"
+                "        \"denomination\": d,            (string) Denomination\n"
+                "        \"spendid\": id,                (numeric) Spend group id\n"
+                "        \"serial\": \"s\",              (string) Serial number of the coin\n"
+                "      }\n"
                 "    ]\n"
-                "    \"confirmations\": n,           (numeric) The number of confirmations for the transaction\n"
+                "    \"re-mints\": \n" 
+                "    [\n"
+                "      {\n"
+                "        \"denomination\": \"s\",        (string) Denomination\n"
+                "        \"value\": \"s\",               (string) value\n"
+                "      }\n"
+                "    ]\n"
                 "  }\n"
                 "]\n");
 
@@ -3711,23 +3721,47 @@ UniValue listsigmaspends(const UniValue &params, bool fHelp) {
         entry.push_back(Pair("confirmations", confirmations));
         entry.push_back(Pair("abandoned", pwtx->isAbandoned()));
 
-        const CTxIn &txin = pwtx->vin[0];
-        // For sigma public coin group id is prevout.n.
-        int pubcoinId = txin.prevout.n;
+        UniValue spends(UniValue::VARR);
+        BOOST_FOREACH(const CTxIn &txin, pwtx->vin) {
+            // For sigma public coin group id is prevout.n.
+            int pubcoinId = txin.prevout.n;
 
-        // NOTE(martun): +1 on the next line stands for 1 byte in which the opcode of
-        // OP_SIGMASPEND is written. In zerocoin you will see +4 instead,
-        // because the size of serialized spend is also written, probably in 3 bytes.
-        CDataStream serializedCoinSpend((const char *)&*(txin.scriptSig.begin() + 1),
-                                        (const char *)&*txin.scriptSig.end(),
-                                        SER_NETWORK, PROTOCOL_VERSION);
-        sigma::Params* zcParams = sigma::Params::get_default();
-        sigma::CoinSpend spend(zcParams, serializedCoinSpend);
+            // NOTE(martun): +1 on the next line stands for 1 byte in which the opcode of
+            // OP_SIGMASPEND is written. In zerocoin you will see +4 instead,
+            // because the size of serialized spend is also written, probably in 3 bytes.
+            CDataStream serializedCoinSpend((const char *)&*(txin.scriptSig.begin() + 1),
+                                            (const char *)&*txin.scriptSig.end(),
+                                            SER_NETWORK, PROTOCOL_VERSION);
+            sigma::Params* zcParams = sigma::Params::get_default();
+            sigma::CoinSpend spend(zcParams, serializedCoinSpend);
  
-        entry.push_back(Pair("denomination", sigma::DenominationToString(spend.getDenomination())));
-        entry.push_back(Pair("spendid", pubcoinId));
-        entry.push_back(Pair("serial", spend.getCoinSerialNumber().GetHex()));
+            UniValue spendEntry(UniValue::VOBJ);
+            spendEntry.push_back(Pair("denomination",
+                                 sigma::DenominationToString(spend.getDenomination())));
+            spendEntry.push_back(Pair("spendid", pubcoinId));
+            spendEntry.push_back(Pair("serial", spend.getCoinSerialNumber().GetHex()));
+            spends.push_back(spendEntry);
+        }
 
+        entry.push_back(Pair("spends", spends));
+
+        UniValue remints(UniValue::VARR);
+        BOOST_FOREACH(const CTxOut &txout, pwtx->vout) {
+            if (txout.scriptPubKey.empty() || !txout.scriptPubKey.IsSigmaMint()) {
+                continue;
+            }
+            sigma::CoinDenomination denomination;
+            IntegerToDenomination(txout.nValue, denomination);
+            
+            UniValue remintEntry(UniValue::VOBJ);
+            remintEntry.push_back(Pair(
+                "denomination", sigma::DenominationToString(denomination)));
+            remintEntry.push_back(Pair(
+                "value", sigma::ParseSigmaMintScript(txout.scriptPubKey).tostring()));
+            remints.push_back(remintEntry);
+        }
+
+        entry.push_back(Pair("remints", remints));
         ret.push_back(entry);
 
         if (count > 0 && (int)ret.size() >= count)
