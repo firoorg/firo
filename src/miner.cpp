@@ -417,7 +417,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
                 LogPrintf("try to include zerocoinspend tx=%s\n", tx.GetHash().ToString());
 
                 if (tx.IsSigmaSpend()) {
-                    auto spendAmount = GetSpendAmount(tx);
+                    auto spendAmount = sigma::GetSpendAmount(tx);
                     if (tx.vin.size() > params.nMaxSigmaInputPerTransaction ||
                        spendAmount > params.nMaxValueSigmaSpendPerTransaction) {
                         continue;
