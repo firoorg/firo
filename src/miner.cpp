@@ -413,14 +413,14 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
                 continue;
             }
 
-            if (tx.IsZerocoinSpend() || tx.IsZerocoinSpendV3()) {
+            if (tx.IsZerocoinSpend() || tx.IsSigmaSpend()) {
                 LogPrintf("try to include zerocoinspend tx=%s\n", tx.GetHash().ToString());
 
-                if (tx.IsZerocoinSpendV3()) {
+                if (tx.IsSigmaSpend()) {
                     if (tx.vin.size() + nSigmaSpend > params.nMaxSigmaInputPerBlock) {
                         continue;
                     }
-                    if (GetSpendAmount(tx) + nValueSigmaSpend > params.nMaxValueSigmaSpendPerBlock) {
+                    if (sigma::GetSpendAmount(tx) + nValueSigmaSpend > params.nMaxValueSigmaSpendPerBlock) {
                         continue;
                     }
                 } else {
@@ -457,7 +457,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
                 }
 
                 CAmount nTxFees(0);
-                if (tx.IsZerocoinSpendV3()) {
+                if (tx.IsSigmaSpend()) {
                     nTxFees = iter->GetFee();
                 }
 
@@ -469,9 +469,9 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
                 nBlockSigOpsCost += nTxSigOps;
                 nFees += nTxFees;
                 COUNT_SPEND_ZC_TX += tx.vin.size();
-                if (tx.IsZerocoinSpendV3()) {
+                if (tx.IsSigmaSpend()) {
                     nSigmaSpend += tx.vin.size();
-                    nValueSigmaSpend += GetSpendAmount(tx);
+                    nValueSigmaSpend += sigma::GetSpendAmount(tx);
                 }
                 inBlock.insert(iter);
                 continue;
@@ -953,7 +953,7 @@ void BlockAssembler::addPriorityTxs()
         //add zcoin validation
         if (tx.IsCoinBase() || !CheckFinalTx(tx))
             continue;
-        if (tx.IsZerocoinSpend() || tx.IsZerocoinSpendV3()) {
+        if (tx.IsZerocoinSpend() || tx.IsSigmaSpend()) {
             //mempool.countZCSpend--;
             // Size limits
             unsigned int nTxSize = ::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION);
@@ -974,7 +974,7 @@ void BlockAssembler::addPriorityTxs()
                 continue;
 
             CAmount nTxFees(0);
-            if (tx.IsZerocoinSpendV3())
+            if (tx.IsSigmaSpend())
                 nTxFees = mi->GetFee();
 
             pblock->vtx.push_back(tx);

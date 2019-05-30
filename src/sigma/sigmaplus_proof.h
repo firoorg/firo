@@ -9,7 +9,7 @@ namespace sigma {
 template<class Exponent, class GroupElement>
 class SigmaPlusProof {
 public:
-    SigmaPlusProof(const ParamsV3* p): params(p) {};
+    SigmaPlusProof(const Params* p): params(p) {};
 
     inline int memoryRequired() const {
         return B_.memoryRequired()
@@ -45,7 +45,7 @@ public:
     }
 
 public:
-    const ParamsV3* params;
+    const Params* params;
     GroupElement B_;
     R1Proof<Exponent, GroupElement> r1Proof_;
     std::vector<GroupElement> Gk_;
