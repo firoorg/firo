@@ -11,8 +11,7 @@
 
 namespace sigma {
 
-
-enum class CoinDenominationV3 : std::uint8_t {
+enum class CoinDenomination : std::uint8_t {
     SIGMA_DENOM_0_1 = 0,
     SIGMA_DENOM_0_5 = 1,
     SIGMA_DENOM_1 = 2,
@@ -21,30 +20,30 @@ enum class CoinDenominationV3 : std::uint8_t {
 };
 
 // for LogPrintf.
-std::ostream& operator<<(std::ostream& stream, CoinDenominationV3 denomination);
+std::ostream& operator<<(std::ostream& stream, CoinDenomination denomination);
 
 // Functions to convert denominations to/from an integer value.
-bool DenominationToInteger(CoinDenominationV3 denom, int64_t& denom_out, CValidationState &state);
-bool IntegerToDenomination(int64_t value, CoinDenominationV3& denom_out, CValidationState &state);
-bool DenominationToInteger(CoinDenominationV3 denom, int64_t& denom_out);
-bool IntegerToDenomination(int64_t value, CoinDenominationV3& denom_out);
-bool StringToDenomination(const std::string& str, CoinDenominationV3& denom_out);
-bool RealNumberToDenomination(const double& value, CoinDenominationV3& denom_out);
+bool DenominationToInteger(CoinDenomination denom, int64_t& denom_out, CValidationState &state);
+bool IntegerToDenomination(int64_t value, CoinDenomination& denom_out, CValidationState &state);
+bool DenominationToInteger(CoinDenomination denom, int64_t& denom_out);
+bool IntegerToDenomination(int64_t value, CoinDenomination& denom_out);
+bool StringToDenomination(const std::string& str, CoinDenomination& denom_out);
+bool RealNumberToDenomination(const double& value, CoinDenomination& denom_out);
 
 /// \brief Returns a list of all possible denominations in descending order of value.
-void GetAllDenoms(std::vector<sigma::CoinDenominationV3>& denominations_out);
+void GetAllDenoms(std::vector<sigma::CoinDenomination>& denominations_out);
 
-class PublicCoinV3 {
+class PublicCoin {
 public:
-    PublicCoinV3();
+    PublicCoin();
 
-    PublicCoinV3(const GroupElement& coin, const CoinDenominationV3 d);
+    PublicCoin(const GroupElement& coin, const CoinDenomination d);
 
     const GroupElement& getValue() const;
-    CoinDenominationV3 getDenomination() const;
+    CoinDenomination getDenomination() const;
 
-    bool operator==(const PublicCoinV3& other) const;
-    bool operator!=(const PublicCoinV3& other) const;
+    bool operator==(const PublicCoin& other) const;
+    bool operator!=(const PublicCoin& other) const;
     bool validate() const;
     size_t GetSerializeSize(int nType, int nVersion) const;
 
@@ -70,26 +69,26 @@ public:
 
 // private: TODO(martun): change back to private
     GroupElement value;
-    CoinDenominationV3 denomination;
+    CoinDenomination denomination;
 };
 
-class PrivateCoinV3 {
+class PrivateCoin {
 public:
     template<typename Stream>
-    PrivateCoinV3(const ParamsV3* p, Stream& strm): params(p), publicCoin() {
+    PrivateCoin(const Params* p, Stream& strm): params(p), publicCoin() {
         strm >> *this;
     }
 
-    PrivateCoinV3(const ParamsV3* p,
-        CoinDenominationV3 denomination,
+    PrivateCoin(const Params* p,
+        CoinDenomination denomination,
         int version = ZEROCOIN_TX_VERSION_3);
 
-    const ParamsV3 * getParams() const;
-    const PublicCoinV3& getPublicCoin() const;
+    const Params * getParams() const;
+    const PublicCoin& getPublicCoin() const;
     const Scalar& getSerialNumber() const;
     const Scalar& getRandomness() const;
     unsigned int getVersion() const;
-    void setPublicCoin(const PublicCoinV3& p);
+    void setPublicCoin(const PublicCoin& p);
     void setRandomness(const Scalar& n);
     void setSerialNumber(const Scalar& n);
     void setVersion(unsigned int nVersion);
@@ -102,47 +101,47 @@ public:
         secp256k1_pubkey *pubkey);
 
 private:
-    const ParamsV3* params;
-    PublicCoinV3 publicCoin;
+    const Params* params;
+    PublicCoin publicCoin;
     Scalar randomness;
     Scalar serialNumber;
     unsigned int version = 0;
     unsigned char ecdsaSeckey[32];
 
-    void mintCoin(const CoinDenominationV3 denomination);
+    void mintCoin(const CoinDenomination denomination);
 
 };
 
 
-// Serialization support for CoinDenominationV3
+// Serialization support for CoinDenomination
 
-inline unsigned int GetSerializeSize(CoinDenominationV3 d, int nType, int nVersion)
+inline unsigned int GetSerializeSize(CoinDenomination d, int nType, int nVersion)
 {
     return sizeof(d);
 }
 
 template<typename Stream>
-void Serialize(Stream& os, CoinDenominationV3 d, int nType, int nVersion)
+void Serialize(Stream& os, CoinDenomination d, int nType, int nVersion)
 {
     Serialize(os, static_cast<std::uint8_t>(d), nType, nVersion);
 }
 
 template<typename Stream>
-void Unserialize(Stream& is, CoinDenominationV3& d, int nType, int nVersion)
+void Unserialize(Stream& is, CoinDenomination& d, int nType, int nVersion)
 {
     std::uint8_t v;
     Unserialize(is, v, nType, nVersion);
-    d = static_cast<CoinDenominationV3>(v);
+    d = static_cast<CoinDenomination>(v);
 }
 
 }// namespace sigma
 
 namespace std {
 
-string to_string(::sigma::CoinDenominationV3 denom);
+string to_string(::sigma::CoinDenomination denom);
 
-template<> struct hash<sigma::CoinDenominationV3> {
-    std::size_t operator()(const sigma::CoinDenominationV3 &f) const {
+template<> struct hash<sigma::CoinDenomination> {
+    std::size_t operator()(const sigma::CoinDenomination &f) const {
         return std::hash<int>{}(static_cast<int>(f));
     }
 };

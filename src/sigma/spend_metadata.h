@@ -10,7 +10,7 @@ namespace sigma {
 /** Any meta data needed for actual bitcoin integration.
  * Can extended provided the getHash() function is updated
  */
-class SpendMetaDataV3 {
+class SpendMetaData {
 public:
 	/**
 	 * Creates meta data associated with a coin spend
@@ -18,7 +18,7 @@ public:
 	 * @param blockHash hash of the block against which the spend is made.
 	 * @param txHash hash of transaction.
 	 */
-    SpendMetaDataV3(
+    SpendMetaData(
         const arith_uint256& accumulatorId,
         const uint256& blockHash,
         const uint256& txHash);

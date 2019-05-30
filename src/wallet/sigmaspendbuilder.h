@@ -8,9 +8,9 @@
 class SigmaSpendBuilder : public TxBuilder
 {
 public:
-    std::vector<CZerocoinEntryV3> selected;
-    std::vector<CZerocoinEntryV3> changes;
-    std::vector<sigma::CoinDenominationV3> denomChanges;
+    std::vector<CSigmaEntry> selected;
+    std::vector<CSigmaEntry> changes;
+    std::vector<sigma::CoinDenomination> denomChanges;
 
 public:
     SigmaSpendBuilder(CWallet& wallet);

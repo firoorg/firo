@@ -39,8 +39,8 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_numinputs)
     int denominationIndexA = 0; // 0.1
     int denominationIndexB = 1; // 0.5
 
-    CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
-    auto& consensus = Params().GetConsensus();
+    sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
+    auto& consensus = ::Params().GetConsensus();
 
     // Create 200 new empty blocks to get some funds. nMaxSigmaInputPerBlock == 50, so
     CreateAndProcessEmptyBlocks(200, scriptPubKey);
@@ -99,7 +99,7 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_numinputs)
 
     vtxid.clear();
     mempool.clear();
-    zerocoinState->Reset();
+    sigmaState->Reset();
 }
 
 BOOST_AUTO_TEST_CASE(spend_value_limit)
@@ -115,7 +115,7 @@ BOOST_AUTO_TEST_CASE(spend_value_limit)
     std::string stringError;
     auto& consensus = Params().GetConsensus();
 
-    auto testDenomination = sigma::CoinDenominationV3::SIGMA_DENOM_100;
+    auto testDenomination = sigma::CoinDenomination::SIGMA_DENOM_100;
     std::string testDenominationStr = std::to_string(testDenomination);
     CAmount testDenominationAmount;
     sigma::DenominationToInteger(testDenomination, testDenominationAmount);
@@ -147,7 +147,7 @@ BOOST_AUTO_TEST_CASE(spend_value_limit)
 
     // This should fail because we need to use spends more than limit.
     BOOST_CHECK_EXCEPTION(
-        pwalletMain->SpendZerocoinV3(recipients, tx),
+        pwalletMain->SpendSigma(recipients, tx),
         std::invalid_argument,
         [](const std::invalid_argument& e){return e.what() == std::string("Required amount exceed value spend limit");});
 
@@ -158,7 +158,7 @@ BOOST_AUTO_TEST_CASE(spend_value_limit)
     };
     // This should fail because we need to use spends more than limit.
     BOOST_CHECK_EXCEPTION(
-        pwalletMain->SpendZerocoinV3(recipients, tx),
+        pwalletMain->SpendSigma(recipients, tx),
         std::invalid_argument,
         [](const std::invalid_argument& e){return e.what() == std::string("Required amount exceed value spend limit");});
 
@@ -170,14 +170,14 @@ BOOST_AUTO_TEST_CASE(spend_value_limit)
         {GetScriptForDestination(randomAddr2.Get()), testDenominationAmount * 1, false},
     };
 
-    BOOST_CHECK_NO_THROW(pwalletMain->SpendZerocoinV3(recipients, tx));
+    BOOST_CHECK_NO_THROW(pwalletMain->SpendSigma(recipients, tx));
     BOOST_CHECK_EQUAL(mempool.size(), 1);
 
     recipients = {
         {GetScriptForDestination(randomAddr1.Get()), testDenominationAmount * 3, false},
     };
 
-    BOOST_CHECK_NO_THROW(pwalletMain->SpendZerocoinV3(recipients, tx));
+    BOOST_CHECK_NO_THROW(pwalletMain->SpendSigma(recipients, tx));
     BOOST_CHECK_EQUAL(mempool.size(), 2);
 
     CreateAndProcessBlock({}, scriptPubKey);
@@ -187,4 +187,5 @@ BOOST_AUTO_TEST_CASE(spend_value_limit)
 }
 
 BOOST_AUTO_TEST_SUITE_END()
+
 
