@@ -40,7 +40,8 @@ BOOST_FIXTURE_TEST_SUITE(zerocoin_tests2_v3, ZerocoinTestingSetup200)
 
 BOOST_AUTO_TEST_CASE(zerocoin_mintspend2_v3)
 {
-    CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
+    sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
+
     vector<uint256> vtxid;
     //200 blocks already mined, create another 200.
 
@@ -164,7 +165,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend2_v3)
 
     vtxid.clear();
     mempool.clear();
-    zerocoinState->Reset();
+    sigmaState->Reset();
 }
 
 BOOST_AUTO_TEST_SUITE_END()
