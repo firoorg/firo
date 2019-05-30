@@ -255,6 +255,10 @@ class CMainParams : public CChainParams {
         consensus.nZerocoinV2MintGracefulPeriod = ZC_V2_MINT_GRACEFUL_PERIOD;
         consensus.nZerocoinV2SpendMempoolGracefulPeriod = ZC_V2_SPEND_GRACEFUL_MEMPOOL_PERIOD;
         consensus.nZerocoinV2SpendGracefulPeriod = ZC_V2_SPEND_GRACEFUL_PERIOD;
+        consensus.nMaxSigmaInputPerBlock = ZC_SIGMA_INPUT_LIMIT_PER_BLOCK;
+        consensus.nMaxValueSigmaSpendPerBlock = ZC_SIGMA_VALUE_SPEND_LIMIT_PER_BLOCK;
+        consensus.nMaxSigmaInputPerTransaction = ZC_SIGMA_INPUT_LIMIT_PER_TRANSACTION;
+        consensus.nMaxValueSigmaSpendPerTransaction = ZC_SIGMA_VALUE_SPEND_LIMIT_PER_TRANSACTION;
 
         // Dandelion related values.
         consensus.nDandelionEmbargoMinimum = DANDELION_EMBARGO_MINIMUM;
@@ -262,8 +266,6 @@ class CMainParams : public CChainParams {
         consensus.nDandelionMaxDestinations = DANDELION_MAX_DESTINATIONS;
         consensus.nDandelionShuffleInterval = DANDELION_SHUFFLE_INTERVAL;
         consensus.nDandelionFluff = DANDELION_FLUFF;
-        consensus.nMaxSigmaInputPerBlock = ZC_SIGMA_INPUT_LIMIT;
-        consensus.nMaxValueSigmaSpendPerBlock = ZC_SIGMA_VALUE_SPEND_LIMIT;
     }
 };
 
@@ -437,6 +439,10 @@ class CTestNetParams : public CChainParams {
             consensus.nZerocoinV2MintGracefulPeriod = ZC_V2_MINT_TESTNET_GRACEFUL_PERIOD;
             consensus.nZerocoinV2SpendMempoolGracefulPeriod = ZC_V2_SPEND_TESTNET_GRACEFUL_MEMPOOL_PERIOD;
             consensus.nZerocoinV2SpendGracefulPeriod = ZC_V2_SPEND_TESTNET_GRACEFUL_PERIOD;
+            consensus.nMaxSigmaInputPerBlock = ZC_SIGMA_INPUT_LIMIT_PER_BLOCK;
+            consensus.nMaxValueSigmaSpendPerBlock = ZC_SIGMA_VALUE_SPEND_LIMIT_PER_BLOCK;
+            consensus.nMaxSigmaInputPerTransaction = ZC_SIGMA_INPUT_LIMIT_PER_TRANSACTION;
+            consensus.nMaxValueSigmaSpendPerTransaction = ZC_SIGMA_VALUE_SPEND_LIMIT_PER_TRANSACTION;
 
             // Dandelion related values.
             consensus.nDandelionEmbargoMinimum = DANDELION_TESTNET_EMBARGO_MINIMUM;
@@ -444,8 +450,6 @@ class CTestNetParams : public CChainParams {
             consensus.nDandelionMaxDestinations = DANDELION_MAX_DESTINATIONS;
             consensus.nDandelionShuffleInterval = DANDELION_SHUFFLE_INTERVAL;
             consensus.nDandelionFluff = DANDELION_FLUFF;
-            consensus.nMaxSigmaInputPerBlock = ZC_SIGMA_INPUT_LIMIT;
-            consensus.nMaxValueSigmaSpendPerBlock = ZC_SIGMA_VALUE_SPEND_LIMIT;
         }
 };
 
@@ -585,6 +589,10 @@ class CRegTestParams : public CChainParams {
             consensus.nZerocoinV2MintGracefulPeriod = 5;
             consensus.nZerocoinV2SpendMempoolGracefulPeriod = 10;
             consensus.nZerocoinV2SpendGracefulPeriod = 20;
+            consensus.nMaxSigmaInputPerBlock = ZC_SIGMA_INPUT_LIMIT_PER_BLOCK;
+            consensus.nMaxValueSigmaSpendPerBlock = ZC_SIGMA_VALUE_SPEND_LIMIT_PER_BLOCK;
+            consensus.nMaxSigmaInputPerTransaction = ZC_SIGMA_INPUT_LIMIT_PER_TRANSACTION;
+            consensus.nMaxValueSigmaSpendPerTransaction = ZC_SIGMA_VALUE_SPEND_LIMIT_PER_TRANSACTION;
 
             // Dandelion related values.
             consensus.nDandelionEmbargoMinimum = 0;
@@ -592,8 +600,6 @@ class CRegTestParams : public CChainParams {
             consensus.nDandelionMaxDestinations = DANDELION_MAX_DESTINATIONS;
             consensus.nDandelionShuffleInterval = DANDELION_SHUFFLE_INTERVAL;
             consensus.nDandelionFluff = DANDELION_FLUFF;
-            consensus.nMaxSigmaInputPerBlock = ZC_SIGMA_INPUT_LIMIT;
-            consensus.nMaxValueSigmaSpendPerBlock = ZC_SIGMA_VALUE_SPEND_LIMIT;
         }
 
         void UpdateBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout) {

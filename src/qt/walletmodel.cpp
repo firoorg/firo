@@ -18,6 +18,7 @@
 #include "ui_interface.h"
 #include "wallet/wallet.h"
 #include "wallet/walletdb.h" // for BackupWallet
+#include "wallet/walletexcept.h"
 #include "txmempool.h"
 #include "consensus/validation.h"
 #include "zerocoin_v3.h"
@@ -869,10 +870,10 @@ WalletModel::SendCoinsReturn WalletModel::prepareSigmaSpendTransaction(
     CWalletTx *newTx = transaction.getTransaction();
     try {
         *newTx = wallet->CreateSigmaSpendTransaction(sendRecipients, fee, selectedCoins, changes);
-    } catch (const std::runtime_error& err) {
-        Q_EMIT message(tr("Send Coins"), QString::fromStdString(err.what()),
-                         CClientUIInterface::MSG_ERROR);
-        return TransactionCreationFailed;
+    } catch (const InsufficientFunds& err) {
+        return AmountExceedsBalance;
+    } catch (const std::invalid_argument& err) {
+        return ExceedLimit;
     }
 
     transaction.setTransactionFee(fee);

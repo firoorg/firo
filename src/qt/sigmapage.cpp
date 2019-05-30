@@ -382,6 +382,10 @@ void SigmaPage::processSpendCoinsReturn(const WalletModel::SendCoinsReturn &send
         msgParams.first = tr("Payment request expired.");
         msgParams.second = CClientUIInterface::MSG_ERROR;
         break;
+    case WalletModel::ExceedLimit:
+        msgParams.first = tr("Transaction exceeds max number of spends (35) or value (500 XZC per transaction), please reduce the amount you wish to spend.");
+        msgParams.second = CClientUIInterface::MSG_ERROR;
+        break;
     // included to prevent a compiler warning.
     case WalletModel::OK:
     default:
