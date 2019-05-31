@@ -560,7 +560,7 @@ bool ConnectBlockSigma(
             pindexNew->sigmaMintedPubCoins[denomAndId].push_back(mint);
         }
     }
-    else if (!fJustCheck) { // TODO(martun): not sure if this else is necessary here. Check again later.
+    if (!fJustCheck) {
         sigmaState.AddBlock(pindexNew);
     }
     return true;
