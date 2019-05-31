@@ -69,6 +69,11 @@ bool ConnectBlockZCV3(
   const CBlock *pblock,
   bool fJustCheck=false);
 
+/*
+ * Get COutPoint(txHash, index) from the chain using pubcoin value alone.
+ */
+bool ZerocoinGetOutPointV3(COutPoint& outPoint, GroupElement pubCoinValue);
+
 bool ZerocoinBuildStateFromIndexV3(CChain *chain);
 
 Scalar ZerocoinGetSpendSerialNumberV3(const CTransaction &tx, const CTxIn &txin);

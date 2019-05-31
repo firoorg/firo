@@ -725,8 +725,13 @@ void WalletModel::listCoins(std::map<QString, std::vector<COutput> >& mapCoins) 
         }
 
         CTxDestination address;
-        if(!out.fSpendable || !ExtractDestination(cout.tx->vout[cout.i].scriptPubKey, address))
+        if(cout.tx->IsZerocoinMintV3()){
+            mapCoins[QString::fromStdString("ZEROCOIN_MINT")].push_back(out);
             continue;
+        }
+        else if(!out.fSpendable || !ExtractDestination(cout.tx->vout[cout.i].scriptPubKey, address))
+            continue;
+
         mapCoins[QString::fromStdString(CBitcoinAddress(address).ToString())].push_back(out);
     }
 }

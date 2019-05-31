@@ -555,6 +555,57 @@ bool ConnectBlockZCV3(
     return true;
 }
 
+bool ZerocoinGetOutPointV3(COutPoint& outPoint, GroupElement pubCoinValue) {
+    int mintHeight = 0;
+    int coinId = 0;
+
+    CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
+    std::vector<sigma::CoinDenominationV3> denominations;
+    GetAllDenoms(denominations);
+    BOOST_FOREACH(sigma::CoinDenominationV3 denomination, denominations){
+        sigma::PublicCoinV3 pubCoin(pubCoinValue, denomination);
+        auto mintedCoinHeightAndId = zerocoinState->GetMintedCoinHeightAndId(pubCoin);
+        mintHeight = mintedCoinHeightAndId.first;
+        coinId = mintedCoinHeightAndId.second;
+        if(mintHeight!=-1 && coinId!=-1)
+            break;
+    }
+
+    if(mintHeight==-1 && coinId==-1)
+        return false;
+
+    // get block containing mint
+    CBlockIndex *mintBlock = chainActive[mintHeight];
+    CBlock block;
+    if(!ReadBlockFromDisk(block, mintBlock, Params().GetConsensus()))
+        LogPrintf("can't read block from disk.\n");
+
+    secp_primitives::GroupElement txPubCoinValue;
+    // cycle transaction hashes, looking for this pubcoin.
+    BOOST_FOREACH(CTransaction tx, block.vtx){
+        if(tx.IsZerocoinMintV3()){
+            uint32_t nIndex = 0;
+            for (const CTxOut &txout: tx.vout) {
+                if (txout.scriptPubKey.IsZerocoinMintV3()){
+
+                    // If you wonder why +1, go to file wallet.cpp and read the comments in function
+                    // CWallet::CreateZerocoinMintModelV3 around "scriptSerializedCoin << OP_ZEROCOINMINTV3";
+                    vector<unsigned char> coin_serialised(txout.scriptPubKey.begin() + 1,
+                                                          txout.scriptPubKey.end());
+                    txPubCoinValue.deserialize(&coin_serialised[0]);
+                    if(pubCoinValue==txPubCoinValue){
+                        outPoint = COutPoint(tx.GetHash(), nIndex);
+                        return true;
+                    }
+                }
+                nIndex++;
+            }
+        }
+    }
+
+    return false;
+}
+
 
 bool ZerocoinBuildStateFromIndexV3(CChain *chain) {
     zerocoinStateV3.Reset();

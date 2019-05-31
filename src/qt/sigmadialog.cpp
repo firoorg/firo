@@ -190,6 +190,10 @@ void SigmaDialog::on_sendButton_clicked()
 
     QList<SendCoinsRecipient> recipients;
     bool valid = true;
+    bool useCoinControl = walletModel->getOptionsModel()->getCoinControlFeatures();
+
+    if (useCoinControl)
+        g_coincontrol = *CoinControlDialog::coinControl;
 
     for (int i = 0; i < ui->entries->count(); ++i) {
         SendCoinsEntry *entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
@@ -307,6 +311,11 @@ void SigmaDialog::on_sendButton_clicked()
 
     if (sendStatus.status == WalletModel::OK) {
         accept();
+    }
+
+    // reset coin control
+    if(useCoinControl){
+        g_coincontrol.SetNull();
     }
 
     isNewRecipientAllowed = true;

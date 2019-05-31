@@ -2194,6 +2194,7 @@ std::list<CZerocoinEntryV3> CWallet::GetAvailableCoins() const {
     // Filter out coins which are not confirmed, I.E. do not have at least 6 blocks
     // above them, after they were minted.
     // Also filter out used coins.
+    // Finally filter out coins that have not been selected from CoinControl should that be used
     coins.remove_if([](const CZerocoinEntryV3& coin) {
         CZerocoinStateV3* zerocoinState = CZerocoinStateV3::GetZerocoinState();
         if (coin.IsUsed)
@@ -2228,6 +2229,14 @@ std::list<CZerocoinEntryV3> CWallet::GetAvailableCoins() const {
             // Remove the coin from the candidates list, since it does not have the
             // required number of confirmations.
             return true;
+        }
+
+        if(g_coincontrol.HasSelected()){
+            COutPoint outPoint;
+            ZerocoinGetOutPointV3(outPoint, coin.value);
+            if(!g_coincontrol.IsSelected(outPoint)){
+                return true;
+            }
         }
 
         return false;
@@ -2607,10 +2616,6 @@ void CWallet::AvailableCoins(vector <COutput> &vCoins, bool fOnlyConfirmed, cons
                 continue;
 
             for (unsigned int i = 0; i < pcoin->vout.size(); i++) {
-                if (pcoin->vout[i].scriptPubKey.IsZerocoinMint() || pcoin->vout[i].scriptPubKey.IsZerocoinMintV3()) {
-                    continue;
-                }
-
                 bool found = false;
                 if (nCoinType == ONLY_DENOMINATED) {
                     found = IsDenominatedAmount(pcoin->vout[i].nValue);
