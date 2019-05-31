@@ -312,7 +312,7 @@ def start_node(i, dirname, extra_args=None, rpchost=None, timewait=None, binary=
     if binary is None:
         binary = os.getenv("ZCOIND", "zcoind")
         print(binary)
-    args = [ binary, "-datadir="+datadir, "-server", "-keypool=1", "-discover=0", "-rest", "-reindex", "-dandelion=0", "-mocktime="+str(get_mocktime()) ]
+    args = [ binary, "-datadir="+datadir, "-server", "-keypool=1", "-discover=0", "-rest", "-dandelion=0", "-mocktime="+str(get_mocktime()) ]
     if extra_args is not None: args.extend(extra_args)
     print("Starting a process with: " + " ".join(args))
     bitcoind_processes[i] = subprocess.Popen(args)
@@ -626,6 +626,12 @@ def gen_return_txouts():
 def create_tx(node, coinbase, to_address, amount):
     inputs = [{ "txid" : coinbase, "vout" : 0}]
     outputs = { to_address : amount }
+    rawtx = node.createrawtransaction(inputs, outputs)
+    signresult = node.signrawtransaction(rawtx)
+    assert_equal(signresult["complete"], True)
+    return signresult["hex"]
+
+def create_tx_multi_input(node, inputs, outputs):
     rawtx = node.createrawtransaction(inputs, outputs)
     signresult = node.signrawtransaction(rawtx)
     assert_equal(signresult["complete"], True)

@@ -2,7 +2,7 @@
 
 namespace sigma {
 
-SpendMetaDataV3::SpendMetaDataV3(
+SpendMetaData::SpendMetaData(
         const arith_uint256& accumulatorId,
         const uint256& blockHash,
         const uint256& txHash)

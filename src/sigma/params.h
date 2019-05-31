@@ -8,9 +8,9 @@ using namespace secp_primitives;
 
 namespace sigma {
 
-class ParamsV3{
+class Params {
 public:
-    static ParamsV3* get_default();
+    static Params* get_default();
     const GroupElement& get_g() const;
     const GroupElement& get_h0() const;
     const std::vector<GroupElement>& get_h() const;
@@ -18,11 +18,11 @@ public:
     uint64_t get_m() const;
 
 private:
-   ParamsV3(const GroupElement& g, int n, int m);
-    ~ParamsV3();
+   Params(const GroupElement& g, int n, int m);
+    ~Params();
 
 private:
-    static ParamsV3* instance;
+    static Params* instance;
     GroupElement g_;
     std::vector<GroupElement> h_;
     int m_;
