@@ -565,7 +565,7 @@ public:
 
         opcodeRet = (opcodetype)opcode;
 
-        if (opcodeRet == opcodetype::OP_ZEROCOINSPENDV3 || opcodeRet == opcodetype::OP_ZEROCOINMINTV3) {
+        if (opcodeRet == opcodetype::OP_SIGMASPEND|| opcodeRet == opcodetype::OP_SIGMAMINT) {
             if (pvchRet) {
                 pvchRet->assign(pc, end());
             }
