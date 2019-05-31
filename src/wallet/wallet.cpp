@@ -2097,7 +2097,7 @@ std::vector<CRecipient> CWallet::CreateSigmaMintRecipients(
             auto& pubCoin = coin.getPublicCoin();
 
             if (!pubCoin.validate()) {
-                throw std::runtime_error("Unable to mint a V3 sigma coin.");
+                throw std::runtime_error("Unable to mint a sigma coin.");
             }
 
             // Create script for coin
@@ -2772,7 +2772,7 @@ void CWallet::ListAvailableCoinsMintCoins(vector <COutput> &vCoins, bool fOnlyCo
     vCoins.clear();
     {
         LOCK(cs_wallet);
-        list <CZerocoinEntry> listOwnCoins = list<CZerocoinEntry>();
+        list <CZerocoinEntry> listOwnCoins;
         CWalletDB walletdb(pwalletMain->strWalletFile);
         walletdb.ListPubCoin(listOwnCoins);
         LogPrintf("listOwnCoins.size()=%s\n", listOwnCoins.size());
@@ -2804,12 +2804,7 @@ void CWallet::ListAvailableCoinsMintCoins(vector <COutput> &vCoins, bool fOnlyCo
             for (unsigned int i = 0; i < pcoin->vout.size(); i++) {
                 if (pcoin->vout[i].scriptPubKey.IsZerocoinMint()) {
                     CTxOut txout = pcoin->vout[i];
-                    vector<unsigned char> vchZeroMint;
-                    vchZeroMint.insert(vchZeroMint.end(), txout.scriptPubKey.begin() + 6,
-                                       txout.scriptPubKey.begin() + txout.scriptPubKey.size());
-
-                    CBigNum pubCoin;
-                    pubCoin.setvch(vchZeroMint);
+                    CBigNum pubCoin = ParseZerocoinMintScript(txout.scriptPubKey);
                     LogPrintf("Pubcoin=%s\n", pubCoin.ToString());
                     // CHECKING PROCESS
                     BOOST_FOREACH(const CZerocoinEntry &ownCoinItem, listOwnCoins) {
@@ -2825,6 +2820,57 @@ void CWallet::ListAvailableCoinsMintCoins(vector <COutput> &vCoins, bool fOnlyCo
                         }
                     }
 
+                }
+            }
+        }
+    }
+}
+
+void CWallet::ListAvailableSigmaMintCoins(vector<COutput> &vCoins, bool fOnlyConfirmed) const {
+    vCoins.clear();
+    LOCK(cs_wallet);
+    list<CSigmaEntry> listOwnCoins;
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+    walletdb.ListSigmaPubCoin(listOwnCoins);
+    LogPrintf("listOwnCoins.size()=%s\n", listOwnCoins.size());
+    for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it) {
+        const CWalletTx *pcoin = &(*it).second;
+//        LogPrintf("pcoin=%s\n", pcoin->GetHash().ToString());
+        if (!CheckFinalTx(*pcoin)) {
+            LogPrintf("!CheckFinalTx(*pcoin)=%s\n", !CheckFinalTx(*pcoin));
+            continue;
+        }
+
+        if (fOnlyConfirmed && !pcoin->IsTrusted()) {
+            LogPrintf("fOnlyConfirmed = %s, !pcoin->IsTrusted()\n", fOnlyConfirmed, !pcoin->IsTrusted());
+            continue;
+        }
+
+        if (pcoin->IsCoinBase() && pcoin->GetBlocksToMaturity() > 0) {
+            LogPrintf("Not trusted\n");
+            continue;
+        }
+
+        int nDepth = pcoin->GetDepthInMainChain();
+        if (nDepth < 0) {
+            LogPrintf("nDepth=%s\n", nDepth);
+            continue;
+        }
+        LogPrintf("pcoin->vout.size()=%s\n", pcoin->vout.size());
+
+        for (unsigned int i = 0; i < pcoin->vout.size(); i++) {
+            if (pcoin->vout[i].scriptPubKey.IsSigmaMint()) {
+                CTxOut txout = pcoin->vout[i];
+                secp_primitives::GroupElement pubCoin = sigma::ParseSigmaMintScript(
+                    txout.scriptPubKey);
+                LogPrintf("Pubcoin=%s\n", pubCoin.tostring());
+                // CHECKING PROCESS
+                BOOST_FOREACH(const CSigmaEntry &ownCoinItem, listOwnCoins) {
+                   if (ownCoinItem.value == pubCoin && ownCoinItem.IsUsed == false &&
+                        ownCoinItem.randomness != uint64_t(0) && ownCoinItem.serialNumber != uint64_t(0)) {
+                        vCoins.push_back(COutput(pcoin, i, nDepth, true, true));
+                        LogPrintf("-->OK\n");
+                    }
                 }
             }
         }
@@ -3804,7 +3850,7 @@ bool CWallet::CreateSigmaMintModel(
 
             // Validate
             if (!pubCoin.validate()) {
-                stringError = "Unable to mint a V3 sigma coin.";
+                stringError = "Unable to mint a sigma coin.";
                 return false;
             }
 
@@ -4198,7 +4244,7 @@ bool CWallet::CreateZerocoinSpendModel(
             stringError = "Unable to convert denomination string to value.";
             return false;
         }
-        // Spend V3 sigma mint.
+        // Spend sigma mint.
         Scalar coinSerial;
         GroupElement zcSelectedValue;
         stringError = SpendSigma(
@@ -4222,7 +4268,7 @@ bool CWallet::CreateZerocoinSpendModel(
 }
 
 bool CWallet::CreateZerocoinSpendModel(CWalletTx& wtx, string &stringError, string& thirdPartyAddress, const vector<string>& denomAmounts, bool forceUsed) {
-    // try to spend V2 coins, if fails, try to spend V3 sigma coins.
+    // try to spend V2 coins, if fails, try to spend sigma coins.
     if (!CreateZerocoinSpendModelV2(wtx, stringError, thirdPartyAddress, denomAmounts, forceUsed)) {
         return CreateSigmaSpendModel(wtx, stringError, thirdPartyAddress, denomAmounts, forceUsed);
     }

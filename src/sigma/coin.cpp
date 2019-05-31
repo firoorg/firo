@@ -73,6 +73,25 @@ bool StringToDenomination(const std::string& str, CoinDenomination& denom_out) {
     return false;
 }
 
+std::string DenominationToString(const CoinDenomination& denom) {
+    if (denom == CoinDenomination::SIGMA_DENOM_0_1) {
+        return "0.1";
+    }
+    if (denom == CoinDenomination::SIGMA_DENOM_0_5) {
+        return "0.5";
+    }
+    if (denom == CoinDenomination::SIGMA_DENOM_1) {
+        return "1";
+    }
+    if (denom == CoinDenomination::SIGMA_DENOM_10) {
+        return "10";
+    }
+    if (denom == CoinDenomination::SIGMA_DENOM_100) {
+        return "100";
+    }
+    throw ZerocoinException("Unsupported denomination, unable to convert to string.");
+}
+
 bool IntegerToDenomination(int64_t value, CoinDenomination& denom_out) {
     CValidationState dummy_state;
     return IntegerToDenomination(value, denom_out, dummy_state);

@@ -28,6 +28,7 @@ bool IntegerToDenomination(int64_t value, CoinDenomination& denom_out, CValidati
 bool DenominationToInteger(CoinDenomination denom, int64_t& denom_out);
 bool IntegerToDenomination(int64_t value, CoinDenomination& denom_out);
 bool StringToDenomination(const std::string& str, CoinDenomination& denom_out);
+std::string DenominationToString(const CoinDenomination& denom);
 bool RealNumberToDenomination(const double& value, CoinDenomination& denom_out);
 
 /// \brief Returns a list of all possible denominations in descending order of value.
