@@ -31,7 +31,7 @@ BOOST_FIXTURE_TEST_SUITE(sigma_transition, ZerocoinTestingSetup200)
 */
 BOOST_AUTO_TEST_CASE(sigma_transition_test)
 {
-    CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
+    sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
     string denomination;
     vector<uint256> vtxid;
 
@@ -130,7 +130,7 @@ BOOST_AUTO_TEST_CASE(sigma_transition_test)
 
     vtxid.clear();
     mempool.clear();
-    zerocoinState->Reset();
+    sigmaState->Reset();
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -234,14 +234,14 @@ public:
     //! Values of coin serials spent in this block
 	set<CBigNum> spentSerials;
 
-/////////////////////// Zerocoin V3 Sigma index entries. ////////////////////////////////////////////
+/////////////////////// Sigma index entries. ////////////////////////////////////////////
 
     //! Public coin values of mints in this block, ordered by serialized value of public coin
     //! Maps <denomination,id> to vector of public coins
-    std::map<pair<sigma::CoinDenominationV3, int>, vector<sigma::PublicCoinV3>> mintedPubCoinsV3;
+    std::map<pair<sigma::CoinDenomination, int>, vector<sigma::PublicCoin>> sigmaMintedPubCoins;
 
     //! Values of coin serials spent in this block
-	unordered_set<secp_primitives::Scalar, sigma::CScalarHash> spentSerialsV3;
+	unordered_set<secp_primitives::Scalar, sigma::CScalarHash> sigmaSpentSerials;
 
     void SetNull()
     {
@@ -268,10 +268,10 @@ public:
         mtpHashValue = reserved[0] = reserved[1] = uint256();
 
         mintedPubCoins.clear();
-        mintedPubCoinsV3.clear();
+        sigmaMintedPubCoins.clear();
         accumulatorChanges.clear();
         spentSerials.clear();
-        spentSerialsV3.clear();
+        sigmaSpentSerials.clear();
     }
 
     CBlockIndex()
@@ -491,8 +491,8 @@ public:
 	    }
 
         if (!(nType & SER_GETHASH) && nHeight >= Params().GetConsensus().nSigmaStartBlock) {
-            READWRITE(mintedPubCoinsV3);
-            READWRITE(spentSerialsV3);
+            READWRITE(sigmaMintedPubCoins);
+            READWRITE(sigmaSpentSerials);
         }
 
         nDiskBlockVersion = nVersion;

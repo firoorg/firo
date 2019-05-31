@@ -28,18 +28,18 @@ UniValue mint(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
 {
     // Ensure Sigma mints is already accepted by network so users will not lost their coins
     // due to other nodes will treat it as garbage data.
-    if (!IsSigmaAllowed()) {
+    if (!sigma::IsSigmaAllowed()) {
         throw JSONRPCError(RPC_WALLET_ERROR, "Sigma is not activated yet");
     }
 
-    sigma::ParamsV3* zcParams = sigma::ParamsV3::get_default();
+    sigma::Params* zcParams = sigma::Params::get_default();
 
     vector<CRecipient> vecSend;
-    vector<sigma::PrivateCoinV3> privCoins;
+    vector<sigma::PrivateCoin> privCoins;
     CWalletTx wtx;
 
     UniValue sendTo = data[0].get_obj();
-    sigma::CoinDenominationV3 denomination;
+    sigma::CoinDenomination denomination;
 
     vector<string> keys = sendTo.getKeys();
     BOOST_FOREACH(const string& denominationStr, keys){
@@ -64,17 +64,17 @@ UniValue mint(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
             // new zerocoin. It stores all the private values inside the
             // PrivateCoin object. This includes the coin secrets, which must be
             // stored in a secure location (wallet) at the client.
-            sigma::PrivateCoinV3 newCoin(zcParams, denomination, ZEROCOIN_TX_VERSION_3);
+            sigma::PrivateCoin newCoin(zcParams, denomination, ZEROCOIN_TX_VERSION_3);
             // Get a copy of the 'public' portion of the coin. You should
             // embed this into a Zerocoin 'MINT' transaction along with a series
             // of currency inputs totaling the assigned value of one zerocoin.
 
-            sigma::PublicCoinV3 pubCoin = newCoin.getPublicCoin();
+            sigma::PublicCoin pubCoin = newCoin.getPublicCoin();
 
             // Create script for coin
             CScript scriptSerializedCoin;
             // opcode is inserted as 1 byte according to file script/script.h
-            scriptSerializedCoin << OP_ZEROCOINMINTV3;
+            scriptSerializedCoin << OP_SIGMAMINT;
 
             // MARTUN: Commenting this for now.
             // this one will probably be written as int64_t, which means it will be written in as few bytes as necessary, and one more byte for sign. In our case our 34 will take 2 bytes, 1 for the number 34 and another one for the sign.
@@ -91,7 +91,7 @@ UniValue mint(Type type, const UniValue& data, const UniValue& auth, bool fHelp)
         }
     }
 
-    string strError = pwalletMain->MintAndStoreZerocoinV3(vecSend, privCoins, wtx);
+    string strError = pwalletMain->MintAndStoreSigma(vecSend, privCoins, wtx);
 
     if (strError != "")
         throw runtime_error(strError);
@@ -103,7 +103,7 @@ UniValue sendprivate(Type type, const UniValue& data, const UniValue& auth, bool
 
     // Ensure Sigma mints is already accepted by network so users will not lost their coins
     // due to other nodes will treat it as garbage data.
-    if (!IsSigmaAllowed()) {
+    if (!sigma::IsSigmaAllowed()) {
         throw JSONRPCError(RPC_WALLET_ERROR, "Sigma is not activated yet");
     }
 
@@ -172,10 +172,10 @@ UniValue sendprivate(Type type, const UniValue& data, const UniValue& auth, bool
             EnsureWalletIsUnlocked();
 
             CAmount nFeeRequired = 0;
-            std::vector<CZerocoinEntryV3> coins;
+            std::vector<CSigmaEntry> coins;
 
             try {
-                coins = pwalletMain->SpendZerocoinV3(vecSend, wtx, nFeeRequired);
+                coins = pwalletMain->SpendSigma(vecSend, wtx, nFeeRequired);
             }
             catch (const InsufficientFunds& e) {
                 throw JSONRPCError(RPC_WALLET_INSUFFICIENT_FUNDS, e.what());
@@ -190,8 +190,8 @@ UniValue sendprivate(Type type, const UniValue& data, const UniValue& auth, bool
             unsigned int index;
             string txid;
 
-            BOOST_FOREACH(CZerocoinEntryV3 coin, coins){
-                if(!pwalletMain->GetTxInfoForPubcoinV3(coin, txid, index)){
+            BOOST_FOREACH(CSigmaEntry coin, coins){
+                if(!pwalletMain->GetTxInfoForSigmaPubcoin(coin, txid, index)){
                     throw runtime_error("Mint tx not found!");
                 }
                 string key = txid + to_string(index);

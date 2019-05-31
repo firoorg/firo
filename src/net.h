@@ -82,18 +82,6 @@ static const ServiceFlags REQUIRED_SERVICES = NODE_NETWORK;
 
 // NOTE: When adjusting this, update rpcnet:setban's help ("24h")
 static const unsigned int DEFAULT_MISBEHAVING_BANTIME = 60 * 60 * 24;  // Default 24-hour ban
-
-/** Maximum number of outbound peers designated as Dandelion destinations */
-static const int DANDELION_MAX_DESTINATIONS = 2;
-/** Expected time between Dandelion routing shuffles (in seconds). */
-static const int DANDELION_SHUFFLE_INTERVAL = 600;
-/** The minimum amount of time a Dandelion transaction is embargoed (seconds) */
-static const int DANDELION_EMBARGO_MINIMUM = 10;
-/** The average additional embargo time beyond the minimum amount (seconds) */
-static const int DANDELION_EMBARGO_AVG_ADD = 20;
-/** Probability (percentage) that a Dandelion transaction enters fluff phase */
-static const unsigned int DANDELION_FLUFF = 10;
-
 unsigned int ReceiveFloodSize();
 unsigned int SendBufferSize();
 

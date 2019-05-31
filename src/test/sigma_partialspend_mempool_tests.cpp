@@ -47,12 +47,13 @@ BOOST_AUTO_TEST_CASE(partialspend)
     const CBitcoinAddress randomAddr1(newKey1.GetID());
     const CBitcoinAddress randomAddr2(newKey2.GetID());
 
-    CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
+    sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
     std::vector<uint256> vtxid;
-    std::vector<std::string> denominations = {"0.1", "0.5", "1", "10", "100"};
+    // Can't test denomination 0.1, because we're unable to pay the fees.
+    std::vector<std::string> denominations = {"0.5", "1", "10", "100"};
 
     // Get smallest denomination value
-    std::vector<sigma::CoinDenominationV3> denoms;
+    std::vector<sigma::CoinDenomination> denoms;
     sigma::GetAllDenoms(denoms);
     CAmount smallestDenomAmount;
     sigma::DenominationToInteger(denoms.back(), smallestDenomAmount);
@@ -64,11 +65,10 @@ BOOST_AUTO_TEST_CASE(partialspend)
     for (const auto& denomination : denominations) {
 
         // Get denomination value
-        sigma::CoinDenominationV3 denomId;
+        sigma::CoinDenomination denomId;
         CAmount denomAmount;
         sigma::StringToDenomination(denomination, denomId);
         sigma::DenominationToInteger(denomId, denomAmount);
-
         printf("Testing denomination %s\n", denomination.c_str());
         std::string stringError;
 
@@ -100,26 +100,29 @@ BOOST_AUTO_TEST_CASE(partialspend)
         // Create tx to do double spend before spend
         CWalletTx dtx;
         CAmount dFee;
-        std::vector<CZerocoinEntryV3> dSelected;
-        std::vector<CZerocoinEntryV3> dChanges;
+        std::vector<CSigmaEntry> dSelected;
+        std::vector<CSigmaEntry> dChanges;
+
+        CAmount denomAmount01;
+        sigma::DenominationToInteger(sigma::CoinDenomination::SIGMA_DENOM_0_1, denomAmount01);
 
         // Make dtx is not identical to tx
         std::vector<CRecipient> dupRecipients = {
             {GetScriptForDestination(randomAddr2.Get()), denomAmount / 2, false},
-            {GetScriptForDestination(randomAddr1.Get()), denomAmount / 2 - CENT, false},
+            {GetScriptForDestination(randomAddr1.Get()), denomAmount / 2 - denomAmount01 - CENT, false},
         };
-        dtx = pwalletMain->CreateZerocoinSpendTransactionV3(dupRecipients, dFee, dSelected, dChanges);
+        dtx = pwalletMain->CreateSigmaSpendTransaction(dupRecipients, dFee, dSelected, dChanges);
 
         // Create partial spend transaction
         CWalletTx tx;
 
         std::vector<CRecipient> recipients = {
             {GetScriptForDestination(randomAddr1.Get()), denomAmount / 2, false},
-            {GetScriptForDestination(randomAddr2.Get()), denomAmount / 2 - CENT, false},
+            {GetScriptForDestination(randomAddr2.Get()), denomAmount / 2 - denomAmount01 - CENT, false},
         };
 
         // Create two spend transactions using the same mint.
-        BOOST_CHECK_NO_THROW(pwalletMain->SpendZerocoinV3(recipients, tx));
+        BOOST_CHECK_NO_THROW(pwalletMain->SpendSigma(recipients, tx));
 
         // Try to put two in the same block and it will fail, expect 1
         // And verify spend got into mempool
@@ -132,7 +135,7 @@ BOOST_AUTO_TEST_CASE(partialspend)
 
         BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool was not cleared");
 
-        BOOST_CHECK_NO_THROW(pwalletMain->SpendZerocoinV3(recipients, tx));
+        BOOST_CHECK_NO_THROW(pwalletMain->SpendSigma(recipients, tx));
 
         //Verify spend got into mempool
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Spend was not added to mempool");
@@ -150,15 +153,15 @@ BOOST_AUTO_TEST_CASE(partialspend)
         BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool not empty although mempool should reject double spend");
 
         // Temporary disable usedCoinSerials check to force double spend in mempool
-        auto tempSerials = zerocoinState->usedCoinSerials;
-        zerocoinState->usedCoinSerials.clear();
+        auto tempSerials = sigmaState->usedCoinSerials;
+        sigmaState->usedCoinSerials.clear();
 
         // Add invalid transaction to mempool, this will pass because we have removed serials from state
         BOOST_CHECK_MESSAGE(addToMempool(dtx), "Spend created although double");
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mempool not set");
 
         // Bring serials back to zerocoin state
-        zerocoinState->usedCoinSerials = tempSerials;
+        sigmaState->usedCoinSerials = tempSerials;
 
         // CreateBlock throw exception because invalid transaction is in mempool
         BOOST_CHECK_EXCEPTION(CreateBlock({}, scriptPubKey), std::runtime_error, no_check);
@@ -171,12 +174,12 @@ BOOST_AUTO_TEST_CASE(partialspend)
         // Add invalid tx too block manually
         // it will work be cause we remove serials from state and don't bring it back before create block like previous test
         vtxid.resize(1);
-        tempSerials = zerocoinState->usedCoinSerials;
-        zerocoinState->usedCoinSerials.clear();
+        tempSerials = sigmaState->usedCoinSerials;
+        sigmaState->usedCoinSerials.clear();
         CreateBlock(vtxid, scriptPubKey);
 
         // Bring serials back
-        zerocoinState->usedCoinSerials = tempSerials;
+        sigmaState->usedCoinSerials = tempSerials;
 
         // Create new block, last block should be remove because it contain invalid spend tx
         mempool.clear();
@@ -187,7 +190,7 @@ BOOST_AUTO_TEST_CASE(partialspend)
 
         vtxid.clear();
         mempool.clear();
-        zerocoinState->Reset();
+        sigmaState->Reset();
     }
 }
 
@@ -206,15 +209,15 @@ BOOST_AUTO_TEST_CASE(partialspend_remint) {
     const CBitcoinAddress randomAddr1(newKey1.GetID());
     const CBitcoinAddress randomAddr2(newKey2.GetID());
 
-    CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
+    sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
 
     // Create 400-200+1 = 201 new empty blocks. // consensus.nMintV3SigmaStartBlock = 400
     CreateAndProcessEmptyBlocks(201, scriptPubKey);
 
     CAmount denomAmount1;
     CAmount denomAmount01;
-    sigma::DenominationToInteger(sigma::CoinDenominationV3::SIGMA_DENOM_1, denomAmount1);
-    sigma::DenominationToInteger(sigma::CoinDenominationV3::SIGMA_DENOM_0_1, denomAmount01);
+    sigma::DenominationToInteger(sigma::CoinDenomination::SIGMA_DENOM_1, denomAmount1);
+    sigma::DenominationToInteger(sigma::CoinDenomination::SIGMA_DENOM_0_1, denomAmount01);
 
     std::string stringError;
 
@@ -249,7 +252,7 @@ BOOST_AUTO_TEST_CASE(partialspend_remint) {
 
     // spend all and should remints 2 coins of denomination 0.1
     CWalletTx tx;
-    BOOST_CHECK_NO_THROW(pwalletMain->SpendZerocoinV3(recipients, tx));
+    BOOST_CHECK_NO_THROW(pwalletMain->SpendSigma(recipients, tx));
 
     // Try to put two in the same block and it will fail, expect 1
     // And verify spend got into mempool
@@ -266,16 +269,16 @@ BOOST_AUTO_TEST_CASE(partialspend_remint) {
 
     BOOST_CHECK_MESSAGE(previousHeight + 5 == chainActive.Height(), "Block not added to chain");
 
+    // Can't use the other 0.1, it goes to fees.
     recipients = {
         {GetScriptForDestination(randomAddr1.Get()), denomAmount01 , false},
-        {GetScriptForDestination(randomAddr2.Get()), denomAmount01 - CENT, false},
     };
 
     // Use remints
-    BOOST_CHECK_NO_THROW(pwalletMain->SpendZerocoinV3(recipients, tx));
+    BOOST_CHECK_NO_THROW(pwalletMain->SpendSigma(recipients, tx));
 
     mempool.clear();
-    zerocoinState->Reset();
+    sigmaState->Reset();
 }
 
 BOOST_AUTO_TEST_CASE(same_serial_in_a_transaction) {
@@ -287,13 +290,16 @@ BOOST_AUTO_TEST_CASE(same_serial_in_a_transaction) {
     const CBitcoinAddress randomAddr1(newKey1.GetID());
     const CBitcoinAddress randomAddr2(newKey2.GetID());
 
-    CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
+    sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
 
     // Create 400-200+1 = 201 new empty blocks. // consensus.nMintV3SigmaStartBlock = 400
     CreateAndProcessEmptyBlocks(201, scriptPubKey);
 
+    CAmount denomAmount01;
+    sigma::DenominationToInteger(sigma::CoinDenomination::SIGMA_DENOM_0_1, denomAmount01);
+
     CAmount denomAmount;
-    sigma::DenominationToInteger(sigma::CoinDenominationV3::SIGMA_DENOM_1, denomAmount);
+    sigma::DenominationToInteger(sigma::CoinDenomination::SIGMA_DENOM_1, denomAmount);
 
     // Make sure that transactions get to mempool
     pwalletMain->SetBroadcastTransactions(true);
@@ -312,16 +318,17 @@ BOOST_AUTO_TEST_CASE(same_serial_in_a_transaction) {
     // Add 5 more blocks and verify that Mint can not be spent until 6 blocks verification
     CreateAndProcessEmptyBlocks(5, scriptPubKey);
 
+    // - denomAmount01 stands for fees. We'll normally payt a fee of 0.1.
     std::vector<CRecipient> recipients = {
         {GetScriptForDestination(randomAddr1.Get()), denomAmount , false},
-        {GetScriptForDestination(randomAddr2.Get()), denomAmount - CENT, false}, // reserve a CENT to pay fee
+        {GetScriptForDestination(randomAddr2.Get()), denomAmount - denomAmount01 - CENT, false}, // reserve a CENT to pay fee
     };
 
     // Create tx
     CAmount fee;
-    std::vector<CZerocoinEntryV3> selected;
-    std::vector<CZerocoinEntryV3> changes;
-    auto tx = pwalletMain->CreateZerocoinSpendTransactionV3(recipients, fee, selected, changes);
+    std::vector<CSigmaEntry> selected;
+    std::vector<CSigmaEntry> changes;
+    auto tx = pwalletMain->CreateSigmaSpendTransaction(recipients, fee, selected, changes);
 
     // Expect 2 spends
     BOOST_CHECK_EQUAL(tx.vin.size(), 2);
@@ -340,6 +347,8 @@ BOOST_AUTO_TEST_CASE(same_serial_in_a_transaction) {
     // Add invalid transaction to mempool,
     BOOST_CHECK_MESSAGE(!addToMempool(tx), "Double spend transaction have been accepted");
     BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool accept invalid transaction");
+
+    sigmaState->Reset();
 }
 
 BOOST_AUTO_TEST_SUITE_END()

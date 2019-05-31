@@ -143,7 +143,7 @@ public:
 
     std::string ToString() const;
     bool IsZerocoinSpend() const;
-    bool IsZerocoinSpendV3() const;
+    bool IsSigmaSpend() const;
 };
 
 /** An output of a transaction.  It contains the public key that the next input
@@ -477,8 +477,8 @@ public:
     bool IsZerocoinSpend() const;
     bool IsZerocoinMint() const;
 
-    bool IsZerocoinSpendV3() const;
-    bool IsZerocoinMintV3() const;
+    bool IsSigmaSpend() const;
+    bool IsSigmaMint() const;
 
     friend bool operator==(const CTransaction& a, const CTransaction& b)
     {

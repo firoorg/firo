@@ -11,27 +11,27 @@ using namespace secp_primitives;
 
 namespace sigma {
 
-class CoinSpendV3 {
+class CoinSpend {
 public:
     template<typename Stream>
-    CoinSpendV3(const ParamsV3* p,  Stream& strm):
+    CoinSpend(const Params* p,  Stream& strm):
         params(p),
-        denomination(CoinDenominationV3::SIGMA_DENOM_1),
+        denomination(CoinDenomination::SIGMA_DENOM_1),
         sigmaProof(p) {
             strm >> * this;
         }
 
 
-    CoinSpendV3(const ParamsV3* p,
-              const PrivateCoinV3& coin,
-              const std::vector<PublicCoinV3>& anonymity_set,
-              const SpendMetaDataV3& m);
+    CoinSpend(const Params* p,
+              const PrivateCoin& coin,
+              const std::vector<sigma::PublicCoin>& anonymity_set,
+              const SpendMetaData& m);
 
-    void updateMetaData(const PrivateCoinV3& coin, const SpendMetaDataV3& m);
+    void updateMetaData(const PrivateCoin& coin, const SpendMetaData& m);
 
     const Scalar& getCoinSerialNumber();
 
-    CoinDenominationV3 getDenomination() const;
+    CoinDenomination getDenomination() const;
 
     int64_t getIntDenomination() const;
 
@@ -49,7 +49,7 @@ public:
 
     bool HasValidSerial() const;
 
-    bool Verify(const std::vector<PublicCoinV3>& anonymity_set, const SpendMetaDataV3 &m) const;
+    bool Verify(const std::vector<sigma::PublicCoin>& anonymity_set, const SpendMetaData &m) const;
 
     ADD_SERIALIZE_METHODS;
     template <typename Stream, typename Operation>
@@ -71,12 +71,12 @@ public:
         READWRITE(ecdsaSignature);
     }
     
-    uint256 signatureHash(const SpendMetaDataV3& m) const;
+    uint256 signatureHash(const SpendMetaData& m) const;
 
 private:
-    const ParamsV3* params;
+    const Params* params;
     unsigned int version = 0;
-    CoinDenominationV3 denomination;
+    CoinDenomination denomination;
     uint256 accumulatorBlockHash;
     Scalar coinSerialNumber;
     std::vector<unsigned char> ecdsaSignature;

@@ -89,7 +89,7 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, vector<vector<unsi
         return true;
     }
     // Zerocoin V3 SIGMA
-    if (scriptPubKey.IsZerocoinMintV3())
+    if (scriptPubKey.IsSigmaMint())
     {
         typeRet = TX_ZEROCOINMINTV3;
         if(scriptPubKey.size() > 37) return false;

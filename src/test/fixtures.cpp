@@ -37,9 +37,31 @@
 #include <boost/test/unit_test.hpp>
 #include <boost/thread.hpp>
 
+#include "zerocoin.h"
+#include "zerocoin_v3.h"
 
- ZerocoinTestingSetupBase::ZerocoinTestingSetupBase():
-    TestingSetup(CBaseChainParams::REGTEST, "1"){};
+
+ZerocoinTestingSetupBase::ZerocoinTestingSetupBase():
+    TestingSetup(CBaseChainParams::REGTEST, "1") {
+    // Crean sigma state, just in case someone forgot to do so.
+    sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
+    sigmaState->Reset();
+
+    // Also clean up old zerocoin state.
+    CZerocoinState *zerocoinState = CZerocoinState::GetZerocoinState();
+    zerocoinState->Reset();
+};
+
+ZerocoinTestingSetupBase::~ZerocoinTestingSetupBase() {
+    // Clean sigma state after us.
+    sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
+    sigmaState->Reset();
+
+    // Also clean up old zerocoin state.
+    CZerocoinState *zerocoinState = CZerocoinState::GetZerocoinState();
+    zerocoinState->Reset();
+
+}
 
     CBlock ZerocoinTestingSetupBase::CreateBlock(
             const vector<uint256>& tx_ids,

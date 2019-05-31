@@ -65,7 +65,7 @@ TestingSetup::TestingSetup(const std::string& chainName, std::string suf) : Basi
         // Ideally we'd move all the RPC tests to the functional testing framework
         // instead of unit tests, but for now we need these here.
         CZerocoinState::GetZerocoinState()->Reset();
-        CZerocoinStateV3::GetZerocoinState()->Reset();
+        CZerocoinState::GetZerocoinState()->Reset();
         RegisterAllCoreRPCCommands(tableRPC);
         RegisterAllCoreAPICommands(tableAPI);
         ClearDatadirCache();
