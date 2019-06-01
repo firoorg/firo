@@ -229,7 +229,7 @@ bool CWalletDB::WriteCoinSpendSerialEntry(const CZerocoinSpendEntry &zerocoinSpe
     return Write(make_pair(string("zcserial"), zerocoinSpend.coinSerial), zerocoinSpend, true);
 }
 
-bool CWalletDB::WriteCoinSpendSerialEntry(const CZerocoinSpendEntryV3 &zerocoinSpend) {
+bool CWalletDB::WriteCoinSpendSerialEntry(const CSigmaSpendEntry &zerocoinSpend) {
     return Write(std::make_pair(std::string("sigma_spend"), zerocoinSpend.coinSerial), zerocoinSpend, true);
 }
 
@@ -245,7 +245,7 @@ bool CWalletDB::EraseCoinSpendSerialEntry(const CZerocoinSpendEntry &zerocoinSpe
     return Erase(make_pair(string("zcserial"), zerocoinSpend.coinSerial));
 }
 
-bool CWalletDB::EraseCoinSpendSerialEntry(const CZerocoinSpendEntryV3 &zerocoinSpend) {
+bool CWalletDB::EraseCoinSpendSerialEntry(const CSigmaSpendEntry &zerocoinSpend) {
     return Erase(std::make_pair(std::string("sigma_spend"), zerocoinSpend.coinSerial));
 }
 
@@ -270,7 +270,7 @@ bool CWalletDB::WriteZerocoinEntry(const CZerocoinEntry &zerocoin) {
     return Write(make_pair(string("zerocoin"), zerocoin.value), zerocoin, true);
 }
 
-bool CWalletDB::WriteZerocoinEntry(const CZerocoinEntryV3 &zerocoin) {
+bool CWalletDB::WriteZerocoinEntry(const CSigmaEntry &zerocoin) {
     return Write(std::make_pair(std::string("sigma_mint"), zerocoin.value), zerocoin, true);
 }
 
@@ -278,7 +278,7 @@ bool CWalletDB::ReadZerocoinEntry(const Bignum& pub, CZerocoinEntry& entry) {
     return Read(std::make_pair(std::string("zerocoin"), pub), entry);
 }
 
-bool CWalletDB::ReadZerocoinEntry(const secp_primitives::GroupElement& pub, CZerocoinEntryV3& entry) {
+bool CWalletDB::ReadZerocoinEntry(const secp_primitives::GroupElement& pub, CSigmaEntry& entry) {
     return Read(std::make_pair(std::string("sigma_mint"), pub), entry);
 }
 
@@ -290,7 +290,7 @@ bool CWalletDB::HasZerocoinEntry(const secp_primitives::GroupElement& pub) {
     return Exists(std::make_pair(std::string("sigma_mint"), pub));
 }
 
-bool CWalletDB::EraseZerocoinEntry(const CZerocoinEntryV3 &zerocoin) {
+bool CWalletDB::EraseZerocoinEntry(const CSigmaEntry &zerocoin) {
     return Erase(std::make_pair(std::string("sigma_mint"), zerocoin.value));
 }
 
@@ -341,10 +341,10 @@ void CWalletDB::ListPubCoin(std::list <CZerocoinEntry> &listPubCoin) {
     pcursor->close();
 }
 
-void CWalletDB::ListPubCoinV3(std::list <CZerocoinEntryV3> &listPubCoin) {
+void CWalletDB::ListSigmaPubCoin(std::list <CSigmaEntry> &listPubCoin) {
     Dbc *pcursor = GetCursor();
     if (!pcursor)
-        throw runtime_error("CWalletDB::ListPubCoinV3() : cannot create DB cursor");
+        throw runtime_error("CWalletDB::ListSigmaPubCoin() : cannot create DB cursor");
     unsigned int fFlags = DB_SET_RANGE;
     while (true) {
         // Read next record
@@ -358,7 +358,7 @@ void CWalletDB::ListPubCoinV3(std::list <CZerocoinEntryV3> &listPubCoin) {
             break;
         else if (ret != 0) {
             pcursor->close();
-            throw runtime_error("CWalletDB::ListPubCoinV3() : error scanning DB");
+            throw runtime_error("CWalletDB::ListSigmaPubCoin() : error scanning DB");
         }
         // Unserialize
         string strType;
@@ -367,7 +367,7 @@ void CWalletDB::ListPubCoinV3(std::list <CZerocoinEntryV3> &listPubCoin) {
             break;
         GroupElement value;
         ssKey >> value;
-        CZerocoinEntryV3 zerocoinItem;
+        CSigmaEntry zerocoinItem;
         ssValue >> zerocoinItem;
         listPubCoin.push_back(zerocoinItem);
     }
@@ -409,7 +409,7 @@ void CWalletDB::ListCoinSpendSerial(std::list <CZerocoinSpendEntry> &listCoinSpe
     pcursor->close();
 }
 
-void CWalletDB::ListCoinSpendSerial(std::list <CZerocoinSpendEntryV3> &listCoinSpendSerial) {
+void CWalletDB::ListCoinSpendSerial(std::list <CSigmaSpendEntry> &listCoinSpendSerial) {
     Dbc *pcursor = GetCursor();
     if (!pcursor)
         throw runtime_error("CWalletDB::ListCoinSpendSerial() : cannot create DB cursor");
@@ -436,7 +436,7 @@ void CWalletDB::ListCoinSpendSerial(std::list <CZerocoinSpendEntryV3> &listCoinS
             break;
         Scalar value;
         ssKey >> value;
-        CZerocoinSpendEntryV3 zerocoinSpendItem;
+        CSigmaSpendEntry zerocoinSpendItem;
         ssValue >> zerocoinSpendItem;
         listCoinSpendSerial.push_back(zerocoinSpendItem);
     }
@@ -1431,7 +1431,7 @@ bool CWalletDB::UnarchiveHDMint(const uint256& hashPubcoin, CHDMint& dMint)
     return true;
 }
 
-bool CWalletDB::UnarchiveZerocoinMint(const uint256& hashPubcoin, CZerocoinEntryV3& zerocoin)
+bool CWalletDB::UnarchiveZerocoinMint(const uint256& hashPubcoin, CSigmaEntry& zerocoin)
 {
     if (!Read(make_pair(string("zco"), hashPubcoin), zerocoin))
         return error("%s: failed to retrieve zerocoinmint from archive", __func__);
@@ -1439,7 +1439,7 @@ bool CWalletDB::UnarchiveZerocoinMint(const uint256& hashPubcoin, CZerocoinEntry
     if (!WriteZerocoinEntry(zerocoin))
         return error("%s: failed to write zerocoinmint", __func__);
 
-    uint256 hash = GetPubCoinValueHash(zerocoin.value);
+    uint256 hash = sigma::GetPubCoinValueHash(zerocoin.value);
     if (!Erase(make_pair(string("zco"), hash)))
         return error("%s : failed to erase archived zerocoin mint", __func__);
 

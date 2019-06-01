@@ -159,9 +159,9 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool)
             // Regenerate pubCoinValueHash
             uint512 seedZerocoin = GetZerocoinSeed(pMint.second, pMint.first);
             GroupElement pubCoinValue;
-            sigma::PrivateCoinV3 coin(sigma::ParamsV3::get_default(), sigma::CoinDenominationV3::SIGMA_DENOM_1);
+            sigma::PrivateCoin coin(sigma::Params::get_default(), sigma::CoinDenomination::SIGMA_DENOM_1);
             SeedToZerocoin(seedZerocoin, pubCoinValue, coin);
-            uint256 pubCoinValueHash = GetPubCoinValueHash(pubCoinValue);
+            uint256 pubCoinValueHash = sigma::GetPubCoinValueHash(pubCoinValue);
 
             if (pwalletMain->hdMintTracker->HasPubcoinHash(pubCoinValueHash)) {
                 mintPool.Remove(pMint.first);
@@ -169,7 +169,7 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool)
             }
 
             uint256 txHash;
-            if (ZerocoinGetMintTxHashV3(txHash, pubCoinValueHash)) {
+            if (sigma::ZerocoinGetSigmaMintTxHash(txHash, pubCoinValueHash)) {
                 //this mint has already occurred on the chain, increment counter's state to reflect this
                 LogPrintf("%s : Found wallet coin mint=%s count=%d tx=%s\n", __func__, pubCoinValueHash.GetHex(), pMint.second, txHash.GetHex());
                 found = true;
@@ -184,14 +184,14 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool)
                 }
 
                 //Find the denomination
-                sigma::CoinDenominationV3 denomination = sigma::CoinDenominationV3::SIGMA_ERROR;
+                sigma::CoinDenomination denomination = sigma::CoinDenomination::SIGMA_ERROR;
                 bool fFoundMint = false;
                 GroupElement bnValue;
                 for (const CTxOut& out : tx.vout) {
-                    if (!out.scriptPubKey.IsZerocoinMintV3())
+                    if (!out.scriptPubKey.IsSigmaMint())
                         continue;
 
-                    sigma::PublicCoinV3 pubcoin;
+                    sigma::PublicCoin pubcoin;
                     CValidationState state;
                     if (!TxOutToPublicCoin(out, pubcoin, state)) {
                         LogPrintf("%s : failed to get mint from txout for %s!\n", __func__, pubCoinValueHash.GetHex());
@@ -199,7 +199,7 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool)
                     }
 
                     // See if this is the mint that we are looking for
-                    uint256 hashPubcoin = GetPubCoinValueHash(pubcoin.getValue());
+                    uint256 hashPubcoin = sigma::GetPubCoinValueHash(pubcoin.getValue());
                     if (pubCoinValueHash == hashPubcoin) {
                         denomination = pubcoin.getDenomination();
                         bnValue = pubcoin.getValue();
@@ -208,7 +208,7 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool)
                     }
                 }
 
-                if (!fFoundMint || denomination == sigma::CoinDenominationV3::SIGMA_ERROR) {
+                if (!fFoundMint || denomination == sigma::CoinDenomination::SIGMA_ERROR) {
                     LogPrintf("%s : failed to get mint %s from tx %s!\n", __func__, pubCoinValueHash.GetHex(), tx.GetHash().GetHex());
                     found = false;
                     break;
@@ -239,7 +239,7 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool)
     }
 }
 
-bool CHDMintWallet::SetMintSeedSeen(CKeyID& seedId, const int& nHeight, const uint256& txid, const sigma::CoinDenominationV3& denom)
+bool CHDMintWallet::SetMintSeedSeen(CKeyID& seedId, const int& nHeight, const uint256& txid, const sigma::CoinDenomination& denom)
 {
     if (!mintPool.Has(seedId))
         return error("%s: value not in pool", __func__);
@@ -249,12 +249,12 @@ bool CHDMintWallet::SetMintSeedSeen(CKeyID& seedId, const int& nHeight, const ui
     // Regenerate the mint
     uint512 seedZerocoin = GetZerocoinSeed(pMint.second, seedId);
     GroupElement bnValue;
-    sigma::PrivateCoinV3 coin(sigma::ParamsV3::get_default(), denom, false);
+    sigma::PrivateCoin coin(sigma::Params::get_default(), denom, false);
     SeedToZerocoin(seedZerocoin, bnValue, coin);
     CWalletDB walletdb(strWalletFile);
 
     // Create mint object and database it
-    uint256 hashSerial = GetSerialHash(coin.getSerialNumber());
+    uint256 hashSerial = sigma::GetSerialHash(coin.getSerialNumber());
     CHDMint dMint(pMint.second, seedId, hashSerial, bnValue);
     dMint.SetDenomination(denom);
     dMint.SetHeight(nHeight);
@@ -291,7 +291,7 @@ bool CHDMintWallet::SetMintSeedSeen(CKeyID& seedId, const int& nHeight, const ui
     return true;
 }
 
-void CHDMintWallet::SeedToZerocoin(const uint512& seedZerocoin, GroupElement& commit, sigma::PrivateCoinV3& coin)
+void CHDMintWallet::SeedToZerocoin(const uint512& seedZerocoin, GroupElement& commit, sigma::PrivateCoin& coin)
 {
     //convert state seed into a seed for the private key
     uint256 nSeedPrivKey = seedZerocoin.trim256();
@@ -314,7 +314,7 @@ void CHDMintWallet::SeedToZerocoin(const uint512& seedZerocoin, GroupElement& co
     coin.setRandomness(randomness);
 
     // Generate a Pedersen commitment to the serial number
-    commit = SigmaPrimitives<Scalar, GroupElement>::commit(
+    commit = sigma::SigmaPrimitives<Scalar, GroupElement>::commit(
              coin.getParams()->get_g(), coin.getSerialNumber(), coin.getParams()->get_h0(), coin.getRandomness());
 }
 
@@ -385,7 +385,7 @@ void CHDMintWallet::UpdateCount()
     UpdateCountDB();
 }
 
-void CHDMintWallet::GenerateHDMint(sigma::CoinDenominationV3 denom, sigma::PrivateCoinV3& coin, CHDMint& dMint, bool fGenerateOnly)
+void CHDMintWallet::GenerateHDMint(sigma::CoinDenomination denom, sigma::PrivateCoin& coin, CHDMint& dMint, bool fGenerateOnly)
 {
     GenerateMint(nCountLastUsed, denom, dMint.GetSeedId(), coin, dMint);
     if (fGenerateOnly)
@@ -395,7 +395,7 @@ void CHDMintWallet::GenerateHDMint(sigma::CoinDenominationV3 denom, sigma::Priva
     //LogPrintf("%s : Generated new deterministic mint. Count=%d pubcoin=%s seed=%s\n", __func__, nCount, coin.getPublicCoin().getValue().GetHex().substr(0,6), seedZerocoin.GetHex().substr(0, 4));
 }
 
-void CHDMintWallet::GenerateMint(const uint32_t& nCount, const sigma::CoinDenominationV3 denom, CKeyID seedId, sigma::PrivateCoinV3& coin, CHDMint& dMint)
+void CHDMintWallet::GenerateMint(const uint32_t& nCount, const sigma::CoinDenomination denom, CKeyID seedId, sigma::PrivateCoin& coin, CHDMint& dMint)
 {
     if(seedId.IsNull()){
         seedId = GetZerocoinSeedID(nCount);
@@ -405,9 +405,9 @@ void CHDMintWallet::GenerateMint(const uint32_t& nCount, const sigma::CoinDenomi
     GroupElement commitmentValue;
     SeedToZerocoin(seedZerocoin, commitmentValue, coin);
 
-    coin.setPublicCoin(sigma::PublicCoinV3(commitmentValue, denom));
+    coin.setPublicCoin(sigma::PublicCoin(commitmentValue, denom));
 
-    uint256 hashSerial = GetSerialHash(coin.getSerialNumber());
+    uint256 hashSerial = sigma::GetSerialHash(coin.getSerialNumber());
     dMint = CHDMint(nCount, seedId, hashSerial, coin.getPublicCoin().getValue());
     dMint.SetDenomination(denom);
 
@@ -420,7 +420,7 @@ void CHDMintWallet::GenerateMint(const uint32_t& nCount, const sigma::CoinDenomi
 //     return hashSeed == dMint.GetSeedHash();
 // }
 
-bool CHDMintWallet::RegenerateMint(const CHDMint& dMint, CZerocoinEntryV3& zerocoin)
+bool CHDMintWallet::RegenerateMint(const CHDMint& dMint, CSigmaEntry& zerocoin)
 {
     // if (!CheckSeed(dMint)) {
     //     uint256 hashSeed = Hash(seedMaster.begin(), seedMaster.end());
@@ -428,18 +428,18 @@ bool CHDMintWallet::RegenerateMint(const CHDMint& dMint, CZerocoinEntryV3& zeroc
     // }
 
     //Generate the coin
-    sigma::PrivateCoinV3 coin(sigma::ParamsV3::get_default(), dMint.GetDenomination(), false);
+    sigma::PrivateCoin coin(sigma::Params::get_default(), dMint.GetDenomination(), false);
     CHDMint dMintDummy;
     GenerateMint(dMint.GetCount(), dMint.GetDenomination(), dMint.GetSeedId(), coin, dMintDummy);
 
     //Fill in the zerocoinmint object's details
     GroupElement bnValue = coin.getPublicCoin().getValue();
-    if (GetPubCoinValueHash(bnValue) != dMint.GetPubCoinHash())
+    if (sigma::GetPubCoinValueHash(bnValue) != dMint.GetPubCoinHash())
         return error("%s: failed to correctly generate mint, pubcoin hash mismatch", __func__);
     zerocoin.value = bnValue;
 
     Scalar bnSerial = coin.getSerialNumber();
-    if (GetSerialHash(bnSerial) != dMint.GetSerialHash())
+    if (sigma::GetSerialHash(bnSerial) != dMint.GetSerialHash())
         return error("%s: failed to correctly generate mint, serial hash mismatch", __func__);
 
     zerocoin.set_denomination(dMint.GetDenomination());
@@ -458,7 +458,7 @@ bool CHDMintWallet::IsSerialInBlockchain(const uint256& hashSerial, int& nHeight
     txidSpend.SetNull();
     CMintMeta mMeta;
     Scalar bnSerial;
-    if (!CZerocoinStateV3::GetZerocoinState()->IsUsedCoinSerialHash(bnSerial, hashSerial))
+    if (!sigma::CSigmaState::GetState()->IsUsedCoinSerialHash(bnSerial, hashSerial))
         return false;
 
     if(!pwalletMain->hdMintTracker->Get(hashSerial, mMeta))
@@ -469,7 +469,7 @@ bool CHDMintWallet::IsSerialInBlockchain(const uint256& hashSerial, int& nHeight
     return IsTransactionInChain(txidSpend, nHeightTx, tx);
 }
 
-bool CHDMintWallet::TxOutToPublicCoin(const CTxOut& txout, sigma::PublicCoinV3& pubCoin, CValidationState& state)
+bool CHDMintWallet::TxOutToPublicCoin(const CTxOut& txout, sigma::PublicCoin& pubCoin, CValidationState& state)
 {
     // If you wonder why +1, go to file wallet.cpp and read the comments in function
     // CWallet::CreateZerocoinMintModelV3 around "scriptSerializedCoin << OP_ZEROCOINMINTV3";
@@ -478,13 +478,13 @@ bool CHDMintWallet::TxOutToPublicCoin(const CTxOut& txout, sigma::PublicCoinV3& 
     secp_primitives::GroupElement publicZerocoin;
     publicZerocoin.deserialize(&coin_serialised[0]);
 
-    sigma::CoinDenominationV3 denomination;
+    sigma::CoinDenomination denomination;
     IntegerToDenomination(txout.nValue, denomination);
     LogPrint("zero", "%s ZCPRINT denomination %d pubcoin %s\n", __func__, denomination, publicZerocoin.GetHex());
-    if (denomination == CoinDenominationV3::SIGMA_ERROR)
+    if (denomination == sigma::CoinDenomination::SIGMA_ERROR)
         return state.DoS(100, error("TxOutToPublicCoin : txout.nValue is not correct"));
 
-    sigma::PublicCoinV3 checkPubCoin(publicZerocoin, denomination);
+    sigma::PublicCoin checkPubCoin(publicZerocoin, denomination);
     pubCoin = checkPubCoin;
 
     return true;

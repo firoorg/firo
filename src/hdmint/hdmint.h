@@ -26,8 +26,8 @@ public:
     CHDMint();
     CHDMint(const uint32_t& nCount, const CKeyID& seedId, const uint256& hashSerial, const GroupElement& pubCoinValue);
 
-    sigma::CoinDenominationV3 GetDenomination() const {
-        sigma::CoinDenominationV3 value;
+    sigma::CoinDenomination GetDenomination() const {
+        sigma::CoinDenomination value;
         IntegerToDenomination(denom, value);
         return value;
     }
@@ -40,10 +40,10 @@ public:
     CKeyID GetSeedId() const { return seedId; }
     uint256 GetSerialHash() const { return hashSerial; }
     GroupElement GetPubcoinValue() const { return pubCoinValue; }
-    uint256 GetPubCoinHash() const { return GetPubCoinValueHash(pubCoinValue); }
+    uint256 GetPubCoinHash() const { return sigma::GetPubCoinValueHash(pubCoinValue); }
     uint256 GetTxHash() const { return txid; }
     bool IsUsed() const { return isUsed; }
-    void SetDenomination(const sigma::CoinDenominationV3 value) {
+    void SetDenomination(const sigma::CoinDenomination value) {
         int64_t denom;
         DenominationToInteger(value, denom);
         this->denom = denom;

@@ -9,6 +9,7 @@ inline bool no_check( std::runtime_error const& ex ) { return true; }
 
 struct ZerocoinTestingSetupBase : public TestingSetup {
     ZerocoinTestingSetupBase();
+    ~ZerocoinTestingSetupBase();
 
     CScript scriptPubKey;
 

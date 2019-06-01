@@ -18,6 +18,7 @@
 #include "ui_interface.h"
 #include "wallet/wallet.h"
 #include "wallet/walletdb.h" // for BackupWallet
+#include "wallet/walletexcept.h"
 #include "txmempool.h"
 #include "consensus/validation.h"
 #include "zerocoin_v3.h"
@@ -152,15 +153,16 @@ void WalletModel::updateSigmaCoins(const QString &pubCoin, const QString &isUsed
     } else if (status == ChangeType::CT_NEW) {
         // new mint
         LOCK2(cs_main, wallet->cs_wallet);
-        CZerocoinStateV3* zerocoinState = CZerocoinStateV3::GetZerocoinState();
-        std::list<CZerocoinEntryV3> coins;
-        CWalletDB(wallet->strWalletFile).ListPubCoinV3(coins);
+        sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
+
+        std::list<CSigmaEntry> coins;
+        CWalletDB(wallet->strWalletFile).ListSigmaPubCoin(coins);
 
         int block = cachedNumBlocks;
         for (const auto& coin : coins) {
             if (!coin.IsUsed) {
-                int coinHeight =  zerocoinState->GetMintedCoinHeightAndId(
-                    PublicCoinV3(coin.value, coin.get_denomination())).first;
+                int coinHeight = sigmaState->GetMintedCoinHeightAndId(
+                    sigma::PublicCoin(coin.value, coin.get_denomination())).first;
                 if (coinHeight == -1
                     || (coinHeight <= block && coinHeight > block - ZC_MINT_CONFIRMATIONS)) {
                     cachedHavePendingCoin = true;
@@ -206,15 +208,15 @@ void WalletModel::checkBalanceChanged()
 void WalletModel::checkSigmaAmount(bool forced)
 {
     if ((cachedHavePendingCoin && cachedNumBlocks > lastBlockCheckSigma) || forced ) {
-        std::list<CZerocoinEntryV3> coins;
-        CWalletDB(wallet->strWalletFile).ListPubCoinV3(coins);
+        std::list<CSigmaEntry> coins;
+        CWalletDB(wallet->strWalletFile).ListSigmaPubCoin(coins);
 
-        std::vector<CZerocoinEntryV3> spendable, pending;
+        std::vector<CSigmaEntry> spendable, pending;
 
-        std::vector<PublicCoinV3> anonimity_set;
+        std::vector<sigma::PublicCoin> anonimity_set;
         uint256 blockHash;
 
-        CZerocoinStateV3* zerocoinState = CZerocoinStateV3::GetZerocoinState();
+        sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
 
         cachedHavePendingCoin = false;
 
@@ -225,15 +227,15 @@ void WalletModel::checkSigmaAmount(bool forced)
                 continue;
             }
 
-            auto coinHeightAndId =  zerocoinState->GetMintedCoinHeightAndId(
-                PublicCoinV3(coin.value, coin.get_denomination()));
+            auto coinHeightAndId = sigmaState->GetMintedCoinHeightAndId(
+                sigma::PublicCoin(coin.value, coin.get_denomination()));
 
             int coinHeight = coinHeightAndId.first;
             int coinGroupID = coinHeightAndId.second;
 
             if (coinHeight > 0
                 && coinHeight + (ZC_MINT_CONFIRMATIONS-1) <= chainActive.Height()
-                && zerocoinState->GetCoinSetForSpend(
+                && sigmaState->GetCoinSetForSpend(
                     &chainActive,
                     chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1),
                     coin.get_denomination(),
@@ -835,7 +837,7 @@ bool WalletModel::rebroadcastTransaction(uint256 hash)
 // Sigma
 WalletModel::SendCoinsReturn WalletModel::prepareSigmaSpendTransaction(
     WalletModelTransaction &transaction,
-    std::vector<CZerocoinEntryV3> &selectedCoins,
+    std::vector<CSigmaEntry> &selectedCoins,
     std::vector<CHDMint> &changes)
 {
     QList<SendCoinsRecipient> recipients = transaction.getRecipients();
@@ -867,11 +869,11 @@ WalletModel::SendCoinsReturn WalletModel::prepareSigmaSpendTransaction(
 
     CWalletTx *newTx = transaction.getTransaction();
     try {
-        *newTx = wallet->CreateZerocoinSpendTransactionV3(sendRecipients, fee, selectedCoins, changes);
-    } catch (const std::runtime_error& err) {
-        Q_EMIT message(tr("Send Coins"), QString::fromStdString(err.what()),
-                         CClientUIInterface::MSG_ERROR);
-        return TransactionCreationFailed;
+        *newTx = wallet->CreateSigmaSpendTransaction(sendRecipients, fee, selectedCoins, changes);
+    } catch (const InsufficientFunds& err) {
+        return AmountExceedsBalance;
+    } catch (const std::invalid_argument& err) {
+        return ExceedLimit;
     }
 
     transaction.setTransactionFee(fee);
@@ -880,7 +882,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareSigmaSpendTransaction(
 }
 
 WalletModel::SendCoinsReturn WalletModel::sendSigma(WalletModelTransaction &transaction,
-    std::vector<CZerocoinEntryV3>& coins, std::vector<CHDMint>& changes)
+    std::vector<CSigmaEntry>& coins, std::vector<CHDMint>& changes)
 {
     QByteArray transaction_array; /* store serialized transaction */
 
@@ -950,27 +952,27 @@ WalletModel::SendCoinsReturn WalletModel::sendSigma(WalletModelTransaction &tran
 
 void WalletModel::sigmaMint(const CAmount& n)
 {
-    std::vector<sigma::CoinDenominationV3> denominations;
+    std::vector<sigma::CoinDenomination> denominations;
     sigma::GetAllDenoms(denominations);
 
-    std::vector<sigma::CoinDenominationV3> mints;
+    std::vector<sigma::CoinDenomination> mints;
     if (CWallet::SelectMintCoinsForAmount(n, denominations, mints) != n) {
         throw std::runtime_error("Problem with coin selection.\n");
     }
 
-    std::vector<sigma::PrivateCoinV3> privCoins;
+    std::vector<sigma::PrivateCoin> privCoins;
 
-    const auto& zcParams = sigma::ParamsV3::get_default();
+    const sigma::Params* sigmaParams = sigma::Params::get_default();
     std::transform(mints.begin(), mints.end(), std::back_inserter(privCoins),
-        [zcParams](const sigma::CoinDenominationV3& denom) -> sigma::PrivateCoinV3 {
-            return sigma::PrivateCoinV3(zcParams, denom);
+        [sigmaParams](const sigma::CoinDenomination& denom) -> sigma::PrivateCoin {
+            return sigma::PrivateCoin(sigmaParams, denom);
         });
 
     vector<CHDMint> vDMints;
     auto recipients = CWallet::CreateSigmaMintRecipients(privCoins, vDMints);
 
     CWalletTx wtx;
-    std::string strError = pwalletMain->MintAndStoreZerocoinV3(recipients, privCoins, vDMints, wtx);
+    std::string strError = pwalletMain->MintAndStoreSigma(recipients, privCoins, vDMints, wtx);
 
     if (strError != "") {
         throw std::range_error(strError);

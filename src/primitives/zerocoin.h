@@ -23,7 +23,7 @@ struct CMintMeta
     GroupElement pubCoinValue;
     uint256 hashSerial;
     uint8_t nVersion;
-    sigma::CoinDenominationV3 denom;
+    sigma::CoinDenomination denom;
     uint256 txid;
     bool isUsed;
     bool isArchived;
@@ -111,10 +111,10 @@ public:
 };
 
 
-class CZerocoinEntryV3
+class CSigmaEntry
 {
 public:
-    void set_denomination(sigma::CoinDenominationV3 denom) {
+    void set_denomination(sigma::CoinDenomination denom) {
         DenominationToInteger(denom, denomination);
     }
     void set_denomination_value(int64_t new_denomination) {
@@ -123,10 +123,14 @@ public:
     int64_t get_denomination_value() const {
         return denomination;
     }
-    sigma::CoinDenominationV3 get_denomination() const {
-        sigma::CoinDenominationV3 result;
+    sigma::CoinDenomination get_denomination() const {
+        sigma::CoinDenomination result;
         IntegerToDenomination(denomination, result);
         return result;
+    }
+
+    std::string get_string_denomination() const {
+        return DenominationToString(get_denomination());
     }
 
     //public
@@ -146,7 +150,7 @@ public:
 
 private:
     // NOTE(martun): made this one private to make sure people don't
-    // misuse it and try to assign a value of type sigma::CoinDenominationV3
+    // misuse it and try to assign a value of type sigma::CoinDenomination
     // to it. In these cases the value is automatically converted to int,
     // which is not what we want.
     // Starting from Version 3 == sigma, this number is coin value * COIN,
@@ -155,7 +159,7 @@ private:
 
 public:
 
-    CZerocoinEntryV3()
+    CSigmaEntry()
     {
         SetNull();
     }
@@ -171,7 +175,7 @@ public:
         id = -1;
     }
 
-    bool IsCorrectV3Mint() const {
+    bool IsCorrectSigmaMint() const {
         return randomness.isMember() && serialNumber.isMember();
     }
 
@@ -250,7 +254,7 @@ public:
     }
 };
 
-class CZerocoinSpendEntryV3
+class CSigmaSpendEntry
 {
 public:
     Scalar coinSerial;
@@ -258,7 +262,7 @@ public:
     GroupElement pubCoin;
     int id;
 
-    void set_denomination(sigma::CoinDenominationV3 denom) {
+    void set_denomination(sigma::CoinDenomination denom) {
         DenominationToInteger(denom, denomination);
     }
 
@@ -270,13 +274,13 @@ public:
         return denomination;
     }
 
-    sigma::CoinDenominationV3 get_denomination() const {
-        sigma::CoinDenominationV3 result;
+    sigma::CoinDenomination get_denomination() const {
+        sigma::CoinDenomination result;
         IntegerToDenomination(denomination, result);
         return result;
     }
 
-    CZerocoinSpendEntryV3()
+    CSigmaSpendEntry()
     {
         SetNull();
     }
@@ -301,7 +305,7 @@ public:
     }
 private:
     // NOTE(martun): made this one private to make sure people don't
-    // misuse it and try to assign a value of type sigma::CoinDenominationV3
+    // misuse it and try to assign a value of type sigma::CoinDenomination
     // to it. In these cases the value is automatically converted to int,
     // which is not what we want.
     // Starting from Version 3 == sigma, this number is coin value * COIN,

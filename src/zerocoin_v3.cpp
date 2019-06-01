@@ -23,30 +23,30 @@
 
 #include <ios>
 
-using namespace std;
+namespace sigma {
 
-// Set up the Zerocoin Params object
-sigma::ParamsV3* ZCParamsV3 = sigma::ParamsV3::get_default();
+// Set up the Sigma Params object
+sigma::Params* SigmaParams = sigma::Params::get_default();
 
-static CZerocoinStateV3 zerocoinStateV3;
+static CSigmaState sigmaState;
 
-static bool CheckZerocoinSpendSerialV3(
+static bool CheckSigmaSpendSerial(
         CValidationState &state,
-        CZerocoinTxInfoV3 *zerocoinTxInfoV3,
+        CSigmaTxInfo *sigmaTxInfo,
         const Scalar &serial,
         int nHeight,
         bool fConnectTip) {
     // check for zerocoin transaction in this block as well
-    if (zerocoinTxInfoV3 &&
-            !zerocoinTxInfoV3->fInfoIsComplete &&
-            zerocoinTxInfoV3->spentSerials.find(serial) != zerocoinTxInfoV3->spentSerials.end())
+    if (sigmaTxInfo &&
+            !sigmaTxInfo->fInfoIsComplete &&
+            sigmaTxInfo->spentSerials.find(serial) != sigmaTxInfo->spentSerials.end())
         return state.DoS(0, error("CTransaction::CheckTransaction() : two or more spends with same serial in the same block"));
 
-    // check for used serials in zerocoinStateV3
-    if (zerocoinStateV3.IsUsedCoinSerial(serial)) {
+    // check for used serials in sigmaState
+    if (sigmaState.IsUsedCoinSerial(serial)) {
         // Proceed with checks ONLY if we're accepting tx into the memory pool or connecting block to the existing blockchain
         if (nHeight == INT_MAX || fConnectTip) {
-            return state.DoS(0, error("CTransaction::CheckTransaction() : The V3 CoinSpend serial has been used"));
+            return state.DoS(0, error("CTransaction::CheckTransaction() : The sigma CoinSpend serial has been used"));
         }
     }
     return true;
@@ -60,7 +60,7 @@ bool IsSigmaAllowed()
 
 bool IsSigmaAllowed(int height)
 {
-    return height >= Params().GetConsensus().nSigmaStartBlock;
+	return height >= ::Params().GetConsensus().nSigmaStartBlock;
 }
 
 secp_primitives::GroupElement ParseSigmaMintScript(const CScript& script)
@@ -77,7 +77,7 @@ secp_primitives::GroupElement ParseSigmaMintScript(const CScript& script)
     return pub;
 }
 
-std::pair<std::unique_ptr<sigma::CoinSpendV3>, uint32_t> ParseSigmaSpend(const CTxIn& in)
+std::pair<std::unique_ptr<sigma::CoinSpend>, uint32_t> ParseSigmaSpend(const CTxIn& in)
 {
     uint32_t groupId = in.prevout.n;
 
@@ -91,14 +91,15 @@ std::pair<std::unique_ptr<sigma::CoinSpendV3>, uint32_t> ParseSigmaSpend(const C
         PROTOCOL_VERSION
     );
 
-    std::unique_ptr<sigma::CoinSpendV3> spend(new sigma::CoinSpendV3(ZCParamsV3, serialized));
+	std::unique_ptr<sigma::CoinSpend> spend(new sigma::CoinSpend(SigmaParams, serialized));
 
     return std::make_pair(std::move(spend), groupId);
 }
 
+// This function will not report an error only if the transaction is sigma spend.
 CAmount GetSpendAmount(const CTxIn& in) {
-    if (in.IsZerocoinSpendV3()) {
-        std::unique_ptr<sigma::CoinSpendV3> spend;
+    if (in.IsSigmaSpend()) {
+        std::unique_ptr<sigma::CoinSpend> spend;
 
         try {
             std::tie(spend, std::ignore) = ParseSigmaSpend(in);
@@ -124,59 +125,73 @@ CAmount GetSpendAmount(const CTransaction& tx) {
 }
 
 bool CheckSigmaBlock(CValidationState &state, const CBlock& block) {
-    auto& consensus = Params().GetConsensus();
+    auto& consensus = ::Params().GetConsensus();
 
-    size_t spendsAmount = 0;
-    CAmount spendsValue(0);
+    size_t blockSpendsAmount = 0;
+    CAmount blockSpendsValue(0);
 
     for (const auto& tx : block.vtx) {
+        auto txSpendsValue = GetSpendAmount(tx);
+        size_t txSpendsAmount = 0;
+
         for (const auto& in : tx.vin) {
-            if (in.IsZerocoinSpendV3()) {
-                spendsAmount++;
+            if (in.IsSigmaSpend()) {
+                txSpendsAmount++;
             }
         }
-        spendsValue += GetSpendAmount(tx);
+
+        if (txSpendsAmount > consensus.nMaxSigmaInputPerTransaction) {
+            return state.DoS(100, false, REJECT_INVALID,
+                "bad-txns-spend-invalid");
+        }
+
+        if (txSpendsValue > consensus.nMaxValueSigmaSpendPerTransaction) {
+            return state.DoS(100, false, REJECT_INVALID,
+                "bad-txns-spend-invalid");
+        }
+
+        blockSpendsAmount += txSpendsAmount;
+        blockSpendsValue += txSpendsValue;
     }
 
-    if (spendsAmount > consensus.nMaxSigmaInputPerBlock) {
+    if (blockSpendsAmount > consensus.nMaxSigmaInputPerBlock) {
         return state.DoS(100, false, REJECT_INVALID,
             "bad-txns-spend-invalid");
     }
 
-    if (spendsValue > consensus.nMaxValueSigmaSpendPerBlock) {
+    if (blockSpendsValue > consensus.nMaxValueSigmaSpendPerBlock) {
         return state.DoS(100, false, REJECT_INVALID,
             "bad-txns-spend-invalid");
     }
     return true;
 }
 
-// This function will not report an error only if the transaction is zerocoin spend V3.
 // Will return false for V1, V1.5 and V2 spends.
-// Mixing V2 and V3 spends into the same transaction will fail.
-bool CheckSpendZcoinTransactionV3(
+// Mixing V2 and sigma spends into the same transaction will fail.
+bool CheckSigmaSpendTransaction(
         const CTransaction &tx,
-        const vector<sigma::CoinDenominationV3>& targetDenominations,
+        const vector<sigma::CoinDenomination>& targetDenominations,
         CValidationState &state,
         uint256 hashTx,
         bool isVerifyDB,
         int nHeight,
         bool isCheckWallet,
         bool fStatefulSigmaCheck,
-        CZerocoinTxInfoV3 *zerocoinTxInfoV3) {
-    bool hasZerocoinSpendInputs = false, hasNonZerocoinInputs = false;
+        CSigmaTxInfo *sigmaTxInfo) {
+    bool hasSigmaSpendInputs = false, hasNonSigmaInputs = false;
     int vinIndex = -1;
     std::unordered_set<Scalar, sigma::CScalarHash> txSerials;
 
     for (const CTxIn &txin : tx.vin)
     {
-        std::unique_ptr<sigma::CoinSpendV3> spend;
+        std::unique_ptr<sigma::CoinSpend> spend;
         uint32_t pubcoinId;
 
         vinIndex++;
-        if (txin.scriptSig.IsZerocoinSpendV3())
-            hasZerocoinSpendInputs = true;
+        if (txin.scriptSig.IsSigmaSpend())
+            hasSigmaSpendInputs = true;
         else
-            hasNonZerocoinInputs = true;
+            hasNonSigmaInputs = true;
 
         try {
             std::tie(spend, pubcoinId) = ParseSigmaSpend(txin);
@@ -184,7 +199,7 @@ bool CheckSpendZcoinTransactionV3(
             return state.DoS(100,
                 false,
                 REJECT_MALFORMED,
-                "CheckSpendZcoinTransactionV3: invalid spend transaction");
+                "CheckSigmaSpendTransaction: invalid spend transaction");
         }
 
         if (spend->getVersion() != ZEROCOIN_TX_VERSION_3) {
@@ -199,13 +214,13 @@ bool CheckSpendZcoinTransactionV3(
         // Obtain the hash of the transaction sans the zerocoin part
         CMutableTransaction txTemp = tx;
         BOOST_FOREACH(CTxIn &txTempIn, txTemp.vin) {
-            if (txTempIn.scriptSig.IsZerocoinSpendV3()) {
+            if (txTempIn.scriptSig.IsSigmaSpend()) {
                 txTempIn.scriptSig.clear();
             }
         }
         txHashForMetadata = txTemp.GetHash();
 
-        LogPrintf("CheckSpendZcoinTransactionV3: tx version=%d, tx metadata hash=%s, serial=%s\n",
+        LogPrintf("CheckSigmaSpendTransaction: tx version=%d, tx metadata hash=%s, serial=%s\n",
                 spend->getVersion(), txHashForMetadata.ToString(),
                 spend->getCoinSerialNumber().tostring());
 
@@ -213,20 +228,20 @@ bool CheckSpendZcoinTransactionV3(
             continue;
         }
 
-        CZerocoinStateV3::CoinGroupInfoV3 coinGroup;
-        if (!zerocoinStateV3.GetCoinGroupInfo(targetDenominations[vinIndex], pubcoinId, coinGroup))
+        CSigmaState::SigmaCoinGroupInfo coinGroup;
+        if (!sigmaState.GetCoinGroupInfo(targetDenominations[vinIndex], pubcoinId, coinGroup))
             return state.DoS(100, false, NO_MINT_ZEROCOIN,
-                    "CheckSpendZcoinTransactionV3: Error: no coins were minted with such parameters");
+                    "CheckSigmaSpendTransaction: Error: no coins were minted with such parameters");
 
         bool passVerify = false;
         CBlockIndex *index = coinGroup.lastBlock;
-        pair<sigma::CoinDenominationV3, int> denominationAndId = std::make_pair(
+        pair<sigma::CoinDenomination, int> denominationAndId = std::make_pair(
             targetDenominations[vinIndex], pubcoinId);
 
         uint256 accumulatorBlockHash = spend->getAccumulatorBlockHash();
 
         // We use incomplete transaction hash as metadata.
-        sigma::SpendMetaDataV3 newMetaData(
+        sigma::SpendMetaData newMetaData(
             pubcoinId,
             accumulatorBlockHash,
             txHashForMetadata);
@@ -237,11 +252,11 @@ bool CheckSpendZcoinTransactionV3(
 
         // Build a vector with all the public coins with given denomination and accumulator id before
         // the block on which the spend occured.
-        // This list of public coins is required by function "Verify" of CoinSpendV3.
-        std::vector<PublicCoinV3> anonymity_set;
+        // This list of public coins is required by function "Verify" of CoinSpend.
+        std::vector<sigma::PublicCoin> anonymity_set;
         while(true) {
-            BOOST_FOREACH(const sigma::PublicCoinV3& pubCoinValue,
-                    index->mintedPubCoinsV3[denominationAndId]) {
+            BOOST_FOREACH(const sigma::PublicCoin& pubCoinValue,
+                    index->sigmaMintedPubCoins[denominationAndId]) {
                 anonymity_set.push_back(pubCoinValue);
             }
             if (index == coinGroup.firstBlock)
@@ -253,10 +268,10 @@ bool CheckSpendZcoinTransactionV3(
         if (passVerify) {
             Scalar serial = spend->getCoinSerialNumber();
             // do not check for duplicates in case we've seen exact copy of this tx in this block before
-            if (!(zerocoinTxInfoV3 && zerocoinTxInfoV3->zcTransactions.count(hashTx) > 0)) {
-                if (!CheckZerocoinSpendSerialV3(
-                            state, zerocoinTxInfoV3, serial, nHeight, false)) {
-                    LogPrintf("CheckSpendZcoinTransactionV3: serial check failed, serial=%s\n", serial);
+            if (!(sigmaTxInfo && sigmaTxInfo->zcTransactions.count(hashTx) > 0)) {
+                if (!CheckSigmaSpendSerial(
+                            state, sigmaTxInfo, serial, nHeight, false)) {
+                    LogPrintf("CheckSigmaSpendTransaction: serial check failed, serial=%s\n", serial);
                     return false;
                 }
             }
@@ -264,49 +279,49 @@ bool CheckSpendZcoinTransactionV3(
             // check duplicated serials in same transaction.
             if (!txSerials.insert(serial).second) {
                 return state.DoS(100,
-                    error("CheckSpendZcoinTransactionV3: two or more spends with same serial in the same transaction"));
+                    error("CheckSigmaSpendTransaction: two or more spends with same serial in the same transaction"));
             }
 
             if(!isVerifyDB && !isCheckWallet) {
-                if (zerocoinTxInfoV3 && !zerocoinTxInfoV3->fInfoIsComplete) {
+                if (sigmaTxInfo && !sigmaTxInfo->fInfoIsComplete) {
                     // add spend information to the index
-                    zerocoinTxInfoV3->spentSerials.insert(std::make_pair(
+                    sigmaTxInfo->spentSerials.insert(std::make_pair(
                                 serial, (int)spend->getDenomination()));
                 }
             }
         }
         else {
-            LogPrintf("CheckSpendZCoinTransactionV3: verification failed at block %d\n", nHeight);
+            LogPrintf("CheckSigmaSpendTransaction: verification failed at block %d\n", nHeight);
             return false;
         }
     }
 
     if(!isVerifyDB && !isCheckWallet) {
-        if (zerocoinTxInfoV3 && !zerocoinTxInfoV3->fInfoIsComplete && hasZerocoinSpendInputs) {
-            zerocoinTxInfoV3->zcTransactions.insert(hashTx);
+        if (sigmaTxInfo && !sigmaTxInfo->fInfoIsComplete && hasSigmaSpendInputs) {
+            sigmaTxInfo->zcTransactions.insert(hashTx);
         }
     }
 
-    if (hasZerocoinSpendInputs) {
-        if (hasNonZerocoinInputs) {
+    if (hasSigmaSpendInputs) {
+        if (hasNonSigmaInputs) {
             // mixing zerocoin spend input with non-zerocoin inputs is prohibited
             return state.DoS(100, false,
                              REJECT_MALFORMED,
-                             "CheckSpendZcoinTransaction: can't mix zerocoin spend input with regular ones");
+                             "CheckSigmaSpendTransaction: can't mix zerocoin spend input with regular ones");
         }
     }
 
     return true;
 }
 
-bool CheckMintZcoinTransactionV3(
+bool CheckSigmaMintTransaction(
         const CTxOut &txout,
         CValidationState &state,
         uint256 hashTx,
-        CZerocoinTxInfoV3 *zerocoinTxInfoV3) {
+        CSigmaTxInfo *sigmaTxInfo) {
     secp_primitives::GroupElement pubCoinValue;
 
-    LogPrintf("CheckMintZcoinTransactionV3 txHash = %s\n", txout.GetHash().ToString());
+    LogPrintf("CheckSigmaMintTransaction txHash = %s\n", txout.GetHash().ToString());
     LogPrintf("nValue = %d\n", txout.nValue);
 
     try {
@@ -315,22 +330,22 @@ bool CheckMintZcoinTransactionV3(
         return state.DoS(100,
             false,
             PUBCOIN_NOT_VALIDATE,
-            "CTransaction::CheckTransactionV3() : PubCoin validation failed");
+            "CTransaction::CheckTransaction() : PubCoin validation failed");
     }
 
-    sigma::CoinDenominationV3 denomination;
+    sigma::CoinDenomination denomination;
     if (!IntegerToDenomination(txout.nValue, denomination, state)) {
         return state.DoS(100,
                 false,
                 PUBCOIN_NOT_VALIDATE,
-                "CTransaction::CheckTransactionV3() : "
+                "CTransaction::CheckSigmaTransaction() : "
                 "PubCoin validation failed, unknown denomination");
     }
-    PublicCoinV3 pubCoin(pubCoinValue, denomination);
-    bool hasCoin = zerocoinStateV3.HasCoin(pubCoin);
+    sigma::PublicCoin pubCoin(pubCoinValue, denomination);
+    bool hasCoin = sigmaState.HasCoin(pubCoin);
 
-    if (!hasCoin && zerocoinTxInfoV3 && !zerocoinTxInfoV3->fInfoIsComplete) {
-        BOOST_FOREACH(const PublicCoinV3& mint, zerocoinTxInfoV3->mints) {
+    if (!hasCoin && sigmaTxInfo && !sigmaTxInfo->fInfoIsComplete) {
+        BOOST_FOREACH(const sigma::PublicCoin& mint, sigmaTxInfo->mints) {
             if (mint == pubCoin) {
                 hasCoin = true;
                 break;
@@ -339,11 +354,7 @@ bool CheckMintZcoinTransactionV3(
     }
 
     if (hasCoin) {
-        // return state.DoS(100,
-        //                 false,
-        //                 PUBCOIN_NOT_VALIDATE,
-        //                 "CheckZerocoinTransaction: duplicate mint");
-        LogPrintf("CheckMintZerocoinTransactionV3: double mint, tx=%s\n",
+       LogPrintf("CheckSigmaMintTransaction: double mint, tx=%s\n",
                 txout.GetHash().ToString());
     }
 
@@ -351,18 +362,18 @@ bool CheckMintZcoinTransactionV3(
         return state.DoS(100,
                 false,
                 PUBCOIN_NOT_VALIDATE,
-                "CheckZerocoinTransaction : PubCoin validation failed");
+                "CheckSigmaTransaction : PubCoin validation failed");
 
-    if (zerocoinTxInfoV3 != NULL && !zerocoinTxInfoV3->fInfoIsComplete) {
+    if (sigmaTxInfo != NULL && !sigmaTxInfo->fInfoIsComplete) {
         // Update public coin list in the info
-        zerocoinTxInfoV3->mints.push_back(pubCoin);
-        zerocoinTxInfoV3->zcTransactions.insert(hashTx);
+        sigmaTxInfo->mints.push_back(pubCoin);
+        sigmaTxInfo->zcTransactions.insert(hashTx);
     }
 
     return true;
 }
 
-bool CheckZerocoinTransactionV3(
+bool CheckSigmaTransaction(
         const CTransaction &tx,
         CValidationState &state,
         uint256 hashTx,
@@ -370,9 +381,9 @@ bool CheckZerocoinTransactionV3(
         int nHeight,
         bool isCheckWallet,
         bool fStatefulSigmaCheck,
-        CZerocoinTxInfoV3 *zerocoinTxInfoV3)
+        CSigmaTxInfo *sigmaTxInfo)
 {
-    auto& consensus = Params().GetConsensus();
+    auto& consensus = ::Params().GetConsensus();
 
     // nHeight have special mode which value is INT_MAX so we need this.
     int realHeight;
@@ -384,40 +395,40 @@ bool CheckZerocoinTransactionV3(
 
     bool allowSigma = (realHeight >= consensus.nSigmaStartBlock);
 
-    // Check Mint Zerocoin Transaction
+    // Check Mint Sigma Transaction
     if (allowSigma) {
         for (const CTxOut &txout : tx.vout) {
-            if (!txout.scriptPubKey.empty() && txout.scriptPubKey.IsZerocoinMintV3()) {
-                if (!CheckMintZcoinTransactionV3(txout, state, hashTx, zerocoinTxInfoV3))
+            if (!txout.scriptPubKey.empty() && txout.scriptPubKey.IsSigmaMint()) {
+                if (!CheckSigmaMintTransaction(txout, state, hashTx, sigmaTxInfo))
                     return false;
             }
         }
     }
 
-    // Check Spend Zerocoin Transaction
-    if(tx.IsZerocoinSpendV3()) {
+    // Check Sigma Spend Transaction
+    if(tx.IsSigmaSpend()) {
         // First check number of inputs does not exceed transaction limit
-        if (tx.vin.size() > consensus.nMaxSigmaInputPerBlock) {
+        if (tx.vin.size() > consensus.nMaxSigmaInputPerTransaction) {
             return state.DoS(100, false,
                 REJECT_INVALID,
                 "bad-txns-spend-invalid");
         }
 
-        if (GetSpendAmount(tx) > consensus.nMaxValueSigmaSpendPerBlock) {
+        if (GetSpendAmount(tx) > consensus.nMaxValueSigmaSpendPerTransaction) {
             return state.DoS(100, false,
                 REJECT_INVALID,
                 "bad-txns-spend-invalid");
         }
 
-        vector<sigma::CoinDenominationV3> denominations;
+        vector<sigma::CoinDenomination> denominations;
         uint64_t totalValue = 0;
         BOOST_FOREACH(const CTxIn &txin, tx.vin){
-            if(!txin.scriptSig.IsZerocoinSpendV3()) {
+            if(!txin.scriptSig.IsSigmaSpend()) {
                 return state.DoS(100, false,
                                  REJECT_MALFORMED,
-                                 "CheckSpendZcoinTransaction: can't mix zerocoin spend input with regular ones");
+                                 "CheckSigmaSpendTransaction: can't mix zerocoin spend input with regular ones");
             }
-            // Get the CoinDenomination value of each vin for the CheckSpendZcoinTransaction function
+            // Get the CoinDenomination value of each vin for the CheckSigmaSpendTransaction function
             uint32_t pubcoinId = txin.prevout.n;
             if (pubcoinId < 1 || pubcoinId >= INT_MAX) {
                 // coin id should be positive integer
@@ -427,10 +438,10 @@ bool CheckZerocoinTransactionV3(
             CDataStream serializedCoinSpend((const char *)&*(txin.scriptSig.begin() + 1),
                                             (const char *)&*txin.scriptSig.end(),
                                             SER_NETWORK, PROTOCOL_VERSION);
-            sigma::CoinSpendV3 newSpend(ZCParamsV3, serializedCoinSpend);
+            sigma::CoinSpend newSpend(SigmaParams, serializedCoinSpend);
             uint64_t denom = newSpend.getIntDenomination();
             totalValue += denom;
-            sigma::CoinDenominationV3 denomination;
+            sigma::CoinDenomination denomination;
             if (!IntegerToDenomination(denom, denomination, state))
                 return false;
             denominations.push_back(denomination);
@@ -439,9 +450,9 @@ bool CheckZerocoinTransactionV3(
         // Check vOut
         // Only one loop, we checked on the format before entering this case
         if (!isVerifyDB) {
-            if (!CheckSpendZcoinTransactionV3(
+            if (!CheckSigmaSpendTransaction(
                 tx, denominations, state, hashTx, isVerifyDB, nHeight,
-                isCheckWallet, fStatefulSigmaCheck, zerocoinTxInfoV3)) {
+                isCheckWallet, fStatefulSigmaCheck, sigmaTxInfo)) {
                     return false;
             }
         }
@@ -450,23 +461,23 @@ bool CheckZerocoinTransactionV3(
     return true;
 }
 
-void DisconnectTipZCV3(CBlock & /*block*/, CBlockIndex *pindexDelete) {
-    zerocoinStateV3.RemoveBlock(pindexDelete);
+void DisconnectTipSigma(CBlock & /*block*/, CBlockIndex *pindexDelete) {
+    sigmaState.RemoveBlock(pindexDelete);
 }
 
-Scalar ZerocoinGetSpendSerialNumberV3(const CTransaction &tx, const CTxIn &txin) {
-    if (!tx.IsZerocoinSpendV3())
+Scalar GetSigmaSpendSerialNumber(const CTransaction &tx, const CTxIn &txin) {
+    if (!tx.IsSigmaSpend())
         return Scalar(uint64_t(0));
 
     try {
         // NOTE(martun): +1 on the next line stands for 1 byte in which the opcode of
-        // OP_ZEROCOINSPENDV3 is written. In zerocoin you will see +4 instead,
+        // OP_SIGMASPEND is written. In zerocoin you will see +4 instead,
         // because the size of serialized spend is also written, probably in 3 bytes.
         CDataStream serializedCoinSpend(
                 (const char *)&*(txin.scriptSig.begin() + 1),
                 (const char *)&*txin.scriptSig.end(),
                 SER_NETWORK, PROTOCOL_VERSION);
-        sigma::CoinSpendV3 spend(ZCParamsV3, serializedCoinSpend);
+        sigma::CoinSpend spend(SigmaParams, serializedCoinSpend);
         return spend.getCoinSerialNumber();
     }
     catch (const std::ios_base::failure &) {
@@ -474,8 +485,8 @@ Scalar ZerocoinGetSpendSerialNumberV3(const CTransaction &tx, const CTxIn &txin)
     }
 }
 
-CAmount GetSpendTransactionInputV3(const CTransaction &tx) {
-    if (!tx.IsZerocoinSpendV3())
+CAmount GetSigmaSpendInput(const CTransaction &tx) {
+    if (!tx.IsSigmaSpend())
         return CAmount(0);
 
     try {
@@ -488,7 +499,7 @@ CAmount GetSpendTransactionInputV3(const CTransaction &tx) {
                     (const char *)&*(txin.scriptSig.begin() + 1),
                     (const char *)&*txin.scriptSig.end(),
                     SER_NETWORK, PROTOCOL_VERSION);
-            sigma::CoinSpendV3 spend(ZCParamsV3, serializedCoinSpend);
+            sigma::CoinSpend spend(SigmaParams, serializedCoinSpend);
             sum += spend.getIntDenomination();
         }
         return sum;
@@ -503,27 +514,27 @@ CAmount GetSpendTransactionInputV3(const CTransaction &tx) {
  * Connect a new ZCblock to chainActive. pblock is either NULL or a pointer to a CBlock
  * corresponding to pindexNew, to bypass loading it again from disk.
  */
-bool ConnectBlockZCV3(
+bool ConnectBlockSigma(
         CValidationState &state,
         const CChainParams &chainparams,
         CBlockIndex *pindexNew,
         const CBlock *pblock,
         bool fJustCheck) {
     // Add zerocoin transaction information to index
-    if (pblock && pblock->zerocoinTxInfoV3) {
+    if (pblock && pblock->sigmaTxInfo) {
         if (!fJustCheck) {
-            pindexNew->mintedPubCoinsV3.clear();
-            pindexNew->spentSerialsV3.clear();
+            pindexNew->sigmaMintedPubCoins.clear();
+            pindexNew->sigmaSpentSerials.clear();
         }
 
         if (!CheckSigmaBlock(state, *pblock)) {
             return false;
         }
 
-        BOOST_FOREACH(auto& serial, pblock->zerocoinTxInfoV3->spentSerials) {
-            if (!CheckZerocoinSpendSerialV3(
+        BOOST_FOREACH(auto& serial, pblock->sigmaTxInfo->spentSerials) {
+            if (!CheckSigmaSpendSerial(
                     state,
-                    pblock->zerocoinTxInfoV3.get(),
+                    pblock->sigmaTxInfo.get(),
                     serial.first,
                     pindexNew->nHeight,
                     true /* fConnectTip */
@@ -532,40 +543,40 @@ bool ConnectBlockZCV3(
             }
 
             if (!fJustCheck) {
-                pindexNew->spentSerialsV3.insert(serial.first);
-                zerocoinStateV3.AddSpend(serial.first);
+                pindexNew->sigmaSpentSerials.insert(serial.first);
+                sigmaState.AddSpend(serial.first);
             }
         }
 
         if (fJustCheck)
             return true;
 
-        // Update pindexNew.mintedPubCoinsV3
-        BOOST_FOREACH(const PublicCoinV3& mint, pblock->zerocoinTxInfoV3->mints) {
-            CoinDenominationV3 denomination = mint.getDenomination();
-            int mintId = zerocoinStateV3.AddMint(pindexNew,	mint);
+        // Update pindexNew.sigmaMintedPubCoins
+        BOOST_FOREACH(const sigma::PublicCoin& mint, pblock->sigmaTxInfo->mints) {
+            sigma::CoinDenomination denomination = mint.getDenomination();
+            int mintId = sigmaState.AddMint(pindexNew,	mint);
 
             LogPrintf("ConnectTipZC: mint added denomination=%d, id=%d\n", denomination, mintId);
-            pair<CoinDenominationV3, int> denomAndId = make_pair(denomination, mintId);
-            pindexNew->mintedPubCoinsV3[denomAndId].push_back(mint);
+            pair<sigma::CoinDenomination, int> denomAndId = make_pair(denomination, mintId);
+            pindexNew->sigmaMintedPubCoins[denomAndId].push_back(mint);
         }
     }
     else if (!fJustCheck) { // TODO(martun): not sure if this else is necessary here. Check again later.
-        zerocoinStateV3.AddBlock(pindexNew);
+        sigmaState.AddBlock(pindexNew);
     }
     return true;
 }
 
-bool ZerocoinGetMintTxHashV3(uint256& txHash, GroupElement pubCoinValue) {
+bool ZerocoinGetSigmaMintTxHash(uint256& txHash, GroupElement pubCoinValue) {
 	int mintHeight = 0;
     int coinId = 0;
 
-    CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
-    std::vector<sigma::CoinDenominationV3> denominations;
+    sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
+    std::vector<sigma::CoinDenomination> denominations;
     GetAllDenoms(denominations);
-    BOOST_FOREACH(sigma::CoinDenominationV3 denomination, denominations){
-    	sigma::PublicCoinV3 pubCoin(pubCoinValue, denomination);
-        auto mintedCoinHeightAndId = zerocoinState->GetMintedCoinHeightAndId(pubCoin);
+    BOOST_FOREACH(sigma::CoinDenomination denomination, denominations){
+    	sigma::PublicCoin pubCoin(pubCoinValue, denomination);
+        auto mintedCoinHeightAndId = sigmaState->GetMintedCoinHeightAndId(pubCoin);
         mintHeight = mintedCoinHeightAndId.first;
         coinId = mintedCoinHeightAndId.second;
         if(mintHeight!=-1 && coinId!=-1)
@@ -578,15 +589,15 @@ bool ZerocoinGetMintTxHashV3(uint256& txHash, GroupElement pubCoinValue) {
     // get block containing mint
     CBlockIndex *mintBlock = chainActive[mintHeight];
     CBlock block;
-    if(!ReadBlockFromDisk(block, mintBlock, Params().GetConsensus()))
+    if(!ReadBlockFromDisk(block, mintBlock, ::Params().GetConsensus()))
         LogPrintf("can't read block from disk.\n");
 
     secp_primitives::GroupElement txPubCoinValue;
     // cycle transaction hashes, looking for this pubcoin.
     BOOST_FOREACH(CTransaction tx, block.vtx){   
-        if(tx.IsZerocoinMintV3()){
+        if(tx.IsSigmaMint()){
             for (const CTxOut &txout: tx.vout) {
-                if (txout.scriptPubKey.IsZerocoinMintV3()){
+                if (txout.scriptPubKey.IsSigmaMint()){
 
 				    // If you wonder why +1, go to file wallet.cpp and read the comments in function
 				    // CWallet::CreateZerocoinMintModelV3 around "scriptSerializedCoin << OP_ZEROCOINMINTV3";
@@ -605,30 +616,31 @@ bool ZerocoinGetMintTxHashV3(uint256& txHash, GroupElement pubCoinValue) {
     return false;
 }
 
-bool ZerocoinGetMintTxHashV3(uint256& txHash, uint256 pubCoinValueHash) {
+bool ZerocoinGetSigmaMintTxHash(uint256& txHash, uint256 pubCoinValueHash) {
     GroupElement pubCoinValue;
-    if(!zerocoinStateV3.HasCoinHash(pubCoinValue, pubCoinValueHash)){
+    sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
+    if(!sigmaState->HasCoinHash(pubCoinValue, pubCoinValueHash)){
         return false;
     }
 
-    return ZerocoinGetMintTxHashV3(txHash, pubCoinValue);
+    return ZerocoinGetSigmaMintTxHash(txHash, pubCoinValue);
 }
 
 
-bool ZerocoinBuildStateFromIndexV3(CChain *chain) {
-    zerocoinStateV3.Reset();
+bool BuildSigmaStateFromIndex(CChain *chain) {
+    sigmaState.Reset();
     for (CBlockIndex *blockIndex = chain->Genesis(); blockIndex; blockIndex=chain->Next(blockIndex))
     {
-        zerocoinStateV3.AddBlock(blockIndex);
+        sigmaState.AddBlock(blockIndex);
     }
     // DEBUG
     LogPrintf(
         "Latest IDs for sigma coin groups are %d, %d, %d, %d, %d\n",
-        zerocoinStateV3.GetLatestCoinID(CoinDenominationV3::SIGMA_DENOM_0_1),
-        zerocoinStateV3.GetLatestCoinID(CoinDenominationV3::SIGMA_DENOM_0_5),
-        zerocoinStateV3.GetLatestCoinID(CoinDenominationV3::SIGMA_DENOM_1),
-        zerocoinStateV3.GetLatestCoinID(CoinDenominationV3::SIGMA_DENOM_10),
-        zerocoinStateV3.GetLatestCoinID(CoinDenominationV3::SIGMA_DENOM_100));
+        sigmaState.GetLatestCoinID(CoinDenomination::SIGMA_DENOM_0_1),
+        sigmaState.GetLatestCoinID(CoinDenomination::SIGMA_DENOM_0_5),
+        sigmaState.GetLatestCoinID(CoinDenomination::SIGMA_DENOM_1),
+        sigmaState.GetLatestCoinID(CoinDenomination::SIGMA_DENOM_10),
+        sigmaState.GetLatestCoinID(CoinDenomination::SIGMA_DENOM_100));
     return true;
 }
 
@@ -648,7 +660,7 @@ uint256 GetPubCoinValueHash(const secp_primitives::GroupElement& bnValue)
 
 // CZerocoinTxInfoV3
 
-void CZerocoinTxInfoV3::Complete() {
+void CSigmaTxInfo::Complete() {
     // We need to sort mints lexicographically by serialized value of pubCoin. That's the way old code
     // works, we need to stick to it. Denomination doesn't matter but we will sort by it as well
     sort(mints.begin(), mints.end(),
@@ -663,15 +675,15 @@ void CZerocoinTxInfoV3::Complete() {
     fInfoIsComplete = true;
 }
 
-// CZerocoinStateV3
+// CSigmaState
 
-CZerocoinStateV3::CZerocoinStateV3() {
+CSigmaState::CSigmaState() {
 }
 
-int CZerocoinStateV3::AddMint(
+int CSigmaState::AddMint(
         CBlockIndex *index,
-        const PublicCoinV3 &pubCoin) {
-    sigma::CoinDenominationV3 denomination = pubCoin.getDenomination();
+        const sigma::PublicCoin &pubCoin) {
+    sigma::CoinDenomination denomination = pubCoin.getDenomination();
 
     if (latestCoinIds[denomination] < 1)
         latestCoinIds[denomination] = 1;
@@ -680,7 +692,7 @@ int CZerocoinStateV3::AddMint(
     // ZC_SPEND_V3_COINSPERID = 15.000, yet the actual limit of coins per accumlator is 16.000.
     // We need to cut at 15.000, such that we always have enough space for new mints. Mints for
     // each block will end up in the same accumulator.
-    CoinGroupInfoV3 &coinGroup = coinGroups[make_pair(denomination, mintCoinGroupId)];
+    SigmaCoinGroupInfo &coinGroup = coinGroups[make_pair(denomination, mintCoinGroupId)];
     int coinsPerId = ZC_SPEND_V3_COINSPERID;
     if (coinGroup.nCoins < coinsPerId // there's still space in the accumulator
         || coinGroup.lastBlock == index // or we have already placed some coins from current block.
@@ -694,14 +706,16 @@ int CZerocoinStateV3::AddMint(
         } else {
             assert(coinGroup.firstBlock != nullptr);
             assert(coinGroup.lastBlock != nullptr);
-            assert(coinGroup.lastBlock->nHeight <= index->nHeight);
+            if (coinGroup.lastBlock->nHeight > index->nHeight) { 
+                assert(coinGroup.lastBlock->nHeight <= index->nHeight);
+            }
 
             coinGroup.lastBlock = index;
         }
     }
     else {
         latestCoinIds[denomination] = ++mintCoinGroupId;
-        CoinGroupInfoV3& newCoinGroup = coinGroups[std::make_pair(denomination, mintCoinGroupId)];
+        SigmaCoinGroupInfo& newCoinGroup = coinGroups[std::make_pair(denomination, mintCoinGroupId)];
         newCoinGroup.firstBlock = newCoinGroup.lastBlock = index;
         newCoinGroup.nCoins = 1;
     }
@@ -713,16 +727,16 @@ int CZerocoinStateV3::AddMint(
     return mintCoinGroupId;
 }
 
-void CZerocoinStateV3::AddSpend(const Scalar &serial) {
+void CSigmaState::AddSpend(const Scalar &serial) {
     usedCoinSerials.insert(serial);
 }
 
-void CZerocoinStateV3::AddBlock(CBlockIndex *index) {
+void CSigmaState::AddBlock(CBlockIndex *index) {
     BOOST_FOREACH(
-        const PAIRTYPE(PAIRTYPE(sigma::CoinDenominationV3, int), vector<PublicCoinV3>) &pubCoins,
-            index->mintedPubCoinsV3) {
+        const PAIRTYPE(PAIRTYPE(sigma::CoinDenomination, int), vector<sigma::PublicCoin>) &pubCoins,
+            index->sigmaMintedPubCoins) {
         if (!pubCoins.second.empty()) {
-            CoinGroupInfoV3& coinGroup = coinGroups[pubCoins.first];
+            SigmaCoinGroupInfo& coinGroup = coinGroups[pubCoins.first];
 
             if (coinGroup.firstBlock == NULL)
                 coinGroup.firstBlock = index;
@@ -731,27 +745,27 @@ void CZerocoinStateV3::AddBlock(CBlockIndex *index) {
         }
 
         latestCoinIds[pubCoins.first.first] = pubCoins.first.second;
-        BOOST_FOREACH(const PublicCoinV3 &coin, pubCoins.second) {
+        BOOST_FOREACH(const sigma::PublicCoin &coin, pubCoins.second) {
             CMintedCoinInfo coinInfo;
             coinInfo.denomination = pubCoins.first.first;
             coinInfo.id = pubCoins.first.second;
             coinInfo.nHeight = index->nHeight;
-            mintedPubCoins.insert(pair<PublicCoinV3, CMintedCoinInfo>(coin, coinInfo));
+            mintedPubCoins.insert(pair<sigma::PublicCoin, CMintedCoinInfo>(coin, coinInfo));
         }
     }
 
-    BOOST_FOREACH(const Scalar &serial, index->spentSerialsV3) {
+    BOOST_FOREACH(const Scalar &serial, index->sigmaSpentSerials) {
         usedCoinSerials.insert(serial);
     }
 }
 
-void CZerocoinStateV3::RemoveBlock(CBlockIndex *index) {
+void CSigmaState::RemoveBlock(CBlockIndex *index) {
     // roll back accumulator updates
     BOOST_FOREACH(
-        const PAIRTYPE(PAIRTYPE(sigma::CoinDenominationV3, int),vector<PublicCoinV3>) &coin,
-        index->mintedPubCoinsV3)
+        const PAIRTYPE(PAIRTYPE(sigma::CoinDenomination, int),vector<sigma::PublicCoin>) &coin,
+        index->sigmaMintedPubCoins)
     {
-        CoinGroupInfoV3   &coinGroup = coinGroups[coin.first];
+        SigmaCoinGroupInfo   &coinGroup = coinGroups[coin.first];
         int  nMintsToForget = coin.second.size();
 
         assert(coinGroup.nCoins >= nMintsToForget);
@@ -769,14 +783,14 @@ void CZerocoinStateV3::RemoveBlock(CBlockIndex *index) {
             do {
                 assert(coinGroup.lastBlock != coinGroup.firstBlock);
                 coinGroup.lastBlock = coinGroup.lastBlock->pprev;
-            } while (coinGroup.lastBlock->mintedPubCoinsV3.count(coin.first) == 0);
+            } while (coinGroup.lastBlock->sigmaMintedPubCoins.count(coin.first) == 0);
         }
     }
 
     // roll back mints
-    BOOST_FOREACH(const PAIRTYPE(PAIRTYPE(CoinDenominationV3, int),vector<PublicCoinV3>) &pubCoins,
-                  index->mintedPubCoinsV3) {
-        BOOST_FOREACH(const PublicCoinV3 &coin, pubCoins.second) {
+    BOOST_FOREACH(const PAIRTYPE(PAIRTYPE(sigma::CoinDenomination, int),vector<sigma::PublicCoin>) &pubCoins,
+                  index->sigmaMintedPubCoins) {
+        BOOST_FOREACH(const sigma::PublicCoin &coin, pubCoins.second) {
             auto coins = mintedPubCoins.equal_range(coin);
             auto coinIt = find_if(
                 coins.first, coins.second,
@@ -789,21 +803,21 @@ void CZerocoinStateV3::RemoveBlock(CBlockIndex *index) {
         }
     }
 
-    index->mintedPubCoinsV3.clear();
+    index->sigmaMintedPubCoins.clear();
 
     // roll back spends
-    BOOST_FOREACH(const Scalar &serial, index->spentSerialsV3) {
+    BOOST_FOREACH(const Scalar &serial, index->sigmaSpentSerials) {
         usedCoinSerials.erase(serial);
     }
 
-    index->spentSerialsV3.clear();
+    index->sigmaSpentSerials.clear();
 }
 
-bool CZerocoinStateV3::GetCoinGroupInfo(
-        sigma::CoinDenominationV3 denomination,
+bool CSigmaState::GetCoinGroupInfo(
+        sigma::CoinDenomination denomination,
         int group_id,
-        CoinGroupInfoV3& result) {
-    std::pair<sigma::CoinDenominationV3, int> key =
+        SigmaCoinGroupInfo& result) {
+    std::pair<sigma::CoinDenomination, int> key =
         std::make_pair(denomination, group_id);
     if (coinGroups.count(key) == 0)
         return false;
@@ -812,11 +826,11 @@ bool CZerocoinStateV3::GetCoinGroupInfo(
     return true;
 }
 
-bool CZerocoinStateV3::IsUsedCoinSerial(const Scalar &coinSerial) {
+bool CSigmaState::IsUsedCoinSerial(const Scalar &coinSerial) {
     return usedCoinSerials.count(coinSerial) != 0;
 }
 
-bool CZerocoinStateV3::IsUsedCoinSerialHash(Scalar &coinSerial, const uint256 &coinSerialHash) {
+bool CSigmaState::IsUsedCoinSerialHash(Scalar &coinSerial, const uint256 &coinSerialHash) {
     for ( auto it = usedCoinSerials.begin(); it != usedCoinSerials.end(); ++it ){
         if(GetSerialHash(*it)==coinSerialHash){
             coinSerial = *it;
@@ -826,13 +840,13 @@ bool CZerocoinStateV3::IsUsedCoinSerialHash(Scalar &coinSerial, const uint256 &c
     return false;
 }
 
-bool CZerocoinStateV3::HasCoin(const PublicCoinV3& pubCoin) {
+bool CSigmaState::HasCoin(const sigma::PublicCoin& pubCoin) {
     return mintedPubCoins.find(pubCoin) != mintedPubCoins.end();
 }
 
-bool CZerocoinStateV3::HasCoinHash(GroupElement &pubCoinValue, const uint256 &pubCoinValueHash) {
+bool CSigmaState::HasCoinHash(GroupElement &pubCoinValue, const uint256 &pubCoinValueHash) {
     for ( auto it = mintedPubCoins.begin(); it != mintedPubCoins.end(); ++it ){
-    	sigma::PublicCoinV3 pubCoin = (*it).first;
+    	sigma::PublicCoin pubCoin = (*it).first;
         if(GetPubCoinValueHash(pubCoin.value)==pubCoinValueHash){
             pubCoinValue = pubCoin.value;
             return true;
@@ -841,36 +855,36 @@ bool CZerocoinStateV3::HasCoinHash(GroupElement &pubCoinValue, const uint256 &pu
     return false;
 }
 
-int CZerocoinStateV3::GetCoinSetForSpend(
+int CSigmaState::GetCoinSetForSpend(
         CChain *chain,
         int maxHeight,
-        sigma::CoinDenominationV3 denomination,
+        sigma::CoinDenomination denomination,
         int coinGroupID,
         uint256& blockHash_out,
-        std::vector<PublicCoinV3>& coins_out) {
+        std::vector<sigma::PublicCoin>& coins_out) {
 
-    pair<sigma::CoinDenominationV3, int> denomAndId = std::make_pair(denomination, coinGroupID);
+    pair<sigma::CoinDenomination, int> denomAndId = std::make_pair(denomination, coinGroupID);
 
     if (coinGroups.count(denomAndId) == 0)
         return 0;
 
-    CoinGroupInfoV3 coinGroup = coinGroups[denomAndId];
+    SigmaCoinGroupInfo coinGroup = coinGroups[denomAndId];
 
     int numberOfCoins = 0;
     for (CBlockIndex *block = coinGroup.lastBlock;
             ;
             block = block->pprev) {
-        if (block->mintedPubCoinsV3[denomAndId].size() > 0) {
+        if (block->sigmaMintedPubCoins[denomAndId].size() > 0) {
             if (block->nHeight <= maxHeight) {
                 if (numberOfCoins == 0) {
                     // latest block satisfying given conditions
                     // remember block hash
                     blockHash_out = block->GetBlockHash();
                 }
-                numberOfCoins += block->mintedPubCoinsV3[denomAndId].size();
+                numberOfCoins += block->sigmaMintedPubCoins[denomAndId].size();
                 coins_out.insert(coins_out.end(),
-                        block->mintedPubCoinsV3[denomAndId].begin(),
-                        block->mintedPubCoinsV3[denomAndId].end());
+                        block->sigmaMintedPubCoins[denomAndId].begin(),
+                        block->sigmaMintedPubCoins[denomAndId].end());
             }
         }
         if (block == coinGroup.firstBlock) {
@@ -880,8 +894,8 @@ int CZerocoinStateV3::GetCoinSetForSpend(
     return numberOfCoins;
 }
 
-std::pair<int, int> CZerocoinStateV3::GetMintedCoinHeightAndId(
-        const PublicCoinV3& pubCoin) {
+std::pair<int, int> CSigmaState::GetMintedCoinHeightAndId(
+        const sigma::PublicCoin& pubCoin) {
     auto coinIt = mintedPubCoins.find(pubCoin);
 
     if (coinIt != mintedPubCoins.end()) {
@@ -890,7 +904,7 @@ std::pair<int, int> CZerocoinStateV3::GetMintedCoinHeightAndId(
     return std::make_pair(-1, -1);
 }
 
-bool CZerocoinStateV3::AddSpendToMempool(const vector<Scalar> &coinSerials, uint256 txHash) {
+bool CSigmaState::AddSpendToMempool(const vector<Scalar> &coinSerials, uint256 txHash) {
     BOOST_FOREACH(Scalar coinSerial, coinSerials){
         if (IsUsedCoinSerial(coinSerial) || mempoolCoinSerials.count(coinSerial))
             return false;
@@ -901,7 +915,7 @@ bool CZerocoinStateV3::AddSpendToMempool(const vector<Scalar> &coinSerials, uint
     return true;
 }
 
-bool CZerocoinStateV3::AddSpendToMempool(const Scalar &coinSerial, uint256 txHash) {
+bool CSigmaState::AddSpendToMempool(const Scalar &coinSerial, uint256 txHash) {
     if (IsUsedCoinSerial(coinSerial) || mempoolCoinSerials.count(coinSerial))
         return false;
 
@@ -909,22 +923,22 @@ bool CZerocoinStateV3::AddSpendToMempool(const Scalar &coinSerial, uint256 txHas
     return true;
 }
 
-void CZerocoinStateV3::RemoveSpendFromMempool(const Scalar& coinSerial) {
+void CSigmaState::RemoveSpendFromMempool(const Scalar& coinSerial) {
     mempoolCoinSerials.erase(coinSerial);
 }
 
-uint256 CZerocoinStateV3::GetMempoolConflictingTxHash(const Scalar& coinSerial) {
+uint256 CSigmaState::GetMempoolConflictingTxHash(const Scalar& coinSerial) {
     if (mempoolCoinSerials.count(coinSerial) == 0)
         return uint256();
 
     return mempoolCoinSerials[coinSerial];
 }
 
-bool CZerocoinStateV3::CanAddSpendToMempool(const Scalar& coinSerial) {
+bool CSigmaState::CanAddSpendToMempool(const Scalar& coinSerial) {
     return !IsUsedCoinSerial(coinSerial) && mempoolCoinSerials.count(coinSerial) == 0;
 }
 
-void CZerocoinStateV3::Reset() {
+void CSigmaState::Reset() {
     coinGroups.clear();
     usedCoinSerials.clear();
     latestCoinIds.clear();
@@ -932,11 +946,11 @@ void CZerocoinStateV3::Reset() {
     mempoolCoinSerials.clear();
 }
 
-CZerocoinStateV3* CZerocoinStateV3::GetZerocoinState() {
-    return &zerocoinStateV3;
+CSigmaState* CSigmaState::GetState() {
+    return &sigmaState;
 }
 
-int CZerocoinStateV3::GetLatestCoinID(sigma::CoinDenominationV3 denomination) const {
+int CSigmaState::GetLatestCoinID(sigma::CoinDenomination denomination) const {
     auto iter = latestCoinIds.find(denomination);
     if (iter == latestCoinIds.end()) {
         // Do not throw here, if there was no sigma mint, that's fine.
@@ -944,3 +958,5 @@ int CZerocoinStateV3::GetLatestCoinID(sigma::CoinDenominationV3 denomination) co
     }
     return iter->second;
 }
+
+} // end of namespace sigma.

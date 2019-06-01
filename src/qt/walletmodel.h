@@ -117,7 +117,8 @@ public:
         TransactionCreationFailed, // Error returned when wallet is still locked
         TransactionCommitFailed,
         AbsurdFee,
-        PaymentRequestExpired
+        PaymentRequestExpired,
+        ExceedLimit
     };
 
     enum EncryptionStatus
@@ -211,11 +212,11 @@ public:
 
     // Sigma
     SendCoinsReturn prepareSigmaSpendTransaction(WalletModelTransaction &transaction,
-        std::vector<CZerocoinEntryV3>& coins, std::vector<CHDMint>& changes);
+        std::vector<CSigmaEntry>& coins, std::vector<CHDMint>& changes);
 
     // Send coins to a list of recipients
     SendCoinsReturn sendSigma(WalletModelTransaction &transaction,
-        std::vector<CZerocoinEntryV3>& coins, std::vector<CHDMint>& changes);
+        std::vector<CSigmaEntry>& coins, std::vector<CHDMint>& changes);
 
     // Mint sigma
     void sigmaMint(const CAmount& n);
@@ -283,7 +284,7 @@ Q_SIGNALS:
     void notifyWatchonlyChanged(bool fHaveWatchonly);
 
     // Update sigma changed
-    void notifySigmaChanged(const std::vector<CZerocoinEntryV3>& spendable, const std::vector<CZerocoinEntryV3>& pending);
+    void notifySigmaChanged(const std::vector<CSigmaEntry>& spendable, const std::vector<CSigmaEntry>& pending);
 
 public Q_SLOTS:
     /* Wallet status might have changed */

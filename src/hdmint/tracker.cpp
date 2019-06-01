@@ -16,6 +16,7 @@
 #include "zerocoin_v3.h"
 
 using namespace std;
+using namespace sigma;
 
 CHDMintTracker::CHDMintTracker(std::string strWalletFile)
 {
@@ -42,13 +43,13 @@ void CHDMintTracker::Init()
 
 bool CHDMintTracker::Archive(CMintMeta& meta)
 {
-    uint256 hashPubcoin = GetPubCoinValueHash(meta.pubCoinValue);
+    uint256 hashPubcoin = sigma::GetPubCoinValueHash(meta.pubCoinValue);
 
     if (HasSerialHash(meta.hashSerial))
         mapSerialHashes.at(meta.hashSerial).isArchived = true;
 
     CWalletDB walletdb(strWalletFile);
-    CZerocoinEntryV3 zerocoin;
+    CSigmaEntry zerocoin;
     // if (walletdb.ReadZerocoinEntry(meta.pubCoinValue, zerocoin)) {
     //     if (!CWalletDB(strWalletFile).ArchiveMintOrphan(zerocoin))
     //         return error("%s: failed to archive zerocoinmint", __func__);
@@ -74,7 +75,7 @@ bool CHDMintTracker::UnArchive(const uint256& hashPubcoin, bool isDeterministic)
             return error("%s: failed to unarchive deterministic mint", __func__);
         Add(dMint, false);
     } else {
-        CZerocoinEntryV3 zerocoin;
+        CSigmaEntry zerocoin;
         if (!walletdb.UnarchiveZerocoinMint(hashPubcoin, zerocoin))
             return error("%s: failed to unarchivezerocoin mint", __func__);
         Add(zerocoin, false);
@@ -98,7 +99,7 @@ CMintMeta CHDMintTracker::GetMetaFromPubcoin(const uint256& hashPubcoin)
 {
     for (auto it : mapSerialHashes) {
         CMintMeta meta = it.second;
-        if (GetPubCoinValueHash(meta.pubCoinValue) == hashPubcoin)
+        if (sigma::GetPubCoinValueHash(meta.pubCoinValue) == hashPubcoin)
             return meta;
     }
 
@@ -124,10 +125,10 @@ CAmount CHDMintTracker::GetBalance(bool fConfirmedOnly, bool fUnconfirmedOnly) c
     CAmount nTotal = 0;
     //! zerocoin specific fields
 
-    std::map<sigma::CoinDenominationV3, unsigned int> myZerocoinSupply;
-    std::vector<sigma::CoinDenominationV3> denominations;
+    std::map<sigma::CoinDenomination, unsigned int> myZerocoinSupply;
+    std::vector<sigma::CoinDenomination> denominations;
     GetAllDenoms(denominations);
-    BOOST_FOREACH(sigma::CoinDenominationV3 denomination, denominations){
+    BOOST_FOREACH(sigma::CoinDenomination denomination, denominations){
         myZerocoinSupply.insert(make_pair(denomination, 0));
     }
 
@@ -189,7 +190,7 @@ bool CHDMintTracker::HasMintTx(const uint256& txid)
 bool CHDMintTracker::HasPubcoin(const GroupElement &pubcoin) const
 {
     // Check if this mint's pubcoin value belongs to our mapSerialHashes (which includes hashpubcoin values)
-    uint256 hash = GetPubCoinValueHash(pubcoin);
+    uint256 hash = sigma::GetPubCoinValueHash(pubcoin);
     return HasPubcoinHash(hash);
 }
 
@@ -197,7 +198,7 @@ bool CHDMintTracker::HasPubcoinHash(const uint256& hashPubcoin) const
 {
     for (auto it : mapSerialHashes) {
         CMintMeta meta = it.second;
-        if (GetPubCoinValueHash(meta.pubCoinValue) == hashPubcoin)
+        if (sigma::GetPubCoinValueHash(meta.pubCoinValue) == hashPubcoin)
             return true;
     }
     return false;
@@ -215,7 +216,7 @@ bool CHDMintTracker::HasSerialHash(const uint256& hashSerial) const
     return it != mapSerialHashes.end();
 }
 
-bool CHDMintTracker::UpdateZerocoinEntry(const CZerocoinEntryV3& zerocoin)
+bool CHDMintTracker::UpdateZerocoinEntry(const CSigmaEntry& zerocoin)
 {
     if (!HasSerial(zerocoin.serialNumber))
         return error("%s: zerocoin %s is not known", __func__, zerocoin.value.GetHex());
@@ -236,7 +237,7 @@ bool CHDMintTracker::UpdateZerocoinEntry(const CZerocoinEntryV3& zerocoin)
 
 bool CHDMintTracker::UpdateState(const CMintMeta& meta)
 {
-    uint256 hashPubcoin = GetPubCoinValueHash(meta.pubCoinValue);
+    uint256 hashPubcoin = sigma::GetPubCoinValueHash(meta.pubCoinValue);
     CWalletDB walletdb(strWalletFile);
 
     if (meta.isDeterministic) {
@@ -254,7 +255,7 @@ bool CHDMintTracker::UpdateState(const CMintMeta& meta)
         // get coin id & height
         int height, id;
         if(meta.nHeight<0 || meta.nId <= 0){
-            std::tie(height, id) = CZerocoinStateV3::GetZerocoinState()->GetMintedCoinHeightAndId(sigma::PublicCoinV3(dMint.GetPubcoinValue(), dMint.GetDenomination()));
+            std::tie(height, id) = sigma::CSigmaState::GetState()->GetMintedCoinHeightAndId(sigma::PublicCoin(dMint.GetPubcoinValue(), dMint.GetDenomination()));
         }
         else{
             height = meta.nHeight;
@@ -269,7 +270,7 @@ bool CHDMintTracker::UpdateState(const CMintMeta& meta)
         if (!walletdb.WriteHDMint(dMint))
             return error("%s: failed to update deterministic mint when writing to db", __func__);
     } else {
-        CZerocoinEntryV3 zerocoin;
+        CSigmaEntry zerocoin;
         if (!walletdb.ReadZerocoinEntry(meta.pubCoinValue, zerocoin))
             return error("%s: failed to read mint from database", __func__);
 
@@ -311,7 +312,7 @@ void CHDMintTracker::Add(const CHDMint& dMint, bool isNew, bool isArchived, CHDM
         CWalletDB(strWalletFile).WriteHDMint(dMint);
 }
 
-void CHDMintTracker::Add(const CZerocoinEntryV3& zerocoin, bool isNew, bool isArchived)
+void CHDMintTracker::Add(const CSigmaEntry& zerocoin, bool isNew, bool isArchived)
 {
     CMintMeta meta;
     meta.pubCoinValue = zerocoin.value;
@@ -368,19 +369,19 @@ void CHDMintTracker::RemovePending(const uint256& txid)
 
 bool CHDMintTracker::UpdateStatusInternal(const std::set<uint256>& setMempool, CMintMeta& mint)
 {
-    uint256 hashPubcoin = GetPubCoinValueHash(mint.pubCoinValue);
+    uint256 hashPubcoin = sigma::GetPubCoinValueHash(mint.pubCoinValue);
     //! Check whether this mint has been spent and is considered 'pending' or 'confirmed'
     // If there is not a record of the block height, then look it up and assign it
     uint256 txidMint;
-    bool isMintInChain = ZerocoinGetMintTxHashV3(txidMint, mint.pubCoinValue);
+    bool isMintInChain = ZerocoinGetSigmaMintTxHash(txidMint, mint.pubCoinValue);
 
     //See if there is internal record of spending this mint (note this is memory only, would reset on restart)
     bool isPendingSpend = static_cast<bool>(mapPendingSpends.count(mint.hashSerial));
 
     // See if there is a blockchain record of spending this mint
-    CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
+    CSigmaState *sigmaState = sigma::CSigmaState::GetState();
     Scalar bnSerial;
-    bool isConfirmedSpend = zerocoinState->IsUsedCoinSerialHash(bnSerial, mint.hashSerial);
+    bool isConfirmedSpend = sigmaState->IsUsedCoinSerialHash(bnSerial, mint.hashSerial);
 
     // Double check the mempool for pending spend
     if (isPendingSpend) {
@@ -411,7 +412,7 @@ bool CHDMintTracker::UpdateStatusInternal(const std::set<uint256>& setMempool, C
             return true;
 
         // Check the transaction associated with this mint
-        if (!IsInitialBlockDownload() && !GetTransaction(mint.txid, tx, Params().GetConsensus(), hashBlock, true)) {
+        if (!IsInitialBlockDownload() && !GetTransaction(mint.txid, tx, ::Params().GetConsensus(), hashBlock, true)) {
             LogPrintf("%s : Failed to find tx for mint txid=%s\n", __func__, mint.txid.GetHex());
             mint.isArchived = true;
             Archive(mint);
@@ -429,8 +430,8 @@ bool CHDMintTracker::UpdateStatusInternal(const std::set<uint256>& setMempool, C
 
                 return true;
             }else if((mint.nHeight==-1) || (mint.nId<=0)){ // assign nHeight if not present
-                sigma::PublicCoinV3 pubcoin(mint.pubCoinValue, mint.denom);
-                auto MintedCoinHeightAndId = zerocoinState->GetMintedCoinHeightAndId(pubcoin);
+                sigma::PublicCoin pubcoin(mint.pubCoinValue, mint.denom);
+                auto MintedCoinHeightAndId = sigmaState->GetMintedCoinHeightAndId(pubcoin);
                 mint.nHeight = MintedCoinHeightAndId.first;
                 mint.nId = MintedCoinHeightAndId.second;
                 LogPrintf("%s : Set mint %s nHeight to %d\n", __func__, hashPubcoin.GetHex(), mint.nHeight);
@@ -452,8 +453,8 @@ bool CHDMintTracker::UpdateStatusInternal(const std::set<uint256>& setMempool, C
     return false;
 }
 
-bool CHDMintTracker::MintMetaToZerocoinEntries(std::list <CZerocoinEntryV3>& entries, std::list<CMintMeta> listMints) const {
-    CZerocoinEntryV3 entry;
+bool CHDMintTracker::MintMetaToZerocoinEntries(std::list <CSigmaEntry>& entries, std::list<CMintMeta> listMints) const {
+    CSigmaEntry entry;
     for (const CMintMeta& mint : listMints) {
         if (pwalletMain->GetMint(mint.hashSerial, entry))
             entries.push_back(entry);
@@ -468,9 +469,9 @@ bool CHDMintTracker::UpdateMints(std::set<uint256> serialHashes, bool fReset, bo
     if(fReset && fUpdateStatus)
         return false;
 
-    std::list<CZerocoinEntryV3> listMintsDB;
+    std::list<CSigmaEntry> listMintsDB;
     CWalletDB walletdb(strWalletFile);
-    walletdb.ListPubCoinV3(listMintsDB);
+    walletdb.ListSigmaPubCoin(listMintsDB);
     for (auto& mint : listMintsDB){
         if(fReset){
             mint.nHeight = -1;
@@ -507,13 +508,13 @@ bool CHDMintTracker::UpdateMints(std::set<uint256> serialHashes, bool fReset, bo
     return true;
 }
 
-list<CZerocoinEntryV3> CHDMintTracker::MintsAsZerocoinEntries(){
-    list <CZerocoinEntryV3> listPubcoin;
+list<CSigmaEntry> CHDMintTracker::MintsAsZerocoinEntries(){
+    list <CSigmaEntry> listPubcoin;
     CWalletDB walletdb(strWalletFile);
     std::vector<CMintMeta> vecMists = ListMints();
     list<CMintMeta> listMints(vecMists.begin(), vecMists.end());
     for (const CMintMeta& mint : listMints) {
-        CZerocoinEntryV3 entry;
+        CSigmaEntry entry;
         pwalletMain->GetMint(mint.hashSerial, entry);
         listPubcoin.push_back(entry);
     }
@@ -525,8 +526,8 @@ std::vector<CMintMeta> CHDMintTracker::ListMints(bool fUnusedOnly, bool fMatureO
     std::vector<CMintMeta> setMints;
     CWalletDB walletdb(strWalletFile);
     if (fUpdateStatus) {
-        std::list<CZerocoinEntryV3> listMintsDB;
-        walletdb.ListPubCoinV3(listMintsDB);
+        std::list<CSigmaEntry> listMintsDB;
+        walletdb.ListSigmaPubCoin(listMintsDB);
         for (auto& mint : listMintsDB){
             Add(mint);
         }

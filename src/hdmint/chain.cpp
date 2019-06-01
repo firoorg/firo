@@ -20,7 +20,8 @@ bool IsSerialInBlockchain(const Scalar& bnSerial, int& nHeightTx)
     uint256 txHash;
     txHash.SetNull();
     // if not in zerocoinState then its not in the blockchain
-    if (!CZerocoinStateV3::GetZerocoinState()->IsUsedCoinSerial(bnSerial))
+    
+    if (!sigma::CSigmaState::GetState()->IsUsedCoinSerial(bnSerial))
         return false;
 
     return IsTransactionInChain(txHash, nHeightTx);

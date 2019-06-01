@@ -36,7 +36,7 @@ CTxMemPoolEntry::CTxMemPoolEntry(const CTransaction &_tx, const CAmount &_nFee,
     nSizeWithDescendants = GetTxSize();
     nModFeesWithDescendants = nFee;
     CAmount nValueIn = _tx.GetValueOut() + nFee;
-    if (!_tx.IsZerocoinSpend() && !_tx.IsZerocoinSpendV3()) {
+    if (!_tx.IsZerocoinSpend() && !_tx.IsSigmaSpend()) {
         assert(inChainInputValue <= nValueIn);
     }
 
@@ -435,7 +435,7 @@ bool CTxMemPool::addUnchecked(const uint256 &hash, const CTxMemPoolEntry &entry,
     // further updated.)
     cachedInnerUsage += entry.DynamicMemoryUsage();
 
-    if (!entry.GetTx().IsZerocoinSpend() && !entry.GetTx().IsZerocoinSpendV3()) {
+    if (!entry.GetTx().IsZerocoinSpend() && !entry.GetTx().IsSigmaSpend()) {
 
         const CTransaction &tx = newit->GetTx();
         std::set <uint256> setParentTransactions;
@@ -474,8 +474,8 @@ bool CTxMemPool::addUnchecked(const uint256 &hash, const CTxMemPoolEntry &entry,
 
 void CTxMemPool::removeUnchecked(txiter it) {
     const uint256 hash = it->GetTx().GetHash();
-    LogPrintf("removeUnchecked txHash=%s, IsZerocoinSpend()=%s\n", hash.ToString(), it->GetTx().IsZerocoinSpend() || it->GetTx().IsZerocoinSpendV3());
-    if (!it->GetTx().IsZerocoinSpend() && !it->GetTx().IsZerocoinSpendV3()) {
+    LogPrintf("removeUnchecked txHash=%s, IsZerocoinSpend()=%s\n", hash.ToString(), it->GetTx().IsZerocoinSpend() || it->GetTx().IsSigmaSpend());
+    if (!it->GetTx().IsZerocoinSpend() && !it->GetTx().IsSigmaSpend()) {
         BOOST_FOREACH(const CTxIn &txin, it->GetTx().vin)
             mapNextTx.erase(txin.prevout);
         if (vTxHashes.size() > 1) {
@@ -508,7 +508,7 @@ void CTxMemPool::addAddressIndex(const CTxMemPoolEntry &entry, const CCoinsViewC
     uint256 txhash = tx.GetHash();
     for (unsigned int j = 0; j < tx.vin.size(); j++) {
         const CTxIn input = tx.vin[j];
-        if (input.IsZerocoinSpendV3()) {
+        if (input.IsSigmaSpend()) {
             continue;
         }
 
@@ -587,7 +587,7 @@ void CTxMemPool::addSpentIndex(const CTxMemPoolEntry &entry, const CCoinsViewCac
     uint256 txhash = tx.GetHash();
     for (unsigned int j = 0; j < tx.vin.size(); j++) {
         const CTxIn input = tx.vin[j];
-        if (input.IsZerocoinSpendV3()) {
+        if (input.IsSigmaSpend()) {
             continue;
         }
 
@@ -841,13 +841,13 @@ void CTxMemPool::check(const CCoinsViewCache *pcoins) const {
         txlinksMap::const_iterator linksiter = mapLinks.find(it);
         assert(linksiter != mapLinks.end());
         const TxLinks &links = linksiter->second;
-        if (!tx.IsZerocoinSpend() && !tx.IsZerocoinSpendV3())
+        if (!tx.IsZerocoinSpend() && !tx.IsSigmaSpend())
         innerUsage += memusage::DynamicUsage(links.parents) + memusage::DynamicUsage(links.children);
         bool fDependsWait = false;
         setEntries setParentCheck;
         int64_t parentSizes = 0;
         int64_t parentSigOpCost = 0;
-        if (!tx.IsZerocoinSpend() && !tx.IsZerocoinSpendV3()) {
+        if (!tx.IsZerocoinSpend() && !tx.IsSigmaSpend()) {
             BOOST_FOREACH(
             const CTxIn &txin, tx.vin) {
                 // Check that every mempool transaction's inputs refer to available coins, or other mempool tx's.
