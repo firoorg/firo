@@ -2000,7 +2000,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     // ********************************************************* Step 11b: Load cache data
 
     // LOAD SERIALIZED DAT FILES INTO DATA CACHES FOR INTERNAL USE
-    if (GetBoolArg("-persistentznodestate", true)) {
+    if (GetBoolArg("-persistentznodestate", false)) {
         uiInterface.InitMessage(_("Loading znode cache..."));
         CFlatDB<CZnodeMan> flatdb1("zncache.dat", "magicZnodeCache");
         if (!flatdb1.Load(mnodeman)) {
