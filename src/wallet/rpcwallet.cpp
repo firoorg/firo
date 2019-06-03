@@ -2913,6 +2913,8 @@ UniValue listunspentmintzerocoins(const UniValue &params, bool fHelp) {
                         "Results are an array of Objects, each of which has:\n"
                         "{txid, vout, scriptPubKey, amount, confirmations}");
 
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
     if (pwalletMain->IsLocked())
         throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED,
                            "Error: Please enter the wallet passphrase with walletpassphrase first.");
@@ -2970,6 +2972,8 @@ UniValue listunspentsigmamints(const UniValue &params, bool fHelp) {
                         "with between minconf and maxconf (inclusive) confirmations.\n"
                         "Results are an array of Objects, each of which has:\n"
                         "{txid, vout, scriptPubKey, amount, confirmations}");
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
 
     if (pwalletMain->IsLocked())
         throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED,
