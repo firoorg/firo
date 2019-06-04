@@ -43,7 +43,7 @@ void Zc2SigmaPage::createModel() {
     model = std::make_shared<Zc2SigmaModel>();
 
     ui->availMintsTable->setModel(model.get());
-    ui->availMintsTable->sortByColumn(1, Qt::AscendingOrder);
+    ui->availMintsTable->setSortingEnabled(false);
 
     // Set column widths
 #if QT_VERSION < 0x050000

@@ -1,11 +1,6 @@
 #include "zc2sigmamodel.h"
 
 #include "guiutil.h"
-#include "walletmodel.h"
-
-#include "base58.h"
-#include "wallet/wallet.h"
-#include "main.h"
 
 #include <boost/foreach.hpp>
 
@@ -13,41 +8,69 @@
 #include <QDebug>
 
 
+namespace {
+    struct MintInfo {
+        uint mintCount;
+        uint denomination;
+        uint version;
+        uint get(size_t mem) {
+            if(mem == 0)
+                return mintCount;
+            if(mem == 1)
+                return denomination;
+            if(mem == 2)
+                return version;
+            throw std::runtime_error("Wrong index requested");
+        }
+    };
+}
+
+class Zc2SigmaModel::ContImpl : public std::vector<MintInfo>
+{
+};
+
 Zc2SigmaModel::Zc2SigmaModel()
 : QAbstractTableModel(nullptr)
+, pContImpl (new ContImpl)
 {
     columns << tr("Mint count") << tr("Denomination") << tr("Version");
+
+    std::vector<uint> const versions{2};
+    std::vector<uint> const denominations{1, 10, 25, 50, 100};
+
+    BOOST_FOREACH(uint ver, versions) {
+        BOOST_FOREACH(uint den, denominations) {
+            // GetNumberOfUnspentMintsForDenomination(int version, libzerocoin::CoinDenomination d)
+            pContImpl->push_back({den, den, ver});
+        }
+    }
 }
 
 Zc2SigmaModel::~Zc2SigmaModel()
 {
+    delete pContImpl;
 }
 
-int Zc2SigmaModel::rowCount(const QModelIndex &parent) const
+int Zc2SigmaModel::rowCount(const QModelIndex &) const
 {
-    Q_UNUSED(parent);
-    return 0;
+    return pContImpl->size();
 }
 
-int Zc2SigmaModel::columnCount(const QModelIndex &parent) const
+int Zc2SigmaModel::columnCount(const QModelIndex &) const
 {
-    Q_UNUSED(parent);
     return columns.length();
 }
 
 QVariant Zc2SigmaModel::data(const QModelIndex &index, int role) const
 {
-    return QVariant();
-
-    if(!index.isValid())
+    if(!index.isValid() || size_t(index.row()) >= pContImpl->size() || index.column() >= 3)
         return QVariant();
-}
 
-bool Zc2SigmaModel::setData(const QModelIndex &index, const QVariant &value, int role)
-{
-    return false;
-    if(!index.isValid())
-        return false;
+    if(role == Qt::DisplayRole)
+    {
+        return pContImpl->at(index.row()).get(index.column());
+    }
+    return QVariant();
 }
 
 QVariant Zc2SigmaModel::headerData(int section, Qt::Orientation orientation, int role) const
@@ -66,37 +89,6 @@ Qt::ItemFlags Zc2SigmaModel::flags(const QModelIndex &index) const
 {
     if(!index.isValid())
         return 0;
-    return 0;
-}
 
-QModelIndex Zc2SigmaModel::index(int row, int column, const QModelIndex &parent) const
-{
-    Q_UNUSED(parent);
-    return QModelIndex();
-}
-
-void Zc2SigmaModel::updateEntry(const QString &address,
-        const QString &label, bool isMine, const QString &purpose, int status)
-{
-}
-
-//[zcoin] Zc2SigmaModel.updateEntry()
-void Zc2SigmaModel::updateEntry(const QString &pubCoin, const QString &isUsed, int status)
-{
-}
-
-QString Zc2SigmaModel::addRow(const QString &mintCount, const QString &denomination, const QString &version)
-{
-    return mintCount;
-}
-
-bool Zc2SigmaModel::removeRows(int row, int count, const QModelIndex &parent)
-{
-    Q_UNUSED(parent);
-    return true;
-}
-
-void Zc2SigmaModel::emitDataChanged(int idx)
-{
-    Q_EMIT dataChanged(index(idx, 0, QModelIndex()), index(idx, columns.length()-1, QModelIndex()));
+    return Qt::ItemIsSelectable | Qt::ItemIsEnabled;
 }
