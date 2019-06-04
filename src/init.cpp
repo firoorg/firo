@@ -1636,15 +1636,15 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
 
                 pblocktree = new CBlockTreeDB(nBlockTreeDBCache, false, fReindex);
 
-	            if (!fReindex) {
+                if (!fReindex) {
                     // Check existing block index database version, reindex if needed
                     if (pblocktree->GetBlockIndexVersion() < ZC_ADVANCED_INDEX_VERSION) {
                         LogPrintf("Upgrade to new version of block index required, reindex forced\n");
                         delete pblocktree;
-			            fReindex = fReset = true;
+                        fReindex = fReset = true;
                         pblocktree = new CBlockTreeDB(nBlockTreeDBCache, false, fReindex);
-		            }
-	            }
+                    }
+                }
 
                 pcoinsdbview = new CCoinsViewDB(nCoinDBCache, false, fReindex || fReindexChainState);
                 pcoinscatcher = new CCoinsViewErrorCatcher(pcoinsdbview);
@@ -1660,6 +1660,18 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
                 if (!LoadBlockIndex()) {
                     strLoadError = _("Error loading block database");
                     break;
+                }
+
+                if (!fReindex) {
+                    CBlockIndex *tip = chainActive.Tip();
+                    if (tip && tip->nHeight >= chainparams.GetConsensus().nSigmaStartBlock) {
+                        const uint256* phash = tip->phashBlock;
+                        if (pblocktree->GetBlockIndexVersion(*phash) < CLIENT_VERSION) {
+                            strLoadError = _(
+                                    "An upgrade after Sigma HF detected, reindex is required to obtain the correct Sigma state");
+                            break;
+                        }
+                    }
                 }
 
                 // If the loaded chain has a wrong genesis, bail out immediately
