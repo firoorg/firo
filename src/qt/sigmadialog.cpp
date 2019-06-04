@@ -193,7 +193,7 @@ void SigmaDialog::on_sendButton_clicked()
     bool useCoinControl = walletModel->getOptionsModel()->getCoinControlFeatures();
 
     if (useCoinControl)
-        g_coincontrol = *CoinControlDialog::coinControl;
+       g_coincontrol = *CoinControlDialog::coinControl;
 
     for (int i = 0; i < ui->entries->count(); ++i) {
         SendCoinsEntry *entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
@@ -304,6 +304,11 @@ void SigmaDialog::on_sendButton_clicked()
         return;
     }
 
+    //reset global cc
+    if(useCoinControl){
+        g_coincontrol.SetNull();
+    }
+
     // now send the prepared transaction
     WalletModel::SendCoinsReturn sendStatus = walletModel->sendSigma(currentTransaction, selectedCoins, changes);
     // process sendStatus and on error generate message shown to user
@@ -311,11 +316,8 @@ void SigmaDialog::on_sendButton_clicked()
 
     if (sendStatus.status == WalletModel::OK) {
         accept();
-    }
-
-    // reset coin control
-    if(useCoinControl){
-        g_coincontrol.SetNull();
+        CoinControlDialog::coinControl->UnSelectAll();
+        coinControlUpdateLabels();
     }
 
     isNewRecipientAllowed = true;

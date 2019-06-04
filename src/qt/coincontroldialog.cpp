@@ -727,7 +727,7 @@ void CoinControlDialog::updateView()
         double dPrioritySum = 0;
         int nChildren = 0;
         int nInputSum = 0;
-        bool nIsMint = (sWalletAddress == QString::fromStdString("ZEROCOIN_MINT"));
+        bool nIsMint = (sWalletAddress == QString::fromStdString("(mint)"));
         BOOST_FOREACH(const COutput& out, coins.second) {
             int nInputSize = 0;
             nSum += out.tx->vout[out.i].nValue;
@@ -744,6 +744,7 @@ void CoinControlDialog::updateView()
             QString sAddress = "";
             if(!treeMode && nIsMint){
                 itemOutput->setText(COLUMN_ADDRESS, sWalletAddress);
+                sAddress = sWalletAddress;
             }
             if(ExtractDestination(out.tx->vout[out.i].scriptPubKey, outputAddress))
             {

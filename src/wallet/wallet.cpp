@@ -2587,7 +2587,7 @@ CAmount CWallet::GetImmatureWatchOnlyBalance() const {
 }
 
 void CWallet::AvailableCoins(vector <COutput> &vCoins, bool fOnlyConfirmed, const CCoinControl *coinControl,
-                             bool fIncludeZeroValue, AvailableCoinsType nCoinType, bool fUseInstantSend) const {
+                             bool fIncludeZeroValue, AvailableCoinsType nCoinType, bool fUseInstantSend, bool fConsiderMints) const {
     vCoins.clear();
 
     {
@@ -2616,6 +2616,9 @@ void CWallet::AvailableCoins(vector <COutput> &vCoins, bool fOnlyConfirmed, cons
                 continue;
 
             for (unsigned int i = 0; i < pcoin->vout.size(); i++) {
+                if ((pcoin->vout[i].scriptPubKey.IsZerocoinMint() || pcoin->vout[i].scriptPubKey.IsZerocoinMintV3()) && !fConsiderMints){
+                    continue;
+                }
                 bool found = false;
                 if (nCoinType == ONLY_DENOMINATED) {
                     found = IsDenominatedAmount(pcoin->vout[i].nValue);
