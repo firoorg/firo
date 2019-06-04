@@ -84,11 +84,11 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
         UniValue in(UniValue::VOBJ);
         if (tx.IsCoinBase()) {
             in.push_back(Pair("coinbase", HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
-        } else if (txin.IsZerocoinSpendV3()){
-            std::unique_ptr<sigma::CoinSpendV3> spend;
+        } else if (txin.IsSigmaSpend()){
+            std::unique_ptr<sigma::CoinSpend> spend;
             uint32_t pubcoinId;
             try {
-                std::tie(spend, pubcoinId) = ParseSigmaSpend(txin);
+                std::tie(spend, pubcoinId) = sigma::ParseSigmaSpend(txin);
             } catch (CBadTxIn&) {
                 throw JSONRPCError(RPC_DATABASE_ERROR, "An error occurred during processing the Sigma spend information");
             }

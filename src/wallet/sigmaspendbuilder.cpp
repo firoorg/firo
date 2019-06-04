@@ -20,20 +20,20 @@
 class SigmaSpendSigner : public InputSigner
 {
 public:
-    const sigma::PrivateCoinV3 coin;
-    std::vector<sigma::PublicCoinV3> group;
+    const sigma::PrivateCoin coin;
+    std::vector<sigma::PublicCoin> group;
     uint256 lastBlockOfGroup;
 
 public:
-    SigmaSpendSigner(const sigma::PrivateCoinV3& coin) : coin(coin)
+    SigmaSpendSigner(const sigma::PrivateCoin& coin) : coin(coin)
     {
     }
 
     CScript Sign(const CMutableTransaction& tx, const uint256& sig) override
     {
         // construct spend
-        sigma::SpendMetaDataV3 meta(output.n, lastBlockOfGroup, sig);
-        sigma::CoinSpendV3 spend(coin.getParams(), coin, group, meta);
+        sigma::SpendMetaData meta(output.n, lastBlockOfGroup, sig);
+        sigma::CoinSpend spend(coin.getParams(), coin, group, meta);
 
         spend.setVersion(coin.getVersion());
 
@@ -47,28 +47,28 @@ public:
 
         CScript script;
 
-        script << OP_ZEROCOINSPENDV3;
+        script << OP_SIGMASPEND;
         script.insert(script.end(), serialized.begin(), serialized.end());
 
         return script;
     }
 };
 
-static std::unique_ptr<SigmaSpendSigner> CreateSigner(const CZerocoinEntryV3& coin)
+static std::unique_ptr<SigmaSpendSigner> CreateSigner(const CSigmaEntry& coin)
 {
-    auto state = CZerocoinStateV3::GetZerocoinState();
-    auto params = sigma::ParamsV3::get_default();
+    sigma::CSigmaState* state = sigma::CSigmaState::GetState();
+    auto params = sigma::Params::get_default();
     auto denom = coin.get_denomination();
 
     // construct public part of the mint
-    sigma::PublicCoinV3 pub(coin.value, denom);
+    sigma::PublicCoin pub(coin.value, denom);
 
     if (!pub.validate()) {
         throw std::runtime_error(_("One of the minted coin is invalid"));
     }
 
     // construct private part of the mint
-    sigma::PrivateCoinV3 priv(params, denom, ZEROCOIN_TX_VERSION_3);
+    sigma::PrivateCoin priv(params, denom, ZEROCOIN_TX_VERSION_3);
 
     priv.setSerialNumber(coin.serialNumber);
     priv.setRandomness(coin.randomness);
@@ -127,8 +127,10 @@ CAmount SigmaSpendBuilder::GetInputs(std::vector<std::unique_ptr<InputSigner>>& 
     selected.clear();
     denomChanges.clear();
 
+    auto& consensusParams = Params().GetConsensus();
+
     if (!wallet.GetCoinsToSpend(required, selected, denomChanges,
-        Params().GetConsensus().nMaxSigmaInputPerBlock, Params().GetConsensus().nMaxValueSigmaSpendPerBlock)) {
+        consensusParams.nMaxSigmaInputPerTransaction, consensusParams.nMaxValueSigmaSpendPerTransaction)) {
         throw InsufficientFunds();
     }
 
@@ -148,13 +150,13 @@ CAmount SigmaSpendBuilder::GetChanges(std::vector<CTxOut>& outputs, CAmount amou
     outputs.clear();
     changes.clear();
 
-    auto params = sigma::ParamsV3::get_default();
+    auto params = sigma::Params::get_default();
 
     for (const auto& denomination : denomChanges) {
         CAmount denominationValue;
         sigma::DenominationToInteger(denomination, denominationValue);
 
-        sigma::PrivateCoinV3 newCoin(params, denomination, ZEROCOIN_TX_VERSION_3);
+        sigma::PrivateCoin newCoin(params, denomination, ZEROCOIN_TX_VERSION_3);
         auto& pubCoin = newCoin.getPublicCoin();
 
         if (!pubCoin.validate()) {
@@ -163,12 +165,12 @@ CAmount SigmaSpendBuilder::GetChanges(std::vector<CTxOut>& outputs, CAmount amou
 
         // Create script for coin
         CScript scriptSerializedCoin;
-        scriptSerializedCoin << OP_ZEROCOINMINTV3;
+        scriptSerializedCoin << OP_SIGMAMINT;
         std::vector<unsigned char> vch = pubCoin.getValue().getvch();
         scriptSerializedCoin.insert(scriptSerializedCoin.end(), vch.begin(), vch.end());
 
         // Create zerocoinTx
-        CZerocoinEntryV3 zerocoinTx;
+        CSigmaEntry zerocoinTx;
         zerocoinTx.IsUsed = false;
         zerocoinTx.set_denomination(newCoin.getPublicCoin().getDenomination());
         zerocoinTx.value = newCoin.getPublicCoin().getValue();

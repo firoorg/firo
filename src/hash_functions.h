@@ -15,7 +15,7 @@ struct CScalarHash {
 
 // Custom hash for the public coin.
 struct CPublicCoinHash {
-    std::size_t operator()(const PublicCoinV3& coin) const noexcept;
+    std::size_t operator()(const sigma::PublicCoin& coin) const noexcept;
 };
 
 } // namespace sigma

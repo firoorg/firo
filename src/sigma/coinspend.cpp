@@ -4,11 +4,11 @@
 
 namespace sigma {
 
-CoinSpendV3::CoinSpendV3(
-    const ParamsV3* p,
-    const PrivateCoinV3& coin,
-    const std::vector<PublicCoinV3>& anonymity_set,
-    const SpendMetaDataV3& m)
+CoinSpend::CoinSpend(
+    const Params* p,
+    const PrivateCoin& coin,
+    const std::vector<sigma::PublicCoin>& anonymity_set,
+    const SpendMetaData& m)
     :
     params(p),
     denomination(coin.getPublicCoin().getDenomination()),
@@ -50,7 +50,7 @@ CoinSpendV3::CoinSpendV3(
     updateMetaData(coin, m);
 }
 
-void CoinSpendV3::updateMetaData(const PrivateCoinV3& coin, const SpendMetaDataV3& m){
+void CoinSpend::updateMetaData(const PrivateCoin& coin, const SpendMetaData& m){
     // Proves that the coin is correct w.r.t. serial number and hidden coin secret
     // (This proof is bound to the coin 'metadata', i.e., transaction hash)
     uint256 metahash = signatureHash(m);
@@ -87,7 +87,7 @@ void CoinSpendV3::updateMetaData(const PrivateCoinV3& coin, const SpendMetaDataV
     }
 }
 
-uint256 CoinSpendV3::signatureHash(const SpendMetaDataV3& m) const {
+uint256 CoinSpend::signatureHash(const SpendMetaData& m) const {
     CHashWriter h(0,0);
     std::vector<unsigned char> buffer;
     buffer.resize(sigmaProof.memoryRequired());
@@ -96,9 +96,9 @@ uint256 CoinSpendV3::signatureHash(const SpendMetaDataV3& m) const {
     return h.GetHash();
 }
 
-bool CoinSpendV3::Verify(
-        const std::vector<PublicCoinV3>& anonymity_set,
-        const SpendMetaDataV3& m) const {
+bool CoinSpend::Verify(
+        const std::vector<sigma::PublicCoin>& anonymity_set,
+        const SpendMetaData& m) const {
     SigmaPlusVerifier<Scalar, GroupElement> sigmaVerifier(params->get_g(), params->get_h(), params->get_n(), params->get_m());
     //compute inverse of g^s
     GroupElement gs = (params->get_g() * coinSerialNumber).inverse();
@@ -126,7 +126,7 @@ bool CoinSpendV3::Verify(
     }
 
     // Recompute and compare hash of public key
-    Scalar coinSerialNumberExpected = PrivateCoinV3::serialNumberFromSerializedPublicKey(OpenSSLContext::get_context(), &pubkey);
+    Scalar coinSerialNumberExpected = PrivateCoin::serialNumberFromSerializedPublicKey(OpenSSLContext::get_context(), &pubkey);
     if (coinSerialNumber != coinSerialNumberExpected) {
         LogPrintf("Sigma spend failed due to serial number does not match public key hash.");
         return false;
@@ -146,21 +146,21 @@ bool CoinSpendV3::Verify(
     return sigmaVerifier.verify(C_, sigmaProof);
 }
 
-const Scalar& CoinSpendV3::getCoinSerialNumber() {
+const Scalar& CoinSpend::getCoinSerialNumber() {
     return this->coinSerialNumber;
 }
 
-CoinDenominationV3 CoinSpendV3::getDenomination() const {
+CoinDenomination CoinSpend::getDenomination() const {
     return denomination;
 }
 
-int64_t CoinSpendV3::getIntDenomination() const {
+int64_t CoinSpend::getIntDenomination() const {
     int64_t denom_value;
     DenominationToInteger(this->denomination, denom_value);
     return denom_value;
 }
 
-bool CoinSpendV3::HasValidSerial() const {
+bool CoinSpend::HasValidSerial() const {
     return coinSerialNumber.isMember();
 }
 

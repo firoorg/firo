@@ -2,8 +2,8 @@
 
 namespace sigma {
 
-ParamsV3* ParamsV3::instance;
-ParamsV3* ParamsV3::get_default() {
+Params* Params::instance;
+Params* Params::get_default() {
     if(instance != nullptr)
         return instance;
     else {
@@ -13,12 +13,12 @@ ParamsV3* ParamsV3::get_default() {
         //fixing n and m; N = n^m = 16,384
         int n = 4;
         int m = 7;
-        instance = new ParamsV3(g, n, m);
+        instance = new Params(g, n, m);
         return instance;
     }
 }
 
-ParamsV3::ParamsV3(const GroupElement& g, int n, int m) :
+Params::Params(const GroupElement& g, int n, int m) :
     g_(g),
     m_(m),
     n_(n)
@@ -37,25 +37,25 @@ ParamsV3::ParamsV3(const GroupElement& g, int n, int m) :
     }
 }
 
-ParamsV3::~ParamsV3(){
+Params::~Params(){
     delete instance;
 }
 
-const GroupElement& ParamsV3::get_g() const{
+const GroupElement& Params::get_g() const{
     return g_;
 }
-const GroupElement& ParamsV3::get_h0() const{
+const GroupElement& Params::get_h0() const{
     return h_[0];
 }
 
-const std::vector<GroupElement>& ParamsV3::get_h() const{
+const std::vector<GroupElement>& Params::get_h() const{
     return h_;
 }
 
-uint64_t ParamsV3::get_n() const{
+uint64_t Params::get_n() const{
     return n_;
 }
-uint64_t ParamsV3::get_m() const{
+uint64_t Params::get_m() const{
     return m_;
 }
 
