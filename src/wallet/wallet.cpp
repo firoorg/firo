@@ -2262,7 +2262,8 @@ bool CWallet::GetCoinsToSpend(
         throw std::invalid_argument(_("Amount limit is exceed max money"));
     }
 
-    // We have Coins denomination * 10^8, we divide last with 0.05 * 10^8 and add one coin of denomination 100
+    // We have Coins denomination * 10^8, we divide with 0.05 * 10^8 and add one coin of
+    // denomination 100 (also divide by 0.05 * 10^8)
     constexpr CAmount zeros(5000000);
 
     // Rounding, Anything below 0.05 zerocoin goes to the miners as a fee.
