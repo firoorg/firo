@@ -34,15 +34,14 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_test)
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
     string denomination;
     vector<uint256> vtxid;
-    std::vector<string> denominations = {"0.1", "0.5", "1", "10", "100"};
+    std::vector<string> denominations = {"0.05", "0.1", "0.5", "1", "10", "25", "100"};
 
     // Create 400-200+1 = 201 new empty blocks. // consensus.nMintV3SigmaStartBlock = 400
     CreateAndProcessEmptyBlocks(201, scriptPubKey);
 
     // foreach denom from denominations
-    for(int i = 0; i < 5; i++)
+    for(auto denomination : denominations)
     {
-        denomination = denominations[i];
         printf("Testing denomination %s\n", denomination.c_str());
         string stringError;
         // Make sure that transactions get to mempool

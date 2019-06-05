@@ -33,7 +33,7 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_numinputs)
     CWalletTx wtx;
     string stringError;
 
-    std::vector<std::string> denominations = {"0.1", "0.5", "1", "10", "100"};
+    std::vector<std::string> denominations = {"0.05", "0.1", "0.5", "1", "10", "25", "100"};
 
     // Test with small denominations to limit required coins.
     int denominationIndexA = 0; // 0.1

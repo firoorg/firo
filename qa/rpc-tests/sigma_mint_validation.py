@@ -6,6 +6,7 @@ from test_framework.util import *
 
 validation_inputs_no_funds = [
     ('valid_denom_1', 1),
+    ('valid_denom_0.05', 0.05),
     ('valid_denom_0.1', 0.1),
     ('valid_denom_0.5', 0.5),
     ('valid_denom_5', 5),
@@ -15,6 +16,8 @@ validation_inputs_no_funds = [
     ('valid_denom_50', 50),
     ('valid_denom_101', 101),
     ('valid_denom_1.0', 1.0),
+    ('valid_denom_1.00', 1.00),
+    ('valid_denom_1.95', 1.95),
     ('ivalid_input_string', 'string'),
     ('ivalid_input_string_with_num', '1'),
     ('ivalid_input_empty', None),
@@ -22,10 +25,14 @@ validation_inputs_no_funds = [
     ('invalid_denom_out_of_100000000', 100000000),
     ('valid_denom_1000', 1000),
     ('invalid_denom_0.01', 0.01),
+    ('invalid_denom_0.07', 0.07),
     ('invalid_denom_-1', -1),
 ]
 
 post_outputs_no_funds = [
+    (None, None),
+    (None, None),
+    (None, None),
     (None, None),
     (None, None),
     (None, None),
@@ -42,6 +49,7 @@ post_outputs_no_funds = [
     (-3, 'Invalid amount'),
     (-3, 'Amount out of range'),
     (None, None),
+    (-8, 'Amount to mint is invalid.\n'),
     (-8, 'Amount to mint is invalid.\n'),
     (-3, 'Amount out of range')
 ]

@@ -50,7 +50,7 @@ BOOST_AUTO_TEST_CASE(partialspend)
     sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
     std::vector<uint256> vtxid;
     // Can't test denomination 0.1, because we're unable to pay the fees.
-    std::vector<std::string> denominations = {"0.5", "1", "10", "100"};
+    std::vector<std::string> denominations = {"0.5", "1", "10", "25", "100"};
 
     // Get smallest denomination value
     std::vector<sigma::CoinDenomination> denoms;
@@ -103,13 +103,13 @@ BOOST_AUTO_TEST_CASE(partialspend)
         std::vector<CSigmaEntry> dSelected;
         std::vector<CHDMint> dChanges;
 
-        CAmount denomAmount01;
-        sigma::DenominationToInteger(sigma::CoinDenomination::SIGMA_DENOM_0_1, denomAmount01);
+        CAmount denomAmount005;
+        sigma::DenominationToInteger(sigma::CoinDenomination::SIGMA_DENOM_0_05, denomAmount005);
 
         // Make dtx is not identical to tx
         std::vector<CRecipient> dupRecipients = {
             {GetScriptForDestination(randomAddr2.Get()), denomAmount / 2, false},
-            {GetScriptForDestination(randomAddr1.Get()), denomAmount / 2 - denomAmount01 - CENT, false},
+            {GetScriptForDestination(randomAddr1.Get()), denomAmount / 2 - denomAmount005 - CENT, false},
         };
         dtx = pwalletMain->CreateSigmaSpendTransaction(dupRecipients, dFee, dSelected, dChanges);
 
@@ -118,7 +118,7 @@ BOOST_AUTO_TEST_CASE(partialspend)
 
         std::vector<CRecipient> recipients = {
             {GetScriptForDestination(randomAddr1.Get()), denomAmount / 2, false},
-            {GetScriptForDestination(randomAddr2.Get()), denomAmount / 2 - denomAmount01 - CENT, false},
+            {GetScriptForDestination(randomAddr2.Get()), denomAmount / 2 - denomAmount005 - CENT, false},
         };
 
         // Create two spend transactions using the same mint.

@@ -1205,7 +1205,7 @@ isminetype CWallet::IsMine(const CTxIn &txin) const {
         CDataStream serializedCoinSpend(
             std::vector<char>(txin.scriptSig.begin() + 1, txin.scriptSig.end()),
             SER_NETWORK, PROTOCOL_VERSION);
-        
+
         sigma::Params* sigmaParams = sigma::Params::get_default();
         sigma::CoinSpend spend(sigmaParams, serializedCoinSpend);
 
@@ -2312,10 +2312,11 @@ bool CWallet::GetCoinsToSpend(
         throw std::invalid_argument(_("Amount limit is exceed max money"));
     }
 
-    // We have Coins denomination * 10^8, we remove last 7 0's  and add one coin of denomination 100
-    constexpr CAmount zeros(10000000);
+    // We have Coins denomination * 10^8, we divide with 0.05 * 10^8 and add one coin of
+    // denomination 100 (also divide by 0.05 * 10^8)
+    constexpr CAmount zeros(5000000);
 
-    // Rounding, Anything below 0.1 zerocoin goes to the miners as a fee.
+    // Rounding, Anything below 0.05 zerocoin goes to the miners as a fee.
     int roundedRequired = required / zeros;
     if (required % zeros != 0) {
         ++roundedRequired;

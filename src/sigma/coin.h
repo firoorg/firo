@@ -12,12 +12,14 @@
 namespace sigma {
 
 enum class CoinDenomination : std::uint8_t {
+    SIGMA_DENOM_0_05 = 5,
     SIGMA_DENOM_0_1 = 0,
     SIGMA_DENOM_0_5 = 1,
     SIGMA_DENOM_1 = 2,
     SIGMA_DENOM_10 = 3,
-    SIGMA_DENOM_100 = 4,
-    SIGMA_ERROR = 5
+    SIGMA_DENOM_25 = 6,
+    SIGMA_DENOM_100 = 4
+    SIGMA_ERROR = 7
 };
 
 // for LogPrintf.

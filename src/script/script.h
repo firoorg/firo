@@ -564,6 +564,13 @@ public:
         }
 
         opcodeRet = (opcodetype)opcode;
+
+        if (opcodeRet == opcodetype::OP_SIGMASPEND|| opcodeRet == opcodetype::OP_SIGMAMINT) {
+            if (pvchRet) {
+                pvchRet->assign(pc, end());
+            }
+            pc = end();
+        }
         return true;
     }
 
@@ -649,7 +656,7 @@ public:
     // Checks if the script is zerocoin v3 sigma mint/spend or not.
     bool IsSigmaMint() const;
     bool IsSigmaSpend() const;
- 
+
     // Called by IsStandardTx.
     bool HasCanonicalPushes() const;
 
