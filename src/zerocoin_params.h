@@ -39,7 +39,7 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 XZC mininput
 #define ZC_V1_5_GRACEFUL_PERIOD			1500
 
 // Block after which sigma mints are activated.
-#define ZC_SIGMA_STARTING_BLOCK         300000
+#define ZC_SIGMA_STARTING_BLOCK         175600 //Approx July 11th, 2019, 8:00 AM UTC
 #define ZC_SIGMA_TESTNET_STARTING_BLOCK 50000
 
 // Number of blocks after ZC_SIGMA_STARTING_BLOCK during which we still accept zerocoin V2 mints into mempool.
