@@ -386,10 +386,15 @@ int CBlockTreeDB::GetBlockIndexVersion(uint256 const & blockHash)
 {
     boost::scoped_ptr<CDBIterator> pcursor(NewIterator());
     pcursor->Seek(make_pair(DB_BLOCK_INDEX, blockHash));
+    uint256 const zero_hash = uint256();
     while (pcursor->Valid()) {
         boost::this_thread::interruption_point();
         std::pair<char, uint256> key;
         if (pcursor->GetKey(key) && key.first == DB_BLOCK_INDEX) {
+            if (blockHash != zero_hash && key.second != blockHash) {
+                pcursor->Next();
+                continue;
+            }
             CDiskBlockIndex diskindex;
             if (pcursor->GetValue(diskindex))
                 return diskindex.nDiskBlockVersion;
