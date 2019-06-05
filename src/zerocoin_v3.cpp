@@ -846,7 +846,7 @@ bool CSigmaState::HasCoin(const sigma::PublicCoin& pubCoin) {
 
 bool CSigmaState::HasCoinHash(GroupElement &pubCoinValue, const uint256 &pubCoinValueHash) {
     for ( auto it = mintedPubCoins.begin(); it != mintedPubCoins.end(); ++it ){
-    	sigma::PublicCoin pubCoin = (*it).first;
+    	const sigma::PublicCoin pubCoin = (*it).first;
         if(GetPubCoinValueHash(pubCoin.value)==pubCoinValueHash){
             pubCoinValue = pubCoin.value;
             return true;

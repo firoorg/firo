@@ -209,7 +209,6 @@ BITCOIN_CORE_H = \
   zmq/zmqconfig.h\
   zmq/zmqnotificationinterface.h \
   zmq/zmqpublishnotifier.h \
-  hdmint/chain.h \
   hdmint/mintpool.h \
   hdmint/tracker.h \
   hdmint/wallet.h \
@@ -271,7 +270,6 @@ libbitcoin_server_a_SOURCES = \
   zerocoin_v3.cpp \
   hash_functions.cpp \
   mtpstate.cpp \
-  hdmint/chain.cpp \
   $(BITCOIN_CORE_H)
 
 if ENABLE_ZMQ

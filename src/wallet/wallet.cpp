@@ -2233,8 +2233,8 @@ std::list<CSigmaEntry> CWallet::GetAvailableCoins() const {
     LOCK2(cs_main, cs_wallet);
     CWalletDB walletdb(strWalletFile);
     std::list<CSigmaEntry> coins;
-    std::vector<CMintMeta> vecMists = pwalletMain->hdMintTracker->ListMints(true, true, true);
-    list<CMintMeta> listMints(vecMists.begin(), vecMists.end());
+    std::vector<CMintMeta> vecMints = pwalletMain->hdMintTracker->ListMints(true, true, true);
+    list<CMintMeta> listMints(vecMints.begin(), vecMints.end());
     for (const CMintMeta& mint : listMints) {
         CSigmaEntry entry;
         GetMint(mint.hashSerial, entry);
