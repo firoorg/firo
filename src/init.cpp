@@ -1666,9 +1666,9 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
                     CBlockIndex *tip = chainActive.Tip();
                     if (tip && tip->nHeight >= chainparams.GetConsensus().nSigmaStartBlock) {
                         const uint256* phash = tip->phashBlock;
-                        if (pblocktree->GetBlockIndexVersion(*phash) < CLIENT_VERSION) {
+                        if (pblocktree->GetBlockIndexVersion(*phash) < SIGMA_PROTOCOL_ENABLEMENT_VERSION) {
                             strLoadError = _(
-                                    "An upgrade after Sigma HF detected, reindex is required to obtain the correct Sigma state");
+                                    "Block index is outdated, reindex required\n");
                             break;
                         }
                     }
