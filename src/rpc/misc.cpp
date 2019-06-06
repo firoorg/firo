@@ -1053,7 +1053,7 @@ bool getZerocoinSupply(CAmount & amount) {
             return true;
         if(lhs.first.blockHeight > rhs.first.blockHeight)
             return false;
-        return lhs.first.txindex < lhs.first.txindex;
+        return lhs.first.txindex < rhs.first.txindex;
     };
 
     if(!std::is_sorted(addressIndex.begin(), addressIndex.end(), predicate))
