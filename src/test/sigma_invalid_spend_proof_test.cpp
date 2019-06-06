@@ -57,6 +57,8 @@ BOOST_AUTO_TEST_CASE(sigma_invalid_spend_proof_test)
         pwalletMain->CreateSigmaSpendModel(stringError, "", denomination.c_str()),
         "Spend not added to the mempool.");
 
+    BOOST_CHECK_MESSAGE(mempool.size() == 1, "Valid Spend not added to the mempool.");
+
     // Create an invalid sigma spend with a wrong spend proof.
     BOOST_CHECK_MESSAGE(
         pwalletMain->CreateSigmaSpendModel(
@@ -66,6 +68,8 @@ BOOST_AUTO_TEST_CASE(sigma_invalid_spend_proof_test)
             false, // forceUsed
             true   // create_invalid_spend_proof_for_test
         ), "Spend not added to the mempool.");
+
+    BOOST_CHECK_MESSAGE(mempool.size() == 2, "Spend with invalid proof not added to the mempool, but it must have been adeded since we don't check proof while adding to mempool.");
 
     previousHeight = chainActive.Height();
     b = CreateAndProcessBlock({}, scriptPubKey);

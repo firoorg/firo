@@ -5123,8 +5123,11 @@ bool CWallet::CreateSigmaSpendTransaction(
             // NOTE(martun): "insert" is not the same as "operator<<", as operator<<
             // also writes the vector size before the vector itself.
             if (create_invalid_spend_proof_for_test) {
-                // Set proof to 0s of the needed size for testing.
-                tmp.resize(tmp.size() + serializedCoinSpend.end() - serializedCoinSpend.begin()); 
+                int old_size = tmp.size();
+                tmp.insert(tmp.end(), serializedCoinSpend.begin(), serializedCoinSpend.end());
+                // Change the first 1 byte, proof is there. Do not change too much,
+                // because we will edit other parts of coinSpend this way.
+                tmp[old_size]++;
             } else {
                 tmp.insert(tmp.end(), serializedCoinSpend.begin(), serializedCoinSpend.end());
             }
@@ -5181,8 +5184,11 @@ bool CWallet::CreateSigmaSpendTransaction(
 
             CScript tmpNew = CScript() << OP_SIGMASPEND;
             if (create_invalid_spend_proof_for_test) {
-                // Set proof to 0s of the needed size for testing.
-                tmpNew.resize(tmpNew.size() + serializedCoinSpend.end() - serializedCoinSpend.begin()); 
+                int old_size = tmpNew.size();
+                tmpNew.insert(tmpNew.end(), serializedCoinSpendNew.begin(), serializedCoinSpendNew.end());
+                // Change the first 1 byte, proof is there. Do not change too much,
+                // because we will edit other parts of coinSpend this way.
+                tmpNew[old_size]++;
             } else {
                 tmpNew.insert(tmpNew.end(), serializedCoinSpendNew.begin(), serializedCoinSpendNew.end());
             }
@@ -5812,7 +5818,11 @@ bool CWallet::CreateMultipleSigmaSpendTransaction(
                 // also writes the vector size before the vector itself.
                 // Set proof to 0s of the needed size for testing.
                 if (create_invalid_spend_proof_for_test) {
-                    tmp.resize(tmp.size() + serializedCoinSpend.end() - serializedCoinSpend.begin());
+                    int old_size = tmp.size();
+                    tmp.insert(tmp.end(), serializedCoinSpend.begin(), serializedCoinSpend.end());
+                    // Change the first 1 byte, proof is there. Do not change too much,
+                    // because we will edit other parts of coinSpend this way.
+                    tmp[old_size]++;
                 } else {
                     tmp.insert(tmp.end(), serializedCoinSpend.begin(), serializedCoinSpend.end());
                 }
