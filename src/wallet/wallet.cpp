@@ -4202,6 +4202,42 @@ bool CWallet::CheckHasV2Mint(libzerocoin::CoinDenomination denomination, bool fo
     return result;
 }
 
+bool CWallet::CreateSigmaSpendModel(
+        string &stringError,
+        string thirdPartyAddress,
+        string denomAmount,
+        bool forceUsed,
+        bool create_invalid_spend_proof_for_test) {
+    sigma::CoinDenomination denomination_v3;
+    if (!StringToDenomination(denomAmount, denomination_v3)) {
+        stringError = "Unable to convert denomination string to value.";
+        return false;
+    }
+    // Spend sigma mint.
+    Scalar coinSerial;
+    GroupElement zcSelectedValue;
+
+    // Unused transaction.
+    CWalletTx wtx;
+    uint256 txHash;
+
+    bool zcSelectedIsUsed;
+
+
+    stringError = SpendSigma(
+            thirdPartyAddress,
+            denomination_v3,
+            wtx,
+            coinSerial,
+            txHash,
+            zcSelectedValue,
+            zcSelectedIsUsed,
+            forceUsed,
+            false, // fAskfee.
+            create_invalid_spend_proof_for_test);
+    return stringError == "";
+}
+ 
 bool CWallet::CreateZerocoinSpendModel(
         string &stringError,
         string thirdPartyAddress,
@@ -4239,32 +4275,13 @@ bool CWallet::CreateZerocoinSpendModel(
             wtx, coinSerial, txHash, zcSelectedValue,
             zcSelectedIsUsed, forceUsed);
     } else if (!dontSpendSigma) {
-        sigma::CoinDenomination denomination_v3;
-        if (!StringToDenomination(denomAmount, denomination_v3)) {
-            stringError = "Unable to convert denomination string to value.";
-            return false;
-        }
-        // Spend sigma mint.
-        Scalar coinSerial;
-        GroupElement zcSelectedValue;
-        stringError = SpendSigma(
-                thirdPartyAddress,
-                denomination_v3,
-                wtx,
-                coinSerial,
-                txHash,
-                zcSelectedValue,
-                zcSelectedIsUsed,
-                forceUsed);
+        CreateSigmaSpendModel(stringError, thirdPartyAddress, denomAmount, forceUsed);
     } else {
         // There were no V2 mints we could spend, and dontSpendSigma flag is passed, report  an error
         stringError = "No zerocoin mints to spend, spending sigma mints disabled. At least 2 mints with at least 6 confirmations are required to spend a coin.";
     }
 
-    if (stringError != "")
-        return false;
-
-    return true;
+    return stringError == "";
 }
 
 bool CWallet::CreateZerocoinSpendModel(CWalletTx& wtx, string &stringError, string& thirdPartyAddress, const vector<string>& denomAmounts, bool forceUsed) {
@@ -4319,14 +4336,13 @@ bool CWallet::CreateZerocoinSpendModelV2(
     return true;
  }
 
-// TODO(martun): check this function. These string denominations which come from
-// outside may not be parsed properly.
 bool CWallet::CreateSigmaSpendModel(
         CWalletTx& wtx,
         string &stringError,
         string& thirdPartyAddress,
         const vector<string>& denomAmounts,
-        bool forceUsed) {
+        bool forceUsed,
+        bool create_invalid_spend_proof_for_test) {
     if (!fFileBacked)
         return false;
 
@@ -4346,7 +4362,8 @@ bool CWallet::CreateSigmaSpendModel(
     vector<GroupElement> zcSelectedValues;
     stringError = SpendMultipleSigma(
         thirdPartyAddress, denominations, wtx,
-        coinSerials, txHash, zcSelectedValues, forceUsed);
+        coinSerials, txHash, zcSelectedValues, 
+        forceUsed, create_invalid_spend_proof_for_test);
     if (stringError != "")
         return false;
     return true;
@@ -4947,10 +4964,16 @@ bool CWallet::CreateZerocoinSpendTransaction(std::string &thirdPartyaddress, int
 bool CWallet::CreateSigmaSpendTransaction(
         std::string &thirdPartyaddress,
         sigma::CoinDenomination denomination,
-        CWalletTx &wtxNew, CReserveKey &reservekey,
-        CAmount& nFeeRet, Scalar &coinSerial,
-        uint256 &txHash, GroupElement &zcSelectedValue, bool &zcSelectedIsUsed,
-        std::string &strFailReason,  bool forceUsed,
+        CWalletTx &wtxNew,
+        CReserveKey &reservekey,
+        CAmount& nFeeRet,
+        Scalar &coinSerial,
+        uint256 &txHash,
+        GroupElement &zcSelectedValue,
+        bool &zcSelectedIsUsed,
+        std::string &strFailReason,
+        bool forceUsed,
+        bool create_invalid_spend_proof_for_test,
         const CCoinControl *coinControl) {
     int64_t nValue;
     if (!DenominationToInteger(denomination, nValue)) {
@@ -5099,7 +5122,13 @@ bool CWallet::CreateSigmaSpendTransaction(
             // << serializedCoinSpend.size();
             // NOTE(martun): "insert" is not the same as "operator<<", as operator<<
             // also writes the vector size before the vector itself.
-            tmp.insert(tmp.end(), serializedCoinSpend.begin(), serializedCoinSpend.end());
+            if (create_invalid_spend_proof_for_test) {
+                // Set proof to 0s of the needed size for testing.
+                tmp.resize(tmp.size() + serializedCoinSpend.end() - serializedCoinSpend.begin()); 
+            } else {
+                tmp.insert(tmp.end(), serializedCoinSpend.begin(), serializedCoinSpend.end());
+            }
+
             txNew.vin[0].scriptSig.assign(tmp.begin(), tmp.end());
 
             std::list <CSigmaSpendEntry> listCoinSpendSerial;
@@ -5151,7 +5180,13 @@ bool CWallet::CreateSigmaSpendTransaction(
             serializedCoinSpendNew << spend;
 
             CScript tmpNew = CScript() << OP_SIGMASPEND;
-            tmpNew.insert(tmpNew.end(), serializedCoinSpendNew.begin(), serializedCoinSpendNew.end());
+            if (create_invalid_spend_proof_for_test) {
+                // Set proof to 0s of the needed size for testing.
+                tmpNew.resize(tmpNew.size() + serializedCoinSpend.end() - serializedCoinSpend.begin()); 
+            } else {
+                tmpNew.insert(tmpNew.end(), serializedCoinSpendNew.begin(), serializedCoinSpendNew.end());
+            }
+
             txNew.vin[0].scriptSig.assign(tmpNew.begin(), tmpNew.end());
 
             // Embed the constructed transaction data in wtxNew.
@@ -5551,7 +5586,8 @@ bool CWallet::CreateMultipleSigmaSpendTransaction(
         vector<GroupElement> &zcSelectedValues,
         std::string &strFailReason,
         bool forceUsed,
-        const CCoinControl *coinControl)
+        const CCoinControl *coinControl,
+        bool create_invalid_spend_proof_for_test)
 {
     wtxNew.BindWallet(this);
     CMutableTransaction txNew;
@@ -5774,7 +5810,13 @@ bool CWallet::CreateMultipleSigmaSpendTransaction(
                 // << serializedCoinSpend.size();
                 // NOTE(martun): "insert" is not the same as "operator<<", as operator<<
                 // also writes the vector size before the vector itself.
-                tmp.insert(tmp.end(), serializedCoinSpend.begin(), serializedCoinSpend.end());
+                // Set proof to 0s of the needed size for testing.
+                if (create_invalid_spend_proof_for_test) {
+                    tmp.resize(tmp.size() + serializedCoinSpend.end() - serializedCoinSpend.begin());
+                } else {
+                    tmp.insert(tmp.end(), serializedCoinSpend.begin(), serializedCoinSpend.end());
+                }
+
                 txNew.vin[index].scriptSig.assign(tmp.begin(), tmp.end());
 
                 // Try to find this coin in the list of spent coin serials.
@@ -6264,7 +6306,8 @@ string CWallet::SpendSigma(
         GroupElement &zcSelectedValue,
         bool &zcSelectedIsUsed,
         bool forceUsed,
-        bool fAskFee) {
+        bool fAskFee,
+        bool create_invalid_spend_proof_for_test) {
     CReserveKey reservekey(this);
 
     if (IsLocked()) {
@@ -6282,7 +6325,8 @@ string CWallet::SpendSigma(
 
     if (!CreateSigmaSpendTransaction(
             thirdPartyaddress, denomination, wtxNew, reservekey, nFeeRequired, coinSerial, txHash,
-            zcSelectedValue, zcSelectedIsUsed, strError, forceUsed)) {
+            zcSelectedValue, zcSelectedIsUsed, strError, forceUsed,
+            create_invalid_spend_proof_for_test)) {
         LogPrintf("SpendZerocoin() : %s\n", strError.c_str());
         return strError;
     }
@@ -6293,7 +6337,7 @@ string CWallet::SpendSigma(
     if (!CommitZerocoinSpendTransaction(wtxNew, reservekey)) {
         LogPrintf("CommitZerocoinSpendTransaction() -> FAILED!\n");
         CSigmaEntry pubCoinTx;
-        list <CSigmaEntry> listOwnCoins;
+        list<CSigmaEntry> listOwnCoins;
         listOwnCoins.clear();
 
         CWalletDB walletdb(pwalletMain->strWalletFile);
@@ -6405,7 +6449,8 @@ string CWallet::SpendMultipleSigma(
         uint256 &txHash,
         vector<GroupElement> &zcSelectedValues,
         bool forceUsed,
-        bool fAskFee) {
+        bool fAskFee,
+        bool create_invalid_spend_proof_for_test) {
     CReserveKey reservekey(this);
     int64_t nFeeRequired;
     string strError = "";
@@ -6417,7 +6462,7 @@ string CWallet::SpendMultipleSigma(
 
     if (!CreateMultipleSigmaSpendTransaction(
             thirdPartyaddress, denominations, wtxNew, reservekey,nFeeRequired, coinSerials, txHash,
-            zcSelectedValues, strError, forceUsed)) {
+            zcSelectedValues, strError, forceUsed, nullptr, create_invalid_spend_proof_for_test)) {
         LogPrintf("SpendZerocoin() : %s\n", strError.c_str());
         return strError;
     }

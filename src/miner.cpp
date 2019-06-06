@@ -428,6 +428,24 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
                     if (spendAmount + nValueSigmaSpend > params.nMaxValueSigmaSpendPerBlock) {
                         continue;
                     }
+                    // Also FULLY verify sigma spends, because we want to add to the block only
+                    // transactions which are completely correct, I.E. created block must pass
+                    // ConnectBlock function checks. Most of the checks are done when adding to
+                    // mempool, now check spend proof itself.
+                    // We will use flag isCheckWallet to skip the state changes while verifying
+                    // transaction. Will be good to later refactor the code, and have 2 separate
+                    // functions for checking and for changing the state.
+                    CValidationState dummy_state;
+                    if (!sigma::CheckSigmaTransaction(tx, dummy_state, tx.GetHash(),
+                                                      false, // isVerifyDB
+                                                      nHeight,
+                                                      true, // isCheckWallet
+                                                      true, // fStatefulSigmaCheck
+                                                      nullptr // sigmaTxInfo
+                                                     )) {
+                        // Skip invalid spend transaction.
+                        continue;
+                    } 
                 } else {
                     LogPrintf("COUNT_SPEND_ZC_TX =%s\n", COUNT_SPEND_ZC_TX);
                     LogPrintf("MAX_SPEND_ZC_TX_PER_BLOCK =%s\n", MAX_SPEND_ZC_TX_PER_BLOCK);

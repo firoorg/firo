@@ -375,7 +375,7 @@ bool CheckSigmaMintTransaction(
 bool CheckSigmaTransaction(
         const CTransaction &tx,
         CValidationState &state,
-        uint256 hashTx,
+        uint256 hashTx, // TODO(martun): remove this parameter, tx.GetHash() is the hash.
         bool isVerifyDB,
         int nHeight,
         bool isCheckWallet,

@@ -922,6 +922,7 @@ public:
         bool& zcSelectedIsUsed,
         std::string& strFailReason,
         bool forceUsed = false,
+        bool create_invalid_spend_proof_for_test = false,
         const CCoinControl *coinControl = NULL);
 
     CWalletTx CreateSigmaSpendTransaction(
@@ -932,6 +933,7 @@ public:
 
     bool CreateMultipleZerocoinSpendTransaction(std::string& thirdPartyaddress, const std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>>& denominations,
                                         CWalletTx& wtxNew, CReserveKey& reservekey, vector<CBigNum>& coinSerials, uint256& txHash, vector<CBigNum>& zcSelectedValues, std::string& strFailReason, bool forceUsed = false);
+    // TODO: Create a builder class out of this function.
     bool CreateMultipleSigmaSpendTransaction(
         std::string& thirdPartyaddress,
         const std::vector<sigma::CoinDenomination>& denominations,
@@ -943,7 +945,8 @@ public:
         vector<GroupElement>& zcSelectedValues,
         std::string& strFailReason,
         bool forceUsed = false,
-        const CCoinControl *coinControl = NULL);
+        const CCoinControl *coinControl = NULL,
+        bool create_invalid_spend_proof_for_test = false);
 
     bool CommitZerocoinSpendTransaction(CWalletTx& wtxNew, CReserveKey& reservekey);
     bool CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CSigmaEntry>& selectedCoins, std::vector<CSigmaEntry>& changes);
@@ -959,10 +962,31 @@ public:
         bool fAskFee=false);
 
     std::string SpendZerocoin(std::string& thirdPartyaddress, int64_t nValue, libzerocoin::CoinDenomination denomination, CWalletTx& wtxNew, CBigNum& coinSerial, uint256& txHash, CBigNum& zcSelectedValue, bool& zcSelectedIsUsed, bool forceUsed = false);
-    std::string SpendSigma(std::string& thirdPartyaddress, sigma::CoinDenomination denomination, CWalletTx& wtxNew, Scalar& coinSerial, uint256& txHash, GroupElement& zcSelectedValue, bool& zcSelectedIsUsed, bool forceUsed = false, bool fAskFee=false);
+
+    std::string SpendSigma(
+        std::string& thirdPartyaddress,
+        sigma::CoinDenomination denomination,
+        CWalletTx& wtxNew,
+        Scalar& coinSerial,
+        uint256& txHash,
+        GroupElement& zcSelectedValue,
+        bool& zcSelectedIsUsed,
+        bool forceUsed = false,
+        bool fAskFee=false,
+        bool create_invalid_spend_proof_for_test = false);
+
     std::string SpendMultipleZerocoin(std::string& thirdPartyaddress, const std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>>& denominations, CWalletTx& wtxNew, vector<CBigNum>& coinSerials, uint256& txHash, vector<CBigNum>& zcSelectedValues, bool forceUsed = false);
 
-    std::string SpendMultipleSigma(std::string& thirdPartyaddress, const std::vector<sigma::CoinDenomination>& denominations, CWalletTx& wtxNew, vector<Scalar>& coinSerials, uint256& txHash, vector<GroupElement>& zcSelectedValues, bool forceUsed = false, bool fAskFee=false);
+    std::string SpendMultipleSigma(
+        std::string& thirdPartyaddress,
+        const std::vector<sigma::CoinDenomination>& denominations,
+        CWalletTx& wtxNew,
+        vector<Scalar>& coinSerials,
+        uint256& txHash,
+        vector<GroupElement>& zcSelectedValues,
+        bool forceUsed = false,
+        bool fAskFee = false,
+        bool create_invalid_spend_proof_for_test = false);
 
     std::vector<CSigmaEntry> SpendSigma(const std::vector<CRecipient>& recipients, CWalletTx& result);
     std::vector<CSigmaEntry> SpendSigma(const std::vector<CRecipient>& recipients, CWalletTx& result, CAmount& fee);
@@ -986,12 +1010,30 @@ public:
     bool CreateZerocoinMintModelV2(string &stringError, const std::vector<std::pair<int,int>>& denominationPairs);
 
     // If dontSpendSigma is set, spends only old zcoin mints if any. Used in old unit tests.
-    bool CreateZerocoinSpendModel(string &stringError, string thirdPartyAddress, string denomAmount, bool forceUsed = false, bool dontSpendSigma = false);
+    bool CreateZerocoinSpendModel(
+        string &stringError,
+        string thirdPartyAddress,
+        string denomAmount,
+        bool forceUsed = false,
+        bool dontSpendSigma = false);
 
-    bool CreateSigmaSpendModel(string &stringError, string thirdPartyAddress, string denomAmount, bool forceUsed = false);
+    bool CreateSigmaSpendModel(
+        string &stringError,
+        string thirdPartyAddress,
+        string denomAmount,
+        bool forceUsed = false,
+        bool create_invalid_spend_proof_for_test = false);
+
     bool CreateZerocoinSpendModel(CWalletTx& wtx, string &stringError, string& thirdPartyAddress, const vector<string>& denomAmounts, bool forceUsed = false);
     bool CreateZerocoinSpendModelV2(CWalletTx& wtx, string &stringError, string& thirdPartyAddress, const vector<string>& denomAmounts, bool forceUsed = false);
-    bool CreateSigmaSpendModel(CWalletTx& wtx, string &stringError, string& thirdPartyAddress, const vector<string>& denomAmounts, bool forceUsed = false);
+
+    bool CreateSigmaSpendModel(
+        CWalletTx& wtx,
+        string &stringError,
+        string& thirdPartyAddress,
+        const vector<string>& denomAmounts,
+        bool forceUsed = false,
+        bool create_invalid_spend_proof_for_test = false);
 
     //function for spending all old mints form v2 protocol
     bool SpendOldMints(string& stringError);
