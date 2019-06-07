@@ -30,7 +30,7 @@ public:
     std::vector<sigma::PublicCoin> mints;
 
     // serial for every spend (map from serial to denomination)
-    std::unordered_map<Scalar, int, sigma::CScalarHash> spentSerials;
+    spend_info_container spentSerials;
 
     // information about transactions in the block is complete
     bool fInfoIsComplete;
@@ -116,7 +116,7 @@ public:
         const sigma::PublicCoin& pubCoin);
 
     // Add serial to the list of used ones
-    void AddSpend(const Scalar& serial);
+    void AddSpend(const Scalar &serial, CoinDenomination denom, int coinGroupId);
 
     // Add everything from the block to the state
     void AddBlock(CBlockIndex *index);
@@ -184,7 +184,7 @@ public:
     std::unordered_map<sigma::CoinDenomination, int> latestCoinIds;
 
     // Set of all used coin serials.
-    std::unordered_set<Scalar, sigma::CScalarHash> usedCoinSerials;
+    spend_info_container usedCoinSerials;
 
     // serials of spends currently in the mempool mapped to tx hashes
     std::unordered_map<Scalar, uint256, sigma::CScalarHash> mempoolCoinSerials;

@@ -90,7 +90,7 @@ std::pair<std::unique_ptr<sigma::CoinSpend>, uint32_t> ParseSigmaSpend(const CTx
         PROTOCOL_VERSION
     );
 
-	std::unique_ptr<sigma::CoinSpend> spend(new sigma::CoinSpend(SigmaParams, serialized));
+    std::unique_ptr<sigma::CoinSpend> spend(new sigma::CoinSpend(SigmaParams, serialized));
 
     return std::make_pair(std::move(spend), groupId);
 }
@@ -184,7 +184,7 @@ bool CheckSigmaSpendTransaction(
     for (const CTxIn &txin : tx.vin)
     {
         std::unique_ptr<sigma::CoinSpend> spend;
-        uint32_t pubcoinId;
+        uint32_t coinGroupId;
 
         vinIndex++;
         if (txin.scriptSig.IsSigmaSpend())
@@ -193,7 +193,7 @@ bool CheckSigmaSpendTransaction(
             hasNonSigmaInputs = true;
 
         try {
-            std::tie(spend, pubcoinId) = ParseSigmaSpend(txin);
+            std::tie(spend, coinGroupId) = ParseSigmaSpend(txin);
         } catch (CBadTxIn&) {
             return state.DoS(100,
                 false,
@@ -228,20 +228,20 @@ bool CheckSigmaSpendTransaction(
         }
 
         CSigmaState::SigmaCoinGroupInfo coinGroup;
-        if (!sigmaState.GetCoinGroupInfo(targetDenominations[vinIndex], pubcoinId, coinGroup))
+        if (!sigmaState.GetCoinGroupInfo(targetDenominations[vinIndex], coinGroupId, coinGroup))
             return state.DoS(100, false, NO_MINT_ZEROCOIN,
                     "CheckSigmaSpendTransaction: Error: no coins were minted with such parameters");
 
         bool passVerify = false;
         CBlockIndex *index = coinGroup.lastBlock;
         pair<sigma::CoinDenomination, int> denominationAndId = std::make_pair(
-            targetDenominations[vinIndex], pubcoinId);
+            targetDenominations[vinIndex], coinGroupId);
 
         uint256 accumulatorBlockHash = spend->getAccumulatorBlockHash();
 
         // We use incomplete transaction hash as metadata.
         sigma::SpendMetaData newMetaData(
-            pubcoinId,
+            coinGroupId,
             accumulatorBlockHash,
             txHashForMetadata);
 
@@ -285,7 +285,7 @@ bool CheckSigmaSpendTransaction(
                 if (sigmaTxInfo && !sigmaTxInfo->fInfoIsComplete) {
                     // add spend information to the index
                     sigmaTxInfo->spentSerials.insert(std::make_pair(
-                                serial, (int)spend->getDenomination()));
+                                serial, std::make_pair(spend->getDenomination(), coinGroupId)));
                 }
             }
         }
@@ -542,8 +542,8 @@ bool ConnectBlockSigma(
             }
 
             if (!fJustCheck) {
-                pindexNew->sigmaSpentSerials.insert(serial.first);
-                sigmaState.AddSpend(serial.first);
+                pindexNew->sigmaSpentSerials.insert(serial);
+                sigmaState.AddSpend(serial.first, serial.second.first, serial.second.second);
             }
         }
 
@@ -651,8 +651,8 @@ int CSigmaState::AddMint(
     return mintCoinGroupId;
 }
 
-void CSigmaState::AddSpend(const Scalar &serial) {
-    usedCoinSerials.insert(serial);
+void CSigmaState::AddSpend(const Scalar &serial, CoinDenomination denom, int coinGroupId) {
+    usedCoinSerials.insert(std::make_pair(serial, std::make_pair(denom, coinGroupId)));
 }
 
 void CSigmaState::AddBlock(CBlockIndex *index) {
@@ -678,8 +678,8 @@ void CSigmaState::AddBlock(CBlockIndex *index) {
         }
     }
 
-    BOOST_FOREACH(const Scalar &serial, index->sigmaSpentSerials) {
-        usedCoinSerials.insert(serial);
+    BOOST_FOREACH(const spend_info_container::value_type &serial, index->sigmaSpentSerials) {
+        AddSpend(serial.first, serial.second.first, serial.second.second);
     }
 }
 
@@ -733,8 +733,8 @@ void CSigmaState::RemoveBlock(CBlockIndex *index) {
     index->sigmaMintedPubCoins.clear();
 
     // roll back spends
-    BOOST_FOREACH(const Scalar &serial, index->sigmaSpentSerials) {
-        usedCoinSerials.erase(serial);
+    BOOST_FOREACH(const spend_info_container::value_type &serial, index->sigmaSpentSerials) {
+        usedCoinSerials.erase(serial.first);
     }
 
     index->sigmaSpentSerials.clear();

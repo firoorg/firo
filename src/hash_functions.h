@@ -4,6 +4,8 @@
 #include <secp256k1/include/Scalar.h>
 #include "sigma/coin.h"
 
+#include <unordered_map>
+
 namespace sigma {
 
 using namespace secp_primitives;
@@ -17,6 +19,8 @@ struct CScalarHash {
 struct CPublicCoinHash {
     std::size_t operator()(const sigma::PublicCoin& coin) const noexcept;
 };
+
+using spend_info_container = std::unordered_map<Scalar, std::pair<CoinDenomination, int>, sigma::CScalarHash>;
 
 } // namespace sigma
 

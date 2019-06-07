@@ -18,6 +18,7 @@
 #include <string>
 #include <string.h>
 #include <unordered_set>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 #include <deque>
@@ -1162,6 +1163,55 @@ void Unserialize(Stream& is, std::unordered_set<K, H, E, A>& s, int nType, int n
         }
     }
 }
+
+
+/**
+ * unordered_map
+ */
+
+template<typename K, typename T, typename H, typename E, typename A>
+unsigned int GetSerializeSize(const std::unordered_map<K, T, H, E, A>& s, int nType, int nVersion)
+{
+    unsigned size = GetSizeOfCompactSize(s.size());
+
+    for (auto& i : s) {
+        size += GetSerializeSize(i, nType, nVersion);
+    }
+
+    return size;
+}
+
+template<typename Stream, typename K, typename T, typename H, typename E, typename A>
+void Serialize(Stream& os, const std::unordered_map<K, T, H, E, A>& s, int nType, int nVersion)
+{
+    WriteCompactSize(os, s.size());
+
+    for (auto& i : s) {
+        Serialize(os, i.first, nType, nVersion);
+        Serialize(os, i.second, nType, nVersion);
+    }
+}
+
+template<typename Stream, typename K, typename T, typename H, typename E, typename A>
+void Unserialize(Stream& is, std::unordered_map<K, T, H, E, A>& s, int nType, int nVersion)
+{
+    unsigned size = ReadCompactSize(is);
+
+    s.clear();
+
+    for (unsigned i = 0; i < size; i++) {
+        K key;
+        T value;
+
+        Unserialize(is, key, nType, nVersion);
+        Unserialize(is, value, nType, nVersion);
+
+        if (!s.insert(std::make_pair(key, value)).second) {
+            throw std::ios_base::failure("Duplicated item at " + std::to_string(i));
+        }
+    }
+}
+
 
 /**
  * shared_ptr
