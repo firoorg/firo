@@ -2770,13 +2770,13 @@ UniValue mint(const UniValue& params, bool fHelp)
             "\nAutomatically choose denominations to mint by amount."
             + HelpRequiringPassphrase() + "\n"
             "\nArguments:\n"
-            "1. \"amount\"      (numeric or string, required) The amount in " + CURRENCY_UNIT + " to mint, must be a multiple of 0.1\n"
+            "1. \"amount\"      (numeric or string, required) The amount in " + CURRENCY_UNIT + " to mint, must be a multiple of 0.05\n"
             "\nResult:\n"
             "\"transactionid\"  (string) The transaction id.\n"
             "\nExamples:\n"
-            + HelpExampleCli("mint", "0.1")
+            + HelpExampleCli("mint", "0.15")
             + HelpExampleCli("mint", "100.9")
-            + HelpExampleRpc("mint", "0.1")
+            + HelpExampleRpc("mint", "0.15")
         );
 
     // Ensure Sigma mints is already accepted by network so users will not lost their coins
@@ -3492,10 +3492,10 @@ UniValue listpubcoins(const UniValue& params, bool fHelp) {
 }
 
 UniValue listsigmapubcoins(const UniValue& params, bool fHelp) {
-    std::string help_message = 
-        "listsigmapubcoins <all>(0.1/0.5/1/10/25/100)\n"
+    std::string help_message =
+        "listsigmapubcoins <all>(0.05/0.1/0.5/1/10/25/100)\n"
             "\nArguments:\n"
-            "1. <all> (string, optional) 0.1,0.5,1,10,25,100 (default) to return all sigma public coins with given denomination. empty to return all pubcoin.\n"
+            "1. <all> (string, optional) 0.05, 0.1, 0.5, 1, 10, 25, 100 (default) to return all sigma public coins with given denomination. empty to return all pubcoin.\n"
             "\nResults are an array of Objects, each of which has:\n"
             "{id, IsUsed, denomination, value, serialNumber, nHeight, randomness}";
     if (fHelp || params.size() > 1) {
@@ -3677,7 +3677,7 @@ UniValue listsigmaspends(const UniValue &params, bool fHelp) {
                 "    \"txid\": \"transactionid\",      (string) The transaction hash\n"
                 "    \"confirmations\": n,             (numeric) The number of confirmations for the transaction\n"
                 "    \"abandoned\": xxx,               (bool) True if the transaction was already abandoned\n"
-                "    \"spends\": \n" 
+                "    \"spends\": \n"
                 "    [\n"
                 "      {\n"
                 "        \"denomination\": d,            (string) Denomination\n"
@@ -3685,7 +3685,7 @@ UniValue listsigmaspends(const UniValue &params, bool fHelp) {
                 "        \"serial\": \"s\",              (string) Serial number of the coin\n"
                 "      }\n"
                 "    ]\n"
-                "    \"re-mints\": \n" 
+                "    \"re-mints\": \n"
                 "    [\n"
                 "      {\n"
                 "        \"denomination\": \"s\",        (string) Denomination\n"
@@ -3734,7 +3734,7 @@ UniValue listsigmaspends(const UniValue &params, bool fHelp) {
                                             SER_NETWORK, PROTOCOL_VERSION);
             sigma::Params* zcParams = sigma::Params::get_default();
             sigma::CoinSpend spend(zcParams, serializedCoinSpend);
- 
+
             UniValue spendEntry(UniValue::VOBJ);
             spendEntry.push_back(Pair("denomination",
                                  sigma::DenominationToString(spend.getDenomination())));
@@ -3752,7 +3752,7 @@ UniValue listsigmaspends(const UniValue &params, bool fHelp) {
             }
             sigma::CoinDenomination denomination;
             IntegerToDenomination(txout.nValue, denomination);
-            
+
             UniValue remintEntry(UniValue::VOBJ);
             remintEntry.push_back(Pair(
                 "denomination", sigma::DenominationToString(denomination)));
