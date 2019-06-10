@@ -214,9 +214,6 @@ BOOST_AUTO_TEST_CASE(sigma_addmint_more_than_restriction_in_one)
     sigmaState->Reset();
 }
 
-// This is a correct case, but should be commented till fix of code
-// Cause code of creating another coin group is not in the state class itself
-
 // Checking AddMint ZC_SPEND_V3_COINSPERID+1 coins on different blocks should have two group id
 BOOST_AUTO_TEST_CASE(sigma_addmint_more_than_restriction_in_diff)
 {
