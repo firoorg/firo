@@ -191,11 +191,10 @@ enum opcodetype
     OP_ZEROCOINMINT = 0xc1,
     OP_ZEROCOINSPEND = 0xc2,
     OP_SIGMAMINT = 0xc3,
-    OP_SIGMASPEND = 0xc4
+    OP_SIGMASPEND = 0xc4,
 
     // input for reminting zerocoin to sigma (v3)
     OP_ZEROCOINTOSIGMAREMINT = 0xc8
->>>>>>> Added detection functions for zerocoin to sigma remint
 };
 
 const char* GetOpName(opcodetype opcode);

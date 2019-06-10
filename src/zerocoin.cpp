@@ -9,6 +9,7 @@
 #include "wallet/walletdb.h"
 #include "znode-payments.h"
 #include "znode-sync.h"
+#include "sigma/remint.h"
 
 #include <atomic>
 #include <sstream>
@@ -89,6 +90,94 @@ std::pair<std::unique_ptr<libzerocoin::CoinSpend>, uint32_t> ParseZerocoinSpend(
     std::unique_ptr<libzerocoin::CoinSpend> spend(new libzerocoin::CoinSpend(v2 ? ZCParamsV2 : ZCParams, serialized));
 
     return std::make_pair(std::move(spend), groupId);
+}
+
+bool CheckRemintZcoinTransaction(const CTransaction &tx,
+                                const Consensus::Params &params,
+                                CValidationState &state,
+                                uint256 hashTx,
+                                bool isVerifyDB,
+                                int nHeight,
+                                bool isCheckWallet,
+                                bool fStatefulZerocoinCheck,
+                                CZerocoinTxInfo *zerocoinTxInfo) {
+    
+    // There should only one remint input
+    if (tx.vin.size() != 1 || tx.vin[0].scriptSig.size() == 0 || tx.vin[0].scriptSig[0] != OP_ZEROCOINTOSIGMAREMINT)
+        return false;
+
+    CDataStream remintSerData(vector<unsigned char>(tx.vin[0].scriptSig.begin()+1, tx.vin[0].scriptSig.end()),
+                                SER_NETWORK, PROTOCOL_VERSION);
+    sigma::CoinRemintToV3 remint(remintSerData);
+
+    vector<unique_ptr<sigma::PublicCoin>> sigmaMints;
+    int64_t totalAmountInSigmaMints = 0;
+
+    // All the outputs should be sigma mints
+    for (const CTxOut &out: tx.vout) {
+        if (out.scriptPubKey.size() == 0 || out.scriptPubKey[0] != OP_SIGMAMINT)
+            return false;
+
+        sigma::CoinDenomination d;
+        if (!sigma::IntegerToDenomination(out.nValue, d, state))
+            return false;
+
+        std::vector<unsigned char> serialized(out.scriptPubKey.begin() + 1, out.scriptPubKey.end());
+        secp_primitives::GroupElement mintPublicValue;;
+        mintPublicValue.deserialize(serialized.data());
+
+        sigma::PublicCoin *mint = new sigma::PublicCoin(mintPublicValue, d);
+        if (!mint->validate()) {
+            LogPrintf("CheckRemintZcoinTransaction: sigma mint validation failure\n");
+            return false;
+        }
+
+        sigmaMints.emplace_back(mint);
+        totalAmountInSigmaMints += out.nValue;
+    }
+
+    if (remint.getDenomination()*COIN != totalAmountInSigmaMints) {
+        LogPrintf("CheckRemintZcoinTransaction: incorrect amount\n");
+        return false;
+    }
+
+    // Create temporary tx, clear remint signature and get its hash
+    CMutableTransaction tempTx = tx;
+    sigma::CoinRemintToV3 tempRemint(remintSerData);
+    tempRemint.ClearSignature();
+
+    CDataStream remintWithoutSignature(SER_NETWORK, PROTOCOL_VERSION);
+    remintWithoutSignature << tempRemint;
+
+    CScript remintScriptBeforeSignature;
+    remintScriptBeforeSignature << OP_ZEROCOINTOSIGMAREMINT;
+    remintScriptBeforeSignature.insert(remintScriptBeforeSignature.end(), remintWithoutSignature.begin(), remintWithoutSignature.end());
+
+    tempTx.vin[0].scriptSig = remintScriptBeforeSignature;
+
+    libzerocoin::SpendMetaData metadata(remint.getCoinGroupId(), tempTx.GetHash());
+
+    if (!remint.Verify(metadata)) {
+        LogPrintf("CheckRemintZcoinTransaction: remint input verification failure\n");
+        return false;
+    }
+
+    if (!fStatefulZerocoinCheck)
+        return true;
+
+    CBigNum serial = remint.getSerialNumber();
+    if (!CheckZerocoinSpendSerial(state, params, zerocoinTxInfo, (libzerocoin::CoinDenomination)remint.getDenomination(), serial, nHeight, false))
+        return false;
+
+    if(!isVerifyDB && !isCheckWallet) {
+        if (zerocoinTxInfo && !zerocoinTxInfo->fInfoIsComplete) {
+            // add spend information to the index
+            zerocoinTxInfo->spentSerials[serial] = (int)remint.getDenomination();
+            zerocoinTxInfo->zcTransactions.insert(hashTx);
+        }
+    }
+
+    return true;
 }
 
 bool CheckSpendZcoinTransaction(const CTransaction &tx,

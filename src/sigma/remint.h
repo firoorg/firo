@@ -15,7 +15,8 @@ public:
     template<typename Stream>
     CoinRemintToV3(Stream &stream) { stream >> *this; coinPublicValue = CalculatePublicValue(); }
 
-    CoinRemintToV3(const libzerocoin::PrivateCoin &source);
+    CoinRemintToV3(unsigned mintVersion, unsigned denomination, unsigned groupId, Bignum serial, Bignum randomness,
+                    uint256 originalMintBlockHash, const std::vector<unsigned char> &ecdsaPrivateKey);
 
     int getVersion() const { return coinRemintVersion; }
     int getMintVersion() const { return coinMintVersion; }
@@ -26,6 +27,7 @@ public:
     uint256 getMintBlockHash() const { return mintBlockHash; }
 
     void SignTransaction(const libzerocoin::SpendMetaData &metadata);
+    void ClearSignature();
 
     bool Verify(const libzerocoin::SpendMetaData &metadata) const;
 

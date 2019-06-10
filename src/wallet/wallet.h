@@ -1049,6 +1049,10 @@ public:
 
     bool CheckHasV2Mint(libzerocoin::CoinDenomination denomination, bool forceUsed);
 
+    // functions to do reminting from zerocoin to sigma
+    int GetNumberOfUnspentMintsForDenomination(int version, libzerocoin::CoinDenomination d, CZerocoinEntry *mintEntry = NULL);
+    bool CreateZerocoinToSigmaRemintTransaction(string &stringError, CWalletTx &wtxNew, int version, libzerocoin::CoinDenomination d);
+
     static CFeeRate minTxFee;
     static CFeeRate fallbackFee;
     /**

@@ -59,7 +59,7 @@ bool CTxIn::IsSigmaSpend() const
 
 bool CTxIn::IsZerocoinRemint() const
 {
-    return (prevout.IsNull() && scriptSig.size() > 0 && (scriptSig[0] == OP_ZEROCOINREMINT));
+    return (prevout.IsNull() && scriptSig.size() > 0 && (scriptSig[0] == OP_ZEROCOINTOSIGMAREMINT));
 }
 
 std::string CTxIn::ToString() const

@@ -4,24 +4,23 @@
 
 namespace sigma {
 
-CoinRemintToV3::CoinRemintToV3(const libzerocoin::PrivateCoin &source) {
+CoinRemintToV3::CoinRemintToV3(unsigned mintVersion, unsigned denomination, unsigned groupId, Bignum serial, Bignum randomness,
+                    uint256 originalMintBlockHash, const std::vector<unsigned char> &ecdsaPrivateKey) {
     coinRemintVersion = 1;
-    coinMintVersion = source.getVersion();
-    coinDenomination = (int)source.getPublicCoin().getDenomination();
-    coinSerial = source.getSerialNumber();
-    coinRandomness = source.getRandomness();
-    coinPublicValue = source.getPublicCoin().getValue();
+    coinMintVersion = mintVersion;
+    coinDenomination = denomination;
+    coinGroupId = groupId;
+    coinSerial = serial;
+    coinRandomness = randomness;
+    coinPublicValue = CalculatePublicValue();
 
     if (coinMintVersion > ZEROCOIN_TX_VERSION_1) {
         if (coinSerial.bitSize() > 160)
             throw ZerocoinException("Invalid zerocoin mint");
 
-        const unsigned char *secKey = source.getEcdsaSeckey();
-        ecdsaPrivateKey = std::vector<unsigned char>(secKey, secKey+32);
-
         secp256k1_pubkey pubkey;
 
-		if (!secp256k1_ec_pubkey_create(libzerocoin::ctx, &pubkey, secKey))
+		if (!secp256k1_ec_pubkey_create(libzerocoin::ctx, &pubkey, ecdsaPrivateKey.data()))
 			throw ZerocoinException("Invalid secret key");
 
         size_t len = 33;
@@ -42,6 +41,10 @@ void CoinRemintToV3::SignTransaction(const libzerocoin::SpendMetaData &metadata)
 
     ecdsaSignature = vector<unsigned char>(64, 0);
     secp256k1_ecdsa_signature_serialize_compact(libzerocoin::ctx, ecdsaSignature.data(), &sig);
+}
+
+void CoinRemintToV3::ClearSignature() {
+    ecdsaSignature.clear();
 }
 
 Bignum CoinRemintToV3::CalculatePublicValue() const {

@@ -20,6 +20,9 @@
 #include "zerocoin_v3.h"
 #include "../sigma/coinspend.h"
 #include "../sigma/spend_metadata.h"
+#include "../sigma/coin.h"
+#include "../sigma/remint.h"
+#include "../libzerocoin/SpendMetaData.h"
 #include "net.h"
 #include "policy/policy.h"
 #include "primitives/block.h"
@@ -4284,6 +4287,205 @@ bool CWallet::CreateZerocoinMintModelV2(string &stringError, const string& denom
     } else {
         return false;
     }
+}
+
+int CWallet::GetNumberOfUnspentMintsForDenomination(int version, libzerocoin::CoinDenomination d, CZerocoinEntry *mintEntry /*=NULL*/) {
+    CZerocoinState *zerocoinState = CZerocoinState::GetZerocoinState();
+
+    // In case of corrupted database we need to rescan blockchain state to find the coins that were unspent
+
+    list<CZerocoinEntry> mintedCoins;
+    CWalletDB(strWalletFile).ListPubCoin(mintedCoins);
+
+    int result = 0;
+    if (mintEntry)
+        *mintEntry = CZerocoinEntry();
+
+    BOOST_FOREACH(const CZerocoinEntry &coin, mintedCoins) {
+        if (!coin.IsUsedForRemint && coin.denomination == d && coin.randomness != 0 && coin.serialNumber > 0) {
+            // Ignore "used" state in the database, check if the coin serial is used
+            if (zerocoinState->IsUsedCoinSerial(coin.serialNumber))
+                // Coin has already been spent
+                continue;
+
+            // Obtain coin version
+            int coinVersion = coin.IsCorrectV2Mint() ? ZEROCOIN_TX_VERSION_2 : ZEROCOIN_TX_VERSION_1;
+
+            if (coinVersion == version) {
+                // Find minted coin in the index
+                int mintId = -1, mintHeight = -1;
+                
+                // group is the same in both v1 and v2 params
+                const libzerocoin::IntegerGroupParams &commGroup = ZCParamsV2->coinCommitmentGroup;
+                // calculate g^serial * h^randomness (mod modulus)
+                CBigNum coinPublicValue = commGroup.g.pow_mod(coin.serialNumber, commGroup.modulus).
+                                mul_mod(commGroup.h.pow_mod(coin.randomness, commGroup.modulus), commGroup.modulus);
+
+                if ((mintHeight = zerocoinState->GetMintedCoinHeightAndId(coinPublicValue, (int)d, mintId)) > 0 &&
+                        IsZerocoinTxV2(d, Params().GetConsensus(), mintId) == (coinVersion == ZEROCOIN_TX_VERSION_2)) {
+                    if (mintEntry) {
+                        *mintEntry = coin;
+
+                        // we don't trust values in DB, we use values from blockchain
+                        mintEntry->nHeight = mintHeight;
+                        mintEntry->id = mintId;
+
+                        // no need to find anything else
+                        return 1;
+                    }
+                    else {
+                        result++;
+                    }
+                }
+            }
+        }
+    }
+
+    return result;
+}
+
+bool CWallet::CreateZerocoinToSigmaRemintTransaction(string &stringError, CWalletTx &wtxNew, int version, libzerocoin::CoinDenomination denomination) {
+    // currently we don't support zerocoin mints v1
+    assert(version == ZEROCOIN_TX_VERSION_2);
+
+    if (IsLocked()) {
+        stringError = "Error: Wallet locked, unable to create transaction!";
+        return false;
+    }
+
+    wtxNew.BindWallet(this);
+    CMutableTransaction txNew;
+
+    LOCK2(cs_main, cs_wallet);
+
+    txNew.vin.clear();
+    txNew.vout.clear();
+    txNew.wit.SetNull();
+    wtxNew.fFromMe = true;
+
+    CZerocoinEntry mintEntry;
+    if (GetNumberOfUnspentMintsForDenomination(version, denomination, &mintEntry) <= 0 || mintEntry.nHeight > chainActive.Height()) {
+        stringError = "No zerocoin mints found";
+        return false;
+    }
+
+    // Create remint tx input without signature (metadata is unknown at the moment)
+    sigma::CoinRemintToV3 remint(version, (unsigned)denomination, (unsigned)mintEntry.id,
+            mintEntry.serialNumber, mintEntry.randomness, chainActive[mintEntry.nHeight]->GetBlockHash(),
+            mintEntry.ecdsaSecretKey);
+
+    CDataStream ds1(SER_NETWORK, PROTOCOL_VERSION);
+    ds1 << remint;
+
+    CScript remintScriptBeforeSignature;
+    remintScriptBeforeSignature << OP_ZEROCOINTOSIGMAREMINT;
+    remintScriptBeforeSignature.insert(remintScriptBeforeSignature.end(), ds1.begin(), ds1.end());
+
+    CTxIn remintTxIn;
+    remintTxIn.nSequence = mintEntry.id;
+    remintTxIn.scriptSig = remintScriptBeforeSignature;
+    remintTxIn.prevout.SetNull();
+    txNew.vin.push_back(remintTxIn);
+
+    vector<sigma::PrivateCoin> privateCoins;
+
+    static struct ZerocoinToSigmaMintDenominationMap {
+        int zerocoinDenomination;
+        sigma::CoinDenomination sigmaDenomination;
+        int numberOfSigmaMints;
+    } zerocoinToSigmaDenominationMap[] = {
+        {1, sigma::CoinDenomination::SIGMA_DENOM_1, 1},
+        {10, sigma::CoinDenomination::SIGMA_DENOM_10, 1},
+//        {25, sigma::CoinDenomination::SIGMA_DENOM_25, 1},
+        {50, sigma::CoinDenomination::SIGMA_DENOM_10, 5},
+        {100, sigma::CoinDenomination::SIGMA_DENOM_100, 1}
+    };
+
+    for (auto &denomMap: zerocoinToSigmaDenominationMap) {
+        if (denomMap.zerocoinDenomination != (int)denomination)
+            continue;
+
+        sigma::Params* sigmaParams = sigma::Params::get_default();
+
+        for (int i=0; i<denomMap.numberOfSigmaMints; i++) {
+            sigma::PrivateCoin newCoin(sigmaParams, denomMap.sigmaDenomination, ZEROCOIN_TX_VERSION_3);
+
+            sigma::PublicCoin pubCoin = newCoin.getPublicCoin();
+
+            // Validate
+            if (!pubCoin.validate()) {
+                stringError = "Unable to mint a sigma coin";
+                return false;
+            }
+
+            CScript sigmaMintScript;
+            sigmaMintScript << OP_SIGMAMINT;
+            std::vector<unsigned char> vch = pubCoin.getValue().getvch();
+            sigmaMintScript.insert(sigmaMintScript.end(), vch.begin(), vch.end());
+
+            int64_t intDenomination;
+            if (!sigma::DenominationToInteger(denomMap.sigmaDenomination, intDenomination)) {
+                stringError = "Unknown sigma denomination";
+                return false;
+            }
+
+            CTxOut sigmaTxOut;
+            sigmaTxOut.scriptPubKey = sigmaMintScript;
+            sigmaTxOut.nValue = intDenomination;
+            txNew.vout.push_back(sigmaTxOut);
+
+            privateCoins.push_back(newCoin);
+        }
+    }
+
+    if (txNew.vout.empty()) {
+        stringError = "Unknown zerocoin denomination";
+        return false;
+    }
+
+    // At this point we have all the data we need to get hash tx (without remint signature) and use ECDSA secret
+    // key to sign remint tx input
+    libzerocoin::SpendMetaData metadata(mintEntry.id, txNew.GetHash());
+    remint.SignTransaction(metadata);
+
+    // Now update the script
+    CDataStream ds2(SER_NETWORK, PROTOCOL_VERSION);
+    ds2 << remint;
+
+    CScript remintScriptAfterSignature;
+    remintScriptAfterSignature << OP_ZEROCOINTOSIGMAREMINT;
+    remintScriptAfterSignature.insert(remintScriptAfterSignature.end(), ds2.begin(), ds2.end());
+
+    txNew.vin[0].scriptSig = remintScriptAfterSignature;
+    *(CTransaction *)&wtxNew = txNew;
+
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+
+    // Write mint entry as "used for remint"
+    mintEntry.IsUsed = mintEntry.IsUsedForRemint = true;
+    walletdb.WriteZerocoinEntry(mintEntry);
+    NotifyZerocoinChanged(this,
+        mintEntry.value.GetHex(),
+        "Used (" + std::to_string(mintEntry.denomination) + " mint)",
+        CT_UPDATED);
+
+    for (auto &sigmaMint: privateCoins) {
+        CSigmaEntry sigmaMintEntry;
+        sigmaMintEntry.IsUsed = false;
+        sigmaMintEntry.set_denomination(sigmaMint.getPublicCoin().getDenomination());
+        sigmaMintEntry.value = sigmaMint.getPublicCoin().getValue();
+        sigmaMintEntry.randomness = sigmaMint.getRandomness();
+        sigmaMintEntry.serialNumber = sigmaMint.getSerialNumber();
+        const unsigned char *ecdsaSecretKey = sigmaMint.getEcdsaSeckey();
+        sigmaMintEntry.ecdsaSecretKey = std::vector<unsigned char>(ecdsaSecretKey, ecdsaSecretKey+32);
+        walletdb.WriteZerocoinEntry(sigmaMintEntry);
+        NotifyZerocoinChanged(this,
+            sigmaMintEntry.value.GetHex(),
+            "New (" + std::to_string(sigmaMint.getPublicCoin().getDenomination()) + " mint)",
+            CT_NEW);
+    }
+
+    return true;
 }
 
 bool CWallet::CheckDenomination(string denomAmount, int64_t& nAmount, libzerocoin::CoinDenomination& denomination){
