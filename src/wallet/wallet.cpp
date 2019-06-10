@@ -6231,6 +6231,10 @@ string CWallet::MintAndStoreSigma(const vector<CRecipient>& vecSend,
     for (CHDMint dMint : vDMints) {
         dMint.SetTxHash(wtxNew.GetHash());
         pwalletMain->hdMintTracker->Add(dMint, true);
+        NotifyZerocoinChanged(this,
+             dMint.GetPubcoinValue().GetHex(),
+            "New (" + std::to_string(dMint.GetDenominationValue()) + " mint)",
+            CT_NEW);
     }
 
     return "";

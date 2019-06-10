@@ -158,6 +158,9 @@ void WalletModel::updateSigmaCoins(const QString &pubCoin, const QString &isUsed
         std::list<CSigmaEntry> coins;
         CWalletDB(wallet->strWalletFile).ListSigmaPubCoin(coins);
 
+        auto hdmintCoins = wallet->hdMintTracker->MintsAsZerocoinEntries();
+        coins.insert(coins.end(), hdmintCoins.begin(), hdmintCoins.end());
+
         int block = cachedNumBlocks;
         for (const auto& coin : coins) {
             if (!coin.IsUsed) {
@@ -210,6 +213,9 @@ void WalletModel::checkSigmaAmount(bool forced)
     if ((cachedHavePendingCoin && cachedNumBlocks > lastBlockCheckSigma) || forced ) {
         std::list<CSigmaEntry> coins;
         CWalletDB(wallet->strWalletFile).ListSigmaPubCoin(coins);
+        
+        auto hdmintCoins = wallet->hdMintTracker->MintsAsZerocoinEntries();
+        coins.insert(coins.end(), hdmintCoins.begin(), hdmintCoins.end());
 
         std::vector<CSigmaEntry> spendable, pending;
 
