@@ -996,11 +996,16 @@ public:
     bool GetMint(const uint256& hashSerial, CSigmaEntry& zerocoin) const;
 
     bool CreateZerocoinMintModel(string &stringError,
-                                 const string& denomAmount,
-                                 MintAlgorithm algo = ZEROCOIN);
+                                 const std::vector<std::pair<std::string,int>>& denominationPairs,
+                                 vector<CHDMint>& vDMints,
+                                 MintAlgorithm algo);
 
     bool CreateZerocoinMintModelV2(string &stringError, const string& denomAmount);
     bool CreateSigmaMintModel(string &stringError, const string& denomAmount);
+
+    bool CreateZerocoinMintModel(string &stringError,
+                                 const string& denomAmount,
+                                 MintAlgorithm algo = ZEROCOIN);
 
     bool CreateZerocoinMintModel(
         string &stringError,
@@ -1009,7 +1014,8 @@ public:
 
     bool CreateSigmaMintModel(
         string &stringError,
-        const std::vector<std::pair<sigma::CoinDenomination, int>>& denominationPairs);
+        const std::vector<std::pair<sigma::CoinDenomination, int>>& denominationPairs,
+        vector<CHDMint>& vDMints);
 
     bool CreateZerocoinMintModelV2(string &stringError, const std::vector<std::pair<int,int>>& denominationPairs);
 

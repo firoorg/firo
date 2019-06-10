@@ -3847,7 +3847,38 @@ bool CWallet::CreateZerocoinMintModel(
             }
             sigma_denominations.push_back(std::make_pair(denom, pair.second));
         }
-        return CreateSigmaMintModel(stringError, sigma_denominations);
+        vector<CHDMint> vDMints;
+        return CreateSigmaMintModel(stringError, sigma_denominations, vDMints);
+    }
+    else if (algo == ZEROCOIN) {
+        // Convert denominations from string to integers.
+        std::vector<std::pair<int, int>> int_denominations;
+        for(const std::pair<std::string,int>& pair: denominationPairs) {
+            int_denominations.push_back(std::make_pair(std::atoi(pair.first.c_str()), pair.second));
+        }
+        return CreateZerocoinMintModelV2(stringError, int_denominations);
+    }
+    else
+        return false;
+}
+
+bool CWallet::CreateZerocoinMintModel(
+        string &stringError,
+        const std::vector<std::pair<std::string,int>>& denominationPairs,
+        vector<CHDMint>& vDMints,
+        MintAlgorithm algo) {
+    if(algo == SIGMA) {
+        // Convert denominations from string to sigma denominations.
+        std::vector<std::pair<sigma::CoinDenomination, int>> sigma_denominations;
+        for(const std::pair<std::string,int>& pair: denominationPairs) {
+            sigma::CoinDenomination denom;
+            if (!StringToDenomination(pair.first, denom)) {
+                stringError = "Unrecognized sigma denomination " + pair.first;
+                return false;
+            }
+            sigma_denominations.push_back(std::make_pair(denom, pair.second));
+        }
+        return CreateSigmaMintModel(stringError, sigma_denominations, vDMints);
     }
     else if (algo == ZEROCOIN) {
         // Convert denominations from string to integers.
@@ -3863,11 +3894,11 @@ bool CWallet::CreateZerocoinMintModel(
 
 bool CWallet::CreateSigmaMintModel(
         string &stringError,
-        const std::vector<std::pair<sigma::CoinDenomination, int>>& denominationPairs) {
+        const std::vector<std::pair<sigma::CoinDenomination, int>>& denominationPairs,
+        vector<CHDMint>& vDMints) {
     vector<CRecipient> vecSend;
     vector<sigma::PrivateCoin> privCoins;
     CWalletTx wtx;
-    vector<CHDMint> vDMints;
     CHDMint dMint;
 
      uint32_t nCountLastUsed = zwalletMain->GetCount();
@@ -5709,7 +5740,7 @@ bool CWallet::CreateMultipleSigmaSpendTransaction(
                 int coinHeight;
                 int coinGroupID;
 
-                // Cycle through metadata, looking for suitable coin 
+                // Cycle through metadata, looking for suitable coin
                 int index = -1;
                 for (const CMintMeta& mint : listMints) {
                     index++;
@@ -6606,7 +6637,7 @@ bool CWallet::CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CSigmaEntry>
         }
 
         //Set spent mint as used
-        uint256 hashPubcoin = sigma::GetPubCoinValueHash(coin.value); 
+        uint256 hashPubcoin = sigma::GetPubCoinValueHash(coin.value);
         pwalletMain->hdMintTracker->SetPubcoinUsed(hashPubcoin, wtxNew.GetHash());
         CMintMeta metaCheck = pwalletMain->hdMintTracker->GetMetaFromPubcoin(hashPubcoin);
         if (!metaCheck.isUsed) {
