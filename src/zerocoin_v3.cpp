@@ -584,6 +584,20 @@ bool BuildSigmaStateFromIndex(CChain *chain) {
     return true;
 }
 
+uint256 GetSerialHash(const secp_primitives::Scalar& bnSerial)
+{
+    CDataStream ss(SER_GETHASH, 0);
+    ss << bnSerial;
+    return Hash(ss.begin(), ss.end());
+}
+
+uint256 GetPubCoinValueHash(const secp_primitives::GroupElement& bnValue)
+{
+    CDataStream ss(SER_GETHASH, 0);
+    ss << bnValue;
+    return Hash(ss.begin(), ss.end());
+}
+
 void CSigmaTxInfo::Complete() {
     // We need to sort mints lexicographically by serialized value of pubCoin. That's the way old code
     // works, we need to stick to it. Denomination doesn't matter but we will sort by it as well

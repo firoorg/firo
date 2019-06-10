@@ -71,6 +71,9 @@ bool ConnectBlockSigma(
 
 bool BuildSigmaStateFromIndex(CChain *chain);
 
+uint256 GetSerialHash(const secp_primitives::Scalar& bnSerial);
+uint256 GetPubCoinValueHash(const secp_primitives::GroupElement& bnValue);
+
 Scalar GetSigmaSpendSerialNumber(const CTransaction &tx, const CTxIn &txin);
 CAmount GetSigmaSpendInput(const CTransaction &tx);
 

@@ -40,6 +40,7 @@ A function with one or more operations.
 | [balance](#balance)               | Coin balance of a number of different categories. | 🔐 | – | – |
 | [block](#block)                   | All transaction information from, and including, the blockHash parameter passed. | 🔐 | – | – |
 | [blockchain](#blockchain)         | Information related to chain sync status and tip. | 🔐 | – | – |
+| [listMints](#listmints)           | Returns a list of unspent Sigma mints.  | 🔐 | 🔐 | – |
 | [lockWallet](#lockwallet)         | Lock core wallet, should it be encrypted.  | 🔐 | – | – |
 | [mint](#mint)                     | Mint 1 or more Zerocoins. | 🔐 | ✅ | – |
 | [paymentRequest](#paymentrequest) | Bundles of information related to a Zcoin payment. | 🔐 | – | – |
@@ -382,6 +383,42 @@ OPTIONAL: not a necessary parameter to pass.
     } 
     meta:{
         status: 200
+    }
+}
+```
+
+### `listMints`:
+`None`:
+```
+    data: {
+    }
+``` 
+*Returns:*
+```
+{ 
+    data: {
+        STRING (serialNumberHash) {
+            id: INT,
+            IsUsed: BOOL,
+            denomination: INT,
+            value:  STRING,
+            serialNumber: STRING,
+            nHeight: INT, 
+            randomness: STRING
+        },
+        STRING (serialNumberHash) {
+            id: INT,
+            IsUsed: BOOL,
+            denomination: INT,
+            value:  STRING,
+            serialNumber: STRING,
+            nHeight: INT, 
+            randomness: STRING
+        },
+        ...
+    }, 
+    meta:{
+       status: 200
     }
 }
 ```

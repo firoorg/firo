@@ -221,11 +221,40 @@ UniValue sendprivate(Type type, const UniValue& data, const UniValue& auth, bool
     }
 }
 
+UniValue listmints(Type type, const UniValue& data, const UniValue& auth, bool fHelp) {
+
+    EnsureWalletIsUnlocked();
+
+    list <CSigmaEntry> listPubcoin;
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+    walletdb.ListSigmaPubCoin(listPubcoin);
+    UniValue results(UniValue::VOBJ);
+
+    BOOST_FOREACH(const CSigmaEntry &zerocoinItem, listPubcoin) {
+        if (!zerocoinItem.IsUsed) {
+            uint256 serialNumberHash = sigma::GetSerialHash(zerocoinItem.serialNumber);
+
+            UniValue entry(UniValue::VOBJ);
+            entry.push_back(Pair("id", zerocoinItem.id));
+            entry.push_back(Pair("IsUsed", zerocoinItem.IsUsed));
+            entry.push_back(Pair("denomination", zerocoinItem.get_denomination_value()));
+            entry.push_back(Pair("value", zerocoinItem.value.GetHex()));
+            entry.push_back(Pair("serialNumber", zerocoinItem.serialNumber.GetHex()));
+            entry.push_back(Pair("nHeight", zerocoinItem.nHeight));
+            entry.push_back(Pair("randomness", zerocoinItem.randomness.GetHex()));
+            results.push_back(Pair(serialNumberHash.ToString(), entry));
+        }
+    }
+
+    return results;
+}
+
 static const CAPICommand commands[] =
 { //  category              collection         actor (function)          authPort   authPassphrase   warmupOk
   //  --------------------- ------------       ----------------          -------- --------------   --------
     { "zerocoin",           "mint",            &mint,                    true,      true,            false  },
     { "zerocoin",           "sendPrivate",     &sendprivate,             true,      true,            false  },
+    { "zerocoin",           "listMints",       &listmints,               true,      true,            false  },
     { "zerocoin",           "mintStatus",      &mintstatus,              true,      false,           false  }
 };
 void RegisterZerocoinAPICommands(CAPITable &tableAPI)
