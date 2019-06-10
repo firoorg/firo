@@ -216,20 +216,24 @@ BOOST_AUTO_TEST_CASE(sigma_addmint_more_than_restriction_in_one)
 
 // This is a correct case, but should be commented till fix of code
 // Cause code of creating another coin group is not in the state class itself
-/*
+
 // Checking AddMint ZC_SPEND_V3_COINSPERID+1 coins on different blocks should have two group id
 BOOST_AUTO_TEST_CASE(sigma_addmint_more_than_restriction_in_diff)
 {
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
     CScript scriptPubKey2;
     sigma::PublicCoin pubcoin;
-    CBlockIndex index;
+    sigma::CoinDenomination testDenomination = sigma::CoinDenomination::SIGMA_DENOM_0_05;
+
+    std::vector<CBlockIndex> indexs(ZC_SPEND_V3_COINSPERID + 1);
     for (int i = 0; i <= ZC_SPEND_V3_COINSPERID; ++i){
-        index = CreateBlockIndex(i+1);
+        indexs[i] = CreateBlockIndex(i+1);
         auto params = sigma::Params::get_default();
-        const sigma::PrivateCoin privcoin(params);
+        const sigma::PrivateCoin privcoin(params, testDenomination);
         pubcoin = privcoin.getPublicCoin();
-        sigmaState->AddMint(&index, pubcoin);
+        auto groupID = sigmaState->AddMint(&indexs[i], pubcoin);
+        auto denomAndID = std::make_pair(testDenomination, groupID);
+        indexs[i].sigmaMintedPubCoins[denomAndID].push_back(pubcoin);
     }
     auto mintedPubCoin = sigmaState->mintedPubCoins;
     BOOST_CHECK_MESSAGE(mintedPubCoin.size() == 15001,
@@ -238,12 +242,12 @@ BOOST_AUTO_TEST_CASE(sigma_addmint_more_than_restriction_in_diff)
     BOOST_CHECK_MESSAGE(sigmaState->latestCoinIds[pubcoin.getDenomination()] == 2,
         "Unexpected latest coin id of common denomination.");
 
-    sigmaState->RemoveBlock(&index);
+    sigmaState->RemoveBlock(&indexs.back());
     BOOST_CHECK_MESSAGE(sigmaState->latestCoinIds[pubcoin.getDenomination()] == 1,
          "Unexpected latestcoin id of common denomination after remove 15001 block.");
 
     sigmaState->Reset();
-} */
+}
 
 // Checking RemoveSpendFromMempool, when coin is in mempool
 BOOST_AUTO_TEST_CASE(sigma_remove_spend_from_mempool_coin_in)
