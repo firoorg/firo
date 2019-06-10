@@ -142,9 +142,9 @@ UniValue sendprivate(Type type, const UniValue& data, const UniValue& auth, bool
             for(size_t index=0; index<outputs.size(); index++){
                 output = outputs[index];
                 std::string strAddr = find_value(output, "address").get_str();
-                int64_t amount = find_value(output, "amount").get_int64();
+                // satoshi amount
+                CAmount nAmount = find_value(output, "amount").get_int64();
                 CBitcoinAddress address(strAddr);
-                CAmount nAmount = AmountFromValue(amount);
                 CScript scriptPubKey = GetScriptForDestination(address.Get());
 
                 if (!address.IsValid())
@@ -164,7 +164,7 @@ UniValue sendprivate(Type type, const UniValue& data, const UniValue& auth, bool
                 UniValue txMetadataSubEntry(UniValue::VOBJ);
 
                 // write label and amount to entry object
-                txMetadataSubEntry.push_back(Pair("amount", amount * COIN));
+                txMetadataSubEntry.push_back(Pair("amount", nAmount));
                 txMetadataSubEntry.push_back(Pair("label", label));
                 txMetadataEntry.push_back(Pair(strAddr, txMetadataSubEntry));
             }
