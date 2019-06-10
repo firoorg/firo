@@ -607,9 +607,9 @@ template<typename Stream, typename T0, typename T1, typename T2, typename T3> vo
 /**
  * map
  */
-template <typename MapType, typename K = typename MapType::key_type, typename T = typename MapType::mapped_type> unsigned int GetSerializeSize(MapType const &m, int nType, int nVersion);
-template <typename Stream, typename MapType, typename K = typename MapType::key_type, typename T = typename MapType::mapped_type> void Serialize(Stream& os, MapType const &m, int nType, int nVersion);
-template <typename Stream, typename MapType, typename K = typename MapType::key_type, typename T = typename MapType::mapped_type> void Unserialize(Stream& is, MapType &m, int nType, int nVersion);
+template<typename MapType, typename K = typename MapType::key_type, typename T = typename MapType::mapped_type> unsigned int GetSerializeSize(MapType const &m, int nType, int nVersion);
+template<typename Stream, typename MapType, typename K = typename MapType::key_type, typename T = typename MapType::mapped_type> void Serialize(Stream& os, MapType const &m, int nType, int nVersion);
+template<typename Stream, typename MapType, typename K = typename MapType::key_type, typename T = typename MapType::mapped_type> void Unserialize(Stream& is, MapType &m, int nType, int nVersion);
 
 /**
  * set
