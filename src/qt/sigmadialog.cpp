@@ -213,6 +213,9 @@ void SigmaDialog::on_mintButton_clicked()
         tr("Sigma successfully minted"),
         QMessageBox::Ok, QMessageBox::Ok);
 
+    CoinControlDialog::coinControl->UnSelectAll();
+    coinControlUpdateLabels();
+
     ui->amountToMint->setValue(0);
 }
 
