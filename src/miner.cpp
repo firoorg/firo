@@ -406,16 +406,16 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
             if (tx.IsZerocoinSpend() || tx.IsZerocoinMint())
                 continue;
 
-                if (tx.IsSigmaSpend()) {
-                    auto spendAmount = sigma::GetSpendAmount(tx);
-                    if (tx.vin.size() > params.nMaxSigmaInputPerTransaction ||
-                       spendAmount > params.nMaxValueSigmaSpendPerTransaction) {
-                        continue;
-                    }
-                    if (tx.vin.size() + nSigmaSpend > params.nMaxSigmaInputPerBlock) {
-                        continue;
-                    }
-                    if (spendAmount + nValueSigmaSpend > params.nMaxValueSigmaSpendPerBlock) {
+            if (tx.IsSigmaSpend()) {
+                auto spendAmount = sigma::GetSpendAmount(tx);
+                if (tx.vin.size() > params.nMaxSigmaInputPerTransaction ||
+                    spendAmount > params.nMaxValueSigmaSpendPerTransaction) {
+                    continue;
+                }
+                if (tx.vin.size() + nSigmaSpend > params.nMaxSigmaInputPerBlock) {
+                    continue;
+                }
+                if (spendAmount + nValueSigmaSpend > params.nMaxValueSigmaSpendPerBlock) {
                     continue;
                 }
 
@@ -460,6 +460,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
                 inBlock.insert(iter);
                 continue;
             }
+
 
             unsigned int nTxSigOps = iter->GetSigOpCost();
             LogPrintf("nTxSigOps=%s\n", nTxSigOps);
