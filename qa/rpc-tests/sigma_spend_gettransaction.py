@@ -39,7 +39,7 @@ class SigmaSpendGettransactionTest(BitcoinTestFramework):
         spendto_wo_tx = self.nodes[0].gettransaction(spendto_wo_id)
 
         assert spendto_wo_tx['amount'] == Decimal('-1')
-        assert spendto_wo_tx['fee'] == Decimal('-0.05')
+        assert spendto_wo_tx['fee'] < Decimal('0')
         assert isinstance(spendto_wo_tx['details'], list)
         assert len(spendto_wo_tx['details']) == 1
         assert spendto_wo_tx['details'][0]['involvesWatchonly']
@@ -49,7 +49,7 @@ class SigmaSpendGettransactionTest(BitcoinTestFramework):
         spendto_wo_and_valid_tx = self.nodes[0].gettransaction(spendto_wo_and_valid_id)
 
         assert spendto_wo_and_valid_tx['amount'] == Decimal('-1')
-        assert spendto_wo_and_valid_tx['fee'] == Decimal('-0.05')
+        assert spendto_wo_and_valid_tx['fee'] < Decimal('0')
         assert isinstance(spendto_wo_and_valid_tx['details'], list)
         assert len(spendto_wo_and_valid_tx['details']) == 3
 
