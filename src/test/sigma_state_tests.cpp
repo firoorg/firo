@@ -219,28 +219,28 @@ BOOST_AUTO_TEST_CASE(sigma_addmint_more_than_restriction_in_diff)
 {
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
     CScript scriptPubKey2;
-    sigma::PublicCoin pubcoin;
     sigma::CoinDenomination testDenomination = sigma::CoinDenomination::SIGMA_DENOM_0_05;
 
-    std::vector<CBlockIndex> indexs(ZC_SPEND_V3_COINSPERID + 1);
-    for (int i = 0; i <= ZC_SPEND_V3_COINSPERID; ++i){
+    std::array<CBlockIndex, ZC_SPEND_V3_COINSPERID + 1> indexs;
+    for (int i = 0; i <= ZC_SPEND_V3_COINSPERID; ++i) {
         indexs[i] = CreateBlockIndex(i+1);
         auto params = sigma::Params::get_default();
         const sigma::PrivateCoin privcoin(params, testDenomination);
-        pubcoin = privcoin.getPublicCoin();
+        const auto& pubcoin = privcoin.getPublicCoin();
         auto groupID = sigmaState->AddMint(&indexs[i], pubcoin);
         auto denomAndID = std::make_pair(testDenomination, groupID);
         indexs[i].sigmaMintedPubCoins[denomAndID].push_back(pubcoin);
     }
+
     auto mintedPubCoin = sigmaState->mintedPubCoins;
     BOOST_CHECK_MESSAGE(mintedPubCoin.size() == 15001,
          "Unexpected mintedPubCoin size in diff block of one group.");
 
-    BOOST_CHECK_MESSAGE(sigmaState->latestCoinIds[pubcoin.getDenomination()] == 2,
+    BOOST_CHECK_MESSAGE(sigmaState->latestCoinIds[testDenomination] == 2,
         "Unexpected latest coin id of common denomination.");
 
     sigmaState->RemoveBlock(&indexs.back());
-    BOOST_CHECK_MESSAGE(sigmaState->latestCoinIds[pubcoin.getDenomination()] == 1,
+    BOOST_CHECK_MESSAGE(sigmaState->latestCoinIds[testDenomination] == 1,
          "Unexpected latestcoin id of common denomination after remove 15001 block.");
 
     sigmaState->Reset();
