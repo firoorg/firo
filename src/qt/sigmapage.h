@@ -29,6 +29,7 @@ public:
 
 public Q_SLOTS:
     void clear();
+    void accept();
     SendCoinsEntry* addEntry();
     void updateTabsAndLabels();
 
@@ -47,7 +48,7 @@ private Q_SLOTS:
     void on_sendButton_clicked();
     void removeEntry(SendCoinsEntry* entry);
     void updateAvailableToMintBalance(const CAmount& balance);
-    void updateCoins(const std::vector<CZerocoinEntryV3>& spendable, const std::vector<CZerocoinEntryV3>& pending);
+    void updateCoins(const std::vector<CSigmaEntry>& spendable, const std::vector<CSigmaEntry>& pending);
 
 Q_SIGNALS:
     // Fired when a message should be reported to the user

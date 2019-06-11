@@ -67,7 +67,7 @@ void SigmaPage::setClientModel(ClientModel *model)
     this->clientModel = model;
 
     if (model) {
-        bool sigmaAllowed = IsSigmaAllowed(model->getNumBlocks());
+        bool sigmaAllowed = sigma::IsSigmaAllowed(model->getNumBlocks());
 
         connect(model, SIGNAL(numBlocksChanged(int, const QDateTime&, double, bool)), this, SLOT(numBlocksChanged(int, const QDateTime&, double, bool)));
 
@@ -84,8 +84,8 @@ void SigmaPage::setWalletModel(WalletModel *model)
         connect(model, SIGNAL(balanceChanged(CAmount, CAmount, CAmount, CAmount, CAmount, CAmount)),
             this, SLOT(updateAvailableToMintBalance(CAmount)));
         updateAvailableToMintBalance(model->getBalance());
-        connect(model, SIGNAL(notifySigmaChanged(const std::vector<CZerocoinEntryV3>, const std::vector<CZerocoinEntryV3>)),
-            this, SLOT(updateCoins(const std::vector<CZerocoinEntryV3>, const std::vector<CZerocoinEntryV3>)));
+        connect(model, SIGNAL(notifySigmaChanged(const std::vector<CSigmaEntry>, const std::vector<CSigmaEntry>)),
+            this, SLOT(updateCoins(const std::vector<CSigmaEntry>, const std::vector<CSigmaEntry>)));
         model->checkSigmaAmount(true);
         for (int i = 0; i < ui->entries->count(); ++i) {
             SendCoinsEntry *entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
@@ -104,23 +104,56 @@ SigmaPage::~SigmaPage()
 void SigmaPage::numBlocksChanged(int count, const QDateTime& blockDate, double nVerificationProgress, bool header)
 {
     if (!header) {
-        bool sigmaAllowed = IsSigmaAllowed(count);
+        bool sigmaAllowed = sigma::IsSigmaAllowed(count);
 
         ui->mintButton->setEnabled(sigmaAllowed);
         ui->sendButton->setEnabled(sigmaAllowed);
     }
 }
 
+static QString formatAmount(CAmount n);
+
 void SigmaPage::on_mintButton_clicked()
 {
     auto rawAmount = ui->amountToMint->value();
     CAmount amount(rawAmount * COIN);
 
-    // round any thing smaller than 0.1
-    // if more than or equal 0.05 round to 0.1 otherwise round to 0.0
+    // round any thing smaller than 0.01
+    // if more than or equal 0.005 round to 0.01 otherwise round to 0.00
     amount = amount / CENT * CENT + ((amount % CENT >= CENT / 2) ? CENT : 0);
 
+    // check if amount to mint is impossible to process.
+    std::vector<sigma::CoinDenomination> denoms;
+    sigma::GetAllDenoms(denoms);
+
+    auto smallestDenomination = denoms.back();
+    CAmount smallestDenominationValue;
+    sigma::DenominationToInteger(smallestDenomination, smallestDenominationValue);
+
+    if (amount < smallestDenominationValue) {
+        QMessageBox::critical(this, tr("Too small amount to mint"),
+            tr("Amount to mint must not lower than %1 XZC.").arg(formatAmount(smallestDenominationValue)),
+            QMessageBox::Ok, QMessageBox::Ok);
+        return;
+    }
+
+    if (amount % smallestDenominationValue != 0) {
+        amount -= amount % smallestDenominationValue;
+        auto reply = QMessageBox::question(
+            this, tr("Amount to mint is impossible."),
+            tr("Amount to mint must be multiple of 0.05 XZC. Do you want to spend %1 XZC?"
+            ).arg(formatAmount(amount)));
+
+        if (reply == QMessageBox::No) {
+            return;
+        }
+    }
+
     try {
+        WalletModel::UnlockContext ctx(walletModel->requestUnlock());
+        if (!ctx.isValid()) {
+            return;
+        }
         walletModel->sigmaMint(amount);
     } catch (const std::runtime_error& e) {
         QMessageBox::critical(this, tr("Error"),
@@ -167,8 +200,8 @@ void SigmaPage::on_sendButton_clicked()
     }
 
     // prepare transaction for getting txFee earlier
-    std::vector<CZerocoinEntryV3> selectedCoins;
-    std::vector<CZerocoinEntryV3> changes;
+    std::vector<CSigmaEntry> selectedCoins;
+    std::vector<CSigmaEntry> changes;
     WalletModelTransaction currentTransaction(recipients);
     auto prepareStatus = walletModel->prepareSigmaSpendTransaction(currentTransaction, selectedCoins, changes);
 
@@ -258,6 +291,10 @@ void SigmaPage::on_sendButton_clicked()
     // process sendStatus and on error generate message shown to user
     processSpendCoinsReturn(sendStatus);
 
+    if (sendStatus.status == WalletModel::OK) {
+        accept();
+    }
+
     isNewRecipientAllowed = true;
 }
 
@@ -270,6 +307,11 @@ void SigmaPage::clear()
     addEntry();
 
     updateTabsAndLabels();
+}
+
+void SigmaPage::accept()
+{
+    clear();
 }
 
 SendCoinsEntry *SigmaPage::addEntry() {
@@ -369,6 +411,10 @@ void SigmaPage::processSpendCoinsReturn(const WalletModel::SendCoinsReturn &send
         msgParams.first = tr("Payment request expired.");
         msgParams.second = CClientUIInterface::MSG_ERROR;
         break;
+    case WalletModel::ExceedLimit:
+        msgParams.first = tr("Transaction exceeds max number of spends (35) or value (500 XZC per transaction), please reduce the amount you wish to spend.");
+        msgParams.second = CClientUIInterface::MSG_ERROR;
+        break;
     // included to prevent a compiler warning.
     case WalletModel::OK:
     default:
@@ -384,19 +430,19 @@ static QString formatAmount(CAmount n)
 
     qint64 n_abs = (n > 0 ? n : -n);
     qint64 quotient = n_abs / coin;
-    qint64 remainder = (n_abs % coin) * 10 / coin;
+    qint64 remainder = (n_abs % coin) * 100 / coin;
 
     QString quotient_str = QString::number(quotient);
-    QString remainder_str = QString::number(remainder).rightJustified(1, '0');
+    QString remainder_str = QString::number(remainder).rightJustified(2, '0');
 
     if (n < 0)
         quotient_str.insert(0, '-');
     return quotient_str + QString(".") + remainder_str;
 }
 
-void SigmaPage::updateCoins(const std::vector<CZerocoinEntryV3>& spendable, const std::vector<CZerocoinEntryV3>& pending)
+void SigmaPage::updateCoins(const std::vector<CSigmaEntry>& spendable, const std::vector<CSigmaEntry>& pending)
 {
-    std::unordered_map<sigma::CoinDenominationV3, int> spendableDenominationCoins;
+    std::unordered_map<sigma::CoinDenomination, int> spendableDenominationCoins;
 
     CAmount sum(0);
     for (const auto& c : spendable) {
@@ -405,17 +451,21 @@ void SigmaPage::updateCoins(const std::vector<CZerocoinEntryV3>& spendable, cons
     }
 
     // update coins amount
-    int denom100Amount = spendableDenominationCoins[sigma::CoinDenominationV3::SIGMA_DENOM_100];
-    int denom10Amount = spendableDenominationCoins[sigma::CoinDenominationV3::SIGMA_DENOM_10];
-    int denom1Amount = spendableDenominationCoins[sigma::CoinDenominationV3::SIGMA_DENOM_1];
-    int denom05Amount = spendableDenominationCoins[sigma::CoinDenominationV3::SIGMA_DENOM_0_5];
-    int denom01Amount = spendableDenominationCoins[sigma::CoinDenominationV3::SIGMA_DENOM_0_1];
+    int denom100Amount = spendableDenominationCoins[sigma::CoinDenomination::SIGMA_DENOM_100];
+    int denom25Amount = spendableDenominationCoins[sigma::CoinDenomination::SIGMA_DENOM_25];
+    int denom10Amount = spendableDenominationCoins[sigma::CoinDenomination::SIGMA_DENOM_10];
+    int denom1Amount = spendableDenominationCoins[sigma::CoinDenomination::SIGMA_DENOM_1];
+    int denom05Amount = spendableDenominationCoins[sigma::CoinDenomination::SIGMA_DENOM_0_5];
+    int denom01Amount = spendableDenominationCoins[sigma::CoinDenomination::SIGMA_DENOM_0_1];
+    int denom005Amount = spendableDenominationCoins[sigma::CoinDenomination::SIGMA_DENOM_0_05];
 
     ui->amountDenom100->setText(QString::fromStdString(std::to_string(denom100Amount)));
+    ui->amountDenom25->setText(QString::fromStdString(std::to_string(denom25Amount)));
     ui->amountDenom10->setText(QString::fromStdString(std::to_string(denom10Amount)));
     ui->amountDenom1->setText(QString::fromStdString(std::to_string(denom1Amount)));
     ui->amountDenom05->setText(QString::fromStdString(std::to_string(denom05Amount)));
     ui->amountDenom01->setText(QString::fromStdString(std::to_string(denom01Amount)));
+    ui->amountDenom005->setText(QString::fromStdString(std::to_string(denom005Amount)));
 
     CAmount pendingSum(0);
     for (const auto& c : pending) {

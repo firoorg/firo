@@ -190,8 +190,8 @@ enum opcodetype
     // zerocoin params
     OP_ZEROCOINMINT = 0xc1,
     OP_ZEROCOINSPEND = 0xc2,
-    OP_ZEROCOINMINTV3 = 0xc3,
-    OP_ZEROCOINSPENDV3 = 0xc4
+    OP_SIGMAMINT = 0xc3,
+    OP_SIGMASPEND = 0xc4
 };
 
 const char* GetOpName(opcodetype opcode);
@@ -564,6 +564,13 @@ public:
         }
 
         opcodeRet = (opcodetype)opcode;
+
+        if (opcodeRet == opcodetype::OP_SIGMASPEND|| opcodeRet == opcodetype::OP_SIGMAMINT) {
+            if (pvchRet) {
+                pvchRet->assign(pc, end());
+            }
+            pc = end();
+        }
         return true;
     }
 
@@ -647,9 +654,9 @@ public:
     bool IsZerocoinSpend() const;
 
     // Checks if the script is zerocoin v3 sigma mint/spend or not.
-    bool IsZerocoinMintV3() const;
-    bool IsZerocoinSpendV3() const;
- 
+    bool IsSigmaMint() const;
+    bool IsSigmaSpend() const;
+
     // Called by IsStandardTx.
     bool HasCanonicalPushes() const;
 

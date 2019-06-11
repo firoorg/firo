@@ -18,7 +18,7 @@ std::size_t CScalarHash::operator ()(const Scalar& bn) const noexcept {
     return result;
 }
 
-std::size_t CPublicCoinHash::operator ()(const PublicCoinV3& coin) const noexcept {
+std::size_t CPublicCoinHash::operator ()(const sigma::PublicCoin& coin) const noexcept {
     vector<unsigned char> bnData(coin.value.memoryRequired());
     coin.value.serialize(&bnData[0]);
 

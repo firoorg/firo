@@ -32,9 +32,9 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_many)
     CBlock b;
     CWalletTx wtx;
 
-    std::vector<std::string> denominations = {"0.1", "0.5", "1", "10", "100"};
+    std::vector<std::string> denominations = {"0.05", "0.1", "0.5", "1", "10", "25", "100"};
 
-    CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
+    sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
 
     // Create 400-200+1 = 201 new empty blocks. // consensus.nMintV3SigmaStartBlock = 400
     CreateAndProcessEmptyBlocks(201, scriptPubKey);
@@ -43,7 +43,7 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_many)
 
     vector<pair<std::string, int>> denominationPairs;
 
-    for(int i = 0; i < 4; i++)
+    for(int i = 0; i < denominations.size() - 1; i++)
     {
         thirdPartyAddress = "";
         denominationsForTx.clear();
@@ -152,23 +152,23 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_many)
         BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool not empty although mempool should reject double spend");
 
         //Temporary disable usedCoinSerials check to force double spend in mempool
-        auto tempSerials = zerocoinState->usedCoinSerials;
-        zerocoinState->usedCoinSerials.clear();
+        auto tempSerials = sigmaState->usedCoinSerials;
+        sigmaState->usedCoinSerials.clear();
 
         wtx.Init(NULL);
         BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(wtx, stringError, thirdPartyAddress, denominationsForTx, true), "Spend created although double");
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "mempool not set after used coin serials removed");
-        zerocoinState->usedCoinSerials = tempSerials;
+        sigmaState->usedCoinSerials = tempSerials;
 
         BOOST_CHECK_EXCEPTION(CreateBlock({}, scriptPubKey), std::runtime_error, no_check);
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "mempool not set after block created");
         vtxid.clear();
         mempool.queryHashes(vtxid);
         vtxid.resize(1);
-        tempSerials = zerocoinState->usedCoinSerials;
-        zerocoinState->usedCoinSerials.clear();
+        tempSerials = sigmaState->usedCoinSerials;
+        sigmaState->usedCoinSerials.clear();
         CreateBlock(vtxid, scriptPubKey);
-        zerocoinState->usedCoinSerials = tempSerials;
+        sigmaState->usedCoinSerials = tempSerials;
 
         mempool.clear();
         previousHeight = chainActive.Height();
@@ -178,7 +178,7 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_many)
 
         vtxid.clear();
         mempool.clear();
-        zerocoinState->mempoolCoinSerials.clear();
+        sigmaState->mempoolCoinSerials.clear();
 
         // Test: send to third party address.
         // mint two of each denom
@@ -222,13 +222,13 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_many)
 
         vtxid.clear();
         mempool.clear();
-        zerocoinState->Reset();
+        sigmaState->Reset();
     }
 
     thirdPartyAddress = "";
 
     // create transactions using the same denomination
-    for(int i = 0; i < 5; i++)
+    for(int i = 0; i < denominations.size(); i++)
     {
         denominationsForTx.clear();
         denominationsForTx.push_back(denominations[i]);
@@ -271,7 +271,7 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_many)
 
         vtxid.clear();
         mempool.clear();
-        zerocoinState->Reset();
+        sigmaState->Reset();
     }
 }
 
@@ -284,9 +284,9 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_usedinput){
     CBlock b;
     CWalletTx wtx;
 
-    std::vector<std::string> denominations = {"0.1", "0.5", "1", "10", "100"};
+    std::vector<std::string> denominations = {"0.05", "0.1", "0.5", "1", "10", "25", "100"};
 
-    CZerocoinStateV3 *zerocoinState = CZerocoinStateV3::GetZerocoinState();
+    sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
 
     // Create 400-200+1 = 201 new empty blocks. // consensus.nMintV3SigmaStartBlock = 400
     CreateAndProcessEmptyBlocks(201, scriptPubKey);
@@ -295,8 +295,8 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_usedinput){
 
     // attempt to add a mixed input spend in one block, and use of the inputs into another tx in the next block.
     denominationsForTx.clear();
-    denominationsForTx.push_back(denominations[rand() % 5]);
-    denominationsForTx.push_back(denominations[rand() % 5]);
+    denominationsForTx.push_back(denominations[rand() % 7]);
+    denominationsForTx.push_back(denominations[rand() % 7]);
     printf("Testing denominations %s and %s\n", denominationsForTx[0].c_str(), denominationsForTx[1].c_str());
     string stringError;
 
@@ -357,7 +357,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_usedinput){
 
     vtxid.clear();
     mempool.clear();
-    zerocoinState->Reset();
+    sigmaState->Reset();
 }
 
 BOOST_AUTO_TEST_SUITE_END()

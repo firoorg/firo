@@ -8,7 +8,7 @@ BOOST_AUTO_TEST_SUITE(sigma_protocol_tests)
 
 BOOST_AUTO_TEST_CASE(one_out_of_n)
 {
-    auto params = sigma::ParamsV3::get_default();
+    auto params = sigma::Params::get_default();
     int N = 16384;
     int n = params->get_n();
     int m = params->get_m();
@@ -50,7 +50,7 @@ BOOST_AUTO_TEST_CASE(one_out_of_n)
 
 BOOST_AUTO_TEST_CASE(prove_and_verify_in_different_set)
 {
-    auto params = sigma::ParamsV3::get_default();
+    auto params = sigma::Params::get_default();
     int N = 16384;
     int n = params->get_n();
     int m = params->get_m();
@@ -99,7 +99,7 @@ BOOST_AUTO_TEST_CASE(prove_and_verify_in_different_set)
 
 BOOST_AUTO_TEST_CASE(prove_coin_out_of_index)
 {
-    auto params = sigma::ParamsV3::get_default();
+    auto params = sigma::Params::get_default();
     int N = 16384;
     int n = params->get_n();
     int m = params->get_m();
@@ -131,7 +131,7 @@ BOOST_AUTO_TEST_CASE(prove_coin_out_of_index)
 
 BOOST_AUTO_TEST_CASE(prove_coin_not_in_set)
 {
-    auto params = sigma::ParamsV3::get_default();
+    auto params = sigma::Params::get_default();
     int N = 16384;
     int n = params->get_n();
     int m = params->get_m();

@@ -312,7 +312,7 @@ def start_node(i, dirname, extra_args=None, rpchost=None, timewait=None, binary=
     if binary is None:
         binary = os.getenv("ZCOIND", "zcoind")
         print(binary)
-    args = [ binary, "-datadir="+datadir, "-server", "-keypool=1", "-discover=0", "-rest", "-reindex", "-dandelion=0", "-mocktime="+str(get_mocktime()) ]
+    args = [ binary, "-datadir="+datadir, "-server", "-keypool=1", "-discover=0", "-rest", "-dandelion=0", "-mocktime="+str(get_mocktime()) ]
     if extra_args is not None: args.extend(extra_args)
     print("Starting a process with: " + " ".join(args))
     bitcoind_processes[i] = subprocess.Popen(args)
@@ -631,6 +631,12 @@ def create_tx(node, coinbase, to_address, amount):
     assert_equal(signresult["complete"], True)
     return signresult["hex"]
 
+def create_tx_multi_input(node, inputs, outputs):
+    rawtx = node.createrawtransaction(inputs, outputs)
+    signresult = node.signrawtransaction(rawtx)
+    assert_equal(signresult["complete"], True)
+    return signresult["hex"]
+
 # Create a spend of each passed-in utxo, splicing in "txouts" to each raw
 # transaction to make it large.  See gen_return_txouts() above.
 def create_lots_of_big_transactions(node, txouts, utxos, fee):
@@ -655,3 +661,20 @@ def create_lots_of_big_transactions(node, txouts, utxos, fee):
 def get_bip9_status(node, key):
     info = node.getblockchaininfo()
     return info['bip9_softforks'][key]
+
+def dumpprivkey_otac(node, address):
+    import re
+    error_text = ''
+    try:
+        return node.dumpprivkey(address)
+    except JSONRPCException as e:
+        error_text = e.error
+    else:
+        raise
+
+    otac_match = re.search("Your one time authorization code is: ([a-zA-Z0-9]+)", error_text['message'])
+    if not otac_match:
+        raise JSONRPCException(error_text)
+    return node.dumpprivkey(address, otac_match.groups()[0])
+
+

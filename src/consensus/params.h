@@ -106,6 +106,23 @@ struct Params {
 
     int nDontAllowDupTxsStartBlock;
 
+    // Values for dandelion.
+
+    // The minimum amount of time a Dandelion transaction is embargoed (seconds).
+    uint32_t nDandelionEmbargoMinimum;
+
+    // The average additional embargo time beyond the minimum amount (seconds).
+    uint32_t nDandelionEmbargoAvgAdd;
+
+    // Maximum number of outbound peers designated as Dandelion destinations.
+    uint32_t nDandelionMaxDestinations;
+    
+    // Expected time between Dandelion routing shuffles (in seconds).
+    uint32_t nDandelionShuffleInterval;
+
+    // Probability (percentage) that a Dandelion transaction enters fluff phase.
+    uint32_t nDandelionFluff;
+
     // Values for sigma implementation.
 
     // The block number after which sigma are accepted.
@@ -123,8 +140,17 @@ struct Params {
     // Number of blocks after nSigmaMintStartBlock during which we still accept zerocoin V2 spend to newly mined blocks.
     int nZerocoinV2SpendGracefulPeriod;
 
-    // Number of maximum sigma spend per transaction.
-    unsigned nMaxSigmaSpendPerBlock;
+    // Amount of maximum sigma spend per block.
+    unsigned nMaxSigmaInputPerBlock;
+
+    // Value of maximum sigma spend per block.
+    int64_t nMaxValueSigmaSpendPerBlock;
+
+    // Amount of maximum sigma spend per transaction.
+    unsigned nMaxSigmaInputPerTransaction;
+
+    // Value of maximum sigma spend per transaction.
+    int64_t nMaxValueSigmaSpendPerTransaction;
 
     /** switch to MTP time */
     uint32_t nMTPSwitchTime;
