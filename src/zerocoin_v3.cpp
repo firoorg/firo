@@ -566,22 +566,12 @@ bool ConnectBlockSigma(
     return true;
 }
 
-bool ZerocoinGetOutPoint(COutPoint& outPoint, GroupElement pubCoinValue) {
-    int mintHeight = 0;
-    int coinId = 0;
+bool GetOutPoint(COutPoint& outPoint, sigma::PublicCoin pubCoin) {
 
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
-    std::vector<sigma::CoinDenomination> denominations;
-    GetAllDenoms(denominations);
-    BOOST_FOREACH(sigma::CoinDenomination denomination, denominations){
-        sigma::PublicCoin pubCoin(pubCoinValue, denomination);
-        auto mintedCoinHeightAndId = sigmaState->GetMintedCoinHeightAndId(pubCoin);
-        mintHeight = mintedCoinHeightAndId.first;
-        coinId = mintedCoinHeightAndId.second;
-        if(mintHeight!=-1 && coinId!=-1)
-            break;
-    }
-
+    auto mintedCoinHeightAndId = sigmaState->GetMintedCoinHeightAndId(pubCoin);
+    int mintHeight = mintedCoinHeightAndId.first;
+    int coinId = mintedCoinHeightAndId.second;
     if(mintHeight==-1 && coinId==-1)
         return false;
 
@@ -604,7 +594,7 @@ bool ZerocoinGetOutPoint(COutPoint& outPoint, GroupElement pubCoinValue) {
                     vector<unsigned char> coin_serialised(txout.scriptPubKey.begin() + 1,
                                                           txout.scriptPubKey.end());
                     txPubCoinValue.deserialize(&coin_serialised[0]);
-                    if(pubCoinValue==txPubCoinValue){
+                    if(pubCoin.value==txPubCoinValue){
                         outPoint = COutPoint(tx.GetHash(), nIndex);
                         return true;
                     }

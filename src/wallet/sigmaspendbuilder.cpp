@@ -120,7 +120,7 @@ SigmaSpendBuilder::~SigmaSpendBuilder()
     cs_main.unlock();
 }
 
-CAmount SigmaSpendBuilder::GetInputs(std::vector<std::unique_ptr<InputSigner>>& signers, CAmount required)
+CAmount SigmaSpendBuilder::GetInputs(std::vector<std::unique_ptr<InputSigner>>& signers, CAmount required, const CCoinControl *coinControl)
 {
     // get coins to spend
 
@@ -130,7 +130,7 @@ CAmount SigmaSpendBuilder::GetInputs(std::vector<std::unique_ptr<InputSigner>>& 
     auto& consensusParams = Params().GetConsensus();
 
     if (!wallet.GetCoinsToSpend(required, selected, denomChanges,
-        consensusParams.nMaxSigmaInputPerTransaction, consensusParams.nMaxValueSigmaSpendPerTransaction)) {
+        consensusParams.nMaxSigmaInputPerTransaction, consensusParams.nMaxValueSigmaSpendPerTransaction, coinControl)) {
         throw InsufficientFunds();
     }
 

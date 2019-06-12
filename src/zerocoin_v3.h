@@ -72,7 +72,7 @@ bool ConnectBlockSigma(
 /*
  * Get COutPoint(txHash, index) from the chain using pubcoin value alone.
  */
-bool ZerocoinGetOutPoint(COutPoint& outPoint, GroupElement pubCoinValue);
+bool GetOutPoint(COutPoint& outPoint, sigma::PublicCoin pubCoin);
 
 bool BuildSigmaStateFromIndex(CChain *chain);
 

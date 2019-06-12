@@ -696,10 +696,10 @@ bool WalletModel::isSpent(const COutPoint& outpoint) const
 }
 
 // AvailableCoins + LockedCoins grouped by wallet address (put change in one group with wallet address)
-void WalletModel::listCoins(std::map<QString, std::vector<COutput> >& mapCoins) const
+void WalletModel::listCoins(std::map<QString, std::vector<COutput> >& mapCoins, AvailableCoinsType nCoinType) const
 {
     std::vector<COutput> vCoins;
-    wallet->AvailableCoins(vCoins, true, NULL, false, ALL_COINS, false, true);
+    wallet->AvailableCoins(vCoins, true, NULL, false, nCoinType, false);
 
     LOCK2(cs_main, wallet->cs_wallet); // ListLockedCoins, mapWallet
     std::vector<COutPoint> vLockedCoins;
@@ -844,7 +844,8 @@ bool WalletModel::rebroadcastTransaction(uint256 hash)
 WalletModel::SendCoinsReturn WalletModel::prepareSigmaSpendTransaction(
     WalletModelTransaction &transaction,
     std::vector<CSigmaEntry> &selectedCoins,
-    std::vector<CSigmaEntry> &changes)
+    std::vector<CSigmaEntry> &changes,
+    const CCoinControl *coinControl)
 {
     QList<SendCoinsRecipient> recipients = transaction.getRecipients();
     std::vector<CRecipient> sendRecipients;
@@ -875,7 +876,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareSigmaSpendTransaction(
 
     CWalletTx *newTx = transaction.getTransaction();
     try {
-        *newTx = wallet->CreateSigmaSpendTransaction(sendRecipients, fee, selectedCoins, changes);
+        *newTx = wallet->CreateSigmaSpendTransaction(sendRecipients, fee, selectedCoins, changes, coinControl);
     } catch (const InsufficientFunds& err) {
         return AmountExceedsBalance;
     } catch (const std::invalid_argument& err) {
@@ -956,7 +957,7 @@ WalletModel::SendCoinsReturn WalletModel::sendSigma(WalletModelTransaction &tran
     return SendCoinsReturn(OK);
 }
 
-void WalletModel::sigmaMint(const CAmount& n)
+void WalletModel::sigmaMint(const CAmount& n, const CCoinControl *coinControl)
 {
     std::vector<sigma::CoinDenomination> denominations;
     sigma::GetAllDenoms(denominations);
@@ -977,7 +978,7 @@ void WalletModel::sigmaMint(const CAmount& n)
     auto recipients = CWallet::CreateSigmaMintRecipients(privCoins);
 
     CWalletTx wtx;
-    std::string strError = pwalletMain->MintAndStoreSigma(recipients, privCoins, wtx);
+    std::string strError = pwalletMain->MintAndStoreSigma(recipients, privCoins, wtx, coinControl);
 
     if (strError != "") {
         throw std::range_error(strError);

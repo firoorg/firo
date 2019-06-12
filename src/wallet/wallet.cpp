@@ -69,8 +69,6 @@ CFeeRate CWallet::fallbackFee = CFeeRate(DEFAULT_FALLBACK_FEE);
 
 const uint256 CMerkleTx::ABANDON_HASH(uint256S("0000000000000000000000000000000000000000000000000000000000000001"));
 
-CCoinControl g_coincontrol;
-
 /** @defgroup mapWallet
  *
  * @{
@@ -2187,7 +2185,7 @@ CAmount CWallet::SelectSpendCoinsForAmount(
     return required - val;
 }
 
-std::list<CSigmaEntry> CWallet::GetAvailableCoins() const {
+std::list<CSigmaEntry> CWallet::GetAvailableCoins(const CCoinControl *coinControl) const {
     LOCK2(cs_main, cs_wallet);
 
     std::list<CSigmaEntry> coins;
@@ -2197,7 +2195,7 @@ std::list<CSigmaEntry> CWallet::GetAvailableCoins() const {
     // above them, after they were minted.
     // Also filter out used coins.
     // Finally filter out coins that have not been selected from CoinControl should that be used
-    coins.remove_if([](const CSigmaEntry& coin) {
+    coins.remove_if([coinControl](const CSigmaEntry& coin) {
         sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
         if (coin.IsUsed)
             return true;
@@ -2233,11 +2231,14 @@ std::list<CSigmaEntry> CWallet::GetAvailableCoins() const {
             return true;
         }
 
-        if(g_coincontrol.HasSelected()){
-            COutPoint outPoint;
-            sigma::ZerocoinGetOutPoint(outPoint, coin.value);
-            if(!g_coincontrol.IsSelected(outPoint)){
-                return true;
+        if(coinControl != NULL){
+            if(coinControl->HasSelected()){
+                COutPoint outPoint;
+                sigma::PublicCoin pubCoin(coin.value, coin.get_denomination());
+                sigma::GetOutPoint(outPoint, pubCoin);
+                if(!coinControl->IsSelected(outPoint)){
+                    return true;
+                }
             }
         }
 
@@ -2261,7 +2262,8 @@ bool CWallet::GetCoinsToSpend(
         std::vector<CSigmaEntry>& coinsToSpend_out,
         std::vector<sigma::CoinDenomination>& coinsToMint_out,
         const size_t coinsToSpendLimit,
-        const CAmount amountToSpendLimit) const
+        const CAmount amountToSpendLimit,
+        const CCoinControl *coinControl) const
 {
     // Sanity check to make sure this function is never called with a too large
     // amount to spend, resulting to a possible crash due to out of memory condition.
@@ -2290,7 +2292,7 @@ bool CWallet::GetCoinsToSpend(
             _("Required amount exceed value spend limit"));
     }
 
-    std::list<CSigmaEntry> coins = GetAvailableCoins();
+    std::list<CSigmaEntry> coins = GetAvailableCoins(coinControl);
 
     CAmount availableBalance = CalculateCoinsBalance(coins.begin(), coins.end());
 
@@ -2590,7 +2592,7 @@ CAmount CWallet::GetImmatureWatchOnlyBalance() const {
 }
 
 void CWallet::AvailableCoins(vector <COutput> &vCoins, bool fOnlyConfirmed, const CCoinControl *coinControl,
-                             bool fIncludeZeroValue, AvailableCoinsType nCoinType, bool fUseInstantSend, bool fConsiderMints) const {
+                             bool fIncludeZeroValue, AvailableCoinsType nCoinType, bool fUseInstantSend) const {
     vCoins.clear();
 
     {
@@ -2619,11 +2621,14 @@ void CWallet::AvailableCoins(vector <COutput> &vCoins, bool fOnlyConfirmed, cons
                 continue;
 
             for (unsigned int i = 0; i < pcoin->vout.size(); i++) {
-                if ((pcoin->vout[i].scriptPubKey.IsZerocoinMint() || pcoin->vout[i].scriptPubKey.IsSigmaMint()) && !fConsiderMints){
-                    continue;
-                }
                 bool found = false;
-                if (nCoinType == ONLY_DENOMINATED) {
+                if(nCoinType == ALL_COINS){
+                    // We are now taking ALL_COINS to mean everything sans mints
+                    found = !(pcoin->vout[i].scriptPubKey.IsZerocoinMint() || pcoin->vout[i].scriptPubKey.IsSigmaMint());
+                } else if(nCoinType == ONLY_MINTS){
+                    // Do not consider anything other than mints
+                    found = (pcoin->vout[i].scriptPubKey.IsZerocoinMint() || pcoin->vout[i].scriptPubKey.IsSigmaMint());
+                } else if (nCoinType == ONLY_DENOMINATED) {
                     found = IsDenominatedAmount(pcoin->vout[i].nValue);
                 } else if (nCoinType == ONLY_NOT1000IFMN) {
                     found = !(fZNode && pcoin->vout[i].nValue == ZNODE_COIN_REQUIRED * COIN);
@@ -5209,7 +5214,8 @@ CWalletTx CWallet::CreateSigmaSpendTransaction(
     const std::vector<CRecipient>& recipients,
     CAmount& fee,
     std::vector<CSigmaEntry>& selected,
-    std::vector<CSigmaEntry>& changes)
+    std::vector<CSigmaEntry>& changes,
+    const CCoinControl *coinControl)
 {
     // sanity check
     if (IsLocked()) {
@@ -5219,7 +5225,7 @@ CWalletTx CWallet::CreateSigmaSpendTransaction(
     // create transaction
     SigmaSpendBuilder builder(*this);
 
-    CWalletTx tx = builder.Build(recipients, fee);
+    CWalletTx tx = builder.Build(recipients, fee, coinControl);
     selected = builder.selected;
     changes = builder.changes;
 
@@ -6068,7 +6074,8 @@ string CWallet::MintAndStoreZerocoin(vector<CRecipient> vecSend,
 
 string CWallet::MintAndStoreSigma(const vector<CRecipient>& vecSend,
                                        const vector<sigma::PrivateCoin>& privCoins,
-                                       CWalletTx &wtxNew, bool fAskFee) {
+                                       CWalletTx &wtxNew, bool fAskFee,
+                                       const CCoinControl *coinControl) {
     string strError;
     if (IsLocked()) {
         strError = _("Error: Wallet locked, unable to create transaction!");
@@ -6087,9 +6094,6 @@ string CWallet::MintAndStoreSigma(const vector<CRecipient>& vecSend,
 
     }
 
-    // set global cc if being used in QT, defaults to null
-    CCoinControl coin_control = g_coincontrol;
-
     if ((totalValue + payTxFee.GetFeePerK()) > GetBalance())
         return _("Insufficient funds");
 
@@ -6100,7 +6104,7 @@ string CWallet::MintAndStoreSigma(const vector<CRecipient>& vecSend,
     int nChangePosRet = -1;
     bool isSigmaMint = true;
 
-    if (!CreateZerocoinMintTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError, isSigmaMint, &coin_control)) {
+    if (!CreateZerocoinMintTransaction(vecSend, wtxNew, reservekey, nFeeRequired, nChangePosRet, strError, isSigmaMint, coinControl)) {
         LogPrintf("nFeeRequired=%s\n", nFeeRequired);
         if (totalValue + nFeeRequired > GetBalance())
             return strprintf(
@@ -6108,9 +6112,6 @@ string CWallet::MintAndStoreSigma(const vector<CRecipient>& vecSend,
                     FormatMoney(nFeeRequired).c_str());
         return strError;
     }
-
-    // reset global cc
-    g_coincontrol.SetNull();
 
     if (fAskFee && !uiInterface.ThreadSafeAskFee(nFeeRequired)){
         LogPrintf("MintZerocoin: returning aborted..\n");

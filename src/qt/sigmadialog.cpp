@@ -15,7 +15,7 @@
 #include "../wallet/walletdb.h"
 #include "../sigma/coin.h"
 
-#include <qt/coincontroldialog.h>
+#include <qt/sigmacoincontroldialog.h>
 #include <coincontrol.h>
 
 #include <QMessageBox>
@@ -93,11 +93,10 @@ SigmaDialog::SigmaDialog(const PlatformStyle *platformStyle, QWidget *parent) :
     ui->labelCoinControlLowOutput->addAction(clipboardLowOutputAction);
     ui->labelCoinControlChange->addAction(clipboardChangeAction);
 
-    // spend
-    connect(ui->addButton, SIGNAL(clicked()), this, SLOT(addEntry()));
-    connect(ui->clearButton, SIGNAL(clicked()), this, SLOT(clear()));
-
     ui->amountToMint->setLocale(QLocale::c());
+
+    //check if user clicked at a tab
+    connect(ui->tabWidget, SIGNAL(currentChanged(int)), this, SLOT(tabSelected()));
 }
 
 void SigmaDialog::setClientModel(ClientModel *model)
@@ -138,6 +137,15 @@ void SigmaDialog::setWalletModel(WalletModel *model)
     connect(model->getOptionsModel(), SIGNAL(coinControlFeaturesChanged(bool)), this, SLOT(coinControlFeatureChanged(bool)));
     ui->frameCoinControl->setVisible(model->getOptionsModel()->getCoinControlFeatures());
     coinControlUpdateLabels();
+}
+
+void SigmaDialog::tabSelected(){
+    if(ui->tabWidget->currentIndex()==0){
+        mintTabSelected = true;
+    }
+    if(ui->tabWidget->currentIndex()==1){
+        mintTabSelected = false;
+    }
 }
 
 SigmaDialog::~SigmaDialog()
@@ -194,14 +202,15 @@ void SigmaDialog::on_mintButton_clicked()
     }
 
     try {
-        if (walletModel->getOptionsModel()->getCoinControlFeatures())
-            g_coincontrol = *CoinControlDialog::coinControl;
-
         WalletModel::UnlockContext ctx(walletModel->requestUnlock());
         if (!ctx.isValid()) {
             return;
         }
-        walletModel->sigmaMint(amount);
+        if (walletModel->getOptionsModel()->getCoinControlFeatures()){
+            walletModel->sigmaMint(amount, SigmaCoinControlDialog::coinControl);
+        }else{
+            walletModel->sigmaMint(amount);
+        }
     } catch (const std::runtime_error& e) {
         QMessageBox::critical(this, tr("Error"),
             tr("You cannot mint Sigma because %1").arg(tr(e.what())),
@@ -209,11 +218,13 @@ void SigmaDialog::on_mintButton_clicked()
         return;
     }
 
+
+
     QMessageBox::information(this, tr("Success"),
         tr("Sigma successfully minted"),
         QMessageBox::Ok, QMessageBox::Ok);
 
-    CoinControlDialog::coinControl->UnSelectAll();
+    SigmaCoinControlDialog::coinControl->UnSelectAll();
     coinControlUpdateLabels();
 
     ui->amountToMint->setValue(0);
@@ -227,9 +238,6 @@ void SigmaDialog::on_sendButton_clicked()
     QList<SendCoinsRecipient> recipients;
     bool valid = true;
     bool useCoinControl = walletModel->getOptionsModel()->getCoinControlFeatures();
-
-    if (useCoinControl)
-       g_coincontrol = *CoinControlDialog::coinControl;
 
     for (int i = 0; i < ui->entries->count(); ++i) {
         SendCoinsEntry *entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
@@ -257,7 +265,12 @@ void SigmaDialog::on_sendButton_clicked()
     std::vector<CSigmaEntry> selectedCoins;
     std::vector<CSigmaEntry> changes;
     WalletModelTransaction currentTransaction(recipients);
-    auto prepareStatus = walletModel->prepareSigmaSpendTransaction(currentTransaction, selectedCoins, changes);
+    WalletModel::SendCoinsReturn prepareStatus;
+    if (walletModel->getOptionsModel()->getCoinControlFeatures()){
+        prepareStatus = walletModel->prepareSigmaSpendTransaction(currentTransaction, selectedCoins, changes, SigmaCoinControlDialog::coinControl);
+    }else{
+        prepareStatus = walletModel->prepareSigmaSpendTransaction(currentTransaction, selectedCoins, changes);
+    }
 
     // process prepareStatus and on error generate message shown to user
     processSpendCoinsReturn(prepareStatus,
@@ -341,9 +354,8 @@ void SigmaDialog::on_sendButton_clicked()
     }
 
     //reset global cc
-    if(useCoinControl){
-        g_coincontrol.SetNull();
-    }
+    if(walletModel->getOptionsModel()->getCoinControlFeatures())
+        SigmaCoinControlDialog::coinControl->SetNull();
 
     // now send the prepared transaction
     WalletModel::SendCoinsReturn sendStatus = walletModel->sendSigma(currentTransaction, selectedCoins, changes);
@@ -352,7 +364,7 @@ void SigmaDialog::on_sendButton_clicked()
 
     if (sendStatus.status == WalletModel::OK) {
         accept();
-        CoinControlDialog::coinControl->UnSelectAll();
+        SigmaCoinControlDialog::coinControl->UnSelectAll();
         coinControlUpdateLabels();
     }
 
@@ -473,25 +485,25 @@ void SigmaDialog::coinControlUpdateLabels()
         return;
 
     // set pay amounts
-    CoinControlDialog::payAmounts.clear();
-    CoinControlDialog::fSubtractFeeFromAmount = false;
+    SigmaCoinControlDialog::payAmounts.clear();
+    SigmaCoinControlDialog::fSubtractFeeFromAmount = false;
     for(int i = 0; i < ui->entries->count(); ++i)
     {
         SendCoinsEntry *entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
         if(entry && !entry->isHidden())
         {
             SendCoinsRecipient rcp = entry->getValue();
-            CoinControlDialog::payAmounts.append(rcp.amount);
+            SigmaCoinControlDialog::payAmounts.append(rcp.amount);
             if (rcp.fSubtractFeeFromAmount)
-                CoinControlDialog::fSubtractFeeFromAmount = true;
+                SigmaCoinControlDialog::fSubtractFeeFromAmount = true;
         }
     }
 
-    if (CoinControlDialog::coinControl->HasSelected())
+    if (SigmaCoinControlDialog::coinControl->HasSelected())
     {
 
         // actual coin control calculation
-        CoinControlDialog::updateLabels(walletModel, this);
+        SigmaCoinControlDialog::updateLabels(walletModel, this);
 
         // show coin control stats
         ui->labelCoinControlAutomaticallySelected->hide();
@@ -509,7 +521,7 @@ void SigmaDialog::coinControlUpdateLabels()
 // Coin Control: button inputs -> show actual coin control dialog
 void SigmaDialog::coinControlButtonClicked()
 {
-    CoinControlDialog dlg(platformStyle);
+    SigmaCoinControlDialog dlg(platformStyle);
     dlg.setModel(walletModel);
     dlg.exec();
     coinControlUpdateLabels();
@@ -520,7 +532,7 @@ void SigmaDialog::coinControlChangeChecked(int state)
 {
     if (state == Qt::Unchecked)
     {
-        CoinControlDialog::coinControl->destChange = CNoDestination();
+        SigmaCoinControlDialog::coinControl->destChange = CNoDestination();
         ui->labelCoinControlChangeLabel->clear();
     }
     else
@@ -536,7 +548,7 @@ void SigmaDialog::coinControlChangeEdited(const QString& text)
     if (walletModel && walletModel->getAddressTableModel())
     {
         // Default to no change address until verified
-        CoinControlDialog::coinControl->destChange = CNoDestination();
+        SigmaCoinControlDialog::coinControl->destChange = CNoDestination();
         ui->labelCoinControlChangeLabel->setStyleSheet("QLabel{color:red;}");
 
         CBitcoinAddress addr = CBitcoinAddress(text.toStdString());
@@ -568,7 +580,7 @@ void SigmaDialog::coinControlChangeEdited(const QString& text)
                 else
                     ui->labelCoinControlChangeLabel->setText(tr("(no label)"));
 
-                CoinControlDialog::coinControl->destChange = addr.Get();
+                SigmaCoinControlDialog::coinControl->destChange = addr.Get();
             }
         }
     }
@@ -580,7 +592,7 @@ void SigmaDialog::coinControlFeatureChanged(bool checked)
     ui->frameCoinControl->setVisible(checked);
 
     if (!checked && walletModel) // coin control features disabled
-        CoinControlDialog::coinControl->SetNull();
+        SigmaCoinControlDialog::coinControl->SetNull();
 
     coinControlUpdateLabels();
 }

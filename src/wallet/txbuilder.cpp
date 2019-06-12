@@ -39,7 +39,7 @@ TxBuilder::~TxBuilder()
 {
 }
 
-CWalletTx TxBuilder::Build(const std::vector<CRecipient>& recipients, CAmount& fee)
+CWalletTx TxBuilder::Build(const std::vector<CRecipient>& recipients, CAmount& fee, const CCoinControl *coinControl)
 {
     if (recipients.empty()) {
         throw std::invalid_argument(_("No recipients"));
@@ -157,7 +157,7 @@ CWalletTx TxBuilder::Build(const std::vector<CRecipient>& recipients, CAmount& f
 
         // get inputs
         std::vector<std::unique_ptr<InputSigner>> signers;
-        CAmount total = GetInputs(signers, required);
+        CAmount total = GetInputs(signers, required, coinControl);
 
         // add changes
         CAmount change = total - required;

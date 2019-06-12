@@ -6,6 +6,7 @@
 #include "platformstyle.h"
 #include "sendcoinsentry.h"
 #include "coincontroldialog.h"
+#include <sigmacoincontroldialog.h>
 
 #include <QWidget>
 
@@ -23,6 +24,8 @@ public:
 
     void setClientModel(ClientModel *model);
     void setWalletModel(WalletModel *model);
+
+    static bool mintTabSelected;
 
     /** Set up the tab chain manually, as Qt messes up the tab chain by default in some cases (issue https://bugreports.qt-project.org/browse/QTBUG-10907).
      */
@@ -46,6 +49,7 @@ public Q_SLOTS:
     void coinControlButtonClicked();
     void coinControlChangeChecked(int);
     void coinControlChangeEdited(const QString &);
+    void tabSelected();
 
 private:
     Ui::SigmaDialog *ui;
@@ -53,7 +57,6 @@ private:
     WalletModel *walletModel;
     bool isNewRecipientAllowed;
     const PlatformStyle *platformStyle;
-    QDialog *sigmaDialog;
 
     void processSpendCoinsReturn(const WalletModel::SendCoinsReturn &sendCoinsReturn, const QString &msgArg = QString());
 

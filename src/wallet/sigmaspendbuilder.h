@@ -17,7 +17,7 @@ public:
     ~SigmaSpendBuilder() override;
 
 protected:
-    CAmount GetInputs(std::vector<std::unique_ptr<InputSigner>>& signers, CAmount required) override;
+    CAmount GetInputs(std::vector<std::unique_ptr<InputSigner>>& signers, CAmount required, const CCoinControl *coinControl = NULL) override;
     CAmount GetChanges(std::vector<CTxOut>& outputs, CAmount amount) override;
 };
 

@@ -99,7 +99,9 @@ enum AvailableCoinsType
     ONLY_NOT1000IFMN = 3,
     ONLY_NONDENOMINATED_NOT1000IFMN = 4,
     ONLY_1000 = 5, // find znode outputs including locked ones (use with caution)
-    ONLY_PRIVATESEND_COLLATERAL = 6
+    ONLY_PRIVATESEND_COLLATERAL = 6,
+    ONLY_MINTS = 7,
+    WITH_MINTS = 8
 };
 
 struct CompactTallyItem
@@ -743,7 +745,7 @@ public:
     /**
      * populate vCoins with vector of available COutputs.
      */
-    void AvailableCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed=true, const CCoinControl *coinControl = NULL, bool fIncludeZeroValue=false, AvailableCoinsType nCoinType=ALL_COINS, bool fUseInstantSend = false, bool fConsiderMints = false) const;
+    void AvailableCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed=true, const CCoinControl *coinControl = NULL, bool fIncludeZeroValue=false, AvailableCoinsType nCoinType=ALL_COINS, bool fUseInstantSend = false) const;
 
     /**
      * Shuffle and select coins until nTargetValue is reached while avoiding
@@ -871,7 +873,7 @@ public:
 
     // Returns a list of unspent and verified coins, I.E. coins which are ready
     // to be spent.
-    std::list<CSigmaEntry> GetAvailableCoins() const;
+    std::list<CSigmaEntry> GetAvailableCoins(const CCoinControl *coinControl = NULL) const;
 
     /** \brief Selects coins to spend, and coins to re-mint based on the required amount to spend, provided by the user. As the lower denomination now is 0.1 zcoin, user's request will be rounded up to the nearest 0.1. This difference between the user's requested value, and the actually spent value will be left to the miners as a fee.
      * \param[in] required Required amount to spend.
@@ -884,7 +886,8 @@ public:
         std::vector<CSigmaEntry>& coinsToSpend_out,
         std::vector<sigma::CoinDenomination>& coinsToMint_out,
         const size_t coinsLimit = SIZE_MAX,
-        const CAmount amountLimit = MAX_MONEY) const;
+        const CAmount amountLimit = MAX_MONEY,
+        const CCoinControl *coinControl = NULL) const;
 
     /**
      * Insert additional inputs into the transaction by
@@ -931,7 +934,8 @@ public:
         const std::vector<CRecipient>& recipients,
         CAmount& fee,
         std::vector<CSigmaEntry>& selected,
-        std::vector<CSigmaEntry>& changes);
+        std::vector<CSigmaEntry>& changes,
+        const CCoinControl *coinControl = NULL);
 
     bool CreateMultipleZerocoinSpendTransaction(std::string& thirdPartyaddress, const std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>>& denominations,
                                         CWalletTx& wtxNew, CReserveKey& reservekey, vector<CBigNum>& coinSerials, uint256& txHash, vector<CBigNum>& zcSelectedValues, std::string& strFailReason, bool forceUsed = false);
@@ -959,7 +963,8 @@ public:
         const vector<CRecipient>& vecSend,
         const vector<sigma::PrivateCoin>& privCoins,
         CWalletTx &wtxNew,
-        bool fAskFee=false);
+        bool fAskFee=false,
+        const CCoinControl *coinControl = NULL);
 
     std::string SpendZerocoin(std::string& thirdPartyaddress, int64_t nValue, libzerocoin::CoinDenomination denomination, CWalletTx& wtxNew, CBigNum& coinSerial, uint256& txHash, CBigNum& zcSelectedValue, bool& zcSelectedIsUsed, bool forceUsed = false);
     std::string SpendSigma(std::string& thirdPartyaddress, sigma::CoinDenomination denomination, CWalletTx& wtxNew, Scalar& coinSerial, uint256& txHash, GroupElement& zcSelectedValue, bool& zcSelectedIsUsed, bool forceUsed = false, bool fAskFee=false);
