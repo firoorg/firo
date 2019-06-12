@@ -430,8 +430,8 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
                     }
                     // Also FULLY verify sigma spends, because we want to add to the block only
                     // transactions which are completely correct, I.E. created block must pass
-                    // ConnectBlock function checks. Most of the checks are done when adding to
-                    // mempool, now check spend proof itself.
+                    // ConnectBlock function checks. Transactions were checked when adding to the
+                    // mempool, but decided to leave this additional check here for now to be sure.
                     // We will use flag isCheckWallet to skip the state changes while verifying
                     // transaction. Will be good to later refactor the code, and have 2 separate
                     // functions for checking and for changing the state.

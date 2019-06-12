@@ -301,13 +301,11 @@ bool CheckSigmaSpendTransaction(
         }
     }
 
-    if (hasSigmaSpendInputs) {
-        if (hasNonSigmaInputs) {
-            // mixing zerocoin spend input with non-zerocoin inputs is prohibited
-            return state.DoS(100, false,
-                             REJECT_MALFORMED,
-                             "CheckSigmaSpendTransaction: can't mix zerocoin spend input with regular ones");
-        }
+    if (hasSigmaSpendInputs && hasNonSigmaInputs) {
+        // mixing zerocoin spend input with non-zerocoin inputs is prohibited
+        return state.DoS(100, false,
+                         REJECT_MALFORMED,
+                         "CheckSigmaSpendTransaction: can't mix zerocoin spend input with regular ones");
     }
 
     return true;
@@ -414,9 +412,9 @@ bool CheckSigmaTransaction(
         }
 
         if (GetSpendAmount(tx) > consensus.nMaxValueSigmaSpendPerTransaction) {
-            return state.DoS(100, false,
-                REJECT_INVALID,
-                "bad-txns-spend-invalid");
+            return e.DoS(100, false,
+                REJINVALID,
+                "bans-spend-invalid");
         }
 
         vector<sigma::CoinDenomination> denominations;

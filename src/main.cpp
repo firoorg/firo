@@ -1274,7 +1274,7 @@ bool AcceptToMemoryPoolWorker(
         }
     }
 
-    if (!CheckTransaction(tx, state, hash, false, INT_MAX, isCheckWalletTransaction)) {
+    if (!CheckTransaction(tx, state, hash, false, INT_MAX, isCheckWalletTransaction, true)) {
         LogPrintf("CheckTransaction() failed!");
         return false; // state filled in by CheckTransaction
     }
@@ -2926,7 +2926,7 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
             if( tx.IsSigmaSpend())
                 nFees += sigma::GetSigmaSpendInput(tx) - tx.GetValueOut();
 
-            // Check transaction against zerocoin state
+            // Check transaction against zerocoin state while connecting a block.
             if (!CheckTransaction(tx, state, txHash, false, pindex->nHeight, false, true, block.zerocoinTxInfo.get(), block.sigmaTxInfo.get()))
                 return state.DoS(100, error("stateful zerocoin check failed"),
                                  REJECT_INVALID, "bad-txns-zerocoin");
