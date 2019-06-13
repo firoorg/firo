@@ -741,10 +741,6 @@ void CoinControlDialog::updateView()
             // address
             CTxDestination outputAddress;
             QString sAddress = "";
-            if(!treeMode){
-                itemOutput->setText(COLUMN_ADDRESS, sWalletAddress);
-                sAddress = sWalletAddress;
-            }
             if(ExtractDestination(out.tx->vout[out.i].scriptPubKey, outputAddress))
             {
                 sAddress = QString::fromStdString(CBitcoinAddress(outputAddress).ToString());

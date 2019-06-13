@@ -183,8 +183,8 @@ void SigmaDialog::on_mintButton_clicked()
     sigma::DenominationToInteger(smallestDenomination, smallestDenominationValue);
 
     if (amount < smallestDenominationValue) {
-        QMessageBox::critical(this, tr("Too small amount to mint"),
-            tr("Amount to mint must not lower than %1 XZC.").arg(formatAmount(smallestDenominationValue)),
+        QMessageBox::critical(this, tr("Amount too small to mint"),
+            tr("Amount to mint must not be lower than %1 XZC.").arg(formatAmount(smallestDenominationValue)),
             QMessageBox::Ok, QMessageBox::Ok);
         return;
     }
@@ -192,8 +192,8 @@ void SigmaDialog::on_mintButton_clicked()
     if (amount % smallestDenominationValue != 0) {
         amount -= amount % smallestDenominationValue;
         auto reply = QMessageBox::question(
-            this, tr("Amount to mint is impossible."),
-            tr("Amount to mint must be multiple of 0.05 XZC. Do you want to spend %1 XZC?"
+            this, tr("Amount to mint is too low."),
+            tr("Amount to mint must be a multiple of 0.05 XZC. Do you want to spend %1 XZC?"
             ).arg(formatAmount(amount)));
 
         if (reply == QMessageBox::No) {
@@ -237,7 +237,6 @@ void SigmaDialog::on_sendButton_clicked()
 
     QList<SendCoinsRecipient> recipients;
     bool valid = true;
-    bool useCoinControl = walletModel->getOptionsModel()->getCoinControlFeatures();
 
     for (int i = 0; i < ui->entries->count(); ++i) {
         SendCoinsEntry *entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
@@ -353,7 +352,7 @@ void SigmaDialog::on_sendButton_clicked()
         return;
     }
 
-    //reset global cc
+    //reset cc
     if(walletModel->getOptionsModel()->getCoinControlFeatures())
         SigmaCoinControlDialog::coinControl->SetNull();
 

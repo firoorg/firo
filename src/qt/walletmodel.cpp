@@ -978,7 +978,7 @@ void WalletModel::sigmaMint(const CAmount& n, const CCoinControl *coinControl)
     auto recipients = CWallet::CreateSigmaMintRecipients(privCoins);
 
     CWalletTx wtx;
-    std::string strError = pwalletMain->MintAndStoreSigma(recipients, privCoins, wtx, coinControl);
+    std::string strError = pwalletMain->MintAndStoreSigma(recipients, privCoins, wtx, false, coinControl);
 
     if (strError != "") {
         throw std::range_error(strError);
