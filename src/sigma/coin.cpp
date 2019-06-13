@@ -88,6 +88,9 @@ bool StringToDenomination(const std::string& str, CoinDenomination& denom_out) {
 }
 
 std::string DenominationToString(const CoinDenomination& denom) {
+    if (denom == CoinDenomination::SIGMA_DENOM_0_05) {
+        return "0.05";
+    }
     if (denom == CoinDenomination::SIGMA_DENOM_0_1) {
         return "0.1";
     }
@@ -99,6 +102,9 @@ std::string DenominationToString(const CoinDenomination& denom) {
     }
     if (denom == CoinDenomination::SIGMA_DENOM_10) {
         return "10";
+    }
+    if (denom == CoinDenomination::SIGMA_DENOM_25) {
+        return "25";
     }
     if (denom == CoinDenomination::SIGMA_DENOM_100) {
         return "100";
