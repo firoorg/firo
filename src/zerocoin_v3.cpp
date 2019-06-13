@@ -19,6 +19,8 @@
 #include <chrono>
 
 #include <boost/foreach.hpp>
+#include <boost/scope_exit.hpp>
+
 
 #include <ios>
 
@@ -394,6 +396,10 @@ bool CheckSigmaTransaction(
 
     bool allowSigma = (realHeight >= consensus.nSigmaStartBlock);
 
+    if (allowSigma && sigmaState.IsSigmaDisabled()) {
+        return false;
+    }
+
     // Check Mint Sigma Transaction
     if (allowSigma) {
         for (const CTxOut &txout : tx.vout) {
@@ -601,8 +607,9 @@ void CSigmaTxInfo::Complete() {
 
 // CSigmaState
 
-CSigmaState::CSigmaState() {
-}
+CSigmaState::CSigmaState()
+: sigmaDisabled(false)
+{}
 
 int CSigmaState::AddMint(
         CBlockIndex *index,
@@ -681,6 +688,7 @@ void CSigmaState::AddBlock(CBlockIndex *index) {
     BOOST_FOREACH(const spend_info_container::value_type &serial, index->sigmaSpentSerials) {
         AddSpend(serial.first, serial.second.first, serial.second.second);
     }
+    UpdateSigmaDisabled();
 }
 
 void CSigmaState::RemoveBlock(CBlockIndex *index) {
@@ -738,6 +746,7 @@ void CSigmaState::RemoveBlock(CBlockIndex *index) {
     }
 
     index->sigmaSpentSerials.clear();
+    UpdateSigmaDisabled();
 }
 
 bool CSigmaState::GetCoinGroupInfo(
@@ -863,6 +872,65 @@ int CSigmaState::GetLatestCoinID(sigma::CoinDenomination denomination) const {
         return 0;
     }
     return iter->second;
+}
+
+bool CSigmaState::IsSigmaDisabled() const {
+    return sigmaDisabled;
+}
+
+void CSigmaState::UpdateSigmaDisabled() {
+    using container_t = std::map<int, std::map<int64_t, size_t>>;
+    container_t mints, spends;
+    bool result = false;
+
+    BOOST_SCOPE_EXIT(&result, this_) {
+        this_->sigmaDisabled = result;
+    } BOOST_SCOPE_EXIT_END;
+
+    for(spend_info_container::const_iterator iter = usedCoinSerials.begin(); iter != usedCoinSerials.end(); ++iter) {
+        int64_t value;
+        if (!DenominationToInteger(iter->second.first, value)) {
+            result = true;
+            error("Cannot decode spend denomination.");
+            return;
+        }
+        spends[iter->second.second][value] += 1;
+    }
+
+    for(mint_info_container::const_iterator iter = mintedPubCoins.begin(); iter != mintedPubCoins.end(); ++iter) {
+        int64_t value;
+        if (!DenominationToInteger(iter->second.denomination, value)) {
+            result = true;
+            error("Cannot decode mint denomination.");
+            return;
+        }
+        mints[iter->second.id][value] += 1;
+    }
+
+    for(container_t::const_iterator ispend = spends.begin(); ispend != spends.end(); ++ispend) {
+        container_t::const_iterator imint = mints.find(ispend->first);
+        if(imint == mints.end()) {
+            result = true;
+            error("Cannot find spend coin group in mints.");
+            return;
+        }
+
+        for(std::map<int64_t, size_t>::const_iterator ispend_denom = ispend->second.begin(); ispend_denom != ispend->second.end(); ++ispend_denom) {
+            std::map<int64_t, size_t>::const_iterator imint_denom = imint->second.find(ispend_denom->first);
+            if(imint_denom == imint->second.end()) {
+                result = true;
+                error("Cannot find spend denomination in coin group in mints.");
+                return;
+            }
+            if(ispend_denom->second > imint_denom->second) {
+                result = true;
+                std::ostringstream ostr;
+                ostr << "Spend amount exceeds that of mint in group: " << ispend->first << ", in denomination: " << ispend_denom->first << '\n';
+                error(ostr.str().c_str());
+                return;
+            }
+        }
+    }
 }
 
 } // end of namespace sigma.

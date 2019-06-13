@@ -172,13 +172,16 @@ public:
 
     int GetLatestCoinID(sigma::CoinDenomination denomination) const;
 
+    bool IsSigmaDisabled() const;
+
 // private: // martun: Changed to public just for unit tests.
     // Collection of coin groups. Map from <denomination,id> to SigmaCoinGroupInfo structure
     std::unordered_map<pair<sigma::CoinDenomination, int>, SigmaCoinGroupInfo, pairhash> coinGroups;
 
     // Set of all minted pubCoin values, keyed by the public coin.
     // Used for checking if the given coin already exists.
-    unordered_map<sigma::PublicCoin, CMintedCoinInfo, sigma::CPublicCoinHash> mintedPubCoins;
+    typedef unordered_map<sigma::PublicCoin, CMintedCoinInfo, sigma::CPublicCoinHash> mint_info_container;
+    mint_info_container mintedPubCoins;
 
     // Latest IDs of coins by denomination
     std::unordered_map<sigma::CoinDenomination, int> latestCoinIds;
@@ -189,6 +192,9 @@ public:
     // serials of spends currently in the mempool mapped to tx hashes
     std::unordered_map<Scalar, uint256, sigma::CScalarHash> mempoolCoinSerials;
 
+    bool sigmaDisabled;
+
+    void UpdateSigmaDisabled();
 };
 
 } // end of namespace sigma.
