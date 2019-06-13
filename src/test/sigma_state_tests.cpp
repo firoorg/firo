@@ -5,12 +5,16 @@
 #include "../secp256k1/include/Scalar.h"
 #include "../zerocoin_v3.h"
 #include "./test_bitcoin.h"
+#include "../wallet/wallet.h"
+
+#include "test/fixtures.h"
+#include "test/testutil.h"
 
 #include <boost/test/unit_test.hpp>
 
 #include <stdlib.h>
 
-BOOST_FIXTURE_TEST_SUITE(sigma_state_tests, TestingSetup)
+BOOST_FIXTURE_TEST_SUITE(sigma_state_tests, ZerocoinTestingSetup200)
 
 static const uint256 txHash = uint256S("a64bf7b459d3bb09653e444d75a942e9848ed8e1f30e2890f999426ed6dd4a2c");
 
@@ -196,52 +200,60 @@ BOOST_AUTO_TEST_CASE(sigma_addmint_two)
     sigmaState->Reset();
 }
 
-// Checking AddMint ZC_SPEND_V3_COINSPERID+1 coins on one block should pass
-BOOST_AUTO_TEST_CASE(sigma_addmint_more_than_restriction_in_one)
-{
-    sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
-    CScript scriptPubKey2;
-    CBlockIndex index = CreateBlockIndex(1);
-    for (int i = 0; i <= ZC_SPEND_V3_COINSPERID; ++i){
-        auto params = sigma::Params::get_default();
-        const sigma::PrivateCoin privcoin(params, sigma::CoinDenomination::SIGMA_DENOM_1);
-        auto pubcoin = privcoin.getPublicCoin();
-        sigmaState->AddMint(&index, pubcoin);
-    }
-    auto mintedPubCoin = sigmaState->mintedPubCoins;
-    BOOST_CHECK_MESSAGE(mintedPubCoin.size() == 15001, "Unexpected mintedPubCoin size in one block of one group.");
-
-    sigmaState->Reset();
-}
-
 // Checking AddMint ZC_SPEND_V3_COINSPERID+1 coins on different blocks should have two group id
-BOOST_AUTO_TEST_CASE(sigma_addmint_more_than_restriction_in_diff)
+BOOST_AUTO_TEST_CASE(sigma_addmints_more_than_group_size)
 {
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
-    CScript scriptPubKey2;
-    sigma::CoinDenomination testDenomination = sigma::CoinDenomination::SIGMA_DENOM_0_05;
+    const sigma::CoinDenomination testDenomination = sigma::CoinDenomination::SIGMA_DENOM_0_05;
+    const auto testDenomStr = sigma::DenominationToString(testDenomination);
 
-    std::array<CBlockIndex, ZC_SPEND_V3_COINSPERID + 1> indexs;
-    for (int i = 0; i <= ZC_SPEND_V3_COINSPERID; ++i) {
-        indexs[i] = CreateBlockIndex(i+1);
-        auto params = sigma::Params::get_default();
-        const sigma::PrivateCoin privcoin(params, testDenomination);
-        const auto& pubcoin = privcoin.getPublicCoin();
-        auto groupID = sigmaState->AddMint(&indexs[i], pubcoin);
-        auto denomAndID = std::make_pair(testDenomination, groupID);
-        indexs[i].sigmaMintedPubCoins[denomAndID].push_back(pubcoin);
+    // To make sure have coin more than ZC_SPEND_V3_COINSPERID in first group.
+    auto mintsPerBlock = 100;
+    while (ZC_SPEND_V3_COINSPERID % mintsPerBlock == 0) {
+        mintsPerBlock++;
     }
 
-    auto mintedPubCoin = sigmaState->mintedPubCoins;
-    BOOST_CHECK_MESSAGE(mintedPubCoin.size() == 15001,
-         "Unexpected mintedPubCoin size in diff block of one group.");
+    std::string strError;
+    // Make sure that transactions get to mempool
+    pwalletMain->SetBroadcastTransactions(true);
 
-    BOOST_CHECK_MESSAGE(sigmaState->latestCoinIds[testDenomination] == 2,
-        "Unexpected latest coin id of common denomination.");
+    // Create 400-200+1 = 201 new empty blocks. // consensus.nMintV3SigmaStartBlock = 400
+    CreateAndProcessEmptyBlocks(201, scriptPubKey);
 
-    sigmaState->RemoveBlock(&indexs.back());
-    BOOST_CHECK_MESSAGE(sigmaState->latestCoinIds[testDenomination] == 1,
-         "Unexpected latestcoin id of common denomination after remove 15001 block.");
+    // Generate mints more than ZC_SPEND_V3_COINSPERID but still is in same group.
+    std::vector<std::pair<std::string, int>> mintDenomPairs = {{testDenomStr, mintsPerBlock}};
+    int allMints = 0;
+    while (allMints < ZC_SPEND_V3_COINSPERID) {
+        allMints += mintsPerBlock;
+        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(
+            strError, mintDenomPairs, SIGMA), strError + " - Create Mint failed");
+        BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mint was not added to mempool");
+        CreateAndProcessBlock({}, scriptPubKey);
+        BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool did not get empty.");
+    }
+
+    sigma::CSigmaState::SigmaCoinGroupInfo group1;
+    sigmaState->GetCoinGroupInfo(testDenomination, 1, group1);
+    BOOST_CHECK_GT(group1.nCoins, ZC_SPEND_V3_COINSPERID);
+    BOOST_CHECK_EQUAL(sigmaState->latestCoinIds[testDenomination], 1);
+
+    // Generate more mints, coin ID must increase.
+    allMints += mintsPerBlock;
+    BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(
+        strError, mintDenomPairs, SIGMA), strError + " - Create Mint failed");
+    BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mint was not added to mempool");
+    CreateAndProcessBlock({}, scriptPubKey);
+    BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool did not get empty.");
+
+    sigma::CSigmaState::SigmaCoinGroupInfo group2;
+    sigmaState->GetCoinGroupInfo(testDenomination, 2, group2);
+    BOOST_CHECK_EQUAL(group2.nCoins, mintsPerBlock);
+    BOOST_CHECK_EQUAL(sigmaState->latestCoinIds[testDenomination], 2);
+
+    // Remove last block, coin ID should be decrease back.
+    DisconnectBlocks(1);
+
+    BOOST_CHECK_EQUAL(sigmaState->latestCoinIds[testDenomination], 1);
 
     sigmaState->Reset();
 }
