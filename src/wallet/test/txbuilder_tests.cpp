@@ -41,7 +41,7 @@ public:
     std::vector<CAmount> changesRequested;
     std::vector<std::pair<CAmount, unsigned>> adjustFeeRequested;
 
-    std::function<CAmount(std::vector<std::unique_ptr<InputSigner>>& signers, CAmount required)> getInputs;
+    std::function<CAmount(std::vector<std::unique_ptr<InputSigner>>& signers, CAmount required, const CCoinControl *coinControl)> getInputs;
     std::function<CAmount(std::vector<CTxOut>& outputs, CAmount amount)> getChanges;
     std::function<CAmount(CAmount needed, unsigned txSize)> adjustFee;
 
@@ -51,11 +51,11 @@ public:
     }
 
 protected:
-    CAmount GetInputs(std::vector<std::unique_ptr<InputSigner>>& signers, CAmount required) override
+    CAmount GetInputs(std::vector<std::unique_ptr<InputSigner>>& signers, CAmount required, const CCoinControl *coinControl = NULL) override
     {
         amountsRequested.push_back(required);
 
-        return getInputs ? getInputs(signers, required) : required;
+        return getInputs ? getInputs(signers, required, coinControl) : required;
     }
 
     CAmount GetChanges(std::vector<CTxOut>& outputs, CAmount amount) override
@@ -177,7 +177,7 @@ BOOST_AUTO_TEST_CASE(build_with_changes)
     in1 << std::vector<unsigned char>({ 0x21, 0xe3, 0xad, 0x9a, 0xec, 0x5b, 0x70, 0xcb, 0x4c, 0xc1, 0xd8, 0xe2, 0x95, 0x27, 0xe3, 0x7c });
     in2 << std::vector<unsigned char>({ 0xac, 0xd9, 0x86, 0x7d, 0xd7, 0x6e, 0xc1, 0xb7, 0x9d, 0xde, 0xdc, 0xbd, 0x91, 0xc1, 0x8e, 0xed });
 
-    builder.getInputs = [&in1, &in2, &out1, &out2](std::vector<std::unique_ptr<InputSigner>>& signers, CAmount required) {
+    builder.getInputs = [&in1, &in2, &out1, &out2](std::vector<std::unique_ptr<InputSigner>>& signers, CAmount required, const CCoinControl *coinControl = NULL) {
         signers.push_back(std::unique_ptr<InputSigner>(new TestInputSigner(in1, out1, 1)));
         signers.push_back(std::unique_ptr<InputSigner>(new TestInputSigner(in2, out2, 2)));
         return required + 5;
@@ -227,3 +227,4 @@ BOOST_AUTO_TEST_CASE(build_with_changes)
 }
 
 BOOST_AUTO_TEST_SUITE_END()
+
