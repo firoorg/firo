@@ -614,14 +614,12 @@ template<typename Stream, typename MapType, typename K = typename MapType::key_t
 /**
  * set
  */
-template<class MaybeSet> struct CEnableIfSet {static constexpr bool result = false;};
-template<typename K, typename V, typename C> struct CEnableIfSet<std::set<K, V, C>> {static constexpr bool result = true;};
-template<typename K, typename V, typename C, typename H> struct CEnableIfSet<std::unordered_set<K, V, C, H>> {static constexpr bool result = true;};
-template<class MaybeSet> using CIsSet = std::enable_if<CEnableIfSet<MaybeSet>::result, MaybeSet>;
+template <typename SetType>
+using CIsSet = typename std::enable_if<std::is_same<typename SetType::key_type, typename SetType::value_type>::value, SetType>::type;
 
-template<typename SetType, typename Enabled = typename CIsSet<SetType>::type> unsigned int GetSerializeSize(const SetType& m, int nType, int nVersion);
-template<typename Stream, typename SetType, typename Enabled = typename CIsSet<SetType>::type> void Serialize(Stream& os, const SetType & m, int nType, int nVersion);
-template<typename Stream, typename SetType, typename Enabled = typename CIsSet<SetType>::type> void Unserialize(Stream& is, SetType & m, int nType, int nVersion);
+template<typename SetType, typename Enabled = CIsSet<SetType>> unsigned int GetSerializeSize(const SetType& m, int nType, int nVersion);
+template<typename Stream, typename SetType, typename Enabled = CIsSet<SetType>> void Serialize(Stream& os, const SetType & m, int nType, int nVersion);
+template<typename Stream, typename SetType, typename Enabled = CIsSet<SetType>> void Unserialize(Stream& is, SetType & m, int nType, int nVersion);
 
 
 /**
