@@ -526,65 +526,67 @@
             </widget>
            </item>
            <item>
-            <layout class="QHBoxLayout" name="horizontalLayoutCoinControl4" stretch="0,0,0">
-             <property name="spacing">
-              <number>12</number>
-             </property>
-             <property name="sizeConstraint">
-              <enum>QLayout::SetDefaultConstraint</enum>
-             </property>
-             <property name="topMargin">
-              <number>5</number>
-             </property>
-             <property name="rightMargin">
-              <number>5</number>
-             </property>
-             <item>
-              <widget class="QCheckBox" name="checkBoxCoinControlChange">
-               <property name="toolTip">
-                <string>If this is activated, but the change address is empty or invalid, change will be sent to a newly generated address.</string>
+            <widget class="QWidget" name="coinControlChange">
+              <layout class="QHBoxLayout" name="horizontalLayoutCoinControl4" stretch="0,0,0">
+               <property name="spacing">
+                <number>12</number>
                </property>
-               <property name="text">
-                <string>Custom change address</string>
+               <property name="sizeConstraint">
+                <enum>QLayout::SetDefaultConstraint</enum>
                </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QValidatedLineEdit" name="lineEditCoinControlChange">
-               <property name="enabled">
-                <bool>false</bool>
+               <property name="topMargin">
+                <number>5</number>
                </property>
-               <property name="sizePolicy">
-                <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-                 <horstretch>0</horstretch>
-                 <verstretch>0</verstretch>
-                </sizepolicy>
+               <property name="rightMargin">
+                <number>5</number>
                </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QLabel" name="labelCoinControlChangeLabel">
-               <property name="sizePolicy">
-                <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
-                 <horstretch>0</horstretch>
-                 <verstretch>0</verstretch>
-                </sizepolicy>
-               </property>
-               <property name="minimumSize">
-                <size>
-                 <width>0</width>
-                 <height>0</height>
-                </size>
-               </property>
-               <property name="text">
-                <string/>
-               </property>
-               <property name="margin">
-                <number>3</number>
-               </property>
-              </widget>
-             </item>
-            </layout>
+               <item>
+                <widget class="QCheckBox" name="checkBoxCoinControlChange">
+                 <property name="toolTip">
+                  <string>If this is activated, but the change address is empty or invalid, change will be sent to a newly generated address.</string>
+                 </property>
+                 <property name="text">
+                  <string>Custom change address</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QValidatedLineEdit" name="lineEditCoinControlChange">
+                 <property name="enabled">
+                  <bool>false</bool>
+                 </property>
+                 <property name="sizePolicy">
+                  <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                   <horstretch>0</horstretch>
+                   <verstretch>0</verstretch>
+                  </sizepolicy>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QLabel" name="labelCoinControlChangeLabel">
+                 <property name="sizePolicy">
+                  <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+                   <horstretch>0</horstretch>
+                   <verstretch>0</verstretch>
+                  </sizepolicy>
+                 </property>
+                 <property name="minimumSize">
+                  <size>
+                   <width>0</width>
+                   <height>0</height>
+                  </size>
+                 </property>
+                 <property name="text">
+                  <string/>
+                 </property>
+                 <property name="margin">
+                  <number>3</number>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+            </widget>
            </item>
            <item>
             <spacer name="verticalSpacerCoinControl">
