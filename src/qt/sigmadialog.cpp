@@ -198,7 +198,7 @@ void SigmaDialog::on_mintButton_clicked()
     if (amount % smallestDenominationValue != 0) {
         amount -= amount % smallestDenominationValue;
         auto reply = QMessageBox::question(
-            this, tr("Amount to mint is too low."),
+            this, tr("Unable to mint."),
             tr("Amount to mint must be a multiple of 0.05 XZC. Do you want to spend %1 XZC?"
             ).arg(formatAmount(amount)));
 
