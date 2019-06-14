@@ -39,7 +39,7 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 XZC mininput
 #define ZC_V1_5_GRACEFUL_PERIOD			1500
 
 // Block after which sigma mints are activated.
-#define ZC_SIGMA_STARTING_BLOCK         300000
+#define ZC_SIGMA_STARTING_BLOCK         178600 //Approx July 11th, 2019, 8:00 AM UTC
 #define ZC_SIGMA_TESTNET_STARTING_BLOCK 50000
 
 // Number of blocks after ZC_SIGMA_STARTING_BLOCK during which we still accept zerocoin V2 mints into mempool.
@@ -81,6 +81,8 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 XZC mininput
 #define ZC_ADVANCED_INDEX_VERSION           130500
 // Version of wallet.db entry that introduced storing extra information for mints
 #define ZC_ADVANCED_WALLETDB_MINT_VERSION	130504
+// Version of the block index entry that introduces Sigma protocol
+#define SIGMA_PROTOCOL_ENABLEMENT_VERSION	130800
 
 // number of mint confirmations needed to spend coin
 #define ZC_MINT_CONFIRMATIONS               6
