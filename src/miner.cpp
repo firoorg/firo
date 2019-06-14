@@ -413,10 +413,17 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
                 continue;
             }
 
+            if (tx.IsSigmaMint() || tx.IsSigmaSpend()) {
+                sigma::CSigmaState * sigmaState = sigma::CSigmaState::GetState();
+                if(sigmaState->IsSurgeConditionDetected())
+                    continue;
+            }
+
             if (tx.IsZerocoinSpend() || tx.IsSigmaSpend()) {
                 LogPrintf("try to include zerocoinspend tx=%s\n", tx.GetHash().ToString());
 
                 if (tx.IsSigmaSpend()) {
+
                     auto spendAmount = sigma::GetSpendAmount(tx);
                     if (tx.vin.size() > params.nMaxSigmaInputPerTransaction ||
                        spendAmount > params.nMaxValueSigmaSpendPerTransaction) {

@@ -14,6 +14,12 @@
 #include <functional>
 #include "hash_functions.h"
 
+//tests
+namespace sigma_mintspend_many { struct sigma_mintspend_many; }
+namespace sigma_mintspend { struct sigma_mintspend_test; }
+namespace sigma_partialspend_mempool_tests { struct partialspend; }
+namespace zerocoin_tests3_v3 { struct zerocoin_mintspend_v3; }
+
 namespace sigma {
 
 // zerocoin parameters
@@ -91,14 +97,6 @@ public:
         int nCoins;
     };
 
-    struct CMintedCoinInfo {
-        sigma::CoinDenomination denomination;
-
-        // ID of coin group.
-        int id;
-        int nHeight;
-    };
-
     struct pairhash {
       public:
         template <typename T, typename U>
@@ -172,29 +170,66 @@ public:
 
     int GetLatestCoinID(sigma::CoinDenomination denomination) const;
 
-    bool IsSigmaDisabled() const;
+    mint_info_container const & GetMints() const;
+    spend_info_container const & GetSpends() const;
+    std::unordered_map<pair<CoinDenomination, int>, SigmaCoinGroupInfo, pairhash> const & GetCoinGroups() const ;
+    std::unordered_map<CoinDenomination, int> const & GetLatestCoinIds() const;
+    std::unordered_map<Scalar, uint256, sigma::CScalarHash> const & GetMempoolCoinSerials() const;
 
-// private: // martun: Changed to public just for unit tests.
+    bool IsSurgeConditionDetected() const;
+
+private:
     // Collection of coin groups. Map from <denomination,id> to SigmaCoinGroupInfo structure
-    std::unordered_map<pair<sigma::CoinDenomination, int>, SigmaCoinGroupInfo, pairhash> coinGroups;
-
-    // Set of all minted pubCoin values, keyed by the public coin.
-    // Used for checking if the given coin already exists.
-    typedef unordered_map<sigma::PublicCoin, CMintedCoinInfo, sigma::CPublicCoinHash> mint_info_container;
-    mint_info_container mintedPubCoins;
+    std::unordered_map<pair<CoinDenomination, int>, SigmaCoinGroupInfo, pairhash> coinGroups;
 
     // Latest IDs of coins by denomination
-    std::unordered_map<sigma::CoinDenomination, int> latestCoinIds;
-
-    // Set of all used coin serials.
-    spend_info_container usedCoinSerials;
+    std::unordered_map<CoinDenomination, int> latestCoinIds;
 
     // serials of spends currently in the mempool mapped to tx hashes
-    std::unordered_map<Scalar, uint256, sigma::CScalarHash> mempoolCoinSerials;
+    std::unordered_map<Scalar, uint256, CScalarHash> mempoolCoinSerials;
 
-    bool sigmaDisabled;
+    std::atomic<bool> surgeCondition;
 
-    void UpdateSigmaDisabled();
+    struct Containers {
+        Containers(std::atomic<bool> & surgeCondition);
+
+        void AddMint(sigma::PublicCoin const & pubCoin, CMintedCoinInfo const & coinInfo);
+        void RemoveMint(sigma::PublicCoin const & pubCoin);
+
+        void AddSpend(Scalar const & serial, CoinDenomination denom, int groupId);
+        void RemoveSpend(Scalar const & serial);
+
+        void Reset();
+
+        mint_info_container const & GetMints() const;
+        spend_info_container const & GetSpends() const;
+        bool IsSurgeCondition() const;
+    private:
+        // Set of all minted pubCoin values, keyed by the public coin.
+        // Used for checking if the given coin already exists.
+        mint_info_container mintedPubCoins;
+        // Set of all used coin serials.
+        spend_info_container usedCoinSerials;
+
+        std::atomic<bool> & surgeCondition;
+
+        typedef std::map<int, std::map<CoinDenomination, size_t>> metainfo_container_t;
+        metainfo_container_t mintMetaInfo, spendMetaInfo;
+
+        void CheckSurgeCondition(int groupId, CoinDenomination denom);
+
+        friend class sigma_mintspend_many::sigma_mintspend_many;
+        friend class zerocoin_tests3_v3::zerocoin_mintspend_v3;
+        friend class sigma_mintspend::sigma_mintspend_test;
+        friend class sigma_partialspend_mempool_tests::partialspend;
+    };
+
+    Containers containers;
+
+    friend class sigma_mintspend_many::sigma_mintspend_many;
+    friend class zerocoin_tests3_v3::zerocoin_mintspend_v3;
+    friend class sigma_mintspend::sigma_mintspend_test;
+    friend class sigma_partialspend_mempool_tests::partialspend;
 };
 
 } // end of namespace sigma.

@@ -116,7 +116,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_v3)
 
         // Delete usedCoinSerials since we deleted the mempool
         sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
-        sigmaState->usedCoinSerials.clear();
+        sigmaState->containers.usedCoinSerials.clear();
         sigmaState->mempoolCoinSerials.clear();
 
         BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(stringError, "", denomination.c_str(), true), "Spend created although double");
