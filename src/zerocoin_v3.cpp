@@ -550,15 +550,7 @@ bool ConnectBlockSigma(
         if (fJustCheck)
             return true;
 
-        // Update pindexNew.sigmaMintedPubCoins
-        BOOST_FOREACH(const sigma::PublicCoin& mint, pblock->sigmaTxInfo->mints) {
-            sigma::CoinDenomination denomination = mint.getDenomination();
-            int mintId = sigmaState.AddMint(pindexNew,	mint);
-
-            LogPrintf("ConnectTipZC: mint added denomination=%d, id=%d\n", denomination, mintId);
-            pair<sigma::CoinDenomination, int> denomAndId = make_pair(denomination, mintId);
-            pindexNew->sigmaMintedPubCoins[denomAndId].push_back(mint);
-        }
+        sigmaState.AddMintsToStateAndBlockIndex(pindexNew, pblock);
     }
     else if (!fJustCheck) { // TODO(martun): not sure if this else is necessary here. Check again later.
         sigmaState.AddBlock(pindexNew);
@@ -604,51 +596,64 @@ void CSigmaTxInfo::Complete() {
 CSigmaState::CSigmaState() {
 }
 
-int CSigmaState::AddMint(
+bool CSigmaState::AddMintsToStateAndBlockIndex(
         CBlockIndex *index,
-        const sigma::PublicCoin &pubCoin) {
-    sigma::CoinDenomination denomination = pubCoin.getDenomination();
+        const CBlock* pblock) {
 
-    if (latestCoinIds[denomination] < 1)
-        latestCoinIds[denomination] = 1;
-    int	mintCoinGroupId = latestCoinIds[denomination];
+    std::unordered_map<sigma::CoinDenomination, size_t> blockDenomCounts;
+    for (const auto& mint : pblock->sigmaTxInfo->mints) {
+        blockDenomCounts[mint.getDenomination()]++;
+    }
 
-    // ZC_SPEND_V3_COINSPERID = 15.000, yet the actual limit of coins per accumlator is 16.000.
-    // We need to cut at 15.000, such that we always have enough space for new mints. Mints for
-    // each block will end up in the same accumulator.
-    SigmaCoinGroupInfo &coinGroup = coinGroups[make_pair(denomination, mintCoinGroupId)];
-    int coinsPerId = ZC_SPEND_V3_COINSPERID;
-    if (coinGroup.nCoins < coinsPerId // there's still space in the accumulator
-        || coinGroup.lastBlock == index // or we have already placed some coins from current block.
-        ) {
-        if (coinGroup.nCoins++ == 0) {
-            // first group of coins for given denomination
-            assert(coinGroup.firstBlock == nullptr);
-            assert(coinGroup.lastBlock == nullptr);
+    for (const auto& pubCoin : pblock->sigmaTxInfo->mints) {
+        sigma::CoinDenomination denomination = pubCoin.getDenomination();
 
-            coinGroup.firstBlock = coinGroup.lastBlock = index;
-        } else {
-            assert(coinGroup.firstBlock != nullptr);
-            assert(coinGroup.lastBlock != nullptr);
-            if (coinGroup.lastBlock->nHeight > index->nHeight) { 
-                assert(coinGroup.lastBlock->nHeight <= index->nHeight);
+        if (latestCoinIds[denomination] < 1)
+            latestCoinIds[denomination] = 1;
+        int	mintCoinGroupId = latestCoinIds[denomination];
+
+        // ZC_SPEND_V3_COINSPERID = 15.000, yet the actual limit of coins per accumlator is 16.000.
+        // We need to cut at 15.000, such that we always have enough space for new mints. Mints for
+        // each block will end up in the same accumulator.
+        SigmaCoinGroupInfo &coinGroup = coinGroups[make_pair(denomination, mintCoinGroupId)];
+        int coinsPerId = ZC_SPEND_V3_COINSPERID;
+        int coinsPerIdHardcap = ZC_SPEND_V3_COINSPERID_HARDCAP;
+        if ((coinGroup.nCoins < coinsPerId // there's still space in the accumulator
+            && coinGroup.nCoins + blockDenomCounts[denomination] < coinsPerIdHardcap)
+            || coinGroup.lastBlock == index // or we have already placed some coins from current block.
+            ) {
+            if (coinGroup.nCoins++ == 0) {
+                // first group of coins for given denomination
+                assert(coinGroup.firstBlock == nullptr);
+                assert(coinGroup.lastBlock == nullptr);
+
+                coinGroup.firstBlock = coinGroup.lastBlock = index;
+            } else {
+                assert(coinGroup.firstBlock != nullptr);
+                assert(coinGroup.lastBlock != nullptr);
+                if (coinGroup.lastBlock->nHeight > index->nHeight) {
+                    assert(coinGroup.lastBlock->nHeight <= index->nHeight);
+                }
+
+                coinGroup.lastBlock = index;
             }
-
-            coinGroup.lastBlock = index;
         }
+        else {
+            latestCoinIds[denomination] = ++mintCoinGroupId;
+            SigmaCoinGroupInfo& newCoinGroup = coinGroups[std::make_pair(denomination, mintCoinGroupId)];
+            newCoinGroup.firstBlock = newCoinGroup.lastBlock = index;
+            newCoinGroup.nCoins = 1;
+        }
+        CMintedCoinInfo coinInfo;
+        coinInfo.denomination = denomination;
+        coinInfo.id = mintCoinGroupId;
+        coinInfo.nHeight = index->nHeight;
+        mintedPubCoins.insert(std::make_pair(pubCoin, coinInfo));
+
+        LogPrintf("AddMints: mint added denomination=%d, id=%d\n", denomination, mintCoinGroupId);
+        index->sigmaMintedPubCoins[{denomination, mintCoinGroupId}].push_back(pubCoin);
     }
-    else {
-        latestCoinIds[denomination] = ++mintCoinGroupId;
-        SigmaCoinGroupInfo& newCoinGroup = coinGroups[std::make_pair(denomination, mintCoinGroupId)];
-        newCoinGroup.firstBlock = newCoinGroup.lastBlock = index;
-        newCoinGroup.nCoins = 1;
-    }
-    CMintedCoinInfo coinInfo;
-    coinInfo.denomination = denomination;
-    coinInfo.id = mintCoinGroupId;
-    coinInfo.nHeight = index->nHeight;
-    mintedPubCoins.insert(std::make_pair(pubCoin, coinInfo));
-    return mintCoinGroupId;
+    return 1;
 }
 
 void CSigmaState::AddSpend(const Scalar &serial) {
