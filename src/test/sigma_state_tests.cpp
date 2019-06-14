@@ -270,8 +270,8 @@ BOOST_AUTO_TEST_CASE(sigma_addmints_more_than_group_size)
     sigmaState->Reset();
 }
 
-// Checking AddMint ZC_SPEND_V3_COINSPERID+1 coins on different blocks should have two group id
-BOOST_AUTO_TEST_CASE(sigma_addmints_hardcap)
+// Checking AddMint ZC_SPEND_V3_COINSPERID - 1 and try to add over ZC_SPEND_V3_COINSPERID_LIMIT
+BOOST_AUTO_TEST_CASE(sigma_addmints_coinperid_limit)
 {
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
     const sigma::CoinDenomination testDenomination = sigma::CoinDenomination::SIGMA_DENOM_0_05;
@@ -307,7 +307,7 @@ BOOST_AUTO_TEST_CASE(sigma_addmints_hardcap)
     BOOST_CHECK_EQUAL(sigmaState->latestCoinIds[testDenomination], 1);
 
     // Try to generate more coins to make exceed hardcap, new coins should be push to new group instead.
-    auto exceedHardCapAmount = ZC_SPEND_V3_COINSPERID_HARDCAP + 1;
+    auto exceedHardCapAmount = ZC_SPEND_V3_COINSPERID_LIMIT + 1;
     auto moreMintsToMakeExceedHardCap =  exceedHardCapAmount - group1.nCoins;
 
     BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(

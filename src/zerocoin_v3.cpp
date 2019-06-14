@@ -617,9 +617,9 @@ bool CSigmaState::AddMintsToStateAndBlockIndex(
         // each block will end up in the same accumulator.
         SigmaCoinGroupInfo &coinGroup = coinGroups[make_pair(denomination, mintCoinGroupId)];
         int coinsPerId = ZC_SPEND_V3_COINSPERID;
-        int coinsPerIdHardcap = ZC_SPEND_V3_COINSPERID_HARDCAP;
+        int coinsPerIdLimit = ZC_SPEND_V3_COINSPERID_LIMIT;
         if ((coinGroup.nCoins < coinsPerId // there's still space in the accumulator
-            && coinGroup.nCoins + blockDenomCounts[denomination] < coinsPerIdHardcap)
+            && coinGroup.nCoins + blockDenomCounts[denomination] < coinsPerIdLimit)
             || coinGroup.lastBlock == index // or we have already placed some coins from current block.
             ) {
             if (coinGroup.nCoins++ == 0) {
