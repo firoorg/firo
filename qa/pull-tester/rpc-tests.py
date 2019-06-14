@@ -146,6 +146,7 @@ testScripts = [
     # 'signmessages.py',
     # 'p2p-compactblocks.py',
     # 'nulldummy.py',
+    'sigma_spend_gettransaction.py',
     'sigma_spend_validation.py',
     'sigma_spend_extra_validation.py',
     'sigma_mint_validation.py',
