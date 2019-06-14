@@ -669,6 +669,14 @@ void CSigmaState::Containers::CheckSurgeCondition(int groupId, CoinDenomination 
         ostr << "Spend amount exceeds that of mint in group: " << groupId << ", in denomination: " << denom << '\n';
         error(ostr.str().c_str());
     }
+
+    for(metainfo_container_t::const_iterator smi = spendMetaInfo.begin(); smi != spendMetaInfo.end() && !result; ++smi) {
+        for(std::map<CoinDenomination, size_t>::const_iterator di = smi->second.begin(); di != smi->second.end() && !result; ++di) {
+            if(di->second > mintMetaInfo[smi->first][di->first]) {
+                result = true;
+            }
+        }
+    }
     surgeCondition = result;
 }
 

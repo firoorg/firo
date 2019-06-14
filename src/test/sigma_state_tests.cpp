@@ -706,7 +706,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_sigma_removeblock_remove)
 	BOOST_CHECK_MESSAGE(sigmaState->GetSpends().size() == 0,
 	  "Unexpected usedCoinSerials size, remove index contain no spend.");
 
-    BOOST_CHECK_MESSAGE(sigmaState->GetLatestCoinIds().find(sigma::CoinDenomination::SIGMA_DENOM_1)->second == 0,
+    BOOST_CHECK_MESSAGE(sigmaState->GetLatestCoinIds().find(sigma::CoinDenomination::SIGMA_DENOM_1) == sigmaState->GetLatestCoinIds().end(),
       "Unexpected lastestcoinId remove all");
 
     BOOST_CHECK_MESSAGE(!sigmaState->HasCoin(pubCoins[0]),
@@ -1075,5 +1075,91 @@ BOOST_AUTO_TEST_CASE(sigma_getcoinsetforspend)
 
     sigmaState->Reset();
 }
+
+namespace {
+    Scalar generateSpend(sigma::CoinDenomination denom) {
+        auto params = sigma::Params::get_default();
+
+        const sigma::PrivateCoin privcoin(params, denom);
+        sigma::PublicCoin pubcoin;
+        pubcoin = privcoin.getPublicCoin();
+
+        std::vector<sigma::PublicCoin> anonymity_set;
+        anonymity_set.push_back(pubcoin);
+
+        // Doesn't really matter what metadata we give here, it must pass.
+        sigma::SpendMetaData metaData(0, uint256S("120"), uint256S("120"));
+
+        sigma::CoinSpend coin(params, privcoin, anonymity_set, metaData);
+
+        return coin.getCoinSerialNumber();
+    }
+
+    sigma::PublicCoin generateMint(sigma::CoinDenomination denom) {
+        auto params = sigma::Params::get_default();
+
+        const sigma::PrivateCoin privcoin(params, denom);
+        return privcoin.getPublicCoin();
+    }
+}
+
+BOOST_AUTO_TEST_CASE(sigma_surge_detection_positive)
+{
+    sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
+
+    CBlockIndex index = CreateBlockIndex(1);
+    sigmaState->AddMint(&index, generateMint(sigma::CoinDenomination::SIGMA_DENOM_1));
+    BOOST_CHECK(sigmaState->IsSurgeConditionDetected() == false);
+
+    sigmaState->AddSpend(generateSpend(sigma::CoinDenomination::SIGMA_DENOM_1), sigma::CoinDenomination::SIGMA_DENOM_1, 1);
+    BOOST_CHECK(sigmaState->IsSurgeConditionDetected() == false);
+
+    sigmaState->Reset();
+}
+
+BOOST_AUTO_TEST_CASE(sigma_surge_detection_reset)
+{
+    sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
+
+    sigmaState->Reset();
+    BOOST_CHECK(sigmaState->IsSurgeConditionDetected() == false);
+
+
+    sigmaState->AddSpend(generateSpend(sigma::CoinDenomination::SIGMA_DENOM_1), sigma::CoinDenomination::SIGMA_DENOM_1, 1);
+    BOOST_CHECK(sigmaState->IsSurgeConditionDetected() == true);
+
+    CBlockIndex index = CreateBlockIndex(1);
+    sigmaState->AddMint(&index, generateMint(sigma::CoinDenomination::SIGMA_DENOM_1));
+    BOOST_CHECK(sigmaState->IsSurgeConditionDetected() == false);
+
+    sigmaState->Reset();
+}
+
+// Check that failure in any [denom, group] makes it failed for all other
+// combinations of [denom,group]
+BOOST_AUTO_TEST_CASE(sigma_surge_detection_failure_anywhere)
+{
+    sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
+
+    sigmaState->Reset();
+    BOOST_CHECK(sigmaState->IsSurgeConditionDetected() == false);
+
+
+    sigmaState->AddSpend(generateSpend(sigma::CoinDenomination::SIGMA_DENOM_1), sigma::CoinDenomination::SIGMA_DENOM_100, 1);
+    BOOST_CHECK(sigmaState->IsSurgeConditionDetected() == true);
+
+    CBlockIndex index = CreateBlockIndex(1);
+    sigmaState->AddMint(&index, generateMint(sigma::CoinDenomination::SIGMA_DENOM_1));
+    BOOST_CHECK(sigmaState->IsSurgeConditionDetected() == true);
+
+    sigmaState->AddSpend(generateSpend(sigma::CoinDenomination::SIGMA_DENOM_1), sigma::CoinDenomination::SIGMA_DENOM_1, 1);
+    BOOST_CHECK(sigmaState->IsSurgeConditionDetected() == true);
+
+    sigmaState->AddMint(&index, generateMint(sigma::CoinDenomination::SIGMA_DENOM_100));
+    BOOST_CHECK(sigmaState->IsSurgeConditionDetected() == false);
+
+    sigmaState->Reset();
+}
+
 
 BOOST_AUTO_TEST_SUITE_END()
