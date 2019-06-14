@@ -31,12 +31,13 @@ class TxBuilder
 {
 public:
     CWallet& wallet;
+    const CCoinControl *coinControl;
 
 public:
     explicit TxBuilder(CWallet& wallet) noexcept;
     virtual ~TxBuilder();
 
-    CWalletTx Build(const std::vector<CRecipient>& recipients, CAmount& fee, const CCoinControl *coinControl = NULL);
+    CWalletTx Build(const std::vector<CRecipient>& recipients, CAmount& fee);
 
 protected:
     virtual CAmount GetInputs(std::vector<std::unique_ptr<InputSigner>>& signers, CAmount required, const CCoinControl *coinControl = NULL) = 0;

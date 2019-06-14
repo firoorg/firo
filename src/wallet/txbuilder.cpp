@@ -39,7 +39,7 @@ TxBuilder::~TxBuilder()
 {
 }
 
-CWalletTx TxBuilder::Build(const std::vector<CRecipient>& recipients, CAmount& fee, const CCoinControl *coinControl)
+CWalletTx TxBuilder::Build(const std::vector<CRecipient>& recipients, CAmount& fee)
 {
     if (recipients.empty()) {
         throw std::invalid_argument(_("No recipients"));

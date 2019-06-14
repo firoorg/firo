@@ -5223,9 +5223,9 @@ CWalletTx CWallet::CreateSigmaSpendTransaction(
     }
 
     // create transaction
-    SigmaSpendBuilder builder(*this);
+    SigmaSpendBuilder builder(*this, coinControl);
 
-    CWalletTx tx = builder.Build(recipients, fee, coinControl);
+    CWalletTx tx = builder.Build(recipients, fee);
     selected = builder.selected;
     changes = builder.changes;
 

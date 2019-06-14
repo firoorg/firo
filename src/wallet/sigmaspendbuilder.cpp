@@ -102,7 +102,7 @@ static std::unique_ptr<SigmaSpendSigner> CreateSigner(const CSigmaEntry& coin)
     return signer;
 }
 
-SigmaSpendBuilder::SigmaSpendBuilder(CWallet& wallet) : TxBuilder(wallet)
+SigmaSpendBuilder::SigmaSpendBuilder(CWallet& wallet, const CCoinControl *coinControl) : TxBuilder(wallet)
 {
     cs_main.lock();
 
@@ -112,6 +112,8 @@ SigmaSpendBuilder::SigmaSpendBuilder(CWallet& wallet) : TxBuilder(wallet)
         cs_main.unlock();
         throw;
     }
+
+    this->coinControl = coinControl;
 }
 
 SigmaSpendBuilder::~SigmaSpendBuilder()
