@@ -56,6 +56,7 @@ public:
     static QList<CAmount> payAmounts;
     static CCoinControl *coinControl;
     static bool fSubtractFeeFromAmount;
+    static bool fMintTabSelected;
 
 private:
     Ui::SigmaCoinControlDialog *ui;

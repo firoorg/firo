@@ -36,8 +36,7 @@
 QList<CAmount> SigmaCoinControlDialog::payAmounts;
 CCoinControl* SigmaCoinControlDialog::coinControl = new CCoinControl();
 bool SigmaCoinControlDialog::fSubtractFeeFromAmount = false;
-
-bool SigmaDialog::mintTabSelected = true;
+bool SigmaCoinControlDialog::fMintTabSelected = true;
 
 bool CSigmaCoinControlWidgetItem::operator<(const QTreeWidgetItem &other) const {
     int column = treeWidget()->sortColumn();
@@ -703,7 +702,7 @@ void SigmaCoinControlDialog::updateView()
 
     std::map<QString, std::vector<COutput> > mapCoins;
 
-    if(SigmaDialog::mintTabSelected){
+    if(fMintTabSelected){
         model->listCoins(mapCoins, WITH_MINTS);
     }else{
         model->listCoins(mapCoins, ONLY_MINTS);
