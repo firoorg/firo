@@ -273,7 +273,7 @@ void SigmaPage::on_sendButton_clicked()
         .arg(alternativeUnits.join(" " + tr("or") + "<br />")));
 
     questionString.append(QString("<span style='font-size:8pt;font-weight:normal;float:right;'> <br/> <br/> %1</span>")
-        .arg("Change will be reminted and amounts smaller than 0.1 will be paid as fees to miners."));
+        .arg("Change will be reminted and amounts smaller than 0.05 will be paid as fees to miners."));
 
     SendConfirmationDialog confirmationDialog(tr("Confirm spend coins"),
         questionString.arg(formatted.join("<br />")), SEND_CONFIRM_DELAY, this);
