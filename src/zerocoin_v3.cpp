@@ -6,6 +6,7 @@
 #include "util.h"
 #include "base58.h"
 #include "definition.h"
+#include "txmempool.h"
 #include "wallet/wallet.h"
 #include "wallet/walletdb.h"
 #include "crypto/sha256.h"
@@ -21,6 +22,8 @@
 #include <boost/foreach.hpp>
 
 #include <ios>
+
+extern CTxMemPool mempool;
 
 namespace sigma {
 
@@ -460,8 +463,41 @@ bool CheckSigmaTransaction(
     return true;
 }
 
-void DisconnectTipSigma(CBlock & /*block*/, CBlockIndex *pindexDelete) {
+void RemoveSigmaSpendsReferencingBlock(CBlockIndex* blockIndex) {
+    std:vector<CTransaction> txn_to_remove;
+    for (CTxMemPool::txiter mi = mempool.mapTx.begin(); mi != mempool.mapTx.end(); ++mi) {
+        const CTransaction& tx = mi->GetTx();
+        if (tx.IsSigmaSpend()) {
+            // Run over all the inputs, check if their Accumulator block hash is equal to 
+            // block removed. If any one is equal, remove txn from mempool. 
+            for (const CTxIn& txin : tx.vin) {
+                if (txin.IsSigmaSpend()) {
+                    std::unique_ptr<sigma::CoinSpend> spend;
+                    uint32_t pubcoinId;
+                    std::tie(spend, pubcoinId) = ParseSigmaSpend(txin);
+                    uint256 accumulatorBlockHash = spend->getAccumulatorBlockHash();
+                    if (accumulatorBlockHash == blockIndex->GetBlockHash()) {
+                        // Do not remove transaction immediately, that will invalidate iterator mi.
+                        txn_to_remove.push_back(tx);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    for (const CTransaction& tx: txn_to_remove) {
+        std::list<CTransaction> removed;
+        // Remove txn from mempool.
+        mempool.removeRecursive(tx, removed);
+        LogPrintf("DisconnectTipSigma: removed sigma spend which referenced a removed blockchain tip.");
+    }
+}
+
+void DisconnectTipSigma(CBlock& block, CBlockIndex *pindexDelete) {
     sigmaState.RemoveBlock(pindexDelete);
+
+    // Also remove from mempool sigma spends that reference given block hash.
+    RemoveSigmaSpendsReferencingBlock(pindexDelete);
 }
 
 Scalar GetSigmaSpendSerialNumber(const CTransaction &tx, const CTxIn &txin) {
