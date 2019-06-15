@@ -146,11 +146,17 @@ testScripts = [
     # 'signmessages.py',
     # 'p2p-compactblocks.py',
     # 'nulldummy.py',
+    'sigma_meetspend.py',
+    'sigma_listsigmamints_validation.py',
+    'sigma_listsigmaspends_validation.py',
+    'sigma_listunspentmints_sigma_validation.py',
+    'sigma_listsigmapubcoins_validation.py',
     'sigma_spend_gettransaction.py',
     'sigma_spend_validation.py',
     'sigma_spend_extra_validation.py',
     'sigma_mint_validation.py',
     'sigma_mintspend.py',
+    'sigma_blocklimit.py'
 ]
 # if ENABLE_ZMQ:
 #     testScripts.append('zmq_test.py')
