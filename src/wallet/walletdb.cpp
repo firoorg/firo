@@ -512,12 +512,16 @@ DBErrors CWalletDB::ReorderTransactions(CWallet *pwallet) {
 bool CWalletDB::WriteHDMint(const CHDMint& dMint)
 {
     uint256 hash = dMint.GetPubCoinHash();
-    return Write(make_pair(string("hdmint"), hash), dMint, true);
+    return Write(make_pair(std::string("hdmint"), hash), dMint, true);
 }
 
 bool CWalletDB::ReadHDMint(const uint256& hashPubcoin, CHDMint& dMint)
 {
-    return Read(make_pair(string("hdmint"), hashPubcoin), dMint);
+    return Read(make_pair(std::string("hdmint"), hashPubcoin), dMint);
+}
+
+bool CWalletDB::HasHDMint(const secp_primitives::GroupElement& pub) {
+    return Exists(std::make_pair(std::string("hdmint"), sigma::GetPubCoinValueHash(pub)));
 }
 
 class CWalletScanState {

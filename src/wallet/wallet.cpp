@@ -1299,7 +1299,7 @@ isminetype CWallet::IsMine(const CTxOut &txout) const {
             return ISMINE_NO;
         }
 
-        return db.HasZerocoinEntry(pub) ? ISMINE_SPENDABLE : ISMINE_NO;
+        return db.HasHDMint(pub) ? ISMINE_SPENDABLE : ISMINE_NO;
     } else {
         return ::IsMine(*this, txout.scriptPubKey);
     }

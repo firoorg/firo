@@ -237,6 +237,7 @@ public:
 
     bool WriteHDMint(const CHDMint& dMint);
     bool ReadHDMint(const uint256& hashPubcoin, CHDMint& dMint);
+    bool HasHDMint(const secp_primitives::GroupElement& pub);
 
      std::list<CHDMint> ListHDMints();
 
