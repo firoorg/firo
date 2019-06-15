@@ -16,7 +16,7 @@ denoms = [
 ]
 
 
-class SetSigmaMintSatusValidationWithFundsTest(BitcoinTestFramework):
+class ResetSigmaMintSatusValidationWithFundsTest(BitcoinTestFramework):
     def __init__(self):
         super().__init__()
         self.num_nodes = 4
@@ -43,18 +43,14 @@ class SetSigmaMintSatusValidationWithFundsTest(BitcoinTestFramework):
             self.nodes[0].setsigmamintstatus(res['txid'], true)
             self.nodes[0].generate(10)
             self.sync_all()
-            assert_raises(JSONRPCException, self.nodes[0].spendmany, ["", args])
-
-            self.nodes[0].setsigmamintstatus(res['txid'], false)
+            s = self.nodes[0].spendmany("", args)
+            self.nodes[0].resetsigmamint()
             res = self.nodes[0].spendmany("", args)
         
-        assert_raises(JSONRPCException, self.nodes[0].setsigmamintstatus, [(res['txid'], "sometext")])
-        assert_raises(JSONRPCException, self.nodes[0].setsigmamintstatus, [res['txid']])
-        assert_raises(JSONRPCException, self.nodes[0].setsigmamintstatus, [])
-        assert_raises(JSONRPCException, self.nodes[0].setsigmamintstatus, ["sometext"])
-        assert_raises(JSONRPCException, self.nodes[0].setsigmamintstatus, [123])
+        assert_raises(JSONRPCException, self.nodes[0].resetsigmamint, "sometext"))
+        assert_raises(JSONRPCException, self.nodes[0].resetsigmamint, 1)
 
 
 if __name__ == '__main__':
-    SetSigmaMintSatusValidationWithFundsTest().main()
+    ResetSigmaMintSatusValidationWithFundsTest().main()
 

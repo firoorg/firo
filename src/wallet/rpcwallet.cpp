@@ -3357,23 +3357,23 @@ UniValue resetmintzerocoin(const UniValue& params, bool fHelp) {
 UniValue resetsigmamint(const UniValue& params, bool fHelp) {
     if (fHelp || params.size() != 0)
         throw runtime_error(
-                "resetmintzerocoin"
+                "resetsigmamint"
                 + HelpRequiringPassphrase());
 
     list <CSigmaEntry> listPubcoin;
     CWalletDB walletdb(pwalletMain->strWalletFile);
     walletdb.ListSigmaPubCoin(listPubcoin);
 
-    BOOST_FOREACH(const CSigmaEntry &zerocoinItem, listPubcoin){
-        if (zerocoinItem.randomness != uint64_t(0) && zerocoinItem.serialNumber != uint64_t(0)) {
+    BOOST_FOREACH(const CSigmaEntry &sigmaItem, listPubcoin){
+        if (sigmaItem.randomness != uint64_t(0) && sigmaItem.serialNumber != uint64_t(0)) {
             CSigmaEntry zerocoinTx;
             zerocoinTx.IsUsed = false;
-            zerocoinTx.set_denomination_value(zerocoinItem.get_denomination_value());
-            zerocoinTx.value = zerocoinItem.value;
-            zerocoinTx.serialNumber = zerocoinItem.serialNumber;
+            zerocoinTx.set_denomination_value(sigmaItem.get_denomination_value());
+            zerocoinTx.value = sigmaItem.value;
+            zerocoinTx.serialNumber = sigmaItem.serialNumber;
             zerocoinTx.nHeight = -1;
-            zerocoinTx.randomness = zerocoinItem.randomness;
-//            zerocoinTx.ecdsaSecretKey = zerocoinItem.ecdsaSecretKey;
+            zerocoinTx.randomness = sigmaItem.randomness;
+//            zerocoinTx.ecdsaSecretKey = sigmaItem.ecdsaSecretKey;
             walletdb.WriteZerocoinEntry(zerocoinTx);
         }
     }
@@ -3601,8 +3601,8 @@ UniValue setmintzerocoinstatus(const UniValue& params, bool fHelp) {
 UniValue setsigmamintstatus(const UniValue& params, bool fHelp) {
     if (fHelp || params.size() != 2)
         throw runtime_error(
-                "setmintzerocoinstatus \"coinserial\" <isused>(true/false)\n"
-                "Set mintzerocoin IsUsed status to True or False\n"
+                "setsigmamintstatus \"coinserial\" <isused>(true/false)\n"
+                "Set mintsigma IsUsed status to True or False\n"
                 "Results are an array of one or no Objects, each of which has:\n"
                 "{id, IsUsed, denomination, value, serialNumber, nHeight, randomness}");
 
@@ -3618,20 +3618,20 @@ UniValue setsigmamintstatus(const UniValue& params, bool fHelp) {
 
     UniValue results(UniValue::VARR);
 
-    BOOST_FOREACH(const CSigmaEntry &zerocoinItem, listPubcoin) {
-        if (zerocoinItem.serialNumber != uint64_t(0)) {
-            LogPrintf("zerocoinItem.serialNumber = %s\n", zerocoinItem.serialNumber.GetHex());
-            if (zerocoinItem.serialNumber == coinSerial) {
-                LogPrintf("setmintzerocoinstatus Found!\n");
+    BOOST_FOREACH(const CSigmaEntry &sigmaItem, listPubcoin) {
+        if (sigmaItem.serialNumber != uint64_t(0)) {
+            LogPrintf("sigmaItem.serialNumber = %s\n", sigmaItem.serialNumber.GetHex());
+            if (sigmaItem.serialNumber == coinSerial) {
+                LogPrintf("setsigmamintstatus Found!\n");
                 CSigmaEntry zerocoinTx;
-                zerocoinTx.id = zerocoinItem.id;
+                zerocoinTx.id = sigmaItem.id;
                 zerocoinTx.IsUsed = fStatus;
-                zerocoinTx.set_denomination_value(zerocoinItem.get_denomination_value());
-                zerocoinTx.value = zerocoinItem.value;
-                zerocoinTx.serialNumber = zerocoinItem.serialNumber;
-                zerocoinTx.nHeight = zerocoinItem.nHeight;
-                zerocoinTx.randomness = zerocoinItem.randomness;
-//                zerocoinTx.ecdsaSecretKey = zerocoinItem.ecdsaSecretKey;
+                zerocoinTx.set_denomination_value(sigmaItem.get_denomination_value());
+                zerocoinTx.value = sigmaItem.value;
+                zerocoinTx.serialNumber = sigmaItem.serialNumber;
+                zerocoinTx.nHeight = sigmaItem.nHeight;
+                zerocoinTx.randomness = sigmaItem.randomness;
+//                zerocoinTx.ecdsaSecretKey = sigmaItem.ecdsaSecretKey;
                 const std::string& isUsedDenomStr =
                     zerocoinTx.IsUsed
                     ? "Used (" + std::to_string((double)zerocoinTx.get_denomination_value() / COIN) + " mint)"
@@ -3957,7 +3957,9 @@ static const CRPCCommand commands[] =
     { "wallet",             "spendmanyzerocoin",        &spendmanyzerocoin,        false },
     { "wallet",             "spendmany",                &spendmany,                false },
     { "wallet",             "resetmintzerocoin",        &resetmintzerocoin,        false },
+    { "wallet",             "resetsigmamint",           &resetsigmamint,           false },
     { "wallet",             "setmintzerocoinstatus",    &setmintzerocoinstatus,    false },
+    { "wallet",             "setsigmamintstatus",       &setsigmamintstatus,       false },
     { "wallet",             "listmintzerocoins",        &listmintzerocoins,        false },
     { "wallet",             "listsigmamints",           &listsigmamints,           false },
     { "wallet",             "listpubcoins",             &listpubcoins,             false },
