@@ -171,6 +171,9 @@ public:
     // Remove spend from the mempool (usually as the result of adding tx to the block)
     void RemoveSpendFromMempool(const CBigNum &coinSerial);
 
+    // Is public coin value blacklisted?
+    static bool IsPublicCoinValueBlacklisted(const CBigNum &value);
+
     static CZerocoinState *GetZerocoinState();
 };
 

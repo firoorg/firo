@@ -152,6 +152,9 @@ struct Params {
     // Value of maximum sigma spend per transaction.
     int64_t nMaxValueSigmaSpendPerTransaction;
 
+    // Number of blocks with allowed zerocoin to sigma remint transaction (after nSigmaStartBlock)
+    int nZerocoinToSigmaRemintWindowSize;
+
     /** switch to MTP time */
     uint32_t nMTPSwitchTime;
     /** block number to reduce distance between blocks */
