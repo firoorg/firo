@@ -31,4 +31,21 @@ std::size_t CPublicCoinHash::operator ()(const sigma::PublicCoin& coin) const no
     return result;
 }
 
+
+CMintedCoinInfo CMintedCoinInfo::make(CoinDenomination denomination,  int coinGroupId, int nHeight) {
+    CMintedCoinInfo coinInfo;
+    coinInfo.denomination = denomination;
+    coinInfo.coinGroupId = coinGroupId;
+    coinInfo.nHeight = nHeight;
+    return coinInfo;
+}
+
+CSpendCoinInfo CSpendCoinInfo::make(CoinDenomination denomination,  int coinGroupId) {
+    CSpendCoinInfo coinInfo;
+    coinInfo.denomination = denomination;
+    coinInfo.coinGroupId = coinGroupId;
+    return coinInfo;
+}
+
+
 } // namespace sigma

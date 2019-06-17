@@ -18,6 +18,7 @@
 #include <string>
 #include <string.h>
 #include <unordered_set>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 #include <deque>
@@ -606,23 +607,19 @@ template<typename Stream, typename T0, typename T1, typename T2, typename T3> vo
 /**
  * map
  */
-template<typename K, typename T, typename Pred, typename A> unsigned int GetSerializeSize(const std::map<K, T, Pred, A>& m, int nType, int nVersion);
-template<typename Stream, typename K, typename T, typename Pred, typename A> void Serialize(Stream& os, const std::map<K, T, Pred, A>& m, int nType, int nVersion);
-template<typename Stream, typename K, typename T, typename Pred, typename A> void Unserialize(Stream& is, std::map<K, T, Pred, A>& m, int nType, int nVersion);
+template<typename MapType, typename K = typename MapType::key_type, typename T = typename MapType::mapped_type> unsigned int GetSerializeSize(MapType const &m, int nType, int nVersion);
+template<typename Stream, typename MapType, typename K = typename MapType::key_type, typename T = typename MapType::mapped_type> void Serialize(Stream& os, MapType const &m, int nType, int nVersion);
+template<typename Stream, typename MapType, typename K = typename MapType::key_type, typename T = typename MapType::mapped_type> void Unserialize(Stream& is, MapType &m, int nType, int nVersion);
 
 /**
  * set
  */
-template<typename K, typename Pred, typename A> unsigned int GetSerializeSize(const std::set<K, Pred, A>& m, int nType, int nVersion);
-template<typename Stream, typename K, typename Pred, typename A> void Serialize(Stream& os, const std::set<K, Pred, A>& m, int nType, int nVersion);
-template<typename Stream, typename K, typename Pred, typename A> void Unserialize(Stream& is, std::set<K, Pred, A>& m, int nType, int nVersion);
+template <typename SetType>
+using CIsSet = typename std::enable_if<std::is_same<typename SetType::key_type, typename SetType::value_type>::value, SetType>::type;
 
-/**
- * unordered_set
- */
-template<typename K, typename H, typename E, typename A> unsigned int GetSerializeSize(const std::unordered_set<K, H, E, A>& s, int nType, int nVersion);
-template<typename Stream, typename K, typename H, typename E, typename A> void Serialize(Stream& os, const std::unordered_set<K, H, E, A>& s, int nType, int nVersion);
-template<typename Stream, typename K, typename H, typename E, typename A> void Unserialize(Stream& is, std::unordered_set<K, H, E, A>& s, int nType, int nVersion);
+template<typename SetType, typename Enabled = CIsSet<SetType>> unsigned int GetSerializeSize(const SetType& m, int nType, int nVersion);
+template<typename Stream, typename SetType, typename Enabled = CIsSet<SetType>> void Serialize(Stream& os, const SetType & m, int nType, int nVersion);
+template<typename Stream, typename SetType, typename Enabled = CIsSet<SetType>> void Unserialize(Stream& is, SetType & m, int nType, int nVersion);
 
 
 /**
@@ -1052,29 +1049,30 @@ void Unserialize(Stream& is, std::tuple<T0, T1, T2, T3>& item, int nType, int nV
 /**
  * map
  */
-template<typename K, typename T, typename Pred, typename A>
-unsigned int GetSerializeSize(const std::map<K, T, Pred, A>& m, int nType, int nVersion)
+
+template <typename MapType, typename K = typename MapType::key_type, typename T = typename MapType::mapped_type>
+unsigned int GetSerializeSize(MapType const &m, int nType, int nVersion)
 {
     unsigned int nSize = GetSizeOfCompactSize(m.size());
-    for (typename std::map<K, T, Pred, A>::const_iterator mi = m.begin(); mi != m.end(); ++mi)
+    for (typename MapType::const_iterator mi = m.begin(); mi != m.end(); ++mi)
         nSize += GetSerializeSize((*mi), nType, nVersion);
     return nSize;
 }
 
-template<typename Stream, typename K, typename T, typename Pred, typename A>
-void Serialize(Stream& os, const std::map<K, T, Pred, A>& m, int nType, int nVersion)
+template <typename Stream, typename MapType, typename K = typename MapType::key_type, typename T = typename MapType::mapped_type>
+void Serialize(Stream& os, MapType const &m, int nType, int nVersion)
 {
     WriteCompactSize(os, m.size());
-    for (typename std::map<K, T, Pred, A>::const_iterator mi = m.begin(); mi != m.end(); ++mi)
+    for (typename MapType::const_iterator mi = m.begin(); mi != m.end(); ++mi)
         Serialize(os, (*mi), nType, nVersion);
 }
 
-template<typename Stream, typename K, typename T, typename Pred, typename A>
-void Unserialize(Stream& is, std::map<K, T, Pred, A>& m, int nType, int nVersion)
+template <typename Stream, typename MapType, typename K = typename MapType::key_type, typename T = typename MapType::mapped_type>
+void Unserialize(Stream& is, MapType & m, int nType, int nVersion)
 {
     m.clear();
     unsigned int nSize = ReadCompactSize(is);
-    typename std::map<K, T, Pred, A>::iterator mi = m.begin();
+    typename MapType::iterator mi = m.begin();
     for (unsigned int i = 0; i < nSize; i++)
     {
         std::pair<K, T> item;
@@ -1084,82 +1082,37 @@ void Unserialize(Stream& is, std::map<K, T, Pred, A>& m, int nType, int nVersion
 }
 
 
-
 /**
  * set
  */
-template<typename K, typename Pred, typename A>
-unsigned int GetSerializeSize(const std::set<K, Pred, A>& m, int nType, int nVersion)
+template<typename SetType, typename Enabled = typename CIsSet<SetType>::type>
+unsigned int GetSerializeSize(const SetType& m, int nType, int nVersion)
 {
     unsigned int nSize = GetSizeOfCompactSize(m.size());
-    for (typename std::set<K, Pred, A>::const_iterator it = m.begin(); it != m.end(); ++it)
+    for (typename SetType::const_iterator it = m.begin(); it != m.end(); ++it)
         nSize += GetSerializeSize((*it), nType, nVersion);
     return nSize;
 }
 
-template<typename Stream, typename K, typename Pred, typename A>
-void Serialize(Stream& os, const std::set<K, Pred, A>& m, int nType, int nVersion)
+template<typename Stream, typename SetType, typename Enabled = typename CIsSet<SetType>::type>
+void Serialize(Stream& os, const SetType & m, int nType, int nVersion)
 {
     WriteCompactSize(os, m.size());
-    for (typename std::set<K, Pred, A>::const_iterator it = m.begin(); it != m.end(); ++it)
+    for (typename SetType::const_iterator it = m.begin(); it != m.end(); ++it)
         Serialize(os, (*it), nType, nVersion);
 }
 
-template<typename Stream, typename K, typename Pred, typename A>
-void Unserialize(Stream& is, std::set<K, Pred, A>& m, int nType, int nVersion)
+template<typename Stream, typename SetType, typename Enabled = typename CIsSet<SetType>::type>
+void Unserialize(Stream& is, SetType & m, int nType, int nVersion)
 {
     m.clear();
     unsigned int nSize = ReadCompactSize(is);
-    typename std::set<K, Pred, A>::iterator it = m.begin();
+    typename SetType::iterator it = m.begin();
     for (unsigned int i = 0; i < nSize; i++)
     {
-        K key;
+        typename SetType::key_type key;
         Unserialize(is, key, nType, nVersion);
         it = m.insert(it, key);
-    }
-}
-
-/**
- * unordered_set
- */
-
-template<typename K, typename H, typename E, typename A>
-unsigned int GetSerializeSize(const std::unordered_set<K, H, E, A>& s, int nType, int nVersion)
-{
-    unsigned size = GetSizeOfCompactSize(s.size());
-
-    for (auto& i : s) {
-        size += GetSerializeSize(i, nType, nVersion);
-    }
-
-    return size;
-}
-
-template<typename Stream, typename K, typename H, typename E, typename A>
-void Serialize(Stream& os, const std::unordered_set<K, H, E, A>& s, int nType, int nVersion)
-{
-    WriteCompactSize(os, s.size());
-
-    for (auto& i : s) {
-        Serialize(os, i, nType, nVersion);
-    }
-}
-
-template<typename Stream, typename K, typename H, typename E, typename A>
-void Unserialize(Stream& is, std::unordered_set<K, H, E, A>& s, int nType, int nVersion)
-{
-    unsigned size = ReadCompactSize(is);
-
-    s.clear();
-
-    for (unsigned i = 0; i < size; i++) {
-        K key;
-
-        Unserialize(is, key, nType, nVersion);
-
-        if (!s.insert(key).second) {
-            throw std::ios_base::failure("Duplicated item at " + std::to_string(i));
-        }
     }
 }
 
