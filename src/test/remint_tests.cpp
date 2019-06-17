@@ -79,6 +79,10 @@ BOOST_AUTO_TEST_CASE(remint_basic_test)
             CreateAndProcessBlock({}, scriptPubKey);
     }
 
+    // test if sigma mints are spendable
+    BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(stringError, "", "10"), "Sigma spend failed");
+    BOOST_CHECK_MESSAGE(mempool.size() == 1, "Spend was not added to mempool");
+
     params = oldParams;
 }
 
