@@ -2388,10 +2388,7 @@ bool CWallet::GetCoinsToSpend(
         throw std::runtime_error(
             _("Problem with coin selection for spend."));
     }
-    if (coinsToSpend_out.size() > coinsToSpendLimit){
-        throw std::runtime_error(
-            _("Spend input amount too large."));
-    }
+
     return true;
 }
 
