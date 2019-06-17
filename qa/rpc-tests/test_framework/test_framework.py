@@ -30,7 +30,7 @@ from .util import (
 from .authproxy import JSONRPCException
 
 
-class BitcoinTestFramework():
+class BitcoinTestFramework(object):
 
     def __init__(self):
         self.num_nodes = 4
