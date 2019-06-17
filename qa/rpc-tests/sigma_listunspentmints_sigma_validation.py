@@ -5,10 +5,10 @@ from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import *
 
 denoms = [
-    ('denom_1', 1),
     ('denom_0.05', 0.05),
     ('denom_0.1', 0.1),
     ('denom_0.5', 0.5),
+    ('denom_1', 1),
     ('denom_10', 10),
     ('denom_25', 25),
     ('denom_100', 100),
@@ -44,8 +44,7 @@ class ListSigmaUnspentMintsValidationWithFundsTest(BitcoinTestFramework):
         assert_raises(JSONRPCException, self.nodes[0].listunspentsigmamints, [10000000000, False])
 
         denoms_total = 0
-        for input_data in denoms:
-            case_name, denom = input_data
+        for case_name, denom in denoms:
             denoms_total +=2
             mint1 = self.nodes[0].mint(denom)
             mint2 = self.nodes[0].mint(denom)
@@ -73,13 +72,15 @@ class ListSigmaUnspentMintsValidationWithFundsTest(BitcoinTestFramework):
         # check that all sigma mints has at least 6 confirmations
         assert len(self.nodes[0].listunspentsigmamints(6)) == denoms_total
 
+        for case_name, denom in denoms:
+            args = {'THAYjKnnCsN5xspnEcb1Ztvw4mSPBuwxzU': denom}
+            self.nodes[0].spendmany("", args)
 
-        args = {'THAYjKnnCsN5xspnEcb1Ztvw4mSPBuwxzU': denoms_total}
-        res = self.nodes[0].spendmany("", args)
-
+        unspent_mints = len(self.nodes[0].listunspentsigmamints(6))
+        print(self.nodes[0].listunspentsigmamints(6))
         # check that unspent mint count total decreased after spend 
-        assert len(self.nodes[0].listunspentsigmamints(6)) == 12, \
-        'Amount of unspent mints was not decreased.'
+        assert unspent_mints == denoms_total // 2, \
+            'Amount of unspent mints was not decreased as expected: {}.'.format(unspent_mints)
         
 
 if __name__ == '__main__':

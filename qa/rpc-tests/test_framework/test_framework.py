@@ -12,6 +12,7 @@ import sys
 import shutil
 import tempfile
 import traceback
+import unittest
 
 from .util import (
     initialize_chain,
@@ -29,7 +30,7 @@ from .util import (
 from .authproxy import JSONRPCException
 
 
-class BitcoinTestFramework(object):
+class BitcoinTestFramework():
 
     def __init__(self):
         self.num_nodes = 4

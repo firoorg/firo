@@ -5,12 +5,12 @@ from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import *
 
 denoms = [
-    ('denom_0.05', 0.05),
-    ('denom_0.1', 0.1),
-    ('denom_0.5', 0.5),
-    ('denom_1', 1),
-    ('denom_10', 10),
-    ('denom_25', 25),
+    # ('denom_0.05', 0.05),
+    # ('denom_0.1', 0.1),
+    # ('denom_0.5', 0.5),
+    # ('denom_1', 1),
+    # ('denom_10', 10),
+   # ('denom_25', 25),
     ('denom_100', 100),
 ]
 
@@ -23,6 +23,7 @@ expected_pubcoins = [
     ('25', 1),
     ('100', 1)
     ]
+
 
 class ListSigmaPubCoinsValidationWithFundsTest(BitcoinTestFramework):
     def __init__(self):
@@ -48,27 +49,37 @@ class ListSigmaPubCoinsValidationWithFundsTest(BitcoinTestFramework):
         assert_raises(JSONRPCException, self.nodes[0].listsigmapubcoins, 0.1)
         assert_raises(JSONRPCException, self.nodes[0].listsigmapubcoins, ["0.1", 1])
 
-        for input_data in denoms:
-            case_name, denom = input_data
+        for case_name, denom in denoms:
             self.nodes[0].mint(denom)
             self.nodes[0].mint(denom)
             self.nodes[0].generate(6)
             self.sync_all()
 
-            args = {'THAYjKnnCsN5xspnEcb1Ztvw4mSPBuwxzU': denom}
-            res = self.nodes[0].spendmany("", args)
+            pubcoins = [(pubcoin['denomination'], pubcoin['IsUsed'])
+                        for pubcoin in self.nodes[0].listsigmapubcoins()]
+            len_pubcoin = len(pubcoins)
+            print(len_pubcoin)
+            print(pubcoins)
 
-        self.nodes[0].generate(10)
+            args = {'THAYjKnnCsN5xspnEcb1Ztvw4mSPBuwxzU': denom}
+            self.nodes[0].spendmany("", args)
+
+        self.nodes[0].generate(1)
         self.sync_all()
         
-        for input_data in expected_pubcoins:
-            denom, count = input_data
-            pubcoins = [(pubcoin['denomination'], pubcoin['IsUsed']) for pubcoin in self.nodes[0].listsigmapubcoins(denom)]
-            assert len(pubcoins) == count, 'Unexpected pubcoins count.'
+        for denom, count in expected_pubcoins:
+            pubcoins = [(pubcoin['denomination'], pubcoin['IsUsed'])
+                        for pubcoin in self.nodes[0].listsigmapubcoins()]
+            len_pubcoin = len(pubcoins)
+
+            self.nodes[0].generate(6)
+
+            assert len_pubcoin == count, \
+                'Unexpected pubcoins count: {}, should be: {} .'.format(len_pubcoin, count)
+
             for act_denom, isUsed in pubcoins:
                 assert isUsed, 'PubCoin should be used.'
                 assert act_denom == denom, 'Unexpected denomination returned via listpubcoins.'
-
 
 
 if __name__ == '__main__':

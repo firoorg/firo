@@ -3366,15 +3366,15 @@ UniValue resetsigmamint(const UniValue& params, bool fHelp) {
 
     BOOST_FOREACH(const CSigmaEntry &sigmaItem, listPubcoin){
         if (sigmaItem.randomness != uint64_t(0) && sigmaItem.serialNumber != uint64_t(0)) {
-            CSigmaEntry zerocoinTx;
-            zerocoinTx.IsUsed = false;
-            zerocoinTx.set_denomination_value(sigmaItem.get_denomination_value());
-            zerocoinTx.value = sigmaItem.value;
-            zerocoinTx.serialNumber = sigmaItem.serialNumber;
-            zerocoinTx.nHeight = -1;
-            zerocoinTx.randomness = sigmaItem.randomness;
-//            zerocoinTx.ecdsaSecretKey = sigmaItem.ecdsaSecretKey;
-            walletdb.WriteZerocoinEntry(zerocoinTx);
+            CSigmaEntry sigmaTx;
+            sigmaTx.IsUsed = false;
+            sigmaTx.set_denomination_value(sigmaItem.get_denomination_value());
+            sigmaTx.value = sigmaItem.value;
+            sigmaTx.serialNumber = sigmaItem.serialNumber;
+            sigmaTx.nHeight = -1;
+            sigmaTx.randomness = sigmaItem.randomness;
+            sigmaTx.ecdsaSecretKey = sigmaItem.ecdsaSecretKey;
+            walletdb.WriteZerocoinEntry(sigmaTx);
         }
     }
 
@@ -3623,21 +3623,21 @@ UniValue setsigmamintstatus(const UniValue& params, bool fHelp) {
             LogPrintf("sigmaItem.serialNumber = %s\n", sigmaItem.serialNumber.GetHex());
             if (sigmaItem.serialNumber == coinSerial) {
                 LogPrintf("setsigmamintstatus Found!\n");
-                CSigmaEntry zerocoinTx;
-                zerocoinTx.id = sigmaItem.id;
-                zerocoinTx.IsUsed = fStatus;
-                zerocoinTx.set_denomination_value(sigmaItem.get_denomination_value());
-                zerocoinTx.value = sigmaItem.value;
-                zerocoinTx.serialNumber = sigmaItem.serialNumber;
-                zerocoinTx.nHeight = sigmaItem.nHeight;
-                zerocoinTx.randomness = sigmaItem.randomness;
-//                zerocoinTx.ecdsaSecretKey = sigmaItem.ecdsaSecretKey;
+                CSigmaEntry sigmaTx;
+                sigmaTx.id = sigmaItem.id;
+                sigmaTx.IsUsed = fStatus;
+                sigmaTx.set_denomination_value(sigmaItem.get_denomination_value());
+                sigmaTx.value = sigmaItem.value;
+                sigmaTx.serialNumber = sigmaItem.serialNumber;
+                sigmaTx.nHeight = sigmaItem.nHeight;
+                sigmaTx.randomness = sigmaItem.randomness;
+                sigmaTx.ecdsaSecretKey = sigmaItem.ecdsaSecretKey;
                 const std::string& isUsedDenomStr =
-                    zerocoinTx.IsUsed
-                    ? "Used (" + std::to_string((double)zerocoinTx.get_denomination_value() / COIN) + " mint)"
-                    : "New (" + std::to_string((double)zerocoinTx.get_denomination_value() / COIN) + " mint)";
-                pwalletMain->NotifyZerocoinChanged(pwalletMain, zerocoinTx.value.GetHex(), isUsedDenomStr, CT_UPDATED);
-                walletdb.WriteZerocoinEntry(zerocoinTx);
+                    sigmaTx.IsUsed
+                    ? "Used (" + std::to_string((double)sigmaTx.get_denomination_value() / COIN) + " mint)"
+                    : "New (" + std::to_string((double)sigmaTx.get_denomination_value() / COIN) + " mint)";
+                pwalletMain->NotifyZerocoinChanged(pwalletMain, sigmaTx.value.GetHex(), isUsedDenomStr, CT_UPDATED);
+                walletdb.WriteZerocoinEntry(sigmaTx);
 
                 if (!fStatus) {
                     // erase zerocoin spend entry
@@ -3647,13 +3647,13 @@ UniValue setsigmamintstatus(const UniValue& params, bool fHelp) {
                 }
 
                 UniValue entry(UniValue::VOBJ);
-                entry.push_back(Pair("id", zerocoinTx.id));
-                entry.push_back(Pair("IsUsed", zerocoinTx.IsUsed));
-                entry.push_back(Pair("denomination", zerocoinTx.get_denomination_value()));
-                entry.push_back(Pair("value", zerocoinTx.value.GetHex()));
-                entry.push_back(Pair("serialNumber", zerocoinTx.serialNumber.GetHex()));
-                entry.push_back(Pair("nHeight", zerocoinTx.nHeight));
-                entry.push_back(Pair("randomness", zerocoinTx.randomness.GetHex()));
+                entry.push_back(Pair("id", sigmaTx.id));
+                entry.push_back(Pair("IsUsed", sigmaTx.IsUsed));
+                entry.push_back(Pair("denomination", sigmaTx.get_denomination_value()));
+                entry.push_back(Pair("value", sigmaTx.value.GetHex()));
+                entry.push_back(Pair("serialNumber", sigmaTx.serialNumber.GetHex()));
+                entry.push_back(Pair("nHeight", sigmaTx.nHeight));
+                entry.push_back(Pair("randomness", sigmaTx.randomness.GetHex()));
                 results.push_back(entry);
                 break;
             }

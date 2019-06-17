@@ -5,10 +5,10 @@ from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import *
 
 denoms = [
-    ('denom_1', 1),
     ('denom_0.05', 0.05),
     ('denom_0.1', 0.1),
     ('denom_0.5', 0.5),
+    ('denom_1', 1),
     ('denom_10', 10),
     ('denom_25', 25),
     ('denom_100', 100),
@@ -45,10 +45,9 @@ class ListSigmaSpendValidationWithFundsTest(BitcoinTestFramework):
         assert_raises(JSONRPCException, self.nodes[0].listsigmaspends, ['test', 'test'])
         assert_raises(JSONRPCException, self.nodes[0].listsigmaspends, [10000000000, False])
 
-        denoms_total = 0
-        for input_data in denoms:
-            case_name, denom = input_data
-            self.nodes[0].mint(2*denom)
+        for case_name, denom in denoms:
+            self.nodes[0].mint(denom)
+            self.nodes[0].mint(denom)
             self.nodes[0].generate(10)
             self.sync_all()
             args = {'THAYjKnnCsN5xspnEcb1Ztvw4mSPBuwxzU': denom}
@@ -58,10 +57,24 @@ class ListSigmaSpendValidationWithFundsTest(BitcoinTestFramework):
         self.sync_all()
         
         assert len(self.nodes[0].listsigmaspends(5)) == 5, 'Should be 5 spends.'
-        conf_spends = all(sp for sp in self.nodes[0].listsigmaspends(5, True) if sp['confirmed'])
+
+        conf_spends = all(sp for sp in self.nodes[0].listsigmaspends(5, False) \
+                          if sp['confirmations'] >= 1)
         assert conf_spends, 'In list should be only confirmed spends, but was: {}'.format(conf_spends)
 
-        assert len(self.nodes[0].listsigmaspends(10, False)) == 7, 'Should be 7 spends.'
+        len_confirmed_no_more_than_10 = len(self.nodes[0].listsigmaspends(10, False))
+
+        assert len_confirmed_no_more_than_10 == 7, \
+            'Should be 7 spends, but was: {}.'.format(len_confirmed_no_more_than_10)
+
+        args = {'THAYjKnnCsN5xspnEcb1Ztvw4mSPBuwxzU': 1}
+        self.nodes[0].spendmany("", args)
+
+        unconf_spends_amount = len([sp for sp in self.nodes[0].listsigmaspends(5, True) \
+                                    if sp['confirmations'] <= 0])
+
+        assert unconf_spends_amount == 1, \
+            'Should be 1 uncofirmed spend, but was: {}.'.format(unconf_spends_amount)
 
 
 if __name__ == '__main__':

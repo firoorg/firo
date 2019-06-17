@@ -5,11 +5,10 @@ from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import *
 
 denoms = [
-    ('denom_1', 1),
     ('denom_0.05', 0.05),
     ('denom_0.1', 0.1),
     ('denom_0.5', 0.5),
-    ('denom_5', 5),
+    ('denom_1', 1),
     ('denom_10', 10),
     ('denom_25', 25),
     ('denom_100', 100),
@@ -40,14 +39,14 @@ class ResetSigmaMintSatusValidationWithFundsTest(BitcoinTestFramework):
             res = self.nodes[0].mint(2*denom)
 
             #set sigmamint to true - should work
-            self.nodes[0].setsigmamintstatus(res['txid'], true)
+            self.nodes[0].setsigmamintstatus(res['txid'], True)
             self.nodes[0].generate(10)
             self.sync_all()
             s = self.nodes[0].spendmany("", args)
             self.nodes[0].resetsigmamint()
             res = self.nodes[0].spendmany("", args)
         
-        assert_raises(JSONRPCException, self.nodes[0].resetsigmamint, "sometext"))
+        assert_raises(JSONRPCException, self.nodes[0].resetsigmamint, "sometext")
         assert_raises(JSONRPCException, self.nodes[0].resetsigmamint, 1)
 
 

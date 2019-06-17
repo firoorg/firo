@@ -5,10 +5,10 @@ from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import *
 
 denoms = [
-    ('denom_1', 1),
     ('denom_0.05', 0.05),
     ('denom_0.1', 0.1),
     ('denom_0.5', 0.5),
+    ('denom_1', 1),
     ('denom_10', 10),
     ('denom_25', 25),
     ('denom_100', 100),
