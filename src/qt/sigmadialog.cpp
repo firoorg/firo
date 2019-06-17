@@ -136,7 +136,6 @@ void SigmaDialog::setWalletModel(WalletModel *model)
     connect(model->getOptionsModel(), SIGNAL(displayUnitChanged(int)), this, SLOT(coinControlUpdateLabels()));
     connect(model->getOptionsModel(), SIGNAL(coinControlFeaturesChanged(bool)), this, SLOT(coinControlFeatureChanged(bool)));
     ui->frameCoinControl->setVisible(model->getOptionsModel()->getCoinControlFeatures());
-    ui->coinControlChange->hide();
     coinControlUpdateLabels();
 }
 
@@ -145,12 +144,12 @@ void SigmaDialog::tabSelected(){
     if(ui->tabWidget->currentIndex()==0){
         SigmaCoinControlDialog::fMintTabSelected = true;
         if(coinControlSelected)
-            ui->coinControlChange->hide();
+            ui->coinControlChange->show();
     }
     if(ui->tabWidget->currentIndex()==1){
         SigmaCoinControlDialog::fMintTabSelected = false;
         if(coinControlSelected)
-            ui->coinControlChange->show();
+            ui->coinControlChange->hide();
     }
 }
 

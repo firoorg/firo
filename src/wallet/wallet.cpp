@@ -2191,11 +2191,13 @@ std::list<CSigmaEntry> CWallet::GetAvailableCoins(const CCoinControl *coinContro
     std::list<CSigmaEntry> coins;
     CWalletDB(strWalletFile).ListSigmaPubCoin(coins);
 
+    std::set<COutPoint> lockedCoins = setLockedCoins;
+
     // Filter out coins which are not confirmed, I.E. do not have at least 6 blocks
     // above them, after they were minted.
     // Also filter out used coins.
     // Finally filter out coins that have not been selected from CoinControl should that be used
-    coins.remove_if([coinControl](const CSigmaEntry& coin) {
+    coins.remove_if([lockedCoins, coinControl](const CSigmaEntry& coin) {
         sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
         if (coin.IsUsed)
             return true;
@@ -2231,11 +2233,18 @@ std::list<CSigmaEntry> CWallet::GetAvailableCoins(const CCoinControl *coinContro
             return true;
         }
 
+        COutPoint outPoint;
+        sigma::PublicCoin pubCoin(coin.value, coin.get_denomination());
+        if(!sigma::GetOutPoint(outPoint, pubCoin)){
+            return true;
+        }
+
+        if(lockedCoins.count(outPoint) > 0){
+            return true;
+        }
+
         if(coinControl != NULL){
             if(coinControl->HasSelected()){
-                COutPoint outPoint;
-                sigma::PublicCoin pubCoin(coin.value, coin.get_denomination());
-                sigma::GetOutPoint(outPoint, pubCoin);
                 if(!coinControl->IsSelected(outPoint)){
                     return true;
                 }
