@@ -111,7 +111,7 @@ public:
     CSigmaState();
 
     // Add mins in block, automatically assigning id to it
-    bool AddMintsToStateAndBlockIndex(CBlockIndex *index, const CBlock* pblock);
+    void AddMintsToStateAndBlockIndex(CBlockIndex *index, const CBlock* pblock);
 
     // Add serial to the list of used ones
     void AddSpend(const Scalar& serial);

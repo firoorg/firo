@@ -596,7 +596,7 @@ void CSigmaTxInfo::Complete() {
 CSigmaState::CSigmaState() {
 }
 
-bool CSigmaState::AddMintsToStateAndBlockIndex(
+void CSigmaState::AddMintsToStateAndBlockIndex(
         CBlockIndex *index,
         const CBlock* pblock) {
 
@@ -615,10 +615,9 @@ bool CSigmaState::AddMintsToStateAndBlockIndex(
 
 
         SigmaCoinGroupInfo &coinGroup = coinGroups[make_pair(denomination, mintCoinGroupId)];
-        int coinsPerId = ZC_SPEND_V3_COINSPERID;
-        int coinsPerIdLimit = ZC_SPEND_V3_COINSPERID_LIMIT;
-        if (coinGroup.nCoins < coinsPerId // there's still space in the accumulator
-            && coinGroup.nCoins + mintsWithThisDenom.size() <= coinsPerIdLimit) {
+
+        if (coinGroup.nCoins < ZC_SPEND_V3_COINSPERID // there's still space in the accumulator
+            && coinGroup.nCoins + mintsWithThisDenom.size() <= ZC_SPEND_V3_COINSPERID_LIMIT) {
             if (coinGroup.nCoins == 0) {
                 // first group of coins for given denomination
                 assert(coinGroup.firstBlock == nullptr);
@@ -628,9 +627,7 @@ bool CSigmaState::AddMintsToStateAndBlockIndex(
             } else {
                 assert(coinGroup.firstBlock != nullptr);
                 assert(coinGroup.lastBlock != nullptr);
-                if (coinGroup.lastBlock->nHeight > index->nHeight) {
-                    assert(coinGroup.lastBlock->nHeight <= index->nHeight);
-                }
+                assert(coinGroup.lastBlock->nHeight <= index->nHeight);
 
                 coinGroup.lastBlock = index;
             }
@@ -654,7 +651,6 @@ bool CSigmaState::AddMintsToStateAndBlockIndex(
             index->sigmaMintedPubCoins[{denomination, mintCoinGroupId}].push_back(mint);
         }
     }
-    return true;
 }
 
 void CSigmaState::AddSpend(const Scalar &serial) {
