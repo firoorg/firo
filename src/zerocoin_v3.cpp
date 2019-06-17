@@ -23,8 +23,6 @@
 
 #include <ios>
 
-extern CTxMemPool mempool;
-
 namespace sigma {
 
 // Set up the Sigma Params object
@@ -463,9 +461,10 @@ bool CheckSigmaTransaction(
     return true;
 }
 
-void RemoveSigmaSpendsReferencingBlock(CBlockIndex* blockIndex) {
+void RemoveSigmaSpendsReferencingBlock(CTxMemPool& pool, CBlockIndex* blockIndex) {
+    LOCK2(cs_main, pool.cs);
     std:vector<CTransaction> txn_to_remove;
-    for (CTxMemPool::txiter mi = mempool.mapTx.begin(); mi != mempool.mapTx.end(); ++mi) {
+    for (CTxMemPool::txiter mi = pool.mapTx.begin(); mi != pool.mapTx.end(); ++mi) {
         const CTransaction& tx = mi->GetTx();
         if (tx.IsSigmaSpend()) {
             // Run over all the inputs, check if their Accumulator block hash is equal to 
@@ -488,7 +487,7 @@ void RemoveSigmaSpendsReferencingBlock(CBlockIndex* blockIndex) {
     for (const CTransaction& tx: txn_to_remove) {
         std::list<CTransaction> removed;
         // Remove txn from mempool.
-        mempool.removeRecursive(tx, removed);
+        pool.removeRecursive(tx, removed);
         LogPrintf("DisconnectTipSigma: removed sigma spend which referenced a removed blockchain tip.");
     }
 }
@@ -497,7 +496,8 @@ void DisconnectTipSigma(CBlock& block, CBlockIndex *pindexDelete) {
     sigmaState.RemoveBlock(pindexDelete);
 
     // Also remove from mempool sigma spends that reference given block hash.
-    RemoveSigmaSpendsReferencingBlock(pindexDelete);
+    RemoveSigmaSpendsReferencingBlock(mempool, pindexDelete);
+    RemoveSigmaSpendsReferencingBlock(stempool, pindexDelete);
 }
 
 Scalar GetSigmaSpendSerialNumber(const CTransaction &tx, const CTxIn &txin) {
