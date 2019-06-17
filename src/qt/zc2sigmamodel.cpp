@@ -7,10 +7,11 @@
 #include <QFont>
 #include <QDebug>
 
+#include "../wallet/wallet.h"
 
 namespace {
     struct MintInfo {
-        uint mintCount;
+        int mintCount;
         uint denomination;
         uint version;
         uint get(size_t mem) {
@@ -35,13 +36,19 @@ Zc2SigmaModel::Zc2SigmaModel()
 {
     columns << tr("Mint count") << tr("Denomination") << tr("Version");
 
-    std::vector<uint> const versions{2};
-    std::vector<uint> const denominations{1, 10, 25, 50, 100};
+    using libzerocoin::CoinDenomination;
+
+    std::vector<int> const versions{2};
+    std::vector<CoinDenomination> const denominations{CoinDenomination::ZQ_LOVELACE, CoinDenomination::ZQ_GOLDWASSER, CoinDenomination::ZQ_RACKOFF, CoinDenomination::ZQ_PEDERSEN, CoinDenomination::ZQ_WILLIAMSON};
 
     BOOST_FOREACH(uint ver, versions) {
-        BOOST_FOREACH(uint den, denominations) {
-            // GetNumberOfUnspentMintsForDenomination(int version, libzerocoin::CoinDenomination d)
-            pContImpl->push_back({den, den, ver});
+        BOOST_FOREACH(CoinDenomination den, denominations) {
+            int nMints;
+            {
+                LOCK(pwalletMain->cs_wallet);
+                nMints =  pwalletMain->GetNumberOfUnspentMintsForDenomination(ver, den);
+            }
+            pContImpl->push_back({nMints, den, ver});
         }
     }
 }

@@ -43,6 +43,7 @@ private:
 
 private Q_SLOTS:
     void on_remintButton_clicked();
+    void selectionChanged();
 
 Q_SIGNALS:
     void sendCoins(QString addr);

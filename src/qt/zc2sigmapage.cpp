@@ -17,6 +17,8 @@
 #include "platformstyle.h"
 #include "zc2sigmamodel.h"
 
+#include "../wallet/wallet.h"
+
 #include <QIcon>
 #include <QMenu>
 #include <QMessageBox>
@@ -56,10 +58,53 @@ void Zc2SigmaPage::createModel() {
     ui->availMintsTable->horizontalHeader()->setSectionResizeMode(Zc2SigmaModel::Version, QHeaderView::ResizeToContents);
 #endif
 
+    connect(ui->availMintsTable->selectionModel(), SIGNAL(selectionChanged(QItemSelection, QItemSelection)),
+            this, SLOT(selectionChanged()));
+    ui->remintButton->setDisabled(true);
 }
 
-#include <iostream>
 void Zc2SigmaPage::on_remintButton_clicked() {
-    //std::string RemintZerocoinToSigma(int version, libzerocoin::CoinDenomination d)
-    std::cerr << "on_remintButton_clicked" << std::endl;
+    QItemSelectionModel * select = ui->availMintsTable->selectionModel();
+
+    if(!select->hasSelection())
+        return;
+
+    QModelIndexList idxs = select->selectedRows();
+    for(int i = 0; i < idxs.size(); ++i) {
+        int const row = idxs[i].row();
+        bool ok;
+        uint denom =  select->currentIndex().child(row , 1).data().toUInt(&ok); //denomination
+        if(!ok)
+            QMessageBox::critical(this, "Unable to remint", QString("Failed to parse denomination."));
+        uint version = select->currentIndex().child(row , 2).data().toUInt(&ok); //version
+        if(!ok)
+            QMessageBox::critical(this, "Unable to remint", QString("Failed to parse version."));
+
+        std::string error;
+        bool result;
+        {
+            LOCK(pwalletMain->cs_wallet);
+            result = pwalletMain->CreateZerocoinToSigmaRemintModel(error, int(version), libzerocoin::CoinDenomination(denom));
+        }
+        if(!result)
+            QMessageBox::critical(this, "Unable to remint", QString("Failed to remint: ").append(error.c_str()));
+        else
+            QMessageBox::information(this, "Reminted", QString("Successfully reminted."));
+    }
+}
+
+void Zc2SigmaPage::selectionChanged() {
+    QItemSelectionModel * select = ui->availMintsTable->selectionModel();
+    bool enabled = false;
+    QModelIndexList idxs = select->selectedRows();
+    for(int i = 0; i < idxs.size(); ++i) {
+        int const row = idxs[i].row();
+        bool ok;
+        uint num =  select->currentIndex().child(row , 0).data().toUInt(&ok); //number
+        if(!ok)
+            continue;
+        if(num > 0)
+            enabled = true;
+    }
+    ui->remintButton->setDisabled(!enabled);
 }
