@@ -355,10 +355,11 @@ bool CheckSigmaMintTransaction(
     if (hasCoin) {
        LogPrintf("CheckSigmaMintTransaction: double mint, tx=%s\n",
                 txout.GetHash().ToString());
-        return state.DoS(100,
-                         false,
-                         PUBCOIN_NOT_VALIDATE,
-                         "CheckSigmaTransaction: double mint");
+       if(sigmaTxInfo)
+          return state.DoS(100,
+                  false,
+                  PUBCOIN_NOT_VALIDATE,
+                  "CheckSigmaTransaction: double mint");
     }
 
     if (!pubCoin.validate())
