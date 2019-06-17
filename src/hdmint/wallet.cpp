@@ -159,7 +159,9 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool)
             uint512 seedZerocoin = GetZerocoinSeed(pMint.second, pMint.first);
             GroupElement pubCoinValue;
             sigma::PrivateCoin coin(sigma::Params::get_default(), sigma::CoinDenomination::SIGMA_DENOM_1);
-            SeedToZerocoin(seedZerocoin, pubCoinValue, coin);
+            if(!SeedToZerocoin(seedZerocoin, pubCoinValue, coin)){
+                return;
+            }
             uint256 pubCoinValueHash = sigma::GetPubCoinValueHash(pubCoinValue);
 
             if (pwalletMain->hdMintTracker->HasPubcoinHash(pubCoinValueHash)) {
@@ -290,7 +292,7 @@ bool CHDMintWallet::SetMintSeedSeen(CKeyID& seedId, const int& nHeight, const ui
     return true;
 }
 
-void CHDMintWallet::SeedToZerocoin(const uint512& seedZerocoin, GroupElement& commit, sigma::PrivateCoin& coin)
+bool CHDMintWallet::SeedToZerocoin(const uint512& seedZerocoin, GroupElement& commit, sigma::PrivateCoin& coin)
 {
     //convert state seed into a seed for the private key
     uint256 nSeedPrivKey = seedZerocoin.trim256();
@@ -300,7 +302,7 @@ void CHDMintWallet::SeedToZerocoin(const uint512& seedZerocoin, GroupElement& co
     // Create a key pair
     secp256k1_pubkey pubkey;
     if (!secp256k1_ec_pubkey_create(OpenSSLContext::get_context(), &pubkey, coin.getEcdsaSeckey())){
-        throw ZerocoinException("Unable to create public key.");
+        return false;
     }
     // Hash the public key in the group to obtain a serial number
     Scalar serialNumber = coin.serialNumberFromSerializedPublicKey(OpenSSLContext::get_context(), &pubkey); 
@@ -315,6 +317,8 @@ void CHDMintWallet::SeedToZerocoin(const uint512& seedZerocoin, GroupElement& co
     // Generate a Pedersen commitment to the serial number
     commit = sigma::SigmaPrimitives<Scalar, GroupElement>::commit(
              coin.getParams()->get_g(), coin.getSerialNumber(), coin.getParams()->get_h0(), coin.getRandomness());
+
+    return true;
 }
 
 CKeyID CHDMintWallet::GetZerocoinSeedID(uint32_t n){
@@ -384,17 +388,16 @@ void CHDMintWallet::UpdateCount()
     UpdateCountDB();
 }
 
-void CHDMintWallet::GenerateHDMint(sigma::CoinDenomination denom, sigma::PrivateCoin& coin, CHDMint& dMint, bool fGenerateOnly)
+uint32_t CHDMintWallet::GenerateHDMint(sigma::CoinDenomination denom, sigma::PrivateCoin& coin, CHDMint& dMint, bool fGenerateOnly)
 {
-    GenerateMint(nCountLastUsed, denom, dMint.GetSeedId(), coin, dMint);
-    if (fGenerateOnly)
-        return;
-
-    //TODO remove this leak of seed from logs before merge to master
-    //LogPrintf("%s : Generated new deterministic mint. Count=%d pubcoin=%s seed=%s\n", __func__, nCount, coin.getPublicCoin().getValue().GetHex().substr(0,6), seedZerocoin.GetHex().substr(0, 4));
+    bool mintFound = false;
+    while(!mintFound)
+        mintFound = GenerateMint(nCountLastUsed, denom, dMint.GetSeedId(), coin, dMint);
+        UpdateCountLocal();
+    return nCountLastUsed;
 }
 
-void CHDMintWallet::GenerateMint(const uint32_t& nCount, const sigma::CoinDenomination denom, CKeyID seedId, sigma::PrivateCoin& coin, CHDMint& dMint)
+bool CHDMintWallet::GenerateMint(const uint32_t& nCount, const sigma::CoinDenomination denom, CKeyID seedId, sigma::PrivateCoin& coin, CHDMint& dMint)
 {
     if(seedId.IsNull()){
         seedId = GetZerocoinSeedID(nCount);
@@ -402,7 +405,9 @@ void CHDMintWallet::GenerateMint(const uint32_t& nCount, const sigma::CoinDenomi
     uint512 seedZerocoin = GetZerocoinSeed(nCount, seedId);
 
     GroupElement commitmentValue;
-    SeedToZerocoin(seedZerocoin, commitmentValue, coin);
+    if(!SeedToZerocoin(seedZerocoin, commitmentValue, coin)){
+        return false;
+    }
 
     coin.setPublicCoin(sigma::PublicCoin(commitmentValue, denom));
 
@@ -410,6 +415,7 @@ void CHDMintWallet::GenerateMint(const uint32_t& nCount, const sigma::CoinDenomi
     dMint = CHDMint(nCount, seedId, hashSerial, coin.getPublicCoin().getValue());
     dMint.SetDenomination(denom);
 
+    return true;
 }
 
 // bool CHDMintWallet::CheckSeed(const CHDMint& dMint)

@@ -2121,9 +2121,8 @@ std::vector<CRecipient> CWallet::CreateSigmaMintRecipients(
 
     uint32_t nCountLastUsed = zwalletMain->GetCount();
 
-
     std::transform(coins.begin(), coins.end(), std::back_inserter(vecSend),
-        [&vDMints, &dMint](sigma::PrivateCoin& coin) -> CRecipient {
+        [&vDMints, &dMint, &nCountLastUsed](sigma::PrivateCoin& coin) -> CRecipient {
 
             // Generate and store secrets deterministically in the following function.
             dMint.SetNull();
@@ -2136,6 +2135,7 @@ std::vector<CRecipient> CWallet::CreateSigmaMintRecipients(
             auto& pubCoin = coin.getPublicCoin();
 
             if (!pubCoin.validate()) {
+                zwalletMain->SetCount(nCountLastUsed);
                 throw std::runtime_error("Unable to mint a sigma coin.");
             }
 
@@ -4093,6 +4093,8 @@ bool CWallet::CreateSigmaMintModel(string &stringError, const string& denomAmoun
 
     CHDMint dMint;
 
+    uint32_t nCountLastUsed = zwalletMain->GetCount();
+
     // Set up the Zerocoin Params object
     sigma::Params *sigmaParams = sigma::Params::get_default();
 
@@ -4152,6 +4154,8 @@ bool CWallet::CreateSigmaMintModel(string &stringError, const string& denomAmoun
             CT_NEW);
         return true;
     } else {
+        // reset coin count
+        zwalletMain->SetCount(nCountLastUsed);
         return false;
     }
 }

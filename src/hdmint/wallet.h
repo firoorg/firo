@@ -30,8 +30,8 @@ public:
 
     bool SetHashSeedMaster(const uint160& hashSeedMaster, bool fResetCount=false);
     void SyncWithChain(bool fGenerateMintPool = true);
-    void GenerateHDMint(sigma::CoinDenomination denom, sigma::PrivateCoin& coin, CHDMint& dMint, bool fGenerateOnly = false);
-    void GenerateMint(const uint32_t& nCount, const sigma::CoinDenomination denom, CKeyID seedId, sigma::PrivateCoin& coin, CHDMint& dMint);
+    uint32_t GenerateHDMint(sigma::CoinDenomination denom, sigma::PrivateCoin& coin, CHDMint& dMint, bool fGenerateOnly = false);
+    bool GenerateMint(const uint32_t& nCount, const sigma::CoinDenomination denom, CKeyID seedId, sigma::PrivateCoin& coin, CHDMint& dMint);
     bool LoadMintPoolFromDB();
     void GetState(int& nCount, int& nLastGenerated);
     bool RegenerateMint(const CHDMint& dMint, CSigmaEntry& zerocoin);
@@ -41,7 +41,7 @@ public:
     bool SetMintSeedSeen(CKeyID& seedId, const int& nHeight, const uint256& txid, const sigma::CoinDenomination& denom);
     bool IsInMintPool(const CKeyID& seedId) { return mintPool.Has(seedId); }
     void Lock();
-    void SeedToZerocoin(const uint512& seedZerocoin, GroupElement& bnValue, sigma::PrivateCoin& coin);
+    bool SeedToZerocoin(const uint512& seedZerocoin, GroupElement& bnValue, sigma::PrivateCoin& coin);
     // Count updating functions
     uint32_t GetCount();
     void SetCount(uint32_t nCount);
