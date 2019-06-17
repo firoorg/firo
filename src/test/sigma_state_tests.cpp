@@ -235,7 +235,7 @@ BOOST_AUTO_TEST_CASE(sigma_addmints_more_than_group_size)
     sigma::CSigmaState::SigmaCoinGroupInfo group1;
     sigmaState->GetCoinGroupInfo(testDenomination, 1, group1);
     BOOST_CHECK_GT(group1.nCoins, ZC_SPEND_V3_COINSPERID);
-    BOOST_CHECK_EQUAL(sigmaState->latestCoinIds[testDenomination], 1);
+    BOOST_CHECK_EQUAL(sigmaState->GetLatestCoinIds().find(testDenomination)->second, 1);
 
     // Generate more mints, coin ID must increase.
     allMints += mintsPerBlock;
@@ -248,12 +248,12 @@ BOOST_AUTO_TEST_CASE(sigma_addmints_more_than_group_size)
     sigma::CSigmaState::SigmaCoinGroupInfo group2;
     sigmaState->GetCoinGroupInfo(testDenomination, 2, group2);
     BOOST_CHECK_EQUAL(group2.nCoins, mintsPerBlock);
-    BOOST_CHECK_EQUAL(sigmaState->latestCoinIds[testDenomination], 2);
+    BOOST_CHECK_EQUAL(sigmaState->GetLatestCoinIds().find(testDenomination)->second, 2);
 
     // Remove last block, coin ID should be decrease back.
     DisconnectBlocks(1);
 
-    BOOST_CHECK_EQUAL(sigmaState->latestCoinIds[testDenomination], 1);
+    BOOST_CHECK_EQUAL(sigmaState->GetLatestCoinIds().find(testDenomination)->second, 1);
 
     sigmaState->Reset();
 }
