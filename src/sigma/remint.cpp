@@ -15,6 +15,7 @@ CoinRemintToV3::CoinRemintToV3(unsigned mintVersion, unsigned denomination, unsi
     coinPublicValue = CalculatePublicValue();
 
     if (coinMintVersion > ZEROCOIN_TX_VERSION_1) {
+        this->ecdsaPrivateKey = ecdsaPrivateKey;
         if (coinSerial.bitSize() > 160)
             throw ZerocoinException("Invalid zerocoin mint");
 

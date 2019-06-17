@@ -104,7 +104,12 @@ bool CheckRemintZcoinTransaction(const CTransaction &tx,
                                 CZerocoinTxInfo *zerocoinTxInfo) {
 
     // Check height
-    int txHeight = nHeight == INT_MAX ? chainActive.Height() : nHeight;
+    int txHeight;
+    {
+        LOCK(cs_main);
+        txHeight = nHeight == INT_MAX ? chainActive.Height() : nHeight;
+    }
+
     if (txHeight < params.nSigmaStartBlock || txHeight >= params.nSigmaStartBlock + params.nZerocoinToSigmaRemintWindowSize)
         // we allow transactions of remint type only during specific window
         return false;
@@ -113,9 +118,9 @@ bool CheckRemintZcoinTransaction(const CTransaction &tx,
     if (tx.vin.size() != 1 || tx.vin[0].scriptSig.size() == 0 || tx.vin[0].scriptSig[0] != OP_ZEROCOINTOSIGMAREMINT)
         return false;
 
-    CDataStream remintSerData(vector<unsigned char>(tx.vin[0].scriptSig.begin()+1, tx.vin[0].scriptSig.end()),
-                                SER_NETWORK, PROTOCOL_VERSION);
-    sigma::CoinRemintToV3 remint(remintSerData);
+    vector<unsigned char> remintSerData(tx.vin[0].scriptSig.begin()+1, tx.vin[0].scriptSig.end());
+    CDataStream inStream1(remintSerData, SER_NETWORK, PROTOCOL_VERSION);
+    sigma::CoinRemintToV3 remint(inStream1);
 
     if (remint.getMintVersion() != ZEROCOIN_TX_VERSION_2) {
         LogPrintf("CheckRemintZcoinTransaction: only mint of version 2 is currently supported\n");
@@ -157,7 +162,8 @@ bool CheckRemintZcoinTransaction(const CTransaction &tx,
 
     // Create temporary tx, clear remint signature and get its hash
     CMutableTransaction tempTx = tx;
-    sigma::CoinRemintToV3 tempRemint(remintSerData);
+    CDataStream inStream2(remintSerData, SER_NETWORK, PROTOCOL_VERSION);
+    sigma::CoinRemintToV3 tempRemint(inStream2);
     tempRemint.ClearSignature();
 
     CDataStream remintWithoutSignature(SER_NETWORK, PROTOCOL_VERSION);
@@ -178,6 +184,15 @@ bool CheckRemintZcoinTransaction(const CTransaction &tx,
 
     if (!fStatefulZerocoinCheck)
         return true;
+
+    CZerocoinState *zerocoinState = CZerocoinState::GetZerocoinState();
+
+    // Check if this coin is present
+    int mintId = -1;
+    if (zerocoinState->GetMintedCoinHeightAndId(remint.getPublicCoinValue(), (int)remint.getDenomination(), mintId) <= 0 || mintId != remint.getCoinGroupId()) {
+        LogPrintf("CheckRemintZcoinTransaction: no such mint\n");
+        return false;
+    }
 
     CBigNum serial = remint.getSerialNumber();
     if (!CheckZerocoinSpendSerial(state, params, zerocoinTxInfo, (libzerocoin::CoinDenomination)remint.getDenomination(), serial, nHeight, false))
@@ -749,6 +764,9 @@ bool CheckZerocoinTransaction(const CTransaction &tx,
             }
         }
     }
+
+    if (tx.IsZerocoinRemint())
+        return CheckRemintZcoinTransaction(tx, params, state, hashTx, isVerifyDB, nHeight, isCheckWallet, fStatefulZerocoinCheck, zerocoinTxInfo);
 
     return true;
 }

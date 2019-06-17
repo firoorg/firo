@@ -4344,7 +4344,7 @@ int CWallet::GetNumberOfUnspentMintsForDenomination(int version, libzerocoin::Co
     return result;
 }
 
-bool CWallet::CreateZerocoinToSigmaRemintTransaction(string &stringError, CWalletTx &wtxNew, int version, libzerocoin::CoinDenomination denomination) {
+bool CWallet::CreateZerocoinToSigmaRemintModel(string &stringError, int version, libzerocoin::CoinDenomination denomination) {
     // currently we don't support zerocoin mints v1
     assert(version == ZEROCOIN_TX_VERSION_2);
 
@@ -4353,6 +4353,7 @@ bool CWallet::CreateZerocoinToSigmaRemintTransaction(string &stringError, CWalle
         return false;
     }
 
+    CWalletTx wtxNew;
     wtxNew.BindWallet(this);
     CMutableTransaction txNew;
 
@@ -4396,7 +4397,7 @@ bool CWallet::CreateZerocoinToSigmaRemintTransaction(string &stringError, CWalle
     } zerocoinToSigmaDenominationMap[] = {
         {1, sigma::CoinDenomination::SIGMA_DENOM_1, 1},
         {10, sigma::CoinDenomination::SIGMA_DENOM_10, 1},
-//        {25, sigma::CoinDenomination::SIGMA_DENOM_25, 1},
+        {25, sigma::CoinDenomination::SIGMA_DENOM_25, 1},
         {50, sigma::CoinDenomination::SIGMA_DENOM_10, 5},
         {100, sigma::CoinDenomination::SIGMA_DENOM_100, 1}
     };
@@ -4457,7 +4458,13 @@ bool CWallet::CreateZerocoinToSigmaRemintTransaction(string &stringError, CWalle
     remintScriptAfterSignature.insert(remintScriptAfterSignature.end(), ds2.begin(), ds2.end());
 
     txNew.vin[0].scriptSig = remintScriptAfterSignature;
-    *(CTransaction *)&wtxNew = txNew;
+    *static_cast<CTransaction *>(&wtxNew) = CTransaction(txNew);
+
+    CReserveKey reserveKey(this);
+    if (!CommitTransaction(wtxNew, reserveKey)) {
+        stringError = "Cannot commit transaction";
+        return false;
+    }
 
     CWalletDB walletdb(pwalletMain->strWalletFile);
 
