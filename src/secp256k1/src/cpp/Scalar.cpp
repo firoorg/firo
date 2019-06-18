@@ -10,6 +10,8 @@
 #include "../scalar_impl.h"
 #include "../hash_impl.h"
 #include "../hash.h"
+
+#include <array>
 #include <sstream>
 #include <iostream>
 #include <openssl/rand.h>
@@ -268,27 +270,43 @@ unsigned char* Scalar::deserialize(unsigned char* buffer) {
 }
 
 std::string Scalar::GetHex() const {
-    unsigned char buffer[32];
-    serialize(buffer);
+    std::array<unsigned char, 32> buffer;
+    secp256k1_scalar_get_b32(buffer.data(), reinterpret_cast<const secp256k1_scalar *>(value_));
 
     std::stringstream ss;
     ss << std::hex;
-    for (int i = 0; i < 32; ++i) {
-        ss << buffer[i] / 16;
-        ss << buffer[i] % 16;
+    for (const auto b : buffer) {
+        ss << (b >> 4);
+        ss << (b & 0xF);
     }
 
     return ss.str();
 }
 
 void Scalar::SetHex(const std::string& str) {
-    unsigned char buffer[32];
-
-    for (int i = 0; i < 32; i++) {
-        buffer[i] = strtol(str.substr(2 * i, 2).c_str(), NULL, 16);
+    if (str.size() != 64) {
+        throw "Scalar: decoding invalid length";
     }
 
-    deserialize(buffer);
+    std::array<unsigned char, 32> buffer;
+
+    for (std::size_t i = 0; i < buffer.size(); i++) {
+        auto hexs = str.substr(2 * i, 2).c_str();
+
+        if (::isxdigit(hexs[0]) && ::isxdigit(hexs[1])) {
+            buffer[i] = strtol(hexs, NULL, 16);
+        } else {
+            throw "Scalar: decoding invalid hex";
+        }
+    }
+
+    int overflow = 0;
+
+    secp256k1_scalar_set_b32(reinterpret_cast<secp256k1_scalar *>(value_), buffer.data(), &overflow);
+
+    if (overflow) {
+        throw "Scalar: decoding overflowed";
+    }
 }
 
 void Scalar::get_bits(std::vector<bool>& bits) const {
