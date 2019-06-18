@@ -571,7 +571,7 @@ void CDbIndexHelper::DisconnectTransactionInputs(CTransaction const & tx, int he
         pSpentBegin = spentIndex->size();
 
     size_t no = 0;
-    if(!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsSigmaSpend())
+    if(!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsSigmaSpend() && !tx.IsZerocoinRemint())
         for (std::vector<CTxIn>::const_iterator iter = tx.vin.begin(); iter != tx.vin.end(); ++iter) {
             CTxIn const & input = *iter;
             handleInput(input, no++, tx.GetHash(), height, txNumber, view, addressIndex, addressUnspentIndex, spentIndex);

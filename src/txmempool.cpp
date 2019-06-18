@@ -36,7 +36,7 @@ CTxMemPoolEntry::CTxMemPoolEntry(const CTransaction &_tx, const CAmount &_nFee,
     nSizeWithDescendants = GetTxSize();
     nModFeesWithDescendants = nFee;
     CAmount nValueIn = _tx.GetValueOut() + nFee;
-    if (!_tx.IsZerocoinSpend() && !_tx.IsSigmaSpend()) {
+    if (!_tx.IsZerocoinSpend() && !_tx.IsSigmaSpend() && !_tx.IsZerocoinRemint()) {
         assert(inChainInputValue <= nValueIn);
     }
 
@@ -435,7 +435,7 @@ bool CTxMemPool::addUnchecked(const uint256 &hash, const CTxMemPoolEntry &entry,
     // further updated.)
     cachedInnerUsage += entry.DynamicMemoryUsage();
 
-    if (!entry.GetTx().IsZerocoinSpend() && !entry.GetTx().IsSigmaSpend()) {
+    if (!entry.GetTx().IsZerocoinSpend() && !entry.GetTx().IsSigmaSpend() && !entry.GetTx().IsZerocoinRemint()) {
 
         const CTransaction &tx = newit->GetTx();
         std::set <uint256> setParentTransactions;
@@ -474,8 +474,8 @@ bool CTxMemPool::addUnchecked(const uint256 &hash, const CTxMemPoolEntry &entry,
 
 void CTxMemPool::removeUnchecked(txiter it) {
     const uint256 hash = it->GetTx().GetHash();
-    LogPrintf("removeUnchecked txHash=%s, IsZerocoinSpend()=%s\n", hash.ToString(), it->GetTx().IsZerocoinSpend() || it->GetTx().IsSigmaSpend());
-    if (!it->GetTx().IsZerocoinSpend() && !it->GetTx().IsSigmaSpend()) {
+    LogPrintf("removeUnchecked txHash=%s, IsZerocoinSpend()=%s\n", hash.ToString(), it->GetTx().IsZerocoinSpend() || it->GetTx().IsSigmaSpend() || it->GetTx().IsZerocoinRemint());
+    if (!it->GetTx().IsZerocoinSpend() && !it->GetTx().IsSigmaSpend() && !it->GetTx().IsZerocoinRemint()) {
         BOOST_FOREACH(const CTxIn &txin, it->GetTx().vin)
             mapNextTx.erase(txin.prevout);
         if (vTxHashes.size() > 1) {
@@ -847,7 +847,7 @@ void CTxMemPool::check(const CCoinsViewCache *pcoins) const {
         setEntries setParentCheck;
         int64_t parentSizes = 0;
         int64_t parentSigOpCost = 0;
-        if (!tx.IsZerocoinSpend() && !tx.IsSigmaSpend()) {
+        if (!tx.IsZerocoinSpend() && !tx.IsSigmaSpend() && !tx.IsZerocoinRemint()) {
             BOOST_FOREACH(
             const CTxIn &txin, tx.vin) {
                 // Check that every mempool transaction's inputs refer to available coins, or other mempool tx's.

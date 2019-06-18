@@ -938,7 +938,7 @@ void BlockAssembler::addPriorityTxs()
         //add zcoin validation
         if (tx.IsCoinBase() || !CheckFinalTx(tx))
             continue;
-        if (tx.IsZerocoinSpend() || tx.IsSigmaSpend()) {
+        if (tx.IsZerocoinSpend() || tx.IsSigmaSpend() || tx.IsZerocoinRemint()) {
             //mempool.countZCSpend--;
             // Size limits
             unsigned int nTxSize = ::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION);

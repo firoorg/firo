@@ -1215,7 +1215,19 @@ isminetype CWallet::IsMine(const CTxIn &txin) const {
         if (db.HasCoinSpendSerialEntry(spend.getCoinSerialNumber())) {
             return ISMINE_SPENDABLE;
         }
-    } else {
+    } else if (txin.IsZerocoinRemint()) {
+        CWalletDB db(strWalletFile);
+
+        CDataStream serializedCoinRemint(
+            std::vector<char>(txin.scriptSig.begin() + 1, txin.scriptSig.end()),
+            SER_NETWORK, PROTOCOL_VERSION);
+    
+        sigma::CoinRemintToV3 remint(serializedCoinRemint);
+        if (db.HasCoinSpendSerialEntry(remint.getSerialNumber())) {
+            return ISMINE_SPENDABLE;
+        }
+    }
+    else {
         map<uint256, CWalletTx>::const_iterator mi = mapWallet.find(txin.prevout.hash);
         if (mi != mapWallet.end()) {
             const CWalletTx &prev = (*mi).second;
@@ -1264,6 +1276,8 @@ CAmount CWallet::GetDebit(const CTxIn &txin, const isminefilter &filter) const {
         if (db.HasCoinSpendSerialEntry(spend->getCoinSerialNumber())) {
             return spend->getIntDenomination();
         }
+    } else if (txin.IsZerocoinRemint()) {
+        return 0;
     } else {
         map<uint256, CWalletTx>::const_iterator mi = mapWallet.find(txin.prevout.hash);
         if (mi != mapWallet.end()) {
@@ -1872,7 +1886,7 @@ bool CWalletTx::IsTrusted() const {
     // Trusted if all inputs are from us and are in the mempool:
     BOOST_FOREACH(const CTxIn &txin, vin)
     {
-        if (txin.IsZerocoinSpend() || txin.IsSigmaSpend()) {
+        if (txin.IsZerocoinSpend() || txin.IsSigmaSpend() || txin.IsZerocoinRemint()) {
             if (!(pwallet->IsMine(txin) & ISMINE_SPENDABLE)) {
                 return false;
             }
@@ -4475,6 +4489,14 @@ bool CWallet::CreateZerocoinToSigmaRemintModel(string &stringError, int version,
         mintEntry.value.GetHex(),
         "Used (" + std::to_string(mintEntry.denomination) + " mint)",
         CT_UPDATED);
+
+    CZerocoinSpendEntry spendEntry;
+    spendEntry.coinSerial = mintEntry.serialNumber;
+    spendEntry.hashTx = txNew.GetHash();
+    spendEntry.pubCoin = remint.getPublicCoinValue();
+    spendEntry.id = remint.getCoinGroupId();
+    spendEntry.denomination = mintEntry.denomination;
+    walletdb.WriteCoinSpendSerialEntry(spendEntry);
 
     for (auto &sigmaMint: privateCoins) {
         CSigmaEntry sigmaMintEntry;
