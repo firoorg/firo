@@ -4,16 +4,6 @@ from decimal import *
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import *
 
-denoms = [
-    ('denom_0.05', 0.05),
-    ('denom_0.1', 0.1),
-    ('denom_0.5', 0.5),
-    ('denom_1', 1),
-    ('denom_10', 10),
-    ('denom_25', 25),
-    ('denom_100', 100),
-]
-
 
 class SetSigmaMintSatusValidationWithFundsTest(BitcoinTestFramework):
     def __init__(self):
@@ -31,24 +21,46 @@ class SetSigmaMintSatusValidationWithFundsTest(BitcoinTestFramework):
         self.nodes[0].generate(400)
         self.sync_all()
 
-        denoms_total = 0
-        args = {'THAYjKnnCsN5xspnEcb1Ztvw4mSPBuwxzU': denoms_total}
-        for input_data in denoms:
-            case_name, denom = input_data
-            denoms_total +=2*denom
-            res = self.nodes[0].mint(2*denom)
+        txid = self.nodes[0].mint(10)
 
-            #set sigmamint to true - should work
-            self.nodes[0].setsigmamintstatus(res['txid'], true)
-            self.nodes[0].generate(10)
-            self.sync_all()
-            assert_raises(JSONRPCException, self.nodes[0].spendmany, ["", args])
+        sigma_mint = self.nodes[0].listsigmamints()
 
-            self.nodes[0].setsigmamintstatus(res['txid'], false)
-            res = self.nodes[0].spendmany("", args)
+        assert len(sigma_mint) == 1, 'Should be only one mint.'
+
+        mint_info = sigma_mint[0]
+
+        assert not mint_info['IsUsed'], \
+            'This mint with txid: {} should not be Used.'.format(txid)
+
+        print('Set mint status from False to True.')
+
+        self.nodes[0].setsigmamintstatus(mint_info['serialNumber'], True)
+
+        sigma_mint = self.nodes[0].listsigmamints()
+
+        assert len(sigma_mint) == 1, 'Should be only one mint.'
+
+        mint_info = sigma_mint[0]
+
+        assert mint_info['IsUsed'], \
+            'This mint with txid: {} should be Used.'.format(txid)
+
+        print('Set mint status from True to False back.')
+
+        self.nodes[0].setsigmamintstatus(mint_info['serialNumber'], False)
+
+        sigma_mint = self.nodes[0].listsigmamints()
+
+        assert len(sigma_mint) == 1, 'Should be only one mint.'
+
+        mint_info = sigma_mint[0]
+
+        assert not mint_info['IsUsed'], \
+            'This mint with txid: {} should not be Used.'.format(txid)
+
         
-        assert_raises(JSONRPCException, self.nodes[0].setsigmamintstatus, [(res['txid'], "sometext")])
-        assert_raises(JSONRPCException, self.nodes[0].setsigmamintstatus, [res['txid']])
+        assert_raises(JSONRPCException, self.nodes[0].setsigmamintstatus, [(mint_info['serialNumber'], "sometext")])
+        assert_raises(JSONRPCException, self.nodes[0].setsigmamintstatus, [mint_info['serialNumber']])
         assert_raises(JSONRPCException, self.nodes[0].setsigmamintstatus, [])
         assert_raises(JSONRPCException, self.nodes[0].setsigmamintstatus, ["sometext"])
         assert_raises(JSONRPCException, self.nodes[0].setsigmamintstatus, [123])

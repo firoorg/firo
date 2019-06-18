@@ -3,7 +3,7 @@ from decimal import *
 
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import *
-
+from collections import Counter
 
 class SigmaMeetSpendTest(BitcoinTestFramework):
     def __init__(self):
@@ -34,9 +34,10 @@ class SigmaMeetSpendTest(BitcoinTestFramework):
         spend1 = ['100']
         remint1 = ['0.1', '0.1', '0.5', '0.1', '0.05', '0.1'] 
 
-        
+
+        # Before mint new coins were: {'1': 99, '0.1': 4, '0.05': 1, '100': 1, '0.5': 1}
         # Remint, coins priority by size 100*1, 1*100
-        # Should be spended 100.1, due to prority
+        # Should be spended 100.1, due to priority
         # Remint is 0.05 - 0.05 to fee
         denoms2 = [(100, 1)]
         spend_size2 = 100
@@ -44,6 +45,7 @@ class SigmaMeetSpendTest(BitcoinTestFramework):
         remint2 = ['0.05'] 
 
 
+        # Before mint new coins were: {'1': 199, '0.1': 3, '0.05': 2, '0.5': 1}
         # Remint, coins priority by size, multiple denomination to spend
         # I have 11*1, 1*0.05, 2*100, I want to spend 210.5
         # Remint is 0.5 - 0.05 to fee
@@ -53,6 +55,7 @@ class SigmaMeetSpendTest(BitcoinTestFramework):
         remint3 = ['0.5']
 
 
+        # Before mint new coins were: {'1': 288, '0.1': 3, '0.05': 2, '0.5': 2}
         # No Remint, select denom by priority
         # I have 3*0.5, 1*100, 1*100, I want to spend 111
         # Should be spended 2*100 and 1*0.5, 10*1, 0.05 (for fee)
@@ -73,14 +76,13 @@ class SigmaMeetSpendTest(BitcoinTestFramework):
         print('Case 4, No Remint. Spend is 210.5.')
         activate_sigma_spend(denoms4, spend_size4, spend4, remint4, self)
 
+
 def activate_sigma_spend(denoms, spendsize, exp_spends, exp_remints, zcoind):
     for denom in denoms:
         count, size = denom
         for i in range(count):
-            tr = zcoind.nodes[0].mint(size)
+            zcoind.nodes[0].mint(size)
             zcoind.nodes[0].generate(6)
-        
-        spend_total = Decimal(0)
 
     myaddr = zcoind.nodes[0].listreceivedbyaddress(0, True)[0]['address']
     args = {myaddr: spendsize}

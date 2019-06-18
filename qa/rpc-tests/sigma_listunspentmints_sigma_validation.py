@@ -45,7 +45,7 @@ class ListSigmaUnspentMintsValidationWithFundsTest(BitcoinTestFramework):
 
         denoms_total = 0
         for case_name, denom in denoms:
-            denoms_total +=2
+            denoms_total += 2
             mint1 = self.nodes[0].mint(denom)
             mint2 = self.nodes[0].mint(denom)
             self.nodes[0].generate(6)
@@ -62,23 +62,44 @@ class ListSigmaUnspentMintsValidationWithFundsTest(BitcoinTestFramework):
             denom = Decimal(denom) + Decimal(0)
             assert (mint1, denom) in mints, \
             'This txid with denom {} should be in list of unspent mints: {}, but was not'.format((mint1, denom), mints)
+
             assert (mint2, denom) in mints, \
             'This txid with denom {} should be in list of unspent mints: {}, but was not'.format((mint2, denom), mints)
-            
-        
-        self.nodes[0].generate(10)
-        self.sync_all()
+
 
         # check that all sigma mints has at least 6 confirmations
         assert len(self.nodes[0].listunspentsigmamints(6)) == denoms_total
+
+        # generate mints for the fee
+        self.nodes[0].mint(0.05)
+        self.nodes[0].mint(0.05)
+        self.nodes[0].mint(0.05)
+        self.nodes[0].mint(0.05)
+        self.nodes[0].mint(0.05)
+        self.nodes[0].mint(0.1)
+
+        self.nodes[0].generate(6)
+        self.sync_all()
 
         for case_name, denom in denoms:
             args = {'THAYjKnnCsN5xspnEcb1Ztvw4mSPBuwxzU': denom}
             self.nodes[0].spendmany("", args)
 
+        self.nodes[0].generate(1)
+        self.sync_all()
+
+
+        actual_unspent_denoms = \
+            [pubcoin['denomination'] for pubcoin in self.nodes[0].listsigmapubcoins() \
+             if pubcoin['IsUsed'] == False]
+
+        expected_unspent_denoms = [str(denom[1]) for denom in denoms]
+
+
+        assert sorted(expected_unspent_denoms) == sorted(actual_unspent_denoms), \
+            'Unexpected denominations are Un-Used.'
+
         unspent_mints = len(self.nodes[0].listunspentsigmamints(6))
-        print(self.nodes[0].listunspentsigmamints(6))
-        # check that unspent mint count total decreased after spend 
         assert unspent_mints == denoms_total // 2, \
             'Amount of unspent mints was not decreased as expected: {}.'.format(unspent_mints)
         

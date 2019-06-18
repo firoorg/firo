@@ -3516,16 +3516,20 @@ UniValue listsigmapubcoins(const UniValue& params, bool fHelp) {
     UniValue results(UniValue::VARR);
     listPubcoin.sort(CompSigmaHeight);
 
+    auto state = sigma::CSigmaState::GetState();
     BOOST_FOREACH(const CSigmaEntry &sigmaItem, listPubcoin) {
-        if (sigmaItem.id > 0 &&
+        sigma::PublicCoin coin(sigmaItem.value, sigmaItem.get_denomination());
+        int height, id;
+        std::tie(height, id) = state->GetMintedCoinHeightAndId(coin);
+        if (id > 0 &&
             (!filter_by_denom || sigmaItem.get_denomination() == denomination)) {
             UniValue entry(UniValue::VOBJ);
-            entry.push_back(Pair("id", sigmaItem.id));
+            entry.push_back(Pair("id", id));
             entry.push_back(Pair("IsUsed", sigmaItem.IsUsed));
             entry.push_back(Pair("denomination", sigmaItem.get_string_denomination()));
             entry.push_back(Pair("value", sigmaItem.value.GetHex()));
             entry.push_back(Pair("serialNumber", sigmaItem.serialNumber.GetHex()));
-            entry.push_back(Pair("nHeight", sigmaItem.nHeight));
+            entry.push_back(Pair("nHeight", height));
             entry.push_back(Pair("randomness", sigmaItem.randomness.GetHex()));
             results.push_back(entry);
         }

@@ -4,25 +4,64 @@ from decimal import *
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import *
 
-denoms = [
-    # ('denom_0.05', 0.05),
-    # ('denom_0.1', 0.1),
-    # ('denom_0.5', 0.5),
-    # ('denom_1', 1),
-    # ('denom_10', 10),
-   # ('denom_25', 25),
-    ('denom_100', 100),
-]
+denoms = {
+    '0.05': 0.05,
+    '0.1': 0.1,
+    '0.5': 0.5,
+    '1': 1,
+    '10': 10,
+    '25': 25,
+    '100': 100
+}
 
-expected_pubcoins = [
-    ('0.05', 5),
-    ('0.1', 3),
-    ('0.5', 2),
-    ('1', 1),
-    ('10', 1),
-    ('25', 1),
-    ('100', 1)
-    ]
+# Should be unused pair of each denomination, due two mints
+expected_pubcoins_before_spend = \
+    [
+     ('0.05', False), ('0.05', False),
+     ('0.1', False), ('0.1', False),
+     ('0.5', False), ('0.5', False),
+     ('1', False), ('1', False),
+     ('10', False), ('10', False),
+     ('25', False), ('25', False),
+     ('100', False), ('100', False),
+     ]
+
+expected_pubcoins_after_denom_spend = {
+    '0.05': [('0.05', False), ('0.05', False), ('0.1', False), ('0.1', True),
+             ('0.5', False), ('0.5', False), ('1', False), ('1', False),
+             ('10', False), ('10', False), ('100', False), ('100', False), ('25', False), ('25', False)],
+
+    '0.1': [('0.05', False), ('0.05', True), ('0.1', True), ('0.1', True),
+            ('0.5', False), ('0.5', False), ('1', False), ('1', False), ('10', False),
+            ('10', False), ('100', False), ('100', False), ('25', False), ('25', False)],
+
+    '0.5': [('0.05', True), ('0.05', True), ('0.1', True), ('0.1', True), ('0.5', False),
+            ('0.5', True), ('1', False), ('1', False), ('10', False), ('10', False), ('100', False),
+            ('100', False), ('25', False), ('25', False)],
+
+    '1': [('0.05', False), ('0.05', True), ('0.05', True), ('0.1', False), ('0.1', False), ('0.1', False),
+          ('0.1', False), ('0.1', True), ('0.1', True), ('0.5', True), ('0.5', True), ('1', False), ('1', True),
+          ('10', False), ('10', False), ('100', False), ('100', False), ('25', False), ('25', False)],
+
+    '10': [('0.05', False), ('0.05', False), ('0.05', True), ('0.05', True), ('0.1', False), ('0.1', False),
+           ('0.1', False), ('0.1', False), ('0.1', False), ('0.1', False), ('0.1', False), ('0.1', False),
+           ('0.1', True), ('0.1', True), ('0.5', False), ('0.5', True), ('0.5', True), ('1', True), ('1', True),
+           ('10', False), ('10', True), ('100', False), ('100', False), ('25', False), ('25', False)],
+
+    '25': [('0.05', False), ('0.05', False), ('0.05', False), ('0.05', True), ('0.05', True), ('0.1', False),
+           ('0.1', False), ('0.1', False), ('0.1', False), ('0.1', False), ('0.1', False), ('0.1', False),
+           ('0.1', False), ('0.1', False), ('0.1', False), ('0.1', False), ('0.1', False), ('0.1', True),
+           ('0.1', True), ('0.5', False), ('0.5', False), ('0.5', True), ('0.5', True), ('1', False), ('1', False),
+           ('1', False), ('1', False), ('1', True), ('1', True), ('10', False), ('10', False), ('10', False),
+           ('10', True), ('100', False), ('100', False), ('25', True), ('25', True)],
+
+    '100': [('0.05', False), ('0.05', False), ('0.05', True), ('0.05', True), ('0.05', True),
+            ('0.1', False), ('0.1', False), ('0.1', False), ('0.1', False), ('0.1', False), ('0.1', False),
+            ('0.1', False), ('0.1', False), ('0.1', False), ('0.1', False), ('0.1', False), ('0.1', False),
+            ('0.1', True), ('0.1', True), ('0.5', False), ('0.5', False), ('0.5', True), ('0.5', True), ('1', False),
+            ('1', False), ('1', False), ('1', False), ('1', True), ('1', True), ('10', False), ('10', False),
+            ('10', False), ('10', True), ('100', False), ('100', True), ('25', True), ('25', True)]
+}
 
 
 class ListSigmaPubCoinsValidationWithFundsTest(BitcoinTestFramework):
@@ -41,45 +80,46 @@ class ListSigmaPubCoinsValidationWithFundsTest(BitcoinTestFramework):
         self.nodes[0].generate(400)
         self.sync_all()
 
-        for input_data in denoms:
-            case_name, denom = input_data
+        for denom in denoms.values():
             assert not self.nodes[0].listsigmapubcoins(str(denom)), 'List sigma pubcoins should be empty.'
 
         assert_raises(JSONRPCException, self.nodes[0].listsigmapubcoins, "0.15")
         assert_raises(JSONRPCException, self.nodes[0].listsigmapubcoins, 0.1)
         assert_raises(JSONRPCException, self.nodes[0].listsigmapubcoins, ["0.1", 1])
 
-        for case_name, denom in denoms:
+        for denom in denoms.values():
             self.nodes[0].mint(denom)
             self.nodes[0].mint(denom)
             self.nodes[0].generate(6)
             self.sync_all()
 
-            pubcoins = [(pubcoin['denomination'], pubcoin['IsUsed'])
-                        for pubcoin in self.nodes[0].listsigmapubcoins()]
-            len_pubcoin = len(pubcoins)
-            print(len_pubcoin)
-            print(pubcoins)
+        pubcoins = [(pubcoin['denomination'], pubcoin['IsUsed'])
+                    for pubcoin in self.nodes[0].listsigmapubcoins()]
 
+        assert sorted(pubcoins) == sorted(expected_pubcoins_before_spend), \
+            'Unexpected pubcoins list returned. Should be: {}, but was: {}.' \
+                .format(expected_pubcoins_before_spend, pubcoins)
+
+        for denom_name, denom in denoms.items():
             args = {'THAYjKnnCsN5xspnEcb1Ztvw4mSPBuwxzU': denom}
             self.nodes[0].spendmany("", args)
+            self.nodes[0].generate(2)
+            self.sync_all()
 
-        self.nodes[0].generate(1)
-        self.sync_all()
-        
-        for denom, count in expected_pubcoins:
             pubcoins = [(pubcoin['denomination'], pubcoin['IsUsed'])
                         for pubcoin in self.nodes[0].listsigmapubcoins()]
-            len_pubcoin = len(pubcoins)
 
-            self.nodes[0].generate(6)
+            assert sorted(pubcoins) == sorted(expected_pubcoins_after_denom_spend[denom_name]), \
+                'Unexpected pubcoins list returned after spend: {}. Should be: {}, but was: {}.' \
+                    .format(denom, expected_pubcoins_before_spend, pubcoins)
 
-            assert len_pubcoin == count, \
-                'Unexpected pubcoins count: {}, should be: {} .'.format(len_pubcoin, count)
+        unused_pubcoins_sum = sum([Decimal(pubcoin['denomination'])
+                         for pubcoin in self.nodes[0].listsigmapubcoins() if pubcoin['IsUsed'] == False])
+        expected_unused_pubcoins_sum = sum(denoms.values()) - len(denoms) * 0.05
 
-            for act_denom, isUsed in pubcoins:
-                assert isUsed, 'PubCoin should be used.'
-                assert act_denom == denom, 'Unexpected denomination returned via listpubcoins.'
+        diff = int(unused_pubcoins_sum)-int(expected_unused_pubcoins_sum)
+        assert diff == 0, \
+            'Unexpected diff between unused coins sum expected and actual.'
 
 
 if __name__ == '__main__':
