@@ -212,65 +212,7 @@ BOOST_AUTO_TEST_CASE(sigma_addmint_two)
     sigmaState->Reset();
 }
 
-// Checking AddMint ZC_SPEND_V3_COINSPERID+1 coins on different blocks should have two group id
-BOOST_AUTO_TEST_CASE(sigma_addmints_more_than_group_size)
-{
-    sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
-    const sigma::CoinDenomination testDenomination = sigma::CoinDenomination::SIGMA_DENOM_0_05;
-    const auto testDenomStr = sigma::DenominationToString(testDenomination);
-
-    // To make sure have coin more than ZC_SPEND_V3_COINSPERID in first group.
-    auto mintsPerBlock = 100;
-    while (ZC_SPEND_V3_COINSPERID % mintsPerBlock == 0) {
-        mintsPerBlock++;
-    }
-
-    std::string strError;
-    // Make sure that transactions get to mempool
-    pwalletMain->SetBroadcastTransactions(true);
-
-    // Create 400-200+1 = 201 new empty blocks. // consensus.nMintV3SigmaStartBlock = 400
-    CreateAndProcessEmptyBlocks(201, scriptPubKey);
-
-    // Generate mints more than ZC_SPEND_V3_COINSPERID but still is in same group.
-    std::vector<std::pair<std::string, int>> mintDenomPairs = {{testDenomStr, mintsPerBlock}};
-    int allMints = 0;
-    while (allMints < ZC_SPEND_V3_COINSPERID) {
-        allMints += mintsPerBlock;
-        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(
-            strError, mintDenomPairs, SIGMA), strError + " - Create Mint failed");
-        BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mint was not added to mempool");
-        CreateAndProcessBlock({}, scriptPubKey);
-        BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool did not get empty.");
-    }
-
-    sigma::CSigmaState::SigmaCoinGroupInfo group1;
-    sigmaState->GetCoinGroupInfo(testDenomination, 1, group1);
-    BOOST_CHECK_GT(group1.nCoins, ZC_SPEND_V3_COINSPERID);
-    BOOST_CHECK_EQUAL(sigmaState->latestCoinIds[testDenomination], 1);
-
-    // Generate more mints, coin ID must increase.
-    allMints += mintsPerBlock;
-    BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(
-        strError, mintDenomPairs, SIGMA), strError + " - Create Mint failed");
-    BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mint was not added to mempool");
-    CreateAndProcessBlock({}, scriptPubKey);
-    BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool did not get empty.");
-
-    sigma::CSigmaState::SigmaCoinGroupInfo group2;
-    sigmaState->GetCoinGroupInfo(testDenomination, 2, group2);
-    BOOST_CHECK_EQUAL(group2.nCoins, mintsPerBlock);
-    BOOST_CHECK_EQUAL(sigmaState->latestCoinIds[testDenomination], 2);
-
-    // Remove last block, coin ID should be decrease back.
-    DisconnectBlocks(1);
-
-    BOOST_CHECK_EQUAL(sigmaState->latestCoinIds[testDenomination], 1);
-
-    sigmaState->Reset();
-}
-
-// Checking AddMint ZC_SPEND_V3_COINSPERID - 1 and try to add over ZC_SPEND_V3_COINSPERID_LIMIT
+// Checking AddMint ZC_SPEND_V3_COINSPERID_LIMIT and check group id increase.
 BOOST_AUTO_TEST_CASE(sigma_addmints_coinperid_limit)
 {
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
@@ -289,8 +231,8 @@ BOOST_AUTO_TEST_CASE(sigma_addmints_coinperid_limit)
 
     // Generate mints ZC_SPEND_V3_COINSPERID - 1, last group ID should be 1.
     int allMints = 0;
-    while (allMints < ZC_SPEND_V3_COINSPERID - 1) {
-        auto mintThisBlock = std::min(ZC_SPEND_V3_COINSPERID - 1 - allMints, mintsPerBlock);
+    while (allMints < ZC_SPEND_V3_COINSPERID_LIMIT - 1) {
+        auto mintThisBlock = std::min(ZC_SPEND_V3_COINSPERID_LIMIT - 1 - allMints, mintsPerBlock);
         allMints += mintThisBlock;
 
         BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(
@@ -303,28 +245,33 @@ BOOST_AUTO_TEST_CASE(sigma_addmints_coinperid_limit)
 
     sigma::CSigmaState::SigmaCoinGroupInfo group1;
     sigmaState->GetCoinGroupInfo(testDenomination, 1, group1);
-    BOOST_CHECK_EQUAL(group1.nCoins, ZC_SPEND_V3_COINSPERID - 1);
+    BOOST_CHECK_EQUAL(group1.nCoins, ZC_SPEND_V3_COINSPERID_LIMIT - 1);
     BOOST_CHECK_EQUAL(sigmaState->latestCoinIds[testDenomination], 1);
 
     // Try to generate more coins to make exceed hardcap, new coins should be push to new group instead.
     auto exceedHardCapAmount = ZC_SPEND_V3_COINSPERID_LIMIT + 1;
-    auto moreMintsToMakeExceedHardCap =  exceedHardCapAmount - group1.nCoins;
+    auto moreMintsToMakeExceedLimit =  exceedHardCapAmount - group1.nCoins;
 
     BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(
-        strError, {{testDenomStr, moreMintsToMakeExceedHardCap}}, SIGMA), strError + " - Create Mint failed");
+        strError, {{testDenomStr, moreMintsToMakeExceedLimit}}, SIGMA), strError + " - Create Mint failed");
     BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mint was not added to mempool");
     CreateAndProcessBlock({}, scriptPubKey);
     BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool did not get empty.");
 
     // New Mints should not be added to first group.
     sigmaState->GetCoinGroupInfo(testDenomination, 1, group1);
-    BOOST_CHECK_EQUAL(group1.nCoins, ZC_SPEND_V3_COINSPERID - 1);
+    BOOST_CHECK_EQUAL(group1.nCoins, ZC_SPEND_V3_COINSPERID_LIMIT - 1);
 
     // New Mints should be added to news group.
     BOOST_CHECK_EQUAL(sigmaState->latestCoinIds[testDenomination], 2);
     sigma::CSigmaState::SigmaCoinGroupInfo group2;
     sigmaState->GetCoinGroupInfo(testDenomination, 2, group2);
-    BOOST_CHECK_EQUAL(group2.nCoins, moreMintsToMakeExceedHardCap);
+    BOOST_CHECK_EQUAL(group2.nCoins, moreMintsToMakeExceedLimit);
+
+    // Remove last block, coin ID should be decrease back.
+    DisconnectBlocks(1);
+
+    BOOST_CHECK_EQUAL(sigmaState->latestCoinIds[testDenomination], 1);
 
     sigmaState->Reset();
 }

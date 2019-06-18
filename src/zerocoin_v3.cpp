@@ -616,8 +616,7 @@ void CSigmaState::AddMintsToStateAndBlockIndex(
 
         SigmaCoinGroupInfo &coinGroup = coinGroups[make_pair(denomination, mintCoinGroupId)];
 
-        if (coinGroup.nCoins < ZC_SPEND_V3_COINSPERID // there's still space in the accumulator
-            && coinGroup.nCoins + mintsWithThisDenom.size() <= ZC_SPEND_V3_COINSPERID_LIMIT) {
+        if (coinGroup.nCoins + mintsWithThisDenom.size() <= ZC_SPEND_V3_COINSPERID_LIMIT) {
             if (coinGroup.nCoins == 0) {
                 // first group of coins for given denomination
                 assert(coinGroup.firstBlock == nullptr);
