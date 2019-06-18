@@ -189,7 +189,10 @@ bool CheckRemintZcoinTransaction(const CTransaction &tx,
 
     // Check if this coin is present
     int mintId = -1;
-    if (zerocoinState->GetMintedCoinHeightAndId(remint.getPublicCoinValue(), (int)remint.getDenomination(), mintId) <= 0 || mintId != remint.getCoinGroupId()) {
+    int mintHeight = -1;
+    if ((mintHeight = zerocoinState->GetMintedCoinHeightAndId(remint.getPublicCoinValue(), (int)remint.getDenomination(), mintId) <= 0) 
+                || mintId != remint.getCoinGroupId()     /* inconsistent group id in remint data */
+                || mintHeight >= params.nSigmaStartBlock /* additional failsafe to ensure mint height is valid */) {
         LogPrintf("CheckRemintZcoinTransaction: no such mint\n");
         return false;
     }
