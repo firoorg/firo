@@ -291,10 +291,10 @@ void Scalar::SetHex(const std::string& str) {
     std::array<unsigned char, 32> buffer;
 
     for (std::size_t i = 0; i < buffer.size(); i++) {
-        auto hexs = str.substr(2 * i, 2).c_str();
+        auto hexs = str.substr(2 * i, 2);
 
         if (::isxdigit(hexs[0]) && ::isxdigit(hexs[1])) {
-            buffer[i] = strtol(hexs, NULL, 16);
+            buffer[i] = strtol(hexs.c_str(), NULL, 16);
         } else {
             throw "Scalar: decoding invalid hex";
         }
