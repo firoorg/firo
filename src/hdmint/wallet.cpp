@@ -390,10 +390,9 @@ void CHDMintWallet::UpdateCount()
 
 uint32_t CHDMintWallet::GenerateHDMint(sigma::CoinDenomination denom, sigma::PrivateCoin& coin, CHDMint& dMint, bool fGenerateOnly)
 {
-    bool mintFound = false;
-    while(!mintFound)
-        mintFound = GenerateMint(nCountLastUsed, denom, dMint.GetSeedId(), coin, dMint);
+    while(!GenerateMint(nCountLastUsed, denom, dMint.GetSeedId(), coin, dMint)){
         UpdateCountLocal();
+    }
     return nCountLastUsed;
 }
 
