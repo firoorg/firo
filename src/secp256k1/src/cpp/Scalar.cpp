@@ -269,10 +269,10 @@ unsigned char* Scalar::deserialize(unsigned char* buffer) {
 
 std::string Scalar::GetHex() const {
     unsigned char buffer[32];
-    std::stringstream ss;
-
     serialize(buffer);
 
+    std::stringstream ss;
+    ss << std::hex;
     for (int i = 0; i < 32; ++i) {
         ss << buffer[i] / 16;
         ss << buffer[i] % 16;
@@ -281,19 +281,14 @@ std::string Scalar::GetHex() const {
     return ss.str();
 }
 
-void Scalar::SetHex(const std::string& str) const {
+void Scalar::SetHex(const std::string& str) {
     unsigned char buffer[32];
 
-    for (int i = 0; i < 32; i+=2)
-        buffer[i] =  str[i] * 16 + str[i + 1];
-
-    int overflow = 0;
-
-    secp256k1_scalar_set_b32(reinterpret_cast<secp256k1_scalar *>(value_), buffer, &overflow);
-
-    if (overflow) {
-        throw "Scalar: decoding overflowed";
+    for (int i = 0; i < 32; i++) {
+        buffer[i] = strtol(str.substr(2 * i, 2).c_str(), NULL, 16);
     }
+
+    deserialize(buffer);
 }
 
 void Scalar::get_bits(std::vector<bool>& bits) const {
