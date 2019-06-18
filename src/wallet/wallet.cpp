@@ -2353,31 +2353,36 @@ bool CWallet::GetCoinsToSpend(
     }
 
     int index = val;
-    uint64_t best_spend_val = val;
-
-    int minimum = INT_MAX - 1;
-    while(index >= roundedRequired) {
-        int temp_min = next_row[index] + GetRequiredCoinCountForAmount(
-            (index - roundedRequired) * zeros, denominations);
-        if (minimum > temp_min && next_row[index] != (INT_MAX - 1) / 2 && next_row[index] <= coinsToSpendLimit) {
-            best_spend_val = index;
-            minimum = temp_min;
-        }
-        --index;
-    }
-    best_spend_val *= zeros;
-
-    if (minimum == INT_MAX - 1)
-        throw std::runtime_error(
-            _("Can not choose coins within limit."));
+    uint64_t best_spend_val = 0;
 
     // If coinControl, want to use all inputs
-    if(coinControl->HasSelected()){
-        best_spend_val = 0;
-        auto coinIt = coins.rbegin();
-        for (; coinIt != coins.rend(); coinIt++) {
-            best_spend_val += coinIt->get_denomination_value();
+    bool coinControlUsed = false;
+    if(coinControl != NULL){
+        if(coinControl->HasSelected()){
+            auto coinIt = coins.rbegin();
+            for (; coinIt != coins.rend(); coinIt++) {
+                best_spend_val += coinIt->get_denomination_value();
+            }
+            coinControlUsed = true;
         }
+    }
+    if(!coinControlUsed) {
+        best_spend_val = val;
+        int minimum = INT_MAX - 1;
+        while(index >= roundedRequired) {
+            int temp_min = next_row[index] + GetRequiredCoinCountForAmount(
+                (index - roundedRequired) * zeros, denominations);
+            if (minimum > temp_min && next_row[index] != (INT_MAX - 1) / 2 && next_row[index] <= coinsToSpendLimit) {
+                best_spend_val = index;
+                minimum = temp_min;
+            }
+            --index;
+        }
+        best_spend_val *= zeros;
+
+        if (minimum == INT_MAX - 1)
+            throw std::runtime_error(
+                _("Can not choose coins within limit."));
     }
 
     if (SelectMintCoinsForAmount(best_spend_val - roundedRequired * zeros, denominations, coinsToMint_out) != best_spend_val - roundedRequired * zeros) {
