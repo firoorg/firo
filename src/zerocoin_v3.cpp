@@ -595,7 +595,7 @@ bool ConnectBlockSigma(
     return true;
 }
 
-bool GetOutPointFromBlock(COutPoint& outPoint, GroupElement pubCoinValue, CBlock block){
+bool GetOutPointFromBlock(COutPoint& outPoint, const GroupElement &pubCoinValue, const CBlock &block){
     secp_primitives::GroupElement txPubCoinValue;
     // cycle transaction hashes, looking for this pubcoin.
     BOOST_FOREACH(CTransaction tx, block.vtx){
@@ -622,7 +622,7 @@ bool GetOutPointFromBlock(COutPoint& outPoint, GroupElement pubCoinValue, CBlock
     return false;
 }
 
-bool GetOutPoint(COutPoint& outPoint, sigma::PublicCoin pubCoin) {
+bool GetOutPoint(COutPoint& outPoint, const sigma::PublicCoin &pubCoin) {
 
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
     auto mintedCoinHeightAndId = sigmaState->GetMintedCoinHeightAndId(pubCoin);
@@ -641,7 +641,7 @@ bool GetOutPoint(COutPoint& outPoint, sigma::PublicCoin pubCoin) {
     return GetOutPointFromBlock(outPoint, pubCoin.value, block);
 }
 
-bool GetOutPoint(COutPoint& outPoint, GroupElement pubCoinValue) {
+bool GetOutPoint(COutPoint& outPoint, const GroupElement &pubCoinValue) {
     int mintHeight = 0;
     int coinId = 0;
 
@@ -669,7 +669,7 @@ bool GetOutPoint(COutPoint& outPoint, GroupElement pubCoinValue) {
     return GetOutPointFromBlock(outPoint, pubCoinValue, block);
 }
 
-bool GetOutPoint(COutPoint& outPoint, uint256 pubCoinValueHash) {
+bool GetOutPoint(COutPoint& outPoint, const uint256 &pubCoinValueHash) {
     GroupElement pubCoinValue;
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
     if(!sigmaState->HasCoinHash(pubCoinValue, pubCoinValueHash)){
