@@ -213,12 +213,12 @@ public:
 
     // Sigma
     SendCoinsReturn prepareSigmaSpendTransaction(WalletModelTransaction &transaction,
-        std::vector<CSigmaEntry>& coins, std::vector<CSigmaEntry>& changes,
+        std::vector<CSigmaEntry>& coins, std::vector<CHDMint>& changes,
         const CCoinControl *coinControl = NULL);
 
     // Send coins to a list of recipients
     SendCoinsReturn sendSigma(WalletModelTransaction &transaction,
-        std::vector<CSigmaEntry>& coins, std::vector<CSigmaEntry>& changes);
+        std::vector<CSigmaEntry>& coins, std::vector<CHDMint>& changes);
 
     // Mint sigma
     void sigmaMint(const CAmount& n, const CCoinControl *coinControl = NULL);

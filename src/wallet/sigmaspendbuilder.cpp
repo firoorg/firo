@@ -13,6 +13,7 @@
 #include "../util.h"
 #include "../version.h"
 #include "../zerocoin_v3.h"
+#include "../hdmint/wallet.h"
 
 #include <stdexcept>
 #include <tuple>
@@ -122,7 +123,7 @@ SigmaSpendBuilder::~SigmaSpendBuilder()
     cs_main.unlock();
 }
 
-CAmount SigmaSpendBuilder::GetInputs(std::vector<std::unique_ptr<InputSigner>>& signers, CAmount required, const CCoinControl *coinControl)
+CAmount SigmaSpendBuilder::GetInputs(std::vector<std::unique_ptr<InputSigner>>& signers, CAmount required)
 {
     // get coins to spend
 
@@ -138,7 +139,6 @@ CAmount SigmaSpendBuilder::GetInputs(std::vector<std::unique_ptr<InputSigner>>& 
 
     // construct signers
     CAmount total = 0;
-
     for (auto& coin : selected) {
         total += coin.get_denomination_value();
         signers.push_back(CreateSigner(coin));
@@ -154,16 +154,27 @@ CAmount SigmaSpendBuilder::GetChanges(std::vector<CTxOut>& outputs, CAmount amou
 
     auto params = sigma::Params::get_default();
 
+    CHDMint hdMint;
+
+     uint32_t nCountLastUsed = zwalletMain->GetCount();
+
     for (const auto& denomination : denomChanges) {
         CAmount denominationValue;
         sigma::DenominationToInteger(denomination, denominationValue);
 
         sigma::PrivateCoin newCoin(params, denomination, ZEROCOIN_TX_VERSION_3);
+        hdMint.SetNull();
+        zwalletMain->GenerateHDMint(denomination, newCoin, hdMint);
         auto& pubCoin = newCoin.getPublicCoin();
 
         if (!pubCoin.validate()) {
+            // reset countLastUsed value
+            zwalletMain->SetCount(nCountLastUsed);
             throw std::runtime_error("Unable to mint a V3 sigma coin.");
         }
+
+        // Update local count (don't write back to DB until we know coin is verified && change has been decided)
+        zwalletMain->UpdateCountLocal();
 
         // Create script for coin
         CScript scriptSerializedCoin;
@@ -171,19 +182,8 @@ CAmount SigmaSpendBuilder::GetChanges(std::vector<CTxOut>& outputs, CAmount amou
         std::vector<unsigned char> vch = pubCoin.getValue().getvch();
         scriptSerializedCoin.insert(scriptSerializedCoin.end(), vch.begin(), vch.end());
 
-        // Create zerocoinTx
-        CSigmaEntry zerocoinTx;
-        zerocoinTx.IsUsed = false;
-        zerocoinTx.set_denomination(newCoin.getPublicCoin().getDenomination());
-        zerocoinTx.value = newCoin.getPublicCoin().getValue();
-
-        zerocoinTx.randomness = newCoin.getRandomness();
-        zerocoinTx.serialNumber = newCoin.getSerialNumber();
-        const unsigned char *ecdsaSecretKey = newCoin.getEcdsaSeckey();
-        zerocoinTx.ecdsaSecretKey = std::vector<unsigned char>(ecdsaSecretKey, ecdsaSecretKey+32);
-
         outputs.push_back(CTxOut(denominationValue, scriptSerializedCoin));
-        changes.push_back(zerocoinTx);
+        changes.push_back(hdMint);
 
         amount -= denominationValue;
     }

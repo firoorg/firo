@@ -15,7 +15,6 @@
 #include "sync.h"
 #include "utilstrencodings.h"
 #include "utiltime.h"
-
 #include <stdarg.h>
 
 #if (defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__DragonFly__))

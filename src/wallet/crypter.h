@@ -198,7 +198,7 @@ public:
             mi++;
         }
     }
-
+    
     /**
      * Wallet status (encrypted, locked) changed.
      * Note: Called without locks held.

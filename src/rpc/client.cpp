@@ -131,6 +131,8 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "setgenerate", 1 },
     { "setmintzerocoinstatus", 2 },
     { "setmintzerocoinstatus", 1 },
+    { "setmintzerocoinstatusV3", 2 },
+    { "setmintzerocoinstatusV3", 1 },
     { "listmintzerocoins", 0 },
     { "listsigmamints", 0 },
     { "listpubcoins", 0 },

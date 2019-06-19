@@ -59,6 +59,8 @@ public:
 
     Scalar& randomize();
 
+    Scalar& memberFromSeed(unsigned char* seed);
+
     Scalar& generate(unsigned char* buff);
 
     Scalar& mod_p();
@@ -83,7 +85,7 @@ public:
     unsigned char* deserialize(unsigned char* buffer);
 
     std::string GetHex() const;
-    void SetHex(const std::string& str) const;
+    void SetHex(const std::string& str);
 
     // These functions are for READWRITE() in serialize.h
 
