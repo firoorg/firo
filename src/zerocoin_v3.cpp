@@ -319,6 +319,7 @@ bool CheckSigmaMintTransaction(
         const CTxOut &txout,
         CValidationState &state,
         uint256 hashTx,
+        bool fStatefulSigmaCheck,
         CSigmaTxInfo *sigmaTxInfo) {
     secp_primitives::GroupElement pubCoinValue;
 
@@ -354,9 +355,13 @@ bool CheckSigmaMintTransaction(
         }
     }
 
-    if (hasCoin) {
+    if (hasCoin && fStatefulSigmaCheck) {
        LogPrintf("CheckSigmaMintTransaction: double mint, tx=%s\n",
                 txout.GetHash().ToString());
+        return state.DoS(100,
+                false,
+                PUBCOIN_NOT_VALIDATE,
+                "CheckSigmaTransaction: double mint");
     }
 
     if (!pubCoin.validate())
@@ -400,7 +405,7 @@ bool CheckSigmaTransaction(
     if (allowSigma) {
         for (const CTxOut &txout : tx.vout) {
             if (!txout.scriptPubKey.empty() && txout.scriptPubKey.IsSigmaMint()) {
-                if (!CheckSigmaMintTransaction(txout, state, hashTx, sigmaTxInfo))
+                if (!CheckSigmaMintTransaction(txout, state, hashTx, fStatefulSigmaCheck, sigmaTxInfo))
                     return false;
             }
         }
