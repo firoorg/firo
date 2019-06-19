@@ -157,7 +157,7 @@ CWalletTx TxBuilder::Build(const std::vector<CRecipient>& recipients, CAmount& f
 
         // get inputs
         std::vector<std::unique_ptr<InputSigner>> signers;
-        CAmount total = GetInputs(signers, required, coinControl);
+        CAmount total = GetInputs(signers, required);
 
         // add changes
         CAmount change = total - required;

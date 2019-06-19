@@ -122,7 +122,7 @@ SigmaSpendBuilder::~SigmaSpendBuilder()
     cs_main.unlock();
 }
 
-CAmount SigmaSpendBuilder::GetInputs(std::vector<std::unique_ptr<InputSigner>>& signers, CAmount required, const CCoinControl *coinControl)
+CAmount SigmaSpendBuilder::GetInputs(std::vector<std::unique_ptr<InputSigner>>& signers, CAmount required)
 {
     // get coins to spend
 

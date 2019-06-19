@@ -40,7 +40,7 @@ public:
     CWalletTx Build(const std::vector<CRecipient>& recipients, CAmount& fee);
 
 protected:
-    virtual CAmount GetInputs(std::vector<std::unique_ptr<InputSigner>>& signers, CAmount required, const CCoinControl *coinControl = NULL) = 0;
+    virtual CAmount GetInputs(std::vector<std::unique_ptr<InputSigner>>& signers, CAmount required) = 0;
     virtual CAmount GetChanges(std::vector<CTxOut>& outputs, CAmount amount) = 0;
     virtual CAmount AdjustFee(CAmount needed, unsigned txSize);
 };
