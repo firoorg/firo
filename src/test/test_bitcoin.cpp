@@ -86,6 +86,26 @@ TestingSetup::TestingSetup(const std::string& chainName, std::string suf) : Basi
         for (int i=0; i < nScriptCheckThreads-1; i++)
             threadGroup.create_thread(&ThreadScriptCheck);
         RegisterNodeSignals(GetNodeSignals());
+
+        // Init HD mint
+
+        // Create new keyUser and set as default key
+        // generate a new master key
+        CPubKey masterPubKey = pwalletMain->GenerateNewHDMasterKey();
+        pwalletMain->SetHDMasterKey(masterPubKey);
+        CPubKey newDefaultKey;
+        if (pwalletMain->GetKeyFromPool(newDefaultKey)) {
+            pwalletMain->SetDefaultKey(newDefaultKey);
+            pwalletMain->SetAddressBook(pwalletMain->vchDefaultKey.GetID(), "", "receive");
+        }
+
+        pwalletMain->SetBestChain(chainActive.GetLocator());
+
+        zwalletMain = new CHDMintWallet(pwalletMain->strWalletFile);
+        pwalletMain->setZWallet(zwalletMain);
+        pwalletMain->hdMintTracker->Init();
+        zwalletMain->LoadMintPoolFromDB();
+        zwalletMain->SyncWithChain();
 }
 
 TestingSetup::~TestingSetup()

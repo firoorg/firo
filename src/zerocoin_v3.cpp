@@ -14,6 +14,7 @@
 #include "sigma/coin.h"
 #include "znode-payments.h"
 #include "znode-sync.h"
+#include "primitives/zerocoin.h"
 
 #include <atomic>
 #include <sstream>
@@ -586,20 +587,71 @@ bool ConnectBlockSigma(
         if (fJustCheck)
             return true;
 
-        // Update pindexNew.sigmaMintedPubCoins
-        BOOST_FOREACH(const sigma::PublicCoin& mint, pblock->sigmaTxInfo->mints) {
-            sigma::CoinDenomination denomination = mint.getDenomination();
-            int mintId = sigmaState.AddMint(pindexNew,	mint);
-
-            LogPrintf("ConnectTipZC: mint added denomination=%d, id=%d\n", denomination, mintId);
-            pair<sigma::CoinDenomination, int> denomAndId = make_pair(denomination, mintId);
-            pindexNew->sigmaMintedPubCoins[denomAndId].push_back(mint);
-        }
+        sigmaState.AddMintsToStateAndBlockIndex(pindexNew, pblock);
     }
     else if (!fJustCheck) { // TODO(martun): not sure if this else is necessary here. Check again later.
         sigmaState.AddBlock(pindexNew);
     }
     return true;
+}
+
+bool ZerocoinGetSigmaMintTxHash(uint256& txHash, GroupElement pubCoinValue) {
+	int mintHeight = 0;
+    int coinId = 0;
+
+    sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
+    std::vector<sigma::CoinDenomination> denominations;
+    GetAllDenoms(denominations);
+    BOOST_FOREACH(sigma::CoinDenomination denomination, denominations){
+    	sigma::PublicCoin pubCoin(pubCoinValue, denomination);
+        auto mintedCoinHeightAndId = sigmaState->GetMintedCoinHeightAndId(pubCoin);
+        mintHeight = mintedCoinHeightAndId.first;
+        coinId = mintedCoinHeightAndId.second;
+        if(mintHeight!=-1 && coinId!=-1)
+            break;
+    }
+
+    if(mintHeight==-1 && coinId==-1)
+        return false;
+
+    // get block containing mint
+    CBlockIndex *mintBlock = chainActive[mintHeight];
+    CBlock block;
+    if(!ReadBlockFromDisk(block, mintBlock, ::Params().GetConsensus()))
+        LogPrintf("can't read block from disk.\n");
+
+    secp_primitives::GroupElement txPubCoinValue;
+    // cycle transaction hashes, looking for this pubcoin.
+    BOOST_FOREACH(CTransaction tx, block.vtx){   
+        if(tx.IsSigmaMint()){
+            for (const CTxOut &txout: tx.vout) {
+                if (txout.scriptPubKey.IsSigmaMint()){
+
+				    // If you wonder why +1, go to file wallet.cpp and read the comments in function
+				    // CWallet::CreateZerocoinMintModelV3 around "scriptSerializedCoin << OP_ZEROCOINMINTV3";
+				    vector<unsigned char> coin_serialised(txout.scriptPubKey.begin() + 1,
+				                                          txout.scriptPubKey.end());
+				    txPubCoinValue.deserialize(&coin_serialised[0]);
+                    if(pubCoinValue==txPubCoinValue){
+                        txHash = tx.GetHash();
+                        return true;
+                    }           
+                }
+            }
+        }
+    }
+
+    return false;
+}
+
+bool ZerocoinGetSigmaMintTxHash(uint256& txHash, uint256 pubCoinValueHash) {
+    GroupElement pubCoinValue;
+    sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
+    if(!sigmaState->HasCoinHash(pubCoinValue, pubCoinValueHash)){
+        return false;
+    }
+
+    return ZerocoinGetSigmaMintTxHash(txHash, pubCoinValue);
 }
 
 
@@ -619,6 +671,22 @@ bool BuildSigmaStateFromIndex(CChain *chain) {
         sigmaState.GetLatestCoinID(CoinDenomination::SIGMA_DENOM_100));
     return true;
 }
+
+uint256 GetSerialHash(const secp_primitives::Scalar& bnSerial)
+{
+    CDataStream ss(SER_GETHASH, 0);
+    ss << bnSerial;
+    return Hash(ss.begin(), ss.end());
+}
+
+uint256 GetPubCoinValueHash(const secp_primitives::GroupElement& bnValue)
+{
+    CDataStream ss(SER_GETHASH, 0);
+    ss << bnValue;
+    return Hash(ss.begin(), ss.end());
+}
+
+// CZerocoinTxInfoV3
 
 void CSigmaTxInfo::Complete() {
     // We need to sort mints lexicographically by serialized value of pubCoin. That's the way old code
@@ -640,51 +708,60 @@ void CSigmaTxInfo::Complete() {
 CSigmaState::CSigmaState() {
 }
 
-int CSigmaState::AddMint(
+void CSigmaState::AddMintsToStateAndBlockIndex(
         CBlockIndex *index,
-        const sigma::PublicCoin &pubCoin) {
-    sigma::CoinDenomination denomination = pubCoin.getDenomination();
+        const CBlock* pblock) {
 
-    if (latestCoinIds[denomination] < 1)
-        latestCoinIds[denomination] = 1;
-    int	mintCoinGroupId = latestCoinIds[denomination];
+    std::unordered_map<sigma::CoinDenomination, std::vector<sigma::PublicCoin>> blockDenomMints;
+    for (const auto& mint : pblock->sigmaTxInfo->mints) {
+        blockDenomMints[mint.getDenomination()].push_back(mint);
+    }
 
-    // ZC_SPEND_V3_COINSPERID = 15.000, yet the actual limit of coins per accumlator is 16.000.
-    // We need to cut at 15.000, such that we always have enough space for new mints. Mints for
-    // each block will end up in the same accumulator.
-    SigmaCoinGroupInfo &coinGroup = coinGroups[make_pair(denomination, mintCoinGroupId)];
-    int coinsPerId = ZC_SPEND_V3_COINSPERID;
-    if (coinGroup.nCoins < coinsPerId // there's still space in the accumulator
-        || coinGroup.lastBlock == index // or we have already placed some coins from current block.
-        ) {
-        if (coinGroup.nCoins++ == 0) {
-            // first group of coins for given denomination
-            assert(coinGroup.firstBlock == nullptr);
-            assert(coinGroup.lastBlock == nullptr);
+    for (const auto& it : blockDenomMints) {
+        const sigma::CoinDenomination denomination = it.first;
+        const std::vector<sigma::PublicCoin>& mintsWithThisDenom = it.second;
 
-            coinGroup.firstBlock = coinGroup.lastBlock = index;
-        } else {
-            assert(coinGroup.firstBlock != nullptr);
-            assert(coinGroup.lastBlock != nullptr);
-            if (coinGroup.lastBlock->nHeight > index->nHeight) { 
+        if (latestCoinIds[denomination] < 1)
+            latestCoinIds[denomination] = 1;
+        auto mintCoinGroupId = latestCoinIds[denomination];
+
+
+        SigmaCoinGroupInfo &coinGroup = coinGroups[make_pair(denomination, mintCoinGroupId)];
+
+        if (coinGroup.nCoins + mintsWithThisDenom.size() <= ZC_SPEND_V3_COINSPERID_LIMIT) {
+            if (coinGroup.nCoins == 0) {
+                // first group of coins for given denomination
+                assert(coinGroup.firstBlock == nullptr);
+                assert(coinGroup.lastBlock == nullptr);
+
+                coinGroup.firstBlock = coinGroup.lastBlock = index;
+            } else {
+                assert(coinGroup.firstBlock != nullptr);
+                assert(coinGroup.lastBlock != nullptr);
                 assert(coinGroup.lastBlock->nHeight <= index->nHeight);
-            }
 
-            coinGroup.lastBlock = index;
+                coinGroup.lastBlock = index;
+            }
+            coinGroup.nCoins += mintsWithThisDenom.size();
+        }
+        else {
+            latestCoinIds[denomination] = ++mintCoinGroupId;
+            SigmaCoinGroupInfo& newCoinGroup = coinGroups[std::make_pair(denomination, mintCoinGroupId)];
+            newCoinGroup.firstBlock = newCoinGroup.lastBlock = index;
+            newCoinGroup.nCoins = mintsWithThisDenom.size();
+        }
+
+        for (const auto& mint : mintsWithThisDenom) {
+            CMintedCoinInfo coinInfo;
+            coinInfo.denomination = denomination;
+            coinInfo.id = mintCoinGroupId;
+            coinInfo.nHeight = index->nHeight;
+            mintedPubCoins.insert(std::make_pair(mint, coinInfo));
+
+            LogPrintf("AddMintsToStateAndBlockIndex: mint added denomination=%d, id=%d\n", denomination, mintCoinGroupId);
+            index->sigmaMintedPubCoins[{denomination, mintCoinGroupId}].push_back(mint);
         }
     }
-    else {
-        latestCoinIds[denomination] = ++mintCoinGroupId;
-        SigmaCoinGroupInfo& newCoinGroup = coinGroups[std::make_pair(denomination, mintCoinGroupId)];
-        newCoinGroup.firstBlock = newCoinGroup.lastBlock = index;
-        newCoinGroup.nCoins = 1;
-    }
-    CMintedCoinInfo coinInfo;
-    coinInfo.denomination = denomination;
-    coinInfo.id = mintCoinGroupId;
-    coinInfo.nHeight = index->nHeight;
-    mintedPubCoins.insert(std::make_pair(pubCoin, coinInfo));
-    return mintCoinGroupId;
 }
 
 void CSigmaState::AddSpend(const Scalar &serial) {
@@ -793,8 +870,29 @@ bool CSigmaState::IsUsedCoinSerial(const Scalar &coinSerial) {
     return usedCoinSerials.count(coinSerial) != 0;
 }
 
+bool CSigmaState::IsUsedCoinSerialHash(Scalar &coinSerial, const uint256 &coinSerialHash) {
+    for ( auto it = usedCoinSerials.begin(); it != usedCoinSerials.end(); ++it ){
+        if(GetSerialHash(*it)==coinSerialHash){
+            coinSerial = *it;
+            return true;
+        }
+    }
+    return false;
+}
+
 bool CSigmaState::HasCoin(const sigma::PublicCoin& pubCoin) {
     return mintedPubCoins.find(pubCoin) != mintedPubCoins.end();
+}
+
+bool CSigmaState::HasCoinHash(GroupElement &pubCoinValue, const uint256 &pubCoinValueHash) {
+    for ( auto it = mintedPubCoins.begin(); it != mintedPubCoins.end(); ++it ){
+    	const sigma::PublicCoin pubCoin = (*it).first;
+        if(GetPubCoinValueHash(pubCoin.value)==pubCoinValueHash){
+            pubCoinValue = pubCoin.value;
+            return true;
+        }
+    }
+    return false;
 }
 
 int CSigmaState::GetCoinSetForSpend(
