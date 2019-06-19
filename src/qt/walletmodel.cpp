@@ -213,7 +213,7 @@ void WalletModel::checkSigmaAmount(bool forced)
     if ((cachedHavePendingCoin && cachedNumBlocks > lastBlockCheckSigma) || forced ) {
         std::list<CSigmaEntry> coins;
         CWalletDB(wallet->strWalletFile).ListSigmaPubCoin(coins);
-        
+
         auto hdmintCoins = wallet->hdMintTracker->MintsAsZerocoinEntries();
         coins.insert(coins.end(), hdmintCoins.begin(), hdmintCoins.end());
 
@@ -240,14 +240,7 @@ void WalletModel::checkSigmaAmount(bool forced)
             int coinGroupID = coinHeightAndId.second;
 
             if (coinHeight > 0
-                && coinHeight + (ZC_MINT_CONFIRMATIONS-1) <= chainActive.Height()
-                && sigmaState->GetCoinSetForSpend(
-                    &chainActive,
-                    chainActive.Height() - (ZC_MINT_CONFIRMATIONS - 1),
-                    coin.get_denomination(),
-                    coinGroupID,
-                    blockHash,
-                    anonimity_set) > 1)  {
+                && coinHeight + (ZC_MINT_CONFIRMATIONS-1) <= chainActive.Height())  {
                 spendable.push_back(coin);
             } else {
                 cachedHavePendingCoin = true;
@@ -990,4 +983,21 @@ void WalletModel::sigmaMint(const CAmount& n, const CCoinControl *coinControl)
     if (strError != "") {
         throw std::range_error(strError);
     }
+}
+
+std::vector<CSigmaEntry> WalletModel::GetUnsafeCoins(const CCoinControl* coinControl)
+{
+    auto allCoins = wallet->GetAvailableCoins(coinControl, true);
+    auto spendableCoins = wallet->GetAvailableCoins(coinControl);
+    std::vector<CSigmaEntry> unsafeCoins;
+    for (auto& coin : allCoins) {
+        if (spendableCoins.end() == std::find_if(spendableCoins.begin(), spendableCoins.end(),
+            [coin](const CSigmaEntry& spendalbe) {
+                return coin.value == spendalbe.value;
+            }
+        )) {
+            unsafeCoins.push_back(coin);
+        }
+    }
+    return unsafeCoins;
 }

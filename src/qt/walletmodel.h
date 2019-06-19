@@ -224,6 +224,7 @@ public:
     void sigmaMint(const CAmount& n, const CCoinControl *coinControl = NULL);
     void checkSigmaAmount(bool forced);
 
+    std::vector<CSigmaEntry> GetUnsafeCoins(const CCoinControl* coinControl = NULL);
 
 private:
     CWallet *wallet;
