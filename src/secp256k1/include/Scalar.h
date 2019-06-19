@@ -59,6 +59,8 @@ public:
 
     Scalar& randomize();
 
+    Scalar& memberFromSeed(unsigned char* seed);
+
     Scalar& generate(unsigned char* buff);
 
     Scalar& mod_p();

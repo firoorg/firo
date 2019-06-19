@@ -69,6 +69,15 @@ bool ConnectBlockSigma(
   const CBlock *pblock,
   bool fJustCheck=false);
 
+/*
+ * Get transaction hash from the chain using pubcoin value alone.
+ */
+bool ZerocoinGetSigmaMintTxHash(uint256& txHash, uint256 pubCoinValueHash);
+bool ZerocoinGetSigmaMintTxHash(uint256& txHash, GroupElement pubCoinValue);
+
+uint256 GetSerialHash(const secp_primitives::Scalar& bnSerial);
+uint256 GetPubCoinValueHash(const secp_primitives::GroupElement& bnValue);
+
 bool BuildSigmaStateFromIndex(CChain *chain);
 
 Scalar GetSigmaSpendSerialNumber(const CTransaction &tx, const CTxIn &txin);
@@ -128,9 +137,13 @@ public:
 
     // Query if the coin serial was previously used
     bool IsUsedCoinSerial(const Scalar& coinSerial);
+        // Query if the hash of a coin serial was previously used. If so, store preimage in coinSerial param
+    bool IsUsedCoinSerialHash(Scalar &coinSerial, const uint256 &coinSerialHash);
 
     // Query if there is a coin with given pubCoin value
     bool HasCoin(const sigma::PublicCoin& pubCoin);
+    // Query if there is a coin with given hash of a pubCoin value. If so, store preimage in pubCoin param
+    bool HasCoinHash(GroupElement &pubCoinValue, const uint256 &pubCoinValueHash);
 
     // Given denomination and id returns latest accumulator value and corresponding block hash
     // Do not take into account coins with height more than maxHeight

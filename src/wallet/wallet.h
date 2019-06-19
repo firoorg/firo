@@ -22,6 +22,12 @@
 #include "zerocoin_params.h"
 #include "univalue.h"
 
+#include "hdmint/tracker.h"
+#include "hdmint/wallet.h"
+
+#include "primitives/zerocoin.h"
+
+
 #include <algorithm>
 #include <map>
 #include <set>
@@ -34,6 +40,7 @@
 #include <boost/shared_ptr.hpp>
 
 extern CWallet* pwalletMain;
+extern CHDMintWallet* zwalletMain;
 
 /**
  * Settings
@@ -68,6 +75,12 @@ static const bool DEFAULT_WALLETBROADCAST = true;
 static const bool DEFAULT_USE_HD_WALLET = true;
 
 extern const char * DEFAULT_WALLET_DAT;
+
+const uint32_t BIP32_HARDENED_KEY_LIMIT = 0x80000000;
+const uint32_t BIP44_INDEX = 0x2C;
+const uint32_t BIP44_TEST_INDEX = 0x1;   // https://github.com/satoshilabs/slips/blob/master/slip-0044.md#registered-coin-types
+const uint32_t BIP44_ZCOIN_INDEX = 0x88; // https://github.com/satoshilabs/slips/blob/master/slip-0044.md#registered-coin-types
+const uint32_t BIP44_MINT_INDEX = 0x2;
 
 class CBlockIndex;
 class CCoinControl;
@@ -665,6 +678,8 @@ public:
      */
     mutable CCriticalSection cs_wallet;
 
+    CHDMintWallet* zwallet;
+
     bool fFileBacked;
     std::string strWalletFile;
 
@@ -676,6 +691,8 @@ public:
     typedef std::map<unsigned int, CMasterKey> MasterKeyMap;
     MasterKeyMap mapMasterKeys;
     unsigned int nMasterKeyMaxID;
+
+    std::unique_ptr<CHDMintTracker> hdMintTracker;
 
     CWallet()
     {
@@ -732,6 +749,12 @@ public:
 
     int64_t nTimeFirstKey;
 
+    void setZWallet(CHDMintWallet* zwallet)
+    {
+        this->zwallet = zwallet;
+        hdMintTracker = std::unique_ptr<CHDMintTracker>(new CHDMintTracker(strWalletFile));
+    }
+
     const CWalletTx* GetWalletTx(const uint256& hash) const;
 
     //! check whether we are allowed to upgrade (or already support) to the named feature
@@ -774,7 +797,7 @@ public:
      * keystore implementation
      * Generate a new key
      */
-    CPubKey GenerateNewKey();
+    CPubKey GenerateNewKey(uint32_t nChange=0);
     //! Adds a key to the store, and saves it to disk.
     bool AddKeyPubKey(const CKey& key, const CPubKey &pubkey);
     //! Adds a key to the store, without saving it to disk (used by LoadWallet)
@@ -850,7 +873,9 @@ public:
     CAmount GetDenominatedBalance(bool unconfirmed=false) const;
 
     static std::vector<CRecipient> CreateSigmaMintRecipients(
-        const std::vector<sigma::PrivateCoin>& coins);
+        std::vector<sigma::PrivateCoin>& coins,
+        vector<CHDMint>& vDMints);
+
 
     static int GetRequiredCoinCountForAmount(
         const CAmount& required,
@@ -928,7 +953,7 @@ public:
         const std::vector<CRecipient>& recipients,
         CAmount& fee,
         std::vector<CSigmaEntry>& selected,
-        std::vector<CSigmaEntry>& changes);
+        std::vector<CHDMint>& changes);
 
     bool CreateMultipleZerocoinSpendTransaction(std::string& thirdPartyaddress, const std::vector<std::pair<int64_t, libzerocoin::CoinDenomination>>& denominations,
                                         CWalletTx& wtxNew, CReserveKey& reservekey, vector<CBigNum>& coinSerials, uint256& txHash, vector<CBigNum>& zcSelectedValues, std::string& strFailReason, bool forceUsed = false);
@@ -946,7 +971,7 @@ public:
         const CCoinControl *coinControl = NULL);
 
     bool CommitZerocoinSpendTransaction(CWalletTx& wtxNew, CReserveKey& reservekey);
-    bool CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CSigmaEntry>& selectedCoins, std::vector<CSigmaEntry>& changes);
+    bool CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CSigmaEntry>& selectedCoins, std::vector<CHDMint>& changes);
     std::string SendMoney(CScript scriptPubKey, int64_t nValue, CWalletTx& wtxNew, bool fAskFee=false);
     std::string SendMoneyToDestination(const CTxDestination &address, int64_t nValue, CWalletTx& wtxNew, bool fAskFee=false);
 
@@ -955,6 +980,7 @@ public:
     std::string MintAndStoreSigma(
         const vector<CRecipient>& vecSend,
         const vector<sigma::PrivateCoin>& privCoins,
+        vector<CHDMint> vDMints,
         CWalletTx &wtxNew,
         bool fAskFee=false);
 
@@ -967,12 +993,19 @@ public:
     std::vector<CSigmaEntry> SpendSigma(const std::vector<CRecipient>& recipients, CWalletTx& result);
     std::vector<CSigmaEntry> SpendSigma(const std::vector<CRecipient>& recipients, CWalletTx& result, CAmount& fee);
 
+    bool GetMint(const uint256& hashSerial, CSigmaEntry& zerocoin) const;
+
     bool CreateZerocoinMintModel(string &stringError,
-                                 const string& denomAmount,
-                                 MintAlgorithm algo = ZEROCOIN);
+                                 const std::vector<std::pair<std::string,int>>& denominationPairs,
+                                 vector<CHDMint>& vDMints,
+                                 MintAlgorithm algo);
 
     bool CreateZerocoinMintModelV2(string &stringError, const string& denomAmount);
     bool CreateSigmaMintModel(string &stringError, const string& denomAmount);
+
+    bool CreateZerocoinMintModel(string &stringError,
+                                 const string& denomAmount,
+                                 MintAlgorithm algo = ZEROCOIN);
 
     bool CreateZerocoinMintModel(
         string &stringError,
@@ -981,7 +1014,8 @@ public:
 
     bool CreateSigmaMintModel(
         string &stringError,
-        const std::vector<std::pair<sigma::CoinDenomination, int>>& denominationPairs);
+        const std::vector<std::pair<sigma::CoinDenomination, int>>& denominationPairs,
+        vector<CHDMint>& vDMints);
 
     bool CreateZerocoinMintModelV2(string &stringError, const std::vector<std::pair<int,int>>& denominationPairs);
 
@@ -1215,287 +1249,6 @@ public:
             READWRITE(nVersion);
         READWRITE(vchPubKey);
     }
-};
-
-class CZerocoinEntry
-{
-private:
-    template <typename Stream>
-    auto is_eof_helper(Stream &s, bool) -> decltype(s.eof()) {
-        return s.eof();
-    }
-
-    template <typename Stream>
-    bool is_eof_helper(Stream &s, int) {
-        return false;
-    }
-
-    template<typename Stream>
-    bool is_eof(Stream &s) {
-        return is_eof_helper(s, true);
-    }
-
-public:
-    //public
-    Bignum value;
-    int denomination;
-    //private
-    Bignum randomness;
-    Bignum serialNumber;
-    vector<unsigned char> ecdsaSecretKey;
-
-    bool IsUsed;
-    int nHeight;
-    int id;
-
-    CZerocoinEntry()
-    {
-        SetNull();
-    }
-
-    void SetNull()
-    {
-        IsUsed = false;
-        randomness = 0;
-        serialNumber = 0;
-        value = 0;
-        denomination = -1;
-        nHeight = -1;
-        id = -1;
-    }
-
-    bool IsCorrectV2Mint() const {
-        return value > 0 && randomness > 0 && serialNumber > 0 && serialNumber.bitSize() <= 160 &&
-                ecdsaSecretKey.size() >= 32;
-    }
-
-    ADD_SERIALIZE_METHODS;
-
-    template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
-        READWRITE(IsUsed);
-        READWRITE(randomness);
-        READWRITE(serialNumber);
-        READWRITE(value);
-        READWRITE(denomination);
-        READWRITE(nHeight);
-        READWRITE(id);
-        if (ser_action.ForRead()) {
-            if (!is_eof(s)) {
-                int nStoredVersion = 0;
-                READWRITE(nStoredVersion);
-                if (nStoredVersion >= ZC_ADVANCED_WALLETDB_MINT_VERSION)
-                    READWRITE(ecdsaSecretKey);
-            }
-        }
-        else {
-            READWRITE(nVersion);
-            READWRITE(ecdsaSecretKey);
-        }
-    }
-
-};
-
-
-class CSigmaEntry
-{
-public:
-    void set_denomination(sigma::CoinDenomination denom) {
-        DenominationToInteger(denom, denomination);
-    }
-    void set_denomination_value(int64_t new_denomination) {
-        denomination = new_denomination;
-    }
-    int64_t get_denomination_value() const {
-        return denomination;
-    }
-    sigma::CoinDenomination get_denomination() const {
-        sigma::CoinDenomination result;
-        IntegerToDenomination(denomination, result);
-        return result;
-    }
-    std::string get_string_denomination() const {
-        return DenominationToString(get_denomination());
-    }
-    
-    //public
-    GroupElement value;
-
-    //private
-    Scalar randomness;
-    Scalar serialNumber;
-
-    // Signature over partial transaction
-    // to make sure the outputs are not changed by attacker.
-    std::vector<unsigned char> ecdsaSecretKey;
-
-    bool IsUsed;
-    int nHeight;
-    int id;
-
-private:
-    // NOTE(martun): made this one private to make sure people don't
-    // misuse it and try to assign a value of type sigma::CoinDenomination
-    // to it. In these cases the value is automatically converted to int,
-    // which is not what we want.
-    // Starting from Version 3 == sigma, this number is coin value * COIN,
-    // I.E. it is set to 100.000.000 for 1 zcoin.
-    int64_t denomination;
-
-public:
-
-    CSigmaEntry()
-    {
-        SetNull();
-    }
-
-    void SetNull()
-    {
-        IsUsed = false;
-        randomness = Scalar(uint64_t(0));
-        serialNumber = Scalar(uint64_t(0));
-        value = GroupElement();
-        denomination = -1;
-        nHeight = -1;
-        id = -1;
-    }
-
-    bool IsCorrectSigmaMint() const {
-        return randomness.isMember() && serialNumber.isMember();
-    }
-
-    ADD_SERIALIZE_METHODS;
-
-    template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
-        READWRITE(IsUsed);
-        READWRITE(randomness);
-        READWRITE(serialNumber);
-        READWRITE(value);
-        READWRITE(denomination);
-        READWRITE(nHeight);
-        READWRITE(id);
-        if (ser_action.ForRead()) {
-            if (!is_eof(s)) {
-                int nStoredVersion = 0;
-                READWRITE(nStoredVersion);
-                READWRITE(ecdsaSecretKey);
-            }
-        }
-        else {
-            READWRITE(nVersion);
-            READWRITE(ecdsaSecretKey);
-        }
-    }
-private:
-    template <typename Stream>
-    auto is_eof_helper(Stream &s, bool) -> decltype(s.eof()) {
-        return s.eof();
-    }
-
-    template <typename Stream>
-    bool is_eof_helper(Stream &s, int) {
-        return false;
-    }
-
-    template<typename Stream>
-    bool is_eof(Stream &s) {
-        return is_eof_helper(s, true);
-    }
-};
-
-
-class CZerocoinSpendEntry
-{
-public:
-    Bignum coinSerial;
-    uint256 hashTx;
-    Bignum pubCoin;
-    int denomination;
-    int id;
-
-    CZerocoinSpendEntry()
-    {
-        SetNull();
-    }
-
-    void SetNull()
-    {
-        coinSerial = 0;
-//        hashTx =
-        pubCoin = 0;
-        denomination = 0;
-        id = 0;
-    }
-    ADD_SERIALIZE_METHODS;
-
-    template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
-        READWRITE(coinSerial);
-        READWRITE(hashTx);
-        READWRITE(pubCoin);
-        READWRITE(denomination);
-        READWRITE(id);
-    }
-};
-
-class CSigmaSpendEntry
-{
-public:
-    Scalar coinSerial;
-    uint256 hashTx;
-    GroupElement pubCoin;
-    int id;
-
-    void set_denomination(sigma::CoinDenomination denom) {
-        DenominationToInteger(denom, denomination);
-    }
-
-    void set_denomination_value(int64_t new_denomination) {
-        denomination = new_denomination;
-    }
-
-    int64_t get_denomination_value() const {
-        return denomination;
-    }
-
-    sigma::CoinDenomination get_denomination() const {
-        sigma::CoinDenomination result;
-        IntegerToDenomination(denomination, result);
-        return result;
-    }
-
-    CSigmaSpendEntry()
-    {
-        SetNull();
-    }
-
-    void SetNull()
-    {
-        coinSerial = Scalar(uint64_t(0));
-//        hashTx =
-        pubCoin = GroupElement();
-        denomination = 0;
-        id = 0;
-    }
-    ADD_SERIALIZE_METHODS;
-
-    template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
-        READWRITE(coinSerial);
-        READWRITE(hashTx);
-        READWRITE(pubCoin);
-        READWRITE(denomination);
-        READWRITE(id);
-    }
-private:
-    // NOTE(martun): made this one private to make sure people don't
-    // misuse it and try to assign a value of type sigma::CoinDenomination
-    // to it. In these cases the value is automatically converted to int,
-    // which is not what we want.
-    // Starting from Version 3 == sigma, this number is coin value * COIN,
-    // I.E. it is set to 100.000.000 for 1 zcoin.
-    int64_t denomination;
 };
 
 bool CompHeight(const CZerocoinEntry & a, const CZerocoinEntry & b);

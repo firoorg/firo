@@ -101,7 +101,7 @@ BOOST_AUTO_TEST_CASE(partialspend)
         CWalletTx dtx;
         CAmount dFee;
         std::vector<CSigmaEntry> dSelected;
-        std::vector<CSigmaEntry> dChanges;
+        std::vector<CHDMint> dChanges;
 
         CAmount denomAmount005;
         sigma::DenominationToInteger(sigma::CoinDenomination::SIGMA_DENOM_0_05, denomAmount005);
@@ -327,7 +327,7 @@ BOOST_AUTO_TEST_CASE(same_serial_in_a_transaction) {
     // Create tx
     CAmount fee;
     std::vector<CSigmaEntry> selected;
-    std::vector<CSigmaEntry> changes;
+    std::vector<CHDMint> changes;
     auto tx = pwalletMain->CreateSigmaSpendTransaction(recipients, fee, selected, changes);
 
     // Expect 2 spends
