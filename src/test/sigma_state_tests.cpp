@@ -263,7 +263,7 @@ BOOST_AUTO_TEST_CASE(sigma_addmints_coinperid_limit)
     BOOST_CHECK_EQUAL(group1.nCoins, ZC_SPEND_V3_COINSPERID_LIMIT - 1);
 
     // New Mints should be added to news group.
-    BOOST_CHECK_EQUAL(sigmaState->latestCoinIds[testDenomination], 2);
+    BOOST_CHECK_EQUAL(sigmaState->GetLatestCoinIds().find(testDenomination)->second, 2);
     sigma::CSigmaState::SigmaCoinGroupInfo group2;
     sigmaState->GetCoinGroupInfo(testDenomination, 2, group2);
     BOOST_CHECK_EQUAL(group2.nCoins, moreMintsToMakeExceedLimit);
@@ -1128,11 +1128,12 @@ namespace {
         return coin.getCoinSerialNumber();
     }
 
-    sigma::PublicCoin generateMint(sigma::CoinDenomination denom) {
+    CBlock generateMint(sigma::CoinDenomination denom) {
         auto params = sigma::Params::get_default();
 
         const sigma::PrivateCoin privcoin(params, denom);
-        return privcoin.getPublicCoin();
+
+        return CreateBlockWithMints({privcoin.getPublicCoin()});
     }
 }
 
@@ -1141,7 +1142,8 @@ BOOST_AUTO_TEST_CASE(sigma_surge_detection_positive)
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
 
     CBlockIndex index = CreateBlockIndex(1);
-    sigmaState->AddMint(&index, generateMint(sigma::CoinDenomination::SIGMA_DENOM_1));
+    CBlock mintsBlock = generateMint(sigma::CoinDenomination::SIGMA_DENOM_1);
+    sigmaState->AddMintsToStateAndBlockIndex(&index, &mintsBlock);
     BOOST_CHECK(sigmaState->IsSurgeConditionDetected() == false);
 
     sigmaState->AddSpend(generateSpend(sigma::CoinDenomination::SIGMA_DENOM_1), sigma::CoinDenomination::SIGMA_DENOM_1, 1);
@@ -1162,7 +1164,8 @@ BOOST_AUTO_TEST_CASE(sigma_surge_detection_reset)
     BOOST_CHECK(sigmaState->IsSurgeConditionDetected() == true);
 
     CBlockIndex index = CreateBlockIndex(1);
-    sigmaState->AddMint(&index, generateMint(sigma::CoinDenomination::SIGMA_DENOM_1));
+    CBlock mintsBlock = generateMint(sigma::CoinDenomination::SIGMA_DENOM_1);
+    sigmaState->AddMintsToStateAndBlockIndex(&index, &mintsBlock);
     BOOST_CHECK(sigmaState->IsSurgeConditionDetected() == false);
 
     sigmaState->Reset();
@@ -1182,13 +1185,15 @@ BOOST_AUTO_TEST_CASE(sigma_surge_detection_failure_anywhere)
     BOOST_CHECK(sigmaState->IsSurgeConditionDetected() == true);
 
     CBlockIndex index = CreateBlockIndex(1);
-    sigmaState->AddMint(&index, generateMint(sigma::CoinDenomination::SIGMA_DENOM_1));
+    CBlock mintsBlock1 = generateMint(sigma::CoinDenomination::SIGMA_DENOM_1);
+    sigmaState->AddMintsToStateAndBlockIndex(&index, &mintsBlock1);
     BOOST_CHECK(sigmaState->IsSurgeConditionDetected() == true);
 
     sigmaState->AddSpend(generateSpend(sigma::CoinDenomination::SIGMA_DENOM_1), sigma::CoinDenomination::SIGMA_DENOM_1, 1);
     BOOST_CHECK(sigmaState->IsSurgeConditionDetected() == true);
 
-    sigmaState->AddMint(&index, generateMint(sigma::CoinDenomination::SIGMA_DENOM_100));
+    CBlock mintsBlock100 = generateMint(sigma::CoinDenomination::SIGMA_DENOM_100);
+    sigmaState->AddMintsToStateAndBlockIndex(&index, &mintsBlock100);
     BOOST_CHECK(sigmaState->IsSurgeConditionDetected() == false);
 
     sigmaState->Reset();

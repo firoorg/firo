@@ -476,7 +476,7 @@ bool CheckSigmaTransaction(
 
 void RemoveSigmaSpendsReferencingBlock(CTxMemPool& pool, CBlockIndex* blockIndex) {
     LOCK2(cs_main, pool.cs);
-    std:vector<CTransaction> txn_to_remove;
+    std::vector<CTransaction> txn_to_remove;
     for (CTxMemPool::txiter mi = pool.mapTx.begin(); mi != pool.mapTx.end(); ++mi) {
         const CTransaction& tx = mi->GetTx();
         if (tx.IsSigmaSpend()) {
@@ -869,15 +869,14 @@ void CSigmaState::AddMintsToStateAndBlockIndex(
         for (const auto& mint : mintsWithThisDenom) {
             CMintedCoinInfo coinInfo;
             coinInfo.denomination = denomination;
-            coinInfo.id = mintCoinGroupId;
+            coinInfo.coinGroupId = mintCoinGroupId;
             coinInfo.nHeight = index->nHeight;
-            mintedPubCoins.insert(std::make_pair(mint, coinInfo));
+            containers.AddMint(mint, coinInfo);
 
             LogPrintf("AddMintsToStateAndBlockIndex: mint added denomination=%d, id=%d\n", denomination, mintCoinGroupId);
             index->sigmaMintedPubCoins[{denomination, mintCoinGroupId}].push_back(mint);
         }
     }
-    containers.AddMint(pubCoin, coinInfo);
 }
 
 void CSigmaState::AddSpend(const Scalar &serial, CoinDenomination denom, int coinGroupId) {
@@ -984,9 +983,9 @@ bool CSigmaState::IsUsedCoinSerial(const Scalar &coinSerial) {
 }
 
 bool CSigmaState::IsUsedCoinSerialHash(Scalar &coinSerial, const uint256 &coinSerialHash) {
-    for ( auto it = usedCoinSerials.begin(); it != usedCoinSerials.end(); ++it ){
-        if(GetSerialHash(*it)==coinSerialHash){
-            coinSerial = *it;
+    for ( auto it = GetSpends().begin(); it != GetSpends().end(); ++it ){
+        if(GetSerialHash(it->first)==coinSerialHash){
+            coinSerial = it->first;
             return true;
         }
     }
@@ -998,7 +997,7 @@ bool CSigmaState::HasCoin(const sigma::PublicCoin& pubCoin) {
 }
 
 bool CSigmaState::HasCoinHash(GroupElement &pubCoinValue, const uint256 &pubCoinValueHash) {
-    for ( auto it = mintedPubCoins.begin(); it != mintedPubCoins.end(); ++it ){
+    for ( auto it = GetMints().begin(); it != GetMints().end(); ++it ){
     	const sigma::PublicCoin pubCoin = (*it).first;
         if(GetPubCoinValueHash(pubCoin.value)==pubCoinValueHash){
             pubCoinValue = pubCoin.value;
