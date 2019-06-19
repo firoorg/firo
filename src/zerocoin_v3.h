@@ -110,10 +110,8 @@ public:
 public:
     CSigmaState();
 
-    // Add mint, automatically assigning id to it. Returns id and previous accumulator value (if any)
-    int AddMint(
-        CBlockIndex *index,
-        const sigma::PublicCoin& pubCoin);
+    // Add mins in block, automatically assigning id to it
+    void AddMintsToStateAndBlockIndex(CBlockIndex *index, const CBlock* pblock);
 
     // Add serial to the list of used ones
     void AddSpend(const Scalar& serial);
