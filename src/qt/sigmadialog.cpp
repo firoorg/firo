@@ -1,5 +1,5 @@
-#include "sigmapage.h"
-#include "ui_sigmapage.h"
+#include "sigmadialog.h"
+#include "ui_sigmadialog.h"
 
 #include "bitcoinunits.h"
 #include "guiutil.h"
@@ -15,6 +15,9 @@
 #include "../wallet/walletdb.h"
 #include "../sigma/coin.h"
 
+#include <qt/sigmacoincontroldialog.h>
+#include <coincontrol.h>
+
 #include <QMessageBox>
 #include <QScrollBar>
 #include <QTextDocument>
@@ -24,9 +27,9 @@
 
 #define SEND_CONFIRM_DELAY   3
 
-SigmaPage::SigmaPage(const PlatformStyle *platformStyle, QWidget *parent) :
-    QWidget(parent),
-    ui(new Ui::SigmaPage),
+SigmaDialog::SigmaDialog(const PlatformStyle *platformStyle, QWidget *parent) :
+    QDialog(parent),
+    ui(new Ui::SigmaDialog),
     clientModel(0),
     walletModel(0),
     isNewRecipientAllowed(true),
@@ -55,14 +58,48 @@ SigmaPage::SigmaPage(const PlatformStyle *platformStyle, QWidget *parent) :
 
     addEntry();
 
-    // spend
+    // init coin control section
+    GUIUtil::setupAddressWidget(ui->lineEditCoinControlChange, this);
+
     connect(ui->addButton, SIGNAL(clicked()), this, SLOT(addEntry()));
     connect(ui->clearButton, SIGNAL(clicked()), this, SLOT(clear()));
+    // Coin Control
+    connect(ui->pushButtonCoinControl, SIGNAL(clicked()), this, SLOT(coinControlButtonClicked()));
+    connect(ui->checkBoxCoinControlChange, SIGNAL(stateChanged(int)), this, SLOT(coinControlChangeChecked(int)));
+    connect(ui->lineEditCoinControlChange, SIGNAL(textEdited(const QString &)), this, SLOT(coinControlChangeEdited(const QString &)));
+    // Coin Control: clipboard actions
+    QAction *clipboardQuantityAction = new QAction(tr("Copy quantity"), this);
+    QAction *clipboardAmountAction = new QAction(tr("Copy amount"), this);
+    QAction *clipboardFeeAction = new QAction(tr("Copy fee"), this);
+    QAction *clipboardAfterFeeAction = new QAction(tr("Copy after fee"), this);
+    QAction *clipboardBytesAction = new QAction(tr("Copy bytes"), this);
+    QAction *clipboardPriorityAction = new QAction(tr("Copy priority"), this);
+    QAction *clipboardLowOutputAction = new QAction(tr("Copy dust"), this);
+    QAction *clipboardChangeAction = new QAction(tr("Copy change"), this);
+    connect(clipboardQuantityAction, SIGNAL(triggered()), this, SLOT(coinControlClipboardQuantity()));
+    connect(clipboardAmountAction, SIGNAL(triggered()), this, SLOT(coinControlClipboardAmount()));
+    connect(clipboardFeeAction, SIGNAL(triggered()), this, SLOT(coinControlClipboardFee()));
+    connect(clipboardAfterFeeAction, SIGNAL(triggered()), this, SLOT(coinControlClipboardAfterFee()));
+    connect(clipboardBytesAction, SIGNAL(triggered()), this, SLOT(coinControlClipboardBytes()));
+    connect(clipboardPriorityAction, SIGNAL(triggered()), this, SLOT(coinControlClipboardPriority()));
+    connect(clipboardLowOutputAction, SIGNAL(triggered()), this, SLOT(coinControlClipboardLowOutput()));
+    connect(clipboardChangeAction, SIGNAL(triggered()), this, SLOT(coinControlClipboardChange()));
+    ui->labelCoinControlQuantity->addAction(clipboardQuantityAction);
+    ui->labelCoinControlAmount->addAction(clipboardAmountAction);
+    ui->labelCoinControlFee->addAction(clipboardFeeAction);
+    ui->labelCoinControlAfterFee->addAction(clipboardAfterFeeAction);
+    ui->labelCoinControlBytes->addAction(clipboardBytesAction);
+    ui->labelCoinControlPriority->addAction(clipboardPriorityAction);
+    ui->labelCoinControlLowOutput->addAction(clipboardLowOutputAction);
+    ui->labelCoinControlChange->addAction(clipboardChangeAction);
 
     ui->amountToMint->setLocale(QLocale::c());
+
+    //check if user clicked at a tab
+    connect(ui->tabWidget, SIGNAL(currentChanged(int)), this, SLOT(tabSelected()));
 }
 
-void SigmaPage::setClientModel(ClientModel *model)
+void SigmaDialog::setClientModel(ClientModel *model)
 {
     this->clientModel = model;
 
@@ -76,7 +113,7 @@ void SigmaPage::setClientModel(ClientModel *model)
     }
 }
 
-void SigmaPage::setWalletModel(WalletModel *model)
+void SigmaDialog::setWalletModel(WalletModel *model)
 {
     this->walletModel = model;
 
@@ -94,14 +131,34 @@ void SigmaPage::setWalletModel(WalletModel *model)
             }
         }
     }
+
+    // Coin Control
+    connect(model->getOptionsModel(), SIGNAL(displayUnitChanged(int)), this, SLOT(coinControlUpdateLabels()));
+    connect(model->getOptionsModel(), SIGNAL(coinControlFeaturesChanged(bool)), this, SLOT(coinControlFeatureChanged(bool)));
+    ui->frameCoinControl->setVisible(model->getOptionsModel()->getCoinControlFeatures());
+    coinControlUpdateLabels();
 }
 
-SigmaPage::~SigmaPage()
+void SigmaDialog::tabSelected(){
+    bool coinControlSelected = walletModel->getOptionsModel()->getCoinControlFeatures();
+    if(ui->tabWidget->currentIndex()==0){
+        SigmaCoinControlDialog::fMintTabSelected = true;
+        if(coinControlSelected)
+            ui->coinControlChange->show();
+    }
+    if(ui->tabWidget->currentIndex()==1){
+        SigmaCoinControlDialog::fMintTabSelected = false;
+        if(coinControlSelected)
+            ui->coinControlChange->hide();
+    }
+}
+
+SigmaDialog::~SigmaDialog()
 {
     delete ui;
 }
 
-void SigmaPage::numBlocksChanged(int count, const QDateTime& blockDate, double nVerificationProgress, bool header)
+void SigmaDialog::numBlocksChanged(int count, const QDateTime& blockDate, double nVerificationProgress, bool header)
 {
     if (!header) {
         bool sigmaAllowed = sigma::IsSigmaAllowed(count);
@@ -113,7 +170,7 @@ void SigmaPage::numBlocksChanged(int count, const QDateTime& blockDate, double n
 
 static QString formatAmount(CAmount n);
 
-void SigmaPage::on_mintButton_clicked()
+void SigmaDialog::on_mintButton_clicked()
 {
     auto rawAmount = ui->amountToMint->value();
     CAmount amount(rawAmount * COIN);
@@ -131,8 +188,8 @@ void SigmaPage::on_mintButton_clicked()
     sigma::DenominationToInteger(smallestDenomination, smallestDenominationValue);
 
     if (amount < smallestDenominationValue) {
-        QMessageBox::critical(this, tr("Too small amount to mint"),
-            tr("Amount to mint must not lower than %1 XZC.").arg(formatAmount(smallestDenominationValue)),
+        QMessageBox::critical(this, tr("Amount too small to mint"),
+            tr("Amount to mint must not be lower than %1 XZC.").arg(formatAmount(smallestDenominationValue)),
             QMessageBox::Ok, QMessageBox::Ok);
         return;
     }
@@ -140,8 +197,8 @@ void SigmaPage::on_mintButton_clicked()
     if (amount % smallestDenominationValue != 0) {
         amount -= amount % smallestDenominationValue;
         auto reply = QMessageBox::question(
-            this, tr("Amount to mint is impossible."),
-            tr("Amount to mint must be multiple of 0.05 XZC. Do you want to spend %1 XZC?"
+            this, tr("Unable to mint."),
+            tr("Amount to mint must be a multiple of 0.05 XZC. Do you want to spend %1 XZC?"
             ).arg(formatAmount(amount)));
 
         if (reply == QMessageBox::No) {
@@ -154,7 +211,11 @@ void SigmaPage::on_mintButton_clicked()
         if (!ctx.isValid()) {
             return;
         }
-        walletModel->sigmaMint(amount);
+        if (walletModel->getOptionsModel()->getCoinControlFeatures()){
+            walletModel->sigmaMint(amount, SigmaCoinControlDialog::coinControl);
+        }else{
+            walletModel->sigmaMint(amount);
+        }
     } catch (const std::runtime_error& e) {
         QMessageBox::critical(this, tr("Error"),
             tr("You cannot mint Sigma because %1").arg(tr(e.what())),
@@ -162,14 +223,19 @@ void SigmaPage::on_mintButton_clicked()
         return;
     }
 
+
+
     QMessageBox::information(this, tr("Success"),
         tr("Sigma successfully minted"),
         QMessageBox::Ok, QMessageBox::Ok);
 
+    SigmaCoinControlDialog::coinControl->UnSelectAll();
+    coinControlUpdateLabels();
+
     ui->amountToMint->setValue(0);
 }
 
-void SigmaPage::on_sendButton_clicked()
+void SigmaDialog::on_sendButton_clicked()
 {
     if (!walletModel || !walletModel->getOptionsModel())
         return;
@@ -201,9 +267,14 @@ void SigmaPage::on_sendButton_clicked()
 
     // prepare transaction for getting txFee earlier
     std::vector<CSigmaEntry> selectedCoins;
-    std::vector<CSigmaEntry> changes;
+    std::vector<CHDMint> changes;
     WalletModelTransaction currentTransaction(recipients);
-    auto prepareStatus = walletModel->prepareSigmaSpendTransaction(currentTransaction, selectedCoins, changes);
+    WalletModel::SendCoinsReturn prepareStatus;
+    if (walletModel->getOptionsModel()->getCoinControlFeatures()){
+        prepareStatus = walletModel->prepareSigmaSpendTransaction(currentTransaction, selectedCoins, changes, SigmaCoinControlDialog::coinControl);
+    }else{
+        prepareStatus = walletModel->prepareSigmaSpendTransaction(currentTransaction, selectedCoins, changes);
+    }
 
     // process prepareStatus and on error generate message shown to user
     processSpendCoinsReturn(prepareStatus,
@@ -286,6 +357,10 @@ void SigmaPage::on_sendButton_clicked()
         return;
     }
 
+    //reset cc
+    if(walletModel->getOptionsModel()->getCoinControlFeatures())
+        SigmaCoinControlDialog::coinControl->SetNull();
+
     // now send the prepared transaction
     WalletModel::SendCoinsReturn sendStatus = walletModel->sendSigma(currentTransaction, selectedCoins, changes);
     // process sendStatus and on error generate message shown to user
@@ -293,12 +368,14 @@ void SigmaPage::on_sendButton_clicked()
 
     if (sendStatus.status == WalletModel::OK) {
         accept();
+        SigmaCoinControlDialog::coinControl->UnSelectAll();
+        coinControlUpdateLabels();
     }
 
     isNewRecipientAllowed = true;
 }
 
-void SigmaPage::clear()
+void SigmaDialog::clear()
 {
     // Remove entries until only one left
     while (ui->entries->count()) {
@@ -309,12 +386,12 @@ void SigmaPage::clear()
     updateTabsAndLabels();
 }
 
-void SigmaPage::accept()
+void SigmaDialog::accept()
 {
     clear();
 }
 
-SendCoinsEntry *SigmaPage::addEntry() {
+SendCoinsEntry *SigmaDialog::addEntry() {
     SendCoinsEntry *entry = new SendCoinsEntry(platformStyle, this);
     entry->setModel(walletModel);
     ui->entries->addWidget(entry);
@@ -333,12 +410,12 @@ SendCoinsEntry *SigmaPage::addEntry() {
     return entry;
 }
 
-void SigmaPage::updateTabsAndLabels()
+void SigmaDialog::updateTabsAndLabels()
 {
     setupTabChain(0);
 }
 
-void SigmaPage::removeEntry(SendCoinsEntry* entry)
+void SigmaDialog::removeEntry(SendCoinsEntry* entry)
 {
     entry->hide();
 
@@ -351,13 +428,180 @@ void SigmaPage::removeEntry(SendCoinsEntry* entry)
     updateTabsAndLabels();
 }
 
-void SigmaPage::updateAvailableToMintBalance(const CAmount& balance)
+void SigmaDialog::updateAvailableToMintBalance(const CAmount& balance)
 {
     QString formattedBalance = BitcoinUnits::formatHtmlWithUnit(walletModel->getOptionsModel()->getDisplayUnit(), balance);
     ui->availableAmount->setText(formattedBalance);
 }
 
-QWidget *SigmaPage::setupTabChain(QWidget *prev)
+// Coin Control: copy label "Quantity" to clipboard
+void SigmaDialog::coinControlClipboardQuantity()
+{
+    GUIUtil::setClipboard(ui->labelCoinControlQuantity->text());
+}
+
+// Coin Control: copy label "Amount" to clipboard
+void SigmaDialog::coinControlClipboardAmount()
+{
+    GUIUtil::setClipboard(ui->labelCoinControlAmount->text().left(ui->labelCoinControlAmount->text().indexOf(" ")));
+}
+
+// Coin Control: copy label "Fee" to clipboard
+void SigmaDialog::coinControlClipboardFee()
+{
+    GUIUtil::setClipboard(ui->labelCoinControlFee->text().left(ui->labelCoinControlFee->text().indexOf(" ")).replace(ASYMP_UTF8, ""));
+}
+
+// Coin Control: copy label "After fee" to clipboard
+void SigmaDialog::coinControlClipboardAfterFee()
+{
+    GUIUtil::setClipboard(ui->labelCoinControlAfterFee->text().left(ui->labelCoinControlAfterFee->text().indexOf(" ")).replace(ASYMP_UTF8, ""));
+}
+
+// Coin Control: copy label "Bytes" to clipboard
+void SigmaDialog::coinControlClipboardBytes()
+{
+    GUIUtil::setClipboard(ui->labelCoinControlBytes->text().replace(ASYMP_UTF8, ""));
+}
+
+// Coin Control: copy label "Priority" to clipboard
+void SigmaDialog::coinControlClipboardPriority()
+{
+    GUIUtil::setClipboard(ui->labelCoinControlPriority->text());
+}
+
+// Coin Control: copy label "Dust" to clipboard
+void SigmaDialog::coinControlClipboardLowOutput()
+{
+    GUIUtil::setClipboard(ui->labelCoinControlLowOutput->text());
+}
+
+// Coin Control: copy label "Change" to clipboard
+void SigmaDialog::coinControlClipboardChange()
+{
+    GUIUtil::setClipboard(ui->labelCoinControlChange->text().left(ui->labelCoinControlChange->text().indexOf(" ")).replace(ASYMP_UTF8, ""));
+}
+
+// Coin Control: update labels
+void SigmaDialog::coinControlUpdateLabels()
+{
+    if (!walletModel || !walletModel->getOptionsModel())
+        return;
+
+    // set pay amounts
+    SigmaCoinControlDialog::payAmounts.clear();
+    SigmaCoinControlDialog::fSubtractFeeFromAmount = false;
+    for(int i = 0; i < ui->entries->count(); ++i)
+    {
+        SendCoinsEntry *entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
+        if(entry && !entry->isHidden())
+        {
+            SendCoinsRecipient rcp = entry->getValue();
+            SigmaCoinControlDialog::payAmounts.append(rcp.amount);
+            if (rcp.fSubtractFeeFromAmount)
+                SigmaCoinControlDialog::fSubtractFeeFromAmount = true;
+        }
+    }
+
+    if (SigmaCoinControlDialog::coinControl->HasSelected())
+    {
+
+        // actual coin control calculation
+        SigmaCoinControlDialog::updateLabels(walletModel, this);
+
+        // show coin control stats
+        ui->labelCoinControlAutomaticallySelected->hide();
+        ui->widgetCoinControl->show();
+    }
+    else
+    {
+        // hide coin control stats
+        ui->labelCoinControlAutomaticallySelected->show();
+        ui->widgetCoinControl->hide();
+        ui->labelCoinControlInsuffFunds->hide();
+    }
+}
+
+// Coin Control: button inputs -> show actual coin control dialog
+void SigmaDialog::coinControlButtonClicked()
+{
+    SigmaCoinControlDialog dlg(platformStyle);
+    dlg.setModel(walletModel);
+    dlg.exec();
+    coinControlUpdateLabels();
+}
+
+// Coin Control: checkbox custom change address
+void SigmaDialog::coinControlChangeChecked(int state)
+{
+    if (state == Qt::Unchecked)
+    {
+        SigmaCoinControlDialog::coinControl->destChange = CNoDestination();
+        ui->labelCoinControlChangeLabel->clear();
+    }
+    else
+        // use this to re-validate an already entered address
+        coinControlChangeEdited(ui->lineEditCoinControlChange->text());
+
+    ui->lineEditCoinControlChange->setEnabled((state == Qt::Checked));
+}
+
+// Coin Control: custom change address changed
+void SigmaDialog::coinControlChangeEdited(const QString& text)
+{
+    if (walletModel && walletModel->getAddressTableModel())
+    {
+        // Default to no change address until verified
+        SigmaCoinControlDialog::coinControl->destChange = CNoDestination();
+        ui->labelCoinControlChangeLabel->setStyleSheet("QLabel{color:red;}");
+
+        CBitcoinAddress addr = CBitcoinAddress(text.toStdString());
+
+        if (text.isEmpty()) // Nothing entered
+        {
+            ui->labelCoinControlChangeLabel->setText("");
+        }
+        else if (!addr.IsValid()) // Invalid address
+        {
+            ui->labelCoinControlChangeLabel->setText(tr("Warning: Invalid Bitcoin address"));
+        }
+        else // Valid address
+        {
+            CKeyID keyid;
+            addr.GetKeyID(keyid);
+            if (!walletModel->havePrivKey(keyid)) // Unknown change address
+            {
+                ui->labelCoinControlChangeLabel->setText(tr("Warning: Unknown change address"));
+            }
+            else // Known change address
+            {
+                ui->labelCoinControlChangeLabel->setStyleSheet("QLabel{color:black;}");
+
+                // Query label
+                QString associatedLabel = walletModel->getAddressTableModel()->labelForAddress(text);
+                if (!associatedLabel.isEmpty())
+                    ui->labelCoinControlChangeLabel->setText(associatedLabel);
+                else
+                    ui->labelCoinControlChangeLabel->setText(tr("(no label)"));
+
+                SigmaCoinControlDialog::coinControl->destChange = addr.Get();
+            }
+        }
+    }
+}
+
+// Coin Control: settings menu - coin control enabled/disabled by user
+void SigmaDialog::coinControlFeatureChanged(bool checked)
+{
+    ui->frameCoinControl->setVisible(checked);
+
+    if (!checked && walletModel) // coin control features disabled
+        SigmaCoinControlDialog::coinControl->SetNull();
+
+    coinControlUpdateLabels();
+}
+
+QWidget *SigmaDialog::setupTabChain(QWidget *prev)
 {
     for (int i = 0; i < ui->entries->count(); ++i) {
         SendCoinsEntry *entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
@@ -371,7 +615,7 @@ QWidget *SigmaPage::setupTabChain(QWidget *prev)
     return ui->addButton;
 }
 
-void SigmaPage::processSpendCoinsReturn(const WalletModel::SendCoinsReturn &sendCoinsReturn, const QString &msgArg)
+void SigmaDialog::processSpendCoinsReturn(const WalletModel::SendCoinsReturn &sendCoinsReturn, const QString &msgArg)
 {
     QPair<QString, CClientUIInterface::MessageBoxFlags> msgParams;
     // Default to a warning message, override if error message is needed
@@ -440,7 +684,7 @@ static QString formatAmount(CAmount n)
     return quotient_str + QString(".") + remainder_str;
 }
 
-void SigmaPage::updateCoins(const std::vector<CSigmaEntry>& spendable, const std::vector<CSigmaEntry>& pending)
+void SigmaDialog::updateCoins(const std::vector<CSigmaEntry>& spendable, const std::vector<CSigmaEntry>& pending)
 {
     std::unordered_map<sigma::CoinDenomination, int> spendableDenominationCoins;
 

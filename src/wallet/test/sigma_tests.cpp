@@ -75,16 +75,24 @@ static void GenerateBlockWithCoins(const std::vector<std::pair<sigma::CoinDenomi
     block->second.nHeight = block->second.pprev->nHeight + 1;
 
     // generate coins
+    CHDMint dMint;
     for (auto& coin : coins) {
         for (int i = 0; i < coin.second; i++) {
             sigma::PrivateCoin priv(params, coin.first);
+
+            // Generate and store secrets deterministically in the following function.
+            dMint.SetNull();
+            zwalletMain->GenerateHDMint(priv.getPublicCoin().getDenomination(), priv, dMint);
+
             auto& pub = priv.getPublicCoin();
 
             block->second.sigmaMintedPubCoins[std::make_pair(coin.first, 1)].push_back(pub);
 
             if (addToWallet) {
-                AddSigmaCoin(priv, coin.first);
+                pwalletMain->hdMintTracker->Add(dMint, true);
             }
+
+            zwalletMain->UpdateCount();
         }
     }
 
@@ -420,7 +428,7 @@ BOOST_AUTO_TEST_CASE(create_spend_with_insufficient_coins)
     CAmount fee;
     CWalletTx tx;
     std::vector<CSigmaEntry> selected;
-    std::vector<CSigmaEntry> changes;
+    std::vector<CHDMint> changes;
     std::vector<CRecipient> recipients;
 
     GenerateBlockWithCoins({ std::make_pair(sigma::CoinDenomination::SIGMA_DENOM_10, 1) });
@@ -455,7 +463,7 @@ BOOST_AUTO_TEST_CASE(create_spend_with_confirmation_less_than_6)
 {
     CAmount fee;
     std::vector<CSigmaEntry> selected;
-    std::vector<CSigmaEntry> changes;
+    std::vector<CHDMint> changes;
     std::vector<CRecipient> recipients;
 
     GenerateBlockWithCoins({ std::make_pair(sigma::CoinDenomination::SIGMA_DENOM_10, 2) });
@@ -489,7 +497,7 @@ BOOST_AUTO_TEST_CASE(create_spend_with_coins_less_than_2)
 {
     CAmount fee;
     std::vector<CSigmaEntry> selected;
-    std::vector<CSigmaEntry> changes;
+    std::vector<CHDMint> changes;
     std::vector<CRecipient> recipients;
 
     GenerateBlockWithCoins({ std::make_pair(sigma::CoinDenomination::SIGMA_DENOM_10, 1) });
@@ -512,7 +520,7 @@ BOOST_AUTO_TEST_CASE(create_spend_with_coins_more_than_1)
 {
     CAmount fee;
     std::vector<CSigmaEntry> selected;
-    std::vector<CSigmaEntry> changes;
+    std::vector<CHDMint> changes;
     std::vector<CRecipient> recipients;
 
     GenerateBlockWithCoins({ std::make_pair(sigma::CoinDenomination::SIGMA_DENOM_10, 2) });
@@ -558,11 +566,10 @@ BOOST_AUTO_TEST_CASE(create_spend_with_coins_more_than_1)
     BOOST_CHECK(remintsSum == 495 * CENT);
 
     // check walletdb
-    std::list<CSigmaEntry> coinList;
     std::list<CSigmaSpendEntry> spends;
     CWalletDB db(pwalletMain->strWalletFile);
 
-    db.ListSigmaPubCoin(coinList);
+    std::list<CHDMint> coinList = db.ListHDMints();
     BOOST_CHECK(coinList.size() == 2);
 
     db.ListCoinSpendSerial(spends);
@@ -571,10 +578,10 @@ BOOST_AUTO_TEST_CASE(create_spend_with_coins_more_than_1)
     pwalletMain->SpendSigma(recipients, tx, fee);
 
     coinList.clear();
-    db.ListSigmaPubCoin(coinList);
+    coinList = db.ListHDMints();
     BOOST_CHECK(coinList.size() == 12);
     BOOST_CHECK(std::count_if(coinList.begin(), coinList.end(),
-        [](const CSigmaEntry& coin){return !coin.IsUsed;}) == 10);
+        [](const CHDMint& coin){return !coin.IsUsed();}) == 10);
 
     spends.clear();
     db.ListCoinSpendSerial(spends);
@@ -604,8 +611,7 @@ BOOST_AUTO_TEST_CASE(spend)
     std::list<CSigmaSpendEntry> spends;
     db.ListCoinSpendSerial(spends);
 
-    std::list<CSigmaEntry> coins;
-    db.ListSigmaPubCoin(coins);
+    std::list<CHDMint> coins = db.ListHDMints();
 
     BOOST_CHECK(selected.size() == 1);
     BOOST_CHECK(selected[0].get_denomination() == sigma::CoinDenomination::SIGMA_DENOM_10);
@@ -624,13 +630,20 @@ BOOST_AUTO_TEST_CASE(spend)
         if (std::find_if(
             selected.begin(),
             selected.end(),
-            [&coin](const CSigmaEntry& e) { return e.serialNumber == coin.serialNumber; }) != selected.end()) {
+            [&coin](const CSigmaEntry& e) { return e.value == coin.GetPubcoinValue(); }) != selected.end()) {
             continue;
         }
 
-        BOOST_CHECK(coin.IsUsed == false);
-        BOOST_CHECK(coin.id == -1);
-        BOOST_CHECK(coin.nHeight == -1);
+        BOOST_CHECK(coin.IsUsed() == false);
+
+        // First 2 mints mined (Either could be picked as "selected" coin)
+        if(coin.GetCount()==0 || coin.GetCount()==1){
+            BOOST_CHECK(coin.GetId() == 1);
+            BOOST_CHECK(coin.GetHeight() == 1);
+        }else{
+            BOOST_CHECK(coin.GetId() == -1);
+            BOOST_CHECK(coin.GetHeight() == -1);
+        }
     }
     sigmaState->Reset();
 }

@@ -158,6 +158,9 @@ void WalletModel::updateSigmaCoins(const QString &pubCoin, const QString &isUsed
         std::list<CSigmaEntry> coins;
         CWalletDB(wallet->strWalletFile).ListSigmaPubCoin(coins);
 
+        auto hdmintCoins = wallet->hdMintTracker->MintsAsZerocoinEntries();
+        coins.insert(coins.end(), hdmintCoins.begin(), hdmintCoins.end());
+
         int block = cachedNumBlocks;
         for (const auto& coin : coins) {
             if (!coin.IsUsed) {
@@ -210,6 +213,9 @@ void WalletModel::checkSigmaAmount(bool forced)
     if ((cachedHavePendingCoin && cachedNumBlocks > lastBlockCheckSigma) || forced ) {
         std::list<CSigmaEntry> coins;
         CWalletDB(wallet->strWalletFile).ListSigmaPubCoin(coins);
+        
+        auto hdmintCoins = wallet->hdMintTracker->MintsAsZerocoinEntries();
+        coins.insert(coins.end(), hdmintCoins.begin(), hdmintCoins.end());
 
         std::vector<CSigmaEntry> spendable, pending;
 
@@ -696,10 +702,10 @@ bool WalletModel::isSpent(const COutPoint& outpoint) const
 }
 
 // AvailableCoins + LockedCoins grouped by wallet address (put change in one group with wallet address)
-void WalletModel::listCoins(std::map<QString, std::vector<COutput> >& mapCoins) const
+void WalletModel::listCoins(std::map<QString, std::vector<COutput> >& mapCoins, AvailableCoinsType nCoinType) const
 {
     std::vector<COutput> vCoins;
-    wallet->AvailableCoins(vCoins);
+    wallet->AvailableCoins(vCoins, true, NULL, false, nCoinType, false);
 
     LOCK2(cs_main, wallet->cs_wallet); // ListLockedCoins, mapWallet
     std::vector<COutPoint> vLockedCoins;
@@ -727,8 +733,14 @@ void WalletModel::listCoins(std::map<QString, std::vector<COutput> >& mapCoins) 
         }
 
         CTxDestination address;
-        if(!out.fSpendable || !ExtractDestination(cout.tx->vout[cout.i].scriptPubKey, address))
+        if(cout.tx->IsZerocoinMint() || cout.tx->IsSigmaMint()){
+            mapCoins[QString::fromStdString("(mint)")].push_back(out);
             continue;
+        }
+        else if(!out.fSpendable || !ExtractDestination(cout.tx->vout[cout.i].scriptPubKey, address)){
+            continue;
+        }
+
         mapCoins[QString::fromStdString(CBitcoinAddress(address).ToString())].push_back(out);
     }
 }
@@ -838,7 +850,8 @@ bool WalletModel::rebroadcastTransaction(uint256 hash)
 WalletModel::SendCoinsReturn WalletModel::prepareSigmaSpendTransaction(
     WalletModelTransaction &transaction,
     std::vector<CSigmaEntry> &selectedCoins,
-    std::vector<CSigmaEntry> &changes)
+    std::vector<CHDMint> &changes,
+    const CCoinControl *coinControl)
 {
     QList<SendCoinsRecipient> recipients = transaction.getRecipients();
     std::vector<CRecipient> sendRecipients;
@@ -869,7 +882,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareSigmaSpendTransaction(
 
     CWalletTx *newTx = transaction.getTransaction();
     try {
-        *newTx = wallet->CreateSigmaSpendTransaction(sendRecipients, fee, selectedCoins, changes);
+        *newTx = wallet->CreateSigmaSpendTransaction(sendRecipients, fee, selectedCoins, changes, coinControl);
     } catch (const InsufficientFunds& err) {
         return AmountExceedsBalance;
     } catch (const std::invalid_argument& err) {
@@ -882,7 +895,7 @@ WalletModel::SendCoinsReturn WalletModel::prepareSigmaSpendTransaction(
 }
 
 WalletModel::SendCoinsReturn WalletModel::sendSigma(WalletModelTransaction &transaction,
-    std::vector<CSigmaEntry>& coins, std::vector<CSigmaEntry>& changes)
+    std::vector<CSigmaEntry>& coins, std::vector<CHDMint>& changes)
 {
     QByteArray transaction_array; /* store serialized transaction */
 
@@ -950,7 +963,7 @@ WalletModel::SendCoinsReturn WalletModel::sendSigma(WalletModelTransaction &tran
     return SendCoinsReturn(OK);
 }
 
-void WalletModel::sigmaMint(const CAmount& n)
+void WalletModel::sigmaMint(const CAmount& n, const CCoinControl *coinControl)
 {
     std::vector<sigma::CoinDenomination> denominations;
     sigma::GetAllDenoms(denominations);
@@ -968,10 +981,11 @@ void WalletModel::sigmaMint(const CAmount& n)
             return sigma::PrivateCoin(sigmaParams, denom);
         });
 
-    auto recipients = CWallet::CreateSigmaMintRecipients(privCoins);
+    vector<CHDMint> vDMints;
+    auto recipients = CWallet::CreateSigmaMintRecipients(privCoins, vDMints);
 
     CWalletTx wtx;
-    std::string strError = pwalletMain->MintAndStoreSigma(recipients, privCoins, wtx);
+    std::string strError = pwalletMain->MintAndStoreSigma(recipients, privCoins, vDMints, wtx, false, coinControl);
 
     if (strError != "") {
         throw std::range_error(strError);

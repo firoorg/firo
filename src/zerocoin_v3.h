@@ -75,6 +75,17 @@ bool ConnectBlockSigma(
   const CBlock *pblock,
   bool fJustCheck=false);
 
+/*
+ * Get COutPoint(txHash, index) from the chain using pubcoin value alone.
+ */
+bool GetOutPointFromBlock(COutPoint& outPoint, const GroupElement &pubCoinValue, const CBlock &block);
+bool GetOutPoint(COutPoint& outPoint, const sigma::PublicCoin &pubCoin);
+bool GetOutPoint(COutPoint& outPoint, const GroupElement &pubCoinValue);
+bool GetOutPoint(COutPoint& outPoint, const uint256 &pubCoinValueHash);
+
+uint256 GetSerialHash(const secp_primitives::Scalar& bnSerial);
+uint256 GetPubCoinValueHash(const secp_primitives::GroupElement& bnValue);
+
 bool BuildSigmaStateFromIndex(CChain *chain);
 
 Scalar GetSigmaSpendSerialNumber(const CTransaction &tx, const CTxIn &txin);
@@ -108,10 +119,8 @@ public:
 public:
     CSigmaState();
 
-    // Add mint, automatically assigning id to it. Returns id and previous accumulator value (if any)
-    int AddMint(
-        CBlockIndex *index,
-        const sigma::PublicCoin& pubCoin);
+    // Add mins in block, automatically assigning id to it
+    void AddMintsToStateAndBlockIndex(CBlockIndex *index, const CBlock* pblock);
 
     // Add serial to the list of used ones
     void AddSpend(const Scalar &serial, CoinDenomination denom, int coinGroupId);
@@ -128,9 +137,13 @@ public:
 
     // Query if the coin serial was previously used
     bool IsUsedCoinSerial(const Scalar& coinSerial);
+        // Query if the hash of a coin serial was previously used. If so, store preimage in coinSerial param
+    bool IsUsedCoinSerialHash(Scalar &coinSerial, const uint256 &coinSerialHash);
 
     // Query if there is a coin with given pubCoin value
     bool HasCoin(const sigma::PublicCoin& pubCoin);
+    // Query if there is a coin with given hash of a pubCoin value. If so, store preimage in pubCoin param
+    bool HasCoinHash(GroupElement &pubCoinValue, const uint256 &pubCoinValueHash);
 
     // Given denomination and id returns latest accumulator value and corresponding block hash
     // Do not take into account coins with height more than maxHeight

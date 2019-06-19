@@ -31,6 +31,7 @@ class TxBuilder
 {
 public:
     CWallet& wallet;
+    const CCoinControl *coinControl;
 
 public:
     explicit TxBuilder(CWallet& wallet) noexcept;
