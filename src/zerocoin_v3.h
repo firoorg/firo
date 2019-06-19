@@ -70,10 +70,12 @@ bool ConnectBlockSigma(
   bool fJustCheck=false);
 
 /*
- * Get transaction hash from the chain using pubcoin value alone.
+ * Get COutPoint(txHash, index) from the chain using pubcoin value alone.
  */
-bool ZerocoinGetSigmaMintTxHash(uint256& txHash, uint256 pubCoinValueHash);
-bool ZerocoinGetSigmaMintTxHash(uint256& txHash, GroupElement pubCoinValue);
+bool GetOutPointFromBlock(COutPoint& outPoint, const GroupElement &pubCoinValue, const CBlock &block);
+bool GetOutPoint(COutPoint& outPoint, const sigma::PublicCoin &pubCoin);
+bool GetOutPoint(COutPoint& outPoint, const GroupElement &pubCoinValue);
+bool GetOutPoint(COutPoint& outPoint, const uint256 &pubCoinValueHash);
 
 uint256 GetSerialHash(const secp_primitives::Scalar& bnSerial);
 uint256 GetPubCoinValueHash(const secp_primitives::GroupElement& bnValue);

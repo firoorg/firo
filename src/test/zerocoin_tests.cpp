@@ -506,7 +506,7 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend_numinputs){
     pwalletMain->SetBroadcastTransactions(true);
 
     // attempt to create a zerocoin spend with more than ZC_SPEND_LIMIT inputs.
-    printf("Testing number of inputs for denomination %s", denominations[denominationIndexA].c_str());
+    printf("Testing number of inputs for denomination %s\n", denominations[denominationIndexA].c_str());
     denominationsForTx.clear();
 
     for (int i = 0; i < (ZC_SPEND_LIMIT+1)*2; i++){

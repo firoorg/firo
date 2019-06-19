@@ -8,7 +8,7 @@
 #include "amount.h"
 #include "exoassetsdialog.h"
 #include "znodelist.h"
-#include "sigmapage.h"
+#include "sigmadialog.h"
 
 #include <QStackedWidget>
 
@@ -71,6 +71,7 @@ private:
     void setupTransactionPage();
     void setupSendCoinPage();
     void setupToolboxPage();
+    void setupSigmaPage();
 
 private:
     ClientModel *clientModel;
@@ -91,7 +92,8 @@ private:
     MetaDExDialog *metaDExTab;
     MetaDExCancelDialog *cancelTab;
     ZerocoinPage *zerocoinPage;
-    SigmaPage *sigmaPage;
+    SigmaDialog *sigmaView;
+    QWidget *sigmaPage;
     TransactionView *zcoinTransactionList;
     TXHistoryDialog *exodusTransactionsView;
     QWidget *zcoinTransactionsView;

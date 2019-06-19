@@ -169,8 +169,10 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool)
                 continue;
             }
 
-            uint256 txHash;
-            if (sigma::ZerocoinGetSigmaMintTxHash(txHash, pubCoinValueHash)) {
+            
+            COutPoint outPoint;
+            if (sigma::GetOutPoint(outPoint, pubCoinValueHash)) {
+                const uint256& txHash = outPoint.hash;
                 //this mint has already occurred on the chain, increment counter's state to reflect this
                 LogPrintf("%s : Found wallet coin mint=%s count=%d tx=%s\n", __func__, pubCoinValueHash.GetHex(), pMint.second, txHash.GetHex());
                 found = true;

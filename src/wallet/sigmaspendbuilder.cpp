@@ -103,7 +103,7 @@ static std::unique_ptr<SigmaSpendSigner> CreateSigner(const CSigmaEntry& coin)
     return signer;
 }
 
-SigmaSpendBuilder::SigmaSpendBuilder(CWallet& wallet) : TxBuilder(wallet)
+SigmaSpendBuilder::SigmaSpendBuilder(CWallet& wallet, const CCoinControl *coinControl) : TxBuilder(wallet)
 {
     cs_main.lock();
 
@@ -113,6 +113,8 @@ SigmaSpendBuilder::SigmaSpendBuilder(CWallet& wallet) : TxBuilder(wallet)
         cs_main.unlock();
         throw;
     }
+
+    this->coinControl = coinControl;
 }
 
 SigmaSpendBuilder::~SigmaSpendBuilder()
@@ -131,7 +133,7 @@ CAmount SigmaSpendBuilder::GetInputs(std::vector<std::unique_ptr<InputSigner>>& 
     auto& consensusParams = Params().GetConsensus();
 
     if (!wallet.GetCoinsToSpend(required, selected, denomChanges,
-        consensusParams.nMaxSigmaInputPerTransaction, consensusParams.nMaxValueSigmaSpendPerTransaction)) {
+        consensusParams.nMaxSigmaInputPerTransaction, consensusParams.nMaxValueSigmaSpendPerTransaction, coinControl)) {
         throw InsufficientFunds();
     }
 

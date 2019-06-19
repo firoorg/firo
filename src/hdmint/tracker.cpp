@@ -372,8 +372,10 @@ bool CHDMintTracker::UpdateStatusInternal(const std::set<uint256>& setMempool, C
     uint256 hashPubcoin = sigma::GetPubCoinValueHash(mint.pubCoinValue);
     //! Check whether this mint has been spent and is considered 'pending' or 'confirmed'
     // If there is not a record of the block height, then look it up and assign it
-    uint256 txidMint;
-    bool isMintInChain = ZerocoinGetSigmaMintTxHash(txidMint, mint.pubCoinValue);
+    COutPoint outPoint;
+    sigma::PublicCoin pubCoin(mint.pubCoinValue, mint.denom);
+    bool isMintInChain = GetOutPoint(outPoint, pubCoin);
+    const uint256& txidMint = outPoint.hash;
 
     //See if there is internal record of spending this mint (note this is memory only, would reset on restart)
     bool isPendingSpend = static_cast<bool>(mapPendingSpends.count(mint.hashSerial));
