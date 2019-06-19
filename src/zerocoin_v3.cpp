@@ -396,7 +396,9 @@ bool CheckSigmaTransaction(
     bool allowSigma = (realHeight >= consensus.nSigmaStartBlock);
 
     if (allowSigma && sigmaState.IsSurgeConditionDetected()) {
-        return false;
+        return state.DoS(100, false,
+            REJECT_INVALID,
+            "Sigma surge protection is ON.");
     }
 
     // Check Mint Sigma Transaction
@@ -666,7 +668,7 @@ void CSigmaState::Containers::CheckSurgeCondition(int groupId, CoinDenomination 
     bool result = spendMetaInfo[groupId][denom] > mintMetaInfo[groupId][denom];
     if( result ) {
         std::ostringstream ostr;
-        ostr << "Spend amount exceeds that of mint in group: " << groupId << ", in denomination: " << denom << '\n';
+        ostr << "Turning sigma surge protection ON: groupId: " << groupId << ", denomination: " << denom << '\n';
         error(ostr.str().c_str());
     }
 
