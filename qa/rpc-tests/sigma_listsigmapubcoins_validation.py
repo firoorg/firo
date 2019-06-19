@@ -111,7 +111,7 @@ class ListSigmaPubCoinsValidationWithFundsTest(BitcoinTestFramework):
 
             assert sorted(pubcoins) == sorted(expected_pubcoins_after_denom_spend[denom_name]), \
                 'Unexpected pubcoins list returned after spend: {}. Should be: {}, but was: {}.' \
-                    .format(denom, expected_pubcoins_before_spend, pubcoins)
+                    .format(denom, sorted(expected_pubcoins_after_denom_spend[denom_name]), sorted(pubcoins)oins)
 
         unused_pubcoins_sum = sum([Decimal(pubcoin['denomination'])
                          for pubcoin in self.nodes[0].listsigmapubcoins() if pubcoin['IsUsed'] == False])
