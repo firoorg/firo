@@ -2235,9 +2235,7 @@ std::list<CSigmaEntry> CWallet::GetAvailableCoins(const CCoinControl *coinContro
 
         COutPoint outPoint;
         sigma::PublicCoin pubCoin(coin.value, coin.get_denomination());
-        if(!sigma::GetOutPoint(outPoint, pubCoin)){
-            return true;
-        }
+        sigma::GetOutPoint(outPoint, pubCoin);
 
         if(lockedCoins.count(outPoint) > 0){
             return true;
