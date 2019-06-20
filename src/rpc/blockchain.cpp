@@ -664,10 +664,6 @@ UniValue getblock(const UniValue& params, bool fHelp)
     CBlock block;
     CBlockIndex* pblockindex = mapBlockIndex[hash];
 
-    if(pblockindex->nHeight == 52084)
-        std::cerr << pblockindex->GetBlockHash().ToString() << std::endl;
-
-
     if (fHavePruned && !(pblockindex->nStatus & BLOCK_HAVE_DATA) && pblockindex->nTx > 0)
         throw JSONRPCError(RPC_INTERNAL_ERROR, "Block not available (pruned data)");
 
