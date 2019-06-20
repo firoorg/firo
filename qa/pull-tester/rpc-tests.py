@@ -147,7 +147,7 @@ testScripts = [
     # 'p2p-compactblocks.py',
     # 'nulldummy.py',
     'sigma_meetspend.py',
-    'sigma_listsigmamints_validation.py',
+   # 'sigma_listsigmamints_validation.py',
     #'sigma_listsigmaspends_validation.py',
     #'sigma_listunspentmints_sigma_validation.py',
     #'sigma_listsigmapubcoins_validation.py',
