@@ -209,7 +209,7 @@ private:
         void AddMint(sigma::PublicCoin const & pubCoin, CMintedCoinInfo const & coinInfo);
         void RemoveMint(sigma::PublicCoin const & pubCoin);
 
-        void AddSpend(Scalar const & serial, CoinDenomination denom, int groupId);
+        void AddSpend(Scalar const & serial, CSpendCoinInfo const & coinInfo);
         void RemoveSpend(Scalar const & serial);
 
         void Reset();

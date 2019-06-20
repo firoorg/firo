@@ -762,10 +762,10 @@ void CSigmaState::Containers::RemoveMint(sigma::PublicCoin const & pubCoin) {
     }
 }
 
-void CSigmaState::Containers::AddSpend(Scalar const & serial, CoinDenomination denom, int groupId) {
-    usedCoinSerials[serial] = CSpendCoinInfo::make(denom, groupId);
-    spendMetaInfo[groupId][denom] += 1;
-    CheckSurgeCondition(groupId, denom);
+void CSigmaState::Containers::AddSpend(Scalar const & serial, CSpendCoinInfo const & coinInfo) {
+    usedCoinSerials[serial] = coinInfo;
+    spendMetaInfo[coinInfo.coinGroupId][coinInfo.denomination] += 1;
+    CheckSurgeCondition(coinInfo.coinGroupId, coinInfo.denomination);
 }
 
 void CSigmaState::Containers::RemoveSpend(Scalar const & serial) {
@@ -867,11 +867,7 @@ void CSigmaState::AddMintsToStateAndBlockIndex(
         }
 
         for (const auto& mint : mintsWithThisDenom) {
-            CMintedCoinInfo coinInfo;
-            coinInfo.denomination = denomination;
-            coinInfo.coinGroupId = mintCoinGroupId;
-            coinInfo.nHeight = index->nHeight;
-            containers.AddMint(mint, coinInfo);
+            containers.AddMint(mint, CMintedCoinInfo::make(denomination, mintCoinGroupId, index->nHeight));
 
             LogPrintf("AddMintsToStateAndBlockIndex: mint added denomination=%d, id=%d\n", denomination, mintCoinGroupId);
             index->sigmaMintedPubCoins[{denomination, mintCoinGroupId}].push_back(mint);
@@ -880,7 +876,7 @@ void CSigmaState::AddMintsToStateAndBlockIndex(
 }
 
 void CSigmaState::AddSpend(const Scalar &serial, CoinDenomination denom, int coinGroupId) {
-    containers.AddSpend(serial, denom, coinGroupId);
+    containers.AddSpend(serial, CSpendCoinInfo::make(denom, coinGroupId));
 }
 
 void CSigmaState::AddBlock(CBlockIndex *index) {
@@ -898,8 +894,7 @@ void CSigmaState::AddBlock(CBlockIndex *index) {
 
         latestCoinIds[pubCoins.first.first] = pubCoins.first.second;
         BOOST_FOREACH(const sigma::PublicCoin &coin, pubCoins.second) {
-            CMintedCoinInfo coinInfo = CMintedCoinInfo::make(pubCoins.first.first, pubCoins.first.second, index->nHeight);
-            containers.AddMint(coin, coinInfo);
+            containers.AddMint(coin, CMintedCoinInfo::make(pubCoins.first.first, pubCoins.first.second, index->nHeight));
         }
     }
 
