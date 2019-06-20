@@ -1,5 +1,5 @@
-#ifndef HASH_FUNCTIONS_H__
-#define HASH_FUNCTIONS_H__
+#ifndef COIN_CONTAINERS_H
+#define COIN_CONTAINERS_H
 
 #include <secp256k1/include/Scalar.h>
 #include "sigma/coin.h"
