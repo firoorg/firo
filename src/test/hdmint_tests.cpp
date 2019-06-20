@@ -131,21 +131,12 @@ BOOST_AUTO_TEST_CASE(deterministic)
         BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(
             stringError, denominationPairs, vDMintsBuilder, SIGMA), stringError + " - Create Mint failed");
 
-        // Verify mint tx get added in the mempool
-        BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mint tx was not added to mempool");
-
         // Verify correct mint count
         BOOST_CHECK(mintCount == zwalletMain->GetCount());
 
         for(auto& mint : vDMintsBuilder){
             vDMintsRegenerated.push_back(mint);
         }
-
-        b = CreateBlock({}, scriptPubKey);
-        int previousHeight = chainActive.Height();
-        BOOST_CHECK_MESSAGE(ProcessBlock(b), "ProcessBlock failed although valid spend inside");
-        BOOST_CHECK_MESSAGE(previousHeight + 1 == chainActive.Height(), "Block not added to chain");
-
     }
 
     BOOST_CHECK(vDMints.size() == vDMintsRegenerated.size());
