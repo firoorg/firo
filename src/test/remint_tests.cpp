@@ -83,6 +83,44 @@ BOOST_AUTO_TEST_CASE(remint_basic_test)
     BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(stringError, "", "10"), "Sigma spend failed");
     BOOST_CHECK_MESSAGE(mempool.size() == 1, "Spend was not added to mempool");
 
+    for (int i=0; i<5; i++)
+        CreateAndProcessBlock({}, scriptPubKey);
+
+    // try double spend by modifying wallet and list of spent serials
+    //Temporary disable usedCoinSerials check to force double spend in mempool
+    CZerocoinState *zerocoinState = CZerocoinState::GetZerocoinState();
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+    for (const Bignum &serial: zerocoinState->usedCoinSerials) {
+        CZerocoinSpendEntry spendEntry;
+        spendEntry.coinSerial = serial;
+        walletdb.EraseCoinSpendSerialEntry(spendEntry);
+    }
+
+    std::list<CZerocoinEntry> zcEntries;
+    walletdb.ListPubCoin(zcEntries);
+    for (auto &zcEntry : zcEntries) {
+        if (zcEntry.IsUsedForRemint) {
+            zcEntry.IsUsed = zcEntry.IsUsedForRemint = false;
+            walletdb.WriteZerocoinEntry(zcEntry);
+        }
+    }
+    
+    auto tempSerials = zerocoinState->usedCoinSerials;
+    zerocoinState->usedCoinSerials.clear();
+
+    // Retry remint. Should pass for now
+    BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinToSigmaRemintModel(stringError, ZEROCOIN_TX_VERSION_2, (libzerocoin::CoinDenomination)1), stringError + " - Remint failed");
+
+    // Restore state and generate a block. TestBlockValidity() should fail due to seen serial
+    zerocoinState->usedCoinSerials = tempSerials;
+    try {
+        CreateAndProcessBlock({}, scriptPubKey);
+        BOOST_FAIL("Block is created despite having double spend in it");
+    }
+    catch (std::runtime_error &err) {
+        BOOST_CHECK(strstr(err.what(), "TestBlockValidity") != nullptr);
+    }
+
     params = oldParams;
 }
 
