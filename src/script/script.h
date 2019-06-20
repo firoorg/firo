@@ -660,6 +660,8 @@ public:
     bool IsSigmaMint() const;
     bool IsSigmaSpend() const;
 
+    bool IsZerocoinRemint() const;
+
     // Called by IsStandardTx.
     bool HasCanonicalPushes() const;
 

@@ -515,6 +515,9 @@ void handleOutput(const CTxOut &out, size_t outNo, uint256 const & txHash, int h
     if(out.scriptPubKey.IsSigmaMint())
         addressIndex->push_back(make_pair(CAddressIndexKey(AddressType::sigmaMint, uint160(), height, txNumber, txHash, outNo, false), out.nValue));
 
+    if(out.scriptPubKey.IsZerocoinRemint())
+        addressIndex->push_back(make_pair(CAddressIndexKey(AddressType::zerocoinRemint, uint160(), height, txNumber, txHash, outNo, false), out.nValue));
+
     txnouttype type;
     vector<vector<unsigned char> > addresses;
 

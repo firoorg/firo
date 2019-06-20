@@ -556,6 +556,8 @@ void handleSingleAddress(const UniValue& uniAddress, std::vector<std::pair<uint1
     } else if(zerocoin::utils::isSigma(addr)) {
         addresses.push_back(std::make_pair(uint160(), AddressType::sigmaMint));
         addresses.push_back(std::make_pair(uint160(), AddressType::sigmaSpend));
+    } else if(zerocoin::utils::isZerocoinRemint(addr)) {
+        addresses.push_back(std::make_pair(uint160(), AddressType::zerocoinRemint));
     } else {
         CBitcoinAddress address(addr);
         uint160 hashBytes;
