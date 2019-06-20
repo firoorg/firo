@@ -2229,7 +2229,7 @@ CAmount CWallet::SelectSpendCoinsForAmount(
     return required - val;
 }
 
-std::list<CSigmaEntry> CWallet::GetAvailableCoins(const CCoinControl *coinControl) const {
+std::list<CSigmaEntry> CWallet::GetAvailableCoins(const CCoinControl *coinControl, bool includeUnsafe) const {
     LOCK2(cs_main, cs_wallet);
     CWalletDB walletdb(strWalletFile);
     std::list<CSigmaEntry> coins;
@@ -2247,7 +2247,7 @@ std::list<CSigmaEntry> CWallet::GetAvailableCoins(const CCoinControl *coinContro
     // above them, after they were minted.
     // Also filter out used coins.
     // Finally filter out coins that have not been selected from CoinControl should that be used
-    coins.remove_if([lockedCoins, coinControl](const CSigmaEntry& coin) {
+    coins.remove_if([lockedCoins, coinControl, includeUnsafe](const CSigmaEntry& coin) {
         sigma::CSigmaState* sigmaState = sigma::CSigmaState::GetState();
         if (coin.IsUsed)
             return true;
@@ -2268,7 +2268,7 @@ std::list<CSigmaEntry> CWallet::GetAvailableCoins(const CCoinControl *coinContro
             coinOuts
         );
 
-        if (coinOuts.size() < 2) {
+        if (!includeUnsafe && coinOuts.size() < 2) {
             return true;
         }
 

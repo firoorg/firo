@@ -444,7 +444,7 @@ bool CHDMintTracker::UpdateStatusInternal(const std::set<uint256>& setMempool, C
 
         // Check that the mint has correct used status
         if (mint.isUsed != isUsed) {
-            LogPrintf("%s : Set mint %s isUsed to %d\n", __func__, hashPubcoin.GetHex(), isUsed);    
+            LogPrintf("%s : Set mint %s isUsed to %d\n", __func__, hashPubcoin.GetHex(), isUsed);
             mint.isUsed = isUsed;
             isUpdated = true;
         }
@@ -501,7 +501,7 @@ bool CHDMintTracker::UpdateMints(std::set<uint256> serialHashes, bool fReset, bo
         }
 
         if((!fSelection) ||
-            (fSelection && (serialHashes.find(dMint.GetSerialHash()) != serialHashes.end()))){ 
+            (fSelection && (serialHashes.find(dMint.GetSerialHash()) != serialHashes.end()))){
             Add(dMint, true, false, zerocoinWallet);
         }
     }
@@ -510,10 +510,10 @@ bool CHDMintTracker::UpdateMints(std::set<uint256> serialHashes, bool fReset, bo
     return true;
 }
 
-list<CSigmaEntry> CHDMintTracker::MintsAsZerocoinEntries(){
+list<CSigmaEntry> CHDMintTracker::MintsAsZerocoinEntries(bool fUnusedOnly, bool fMatureOnly){
     list <CSigmaEntry> listPubcoin;
     CWalletDB walletdb(strWalletFile);
-    std::vector<CMintMeta> vecMists = ListMints();
+    std::vector<CMintMeta> vecMists = ListMints(fUnusedOnly, fMatureOnly);
     list<CMintMeta> listMints(vecMists.begin(), vecMists.end());
     for (const CMintMeta& mint : listMints) {
         CSigmaEntry entry;
