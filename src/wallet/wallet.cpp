@@ -4358,7 +4358,7 @@ int CWallet::GetNumberOfUnspentMintsForDenomination(int version, libzerocoin::Co
     return result;
 }
 
-bool CWallet::CreateZerocoinToSigmaRemintModel(string &stringError, int version, libzerocoin::CoinDenomination denomination) {
+bool CWallet::CreateZerocoinToSigmaRemintModel(string &stringError, int version, libzerocoin::CoinDenomination denomination, CWalletTx *wtx) {
     // currently we don't support zerocoin mints v1
     assert(version == ZEROCOIN_TX_VERSION_2);
 
@@ -4513,6 +4513,9 @@ bool CWallet::CreateZerocoinToSigmaRemintModel(string &stringError, int version,
             "New (" + std::to_string(sigmaMint.getPublicCoin().getDenomination()) + " mint)",
             CT_NEW);
     }
+
+    if (wtx)
+        *wtx = wtxNew;
 
     return true;
 }

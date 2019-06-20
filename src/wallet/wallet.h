@@ -1051,7 +1051,7 @@ public:
 
     // functions to do reminting from zerocoin to sigma
     int GetNumberOfUnspentMintsForDenomination(int version, libzerocoin::CoinDenomination d, CZerocoinEntry *mintEntry = NULL);
-    bool CreateZerocoinToSigmaRemintModel(string &stringError, int version, libzerocoin::CoinDenomination d);
+    bool CreateZerocoinToSigmaRemintModel(string &stringError, int version, libzerocoin::CoinDenomination d, CWalletTx *wtx = NULL);
 
     static CFeeRate minTxFee;
     static CFeeRate fallbackFee;

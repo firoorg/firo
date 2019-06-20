@@ -3855,6 +3855,41 @@ UniValue listspendzerocoins(const UniValue &params, bool fHelp) {
     return ret;
 }
 
+UniValue remintzerocointosigma(const UniValue &params, bool fHelp) {
+    if (fHelp || params.size() != 1)
+        throw runtime_error(
+            "remintzerocointosigma <denomination>(1,10,25,50,100)\n"
+            +HelpRequiringPassphrase() +
+            "\nConvert zerocoin mint to sigma mint.\n"
+            "\nArguments:\n"
+            "1. \"denomination\"          (integer, required) existing zerocoin mint denomination\n"
+        );
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+    libzerocoin::CoinDenomination denomination;
+    switch (params[0].get_int()) {
+        case 1:
+        case 10:
+        case 25:
+        case 50:
+        case 100:
+            denomination = (libzerocoin::CoinDenomination)params[0].get_int();
+            break;
+
+        default:
+            throw runtime_error("Incorrect denomination\n");
+    }
+
+    EnsureWalletIsUnlocked();
+    std::string stringError;
+    CWalletTx wtx;
+
+    if (!pwalletMain->CreateZerocoinToSigmaRemintModel(stringError, ZEROCOIN_TX_VERSION_2, denomination, &wtx))
+        throw JSONRPCError(RPC_WALLET_ERROR, stringError);
+
+    return wtx.GetHash().GetHex();
+}
+
 UniValue removetxmempool(const UniValue &params, bool fHelp) {
     if (fHelp || params.size() != 1)
         throw runtime_error(
@@ -3976,7 +4011,8 @@ static const CRPCCommand commands[] =
     { "wallet",             "removetxwallet",           &removetxwallet,           false },
     { "wallet",             "listspendzerocoins",       &listspendzerocoins,       false },
     { "wallet",             "listsigmaspends",          &listsigmaspends,          false },
-    { "wallet",             "spendallzerocoin",         &spendallzerocoin,         false}
+    { "wallet",             "spendallzerocoin",         &spendallzerocoin,         false },
+    { "wallet",             "remintzerocointosigma",    &remintzerocointosigma,    false }
 };
 
 void RegisterWalletRPCCommands(CRPCTable &tableRPC)
