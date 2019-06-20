@@ -12,7 +12,7 @@
 #include <unordered_set>
 #include <unordered_map>
 #include <functional>
-#include "hash_functions.h"
+#include "coin_containers.h"
 
 //tests
 namespace sigma_mintspend_many { struct sigma_mintspend_many; }

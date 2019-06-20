@@ -8,11 +8,9 @@
 
 namespace sigma {
 
-using namespace secp_primitives;
-
 // Custom hash for Scalar values.
 struct CScalarHash {
-    std::size_t operator()(const Scalar& bn) const noexcept;
+    std::size_t operator()(const secp_primitives::Scalar& bn) const noexcept;
 };
 
 // Custom hash for the public coin.

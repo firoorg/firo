@@ -1,4 +1,4 @@
-#include "hash_functions.h"
+#include "coin_containers.h"
 #include "crypto/sha256.h"
 
 #include <vector>

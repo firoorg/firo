@@ -18,7 +18,7 @@
 #include "zerocoin_params.h"
 #include "util.h"
 #include "chainparams.h"
-#include "hash_functions.h"
+#include "coin_containers.h"
 #include "streams.h"
 
 #include <vector>
