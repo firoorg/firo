@@ -104,6 +104,8 @@ private:
     // Latest IDs of coins by denomination
     map<int, int> latestCoinIds;
 
+    // set of blacklisted public coin values
+    static std::unordered_set<CBigNum,CZerocoinState::CBigNumHash> sigmaRemintBlacklistSet;
 
 public:
     CZerocoinState();
@@ -173,6 +175,9 @@ public:
 
     // Is public coin value blacklisted?
     static bool IsPublicCoinValueBlacklisted(const CBigNum &value);
+
+    // Manually add public coin value to the blacklist. Meant for testing purposes only
+    static void BlacklistPublicCoinValue(const CBigNum &value);
 
     static CZerocoinState *GetZerocoinState();
 };

@@ -141,11 +141,6 @@ BOOST_AUTO_TEST_CASE(remint_blacklist)
 {
     FakeV2 fakeV2;
 
-    // at the end of the blacklist there is an extra entry reserved for testing
-    const char  **pBlacklistEntry = sigmaRemintBlacklist;
-    while (*pBlacklistEntry)
-        pBlacklistEntry++;
-
     string stringError;
 
     pwalletMain->SetBroadcastTransactions(true);
@@ -169,12 +164,11 @@ BOOST_AUTO_TEST_CASE(remint_blacklist)
     // there should be exactly one
     BOOST_CHECK(pubCoins.size() == 1);
 
-    std::string value = pubCoins.begin()->value.GetHex();
-    *pBlacklistEntry = value.c_str();
+    CZerocoinState::BlacklistPublicCoinValue(pubCoins.begin()->value);
 
     // Now remint should succeed but it should result in transaction in mempool
     BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinToSigmaRemintModel(stringError, ZEROCOIN_TX_VERSION_2, (libzerocoin::CoinDenomination)1), stringError + " - Remint failed");
-    BOOST_CHECK_MESSAGE(mempool.size() == 0, "Reming was added to the mempool despite blacklisted public coin value");
+    BOOST_CHECK_MESSAGE(mempool.size() == 0, "Remint was added to the mempool despite blacklisted public coin value");
 }
 
 BOOST_AUTO_TEST_SUITE_END()
