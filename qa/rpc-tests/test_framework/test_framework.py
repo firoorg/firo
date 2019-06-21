@@ -12,6 +12,7 @@ import sys
 import shutil
 import tempfile
 import traceback
+import unittest
 
 from .util import (
     initialize_chain,

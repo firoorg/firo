@@ -3359,24 +3359,24 @@ UniValue resetmintzerocoin(const UniValue& params, bool fHelp) {
 UniValue resetsigmamint(const UniValue& params, bool fHelp) {
     if (fHelp || params.size() != 0)
         throw runtime_error(
-                "resetmintzerocoin"
+                "resetsigmamint"
                 + HelpRequiringPassphrase());
 
     list <CSigmaEntry> listPubcoin;
     CWalletDB walletdb(pwalletMain->strWalletFile);
     listPubcoin = pwalletMain->hdMintTracker->MintsAsZerocoinEntries();
 
-    BOOST_FOREACH(const CSigmaEntry &zerocoinItem, listPubcoin){
-        if (zerocoinItem.randomness != uint64_t(0) && zerocoinItem.serialNumber != uint64_t(0)) {
-            CSigmaEntry zerocoinTx;
-            zerocoinTx.IsUsed = false;
-            zerocoinTx.set_denomination_value(zerocoinItem.get_denomination_value());
-            zerocoinTx.value = zerocoinItem.value;
-            zerocoinTx.serialNumber = zerocoinItem.serialNumber;
-            zerocoinTx.nHeight = -1;
-            zerocoinTx.randomness = zerocoinItem.randomness;
-//            zerocoinTx.ecdsaSecretKey = zerocoinItem.ecdsaSecretKey;
-            walletdb.WriteZerocoinEntry(zerocoinTx);
+    BOOST_FOREACH(const CSigmaEntry &sigmaItem, listPubcoin){
+        if (sigmaItem.randomness != uint64_t(0) && sigmaItem.serialNumber != uint64_t(0)) {
+            CSigmaEntry sigmaTx;
+            sigmaTx.IsUsed = false;
+            sigmaTx.set_denomination_value(sigmaItem.get_denomination_value());
+            sigmaTx.value = sigmaItem.value;
+            sigmaTx.serialNumber = sigmaItem.serialNumber;
+            sigmaTx.nHeight = -1;
+            sigmaTx.randomness = sigmaItem.randomness;
+            sigmaTx.ecdsaSecretKey = sigmaItem.ecdsaSecretKey;
+            walletdb.WriteZerocoinEntry(sigmaTx);
         }
     }
 
@@ -3435,7 +3435,7 @@ UniValue listsigmamints(const UniValue& params, bool fHelp) {
 
     list <CSigmaEntry> listPubcoin;
     CWalletDB walletdb(pwalletMain->strWalletFile);
-    listPubcoin = pwalletMain->hdMintTracker->MintsAsZerocoinEntries();
+    walletdb.ListSigmaPubCoin(listPubcoin);
     UniValue results(UniValue::VARR);
 
     BOOST_FOREACH(const CSigmaEntry &zerocoinItem, listPubcoin) {
@@ -3518,16 +3518,20 @@ UniValue listsigmapubcoins(const UniValue& params, bool fHelp) {
     UniValue results(UniValue::VARR);
     listPubcoin.sort(CompSigmaHeight);
 
+    auto state = sigma::CSigmaState::GetState();
     BOOST_FOREACH(const CSigmaEntry &sigmaItem, listPubcoin) {
-        if (sigmaItem.id > 0 &&
+        sigma::PublicCoin coin(sigmaItem.value, sigmaItem.get_denomination());
+        int height, id;
+        std::tie(height, id) = state->GetMintedCoinHeightAndId(coin);
+        if (id > 0 &&
             (!filter_by_denom || sigmaItem.get_denomination() == denomination)) {
             UniValue entry(UniValue::VOBJ);
-            entry.push_back(Pair("id", sigmaItem.id));
+            entry.push_back(Pair("id", id));
             entry.push_back(Pair("IsUsed", sigmaItem.IsUsed));
             entry.push_back(Pair("denomination", sigmaItem.get_string_denomination()));
             entry.push_back(Pair("value", sigmaItem.value.GetHex()));
             entry.push_back(Pair("serialNumber", sigmaItem.serialNumber.GetHex()));
-            entry.push_back(Pair("nHeight", sigmaItem.nHeight));
+            entry.push_back(Pair("nHeight", height));
             entry.push_back(Pair("randomness", sigmaItem.randomness.GetHex()));
             results.push_back(entry);
         }
@@ -3603,8 +3607,8 @@ UniValue setmintzerocoinstatus(const UniValue& params, bool fHelp) {
 UniValue setsigmamintstatus(const UniValue& params, bool fHelp) {
     if (fHelp || params.size() != 2)
         throw runtime_error(
-                "setmintzerocoinstatus \"coinserial\" <isused>(true/false)\n"
-                "Set mintzerocoin IsUsed status to True or False\n"
+                "setsigmamintstatus \"coinserial\" <isused>(true/false)\n"
+                "Set mintsigma IsUsed status to True or False\n"
                 "Results are an array of one or no Objects, each of which has:\n"
                 "{id, IsUsed, denomination, value, serialNumber, nHeight, randomness}");
 
@@ -3967,11 +3971,15 @@ static const CRPCCommand commands[] =
     { "wallet",             "spendmanyzerocoin",        &spendmanyzerocoin,        false },
     { "wallet",             "spendmany",                &spendmany,                false },
     { "wallet",             "resetmintzerocoin",        &resetmintzerocoin,        false },
+    { "wallet",             "resetsigmamint",           &resetsigmamint,           false },
     { "wallet",             "setmintzerocoinstatus",    &setmintzerocoinstatus,    false },
+    { "wallet",             "setsigmamintstatus",       &setsigmamintstatus,       false },
     { "wallet",             "listmintzerocoins",        &listmintzerocoins,        false },
     { "wallet",             "listsigmamints",           &listsigmamints,           false },
     { "wallet",             "listpubcoins",             &listpubcoins,             false },
     { "wallet",             "listsigmapubcoins",        &listsigmapubcoins,        false },
+
+
     { "wallet",             "removetxmempool",          &removetxmempool,          false },
     { "wallet",             "removetxwallet",           &removetxwallet,           false },
     { "wallet",             "listspendzerocoins",       &listspendzerocoins,       false },
