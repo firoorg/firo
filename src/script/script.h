@@ -191,7 +191,10 @@ enum opcodetype
     OP_ZEROCOINMINT = 0xc1,
     OP_ZEROCOINSPEND = 0xc2,
     OP_SIGMAMINT = 0xc3,
-    OP_SIGMASPEND = 0xc4
+    OP_SIGMASPEND = 0xc4,
+
+    // input for reminting zerocoin to sigma (v3)
+    OP_ZEROCOINTOSIGMAREMINT = 0xc8
 };
 
 const char* GetOpName(opcodetype opcode);
@@ -656,6 +659,8 @@ public:
     // Checks if the script is zerocoin v3 sigma mint/spend or not.
     bool IsSigmaMint() const;
     bool IsSigmaSpend() const;
+
+    bool IsZerocoinRemint() const;
 
     // Called by IsStandardTx.
     bool HasCanonicalPushes() const;

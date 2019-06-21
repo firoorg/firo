@@ -116,6 +116,7 @@ private:
     QAction *openAction;
     QAction *showHelpMessageAction;
     QAction *sigmaAction;
+    QAction *zc2SigmaAction;
     QAction *znodeAction;
 
     QSystemTrayIcon *trayIcon;
@@ -208,6 +209,8 @@ private Q_SLOTS:
     void gotoSendCoinsPage(QString addr = "");
      /** Switch to sigma page */
     void gotoSigmaPage();
+    /** Switch to ZC->sigma page */
+    void gotoZc2SigmaPage();
 
     /** Show Sign/Verify Message dialog and switch to sign message tab */
     void gotoSignMessageTab(QString addr = "");

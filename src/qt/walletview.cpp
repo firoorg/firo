@@ -7,6 +7,7 @@
 #include "addressbookpage.h"
 #include "zerocoinpage.h"
 #include "sigmadialog.h"
+#include "zc2sigmapage.h"
 #include "askpassphrasedialog.h"
 #include "bitcoingui.h"
 #include "clientmodel.h"
@@ -52,6 +53,7 @@ WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
     overviewPage(0),
     sendExodusView(0),
     sigmaView(0),
+    zc2SigmaPage(0),
     exodusTransactionsView(0),
     zcoinTransactionsView(0),
     platformStyle(platformStyle),
@@ -66,6 +68,7 @@ WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
     usedReceivingAddressesPage = new AddressBookPage(platformStyle, AddressBookPage::ForEditing, AddressBookPage::ReceivingTab, this);
     zerocoinPage = new ZerocoinPage(platformStyle, ZerocoinPage::ForEditing, this);
     sigmaPage = new QWidget(this);
+    zc2SigmaPage = new Zc2SigmaPage(platformStyle, this);
     sendCoinsPage = new QWidget(this);
     toolboxPage = new QWidget(this);
     znodeListPage = new ZnodeList(platformStyle);
@@ -82,6 +85,7 @@ WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
     addWidget(sendCoinsPage);
     addWidget(zerocoinPage);
     addWidget(sigmaPage);
+    addWidget(zc2SigmaPage);
     addWidget(toolboxPage);
     addWidget(znodeListPage);
 
@@ -252,6 +256,7 @@ void WalletView::setWalletModel(WalletModel *walletModel)
     receiveCoinsPage->setModel(walletModel);
     zerocoinPage->setModel(walletModel->getAddressTableModel());
     sigmaView->setWalletModel(walletModel);
+    zc2SigmaPage->createModel();
     usedReceivingAddressesPage->setModel(walletModel->getAddressTableModel());
     usedSendingAddressesPage->setModel(walletModel->getAddressTableModel());
     znodeListPage->setWalletModel(walletModel);
@@ -377,6 +382,10 @@ void WalletView::gotoSigmaPage()
     setCurrentWidget(sigmaPage);
 }
 
+void WalletView::gotoZc2SigmaPage()
+{
+    setCurrentWidget(zc2SigmaPage);
+}
 
 void WalletView::gotoToolboxPage()
 {

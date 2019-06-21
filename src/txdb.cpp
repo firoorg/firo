@@ -515,6 +515,9 @@ void handleOutput(const CTxOut &out, size_t outNo, uint256 const & txHash, int h
     if(out.scriptPubKey.IsSigmaMint())
         addressIndex->push_back(make_pair(CAddressIndexKey(AddressType::sigmaMint, uint160(), height, txNumber, txHash, outNo, false), out.nValue));
 
+    if(out.scriptPubKey.IsZerocoinRemint())
+        addressIndex->push_back(make_pair(CAddressIndexKey(AddressType::zerocoinRemint, uint160(), height, txNumber, txHash, outNo, false), out.nValue));
+
     txnouttype type;
     vector<vector<unsigned char> > addresses;
 
@@ -540,7 +543,7 @@ void handleOutput(const CTxOut &out, size_t outNo, uint256 const & txHash, int h
 void CDbIndexHelper::ConnectTransaction(CTransaction const & tx, int height, int txNumber, CCoinsViewCache const & view)
 {
     size_t no = 0;
-    if(!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsSigmaSpend())
+    if(!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsSigmaSpend() && !tx.IsZerocoinRemint())
         for (std::vector<CTxIn>::const_iterator iter = tx.vin.begin(); iter != tx.vin.end(); ++iter) {
             CTxIn const & input = *iter;
             handleInput(input, no++, tx.GetHash(), height, txNumber, view, addressIndex, addressUnspentIndex, spentIndex);
@@ -571,7 +574,7 @@ void CDbIndexHelper::DisconnectTransactionInputs(CTransaction const & tx, int he
         pSpentBegin = spentIndex->size();
 
     size_t no = 0;
-    if(!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsSigmaSpend())
+    if(!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsSigmaSpend() && !tx.IsZerocoinRemint())
         for (std::vector<CTxIn>::const_iterator iter = tx.vin.begin(); iter != tx.vin.end(); ++iter) {
             CTxIn const & input = *iter;
             handleInput(input, no++, tx.GetHash(), height, txNumber, view, addressIndex, addressUnspentIndex, spentIndex);

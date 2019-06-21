@@ -155,6 +155,8 @@ check-java: libsecp256k1.la $(JAVA_GUAVA) .stamp-java
 endif
 endif
 
+CXXFLAGS += $(CRYPTO_CFLAGS)
+
 if USE_ECMULT_STATIC_PRECOMPUTATION
 CPPFLAGS_FOR_BUILD +=-I$(top_srcdir)
 CFLAGS_FOR_BUILD += -Wall -Wextra -Wno-unused-function

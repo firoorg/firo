@@ -12,6 +12,7 @@
 #include "crypto/sha256.h"
 #include "sigma/coinspend.h"
 #include "sigma/coin.h"
+#include "sigma/remint.h"
 #include "znode-payments.h"
 #include "znode-sync.h"
 #include "primitives/zerocoin.h"
@@ -133,11 +134,13 @@ bool CheckSigmaBlock(CValidationState &state, const CBlock& block) {
     CAmount blockSpendsValue(0);
 
     for (const auto& tx : block.vtx) {
-        auto txSpendsValue = GetSpendAmount(tx);
+        // Check zerocoin to sigma remints against the same limit as sigma spends
+
+        auto txSpendsValue = tx.IsZerocoinRemint() ? CoinRemintToV3::GetAmount(tx) : GetSpendAmount(tx);
         size_t txSpendsAmount = 0;
 
         for (const auto& in : tx.vin) {
-            if (in.IsSigmaSpend()) {
+            if (in.IsSigmaSpend() || in.IsZerocoinRemint()) {
                 txSpendsAmount++;
             }
         }

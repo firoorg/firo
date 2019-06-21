@@ -303,6 +303,11 @@ bool CScript::IsSigmaSpend() const {
             (*this)[0] == OP_SIGMASPEND);
 }
 
+bool CScript::IsZerocoinRemint() const {
+    return (this->size() > 0 &&
+            (*this)[0] == OP_ZEROCOINTOSIGMAREMINT);
+}
+
 bool CScript::HasCanonicalPushes() const
 {
     const_iterator pc = begin();

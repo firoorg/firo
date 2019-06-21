@@ -62,6 +62,9 @@ public:
     int nHeight;
     int id;
 
+    // used for reminting to sigma
+    bool IsUsedForRemint;
+
     CZerocoinEntry()
     {
         SetNull();
@@ -69,7 +72,7 @@ public:
 
     void SetNull()
     {
-        IsUsed = false;
+        IsUsed = IsUsedForRemint = false;
         randomness = 0;
         serialNumber = 0;
         value = 0;
@@ -95,16 +98,21 @@ public:
         READWRITE(nHeight);
         READWRITE(id);
         if (ser_action.ForRead()) {
+            IsUsedForRemint = false;
             if (!is_eof(s)) {
                 int nStoredVersion = 0;
                 READWRITE(nStoredVersion);
-                if (nStoredVersion >= ZC_ADVANCED_WALLETDB_MINT_VERSION)
+                if (nStoredVersion >= ZC_ADVANCED_WALLETDB_MINT_VERSION) {
                     READWRITE(ecdsaSecretKey);
+                    if (!is_eof(s))
+                        READWRITE(IsUsedForRemint);
+                }
             }
         }
         else {
             READWRITE(nVersion);
             READWRITE(ecdsaSecretKey);
+            READWRITE(IsUsedForRemint);
         }
     }
 

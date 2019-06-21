@@ -36,6 +36,7 @@
 #include "znodeman.h"
 #include "zerocoin.h"
 #include "zerocoin_v3.h"
+#include "sigma/remint.h"
 #include <algorithm>
 #include <boost/thread.hpp>
 #include <boost/tuple/tuple.hpp>
@@ -409,11 +410,14 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
             }
 
             // temporarily disable zerocoin. Re-enable after sigma release
-            if (tx.IsZerocoinSpend() || tx.IsZerocoinMint())
+            // Make exception for regtest network (for remint tests)
+            if (!chainparams.GetConsensus().IsRegtest() && (tx.IsZerocoinSpend() || tx.IsZerocoinMint()))
                 continue;
 
-            if (tx.IsSigmaSpend()) {
-                auto spendAmount = sigma::GetSpendAmount(tx);
+            if (tx.IsSigmaSpend() || tx.IsZerocoinRemint()) {
+                // Sigma spend and zerocoin->sigma remint are subject to the same limits
+                CAmount spendAmount = tx.IsSigmaSpend() ? sigma::GetSpendAmount(tx) : sigma::CoinRemintToV3::GetAmount(tx);
+
                 if (tx.vin.size() > params.nMaxSigmaInputPerTransaction ||
                     spendAmount > params.nMaxValueSigmaSpendPerTransaction) {
                     continue;
@@ -459,10 +463,8 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
                 ++nBlockTx;
                 nBlockSigOpsCost += nTxSigOps;
                 nFees += nTxFees;
-                if (tx.IsSigmaSpend()) {
-                    nSigmaSpend += tx.vin.size();
-                    nValueSigmaSpend += sigma::GetSpendAmount(tx);
-                }
+                nSigmaSpend += tx.vin.size();
+                nValueSigmaSpend += spendAmount;
                 inBlock.insert(iter);
                 continue;
             }
@@ -944,7 +946,7 @@ void BlockAssembler::addPriorityTxs()
         //add zcoin validation
         if (tx.IsCoinBase() || !CheckFinalTx(tx))
             continue;
-        if (tx.IsZerocoinSpend() || tx.IsSigmaSpend()) {
+        if (tx.IsZerocoinSpend() || tx.IsSigmaSpend() || tx.IsZerocoinRemint()) {
             //mempool.countZCSpend--;
             // Size limits
             unsigned int nTxSize = ::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION);

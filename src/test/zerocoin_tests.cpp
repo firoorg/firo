@@ -44,6 +44,8 @@ BOOST_FIXTURE_TEST_SUITE(zerocoin_tests, ZerocoinTestingSetup200)
 
 BOOST_AUTO_TEST_CASE(zerocoin_mintspend)
 {
+    FakeTestnet fakeTestnet;
+
     string denomination;
     vector<uint256> vtxid;
     std::vector<std::string> denominations = {"1", "10", "25", "50", "100"};
@@ -173,6 +175,8 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend)
 
 BOOST_AUTO_TEST_CASE(zerocoin_mintspend_many)
 {
+    FakeTestnet FakeTestnet;
+
     vector<string> denominationsForTx;
     vector<uint256> vtxid;
     string thirdPartyAddress;

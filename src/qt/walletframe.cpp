@@ -190,6 +190,13 @@ void WalletFrame::gotoSigmaPage()
         i.value()->gotoSigmaPage();
 }
 
+void WalletFrame::gotoZc2SigmaPage()
+{
+    QMap<QString, WalletView*>::const_iterator i;
+    for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i)
+        i.value()->gotoZc2SigmaPage();
+}
+
 void WalletFrame::gotoVerifyMessageTab(QString addr)
 {
     WalletView *walletView = currentWalletView();
