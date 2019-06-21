@@ -36,20 +36,35 @@
 #include <boost/test/unit_test.hpp>
 #include <boost/thread.hpp>
 
+// for the duration of the test use only v2 zerocoin mints/spends
+class FakeV2 {
+    Consensus::Params &params;
+    Consensus::Params oldParams;
+public:
+    FakeV2() : params(const_cast<Consensus::Params &>(Params().GetConsensus())) {
+        oldParams = params;
+        params.nSpendV2ID_1 = params.nSpendV2ID_10 = params.nSpendV2ID_25 = params.nSpendV2ID_50 = params.nSpendV2ID_100 = 1;
+    }
+
+    ~FakeV2() {
+        params = oldParams;
+    }
+};
+
+extern const char *sigmaRemintBlacklist[];
+
+
 BOOST_FIXTURE_TEST_SUITE(zerocoin_to_sigma_remint_tests, ZerocoinTestingSetup200)
 
 BOOST_AUTO_TEST_CASE(remint_basic_test)
 {
+    FakeV2 fakeV2;
+
     string denomination;
     vector<uint256> vtxid;
     std::vector<string> denominations = {"1", "10", "25", "50", "100"};
 
     string stringError;
-
-    // Start with spend v2
-    Consensus::Params &params = const_cast<Consensus::Params &>(Params().GetConsensus());
-    Consensus::Params oldParams = params;
-    params.nSpendV2ID_1 = params.nSpendV2ID_10 = params.nSpendV2ID_25 = params.nSpendV2ID_50 = params.nSpendV2ID_100 = 1;
 
     for (int i=0; i<5; i++) {
         denomination = denominations[i];
@@ -120,8 +135,46 @@ BOOST_AUTO_TEST_CASE(remint_basic_test)
     catch (std::runtime_error &err) {
         BOOST_CHECK(strstr(err.what(), "TestBlockValidity") != nullptr);
     }
+}
 
-    params = oldParams;
+BOOST_AUTO_TEST_CASE(remint_blacklist)
+{
+    FakeV2 fakeV2;
+
+    // at the end of the blacklist there is an extra entry reserved for testing
+    const char  **pBlacklistEntry = sigmaRemintBlacklist;
+    while (*pBlacklistEntry)
+        pBlacklistEntry++;
+
+    string stringError;
+
+    pwalletMain->SetBroadcastTransactions(true);
+
+    //Verify Mint is successful
+    BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, "1"), stringError + " - Create Mint failed");
+
+    //Verify Mint gets in the mempool
+    BOOST_CHECK_MESSAGE(mempool.size() == 1, "Zerocoin mint was not added to mempool");
+
+    // get to the sigma portion
+    for (int i=0; i<400; i++) {
+        CBlock b = CreateAndProcessBlock({}, scriptPubKey);
+    }
+
+    // make an additional entry to the black list
+    CWalletDB walletdb(pwalletMain->strWalletFile);
+    std::list<CZerocoinEntry> pubCoins;
+    walletdb.ListPubCoin(pubCoins);
+
+    // there should be exactly one
+    BOOST_CHECK(pubCoins.size() == 1);
+
+    std::string value = pubCoins.begin()->value.GetHex();
+    *pBlacklistEntry = value.c_str();
+
+    // Now remint should succeed but it should result in transaction in mempool
+    BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinToSigmaRemintModel(stringError, ZEROCOIN_TX_VERSION_2, (libzerocoin::CoinDenomination)1), stringError + " - Remint failed");
+    BOOST_CHECK_MESSAGE(mempool.size() == 0, "Reming was added to the mempool despite blacklisted public coin value");
 }
 
 BOOST_AUTO_TEST_SUITE_END()
