@@ -189,6 +189,8 @@ public:
     std::unordered_map<CoinDenomination, int> const & GetLatestCoinIds() const;
     std::unordered_map<Scalar, uint256, sigma::CScalarHash> const & GetMempoolCoinSerials() const;
 
+    std::size_t GetTotalCoins() const { return GetMints().size(); }
+
     bool IsSurgeConditionDetected() const;
 
 private:

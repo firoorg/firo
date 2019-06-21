@@ -1,3 +1,6 @@
+//In late April 2019 the Zerocoin functionality has been disabled.
+//The tests are changed so to verify it is disabled but change as little functionality as possible
+//The initial functionality is left in here after comment //DZC
 #include "util.h"
 
 #include "clientversion.h"
@@ -52,10 +55,13 @@ BOOST_AUTO_TEST_CASE(zerocoin_mintspend)
         pwalletMain->SetBroadcastTransactions(true);
 
         //Verify Mint is successful
-        BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denomination.c_str()), stringError + " - Create Mint failed");
+        //DZC BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(stringError, denomination.c_str()), stringError + " - Create Mint failed");
+        BOOST_CHECK_MESSAGE(!pwalletMain->CreateZerocoinMintModel(stringError, denomination.c_str()), stringError + " - Create Mint not failed");
 
         //Verify Mint gets in the mempool
-        BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mint was not added to mempool");
+        //DZC BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mint was not added to mempool");
+        BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mint was added to mempool");
+        return;
 
         int previousHeight = chainActive.Height();
         CBlock b = CreateAndProcessBlock({}, scriptPubKey);

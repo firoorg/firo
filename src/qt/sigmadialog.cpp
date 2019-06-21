@@ -280,6 +280,36 @@ void SigmaDialog::on_sendButton_clicked()
     processSpendCoinsReturn(prepareStatus,
         BitcoinUnits::formatWithUnit(walletModel->getOptionsModel()->getDisplayUnit(), currentTransaction.getTransactionFee()));
 
+    // Check unsafe coins
+    if (prepareStatus.status == WalletModel::AmountExceedsBalance) {
+        auto unsafeCoins = walletModel->GetUnsafeCoins();
+        std::vector<CAmount> unsafeDenomVals;
+        for (const auto coin : unsafeCoins) {
+            unsafeDenomVals.push_back(coin.get_denomination_value());
+        }
+        std::sort(unsafeDenomVals.begin(), unsafeDenomVals.end());
+
+        QString unsafeDenomsStr = tr("");
+        for (const auto denomVal : unsafeDenomVals) {
+            sigma::CoinDenomination denom;
+            sigma::IntegerToDenomination(denomVal, denom);
+            auto denomStr = sigma::DenominationToString(denom).c_str();
+            unsafeDenomsStr.append(tr("%1, ").arg(denomStr));
+        }
+
+        if (!unsafeCoins.empty()) {
+            unsafeDenomsStr.resize(unsafeDenomsStr.size() - 2);
+            unsafeDenomsStr.append(tr(" denomination"));
+            if (unsafeCoins.size() > 1) {
+                unsafeDenomsStr.append(tr("s"));
+            }
+
+            QMessageBox::information(this, tr("Have unspendable coins."),
+                tr("To protect your privacy, we require you to wait until more people mint %1, Once this is done, your minted coin will be spendable.").arg(unsafeDenomsStr),
+                QMessageBox::Ok);
+        }
+    }
+
     if (prepareStatus.status != WalletModel::OK) {
         isNewRecipientAllowed = true;
         return;
