@@ -4047,7 +4047,7 @@ static bool IsZerocoinEnabled(std::string &stringError) {
     }
     else {
         stringError = "Zerocoin functionality has been disabled";
-        return true;
+        return false;
     }
 }
 
