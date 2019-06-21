@@ -12,9 +12,9 @@
 namespace {
     struct MintInfo {
         int mintCount;
-        uint denomination;
-        uint version;
-        uint get(size_t mem) {
+        int denomination;
+        int version;
+        int get(size_t mem) {
             if(mem == 0)
                 return mintCount;
             if(mem == 1)
@@ -41,14 +41,14 @@ Zc2SigmaModel::Zc2SigmaModel()
     std::vector<int> const versions{2};
     std::vector<CoinDenomination> const denominations{CoinDenomination::ZQ_LOVELACE, CoinDenomination::ZQ_GOLDWASSER, CoinDenomination::ZQ_RACKOFF, CoinDenomination::ZQ_PEDERSEN, CoinDenomination::ZQ_WILLIAMSON};
 
-    BOOST_FOREACH(uint ver, versions) {
+    BOOST_FOREACH(int ver, versions) {
         BOOST_FOREACH(CoinDenomination den, denominations) {
             int nMints;
             {
                 LOCK(pwalletMain->cs_wallet);
-                nMints =  pwalletMain->GetNumberOfUnspentMintsForDenomination(ver, den);
+                nMints = pwalletMain->GetNumberOfUnspentMintsForDenomination(ver, den);
             }
-            pContImpl->push_back({nMints, den, ver});
+            pContImpl->push_back({nMints, int(den), ver});
         }
     }
 }

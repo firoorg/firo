@@ -39,5 +39,5 @@ private:
 
 };
 
-#endif /* ZEROCOINREMINTMODEL_H */
+#endif /* ZC2SIGMAMODEL_H */
 

@@ -49,4 +49,4 @@ Q_SIGNALS:
     void sendCoins(QString addr);
 };
 
-#endif // BITCOIN_QT_ADDRESSBOOKPAGE_H
+#endif // BITCOIN_QT_ZC2SIGMAPAGE_H
