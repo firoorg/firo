@@ -1,6 +1,8 @@
 #ifndef ZCOIN_SIGMA_REMINT_H
 #define ZCOIN_SIGMA_REMINT_H
 
+#include "amount.h"
+#include "primitives/transaction.h"
 #include "libzerocoin/Zerocoin.h"
 #include "libzerocoin/Coin.h"
 #include "libzerocoin/SpendMetaData.h"
@@ -47,6 +49,9 @@ public:
             READWRITE(ecdsaSignature);
         }
     }
+
+    // Helper functions to get the amount out of remint tx
+    static CAmount GetAmount(const CTransaction &tx);
 
 private:
     Bignum CalculatePublicValue() const;

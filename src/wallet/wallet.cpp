@@ -4437,7 +4437,7 @@ bool CWallet::CreateZerocoinToSigmaRemintModel(string &stringError, int version,
         {1, sigma::CoinDenomination::SIGMA_DENOM_1, 1},
         {10, sigma::CoinDenomination::SIGMA_DENOM_10, 1},
         {25, sigma::CoinDenomination::SIGMA_DENOM_25, 1},
-        {50, sigma::CoinDenomination::SIGMA_DENOM_10, 5},
+        {50, sigma::CoinDenomination::SIGMA_DENOM_25, 2},
         {100, sigma::CoinDenomination::SIGMA_DENOM_100, 1}
     };
 
