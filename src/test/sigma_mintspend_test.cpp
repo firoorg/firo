@@ -137,22 +137,22 @@ BOOST_AUTO_TEST_CASE(sigma_mintspend_test)
         BOOST_CHECK_MESSAGE(mempool.size() == 0, "Mempool not empty although mempool should reject double spend");
 
         //Temporary disable usedCoinSerials check to force double spend in mempool
-        auto tempSerials = sigmaState->usedCoinSerials;
-        sigmaState->usedCoinSerials.clear();
+        auto tempSerials = sigmaState->containers.usedCoinSerials;
+        sigmaState->containers.usedCoinSerials.clear();
 
         BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinSpendModel(stringError, "", denomination.c_str(), true), "Spend created although double");
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mempool not set");
-        sigmaState->usedCoinSerials = tempSerials;
+        sigmaState->containers.usedCoinSerials = tempSerials;
 
         BOOST_CHECK_EXCEPTION(CreateBlock({}, scriptPubKey), std::runtime_error, no_check);
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Mempool not set");
         vtxid.clear();
         mempool.queryHashes(vtxid);
         vtxid.resize(1);
-        tempSerials = sigmaState->usedCoinSerials;
-        sigmaState->usedCoinSerials.clear();
+        tempSerials = sigmaState->containers.usedCoinSerials;
+        sigmaState->containers.usedCoinSerials.clear();
         CreateBlock(vtxid, scriptPubKey);
-        sigmaState->usedCoinSerials = tempSerials;
+        sigmaState->containers.usedCoinSerials = tempSerials;
 
         mempool.clear();
         previousHeight = chainActive.Height();

@@ -402,6 +402,12 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
                 continue;
             }
 
+            if (tx.IsSigmaMint() || tx.IsSigmaSpend()) {
+                sigma::CSigmaState * sigmaState = sigma::CSigmaState::GetState();
+                if(sigmaState->IsSurgeConditionDetected())
+                    continue;
+            }
+
             // temporarily disable zerocoin. Re-enable after sigma release
             if (tx.IsZerocoinSpend() || tx.IsZerocoinMint())
                 continue;

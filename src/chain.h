@@ -18,7 +18,7 @@
 #include "zerocoin_params.h"
 #include "util.h"
 #include "chainparams.h"
-#include "hash_functions.h"
+#include "coin_containers.h"
 #include "streams.h"
 
 #include <vector>
@@ -240,7 +240,7 @@ public:
     std::map<pair<sigma::CoinDenomination, int>, vector<sigma::PublicCoin>> sigmaMintedPubCoins;
 
     //! Values of coin serials spent in this block
-	unordered_set<secp_primitives::Scalar, sigma::CScalarHash> sigmaSpentSerials;
+    sigma::spend_info_container sigmaSpentSerials;
 
     void SetNull()
     {

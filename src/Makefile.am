@@ -214,7 +214,7 @@ BITCOIN_CORE_H = \
   hdmint/wallet.h \
   zerocoin.h \
   zerocoin_v3.h \
-  hash_functions.h \
+  coin_containers.h \
   zerocoin_params.h \
   addresstype.h \
   mtpstate.h
@@ -268,7 +268,7 @@ libbitcoin_server_a_SOURCES = \
   versionbits.cpp \
   zerocoin.cpp \
   zerocoin_v3.cpp \
-  hash_functions.cpp \
+  coin_containers.cpp \
   mtpstate.cpp \
   $(BITCOIN_CORE_H)
 
