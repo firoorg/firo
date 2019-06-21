@@ -56,4 +56,4 @@ using spend_info_container = std::unordered_map<Scalar, CSpendCoinInfo, sigma::C
 
 } // namespace sigma
 
-#endif // HASH_FUNCTIONS_H__
+#endif // COIN_CONTAINERS_H
