@@ -403,7 +403,8 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
             }
 
             // temporarily disable zerocoin. Re-enable after sigma release
-            if (tx.IsZerocoinSpend() || tx.IsZerocoinMint())
+            // Make exception for regtest network (for remint tests)
+            if (!chainparams.GetConsensus().IsRegtest() && (tx.IsZerocoinSpend() || tx.IsZerocoinMint()))
                 continue;
 
             if (tx.IsSigmaSpend()) {
