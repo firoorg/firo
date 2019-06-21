@@ -257,17 +257,6 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
     unsigned int nBlockMinSize = GetArg("-blockminsize", 0);
     nBlockMinSize = std::min(nBlockMaxSize, nBlockMinSize);
 
-    unsigned int COUNT_SPEND_ZC_TX = 0;
-    unsigned int MAX_SPEND_ZC_TX_PER_BLOCK = 0;
-    if(!params.IsMain() || nHeight > HF_ZEROSPEND_FIX){
-        MAX_SPEND_ZC_TX_PER_BLOCK = 1;
-    }
-    if(!params.IsMain() ||
-        nHeight > SWITCH_TO_MORE_SPEND_TXS ||
-        Params().NetworkIDString() == CBaseChainParams::REGTEST){
-        MAX_SPEND_ZC_TX_PER_BLOCK = ZC_SPEND_LIMIT;
-    }
-
     // Collect memory pool transactions into the block
     CTxMemPool::setEntries inBlock;
     CTxMemPool::setEntries waitSet;
@@ -413,27 +402,21 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
                 continue;
             }
 
-            if (tx.IsZerocoinSpend() || tx.IsSigmaSpend()) {
-                LogPrintf("try to include zerocoinspend tx=%s\n", tx.GetHash().ToString());
+            // temporarily disable zerocoin. Re-enable after sigma release
+            if (tx.IsZerocoinSpend() || tx.IsZerocoinMint())
+                continue;
 
-                if (tx.IsSigmaSpend()) {
-                    auto spendAmount = sigma::GetSpendAmount(tx);
-                    if (tx.vin.size() > params.nMaxSigmaInputPerTransaction ||
-                       spendAmount > params.nMaxValueSigmaSpendPerTransaction) {
-                        continue;
-                    }
-                    if (tx.vin.size() + nSigmaSpend > params.nMaxSigmaInputPerBlock) {
-                        continue;
-                    }
-                    if (spendAmount + nValueSigmaSpend > params.nMaxValueSigmaSpendPerBlock) {
-                        continue;
-                    }
-                } else {
-                    LogPrintf("COUNT_SPEND_ZC_TX =%s\n", COUNT_SPEND_ZC_TX);
-                    LogPrintf("MAX_SPEND_ZC_TX_PER_BLOCK =%s\n", MAX_SPEND_ZC_TX_PER_BLOCK);
-                    if ((COUNT_SPEND_ZC_TX + tx.vin.size()) > MAX_SPEND_ZC_TX_PER_BLOCK) {
-                        continue;
-                    }
+            if (tx.IsSigmaSpend()) {
+                auto spendAmount = sigma::GetSpendAmount(tx);
+                if (tx.vin.size() > params.nMaxSigmaInputPerTransaction ||
+                    spendAmount > params.nMaxValueSigmaSpendPerTransaction) {
+                    continue;
+                }
+                if (tx.vin.size() + nSigmaSpend > params.nMaxSigmaInputPerBlock) {
+                    continue;
+                }
+                if (spendAmount + nValueSigmaSpend > params.nMaxValueSigmaSpendPerBlock) {
+                    continue;
                 }
 
                 //mempool.countZCSpend--;
@@ -461,10 +444,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
                     continue;
                 }
 
-                CAmount nTxFees(0);
-                if (tx.IsSigmaSpend()) {
-                    nTxFees = iter->GetFee();
-                }
+                CAmount nTxFees = iter->GetFee();
 
                 pblock->vtx.push_back(tx);
                 pblocktemplate->vTxFees.push_back(nTxFees);
@@ -473,7 +453,6 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
                 ++nBlockTx;
                 nBlockSigOpsCost += nTxSigOps;
                 nFees += nTxFees;
-                COUNT_SPEND_ZC_TX += tx.vin.size();
                 if (tx.IsSigmaSpend()) {
                     nSigmaSpend += tx.vin.size();
                     nValueSigmaSpend += sigma::GetSpendAmount(tx);
@@ -481,6 +460,7 @@ CBlockTemplate* BlockAssembler::CreateNewBlock(
                 inBlock.insert(iter);
                 continue;
             }
+
 
             unsigned int nTxSigOps = iter->GetSigOpCost();
             LogPrintf("nTxSigOps=%s\n", nTxSigOps);
@@ -1316,4 +1296,3 @@ void IncrementExtraNonce(CBlock* pblock, const CBlockIndex* pindexPrev, unsigned
     pblock->vtx[0] = txCoinbase;
     pblock->hashMerkleRoot = BlockMerkleRoot(*pblock);
 }
-

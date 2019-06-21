@@ -105,7 +105,6 @@ BITCOIN_TESTS =\
   test/sigma_manymintspend_test.cpp \
   test/sigma_mintspend_numinputs.cpp \
   test/sigma_partialspend_mempool_tests.cpp \
-  test/spend_all_oldmints_test.cpp \
   test/sigopcount_tests.cpp \
   test/skiplist_tests.cpp \
   test/streams_tests.cpp \

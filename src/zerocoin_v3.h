@@ -185,6 +185,8 @@ public:
 
     int GetLatestCoinID(sigma::CoinDenomination denomination) const;
 
+    std::size_t GetTotalCoins() const { return mintedPubCoins.size(); }
+
 // private: // martun: Changed to public just for unit tests.
     // Collection of coin groups. Map from <denomination,id> to SigmaCoinGroupInfo structure
     std::unordered_map<pair<sigma::CoinDenomination, int>, SigmaCoinGroupInfo, pairhash> coinGroups;
