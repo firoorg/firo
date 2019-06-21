@@ -74,11 +74,15 @@ void Zc2SigmaPage::on_remintButton_clicked() {
         int const row = idxs[i].row();
         bool ok;
         uint denom =  select->currentIndex().child(row , 1).data().toUInt(&ok); //denomination
-        if(!ok)
+        if(!ok) {
             QMessageBox::critical(this, "Unable to remint", QString("Failed to parse denomination."));
+            break;
+        }
         uint version = select->currentIndex().child(row , 2).data().toUInt(&ok); //version
-        if(!ok)
+        if(!ok) {
             QMessageBox::critical(this, "Unable to remint", QString("Failed to parse version."));
+            break;
+        }
 
         std::string error;
         bool result;
@@ -103,8 +107,10 @@ void Zc2SigmaPage::selectionChanged() {
         uint num =  select->currentIndex().child(row , 0).data().toUInt(&ok); //number
         if(!ok)
             continue;
-        if(num > 0)
+        if(num > 0) {
             enabled = true;
+            break;
+        }
     }
     ui->remintButton->setDisabled(!enabled);
 }
