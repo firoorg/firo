@@ -31,6 +31,8 @@ BOOST_FIXTURE_TEST_SUITE(sigma_transition, ZerocoinTestingSetup200)
 */
 BOOST_AUTO_TEST_CASE(sigma_transition_test)
 {
+    FakeTestnet fakeTestnet;
+
     sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
     string denomination;
     vector<uint256> vtxid;

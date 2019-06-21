@@ -43,6 +43,8 @@ BOOST_FIXTURE_TEST_SUITE(zerocoin_tests2, ZerocoinTestingSetup109)
 
 BOOST_AUTO_TEST_CASE(zerocoin_mintspend2)
 {
+    FakeTestnet fakeTestnet;
+    
     vector<uint256> vtxid;
     //109 blocks already minted
 
