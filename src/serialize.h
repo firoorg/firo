@@ -607,11 +607,10 @@ template<typename Stream, typename T0, typename T1, typename T2, typename T3> vo
 /**
  * map
  */
-//Clang may error on default type redefinition
-#define UNIQUE_TYPE_NAME(T) T##_1de4886f7bd54422908e3bfea562c362
-template<typename MapType, typename UNIQUE_TYPE_NAME(K) = typename MapType::key_type, typename UNIQUE_TYPE_NAME(T) = typename MapType::mapped_type> unsigned int GetSerializeSize(MapType const &m, int nType, int nVersion);
-template<typename Stream, typename MapType, typename UNIQUE_TYPE_NAME(K) = typename MapType::key_type, typename UNIQUE_TYPE_NAME(T) = typename MapType::mapped_type> void Serialize(Stream& os, MapType const &m, int nType, int nVersion);
-template<typename Stream, typename MapType, typename UNIQUE_TYPE_NAME(K) = typename MapType::key_type, typename UNIQUE_TYPE_NAME(T) = typename MapType::mapped_type> void Unserialize(Stream& is, MapType &m, int nType, int nVersion);
+#define UNIQUE_TYPE(T) T##_1de4886f7bd54422908e3bfea562c362
+template<typename MapType, typename UNIQUE_TYPE(K) = typename MapType::key_type, typename UNIQUE_TYPE(T) = typename MapType::mapped_type> unsigned int GetSerializeSize(MapType const &m, int nType, int nVersion);
+template<typename Stream, typename MapType, typename UNIQUE_TYPE(K) = typename MapType::key_type, typename UNIQUE_TYPE(T) = typename MapType::mapped_type> void Serialize(Stream& os, MapType const &m, int nType, int nVersion);
+template<typename Stream, typename MapType, typename UNIQUE_TYPE(K) = typename MapType::key_type, typename UNIQUE_TYPE(T) = typename MapType::mapped_type> void Unserialize(Stream& is, MapType &m, int nType, int nVersion);
 
 /**
  * set
@@ -619,9 +618,10 @@ template<typename Stream, typename MapType, typename UNIQUE_TYPE_NAME(K) = typen
 template <typename SetType>
 using CIsSet = typename std::enable_if<std::is_same<typename SetType::key_type, typename SetType::value_type>::value, SetType>::type;
 
-template<typename SetType, typename UNIQUE_TYPE_NAME(Enabled) = CIsSet<SetType>> unsigned int GetSerializeSize(const SetType& m, int nType, int nVersion);
-template<typename Stream, typename SetType, typename UNIQUE_TYPE_NAME(Enabled) = CIsSet<SetType>> void Serialize(Stream& os, const SetType & m, int nType, int nVersion);
-template<typename Stream, typename SetType, typename UNIQUE_TYPE_NAME(Enabled) = CIsSet<SetType>> void Unserialize(Stream& is, SetType & m, int nType, int nVersion);
+template<typename SetType, typename UNIQUE_TYPE(Enabled) = CIsSet<SetType>> unsigned int GetSerializeSize(const SetType& m, int nType, int nVersion);
+template<typename Stream, typename SetType, typename UNIQUE_TYPE(Enabled) = CIsSet<SetType>> void Serialize(Stream& os, const SetType & m, int nType, int nVersion);
+template<typename Stream, typename SetType, typename UNIQUE_TYPE(Enabled) = CIsSet<SetType>> void Unserialize(Stream& is, SetType & m, int nType, int nVersion);
+#undef UNIQUE_TYPE
 
 /**
  * shared_ptr
@@ -1051,7 +1051,7 @@ void Unserialize(Stream& is, std::tuple<T0, T1, T2, T3>& item, int nType, int nV
  * map
  */
 
-template <typename MapType, typename UNIQUE_TYPE_NAME(K) = typename MapType::key_type, typename UNIQUE_TYPE_NAME(T) = typename MapType::mapped_type>
+template <typename MapType, typename K = typename MapType::key_type, typename T = typename MapType::mapped_type>
 unsigned int GetSerializeSize(MapType const &m, int nType, int nVersion)
 {
     unsigned int nSize = GetSizeOfCompactSize(m.size());
@@ -1060,7 +1060,7 @@ unsigned int GetSerializeSize(MapType const &m, int nType, int nVersion)
     return nSize;
 }
 
-template <typename Stream, typename MapType, typename UNIQUE_TYPE_NAME(K) = typename MapType::key_type, typename UNIQUE_TYPE_NAME(T) = typename MapType::mapped_type>
+template <typename Stream, typename MapType, typename K = typename MapType::key_type, typename T = typename MapType::mapped_type>
 void Serialize(Stream& os, MapType const &m, int nType, int nVersion)
 {
     WriteCompactSize(os, m.size());
@@ -1068,7 +1068,7 @@ void Serialize(Stream& os, MapType const &m, int nType, int nVersion)
         Serialize(os, (*mi), nType, nVersion);
 }
 
-template <typename Stream, typename MapType, typename UNIQUE_TYPE_NAME(K) = typename MapType::key_type, typename UNIQUE_TYPE_NAME(T) = typename MapType::mapped_type>
+template <typename Stream, typename MapType, typename K = typename MapType::key_type, typename T = typename MapType::mapped_type>
 void Unserialize(Stream& is, MapType & m, int nType, int nVersion)
 {
     m.clear();
@@ -1076,7 +1076,7 @@ void Unserialize(Stream& is, MapType & m, int nType, int nVersion)
     typename MapType::iterator mi = m.begin();
     for (unsigned int i = 0; i < nSize; i++)
     {
-        std::pair<UNIQUE_TYPE_NAME(K), UNIQUE_TYPE_NAME(T)> item;
+        std::pair<K, T> item;
         Unserialize(is, item, nType, nVersion);
         mi = m.insert(mi, item);
     }
@@ -1086,7 +1086,7 @@ void Unserialize(Stream& is, MapType & m, int nType, int nVersion)
 /**
  * set
  */
-template<typename SetType, typename UNIQUE_TYPE_NAME(Enabled) = typename CIsSet<SetType>::type>
+template<typename SetType, typename Enabled = typename CIsSet<SetType>::type>
 unsigned int GetSerializeSize(const SetType& m, int nType, int nVersion)
 {
     unsigned int nSize = GetSizeOfCompactSize(m.size());
@@ -1095,7 +1095,7 @@ unsigned int GetSerializeSize(const SetType& m, int nType, int nVersion)
     return nSize;
 }
 
-template<typename Stream, typename SetType, typename UNIQUE_TYPE_NAME(Enabled) = typename CIsSet<SetType>::type>
+template<typename Stream, typename SetType, typename Enabled = typename CIsSet<SetType>::type>
 void Serialize(Stream& os, const SetType & m, int nType, int nVersion)
 {
     WriteCompactSize(os, m.size());
@@ -1103,7 +1103,7 @@ void Serialize(Stream& os, const SetType & m, int nType, int nVersion)
         Serialize(os, (*it), nType, nVersion);
 }
 
-template<typename Stream, typename SetType, typename UNIQUE_TYPE_NAME(Enabled) = typename CIsSet<SetType>::type>
+template<typename Stream, typename SetType, typename Enabled = typename CIsSet<SetType>::type>
 void Unserialize(Stream& is, SetType & m, int nType, int nVersion)
 {
     m.clear();
@@ -1116,7 +1116,6 @@ void Unserialize(Stream& is, SetType & m, int nType, int nVersion)
         it = m.insert(it, key);
     }
 }
-#undef UNIQUE_TYPE_NAME
 
 /**
  * shared_ptr
