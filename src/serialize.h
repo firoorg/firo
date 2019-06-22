@@ -604,23 +604,6 @@ template<typename T0, typename T1, typename T2, typename T3> unsigned int GetSer
 template<typename Stream, typename T0, typename T1, typename T2, typename T3> void Serialize(Stream& os, const std::tuple<T0, T1, T2, T3>& item, int nType, int nVersion);
 template<typename Stream, typename T0, typename T1, typename T2, typename T3> void Unserialize(Stream& is, std::tuple<T0, T1, T2, T3>& item, int nType, int nVersion);
 
-/**
- * map
- */
-template<typename MapType, typename K = typename MapType::key_type, typename T = typename MapType::mapped_type> unsigned int GetSerializeSize(MapType const &m, int nType, int nVersion);
-template<typename Stream, typename MapType, typename K = typename MapType::key_type, typename T = typename MapType::mapped_type> void Serialize(Stream& os, MapType const &m, int nType, int nVersion);
-template<typename Stream, typename MapType, typename K = typename MapType::key_type, typename T = typename MapType::mapped_type> void Unserialize(Stream& is, MapType &m, int nType, int nVersion);
-
-/**
- * set
- */
-template <typename SetType>
-using CIsSet = typename std::enable_if<std::is_same<typename SetType::key_type, typename SetType::value_type>::value, SetType>::type;
-
-template<typename SetType, typename Enabled = CIsSet<SetType>> unsigned int GetSerializeSize(const SetType& m, int nType, int nVersion);
-template<typename Stream, typename SetType, typename Enabled = CIsSet<SetType>> void Serialize(Stream& os, const SetType & m, int nType, int nVersion);
-template<typename Stream, typename SetType, typename Enabled = CIsSet<SetType>> void Unserialize(Stream& is, SetType & m, int nType, int nVersion);
-
 
 /**
  * shared_ptr
@@ -1085,7 +1068,11 @@ void Unserialize(Stream& is, MapType & m, int nType, int nVersion)
 /**
  * set
  */
-template<typename SetType, typename Enabled = typename CIsSet<SetType>::type>
+
+template <typename SetType>
+using CIsSet = typename std::enable_if<std::is_same<typename SetType::key_type, typename SetType::value_type>::value, SetType>::type;
+
+template<typename SetType, typename Enabled = CIsSet<SetType>>
 unsigned int GetSerializeSize(const SetType& m, int nType, int nVersion)
 {
     unsigned int nSize = GetSizeOfCompactSize(m.size());
@@ -1094,7 +1081,7 @@ unsigned int GetSerializeSize(const SetType& m, int nType, int nVersion)
     return nSize;
 }
 
-template<typename Stream, typename SetType, typename Enabled = typename CIsSet<SetType>::type>
+template<typename Stream, typename SetType, typename Enabled = CIsSet<SetType>>
 void Serialize(Stream& os, const SetType & m, int nType, int nVersion)
 {
     WriteCompactSize(os, m.size());
@@ -1102,7 +1089,7 @@ void Serialize(Stream& os, const SetType & m, int nType, int nVersion)
         Serialize(os, (*it), nType, nVersion);
 }
 
-template<typename Stream, typename SetType, typename Enabled = typename CIsSet<SetType>::type>
+template<typename Stream, typename SetType, typename Enabled = CIsSet<SetType>>
 void Unserialize(Stream& is, SetType & m, int nType, int nVersion)
 {
     m.clear();
