@@ -607,9 +607,10 @@ template<typename Stream, typename T0, typename T1, typename T2, typename T3> vo
 /**
  * map
  */
-template<typename MapType, typename K = typename MapType::key_type, typename T = typename MapType::mapped_type> unsigned int GetSerializeSize(MapType const &m, int nType, int nVersion);
-template<typename Stream, typename MapType, typename K = typename MapType::key_type, typename T = typename MapType::mapped_type> void Serialize(Stream& os, MapType const &m, int nType, int nVersion);
-template<typename Stream, typename MapType, typename K = typename MapType::key_type, typename T = typename MapType::mapped_type> void Unserialize(Stream& is, MapType &m, int nType, int nVersion);
+#define UNIQUE_TYPE(T) T##_1de4886f7bd54422908e3bfea562c362
+template<typename MapType, typename UNIQUE_TYPE(K) = typename MapType::key_type, typename UNIQUE_TYPE(T) = typename MapType::mapped_type> unsigned int GetSerializeSize(MapType const &m, int nType, int nVersion);
+template<typename Stream, typename MapType, typename UNIQUE_TYPE(K) = typename MapType::key_type, typename UNIQUE_TYPE(T) = typename MapType::mapped_type> void Serialize(Stream& os, MapType const &m, int nType, int nVersion);
+template<typename Stream, typename MapType, typename UNIQUE_TYPE(K) = typename MapType::key_type, typename UNIQUE_TYPE(T) = typename MapType::mapped_type> void Unserialize(Stream& is, MapType &m, int nType, int nVersion);
 
 /**
  * set
@@ -617,10 +618,10 @@ template<typename Stream, typename MapType, typename K = typename MapType::key_t
 template <typename SetType>
 using CIsSet = typename std::enable_if<std::is_same<typename SetType::key_type, typename SetType::value_type>::value, SetType>::type;
 
-template<typename SetType, typename Enabled = CIsSet<SetType>> unsigned int GetSerializeSize(const SetType& m, int nType, int nVersion);
-template<typename Stream, typename SetType, typename Enabled = CIsSet<SetType>> void Serialize(Stream& os, const SetType & m, int nType, int nVersion);
-template<typename Stream, typename SetType, typename Enabled = CIsSet<SetType>> void Unserialize(Stream& is, SetType & m, int nType, int nVersion);
-
+template<typename SetType, typename UNIQUE_TYPE(Enabled) = CIsSet<SetType>> unsigned int GetSerializeSize(const SetType& m, int nType, int nVersion);
+template<typename Stream, typename SetType, typename UNIQUE_TYPE(Enabled) = CIsSet<SetType>> void Serialize(Stream& os, const SetType & m, int nType, int nVersion);
+template<typename Stream, typename SetType, typename UNIQUE_TYPE(Enabled) = CIsSet<SetType>> void Unserialize(Stream& is, SetType & m, int nType, int nVersion);
+#undef UNIQUE_TYPE
 
 /**
  * shared_ptr
