@@ -607,15 +607,18 @@ template<typename Stream, typename T0, typename T1, typename T2, typename T3> vo
 /**
  * map
  */
-template<typename MapType, typename K = typename MapType::key_type, typename T = typename MapType::mapped_type> unsigned int GetSerializeSize(MapType const &m, int nType, int nVersion);
-template<typename Stream, typename MapType, typename K = typename MapType::key_type, typename T = typename MapType::mapped_type> void Serialize(Stream& os, MapType const &m, int nType, int nVersion);
-template<typename Stream, typename MapType, typename K = typename MapType::key_type, typename T = typename MapType::mapped_type> void Unserialize(Stream& is, MapType &m, int nType, int nVersion);
+template <typename MapType>
+using CIsMap = typename std::enable_if<std::alignment_of<typename MapType::mapped_type>::value+1, int>::type;
+
+template<typename MapType, typename Stub = int, typename Enabled = CIsMap<MapType>> unsigned int GetSerializeSize(MapType const &m, int nType, int nVersion);
+template<typename Stream, typename MapType, typename Stub = int, typename Enabled = CIsMap<MapType>> void Serialize(Stream& os, MapType const &m, int nType, int nVersion);
+template<typename Stream, typename MapType, typename Stub = int, typename Enabled = CIsMap<MapType>> void Unserialize(Stream& is, MapType &m, int nType, int nVersion);
 
 /**
  * set
  */
 template <typename SetType>
-using CIsSet = typename std::enable_if<std::is_same<typename SetType::key_type, typename SetType::value_type>::value, SetType>::type;
+using CIsSet = typename std::enable_if<std::is_same<typename SetType::key_type, typename SetType::value_type>::value, int>::type;
 
 template<typename SetType, typename Enabled = CIsSet<SetType>> unsigned int GetSerializeSize(const SetType& m, int nType, int nVersion);
 template<typename Stream, typename SetType, typename Enabled = CIsSet<SetType>> void Serialize(Stream& os, const SetType & m, int nType, int nVersion);
@@ -1050,7 +1053,7 @@ void Unserialize(Stream& is, std::tuple<T0, T1, T2, T3>& item, int nType, int nV
  * map
  */
 
-template <typename MapType, typename K = typename MapType::key_type, typename T = typename MapType::mapped_type>
+template<typename MapType, typename Stub = int, typename Enabled = CIsMap<MapType>>
 unsigned int GetSerializeSize(MapType const &m, int nType, int nVersion)
 {
     unsigned int nSize = GetSizeOfCompactSize(m.size());
@@ -1059,7 +1062,7 @@ unsigned int GetSerializeSize(MapType const &m, int nType, int nVersion)
     return nSize;
 }
 
-template <typename Stream, typename MapType, typename K = typename MapType::key_type, typename T = typename MapType::mapped_type>
+template<typename Stream, typename MapType, typename Stub = int, typename Enabled = CIsMap<MapType>>
 void Serialize(Stream& os, MapType const &m, int nType, int nVersion)
 {
     WriteCompactSize(os, m.size());
@@ -1067,7 +1070,7 @@ void Serialize(Stream& os, MapType const &m, int nType, int nVersion)
         Serialize(os, (*mi), nType, nVersion);
 }
 
-template <typename Stream, typename MapType, typename K = typename MapType::key_type, typename T = typename MapType::mapped_type>
+template<typename Stream, typename MapType, typename Stub = int, typename Enabled = CIsMap<MapType>>
 void Unserialize(Stream& is, MapType & m, int nType, int nVersion)
 {
     m.clear();
@@ -1075,7 +1078,7 @@ void Unserialize(Stream& is, MapType & m, int nType, int nVersion)
     typename MapType::iterator mi = m.begin();
     for (unsigned int i = 0; i < nSize; i++)
     {
-        std::pair<K, T> item;
+        std::pair<typename MapType::key_type, typename MapType::mapped_type> item;
         Unserialize(is, item, nType, nVersion);
         mi = m.insert(mi, item);
     }
