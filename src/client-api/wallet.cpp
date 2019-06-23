@@ -332,8 +332,7 @@ void ListAPITransactions(const CWalletTx& wtx, UniValue& ret, const isminefilter
                 else
                     category = "mined";
             }
-            else if(wtx.vin[r.vout].IsZerocoinSpend() ||
-                    wtx.vin[r.vout].IsSigmaSpend()){
+            else if(wtx.vin.size() > r.vout && (wtx.vin[r.vout].IsZerocoinSpend() || wtx.vin[r.vout].IsSigmaSpend())) {
                 category = "spendIn";
             }
             else {
