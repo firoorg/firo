@@ -2936,7 +2936,7 @@ void CWallet::ListAvailableSigmaMintCoins(vector<COutput> &vCoins, bool fOnlyCon
     LOCK(cs_wallet);
     list<CSigmaEntry> listOwnCoins;
     CWalletDB walletdb(pwalletMain->strWalletFile);
-    walletdb.ListSigmaPubCoin(listOwnCoins);
+    listOwnCoins = pwalletMain->hdMintTracker->MintsAsZerocoinEntries();
     LogPrintf("listOwnCoins.size()=%s\n", listOwnCoins.size());
     for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it) {
         const CWalletTx *pcoin = &(*it).second;
@@ -6559,6 +6559,9 @@ string CWallet::MintAndStoreSigma(const vector<CRecipient>& vecSend,
             CT_NEW);
     }
 
+    //Update Status
+    pwalletMain->hdMintTracker->ListMints(false, false, true);
+
     return "";
 }
 
@@ -7004,6 +7007,9 @@ bool CWallet::CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CSigmaEntry>
 
     // Update the count in the database (no effect if no change mints)
     zwalletMain->UpdateCountDB();
+
+    // Update State
+    pwalletMain->hdMintTracker->ListMints(false, false, true);
 
     return true;
 }
