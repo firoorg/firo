@@ -4386,6 +4386,11 @@ bool CWallet::CreateZerocoinToSigmaRemintModel(string &stringError, int version,
     // currently we don't support zerocoin mints v1
     assert(version == ZEROCOIN_TX_VERSION_2);
 
+    if (!znodeSync.IsBlockchainSynced()) {
+        stringError = "Blockchain is not synced";
+        return false;
+    }
+
     if (IsLocked()) {
         stringError = "Error: Wallet locked, unable to create transaction!";
         return false;
