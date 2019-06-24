@@ -37,6 +37,7 @@
 #include "znode-sync.h"
 #include "znodelist.h"
 #include "exodus_qtutils.h"
+#include "zc2sigmapage.h"
 
 #include <exodus/exodus.h>
 
@@ -270,6 +271,10 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *platformStyle, const NetworkStyle *n
 
     // Subscribe to notifications from core
     subscribeToCoreSignals();
+
+    checkZc2SigmaPageTimer = std::make_shared<QTimer>(this);
+    connect(checkZc2SigmaPageTimer.get(), SIGNAL(timeout()), this, SLOT(checkZc2SigmaPage()));
+    checkZc2SigmaPageTimer->start(5000);
 }
 
 BitcoinGUI::~BitcoinGUI()
@@ -343,6 +348,7 @@ void BitcoinGUI::createActions()
         zc2SigmaAction->setCheckable(true);
         zc2SigmaAction->setShortcut(QKeySequence(Qt::ALT +  key++));
         tabGroup->addAction(zc2SigmaAction);
+        zc2SigmaAction->setVisible(false);
 
 #ifdef ENABLE_WALLET
     // These showNormalIfMinimized are needed because Send Coins and Receive Coins
@@ -1301,6 +1307,13 @@ void BitcoinGUI::setTrayIconVisible(bool fHideTrayIcon)
     {
         trayIcon->setVisible(!fHideTrayIcon);
     }
+}
+
+void BitcoinGUI::checkZc2SigmaPage() {
+    const bool show = Zc2SigmaPage::showZc2SigmaPage();
+
+    if(show)
+        zc2SigmaAction->setVisible(true);
 }
 
 static bool ThreadSafeMessageBox(BitcoinGUI *gui, const std::string& message, const std::string& caption, unsigned int style)

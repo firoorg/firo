@@ -36,6 +36,7 @@ QT_BEGIN_NAMESPACE
 class QAction;
 class QProgressBar;
 class QProgressDialog;
+class QTimer;
 QT_END_NAMESPACE
 
 /**
@@ -124,6 +125,8 @@ private:
     Notificator *notificator;
     RPCConsole *rpcConsole;
     HelpMessageDialog *helpMessageDialog;
+
+    std::shared_ptr<QTimer> checkZc2SigmaPageTimer;
 
     /** Keep track of previous number of blocks, to detect progress */
     int prevBlocks;
@@ -248,6 +251,9 @@ private Q_SLOTS:
 
     /** When hideTrayIcon setting is changed in OptionsModel hide or show the icon accordingly. */
     void setTrayIconVisible(bool);
+
+    /** Show zerocoin to sigma page when the condition for showing is met. */
+    void checkZc2SigmaPage();
 };
 
 class UnitDisplayStatusBarControl : public QLabel

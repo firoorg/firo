@@ -16,13 +16,21 @@
 #include "guiutil.h"
 #include "platformstyle.h"
 #include "zc2sigmamodel.h"
+#include "znode-sync.h"
 
 #include "../wallet/wallet.h"
+#include "main.h"
 
 #include <QIcon>
 #include <QMenu>
 #include <QMessageBox>
 #include <QSortFilterProxyModel>
+#include <QTimer>
+#include <QStackedWidget>
+
+
+extern CZnodeSync znodeSync;
+
 
 Zc2SigmaPage::Zc2SigmaPage(const PlatformStyle *platformStyle, QWidget *parent)
 : QWidget(parent)
@@ -35,10 +43,24 @@ Zc2SigmaPage::Zc2SigmaPage(const PlatformStyle *platformStyle, QWidget *parent)
 
     ui->explanationLabel->setText(
             tr("Here you can remint your unspent Zerocoin as Sigma mints"));
+
+    tmrAvailMints = std::shared_ptr<QTimer>(new QTimer(this));
+    connect(tmrAvailMints.get(), SIGNAL(timeout()), this, SLOT(updateAvailableRemints()));
 }
 
 Zc2SigmaPage::~Zc2SigmaPage() {
     delete ui;
+    tmrAvailMints->stop();
+}
+
+void Zc2SigmaPage::showEvent(QShowEvent* event) {
+    QWidget::showEvent(event);
+    tmrAvailMints->start(5000);
+}
+
+void Zc2SigmaPage::hideEvent(QHideEvent* event) {
+    QWidget::hideEvent(event);
+    tmrAvailMints->stop();
 }
 
 void Zc2SigmaPage::createModel() {
@@ -113,4 +135,28 @@ void Zc2SigmaPage::selectionChanged() {
         }
     }
     ui->remintButton->setDisabled(!enabled);
+}
+
+void Zc2SigmaPage::updateAvailableRemints() {
+    model->updateRows();
+}
+
+bool Zc2SigmaPage::showZc2SigmaPage() {
+    {
+        LOCK(cs_main);
+        if(!znodeSync.IsBlockchainSynced()) {
+            return false;
+        }
+    }
+
+    {
+        LOCK(cs_main);
+        const Consensus::Params &params = Params().GetConsensus();
+        if (chainActive.Height() < params.nSigmaStartBlock ||
+                chainActive.Height() >= params.nSigmaStartBlock + params.nZerocoinToSigmaRemintWindowSize) {
+            return false;
+        }
+    }
+
+    return Zc2SigmaModel::GetAvailMintsNumber() > 0;
 }

@@ -4,6 +4,8 @@
 #include <QAbstractTableModel>
 #include <QStringList>
 
+#include <memory>
+
 class AddressTablePriv;
 class WalletModel;
 class CWallet;
@@ -22,21 +24,21 @@ public:
         Version = 2
     };
 
-
-    /** @name Methods overridden from QAbstractTableModel
-        @{*/
     int rowCount(const QModelIndex &parent) const;
     int columnCount(const QModelIndex &parent) const;
     QVariant data(const QModelIndex &index, int role) const;
     QVariant headerData(int section, Qt::Orientation orientation, int role) const;
     Qt::ItemFlags flags(const QModelIndex &index) const;
-    /*@}*/
 
+    bool updateRows();
+
+    static size_t GetAvailMintsNumber();
 private:
     QStringList columns;
     class ContImpl;
     ContImpl * pContImpl;
 
+    static std::shared_ptr<ContImpl> GetAvailMints();
 };
 
 #endif /* ZC2SIGMAMODEL_H */

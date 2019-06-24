@@ -14,6 +14,8 @@ class OptionsModel;
 class PlatformStyle;
 class Zc2SigmaModel;
 
+class QTimer;
+
 namespace Ui {
     class Zc2SigmaPage;
 }
@@ -29,21 +31,26 @@ QT_END_NAMESPACE
 class Zc2SigmaPage : public QWidget
 {
     Q_OBJECT
-
 public:
-
     explicit Zc2SigmaPage(const PlatformStyle *platformStyle, QWidget *parent);
     ~Zc2SigmaPage();
-
     void createModel();
+
+    static bool showZc2SigmaPage();
 
 private:
     Ui::Zc2SigmaPage *ui;
     std::shared_ptr<Zc2SigmaModel> model;
+    std::shared_ptr<QTimer> tmrAvailMints;
+
+protected:
+    void showEvent(QShowEvent* event);
+    void hideEvent(QHideEvent* event);
 
 private Q_SLOTS:
     void on_remintButton_clicked();
     void selectionChanged();
+    void updateAvailableRemints();
 
 Q_SIGNALS:
     void sendCoins(QString addr);

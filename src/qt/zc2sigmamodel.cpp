@@ -23,20 +23,33 @@ namespace {
                 return version;
             throw std::runtime_error("Wrong index requested");
         }
+        bool operator==(MintInfo const & other) const {
+            return mintCount == other.mintCount
+                    && denomination == other.denomination
+                    && version == other.version;
+        }
+        bool operator!=(MintInfo const & other) const {
+            return !operator==(other);
+        }
     };
 }
 
 class Zc2SigmaModel::ContImpl : public std::vector<MintInfo>
 {
+public:
+    bool operator==(Zc2SigmaModel::ContImpl const & other) const {
+        if(size() != other.size())
+            return false;
+        for(size_t i = 0; i < size(); ++i)
+            if(operator[](i) != other[i])
+                return false;
+        return true;
+    }
 };
 
-Zc2SigmaModel::Zc2SigmaModel()
-: QAbstractTableModel(nullptr)
-, pContImpl (new ContImpl)
-{
-    columns << tr("Mint count") << tr("Denomination") << tr("Version");
-
+std::shared_ptr<Zc2SigmaModel::ContImpl> Zc2SigmaModel::GetAvailMints() {
     using libzerocoin::CoinDenomination;
+    std::shared_ptr<ContImpl> container = std::shared_ptr<ContImpl>(new ContImpl);
 
     std::vector<int> const versions{2};
     std::vector<CoinDenomination> const denominations{CoinDenomination::ZQ_LOVELACE, CoinDenomination::ZQ_GOLDWASSER, CoinDenomination::ZQ_RACKOFF, CoinDenomination::ZQ_PEDERSEN, CoinDenomination::ZQ_WILLIAMSON};
@@ -48,9 +61,34 @@ Zc2SigmaModel::Zc2SigmaModel()
                 LOCK(pwalletMain->cs_wallet);
                 nMints = pwalletMain->GetNumberOfUnspentMintsForDenomination(ver, den);
             }
-            pContImpl->push_back({nMints, int(den), ver});
+            if(nMints > 0)
+                container->push_back({nMints, int(den), ver});
         }
     }
+    return container;
+}
+
+size_t Zc2SigmaModel::GetAvailMintsNumber() {
+    return GetAvailMints()->size();
+}
+
+Zc2SigmaModel::Zc2SigmaModel()
+: QAbstractTableModel(nullptr)
+, pContImpl (new ContImpl)
+{
+    columns << tr("Mint count") << tr("Denomination") << tr("Version");
+    updateRows();
+}
+
+bool Zc2SigmaModel::updateRows() {
+    std::shared_ptr<ContImpl> container = GetAvailMints();
+    if(*container != *pContImpl) {
+        beginResetModel();
+        *pContImpl = *container;
+        endResetModel();
+        return true;
+    }
+    return false;
 }
 
 Zc2SigmaModel::~Zc2SigmaModel()
