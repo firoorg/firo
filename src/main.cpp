@@ -4336,8 +4336,7 @@ bool CheckBlock(const CBlock &block, CValidationState &state,
             nHeight = ZerocoinGetNHeight(block.GetBlockHeader());
 
         if (!CheckZerocoinFoundersInputs(block.vtx[0], state, Params().GetConsensus(), nHeight, block.IsMTP())) {
-            return state.Invalid(
-                    false, state.GetRejectCode(), state.GetRejectReason(), "Zerocoin founders input check failure");
+            return state.Invalid(false, state.GetRejectCode(), state.GetRejectReason(), "Founders' reward check failed");
         }
 
         BOOST_FOREACH(const CTransaction &tx, block.vtx) {
