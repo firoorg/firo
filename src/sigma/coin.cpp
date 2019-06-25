@@ -47,9 +47,6 @@ bool DenominationToInteger(CoinDenomination denom, int64_t& denom_out, CValidati
         case CoinDenomination::SIGMA_DENOM_100:
             denom_out = 100 * COIN;
             break;
-        case CoinDenomination::SIGMA_ERROR:
-            denom_out = 0;
-            break;
     }
 return true;
 }
@@ -87,10 +84,6 @@ bool StringToDenomination(const std::string& str, CoinDenomination& denom_out) {
         denom_out = CoinDenomination::SIGMA_DENOM_100;
         return true;
     }
-    if (str == "0") {
-        denom_out = CoinDenomination::SIGMA_ERROR;
-        return true;
-    }
     return false;
 }
 
@@ -115,9 +108,6 @@ std::string DenominationToString(const CoinDenomination& denom) {
     }
     if (denom == CoinDenomination::SIGMA_DENOM_100) {
         return "100";
-    }
-    if (denom == CoinDenomination::SIGMA_ERROR) {
-        return "0";
     }
     throw ZerocoinException("Unsupported denomination, unable to convert to string.");
 }
@@ -151,9 +141,6 @@ bool IntegerToDenomination(int64_t value, CoinDenomination& denom_out, CValidati
             break;
         case 100 * COIN:
             denom_out = CoinDenomination::SIGMA_DENOM_100;
-            break;
-        case 0:
-            denom_out = CoinDenomination::SIGMA_ERROR;
             break;
     }
 return true;

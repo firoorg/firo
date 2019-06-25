@@ -255,7 +255,7 @@ bool CHDMintTracker::UpdateState(const CMintMeta& meta)
         // get coin id & height
         int height, id;
         if(meta.nHeight<0 || meta.nId <= 0){
-            std::tie(height, id) = sigma::CSigmaState::GetState()->GetMintedCoinHeightAndId(sigma::PublicCoin(dMint.GetPubcoinValue(), dMint.GetDenomination()));
+            std::tie(height, id) = sigma::CSigmaState::GetState()->GetMintedCoinHeightAndId(sigma::PublicCoin(dMint.GetPubcoinValue(), dMint.GetDenomination().get()));
         }
         else{
             height = meta.nHeight;
@@ -298,7 +298,7 @@ void CHDMintTracker::Add(const CHDMint& dMint, bool isNew, bool isArchived, CHDM
     meta.txid = dMint.GetTxHash();
     meta.isUsed = dMint.IsUsed();
     meta.hashSerial = dMint.GetSerialHash();
-    meta.denom = dMint.GetDenomination();
+    meta.denom = dMint.GetDenomination().get();
     meta.isArchived = isArchived;
     meta.isDeterministic = true;
     if (! iszerocoinWalletInitialized)
