@@ -114,7 +114,7 @@ void Zc2SigmaPage::on_remintButton_clicked() {
         std::string error;
         bool result;
         {
-            LOCK(pwalletMain->cs_wallet);
+            LOCK2(cs_main, pwalletMain->cs_wallet);
             result = pwalletMain->CreateZerocoinToSigmaRemintModel(error, int(version), libzerocoin::CoinDenomination(denom));
         }
         if(!result) {
