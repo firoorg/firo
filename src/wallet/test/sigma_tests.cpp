@@ -635,15 +635,8 @@ BOOST_AUTO_TEST_CASE(spend)
         }
 
         BOOST_CHECK(coin.IsUsed() == false);
-
-        // First 2 mints mined (Either could be picked as "selected" coin)
-        if(coin.GetCount()==0 || coin.GetCount()==1){
-            BOOST_CHECK(coin.GetId() == 1);
-            BOOST_CHECK(coin.GetHeight() == 1);
-        }else{
-            BOOST_CHECK(coin.GetId() == -1);
-            BOOST_CHECK(coin.GetHeight() == -1);
-        }
+        BOOST_CHECK(coin.GetId() == -1);
+        BOOST_CHECK(coin.GetHeight() == -1);
     }
     sigmaState->Reset();
 }
