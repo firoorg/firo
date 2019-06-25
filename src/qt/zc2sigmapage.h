@@ -13,6 +13,7 @@ class AddressTableModel;
 class OptionsModel;
 class PlatformStyle;
 class Zc2SigmaModel;
+class ClientModel;
 
 class QTimer;
 
@@ -35,6 +36,7 @@ public:
     explicit Zc2SigmaPage(const PlatformStyle *platformStyle, QWidget *parent);
     ~Zc2SigmaPage();
     void createModel();
+    void setClientModel(ClientModel *clientModel_);
 
     static bool showZc2SigmaPage();
 
@@ -42,6 +44,7 @@ private:
     Ui::Zc2SigmaPage *ui;
     std::shared_ptr<Zc2SigmaModel> model;
     std::shared_ptr<QTimer> tmrAvailMints;
+    ClientModel *clientModel;
 
 protected:
     void showEvent(QShowEvent* event);
@@ -51,6 +54,7 @@ private Q_SLOTS:
     void on_remintButton_clicked();
     void selectionChanged();
     void updateAvailableRemints();
+    void numBlocksChanged(int count, const QDateTime& blockDate, double nVerificationProgress, bool header);
 
 Q_SIGNALS:
     void sendCoins(QString addr);

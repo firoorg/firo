@@ -17,6 +17,7 @@
 #include "platformstyle.h"
 #include "zc2sigmamodel.h"
 #include "znode-sync.h"
+#include "clientmodel.h"
 
 #include "../wallet/wallet.h"
 #include "main.h"
@@ -35,7 +36,8 @@ extern CZnodeSync znodeSync;
 Zc2SigmaPage::Zc2SigmaPage(const PlatformStyle *platformStyle, QWidget *parent)
 : QWidget(parent)
 , ui(new Ui::Zc2SigmaPage)
-, model(0)
+, model(nullptr)
+, clientModel(nullptr)
 {
     ui->setupUi(this);
 
@@ -44,23 +46,22 @@ Zc2SigmaPage::Zc2SigmaPage(const PlatformStyle *platformStyle, QWidget *parent)
     ui->explanationLabel->setText(
             tr("Here you can remint your unspent Zerocoin as Sigma mints"));
 
-    tmrAvailMints = std::shared_ptr<QTimer>(new QTimer(this));
-    connect(tmrAvailMints.get(), SIGNAL(timeout()), this, SLOT(updateAvailableRemints()));
 }
 
 Zc2SigmaPage::~Zc2SigmaPage() {
     delete ui;
-    tmrAvailMints->stop();
 }
 
 void Zc2SigmaPage::showEvent(QShowEvent* event) {
     QWidget::showEvent(event);
-    tmrAvailMints->start(5000);
+    if(clientModel)
+        connect(clientModel, SIGNAL(numBlocksChanged(int, const QDateTime&, double, bool)), this, SLOT(numBlocksChanged(int, const QDateTime&, double, bool)));
 }
 
 void Zc2SigmaPage::hideEvent(QHideEvent* event) {
     QWidget::hideEvent(event);
-    tmrAvailMints->stop();
+    if(clientModel)
+        disconnect(clientModel, SIGNAL(numBlocksChanged(int, const QDateTime&, double, bool)), this, SLOT(numBlocksChanged(int, const QDateTime&, double, bool)));
 }
 
 void Zc2SigmaPage::createModel() {
@@ -85,12 +86,17 @@ void Zc2SigmaPage::createModel() {
     ui->remintButton->setDisabled(true);
 }
 
+void Zc2SigmaPage::setClientModel(ClientModel *clientModel_) {
+    clientModel = clientModel_;
+}
+
 void Zc2SigmaPage::on_remintButton_clicked() {
     QItemSelectionModel * select = ui->availMintsTable->selectionModel();
 
     if(!select->hasSelection())
         return;
 
+    bool reminted = false;
     QModelIndexList idxs = select->selectedRows();
     for(int i = 0; i < idxs.size(); ++i) {
         int const row = idxs[i].row();
@@ -112,10 +118,16 @@ void Zc2SigmaPage::on_remintButton_clicked() {
             LOCK(pwalletMain->cs_wallet);
             result = pwalletMain->CreateZerocoinToSigmaRemintModel(error, int(version), libzerocoin::CoinDenomination(denom));
         }
-        if(!result)
+        if(!result) {
             QMessageBox::critical(this, "Unable to remint", QString("Failed to remint: ").append(error.c_str()));
-        else
+        }
+        else {
             QMessageBox::information(this, "Reminted", QString("Successfully reminted."));
+            reminted = true;
+        }
+    }
+    if(reminted) {
+        updateAvailableRemints();
     }
 }
 
@@ -149,14 +161,12 @@ bool Zc2SigmaPage::showZc2SigmaPage() {
         }
     }
 
-    {
-        LOCK(cs_main);
-        const Consensus::Params &params = Params().GetConsensus();
-        if (chainActive.Height() < params.nSigmaStartBlock ||
-                chainActive.Height() >= params.nSigmaStartBlock + params.nZerocoinToSigmaRemintWindowSize) {
-            return false;
-        }
-    }
-
     return Zc2SigmaModel::GetAvailMintsNumber() > 0;
 }
+
+void Zc2SigmaPage::numBlocksChanged(int count, const QDateTime& blockDate, double nVerificationProgress, bool header) {
+    if(!sigma::IsRemintWindow(count))
+        return;
+    updateAvailableRemints();
+}
+

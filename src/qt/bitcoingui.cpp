@@ -271,10 +271,6 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *platformStyle, const NetworkStyle *n
 
     // Subscribe to notifications from core
     subscribeToCoreSignals();
-
-    checkZc2SigmaPageTimer = std::make_shared<QTimer>(this);
-    connect(checkZc2SigmaPageTimer.get(), SIGNAL(timeout()), this, SLOT(checkZc2SigmaPage()));
-    checkZc2SigmaPageTimer->start(5000);
 }
 
 BitcoinGUI::~BitcoinGUI()
@@ -597,6 +593,7 @@ void BitcoinGUI::setClientModel(ClientModel *clientModel)
             // initialize the disable state of the tray icon with the current value in the model.
             setTrayIconVisible(optionsModel->getHideTrayIcon());
         }
+        checkZc2SigmaVisibility(clientModel->getNumBlocks());
     } else {
         // Disable possibility to show main window via action
         toggleHideAction->setEnabled(false);
@@ -969,6 +966,8 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
     labelBlocksIcon->setToolTip(tooltip);
     progressBarLabel->setToolTip(tooltip);
     progressBar->setToolTip(tooltip);
+
+    checkZc2SigmaVisibility(count);
 }
 
 
@@ -1309,12 +1308,6 @@ void BitcoinGUI::setTrayIconVisible(bool fHideTrayIcon)
     }
 }
 
-void BitcoinGUI::checkZc2SigmaPage() {
-    const bool show = Zc2SigmaPage::showZc2SigmaPage();
-
-    if(show)
-        zc2SigmaAction->setVisible(true);
-}
 
 static bool ThreadSafeMessageBox(BitcoinGUI *gui, const std::string& message, const std::string& caption, unsigned int style)
 {
@@ -1345,6 +1338,15 @@ void BitcoinGUI::unsubscribeFromCoreSignals()
     // Disconnect signals from client
     uiInterface.ThreadSafeMessageBox.disconnect(boost::bind(ThreadSafeMessageBox, this, _1, _2, _3));
     uiInterface.ThreadSafeQuestion.disconnect(boost::bind(ThreadSafeMessageBox, this, _1, _3, _4));
+}
+
+void BitcoinGUI::checkZc2SigmaVisibility(int numBlocks) {
+    if(!zc2SigmaAction->isVisible() && sigma::IsRemintWindow(numBlocks)) {
+        const bool show = Zc2SigmaPage::showZc2SigmaPage();
+
+        if(show)
+            zc2SigmaAction->setVisible(true);
+    }
 }
 
 UnitDisplayStatusBarControl::UnitDisplayStatusBarControl(const PlatformStyle *platformStyle) :

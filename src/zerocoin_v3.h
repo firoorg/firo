@@ -50,6 +50,8 @@ public:
 bool IsSigmaAllowed();
 bool IsSigmaAllowed(int height);
 
+bool IsRemintWindow(int height);
+
 secp_primitives::GroupElement ParseSigmaMintScript(const CScript& script);
 std::pair<std::unique_ptr<sigma::CoinSpend>, uint32_t> ParseSigmaSpend(const CTxIn& in);
 CAmount GetSpendAmount(const CTxIn& in);

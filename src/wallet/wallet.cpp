@@ -4403,8 +4403,7 @@ bool CWallet::CreateZerocoinToSigmaRemintModel(string &stringError, int version,
     LOCK2(cs_main, cs_wallet);
 
     const Consensus::Params &params = Params().GetConsensus();
-    if (chainActive.Height() < params.nSigmaStartBlock ||
-                chainActive.Height() >= params.nSigmaStartBlock + params.nZerocoinToSigmaRemintWindowSize) {
+    if (sigma::IsRemintWindow(chainActive.Height())) {
         stringError = "Remint transaction is not currently allowed";
         return false;
     }
