@@ -317,12 +317,27 @@ void SigmaDialog::on_sendButton_clicked()
     }
 
     CAmount txFee = currentTransaction.getTransactionFee();
+    CAmount totalAmount(0);
+
+    auto walletTx = currentTransaction.getTransaction();
 
     // Format confirmation message
     QStringList formatted;
-    for (const auto& rcp : currentTransaction.getRecipients()) {
+    for (auto const &rcp : currentTransaction.getRecipients()) {
+
+        CAmount realAmount = rcp.amount;
+        CScript recipientScriptPubKey = GetScriptForDestination(CBitcoinAddress(rcp.address.toStdString()).Get());
+
+        for (auto const &out : walletTx->vout) {
+            if (out.scriptPubKey == recipientScriptPubKey) {
+                realAmount = out.nValue;
+            }
+        }
+
+        totalAmount += realAmount;
+
         // generate bold amount string
-        QString amount = "<b>" + BitcoinUnits::formatHtmlWithUnit(walletModel->getOptionsModel()->getDisplayUnit(), rcp.amount);
+        QString amount = "<b>" + BitcoinUnits::formatHtmlWithUnit(walletModel->getOptionsModel()->getDisplayUnit(), realAmount);
         amount.append("</b>");
 
         // generate monospace address string
@@ -363,7 +378,7 @@ void SigmaDialog::on_sendButton_clicked()
 
     // add total amount in all subdivision units
     questionString.append("<hr />");
-    CAmount totalAmount = currentTransaction.getTotalTransactionAmount() + txFee;
+    totalAmount += txFee;
     QStringList alternativeUnits;
     Q_FOREACH(BitcoinUnits::Unit u, BitcoinUnits::availableUnits()) {
         if (u != walletModel->getOptionsModel()->getDisplayUnit())
