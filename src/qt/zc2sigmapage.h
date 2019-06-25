@@ -15,8 +15,6 @@ class PlatformStyle;
 class Zc2SigmaModel;
 class ClientModel;
 
-class QTimer;
-
 namespace Ui {
     class Zc2SigmaPage;
 }
@@ -43,7 +41,6 @@ public:
 private:
     Ui::Zc2SigmaPage *ui;
     std::shared_ptr<Zc2SigmaModel> model;
-    std::shared_ptr<QTimer> tmrAvailMints;
     ClientModel *clientModel;
 
 protected:

@@ -45,7 +45,6 @@ Zc2SigmaPage::Zc2SigmaPage(const PlatformStyle *platformStyle, QWidget *parent)
 
     ui->explanationLabel->setText(
             tr("Here you can remint your unspent Zerocoin as Sigma mints"));
-
 }
 
 Zc2SigmaPage::~Zc2SigmaPage() {
@@ -120,8 +119,7 @@ void Zc2SigmaPage::on_remintButton_clicked() {
         }
         if(!result) {
             QMessageBox::critical(this, "Unable to remint", QString("Failed to remint: ").append(error.c_str()));
-        }
-        else {
+        } else {
             QMessageBox::information(this, "Reminted", QString("Successfully reminted."));
             reminted = true;
         }
