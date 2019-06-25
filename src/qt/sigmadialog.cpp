@@ -128,6 +128,7 @@ void SigmaDialog::setWalletModel(WalletModel *model)
             SendCoinsEntry *entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
             if (entry) {
                 entry->setModel(model);
+                entry->setSubtractFeeFromAmount(true);
             }
         }
     }
@@ -429,6 +430,7 @@ SendCoinsEntry *SigmaDialog::addEntry() {
 
     // Focus the field, so that entry can start immediately
     entry->clear();
+    entry->setSubtractFeeFromAmount(true);
     entry->setFocus();
     ui->scrollAreaWidgetContents->resize(ui->scrollAreaWidgetContents->sizeHint());
     qApp->processEvents();

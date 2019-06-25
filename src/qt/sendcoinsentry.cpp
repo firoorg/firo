@@ -228,6 +228,11 @@ void SendCoinsEntry::setAddress(const QString &address)
     ui->payAmount->setFocus();
 }
 
+void SendCoinsEntry::setSubtractFeeFromAmount(bool enable)
+{
+    ui->checkboxSubtractFeeFromAmount->setCheckState(enable ? Qt::Checked : Qt::Unchecked);
+}
+
 bool SendCoinsEntry::isClear()
 {
     return ui->payTo->text().isEmpty() && ui->payTo_is->text().isEmpty() && ui->payTo_s->text().isEmpty();
