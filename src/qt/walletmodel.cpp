@@ -214,7 +214,7 @@ void WalletModel::checkSigmaAmount(bool forced)
         std::list<CSigmaEntry> coins;
         CWalletDB(wallet->strWalletFile).ListSigmaPubCoin(coins);
 
-        auto hdmintCoins = wallet->hdMintTracker->MintsAsZerocoinEntries();
+        auto hdmintCoins = wallet->hdMintTracker->MintsAsZerocoinEntries(true, false);
         coins.insert(coins.end(), hdmintCoins.begin(), hdmintCoins.end());
 
         std::vector<CSigmaEntry> spendable, pending;
