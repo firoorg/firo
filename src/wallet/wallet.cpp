@@ -4386,11 +4386,6 @@ bool CWallet::CreateZerocoinToSigmaRemintModel(string &stringError, int version,
     // currently we don't support zerocoin mints v1
     assert(version == ZEROCOIN_TX_VERSION_2);
 
-    if (!znodeSync.IsBlockchainSynced()) {
-        stringError = "Blockchain is not synced";
-        return false;
-    }
-
     if (IsLocked()) {
         stringError = "Error: Wallet locked, unable to create transaction!";
         return false;
@@ -4405,6 +4400,11 @@ bool CWallet::CreateZerocoinToSigmaRemintModel(string &stringError, int version,
     const Consensus::Params &params = Params().GetConsensus();
     if (!sigma::IsRemintWindow(chainActive.Height())) {
         stringError = "Remint transaction is not currently allowed";
+        return false;
+    }
+
+    if (!params.IsRegtest() && !znodeSync.IsBlockchainSynced()) {
+        stringError = "Blockchain is not synced";
         return false;
     }
 
