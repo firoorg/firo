@@ -786,6 +786,15 @@ void CleanupBlockRevFiles() {
 }
 
 void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
+
+#ifdef ENABLE_WALLET
+    if (!GetBoolArg("-disablewallet", false)) {
+        //Load zerocoin mint hashes to memory
+        pwalletMain->hdMintTracker->Init();
+        zwalletMain->LoadMintPoolFromDB();
+    }
+#endif
+
     const CChainParams &chainparams = Params();
     RenameThread("bitcoin-loadblk");
     CImportingNow imp;
@@ -849,14 +858,8 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
         StartShutdown();
     }
 
-    // With Zerocoin data up to date, initialize ZerocoinWallet
-    uiInterface.InitMessage(_("Syncing Zerocoin wallet..."));
-
 #ifdef ENABLE_WALLET
     if (!GetBoolArg("-disablewallet", false)) {
-        //Load zerocoin mint hashes to memory
-        pwalletMain->hdMintTracker->Init();
-        zwalletMain->LoadMintPoolFromDB();
         zwalletMain->SyncWithChain();
     }
 #endif

@@ -3526,6 +3526,13 @@ ConnectTip(CValidationState &state, const CChainParams &chainparams, CBlockIndex
         }
     }
 
+    // Sync with HDMint wallet
+    if(pblock->sigmaTxInfo->spentSerials.size() > 0)
+        pwalletMain->hdMintTracker->UpdateSpendStateFromBlock(pblock->sigmaTxInfo->spentSerials);
+
+    if(pblock->sigmaTxInfo->mints.size() > 0)
+        pwalletMain->hdMintTracker->UpdateMintStateFromBlock(pblock->sigmaTxInfo->mints);
+
     //! Exodus: end of block connect notification
     if (fExodus) {
         LogPrint("handler", "Exodus handler: block connect end [new height: %d, found: %u txs]\n", GetHeight(), nNumMetaTxs);

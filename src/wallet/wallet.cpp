@@ -2250,7 +2250,7 @@ std::list<CSigmaEntry> CWallet::GetAvailableCoins(const CCoinControl *coinContro
     LOCK2(cs_main, cs_wallet);
     CWalletDB walletdb(strWalletFile);
     std::list<CSigmaEntry> coins;
-    std::vector<CMintMeta> vecMints = pwalletMain->hdMintTracker->ListMints(true, true, true);
+    std::vector<CMintMeta> vecMints = pwalletMain->hdMintTracker->ListMints(true, true, false);
     list<CMintMeta> listMints(vecMints.begin(), vecMints.end());
     for (const CMintMeta& mint : listMints) {
         CSigmaEntry entry;
@@ -6559,9 +6559,6 @@ string CWallet::MintAndStoreSigma(const vector<CRecipient>& vecSend,
             CT_NEW);
     }
 
-    //Update Status
-    pwalletMain->hdMintTracker->ListMints(false, false, true);
-
     return "";
 }
 
@@ -7007,9 +7004,6 @@ bool CWallet::CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CSigmaEntry>
 
     // Update the count in the database (no effect if no change mints)
     zwalletMain->UpdateCountDB();
-
-    // Update State
-    pwalletMain->hdMintTracker->ListMints(false, false, true);
 
     return true;
 }
