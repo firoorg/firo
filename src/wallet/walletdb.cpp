@@ -566,7 +566,7 @@ bool ReadKeyValue(CWallet *pwallet, CDataStream &ssKey, CDataStream &ssValue,
             CValidationState state;
 //            LogPrintf("CheckTransaction wtx.GetHash()=%s, hash=%s, state.IsValid()=%s\n", wtx.GetHash().ToString(),
 //                      hash.ToString(), state.IsValid());
-            if (!(CheckTransaction(wtx, state, wtx.GetHash(), true, INT_MAX, false) && (wtx.GetHash() == hash) &&
+            if (!(CheckTransaction(wtx, state, wtx.GetHash(), true, INT_MAX, false, false) && (wtx.GetHash() == hash) &&
                   state.IsValid())) {
 //                LogPrintf("ReadKeyValue|CheckTransaction(), wtx.GetHash() = &s\n", wtx.GetHash().ToString());
                 return false;

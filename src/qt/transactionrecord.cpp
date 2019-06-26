@@ -4,6 +4,8 @@
 
 #include "transactionrecord.h"
 
+#include <QApplication>
+
 #include "base58.h"
 #include "consensus/consensus.h"
 #include "main.h"
@@ -77,6 +79,17 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                 parts.append(sub);
             }
         }
+    }
+    else if (wtx.IsZerocoinRemint()) {
+        TransactionRecord sub(hash, nTime);
+        sub.type = TransactionRecord::SpendToSelf;
+        CAmount txAmount = 0;
+        for (const CTxOut &txout: wtx.vout)
+            txAmount += txout.nValue;
+        sub.debit = -txAmount;
+        sub.credit = txAmount;
+        sub.address = QCoreApplication::translate("zcoin-core", "Zerocoin->Sigma remint").toStdString();
+        parts.append(sub);
     }
     else if (nNet > 0 || wtx.IsCoinBase())
     {

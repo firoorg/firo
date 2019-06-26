@@ -2599,7 +2599,7 @@ bool DisconnectBlock(const CBlock &block, CValidationState &state, const CBlockI
         }
 
         // restore inputs
-        if (!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsSigmaSpend()) { // not coinbases
+        if (!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsSigmaSpend() && !tx.IsZerocoinRemint()) { // not coinbases
             const CTxUndo &txundo = blockUndo.vtxundo[i - 1];
             if (txundo.vprevout.size() != tx.vin.size())
                 return error("DisconnectBlock(): transaction and undo data inconsistent");
