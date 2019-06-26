@@ -4360,8 +4360,7 @@ int CWallet::GetNumberOfUnspentMintsForDenomination(int version, libzerocoin::Co
                 CBigNum coinPublicValue = commGroup.g.pow_mod(coin.serialNumber, commGroup.modulus).
                                 mul_mod(commGroup.h.pow_mod(coin.randomness, commGroup.modulus), commGroup.modulus);
 
-                if ((mintHeight = zerocoinState->GetMintedCoinHeightAndId(coinPublicValue, (int)d, mintId)) > 0 &&
-                        IsZerocoinTxV2(d, Params().GetConsensus(), mintId) == (coinVersion == ZEROCOIN_TX_VERSION_2)) {
+                if ((mintHeight = zerocoinState->GetMintedCoinHeightAndId(coinPublicValue, (int)d, mintId)) > 0) {
                     if (mintEntry) {
                         *mintEntry = coin;
 
@@ -4397,6 +4396,17 @@ bool CWallet::CreateZerocoinToSigmaRemintModel(string &stringError, int version,
     CMutableTransaction txNew;
 
     LOCK2(cs_main, cs_wallet);
+
+    const Consensus::Params &params = Params().GetConsensus();
+    if (!sigma::IsRemintWindow(chainActive.Height())) {
+        stringError = "Remint transaction is not currently allowed";
+        return false;
+    }
+
+    if (!params.IsRegtest() && !znodeSync.IsBlockchainSynced()) {
+        stringError = "Blockchain is not synced";
+        return false;
+    }
 
     txNew.vin.clear();
     txNew.vout.clear();
