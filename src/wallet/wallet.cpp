@@ -1221,7 +1221,7 @@ isminetype CWallet::IsMine(const CTxIn &txin) const {
         CDataStream serializedCoinRemint(
             std::vector<char>(txin.scriptSig.begin() + 1, txin.scriptSig.end()),
             SER_NETWORK, PROTOCOL_VERSION);
-    
+
         sigma::CoinRemintToV3 remint(serializedCoinRemint);
         if (db.HasCoinSpendSerialEntry(remint.getSerialNumber())) {
             return ISMINE_SPENDABLE;
@@ -4037,7 +4037,7 @@ bool CWallet::CreateSigmaMintModel(
 }
 
 /*
- * We disabled zerocoin for security reasons but in order for zerocoin to sigma remint tests 
+ * We disabled zerocoin for security reasons but in order for zerocoin to sigma remint tests
  * to pass we need it on regtest chain
  */
 
@@ -4065,7 +4065,7 @@ static bool IsZerocoinEnabled(std::string &stringError) {
 bool CWallet::CreateZerocoinMintModelV2(
         string &stringError,
         const std::vector<std::pair<int,int>>& denominationPairs) {
-    
+
     CHECK_ZEROCOIN_STRINGERROR(stringError);
 
     libzerocoin::CoinDenomination denomination;
@@ -4353,7 +4353,7 @@ int CWallet::GetNumberOfUnspentMintsForDenomination(int version, libzerocoin::Co
             if (coinVersion == version) {
                 // Find minted coin in the index
                 int mintId = -1, mintHeight = -1;
-                
+
                 // group is the same in both v1 and v2 params
                 const libzerocoin::IntegerGroupParams &commGroup = ZCParamsV2->coinCommitmentGroup;
                 // calculate g^serial * h^randomness (mod modulus)

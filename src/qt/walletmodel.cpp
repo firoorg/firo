@@ -210,7 +210,7 @@ void WalletModel::checkBalanceChanged()
 
 void WalletModel::checkSigmaAmount(bool forced)
 {
-    if ((cachedHavePendingCoin && cachedNumBlocks > lastBlockCheckSigma) || forced ) {
+    if ((cachedHavePendingCoin && cachedNumBlocks > lastBlockCheckSigma) || forced) {
         std::list<CSigmaEntry> coins;
         CWalletDB(wallet->strWalletFile).ListSigmaPubCoin(coins);
 
@@ -878,6 +878,13 @@ WalletModel::SendCoinsReturn WalletModel::prepareSigmaSpendTransaction(
         *newTx = wallet->CreateSigmaSpendTransaction(sendRecipients, fee, selectedCoins, changes, coinControl);
     } catch (const InsufficientFunds& err) {
         return AmountExceedsBalance;
+    } catch (const std::runtime_error& err) {
+        if (0 == std::strcmp(
+            err.what(),
+            std::runtime_error(_("Can not choose coins within limit.")).what())) {
+            return ExceedLimit;
+        }
+        throw err;
     } catch (const std::invalid_argument& err) {
         return ExceedLimit;
     }
