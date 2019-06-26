@@ -152,7 +152,7 @@ void Zc2SigmaPage::updateAvailableRemints() {
 }
 
 bool Zc2SigmaPage::showZc2SigmaPage() {
-    {
+    if(!Params().GetConsensus().IsRegtest()) {
         LOCK(cs_main);
         if(!znodeSync.IsBlockchainSynced()) {
             return false;
