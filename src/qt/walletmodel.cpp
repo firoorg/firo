@@ -879,11 +879,8 @@ WalletModel::SendCoinsReturn WalletModel::prepareSigmaSpendTransaction(
     } catch (const InsufficientFunds& err) {
         return AmountExceedsBalance;
     } catch (const std::runtime_error& err) {
-        if (0 == std::strcmp(
-            err.what(),
-            std::runtime_error(_("Can not choose coins within limit.")).what())) {
+        if (_("Can not choose coins within limit.") == err.what())
             return ExceedLimit;
-        }
         throw err;
     } catch (const std::invalid_argument& err) {
         return ExceedLimit;
