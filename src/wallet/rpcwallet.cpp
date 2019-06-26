@@ -3362,22 +3362,18 @@ UniValue resetsigmamint(const UniValue& params, bool fHelp) {
                 "resetsigmamint"
                 + HelpRequiringPassphrase());
 
-    list <CSigmaEntry> listPubcoin;
+    std::vector <CMintMeta> listMints;
     CWalletDB walletdb(pwalletMain->strWalletFile);
-    listPubcoin = pwalletMain->hdMintTracker->MintsAsZerocoinEntries();
+    listMints = pwalletMain->hdMintTracker->ListMints(false, false);
 
-    BOOST_FOREACH(const CSigmaEntry &sigmaItem, listPubcoin){
-        if (sigmaItem.randomness != uint64_t(0) && sigmaItem.serialNumber != uint64_t(0)) {
-            CSigmaEntry sigmaTx;
-            sigmaTx.IsUsed = false;
-            sigmaTx.set_denomination_value(sigmaItem.get_denomination_value());
-            sigmaTx.value = sigmaItem.value;
-            sigmaTx.serialNumber = sigmaItem.serialNumber;
-            sigmaTx.nHeight = -1;
-            sigmaTx.randomness = sigmaItem.randomness;
-            sigmaTx.ecdsaSecretKey = sigmaItem.ecdsaSecretKey;
-            walletdb.WriteZerocoinEntry(sigmaTx);
+    BOOST_FOREACH(CMintMeta &mint, listMints) {
+        CHDMint dMint;
+        if (!walletdb.ReadHDMint(sigma::GetPubCoinValueHash(mint.pubCoinValue), dMint)){
+            continue;
         }
+        dMint.SetUsed(false);
+        dMint.SetHeight(-1);
+        pwalletMain->hdMintTracker->Add(dMint, true);
     }
 
     return NullUniValue;
@@ -3435,7 +3431,7 @@ UniValue listsigmamints(const UniValue& params, bool fHelp) {
 
     list <CSigmaEntry> listPubcoin;
     CWalletDB walletdb(pwalletMain->strWalletFile);
-    walletdb.ListSigmaPubCoin(listPubcoin);
+    listPubcoin = pwalletMain->hdMintTracker->MintsAsZerocoinEntries(false, false);
     UniValue results(UniValue::VARR);
 
     BOOST_FOREACH(const CSigmaEntry &zerocoinItem, listPubcoin) {
@@ -3514,7 +3510,7 @@ UniValue listsigmapubcoins(const UniValue& params, bool fHelp) {
 
     list<CSigmaEntry> listPubcoin;
     CWalletDB walletdb(pwalletMain->strWalletFile);
-    listPubcoin = pwalletMain->hdMintTracker->MintsAsZerocoinEntries();
+    listPubcoin = pwalletMain->hdMintTracker->MintsAsZerocoinEntries(false, false);
     UniValue results(UniValue::VARR);
     listPubcoin.sort(CompSigmaHeight);
 
@@ -3662,7 +3658,7 @@ UniValue setsigmamintstatus(const UniValue& params, bool fHelp) {
 
                 UniValue entry(UniValue::VOBJ);
                 entry.push_back(Pair("id", zerocoinItem.id));
-                entry.push_back(Pair("IsUsed", zerocoinItem.IsUsed));
+                entry.push_back(Pair("IsUsed", fStatus));
                 entry.push_back(Pair("denomination", zerocoinItem.get_denomination_value()));
                 entry.push_back(Pair("value", zerocoinItem.value.GetHex()));
                 entry.push_back(Pair("serialNumber", zerocoinItem.serialNumber.GetHex()));

@@ -86,7 +86,6 @@ BOOST_AUTO_TEST_CASE(remint_basic_test)
     for (int i=0; i<400; i++) {
         CBlock b = CreateAndProcessBlock({}, scriptPubKey);
     }
-
     for (int i=0; i<5; i++) {
         BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinToSigmaRemintModel(stringError, ZEROCOIN_TX_VERSION_2, (libzerocoin::CoinDenomination)atoi(denominations[i].c_str())), stringError + " - Remint failed");
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Zerocoin remint was not added to mempool");

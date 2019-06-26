@@ -255,7 +255,7 @@ bool CHDMintTracker::UpdateState(const CMintMeta& meta)
         // get coin id & height
         int height, id;
         if(meta.nHeight<0 || meta.nId <= 0){
-            std::tie(height, id) = sigma::CSigmaState::GetState()->GetMintedCoinHeightAndId(sigma::PublicCoin(dMint.GetPubcoinValue(), dMint.GetDenomination()));
+            std::tie(height, id) = sigma::CSigmaState::GetState()->GetMintedCoinHeightAndId(sigma::PublicCoin(dMint.GetPubcoinValue(), dMint.GetDenomination().get()));
         }
         else{
             height = meta.nHeight;
@@ -298,7 +298,7 @@ void CHDMintTracker::Add(const CHDMint& dMint, bool isNew, bool isArchived, CHDM
     meta.txid = dMint.GetTxHash();
     meta.isUsed = dMint.IsUsed();
     meta.hashSerial = dMint.GetSerialHash();
-    meta.denom = dMint.GetDenomination();
+    meta.denom = dMint.GetDenomination().get();
     meta.isArchived = isArchived;
     meta.isDeterministic = true;
     if (! iszerocoinWalletInitialized)
@@ -397,15 +397,20 @@ bool CHDMintTracker::UpdateStatusInternal(const std::set<uint256>& setMempool, C
 
     bool isUsed = isPendingSpend || isConfirmedSpend;
 
-    if ((mint.nHeight==-1) || (mint.nId<=0) || !isMintInChain || isUsed != mint.isUsed) {
+    if ((mint.nHeight==-1) || (mint.nId==-1) || !isMintInChain || isUsed != mint.isUsed) {
         CTransaction tx;
         uint256 hashBlock;
 
         // Txid will be marked 0 if there is no knowledge of the final tx hash yet
         if (mint.txid.IsNull()) {
             if (!isMintInChain) {
-                LogPrintf("%s : Failed to find mint in zerocoinDB %s\n", __func__, hashPubcoin.GetHex().substr(0, 6));
-                return true;
+                if(mint.nHeight>-1) mint.nHeight = -1;
+                if(mint.nId>-1) mint.nId = -1;
+                // still want to update this mint later if syncing. else ignore
+                if(IsInitialBlockDownload()){
+                    return true;
+                }
+                return false;
             }
             mint.txid = txidMint;
         }
@@ -510,10 +515,54 @@ bool CHDMintTracker::UpdateMints(std::set<uint256> serialHashes, bool fReset, bo
     return true;
 }
 
+void CHDMintTracker::UpdateMintStateFromBlock(const std::vector<sigma::PublicCoin>& mints){
+    std::vector<CMintMeta> updatedMeta;
+    std::set<uint256> setMempool;
+    {
+        LOCK(mempool.cs);
+        mempool.getTransactions(setMempool);
+    }
+    for (auto& mint : mints) {
+        uint256 hashPubcoin = sigma::GetPubCoinValueHash(mint.getValue());
+        if(!HasPubcoinHash(hashPubcoin))
+            continue;
+        CMintMeta meta = GetMetaFromPubcoin(hashPubcoin);
+        if(UpdateStatusInternal(setMempool, meta)){
+            updatedMeta.emplace_back(meta);
+        }
+    }
+
+    //overwrite any updates
+    for (CMintMeta& meta : updatedMeta)
+        UpdateState(meta);
+}
+
+void CHDMintTracker::UpdateSpendStateFromBlock(const sigma::spend_info_container& spentSerials){
+    std::vector<CMintMeta> updatedMeta;
+    std::set<uint256> setMempool;
+    {
+        LOCK(mempool.cs);
+        mempool.getTransactions(setMempool);
+    }
+    for(auto& spentSerial : spentSerials){
+        uint256 spentSerialHash = sigma::GetSerialHash(spentSerial.first);
+        CMintMeta meta;
+        if(!Get(spentSerialHash, meta))
+            continue;
+        if(UpdateStatusInternal(setMempool, meta)){
+            updatedMeta.emplace_back(meta);
+        }
+    }
+
+    //overwrite any updates
+    for (CMintMeta& meta : updatedMeta)
+        UpdateState(meta);
+}
+
 list<CSigmaEntry> CHDMintTracker::MintsAsZerocoinEntries(bool fUnusedOnly, bool fMatureOnly){
     list <CSigmaEntry> listPubcoin;
     CWalletDB walletdb(strWalletFile);
-    std::vector<CMintMeta> vecMists = ListMints(fUnusedOnly, fMatureOnly);
+    std::vector<CMintMeta> vecMists = ListMints(fUnusedOnly, fMatureOnly, false);
     list<CMintMeta> listMints(vecMists.begin(), vecMists.end());
     for (const CMintMeta& mint : listMints) {
         CSigmaEntry entry;
