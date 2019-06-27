@@ -269,6 +269,12 @@ bool CHDMintTracker::UpdateState(const CMintMeta& meta)
 
         if (!walletdb.WriteHDMint(dMint))
             return error("%s: failed to update deterministic mint when writing to db", __func__);
+
+        pwalletMain->NotifyZerocoinChanged(
+            pwalletMain,
+            dMint.GetPubcoinValue().GetHex(),
+            std::string("Update (") + std::to_string((double)dMint.GetDenominationValue() / COIN) + "mint)",
+            CT_UPDATED);
     } else {
         CSigmaEntry zerocoin;
         if (!walletdb.ReadZerocoinEntry(meta.pubCoinValue, zerocoin))
@@ -281,6 +287,12 @@ bool CHDMintTracker::UpdateState(const CMintMeta& meta)
 
         if (!walletdb.WriteZerocoinEntry(zerocoin))
             return error("%s: failed to write mint to database", __func__);
+
+        pwalletMain->NotifyZerocoinChanged(
+            pwalletMain,
+            zerocoin.value.GetHex(),
+            std::string("Update (") + std::to_string((double)zerocoin.get_denomination_value() / COIN) + "mint)",
+            CT_UPDATED);
     }
 
     mapSerialHashes[meta.hashSerial] = meta;
