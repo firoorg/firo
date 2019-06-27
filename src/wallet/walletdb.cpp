@@ -520,6 +520,12 @@ bool CWalletDB::ReadHDMint(const uint256& hashPubcoin, CHDMint& dMint)
     return Read(make_pair(std::string("hdmint"), hashPubcoin), dMint);
 }
 
+bool CWalletDB::EraseHDMint(const CHDMint& dMint) {
+    nWalletDBUpdated++;
+    uint256 hash = dMint.GetPubCoinHash();
+    return Erase(std::make_pair(std::string("hdmint"), hash));
+}
+
 bool CWalletDB::HasHDMint(const secp_primitives::GroupElement& pub) {
     return Exists(std::make_pair(std::string("hdmint"), sigma::GetPubCoinValueHash(pub)));
 }
@@ -974,6 +980,31 @@ DBErrors CWalletDB::ZapSelectTx(CWallet *pwallet, vector <uint256> &vTxHashIn, v
     if (delerror) {
         return DB_CORRUPT;
     }
+    return DB_LOAD_OK;
+}
+
+DBErrors CWalletDB::ZapSigmaMints(CWallet *pwallet) {
+    // get list of HD Mints
+    std::list<CHDMint> vHDMints = ListHDMints();
+
+    // get list of non HD Mints
+    std::list <CSigmaEntry> sigmaEntries;
+    ListSigmaPubCoin(sigmaEntries);
+
+    // erase each HD Mint
+    BOOST_FOREACH(CHDMint & hdMint, vHDMints)
+    {
+        if (!EraseHDMint(hdMint))
+            return DB_CORRUPT;
+    }
+
+    // erase each non HD Mint
+    BOOST_FOREACH(CSigmaEntry & sigmaEntry, sigmaEntries)
+    {
+        if (!EraseZerocoinEntry(sigmaEntry))
+            return DB_CORRUPT;
+    }
+
     return DB_LOAD_OK;
 }
 

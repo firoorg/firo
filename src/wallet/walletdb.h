@@ -221,6 +221,7 @@ public:
     DBErrors FindWalletTx(CWallet* pwallet, std::vector<uint256>& vTxHash, std::vector<CWalletTx>& vWtx);
     DBErrors ZapWalletTx(CWallet* pwallet, std::vector<CWalletTx>& vWtx);
     DBErrors ZapSelectTx(CWallet* pwallet, std::vector<uint256>& vHashIn, std::vector<uint256>& vHashOut);
+    DBErrors ZapSigmaMints(CWallet* pwallet);
     static bool Recover(CDBEnv& dbenv, const std::string& filename, bool fOnlyKeys);
     static bool Recover(CDBEnv& dbenv, const std::string& filename);
 
@@ -237,6 +238,7 @@ public:
 
     bool WriteHDMint(const CHDMint& dMint);
     bool ReadHDMint(const uint256& hashPubcoin, CHDMint& dMint);
+    bool EraseHDMint(const CHDMint& dMint);
     bool HasHDMint(const secp_primitives::GroupElement& pub);
 
      std::list<CHDMint> ListHDMints();

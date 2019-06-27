@@ -320,6 +320,12 @@ void CHDMintTracker::Add(const CHDMint& dMint, bool isNew, bool isArchived, CHDM
         delete zerocoinWallet;
     mapSerialHashes[meta.hashSerial] = meta;
 
+    pwalletMain->NotifyZerocoinChanged(
+        pwalletMain,
+        dMint.GetPubcoinValue().GetHex(),
+        std::string("Update (") + std::to_string((double)dMint.GetDenominationValue() / COIN) + "mint)",
+        CT_UPDATED);
+
     if (isNew)
         CWalletDB(strWalletFile).WriteHDMint(dMint);
 }

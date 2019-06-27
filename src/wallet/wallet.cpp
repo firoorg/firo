@@ -7148,6 +7148,16 @@ DBErrors CWallet::ZapWalletTx(std::vector <CWalletTx> &vWtx) {
     return DB_LOAD_OK;
 }
 
+DBErrors CWallet::ZapSigmaMints() {
+    if (!fFileBacked)
+        return DB_LOAD_OK;
+    DBErrors nZapSigmaMintRet = CWalletDB(strWalletFile, "cr+").ZapSigmaMints(this);
+    if (nZapSigmaMintRet != DB_LOAD_OK)
+        return nZapSigmaMintRet;
+
+    return DB_LOAD_OK;
+}
+
 
 bool CWallet::SetAddressBook(const CTxDestination &address, const string &strName, const string &strPurpose) {
     bool fUpdated = false;
@@ -7767,6 +7777,8 @@ std::string CWallet::GetWalletHelpString(bool showDebug) {
                                                    strprintf(_("(default: %u)"), DEFAULT_WALLETBROADCAST));
     strUsage += HelpMessageOpt("-walletnotify=<cmd>",
                                _("Execute command when a wallet transaction changes (%s in cmd is replaced by TxID)"));
+    strUsage += HelpMessageOpt("-zapwalletmints",
+                               _("Delete all Sigma mints and only recover those parts of the blockchain through -rescan on startup"));
     strUsage += HelpMessageOpt("-zapwallettxes=<mode>",
                                _("Delete all wallet transactions and only recover those parts of the blockchain through -rescan on startup") +
                                " " +
@@ -7796,6 +7808,19 @@ std::string CWallet::GetWalletHelpString(bool showDebug) {
 bool CWallet::InitLoadWallet() {
     LogPrintf("InitLoadWallet()\n");
     std::string walletFile = GetArg("-wallet", DEFAULT_WALLET_DAT);
+
+    if (GetBoolArg("-zapwalletmints", false)) {
+        uiInterface.InitMessage(_("Zapping all Sigma mints from wallet..."));
+
+        CWallet *tempWallet = new CWallet(walletFile);
+        DBErrors nZapMintRet = tempWallet->ZapSigmaMints();
+        if (nZapMintRet != DB_LOAD_OK) {
+            return InitError(strprintf(_("Error loading %s: Wallet corrupted"), walletFile));
+        }
+
+        delete tempWallet;
+        tempWallet = NULL;
+    }
 
     // needed to restore wallet transaction meta data after -zapwallettxes
     std::vector <CWalletTx> vWtx;
