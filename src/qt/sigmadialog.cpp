@@ -39,6 +39,7 @@ SigmaDialog::SigmaDialog(const PlatformStyle *platformStyle, QWidget *parent) :
     setWindowTitle(tr("Sigma"));
 
     ui->scrollArea->setBackgroundRole(QPalette::Base);
+    ui->selectDenomsButton->hide();
 
     if (platformStyle->getImagesOnButtons()) {
         ui->sendButton->setIcon(platformStyle->SingleColorIcon(":/icons/export"));
