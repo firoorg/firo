@@ -53,6 +53,7 @@ Zc2SigmaPage::~Zc2SigmaPage() {
 
 void Zc2SigmaPage::showEvent(QShowEvent* event) {
     QWidget::showEvent(event);
+    updateAvailableRemints();
     if(clientModel)
         connect(clientModel, SIGNAL(numBlocksChanged(int, const QDateTime&, double, bool)), this, SLOT(numBlocksChanged(int, const QDateTime&, double, bool)));
 }
