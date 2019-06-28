@@ -1,4 +1,4 @@
-Zcoin v0.13.7.10
+Zcoin v0.13.8.1
 ===============
 
 [![Build Status](https://travis-ci.com/zcoinofficial/zcoin.svg?branch=CI)](https://travis-ci.com/zcoinofficial/zcoin)

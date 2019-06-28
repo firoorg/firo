@@ -76,7 +76,8 @@ struct ZnodeTestingSetup : public TestingSetup {
     CBlock CreateBlock(const std::vector<CMutableTransaction>& txns,
                        const CScript& scriptPubKeyZnode, bool mtp = false) {
         const CChainParams& chainparams = Params();
-        CBlockTemplate *pblocktemplate = BlockAssembler(chainparams).CreateNewBlock(scriptPubKeyZnode);
+        CBlockTemplate *pblocktemplate = BlockAssembler(chainparams).CreateNewBlock(
+            scriptPubKeyZnode, {});
         CBlock& block = pblocktemplate->block;
 
         // Replace mempool-selected txns with just coinbase plus passed-in txns:

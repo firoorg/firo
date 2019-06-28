@@ -97,8 +97,11 @@ QT_TS = \
 QT_FORMS_UI = \
   qt/forms/addressbookpage.ui \
   qt/forms/zerocoinpage.ui \
+  qt/forms/sigmadialog.ui \
+  qt/forms/sigmacoincontroldialog.ui \
   qt/forms/askpassphrasedialog.ui \
   qt/forms/coincontroldialog.ui \
+  qt/forms/manualmintdialog.ui \
   qt/forms/editaddressdialog.ui \
   qt/forms/helpmessagedialog.ui \
   qt/forms/znodelist.ui \
@@ -121,11 +124,14 @@ QT_FORMS_UI = \
   qt/forms/metadexcanceldialog.ui \
   qt/forms/metadexdialog.ui \
   qt/forms/tradehistorydialog.ui \
-  qt/forms/exoassetsdialog.ui
+  qt/forms/exoassetsdialog.ui \
+  qt/forms/zc2sigmapage.ui
 
 QT_MOC_CPP = \
   qt/moc_addressbookpage.cpp \
-    qt/moc_zerocoinpage.cpp \
+  qt/moc_zerocoinpage.cpp \
+  qt/moc_sigmadialog.cpp \
+  qt/moc_sigmacoincontroldialog.cpp \
   qt/moc_addresstablemodel.cpp \
   qt/moc_askpassphrasedialog.cpp \
   qt/moc_bantablemodel.cpp \
@@ -135,6 +141,7 @@ QT_MOC_CPP = \
   qt/moc_bitcoinunits.cpp \
   qt/moc_clientmodel.cpp \
   qt/moc_coincontroldialog.cpp \
+  qt/moc_manualmintdialog.cpp \
   qt/moc_coincontroltreewidget.cpp \
   qt/moc_csvmodelwriter.cpp \
   qt/moc_editaddressdialog.cpp \
@@ -178,7 +185,9 @@ QT_MOC_CPP = \
   qt/moc_exoassetsdialog.cpp \
   qt/moc_metadexdialog.cpp \
   qt/moc_metadexcanceldialog.cpp \
-  qt/moc_tradehistorydialog.cpp
+  qt/moc_tradehistorydialog.cpp \
+  qt/moc_zc2sigmapage.cpp \
+  qt/moc_zc2sigmamodel.cpp
 
 BITCOIN_MM = \
   qt/macdockiconhandler.mm \
@@ -203,6 +212,8 @@ PROTOBUF_PROTO = qt/paymentrequest.proto
 BITCOIN_QT_H = \
   qt/addressbookpage.h \
   qt/zerocoinpage.h \
+  qt/sigmadialog.h \
+  qt/sigmacoincontroldialog.h \
   qt/addresstablemodel.h \
   qt/askpassphrasedialog.h \
   qt/bantablemodel.h \
@@ -212,6 +223,7 @@ BITCOIN_QT_H = \
   qt/bitcoinunits.h \
   qt/clientmodel.h \
   qt/coincontroldialog.h \
+  qt/manualmintdialog.h \
   qt/coincontroltreewidget.h \
   qt/csvmodelwriter.h \
   qt/editaddressdialog.h \
@@ -263,7 +275,9 @@ BITCOIN_QT_H = \
   qt/metadexcanceldialog.h \
   qt/tradehistorydialog.h \
   qt/sendmpdialog.h \
-  qt/exodus_qtutils.h
+  qt/exodus_qtutils.h \
+  qt/zc2sigmapage.h \
+  qt/zc2sigmamodel.h
 
 RES_ICONS = \
   qt/res/icons/add.png \
@@ -276,6 +290,7 @@ RES_ICONS = \
   qt/res/icons/bitcoin.png \
   qt/res/icons/zcoin.png \
   qt/res/icons/zerocoin.png \
+  qt/res/icons/sigma.png \
   qt/res/icons/znodes.png \
   qt/res/icons/qrcode.png \
   qt/res/icons/chevron.png \
@@ -369,9 +384,12 @@ BITCOIN_QT_WINDOWS_CPP = qt/winshutdownmonitor.cpp
 BITCOIN_QT_WALLET_CPP = \
   qt/addressbookpage.cpp \
   qt/zerocoinpage.cpp \
+  qt/sigmadialog.cpp \
+  qt/sigmacoincontroldialog.cpp \
   qt/addresstablemodel.cpp \
   qt/askpassphrasedialog.cpp \
   qt/coincontroldialog.cpp \
+  qt/manualmintdialog.cpp \
   qt/coincontroltreewidget.cpp \
   qt/editaddressdialog.cpp \
   qt/openuridialog.cpp \
@@ -403,7 +421,9 @@ BITCOIN_QT_WALLET_CPP = \
   qt/exoassetsdialog.cpp \
   qt/metadexdialog.cpp \
   qt/metadexcanceldialog.cpp \
-  qt/tradehistorydialog.cpp
+  qt/tradehistorydialog.cpp \
+  qt/zc2sigmapage.cpp \
+  qt/zc2sigmamodel.cpp
 
 BITCOIN_QT_CPP = $(BITCOIN_QT_BASE_CPP)
 if TARGET_WINDOWS
@@ -478,9 +498,14 @@ qt_zcoin_qt_LDADD += tor/src/or/libtor.a \
 	tor/src/ext/ed25519/donna/libed25519_donna.a \
 	tor/src/ext/ed25519/ref10/libed25519_ref10.a \
 	tor/src/ext/keccak-tiny/libkeccak-tiny.a
-qt_zcoin_qt_LDADD += $(LIBBITCOIN_CLI) $(LIBBITCOIN_COMMON) $(LIBBITCOIN_UTIL) $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO) $(LIBUNIVALUE) $(LIBLEVELDB) $(LIBMEMENV) \
-  $(BOOST_LIBS) $(QT_LIBS) $(QT_DBUS_LIBS) $(QR_LIBS) $(PROTOBUF_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(LIBSECP256K1) $(ZLIB_LIBS) \
+
+qt_zcoin_qt_LDADD += $(LIBBITCOIN_CLI) $(LIBBITCOIN_COMMON) $(LIBBITCOIN_UTIL) \
+  $(LIBBITCOIN_CONSENSUS) $(LIBBITCOIN_CRYPTO) $(LIBZCOIN_SIGMA) \
+  $(LIBUNIVALUE) $(LIBLEVELDB) $(LIBMEMENV) $(BOOST_LIBS) $(QT_LIBS) \
+  $(QT_DBUS_LIBS) $(QR_LIBS) $(PROTOBUF_LIBS) $(BDB_LIBS) $(SSL_LIBS) \
+  $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(LIBSECP256K1) $(ZLIB_LIBS) \
   $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS)
+
 qt_zcoin_qt_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(QT_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
 qt_zcoin_qt_LIBTOOLFLAGS = --tag CXX
 

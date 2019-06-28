@@ -43,11 +43,12 @@ $(TOR_LIBS): tor.timestamp
 		rm -f tor.timestamp; \
 		$(MAKE) $(AM_MAKEFLAGS) tor.timestamp; \
 	fi
-	
+
 BITCOIN_CONFIG_INCLUDES=-I$(builddir)/config
 BITCOIN_INCLUDES=-I$(builddir) -I$(builddir)/obj $(BDB_CPPFLAGS) $(BOOST_CPPFLAGS) $(LEVELDB_CPPFLAGS) $(CRYPTO_CFLAGS) $(SSL_CFLAGS)
 
 BITCOIN_INCLUDES += -I$(srcdir)/secp256k1/include
+BITCOIN_INCLUDES += -I$(srcdir)/secp256k1/src
 BITCOIN_INCLUDES += $(UNIVALUE_CFLAGS)
 
 LIBBITCOIN_SERVER=libbitcoin_server.a
@@ -58,6 +59,8 @@ LIBBITCOIN_UTIL=libbitcoin_util.a
 LIBBITCOIN_CRYPTO=crypto/libbitcoin_crypto.a
 LIBBITCOINQT=qt/libzcoinqt.a
 LIBSECP256K1=secp256k1/libsecp256k1.la
+
+LIBZCOIN_SIGMA=libsigma.a
 
 if ENABLE_ZMQ
 LIBBITCOIN_ZMQ=libbitcoin_zmq.a
@@ -84,7 +87,8 @@ EXTRA_LIBRARIES += \
   $(LIBBITCOIN_SERVER) \
   $(LIBBITCOIN_CLI) \
   $(LIBBITCOIN_WALLET) \
-  $(LIBBITCOIN_ZMQ)
+  $(LIBBITCOIN_ZMQ) \
+  $(LIBZCOIN_SIGMA)
 
 lib_LTLIBRARIES = $(LIBBITCOINCONSENSUS)
 
@@ -158,6 +162,8 @@ BITCOIN_CORE_H = \
   policy/rbf.h \
   fixed.h \
   pow.h \
+  hdmint/hdmint.h \
+  primitives/zerocoin.h \
   protocol.h \
   random.h \
   reverselock.h \
@@ -192,7 +198,10 @@ BITCOIN_CORE_H = \
   wallet/crypter.h \
   wallet/db.h \
   wallet/rpcwallet.h \
+  wallet/sigmaspendbuilder.h \
+  wallet/txbuilder.h \
   wallet/wallet.h \
+  wallet/walletexcept.h \
   wallet/walletdb.h \
   wallet/authhelper.h \
   definition.h \
@@ -200,10 +209,15 @@ BITCOIN_CORE_H = \
   zmq/zmqconfig.h\
   zmq/zmqnotificationinterface.h \
   zmq/zmqpublishnotifier.h \
+  hdmint/mintpool.h \
+  hdmint/tracker.h \
+  hdmint/wallet.h \
   zerocoin.h \
+  zerocoin_v3.h \
+  coin_containers.h \
   zerocoin_params.h \
-  mtpstate.h \
-  addresstype.h
+  addresstype.h \
+  mtpstate.h
 
 obj/build.h: FORCE
 	@$(MKDIR_P) $(builddir)/obj
@@ -253,6 +267,8 @@ libbitcoin_server_a_SOURCES = \
   validationinterface.cpp \
   versionbits.cpp \
   zerocoin.cpp \
+  zerocoin_v3.cpp \
+  coin_containers.cpp \
   mtpstate.cpp \
   $(BITCOIN_CORE_H)
 
@@ -273,19 +289,27 @@ libbitcoin_wallet_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_wallet_a_SOURCES = \
   activeznode.cpp \
   darksend.cpp \
+  hdmint/hdmint.cpp \
   znode.cpp \
   instantx.cpp \
   znode-payments.cpp \
   znode-sync.cpp \
   znodeconfig.cpp \
   znodeman.cpp \
+  hdmint/mintpool.cpp \
+  hdmint/wallet.cpp \
+  zerocoin_v3.cpp \
   wallet/crypter.cpp \
   wallet/db.cpp \
   wallet/rpcdump.cpp \
   wallet/rpcwallet.cpp \
+  wallet/sigmaspendbuilder.cpp \
+  wallet/txbuilder.cpp \
+  wallet/walletexcept.cpp \
   wallet/wallet.cpp \
   wallet/walletdb.cpp \
   wallet/authhelper.cpp \
+  hdmint/tracker.cpp \
   policy/rbf.cpp \
   $(BITCOIN_CORE_H)
 
@@ -296,8 +320,8 @@ crypto_libbitcoin_crypto_a_SOURCES = \
   crypto/aes.cpp \
   crypto/aes.h \
   crypto/common.h \
-  crypto/chacha20.h \                           
-  crypto/chacha20.cpp \    
+  crypto/chacha20.h \
+  crypto/chacha20.cpp \
   crypto/hmac_sha256.cpp \
   crypto/hmac_sha256.h \
   crypto/hmac_sha512.cpp \
@@ -385,6 +409,7 @@ libbitcoin_common_a_SOURCES = \
   compressor.cpp \
   core_read.cpp \
   core_write.cpp \
+  hdmint/hdmint.cpp \
   key.cpp \
   keystore.cpp \
   netbase.cpp \
@@ -447,6 +472,34 @@ libbitcoin_util_a_SOURCES = \
   crypto/MerkleTreeProof/merkle-tree.cpp \
   $(BITCOIN_CORE_H)
 
+libsigma_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) -Werror
+libsigma_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS) -Werror
+libsigma_a_SOURCES = \
+  sigma/r1_proof.h \
+  sigma/r1_proof_generator.h \
+  sigma/r1_proof_generator.hpp \
+  sigma/r1_proof_verifier.h \
+  sigma/r1_proof_verifier.hpp \
+  sigma/sigmaplus_proof.h \
+  sigma/sigmaplus_prover.h \
+  sigma/sigmaplus_prover.hpp \
+  sigma/sigmaplus_verifier.h \
+  sigma/sigmaplus_verifier.hpp \
+  sigma/sigma_primitives.h \
+  sigma/sigma_primitives.hpp \
+  sigma/coin.h \
+  sigma/coin.cpp \
+  sigma/coinspend.cpp \
+  sigma/coinspend.h \
+  sigma/spend_metadata.cpp \
+  sigma/spend_metadata.h \
+  sigma/remint.h \
+  sigma/remint.cpp \
+  sigma/remint-blacklist.cpp \
+  sigma/params.h \
+  sigma/params.cpp \
+  sigma/openssl_context.h
+
 if GLIBC_BACK_COMPAT
 libbitcoin_util_a_SOURCES += compat/glibc_compat.cpp
 endif
@@ -477,12 +530,14 @@ zcoind_LDADD = \
   $(LIBUNIVALUE) \
   $(LIBBITCOIN_UTIL) \
   $(LIBBITCOIN_WALLET) \
+  $(LIBZCOIN_SIGMA) \
   $(LIBBITCOIN_ZMQ) \
   $(LIBBITCOIN_CONSENSUS) \
   $(LIBBITCOIN_CRYPTO) \
   $(LIBLEVELDB) \
   $(LIBMEMENV) \
   $(LIBSECP256K1)
+
 
 
 zcoind_LDADD += $(TOR_LIBS) $(BOOST_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS) -lz

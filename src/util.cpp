@@ -15,7 +15,6 @@
 #include "sync.h"
 #include "utilstrencodings.h"
 #include "utiltime.h"
-
 #include <stdarg.h>
 
 #if (defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__DragonFly__))
@@ -875,7 +874,9 @@ std::string CopyrightHolders(const std::string& strPrefix)
 
     // Check for untranslated substitution to make sure Bitcoin Core copyright is not removed by accident
     if (strprintf(COPYRIGHT_HOLDERS, COPYRIGHT_HOLDERS_SUBSTITUTION).find("Bitcoin Core") == std::string::npos) {
-        strCopyrightHolders += "\n" + strPrefix + "The Bitcoin Core developers";
+        strCopyrightHolders
+                += '\n' + strPrefix + "The Bitcoin Core developers"
+                +  '\n' + strPrefix + "The Dash Core developers";
     }
     return strCopyrightHolders;
 }

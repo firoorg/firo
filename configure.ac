@@ -2,8 +2,8 @@ dnl require autoconf 2.60 (AS_ECHO/AS_ECHO_N)
 AC_PREREQ([2.60])
 define(_CLIENT_VERSION_MAJOR, 0)
 define(_CLIENT_VERSION_MINOR, 13)
-define(_CLIENT_VERSION_REVISION, 7)
-define(_CLIENT_VERSION_BUILD, 10)
+define(_CLIENT_VERSION_REVISION, 8)
+define(_CLIENT_VERSION_BUILD, 1)
 define(_CLIENT_VERSION_IS_RELEASE, true)
 define(_COPYRIGHT_YEAR, 2019)
 define(_COPYRIGHT_HOLDERS,[The %s developers])
@@ -254,13 +254,8 @@ AC_ARG_WITH([daemon],
 
 AC_ARG_ENABLE(unsafe-dumpprivkey,
     [],
-    [unsafe_dumpprivkey=x$enableval],
-    [unsafe_dumpprivkey=xno])
-
-
-AS_IF([test "x$enable_unsafe_dumpprivkey" != "xno"], [
-    CPPFLAGS="$CPPFLAGS -DUNSAFE_DUMPPRIVKEY"
-])
+    [unsafe_dumpprivkey=$enableval],
+    [unsafe_dumpprivkey=no])
 
 use_pkgconfig=yes
 case $host in
@@ -1061,6 +1056,10 @@ fi
 
 if test x$build_bitcoin_utils$build_bitcoin_libs$build_bitcoind$bitcoin_enable_qt$use_bench$use_tests = xnononononono; then
   AC_MSG_ERROR([No targets! Please specify at least one of: --with-utils --with-libs --with-daemon --with-gui --enable-bench or --enable-tests])
+fi
+
+if test "x$unsafe_dumpprivkey" != "xno"; then
+    CPPFLAGS="$CPPFLAGS -DUNSAFE_DUMPPRIVKEY"
 fi
 
 AM_CONDITIONAL([TARGET_DARWIN], [test x$TARGET_OS = xdarwin])

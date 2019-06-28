@@ -38,6 +38,7 @@
 #include "util.h"
 #include "wallet/wallet.h"
 #include "wallet/walletdb.h"
+#include "zerocoin_v3.h"
 #include "utilmoneystr.h"
 #include "utilstrencodings.h"
 #include "validationinterface.h"
@@ -53,6 +54,8 @@
 #include "znodeman.h"
 #include "coins.h"
 
+#include "sigma/coinspend.h"
+
 #include <atomic>
 #include <sstream>
 #include <chrono>
@@ -63,6 +66,8 @@
 #include <boost/filesystem/fstream.hpp>
 #include <boost/math/distributions/poisson.hpp>
 #include <boost/thread.hpp>
+
+#include <iostream> // delete me
 
 using namespace std;
 
@@ -1078,7 +1083,7 @@ unsigned int GetLegacySigOpCount(const CTransaction &tx) {
 }
 
 unsigned int GetP2SHSigOpCount(const CTransaction &tx, const CCoinsViewCache &inputs) {
-    if (tx.IsCoinBase() || tx.IsZerocoinSpend())
+    if (tx.IsCoinBase() || tx.IsZerocoinSpend() || tx.IsSigmaSpend())
         return 0;
 
     unsigned int nSigOps = 0;
@@ -1093,7 +1098,7 @@ unsigned int GetP2SHSigOpCount(const CTransaction &tx, const CCoinsViewCache &in
 int64_t GetTransactionSigOpCost(const CTransaction &tx, const CCoinsViewCache &inputs, int flags) {
     int64_t nSigOps = GetLegacySigOpCount(tx) * WITNESS_SCALE_FACTOR;
 
-    if (tx.IsCoinBase() || tx.IsZerocoinSpend())
+    if (tx.IsCoinBase() || tx.IsZerocoinSpend() || tx.IsSigmaSpend() || tx.IsZerocoinRemint())
         return nSigOps;
 
     if (flags & SCRIPT_VERIFY_P2SH) {
@@ -1108,8 +1113,17 @@ int64_t GetTransactionSigOpCost(const CTransaction &tx, const CCoinsViewCache &i
 }
 
 
-//static libzerocoin::Params *ZCParams;
-bool CheckTransaction(const CTransaction &tx, CValidationState &state, uint256 hashTx,  bool isVerifyDB, int nHeight, bool isCheckWallet, bool fStatefulZerocoinCheck, CZerocoinTxInfo *zerocoinTxInfo) {
+bool CheckTransaction(
+        const CTransaction &tx,
+        CValidationState &state,
+        uint256 hashTx,
+        bool isVerifyDB,
+        int nHeight,
+        bool isCheckWallet,
+        bool fStatefulZerocoinCheck,
+        CZerocoinTxInfo *zerocoinTxInfo,
+        sigma::CSigmaTxInfo *sigmaTxInfo)
+{
     LogPrintf("CheckTransaction nHeight=%s, isVerifyDB=%s, isCheckWallet=%s, txHash=%s\n", nHeight, isVerifyDB, isCheckWallet, tx.GetHash().ToString());
 //    LogPrintf("transaction = %s\n", tx.ToString());
     // Basic checks that don't depend on any context
@@ -1137,16 +1151,21 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, uint256 h
     // Check for duplicate inputs
     set <COutPoint> vInOutPoints;
     set <CScript> spendScripts;
-    BOOST_FOREACH(
-    const CTxIn &txin, tx.vin)
+    set <CScript> spendV3Scripts;
+    BOOST_FOREACH(const CTxIn &txin, tx.vin)
     {
-        if(tx.IsZerocoinSpend()){
+        if (tx.IsZerocoinSpend()) {
             if(spendScripts.count(txin.scriptSig)){
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-spend-inputs-duplicate");
             }
             spendScripts.insert(txin.scriptSig);
-        }else {
-            if (vInOutPoints.count(txin.prevout)){
+        } else if (tx.IsSigmaSpend()){
+            if(spendV3Scripts.count(txin.scriptSig)) {
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-inputs-duplicate");
+            }
+            spendV3Scripts.insert(txin.scriptSig);
+        } else {
+            if (vInOutPoints.count(txin.prevout)) {
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-inputs-duplicate");
             }
             vInOutPoints.insert(txin.prevout);
@@ -1158,13 +1177,38 @@ bool CheckTransaction(const CTransaction &tx, CValidationState &state, uint256 h
             return state.DoS(100, false, REJECT_INVALID, "bad-cb-length");
     } else {
 	    BOOST_FOREACH(const CTxIn &txin, tx.vin) {
-		    if (txin.prevout.IsNull() && !txin.scriptSig.IsZerocoinSpend()) {
+            if (txin.prevout.IsNull() && !(txin.scriptSig.IsZerocoinSpend() || txin.IsZerocoinRemint())) {
 			    return state.DoS(10, false, REJECT_INVALID, "bad-txns-prevout-null");
 		    }
 	    }
-        if (!CheckZerocoinTransaction(tx, state, Params().GetConsensus(), hashTx, isVerifyDB, nHeight, isCheckWallet, fStatefulZerocoinCheck, zerocoinTxInfo))
-		    return false;
+
+        if (tx.IsZerocoinV3SigmaTransaction()) {
+            if (!CheckSigmaTransaction(
+                    tx,
+                    state,
+                    hashTx,
+                    isVerifyDB,
+                    nHeight,
+                    isCheckWallet,
+                    fStatefulZerocoinCheck,
+                    sigmaTxInfo))
+            return false;
+        }
+
+        if (!CheckZerocoinTransaction(
+            tx,
+            state,
+            Params().GetConsensus(),
+            hashTx,
+            isVerifyDB,
+            nHeight,
+            isCheckWallet,
+            fStatefulZerocoinCheck,
+            zerocoinTxInfo)) {
+            return false;
+        }
     }
+
     return true;
 }
 
@@ -1202,11 +1246,33 @@ bool AcceptToMemoryPoolWorker(
         bool markZcoinSpendTransactionSerial) {
     bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
     LogPrintf("AcceptToMemoryPoolWorker(),fCheckInputs=%s, tx.IsZerocoinSpend()=%s, fTestNet=%s\n",
-              fCheckInputs, tx.IsZerocoinSpend(), fTestNet);
+              fCheckInputs, tx.IsZerocoinSpend() || tx.IsSigmaSpend(), fTestNet);
     uint256 hash = tx.GetHash();
     AssertLockHeld(cs_main);
     if (pfMissingInputs)
         *pfMissingInputs = false;
+
+    const Consensus::Params& consensus = Params().GetConsensus();
+
+    if (tx.IsZerocoinMint()) {
+        // Shows if old zerocoin mints are allowed yet in the mempool.
+        bool allow = (chainActive.Height() <= consensus.nSigmaStartBlock + consensus.nZerocoinV2MintMempoolGracefulPeriod);
+
+        if (!allow) {
+            return state.DoS(100, error("Old zerocoin mints no more allowed in mempool"),
+                             REJECT_INVALID, "bad-txns-zerocoin");
+        }
+    }
+
+    if (tx.IsZerocoinSpend()) {
+        // Shows if old zerocoin spends are allowed yet in the mempool.
+        bool allow = (chainActive.Height() <= consensus.nSigmaStartBlock + consensus.nZerocoinV2SpendMempoolGracefulPeriod);
+
+        if (!allow) {
+            return state.DoS(100, error("Old zerocoin spends no more allowed in mempool"),
+                             REJECT_INVALID, "bad-txns-zerocoin");
+        }
+    }
 
     if (!CheckTransaction(tx, state, hash, false, INT_MAX, isCheckWalletTransaction)) {
         LogPrintf("CheckTransaction() failed!");
@@ -1256,11 +1322,14 @@ bool AcceptToMemoryPoolWorker(
     CZerocoinState *zcState = CZerocoinState::GetZerocoinState();
     vector<CBigNum> zcSpendSerials;
     CBigNum zcSpendSerial;
+
+    // V3 sigma spends.
+    sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
+    vector<Scalar> zcSpendSerialsV3;
     {
         LOCK(pool.cs); // protect pool.mapNextTx
         if (tx.IsZerocoinSpend()) {
-            BOOST_FOREACH(
-            const CTxIn &txin, tx.vin)
+            BOOST_FOREACH(const CTxIn &txin, tx.vin)
             {
                 zcSpendSerial = ZerocoinGetSpendSerialNumber(tx, txin);
                 if (!zcSpendSerial)
@@ -1270,6 +1339,22 @@ bool AcceptToMemoryPoolWorker(
                     return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
                 }
                 zcSpendSerials.push_back(zcSpendSerial);
+            }
+        }
+        else if (tx.IsSigmaSpend()) {
+
+            BOOST_FOREACH(const CTxIn &txin, tx.vin)
+            {
+                Scalar zcSpendSerial = sigma::GetSigmaSpendSerialNumber(tx, txin);
+                Scalar zero;
+
+                if (zcSpendSerial == zero)
+                    return state.Invalid(false, REJECT_INVALID, "txn-invalid-zerocoin-spend");
+                if (!sigmaState->CanAddSpendToMempool(zcSpendSerial)) {
+                    LogPrintf("AcceptToMemoryPool(): sigma serial number %s has been used\n", zcSpendSerial.tostring());
+                    return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
+                }
+                zcSpendSerialsV3.push_back(zcSpendSerial);
             }
         }
         else {
@@ -1322,7 +1407,7 @@ bool AcceptToMemoryPoolWorker(
                 return state.Invalid(false, REJECT_ALREADY_KNOWN, "txn-already-known");
             }
 
-            if (!tx.IsZerocoinSpend() && fCheckInputs) {
+            if (!tx.IsZerocoinSpend() && !tx.IsSigmaSpend() && !tx.IsZerocoinRemint() && fCheckInputs) {
                 // do all inputs exist?
                 // Note that this does not check for the presence of actual outputs (see the next check for that),
                 // and only helps with filling in pfMissingInputs (to determine missing vs spent).
@@ -1348,9 +1433,6 @@ bool AcceptToMemoryPoolWorker(
 
                 nValueIn = view.GetValueIn(tx);
 
-                // we have all inputs cached now, so switch back to dummy, so we don't need to keep lock on mempool
-                view.SetBackend(dummy);
-
                 // Only accept BIP68 sequence locked transactions that can be mined in the next
                 // block; we don't want our mempool filled up with transactions that can't
                 // be mined yet.
@@ -1360,10 +1442,15 @@ bool AcceptToMemoryPoolWorker(
                 //                LogPrintf("cause by -> non-BIP68-final!\n");
                 //                return state.DoS(0, false, REJECT_NONSTANDARD, "non-BIP68-final");
                 //            }
+            } else if (tx.IsSigmaSpend() && fCheckInputs) {
+                nValueIn = sigma::GetSigmaSpendInput(tx);
             }
+
+            // we have all inputs cached now, so switch back to dummy, so we don't need to keep lock on mempool
+            view.SetBackend(dummy);
         } // LOCK
 
-        if (!tx.IsZerocoinSpend() && fCheckInputs) {
+        if (!tx.IsZerocoinSpend() && !tx.IsZerocoinRemint() && fCheckInputs) {
 
             // Check for non-standard pay-to-script-hash in inputs
             if (!fTestNet && fRequireStandard && !AreInputsStandard(tx, view)) {
@@ -1384,25 +1471,31 @@ bool AcceptToMemoryPoolWorker(
             double nPriorityDummy = 0;
             pool.ApplyDeltas(hash, nPriorityDummy, nModifiedFees);
 
-            CAmount inChainInputValue;
-            double dPriority = view.GetPriority(tx, chainActive.Height(), inChainInputValue);
-
-            // Keep track of transactions that spend a coinbase, which we re-scan
-            // during reorgs to ensure COINBASE_MATURITY is still met.
+            CAmount inChainInputValue = 0;
+            double dPriority = 0;
             bool fSpendsCoinbase = false;
-            BOOST_FOREACH(const CTxIn &txin, tx.vin) { const CCoins *coins = view.AccessCoins(txin.prevout.hash);
-                                                       if (coins->IsCoinBase()) {
-                                                           fSpendsCoinbase = true;
-                                                           break;
-                                                       }
-                                                     }
+            if(!tx.IsSigmaSpend()) {
+                dPriority = view.GetPriority(tx, chainActive.Height(), inChainInputValue);
+
+                // Keep track of transactions that spend a coinbase, which we re-scan
+                // during reorgs to ensure COINBASE_MATURITY is still met.
+                BOOST_FOREACH(
+                const CTxIn& txin, tx.vin) {
+                    const CCoins* coins = view.AccessCoins(txin.prevout.hash);
+                    if (coins->IsCoinBase()) {
+                        fSpendsCoinbase = true;
+                        break;
+                    }
+                }
+            }
+
             CTxMemPoolEntry entry(tx, nFees, GetTime(), dPriority, chainActive.Height(), pool.HasNoInputsOf(tx),
                                   inChainInputValue, fSpendsCoinbase, nSigOpsCost, lp);
 
-            // Don't accept it if it can't get into a block
             // TODO: Temporarily disable this condition (by setting txMinFee = 0) to accept zero-fee TX (from old 0.8 client)
             // int64_t txMinFee = tx.GetMinFee(1000, true, GMF_RELAY);
             int64_t txMinFee = 0;
+
             if (fLimitFree && nFees < txMinFee) {
                 LogPrintf("not enough fee, nFees=%d, txMinFee=%d\n", nFees, txMinFee);
                 return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "not enough fee", false, strprintf("nFees=%d, txMinFee=%d", nFees, txMinFee));
@@ -1688,7 +1781,7 @@ bool AcceptToMemoryPoolWorker(
                 if (!pool.exists(hash))
                     return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "mempool full");
             }
-        } else {
+        }  else {
             LockPoints lp;
             double dPriority = 0;
             double fSpendsCoinbase = false;
@@ -1707,6 +1800,8 @@ bool AcceptToMemoryPoolWorker(
 
     if (tx.IsZerocoinSpend() && markZcoinSpendTransactionSerial)
         zcState->AddSpendToMempool(zcSpendSerials, hash);
+    if (tx.IsSigmaSpend() && markZcoinSpendTransactionSerial)
+        sigmaState->AddSpendToMempool(zcSpendSerialsV3, hash);
 
     SyncWithWallets(tx, NULL, NULL);
     LogPrintf("AcceptToMemoryPoolWorker -> OK\n");
@@ -1923,6 +2018,7 @@ bool ReadBlockFromDisk(CBlock &block, const CDiskBlockPos &pos, int nHeight, con
 bool ReadBlockFromDisk(CBlock &block, const CBlockIndex *pindex, const Consensus::Params &consensusParams) {
     if (!ReadBlockFromDisk(block, pindex->GetBlockPos(), pindex->nHeight, consensusParams))
         return false;
+
     if (block.GetHash() != pindex->GetBlockHash()) {
         return error("ReadBlockFromDisk(CBlock&, CBlockIndex*): GetHash() doesn't match index for %s at %s",
                      pindex->ToString(), pindex->GetBlockPos().ToString());
@@ -1949,13 +2045,17 @@ CAmount GetBlockSubsidy(int nHeight, const Consensus::Params &consensusParams, i
     // Genesis block is 0 coin
     if (nHeight == 0)
         return 0;
-    int halvings = nHeight / consensusParams.nSubsidyHalvingInterval;
+
+    // Subsidy is cut in half after nSubsidyHalvingFirst block, then every nSubsidyHalvingInterval blocks.
+    // After block nSubsidyHalvingStopBlock there will be no subsidy at all
+    if (nHeight >= consensusParams.nSubsidyHalvingStopBlock)
+        return 0;
+    int halvings = nHeight < consensusParams.nSubsidyHalvingFirst ? 0 : (nHeight - consensusParams.nSubsidyHalvingFirst) / consensusParams.nSubsidyHalvingInterval + 1;
     // Force block reward to zero when right shift is undefined.
     if (halvings >= 64)
         return 0;
 
     CAmount nSubsidy = 50 * COIN;
-    // Subsidy is cut in half every 300,000 blocks which will occur approximately every 4 years.
     nSubsidy >>= halvings;
 
     if (nHeight > 0 && nTime >= (int)consensusParams.nMTPSwitchTime)
@@ -2109,6 +2209,12 @@ void static InvalidChainFound(CBlockIndex *pindexNew) {
               log(pindexNew->nChainWork.getdouble()) / log(2.0), DateTimeStrFormat("%Y-%m-%d %H:%M:%S",
                                                                                    pindexNew->GetBlockTime()));
     CBlockIndex *tip = chainActive.Tip();
+    if (!tip) {
+        int x = 5;
+        ++x;
+        --x;
+        //debugging.
+    }
     assert(tip);
     LogPrintf("%s:  current best=%s  height=%d  log2_work=%.8g  date=%s\n", __func__,
               tip->GetBlockHash().ToString(), chainActive.Height(), log(tip->nChainWork.getdouble()) / log(2.0),
@@ -2141,7 +2247,7 @@ void static InvalidBlockFound(CBlockIndex *pindex, const CValidationState &state
 
 void UpdateCoins(const CTransaction &tx, CCoinsViewCache &inputs, CTxUndo &txundo, int nHeight) {
     // mark inputs spent
-    if (!tx.IsCoinBase() && !tx.IsZerocoinSpend()) {
+    if (!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsSigmaSpend() && !tx.IsZerocoinRemint()) {
         txundo.vprevout.reserve(tx.vin.size());
         BOOST_FOREACH(
         const CTxIn &txin, tx.vin) {
@@ -2236,7 +2342,7 @@ namespace Consensus {
 bool CheckInputs(const CTransaction &tx, CValidationState &state, const CCoinsViewCache &inputs, bool fScriptChecks,
                  unsigned int flags, bool cacheStore, PrecomputedTransactionData &txdata,
                  std::vector <CScriptCheck> *pvChecks) {
-    if (!tx.IsCoinBase() && !tx.IsZerocoinSpend()) {
+    if (!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsSigmaSpend()) {
 
         if (!Consensus::CheckTxInputs(tx, state, inputs, GetSpendHeight(inputs))) {
             LogPrintf("CheckTxInputs() failed!\n");
@@ -2295,6 +2401,29 @@ bool CheckInputs(const CTransaction &tx, CValidationState &state, const CCoinsVi
                                                                            ScriptErrorString(check.GetScriptError())));
                 }
             }
+        }
+    } else if (tx.IsSigmaSpend()) {
+        // Total sum of inputs of transaction.
+        CAmount totalInputValue = 0;
+
+        BOOST_FOREACH(const CTxIn &txin, tx.vin) {
+            if(!txin.scriptSig.IsSigmaSpend()) {
+                return state.DoS(
+                    100, false,
+                    REJECT_MALFORMED,
+                    "CheckSpendZcoinTransaction: can't mix zerocoin spend input with regular ones");
+            }
+            CDataStream serializedCoinSpend((const char *)&*(txin.scriptSig.begin() + 1),
+                                            (const char *)&*txin.scriptSig.end(),
+                                            SER_NETWORK, PROTOCOL_VERSION);
+            sigma::CoinSpend newSpend(sigma::SigmaParams, serializedCoinSpend);
+            uint64_t denom = newSpend.getIntDenomination();
+            totalInputValue += denom;
+        }
+        if (totalInputValue < tx.GetValueOut()) {
+            return state.DoS(
+                100,
+                error("Spend transaction outputs larger than the inputs."));
         }
     }
 
@@ -2429,6 +2558,7 @@ bool DisconnectBlock(const CBlock &block, CValidationState &state, const CBlockI
 
     CBlockUndo blockUndo;
     CDiskBlockPos pos = pindex->GetUndoPos();
+
     if (pos.IsNull())
         return error("DisconnectBlock(): no undo data available");
     if (!UndoReadFromDisk(blockUndo, pos, pindex->pprev->GetBlockHash()))
@@ -2444,6 +2574,7 @@ bool DisconnectBlock(const CBlock &block, CValidationState &state, const CBlockI
     // undo transactions in reverse order
     for (int i = block.vtx.size() - 1; i >= 0; i--) {
         const CTransaction &tx = block.vtx[i];
+
         uint256 hash = tx.GetHash();
 
         dbIndexHelper.DisconnectTransactionOutputs(tx, pindex->nHeight, i, view);
@@ -2468,7 +2599,7 @@ bool DisconnectBlock(const CBlock &block, CValidationState &state, const CBlockI
         }
 
         // restore inputs
-        if (!tx.IsCoinBase() && !tx.IsZerocoinSpend()) { // not coinbases
+        if (!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsSigmaSpend() && !tx.IsZerocoinRemint()) { // not coinbases
             const CTxUndo &txundo = blockUndo.vtxundo[i - 1];
             if (txundo.vprevout.size() != tx.vin.size())
                 return error("DisconnectBlock(): transaction and undo data inconsistent");
@@ -2480,6 +2611,9 @@ bool DisconnectBlock(const CBlock &block, CValidationState &state, const CBlockI
             }
             nFees += view.GetValueIn(tx) - tx.GetValueOut();
         }
+
+        if(tx.IsSigmaSpend())
+            nFees += sigma::GetSigmaSpendInput(tx) - tx.GetValueOut();
 
         dbIndexHelper.DisconnectTransactionInputs(tx, pindex->nHeight, i, view);
     }
@@ -2745,6 +2879,7 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
     bool fTestNet = (Params().NetworkIDString() == CBaseChainParams::TESTNET);
 
     block.zerocoinTxInfo = std::make_shared<CZerocoinTxInfo>();
+    block.sigmaTxInfo = std::make_shared<sigma::CSigmaTxInfo>();
 
     for (unsigned int i = 0; i < block.vtx.size(); i++) {
         const CTransaction &tx = block.vtx[i];
@@ -2757,7 +2892,7 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
 
         nInputs += tx.vin.size();
 
-        if (!tx.IsCoinBase() && !tx.IsZerocoinSpend()) {
+        if (!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsSigmaSpend() && !tx.IsZerocoinRemint()) {
             if (!view.HaveInputs(tx))
                 return state.DoS(100, error("ConnectBlock(): inputs missing/spent"),
                                  REJECT_INVALID, "bad-txns-inputs-missingorspent");
@@ -2787,9 +2922,12 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
             }
         }
 
-        if (tx.IsZerocoinSpend() || tx.IsZerocoinMint()) {
+        if (tx.IsZerocoinSpend() || tx.IsZerocoinMint() || tx.IsSigmaSpend() || tx.IsSigmaMint() || tx.IsZerocoinRemint()) {
+            if( tx.IsSigmaSpend())
+                nFees += sigma::GetSigmaSpendInput(tx) - tx.GetValueOut();
+
             // Check transaction against zerocoin state
-            if (!CheckTransaction(tx, state, txHash, false, pindex->nHeight, false, true, block.zerocoinTxInfo.get()))
+            if (!CheckTransaction(tx, state, txHash, false, pindex->nHeight, false, true, block.zerocoinTxInfo.get(), block.sigmaTxInfo.get()))
                 return state.DoS(100, error("stateful zerocoin check failed"),
                                  REJECT_INVALID, "bad-txns-zerocoin");
         }
@@ -2807,7 +2945,7 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
                              REJECT_INVALID, "bad-blk-sigops");
 
         txdata.emplace_back(tx);
-        if (!tx.IsCoinBase() && !tx.IsZerocoinSpend()) {
+        if (!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsSigmaSpend() && !tx.IsZerocoinRemint()) {
             nFees += view.GetValueIn(tx) - tx.GetValueOut();
 
             std::vector <CScriptCheck> vChecks;
@@ -2827,9 +2965,11 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
 
         vPos.push_back(std::make_pair(tx.GetHash(), pos));
         pos.nTxOffset += ::GetSerializeSize(tx, SER_DISK, CLIENT_VERSION);
+
     }
 
     block.zerocoinTxInfo->Complete();
+    block.sigmaTxInfo->Complete();
 
     int64_t nTime3 = GetTimeMicros();
     nTimeConnect += nTime3 - nTime2;
@@ -2872,7 +3012,8 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
     if (!fJustCheck)
         MTPState::GetMTPState()->SetLastBlock(pindex, chainparams.GetConsensus());
 
-    if (!ConnectBlockZC(state, chainparams, pindex, &block, fJustCheck))
+    if (!ConnectBlockZC(state, chainparams, pindex, &block, fJustCheck) ||
+        !sigma::ConnectBlockSigma(state, chainparams, pindex, &block, fJustCheck))
         return false;
 
     if (fJustCheck)
@@ -2943,6 +3084,7 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
 
     // Erase conflicting zerocoin txs from the mempool
     CZerocoinState *zcState = CZerocoinState::GetZerocoinState();
+    sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
     BOOST_FOREACH(const CTransaction &tx, block.vtx) {
         if (tx.IsZerocoinSpend()) {
             BOOST_FOREACH(
@@ -2963,7 +3105,25 @@ bool ConnectBlock(const CBlock &block, CValidationState &state, CBlockIndex *pin
                 // In any case we need to remove serial from mempool set
                 zcState->RemoveSpendFromMempool(zcSpendSerial);
             }
-        }
+       } else if (tx.IsSigmaSpend()) {
+            BOOST_FOREACH(const CTxIn &txin, tx.vin)
+            {
+                Scalar zcSpendSerial = sigma::GetSigmaSpendSerialNumber(tx, txin);
+                uint256 thisTxHash = tx.GetHash();
+                uint256 conflictingTxHash = sigmaState->GetMempoolConflictingTxHash(zcSpendSerial);
+                if (!conflictingTxHash.IsNull() && conflictingTxHash != thisTxHash) {
+                    std::list<CTransaction> removed;
+                    auto pTx = mempool.get(conflictingTxHash);
+                    if (pTx)
+                        mempool.removeRecursive(*pTx, removed);
+                    LogPrintf("ConnectBlock: removed conflicting zerocoin sigma spend tx %s from the mempool\n",
+                              conflictingTxHash.ToString());
+                }
+
+                // In any case we need to remove serial from mempool set
+                sigmaState->RemoveSpendFromMempool(zcSpendSerial);
+            }
+       }
     }
 
     int64_t nTime6 = GetTimeMicros();
@@ -3181,6 +3341,7 @@ bool static DisconnectTip(CValidationState &state, const CChainParams &chainpara
     CBlock block;
     if (!ReadBlockFromDisk(block, pindexDelete, chainparams.GetConsensus()))
         return AbortNode(state, "Failed to read block");
+
     // Apply the block atomically to the chain state.
     int64_t nStart = GetTimeMicros();
     {
@@ -3192,6 +3353,7 @@ bool static DisconnectTip(CValidationState &state, const CChainParams &chainpara
     LogPrint("bench", "- Disconnect block: %.2fms\n", (GetTimeMicros() - nStart) * 0.001);
 
 	DisconnectTipZC(block, pindexDelete);
+	sigma::DisconnectTipSigma(block, pindexDelete);
     // Roll back MTP state
     MTPState::GetMTPState()->SetLastBlock(pindexDelete->pprev, chainparams.GetConsensus());
 
@@ -3363,6 +3525,13 @@ ConnectTip(CValidationState &state, const CChainParams &chainparams, CBlockIndex
             if (exodus_handler_tx(tx, GetHeight(), nTxIdx++, pindexNew)) ++nNumMetaTxs;
         }
     }
+
+    // Sync with HDMint wallet
+    if(pblock->sigmaTxInfo->spentSerials.size() > 0)
+        pwalletMain->hdMintTracker->UpdateSpendStateFromBlock(pblock->sigmaTxInfo->spentSerials);
+
+    if(pblock->sigmaTxInfo->mints.size() > 0)
+        pwalletMain->hdMintTracker->UpdateMintStateFromBlock(pblock->sigmaTxInfo->mints);
 
     //! Exodus: end of block connect notification
     if (fExodus) {
@@ -3608,7 +3777,6 @@ static bool ActivateBestChainStep(CValidationState &state, const CChainParams &c
             }
         }
     }
-
 
     if (fBlocksDisconnected) {
         mempool.removeForReorg(
@@ -4075,6 +4243,11 @@ bool CheckBlockHeader(const CBlockHeader &block, CValidationState &state, const 
 bool CheckBlock(const CBlock &block, CValidationState &state,
                 const Consensus::Params &consensusParams, bool fCheckPOW,
                 bool fCheckMerkleRoot, int nHeight, bool isVerifyDB) {
+    // CheckBlock not only checks the block, but also fills up zerocoinTxInfo and sigmaTxInfo.
+    if (!block.zerocoinTxInfo)
+        block.zerocoinTxInfo = std::make_shared<CZerocoinTxInfo>();
+    if (!block.sigmaTxInfo)
+        block.sigmaTxInfo = std::make_shared<sigma::CSigmaTxInfo>();
     LogPrintf("CheckBlock() nHeight=%s, blockHash= %s, isVerifyDB = %s\n",
               nHeight, block.GetHash().ToString(), isVerifyDB);
     try {
@@ -4107,7 +4280,7 @@ bool CheckBlock(const CBlock &block, CValidationState &state,
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-duplicate", true, "duplicate transaction");
             }
 
-                // Zcoin - MTP
+            // Zcoin - MTP
             if (block.IsMTP() && !CheckMerkleTreeProof(block, consensusParams))
                 return state.DoS(100, false, REJECT_INVALID, "bad-diffbits", false, "incorrect proof of work");
         }
@@ -4134,7 +4307,6 @@ bool CheckBlock(const CBlock &block, CValidationState &state,
                 LogPrintf("CheckBlock - more than one coinbase -> failed!\n");
                 return state.DoS(100, false, REJECT_INVALID, "bad-cb-multiple", false, "more than one coinbase");
             }
-
         }
 
         // DASH : CHECK TRANSACTIONS FOR INSTANTSEND
@@ -4176,7 +4348,7 @@ bool CheckBlock(const CBlock &block, CValidationState &state,
 
         BOOST_FOREACH(const CTransaction &tx, block.vtx) {
             // We don't check transactions against zerocoin state here, we'll check it again later in ConnectBlock
-            if (!CheckTransaction(tx, state, tx.GetHash(), isVerifyDB, nHeight, false, false, NULL)) {
+            if (!CheckTransaction(tx, state, tx.GetHash(), isVerifyDB, nHeight, false, false, NULL, NULL)) {
                 LogPrintf("block=%s\n", block.ToString());
                 return state.Invalid(false, state.GetRejectCode(), state.GetRejectReason(),
                                  strprintf("Transaction check failed (tx hash %s) %s", tx.GetHash().ToString(),
@@ -4195,11 +4367,17 @@ bool CheckBlock(const CBlock &block, CValidationState &state,
 
         if (fCheckPOW && fCheckMerkleRoot)
             block.fChecked = true;
+
+        if (!sigma::CheckSigmaBlock(state, block)) {
+            return false;
+        }
         return true;
     } catch (const std::exception &e) {
         PrintExceptionContinue(&e, "CheckBlock() 1\n");
+        return false;
     } catch (...) {
         PrintExceptionContinue(NULL, "CheckBlock() 2\n");
+        return false;
     }
     return true;
 }
@@ -4308,6 +4486,32 @@ ContextualCheckBlockHeader(const CBlockHeader &block, CValidationState &state, c
                                  strprintf("rejected nVersion=0x%08x block", version - 1));
 
     return true;
+}
+
+bool IsBlockHashInChain(const uint256& hashBlock)
+{
+    if (hashBlock.IsNull() || !mapBlockIndex.count(hashBlock))
+        return false;
+
+    return chainActive.Contains(mapBlockIndex[hashBlock]);
+}
+
+bool IsTransactionInChain(const uint256& txId, int& nHeightTx, CTransaction& tx)
+{
+    uint256 hashBlock;
+    if (!GetTransaction(txId, tx, Params().GetConsensus(), hashBlock, true))
+        return false;
+    if (!IsBlockHashInChain(hashBlock))
+        return false;
+
+    nHeightTx = mapBlockIndex.at(hashBlock)->nHeight;
+    return true;
+}
+
+bool IsTransactionInChain(const uint256& txId, int& nHeightTx)
+{
+    CTransaction tx;
+    return IsTransactionInChain(txId, nHeightTx, tx);
 }
 
 bool ContextualCheckBlock(const CBlock &block, CValidationState &state, CBlockIndex *const pindexPrev) {
@@ -4899,6 +5103,7 @@ bool static LoadBlockIndexDB() {
     // some blocks in index can change as a result of ZerocoinBuildStateFromIndex() call
     set<CBlockIndex *> changes;
     ZerocoinBuildStateFromIndex(&chainActive, changes);
+    sigma::BuildSigmaStateFromIndex(&chainActive);
     if (!changes.empty()) {
         setDirtyBlockIndex.insert(changes.begin(), changes.end());
         FlushStateToDisk();
@@ -6635,7 +6840,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand,
 
         pfrom->setAskFor.erase(inv.hash);
         mapAlreadyAskedFor.erase(inv.hash);
-        if (!AlreadyHave(inv) && !tx.IsZerocoinSpend()  &&
+        if (!AlreadyHave(inv) && !tx.IsZerocoinSpend() &&
             AcceptToMemoryPool(mempool, state, tx, true, true, &fMissingInputs, false, 0, true)) {
             LogPrintf("Transaction %s received and added to the mempool.\n",
                       tx.GetHash().ToString());
@@ -6670,7 +6875,9 @@ bool static ProcessMessage(CNode *pfrom, string strCommand,
 
             RelayTransaction(tx);
             for (unsigned int i = 0; i < tx.vout.size(); i++) {
-                vWorkQueue.emplace_back(inv.hash, i);
+                if (!tx.vout[i].scriptPubKey.IsSigmaMint()) {
+                    vWorkQueue.emplace_back(inv.hash, i);
+                }
             }
 
             pfrom->nLastTXTime = GetTime();
@@ -6756,7 +6963,7 @@ bool static ProcessMessage(CNode *pfrom, string strCommand,
             EraseOrphanTx(hash);
             //btzc: zcoin condition
         } else if (
-            !AlreadyHave(inv) && tx.IsZerocoinSpend() &&
+            !AlreadyHave(inv) && tx.IsZerocoinSpend() && !tx.IsSigmaSpend() &&
             AcceptToMemoryPool(mempool, state, tx, false, true, &fMissingInputsZerocoin, false, 0, true)) {
             // Changes to mempool should also be made to Dandelion stempool
             AcceptToMemoryPool(
@@ -6859,15 +7066,11 @@ bool static ProcessMessage(CNode *pfrom, string strCommand,
                              stempool.size(),
                              stempool.DynamicMemoryUsage() / 1000);
                     int64_t nCurrTime = GetTimeMicros();
-                    int64_t nEmbargo = 1000000 * DANDELION_EMBARGO_MINIMUM +
-                        PoissonNextSend(nCurrTime, DANDELION_EMBARGO_AVG_ADD);
+                    auto& consensus = Params().GetConsensus();
+                    int64_t nEmbargo = 1000000 * consensus.nDandelionEmbargoMinimum +
+                        PoissonNextSend(nCurrTime, consensus.nDandelionEmbargoAvgAdd);
                     pfrom->insertDandelionEmbargo(tx.GetHash(), nEmbargo);
-                    //LogPrint(
-                    //    "dandelion",
-                    //    "dandeliontx %s embargoed for %d seconds\n",
-                    //    tx.GetHash().ToString(),
-                    //    (nEmbargo-nCurrTime) / 1000000);
-                }
+               }
                 int nDoS = 0;
                 if (state.IsInvalid(nDoS)) {
                     LogPrint(

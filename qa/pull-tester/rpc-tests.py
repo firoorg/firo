@@ -101,6 +101,9 @@ if ENABLE_ZMQ:
         raise
 
 testScripts = [
+    'mempool_doublesend_oneblock.py',
+    'mempool_reorg.py',
+    'mempool_spendcoinbase.py',
     # longest test should go first, to favor running tests in parallel
     # 'p2p-fullblocktest.py',
     # 'walletbackup.py',
@@ -117,8 +120,6 @@ testScripts = [
     # 'getchaintips.py',
     # 'rawtransactions.py',
      'rest.py',
-    # 'mempool_spendcoinbase.py',
-    # 'mempool_reorg.py',
     # 'mempool_limit.py',
      'httpbasics.py',
      'reindex.py',
@@ -134,7 +135,6 @@ testScripts = [
      'disablewallet.py',
     # 'sendheaders.py',
      'keypool.py',
-     'disablewallet.py',
     # 'prioritise_transaction.py',
     # 'invalidblockrequest.py',
     # 'invalidtxrequest.py',
@@ -146,6 +146,19 @@ testScripts = [
     # 'signmessages.py',
     # 'p2p-compactblocks.py',
     # 'nulldummy.py',
+    'sigma_meetspend.py',
+    'sigma_listsigmamints_validation.py',
+    'sigma_listsigmaspends_validation.py',
+    'sigma_listunspentmints_sigma_validation.py',
+    'sigma_listsigmapubcoins_validation.py',
+    'sigma_resetsigmamint_validation.py',
+    'sigma_setsigmamintstatus_validation.py',
+    'sigma_spend_gettransaction.py',
+    'sigma_spend_validation.py',
+    'sigma_spend_extra_validation.py',
+    'sigma_mint_validation.py',
+    'sigma_mintspend.py',
+    'sigma_blocklimit.py'
 ]
 # if ENABLE_ZMQ:
 #     testScripts.append('zmq_test.py')
@@ -162,7 +175,7 @@ testScriptsExt = [
     # 'txn_doublespend.py',
     # 'txn_clone.py --mineblock',
     # 'forknotify.py',
-    # 'invalidateblock.py',
+     'invalidateblock.py',
     # 'rpcbind_test.py',
     # 'smartfees.py',
     # 'maxblocksinflight.py',

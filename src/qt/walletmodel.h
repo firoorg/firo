@@ -10,6 +10,9 @@
 
 #include "support/allocators/secure.h"
 
+#include "wallet/walletdb.h"
+#include "wallet/wallet.h"
+
 #include <map>
 #include <vector>
 
@@ -115,7 +118,8 @@ public:
         TransactionCreationFailed, // Error returned when wallet is still locked
         TransactionCommitFailed,
         AbsurdFee,
-        PaymentRequestExpired
+        PaymentRequestExpired,
+        ExceedLimit
     };
 
     enum EncryptionStatus
@@ -191,7 +195,7 @@ public:
     bool havePrivKey(const CKeyID &address) const;
     void getOutputs(const std::vector<COutPoint>& vOutpoints, std::vector<COutput>& vOutputs);
     bool isSpent(const COutPoint& outpoint) const;
-    void listCoins(std::map<QString, std::vector<COutput> >& mapCoins) const;
+    void listCoins(std::map<QString, std::vector<COutput> >& mapCoins, AvailableCoinsType nCoinType=ALL_COINS) const;
 
     bool isLockedCoin(uint256 hash, unsigned int n) const;
     void lockCoin(COutPoint& output);
@@ -206,6 +210,21 @@ public:
 
     bool transactionCanBeRebroadcast(uint256 hash) const;
     bool rebroadcastTransaction(uint256 hash);
+
+    // Sigma
+    SendCoinsReturn prepareSigmaSpendTransaction(WalletModelTransaction &transaction,
+        std::vector<CSigmaEntry>& coins, std::vector<CHDMint>& changes,
+        const CCoinControl *coinControl = NULL);
+
+    // Send coins to a list of recipients
+    SendCoinsReturn sendSigma(WalletModelTransaction &transaction,
+        std::vector<CSigmaEntry>& coins, std::vector<CHDMint>& changes);
+
+    // Mint sigma
+    void sigmaMint(const CAmount& n, const CCoinControl *coinControl = NULL);
+    void checkSigmaAmount(bool forced);
+
+    std::vector<CSigmaEntry> GetUnsafeCoins(const CCoinControl* coinControl = NULL);
 
 private:
     CWallet *wallet;
@@ -230,11 +249,17 @@ private:
     EncryptionStatus cachedEncryptionStatus;
     int cachedNumBlocks;
 
+    // Sigma
+    bool cachedHavePendingCoin = true;
+    int lastBlockCheckSigma = 0;
+
     QTimer *pollTimer;
 
     void subscribeToCoreSignals();
     void unsubscribeFromCoreSignals();
     void checkBalanceChanged();
+
+
 
 Q_SIGNALS:
     // Signal that balance in wallet changed
@@ -261,6 +286,9 @@ Q_SIGNALS:
     // Watch-only address added
     void notifyWatchonlyChanged(bool fHaveWatchonly);
 
+    // Update sigma changed
+    void notifySigmaChanged(const std::vector<CSigmaEntry>& spendable, const std::vector<CSigmaEntry>& pending);
+
 public Q_SLOTS:
     /* Wallet status might have changed */
     void updateStatus();
@@ -274,6 +302,9 @@ public Q_SLOTS:
     void updateWatchOnlyFlag(bool fHaveWatchonly);
     /* Current, immature or unconfirmed balance might have changed - emit 'balanceChanged' if so */
     void pollBalanceChanged();
+    /* Update Amount of sigma change */
+    void updateSigmaCoins(const QString &pubCoin, const QString &isUsed, int status);
+
 };
 
 #endif // BITCOIN_QT_WALLETMODEL_H

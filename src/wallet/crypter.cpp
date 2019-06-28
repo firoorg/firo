@@ -9,6 +9,9 @@
 #include "script/script.h"
 #include "script/standard.h"
 #include "util.h"
+#include "init.h"
+#include "wallet/walletdb.h"
+#include "wallet/wallet.h"
 
 #include <string>
 #include <vector>
@@ -162,6 +165,7 @@ bool CCryptoKeyStore::Lock()
     {
         LOCK(cs_KeyStore);
         vMasterKey.clear();
+        pwalletMain->zwallet->Lock();
     }
 
     NotifyStatusChanged(this);
@@ -201,6 +205,15 @@ bool CCryptoKeyStore::Unlock(const CKeyingMaterial& vMasterKeyIn)
             return false;
         vMasterKey = vMasterKeyIn;
         fDecryptionThoroughlyChecked = true;
+
+        uint160 hashSeedMaster = pwalletMain->GetHDChain().masterKeyID;
+        if (CWalletDB(pwalletMain->strWalletFile).ReadCurrentSeedHash(hashSeedMaster)) {
+            pwalletMain->zwallet->SetHashSeedMaster(hashSeedMaster, false);
+        } else {
+            // First time this wallet has been unlocked with HD mint enabled
+            pwalletMain->zwallet->SetHashSeedMaster(hashSeedMaster, true);
+            pwalletMain->zwallet->GenerateMintPool();
+        }
     }
     NotifyStatusChanged(this);
     return true;

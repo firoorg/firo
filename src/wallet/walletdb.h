@@ -9,8 +9,13 @@
 
 #include "amount.h"
 #include "primitives/transaction.h"
+#include "primitives/zerocoin.h"
+#include "hdmint/hdmint.h"
 #include "wallet/db.h"
 #include "key.h"
+
+#include "../secp256k1/include/GroupElement.h"
+#include "../secp256k1/include/Scalar.h"
 
 #include <list>
 #include <stdint.h>
@@ -32,7 +37,9 @@ class CWalletTx;
 class uint160;
 class uint256;
 class CZerocoinEntry;
+class CSigmaEntry;
 class CZerocoinSpendEntry;
+class CSigmaSpendEntry;
 
 /** Error statuses for the wallet database */
 enum DBErrors
@@ -49,10 +56,14 @@ enum DBErrors
 class CHDChain
 {
 public:
-    uint32_t nExternalChainCounter;
+    uint32_t nExternalChainCounter; // VERSION_BASIC
+    vector<uint32_t> nExternalChainCounters; // VERSION_WITH_BIP44: vector index corresponds to account value
     CKeyID masterKeyID; //!< master key hash160
 
-    static const int CURRENT_VERSION = 1;
+    static const int VERSION_BASIC = 1;
+    static const int VERSION_WITH_BIP44 = 10;
+    static const int CURRENT_VERSION = VERSION_WITH_BIP44;
+    static const int N_CHANGES = 3; // standard = 0/1, mint = 2
     int nVersion;
 
     CHDChain() { SetNull(); }
@@ -60,17 +71,24 @@ public:
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
     {
+
         READWRITE(this->nVersion);
         nVersion = this->nVersion;
         READWRITE(nExternalChainCounter);
         READWRITE(masterKeyID);
+        if(this->nVersion >= VERSION_WITH_BIP44){
+            READWRITE(nExternalChainCounters);
+        }
     }
 
     void SetNull()
     {
         nVersion = CHDChain::CURRENT_VERSION;
-        nExternalChainCounter = 0;
         masterKeyID.SetNull();
+        nExternalChainCounter = 0;
+        for(int index=0;index<N_CHANGES;index++){
+            nExternalChainCounters.push_back(0);
+        }
     }
 };
 
@@ -83,6 +101,7 @@ public:
     int nVersion;
     int64_t nCreateTime; // 0 means unknown
     std::string hdKeypath; //optional HD/bip32 keypath
+    int64_t nChild; // HD/bip32 keypath child counter
     CKeyID hdMasterKeyID; //id of the HD masterkey used to derive this key
 
     CKeyMetadata()
@@ -114,6 +133,7 @@ public:
         nVersion = CKeyMetadata::CURRENT_VERSION;
         nCreateTime = 0;
         hdKeypath.clear();
+        nChild = 0;
         hdMasterKeyID.SetNull();
     }
 };
@@ -172,11 +192,23 @@ public:
     void ListAccountCreditDebit(const std::string& strAccount, std::list<CAccountingEntry>& acentries);
 
     bool WriteZerocoinEntry(const CZerocoinEntry& zerocoin);
+    bool WriteZerocoinEntry(const CSigmaEntry& zerocoin);
+    bool ReadZerocoinEntry(const Bignum& pub, CZerocoinEntry& entry);
+    bool ReadZerocoinEntry(const secp_primitives::GroupElement& pub, CSigmaEntry& entry);
+    bool HasZerocoinEntry(const Bignum& pub);
+    bool HasZerocoinEntry(const secp_primitives::GroupElement& pub);
     bool EraseZerocoinEntry(const CZerocoinEntry& zerocoin);
+    bool EraseZerocoinEntry(const CSigmaEntry& zerocoin);
     void ListPubCoin(std::list<CZerocoinEntry>& listPubCoin);
+    void ListSigmaPubCoin(std::list<CSigmaEntry>& listPubCoin);
     void ListCoinSpendSerial(std::list<CZerocoinSpendEntry>& listCoinSpendSerial);
+    void ListCoinSpendSerial(std::list<CSigmaSpendEntry>& listCoinSpendSerial);
     bool WriteCoinSpendSerialEntry(const CZerocoinSpendEntry& zerocoinSpend);
+    bool WriteCoinSpendSerialEntry(const CSigmaSpendEntry& zerocoinSpend);
+    bool HasCoinSpendSerialEntry(const Bignum& serial);
+    bool HasCoinSpendSerialEntry(const secp_primitives::Scalar& serial);
     bool EraseCoinSpendSerialEntry(const CZerocoinSpendEntry& zerocoinSpend);
+    bool EraseCoinSpendSerialEntry(const CSigmaSpendEntry& zerocoinSpend);
     bool WriteZerocoinAccumulator(libzerocoin::Accumulator accumulator, libzerocoin::CoinDenomination denomination, int pubcoinid);
     bool ReadZerocoinAccumulator(libzerocoin::Accumulator& accumulator, libzerocoin::CoinDenomination denomination, int pubcoinid);
     // bool EraseZerocoinAccumulator(libzerocoin::Accumulator& accumulator, libzerocoin::CoinDenomination denomination, int pubcoinid);
@@ -191,6 +223,26 @@ public:
     DBErrors ZapSelectTx(CWallet* pwallet, std::vector<uint256>& vHashIn, std::vector<uint256>& vHashOut);
     static bool Recover(CDBEnv& dbenv, const std::string& filename, bool fOnlyKeys);
     static bool Recover(CDBEnv& dbenv, const std::string& filename);
+
+    bool ReadCurrentSeedHash(uint160& hashSeed);
+    bool WriteCurrentSeedHash(const uint160& hashSeed);
+
+    bool ReadZerocoinCount(uint32_t& nCount);
+    bool WriteZerocoinCount(const uint32_t& nCount);
+
+    bool ArchiveMintOrphan(const CZerocoinEntry& zerocoin);
+    bool ArchiveDeterministicOrphan(const CHDMint& dMint);
+    bool UnarchiveZerocoinMint(const uint256& hashPubcoin, CSigmaEntry& zerocoin);
+    bool UnarchiveHDMint(const uint256& hashPubcoin, CHDMint& dMint);
+
+    bool WriteHDMint(const CHDMint& dMint);
+    bool ReadHDMint(const uint256& hashPubcoin, CHDMint& dMint);
+    bool HasHDMint(const secp_primitives::GroupElement& pub);
+
+     std::list<CHDMint> ListHDMints();
+
+     std::map<uint160, std::vector<pair<CKeyID, uint32_t> > > MapMintPool();
+    bool WriteMintPoolPair(const uint160& hashMasterSeed, const CKeyID& seedId, const uint32_t& nCount);
 
     //! write the hdchain model (external chain child index counter)
     bool WriteHDChain(const CHDChain& chain);

@@ -88,7 +88,6 @@
 #include "zmq/zmqnotificationinterface.h"
 #endif
 
-
 bool fFeeEstimatesInitialized = false;
 static const bool DEFAULT_PROXYRANDOMIZE = true;
 static const bool DEFAULT_REST_ENABLE = false;
@@ -241,6 +240,8 @@ void Shutdown() {
 #ifdef ENABLE_WALLET
     if (pwalletMain)
         pwalletMain->Flush(false);
+    delete zwalletMain;
+    zwalletMain = NULL;
 #endif
     GenerateBitcoins(false, 0, Params());
     StopNode();
@@ -287,6 +288,8 @@ void Shutdown() {
 #ifdef ENABLE_WALLET
     if (pwalletMain)
         pwalletMain->Flush(true);
+    delete zwalletMain;
+    zwalletMain = NULL;
 #endif
 
 #if ENABLE_ZMQ
@@ -786,6 +789,15 @@ void CleanupBlockRevFiles() {
 }
 
 void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
+
+#ifdef ENABLE_WALLET
+    if (!GetBoolArg("-disablewallet", false)) {
+        //Load zerocoin mint hashes to memory
+        pwalletMain->hdMintTracker->Init();
+        zwalletMain->LoadMintPoolFromDB();
+    }
+#endif
+
     const CChainParams &chainparams = Params();
     RenameThread("bitcoin-loadblk");
     CImportingNow imp;
@@ -848,6 +860,12 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
         LogPrintf("Stopping after block import\n");
         StartShutdown();
     }
+
+#ifdef ENABLE_WALLET
+    if (!GetBoolArg("-disablewallet", false)) {
+        zwalletMain->SyncWithChain();
+    }
+#endif
 }
 
 /** Sanity checks
@@ -1638,15 +1656,15 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
 
                 pblocktree = new CBlockTreeDB(nBlockTreeDBCache, false, fReindex);
 
-	            if (!fReindex) {
+                if (!fReindex) {
                     // Check existing block index database version, reindex if needed
                     if (pblocktree->GetBlockIndexVersion() < ZC_ADVANCED_INDEX_VERSION) {
                         LogPrintf("Upgrade to new version of block index required, reindex forced\n");
                         delete pblocktree;
-			            fReindex = fReset = true;
+                        fReindex = fReset = true;
                         pblocktree = new CBlockTreeDB(nBlockTreeDBCache, false, fReindex);
-		            }
-	            }
+                    }
+                }
 
                 pcoinsdbview = new CCoinsViewDB(nCoinDBCache, false, fReindex || fReindexChainState);
                 pcoinscatcher = new CCoinsViewErrorCatcher(pcoinsdbview);
@@ -1664,10 +1682,26 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
                     break;
                 }
 
+                if (!fReindex) {
+                    CBlockIndex *tip = chainActive.Tip();
+                    if (tip && tip->nHeight >= chainparams.GetConsensus().nSigmaStartBlock) {
+                        const uint256* phash = tip->phashBlock;
+                        if (pblocktree->GetBlockIndexVersion(*phash) < SIGMA_PROTOCOL_ENABLEMENT_VERSION) {
+                            strLoadError = _(
+                                    "Block index is outdated, reindex required\n");
+                            break;
+                        }
+                    }
+                }
+
                 // If the loaded chain has a wrong genesis, bail out immediately
                 // (we're likely using a testnet datadir, or the other way around).
-                if (!mapBlockIndex.empty() && mapBlockIndex.count(chainparams.GetConsensus().hashGenesisBlock) == 0)
+                if (!mapBlockIndex.empty() && mapBlockIndex.count(chainparams.GetConsensus().hashGenesisBlock) == 0) {
+                    LogPrintf("Genesis block hash %s not found.\n", 
+                        chainparams.GetConsensus().hashGenesisBlock.ToString());
+                    LogPrintf("mapBlockIndex contains %d blocks.\n", mapBlockIndex.size());
                     return InitError(_("Incorrect or no genesis block found. Wrong datadir for network?"));
+                }
 
                 // Initialize the block index (no-op if non-empty database was already loaded)
                 if (!InitBlockIndex(chainparams)) {
@@ -1813,6 +1847,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
     LogPrintf("Step 8: load wallet ************************************\n");
     if (fDisableWallet) {
         pwalletMain = NULL;
+        zwalletMain = NULL;
         LogPrintf("Wallet disabled!\n");
     } else {
         CWallet::InitLoadWallet();

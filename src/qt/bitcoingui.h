@@ -115,9 +115,9 @@ private:
     QAction *openRPCConsoleAction;
     QAction *openAction;
     QAction *showHelpMessageAction;
-    QAction *zerocoinAction;
+    QAction *sigmaAction;
+    QAction *zc2SigmaAction;
     QAction *znodeAction;
-    QAction *zerocoinMenuAction;
 
     QSystemTrayIcon *trayIcon;
     QMenu *trayIconMenu;
@@ -149,6 +149,9 @@ private:
     void subscribeToCoreSignals();
     /** Disconnect core signals from GUI client */
     void unsubscribeFromCoreSignals();
+
+    /** Updates Zc2SigmaPage visibility */
+    void checkZc2SigmaVisibility(int numBlocks);
 
 Q_SIGNALS:
     /** Signal raised when a URI was entered or dragged to the GUI */
@@ -207,8 +210,10 @@ private Q_SLOTS:
     void gotoReceiveCoinsPage();
     /** Switch to send coins page */
     void gotoSendCoinsPage(QString addr = "");
-    /** Switch to zerocoin page */
-    void gotoZerocoinPage();
+     /** Switch to sigma page */
+    void gotoSigmaPage();
+    /** Switch to ZC->sigma page */
+    void gotoZc2SigmaPage();
 
     /** Show Sign/Verify Message dialog and switch to sign message tab */
     void gotoSignMessageTab(QString addr = "");

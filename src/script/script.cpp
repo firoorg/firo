@@ -146,6 +146,9 @@ const char* GetOpName(opcodetype opcode)
     // zerocoin
     case OP_ZEROCOINMINT           : return "OP_ZEROCOINMINT";
     case OP_ZEROCOINSPEND          : return "OP_ZEROCOINSPEND";
+    case OP_SIGMAMINT         : return "OP_SIGMAMINT";
+    case OP_SIGMASPEND        : return "OP_SIGMASPEND";
+
 
     // Note:
     //  The template matching params OP_SMALLINTEGER/etc are defined in opcodetype enum
@@ -286,6 +289,23 @@ bool CScript::IsZerocoinMint() const
 bool CScript::IsZerocoinSpend() const {
     return (this->size() > 0 &&
             (*this)[0] == OP_ZEROCOINSPEND);
+}
+
+bool CScript::IsSigmaMint() const
+{
+    // Extra-fast test for Zerocoin Mint CScripts:
+    return (this->size() > 0 &&
+            (*this)[0] == OP_SIGMAMINT);
+}
+
+bool CScript::IsSigmaSpend() const {
+    return (this->size() > 0 &&
+            (*this)[0] == OP_SIGMASPEND);
+}
+
+bool CScript::IsZerocoinRemint() const {
+    return (this->size() > 0 &&
+            (*this)[0] == OP_ZEROCOINTOSIGMAREMINT);
 }
 
 bool CScript::HasCanonicalPushes() const
