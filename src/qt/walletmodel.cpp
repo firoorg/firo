@@ -210,7 +210,11 @@ void WalletModel::checkBalanceChanged()
 
 void WalletModel::checkSigmaAmount(bool forced)
 {
-    if ((cachedHavePendingCoin && cachedNumBlocks > lastBlockCheckSigma) || forced) {
+    auto currentBlock = chainActive.Height();
+    if ((cachedHavePendingCoin && currentBlock > lastBlockCheckSigma)
+        || currentBlock < lastBlockCheckSigma // reorg
+        || forced) {
+
         std::list<CSigmaEntry> coins;
         CWalletDB(wallet->strWalletFile).ListSigmaPubCoin(coins);
 
@@ -248,7 +252,7 @@ void WalletModel::checkSigmaAmount(bool forced)
             }
         }
 
-        lastBlockCheckSigma = chainActive.Height();
+        lastBlockCheckSigma = currentBlock;
         Q_EMIT notifySigmaChanged(spendable, pending);
     }
 }
