@@ -1221,7 +1221,7 @@ isminetype CWallet::IsMine(const CTxIn &txin) const {
         CDataStream serializedCoinRemint(
             std::vector<char>(txin.scriptSig.begin() + 1, txin.scriptSig.end()),
             SER_NETWORK, PROTOCOL_VERSION);
-    
+
         sigma::CoinRemintToV3 remint(serializedCoinRemint);
         if (db.HasCoinSpendSerialEntry(remint.getSerialNumber())) {
             return ISMINE_SPENDABLE;
@@ -2250,7 +2250,7 @@ std::list<CSigmaEntry> CWallet::GetAvailableCoins(const CCoinControl *coinContro
     LOCK2(cs_main, cs_wallet);
     CWalletDB walletdb(strWalletFile);
     std::list<CSigmaEntry> coins;
-    std::vector<CMintMeta> vecMints = pwalletMain->hdMintTracker->ListMints(true, true, true);
+    std::vector<CMintMeta> vecMints = pwalletMain->hdMintTracker->ListMints(true, true, false);
     list<CMintMeta> listMints(vecMints.begin(), vecMints.end());
     for (const CMintMeta& mint : listMints) {
         CSigmaEntry entry;
@@ -2936,7 +2936,7 @@ void CWallet::ListAvailableSigmaMintCoins(vector<COutput> &vCoins, bool fOnlyCon
     LOCK(cs_wallet);
     list<CSigmaEntry> listOwnCoins;
     CWalletDB walletdb(pwalletMain->strWalletFile);
-    walletdb.ListSigmaPubCoin(listOwnCoins);
+    listOwnCoins = pwalletMain->hdMintTracker->MintsAsZerocoinEntries();
     LogPrintf("listOwnCoins.size()=%s\n", listOwnCoins.size());
     for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it) {
         const CWalletTx *pcoin = &(*it).second;
@@ -4037,7 +4037,7 @@ bool CWallet::CreateSigmaMintModel(
 }
 
 /*
- * We disabled zerocoin for security reasons but in order for zerocoin to sigma remint tests 
+ * We disabled zerocoin for security reasons but in order for zerocoin to sigma remint tests
  * to pass we need it on regtest chain
  */
 
@@ -4065,7 +4065,7 @@ static bool IsZerocoinEnabled(std::string &stringError) {
 bool CWallet::CreateZerocoinMintModelV2(
         string &stringError,
         const std::vector<std::pair<int,int>>& denominationPairs) {
-    
+
     CHECK_ZEROCOIN_STRINGERROR(stringError);
 
     libzerocoin::CoinDenomination denomination;
@@ -4353,15 +4353,14 @@ int CWallet::GetNumberOfUnspentMintsForDenomination(int version, libzerocoin::Co
             if (coinVersion == version) {
                 // Find minted coin in the index
                 int mintId = -1, mintHeight = -1;
-                
+
                 // group is the same in both v1 and v2 params
                 const libzerocoin::IntegerGroupParams &commGroup = ZCParamsV2->coinCommitmentGroup;
                 // calculate g^serial * h^randomness (mod modulus)
                 CBigNum coinPublicValue = commGroup.g.pow_mod(coin.serialNumber, commGroup.modulus).
                                 mul_mod(commGroup.h.pow_mod(coin.randomness, commGroup.modulus), commGroup.modulus);
 
-                if ((mintHeight = zerocoinState->GetMintedCoinHeightAndId(coinPublicValue, (int)d, mintId)) > 0 &&
-                        IsZerocoinTxV2(d, Params().GetConsensus(), mintId) == (coinVersion == ZEROCOIN_TX_VERSION_2)) {
+                if ((mintHeight = zerocoinState->GetMintedCoinHeightAndId(coinPublicValue, (int)d, mintId)) > 0) {
                     if (mintEntry) {
                         *mintEntry = coin;
 
@@ -4398,6 +4397,17 @@ bool CWallet::CreateZerocoinToSigmaRemintModel(string &stringError, int version,
 
     LOCK2(cs_main, cs_wallet);
 
+    const Consensus::Params &params = Params().GetConsensus();
+    if (!sigma::IsRemintWindow(chainActive.Height())) {
+        stringError = "Remint transaction is not currently allowed";
+        return false;
+    }
+
+    if (!params.IsRegtest() && !znodeSync.IsBlockchainSynced()) {
+        stringError = "Blockchain is not synced";
+        return false;
+    }
+
     txNew.vin.clear();
     txNew.vout.clear();
     txNew.wit.SetNull();
@@ -4427,7 +4437,7 @@ bool CWallet::CreateZerocoinToSigmaRemintModel(string &stringError, int version,
     remintTxIn.prevout.SetNull();
     txNew.vin.push_back(remintTxIn);
 
-    vector<sigma::PrivateCoin> privateCoins;
+    vector<CHDMint> vHDMints;
 
     static struct ZerocoinToSigmaMintDenominationMap {
         int zerocoinDenomination;
@@ -4449,6 +4459,10 @@ bool CWallet::CreateZerocoinToSigmaRemintModel(string &stringError, int version,
 
         for (int i=0; i<denomMap.numberOfSigmaMints; i++) {
             sigma::PrivateCoin newCoin(sigmaParams, denomMap.sigmaDenomination, ZEROCOIN_TX_VERSION_3);
+
+            // Generate and store secrets deterministically in the following function.
+            CHDMint hdMint;
+            zwalletMain->GenerateHDMint(newCoin.getPublicCoin().getDenomination(), newCoin, hdMint);
 
             sigma::PublicCoin pubCoin = newCoin.getPublicCoin();
 
@@ -4474,7 +4488,10 @@ bool CWallet::CreateZerocoinToSigmaRemintModel(string &stringError, int version,
             sigmaTxOut.nValue = intDenomination;
             txNew.vout.push_back(sigmaTxOut);
 
-            privateCoins.push_back(newCoin);
+            // Update local count (don't write back to DB until we know coin is sent)
+            zwalletMain->UpdateCountLocal();
+
+            vHDMints.push_back(hdMint);
         }
     }
 
@@ -4523,19 +4540,16 @@ bool CWallet::CreateZerocoinToSigmaRemintModel(string &stringError, int version,
     spendEntry.denomination = mintEntry.denomination;
     walletdb.WriteCoinSpendSerialEntry(spendEntry);
 
-    for (auto &sigmaMint: privateCoins) {
-        CSigmaEntry sigmaMintEntry;
-        sigmaMintEntry.IsUsed = false;
-        sigmaMintEntry.set_denomination(sigmaMint.getPublicCoin().getDenomination());
-        sigmaMintEntry.value = sigmaMint.getPublicCoin().getValue();
-        sigmaMintEntry.randomness = sigmaMint.getRandomness();
-        sigmaMintEntry.serialNumber = sigmaMint.getSerialNumber();
-        const unsigned char *ecdsaSecretKey = sigmaMint.getEcdsaSeckey();
-        sigmaMintEntry.ecdsaSecretKey = std::vector<unsigned char>(ecdsaSecretKey, ecdsaSecretKey+32);
-        walletdb.WriteZerocoinEntry(sigmaMintEntry);
+    // Update the count in the database
+    zwalletMain->UpdateCountDB();
+
+    //update mints with full transaction hash and then database them
+    for (CHDMint hdMint : vHDMints) {
+        hdMint.SetTxHash(wtxNew.GetHash());
+        pwalletMain->hdMintTracker->Add(hdMint, true);
         NotifyZerocoinChanged(this,
-            sigmaMintEntry.value.GetHex(),
-            "New (" + std::to_string(sigmaMint.getPublicCoin().getDenomination()) + " mint)",
+            hdMint.GetPubcoinValue().GetHex(),
+            "New (" + std::to_string(hdMint.GetDenominationValue()) + " mint)",
             CT_NEW);
     }
 
@@ -5056,7 +5070,7 @@ bool CWallet::CreateZerocoinMintTransaction(const vector <CRecipient> &vecSend, 
 //                }
                 } else{
                     int64_t nPayFee = payTxFee.GetFeePerK() * (1 + (int64_t) GetTransactionWeight(txNew) / 1000);
-                    //                bool fAllowFree = false;					// No free TXs in XZC
+                    //                bool fAllowFree = false;                                 // No free TXs in XZC
                     int64_t nMinFee = wtxNew.GetMinFee(1, false, GMF_SEND);
                     nFeeNeeded = nPayFee;
                     if (nFeeNeeded < nMinFee) {
@@ -6998,7 +7012,7 @@ bool CWallet::CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CSigmaEntry>
         // raise event
         NotifyZerocoinChanged(this,
             change.GetPubcoinValue().GetHex(),
-            "New (" + std::to_string(change.GetDenomination()) + " mint)",
+            "New (" + std::to_string(change.GetDenominationValue()) + " mint)",
             CT_NEW);
     }
 

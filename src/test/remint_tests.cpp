@@ -36,30 +36,10 @@
 #include <boost/test/unit_test.hpp>
 #include <boost/thread.hpp>
 
-// for the duration of the test use only v2 zerocoin mints/spends
-class FakeV2 {
-    Consensus::Params &params;
-    Consensus::Params oldParams;
-public:
-    FakeV2() : params(const_cast<Consensus::Params &>(Params().GetConsensus())) {
-        oldParams = params;
-        params.nSpendV2ID_1 = params.nSpendV2ID_10 = params.nSpendV2ID_25 = params.nSpendV2ID_50 = params.nSpendV2ID_100 = 1;
-    }
-
-    ~FakeV2() {
-        params = oldParams;
-    }
-};
-
-extern const char *sigmaRemintBlacklist[];
-
-
 BOOST_FIXTURE_TEST_SUITE(zerocoin_to_sigma_remint_tests, ZerocoinTestingSetup200)
 
 BOOST_AUTO_TEST_CASE(remint_basic_test)
 {
-    FakeV2 fakeV2;
-
     string denomination;
     vector<uint256> vtxid;
     std::vector<string> denominations = {"1", "10", "25", "50", "100"};
@@ -86,7 +66,6 @@ BOOST_AUTO_TEST_CASE(remint_basic_test)
     for (int i=0; i<400; i++) {
         CBlock b = CreateAndProcessBlock({}, scriptPubKey);
     }
-
     for (int i=0; i<5; i++) {
         BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinToSigmaRemintModel(stringError, ZEROCOIN_TX_VERSION_2, (libzerocoin::CoinDenomination)atoi(denominations[i].c_str())), stringError + " - Remint failed");
         BOOST_CHECK_MESSAGE(mempool.size() == 1, "Zerocoin remint was not added to mempool");
@@ -139,8 +118,6 @@ BOOST_AUTO_TEST_CASE(remint_basic_test)
 
 BOOST_AUTO_TEST_CASE(remint_blacklist)
 {
-    FakeV2 fakeV2;
-
     string stringError;
 
     pwalletMain->SetBroadcastTransactions(true);

@@ -14,6 +14,7 @@
 #include "crypto/hmac_sha256.h"
 #include "crypto/hmac_sha512.h"
 #include "keystore.h"
+#include <boost/optional.hpp>
 
 CHDMintWallet::CHDMintWallet(std::string strWalletFile)
 {
@@ -187,7 +188,7 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool)
                 }
 
                 //Find the denomination
-                sigma::CoinDenomination denomination = sigma::CoinDenomination::SIGMA_ERROR;
+                boost::optional<sigma::CoinDenomination> denomination = boost::none;
                 bool fFoundMint = false;
                 GroupElement bnValue;
                 for (const CTxOut& out : tx.vout) {
@@ -211,7 +212,7 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool)
                     }
                 }
 
-                if (!fFoundMint || denomination == sigma::CoinDenomination::SIGMA_ERROR) {
+                if (!fFoundMint || denomination == boost::none) {
                     LogPrintf("%s : failed to get mint %s from tx %s!\n", __func__, pubCoinValueHash.GetHex(), tx.GetHash().GetHex());
                     found = false;
                     break;
@@ -233,7 +234,7 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool)
                     setAddedTx.insert(txHash);
                 }
 
-                SetMintSeedSeen(pMint.first, pindex->nHeight, txHash, denomination);
+                SetMintSeedSeen(pMint.first, pindex->nHeight, txHash, denomination.get());
                 nLastCountUsed = std::max(pMint.second, nLastCountUsed);
                 nCountLastUsed = std::max(nLastCountUsed, nCountLastUsed);
                 LogPrint("zero", "%s: updated count to %d\n", __func__, nCountLastUsed);
@@ -434,9 +435,9 @@ bool CHDMintWallet::RegenerateMint(const CHDMint& dMint, CSigmaEntry& zerocoin)
     // }
 
     //Generate the coin
-    sigma::PrivateCoin coin(sigma::Params::get_default(), dMint.GetDenomination(), false);
+    sigma::PrivateCoin coin(sigma::Params::get_default(), dMint.GetDenomination().get(), false);
     CHDMint dMintDummy;
-    GenerateMint(dMint.GetCount(), dMint.GetDenomination(), dMint.GetSeedId(), coin, dMintDummy);
+    GenerateMint(dMint.GetCount(), dMint.GetDenomination().get(), dMint.GetSeedId(), coin, dMintDummy);
 
     //Fill in the zerocoinmint object's details
     GroupElement bnValue = coin.getPublicCoin().getValue();
@@ -448,7 +449,7 @@ bool CHDMintWallet::RegenerateMint(const CHDMint& dMint, CSigmaEntry& zerocoin)
     if (sigma::GetSerialHash(bnSerial) != dMint.GetSerialHash())
         return error("%s: failed to correctly generate mint, serial hash mismatch", __func__);
 
-    zerocoin.set_denomination(dMint.GetDenomination());
+    zerocoin.set_denomination(dMint.GetDenomination().get());
     zerocoin.randomness = coin.getRandomness();
     zerocoin.serialNumber = bnSerial;
     zerocoin.IsUsed = dMint.IsUsed();
@@ -485,10 +486,10 @@ bool CHDMintWallet::TxOutToPublicCoin(const CTxOut& txout, sigma::PublicCoin& pu
     publicZerocoin.deserialize(&coin_serialised[0]);
 
     sigma::CoinDenomination denomination;
-    IntegerToDenomination(txout.nValue, denomination);
-    LogPrint("zero", "%s ZCPRINT denomination %d pubcoin %s\n", __func__, denomination, publicZerocoin.GetHex());
-    if (denomination == sigma::CoinDenomination::SIGMA_ERROR)
+    if(!IntegerToDenomination(txout.nValue, denomination))
         return state.DoS(100, error("TxOutToPublicCoin : txout.nValue is not correct"));
+
+    LogPrint("zero", "%s ZCPRINT denomination %d pubcoin %s\n", __func__, denomination, publicZerocoin.GetHex());
 
     sigma::PublicCoin checkPubCoin(publicZerocoin, denomination);
     pubCoin = checkPubCoin;

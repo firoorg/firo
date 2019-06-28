@@ -37,6 +37,7 @@
 #include "znode-sync.h"
 #include "znodelist.h"
 #include "exodus_qtutils.h"
+#include "zc2sigmapage.h"
 
 #include <exodus/exodus.h>
 
@@ -343,6 +344,7 @@ void BitcoinGUI::createActions()
         zc2SigmaAction->setCheckable(true);
         zc2SigmaAction->setShortcut(QKeySequence(Qt::ALT +  key++));
         tabGroup->addAction(zc2SigmaAction);
+        zc2SigmaAction->setVisible(false);
 
 #ifdef ENABLE_WALLET
     // These showNormalIfMinimized are needed because Send Coins and Receive Coins
@@ -591,6 +593,7 @@ void BitcoinGUI::setClientModel(ClientModel *clientModel)
             // initialize the disable state of the tray icon with the current value in the model.
             setTrayIconVisible(optionsModel->getHideTrayIcon());
         }
+        checkZc2SigmaVisibility(clientModel->getNumBlocks());
     } else {
         // Disable possibility to show main window via action
         toggleHideAction->setEnabled(false);
@@ -963,6 +966,8 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
     labelBlocksIcon->setToolTip(tooltip);
     progressBarLabel->setToolTip(tooltip);
     progressBar->setToolTip(tooltip);
+
+    checkZc2SigmaVisibility(count);
 }
 
 
@@ -1332,6 +1337,15 @@ void BitcoinGUI::unsubscribeFromCoreSignals()
     // Disconnect signals from client
     uiInterface.ThreadSafeMessageBox.disconnect(boost::bind(ThreadSafeMessageBox, this, _1, _2, _3));
     uiInterface.ThreadSafeQuestion.disconnect(boost::bind(ThreadSafeMessageBox, this, _1, _3, _4));
+}
+
+void BitcoinGUI::checkZc2SigmaVisibility(int numBlocks) {
+    if(!zc2SigmaAction->isVisible() && sigma::IsRemintWindow(numBlocks)) {
+        const bool show = Zc2SigmaPage::showZc2SigmaPage();
+
+        if(show)
+            zc2SigmaAction->setVisible(true);
+    }
 }
 
 UnitDisplayStatusBarControl::UnitDisplayStatusBarControl(const PlatformStyle *platformStyle) :

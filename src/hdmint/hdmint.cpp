@@ -27,7 +27,7 @@ void CHDMint::SetNull()
     txid.SetNull();
     nHeight = -1;
     nId = -1;
-    DenominationToInteger(sigma::CoinDenomination::SIGMA_ERROR, denom);
+    denom = 0;
     isUsed = false;
 }
 

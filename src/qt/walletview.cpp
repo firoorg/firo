@@ -236,6 +236,7 @@ void WalletView::setClientModel(ClientModel *clientModel)
     znodeListPage->setClientModel(clientModel);
     exoAssetsPage->setClientModel(clientModel);
     sigmaView->setClientModel(clientModel);
+    zc2SigmaPage->setClientModel(clientModel);
 
     if (exodusTransactionsView) {
         exodusTransactionsView->setClientModel(clientModel);

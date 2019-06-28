@@ -122,6 +122,9 @@ bool CheckRemintZcoinTransaction(const CTransaction &tx,
     CDataStream inStream1(remintSerData, SER_NETWORK, PROTOCOL_VERSION);
     sigma::CoinRemintToV3 remint(inStream1);
 
+    LogPrintf("CheckRemintZcoinTransaction: nHeight=%d, denomination=%d, serial=%s\n", 
+            nHeight, remint.getDenomination(), remint.getSerialNumber().GetHex().c_str());
+
     if (remint.getMintVersion() != ZEROCOIN_TX_VERSION_2) {
         LogPrintf("CheckRemintZcoinTransaction: only mint of version 2 is currently supported\n");
         return false;

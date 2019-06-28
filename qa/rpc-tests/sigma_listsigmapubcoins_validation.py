@@ -100,7 +100,10 @@ class ListSigmaPubCoinsValidationWithFundsTest(BitcoinTestFramework):
             'Unexpected pubcoins list returned. Should be: {}, but was: {}.' \
                 .format(expected_pubcoins_before_spend, pubcoins)
 
-        for denom_name, denom in denoms.items():
+        for denom_value in sorted(denoms.items(),key=lambda x:x[1]):
+            denom_name = denom_value[0]
+            denom = denom_value[1]
+            print("denom: " + denom_name)
             args = {'THAYjKnnCsN5xspnEcb1Ztvw4mSPBuwxzU': denom}
             self.nodes[0].spendmany("", args)
             self.nodes[0].generate(2)
@@ -111,7 +114,7 @@ class ListSigmaPubCoinsValidationWithFundsTest(BitcoinTestFramework):
 
             assert sorted(pubcoins) == sorted(expected_pubcoins_after_denom_spend[denom_name]), \
                 'Unexpected pubcoins list returned after spend: {}. Should be: {}, but was: {}.' \
-                    .format(denom, sorted(expected_pubcoins_after_denom_spend[denom_name]), sorted(pubcoins)oins)
+                    .format(denom, sorted(expected_pubcoins_after_denom_spend[denom_name]), sorted(pubcoins))
 
         unused_pubcoins_sum = sum([Decimal(pubcoin['denomination'])
                          for pubcoin in self.nodes[0].listsigmapubcoins() if pubcoin['IsUsed'] == False])

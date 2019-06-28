@@ -26,8 +26,10 @@ public:
     CHDMint();
     CHDMint(const uint32_t& nCount, const CKeyID& seedId, const uint256& hashSerial, const GroupElement& pubCoinValue);
 
-    sigma::CoinDenomination GetDenomination() const {
+    boost::optional<sigma::CoinDenomination> GetDenomination() const {
         sigma::CoinDenomination value;
+        if(denom==0)
+            return boost::none;
         IntegerToDenomination(denom, value);
         return value;
     }

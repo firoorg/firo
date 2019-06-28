@@ -2599,7 +2599,7 @@ bool DisconnectBlock(const CBlock &block, CValidationState &state, const CBlockI
         }
 
         // restore inputs
-        if (!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsSigmaSpend()) { // not coinbases
+        if (!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsSigmaSpend() && !tx.IsZerocoinRemint()) { // not coinbases
             const CTxUndo &txundo = blockUndo.vtxundo[i - 1];
             if (txundo.vprevout.size() != tx.vin.size())
                 return error("DisconnectBlock(): transaction and undo data inconsistent");
@@ -3525,6 +3525,13 @@ ConnectTip(CValidationState &state, const CChainParams &chainparams, CBlockIndex
             if (exodus_handler_tx(tx, GetHeight(), nTxIdx++, pindexNew)) ++nNumMetaTxs;
         }
     }
+
+    // Sync with HDMint wallet
+    if(pblock->sigmaTxInfo->spentSerials.size() > 0)
+        pwalletMain->hdMintTracker->UpdateSpendStateFromBlock(pblock->sigmaTxInfo->spentSerials);
+
+    if(pblock->sigmaTxInfo->mints.size() > 0)
+        pwalletMain->hdMintTracker->UpdateMintStateFromBlock(pblock->sigmaTxInfo->mints);
 
     //! Exodus: end of block connect notification
     if (fExodus) {
