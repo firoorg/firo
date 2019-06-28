@@ -427,8 +427,11 @@ bool CHDMintTracker::UpdateStatusInternal(const std::set<uint256>& setMempool, C
             mint.txid = txidMint;
         }
 
-        if (setMempool.count(mint.txid))
+        if (setMempool.count(mint.txid)) {
+            if(mint.nHeight>-1) mint.nHeight = -1;
+            if(mint.nId>-1) mint.nId = -1;
             return true;
+        }
 
         // Check the transaction associated with this mint
         if (!IsInitialBlockDownload() && !GetTransaction(mint.txid, tx, ::Params().GetConsensus(), hashBlock, true)) {
