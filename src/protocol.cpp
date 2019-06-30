@@ -58,7 +58,14 @@ namespace NetMsgType {
     const char *CLSIG="clsig";
     const char *ISLOCK="islock";
     const char *MNAUTH="mnauth";
+    const char *GETCFILTERS="getcfilters";
+    const char *CFILTER="cfilter";
+    const char *GETCFHEADERS="getcfheaders";
+    const char *CFHEADERS="cfheaders";
+    const char *GETCFCHECKPT="getcfcheckpt";
+    const char *CFCHECKPT="cfcheckpt";
 };
+} // namespace NetMsgType
 
 /** All known message types. Keep this in the same order as the list of
  * messages above and in protocol.h.
@@ -110,6 +117,12 @@ const static std::string allNetMessageTypes[] = {
     NetMsgType::CLSIG,
     NetMsgType::ISLOCK,
     NetMsgType::MNAUTH,
+    NetMsgType::GETCFILTERS,
+    NetMsgType::CFILTER,
+    NetMsgType::GETCFHEADERS,
+    NetMsgType::CFHEADERS,
+    NetMsgType::GETCFCHECKPT,
+    NetMsgType::CFCHECKPT,
 };
 const static std::vector<std::string> allNetMessageTypesVec(allNetMessageTypes, allNetMessageTypes+ARRAYLEN(allNetMessageTypes));
 
