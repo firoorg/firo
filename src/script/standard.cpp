@@ -102,6 +102,7 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, vector<vector<unsi
     if (scriptPubKey.IsZerocoinRemint())
     {
         typeRet = TX_ZEROCOINTOSIGMAREMINT;
+        if(scriptPubKey.size() < 169) return false;
         vector<unsigned char> hashBytes(scriptPubKey.begin()+1, scriptPubKey.end());
         vSolutionsRet.push_back(hashBytes);
         return true;
