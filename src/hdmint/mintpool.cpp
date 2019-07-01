@@ -7,101 +7,36 @@
 
 using namespace std;
 
-CMintPool::CMintPool()
-{
-    this->nCountLastGenerated = 0;
-    this->nCountLastRemoved = 0;
-}
+CMintPool::CMintPool(){}
 
-CMintPool::CMintPool(uint32_t nCount)
-{
-    this->nCountLastRemoved = nCount;
-    this->nCountLastGenerated = nCount;
-}
-
-void CMintPool::Add(const CKeyID& seedId, const uint32_t& nCount)
-{
-    Add(make_pair(seedId, nCount));
-    LogPrintf("%s : add %s to mint pool, nCountLastGenerated=%d\n", __func__, seedId.GetHex(), nCountLastGenerated);
-}
-
-void CMintPool::Add(const pair<CKeyID, uint32_t>& pMint, bool fVerbose)
+void CMintPool::Add(pair<uint256, MintPoolEntry> pMint, bool fVerbose)
 {
     insert(pMint);
-    if (pMint.second >= nCountLastGenerated)
-        nCountLastGenerated = pMint.second;
 
     if (fVerbose)
-        LogPrintf("%s : add %s count %d to mint pool\n", __func__, pMint.first.GetHex().substr(0, 6), pMint.second);
+        LogPrintf("%s : add %s count %d to mint pool\n", __func__, pMint.first.GetHex().substr(0, 6), get<2>(pMint.second));
 }
 
-bool CMintPool::Has(const CKeyID& seedId)
-{
-    return static_cast<bool>(count(seedId));
-}
-
-bool CMintPool::Get(const CKeyID& seedId, std::pair<CKeyID, uint32_t>& result)
-{
-    // for(std::list<pair<CKeyID, uint32_t>>::iterator it = List().begin(); it != List().end(); ++it){
-    //     if((*it).first==seedId){
-    //         result = *it;
-    //         return true;
-    //     }
-    // }
-    for (auto pMint : *(this)) {
-        if(pMint.first==seedId){
-           result = pMint;
-           return true; 
-        }
-    }
-    return false;
-}
-
-bool CMintPool::Get(const uint32_t& nCount, std::pair<CKeyID, uint32_t>& result)
-{
-    // std::list<pair<CKeyID, uint32_t> > listMints = List();
-    // for(std::list<pair<CKeyID, uint32_t>>::iterator it = listMints.begin(); it != listMints.end(); ++it){
-    //     if((*it).second==nCount){
-    //         result = *it;
-    //         return true;
-    //     }
-    // }
-
-    for (auto pMint : *(this)) {
-        if(pMint.second==nCount){
-           result = pMint;
-           return true; 
-        }
-    }
-
-    return false;
-}
-
-bool SortSmallest(const pair<CKeyID, uint32_t>& a, const pair<CKeyID, uint32_t>& b)
+bool SortSmallest(const pair<uint256, MintPoolEntry> a, const pair<uint256, MintPoolEntry> b)
 {
     return a.second < b.second;
 }
 
-std::list<pair<CKeyID, uint32_t> > CMintPool::List()
+void CMintPool::List(list<pair<uint256, MintPoolEntry>>& listMints)
 {
-    list<pair<CKeyID, uint32_t> > listMints;
     for (auto pMint : *(this)) {
         listMints.emplace_back(pMint);
     }
 
     listMints.sort(SortSmallest);
-
-    return listMints;
 }
 
 void CMintPool::Reset()
 {
     clear();
-    nCountLastGenerated = 0;
-    nCountLastRemoved = 0;
 }
 
-bool CMintPool::Front(std::pair<CKeyID, uint32_t>& pMint)
+bool CMintPool::Front(pair<uint256, MintPoolEntry> pMint)
 {
     if (empty())
         return false;
@@ -109,7 +44,7 @@ bool CMintPool::Front(std::pair<CKeyID, uint32_t>& pMint)
     return true;
 }
 
-bool CMintPool::Next(pair<CKeyID, uint32_t>& pMint)
+bool CMintPool::Next(pair<uint256, MintPoolEntry> pMint)
 {
     auto it = find(pMint.first);
     if (it == end() || ++it == end())
@@ -119,14 +54,21 @@ bool CMintPool::Next(pair<CKeyID, uint32_t>& pMint)
     return true;
 }
 
-void CMintPool::Remove(const CKeyID& seedId)
+void CMintPool::Remove(const uint256 hashPubcoin)
 {
-    auto it = find(seedId);
+    auto it = find(hashPubcoin);
     if (it == end())
         return;
 
-    nCountLastRemoved = it->second;
     erase(it);
+}
+
+MintPoolEntry CMintPool::InitEntry(){
+    uint160 hashSeedMaster;
+    CKeyID seedId;
+    int32_t nCount;
+
+    return MintPoolEntry(hashSeedMaster,seedId,nCount);
 }
 
 

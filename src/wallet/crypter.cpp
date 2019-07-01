@@ -165,7 +165,6 @@ bool CCryptoKeyStore::Lock()
     {
         LOCK(cs_KeyStore);
         vMasterKey.clear();
-        pwalletMain->zwallet->Lock();
     }
 
     NotifyStatusChanged(this);

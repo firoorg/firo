@@ -2136,14 +2136,12 @@ std::vector<CRecipient> CWallet::CreateSigmaMintRecipients(
     std::vector<CRecipient> vecSend;
     CHDMint dMint;
 
-    uint32_t nCountLastUsed = zwalletMain->GetCount();
-
     std::transform(coins.begin(), coins.end(), std::back_inserter(vecSend),
-        [&vDMints, &dMint, &nCountLastUsed](sigma::PrivateCoin& coin) -> CRecipient {
+        [&vDMints, &dMint](sigma::PrivateCoin& coin) -> CRecipient {
 
             // Generate and store secrets deterministically in the following function.
             dMint.SetNull();
-            zwalletMain->GenerateHDMint(coin.getPublicCoin().getDenomination(), coin, dMint);
+            zwalletMain->GenerateMint(coin.getPublicCoin().getDenomination(), coin, dMint);
 
 
             // Get a copy of the 'public' portion of the coin. You should
@@ -2152,7 +2150,6 @@ std::vector<CRecipient> CWallet::CreateSigmaMintRecipients(
             auto& pubCoin = coin.getPublicCoin();
 
             if (!pubCoin.validate()) {
-                zwalletMain->SetCount(nCountLastUsed);
                 throw std::runtime_error("Unable to mint a sigma coin.");
             }
 
@@ -2169,9 +2166,6 @@ std::vector<CRecipient> CWallet::CreateSigmaMintRecipients(
             DenominationToInteger(pubCoin.getDenomination(), v);
 
             vDMints.push_back(dMint);
-
-            // Update local count (don't write back to DB until we know coin is verified)
-            zwalletMain->UpdateCountLocal();
 
             return {scriptSerializedCoin, v, false};
         }
@@ -3955,8 +3949,6 @@ bool CWallet::CreateSigmaMintModel(
     CWalletTx wtx;
     CHDMint dMint;
 
-     uint32_t nCountLastUsed = zwalletMain->GetCount();
-
     for(const std::pair<sigma::CoinDenomination, int>& denominationPair: denominationPairs) {
         sigma::CoinDenomination denomination = denominationPair.first;
         int64_t denominationValue;
@@ -3986,7 +3978,7 @@ bool CWallet::CreateSigmaMintModel(
 
             // Generate and store secrets deterministically in the following function.
             dMint.SetNull();
-            zwalletMain->GenerateHDMint(denomination, newCoin, dMint);
+            zwalletMain->GenerateMint(denomination, newCoin, dMint);
 
             // Get a copy of the 'public' portion of the coin. You should
             // embed this into a Zerocoin 'MINT' transaction along with a series
@@ -3995,14 +3987,9 @@ bool CWallet::CreateSigmaMintModel(
 
             // Validate
             if (!pubCoin.validate()) {
-                // reset countLastUsed value
-                zwalletMain->SetCount(nCountLastUsed);
                 stringError = "Unable to mint a sigma coin.";
                 return false;
             }
-
-            // Update local count (don't write back to DB until we know coin is sent)
-            zwalletMain->UpdateCountLocal();
 
             // Create script for coin
             CScript scriptSerializedCoin;
@@ -4027,11 +4014,8 @@ bool CWallet::CreateSigmaMintModel(
 
     stringError = pwalletMain->MintAndStoreSigma(vecSend, privCoins, vDMints, wtx);
 
-    if (stringError != "") {
-        // reset countLastUsed value
-        zwalletMain->SetCount(nCountLastUsed);
+    if (stringError != "")
         return false;
-    }
 
     return true;
 }
@@ -4189,7 +4173,7 @@ bool CWallet::CreateSigmaMintModel(string &stringError, const string& denomAmoun
 
     // Generate and store secrets deterministically in the following function.
     dMint.SetNull();
-    zwalletMain->GenerateHDMint(denomination, newCoin, dMint);
+    zwalletMain->GenerateMint(denomination, newCoin, dMint);
 
     // Get a copy of the 'public' portion of the coin. You should
     // embed this into a Zerocoin 'MINT' transaction along with a series
@@ -4220,9 +4204,6 @@ bool CWallet::CreateSigmaMintModel(string &stringError, const string& denomAmoun
             return false;
 
         CWalletDB walletdb(pwalletMain->strWalletFile);
-
-        // Now that coin is verified and sent, update the count. (If not verified, we will repeat the same count on the next attempt)
-        zwalletMain->UpdateCount();
 
         dMint.SetTxHash(wtx.GetHash());
         pwalletMain->hdMintTracker->Add(dMint, true);
@@ -4462,7 +4443,7 @@ bool CWallet::CreateZerocoinToSigmaRemintModel(string &stringError, int version,
 
             // Generate and store secrets deterministically in the following function.
             CHDMint hdMint;
-            zwalletMain->GenerateHDMint(newCoin.getPublicCoin().getDenomination(), newCoin, hdMint);
+            zwalletMain->GenerateMint(newCoin.getPublicCoin().getDenomination(), newCoin, hdMint);
 
             sigma::PublicCoin pubCoin = newCoin.getPublicCoin();
 
@@ -4487,9 +4468,6 @@ bool CWallet::CreateZerocoinToSigmaRemintModel(string &stringError, int version,
             sigmaTxOut.scriptPubKey = sigmaMintScript;
             sigmaTxOut.nValue = intDenomination;
             txNew.vout.push_back(sigmaTxOut);
-
-            // Update local count (don't write back to DB until we know coin is sent)
-            zwalletMain->UpdateCountLocal();
 
             vHDMints.push_back(hdMint);
         }
@@ -4540,8 +4518,6 @@ bool CWallet::CreateZerocoinToSigmaRemintModel(string &stringError, int version,
     spendEntry.denomination = mintEntry.denomination;
     walletdb.WriteCoinSpendSerialEntry(spendEntry);
 
-    // Update the count in the database
-    zwalletMain->UpdateCountDB();
 
     //update mints with full transaction hash and then database them
     for (CHDMint hdMint : vHDMints) {
@@ -6559,8 +6535,6 @@ string CWallet::MintAndStoreSigma(const vector<CRecipient>& vecSend,
         LogPrintf("CommitTransaction success!\n");
     }
 
-    // Update the count in the database (no effect if no change mints)
-    zwalletMain->UpdateCountDB();
 
     //update mints with full transaction hash and then database them
     CWalletDB walletdb(pwalletMain->strWalletFile);
@@ -6772,8 +6746,6 @@ string CWallet::SpendSigma(
         LogPrintf("SpendZerocoin() : %s\n", strError.c_str());
     }
 
-    // Update the count in the database (no effect if no change mints)
-    zwalletMain->UpdateCountDB();
     return "";
 }
 
@@ -6915,8 +6887,6 @@ string CWallet::SpendMultipleSigma(
         }
     }
 
-    // Update the count in the database (no effect if no change mints)
-    zwalletMain->UpdateCountDB();
 
     return "";
 }
@@ -7016,14 +6986,14 @@ bool CWallet::CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CSigmaEntry>
             CT_NEW);
     }
 
-    // Update the count in the database (no effect if no change mints)
-    zwalletMain->UpdateCountDB();
 
     return true;
 }
 
 bool CWallet::GetMint(const uint256& hashSerial, CSigmaEntry& zerocoin) const
 {
+    if(IsLocked())
+        return false;
     CMintMeta meta;
     if(!pwalletMain->hdMintTracker->Get(hashSerial, meta))
         return error("%s: serialhash %s is not in tracker", __func__, hashSerial.GetHex());
@@ -7778,7 +7748,7 @@ std::string CWallet::GetWalletHelpString(bool showDebug) {
     strUsage += HelpMessageOpt("-walletnotify=<cmd>",
                                _("Execute command when a wallet transaction changes (%s in cmd is replaced by TxID)"));
     strUsage += HelpMessageOpt("-zapwalletmints",
-                               _("Delete all Sigma mints and only recover those parts of the blockchain through -rescan on startup"));
+                               _("Delete all Sigma mints and only recover those parts of the blockchain through -reindex on startup"));
     strUsage += HelpMessageOpt("-zapwallettxes=<mode>",
                                _("Delete all wallet transactions and only recover those parts of the blockchain through -rescan on startup") +
                                " " +
@@ -7909,6 +7879,8 @@ bool CWallet::InitLoadWallet() {
     LogPrintf(" wallet      %15dms\n", GetTimeMillis() - nStart);
     zwalletMain = new CHDMintWallet(pwalletMain->strWalletFile);
     walletInstance->setZWallet(zwalletMain);
+
+
 
     RegisterValidationInterface(walletInstance);
 

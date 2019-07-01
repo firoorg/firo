@@ -22,7 +22,7 @@ private:
 public:
     CHDMintTracker(std::string strWalletFile);
     ~CHDMintTracker();
-    void Add(const CHDMint& dMint, bool isNew = false, bool isArchived = false, CHDMintWallet* zerocoinWallet = NULL);
+    void Add(const CHDMint& dMint, bool isNew = false, bool isArchived = false);
     void Add(const CSigmaEntry& zerocoin, bool isNew = false, bool isArchived = false);
     bool Archive(CMintMeta& meta);
     bool HasPubcoin(const GroupElement& pubcoin) const;
@@ -36,7 +36,6 @@ public:
     CMintMeta GetMetaFromPubcoin(const uint256& hashPubcoin);
     CAmount GetBalance(bool fConfirmedOnly, bool fUnconfirmedOnly) const;
     std::vector<uint256> GetSerialHashes();
-    bool UpdateMints(std::set<uint256> serialHashes, bool fReset, bool fUpdateStatus, bool fStatus=false);
     std::list<CMintMeta> GetMints(bool fConfirmedOnly, bool fInactive = true) const;
     CAmount GetUnconfirmedBalance() const;
     bool MintMetaToZerocoinEntries(std::list <CSigmaEntry>& entries, std::list<CMintMeta> setMints) const;

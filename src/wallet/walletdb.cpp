@@ -1307,25 +1307,40 @@ bool CWalletDB::WriteCurrentSeedHash(const uint160& hashSeed)
     return Write(string("seedhash"), hashSeed);
 }
 
-bool CWalletDB::ReadZerocoinCount(uint32_t& nCount)
+bool CWalletDB::ReadZerocoinCount(int32_t& nCount)
 {
     return Read(string("dzc"), nCount);
 }
 
-bool CWalletDB::WriteZerocoinCount(const uint32_t& nCount)
+bool CWalletDB::WriteZerocoinCount(const int32_t& nCount)
 {
     return Write(string("dzc"), nCount);
 }
 
-bool CWalletDB::WriteMintPoolPair(const uint160& hashMasterSeed, const CKeyID& seedId, const uint32_t& nCount)
+bool CWalletDB::WriteSerialHash(const uint256& hashSerial, const uint256& hashPubcoin)
 {
-    return Write(make_pair(string("mintpool"), seedId), make_pair(hashMasterSeed, nCount));
+    return Write(make_pair(string("serialhash"), hashSerial), hashPubcoin);
 }
 
-//! map with hashMasterSeed as the key, paired with vector of hashPubcoins and their count
-std::map<uint160, std::vector<pair<CKeyID, uint32_t> > > CWalletDB::MapMintPool()
+bool CWalletDB::ReadSerialHash(const uint256& hashSerial, uint256& hashPubcoin)
 {
-    std::map<uint160, std::vector<pair<CKeyID, uint32_t> > > mapPool;
+    return Read(make_pair(string("serialhash"), hashSerial), hashPubcoin);
+}
+
+bool CWalletDB::WriteMintPoolPair(const uint256& hashPubcoin, const std::tuple<uint160, CKeyID, int32_t>& hashSeedMintPool)
+{
+    return Write(make_pair(string("mintpool"), hashPubcoin), hashSeedMintPool);
+}
+
+bool CWalletDB::ReadMintPoolPair(const uint256& hashPubcoin, std::tuple<uint160, CKeyID, int32_t>&& hashSeedMintPool)
+{
+    return Read(make_pair(string("mintpool"), hashPubcoin), hashSeedMintPool);
+}
+
+//! list of MintPoolEntry objects mapped with pubCoin hash, returned as pairs
+std::vector<std::pair<uint256, MintPoolEntry>> CWalletDB::ListMintPool()
+{
+    std::vector<std::pair<uint256, MintPoolEntry>> listPool;
     Dbc* pcursor = GetCursor();
     if (!pcursor)
         throw runtime_error(std::string(__func__)+" : cannot create DB cursor");
@@ -1353,30 +1368,26 @@ std::map<uint160, std::vector<pair<CKeyID, uint32_t> > > CWalletDB::MapMintPool(
         if (strType != "mintpool")
             break;
 
+        uint256 hashPubcoin;
+        ssKey >> hashPubcoin;
+
+        uint160 hashSeedMaster;
+        ssValue >> hashSeedMaster;
+
         CKeyID seedId;
-        ssKey >> seedId;
+        ssValue >> seedId;
 
-        uint160 hashMasterSeed;
-        ssValue >> hashMasterSeed;
-
-        uint32_t nCount;
+        int32_t nCount;
         ssValue >> nCount;
 
-        pair<CKeyID, uint32_t> pMint;
-        pMint.first = seedId;
-        pMint.second = nCount;
-        if (mapPool.count(hashMasterSeed)) {
-            mapPool.at(hashMasterSeed).emplace_back(pMint);
-        } else {
-            vector<pair<CKeyID, uint32_t> > vPairs;
-            vPairs.emplace_back(pMint);
-            mapPool.insert(make_pair(hashMasterSeed, vPairs));
-        }
+        MintPoolEntry mintPoolEntry(hashSeedMaster, seedId, nCount);
+
+        listPool.push_back(make_pair(hashPubcoin, mintPoolEntry));
     }
 
     pcursor->close();
 
-    return mapPool;
+    return listPool;
 }
 
 std::list<CHDMint> CWalletDB::ListHDMints()

@@ -18,7 +18,7 @@ class CHDMint;
 class CHDMintWallet
 {
 private:
-    uint32_t nCountLastUsed;
+    int32_t nCountLastUsed;
     std::string strWalletFile;
     CMintPool mintPool;
     uint160 hashSeedMaster;
@@ -28,30 +28,28 @@ public:
 
     CHDMintWallet(std::string strWalletFile);
 
+    bool ReadIsCrypted();
+    bool WriteIsCrypted(bool isCrypted);
     bool SetHashSeedMaster(const uint160& hashSeedMaster, bool fResetCount=false);
-    void SyncWithChain(bool fGenerateMintPool = true);
-    uint32_t GenerateHDMint(sigma::CoinDenomination denom, sigma::PrivateCoin& coin, CHDMint& dMint, bool fGenerateOnly = false);
-    bool GenerateMint(const uint32_t& nCount, const sigma::CoinDenomination denom, CKeyID seedId, sigma::PrivateCoin& coin, CHDMint& dMint);
+    void SyncWithChain(bool fGenerateMintPool = true, boost::optional<std::list<std::pair<uint256, MintPoolEntry>>> listMints = boost::none);
+    bool GenerateMint(const sigma::CoinDenomination denom, sigma::PrivateCoin& coin, CHDMint& dMint, boost::optional<MintPoolEntry> mintPoolEntry = boost::none);
     bool LoadMintPoolFromDB();
-    void GetState(int& nCount, int& nLastGenerated);
     bool RegenerateMint(const CHDMint& dMint, CSigmaEntry& zerocoin);
     bool IsSerialInBlockchain(const uint256& hashSerial, int& nHeightTx, uint256& txidSpend, CTransaction& tx);
     bool TxOutToPublicCoin(const CTxOut& txout, sigma::PublicCoin& pubCoin, CValidationState& state);
-    void GenerateMintPool(uint32_t nCountStart = 0, uint32_t nCountEnd = 0);
-    bool SetMintSeedSeen(CKeyID& seedId, const int& nHeight, const uint256& txid, const sigma::CoinDenomination& denom);
-    bool IsInMintPool(const CKeyID& seedId) { return mintPool.Has(seedId); }
-    void Lock();
+    void GenerateMintPool(int32_t nCountStart = 0, int32_t nCountEnd = 0);
+    bool SetMintSeedSeen(MintPoolEntry& mintPoolEntry, const int& nHeight, const uint256& txid, const sigma::CoinDenomination& denom);
     bool SeedToZerocoin(const uint512& seedZerocoin, GroupElement& bnValue, sigma::PrivateCoin& coin);
     // Count updating functions
-    uint32_t GetCount();
-    void SetCount(uint32_t nCount);
+    int32_t GetCount();
+    void SetCount(int32_t nCount);
     void UpdateCountLocal();
     void UpdateCountDB();
     void UpdateCount();
 
 private:
-    CKeyID GetZerocoinSeedID(uint32_t n);
-    uint512 GetZerocoinSeed(uint32_t n, CKeyID& seedId);
+    void GetZerocoinSeedData(MintPoolEntry& mintPoolEntry);
+    uint512 CreateZerocoinSeed(MintPoolEntry& mintPoolEntry);
 };
 
 #endif //ZCOIN_HDMINTWALLET_H
