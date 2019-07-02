@@ -12,7 +12,7 @@
 #include "libzerocoin/bitcoin_bignum/bignum.h"
 #include "uint256.h"
 
-typedef std::tuple<uint160&, CKeyID&, int32_t&> MintPoolEntry;
+typedef std::tuple<uint160, CKeyID, int32_t> MintPoolEntry;
 
 /**
  * The MintPool only contains mint seed values that have not been added to the blockchain yet.
@@ -31,6 +31,7 @@ public:
     void Remove(const uint256 hashPubcoin);
     void List(list<pair<uint256, MintPoolEntry>>& listMints);
     void Reset();
+    bool Get(int32_t nCount, uint160 hashSeedMaster, pair<uint256, MintPoolEntry>& result);
     bool Front(pair<uint256, MintPoolEntry> pMint);
     bool Next(pair<uint256, MintPoolEntry> pMint);
     MintPoolEntry InitEntry();

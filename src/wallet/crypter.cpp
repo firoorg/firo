@@ -171,7 +171,7 @@ bool CCryptoKeyStore::Lock()
     return true;
 }
 
-bool CCryptoKeyStore::Unlock(const CKeyingMaterial& vMasterKeyIn)
+bool CCryptoKeyStore::Unlock(const CKeyingMaterial& vMasterKeyIn, const bool& fFirstUnlock)
 {
     {
         LOCK(cs_KeyStore);
@@ -204,14 +204,9 @@ bool CCryptoKeyStore::Unlock(const CKeyingMaterial& vMasterKeyIn)
             return false;
         vMasterKey = vMasterKeyIn;
         fDecryptionThoroughlyChecked = true;
-
-        uint160 hashSeedMaster = pwalletMain->GetHDChain().masterKeyID;
-        if (CWalletDB(pwalletMain->strWalletFile).ReadCurrentSeedHash(hashSeedMaster)) {
-            pwalletMain->zwallet->SetHashSeedMaster(hashSeedMaster, false);
-        } else {
-            // First time this wallet has been unlocked with HD mint enabled
-            pwalletMain->zwallet->SetHashSeedMaster(hashSeedMaster, true);
-            pwalletMain->zwallet->GenerateMintPool();
+        if(!fFirstUnlock){
+            uint160 hashSeedMaster = pwalletMain->GetHDChain().masterKeyID;
+            pwalletMain->zwallet->SetupWallet(hashSeedMaster, false);
         }
     }
     NotifyStatusChanged(this);

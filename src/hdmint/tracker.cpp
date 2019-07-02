@@ -497,7 +497,7 @@ void CHDMintTracker::UpdateMintStateFromBlock(const std::vector<sigma::PublicCoi
     for (auto& mint : mints) {
         uint256 hashPubcoin = sigma::GetPubCoinValueHash(mint.getValue());
         // Check hashPubcoin in db
-        if(walletdb.ReadMintPoolPair(hashPubcoin, std::forward_as_tuple(hashSeedMasterEntry, seedId, nCount))){
+        if(walletdb.ReadMintPoolPair(hashPubcoin, hashSeedMasterEntry, seedId, nCount)){
             // If found in db but not in memory - this is likely a resync
             if(!HasPubcoinHash(hashPubcoin)){
                 MintPoolEntry mintPoolEntry(hashSeedMasterEntry, seedId, nCount);
@@ -539,7 +539,7 @@ void CHDMintTracker::UpdateSpendStateFromBlock(const sigma::spend_info_container
         if(walletdb.ReadSerialHash(spentSerialHash, hashPubcoin)){
             // If found in db but not in memory - this is likely a resync
             if(!Get(spentSerialHash, meta)){
-                if(!walletdb.ReadMintPoolPair(hashPubcoin, std::forward_as_tuple(hashSeedMasterEntry, seedId, nCount))){
+                if(!walletdb.ReadMintPoolPair(hashPubcoin, hashSeedMasterEntry, seedId, nCount)){
                     continue;
                 }
                 MintPoolEntry mintPoolEntry(hashSeedMasterEntry, seedId, nCount);

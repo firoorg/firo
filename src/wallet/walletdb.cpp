@@ -1297,16 +1297,6 @@ bool CWalletDB::WriteHDChain(const CHDChain &chain) {
     return Write(std::string("hdchain"), chain);
 }
 
-bool CWalletDB::ReadCurrentSeedHash(uint160& hashSeed)
-{
-    return Read(string("seedhash"), hashSeed);
-}
-
-bool CWalletDB::WriteCurrentSeedHash(const uint160& hashSeed)
-{
-    return Write(string("seedhash"), hashSeed);
-}
-
 bool CWalletDB::ReadZerocoinCount(int32_t& nCount)
 {
     return Read(string("dzc"), nCount);
@@ -1315,6 +1305,16 @@ bool CWalletDB::ReadZerocoinCount(int32_t& nCount)
 bool CWalletDB::WriteZerocoinCount(const int32_t& nCount)
 {
     return Write(string("dzc"), nCount);
+}
+
+bool CWalletDB::ReadZerocoinSeedCount(int32_t& nCount)
+{
+    return Read(string("dzsc"), nCount);
+}
+
+bool CWalletDB::WriteZerocoinSeedCount(const int32_t& nCount)
+{
+    return Write(string("dzsc"), nCount);
 }
 
 bool CWalletDB::WriteSerialHash(const uint256& hashSerial, const uint256& hashPubcoin)
@@ -1332,9 +1332,14 @@ bool CWalletDB::WriteMintPoolPair(const uint256& hashPubcoin, const std::tuple<u
     return Write(make_pair(string("mintpool"), hashPubcoin), hashSeedMintPool);
 }
 
-bool CWalletDB::ReadMintPoolPair(const uint256& hashPubcoin, std::tuple<uint160, CKeyID, int32_t>&& hashSeedMintPool)
+bool CWalletDB::ReadMintPoolPair(const uint256& hashPubcoin, uint160& hashSeedMaster, CKeyID& seedId, int32_t& nCount)
 {
-    return Read(make_pair(string("mintpool"), hashPubcoin), hashSeedMintPool);
+    std::tuple<uint160, CKeyID, int32_t> hashSeedMintPool;
+    if(!Read(make_pair(string("mintpool"), hashPubcoin), hashSeedMintPool))
+        return false;
+    hashSeedMaster = get<0>(hashSeedMintPool);
+    seedId = get<1>(hashSeedMintPool);
+    nCount = get<2>(hashSeedMintPool);
 }
 
 //! list of MintPoolEntry objects mapped with pubCoin hash, returned as pairs

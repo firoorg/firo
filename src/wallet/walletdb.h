@@ -226,11 +226,11 @@ public:
     static bool Recover(CDBEnv& dbenv, const std::string& filename, bool fOnlyKeys);
     static bool Recover(CDBEnv& dbenv, const std::string& filename);
 
-    bool ReadCurrentSeedHash(uint160& hashSeed);
-    bool WriteCurrentSeedHash(const uint160& hashSeed);
-
     bool ReadZerocoinCount(int32_t& nCount);
     bool WriteZerocoinCount(const int32_t& nCount);
+
+    bool ReadZerocoinSeedCount(int32_t& nCount);
+    bool WriteZerocoinSeedCount(const int32_t& nCount);
 
     bool ArchiveMintOrphan(const CZerocoinEntry& zerocoin);
     bool ArchiveDeterministicOrphan(const CHDMint& dMint);
@@ -246,8 +246,7 @@ public:
     bool WriteSerialHash(const uint256& hashSerial, const uint256& hashPubcoin);
     bool ReadSerialHash(const uint256& hashSerial, uint256& hashPubcoin);
     bool WriteMintPoolPair(const uint256& hashPubcoin, const std::tuple<uint160, CKeyID, int32_t>& hashSeedMintPool);
-    bool ReadMintPoolPair(const uint256& hashPubcoin, std::tuple<uint160, CKeyID, int32_t>&& hashSeedMintPool);
-
+    bool ReadMintPoolPair(const uint256& hashPubcoin, uint160& hashSeedMaster, CKeyID& seedId, int32_t& nCount);
     std::vector<std::pair<uint256, MintPoolEntry>> ListMintPool();
 
     //! write the hdchain model (external chain child index counter)

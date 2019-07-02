@@ -316,7 +316,7 @@ bool CWallet::LoadWatchOnly(const CScript &dest) {
     return CCryptoKeyStore::AddWatchOnly(dest);
 }
 
-bool CWallet::Unlock(const SecureString &strWalletPassphrase) {
+bool CWallet::Unlock(const SecureString &strWalletPassphrase, const bool& fFirstUnlock) {
     CCrypter crypter;
     CKeyingMaterial vMasterKey;
 
@@ -329,7 +329,7 @@ bool CWallet::Unlock(const SecureString &strWalletPassphrase) {
                 return false;
             if (!crypter.Decrypt(pMasterKey.second.vchCryptedKey, vMasterKey))
                 continue; // try another master key
-            if (CCryptoKeyStore::Unlock(vMasterKey))
+            if (CCryptoKeyStore::Unlock(vMasterKey, fFirstUnlock))
                 return true;
         }
     }
@@ -692,7 +692,7 @@ bool CWallet::EncryptWallet(const SecureString &strWalletPassphrase) {
         }
 
         Lock();
-        Unlock(strWalletPassphrase);
+        Unlock(strWalletPassphrase, true);
 
         // if we are using HD, replace the HD master key (seed) with a new one
         if (!hdChain.masterKeyID.IsNull()) {
@@ -700,6 +700,11 @@ bool CWallet::EncryptWallet(const SecureString &strWalletPassphrase) {
             CPubKey masterPubKey = GenerateNewHDMasterKey();
             if (!SetHDMasterKey(masterPubKey))
                 return false;
+
+            uint160 hashSeedMaster = hdChain.masterKeyID;
+            // Setup HDMint wallet following encryption
+            pwalletMain->zwallet->SetupWallet(hashSeedMaster, true);
+            pwalletMain->zwallet->GenerateMintPool();
         }
 
         NewKeyPool();
@@ -4529,6 +4534,9 @@ bool CWallet::CreateZerocoinToSigmaRemintModel(string &stringError, int version,
             CT_NEW);
     }
 
+    // Update nCountLastUsed in HDMint wallet database
+    zwalletMain->UpdateCountDB();
+
     if (wtx)
         *wtx = wtxNew;
 
@@ -6547,6 +6555,9 @@ string CWallet::MintAndStoreSigma(const vector<CRecipient>& vecSend,
             CT_NEW);
     }
 
+    // Update nCountLastUsed in HDMint wallet database
+    zwalletMain->UpdateCountDB();
+
     return "";
 }
 
@@ -6992,6 +7003,7 @@ bool CWallet::CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CSigmaEntry>
 
 bool CWallet::GetMint(const uint256& hashSerial, CSigmaEntry& zerocoin) const
 {
+    // TODO temporary solution
     if(IsLocked())
         return false;
     CMintMeta meta;

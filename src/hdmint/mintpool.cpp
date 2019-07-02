@@ -36,6 +36,17 @@ void CMintPool::Reset()
     clear();
 }
 
+bool CMintPool::Get(int32_t nCount, uint160 hashSeedMaster, pair<uint256, MintPoolEntry>& result){
+    for (auto pMint : *(this)) {
+        if(get<0>(pMint.second)==hashSeedMaster && get<2>(pMint.second)==nCount){
+           result = pMint;
+           return true;
+        }
+    }
+
+    return false;
+
+}
 bool CMintPool::Front(pair<uint256, MintPoolEntry> pMint)
 {
     if (empty())
