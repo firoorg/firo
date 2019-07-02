@@ -96,6 +96,9 @@ void Zc2SigmaPage::on_remintButton_clicked() {
     if(!select->hasSelection())
         return;
 
+    QModelIndex dummy;
+    int const initial_count = model->rowCount(dummy);
+
     bool reminted = false;
     QModelIndexList idxs = select->selectedRows();
     for(int i = 0; i < idxs.size(); ++i) {
@@ -128,6 +131,15 @@ void Zc2SigmaPage::on_remintButton_clicked() {
     if(reminted) {
         updateAvailableRemints();
     }
+
+    if(model->rowCount(dummy) < initial_count) {
+        ui->remintButton->setEnabled(false);
+    } else {
+        for(int i = 0; i < idxs.size(); ++i) {
+            ui->availMintsTable->selectRow(idxs[i].row());
+        }
+    }
+    ui->availMintsTable->setFocus();
 }
 
 void Zc2SigmaPage::selectionChanged() {

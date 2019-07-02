@@ -475,8 +475,6 @@ void handleInput(CTxIn const & input, size_t inputNo, uint256 const & txHash, in
     std::pair<AddressType, uint160> addrType = classifyAddress(type, addresses);
 
     if(addrType.first == AddressType::unknown) {
-        if(type != TX_ZEROCOINMINT)
-            LogPrint("CDbIndexHelper", "Encountered an unsoluble script in block:%i, txHash: %s, inputNo: %i\n", height, txHash.ToString().c_str(), inputNo);
         return;
     }
 
@@ -488,6 +486,22 @@ void handleInput(CTxIn const & input, size_t inputNo, uint256 const & txHash, in
     if (spentIndex)
         spentIndex->push_back(make_pair(CSpentIndexKey(input.prevout.hash, input.prevout.n), CSpentIndexValue(txHash, inputNo, height, prevout.nValue, addrType.first, addrType.second)));
 }
+
+void handleRemint(CTxIn const & input, size_t inputNo, uint256 const & txHash, int height, int txNumber, CAmount nValue,
+        AddressIndexPtr & addressIndex, AddressUnspentIndexPtr & addressUnspentIndex, SpentIndexPtr & spentIndex)
+{
+    if(!input.IsZerocoinRemint())
+        return;
+
+    if (addressIndex) {
+        addressIndex->push_back(make_pair(CAddressIndexKey(AddressType::zerocoinRemint, uint160(), height, txNumber, txHash, inputNo, true), nValue * -1));
+        addressUnspentIndex->push_back(make_pair(CAddressUnspentKey(AddressType::zerocoinRemint, uint160(), input.prevout.hash, input.prevout.n), CAddressUnspentValue()));
+    }
+
+    if (spentIndex)
+        spentIndex->push_back(make_pair(CSpentIndexKey(input.prevout.hash, input.prevout.n), CSpentIndexValue(txHash, inputNo, height, nValue, AddressType::zerocoinRemint, uint160())));
+}
+
 
 template <class Iterator>
 void handleZerocoinSpend(Iterator const begin, Iterator const end, uint256 const & txHash, int height, int txNumber, CCoinsViewCache const & view,
@@ -515,9 +529,6 @@ void handleOutput(const CTxOut &out, size_t outNo, uint256 const & txHash, int h
     if(out.scriptPubKey.IsSigmaMint())
         addressIndex->push_back(make_pair(CAddressIndexKey(AddressType::sigmaMint, uint160(), height, txNumber, txHash, outNo, false), out.nValue));
 
-    if(out.scriptPubKey.IsZerocoinRemint())
-        addressIndex->push_back(make_pair(CAddressIndexKey(AddressType::zerocoinRemint, uint160(), height, txNumber, txHash, outNo, false), out.nValue));
-
     txnouttype type;
     vector<vector<unsigned char> > addresses;
 
@@ -529,8 +540,6 @@ void handleOutput(const CTxOut &out, size_t outNo, uint256 const & txHash, int h
     std::pair<AddressType, uint160> addrType = classifyAddress(type, addresses);
 
     if(addrType.first == AddressType::unknown) {
-        if(type != TX_ZEROCOINMINT)
-            LogPrint("CDbIndexHelper", "Encountered an unsoluble script in block:%i, txHash: %s, outNo: %i\n", height, txHash.ToString().c_str(), outNo);
         return;
     }
 
@@ -543,11 +552,21 @@ void handleOutput(const CTxOut &out, size_t outNo, uint256 const & txHash, int h
 void CDbIndexHelper::ConnectTransaction(CTransaction const & tx, int height, int txNumber, CCoinsViewCache const & view)
 {
     size_t no = 0;
-    if(!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsSigmaSpend() && !tx.IsZerocoinRemint())
+    if(!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsSigmaSpend() && !tx.IsZerocoinRemint()) {
         for (std::vector<CTxIn>::const_iterator iter = tx.vin.begin(); iter != tx.vin.end(); ++iter) {
             CTxIn const & input = *iter;
             handleInput(input, no++, tx.GetHash(), height, txNumber, view, addressIndex, addressUnspentIndex, spentIndex);
         }
+    }
+
+    no = 0;
+    if(tx.IsZerocoinRemint()) {
+        for (std::vector<CTxIn>::const_iterator iter = tx.vin.begin(); iter != tx.vin.end(); ++iter) {
+            CTxIn const & input = *iter;
+            handleRemint(input, no, tx.GetHash(), height, txNumber, tx.vout[no].nValue, addressIndex, addressUnspentIndex, spentIndex);
+            ++no;
+        }
+    }
 
     if(tx.IsZerocoinSpend() || tx.IsSigmaSpend())
         handleZerocoinSpend(tx.vout.begin(), tx.vout.end(), tx.GetHash(), height, txNumber, view, addressIndex, tx.IsSigmaSpend());
@@ -574,6 +593,16 @@ void CDbIndexHelper::DisconnectTransactionInputs(CTransaction const & tx, int he
         pSpentBegin = spentIndex->size();
 
     size_t no = 0;
+
+    if(tx.IsZerocoinRemint()) {
+        for (std::vector<CTxIn>::const_iterator iter = tx.vin.begin(); iter != tx.vin.end(); ++iter) {
+            CTxIn const & input = *iter;
+            handleRemint(input, no, tx.GetHash(), height, txNumber, tx.vout[no].nValue, addressIndex, addressUnspentIndex, spentIndex);
+            ++no;
+        }
+    }
+
+    no = 0;
     if(!tx.IsCoinBase() && !tx.IsZerocoinSpend() && !tx.IsSigmaSpend() && !tx.IsZerocoinRemint())
         for (std::vector<CTxIn>::const_iterator iter = tx.vin.begin(); iter != tx.vin.end(); ++iter) {
             CTxIn const & input = *iter;
