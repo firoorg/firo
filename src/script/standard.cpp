@@ -98,17 +98,6 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, vector<vector<unsi
         return true;
     }
 
-    // Zerocoin to Sigma remint
-    if (scriptPubKey.IsZerocoinRemint())
-    {
-        typeRet = TX_ZEROCOINTOSIGMAREMINT;
-        if(scriptPubKey.size() < 169) return false;
-        vector<unsigned char> hashBytes(scriptPubKey.begin()+1, scriptPubKey.end());
-        vSolutionsRet.push_back(hashBytes);
-        return true;
-    }
-
-
     int witnessversion;
     std::vector<unsigned char> witnessprogram;
     if (scriptPubKey.IsWitnessProgram(witnessversion, witnessprogram)) {
