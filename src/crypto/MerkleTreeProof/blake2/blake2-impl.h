@@ -66,16 +66,36 @@ static BLAKE2_INLINE uint64_t load64(const void *src) {
     memcpy(&w, src, sizeof w);
     return w;
 #else
-    const uint8_t *p = (const uint8_t *)src;
-    uint64_t w = *p++;
-    w |= (uint64_t)(*p++) << 8;
-    w |= (uint64_t)(*p++) << 16;
-    w |= (uint64_t)(*p++) << 24;
-    w |= (uint64_t)(*p++) << 32;
-    w |= (uint64_t)(*p++) << 40;
-    w |= (uint64_t)(*p++) << 48;
-    w |= (uint64_t)(*p++) << 56;
+        const uint8_t *p = (const uint8_t *)src;
+        uint64_t w = *p++;
+        w |= (uint64_t)(*p++) << 8;
+        w |= (uint64_t)(*p++) << 16;
+        w |= (uint64_t)(*p++) << 24;
+        w |= (uint64_t)(*p++) << 32;
+        w |= (uint64_t)(*p++) << 40;
+        w |= (uint64_t)(*p++) << 48;
+        w |= (uint64_t)(*p++) << 56;
     return w;
+#endif
+}
+
+static BLAKE2_INLINE void load64_many(uint64_t * dest, const void *src, size_t number_of_elements) {
+#if defined(NATIVE_LITTLE_ENDIAN)
+    memcpy(dest, src, sizeof(uint64_t) * number_of_elements);
+#else
+    for(size_t i = 0; i < number_of_elements; ++i) {
+        const uint8_t *p = (const uint8_t *)src + i * sizeof(uint64_t);
+        uint64_t w = *p++;
+        w |= (uint64_t)(*p++) << 8;
+        w |= (uint64_t)(*p++) << 16;
+        w |= (uint64_t)(*p++) << 24;
+        w |= (uint64_t)(*p++) << 32;
+        w |= (uint64_t)(*p++) << 40;
+        w |= (uint64_t)(*p++) << 48;
+        w |= (uint64_t)(*p++) << 56;
+        dest = w;
+        ++dest;
+    }
 #endif
 }
 

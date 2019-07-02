@@ -214,9 +214,8 @@ bool mtp_verify(const char* input, const uint32_t target,
         uint256 *mtpHashValue)
 {
     MerkleTree::Elements proof_blocks[L * 3];
-    MerkleTree::Buffer root;
+    MerkleTree::Buffer const root(&hash_root_mtp[0], &hash_root_mtp[16]);
     block blocks[L * 2];
-    root.insert(root.begin(), &hash_root_mtp[0], &hash_root_mtp[16]);
     for (int i = 0; i < (L * 3); ++i) {
         proof_blocks[i] = proof_mtp[i];
     }
