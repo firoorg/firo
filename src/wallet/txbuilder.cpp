@@ -103,10 +103,9 @@ CWalletTx TxBuilder::Build(const std::vector<CRecipient>& recipients, CAmount& f
     assert(tx.nLockTime < LOCKTIME_THRESHOLD);
 
     // Start with no fee and loop until there is enough fee;
-    uint32_t nCountLastUsed = zwalletMain->GetCount();
     for (fee = payTxFee.GetFeePerK();;) {
         // In case of not enough fee, reset mint seed counter
-        zwalletMain->SetCount(nCountLastUsed);
+        zwalletMain->ResetCount();
         CAmount required = spend;
 
         tx.vin.clear();

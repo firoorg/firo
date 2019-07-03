@@ -18,7 +18,7 @@ private:
     std::string strWalletFile;
     std::map<uint256, CMintMeta> mapSerialHashes;
     std::map<uint256, uint256> mapPendingSpends; //serialhash, txid of spend
-    bool UpdateStatusInternal(const std::set<uint256>& setMempool, CMintMeta& mint);
+    bool UpdateMetaStatus(const std::set<uint256>& setMempool, CMintMeta& mint);
 public:
     CHDMintTracker(std::string strWalletFile);
     ~CHDMintTracker();

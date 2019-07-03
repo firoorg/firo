@@ -17,9 +17,9 @@ void CMintPool::Add(pair<uint256, MintPoolEntry> pMint, bool fVerbose)
         LogPrintf("%s : add %s count %d to mint pool\n", __func__, pMint.first.GetHex().substr(0, 6), get<2>(pMint.second));
 }
 
-bool SortSmallest(const pair<uint256, MintPoolEntry> a, const pair<uint256, MintPoolEntry> b)
+bool SortSmallest(const pair<uint256, MintPoolEntry>& a, const pair<uint256, MintPoolEntry>& b)
 {
-    return a.second < b.second;
+    return get<2>(a.second) < get<2>(b.second);
 }
 
 void CMintPool::List(list<pair<uint256, MintPoolEntry>>& listMints)

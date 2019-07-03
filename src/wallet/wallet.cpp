@@ -7135,8 +7135,10 @@ DBErrors CWallet::ZapSigmaMints() {
     if (!fFileBacked)
         return DB_LOAD_OK;
     DBErrors nZapSigmaMintRet = CWalletDB(strWalletFile, "cr+").ZapSigmaMints(this);
-    if (nZapSigmaMintRet != DB_LOAD_OK)
+    if (nZapSigmaMintRet != DB_LOAD_OK){
+        LogPrintf("Failed to remmove Sigma mints from CWalletDB");
         return nZapSigmaMintRet;
+    }
 
     return DB_LOAD_OK;
 }

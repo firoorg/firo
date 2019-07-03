@@ -53,7 +53,7 @@ bool CHDMintWallet::SetupWallet(const uint160& hashSeedMaster, bool fResetCount)
 
     if (fResetCount){
         walletdb.WriteZerocoinCount(nCountLastUsed);
-        walletdb.WriteZerocoinSeedCount(nCountLastUsed);
+        walletdb.WriteZerocoinSeedCount(nCountLastGenerated);
     }else{
         if (!walletdb.ReadZerocoinCount(nCountLastUsed))
             nCountLastUsed = COUNT_DEFAULT;
@@ -140,7 +140,7 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<list<p
         }
         for (pair<uint256, MintPoolEntry>& pMint : listMints.get()) {
             if (setChecked.count(pMint.first))
-                return;
+                continue;
             setChecked.insert(pMint.first);
 
             if (ShutdownRequested())
@@ -313,20 +313,22 @@ bool CHDMintWallet::SeedToZerocoin(const uint512& seedZerocoin, GroupElement& co
     return true;
 }
 
-CKeyID CHDMintWallet::GetZerocoinSeedData(int32_t nCount, uint160 hashSeedMaster){
+CKeyID CHDMintWallet::GetZerocoinSeedData(int32_t nCount){
     // Get CKeyID for n from mintpool
     uint256 hashPubcoin;
     std::pair<uint256,MintPoolEntry> mintPoolEntryPair;
 
-    while(!mintPool.Get(nCount, hashSeedMaster, mintPoolEntryPair)){
+    if(!mintPool.Get(nCount, hashSeedMaster, mintPoolEntryPair)){
         // Top up mintpool if empty
         GenerateMintPool();
+        if(!mintPool.Get(nCount, hashSeedMaster, mintPoolEntryPair))
+            throw ZerocoinException("Unable to retrieve mint seed ID");
     }
 
     return get<1>(mintPoolEntryPair.second);
 }
 
-uint512 CHDMintWallet::CreateZerocoinSeed(int32_t& n, CKeyID& seedId, bool checkIndex)
+uint512 CHDMintWallet::CreateZerocoinSeed(const int32_t& n, CKeyID& seedId, bool checkIndex)
 { 
     LOCK(pwalletMain->cs_wallet);
     CKey key;
@@ -400,7 +402,9 @@ void CHDMintWallet::UpdateCount()
 bool CHDMintWallet::GenerateMint(const sigma::CoinDenomination denom, sigma::PrivateCoin& coin, CHDMint& dMint, boost::optional<MintPoolEntry> mintPoolEntry)
 {
     if(mintPoolEntry==boost::none){
-        CKeyID seedId = GetZerocoinSeedData(nCountLastUsed, hashSeedMaster);
+        if(hashSeedMaster.IsNull())
+            throw ZerocoinException("Unable to generate mint: HashSeedMaster not set");
+        CKeyID seedId = GetZerocoinSeedData(nCountLastUsed);
         mintPoolEntry = MintPoolEntry(hashSeedMaster, seedId, nCountLastUsed);
         // Empty mintPoolEntry implies this is a new mint being created, so update nCountLastUsed
         UpdateCountLocal();

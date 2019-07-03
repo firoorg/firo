@@ -26,11 +26,9 @@ private:
 
 public:
     int static const COUNT_DEFAULT = 0;
-
+    
     CHDMintWallet(std::string strWalletFile);
 
-    bool ReadIsCrypted();
-    bool WriteIsCrypted(bool isCrypted);
     bool SetupWallet(const uint160& hashSeedMaster, bool fResetCount=false);
     void SyncWithChain(bool fGenerateMintPool = true, boost::optional<std::list<std::pair<uint256, MintPoolEntry>>> listMints = boost::none);
     bool GenerateMint(const sigma::CoinDenomination denom, sigma::PrivateCoin& coin, CHDMint& dMint, boost::optional<MintPoolEntry> mintPoolEntry = boost::none);
@@ -50,8 +48,8 @@ public:
     void UpdateCount();
 
 private:
-    CKeyID GetZerocoinSeedData(int32_t nCount, uint160 hashSeedMaster);
-    uint512 CreateZerocoinSeed(int32_t& n, CKeyID& seedId, bool checkIndex=true);
+    CKeyID GetZerocoinSeedData(int32_t nCount);
+    uint512 CreateZerocoinSeed(const int32_t& n, CKeyID& seedId, bool checkIndex=true);
 };
 
 #endif //ZCOIN_HDMINTWALLET_H

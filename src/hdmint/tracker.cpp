@@ -380,7 +380,7 @@ void CHDMintTracker::RemovePending(const uint256& txid)
         mapPendingSpends.erase(hashSerial);
 }
 
-bool CHDMintTracker::UpdateStatusInternal(const std::set<uint256>& setMempool, CMintMeta& mint)
+bool CHDMintTracker::UpdateMetaStatus(const std::set<uint256>& setMempool, CMintMeta& mint)
 {
     uint256 hashPubcoin = sigma::GetPubCoinValueHash(mint.pubCoinValue);
     //! Check whether this mint has been spent and is considered 'pending' or 'confirmed'
@@ -499,7 +499,7 @@ void CHDMintTracker::UpdateMintStateFromBlock(const std::vector<sigma::PublicCoi
                 continue;
             }
             CMintMeta meta = GetMetaFromPubcoin(hashPubcoin);
-            if(UpdateStatusInternal(setMempool, meta)){
+            if(UpdateMetaStatus(setMempool, meta)){
                 updatedMeta.emplace_back(meta);
             }
         }
@@ -540,7 +540,7 @@ void CHDMintTracker::UpdateSpendStateFromBlock(const sigma::spend_info_container
                 mintPoolEntries.push_back(std::make_pair(hashPubcoin, mintPoolEntry));
                 continue;
             }
-            if(UpdateStatusInternal(setMempool, meta)){
+            if(UpdateMetaStatus(setMempool, meta)){
                 updatedMeta.emplace_back(meta);
             }
         }
@@ -600,7 +600,7 @@ std::vector<CMintMeta> CHDMintTracker::ListMints(bool fUnusedOnly, bool fMatureO
             continue;
 
         // Update the metadata of the mints if requested
-        if (fUpdateStatus && UpdateStatusInternal(setMempool, mint)) {
+        if (fUpdateStatus && UpdateMetaStatus(setMempool, mint)) {
             if (mint.isArchived)
                 continue;
 
