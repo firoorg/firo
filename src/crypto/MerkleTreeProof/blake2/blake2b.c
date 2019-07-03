@@ -227,14 +227,8 @@ static void blake2b_4r_compress(blake2b_state *S, const uint8_t *block) {
     unsigned int i, r;
 
     load64_many(m, block, 16);
-//    for (i = 0; i < 16; ++i) {
-//        m[i] = load64(block + i * sizeof(m[i]));
-//    }
 
     memcpy(v, S->h, 8 * sizeof(v[0]));
-//    for (i = 0; i < 8; ++i) {
-//        v[i] = S->h[i];
-//    }
 
     v[8] = blake2b_IV[0];
     v[9] = blake2b_IV[1];

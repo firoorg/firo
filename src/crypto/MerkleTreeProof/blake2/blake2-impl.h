@@ -66,15 +66,15 @@ static BLAKE2_INLINE uint64_t load64(const void *src) {
     memcpy(&w, src, sizeof w);
     return w;
 #else
-        const uint8_t *p = (const uint8_t *)src;
-        uint64_t w = *p++;
-        w |= (uint64_t)(*p++) << 8;
-        w |= (uint64_t)(*p++) << 16;
-        w |= (uint64_t)(*p++) << 24;
-        w |= (uint64_t)(*p++) << 32;
-        w |= (uint64_t)(*p++) << 40;
-        w |= (uint64_t)(*p++) << 48;
-        w |= (uint64_t)(*p++) << 56;
+    const uint8_t *p = (const uint8_t *)src;
+    uint64_t w = *p++;
+    w |= (uint64_t)(*p++) << 8;
+    w |= (uint64_t)(*p++) << 16;
+    w |= (uint64_t)(*p++) << 24;
+    w |= (uint64_t)(*p++) << 32;
+    w |= (uint64_t)(*p++) << 40;
+    w |= (uint64_t)(*p++) << 48;
+    w |= (uint64_t)(*p++) << 56;
     return w;
 #endif
 }
