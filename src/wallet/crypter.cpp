@@ -206,7 +206,8 @@ bool CCryptoKeyStore::Unlock(const CKeyingMaterial& vMasterKeyIn, const bool& fF
         fDecryptionThoroughlyChecked = true;
         if(!fFirstUnlock){
             uint160 hashSeedMaster = pwalletMain->GetHDChain().masterKeyID;
-            pwalletMain->zwallet->SetupWallet(hashSeedMaster, false);
+            zwalletMain->SetupWallet(hashSeedMaster, false);
+            zwalletMain->SyncWithChain();
         }
     }
     NotifyStatusChanged(this);

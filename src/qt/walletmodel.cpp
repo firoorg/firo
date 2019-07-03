@@ -153,19 +153,12 @@ void WalletModel::updateSigmaCoins(const QString &pubCoin, const QString &isUsed
     } else if (status == ChangeType::CT_NEW) {
         // new mint
         LOCK2(cs_main, wallet->cs_wallet);
-        sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
-
-        std::list<CSigmaEntry> coins;
-        CWalletDB(wallet->strWalletFile).ListSigmaPubCoin(coins);
-
-        auto hdmintCoins = wallet->hdMintTracker->MintsAsZerocoinEntries();
-        coins.insert(coins.end(), hdmintCoins.begin(), hdmintCoins.end());
+        auto coins = wallet->hdMintTracker->ListMints(true, false, false);
 
         int block = cachedNumBlocks;
         for (const auto& coin : coins) {
-            if (!coin.IsUsed) {
-                int coinHeight = sigmaState->GetMintedCoinHeightAndId(
-                    sigma::PublicCoin(coin.value, coin.get_denomination())).first;
+            if (!coin.isUsed) {
+                int coinHeight = coin.nHeight;
                 if (coinHeight == -1
                     || (coinHeight <= block && coinHeight > block - ZC_MINT_CONFIRMATIONS)) {
                     cachedHavePendingCoin = true;
@@ -211,33 +204,22 @@ void WalletModel::checkBalanceChanged()
 void WalletModel::checkSigmaAmount(bool forced)
 {
     if ((cachedHavePendingCoin && cachedNumBlocks > lastBlockCheckSigma) || forced) {
-        std::list<CSigmaEntry> coins;
-        CWalletDB(wallet->strWalletFile).ListSigmaPubCoin(coins);
+        auto coins = wallet->hdMintTracker->ListMints(true, false, false);
 
-        auto hdmintCoins = wallet->hdMintTracker->MintsAsZerocoinEntries(true, false);
-        coins.insert(coins.end(), hdmintCoins.begin(), hdmintCoins.end());
-
-        std::vector<CSigmaEntry> spendable, pending;
+        std::vector<CMintMeta> spendable, pending;
 
         std::vector<sigma::PublicCoin> anonimity_set;
         uint256 blockHash;
-
-        sigma::CSigmaState *sigmaState = sigma::CSigmaState::GetState();
 
         cachedHavePendingCoin = false;
 
         for (const auto& coin : coins) {
 
-            if (coin.IsUsed) {
-                // ignore spended coin
+            // ignore spent coin
+            if (coin.isUsed)
                 continue;
-            }
 
-            auto coinHeightAndId = sigmaState->GetMintedCoinHeightAndId(
-                sigma::PublicCoin(coin.value, coin.get_denomination()));
-
-            int coinHeight = coinHeightAndId.first;
-            int coinGroupID = coinHeightAndId.second;
+            int coinHeight = coin.nHeight;
 
             if (coinHeight > 0
                 && coinHeight + (ZC_MINT_CONFIRMATIONS-1) <= chainActive.Height())  {

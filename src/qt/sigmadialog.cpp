@@ -121,7 +121,7 @@ void SigmaDialog::setWalletModel(WalletModel *model)
         connect(model, SIGNAL(balanceChanged(CAmount, CAmount, CAmount, CAmount, CAmount, CAmount)),
             this, SLOT(updateAvailableToMintBalance(CAmount)));
         updateAvailableToMintBalance(model->getBalance());
-        connect(model, SIGNAL(notifySigmaChanged(const std::vector<CSigmaEntry>, const std::vector<CSigmaEntry>)),
+        connect(model, SIGNAL(notifySigmaChanged(const std::vector<CMintMeta>, const std::vector<CMintMeta>)),
             this, SLOT(updateCoins(const std::vector<CSigmaEntry>, const std::vector<CSigmaEntry>)));
         model->checkSigmaAmount(true);
         for (int i = 0; i < ui->entries->count(); ++i) {

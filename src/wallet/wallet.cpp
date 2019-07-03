@@ -703,8 +703,8 @@ bool CWallet::EncryptWallet(const SecureString &strWalletPassphrase) {
 
             uint160 hashSeedMaster = hdChain.masterKeyID;
             // Setup HDMint wallet following encryption
-            pwalletMain->zwallet->SetupWallet(hashSeedMaster, true);
-            pwalletMain->zwallet->GenerateMintPool();
+            zwalletMain->SetupWallet(hashSeedMaster, true);
+            zwalletMain->SyncWithChain();
         }
 
         NewKeyPool();
@@ -7003,7 +7003,6 @@ bool CWallet::CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CSigmaEntry>
 
 bool CWallet::GetMint(const uint256& hashSerial, CSigmaEntry& zerocoin) const
 {
-    // TODO temporary solution
     if(IsLocked())
         return false;
     CMintMeta meta;

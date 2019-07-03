@@ -218,9 +218,7 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<list<p
                     setAddedTx.insert(txHash);
                 }
 
-                // TODO - temp solution to stop failure with locked wallet during syncz
-                if(!pwalletMain->IsLocked())
-                    SetMintSeedSeen(pMint.second, pindex->nHeight, txHash, denomination.get());
+                SetMintSeedSeen(pMint.second, pindex->nHeight, txHash, denomination.get());
 
                 if(!pwalletMain->IsCrypted() || (pwalletMain->IsCrypted() && hashSeedMaster == mintHashSeedMaster)){
                     nLastCountUsed = std::max(mintCount, nLastCountUsed);
@@ -238,35 +236,41 @@ bool CHDMintWallet::SetMintSeedSeen(MintPoolEntry mintPoolEntry, const int& nHei
     uint160 mintHashSeedMaster = get<0>(mintPoolEntry);
     CKeyID seedId = get<1>(mintPoolEntry);
     int32_t mintCount = get<2>(mintPoolEntry);
-    uint512 seedZerocoin = CreateZerocoinSeed(mintCount, seedId, false);
+
     GroupElement bnValue;
-    sigma::PrivateCoin coin(sigma::Params::get_default(), denom, false);
-    SeedToZerocoin(seedZerocoin, bnValue, coin);
-    CWalletDB walletdb(strWalletFile);
+    uint256 hashSerial;
+    bool serialInBlockchain = false;
+    if(!pwalletMain->IsLocked()){
+        uint512 seedZerocoin = CreateZerocoinSeed(mintCount, seedId, false);
+        sigma::PrivateCoin coin(sigma::Params::get_default(), denom, false);
+        SeedToZerocoin(seedZerocoin, bnValue, coin);   
+        hashSerial = sigma::GetSerialHash(coin.getSerialNumber());
 
-    // Create mint object and database it
-    uint256 hashSerial = sigma::GetSerialHash(coin.getSerialNumber());
+        // Check if this is also already spent
+        CWalletDB walletdb(strWalletFile);
+        int nHeightTx;
+        uint256 txidSpend;
+        CTransaction txSpend;
+        if (IsSerialInBlockchain(hashSerial, nHeightTx, txidSpend, txSpend)) {
+            //Find transaction details and make a wallettx and add to wallet
+            serialInBlockchain = true;
+            CWalletTx wtx(pwalletMain, txSpend);
+            CBlockIndex* pindex = chainActive[nHeightTx];
+            CBlock block;
+            if (ReadBlockFromDisk(block, pindex, Params().GetConsensus()))
+                wtx.SetMerkleBranch(block);
 
+            wtx.nTimeReceived = pindex->nTime;
+            pwalletMain->AddToWallet(wtx, false, &walletdb);
+        }
+    }
+
+    // Create mint object (temp object if wallet locked to allow Sigma state to view, will be updated on unlock)
     CHDMint dMint(mintCount, seedId, hashSerial, bnValue);
     dMint.SetDenomination(denom);
-    dMint.SetHeight(nHeight);
+    dMint.SetHeight(nHeight);  
 
-    // Check if this is also already spent
-    int nHeightTx;
-    uint256 txidSpend;
-    CTransaction txSpend;
-    if (IsSerialInBlockchain(hashSerial, nHeightTx, txidSpend, txSpend)) {
-        //Find transaction details and make a wallettx and add to wallet
-        dMint.SetUsed(true);
-        CWalletTx wtx(pwalletMain, txSpend);
-        CBlockIndex* pindex = chainActive[nHeightTx];
-        CBlock block;
-        if (ReadBlockFromDisk(block, pindex, Params().GetConsensus()))
-            wtx.SetMerkleBranch(block);
-
-        wtx.nTimeReceived = pindex->nTime;
-        pwalletMain->AddToWallet(wtx, false, &walletdb);
-    }
+    if(serialInBlockchain) dMint.SetUsed(true);
 
     // Add to hdMintTracker which also adds to database
     pwalletMain->hdMintTracker->Add(dMint, true);
@@ -274,14 +278,16 @@ bool CHDMintWallet::SetMintSeedSeen(MintPoolEntry mintPoolEntry, const int& nHei
     //Update the count if it is less than the mint's count (Only update if the mint matches the current hashSeedMaster)
     if(!pwalletMain->IsCrypted() || (pwalletMain->IsCrypted() && hashSeedMaster == mintHashSeedMaster)){
         if (nCountLastUsed < mintCount) {
-            nCountLastUsed = mintCount;
-            walletdb.WriteZerocoinCount(nCountLastUsed);
+            SetCount(mintCount);
+            UpdateCountDB();
         }
     }
 
-    uint256 hashPubcoin = dMint.GetPubCoinHash();
-    //remove from the pool
-    mintPool.Remove(hashPubcoin);
+    if(!pwalletMain->IsLocked()){
+        uint256 hashPubcoin = dMint.GetPubCoinHash();
+        //remove from the pool
+        mintPool.Remove(hashPubcoin);
+    }
 
     return true;
 }
@@ -381,6 +387,7 @@ void CHDMintWallet::UpdateCountDB()
 {
     CWalletDB walletdb(strWalletFile);
     walletdb.WriteZerocoinCount(nCountLastUsed);
+    GenerateMintPool();
 }
 
 void CHDMintWallet::UpdateCount()

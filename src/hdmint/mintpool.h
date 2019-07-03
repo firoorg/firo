@@ -34,7 +34,6 @@ public:
     bool Get(int32_t nCount, uint160 hashSeedMaster, pair<uint256, MintPoolEntry>& result);
     bool Front(pair<uint256, MintPoolEntry> pMint);
     bool Next(pair<uint256, MintPoolEntry> pMint);
-    MintPoolEntry InitEntry();
 };
 
 #endif // ZCOIN_MINTPOOL_H

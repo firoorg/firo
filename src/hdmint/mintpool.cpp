@@ -74,12 +74,4 @@ void CMintPool::Remove(const uint256 hashPubcoin)
     erase(it);
 }
 
-MintPoolEntry CMintPool::InitEntry(){
-    uint160 hashSeedMaster;
-    CKeyID seedId;
-    int32_t nCount;
-
-    return MintPoolEntry(hashSeedMaster,seedId,nCount);
-}
-
 

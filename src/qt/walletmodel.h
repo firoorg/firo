@@ -287,7 +287,7 @@ Q_SIGNALS:
     void notifyWatchonlyChanged(bool fHaveWatchonly);
 
     // Update sigma changed
-    void notifySigmaChanged(const std::vector<CSigmaEntry>& spendable, const std::vector<CSigmaEntry>& pending);
+    void notifySigmaChanged(const std::vector<CMintMeta>& spendable, const std::vector<CMintMeta>& pending);
 
 public Q_SLOTS:
     /* Wallet status might have changed */

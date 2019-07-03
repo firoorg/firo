@@ -38,7 +38,6 @@ public:
     std::vector<uint256> GetSerialHashes();
     std::list<CMintMeta> GetMints(bool fConfirmedOnly, bool fInactive = true) const;
     CAmount GetUnconfirmedBalance() const;
-    bool MintMetaToZerocoinEntries(std::list <CSigmaEntry>& entries, std::list<CMintMeta> setMints) const;
     void UpdateMintStateFromBlock(const std::vector<sigma::PublicCoin>& mints);
     void UpdateSpendStateFromBlock(const sigma::spend_info_container& spentSerials);
     list<CSigmaEntry> MintsAsZerocoinEntries(bool fUnusedOnly = true, bool fMatureOnly = true);

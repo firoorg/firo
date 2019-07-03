@@ -473,15 +473,6 @@ bool CHDMintTracker::UpdateStatusInternal(const std::set<uint256>& setMempool, C
     return false;
 }
 
-bool CHDMintTracker::MintMetaToZerocoinEntries(std::list <CSigmaEntry>& entries, std::list<CMintMeta> listMints) const {
-    CSigmaEntry entry;
-    for (const CMintMeta& mint : listMints) {
-        if (pwalletMain->GetMint(mint.hashSerial, entry))
-            entries.push_back(entry);
-    }
-    return true;
-}
-
 void CHDMintTracker::UpdateMintStateFromBlock(const std::vector<sigma::PublicCoin>& mints){
     CWalletDB walletdb(strWalletFile);
     std::vector<CMintMeta> updatedMeta;
