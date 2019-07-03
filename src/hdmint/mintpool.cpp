@@ -65,13 +65,4 @@ bool CMintPool::Next(pair<uint256, MintPoolEntry> pMint)
     return true;
 }
 
-void CMintPool::Remove(const uint256 hashPubcoin)
-{
-    auto it = find(hashPubcoin);
-    if (it == end())
-        return;
-
-    erase(it);
-}
-
 

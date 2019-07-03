@@ -39,6 +39,7 @@ SigmaDialog::SigmaDialog(const PlatformStyle *platformStyle, QWidget *parent) :
     setWindowTitle(tr("Sigma"));
 
     ui->scrollArea->setBackgroundRole(QPalette::Base);
+    ui->selectDenomsButton->hide();
 
     if (platformStyle->getImagesOnButtons()) {
         ui->sendButton->setIcon(platformStyle->SingleColorIcon(":/icons/export"));
@@ -122,7 +123,7 @@ void SigmaDialog::setWalletModel(WalletModel *model)
             this, SLOT(updateAvailableToMintBalance(CAmount)));
         updateAvailableToMintBalance(model->getBalance());
         connect(model, SIGNAL(notifySigmaChanged(const std::vector<CMintMeta>, const std::vector<CMintMeta>)),
-            this, SLOT(updateCoins(const std::vector<CSigmaEntry>, const std::vector<CSigmaEntry>)));
+            this, SLOT(updateCoins(const std::vector<CMintMeta>, const std::vector<CMintMeta>)));
         model->checkSigmaAmount(true);
         for (int i = 0; i < ui->entries->count(); ++i) {
             SendCoinsEntry *entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
@@ -731,14 +732,16 @@ static QString formatAmount(CAmount n)
     return quotient_str + QString(".") + remainder_str;
 }
 
-void SigmaDialog::updateCoins(const std::vector<CSigmaEntry>& spendable, const std::vector<CSigmaEntry>& pending)
+void SigmaDialog::updateCoins(const std::vector<CMintMeta>& spendable, const std::vector<CMintMeta>& pending)
 {
     std::unordered_map<sigma::CoinDenomination, int> spendableDenominationCoins;
 
     CAmount sum(0);
+    int64_t denom;
     for (const auto& c : spendable) {
-        spendableDenominationCoins[c.get_denomination()]++;
-        sum += c.get_denomination_value();
+        spendableDenominationCoins[c.denom]++;
+        DenominationToInteger(c.denom, denom);
+        sum += denom;
     }
 
     // update coins amount
@@ -760,7 +763,8 @@ void SigmaDialog::updateCoins(const std::vector<CSigmaEntry>& spendable, const s
 
     CAmount pendingSum(0);
     for (const auto& c : pending) {
-        pendingSum += c.get_denomination_value();
+        DenominationToInteger(c.denom, denom);
+        pendingSum += denom;
     }
 
     QString pendingAmount = QString("<span style='white-space: nowrap;'>%1</span>").arg(formatAmount(pendingSum));

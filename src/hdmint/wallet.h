@@ -43,6 +43,7 @@ public:
     bool SeedToZerocoin(const uint512& seedZerocoin, GroupElement& bnValue, sigma::PrivateCoin& coin);
     // Count updating functions
     int32_t GetCount();
+    void ResetCount();
     void SetCount(int32_t nCount);
     void UpdateCountLocal();
     void UpdateCountDB();

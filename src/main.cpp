@@ -3342,6 +3342,13 @@ bool static DisconnectTip(CValidationState &state, const CChainParams &chainpara
     if (!ReadBlockFromDisk(block, pindexDelete, chainparams.GetConsensus()))
         return AbortNode(state, "Failed to read block");
 
+    // retrieve all mints
+    block.sigmaTxInfo = std::make_shared<sigma::CSigmaTxInfo>();
+    for (auto const& tx : block.vtx) {
+        CheckTransaction(tx, state, tx.GetHash(), false, pindexDelete->pprev->nHeight,
+            false, false, nullptr, block.sigmaTxInfo.get());
+    }
+
     // Apply the block atomically to the chain state.
     int64_t nStart = GetTimeMicros();
     {
@@ -3405,6 +3412,13 @@ bool static DisconnectTip(CValidationState &state, const CChainParams &chainpara
     }
     // Update chainActive and related variables.
     UpdateTip(pindexDelete->pprev, chainparams);
+
+    // update mint/spend wallet
+    if(block.sigmaTxInfo->spentSerials.size() > 0)
+        pwalletMain->hdMintTracker->UpdateSpendStateFromBlock(block.sigmaTxInfo->spentSerials);
+
+    if(block.sigmaTxInfo->mints.size() > 0)
+        pwalletMain->hdMintTracker->UpdateMintStateFromBlock(block.sigmaTxInfo->mints);
 
     //! Exodus: begin block disconnect notification
     auto fExodus = isExodusEnabled();
@@ -4343,8 +4357,7 @@ bool CheckBlock(const CBlock &block, CValidationState &state,
             nHeight = ZerocoinGetNHeight(block.GetBlockHeader());
 
         if (!CheckZerocoinFoundersInputs(block.vtx[0], state, Params().GetConsensus(), nHeight, block.IsMTP())) {
-            return state.Invalid(
-                    false, state.GetRejectCode(), state.GetRejectReason(), "Zerocoin founders input check failure");
+            return state.Invalid(false, state.GetRejectCode(), state.GetRejectReason(), "Founders' reward check failed");
         }
 
         BOOST_FOREACH(const CTransaction &tx, block.vtx) {

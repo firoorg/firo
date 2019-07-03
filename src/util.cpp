@@ -880,36 +880,3 @@ std::string CopyrightHolders(const std::string& strPrefix)
     }
     return strCopyrightHolders;
 }
-
-std::pair<bool,std::string> ReadBinaryFileTor(const std::string &filename, size_t maxsize)
-{
-    FILE *f = fopen(filename.c_str(), "rb");
-    if (f == NULL)
-        return std::make_pair(false,"");
-    std::string retval;
-    char buffer[128];
-    size_t n;
-    while ((n=fread(buffer, 1, sizeof(buffer), f)) > 0) {
-        retval.append(buffer, buffer+n);
-        if (retval.size() > maxsize)
-            break;
-    }
-    fclose(f);
-    return std::make_pair(true,retval);
-}
-
-/** Write contents of std::string to a file.
- * @return true on success.
- */
-bool WriteBinaryFileTor(const std::string &filename, const std::string &data)
-{
-    FILE *f = fopen(filename.c_str(), "wb");
-    if (f == NULL)
-        return false;
-    if (fwrite(data.data(), 1, data.size(), f) != data.size()) {
-        fclose(f);
-        return false;
-    }
-    fclose(f);
-    return true;
-}

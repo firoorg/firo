@@ -139,7 +139,6 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<list<p
             mintPool.List(listMints.get());
         }
         for (pair<uint256, MintPoolEntry>& pMint : listMints.get()) {
-            LOCK(cs_main);
             if (setChecked.count(pMint.first))
                 return;
             setChecked.insert(pMint.first);
@@ -150,10 +149,9 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<list<p
             uint160& mintHashSeedMaster = get<0>(pMint.second);
             int32_t& mintCount = get<2>(pMint.second);
 
-            if (pwalletMain->hdMintTracker->HasPubcoinHash(pMint.first)) {
-                mintPool.Remove(pMint.first);
+            // halt processing if mint already in tracker
+            if (pwalletMain->hdMintTracker->HasPubcoinHash(pMint.first))
                 continue;
-            }
             
             COutPoint outPoint;
             if (sigma::GetOutPoint(outPoint, pMint.first)) {
@@ -283,12 +281,6 @@ bool CHDMintWallet::SetMintSeedSeen(MintPoolEntry mintPoolEntry, const int& nHei
         }
     }
 
-    if(!pwalletMain->IsLocked()){
-        uint256 hashPubcoin = dMint.GetPubCoinHash();
-        //remove from the pool
-        mintPool.Remove(hashPubcoin);
-    }
-
     return true;
 }
 
@@ -340,8 +332,10 @@ uint512 CHDMintWallet::CreateZerocoinSeed(int32_t& n, CKeyID& seedId, bool check
     CKey key;
     // Ensures value of child index is correct for seed being generated
     if(checkIndex){
-        if(n != pwalletMain->GetHDChain().nExternalChainCounters[BIP44_MINT_INDEX])
+        if(n != pwalletMain->GetHDChain().nExternalChainCounters[BIP44_MINT_INDEX]){
+            ResetCount();
             throw ZerocoinException("Unable to generate mint seed: incorrect value of child index.");
+        }
     }
     
     // if passed seedId, we assume generation of seed has occured.
@@ -352,6 +346,7 @@ uint512 CHDMintWallet::CreateZerocoinSeed(int32_t& n, CKeyID& seedId, bool check
     }
 
     if (!pwalletMain->CCryptoKeyStore::GetKey(seedId, key)){
+        ResetCount();
         throw ZerocoinException("Unable to retrieve generated key for mint seed.");
     }
 
@@ -371,6 +366,12 @@ uint512 CHDMintWallet::CreateZerocoinSeed(int32_t& n, CKeyID& seedId, bool check
 int32_t CHDMintWallet::GetCount()
 {
     return nCountLastUsed;
+}
+
+void CHDMintWallet::ResetCount()
+{
+    CWalletDB walletdb(strWalletFile);
+    walletdb.ReadZerocoinCount(nCountLastUsed);
 }
 
 void CHDMintWallet::SetCount(int32_t nCount)

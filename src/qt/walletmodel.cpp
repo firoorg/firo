@@ -203,7 +203,11 @@ void WalletModel::checkBalanceChanged()
 
 void WalletModel::checkSigmaAmount(bool forced)
 {
-    if ((cachedHavePendingCoin && cachedNumBlocks > lastBlockCheckSigma) || forced) {
+    auto currentBlock = chainActive.Height();
+    if ((cachedHavePendingCoin && currentBlock > lastBlockCheckSigma)
+        || currentBlock < lastBlockCheckSigma // reorg
+        || forced) {
+
         auto coins = wallet->hdMintTracker->ListMints(true, false, false);
 
         std::vector<CMintMeta> spendable, pending;
@@ -230,7 +234,7 @@ void WalletModel::checkSigmaAmount(bool forced)
             }
         }
 
-        lastBlockCheckSigma = chainActive.Height();
+        lastBlockCheckSigma = currentBlock;
         Q_EMIT notifySigmaChanged(spendable, pending);
     }
 }

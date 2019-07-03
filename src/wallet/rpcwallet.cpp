@@ -2781,6 +2781,8 @@ UniValue mint(const UniValue& params, bool fHelp)
             + HelpExampleRpc("mint", "0.15")
         );
 
+    EnsureWalletIsUnlocked();
+
     // Ensure Sigma mints is already accepted by network so users will not lost their coins
     // due to other nodes will treat it as garbage data.
     if (!sigma::IsSigmaAllowed()) {
