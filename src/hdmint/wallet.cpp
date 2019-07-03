@@ -321,8 +321,10 @@ CKeyID CHDMintWallet::GetZerocoinSeedData(int32_t nCount){
     if(!mintPool.Get(nCount, hashSeedMaster, mintPoolEntryPair)){
         // Top up mintpool if empty
         GenerateMintPool();
-        if(!mintPool.Get(nCount, hashSeedMaster, mintPoolEntryPair))
+        if(!mintPool.Get(nCount, hashSeedMaster, mintPoolEntryPair)){
+            ResetCount();
             throw ZerocoinException("Unable to retrieve mint seed ID");
+        }
     }
 
     return get<1>(mintPoolEntryPair.second);
