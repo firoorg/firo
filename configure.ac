@@ -149,12 +149,6 @@ AC_ARG_WITH([qrencode],
   [use_qr=$withval],
   [use_qr=auto])
 
-AC_ARG_ENABLE([hardening],
-  [AS_HELP_STRING([--disable-hardening],
-  [do not attempt to harden the resulting executables (default is to harden)])],
-  [use_hardening=$enableval],
-  [use_hardening=yes])
-
 AC_ARG_ENABLE([reduce-exports],
   [AS_HELP_STRING([--enable-reduce-exports],
   [attempt to reduce exported symbols in the resulting executables (default is no)])],
@@ -199,6 +193,18 @@ AC_ARG_ENABLE([debug],
                     [use debug compiler flags and macros (default is no)])],
     [enable_debug=$enableval],
     [enable_debug=no])
+
+if test "x$enable_debug" = xyes; then
+	default_use_hardening=no
+else
+	default_use_hardening=yes
+fi
+
+AC_ARG_ENABLE([hardening],
+  [AS_HELP_STRING([--disable-hardening],
+  [do not attempt to harden the resulting executables (default is to harden)])],
+  [use_hardening=$enableval],
+  [use_hardening=$default_use_hardening])
 
 AC_ARG_ENABLE(seccomp,
     AS_HELP_STRING(--disable-seccomp, [do not attempt to use libseccomp]))
