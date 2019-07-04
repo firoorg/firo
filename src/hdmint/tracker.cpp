@@ -43,13 +43,13 @@ void CHDMintTracker::Init()
 
 bool CHDMintTracker::Archive(CMintMeta& meta)
 {
-    uint256 hashPubcoin = sigma::GetPubCoinValueHash(meta.pubCoinValue);
+    uint256 hashPubcoin = meta.GetPubCoinValueHash();
 
     if (HasSerialHash(meta.hashSerial))
         mapSerialHashes.at(meta.hashSerial).isArchived = true;
 
-    CWalletDB walletdb(strWalletFile);
-    CSigmaEntry zerocoin;
+//    CWalletDB walletdb(strWalletFile);
+//    CSigmaEntry zerocoin;
     // if (walletdb.ReadZerocoinEntry(meta.pubCoinValue, zerocoin)) {
     //     if (!CWalletDB(strWalletFile).ArchiveMintOrphan(zerocoin))
     //         return error("%s: failed to archive zerocoinmint", __func__);
@@ -99,7 +99,7 @@ CMintMeta CHDMintTracker::GetMetaFromPubcoin(const uint256& hashPubcoin)
 {
     for (auto it : mapSerialHashes) {
         CMintMeta meta = it.second;
-        if (sigma::GetPubCoinValueHash(meta.pubCoinValue) == hashPubcoin)
+        if (meta.GetPubCoinValueHash() == hashPubcoin)
             return meta;
     }
 
@@ -196,9 +196,9 @@ bool CHDMintTracker::HasPubcoin(const GroupElement &pubcoin) const
 
 bool CHDMintTracker::HasPubcoinHash(const uint256& hashPubcoin) const
 {
-    for (auto it : mapSerialHashes) {
+    for (auto const & it : mapSerialHashes) {
         CMintMeta meta = it.second;
-        if (sigma::GetPubCoinValueHash(meta.pubCoinValue) == hashPubcoin)
+        if (meta.GetPubCoinValueHash() == hashPubcoin)
             return true;
     }
     return false;
@@ -237,7 +237,7 @@ bool CHDMintTracker::UpdateZerocoinEntry(const CSigmaEntry& zerocoin)
 
 bool CHDMintTracker::UpdateState(const CMintMeta& meta)
 {
-    uint256 hashPubcoin = sigma::GetPubCoinValueHash(meta.pubCoinValue);
+    uint256 hashPubcoin = meta.GetPubCoinValueHash();
     CWalletDB walletdb(strWalletFile);
 
     if (meta.isDeterministic) {
@@ -277,7 +277,7 @@ bool CHDMintTracker::UpdateState(const CMintMeta& meta)
             CT_UPDATED);
     } else {
         CSigmaEntry zerocoin;
-        if (!walletdb.ReadZerocoinEntry(meta.pubCoinValue, zerocoin))
+        if (!walletdb.ReadZerocoinEntry(meta.GetPubCoinValue(), zerocoin))
             return error("%s: failed to read mint from database", __func__);
 
         zerocoin.nHeight = meta.nHeight;
@@ -303,7 +303,7 @@ bool CHDMintTracker::UpdateState(const CMintMeta& meta)
 void CHDMintTracker::Add(const CHDMint& dMint, bool isNew, bool isArchived)
 {
     CMintMeta meta;
-    meta.pubCoinValue = dMint.GetPubcoinValue();
+    meta.SetPubCoinValue(dMint.GetPubcoinValue());
     meta.nHeight = dMint.GetHeight();
     meta.nId = dMint.GetId();
     meta.txid = dMint.GetTxHash();
@@ -328,7 +328,7 @@ void CHDMintTracker::Add(const CHDMint& dMint, bool isNew, bool isArchived)
 void CHDMintTracker::Add(const CSigmaEntry& zerocoin, bool isNew, bool isArchived)
 {
     CMintMeta meta;
-    meta.pubCoinValue = zerocoin.value;
+    meta.SetPubCoinValue(zerocoin.value);
     meta.nHeight = zerocoin.nHeight;
     meta.nId = zerocoin.id;
     //meta.txid = zerocoin.GetTxHash();
@@ -382,11 +382,11 @@ void CHDMintTracker::RemovePending(const uint256& txid)
 
 bool CHDMintTracker::UpdateMetaStatus(const std::set<uint256>& setMempool, CMintMeta& mint)
 {
-    uint256 hashPubcoin = sigma::GetPubCoinValueHash(mint.pubCoinValue);
+    uint256 hashPubcoin = mint.GetPubCoinValueHash();
     //! Check whether this mint has been spent and is considered 'pending' or 'confirmed'
     // If there is not a record of the block height, then look it up and assign it
     COutPoint outPoint;
-    sigma::PublicCoin pubCoin(mint.pubCoinValue, mint.denom);
+    sigma::PublicCoin pubCoin(mint.GetPubCoinValue(), mint.denom);
     bool isMintInChain = GetOutPoint(outPoint, pubCoin);
     const uint256& txidMint = outPoint.hash;
 
@@ -453,7 +453,7 @@ bool CHDMintTracker::UpdateMetaStatus(const std::set<uint256>& setMempool, CMint
 
                 return true;
             }else if((mint.nHeight==-1) || (mint.nId<=0)){ // assign nHeight if not present
-                sigma::PublicCoin pubcoin(mint.pubCoinValue, mint.denom);
+                sigma::PublicCoin pubcoin(mint.GetPubCoinValue(), mint.denom);
                 auto MintedCoinHeightAndId = sigmaState->GetMintedCoinHeightAndId(pubcoin);
                 mint.nHeight = MintedCoinHeightAndId.first;
                 mint.nId = MintedCoinHeightAndId.second;

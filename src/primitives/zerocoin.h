@@ -7,6 +7,7 @@
 
 #include <amount.h>
 #include <streams.h>
+#include <boost/optional.hpp>
 #include <limits.h>
 #include "libzerocoin/bitcoin_bignum/bignum.h"
 #include "libzerocoin/Zerocoin.h"
@@ -20,7 +21,9 @@ struct CMintMeta
 {
     int nHeight;
     int nId;
-    GroupElement pubCoinValue;
+    GroupElement const & GetPubCoinValue() const;
+    void SetPubCoinValue(GroupElement const & other);
+    uint256 GetPubCoinValueHash() const;
     uint256 hashSerial;
     uint8_t nVersion;
     sigma::CoinDenomination denom;
@@ -29,6 +32,9 @@ struct CMintMeta
     bool isArchived;
     bool isDeterministic;
     bool isSeedCorrect;
+private:
+    GroupElement pubCoinValue;
+    mutable boost::optional<uint256> pubCoinValueHash;
 };
 
 class CZerocoinEntry
