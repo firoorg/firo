@@ -5,13 +5,11 @@
  * UTF-8 encoded strings, including support for multibyte characters.
  */
 
-#include "exodus/mbstring.h"
+#include "mbstring.h"
 
 #include <stddef.h>
 #include <string>
 
-namespace exodus
-{
 namespace mbstring
 {
 /**
@@ -123,5 +121,3 @@ std::string SanitizeInvalidUTF8(const std::string& s)
 
     return result;
 }
-
-} // namespace exodus

@@ -4,6 +4,11 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "main.h"
+
+#if defined(HAVE_CONFIG_H)
+#include "config/bitcoin-config.h"
+#endif
+
 #include "zerocoin.h"
 
 #include "addrman.h"
@@ -15,7 +20,6 @@
 #include "consensus/consensus.h"
 #include "consensus/merkle.h"
 #include "consensus/validation.h"
-#include "exodus/exodus.h"
 #include "hash.h"
 #include "init.h"
 #include "base58.h"
@@ -55,6 +59,10 @@
 #include "coins.h"
 
 #include "sigma/coinspend.h"
+
+#ifdef ENABLE_EXODUS
+#include "exodus/exodus.h"
+#endif
 
 #include <atomic>
 #include <sstream>
@@ -3406,6 +3414,7 @@ bool static DisconnectTip(CValidationState &state, const CChainParams &chainpara
     // Update chainActive and related variables.
     UpdateTip(pindexDelete->pprev, chainparams);
 
+#ifdef ENABLE_EXODUS
     //! Exodus: begin block disconnect notification
     auto fExodus = isExodusEnabled();
 
@@ -3413,6 +3422,7 @@ bool static DisconnectTip(CValidationState &state, const CChainParams &chainpara
         LogPrint("handler", "Exodus handler: block disconnect begin [height: %d, reindex: %d]\n", GetHeight(), (int)fReindex);
         exodus_handler_disc_begin(GetHeight(), pindexDelete);
     }
+#endif
 
     // Let wallets know transactions went from 1-confirmed to
     // 0-confirmed or conflicted:
@@ -3420,11 +3430,13 @@ bool static DisconnectTip(CValidationState &state, const CChainParams &chainpara
         SyncWithWallets(tx, pindexDelete->pprev, NULL);
     }
 
+#ifdef ENABLE_EXODUS
     //! Exodus: end of block disconnect notification
     if (fExodus) {
         LogPrint("handler", "Exodus handler: block disconnect end [height: %d, reindex: %d]\n", GetHeight(), (int)fReindex);
         exodus_handler_disc_end(GetHeight(), pindexDelete);
     }
+#endif
 
     return true;
 }
@@ -3484,6 +3496,7 @@ ConnectTip(CValidationState &state, const CChainParams &chainparams, CBlockIndex
     LogPrint("bench", "  - Writing chainstate: %.2fms [%.2fs]\n", (nTime5 - nTime4) * 0.001,
              nTimeChainState * 0.000001);
 
+#ifdef ENABLE_EXODUS
     bool fExodus = isExodusEnabled();
 
     //! Exodus: transaction position within the block
@@ -3496,6 +3509,7 @@ ConnectTip(CValidationState &state, const CChainParams &chainparams, CBlockIndex
         LogPrint("handler", "Exodus handler: block connect begin [height: %d]\n", GetHeight());
         exodus_handler_block_begin(GetHeight(), pindexNew);
     }
+#endif
 
     // Remove conflicting transactions from the mempool.
     list <CTransaction> txConflicted;
@@ -3519,11 +3533,13 @@ ConnectTip(CValidationState &state, const CChainParams &chainparams, CBlockIndex
     const CTransaction &tx, pblock->vtx) {
         SyncWithWallets(tx, pindexNew, pblock);
 
+#ifdef ENABLE_EXODUS
         //! Exodus: new confirmed transaction notification
         if (fExodus) {
             LogPrint("handler", "Exodus handler: new confirmed transaction [height: %d, idx: %u]\n", GetHeight(), nTxIdx);
             if (exodus_handler_tx(tx, GetHeight(), nTxIdx++, pindexNew)) ++nNumMetaTxs;
         }
+#endif
     }
 
     // Sync with HDMint wallet
@@ -3533,11 +3549,13 @@ ConnectTip(CValidationState &state, const CChainParams &chainparams, CBlockIndex
     if(pblock->sigmaTxInfo->mints.size() > 0)
         pwalletMain->hdMintTracker->UpdateMintStateFromBlock(pblock->sigmaTxInfo->mints);
 
+#ifdef ENABLE_EXODUS
     //! Exodus: end of block connect notification
     if (fExodus) {
         LogPrint("handler", "Exodus handler: block connect end [new height: %d, found: %u txs]\n", GetHeight(), nNumMetaTxs);
         exodus_handler_block_end(GetHeight(), pindexNew, nNumMetaTxs);
     }
+#endif
 
     int64_t nTime6 = GetTimeMicros();
     nTimePostConnect += nTime6 - nTime5;
