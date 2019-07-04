@@ -619,23 +619,21 @@ bool GetOutPointFromBlock(COutPoint& outPoint, const GroupElement &pubCoinValue,
     secp_primitives::GroupElement txPubCoinValue;
     // cycle transaction hashes, looking for this pubcoin.
     BOOST_FOREACH(CTransaction tx, block.vtx){
-        if(tx.IsSigmaMint()){
-            uint32_t nIndex = 0;
-            for (const CTxOut &txout: tx.vout) {
-                if (txout.scriptPubKey.IsSigmaMint()){
+        uint32_t nIndex = 0;
+        for (const CTxOut &txout: tx.vout) {
+            if (txout.scriptPubKey.IsSigmaMint()){
 
-                    // If you wonder why +1, go to file wallet.cpp and read the comments in function
-                    // CWallet::CreateZerocoinMintModelV3 around "scriptSerializedCoin << OP_ZEROCOINMINTV3";
-                    vector<unsigned char> coin_serialised(txout.scriptPubKey.begin() + 1,
-                                                          txout.scriptPubKey.end());
-                    txPubCoinValue.deserialize(&coin_serialised[0]);
-                    if(pubCoinValue==txPubCoinValue){
-                        outPoint = COutPoint(tx.GetHash(), nIndex);
-                        return true;
-                    }
+                // If you wonder why +1, go to file wallet.cpp and read the comments in function
+                // CWallet::CreateZerocoinMintModelV3 around "scriptSerializedCoin << OP_ZEROCOINMINTV3";
+                vector<unsigned char> coin_serialised(txout.scriptPubKey.begin() + 1,
+                                                      txout.scriptPubKey.end());
+                txPubCoinValue.deserialize(&coin_serialised[0]);
+                if(pubCoinValue==txPubCoinValue){
+                    outPoint = COutPoint(tx.GetHash(), nIndex);
+                    return true;
                 }
-                nIndex++;
             }
+            nIndex++;
         }
     }
 

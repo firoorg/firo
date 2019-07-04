@@ -18,40 +18,38 @@ class CHDMint;
 class CHDMintWallet
 {
 private:
-    uint32_t nCountLastUsed;
+    int32_t nCountNextUse;
+    int32_t nCountNextGenerate;
     std::string strWalletFile;
     CMintPool mintPool;
     uint160 hashSeedMaster;
 
 public:
-    int static const COUNT_LAST_USED_DEFAULT = 0;
-
+    int static const COUNT_DEFAULT = 0;
+    
     CHDMintWallet(std::string strWalletFile);
 
-    bool SetHashSeedMaster(const uint160& hashSeedMaster, bool fResetCount=false);
-    void SyncWithChain(bool fGenerateMintPool = true);
-    uint32_t GenerateHDMint(sigma::CoinDenomination denom, sigma::PrivateCoin& coin, CHDMint& dMint, bool fGenerateOnly = false);
-    bool GenerateMint(const uint32_t& nCount, const sigma::CoinDenomination denom, CKeyID seedId, sigma::PrivateCoin& coin, CHDMint& dMint);
+    bool SetupWallet(const uint160& hashSeedMaster, bool fResetCount=false);
+    void SyncWithChain(bool fGenerateMintPool = true, boost::optional<std::list<std::pair<uint256, MintPoolEntry>>> listMints = boost::none);
+    bool GenerateMint(const sigma::CoinDenomination denom, sigma::PrivateCoin& coin, CHDMint& dMint, boost::optional<MintPoolEntry> mintPoolEntry = boost::none);
     bool LoadMintPoolFromDB();
-    void GetState(int& nCount, int& nLastGenerated);
     bool RegenerateMint(const CHDMint& dMint, CSigmaEntry& zerocoin);
     bool IsSerialInBlockchain(const uint256& hashSerial, int& nHeightTx, uint256& txidSpend, CTransaction& tx);
     bool TxOutToPublicCoin(const CTxOut& txout, sigma::PublicCoin& pubCoin, CValidationState& state);
-    void GenerateMintPool(uint32_t nCountStart = 0, uint32_t nCountEnd = 0);
-    bool SetMintSeedSeen(CKeyID& seedId, const int& nHeight, const uint256& txid, const sigma::CoinDenomination& denom);
-    bool IsInMintPool(const CKeyID& seedId) { return mintPool.Has(seedId); }
-    void Lock();
+    void GenerateMintPool(int32_t nIndex = 0);
+    bool SetMintSeedSeen(std::pair<uint256,MintPoolEntry> mintPoolEntryPair, const int& nHeight, const uint256& txid, const sigma::CoinDenomination& denom);
     bool SeedToZerocoin(const uint512& seedZerocoin, GroupElement& bnValue, sigma::PrivateCoin& coin);
     // Count updating functions
-    uint32_t GetCount();
-    void SetCount(uint32_t nCount);
+    int32_t GetCount();
+    void ResetCount();
+    void SetCount(int32_t nCount);
     void UpdateCountLocal();
     void UpdateCountDB();
     void UpdateCount();
 
 private:
-    CKeyID GetZerocoinSeedID(uint32_t n);
-    uint512 GetZerocoinSeed(uint32_t n, CKeyID& seedId);
+    CKeyID GetZerocoinSeedID(int32_t nCount);
+    bool CreateZerocoinSeed(uint512& seedZerocoin, const int32_t& n, CKeyID& seedId, bool checkIndex=true);
 };
 
 #endif //ZCOIN_HDMINTWALLET_H

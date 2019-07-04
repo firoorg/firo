@@ -11,6 +11,7 @@
 #include "primitives/transaction.h"
 #include "primitives/zerocoin.h"
 #include "hdmint/hdmint.h"
+#include "hdmint/mintpool.h"
 #include "wallet/db.h"
 #include "key.h"
 
@@ -221,14 +222,15 @@ public:
     DBErrors FindWalletTx(CWallet* pwallet, std::vector<uint256>& vTxHash, std::vector<CWalletTx>& vWtx);
     DBErrors ZapWalletTx(CWallet* pwallet, std::vector<CWalletTx>& vWtx);
     DBErrors ZapSelectTx(CWallet* pwallet, std::vector<uint256>& vHashIn, std::vector<uint256>& vHashOut);
+    DBErrors ZapSigmaMints(CWallet* pwallet);
     static bool Recover(CDBEnv& dbenv, const std::string& filename, bool fOnlyKeys);
     static bool Recover(CDBEnv& dbenv, const std::string& filename);
 
-    bool ReadCurrentSeedHash(uint160& hashSeed);
-    bool WriteCurrentSeedHash(const uint160& hashSeed);
+    bool ReadZerocoinCount(int32_t& nCount);
+    bool WriteZerocoinCount(const int32_t& nCount);
 
-    bool ReadZerocoinCount(uint32_t& nCount);
-    bool WriteZerocoinCount(const uint32_t& nCount);
+    bool ReadZerocoinSeedCount(int32_t& nCount);
+    bool WriteZerocoinSeedCount(const int32_t& nCount);
 
     bool ArchiveMintOrphan(const CZerocoinEntry& zerocoin);
     bool ArchiveDeterministicOrphan(const CHDMint& dMint);
@@ -237,12 +239,16 @@ public:
 
     bool WriteHDMint(const CHDMint& dMint);
     bool ReadHDMint(const uint256& hashPubcoin, CHDMint& dMint);
+    bool EraseHDMint(const CHDMint& dMint);
     bool HasHDMint(const secp_primitives::GroupElement& pub);
 
-     std::list<CHDMint> ListHDMints();
-
-     std::map<uint160, std::vector<pair<CKeyID, uint32_t> > > MapMintPool();
-    bool WriteMintPoolPair(const uint160& hashMasterSeed, const CKeyID& seedId, const uint32_t& nCount);
+    std::list<CHDMint> ListHDMints();
+    bool WritePubcoin(const uint256& hashSerial, const GroupElement& hashPubcoin);
+    bool ReadPubcoin(const uint256& hashSerial, GroupElement& hashPubcoin);
+    std::vector<std::pair<uint256, GroupElement>> ListSerialPubcoinPairs();
+    bool WriteMintPoolPair(const uint256& hashPubcoin, const std::tuple<uint160, CKeyID, int32_t>& hashSeedMintPool);
+    bool ReadMintPoolPair(const uint256& hashPubcoin, uint160& hashSeedMaster, CKeyID& seedId, int32_t& nCount);
+    std::vector<std::pair<uint256, MintPoolEntry>> ListMintPool();
 
     //! write the hdchain model (external chain child index counter)
     bool WriteHDChain(const CHDChain& chain);

@@ -6,6 +6,7 @@
 #define ZCOIN_HDMINTTRACKER_H
 
 #include "primitives/zerocoin.h"
+#include "hdmint/mintpool.h"
 #include <list>
 
 class CHDMint;
@@ -18,11 +19,11 @@ private:
     std::string strWalletFile;
     std::map<uint256, CMintMeta> mapSerialHashes;
     std::map<uint256, uint256> mapPendingSpends; //serialhash, txid of spend
-    bool UpdateStatusInternal(const std::set<uint256>& setMempool, CMintMeta& mint);
+    bool UpdateMetaStatus(const std::set<uint256>& setMempool, CMintMeta& mint);
 public:
     CHDMintTracker(std::string strWalletFile);
     ~CHDMintTracker();
-    void Add(const CHDMint& dMint, bool isNew = false, bool isArchived = false, CHDMintWallet* zerocoinWallet = NULL);
+    void Add(const CHDMint& dMint, bool isNew = false, bool isArchived = false);
     void Add(const CSigmaEntry& zerocoin, bool isNew = false, bool isArchived = false);
     bool Archive(CMintMeta& meta);
     bool HasPubcoin(const GroupElement& pubcoin) const;
@@ -36,10 +37,9 @@ public:
     CMintMeta GetMetaFromPubcoin(const uint256& hashPubcoin);
     CAmount GetBalance(bool fConfirmedOnly, bool fUnconfirmedOnly) const;
     std::vector<uint256> GetSerialHashes();
-    bool UpdateMints(std::set<uint256> serialHashes, bool fReset, bool fUpdateStatus, bool fStatus=false);
     std::list<CMintMeta> GetMints(bool fConfirmedOnly, bool fInactive = true) const;
     CAmount GetUnconfirmedBalance() const;
-    bool MintMetaToZerocoinEntries(std::list <CSigmaEntry>& entries, std::list<CMintMeta> setMints) const;
+    void UpdateFromBlock(const std::list<std::pair<uint256, MintPoolEntry>>& mintPoolEntries, const std::vector<CMintMeta>& updatedMeta);
     void UpdateMintStateFromBlock(const std::vector<sigma::PublicCoin>& mints);
     void UpdateSpendStateFromBlock(const sigma::spend_info_container& spentSerials);
     list<CSigmaEntry> MintsAsZerocoinEntries(bool fUnusedOnly = true, bool fMatureOnly = true);

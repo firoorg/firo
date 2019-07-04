@@ -2781,6 +2781,8 @@ UniValue mint(const UniValue& params, bool fHelp)
             + HelpExampleRpc("mint", "0.15")
         );
 
+    EnsureWalletIsUnlocked();
+
     // Ensure Sigma mints is already accepted by network so users will not lost their coins
     // due to other nodes will treat it as garbage data.
     if (!sigma::IsSigmaAllowed()) {
@@ -3429,6 +3431,9 @@ UniValue listsigmamints(const UniValue& params, bool fHelp) {
         fAllStatus = params[0].get_bool();
     }
 
+    // Mint secret data encrypted in wallet
+    EnsureWalletIsUnlocked();
+
     list <CSigmaEntry> listPubcoin;
     CWalletDB walletdb(pwalletMain->strWalletFile);
     listPubcoin = pwalletMain->hdMintTracker->MintsAsZerocoinEntries(false, false);
@@ -3507,6 +3512,9 @@ UniValue listsigmapubcoins(const UniValue& params, bool fHelp) {
             throw runtime_error(help_message);
         }
     }
+
+    // Mint secret data encrypted in wallet
+    EnsureWalletIsUnlocked();
 
     list<CSigmaEntry> listPubcoin;
     CWalletDB walletdb(pwalletMain->strWalletFile);
@@ -3613,6 +3621,8 @@ UniValue setsigmamintstatus(const UniValue& params, bool fHelp) {
 
     bool fStatus = true;
     fStatus = params[1].get_bool();
+
+    EnsureWalletIsUnlocked();
 
     std::vector <CMintMeta> listMints;
     CWalletDB walletdb(pwalletMain->strWalletFile);

@@ -831,7 +831,7 @@ public:
     //! Adds a watch-only address to the store, without saving it to disk (used by LoadWallet)
     bool LoadWatchOnly(const CScript &dest);
 
-    bool Unlock(const SecureString& strWalletPassphrase);
+    bool Unlock(const SecureString& strWalletPassphrase, const bool& fFirstUnlock=false);
     bool ChangeWalletPassphrase(const SecureString& strOldWalletPassphrase, const SecureString& strNewWalletPassphrase);
     bool EncryptWallet(const SecureString& strWalletPassphrase);
 
@@ -1099,6 +1099,9 @@ public:
     DBErrors LoadWallet(bool& fFirstRunRet);
     DBErrors ZapWalletTx(std::vector<CWalletTx>& vWtx);
     DBErrors ZapSelectTx(std::vector<uint256>& vHashIn, std::vector<uint256>& vHashOut);
+
+    // Remove all CSigmaEntry and CHDMint objects from WalletDB.
+    DBErrors ZapSigmaMints();
 
     bool SetAddressBook(const CTxDestination& address, const std::string& strName, const std::string& purpose);
 

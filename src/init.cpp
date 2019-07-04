@@ -955,6 +955,12 @@ void InitParameterInteraction() {
             LogPrintf("%s: parameter interaction: -salvagewallet=1 -> setting -rescan=1\n", __func__);
     }
 
+    // -zapwalletmints implies a reindex
+    if (GetBoolArg("-zapwalletmints", false)) {
+        if (SoftSetBoolArg("-reindex", true))
+            LogPrintf("%s: parameter interaction: -zapwalletmints=<mode> -> setting -reindex=1\n", __func__);
+    }
+
     // -zapwallettx implies a rescan
     if (GetBoolArg("-zapwallettxes", false)) {
         if (SoftSetBoolArg("-rescan", true))
