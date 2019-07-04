@@ -163,7 +163,6 @@ BITCOIN_CORE_H = \
   fixed.h \
   pow.h \
   hdmint/hdmint.h \
-  primitives/zerocoin.h \
   protocol.h \
   random.h \
   reverselock.h \
@@ -355,6 +354,8 @@ libbitcoin_consensus_a_SOURCES = \
   primitives/precomputed_hash.h \
   primitives/transaction.cpp \
   primitives/transaction.h \
+  primitives/zerocoin.cpp \
+  primitives/zerocoin.h \
   pubkey.cpp \
   pubkey.h \
   script/bitcoinconsensus.cpp \
