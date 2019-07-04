@@ -3368,7 +3368,7 @@ UniValue resetsigmamint(const UniValue& params, bool fHelp) {
 
     BOOST_FOREACH(CMintMeta &mint, listMints) {
         CHDMint dMint;
-        if (!walletdb.ReadHDMint(sigma::GetPubCoinValueHash(mint.pubCoinValue), dMint)){
+        if (!walletdb.ReadHDMint(mint.GetPubCoinValueHash(), dMint)){
             continue;
         }
         dMint.SetUsed(false);
@@ -3626,7 +3626,7 @@ UniValue setsigmamintstatus(const UniValue& params, bool fHelp) {
             continue;
 
         CHDMint dMint;
-        if (!walletdb.ReadHDMint(sigma::GetPubCoinValueHash(mint.pubCoinValue), dMint)){
+        if (!walletdb.ReadHDMint(mint.GetPubCoinValueHash(), dMint)){
             continue;
         }
 
