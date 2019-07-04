@@ -339,7 +339,7 @@ void BitcoinGUI::createActions()
 	tabGroup->addAction(sigmaAction);
 
         zc2SigmaAction = new QAction(platformStyle->SingleColorIcon(":/icons/zerocoin"), tr("&Remint"), this);
-        zc2SigmaAction->setStatusTip(tr("Show the list of public coins that have been minted"));
+        zc2SigmaAction->setStatusTip(tr("Show the list of public Zerocoins that could be reminted in Sigma"));
         zc2SigmaAction->setToolTip(zc2SigmaAction->statusTip());
         zc2SigmaAction->setCheckable(true);
         zc2SigmaAction->setShortcut(QKeySequence(Qt::ALT +  key++));

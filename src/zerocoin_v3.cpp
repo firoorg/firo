@@ -721,13 +721,6 @@ uint256 GetSerialHash(const secp_primitives::Scalar& bnSerial)
     return Hash(ss.begin(), ss.end());
 }
 
-uint256 GetPubCoinValueHash(const secp_primitives::GroupElement& bnValue)
-{
-    CDataStream ss(SER_GETHASH, 0);
-    ss << bnValue;
-    return Hash(ss.begin(), ss.end());
-}
-
 // CZerocoinTxInfoV3
 
 void CSigmaTxInfo::Complete() {
@@ -1000,7 +993,7 @@ bool CSigmaState::HasCoin(const sigma::PublicCoin& pubCoin) {
 bool CSigmaState::HasCoinHash(GroupElement &pubCoinValue, const uint256 &pubCoinValueHash) {
     for ( auto it = GetMints().begin(); it != GetMints().end(); ++it ){
     	const sigma::PublicCoin pubCoin = (*it).first;
-        if(GetPubCoinValueHash(pubCoin.value)==pubCoinValueHash){
+        if(primitives::GetPubCoinValueHash(pubCoin.value)==pubCoinValueHash){
             pubCoinValue = pubCoin.value;
             return true;
         }

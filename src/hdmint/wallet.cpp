@@ -96,7 +96,7 @@ void CHDMintWallet::GenerateMintPool(int32_t nIndex)
         if(!SeedToZerocoin(seedZerocoin, commitmentValue, coin))
             continue;
 
-        uint256 hashPubcoin = sigma::GetPubCoinValueHash(commitmentValue);
+        uint256 hashPubcoin = primitives::GetPubCoinValueHash(commitmentValue);
 
         MintPoolEntry mintPoolEntry(hashSeedMaster, seedId, nLastCount);
         mintPool.Add(make_pair(hashPubcoin, mintPoolEntry));
@@ -185,7 +185,7 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
                     }
 
                     // See if this is the mint that we are looking for
-                    uint256 hashPubcoin = sigma::GetPubCoinValueHash(pubcoin.getValue());
+                    uint256 hashPubcoin = primitives::GetPubCoinValueHash(pubcoin.getValue());
                     if (pMint.first == hashPubcoin) {
                         denomination = pubcoin.getDenomination();
                         bnValue = pubcoin.getValue();
@@ -255,7 +255,7 @@ bool CHDMintWallet::SetMintSeedSeen(std::pair<uint256,MintPoolEntry> mintPoolEnt
         bool fFound = false;
         for(auto serialPubcoinPair : serialPubcoinPairs){
             GroupElement pubcoin = serialPubcoinPair.second;
-            if(hashPubcoin == sigma::GetPubCoinValueHash(pubcoin)){
+            if(hashPubcoin == primitives::GetPubCoinValueHash(pubcoin)){
                 bnValue = pubcoin;
                 hashSerial = serialPubcoinPair.first;
                 fFound = true;
@@ -456,7 +456,7 @@ bool CHDMintWallet::RegenerateMint(const CHDMint& dMint, CSigmaEntry& zerocoin)
 
     //Fill in the zerocoinmint object's details
     GroupElement bnValue = coin.getPublicCoin().getValue();
-    if (sigma::GetPubCoinValueHash(bnValue) != dMint.GetPubCoinHash())
+    if (primitives::GetPubCoinValueHash(bnValue) != dMint.GetPubCoinHash())
         return error("%s: failed to correctly generate mint, pubcoin hash mismatch", __func__);
     zerocoin.value = bnValue;
 

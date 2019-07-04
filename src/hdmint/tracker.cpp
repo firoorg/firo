@@ -190,7 +190,7 @@ bool CHDMintTracker::HasMintTx(const uint256& txid)
 bool CHDMintTracker::HasPubcoin(const GroupElement &pubcoin) const
 {
     // Check if this mint's pubcoin value belongs to our mapSerialHashes (which includes hashpubcoin values)
-    uint256 hash = sigma::GetPubCoinValueHash(pubcoin);
+    uint256 hash = primitives::GetPubCoinValueHash(pubcoin);
     return HasPubcoinHash(hash);
 }
 
@@ -498,7 +498,7 @@ void CHDMintTracker::UpdateMintStateFromBlock(const std::vector<sigma::PublicCoi
         mempool.getTransactions(setMempool);
     }
     for (auto& mint : mints) {
-        uint256 hashPubcoin = sigma::GetPubCoinValueHash(mint.getValue());
+        uint256 hashPubcoin = primitives::GetPubCoinValueHash(mint.getValue());
         // Check hashPubcoin in db
         if(walletdb.ReadMintPoolPair(hashPubcoin, hashSeedMasterEntry, seedId, nCount)){
             // If found in db but not in memory - this is likely a resync
@@ -537,7 +537,7 @@ void CHDMintTracker::UpdateSpendStateFromBlock(const sigma::spend_info_container
         if(walletdb.ReadPubcoin(spentSerialHash, pubcoin)){
             // If found in db but not in memory - this is likely a resync
             if(!Get(spentSerialHash, meta)){
-                uint256 hashPubcoin = GetPubCoinValueHash(pubcoin);
+                uint256 hashPubcoin = primitives::GetPubCoinValueHash(pubcoin);
                 if(!walletdb.ReadMintPoolPair(hashPubcoin, hashSeedMasterEntry, seedId, nCount)){
                     continue;
                 }

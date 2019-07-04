@@ -527,7 +527,7 @@ bool CWalletDB::EraseHDMint(const CHDMint& dMint) {
 }
 
 bool CWalletDB::HasHDMint(const secp_primitives::GroupElement& pub) {
-    return Exists(std::make_pair(std::string("hdmint"), sigma::GetPubCoinValueHash(pub)));
+    return Exists(std::make_pair(std::string("hdmint"), primitives::GetPubCoinValueHash(pub)));
 }
 
 class CWalletScanState {
@@ -1536,7 +1536,7 @@ bool CWalletDB::UnarchiveZerocoinMint(const uint256& hashPubcoin, CSigmaEntry& z
     if (!WriteZerocoinEntry(zerocoin))
         return error("%s: failed to write zerocoinmint", __func__);
 
-    uint256 hash = sigma::GetPubCoinValueHash(zerocoin.value);
+    uint256 hash = primitives::GetPubCoinValueHash(zerocoin.value);
     if (!Erase(make_pair(string("zco"), hash)))
         return error("%s : failed to erase archived zerocoin mint", __func__);
 

@@ -327,4 +327,8 @@ private:
     int64_t denomination;
 };
 
+namespace primitives {
+uint256 GetPubCoinValueHash(const secp_primitives::GroupElement& bnValue);
+}
+
 #endif //PRIMITIVES_ZEROCOIN_H

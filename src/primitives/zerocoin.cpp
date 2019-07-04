@@ -1,5 +1,4 @@
 #include "zerocoin.h"
-#include <zerocoin_v3.h>
 
 
 GroupElement const & CMintMeta::GetPubCoinValue() const {
@@ -17,6 +16,18 @@ void CMintMeta::SetPubCoinValue(GroupElement const & other) {
 
 uint256 CMintMeta::GetPubCoinValueHash() const {
     if(!pubCoinValueHash)
-        pubCoinValueHash.reset(sigma::GetPubCoinValueHash(pubCoinValue));
+        pubCoinValueHash.reset(primitives::GetPubCoinValueHash(pubCoinValue));
     return *pubCoinValueHash;
+}
+
+
+namespace primitives {
+
+uint256 GetPubCoinValueHash(const secp_primitives::GroupElement& bnValue)
+{
+    CDataStream ss(SER_GETHASH, 0);
+    ss << bnValue;
+    return Hash(ss.begin(), ss.end());
+}
+
 }
