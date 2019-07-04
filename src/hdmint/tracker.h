@@ -6,6 +6,7 @@
 #define ZCOIN_HDMINTTRACKER_H
 
 #include "primitives/zerocoin.h"
+#include "hdmint/mintpool.h"
 #include <list>
 
 class CHDMint;
@@ -38,6 +39,7 @@ public:
     std::vector<uint256> GetSerialHashes();
     std::list<CMintMeta> GetMints(bool fConfirmedOnly, bool fInactive = true) const;
     CAmount GetUnconfirmedBalance() const;
+    void UpdateFromBlock(const std::list<std::pair<uint256, MintPoolEntry>>& mintPoolEntries, const std::vector<CMintMeta>& updatedMeta);
     void UpdateMintStateFromBlock(const std::vector<sigma::PublicCoin>& mints);
     void UpdateSpendStateFromBlock(const sigma::spend_info_container& spentSerials);
     list<CSigmaEntry> MintsAsZerocoinEntries(bool fUnusedOnly = true, bool fMatureOnly = true);

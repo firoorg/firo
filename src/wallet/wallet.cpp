@@ -2139,13 +2139,12 @@ std::vector<CRecipient> CWallet::CreateSigmaMintRecipients(
     vector<CHDMint>& vDMints)
 {
     std::vector<CRecipient> vecSend;
-    CHDMint dMint;
 
     std::transform(coins.begin(), coins.end(), std::back_inserter(vecSend),
-        [&vDMints, &dMint](sigma::PrivateCoin& coin) -> CRecipient {
+        [&vDMints](sigma::PrivateCoin& coin) -> CRecipient {
 
             // Generate and store secrets deterministically in the following function.
-            dMint.SetNull();
+            CHDMint dMint;
             zwalletMain->GenerateMint(coin.getPublicCoin().getDenomination(), coin, dMint);
 
 
@@ -4165,7 +4164,7 @@ bool CWallet::CreateSigmaMintModel(string &stringError, const string& denomAmoun
 
     CHDMint dMint;
 
-    uint32_t nCountLastUsed = zwalletMain->GetCount();
+    uint32_t nCountNextUse = zwalletMain->GetCount();
 
     // Set up the Zerocoin Params object
     sigma::Params *sigmaParams = sigma::Params::get_default();
@@ -4224,7 +4223,7 @@ bool CWallet::CreateSigmaMintModel(string &stringError, const string& denomAmoun
         return true;
     } else {
         // reset coin count
-        zwalletMain->SetCount(nCountLastUsed);
+        zwalletMain->SetCount(nCountNextUse);
         return false;
     }
 }
@@ -4536,7 +4535,7 @@ bool CWallet::CreateZerocoinToSigmaRemintModel(string &stringError, int version,
             CT_NEW);
     }
 
-    // Update nCountLastUsed in HDMint wallet database
+    // Update nCountNextUse in HDMint wallet database
     zwalletMain->UpdateCountDB();
 
     if (wtx)
@@ -6557,7 +6556,7 @@ string CWallet::MintAndStoreSigma(const vector<CRecipient>& vecSend,
             CT_NEW);
     }
 
-    // Update nCountLastUsed in HDMint wallet database
+    // Update nCountNextUse in HDMint wallet database
     zwalletMain->UpdateCountDB();
 
     return "";

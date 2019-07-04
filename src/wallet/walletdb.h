@@ -243,8 +243,9 @@ public:
     bool HasHDMint(const secp_primitives::GroupElement& pub);
 
     std::list<CHDMint> ListHDMints();
-    bool WriteSerialHash(const uint256& hashSerial, const uint256& hashPubcoin);
-    bool ReadSerialHash(const uint256& hashSerial, uint256& hashPubcoin);
+    bool WritePubcoin(const uint256& hashSerial, const GroupElement& hashPubcoin);
+    bool ReadPubcoin(const uint256& hashSerial, GroupElement& hashPubcoin);
+    std::vector<std::pair<uint256, GroupElement>> ListSerialPubcoinPairs();
     bool WriteMintPoolPair(const uint256& hashPubcoin, const std::tuple<uint160, CKeyID, int32_t>& hashSeedMintPool);
     bool ReadMintPoolPair(const uint256& hashPubcoin, uint160& hashSeedMaster, CKeyID& seedId, int32_t& nCount);
     std::vector<std::pair<uint256, MintPoolEntry>> ListMintPool();

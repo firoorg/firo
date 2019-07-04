@@ -476,6 +476,15 @@ bool CHDMintTracker::UpdateMetaStatus(const std::set<uint256>& setMempool, CMint
     return false;
 }
 
+void CHDMintTracker::UpdateFromBlock(const std::list<std::pair<uint256, MintPoolEntry>>& mintPoolEntries, const std::vector<CMintMeta>& updatedMeta){
+    if(mintPoolEntries.size()>0)
+        zwalletMain->SyncWithChain(false, mintPoolEntries);
+
+    //overwrite any updates
+    for (CMintMeta meta : updatedMeta)
+        UpdateState(meta);
+}
+
 void CHDMintTracker::UpdateMintStateFromBlock(const std::vector<sigma::PublicCoin>& mints){
     CWalletDB walletdb(strWalletFile);
     std::vector<CMintMeta> updatedMeta;
@@ -505,12 +514,7 @@ void CHDMintTracker::UpdateMintStateFromBlock(const std::vector<sigma::PublicCoi
         }
     }
 
-    if(mintPoolEntries.size()>0)
-        zwalletMain->SyncWithChain(false, mintPoolEntries);
-
-    //overwrite any updates
-    for (CMintMeta& meta : updatedMeta)
-        UpdateState(meta);
+    UpdateFromBlock(mintPoolEntries, updatedMeta);
 }
 
 void CHDMintTracker::UpdateSpendStateFromBlock(const sigma::spend_info_container& spentSerials){
@@ -528,11 +532,12 @@ void CHDMintTracker::UpdateSpendStateFromBlock(const sigma::spend_info_container
     for(auto& spentSerial : spentSerials){
         uint256 spentSerialHash = sigma::GetSerialHash(spentSerial.first);
         CMintMeta meta;
-        uint256 hashPubcoin;
+        GroupElement pubcoin;
         // Check serialHash in db
-        if(walletdb.ReadSerialHash(spentSerialHash, hashPubcoin)){
+        if(walletdb.ReadPubcoin(spentSerialHash, pubcoin)){
             // If found in db but not in memory - this is likely a resync
             if(!Get(spentSerialHash, meta)){
+                uint256 hashPubcoin = GetPubCoinValueHash(pubcoin);
                 if(!walletdb.ReadMintPoolPair(hashPubcoin, hashSeedMasterEntry, seedId, nCount)){
                     continue;
                 }
@@ -546,12 +551,7 @@ void CHDMintTracker::UpdateSpendStateFromBlock(const sigma::spend_info_container
         }
     }
 
-    if(mintPoolEntries.size()>0)
-        zwalletMain->SyncWithChain(false, mintPoolEntries);
-
-    //overwrite any updates
-    for (CMintMeta& meta : updatedMeta)
-        UpdateState(meta);
+    UpdateFromBlock(mintPoolEntries, updatedMeta);
 }
 
 list<CSigmaEntry> CHDMintTracker::MintsAsZerocoinEntries(bool fUnusedOnly, bool fMatureOnly){

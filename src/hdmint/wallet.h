@@ -18,8 +18,8 @@ class CHDMint;
 class CHDMintWallet
 {
 private:
-    int32_t nCountLastUsed;
-    int32_t nCountLastGenerated;
+    int32_t nCountNextUse;
+    int32_t nCountNextGenerate;
     std::string strWalletFile;
     CMintPool mintPool;
     uint160 hashSeedMaster;
@@ -36,8 +36,8 @@ public:
     bool RegenerateMint(const CHDMint& dMint, CSigmaEntry& zerocoin);
     bool IsSerialInBlockchain(const uint256& hashSerial, int& nHeightTx, uint256& txidSpend, CTransaction& tx);
     bool TxOutToPublicCoin(const CTxOut& txout, sigma::PublicCoin& pubCoin, CValidationState& state);
-    void GenerateMintPool();
-    bool SetMintSeedSeen(MintPoolEntry mintPoolEntry, const int& nHeight, const uint256& txid, const sigma::CoinDenomination& denom);
+    void GenerateMintPool(int32_t nIndex = 0);
+    bool SetMintSeedSeen(std::pair<uint256,MintPoolEntry> mintPoolEntryPair, const int& nHeight, const uint256& txid, const sigma::CoinDenomination& denom);
     bool SeedToZerocoin(const uint512& seedZerocoin, GroupElement& bnValue, sigma::PrivateCoin& coin);
     // Count updating functions
     int32_t GetCount();
@@ -48,8 +48,8 @@ public:
     void UpdateCount();
 
 private:
-    CKeyID GetZerocoinSeedData(int32_t nCount);
-    uint512 CreateZerocoinSeed(const int32_t& n, CKeyID& seedId, bool checkIndex=true);
+    CKeyID GetZerocoinSeedID(int32_t nCount);
+    bool CreateZerocoinSeed(uint512& seedZerocoin, const int32_t& n, CKeyID& seedId, bool checkIndex=true);
 };
 
 #endif //ZCOIN_HDMINTWALLET_H

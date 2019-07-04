@@ -47,22 +47,5 @@ bool CMintPool::Get(int32_t nCount, uint160 hashSeedMaster, pair<uint256, MintPo
     return false;
 
 }
-bool CMintPool::Front(pair<uint256, MintPoolEntry> pMint)
-{
-    if (empty())
-        return false;
-    pMint = *begin();
-    return true;
-}
-
-bool CMintPool::Next(pair<uint256, MintPoolEntry> pMint)
-{
-    auto it = find(pMint.first);
-    if (it == end() || ++it == end())
-        return false;
-
-    pMint = *it;
-    return true;
-}
 
 

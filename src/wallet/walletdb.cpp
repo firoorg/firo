@@ -1317,14 +1317,59 @@ bool CWalletDB::WriteZerocoinSeedCount(const int32_t& nCount)
     return Write(string("dzsc"), nCount);
 }
 
-bool CWalletDB::WriteSerialHash(const uint256& hashSerial, const uint256& hashPubcoin)
+bool CWalletDB::WritePubcoin(const uint256& hashSerial, const GroupElement& pubcoin)
 {
-    return Write(make_pair(string("serialhash"), hashSerial), hashPubcoin);
+    return Write(make_pair(string("pubcoin"), hashSerial), pubcoin);
 }
 
-bool CWalletDB::ReadSerialHash(const uint256& hashSerial, uint256& hashPubcoin)
+bool CWalletDB::ReadPubcoin(const uint256& hashSerial, GroupElement& pubcoin)
 {
-    return Read(make_pair(string("serialhash"), hashSerial), hashPubcoin);
+    return Read(make_pair(string("pubcoin"), hashSerial), pubcoin);
+}
+
+std::vector<std::pair<uint256, GroupElement>> CWalletDB::ListSerialPubcoinPairs()
+{
+    std::vector<std::pair<uint256, GroupElement>> listSerialPubcoin;
+    Dbc* pcursor = GetCursor();
+    if (!pcursor)
+        throw runtime_error(std::string(__func__)+" : cannot create DB cursor");
+    unsigned int fFlags = DB_SET_RANGE;
+    for (;;)
+    {
+        // Read next record
+        CDataStream ssKey(SER_DISK, CLIENT_VERSION);
+        if (fFlags == DB_SET_RANGE)
+            ssKey << make_pair(string("pubcoin"), ArithToUint256(arith_uint256(0)));
+        CDataStream ssValue(SER_DISK, CLIENT_VERSION);
+        int ret = ReadAtCursor(pcursor, ssKey, ssValue, fFlags);
+        fFlags = DB_NEXT;
+        if (ret == DB_NOTFOUND)
+            break;
+        else if (ret != 0)
+        {
+            pcursor->close();
+            throw runtime_error(std::string(__func__)+" : error scanning DB");
+        }
+
+        // Unserialize
+        string strType;
+        ssKey >> strType;
+        if (strType != "pubcoin")
+            break;
+
+        uint256 hashSerial;
+        ssKey >> hashSerial;
+
+        GroupElement pubcoin;
+        ssValue >> pubcoin;
+
+        listSerialPubcoin.push_back(make_pair(hashSerial, pubcoin));
+    }
+
+    pcursor->close();
+
+    return listSerialPubcoin;
+
 }
 
 bool CWalletDB::WriteMintPoolPair(const uint256& hashPubcoin, const std::tuple<uint160, CKeyID, int32_t>& hashSeedMintPool)
@@ -1340,6 +1385,7 @@ bool CWalletDB::ReadMintPoolPair(const uint256& hashPubcoin, uint160& hashSeedMa
     hashSeedMaster = get<0>(hashSeedMintPool);
     seedId = get<1>(hashSeedMintPool);
     nCount = get<2>(hashSeedMintPool);
+    return true;
 }
 
 //! list of MintPoolEntry objects mapped with pubCoin hash, returned as pairs

@@ -31,8 +31,6 @@ public:
     void List(list<pair<uint256, MintPoolEntry>>& listMints);
     void Reset();
     bool Get(int32_t nCount, uint160 hashSeedMaster, pair<uint256, MintPoolEntry>& result);
-    bool Front(pair<uint256, MintPoolEntry> pMint);
-    bool Next(pair<uint256, MintPoolEntry> pMint);
 };
 
 #endif // ZCOIN_MINTPOOL_H
