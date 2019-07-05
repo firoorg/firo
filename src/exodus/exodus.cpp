@@ -2380,14 +2380,16 @@ bool exodus::UseEncodingClassC(size_t nDataSize)
 
 // This function requests the wallet create an Exodus transaction using the supplied parameters and payload
 int exodus::WalletTxBuilder(const std::string& senderAddress, const std::string& receiverAddress, const std::string& redemptionAddress,
-        int64_t referenceAmount, const std::vector<unsigned char>& data, uint256& txid, std::string& rawHex, bool commit)
+        int64_t referenceAmount, const std::vector<unsigned char>& data, uint256& txid, std::string& rawHex, bool commit, InputMode inputMode)
 {
 #ifdef ENABLE_WALLET
     if (pwalletMain == NULL) return MP_ERR_WALLET_ACCESS;
 
     // Determine the class to send the transaction via - default is Class C
     int exodusTxClass = EXODUS_CLASS_C;
-    if (!UseEncodingClassC(data.size())) exodusTxClass = EXODUS_CLASS_B;
+    if (inputMode == InputMode::NORMAL) {
+        if (!UseEncodingClassC(data.size())) exodusTxClass = EXODUS_CLASS_B;
+    }
 
     // Prepare the transaction - first setup some vars
     CCoinControl coinControl;
@@ -2403,11 +2405,16 @@ int exodus::WalletTxBuilder(const std::string& senderAddress, const std::string&
     coinControl.destChange = addr.Get();
 
     // Select the inputs
-    if (0 > SelectCoins(senderAddress, coinControl, referenceAmount)) { return MP_INPUTS_INVALID; }
+    if (0 >= SelectCoins(senderAddress, coinControl, referenceAmount, inputMode)) {
+        return MP_INPUTS_INVALID;
+    }
 
     // Encode the data outputs
     switch(exodusTxClass) {
         case EXODUS_CLASS_B: { // declaring vars in a switch here so use an expicit code block
+            if (inputMode != InputMode::NORMAL) {
+                return MP_INPUTS_INVALID;
+            }
             CPubKey redeemingPubKey;
             const std::string& sAddress = redemptionAddress.empty() ? senderAddress : redemptionAddress;
             if (!AddressToPubKey(sAddress, redeemingPubKey)) {
@@ -2416,7 +2423,7 @@ int exodus::WalletTxBuilder(const std::string& senderAddress, const std::string&
             if (!Exodus_Encode_ClassB(senderAddress,redeemingPubKey,data,vecSend)) { return MP_ENCODING_ERROR; }
         break; }
         case EXODUS_CLASS_C:
-            if(!Exodus_Encode_ClassC(data,vecSend)) { return MP_ENCODING_ERROR; }
+            if(!Exodus_Encode_ClassC(data, vecSend)) { return MP_ENCODING_ERROR; }
         break;
     }
 
@@ -2437,9 +2444,28 @@ int exodus::WalletTxBuilder(const std::string& senderAddress, const std::string&
         vecRecipients.push_back(recipient);
     }
 
-    // Ask the wallet to create the transaction (note mining fee determined by Bitcoin Core params)
-    if (!pwalletMain->CreateTransaction(vecRecipients, wtxNew, reserveKey, nFeeRet, nChangePosInOut, strFailReason, &coinControl)) {
-        PrintToLog("%s: ERROR: wallet transaction creation failed: %s\n", __func__, strFailReason);
+    std::vector<CSigmaEntry> sigmaSelected;
+    std::vector<CHDMint> sigmaChanges;
+
+    switch (inputMode) {
+    case InputMode::NORMAL:
+        // Ask the wallet to create the transaction (note mining fee determined by Bitcoin Core params)
+        if (!pwalletMain->CreateTransaction(vecRecipients, wtxNew, reserveKey, nFeeRet, nChangePosInOut, strFailReason, &coinControl)) {
+            PrintToLog("%s: ERROR: wallet transaction creation failed: %s\n", __func__, strFailReason);
+            return MP_ERR_CREATE_TX;
+        }
+        break;
+    case InputMode::SIGMA:
+        CAmount fee;
+        try {
+            wtxNew = pwalletMain->CreateSigmaSpendTransaction(vecRecipients, fee, sigmaSelected, sigmaChanges, &coinControl);
+        } catch (std::exception const &err) {
+            PrintToLog("%s: ERROR: wallet transaction creation failed: %s\n", __func__, err.what());
+            return MP_ERR_CREATE_TX;
+        }
+        break;
+    default:
+        PrintToLog("%s: ERROR: wallet transaction creation failed: input mode is invalid\n", __func__);
         return MP_ERR_CREATE_TX;
     }
 
@@ -2450,7 +2476,20 @@ int exodus::WalletTxBuilder(const std::string& senderAddress, const std::string&
     } else {
         // Commit the transaction to the wallet and broadcast)
         PrintToLog("%s: %s; nFeeRet = %d\n", __func__, wtxNew.ToString(), nFeeRet);
-        if (!pwalletMain->CommitTransaction(wtxNew, reserveKey)) return MP_ERR_COMMIT_TX;
+        switch (inputMode) {
+        case InputMode::NORMAL:
+            if (!pwalletMain->CommitTransaction(wtxNew, reserveKey)) return MP_ERR_COMMIT_TX;
+            break;
+        case InputMode::SIGMA:
+            try {
+                if (!pwalletMain->CommitSigmaTransaction(wtxNew, sigmaSelected, sigmaChanges)) return MP_ERR_COMMIT_TX;
+            } catch (...) {
+                return MP_ERR_COMMIT_TX;
+            }
+            break;
+        default:
+            return MP_ERR_COMMIT_TX;
+        }
         txid = wtxNew.GetHash();
         return 0;
     }
