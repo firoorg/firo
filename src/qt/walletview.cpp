@@ -263,6 +263,7 @@ void WalletView::setWalletModel(WalletModel *walletModel)
     znodeListPage->setWalletModel(walletModel);
     sendZcoinView->setModel(walletModel);
     exoAssetsPage->setWalletModel(walletModel);
+    zc2SigmaPage->setWalletModel(walletModel);
 
     if (exodusTransactionsView) {
         exodusTransactionsView->setWalletModel(walletModel);
