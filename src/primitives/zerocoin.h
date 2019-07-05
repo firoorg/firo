@@ -328,6 +328,7 @@ private:
 };
 
 namespace primitives {
+uint256 GetSerialHash(const secp_primitives::Scalar& bnSerial);
 uint256 GetPubCoinValueHash(const secp_primitives::GroupElement& bnValue);
 }
 

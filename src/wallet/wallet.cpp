@@ -5532,7 +5532,7 @@ bool CWallet::CreateSigmaSpendTransaction(
                 if (!forceUsed && spend.getCoinSerialNumber() == item.coinSerial) {
                     // THIS SELECTED COIN HAS BEEN USED, SO UPDATE ITS STATUS
                     strFailReason = _("Trying to spend an already spent serial #, try again.");
-                    uint256 hashSerial = sigma::GetSerialHash(spend.getCoinSerialNumber());
+                    uint256 hashSerial = primitives::GetSerialHash(spend.getCoinSerialNumber());
                     if (!pwalletMain->hdMintTracker->HasSerialHash(hashSerial)){
                         strFailReason = "Tracker does not have serialhash " + hashSerial.GetHex();
                         return false;
@@ -6227,7 +6227,7 @@ bool CWallet::CreateMultipleSigmaSpendTransaction(
                     if (!forceUsed && spend.getCoinSerialNumber() == item.coinSerial) {
                         // THIS SELECTED COIN HAS BEEN USED, SO UPDATE ITS STATUS
                         strFailReason = _("Trying to spend an already spent serial #, try again.");
-                        uint256 hashSerial = sigma::GetSerialHash(spend.getCoinSerialNumber());
+                        uint256 hashSerial = primitives::GetSerialHash(spend.getCoinSerialNumber());
                         if (!pwalletMain->hdMintTracker->HasSerialHash(hashSerial)){
                             strFailReason = "Tracker does not have serialhash " + hashSerial.GetHex();
                             return false;

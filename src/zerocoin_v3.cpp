@@ -714,13 +714,6 @@ bool BuildSigmaStateFromIndex(CChain *chain) {
     return true;
 }
 
-uint256 GetSerialHash(const secp_primitives::Scalar& bnSerial)
-{
-    CDataStream ss(SER_GETHASH, 0);
-    ss << bnSerial;
-    return Hash(ss.begin(), ss.end());
-}
-
 // CZerocoinTxInfoV3
 
 void CSigmaTxInfo::Complete() {
@@ -978,7 +971,7 @@ bool CSigmaState::IsUsedCoinSerial(const Scalar &coinSerial) {
 
 bool CSigmaState::IsUsedCoinSerialHash(Scalar &coinSerial, const uint256 &coinSerialHash) {
     for ( auto it = GetSpends().begin(); it != GetSpends().end(); ++it ){
-        if(GetSerialHash(it->first)==coinSerialHash){
+        if(primitives::GetSerialHash(it->first)==coinSerialHash){
             coinSerial = it->first;
             return true;
         }

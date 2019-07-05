@@ -100,7 +100,7 @@ void CHDMintWallet::GenerateMintPool(int32_t nIndex)
 
         MintPoolEntry mintPoolEntry(hashSeedMaster, seedId, nLastCount);
         mintPool.Add(make_pair(hashPubcoin, mintPoolEntry));
-        CWalletDB(strWalletFile).WritePubcoin(sigma::GetSerialHash(coin.getSerialNumber()), commitmentValue);
+        CWalletDB(strWalletFile).WritePubcoin(primitives::GetSerialHash(coin.getSerialNumber()), commitmentValue);
         CWalletDB(strWalletFile).WriteMintPoolPair(hashPubcoin, mintPoolEntry);
         LogPrintf("%s : %s count=%d\n", __func__, hashPubcoin.GetHex(), nLastCount);
     }
@@ -247,7 +247,7 @@ bool CHDMintWallet::SetMintSeedSeen(std::pair<uint256,MintPoolEntry> mintPoolEnt
         sigma::PrivateCoin coin(sigma::Params::get_default(), denom, false);
         if(!SeedToZerocoin(seedZerocoin, bnValue, coin))
             return false;   
-        hashSerial = sigma::GetSerialHash(coin.getSerialNumber());
+        hashSerial = primitives::GetSerialHash(coin.getSerialNumber());
     }else{
         // Get serial and pubcoin data from the db
         CWalletDB walletdb(strWalletFile);
@@ -437,7 +437,7 @@ bool CHDMintWallet::GenerateMint(const sigma::CoinDenomination denom, sigma::Pri
 
     coin.setPublicCoin(sigma::PublicCoin(commitmentValue, denom));
 
-    uint256 hashSerial = sigma::GetSerialHash(coin.getSerialNumber());
+    uint256 hashSerial = primitives::GetSerialHash(coin.getSerialNumber());
     dMint = CHDMint(get<2>(mintPoolEntry.get()), get<1>(mintPoolEntry.get()), hashSerial, coin.getPublicCoin().getValue());
     dMint.SetDenomination(denom);
 
@@ -461,7 +461,7 @@ bool CHDMintWallet::RegenerateMint(const CHDMint& dMint, CSigmaEntry& zerocoin)
     zerocoin.value = bnValue;
 
     Scalar bnSerial = coin.getSerialNumber();
-    if (sigma::GetSerialHash(bnSerial) != dMint.GetSerialHash())
+    if (primitives::GetSerialHash(bnSerial) != dMint.GetSerialHash())
         return error("%s: failed to correctly generate mint, serial hash mismatch", __func__);
 
     zerocoin.set_denomination(dMint.GetDenomination().get());
