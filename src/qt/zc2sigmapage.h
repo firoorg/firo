@@ -14,6 +14,7 @@ class OptionsModel;
 class PlatformStyle;
 class Zc2SigmaModel;
 class ClientModel;
+class WalletModel;
 
 namespace Ui {
     class Zc2SigmaPage;
@@ -35,6 +36,7 @@ public:
     ~Zc2SigmaPage();
     void createModel();
     void setClientModel(ClientModel *clientModel_);
+    void setWalletModel(WalletModel *walletModel_);
 
     static bool showZc2SigmaPage();
 
@@ -42,6 +44,7 @@ private:
     Ui::Zc2SigmaPage *ui;
     std::shared_ptr<Zc2SigmaModel> model;
     ClientModel *clientModel;
+    WalletModel *walletModel;
 
 protected:
     void showEvent(QShowEvent* event);
