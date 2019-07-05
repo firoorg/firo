@@ -5532,7 +5532,7 @@ bool CWallet::CreateSigmaSpendTransaction(
                 if (!forceUsed && spend.getCoinSerialNumber() == item.coinSerial) {
                     // THIS SELECTED COIN HAS BEEN USED, SO UPDATE ITS STATUS
                     strFailReason = _("Trying to spend an already spent serial #, try again.");
-                    uint256 hashSerial = sigma::GetSerialHash(spend.getCoinSerialNumber());
+                    uint256 hashSerial = primitives::GetSerialHash(spend.getCoinSerialNumber());
                     if (!pwalletMain->hdMintTracker->HasSerialHash(hashSerial)){
                         strFailReason = "Tracker does not have serialhash " + hashSerial.GetHex();
                         return false;
@@ -6227,7 +6227,7 @@ bool CWallet::CreateMultipleSigmaSpendTransaction(
                     if (!forceUsed && spend.getCoinSerialNumber() == item.coinSerial) {
                         // THIS SELECTED COIN HAS BEEN USED, SO UPDATE ITS STATUS
                         strFailReason = _("Trying to spend an already spent serial #, try again.");
-                        uint256 hashSerial = sigma::GetSerialHash(spend.getCoinSerialNumber());
+                        uint256 hashSerial = primitives::GetSerialHash(spend.getCoinSerialNumber());
                         if (!pwalletMain->hdMintTracker->HasSerialHash(hashSerial)){
                             strFailReason = "Tracker does not have serialhash " + hashSerial.GetHex();
                             return false;
@@ -6731,7 +6731,7 @@ string CWallet::SpendSigma(
         LogPrintf("CommitZerocoinSpendTransaction() -> FAILED!\n");
 
         //reset mint
-        uint256 hashPubcoin = sigma::GetPubCoinValueHash(zcSelectedValue);
+        uint256 hashPubcoin = primitives::GetPubCoinValueHash(zcSelectedValue);
         pwalletMain->hdMintTracker->SetPubcoinNotUsed(hashPubcoin);
         pwalletMain->NotifyZerocoinChanged(pwalletMain, zcSelectedValue.GetHex(), "New", CT_UPDATED);
 
@@ -6749,7 +6749,7 @@ string CWallet::SpendSigma(
     //Set spent mint as used
     uint256 txidSpend = wtxNew.GetHash();
 
-    uint256 hashPubcoin = sigma::GetPubCoinValueHash(zcSelectedValue);
+    uint256 hashPubcoin = primitives::GetPubCoinValueHash(zcSelectedValue);
     pwalletMain->hdMintTracker->SetPubcoinUsed(hashPubcoin, txidSpend);
 
     CMintMeta metaCheck = pwalletMain->hdMintTracker->GetMetaFromPubcoin(hashPubcoin);
@@ -6868,7 +6868,7 @@ string CWallet::SpendMultipleSigma(
         for (std::vector<Scalar>::iterator it = coinSerials.begin(); it != coinSerials.end(); it++){
             int index = it - coinSerials.begin();
             GroupElement zcSelectedValue = zcSelectedValues[index];
-            uint256 hashPubcoin = sigma::GetPubCoinValueHash(zcSelectedValue);
+            uint256 hashPubcoin = primitives::GetPubCoinValueHash(zcSelectedValue);
             pwalletMain->hdMintTracker->SetPubcoinNotUsed(hashPubcoin);
             pwalletMain->NotifyZerocoinChanged(pwalletMain, zcSelectedValue.GetHex(), "New", CT_UPDATED);
 
@@ -6890,7 +6890,7 @@ string CWallet::SpendMultipleSigma(
     uint256 txidSpend = wtxNew.GetHash();
 
     BOOST_FOREACH(GroupElement zcSelectedValue, zcSelectedValues){
-        uint256 hashPubcoin = sigma::GetPubCoinValueHash(zcSelectedValue);
+        uint256 hashPubcoin = primitives::GetPubCoinValueHash(zcSelectedValue);
         pwalletMain->hdMintTracker->SetPubcoinUsed(hashPubcoin, txidSpend);
         CMintMeta metaCheck = pwalletMain->hdMintTracker->GetMetaFromPubcoin(hashPubcoin);
         if (!metaCheck.isUsed) {
@@ -6966,7 +6966,7 @@ bool CWallet::CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CSigmaEntry>
         }
 
         //Set spent mint as used
-        uint256 hashPubcoin = sigma::GetPubCoinValueHash(coin.value);
+        uint256 hashPubcoin = primitives::GetPubCoinValueHash(coin.value);
         pwalletMain->hdMintTracker->SetPubcoinUsed(hashPubcoin, wtxNew.GetHash());
         CMintMeta metaCheck = pwalletMain->hdMintTracker->GetMetaFromPubcoin(hashPubcoin);
         if (!metaCheck.isUsed) {

@@ -44,7 +44,7 @@ Zc2SigmaPage::Zc2SigmaPage(const PlatformStyle *platformStyle, QWidget *parent)
     setWindowTitle(tr("Zerocoin to Sigma"));
 
     ui->explanationLabel->setText(
-            tr("Here you can remint your unspent Zerocoin as Sigma mints"));
+            tr("Here you can remint your unspent Zerocoin mints in Sigma"));
 }
 
 Zc2SigmaPage::~Zc2SigmaPage() {
