@@ -5,8 +5,15 @@
 #ifndef BITCOIN_RPCREGISTER_H
 #define BITCOIN_RPCREGISTER_H
 
-#include <exodus/exodus.h>
+#if defined(HAVE_CONFIG_H)
+#include "../config/bitcoin-config.h"
+#endif
+
 #include "util.h"
+
+#ifdef ENABLE_EXODUS
+#include "../exodus/exodus.h"
+#endif
 
 /** These are in one header file to avoid creating tons of single-function
  * headers for everything under src/rpc/ */
@@ -40,13 +47,14 @@ static inline void RegisterAllCoreRPCCommands(CRPCTable &tableRPC)
     RegisterMiningRPCCommands(tableRPC);
     RegisterRawTransactionRPCCommands(tableRPC);
 
-    /* Exodus RPCs: */
+#ifdef ENABLE_EXODUS
     if (isExodusEnabled()) {
         RegisterExodusDataRetrievalRPCCommands(tableRPC);
         RegisterExodusTransactionCreationRPCCommands(tableRPC);
         RegisterExodusPayloadCreationRPCCommands(tableRPC);
         RegisterExodusRawTransactionRPCCommands(tableRPC);
     }
+#endif
 }
 
 #endif

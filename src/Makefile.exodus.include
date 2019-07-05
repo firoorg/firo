@@ -10,7 +10,6 @@ EXODUS_H = \
   exodus/fees.h \
   exodus/fetchwallettx.h \
   exodus/log.h \
-  exodus/mbstring.h \
   exodus/mdex.h \
   exodus/notifications.h \
   exodus/exodus.h \
@@ -48,7 +47,6 @@ EXODUS_CPP = \
   exodus/fees.cpp \
   exodus/fetchwallettx.cpp \
   exodus/log.cpp \
-  exodus/mbstring.cpp \
   exodus/mdex.cpp \
   exodus/notifications.cpp \
   exodus/exodus.cpp \
