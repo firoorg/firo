@@ -340,7 +340,7 @@ bool isMPinBlockRange(int starting_block, int ending_block, bool bDeleteFound);
 
 std::string FormatIndivisibleMP(int64_t n);
 
-enum InputMode {
+enum class InputMode {
     NORMAL,
     SIGMA
 };

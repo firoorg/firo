@@ -2457,12 +2457,17 @@ int exodus::WalletTxBuilder(const std::string& senderAddress, const std::string&
         break;
     case InputMode::SIGMA:
         CAmount fee;
-        wtxNew = pwalletMain->CreateSigmaSpendTransaction(vecRecipients, fee, sigmaSelected, sigmaChanges, &coinControl);
+        try {
+            wtxNew = pwalletMain->CreateSigmaSpendTransaction(vecRecipients, fee, sigmaSelected, sigmaChanges, &coinControl);
+        } catch (std::exception const &err) {
+            PrintToLog("%s: ERROR: wallet transaction creation failed: %s\n", __func__, err.what());
+            return MP_ERR_CREATE_TX;
+        }
         break;
     default:
         PrintToLog("%s: ERROR: wallet transaction creation failed: input mode is invalid\n", __func__);
         return MP_ERR_CREATE_TX;
-    };
+    }
 
     // If this request is only to create, but not commit the transaction then display it and exit
     if (!commit) {
@@ -2476,11 +2481,15 @@ int exodus::WalletTxBuilder(const std::string& senderAddress, const std::string&
             if (!pwalletMain->CommitTransaction(wtxNew, reserveKey)) return MP_ERR_COMMIT_TX;
             break;
         case InputMode::SIGMA:
-            if (!pwalletMain->CommitSigmaTransaction(wtxNew, sigmaSelected, sigmaChanges)) return MP_ERR_COMMIT_TX;
+            try {
+                if (!pwalletMain->CommitSigmaTransaction(wtxNew, sigmaSelected, sigmaChanges)) return MP_ERR_COMMIT_TX;
+            } catch (...) {
+                return MP_ERR_COMMIT_TX;
+            }
             break;
         default:
             return MP_ERR_COMMIT_TX;
-        };
+        }
         txid = wtxNew.GetHash();
         return 0;
     }

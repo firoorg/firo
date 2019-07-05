@@ -5,7 +5,7 @@ class CCoinControl;
 class CPubKey;
 
 #include "script/standard.h"
-#include "exodus/exodus.h"
+#include "exodus.h"
 
 #include <stdint.h>
 #include <string>

@@ -45,15 +45,10 @@ BOOST_AUTO_TEST_CASE(wallettxbuilder_create_normal_b)
 
     BOOST_CHECK(!decTx.IsSigmaSpend());
 
-    // calculate class b encode
-    CPubKey redeemingPubKey;
-    exodus::AddressToPubKey(fromAddress, redeemingPubKey);
-
-    std::vector<std::pair<CScript, int64_t>> vecOutputs;
-    Exodus_Encode_ClassB(fromAddress, redeemingPubKey, data, vecOutputs);
-
-    // assert scripts.
-    BOOST_CHECK_EQUAL(vecOutputs.size() + 1, decTx.vout.size());
+    BOOST_CHECK_EQUAL(
+        EXODUS_CLASS_B,
+        exodus::GetEncodingClass(decTx, chainActive.Height())
+    );
 }
 
 BOOST_AUTO_TEST_CASE(wallettxbuilder_create_normal_c)
@@ -74,12 +69,10 @@ BOOST_AUTO_TEST_CASE(wallettxbuilder_create_normal_c)
 
     BOOST_CHECK(!decTx.IsSigmaSpend());
 
-    // calculate class c encode
-    std::vector<std::pair<CScript, int64_t>> vecOutputs;
-    Exodus_Encode_ClassC(data, vecOutputs);
-
-    // assert script.
-    BOOST_CHECK_EQUAL(vecOutputs.size() + 1, decTx.vout.size());
+    BOOST_CHECK_EQUAL(
+        EXODUS_CLASS_C,
+        exodus::GetEncodingClass(decTx, chainActive.Height())
+    );
 }
 
 BOOST_AUTO_TEST_CASE(wallettxbuilder_create_sigma_without_mints)
@@ -87,7 +80,7 @@ BOOST_AUTO_TEST_CASE(wallettxbuilder_create_sigma_without_mints)
     pwalletMain->SetBroadcastTransactions(true);
     CreateAndProcessEmptyBlocks(200, scriptPubKey);
 
-    std::vector<unsigned char> data(nMaxDatacarrierBytes + 1, 0x01);
+    std::vector<unsigned char> data(80);
 
     uint256 txid;
     std::string rawHex;
@@ -104,7 +97,7 @@ BOOST_AUTO_TEST_CASE(wallettxbuilder_create_sigma_with_toolarge_data)
 
     string stringError;
     BOOST_CHECK_MESSAGE(pwalletMain->CreateZerocoinMintModel(
-            stringError, {{"1", 10}}, SIGMA), stringError + " - Create Mint failed");
+        stringError, {{"1", 10}}, SIGMA), stringError + " - Create Mint failed");
 
     CreateAndProcessBlock({}, scriptPubKey);
     CreateAndProcessEmptyBlocks(5, scriptPubKey);
@@ -145,15 +138,10 @@ BOOST_AUTO_TEST_CASE(wallettxbuilder_create_sigma_success)
 
     BOOST_CHECK(decTx.IsSigmaSpend());
 
-    // calculate class c encode
-    std::vector<std::pair<CScript, int64_t>> vecOutputs;
-    Exodus_Encode_ClassC(data, vecOutputs);
-
-    auto opReturnCount = std::count_if(decTx.vout.begin(), decTx.vout.end(), [](CTxOut const &out) {
-        return out.scriptPubKey[0] == OP_RETURN;
-    });
-
-    BOOST_CHECK_EQUAL(vecOutputs.size(), opReturnCount);
+    BOOST_CHECK_EQUAL(
+        EXODUS_CLASS_C,
+        exodus::GetEncodingClass(decTx, chainActive.Height())
+    );
 }
 
 BOOST_AUTO_TEST_SUITE_END()

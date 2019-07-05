@@ -120,12 +120,10 @@ ZerocoinTestingSetupBase::~ZerocoinTestingSetupBase() {
         // Since sigma V3 implementation also over consensus.nMintV3SigmaStartBlock = 180;
 
         printf("Balance before %ld\n", pwalletMain->GetBalance());
-        scriptPubKey = CScript() <<  ToByteVector(pubkey/*coinbaseKey.GetPubKey()*/) << OP_CHECKSIG;
-        CScript scriptPubKeyHash;
-        scriptPubKeyHash = CScript() << OP_DUP << OP_HASH160 << ToByteVector(pubkey.GetID()) << OP_EQUALVERIFY << OP_CHECKSIG;
+        scriptPubKey = CScript() << OP_DUP << OP_HASH160 << ToByteVector(pubkey.GetID()) << OP_EQUALVERIFY << OP_CHECKSIG;
         for (int i = 0; i < 200; i++)
         {
-            CBlock b = CreateAndProcessBlock({}, scriptPubKeyHash);
+            CBlock b = CreateAndProcessBlock({}, scriptPubKey);
             coinbaseTxns.push_back(b.vtx[0]);
             LOCK(cs_main);
             {

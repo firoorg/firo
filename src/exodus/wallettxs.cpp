@@ -283,10 +283,10 @@ int64_t SelectCoins(const std::string& fromAddress, CCoinControl& coinControl, i
         try {
             pwalletMain->GetCoinsToSpend(nMax, coinsToSpend, remints);
         } catch (std::exception const &err) {
-            LogPrintf("SelectCoins() fail to get coin to spend: %s\n", std::string(err.what()));
+            LogPrintf("SelectCoins() fail to get coin to spend: %s\n", err.what());
             return nTotal;
         }
-        for (auto const mint : coinsToSpend) {
+        for (auto const &mint : coinsToSpend) {
             COutPoint coin;
             if (sigma::GetOutPoint(coin, mint.value)) {
                 nTotal += mint.get_denomination_value();
