@@ -1414,26 +1414,31 @@ std::vector<std::pair<uint256, MintPoolEntry>> CWalletDB::ListMintPool()
         }
 
         // Unserialize
-        string strType;
-        ssKey >> strType;
-        if (strType != "mintpool")
-            break;
 
-        uint256 hashPubcoin;
-        ssKey >> hashPubcoin;
+        try {
+            string strType;
+            ssKey >> strType;
+            if (strType != "mintpool")
+                break;
 
-        uint160 hashSeedMaster;
-        ssValue >> hashSeedMaster;
+            uint256 hashPubcoin;
+            ssKey >> hashPubcoin;
 
-        CKeyID seedId;
-        ssValue >> seedId;
+            uint160 hashSeedMaster;
+            ssValue >> hashSeedMaster;
 
-        int32_t nCount;
-        ssValue >> nCount;
+            CKeyID seedId;
+            ssValue >> seedId;
 
-        MintPoolEntry mintPoolEntry(hashSeedMaster, seedId, nCount);
+            int32_t nCount;
+            ssValue >> nCount;
 
-        listPool.push_back(make_pair(hashPubcoin, mintPoolEntry));
+            MintPoolEntry mintPoolEntry(hashSeedMaster, seedId, nCount);
+
+            listPool.push_back(make_pair(hashPubcoin, mintPoolEntry));
+        } catch (std::ios_base::failure const &) {
+            // There maybe some old entries that don't conform to the latest version. Just skipping those.
+        }
     }
 
     pcursor->close();
