@@ -18,6 +18,7 @@ from test_framework.util import *
 #9. Try to remint
 #10. Unlock wallet
 #11. Check all remint will pass
+#12. Check can mint/spend
 # Expected:  Check available to mint/spend (edited)
 class SigmaRemintLockedWalletTest(BitcoinTestFramework):
     def __init__(self):
@@ -54,7 +55,8 @@ class SigmaRemintLockedWalletTest(BitcoinTestFramework):
         encr_key = 'testtesttesttest'
 
         self.nodes[0].encryptwallet(encr_key)
-        self = start_nodes(self.num_nodes, self.options.tmpdir)
+        time.sleep(10)
+        self.nodes[0] = start_nodes(1, self.options.tmpdir)[0]
 
         # try to remint without unlocking
         assert_raises(JSONRPCException, self.nodes[0].remintzerocointosigma, zcoin_denoms[0])
@@ -66,19 +68,19 @@ class SigmaRemintLockedWalletTest(BitcoinTestFramework):
         # remint should work
         self.nodes[0].remintzerocointosigma(zcoin_denoms[0])
 
+        self.nodes[0].generate(10)
+
         sigma_mint = self.nodes[0].listunspentsigmamints()
         assert len(sigma_mint) == 1, 'Should be 1 sigma mints after remint, but was: {}' \
             .format(len(sigma_mint))
 
         # lock wallet
         self.nodes[0].walletlock()
-        time.sleep(5)
         # try to remint without unlocking
         assert_raises(JSONRPCException, self.nodes[0].remintzerocointosigma, zcoin_denoms[0])
 
         # unlock for 20 secs
         self.nodes[0].walletpassphrase(encr_key, 20)
-        time.sleep(5)
 
         for denom in zcoin_denoms[1:]:
             try:
@@ -91,7 +93,26 @@ class SigmaRemintLockedWalletTest(BitcoinTestFramework):
 
         sigma_mint = self.nodes[0].listunspentsigmamints()
 
-        assert len(sigma_mint) == len(zcoin_denoms)+1, 'Looks like sigma mints unspendable after remint.'
+        assert len(sigma_mint) == len(zcoin_denoms)+1, \
+            'Looks like sigma mints unspendable after remint on encrypted wallet.'
+
+        # check that we are able to mint/spend
+        self.nodes[0].mint(1)
+        self.nodes[0].generate(10)
+
+        sigma_mint = self.nodes[0].listunspentsigmamints()
+
+        assert len(sigma_mint) == len(zcoin_denoms) + 2, \
+            'Looks like we cant mint on encrypted wallet'
+
+        args = {'THAYjKnnCsN5xspnEcb1Ztvw4mSPBuwxzU': 10}
+        self.nodes[0].spendmany("", args)
+        self.nodes[0].generate(10)
+
+        sigma_mint = self.nodes[0].listunspentsigmamints()
+
+        assert len(sigma_mint) > len(zcoin_denoms) + 2, \
+            'Looks like we cant spend on encrypted wallet.'
 
         # Check that we can generate blocks after
         self.nodes[0].generate(1)

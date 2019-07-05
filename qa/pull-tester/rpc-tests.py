@@ -146,6 +146,8 @@ testScripts = [
     # 'signmessages.py',
     # 'p2p-compactblocks.py',
     # 'nulldummy.py',
+    'sigma_remint_locked_wallet.py',
+    'sigma_zapsigmamints.py',
     'sigma_remint.py',
     'sigma_remint_validation.py',
     'sigma_meetspend.py',
