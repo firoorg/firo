@@ -1248,22 +1248,8 @@ CAmount CWallet::GetDebit(const CTxIn &txin, const isminefilter &filter) const {
     LOCK(cs_wallet);
 
     if (txin.IsZerocoinSpend()) {
-        if (!(filter & ISMINE_SPENDABLE)) {
-            goto end;
-        }
-
-        CWalletDB db(strWalletFile);
-        std::unique_ptr<libzerocoin::CoinSpend> spend;
-
-        try {
-            std::tie(spend, std::ignore) = ParseZerocoinSpend(txin);
-        } catch (CBadTxIn&) {
-            goto end;
-        }
-
-        if (CZerocoinState::GetZerocoinState()->HasCoin(spend->getCoinSerialNumber())) {
-            return spend->getDenomination() * COIN;
-        }
+        // Reverting it to its pre-Sigma state.
+        goto end;
     } else if (txin.IsSigmaSpend()) {
         if (!(filter & ISMINE_SPENDABLE)) {
             goto end;
