@@ -45,10 +45,10 @@ class SigmaRemintLockedWalletTest(BitcoinTestFramework):
 
         self.nodes[0].generate(300)
 
-        zcoin_mint = self.nodes[0].listunspentmintzerocoins()
+        zcoin_mints = self.nodes[0].listunspentmintzerocoins()
 
-        assert len(zcoin_mint) == 10, 'Should be 10 Zcoin mints after zcoin mint, but was: {}' \
-            .format(len(zcoin_mint))
+        assert len(zcoin_mints) == 10, 'Should be 10 Zcoin mints after zcoin mint, but was: {}' \
+            .format(len(zcoin_mints))
 
 
         # encrypt wallet

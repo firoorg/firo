@@ -31,12 +31,11 @@ class SigmaZapSigmaMintsTest(BitcoinTestFramework):
         getcontext().prec = 6
         self.sync_all()
 
-        zcoin_denoms = [1, 10, 25, 50, 100]
+        sigma_denoms = [0.05, 0.1, 0.5, 1, 10, 25, 100]
 
         self.nodes[0].generate(401)
 
-
-        self.nodes[0].mint(sum(zcoin_denoms))
+        self.nodes[0].mint(sum(sigma_denoms))
 
         self.nodes[0].generate(10)
 
@@ -55,13 +54,15 @@ class SigmaZapSigmaMintsTest(BitcoinTestFramework):
         assert len(sigma_mints2) == len(sigma_mints1), \
             'The amount of mints should be same after restart with zapsigmamints.'
 
-        self.nodes[0].mint(zcoin_denoms[0])
+        # Minting after restart with '-zapsigmamints'
+        self.nodes[0].mint(sigma_denoms[0])
 
         self.nodes[0].generate(50)
 
         sigma_mints2 = self.nodes[0].listunspentsigmamints()
 
-        assert len(sigma_mints2) == len(sigma_mints1)+1, \
+        # Mints count should pass even after restart with '-zapsigmamints'
+        assert len(sigma_mints2) == len(sigma_mints1) + 1, \
             'After restart with zapsigmamints mint does not work.'
 
         # Check that we can generate blocks after
