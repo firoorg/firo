@@ -1261,7 +1261,7 @@ CAmount CWallet::GetDebit(const CTxIn &txin, const isminefilter &filter) const {
             goto end;
         }
 
-        if (db.HasCoinSpendSerialEntry(spend->getCoinSerialNumber())) {
+        if (CZerocoinState::GetZerocoinState()->HasCoin(spend->getCoinSerialNumber())) {
             return spend->getDenomination() * COIN;
         }
     } else if (txin.IsSigmaSpend()) {
@@ -1310,7 +1310,7 @@ isminetype CWallet::IsMine(const CTxOut &txout) const {
             return ISMINE_NO;
         }
 
-        return db.HasZerocoinEntry(pub) ? ISMINE_SPENDABLE : ISMINE_NO;
+        return CZerocoinState::GetZerocoinState()->HasCoin(pub) ? ISMINE_SPENDABLE : ISMINE_NO;
     } else if (txout.scriptPubKey.IsSigmaMint()) {
         CWalletDB db(strWalletFile);
         secp_primitives::GroupElement pub;
