@@ -1188,25 +1188,7 @@ isminetype CWallet::IsMine(const CTxIn &txin) const {
     LOCK(cs_wallet);
 
     if (txin.IsZerocoinSpend()) {
-        CWalletDB db(strWalletFile);
-        uint32_t groupId = txin.nSequence;
-
-        bool v2 = groupId >= ZC_MODULUS_V2_BASE_ID;
-        if (v2) {
-            groupId -= ZC_MODULUS_V2_BASE_ID;
-        }
-
-        CDataStream data(
-            std::vector<unsigned char>(txin.scriptSig.begin() + 4, txin.scriptSig.end()),
-            SER_NETWORK,
-            PROTOCOL_VERSION
-        );
-
-        libzerocoin::CoinSpend spend(v2 ? ZCParamsV2 : ZCParams, data);
-
-        if (db.HasCoinSpendSerialEntry(spend.getCoinSerialNumber())) {
-            return ISMINE_SPENDABLE;
-        }
+        return ISMINE_NO;
     } else if (txin.IsSigmaSpend()) {
         CWalletDB db(strWalletFile);
 
