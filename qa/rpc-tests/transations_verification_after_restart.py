@@ -24,9 +24,6 @@ from test_framework.util import *
 #13. Check all transactions shown properly as before restart 
 #14. Restart with rescan
 #15. Check all transactions shown properly as before restart 
-
-#------------------
-#This steps temporary disabled, cause list transactions changing after. Need to verify if correct.
 #16. Restart with reindex
 #17. Check all transactions shown properly as before restart 
 #18. Restart with reindex-chainstate
