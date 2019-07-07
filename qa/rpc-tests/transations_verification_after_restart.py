@@ -142,21 +142,21 @@ class TransactionsVerAfterRestartTest(BitcoinTestFramework):
 
         transations_after_reindex = self.nodes[0].listtransactions()
 
-        # #17. Check all transactions shown properly as before restart 
-        # assert transations_before == transations_after_reindex, \
-        #     'List of transactions after restart with reindex unexpectedly changed.'
+        #17. Check all transactions shown properly as before restart 
+        assert transations_before == transations_after_reindex, \
+            'List of transactions after restart with reindex unexpectedly changed.'
 
-        # self.nodes[0].stop()
-        # bitcoind_processes[0].wait()
+        self.nodes[0].stop()
+        bitcoind_processes[0].wait()
 
-        # #18. Restart with reindex-chainstate
-        # self.nodes[0] = start_node(0,self.options.tmpdir, ["-reindex-chainstate"])
+        #18. Restart with reindex-chainstate
+        self.nodes[0] = start_node(0,self.options.tmpdir, ["-reindex-chainstate"])
         
-        # #19. Check all transactions shown properly as before restart 
-        # transations_after_reindex_chainstate = self.nodes[0].listtransactions()
+        #19. Check all transactions shown properly as before restart 
+        transations_after_reindex_chainstate = self.nodes[0].listtransactions()
 
-        # assert transations_before == transations_after_reindex_chainstate, \
-        #     'List of transactions after restart with reindex unexpectedly changed.'
+        assert transations_before == transations_after_reindex_chainstate, \
+            'List of transactions after restart with reindex unexpectedly changed.'
 
 
 
