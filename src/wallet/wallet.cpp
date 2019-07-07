@@ -1268,18 +1268,7 @@ end:
 isminetype CWallet::IsMine(const CTxOut &txout) const {
     LOCK(cs_wallet);
 
-    if (txout.scriptPubKey.IsZerocoinMint()) {
-        CWalletDB db(strWalletFile);
-        CBigNum pub;
-
-        try {
-            pub = ParseZerocoinMintScript(txout.scriptPubKey);
-        } catch (std::invalid_argument&) {
-            return ISMINE_NO;
-        }
-
-        return CZerocoinState::GetZerocoinState()->HasCoin(pub) ? ISMINE_SPENDABLE : ISMINE_NO;
-    } else if (txout.scriptPubKey.IsSigmaMint()) {
+    if (txout.scriptPubKey.IsSigmaMint()) {
         CWalletDB db(strWalletFile);
         secp_primitives::GroupElement pub;
 
