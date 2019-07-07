@@ -160,6 +160,7 @@ BITCOIN_CORE_H = \
   policy/fees.h \
   policy/policy.h \
   policy/rbf.h \
+  primitives/zerocoin.h \
   fixed.h \
   pow.h \
   hdmint/hdmint.h \
@@ -246,6 +247,7 @@ libbitcoin_server_a_SOURCES = \
   noui.cpp \
   policy/fees.cpp \
   policy/policy.cpp \
+  primitives/zerocoin.cpp \
   pow.cpp \
   rest.cpp \
   rpc/blockchain.cpp \
@@ -310,6 +312,7 @@ libbitcoin_wallet_a_SOURCES = \
   wallet/authhelper.cpp \
   hdmint/tracker.cpp \
   policy/rbf.cpp \
+  primitives/zerocoin.cpp \
   $(BITCOIN_CORE_H)
 
 # crypto primitives library
@@ -354,8 +357,6 @@ libbitcoin_consensus_a_SOURCES = \
   primitives/precomputed_hash.h \
   primitives/transaction.cpp \
   primitives/transaction.h \
-  primitives/zerocoin.cpp \
-  primitives/zerocoin.h \
   pubkey.cpp \
   pubkey.h \
   script/bitcoinconsensus.cpp \

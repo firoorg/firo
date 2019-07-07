@@ -190,7 +190,7 @@ bool CHDMintTracker::HasMintTx(const uint256& txid)
 bool CHDMintTracker::HasPubcoin(const GroupElement &pubcoin) const
 {
     // Check if this mint's pubcoin value belongs to our mapSerialHashes (which includes hashpubcoin values)
-    uint256 hash = sigma::GetPubCoinValueHash(pubcoin);
+    uint256 hash = primitives::GetPubCoinValueHash(pubcoin);
     return HasPubcoinHash(hash);
 }
 
@@ -206,7 +206,7 @@ bool CHDMintTracker::HasPubcoinHash(const uint256& hashPubcoin) const
 
 bool CHDMintTracker::HasSerial(const Scalar& bnSerial) const
 {
-    uint256 hash = GetSerialHash(bnSerial);
+    uint256 hash = primitives::GetSerialHash(bnSerial);
     return HasSerialHash(hash);
 }
 
@@ -221,7 +221,7 @@ bool CHDMintTracker::UpdateZerocoinEntry(const CSigmaEntry& zerocoin)
     if (!HasSerial(zerocoin.serialNumber))
         return error("%s: zerocoin %s is not known", __func__, zerocoin.value.GetHex());
 
-    uint256 hashSerial = GetSerialHash(zerocoin.serialNumber);
+    uint256 hashSerial = primitives::GetSerialHash(zerocoin.serialNumber);
 
     //Update the meta object
     CMintMeta meta;
@@ -333,7 +333,7 @@ void CHDMintTracker::Add(const CSigmaEntry& zerocoin, bool isNew, bool isArchive
     meta.nId = zerocoin.id;
     //meta.txid = zerocoin.GetTxHash();
     meta.isUsed = zerocoin.IsUsed;
-    meta.hashSerial = GetSerialHash(zerocoin.serialNumber);
+    meta.hashSerial = primitives::GetSerialHash(zerocoin.serialNumber);
     meta.denom = zerocoin.get_denomination();
     meta.isArchived = isArchived;
     meta.isDeterministic = false;
@@ -498,7 +498,7 @@ void CHDMintTracker::UpdateMintStateFromBlock(const std::vector<sigma::PublicCoi
         mempool.getTransactions(setMempool);
     }
     for (auto& mint : mints) {
-        uint256 hashPubcoin = sigma::GetPubCoinValueHash(mint.getValue());
+        uint256 hashPubcoin = primitives::GetPubCoinValueHash(mint.getValue());
         // Check hashPubcoin in db
         if(walletdb.ReadMintPoolPair(hashPubcoin, hashSeedMasterEntry, seedId, nCount)){
             // If found in db but not in memory - this is likely a resync
@@ -530,14 +530,14 @@ void CHDMintTracker::UpdateSpendStateFromBlock(const sigma::spend_info_container
         mempool.getTransactions(setMempool);
     }
     for(auto& spentSerial : spentSerials){
-        uint256 spentSerialHash = sigma::GetSerialHash(spentSerial.first);
+        uint256 spentSerialHash = primitives::GetSerialHash(spentSerial.first);
         CMintMeta meta;
         GroupElement pubcoin;
         // Check serialHash in db
         if(walletdb.ReadPubcoin(spentSerialHash, pubcoin)){
             // If found in db but not in memory - this is likely a resync
             if(!Get(spentSerialHash, meta)){
-                uint256 hashPubcoin = GetPubCoinValueHash(pubcoin);
+                uint256 hashPubcoin = primitives::GetPubCoinValueHash(pubcoin);
                 if(!walletdb.ReadMintPoolPair(hashPubcoin, hashSeedMasterEntry, seedId, nCount)){
                     continue;
                 }

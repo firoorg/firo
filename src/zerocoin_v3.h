@@ -85,9 +85,6 @@ bool GetOutPoint(COutPoint& outPoint, const sigma::PublicCoin &pubCoin);
 bool GetOutPoint(COutPoint& outPoint, const GroupElement &pubCoinValue);
 bool GetOutPoint(COutPoint& outPoint, const uint256 &pubCoinValueHash);
 
-uint256 GetSerialHash(const secp_primitives::Scalar& bnSerial);
-uint256 GetPubCoinValueHash(const secp_primitives::GroupElement& bnValue);
-
 bool BuildSigmaStateFromIndex(CChain *chain);
 
 Scalar GetSigmaSpendSerialNumber(const CTransaction &tx, const CTxIn &txin);

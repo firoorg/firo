@@ -527,7 +527,7 @@ bool CWalletDB::EraseHDMint(const CHDMint& dMint) {
 }
 
 bool CWalletDB::HasHDMint(const secp_primitives::GroupElement& pub) {
-    return Exists(std::make_pair(std::string("hdmint"), sigma::GetPubCoinValueHash(pub)));
+    return Exists(std::make_pair(std::string("hdmint"), primitives::GetPubCoinValueHash(pub)));
 }
 
 class CWalletScanState {
@@ -1414,26 +1414,31 @@ std::vector<std::pair<uint256, MintPoolEntry>> CWalletDB::ListMintPool()
         }
 
         // Unserialize
-        string strType;
-        ssKey >> strType;
-        if (strType != "mintpool")
-            break;
 
-        uint256 hashPubcoin;
-        ssKey >> hashPubcoin;
+        try {
+            string strType;
+            ssKey >> strType;
+            if (strType != "mintpool")
+                break;
 
-        uint160 hashSeedMaster;
-        ssValue >> hashSeedMaster;
+            uint256 hashPubcoin;
+            ssKey >> hashPubcoin;
 
-        CKeyID seedId;
-        ssValue >> seedId;
+            uint160 hashSeedMaster;
+            ssValue >> hashSeedMaster;
 
-        int32_t nCount;
-        ssValue >> nCount;
+            CKeyID seedId;
+            ssValue >> seedId;
 
-        MintPoolEntry mintPoolEntry(hashSeedMaster, seedId, nCount);
+            int32_t nCount;
+            ssValue >> nCount;
 
-        listPool.push_back(make_pair(hashPubcoin, mintPoolEntry));
+            MintPoolEntry mintPoolEntry(hashSeedMaster, seedId, nCount);
+
+            listPool.push_back(make_pair(hashPubcoin, mintPoolEntry));
+        } catch (std::ios_base::failure const &) {
+            // There maybe some old entries that don't conform to the latest version. Just skipping those.
+        }
     }
 
     pcursor->close();
@@ -1536,7 +1541,7 @@ bool CWalletDB::UnarchiveZerocoinMint(const uint256& hashPubcoin, CSigmaEntry& z
     if (!WriteZerocoinEntry(zerocoin))
         return error("%s: failed to write zerocoinmint", __func__);
 
-    uint256 hash = sigma::GetPubCoinValueHash(zerocoin.value);
+    uint256 hash = primitives::GetPubCoinValueHash(zerocoin.value);
     if (!Erase(make_pair(string("zco"), hash)))
         return error("%s : failed to erase archived zerocoin mint", __func__);
 

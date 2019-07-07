@@ -18,6 +18,7 @@
 #include "zc2sigmamodel.h"
 #include "znode-sync.h"
 #include "clientmodel.h"
+#include "walletmodel.h"
 
 #include "../wallet/wallet.h"
 #include "main.h"
@@ -44,7 +45,7 @@ Zc2SigmaPage::Zc2SigmaPage(const PlatformStyle *platformStyle, QWidget *parent)
     setWindowTitle(tr("Zerocoin to Sigma"));
 
     ui->explanationLabel->setText(
-            tr("Here you can remint your unspent Zerocoin as Sigma mints"));
+            tr("Here you can remint your unspent Zerocoin mints in Sigma"));
 }
 
 Zc2SigmaPage::~Zc2SigmaPage() {
@@ -90,7 +91,16 @@ void Zc2SigmaPage::setClientModel(ClientModel *clientModel_) {
     clientModel = clientModel_;
 }
 
+void Zc2SigmaPage::setWalletModel(WalletModel *walletModel_) {
+    walletModel = walletModel_;
+}
+
 void Zc2SigmaPage::on_remintButton_clicked() {
+
+    WalletModel::UnlockContext ctx(walletModel->requestUnlock());
+    if (!ctx.isValid()) {
+        return;
+    }
     QItemSelectionModel * select = ui->availMintsTable->selectionModel();
 
     if(!select->hasSelection())

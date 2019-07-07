@@ -42,7 +42,7 @@ public:
     CKeyID GetSeedId() const { return seedId; }
     uint256 GetSerialHash() const { return hashSerial; }
     GroupElement GetPubcoinValue() const { return pubCoinValue; }
-    uint256 GetPubCoinHash() const { return sigma::GetPubCoinValueHash(pubCoinValue); }
+    uint256 GetPubCoinHash() const { return primitives::GetPubCoinValueHash(pubCoinValue); }
     uint256 GetTxHash() const { return txid; }
     bool IsUsed() const { return isUsed; }
     void SetDenomination(const sigma::CoinDenomination value) {
