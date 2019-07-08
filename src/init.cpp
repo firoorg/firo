@@ -793,6 +793,7 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
 #ifdef ENABLE_WALLET
     if (!GetBoolArg("-disablewallet", false)) {
         //Load zerocoin mint hashes to memory
+        LogPrintf("Loading mints to wallet..\n");
         pwalletMain->hdMintTracker->Init();
         zwalletMain->LoadMintPoolFromDB();
     }
