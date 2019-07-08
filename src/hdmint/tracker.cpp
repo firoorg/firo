@@ -14,6 +14,7 @@
 #include "libzerocoin/Zerocoin.h"
 #include "main.h"
 #include "zerocoin_v3.h"
+#include "txmempool.h"
 
 using namespace std;
 using namespace sigma;
@@ -36,7 +37,7 @@ void CHDMintTracker::Init()
 {
     //Load all CZerocoinEntries and CHDMints from the database
     if (!fInitialized) {
-        ListMints(false, false);
+        ListMints(false, false, false, true);
         fInitialized = true;
     }
 }
@@ -380,6 +381,32 @@ void CHDMintTracker::RemovePending(const uint256& txid)
         mapPendingSpends.erase(hashSerial);
 }
 
+bool CHDMintTracker::IsMempoolSpendOurs(const std::set<uint256>& setMempool, const uint256& hashSerial){
+    // get transaction back from mempool
+    // if spend, get hash of serial
+    // if matches mint.hashSerial, mark pending spend.
+    for(auto& mempoolTxid : setMempool){
+        auto it = mempool.mapTx.find(mempoolTxid);
+        if (it == mempool.mapTx.end())
+            continue;
+
+        const CTransaction &tx = it->GetTx();
+        for (const CTxIn& txin : tx.vin) {
+            if (txin.IsSigmaSpend()) {
+                std::unique_ptr<sigma::CoinSpend> spend;
+                uint32_t pubcoinId;
+                std::tie(spend, pubcoinId) = sigma::ParseSigmaSpend(txin);
+                uint256 mempoolHashSerial = primitives::GetSerialHash(spend->getCoinSerialNumber());
+                if(mempoolHashSerial==hashSerial){
+                    return true;
+                }
+            }
+        }
+    }
+
+    return false;
+}
+
 bool CHDMintTracker::UpdateMetaStatus(const std::set<uint256>& setMempool, CMintMeta& mint)
 {
     uint256 hashPubcoin = mint.GetPubCoinValueHash();
@@ -390,23 +417,17 @@ bool CHDMintTracker::UpdateMetaStatus(const std::set<uint256>& setMempool, CMint
     bool isMintInChain = GetOutPoint(outPoint, pubCoin);
     const uint256& txidMint = outPoint.hash;
 
-    //See if there is internal record of spending this mint (note this is memory only, would reset on restart)
+    //See if there is internal record of spending this mint (note this is memory only, would reset on restart - next function checks this)
     bool isPendingSpend = static_cast<bool>(mapPendingSpends.count(mint.hashSerial));
+
+    // Mempool might hold pending spend
+    if(!isPendingSpend)
+        isPendingSpend = IsMempoolSpendOurs(setMempool, mint.hashSerial);
 
     // See if there is a blockchain record of spending this mint
     CSigmaState *sigmaState = sigma::CSigmaState::GetState();
     Scalar bnSerial;
     bool isConfirmedSpend = sigmaState->IsUsedCoinSerialHash(bnSerial, mint.hashSerial);
-
-    // Double check the mempool for pending spend
-    if (isPendingSpend) {
-        uint256 txidPendingSpend = mapPendingSpends.at(mint.hashSerial);
-        if (!setMempool.count(txidPendingSpend) || isConfirmedSpend) {
-            RemovePending(txidPendingSpend);
-            isPendingSpend = false;
-            LogPrintf("%s : Pending txid %s removed because not in mempool\n", __func__, txidPendingSpend.GetHex());
-        }
-    }
 
     bool isUsed = isPendingSpend || isConfirmedSpend;
 
@@ -565,11 +586,12 @@ list<CSigmaEntry> CHDMintTracker::MintsAsZerocoinEntries(bool fUnusedOnly, bool 
     return listPubcoin;
 }
 
-std::vector<CMintMeta> CHDMintTracker::ListMints(bool fUnusedOnly, bool fMatureOnly, bool fUpdateStatus, bool fWrongSeed)
+std::vector<CMintMeta> CHDMintTracker::ListMints(bool fUnusedOnly, bool fMatureOnly, bool fUpdateStatus, bool fLoad, bool fWrongSeed)
 {
+    LOCK2(cs_main, pwalletMain->cs_wallet);
     std::vector<CMintMeta> setMints;
     CWalletDB walletdb(strWalletFile);
-    if (fUpdateStatus) {
+    if (fLoad) {
         std::list<CSigmaEntry> listMintsDB;
         walletdb.ListSigmaPubCoin(listMintsDB);
         for (auto& mint : listMintsDB){
@@ -598,12 +620,14 @@ std::vector<CMintMeta> CHDMintTracker::ListMints(bool fUnusedOnly, bool fMatureO
             continue;
 
         // Update the metadata of the mints if requested
-        if (fUpdateStatus && UpdateMetaStatus(setMempool, mint)) {
-            if (mint.isArchived)
-                continue;
+        if (fUpdateStatus){
+            if(UpdateMetaStatus(setMempool, mint)) {
+                if (mint.isArchived)
+                    continue;
 
-            // Mint was updated, queue for overwrite
-            vOverWrite.emplace_back(mint);
+                // Mint was updated, queue for overwrite
+                vOverWrite.emplace_back(mint);
+            }
         }
 
         if (fUnusedOnly && mint.isUsed)
