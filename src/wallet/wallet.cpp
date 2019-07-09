@@ -2888,7 +2888,7 @@ void CWallet::ListAvailableCoinsMintCoins(vector <COutput> &vCoins, bool fOnlyCo
 
 void CWallet::ListAvailableSigmaMintCoins(vector<COutput> &vCoins, bool fOnlyConfirmed) const {
     vCoins.clear();
-    LOCK2(cs_main, pwalletMain->cs_wallet);
+    LOCK2(cs_main, cs_wallet);
     list<CSigmaEntry> listOwnCoins;
     CWalletDB walletdb(pwalletMain->strWalletFile);
     listOwnCoins = pwalletMain->hdMintTracker->MintsAsZerocoinEntries();
