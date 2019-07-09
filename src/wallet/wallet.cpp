@@ -6523,7 +6523,7 @@ string CWallet::MintAndStoreSigma(const vector<CRecipient>& vecSend,
             "New (" + std::to_string(dMint.GetDenominationValue()) + " mint)",
             CT_NEW);
     }
-
+    NotifyTransactionChanged(this, wtxNew.GetHash(), CT_NEW);
     // Update nCountNextUse in HDMint wallet database
     zwalletMain->UpdateCountDB();
 
