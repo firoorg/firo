@@ -68,11 +68,7 @@ WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
     usedSendingAddressesPage = new AddressBookPage(platformStyle, AddressBookPage::ForEditing, AddressBookPage::SendingTab, this);
     usedReceivingAddressesPage = new AddressBookPage(platformStyle, AddressBookPage::ForEditing, AddressBookPage::ReceivingTab, this);
     zerocoinPage = new ZerocoinPage(platformStyle, ZerocoinPage::ForEditing, this);
-    if (pwalletMain->IsHDSeedAvailable()) {
-        sigmaPage = new QWidget(this);
-    } else {
-        blankSigmaPage = new QWidget(this);
-    }
+    sigmaPage = new QWidget(this);
     zc2SigmaPage = new Zc2SigmaPage(platformStyle, this);
     sendCoinsPage = new QWidget(this);
     toolboxPage = new QWidget(this);
@@ -81,11 +77,7 @@ WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
     setupTransactionPage();
     setupSendCoinPage();
     setupToolboxPage();
-    if (pwalletMain->IsHDSeedAvailable()) {
-        setupSigmaPage();
-    } else {
-        setupBlankSigmaPage();
-    }
+    setupSigmaPage();
 
     addWidget(overviewPage);
     addWidget(exoAssetsPage);
@@ -93,11 +85,7 @@ WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
     addWidget(receiveCoinsPage);
     addWidget(sendCoinsPage);
     addWidget(zerocoinPage);
-    if (pwalletMain->IsHDSeedAvailable()) {
-        addWidget(sigmaPage);
-    } else {
-        addWidget(blankSigmaPage);
-    }
+    addWidget(sigmaPage);
     addWidget(zc2SigmaPage);
     addWidget(toolboxPage);
     addWidget(znodeListPage);
@@ -190,25 +178,21 @@ void WalletView::setupSendCoinPage()
     sendCoinsPage->setLayout(pageLayout);
 }
 
-void WalletView::setupBlankSigmaPage()
-{
-    blankSigmaView = new BlankSigmaDialog();
-
-    // Set layout for Sigma page
-    auto pageLayout = new QVBoxLayout();
-    pageLayout->addWidget(blankSigmaView);
-    blankSigmaPage->setLayout(pageLayout);
-}
-
 void WalletView::setupSigmaPage()
 {
-    sigmaView = new SigmaDialog(platformStyle);
-    connect(sigmaView, SIGNAL(message(QString, QString, unsigned int)), this, SIGNAL(message(QString, QString, unsigned int)));
-
     // Set layout for Sigma page
     auto pageLayout = new QVBoxLayout();
-    pageLayout->addWidget(sigmaView);
-    sigmaPage->setLayout(pageLayout);
+
+    if (pwalletMain->IsHDSeedAvailable()) {
+        sigmaView = new SigmaDialog(platformStyle);
+        connect(sigmaView, SIGNAL(message(QString, QString, unsigned int)), this, SIGNAL(message(QString, QString, unsigned int)));
+        pageLayout->addWidget(sigmaView);
+        sigmaPage->setLayout(pageLayout);
+    } else {
+        blankSigmaView = new BlankSigmaDialog();
+        pageLayout->addWidget(blankSigmaView);
+        sigmaPage->setLayout(pageLayout);
+    }
 }
 
 void WalletView::setupToolboxPage()
@@ -408,16 +392,7 @@ void WalletView::gotoZerocoinPage()
 
 void WalletView::gotoSigmaPage()
 {
-    if (pwalletMain->IsHDSeedAvailable()) {
-        setCurrentWidget(sigmaPage);
-    }
-}
-
-void WalletView::gotoBlankSigmaPage()
-{
-    if (!pwalletMain->IsHDSeedAvailable()) {
-        setCurrentWidget(blankSigmaPage);
-    }
+    setCurrentWidget(sigmaPage);
 }
 
 void WalletView::gotoZc2SigmaPage()

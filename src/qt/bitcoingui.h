@@ -116,7 +116,6 @@ private:
     QAction *openAction;
     QAction *showHelpMessageAction;
     QAction *sigmaAction;
-    QAction *blankSigmaAction;
     QAction *zc2SigmaAction;
     QAction *znodeAction;
 
@@ -153,9 +152,6 @@ private:
 
     /** Updates Zc2SigmaPage visibility */
     void checkZc2SigmaVisibility(int numBlocks);
-
-    /** Update sigmaPage visibility */
-    void checkSigmaPageVisibility();
 
 Q_SIGNALS:
     /** Signal raised when a URI was entered or dragged to the GUI */
@@ -214,8 +210,6 @@ private Q_SLOTS:
     void gotoReceiveCoinsPage();
     /** Switch to send coins page */
     void gotoSendCoinsPage(QString addr = "");
-    /** Switch to blank sigma page */
-    void gotoBlankSigmaPage();
     /** Switch to sigma page */
     void gotoSigmaPage();
     /** Switch to ZC->sigma page */

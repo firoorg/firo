@@ -72,7 +72,6 @@ private:
     void setupTransactionPage();
     void setupSendCoinPage();
     void setupToolboxPage();
-    void setupBlankSigmaPage();
     void setupSigmaPage();
 
 private:
@@ -95,9 +94,8 @@ private:
     MetaDExCancelDialog *cancelTab;
     ZerocoinPage *zerocoinPage;
     SigmaDialog *sigmaView;
-    QWidget *sigmaPage;
     BlankSigmaDialog *blankSigmaView;
-    QWidget *blankSigmaPage;
+    QWidget *sigmaPage;
     Zc2SigmaPage *zc2SigmaPage;
     TransactionView *zcoinTransactionList;
     TXHistoryDialog *exodusTransactionsView;
@@ -133,8 +131,6 @@ public Q_SLOTS:
     void gotoSendCoinsPage(QString addr = "");
     /** Switch to zerocoin page */
     void gotoZerocoinPage();
-    /** Switch to blank sigma page */
-    void gotoBlankSigmaPage();
     /** Switch to sigma page */
     void gotoSigmaPage();
     /** Switch to ZC to Sigma page */
