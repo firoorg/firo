@@ -5,6 +5,7 @@ from decimal import *
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import *
 
+from pprint import pprint
 
 # Zapwallettxes, rescan, reindex, reindex-chainstate are not affect existing transactions
 
@@ -91,7 +92,7 @@ class TransactionsVerAfterRestartTest(BitcoinTestFramework):
 
         self.nodes[0].generate(10)
 
-        transations_before = self.nodes[0].listtransactions()
+        transactions_before = self.nodes[0].listtransactions()
 
         self.nodes[0].stop()
         bitcoind_processes[0].wait()
@@ -100,10 +101,10 @@ class TransactionsVerAfterRestartTest(BitcoinTestFramework):
         self.nodes[0] = start_node(0,self.options.tmpdir, ["-zapwallettxes=1"])
 
         #list of transactions should be same as initial after restart with flag
-        transations_after_zapwallettxes1 = self.nodes[0].listtransactions()
+        transactions_after_zapwallettxes1 = self.nodes[0].listtransactions()
 
         #11. Check all transactions shown properly as before restart 
-        assert transations_before == transations_after_zapwallettxes1, \
+        assert transactions_before == transactions_after_zapwallettxes1, \
             'List of transactions after restart with zapwallettxes=1 unexpectedly changed.'
         
         self.nodes[0].stop()
@@ -113,10 +114,10 @@ class TransactionsVerAfterRestartTest(BitcoinTestFramework):
         self.nodes[0] = start_node(0,self.options.tmpdir, ["-zapwallettxes=2"])
         
         #list of transactions should be same as initial after restart with flag
-        transations_after_zapwallettxes2 = self.nodes[0].listtransactions()
+        transactions_after_zapwallettxes2 = self.nodes[0].listtransactions()
 
         #13. Check all transactions shown properly as before restart 
-        assert transations_before == transations_after_zapwallettxes2, \
+        assert transactions_before == transactions_after_zapwallettxes2, \
             'List of transactions after restart with zapwallettxes=2 unexpectedly changed.'
 
         self.nodes[0].stop()
@@ -126,21 +127,28 @@ class TransactionsVerAfterRestartTest(BitcoinTestFramework):
         self.nodes[0] = start_node(0,self.options.tmpdir, ["-rescan"])
         
         #15. Check all transactions shown properly as before restart 
-        transations_after_rescan = self.nodes[0].listtransactions()
+        transactions_after_rescan = self.nodes[0].listtransactions()
 
-        assert transations_before == transations_after_rescan, \
+        assert transactions_before == transactions_after_rescan, \
             'List of transactions after restart with rescan unexpectedly changed.'
-        
+
+        last_block_height = self.nodes[0].getinfo()["blocks"]
+        transactions_before_reindex = self.nodes[0].listtransactions("*", 1000)
+
         self.nodes[0].stop()
         bitcoind_processes[0].wait()
 
         #16. Restart with reindex
         self.nodes[0] = start_node(0,self.options.tmpdir, ["-reindex"])
 
-        transations_after_reindex = self.nodes[0].listtransactions()
+        while self.nodes[0].getinfo()["blocks"] != last_block_height:
+            time.sleep(1)
 
-        #17. Check all transactions shown properly as before restart 
-        assert transations_before == transations_after_reindex, \
+        #17. Check all transactions shown properly as before restart
+        tx_before = sorted(transactions_before_reindex, key=lambda k: k['txid'], reverse=True)
+        tx_after_reindex = sorted(self.nodes[0].listtransactions("*", 1000), key=lambda k: k['txid'], reverse=True)
+
+        assert tx_before == tx_after_reindex, \
             'List of transactions after restart with reindex unexpectedly changed.'
 
         self.nodes[0].stop()
@@ -148,12 +156,14 @@ class TransactionsVerAfterRestartTest(BitcoinTestFramework):
 
         #18. Restart with reindex-chainstate
         self.nodes[0] = start_node(0,self.options.tmpdir, ["-reindex-chainstate"])
-        
-        #19. Check all transactions shown properly as before restart 
-        transations_after_reindex_chainstate = self.nodes[0].listtransactions()
 
-        assert transations_before == transations_after_reindex_chainstate, \
-            'List of transactions after restart with reindex unexpectedly changed.'
+        time.sleep(5)
+        
+        #19. Check all transactions shown properly as before restart
+        tx_after_reindex_chainstate = sorted(self.nodes[0].listtransactions("*", 1000), key=lambda k: k['txid'], reverse=True)
+
+        assert tx_before == tx_after_reindex_chainstate, \
+            'List of transactions after restart with reindex-chainstate unexpectedly changed.'
 
 
 
