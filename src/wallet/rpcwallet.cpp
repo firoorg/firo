@@ -78,7 +78,7 @@ bool EnsureWalletIsAvailable(bool avoidException)
 bool EnsureHDSeedIsAvailable(bool avoidException = false) {
     if (!pwalletMain || !pwalletMain->IsHDSeedAvailable()) {
         if (!avoidException) {
-            throw JSONRPCError(RPC_WALLET_ERROR, "sigma mint/spend is not allow for legacy wallet");
+            throw JSONRPCError(RPC_WALLET_ERROR, "sigma mint/spend is not allowed for legacy wallet");
         }
         return false;
     }
