@@ -1800,8 +1800,10 @@ bool AcceptToMemoryPoolWorker(
 
     if (tx.IsZerocoinSpend() && markZcoinSpendTransactionSerial)
         zcState->AddSpendToMempool(zcSpendSerials, hash);
-    if (tx.IsSigmaSpend() && markZcoinSpendTransactionSerial){
-        sigmaState->AddSpendToMempool(zcSpendSerialsV3, hash);
+    if (tx.IsSigmaSpend()){
+        if(markZcoinSpendTransactionSerial)
+            sigmaState->AddSpendToMempool(zcSpendSerialsV3, hash);
+        LogPrintf("Updating mint tracker state from Mempool..");
         pwalletMain->hdMintTracker->UpdateSpendStateFromMempool(zcSpendSerialsV3);
     }
     SyncWithWallets(tx, NULL, NULL);
