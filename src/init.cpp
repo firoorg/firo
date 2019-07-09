@@ -794,8 +794,10 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
     if (!GetBoolArg("-disablewallet", false)) {
         //Load zerocoin mint hashes to memory
         LogPrintf("Loading mints to wallet..\n");
-        pwalletMain->hdMintTracker->Init();
-        zwalletMain->LoadMintPoolFromDB();
+        if (zwalletMain) {
+            pwalletMain->hdMintTracker->Init();
+            zwalletMain->LoadMintPoolFromDB();
+        }
     }
 #endif
 
@@ -863,7 +865,7 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
     }
 
 #ifdef ENABLE_WALLET
-    if (!GetBoolArg("-disablewallet", false)) {
+    if (!GetBoolArg("-disablewallet", false) && zwalletMain) {
         zwalletMain->SyncWithChain();
     }
 #endif
@@ -1704,7 +1706,7 @@ bool AppInit2(boost::thread_group &threadGroup, CScheduler &scheduler) {
                 // If the loaded chain has a wrong genesis, bail out immediately
                 // (we're likely using a testnet datadir, or the other way around).
                 if (!mapBlockIndex.empty() && mapBlockIndex.count(chainparams.GetConsensus().hashGenesisBlock) == 0) {
-                    LogPrintf("Genesis block hash %s not found.\n", 
+                    LogPrintf("Genesis block hash %s not found.\n",
                         chainparams.GetConsensus().hashGenesisBlock.ToString());
                     LogPrintf("mapBlockIndex contains %d blocks.\n", mapBlockIndex.size());
                     return InitError(_("Incorrect or no genesis block found. Wrong datadir for network?"));

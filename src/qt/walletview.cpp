@@ -53,6 +53,7 @@ WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
     overviewPage(0),
     sendExodusView(0),
     sigmaView(0),
+    blankSigmaView(0),
     zc2SigmaPage(0),
     exodusTransactionsView(0),
     zcoinTransactionsView(0),
@@ -179,13 +180,19 @@ void WalletView::setupSendCoinPage()
 
 void WalletView::setupSigmaPage()
 {
-    sigmaView = new SigmaDialog(platformStyle);
-    connect(sigmaView, SIGNAL(message(QString, QString, unsigned int)), this, SIGNAL(message(QString, QString, unsigned int)));
-
     // Set layout for Sigma page
     auto pageLayout = new QVBoxLayout();
-    pageLayout->addWidget(sigmaView);
-    sigmaPage->setLayout(pageLayout);
+
+    if (pwalletMain->IsHDSeedAvailable()) {
+        sigmaView = new SigmaDialog(platformStyle);
+        connect(sigmaView, SIGNAL(message(QString, QString, unsigned int)), this, SIGNAL(message(QString, QString, unsigned int)));
+        pageLayout->addWidget(sigmaView);
+        sigmaPage->setLayout(pageLayout);
+    } else {
+        blankSigmaView = new BlankSigmaDialog();
+        pageLayout->addWidget(blankSigmaView);
+        sigmaPage->setLayout(pageLayout);
+    }
 }
 
 void WalletView::setupToolboxPage()
@@ -235,7 +242,9 @@ void WalletView::setClientModel(ClientModel *clientModel)
     sendZcoinView->setClientModel(clientModel);
     znodeListPage->setClientModel(clientModel);
     exoAssetsPage->setClientModel(clientModel);
-    sigmaView->setClientModel(clientModel);
+    if (pwalletMain->IsHDSeedAvailable()) {
+        sigmaView->setClientModel(clientModel);
+    }
     zc2SigmaPage->setClientModel(clientModel);
 
     if (exodusTransactionsView) {
@@ -256,7 +265,9 @@ void WalletView::setWalletModel(WalletModel *walletModel)
     overviewPage->setWalletModel(walletModel);
     receiveCoinsPage->setModel(walletModel);
     zerocoinPage->setModel(walletModel->getAddressTableModel());
-    sigmaView->setWalletModel(walletModel);
+    if (pwalletMain->IsHDSeedAvailable()) {
+        sigmaView->setWalletModel(walletModel);
+    }
     zc2SigmaPage->createModel();
     usedReceivingAddressesPage->setModel(walletModel->getAddressTableModel());
     usedSendingAddressesPage->setModel(walletModel->getAddressTableModel());
@@ -386,7 +397,11 @@ void WalletView::gotoSigmaPage()
 
 void WalletView::gotoZc2SigmaPage()
 {
-    setCurrentWidget(zc2SigmaPage);
+    if (pwalletMain->IsHDSeedAvailable()) {
+        setCurrentWidget(zc2SigmaPage);
+    } else {
+        setCurrentWidget(sigmaPage);
+    }
 }
 
 void WalletView::gotoToolboxPage()

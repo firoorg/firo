@@ -331,20 +331,21 @@ void BitcoinGUI::createActions()
 	historyAction->setShortcut(QKeySequence(Qt::ALT + key++));
 	tabGroup->addAction(historyAction);
 
-	sigmaAction = new QAction(platformStyle->SingleColorIcon(":/icons/sigma"), tr("Si&gma"), this);
-	sigmaAction->setStatusTip(tr("Anonymize your coins and perform private transfers using Sigma"));
-	sigmaAction->setToolTip(sigmaAction->statusTip());
-	sigmaAction->setCheckable(true);
-	sigmaAction->setShortcut(QKeySequence(Qt::ALT +  key++));
-	tabGroup->addAction(sigmaAction);
+    sigmaAction = new QAction(platformStyle->SingleColorIcon(":/icons/sigma"), tr("Si&gma"), this);
+    sigmaAction->setStatusTip(tr("Anonymize your coins and perform private transfers using Sigma"));
+    sigmaAction->setToolTip(sigmaAction->statusTip());
+    sigmaAction->setCheckable(true);
+    sigmaAction->setShortcut(QKeySequence(Qt::ALT +  key++));
+    tabGroup->addAction(sigmaAction);
+    sigmaAction->setVisible(true);
 
-        zc2SigmaAction = new QAction(platformStyle->SingleColorIcon(":/icons/zerocoin"), tr("&Remint"), this);
-        zc2SigmaAction->setStatusTip(tr("Show the list of public Zerocoins that could be reminted in Sigma"));
-        zc2SigmaAction->setToolTip(zc2SigmaAction->statusTip());
-        zc2SigmaAction->setCheckable(true);
-        zc2SigmaAction->setShortcut(QKeySequence(Qt::ALT +  key++));
-        tabGroup->addAction(zc2SigmaAction);
-        zc2SigmaAction->setVisible(false);
+    zc2SigmaAction = new QAction(platformStyle->SingleColorIcon(":/icons/zerocoin"), tr("&Remint"), this);
+    zc2SigmaAction->setStatusTip(tr("Show the list of public Zerocoins that could be reminted in Sigma"));
+    zc2SigmaAction->setToolTip(zc2SigmaAction->statusTip());
+    zc2SigmaAction->setCheckable(true);
+    zc2SigmaAction->setShortcut(QKeySequence(Qt::ALT +  key++));
+    tabGroup->addAction(zc2SigmaAction);
+    zc2SigmaAction->setVisible(false);
 
 #ifdef ENABLE_WALLET
     // These showNormalIfMinimized are needed because Send Coins and Receive Coins

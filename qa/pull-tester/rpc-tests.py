@@ -148,6 +148,8 @@ testScripts = [
     # 'nulldummy.py',
     'transations_verification_after_restart.py',
     'sigma_remint_lockedwallet.py',
+    'enable_hdsigma.py',
+    'disable_nonhdsigma.py',
     'sigma_zapsigmamints.py',
     'sigma_remint.py',
     'sigma_remint_validation.py',

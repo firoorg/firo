@@ -139,7 +139,10 @@ void WalletModel::pollBalanceChanged()
             transactionTableModel->updateConfirmations();
 
         // check sigma
-        checkSigmaAmount(false);
+        // support only hd
+        if (pwalletMain->IsHDSeedAvailable()) {
+            checkSigmaAmount(false);
+        }
     }
 }
 
@@ -563,10 +566,14 @@ static void NotifyZerocoinChanged(WalletModel *walletmodel, CWallet *wallet, con
                               Q_ARG(QString, QString::fromStdString(pubCoin)),
                               Q_ARG(QString, QString::fromStdString(isUsed)),
                               Q_ARG(int, status));
-    QMetaObject::invokeMethod(walletmodel, "updateSigmaCoins", Qt::QueuedConnection,
+
+    // disable sigma
+    if (pwalletMain->IsHDSeedAvailable()) {
+        QMetaObject::invokeMethod(walletmodel, "updateSigmaCoins", Qt::QueuedConnection,
                               Q_ARG(QString, QString::fromStdString(pubCoin)),
                               Q_ARG(QString, QString::fromStdString(isUsed)),
                               Q_ARG(int, status));
+    }
 }
 
 static void NotifyTransactionChanged(WalletModel *walletmodel, CWallet *wallet, const uint256 &hash, ChangeType status)

@@ -12,7 +12,20 @@
 
 namespace Ui {
     class SigmaDialog;
+    class BlankSigmaDialog;
 }
+
+class BlankSigmaDialog : public QDialog
+{
+    Q_OBJECT
+
+public:
+    BlankSigmaDialog();
+    ~BlankSigmaDialog();
+
+private:
+    Ui::BlankSigmaDialog *ui;
+};
 
 class SigmaDialog : public QDialog
 {

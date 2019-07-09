@@ -1,5 +1,6 @@
 #include "sigmadialog.h"
 #include "ui_sigmadialog.h"
+#include "ui_blanksigmadialog.h"
 
 #include "bitcoinunits.h"
 #include "guiutil.h"
@@ -26,6 +27,18 @@
 #include <unordered_map>
 
 #define SEND_CONFIRM_DELAY   3
+
+BlankSigmaDialog::BlankSigmaDialog() :
+    ui(new Ui::BlankSigmaDialog)
+{
+    ui->setupUi(this);
+    setWindowTitle(tr("sigma"));
+}
+
+BlankSigmaDialog::~BlankSigmaDialog()
+{
+    delete ui;
+}
 
 SigmaDialog::SigmaDialog(const PlatformStyle *platformStyle, QWidget *parent) :
     QDialog(parent),
