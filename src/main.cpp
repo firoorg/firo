@@ -1800,10 +1800,12 @@ bool AcceptToMemoryPoolWorker(
 
     if (tx.IsZerocoinSpend() && markZcoinSpendTransactionSerial)
         zcState->AddSpendToMempool(zcSpendSerials, hash);
-    if (tx.IsSigmaSpend() && markZcoinSpendTransactionSerial)
+    if (tx.IsSigmaSpend() && markZcoinSpendTransactionSerial){
         sigmaState->AddSpendToMempool(zcSpendSerialsV3, hash);
-
+        pwalletMain->hdMintTracker->UpdateSpendStateFromMempool(zcSpendSerialsV3);
+    }
     SyncWithWallets(tx, NULL, NULL);
+
     LogPrintf("AcceptToMemoryPoolWorker -> OK\n");
 
     return true;

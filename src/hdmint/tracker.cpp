@@ -573,6 +573,43 @@ void CHDMintTracker::UpdateSpendStateFromBlock(const sigma::spend_info_container
     UpdateFromBlock(mintPoolEntries, updatedMeta);
 }
 
+void CHDMintTracker::UpdateSpendStateFromMempool(const vector<Scalar>& spentSerials){
+    CWalletDB walletdb(strWalletFile);
+    std::vector<CMintMeta> updatedMeta;
+    std::list<std::pair<uint256, MintPoolEntry>> mintPoolEntries;
+    uint160 hashSeedMasterEntry;
+    CKeyID seedId;
+    int32_t nCount;
+    std::set<uint256> setMempool;
+    {
+        LOCK(mempool.cs);
+        mempool.getTransactions(setMempool);
+    }
+    for(auto& spentSerial : spentSerials){
+        uint256 spentSerialHash = primitives::GetSerialHash(spentSerial);
+        CMintMeta meta;
+        GroupElement pubcoin;
+        // Check serialHash in db
+        if(walletdb.ReadPubcoin(spentSerialHash, pubcoin)){
+            // If found in db but not in memory - this is likely a resync
+            if(!Get(spentSerialHash, meta)){
+                uint256 hashPubcoin = primitives::GetPubCoinValueHash(pubcoin);
+                if(!walletdb.ReadMintPoolPair(hashPubcoin, hashSeedMasterEntry, seedId, nCount)){
+                    continue;
+                }
+                MintPoolEntry mintPoolEntry(hashSeedMasterEntry, seedId, nCount);
+                mintPoolEntries.push_back(std::make_pair(hashPubcoin, mintPoolEntry));
+                continue;
+            }
+            if(UpdateMetaStatus(setMempool, meta)){
+                updatedMeta.emplace_back(meta);
+            }
+        }
+    }
+
+    UpdateFromBlock(mintPoolEntries, updatedMeta);
+}
+
 list<CSigmaEntry> CHDMintTracker::MintsAsZerocoinEntries(bool fUnusedOnly, bool fMatureOnly){
     list <CSigmaEntry> listPubcoin;
     CWalletDB walletdb(strWalletFile);
