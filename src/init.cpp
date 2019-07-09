@@ -868,6 +868,9 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
     if (!GetBoolArg("-disablewallet", false) && zwalletMain) {
         zwalletMain->SyncWithChain();
     }
+    if (GetBoolArg("-zapwallettxes", false)) {
+        pwalletMain->hdMintTracker->ListMints();
+    }
 #endif
 }
 

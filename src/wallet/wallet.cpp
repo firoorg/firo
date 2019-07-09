@@ -2893,7 +2893,7 @@ void CWallet::ListAvailableCoinsMintCoins(vector <COutput> &vCoins, bool fOnlyCo
 
 void CWallet::ListAvailableSigmaMintCoins(vector<COutput> &vCoins, bool fOnlyConfirmed) const {
     vCoins.clear();
-    LOCK(cs_wallet);
+    LOCK2(cs_main, cs_wallet);
     list<CSigmaEntry> listOwnCoins;
     CWalletDB walletdb(pwalletMain->strWalletFile);
     listOwnCoins = pwalletMain->hdMintTracker->MintsAsZerocoinEntries();
@@ -6946,7 +6946,7 @@ bool CWallet::CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CSigmaEntry>
             throw std::runtime_error(_("Failed to write coin serial number into wallet"));
         }
 
-        //Set spent mint as used
+        //Set spent mint as used in memory
         uint256 hashPubcoin = primitives::GetPubCoinValueHash(coin.value);
         pwalletMain->hdMintTracker->SetPubcoinUsed(hashPubcoin, wtxNew.GetHash());
         CMintMeta metaCheck = pwalletMain->hdMintTracker->GetMetaFromPubcoin(hashPubcoin);
@@ -6954,6 +6954,9 @@ bool CWallet::CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CSigmaEntry>
             string strError = "Error, mint with pubcoin hash " + hashPubcoin.GetHex() + " did not get marked as used";
             LogPrintf("SpendZerocoin() : %s\n", strError.c_str());
         }
+
+        //Set spent mint as used in DB
+        pwalletMain->hdMintTracker->UpdateState(metaCheck);
 
         // update CSigmaEntry
         coin.IsUsed = true;
