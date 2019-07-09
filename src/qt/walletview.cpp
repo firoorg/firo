@@ -397,7 +397,11 @@ void WalletView::gotoSigmaPage()
 
 void WalletView::gotoZc2SigmaPage()
 {
-    setCurrentWidget(zc2SigmaPage);
+    if (pwalletMain->IsHDSeedAvailable()) {
+        setCurrentWidget(zc2SigmaPage);
+    } else {
+        setCurrentWidget(sigmaPage);
+    }
 }
 
 void WalletView::gotoToolboxPage()
