@@ -139,7 +139,10 @@ void WalletModel::pollBalanceChanged()
             transactionTableModel->updateConfirmations();
 
         // check sigma
-        checkSigmaAmount(false);
+        // support only hd
+        if (pwalletMain->IsHDSeedAvailable()) {
+            checkSigmaAmount(false);
+        }
     }
 }
 

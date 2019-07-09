@@ -53,6 +53,7 @@ WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
     overviewPage(0),
     sendExodusView(0),
     sigmaView(0),
+    blankSigmaView(0),
     zc2SigmaPage(0),
     exodusTransactionsView(0),
     zcoinTransactionsView(0),
@@ -69,6 +70,8 @@ WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
     zerocoinPage = new ZerocoinPage(platformStyle, ZerocoinPage::ForEditing, this);
     if (pwalletMain->IsHDSeedAvailable()) {
         sigmaPage = new QWidget(this);
+    } else {
+        blankSigmaPage = new QWidget(this);
     }
     zc2SigmaPage = new Zc2SigmaPage(platformStyle, this);
     sendCoinsPage = new QWidget(this);
@@ -80,6 +83,8 @@ WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
     setupToolboxPage();
     if (pwalletMain->IsHDSeedAvailable()) {
         setupSigmaPage();
+    } else {
+        setupBlankSigmaPage();
     }
 
     addWidget(overviewPage);
@@ -90,6 +95,8 @@ WalletView::WalletView(const PlatformStyle *platformStyle, QWidget *parent):
     addWidget(zerocoinPage);
     if (pwalletMain->IsHDSeedAvailable()) {
         addWidget(sigmaPage);
+    } else {
+        addWidget(blankSigmaPage);
     }
     addWidget(zc2SigmaPage);
     addWidget(toolboxPage);
@@ -181,6 +188,16 @@ void WalletView::setupSendCoinPage()
     }
 
     sendCoinsPage->setLayout(pageLayout);
+}
+
+void WalletView::setupBlankSigmaPage()
+{
+    blankSigmaView = new BlankSigmaDialog();
+
+    // Set layout for Sigma page
+    auto pageLayout = new QVBoxLayout();
+    pageLayout->addWidget(blankSigmaView);
+    blankSigmaPage->setLayout(pageLayout);
 }
 
 void WalletView::setupSigmaPage()
@@ -393,6 +410,13 @@ void WalletView::gotoSigmaPage()
 {
     if (pwalletMain->IsHDSeedAvailable()) {
         setCurrentWidget(sigmaPage);
+    }
+}
+
+void WalletView::gotoBlankSigmaPage()
+{
+    if (!pwalletMain->IsHDSeedAvailable()) {
+        setCurrentWidget(blankSigmaPage);
     }
 }
 

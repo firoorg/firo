@@ -122,6 +122,7 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *platformStyle, const NetworkStyle *n
     openRPCConsoleAction(0),
     openAction(0),
     showHelpMessageAction(0),
+    blankSigmaAction(0),
     zc2SigmaAction(0),
     znodeAction(0),
     trayIcon(0),
@@ -331,6 +332,14 @@ void BitcoinGUI::createActions()
 	historyAction->setShortcut(QKeySequence(Qt::ALT + key++));
 	tabGroup->addAction(historyAction);
 
+    blankSigmaAction = new QAction(platformStyle->SingleColorIcon(":/icons/sigma"), tr("Si&gma"), this);
+    blankSigmaAction->setStatusTip(tr("Anonymize your coins and perform private transfers using Sigma"));
+    blankSigmaAction->setToolTip(blankSigmaAction->statusTip());
+    blankSigmaAction->setCheckable(true);
+    blankSigmaAction->setShortcut(QKeySequence(Qt::ALT +  key++));
+    tabGroup->addAction(blankSigmaAction);
+    blankSigmaAction->setVisible(false);
+
     sigmaAction = new QAction(platformStyle->SingleColorIcon(":/icons/sigma"), tr("Si&gma"), this);
     sigmaAction->setStatusTip(tr("Anonymize your coins and perform private transfers using Sigma"));
     sigmaAction->setToolTip(sigmaAction->statusTip());
@@ -338,6 +347,8 @@ void BitcoinGUI::createActions()
     sigmaAction->setShortcut(QKeySequence(Qt::ALT +  key++));
     tabGroup->addAction(sigmaAction);
     sigmaAction->setVisible(false);
+
+
 
         zc2SigmaAction = new QAction(platformStyle->SingleColorIcon(":/icons/zerocoin"), tr("&Remint"), this);
         zc2SigmaAction->setStatusTip(tr("Show the list of public Zerocoins that could be reminted in Sigma"));
@@ -394,6 +405,7 @@ void BitcoinGUI::createActions()
 	connect(historyAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
 	connect(historyAction, SIGNAL(triggered()), this, SLOT(gotoHistoryPage()));
 	connect(sigmaAction, SIGNAL(triggered()), this, SLOT(gotoSigmaPage()));
+    connect(blankSigmaAction, SIGNAL(triggered()), this, SLOT(gotoBlankSigmaPage()));
         connect(zc2SigmaAction, SIGNAL(triggered()), this, SLOT(gotoZc2SigmaPage()));
 
     if (exodusEnabled) {
@@ -536,6 +548,7 @@ void BitcoinGUI::createToolBars()
         toolbar->addAction(sendCoinsAction);
         toolbar->addAction(receiveCoinsAction);
         toolbar->addAction(historyAction);
+        toolbar->addAction(blankSigmaAction);
         toolbar->addAction(sigmaAction);
         toolbar->addAction(zc2SigmaAction);
         toolbar->addAction(znodeAction);
@@ -649,6 +662,7 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
     receiveCoinsAction->setEnabled(enabled);
     receiveCoinsMenuAction->setEnabled(enabled);
     historyAction->setEnabled(enabled);
+    blankSigmaAction->setEnabled(enabled);
     sigmaAction->setEnabled(enabled);
     znodeAction->setEnabled(enabled);
     encryptWalletAction->setEnabled(enabled);
@@ -837,6 +851,11 @@ void BitcoinGUI::gotoSignMessageTab(QString addr)
 void BitcoinGUI::gotoSigmaPage()
 {
     if (walletFrame) walletFrame->gotoSigmaPage();
+}
+
+void BitcoinGUI::gotoBlankSigmaPage()
+{
+    if (walletFrame) walletFrame->gotoBlankSigmaPage();
 }
 
 void BitcoinGUI::gotoZc2SigmaPage()
@@ -1352,7 +1371,11 @@ void BitcoinGUI::checkZc2SigmaVisibility(int numBlocks) {
 
 void BitcoinGUI::checkSigmaPageVisibility() {
     if (pwalletMain->IsHDSeedAvailable()) {
+        blankSigmaAction->setVisible(false);
         sigmaAction->setVisible(true);
+    } else {
+        blankSigmaAction->setVisible(true);
+        sigmaAction->setVisible(false);
     }
 }
 
