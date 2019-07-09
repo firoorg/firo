@@ -153,6 +153,9 @@ private:
     /** Updates Zc2SigmaPage visibility */
     void checkZc2SigmaVisibility(int numBlocks);
 
+    /** Update sigmaPage visibility */
+    void checkSigmaPageVisibility();
+
 Q_SIGNALS:
     /** Signal raised when a URI was entered or dragged to the GUI */
     void receivedURI(const QString &uri);

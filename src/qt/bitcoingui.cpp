@@ -331,12 +331,13 @@ void BitcoinGUI::createActions()
 	historyAction->setShortcut(QKeySequence(Qt::ALT + key++));
 	tabGroup->addAction(historyAction);
 
-	sigmaAction = new QAction(platformStyle->SingleColorIcon(":/icons/sigma"), tr("Si&gma"), this);
-	sigmaAction->setStatusTip(tr("Anonymize your coins and perform private transfers using Sigma"));
-	sigmaAction->setToolTip(sigmaAction->statusTip());
-	sigmaAction->setCheckable(true);
-	sigmaAction->setShortcut(QKeySequence(Qt::ALT +  key++));
-	tabGroup->addAction(sigmaAction);
+    sigmaAction = new QAction(platformStyle->SingleColorIcon(":/icons/sigma"), tr("Si&gma"), this);
+    sigmaAction->setStatusTip(tr("Anonymize your coins and perform private transfers using Sigma"));
+    sigmaAction->setToolTip(sigmaAction->statusTip());
+    sigmaAction->setCheckable(true);
+    sigmaAction->setShortcut(QKeySequence(Qt::ALT +  key++));
+    tabGroup->addAction(sigmaAction);
+    sigmaAction->setVisible(false);
 
         zc2SigmaAction = new QAction(platformStyle->SingleColorIcon(":/icons/zerocoin"), tr("&Remint"), this);
         zc2SigmaAction->setStatusTip(tr("Show the list of public Zerocoins that could be reminted in Sigma"));
@@ -594,6 +595,7 @@ void BitcoinGUI::setClientModel(ClientModel *clientModel)
             setTrayIconVisible(optionsModel->getHideTrayIcon());
         }
         checkZc2SigmaVisibility(clientModel->getNumBlocks());
+        checkSigmaPageVisibility();
     } else {
         // Disable possibility to show main window via action
         toggleHideAction->setEnabled(false);
@@ -1345,6 +1347,12 @@ void BitcoinGUI::checkZc2SigmaVisibility(int numBlocks) {
 
         if(show)
             zc2SigmaAction->setVisible(true);
+    }
+}
+
+void BitcoinGUI::checkSigmaPageVisibility() {
+    if (pwalletMain->IsHDSeedAvailable()) {
+        sigmaAction->setVisible(true);
     }
 }
 
