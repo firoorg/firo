@@ -45,6 +45,9 @@ public:
     void Complete();
 };
 
+CBigNum ParseZerocoinMintScript(const CScript& script);
+std::pair<std::unique_ptr<libzerocoin::CoinSpend>, uint32_t> ParseZerocoinSpend(const CTxIn& in);
+
 bool CheckZerocoinFoundersInputs(const CTransaction &tx, CValidationState &state, const Consensus::Params &params, int nHeight, bool fMTP);
 bool CheckZerocoinTransaction(const CTransaction &tx,
 	CValidationState &state,
@@ -101,6 +104,8 @@ private:
     // Latest IDs of coins by denomination
     map<int, int> latestCoinIds;
 
+    // set of blacklisted public coin values
+    static std::unordered_set<CBigNum,CZerocoinState::CBigNumHash> sigmaRemintBlacklistSet;
 
 public:
     CZerocoinState();
@@ -167,6 +172,12 @@ public:
 
     // Remove spend from the mempool (usually as the result of adding tx to the block)
     void RemoveSpendFromMempool(const CBigNum &coinSerial);
+
+    // Is public coin value blacklisted?
+    static bool IsPublicCoinValueBlacklisted(const CBigNum &value);
+
+    // Manually add public coin value to the blacklist. Meant for testing purposes only
+    static void BlacklistPublicCoinValue(const CBigNum &value);
 
     static CZerocoinState *GetZerocoinState();
 };

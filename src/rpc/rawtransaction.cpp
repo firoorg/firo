@@ -29,10 +29,9 @@
 #endif
 
 #include <stdint.h>
-
 #include <boost/assign/list_of.hpp>
-
 #include <univalue.h>
+#include "zerocoin_v3.h"
 
 using namespace std;
 
@@ -60,6 +59,15 @@ void ScriptPubKeyToJSON(const CScript& scriptPubKey, UniValue& out, bool fInclud
     out.push_back(Pair("addresses", a));
 }
 
+namespace {
+    void fillStdFields(UniValue & out, CTxIn const & txin) {
+        UniValue o(UniValue::VOBJ);
+        o.push_back(Pair("asm", ScriptToAsmStr(txin.scriptSig, true)));
+        o.push_back(Pair("hex", HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
+        out.push_back(Pair("scriptSig", o));
+    }
+}
+
 void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
 {
     uint256 txid = tx.GetHash();
@@ -74,15 +82,25 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
     for (unsigned int i = 0; i < tx.vin.size(); i++) {
         const CTxIn& txin = tx.vin[i];
         UniValue in(UniValue::VOBJ);
-        if (tx.IsCoinBase())
+        if (tx.IsCoinBase()) {
             in.push_back(Pair("coinbase", HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
-        else {
+        } else if (txin.IsSigmaSpend()){
+            std::unique_ptr<sigma::CoinSpend> spend;
+            uint32_t pubcoinId;
+            try {
+                std::tie(spend, pubcoinId) = sigma::ParseSigmaSpend(txin);
+            } catch (CBadTxIn&) {
+                throw JSONRPCError(RPC_DATABASE_ERROR, "An error occurred during processing the Sigma spend information");
+            }
+            in.push_back(Pair("anonymityGroup", int64_t(pubcoinId)));
+            fillStdFields(in, txin);
+
+            in.push_back(Pair("value", ValueFromAmount(spend->getIntDenomination())));
+            in.push_back(Pair("valueSat", spend->getIntDenomination()));
+        } else {
             in.push_back(Pair("txid", txin.prevout.hash.GetHex()));
             in.push_back(Pair("vout", (int64_t)txin.prevout.n));
-            UniValue o(UniValue::VOBJ);
-            o.push_back(Pair("asm", ScriptToAsmStr(txin.scriptSig, true)));
-            o.push_back(Pair("hex", HexStr(txin.scriptSig.begin(), txin.scriptSig.end())));
-            in.push_back(Pair("scriptSig", o));
+            fillStdFields(in, txin);
 
             CTransaction prevTx;
             uint256 hashBlock;

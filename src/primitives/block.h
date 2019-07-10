@@ -16,6 +16,11 @@
 #include "crypto/MerkleTreeProof/mtp.h"
 #include "zerocoin_params.h"
 
+// Can't include zerocoin_v3.h
+namespace sigma {
+class CSigmaTxInfo;
+
+} // namespace sigma.
 
 unsigned char GetNfactor(int64_t nTimestamp);
 
@@ -210,7 +215,6 @@ public:
     {
         return (int64_t)nTime;
     }
-
     void InvalidateCachedPoWHash(int nHeight) const;
 
     bool IsMTP() const;
@@ -231,6 +235,9 @@ public:
 
     // memory only, zerocoin tx info
     mutable std::shared_ptr<CZerocoinTxInfo> zerocoinTxInfo;
+
+    // memory only, zerocoin tx info after V3-sigma.
+    mutable std::shared_ptr<sigma::CSigmaTxInfo> sigmaTxInfo;
 
     CBlock()
     {
