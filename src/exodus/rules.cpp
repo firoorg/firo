@@ -123,6 +123,8 @@ CMainConsensusParams::CMainConsensusParams()
     TRADEALLPAIRS_FEATURE_BLOCK = 0;
     FEES_FEATURE_BLOCK = 999999;
     FREEZENOTICE_FEATURE_BLOCK = 999999;
+    // Sigma releated
+    SIGMA_FEATURE_BLOCK = 204901; //Approx Thursday, October 10, 2019 8:00:00 AM UTC
 }
 
 /**
@@ -159,6 +161,8 @@ CTestNetConsensusParams::CTestNetConsensusParams()
     TRADEALLPAIRS_FEATURE_BLOCK = 0;
     FEES_FEATURE_BLOCK = 999999;
     FREEZENOTICE_FEATURE_BLOCK = 999999;
+    // sigma related
+    SIGMA_FEATURE_BLOCK = 72000;
 }
 
 /**
@@ -195,6 +199,8 @@ CRegTestConsensusParams::CRegTestConsensusParams()
     TRADEALLPAIRS_FEATURE_BLOCK = 0;
     FEES_FEATURE_BLOCK = 999999;
     FREEZENOTICE_FEATURE_BLOCK = 999999;
+    // sigma related
+    SIGMA_FEATURE_BLOCK = 500;
 }
 
 //! Consensus parameters for mainnet
@@ -360,6 +366,9 @@ bool ActivateFeature(uint16_t featureId, int activationBlock, uint32_t minClient
         case FEATURE_FREEZENOTICE:
             MutableConsensusParams().FREEZENOTICE_FEATURE_BLOCK = activationBlock;
         break;
+        case FEATURE_SIGMA:
+            MutableConsensusParams().SIGMA_FEATURE_BLOCK = activationBlock;
+        break;
         default:
             supported = false;
         break;
@@ -431,6 +440,9 @@ bool DeactivateFeature(uint16_t featureId, int transactionBlock)
         case FEATURE_FREEZENOTICE:
             MutableConsensusParams().FREEZENOTICE_FEATURE_BLOCK = 999999;
         break;
+        case FEATURE_SIGMA:
+            MutableConsensusParams().SIGMA_FEATURE_BLOCK = 999999;
+        break;
         default:
             return false;
         break;
@@ -462,6 +474,7 @@ std::string GetFeatureName(uint16_t featureId)
         case FEATURE_FEES: return "Fee system (inc 0.05% fee from trades of non-Omni pairs)";
         case FEATURE_STOV1: return "Cross-property Send To Owners";
         case FEATURE_FREEZENOTICE: return "Activate the waiting period for enabling freezing";
+        case FEATURE_SIGMA: return "Activate Sigma transactions";
 
         default: return "Unknown feature";
     }
@@ -508,7 +521,10 @@ bool IsFeatureActivated(uint16_t featureId, int transactionBlock)
             break;
         case FEATURE_FREEZENOTICE:
             activationBlock = params.FREEZENOTICE_FEATURE_BLOCK;
-        break;
+            break;
+        case FEATURE_SIGMA:
+            activationBlock = params.SIGMA_FEATURE_BLOCK;
+            break;
         default:
             return false;
     }

@@ -31,6 +31,8 @@ const uint16_t FEATURE_FEES = 9;
 const uint16_t FEATURE_STOV1 = 10;
 //! Feature identifier to activate the waiting period for enabling managed property address freezing
 const uint16_t FEATURE_FREEZENOTICE = 14;
+//! Feature identifier to activate sigma on exodus
+const uint16_t FEATURE_SIGMA = 15;
 
 //! When (propertyTotalTokens / EXODUS_FEE_THRESHOLD) is reached fee distribution will occur
 const int64_t EXODUS_FEE_THRESHOLD = 100000; // 0.001%
@@ -120,6 +122,9 @@ public:
     int FEES_FEATURE_BLOCK;
     //! Block to activate the waiting period for enabling managed property address freezing
     int FREEZENOTICE_FEATURE_BLOCK;
+
+    //! Block to activate sigma
+    int SIGMA_FEATURE_BLOCK;
 
     /** Returns a mapping of transaction types, and the blocks at which they are enabled. */
     virtual std::vector<TransactionRestriction> GetRestrictions() const;
