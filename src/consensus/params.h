@@ -116,7 +116,7 @@ struct Params {
 
     // Maximum number of outbound peers designated as Dandelion destinations.
     uint32_t nDandelionMaxDestinations;
-    
+
     // Expected time between Dandelion routing shuffles (in seconds).
     uint32_t nDandelionShuffleInterval;
 
@@ -127,6 +127,9 @@ struct Params {
 
     // The block number after which sigma are accepted.
     int nSigmaStartBlock;
+
+    // The block number after which sigma on exodus are accepted.
+    int nExodusSigmaStartBlock;
 
     // Number of blocks after nSigmaMintStartBlock during which we still accept zerocoin V2 mints into mempool.
     int nZerocoinV2MintMempoolGracefulPeriod;
@@ -176,7 +179,7 @@ struct Params {
 
     /** block number to disable zerocoin on consensus level */
     int nDisableZerocoinStartBlock;
-	
+
     int64_t DifficultyAdjustmentInterval(bool fMTP = false) const { return nPowTargetTimespan / (fMTP ? nPowTargetSpacingMTP : nPowTargetSpacing); }
     uint256 nMinimumChainWork;
 

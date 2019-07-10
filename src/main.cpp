@@ -8457,3 +8457,8 @@ public:
         mapOrphanTransactionsByPrev.clear();
     }
 } instance_of_cmaincleanup;
+
+bool IsExodusSigmaActived() {
+    LOCK(cs_main);
+    return chainActive.Height() >= Params().GetConsensus().nExodusSigmaStartBlock;
+}

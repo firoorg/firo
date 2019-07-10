@@ -111,6 +111,10 @@ static const int64_t DUST_HARD_LIMIT = 1000;   // 0.00001 XZC mininput
 // Number of zerocoin mints allowed per transaction
 #define ZC_MINT_LIMIT         100
 
+// Block after which sigma on exodus mints are activated.
+#define SIGMA_EXODUS_STARTING_BLOCK                 204901 //Approx Thursday, October 10, 2019 8:00:00 AM UTC
+#define SIGMA_EXODUS_TESTNET_STARTING_BLOCK         72000
+
 /** Maximum number of outbound peers designated as Dandelion destinations */
 #define DANDELION_MAX_DESTINATIONS 2
 
