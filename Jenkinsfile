@@ -10,12 +10,12 @@ pipeline {
             steps {
                 sh 'git clean -d -f -f -q -x'
                 sh './autogen.sh'
-                sh './configure --enable-tests'
+                sh './configure'
                 sh 'make dist'
                 sh 'mkdir -p dist'
                 sh 'tar -C dist --strip-components=1 -xzf zcoin-*.tar.gz'
                 dir('dist') {
-                    sh './configure'
+                    sh './configure --enable-tests'
                     sh 'make -j6'
                 }
             }
