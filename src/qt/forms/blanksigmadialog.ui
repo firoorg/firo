@@ -16,9 +16,9 @@
      <item>
       <widget class="QLabel" name="label">
        <property name="text">
-        <string>We have detected that your wallet does not use a HD seed. A HD seed allows you to restore all your private keys and also Sigma mints even when restoring from an old backup.
+        <string>We have detected that your wallet does not use an HD seed. An HD seed allows you to restore all your private keys and also Sigma mints when restoring from a backup.
 
-To have Sigma private transactions functionality, a HD wallet is required. We highly recommend that you create a new wallet and move your funds over to the new wallet version or use the dumpwallet in conjunction with importprivkey commands to move the keys to the new wallet.
+To have Sigma private transactions functionality, an HD wallet is required. We highly recommend that you create a new wallet and send your funds over to the newly-created wallet or use the <tt>dumpwallet</tt> command in conjunction with <tt>importwallet</tt> to move your keys to the new wallet.
 </string>
        </property>
        <property name="alignment">
