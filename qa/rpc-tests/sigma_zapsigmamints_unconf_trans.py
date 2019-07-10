@@ -115,7 +115,7 @@ class SigmaZapSigmaMintsUnconfirmedTest(BitcoinTestFramework):
 
         # 17. check listunspentmints it should decreased
         # Mints count should pass even after restart with '-["-zapsigmamints"]'
-        assert len(sigma_mints5) >= len(sigma_mints1), \
+        assert len(sigma_mints5) <= len(sigma_mints1), \
             'After restart with ["-zapsigmamints"] mint does not work.'
 
 

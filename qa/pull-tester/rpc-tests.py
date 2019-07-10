@@ -164,8 +164,7 @@ testScripts = [
     'sigma_mint_validation.py',
     'sigma_mintspend.py',
     'sigma_blocklimit.py',
-    'hdmint_mempool_zap1.py',
-    'hdmint_mempool_zap2.py',
+    'hdmint_mempool_zap.py',
     'sigma_zapsigmamints_unconf_trans.py'
 ]
 # if ENABLE_ZMQ:
