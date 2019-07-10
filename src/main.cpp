@@ -1806,6 +1806,17 @@ bool AcceptToMemoryPoolWorker(
         LogPrintf("Updating mint tracker state from Mempool..");
         pwalletMain->hdMintTracker->UpdateSpendStateFromMempool(zcSpendSerialsV3);
     }
+    vector<GroupElement> zcMintPubcoinsV3;
+    if(tx.IsSigmaMint()){
+        BOOST_FOREACH(const CTxOut &txout, tx.vout)
+        {
+            if(txout.scriptPubKey.IsSigmaMint()){
+                GroupElement pubCoinValue = sigma::ParseSigmaMintScript(txout.scriptPubKey);
+                zcMintPubcoinsV3.push_back(pubCoinValue);
+            }
+        }
+       pwalletMain->hdMintTracker->UpdateMintStateFromMempool(zcMintPubcoinsV3);
+    }
     SyncWithWallets(tx, NULL, NULL);
 
     LogPrintf("AcceptToMemoryPoolWorker -> OK\n");
