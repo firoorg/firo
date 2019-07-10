@@ -105,6 +105,10 @@ static std::unique_ptr<SigmaSpendSigner> CreateSigner(const CSigmaEntry& coin)
 
 SigmaSpendBuilder::SigmaSpendBuilder(CWallet& wallet, const CCoinControl *coinControl) : TxBuilder(wallet)
 {
+    if (!zwalletMain) {
+        throw std::logic_error("Sigma feature required HD wallet");
+    }
+
     cs_main.lock();
 
     try {
@@ -161,9 +165,7 @@ CAmount SigmaSpendBuilder::GetChanges(std::vector<CTxOut>& outputs, CAmount amou
 
         sigma::PrivateCoin newCoin(params, denomination, ZEROCOIN_TX_VERSION_3);
         hdMint.SetNull();
-        if (zwalletMain) {
-            zwalletMain->GenerateMint(denomination, newCoin, hdMint);
-        }
+        zwalletMain->GenerateMint(denomination, newCoin, hdMint);
         auto& pubCoin = newCoin.getPublicCoin();
 
         if (!pubCoin.validate()) {
