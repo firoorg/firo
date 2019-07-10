@@ -56,6 +56,12 @@ class RemintSigmaTest(BitcoinTestFramework):
         assert len(sigma_mint) == 12, 'Should be 12 sigma mints after remint, but was: {}' \
                 .format(len(sigma_mint))
 
+        sigma_mints = set([mint['amount'] for mint in sigma_mint])
+        expected_mints = set([Decimal('25.00000000'), Decimal('10.00000000'), Decimal('100.00000000'), Decimal('1.00000000')])
+
+        assert sigma_mints == expected_mints, 'Unexpected sigma mints after remint.' \
+                            '\n Actual: {}, \n expected {}'.format(sigma_mint, expected_mints)
+
         # fee size to extract when spend all coins
         total_amount_to_spend = -1* len(zcoin_denoms)*0.05*2
         
