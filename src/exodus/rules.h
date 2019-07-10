@@ -124,7 +124,7 @@ public:
     int FREEZENOTICE_FEATURE_BLOCK;
 
     //! Block to activate sigma
-    int EXODUS_SIGMA_STARTING_BLOCK;
+    int SIGMA_FEATURE_BLOCK;
 
     /** Returns a mapping of transaction types, and the blocks at which they are enabled. */
     virtual std::vector<TransactionRestriction> GetRestrictions() const;

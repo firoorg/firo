@@ -124,7 +124,7 @@ CMainConsensusParams::CMainConsensusParams()
     FEES_FEATURE_BLOCK = 999999;
     FREEZENOTICE_FEATURE_BLOCK = 999999;
     // Sigma releated
-    EXODUS_SIGMA_STARTING_BLOCK = 204901; //Approx Thursday, October 10, 2019 8:00:00 AM UTC
+    SIGMA_FEATURE_BLOCK = 204901; //Approx Thursday, October 10, 2019 8:00:00 AM UTC
 }
 
 /**
@@ -162,7 +162,7 @@ CTestNetConsensusParams::CTestNetConsensusParams()
     FEES_FEATURE_BLOCK = 999999;
     FREEZENOTICE_FEATURE_BLOCK = 999999;
     // sigma related
-    EXODUS_SIGMA_STARTING_BLOCK = 72000;
+    SIGMA_FEATURE_BLOCK = 72000;
 }
 
 /**
@@ -200,7 +200,7 @@ CRegTestConsensusParams::CRegTestConsensusParams()
     FEES_FEATURE_BLOCK = 999999;
     FREEZENOTICE_FEATURE_BLOCK = 999999;
     // sigma related
-    EXODUS_SIGMA_STARTING_BLOCK = 500;
+    SIGMA_FEATURE_BLOCK = 500;
 }
 
 //! Consensus parameters for mainnet
@@ -367,7 +367,7 @@ bool ActivateFeature(uint16_t featureId, int activationBlock, uint32_t minClient
             MutableConsensusParams().FREEZENOTICE_FEATURE_BLOCK = activationBlock;
         break;
         case FEATURE_SIGMA:
-            MutableConsensusParams().EXODUS_SIGMA_STARTING_BLOCK = activationBlock;
+            MutableConsensusParams().SIGMA_FEATURE_BLOCK = activationBlock;
         break;
         default:
             supported = false;
@@ -441,7 +441,7 @@ bool DeactivateFeature(uint16_t featureId, int transactionBlock)
             MutableConsensusParams().FREEZENOTICE_FEATURE_BLOCK = 999999;
         break;
         case FEATURE_SIGMA:
-            MutableConsensusParams().EXODUS_SIGMA_STARTING_BLOCK = 999999;
+            MutableConsensusParams().SIGMA_FEATURE_BLOCK = 999999;
         break;
         default:
             return false;
@@ -523,7 +523,7 @@ bool IsFeatureActivated(uint16_t featureId, int transactionBlock)
             activationBlock = params.FREEZENOTICE_FEATURE_BLOCK;
             break;
         case FEATURE_SIGMA:
-            activationBlock = params.EXODUS_SIGMA_STARTING_BLOCK;
+            activationBlock = params.SIGMA_FEATURE_BLOCK;
             break;
         default:
             return false;
