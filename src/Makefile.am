@@ -670,6 +670,9 @@ endif
 
 if ENABLE_TESTS
 include Makefile.test.include
+else
+check-local:
+	$(error Please rerun configure with tests enabling flag)
 endif
 
 # Exodus
