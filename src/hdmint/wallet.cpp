@@ -16,7 +16,7 @@
 #include "keystore.h"
 #include <boost/optional.hpp>
 
-CHDMintWallet::CHDMintWallet(std::string strWalletFile)
+CHDMintWallet::CHDMintWallet(const std::string& strWalletFile) : tracker(strWalletFile)
 {
     this->strWalletFile = strWalletFile;
     CWalletDB walletdb(strWalletFile);
@@ -151,9 +151,9 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
             int32_t& mintCount = get<2>(pMint.second);
 
             // halt processing if mint already in tracker
-            if (pwalletMain->hdMintTracker->HasPubcoinHash(pMint.first))
+            if (tracker.HasPubcoinHash(pMint.first))
                 continue;
-            
+
             COutPoint outPoint;
             if (sigma::GetOutPoint(outPoint, pMint.first)) {
                 const uint256& txHash = outPoint.hash;
@@ -246,7 +246,7 @@ bool CHDMintWallet::SetMintSeedSeen(std::pair<uint256,MintPoolEntry> mintPoolEnt
         CreateZerocoinSeed(seedZerocoin, mintCount, seedId, false);
         sigma::PrivateCoin coin(sigma::Params::get_default(), denom, false);
         if(!SeedToZerocoin(seedZerocoin, bnValue, coin))
-            return false;   
+            return false;
         hashSerial = primitives::GetSerialHash(coin.getSerialNumber());
     }else{
         // Get serial and pubcoin data from the db
@@ -261,8 +261,8 @@ bool CHDMintWallet::SetMintSeedSeen(std::pair<uint256,MintPoolEntry> mintPoolEnt
                 fFound = true;
                 break;
             }
-        } 
-        // Not found in DB 
+        }
+        // Not found in DB
         if(!fFound)
             return false;
 
@@ -291,8 +291,8 @@ bool CHDMintWallet::SetMintSeedSeen(std::pair<uint256,MintPoolEntry> mintPoolEnt
         pwalletMain->AddToWallet(wtx, false, &walletdb);
     }
 
-    // Add to hdMintTracker which also adds to database
-    pwalletMain->hdMintTracker->Add(dMint, true);
+    // Add to tracker which also adds to database
+    tracker.Add(dMint, true);
 
     return true;
 }
@@ -310,7 +310,7 @@ bool CHDMintWallet::SeedToZerocoin(const uint512& seedZerocoin, GroupElement& co
         return false;
     }
     // Hash the public key in the group to obtain a serial number
-    Scalar serialNumber = coin.serialNumberFromSerializedPublicKey(OpenSSLContext::get_context(), &pubkey); 
+    Scalar serialNumber = coin.serialNumberFromSerializedPublicKey(OpenSSLContext::get_context(), &pubkey);
     coin.setSerialNumber(serialNumber);
 
     //hash randomness seed with Bottom 256 bits of seedZerocoin
@@ -344,7 +344,7 @@ CKeyID CHDMintWallet::GetZerocoinSeedID(int32_t nCount){
 }
 
 bool CHDMintWallet::CreateZerocoinSeed(uint512& seedZerocoin, const int32_t& n, CKeyID& seedId, bool checkIndex)
-{ 
+{
     LOCK(pwalletMain->cs_wallet);
     CKey key;
     // Ensures value of child index is valid for seed being generated
@@ -354,7 +354,7 @@ bool CHDMintWallet::CreateZerocoinSeed(uint512& seedZerocoin, const int32_t& n, 
             return false;
         }
     }
-    
+
     // if passed seedId, we assume generation of seed has occured.
     // Otherwise get new key to be used as seed
     if(seedId.IsNull()){
@@ -373,7 +373,7 @@ bool CHDMintWallet::CreateZerocoinSeed(uint512& seedZerocoin, const int32_t& n, 
 
     std::string nCount = to_string(n);
     CSHA256().Write(reinterpret_cast<const unsigned char*>(nCount.c_str()), nCount.size()).Finalize(countHash);
-    
+
     CHMAC_SHA512(countHash, CSHA256().OUTPUT_SIZE).Write(key.begin(), key.size()).Finalize(result);
     std::vector<unsigned char> resultVector(result, result+CSHA512().OUTPUT_SIZE);
 
@@ -426,7 +426,7 @@ bool CHDMintWallet::GenerateMint(const sigma::CoinDenomination denom, sigma::Pri
         // Empty mintPoolEntry implies this is a new mint being created, so update nCountNextUse
         UpdateCountLocal();
     }
-    
+
     uint512 seedZerocoin;
     CreateZerocoinSeed(seedZerocoin, get<2>(mintPoolEntry.get()), get<1>(mintPoolEntry.get()), false);
 
@@ -483,7 +483,7 @@ bool CHDMintWallet::IsSerialInBlockchain(const uint256& hashSerial, int& nHeight
     if (!sigma::CSigmaState::GetState()->IsUsedCoinSerialHash(bnSerial, hashSerial))
         return false;
 
-    if(!pwalletMain->hdMintTracker->Get(hashSerial, mMeta))
+    if(!tracker.Get(hashSerial, mMeta))
         return false;
 
     txidSpend = mMeta.txid;

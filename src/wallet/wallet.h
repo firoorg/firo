@@ -680,8 +680,6 @@ public:
      */
     mutable CCriticalSection cs_wallet;
 
-    CHDMintWallet* zwallet;
-
     bool fFileBacked;
     std::string strWalletFile;
 
@@ -693,8 +691,6 @@ public:
     typedef std::map<unsigned int, CMasterKey> MasterKeyMap;
     MasterKeyMap mapMasterKeys;
     unsigned int nMasterKeyMaxID;
-
-    std::unique_ptr<CHDMintTracker> hdMintTracker;
 
     CWallet()
     {
@@ -751,12 +747,6 @@ public:
 
     int64_t nTimeFirstKey;
 
-    void setZWallet(CHDMintWallet* zwallet)
-    {
-        this->zwallet = zwallet;
-        hdMintTracker = std::unique_ptr<CHDMintTracker>(new CHDMintTracker(strWalletFile));
-    }
-
     const CWalletTx* GetWalletTx(const uint256& hash) const;
 
     //! check whether we are allowed to upgrade (or already support) to the named feature
@@ -766,6 +756,8 @@ public:
      * populate vCoins with vector of available COutputs.
      */
     void AvailableCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed=true, const CCoinControl *coinControl = NULL, bool fIncludeZeroValue=false, AvailableCoinsType nCoinType=ALL_COINS, bool fUseInstantSend = false) const;
+
+    bool IsHDSeedAvailable() { return !hdChain.masterKeyID.IsNull(); }
 
     /**
      * Shuffle and select coins until nTargetValue is reached while avoiding

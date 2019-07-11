@@ -11,7 +11,7 @@
 #include "uint256.h"
 #include "primitives/zerocoin.h"
 #include "wallet/wallet.h"
-
+#include "tracker.h"
 
 class CHDMint;
 
@@ -22,12 +22,13 @@ private:
     int32_t nCountNextGenerate;
     std::string strWalletFile;
     CMintPool mintPool;
+    CHDMintTracker tracker;
     uint160 hashSeedMaster;
 
 public:
     int static const COUNT_DEFAULT = 0;
-    
-    CHDMintWallet(std::string strWalletFile);
+
+    CHDMintWallet(const std::string& strWalletFile);
 
     bool SetupWallet(const uint160& hashSeedMaster, bool fResetCount=false);
     void SyncWithChain(bool fGenerateMintPool = true, boost::optional<std::list<std::pair<uint256, MintPoolEntry>>> listMints = boost::none);
@@ -41,6 +42,7 @@ public:
     bool SeedToZerocoin(const uint512& seedZerocoin, GroupElement& bnValue, sigma::PrivateCoin& coin);
     // Count updating functions
     int32_t GetCount();
+    CHDMintTracker& GetTracker() { return tracker; }
     void ResetCount();
     void SetCount(int32_t nCount);
     void UpdateCountLocal();

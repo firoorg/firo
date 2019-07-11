@@ -1804,8 +1804,13 @@ bool AcceptToMemoryPoolWorker(
         if(markZcoinSpendTransactionSerial)
             sigmaState->AddSpendToMempool(zcSpendSerialsV3, hash);
         LogPrintf("Updating mint tracker state from Mempool..");
-        pwalletMain->hdMintTracker->UpdateSpendStateFromMempool(zcSpendSerialsV3);
+#ifdef ENABLE_WALLET
+        if (zwalletMain) {
+            zwalletMain->GetTracker().UpdateSpendStateFromMempool(zcSpendSerialsV3);
+        }
+#endif
     }
+#ifdef ENABLE_WALLET
     vector<GroupElement> zcMintPubcoinsV3;
     if(tx.IsSigmaMint()){
         BOOST_FOREACH(const CTxOut &txout, tx.vout)
@@ -1815,8 +1820,11 @@ bool AcceptToMemoryPoolWorker(
                 zcMintPubcoinsV3.push_back(pubCoinValue);
             }
         }
-       pwalletMain->hdMintTracker->UpdateMintStateFromMempool(zcMintPubcoinsV3);
+        if (zwalletMain) {
+            zwalletMain->GetTracker().UpdateMintStateFromMempool(zcMintPubcoinsV3);
+        }
     }
+#endif
     SyncWithWallets(tx, NULL, NULL);
 
     LogPrintf("AcceptToMemoryPoolWorker -> OK\n");
@@ -3428,12 +3436,18 @@ bool static DisconnectTip(CValidationState &state, const CChainParams &chainpara
     // Update chainActive and related variables.
     UpdateTip(pindexDelete->pprev, chainparams);
 
+#ifdef ENABLE_WALLET
     // update mint/spend wallet
-    if(block.sigmaTxInfo->spentSerials.size() > 0)
-        pwalletMain->hdMintTracker->UpdateSpendStateFromBlock(block.sigmaTxInfo->spentSerials);
+    if (zwalletMain) {
+        if (block.sigmaTxInfo->spentSerials.size() > 0) {
+            zwalletMain->GetTracker().UpdateSpendStateFromBlock(block.sigmaTxInfo->spentSerials);
+        }
 
-    if(block.sigmaTxInfo->mints.size() > 0)
-        pwalletMain->hdMintTracker->UpdateMintStateFromBlock(block.sigmaTxInfo->mints);
+        if (block.sigmaTxInfo->mints.size() > 0) {
+            zwalletMain->GetTracker().UpdateMintStateFromBlock(block.sigmaTxInfo->mints);
+        }
+    }
+#endif
 
     //! Exodus: begin block disconnect notification
     auto fExodus = isExodusEnabled();
@@ -3555,12 +3569,18 @@ ConnectTip(CValidationState &state, const CChainParams &chainparams, CBlockIndex
         }
     }
 
+#ifdef ENABLE_WALLET
     // Sync with HDMint wallet
-    if(pblock->sigmaTxInfo->spentSerials.size() > 0)
-        pwalletMain->hdMintTracker->UpdateSpendStateFromBlock(pblock->sigmaTxInfo->spentSerials);
+    if (zwalletMain) {
+        if (pblock->sigmaTxInfo->spentSerials.size() > 0) {
+            zwalletMain->GetTracker().UpdateSpendStateFromBlock(pblock->sigmaTxInfo->spentSerials);
+        }
 
-    if(pblock->sigmaTxInfo->mints.size() > 0)
-        pwalletMain->hdMintTracker->UpdateMintStateFromBlock(pblock->sigmaTxInfo->mints);
+        if (pblock->sigmaTxInfo->mints.size() > 0) {
+            zwalletMain->GetTracker().UpdateMintStateFromBlock(pblock->sigmaTxInfo->mints);
+        }
+    }
+#endif
 
     //! Exodus: end of block connect notification
     if (fExodus) {

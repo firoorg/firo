@@ -149,6 +149,7 @@ testScripts = [
     'transations_verification_after_restart.py',
     'sigma_remint_lockedwallet.py',
     'sigma_zapwalletmints.py',
+    'sigma_nonhd_wallet.py',
     'sigma_remint.py',
     'sigma_remint_validation.py',
     'sigma_meetspend.py',
