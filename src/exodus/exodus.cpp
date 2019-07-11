@@ -47,6 +47,7 @@
 #include "util.h"
 #include "utilstrencodings.h"
 #include "utiltime.h"
+#include "zerocoin_v3.h"
 #ifdef ENABLE_WALLET
 #include "script/ismine.h"
 #include "wallet/wallet.h"
@@ -792,8 +793,13 @@ static bool FillTxInputCache(const CTransaction& tx)
 // RETURNS: >0 if 1 or more payments have been made
 static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, unsigned int idx, CMPTransaction& mp_tx, unsigned int nTime)
 {
+    InputMode inputMode = InputMode::NORMAL;
+    if (wtx.IsSigmaSpend()) {
+        inputMode = InputMode::SIGMA;
+    }
+
     assert(bRPConly == mp_tx.isRpcOnly());
-    mp_tx.Set(wtx.GetHash(), nBlock, idx, nTime);
+    mp_tx.Set(wtx.GetHash(), nBlock, idx, nTime, inputMode);
 
     // ### CLASS IDENTIFICATION AND MARKER CHECK ###
     int exodusClass = GetEncodingClass(wtx, nBlock);
@@ -815,9 +821,20 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
     LOCK(cs_tx_cache);
 
     // Add previous transaction inputs to the cache
-    if (!FillTxInputCache(wtx)) {
-        PrintToLog("%s() ERROR: failed to get inputs for %s\n", __func__, wtx.GetHash().GetHex());
-        return -101;
+    switch (inputMode) {
+    case InputMode::SIGMA:
+        if (exodusClass != EXODUS_CLASS_C) {
+            PrintToLog("%s() ERROR: sigma input is allowed only on class c\n", __func__, wtx.GetHash().GetHex());
+            return -101;
+        }
+        break;
+    case InputMode::NORMAL:
+    default:
+        if (!FillTxInputCache(wtx)) {
+            PrintToLog("%s() ERROR: failed to get inputs for %s\n", __func__, wtx.GetHash().GetHex());
+            return -101;
+        }
+
     }
 
     assert(view.HaveInputs(wtx));
@@ -865,7 +882,13 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
         // NEW LOGIC - the sender is chosen based on the first vin
 
         // determine the sender, but invalidate transaction, if the input is not accepted
-        {
+
+        // do not need to check sigma.
+        switch (inputMode) {
+        case InputMode::SIGMA:
+            break;
+        case InputMode::NORMAL:
+        default:
             unsigned int vin_n = 0; // the first input
             if (exodus_debug_vin) PrintToLog("vin=%d:%s\n", vin_n, ScriptToAsmStr(wtx.vin[vin_n].scriptSig));
 
@@ -886,21 +909,36 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
                 strSender = CBitcoinAddress(source).ToString();
             }
             else return -110;
+
         }
     }
 
-    inAll = view.GetValueIn(wtx);
+    switch (inputMode) {
+    case InputMode::SIGMA:
+        inAll = sigma::GetSpendAmount(wtx);
+        break;
+    case InputMode::NORMAL:
+    default:
+        inAll = view.GetValueIn(wtx);
+        break;
+    }
 
     } // end of LOCK(cs_tx_cache)
 
     int64_t outAll = wtx.GetValueOut();
     int64_t txFee = inAll - outAll; // miner fee
 
-    if (!strSender.empty()) {
-        if (exodus_debug_verbose) PrintToLog("The Sender: %s : fee= %s\n", strSender, FormatDivisibleMP(txFee));
-    } else {
-        PrintToLog("The sender is still EMPTY !!! txid: %s\n", wtx.GetHash().GetHex());
-        return -5;
+    switch (inputMode) {
+    case InputMode::SIGMA:
+        break;
+    case InputMode::NORMAL:
+    default:
+        if (!strSender.empty()) {
+            if (exodus_debug_verbose) PrintToLog("The Sender: %s : fee= %s\n", strSender, FormatDivisibleMP(txFee));
+        } else {
+            PrintToLog("The sender is still EMPTY !!! txid: %s\n", wtx.GetHash().GetHex());
+            return -5;
+        }
     }
 
     // ### DATA POPULATION ### - save output addresses, values and scripts
@@ -1209,7 +1247,8 @@ static int parseTransaction(bool bRPConly, const CTransaction& wtx, int nBlock, 
 
     // ### SET MP TX INFO ###
     if (exodus_debug_verbose) PrintToLog("single_pkt: %s\n", HexStr(single_pkt, packet_size + single_pkt));
-    mp_tx.Set(strSender, strReference, 0, wtx.GetHash(), nBlock, idx, (unsigned char *)&single_pkt, packet_size, exodusClass, (inAll-outAll));
+    mp_tx.Set(strSender, strReference, 0, wtx.GetHash(), nBlock, idx, (unsigned char *)&single_pkt, packet_size,
+        exodusClass, (inAll-outAll), inputMode);
 
     // TODO: the following is a bit aweful
     // Provide a hint for DEx payments

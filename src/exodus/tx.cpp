@@ -108,75 +108,86 @@ bool CMPTransaction::interpret_Transaction()
         return false;
     }
 
-    switch (type) {
-        case EXODUS_TYPE_SIMPLE_SEND:
-            return interpret_SimpleSend();
+    switch(inputMode) {
+    case InputMode::SIGMA:
+        switch (type) {
+        case EXODUS_TYPE_SIMPLE_SPEND:
+            // TODO call interpret function from here
+            return true;
+        }
+        break;
+    case InputMode::NORMAL:
+    default:
+        switch (type) {
+            case EXODUS_TYPE_SIMPLE_SEND:
+                return interpret_SimpleSend();
 
-        case EXODUS_TYPE_SEND_TO_OWNERS:
-            return interpret_SendToOwners();
+            case EXODUS_TYPE_SEND_TO_OWNERS:
+                return interpret_SendToOwners();
 
-        case EXODUS_TYPE_SEND_ALL:
-            return interpret_SendAll();
+            case EXODUS_TYPE_SEND_ALL:
+                return interpret_SendAll();
 
-        case EXODUS_TYPE_TRADE_OFFER:
-            return interpret_TradeOffer();
+            case EXODUS_TYPE_TRADE_OFFER:
+                return interpret_TradeOffer();
 
-        case EXODUS_TYPE_ACCEPT_OFFER_BTC:
-            return interpret_AcceptOfferBTC();
+            case EXODUS_TYPE_ACCEPT_OFFER_BTC:
+                return interpret_AcceptOfferBTC();
 
-        case EXODUS_TYPE_METADEX_TRADE:
-            return interpret_MetaDExTrade();
+            case EXODUS_TYPE_METADEX_TRADE:
+                return interpret_MetaDExTrade();
 
-        case EXODUS_TYPE_METADEX_CANCEL_PRICE:
-            return interpret_MetaDExCancelPrice();
+            case EXODUS_TYPE_METADEX_CANCEL_PRICE:
+                return interpret_MetaDExCancelPrice();
 
-        case EXODUS_TYPE_METADEX_CANCEL_PAIR:
-            return interpret_MetaDExCancelPair();
+            case EXODUS_TYPE_METADEX_CANCEL_PAIR:
+                return interpret_MetaDExCancelPair();
 
-        case EXODUS_TYPE_METADEX_CANCEL_ECOSYSTEM:
-            return interpret_MetaDExCancelEcosystem();
+            case EXODUS_TYPE_METADEX_CANCEL_ECOSYSTEM:
+                return interpret_MetaDExCancelEcosystem();
 
-        case EXODUS_TYPE_CREATE_PROPERTY_FIXED:
-            return interpret_CreatePropertyFixed();
+            case EXODUS_TYPE_CREATE_PROPERTY_FIXED:
+                return interpret_CreatePropertyFixed();
 
-        case EXODUS_TYPE_CREATE_PROPERTY_VARIABLE:
-            return interpret_CreatePropertyVariable();
+            case EXODUS_TYPE_CREATE_PROPERTY_VARIABLE:
+                return interpret_CreatePropertyVariable();
 
-        case EXODUS_TYPE_CLOSE_CROWDSALE:
-            return interpret_CloseCrowdsale();
+            case EXODUS_TYPE_CLOSE_CROWDSALE:
+                return interpret_CloseCrowdsale();
 
-        case EXODUS_TYPE_CREATE_PROPERTY_MANUAL:
-            return interpret_CreatePropertyManaged();
+            case EXODUS_TYPE_CREATE_PROPERTY_MANUAL:
+                return interpret_CreatePropertyManaged();
 
-        case EXODUS_TYPE_GRANT_PROPERTY_TOKENS:
-            return interpret_GrantTokens();
+            case EXODUS_TYPE_GRANT_PROPERTY_TOKENS:
+                return interpret_GrantTokens();
 
-        case EXODUS_TYPE_REVOKE_PROPERTY_TOKENS:
-            return interpret_RevokeTokens();
+            case EXODUS_TYPE_REVOKE_PROPERTY_TOKENS:
+                return interpret_RevokeTokens();
 
-        case EXODUS_TYPE_CHANGE_ISSUER_ADDRESS:
-            return interpret_ChangeIssuer();
+            case EXODUS_TYPE_CHANGE_ISSUER_ADDRESS:
+                return interpret_ChangeIssuer();
 
-        case EXODUS_TYPE_ENABLE_FREEZING:
-            return interpret_EnableFreezing();
+            case EXODUS_TYPE_ENABLE_FREEZING:
+                return interpret_EnableFreezing();
 
-        case EXODUS_TYPE_DISABLE_FREEZING:
-            return interpret_DisableFreezing();
+            case EXODUS_TYPE_DISABLE_FREEZING:
+                return interpret_DisableFreezing();
 
-        case EXODUS_TYPE_FREEZE_PROPERTY_TOKENS:
-            return interpret_FreezeTokens();
+            case EXODUS_TYPE_FREEZE_PROPERTY_TOKENS:
+                return interpret_FreezeTokens();
 
-        case EXODUS_TYPE_UNFREEZE_PROPERTY_TOKENS:
-            return interpret_UnfreezeTokens();
+            case EXODUS_TYPE_UNFREEZE_PROPERTY_TOKENS:
+                return interpret_UnfreezeTokens();
 
-        case EXODUS_MESSAGE_TYPE_DEACTIVATION:
-            return interpret_Deactivation();
+            case EXODUS_MESSAGE_TYPE_DEACTIVATION:
+                return interpret_Deactivation();
 
-        case EXODUS_MESSAGE_TYPE_ACTIVATION:
-            return interpret_Activation();
+            case EXODUS_MESSAGE_TYPE_ACTIVATION:
+                return interpret_Activation();
 
-        case EXODUS_MESSAGE_TYPE_ALERT:
-            return interpret_Alert();
+            case EXODUS_MESSAGE_TYPE_ALERT:
+                return interpret_Alert();
+        }
     }
 
     return false;
@@ -924,6 +935,9 @@ int CMPTransaction::interpretPacket()
 
         case EXODUS_MESSAGE_TYPE_ALERT:
             return logicMath_Alert();
+
+        case EXODUS_TYPE_SIMPLE_SPEND:
+            return 0;
     }
 
     return (PKT_ERROR -100);
