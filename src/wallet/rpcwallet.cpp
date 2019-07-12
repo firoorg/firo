@@ -75,14 +75,11 @@ bool EnsureWalletIsAvailable(bool avoidException)
     return true;
 }
 
-bool EnsureHDSeedIsAvailable(bool avoidException = false) {
-    if (!pwalletMain || !pwalletMain->IsHDSeedAvailable()) {
-        if (!avoidException) {
-            throw JSONRPCError(RPC_WALLET_ERROR, "sigma mint/spend is not allowed for legacy wallet");
-        }
-        return false;
+void EnsureSigmaWalletIsAvailable()
+{
+    if (!zwalletMain) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "sigma mint/spend is not allowed for legacy wallet");
     }
-    return true;
 }
 
 void EnsureWalletIsUnlocked()
@@ -2715,7 +2712,6 @@ UniValue listunspentmintzerocoins(const UniValue &params, bool fHelp) {
 }
 
 UniValue listunspentsigmamints(const UniValue &params, bool fHelp) {
-    EnsureHDSeedIsAvailable(fHelp);
     if (fHelp || params.size() > 2)
         throw runtime_error(
                 "listunspentsigmamints [minconf=1] [maxconf=9999999] \n"
@@ -2727,6 +2723,8 @@ UniValue listunspentsigmamints(const UniValue &params, bool fHelp) {
     if (pwalletMain->IsLocked())
         throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED,
                            "Error: Please enter the wallet passphrase with walletpassphrase first.");
+
+    EnsureSigmaWalletIsAvailable();
 
     RPCTypeCheck(params, boost::assign::list_of(UniValue::VNUM)(UniValue::VNUM)(UniValue::VARR));
 
@@ -2777,8 +2775,6 @@ UniValue mint(const UniValue& params, bool fHelp)
         return NullUniValue;
     }
 
-    EnsureHDSeedIsAvailable(fHelp);
-
     if (fHelp || params.size() != 1)
         throw std::runtime_error(
             "mint amount\n"
@@ -2795,6 +2791,7 @@ UniValue mint(const UniValue& params, bool fHelp)
         );
 
     EnsureWalletIsUnlocked();
+    EnsureSigmaWalletIsAvailable();
 
     // Ensure Sigma mints is already accepted by network so users will not lost their coins
     // due to other nodes will treat it as garbage data.
@@ -3238,9 +3235,6 @@ UniValue spendmanyzerocoin(const UniValue& params, bool fHelp) {
 }
 
 UniValue spendmany(const UniValue& params, bool fHelp) {
-
-    EnsureHDSeedIsAvailable(fHelp);
-
     if (fHelp || params.size() < 2 || params.size() > 5)
         throw std::runtime_error(
                 "spendmany \"fromaccount\" {\"address\":amount,...} ( minconf \"comment\" [\"address\",...] )\n"
@@ -3276,6 +3270,8 @@ UniValue spendmany(const UniValue& params, bool fHelp) {
     if (!sigma::IsSigmaAllowed()) {
         throw JSONRPCError(RPC_WALLET_ERROR, "Sigma is not activated yet");
     }
+
+    EnsureSigmaWalletIsAvailable();
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
@@ -3375,15 +3371,16 @@ UniValue resetmintzerocoin(const UniValue& params, bool fHelp) {
 
 UniValue resetsigmamint(const UniValue& params, bool fHelp) {
 
-    EnsureHDSeedIsAvailable(fHelp);
     if (fHelp || params.size() != 0)
         throw runtime_error(
                 "resetsigmamint"
                 + HelpRequiringPassphrase());
 
+    EnsureSigmaWalletIsAvailable();
+
     std::vector <CMintMeta> listMints;
     CWalletDB walletdb(pwalletMain->strWalletFile);
-    listMints = pwalletMain->hdMintTracker->ListMints(false, false);
+    listMints = zwalletMain->GetTracker().ListMints(false, false);
 
     BOOST_FOREACH(CMintMeta &mint, listMints) {
         CHDMint dMint;
@@ -3392,7 +3389,7 @@ UniValue resetsigmamint(const UniValue& params, bool fHelp) {
         }
         dMint.SetUsed(false);
         dMint.SetHeight(-1);
-        pwalletMain->hdMintTracker->Add(dMint, true);
+        zwalletMain->GetTracker().Add(dMint, true);
     }
 
     return NullUniValue;
@@ -3436,8 +3433,6 @@ UniValue listmintzerocoins(const UniValue& params, bool fHelp) {
 
 UniValue listsigmamints(const UniValue& params, bool fHelp) {
 
-    EnsureHDSeedIsAvailable(fHelp);
-
     if (fHelp || params.size() > 1)
         throw runtime_error(
                 "listsigmamints <all>(false/true)\n"
@@ -3445,6 +3440,8 @@ UniValue listsigmamints(const UniValue& params, bool fHelp) {
                 "1. <all> (boolean, optional) false (default) to return own mintzerocoins. true to return every mintzerocoins.\n"
                 "\nResults are an array of Objects, each of which has:\n"
                 "{id, IsUsed, denomination, value, serialNumber, nHeight, randomness}");
+
+    EnsureSigmaWalletIsAvailable();
 
     bool fAllStatus = false;
     if (params.size() > 0) {
@@ -3456,7 +3453,7 @@ UniValue listsigmamints(const UniValue& params, bool fHelp) {
 
     list <CSigmaEntry> listPubcoin;
     CWalletDB walletdb(pwalletMain->strWalletFile);
-    listPubcoin = pwalletMain->hdMintTracker->MintsAsZerocoinEntries(false, false);
+    listPubcoin = zwalletMain->GetTracker().MintsAsZerocoinEntries(false, false);
     UniValue results(UniValue::VARR);
 
     BOOST_FOREACH(const CSigmaEntry &zerocoinItem, listPubcoin) {
@@ -3516,8 +3513,6 @@ UniValue listpubcoins(const UniValue& params, bool fHelp) {
 
 UniValue listsigmapubcoins(const UniValue& params, bool fHelp) {
 
-    EnsureHDSeedIsAvailable(fHelp);
-
     std::string help_message =
         "listsigmapubcoins <all>(0.05/0.1/0.5/1/10/25/100)\n"
             "\nArguments:\n"
@@ -3527,6 +3522,9 @@ UniValue listsigmapubcoins(const UniValue& params, bool fHelp) {
     if (fHelp || params.size() > 1) {
         throw runtime_error(help_message);
     }
+
+    EnsureSigmaWalletIsAvailable();
+
     sigma::CoinDenomination denomination;
     bool filter_by_denom = false;
     if (params.size() > 0) {
@@ -3541,7 +3539,7 @@ UniValue listsigmapubcoins(const UniValue& params, bool fHelp) {
 
     list<CSigmaEntry> listPubcoin;
     CWalletDB walletdb(pwalletMain->strWalletFile);
-    listPubcoin = pwalletMain->hdMintTracker->MintsAsZerocoinEntries(false, false);
+    listPubcoin = zwalletMain->GetTracker().MintsAsZerocoinEntries(false, false);
     UniValue results(UniValue::VARR);
     listPubcoin.sort(CompSigmaHeight);
 
@@ -3633,14 +3631,14 @@ UniValue setmintzerocoinstatus(const UniValue& params, bool fHelp) {
 
 UniValue setsigmamintstatus(const UniValue& params, bool fHelp) {
 
-    EnsureHDSeedIsAvailable(fHelp);
-
     if (fHelp || params.size() != 2)
         throw runtime_error(
                 "setsigmamintstatus \"coinserial\" <isused>(true/false)\n"
                 "Set mintsigma IsUsed status to True or False\n"
                 "Results are an array of one or no Objects, each of which has:\n"
                 "{id, IsUsed, denomination, value, serialNumber, nHeight, randomness}");
+
+    EnsureSigmaWalletIsAvailable();
 
     Scalar coinSerial;
     coinSerial.SetHex(params[0].get_str());
@@ -3652,7 +3650,7 @@ UniValue setsigmamintstatus(const UniValue& params, bool fHelp) {
 
     std::vector <CMintMeta> listMints;
     CWalletDB walletdb(pwalletMain->strWalletFile);
-    listMints = pwalletMain->hdMintTracker->ListMints(false, false);
+    listMints = zwalletMain->GetTracker().ListMints(false, false);
 
     UniValue results(UniValue::VARR);
 
@@ -3679,10 +3677,10 @@ UniValue setsigmamintstatus(const UniValue& params, bool fHelp) {
 
                 if(!mint.isDeterministic){
                     zerocoinItem.IsUsed = fStatus;
-                    pwalletMain->hdMintTracker->Add(zerocoinItem, true);
+                    zwalletMain->GetTracker().Add(zerocoinItem, true);
                 }else{
                     dMint.SetUsed(fStatus);
-                    pwalletMain->hdMintTracker->Add(dMint, true);
+                    zwalletMain->GetTracker().Add(dMint, true);
                 }
 
                 if (!fStatus) {
@@ -3710,8 +3708,6 @@ UniValue setsigmamintstatus(const UniValue& params, bool fHelp) {
 }
 
 UniValue listsigmaspends(const UniValue &params, bool fHelp) {
-
-    EnsureHDSeedIsAvailable(fHelp);
 
     if (fHelp || params.size() < 1 || params.size() > 2)
         throw runtime_error(
@@ -3743,6 +3739,8 @@ UniValue listsigmaspends(const UniValue &params, bool fHelp) {
                 "    ]\n"
                 "  }\n"
                 "]\n");
+
+    EnsureSigmaWalletIsAvailable();
 
     int  count = params[0].get_int();
     bool fOnlyUnconfirmed = params.size()>=2 && params[1].get_bool();
@@ -3896,9 +3894,6 @@ UniValue listspendzerocoins(const UniValue &params, bool fHelp) {
 
 UniValue remintzerocointosigma(const UniValue &params, bool fHelp) {
 
-    // Currently sigma support only HDMint
-    EnsureHDSeedIsAvailable(fHelp);
-
     if (fHelp || params.size() != 1)
         throw runtime_error(
             "remintzerocointosigma <denomination>(1,10,25,50,100)\n"
@@ -3907,6 +3902,8 @@ UniValue remintzerocointosigma(const UniValue &params, bool fHelp) {
             "\nArguments:\n"
             "1. \"denomination\"          (integer, required) existing zerocoin mint denomination\n"
         );
+
+    EnsureSigmaWalletIsAvailable();
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
     libzerocoin::CoinDenomination denomination;

@@ -680,8 +680,6 @@ public:
      */
     mutable CCriticalSection cs_wallet;
 
-    CHDMintWallet* zwallet;
-
     bool fFileBacked;
     std::string strWalletFile;
 
@@ -693,8 +691,6 @@ public:
     typedef std::map<unsigned int, CMasterKey> MasterKeyMap;
     MasterKeyMap mapMasterKeys;
     unsigned int nMasterKeyMaxID;
-
-    std::unique_ptr<CHDMintTracker> hdMintTracker;
 
     CWallet()
     {
@@ -750,12 +746,6 @@ public:
     std::set<COutPoint> setLockedCoins;
 
     int64_t nTimeFirstKey;
-
-    void setZWallet(CHDMintWallet* zwallet)
-    {
-        this->zwallet = zwallet;
-        hdMintTracker = std::unique_ptr<CHDMintTracker>(new CHDMintTracker(strWalletFile));
-    }
 
     const CWalletTx* GetWalletTx(const uint256& hash) const;
 

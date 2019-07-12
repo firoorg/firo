@@ -791,13 +791,11 @@ void CleanupBlockRevFiles() {
 void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
 
 #ifdef ENABLE_WALLET
-    if (!GetBoolArg("-disablewallet", false)) {
+    if (!GetBoolArg("-disablewallet", false) && zwalletMain) {
         //Load zerocoin mint hashes to memory
         LogPrintf("Loading mints to wallet..\n");
-        if (zwalletMain) {
-            pwalletMain->hdMintTracker->Init();
-            zwalletMain->LoadMintPoolFromDB();
-        }
+        zwalletMain->GetTracker().Init();
+        zwalletMain->LoadMintPoolFromDB();
     }
 #endif
 
@@ -868,8 +866,8 @@ void ThreadImport(std::vector <boost::filesystem::path> vImportFiles) {
     if (!GetBoolArg("-disablewallet", false) && zwalletMain) {
         zwalletMain->SyncWithChain();
     }
-    if (GetBoolArg("-zapwallettxes", false)) {
-        pwalletMain->hdMintTracker->ListMints();
+    if (GetBoolArg("-zapwallettxes", false) && zwalletMain) {
+        zwalletMain->GetTracker().ListMints();
     }
 #endif
 }

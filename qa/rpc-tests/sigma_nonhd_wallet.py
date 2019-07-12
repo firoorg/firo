@@ -10,7 +10,7 @@ from test_framework.util import (
     assert_raises_message,
 )
 
-class DisableNonHDSigmaTest(BitcoinTestFramework):
+class SigmaNonHDWalletTest(BitcoinTestFramework):
 
     def __init__(self):
         super().__init__()
@@ -20,26 +20,23 @@ class DisableNonHDSigmaTest(BitcoinTestFramework):
     def setup_network(self):
         self.nodes = start_nodes(self.num_nodes, self.options.tmpdir, [["-usehd=0"]])
 
-    def assert_disable_nonhd(self, fn, args = []):
+    def assert_disable_nonhd(self, fn, *args):
         assert_raises_message(JSONRPCException, "sigma mint/spend is not allowed for legacy wallet", \
-            fn, args)
+            fn, *args)
 
     def run_test(self):
-        self.nodes[0].generate(500)
         node = self.nodes[0]
+        node.generate(500)
 
-        fn_to_tests = [
-            node.listsigmamints,
-            node.listsigmapubcoins,
-            node.listsigmaspends,
-            node.mint,
-            node.remintzerocointosigma,
-            node.setsigmamintstatus,
-            node.spendmany,
-        ]
-
-        for fn in fn_to_tests:
-            self.assert_disable_nonhd(fn)
+        self.assert_disable_nonhd(node.listunspentsigmamints)
+        self.assert_disable_nonhd(node.mint, 1)
+        self.assert_disable_nonhd(node.spendmany, "", {"THAYjKnnCsN5xspnEcb1Ztvw4mSPBuwxzU": 1})
+        self.assert_disable_nonhd(node.resetsigmamint)
+        self.assert_disable_nonhd(node.listsigmamints)
+        self.assert_disable_nonhd(node.listsigmapubcoins)
+        self.assert_disable_nonhd(node.setsigmamintstatus, "abc", True)
+        self.assert_disable_nonhd(node.listsigmaspends, 0)
+        self.assert_disable_nonhd(node.remintzerocointosigma, 1)
 
 if __name__ == '__main__':
-    DisableNonHDSigmaTest().main()
+    SigmaNonHDWalletTest().main()

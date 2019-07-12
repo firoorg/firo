@@ -103,7 +103,9 @@ static std::unique_ptr<SigmaSpendSigner> CreateSigner(const CSigmaEntry& coin)
     return signer;
 }
 
-SigmaSpendBuilder::SigmaSpendBuilder(CWallet& wallet, const CCoinControl *coinControl) : TxBuilder(wallet)
+SigmaSpendBuilder::SigmaSpendBuilder(CWallet& wallet, CHDMintWallet& mintWallet, const CCoinControl *coinControl) :
+    TxBuilder(wallet),
+    mintWallet(mintWallet)
 {
     cs_main.lock();
 
@@ -161,9 +163,7 @@ CAmount SigmaSpendBuilder::GetChanges(std::vector<CTxOut>& outputs, CAmount amou
 
         sigma::PrivateCoin newCoin(params, denomination, ZEROCOIN_TX_VERSION_3);
         hdMint.SetNull();
-        if (zwalletMain) {
-            zwalletMain->GenerateMint(denomination, newCoin, hdMint);
-        }
+        mintWallet.GenerateMint(denomination, newCoin, hdMint);
         auto& pubCoin = newCoin.getPublicCoin();
 
         if (!pubCoin.validate()) {

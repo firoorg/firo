@@ -89,7 +89,7 @@ static void GenerateBlockWithCoins(const std::vector<std::pair<sigma::CoinDenomi
             block->second.sigmaMintedPubCoins[std::make_pair(coin.first, 1)].push_back(pub);
 
             if (addToWallet) {
-                pwalletMain->hdMintTracker->Add(dMint, true);
+                zwalletMain->GetTracker().Add(dMint, true);
             }
         }
     }
@@ -640,4 +640,3 @@ BOOST_AUTO_TEST_CASE(spend)
 }
 
 BOOST_AUTO_TEST_SUITE_END()
-
