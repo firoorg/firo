@@ -20,6 +20,7 @@ namespace secp_primitives {
 
 Scalar::Scalar()
    : value_(new secp256k1_scalar()) {
+    secp256k1_scalar_clear(reinterpret_cast<secp256k1_scalar *>(value_));
 }
 
 Scalar::Scalar(uint64_t value)
