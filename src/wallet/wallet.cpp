@@ -106,6 +106,13 @@ struct CompareByAmount
     }
 };
 
+static void EnsureMintWalletAvailable()
+{
+    if (!zwalletMain) {
+        throw std::logic_error("Sigma feature requires HD wallet");
+    }
+}
+
 int COutput::Priority() const
 {
     BOOST_FOREACH(CAmount d, vecPrivateSendDenominations)
@@ -2096,9 +2103,7 @@ std::vector<CRecipient> CWallet::CreateSigmaMintRecipients(
     std::vector<sigma::PrivateCoin>& coins,
     vector<CHDMint>& vDMints)
 {
-    if (!zwalletMain) {
-        throw std::logic_error("Sigma feature required HD wallet");
-    }
+    EnsureMintWalletAvailable();
 
     std::vector<CRecipient> vecSend;
 
@@ -2207,9 +2212,7 @@ CAmount CWallet::SelectSpendCoinsForAmount(
 }
 
 std::list<CSigmaEntry> CWallet::GetAvailableCoins(const CCoinControl *coinControl, bool includeUnsafe) const {
-    if (!zwalletMain) {
-        throw std::logic_error("Sigma feature required HD wallet");
-    }
+    EnsureMintWalletAvailable();
 
     LOCK2(cs_main, cs_wallet);
     CWalletDB walletdb(strWalletFile);
@@ -2896,9 +2899,7 @@ void CWallet::ListAvailableCoinsMintCoins(vector <COutput> &vCoins, bool fOnlyCo
 }
 
 void CWallet::ListAvailableSigmaMintCoins(vector<COutput> &vCoins, bool fOnlyConfirmed) const {
-    if (!zwalletMain) {
-        throw std::logic_error("Sigma feature required HD wallet");
-    }
+    EnsureMintWalletAvailable();
 
     vCoins.clear();
     LOCK2(cs_main, cs_wallet);
@@ -3919,9 +3920,7 @@ bool CWallet::CreateSigmaMintModel(
         const std::vector<std::pair<sigma::CoinDenomination, int>>& denominationPairs,
         vector<CHDMint>& vDMints) {
 
-    if (!zwalletMain) {
-        throw std::logic_error("Sigma feature required HD wallet");
-    }
+    EnsureMintWalletAvailable();
 
     vector<CRecipient> vecSend;
     vector<sigma::PrivateCoin> privCoins;
@@ -4126,9 +4125,7 @@ bool CWallet::CreateZerocoinMintModel(string &stringError, const string& denomAm
 }
 
 bool CWallet::CreateSigmaMintModel(string &stringError, const string& denomAmount) {
-    if (!zwalletMain) {
-        throw std::logic_error("Sigma feature required HD wallet");
-    }
+    EnsureMintWalletAvailable();
 
     if (!fFileBacked)
         return false;
@@ -4350,9 +4347,7 @@ bool CWallet::CreateZerocoinToSigmaRemintModel(string &stringError, int version,
     // currently we don't support zerocoin mints v1
     assert(version == ZEROCOIN_TX_VERSION_2);
 
-    if (!zwalletMain) {
-        throw std::logic_error("Sigma feature required HD wallet");
-    }
+    EnsureMintWalletAvailable();
 
     if (IsLocked()) {
         stringError = "Error: Wallet locked, unable to create transaction!";
@@ -5353,9 +5348,7 @@ bool CWallet::CreateSigmaSpendTransaction(
         std::string &strFailReason,  bool forceUsed,
         const CCoinControl *coinControl) {
 
-    if (!zwalletMain) {
-        throw std::logic_error("Sigma feature required HD wallet");
-    }
+    EnsureMintWalletAvailable();
 
     int64_t nValue;
     if (!DenominationToInteger(denomination, nValue)) {
@@ -5605,12 +5598,14 @@ CWalletTx CWallet::CreateSigmaSpendTransaction(
     const CCoinControl *coinControl)
 {
     // sanity check
+    EnsureMintWalletAvailable();
+
     if (IsLocked()) {
         throw std::runtime_error(_("Wallet locked"));
     }
 
     // create transaction
-    SigmaSpendBuilder builder(*this, coinControl);
+    SigmaSpendBuilder builder(*this, *zwalletMain, coinControl);
 
     CWalletTx tx = builder.Build(recipients, fee);
     selected = builder.selected;
@@ -5958,9 +5953,7 @@ bool CWallet::CreateMultipleSigmaSpendTransaction(
         bool forceUsed,
         const CCoinControl *coinControl)
 {
-    if (!zwalletMain) {
-        throw std::logic_error("Sigma feature required HD wallet");
-    }
+    EnsureMintWalletAvailable();
 
     wtxNew.BindWallet(this);
     CMutableTransaction txNew;
@@ -6489,9 +6482,7 @@ string CWallet::MintAndStoreSigma(const vector<CRecipient>& vecSend,
                                        const CCoinControl *coinControl) {
     string strError;
 
-    if (!zwalletMain) {
-        throw std::logic_error("Sigma feature required HD wallet");
-    }
+    EnsureMintWalletAvailable();
 
     if (IsLocked()) {
         strError = _("Error: Wallet locked, unable to create transaction!");
@@ -6700,9 +6691,7 @@ string CWallet::SpendSigma(
         bool forceUsed,
         bool fAskFee) {
 
-    if (!zwalletMain) {
-        throw std::logic_error("Sigma feature required HD wallet");
-    }
+    EnsureMintWalletAvailable();
 
     CReserveKey reservekey(this);
 
@@ -6845,9 +6834,7 @@ string CWallet::SpendMultipleSigma(
         bool forceUsed,
         bool fAskFee) {
 
-    if (!zwalletMain) {
-        throw std::logic_error("Sigma feature required HD wallet");
-    }
+    EnsureMintWalletAvailable();
 
     CReserveKey reservekey(this);
     int64_t nFeeRequired;
@@ -6934,9 +6921,7 @@ std::vector<CSigmaEntry> CWallet::SpendSigma(
 }
 
 bool CWallet::CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CSigmaEntry>& selectedCoins, std::vector<CHDMint>& changes) {
-    if (!zwalletMain) {
-        throw std::logic_error("Sigma feature required HD wallet");
-    }
+    EnsureMintWalletAvailable();
 
     // commit
     try {
@@ -7018,9 +7003,7 @@ bool CWallet::CommitSigmaTransaction(CWalletTx& wtxNew, std::vector<CSigmaEntry>
 
 bool CWallet::GetMint(const uint256& hashSerial, CSigmaEntry& zerocoin) const
 {
-    if (!zwalletMain) {
-        throw std::logic_error("Sigma feature required HD wallet");
-    }
+    EnsureMintWalletAvailable();
 
     if (IsLocked()) {
         return false;
