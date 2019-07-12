@@ -21,6 +21,7 @@ private:
     std::map<uint256, uint256> mapPendingSpends; //serialhash, txid of spend
     bool IsMempoolSpendOurs(const std::set<uint256>& setMempool, const uint256& hashSerial);
     bool UpdateMetaStatus(const std::set<uint256>& setMempool, CMintMeta& mint, bool fSpend=false);
+    std::set<uint256> GetMempoolTxids();
 public:
     CHDMintTracker(std::string strWalletFile);
     ~CHDMintTracker();
@@ -53,7 +54,6 @@ public:
     bool UnArchive(const uint256& hashPubcoin, bool isDeterministic);
     bool UpdateZerocoinEntry(const CSigmaEntry& zerocoin);
     bool UpdateState(const CMintMeta& meta);
-    std::set<uint256> GetMempoolTxids();
     void Clear();
 };
 

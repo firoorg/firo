@@ -50,8 +50,6 @@ bool CHDMintTracker::Archive(CMintMeta& meta)
         mapSerialHashes.at(meta.hashSerial).isArchived = true;
 
    CWalletDB walletdb(strWalletFile);
-   CSigmaEntry zerocoin;
-    //failed to read mint from DB, try reading deterministic
     CHDMint dMint;
     if (!walletdb.ReadHDMint(hashPubcoin, dMint))
         return error("%s: could not find pubcoinhash %s in db", __func__, hashPubcoin.GetHex());
