@@ -523,11 +523,11 @@ UniValue dumpprivkey(const UniValue& params, bool fHelp)
     
     if (fHelp || params.size() != 1)
         throw runtime_error(
-            "dumpprivkey \"bitcoinaddress\"\n"
-            "\nReveals the private key corresponding to 'bitcoinaddress'.\n"
+            "dumpprivkey \"zcoinaddress\"\n"
+            "\nReveals the private key corresponding to 'zcoinaddress'.\n"
             "Then the importprivkey can be used with this output\n"
             "\nArguments:\n"
-            "1. \"bitcoinaddress\"   (string, required) The bitcoin address for the private key\n"
+            "1. \"zcoinaddress\"   (string, required) The bitcoin address for the private key\n"
             "\nResult:\n"
             "\"key\"                (string) The private key\n"
             "\nExamples:\n"
@@ -558,11 +558,11 @@ UniValue dumpprivkey_zcoin(const UniValue& params, bool fHelp)
 #ifndef UNSAFE_DUMPPRIVKEY
     if (fHelp || params.size() < 1 || params.size() > 2)
         throw runtime_error(
-            "dumpprivkey \"bitcoinaddress\"\n"
-            "\nReveals the private key corresponding to 'bitcoinaddress'.\n"
+            "dumpprivkey \"zcoinaddress\"\n"
+            "\nReveals the private key corresponding to 'zcoinaddress'.\n"
             "Then the importprivkey can be used with this output\n"
             "\nArguments:\n"
-            "1. \"bitcoinaddress\"   (string, required) The bitcoin address for the private key\n"
+            "1. \"zcoinaddress\"   (string, required) The bitcoin address for the private key\n"
             "2. \"one-time-auth-code\"   (string, optional) A one time authorization code received from a previous call of dumpprivkey"
             "\nResult:\n"
             "\"key\"                (string) The private key\n"
