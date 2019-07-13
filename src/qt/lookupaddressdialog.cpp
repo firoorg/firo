@@ -144,7 +144,7 @@ void LookupAddressDialog::searchAddress()
     // first let's check if we have a searchText, if not do nothing
     if (searchText.empty()) return;
 
-    // lets see if the string is a valid bitcoin address
+    // lets see if the string is a valid zcoin address
     CBitcoinAddress address;
     address.SetString(searchText); // no null check on searchText required we've already checked it's not empty above
     if (address.IsValid()) //do what?
